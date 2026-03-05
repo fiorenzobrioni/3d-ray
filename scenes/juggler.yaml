@@ -1,0 +1,184 @@
+# Ray-Tracing Scene - Classic Commodore Amiga Juggler Tribute
+# A figure constructed entirely of spheres juggling shiny balls
+
+world:
+  ambient_light: [0.1, 0.1, 0.15]
+  background: [0.05, 0.05, 0.1] # Dark background to highlight the spheres
+  ground:
+    type: "infinite_plane"
+    material: "floor_mirror"
+    y: 0.0
+
+camera:
+  position: [0, 6, -18]
+  look_at: [0, 5, 0]
+  fov: 45
+  aperture: 0.02
+  focal_dist: 18.0
+
+materials:
+  - id: "floor_mirror"
+    type: "metal"
+    color: [0.4, 0.4, 0.45]
+    fuzz: 0.05
+
+  - id: "jug_red"
+    type: "lambertian"
+    color: [0.8, 0.1, 0.1]
+
+  - id: "jug_white"
+    type: "lambertian"
+    color: [0.9, 0.9, 0.9]
+
+  # Juggling Balls Materials
+  - id: "ball_gold"
+    type: "metal"
+    color: [0.9, 0.8, 0.2]
+    fuzz: 0.1
+
+  - id: "ball_blue"
+    type: "dielectric"
+    refraction_index: 1.5
+
+  - id: "ball_green"
+    type: "metal"
+    color: [0.2, 0.9, 0.4]
+    fuzz: 0.0
+
+lights:
+  - type: "directional"
+    direction: [0.5, -1, -0.5]
+    color: [0.8, 0.8, 0.8]
+    intensity: 1.0
+
+  - type: "point"
+    position: [-5, 10, -5]
+    color: [1.0, 0.9, 0.9]
+    intensity: 60.0
+
+entities:
+  # Base/Feet
+  - name: "left_foot"
+    type: "sphere"
+    center: [-1.2, 0.6, 0]
+    radius: 0.6
+    material: "jug_red"
+  - name: "right_foot"
+    type: "sphere"
+    center: [1.2, 0.6, 0]
+    radius: 0.6
+    material: "jug_red"
+
+  # Legs
+  - name: "left_leg_1"
+    type: "sphere"
+    center: [-1.2, 1.8, 0]
+    radius: 0.6
+    material: "jug_white"
+  - name: "right_leg_1"
+    type: "sphere"
+    center: [1.2, 1.8, 0]
+    radius: 0.6
+    material: "jug_white"
+
+  - name: "left_leg_2"
+    type: "sphere"
+    center: [-1.0, 3.0, 0]
+    radius: 0.6
+    material: "jug_red"
+  - name: "right_leg_2"
+    type: "sphere"
+    center: [1.0, 3.0, 0]
+    radius: 0.6
+    material: "jug_red"
+
+  # Pelvis / Lower Torso
+  - name: "pelvis"
+    type: "sphere"
+    center: [0, 4.0, 0]
+    radius: 0.8
+    material: "jug_white"
+  
+  # Chest
+  - name: "chest_left"
+    type: "sphere"
+    center: [-0.6, 5.2, 0]
+    radius: 0.7
+    material: "jug_red"
+  - name: "chest_right"
+    type: "sphere"
+    center: [0.6, 5.2, 0]
+    radius: 0.7
+    material: "jug_white"
+  
+  # Shoulders
+  - name: "shoulder_left"
+    type: "sphere"
+    center: [-1.6, 6.2, 0]
+    radius: 0.6
+    material: "jug_white"
+  - name: "shoulder_right"
+    type: "sphere"
+    center: [1.6, 6.2, 0]
+    radius: 0.6
+    material: "jug_red"
+
+  # Head
+  - name: "head"
+    type: "sphere"
+    center: [0, 7.2, 0]
+    radius: 0.9
+    material: "jug_red"
+
+  # Left Arm
+  - name: "left_arm_1"
+    type: "sphere"
+    center: [-2.6, 5.8, 0.5]
+    radius: 0.5
+    material: "jug_red"
+  - name: "left_arm_2"
+    type: "sphere"
+    center: [-3.4, 6.0, 1.2]
+    radius: 0.4
+    material: "jug_white"
+  - name: "left_hand"
+    type: "sphere"
+    center: [-3.8, 6.6, 1.8]
+    radius: 0.35
+    material: "jug_red"
+
+  # Right Arm
+  - name: "right_arm_1"
+    type: "sphere"
+    center: [2.6, 5.8, 0.5]
+    radius: 0.5
+    material: "jug_white"
+  - name: "right_arm_2"
+    type: "sphere"
+    center: [3.4, 6.0, 1.2]
+    radius: 0.4
+    material: "jug_red"
+  - name: "right_hand"
+    type: "sphere"
+    center: [3.8, 6.6, 1.8]
+    radius: 0.35
+    material: "jug_white"
+
+  # Juggling Balls (In the air)
+  - name: "ball_1"
+    type: "sphere"
+    center: [-2.5, 9.5, 1.0]
+    radius: 0.8
+    material: "ball_gold"
+
+  - name: "ball_2"
+    type: "sphere"
+    center: [0, 11.0, 0]
+    radius: 0.8
+    material: "ball_blue"
+
+  - name: "ball_3"
+    type: "sphere"
+    center: [2.5, 8.5, -0.5]
+    radius: 0.8
+    material: "ball_green"

@@ -1,0 +1,98 @@
+# Ray-Tracing Scene — Sample Demo
+# Includes glass sphere, metal sphere, diffuse objects, box, and lighting.
+
+world:
+  ambient_light: [0.05, 0.05, 0.08]
+  background: [0.4, 0.6, 1.0]
+  ground:
+    type: "infinite_plane"
+    material: "matte_green"
+    y: -0.5
+
+camera:
+  position: [3, 2, -6]
+  look_at: [0, 0.5, 0]
+  fov: 45
+  aperture: 0.05
+  focal_dist: 7.0
+
+materials:
+  - id: "matte_green"
+    type: "lambertian"
+    color: [0.3, 0.6, 0.2]
+
+  - id: "matte_red"
+    type: "lambertian"
+    color: [0.8, 0.15, 0.1]
+
+  - id: "matte_blue"
+    type: "lambertian"
+    color: [0.1, 0.2, 0.8]
+
+  - id: "mirror"
+    type: "metal"
+    color: [0.9, 0.9, 0.95]
+    fuzz: 0.0
+
+  - id: "brushed_gold"
+    type: "metal"
+    color: [0.85, 0.65, 0.2]
+    fuzz: 0.3
+
+  - id: "glass"
+    type: "dielectric"
+    refraction_index: 1.5
+
+lights:
+  - type: "directional"
+    direction: [-0.5, -1, -0.3]
+    color: [1.0, 0.95, 0.85]
+    intensity: 0.9
+
+  - type: "point"
+    position: [5, 8, -3]
+    color: [1.0, 1.0, 1.0]
+    intensity: 80.0
+
+entities:
+  # Central glass sphere
+  - name: "glass_sphere"
+    type: "sphere"
+    center: [0, 0.5, 0]
+    radius: 1.0
+    material: "glass"
+
+  # Left metal sphere
+  - name: "metal_sphere"
+    type: "sphere"
+    center: [-2.5, 0.2, 0.5]
+    radius: 0.7
+    material: "mirror"
+
+  # Right gold sphere
+  - name: "gold_sphere"
+    type: "sphere"
+    center: [2.2, 0, 1.0]
+    radius: 0.5
+    material: "brushed_gold"
+
+  # Small red sphere behind
+  - name: "red_sphere"
+    type: "sphere"
+    center: [0.8, -0.1, 2.5]
+    radius: 0.4
+    material: "matte_red"
+
+  # Blue box
+  - name: "blue_box"
+    type: "box"
+    min: [-4, -0.5, -1.5]
+    max: [-3, 0.8, -0.3]
+    material: "matte_blue"
+
+  # Small blue sphere on far left
+  - name: "far_sphere"
+    type: "sphere"
+    center: [-1, -0.2, 3]
+    radius: 0.3
+    material: "matte_blue"

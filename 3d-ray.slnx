@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/RayTracer/">
+    <Project Path="src/RayTracer/RayTracer.csproj" />
+  </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="src/Tools/ChessGen/ChessGen.csproj" />
+    <Project Path="src/Tools/TeapotGen/TeapotGen.csproj" />
+  </Folder>
+</Solution>

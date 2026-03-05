@@ -1,0 +1,106 @@
+# Ray-Tracing Scene - Big Ben (Viewed from below)
+
+world:
+  ambient_light: [0.1, 0.1, 0.15]
+  background: [0.2, 0.3, 0.6]  # Evening/dusk sky
+  ground:
+    type: "infinite_plane"
+    material: "pavement"
+    y: 0.0
+
+camera:
+  position: [12, 2, -25]  # Low angle, far back
+  look_at: [0, 30, 0]     # Looking up at the tower
+  fov: 55
+  aperture: 0.1
+  focal_dist: 28.0
+
+materials:
+  - id: "pavement"
+    type: "lambertian"
+    color: [0.3, 0.3, 0.3]
+
+  - id: "stone_base"
+    type: "lambertian"
+    color: [0.65, 0.6, 0.5]
+
+  - id: "clock_face"
+    type: "lambertian"
+    color: [0.95, 0.95, 0.9]
+
+  - id: "roof_metal"
+    type: "metal"
+    color: [0.2, 0.25, 0.3]
+    fuzz: 0.4
+
+  - id: "gold_trim"
+    type: "metal"
+    color: [0.8, 0.65, 0.1]
+    fuzz: 0.1
+
+lights:
+  - type: "directional"
+    direction: [-0.3, -1, -0.2]
+    color: [1.0, 0.9, 0.8]
+    intensity: 0.8
+
+  - type: "point" # Street light near base
+    position: [10, 5, -10]
+    color: [1.0, 0.8, 0.4]
+    intensity: 50.0
+
+entities:
+  # Main Tower Shaft
+  - name: "base_shaft"
+    type: "box"
+    min: [-4, 0, -4]
+    max: [4, 25, 4]
+    material: "stone_base"
+
+  # Clock Section
+  - name: "clock_section"
+    type: "box"
+    min: [-4.5, 25, -4.5]
+    max: [4.5, 32, 4.5]
+    material: "stone_base"
+
+  # Clock Faces (One for each side, simplified as thin boxes)
+  - name: "clock_face_front"
+    type: "box"
+    min: [-2.5, 26.5, -4.6]
+    max: [2.5, 30.5, -4.5]
+    material: "clock_face"
+
+  - name: "clock_face_right"
+    type: "box"
+    min: [4.5, 26.5, -2.5]
+    max: [4.6, 30.5, 2.5]
+    material: "clock_face"
+
+  # Gold trims below clock
+  - name: "gold_trim_bottom"
+    type: "box"
+    min: [-4.8, 24.5, -4.8]
+    max: [4.8, 25, 4.8]
+    material: "gold_trim"
+
+  # Roof Base
+  - name: "roof_stage_1"
+    type: "box"
+    min: [-3.5, 32, -3.5]
+    max: [3.5, 35, 3.5]
+    material: "roof_metal"
+
+  # Roof Peak
+  - name: "roof_stage_2"
+    type: "box"
+    min: [-2, 35, -2]
+    max: [2, 38, 2]
+    material: "roof_metal"
+
+  # Top Spire
+  - name: "top_spire"
+    type: "box"
+    min: [-0.5, 38, -0.5]
+    max: [0.5, 42, 0.5]
+    material: "gold_trim"
