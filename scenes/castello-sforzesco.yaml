@@ -1,0 +1,1212 @@
+# Ray-Tracing Scene - Castello Sforzesco di Milano
+# Detailed model with Torre del Filarete, corner towers, curtain walls,
+# crenellations, courtyard, windows, and decorative elements.
+
+world:
+  ambient_light: [0.08, 0.07, 0.06]
+  background: [0.35, 0.50, 0.80]  # Clear Milanese sky
+  ground:
+    type: "infinite_plane"
+    material: "cobblestone"
+    y: 0.0
+
+camera:
+  position: [45, 8, -55]    # Low dramatic angle from front-right
+  look_at: [0, 18, 0]       # Looking up at the central tower
+  fov: 48
+  aperture: 0.08
+  focal_dist: 65.0
+
+materials:
+  - id: "cobblestone"
+    type: "lambertian"
+    color: [0.45, 0.42, 0.38]
+
+  - id: "brick_main"
+    type: "lambertian"
+    color: [0.62, 0.32, 0.22]
+
+  - id: "brick_dark"
+    type: "lambertian"
+    color: [0.50, 0.25, 0.18]
+
+  - id: "brick_tower"
+    type: "lambertian"
+    color: [0.58, 0.30, 0.20]
+
+  - id: "stone_trim"
+    type: "lambertian"
+    color: [0.78, 0.75, 0.68]
+
+  - id: "stone_base"
+    type: "lambertian"
+    color: [0.65, 0.62, 0.55]
+
+  - id: "marble_white"
+    type: "lambertian"
+    color: [0.90, 0.88, 0.84]
+
+  - id: "roof_tile"
+    type: "lambertian"
+    color: [0.55, 0.28, 0.18]
+
+  - id: "dark_wood"
+    type: "lambertian"
+    color: [0.25, 0.15, 0.08]
+
+  - id: "gate_metal"
+    type: "metal"
+    color: [0.20, 0.18, 0.16]
+    fuzz: 0.5
+
+  - id: "window_glass"
+    type: "dielectric"
+    refraction_index: 1.5
+
+  - id: "copper_aged"
+    type: "metal"
+    color: [0.30, 0.50, 0.35]
+    fuzz: 0.3
+
+  - id: "flag_red"
+    type: "lambertian"
+    color: [0.85, 0.12, 0.10]
+
+  - id: "moat_water"
+    type: "metal"
+    color: [0.15, 0.25, 0.30]
+    fuzz: 0.05
+
+lights:
+  - type: "directional"
+    direction: [-0.4, -0.8, 0.3]
+    color: [1.0, 0.92, 0.78]
+    intensity: 0.85
+
+  - type: "directional"
+    direction: [0.3, -0.5, -0.5]
+    color: [0.5, 0.55, 0.70]
+    intensity: 0.25
+
+  - type: "point"
+    position: [0, 40, -20]
+    color: [1.0, 0.95, 0.85]
+    intensity: 200.0
+
+entities:
+  # ============================================================
+  # MOAT (fossato) - water surrounding the castle
+  # ============================================================
+  - name: "moat_front"
+    type: "box"
+    min: [-38, -0.8, -40]
+    max: [38, 0.05, -32]
+    material: "moat_water"
+
+  - name: "moat_left"
+    type: "box"
+    min: [-38, -0.8, -40]
+    max: [-30, 0.05, 32]
+    material: "moat_water"
+
+  - name: "moat_right"
+    type: "box"
+    min: [30, -0.8, -40]
+    max: [38, 0.05, 32]
+    material: "moat_water"
+
+  - name: "moat_back"
+    type: "box"
+    min: [-38, -0.8, 24]
+    max: [38, 0.05, 32]
+    material: "moat_water"
+
+  # ============================================================
+  # STONE BASE / SCARPATA (sloped base of the walls)
+  # ============================================================
+  - name: "base_front"
+    type: "box"
+    min: [-30, 0, -32]
+    max: [30, 3, -28]
+    material: "stone_base"
+
+  - name: "base_left"
+    type: "box"
+    min: [-30, 0, -32]
+    max: [-26, 3, 24]
+    material: "stone_base"
+
+  - name: "base_right"
+    type: "box"
+    min: [26, 0, -32]
+    max: [30, 3, 24]
+    material: "stone_base"
+
+  - name: "base_back"
+    type: "box"
+    min: [-30, 0, 20]
+    max: [30, 3, 24]
+    material: "stone_base"
+
+  # ============================================================
+  # FRONT WALL (facciata principale)
+  # ============================================================
+  - name: "front_wall_left"
+    type: "box"
+    min: [-28, 3, -30]
+    max: [-4, 16, -27]
+    material: "brick_main"
+
+  - name: "front_wall_right"
+    type: "box"
+    min: [4, 3, -30]
+    max: [28, 16, -27]
+    material: "brick_main"
+
+  # Wall above the gate
+  - name: "front_wall_gate_top"
+    type: "box"
+    min: [-4, 10, -30]
+    max: [4, 16, -27]
+    material: "brick_main"
+
+  # Stone band on front wall
+  - name: "front_band_1"
+    type: "box"
+    min: [-28, 7, -30.1]
+    max: [28, 7.5, -29.9]
+    material: "stone_trim"
+
+  - name: "front_band_2"
+    type: "box"
+    min: [-28, 12, -30.1]
+    max: [28, 12.5, -29.9]
+    material: "stone_trim"
+
+  # ============================================================
+  # FRONT WALL CRENELLATIONS (merlature ghibelline)
+  # ============================================================
+  - name: "f_merlon_01"
+    type: "box"
+    min: [-27.5, 16, -30.2]
+    max: [-26.5, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_02"
+    type: "box"
+    min: [-25, 16, -30.2]
+    max: [-24, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_03"
+    type: "box"
+    min: [-22.5, 16, -30.2]
+    max: [-21.5, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_04"
+    type: "box"
+    min: [-20, 16, -30.2]
+    max: [-19, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_05"
+    type: "box"
+    min: [-17.5, 16, -30.2]
+    max: [-16.5, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_06"
+    type: "box"
+    min: [-15, 16, -30.2]
+    max: [-14, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_07"
+    type: "box"
+    min: [-12.5, 16, -30.2]
+    max: [-11.5, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_08"
+    type: "box"
+    min: [-10, 16, -30.2]
+    max: [-9, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_09"
+    type: "box"
+    min: [-7.5, 16, -30.2]
+    max: [-6.5, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_10"
+    type: "box"
+    min: [6.5, 16, -30.2]
+    max: [7.5, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_11"
+    type: "box"
+    min: [9, 16, -30.2]
+    max: [10, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_12"
+    type: "box"
+    min: [11.5, 16, -30.2]
+    max: [12.5, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_13"
+    type: "box"
+    min: [14, 16, -30.2]
+    max: [15, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_14"
+    type: "box"
+    min: [16.5, 16, -30.2]
+    max: [17.5, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_15"
+    type: "box"
+    min: [19, 16, -30.2]
+    max: [20, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_16"
+    type: "box"
+    min: [21.5, 16, -30.2]
+    max: [22.5, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_17"
+    type: "box"
+    min: [24, 16, -30.2]
+    max: [25, 18, -26.8]
+    material: "brick_main"
+
+  - name: "f_merlon_18"
+    type: "box"
+    min: [26.5, 16, -30.2]
+    max: [27.5, 18, -26.8]
+    material: "brick_main"
+
+  # ============================================================
+  # SIDE WALLS
+  # ============================================================
+  - name: "left_wall"
+    type: "box"
+    min: [-28, 3, -30]
+    max: [-25, 16, 22]
+    material: "brick_main"
+
+  - name: "right_wall"
+    type: "box"
+    min: [25, 3, -30]
+    max: [28, 16, 22]
+    material: "brick_main"
+
+  - name: "back_wall"
+    type: "box"
+    min: [-28, 3, 19]
+    max: [28, 16, 22]
+    material: "brick_main"
+
+  # Side wall stone bands
+  - name: "left_band"
+    type: "box"
+    min: [-28.1, 7, -30]
+    max: [-24.9, 7.5, 22]
+    material: "stone_trim"
+
+  - name: "right_band"
+    type: "box"
+    min: [24.9, 7, -30]
+    max: [28.1, 7.5, 22]
+    material: "stone_trim"
+
+  # ============================================================
+  # SIDE WALL CRENELLATIONS
+  # ============================================================
+  # Left wall merlons
+  - name: "l_merlon_01"
+    type: "box"
+    min: [-28.2, 16, -28]
+    max: [-24.8, 18, -27]
+    material: "brick_main"
+
+  - name: "l_merlon_02"
+    type: "box"
+    min: [-28.2, 16, -25]
+    max: [-24.8, 18, -24]
+    material: "brick_main"
+
+  - name: "l_merlon_03"
+    type: "box"
+    min: [-28.2, 16, -22]
+    max: [-24.8, 18, -21]
+    material: "brick_main"
+
+  - name: "l_merlon_04"
+    type: "box"
+    min: [-28.2, 16, -19]
+    max: [-24.8, 18, -18]
+    material: "brick_main"
+
+  - name: "l_merlon_05"
+    type: "box"
+    min: [-28.2, 16, -16]
+    max: [-24.8, 18, -15]
+    material: "brick_main"
+
+  - name: "l_merlon_06"
+    type: "box"
+    min: [-28.2, 16, -13]
+    max: [-24.8, 18, -12]
+    material: "brick_main"
+
+  - name: "l_merlon_07"
+    type: "box"
+    min: [-28.2, 16, -10]
+    max: [-24.8, 18, -9]
+    material: "brick_main"
+
+  - name: "l_merlon_08"
+    type: "box"
+    min: [-28.2, 16, -7]
+    max: [-24.8, 18, -6]
+    material: "brick_main"
+
+  - name: "l_merlon_09"
+    type: "box"
+    min: [-28.2, 16, -4]
+    max: [-24.8, 18, -3]
+    material: "brick_main"
+
+  - name: "l_merlon_10"
+    type: "box"
+    min: [-28.2, 16, -1]
+    max: [-24.8, 18, 0]
+    material: "brick_main"
+
+  - name: "l_merlon_11"
+    type: "box"
+    min: [-28.2, 16, 2]
+    max: [-24.8, 18, 3]
+    material: "brick_main"
+
+  - name: "l_merlon_12"
+    type: "box"
+    min: [-28.2, 16, 5]
+    max: [-24.8, 18, 6]
+    material: "brick_main"
+
+  - name: "l_merlon_13"
+    type: "box"
+    min: [-28.2, 16, 8]
+    max: [-24.8, 18, 9]
+    material: "brick_main"
+
+  - name: "l_merlon_14"
+    type: "box"
+    min: [-28.2, 16, 11]
+    max: [-24.8, 18, 12]
+    material: "brick_main"
+
+  - name: "l_merlon_15"
+    type: "box"
+    min: [-28.2, 16, 14]
+    max: [-24.8, 18, 15]
+    material: "brick_main"
+
+  - name: "l_merlon_16"
+    type: "box"
+    min: [-28.2, 16, 17]
+    max: [-24.8, 18, 18]
+    material: "brick_main"
+
+  - name: "l_merlon_17"
+    type: "box"
+    min: [-28.2, 16, 20]
+    max: [-24.8, 18, 21]
+    material: "brick_main"
+
+  # Right wall merlons
+  - name: "r_merlon_01"
+    type: "box"
+    min: [24.8, 16, -28]
+    max: [28.2, 18, -27]
+    material: "brick_main"
+
+  - name: "r_merlon_02"
+    type: "box"
+    min: [24.8, 16, -25]
+    max: [28.2, 18, -24]
+    material: "brick_main"
+
+  - name: "r_merlon_03"
+    type: "box"
+    min: [24.8, 16, -22]
+    max: [28.2, 18, -21]
+    material: "brick_main"
+
+  - name: "r_merlon_04"
+    type: "box"
+    min: [24.8, 16, -19]
+    max: [28.2, 18, -18]
+    material: "brick_main"
+
+  - name: "r_merlon_05"
+    type: "box"
+    min: [24.8, 16, -16]
+    max: [28.2, 18, -15]
+    material: "brick_main"
+
+  - name: "r_merlon_06"
+    type: "box"
+    min: [24.8, 16, -13]
+    max: [28.2, 18, -12]
+    material: "brick_main"
+
+  - name: "r_merlon_07"
+    type: "box"
+    min: [24.8, 16, -10]
+    max: [28.2, 18, -9]
+    material: "brick_main"
+
+  - name: "r_merlon_08"
+    type: "box"
+    min: [24.8, 16, -7]
+    max: [28.2, 18, -6]
+    material: "brick_main"
+
+  - name: "r_merlon_09"
+    type: "box"
+    min: [24.8, 16, -4]
+    max: [28.2, 18, -3]
+    material: "brick_main"
+
+  - name: "r_merlon_10"
+    type: "box"
+    min: [24.8, 16, -1]
+    max: [28.2, 18, 0]
+    material: "brick_main"
+
+  - name: "r_merlon_11"
+    type: "box"
+    min: [24.8, 16, 2]
+    max: [28.2, 18, 3]
+    material: "brick_main"
+
+  - name: "r_merlon_12"
+    type: "box"
+    min: [24.8, 16, 5]
+    max: [28.2, 18, 6]
+    material: "brick_main"
+
+  - name: "r_merlon_13"
+    type: "box"
+    min: [24.8, 16, 8]
+    max: [28.2, 18, 9]
+    material: "brick_main"
+
+  - name: "r_merlon_14"
+    type: "box"
+    min: [24.8, 16, 11]
+    max: [28.2, 18, 12]
+    material: "brick_main"
+
+  - name: "r_merlon_15"
+    type: "box"
+    min: [24.8, 16, 14]
+    max: [28.2, 18, 15]
+    material: "brick_main"
+
+  - name: "r_merlon_16"
+    type: "box"
+    min: [24.8, 16, 17]
+    max: [28.2, 18, 18]
+    material: "brick_main"
+
+  - name: "r_merlon_17"
+    type: "box"
+    min: [24.8, 16, 20]
+    max: [28.2, 18, 21]
+    material: "brick_main"
+
+  # ============================================================
+  # TORRE DEL FILARETE (central front tower)
+  # ============================================================
+  # Tower base
+  - name: "filarete_base"
+    type: "box"
+    min: [-6, 3, -33]
+    max: [6, 6, -25]
+    material: "stone_base"
+
+  # Tower main shaft
+  - name: "filarete_shaft"
+    type: "box"
+    min: [-5, 6, -32]
+    max: [5, 28, -26]
+    material: "brick_tower"
+
+  # Tower stone bands
+  - name: "filarete_band_1"
+    type: "box"
+    min: [-5.2, 10, -32.1]
+    max: [5.2, 10.4, -25.9]
+    material: "stone_trim"
+
+  - name: "filarete_band_2"
+    type: "box"
+    min: [-5.2, 15, -32.1]
+    max: [5.2, 15.4, -25.9]
+    material: "stone_trim"
+
+  - name: "filarete_band_3"
+    type: "box"
+    min: [-5.2, 20, -32.1]
+    max: [5.2, 20.4, -25.9]
+    material: "stone_trim"
+
+  - name: "filarete_band_4"
+    type: "box"
+    min: [-5.2, 25, -32.1]
+    max: [5.2, 25.4, -25.9]
+    material: "stone_trim"
+
+  # Tower clock face
+  - name: "filarete_clock"
+    type: "cylinder"
+    center: [0, 22, -32.1]
+    radius: 2.5
+    height: 0.3
+    material: "marble_white"
+
+  # Clock center dot
+  - name: "filarete_clock_center"
+    type: "sphere"
+    center: [0, 22, -32.5]
+    radius: 0.3
+    material: "gate_metal"
+
+  # Tower upper gallery (loggia)
+  - name: "filarete_gallery_base"
+    type: "box"
+    min: [-5.5, 25, -32.5]
+    max: [5.5, 26, -25.5]
+    material: "stone_trim"
+
+  # Gallery columns (front)
+  - name: "fgal_col_1"
+    type: "cylinder"
+    center: [-4, 26, -32.3]
+    radius: 0.25
+    height: 3.0
+    material: "marble_white"
+
+  - name: "fgal_col_2"
+    type: "cylinder"
+    center: [-2, 26, -32.3]
+    radius: 0.25
+    height: 3.0
+    material: "marble_white"
+
+  - name: "fgal_col_3"
+    type: "cylinder"
+    center: [0, 26, -32.3]
+    radius: 0.25
+    height: 3.0
+    material: "marble_white"
+
+  - name: "fgal_col_4"
+    type: "cylinder"
+    center: [2, 26, -32.3]
+    radius: 0.25
+    height: 3.0
+    material: "marble_white"
+
+  - name: "fgal_col_5"
+    type: "cylinder"
+    center: [4, 26, -32.3]
+    radius: 0.25
+    height: 3.0
+    material: "marble_white"
+
+  # Gallery top
+  - name: "filarete_gallery_top"
+    type: "box"
+    min: [-5.5, 29, -32.5]
+    max: [5.5, 30, -25.5]
+    material: "stone_trim"
+
+  # Tower crown crenellations
+  - name: "ft_merlon_1"
+    type: "box"
+    min: [-5.0, 30, -32.6]
+    max: [-4.0, 32, -25.4]
+    material: "brick_tower"
+
+  - name: "ft_merlon_2"
+    type: "box"
+    min: [-3.0, 30, -32.6]
+    max: [-2.0, 32, -25.4]
+    material: "brick_tower"
+
+  - name: "ft_merlon_3"
+    type: "box"
+    min: [-1.0, 30, -32.6]
+    max: [0, 32, -25.4]
+    material: "brick_tower"
+
+  - name: "ft_merlon_4"
+    type: "box"
+    min: [1.0, 30, -32.6]
+    max: [2.0, 32, -25.4]
+    material: "brick_tower"
+
+  - name: "ft_merlon_5"
+    type: "box"
+    min: [3.0, 30, -32.6]
+    max: [4.0, 32, -25.4]
+    material: "brick_tower"
+
+  # Tower pointed roof
+  - name: "filarete_roof_1"
+    type: "box"
+    min: [-4, 32, -31]
+    max: [4, 35, -27]
+    material: "roof_tile"
+
+  - name: "filarete_roof_2"
+    type: "box"
+    min: [-3, 35, -30.5]
+    max: [3, 37, -27.5]
+    material: "roof_tile"
+
+  - name: "filarete_roof_3"
+    type: "box"
+    min: [-2, 37, -30]
+    max: [2, 39, -28]
+    material: "roof_tile"
+
+  - name: "filarete_roof_4"
+    type: "box"
+    min: [-1, 39, -29.5]
+    max: [1, 41, -28.5]
+    material: "roof_tile"
+
+  - name: "filarete_roof_5"
+    type: "box"
+    min: [-0.4, 41, -29.3]
+    max: [0.4, 43, -28.7]
+    material: "roof_tile"
+
+  # Spire
+  - name: "filarete_spire"
+    type: "cylinder"
+    center: [0, 43, -29]
+    radius: 0.15
+    height: 3.0
+    material: "copper_aged"
+
+  # Spire top sphere
+  - name: "filarete_spire_ball"
+    type: "sphere"
+    center: [0, 46.2, -29]
+    radius: 0.35
+    material: "copper_aged"
+
+  # Gate opening (dark recess)
+  - name: "gate_recess"
+    type: "box"
+    min: [-3, 3, -30.5]
+    max: [3, 10, -27]
+    material: "dark_wood"
+
+  # Gate arch stone frame
+  - name: "gate_arch_left"
+    type: "box"
+    min: [-3.5, 3, -30.6]
+    max: [-3, 10, -26.9]
+    material: "stone_trim"
+
+  - name: "gate_arch_right"
+    type: "box"
+    min: [3, 3, -30.6]
+    max: [3.5, 10, -26.9]
+    material: "stone_trim"
+
+  - name: "gate_arch_top"
+    type: "box"
+    min: [-3.5, 9.5, -30.6]
+    max: [3.5, 10.5, -26.9]
+    material: "stone_trim"
+
+  # Gate arch keystone
+  - name: "gate_keystone"
+    type: "box"
+    min: [-0.5, 10, -30.7]
+    max: [0.5, 11, -26.8]
+    material: "marble_white"
+
+  # ============================================================
+  # CORNER TOWERS (torri angolari cilindriche)
+  # ============================================================
+  # Front-Left corner tower
+  - name: "tower_fl_base"
+    type: "cylinder"
+    center: [-28, 0, -30]
+    radius: 5.0
+    height: 3.0
+    material: "stone_base"
+
+  - name: "tower_fl_shaft"
+    type: "cylinder"
+    center: [-28, 3, -30]
+    radius: 4.5
+    height: 17.0
+    material: "brick_dark"
+
+  - name: "tower_fl_cap_band"
+    type: "cylinder"
+    center: [-28, 20, -30]
+    radius: 5.0
+    height: 1.0
+    material: "stone_trim"
+
+  - name: "tower_fl_upper"
+    type: "cylinder"
+    center: [-28, 21, -30]
+    radius: 4.5
+    height: 3.0
+    material: "brick_dark"
+
+  - name: "tower_fl_roof"
+    type: "cylinder"
+    center: [-28, 24, -30]
+    radius: 5.5
+    height: 0.5
+    material: "roof_tile"
+
+  # Front-Right corner tower
+  - name: "tower_fr_base"
+    type: "cylinder"
+    center: [28, 0, -30]
+    radius: 5.0
+    height: 3.0
+    material: "stone_base"
+
+  - name: "tower_fr_shaft"
+    type: "cylinder"
+    center: [28, 3, -30]
+    radius: 4.5
+    height: 17.0
+    material: "brick_dark"
+
+  - name: "tower_fr_cap_band"
+    type: "cylinder"
+    center: [28, 20, -30]
+    radius: 5.0
+    height: 1.0
+    material: "stone_trim"
+
+  - name: "tower_fr_upper"
+    type: "cylinder"
+    center: [28, 21, -30]
+    radius: 4.5
+    height: 3.0
+    material: "brick_dark"
+
+  - name: "tower_fr_roof"
+    type: "cylinder"
+    center: [28, 24, -30]
+    radius: 5.5
+    height: 0.5
+    material: "roof_tile"
+
+  # Back-Left corner tower
+  - name: "tower_bl_base"
+    type: "cylinder"
+    center: [-28, 0, 22]
+    radius: 5.0
+    height: 3.0
+    material: "stone_base"
+
+  - name: "tower_bl_shaft"
+    type: "cylinder"
+    center: [-28, 3, 22]
+    radius: 4.5
+    height: 17.0
+    material: "brick_dark"
+
+  - name: "tower_bl_cap_band"
+    type: "cylinder"
+    center: [-28, 20, 22]
+    radius: 5.0
+    height: 1.0
+    material: "stone_trim"
+
+  - name: "tower_bl_upper"
+    type: "cylinder"
+    center: [-28, 21, 22]
+    radius: 4.5
+    height: 3.0
+    material: "brick_dark"
+
+  - name: "tower_bl_roof"
+    type: "cylinder"
+    center: [-28, 24, 22]
+    radius: 5.5
+    height: 0.5
+    material: "roof_tile"
+
+  # Back-Right corner tower
+  - name: "tower_br_base"
+    type: "cylinder"
+    center: [28, 0, 22]
+    radius: 5.0
+    height: 3.0
+    material: "stone_base"
+
+  - name: "tower_br_shaft"
+    type: "cylinder"
+    center: [28, 3, 22]
+    radius: 4.5
+    height: 17.0
+    material: "brick_dark"
+
+  - name: "tower_br_cap_band"
+    type: "cylinder"
+    center: [28, 20, 22]
+    radius: 5.0
+    height: 1.0
+    material: "stone_trim"
+
+  - name: "tower_br_upper"
+    type: "cylinder"
+    center: [28, 21, 22]
+    radius: 4.5
+    height: 3.0
+    material: "brick_dark"
+
+  - name: "tower_br_roof"
+    type: "cylinder"
+    center: [28, 24, 22]
+    radius: 5.5
+    height: 0.5
+    material: "roof_tile"
+
+  # ============================================================
+  # FRONT WALL WINDOWS (bifore)
+  # ============================================================
+  # Left section windows
+  - name: "fw_win_l1"
+    type: "box"
+    min: [-22, 8.5, -30.2]
+    max: [-20, 11.5, -29.8]
+    material: "dark_wood"
+
+  - name: "fw_win_l1_frame"
+    type: "box"
+    min: [-22.2, 8.3, -30.3]
+    max: [-19.8, 11.7, -30.15]
+    material: "stone_trim"
+
+  - name: "fw_win_l2"
+    type: "box"
+    min: [-17, 8.5, -30.2]
+    max: [-15, 11.5, -29.8]
+    material: "dark_wood"
+
+  - name: "fw_win_l2_frame"
+    type: "box"
+    min: [-17.2, 8.3, -30.3]
+    max: [-14.8, 11.7, -30.15]
+    material: "stone_trim"
+
+  - name: "fw_win_l3"
+    type: "box"
+    min: [-12, 8.5, -30.2]
+    max: [-10, 11.5, -29.8]
+    material: "dark_wood"
+
+  - name: "fw_win_l3_frame"
+    type: "box"
+    min: [-12.2, 8.3, -30.3]
+    max: [-9.8, 11.7, -30.15]
+    material: "stone_trim"
+
+  # Right section windows
+  - name: "fw_win_r1"
+    type: "box"
+    min: [10, 8.5, -30.2]
+    max: [12, 11.5, -29.8]
+    material: "dark_wood"
+
+  - name: "fw_win_r1_frame"
+    type: "box"
+    min: [9.8, 8.3, -30.3]
+    max: [12.2, 11.7, -30.15]
+    material: "stone_trim"
+
+  - name: "fw_win_r2"
+    type: "box"
+    min: [15, 8.5, -30.2]
+    max: [17, 11.5, -29.8]
+    material: "dark_wood"
+
+  - name: "fw_win_r2_frame"
+    type: "box"
+    min: [14.8, 8.3, -30.3]
+    max: [17.2, 11.7, -30.15]
+    material: "stone_trim"
+
+  - name: "fw_win_r3"
+    type: "box"
+    min: [20, 8.5, -30.2]
+    max: [22, 11.5, -29.8]
+    material: "dark_wood"
+
+  - name: "fw_win_r3_frame"
+    type: "box"
+    min: [19.8, 8.3, -30.3]
+    max: [22.2, 11.7, -30.15]
+    material: "stone_trim"
+
+  # Upper row small windows
+  - name: "fw_uwin_l1"
+    type: "box"
+    min: [-22, 13, -30.2]
+    max: [-21, 14.5, -29.8]
+    material: "dark_wood"
+
+  - name: "fw_uwin_l2"
+    type: "box"
+    min: [-17, 13, -30.2]
+    max: [-16, 14.5, -29.8]
+    material: "dark_wood"
+
+  - name: "fw_uwin_l3"
+    type: "box"
+    min: [-12, 13, -30.2]
+    max: [-11, 14.5, -29.8]
+    material: "dark_wood"
+
+  - name: "fw_uwin_r1"
+    type: "box"
+    min: [11, 13, -30.2]
+    max: [12, 14.5, -29.8]
+    material: "dark_wood"
+
+  - name: "fw_uwin_r2"
+    type: "box"
+    min: [16, 13, -30.2]
+    max: [17, 14.5, -29.8]
+    material: "dark_wood"
+
+  - name: "fw_uwin_r3"
+    type: "box"
+    min: [21, 13, -30.2]
+    max: [22, 14.5, -29.8]
+    material: "dark_wood"
+
+  # ============================================================
+  # TORRE DEL FILARETE WINDOWS
+  # ============================================================
+  - name: "ft_win_1"
+    type: "box"
+    min: [-1.5, 11, -32.2]
+    max: [1.5, 14, -31.8]
+    material: "dark_wood"
+
+  - name: "ft_win_1_frame"
+    type: "box"
+    min: [-1.7, 10.8, -32.3]
+    max: [1.7, 14.2, -32.1]
+    material: "stone_trim"
+
+  - name: "ft_win_2"
+    type: "box"
+    min: [-1.5, 16, -32.2]
+    max: [1.5, 19, -31.8]
+    material: "dark_wood"
+
+  - name: "ft_win_2_frame"
+    type: "box"
+    min: [-1.7, 15.8, -32.3]
+    max: [1.7, 19.2, -32.1]
+    material: "stone_trim"
+
+  # ============================================================
+  # COURTYARD FLOOR
+  # ============================================================
+  - name: "courtyard_floor"
+    type: "box"
+    min: [-25, 0.01, -27]
+    max: [25, 0.1, 19]
+    material: "cobblestone"
+
+  # ============================================================
+  # COAT OF ARMS (stemma Visconteo - simplified)
+  # ============================================================
+  - name: "coat_of_arms_bg"
+    type: "box"
+    min: [-1.8, 11.5, -30.65]
+    max: [1.8, 15, -30.55]
+    material: "marble_white"
+
+  - name: "coat_of_arms_shield"
+    type: "sphere"
+    center: [0, 13.2, -30.7]
+    radius: 1.2
+    material: "stone_trim"
+
+  # ============================================================
+  # BRIDGE OVER MOAT (ponte di accesso)
+  # ============================================================
+  - name: "bridge_deck"
+    type: "box"
+    min: [-4, 2.5, -40]
+    max: [4, 3.5, -30]
+    material: "stone_base"
+
+  - name: "bridge_left_wall"
+    type: "box"
+    min: [-4, 3.5, -40]
+    max: [-3.5, 5, -30]
+    material: "stone_base"
+
+  - name: "bridge_right_wall"
+    type: "box"
+    min: [3.5, 3.5, -40]
+    max: [4, 5, -30]
+    material: "stone_base"
+
+  # Bridge support pillars
+  - name: "bridge_pillar_1"
+    type: "cylinder"
+    center: [0, 0, -36]
+    radius: 1.2
+    height: 3.0
+    material: "stone_base"
+
+  - name: "bridge_pillar_2"
+    type: "cylinder"
+    center: [0, 0, -33]
+    radius: 1.2
+    height: 3.0
+    material: "stone_base"
+
+  # ============================================================
+  # FLAG ON TOP OF FILARETE TOWER
+  # ============================================================
+  - name: "flag_pole"
+    type: "cylinder"
+    center: [0, 46, -29]
+    radius: 0.06
+    height: 3.0
+    material: "gate_metal"
+
+  - name: "flag_banner"
+    type: "box"
+    min: [0.06, 47.5, -29.3]
+    max: [2.5, 49, -28.7]
+    material: "flag_red"
+
+  # ============================================================
+  # INNER COURTYARD COLUMNS (portico Rocchetta)
+  # ============================================================
+  - name: "court_col_01"
+    type: "cylinder"
+    center: [-22, 0.1, -24]
+    radius: 0.4
+    height: 6.0
+    material: "marble_white"
+
+  - name: "court_col_02"
+    type: "cylinder"
+    center: [-22, 0.1, -20]
+    radius: 0.4
+    height: 6.0
+    material: "marble_white"
+
+  - name: "court_col_03"
+    type: "cylinder"
+    center: [-22, 0.1, -16]
+    radius: 0.4
+    height: 6.0
+    material: "marble_white"
+
+  - name: "court_col_04"
+    type: "cylinder"
+    center: [-22, 0.1, -12]
+    radius: 0.4
+    height: 6.0
+    material: "marble_white"
+
+  - name: "court_col_05"
+    type: "cylinder"
+    center: [-22, 0.1, -8]
+    radius: 0.4
+    height: 6.0
+    material: "marble_white"
+
+  - name: "court_col_06"
+    type: "cylinder"
+    center: [-22, 0.1, -4]
+    radius: 0.4
+    height: 6.0
+    material: "marble_white"
+
+  - name: "court_col_07"
+    type: "cylinder"
+    center: [-22, 0.1, 0]
+    radius: 0.4
+    height: 6.0
+    material: "marble_white"
+
+  - name: "court_col_08"
+    type: "cylinder"
+    center: [-22, 0.1, 4]
+    radius: 0.4
+    height: 6.0
+    material: "marble_white"
+
+  # Portico architrave
+  - name: "court_architrave_left"
+    type: "box"
+    min: [-23, 6.1, -25]
+    max: [-21, 6.6, 5]
+    material: "stone_trim"
+
+  # ============================================================
+  # DECORATIVE SPHERES ON CORNER TOWERS
+  # ============================================================
+  - name: "deco_fl_sphere"
+    type: "sphere"
+    center: [-28, 25, -30]
+    radius: 0.8
+    material: "copper_aged"
+
+  - name: "deco_fr_sphere"
+    type: "sphere"
+    center: [28, 25, -30]
+    radius: 0.8
+    material: "copper_aged"
+
+  - name: "deco_bl_sphere"
+    type: "sphere"
+    center: [-28, 25, 22]
+    radius: 0.8
+    material: "copper_aged"
+
+  - name: "deco_br_sphere"
+    type: "sphere"
+    center: [28, 25, 22]
+    radius: 0.8
+    material: "copper_aged"

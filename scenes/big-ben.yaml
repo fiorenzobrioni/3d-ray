@@ -1,106 +1,3678 @@
-# Ray-Tracing Scene - Big Ben (Viewed from below)
+# Ray-Tracing Scene - Elizabeth Tower (Big Ben) - London
+# Procedurally generated with thousands of fine primitives
 
 world:
-  ambient_light: [0.1, 0.1, 0.15]
-  background: [0.2, 0.3, 0.6]  # Evening/dusk sky
+  ambient_light: [0.06, 0.06, 0.09]
+  background: [0.18, 0.25, 0.50]  # Twilight London sky
   ground:
     type: "infinite_plane"
     material: "pavement"
     y: 0.0
 
 camera:
-  position: [12, 2, -25]  # Low angle, far back
-  look_at: [0, 30, 0]     # Looking up at the tower
-  fov: 55
-  aperture: 0.1
-  focal_dist: 28.0
+  position: [18, 3.5, -35]   # Low dramatic angle from across the Thames
+  look_at: [0, 32, 0]
+  fov: 50
+  aperture: 0.08
+  focal_dist: 42.0
 
 materials:
   - id: "pavement"
     type: "lambertian"
-    color: [0.3, 0.3, 0.3]
+    color: [0.350, 0.330, 0.300]
 
-  - id: "stone_base"
+  - id: "limestone"
     type: "lambertian"
-    color: [0.65, 0.6, 0.5]
+    color: [0.820, 0.780, 0.680]
 
-  - id: "clock_face"
+  - id: "limestone_dark"
     type: "lambertian"
-    color: [0.95, 0.95, 0.9]
+    color: [0.650, 0.600, 0.500]
 
-  - id: "roof_metal"
+  - id: "stone_detail"
+    type: "lambertian"
+    color: [0.750, 0.720, 0.650]
+
+  - id: "clock_white"
+    type: "lambertian"
+    color: [0.950, 0.930, 0.880]
+
+  - id: "clock_rim"
     type: "metal"
-    color: [0.2, 0.25, 0.3]
-    fuzz: 0.4
+    color: [0.850, 0.750, 0.200]
+    fuzz: 0.150
+
+  - id: "clock_hand"
+    type: "metal"
+    color: [0.100, 0.100, 0.100]
+    fuzz: 0.300
+
+  - id: "iron_dark"
+    type: "metal"
+    color: [0.180, 0.160, 0.140]
+    fuzz: 0.500
 
   - id: "gold_trim"
     type: "metal"
-    color: [0.8, 0.65, 0.1]
-    fuzz: 0.1
+    color: [0.900, 0.750, 0.150]
+    fuzz: 0.100
+
+  - id: "copper_roof"
+    type: "metal"
+    color: [0.250, 0.450, 0.300]
+    fuzz: 0.250
+
+  - id: "glass_window"
+    type: "dielectric"
+    refraction_index: 1.500
+
+  - id: "warm_light"
+    type: "lambertian"
+    color: [1.000, 0.900, 0.600]
+
+  - id: "dark_recess"
+    type: "lambertian"
+    color: [0.120, 0.100, 0.080]
+
+  - id: "thames_water"
+    type: "metal"
+    color: [0.120, 0.180, 0.220]
+    fuzz: 0.050
+
+  - id: "bridge_stone"
+    type: "lambertian"
+    color: [0.550, 0.520, 0.480]
+
+  - id: "red_bus"
+    type: "lambertian"
+    color: [0.800, 0.100, 0.080]
+
+  - id: "fence_iron"
+    type: "metal"
+    color: [0.150, 0.140, 0.130]
+    fuzz: 0.400
+
 
 lights:
   - type: "directional"
-    direction: [-0.3, -1, -0.2]
-    color: [1.0, 0.9, 0.8]
-    intensity: 0.8
+    direction: [-0.3, -0.8, 0.2]
+    color: [1.0, 0.85, 0.65]
+    intensity: 0.7
 
-  - type: "point" # Street light near base
-    position: [10, 5, -10]
-    color: [1.0, 0.8, 0.4]
-    intensity: 50.0
+  - type: "directional"
+    direction: [0.4, -0.4, -0.6]
+    color: [0.40, 0.45, 0.65]
+    intensity: 0.20
+
+  - type: "point"
+    position: [0, 55, -5]
+    color: [1.0, 0.95, 0.80]
+    intensity: 300.0
+
+  - type: "point"         # Ayrton Light glow
+    position: [0, 62, 0]
+    color: [1.0, 0.92, 0.55]
+    intensity: 120.0
 
 entities:
-  # Main Tower Shaft
-  - name: "base_shaft"
+  - name: "thames_water"
     type: "box"
-    min: [-4, 0, -4]
-    max: [4, 25, 4]
-    material: "stone_base"
-
-  # Clock Section
-  - name: "clock_section"
+    min: [-60.000, -0.600, -10.000]
+    max: [60.000, 0.000, 40.000]
+    material: "thames_water"
+  - name: "bridge_deck"
     type: "box"
-    min: [-4.5, 25, -4.5]
-    max: [4.5, 32, 4.5]
-    material: "stone_base"
-
-  # Clock Faces (One for each side, simplified as thin boxes)
-  - name: "clock_face_front"
+    min: [-20.000, 0.000, -21.000]
+    max: [20.000, 1.000, -15.000]
+    material: "bridge_stone"
+  - name: "bridge_wall_l"
     type: "box"
-    min: [-2.5, 26.5, -4.6]
-    max: [2.5, 30.5, -4.5]
-    material: "clock_face"
-
-  - name: "clock_face_right"
+    min: [-20.000, 0.500, -21.000]
+    max: [-18.000, 1.900, -15.000]
+    material: "bridge_stone"
+  - name: "bridge_wall_r"
     type: "box"
-    min: [4.5, 26.5, -2.5]
-    max: [4.6, 30.5, 2.5]
-    material: "clock_face"
-
-  # Gold trims below clock
-  - name: "gold_trim_bottom"
+    min: [18.000, 0.500, -21.000]
+    max: [20.000, 1.900, -15.000]
+    material: "bridge_stone"
+  - name: "bridge_pier_0"
+    type: "cylinder"
+    center: [-15.000, -0.500, -18.000]
+    radius: 1.200
+    height: 1.500
+    material: "bridge_stone"
+  - name: "bridge_pier_1"
+    type: "cylinder"
+    center: [-9.000, -0.500, -18.000]
+    radius: 1.200
+    height: 1.500
+    material: "bridge_stone"
+  - name: "bridge_pier_2"
+    type: "cylinder"
+    center: [-3.000, -0.500, -18.000]
+    radius: 1.200
+    height: 1.500
+    material: "bridge_stone"
+  - name: "bridge_pier_3"
+    type: "cylinder"
+    center: [3.000, -0.500, -18.000]
+    radius: 1.200
+    height: 1.500
+    material: "bridge_stone"
+  - name: "bridge_pier_4"
+    type: "cylinder"
+    center: [9.000, -0.500, -18.000]
+    radius: 1.200
+    height: 1.500
+    material: "bridge_stone"
+  - name: "bridge_pier_5"
+    type: "cylinder"
+    center: [15.000, -0.500, -18.000]
+    radius: 1.200
+    height: 1.500
+    material: "bridge_stone"
+  - name: "embankment"
     type: "box"
-    min: [-4.8, 24.5, -4.8]
-    max: [4.8, 25, 4.8]
+    min: [-30.000, 0.000, -16.000]
+    max: [30.000, 0.600, 0.000]
+    material: "pavement"
+  - name: "fence_post_0"
+    type: "cylinder"
+    center: [-20.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_0"
+    type: "box"
+    min: [-20.000, 1.430, -14.520]
+    max: [-19.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_0"
+    type: "box"
+    min: [-20.000, 0.880, -14.520]
+    max: [-19.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_1"
+    type: "cylinder"
+    center: [-19.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_1"
+    type: "box"
+    min: [-19.000, 1.430, -14.520]
+    max: [-18.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_1"
+    type: "box"
+    min: [-19.000, 0.880, -14.520]
+    max: [-18.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_2"
+    type: "cylinder"
+    center: [-18.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_2"
+    type: "box"
+    min: [-18.000, 1.430, -14.520]
+    max: [-17.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_2"
+    type: "box"
+    min: [-18.000, 0.880, -14.520]
+    max: [-17.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_3"
+    type: "cylinder"
+    center: [-17.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_3"
+    type: "box"
+    min: [-17.000, 1.430, -14.520]
+    max: [-16.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_3"
+    type: "box"
+    min: [-17.000, 0.880, -14.520]
+    max: [-16.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_4"
+    type: "cylinder"
+    center: [-16.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_4"
+    type: "box"
+    min: [-16.000, 1.430, -14.520]
+    max: [-15.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_4"
+    type: "box"
+    min: [-16.000, 0.880, -14.520]
+    max: [-15.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_5"
+    type: "cylinder"
+    center: [-15.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_5"
+    type: "box"
+    min: [-15.000, 1.430, -14.520]
+    max: [-14.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_5"
+    type: "box"
+    min: [-15.000, 0.880, -14.520]
+    max: [-14.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_6"
+    type: "cylinder"
+    center: [-14.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_6"
+    type: "box"
+    min: [-14.000, 1.430, -14.520]
+    max: [-13.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_6"
+    type: "box"
+    min: [-14.000, 0.880, -14.520]
+    max: [-13.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_7"
+    type: "cylinder"
+    center: [-13.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_7"
+    type: "box"
+    min: [-13.000, 1.430, -14.520]
+    max: [-12.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_7"
+    type: "box"
+    min: [-13.000, 0.880, -14.520]
+    max: [-12.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_8"
+    type: "cylinder"
+    center: [-12.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_8"
+    type: "box"
+    min: [-12.000, 1.430, -14.520]
+    max: [-11.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_8"
+    type: "box"
+    min: [-12.000, 0.880, -14.520]
+    max: [-11.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_9"
+    type: "cylinder"
+    center: [-11.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_9"
+    type: "box"
+    min: [-11.000, 1.430, -14.520]
+    max: [-10.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_9"
+    type: "box"
+    min: [-11.000, 0.880, -14.520]
+    max: [-10.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_10"
+    type: "cylinder"
+    center: [-10.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_10"
+    type: "box"
+    min: [-10.000, 1.430, -14.520]
+    max: [-9.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_10"
+    type: "box"
+    min: [-10.000, 0.880, -14.520]
+    max: [-9.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_11"
+    type: "cylinder"
+    center: [-9.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_11"
+    type: "box"
+    min: [-9.000, 1.430, -14.520]
+    max: [-8.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_11"
+    type: "box"
+    min: [-9.000, 0.880, -14.520]
+    max: [-8.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_12"
+    type: "cylinder"
+    center: [-8.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_12"
+    type: "box"
+    min: [-8.000, 1.430, -14.520]
+    max: [-7.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_12"
+    type: "box"
+    min: [-8.000, 0.880, -14.520]
+    max: [-7.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_13"
+    type: "cylinder"
+    center: [-7.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_13"
+    type: "box"
+    min: [-7.000, 1.430, -14.520]
+    max: [-6.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_13"
+    type: "box"
+    min: [-7.000, 0.880, -14.520]
+    max: [-6.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_14"
+    type: "cylinder"
+    center: [-6.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_14"
+    type: "box"
+    min: [-6.000, 1.430, -14.520]
+    max: [-5.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_14"
+    type: "box"
+    min: [-6.000, 0.880, -14.520]
+    max: [-5.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_15"
+    type: "cylinder"
+    center: [-5.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_15"
+    type: "box"
+    min: [-5.000, 1.430, -14.520]
+    max: [-4.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_15"
+    type: "box"
+    min: [-5.000, 0.880, -14.520]
+    max: [-4.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_16"
+    type: "cylinder"
+    center: [-4.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_16"
+    type: "box"
+    min: [-4.000, 1.430, -14.520]
+    max: [-3.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_16"
+    type: "box"
+    min: [-4.000, 0.880, -14.520]
+    max: [-3.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_17"
+    type: "cylinder"
+    center: [-3.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_17"
+    type: "box"
+    min: [-3.000, 1.430, -14.520]
+    max: [-2.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_17"
+    type: "box"
+    min: [-3.000, 0.880, -14.520]
+    max: [-2.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_18"
+    type: "cylinder"
+    center: [-2.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_18"
+    type: "box"
+    min: [-2.000, 1.430, -14.520]
+    max: [-1.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_18"
+    type: "box"
+    min: [-2.000, 0.880, -14.520]
+    max: [-1.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_19"
+    type: "cylinder"
+    center: [-1.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_19"
+    type: "box"
+    min: [-1.000, 1.430, -14.520]
+    max: [0.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_19"
+    type: "box"
+    min: [-1.000, 0.880, -14.520]
+    max: [0.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_20"
+    type: "cylinder"
+    center: [0.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_20"
+    type: "box"
+    min: [0.000, 1.430, -14.520]
+    max: [1.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_20"
+    type: "box"
+    min: [0.000, 0.880, -14.520]
+    max: [1.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_21"
+    type: "cylinder"
+    center: [1.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_21"
+    type: "box"
+    min: [1.000, 1.430, -14.520]
+    max: [2.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_21"
+    type: "box"
+    min: [1.000, 0.880, -14.520]
+    max: [2.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_22"
+    type: "cylinder"
+    center: [2.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_22"
+    type: "box"
+    min: [2.000, 1.430, -14.520]
+    max: [3.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_22"
+    type: "box"
+    min: [2.000, 0.880, -14.520]
+    max: [3.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_23"
+    type: "cylinder"
+    center: [3.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_23"
+    type: "box"
+    min: [3.000, 1.430, -14.520]
+    max: [4.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_23"
+    type: "box"
+    min: [3.000, 0.880, -14.520]
+    max: [4.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_24"
+    type: "cylinder"
+    center: [4.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_24"
+    type: "box"
+    min: [4.000, 1.430, -14.520]
+    max: [5.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_24"
+    type: "box"
+    min: [4.000, 0.880, -14.520]
+    max: [5.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_25"
+    type: "cylinder"
+    center: [5.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_25"
+    type: "box"
+    min: [5.000, 1.430, -14.520]
+    max: [6.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_25"
+    type: "box"
+    min: [5.000, 0.880, -14.520]
+    max: [6.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_26"
+    type: "cylinder"
+    center: [6.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_26"
+    type: "box"
+    min: [6.000, 1.430, -14.520]
+    max: [7.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_26"
+    type: "box"
+    min: [6.000, 0.880, -14.520]
+    max: [7.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_27"
+    type: "cylinder"
+    center: [7.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_27"
+    type: "box"
+    min: [7.000, 1.430, -14.520]
+    max: [8.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_27"
+    type: "box"
+    min: [7.000, 0.880, -14.520]
+    max: [8.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_28"
+    type: "cylinder"
+    center: [8.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_28"
+    type: "box"
+    min: [8.000, 1.430, -14.520]
+    max: [9.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_28"
+    type: "box"
+    min: [8.000, 0.880, -14.520]
+    max: [9.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_29"
+    type: "cylinder"
+    center: [9.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_29"
+    type: "box"
+    min: [9.000, 1.430, -14.520]
+    max: [10.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_29"
+    type: "box"
+    min: [9.000, 0.880, -14.520]
+    max: [10.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_30"
+    type: "cylinder"
+    center: [10.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_30"
+    type: "box"
+    min: [10.000, 1.430, -14.520]
+    max: [11.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_30"
+    type: "box"
+    min: [10.000, 0.880, -14.520]
+    max: [11.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_31"
+    type: "cylinder"
+    center: [11.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_31"
+    type: "box"
+    min: [11.000, 1.430, -14.520]
+    max: [12.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_31"
+    type: "box"
+    min: [11.000, 0.880, -14.520]
+    max: [12.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_32"
+    type: "cylinder"
+    center: [12.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_32"
+    type: "box"
+    min: [12.000, 1.430, -14.520]
+    max: [13.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_32"
+    type: "box"
+    min: [12.000, 0.880, -14.520]
+    max: [13.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_33"
+    type: "cylinder"
+    center: [13.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_33"
+    type: "box"
+    min: [13.000, 1.430, -14.520]
+    max: [14.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_33"
+    type: "box"
+    min: [13.000, 0.880, -14.520]
+    max: [14.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_34"
+    type: "cylinder"
+    center: [14.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_34"
+    type: "box"
+    min: [14.000, 1.430, -14.520]
+    max: [15.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_34"
+    type: "box"
+    min: [14.000, 0.880, -14.520]
+    max: [15.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_35"
+    type: "cylinder"
+    center: [15.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_35"
+    type: "box"
+    min: [15.000, 1.430, -14.520]
+    max: [16.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_35"
+    type: "box"
+    min: [15.000, 0.880, -14.520]
+    max: [16.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_36"
+    type: "cylinder"
+    center: [16.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_36"
+    type: "box"
+    min: [16.000, 1.430, -14.520]
+    max: [17.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_36"
+    type: "box"
+    min: [16.000, 0.880, -14.520]
+    max: [17.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_37"
+    type: "cylinder"
+    center: [17.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_37"
+    type: "box"
+    min: [17.000, 1.430, -14.520]
+    max: [18.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_37"
+    type: "box"
+    min: [17.000, 0.880, -14.520]
+    max: [18.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_38"
+    type: "cylinder"
+    center: [18.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "fence_rail_38"
+    type: "box"
+    min: [18.000, 1.430, -14.520]
+    max: [19.000, 1.470, -14.480]
+    material: "fence_iron"
+  - name: "fence_rail_b_38"
+    type: "box"
+    min: [18.000, 0.880, -14.520]
+    max: [19.000, 0.920, -14.480]
+    material: "fence_iron"
+  - name: "fence_post_39"
+    type: "cylinder"
+    center: [19.000, 0.600, -14.500]
+    radius: 0.040
+    height: 1.000
+    material: "fence_iron"
+  - name: "lamp_0_pole"
+    type: "cylinder"
+    center: [-16.000, 0.600, -13.000]
+    radius: 0.080
+    height: 3.500
+    material: "iron_dark"
+  - name: "lamp_0_arm"
+    type: "cylinder"
+    center: [-16.000, 4.100, -13.000]
+    radius: 0.120
+    height: 0.300
+    material: "iron_dark"
+  - name: "lamp_0_lamp"
+    type: "sphere"
+    center: [-16.000, 4.600, -13.000]
+    radius: 0.250
+    material: "warm_light"
+  - name: "lamp_0_cage"
+    type: "cylinder"
+    center: [-16.000, 4.200, -13.000]
+    radius: 0.200
+    height: 0.600
+    material: "iron_dark"
+  - name: "lamp_1_pole"
+    type: "cylinder"
+    center: [-8.000, 0.600, -13.000]
+    radius: 0.080
+    height: 3.500
+    material: "iron_dark"
+  - name: "lamp_1_arm"
+    type: "cylinder"
+    center: [-8.000, 4.100, -13.000]
+    radius: 0.120
+    height: 0.300
+    material: "iron_dark"
+  - name: "lamp_1_lamp"
+    type: "sphere"
+    center: [-8.000, 4.600, -13.000]
+    radius: 0.250
+    material: "warm_light"
+  - name: "lamp_1_cage"
+    type: "cylinder"
+    center: [-8.000, 4.200, -13.000]
+    radius: 0.200
+    height: 0.600
+    material: "iron_dark"
+  - name: "lamp_2_pole"
+    type: "cylinder"
+    center: [0.000, 0.600, -13.000]
+    radius: 0.080
+    height: 3.500
+    material: "iron_dark"
+  - name: "lamp_2_arm"
+    type: "cylinder"
+    center: [0.000, 4.100, -13.000]
+    radius: 0.120
+    height: 0.300
+    material: "iron_dark"
+  - name: "lamp_2_lamp"
+    type: "sphere"
+    center: [0.000, 4.600, -13.000]
+    radius: 0.250
+    material: "warm_light"
+  - name: "lamp_2_cage"
+    type: "cylinder"
+    center: [0.000, 4.200, -13.000]
+    radius: 0.200
+    height: 0.600
+    material: "iron_dark"
+  - name: "lamp_3_pole"
+    type: "cylinder"
+    center: [8.000, 0.600, -13.000]
+    radius: 0.080
+    height: 3.500
+    material: "iron_dark"
+  - name: "lamp_3_arm"
+    type: "cylinder"
+    center: [8.000, 4.100, -13.000]
+    radius: 0.120
+    height: 0.300
+    material: "iron_dark"
+  - name: "lamp_3_lamp"
+    type: "sphere"
+    center: [8.000, 4.600, -13.000]
+    radius: 0.250
+    material: "warm_light"
+  - name: "lamp_3_cage"
+    type: "cylinder"
+    center: [8.000, 4.200, -13.000]
+    radius: 0.200
+    height: 0.600
+    material: "iron_dark"
+  - name: "lamp_4_pole"
+    type: "cylinder"
+    center: [16.000, 0.600, -13.000]
+    radius: 0.080
+    height: 3.500
+    material: "iron_dark"
+  - name: "lamp_4_arm"
+    type: "cylinder"
+    center: [16.000, 4.100, -13.000]
+    radius: 0.120
+    height: 0.300
+    material: "iron_dark"
+  - name: "lamp_4_lamp"
+    type: "sphere"
+    center: [16.000, 4.600, -13.000]
+    radius: 0.250
+    material: "warm_light"
+  - name: "lamp_4_cage"
+    type: "cylinder"
+    center: [16.000, 4.200, -13.000]
+    radius: 0.200
+    height: 0.600
+    material: "iron_dark"
+  - name: "bus_body"
+    type: "box"
+    min: [-12.500, 0.300, -11.000]
+    max: [-7.500, 3.300, -9.000]
+    material: "red_bus"
+  - name: "bus_upper"
+    type: "box"
+    min: [-12.500, 2.800, -11.000]
+    max: [-7.500, 4.800, -9.000]
+    material: "red_bus"
+  - name: "bus_wheel_fl"
+    type: "cylinder"
+    center: [-12.000, 0.600, -9.200]
+    radius: 0.400
+    height: 0.200
+    material: "iron_dark"
+  - name: "bus_wheel_fr"
+    type: "cylinder"
+    center: [-12.000, 0.600, -10.800]
+    radius: 0.400
+    height: 0.200
+    material: "iron_dark"
+  - name: "bus_wheel_rl"
+    type: "cylinder"
+    center: [-8.000, 0.600, -9.200]
+    radius: 0.400
+    height: 0.200
+    material: "iron_dark"
+  - name: "bus_wheel_rr"
+    type: "cylinder"
+    center: [-8.000, 0.600, -10.800]
+    radius: 0.400
+    height: 0.200
+    material: "iron_dark"
+  - name: "platform_3"
+    type: "box"
+    min: [-8.000, 0.000, -8.000]
+    max: [8.000, 0.500, 8.000]
+    material: "limestone_dark"
+  - name: "platform_2"
+    type: "box"
+    min: [-7.500, 0.500, -7.500]
+    max: [7.500, 1.000, 7.500]
+    material: "limestone_dark"
+  - name: "platform_1"
+    type: "box"
+    min: [-7.000, 1.000, -7.000]
+    max: [7.000, 1.500, 7.000]
+    material: "limestone_dark"
+  - name: "entrance_recess"
+    type: "box"
+    min: [-2.500, 1.000, -7.050]
+    max: [2.500, 6.000, -6.050]
+    material: "dark_recess"
+  - name: "entrance_frame_l"
+    type: "box"
+    min: [-3.000, 0.700, -7.000]
+    max: [-2.400, 6.300, -6.200]
+    material: "limestone"
+  - name: "entrance_frame_r"
+    type: "box"
+    min: [2.400, 0.700, -7.000]
+    max: [3.000, 6.300, -6.200]
+    material: "limestone"
+  - name: "entrance_frame_top"
+    type: "box"
+    min: [-3.000, 5.800, -7.000]
+    max: [3.000, 6.400, -6.200]
+    material: "limestone"
+  - name: "entrance_arch_sph"
+    type: "sphere"
+    center: [0.000, 6.300, -6.700]
+    radius: 1.500
+    material: "limestone"
+  - name: "shaft_sec_0"
+    type: "box"
+    min: [-5.500, 1.500, -5.500]
+    max: [5.500, 7.000, 5.500]
+    material: "limestone"
+  - name: "shaft_band_0"
+    type: "box"
+    min: [-5.650, 6.850, -5.650]
+    max: [5.650, 7.150, 5.650]
+    material: "stone_detail"
+  - name: "pilaster_0_0"
+    type: "box"
+    min: [-5.750, 1.500, -5.800]
+    max: [-5.250, 7.000, -5.200]
+    material: "stone_detail"
+  - name: "pilaster_0_1"
+    type: "box"
+    min: [5.250, 1.500, -5.800]
+    max: [5.750, 7.000, -5.200]
+    material: "stone_detail"
+  - name: "pilaster_0_2"
+    type: "box"
+    min: [-5.750, 1.500, 5.200]
+    max: [-5.250, 7.000, 5.800]
+    material: "stone_detail"
+  - name: "pilaster_0_3"
+    type: "box"
+    min: [5.250, 1.500, 5.200]
+    max: [5.750, 7.000, 5.800]
+    material: "stone_detail"
+  - name: "win_f_0_0"
+    type: "box"
+    min: [-2.000, 2.250, -5.700]
+    max: [-1.000, 5.250, -5.400]
+    material: "dark_recess"
+  - name: "wfr_f_0_0_l"
+    type: "box"
+    min: [-2.160, 2.100, -5.660]
+    max: [-2.000, 5.400, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_0_0_r"
+    type: "box"
+    min: [-1.000, 2.100, -5.660]
+    max: [-0.840, 5.400, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_0_0_t"
+    type: "box"
+    min: [-2.160, 5.250, -5.660]
+    max: [-0.840, 5.450, -5.460]
+    material: "stone_detail"
+  - name: "warch_f_0_0"
+    type: "sphere"
+    center: [-1.500, 5.350, -5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_f_0_1"
+    type: "box"
+    min: [1.000, 2.250, -5.700]
+    max: [2.000, 5.250, -5.400]
+    material: "dark_recess"
+  - name: "wfr_f_0_1_l"
+    type: "box"
+    min: [0.840, 2.100, -5.660]
+    max: [1.000, 5.400, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_0_1_r"
+    type: "box"
+    min: [2.000, 2.100, -5.660]
+    max: [2.160, 5.400, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_0_1_t"
+    type: "box"
+    min: [0.840, 5.250, -5.660]
+    max: [2.160, 5.450, -5.460]
+    material: "stone_detail"
+  - name: "warch_f_0_1"
+    type: "sphere"
+    center: [1.500, 5.350, -5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_b_0_0"
+    type: "box"
+    min: [-2.000, 2.250, 5.400]
+    max: [-1.000, 5.250, 5.700]
+    material: "dark_recess"
+  - name: "wfr_b_0_0_l"
+    type: "box"
+    min: [-2.160, 2.100, 5.460]
+    max: [-2.000, 5.400, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_0_0_r"
+    type: "box"
+    min: [-1.000, 2.100, 5.460]
+    max: [-0.840, 5.400, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_0_0_t"
+    type: "box"
+    min: [-2.160, 5.250, 5.460]
+    max: [-0.840, 5.450, 5.660]
+    material: "stone_detail"
+  - name: "warch_b_0_0"
+    type: "sphere"
+    center: [-1.500, 5.350, 5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_b_0_1"
+    type: "box"
+    min: [1.000, 2.250, 5.400]
+    max: [2.000, 5.250, 5.700]
+    material: "dark_recess"
+  - name: "wfr_b_0_1_l"
+    type: "box"
+    min: [0.840, 2.100, 5.460]
+    max: [1.000, 5.400, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_0_1_r"
+    type: "box"
+    min: [2.000, 2.100, 5.460]
+    max: [2.160, 5.400, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_0_1_t"
+    type: "box"
+    min: [0.840, 5.250, 5.460]
+    max: [2.160, 5.450, 5.660]
+    material: "stone_detail"
+  - name: "warch_b_0_1"
+    type: "sphere"
+    center: [1.500, 5.350, 5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_l_0_0"
+    type: "box"
+    min: [-5.700, 2.250, -2.000]
+    max: [-5.400, 5.250, -1.000]
+    material: "dark_recess"
+  - name: "wfr_l_0_0_l"
+    type: "box"
+    min: [-5.660, 2.100, -2.160]
+    max: [-5.460, 5.400, -2.000]
+    material: "stone_detail"
+  - name: "wfr_l_0_0_r"
+    type: "box"
+    min: [-5.660, 2.100, -1.000]
+    max: [-5.460, 5.400, -0.840]
+    material: "stone_detail"
+  - name: "wfr_l_0_0_t"
+    type: "box"
+    min: [-5.660, 5.250, -2.160]
+    max: [-5.460, 5.450, -0.840]
+    material: "stone_detail"
+  - name: "warch_l_0_0"
+    type: "sphere"
+    center: [-5.580, 5.350, -1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_l_0_1"
+    type: "box"
+    min: [-5.700, 2.250, 1.000]
+    max: [-5.400, 5.250, 2.000]
+    material: "dark_recess"
+  - name: "wfr_l_0_1_l"
+    type: "box"
+    min: [-5.660, 2.100, 0.840]
+    max: [-5.460, 5.400, 1.000]
+    material: "stone_detail"
+  - name: "wfr_l_0_1_r"
+    type: "box"
+    min: [-5.660, 2.100, 2.000]
+    max: [-5.460, 5.400, 2.160]
+    material: "stone_detail"
+  - name: "wfr_l_0_1_t"
+    type: "box"
+    min: [-5.660, 5.250, 0.840]
+    max: [-5.460, 5.450, 2.160]
+    material: "stone_detail"
+  - name: "warch_l_0_1"
+    type: "sphere"
+    center: [-5.580, 5.350, 1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_r_0_0"
+    type: "box"
+    min: [5.400, 2.250, -2.000]
+    max: [5.700, 5.250, -1.000]
+    material: "dark_recess"
+  - name: "wfr_r_0_0_l"
+    type: "box"
+    min: [5.460, 2.100, -2.160]
+    max: [5.660, 5.400, -2.000]
+    material: "stone_detail"
+  - name: "wfr_r_0_0_r"
+    type: "box"
+    min: [5.460, 2.100, -1.000]
+    max: [5.660, 5.400, -0.840]
+    material: "stone_detail"
+  - name: "wfr_r_0_0_t"
+    type: "box"
+    min: [5.460, 5.250, -2.160]
+    max: [5.660, 5.450, -0.840]
+    material: "stone_detail"
+  - name: "warch_r_0_0"
+    type: "sphere"
+    center: [5.580, 5.350, -1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_r_0_1"
+    type: "box"
+    min: [5.400, 2.250, 1.000]
+    max: [5.700, 5.250, 2.000]
+    material: "dark_recess"
+  - name: "wfr_r_0_1_l"
+    type: "box"
+    min: [5.460, 2.100, 0.840]
+    max: [5.660, 5.400, 1.000]
+    material: "stone_detail"
+  - name: "wfr_r_0_1_r"
+    type: "box"
+    min: [5.460, 2.100, 2.000]
+    max: [5.660, 5.400, 2.160]
+    material: "stone_detail"
+  - name: "wfr_r_0_1_t"
+    type: "box"
+    min: [5.460, 5.250, 0.840]
+    max: [5.660, 5.450, 2.160]
+    material: "stone_detail"
+  - name: "warch_r_0_1"
+    type: "sphere"
+    center: [5.580, 5.350, 1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "shaft_sec_1"
+    type: "box"
+    min: [-5.500, 7.000, -5.500]
+    max: [5.500, 12.500, 5.500]
+    material: "limestone"
+  - name: "shaft_band_1"
+    type: "box"
+    min: [-5.650, 12.350, -5.650]
+    max: [5.650, 12.650, 5.650]
+    material: "stone_detail"
+  - name: "pilaster_1_0"
+    type: "box"
+    min: [-5.750, 7.000, -5.800]
+    max: [-5.250, 12.500, -5.200]
+    material: "stone_detail"
+  - name: "pilaster_1_1"
+    type: "box"
+    min: [5.250, 7.000, -5.800]
+    max: [5.750, 12.500, -5.200]
+    material: "stone_detail"
+  - name: "pilaster_1_2"
+    type: "box"
+    min: [-5.750, 7.000, 5.200]
+    max: [-5.250, 12.500, 5.800]
+    material: "stone_detail"
+  - name: "pilaster_1_3"
+    type: "box"
+    min: [5.250, 7.000, 5.200]
+    max: [5.750, 12.500, 5.800]
+    material: "stone_detail"
+  - name: "win_f_1_0"
+    type: "box"
+    min: [-2.000, 7.750, -5.700]
+    max: [-1.000, 10.750, -5.400]
+    material: "dark_recess"
+  - name: "wfr_f_1_0_l"
+    type: "box"
+    min: [-2.160, 7.600, -5.660]
+    max: [-2.000, 10.900, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_1_0_r"
+    type: "box"
+    min: [-1.000, 7.600, -5.660]
+    max: [-0.840, 10.900, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_1_0_t"
+    type: "box"
+    min: [-2.160, 10.750, -5.660]
+    max: [-0.840, 10.950, -5.460]
+    material: "stone_detail"
+  - name: "warch_f_1_0"
+    type: "sphere"
+    center: [-1.500, 10.850, -5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_f_1_1"
+    type: "box"
+    min: [1.000, 7.750, -5.700]
+    max: [2.000, 10.750, -5.400]
+    material: "dark_recess"
+  - name: "wfr_f_1_1_l"
+    type: "box"
+    min: [0.840, 7.600, -5.660]
+    max: [1.000, 10.900, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_1_1_r"
+    type: "box"
+    min: [2.000, 7.600, -5.660]
+    max: [2.160, 10.900, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_1_1_t"
+    type: "box"
+    min: [0.840, 10.750, -5.660]
+    max: [2.160, 10.950, -5.460]
+    material: "stone_detail"
+  - name: "warch_f_1_1"
+    type: "sphere"
+    center: [1.500, 10.850, -5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_b_1_0"
+    type: "box"
+    min: [-2.000, 7.750, 5.400]
+    max: [-1.000, 10.750, 5.700]
+    material: "dark_recess"
+  - name: "wfr_b_1_0_l"
+    type: "box"
+    min: [-2.160, 7.600, 5.460]
+    max: [-2.000, 10.900, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_1_0_r"
+    type: "box"
+    min: [-1.000, 7.600, 5.460]
+    max: [-0.840, 10.900, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_1_0_t"
+    type: "box"
+    min: [-2.160, 10.750, 5.460]
+    max: [-0.840, 10.950, 5.660]
+    material: "stone_detail"
+  - name: "warch_b_1_0"
+    type: "sphere"
+    center: [-1.500, 10.850, 5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_b_1_1"
+    type: "box"
+    min: [1.000, 7.750, 5.400]
+    max: [2.000, 10.750, 5.700]
+    material: "dark_recess"
+  - name: "wfr_b_1_1_l"
+    type: "box"
+    min: [0.840, 7.600, 5.460]
+    max: [1.000, 10.900, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_1_1_r"
+    type: "box"
+    min: [2.000, 7.600, 5.460]
+    max: [2.160, 10.900, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_1_1_t"
+    type: "box"
+    min: [0.840, 10.750, 5.460]
+    max: [2.160, 10.950, 5.660]
+    material: "stone_detail"
+  - name: "warch_b_1_1"
+    type: "sphere"
+    center: [1.500, 10.850, 5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_l_1_0"
+    type: "box"
+    min: [-5.700, 7.750, -2.000]
+    max: [-5.400, 10.750, -1.000]
+    material: "dark_recess"
+  - name: "wfr_l_1_0_l"
+    type: "box"
+    min: [-5.660, 7.600, -2.160]
+    max: [-5.460, 10.900, -2.000]
+    material: "stone_detail"
+  - name: "wfr_l_1_0_r"
+    type: "box"
+    min: [-5.660, 7.600, -1.000]
+    max: [-5.460, 10.900, -0.840]
+    material: "stone_detail"
+  - name: "wfr_l_1_0_t"
+    type: "box"
+    min: [-5.660, 10.750, -2.160]
+    max: [-5.460, 10.950, -0.840]
+    material: "stone_detail"
+  - name: "warch_l_1_0"
+    type: "sphere"
+    center: [-5.580, 10.850, -1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_l_1_1"
+    type: "box"
+    min: [-5.700, 7.750, 1.000]
+    max: [-5.400, 10.750, 2.000]
+    material: "dark_recess"
+  - name: "wfr_l_1_1_l"
+    type: "box"
+    min: [-5.660, 7.600, 0.840]
+    max: [-5.460, 10.900, 1.000]
+    material: "stone_detail"
+  - name: "wfr_l_1_1_r"
+    type: "box"
+    min: [-5.660, 7.600, 2.000]
+    max: [-5.460, 10.900, 2.160]
+    material: "stone_detail"
+  - name: "wfr_l_1_1_t"
+    type: "box"
+    min: [-5.660, 10.750, 0.840]
+    max: [-5.460, 10.950, 2.160]
+    material: "stone_detail"
+  - name: "warch_l_1_1"
+    type: "sphere"
+    center: [-5.580, 10.850, 1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_r_1_0"
+    type: "box"
+    min: [5.400, 7.750, -2.000]
+    max: [5.700, 10.750, -1.000]
+    material: "dark_recess"
+  - name: "wfr_r_1_0_l"
+    type: "box"
+    min: [5.460, 7.600, -2.160]
+    max: [5.660, 10.900, -2.000]
+    material: "stone_detail"
+  - name: "wfr_r_1_0_r"
+    type: "box"
+    min: [5.460, 7.600, -1.000]
+    max: [5.660, 10.900, -0.840]
+    material: "stone_detail"
+  - name: "wfr_r_1_0_t"
+    type: "box"
+    min: [5.460, 10.750, -2.160]
+    max: [5.660, 10.950, -0.840]
+    material: "stone_detail"
+  - name: "warch_r_1_0"
+    type: "sphere"
+    center: [5.580, 10.850, -1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_r_1_1"
+    type: "box"
+    min: [5.400, 7.750, 1.000]
+    max: [5.700, 10.750, 2.000]
+    material: "dark_recess"
+  - name: "wfr_r_1_1_l"
+    type: "box"
+    min: [5.460, 7.600, 0.840]
+    max: [5.660, 10.900, 1.000]
+    material: "stone_detail"
+  - name: "wfr_r_1_1_r"
+    type: "box"
+    min: [5.460, 7.600, 2.000]
+    max: [5.660, 10.900, 2.160]
+    material: "stone_detail"
+  - name: "wfr_r_1_1_t"
+    type: "box"
+    min: [5.460, 10.750, 0.840]
+    max: [5.660, 10.950, 2.160]
+    material: "stone_detail"
+  - name: "warch_r_1_1"
+    type: "sphere"
+    center: [5.580, 10.850, 1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "shaft_sec_2"
+    type: "box"
+    min: [-5.500, 12.500, -5.500]
+    max: [5.500, 18.000, 5.500]
+    material: "limestone"
+  - name: "shaft_band_2"
+    type: "box"
+    min: [-5.650, 17.850, -5.650]
+    max: [5.650, 18.150, 5.650]
+    material: "stone_detail"
+  - name: "pilaster_2_0"
+    type: "box"
+    min: [-5.750, 12.500, -5.800]
+    max: [-5.250, 18.000, -5.200]
+    material: "stone_detail"
+  - name: "pilaster_2_1"
+    type: "box"
+    min: [5.250, 12.500, -5.800]
+    max: [5.750, 18.000, -5.200]
+    material: "stone_detail"
+  - name: "pilaster_2_2"
+    type: "box"
+    min: [-5.750, 12.500, 5.200]
+    max: [-5.250, 18.000, 5.800]
+    material: "stone_detail"
+  - name: "pilaster_2_3"
+    type: "box"
+    min: [5.250, 12.500, 5.200]
+    max: [5.750, 18.000, 5.800]
+    material: "stone_detail"
+  - name: "win_f_2_0"
+    type: "box"
+    min: [-2.000, 13.250, -5.700]
+    max: [-1.000, 16.250, -5.400]
+    material: "dark_recess"
+  - name: "wfr_f_2_0_l"
+    type: "box"
+    min: [-2.160, 13.100, -5.660]
+    max: [-2.000, 16.400, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_2_0_r"
+    type: "box"
+    min: [-1.000, 13.100, -5.660]
+    max: [-0.840, 16.400, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_2_0_t"
+    type: "box"
+    min: [-2.160, 16.250, -5.660]
+    max: [-0.840, 16.450, -5.460]
+    material: "stone_detail"
+  - name: "warch_f_2_0"
+    type: "sphere"
+    center: [-1.500, 16.350, -5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_f_2_1"
+    type: "box"
+    min: [1.000, 13.250, -5.700]
+    max: [2.000, 16.250, -5.400]
+    material: "dark_recess"
+  - name: "wfr_f_2_1_l"
+    type: "box"
+    min: [0.840, 13.100, -5.660]
+    max: [1.000, 16.400, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_2_1_r"
+    type: "box"
+    min: [2.000, 13.100, -5.660]
+    max: [2.160, 16.400, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_2_1_t"
+    type: "box"
+    min: [0.840, 16.250, -5.660]
+    max: [2.160, 16.450, -5.460]
+    material: "stone_detail"
+  - name: "warch_f_2_1"
+    type: "sphere"
+    center: [1.500, 16.350, -5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_b_2_0"
+    type: "box"
+    min: [-2.000, 13.250, 5.400]
+    max: [-1.000, 16.250, 5.700]
+    material: "dark_recess"
+  - name: "wfr_b_2_0_l"
+    type: "box"
+    min: [-2.160, 13.100, 5.460]
+    max: [-2.000, 16.400, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_2_0_r"
+    type: "box"
+    min: [-1.000, 13.100, 5.460]
+    max: [-0.840, 16.400, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_2_0_t"
+    type: "box"
+    min: [-2.160, 16.250, 5.460]
+    max: [-0.840, 16.450, 5.660]
+    material: "stone_detail"
+  - name: "warch_b_2_0"
+    type: "sphere"
+    center: [-1.500, 16.350, 5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_b_2_1"
+    type: "box"
+    min: [1.000, 13.250, 5.400]
+    max: [2.000, 16.250, 5.700]
+    material: "dark_recess"
+  - name: "wfr_b_2_1_l"
+    type: "box"
+    min: [0.840, 13.100, 5.460]
+    max: [1.000, 16.400, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_2_1_r"
+    type: "box"
+    min: [2.000, 13.100, 5.460]
+    max: [2.160, 16.400, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_2_1_t"
+    type: "box"
+    min: [0.840, 16.250, 5.460]
+    max: [2.160, 16.450, 5.660]
+    material: "stone_detail"
+  - name: "warch_b_2_1"
+    type: "sphere"
+    center: [1.500, 16.350, 5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_l_2_0"
+    type: "box"
+    min: [-5.700, 13.250, -2.000]
+    max: [-5.400, 16.250, -1.000]
+    material: "dark_recess"
+  - name: "wfr_l_2_0_l"
+    type: "box"
+    min: [-5.660, 13.100, -2.160]
+    max: [-5.460, 16.400, -2.000]
+    material: "stone_detail"
+  - name: "wfr_l_2_0_r"
+    type: "box"
+    min: [-5.660, 13.100, -1.000]
+    max: [-5.460, 16.400, -0.840]
+    material: "stone_detail"
+  - name: "wfr_l_2_0_t"
+    type: "box"
+    min: [-5.660, 16.250, -2.160]
+    max: [-5.460, 16.450, -0.840]
+    material: "stone_detail"
+  - name: "warch_l_2_0"
+    type: "sphere"
+    center: [-5.580, 16.350, -1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_l_2_1"
+    type: "box"
+    min: [-5.700, 13.250, 1.000]
+    max: [-5.400, 16.250, 2.000]
+    material: "dark_recess"
+  - name: "wfr_l_2_1_l"
+    type: "box"
+    min: [-5.660, 13.100, 0.840]
+    max: [-5.460, 16.400, 1.000]
+    material: "stone_detail"
+  - name: "wfr_l_2_1_r"
+    type: "box"
+    min: [-5.660, 13.100, 2.000]
+    max: [-5.460, 16.400, 2.160]
+    material: "stone_detail"
+  - name: "wfr_l_2_1_t"
+    type: "box"
+    min: [-5.660, 16.250, 0.840]
+    max: [-5.460, 16.450, 2.160]
+    material: "stone_detail"
+  - name: "warch_l_2_1"
+    type: "sphere"
+    center: [-5.580, 16.350, 1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_r_2_0"
+    type: "box"
+    min: [5.400, 13.250, -2.000]
+    max: [5.700, 16.250, -1.000]
+    material: "dark_recess"
+  - name: "wfr_r_2_0_l"
+    type: "box"
+    min: [5.460, 13.100, -2.160]
+    max: [5.660, 16.400, -2.000]
+    material: "stone_detail"
+  - name: "wfr_r_2_0_r"
+    type: "box"
+    min: [5.460, 13.100, -1.000]
+    max: [5.660, 16.400, -0.840]
+    material: "stone_detail"
+  - name: "wfr_r_2_0_t"
+    type: "box"
+    min: [5.460, 16.250, -2.160]
+    max: [5.660, 16.450, -0.840]
+    material: "stone_detail"
+  - name: "warch_r_2_0"
+    type: "sphere"
+    center: [5.580, 16.350, -1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_r_2_1"
+    type: "box"
+    min: [5.400, 13.250, 1.000]
+    max: [5.700, 16.250, 2.000]
+    material: "dark_recess"
+  - name: "wfr_r_2_1_l"
+    type: "box"
+    min: [5.460, 13.100, 0.840]
+    max: [5.660, 16.400, 1.000]
+    material: "stone_detail"
+  - name: "wfr_r_2_1_r"
+    type: "box"
+    min: [5.460, 13.100, 2.000]
+    max: [5.660, 16.400, 2.160]
+    material: "stone_detail"
+  - name: "wfr_r_2_1_t"
+    type: "box"
+    min: [5.460, 16.250, 0.840]
+    max: [5.660, 16.450, 2.160]
+    material: "stone_detail"
+  - name: "warch_r_2_1"
+    type: "sphere"
+    center: [5.580, 16.350, 1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "shaft_sec_3"
+    type: "box"
+    min: [-5.500, 18.000, -5.500]
+    max: [5.500, 23.500, 5.500]
+    material: "limestone"
+  - name: "shaft_band_3"
+    type: "box"
+    min: [-5.650, 23.350, -5.650]
+    max: [5.650, 23.650, 5.650]
+    material: "stone_detail"
+  - name: "pilaster_3_0"
+    type: "box"
+    min: [-5.750, 18.000, -5.800]
+    max: [-5.250, 23.500, -5.200]
+    material: "stone_detail"
+  - name: "pilaster_3_1"
+    type: "box"
+    min: [5.250, 18.000, -5.800]
+    max: [5.750, 23.500, -5.200]
+    material: "stone_detail"
+  - name: "pilaster_3_2"
+    type: "box"
+    min: [-5.750, 18.000, 5.200]
+    max: [-5.250, 23.500, 5.800]
+    material: "stone_detail"
+  - name: "pilaster_3_3"
+    type: "box"
+    min: [5.250, 18.000, 5.200]
+    max: [5.750, 23.500, 5.800]
+    material: "stone_detail"
+  - name: "win_f_3_0"
+    type: "box"
+    min: [-2.000, 18.750, -5.700]
+    max: [-1.000, 21.750, -5.400]
+    material: "dark_recess"
+  - name: "wfr_f_3_0_l"
+    type: "box"
+    min: [-2.160, 18.600, -5.660]
+    max: [-2.000, 21.900, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_3_0_r"
+    type: "box"
+    min: [-1.000, 18.600, -5.660]
+    max: [-0.840, 21.900, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_3_0_t"
+    type: "box"
+    min: [-2.160, 21.750, -5.660]
+    max: [-0.840, 21.950, -5.460]
+    material: "stone_detail"
+  - name: "warch_f_3_0"
+    type: "sphere"
+    center: [-1.500, 21.850, -5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_f_3_1"
+    type: "box"
+    min: [1.000, 18.750, -5.700]
+    max: [2.000, 21.750, -5.400]
+    material: "dark_recess"
+  - name: "wfr_f_3_1_l"
+    type: "box"
+    min: [0.840, 18.600, -5.660]
+    max: [1.000, 21.900, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_3_1_r"
+    type: "box"
+    min: [2.000, 18.600, -5.660]
+    max: [2.160, 21.900, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_3_1_t"
+    type: "box"
+    min: [0.840, 21.750, -5.660]
+    max: [2.160, 21.950, -5.460]
+    material: "stone_detail"
+  - name: "warch_f_3_1"
+    type: "sphere"
+    center: [1.500, 21.850, -5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_b_3_0"
+    type: "box"
+    min: [-2.000, 18.750, 5.400]
+    max: [-1.000, 21.750, 5.700]
+    material: "dark_recess"
+  - name: "wfr_b_3_0_l"
+    type: "box"
+    min: [-2.160, 18.600, 5.460]
+    max: [-2.000, 21.900, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_3_0_r"
+    type: "box"
+    min: [-1.000, 18.600, 5.460]
+    max: [-0.840, 21.900, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_3_0_t"
+    type: "box"
+    min: [-2.160, 21.750, 5.460]
+    max: [-0.840, 21.950, 5.660]
+    material: "stone_detail"
+  - name: "warch_b_3_0"
+    type: "sphere"
+    center: [-1.500, 21.850, 5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_b_3_1"
+    type: "box"
+    min: [1.000, 18.750, 5.400]
+    max: [2.000, 21.750, 5.700]
+    material: "dark_recess"
+  - name: "wfr_b_3_1_l"
+    type: "box"
+    min: [0.840, 18.600, 5.460]
+    max: [1.000, 21.900, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_3_1_r"
+    type: "box"
+    min: [2.000, 18.600, 5.460]
+    max: [2.160, 21.900, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_3_1_t"
+    type: "box"
+    min: [0.840, 21.750, 5.460]
+    max: [2.160, 21.950, 5.660]
+    material: "stone_detail"
+  - name: "warch_b_3_1"
+    type: "sphere"
+    center: [1.500, 21.850, 5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_l_3_0"
+    type: "box"
+    min: [-5.700, 18.750, -2.000]
+    max: [-5.400, 21.750, -1.000]
+    material: "dark_recess"
+  - name: "wfr_l_3_0_l"
+    type: "box"
+    min: [-5.660, 18.600, -2.160]
+    max: [-5.460, 21.900, -2.000]
+    material: "stone_detail"
+  - name: "wfr_l_3_0_r"
+    type: "box"
+    min: [-5.660, 18.600, -1.000]
+    max: [-5.460, 21.900, -0.840]
+    material: "stone_detail"
+  - name: "wfr_l_3_0_t"
+    type: "box"
+    min: [-5.660, 21.750, -2.160]
+    max: [-5.460, 21.950, -0.840]
+    material: "stone_detail"
+  - name: "warch_l_3_0"
+    type: "sphere"
+    center: [-5.580, 21.850, -1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_l_3_1"
+    type: "box"
+    min: [-5.700, 18.750, 1.000]
+    max: [-5.400, 21.750, 2.000]
+    material: "dark_recess"
+  - name: "wfr_l_3_1_l"
+    type: "box"
+    min: [-5.660, 18.600, 0.840]
+    max: [-5.460, 21.900, 1.000]
+    material: "stone_detail"
+  - name: "wfr_l_3_1_r"
+    type: "box"
+    min: [-5.660, 18.600, 2.000]
+    max: [-5.460, 21.900, 2.160]
+    material: "stone_detail"
+  - name: "wfr_l_3_1_t"
+    type: "box"
+    min: [-5.660, 21.750, 0.840]
+    max: [-5.460, 21.950, 2.160]
+    material: "stone_detail"
+  - name: "warch_l_3_1"
+    type: "sphere"
+    center: [-5.580, 21.850, 1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_r_3_0"
+    type: "box"
+    min: [5.400, 18.750, -2.000]
+    max: [5.700, 21.750, -1.000]
+    material: "dark_recess"
+  - name: "wfr_r_3_0_l"
+    type: "box"
+    min: [5.460, 18.600, -2.160]
+    max: [5.660, 21.900, -2.000]
+    material: "stone_detail"
+  - name: "wfr_r_3_0_r"
+    type: "box"
+    min: [5.460, 18.600, -1.000]
+    max: [5.660, 21.900, -0.840]
+    material: "stone_detail"
+  - name: "wfr_r_3_0_t"
+    type: "box"
+    min: [5.460, 21.750, -2.160]
+    max: [5.660, 21.950, -0.840]
+    material: "stone_detail"
+  - name: "warch_r_3_0"
+    type: "sphere"
+    center: [5.580, 21.850, -1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_r_3_1"
+    type: "box"
+    min: [5.400, 18.750, 1.000]
+    max: [5.700, 21.750, 2.000]
+    material: "dark_recess"
+  - name: "wfr_r_3_1_l"
+    type: "box"
+    min: [5.460, 18.600, 0.840]
+    max: [5.660, 21.900, 1.000]
+    material: "stone_detail"
+  - name: "wfr_r_3_1_r"
+    type: "box"
+    min: [5.460, 18.600, 2.000]
+    max: [5.660, 21.900, 2.160]
+    material: "stone_detail"
+  - name: "wfr_r_3_1_t"
+    type: "box"
+    min: [5.460, 21.750, 0.840]
+    max: [5.660, 21.950, 2.160]
+    material: "stone_detail"
+  - name: "warch_r_3_1"
+    type: "sphere"
+    center: [5.580, 21.850, 1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "shaft_sec_4"
+    type: "box"
+    min: [-5.500, 23.500, -5.500]
+    max: [5.500, 29.000, 5.500]
+    material: "limestone"
+  - name: "shaft_band_4"
+    type: "box"
+    min: [-5.650, 28.850, -5.650]
+    max: [5.650, 29.150, 5.650]
+    material: "stone_detail"
+  - name: "pilaster_4_0"
+    type: "box"
+    min: [-5.750, 23.500, -5.800]
+    max: [-5.250, 29.000, -5.200]
+    material: "stone_detail"
+  - name: "pilaster_4_1"
+    type: "box"
+    min: [5.250, 23.500, -5.800]
+    max: [5.750, 29.000, -5.200]
+    material: "stone_detail"
+  - name: "pilaster_4_2"
+    type: "box"
+    min: [-5.750, 23.500, 5.200]
+    max: [-5.250, 29.000, 5.800]
+    material: "stone_detail"
+  - name: "pilaster_4_3"
+    type: "box"
+    min: [5.250, 23.500, 5.200]
+    max: [5.750, 29.000, 5.800]
+    material: "stone_detail"
+  - name: "win_f_4_0"
+    type: "box"
+    min: [-2.000, 24.250, -5.700]
+    max: [-1.000, 27.250, -5.400]
+    material: "dark_recess"
+  - name: "wfr_f_4_0_l"
+    type: "box"
+    min: [-2.160, 24.100, -5.660]
+    max: [-2.000, 27.400, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_4_0_r"
+    type: "box"
+    min: [-1.000, 24.100, -5.660]
+    max: [-0.840, 27.400, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_4_0_t"
+    type: "box"
+    min: [-2.160, 27.250, -5.660]
+    max: [-0.840, 27.450, -5.460]
+    material: "stone_detail"
+  - name: "warch_f_4_0"
+    type: "sphere"
+    center: [-1.500, 27.350, -5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_f_4_1"
+    type: "box"
+    min: [1.000, 24.250, -5.700]
+    max: [2.000, 27.250, -5.400]
+    material: "dark_recess"
+  - name: "wfr_f_4_1_l"
+    type: "box"
+    min: [0.840, 24.100, -5.660]
+    max: [1.000, 27.400, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_4_1_r"
+    type: "box"
+    min: [2.000, 24.100, -5.660]
+    max: [2.160, 27.400, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_4_1_t"
+    type: "box"
+    min: [0.840, 27.250, -5.660]
+    max: [2.160, 27.450, -5.460]
+    material: "stone_detail"
+  - name: "warch_f_4_1"
+    type: "sphere"
+    center: [1.500, 27.350, -5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_b_4_0"
+    type: "box"
+    min: [-2.000, 24.250, 5.400]
+    max: [-1.000, 27.250, 5.700]
+    material: "dark_recess"
+  - name: "wfr_b_4_0_l"
+    type: "box"
+    min: [-2.160, 24.100, 5.460]
+    max: [-2.000, 27.400, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_4_0_r"
+    type: "box"
+    min: [-1.000, 24.100, 5.460]
+    max: [-0.840, 27.400, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_4_0_t"
+    type: "box"
+    min: [-2.160, 27.250, 5.460]
+    max: [-0.840, 27.450, 5.660]
+    material: "stone_detail"
+  - name: "warch_b_4_0"
+    type: "sphere"
+    center: [-1.500, 27.350, 5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_b_4_1"
+    type: "box"
+    min: [1.000, 24.250, 5.400]
+    max: [2.000, 27.250, 5.700]
+    material: "dark_recess"
+  - name: "wfr_b_4_1_l"
+    type: "box"
+    min: [0.840, 24.100, 5.460]
+    max: [1.000, 27.400, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_4_1_r"
+    type: "box"
+    min: [2.000, 24.100, 5.460]
+    max: [2.160, 27.400, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_4_1_t"
+    type: "box"
+    min: [0.840, 27.250, 5.460]
+    max: [2.160, 27.450, 5.660]
+    material: "stone_detail"
+  - name: "warch_b_4_1"
+    type: "sphere"
+    center: [1.500, 27.350, 5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_l_4_0"
+    type: "box"
+    min: [-5.700, 24.250, -2.000]
+    max: [-5.400, 27.250, -1.000]
+    material: "dark_recess"
+  - name: "wfr_l_4_0_l"
+    type: "box"
+    min: [-5.660, 24.100, -2.160]
+    max: [-5.460, 27.400, -2.000]
+    material: "stone_detail"
+  - name: "wfr_l_4_0_r"
+    type: "box"
+    min: [-5.660, 24.100, -1.000]
+    max: [-5.460, 27.400, -0.840]
+    material: "stone_detail"
+  - name: "wfr_l_4_0_t"
+    type: "box"
+    min: [-5.660, 27.250, -2.160]
+    max: [-5.460, 27.450, -0.840]
+    material: "stone_detail"
+  - name: "warch_l_4_0"
+    type: "sphere"
+    center: [-5.580, 27.350, -1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_l_4_1"
+    type: "box"
+    min: [-5.700, 24.250, 1.000]
+    max: [-5.400, 27.250, 2.000]
+    material: "dark_recess"
+  - name: "wfr_l_4_1_l"
+    type: "box"
+    min: [-5.660, 24.100, 0.840]
+    max: [-5.460, 27.400, 1.000]
+    material: "stone_detail"
+  - name: "wfr_l_4_1_r"
+    type: "box"
+    min: [-5.660, 24.100, 2.000]
+    max: [-5.460, 27.400, 2.160]
+    material: "stone_detail"
+  - name: "wfr_l_4_1_t"
+    type: "box"
+    min: [-5.660, 27.250, 0.840]
+    max: [-5.460, 27.450, 2.160]
+    material: "stone_detail"
+  - name: "warch_l_4_1"
+    type: "sphere"
+    center: [-5.580, 27.350, 1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_r_4_0"
+    type: "box"
+    min: [5.400, 24.250, -2.000]
+    max: [5.700, 27.250, -1.000]
+    material: "dark_recess"
+  - name: "wfr_r_4_0_l"
+    type: "box"
+    min: [5.460, 24.100, -2.160]
+    max: [5.660, 27.400, -2.000]
+    material: "stone_detail"
+  - name: "wfr_r_4_0_r"
+    type: "box"
+    min: [5.460, 24.100, -1.000]
+    max: [5.660, 27.400, -0.840]
+    material: "stone_detail"
+  - name: "wfr_r_4_0_t"
+    type: "box"
+    min: [5.460, 27.250, -2.160]
+    max: [5.660, 27.450, -0.840]
+    material: "stone_detail"
+  - name: "warch_r_4_0"
+    type: "sphere"
+    center: [5.580, 27.350, -1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_r_4_1"
+    type: "box"
+    min: [5.400, 24.250, 1.000]
+    max: [5.700, 27.250, 2.000]
+    material: "dark_recess"
+  - name: "wfr_r_4_1_l"
+    type: "box"
+    min: [5.460, 24.100, 0.840]
+    max: [5.660, 27.400, 1.000]
+    material: "stone_detail"
+  - name: "wfr_r_4_1_r"
+    type: "box"
+    min: [5.460, 24.100, 2.000]
+    max: [5.660, 27.400, 2.160]
+    material: "stone_detail"
+  - name: "wfr_r_4_1_t"
+    type: "box"
+    min: [5.460, 27.250, 0.840]
+    max: [5.660, 27.450, 2.160]
+    material: "stone_detail"
+  - name: "warch_r_4_1"
+    type: "sphere"
+    center: [5.580, 27.350, 1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "shaft_sec_5"
+    type: "box"
+    min: [-5.500, 29.000, -5.500]
+    max: [5.500, 34.500, 5.500]
+    material: "limestone"
+  - name: "shaft_band_5"
+    type: "box"
+    min: [-5.650, 34.350, -5.650]
+    max: [5.650, 34.650, 5.650]
+    material: "stone_detail"
+  - name: "pilaster_5_0"
+    type: "box"
+    min: [-5.750, 29.000, -5.800]
+    max: [-5.250, 34.500, -5.200]
+    material: "stone_detail"
+  - name: "pilaster_5_1"
+    type: "box"
+    min: [5.250, 29.000, -5.800]
+    max: [5.750, 34.500, -5.200]
+    material: "stone_detail"
+  - name: "pilaster_5_2"
+    type: "box"
+    min: [-5.750, 29.000, 5.200]
+    max: [-5.250, 34.500, 5.800]
+    material: "stone_detail"
+  - name: "pilaster_5_3"
+    type: "box"
+    min: [5.250, 29.000, 5.200]
+    max: [5.750, 34.500, 5.800]
+    material: "stone_detail"
+  - name: "win_f_5_0"
+    type: "box"
+    min: [-2.000, 29.750, -5.700]
+    max: [-1.000, 32.750, -5.400]
+    material: "dark_recess"
+  - name: "wfr_f_5_0_l"
+    type: "box"
+    min: [-2.160, 29.600, -5.660]
+    max: [-2.000, 32.900, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_5_0_r"
+    type: "box"
+    min: [-1.000, 29.600, -5.660]
+    max: [-0.840, 32.900, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_5_0_t"
+    type: "box"
+    min: [-2.160, 32.750, -5.660]
+    max: [-0.840, 32.950, -5.460]
+    material: "stone_detail"
+  - name: "warch_f_5_0"
+    type: "sphere"
+    center: [-1.500, 32.850, -5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_f_5_1"
+    type: "box"
+    min: [1.000, 29.750, -5.700]
+    max: [2.000, 32.750, -5.400]
+    material: "dark_recess"
+  - name: "wfr_f_5_1_l"
+    type: "box"
+    min: [0.840, 29.600, -5.660]
+    max: [1.000, 32.900, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_5_1_r"
+    type: "box"
+    min: [2.000, 29.600, -5.660]
+    max: [2.160, 32.900, -5.460]
+    material: "stone_detail"
+  - name: "wfr_f_5_1_t"
+    type: "box"
+    min: [0.840, 32.750, -5.660]
+    max: [2.160, 32.950, -5.460]
+    material: "stone_detail"
+  - name: "warch_f_5_1"
+    type: "sphere"
+    center: [1.500, 32.850, -5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_b_5_0"
+    type: "box"
+    min: [-2.000, 29.750, 5.400]
+    max: [-1.000, 32.750, 5.700]
+    material: "dark_recess"
+  - name: "wfr_b_5_0_l"
+    type: "box"
+    min: [-2.160, 29.600, 5.460]
+    max: [-2.000, 32.900, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_5_0_r"
+    type: "box"
+    min: [-1.000, 29.600, 5.460]
+    max: [-0.840, 32.900, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_5_0_t"
+    type: "box"
+    min: [-2.160, 32.750, 5.460]
+    max: [-0.840, 32.950, 5.660]
+    material: "stone_detail"
+  - name: "warch_b_5_0"
+    type: "sphere"
+    center: [-1.500, 32.850, 5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_b_5_1"
+    type: "box"
+    min: [1.000, 29.750, 5.400]
+    max: [2.000, 32.750, 5.700]
+    material: "dark_recess"
+  - name: "wfr_b_5_1_l"
+    type: "box"
+    min: [0.840, 29.600, 5.460]
+    max: [1.000, 32.900, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_5_1_r"
+    type: "box"
+    min: [2.000, 29.600, 5.460]
+    max: [2.160, 32.900, 5.660]
+    material: "stone_detail"
+  - name: "wfr_b_5_1_t"
+    type: "box"
+    min: [0.840, 32.750, 5.460]
+    max: [2.160, 32.950, 5.660]
+    material: "stone_detail"
+  - name: "warch_b_5_1"
+    type: "sphere"
+    center: [1.500, 32.850, 5.580]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_l_5_0"
+    type: "box"
+    min: [-5.700, 29.750, -2.000]
+    max: [-5.400, 32.750, -1.000]
+    material: "dark_recess"
+  - name: "wfr_l_5_0_l"
+    type: "box"
+    min: [-5.660, 29.600, -2.160]
+    max: [-5.460, 32.900, -2.000]
+    material: "stone_detail"
+  - name: "wfr_l_5_0_r"
+    type: "box"
+    min: [-5.660, 29.600, -1.000]
+    max: [-5.460, 32.900, -0.840]
+    material: "stone_detail"
+  - name: "wfr_l_5_0_t"
+    type: "box"
+    min: [-5.660, 32.750, -2.160]
+    max: [-5.460, 32.950, -0.840]
+    material: "stone_detail"
+  - name: "warch_l_5_0"
+    type: "sphere"
+    center: [-5.580, 32.850, -1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_l_5_1"
+    type: "box"
+    min: [-5.700, 29.750, 1.000]
+    max: [-5.400, 32.750, 2.000]
+    material: "dark_recess"
+  - name: "wfr_l_5_1_l"
+    type: "box"
+    min: [-5.660, 29.600, 0.840]
+    max: [-5.460, 32.900, 1.000]
+    material: "stone_detail"
+  - name: "wfr_l_5_1_r"
+    type: "box"
+    min: [-5.660, 29.600, 2.000]
+    max: [-5.460, 32.900, 2.160]
+    material: "stone_detail"
+  - name: "wfr_l_5_1_t"
+    type: "box"
+    min: [-5.660, 32.750, 0.840]
+    max: [-5.460, 32.950, 2.160]
+    material: "stone_detail"
+  - name: "warch_l_5_1"
+    type: "sphere"
+    center: [-5.580, 32.850, 1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_r_5_0"
+    type: "box"
+    min: [5.400, 29.750, -2.000]
+    max: [5.700, 32.750, -1.000]
+    material: "dark_recess"
+  - name: "wfr_r_5_0_l"
+    type: "box"
+    min: [5.460, 29.600, -2.160]
+    max: [5.660, 32.900, -2.000]
+    material: "stone_detail"
+  - name: "wfr_r_5_0_r"
+    type: "box"
+    min: [5.460, 29.600, -1.000]
+    max: [5.660, 32.900, -0.840]
+    material: "stone_detail"
+  - name: "wfr_r_5_0_t"
+    type: "box"
+    min: [5.460, 32.750, -2.160]
+    max: [5.660, 32.950, -0.840]
+    material: "stone_detail"
+  - name: "warch_r_5_0"
+    type: "sphere"
+    center: [5.580, 32.850, -1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "win_r_5_1"
+    type: "box"
+    min: [5.400, 29.750, 1.000]
+    max: [5.700, 32.750, 2.000]
+    material: "dark_recess"
+  - name: "wfr_r_5_1_l"
+    type: "box"
+    min: [5.460, 29.600, 0.840]
+    max: [5.660, 32.900, 1.000]
+    material: "stone_detail"
+  - name: "wfr_r_5_1_r"
+    type: "box"
+    min: [5.460, 29.600, 2.000]
+    max: [5.660, 32.900, 2.160]
+    material: "stone_detail"
+  - name: "wfr_r_5_1_t"
+    type: "box"
+    min: [5.460, 32.750, 0.840]
+    max: [5.660, 32.950, 2.160]
+    material: "stone_detail"
+  - name: "warch_r_5_1"
+    type: "sphere"
+    center: [5.580, 32.850, 1.500]
+    radius: 0.500
+    material: "stone_detail"
+  - name: "clock_body"
+    type: "box"
+    min: [-6.000, 34.500, -6.000]
+    max: [6.000, 40.500, 6.000]
+    material: "limestone"
+  - name: "clock_cornice_bot"
+    type: "box"
+    min: [-6.400, 34.200, -6.400]
+    max: [6.400, 34.800, 6.400]
+    material: "stone_detail"
+  - name: "clock_cornice_top"
+    type: "box"
+    min: [-6.400, 40.200, -6.400]
+    max: [6.400, 40.800, 6.400]
+    material: "stone_detail"
+  - name: "gold_band_bot"
+    type: "box"
+    min: [-6.200, 34.700, -6.200]
+    max: [6.200, 34.900, 6.200]
     material: "gold_trim"
-
-  # Roof Base
-  - name: "roof_stage_1"
+  - name: "gold_band_top"
     type: "box"
-    min: [-3.5, 32, -3.5]
-    max: [3.5, 35, 3.5]
-    material: "roof_metal"
-
-  # Roof Peak
-  - name: "roof_stage_2"
-    type: "box"
-    min: [-2, 35, -2]
-    max: [2, 38, 2]
-    material: "roof_metal"
-
-  # Top Spire
-  - name: "top_spire"
-    type: "box"
-    min: [-0.5, 38, -0.5]
-    max: [0.5, 42, 0.5]
+    min: [-6.200, 40.100, -6.200]
+    max: [6.200, 40.300, 6.200]
     material: "gold_trim"
+  - name: "cf_front_rim"
+    type: "box"
+    min: [-2.700, 34.800, -6.250]
+    max: [2.700, 40.200, -6.050]
+    material: "clock_rim"
+  - name: "cf_front_face"
+    type: "box"
+    min: [-2.500, 35.000, -6.280]
+    max: [2.500, 40.000, -6.120]
+    material: "clock_white"
+  - name: "cf_front_mark_0"
+    type: "box"
+    min: [-0.080, 39.450, -6.300]
+    max: [0.080, 39.850, -6.200]
+    material: "clock_hand"
+  - name: "cf_front_mark_1"
+    type: "box"
+    min: [0.995, 39.162, -6.300]
+    max: [1.155, 39.562, -6.200]
+    material: "clock_hand"
+  - name: "cf_front_mark_2"
+    type: "box"
+    min: [1.782, 38.375, -6.300]
+    max: [1.942, 38.775, -6.200]
+    material: "clock_hand"
+  - name: "cf_front_mark_3"
+    type: "box"
+    min: [2.070, 37.300, -6.300]
+    max: [2.230, 37.700, -6.200]
+    material: "clock_hand"
+  - name: "cf_front_mark_4"
+    type: "box"
+    min: [1.782, 36.225, -6.300]
+    max: [1.942, 36.625, -6.200]
+    material: "clock_hand"
+  - name: "cf_front_mark_5"
+    type: "box"
+    min: [0.995, 35.438, -6.300]
+    max: [1.155, 35.838, -6.200]
+    material: "clock_hand"
+  - name: "cf_front_mark_6"
+    type: "box"
+    min: [-0.080, 35.150, -6.300]
+    max: [0.080, 35.550, -6.200]
+    material: "clock_hand"
+  - name: "cf_front_mark_7"
+    type: "box"
+    min: [-1.155, 35.438, -6.300]
+    max: [-0.995, 35.838, -6.200]
+    material: "clock_hand"
+  - name: "cf_front_mark_8"
+    type: "box"
+    min: [-1.942, 36.225, -6.300]
+    max: [-1.782, 36.625, -6.200]
+    material: "clock_hand"
+  - name: "cf_front_mark_9"
+    type: "box"
+    min: [-2.230, 37.300, -6.300]
+    max: [-2.070, 37.700, -6.200]
+    material: "clock_hand"
+  - name: "cf_front_mark_10"
+    type: "box"
+    min: [-1.942, 38.375, -6.300]
+    max: [-1.782, 38.775, -6.200]
+    material: "clock_hand"
+  - name: "cf_front_mark_11"
+    type: "box"
+    min: [-1.155, 39.162, -6.300]
+    max: [-0.995, 39.562, -6.200]
+    material: "clock_hand"
+  - name: "cf_front_hr_hand"
+    type: "box"
+    min: [-0.100, 37.500, -6.320]
+    max: [0.100, 38.750, -6.240]
+    material: "clock_hand"
+  - name: "cf_front_min_hand"
+    type: "box"
+    min: [0.000, 37.440, -6.330]
+    max: [1.875, 37.560, -6.270]
+    material: "clock_hand"
+  - name: "cf_front_hub"
+    type: "cylinder"
+    center: [0.000, 37.350, -6.320]
+    radius: 0.200
+    height: 0.300
+    material: "gold_trim"
+  - name: "cf_back_rim"
+    type: "box"
+    min: [-2.700, 34.800, 6.050]
+    max: [2.700, 40.200, 6.250]
+    material: "clock_rim"
+  - name: "cf_back_face"
+    type: "box"
+    min: [-2.500, 35.000, 6.120]
+    max: [2.500, 40.000, 6.280]
+    material: "clock_white"
+  - name: "cf_back_mark_0"
+    type: "box"
+    min: [-0.080, 39.450, 6.200]
+    max: [0.080, 39.850, 6.300]
+    material: "clock_hand"
+  - name: "cf_back_mark_1"
+    type: "box"
+    min: [0.995, 39.162, 6.200]
+    max: [1.155, 39.562, 6.300]
+    material: "clock_hand"
+  - name: "cf_back_mark_2"
+    type: "box"
+    min: [1.782, 38.375, 6.200]
+    max: [1.942, 38.775, 6.300]
+    material: "clock_hand"
+  - name: "cf_back_mark_3"
+    type: "box"
+    min: [2.070, 37.300, 6.200]
+    max: [2.230, 37.700, 6.300]
+    material: "clock_hand"
+  - name: "cf_back_mark_4"
+    type: "box"
+    min: [1.782, 36.225, 6.200]
+    max: [1.942, 36.625, 6.300]
+    material: "clock_hand"
+  - name: "cf_back_mark_5"
+    type: "box"
+    min: [0.995, 35.438, 6.200]
+    max: [1.155, 35.838, 6.300]
+    material: "clock_hand"
+  - name: "cf_back_mark_6"
+    type: "box"
+    min: [-0.080, 35.150, 6.200]
+    max: [0.080, 35.550, 6.300]
+    material: "clock_hand"
+  - name: "cf_back_mark_7"
+    type: "box"
+    min: [-1.155, 35.438, 6.200]
+    max: [-0.995, 35.838, 6.300]
+    material: "clock_hand"
+  - name: "cf_back_mark_8"
+    type: "box"
+    min: [-1.942, 36.225, 6.200]
+    max: [-1.782, 36.625, 6.300]
+    material: "clock_hand"
+  - name: "cf_back_mark_9"
+    type: "box"
+    min: [-2.230, 37.300, 6.200]
+    max: [-2.070, 37.700, 6.300]
+    material: "clock_hand"
+  - name: "cf_back_mark_10"
+    type: "box"
+    min: [-1.942, 38.375, 6.200]
+    max: [-1.782, 38.775, 6.300]
+    material: "clock_hand"
+  - name: "cf_back_mark_11"
+    type: "box"
+    min: [-1.155, 39.162, 6.200]
+    max: [-0.995, 39.562, 6.300]
+    material: "clock_hand"
+  - name: "cf_back_hr_hand"
+    type: "box"
+    min: [-0.100, 37.500, 6.240]
+    max: [0.100, 38.750, 6.320]
+    material: "clock_hand"
+  - name: "cf_back_min_hand"
+    type: "box"
+    min: [0.000, 37.440, 6.270]
+    max: [1.875, 37.560, 6.330]
+    material: "clock_hand"
+  - name: "cf_back_hub"
+    type: "cylinder"
+    center: [0.000, 37.350, 6.320]
+    radius: 0.200
+    height: 0.300
+    material: "gold_trim"
+  - name: "cf_left_rim"
+    type: "box"
+    min: [-6.250, 34.800, -2.700]
+    max: [-6.050, 40.200, 2.700]
+    material: "clock_rim"
+  - name: "cf_left_face"
+    type: "box"
+    min: [-6.280, 35.000, -2.500]
+    max: [-6.120, 40.000, 2.500]
+    material: "clock_white"
+  - name: "cf_left_mark_0"
+    type: "box"
+    min: [-6.300, 39.450, -0.080]
+    max: [-6.200, 39.850, 0.080]
+    material: "clock_hand"
+  - name: "cf_left_mark_1"
+    type: "box"
+    min: [-6.300, 39.162, 0.995]
+    max: [-6.200, 39.562, 1.155]
+    material: "clock_hand"
+  - name: "cf_left_mark_2"
+    type: "box"
+    min: [-6.300, 38.375, 1.782]
+    max: [-6.200, 38.775, 1.942]
+    material: "clock_hand"
+  - name: "cf_left_mark_3"
+    type: "box"
+    min: [-6.300, 37.300, 2.070]
+    max: [-6.200, 37.700, 2.230]
+    material: "clock_hand"
+  - name: "cf_left_mark_4"
+    type: "box"
+    min: [-6.300, 36.225, 1.782]
+    max: [-6.200, 36.625, 1.942]
+    material: "clock_hand"
+  - name: "cf_left_mark_5"
+    type: "box"
+    min: [-6.300, 35.438, 0.995]
+    max: [-6.200, 35.838, 1.155]
+    material: "clock_hand"
+  - name: "cf_left_mark_6"
+    type: "box"
+    min: [-6.300, 35.150, -0.080]
+    max: [-6.200, 35.550, 0.080]
+    material: "clock_hand"
+  - name: "cf_left_mark_7"
+    type: "box"
+    min: [-6.300, 35.438, -1.155]
+    max: [-6.200, 35.838, -0.995]
+    material: "clock_hand"
+  - name: "cf_left_mark_8"
+    type: "box"
+    min: [-6.300, 36.225, -1.942]
+    max: [-6.200, 36.625, -1.782]
+    material: "clock_hand"
+  - name: "cf_left_mark_9"
+    type: "box"
+    min: [-6.300, 37.300, -2.230]
+    max: [-6.200, 37.700, -2.070]
+    material: "clock_hand"
+  - name: "cf_left_mark_10"
+    type: "box"
+    min: [-6.300, 38.375, -1.942]
+    max: [-6.200, 38.775, -1.782]
+    material: "clock_hand"
+  - name: "cf_left_mark_11"
+    type: "box"
+    min: [-6.300, 39.162, -1.155]
+    max: [-6.200, 39.562, -0.995]
+    material: "clock_hand"
+  - name: "cf_left_hr_hand"
+    type: "box"
+    min: [-6.320, 37.500, -0.100]
+    max: [-6.240, 38.750, 0.100]
+    material: "clock_hand"
+  - name: "cf_left_min_hand"
+    type: "box"
+    min: [-6.330, 37.440, 0.000]
+    max: [-6.270, 37.560, 1.875]
+    material: "clock_hand"
+  - name: "cf_left_hub"
+    type: "cylinder"
+    center: [-6.320, 37.350, 0.000]
+    radius: 0.200
+    height: 0.300
+    material: "gold_trim"
+  - name: "cf_right_rim"
+    type: "box"
+    min: [6.050, 34.800, -2.700]
+    max: [6.250, 40.200, 2.700]
+    material: "clock_rim"
+  - name: "cf_right_face"
+    type: "box"
+    min: [6.120, 35.000, -2.500]
+    max: [6.280, 40.000, 2.500]
+    material: "clock_white"
+  - name: "cf_right_mark_0"
+    type: "box"
+    min: [6.200, 39.450, -0.080]
+    max: [6.300, 39.850, 0.080]
+    material: "clock_hand"
+  - name: "cf_right_mark_1"
+    type: "box"
+    min: [6.200, 39.162, 0.995]
+    max: [6.300, 39.562, 1.155]
+    material: "clock_hand"
+  - name: "cf_right_mark_2"
+    type: "box"
+    min: [6.200, 38.375, 1.782]
+    max: [6.300, 38.775, 1.942]
+    material: "clock_hand"
+  - name: "cf_right_mark_3"
+    type: "box"
+    min: [6.200, 37.300, 2.070]
+    max: [6.300, 37.700, 2.230]
+    material: "clock_hand"
+  - name: "cf_right_mark_4"
+    type: "box"
+    min: [6.200, 36.225, 1.782]
+    max: [6.300, 36.625, 1.942]
+    material: "clock_hand"
+  - name: "cf_right_mark_5"
+    type: "box"
+    min: [6.200, 35.438, 0.995]
+    max: [6.300, 35.838, 1.155]
+    material: "clock_hand"
+  - name: "cf_right_mark_6"
+    type: "box"
+    min: [6.200, 35.150, -0.080]
+    max: [6.300, 35.550, 0.080]
+    material: "clock_hand"
+  - name: "cf_right_mark_7"
+    type: "box"
+    min: [6.200, 35.438, -1.155]
+    max: [6.300, 35.838, -0.995]
+    material: "clock_hand"
+  - name: "cf_right_mark_8"
+    type: "box"
+    min: [6.200, 36.225, -1.942]
+    max: [6.300, 36.625, -1.782]
+    material: "clock_hand"
+  - name: "cf_right_mark_9"
+    type: "box"
+    min: [6.200, 37.300, -2.230]
+    max: [6.300, 37.700, -2.070]
+    material: "clock_hand"
+  - name: "cf_right_mark_10"
+    type: "box"
+    min: [6.200, 38.375, -1.942]
+    max: [6.300, 38.775, -1.782]
+    material: "clock_hand"
+  - name: "cf_right_mark_11"
+    type: "box"
+    min: [6.200, 39.162, -1.155]
+    max: [6.300, 39.562, -0.995]
+    material: "clock_hand"
+  - name: "cf_right_hr_hand"
+    type: "box"
+    min: [6.240, 37.500, -0.100]
+    max: [6.320, 38.750, 0.100]
+    material: "clock_hand"
+  - name: "cf_right_min_hand"
+    type: "box"
+    min: [6.270, 37.440, 0.000]
+    max: [6.330, 37.560, 1.875]
+    material: "clock_hand"
+  - name: "cf_right_hub"
+    type: "cylinder"
+    center: [6.320, 37.350, 0.000]
+    radius: 0.200
+    height: 0.300
+    material: "gold_trim"
+  - name: "clock_pilaster_0"
+    type: "box"
+    min: [-6.350, 34.500, -6.350]
+    max: [-5.650, 40.500, -5.650]
+    material: "stone_detail"
+  - name: "clock_pin_0"
+    type: "box"
+    min: [-6.150, 40.500, -6.150]
+    max: [-5.850, 41.700, -5.850]
+    material: "limestone"
+  - name: "clock_pin_ball_0"
+    type: "sphere"
+    center: [-6.000, 41.800, -6.000]
+    radius: 0.120
+    material: "gold_trim"
+  - name: "clock_pilaster_1"
+    type: "box"
+    min: [5.650, 34.500, -6.350]
+    max: [6.350, 40.500, -5.650]
+    material: "stone_detail"
+  - name: "clock_pin_1"
+    type: "box"
+    min: [5.850, 40.500, -6.150]
+    max: [6.150, 41.700, -5.850]
+    material: "limestone"
+  - name: "clock_pin_ball_1"
+    type: "sphere"
+    center: [6.000, 41.800, -6.000]
+    radius: 0.120
+    material: "gold_trim"
+  - name: "clock_pilaster_2"
+    type: "box"
+    min: [-6.350, 34.500, 5.650]
+    max: [-5.650, 40.500, 6.350]
+    material: "stone_detail"
+  - name: "clock_pin_2"
+    type: "box"
+    min: [-6.150, 40.500, 5.850]
+    max: [-5.850, 41.700, 6.150]
+    material: "limestone"
+  - name: "clock_pin_ball_2"
+    type: "sphere"
+    center: [-6.000, 41.800, 6.000]
+    radius: 0.120
+    material: "gold_trim"
+  - name: "clock_pilaster_3"
+    type: "box"
+    min: [5.650, 34.500, 5.650]
+    max: [6.350, 40.500, 6.350]
+    material: "stone_detail"
+  - name: "clock_pin_3"
+    type: "box"
+    min: [5.850, 40.500, 5.850]
+    max: [6.150, 41.700, 6.150]
+    material: "limestone"
+  - name: "clock_pin_ball_3"
+    type: "sphere"
+    center: [6.000, 41.800, 6.000]
+    radius: 0.120
+    material: "gold_trim"
+  - name: "belfry_body"
+    type: "box"
+    min: [-5.800, 40.800, -5.800]
+    max: [5.800, 47.800, 5.800]
+    material: "limestone"
+  - name: "belfry_cornice"
+    type: "box"
+    min: [-6.300, 47.500, -6.300]
+    max: [6.300, 48.100, 6.300]
+    material: "stone_detail"
+  - name: "belfry_cornice_b"
+    type: "box"
+    min: [-6.100, 40.550, -6.100]
+    max: [6.100, 41.050, 6.100]
+    material: "stone_detail"
+  - name: "belf_f_arch_0"
+    type: "box"
+    min: [-3.300, 42.300, -6.050]
+    max: [-1.700, 46.800, -5.650]
+    material: "dark_recess"
+  - name: "belf_f_col_0_l"
+    type: "cylinder"
+    center: [-3.450, 42.300, -5.850]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_f_col_0_r"
+    type: "cylinder"
+    center: [-1.550, 42.300, -5.850]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_f_atop_0"
+    type: "sphere"
+    center: [-2.500, 46.800, -5.850]
+    radius: 0.800
+    material: "stone_detail"
+  - name: "belf_f_cap_0_l"
+    type: "box"
+    min: [-3.670, 46.650, -6.070]
+    max: [-3.230, 46.950, -5.630]
+    material: "stone_detail"
+  - name: "belf_f_cap_0_r"
+    type: "box"
+    min: [-1.770, 46.650, -6.070]
+    max: [-1.330, 46.950, -5.630]
+    material: "stone_detail"
+  - name: "belf_f_arch_1"
+    type: "box"
+    min: [1.700, 42.300, -6.050]
+    max: [3.300, 46.800, -5.650]
+    material: "dark_recess"
+  - name: "belf_f_col_1_l"
+    type: "cylinder"
+    center: [1.550, 42.300, -5.850]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_f_col_1_r"
+    type: "cylinder"
+    center: [3.450, 42.300, -5.850]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_f_atop_1"
+    type: "sphere"
+    center: [2.500, 46.800, -5.850]
+    radius: 0.800
+    material: "stone_detail"
+  - name: "belf_f_cap_1_l"
+    type: "box"
+    min: [1.330, 46.650, -6.070]
+    max: [1.770, 46.950, -5.630]
+    material: "stone_detail"
+  - name: "belf_f_cap_1_r"
+    type: "box"
+    min: [3.230, 46.650, -6.070]
+    max: [3.670, 46.950, -5.630]
+    material: "stone_detail"
+  - name: "belf_f_mid_col"
+    type: "cylinder"
+    center: [0.000, 42.300, -5.850]
+    radius: 0.180
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_b_arch_0"
+    type: "box"
+    min: [-3.300, 42.300, 5.650]
+    max: [-1.700, 46.800, 6.050]
+    material: "dark_recess"
+  - name: "belf_b_col_0_l"
+    type: "cylinder"
+    center: [-3.450, 42.300, 5.850]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_b_col_0_r"
+    type: "cylinder"
+    center: [-1.550, 42.300, 5.850]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_b_atop_0"
+    type: "sphere"
+    center: [-2.500, 46.800, 5.850]
+    radius: 0.800
+    material: "stone_detail"
+  - name: "belf_b_cap_0_l"
+    type: "box"
+    min: [-3.670, 46.650, 5.630]
+    max: [-3.230, 46.950, 6.070]
+    material: "stone_detail"
+  - name: "belf_b_cap_0_r"
+    type: "box"
+    min: [-1.770, 46.650, 5.630]
+    max: [-1.330, 46.950, 6.070]
+    material: "stone_detail"
+  - name: "belf_b_arch_1"
+    type: "box"
+    min: [1.700, 42.300, 5.650]
+    max: [3.300, 46.800, 6.050]
+    material: "dark_recess"
+  - name: "belf_b_col_1_l"
+    type: "cylinder"
+    center: [1.550, 42.300, 5.850]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_b_col_1_r"
+    type: "cylinder"
+    center: [3.450, 42.300, 5.850]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_b_atop_1"
+    type: "sphere"
+    center: [2.500, 46.800, 5.850]
+    radius: 0.800
+    material: "stone_detail"
+  - name: "belf_b_cap_1_l"
+    type: "box"
+    min: [1.330, 46.650, 5.630]
+    max: [1.770, 46.950, 6.070]
+    material: "stone_detail"
+  - name: "belf_b_cap_1_r"
+    type: "box"
+    min: [3.230, 46.650, 5.630]
+    max: [3.670, 46.950, 6.070]
+    material: "stone_detail"
+  - name: "belf_b_mid_col"
+    type: "cylinder"
+    center: [0.000, 42.300, 5.850]
+    radius: 0.180
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_l_arch_0"
+    type: "box"
+    min: [-6.050, 42.300, -3.300]
+    max: [-5.650, 46.800, -1.700]
+    material: "dark_recess"
+  - name: "belf_l_col_0_l"
+    type: "cylinder"
+    center: [-5.850, 42.300, -3.450]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_l_col_0_r"
+    type: "cylinder"
+    center: [-5.850, 42.300, -1.550]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_l_atop_0"
+    type: "sphere"
+    center: [-5.850, 46.800, -2.500]
+    radius: 0.800
+    material: "stone_detail"
+  - name: "belf_l_cap_0_l"
+    type: "box"
+    min: [-6.070, 46.650, -3.670]
+    max: [-5.630, 46.950, -3.230]
+    material: "stone_detail"
+  - name: "belf_l_cap_0_r"
+    type: "box"
+    min: [-6.070, 46.650, -1.770]
+    max: [-5.630, 46.950, -1.330]
+    material: "stone_detail"
+  - name: "belf_l_arch_1"
+    type: "box"
+    min: [-6.050, 42.300, 1.700]
+    max: [-5.650, 46.800, 3.300]
+    material: "dark_recess"
+  - name: "belf_l_col_1_l"
+    type: "cylinder"
+    center: [-5.850, 42.300, 1.550]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_l_col_1_r"
+    type: "cylinder"
+    center: [-5.850, 42.300, 3.450]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_l_atop_1"
+    type: "sphere"
+    center: [-5.850, 46.800, 2.500]
+    radius: 0.800
+    material: "stone_detail"
+  - name: "belf_l_cap_1_l"
+    type: "box"
+    min: [-6.070, 46.650, 1.330]
+    max: [-5.630, 46.950, 1.770]
+    material: "stone_detail"
+  - name: "belf_l_cap_1_r"
+    type: "box"
+    min: [-6.070, 46.650, 3.230]
+    max: [-5.630, 46.950, 3.670]
+    material: "stone_detail"
+  - name: "belf_l_mid_col"
+    type: "cylinder"
+    center: [-5.850, 42.300, 0.000]
+    radius: 0.180
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_r_arch_0"
+    type: "box"
+    min: [5.650, 42.300, -3.300]
+    max: [6.050, 46.800, -1.700]
+    material: "dark_recess"
+  - name: "belf_r_col_0_l"
+    type: "cylinder"
+    center: [5.850, 42.300, -3.450]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_r_col_0_r"
+    type: "cylinder"
+    center: [5.850, 42.300, -1.550]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_r_atop_0"
+    type: "sphere"
+    center: [5.850, 46.800, -2.500]
+    radius: 0.800
+    material: "stone_detail"
+  - name: "belf_r_cap_0_l"
+    type: "box"
+    min: [5.630, 46.650, -3.670]
+    max: [6.070, 46.950, -3.230]
+    material: "stone_detail"
+  - name: "belf_r_cap_0_r"
+    type: "box"
+    min: [5.630, 46.650, -1.770]
+    max: [6.070, 46.950, -1.330]
+    material: "stone_detail"
+  - name: "belf_r_arch_1"
+    type: "box"
+    min: [5.650, 42.300, 1.700]
+    max: [6.050, 46.800, 3.300]
+    material: "dark_recess"
+  - name: "belf_r_col_1_l"
+    type: "cylinder"
+    center: [5.850, 42.300, 1.550]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_r_col_1_r"
+    type: "cylinder"
+    center: [5.850, 42.300, 3.450]
+    radius: 0.150
+    height: 4.500
+    material: "stone_detail"
+  - name: "belf_r_atop_1"
+    type: "sphere"
+    center: [5.850, 46.800, 2.500]
+    radius: 0.800
+    material: "stone_detail"
+  - name: "belf_r_cap_1_l"
+    type: "box"
+    min: [5.630, 46.650, 1.330]
+    max: [6.070, 46.950, 1.770]
+    material: "stone_detail"
+  - name: "belf_r_cap_1_r"
+    type: "box"
+    min: [5.630, 46.650, 3.230]
+    max: [6.070, 46.950, 3.670]
+    material: "stone_detail"
+  - name: "belf_r_mid_col"
+    type: "cylinder"
+    center: [5.850, 42.300, 0.000]
+    radius: 0.180
+    height: 4.500
+    material: "stone_detail"
+  - name: "big_ben_bell"
+    type: "cylinder"
+    center: [0.000, 41.800, 0.000]
+    radius: 2.000
+    height: 2.500
+    material: "gold_trim"
+  - name: "bell_dome"
+    type: "sphere"
+    center: [0.000, 44.300, 0.000]
+    radius: 2.000
+    material: "gold_trim"
+  - name: "bell_clapper"
+    type: "cylinder"
+    center: [0.000, 41.300, 0.000]
+    radius: 0.150
+    height: 2.000
+    material: "iron_dark"
+  - name: "belf_turret_0"
+    type: "cylinder"
+    center: [-6.600, 40.800, -6.600]
+    radius: 0.800
+    height: 9.000
+    material: "limestone"
+  - name: "belf_turret_cap_0"
+    type: "cylinder"
+    center: [-6.600, 49.800, -6.600]
+    radius: 1.000
+    height: 0.300
+    material: "stone_detail"
+  - name: "belf_turret_pin_0"
+    type: "box"
+    min: [-6.800, 49.800, -6.800]
+    max: [-6.400, 51.400, -6.400]
+    material: "limestone"
+  - name: "belf_turret_pin2_0"
+    type: "box"
+    min: [-6.720, 51.100, -6.720]
+    max: [-6.480, 52.100, -6.480]
+    material: "limestone"
+  - name: "belf_turret_ball_0"
+    type: "sphere"
+    center: [-6.600, 52.200, -6.600]
+    radius: 0.100
+    material: "gold_trim"
+  - name: "belf_turret_1"
+    type: "cylinder"
+    center: [6.600, 40.800, -6.600]
+    radius: 0.800
+    height: 9.000
+    material: "limestone"
+  - name: "belf_turret_cap_1"
+    type: "cylinder"
+    center: [6.600, 49.800, -6.600]
+    radius: 1.000
+    height: 0.300
+    material: "stone_detail"
+  - name: "belf_turret_pin_1"
+    type: "box"
+    min: [6.400, 49.800, -6.800]
+    max: [6.800, 51.400, -6.400]
+    material: "limestone"
+  - name: "belf_turret_pin2_1"
+    type: "box"
+    min: [6.480, 51.100, -6.720]
+    max: [6.720, 52.100, -6.480]
+    material: "limestone"
+  - name: "belf_turret_ball_1"
+    type: "sphere"
+    center: [6.600, 52.200, -6.600]
+    radius: 0.100
+    material: "gold_trim"
+  - name: "belf_turret_2"
+    type: "cylinder"
+    center: [-6.600, 40.800, 6.600]
+    radius: 0.800
+    height: 9.000
+    material: "limestone"
+  - name: "belf_turret_cap_2"
+    type: "cylinder"
+    center: [-6.600, 49.800, 6.600]
+    radius: 1.000
+    height: 0.300
+    material: "stone_detail"
+  - name: "belf_turret_pin_2"
+    type: "box"
+    min: [-6.800, 49.800, 6.400]
+    max: [-6.400, 51.400, 6.800]
+    material: "limestone"
+  - name: "belf_turret_pin2_2"
+    type: "box"
+    min: [-6.720, 51.100, 6.480]
+    max: [-6.480, 52.100, 6.720]
+    material: "limestone"
+  - name: "belf_turret_ball_2"
+    type: "sphere"
+    center: [-6.600, 52.200, 6.600]
+    radius: 0.100
+    material: "gold_trim"
+  - name: "belf_turret_3"
+    type: "cylinder"
+    center: [6.600, 40.800, 6.600]
+    radius: 0.800
+    height: 9.000
+    material: "limestone"
+  - name: "belf_turret_cap_3"
+    type: "cylinder"
+    center: [6.600, 49.800, 6.600]
+    radius: 1.000
+    height: 0.300
+    material: "stone_detail"
+  - name: "belf_turret_pin_3"
+    type: "box"
+    min: [6.400, 49.800, 6.400]
+    max: [6.800, 51.400, 6.800]
+    material: "limestone"
+  - name: "belf_turret_pin2_3"
+    type: "box"
+    min: [6.480, 51.100, 6.480]
+    max: [6.720, 52.100, 6.720]
+    material: "limestone"
+  - name: "belf_turret_ball_3"
+    type: "sphere"
+    center: [6.600, 52.200, 6.600]
+    radius: 0.100
+    material: "gold_trim"
+  - name: "roof_1"
+    type: "box"
+    min: [-6.000, 48.100, -6.000]
+    max: [6.000, 50.100, 6.000]
+    material: "copper_roof"
+  - name: "roof_2"
+    type: "box"
+    min: [-5.000, 49.800, -5.000]
+    max: [5.000, 51.400, 5.000]
+    material: "copper_roof"
+  - name: "roof_3"
+    type: "box"
+    min: [-4.000, 51.200, -4.000]
+    max: [4.000, 52.600, 4.000]
+    material: "copper_roof"
+  - name: "roof_4"
+    type: "box"
+    min: [-3.000, 52.300, -3.000]
+    max: [3.000, 53.500, 3.000]
+    material: "copper_roof"
+  - name: "roof_5"
+    type: "box"
+    min: [-2.000, 53.200, -2.000]
+    max: [2.000, 54.200, 2.000]
+    material: "copper_roof"
+  - name: "roof_6"
+    type: "box"
+    min: [-1.200, 54.000, -1.200]
+    max: [1.200, 54.800, 1.200]
+    material: "copper_roof"
+  - name: "roof_finial_0"
+    type: "cylinder"
+    center: [-5.500, 48.100, -5.500]
+    radius: 0.300
+    height: 3.000
+    material: "limestone"
+  - name: "roof_finial_cap_0"
+    type: "box"
+    min: [-5.650, 50.900, -5.650]
+    max: [-5.350, 51.900, -5.350]
+    material: "limestone"
+  - name: "roof_finial_ball_0"
+    type: "sphere"
+    center: [-5.500, 52.000, -5.500]
+    radius: 0.120
+    material: "gold_trim"
+  - name: "roof_finial_1"
+    type: "cylinder"
+    center: [-5.500, 48.100, 5.500]
+    radius: 0.300
+    height: 3.000
+    material: "limestone"
+  - name: "roof_finial_cap_1"
+    type: "box"
+    min: [-5.650, 50.900, 5.350]
+    max: [-5.350, 51.900, 5.650]
+    material: "limestone"
+  - name: "roof_finial_ball_1"
+    type: "sphere"
+    center: [-5.500, 52.000, 5.500]
+    radius: 0.120
+    material: "gold_trim"
+  - name: "roof_finial_2"
+    type: "cylinder"
+    center: [5.500, 48.100, -5.500]
+    radius: 0.300
+    height: 3.000
+    material: "limestone"
+  - name: "roof_finial_cap_2"
+    type: "box"
+    min: [5.350, 50.900, -5.650]
+    max: [5.650, 51.900, -5.350]
+    material: "limestone"
+  - name: "roof_finial_ball_2"
+    type: "sphere"
+    center: [5.500, 52.000, -5.500]
+    radius: 0.120
+    material: "gold_trim"
+  - name: "roof_finial_3"
+    type: "cylinder"
+    center: [5.500, 48.100, 5.500]
+    radius: 0.300
+    height: 3.000
+    material: "limestone"
+  - name: "roof_finial_cap_3"
+    type: "box"
+    min: [5.350, 50.900, 5.350]
+    max: [5.650, 51.900, 5.650]
+    material: "limestone"
+  - name: "roof_finial_ball_3"
+    type: "sphere"
+    center: [5.500, 52.000, 5.500]
+    radius: 0.120
+    material: "gold_trim"
+  - name: "spire_shaft"
+    type: "cylinder"
+    center: [0.000, 54.900, 0.000]
+    radius: 0.600
+    height: 4.000
+    material: "copper_roof"
+  - name: "spire_mid"
+    type: "cylinder"
+    center: [0.000, 58.900, 0.000]
+    radius: 0.400
+    height: 2.000
+    material: "copper_roof"
+  - name: "spire_top"
+    type: "cylinder"
+    center: [0.000, 60.900, 0.000]
+    radius: 0.200
+    height: 1.500
+    material: "copper_roof"
+  - name: "spire_tip"
+    type: "cylinder"
+    center: [0.000, 62.400, 0.000]
+    radius: 0.080
+    height: 1.000
+    material: "gold_trim"
+  - name: "cross_vert"
+    type: "box"
+    min: [-0.040, 63.400, -0.040]
+    max: [0.040, 64.400, 0.040]
+    material: "gold_trim"
+  - name: "cross_horiz"
+    type: "box"
+    min: [-0.250, 64.160, -0.040]
+    max: [0.250, 64.240, 0.040]
+    material: "gold_trim"
+  - name: "ayrton_cage"
+    type: "cylinder"
+    center: [0.000, 62.700, 0.000]
+    radius: 0.350
+    height: 0.800
+    material: "iron_dark"
+  - name: "ayrton_glow"
+    type: "sphere"
+    center: [0.000, 63.100, 0.000]
+    radius: 0.250
+    material: "warm_light"
+  - name: "roof_gallery"
+    type: "box"
+    min: [-6.300, 48.100, -6.300]
+    max: [6.300, 48.400, 6.300]
+    material: "stone_detail"
+  - name: "balus_0_0"
+    type: "cylinder"
+    center: [-5.800, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_0_1"
+    type: "cylinder"
+    center: [-4.745, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_0_2"
+    type: "cylinder"
+    center: [-3.691, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_0_3"
+    type: "cylinder"
+    center: [-2.636, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_0_4"
+    type: "cylinder"
+    center: [-1.582, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_0_5"
+    type: "cylinder"
+    center: [-0.527, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_0_6"
+    type: "cylinder"
+    center: [0.527, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_0_7"
+    type: "cylinder"
+    center: [1.582, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_0_8"
+    type: "cylinder"
+    center: [2.636, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_0_9"
+    type: "cylinder"
+    center: [3.691, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_0_10"
+    type: "cylinder"
+    center: [4.745, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_0_11"
+    type: "cylinder"
+    center: [5.800, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "rail_0"
+    type: "box"
+    min: [-5.800, 48.850, -6.080]
+    max: [5.800, 48.950, -5.920]
+    material: "limestone"
+  - name: "balus_1_0"
+    type: "cylinder"
+    center: [-5.800, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_1_1"
+    type: "cylinder"
+    center: [-4.745, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_1_2"
+    type: "cylinder"
+    center: [-3.691, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_1_3"
+    type: "cylinder"
+    center: [-2.636, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_1_4"
+    type: "cylinder"
+    center: [-1.582, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_1_5"
+    type: "cylinder"
+    center: [-0.527, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_1_6"
+    type: "cylinder"
+    center: [0.527, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_1_7"
+    type: "cylinder"
+    center: [1.582, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_1_8"
+    type: "cylinder"
+    center: [2.636, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_1_9"
+    type: "cylinder"
+    center: [3.691, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_1_10"
+    type: "cylinder"
+    center: [4.745, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_1_11"
+    type: "cylinder"
+    center: [5.800, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "rail_1"
+    type: "box"
+    min: [-5.800, 48.850, 5.920]
+    max: [5.800, 48.950, 6.080]
+    material: "limestone"
+  - name: "balus_2_0"
+    type: "cylinder"
+    center: [-6.000, 48.100, -5.800]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_2_1"
+    type: "cylinder"
+    center: [-6.000, 48.100, -4.745]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_2_2"
+    type: "cylinder"
+    center: [-6.000, 48.100, -3.691]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_2_3"
+    type: "cylinder"
+    center: [-6.000, 48.100, -2.636]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_2_4"
+    type: "cylinder"
+    center: [-6.000, 48.100, -1.582]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_2_5"
+    type: "cylinder"
+    center: [-6.000, 48.100, -0.527]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_2_6"
+    type: "cylinder"
+    center: [-6.000, 48.100, 0.527]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_2_7"
+    type: "cylinder"
+    center: [-6.000, 48.100, 1.582]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_2_8"
+    type: "cylinder"
+    center: [-6.000, 48.100, 2.636]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_2_9"
+    type: "cylinder"
+    center: [-6.000, 48.100, 3.691]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_2_10"
+    type: "cylinder"
+    center: [-6.000, 48.100, 4.745]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_2_11"
+    type: "cylinder"
+    center: [-6.000, 48.100, 5.800]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "rail_2"
+    type: "box"
+    min: [-6.080, 48.850, -5.800]
+    max: [-5.920, 48.950, 5.800]
+    material: "limestone"
+  - name: "balus_3_0"
+    type: "cylinder"
+    center: [6.000, 48.100, -5.800]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_3_1"
+    type: "cylinder"
+    center: [6.000, 48.100, -4.745]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_3_2"
+    type: "cylinder"
+    center: [6.000, 48.100, -3.691]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_3_3"
+    type: "cylinder"
+    center: [6.000, 48.100, -2.636]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_3_4"
+    type: "cylinder"
+    center: [6.000, 48.100, -1.582]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_3_5"
+    type: "cylinder"
+    center: [6.000, 48.100, -0.527]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_3_6"
+    type: "cylinder"
+    center: [6.000, 48.100, 0.527]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_3_7"
+    type: "cylinder"
+    center: [6.000, 48.100, 1.582]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_3_8"
+    type: "cylinder"
+    center: [6.000, 48.100, 2.636]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_3_9"
+    type: "cylinder"
+    center: [6.000, 48.100, 3.691]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_3_10"
+    type: "cylinder"
+    center: [6.000, 48.100, 4.745]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "balus_3_11"
+    type: "cylinder"
+    center: [6.000, 48.100, 5.800]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+  - name: "rail_3"
+    type: "box"
+    min: [5.920, 48.850, -5.800]
+    max: [6.080, 48.950, 5.800]
+    material: "limestone"

@@ -5,5 +5,6 @@
   <Folder Name="/Tools/">
     <Project Path="src/Tools/ChessGen/ChessGen.csproj" />
     <Project Path="src/Tools/TeapotGen/TeapotGen.csproj" />
+    <Project Path="src/Tools/BigBenGen/BigBenGen.csproj" />
   </Folder>
 </Solution>
