@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Numerics;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -11,17 +11,43 @@ class Program
 {
     static void Main(string[] args)
     {
-        // Parse CLI arguments
-        string inputPath = GetArg(args, "--input", "-i") ?? "scenes/sample.yaml";
-        string outputPath = GetArg(args, "--output", "-o") ?? "render.png";
-        int width = int.TryParse(GetArg(args, "--width", null), out var w) ? w : 0;
-        int height = int.TryParse(GetArg(args, "--height", null), out var h) ? h : 0;
-        int samples = int.TryParse(GetArg(args, "--samples", "-s"), out var s) ? s : 16;
-        int depth = int.TryParse(GetArg(args, "--depth", "-d"), out var d) ? d : 50;
+        // Show help if no arguments or help requested
+        if (args.Length == 0 || GetArg(args, "--help", "-h") != null)
+        {
+            ShowHelp();
+            return;
+        }
 
-        // If resolution not specified via CLI, fallback
-        if (width <= 0) width = 1280;
-        if (height <= 0) height = 720;
+        // Parse CLI arguments
+        string? inputPath = GetArg(args, "--input", "-i");
+        string outputPath = GetArg(args, "--output", "-o") ?? "render.png";
+        
+        bool wParsed = int.TryParse(GetArg(args, "--width", null), out var width);
+        bool hParsed = int.TryParse(GetArg(args, "--height", null), out var height);
+        bool sParsed = int.TryParse(GetArg(args, "--samples", "-s"), out var samples);
+        bool dParsed = int.TryParse(GetArg(args, "--depth", "-d"), out var depth);
+
+        // Required argument check
+        if (string.IsNullOrEmpty(inputPath))
+        {
+            Console.WriteLine("Error: Missing required argument --input (-i)");
+            Console.WriteLine();
+            ShowHelp();
+            return;
+        }
+
+        // File existence check
+        if (!File.Exists(inputPath))
+        {
+            Console.WriteLine($"Error: Scene file not found: {inputPath}");
+            return;
+        }
+
+        // Default values and validation
+        if (!wParsed || width <= 0) width = 1200;
+        if (!hParsed || height <= 0) height = 800;
+        if (!sParsed || samples <= 0) samples = 16;
+        if (!dParsed || depth <= 0) depth = 50;
 
         Console.WriteLine("╔══════════════════════════════════════════╗");
         Console.WriteLine("║       RayTracer .NET 10 Engine           ║");
@@ -37,25 +63,50 @@ class Program
         // Load scene
         Console.Write("Loading scene... ");
         var sw = Stopwatch.StartNew();
-        var (world, camera, lights, ambientLight, background) =
-            SceneLoader.Load(inputPath, width, height);
-        Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
-        Console.WriteLine($"  Lights: {lights.Count}");
-        Console.WriteLine();
+        try 
+        {
+            var (world, camera, lights, ambientLight, background) =
+                SceneLoader.Load(inputPath, width, height);
+            Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
+            Console.WriteLine($"  Lights: {lights.Count}");
+            Console.WriteLine();
 
-        // Render
-        var renderer = new Renderer(world, camera, lights, ambientLight, background, samples, depth);
-        sw.Restart();
-        var pixels = renderer.Render(width, height);
-        var elapsed = sw.Elapsed;
-        Console.WriteLine($"Render completed in {elapsed.TotalSeconds:F2}s");
+            // Render
+            var renderer = new Renderer(world, camera, lights, ambientLight, background, samples, depth);
+            sw.Restart();
+            var pixels = renderer.Render(width, height);
+            var elapsed = sw.Elapsed;
+            Console.WriteLine($"Render completed in {elapsed.TotalSeconds:F2}s");
 
-        // Save image
-        Console.Write($"Saving {outputPath}... ");
-        SaveImage(pixels, width, height, outputPath);
-        Console.WriteLine("done!");
+            // Save image
+            Console.Write($"Saving {outputPath}... ");
+            SaveImage(pixels, width, height, outputPath);
+            Console.WriteLine("done!");
+            Console.WriteLine();
+            Console.WriteLine($"Output saved to: {Path.GetFullPath(outputPath)}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("failed!");
+            Console.WriteLine($"Error loading or rendering scene: {ex.Message}");
+        }
+    }
+
+    static void ShowHelp()
+    {
+        Console.WriteLine("Usage: RayTracer --input <file> [options]");
         Console.WriteLine();
-        Console.WriteLine($"Output saved to: {Path.GetFullPath(outputPath)}");
+        Console.WriteLine("Options:");
+        Console.WriteLine("  -i, --input <file>    Path to the YAML scene file (Required)");
+        Console.WriteLine("  -o, --output <file>   Path to the output image (Default: render.png)");
+        Console.WriteLine("  --width <int>         Image width (Default: 1200)");
+        Console.WriteLine("  --height <int>        Image height (Default: 800)");
+        Console.WriteLine("  -s, --samples <int>   Samples per pixel (Default: 16)");
+        Console.WriteLine("  -d, --depth <int>     Maximum ray recursion depth (Default: 50)");
+        Console.WriteLine("  -h, --help            Show this help message");
+        Console.WriteLine();
+        Console.WriteLine("Example:");
+        Console.WriteLine("  RayTracer -i scenes/chess.yaml -o my_render.png --width 1920 --height 1080 -s 64");
     }
 
     static void SaveImage(Vector3[,] pixels, int width, int height, string path)
