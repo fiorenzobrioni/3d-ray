@@ -1,0 +1,98 @@
+# Scena Demo: Randomizzazione Texture per Oggetto
+# Tutte le sfere bianche usano lo stesso materiale 'marble_shared'
+# Tutte le sfere di legno usano lo stesso materiale 'wood_shared'
+
+world:
+  ambient_light: [0.1, 0.1, 0.1]
+  background: [0.05, 0.05, 0.1]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0.0
+
+camera:
+  position: [0.0, 5.0, -10.0]
+  look_at: [0.0, 1.0, 0.0]
+  fov: 40.0
+
+materials:
+  - id: "floor"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 2.0
+      colors: [[0.1, 0.1, 0.1], [0.2, 0.2, 0.2]]
+
+  - id: "marble_shared"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 8.0
+      colors: [[0.9, 0.9, 0.9], [0.1, 0.2, 0.4]]
+      noise_strength: 15.0
+      randomize_offset: true     # <-- Sposta le venature in modo casuale per ogni oggetto
+      randomize_rotation: true   # <-- Ruota le venature in modo casuale per ogni oggetto
+
+  - id: "wood_shared"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 15.0
+      noise_strength: 3.5
+      colors: [[0.4, 0.2, 0.1], [0.2, 0.1, 0.05]]
+      randomize_offset: true     # <-- Ogni cilindro avrà venature uniche
+      rotation: [90, 0, 0]       # Rotazione base fissa (legno steso)
+
+lights:
+  - type: "point"
+    position: [5, 10, -5]
+    color: [1, 1, 1]
+    intensity: 150
+
+entities:
+  # Sfere di marmo: usano TUTTE lo stesso materiale, ma appariranno diverse
+  - name: "marble_1"
+    type: "sphere"
+    center: [-3.0, 1.0, 0.0]
+    radius: 1.0
+    material: "marble_shared"
+
+  - name: "marble_2"
+    type: "sphere"
+    center: [-1.0, 1.0, 0.0]
+    radius: 1.0
+    material: "marble_shared"
+
+  - name: "marble_3"
+    type: "sphere"
+    center: [1.0, 1.0, 0.0]
+    radius: 1.0
+    material: "marble_shared"
+
+  - name: "marble_4"
+    type: "sphere"
+    center: [3.0, 1.0, 0.0]
+    radius: 1.0
+    material: "marble_shared"
+
+  # Cilindri di legno: dimostrano la randomizzazione offset
+  - name: "wood_1"
+    type: "cylinder"
+    center: [-2.0, 0.1, 3.0]
+    radius: 0.5
+    height: 4.0
+    material: "wood_shared"
+
+  - name: "wood_2"
+    type: "cylinder"
+    center: [0.0, 0.1, 3.0]
+    radius: 0.5
+    height: 4.0
+    material: "wood_shared"
+
+  - name: "wood_3"
+    type: "cylinder"
+    center: [2.0, 0.1, 3.0]
+    radius: 0.5
+    height: 4.0
+    material: "wood_shared"

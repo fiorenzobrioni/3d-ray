@@ -68,8 +68,9 @@ Per avviare il renderer, è possibile utilizzare il comando `dotnet run`. I para
 ## 📚 Tutorials
 Per approfondire l'utilizzo del motore e la creazione delle scene, consulta i seguenti tutorial:
 
-- [**Guida all'Uso**](./tutorials/01_tutorial_utilizzo.md): Dettagli completi sui parametri riga di comando, ottimizzazione del render e risoluzione dei problemi comuni.
-- [**Creazione delle Scene**](./tutorials/02_tutorial_scene.md): Guida alla sintassi YAML per definire geometrie, materiali, luci e impostazioni della camera.
+- [**Guida all'Uso**](./tutorials/01-tutorial-utilizzo.md): Dettagli completi sui parametri riga di comando, ottimizzazione del render e risoluzione dei problemi comuni.
+- [**Creazione delle Scene**](./tutorials/02-tutorial-scene.md): Guida alla sintassi YAML per definire geometrie, materiali, luci e impostazioni della camera.
+- [**Libreria di Preset e Asset**](./tutorials/03-libreria-preset.md): Un catalogo di mondi, camere, luci e materiali pronti all'uso per velocizzare la creazione di scene.
 
 ---
 

@@ -62,6 +62,7 @@ public class Cylinder : IHittable
                     rec.T = t;
                     rec.Point = point;
                     rec.SetFaceNormal(ray, outwardNormal);
+                    rec.ObjectSeed = Seed;
                     rec.Material = Material;
                     hitAnything = true;
                     tMax = t;
@@ -89,6 +90,7 @@ public class Cylinder : IHittable
                     rec.T = t;
                     rec.Point = p;
                     rec.SetFaceNormal(ray, normal);
+                    rec.ObjectSeed = Seed;
                     rec.Material = Material;
                     hitAnything = true;
                     tMax = t;
@@ -98,6 +100,8 @@ public class Cylinder : IHittable
 
         return hitAnything;
     }
+
+    public int Seed { get; set; }
 
     public AABB BoundingBox()
     {

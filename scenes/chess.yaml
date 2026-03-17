@@ -2,69 +2,264 @@
 # Procedurally generated using fine primitives (spheres, cylinders, boxes)
 
 world:
-  ambient_light: [0.05, 0.05, 0.08]
+  # --- Configurazione Corrente: Studio Buio ---
+  ambient_light: [-0.45, -0.45, -0.45]
   background: [0.1, 0.1, 0.15]
   ground:
     type: "infinite_plane"
     material: "table_wood"
     y: -0.2
 
+  # --- AMBIENTE: STUDIO BILANCIATO (Luce Morbida e Diffusa) ---
+  # ambient_light: [0.05, 0.05, 0.05]  # Luce di riempimento globale (fill light)
+  # background: [0.15, 0.15, 0.2]      # Colore del cielo/orizzonte
+
+  # --- AMBIENTE: MIDNIGHT BLUE (Atmosfera Notturna) ---
+  # ambient_light: [0.01, 0.01, 0.02]
+  # background: [0.02, 0.02, 0.05]
+
+  # --- AMBIENTE: WARM SUNSET (Luce Calda di Taglio) ---
+  # ambient_light: [0.1, 0.05, 0.02]
+  # background: [0.8, 0.4, 0.1]
+
+  # --- AMBIENTE: HIGH-KEY STUDIO (Bianco Pulito) ---
+  # ambient_light: [0.2, 0.2, 0.2]
+  # background: [0.9, 0.9, 0.9]
+
+  # --- AMBIENTE: NOIR / THE VOID (Nero Assoluto) ---
+  # ambient_light: [0.0, 0.0, 0.0]
+  # background: [0.0, 0.0, 0.0]
+
 camera:
-  position: [-5, 6, -6]
+  # --- Camera Principale (Prospettiva Classica) ---
+  position: [0, 5, -8]
   look_at: [0, 0, 0]
-  fov: 50
-  aperture: 0.15
-  focal_dist: 8.0
+  fov: 45
+  aperture: 0.1
+  focal_dist: 9.43         # sqrt(0^2 + 5^2 + (-8)^2) = 9.43
+
+  # --- VISTA MACRO (Dettaglio sui Pezzi Centrali) ---
+  # position: [1.5, 1.2, -4]
+  # look_at: [0, 0.8, 0]
+  # fov: 25.0
+  # aperture: 0.2
+  # focal_dist: 4.25
+
+  # --- VISTA HERO (Angolo Basso e Imponente) ---
+  # position: [0.0, 0.5, -6.5]
+  # look_at: [0.0, 1.0, 0.5]
+  # fov: 55.0
+  # aperture: 0.1
+  # focal_dist: 7.0
+
+  # --- VISTA ZENITALE (Vista dall'alto tattica) ---
+  # position: [0.0, 12, 0.01]
+  # look_at: [0, 0, 0]
+  # fov: 35
+  # aperture: 0.0
+  # focal_dist: 12.0
+
+  # --- VISTA DUTCH ANGLE (Dinamica e Inclinata) ---
+  # position: [6.0, 4.0, -6.0]
+  # look_at: [0.0, 0.5, 0.0]
+  # fov: 40.0
+  # aperture: 0.1
+  # focal_dist: 8.5
+
+  # --- VISTA PAWN'S EYE (Ad altezza pedina, Bokeh estremo) ---
+  # position: [0.0, 0.4, -3.5]
+  # look_at: [0.0, 0.6, 2.0]
+  # fov: 70.0
+  # aperture: 0.3
+  # focal_dist: 3.5
 
 materials:
   - id: "table_wood"
+    # --- Configurazione Corrente: Noce Satinato (Walnut) ---
     type: "lambertian"
-    color: [0.4, 0.25, 0.15]
+    texture:
+      type: "wood"
+      scale: 20.0                # Venature più fini e realistiche
+      noise_strength: 3.2
+      colors: [[0.25, 0.12, 0.05], [0.12, 0.06, 0.02]]
+      randomize_offset: true
+      rotation: [90, 0, 0]
+
+    # --- VARIANTE: LEGNO LACCATO LUCIDO (Polished Rosewood) ---
+    # type: "metal"              # Base metallica per riflessi speculari
+    # fuzz: 0.08                 # Riflesso tipico della lacca
+    # texture:
+    #   type: "wood"
+    #   scale: 22.0
+    #   colors: [[0.35, 0.05, 0.02], [0.15, 0.02, 0.01]] # Toni rossastri profondi
+
+    # --- VARIANTE: QUERCIA CHIARA (Light Oak) ---
+    # type: "lambertian"
+    # texture:
+    #   type: "wood"
+    #   scale: 15.0
+    #   colors: [[0.7, 0.5, 0.3], [0.5, 0.3, 0.15]]
+
+    # --- VARIANTE: EBANO OPACO (Matte Ebony) ---
+    # type: "lambertian"
+    # texture:
+    #   type: "wood"
+    #   scale: 40.0              # Venature quasi impercettibili
+    #   colors: [[0.05, 0.05, 0.05], [0.01, 0.01, 0.01]]
 
   - id: "board_light"
+    # --- Configurazione Corrente: Specchio Chiaro (Pure Mirror) ---
     type: "metal"
-    color: [0.9, 0.85, 0.75]
-    fuzz: 0.05
+    fuzz: 0.0
+    color: [0.95, 0.95, 0.95]
+
+    # --- VARIANTE: MARMO BIANCO LUCIDO (Carrara) ---
+    # type: "metal"
+    # fuzz: 0.02
+    # texture:
+    #   type: "marble"
+    #   scale: 20.0
+    #   colors: [[0.98, 0.98, 0.98], [0.85, 0.85, 0.88]]
+    #   noise_strength: 8.0
+    #   randomize_offset: true
+
+    # --- VARIANTE: ACERO CHIARO (Classic Wood) ---
+    # type: "lambertian"
+    # texture:
+    #   type: "wood"
+    #   scale: 25.0
+    #   colors: [[0.9, 0.8, 0.6], [0.8, 0.7, 0.5]]
+
+    # --- VARIANTE: OSSIDIANA PROFONDA (Obsidian) ---
+    # type: "metal"
+    # fuzz: 0.0
+    # color: [0.03, 0.03, 0.05] # Leggermente più chiara della variante "dark" per distinguere le caselle
 
   - id: "board_dark"
+    # --- Configurazione Corrente: Specchio Scuro (Dark Mirror) ---
     type: "metal"
-    color: [0.15, 0.15, 0.15]
-    fuzz: 0.05
+    fuzz: 0.0
+    color: [0.05, 0.05, 0.05]
+
+    # --- VARIANTE: MARMO NERO LUCIDO (Nero Marquina) ---
+    # type: "metal"
+    # fuzz: 0.05
+    # texture:
+    #   type: "marble"
+    #   scale: 15.0
+    #   colors: [[0.05, 0.05, 0.08], [0.15, 0.15, 0.2]]
+    #   noise_strength: 10.0
+
+    # --- VARIANTE: NOCE SCURO (Classic Wood) ---
+    # type: "lambertian"
+    # texture:
+    #   type: "wood"
+    #   scale: 20.0
+    #   colors: [[0.2, 0.1, 0.05], [0.1, 0.05, 0.02]]
+
+    # --- VARIANTE: OSSIDIANA PROFONDA (Obsidian) ---
+    # type: "metal"
+    # fuzz: 0.0
+    # color: [0.01, 0.01, 0.02]
 
   - id: "board_border"
+    # --- Configurazione Corrente: Metallo Brunito (Gunmetal) ---
     type: "metal"
-    color: [0.3, 0.15, 0.05]
-    fuzz: 0.1
+    color: [0.15, 0.15, 0.18]
+    fuzz: 0.12
 
-  - id: "piece_white"
-    type: "dielectric"
-    refraction_index: 1.5
+    # --- VARIANTE: EBANO PREGIATO (Dark Wood) ---
+    # type: "lambertian"
+    # texture:
+    #   type: "wood"
+    #   scale: 40.0
+    #   colors: [[0.1, 0.08, 0.05], [0.02, 0.01, 0.01]]
 
-  - id: "piece_black"
-    type: "dielectric"
-    refraction_index: 2.0
+    # --- VARIANTE: ORO SATINATO (Brushed Gold) ---
+    # type: "metal"
+    # color: [0.85, 0.65, 0.25]
+    # fuzz: 0.1
 
-  # Alternative set of materials for pieces in case dielectric is too noisy:
+    # --- VARIANTE: ALLUMINIO SPAZZOLATO (Brushed Aluminum) ---
+    # type: "metal"
+    # color: [0.7, 0.7, 0.75]
+    # fuzz: 0.2
+
   - id: "piece_white_solid"
-    type: "metal"
-    color: [0.9, 0.9, 0.9]
-    fuzz: 0.1
+    # --- Configurazione Corrente: Marmo Bianco Lucido (Carrara) ---
+    type: "metal"                    
+    fuzz: 0.04
+    texture:
+      type: "marble"
+      scale: 30.0
+      colors: [[0.98, 0.98, 0.98], [0.75, 0.75, 0.75]]
+      noise_strength: 12.0
+      randomize_offset: true
+      randomize_rotation: true
+
+    # --- VARIANTE: VETRO PURO (Clear Glass) ---
+    # type: "dielectric"
+    # refraction_index: 1.5
+
+    # --- VARIANTE: ARGENTO LUCIDO (Polished Silver) ---
+    # type: "metal"
+    # color: [0.95, 0.95, 0.95]
+    # fuzz: 0.02
+
+    # --- VARIANTE: PORCELLANA BIANCA (White Porcelain) ---
+    # type: "lambertian"
+    # color: [0.9, 0.9, 0.9]
 
   - id: "piece_black_solid"
-    type: "metal"
-    color: [0.1, 0.1, 0.1]
-    fuzz: 0.1
+    # --- Configurazione Corrente: Marmo Nero Lucido (Nero Marquina) ---
+    type: "metal"                    
+    fuzz: 0.08
+    texture:
+      type: "marble"
+      scale: 25.0
+      colors: [[0.02, 0.02, 0.03], [0.15, 0.15, 0.2]]
+      noise_strength: 20.0
+      randomize_offset: true
+      randomize_rotation: true
+
+    # --- VARIANTE: VETRO FUMÉ (Tinted Glass) ---
+    # type: "dielectric"
+    # refraction_index: 1.5
+    # color: [0.2, 0.2, 0.25] # Vetro scuro/bluastro
+
+    # --- VARIANTE: ORO PURO (Polished Gold) ---
+    # type: "metal"
+    # color: [1.0, 0.84, 0.0]
+    # fuzz: 0.01
+
+    # --- VARIANTE: CERAMICA NERA (Black Polished Ceramic) ---
+    # type: "metal"
+    # color: [0.02, 0.02, 0.02]
+    # fuzz: 0.05
 
 lights:
-  - type: "point"
-    position: [-2, 8, -2]
-    color: [1.0, 0.95, 0.9]
-    intensity: 80.0
+  # --- Configurazione Corrente: Luce Singola (Luce Calda e Diffusa) ---
+  - { type: "point", position: [-2, 8, -2], color: [1.0, 0.95, 0.9], intensity: 80 }
 
-  - type: "directional"
-    direction: [0.5, -1, 0.5]
-    color: [0.5, 0.6, 0.8]
-    intensity: 0.3
+  # --- SET: Balanced 3-Point Lighting (Luce Morbida e Diffusa) ---
+  # - { type: "point", position: [5, 10, -5], color: [1.0, 1.0, 1.0], intensity: 100 }  # Key Light
+  # - { type: "point", position: [-5, 5, -2], color: [0.8, 0.8, 1.0], intensity: 40 }   # Fill Light
+  # - { type: "point", position: [0, 8, 5], color: [1.0, 0.9, 0.7], intensity: 60 }     # Back Light
+
+  # --- SET: DRAMATIC RIM (Solo contorno e silhouette) ---
+  # - { type: "point", position: [0, 12, 10], color: [1.0, 1.0, 1.0], intensity: 200 } # Rim Light
+  # - { type: "point", position: [-8, 2, -2], color: [0.2, 0.2, 0.3], intensity: 20 }  # Deep Fill
+
+  # --- SET: WARM SUNSET (Atmosfera pomeridiana calda) ---
+  # - { type: "directional", direction: [-1, -0.3, -0.5], color: [1.0, 0.6, 0.2], intensity: 2.0 }
+  # - { type: "point", position: [5, 3, -5], color: [0.3, 0.3, 0.4], intensity: 15 }
+
+  # --- SET: COLD MOONLIGHT (Notte fredda e ombre nette) ---
+  # - { type: "directional", direction: [0.5, -1.0, 0.5], color: [0.6, 0.7, 1.0], intensity: 0.8 }
+  # - { type: "point", position: [0, 5, 0], color: [0.1, 0.1, 0.2], intensity: 10 }
+
+  # --- SET: HIGH-CONTRAST (Unica sorgente dura) ---
+  # - { type: "point", position: [-10, 8, -5], color: [1.0, 0.95, 0.9], intensity: 250 }
 
 entities:
   - name: "tile_0_0"

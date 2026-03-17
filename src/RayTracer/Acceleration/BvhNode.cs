@@ -9,6 +9,7 @@ namespace RayTracer.Acceleration;
 /// </summary>
 public class BvhNode : IHittable
 {
+    public int Seed { get; set; }
     private readonly IHittable _left;
     private readonly IHittable _right;
     private readonly AABB _box;

@@ -8,6 +8,9 @@ public struct HitRecord
     public Vector3 Point;
     public Vector3 Normal;
     public float T;
+    public float U;
+    public float V;
+    public int ObjectSeed;
     public bool FrontFace;
     public IMaterial? Material;
 

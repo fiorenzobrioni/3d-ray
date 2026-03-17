@@ -64,9 +64,12 @@ public class Box : IHittable
         };
 
         rec.SetFaceNormal(ray, outwardNormal);
+        rec.ObjectSeed = Seed;
         rec.Material = Material;
         return true;
     }
+
+    public int Seed { get; set; }
 
     public AABB BoundingBox() => new(Min, Max);
 }

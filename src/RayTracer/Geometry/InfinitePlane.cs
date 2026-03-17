@@ -28,9 +28,18 @@ public class InfinitePlane : IHittable
         rec.T = t;
         rec.Point = ray.At(t);
         rec.SetFaceNormal(ray, Normal);
+        
+        // Calcolo basilare degli UV mappando su X e Z per piani orizzontali
+        // Se il piano non è orizzontale, bisognerebbe formare una base u,v ortogonale
+        rec.U = rec.Point.X - MathF.Floor(rec.Point.X);
+        rec.V = rec.Point.Z - MathF.Floor(rec.Point.Z);
+        rec.ObjectSeed = Seed;
+
         rec.Material = Material;
         return true;
     }
+
+    public int Seed { get; set; }
 
     public AABB BoundingBox()
     {

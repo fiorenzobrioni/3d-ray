@@ -46,9 +46,12 @@ public class Triangle : IHittable
         rec.T = t;
         rec.Point = ray.At(t);
         rec.SetFaceNormal(ray, _normal);
+        rec.ObjectSeed = Seed;
         rec.Material = Material;
         return true;
     }
+
+    public int Seed { get; set; }
 
     public AABB BoundingBox()
     {

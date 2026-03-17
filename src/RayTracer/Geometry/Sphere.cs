@@ -40,8 +40,27 @@ public class Sphere : IHittable
         rec.Point = ray.At(rec.T);
         Vector3 outwardNormal = (rec.Point - Center) / Radius;
         rec.SetFaceNormal(ray, outwardNormal);
+        
+        var (u, v) = GetSphereUV(outwardNormal);
+        rec.U = u;
+        rec.V = v;
+        rec.ObjectSeed = Seed;
+
         rec.Material = Material;
         return true;
+    }
+
+    public int Seed { get; set; }
+
+    private static (float U, float V) GetSphereUV(Vector3 p)
+    {
+        // p: un punto sulla sfera unitaria centrata nell'origine
+        float theta = MathF.Acos(-p.Y);
+        float phi = MathF.Atan2(-p.Z, p.X) + MathF.PI;
+
+        float u = phi / (2 * MathF.PI);
+        float v = theta / MathF.PI;
+        return (u, v);
     }
 
     public AABB BoundingBox()

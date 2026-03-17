@@ -4,6 +4,7 @@ namespace RayTracer.Geometry;
 
 public class HittableList : IHittable
 {
+    public int Seed { get; set; }
     public List<IHittable> Objects { get; } = new();
 
     public HittableList() { }

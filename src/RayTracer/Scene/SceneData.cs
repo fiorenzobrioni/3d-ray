@@ -81,12 +81,45 @@ public class MaterialData
 
     [YamlMember(Alias = "refraction_index")]
     public float RefractionIndex { get; set; } = 1.5f;
+
+    [YamlMember(Alias = "texture")]
+    public TextureData? Texture { get; set; }
+}
+
+public class TextureData
+{
+    [YamlMember(Alias = "type")]
+    public string? Type { get; set; }
+
+    [YamlMember(Alias = "colors")]
+    public List<List<float>>? Colors { get; set; } // Per Checker, Marble, Wood
+
+    [YamlMember(Alias = "scale")]
+    public float Scale { get; set; } = 1f;
+
+    [YamlMember(Alias = "noise_strength")]
+    public float? NoiseStrength { get; set; }
+
+    [YamlMember(Alias = "offset")]
+    public List<float>? Offset { get; set; }
+
+    [YamlMember(Alias = "rotation")]
+    public List<float>? Rotation { get; set; }
+
+    [YamlMember(Alias = "randomize_offset")]
+    public bool RandomizeOffset { get; set; }
+
+    [YamlMember(Alias = "randomize_rotation")]
+    public bool RandomizeRotation { get; set; }
 }
 
 public class EntityData
 {
     [YamlMember(Alias = "name")]
     public string? Name { get; set; }
+
+    [YamlMember(Alias = "seed")]
+    public int? Seed { get; set; }
 
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }

@@ -1,20 +1,29 @@
 using System.Numerics;
 using RayTracer.Core;
+using RayTracer.Textures;
 
 namespace RayTracer.Materials;
 
 public class Dielectric : IMaterial
 {
     public float RefractionIndex { get; }
+    public ITexture Albedo { get; }
 
     public Dielectric(float refractionIndex)
     {
         RefractionIndex = refractionIndex;
+        Albedo = new SolidColor(Vector3.One);
+    }
+
+    public Dielectric(float refractionIndex, ITexture albedo)
+    {
+        RefractionIndex = refractionIndex;
+        Albedo = albedo;
     }
 
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
-        attenuation = Vector3.One; // Glass doesn't absorb
+        attenuation = Albedo.Value(rec.U, rec.V, rec.Point, rec.ObjectSeed);
         float ri = rec.FrontFace ? (1f / RefractionIndex) : RefractionIndex;
 
         Vector3 unitDirection = Vector3.Normalize(rayIn.Direction);
