@@ -107,60 +107,38 @@ materials:
     #   scale: 40.0              # Venature quasi impercettibili
     #   colors: [[0.05, 0.05, 0.05], [0.01, 0.01, 0.01]]
 
-  - id: "board_light"
-    # --- Configurazione Corrente: Specchio Chiaro (Pure Mirror) ---
+  - id: "board_checker"
+    # --- Configurazione Corrente: Specchio Scaccato (Mirror Checker) ---
     type: "metal"
     fuzz: 0.0
-    color: [0.95, 0.95, 0.95]
+    texture:
+      type: "checker"
+      scale: 1.0
+      colors: [[0.95, 0.95, 0.95], [0.05, 0.05, 0.05]]
 
-    # --- VARIANTE: MARMO BIANCO LUCIDO (Carrara) ---
+    # --- VARIANTE: MARMO CLASSICO (Carrara & Marquina) ---
     # type: "metal"
     # fuzz: 0.02
     # texture:
-    #   type: "marble"
-    #   scale: 20.0
-    #   colors: [[0.98, 0.98, 0.98], [0.85, 0.85, 0.88]]
-    #   noise_strength: 8.0
-    #   randomize_offset: true
+    #   type: "checker"
+    #   scale: 1.0
+    #   # Ogni "colore" della scacchiera può essere a sua volta una texture (non ancora supportato nestato, usiamo colori solidi approssimati o marble texture esterna)
+    #   colors: [[0.9, 0.9, 0.9], [0.1, 0.1, 0.1]]
 
-    # --- VARIANTE: ACERO CHIARO (Classic Wood) ---
+    # --- VARIANTE: LEGNO CLASSICO (Acero & Noce) ---
     # type: "lambertian"
     # texture:
-    #   type: "wood"
-    #   scale: 25.0
-    #   colors: [[0.9, 0.8, 0.6], [0.8, 0.7, 0.5]]
+    #   type: "checker"
+    #   scale: 1.0
+    #   colors: [[0.8, 0.7, 0.5], [0.2, 0.1, 0.05]]
 
-    # --- VARIANTE: OSSIDIANA PROFONDA (Obsidian) ---
+    # --- VARIANTE: OSSIDIANA (Deep Obsidian) ---
     # type: "metal"
     # fuzz: 0.0
-    # color: [0.03, 0.03, 0.05] # Leggermente più chiara della variante "dark" per distinguere le caselle
-
-  - id: "board_dark"
-    # --- Configurazione Corrente: Specchio Scuro (Dark Mirror) ---
-    type: "metal"
-    fuzz: 0.0
-    color: [0.05, 0.05, 0.05]
-
-    # --- VARIANTE: MARMO NERO LUCIDO (Nero Marquina) ---
-    # type: "metal"
-    # fuzz: 0.05
     # texture:
-    #   type: "marble"
-    #   scale: 15.0
-    #   colors: [[0.05, 0.05, 0.08], [0.15, 0.15, 0.2]]
-    #   noise_strength: 10.0
-
-    # --- VARIANTE: NOCE SCURO (Classic Wood) ---
-    # type: "lambertian"
-    # texture:
-    #   type: "wood"
-    #   scale: 20.0
-    #   colors: [[0.2, 0.1, 0.05], [0.1, 0.05, 0.02]]
-
-    # --- VARIANTE: OSSIDIANA PROFONDA (Obsidian) ---
-    # type: "metal"
-    # fuzz: 0.0
-    # color: [0.01, 0.01, 0.02]
+    #   type: "checker"
+    #   scale: 1.0
+    #   colors: [[0.03, 0.03, 0.05], [0.01, 0.01, 0.02]]
 
   - id: "board_border"
     # --- Configurazione Corrente: Metallo Brunito (Gunmetal) ---
@@ -262,326 +240,11 @@ lights:
   # - { type: "point", position: [-10, 8, -5], color: [1.0, 0.95, 0.9], intensity: 250 }
 
 entities:
-  - name: "tile_0_0"
-    type: "box"
-    min: [-3.990, -0.100, -3.990]
-    max: [-3.010, 0.000, -3.010]
-    material: "board_dark"
-  - name: "tile_0_1"
-    type: "box"
-    min: [-2.990, -0.100, -3.990]
-    max: [-2.010, 0.000, -3.010]
-    material: "board_light"
-  - name: "tile_0_2"
-    type: "box"
-    min: [-1.990, -0.100, -3.990]
-    max: [-1.010, 0.000, -3.010]
-    material: "board_dark"
-  - name: "tile_0_3"
-    type: "box"
-    min: [-0.990, -0.100, -3.990]
-    max: [-0.010, 0.000, -3.010]
-    material: "board_light"
-  - name: "tile_0_4"
-    type: "box"
-    min: [0.010, -0.100, -3.990]
-    max: [0.990, 0.000, -3.010]
-    material: "board_dark"
-  - name: "tile_0_5"
-    type: "box"
-    min: [1.010, -0.100, -3.990]
-    max: [1.990, 0.000, -3.010]
-    material: "board_light"
-  - name: "tile_0_6"
-    type: "box"
-    min: [2.010, -0.100, -3.990]
-    max: [2.990, 0.000, -3.010]
-    material: "board_dark"
-  - name: "tile_0_7"
-    type: "box"
-    min: [3.010, -0.100, -3.990]
-    max: [3.990, 0.000, -3.010]
-    material: "board_light"
-  - name: "tile_1_0"
-    type: "box"
-    min: [-3.990, -0.100, -2.990]
-    max: [-3.010, 0.000, -2.010]
-    material: "board_light"
-  - name: "tile_1_1"
-    type: "box"
-    min: [-2.990, -0.100, -2.990]
-    max: [-2.010, 0.000, -2.010]
-    material: "board_dark"
-  - name: "tile_1_2"
-    type: "box"
-    min: [-1.990, -0.100, -2.990]
-    max: [-1.010, 0.000, -2.010]
-    material: "board_light"
-  - name: "tile_1_3"
-    type: "box"
-    min: [-0.990, -0.100, -2.990]
-    max: [-0.010, 0.000, -2.010]
-    material: "board_dark"
-  - name: "tile_1_4"
-    type: "box"
-    min: [0.010, -0.100, -2.990]
-    max: [0.990, 0.000, -2.010]
-    material: "board_light"
-  - name: "tile_1_5"
-    type: "box"
-    min: [1.010, -0.100, -2.990]
-    max: [1.990, 0.000, -2.010]
-    material: "board_dark"
-  - name: "tile_1_6"
-    type: "box"
-    min: [2.010, -0.100, -2.990]
-    max: [2.990, 0.000, -2.010]
-    material: "board_light"
-  - name: "tile_1_7"
-    type: "box"
-    min: [3.010, -0.100, -2.990]
-    max: [3.990, 0.000, -2.010]
-    material: "board_dark"
-  - name: "tile_2_0"
-    type: "box"
-    min: [-3.990, -0.100, -1.990]
-    max: [-3.010, 0.000, -1.010]
-    material: "board_dark"
-  - name: "tile_2_1"
-    type: "box"
-    min: [-2.990, -0.100, -1.990]
-    max: [-2.010, 0.000, -1.010]
-    material: "board_light"
-  - name: "tile_2_2"
-    type: "box"
-    min: [-1.990, -0.100, -1.990]
-    max: [-1.010, 0.000, -1.010]
-    material: "board_dark"
-  - name: "tile_2_3"
-    type: "box"
-    min: [-0.990, -0.100, -1.990]
-    max: [-0.010, 0.000, -1.010]
-    material: "board_light"
-  - name: "tile_2_4"
-    type: "box"
-    min: [0.010, -0.100, -1.990]
-    max: [0.990, 0.000, -1.010]
-    material: "board_dark"
-  - name: "tile_2_5"
-    type: "box"
-    min: [1.010, -0.100, -1.990]
-    max: [1.990, 0.000, -1.010]
-    material: "board_light"
-  - name: "tile_2_6"
-    type: "box"
-    min: [2.010, -0.100, -1.990]
-    max: [2.990, 0.000, -1.010]
-    material: "board_dark"
-  - name: "tile_2_7"
-    type: "box"
-    min: [3.010, -0.100, -1.990]
-    max: [3.990, 0.000, -1.010]
-    material: "board_light"
-  - name: "tile_3_0"
-    type: "box"
-    min: [-3.990, -0.100, -0.990]
-    max: [-3.010, 0.000, -0.010]
-    material: "board_light"
-  - name: "tile_3_1"
-    type: "box"
-    min: [-2.990, -0.100, -0.990]
-    max: [-2.010, 0.000, -0.010]
-    material: "board_dark"
-  - name: "tile_3_2"
-    type: "box"
-    min: [-1.990, -0.100, -0.990]
-    max: [-1.010, 0.000, -0.010]
-    material: "board_light"
-  - name: "tile_3_3"
-    type: "box"
-    min: [-0.990, -0.100, -0.990]
-    max: [-0.010, 0.000, -0.010]
-    material: "board_dark"
-  - name: "tile_3_4"
-    type: "box"
-    min: [0.010, -0.100, -0.990]
-    max: [0.990, 0.000, -0.010]
-    material: "board_light"
-  - name: "tile_3_5"
-    type: "box"
-    min: [1.010, -0.100, -0.990]
-    max: [1.990, 0.000, -0.010]
-    material: "board_dark"
-  - name: "tile_3_6"
-    type: "box"
-    min: [2.010, -0.100, -0.990]
-    max: [2.990, 0.000, -0.010]
-    material: "board_light"
-  - name: "tile_3_7"
-    type: "box"
-    min: [3.010, -0.100, -0.990]
-    max: [3.990, 0.000, -0.010]
-    material: "board_dark"
-  - name: "tile_4_0"
-    type: "box"
-    min: [-3.990, -0.100, 0.010]
-    max: [-3.010, 0.000, 0.990]
-    material: "board_dark"
-  - name: "tile_4_1"
-    type: "box"
-    min: [-2.990, -0.100, 0.010]
-    max: [-2.010, 0.000, 0.990]
-    material: "board_light"
-  - name: "tile_4_2"
-    type: "box"
-    min: [-1.990, -0.100, 0.010]
-    max: [-1.010, 0.000, 0.990]
-    material: "board_dark"
-  - name: "tile_4_3"
-    type: "box"
-    min: [-0.990, -0.100, 0.010]
-    max: [-0.010, 0.000, 0.990]
-    material: "board_light"
-  - name: "tile_4_4"
-    type: "box"
-    min: [0.010, -0.100, 0.010]
-    max: [0.990, 0.000, 0.990]
-    material: "board_dark"
-  - name: "tile_4_5"
-    type: "box"
-    min: [1.010, -0.100, 0.010]
-    max: [1.990, 0.000, 0.990]
-    material: "board_light"
-  - name: "tile_4_6"
-    type: "box"
-    min: [2.010, -0.100, 0.010]
-    max: [2.990, 0.000, 0.990]
-    material: "board_dark"
-  - name: "tile_4_7"
-    type: "box"
-    min: [3.010, -0.100, 0.010]
-    max: [3.990, 0.000, 0.990]
-    material: "board_light"
-  - name: "tile_5_0"
-    type: "box"
-    min: [-3.990, -0.100, 1.010]
-    max: [-3.010, 0.000, 1.990]
-    material: "board_light"
-  - name: "tile_5_1"
-    type: "box"
-    min: [-2.990, -0.100, 1.010]
-    max: [-2.010, 0.000, 1.990]
-    material: "board_dark"
-  - name: "tile_5_2"
-    type: "box"
-    min: [-1.990, -0.100, 1.010]
-    max: [-1.010, 0.000, 1.990]
-    material: "board_light"
-  - name: "tile_5_3"
-    type: "box"
-    min: [-0.990, -0.100, 1.010]
-    max: [-0.010, 0.000, 1.990]
-    material: "board_dark"
-  - name: "tile_5_4"
-    type: "box"
-    min: [0.010, -0.100, 1.010]
-    max: [0.990, 0.000, 1.990]
-    material: "board_light"
-  - name: "tile_5_5"
-    type: "box"
-    min: [1.010, -0.100, 1.010]
-    max: [1.990, 0.000, 1.990]
-    material: "board_dark"
-  - name: "tile_5_6"
-    type: "box"
-    min: [2.010, -0.100, 1.010]
-    max: [2.990, 0.000, 1.990]
-    material: "board_light"
-  - name: "tile_5_7"
-    type: "box"
-    min: [3.010, -0.100, 1.010]
-    max: [3.990, 0.000, 1.990]
-    material: "board_dark"
-  - name: "tile_6_0"
-    type: "box"
-    min: [-3.990, -0.100, 2.010]
-    max: [-3.010, 0.000, 2.990]
-    material: "board_dark"
-  - name: "tile_6_1"
-    type: "box"
-    min: [-2.990, -0.100, 2.010]
-    max: [-2.010, 0.000, 2.990]
-    material: "board_light"
-  - name: "tile_6_2"
-    type: "box"
-    min: [-1.990, -0.100, 2.010]
-    max: [-1.010, 0.000, 2.990]
-    material: "board_dark"
-  - name: "tile_6_3"
-    type: "box"
-    min: [-0.990, -0.100, 2.010]
-    max: [-0.010, 0.000, 2.990]
-    material: "board_light"
-  - name: "tile_6_4"
-    type: "box"
-    min: [0.010, -0.100, 2.010]
-    max: [0.990, 0.000, 2.990]
-    material: "board_dark"
-  - name: "tile_6_5"
-    type: "box"
-    min: [1.010, -0.100, 2.010]
-    max: [1.990, 0.000, 2.990]
-    material: "board_light"
-  - name: "tile_6_6"
-    type: "box"
-    min: [2.010, -0.100, 2.010]
-    max: [2.990, 0.000, 2.990]
-    material: "board_dark"
-  - name: "tile_6_7"
-    type: "box"
-    min: [3.010, -0.100, 2.010]
-    max: [3.990, 0.000, 2.990]
-    material: "board_light"
-  - name: "tile_7_0"
-    type: "box"
-    min: [-3.990, -0.100, 3.010]
-    max: [-3.010, 0.000, 3.990]
-    material: "board_light"
-  - name: "tile_7_1"
-    type: "box"
-    min: [-2.990, -0.100, 3.010]
-    max: [-2.010, 0.000, 3.990]
-    material: "board_dark"
-  - name: "tile_7_2"
-    type: "box"
-    min: [-1.990, -0.100, 3.010]
-    max: [-1.010, 0.000, 3.990]
-    material: "board_light"
-  - name: "tile_7_3"
-    type: "box"
-    min: [-0.990, -0.100, 3.010]
-    max: [-0.010, 0.000, 3.990]
-    material: "board_dark"
-  - name: "tile_7_4"
-    type: "box"
-    min: [0.010, -0.100, 3.010]
-    max: [0.990, 0.000, 3.990]
-    material: "board_light"
-  - name: "tile_7_5"
-    type: "box"
-    min: [1.010, -0.100, 3.010]
-    max: [1.990, 0.000, 3.990]
-    material: "board_dark"
-  - name: "tile_7_6"
-    type: "box"
-    min: [2.010, -0.100, 3.010]
-    max: [2.990, 0.000, 3.990]
-    material: "board_light"
-  - name: "tile_7_7"
-    type: "box"
-    min: [3.010, -0.100, 3.010]
-    max: [3.990, 0.000, 3.990]
-    material: "board_dark"
+  - name: "chessboard_main"
+    type: "box"
+    min: [-4.0, -0.1, -4.0]
+    max: [4.0, 0.0, 4.0]
+    material: "board_checker"
   - name: "border"
     type: "box"
     min: [-4.2, -0.15, -4.2]
