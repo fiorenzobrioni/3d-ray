@@ -45,6 +45,7 @@ public class Triangle : IHittable
 
         rec.T = t;
         rec.Point = ray.At(t);
+        rec.LocalPoint = rec.Point;
         rec.SetFaceNormal(ray, _normal);
         rec.ObjectSeed = Seed;
         rec.Material = Material;

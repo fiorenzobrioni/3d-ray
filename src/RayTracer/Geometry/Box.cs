@@ -54,6 +54,7 @@ public class Box : IHittable
 
         rec.T = tNear;
         rec.Point = ray.At(tNear);
+        rec.LocalPoint = rec.Point;
 
         // Compute outward normal based on which axis slab was hit
         Vector3 outwardNormal = hitAxis switch

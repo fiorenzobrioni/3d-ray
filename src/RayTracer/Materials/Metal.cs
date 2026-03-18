@@ -26,7 +26,7 @@ public class Metal : IMaterial
         var reflected = MathUtils.Reflect(Vector3.Normalize(rayIn.Direction), rec.Normal);
         reflected += Fuzz * MathUtils.RandomInUnitSphere();
         scattered = new Ray(rec.Point, reflected);
-        attenuation = Albedo.Value(rec.U, rec.V, rec.Point, rec.ObjectSeed);
+        attenuation = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         return Vector3.Dot(scattered.Direction, rec.Normal) > 0;
     }
 }

@@ -41,6 +41,7 @@ public class Disk : IHittable
 
         rec.T = t;
         rec.Point = p;
+        rec.LocalPoint = p;
         rec.SetFaceNormal(ray, Normal);
         rec.Material = Material;
         rec.ObjectSeed = Seed;

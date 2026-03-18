@@ -6,6 +6,7 @@ namespace RayTracer.Core;
 public struct HitRecord
 {
     public Vector3 Point;
+    public Vector3 LocalPoint;
     public Vector3 Normal;
     public float T;
     public float U;

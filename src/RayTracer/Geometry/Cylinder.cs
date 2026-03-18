@@ -61,6 +61,7 @@ public class Cylinder : IHittable
                 {
                     rec.T = t;
                     rec.Point = point;
+                    rec.LocalPoint = point;
                     rec.SetFaceNormal(ray, outwardNormal);
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;
@@ -89,6 +90,7 @@ public class Cylinder : IHittable
                 {
                     rec.T = t;
                     rec.Point = p;
+                    rec.LocalPoint = p;
                     rec.SetFaceNormal(ray, normal);
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;

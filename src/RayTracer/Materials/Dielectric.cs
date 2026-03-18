@@ -23,7 +23,7 @@ public class Dielectric : IMaterial
 
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
-        attenuation = Albedo.Value(rec.U, rec.V, rec.Point, rec.ObjectSeed);
+        attenuation = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         float ri = rec.FrontFace ? (1f / RefractionIndex) : RefractionIndex;
 
         Vector3 unitDirection = Vector3.Normalize(rayIn.Direction);

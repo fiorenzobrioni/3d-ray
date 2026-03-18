@@ -6,7 +6,7 @@ world:
   background: [0.4, 0.6, 1.0]
   ground:
     type: "infinite_plane"
-    material: "matte_green"
+    material: "checker_floor" # <-- Assegnato il nuovo materiale a scacchiera
     y: -0.5
 
 camera:
@@ -17,6 +17,16 @@ camera:
   focal_dist: 7.0
 
 materials:
+  # NUOVO MATERIALE: Pavimento a scacchiera
+  - id: "checker_floor"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 2.0 # Regola questo valore per fare i quadrati più grandi o più piccoli
+      colors:
+        - [0.15, 0.15, 0.15] # Grigio scuro (even)
+        - [0.85, 0.85, 0.85] # Grigio chiaro (odd)
+
   - id: "matte_green"
     type: "lambertian"
     color: [0.3, 0.6, 0.2]
@@ -83,7 +93,7 @@ entities:
     radius: 0.4
     material: "matte_red"
 
-  # Blue box (Tornato alla sua Translate originale corretta)
+  # Blue box
   - name: "blue_box"
     type: "box"
     scale: [1.0, 1.3, 1.2]
@@ -97,10 +107,11 @@ entities:
     radius: 0.3
     material: "matte_blue"
     
-  # Test del nuovo Quad (Piazzato sulla sinistra, dietro la sfera dorata)
+  # Test del nuovo Quad
   - name: "test_quad"
     type: "quad"
-    q: [3.5, 0.0, 2.0]     # Origine spostata a sinistra e in profondità
-    u: [-2.0, 0.0, 0.0]    # Si estende lungo l'asse X
-    v: [0.0, 2.0, 0.0]     # Si estende verso l'alto
+    q: [3.5, 0.0, 2.0]     
+    u: [-2.0, 0.0, 0.0]    
+    v: [0.0, 2.0, 0.0]     
     material: "matte_red"
+    

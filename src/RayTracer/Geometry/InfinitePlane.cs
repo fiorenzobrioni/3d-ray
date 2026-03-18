@@ -27,6 +27,7 @@ public class InfinitePlane : IHittable
 
         rec.T = t;
         rec.Point = ray.At(t);
+        rec.LocalPoint = rec.Point;
         rec.SetFaceNormal(ray, Normal);
         
         // Robust UV mapping using local orthonormal basis

@@ -56,6 +56,7 @@ public class Quad : IHittable
         rec.V = beta;
         rec.T = t;
         rec.Point = intersection;
+        rec.LocalPoint = rec.Point;
         rec.SetFaceNormal(ray, _normal);
         rec.Material = Material;
         rec.ObjectSeed = Seed;

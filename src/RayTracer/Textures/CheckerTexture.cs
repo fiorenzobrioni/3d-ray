@@ -24,9 +24,10 @@ public class CheckerTexture : ITexture
 
     public Vector3 Value(float u, float v, Vector3 p, int objectSeed)
     {
-        var xInteger = (int)MathF.Floor(_invScale * p.X);
-        var yInteger = (int)MathF.Floor(_invScale * p.Y);
-        var zInteger = (int)MathF.Floor(_invScale * p.Z);
+        // Aggiungiamo il piccolo bias a tutti gli assi per evitare salti di precisione a 0.0
+        var xInteger = (int)MathF.Floor(_invScale * p.X + 0.00001f);
+        var yInteger = (int)MathF.Floor(_invScale * p.Y + 0.00001f);
+        var zInteger = (int)MathF.Floor(_invScale * p.Z + 0.00001f);
 
         bool isEven = (xInteger + yInteger + zInteger) % 2 == 0;
 

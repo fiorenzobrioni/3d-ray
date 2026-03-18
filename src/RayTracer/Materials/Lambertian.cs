@@ -25,7 +25,7 @@ public class Lambertian : IMaterial
             scatterDirection = rec.Normal;
 
         scattered = new Ray(rec.Point, scatterDirection);
-        attenuation = Albedo.Value(rec.U, rec.V, rec.Point, rec.ObjectSeed);
+        attenuation = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         return true;
     }
 }

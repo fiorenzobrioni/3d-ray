@@ -38,6 +38,7 @@ public class Sphere : IHittable
 
         rec.T = root;
         rec.Point = ray.At(rec.T);
+        rec.LocalPoint = rec.Point;
         Vector3 outwardNormal = (rec.Point - Center) / Radius;
         rec.SetFaceNormal(ray, outwardNormal);
         

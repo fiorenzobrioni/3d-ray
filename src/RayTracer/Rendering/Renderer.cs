@@ -51,8 +51,8 @@ public class Renderer
 
                 for (int s = 0; s < _samplesPerPixel; s++)
                 {
-                    float u = (i + MathUtils.RandomFloat()) / (width - 1);
-                    float v = ((height - 1 - j) + MathUtils.RandomFloat()) / (height - 1);
+                    float u = (i + MathUtils.RandomFloat() - 0.5f) / width;
+                    float v = (height - j - 1 + MathUtils.RandomFloat() - 0.5f) / height;
 
                     var ray = _camera.GetRay(u, v);
                     cumulativeColor += TraceRay(ray, _maxDepth);
