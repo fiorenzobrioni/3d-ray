@@ -5,19 +5,18 @@ using RayTracer.Materials;
 namespace RayTracer.Geometry;
 
 /// <summary>
-/// Axis-Aligned Bounding Box primitive using the slab method for intersection.
-/// Internally composed of 6 faces but uses the efficient slab test.
+/// A unit cube centered at the origin (from -0.5 to 0.5 on all axes).
+/// Use the Transform wrapper to scale, rotate and move it.
 /// </summary>
 public class Box : IHittable
 {
-    public Vector3 Min { get; }
-    public Vector3 Max { get; }
+    private static readonly Vector3 Min = new(-0.5f);
+    private static readonly Vector3 Max = new(0.5f);
+    
     public IMaterial Material { get; }
 
-    public Box(Vector3 min, Vector3 max, IMaterial material)
+    public Box(IMaterial material)
     {
-        Min = min;
-        Max = max;
         Material = material;
     }
 
@@ -28,6 +27,7 @@ public class Box : IHittable
         int hitAxis = -1;
         bool hitNeg = false;
 
+        // Slab method intersection
         for (int a = 0; a < 3; a++)
         {
             float origin = a switch { 0 => ray.Origin.X, 1 => ray.Origin.Y, _ => ray.Origin.Z };

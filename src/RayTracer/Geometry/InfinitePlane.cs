@@ -29,12 +29,19 @@ public class InfinitePlane : IHittable
         rec.Point = ray.At(t);
         rec.SetFaceNormal(ray, Normal);
         
-        // Calcolo basilare degli UV mappando su X e Z per piani orizzontali
-        // Se il piano non è orizzontale, bisognerebbe formare una base u,v ortogonale
-        rec.U = rec.Point.X - MathF.Floor(rec.Point.X);
-        rec.V = rec.Point.Z - MathF.Floor(rec.Point.Z);
-        rec.ObjectSeed = Seed;
+        // Robust UV mapping using local orthonormal basis
+        Vector3 uAxis = MathF.Abs(Normal.Y) < 0.99f ? Vector3.Normalize(Vector3.Cross(Normal, Vector3.UnitY)) : Vector3.UnitX;
+        Vector3 vAxis = Vector3.Cross(Normal, uAxis);
 
+        Vector3 p = rec.Point - Point;
+        rec.U = Vector3.Dot(p, uAxis);
+        rec.V = Vector3.Dot(p, vAxis);
+        
+        // Frac for tiling
+        rec.U -= MathF.Floor(rec.U);
+        rec.V -= MathF.Floor(rec.V);
+
+        rec.ObjectSeed = Seed;
         rec.Material = Material;
         return true;
     }

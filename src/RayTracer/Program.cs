@@ -22,10 +22,10 @@ class Program
         string? inputPath = GetArg(args, "--input", "-i");
         string outputPath = GetArg(args, "--output", "-o") ?? "render.png";
         
-        bool wParsed = int.TryParse(GetArg(args, "--width", null), out var width);
-        bool hParsed = int.TryParse(GetArg(args, "--height", null), out var height);
-        bool sParsed = int.TryParse(GetArg(args, "--samples", "-s"), out var samples);
-        bool dParsed = int.TryParse(GetArg(args, "--depth", "-d"), out var depth);
+        bool wParsed = int.TryParse(GetArg(args, "--width", null), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var width);
+        bool hParsed = int.TryParse(GetArg(args, "--height", null), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var height);
+        bool sParsed = int.TryParse(GetArg(args, "--samples", "-s"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var samples);
+        bool dParsed = int.TryParse(GetArg(args, "--depth", "-d"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var depth);
 
         // Required argument check
         if (string.IsNullOrEmpty(inputPath))

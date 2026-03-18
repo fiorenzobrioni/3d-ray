@@ -62,14 +62,14 @@ entities:
     radius: 1.0
     material: "glass"
 
-  # Left metal sphere
+  # Left metal sphere (Actually on the right due to camera angle)
   - name: "metal_sphere"
     type: "sphere"
     center: [-2.5, 0.2, 0.5]
     radius: 0.7
     material: "mirror"
 
-  # Right gold sphere
+  # Right gold sphere (Actually on the left due to camera angle)
   - name: "gold_sphere"
     type: "sphere"
     center: [2.2, 0, 1.0]
@@ -83,11 +83,11 @@ entities:
     radius: 0.4
     material: "matte_red"
 
-  # Blue box
+  # Blue box (Tornato alla sua Translate originale corretta)
   - name: "blue_box"
     type: "box"
-    min: [-4, -0.5, -1.5]
-    max: [-3, 0.8, -0.3]
+    scale: [1.0, 1.3, 1.2]
+    translate: [-3.5, 0.15, -0.9] 
     material: "matte_blue"
 
   # Small blue sphere on far left
@@ -96,3 +96,11 @@ entities:
     center: [-1, -0.2, 3]
     radius: 0.3
     material: "matte_blue"
+    
+  # Test del nuovo Quad (Piazzato sulla sinistra, dietro la sfera dorata)
+  - name: "test_quad"
+    type: "quad"
+    q: [3.5, 0.0, 2.0]     # Origine spostata a sinistra e in profondità
+    u: [-2.0, 0.0, 0.0]    # Si estende lungo l'asse X
+    v: [0.0, 2.0, 0.0]     # Si estende verso l'alto
+    material: "matte_red"

@@ -127,14 +127,14 @@ public class EntityData
     [YamlMember(Alias = "material")]
     public string? Material { get; set; }
 
-    // Sphere
+    // Sphere & Cylinder
     [YamlMember(Alias = "center")]
     public List<float>? Center { get; set; }
 
     [YamlMember(Alias = "radius")]
     public float Radius { get; set; } = 1f;
 
-    // Box
+    // Box (not used anymore for unit box, but kept for compatibility if needed, though we will ignore it in loader)
     [YamlMember(Alias = "min")]
     public List<float>? Min { get; set; }
 
@@ -151,6 +151,16 @@ public class EntityData
     [YamlMember(Alias = "v2")]
     public List<float>? V2 { get; set; }
 
+    // Quad
+    [YamlMember(Alias = "q")]
+    public List<float>? Q { get; set; }
+
+    [YamlMember(Alias = "u")]
+    public List<float>? U { get; set; }
+
+    [YamlMember(Alias = "v")]
+    public List<float>? V { get; set; }
+
     // Cylinder
     [YamlMember(Alias = "height")]
     public float Height { get; set; } = 1f;
@@ -161,6 +171,16 @@ public class EntityData
 
     [YamlMember(Alias = "point")]
     public List<float>? Point { get; set; }
+
+    // Transformations
+    [YamlMember(Alias = "translate")]
+    public List<float>? Translate { get; set; }
+
+    [YamlMember(Alias = "rotate")]
+    public List<float>? Rotate { get; set; }
+
+    [YamlMember(Alias = "scale")]
+    public object? Scale { get; set; } // Can be float or List<float>
 }
 
 public class LightData

@@ -57,7 +57,16 @@ public class SceneLoader
             {
                 var mat = GetMaterial(materials, e.Material);
                 var hittable = CreateEntity(e, mat);
-                if (hittable != null) objects.Add(hittable);
+                if (hittable != null)
+                {
+                    // Apply transformations if present
+                    var transform = ComputeTransformMatrix(e);
+                    if (transform != Matrix4x4.Identity)
+                    {
+                        hittable = new Transform(hittable, transform);
+                    }
+                    objects.Add(hittable);
+                }
             }
         }
 
@@ -195,9 +204,11 @@ public class SceneLoader
         IHittable? entity = e.Type?.ToLowerInvariant() switch
         {
             "sphere" => new Sphere(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, mat),
-            "box" => new Box(ToVector3(e.Min) ?? -Vector3.One, ToVector3(e.Max) ?? Vector3.One, mat),
+            "box" => new Box(mat),
             "triangle" => new Triangle(ToVector3(e.V0) ?? Vector3.Zero, ToVector3(e.V1) ?? Vector3.UnitX, ToVector3(e.V2) ?? Vector3.UnitY, mat),
+            "quad" => new Quad(ToVector3(e.Q) ?? Vector3.Zero, ToVector3(e.U) ?? Vector3.UnitX, ToVector3(e.V) ?? Vector3.UnitY, mat),
             "cylinder" => new Cylinder(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.Height, mat),
+            "disk" => new Disk(ToVector3(e.Center) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, e.Radius, mat),
             "plane" or "infinite_plane" => new InfinitePlane(ToVector3(e.Point) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, mat),
             _ => null
         };
@@ -233,5 +244,52 @@ public class SceneLoader
     {
         if (list == null || list.Count < 3) return null;
         return new Vector3(list[0], list[1], list[2]);
+    }
+
+    private static Matrix4x4 ComputeTransformMatrix(EntityData e)
+    {
+        var m = Matrix4x4.Identity;
+
+        // Scale
+        if (e.Scale != null)
+        {
+            // Aggiungi System.Globalization in cima al file se non c'è già
+            if (e.Scale is List<object> list && list.Count >= 3)
+            {
+                var s = new Vector3(
+                    Convert.ToSingle(list[0], System.Globalization.CultureInfo.InvariantCulture),
+                    Convert.ToSingle(list[1], System.Globalization.CultureInfo.InvariantCulture),
+                    Convert.ToSingle(list[2], System.Globalization.CultureInfo.InvariantCulture));
+                m *= Matrix4x4.CreateScale(s);
+            }
+            else // Se è un valore singolo (es. scale: 2.0)
+            {
+                float s = Convert.ToSingle(e.Scale, System.Globalization.CultureInfo.InvariantCulture);
+                m *= Matrix4x4.CreateScale(s);
+            }
+        }
+
+        // Rotate (Degrees to Radians)
+        if (e.Rotate != null && e.Rotate.Count >= 3)
+        {
+            var r = new Vector3(
+                MathUtils.DegreesToRadians(e.Rotate[0]),
+                MathUtils.DegreesToRadians(e.Rotate[1]),
+                MathUtils.DegreesToRadians(e.Rotate[2]));
+            
+            // Order: X then Y then Z (standard Euler)
+            m *= Matrix4x4.CreateRotationX(r.X);
+            m *= Matrix4x4.CreateRotationY(r.Y);
+            m *= Matrix4x4.CreateRotationZ(r.Z);
+        }
+
+        // Translate
+        if (e.Translate != null && e.Translate.Count >= 3)
+        {
+            var t = new Vector3(e.Translate[0], e.Translate[1], e.Translate[2]);
+            m *= Matrix4x4.CreateTranslation(t);
+        }
+
+        return m;
     }
 }
