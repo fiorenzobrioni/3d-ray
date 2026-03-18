@@ -65,6 +65,24 @@ public class Box : IHittable
         };
 
         rec.SetFaceNormal(ray, outwardNormal);
+
+        // Per-face planar UV mapping on the unit cube
+        switch (hitAxis)
+        {
+            case 0: // X face
+                rec.U = (rec.Point.Z - Min.Z) / (Max.Z - Min.Z);
+                rec.V = (rec.Point.Y - Min.Y) / (Max.Y - Min.Y);
+                break;
+            case 1: // Y face
+                rec.U = (rec.Point.X - Min.X) / (Max.X - Min.X);
+                rec.V = (rec.Point.Z - Min.Z) / (Max.Z - Min.Z);
+                break;
+            default: // Z face
+                rec.U = (rec.Point.X - Min.X) / (Max.X - Min.X);
+                rec.V = (rec.Point.Y - Min.Y) / (Max.Y - Min.Y);
+                break;
+        }
+
         rec.ObjectSeed = Seed;
         rec.Material = Material;
         return true;

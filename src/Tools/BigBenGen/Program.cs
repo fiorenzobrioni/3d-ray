@@ -615,9 +615,10 @@ namespace BigBenGen
             entityCount++;
             sb.AppendLine($"  - name: \"{name}\"");
             sb.AppendLine("    type: \"box\"");
-            sb.AppendLine($"    min: [{VFmt(x - dx)}, {VFmt(y - dy)}, {VFmt(z - dz)}]");
-            sb.AppendLine($"    max: [{VFmt(x + dx)}, {VFmt(y + dy)}, {VFmt(z + dz)}]");
+            sb.AppendLine($"    scale: [{VFmt(dx * 2)}, {VFmt(dy * 2)}, {VFmt(dz * 2)}]");
+            sb.AppendLine($"    translate: [{VFmt(x)}, {VFmt(y)}, {VFmt(z)}]");
             sb.AppendLine($"    material: \"{mat}\"");
+            sb.AppendLine();
         }
 
         static void WriteMat(StringBuilder sb, string id, string type, float r, float g, float b, float fuzz = -1)

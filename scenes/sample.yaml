@@ -3,7 +3,9 @@
 
 world:
   ambient_light: [0.05, 0.05, 0.08]
-  background: [0.4, 0.6, 1.0]
+  background: [0.0, 0.0, 0.0]
+  # ambient_light: [0.05, 0.05, 0.08]
+  # background: [0.4, 0.6, 1.0]
   ground:
     type: "infinite_plane"
     material: "checker_floor" # <-- Assegnato il nuovo materiale a scacchiera
@@ -57,7 +59,7 @@ lights:
   - type: "directional"
     direction: [-0.5, -1, -0.3]
     color: [1.0, 0.95, 0.85]
-    intensity: 0.9
+    intensity: 0.1
 
   - type: "point"
     position: [5, 8, -3]

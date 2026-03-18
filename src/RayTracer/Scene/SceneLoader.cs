@@ -101,8 +101,9 @@ public class SceneLoader
         var camData = data.Camera ?? new CameraData();
         var camPos = ToVector3(camData.Position) ?? new Vector3(0, 1, -5);
         var camLookAt = ToVector3(camData.LookAt) ?? Vector3.Zero;
+        var camVup = ToVector3(camData.Vup) ?? Vector3.UnitY;
         var camera = new Camera.Camera(
-            camPos, camLookAt, Vector3.UnitY,
+            camPos, camLookAt, camVup,
             camData.Fov, aspect,
             camData.Aperture, camData.FocalDist);
 
@@ -230,6 +231,10 @@ public class SceneLoader
                 ToVector3(l.Position) ?? new Vector3(0, 10, 0), color, l.Intensity),
             "directional" or "sun" => new DirectionalLight(
                 ToVector3(l.Direction) ?? new Vector3(-1, -1, -1), color, l.Intensity),
+            "spot" or "spotlight" => new SpotLight(
+                ToVector3(l.Position) ?? new Vector3(0, 10, 0),
+                ToVector3(l.Direction) ?? new Vector3(0, -1, 0),
+                color, l.Intensity, l.InnerAngle, l.OuterAngle),
             _ => null
         };
     }

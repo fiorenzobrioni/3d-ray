@@ -55,6 +55,9 @@ public class CameraData
     [YamlMember(Alias = "look_at")]
     public List<float>? LookAt { get; set; }
 
+    [YamlMember(Alias = "vup")]
+    public List<float>? Vup { get; set; }
+
     [YamlMember(Alias = "fov")]
     public float Fov { get; set; } = 60f;
 
@@ -199,4 +202,10 @@ public class LightData
 
     [YamlMember(Alias = "intensity")]
     public float Intensity { get; set; } = 1f;
+
+    [YamlMember(Alias = "inner_angle")]
+    public float InnerAngle { get; set; } = 15f;
+
+    [YamlMember(Alias = "outer_angle")]
+    public float OuterAngle { get; set; } = 30f;
 }

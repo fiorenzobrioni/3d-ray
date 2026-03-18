@@ -1,46 +1,57 @@
-# Ray-Tracing Scene - Multi-polygon Teapot
+# Ray-Tracing Scene - Multi-polygon Teapot (Updated for latest engine)
 
 world:
-  ambient_light: [0.2, 0.2, 0.2]
-  background: [0.1, 0.1, 0.15]
+  ambient_light: [0.05, 0.05, 0.1] # Soft blue studio ambient
+  background: [0.01, 0.01, 0.02]  # Dark night fill
   ground:
     type: "infinite_plane"
-    material: "floor_grid"
+    material: "floor_wood"
     y: 0.0
 
 camera:
   position: [0, 4, 10]
   look_at: [0, 1.5, 0]
   fov: 40
-  aperture: 0.05
+  aperture: 0.1             # Better bokeh for a macro look
   focal_dist: 10.5
 
 materials:
-  - id: "floor_grid"
+  - id: "floor_wood"
     type: "lambertian"
-    color: [0.8, 0.8, 0.8]
+    texture:
+      type: "wood"
+      scale: 15.0
+      noise_strength: 3.2
+      colors: [[0.35, 0.15, 0.08], [0.15, 0.05, 0.02]]
+      randomize_offset: true
+      rotation: [90, 0, 0]
+
+  - id: "gold_teapot"
+    type: "metal"
+    fuzz: 0.02
+    texture:
+      type: "marble"
+      scale: 30.0
+      colors: [[0.95, 0.75, 0.15], [0.75, 0.55, 0.05]]
+      noise_strength: 12.0
 
   - id: "ceramic_teapot"
     type: "dielectric"
     refraction_index: 1.5
-    # For a realistic teapot, we can use dielectric to make it glass-like,
-    # or a nice metal.
-
-  - id: "gold_teapot"
-    type: "metal"
-    color: [0.9, 0.7, 0.1]
-    fuzz: 0.1
 
 lights:
   - type: "point"
     position: [5, 10, 5]
     color: [1.0, 0.95, 0.9]
-    intensity: 100.0
+    intensity: 150.0
 
-  - type: "directional"
-    direction: [-0.5, -1, -0.5]
-    color: [0.2, 0.2, 0.4]
-    intensity: 0.5
+  - type: "spot"
+    position: [-5, 8, 2]
+    direction: [5, -10, -2]
+    color: [1.0, 1.0, 1.0]
+    intensity: 120.0
+    inner_angle: 15.0
+    outer_angle: 35.0
 
 entities:
   - name: "tri_0"

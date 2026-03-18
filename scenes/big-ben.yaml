@@ -117,24 +117,28 @@ lights:
 entities:
   - name: "thames_water"
     type: "box"
-    min: [-60.000, -0.600, -10.000]
-    max: [60.000, 0.000, 40.000]
+    scale: [120.000, 0.600, 50.000]
+    translate: [0.000, -0.300, 15.000]
     material: "thames_water"
+
   - name: "bridge_deck"
     type: "box"
-    min: [-20.000, 0.000, -21.000]
-    max: [20.000, 1.000, -15.000]
+    scale: [40.000, 1.000, 6.000]
+    translate: [0.000, 0.500, -18.000]
     material: "bridge_stone"
+
   - name: "bridge_wall_l"
     type: "box"
-    min: [-20.000, 0.500, -21.000]
-    max: [-18.000, 1.900, -15.000]
+    scale: [2.000, 1.400, 6.000]
+    translate: [-19.000, 1.200, -18.000]
     material: "bridge_stone"
+
   - name: "bridge_wall_r"
     type: "box"
-    min: [18.000, 0.500, -21.000]
-    max: [20.000, 1.900, -15.000]
+    scale: [2.000, 1.400, 6.000]
+    translate: [19.000, 1.200, -18.000]
     material: "bridge_stone"
+
   - name: "bridge_pier_0"
     type: "cylinder"
     center: [-15.000, -0.500, -18.000]
@@ -173,9 +177,10 @@ entities:
     material: "bridge_stone"
   - name: "embankment"
     type: "box"
-    min: [-30.000, 0.000, -16.000]
-    max: [30.000, 0.600, 0.000]
+    scale: [60.000, 0.600, 16.000]
+    translate: [0.000, 0.300, -8.000]
     material: "pavement"
+
   - name: "fence_post_0"
     type: "cylinder"
     center: [-20.000, 0.600, -14.500]
@@ -184,14 +189,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_0"
     type: "box"
-    min: [-20.000, 1.430, -14.520]
-    max: [-19.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-19.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_0"
     type: "box"
-    min: [-20.000, 0.880, -14.520]
-    max: [-19.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-19.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_1"
     type: "cylinder"
     center: [-19.000, 0.600, -14.500]
@@ -200,14 +207,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_1"
     type: "box"
-    min: [-19.000, 1.430, -14.520]
-    max: [-18.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-18.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_1"
     type: "box"
-    min: [-19.000, 0.880, -14.520]
-    max: [-18.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-18.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_2"
     type: "cylinder"
     center: [-18.000, 0.600, -14.500]
@@ -216,14 +225,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_2"
     type: "box"
-    min: [-18.000, 1.430, -14.520]
-    max: [-17.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-17.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_2"
     type: "box"
-    min: [-18.000, 0.880, -14.520]
-    max: [-17.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-17.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_3"
     type: "cylinder"
     center: [-17.000, 0.600, -14.500]
@@ -232,14 +243,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_3"
     type: "box"
-    min: [-17.000, 1.430, -14.520]
-    max: [-16.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-16.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_3"
     type: "box"
-    min: [-17.000, 0.880, -14.520]
-    max: [-16.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-16.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_4"
     type: "cylinder"
     center: [-16.000, 0.600, -14.500]
@@ -248,14 +261,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_4"
     type: "box"
-    min: [-16.000, 1.430, -14.520]
-    max: [-15.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-15.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_4"
     type: "box"
-    min: [-16.000, 0.880, -14.520]
-    max: [-15.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-15.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_5"
     type: "cylinder"
     center: [-15.000, 0.600, -14.500]
@@ -264,14 +279,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_5"
     type: "box"
-    min: [-15.000, 1.430, -14.520]
-    max: [-14.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-14.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_5"
     type: "box"
-    min: [-15.000, 0.880, -14.520]
-    max: [-14.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-14.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_6"
     type: "cylinder"
     center: [-14.000, 0.600, -14.500]
@@ -280,14 +297,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_6"
     type: "box"
-    min: [-14.000, 1.430, -14.520]
-    max: [-13.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-13.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_6"
     type: "box"
-    min: [-14.000, 0.880, -14.520]
-    max: [-13.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-13.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_7"
     type: "cylinder"
     center: [-13.000, 0.600, -14.500]
@@ -296,14 +315,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_7"
     type: "box"
-    min: [-13.000, 1.430, -14.520]
-    max: [-12.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-12.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_7"
     type: "box"
-    min: [-13.000, 0.880, -14.520]
-    max: [-12.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-12.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_8"
     type: "cylinder"
     center: [-12.000, 0.600, -14.500]
@@ -312,14 +333,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_8"
     type: "box"
-    min: [-12.000, 1.430, -14.520]
-    max: [-11.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-11.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_8"
     type: "box"
-    min: [-12.000, 0.880, -14.520]
-    max: [-11.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-11.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_9"
     type: "cylinder"
     center: [-11.000, 0.600, -14.500]
@@ -328,14 +351,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_9"
     type: "box"
-    min: [-11.000, 1.430, -14.520]
-    max: [-10.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-10.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_9"
     type: "box"
-    min: [-11.000, 0.880, -14.520]
-    max: [-10.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-10.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_10"
     type: "cylinder"
     center: [-10.000, 0.600, -14.500]
@@ -344,14 +369,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_10"
     type: "box"
-    min: [-10.000, 1.430, -14.520]
-    max: [-9.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-9.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_10"
     type: "box"
-    min: [-10.000, 0.880, -14.520]
-    max: [-9.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-9.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_11"
     type: "cylinder"
     center: [-9.000, 0.600, -14.500]
@@ -360,14 +387,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_11"
     type: "box"
-    min: [-9.000, 1.430, -14.520]
-    max: [-8.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-8.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_11"
     type: "box"
-    min: [-9.000, 0.880, -14.520]
-    max: [-8.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-8.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_12"
     type: "cylinder"
     center: [-8.000, 0.600, -14.500]
@@ -376,14 +405,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_12"
     type: "box"
-    min: [-8.000, 1.430, -14.520]
-    max: [-7.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-7.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_12"
     type: "box"
-    min: [-8.000, 0.880, -14.520]
-    max: [-7.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-7.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_13"
     type: "cylinder"
     center: [-7.000, 0.600, -14.500]
@@ -392,14 +423,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_13"
     type: "box"
-    min: [-7.000, 1.430, -14.520]
-    max: [-6.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-6.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_13"
     type: "box"
-    min: [-7.000, 0.880, -14.520]
-    max: [-6.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-6.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_14"
     type: "cylinder"
     center: [-6.000, 0.600, -14.500]
@@ -408,14 +441,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_14"
     type: "box"
-    min: [-6.000, 1.430, -14.520]
-    max: [-5.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-5.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_14"
     type: "box"
-    min: [-6.000, 0.880, -14.520]
-    max: [-5.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-5.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_15"
     type: "cylinder"
     center: [-5.000, 0.600, -14.500]
@@ -424,14 +459,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_15"
     type: "box"
-    min: [-5.000, 1.430, -14.520]
-    max: [-4.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-4.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_15"
     type: "box"
-    min: [-5.000, 0.880, -14.520]
-    max: [-4.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-4.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_16"
     type: "cylinder"
     center: [-4.000, 0.600, -14.500]
@@ -440,14 +477,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_16"
     type: "box"
-    min: [-4.000, 1.430, -14.520]
-    max: [-3.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-3.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_16"
     type: "box"
-    min: [-4.000, 0.880, -14.520]
-    max: [-3.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-3.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_17"
     type: "cylinder"
     center: [-3.000, 0.600, -14.500]
@@ -456,14 +495,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_17"
     type: "box"
-    min: [-3.000, 1.430, -14.520]
-    max: [-2.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-2.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_17"
     type: "box"
-    min: [-3.000, 0.880, -14.520]
-    max: [-2.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-2.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_18"
     type: "cylinder"
     center: [-2.000, 0.600, -14.500]
@@ -472,14 +513,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_18"
     type: "box"
-    min: [-2.000, 1.430, -14.520]
-    max: [-1.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-1.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_18"
     type: "box"
-    min: [-2.000, 0.880, -14.520]
-    max: [-1.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-1.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_19"
     type: "cylinder"
     center: [-1.000, 0.600, -14.500]
@@ -488,14 +531,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_19"
     type: "box"
-    min: [-1.000, 1.430, -14.520]
-    max: [0.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-0.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_19"
     type: "box"
-    min: [-1.000, 0.880, -14.520]
-    max: [0.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [-0.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_20"
     type: "cylinder"
     center: [0.000, 0.600, -14.500]
@@ -504,14 +549,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_20"
     type: "box"
-    min: [0.000, 1.430, -14.520]
-    max: [1.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [0.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_20"
     type: "box"
-    min: [0.000, 0.880, -14.520]
-    max: [1.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [0.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_21"
     type: "cylinder"
     center: [1.000, 0.600, -14.500]
@@ -520,14 +567,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_21"
     type: "box"
-    min: [1.000, 1.430, -14.520]
-    max: [2.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [1.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_21"
     type: "box"
-    min: [1.000, 0.880, -14.520]
-    max: [2.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [1.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_22"
     type: "cylinder"
     center: [2.000, 0.600, -14.500]
@@ -536,14 +585,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_22"
     type: "box"
-    min: [2.000, 1.430, -14.520]
-    max: [3.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [2.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_22"
     type: "box"
-    min: [2.000, 0.880, -14.520]
-    max: [3.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [2.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_23"
     type: "cylinder"
     center: [3.000, 0.600, -14.500]
@@ -552,14 +603,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_23"
     type: "box"
-    min: [3.000, 1.430, -14.520]
-    max: [4.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [3.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_23"
     type: "box"
-    min: [3.000, 0.880, -14.520]
-    max: [4.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [3.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_24"
     type: "cylinder"
     center: [4.000, 0.600, -14.500]
@@ -568,14 +621,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_24"
     type: "box"
-    min: [4.000, 1.430, -14.520]
-    max: [5.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [4.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_24"
     type: "box"
-    min: [4.000, 0.880, -14.520]
-    max: [5.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [4.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_25"
     type: "cylinder"
     center: [5.000, 0.600, -14.500]
@@ -584,14 +639,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_25"
     type: "box"
-    min: [5.000, 1.430, -14.520]
-    max: [6.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [5.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_25"
     type: "box"
-    min: [5.000, 0.880, -14.520]
-    max: [6.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [5.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_26"
     type: "cylinder"
     center: [6.000, 0.600, -14.500]
@@ -600,14 +657,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_26"
     type: "box"
-    min: [6.000, 1.430, -14.520]
-    max: [7.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [6.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_26"
     type: "box"
-    min: [6.000, 0.880, -14.520]
-    max: [7.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [6.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_27"
     type: "cylinder"
     center: [7.000, 0.600, -14.500]
@@ -616,14 +675,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_27"
     type: "box"
-    min: [7.000, 1.430, -14.520]
-    max: [8.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [7.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_27"
     type: "box"
-    min: [7.000, 0.880, -14.520]
-    max: [8.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [7.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_28"
     type: "cylinder"
     center: [8.000, 0.600, -14.500]
@@ -632,14 +693,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_28"
     type: "box"
-    min: [8.000, 1.430, -14.520]
-    max: [9.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [8.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_28"
     type: "box"
-    min: [8.000, 0.880, -14.520]
-    max: [9.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [8.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_29"
     type: "cylinder"
     center: [9.000, 0.600, -14.500]
@@ -648,14 +711,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_29"
     type: "box"
-    min: [9.000, 1.430, -14.520]
-    max: [10.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [9.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_29"
     type: "box"
-    min: [9.000, 0.880, -14.520]
-    max: [10.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [9.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_30"
     type: "cylinder"
     center: [10.000, 0.600, -14.500]
@@ -664,14 +729,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_30"
     type: "box"
-    min: [10.000, 1.430, -14.520]
-    max: [11.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [10.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_30"
     type: "box"
-    min: [10.000, 0.880, -14.520]
-    max: [11.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [10.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_31"
     type: "cylinder"
     center: [11.000, 0.600, -14.500]
@@ -680,14 +747,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_31"
     type: "box"
-    min: [11.000, 1.430, -14.520]
-    max: [12.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [11.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_31"
     type: "box"
-    min: [11.000, 0.880, -14.520]
-    max: [12.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [11.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_32"
     type: "cylinder"
     center: [12.000, 0.600, -14.500]
@@ -696,14 +765,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_32"
     type: "box"
-    min: [12.000, 1.430, -14.520]
-    max: [13.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [12.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_32"
     type: "box"
-    min: [12.000, 0.880, -14.520]
-    max: [13.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [12.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_33"
     type: "cylinder"
     center: [13.000, 0.600, -14.500]
@@ -712,14 +783,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_33"
     type: "box"
-    min: [13.000, 1.430, -14.520]
-    max: [14.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [13.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_33"
     type: "box"
-    min: [13.000, 0.880, -14.520]
-    max: [14.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [13.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_34"
     type: "cylinder"
     center: [14.000, 0.600, -14.500]
@@ -728,14 +801,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_34"
     type: "box"
-    min: [14.000, 1.430, -14.520]
-    max: [15.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [14.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_34"
     type: "box"
-    min: [14.000, 0.880, -14.520]
-    max: [15.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [14.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_35"
     type: "cylinder"
     center: [15.000, 0.600, -14.500]
@@ -744,14 +819,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_35"
     type: "box"
-    min: [15.000, 1.430, -14.520]
-    max: [16.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [15.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_35"
     type: "box"
-    min: [15.000, 0.880, -14.520]
-    max: [16.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [15.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_36"
     type: "cylinder"
     center: [16.000, 0.600, -14.500]
@@ -760,14 +837,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_36"
     type: "box"
-    min: [16.000, 1.430, -14.520]
-    max: [17.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [16.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_36"
     type: "box"
-    min: [16.000, 0.880, -14.520]
-    max: [17.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [16.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_37"
     type: "cylinder"
     center: [17.000, 0.600, -14.500]
@@ -776,14 +855,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_37"
     type: "box"
-    min: [17.000, 1.430, -14.520]
-    max: [18.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [17.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_37"
     type: "box"
-    min: [17.000, 0.880, -14.520]
-    max: [18.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [17.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_38"
     type: "cylinder"
     center: [18.000, 0.600, -14.500]
@@ -792,14 +873,16 @@ entities:
     material: "fence_iron"
   - name: "fence_rail_38"
     type: "box"
-    min: [18.000, 1.430, -14.520]
-    max: [19.000, 1.470, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [18.500, 1.450, -14.500]
     material: "fence_iron"
+
   - name: "fence_rail_b_38"
     type: "box"
-    min: [18.000, 0.880, -14.520]
-    max: [19.000, 0.920, -14.480]
+    scale: [1.000, 0.040, 0.040]
+    translate: [18.500, 0.900, -14.500]
     material: "fence_iron"
+
   - name: "fence_post_39"
     type: "cylinder"
     center: [19.000, 0.600, -14.500]
@@ -923,14 +1006,16 @@ entities:
     material: "iron_dark"
   - name: "bus_body"
     type: "box"
-    min: [-12.500, 0.300, -11.000]
-    max: [-7.500, 3.300, -9.000]
+    scale: [5.000, 3.000, 2.000]
+    translate: [-10.000, 1.800, -10.000]
     material: "red_bus"
+
   - name: "bus_upper"
     type: "box"
-    min: [-12.500, 2.800, -11.000]
-    max: [-7.500, 4.800, -9.000]
+    scale: [5.000, 2.000, 2.000]
+    translate: [-10.000, 3.800, -10.000]
     material: "red_bus"
+
   - name: "bus_wheel_fl"
     type: "cylinder"
     center: [-12.000, 0.600, -9.200]
@@ -957,39 +1042,46 @@ entities:
     material: "iron_dark"
   - name: "platform_3"
     type: "box"
-    min: [-8.000, 0.000, -8.000]
-    max: [8.000, 0.500, 8.000]
+    scale: [16.000, 0.500, 16.000]
+    translate: [0.000, 0.250, 0.000]
     material: "limestone_dark"
+
   - name: "platform_2"
     type: "box"
-    min: [-7.500, 0.500, -7.500]
-    max: [7.500, 1.000, 7.500]
+    scale: [15.000, 0.500, 15.000]
+    translate: [0.000, 0.750, 0.000]
     material: "limestone_dark"
+
   - name: "platform_1"
     type: "box"
-    min: [-7.000, 1.000, -7.000]
-    max: [7.000, 1.500, 7.000]
+    scale: [14.000, 0.500, 14.000]
+    translate: [0.000, 1.250, 0.000]
     material: "limestone_dark"
+
   - name: "entrance_recess"
     type: "box"
-    min: [-2.500, 1.000, -7.050]
-    max: [2.500, 6.000, -6.050]
+    scale: [5.000, 5.000, 1.000]
+    translate: [0.000, 3.500, -6.550]
     material: "dark_recess"
+
   - name: "entrance_frame_l"
     type: "box"
-    min: [-3.000, 0.700, -7.000]
-    max: [-2.400, 6.300, -6.200]
+    scale: [0.600, 5.600, 0.800]
+    translate: [-2.700, 3.500, -6.600]
     material: "limestone"
+
   - name: "entrance_frame_r"
     type: "box"
-    min: [2.400, 0.700, -7.000]
-    max: [3.000, 6.300, -6.200]
+    scale: [0.600, 5.600, 0.800]
+    translate: [2.700, 3.500, -6.600]
     material: "limestone"
+
   - name: "entrance_frame_top"
     type: "box"
-    min: [-3.000, 5.800, -7.000]
-    max: [3.000, 6.400, -6.200]
+    scale: [6.000, 0.600, 0.800]
+    translate: [0.000, 6.100, -6.600]
     material: "limestone"
+
   - name: "entrance_arch_sph"
     type: "sphere"
     center: [0.000, 6.300, -6.700]
@@ -997,54 +1089,64 @@ entities:
     material: "limestone"
   - name: "shaft_sec_0"
     type: "box"
-    min: [-5.500, 1.500, -5.500]
-    max: [5.500, 7.000, 5.500]
+    scale: [11.000, 5.500, 11.000]
+    translate: [0.000, 4.250, 0.000]
     material: "limestone"
+
   - name: "shaft_band_0"
     type: "box"
-    min: [-5.650, 6.850, -5.650]
-    max: [5.650, 7.150, 5.650]
+    scale: [11.300, 0.300, 11.300]
+    translate: [0.000, 7.000, 0.000]
     material: "stone_detail"
+
   - name: "pilaster_0_0"
     type: "box"
-    min: [-5.750, 1.500, -5.800]
-    max: [-5.250, 7.000, -5.200]
+    scale: [0.500, 5.500, 0.600]
+    translate: [-5.500, 4.250, -5.500]
     material: "stone_detail"
+
   - name: "pilaster_0_1"
     type: "box"
-    min: [5.250, 1.500, -5.800]
-    max: [5.750, 7.000, -5.200]
+    scale: [0.500, 5.500, 0.600]
+    translate: [5.500, 4.250, -5.500]
     material: "stone_detail"
+
   - name: "pilaster_0_2"
     type: "box"
-    min: [-5.750, 1.500, 5.200]
-    max: [-5.250, 7.000, 5.800]
+    scale: [0.500, 5.500, 0.600]
+    translate: [-5.500, 4.250, 5.500]
     material: "stone_detail"
+
   - name: "pilaster_0_3"
     type: "box"
-    min: [5.250, 1.500, 5.200]
-    max: [5.750, 7.000, 5.800]
+    scale: [0.500, 5.500, 0.600]
+    translate: [5.500, 4.250, 5.500]
     material: "stone_detail"
+
   - name: "win_f_0_0"
     type: "box"
-    min: [-2.000, 2.250, -5.700]
-    max: [-1.000, 5.250, -5.400]
+    scale: [1.000, 3.000, 0.300]
+    translate: [-1.500, 3.750, -5.550]
     material: "dark_recess"
+
   - name: "wfr_f_0_0_l"
     type: "box"
-    min: [-2.160, 2.100, -5.660]
-    max: [-2.000, 5.400, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-2.080, 3.750, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_0_0_r"
     type: "box"
-    min: [-1.000, 2.100, -5.660]
-    max: [-0.840, 5.400, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-0.920, 3.750, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_0_0_t"
     type: "box"
-    min: [-2.160, 5.250, -5.660]
-    max: [-0.840, 5.450, -5.460]
+    scale: [1.320, 0.200, 0.200]
+    translate: [-1.500, 5.350, -5.560]
     material: "stone_detail"
+
   - name: "warch_f_0_0"
     type: "sphere"
     center: [-1.500, 5.350, -5.580]
@@ -1052,24 +1154,28 @@ entities:
     material: "stone_detail"
   - name: "win_f_0_1"
     type: "box"
-    min: [1.000, 2.250, -5.700]
-    max: [2.000, 5.250, -5.400]
+    scale: [1.000, 3.000, 0.300]
+    translate: [1.500, 3.750, -5.550]
     material: "dark_recess"
+
   - name: "wfr_f_0_1_l"
     type: "box"
-    min: [0.840, 2.100, -5.660]
-    max: [1.000, 5.400, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [0.920, 3.750, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_0_1_r"
     type: "box"
-    min: [2.000, 2.100, -5.660]
-    max: [2.160, 5.400, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [2.080, 3.750, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_0_1_t"
     type: "box"
-    min: [0.840, 5.250, -5.660]
-    max: [2.160, 5.450, -5.460]
+    scale: [1.320, 0.200, 0.200]
+    translate: [1.500, 5.350, -5.560]
     material: "stone_detail"
+
   - name: "warch_f_0_1"
     type: "sphere"
     center: [1.500, 5.350, -5.580]
@@ -1077,24 +1183,28 @@ entities:
     material: "stone_detail"
   - name: "win_b_0_0"
     type: "box"
-    min: [-2.000, 2.250, 5.400]
-    max: [-1.000, 5.250, 5.700]
+    scale: [1.000, 3.000, 0.300]
+    translate: [-1.500, 3.750, 5.550]
     material: "dark_recess"
+
   - name: "wfr_b_0_0_l"
     type: "box"
-    min: [-2.160, 2.100, 5.460]
-    max: [-2.000, 5.400, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-2.080, 3.750, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_0_0_r"
     type: "box"
-    min: [-1.000, 2.100, 5.460]
-    max: [-0.840, 5.400, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-0.920, 3.750, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_0_0_t"
     type: "box"
-    min: [-2.160, 5.250, 5.460]
-    max: [-0.840, 5.450, 5.660]
+    scale: [1.320, 0.200, 0.200]
+    translate: [-1.500, 5.350, 5.560]
     material: "stone_detail"
+
   - name: "warch_b_0_0"
     type: "sphere"
     center: [-1.500, 5.350, 5.580]
@@ -1102,24 +1212,28 @@ entities:
     material: "stone_detail"
   - name: "win_b_0_1"
     type: "box"
-    min: [1.000, 2.250, 5.400]
-    max: [2.000, 5.250, 5.700]
+    scale: [1.000, 3.000, 0.300]
+    translate: [1.500, 3.750, 5.550]
     material: "dark_recess"
+
   - name: "wfr_b_0_1_l"
     type: "box"
-    min: [0.840, 2.100, 5.460]
-    max: [1.000, 5.400, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [0.920, 3.750, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_0_1_r"
     type: "box"
-    min: [2.000, 2.100, 5.460]
-    max: [2.160, 5.400, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [2.080, 3.750, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_0_1_t"
     type: "box"
-    min: [0.840, 5.250, 5.460]
-    max: [2.160, 5.450, 5.660]
+    scale: [1.320, 0.200, 0.200]
+    translate: [1.500, 5.350, 5.560]
     material: "stone_detail"
+
   - name: "warch_b_0_1"
     type: "sphere"
     center: [1.500, 5.350, 5.580]
@@ -1127,24 +1241,28 @@ entities:
     material: "stone_detail"
   - name: "win_l_0_0"
     type: "box"
-    min: [-5.700, 2.250, -2.000]
-    max: [-5.400, 5.250, -1.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [-5.550, 3.750, -1.500]
     material: "dark_recess"
+
   - name: "wfr_l_0_0_l"
     type: "box"
-    min: [-5.660, 2.100, -2.160]
-    max: [-5.460, 5.400, -2.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 3.750, -2.080]
     material: "stone_detail"
+
   - name: "wfr_l_0_0_r"
     type: "box"
-    min: [-5.660, 2.100, -1.000]
-    max: [-5.460, 5.400, -0.840]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 3.750, -0.920]
     material: "stone_detail"
+
   - name: "wfr_l_0_0_t"
     type: "box"
-    min: [-5.660, 5.250, -2.160]
-    max: [-5.460, 5.450, -0.840]
+    scale: [0.200, 0.200, 1.320]
+    translate: [-5.560, 5.350, -1.500]
     material: "stone_detail"
+
   - name: "warch_l_0_0"
     type: "sphere"
     center: [-5.580, 5.350, -1.500]
@@ -1152,24 +1270,28 @@ entities:
     material: "stone_detail"
   - name: "win_l_0_1"
     type: "box"
-    min: [-5.700, 2.250, 1.000]
-    max: [-5.400, 5.250, 2.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [-5.550, 3.750, 1.500]
     material: "dark_recess"
+
   - name: "wfr_l_0_1_l"
     type: "box"
-    min: [-5.660, 2.100, 0.840]
-    max: [-5.460, 5.400, 1.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 3.750, 0.920]
     material: "stone_detail"
+
   - name: "wfr_l_0_1_r"
     type: "box"
-    min: [-5.660, 2.100, 2.000]
-    max: [-5.460, 5.400, 2.160]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 3.750, 2.080]
     material: "stone_detail"
+
   - name: "wfr_l_0_1_t"
     type: "box"
-    min: [-5.660, 5.250, 0.840]
-    max: [-5.460, 5.450, 2.160]
+    scale: [0.200, 0.200, 1.320]
+    translate: [-5.560, 5.350, 1.500]
     material: "stone_detail"
+
   - name: "warch_l_0_1"
     type: "sphere"
     center: [-5.580, 5.350, 1.500]
@@ -1177,24 +1299,28 @@ entities:
     material: "stone_detail"
   - name: "win_r_0_0"
     type: "box"
-    min: [5.400, 2.250, -2.000]
-    max: [5.700, 5.250, -1.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [5.550, 3.750, -1.500]
     material: "dark_recess"
+
   - name: "wfr_r_0_0_l"
     type: "box"
-    min: [5.460, 2.100, -2.160]
-    max: [5.660, 5.400, -2.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 3.750, -2.080]
     material: "stone_detail"
+
   - name: "wfr_r_0_0_r"
     type: "box"
-    min: [5.460, 2.100, -1.000]
-    max: [5.660, 5.400, -0.840]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 3.750, -0.920]
     material: "stone_detail"
+
   - name: "wfr_r_0_0_t"
     type: "box"
-    min: [5.460, 5.250, -2.160]
-    max: [5.660, 5.450, -0.840]
+    scale: [0.200, 0.200, 1.320]
+    translate: [5.560, 5.350, -1.500]
     material: "stone_detail"
+
   - name: "warch_r_0_0"
     type: "sphere"
     center: [5.580, 5.350, -1.500]
@@ -1202,24 +1328,28 @@ entities:
     material: "stone_detail"
   - name: "win_r_0_1"
     type: "box"
-    min: [5.400, 2.250, 1.000]
-    max: [5.700, 5.250, 2.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [5.550, 3.750, 1.500]
     material: "dark_recess"
+
   - name: "wfr_r_0_1_l"
     type: "box"
-    min: [5.460, 2.100, 0.840]
-    max: [5.660, 5.400, 1.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 3.750, 0.920]
     material: "stone_detail"
+
   - name: "wfr_r_0_1_r"
     type: "box"
-    min: [5.460, 2.100, 2.000]
-    max: [5.660, 5.400, 2.160]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 3.750, 2.080]
     material: "stone_detail"
+
   - name: "wfr_r_0_1_t"
     type: "box"
-    min: [5.460, 5.250, 0.840]
-    max: [5.660, 5.450, 2.160]
+    scale: [0.200, 0.200, 1.320]
+    translate: [5.560, 5.350, 1.500]
     material: "stone_detail"
+
   - name: "warch_r_0_1"
     type: "sphere"
     center: [5.580, 5.350, 1.500]
@@ -1227,54 +1357,64 @@ entities:
     material: "stone_detail"
   - name: "shaft_sec_1"
     type: "box"
-    min: [-5.500, 7.000, -5.500]
-    max: [5.500, 12.500, 5.500]
+    scale: [11.000, 5.500, 11.000]
+    translate: [0.000, 9.750, 0.000]
     material: "limestone"
+
   - name: "shaft_band_1"
     type: "box"
-    min: [-5.650, 12.350, -5.650]
-    max: [5.650, 12.650, 5.650]
+    scale: [11.300, 0.300, 11.300]
+    translate: [0.000, 12.500, 0.000]
     material: "stone_detail"
+
   - name: "pilaster_1_0"
     type: "box"
-    min: [-5.750, 7.000, -5.800]
-    max: [-5.250, 12.500, -5.200]
+    scale: [0.500, 5.500, 0.600]
+    translate: [-5.500, 9.750, -5.500]
     material: "stone_detail"
+
   - name: "pilaster_1_1"
     type: "box"
-    min: [5.250, 7.000, -5.800]
-    max: [5.750, 12.500, -5.200]
+    scale: [0.500, 5.500, 0.600]
+    translate: [5.500, 9.750, -5.500]
     material: "stone_detail"
+
   - name: "pilaster_1_2"
     type: "box"
-    min: [-5.750, 7.000, 5.200]
-    max: [-5.250, 12.500, 5.800]
+    scale: [0.500, 5.500, 0.600]
+    translate: [-5.500, 9.750, 5.500]
     material: "stone_detail"
+
   - name: "pilaster_1_3"
     type: "box"
-    min: [5.250, 7.000, 5.200]
-    max: [5.750, 12.500, 5.800]
+    scale: [0.500, 5.500, 0.600]
+    translate: [5.500, 9.750, 5.500]
     material: "stone_detail"
+
   - name: "win_f_1_0"
     type: "box"
-    min: [-2.000, 7.750, -5.700]
-    max: [-1.000, 10.750, -5.400]
+    scale: [1.000, 3.000, 0.300]
+    translate: [-1.500, 9.250, -5.550]
     material: "dark_recess"
+
   - name: "wfr_f_1_0_l"
     type: "box"
-    min: [-2.160, 7.600, -5.660]
-    max: [-2.000, 10.900, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-2.080, 9.250, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_1_0_r"
     type: "box"
-    min: [-1.000, 7.600, -5.660]
-    max: [-0.840, 10.900, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-0.920, 9.250, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_1_0_t"
     type: "box"
-    min: [-2.160, 10.750, -5.660]
-    max: [-0.840, 10.950, -5.460]
+    scale: [1.320, 0.200, 0.200]
+    translate: [-1.500, 10.850, -5.560]
     material: "stone_detail"
+
   - name: "warch_f_1_0"
     type: "sphere"
     center: [-1.500, 10.850, -5.580]
@@ -1282,24 +1422,28 @@ entities:
     material: "stone_detail"
   - name: "win_f_1_1"
     type: "box"
-    min: [1.000, 7.750, -5.700]
-    max: [2.000, 10.750, -5.400]
+    scale: [1.000, 3.000, 0.300]
+    translate: [1.500, 9.250, -5.550]
     material: "dark_recess"
+
   - name: "wfr_f_1_1_l"
     type: "box"
-    min: [0.840, 7.600, -5.660]
-    max: [1.000, 10.900, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [0.920, 9.250, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_1_1_r"
     type: "box"
-    min: [2.000, 7.600, -5.660]
-    max: [2.160, 10.900, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [2.080, 9.250, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_1_1_t"
     type: "box"
-    min: [0.840, 10.750, -5.660]
-    max: [2.160, 10.950, -5.460]
+    scale: [1.320, 0.200, 0.200]
+    translate: [1.500, 10.850, -5.560]
     material: "stone_detail"
+
   - name: "warch_f_1_1"
     type: "sphere"
     center: [1.500, 10.850, -5.580]
@@ -1307,24 +1451,28 @@ entities:
     material: "stone_detail"
   - name: "win_b_1_0"
     type: "box"
-    min: [-2.000, 7.750, 5.400]
-    max: [-1.000, 10.750, 5.700]
+    scale: [1.000, 3.000, 0.300]
+    translate: [-1.500, 9.250, 5.550]
     material: "dark_recess"
+
   - name: "wfr_b_1_0_l"
     type: "box"
-    min: [-2.160, 7.600, 5.460]
-    max: [-2.000, 10.900, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-2.080, 9.250, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_1_0_r"
     type: "box"
-    min: [-1.000, 7.600, 5.460]
-    max: [-0.840, 10.900, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-0.920, 9.250, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_1_0_t"
     type: "box"
-    min: [-2.160, 10.750, 5.460]
-    max: [-0.840, 10.950, 5.660]
+    scale: [1.320, 0.200, 0.200]
+    translate: [-1.500, 10.850, 5.560]
     material: "stone_detail"
+
   - name: "warch_b_1_0"
     type: "sphere"
     center: [-1.500, 10.850, 5.580]
@@ -1332,24 +1480,28 @@ entities:
     material: "stone_detail"
   - name: "win_b_1_1"
     type: "box"
-    min: [1.000, 7.750, 5.400]
-    max: [2.000, 10.750, 5.700]
+    scale: [1.000, 3.000, 0.300]
+    translate: [1.500, 9.250, 5.550]
     material: "dark_recess"
+
   - name: "wfr_b_1_1_l"
     type: "box"
-    min: [0.840, 7.600, 5.460]
-    max: [1.000, 10.900, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [0.920, 9.250, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_1_1_r"
     type: "box"
-    min: [2.000, 7.600, 5.460]
-    max: [2.160, 10.900, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [2.080, 9.250, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_1_1_t"
     type: "box"
-    min: [0.840, 10.750, 5.460]
-    max: [2.160, 10.950, 5.660]
+    scale: [1.320, 0.200, 0.200]
+    translate: [1.500, 10.850, 5.560]
     material: "stone_detail"
+
   - name: "warch_b_1_1"
     type: "sphere"
     center: [1.500, 10.850, 5.580]
@@ -1357,24 +1509,28 @@ entities:
     material: "stone_detail"
   - name: "win_l_1_0"
     type: "box"
-    min: [-5.700, 7.750, -2.000]
-    max: [-5.400, 10.750, -1.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [-5.550, 9.250, -1.500]
     material: "dark_recess"
+
   - name: "wfr_l_1_0_l"
     type: "box"
-    min: [-5.660, 7.600, -2.160]
-    max: [-5.460, 10.900, -2.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 9.250, -2.080]
     material: "stone_detail"
+
   - name: "wfr_l_1_0_r"
     type: "box"
-    min: [-5.660, 7.600, -1.000]
-    max: [-5.460, 10.900, -0.840]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 9.250, -0.920]
     material: "stone_detail"
+
   - name: "wfr_l_1_0_t"
     type: "box"
-    min: [-5.660, 10.750, -2.160]
-    max: [-5.460, 10.950, -0.840]
+    scale: [0.200, 0.200, 1.320]
+    translate: [-5.560, 10.850, -1.500]
     material: "stone_detail"
+
   - name: "warch_l_1_0"
     type: "sphere"
     center: [-5.580, 10.850, -1.500]
@@ -1382,24 +1538,28 @@ entities:
     material: "stone_detail"
   - name: "win_l_1_1"
     type: "box"
-    min: [-5.700, 7.750, 1.000]
-    max: [-5.400, 10.750, 2.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [-5.550, 9.250, 1.500]
     material: "dark_recess"
+
   - name: "wfr_l_1_1_l"
     type: "box"
-    min: [-5.660, 7.600, 0.840]
-    max: [-5.460, 10.900, 1.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 9.250, 0.920]
     material: "stone_detail"
+
   - name: "wfr_l_1_1_r"
     type: "box"
-    min: [-5.660, 7.600, 2.000]
-    max: [-5.460, 10.900, 2.160]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 9.250, 2.080]
     material: "stone_detail"
+
   - name: "wfr_l_1_1_t"
     type: "box"
-    min: [-5.660, 10.750, 0.840]
-    max: [-5.460, 10.950, 2.160]
+    scale: [0.200, 0.200, 1.320]
+    translate: [-5.560, 10.850, 1.500]
     material: "stone_detail"
+
   - name: "warch_l_1_1"
     type: "sphere"
     center: [-5.580, 10.850, 1.500]
@@ -1407,24 +1567,28 @@ entities:
     material: "stone_detail"
   - name: "win_r_1_0"
     type: "box"
-    min: [5.400, 7.750, -2.000]
-    max: [5.700, 10.750, -1.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [5.550, 9.250, -1.500]
     material: "dark_recess"
+
   - name: "wfr_r_1_0_l"
     type: "box"
-    min: [5.460, 7.600, -2.160]
-    max: [5.660, 10.900, -2.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 9.250, -2.080]
     material: "stone_detail"
+
   - name: "wfr_r_1_0_r"
     type: "box"
-    min: [5.460, 7.600, -1.000]
-    max: [5.660, 10.900, -0.840]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 9.250, -0.920]
     material: "stone_detail"
+
   - name: "wfr_r_1_0_t"
     type: "box"
-    min: [5.460, 10.750, -2.160]
-    max: [5.660, 10.950, -0.840]
+    scale: [0.200, 0.200, 1.320]
+    translate: [5.560, 10.850, -1.500]
     material: "stone_detail"
+
   - name: "warch_r_1_0"
     type: "sphere"
     center: [5.580, 10.850, -1.500]
@@ -1432,24 +1596,28 @@ entities:
     material: "stone_detail"
   - name: "win_r_1_1"
     type: "box"
-    min: [5.400, 7.750, 1.000]
-    max: [5.700, 10.750, 2.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [5.550, 9.250, 1.500]
     material: "dark_recess"
+
   - name: "wfr_r_1_1_l"
     type: "box"
-    min: [5.460, 7.600, 0.840]
-    max: [5.660, 10.900, 1.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 9.250, 0.920]
     material: "stone_detail"
+
   - name: "wfr_r_1_1_r"
     type: "box"
-    min: [5.460, 7.600, 2.000]
-    max: [5.660, 10.900, 2.160]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 9.250, 2.080]
     material: "stone_detail"
+
   - name: "wfr_r_1_1_t"
     type: "box"
-    min: [5.460, 10.750, 0.840]
-    max: [5.660, 10.950, 2.160]
+    scale: [0.200, 0.200, 1.320]
+    translate: [5.560, 10.850, 1.500]
     material: "stone_detail"
+
   - name: "warch_r_1_1"
     type: "sphere"
     center: [5.580, 10.850, 1.500]
@@ -1457,54 +1625,64 @@ entities:
     material: "stone_detail"
   - name: "shaft_sec_2"
     type: "box"
-    min: [-5.500, 12.500, -5.500]
-    max: [5.500, 18.000, 5.500]
+    scale: [11.000, 5.500, 11.000]
+    translate: [0.000, 15.250, 0.000]
     material: "limestone"
+
   - name: "shaft_band_2"
     type: "box"
-    min: [-5.650, 17.850, -5.650]
-    max: [5.650, 18.150, 5.650]
+    scale: [11.300, 0.300, 11.300]
+    translate: [0.000, 18.000, 0.000]
     material: "stone_detail"
+
   - name: "pilaster_2_0"
     type: "box"
-    min: [-5.750, 12.500, -5.800]
-    max: [-5.250, 18.000, -5.200]
+    scale: [0.500, 5.500, 0.600]
+    translate: [-5.500, 15.250, -5.500]
     material: "stone_detail"
+
   - name: "pilaster_2_1"
     type: "box"
-    min: [5.250, 12.500, -5.800]
-    max: [5.750, 18.000, -5.200]
+    scale: [0.500, 5.500, 0.600]
+    translate: [5.500, 15.250, -5.500]
     material: "stone_detail"
+
   - name: "pilaster_2_2"
     type: "box"
-    min: [-5.750, 12.500, 5.200]
-    max: [-5.250, 18.000, 5.800]
+    scale: [0.500, 5.500, 0.600]
+    translate: [-5.500, 15.250, 5.500]
     material: "stone_detail"
+
   - name: "pilaster_2_3"
     type: "box"
-    min: [5.250, 12.500, 5.200]
-    max: [5.750, 18.000, 5.800]
+    scale: [0.500, 5.500, 0.600]
+    translate: [5.500, 15.250, 5.500]
     material: "stone_detail"
+
   - name: "win_f_2_0"
     type: "box"
-    min: [-2.000, 13.250, -5.700]
-    max: [-1.000, 16.250, -5.400]
+    scale: [1.000, 3.000, 0.300]
+    translate: [-1.500, 14.750, -5.550]
     material: "dark_recess"
+
   - name: "wfr_f_2_0_l"
     type: "box"
-    min: [-2.160, 13.100, -5.660]
-    max: [-2.000, 16.400, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-2.080, 14.750, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_2_0_r"
     type: "box"
-    min: [-1.000, 13.100, -5.660]
-    max: [-0.840, 16.400, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-0.920, 14.750, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_2_0_t"
     type: "box"
-    min: [-2.160, 16.250, -5.660]
-    max: [-0.840, 16.450, -5.460]
+    scale: [1.320, 0.200, 0.200]
+    translate: [-1.500, 16.350, -5.560]
     material: "stone_detail"
+
   - name: "warch_f_2_0"
     type: "sphere"
     center: [-1.500, 16.350, -5.580]
@@ -1512,24 +1690,28 @@ entities:
     material: "stone_detail"
   - name: "win_f_2_1"
     type: "box"
-    min: [1.000, 13.250, -5.700]
-    max: [2.000, 16.250, -5.400]
+    scale: [1.000, 3.000, 0.300]
+    translate: [1.500, 14.750, -5.550]
     material: "dark_recess"
+
   - name: "wfr_f_2_1_l"
     type: "box"
-    min: [0.840, 13.100, -5.660]
-    max: [1.000, 16.400, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [0.920, 14.750, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_2_1_r"
     type: "box"
-    min: [2.000, 13.100, -5.660]
-    max: [2.160, 16.400, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [2.080, 14.750, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_2_1_t"
     type: "box"
-    min: [0.840, 16.250, -5.660]
-    max: [2.160, 16.450, -5.460]
+    scale: [1.320, 0.200, 0.200]
+    translate: [1.500, 16.350, -5.560]
     material: "stone_detail"
+
   - name: "warch_f_2_1"
     type: "sphere"
     center: [1.500, 16.350, -5.580]
@@ -1537,24 +1719,28 @@ entities:
     material: "stone_detail"
   - name: "win_b_2_0"
     type: "box"
-    min: [-2.000, 13.250, 5.400]
-    max: [-1.000, 16.250, 5.700]
+    scale: [1.000, 3.000, 0.300]
+    translate: [-1.500, 14.750, 5.550]
     material: "dark_recess"
+
   - name: "wfr_b_2_0_l"
     type: "box"
-    min: [-2.160, 13.100, 5.460]
-    max: [-2.000, 16.400, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-2.080, 14.750, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_2_0_r"
     type: "box"
-    min: [-1.000, 13.100, 5.460]
-    max: [-0.840, 16.400, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-0.920, 14.750, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_2_0_t"
     type: "box"
-    min: [-2.160, 16.250, 5.460]
-    max: [-0.840, 16.450, 5.660]
+    scale: [1.320, 0.200, 0.200]
+    translate: [-1.500, 16.350, 5.560]
     material: "stone_detail"
+
   - name: "warch_b_2_0"
     type: "sphere"
     center: [-1.500, 16.350, 5.580]
@@ -1562,24 +1748,28 @@ entities:
     material: "stone_detail"
   - name: "win_b_2_1"
     type: "box"
-    min: [1.000, 13.250, 5.400]
-    max: [2.000, 16.250, 5.700]
+    scale: [1.000, 3.000, 0.300]
+    translate: [1.500, 14.750, 5.550]
     material: "dark_recess"
+
   - name: "wfr_b_2_1_l"
     type: "box"
-    min: [0.840, 13.100, 5.460]
-    max: [1.000, 16.400, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [0.920, 14.750, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_2_1_r"
     type: "box"
-    min: [2.000, 13.100, 5.460]
-    max: [2.160, 16.400, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [2.080, 14.750, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_2_1_t"
     type: "box"
-    min: [0.840, 16.250, 5.460]
-    max: [2.160, 16.450, 5.660]
+    scale: [1.320, 0.200, 0.200]
+    translate: [1.500, 16.350, 5.560]
     material: "stone_detail"
+
   - name: "warch_b_2_1"
     type: "sphere"
     center: [1.500, 16.350, 5.580]
@@ -1587,24 +1777,28 @@ entities:
     material: "stone_detail"
   - name: "win_l_2_0"
     type: "box"
-    min: [-5.700, 13.250, -2.000]
-    max: [-5.400, 16.250, -1.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [-5.550, 14.750, -1.500]
     material: "dark_recess"
+
   - name: "wfr_l_2_0_l"
     type: "box"
-    min: [-5.660, 13.100, -2.160]
-    max: [-5.460, 16.400, -2.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 14.750, -2.080]
     material: "stone_detail"
+
   - name: "wfr_l_2_0_r"
     type: "box"
-    min: [-5.660, 13.100, -1.000]
-    max: [-5.460, 16.400, -0.840]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 14.750, -0.920]
     material: "stone_detail"
+
   - name: "wfr_l_2_0_t"
     type: "box"
-    min: [-5.660, 16.250, -2.160]
-    max: [-5.460, 16.450, -0.840]
+    scale: [0.200, 0.200, 1.320]
+    translate: [-5.560, 16.350, -1.500]
     material: "stone_detail"
+
   - name: "warch_l_2_0"
     type: "sphere"
     center: [-5.580, 16.350, -1.500]
@@ -1612,24 +1806,28 @@ entities:
     material: "stone_detail"
   - name: "win_l_2_1"
     type: "box"
-    min: [-5.700, 13.250, 1.000]
-    max: [-5.400, 16.250, 2.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [-5.550, 14.750, 1.500]
     material: "dark_recess"
+
   - name: "wfr_l_2_1_l"
     type: "box"
-    min: [-5.660, 13.100, 0.840]
-    max: [-5.460, 16.400, 1.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 14.750, 0.920]
     material: "stone_detail"
+
   - name: "wfr_l_2_1_r"
     type: "box"
-    min: [-5.660, 13.100, 2.000]
-    max: [-5.460, 16.400, 2.160]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 14.750, 2.080]
     material: "stone_detail"
+
   - name: "wfr_l_2_1_t"
     type: "box"
-    min: [-5.660, 16.250, 0.840]
-    max: [-5.460, 16.450, 2.160]
+    scale: [0.200, 0.200, 1.320]
+    translate: [-5.560, 16.350, 1.500]
     material: "stone_detail"
+
   - name: "warch_l_2_1"
     type: "sphere"
     center: [-5.580, 16.350, 1.500]
@@ -1637,24 +1835,28 @@ entities:
     material: "stone_detail"
   - name: "win_r_2_0"
     type: "box"
-    min: [5.400, 13.250, -2.000]
-    max: [5.700, 16.250, -1.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [5.550, 14.750, -1.500]
     material: "dark_recess"
+
   - name: "wfr_r_2_0_l"
     type: "box"
-    min: [5.460, 13.100, -2.160]
-    max: [5.660, 16.400, -2.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 14.750, -2.080]
     material: "stone_detail"
+
   - name: "wfr_r_2_0_r"
     type: "box"
-    min: [5.460, 13.100, -1.000]
-    max: [5.660, 16.400, -0.840]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 14.750, -0.920]
     material: "stone_detail"
+
   - name: "wfr_r_2_0_t"
     type: "box"
-    min: [5.460, 16.250, -2.160]
-    max: [5.660, 16.450, -0.840]
+    scale: [0.200, 0.200, 1.320]
+    translate: [5.560, 16.350, -1.500]
     material: "stone_detail"
+
   - name: "warch_r_2_0"
     type: "sphere"
     center: [5.580, 16.350, -1.500]
@@ -1662,24 +1864,28 @@ entities:
     material: "stone_detail"
   - name: "win_r_2_1"
     type: "box"
-    min: [5.400, 13.250, 1.000]
-    max: [5.700, 16.250, 2.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [5.550, 14.750, 1.500]
     material: "dark_recess"
+
   - name: "wfr_r_2_1_l"
     type: "box"
-    min: [5.460, 13.100, 0.840]
-    max: [5.660, 16.400, 1.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 14.750, 0.920]
     material: "stone_detail"
+
   - name: "wfr_r_2_1_r"
     type: "box"
-    min: [5.460, 13.100, 2.000]
-    max: [5.660, 16.400, 2.160]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 14.750, 2.080]
     material: "stone_detail"
+
   - name: "wfr_r_2_1_t"
     type: "box"
-    min: [5.460, 16.250, 0.840]
-    max: [5.660, 16.450, 2.160]
+    scale: [0.200, 0.200, 1.320]
+    translate: [5.560, 16.350, 1.500]
     material: "stone_detail"
+
   - name: "warch_r_2_1"
     type: "sphere"
     center: [5.580, 16.350, 1.500]
@@ -1687,54 +1893,64 @@ entities:
     material: "stone_detail"
   - name: "shaft_sec_3"
     type: "box"
-    min: [-5.500, 18.000, -5.500]
-    max: [5.500, 23.500, 5.500]
+    scale: [11.000, 5.500, 11.000]
+    translate: [0.000, 20.750, 0.000]
     material: "limestone"
+
   - name: "shaft_band_3"
     type: "box"
-    min: [-5.650, 23.350, -5.650]
-    max: [5.650, 23.650, 5.650]
+    scale: [11.300, 0.300, 11.300]
+    translate: [0.000, 23.500, 0.000]
     material: "stone_detail"
+
   - name: "pilaster_3_0"
     type: "box"
-    min: [-5.750, 18.000, -5.800]
-    max: [-5.250, 23.500, -5.200]
+    scale: [0.500, 5.500, 0.600]
+    translate: [-5.500, 20.750, -5.500]
     material: "stone_detail"
+
   - name: "pilaster_3_1"
     type: "box"
-    min: [5.250, 18.000, -5.800]
-    max: [5.750, 23.500, -5.200]
+    scale: [0.500, 5.500, 0.600]
+    translate: [5.500, 20.750, -5.500]
     material: "stone_detail"
+
   - name: "pilaster_3_2"
     type: "box"
-    min: [-5.750, 18.000, 5.200]
-    max: [-5.250, 23.500, 5.800]
+    scale: [0.500, 5.500, 0.600]
+    translate: [-5.500, 20.750, 5.500]
     material: "stone_detail"
+
   - name: "pilaster_3_3"
     type: "box"
-    min: [5.250, 18.000, 5.200]
-    max: [5.750, 23.500, 5.800]
+    scale: [0.500, 5.500, 0.600]
+    translate: [5.500, 20.750, 5.500]
     material: "stone_detail"
+
   - name: "win_f_3_0"
     type: "box"
-    min: [-2.000, 18.750, -5.700]
-    max: [-1.000, 21.750, -5.400]
+    scale: [1.000, 3.000, 0.300]
+    translate: [-1.500, 20.250, -5.550]
     material: "dark_recess"
+
   - name: "wfr_f_3_0_l"
     type: "box"
-    min: [-2.160, 18.600, -5.660]
-    max: [-2.000, 21.900, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-2.080, 20.250, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_3_0_r"
     type: "box"
-    min: [-1.000, 18.600, -5.660]
-    max: [-0.840, 21.900, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-0.920, 20.250, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_3_0_t"
     type: "box"
-    min: [-2.160, 21.750, -5.660]
-    max: [-0.840, 21.950, -5.460]
+    scale: [1.320, 0.200, 0.200]
+    translate: [-1.500, 21.850, -5.560]
     material: "stone_detail"
+
   - name: "warch_f_3_0"
     type: "sphere"
     center: [-1.500, 21.850, -5.580]
@@ -1742,24 +1958,28 @@ entities:
     material: "stone_detail"
   - name: "win_f_3_1"
     type: "box"
-    min: [1.000, 18.750, -5.700]
-    max: [2.000, 21.750, -5.400]
+    scale: [1.000, 3.000, 0.300]
+    translate: [1.500, 20.250, -5.550]
     material: "dark_recess"
+
   - name: "wfr_f_3_1_l"
     type: "box"
-    min: [0.840, 18.600, -5.660]
-    max: [1.000, 21.900, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [0.920, 20.250, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_3_1_r"
     type: "box"
-    min: [2.000, 18.600, -5.660]
-    max: [2.160, 21.900, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [2.080, 20.250, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_3_1_t"
     type: "box"
-    min: [0.840, 21.750, -5.660]
-    max: [2.160, 21.950, -5.460]
+    scale: [1.320, 0.200, 0.200]
+    translate: [1.500, 21.850, -5.560]
     material: "stone_detail"
+
   - name: "warch_f_3_1"
     type: "sphere"
     center: [1.500, 21.850, -5.580]
@@ -1767,24 +1987,28 @@ entities:
     material: "stone_detail"
   - name: "win_b_3_0"
     type: "box"
-    min: [-2.000, 18.750, 5.400]
-    max: [-1.000, 21.750, 5.700]
+    scale: [1.000, 3.000, 0.300]
+    translate: [-1.500, 20.250, 5.550]
     material: "dark_recess"
+
   - name: "wfr_b_3_0_l"
     type: "box"
-    min: [-2.160, 18.600, 5.460]
-    max: [-2.000, 21.900, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-2.080, 20.250, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_3_0_r"
     type: "box"
-    min: [-1.000, 18.600, 5.460]
-    max: [-0.840, 21.900, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-0.920, 20.250, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_3_0_t"
     type: "box"
-    min: [-2.160, 21.750, 5.460]
-    max: [-0.840, 21.950, 5.660]
+    scale: [1.320, 0.200, 0.200]
+    translate: [-1.500, 21.850, 5.560]
     material: "stone_detail"
+
   - name: "warch_b_3_0"
     type: "sphere"
     center: [-1.500, 21.850, 5.580]
@@ -1792,24 +2016,28 @@ entities:
     material: "stone_detail"
   - name: "win_b_3_1"
     type: "box"
-    min: [1.000, 18.750, 5.400]
-    max: [2.000, 21.750, 5.700]
+    scale: [1.000, 3.000, 0.300]
+    translate: [1.500, 20.250, 5.550]
     material: "dark_recess"
+
   - name: "wfr_b_3_1_l"
     type: "box"
-    min: [0.840, 18.600, 5.460]
-    max: [1.000, 21.900, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [0.920, 20.250, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_3_1_r"
     type: "box"
-    min: [2.000, 18.600, 5.460]
-    max: [2.160, 21.900, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [2.080, 20.250, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_3_1_t"
     type: "box"
-    min: [0.840, 21.750, 5.460]
-    max: [2.160, 21.950, 5.660]
+    scale: [1.320, 0.200, 0.200]
+    translate: [1.500, 21.850, 5.560]
     material: "stone_detail"
+
   - name: "warch_b_3_1"
     type: "sphere"
     center: [1.500, 21.850, 5.580]
@@ -1817,24 +2045,28 @@ entities:
     material: "stone_detail"
   - name: "win_l_3_0"
     type: "box"
-    min: [-5.700, 18.750, -2.000]
-    max: [-5.400, 21.750, -1.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [-5.550, 20.250, -1.500]
     material: "dark_recess"
+
   - name: "wfr_l_3_0_l"
     type: "box"
-    min: [-5.660, 18.600, -2.160]
-    max: [-5.460, 21.900, -2.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 20.250, -2.080]
     material: "stone_detail"
+
   - name: "wfr_l_3_0_r"
     type: "box"
-    min: [-5.660, 18.600, -1.000]
-    max: [-5.460, 21.900, -0.840]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 20.250, -0.920]
     material: "stone_detail"
+
   - name: "wfr_l_3_0_t"
     type: "box"
-    min: [-5.660, 21.750, -2.160]
-    max: [-5.460, 21.950, -0.840]
+    scale: [0.200, 0.200, 1.320]
+    translate: [-5.560, 21.850, -1.500]
     material: "stone_detail"
+
   - name: "warch_l_3_0"
     type: "sphere"
     center: [-5.580, 21.850, -1.500]
@@ -1842,24 +2074,28 @@ entities:
     material: "stone_detail"
   - name: "win_l_3_1"
     type: "box"
-    min: [-5.700, 18.750, 1.000]
-    max: [-5.400, 21.750, 2.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [-5.550, 20.250, 1.500]
     material: "dark_recess"
+
   - name: "wfr_l_3_1_l"
     type: "box"
-    min: [-5.660, 18.600, 0.840]
-    max: [-5.460, 21.900, 1.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 20.250, 0.920]
     material: "stone_detail"
+
   - name: "wfr_l_3_1_r"
     type: "box"
-    min: [-5.660, 18.600, 2.000]
-    max: [-5.460, 21.900, 2.160]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 20.250, 2.080]
     material: "stone_detail"
+
   - name: "wfr_l_3_1_t"
     type: "box"
-    min: [-5.660, 21.750, 0.840]
-    max: [-5.460, 21.950, 2.160]
+    scale: [0.200, 0.200, 1.320]
+    translate: [-5.560, 21.850, 1.500]
     material: "stone_detail"
+
   - name: "warch_l_3_1"
     type: "sphere"
     center: [-5.580, 21.850, 1.500]
@@ -1867,24 +2103,28 @@ entities:
     material: "stone_detail"
   - name: "win_r_3_0"
     type: "box"
-    min: [5.400, 18.750, -2.000]
-    max: [5.700, 21.750, -1.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [5.550, 20.250, -1.500]
     material: "dark_recess"
+
   - name: "wfr_r_3_0_l"
     type: "box"
-    min: [5.460, 18.600, -2.160]
-    max: [5.660, 21.900, -2.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 20.250, -2.080]
     material: "stone_detail"
+
   - name: "wfr_r_3_0_r"
     type: "box"
-    min: [5.460, 18.600, -1.000]
-    max: [5.660, 21.900, -0.840]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 20.250, -0.920]
     material: "stone_detail"
+
   - name: "wfr_r_3_0_t"
     type: "box"
-    min: [5.460, 21.750, -2.160]
-    max: [5.660, 21.950, -0.840]
+    scale: [0.200, 0.200, 1.320]
+    translate: [5.560, 21.850, -1.500]
     material: "stone_detail"
+
   - name: "warch_r_3_0"
     type: "sphere"
     center: [5.580, 21.850, -1.500]
@@ -1892,24 +2132,28 @@ entities:
     material: "stone_detail"
   - name: "win_r_3_1"
     type: "box"
-    min: [5.400, 18.750, 1.000]
-    max: [5.700, 21.750, 2.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [5.550, 20.250, 1.500]
     material: "dark_recess"
+
   - name: "wfr_r_3_1_l"
     type: "box"
-    min: [5.460, 18.600, 0.840]
-    max: [5.660, 21.900, 1.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 20.250, 0.920]
     material: "stone_detail"
+
   - name: "wfr_r_3_1_r"
     type: "box"
-    min: [5.460, 18.600, 2.000]
-    max: [5.660, 21.900, 2.160]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 20.250, 2.080]
     material: "stone_detail"
+
   - name: "wfr_r_3_1_t"
     type: "box"
-    min: [5.460, 21.750, 0.840]
-    max: [5.660, 21.950, 2.160]
+    scale: [0.200, 0.200, 1.320]
+    translate: [5.560, 21.850, 1.500]
     material: "stone_detail"
+
   - name: "warch_r_3_1"
     type: "sphere"
     center: [5.580, 21.850, 1.500]
@@ -1917,54 +2161,64 @@ entities:
     material: "stone_detail"
   - name: "shaft_sec_4"
     type: "box"
-    min: [-5.500, 23.500, -5.500]
-    max: [5.500, 29.000, 5.500]
+    scale: [11.000, 5.500, 11.000]
+    translate: [0.000, 26.250, 0.000]
     material: "limestone"
+
   - name: "shaft_band_4"
     type: "box"
-    min: [-5.650, 28.850, -5.650]
-    max: [5.650, 29.150, 5.650]
+    scale: [11.300, 0.300, 11.300]
+    translate: [0.000, 29.000, 0.000]
     material: "stone_detail"
+
   - name: "pilaster_4_0"
     type: "box"
-    min: [-5.750, 23.500, -5.800]
-    max: [-5.250, 29.000, -5.200]
+    scale: [0.500, 5.500, 0.600]
+    translate: [-5.500, 26.250, -5.500]
     material: "stone_detail"
+
   - name: "pilaster_4_1"
     type: "box"
-    min: [5.250, 23.500, -5.800]
-    max: [5.750, 29.000, -5.200]
+    scale: [0.500, 5.500, 0.600]
+    translate: [5.500, 26.250, -5.500]
     material: "stone_detail"
+
   - name: "pilaster_4_2"
     type: "box"
-    min: [-5.750, 23.500, 5.200]
-    max: [-5.250, 29.000, 5.800]
+    scale: [0.500, 5.500, 0.600]
+    translate: [-5.500, 26.250, 5.500]
     material: "stone_detail"
+
   - name: "pilaster_4_3"
     type: "box"
-    min: [5.250, 23.500, 5.200]
-    max: [5.750, 29.000, 5.800]
+    scale: [0.500, 5.500, 0.600]
+    translate: [5.500, 26.250, 5.500]
     material: "stone_detail"
+
   - name: "win_f_4_0"
     type: "box"
-    min: [-2.000, 24.250, -5.700]
-    max: [-1.000, 27.250, -5.400]
+    scale: [1.000, 3.000, 0.300]
+    translate: [-1.500, 25.750, -5.550]
     material: "dark_recess"
+
   - name: "wfr_f_4_0_l"
     type: "box"
-    min: [-2.160, 24.100, -5.660]
-    max: [-2.000, 27.400, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-2.080, 25.750, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_4_0_r"
     type: "box"
-    min: [-1.000, 24.100, -5.660]
-    max: [-0.840, 27.400, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-0.920, 25.750, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_4_0_t"
     type: "box"
-    min: [-2.160, 27.250, -5.660]
-    max: [-0.840, 27.450, -5.460]
+    scale: [1.320, 0.200, 0.200]
+    translate: [-1.500, 27.350, -5.560]
     material: "stone_detail"
+
   - name: "warch_f_4_0"
     type: "sphere"
     center: [-1.500, 27.350, -5.580]
@@ -1972,24 +2226,28 @@ entities:
     material: "stone_detail"
   - name: "win_f_4_1"
     type: "box"
-    min: [1.000, 24.250, -5.700]
-    max: [2.000, 27.250, -5.400]
+    scale: [1.000, 3.000, 0.300]
+    translate: [1.500, 25.750, -5.550]
     material: "dark_recess"
+
   - name: "wfr_f_4_1_l"
     type: "box"
-    min: [0.840, 24.100, -5.660]
-    max: [1.000, 27.400, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [0.920, 25.750, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_4_1_r"
     type: "box"
-    min: [2.000, 24.100, -5.660]
-    max: [2.160, 27.400, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [2.080, 25.750, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_4_1_t"
     type: "box"
-    min: [0.840, 27.250, -5.660]
-    max: [2.160, 27.450, -5.460]
+    scale: [1.320, 0.200, 0.200]
+    translate: [1.500, 27.350, -5.560]
     material: "stone_detail"
+
   - name: "warch_f_4_1"
     type: "sphere"
     center: [1.500, 27.350, -5.580]
@@ -1997,24 +2255,28 @@ entities:
     material: "stone_detail"
   - name: "win_b_4_0"
     type: "box"
-    min: [-2.000, 24.250, 5.400]
-    max: [-1.000, 27.250, 5.700]
+    scale: [1.000, 3.000, 0.300]
+    translate: [-1.500, 25.750, 5.550]
     material: "dark_recess"
+
   - name: "wfr_b_4_0_l"
     type: "box"
-    min: [-2.160, 24.100, 5.460]
-    max: [-2.000, 27.400, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-2.080, 25.750, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_4_0_r"
     type: "box"
-    min: [-1.000, 24.100, 5.460]
-    max: [-0.840, 27.400, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-0.920, 25.750, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_4_0_t"
     type: "box"
-    min: [-2.160, 27.250, 5.460]
-    max: [-0.840, 27.450, 5.660]
+    scale: [1.320, 0.200, 0.200]
+    translate: [-1.500, 27.350, 5.560]
     material: "stone_detail"
+
   - name: "warch_b_4_0"
     type: "sphere"
     center: [-1.500, 27.350, 5.580]
@@ -2022,24 +2284,28 @@ entities:
     material: "stone_detail"
   - name: "win_b_4_1"
     type: "box"
-    min: [1.000, 24.250, 5.400]
-    max: [2.000, 27.250, 5.700]
+    scale: [1.000, 3.000, 0.300]
+    translate: [1.500, 25.750, 5.550]
     material: "dark_recess"
+
   - name: "wfr_b_4_1_l"
     type: "box"
-    min: [0.840, 24.100, 5.460]
-    max: [1.000, 27.400, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [0.920, 25.750, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_4_1_r"
     type: "box"
-    min: [2.000, 24.100, 5.460]
-    max: [2.160, 27.400, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [2.080, 25.750, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_4_1_t"
     type: "box"
-    min: [0.840, 27.250, 5.460]
-    max: [2.160, 27.450, 5.660]
+    scale: [1.320, 0.200, 0.200]
+    translate: [1.500, 27.350, 5.560]
     material: "stone_detail"
+
   - name: "warch_b_4_1"
     type: "sphere"
     center: [1.500, 27.350, 5.580]
@@ -2047,24 +2313,28 @@ entities:
     material: "stone_detail"
   - name: "win_l_4_0"
     type: "box"
-    min: [-5.700, 24.250, -2.000]
-    max: [-5.400, 27.250, -1.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [-5.550, 25.750, -1.500]
     material: "dark_recess"
+
   - name: "wfr_l_4_0_l"
     type: "box"
-    min: [-5.660, 24.100, -2.160]
-    max: [-5.460, 27.400, -2.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 25.750, -2.080]
     material: "stone_detail"
+
   - name: "wfr_l_4_0_r"
     type: "box"
-    min: [-5.660, 24.100, -1.000]
-    max: [-5.460, 27.400, -0.840]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 25.750, -0.920]
     material: "stone_detail"
+
   - name: "wfr_l_4_0_t"
     type: "box"
-    min: [-5.660, 27.250, -2.160]
-    max: [-5.460, 27.450, -0.840]
+    scale: [0.200, 0.200, 1.320]
+    translate: [-5.560, 27.350, -1.500]
     material: "stone_detail"
+
   - name: "warch_l_4_0"
     type: "sphere"
     center: [-5.580, 27.350, -1.500]
@@ -2072,24 +2342,28 @@ entities:
     material: "stone_detail"
   - name: "win_l_4_1"
     type: "box"
-    min: [-5.700, 24.250, 1.000]
-    max: [-5.400, 27.250, 2.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [-5.550, 25.750, 1.500]
     material: "dark_recess"
+
   - name: "wfr_l_4_1_l"
     type: "box"
-    min: [-5.660, 24.100, 0.840]
-    max: [-5.460, 27.400, 1.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 25.750, 0.920]
     material: "stone_detail"
+
   - name: "wfr_l_4_1_r"
     type: "box"
-    min: [-5.660, 24.100, 2.000]
-    max: [-5.460, 27.400, 2.160]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 25.750, 2.080]
     material: "stone_detail"
+
   - name: "wfr_l_4_1_t"
     type: "box"
-    min: [-5.660, 27.250, 0.840]
-    max: [-5.460, 27.450, 2.160]
+    scale: [0.200, 0.200, 1.320]
+    translate: [-5.560, 27.350, 1.500]
     material: "stone_detail"
+
   - name: "warch_l_4_1"
     type: "sphere"
     center: [-5.580, 27.350, 1.500]
@@ -2097,24 +2371,28 @@ entities:
     material: "stone_detail"
   - name: "win_r_4_0"
     type: "box"
-    min: [5.400, 24.250, -2.000]
-    max: [5.700, 27.250, -1.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [5.550, 25.750, -1.500]
     material: "dark_recess"
+
   - name: "wfr_r_4_0_l"
     type: "box"
-    min: [5.460, 24.100, -2.160]
-    max: [5.660, 27.400, -2.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 25.750, -2.080]
     material: "stone_detail"
+
   - name: "wfr_r_4_0_r"
     type: "box"
-    min: [5.460, 24.100, -1.000]
-    max: [5.660, 27.400, -0.840]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 25.750, -0.920]
     material: "stone_detail"
+
   - name: "wfr_r_4_0_t"
     type: "box"
-    min: [5.460, 27.250, -2.160]
-    max: [5.660, 27.450, -0.840]
+    scale: [0.200, 0.200, 1.320]
+    translate: [5.560, 27.350, -1.500]
     material: "stone_detail"
+
   - name: "warch_r_4_0"
     type: "sphere"
     center: [5.580, 27.350, -1.500]
@@ -2122,24 +2400,28 @@ entities:
     material: "stone_detail"
   - name: "win_r_4_1"
     type: "box"
-    min: [5.400, 24.250, 1.000]
-    max: [5.700, 27.250, 2.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [5.550, 25.750, 1.500]
     material: "dark_recess"
+
   - name: "wfr_r_4_1_l"
     type: "box"
-    min: [5.460, 24.100, 0.840]
-    max: [5.660, 27.400, 1.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 25.750, 0.920]
     material: "stone_detail"
+
   - name: "wfr_r_4_1_r"
     type: "box"
-    min: [5.460, 24.100, 2.000]
-    max: [5.660, 27.400, 2.160]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 25.750, 2.080]
     material: "stone_detail"
+
   - name: "wfr_r_4_1_t"
     type: "box"
-    min: [5.460, 27.250, 0.840]
-    max: [5.660, 27.450, 2.160]
+    scale: [0.200, 0.200, 1.320]
+    translate: [5.560, 27.350, 1.500]
     material: "stone_detail"
+
   - name: "warch_r_4_1"
     type: "sphere"
     center: [5.580, 27.350, 1.500]
@@ -2147,54 +2429,64 @@ entities:
     material: "stone_detail"
   - name: "shaft_sec_5"
     type: "box"
-    min: [-5.500, 29.000, -5.500]
-    max: [5.500, 34.500, 5.500]
+    scale: [11.000, 5.500, 11.000]
+    translate: [0.000, 31.750, 0.000]
     material: "limestone"
+
   - name: "shaft_band_5"
     type: "box"
-    min: [-5.650, 34.350, -5.650]
-    max: [5.650, 34.650, 5.650]
+    scale: [11.300, 0.300, 11.300]
+    translate: [0.000, 34.500, 0.000]
     material: "stone_detail"
+
   - name: "pilaster_5_0"
     type: "box"
-    min: [-5.750, 29.000, -5.800]
-    max: [-5.250, 34.500, -5.200]
+    scale: [0.500, 5.500, 0.600]
+    translate: [-5.500, 31.750, -5.500]
     material: "stone_detail"
+
   - name: "pilaster_5_1"
     type: "box"
-    min: [5.250, 29.000, -5.800]
-    max: [5.750, 34.500, -5.200]
+    scale: [0.500, 5.500, 0.600]
+    translate: [5.500, 31.750, -5.500]
     material: "stone_detail"
+
   - name: "pilaster_5_2"
     type: "box"
-    min: [-5.750, 29.000, 5.200]
-    max: [-5.250, 34.500, 5.800]
+    scale: [0.500, 5.500, 0.600]
+    translate: [-5.500, 31.750, 5.500]
     material: "stone_detail"
+
   - name: "pilaster_5_3"
     type: "box"
-    min: [5.250, 29.000, 5.200]
-    max: [5.750, 34.500, 5.800]
+    scale: [0.500, 5.500, 0.600]
+    translate: [5.500, 31.750, 5.500]
     material: "stone_detail"
+
   - name: "win_f_5_0"
     type: "box"
-    min: [-2.000, 29.750, -5.700]
-    max: [-1.000, 32.750, -5.400]
+    scale: [1.000, 3.000, 0.300]
+    translate: [-1.500, 31.250, -5.550]
     material: "dark_recess"
+
   - name: "wfr_f_5_0_l"
     type: "box"
-    min: [-2.160, 29.600, -5.660]
-    max: [-2.000, 32.900, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-2.080, 31.250, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_5_0_r"
     type: "box"
-    min: [-1.000, 29.600, -5.660]
-    max: [-0.840, 32.900, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-0.920, 31.250, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_5_0_t"
     type: "box"
-    min: [-2.160, 32.750, -5.660]
-    max: [-0.840, 32.950, -5.460]
+    scale: [1.320, 0.200, 0.200]
+    translate: [-1.500, 32.850, -5.560]
     material: "stone_detail"
+
   - name: "warch_f_5_0"
     type: "sphere"
     center: [-1.500, 32.850, -5.580]
@@ -2202,24 +2494,28 @@ entities:
     material: "stone_detail"
   - name: "win_f_5_1"
     type: "box"
-    min: [1.000, 29.750, -5.700]
-    max: [2.000, 32.750, -5.400]
+    scale: [1.000, 3.000, 0.300]
+    translate: [1.500, 31.250, -5.550]
     material: "dark_recess"
+
   - name: "wfr_f_5_1_l"
     type: "box"
-    min: [0.840, 29.600, -5.660]
-    max: [1.000, 32.900, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [0.920, 31.250, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_5_1_r"
     type: "box"
-    min: [2.000, 29.600, -5.660]
-    max: [2.160, 32.900, -5.460]
+    scale: [0.160, 3.300, 0.200]
+    translate: [2.080, 31.250, -5.560]
     material: "stone_detail"
+
   - name: "wfr_f_5_1_t"
     type: "box"
-    min: [0.840, 32.750, -5.660]
-    max: [2.160, 32.950, -5.460]
+    scale: [1.320, 0.200, 0.200]
+    translate: [1.500, 32.850, -5.560]
     material: "stone_detail"
+
   - name: "warch_f_5_1"
     type: "sphere"
     center: [1.500, 32.850, -5.580]
@@ -2227,24 +2523,28 @@ entities:
     material: "stone_detail"
   - name: "win_b_5_0"
     type: "box"
-    min: [-2.000, 29.750, 5.400]
-    max: [-1.000, 32.750, 5.700]
+    scale: [1.000, 3.000, 0.300]
+    translate: [-1.500, 31.250, 5.550]
     material: "dark_recess"
+
   - name: "wfr_b_5_0_l"
     type: "box"
-    min: [-2.160, 29.600, 5.460]
-    max: [-2.000, 32.900, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-2.080, 31.250, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_5_0_r"
     type: "box"
-    min: [-1.000, 29.600, 5.460]
-    max: [-0.840, 32.900, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [-0.920, 31.250, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_5_0_t"
     type: "box"
-    min: [-2.160, 32.750, 5.460]
-    max: [-0.840, 32.950, 5.660]
+    scale: [1.320, 0.200, 0.200]
+    translate: [-1.500, 32.850, 5.560]
     material: "stone_detail"
+
   - name: "warch_b_5_0"
     type: "sphere"
     center: [-1.500, 32.850, 5.580]
@@ -2252,24 +2552,28 @@ entities:
     material: "stone_detail"
   - name: "win_b_5_1"
     type: "box"
-    min: [1.000, 29.750, 5.400]
-    max: [2.000, 32.750, 5.700]
+    scale: [1.000, 3.000, 0.300]
+    translate: [1.500, 31.250, 5.550]
     material: "dark_recess"
+
   - name: "wfr_b_5_1_l"
     type: "box"
-    min: [0.840, 29.600, 5.460]
-    max: [1.000, 32.900, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [0.920, 31.250, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_5_1_r"
     type: "box"
-    min: [2.000, 29.600, 5.460]
-    max: [2.160, 32.900, 5.660]
+    scale: [0.160, 3.300, 0.200]
+    translate: [2.080, 31.250, 5.560]
     material: "stone_detail"
+
   - name: "wfr_b_5_1_t"
     type: "box"
-    min: [0.840, 32.750, 5.460]
-    max: [2.160, 32.950, 5.660]
+    scale: [1.320, 0.200, 0.200]
+    translate: [1.500, 32.850, 5.560]
     material: "stone_detail"
+
   - name: "warch_b_5_1"
     type: "sphere"
     center: [1.500, 32.850, 5.580]
@@ -2277,24 +2581,28 @@ entities:
     material: "stone_detail"
   - name: "win_l_5_0"
     type: "box"
-    min: [-5.700, 29.750, -2.000]
-    max: [-5.400, 32.750, -1.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [-5.550, 31.250, -1.500]
     material: "dark_recess"
+
   - name: "wfr_l_5_0_l"
     type: "box"
-    min: [-5.660, 29.600, -2.160]
-    max: [-5.460, 32.900, -2.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 31.250, -2.080]
     material: "stone_detail"
+
   - name: "wfr_l_5_0_r"
     type: "box"
-    min: [-5.660, 29.600, -1.000]
-    max: [-5.460, 32.900, -0.840]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 31.250, -0.920]
     material: "stone_detail"
+
   - name: "wfr_l_5_0_t"
     type: "box"
-    min: [-5.660, 32.750, -2.160]
-    max: [-5.460, 32.950, -0.840]
+    scale: [0.200, 0.200, 1.320]
+    translate: [-5.560, 32.850, -1.500]
     material: "stone_detail"
+
   - name: "warch_l_5_0"
     type: "sphere"
     center: [-5.580, 32.850, -1.500]
@@ -2302,24 +2610,28 @@ entities:
     material: "stone_detail"
   - name: "win_l_5_1"
     type: "box"
-    min: [-5.700, 29.750, 1.000]
-    max: [-5.400, 32.750, 2.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [-5.550, 31.250, 1.500]
     material: "dark_recess"
+
   - name: "wfr_l_5_1_l"
     type: "box"
-    min: [-5.660, 29.600, 0.840]
-    max: [-5.460, 32.900, 1.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 31.250, 0.920]
     material: "stone_detail"
+
   - name: "wfr_l_5_1_r"
     type: "box"
-    min: [-5.660, 29.600, 2.000]
-    max: [-5.460, 32.900, 2.160]
+    scale: [0.200, 3.300, 0.160]
+    translate: [-5.560, 31.250, 2.080]
     material: "stone_detail"
+
   - name: "wfr_l_5_1_t"
     type: "box"
-    min: [-5.660, 32.750, 0.840]
-    max: [-5.460, 32.950, 2.160]
+    scale: [0.200, 0.200, 1.320]
+    translate: [-5.560, 32.850, 1.500]
     material: "stone_detail"
+
   - name: "warch_l_5_1"
     type: "sphere"
     center: [-5.580, 32.850, 1.500]
@@ -2327,24 +2639,28 @@ entities:
     material: "stone_detail"
   - name: "win_r_5_0"
     type: "box"
-    min: [5.400, 29.750, -2.000]
-    max: [5.700, 32.750, -1.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [5.550, 31.250, -1.500]
     material: "dark_recess"
+
   - name: "wfr_r_5_0_l"
     type: "box"
-    min: [5.460, 29.600, -2.160]
-    max: [5.660, 32.900, -2.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 31.250, -2.080]
     material: "stone_detail"
+
   - name: "wfr_r_5_0_r"
     type: "box"
-    min: [5.460, 29.600, -1.000]
-    max: [5.660, 32.900, -0.840]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 31.250, -0.920]
     material: "stone_detail"
+
   - name: "wfr_r_5_0_t"
     type: "box"
-    min: [5.460, 32.750, -2.160]
-    max: [5.660, 32.950, -0.840]
+    scale: [0.200, 0.200, 1.320]
+    translate: [5.560, 32.850, -1.500]
     material: "stone_detail"
+
   - name: "warch_r_5_0"
     type: "sphere"
     center: [5.580, 32.850, -1.500]
@@ -2352,24 +2668,28 @@ entities:
     material: "stone_detail"
   - name: "win_r_5_1"
     type: "box"
-    min: [5.400, 29.750, 1.000]
-    max: [5.700, 32.750, 2.000]
+    scale: [0.300, 3.000, 1.000]
+    translate: [5.550, 31.250, 1.500]
     material: "dark_recess"
+
   - name: "wfr_r_5_1_l"
     type: "box"
-    min: [5.460, 29.600, 0.840]
-    max: [5.660, 32.900, 1.000]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 31.250, 0.920]
     material: "stone_detail"
+
   - name: "wfr_r_5_1_r"
     type: "box"
-    min: [5.460, 29.600, 2.000]
-    max: [5.660, 32.900, 2.160]
+    scale: [0.200, 3.300, 0.160]
+    translate: [5.560, 31.250, 2.080]
     material: "stone_detail"
+
   - name: "wfr_r_5_1_t"
     type: "box"
-    min: [5.460, 32.750, 0.840]
-    max: [5.660, 32.950, 2.160]
+    scale: [0.200, 0.200, 1.320]
+    translate: [5.560, 32.850, 1.500]
     material: "stone_detail"
+
   - name: "warch_r_5_1"
     type: "sphere"
     center: [5.580, 32.850, 1.500]
@@ -2377,109 +2697,130 @@ entities:
     material: "stone_detail"
   - name: "clock_body"
     type: "box"
-    min: [-6.000, 34.500, -6.000]
-    max: [6.000, 40.500, 6.000]
+    scale: [12.000, 6.000, 12.000]
+    translate: [0.000, 37.500, 0.000]
     material: "limestone"
+
   - name: "clock_cornice_bot"
     type: "box"
-    min: [-6.400, 34.200, -6.400]
-    max: [6.400, 34.800, 6.400]
+    scale: [12.800, 0.600, 12.800]
+    translate: [0.000, 34.500, 0.000]
     material: "stone_detail"
+
   - name: "clock_cornice_top"
     type: "box"
-    min: [-6.400, 40.200, -6.400]
-    max: [6.400, 40.800, 6.400]
+    scale: [12.800, 0.600, 12.800]
+    translate: [0.000, 40.500, 0.000]
     material: "stone_detail"
+
   - name: "gold_band_bot"
     type: "box"
-    min: [-6.200, 34.700, -6.200]
-    max: [6.200, 34.900, 6.200]
+    scale: [12.400, 0.200, 12.400]
+    translate: [0.000, 34.800, 0.000]
     material: "gold_trim"
+
   - name: "gold_band_top"
     type: "box"
-    min: [-6.200, 40.100, -6.200]
-    max: [6.200, 40.300, 6.200]
+    scale: [12.400, 0.200, 12.400]
+    translate: [0.000, 40.200, 0.000]
     material: "gold_trim"
+
   - name: "cf_front_rim"
     type: "box"
-    min: [-2.700, 34.800, -6.250]
-    max: [2.700, 40.200, -6.050]
+    scale: [5.400, 5.400, 0.200]
+    translate: [0.000, 37.500, -6.150]
     material: "clock_rim"
+
   - name: "cf_front_face"
     type: "box"
-    min: [-2.500, 35.000, -6.280]
-    max: [2.500, 40.000, -6.120]
+    scale: [5.000, 5.000, 0.160]
+    translate: [0.000, 37.500, -6.200]
     material: "clock_white"
+
   - name: "cf_front_mark_0"
     type: "box"
-    min: [-0.080, 39.450, -6.300]
-    max: [0.080, 39.850, -6.200]
+    scale: [0.160, 0.400, 0.100]
+    translate: [0.000, 39.650, -6.250]
     material: "clock_hand"
+
   - name: "cf_front_mark_1"
     type: "box"
-    min: [0.995, 39.162, -6.300]
-    max: [1.155, 39.562, -6.200]
+    scale: [0.160, 0.400, 0.100]
+    translate: [1.075, 39.362, -6.250]
     material: "clock_hand"
+
   - name: "cf_front_mark_2"
     type: "box"
-    min: [1.782, 38.375, -6.300]
-    max: [1.942, 38.775, -6.200]
+    scale: [0.160, 0.400, 0.100]
+    translate: [1.862, 38.575, -6.250]
     material: "clock_hand"
+
   - name: "cf_front_mark_3"
     type: "box"
-    min: [2.070, 37.300, -6.300]
-    max: [2.230, 37.700, -6.200]
+    scale: [0.160, 0.400, 0.100]
+    translate: [2.150, 37.500, -6.250]
     material: "clock_hand"
+
   - name: "cf_front_mark_4"
     type: "box"
-    min: [1.782, 36.225, -6.300]
-    max: [1.942, 36.625, -6.200]
+    scale: [0.160, 0.400, 0.100]
+    translate: [1.862, 36.425, -6.250]
     material: "clock_hand"
+
   - name: "cf_front_mark_5"
     type: "box"
-    min: [0.995, 35.438, -6.300]
-    max: [1.155, 35.838, -6.200]
+    scale: [0.160, 0.400, 0.100]
+    translate: [1.075, 35.638, -6.250]
     material: "clock_hand"
+
   - name: "cf_front_mark_6"
     type: "box"
-    min: [-0.080, 35.150, -6.300]
-    max: [0.080, 35.550, -6.200]
+    scale: [0.160, 0.400, 0.100]
+    translate: [0.000, 35.350, -6.250]
     material: "clock_hand"
+
   - name: "cf_front_mark_7"
     type: "box"
-    min: [-1.155, 35.438, -6.300]
-    max: [-0.995, 35.838, -6.200]
+    scale: [0.160, 0.400, 0.100]
+    translate: [-1.075, 35.638, -6.250]
     material: "clock_hand"
+
   - name: "cf_front_mark_8"
     type: "box"
-    min: [-1.942, 36.225, -6.300]
-    max: [-1.782, 36.625, -6.200]
+    scale: [0.160, 0.400, 0.100]
+    translate: [-1.862, 36.425, -6.250]
     material: "clock_hand"
+
   - name: "cf_front_mark_9"
     type: "box"
-    min: [-2.230, 37.300, -6.300]
-    max: [-2.070, 37.700, -6.200]
+    scale: [0.160, 0.400, 0.100]
+    translate: [-2.150, 37.500, -6.250]
     material: "clock_hand"
+
   - name: "cf_front_mark_10"
     type: "box"
-    min: [-1.942, 38.375, -6.300]
-    max: [-1.782, 38.775, -6.200]
+    scale: [0.160, 0.400, 0.100]
+    translate: [-1.862, 38.575, -6.250]
     material: "clock_hand"
+
   - name: "cf_front_mark_11"
     type: "box"
-    min: [-1.155, 39.162, -6.300]
-    max: [-0.995, 39.562, -6.200]
+    scale: [0.160, 0.400, 0.100]
+    translate: [-1.075, 39.362, -6.250]
     material: "clock_hand"
+
   - name: "cf_front_hr_hand"
     type: "box"
-    min: [-0.100, 37.500, -6.320]
-    max: [0.100, 38.750, -6.240]
+    scale: [0.200, 1.250, 0.080]
+    translate: [0.000, 38.125, -6.280]
     material: "clock_hand"
+
   - name: "cf_front_min_hand"
     type: "box"
-    min: [0.000, 37.440, -6.330]
-    max: [1.875, 37.560, -6.270]
+    scale: [1.875, 0.120, 0.060]
+    translate: [0.938, 37.500, -6.300]
     material: "clock_hand"
+
   - name: "cf_front_hub"
     type: "cylinder"
     center: [0.000, 37.350, -6.320]
@@ -2488,84 +2829,100 @@ entities:
     material: "gold_trim"
   - name: "cf_back_rim"
     type: "box"
-    min: [-2.700, 34.800, 6.050]
-    max: [2.700, 40.200, 6.250]
+    scale: [5.400, 5.400, 0.200]
+    translate: [0.000, 37.500, 6.150]
     material: "clock_rim"
+
   - name: "cf_back_face"
     type: "box"
-    min: [-2.500, 35.000, 6.120]
-    max: [2.500, 40.000, 6.280]
+    scale: [5.000, 5.000, 0.160]
+    translate: [0.000, 37.500, 6.200]
     material: "clock_white"
+
   - name: "cf_back_mark_0"
     type: "box"
-    min: [-0.080, 39.450, 6.200]
-    max: [0.080, 39.850, 6.300]
+    scale: [0.160, 0.400, 0.100]
+    translate: [0.000, 39.650, 6.250]
     material: "clock_hand"
+
   - name: "cf_back_mark_1"
     type: "box"
-    min: [0.995, 39.162, 6.200]
-    max: [1.155, 39.562, 6.300]
+    scale: [0.160, 0.400, 0.100]
+    translate: [1.075, 39.362, 6.250]
     material: "clock_hand"
+
   - name: "cf_back_mark_2"
     type: "box"
-    min: [1.782, 38.375, 6.200]
-    max: [1.942, 38.775, 6.300]
+    scale: [0.160, 0.400, 0.100]
+    translate: [1.862, 38.575, 6.250]
     material: "clock_hand"
+
   - name: "cf_back_mark_3"
     type: "box"
-    min: [2.070, 37.300, 6.200]
-    max: [2.230, 37.700, 6.300]
+    scale: [0.160, 0.400, 0.100]
+    translate: [2.150, 37.500, 6.250]
     material: "clock_hand"
+
   - name: "cf_back_mark_4"
     type: "box"
-    min: [1.782, 36.225, 6.200]
-    max: [1.942, 36.625, 6.300]
+    scale: [0.160, 0.400, 0.100]
+    translate: [1.862, 36.425, 6.250]
     material: "clock_hand"
+
   - name: "cf_back_mark_5"
     type: "box"
-    min: [0.995, 35.438, 6.200]
-    max: [1.155, 35.838, 6.300]
+    scale: [0.160, 0.400, 0.100]
+    translate: [1.075, 35.638, 6.250]
     material: "clock_hand"
+
   - name: "cf_back_mark_6"
     type: "box"
-    min: [-0.080, 35.150, 6.200]
-    max: [0.080, 35.550, 6.300]
+    scale: [0.160, 0.400, 0.100]
+    translate: [0.000, 35.350, 6.250]
     material: "clock_hand"
+
   - name: "cf_back_mark_7"
     type: "box"
-    min: [-1.155, 35.438, 6.200]
-    max: [-0.995, 35.838, 6.300]
+    scale: [0.160, 0.400, 0.100]
+    translate: [-1.075, 35.638, 6.250]
     material: "clock_hand"
+
   - name: "cf_back_mark_8"
     type: "box"
-    min: [-1.942, 36.225, 6.200]
-    max: [-1.782, 36.625, 6.300]
+    scale: [0.160, 0.400, 0.100]
+    translate: [-1.862, 36.425, 6.250]
     material: "clock_hand"
+
   - name: "cf_back_mark_9"
     type: "box"
-    min: [-2.230, 37.300, 6.200]
-    max: [-2.070, 37.700, 6.300]
+    scale: [0.160, 0.400, 0.100]
+    translate: [-2.150, 37.500, 6.250]
     material: "clock_hand"
+
   - name: "cf_back_mark_10"
     type: "box"
-    min: [-1.942, 38.375, 6.200]
-    max: [-1.782, 38.775, 6.300]
+    scale: [0.160, 0.400, 0.100]
+    translate: [-1.862, 38.575, 6.250]
     material: "clock_hand"
+
   - name: "cf_back_mark_11"
     type: "box"
-    min: [-1.155, 39.162, 6.200]
-    max: [-0.995, 39.562, 6.300]
+    scale: [0.160, 0.400, 0.100]
+    translate: [-1.075, 39.362, 6.250]
     material: "clock_hand"
+
   - name: "cf_back_hr_hand"
     type: "box"
-    min: [-0.100, 37.500, 6.240]
-    max: [0.100, 38.750, 6.320]
+    scale: [0.200, 1.250, 0.080]
+    translate: [0.000, 38.125, 6.280]
     material: "clock_hand"
+
   - name: "cf_back_min_hand"
     type: "box"
-    min: [0.000, 37.440, 6.270]
-    max: [1.875, 37.560, 6.330]
+    scale: [1.875, 0.120, 0.060]
+    translate: [0.938, 37.500, 6.300]
     material: "clock_hand"
+
   - name: "cf_back_hub"
     type: "cylinder"
     center: [0.000, 37.350, 6.320]
@@ -2574,84 +2931,100 @@ entities:
     material: "gold_trim"
   - name: "cf_left_rim"
     type: "box"
-    min: [-6.250, 34.800, -2.700]
-    max: [-6.050, 40.200, 2.700]
+    scale: [0.200, 5.400, 5.400]
+    translate: [-6.150, 37.500, 0.000]
     material: "clock_rim"
+
   - name: "cf_left_face"
     type: "box"
-    min: [-6.280, 35.000, -2.500]
-    max: [-6.120, 40.000, 2.500]
+    scale: [0.160, 5.000, 5.000]
+    translate: [-6.200, 37.500, 0.000]
     material: "clock_white"
+
   - name: "cf_left_mark_0"
     type: "box"
-    min: [-6.300, 39.450, -0.080]
-    max: [-6.200, 39.850, 0.080]
+    scale: [0.100, 0.400, 0.160]
+    translate: [-6.250, 39.650, 0.000]
     material: "clock_hand"
+
   - name: "cf_left_mark_1"
     type: "box"
-    min: [-6.300, 39.162, 0.995]
-    max: [-6.200, 39.562, 1.155]
+    scale: [0.100, 0.400, 0.160]
+    translate: [-6.250, 39.362, 1.075]
     material: "clock_hand"
+
   - name: "cf_left_mark_2"
     type: "box"
-    min: [-6.300, 38.375, 1.782]
-    max: [-6.200, 38.775, 1.942]
+    scale: [0.100, 0.400, 0.160]
+    translate: [-6.250, 38.575, 1.862]
     material: "clock_hand"
+
   - name: "cf_left_mark_3"
     type: "box"
-    min: [-6.300, 37.300, 2.070]
-    max: [-6.200, 37.700, 2.230]
+    scale: [0.100, 0.400, 0.160]
+    translate: [-6.250, 37.500, 2.150]
     material: "clock_hand"
+
   - name: "cf_left_mark_4"
     type: "box"
-    min: [-6.300, 36.225, 1.782]
-    max: [-6.200, 36.625, 1.942]
+    scale: [0.100, 0.400, 0.160]
+    translate: [-6.250, 36.425, 1.862]
     material: "clock_hand"
+
   - name: "cf_left_mark_5"
     type: "box"
-    min: [-6.300, 35.438, 0.995]
-    max: [-6.200, 35.838, 1.155]
+    scale: [0.100, 0.400, 0.160]
+    translate: [-6.250, 35.638, 1.075]
     material: "clock_hand"
+
   - name: "cf_left_mark_6"
     type: "box"
-    min: [-6.300, 35.150, -0.080]
-    max: [-6.200, 35.550, 0.080]
+    scale: [0.100, 0.400, 0.160]
+    translate: [-6.250, 35.350, 0.000]
     material: "clock_hand"
+
   - name: "cf_left_mark_7"
     type: "box"
-    min: [-6.300, 35.438, -1.155]
-    max: [-6.200, 35.838, -0.995]
+    scale: [0.100, 0.400, 0.160]
+    translate: [-6.250, 35.638, -1.075]
     material: "clock_hand"
+
   - name: "cf_left_mark_8"
     type: "box"
-    min: [-6.300, 36.225, -1.942]
-    max: [-6.200, 36.625, -1.782]
+    scale: [0.100, 0.400, 0.160]
+    translate: [-6.250, 36.425, -1.862]
     material: "clock_hand"
+
   - name: "cf_left_mark_9"
     type: "box"
-    min: [-6.300, 37.300, -2.230]
-    max: [-6.200, 37.700, -2.070]
+    scale: [0.100, 0.400, 0.160]
+    translate: [-6.250, 37.500, -2.150]
     material: "clock_hand"
+
   - name: "cf_left_mark_10"
     type: "box"
-    min: [-6.300, 38.375, -1.942]
-    max: [-6.200, 38.775, -1.782]
+    scale: [0.100, 0.400, 0.160]
+    translate: [-6.250, 38.575, -1.862]
     material: "clock_hand"
+
   - name: "cf_left_mark_11"
     type: "box"
-    min: [-6.300, 39.162, -1.155]
-    max: [-6.200, 39.562, -0.995]
+    scale: [0.100, 0.400, 0.160]
+    translate: [-6.250, 39.362, -1.075]
     material: "clock_hand"
+
   - name: "cf_left_hr_hand"
     type: "box"
-    min: [-6.320, 37.500, -0.100]
-    max: [-6.240, 38.750, 0.100]
+    scale: [0.080, 1.250, 0.200]
+    translate: [-6.280, 38.125, 0.000]
     material: "clock_hand"
+
   - name: "cf_left_min_hand"
     type: "box"
-    min: [-6.330, 37.440, 0.000]
-    max: [-6.270, 37.560, 1.875]
+    scale: [0.060, 0.120, 1.875]
+    translate: [-6.300, 37.500, 0.938]
     material: "clock_hand"
+
   - name: "cf_left_hub"
     type: "cylinder"
     center: [-6.320, 37.350, 0.000]
@@ -2660,84 +3033,100 @@ entities:
     material: "gold_trim"
   - name: "cf_right_rim"
     type: "box"
-    min: [6.050, 34.800, -2.700]
-    max: [6.250, 40.200, 2.700]
+    scale: [0.200, 5.400, 5.400]
+    translate: [6.150, 37.500, 0.000]
     material: "clock_rim"
+
   - name: "cf_right_face"
     type: "box"
-    min: [6.120, 35.000, -2.500]
-    max: [6.280, 40.000, 2.500]
+    scale: [0.160, 5.000, 5.000]
+    translate: [6.200, 37.500, 0.000]
     material: "clock_white"
+
   - name: "cf_right_mark_0"
     type: "box"
-    min: [6.200, 39.450, -0.080]
-    max: [6.300, 39.850, 0.080]
+    scale: [0.100, 0.400, 0.160]
+    translate: [6.250, 39.650, 0.000]
     material: "clock_hand"
+
   - name: "cf_right_mark_1"
     type: "box"
-    min: [6.200, 39.162, 0.995]
-    max: [6.300, 39.562, 1.155]
+    scale: [0.100, 0.400, 0.160]
+    translate: [6.250, 39.362, 1.075]
     material: "clock_hand"
+
   - name: "cf_right_mark_2"
     type: "box"
-    min: [6.200, 38.375, 1.782]
-    max: [6.300, 38.775, 1.942]
+    scale: [0.100, 0.400, 0.160]
+    translate: [6.250, 38.575, 1.862]
     material: "clock_hand"
+
   - name: "cf_right_mark_3"
     type: "box"
-    min: [6.200, 37.300, 2.070]
-    max: [6.300, 37.700, 2.230]
+    scale: [0.100, 0.400, 0.160]
+    translate: [6.250, 37.500, 2.150]
     material: "clock_hand"
+
   - name: "cf_right_mark_4"
     type: "box"
-    min: [6.200, 36.225, 1.782]
-    max: [6.300, 36.625, 1.942]
+    scale: [0.100, 0.400, 0.160]
+    translate: [6.250, 36.425, 1.862]
     material: "clock_hand"
+
   - name: "cf_right_mark_5"
     type: "box"
-    min: [6.200, 35.438, 0.995]
-    max: [6.300, 35.838, 1.155]
+    scale: [0.100, 0.400, 0.160]
+    translate: [6.250, 35.638, 1.075]
     material: "clock_hand"
+
   - name: "cf_right_mark_6"
     type: "box"
-    min: [6.200, 35.150, -0.080]
-    max: [6.300, 35.550, 0.080]
+    scale: [0.100, 0.400, 0.160]
+    translate: [6.250, 35.350, 0.000]
     material: "clock_hand"
+
   - name: "cf_right_mark_7"
     type: "box"
-    min: [6.200, 35.438, -1.155]
-    max: [6.300, 35.838, -0.995]
+    scale: [0.100, 0.400, 0.160]
+    translate: [6.250, 35.638, -1.075]
     material: "clock_hand"
+
   - name: "cf_right_mark_8"
     type: "box"
-    min: [6.200, 36.225, -1.942]
-    max: [6.300, 36.625, -1.782]
+    scale: [0.100, 0.400, 0.160]
+    translate: [6.250, 36.425, -1.862]
     material: "clock_hand"
+
   - name: "cf_right_mark_9"
     type: "box"
-    min: [6.200, 37.300, -2.230]
-    max: [6.300, 37.700, -2.070]
+    scale: [0.100, 0.400, 0.160]
+    translate: [6.250, 37.500, -2.150]
     material: "clock_hand"
+
   - name: "cf_right_mark_10"
     type: "box"
-    min: [6.200, 38.375, -1.942]
-    max: [6.300, 38.775, -1.782]
+    scale: [0.100, 0.400, 0.160]
+    translate: [6.250, 38.575, -1.862]
     material: "clock_hand"
+
   - name: "cf_right_mark_11"
     type: "box"
-    min: [6.200, 39.162, -1.155]
-    max: [6.300, 39.562, -0.995]
+    scale: [0.100, 0.400, 0.160]
+    translate: [6.250, 39.362, -1.075]
     material: "clock_hand"
+
   - name: "cf_right_hr_hand"
     type: "box"
-    min: [6.240, 37.500, -0.100]
-    max: [6.320, 38.750, 0.100]
+    scale: [0.080, 1.250, 0.200]
+    translate: [6.280, 38.125, 0.000]
     material: "clock_hand"
+
   - name: "cf_right_min_hand"
     type: "box"
-    min: [6.270, 37.440, 0.000]
-    max: [6.330, 37.560, 1.875]
+    scale: [0.060, 0.120, 1.875]
+    translate: [6.300, 37.500, 0.938]
     material: "clock_hand"
+
   - name: "cf_right_hub"
     type: "cylinder"
     center: [6.320, 37.350, 0.000]
@@ -2746,14 +3135,16 @@ entities:
     material: "gold_trim"
   - name: "clock_pilaster_0"
     type: "box"
-    min: [-6.350, 34.500, -6.350]
-    max: [-5.650, 40.500, -5.650]
+    scale: [0.700, 6.000, 0.700]
+    translate: [-6.000, 37.500, -6.000]
     material: "stone_detail"
+
   - name: "clock_pin_0"
     type: "box"
-    min: [-6.150, 40.500, -6.150]
-    max: [-5.850, 41.700, -5.850]
+    scale: [0.300, 1.200, 0.300]
+    translate: [-6.000, 41.100, -6.000]
     material: "limestone"
+
   - name: "clock_pin_ball_0"
     type: "sphere"
     center: [-6.000, 41.800, -6.000]
@@ -2761,14 +3152,16 @@ entities:
     material: "gold_trim"
   - name: "clock_pilaster_1"
     type: "box"
-    min: [5.650, 34.500, -6.350]
-    max: [6.350, 40.500, -5.650]
+    scale: [0.700, 6.000, 0.700]
+    translate: [6.000, 37.500, -6.000]
     material: "stone_detail"
+
   - name: "clock_pin_1"
     type: "box"
-    min: [5.850, 40.500, -6.150]
-    max: [6.150, 41.700, -5.850]
+    scale: [0.300, 1.200, 0.300]
+    translate: [6.000, 41.100, -6.000]
     material: "limestone"
+
   - name: "clock_pin_ball_1"
     type: "sphere"
     center: [6.000, 41.800, -6.000]
@@ -2776,14 +3169,16 @@ entities:
     material: "gold_trim"
   - name: "clock_pilaster_2"
     type: "box"
-    min: [-6.350, 34.500, 5.650]
-    max: [-5.650, 40.500, 6.350]
+    scale: [0.700, 6.000, 0.700]
+    translate: [-6.000, 37.500, 6.000]
     material: "stone_detail"
+
   - name: "clock_pin_2"
     type: "box"
-    min: [-6.150, 40.500, 5.850]
-    max: [-5.850, 41.700, 6.150]
+    scale: [0.300, 1.200, 0.300]
+    translate: [-6.000, 41.100, 6.000]
     material: "limestone"
+
   - name: "clock_pin_ball_2"
     type: "sphere"
     center: [-6.000, 41.800, 6.000]
@@ -2791,14 +3186,16 @@ entities:
     material: "gold_trim"
   - name: "clock_pilaster_3"
     type: "box"
-    min: [5.650, 34.500, 5.650]
-    max: [6.350, 40.500, 6.350]
+    scale: [0.700, 6.000, 0.700]
+    translate: [6.000, 37.500, 6.000]
     material: "stone_detail"
+
   - name: "clock_pin_3"
     type: "box"
-    min: [5.850, 40.500, 5.850]
-    max: [6.150, 41.700, 6.150]
+    scale: [0.300, 1.200, 0.300]
+    translate: [6.000, 41.100, 6.000]
     material: "limestone"
+
   - name: "clock_pin_ball_3"
     type: "sphere"
     center: [6.000, 41.800, 6.000]
@@ -2806,24 +3203,28 @@ entities:
     material: "gold_trim"
   - name: "belfry_body"
     type: "box"
-    min: [-5.800, 40.800, -5.800]
-    max: [5.800, 47.800, 5.800]
+    scale: [11.600, 7.000, 11.600]
+    translate: [0.000, 44.300, 0.000]
     material: "limestone"
+
   - name: "belfry_cornice"
     type: "box"
-    min: [-6.300, 47.500, -6.300]
-    max: [6.300, 48.100, 6.300]
+    scale: [12.600, 0.600, 12.600]
+    translate: [0.000, 47.800, 0.000]
     material: "stone_detail"
+
   - name: "belfry_cornice_b"
     type: "box"
-    min: [-6.100, 40.550, -6.100]
-    max: [6.100, 41.050, 6.100]
+    scale: [12.200, 0.500, 12.200]
+    translate: [0.000, 40.800, 0.000]
     material: "stone_detail"
+
   - name: "belf_f_arch_0"
     type: "box"
-    min: [-3.300, 42.300, -6.050]
-    max: [-1.700, 46.800, -5.650]
+    scale: [1.600, 4.500, 0.400]
+    translate: [-2.500, 44.550, -5.850]
     material: "dark_recess"
+
   - name: "belf_f_col_0_l"
     type: "cylinder"
     center: [-3.450, 42.300, -5.850]
@@ -2843,19 +3244,22 @@ entities:
     material: "stone_detail"
   - name: "belf_f_cap_0_l"
     type: "box"
-    min: [-3.670, 46.650, -6.070]
-    max: [-3.230, 46.950, -5.630]
+    scale: [0.440, 0.300, 0.440]
+    translate: [-3.450, 46.800, -5.850]
     material: "stone_detail"
+
   - name: "belf_f_cap_0_r"
     type: "box"
-    min: [-1.770, 46.650, -6.070]
-    max: [-1.330, 46.950, -5.630]
+    scale: [0.440, 0.300, 0.440]
+    translate: [-1.550, 46.800, -5.850]
     material: "stone_detail"
+
   - name: "belf_f_arch_1"
     type: "box"
-    min: [1.700, 42.300, -6.050]
-    max: [3.300, 46.800, -5.650]
+    scale: [1.600, 4.500, 0.400]
+    translate: [2.500, 44.550, -5.850]
     material: "dark_recess"
+
   - name: "belf_f_col_1_l"
     type: "cylinder"
     center: [1.550, 42.300, -5.850]
@@ -2875,14 +3279,16 @@ entities:
     material: "stone_detail"
   - name: "belf_f_cap_1_l"
     type: "box"
-    min: [1.330, 46.650, -6.070]
-    max: [1.770, 46.950, -5.630]
+    scale: [0.440, 0.300, 0.440]
+    translate: [1.550, 46.800, -5.850]
     material: "stone_detail"
+
   - name: "belf_f_cap_1_r"
     type: "box"
-    min: [3.230, 46.650, -6.070]
-    max: [3.670, 46.950, -5.630]
+    scale: [0.440, 0.300, 0.440]
+    translate: [3.450, 46.800, -5.850]
     material: "stone_detail"
+
   - name: "belf_f_mid_col"
     type: "cylinder"
     center: [0.000, 42.300, -5.850]
@@ -2891,9 +3297,10 @@ entities:
     material: "stone_detail"
   - name: "belf_b_arch_0"
     type: "box"
-    min: [-3.300, 42.300, 5.650]
-    max: [-1.700, 46.800, 6.050]
+    scale: [1.600, 4.500, 0.400]
+    translate: [-2.500, 44.550, 5.850]
     material: "dark_recess"
+
   - name: "belf_b_col_0_l"
     type: "cylinder"
     center: [-3.450, 42.300, 5.850]
@@ -2913,19 +3320,22 @@ entities:
     material: "stone_detail"
   - name: "belf_b_cap_0_l"
     type: "box"
-    min: [-3.670, 46.650, 5.630]
-    max: [-3.230, 46.950, 6.070]
+    scale: [0.440, 0.300, 0.440]
+    translate: [-3.450, 46.800, 5.850]
     material: "stone_detail"
+
   - name: "belf_b_cap_0_r"
     type: "box"
-    min: [-1.770, 46.650, 5.630]
-    max: [-1.330, 46.950, 6.070]
+    scale: [0.440, 0.300, 0.440]
+    translate: [-1.550, 46.800, 5.850]
     material: "stone_detail"
+
   - name: "belf_b_arch_1"
     type: "box"
-    min: [1.700, 42.300, 5.650]
-    max: [3.300, 46.800, 6.050]
+    scale: [1.600, 4.500, 0.400]
+    translate: [2.500, 44.550, 5.850]
     material: "dark_recess"
+
   - name: "belf_b_col_1_l"
     type: "cylinder"
     center: [1.550, 42.300, 5.850]
@@ -2945,14 +3355,16 @@ entities:
     material: "stone_detail"
   - name: "belf_b_cap_1_l"
     type: "box"
-    min: [1.330, 46.650, 5.630]
-    max: [1.770, 46.950, 6.070]
+    scale: [0.440, 0.300, 0.440]
+    translate: [1.550, 46.800, 5.850]
     material: "stone_detail"
+
   - name: "belf_b_cap_1_r"
     type: "box"
-    min: [3.230, 46.650, 5.630]
-    max: [3.670, 46.950, 6.070]
+    scale: [0.440, 0.300, 0.440]
+    translate: [3.450, 46.800, 5.850]
     material: "stone_detail"
+
   - name: "belf_b_mid_col"
     type: "cylinder"
     center: [0.000, 42.300, 5.850]
@@ -2961,9 +3373,10 @@ entities:
     material: "stone_detail"
   - name: "belf_l_arch_0"
     type: "box"
-    min: [-6.050, 42.300, -3.300]
-    max: [-5.650, 46.800, -1.700]
+    scale: [0.400, 4.500, 1.600]
+    translate: [-5.850, 44.550, -2.500]
     material: "dark_recess"
+
   - name: "belf_l_col_0_l"
     type: "cylinder"
     center: [-5.850, 42.300, -3.450]
@@ -2983,19 +3396,22 @@ entities:
     material: "stone_detail"
   - name: "belf_l_cap_0_l"
     type: "box"
-    min: [-6.070, 46.650, -3.670]
-    max: [-5.630, 46.950, -3.230]
+    scale: [0.440, 0.300, 0.440]
+    translate: [-5.850, 46.800, -3.450]
     material: "stone_detail"
+
   - name: "belf_l_cap_0_r"
     type: "box"
-    min: [-6.070, 46.650, -1.770]
-    max: [-5.630, 46.950, -1.330]
+    scale: [0.440, 0.300, 0.440]
+    translate: [-5.850, 46.800, -1.550]
     material: "stone_detail"
+
   - name: "belf_l_arch_1"
     type: "box"
-    min: [-6.050, 42.300, 1.700]
-    max: [-5.650, 46.800, 3.300]
+    scale: [0.400, 4.500, 1.600]
+    translate: [-5.850, 44.550, 2.500]
     material: "dark_recess"
+
   - name: "belf_l_col_1_l"
     type: "cylinder"
     center: [-5.850, 42.300, 1.550]
@@ -3015,14 +3431,16 @@ entities:
     material: "stone_detail"
   - name: "belf_l_cap_1_l"
     type: "box"
-    min: [-6.070, 46.650, 1.330]
-    max: [-5.630, 46.950, 1.770]
+    scale: [0.440, 0.300, 0.440]
+    translate: [-5.850, 46.800, 1.550]
     material: "stone_detail"
+
   - name: "belf_l_cap_1_r"
     type: "box"
-    min: [-6.070, 46.650, 3.230]
-    max: [-5.630, 46.950, 3.670]
+    scale: [0.440, 0.300, 0.440]
+    translate: [-5.850, 46.800, 3.450]
     material: "stone_detail"
+
   - name: "belf_l_mid_col"
     type: "cylinder"
     center: [-5.850, 42.300, 0.000]
@@ -3031,9 +3449,10 @@ entities:
     material: "stone_detail"
   - name: "belf_r_arch_0"
     type: "box"
-    min: [5.650, 42.300, -3.300]
-    max: [6.050, 46.800, -1.700]
+    scale: [0.400, 4.500, 1.600]
+    translate: [5.850, 44.550, -2.500]
     material: "dark_recess"
+
   - name: "belf_r_col_0_l"
     type: "cylinder"
     center: [5.850, 42.300, -3.450]
@@ -3053,19 +3472,22 @@ entities:
     material: "stone_detail"
   - name: "belf_r_cap_0_l"
     type: "box"
-    min: [5.630, 46.650, -3.670]
-    max: [6.070, 46.950, -3.230]
+    scale: [0.440, 0.300, 0.440]
+    translate: [5.850, 46.800, -3.450]
     material: "stone_detail"
+
   - name: "belf_r_cap_0_r"
     type: "box"
-    min: [5.630, 46.650, -1.770]
-    max: [6.070, 46.950, -1.330]
+    scale: [0.440, 0.300, 0.440]
+    translate: [5.850, 46.800, -1.550]
     material: "stone_detail"
+
   - name: "belf_r_arch_1"
     type: "box"
-    min: [5.650, 42.300, 1.700]
-    max: [6.050, 46.800, 3.300]
+    scale: [0.400, 4.500, 1.600]
+    translate: [5.850, 44.550, 2.500]
     material: "dark_recess"
+
   - name: "belf_r_col_1_l"
     type: "cylinder"
     center: [5.850, 42.300, 1.550]
@@ -3085,14 +3507,16 @@ entities:
     material: "stone_detail"
   - name: "belf_r_cap_1_l"
     type: "box"
-    min: [5.630, 46.650, 1.330]
-    max: [6.070, 46.950, 1.770]
+    scale: [0.440, 0.300, 0.440]
+    translate: [5.850, 46.800, 1.550]
     material: "stone_detail"
+
   - name: "belf_r_cap_1_r"
     type: "box"
-    min: [5.630, 46.650, 3.230]
-    max: [6.070, 46.950, 3.670]
+    scale: [0.440, 0.300, 0.440]
+    translate: [5.850, 46.800, 3.450]
     material: "stone_detail"
+
   - name: "belf_r_mid_col"
     type: "cylinder"
     center: [5.850, 42.300, 0.000]
@@ -3130,14 +3554,16 @@ entities:
     material: "stone_detail"
   - name: "belf_turret_pin_0"
     type: "box"
-    min: [-6.800, 49.800, -6.800]
-    max: [-6.400, 51.400, -6.400]
+    scale: [0.400, 1.600, 0.400]
+    translate: [-6.600, 50.600, -6.600]
     material: "limestone"
+
   - name: "belf_turret_pin2_0"
     type: "box"
-    min: [-6.720, 51.100, -6.720]
-    max: [-6.480, 52.100, -6.480]
+    scale: [0.240, 1.000, 0.240]
+    translate: [-6.600, 51.600, -6.600]
     material: "limestone"
+
   - name: "belf_turret_ball_0"
     type: "sphere"
     center: [-6.600, 52.200, -6.600]
@@ -3157,14 +3583,16 @@ entities:
     material: "stone_detail"
   - name: "belf_turret_pin_1"
     type: "box"
-    min: [6.400, 49.800, -6.800]
-    max: [6.800, 51.400, -6.400]
+    scale: [0.400, 1.600, 0.400]
+    translate: [6.600, 50.600, -6.600]
     material: "limestone"
+
   - name: "belf_turret_pin2_1"
     type: "box"
-    min: [6.480, 51.100, -6.720]
-    max: [6.720, 52.100, -6.480]
+    scale: [0.240, 1.000, 0.240]
+    translate: [6.600, 51.600, -6.600]
     material: "limestone"
+
   - name: "belf_turret_ball_1"
     type: "sphere"
     center: [6.600, 52.200, -6.600]
@@ -3184,14 +3612,16 @@ entities:
     material: "stone_detail"
   - name: "belf_turret_pin_2"
     type: "box"
-    min: [-6.800, 49.800, 6.400]
-    max: [-6.400, 51.400, 6.800]
+    scale: [0.400, 1.600, 0.400]
+    translate: [-6.600, 50.600, 6.600]
     material: "limestone"
+
   - name: "belf_turret_pin2_2"
     type: "box"
-    min: [-6.720, 51.100, 6.480]
-    max: [-6.480, 52.100, 6.720]
+    scale: [0.240, 1.000, 0.240]
+    translate: [-6.600, 51.600, 6.600]
     material: "limestone"
+
   - name: "belf_turret_ball_2"
     type: "sphere"
     center: [-6.600, 52.200, 6.600]
@@ -3211,14 +3641,16 @@ entities:
     material: "stone_detail"
   - name: "belf_turret_pin_3"
     type: "box"
-    min: [6.400, 49.800, 6.400]
-    max: [6.800, 51.400, 6.800]
+    scale: [0.400, 1.600, 0.400]
+    translate: [6.600, 50.600, 6.600]
     material: "limestone"
+
   - name: "belf_turret_pin2_3"
     type: "box"
-    min: [6.480, 51.100, 6.480]
-    max: [6.720, 52.100, 6.720]
+    scale: [0.240, 1.000, 0.240]
+    translate: [6.600, 51.600, 6.600]
     material: "limestone"
+
   - name: "belf_turret_ball_3"
     type: "sphere"
     center: [6.600, 52.200, 6.600]
@@ -3226,34 +3658,40 @@ entities:
     material: "gold_trim"
   - name: "roof_1"
     type: "box"
-    min: [-6.000, 48.100, -6.000]
-    max: [6.000, 50.100, 6.000]
+    scale: [12.000, 2.000, 12.000]
+    translate: [0.000, 49.100, 0.000]
     material: "copper_roof"
+
   - name: "roof_2"
     type: "box"
-    min: [-5.000, 49.800, -5.000]
-    max: [5.000, 51.400, 5.000]
+    scale: [10.000, 1.600, 10.000]
+    translate: [0.000, 50.600, 0.000]
     material: "copper_roof"
+
   - name: "roof_3"
     type: "box"
-    min: [-4.000, 51.200, -4.000]
-    max: [4.000, 52.600, 4.000]
+    scale: [8.000, 1.400, 8.000]
+    translate: [0.000, 51.900, 0.000]
     material: "copper_roof"
+
   - name: "roof_4"
     type: "box"
-    min: [-3.000, 52.300, -3.000]
-    max: [3.000, 53.500, 3.000]
+    scale: [6.000, 1.200, 6.000]
+    translate: [0.000, 52.900, 0.000]
     material: "copper_roof"
+
   - name: "roof_5"
     type: "box"
-    min: [-2.000, 53.200, -2.000]
-    max: [2.000, 54.200, 2.000]
+    scale: [4.000, 1.000, 4.000]
+    translate: [0.000, 53.700, 0.000]
     material: "copper_roof"
+
   - name: "roof_6"
     type: "box"
-    min: [-1.200, 54.000, -1.200]
-    max: [1.200, 54.800, 1.200]
+    scale: [2.400, 0.800, 2.400]
+    translate: [0.000, 54.400, 0.000]
     material: "copper_roof"
+
   - name: "roof_finial_0"
     type: "cylinder"
     center: [-5.500, 48.100, -5.500]
@@ -3262,9 +3700,10 @@ entities:
     material: "limestone"
   - name: "roof_finial_cap_0"
     type: "box"
-    min: [-5.650, 50.900, -5.650]
-    max: [-5.350, 51.900, -5.350]
+    scale: [0.300, 1.000, 0.300]
+    translate: [-5.500, 51.400, -5.500]
     material: "limestone"
+
   - name: "roof_finial_ball_0"
     type: "sphere"
     center: [-5.500, 52.000, -5.500]
@@ -3278,9 +3717,10 @@ entities:
     material: "limestone"
   - name: "roof_finial_cap_1"
     type: "box"
-    min: [-5.650, 50.900, 5.350]
-    max: [-5.350, 51.900, 5.650]
+    scale: [0.300, 1.000, 0.300]
+    translate: [-5.500, 51.400, 5.500]
     material: "limestone"
+
   - name: "roof_finial_ball_1"
     type: "sphere"
     center: [-5.500, 52.000, 5.500]
@@ -3294,9 +3734,10 @@ entities:
     material: "limestone"
   - name: "roof_finial_cap_2"
     type: "box"
-    min: [5.350, 50.900, -5.650]
-    max: [5.650, 51.900, -5.350]
+    scale: [0.300, 1.000, 0.300]
+    translate: [5.500, 51.400, -5.500]
     material: "limestone"
+
   - name: "roof_finial_ball_2"
     type: "sphere"
     center: [5.500, 52.000, -5.500]
@@ -3310,9 +3751,10 @@ entities:
     material: "limestone"
   - name: "roof_finial_cap_3"
     type: "box"
-    min: [5.350, 50.900, 5.350]
-    max: [5.650, 51.900, 5.650]
+    scale: [0.300, 1.000, 0.300]
+    translate: [5.500, 51.400, 5.500]
     material: "limestone"
+
   - name: "roof_finial_ball_3"
     type: "sphere"
     center: [5.500, 52.000, 5.500]
@@ -3344,14 +3786,16 @@ entities:
     material: "gold_trim"
   - name: "cross_vert"
     type: "box"
-    min: [-0.040, 63.400, -0.040]
-    max: [0.040, 64.400, 0.040]
+    scale: [0.080, 1.000, 0.080]
+    translate: [0.000, 63.900, 0.000]
     material: "gold_trim"
+
   - name: "cross_horiz"
     type: "box"
-    min: [-0.250, 64.160, -0.040]
-    max: [0.250, 64.240, 0.040]
+    scale: [0.500, 0.080, 0.080]
+    translate: [0.000, 64.200, 0.000]
     material: "gold_trim"
+
   - name: "ayrton_cage"
     type: "cylinder"
     center: [0.000, 62.700, 0.000]
@@ -3365,9 +3809,10 @@ entities:
     material: "warm_light"
   - name: "roof_gallery"
     type: "box"
-    min: [-6.300, 48.100, -6.300]
-    max: [6.300, 48.400, 6.300]
+    scale: [12.600, 0.300, 12.600]
+    translate: [0.000, 48.250, 0.000]
     material: "stone_detail"
+
   - name: "balus_0_0"
     type: "cylinder"
     center: [-5.800, 48.100, -6.000]
@@ -3442,9 +3887,10 @@ entities:
     material: "limestone"
   - name: "rail_0"
     type: "box"
-    min: [-5.800, 48.850, -6.080]
-    max: [5.800, 48.950, -5.920]
+    scale: [11.600, 0.100, 0.160]
+    translate: [0.000, 48.900, -6.000]
     material: "limestone"
+
   - name: "balus_1_0"
     type: "cylinder"
     center: [-5.800, 48.100, 6.000]
@@ -3519,9 +3965,10 @@ entities:
     material: "limestone"
   - name: "rail_1"
     type: "box"
-    min: [-5.800, 48.850, 5.920]
-    max: [5.800, 48.950, 6.080]
+    scale: [11.600, 0.100, 0.160]
+    translate: [0.000, 48.900, 6.000]
     material: "limestone"
+
   - name: "balus_2_0"
     type: "cylinder"
     center: [-6.000, 48.100, -5.800]
@@ -3596,9 +4043,10 @@ entities:
     material: "limestone"
   - name: "rail_2"
     type: "box"
-    min: [-6.080, 48.850, -5.800]
-    max: [-5.920, 48.950, 5.800]
+    scale: [0.160, 0.100, 11.600]
+    translate: [-6.000, 48.900, 0.000]
     material: "limestone"
+
   - name: "balus_3_0"
     type: "cylinder"
     center: [6.000, 48.100, -5.800]
@@ -3673,6 +4121,7 @@ entities:
     material: "limestone"
   - name: "rail_3"
     type: "box"
-    min: [5.920, 48.850, -5.800]
-    max: [6.080, 48.950, 5.800]
+    scale: [0.160, 0.100, 11.600]
+    translate: [6.000, 48.900, 0.000]
     material: "limestone"
+

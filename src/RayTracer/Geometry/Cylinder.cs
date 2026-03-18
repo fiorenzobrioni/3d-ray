@@ -63,6 +63,12 @@ public class Cylinder : IHittable
                     rec.Point = point;
                     rec.LocalPoint = point;
                     rec.SetFaceNormal(ray, outwardNormal);
+
+                    // Cylindrical UV: U = theta / 2π, V = height fraction
+                    float theta = MathF.Atan2(point.Z - Center.Z, point.X - Center.X);
+                    rec.U = (theta + MathF.PI) / (2f * MathF.PI);
+                    rec.V = (y - _yMin) / Height;
+
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;
                     hitAnything = true;
@@ -92,6 +98,11 @@ public class Cylinder : IHittable
                     rec.Point = p;
                     rec.LocalPoint = p;
                     rec.SetFaceNormal(ray, normal);
+
+                    // Cap UV: planar projection
+                    rec.U = (p.X - Center.X + Radius) / (2f * Radius);
+                    rec.V = (p.Z - Center.Z + Radius) / (2f * Radius);
+
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;
                     hitAnything = true;

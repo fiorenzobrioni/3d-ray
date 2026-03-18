@@ -16,13 +16,9 @@ public class BvhNode : IHittable
 
     public BvhNode(List<IHittable> objects, int start, int end)
     {
-        int axis = Random.Shared.Next(3);
-        Comparison<IHittable> comparator = axis switch
-        {
-            0 => (a, b) => CompareAxis(a, b, 0),
-            1 => (a, b) => CompareAxis(a, b, 1),
-            _ => (a, b) => CompareAxis(a, b, 2)
-        };
+        // Determine longest axis from the centroid bounds for optimal splitting
+        int axis = ComputeLongestAxis(objects, start, end);
+        Comparison<IHittable> comparator = (a, b) => CompareAxis(a, b, axis);
 
         int span = end - start;
 
@@ -54,6 +50,7 @@ public class BvhNode : IHittable
         _box = AABB.SurroundingBox(_left.BoundingBox(), _right.BoundingBox());
     }
 
+
     public BvhNode(List<IHittable> objects) : this(objects, 0, objects.Count) { }
 
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
@@ -76,4 +73,36 @@ public class BvhNode : IHittable
         float vb = axis switch { 0 => boxB.Min.X, 1 => boxB.Min.Y, _ => boxB.Min.Z };
         return va.CompareTo(vb);
     }
+
+    /// <summary>
+    /// Selects the axis (0=X, 1=Y, 2=Z) with the longest extent across the
+    /// centroids of the objects in [start, end), for optimal BVH splitting.
+    /// </summary>
+    private static int ComputeLongestAxis(List<IHittable> objects, int start, int end)
+    {
+        float minX = float.MaxValue, minY = float.MaxValue, minZ = float.MaxValue;
+        float maxX = float.MinValue, maxY = float.MinValue, maxZ = float.MinValue;
+
+        for (int i = start; i < end; i++)
+        {
+            var box = objects[i].BoundingBox();
+            // Use centroid of each AABB
+            float cx = (box.Min.X + box.Max.X) * 0.5f;
+            float cy = (box.Min.Y + box.Max.Y) * 0.5f;
+            float cz = (box.Min.Z + box.Max.Z) * 0.5f;
+
+            if (cx < minX) minX = cx; if (cx > maxX) maxX = cx;
+            if (cy < minY) minY = cy; if (cy > maxY) maxY = cy;
+            if (cz < minZ) minZ = cz; if (cz > maxZ) maxZ = cz;
+        }
+
+        float extX = maxX - minX;
+        float extY = maxY - minY;
+        float extZ = maxZ - minZ;
+
+        if (extX >= extY && extX >= extZ) return 0;
+        if (extY >= extZ) return 1;
+        return 2;
+    }
 }
+

@@ -34,7 +34,7 @@ public class Renderer
     }
 
     /// <summary>
-    /// Renders the scene and returns a float[,] (y, x) array of Vector3 colors (linear space).
+    /// Renders the scene using stratified (jittered) sampling for superior anti-aliasing.
     /// Uses Parallel.For over scanlines for multi-core rendering.
     /// </summary>
     public Vector3[,] Render(int width, int height)
@@ -43,29 +43,39 @@ public class Renderer
         int completedRows = 0;
         int totalRows = height;
 
+        // Pre-compute stratification grid dimensions
+        int sqrtSpp = (int)MathF.Ceiling(MathF.Sqrt(_samplesPerPixel));
+        int actualSamples = sqrtSpp * sqrtSpp;
+        float invSqrtSpp = 1f / sqrtSpp;
+
         Parallel.For(0, height, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, j =>
         {
             for (int i = 0; i < width; i++)
             {
                 Vector3 cumulativeColor = Vector3.Zero;
 
-                for (int s = 0; s < _samplesPerPixel; s++)
+                // Stratified sampling: divide pixel into sqrtSpp x sqrtSpp grid
+                for (int sy = 0; sy < sqrtSpp; sy++)
                 {
-                    float u = (i + MathUtils.RandomFloat() - 0.5f) / width;
-                    float v = (height - j - 1 + MathUtils.RandomFloat() - 0.5f) / height;
+                    for (int sx = 0; sx < sqrtSpp; sx++)
+                    {
+                        // Jittered sample within the stratum
+                        float jitterU = (sx + MathUtils.RandomFloat()) * invSqrtSpp;
+                        float jitterV = (sy + MathUtils.RandomFloat()) * invSqrtSpp;
 
-                    var ray = _camera.GetRay(u, v);
-                    cumulativeColor += TraceRay(ray, _maxDepth);
+                        float u = (i + jitterU) / width;
+                        float v = (height - j - 1 + jitterV) / height;
+
+                        var ray = _camera.GetRay(u, v);
+                        cumulativeColor += TraceRay(ray, _maxDepth);
+                    }
                 }
 
-                // Average samples and gamma correction (Approx 2.0)
-                Vector3 finalColor = cumulativeColor / _samplesPerPixel;
-                finalColor = new Vector3(
-                    MathF.Sqrt(MathF.Max(0, finalColor.X)),
-                    MathF.Sqrt(MathF.Max(0, finalColor.Y)),
-                    MathF.Sqrt(MathF.Max(0, finalColor.Z)));
+                // Average samples
+                Vector3 linearColor = cumulativeColor / actualSamples;
 
-                pixels[j, i] = finalColor;
+                // ACES filmic tone mapping for proper HDR handling
+                pixels[j, i] = AcesToneMap(linearColor);
             }
 
             int done = Interlocked.Increment(ref completedRows);
@@ -78,6 +88,28 @@ public class Renderer
 
         Console.WriteLine();
         return pixels;
+    }
+
+    /// <summary>
+    /// ACES filmic tone mapping followed by gamma 2.2 correction.
+    /// Provides natural highlight rolloff and richer colors compared to simple sqrt gamma.
+    /// </summary>
+    private static Vector3 AcesToneMap(Vector3 color)
+    {
+        // Clamp negatives
+        color = Vector3.Max(color, Vector3.Zero);
+
+        // ACES filmic curve: (x * (2.51x + 0.03)) / (x * (2.43x + 0.59) + 0.14)
+        Vector3 a = color * (2.51f * color + new Vector3(0.03f));
+        Vector3 b = color * (2.43f * color + new Vector3(0.59f)) + new Vector3(0.14f);
+        Vector3 mapped = new Vector3(a.X / b.X, a.Y / b.Y, a.Z / b.Z);
+
+        // Clamp to [0,1] and apply gamma 2.2
+        const float invGamma = 1f / 2.2f;
+        return new Vector3(
+            MathF.Pow(Math.Clamp(mapped.X, 0f, 1f), invGamma),
+            MathF.Pow(Math.Clamp(mapped.Y, 0f, 1f), invGamma),
+            MathF.Pow(Math.Clamp(mapped.Z, 0f, 1f), invGamma));
     }
 
     private Vector3 TraceRay(Ray ray, int depth)
@@ -127,8 +159,9 @@ public class Renderer
 
     private Vector3 CalculateSkyColor(Ray ray)
     {
-        var unitDir = Vector3.Normalize(ray.Direction);
-        float t = 0.5f * (unitDir.Y + 1f);
-        return (1f - t) * Vector3.One + t * _background;
+        // Return the scene background color directly.
+        // For sky gradients or HDRI environments, use IBL (future feature).
+        return _background;
     }
 }
+

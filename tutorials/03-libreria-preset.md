@@ -8,15 +8,15 @@ Questa guida raccoglie una collezione di configurazioni "preconfezionate" per fa
 1. [Mondi ed Ambienti](#1-mondi-ed-ambienti)
 2. [Configurazioni Camera](#2-configurazioni-camera)
 3. [Sistemi di Illuminazione](#3-sistemi-di-illuminazione)
-4. [Oggetti e Primitive Base](#4-oggetti-e-primitive-base)
-5. [Catalogo Materiali Professionale](#5-catalogo-materiali-professionale)
+4. [Catalogo Materiali Professionale](#4-catalogo-materiali-professionale)
+5. [Oggetti e Primitive Base](#5-oggetti-e-primitive-base)
 6. [Scene Base Complete (Stage Starter)](#6-scene-base-complete-stage-starter)
 
 ---
 
 ## 1. Mondi ed Ambienti
 
-Gli ambienti definiscono l'atmosfera globale e il colore del cielo.
+Gli ambienti definiscono l'atmosfera globale e il colore del cielo. Il `background` agisce come una sorgente di luce globale per i raggi che rimbalzano.
 
 ### **Preset: Studio Fotografico (High-Key)**
 Un ambiente pulito, ideale per isolare un oggetto e metterne in risalto i colori.
@@ -44,14 +44,6 @@ Nero assoluto, perfetto per scene drammatiche dove solo le luci contano.
 world:
   ambient_light: [0.0, 0.0, 0.0]
   background: [0.0, 0.0, 0.0]
-
-### **Preset: Deep Fog (Nebbia Fitta)**
-Visibilità ridotta e atmosfera misteriosa con colori desaturati.
-```yaml
-world:
-  ambient_light: [0.4, 0.4, 0.4]
-  background: [0.35, 0.35, 0.35]
-```
 ```
 
 ### **Preset: Overcast (Cielo Coperto)**
@@ -105,15 +97,6 @@ camera:
   fov: 45.0
 ```
 
-### **Preset: Hero Shot (Dal Basso)**
-Inquadratura dal basso verso l'alto per dare importanza al soggetto.
-```yaml
-camera:
-  position: [0.0, 0.2, -4.0]
-  look_at: [0.0, 1.2, 0.0]
-  fov: 50.0
-```
-
 ### **Preset: Overhead (Vista Zenitale)**
 Perfetto per scacchiere, tavoli o planimetrie.
 ```yaml
@@ -121,13 +104,16 @@ camera:
   position: [0.0, 10.0, 0.01] # Leggero offset in Z per evitare gimbal lock
   look_at: [0.0, 0.0, 0.0]
   fov: 35.0
+```
 
-### **Preset: Ultra Wide (Fisheye)**
-Prospettiva distorta e immersiva, eccellente per catturare l'intero volume di una stanza.
+### **Preset: Dutch Angle (Drammatico)**
+Inclinazione della camera per un effetto dinamico.
 ```yaml
 camera:
-  fov: 110.0
-```
+  position: [3, 2, -5]
+  look_at: [0, 1, 0]
+  vup: [0.3, 1, 0] # Inclina la camera a sinistra
+  fov: 50
 ```
 
 ---
@@ -152,14 +138,17 @@ lights:
     intensity: 60
 ```
 
-### **Preset: Luce Drammatica (Chiaroscuro)**
-Forte contrasto da un lato solo.
+### **Preset: Studio Spot (Mirror Polish)**
+Luce Spot concentrata per creare riflessi spettacolari su metallo o vetro.
 ```yaml
 lights:
-  - type: "point"
-    position: [-8, 4, -4]
-    color: [1.0, 0.9, 0.8]
+  - type: "spot"
+    position: [0, 10, -5]
+    direction: [0, -1, 1]
     intensity: 200
+    inner_angle: 10
+    outer_angle: 25
+    color: [1, 1, 1]
 ```
 
 ### **Preset: Warm & Cool Contrast**
@@ -176,15 +165,6 @@ lights:
     intensity: 80
 ```
 
-### **Preset: Rim Lighting (Silhouette)**
-Luce posizionata dietro l'oggetto per evidenziarne i bordi.
-```yaml
-lights:
-  - type: "point"
-    position: [0, 5, 8]
-    color: [1.0, 1.0, 1.0]
-    intensity: 150
-
 ### **Preset: Moonlight (Luce Lunare)**
 Atmosfera notturna fredda con ombre molto allungate.
 ```yaml
@@ -194,63 +174,10 @@ lights:
     color: [0.7, 0.7, 1.0]
     intensity: 0.4
 ```
-```
 
 ---
 
-## 4. Oggetti e Primitive Base
-
-Strutture di supporto per le tue composizioni.
-
-### **Piedistallo Moderno**
-Un semplice blocco su cui esporre una sfera o un altro oggetto.
-```yaml
-  - name: "piedistallo"
-    type: "box"
-    min: [-1.0, 0.0, -1.0]
-    max: [1.0, 0.8, 1.0]
-    material: "marmo_base"
-```
-
-### **Teca di Vetro**
-Un box trasparente per simulare contenitori o protezioni.
-```yaml
-  - name: "teca"
-    type: "box"
-    min: [-2.0, 0.0, -2.0]
-    max: [2.0, 4.0, 2.0]
-    material: "vetro_standard"
-```
-
-### **Base Espositiva Circolare**
-Un cilindro basso e largo per presentare prodotti o opere d'arte.
-```yaml
-  - name: "base_expo"
-    type: "cylinder"
-    center: [0.0, 0.0, 0.0]
-    radius: 3.0
-    height: 0.2
-    material: "metallo_scuro"
-```
-
-### **Architrave / Cornice Doppia**
-Due pilastri e una traversa per creare profondità architettonica.
-```yaml
-  - { name: "pilastro_1", type: "cylinder", center: [-3, 0, 2], radius: 0.4, height: 5, material: "marmo" }
-  - { name: "parete_2", type: "cylinder", center: [3, 0, 2], radius: 0.4, height: 5, material: "marmo" }
-  - { name: "trave", type: "box", min: [-4, 5, 1.5], max: [4, 5.8, 2.5], material: "marmo" }
-
-### **Cornice per Quadro**
-Un box sottile con uno scalino interno per presentare opere o texture sulla parete.
-```yaml
-  - { name: "cornice_base", type: "box", min: [-2, 1, 4.9], max: [2, 4, 5.0], material: "legno_noce" }
-  - { name: "tela", type: "box", min: [-1.8, 1.2, 4.95], max: [1.8, 3.8, 5.0], material: "marmo_carrara" }
-```
-```
-
----
-
-## 5. Catalogo Materiali Professionale
+## 4. Catalogo Materiali Professionale
 
 Una collezione di materiali che sfrutta le nuove texture procedurali e la randomizzazione.
 
@@ -290,17 +217,6 @@ Riflesso caldo e morbido.
     fuzz: 0.15
 ```
 
-### **Terreno: Scacchiera Classica**
-Il classico pavimento da test.
-```yaml
-  - id: "pavimento_test"
-    type: "lambertian"
-    texture:
-      type: "checker"
-      scale: 2.0
-      colors: [[0.1, 0.1, 0.1], [0.2, 0.2, 0.2]]
-```
-
 ### **Marmo: Nero Marquinia**
 Sfondo nero intenso con venature bianche spettacolari.
 ```yaml
@@ -314,19 +230,6 @@ Sfondo nero intenso con venature bianche spettacolari.
       randomize_rotation: true
 ```
 
-### **Legno: Ebano (Ebony)**
-Legno quasi nero, molto denso e lucido.
-```yaml
-  - id: "ebano"
-    type: "metal"
-    fuzz: 0.2
-    texture:
-      type: "wood"
-      scale: 40.0 # Venature molto fitte
-      colors: [[0.1, 0.1, 0.1], [0.02, 0.02, 0.02]]
-      randomize_offset: true
-```
-
 ### **Pietra Grezza / Cemento**
 Effetto granuloso creato con il Noise.
 ```yaml
@@ -335,46 +238,6 @@ Effetto granuloso creato con il Noise.
     texture:
       type: "noise"
       scale: 50.0
-      colors: [[0.5, 0.5, 0.53], [0.4, 0.4, 0.4]]
-```
-
-### **Metallo: Acciaio Spazzolato**
-Finitura industriale con riflessi molto sfumati.
-```yaml
-  - id: "acciaio_spazzolato"
-    type: "metal"
-    color: [0.75, 0.75, 0.78]
-    fuzz: 0.4
-```
-
-### **Sfondo: Gradiente Soft Studio**
-Texture noise molto larga per creare variazioni di colore impercettibili sul muro di sfondo.
-```yaml
-  - id: "studio_wall"
-    type: "lambertian"
-    texture:
-      type: "noise"
-      scale: 0.5 # Scala molto piccola = pattern molto grande
-      colors: [[0.8, 0.8, 0.8], [0.7, 0.7, 0.7]]
-
-### **Metallo: Oro Rosso (Rose Gold)**
-Riflesso caldo e lussuoso, ideale per finiture di pregio.
-```yaml
-  - id: "oro_rosso"
-    type: "metal"
-    color: [0.95, 0.6, 0.5]
-    fuzz: 0.02
-```
-
-### **Pietra di Lava**
-Texture scura e irregolare con bagliori rossastri nelle venature.
-```yaml
-  - id: "pietra_lava"
-    type: "lambertian"
-    texture:
-      type: "noise"
-      scale: 15.0
-      colors: [[0.1, 0.1, 0.1], [0.15, 0.05, 0.0]]
 ```
 
 ### **Vetro: Rubino Profondo**
@@ -386,35 +249,8 @@ Vetro rosso intenso, ideale per gioielli o decorazioni di lusso.
     color: [0.8, 0.05, 0.05]
 ```
 
-### **Vetro: Smeraldo**
-Tonalità verde brillante con alta rifrazione.
-```yaml
-  - id: "vetro_smeraldo"
-    type: "dielectric"
-    refraction_index: 1.58
-    color: [0.1, 0.7, 0.2]
-```
-
-### **Vetro: Ambra Antica**
-Un tono caldo e dorato, perfetto per simulare resine o vetri d'epoca.
-```yaml
-  - id: "vetro_ambra"
-    type: "dielectric"
-    refraction_index: 1.55
-    color: [0.9, 0.6, 0.1]
-```
-
-### **Vetro: Cobalto (Blu Reale)**
-Blu profondo e saturo.
-```yaml
-  - id: "vetro_cobalto"
-    type: "dielectric"
-    refraction_index: 1.52
-    color: [0.05, 0.1, 0.8]
-```
-
 ### **Vetro: Fumé Professionale**
-Grigio neutro che riduce la luminosità del raggio senza distorcere i colori.
+Grigio neutro che riduce la luminosità senza distorcere i colori.
 ```yaml
   - id: "vetro_fume"
     type: "dielectric"
@@ -424,12 +260,65 @@ Grigio neutro che riduce la luminosità del raggio senza distorcere i colori.
 
 ---
 
+## 5. Oggetti e Primitive Base
+
+Strutture di supporto pronte all'uso. **Nota:** Il box usa il centro come riferimento per il translate.
+
+### **Piedistallo Moderno**
+Un semplice blocco (altezza 0.8) su cui esporre un oggetto.
+```yaml
+  - name: "piedistallo"
+    type: "box"
+    scale: [2.0, 0.8, 2.0]
+    translate: [0.0, 0.4, 0.0] # Traslazione di metà altezza per poggiare a terra
+    material: "marmo_base"
+```
+
+### **Base Espositiva Circolare**
+Un cilindro basso e largo per presentare prodotti.
+```yaml
+  - name: "base_expo"
+    type: "cylinder"
+    center: [0.0, 0.0, 0.0] # Centro della base inferiore
+    radius: 3.0
+    height: 0.2
+    material: "metallo_scuro"
+```
+
+### **Parete Gallaria con Cornice**
+Una parete con una cornice applicata.
+```yaml
+  - name: "parete"
+    type: "quad"
+    q: [-5, 0, 5]
+    u: [10, 0, 0]
+    v: [0, 8, 0]
+    material: "muro_bianco"
+  - name: "cornice"
+    type: "box"
+    scale: [4.0, 3.0, 0.1]
+    translate: [0.0, 4.0, 4.9] # Leggermente davanti alla parete
+    material: "legno_noce"
+```
+
+### **Teca di Vetro**
+Un box trasparente protettivo.
+```yaml
+  - name: "teca"
+    type: "box"
+    scale: [4, 4, 4]
+    translate: [0, 2, 0]
+    material: "vetro_fume"
+```
+
+---
+
 ## 6. Scene Base Complete (Stage Starter)
 
-Questi "modelli pronti" includono Mondo, Camera, Luci e Oggetti bilanciati. Copiali interamente per iniziare a renderizzare immediatamente.
+Questi "modelli pronti" includono tutto il necessario bilanciato per iniziare.
 
 ### **Stage A: Studio Fotografico Professionale**
-Un set pulito con illuminazione a 3 punti, ideale per cataloghi prodotti.
+Un set pulito con illuminazione a 3 punti e Spot concentrato.
 ```yaml
 world:
   ambient_light: [0.15, 0.15, 0.15]
@@ -444,18 +333,18 @@ materials:
     type: "lambertian"
     texture: { type: "checker", scale: 4, colors: [[0.8, 0.8, 0.8], [0.85, 0.85, 0.85]] }
 lights:
-  - { type: "point", position: [10, 10, -10], intensity: 150 } 
+  - { type: "spot", position: [5, 12, -8], direction: [-0.5, -1, 1], intensity: 200 } 
   - { type: "point", position: [-10, 5, -5], intensity: 50, color: [0.9, 0.9, 1] }
 entities:
-  - { name: "pedestal", type: "box", min: [-1, 0, -1], max: [1, 0.2, 1], material: "lambertian" }
+  - { name: "pedestal", type: "box", scale: [2, 0.2, 2], translate: [0, 0.1, 0], material: "lambertian" }
 ```
 
-### **Stage B: Tramonto su Piano Infinito (Esterno)**
-Un orizzonte vasto con luce calda diagonale, perfetto per silhouette architettoniche.
+### **Stage B: Tramonto (Esterno Drammatico)**
+Un orizzonte vasto con luce calda diagonale.
 ```yaml
 world:
   ambient_light: [0.05, 0.05, 0.1]
-  background: [1.0, 0.5, 0.3]
+  background: [0.8, 0.4, 0.2]
   ground: { type: "infinite_plane", material: "ocean_metal", y: 0 }
 camera:
   position: [0, 1, -15]
@@ -470,32 +359,12 @@ lights:
   - { type: "directional", direction: [-1, -0.2, -1], color: [1, 0.4, 0.1], intensity: 2 }
 ```
 
-### **Stage C: Galleria d'Arte Moderna (Interno)**
-Una stanza con pavimento in marmo e illuminazione a pioggia (zenitale).
-```yaml
-world:
-  ambient_light: [0.02, 0.02, 0.02]
-  background: [0.5, 0.7, 1.0]
-camera:
-  position: [8, 3, -12]
-  look_at: [0, 2, 0]
-materials:
-  - id: "pavimento_marmo"
-    type: "lambertian"
-    texture: { type: "marble", scale: 5, colors: [[0.8, 0.8, 0.8], [0.9, 0.9, 0.9]] }
-lights:
-  - { type: "point", position: [0, 10, 0], intensity: 200 }
-entities:
-  - { name: "pavimento", type: "box", min: [-10, -0.1, -10], max: [10, 0, 10], material: "pavimento_marmo" }
-  - { name: "parete_dietro", type: "box", min: [-10, 0, 10], max: [10, 10, 11], material: "lambertian" }
-```
-
-### **Stage D: Neon Cyber-Point (Creativo)**
+### **Stage C: Neon Cyber-Point (Creativo)**
 Un set ad alto contrasto con luci magenta e ciano, stile sci-fi.
 ```yaml
 world:
   ambient_light: [0.01, 0, 0.02]
-  background: [0, 0, 0]
+  background: [0.0, 0.0, 0.0]
 camera:
   position: [0, 2, -10]
   look_at: [0, 1.5, 0]
@@ -509,8 +378,7 @@ lights:
   - { type: "point", position: [-4, 3, 0], color: [1, 0, 1], intensity: 150 }
   - { type: "point", position: [4, 3, 0], color: [0, 1, 1], intensity: 150 }
 ```
-```
 
 ---
 
-> **💡 Consiglio**: Quando usi i materiali che hanno `randomize_offset: true`, ricorda che ogni oggetto che indossa quel materiale apparirà diverso dagli altri, creando una scena molto più naturale e meno "digitale".
+> **💡 Consiglio**: Quando usi i materiali che hanno `randomize_offset: true`, ricorda che ogni oggetto apparirà diverso dagli altri, creando una scena molto più naturale e meno "digitale".

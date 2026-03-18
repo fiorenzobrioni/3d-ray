@@ -99,26 +99,26 @@ entities:
   # ============================================================
   - name: "moat_front"
     type: "box"
-    min: [-38, -0.8, -40]
-    max: [38, 0.05, -32]
+    scale: [76.000, 0.850, 8.000]
+    translate: [0.000, -0.375, -36.000]
     material: "moat_water"
 
   - name: "moat_left"
     type: "box"
-    min: [-38, -0.8, -40]
-    max: [-30, 0.05, 32]
+    scale: [8.000, 0.850, 72.000]
+    translate: [-34.000, -0.375, -4.000]
     material: "moat_water"
 
   - name: "moat_right"
     type: "box"
-    min: [30, -0.8, -40]
-    max: [38, 0.05, 32]
+    scale: [8.000, 0.850, 72.000]
+    translate: [34.000, -0.375, -4.000]
     material: "moat_water"
 
   - name: "moat_back"
     type: "box"
-    min: [-38, -0.8, 24]
-    max: [38, 0.05, 32]
+    scale: [76.000, 0.850, 8.000]
+    translate: [0.000, -0.375, 28.000]
     material: "moat_water"
 
   # ============================================================
@@ -126,26 +126,26 @@ entities:
   # ============================================================
   - name: "base_front"
     type: "box"
-    min: [-30, 0, -32]
-    max: [30, 3, -28]
+    scale: [60.000, 3.000, 4.000]
+    translate: [0.000, 1.500, -30.000]
     material: "stone_base"
 
   - name: "base_left"
     type: "box"
-    min: [-30, 0, -32]
-    max: [-26, 3, 24]
+    scale: [4.000, 3.000, 56.000]
+    translate: [-28.000, 1.500, -4.000]
     material: "stone_base"
 
   - name: "base_right"
     type: "box"
-    min: [26, 0, -32]
-    max: [30, 3, 24]
+    scale: [4.000, 3.000, 56.000]
+    translate: [28.000, 1.500, -4.000]
     material: "stone_base"
 
   - name: "base_back"
     type: "box"
-    min: [-30, 0, 20]
-    max: [30, 3, 24]
+    scale: [60.000, 3.000, 4.000]
+    translate: [0.000, 1.500, 22.000]
     material: "stone_base"
 
   # ============================================================
@@ -153,34 +153,34 @@ entities:
   # ============================================================
   - name: "front_wall_left"
     type: "box"
-    min: [-28, 3, -30]
-    max: [-4, 16, -27]
+    scale: [24.000, 13.000, 3.000]
+    translate: [-16.000, 9.500, -28.500]
     material: "brick_main"
 
   - name: "front_wall_right"
     type: "box"
-    min: [4, 3, -30]
-    max: [28, 16, -27]
+    scale: [24.000, 13.000, 3.000]
+    translate: [16.000, 9.500, -28.500]
     material: "brick_main"
 
   # Wall above the gate
   - name: "front_wall_gate_top"
     type: "box"
-    min: [-4, 10, -30]
-    max: [4, 16, -27]
+    scale: [8.000, 6.000, 3.000]
+    translate: [0.000, 13.000, -28.500]
     material: "brick_main"
 
   # Stone band on front wall
   - name: "front_band_1"
     type: "box"
-    min: [-28, 7, -30.1]
-    max: [28, 7.5, -29.9]
+    scale: [56.000, 0.500, 0.200]
+    translate: [0.000, 7.250, -30.000]
     material: "stone_trim"
 
   - name: "front_band_2"
     type: "box"
-    min: [-28, 12, -30.1]
-    max: [28, 12.5, -29.9]
+    scale: [56.000, 0.500, 0.200]
+    translate: [0.000, 12.250, -30.000]
     material: "stone_trim"
 
   # ============================================================
@@ -188,110 +188,110 @@ entities:
   # ============================================================
   - name: "f_merlon_01"
     type: "box"
-    min: [-27.5, 16, -30.2]
-    max: [-26.5, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [-27.000, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_02"
     type: "box"
-    min: [-25, 16, -30.2]
-    max: [-24, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [-24.500, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_03"
     type: "box"
-    min: [-22.5, 16, -30.2]
-    max: [-21.5, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [-22.000, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_04"
     type: "box"
-    min: [-20, 16, -30.2]
-    max: [-19, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [-19.500, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_05"
     type: "box"
-    min: [-17.5, 16, -30.2]
-    max: [-16.5, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [-17.000, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_06"
     type: "box"
-    min: [-15, 16, -30.2]
-    max: [-14, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [-14.500, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_07"
     type: "box"
-    min: [-12.5, 16, -30.2]
-    max: [-11.5, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [-12.000, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_08"
     type: "box"
-    min: [-10, 16, -30.2]
-    max: [-9, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [-9.500, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_09"
     type: "box"
-    min: [-7.5, 16, -30.2]
-    max: [-6.5, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [-7.000, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_10"
     type: "box"
-    min: [6.5, 16, -30.2]
-    max: [7.5, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [7.000, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_11"
     type: "box"
-    min: [9, 16, -30.2]
-    max: [10, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [9.500, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_12"
     type: "box"
-    min: [11.5, 16, -30.2]
-    max: [12.5, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [12.000, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_13"
     type: "box"
-    min: [14, 16, -30.2]
-    max: [15, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [14.500, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_14"
     type: "box"
-    min: [16.5, 16, -30.2]
-    max: [17.5, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [17.000, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_15"
     type: "box"
-    min: [19, 16, -30.2]
-    max: [20, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [19.500, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_16"
     type: "box"
-    min: [21.5, 16, -30.2]
-    max: [22.5, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [22.000, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_17"
     type: "box"
-    min: [24, 16, -30.2]
-    max: [25, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [24.500, 17.000, -28.500]
     material: "brick_main"
 
   - name: "f_merlon_18"
     type: "box"
-    min: [26.5, 16, -30.2]
-    max: [27.5, 18, -26.8]
+    scale: [1.000, 2.000, 3.400]
+    translate: [27.000, 17.000, -28.500]
     material: "brick_main"
 
   # ============================================================
@@ -299,33 +299,33 @@ entities:
   # ============================================================
   - name: "left_wall"
     type: "box"
-    min: [-28, 3, -30]
-    max: [-25, 16, 22]
+    scale: [3.000, 13.000, 52.000]
+    translate: [-26.500, 9.500, -4.000]
     material: "brick_main"
 
   - name: "right_wall"
     type: "box"
-    min: [25, 3, -30]
-    max: [28, 16, 22]
+    scale: [3.000, 13.000, 52.000]
+    translate: [26.500, 9.500, -4.000]
     material: "brick_main"
 
   - name: "back_wall"
     type: "box"
-    min: [-28, 3, 19]
-    max: [28, 16, 22]
+    scale: [56.000, 13.000, 3.000]
+    translate: [0.000, 9.500, 20.500]
     material: "brick_main"
 
   # Side wall stone bands
   - name: "left_band"
     type: "box"
-    min: [-28.1, 7, -30]
-    max: [-24.9, 7.5, 22]
+    scale: [3.200, 0.500, 52.000]
+    translate: [-26.500, 7.250, -4.000]
     material: "stone_trim"
 
   - name: "right_band"
     type: "box"
-    min: [24.9, 7, -30]
-    max: [28.1, 7.5, 22]
+    scale: [3.200, 0.500, 52.000]
+    translate: [26.500, 7.250, -4.000]
     material: "stone_trim"
 
   # ============================================================
@@ -334,207 +334,207 @@ entities:
   # Left wall merlons
   - name: "l_merlon_01"
     type: "box"
-    min: [-28.2, 16, -28]
-    max: [-24.8, 18, -27]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, -27.500]
     material: "brick_main"
 
   - name: "l_merlon_02"
     type: "box"
-    min: [-28.2, 16, -25]
-    max: [-24.8, 18, -24]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, -24.500]
     material: "brick_main"
 
   - name: "l_merlon_03"
     type: "box"
-    min: [-28.2, 16, -22]
-    max: [-24.8, 18, -21]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, -21.500]
     material: "brick_main"
 
   - name: "l_merlon_04"
     type: "box"
-    min: [-28.2, 16, -19]
-    max: [-24.8, 18, -18]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, -18.500]
     material: "brick_main"
 
   - name: "l_merlon_05"
     type: "box"
-    min: [-28.2, 16, -16]
-    max: [-24.8, 18, -15]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, -15.500]
     material: "brick_main"
 
   - name: "l_merlon_06"
     type: "box"
-    min: [-28.2, 16, -13]
-    max: [-24.8, 18, -12]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, -12.500]
     material: "brick_main"
 
   - name: "l_merlon_07"
     type: "box"
-    min: [-28.2, 16, -10]
-    max: [-24.8, 18, -9]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, -9.500]
     material: "brick_main"
 
   - name: "l_merlon_08"
     type: "box"
-    min: [-28.2, 16, -7]
-    max: [-24.8, 18, -6]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, -6.500]
     material: "brick_main"
 
   - name: "l_merlon_09"
     type: "box"
-    min: [-28.2, 16, -4]
-    max: [-24.8, 18, -3]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, -3.500]
     material: "brick_main"
 
   - name: "l_merlon_10"
     type: "box"
-    min: [-28.2, 16, -1]
-    max: [-24.8, 18, 0]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, -0.500]
     material: "brick_main"
 
   - name: "l_merlon_11"
     type: "box"
-    min: [-28.2, 16, 2]
-    max: [-24.8, 18, 3]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, 2.500]
     material: "brick_main"
 
   - name: "l_merlon_12"
     type: "box"
-    min: [-28.2, 16, 5]
-    max: [-24.8, 18, 6]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, 5.500]
     material: "brick_main"
 
   - name: "l_merlon_13"
     type: "box"
-    min: [-28.2, 16, 8]
-    max: [-24.8, 18, 9]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, 8.500]
     material: "brick_main"
 
   - name: "l_merlon_14"
     type: "box"
-    min: [-28.2, 16, 11]
-    max: [-24.8, 18, 12]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, 11.500]
     material: "brick_main"
 
   - name: "l_merlon_15"
     type: "box"
-    min: [-28.2, 16, 14]
-    max: [-24.8, 18, 15]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, 14.500]
     material: "brick_main"
 
   - name: "l_merlon_16"
     type: "box"
-    min: [-28.2, 16, 17]
-    max: [-24.8, 18, 18]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, 17.500]
     material: "brick_main"
 
   - name: "l_merlon_17"
     type: "box"
-    min: [-28.2, 16, 20]
-    max: [-24.8, 18, 21]
+    scale: [3.400, 2.000, 1.000]
+    translate: [-26.500, 17.000, 20.500]
     material: "brick_main"
 
   # Right wall merlons
   - name: "r_merlon_01"
     type: "box"
-    min: [24.8, 16, -28]
-    max: [28.2, 18, -27]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, -27.500]
     material: "brick_main"
 
   - name: "r_merlon_02"
     type: "box"
-    min: [24.8, 16, -25]
-    max: [28.2, 18, -24]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, -24.500]
     material: "brick_main"
 
   - name: "r_merlon_03"
     type: "box"
-    min: [24.8, 16, -22]
-    max: [28.2, 18, -21]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, -21.500]
     material: "brick_main"
 
   - name: "r_merlon_04"
     type: "box"
-    min: [24.8, 16, -19]
-    max: [28.2, 18, -18]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, -18.500]
     material: "brick_main"
 
   - name: "r_merlon_05"
     type: "box"
-    min: [24.8, 16, -16]
-    max: [28.2, 18, -15]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, -15.500]
     material: "brick_main"
 
   - name: "r_merlon_06"
     type: "box"
-    min: [24.8, 16, -13]
-    max: [28.2, 18, -12]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, -12.500]
     material: "brick_main"
 
   - name: "r_merlon_07"
     type: "box"
-    min: [24.8, 16, -10]
-    max: [28.2, 18, -9]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, -9.500]
     material: "brick_main"
 
   - name: "r_merlon_08"
     type: "box"
-    min: [24.8, 16, -7]
-    max: [28.2, 18, -6]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, -6.500]
     material: "brick_main"
 
   - name: "r_merlon_09"
     type: "box"
-    min: [24.8, 16, -4]
-    max: [28.2, 18, -3]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, -3.500]
     material: "brick_main"
 
   - name: "r_merlon_10"
     type: "box"
-    min: [24.8, 16, -1]
-    max: [28.2, 18, 0]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, -0.500]
     material: "brick_main"
 
   - name: "r_merlon_11"
     type: "box"
-    min: [24.8, 16, 2]
-    max: [28.2, 18, 3]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, 2.500]
     material: "brick_main"
 
   - name: "r_merlon_12"
     type: "box"
-    min: [24.8, 16, 5]
-    max: [28.2, 18, 6]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, 5.500]
     material: "brick_main"
 
   - name: "r_merlon_13"
     type: "box"
-    min: [24.8, 16, 8]
-    max: [28.2, 18, 9]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, 8.500]
     material: "brick_main"
 
   - name: "r_merlon_14"
     type: "box"
-    min: [24.8, 16, 11]
-    max: [28.2, 18, 12]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, 11.500]
     material: "brick_main"
 
   - name: "r_merlon_15"
     type: "box"
-    min: [24.8, 16, 14]
-    max: [28.2, 18, 15]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, 14.500]
     material: "brick_main"
 
   - name: "r_merlon_16"
     type: "box"
-    min: [24.8, 16, 17]
-    max: [28.2, 18, 18]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, 17.500]
     material: "brick_main"
 
   - name: "r_merlon_17"
     type: "box"
-    min: [24.8, 16, 20]
-    max: [28.2, 18, 21]
+    scale: [3.400, 2.000, 1.000]
+    translate: [26.500, 17.000, 20.500]
     material: "brick_main"
 
   # ============================================================
@@ -543,40 +543,40 @@ entities:
   # Tower base
   - name: "filarete_base"
     type: "box"
-    min: [-6, 3, -33]
-    max: [6, 6, -25]
+    scale: [12.000, 3.000, 8.000]
+    translate: [0.000, 4.500, -29.000]
     material: "stone_base"
 
   # Tower main shaft
   - name: "filarete_shaft"
     type: "box"
-    min: [-5, 6, -32]
-    max: [5, 28, -26]
+    scale: [10.000, 22.000, 6.000]
+    translate: [0.000, 17.000, -29.000]
     material: "brick_tower"
 
   # Tower stone bands
   - name: "filarete_band_1"
     type: "box"
-    min: [-5.2, 10, -32.1]
-    max: [5.2, 10.4, -25.9]
+    scale: [10.400, 0.400, 6.200]
+    translate: [0.000, 10.200, -29.000]
     material: "stone_trim"
 
   - name: "filarete_band_2"
     type: "box"
-    min: [-5.2, 15, -32.1]
-    max: [5.2, 15.4, -25.9]
+    scale: [10.400, 0.400, 6.200]
+    translate: [0.000, 15.200, -29.000]
     material: "stone_trim"
 
   - name: "filarete_band_3"
     type: "box"
-    min: [-5.2, 20, -32.1]
-    max: [5.2, 20.4, -25.9]
+    scale: [10.400, 0.400, 6.200]
+    translate: [0.000, 20.200, -29.000]
     material: "stone_trim"
 
   - name: "filarete_band_4"
     type: "box"
-    min: [-5.2, 25, -32.1]
-    max: [5.2, 25.4, -25.9]
+    scale: [10.400, 0.400, 6.200]
+    translate: [0.000, 25.200, -29.000]
     material: "stone_trim"
 
   # Tower clock face
@@ -597,8 +597,8 @@ entities:
   # Tower upper gallery (loggia)
   - name: "filarete_gallery_base"
     type: "box"
-    min: [-5.5, 25, -32.5]
-    max: [5.5, 26, -25.5]
+    scale: [11.000, 1.000, 7.000]
+    translate: [0.000, 25.500, -29.000]
     material: "stone_trim"
 
   # Gallery columns (front)
@@ -640,70 +640,70 @@ entities:
   # Gallery top
   - name: "filarete_gallery_top"
     type: "box"
-    min: [-5.5, 29, -32.5]
-    max: [5.5, 30, -25.5]
+    scale: [11.000, 1.000, 7.000]
+    translate: [0.000, 29.500, -29.000]
     material: "stone_trim"
 
   # Tower crown crenellations
   - name: "ft_merlon_1"
     type: "box"
-    min: [-5.0, 30, -32.6]
-    max: [-4.0, 32, -25.4]
+    scale: [1.000, 2.000, 7.200]
+    translate: [-4.500, 31.000, -29.000]
     material: "brick_tower"
 
   - name: "ft_merlon_2"
     type: "box"
-    min: [-3.0, 30, -32.6]
-    max: [-2.0, 32, -25.4]
+    scale: [1.000, 2.000, 7.200]
+    translate: [-2.500, 31.000, -29.000]
     material: "brick_tower"
 
   - name: "ft_merlon_3"
     type: "box"
-    min: [-1.0, 30, -32.6]
-    max: [0, 32, -25.4]
+    scale: [1.000, 2.000, 7.200]
+    translate: [-0.500, 31.000, -29.000]
     material: "brick_tower"
 
   - name: "ft_merlon_4"
     type: "box"
-    min: [1.0, 30, -32.6]
-    max: [2.0, 32, -25.4]
+    scale: [1.000, 2.000, 7.200]
+    translate: [1.500, 31.000, -29.000]
     material: "brick_tower"
 
   - name: "ft_merlon_5"
     type: "box"
-    min: [3.0, 30, -32.6]
-    max: [4.0, 32, -25.4]
+    scale: [1.000, 2.000, 7.200]
+    translate: [3.500, 31.000, -29.000]
     material: "brick_tower"
 
   # Tower pointed roof
   - name: "filarete_roof_1"
     type: "box"
-    min: [-4, 32, -31]
-    max: [4, 35, -27]
+    scale: [8.000, 3.000, 4.000]
+    translate: [0.000, 33.500, -29.000]
     material: "roof_tile"
 
   - name: "filarete_roof_2"
     type: "box"
-    min: [-3, 35, -30.5]
-    max: [3, 37, -27.5]
+    scale: [6.000, 2.000, 3.000]
+    translate: [0.000, 36.000, -29.000]
     material: "roof_tile"
 
   - name: "filarete_roof_3"
     type: "box"
-    min: [-2, 37, -30]
-    max: [2, 39, -28]
+    scale: [4.000, 2.000, 2.000]
+    translate: [0.000, 38.000, -29.000]
     material: "roof_tile"
 
   - name: "filarete_roof_4"
     type: "box"
-    min: [-1, 39, -29.5]
-    max: [1, 41, -28.5]
+    scale: [2.000, 2.000, 1.000]
+    translate: [0.000, 40.000, -29.000]
     material: "roof_tile"
 
   - name: "filarete_roof_5"
     type: "box"
-    min: [-0.4, 41, -29.3]
-    max: [0.4, 43, -28.7]
+    scale: [0.800, 2.000, 0.600]
+    translate: [0.000, 42.000, -29.000]
     material: "roof_tile"
 
   # Spire
@@ -724,34 +724,34 @@ entities:
   # Gate opening (dark recess)
   - name: "gate_recess"
     type: "box"
-    min: [-3, 3, -30.5]
-    max: [3, 10, -27]
+    scale: [6.000, 7.000, 3.500]
+    translate: [0.000, 6.500, -28.750]
     material: "dark_wood"
 
   # Gate arch stone frame
   - name: "gate_arch_left"
     type: "box"
-    min: [-3.5, 3, -30.6]
-    max: [-3, 10, -26.9]
+    scale: [0.500, 7.000, 3.700]
+    translate: [-3.250, 6.500, -28.750]
     material: "stone_trim"
 
   - name: "gate_arch_right"
     type: "box"
-    min: [3, 3, -30.6]
-    max: [3.5, 10, -26.9]
+    scale: [0.500, 7.000, 3.700]
+    translate: [3.250, 6.500, -28.750]
     material: "stone_trim"
 
   - name: "gate_arch_top"
     type: "box"
-    min: [-3.5, 9.5, -30.6]
-    max: [3.5, 10.5, -26.9]
+    scale: [7.000, 1.000, 3.700]
+    translate: [0.000, 10.000, -28.750]
     material: "stone_trim"
 
   # Gate arch keystone
   - name: "gate_keystone"
     type: "box"
-    min: [-0.5, 10, -30.7]
-    max: [0.5, 11, -26.8]
+    scale: [1.000, 1.000, 3.900]
+    translate: [0.000, 10.500, -28.750]
     material: "marble_white"
 
   # ============================================================
@@ -907,112 +907,112 @@ entities:
   # Left section windows
   - name: "fw_win_l1"
     type: "box"
-    min: [-22, 8.5, -30.2]
-    max: [-20, 11.5, -29.8]
+    scale: [2.000, 3.000, 0.400]
+    translate: [-21.000, 10.000, -30.000]
     material: "dark_wood"
 
   - name: "fw_win_l1_frame"
     type: "box"
-    min: [-22.2, 8.3, -30.3]
-    max: [-19.8, 11.7, -30.15]
+    scale: [2.400, 3.400, 0.150]
+    translate: [-21.000, 10.000, -30.225]
     material: "stone_trim"
 
   - name: "fw_win_l2"
     type: "box"
-    min: [-17, 8.5, -30.2]
-    max: [-15, 11.5, -29.8]
+    scale: [2.000, 3.000, 0.400]
+    translate: [-16.000, 10.000, -30.000]
     material: "dark_wood"
 
   - name: "fw_win_l2_frame"
     type: "box"
-    min: [-17.2, 8.3, -30.3]
-    max: [-14.8, 11.7, -30.15]
+    scale: [2.400, 3.400, 0.150]
+    translate: [-16.000, 10.000, -30.225]
     material: "stone_trim"
 
   - name: "fw_win_l3"
     type: "box"
-    min: [-12, 8.5, -30.2]
-    max: [-10, 11.5, -29.8]
+    scale: [2.000, 3.000, 0.400]
+    translate: [-11.000, 10.000, -30.000]
     material: "dark_wood"
 
   - name: "fw_win_l3_frame"
     type: "box"
-    min: [-12.2, 8.3, -30.3]
-    max: [-9.8, 11.7, -30.15]
+    scale: [2.400, 3.400, 0.150]
+    translate: [-11.000, 10.000, -30.225]
     material: "stone_trim"
 
   # Right section windows
   - name: "fw_win_r1"
     type: "box"
-    min: [10, 8.5, -30.2]
-    max: [12, 11.5, -29.8]
+    scale: [2.000, 3.000, 0.400]
+    translate: [11.000, 10.000, -30.000]
     material: "dark_wood"
 
   - name: "fw_win_r1_frame"
     type: "box"
-    min: [9.8, 8.3, -30.3]
-    max: [12.2, 11.7, -30.15]
+    scale: [2.400, 3.400, 0.150]
+    translate: [11.000, 10.000, -30.225]
     material: "stone_trim"
 
   - name: "fw_win_r2"
     type: "box"
-    min: [15, 8.5, -30.2]
-    max: [17, 11.5, -29.8]
+    scale: [2.000, 3.000, 0.400]
+    translate: [16.000, 10.000, -30.000]
     material: "dark_wood"
 
   - name: "fw_win_r2_frame"
     type: "box"
-    min: [14.8, 8.3, -30.3]
-    max: [17.2, 11.7, -30.15]
+    scale: [2.400, 3.400, 0.150]
+    translate: [16.000, 10.000, -30.225]
     material: "stone_trim"
 
   - name: "fw_win_r3"
     type: "box"
-    min: [20, 8.5, -30.2]
-    max: [22, 11.5, -29.8]
+    scale: [2.000, 3.000, 0.400]
+    translate: [21.000, 10.000, -30.000]
     material: "dark_wood"
 
   - name: "fw_win_r3_frame"
     type: "box"
-    min: [19.8, 8.3, -30.3]
-    max: [22.2, 11.7, -30.15]
+    scale: [2.400, 3.400, 0.150]
+    translate: [21.000, 10.000, -30.225]
     material: "stone_trim"
 
   # Upper row small windows
   - name: "fw_uwin_l1"
     type: "box"
-    min: [-22, 13, -30.2]
-    max: [-21, 14.5, -29.8]
+    scale: [1.000, 1.500, 0.400]
+    translate: [-21.500, 13.750, -30.000]
     material: "dark_wood"
 
   - name: "fw_uwin_l2"
     type: "box"
-    min: [-17, 13, -30.2]
-    max: [-16, 14.5, -29.8]
+    scale: [1.000, 1.500, 0.400]
+    translate: [-16.500, 13.750, -30.000]
     material: "dark_wood"
 
   - name: "fw_uwin_l3"
     type: "box"
-    min: [-12, 13, -30.2]
-    max: [-11, 14.5, -29.8]
+    scale: [1.000, 1.500, 0.400]
+    translate: [-11.500, 13.750, -30.000]
     material: "dark_wood"
 
   - name: "fw_uwin_r1"
     type: "box"
-    min: [11, 13, -30.2]
-    max: [12, 14.5, -29.8]
+    scale: [1.000, 1.500, 0.400]
+    translate: [11.500, 13.750, -30.000]
     material: "dark_wood"
 
   - name: "fw_uwin_r2"
     type: "box"
-    min: [16, 13, -30.2]
-    max: [17, 14.5, -29.8]
+    scale: [1.000, 1.500, 0.400]
+    translate: [16.500, 13.750, -30.000]
     material: "dark_wood"
 
   - name: "fw_uwin_r3"
     type: "box"
-    min: [21, 13, -30.2]
-    max: [22, 14.5, -29.8]
+    scale: [1.000, 1.500, 0.400]
+    translate: [21.500, 13.750, -30.000]
     material: "dark_wood"
 
   # ============================================================
@@ -1020,26 +1020,26 @@ entities:
   # ============================================================
   - name: "ft_win_1"
     type: "box"
-    min: [-1.5, 11, -32.2]
-    max: [1.5, 14, -31.8]
+    scale: [3.000, 3.000, 0.400]
+    translate: [0.000, 12.500, -32.000]
     material: "dark_wood"
 
   - name: "ft_win_1_frame"
     type: "box"
-    min: [-1.7, 10.8, -32.3]
-    max: [1.7, 14.2, -32.1]
+    scale: [3.400, 3.400, 0.200]
+    translate: [0.000, 12.500, -32.200]
     material: "stone_trim"
 
   - name: "ft_win_2"
     type: "box"
-    min: [-1.5, 16, -32.2]
-    max: [1.5, 19, -31.8]
+    scale: [3.000, 3.000, 0.400]
+    translate: [0.000, 17.500, -32.000]
     material: "dark_wood"
 
   - name: "ft_win_2_frame"
     type: "box"
-    min: [-1.7, 15.8, -32.3]
-    max: [1.7, 19.2, -32.1]
+    scale: [3.400, 3.400, 0.200]
+    translate: [0.000, 17.500, -32.200]
     material: "stone_trim"
 
   # ============================================================
@@ -1047,8 +1047,8 @@ entities:
   # ============================================================
   - name: "courtyard_floor"
     type: "box"
-    min: [-25, 0.01, -27]
-    max: [25, 0.1, 19]
+    scale: [50.000, 0.090, 46.000]
+    translate: [0.000, 0.055, -4.000]
     material: "cobblestone"
 
   # ============================================================
@@ -1056,8 +1056,8 @@ entities:
   # ============================================================
   - name: "coat_of_arms_bg"
     type: "box"
-    min: [-1.8, 11.5, -30.65]
-    max: [1.8, 15, -30.55]
+    scale: [3.600, 3.500, 0.100]
+    translate: [0.000, 13.250, -30.600]
     material: "marble_white"
 
   - name: "coat_of_arms_shield"
@@ -1071,20 +1071,20 @@ entities:
   # ============================================================
   - name: "bridge_deck"
     type: "box"
-    min: [-4, 2.5, -40]
-    max: [4, 3.5, -30]
+    scale: [8.000, 1.000, 10.000]
+    translate: [0.000, 3.000, -35.000]
     material: "stone_base"
 
   - name: "bridge_left_wall"
     type: "box"
-    min: [-4, 3.5, -40]
-    max: [-3.5, 5, -30]
+    scale: [0.500, 1.500, 10.000]
+    translate: [-3.750, 4.250, -35.000]
     material: "stone_base"
 
   - name: "bridge_right_wall"
     type: "box"
-    min: [3.5, 3.5, -40]
-    max: [4, 5, -30]
+    scale: [0.500, 1.500, 10.000]
+    translate: [3.750, 4.250, -35.000]
     material: "stone_base"
 
   # Bridge support pillars
@@ -1114,8 +1114,8 @@ entities:
 
   - name: "flag_banner"
     type: "box"
-    min: [0.06, 47.5, -29.3]
-    max: [2.5, 49, -28.7]
+    scale: [2.440, 1.500, 0.600]
+    translate: [1.280, 48.250, -29.000]
     material: "flag_red"
 
   # ============================================================
@@ -1180,8 +1180,8 @@ entities:
   # Portico architrave
   - name: "court_architrave_left"
     type: "box"
-    min: [-23, 6.1, -25]
-    max: [-21, 6.6, 5]
+    scale: [2.000, 0.500, 30.000]
+    translate: [-22.000, 6.350, -10.000]
     material: "stone_trim"
 
   # ============================================================
