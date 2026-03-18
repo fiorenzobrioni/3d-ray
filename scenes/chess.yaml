@@ -113,7 +113,7 @@ materials:
     fuzz: 0.0
     texture:
       type: "checker"
-      scale: 1.0
+      scale: 0.125
       colors: [[0.95, 0.95, 0.95], [0.05, 0.05, 0.05]]
 
     # --- VARIANTE: MARMO CLASSICO (Carrara & Marquina) ---
@@ -121,7 +121,7 @@ materials:
     # fuzz: 0.02
     # texture:
     #   type: "checker"
-    #   scale: 1.0
+    #   scale: 0.125
     #   # Ogni "colore" della scacchiera può essere a sua volta una texture (non ancora supportato nestato, usiamo colori solidi approssimati o marble texture esterna)
     #   colors: [[0.9, 0.9, 0.9], [0.1, 0.1, 0.1]]
 
@@ -129,7 +129,7 @@ materials:
     # type: "lambertian"
     # texture:
     #   type: "checker"
-    #   scale: 1.0
+    #   scale: 0.125
     #   colors: [[0.8, 0.7, 0.5], [0.2, 0.1, 0.05]]
 
     # --- VARIANTE: OSSIDIANA (Deep Obsidian) ---
@@ -137,7 +137,7 @@ materials:
     # fuzz: 0.0
     # texture:
     #   type: "checker"
-    #   scale: 1.0
+    #   scale: 0.125
     #   colors: [[0.03, 0.03, 0.05], [0.01, 0.01, 0.02]]
 
   - id: "board_border"
@@ -242,13 +242,13 @@ lights:
 entities:
   - name: "chessboard_main"
     type: "box"
-    min: [-4.0, -0.1, -4.0]
-    max: [4.0, 0.0, 4.0]
+    scale: [8.000, 0.100, 8.000]
+    translate: [0.000, -0.050, 0.000]
     material: "board_checker"
   - name: "border"
     type: "box"
-    min: [-4.2, -0.15, -4.2]
-    max: [4.2, -0.01, 4.2]
+    scale: [8.400, 0.140, 8.400]
+    translate: [0.000, -0.080, 0.000]
     material: "board_border"
   - name: "wp_0_base1"
     type: "cylinder"
@@ -334,23 +334,23 @@ entities:
     material: "piece_white_solid"
   - name: "wr_0_cren1"
     type: "box"
-    min: [-3.780, 1.000, -3.780]
-    max: [-3.620, 1.100, -3.620]
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.700, 1.050, -3.700]
     material: "piece_white_solid"
   - name: "wr_0_cren2"
     type: "box"
-    min: [-3.380, 1.000, -3.780]
-    max: [-3.220, 1.100, -3.620]
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.300, 1.050, -3.700]
     material: "piece_white_solid"
   - name: "wr_0_cren3"
     type: "box"
-    min: [-3.780, 1.000, -3.380]
-    max: [-3.620, 1.100, -3.220]
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.700, 1.050, -3.300]
     material: "piece_white_solid"
   - name: "wr_0_cren4"
     type: "box"
-    min: [-3.380, 1.000, -3.380]
-    max: [-3.220, 1.100, -3.220]
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.300, 1.050, -3.300]
     material: "piece_white_solid"
   - name: "br_0_base1"
     type: "cylinder"
@@ -378,23 +378,23 @@ entities:
     material: "piece_black_solid"
   - name: "br_0_cren1"
     type: "box"
-    min: [-3.780, 1.000, 3.220]
-    max: [-3.620, 1.100, 3.380]
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.700, 1.050, 3.300]
     material: "piece_black_solid"
   - name: "br_0_cren2"
     type: "box"
-    min: [-3.380, 1.000, 3.220]
-    max: [-3.220, 1.100, 3.380]
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.300, 1.050, 3.300]
     material: "piece_black_solid"
   - name: "br_0_cren3"
     type: "box"
-    min: [-3.780, 1.000, 3.620]
-    max: [-3.620, 1.100, 3.780]
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.700, 1.050, 3.700]
     material: "piece_black_solid"
   - name: "br_0_cren4"
     type: "box"
-    min: [-3.380, 1.000, 3.620]
-    max: [-3.220, 1.100, 3.780]
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.300, 1.050, 3.700]
     material: "piece_black_solid"
   - name: "wp_1_base1"
     type: "cylinder"
@@ -484,8 +484,8 @@ entities:
     material: "piece_white_solid"
   - name: "wn_1_snout"
     type: "box"
-    min: [-2.650, 0.750, -3.430]
-    max: [-2.350, 0.950, -3.070]
+    scale: [0.300, 0.200, 0.360]
+    translate: [-2.500, 0.850, -3.250]
     material: "piece_white_solid"
   - name: "wn_1_ear_L"
     type: "sphere"
@@ -527,8 +527,8 @@ entities:
     material: "piece_black_solid"
   - name: "bn_1_snout"
     type: "box"
-    min: [-2.650, 0.750, 3.070]
-    max: [-2.350, 0.950, 3.430]
+    scale: [0.300, 0.200, 0.360]
+    translate: [-2.500, 0.850, 3.250]
     material: "piece_black_solid"
   - name: "bn_1_ear_L"
     type: "sphere"
@@ -949,13 +949,13 @@ entities:
     material: "piece_white_solid"
   - name: "wk_cross_v"
     type: "box"
-    min: [0.470, 1.480, -3.530]
-    max: [0.530, 1.720, -3.470]
+    scale: [0.060, 0.240, 0.060]
+    translate: [0.500, 1.600, -3.500]
     material: "piece_white_solid"
   - name: "wk_cross_h"
     type: "box"
-    min: [0.420, 1.590, -3.530]
-    max: [0.580, 1.650, -3.470]
+    scale: [0.160, 0.060, 0.060]
+    translate: [0.500, 1.620, -3.500]
     material: "piece_white_solid"
   - name: "bk_base"
     type: "cylinder"
@@ -988,13 +988,13 @@ entities:
     material: "piece_black_solid"
   - name: "bk_cross_v"
     type: "box"
-    min: [0.470, 1.480, 3.470]
-    max: [0.530, 1.720, 3.530]
+    scale: [0.060, 0.240, 0.060]
+    translate: [0.500, 1.600, 3.500]
     material: "piece_black_solid"
   - name: "bk_cross_h"
     type: "box"
-    min: [0.420, 1.590, 3.470]
-    max: [0.580, 1.650, 3.530]
+    scale: [0.160, 0.060, 0.060]
+    translate: [0.500, 1.620, 3.500]
     material: "piece_black_solid"
   - name: "wp_5_base1"
     type: "cylinder"
@@ -1208,8 +1208,8 @@ entities:
     material: "piece_white_solid"
   - name: "wn_6_snout"
     type: "box"
-    min: [2.350, 0.750, -3.430]
-    max: [2.650, 0.950, -3.070]
+    scale: [0.300, 0.200, 0.360]
+    translate: [2.500, 0.850, -3.250]
     material: "piece_white_solid"
   - name: "wn_6_ear_L"
     type: "sphere"
@@ -1251,8 +1251,8 @@ entities:
     material: "piece_black_solid"
   - name: "bn_6_snout"
     type: "box"
-    min: [2.350, 0.750, 3.070]
-    max: [2.650, 0.950, 3.430]
+    scale: [0.300, 0.200, 0.360]
+    translate: [2.500, 0.850, 3.250]
     material: "piece_black_solid"
   - name: "bn_6_ear_L"
     type: "sphere"
@@ -1348,23 +1348,23 @@ entities:
     material: "piece_white_solid"
   - name: "wr_7_cren1"
     type: "box"
-    min: [3.220, 1.000, -3.780]
-    max: [3.380, 1.100, -3.620]
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.300, 1.050, -3.700]
     material: "piece_white_solid"
   - name: "wr_7_cren2"
     type: "box"
-    min: [3.620, 1.000, -3.780]
-    max: [3.780, 1.100, -3.620]
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.700, 1.050, -3.700]
     material: "piece_white_solid"
   - name: "wr_7_cren3"
     type: "box"
-    min: [3.220, 1.000, -3.380]
-    max: [3.380, 1.100, -3.220]
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.300, 1.050, -3.300]
     material: "piece_white_solid"
   - name: "wr_7_cren4"
     type: "box"
-    min: [3.620, 1.000, -3.380]
-    max: [3.780, 1.100, -3.220]
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.700, 1.050, -3.300]
     material: "piece_white_solid"
   - name: "br_7_base1"
     type: "cylinder"
@@ -1392,21 +1392,21 @@ entities:
     material: "piece_black_solid"
   - name: "br_7_cren1"
     type: "box"
-    min: [3.220, 1.000, 3.220]
-    max: [3.380, 1.100, 3.380]
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.300, 1.050, 3.300]
     material: "piece_black_solid"
   - name: "br_7_cren2"
     type: "box"
-    min: [3.620, 1.000, 3.220]
-    max: [3.780, 1.100, 3.380]
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.700, 1.050, 3.300]
     material: "piece_black_solid"
   - name: "br_7_cren3"
     type: "box"
-    min: [3.220, 1.000, 3.620]
-    max: [3.380, 1.100, 3.780]
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.300, 1.050, 3.700]
     material: "piece_black_solid"
   - name: "br_7_cren4"
     type: "box"
-    min: [3.620, 1.000, 3.620]
-    max: [3.780, 1.100, 3.780]
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.700, 1.050, 3.700]
     material: "piece_black_solid"

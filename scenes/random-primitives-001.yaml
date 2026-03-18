@@ -1,0 +1,414 @@
+# Procedurally generated scene with all supported primitives
+
+world:
+  ambient_light: [0.05, 0.05, 0.08]
+  background: [0.1, 0.1, 0.2]
+
+camera:
+  position: [15.0, 10.0, -15.0]
+  look_at: [0.0, 2.0, 0.0]
+  fov: 40
+
+materials:
+  - id: "glass"
+    type: "dielectric"
+    refraction_index: 1.5
+
+  - id: "mirror"
+    type: "metal"
+    color: [0.9, 0.9, 0.9]
+    fuzz: 0.0
+
+  - id: "gold"
+    type: "metal"
+    color: [0.85, 0.65, 0.2]
+    fuzz: 0.1
+
+  - id: "matte_red"
+    type: "lambertian"
+    color: [0.8, 0.1, 0.1]
+
+  - id: "matte_blue"
+    type: "lambertian"
+    color: [0.1, 0.1, 0.8]
+
+  - id: "checker_tex"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 1.0
+      colors: [[0.5, 0.5, 0.5], [0.1, 0.1, 0.1]]
+
+  - id: "marbled"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 5.0
+      noise_strength: 10.0
+      colors: [[0.9, 0.9, 0.9], [0.1, 0.1, 0.3]]
+
+  - id: "wooden"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 8.0
+      noise_strength: 3.5
+      colors: [[0.4, 0.25, 0.1], [0.15, 0.08, 0.03]]
+
+  - id: "noisy"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 15.0
+
+lights:
+  - type: "directional"
+    direction: [-1, -1, 1]
+    color: [1, 1, 1]
+    intensity: 0.8
+
+  - type: "point"
+    position: [10, 20, -10]
+    color: [1, 1, 1]
+    intensity: 200
+
+entities:
+  - name: "box_000"
+    type: "box"
+    material: "marbled"
+    translate: [1.978, 4.885, 0.683]
+    scale: [1.299, 2.381, 1.178]
+    rotate: [179.236, 208.391, 175.479]
+
+  - name: "triangle_001"
+    type: "triangle"
+    material: "checker_tex"
+    v0: [2.927, 3.292, 1.744]
+    v1: [4.421, 3.194, 1.796]
+    v2: [3.680, 4.068, 2.617]
+
+  - name: "box_002"
+    type: "box"
+    material: "matte_red"
+    translate: [-3.976, 0.553, -2.846]
+    scale: [0.513, 2.222, 1.281]
+    rotate: [185.051, 12.880, 230.978]
+
+  - name: "quad_003"
+    type: "quad"
+    material: "matte_red"
+    q: [-4.138, 9.062, -3.078]
+    u: [-1.066, 1.074, 0.925]
+    v: [1.497, -0.595, 0.320]
+
+  - name: "box_004"
+    type: "box"
+    material: "marbled"
+    translate: [-2.988, 8.818, -4.758]
+    scale: [1.321, 1.678, 1.546]
+    rotate: [195.916, 10.299, 200.594]
+
+  - name: "cylinder_005"
+    type: "cylinder"
+    material: "marbled"
+    center: [0.601, 3.488, 2.346]
+    radius: 0.312
+    height: 1.769
+
+  - name: "disk_006"
+    type: "disk"
+    material: "matte_red"
+    center: [0.271, 0.525, -2.200]
+    normal: [-0.472, 0.085, -0.844]
+    radius: 0.671
+
+  - name: "infinite_plane_007"
+    type: "infinite_plane"
+    material: "mirror"
+    point: [-0.559, 6.833, 2.316]
+    normal: [0.716, 0.553, -0.002]
+
+  - name: "cylinder_008"
+    type: "cylinder"
+    material: "gold"
+    center: [-2.140, 2.298, 2.710]
+    radius: 0.864
+    height: 1.661
+
+  - name: "cylinder_009"
+    type: "cylinder"
+    material: "matte_blue"
+    center: [2.137, 0.995, 1.535]
+    radius: 1.145
+    height: 1.689
+
+  - name: "quad_010"
+    type: "quad"
+    material: "mirror"
+    q: [-3.420, 5.835, -1.042]
+    u: [-0.008, -0.826, -0.878]
+    v: [-0.367, -0.165, -0.304]
+
+  - name: "disk_011"
+    type: "disk"
+    material: "matte_blue"
+    center: [-1.752, 3.433, -1.115]
+    normal: [0.434, -0.515, -0.031]
+    radius: 0.809
+
+  - name: "quad_012"
+    type: "quad"
+    material: "matte_blue"
+    q: [-4.770, 4.546, -3.902]
+    u: [-1.092, -0.995, -0.972]
+    v: [1.034, 0.105, 1.459]
+
+  - name: "disk_013"
+    type: "disk"
+    material: "glass"
+    center: [4.784, 6.459, 1.230]
+    normal: [-0.988, 0.388, -0.544]
+    radius: 1.490
+
+  - name: "cylinder_014"
+    type: "cylinder"
+    material: "wooden"
+    center: [-3.945, 9.028, 0.364]
+    radius: 0.237
+    height: 1.860
+
+  - name: "sphere_015"
+    type: "sphere"
+    material: "glass"
+    center: [0.574, 7.195, -4.358]
+    radius: 1.678
+
+  - name: "cylinder_016"
+    type: "cylinder"
+    material: "marbled"
+    center: [-2.962, 9.491, 4.783]
+    radius: 0.996
+    height: 2.970
+
+  - name: "infinite_plane_017"
+    type: "infinite_plane"
+    material: "matte_red"
+    point: [3.870, 6.957, 0.539]
+    normal: [0.224, -0.199, -0.052]
+
+  - name: "infinite_plane_018"
+    type: "infinite_plane"
+    material: "glass"
+    point: [-2.852, 2.417, -3.192]
+    normal: [-0.411, -0.491, 0.100]
+
+  - name: "triangle_019"
+    type: "triangle"
+    material: "checker_tex"
+    v0: [-0.716, 2.507, -1.393]
+    v1: [-1.448, 3.409, 0.030]
+    v2: [-1.228, 2.279, -0.868]
+
+  - name: "quad_020"
+    type: "quad"
+    material: "marbled"
+    q: [-4.796, 7.003, -2.783]
+    u: [1.172, 0.739, -1.460]
+    v: [1.428, -0.222, 0.374]
+
+  - name: "box_021"
+    type: "box"
+    material: "glass"
+    translate: [-1.327, 4.425, 4.894]
+    scale: [1.817, 2.064, 1.993]
+    rotate: [330.247, 320.970, 344.463]
+
+  - name: "infinite_plane_022"
+    type: "infinite_plane"
+    material: "matte_red"
+    point: [-4.495, 8.209, -1.216]
+    normal: [0.316, -0.038, -0.897]
+
+  - name: "quad_023"
+    type: "quad"
+    material: "matte_red"
+    q: [-2.793, 1.349, 0.054]
+    u: [0.116, -0.892, -0.901]
+    v: [-0.503, 0.827, 1.147]
+
+  - name: "quad_024"
+    type: "quad"
+    material: "glass"
+    q: [4.573, 6.631, -1.551]
+    u: [1.190, -0.064, -0.248]
+    v: [-0.322, 0.112, -1.087]
+
+  - name: "quad_025"
+    type: "quad"
+    material: "gold"
+    q: [-4.802, 8.082, -2.217]
+    u: [-0.004, 0.394, 1.207]
+    v: [-1.467, 0.845, 1.415]
+
+  - name: "triangle_026"
+    type: "triangle"
+    material: "mirror"
+    v0: [-3.803, 8.223, -2.527]
+    v1: [-2.653, 7.263, -2.999]
+    v2: [-5.155, 7.893, -1.199]
+
+  - name: "triangle_027"
+    type: "triangle"
+    material: "marbled"
+    v0: [3.367, 3.678, 0.974]
+    v1: [2.610, 4.468, -0.081]
+    v2: [2.992, 2.495, 1.411]
+
+  - name: "cylinder_028"
+    type: "cylinder"
+    material: "glass"
+    center: [-2.391, 2.375, -3.483]
+    radius: 1.185
+    height: 2.388
+
+  - name: "quad_029"
+    type: "quad"
+    material: "glass"
+    q: [2.769, 8.078, -1.770]
+    u: [0.849, 0.638, -1.296]
+    v: [-0.728, -1.348, -1.177]
+
+  - name: "box_030"
+    type: "box"
+    material: "checker_tex"
+    translate: [-0.436, 0.424, 4.166]
+    scale: [0.749, 0.600, 0.604]
+    rotate: [260.374, 122.722, 207.484]
+
+  - name: "cylinder_031"
+    type: "cylinder"
+    material: "matte_blue"
+    center: [-4.619, 5.839, -1.563]
+    radius: 0.718
+    height: 1.896
+
+  - name: "box_032"
+    type: "box"
+    material: "matte_blue"
+    translate: [2.488, 0.231, 3.956]
+    scale: [0.742, 0.602, 1.012]
+    rotate: [111.630, 76.762, 202.548]
+
+  - name: "disk_033"
+    type: "disk"
+    material: "wooden"
+    center: [-1.445, 4.989, -2.339]
+    normal: [0.021, 0.445, 0.790]
+    radius: 1.519
+
+  - name: "infinite_plane_034"
+    type: "infinite_plane"
+    material: "matte_red"
+    point: [3.791, 0.087, -0.405]
+    normal: [-0.383, 0.184, -0.670]
+
+  - name: "sphere_035"
+    type: "sphere"
+    material: "checker_tex"
+    center: [1.593, 0.040, -1.771]
+    radius: 1.673
+
+  - name: "box_036"
+    type: "box"
+    material: "wooden"
+    translate: [2.694, 3.008, -0.200]
+    scale: [1.849, 0.671, 0.782]
+    rotate: [17.085, 161.693, 279.009]
+
+  - name: "infinite_plane_037"
+    type: "infinite_plane"
+    material: "marbled"
+    point: [0.140, 0.393, -0.373]
+    normal: [-0.163, -0.288, -0.839]
+
+  - name: "cylinder_038"
+    type: "cylinder"
+    material: "glass"
+    center: [0.301, 3.949, -4.285]
+    radius: 1.044
+    height: 1.630
+
+  - name: "box_039"
+    type: "box"
+    material: "mirror"
+    translate: [-2.553, 2.870, 2.238]
+    scale: [0.774, 0.639, 1.258]
+    rotate: [72.909, 44.724, 272.149]
+
+  - name: "box_040"
+    type: "box"
+    material: "marbled"
+    translate: [2.417, 7.303, -3.736]
+    scale: [1.180, 1.611, 1.833]
+    rotate: [276.112, 219.437, 211.204]
+
+  - name: "box_041"
+    type: "box"
+    material: "matte_blue"
+    translate: [1.408, 6.163, 1.734]
+    scale: [0.573, 1.005, 1.654]
+    rotate: [141.489, 274.661, 212.610]
+
+  - name: "disk_042"
+    type: "disk"
+    material: "marbled"
+    center: [4.442, 3.020, 4.441]
+    normal: [0.120, 0.362, 0.883]
+    radius: 0.533
+
+  - name: "sphere_043"
+    type: "sphere"
+    material: "gold"
+    center: [2.831, 2.648, -1.424]
+    radius: 0.284
+
+  - name: "sphere_044"
+    type: "sphere"
+    material: "gold"
+    center: [-1.681, 1.633, 0.080]
+    radius: 1.200
+
+  - name: "box_045"
+    type: "box"
+    material: "glass"
+    translate: [-1.224, 4.410, -0.548]
+    scale: [0.805, 2.106, 1.407]
+    rotate: [309.004, 280.801, 272.341]
+
+  - name: "disk_046"
+    type: "disk"
+    material: "mirror"
+    center: [3.991, 2.777, 1.507]
+    normal: [0.505, 0.647, -0.574]
+    radius: 0.562
+
+  - name: "infinite_plane_047"
+    type: "infinite_plane"
+    material: "checker_tex"
+    point: [-0.647, 5.290, 2.547]
+    normal: [0.327, -0.789, -0.078]
+
+  - name: "box_048"
+    type: "box"
+    material: "gold"
+    translate: [3.993, 7.803, 0.107]
+    scale: [2.204, 1.170, 1.502]
+    rotate: [176.286, 124.023, 220.685]
+
+  - name: "disk_049"
+    type: "disk"
+    material: "marbled"
+    center: [-1.652, 9.063, -0.082]
+    normal: [0.010, 0.866, -0.677]
+    radius: 0.611
+
