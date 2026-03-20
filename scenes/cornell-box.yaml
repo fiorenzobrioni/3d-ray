@@ -1,49 +1,65 @@
 # =============================================================================
-#  CORNELL BOX — Riproduzione Classica Fedele
+#  CORNELL BOX — Riproduzione Classica Fedele (Revisionata)
 #  Benchmark universale per la validazione dei motori di Global Illumination
 # =============================================================================
 #
 #  La Cornell Box fu sviluppata nel 1984 da Cindy Goral, Kenneth Torrance,
 #  Donald Greenberg e Bennett Battaile all'Università Cornell come scena
 #  di riferimento per misurare e confrontare algoritmi di radiosity e
-#  global illumination. È il benchmark più riconosciuto nella storia della
-#  computer grafica.
+#  global illumination.
 #
-#  Caratteristiche distintive della scena:
-#    ● Parete SINISTRA rossa  → color bleeding rosso sul pavimento e blocco sx
-#    ● Parete DESTRA verde    → color bleeding verde sul pavimento e blocco dx
-#    ● Soffitto BIANCO con pannello luminoso centrale
-#    ● Due blocchi bianchi con rotazioni canoniche (17° e -15°)
-#    ● Luce indiretta: la firma visiva è la luce rimbalzata colorata
+#  RIFERIMENTO ORIGINALE — dati dal Cornell Program of Computer Graphics:
+#    http://www.graphics.cornell.edu/online/box/data.html
 #
-#  DIMENSIONI SCENA (fedeli all'originale scalato a unità metriche):
-#    Scatola: 2.00 × 2.00 × 2.00 unità
+#  Scatola originale:  556 × 548.8 × 559.2 mm
+#  Normalizzata qui a: 2.00 × 1.97 × 2.01 unità  (fattore ≈ 1/278)
+#  Per semplicità, arrotondato a 2.00 × 2.00 × 2.00 con Y in [0, 2].
+#
+#  Pannello luminoso originale: 343 × 332 mm → 1.23 × 1.19u normalizzato
+#  Arrotondato a: 0.66 × 0.66 unità (≈ 33% della larghezza della scatola)
+#  Posizionato al centro del soffitto, rientrato di 1mm (Y = 1.99).
+#
+#  Blocco corto originale:  165 × 165 × 330 mm → 0.59 × 0.59 × 1.19u
+#  Arrotondato a: 0.60 × 0.60 × 0.60  (cubo)
+#  Rotazione: ≈ +17° attorno a Y
+#
+#  Blocco alto originale:   165 × 165 × 660 mm → 0.59 × 0.59 × 2.37u
+#  NOTA: nella normalizzazione 2×2×2 il blocco alto è circa il doppio
+#  del corto → 0.60 × 1.20 × 0.60
+#  Rotazione: ≈ -15° attorno a Y (specchio asimmetrico del corto)
+#
+#  Colori misurati fotometricamente (riflettanza spettrale → sRGB lineare):
+#    Bianco:  ≈ 0.73          (energy-safe per rimbalzi multipli)
+#    Rosso:   ≈ (0.65, 0.05, 0.05)
+#    Verde:   ≈ (0.12, 0.45, 0.15)
+#
+#  Coordinate:
 #    X : [-1.00 → +1.00]   ←  parete rossa  |  parete verde  →
 #    Y : [ 0.00 → +2.00]   ↑  pavimento     |  soffitto      ↑
 #    Z : [ 0.00 → +2.00]      apertura       |  parete fondo
 #    Camera: Z negativo (davanti all'apertura), guarda verso +Z
 #
 #  ┌──────────────────────────────────────────────────────────────────────┐
-#  │  COMANDI DI RENDER CONSIGLIATI                                       │
-#  │                                                                      │
-#  │  ⚠ IMPORTANTE: usa sempre -d ≥ 20 per la corretta GI a rimbalzi    │
-#  │    multipli. Con -d basso le zone in ombra risultano nere artificiali│
-#  │                                                                      │
-#  │  PREVIEW  (< 5 s):                                                   │
-#  │    dotnet run ... -- -i cornell_box.yaml -s 4 -d 12                  │
-#  │                       --width 512 --height 512                       │
-#  │                                                                      │
-#  │  DRAFT  (30–90 s):                                                   │
-#  │    dotnet run ... -- -i cornell_box.yaml -s 64 -d 30                 │
-#  │                       --width 512 --height 512                       │
-#  │                                                                      │
-#  │  PRODUCTION  (qualità finale):                                       │
-#  │    dotnet run ... -- -i cornell_box.yaml -s 256 -d 50                │
-#  │                       --width 1024 --height 1024                     │
-#  │                                                                      │
-#  │  ULTRA  (stampa/portfolio):                                          │
-#  │    dotnet run ... -- -i cornell_box.yaml -s 512 -d 50                │
-#  │                       --width 2048 --height 2048                     │
+#  │  COMANDI DI RENDER CONSIGLIATI                                      │
+#  │                                                                     │
+#  │  ⚠ IMPORTANTE: usa sempre -d ≥ 20 per la corretta GI a rimbalzi   │
+#  │    multipli. Con -d basso le zone in ombra sono nero puro.          │
+#  │                                                                     │
+#  │  PREVIEW  (< 5 s):                                                  │
+#  │    dotnet run ... -- -i cornell-box.yaml -s 4 -d 12                 │
+#  │                       -w 512 -H 512 -S 4                            │
+#  │                                                                     │
+#  │  DRAFT  (30–90 s):                                                  │
+#  │    dotnet run ... -- -i cornell-box.yaml -s 64 -d 30                │
+#  │                       -w 512 -H 512                                 │
+#  │                                                                     │
+#  │  PRODUCTION  (qualità finale):                                      │
+#  │    dotnet run ... -- -i cornell-box.yaml -s 256 -d 50               │
+#  │                       -w 1024 -H 1024                               │
+#  │                                                                     │
+#  │  ULTRA  (stampa/portfolio):                                         │
+#  │    dotnet run ... -- -i cornell-box.yaml -s 512 -d 50               │
+#  │                       -w 2048 -H 2048                               │
 #  └──────────────────────────────────────────────────────────────────────┘
 #
 #  VARIANTI DISPONIBILI (decommentare nelle sezioni entities/lights/world):
@@ -67,32 +83,26 @@
 #  È la configurazione che esalta il color bleeding rosso/verde.
 # ─────────────────────────────────────────────────────────────────────────────
 world:
-  ambient_light: [0.0, 0.0, 0.0]   # nessuna luce piatta: solo rimbalzi reali
-  background:    [0.0, 0.0, 0.0]   # studio chiuso: i raggi fuggiti non raccolgono nulla
-  # Nessun ground globale: il pavimento è definito come quad nelle entities.
-
+  ambient_light: [0.0, 0.0, 0.0]
+  background:    [0.0, 0.0, 0.0]
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  WORLD ALT-1  Luce ambiente minima (draft-friendly)
 #  Aggiunge una luce di riempimento piattissima per recuperare i dettagli
 #  nelle ombre profonde con basso sample count (preview e draft veloci).
-#  Il color bleeding risulta leggermente meno puro, ma la scena è più leggibile
-#  anche a -s 4 o -s 16.
 # ─────────────────────────────────────────────────────────────────────────────
 # world:
 #   ambient_light: [0.018, 0.018, 0.022]
 #   background:    [0.0, 0.0, 0.0]
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 #  WORLD ALT-2  Vetrata immaginaria (luce diurna)
 #  Il background azzurro simula luce naturale che entra dall'apertura frontale.
-#  Per una versione fotorealistica in stile "interno di giorno".
 #  Ridurre l'intensità delle luci esplicite del 30–40% per compensare.
 # ─────────────────────────────────────────────────────────────────────────────
 # world:
 #   ambient_light: [0.03, 0.04, 0.06]
-#   background:    [0.22, 0.32, 0.55]   # cielo diurno freddo → GI azzurrina
+#   background:    [0.22, 0.32, 0.55]
 
 
 # =============================================================================
@@ -103,29 +113,29 @@ world:
 #  CAMERA ATTIVA ★  Vista Canonica Cornell Box
 #
 #  Replica la fotocamera dell'esperimento originale (1984):
-#    - Asse di simmetria perfettamente centrato (X=0)
-#    - Altezza occhio a Y=1.0 (metà esatta della scatola)
-#    - FOV 39° in verticale (standard del paper originale)
-#    - Apertura zero: tutto a fuoco, nessun DOF
-#    - Inquadra l'intera scatola con un margine minimo
-#
-#  Questa vista enfatizza la simmetria della scena e il color bleeding
-#  simmetrico rosso/verde sui fianchi dei blocchi bianchi.
+#    - Centrata perfettamente (X=0)
+#    - Altezza occhio a Y=1.0 (metà scatola)
+#    - FOV ≈ 39° verticale (dato dal paper)
+#    - Distanza camera → centro = 5.0u
+#    - Apertura zero: tutto a fuoco
 # ─────────────────────────────────────────────────────────────────────────────
 camera:
   position:   [ 0.00,  1.00, -4.00]
-  look_at:    [ 0.00,  1.00,  1.00]   # punta al centro della scatola (Z=1 = metà profondità)
+  look_at:    [ 0.00,  1.00,  1.00]
   vup:        [ 0, 1, 0]
-  fov:        39                       # FOV canonico Cornell Box
-  aperture:   0.0                      # tutto a fuoco: fedele all'originale
-  focal_dist: 5.00                     # distanza camera → centro scatola
-
+  fov:        39
+  aperture:   0.0
+  focal_dist: 5.00
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  CAMERA ALT-1  Vista Angolata 3/4 dall'alto-destra
-#  Più cinematografica: mostra contemporaneamente il soffitto con il pannello
-#  luce, la parete verde a destra e il pavimento con le ombre dei blocchi.
+#
+#  Più cinematografica: mostra contemporaneamente soffitto con pannello luce,
+#  parete verde a destra e pavimento con ombre dei blocchi.
 #  Ideale per valorizzare la differenza di altezza tra i due blocchi.
+#
+#  Distanza camera → look_at:
+#    √((1.80-(-0.05))² + (2.60-0.75)² + (-3.80-1.00)²) ≈ 5.34
 # ─────────────────────────────────────────────────────────────────────────────
 # camera:
 #   position:   [ 1.80,  2.60, -3.80]
@@ -133,52 +143,63 @@ camera:
 #   vup:        [ 0, 1, 0]
 #   fov:        46
 #   aperture:   0.0
-#   focal_dist: 5.30
-
+#   focal_dist: 5.34
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  CAMERA ALT-2  Macro con DOF pronunciato — focus sul blocco corto
-#  Simula un obiettivo 85mm f/1.8 da studio: il blocco corto è perfettamente
-#  nitido, il blocco alto e la parete di fondo sfumano in bokeh.
-#  Esalta la texture della superficie bianca lambertian con il color bleeding.
+#
+#  Simula un obiettivo 85mm f/1.8 da studio: blocco corto nitido,
+#  blocco alto e parete di fondo in bokeh.
+#
+#  Distanza camera → blocco corto (centro):
+#    √((0.10-(-0.30))² + (1.10-0.30)² + (-2.60-0.72)²) ≈ 3.44
 # ─────────────────────────────────────────────────────────────────────────────
 # camera:
 #   position:   [ 0.10,  1.10, -2.60]
-#   look_at:    [-0.30,  0.55,  0.72]   # punta esattamente sul centro del blocco corto
+#   look_at:    [-0.30,  0.55,  0.72]
 #   vup:        [ 0, 1, 0]
 #   fov:        34
-#   aperture:   0.14                     # apertura ampia: bokeh molto pronunciato
-#   focal_dist: 3.40                     # distanza esatta camera → blocco corto
-
+#   aperture:   0.14
+#   focal_dist: 3.44
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  CAMERA ALT-3  Vista Zenitale (Top-Down)
-#  Mostra la pianta della scatola con le due impronte dei blocchi e
-#  il pattern di ombre proiettate sul pavimento.
-#  vup: [0, 0, 1] orienta il "nord" della pianta verso la parete di fondo.
+#
+#  Mostra la pianta della scatola con le due impronte dei blocchi
+#  e il pattern di ombre proiettate sul pavimento.
+#  vup: [0, 0, 1] orienta il "nord" verso la parete di fondo.
+#
+#  Distanza camera → look_at (pavimento):
+#    √(0 + 5.80² + 0) = 5.80
 # ─────────────────────────────────────────────────────────────────────────────
 # camera:
 #   position:   [ 0.00,  5.80,  1.00]
 #   look_at:    [ 0.00,  0.00,  1.00]
-#   vup:        [ 0, 0, 1]             # "su" della pianta = verso la parete di fondo
+#   vup:        [ 0, 0, 1]
 #   fov:        36
 #   aperture:   0.0
 #   focal_dist: 5.80
 
-
 # ─────────────────────────────────────────────────────────────────────────────
-#  CAMERA ALT-4  Dutch Angle cinematografico (~13° di inclinazione)
+#  CAMERA ALT-4  Dutch Angle cinematografico (~13.5° di inclinazione)
+#
 #  Orizzonte inclinato: atmosfera tesa e dinamica.
 #  Ottima con lo schema luci "Neon Bicolore" (ALT-LIGHTS 2)
 #  o con la Variante B (sfera cromata).
+#
+#  Il vup è normalizzato: (0.233, 0.972, 0) → |vup| ≈ 1.0
+#  L'angolo di inclinazione: atan(0.233/0.972) ≈ 13.5°
+#
+#  Distanza camera → look_at:
+#    √((0.90-(-0.10))² + (1.40-0.90)² + (-4.00-1.00)²) ≈ 5.12
 # ─────────────────────────────────────────────────────────────────────────────
 # camera:
 #   position:   [ 0.90,  1.40, -4.00]
 #   look_at:    [-0.10,  0.90,  1.00]
-#   vup:        [ 0.24, 1, 0]         # inclina l'orizzonte di ~13.5°
+#   vup:        [ 0.233, 0.972, 0]
 #   fov:        42
 #   aperture:   0.0
-#   focal_dist: 5.20
+#   focal_dist: 5.12
 
 
 # =============================================================================
@@ -195,61 +216,43 @@ materials:
   #  per risultare naturali nelle riflessioni indirette.
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Bianco opaco calibrato — pavimento, soffitto, parete di fondo, blocchi
-  # Riflettività: 73% (non 100% per evitare rimbalzi infiniti ad alta energia)
   - id: "bianco_cornell"
     type: "lambertian"
     color: [0.73, 0.73, 0.73]
 
-  # Rosso Cornell — parete sinistra
-  # Misurato fotometricamente: rosso dominante, quasi nessun blue/green
   - id: "rosso_cornell"
     type: "lambertian"
     color: [0.65, 0.05, 0.05]
 
-  # Verde Cornell — parete destra
-  # Misurato fotometricamente: verde medio, leggerissima traccia di blue
   - id: "verde_cornell"
     type: "lambertian"
     color: [0.12, 0.45, 0.15]
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  VARIANTI MATERIALI PER I BLOCCHI
-  #  (usare nelle entities, sezione "Varianti")
+  #  VARIANTI MATERIALI
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Cromo specchio — per Variante B (sfera cromata)
-  # La sfera riflette tutta la scena: parete rossa, verde e pannello luce
-  # sono tutti visibili nella riflessione speculare.
   - id: "cromo_specchio"
     type: "metal"
     color: [0.95, 0.95, 0.97]
-    fuzz: 0.0                          # specchio perfetto: fuzz zero
+    fuzz: 0.0
 
-  # Vetro crown ottico — per Variante A (sfera cristallo con caustics)
-  # IOR 1.52 produce caustics eleganti sul pavimento bianco.
   - id: "vetro_crown"
     type: "dielectric"
     refraction_index: 1.52
 
-  # Oro satinato — per Variante C (blocco corto dorato)
-  # fuzz=0.05 → quasi speculare: le pareti rosse e verdi si riflettono
-  # con una tinta aurea calda.
   - id: "oro_satinato"
     type: "metal"
     color: [0.94, 0.76, 0.12]
     fuzz: 0.05
 
-  # Marmo Calacatta bianco — per Variante D (parete di fondo in marmo)
-  # Venature viola/grigio su fondo bianco. randomize_offset: false
-  # per un pattern fisso e simmetrico sulla parete piana.
   - id: "marmo_fondo"
     type: "lambertian"
     texture:
       type: "marble"
       scale: 6.0
       noise_strength: 9.0
-      colors: [[0.94, 0.93, 0.91], [0.16, 0.13, 0.24]]  # bianco / venature viola
+      colors: [[0.94, 0.93, 0.91], [0.16, 0.13, 0.24]]
       randomize_offset: false
       randomize_rotation: false
 
@@ -262,30 +265,20 @@ entities:
   # ===========================================================================
   #  LE CINQUE PARETI DELLA SCATOLA
   #
-  #  La Cornell Box è aperta sul lato frontale (Z=0 → apertura verso la camera).
-  #  Le restanti 5 superfici (pavimento, soffitto, fondo, sx, dx) formano
-  #  la scatola chiusa che intrappola la luce e la fa rimbalzare.
-  #
-  #  Ogni quad è definito con:
-  #    q = angolo di origine (corner in basso-sinistra guardando la superficie)
-  #    u = vettore del primo lato
-  #    v = vettore del secondo lato
+  #  La Cornell Box è aperta sul lato frontale (Z=0 → apertura verso camera).
+  #  Le 5 superfici (pavimento, soffitto, fondo, sx, dx) formano la scatola
+  #  chiusa che intrappola la luce e la fa rimbalzare.
   # ===========================================================================
 
-  # ─── PAVIMENTO (Y = 0.0)  ─────────────────────────────────────────────────
-  #  Bianco. Il color bleeding rosso/verde si deposita qui in modo
-  #  simmetrico: lato sx sfuma in rosso, lato dx sfuma in verde.
+  # ─── PAVIMENTO (Y = 0.0) ──────────────────────────────────────────────────
   - name: "pavimento"
     type: "quad"
     q: [-1.0, 0.0,  0.0]
-    u: [ 2.0, 0.0,  0.0]              # larghezza: da X=-1 a X=+1
-    v: [ 0.0, 0.0,  2.0]              # profondità: da Z=0 a Z=+2
+    u: [ 2.0, 0.0,  0.0]
+    v: [ 0.0, 0.0,  2.0]
     material: "bianco_cornell"
 
-  # ─── SOFFITTO (Y = 2.0)  ──────────────────────────────────────────────────
-  #  Bianco. Al centro c'è il pannello luce (gestito dalle lights, non come
-  #  geometria emissiva). Il soffitto riflette la luce verso il basso
-  #  contribuendo alla GI diffusa.
+  # ─── SOFFITTO (Y = 2.0) ───────────────────────────────────────────────────
   - name: "soffitto"
     type: "quad"
     q: [-1.0, 2.0,  0.0]
@@ -293,10 +286,7 @@ entities:
     v: [ 0.0, 0.0,  2.0]
     material: "bianco_cornell"
 
-  # ─── PARETE DI FONDO (Z = +2.0)  ─────────────────────────────────────────
-  #  Bianco. È la superficie più illuminata direttamente dalla key light.
-  #  Il gradiente di colore rosso/verde sulle sue zone laterali è uno degli
-  #  effetti più spettacolari della Cornell Box.
+  # ─── PARETE DI FONDO (Z = +2.0) ───────────────────────────────────────────
   - name: "parete_fondo"
     type: "quad"
     q: [-1.0, 0.0,  2.0]
@@ -304,19 +294,15 @@ entities:
     v: [ 0.0, 2.0,  0.0]
     material: "bianco_cornell"
 
-  # ─── PARETE SINISTRA — ROSSA (X = -1.0)  ─────────────────────────────────
-  #  Il colore rosso si diffonde come GI su pavimento, blocco corto e
-  #  zona sinistra della parete di fondo. Questo "color bleeding" laterale
-  #  è la firma iconografica della Cornell Box.
+  # ─── PARETE SINISTRA — ROSSA (X = -1.0) ───────────────────────────────────
   - name: "parete_sinistra_rossa"
     type: "quad"
     q: [-1.0, 0.0,  0.0]
-    u: [ 0.0, 0.0,  2.0]              # profondità: da Z=0 a Z=+2
-    v: [ 0.0, 2.0,  0.0]              # altezza: da Y=0 a Y=+2
+    u: [ 0.0, 0.0,  2.0]
+    v: [ 0.0, 2.0,  0.0]
     material: "rosso_cornell"
 
-  # ─── PARETE DESTRA — VERDE (X = +1.0)  ───────────────────────────────────
-  #  Speculare alla sinistra: il verde contamina il lato destro della scena.
+  # ─── PARETE DESTRA — VERDE (X = +1.0) ─────────────────────────────────────
   - name: "parete_destra_verde"
     type: "quad"
     q: [ 1.0, 0.0,  0.0]
@@ -324,96 +310,72 @@ entities:
     v: [ 0.0, 2.0,  0.0]
     material: "verde_cornell"
 
-
   # ===========================================================================
   #  I DUE BLOCCHI BIANCHI — Canonici Cornell Box (1984)
   #
-  #  Proporzioni fedeli al paper originale (normalizzate su box 2×2×2):
-  #    Blocco corto: 0.60 × 0.60 × 0.60  (≈ 30% della larghezza per lato)
-  #    Blocco alto : 0.60 × 1.20 × 0.60  (≈ 60% dell'altezza)
+  #  Proporzioni originali normalizzate su box 2×2×2:
+  #    Blocco corto: 0.60 × 0.60 × 0.60  — cubo
+  #    Blocco alto : 0.60 × 1.20 × 0.60  — parallelepipedo
   #
-  #  Rotazioni canoniche (vedere pianta dall'alto):
-  #    Blocco corto: +17° attorno a Y (angolato verso destra = verso centro)
-  #    Blocco alto : -15° attorno a Y (angolato verso sinistra = verso centro)
+  #  Rotazioni canoniche:
+  #    Blocco corto: +17° attorno a Y
+  #    Blocco alto : -15° attorno a Y
   #
-  #  I due blocchi sono posizionati in modo asimmetrico:
-  #    Corto: zona sinistra-frontale  (X≈-0.30, Z≈0.72)  → vicino alla parete rossa
-  #    Alto : zona destra-posteriore  (X≈+0.33, Z≈1.30)  → vicino alla parete verde
-  #
-  #  Calcolo Y per la base a pavimento (Y=0):
-  #    blocco corto: center_Y = scale_Y/2 = 0.60/2 = 0.30  → base a Y=0 ✓
-  #    blocco alto:  center_Y = scale_Y/2 = 1.20/2 = 0.60  → base a Y=0 ✓
+  #  Posizioni asimmetriche:
+  #    Corto: sx-frontale  (X≈-0.33, Z≈0.66)  → vicino parete rossa
+  #    Alto : dx-posteriore (X≈+0.33, Z≈1.30) → vicino parete verde
   # ===========================================================================
 
   # ─── BLOCCO CORTO (sx, frontale) ──────────────────────────────────────────
-  #  Il color bleeding rosso dalla parete sinistra si deposita sulla faccia
-  #  sinistra di questo blocco. La faccia superiore è quasi bianca pura
-  #  perché riceve luce diretta dal pannello in soffitto.
   - name: "blocco_corto"
     type: "box"
     scale:     [0.60, 0.60, 0.60]
-    rotate:    [0, 17, 0]             # 17° CCW attorno a Y (canonico Cornell)
-    translate: [-0.30, 0.30, 0.72]    # sinistra-frontale, base a Y=0
+    rotate:    [0, 17, 0]
+    translate: [-0.33, 0.30, 0.66]
     material:  "bianco_cornell"
 
   # ─── BLOCCO ALTO (dx, posteriore) ─────────────────────────────────────────
-  #  Il color bleeding verde dalla parete destra si deposita sulla faccia
-  #  destra. La faccia superiore riceve luce diretta ma più debole perché
-  #  l'altezza totale (1.20) si avvicina al soffitto (2.0).
   - name: "blocco_alto"
     type: "box"
     scale:     [0.60, 1.20, 0.60]
-    rotate:    [0, -15, 0]            # -15° CW attorno a Y (canonico Cornell)
-    translate: [ 0.33, 0.60, 1.30]    # destra-posteriore, base a Y=0
+    rotate:    [0, -15, 0]
+    translate: [ 0.33, 0.60, 1.30]
     material:  "bianco_cornell"
-
 
   # ===========================================================================
   #  VARIANTI OPZIONALI — Decommentare per render alternativi
-  #  (ricordare di commentare le entità originali corrispondenti)
   # ===========================================================================
 
-  # ─── VARIANTE A: Sfera di vetro (caustics sul pavimento)  ─────────────────
-  #  Sostituisce il blocco corto con una sfera di cristallo IOR 1.52.
-  #  La luce rifrata crea caustics (macchie di luce concentrata) sul pavimento
-  #  bianco. Richiede -d ≥ 30 e -s ≥ 64 per i caustics visibili.
+  # ─── VARIANTE A: Sfera di vetro (caustics sul pavimento) ──────────────────
+  #  Sostituisce il blocco corto. Richiede -d ≥ 30 e -s ≥ 64.
   #  PRIMA: commentare "blocco_corto" sopra.
   # - name: "sfera_vetro"
   #   type: "sphere"
-  #   center: [-0.30, 0.30, 0.72]     # stessa posizione del blocco corto
+  #   center: [-0.33, 0.30, 0.66]
   #   radius: 0.30
   #   seed: 1111
   #   material: "vetro_crown"
 
-  # ─── VARIANTE B: Sfera cromata specchio  ──────────────────────────────────
-  #  La sfera riflette l'intera scena: entrambe le pareti colorate, il soffitto
-  #  con il pannello luce e il blocco alto sono visibili nella riflessione.
-  #  Effetto "snow globe" della Cornell Box.
+  # ─── VARIANTE B: Sfera cromata specchio ───────────────────────────────────
   #  PRIMA: commentare "blocco_corto" sopra.
   # - name: "sfera_cromo"
   #   type: "sphere"
-  #   center: [-0.30, 0.30, 0.72]
+  #   center: [-0.33, 0.30, 0.66]
   #   radius: 0.30
   #   seed: 2222
   #   material: "cromo_specchio"
 
-  # ─── VARIANTE C: Blocco corto in oro satinato  ────────────────────────────
-  #  Le pareti colorate si riflettono sul blocco dorato con una tinta calda.
-  #  Le sfumature rosse e verdi nelle riflessioni quasi-speculari del metallo
-  #  creano un effetto di grande complessità visiva.
+  # ─── VARIANTE C: Blocco corto in oro satinato ─────────────────────────────
   #  PRIMA: commentare "blocco_corto" sopra.
   # - name: "blocco_corto_oro"
   #   type: "box"
   #   scale:     [0.60, 0.60, 0.60]
   #   rotate:    [0, 17, 0]
-  #   translate: [-0.30, 0.30, 0.72]
+  #   translate: [-0.33, 0.30, 0.66]
   #   seed: 3333
   #   material:  "oro_satinato"
 
-  # ─── VARIANTE D: Parete di fondo in marmo bianco  ─────────────────────────
-  #  Le venature del marmo Calacatta ricevono il color bleeding rosso/verde
-  #  in modo visivamente complesso, creando un interazione interessante
-  #  tra pattern procedurale e GI colorata.
+  # ─── VARIANTE D: Parete di fondo in marmo bianco ──────────────────────────
   #  PRIMA: commentare "parete_fondo" sopra.
   # - name: "parete_fondo_marmo"
   #   type: "quad"
@@ -431,63 +393,82 @@ lights:
   # ─────────────────────────────────────────────────────────────────────────
   #  SCHEMA ATTIVO ★  Pannello Luce da Soffitto (Cornell Box Classico)
   #
-  #  La sorgente originale è un rettangolo luminoso 33×33cm (≈ 0.33×0.33u)
-  #  al centro del soffitto, a Z≈1.00 (metà profondità). Poiché il renderer
-  #  non gestisce geometria emissiva, il pannello è simulato con uno spot
-  #  posizionato a 3cm dal soffitto (Y=1.97), cono abbastanza ampio da
-  #  illuminare uniformemente tutta la scatola.
+  #  La sorgente originale era un rettangolo luminoso al centro del soffitto.
+  #  Dimensioni originali: 343 × 332 mm → normalizzate a ≈ 0.66 × 0.66 unità.
   #
-  #  Un secondo point debolissimo riempie l'angolo posteriore in ombra
-  #  (zona tra blocco alto e parete di fondo) per evitare zone completamente
-  #  nere con basso sample count.
+  #  L'area light è definita da:
+  #    corner = angolo in basso-sinistra del rettangolo
+  #    u = vettore lungo X (larghezza)
+  #    v = vettore lungo Z (profondità)
+  #
+  #  CENTRAMENTO: il pannello è centrato in X e Z nella scatola.
+  #    X: centro = 0.0, metà-larghezza = 0.33 → da -0.33 a +0.33
+  #    Z: centro = 1.0, metà-profondità = 0.33 → da  0.67 a  1.33
+  #    Y: 1.99 (1mm sotto il soffitto a Y=2.0, così non è complanare)
+  #
+  #  Normale risultante: Cross(u, v) = Cross([0.66,0,0], [0,0,0.66])
+  #    = (0, 0, 0) — NO! I vettori devono generare una normale verso -Y.
+  #  Cross([0.66, 0, 0], [0, 0, 0.66]) = (0*0.66 - 0*0, 0*0 - 0.66*0.66, 0.66*0 - 0*0)
+  #    = (0, -0.4356, 0) → normale verso -Y ✓ (il pannello emette verso il basso)
+  #
+  #  Formula illuminazione del motore:
+  #    L = Intensity * area * cos(θ_light) / (distance² * ShadowSamples)
+  #  con area = |Cross(u,v)| = 0.4356 u²
+  #
+  #  Per una scatola 2×2×2, distanza media pannello→pavimento ≈ 2.0u:
+  #    L ≈ Intensity * 0.4356 * cos(0) / (4.0 * 16) ≈ Intensity * 0.0068
+  #  Con Intensity=22 → L ≈ 0.15 per campione — corretto dopo tone mapping.
   #
   #  Calibrazione:
-  #    spot key intensity=12 → esposizione corretta con -s ≥ 64 e -d ≥ 25
-  #    Se la scena risulta sovraesposta, ridurre a 9; se sottoesposta, alzare a 16
+  #    Intensity 22 → esposizione bilanciata con -s ≥ 64, -d ≥ 25
+  #    Se sovraesposta: ridurre a 18. Se sottoesposta: alzare a 28.
   # ─────────────────────────────────────────────────────────────────────────
-
-  # Pannello luce principale zenitale — simula il rettangolo luminoso originale
-  - type: area
-    corner:      [ -0.2, 1.99, 0.2]
-    u:           [0.4, 0.0, 0.4]
-    v:           [0.0, 0.0, 2.0]
-    color:       [1.0, 1.0, 1.0]
-    intensity:   4.0
+  - type: "area"
+    corner:         [-0.33, 1.99,  0.67]
+    u:              [ 0.66, 0.00,  0.00]
+    v:              [ 0.00, 0.00,  0.66]
+    color:          [ 1.00, 0.98,  0.94]    # bianco caldo (≈ 4500K)
+    intensity:      22.0
     shadow_samples: 16
 
   # ─────────────────────────────────────────────────────────────────────────
   #  SCHEMA ALT-1  Luce Laterale da Finestra Sinistra
   #
   #  Una finestra immaginaria nella parete sinistra (rossa).
-  #  Lo spot penetra lateralmente: ombre lunghe e direzionali dei blocchi
-  #  sul pavimento, la parete di fondo riceve luce radente.
-  #  Atmosphera più realistica di un interno di giorno.
+  #  Spot penetra lateralmente: ombre lunghe e direzionali dei blocchi
+  #  sul pavimento. Parete di fondo riceve luce radente.
+  #
+  #  Calibrazione spot: Intensity / distance² al centro della scena.
+  #    Distanza pos→centro ≈ √(0.08+0.0025+0.25) ≈ 0.58
+  #    Att. = 20 / 0.34 ≈ 59, smorzata dal cono: 59 * ~0.4 ≈ 24 — ok.
   #
   #  Richiede world:
   #    ambient_light: [0.02, 0.02, 0.03]
   #    background:    [0.0, 0.0, 0.0]
   # ─────────────────────────────────────────────────────────────────────────
   # - type: "spot"
-  #   position:    [-0.92,  1.65,  0.50]  # vicino alla parete sinistra, in alto
-  #   direction:   [ 0.88, -0.38,  0.28]  # verso l'interno-basso-fondo
-  #   color:       [ 1.00,  0.97,  0.90]  # luce diurna bianco-calda
+  #   position:    [-0.92,  1.65,  0.50]
+  #   direction:   [ 0.88, -0.38,  0.28]
+  #   color:       [ 1.00,  0.97,  0.90]
   #   intensity:   20
   #   inner_angle: 22
-  #   outer_angle: 40
+  #   outer_angle: 45
   # - type: "point"
-  #   position:    [-0.88,  0.70,  1.20]  # riflesso cielo dalla finestra
-  #   color:       [ 0.65,  0.78,  1.00]  # azzurro cielo diffuso
-  #   intensity:   1.8
-
+  #   position:    [-0.88,  0.70,  1.20]
+  #   color:       [ 0.65,  0.78,  1.00]
+  #   intensity:   1.5
 
   # ─────────────────────────────────────────────────────────────────────────
   #  SCHEMA ALT-2  Neon Bicolore — Blu Freddo + Rosso Caldo
   #
-  #  Atmosfera cyberpunk/fashion: spot blu dall'alto + punto neon rosso
-  #  dal basso. Il contrasto di colore estremo crea un effetto molto
-  #  drammatico, soprattutto con Variante B (sfera cromata).
+  #  Atmosfera cyberpunk/fashion: spot blu dall'alto + point rosso dal basso.
+  #  Contrasto cromatico estremo.
+  #  Abbina: Camera ALT-4 (Dutch Angle) per massimo impatto.
   #
-  #  Abbina: Camera ALT-4 (Dutch Angle) per massimo impatto cinematografico.
+  #  Calibrazione:
+  #    Spot blu: Intensity 16, cono ampio (58°) → riempie tutta la scatola
+  #    Point rosso: Intensity 4.0, quasi a pavimento → controfiamma caldo
+  #    Point verde-acqua: Intensity 1.5, accento secondario
   #
   #  Richiede world:
   #    ambient_light: [0.0, 0.0, 0.0]
@@ -496,50 +477,50 @@ lights:
   # - type: "spot"
   #   position:    [ 0.00,  1.97,  1.00]
   #   direction:   [ 0.00, -1.00,  0.00]
-  #   color:       [ 0.40,  0.62,  1.00]  # neon blu freddo
+  #   color:       [ 0.40,  0.62,  1.00]
   #   intensity:   16
   #   inner_angle: 32
   #   outer_angle: 58
   # - type: "point"
-  #   position:    [ 0.00,  0.08,  0.85]  # quasi a livello pavimento, centro scena
-  #   color:       [ 1.00,  0.28,  0.18]  # neon rosso-arancio (controfiamma)
+  #   position:    [ 0.00,  0.08,  0.85]
+  #   color:       [ 1.00,  0.28,  0.18]
   #   intensity:   4.0
   # - type: "point"
-  #   position:    [ 0.00,  0.08,  1.60]  # seconda sorgente posteriore bassa
-  #   color:       [ 0.18,  0.90,  0.55]  # neon verde-acqua
-  #   intensity:   1.8
-
+  #   position:    [ 0.00,  0.08,  1.60]
+  #   color:       [ 0.18,  0.90,  0.55]
+  #   intensity:   1.5
 
   # ─────────────────────────────────────────────────────────────────────────
   #  SCHEMA ALT-3  Galleria Museale — Spotlight Individuale per Oggetto
   #
-  #  Un faretto zenitale dedicato per ogni blocco, puntato esattamente
-  #  sul rispettivo soggetto. Ombre dure, teatrali, atmosfera da galleria.
-  #  La parete di fondo è in penombra, i blocchi emergono dal buio.
+  #  Un faretto zenitale dedicato per ogni blocco.
+  #  Ombre dure, teatrali, atmosfera da galleria.
+  #
+  #  Calibrazione:
+  #    Ciascuno spot Intensity=18, cono stretto (inner 16°, outer 30°)
+  #    Distanza pos→blocco ≈ 1.67 → Att. = 18 / 2.79 ≈ 6.5
+  #    Con il cono: ≈ 6.5 * 0.5 ≈ 3.2 — sufficiente per scena scura.
+  #    Fill debolissimo (0.6) per evitare nero assoluto sulle pareti.
   #
   #  Richiede world:
   #    ambient_light: [0.005, 0.005, 0.006]
   #    background:    [0.0, 0.0, 0.0]
   # ─────────────────────────────────────────────────────────────────────────
-  # # Spotlight sul blocco corto (sinistra)
   # - type: "spot"
-  #   position:    [-0.30,  1.97,  0.72]  # esattamente sopra il blocco corto
+  #   position:    [-0.33,  1.97,  0.66]
   #   direction:   [ 0.00, -1.00,  0.00]
   #   color:       [ 1.00,  0.96,  0.88]
   #   intensity:   18
   #   inner_angle: 16
   #   outer_angle: 30
-  # # Spotlight sul blocco alto (destra)
   # - type: "spot"
-  #   position:    [ 0.33,  1.97,  1.30]  # esattamente sopra il blocco alto
+  #   position:    [ 0.33,  1.97,  1.30]
   #   direction:   [ 0.00, -1.00,  0.00]
   #   color:       [ 1.00,  0.96,  0.88]
   #   intensity:   18
   #   inner_angle: 16
   #   outer_angle: 30
-  # # Fill ambientale zenitale debolissimo
   # - type: "point"
   #   position:    [ 0.00,  1.92,  1.00]
   #   color:       [ 0.80,  0.85,  1.00]
-  #   intensity:   0.9
-  
+  #   intensity:   0.6

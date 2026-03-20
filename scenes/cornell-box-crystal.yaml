@@ -1,0 +1,202 @@
+# =============================================================================
+#  CORNELL BOX — Variante con Sfera di Cristallo
+#  Il blocco corto (sx, frontale) è sostituito da una sfera di vetro crown
+# =============================================================================
+#
+#  Basata sulla Cornell Box classica revisionata. L'unica differenza è:
+#    - Il blocco corto è rimosso
+#    - Al suo posto c'è una sfera di vetro (IOR 1.52, diametro 0.60u)
+#    - La sfera poggia sul pavimento: center_Y = radius = 0.30
+#
+#  La sfera di cristallo produce:
+#    ● Rifrazioni della scena visibili attraverso il vetro
+#    ● Caustics sul pavimento bianco (luce concentrata dalla rifrazione)
+#    ● Riflessione parziale di Fresnel: le pareti rosse e verdi si vedono
+#      sia rifratte (interno) che riflesse (superficie)
+#    ● Il blocco alto bianco è visibile capovolto attraverso la sfera
+#
+#  PARAMETRI DI RENDER CONSIGLIATI (più depth per la sfera di vetro):
+#
+#    PREVIEW:     -s 4   -d 20  -w 512  -H 512  -S 4
+#    DRAFT:       -s 64  -d 40  -w 512  -H 512
+#    PRODUCTION:  -s 256 -d 50  -w 1024 -H 1024
+#    ULTRA:       -s 512 -d 50  -w 2048 -H 2048
+#
+#  ⚠ La sfera dielectric richiede più depth (-d ≥ 30) perché ogni
+#    interazione vetro consuma 2 rimbalzi (ingresso + uscita).
+#    Con -d 12 la sfera appare nera o quasi opaca.
+# =============================================================================
+
+
+# =============================================================================
+#  WORLD
+# =============================================================================
+world:
+  ambient_light: [0.0, 0.0, 0.0]
+  background:    [0.0, 0.0, 0.0]
+
+
+# =============================================================================
+#  CAMERA — Vista Canonica (identica alla classica)
+# =============================================================================
+camera:
+  position:   [ 0.00,  1.00, -4.00]
+  look_at:    [ 0.00,  1.00,  1.00]
+  vup:        [ 0, 1, 0]
+  fov:        39
+  aperture:   0.0
+  focal_dist: 5.00
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CAMERA ALT-1  Macro con DOF — focus sulla sfera
+#
+#  La sfera di cristallo è il soggetto principale. DOF pronunciato:
+#  la sfera è nitida, il blocco alto e le pareti sfumano in bokeh.
+#  L'effetto è particolarmente bello perché il bokeh mostra il color
+#  bleeding rosso/verde in modo morbido e pittorico.
+#
+#  Distanza camera → centro sfera:
+#    √((0.10-(-0.33))² + (0.90-0.30)² + (-2.40-0.66)²) ≈ 3.20
+# ─────────────────────────────────────────────────────────────────────────────
+# camera:
+#   position:   [ 0.10,  0.90, -2.40]
+#   look_at:    [-0.33,  0.30,  0.66]
+#   vup:        [ 0, 1, 0]
+#   fov:        36
+#   aperture:   0.12
+#   focal_dist: 3.20
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CAMERA ALT-2  Angolazione bassa — vista "a livello pavimento"
+#
+#  Camera quasi a livello del pavimento, guarda la sfera dal basso.
+#  Enfatizza le caustics sul pavimento e la dimensione imponente
+#  del blocco alto sullo sfondo.
+#
+#  Distanza camera → centro sfera:
+#    √((0.40-(-0.33))² + (0.20-0.30)² + (-2.80-0.66)²) ≈ 3.54
+# ─────────────────────────────────────────────────────────────────────────────
+# camera:
+#   position:   [ 0.40,  0.20, -2.80]
+#   look_at:    [-0.20,  0.40,  0.80]
+#   vup:        [ 0, 1, 0]
+#   fov:        44
+#   aperture:   0.0
+#   focal_dist: 3.54
+
+
+# =============================================================================
+#  MATERIALS
+# =============================================================================
+materials:
+
+  # ── Superfici classiche Cornell (identiche alla classica) ──────────────────
+  - id: "bianco_cornell"
+    type: "lambertian"
+    color: [0.73, 0.73, 0.73]
+
+  - id: "rosso_cornell"
+    type: "lambertian"
+    color: [0.65, 0.05, 0.05]
+
+  - id: "verde_cornell"
+    type: "lambertian"
+    color: [0.12, 0.45, 0.15]
+
+  # ── Vetro Crown ottico — la sfera di cristallo ────────────────────────────
+  #  IOR 1.52 (vetro crown standard / BK7).
+  #  Produce caustics eleganti e rifrazioni con la corretta dispersione
+  #  di Fresnel. La sfera appare quasi trasparente frontalmente e
+  #  progressivamente più riflettente ai bordi (angoli radenti).
+  - id: "vetro_crown"
+    type: "dielectric"
+    refraction_index: 1.52
+
+
+# =============================================================================
+#  ENTITIES
+# =============================================================================
+entities:
+
+  # ── Le cinque pareti della scatola (identiche alla classica) ───────────────
+
+  - name: "pavimento"
+    type: "quad"
+    q: [-1.0, 0.0,  0.0]
+    u: [ 2.0, 0.0,  0.0]
+    v: [ 0.0, 0.0,  2.0]
+    material: "bianco_cornell"
+
+  - name: "soffitto"
+    type: "quad"
+    q: [-1.0, 2.0,  0.0]
+    u: [ 2.0, 0.0,  0.0]
+    v: [ 0.0, 0.0,  2.0]
+    material: "bianco_cornell"
+
+  - name: "parete_fondo"
+    type: "quad"
+    q: [-1.0, 0.0,  2.0]
+    u: [ 2.0, 0.0,  0.0]
+    v: [ 0.0, 2.0,  0.0]
+    material: "bianco_cornell"
+
+  - name: "parete_sinistra_rossa"
+    type: "quad"
+    q: [-1.0, 0.0,  0.0]
+    u: [ 0.0, 0.0,  2.0]
+    v: [ 0.0, 2.0,  0.0]
+    material: "rosso_cornell"
+
+  - name: "parete_destra_verde"
+    type: "quad"
+    q: [ 1.0, 0.0,  0.0]
+    u: [ 0.0, 0.0,  2.0]
+    v: [ 0.0, 2.0,  0.0]
+    material: "verde_cornell"
+
+  # ── SFERA DI CRISTALLO (al posto del blocco corto) ────────────────────────
+  #
+  #  La sfera ha lo stesso raggio del mezzo-lato del blocco originale (0.30u)
+  #  ed è nella stessa posizione: zona sinistra-frontale.
+  #  center_Y = radius = 0.30 → la sfera poggia esattamente sul pavimento.
+  #
+  #  Seed fisso per risultati riproducibili (il dielectric non usa texture
+  #  procedurali, ma il seed è comunque buona pratica).
+  - name: "sfera_cristallo"
+    type: "sphere"
+    center: [-0.33, 0.30, 0.66]
+    radius: 0.30
+    seed: 1111
+    material: "vetro_crown"
+
+  # ── BLOCCO ALTO (dx, posteriore) — invariato ──────────────────────────────
+  - name: "blocco_alto"
+    type: "box"
+    scale:     [0.60, 1.20, 0.60]
+    rotate:    [0, -15, 0]
+    translate: [ 0.33, 0.60, 1.30]
+    material:  "bianco_cornell"
+
+
+# =============================================================================
+#  LIGHTS
+# =============================================================================
+lights:
+
+  # ── Pannello Luce da Soffitto — identico alla classica revisionata ─────────
+  #
+  #  Rettangolo 0.66 × 0.66u centrato sul soffitto.
+  #  Normale: Cross([0.66,0,0], [0,0,0.66]) = (0, -0.4356, 0) → verso -Y ✓
+  #  Area = 0.4356 u²
+  #
+  #  Intensity leggermente più alta (24 vs 22) per compensare il fatto che
+  #  la sfera di vetro assorbe/riflette parte della luce che nella versione
+  #  classica rimbalzava dal blocco lambertian bianco.
+  - type: "area"
+    corner:         [-0.33, 1.99,  0.67]
+    u:              [ 0.66, 0.00,  0.00]
+    v:              [ 0.00, 0.00,  0.66]
+    color:          [ 1.00, 0.98,  0.94]
+    intensity:      24.0
+    shadow_samples: 16
