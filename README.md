@@ -46,6 +46,16 @@ cd 3d-ray
 dotnet build src/RayTracer/RayTracer.csproj -c Release
 ```
 
+### Esecuzione
+
+```powershell
+# Naviga nella cartella del progetto
+cd 3d-ray
+
+# Esegui il renderer della scena chess.yaml
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i ./scenes/chess.yaml -s 256 -d 50 -o render.png --width 1920 --height 1080
+```
+
 ---
 
 ## 📖 Guida all'Uso (Usage) e CLI
