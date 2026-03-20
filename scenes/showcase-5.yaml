@@ -1,0 +1,286 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  SHOWCASE SCENE — "The Collector's Table"
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+#  Una scena elegante che mette in mostra tutte le capacità del raytracer:
+#
+#  ✦ MATERIALI:    Lambertian, Metal (vari fuzz), Dielectric (vetro + diamante)
+#  ✦ TEXTURE:      Checker, Marble, Wood, Noise
+#  ✦ GEOMETRIE:    Sphere, Box, Cylinder, Disk, Quad, Infinite Plane
+#  ✦ LUCI:         Area Light (soft shadows) + Point fill + Directional rim
+#  ✦ CAMERA:       Depth of Field con bokeh
+#  ✦ TRANSFORM:    Scale, Rotate, Translate su box e cilindri
+#
+#  Render consigliati:
+#    Preview:     -w 640  -H 360  -s 4   -d 10 -S 4
+#    Draft:       -w 1200 -H 675  -s 32  -d 30
+#    Produzione:  -w 1920 -H 1080 -s 256 -d 50 -S 32
+# ═══════════════════════════════════════════════════════════════════════════════
+
+world:
+  ambient_light: [0.04, 0.04, 0.05]
+  background: [0.02, 0.02, 0.05]
+  ground:
+    type: "infinite_plane"
+    material: "pavimento_legno"
+    y: 0.0
+
+camera:
+  position: [6, 4.5, -9]
+  look_at: [0, 1.2, 0]
+  fov: 38
+  aperture: 0.08
+  focal_dist: 11.0
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═════════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Pavimento: legno noce scuro ────────────────────────────────────────────
+  - id: "pavimento_legno"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 2.5
+      colors: [[0.35, 0.20, 0.10], [0.18, 0.10, 0.04]]
+      rotation: [90, 0, 0]
+
+  # ── Piedistallo: marmo Carrara ─────────────────────────────────────────────
+  - id: "marmo_carrara"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 10.0
+      colors: [[0.95, 0.93, 0.90], [0.45, 0.42, 0.40]]
+      randomize_offset: true
+
+  # ── Piedistallo bordo: marmo nero Marquinia ────────────────────────────────
+  - id: "marmo_nero"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 10.0
+      noise_strength: 8.0
+      colors: [[0.08, 0.08, 0.08], [0.35, 0.32, 0.30]]
+      randomize_offset: true
+
+  # ── Sfera protagonista: oro lucido ─────────────────────────────────────────
+  - id: "oro_lucido"
+    type: "metal"
+    color: [0.90, 0.68, 0.12]
+    fuzz: 0.01
+
+  # ── Sfera: rame satinato ───────────────────────────────────────────────────
+  - id: "rame_satinato"
+    type: "metal"
+    color: [0.75, 0.42, 0.22]
+    fuzz: 0.15
+
+  # ── Sfera: cromo specchio ──────────────────────────────────────────────────
+  - id: "cromo"
+    type: "metal"
+    color: [0.95, 0.95, 0.97]
+    fuzz: 0.0
+
+  # ── Sfera: vetro cristallo ─────────────────────────────────────────────────
+  - id: "cristallo"
+    type: "dielectric"
+    refraction_index: 1.5
+    color: [1.0, 1.0, 1.0]
+
+  # ── Sfera: diamante ────────────────────────────────────────────────────────
+  - id: "diamante"
+    type: "dielectric"
+    refraction_index: 2.42
+    color: [0.95, 0.95, 1.0]
+
+  # ── Sfera: vetro ambra ─────────────────────────────────────────────────────
+  - id: "vetro_ambra"
+    type: "dielectric"
+    refraction_index: 1.5
+    color: [1.0, 0.75, 0.35]
+
+  # ── Sfera opaca rossa: lambertian puro ─────────────────────────────────────
+  - id: "rosso_opaco"
+    type: "lambertian"
+    color: [0.82, 0.18, 0.12]
+
+  # ── Sfera opaca: texture noise (pietra grezza) ─────────────────────────────
+  - id: "pietra_noise"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 6.0
+
+  # ── Cilindro decorativo: acciaio satinato ──────────────────────────────────
+  - id: "acciaio"
+    type: "metal"
+    color: [0.70, 0.70, 0.75]
+    fuzz: 0.12
+
+  # ── Checker per disco decorativo ───────────────────────────────────────────
+  - id: "checker_bw"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 8.0
+      colors: [[0.92, 0.92, 0.92], [0.08, 0.08, 0.08]]
+
+  # ── Parete fondale ─────────────────────────────────────────────────────────
+  - id: "parete_scura"
+    type: "lambertian"
+    color: [0.12, 0.10, 0.08]
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═════════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─── PIEDISTALLO CENTRALE (marmo) ──────────────────────────────────────────
+  # Base larga
+  - name: "base_piedistallo"
+    type: "box"
+    scale: [3.6, 0.15, 2.4]
+    translate: [0.0, 0.075, 0.0]
+    material: "marmo_nero"
+
+  # Corpo piedistallo
+  - name: "corpo_piedistallo"
+    type: "box"
+    scale: [3.2, 0.7, 2.0]
+    translate: [0.0, 0.5, 0.0]
+    material: "marmo_carrara"
+
+  # Piano superiore
+  - name: "top_piedistallo"
+    type: "box"
+    scale: [3.6, 0.10, 2.4]
+    translate: [0.0, 0.9, 0.0]
+    material: "marmo_nero"
+
+  # ─── SFERA PROTAGONISTA: ORO (centro, hero shot) ──────────────────────────
+  - name: "sfera_oro"
+    type: "sphere"
+    center: [0.0, 1.95, 0.0]
+    radius: 1.0
+    material: "oro_lucido"
+
+  # ─── SFERA CRISTALLO (sx, primo piano — nella zona a fuoco) ───────────────
+  - name: "sfera_cristallo"
+    type: "sphere"
+    center: [-2.2, 1.4, -1.5]
+    radius: 0.45
+    material: "cristallo"
+
+  # ─── SFERA DIAMANTE (piccola, vicino all'oro) ─────────────────────────────
+  - name: "sfera_diamante"
+    type: "sphere"
+    center: [1.2, 1.25, -0.8]
+    radius: 0.3
+    material: "diamante"
+
+  # ─── SFERA RAME SATINATO (dx) ─────────────────────────────────────────────
+  - name: "sfera_rame"
+    type: "sphere"
+    center: [2.5, 1.55, 0.5]
+    radius: 0.6
+    material: "rame_satinato"
+
+  # ─── SFERA CROMO (sfondo dx — specchia tutta la scena) ────────────────────
+  - name: "sfera_cromo"
+    type: "sphere"
+    center: [1.5, 1.35, 2.0]
+    radius: 0.4
+    material: "cromo"
+
+  # ─── SFERA VETRO AMBRA (sx, a terra) ──────────────────────────────────────
+  - name: "sfera_ambra"
+    type: "sphere"
+    center: [-3.0, 0.5, -0.5]
+    radius: 0.5
+    material: "vetro_ambra"
+
+  # ─── SFERA ROSSA OPACA (lambertian showcase, a terra dx) ──────────────────
+  - name: "sfera_rossa"
+    type: "sphere"
+    center: [3.2, 0.35, -1.8]
+    radius: 0.35
+    material: "rosso_opaco"
+
+  # ─── SFERA PIETRA (noise texture, a terra sfondo) ─────────────────────────
+  - name: "sfera_pietra"
+    type: "sphere"
+    center: [-1.5, 0.4, 2.5]
+    radius: 0.4
+    material: "pietra_noise"
+    seed: 42
+
+  # ─── CILINDRO DECORATIVO (acciaio, showcase geometry + transform) ─────────
+  - name: "cilindro_acciaio"
+    type: "cylinder"
+    center: [-3.5, 0.0, 1.5]
+    radius: 0.25
+    height: 2.0
+    material: "acciaio"
+
+  # ─── DISCO CHECKER (showcase disk + checker texture) ──────────────────────
+  - name: "disco_checker"
+    type: "disk"
+    center: [0.0, 0.951, 0.0]
+    normal: [0, 1, 0]
+    radius: 1.6
+    material: "checker_bw"
+
+  # ─── BOX RUOTATO (showcase transforms — blocco decorativo) ────────────────
+  - name: "box_decorativo"
+    type: "box"
+    scale: [0.6, 0.6, 0.6]
+    rotate: [0, 35, 0]
+    translate: [3.5, 0.3, 1.0]
+    material: "marmo_carrara"
+
+  # ─── PARETE FONDALE (quad, chiude la scena) ───────────────────────────────
+  - name: "parete_fondo"
+    type: "quad"
+    q: [-8.0, 0.0, 5.0]
+    u: [16.0, 0.0, 0.0]
+    v: [0.0, 8.0, 0.0]
+    material: "parete_scura"
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═════════════════════════════════════════════════════════════════════════════
+lights:
+
+  # ── Area Light principale: pannello da soffitto (soft shadows) ─────────────
+  - type: "area"
+    corner: [-2.5, 5.5, -2.5]
+    u: [5.0, 0.0, 0.0]
+    v: [0.0, 0.0, 5.0]
+    color: [1.0, 0.97, 0.92]
+    intensity: 35.0
+    shadow_samples: 16
+
+  # ── Spot light: accent sulla sfera d'oro (highlight drammatico) ────────────
+  - type: "spot"
+    position: [-3, 6, -4]
+    direction: [0.3, -0.8, 0.5]
+    color: [1.0, 0.95, 0.85]
+    intensity: 25
+    inner_angle: 12
+    outer_angle: 28
+
+  # ── Point fill: riempimento laterale freddo ────────────────────────────────
+  - type: "point"
+    position: [6, 3, -3]
+    color: [0.7, 0.8, 1.0]
+    intensity: 6
+
+  # ── Directional rim: controluce sottile per staccare dallo sfondo ──────────
+  - type: "directional"
+    direction: [0.2, -0.5, 1.0]
+    color: [0.9, 0.85, 0.75]
+    intensity: 0.06

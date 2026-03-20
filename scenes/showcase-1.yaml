@@ -73,10 +73,13 @@ materials:
   - id: "blue_marble"
     type: "lambertian"
     texture: { type: "marble", scale: 5.0, noise_strength: 8.0, colors: [[0.2, 0.4, 0.8], [0.8, 0.9, 1.0]] }
-  - id: "wall_white"
+  - id: "kwall"
     type: "lambertian"
+    color: [0.48, 0.40, 0.32]
+  - id: "wall"
+    type: "metal"
     color: [0.9, 0.9, 0.9]
-
+    fuzz: 0.01
 
 # --- LUCI (Scommenta il setup corrispondente al world) ---
 # 1. Luci Studio (Drammatiche e taglienti)
@@ -115,34 +118,34 @@ entities:
     type: "quad"
     q: [-10, 0, 10]
     u: [20, 0, 0]
-    v: [0, 10, 0]
-    material: "wall_white"
-    
+    v: [0, 7, 0]
+    material: "wall"
+
   # Sfera VETRO centrale (Perfetta per mostrare caustiche e rifrazioni inverse)
   - name: "center_glass"
     type: "sphere"
-    center: [0, 1.5, 0]
+    center: [0, 1.7, 0]
     radius: 1.5
     material: "glass_clear"
     
   # Sfera SPECCHIO perfetto a destra
   - name: "right_mirror"
     type: "sphere"
-    center: [2.5, 1.0, 1.0]
+    center: [2.5, 1.2, 1.0]
     radius: 1.0
     material: "mirror_perfect"
 
   # Sfera ORO RUVIDO a sinistra
   - name: "left_gold"
     type: "sphere"
-    center: [-2.5, 1.0, 0.5]
+    center: [-2.5, 1.2, 0.5]
     radius: 1.0
     material: "gold_rough"
 
   # Piccola sfera VETRO ROSSO in primo piano
   - name: "floating_red_glass"
     type: "sphere"
-    center: [-1.2, 3.0, -2.0]
+    center: [-1.2, 3.2, -2.0]
     radius: 0.4
     material: "glass_red"
 
@@ -157,14 +160,15 @@ entities:
   # Cilindro MARMO BLU sullo sfondo a destra
   - name: "marble_pillar"
     type: "cylinder"
-    center: [4.6, 0, -1.0]
+    #center: [4.6, 0, -1.0]
+    center: [4.2, 0, 3.5]
     radius: 0.5
-    height: 3.0
+    height: 4.0
     material: "blue_marble"
 
   # Sfera VETRO TRASPARENTE a destra
   - name: "right_glass"
     type: "sphere"
-    center: [3.0, 0.8, -1.8]
+    center: [3.0, 1.0, -1.8]
     radius: 0.8
     material: "glass_clear"

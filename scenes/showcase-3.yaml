@@ -37,11 +37,26 @@ materials:
     type: "lambertian"
     texture:
       type: "wood"
-      scale: 15.0
+      scale: 4.0
       noise_strength: 3.5
       colors: [[0.4, 0.2, 0.1], [0.2, 0.1, 0.05]]
       randomize_offset: true     # <-- Ogni cilindro avrà venature uniche
       rotation: [90, 0, 0]       # Rotazione base fissa (legno steso)
+
+  - id: "glass"
+    type: "dielectric"
+    refraction_index: 1.52
+
+  - id: "metal_gold"
+    type: "metal"
+    color: [0.95, 0.75, 0.05]  # Oro brillante
+    fuzz: 0.05               # Molto lucido
+
+  - id: "mirror"
+    type: "metal"
+    color: [0.9, 0.9, 0.9]   # Argento
+    fuzz: 0.05
+
 
 lights:
   - type: "point"
@@ -51,29 +66,29 @@ lights:
 
 entities:
   # Sfere di marmo: usano TUTTE lo stesso materiale, ma appariranno diverse
-  - name: "marble_1"
+  - name: "sphere_1"
     type: "sphere"
     center: [-3.0, 1.0, 0.0]
     radius: 1.0
-    material: "marble_shared"
+    material: "metal_gold"
 
-  - name: "marble_2"
+  - name: "sphere_2"
     type: "sphere"
     center: [-1.0, 1.0, 0.0]
     radius: 1.0
-    material: "marble_shared"
+    material: "glass"
 
-  - name: "marble_3"
+  - name: "sphere_3"
     type: "sphere"
     center: [1.0, 1.0, 0.0]
     radius: 1.0
     material: "marble_shared"
 
-  - name: "marble_4"
+  - name: "sphere_4"
     type: "sphere"
     center: [3.0, 1.0, 0.0]
     radius: 1.0
-    material: "marble_shared"
+    material: "mirror"
 
   # Cilindri di legno: dimostrano la randomizzazione offset
   - name: "wood_1"

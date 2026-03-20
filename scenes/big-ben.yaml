@@ -1,8 +1,10 @@
 # Ray-Tracing Scene - Elizabeth Tower (Big Ben) - London
 # Procedurally generated with thousands of fine primitives
+# IMPROVED VERSION — See [IMPROVED] and [NEW] tags for changes
 
 world:
-  ambient_light: [0.06, 0.06, 0.09]
+  # [IMPROVED] ambient_light alzato da [0.06,0.06,0.09] per migliore fill ombre
+  ambient_light: [0.08, 0.08, 0.10]
   background: [0.18, 0.25, 0.50]  # Twilight London sky
   ground:
     type: "infinite_plane"
@@ -17,13 +19,22 @@ camera:
   focal_dist: 42.0
 
 materials:
+  # [IMPROVED] texture noise per irregolarità marciapiede
   - id: "pavement"
     type: "lambertian"
-    color: [0.350, 0.330, 0.300]
+    texture:
+      type: "noise"
+      scale: 8.0
+      colors: [[0.350, 0.330, 0.300], [0.300, 0.280, 0.250]]
 
+  # [IMPROVED] texture marble per venature calcaree
   - id: "limestone"
     type: "lambertian"
-    color: [0.820, 0.780, 0.680]
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 4.0
+      colors: [[0.820, 0.780, 0.680], [0.720, 0.690, 0.600]]
 
   - id: "limestone_dark"
     type: "lambertian"
@@ -42,20 +53,21 @@ materials:
     color: [0.850, 0.750, 0.200]
     fuzz: 0.150
 
+  # [IMPROVED] era metal fuzz=0.3 — lancette dipinte nero opaco
   - id: "clock_hand"
-    type: "metal"
-    color: [0.100, 0.100, 0.100]
-    fuzz: 0.300
+    type: "lambertian"
+    color: [0.050, 0.050, 0.050]
 
   - id: "iron_dark"
     type: "metal"
     color: [0.180, 0.160, 0.140]
     fuzz: 0.500
 
+  # [IMPROVED] fuzz 0.10→0.08
   - id: "gold_trim"
     type: "metal"
     color: [0.900, 0.750, 0.150]
-    fuzz: 0.100
+    fuzz: 0.080
 
   - id: "copper_roof"
     type: "metal"
@@ -87,34 +99,101 @@ materials:
     type: "lambertian"
     color: [0.800, 0.100, 0.080]
 
+  # [IMPROVED] fuzz 0.4→0.6
   - id: "fence_iron"
     type: "metal"
     color: [0.150, 0.140, 0.130]
-    fuzz: 0.400
+    fuzz: 0.600
+
+  # [NEW] bronzo patinato per la campana
+  - id: "bell_bronze"
+    type: "metal"
+    color: [0.450, 0.350, 0.150]
+    fuzz: 0.350
+
+  # [NEW] vetro scuro bus
+  - id: "bus_window"
+    type: "metal"
+    color: [0.080, 0.100, 0.140]
+    fuzz: 0.050
+
+  # [NEW] fascia panna Routemaster
+  - id: "bus_cream"
+    type: "lambertian"
+    color: [0.920, 0.880, 0.750]
+
+  # [NEW] pietra Westminster Palace
+  - id: "palace_stone"
+    type: "lambertian"
+    color: [0.680, 0.650, 0.580]
 
 
 lights:
+  # Key Light (sole al tramonto, da sinistra)
   - type: "directional"
     direction: [-0.3, -0.8, 0.2]
     color: [1.0, 0.85, 0.65]
     intensity: 0.7
 
+  # Fill Light (cielo, dal lato opposto)
   - type: "directional"
     direction: [0.4, -0.4, -0.6]
     color: [0.40, 0.45, 0.65]
     intensity: 0.20
 
+  # Luce torre alta
   - type: "point"
     position: [0, 55, -5]
     color: [1.0, 0.95, 0.80]
     intensity: 300.0
 
-  - type: "point"         # Ayrton Light glow
-    position: [0, 62, 0]
+  # [FIXED] Ayrton Light — spostata da [0,62,0] (dentro guglia) a [0,64.8,0] (sopra croce)
+  - type: "point"
+    position: [0, 64.8, 0]
     color: [1.0, 0.92, 0.55]
-    intensity: 120.0
+    intensity: 150.0
+
+  # [NEW] Sky Dome Area Light — ombre morbide realistiche
+  - type: "area"
+    corner: [-20, 70, -20]
+    u: [40, 0, 0]
+    v: [0, 0, 40]
+    color: [0.35, 0.45, 0.70]
+    intensity: 0.4
+    shadow_samples: 16
+
+  # [NEW] Luci lampioni (5 lungo il marciapiede)
+  - type: "point"
+    position: [-16.0, 4.6, -13.0]
+    color: [1.0, 0.85, 0.55]
+    intensity: 15.0
+  - type: "point"
+    position: [-8.0, 4.6, -13.0]
+    color: [1.0, 0.85, 0.55]
+    intensity: 15.0
+  - type: "point"
+    position: [0.0, 4.6, -13.0]
+    color: [1.0, 0.85, 0.55]
+    intensity: 15.0
+  - type: "point"
+    position: [8.0, 4.6, -13.0]
+    color: [1.0, 0.85, 0.55]
+    intensity: 15.0
+  - type: "point"
+    position: [16.0, 4.6, -13.0]
+    color: [1.0, 0.85, 0.55]
+    intensity: 15.0
+
+  # [NEW] Fill basso per base torre e ponte
+  - type: "point"
+    position: [10, 3, -25]
+    color: [0.85, 0.80, 0.70]
+    intensity: 60.0
 
 entities:
+  # ============================================================
+  # THAMES & WESTMINSTER BRIDGE
+  # ============================================================
   - name: "thames_water"
     type: "box"
     scale: [120.000, 0.600, 50.000]
@@ -145,48 +224,58 @@ entities:
     radius: 1.200
     height: 1.500
     material: "bridge_stone"
+
   - name: "bridge_pier_1"
     type: "cylinder"
     center: [-9.000, -0.500, -18.000]
     radius: 1.200
     height: 1.500
     material: "bridge_stone"
+
   - name: "bridge_pier_2"
     type: "cylinder"
     center: [-3.000, -0.500, -18.000]
     radius: 1.200
     height: 1.500
     material: "bridge_stone"
+
   - name: "bridge_pier_3"
     type: "cylinder"
     center: [3.000, -0.500, -18.000]
     radius: 1.200
     height: 1.500
     material: "bridge_stone"
+
   - name: "bridge_pier_4"
     type: "cylinder"
     center: [9.000, -0.500, -18.000]
     radius: 1.200
     height: 1.500
     material: "bridge_stone"
+
   - name: "bridge_pier_5"
     type: "cylinder"
     center: [15.000, -0.500, -18.000]
     radius: 1.200
     height: 1.500
     material: "bridge_stone"
+
   - name: "embankment"
     type: "box"
     scale: [60.000, 0.600, 16.000]
     translate: [0.000, 0.300, -8.000]
     material: "pavement"
 
+  # ============================================================
+  # FENCE (40 posts along embankment)
+  # ============================================================
   - name: "fence_post_0"
     type: "cylinder"
     center: [-20.000, 0.600, -14.500]
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_0"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -205,6 +294,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_1"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -223,6 +313,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_2"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -241,6 +332,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_3"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -259,6 +351,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_4"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -277,6 +370,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_5"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -295,6 +389,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_6"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -313,6 +408,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_7"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -331,6 +427,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_8"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -349,6 +446,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_9"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -367,6 +465,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_10"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -385,6 +484,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_11"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -403,6 +503,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_12"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -421,6 +522,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_13"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -439,6 +541,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_14"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -457,6 +560,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_15"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -475,6 +579,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_16"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -493,6 +598,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_17"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -511,6 +617,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_18"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -529,6 +636,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_19"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -547,6 +655,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_20"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -565,6 +674,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_21"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -583,6 +693,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_22"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -601,6 +712,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_23"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -619,6 +731,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_24"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -637,6 +750,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_25"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -655,6 +769,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_26"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -673,6 +788,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_27"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -691,6 +807,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_28"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -709,6 +826,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_29"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -727,6 +845,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_30"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -745,6 +864,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_31"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -763,6 +883,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_32"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -781,6 +902,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_33"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -799,6 +921,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_34"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -817,6 +940,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_35"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -835,6 +959,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_36"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -853,6 +978,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_37"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -871,6 +997,7 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
   - name: "fence_rail_38"
     type: "box"
     scale: [1.000, 0.040, 0.040]
@@ -889,121 +1016,148 @@ entities:
     radius: 0.040
     height: 1.000
     material: "fence_iron"
+
+  # ============================================================
+  # STREET LAMPS (5 Victorian lamp posts)
+  # ============================================================
   - name: "lamp_0_pole"
     type: "cylinder"
     center: [-16.000, 0.600, -13.000]
     radius: 0.080
     height: 3.500
     material: "iron_dark"
+
   - name: "lamp_0_arm"
     type: "cylinder"
     center: [-16.000, 4.100, -13.000]
     radius: 0.120
     height: 0.300
     material: "iron_dark"
+
   - name: "lamp_0_lamp"
     type: "sphere"
     center: [-16.000, 4.600, -13.000]
     radius: 0.250
     material: "warm_light"
+
   - name: "lamp_0_cage"
     type: "cylinder"
     center: [-16.000, 4.200, -13.000]
     radius: 0.200
     height: 0.600
     material: "iron_dark"
+
   - name: "lamp_1_pole"
     type: "cylinder"
     center: [-8.000, 0.600, -13.000]
     radius: 0.080
     height: 3.500
     material: "iron_dark"
+
   - name: "lamp_1_arm"
     type: "cylinder"
     center: [-8.000, 4.100, -13.000]
     radius: 0.120
     height: 0.300
     material: "iron_dark"
+
   - name: "lamp_1_lamp"
     type: "sphere"
     center: [-8.000, 4.600, -13.000]
     radius: 0.250
     material: "warm_light"
+
   - name: "lamp_1_cage"
     type: "cylinder"
     center: [-8.000, 4.200, -13.000]
     radius: 0.200
     height: 0.600
     material: "iron_dark"
+
   - name: "lamp_2_pole"
     type: "cylinder"
     center: [0.000, 0.600, -13.000]
     radius: 0.080
     height: 3.500
     material: "iron_dark"
+
   - name: "lamp_2_arm"
     type: "cylinder"
     center: [0.000, 4.100, -13.000]
     radius: 0.120
     height: 0.300
     material: "iron_dark"
+
   - name: "lamp_2_lamp"
     type: "sphere"
     center: [0.000, 4.600, -13.000]
     radius: 0.250
     material: "warm_light"
+
   - name: "lamp_2_cage"
     type: "cylinder"
     center: [0.000, 4.200, -13.000]
     radius: 0.200
     height: 0.600
     material: "iron_dark"
+
   - name: "lamp_3_pole"
     type: "cylinder"
     center: [8.000, 0.600, -13.000]
     radius: 0.080
     height: 3.500
     material: "iron_dark"
+
   - name: "lamp_3_arm"
     type: "cylinder"
     center: [8.000, 4.100, -13.000]
     radius: 0.120
     height: 0.300
     material: "iron_dark"
+
   - name: "lamp_3_lamp"
     type: "sphere"
     center: [8.000, 4.600, -13.000]
     radius: 0.250
     material: "warm_light"
+
   - name: "lamp_3_cage"
     type: "cylinder"
     center: [8.000, 4.200, -13.000]
     radius: 0.200
     height: 0.600
     material: "iron_dark"
+
   - name: "lamp_4_pole"
     type: "cylinder"
     center: [16.000, 0.600, -13.000]
     radius: 0.080
     height: 3.500
     material: "iron_dark"
+
   - name: "lamp_4_arm"
     type: "cylinder"
     center: [16.000, 4.100, -13.000]
     radius: 0.120
     height: 0.300
     material: "iron_dark"
+
   - name: "lamp_4_lamp"
     type: "sphere"
     center: [16.000, 4.600, -13.000]
     radius: 0.250
     material: "warm_light"
+
   - name: "lamp_4_cage"
     type: "cylinder"
     center: [16.000, 4.200, -13.000]
     radius: 0.200
     height: 0.600
     material: "iron_dark"
+
+  # ============================================================
+  # LONDON RED BUS (Routemaster)
+  # ============================================================
   - name: "bus_body"
     type: "box"
     scale: [5.000, 3.000, 2.000]
@@ -1022,24 +1176,110 @@ entities:
     radius: 0.400
     height: 0.200
     material: "iron_dark"
+
   - name: "bus_wheel_fr"
     type: "cylinder"
     center: [-12.000, 0.600, -10.800]
     radius: 0.400
     height: 0.200
     material: "iron_dark"
+
   - name: "bus_wheel_rl"
     type: "cylinder"
     center: [-8.000, 0.600, -9.200]
     radius: 0.400
     height: 0.200
     material: "iron_dark"
+
   - name: "bus_wheel_rr"
     type: "cylinder"
     center: [-8.000, 0.600, -10.800]
     radius: 0.400
     height: 0.200
     material: "iron_dark"
+
+  # [NEW] Bus details — finestrini, fascia panna, fanali
+  - name: "bus_cream_band"
+    type: "box"
+    scale: [5.100, 0.250, 2.050]
+    translate: [-10.000, 2.375, -10.000]
+    material: "bus_cream"
+
+  - name: "bus_win_lower_0"
+    type: "box"
+    scale: [0.800, 0.700, 0.100]
+    translate: [-11.500, 1.500, -9.050]
+    material: "bus_window"
+
+  - name: "bus_win_lower_1"
+    type: "box"
+    scale: [0.800, 0.700, 0.100]
+    translate: [-10.500, 1.500, -9.050]
+    material: "bus_window"
+
+  - name: "bus_win_lower_2"
+    type: "box"
+    scale: [0.800, 0.700, 0.100]
+    translate: [-9.500, 1.500, -9.050]
+    material: "bus_window"
+
+  - name: "bus_win_lower_3"
+    type: "box"
+    scale: [0.800, 0.700, 0.100]
+    translate: [-8.500, 1.500, -9.050]
+    material: "bus_window"
+
+  - name: "bus_win_upper_0"
+    type: "box"
+    scale: [0.800, 0.650, 0.100]
+    translate: [-11.500, 3.800, -9.050]
+    material: "bus_window"
+
+  - name: "bus_win_upper_1"
+    type: "box"
+    scale: [0.800, 0.650, 0.100]
+    translate: [-10.500, 3.800, -9.050]
+    material: "bus_window"
+
+  - name: "bus_win_upper_2"
+    type: "box"
+    scale: [0.800, 0.650, 0.100]
+    translate: [-9.500, 3.800, -9.050]
+    material: "bus_window"
+
+  - name: "bus_win_upper_3"
+    type: "box"
+    scale: [0.800, 0.650, 0.100]
+    translate: [-8.500, 3.800, -9.050]
+    material: "bus_window"
+
+  - name: "bus_headlight_l"
+    type: "sphere"
+    center: [-12.500, 1.200, -9.500]
+    radius: 0.150
+    material: "warm_light"
+
+  - name: "bus_headlight_r"
+    type: "sphere"
+    center: [-12.500, 1.200, -10.500]
+    radius: 0.150
+    material: "warm_light"
+
+  - name: "bus_taillight_l"
+    type: "sphere"
+    center: [-7.500, 1.200, -9.500]
+    radius: 0.120
+    material: "red_bus"
+
+  - name: "bus_taillight_r"
+    type: "sphere"
+    center: [-7.500, 1.200, -10.500]
+    radius: 0.120
+    material: "red_bus"
+
+  # ============================================================
+  # TOWER BASE — 3 stepped platforms + entrance
+  # ============================================================
   - name: "platform_3"
     type: "box"
     scale: [16.000, 0.500, 16.000]
@@ -1087,6 +1327,10 @@ entities:
     center: [0.000, 6.300, -6.700]
     radius: 1.500
     material: "limestone"
+
+  # ============================================================
+  # TOWER SHAFT — 7 levels with windows on all 4 faces
+  # ============================================================
   - name: "shaft_sec_0"
     type: "box"
     scale: [11.000, 5.500, 11.000]
@@ -1152,6 +1396,7 @@ entities:
     center: [-1.500, 5.350, -5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_f_0_1"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -1181,6 +1426,7 @@ entities:
     center: [1.500, 5.350, -5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_b_0_0"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -1210,6 +1456,7 @@ entities:
     center: [-1.500, 5.350, 5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_b_0_1"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -1239,6 +1486,7 @@ entities:
     center: [1.500, 5.350, 5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_l_0_0"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -1268,6 +1516,7 @@ entities:
     center: [-5.580, 5.350, -1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_l_0_1"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -1297,6 +1546,7 @@ entities:
     center: [-5.580, 5.350, 1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_r_0_0"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -1326,6 +1576,7 @@ entities:
     center: [5.580, 5.350, -1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_r_0_1"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -1355,6 +1606,7 @@ entities:
     center: [5.580, 5.350, 1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "shaft_sec_1"
     type: "box"
     scale: [11.000, 5.500, 11.000]
@@ -1420,6 +1672,7 @@ entities:
     center: [-1.500, 10.850, -5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_f_1_1"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -1449,6 +1702,7 @@ entities:
     center: [1.500, 10.850, -5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_b_1_0"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -1478,6 +1732,7 @@ entities:
     center: [-1.500, 10.850, 5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_b_1_1"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -1507,6 +1762,7 @@ entities:
     center: [1.500, 10.850, 5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_l_1_0"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -1536,6 +1792,7 @@ entities:
     center: [-5.580, 10.850, -1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_l_1_1"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -1565,6 +1822,7 @@ entities:
     center: [-5.580, 10.850, 1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_r_1_0"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -1594,6 +1852,7 @@ entities:
     center: [5.580, 10.850, -1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_r_1_1"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -1623,6 +1882,7 @@ entities:
     center: [5.580, 10.850, 1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "shaft_sec_2"
     type: "box"
     scale: [11.000, 5.500, 11.000]
@@ -1688,6 +1948,7 @@ entities:
     center: [-1.500, 16.350, -5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_f_2_1"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -1717,6 +1978,7 @@ entities:
     center: [1.500, 16.350, -5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_b_2_0"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -1746,6 +2008,7 @@ entities:
     center: [-1.500, 16.350, 5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_b_2_1"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -1775,6 +2038,7 @@ entities:
     center: [1.500, 16.350, 5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_l_2_0"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -1804,6 +2068,7 @@ entities:
     center: [-5.580, 16.350, -1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_l_2_1"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -1833,6 +2098,7 @@ entities:
     center: [-5.580, 16.350, 1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_r_2_0"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -1862,6 +2128,7 @@ entities:
     center: [5.580, 16.350, -1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_r_2_1"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -1891,6 +2158,7 @@ entities:
     center: [5.580, 16.350, 1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "shaft_sec_3"
     type: "box"
     scale: [11.000, 5.500, 11.000]
@@ -1956,6 +2224,7 @@ entities:
     center: [-1.500, 21.850, -5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_f_3_1"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -1985,6 +2254,7 @@ entities:
     center: [1.500, 21.850, -5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_b_3_0"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -2014,6 +2284,7 @@ entities:
     center: [-1.500, 21.850, 5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_b_3_1"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -2043,6 +2314,7 @@ entities:
     center: [1.500, 21.850, 5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_l_3_0"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -2072,6 +2344,7 @@ entities:
     center: [-5.580, 21.850, -1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_l_3_1"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -2101,6 +2374,7 @@ entities:
     center: [-5.580, 21.850, 1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_r_3_0"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -2130,6 +2404,7 @@ entities:
     center: [5.580, 21.850, -1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_r_3_1"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -2159,6 +2434,7 @@ entities:
     center: [5.580, 21.850, 1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "shaft_sec_4"
     type: "box"
     scale: [11.000, 5.500, 11.000]
@@ -2224,6 +2500,7 @@ entities:
     center: [-1.500, 27.350, -5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_f_4_1"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -2253,6 +2530,7 @@ entities:
     center: [1.500, 27.350, -5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_b_4_0"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -2282,6 +2560,7 @@ entities:
     center: [-1.500, 27.350, 5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_b_4_1"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -2311,6 +2590,7 @@ entities:
     center: [1.500, 27.350, 5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_l_4_0"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -2340,6 +2620,7 @@ entities:
     center: [-5.580, 27.350, -1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_l_4_1"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -2369,6 +2650,7 @@ entities:
     center: [-5.580, 27.350, 1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_r_4_0"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -2398,6 +2680,7 @@ entities:
     center: [5.580, 27.350, -1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_r_4_1"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -2427,6 +2710,7 @@ entities:
     center: [5.580, 27.350, 1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "shaft_sec_5"
     type: "box"
     scale: [11.000, 5.500, 11.000]
@@ -2492,6 +2776,7 @@ entities:
     center: [-1.500, 32.850, -5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_f_5_1"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -2521,6 +2806,7 @@ entities:
     center: [1.500, 32.850, -5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_b_5_0"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -2550,6 +2836,7 @@ entities:
     center: [-1.500, 32.850, 5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_b_5_1"
     type: "box"
     scale: [1.000, 3.000, 0.300]
@@ -2579,6 +2866,7 @@ entities:
     center: [1.500, 32.850, 5.580]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_l_5_0"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -2608,6 +2896,7 @@ entities:
     center: [-5.580, 32.850, -1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_l_5_1"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -2637,6 +2926,7 @@ entities:
     center: [-5.580, 32.850, 1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_r_5_0"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -2666,6 +2956,7 @@ entities:
     center: [5.580, 32.850, -1.500]
     radius: 0.500
     material: "stone_detail"
+
   - name: "win_r_5_1"
     type: "box"
     scale: [0.300, 3.000, 1.000]
@@ -2695,6 +2986,10 @@ entities:
     center: [5.580, 32.850, 1.500]
     radius: 0.500
     material: "stone_detail"
+
+  # ============================================================
+  # CLOCK LEVEL — body, cornices, gold bands, 4 clock faces
+  # ============================================================
   - name: "clock_body"
     type: "box"
     scale: [12.000, 6.000, 12.000]
@@ -2827,6 +3122,7 @@ entities:
     radius: 0.200
     height: 0.300
     material: "gold_trim"
+
   - name: "cf_back_rim"
     type: "box"
     scale: [5.400, 5.400, 0.200]
@@ -2929,6 +3225,7 @@ entities:
     radius: 0.200
     height: 0.300
     material: "gold_trim"
+
   - name: "cf_left_rim"
     type: "box"
     scale: [0.200, 5.400, 5.400]
@@ -3031,6 +3328,7 @@ entities:
     radius: 0.200
     height: 0.300
     material: "gold_trim"
+
   - name: "cf_right_rim"
     type: "box"
     scale: [0.200, 5.400, 5.400]
@@ -3133,6 +3431,32 @@ entities:
     radius: 0.200
     height: 0.300
     material: "gold_trim"
+
+  # [NEW] Vetri quadranti orologio (glass_window era inutilizzato)
+  - name: "cf_front_glass"
+    type: "box"
+    scale: [5.200, 5.200, 0.050]
+    translate: [0.000, 37.500, -6.300]
+    material: "glass_window"
+
+  - name: "cf_back_glass"
+    type: "box"
+    scale: [5.200, 5.200, 0.050]
+    translate: [0.000, 37.500, 6.300]
+    material: "glass_window"
+
+  - name: "cf_left_glass"
+    type: "box"
+    scale: [0.050, 5.200, 5.200]
+    translate: [-6.300, 37.500, 0.000]
+    material: "glass_window"
+
+  - name: "cf_right_glass"
+    type: "box"
+    scale: [0.050, 5.200, 5.200]
+    translate: [6.300, 37.500, 0.000]
+    material: "glass_window"
+
   - name: "clock_pilaster_0"
     type: "box"
     scale: [0.700, 6.000, 0.700]
@@ -3150,6 +3474,7 @@ entities:
     center: [-6.000, 41.800, -6.000]
     radius: 0.120
     material: "gold_trim"
+
   - name: "clock_pilaster_1"
     type: "box"
     scale: [0.700, 6.000, 0.700]
@@ -3167,6 +3492,7 @@ entities:
     center: [6.000, 41.800, -6.000]
     radius: 0.120
     material: "gold_trim"
+
   - name: "clock_pilaster_2"
     type: "box"
     scale: [0.700, 6.000, 0.700]
@@ -3184,6 +3510,7 @@ entities:
     center: [-6.000, 41.800, 6.000]
     radius: 0.120
     material: "gold_trim"
+
   - name: "clock_pilaster_3"
     type: "box"
     scale: [0.700, 6.000, 0.700]
@@ -3201,6 +3528,10 @@ entities:
     center: [6.000, 41.800, 6.000]
     radius: 0.120
     material: "gold_trim"
+
+  # ============================================================
+  # BELFRY — arched openings, bell, corner turrets
+  # ============================================================
   - name: "belfry_body"
     type: "box"
     scale: [11.600, 7.000, 11.600]
@@ -3231,17 +3562,20 @@ entities:
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_f_col_0_r"
     type: "cylinder"
     center: [-1.550, 42.300, -5.850]
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_f_atop_0"
     type: "sphere"
     center: [-2.500, 46.800, -5.850]
     radius: 0.800
     material: "stone_detail"
+
   - name: "belf_f_cap_0_l"
     type: "box"
     scale: [0.440, 0.300, 0.440]
@@ -3266,17 +3600,20 @@ entities:
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_f_col_1_r"
     type: "cylinder"
     center: [3.450, 42.300, -5.850]
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_f_atop_1"
     type: "sphere"
     center: [2.500, 46.800, -5.850]
     radius: 0.800
     material: "stone_detail"
+
   - name: "belf_f_cap_1_l"
     type: "box"
     scale: [0.440, 0.300, 0.440]
@@ -3295,6 +3632,7 @@ entities:
     radius: 0.180
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_b_arch_0"
     type: "box"
     scale: [1.600, 4.500, 0.400]
@@ -3307,17 +3645,20 @@ entities:
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_b_col_0_r"
     type: "cylinder"
     center: [-1.550, 42.300, 5.850]
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_b_atop_0"
     type: "sphere"
     center: [-2.500, 46.800, 5.850]
     radius: 0.800
     material: "stone_detail"
+
   - name: "belf_b_cap_0_l"
     type: "box"
     scale: [0.440, 0.300, 0.440]
@@ -3342,17 +3683,20 @@ entities:
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_b_col_1_r"
     type: "cylinder"
     center: [3.450, 42.300, 5.850]
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_b_atop_1"
     type: "sphere"
     center: [2.500, 46.800, 5.850]
     radius: 0.800
     material: "stone_detail"
+
   - name: "belf_b_cap_1_l"
     type: "box"
     scale: [0.440, 0.300, 0.440]
@@ -3371,6 +3715,7 @@ entities:
     radius: 0.180
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_l_arch_0"
     type: "box"
     scale: [0.400, 4.500, 1.600]
@@ -3383,17 +3728,20 @@ entities:
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_l_col_0_r"
     type: "cylinder"
     center: [-5.850, 42.300, -1.550]
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_l_atop_0"
     type: "sphere"
     center: [-5.850, 46.800, -2.500]
     radius: 0.800
     material: "stone_detail"
+
   - name: "belf_l_cap_0_l"
     type: "box"
     scale: [0.440, 0.300, 0.440]
@@ -3418,17 +3766,20 @@ entities:
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_l_col_1_r"
     type: "cylinder"
     center: [-5.850, 42.300, 3.450]
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_l_atop_1"
     type: "sphere"
     center: [-5.850, 46.800, 2.500]
     radius: 0.800
     material: "stone_detail"
+
   - name: "belf_l_cap_1_l"
     type: "box"
     scale: [0.440, 0.300, 0.440]
@@ -3447,6 +3798,7 @@ entities:
     radius: 0.180
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_r_arch_0"
     type: "box"
     scale: [0.400, 4.500, 1.600]
@@ -3459,17 +3811,20 @@ entities:
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_r_col_0_r"
     type: "cylinder"
     center: [5.850, 42.300, -1.550]
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_r_atop_0"
     type: "sphere"
     center: [5.850, 46.800, -2.500]
     radius: 0.800
     material: "stone_detail"
+
   - name: "belf_r_cap_0_l"
     type: "box"
     scale: [0.440, 0.300, 0.440]
@@ -3494,17 +3849,20 @@ entities:
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_r_col_1_r"
     type: "cylinder"
     center: [5.850, 42.300, 3.450]
     radius: 0.150
     height: 4.500
     material: "stone_detail"
+
   - name: "belf_r_atop_1"
     type: "sphere"
     center: [5.850, 46.800, 2.500]
     radius: 0.800
     material: "stone_detail"
+
   - name: "belf_r_cap_1_l"
     type: "box"
     scale: [0.440, 0.300, 0.440]
@@ -3523,35 +3881,42 @@ entities:
     radius: 0.180
     height: 4.500
     material: "stone_detail"
+
+  # [IMPROVED] Campana in bell_bronze (era gold_trim)
   - name: "big_ben_bell"
     type: "cylinder"
     center: [0.000, 41.800, 0.000]
     radius: 2.000
     height: 2.500
-    material: "gold_trim"
+    material: "bell_bronze"
+
   - name: "bell_dome"
     type: "sphere"
     center: [0.000, 44.300, 0.000]
     radius: 2.000
-    material: "gold_trim"
+    material: "bell_bronze"
+
   - name: "bell_clapper"
     type: "cylinder"
     center: [0.000, 41.300, 0.000]
     radius: 0.150
     height: 2.000
     material: "iron_dark"
+
   - name: "belf_turret_0"
     type: "cylinder"
     center: [-6.600, 40.800, -6.600]
     radius: 0.800
     height: 9.000
     material: "limestone"
+
   - name: "belf_turret_cap_0"
     type: "cylinder"
     center: [-6.600, 49.800, -6.600]
     radius: 1.000
     height: 0.300
     material: "stone_detail"
+
   - name: "belf_turret_pin_0"
     type: "box"
     scale: [0.400, 1.600, 0.400]
@@ -3569,18 +3934,21 @@ entities:
     center: [-6.600, 52.200, -6.600]
     radius: 0.100
     material: "gold_trim"
+
   - name: "belf_turret_1"
     type: "cylinder"
     center: [6.600, 40.800, -6.600]
     radius: 0.800
     height: 9.000
     material: "limestone"
+
   - name: "belf_turret_cap_1"
     type: "cylinder"
     center: [6.600, 49.800, -6.600]
     radius: 1.000
     height: 0.300
     material: "stone_detail"
+
   - name: "belf_turret_pin_1"
     type: "box"
     scale: [0.400, 1.600, 0.400]
@@ -3598,18 +3966,21 @@ entities:
     center: [6.600, 52.200, -6.600]
     radius: 0.100
     material: "gold_trim"
+
   - name: "belf_turret_2"
     type: "cylinder"
     center: [-6.600, 40.800, 6.600]
     radius: 0.800
     height: 9.000
     material: "limestone"
+
   - name: "belf_turret_cap_2"
     type: "cylinder"
     center: [-6.600, 49.800, 6.600]
     radius: 1.000
     height: 0.300
     material: "stone_detail"
+
   - name: "belf_turret_pin_2"
     type: "box"
     scale: [0.400, 1.600, 0.400]
@@ -3627,18 +3998,21 @@ entities:
     center: [-6.600, 52.200, 6.600]
     radius: 0.100
     material: "gold_trim"
+
   - name: "belf_turret_3"
     type: "cylinder"
     center: [6.600, 40.800, 6.600]
     radius: 0.800
     height: 9.000
     material: "limestone"
+
   - name: "belf_turret_cap_3"
     type: "cylinder"
     center: [6.600, 49.800, 6.600]
     radius: 1.000
     height: 0.300
     material: "stone_detail"
+
   - name: "belf_turret_pin_3"
     type: "box"
     scale: [0.400, 1.600, 0.400]
@@ -3656,10 +4030,20 @@ entities:
     center: [6.600, 52.200, 6.600]
     radius: 0.100
     material: "gold_trim"
+
+  # ============================================================
+  # ROOF — stepped pyramid + [NEW] intermediate levels for smoothing
+  # ============================================================
   - name: "roof_1"
     type: "box"
     scale: [12.000, 2.000, 12.000]
     translate: [0.000, 49.100, 0.000]
+    material: "copper_roof"
+
+  - name: "roof_1b"
+    type: "box"
+    scale: [11.000, 0.600, 11.000]
+    translate: [0.000, 49.900, 0.000]
     material: "copper_roof"
 
   - name: "roof_2"
@@ -3668,10 +4052,22 @@ entities:
     translate: [0.000, 50.600, 0.000]
     material: "copper_roof"
 
+  - name: "roof_2b"
+    type: "box"
+    scale: [9.000, 0.500, 9.000]
+    translate: [0.000, 51.200, 0.000]
+    material: "copper_roof"
+
   - name: "roof_3"
     type: "box"
     scale: [8.000, 1.400, 8.000]
     translate: [0.000, 51.900, 0.000]
+    material: "copper_roof"
+
+  - name: "roof_3b"
+    type: "box"
+    scale: [7.000, 0.400, 7.000]
+    translate: [0.000, 52.400, 0.000]
     material: "copper_roof"
 
   - name: "roof_4"
@@ -3680,10 +4076,22 @@ entities:
     translate: [0.000, 52.900, 0.000]
     material: "copper_roof"
 
+  - name: "roof_4b"
+    type: "box"
+    scale: [5.000, 0.400, 5.000]
+    translate: [0.000, 53.300, 0.000]
+    material: "copper_roof"
+
   - name: "roof_5"
     type: "box"
     scale: [4.000, 1.000, 4.000]
     translate: [0.000, 53.700, 0.000]
+    material: "copper_roof"
+
+  - name: "roof_5b"
+    type: "box"
+    scale: [3.200, 0.300, 3.200]
+    translate: [0.000, 54.000, 0.000]
     material: "copper_roof"
 
   - name: "roof_6"
@@ -3692,12 +4100,334 @@ entities:
     translate: [0.000, 54.400, 0.000]
     material: "copper_roof"
 
+  - name: "roof_6b"
+    type: "box"
+    scale: [1.600, 0.300, 1.600]
+    translate: [0.000, 54.700, 0.000]
+    material: "copper_roof"
+
+  - name: "roof_gallery"
+    type: "box"
+    scale: [12.600, 0.300, 12.600]
+    translate: [0.000, 48.250, 0.000]
+    material: "stone_detail"
+
+  # Roof balustrade
+  - name: "balus_0_0"
+    type: "cylinder"
+    center: [-5.800, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_0_1"
+    type: "cylinder"
+    center: [-4.640, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_0_2"
+    type: "cylinder"
+    center: [-3.480, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_0_3"
+    type: "cylinder"
+    center: [-2.320, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_0_4"
+    type: "cylinder"
+    center: [-1.160, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_0_5"
+    type: "cylinder"
+    center: [0.000, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_0_6"
+    type: "cylinder"
+    center: [1.160, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_0_7"
+    type: "cylinder"
+    center: [2.320, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_0_8"
+    type: "cylinder"
+    center: [3.480, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_0_9"
+    type: "cylinder"
+    center: [4.640, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_0_10"
+    type: "cylinder"
+    center: [5.800, 48.100, -6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_1_0"
+    type: "cylinder"
+    center: [-5.800, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_1_1"
+    type: "cylinder"
+    center: [-4.640, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_1_2"
+    type: "cylinder"
+    center: [-3.480, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_1_3"
+    type: "cylinder"
+    center: [-2.320, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_1_4"
+    type: "cylinder"
+    center: [-1.160, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_1_5"
+    type: "cylinder"
+    center: [0.000, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_1_6"
+    type: "cylinder"
+    center: [1.160, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_1_7"
+    type: "cylinder"
+    center: [2.320, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_1_8"
+    type: "cylinder"
+    center: [3.480, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_1_9"
+    type: "cylinder"
+    center: [4.640, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_1_10"
+    type: "cylinder"
+    center: [5.800, 48.100, 6.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_2_0"
+    type: "cylinder"
+    center: [-6.000, 48.100, -5.800]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_2_1"
+    type: "cylinder"
+    center: [-6.000, 48.100, -4.640]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_2_2"
+    type: "cylinder"
+    center: [-6.000, 48.100, -3.480]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_2_3"
+    type: "cylinder"
+    center: [-6.000, 48.100, -2.320]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_2_4"
+    type: "cylinder"
+    center: [-6.000, 48.100, -1.160]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_2_5"
+    type: "cylinder"
+    center: [-6.000, 48.100, 0.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_2_6"
+    type: "cylinder"
+    center: [-6.000, 48.100, 1.160]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_2_7"
+    type: "cylinder"
+    center: [-6.000, 48.100, 2.320]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_2_8"
+    type: "cylinder"
+    center: [-6.000, 48.100, 3.480]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_2_9"
+    type: "cylinder"
+    center: [-6.000, 48.100, 4.640]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_2_10"
+    type: "cylinder"
+    center: [-6.000, 48.100, 5.800]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_3_0"
+    type: "cylinder"
+    center: [6.000, 48.100, -5.800]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_3_1"
+    type: "cylinder"
+    center: [6.000, 48.100, -4.640]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_3_2"
+    type: "cylinder"
+    center: [6.000, 48.100, -3.480]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_3_3"
+    type: "cylinder"
+    center: [6.000, 48.100, -2.320]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_3_4"
+    type: "cylinder"
+    center: [6.000, 48.100, -1.160]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_3_5"
+    type: "cylinder"
+    center: [6.000, 48.100, 0.000]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_3_6"
+    type: "cylinder"
+    center: [6.000, 48.100, 1.160]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_3_7"
+    type: "cylinder"
+    center: [6.000, 48.100, 2.320]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_3_8"
+    type: "cylinder"
+    center: [6.000, 48.100, 3.480]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_3_9"
+    type: "cylinder"
+    center: [6.000, 48.100, 4.640]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
+  - name: "balus_3_10"
+    type: "cylinder"
+    center: [6.000, 48.100, 5.800]
+    radius: 0.060
+    height: 0.800
+    material: "limestone"
+
   - name: "roof_finial_0"
     type: "cylinder"
     center: [-5.500, 48.100, -5.500]
     radius: 0.300
     height: 3.000
     material: "limestone"
+
   - name: "roof_finial_cap_0"
     type: "box"
     scale: [0.300, 1.000, 0.300]
@@ -3709,12 +4439,14 @@ entities:
     center: [-5.500, 52.000, -5.500]
     radius: 0.120
     material: "gold_trim"
+
   - name: "roof_finial_1"
     type: "cylinder"
     center: [-5.500, 48.100, 5.500]
     radius: 0.300
     height: 3.000
     material: "limestone"
+
   - name: "roof_finial_cap_1"
     type: "box"
     scale: [0.300, 1.000, 0.300]
@@ -3726,12 +4458,14 @@ entities:
     center: [-5.500, 52.000, 5.500]
     radius: 0.120
     material: "gold_trim"
+
   - name: "roof_finial_2"
     type: "cylinder"
     center: [5.500, 48.100, -5.500]
     radius: 0.300
     height: 3.000
     material: "limestone"
+
   - name: "roof_finial_cap_2"
     type: "box"
     scale: [0.300, 1.000, 0.300]
@@ -3743,12 +4477,14 @@ entities:
     center: [5.500, 52.000, -5.500]
     radius: 0.120
     material: "gold_trim"
+
   - name: "roof_finial_3"
     type: "cylinder"
     center: [5.500, 48.100, 5.500]
     radius: 0.300
     height: 3.000
     material: "limestone"
+
   - name: "roof_finial_cap_3"
     type: "box"
     scale: [0.300, 1.000, 0.300]
@@ -3760,30 +4496,38 @@ entities:
     center: [5.500, 52.000, 5.500]
     radius: 0.120
     material: "gold_trim"
+
+  # ============================================================
+  # SPIRE — multi-section + Ayrton Light + cross
+  # ============================================================
   - name: "spire_shaft"
     type: "cylinder"
     center: [0.000, 54.900, 0.000]
     radius: 0.600
     height: 4.000
     material: "copper_roof"
+
   - name: "spire_mid"
     type: "cylinder"
     center: [0.000, 58.900, 0.000]
     radius: 0.400
     height: 2.000
     material: "copper_roof"
+
   - name: "spire_top"
     type: "cylinder"
     center: [0.000, 60.900, 0.000]
     radius: 0.200
     height: 1.500
     material: "copper_roof"
+
   - name: "spire_tip"
     type: "cylinder"
     center: [0.000, 62.400, 0.000]
     radius: 0.080
     height: 1.000
     material: "gold_trim"
+
   - name: "cross_vert"
     type: "box"
     scale: [0.080, 1.000, 0.080]
@@ -3802,326 +4546,48 @@ entities:
     radius: 0.350
     height: 0.800
     material: "iron_dark"
+
   - name: "ayrton_glow"
     type: "sphere"
     center: [0.000, 63.100, 0.000]
     radius: 0.250
     material: "warm_light"
-  - name: "roof_gallery"
+
+  # ============================================================
+  # [NEW] WESTMINSTER PALACE — simplified silhouette
+  # ============================================================
+  - name: "palace_main"
     type: "box"
-    scale: [12.600, 0.300, 12.600]
-    translate: [0.000, 48.250, 0.000]
+    scale: [60.000, 12.000, 18.000]
+    translate: [25.000, 6.000, 8.000]
+    material: "palace_stone"
+
+  - name: "palace_roof_band"
+    type: "box"
+    scale: [61.000, 0.600, 18.500]
+    translate: [25.000, 12.300, 8.000]
     material: "stone_detail"
 
-  - name: "balus_0_0"
-    type: "cylinder"
-    center: [-5.800, 48.100, -6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_0_1"
-    type: "cylinder"
-    center: [-4.745, 48.100, -6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_0_2"
-    type: "cylinder"
-    center: [-3.691, 48.100, -6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_0_3"
-    type: "cylinder"
-    center: [-2.636, 48.100, -6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_0_4"
-    type: "cylinder"
-    center: [-1.582, 48.100, -6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_0_5"
-    type: "cylinder"
-    center: [-0.527, 48.100, -6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_0_6"
-    type: "cylinder"
-    center: [0.527, 48.100, -6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_0_7"
-    type: "cylinder"
-    center: [1.582, 48.100, -6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_0_8"
-    type: "cylinder"
-    center: [2.636, 48.100, -6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_0_9"
-    type: "cylinder"
-    center: [3.691, 48.100, -6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_0_10"
-    type: "cylinder"
-    center: [4.745, 48.100, -6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_0_11"
-    type: "cylinder"
-    center: [5.800, 48.100, -6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "rail_0"
+  - name: "palace_roof"
     type: "box"
-    scale: [11.600, 0.100, 0.160]
-    translate: [0.000, 48.900, -6.000]
-    material: "limestone"
+    scale: [62.000, 2.000, 19.000]
+    translate: [25.000, 13.500, 8.000]
+    material: "iron_dark"
 
-  - name: "balus_1_0"
-    type: "cylinder"
-    center: [-5.800, 48.100, 6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_1_1"
-    type: "cylinder"
-    center: [-4.745, 48.100, 6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_1_2"
-    type: "cylinder"
-    center: [-3.691, 48.100, 6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_1_3"
-    type: "cylinder"
-    center: [-2.636, 48.100, 6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_1_4"
-    type: "cylinder"
-    center: [-1.582, 48.100, 6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_1_5"
-    type: "cylinder"
-    center: [-0.527, 48.100, 6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_1_6"
-    type: "cylinder"
-    center: [0.527, 48.100, 6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_1_7"
-    type: "cylinder"
-    center: [1.582, 48.100, 6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_1_8"
-    type: "cylinder"
-    center: [2.636, 48.100, 6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_1_9"
-    type: "cylinder"
-    center: [3.691, 48.100, 6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_1_10"
-    type: "cylinder"
-    center: [4.745, 48.100, 6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_1_11"
-    type: "cylinder"
-    center: [5.800, 48.100, 6.000]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "rail_1"
+  - name: "palace_wing"
     type: "box"
-    scale: [11.600, 0.100, 0.160]
-    translate: [0.000, 48.900, 6.000]
-    material: "limestone"
+    scale: [14.000, 10.000, 12.000]
+    translate: [12.000, 5.000, 4.000]
+    material: "palace_stone"
 
-  - name: "balus_2_0"
-    type: "cylinder"
-    center: [-6.000, 48.100, -5.800]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_2_1"
-    type: "cylinder"
-    center: [-6.000, 48.100, -4.745]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_2_2"
-    type: "cylinder"
-    center: [-6.000, 48.100, -3.691]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_2_3"
-    type: "cylinder"
-    center: [-6.000, 48.100, -2.636]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_2_4"
-    type: "cylinder"
-    center: [-6.000, 48.100, -1.582]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_2_5"
-    type: "cylinder"
-    center: [-6.000, 48.100, -0.527]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_2_6"
-    type: "cylinder"
-    center: [-6.000, 48.100, 0.527]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_2_7"
-    type: "cylinder"
-    center: [-6.000, 48.100, 1.582]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_2_8"
-    type: "cylinder"
-    center: [-6.000, 48.100, 2.636]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_2_9"
-    type: "cylinder"
-    center: [-6.000, 48.100, 3.691]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_2_10"
-    type: "cylinder"
-    center: [-6.000, 48.100, 4.745]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_2_11"
-    type: "cylinder"
-    center: [-6.000, 48.100, 5.800]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "rail_2"
+  - name: "palace_win_row_1"
     type: "box"
-    scale: [0.160, 0.100, 11.600]
-    translate: [-6.000, 48.900, 0.000]
-    material: "limestone"
+    scale: [55.000, 1.500, 0.300]
+    translate: [25.000, 5.000, -0.850]
+    material: "dark_recess"
 
-  - name: "balus_3_0"
-    type: "cylinder"
-    center: [6.000, 48.100, -5.800]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_3_1"
-    type: "cylinder"
-    center: [6.000, 48.100, -4.745]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_3_2"
-    type: "cylinder"
-    center: [6.000, 48.100, -3.691]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_3_3"
-    type: "cylinder"
-    center: [6.000, 48.100, -2.636]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_3_4"
-    type: "cylinder"
-    center: [6.000, 48.100, -1.582]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_3_5"
-    type: "cylinder"
-    center: [6.000, 48.100, -0.527]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_3_6"
-    type: "cylinder"
-    center: [6.000, 48.100, 0.527]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_3_7"
-    type: "cylinder"
-    center: [6.000, 48.100, 1.582]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_3_8"
-    type: "cylinder"
-    center: [6.000, 48.100, 2.636]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_3_9"
-    type: "cylinder"
-    center: [6.000, 48.100, 3.691]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_3_10"
-    type: "cylinder"
-    center: [6.000, 48.100, 4.745]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "balus_3_11"
-    type: "cylinder"
-    center: [6.000, 48.100, 5.800]
-    radius: 0.060
-    height: 0.800
-    material: "limestone"
-  - name: "rail_3"
+  - name: "palace_win_row_2"
     type: "box"
-    scale: [0.160, 0.100, 11.600]
-    translate: [6.000, 48.900, 0.000]
-    material: "limestone"
-
+    scale: [55.000, 1.500, 0.300]
+    translate: [25.000, 9.000, -0.850]
+    material: "dark_recess"
