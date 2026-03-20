@@ -53,26 +53,27 @@ Il motore accetta i seguenti parametri per configurare l'esecuzione:
 
 | Parametro | Alias | Default | Descrizione |
 |-----------|-------|---------|-------------|
-| `--input` | `-i` | — (**obbligatorio**) | Percorso del file di scena (YAML). |
-| `--output` | `-o` | `render.png` | Nome e percorso del file immagine da generare. |
+| `--input` | `-i` | — (**obbligatorio**) | Percorso del file di scena (YAML). Il programma termina con un errore se non specificato. |
+| `--output` | `-o` | `render.png` | Nome e percorso del file immagine da generare. Il formato viene rilevato automaticamente dall'estensione (`.png`, `.jpg`, `.bmp`). |
 | `--width` | — | `1200` | Larghezza dell'immagine in pixel. |
 | `--height` | — | `800` | Altezza dell'immagine in pixel. |
-| `--samples` | `-s` | `16` | Numero di raggi per pixel (anti-aliasing e riduzione rumore). |
-| `--depth` | `-d` | `50` | Massimo numero di rimbalzi per ogni raggio (riflessi, rifrazioni). |
-| `--help` | `-h` | — | Mostra il messaggio di aiuto. |
+| `--samples` | `-s` | `16` | Campioni per pixel (anti-aliasing e riduzione del rumore). Vedi nota sotto. |
+| `--depth` | `-d` | `50` | Massimo numero di rimbalzi ricorsivi per ogni raggio (riflessi, rifrazioni, scattering). |
+| `--help` | `-h` | — | Mostra il messaggio di aiuto ed esce. |
 
 ### Note sui Samples (Anti-Aliasing)
 
-Il motore usa il **campionamento stratificato (jittered)**: i samples vengono distribuiti in una griglia `√N × √N` all'interno di ogni pixel, con un piccolo jitter casuale. Questo garantisce una convergenza molto più rapida rispetto al campionamento puramente casuale.
+Il motore usa il **campionamento stratificato (jittered stratified sampling)**: i campioni vengono distribuiti su una griglia `√N × √N` all'interno di ogni pixel, con un piccolo jitter casuale per campione. Questo garantisce una convergenza molto più rapida rispetto al campionamento puramente casuale (Monte Carlo puro).
 
-Il numero effettivo di samples è arrotondato al quadrato perfetto superiore (es. 16 → 4×4 = 16, 20 → 5×5 = 25, 64 → 8×8 = 64).
+Il numero effettivo di campioni è sempre il **quadrato perfetto superiore** più vicino al valore fornito: ad esempio `-s 20` produce `5×5 = 25` campioni effettivi, `-s 64` produce `8×8 = 64`.
 
-### Tone Mapping
+### Tone Mapping ACES
 
-Il motore utilizza il **tone mapping ACES filmic** con correzione gamma 2.2. Questo produce:
-- Rolloff naturale degli highlights (le luci non "esplodono" in bianco puro)
-- Colori più ricchi e saturi nelle mezzatinte
-- Gestione corretta di scene HDR con forte contrasto
+L'output di ogni pixel viene processato attraverso una pipeline di post-processing:
+1. **ACES Filmic Curve**: `(x * (2.51x + 0.03)) / (x * (2.43x + 0.59) + 0.14)` — produce un rolloff naturale degli highlight (le luci non "esplodono" in bianco puro) e colori più ricchi nelle mezzatinte.
+2. **Gamma 2.2**: correzione per la visualizzazione corretta su monitor standard.
+
+Il tone mapping è sempre attivo e non richiede configurazione.
 
 ---
 
@@ -81,34 +82,34 @@ Il motore utilizza il **tone mapping ACES filmic** con correzione gamma 2.2. Que
 ### 4.1 — Profilo "FAST PREVIEW" (Bozza Immediata)
 Ideale per testare la posizione della camera o delle luci.
 ```powershell
-dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 1 -d 5 --width 400 --height 300
+dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 1 -d 5 --width 400 --height 267
 ```
-- **Qualità**: Molto rumorosa (niente anti-aliasing effettivo).
+- **Qualità**: Molto rumorosa (1 campione = niente anti-aliasing). Errori di jitter visibili.
 - **Tempo**: < 1 secondo.
 
 ### 4.2 — Profilo "DRAFT" (Qualità Media)
 Consigliato per valutare texture procedurali e materiali metallici.
 ```powershell
-dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 16 -d 20 --width 800 --height 600
+dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 16 -d 20 --width 800 --height 533
 ```
-- **Qualità**: Buona pulizia globale, rumore residuo nelle ombre.
-- **Tempo**: 5 — 20 secondi.
+- **Qualità**: Buona pulizia globale, rumore residuo nelle ombre e nei materiali dielettrici.
+- **Tempo**: 5 — 30 secondi (dipende dalla complessità della scena).
 
 ### 4.3 — Profilo "PRODUCTION" (Alta Qualità)
-Da utilizzare per il risultato finale o per scene con molto vetro.
+Da utilizzare per il risultato finale o per scene con molto vetro e area light.
 ```powershell
 dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 128 -d 50 --width 1920 --height 1080
 ```
-- **Qualità**: Immagine cristallina, ombre morbide perfette.
+- **Qualità**: Immagine pulita, ombre morbide degli area light ben definite.
 - **Tempo**: Minuti (dipende dalla CPU e dalla complessità della scena).
 
 ### 4.4 — Profilo "ULTRA" (Qualità Massima)
-Per render finali con vetro, DOF e riflessi multipli.
+Per render finali con vetro, depth of field e area light ad alta qualità.
 ```powershell
 dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 256 -d 50 --width 3840 --height 2160
 ```
 - **Qualità**: Qualità fotorealistica, zero rumore visibile.
-- **Tempo**: Da minuti a ore.
+- **Tempo**: Da decine di minuti a ore.
 
 ---
 
@@ -118,45 +119,71 @@ Il motore determina il formato dell'immagine salvata in base all'estensione del 
 
 | Formato | Estensione | Note |
 |---------|------------|------|
-| **PNG** | `.png` | Consigliato. Formato lossless (senza perdita di qualità). |
-| **JPEG** | `.jpg` / `.jpeg` | Compresso. Utile per file leggeri, sconsigliato per qualità massima. |
-| **BMP** | `.bmp` | Formato grezzo non compresso. File molto pesanti. |
+| **PNG** | `.png` | Consigliato. Formato lossless (senza perdita di qualità). Default se l'estensione non è riconosciuta. |
+| **JPEG** | `.jpg` / `.jpeg` | Compresso con perdita. Utile per condivisione, sconsigliato per qualità massima. |
+| **BMP** | `.bmp` | Formato grezzo non compresso. File molto pesanti, nessun vantaggio pratico. |
 
 ---
 
 ## 6. Ottimizzazione e Performance
 
 ### Accelerazione BVH (Bounding Volume Hierarchy)
-Il motore costruisce automaticamente un albero BVH per scene con più di 4 oggetti. L'algoritmo usa l'euristica dell'**asse più lungo** per suddividere gli oggetti in modo ottimale, garantendo intersezioni raggio-oggetto in tempo **O(log N)**.
+Il motore costruisce automaticamente un albero BVH per scene con **più di 4 oggetti**. L'algoritmo usa l'euristica dell'**asse più lungo sui centroidi** per suddividere gli oggetti in modo ottimale, garantendo test di intersezione raggio-oggetto in tempo **O(log N)**. I piani infiniti (`infinite_plane`) vengono esclusi dall'albero BVH e testati separatamente, poiché non hanno un bounding box finito.
 
 ### Texture Procedurali e Randomizzazione
-L'uso di texture avanzate come **Marble** o **Wood** con `randomize_offset: true` non impatta significativamente sui tempi di calcolo, poiché si basa su trasformazioni matematiche veloci applicate al punto di impatto.
+L'uso di texture avanzate come **Marble**, **Wood** o **Noise** con `randomize_offset: true` o `randomize_rotation: true` non impatta significativamente sui tempi di calcolo. La randomizzazione è basata su trasformazioni matematiche veloci (funzioni di hash trigonometriche) applicate al punto di impatto, non su lookup di texture in memoria.
 
-### Parametro `--samples` (Il peso principale)
-Il tempo di rendering è **proporzionale** al numero di samples. Raddoppiare i samples raddoppia il tempo di calcolo. 
-- **Suggerimento**: Inizia sempre con pochi samples (`-s 1` o `-s 4`) per rifinire la scena prima di lanciare il render finale.
+### Parametro `--samples` (Il fattore di costo principale)
+Il tempo di rendering è **proporzionale** al numero di campioni effettivi. Raddoppiare i samples raddoppia il tempo di calcolo.
+
+| Samples (-s) | Campioni effettivi | Uso consigliato |
+|---|---|---|
+| 1 | 1×1 = 1 | Preview struttura/camera |
+| 4 | 2×2 = 4 | Preview materiali |
+| 16 | 4×4 = 16 | Draft |
+| 64 | 8×8 = 64 | Qualità intermedia |
+| 128 | 12×12 = 144 | Produzione |
+| 256 | 16×16 = 256 | Ultra |
+
+> **Suggerimento**: Inizia sempre con `-s 1` per rifinire la scena, poi scala gradualmente.
+
+### Area Light e Shadow Samples
+Le **area light** hanno un parametro `shadow_samples` separato (default: 16). Ogni shadow sample è un raggio aggiuntivo verso un punto casuale sulla sorgente luminosa. Il costo totale delle ombre morbide è:
+
+```
+costo ombre = numero_luci_area × shadow_samples × campioni_pixel
+```
+
+Riduci `shadow_samples: 4-8` durante il draft e aumenta a `16-32` per il render finale.
 
 ### Multi-Threading
-Il motore parallelizza il rendering per scanline usando `Parallel.For`. Tutti i core della CPU vengono utilizzati automaticamente.
+Il motore parallelizza il rendering per scanline usando `Parallel.For` con `MaxDegreeOfParallelism = Environment.ProcessorCount`. Tutti i core logici della CPU vengono utilizzati automaticamente senza configurazione.
 
 ---
 
 ## 7. Risoluzione Problemi
 
-### L'immagine è completamente nera?
-1. Verifica che la camera non sia posizionata all'interno di un solido.
+### L'immagine è completamente nera
+1. Verifica che la camera non si trovi all'interno di un oggetto solido.
 2. Controlla che siano presenti luci (`lights`) con `intensity` > 0.
-3. Verifica che `background` non sia `[0, 0, 0]` — il background agisce come sorgente di illuminazione globale per i raggi rimbalzati.
-4. Se vuoi una scena scura con solo luci esplicite, imposta `background: [0, 0, 0]` e `ambient_light: [0, 0, 0]`, poi aggiungi luci `point` o `spot` con intensità sufficienti.
+3. Verifica che `background` non sia `[0, 0, 0]` — il background agisce come sorgente di luce globale per i raggi rimbalzati.
+4. Se vuoi una scena buia illuminata solo da luci esplicite, imposta `background: [0, 0, 0]` e `ambient_light: [0, 0, 0]`, poi aggiungi luci `point` o `spot` con intensità sufficienti (tipicamente 10–100 per point, 6–30 per spot).
 
-### L'immagine ha zone troppo luminose (bianche)?
-Il tone mapping ACES gestisce automaticamente l'HDR, ma valori di `intensity` troppo alti sulle luci possono saturare. Riduci l'intensità delle luci o allontanale dagli oggetti.
+### L'immagine ha zone sovraesposte (bianche)
+Il tone mapping ACES gestisce automaticamente l'HDR, ma valori di `intensity` troppo alti sulle luci possono saturare la curva. Dimezza le intensità di tutte le luci mantenendo i rapporti tra loro, poi esegui un nuovo preview.
 
-### Le texture appaiono "piatte" o orientate male?
-Usa i parametri `rotation` e `offset` nella definizione della texture per orientare le venature. Consulta il [Tutorial Scene](02-tutorial-scene.md) per i dettagli tecnici.
+### Le ombre delle area light sono molto rumorose
+Aumenta il parametro `shadow_samples` sull'area light (da 8 a 16 o 32) e aumenta i campioni di rendering (`-s`). Le ombre morbide richiedono più campioni per convergere. In alternativa, usa una point light con il risultato netto di ombre nette ma render più veloce.
 
-### Errore di caricamento YAML?
-Usa sempre percorsi relativi corretti rispetto alla cartella in cui lanci il comando, oppure usa **percorsi assoluti**.
+### Le texture appaiono "piatte" o orientate male
+Usa i parametri `rotation` e `offset` nella definizione della texture per orientare le venature. Consulta la [sezione 5.2 del Tutorial Scene](02-tutorial-scene.md#52-trasformazioni-spaziali-offset--rotation) per i dettagli tecnici.
+
+### La scena carica ma non appare nulla / oggetti mancanti
+Verifica che tutti i riferimenti `material` nelle entità corrispondano esattamente a un `id` definito nella sezione `materials` (case-sensitive). Un ID non trovato produce un materiale grigio di fallback (Lambertian 50% grigio), non un errore.
+
+### Errore di caricamento YAML
+Usa percorsi relativi corretti rispetto alla cartella in cui lanci il comando, oppure percorsi assoluti:
 ```powershell
 --input C:\Users\Nome\Documents\scena.yaml
 ```
+Il file YAML deve usare **spazi** per l'indentazione (niente TAB). Verifica la struttura con un linter YAML online in caso di dubbio.

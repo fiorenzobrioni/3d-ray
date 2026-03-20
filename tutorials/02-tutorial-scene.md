@@ -26,7 +26,8 @@
    - [7.1 Point Light](#71-point-light-puntiforme)
    - [7.2 Directional Light](#72-directional-light-sole)
    - [7.3 Spot Light](#73-spot-light-faretto)
-   - [7.4 Calibrazione dell'Intensità](#74--calibrazione-dellintensità)
+   - [7.4 Area Light](#74-area-light-emettitore-rettangolare)
+   - [7.5 Calibrazione dell'Intensità](#75--calibrazione-dellintensità)
 8. [Illuminazione: Come Funziona](#8-illuminazione-come-funziona)
 9. [Esempi Completi](#9-esempi-completi)
 10. [Regole e Best Practices](#10-regole-e-best-practices)
@@ -45,7 +46,7 @@ entities:   # Oggetti 3D nella scena
 lights:     # Sorgenti di luce
 ```
 
-> **Nota:** I colori sono sempre espressi come `[R, G, B]` con valori da `0.0` a `1.0`. Le coordinate usano il sistema: **X** = destra, **Y** = alto, **Z** = verso la camera (negativo = lontano).
+> **Nota:** I colori sono sempre espressi come `[R, G, B]` con valori da `0.0` a `1.0`. Le coordinate usano il sistema: **X** = destra, **Y** = alto, **Z** = verso la camera (negativo = lontano dalla camera).
 
 ---
 
@@ -81,7 +82,7 @@ Il renderer ha **tre fonti di luce** che lavorano insieme:
 |----------|---------------|---------|
 | `background` | Colore del cielo | I raggi che rimbalzano sugli oggetti e "escono" dalla scena raccolgono questo colore. Agisce come una sorgente di luce ambiente globale (Global Illumination). |
 | `ambient_light` | Luce piatta di riempimento | Viene **sommata** alla luce diretta su ogni punto colpito. Aiuta a schiarire le ombre. |
-| `lights:` | Luci esplicite | Point, Directional, Spot — illuminano selettivamente la scena. |
+| `lights:` | Luci esplicite | Point, Directional, Spot, Area — illuminano selettivamente la scena. |
 
 ### Esempi di ambienti
 
@@ -221,7 +222,7 @@ Superficie riflettente come specchi o metalli. Il parametro `fuzz` controlla la 
 
 ### 4.3 — Dielectric (Vetro/Trasparente)
 
-Materiale trasparente che rifrange la luce. Molto realistico per liquidi, vetrate e cristalli colorati.
+Materiale trasparente che rifrange la luce. Molto realistico per liquidi, vetrate e cristalli colorati. Implementa il modello di Fresnel (approssimazione di Schlick) per riflessioni angolo-dipendenti.
 
 Supporta `color` e `texture` per creare effetti di **Surface Tinting** (vetro colorato).
 
@@ -235,7 +236,7 @@ Supporta `color` e `texture` per creare effetti di **Surface Tinting** (vetro co
 | Campo | Tipo | Descrizione |
 |-------|------|-------------|
 | `refraction_index` | float | Indice di rifrazione (IOR) |
-| `color` | `[R, G, B]` | Tintura superficiale (opzionale, default bianco) |
+| `color` | `[R, G, B]` | Tintura superficiale (opzionale, default bianco = vetro neutro) |
 | `texture` | oggetto | Pattern procedurale trasparente (opzionale) |
 
 **Indici di rifrazione (IOR) comuni:**
@@ -259,7 +260,7 @@ Le texture permettono di mappare pattern complessi sulla superficie degli oggett
 ### 5.1 Tipi di Texture Procedurali
 
 #### **Checker (Scacchiera)**
-Pattern 3D a quadrati alternati. Il parametro `scale` controlla la dimensione dei quadrati.
+Pattern 3D a quadrati alternati nello spazio 3D. Il parametro `scale` controlla la dimensione dei quadrati.
 ```yaml
     texture:
       type: "checker"
@@ -268,8 +269,10 @@ Pattern 3D a quadrati alternati. Il parametro `scale` controlla la dimensione de
 ```
 | Campo | Tipo | Descrizione |
 |-------|------|-------------|
-| `scale` | float | Dimensione dei quadrati. Più piccolo = quadrati più grandi. |
+| `scale` | float | Dimensione dei quadrati. Valori **più grandi** producono quadrati **più grandi**. |
 | `colors` | `[[R,G,B], [R,G,B]]` | I due colori alternati (pari e dispari) |
+
+> **⚠️ Nota tecnica:** La checker è valutata nello spazio 3D (non UV). Un `scale: 1.0` produce quadrati di 1 unità di scena, `scale: 0.5` produce quadrati di mezzo metro. Valori consigliati: `1.0–5.0` per pavimenti, `0.1–0.5` per pattern fini su sfere.
 
 #### **Noise (Perlin Noise)**
 Genera un rumore smussato per effetti naturali, sporcizia o rugosità. Produce un colore in scala di grigi.
@@ -280,10 +283,10 @@ Genera un rumore smussato per effetti naturali, sporcizia o rugosità. Produce u
 ```
 | Campo | Tipo | Descrizione |
 |-------|------|-------------|
-| `scale` | float | Frequenza del rumore. Più alto = dettagli più fini. |
+| `scale` | float | Frequenza del rumore. Più alto = dettagli più fini e frequenti. |
 
 #### **Marble (Marmo)**
-Simula venature di marmo striate usando la turbolenza matematica.
+Simula venature di marmo striate usando la turbolenza di Perlin.
 ```yaml
     texture:
       type: "marble"
@@ -291,45 +294,53 @@ Simula venature di marmo striate usando la turbolenza matematica.
       noise_strength: 15.0
       colors: [[0.95, 0.95, 0.95], [0.1, 0.2, 0.3]]
 ```
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `scale` | float | Frequenza delle venature. Più alto = venature più fitte. |
-| `noise_strength` | float | Controlla quanto le venature sono "distorte" e irregolari. |
-| `colors` | `[[R,G,B], [R,G,B]]` | `[0]` = colore base, `[1]` = colore venature |
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `scale` | float | `4.0` | Frequenza delle venature. Più alto = venature più fitte. |
+| `noise_strength` | float | `10.0` | Controlla quanto le venature sono "distorte" e irregolari. |
+| `colors` | `[[R,G,B], [R,G,B]]` | — | `[0]` = colore base (prevalente), `[1]` = colore venature |
 
 #### **Wood (Legno)**
-Genera anelli di accrescimento concentrici (default attorno ad asse Y).
+Genera anelli di accrescimento concentrici attorno all'asse Y (nel sistema di riferimento locale dell'oggetto).
 ```yaml
     texture:
       type: "wood"
       scale: 12.0
       noise_strength: 3.5
-      colors: [[0.4, 0.2, 0.1], [0.2, 0.1, 0.05]]
+      colors: [[0.85, 0.65, 0.40], [0.60, 0.40, 0.20]]
 ```
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `scale` | float | Densità degli anelli. Più alto = anelli più fitti. |
-| `noise_strength` | float | Irregolarità degli anelli. |
-| `colors` | `[[R,G,B], [R,G,B]]` | `[0]` = legno chiaro, `[1]` = legno scuro |
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `scale` | float | `4.0` | Densità degli anelli. Più alto = anelli più fitti. |
+| `noise_strength` | float | `2.0` | Irregolarità degli anelli. Valori alti distorcono molto gli anelli. |
+| `colors` | `[[R,G,B], [R,G,B]]` | — | `[0]` = legno chiaro (tra gli anelli), `[1]` = legno scuro (anelli) |
 
 ### 5.2 Trasformazioni Spaziali (Offset & Rotation)
 
 Puoi manipolare come la texture "avvolge" l'oggetto senza cambiare la posizione dell'oggetto stesso. Disponibili per `noise`, `marble` e `wood`.
 
-- **`offset`**: `[X, Y, Z]` per traslare il pattern nello spazio.
-- **`rotation`**: `[X, Y, Z]` (in gradi) per ruotare le venature.
+- **`offset`**: `[X, Y, Z]` per traslare il pattern nello spazio locale.
+- **`rotation`**: `[X, Y, Z]` (in gradi) per ruotare le venature (ordine: X, poi Y, poi Z).
 
-**Esempio: Legno con venature orizzontali (tavolo visto dall'alto)**
+**Esempio: Legno con venature orizzontali su un piano visto dall'alto**
 ```yaml
     texture:
       type: "wood"
-      rotation: [90, 0, 0]
+      rotation: [90, 0, 0]   # Ruota gli anelli, che per default sono attorno a Y
       scale: 10.0
+```
+
+**Esempio: Marmo con venature verticali (pilastro)**
+```yaml
+    texture:
+      type: "marble"
+      rotation: [0, 0, 90]
+      scale: 8.0
 ```
 
 ### 5.3 Randomizzazione per Oggetto
 
-Questa funzione permette di usare **lo stesso materiale** su più oggetti ma con venature **diverse** per ognuno. Il motore usa il `seed` di ogni oggetto per generare offset e rotazioni deterministici.
+Questa funzione permette di usare **lo stesso materiale** su più oggetti ma con venature **diverse** per ognuno. Il motore usa il `seed` di ogni oggetto per generare offset e rotazioni deterministici — lo stesso seed produce sempre lo stesso risultato tra render diversi.
 
 - **`randomize_offset: true`**: sposta la texture in modo pseudo-casuale unico per ogni oggetto.
 - **`randomize_rotation: true`**: ruota la texture in modo pseudo-casuale per ogni oggetto.
@@ -363,7 +374,7 @@ Gli oggetti 3D nella scena. Ogni entità ha un `name`, un `type`, parametri spec
 ```
 | Campo | Tipo | Descrizione |
 |-------|------|-------------|
-| `center` | `[X, Y, Z]` | Centro della sfera |
+| `center` | `[X, Y, Z]` | Centro della sfera nel mondo |
 | `radius` | float | Raggio |
 
 ### 6.2 Box (Cubo/Parallelepipedo)
@@ -379,14 +390,14 @@ Il Box è definito come un **cubo unitario** centrato nell'origine (da -0.5 a 0.
 ```
 | Campo | Tipo | Descrizione |
 |-------|------|-------------|
-| `scale` | `[X, Y, Z]` | Dimensioni del box (largezza, altezza, profondità) |
-| `translate` | `[X, Y, Z]` | Posizione del **centro** del box |
+| `scale` | `[X, Y, Z]` | Dimensioni del box (larghezza, altezza, profondità) |
+| `translate` | `[X, Y, Z]` | Posizione del **centro** del box nel mondo |
 | `rotate` | `[X, Y, Z]` | Rotazione in gradi (opzionale) |
 
-> **⚠️ Importante:** Il `translate` posiziona il **centro** del box. Se vuoi che la base del box sia a Y=0, devi traslare di `altezza / 2` in Y. Esempio: un box alto 1.0 con base a terra → `translate: [0, 0.5, 0]`.
+> **⚠️ Importante:** Il `translate` posiziona il **centro** del box. Se vuoi che la base sia a Y=0, traslaci di `altezza / 2` in Y. Esempio: box alto 1.0 con base a terra → `translate: [0, 0.5, 0]`.
 
 ### 6.3 Cylinder (Cilindro)
-Cilindro finito allineato all'asse Y, con dischi di chiusura in alto e in basso.
+Cilindro finito allineato all'asse Y, con dischi di chiusura (caps) in alto e in basso.
 ```yaml
   - name: "colonna"
     type: "cylinder"
@@ -402,7 +413,7 @@ Cilindro finito allineato all'asse Y, con dischi di chiusura in alto e in basso.
 | `height` | float | Altezza (estensione verso +Y dal center) |
 
 ### 6.4 Triangle (Triangolo)
-Triangolo definito da tre vertici. Usa l'algoritmo Möller-Trumbore per l'intersezione.
+Triangolo definito da tre vertici. Usa l'algoritmo Möller–Trumbore per l'intersezione.
 ```yaml
   - name: "triangolo"
     type: "triangle"
@@ -422,7 +433,7 @@ Un parallelogramma definito da un punto d'origine Q e due vettori U e V che defi
 ```yaml
   - name: "parete"
     type: "quad"
-    q: [0, 0, 5]          # Punto d'origine
+    q: [0, 0, 5]          # Punto d'origine (angolo)
     u: [4, 0, 0]           # Vettore primo lato (larghezza)
     v: [0, 3, 0]           # Vettore secondo lato (altezza)
     material: "muro"
@@ -452,7 +463,7 @@ Un disco piatto definito da centro, normale e raggio.
 | `radius` | float | Raggio |
 
 ### 6.7 Plane / Infinite Plane (Piano Infinito)
-Un piano infinito definito da un punto e una normale. Utile per pavimenti o pareti senza bordi.
+Un piano infinito definito da un punto e una normale. Utile per pavimenti o pareti senza bordi visibili.
 ```yaml
   - name: "pavimento"
     type: "infinite_plane"
@@ -465,11 +476,11 @@ Un piano infinito definito da un punto e una normale. Utile per pavimenti o pare
 | `point` | `[X, Y, Z]` | Un punto qualsiasi sul piano |
 | `normal` | `[X, Y, Z]` | Direzione perpendicolare al piano |
 
-> Il piano infinito è anche definibile nella sezione `world.ground` per comodità.
+> Il piano infinito è anche definibile nella sezione `world.ground` per comodità. I piani infiniti sono esclusi dall'accelerazione BVH e testati separatamente, il che è corretto poiché non hanno un bounding box finito.
 
 ### 6.8 Trasformazioni (Translate, Rotate, Scale)
 
-Le trasformazioni vengono applicate **nell'ordine: Scale → Rotate → Translate**. Sono disponibili per tutte le primitive, ma sono **obbligatorie** per il Box (che è un cubo unitario da trasformare).
+Le trasformazioni vengono applicate **nell'ordine: Scale → Rotate → Translate**. Sono disponibili per tutte le primitive e sono **obbligatorie** per il Box (che è un cubo unitario da trasformare).
 
 ```yaml
   - name: "cubo_ruotato"
@@ -486,9 +497,11 @@ Le trasformazioni vengono applicate **nell'ordine: Scale → Rotate → Translat
 | `rotate` | `[X, Y, Z]` | Rotazione in gradi (ordine: X poi Y poi Z) |
 | `translate` | `[X, Y, Z]` | Traslazione nel mondo |
 
+> **Nota tecnica:** Le normali sono trasformate correttamente usando la matrice **inversa trasposta** della trasformazione. Questo garantisce normali corrette anche in presenza di scaling non uniforme.
+
 ### 6.9 Parametro Seed
 
-Ogni entità può avere un `seed` opzionale. Se non specificato, il motore assegna un seed casuale. Il seed viene usato dalle texture con `randomize_offset` o `randomize_rotation` per generare variazioni uniche per-oggetto.
+Ogni entità può avere un `seed` opzionale (intero). Se non specificato, il motore assegna un seed casuale ad ogni render. Il seed viene usato dalle texture con `randomize_offset` o `randomize_rotation` per generare variazioni uniche per-oggetto in modo **deterministico** — lo stesso seed produce sempre le stesse venature.
 
 ```yaml
   - name: "sfera_1"
@@ -503,8 +516,10 @@ Ogni entità può avere un `seed` opzionale. Se non specificato, il motore asseg
 
 ## 7. Sezione `lights`
 
+> **Default automatico:** Se la sezione `lights` è assente o vuota, il motore aggiunge automaticamente una `directional` e una `point` light di base.
+
 ### 7.1 Point Light (Puntiforme)
-Luce che irradia in tutte le direzioni da un punto. Attenuazione con il quadrato della distanza.
+Luce che irradia in tutte le direzioni da un punto. Attenuazione con il quadrato della distanza (`Intensity / d²`).
 ```yaml
   - type: "point"
     position: [0, 10, -5]
@@ -534,15 +549,15 @@ Luce parallela infinita (come il sole). Non ha attenuazione con la distanza.
 > **Alias:** Puoi usare anche `type: "sun"` come alias per `"directional"`.
 
 ### 7.3 Spot Light (Faretto)
-Luce conica con posizione e direzione. Ha un cono interno (piena intensità) e un cono esterno (sfumatura).
+Luce conica con posizione e direzione. Ha un cono interno (piena intensità) e un cono esterno (sfumatura smooth). L'attenuazione angolare usa un'interpolazione quadratica tra i due coni.
 ```yaml
   - type: "spot"
     position: [0, 8, -3]
     direction: [0, -1, 0]       # Punta verso il basso
     color: [1.0, 0.95, 0.9]
     intensity: 12
-    inner_angle: 15              # Angolo cono interno (gradi)
-    outer_angle: 30              # Angolo cono esterno (gradi)
+    inner_angle: 15              # Mezzo-angolo cono interno (gradi)
+    outer_angle: 30              # Mezzo-angolo cono esterno (gradi)
 ```
 | Campo | Tipo | Default | Descrizione |
 |-------|------|---------|-------------|
@@ -555,11 +570,50 @@ Luce conica con posizione e direzione. Ha un cono interno (piena intensità) e u
 
 > **Alias:** Puoi usare anche `type: "spotlight"`.
 
+### 7.4 Area Light (Emettitore Rettangolare)
+
+Sorgente luminosa rettangolare che produce **ombre morbide** fisicamente corrette con gradiente di penombra. Definita da un angolo (`corner`) e due vettori che formano il rettangolo.
+
+Il motore usa campionamento Monte Carlo: per ogni punto della scena vengono sparati `shadow_samples` raggi verso punti casuali sulla superficie della luce, e il risultato è la media. Più shadow samples = penombra più morbida e meno rumorosa.
+
+```yaml
+  - type: "area"
+    corner: [-1.0, 4.9, -1.0]  # Un angolo del rettangolo
+    u: [2.0, 0.0, 0.0]          # Primo lato (larghezza: 2 unità in X)
+    v: [0.0, 0.0, 2.0]          # Secondo lato (profondità: 2 unità in Z)
+    color: [1.0, 0.95, 0.9]
+    intensity: 40.0
+    shadow_samples: 16
+```
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `corner` | `[X, Y, Z]` | — (**obbligatorio**) | Un angolo del rettangolo luminoso |
+| `u` | `[X, Y, Z]` | — (**obbligatorio**) | Primo vettore lato (definisce larghezza e direzione) |
+| `v` | `[X, Y, Z]` | — (**obbligatorio**) | Secondo vettore lato (definisce l'altro asse) |
+| `color` | `[R, G, B]` | `[1, 1, 1]` | Colore emesso |
+| `intensity` | float | `20.0` | Intensità totale. Valori tipici: 15–60. |
+| `shadow_samples` | int | `16` | Raggi ombra per punto. 8=preview, 16=produzione, 32=qualità massima. |
+
+> **Alias:** Puoi usare anche `type: "area_light"`, `type: "rect"` o `type: "rect_light"`.
+
+> **⚠️ Costo computazionale:** Il `shadow_samples` ha un impatto diretto sul tempo di render. Usa `shadow_samples: 4` durante il draft e `shadow_samples: 16-32` per il render finale. Con `-s 128` campioni pixel e `shadow_samples: 16`, ogni pixel lancia `128 × 16 = 2048` raggi ombra per questa sola luce.
+
+**Esempio: Pannello luminoso da soffitto**
+```yaml
+  - type: "area"
+    corner: [-1.5, 4.99, -1.5]
+    u: [3.0, 0.0, 0.0]
+    v: [0.0, 0.0, 3.0]
+    color: [1.0, 0.97, 0.9]
+    intensity: 35.0
+    shadow_samples: 16
+```
+
 ---
 
-### 7.4 — Calibrazione dell'Intensità
+### 7.5 — Calibrazione dell'Intensità
 
-> 💡 **Nota sui valori tipici:** I range indicati nelle tabelle dei paragrafi 7.1–7.3 sono stati calibrati empiricamente su scene reali. Se l'immagine risulta sovraesposta o sottoesposta, scala **tutte** le intensità in modo uniforme mantenendo i rapporti tra le sorgenti.
+> 💡 **Nota sui valori tipici:** I range indicati nelle tabelle dei paragrafi 7.1–7.4 sono stati calibrati empiricamente su scene reali. Se l'immagine risulta sovraesposta o sottoesposta, scala **tutte** le intensità in modo uniforme mantenendo i rapporti tra le sorgenti.
 
 #### Valori di riferimento per tipo di luce
 
@@ -570,6 +624,7 @@ Luce conica con posizione e direzione. Ha un cono interno (piena intensità) e u
 | `spot` fill / rim | 5 – 15 | Tipicamente 1/3 – 1/2 della key |
 | `point` accent / bounce | 0.5 – 2 | Luci di dettaglio, quasi invisibili da sole |
 | `directional` (sole) | 0.05 – 0.15 | Non ha attenuazione con la distanza: valori bassi bastano |
+| `area` pannello | 20 – 60 | Dipende dall'area del rettangolo e dalla distanza dalla scena |
 
 #### Workflow di calibrazione
 
@@ -603,6 +658,22 @@ lights:
   - type: "point"
     position: [0, 20, 0]
     intensity: 10
+```
+
+**Studio con Area Light (ombre morbide):**
+```yaml
+lights:
+  - type: "area"
+    corner: [-2.0, 4.9, -2.0]
+    u: [4.0, 0.0, 0.0]
+    v: [0.0, 0.0, 4.0]
+    color: [1.0, 0.97, 0.9]
+    intensity: 40.0
+    shadow_samples: 16
+  - type: "point"
+    position: [-5, 3, -3]
+    color: [0.8, 0.85, 1.0]
+    intensity: 3
 ```
 
 **Studio con Spot:**
@@ -664,9 +735,14 @@ entities:
   - { name: "mat_sx", type: "sphere", center: [-2.5, 1, 0], radius: 1, material: "diffuso" }
   - { name: "mat_centro", type: "sphere", center: [0, 1, 0], radius: 1, material: "metallico" }
   - { name: "mat_dx", type: "sphere", center: [2.5, 1, 0], radius: 1, material: "vetro" }
+
+lights:
+  - type: "point"
+    position: [0, 8, -5]
+    intensity: 8
 ```
 
-### 9.2 — Scena Architettonica con Geometrie Miste e SpotLight
+### 9.2 — Scena Architettonica con Area Light e Geometrie Miste
 
 ```yaml
 world:
@@ -691,12 +767,13 @@ materials:
     refraction_index: 1.8
 
 lights:
-  - type: "spot"
-    position: [0, 10, 0]
-    direction: [0, -1, 0]
-    intensity: 20
-    inner_angle: 25
-    outer_angle: 45
+  - type: "area"
+    corner: [-2.0, 4.9, -2.0]
+    u: [4.0, 0.0, 0.0]
+    v: [0.0, 0.0, 4.0]
+    color: [1.0, 0.97, 0.92]
+    intensity: 40.0
+    shadow_samples: 16
   - type: "point"
     position: [-5, 3, -5]
     color: [0.8, 0.8, 1.0]
@@ -720,16 +797,23 @@ entities:
 ### Sintassi e Funzionamento
 1. **Colori:** Nelle texture usa sempre una lista di liste: `colors: [[R,G,B], [R,G,B]]`.
 2. **Coordinate:** Y positivo è sempre verso l'alto.
-3. **Box:** Usa sempre `scale` + `translate` per i box. Il centro del cubo unitario è l'origine.
-4. **Performance:** Le sfere e i box di vetro sono le più costose da renderizzare. Usa `-s 1` per test rapidi.
-5. **BVH:** Il motore ottimizza automaticamente le scene con più di 4 oggetti usando una BVH basata sull'asse più lungo.
+3. **Box:** Usa sempre `scale` + `translate` per i box. Il cubo unitario ha centro nell'origine.
+4. **IDs materiale:** Ogni `id` deve essere univoco. I riferimenti `material` nelle entità sono **case-sensitive** e devono corrispondere esattamente. Un ID non trovato produce un materiale grigio di fallback senza errore.
+5. **BVH:** Il motore ottimizza automaticamente le scene con più di 4 oggetti usando una BVH basata sull'asse con maggiore estensione dei centroidi.
 6. **Luci di default:** Se non specifichi nessuna luce nella sezione `lights`, il motore aggiunge automaticamente una directional + una point light.
+7. **Area Light:** I campi `corner`, `u` e `v` sono tutti obbligatori. Se uno è mancante, la luce viene saltata con un warning in console.
+
+### Performance
+8. **Campioni e area light:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128` e `shadow_samples: 16` su una sola area light, ogni pixel lancia oltre 2000 raggi. Usa `shadow_samples: 4` per il draft.
+9. **Vetro e dielettrico:** I materiali dielettrici (vetro) sono i più costosi perché ogni rimbalzo può generare sia riflessione che rifrazione. Aumenta `--depth` per scene con molto vetro.
 
 ### Checklist prima del render finale
 
-- [ ] Tutti gli `id` dei materiali sono univoci e referenziati correttamente.
+- [ ] Tutti gli `id` dei materiali sono univoci e referenziati correttamente nelle entità.
 - [ ] La `camera.position` non si trova all'interno di un oggetto solido.
-- [ ] Le texture che richiedono variazioni hanno `randomize_offset` o `randomize_rotation` attivo.
-- [ ] Il file YAML usa correttamente gli spazi per l'indentazione (niente TAB).
+- [ ] Le texture con variazioni per-oggetto hanno `randomize_offset` o `randomize_rotation` attivo.
+- [ ] Il file YAML usa correttamente gli **spazi** per l'indentazione (niente TAB).
 - [ ] È stata eseguita un'anteprima a bassa risoluzione (`--width 400 -s 1`).
+- [ ] Le area light hanno `corner`, `u` e `v` tutti definiti.
 - [ ] Se la scena deve essere buia, `background` è `[0, 0, 0]`.
+- [ ] I seed degli oggetti con texture randomizzate sono fissi (se vuoi risultati riproducibili tra render).
