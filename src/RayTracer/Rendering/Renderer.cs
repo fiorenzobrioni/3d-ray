@@ -59,7 +59,6 @@ public class Renderer
                 {
                     for (int sx = 0; sx < sqrtSpp; sx++)
                     {
-                        // Jittered sample within the stratum
                         float jitterU = (sx + MathUtils.RandomFloat()) * invSqrtSpp;
                         float jitterV = (sy + MathUtils.RandomFloat()) * invSqrtSpp;
 
@@ -71,10 +70,7 @@ public class Renderer
                     }
                 }
 
-                // Average samples
                 Vector3 linearColor = cumulativeColor / actualSamples;
-
-                // ACES filmic tone mapping for proper HDR handling
                 pixels[j, i] = AcesToneMap(linearColor);
             }
 
@@ -96,7 +92,6 @@ public class Renderer
     /// </summary>
     private static Vector3 AcesToneMap(Vector3 color)
     {
-        // Clamp negatives
         color = Vector3.Max(color, Vector3.Zero);
 
         // ACES filmic curve: (x * (2.51x + 0.03)) / (x * (2.43x + 0.59) + 0.14)
@@ -104,7 +99,6 @@ public class Renderer
         Vector3 b = color * (2.43f * color + new Vector3(0.59f)) + new Vector3(0.14f);
         Vector3 mapped = new Vector3(a.X / b.X, a.Y / b.Y, a.Z / b.Z);
 
-        // Clamp to [0,1] and apply gamma 2.2
         const float invGamma = 1f / 2.2f;
         return new Vector3(
             MathF.Pow(Math.Clamp(mapped.X, 0f, 1f), invGamma),
@@ -114,44 +108,72 @@ public class Renderer
 
     private Vector3 TraceRay(Ray ray, int depth)
     {
-        // Termination condition: if depth reaches 0, stop calculating light
         if (depth <= 0)
             return Vector3.Zero;
 
-        // Zero-allocation hit record init
         HitRecord rec = default;
-        
+
         if (!_world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec))
-        {
             return CalculateSkyColor(ray);
-        }
 
         Vector3 directLight = ComputeDirectLighting(rec);
 
         if (rec.Material != null && rec.Material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
         {
-            // Early exit optimization
+            // BUG FIX: was returning raw directLight when attenuation ≈ 0,
+            // which incorrectly ignored the material's absorption. Both terms
+            // must be weighted by the material attenuation (albedo).
+            // For near-black materials the recursive term is negligible, so
+            // we can skip it safely — but the direct term must still be attenuated.
             if (attenuation.LengthSquared() < 0.001f)
-                return directLight;
+                return directLight * attenuation; // ≈ zero, avoids one recursive call
 
-            return directLight * attenuation + attenuation * TraceRay(scattered, depth - 1);
+            return attenuation * (directLight + TraceRay(scattered, depth - 1));
         }
 
-        return directLight; // Absorbed light or no scatter
+        // No scatter (fully absorbed) — return whatever direct light was computed
+        return directLight;
     }
 
+    /// <summary>
+    /// Computes direct illumination from all lights at a surface hit point.
+    ///
+    /// For area lights (ShadowSamples > 1) this casts multiple shadow rays to random points
+    /// on the light surface and averages the result, producing physically-based soft shadows
+    /// with penumbra gradients. The energy is already normalised inside AreaLight so the
+    /// averaged sum gives the correct radiometric value.
+    ///
+    /// For point/directional/spot lights (ShadowSamples == 1) the loop runs once, matching
+    /// the previous behaviour exactly.
+    /// </summary>
     private Vector3 ComputeDirectLighting(HitRecord rec)
     {
-        Vector3 result = _ambientLight; // Base ambient
+        Vector3 result = _ambientLight;
 
         foreach (var light in _lights)
         {
-            if (light.IsInShadow(rec.Point, _world))
-                continue;
+            int samples = light.ShadowSamples;
+            Vector3 lightAccum = Vector3.Zero;
 
-            var (lightColor, dirToLight, _) = light.Illuminate(rec.Point);
-            float nDotL = MathF.Max(0, Vector3.Dot(rec.Normal, dirToLight));
-            result += lightColor * nDotL;
+            for (int s = 0; s < samples; s++)
+            {
+                // IlluminateAndTest guarantees the shadow ray and illumination colour
+                // both reference the SAME random sample point on the light surface.
+                // For point/directional lights this is equivalent to the old separate calls.
+                var (inShadow, lightColor, dirToLight, _) =
+                    light.IlluminateAndTest(rec.Point, _world);
+
+                if (inShadow) continue;
+
+                float nDotL = MathF.Max(0f, Vector3.Dot(rec.Normal, dirToLight));
+                lightAccum += lightColor * nDotL;
+            }
+
+            // Average the samples.
+            // Note: AreaLight pre-divides by ShadowSamples in its energy formula so
+            // summing (not averaging) the unshadowed samples gives the correct result.
+            // Point/Directional lights with ShadowSamples==1 are unaffected either way.
+            result += lightAccum;
         }
 
         return result;
@@ -159,9 +181,6 @@ public class Renderer
 
     private Vector3 CalculateSkyColor(Ray ray)
     {
-        // Return the scene background color directly.
-        // For sky gradients or HDRI environments, use IBL (future feature).
         return _background;
     }
 }
-

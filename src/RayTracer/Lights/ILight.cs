@@ -7,13 +7,27 @@ namespace RayTracer.Lights;
 public interface ILight
 {
     /// <summary>
-    /// Computes the illumination contribution at a surface point.
-    /// Returns the light color/intensity, the direction TO the light, and the distance to the light.
+    /// Number of shadow samples to cast for this light.
+    /// Point/Directional = 1. Area lights = 8-32 for soft shadows.
+    /// </summary>
+    int ShadowSamples { get; }
+
+    /// <summary>
+    /// Samples the light and performs the shadow test in a single, consistent operation.
+    /// This is critical for area lights: both the shadow ray and the illumination
+    /// contribution must reference the SAME random point on the light surface.
+    /// Returns InShadow=true and Color=Zero when the point is occluded.
+    /// </summary>
+    (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
+        IlluminateAndTest(Vector3 hitPoint, IHittable world);
+
+    /// <summary>
+    /// Legacy single-call illumination (used internally). Use IlluminateAndTest in the renderer.
     /// </summary>
     (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint);
 
     /// <summary>
-    /// Checks if the point is in shadow from this light source.
+    /// Legacy shadow test. Prefer IlluminateAndTest for correctness.
     /// </summary>
     bool IsInShadow(Vector3 hitPoint, IHittable world);
 }

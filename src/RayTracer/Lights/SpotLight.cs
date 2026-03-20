@@ -17,6 +17,9 @@ public class SpotLight : ILight
     public float CosInnerAngle { get; }
     public float CosOuterAngle { get; }
 
+    /// <inheritdoc/>
+    public int ShadowSamples => 1;
+
     /// <param name="position">World-space position of the light.</param>
     /// <param name="direction">Direction the spot light points toward (will be normalized).</param>
     /// <param name="color">Light color (RGB, typically [0,1]).</param>
@@ -40,17 +43,14 @@ public class SpotLight : ILight
         float distance = toLight.Length();
         Vector3 dirToLight = toLight / distance;
 
-        // Inverse-square distance attenuation
         float distanceAttenuation = Intensity / (distance * distance);
 
-        // Angular attenuation: smooth falloff between inner and outer cone
+        // Smooth falloff between inner and outer cone
         float cosAngle = Vector3.Dot(-dirToLight, Direction);
         float spotAttenuation = Math.Clamp(
             (cosAngle - CosOuterAngle) / (CosInnerAngle - CosOuterAngle),
             0f, 1f);
-
-        // Smooth step for more natural falloff
-        spotAttenuation *= spotAttenuation;
+        spotAttenuation *= spotAttenuation; // smooth step
 
         return (Color * distanceAttenuation * spotAttenuation, dirToLight, distance);
     }
@@ -61,13 +61,21 @@ public class SpotLight : ILight
         float distance = toLight.Length();
         Vector3 dir = toLight / distance;
 
-        // Check if point is outside outer cone — no light contribution, skip shadow test
+        // Outside outer cone — no light contribution, skip shadow test
         float cosAngle = Vector3.Dot(-dir, Direction);
         if (cosAngle < CosOuterAngle)
-            return true; // Effectively in shadow (no light reaches here)
+            return true;
 
         var shadowRay = new Ray(hitPoint + dir * MathUtils.Epsilon, dir);
         var rec = new HitRecord();
-        return world.Hit(shadowRay, MathUtils.Epsilon, distance, ref rec);
+        return world.Hit(shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon, ref rec);
+    }
+
+    public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
+        IlluminateAndTest(Vector3 hitPoint, IHittable world)
+    {
+        var (color, dirToLight, distance) = Illuminate(hitPoint);
+        bool inShadow = IsInShadow(hitPoint, world);
+        return (inShadow, color, dirToLight, distance);
     }
 }

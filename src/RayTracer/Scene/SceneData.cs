@@ -95,7 +95,7 @@ public class TextureData
     public string? Type { get; set; }
 
     [YamlMember(Alias = "colors")]
-    public List<List<float>>? Colors { get; set; } // Per Checker, Marble, Wood
+    public List<List<float>>? Colors { get; set; }
 
     [YamlMember(Alias = "scale")]
     public float Scale { get; set; } = 1f;
@@ -137,7 +137,7 @@ public class EntityData
     [YamlMember(Alias = "radius")]
     public float Radius { get; set; } = 1f;
 
-    // Box (not used anymore for unit box, but kept for compatibility if needed, though we will ignore it in loader)
+    // Box
     [YamlMember(Alias = "min")]
     public List<float>? Min { get; set; }
 
@@ -191,21 +191,45 @@ public class LightData
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
+    // ── Point / Spot ──────────────────────────────────────────────
     [YamlMember(Alias = "position")]
     public List<float>? Position { get; set; }
 
+    // ── Directional / Spot ────────────────────────────────────────
     [YamlMember(Alias = "direction")]
     public List<float>? Direction { get; set; }
 
+    // ── Shared ────────────────────────────────────────────────────
     [YamlMember(Alias = "color")]
     public List<float>? Color { get; set; }
 
     [YamlMember(Alias = "intensity")]
     public float Intensity { get; set; } = 1f;
 
+    // ── Spot-light cone angles ────────────────────────────────────
     [YamlMember(Alias = "inner_angle")]
     public float InnerAngle { get; set; } = 15f;
 
     [YamlMember(Alias = "outer_angle")]
     public float OuterAngle { get; set; } = 30f;
+
+    // ── Area light ───────────────────────────────────────────────
+    /// <summary>One corner of the rectangular emitter.</summary>
+    [YamlMember(Alias = "corner")]
+    public List<float>? Corner { get; set; }
+
+    /// <summary>First edge vector of the rectangular emitter.</summary>
+    [YamlMember(Alias = "u")]
+    public List<float>? U { get; set; }
+
+    /// <summary>Second edge vector of the rectangular emitter.</summary>
+    [YamlMember(Alias = "v")]
+    public List<float>? V { get; set; }
+
+    /// <summary>
+    /// Number of shadow samples for area lights (default 16).
+    /// Higher = softer, smoother shadows, but proportionally more render time.
+    /// </summary>
+    [YamlMember(Alias = "shadow_samples")]
+    public int ShadowSamples { get; set; } = 16;
 }

@@ -10,6 +10,9 @@ public class PointLight : ILight
     public Vector3 Color { get; }
     public float Intensity { get; }
 
+    /// <inheritdoc/>
+    public int ShadowSamples => 1;
+
     public PointLight(Vector3 position, Vector3 color, float intensity = 1f)
     {
         Position = position;
@@ -22,7 +25,6 @@ public class PointLight : ILight
         Vector3 toLight = Position - hitPoint;
         float distance = toLight.Length();
         Vector3 direction = toLight / distance;
-        // Inverse-square falloff
         float attenuation = Intensity / (distance * distance);
         return (Color * attenuation, direction, distance);
     }
@@ -34,6 +36,14 @@ public class PointLight : ILight
         Vector3 dir = toLight / distance;
         var shadowRay = new Ray(hitPoint + dir * MathUtils.Epsilon, dir);
         var rec = new HitRecord();
-        return world.Hit(shadowRay, MathUtils.Epsilon, distance, ref rec);
+        return world.Hit(shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon, ref rec);
+    }
+
+    public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
+        IlluminateAndTest(Vector3 hitPoint, IHittable world)
+    {
+        var (color, dirToLight, distance) = Illuminate(hitPoint);
+        bool inShadow = IsInShadow(hitPoint, world);
+        return (inShadow, color, dirToLight, distance);
     }
 }
