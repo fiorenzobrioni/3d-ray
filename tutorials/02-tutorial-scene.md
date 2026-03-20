@@ -130,219 +130,107 @@ camera:
 | `position` | `[X, Y, Z]` | `[0, 1, -5]` | Dove si trova la camera |
 | `look_at` | `[X, Y, Z]` | `[0, 0, 0]` | Punto di mira |
 | `vup` | `[X, Y, Z]` | `[0, 1, 0]` | Vettore verso l'alto. Cambialo per inclinare la camera (Dutch angle). |
-| `fov` | float | `60` | Campo visivo verticale in gradi |
-| `aperture` | float | `0` | Apertura: controlla la sfocatura DOF (0 = nitido ovunque) |
-| `focal_dist` | float | `1` | Distanza a cui gli oggetti sono a fuoco |
-
-### Effetti di Messa a Fuoco (Depth of Field)
-
-Per ottenere lo **sfondo sfocato** tipico della fotografia ritrattistica o macro:
-```yaml
-camera:
-  position: [0, 1, -5]
-  look_at: [0, 0, 0]
-  aperture: 0.3         # Valore alto = sfocatura pronunciata
-  focal_dist: 5.0       # Messa a fuoco a 5 unità (esattamente sul soggetto)
-```
-
-Per un'immagine **completamente nitida** (stile videogioco o rendering tecnico):
-```yaml
-camera:
-  aperture: 0.0          # Nessuna sfocatura
-```
-
-### Dutch Angle (Camera Inclinata)
-Per un effetto cinematografico "inclinato":
-```yaml
-camera:
-  vup: [0.2, 1, 0]      # Inclina leggermente l'orizzonte
-```
+| `fov` | float | `60` | Campo visivo verticale in gradi. 30°=teleobiettivo, 60°=standard, 90°=grandangolo. |
+| `aperture` | float | `0.0` | Diametro dell'apertura della lente. 0.0 = tutto a fuoco (pinhole). Valori > 0 producono depth of field. |
+| `focal_dist` | float | `1.0` | Distanza dal punto di vista al piano di messa a fuoco. Gli oggetti a questa distanza saranno nitidi. |
 
 ---
 
 ## 4. Sezione `materials`
 
-Ogni materiale ha un `id` univoco e un `type` fisico. Puoi usare `texture` invece di `color` per pattern avanzati.
+I materiali definiscono come le superfici interagiscono con la luce.
 
-### 4.1 — Lambertian (Diffuso/Opaco)
-
-Superficie opaca che diffonde la luce uniformemente in tutte le direzioni. Ideale per muri, terreno, tessuti e oggetti colorati non riflettenti.
-
+### 4.1 Lambertian (Diffuso/Opaco)
+Materiale opaco che diffonde la luce uniformemente in tutte le direzioni.
 ```yaml
-materials:
   - id: "rosso_opaco"
     type: "lambertian"
-    color: [0.8, 0.1, 0.1]    # Rosso intenso
+    color: [0.8, 0.2, 0.1]
 ```
 
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `color` | `[R, G, B]` | Colore diffuso (0–1 per canale) |
-| `texture` | oggetto | Pattern procedurale (alternativo a `color`) |
-
-**Esempi di colori naturali consigliati:**
+### 4.2 Metal (Metallico/Speculare)
+Riflette la luce come uno specchio. Il parametro `fuzz` controlla la rugosità.
 ```yaml
-  - id: "erba"
-    type: "lambertian"
-    color: [0.2, 0.6, 0.15]
-  - id: "terra"
-    type: "lambertian"
-    color: [0.55, 0.35, 0.2]
-  - id: "azzurro_cielo"
-    type: "lambertian"
-    color: [0.4, 0.6, 0.9]
-  - id: "bianco_pulito"
-    type: "lambertian"
-    color: [0.95, 0.95, 0.95]
-```
-
-### 4.2 — Metal (Metallico/Speculare)
-
-Superficie riflettente come specchi o metalli. Il parametro `fuzz` controlla la rugosità superficiale.
-
-```yaml
-  - id: "rame_lucido"
+  - id: "oro"
     type: "metal"
-    color: [0.85, 0.5, 0.25]
-    fuzz: 0.05
+    color: [0.85, 0.65, 0.1]
+    fuzz: 0.1
 ```
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `fuzz` | float | `0.0` | Rugosità: 0.0=specchio perfetto, 1.0=diffusione quasi totale |
 
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `color` | `[R, G, B]` | Colore metallico |
-| `fuzz` | float (`0.0`–`1.0`) | Rugosità superficiale |
-| `texture` | oggetto | Pattern procedurale (alternativo a `color`) |
-
-| Range `fuzz` | Effetto Visivo | Uso Suggerito |
-|--------------|----------------|---------------|
-| `0.0` | Specchio perfetto | Specchi, superfici cromate |
-| `0.01 – 0.05` | Metallo lucido | Acciaio inox, carrozzerie |
-| `0.1 – 0.3` | Metallo satinato | Alluminio spazzolato, ottone |
-| `0.5 – 1.0` | Metallo grezzo | Piombo, ferro arrugginito |
-
-### 4.3 — Dielectric (Vetro/Trasparente)
-
-Materiale trasparente che rifrange la luce. Molto realistico per liquidi, vetrate e cristalli colorati. Implementa il modello di Fresnel (approssimazione di Schlick) per riflessioni angolo-dipendenti.
-
-Supporta `color` e `texture` per creare effetti di **Surface Tinting** (vetro colorato).
-
+### 4.3 Dielectric (Vetro/Trasparente)
+Materiale trasparente con rifrazione e riflesso Fresnel.
 ```yaml
-  - id: "vetro_fume"
+  - id: "vetro"
     type: "dielectric"
     refraction_index: 1.5
-    color: [0.2, 0.2, 0.2]    # Tintura grigio scuro
+    color: [1.0, 0.95, 0.95]
 ```
-
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `refraction_index` | float | Indice di rifrazione (IOR) |
-| `color` | `[R, G, B]` | Tintura superficiale (opzionale, default bianco = vetro neutro) |
-| `texture` | oggetto | Pattern procedurale trasparente (opzionale) |
-
-**Indici di rifrazione (IOR) comuni:**
-
-| Materiale | IOR |
-|-----------|-----|
-| Aria | 1.0 |
-| Acqua | 1.33 |
-| Vetro Standard | 1.52 |
-| Cristallo | 1.6 |
-| Diamante | 2.42 |
-
-> **💡 Suggerimento Professionale:** Puoi usare una `texture` di tipo `marble` su un `dielectric` per creare un incredibile effetto **"Marmo di Cristallo"** semitrasparente!
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `refraction_index` | float | `1.5` | Indice di rifrazione (1.0=aria, 1.33=acqua, 1.5=vetro, 2.42=diamante) |
+| `color` | `[R, G, B]` | `[1, 1, 1]` | Tinting del vetro (bianco=trasparente, colorato=vetro colorato) |
 
 ---
 
 ## 5. Sezione `textures`
 
-Le texture permettono di mappare pattern complessi sulla superficie degli oggetti. Possono essere applicate a materiali `lambertian`, `metal` o `dielectric` sostituendo il parametro `color` con `texture`.
+Le texture procedurali vengono definite all'interno del materiale.
 
 ### 5.1 Tipi di Texture Procedurali
 
-#### **Checker (Scacchiera)**
-Pattern 3D a quadrati alternati nello spazio 3D. Il parametro `scale` controlla la dimensione dei quadrati.
+**Checker (Scacchiera 3D):**
 ```yaml
     texture:
       type: "checker"
-      scale: 2.0
-      colors: [[0.1, 0.1, 0.1], [0.9, 0.9, 0.9]]
+      scale: 4.0
+      colors: [[0.9, 0.9, 0.9], [0.1, 0.1, 0.1]]
 ```
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `scale` | float | Dimensione dei quadrati. Valori **più grandi** producono quadrati **più grandi**. |
-| `colors` | `[[R,G,B], [R,G,B]]` | I due colori alternati (pari e dispari) |
 
-> **⚠️ Nota tecnica:** La checker è valutata nello spazio 3D (non UV). Un `scale: 1.0` produce quadrati di 1 unità di scena, `scale: 0.5` produce quadrati di mezzo metro. Valori consigliati: `1.0–5.0` per pavimenti, `0.1–0.5` per pattern fini su sfere.
-
-#### **Noise (Perlin Noise)**
-Genera un rumore smussato per effetti naturali, sporcizia o rugosità. Produce un colore in scala di grigi.
+**Noise (Rumore Perlin):**
 ```yaml
     texture:
       type: "noise"
       scale: 5.0
 ```
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `scale` | float | Frequenza del rumore. Più alto = dettagli più fini e frequenti. |
 
-#### **Marble (Marmo)**
-Simula venature di marmo striate usando la turbolenza di Perlin.
+**Marble (Marmo):**
 ```yaml
     texture:
       type: "marble"
-      scale: 7.0
-      noise_strength: 15.0
-      colors: [[0.95, 0.95, 0.95], [0.1, 0.2, 0.3]]
+      scale: 10.0
+      noise_strength: 8.0
+      colors: [[0.95, 0.95, 0.95], [0.4, 0.4, 0.4]]
 ```
-| Campo | Tipo | Default | Descrizione |
-|-------|------|---------|-------------|
-| `scale` | float | `4.0` | Frequenza delle venature. Più alto = venature più fitte. |
-| `noise_strength` | float | `10.0` | Controlla quanto le venature sono "distorte" e irregolari. |
-| `colors` | `[[R,G,B], [R,G,B]]` | — | `[0]` = colore base (prevalente), `[1]` = colore venature |
 
-#### **Wood (Legno)**
-Genera anelli di accrescimento concentrici attorno all'asse Y (nel sistema di riferimento locale dell'oggetto).
+**Wood (Legno):**
 ```yaml
     texture:
       type: "wood"
-      scale: 12.0
-      noise_strength: 3.5
-      colors: [[0.85, 0.65, 0.40], [0.60, 0.40, 0.20]]
+      scale: 3.0
+      noise_strength: 2.0
+      colors: [[0.85, 0.65, 0.4], [0.6, 0.4, 0.2]]
 ```
-| Campo | Tipo | Default | Descrizione |
-|-------|------|---------|-------------|
-| `scale` | float | `4.0` | Densità degli anelli. Più alto = anelli più fitti. |
-| `noise_strength` | float | `2.0` | Irregolarità degli anelli. Valori alti distorcono molto gli anelli. |
-| `colors` | `[[R,G,B], [R,G,B]]` | — | `[0]` = legno chiaro (tra gli anelli), `[1]` = legno scuro (anelli) |
 
 ### 5.2 Trasformazioni Spaziali (Offset & Rotation)
 
-Puoi manipolare come la texture "avvolge" l'oggetto senza cambiare la posizione dell'oggetto stesso. Disponibili per `noise`, `marble` e `wood`.
+Tutte le texture procedurali supportano offset e rotazione per controllarne l'orientamento nello spazio 3D:
 
-- **`offset`**: `[X, Y, Z]` per traslare il pattern nello spazio locale.
-- **`rotation`**: `[X, Y, Z]` (in gradi) per ruotare le venature (ordine: X, poi Y, poi Z).
-
-**Esempio: Legno con venature orizzontali su un piano visto dall'alto**
-```yaml
-    texture:
-      type: "wood"
-      rotation: [90, 0, 0]   # Ruota gli anelli, che per default sono attorno a Y
-      scale: 10.0
-```
-
-**Esempio: Marmo con venature verticali (pilastro)**
 ```yaml
     texture:
       type: "marble"
-      rotation: [0, 0, 90]
-      scale: 8.0
+      scale: 10.0
+      offset: [5.0, 0.0, 3.0]       # Traslazione della texture
+      rotation: [0.0, 45.0, 0.0]     # Rotazione in gradi (X, Y, Z)
 ```
 
 ### 5.3 Randomizzazione per Oggetto
 
-Questa funzione permette di usare **lo stesso materiale** su più oggetti ma con venature **diverse** per ognuno. Il motore usa il `seed` di ogni oggetto per generare offset e rotazioni deterministici — lo stesso seed produce sempre lo stesso risultato tra render diversi.
+Per far apparire ogni oggetto unico anche con lo stesso materiale:
 
-- **`randomize_offset: true`**: sposta la texture in modo pseudo-casuale unico per ogni oggetto.
+- **`randomize_offset: true`**: aggiunge un offset pseudo-casuale diverso per ogni oggetto.
 - **`randomize_rotation: true`**: ruota la texture in modo pseudo-casuale per ogni oggetto.
 
 **Esempio: Sfere di marmo tutte diverse con un unico materiale**
@@ -433,107 +321,86 @@ Un parallelogramma definito da un punto d'origine Q e due vettori U e V che defi
 ```yaml
   - name: "parete"
     type: "quad"
-    q: [0, 0, 5]          # Punto d'origine (angolo)
-    u: [4, 0, 0]           # Vettore primo lato (larghezza)
-    v: [0, 3, 0]           # Vettore secondo lato (altezza)
+    q: [-5, 0, 5]
+    u: [10, 0, 0]
+    v: [0, 5, 0]
     material: "muro"
 ```
 | Campo | Tipo | Descrizione |
 |-------|------|-------------|
-| `q` | `[X, Y, Z]` | Punto d'origine (angolo) del quad |
-| `u` | `[X, Y, Z]` | Vettore del primo lato |
-| `v` | `[X, Y, Z]` | Vettore del secondo lato |
-
-> I 4 vertici risultanti sono: Q, Q+U, Q+V, Q+U+V.
+| `q` | `[X, Y, Z]` | Punto d'origine del quad |
+| `u` | `[X, Y, Z]` | Primo vettore lato |
+| `v` | `[X, Y, Z]` | Secondo vettore lato |
 
 ### 6.6 Disk (Disco)
-Un disco piatto definito da centro, normale e raggio.
+Disco piatto con centro, normale e raggio.
 ```yaml
-  - name: "base_circolare"
+  - name: "disco"
     type: "disk"
     center: [0, 0, 0]
     normal: [0, 1, 0]
     radius: 2.0
     material: "metallo"
 ```
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `center` | `[X, Y, Z]` | Centro del disco |
-| `normal` | `[X, Y, Z]` | Direzione della normale (orientazione del disco) |
-| `radius` | float | Raggio |
 
 ### 6.7 Plane / Infinite Plane (Piano Infinito)
-Un piano infinito definito da un punto e una normale. Utile per pavimenti o pareti senza bordi visibili.
+Piano infinito utile per pavimenti o sfondi.
 ```yaml
   - name: "pavimento"
     type: "infinite_plane"
     point: [0, 0, 0]
     normal: [0, 1, 0]
-    material: "terreno"
+    material: "scacchiera"
 ```
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `point` | `[X, Y, Z]` | Un punto qualsiasi sul piano |
-| `normal` | `[X, Y, Z]` | Direzione perpendicolare al piano |
-
-> Il piano infinito è anche definibile nella sezione `world.ground` per comodità. I piani infiniti sono esclusi dall'accelerazione BVH e testati separatamente, il che è corretto poiché non hanno un bounding box finito.
 
 ### 6.8 Trasformazioni (Translate, Rotate, Scale)
 
-Le trasformazioni vengono applicate **nell'ordine: Scale → Rotate → Translate**. Sono disponibili per tutte le primitive e sono **obbligatorie** per il Box (che è un cubo unitario da trasformare).
+Ogni entità può avere trasformazioni applicate in ordine **Scale → Rotate → Translate**:
 
 ```yaml
   - name: "cubo_ruotato"
     type: "box"
-    scale: [2, 1, 1]            # Allungato in X
-    rotate: [0, 45, 0]          # Ruotato di 45° attorno a Y
-    translate: [3, 0.5, 0]      # Posizionato a X=3, con centro a Y=0.5
-    material: "legno"
+    scale: [2, 1, 1]
+    rotate: [0, 45, 0]           # Rotazione 45° attorno a Y
+    translate: [3, 0.5, 0]
+    material: "materiale"
 ```
 
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `scale` | `[X, Y, Z]` o `float` | Dimensionamento (vettore o uniforme) |
-| `rotate` | `[X, Y, Z]` | Rotazione in gradi (ordine: X poi Y poi Z) |
-| `translate` | `[X, Y, Z]` | Traslazione nel mondo |
-
-> **Nota tecnica:** Le normali sono trasformate correttamente usando la matrice **inversa trasposta** della trasformazione. Questo garantisce normali corrette anche in presenza di scaling non uniforme.
-
 ### 6.9 Parametro Seed
-
-Ogni entità può avere un `seed` opzionale (intero). Se non specificato, il motore assegna un seed casuale ad ogni render. Il seed viene usato dalle texture con `randomize_offset` o `randomize_rotation` per generare variazioni uniche per-oggetto in modo **deterministico** — lo stesso seed produce sempre le stesse venature.
-
+Ogni entità ha un seed numerico opzionale che determina la randomizzazione delle texture procedurali:
 ```yaml
   - name: "sfera_1"
     type: "sphere"
     center: [0, 1, 0]
-    radius: 1.0
-    seed: 42            # Seed fisso → venature identiche tra render diversi
-    material: "marmo"
+    radius: 1
+    seed: 42                    # Seed fisso = texture identica tra render
+    material: "marmo_variegato"
 ```
+
+Se `seed` non è specificato, viene generato casualmente. Usa seed fissi per risultati riproducibili.
 
 ---
 
 ## 7. Sezione `lights`
 
-> **Default automatico:** Se la sezione `lights` è assente o vuota, il motore aggiunge automaticamente una `directional` e una `point` light di base.
+Le luci esplicite della scena. Puoi combinare più tipi di luce per ottenere l'effetto desiderato.
 
 ### 7.1 Point Light (Puntiforme)
-Luce che irradia in tutte le direzioni da un punto. Attenuazione con il quadrato della distanza (`Intensity / d²`).
+Luce omnidirezionale da un singolo punto. L'intensità decade con il quadrato della distanza.
 ```yaml
   - type: "point"
     position: [0, 10, -5]
-    color: [1, 1, 1]
-    intensity: 10.0
+    color: [1.0, 1.0, 1.0]
+    intensity: 8
 ```
 | Campo | Tipo | Default | Descrizione |
 |-------|------|---------|-------------|
-| `position` | `[X, Y, Z]` | `[0, 10, 0]` | Posizione nel mondo |
-| `color` | `[R, G, B]` | `[1, 1, 1]` | Colore della luce |
+| `position` | `[X, Y, Z]` | `[0, 10, 0]` | Posizione della luce |
+| `color` | `[R, G, B]` | `[1, 1, 1]` | Colore |
 | `intensity` | float | `1.0` | Intensità. Valori tipici: 4–20. |
 
 ### 7.2 Directional Light (Sole)
-Luce parallela infinita (come il sole). Non ha attenuazione con la distanza.
+Non ha attenuazione con la distanza.
 ```yaml
   - type: "directional"
     direction: [-1, -1, -1]     # Direzione DA cui arriva la luce
@@ -592,11 +459,20 @@ Il motore usa campionamento Monte Carlo: per ogni punto della scena vengono spar
 | `v` | `[X, Y, Z]` | — (**obbligatorio**) | Secondo vettore lato (definisce l'altro asse) |
 | `color` | `[R, G, B]` | `[1, 1, 1]` | Colore emesso |
 | `intensity` | float | `20.0` | Intensità totale. Valori tipici: 15–60. |
-| `shadow_samples` | int | `16` | Raggi ombra per punto. 8=preview, 16=produzione, 32=qualità massima. |
+| `shadow_samples` | int | `16` | Raggi ombra per punto (default per-luce). Sovrascrivibile da CLI con `-S`. |
 
 > **Alias:** Puoi usare anche `type: "area_light"`, `type: "rect"` o `type: "rect_light"`.
 
-> **⚠️ Costo computazionale:** Il `shadow_samples` ha un impatto diretto sul tempo di render. Usa `shadow_samples: 4` durante il draft e `shadow_samples: 16-32` per il render finale. Con `-s 128` campioni pixel e `shadow_samples: 16`, ogni pixel lancia `128 × 16 = 2048` raggi ombra per questa sola luce.
+> **💡 Override da CLI:** Il parametro `--shadow-samples` (`-S`) da riga di comando sovrascrive il valore `shadow_samples` di **tutte** le area light nella scena. Questo permette di iterare sulla qualità senza modificare il file YAML:
+> ```powershell
+> # Preview veloce con ombre rumorose
+> dotnet run --project src\RayTracer\RayTracer.csproj -- -i scene.yaml -s 4 -S 4 -w 400 -H 267
+> # Render finale con ombre morbide
+> dotnet run --project src\RayTracer\RayTracer.csproj -- -i scene.yaml -s 128 -S 32 -w 1920 -H 1080
+> ```
+> Se `-S` non è specificato, ogni luce usa il proprio valore YAML.
+
+> **⚠️ Costo computazionale:** Il `shadow_samples` ha un impatto diretto sul tempo di render. Con `-s 128` campioni pixel e `-S 16` (o `shadow_samples: 16` nel YAML), ogni pixel lancia `128 × 16 = 2048` raggi ombra per questa sola luce.
 
 **Esempio: Pannello luminoso da soffitto**
 ```yaml
@@ -629,7 +505,7 @@ Il motore usa campionamento Monte Carlo: per ogni punto della scena vengono spar
 #### Workflow di calibrazione
 
 1. Aggiungi le luci con i valori centrali del range.
-2. Esegui un preview rapido (`-s 1 --width 400`).
+2. Esegui un preview rapido (`-s 1 -w 400 -S 4`).
 3. Se l'immagine è sovraesposta, **dimezza tutte le intensità** e ripeti.
 4. Se è sottoesposta, **raddoppiale** e ripeti.
 5. Quando l'esposizione globale è corretta, bilancia le singole sorgenti tra loro.
@@ -804,7 +680,7 @@ entities:
 7. **Area Light:** I campi `corner`, `u` e `v` sono tutti obbligatori. Se uno è mancante, la luce viene saltata con un warning in console.
 
 ### Performance
-8. **Campioni e area light:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128` e `shadow_samples: 16` su una sola area light, ogni pixel lancia oltre 2000 raggi. Usa `shadow_samples: 4` per il draft.
+8. **Campioni e area light:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128 -S 16`, ogni pixel lancia oltre 2000 raggi. Usa `-S 4` da CLI per il draft — non serve modificare il YAML!
 9. **Vetro e dielettrico:** I materiali dielettrici (vetro) sono i più costosi perché ogni rimbalzo può generare sia riflessione che rifrazione. Aumenta `--depth` per scene con molto vetro.
 
 ### Checklist prima del render finale
@@ -813,7 +689,7 @@ entities:
 - [ ] La `camera.position` non si trova all'interno di un oggetto solido.
 - [ ] Le texture con variazioni per-oggetto hanno `randomize_offset` o `randomize_rotation` attivo.
 - [ ] Il file YAML usa correttamente gli **spazi** per l'indentazione (niente TAB).
-- [ ] È stata eseguita un'anteprima a bassa risoluzione (`--width 400 -s 1`).
+- [ ] È stata eseguita un'anteprima a bassa risoluzione (`-w 400 -s 1 -S 4`).
 - [ ] Le area light hanno `corner`, `u` e `v` tutti definiti.
 - [ ] Se la scena deve essere buia, `background` è `[0, 0, 0]`.
 - [ ] I seed degli oggetti con texture randomizzate sono fissi (se vuoi risultati riproducibili tra render).

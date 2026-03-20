@@ -2,7 +2,7 @@
 
 A modern, parallelized ray-tracing engine built with C# and .NET 10, featuring YAML scene configuration and advanced physically-based rendering capabilities.
 
-![Test Render 2](test-render-2.png)
+![Test Render 1](test-render-1.png)
 
 ---
 
@@ -53,7 +53,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 💡 **Point Light** — Luce puntiforme con attenuazione quadratica della distanza
 - ☀️ **Directional Light** — Luce direzionale parallela (sole), senza attenuazione
 - 🔦 **Spot Light** — Faretto con cono interno/esterno e falloff liscio
-- 🟧 **Area Light** — Emettitore rettangolare con **soft shadows** fisicamente corretti via campionamento Monte Carlo (configurabile: 8–32 shadow samples)
+- 🟧 **Area Light** — Emettitore rettangolare con **soft shadows** fisicamente corretti via campionamento Monte Carlo (configurabile: 8–32 shadow samples, override globale via CLI `-S`)
 
 ### Input/Output
 - 📄 **Configurazione YAML** — Definizione completa della scena tramite file YAML strutturati
@@ -88,7 +88,7 @@ dotnet build src/RayTracer/RayTracer.csproj -c Release
 
 ```powershell
 cd 3d-ray
-dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i ./scenes/chess.yaml -s 256 -d 50 -o render.png --width 1920 --height 1080
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i ./scenes/chess.yaml -s 256 -d 50 -o render.png -w 1920 -H 1080
 ```
 
 ---
@@ -101,11 +101,14 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i ./scenes/ch
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | — (**obbligatorio**) | Percorso del file YAML descrittivo della scena. |
 | `--output` | `-o` | `render.png` | Nome/percorso del file immagine di output. |
-| `--width` | — | `1200` | Larghezza dell'immagine in pixel. |
-| `--height` | — | `800` | Altezza dell'immagine in pixel. |
+| `--width` | `-w` | `1200` | Larghezza dell'immagine in pixel. |
+| `--height` | `-H` | `800` | Altezza dell'immagine in pixel. |
 | `--samples` | `-s` | `16` | Campioni per pixel (anti-aliasing e riduzione del rumore). Il numero effettivo viene arrotondato al quadrato perfetto superiore (`√N × √N`). |
 | `--depth` | `-d` | `50` | Massimo numero di rimbalzi ricorsivi per raggio (riflessi, rifrazioni). |
+| `--shadow-samples` | `-S` | *(da YAML)* | Override globale dei shadow samples per tutte le area light. Se non specificato, ogni luce usa il proprio valore YAML (default: 16). |
 | `--help` | `-h` | — | Mostra il messaggio di aiuto ed esce. |
+
+> **Nota:** `-H` usa la lettera maiuscola perché `-h` è riservato a `--help`. Analogamente, `-S` (maiuscola) è per `--shadow-samples`, mentre `-s` (minuscola) è per `--samples`.
 
 ---
 
@@ -124,19 +127,19 @@ Per approfondire l'utilizzo del motore e la creazione delle scene, consulta i se
 ### Anteprima Rapida
 Verifica il posizionamento della camera e degli oggetti in pochi secondi:
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o preview.png --width 400 --height 267 -s 1 -d 5
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o preview.png -w 400 -H 267 -s 1 -d 5 -S 4
 ```
 
 ### Qualità Draft
 Valuta materiali e texture senza attendere il render finale:
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o draft.png --width 800 --height 533 -s 16 -d 20
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o draft.png -w 800 -H 533 -s 16 -d 20
 ```
 
 ### Produzione Full HD
 Immagine finale pulita con anti-aliasing elevato:
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o final.png --width 1920 --height 1080 -s 128 -d 50
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o final.png -w 1920 -H 1080 -s 128 -d 50 -S 32
 ```
 
 ### Output in JPEG

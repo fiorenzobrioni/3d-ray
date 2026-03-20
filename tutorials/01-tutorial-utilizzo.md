@@ -42,7 +42,7 @@ Se preferisci usare l'eseguibile già compilato:
 
 ### Esempio rapido:
 ```powershell
-dotnet run --project src\RayTracer\RayTracer.csproj -- --input scenes\chess.yaml --output render.png --width 800 --height 600
+dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -o render.png -w 800 -H 600
 ```
 
 ---
@@ -55,17 +55,33 @@ Il motore accetta i seguenti parametri per configurare l'esecuzione:
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | — (**obbligatorio**) | Percorso del file di scena (YAML). Il programma termina con un errore se non specificato. |
 | `--output` | `-o` | `render.png` | Nome e percorso del file immagine da generare. Il formato viene rilevato automaticamente dall'estensione (`.png`, `.jpg`, `.bmp`). |
-| `--width` | — | `1200` | Larghezza dell'immagine in pixel. |
-| `--height` | — | `800` | Altezza dell'immagine in pixel. |
+| `--width` | `-w` | `1200` | Larghezza dell'immagine in pixel. |
+| `--height` | `-H` | `800` | Altezza dell'immagine in pixel. |
 | `--samples` | `-s` | `16` | Campioni per pixel (anti-aliasing e riduzione del rumore). Vedi nota sotto. |
 | `--depth` | `-d` | `50` | Massimo numero di rimbalzi ricorsivi per ogni raggio (riflessi, rifrazioni, scattering). |
+| `--shadow-samples` | `-S` | *(da YAML)* | Override globale dei shadow samples per tutte le area light. Vedi nota sotto. |
 | `--help` | `-h` | — | Mostra il messaggio di aiuto ed esce. |
+
+> **Nota sugli alias:** `-H` (maiuscola) è per `--height` perché `-h` è riservato a `--help`. Analogamente, `-S` (maiuscola) è per `--shadow-samples`, mentre `-s` (minuscola) è per `--samples`.
 
 ### Note sui Samples (Anti-Aliasing)
 
 Il motore usa il **campionamento stratificato (jittered stratified sampling)**: i campioni vengono distribuiti su una griglia `√N × √N` all'interno di ogni pixel, con un piccolo jitter casuale per campione. Questo garantisce una convergenza molto più rapida rispetto al campionamento puramente casuale (Monte Carlo puro).
 
 Il numero effettivo di campioni è sempre il **quadrato perfetto superiore** più vicino al valore fornito: ad esempio `-s 20` produce `5×5 = 25` campioni effettivi, `-s 64` produce `8×8 = 64`.
+
+### Note sui Shadow Samples (`-S` / `--shadow-samples`)
+
+Il parametro `--shadow-samples` (`-S`) consente di sovrascrivere globalmente il numero di shadow samples di **tutte** le area light nella scena, senza modificare il file YAML. Questo è particolarmente utile per iterare velocemente:
+
+- **Preview rapido:** `-S 4` — ombre molto rumorose ma render quasi istantaneo.
+- **Draft:** `-S 8` — buon compromesso per valutare l'illuminazione.
+- **Produzione:** `-S 16` — qualità standard (default YAML).
+- **Ultra:** `-S 32` — ombre morbidissime, massima qualità.
+
+Se non specificato, ogni area light usa il proprio valore `shadow_samples` definito nel file YAML (default: 16).
+
+> **⚠️ Costo computazionale:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128 -S 32`, ogni pixel lancia `128 × 32 = 4096` raggi ombra per luce. Usa `-S 4` durante il draft!
 
 ### Tone Mapping ACES
 
@@ -82,7 +98,7 @@ Il tone mapping è sempre attivo e non richiede configurazione.
 ### 4.1 — Profilo "FAST PREVIEW" (Bozza Immediata)
 Ideale per testare la posizione della camera o delle luci.
 ```powershell
-dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 1 -d 5 --width 400 --height 267
+dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 1 -d 5 -w 400 -H 267 -S 4
 ```
 - **Qualità**: Molto rumorosa (1 campione = niente anti-aliasing). Errori di jitter visibili.
 - **Tempo**: < 1 secondo.
@@ -90,7 +106,7 @@ dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 1
 ### 4.2 — Profilo "DRAFT" (Qualità Media)
 Consigliato per valutare texture procedurali e materiali metallici.
 ```powershell
-dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 16 -d 20 --width 800 --height 533
+dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 16 -d 20 -w 800 -H 533
 ```
 - **Qualità**: Buona pulizia globale, rumore residuo nelle ombre e nei materiali dielettrici.
 - **Tempo**: 5 — 30 secondi (dipende dalla complessità della scena).
@@ -98,7 +114,7 @@ dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 1
 ### 4.3 — Profilo "PRODUCTION" (Alta Qualità)
 Da utilizzare per il risultato finale o per scene con molto vetro e area light.
 ```powershell
-dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 128 -d 50 --width 1920 --height 1080
+dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 128 -d 50 -w 1920 -H 1080 -S 16
 ```
 - **Qualità**: Immagine pulita, ombre morbide degli area light ben definite.
 - **Tempo**: Minuti (dipende dalla CPU e dalla complessità della scena).
@@ -106,7 +122,7 @@ dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 1
 ### 4.4 — Profilo "ULTRA" (Qualità Massima)
 Per render finali con vetro, depth of field e area light ad alta qualità.
 ```powershell
-dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 256 -d 50 --width 3840 --height 2160
+dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 256 -d 50 -w 3840 -H 2160 -S 32
 ```
 - **Qualità**: Qualità fotorealistica, zero rumore visibile.
 - **Tempo**: Da decine di minuti a ore.
@@ -120,41 +136,19 @@ Il motore determina il formato dell'immagine salvata in base all'estensione del 
 | Formato | Estensione | Note |
 |---------|------------|------|
 | **PNG** | `.png` | Consigliato. Formato lossless (senza perdita di qualità). Default se l'estensione non è riconosciuta. |
-| **JPEG** | `.jpg` / `.jpeg` | Compresso con perdita. Utile per condivisione, sconsigliato per qualità massima. |
-| **BMP** | `.bmp` | Formato grezzo non compresso. File molto pesanti, nessun vantaggio pratico. |
+| **JPEG** | `.jpg` / `.jpeg` | Compresso con perdita. File più leggeri ma possibile degradazione dei dettagli fini (rumore da compressione sui gradienti). |
+| **BMP** | `.bmp` | Formato non compresso. File molto grandi — usare solo se necessario per compatibilità. |
 
 ---
 
 ## 6. Ottimizzazione e Performance
 
-### Accelerazione BVH (Bounding Volume Hierarchy)
-Il motore costruisce automaticamente un albero BVH per scene con **più di 4 oggetti**. L'algoritmo usa l'euristica dell'**asse più lungo sui centroidi** per suddividere gli oggetti in modo ottimale, garantendo test di intersezione raggio-oggetto in tempo **O(log N)**. I piani infiniti (`infinite_plane`) vengono esclusi dall'albero BVH e testati separatamente, poiché non hanno un bounding box finito.
+### Strategia Iterativa Consigliata
 
-### Texture Procedurali e Randomizzazione
-L'uso di texture avanzate come **Marble**, **Wood** o **Noise** con `randomize_offset: true` o `randomize_rotation: true` non impatta significativamente sui tempi di calcolo. La randomizzazione è basata su trasformazioni matematiche veloci (funzioni di hash trigonometriche) applicate al punto di impatto, non su lookup di texture in memoria.
-
-### Parametro `--samples` (Il fattore di costo principale)
-Il tempo di rendering è **proporzionale** al numero di campioni effettivi. Raddoppiare i samples raddoppia il tempo di calcolo.
-
-| Samples (-s) | Campioni effettivi | Uso consigliato |
-|---|---|---|
-| 1 | 1×1 = 1 | Preview struttura/camera |
-| 4 | 2×2 = 4 | Preview materiali |
-| 16 | 4×4 = 16 | Draft |
-| 64 | 8×8 = 64 | Qualità intermedia |
-| 128 | 12×12 = 144 | Produzione |
-| 256 | 16×16 = 256 | Ultra |
-
-> **Suggerimento**: Inizia sempre con `-s 1` per rifinire la scena, poi scala gradualmente.
-
-### Area Light e Shadow Samples
-Le **area light** hanno un parametro `shadow_samples` separato (default: 16). Ogni shadow sample è un raggio aggiuntivo verso un punto casuale sulla sorgente luminosa. Il costo totale delle ombre morbide è:
-
-```
-costo ombre = numero_luci_area × shadow_samples × campioni_pixel
-```
-
-Riduci `shadow_samples: 4-8` durante il draft e aumenta a `16-32` per il render finale.
+1. **Preview** (`-s 1 -w 400 -S 4`): Verifica inquadratura e posizionamento oggetti.
+2. **Draft** (`-s 16 -w 800`): Valuta materiali, texture e bilanciamento luci.
+3. **Production** (`-s 128 -w 1920 -S 16`): Render finale Full HD.
+4. **Ultra** (`-s 256 -w 3840 -S 32`): 4K con qualità massima.
 
 ### Multi-Threading
 Il motore parallelizza il rendering per scanline usando `Parallel.For` con `MaxDegreeOfParallelism = Environment.ProcessorCount`. Tutti i core logici della CPU vengono utilizzati automaticamente senza configurazione.
@@ -173,7 +167,7 @@ Il motore parallelizza il rendering per scanline usando `Parallel.For` con `MaxD
 Il tone mapping ACES gestisce automaticamente l'HDR, ma valori di `intensity` troppo alti sulle luci possono saturare la curva. Dimezza le intensità di tutte le luci mantenendo i rapporti tra loro, poi esegui un nuovo preview.
 
 ### Le ombre delle area light sono molto rumorose
-Aumenta il parametro `shadow_samples` sull'area light (da 8 a 16 o 32) e aumenta i campioni di rendering (`-s`). Le ombre morbide richiedono più campioni per convergere. In alternativa, usa una point light con il risultato netto di ombre nette ma render più veloce.
+Aumenta il numero di shadow samples via CLI con `-S 16` o `-S 32`, oppure aumenta i campioni di rendering (`-s`). Le ombre morbide richiedono più campioni per convergere. In alternativa, usa una point light con il risultato netto di ombre nette ma render più veloce.
 
 ### Le texture appaiono "piatte" o orientate male
 Usa i parametri `rotation` e `offset` nella definizione della texture per orientare le venature. Consulta la [sezione 5.2 del Tutorial Scene](02-tutorial-scene.md#52-trasformazioni-spaziali-offset--rotation) per i dettagli tecnici.

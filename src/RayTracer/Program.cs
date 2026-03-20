@@ -12,7 +12,7 @@ class Program
     static void Main(string[] args)
     {
         // Show help if no arguments or help requested
-        if (args.Length == 0 || GetArg(args, "--help", "-h") != null)
+        if (args.Length == 0 || HasFlag(args, "--help", "-h"))
         {
             ShowHelp();
             return;
@@ -22,10 +22,15 @@ class Program
         string? inputPath = GetArg(args, "--input", "-i");
         string outputPath = GetArg(args, "--output", "-o") ?? "render.png";
         
-        bool wParsed = int.TryParse(GetArg(args, "--width", null), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var width);
-        bool hParsed = int.TryParse(GetArg(args, "--height", null), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var height);
+        bool wParsed = int.TryParse(GetArg(args, "--width", "-w"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var width);
+        bool hParsed = int.TryParse(GetArg(args, "--height", "-H"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var height);
         bool sParsed = int.TryParse(GetArg(args, "--samples", "-s"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var samples);
         bool dParsed = int.TryParse(GetArg(args, "--depth", "-d"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var depth);
+
+        // Shadow samples CLI override (null = use per-light YAML values)
+        int? shadowSamplesOverride = null;
+        if (int.TryParse(GetArg(args, "--shadow-samples", "-S"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var ssOverride) && ssOverride > 0)
+            shadowSamplesOverride = ssOverride;
 
         // Required argument check
         if (string.IsNullOrEmpty(inputPath))
@@ -58,6 +63,8 @@ class Program
         Console.WriteLine($"  Resolution:  {width} x {height}");
         Console.WriteLine($"  Samples/px:  {samples}");
         Console.WriteLine($"  Max depth:   {depth}");
+        if (shadowSamplesOverride.HasValue)
+            Console.WriteLine($"  Shadow smp:  {shadowSamplesOverride.Value} (CLI override)");
         Console.WriteLine();
 
         // Load scene
@@ -66,7 +73,7 @@ class Program
         try 
         {
             var (world, camera, lights, ambientLight, background) =
-                SceneLoader.Load(inputPath, width, height);
+                SceneLoader.Load(inputPath, width, height, shadowSamplesOverride);
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
             Console.WriteLine($"  Lights: {lights.Count}");
             Console.WriteLine();
@@ -97,16 +104,21 @@ class Program
         Console.WriteLine("Usage: RayTracer --input <file> [options]");
         Console.WriteLine();
         Console.WriteLine("Options:");
-        Console.WriteLine("  -i, --input <file>    Path to the YAML scene file (Required)");
-        Console.WriteLine("  -o, --output <file>   Path to the output image (Default: render.png)");
-        Console.WriteLine("  --width <int>         Image width (Default: 1200)");
-        Console.WriteLine("  --height <int>        Image height (Default: 800)");
-        Console.WriteLine("  -s, --samples <int>   Samples per pixel (Default: 16)");
-        Console.WriteLine("  -d, --depth <int>     Maximum ray recursion depth (Default: 50)");
-        Console.WriteLine("  -h, --help            Show this help message");
+        Console.WriteLine("  -i, --input <file>          Path to the YAML scene file (Required)");
+        Console.WriteLine("  -o, --output <file>         Path to the output image (Default: render.png)");
+        Console.WriteLine("  -w, --width <int>           Image width (Default: 1200)");
+        Console.WriteLine("  -H, --height <int>          Image height (Default: 800)");
+        Console.WriteLine("  -s, --samples <int>         Samples per pixel (Default: 16)");
+        Console.WriteLine("  -d, --depth <int>           Maximum ray recursion depth (Default: 50)");
+        Console.WriteLine("  -S, --shadow-samples <int>  Override shadow samples for all area lights");
+        Console.WriteLine("  -h, --help                  Show this help message");
         Console.WriteLine();
         Console.WriteLine("Example:");
-        Console.WriteLine("  RayTracer -i scenes/chess.yaml -o my_render.png --width 1920 --height 1080 -s 64");
+        Console.WriteLine("  RayTracer -i scenes/chess.yaml -o my_render.png -w 1920 -H 1080 -s 64");
+        Console.WriteLine();
+        Console.WriteLine("Shadow samples:");
+        Console.WriteLine("  By default, each area light uses its own shadow_samples from the YAML file.");
+        Console.WriteLine("  Use -S to override globally: -S 4 for preview, -S 16 production, -S 32 ultra.");
     }
 
     static void SaveImage(Vector3[,] pixels, int width, int height, string path)
@@ -142,6 +154,9 @@ class Program
         }
     }
 
+    /// <summary>
+    /// Returns the value of a CLI argument (the token following the flag).
+    /// </summary>
     static string? GetArg(string[] args, string longName, string? shortName)
     {
         for (int i = 0; i < args.Length - 1; i++)
@@ -150,5 +165,18 @@ class Program
                 return args[i + 1];
         }
         return null;
+    }
+
+    /// <summary>
+    /// Returns true if a boolean flag is present (no value expected).
+    /// </summary>
+    static bool HasFlag(string[] args, string longName, string? shortName)
+    {
+        foreach (var arg in args)
+        {
+            if (arg == longName || (shortName != null && arg == shortName))
+                return true;
+        }
+        return false;
     }
 }

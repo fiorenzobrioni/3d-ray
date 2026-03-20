@@ -12,8 +12,20 @@ namespace RayTracer.Scene;
 
 public class SceneLoader
 {
+    /// <summary>
+    /// Loads a scene from a YAML file.
+    /// </summary>
+    /// <param name="yamlPath">Path to the YAML scene file.</param>
+    /// <param name="imageWidth">Target image width (for aspect ratio).</param>
+    /// <param name="imageHeight">Target image height (for aspect ratio).</param>
+    /// <param name="shadowSamplesOverride">
+    /// When non-null, overrides the <c>shadow_samples</c> value of every area light
+    /// in the scene. This allows quick quality iteration from the CLI without editing
+    /// the scene file (e.g. <c>-S 4</c> for preview, <c>-S 32</c> for production).
+    /// When null, each area light uses its own YAML-defined value.
+    /// </param>
     public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, Vector3 AmbientLight, Vector3 Background)
-        Load(string yamlPath, int imageWidth, int imageHeight)
+        Load(string yamlPath, int imageWidth, int imageHeight, int? shadowSamplesOverride = null)
     {
         var yaml = File.ReadAllText(yamlPath);
         var deserializer = new DeserializerBuilder()
@@ -108,7 +120,7 @@ public class SceneLoader
         {
             foreach (var l in data.Lights)
             {
-                var light = CreateLight(l);
+                var light = CreateLight(l, shadowSamplesOverride);
                 if (light != null) lights.Add(light);
             }
         }
@@ -221,7 +233,7 @@ public class SceneLoader
         return entity;
     }
 
-    private static ILight? CreateLight(LightData l)
+    private static ILight? CreateLight(LightData l, int? shadowSamplesOverride)
     {
         var color = ToVector3(l.Color) ?? Vector3.One;
 
@@ -246,14 +258,15 @@ public class SceneLoader
             //   u:      [x, y, z]        # first edge vector  (e.g. [2,0,0])
             //   v:      [x, y, z]        # second edge vector (e.g. [0,0,2])
             //   intensity: 40.0          # brightness scalar
-            //   shadow_samples: 16       # 8=preview, 16=production, 32=highest quality
-            "area" or "area_light" or "rect" or "rect_light" => CreateAreaLight(l, color),
+            //   shadow_samples: 16       # per-light default (overridable via CLI -S)
+            "area" or "area_light" or "rect" or "rect_light"
+                => CreateAreaLight(l, color, shadowSamplesOverride),
 
             _ => null
         };
     }
 
-    private static AreaLight? CreateAreaLight(LightData l, Vector3 color)
+    private static AreaLight? CreateAreaLight(LightData l, Vector3 color, int? shadowSamplesOverride)
     {
         var corner = ToVector3(l.Corner);
         var u      = ToVector3(l.U);
@@ -266,8 +279,11 @@ public class SceneLoader
             return null;
         }
 
+        // CLI override takes precedence over per-light YAML value
+        int effectiveShadowSamples = shadowSamplesOverride ?? l.ShadowSamples;
+
         return new AreaLight(corner.Value, u.Value, v.Value, color,
-                             l.Intensity, l.ShadowSamples);
+                             l.Intensity, effectiveShadowSamples);
     }
 
     // -------------------------------------------------------------------------

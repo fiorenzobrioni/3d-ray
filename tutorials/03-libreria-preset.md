@@ -1,12 +1,12 @@
-# Tutorial: Libreria di Preset e Asset YAML
+# Libreria di Preset e Asset Pronti all'Uso
 
-Questa guida raccoglie una collezione di configurazioni "preconfezionate" per facilitare la creazione di scene complesse. Puoi copiare e incollare questi blocchi direttamente nei tuoi file `.yaml`.
+Una collezione di configurazioni pronte da copiare e incollare nel tuo file YAML per creare scene professionali.
 
 ---
 
 ## Indice
-1. [Mondi ed Ambienti](#1-mondi-ed-ambienti)
-2. [Configurazioni Camera](#2-configurazioni-camera)
+1. [Come Usare i Preset](#1-come-usare-i-preset)
+2. [Preset Camera](#2-preset-camera)
 3. [Sistemi di Illuminazione](#3-sistemi-di-illuminazione)
 4. [Catalogo Materiali Professionale](#4-catalogo-materiali-professionale)
 5. [Oggetti e Primitive Base](#5-oggetti-e-primitive-base)
@@ -14,82 +14,37 @@ Questa guida raccoglie una collezione di configurazioni "preconfezionate" per fa
 
 ---
 
-## 1. Mondi ed Ambienti
+## 1. Come Usare i Preset
 
-Gli ambienti definiscono l'atmosfera globale e il colore del cielo. Il `background` agisce come una sorgente di luce globale per i raggi che rimbalzano.
-
-### **Preset: Studio Fotografico (High-Key)**
-Un ambiente pulito, ideale per isolare un oggetto e metterne in risalto i colori.
-```yaml
-world:
-  ambient_light: [0.2, 0.2, 0.2]
-  background: [0.95, 0.95, 0.95] # Bianco quasi puro
-  ground:
-    type: "infinite_plane"
-    material: "studio_floor"
-    y: 0.0
-```
-
-### **Preset: Blue Hour (Tramonto)**
-Atmosfera soffusa e fredda con un tono bluastro.
-```yaml
-world:
-  ambient_light: [0.05, 0.05, 0.15]
-  background: [0.1, 0.2, 0.4] # Cielo blu profondo
-```
-
-### **Preset: Spazio Profondo (The Void)**
-Nero assoluto, perfetto per scene drammatiche dove solo le luci contano.
-```yaml
-world:
-  ambient_light: [0.0, 0.0, 0.0]
-  background: [0.0, 0.0, 0.0]
-```
-
-### **Preset: Overcast (Cielo Coperto)**
-Luce piatta e diffusa, ideale per esterni senza ombre nette.
-```yaml
-world:
-  ambient_light: [0.3, 0.3, 0.35]
-  background: [0.7, 0.7, 0.75] # Grigio tenue
-```
-
-### **Preset: Neon Night (Cyberpunk)**
-Atmosfera urbana notturna con una leggera tinta neon di base.
-```yaml
-world:
-  ambient_light: [0.02, 0.01, 0.05]
-  background: [0.01, 0.0, 0.02]
-```
+Ogni preset è un frammento YAML pronto all'uso. Puoi:
+- **Copiarlo** direttamente nel tuo file di scena.
+- **Combinare** più preset per costruire scene complete.
+- **Modificare** i valori per adattarli alle tue esigenze.
 
 ---
 
-## 2. Configurazioni Camera
+## 2. Preset Camera
 
-Profili ottici per diversi tipi di inquadratura artistica.
-
-### **Preset: Macro (Dettaglio Estremo)**
-Ideale per piccoli oggetti. Crea uno sfondo molto sfocato (bokeh).
+### **Preset: Studio Classico**
+Vista frontale, leggermente rialzata, adatta per product rendering.
 ```yaml
 camera:
-  position: [0.0, 0.5, -2.5]
-  look_at: [0.0, 0.4, 0.0]
-  fov: 30.0
-  aperture: 0.25          # Sfocatura pronunciata
-  focal_dist: 2.5
+  position: [0.0, 2.0, -8.0]
+  look_at: [0.0, 1.0, 0.0]
+  fov: 40.0
 ```
 
-### **Preset: Grandangolo (Panoramica)**
-Per mostrare intere stanze o paesaggi.
+### **Preset: Close-Up (Primo Piano)**
+Ottimale per dettagli di materiale e texture.
 ```yaml
 camera:
-  position: [5.0, 5.0, -10.0]
-  look_at: [0.0, 0.0, 0.0]
-  fov: 75.0               # Campo visivo ampio
+  position: [0.0, 1.5, -3.5]
+  look_at: [0.0, 1.0, 0.0]
+  fov: 35.0
 ```
 
-### **Preset: Ritratto Classico**
-Prospettiva naturale senza distorsioni.
+### **Preset: Wide Angle (Architettura)**
+Cattura più spazio per scene ampie.
 ```yaml
 camera:
   position: [0.0, 1.5, -7.0]
@@ -219,87 +174,56 @@ Sfondo nero intenso con venature bianche spettacolari.
     texture:
       type: "marble"
       scale: 12.0
-      noise_strength: 18.0
-      colors: [[0.05, 0.05, 0.05], [0.9, 0.9, 0.9]]
-      randomize_rotation: true
+      noise_strength: 10.0
+      colors: [[0.05, 0.05, 0.05], [0.7, 0.7, 0.7]]
+      randomize_offset: true
 ```
 
-### **Legno: Noce Scuro (Walnut)**
-Elegante, scuro, perfetto per mobili o tavoli.
+### **Legno: Noce**
 ```yaml
   - id: "legno_noce"
     type: "lambertian"
     texture:
       type: "wood"
-      scale: 20.0
-      noise_strength: 3.0
-      colors: [[0.25, 0.15, 0.1], [0.15, 0.1, 0.05]]
-      rotation: [0, 0, 90]   # Venature lungo l'asse X anziché Y
-      randomize_offset: true
+      scale: 3.0
+      noise_strength: 2.0
+      colors: [[0.45, 0.28, 0.15], [0.30, 0.18, 0.08]]
+      randomize_rotation: true
 ```
 
-### **Legno: Chiaro (Oak)**
-Legno chiaro con venature calde. Ideale per pavimenti o superfici orizzontali.
+### **Metallo: Oro Lucido**
 ```yaml
-  - id: "legno_chiaro"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 14.0
-      noise_strength: 2.5
-      colors: [[0.85, 0.65, 0.40], [0.60, 0.40, 0.20]]
-      rotation: [90, 0, 0]   # Anelli visibili su piano XZ (pavimento)
-      randomize_offset: true
-```
-
-### **Metallo: Oro Satinato**
-Riflesso caldo e morbido.
-```yaml
-  - id: "oro_satinato"
+  - id: "oro"
     type: "metal"
-    color: [0.85, 0.65, 0.2]
-    fuzz: 0.15
-```
-
-### **Metallo: Acciaio Cromato**
-Riflesso quasi perfetto, minima rugosità.
-```yaml
-  - id: "acciaio_cromato"
-    type: "metal"
-    color: [0.92, 0.92, 0.95]
+    color: [0.85, 0.65, 0.1]
     fuzz: 0.02
 ```
 
-### **Pietra Grezza / Cemento**
-Effetto granuloso creato con il Noise.
+### **Metallo: Acciaio Satinato**
 ```yaml
-  - id: "cemento"
-    type: "lambertian"
-    texture:
-      type: "noise"
-      scale: 50.0
+  - id: "acciaio"
+    type: "metal"
+    color: [0.7, 0.7, 0.75]
+    fuzz: 0.15
 ```
 
-### **Vetro: Rubino Profondo**
-Vetro rosso intenso, ideale per gioielli o decorazioni di lusso.
+### **Vetro: Cristallo**
 ```yaml
-  - id: "vetro_rubino"
+  - id: "cristallo"
     type: "dielectric"
-    refraction_index: 1.6
-    color: [0.8, 0.05, 0.05]
+    refraction_index: 1.8
+    color: [1.0, 1.0, 1.0]
 ```
 
-### **Vetro: Fumé Professionale**
-Grigio neutro che riduce la luminosità senza distorcere i colori.
+### **Vetro: Fumé**
 ```yaml
   - id: "vetro_fume"
     type: "dielectric"
     refraction_index: 1.5
-    color: [0.3, 0.3, 0.32]
+    color: [0.7, 0.7, 0.7]
 ```
 
-### **Scacchiera Classica**
-Pavimento o piano a quadretti bianchi e neri.
+### **Pavimento: Scacchiera Classica**
 ```yaml
   - id: "scacchiera"
     type: "lambertian"
@@ -538,5 +462,5 @@ entities:
 
 > **💡 Consigli d'uso:**
 > - Usa `randomize_offset: true` e `randomize_rotation: true` nelle texture procedurali per far apparire ogni oggetto unico anche con lo stesso materiale.
-> - Per gli Stage che usano area light, parti con `shadow_samples: 4` e `-s 1` per il draft, poi aumenta entrambi per il render finale.
+> - Per gli Stage che usano area light, usa `-S 4 -s 1` da CLI per il draft, poi `-S 16 -s 128` per il render finale — non serve modificare il YAML!
 > - I seed fissi negli oggetti garantiscono che le venature siano identiche tra render successivi — utile per iterare sull'illuminazione senza cambiare l'aspetto dei materiali.
