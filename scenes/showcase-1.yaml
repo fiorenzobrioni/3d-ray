@@ -1,0 +1,170 @@
+# Scena 2: Classic Ray Tracing Showcase (Riflessi, Rifrazioni, Materiali)
+
+# --- CONFIGURAZIONI WORLD (Scommenta quella desiderata) ---
+# 1. Studio lighting scuro (Esaltazione riflessi scuri)
+world:
+  ambient_light: [0.02, 0.02, 0.02]
+  background: [0.0, 0.0, 0.0]
+  ground: { type: "infinite_plane", material: "floor_checker", y: 0.0 }
+
+# 2. Natural Daylight (Esterno chiaro)
+#world:
+#  ambient_light: [0.1, 0.1, 0.15]
+#  background: [0.5, 0.7, 1.0]
+#  ground: { type: "infinite_plane", material: "floor_checker", y: 0.0 }
+
+# 3. Tramonto colorato atmosferico
+#world:
+#  ambient_light: [0.1, 0.05, 0.02]
+#  background: [0.8, 0.3, 0.1]
+#  ground: { type: "infinite_plane", material: "floor_checker", y: 0.0 }
+
+
+# --- CONFIGURAZIONI CAMERA (Scommenta quella desiderata) ---
+# 1. Vista principale frontale per tutti i materiali
+camera:
+  position: [0, 3, -8]
+  look_at: [0, 1.5, 0]
+  fov: 50
+  aperture: 0.05
+  focal_dist: 8.0
+
+# 2. Vista dall'alto (Bird's eye view) sui riflessi
+#camera:
+#  position: [4, 7, -4]
+#  look_at: [0, 1, 0]
+#  fov: 45
+#  aperture: 0.1
+#  focal_dist: 8.5
+
+# 3. Close up estremo sulla sfera di vetro centrale (Dettaglio caustico/rifrazioni)
+#camera:
+#  position: [-1, 1.5, -2]
+#  look_at: [-0.5, 1.5, 0]
+#  fov: 60
+#  aperture: 0.2
+#  focal_dist: 2.0
+
+
+# --- MATERIALI PENSATI PER IL MASSIMO SHOWCASE ---
+materials:
+  - id: "floor_checker"
+    type: "lambertian"
+    texture: { type: "checker", scale: 2.0, colors: [[0.1, 0.1, 0.1], [0.8, 0.8, 0.8]] }
+  - id: "mirror_perfect"
+    type: "metal"
+    color: [1.0, 1.0, 1.0]
+    fuzz: 0.0
+  - id: "gold_rough"
+    type: "metal"
+    color: [0.9, 0.7, 0.1]
+    fuzz: 0.2
+  - id: "glass_clear"
+    type: "dielectric"
+    refraction_index: 1.5
+    color: [1.0, 1.0, 1.0]
+  - id: "glass_red"
+    type: "dielectric"
+    refraction_index: 1.5
+    color: [0.9, 0.2, 0.2]
+  - id: "wood_table"
+    type: "lambertian"
+    texture: { type: "wood", scale: 8.0, noise_strength: 2.5, colors: [[0.5, 0.3, 0.1], [0.3, 0.15, 0.05]] }
+  - id: "blue_marble"
+    type: "lambertian"
+    texture: { type: "marble", scale: 5.0, noise_strength: 8.0, colors: [[0.2, 0.4, 0.8], [0.8, 0.9, 1.0]] }
+  - id: "wall_white"
+    type: "lambertian"
+    color: [0.9, 0.9, 0.9]
+
+
+# --- LUCI (Scommenta il setup corrispondente al world) ---
+# 1. Luci Studio (Drammatiche e taglienti)
+lights:
+  - type: "spot"
+    position: [0, 10, 0]
+    direction: [0, -1, 0]
+    color: [1.0, 0.95, 0.9]
+    intensity: 150
+    inner_angle: 20
+    outer_angle: 45
+  - type: "point"
+    position: [-5, 5, -5]
+    color: [0.5, 0.8, 1.0]
+    intensity: 40
+  - type: "point"
+    position: [5, 2, -2]
+    color: [1.0, 0.5, 0.2]
+    intensity: 30
+
+# 2. Luci Daylight (Molto ampie e naturali)
+#lights:
+#  - type: "directional"
+#    direction: [-0.5, -1, -0.5]
+#    color: [1.0, 0.95, 0.9]
+#    intensity: 1.2
+#  - type: "point"
+#    position: [0, 5, -5]
+#    intensity: 20
+
+
+# --- ENTITIES (Tutte le primitive in una scena complessa) ---
+entities:
+  # Parete posteriore (cattura ombre)
+  - name: "back_wall"
+    type: "quad"
+    q: [-10, 0, 10]
+    u: [20, 0, 0]
+    v: [0, 10, 0]
+    material: "wall_white"
+    
+  # Sfera VETRO centrale (Perfetta per mostrare caustiche e rifrazioni inverse)
+  - name: "center_glass"
+    type: "sphere"
+    center: [0, 1.5, 0]
+    radius: 1.5
+    material: "glass_clear"
+    
+  # Sfera SPECCHIO perfetto a destra
+  - name: "right_mirror"
+    type: "sphere"
+    center: [2.5, 1.0, 1.0]
+    radius: 1.0
+    material: "mirror_perfect"
+
+  # Sfera ORO RUVIDO a sinistra
+  - name: "left_gold"
+    type: "sphere"
+    center: [-2.5, 1.0, 0.5]
+    radius: 1.0
+    material: "gold_rough"
+
+  # Piccola sfera VETRO ROSSO in primo piano
+  - name: "floating_red_glass"
+    type: "sphere"
+    center: [-1.2, 3.0, -2.0]
+    radius: 0.4
+    material: "glass_red"
+
+  # Piedistallo IN LEGNO orientato in maniera particolare
+  - name: "wood_pedestal"
+    type: "box"
+    scale: [8.0, 0.2, 4.0]
+    translate: [0, 0.1, 0]
+    rotate: [0, 15, 0]
+    material: "wood_table"
+
+  # Cilindro MARMO BLU sullo sfondo a destra
+  - name: "marble_pillar"
+    type: "cylinder"
+    center: [4.6, 0, -1.0]
+    radius: 0.5
+    height: 3.0
+    material: "blue_marble"
+
+  # Sfera VETRO TRASPARENTE a destra
+  - name: "right_glass"
+    type: "sphere"
+    center: [3.0, 0.8, -1.8]
+    radius: 0.8
+    material: "glass_clear"

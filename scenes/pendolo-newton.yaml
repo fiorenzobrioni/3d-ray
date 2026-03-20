@@ -1,0 +1,704 @@
+# =============================================================================
+#  IL PENDOLO DI NEWTON — Still Life da Studio Fotografico
+# =============================================================================
+#
+#  Scena: pendolo di Newton in acciaio inox lucidato su scrivania nera.
+#  Cinque sfere specchio (fuzz=0.0): la sfera sinistra è sollevata a 60°,
+#  le quattro rimanenti sono in equilibrio a contatto.
+#
+#  Showcase tecnico:
+#   ● METAL fuzz=0.0 → riflessione speculare perfetta (test definitivo del PT)
+#   ● DOF da teleobiettivo → sfera sollevata a fuoco, gruppo leggermente sfocato
+#   ● Fili in BOX ruotati in 3D → V-shape geometricamente precisa
+#   ● Scrivania metallica scura → riflessi secondari sul piano
+#   ● Three-Point Lighting da studio: key calda + fill fredda + rim + accent
+#
+#  ┌─────────────────────────────────────────────────────────────────────────┐
+#  │  RENDER CONSIGLIATI                                                     │
+#  │                                                                         │
+#  │  PREVIEW  (< 3 s):                                                      │
+#  │    dotnet run ... -- -i pendolo_newton.yaml -s 4 -d 8                   │
+#  │                       --width 800 --height 450                          │
+#  │                                                                         │
+#  │  DRAFT  (15–40 s):                                                      │
+#  │    dotnet run ... -- -i pendolo_newton.yaml -s 16 -d 25                 │
+#  │                       --width 1280 --height 720                         │
+#  │                                                                         │
+#  │  PRODUCTION  (qualità finale):                                          │
+#  │    dotnet run ... -- -i pendolo_newton.yaml -s 128 -d 50                │
+#  │                       --width 1920 --height 1080                        │
+#  │                                                                         │
+#  │  ULTRA  (stampa/portfolio):                                             │
+#  │    dotnet run ... -- -i pendolo_newton.yaml -s 256 -d 50                │
+#  │                       --width 3840 --height 2160                        │
+#  └─────────────────────────────────────────────────────────────────────────┘
+#
+# =============================================================================
+#  GEOMETRIA ANALITICA — Dati di progetto verificati
+# =============================================================================
+#
+#  R_sfera   = 0.019 m           (raggio sfere d'acciaio, diametro 3.8 cm)
+#  Passo_X   = 2·R = 0.038 m    (distanza centro-centro sfere a contatto)
+#  Z_attacco = ±0.075 m         (posizione Z dei binari → fili a V)
+#  H_filo    = 0.170 m          (componente verticale del filo)
+#  L_filo    = √(0.170²+0.075²) = 0.186 m   (lunghezza reale del filo)
+#  α_Z       = arctan(0.075/0.170) ≈ 24°    (apertura V in piano YZ)
+#
+#  Piano di attacco fili: Y_rail = 0.270 m
+#  Sfere a riposo:        Y_centro = Y_rail − H_filo = 0.100 m
+#
+#  Sfera sollevata (θ=60°):
+#    X = −0.076 − 0.170·sin(60°) = −0.076 − 0.147 = −0.223 m
+#    Y = 0.270  − 0.170·cos(60°) = 0.270 − 0.085  =  0.185 m
+#
+#  Fili sfera sollevata — direzione +Y del box (dall'equatore al gancio):
+#    Front: (+0.790, +0.457, −0.403)  →  rotate [−24, 0, −60]
+#    Back:  (+0.790, +0.457, +0.403)  →  rotate [+24, 0, −60]
+#    Centro box: (−0.1495, 0.2275, ∓0.0375)
+#
+#  Verifica lunghezza filo sfera sollevata:
+#    d = √(0.147²+0.085²+0.075²) = √(0.03447) ≈ 0.186 m  ✓
+# =============================================================================
+
+
+# =============================================================================
+#  WORLD
+# =============================================================================
+world:
+  # Studio chiuso: quasi buio, solo luci artificiali controllate.
+  # Il leggero tono blu-freddo simula la riflessione delle pareti grigio-acciaio.
+  ambient_light: [0.018, 0.018, 0.022]
+  background:    [0.030, 0.030, 0.042]
+
+  ground:
+    type:     "infinite_plane"
+    material: "scrivania_nera"
+    y: 0.0
+
+
+# =============================================================================
+#  CAMERA — Vista principale + 4 alternative commentate
+# =============================================================================
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CAMERA ATTIVA ★  Tre quarti sinistra con DOF da teleobiettivo
+#
+#  La sfera sollevata (X=−0.223, Y=0.185) è il soggetto principale:
+#  occupa il primo piano a sinistra. Il gruppo delle 4 sfere è al centro-dx,
+#  leggermente più sfocato. Il frame fa da quinta geometrica.
+#  FOV 38° ≈ teleobiettivo 85mm su pieno formato.
+#  focal_dist calibrata sulla distanza camera → sfera sollevata (≈ 0.87 m).
+# ─────────────────────────────────────────────────────────────────────────────
+camera:
+  position:   [-0.55,  0.48, -0.75]
+  look_at:    [-0.05,  0.15,  0.02]
+  vup:        [ 0, 1, 0]
+  fov:        28
+  aperture:   0.005
+  focal_dist: 0.87
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CAMERA ALT-1  Frontale centrata  (catalogo tecnico, tutto nitido)
+#  Asse ottico perpendicolare alla fila di sfere. Mostra la simmetria
+#  del frame e il gap lasciato dalla sfera sollevata nel gruppo.
+# ─────────────────────────────────────────────────────────────────────────────
+# camera:
+#   position:   [ 0.00,  0.30, -0.80]
+#   look_at:    [ 0.00,  0.18,  0.00]
+#   vup:        [ 0, 1, 0]
+#   fov:        40
+#   aperture:   0.0              # tutto a fuoco: zero bokeh
+#   focal_dist: 0.82
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CAMERA ALT-2  Macro — Close-up sfera sollevata con bokeh estremo
+#  Campo strettissimo (26°), apertura massima: effetto 100mm macro.
+#  La sfera sollevata è a fuoco perfetto; il gruppo dietro è puro bokeh.
+#  I riflessi interni della sfera specchio diventano il soggetto assoluto.
+# ─────────────────────────────────────────────────────────────────────────────
+# camera:
+#   position:   [-0.44,  0.32, -0.52]
+#   look_at:    [-0.22,  0.19,  0.00]
+#   vup:        [ 0, 1, 0]
+#   fov:        26
+#   aperture:   0.018
+#   focal_dist: 0.58             # distanza esatta camera → sfera 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CAMERA ALT-3  Top-down zenitale  (planimetria del pendolo)
+#  I fili a V sono perfettamente visibili. La scrivania riflette le sfere.
+#  vup punta verso Z− per orientamento canonico nord=lontano.
+# ─────────────────────────────────────────────────────────────────────────────
+# camera:
+#   position:   [-0.05,  0.95, -0.10]
+#   look_at:    [-0.05,  0.15,  0.02]
+#   vup:        [ 0, 0, -1]
+#   fov:        50
+#   aperture:   0.0
+#   focal_dist: 0.80
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CAMERA ALT-4  Profilo puro sinistro  (mostra il 60° di alzo della sfera)
+#  Unica inquadratura che mostra la geometria del pendolamento in modo esatto:
+#  si vede l'angolo dei fili e la quota della sfera rispetto al gruppo.
+# ─────────────────────────────────────────────────────────────────────────────
+# camera:
+#   position:   [-0.65,  0.30, -0.02]
+#   look_at:    [-0.05,  0.17,  0.00]
+#   vup:        [ 0, 1, 0]
+#   fov:        34
+#   aperture:   0.003
+#   focal_dist: 0.63
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CAMERA ALT-5  Dutch Angle cinematografico  (~13° di inclinazione)
+#  Crea tensione visiva che sottolinea il movimento potenziale della sfera.
+#  Ottima con lo schema luci ALT-2 (Neon Bicolore).
+# ─────────────────────────────────────────────────────────────────────────────
+# camera:
+#   position:   [-0.52,  0.46, -0.72]
+#   look_at:    [-0.04,  0.15,  0.02]
+#   vup:        [ 0.24, 1, 0]          # inclina l'orizzonte ~13.5°
+#   fov:        38
+#   aperture:   0.005
+#   focal_dist: 0.87
+
+
+# =============================================================================
+#  MATERIALS
+# =============================================================================
+materials:
+
+  # ── Scrivania: nero lucido (lacca/ebano) con riflessione soft ──────────────
+  - id: "scrivania_nera"
+    type: "metal"
+    color: [0.07, 0.05, 0.04]
+    fuzz: 0.06                         # sufficiente per riflesso morbido
+
+  # ── Frame: acciaio inox lucidato (quasi speculare, legger. caldo) ──────────
+  - id: "acciaio_frame"
+    type: "metal"
+    color: [0.84, 0.86, 0.90]
+    fuzz: 0.010                        # specchio quasi-perfetto del frame
+
+  # ── Sfere: specchio perfetto ★ Il cuore del showcase ─────────────────────
+  # fuzz = 0.0 → riflessione speculare assoluta.
+  # Le sfere si riflettono l'una nell'altra all'infinito.
+  # Colore lievemente caldo (acciaio inox 316L lucido).
+  - id: "sfera_specchio"
+    type: "metal"
+    color: [0.82, 0.83, 0.87]
+    fuzz: 0.0                          # ★ specchio perfetto
+
+  # ── Base del frame: acciaio spazzolato scuro ──────────────────────────────
+  - id: "base_acciaio"
+    type: "metal"
+    color: [0.34, 0.33, 0.35]
+    fuzz: 0.12                         # satinato: contrasto con le sfere
+
+  # ── Fili nylon: quasi-nero opaco (filo da pesca fine) ────────────────────
+  - id: "filo_nylon"
+    type: "lambertian"
+    color: [0.07, 0.07, 0.07]
+
+  # ── Targa: piastra cromata sulla faccia anteriore della base ─────────────
+  - id: "targa_cromata"
+    type: "metal"
+    color: [0.92, 0.88, 0.72]         # oro pallido / lega dorata
+    fuzz: 0.03
+
+
+# =============================================================================
+#  ENTITIES
+# =============================================================================
+entities:
+
+  # ===========================================================================
+  #  STRUTTURA DEL FRAME
+  # ===========================================================================
+  #
+  #  Vista dall'alto (schema posizione componenti):
+  #
+  #   Z = +0.075  ──  post_post_sx ─── rail_back ─────── post_post_dx
+  #                       │                                    │
+  #               traversa_sx                         traversa_dx
+  #                       │                                    │
+  #   Z = −0.075  ──  post_ant_sx ─── rail_front ────── post_ant_dx
+  #
+  #   X range:  −0.105 ←─────────────────────────────→ +0.105
+  #
+  #  I fili si agganciano ai rail_front/back agli X delle 5 sfere:
+  #    X_att = [−0.076, −0.038, 0.000, +0.038, +0.076]
+  # ===========================================================================
+
+  # Base rettangolare (piastra inferiore)
+  - name: "base"
+    type: "box"
+    scale:     [0.240, 0.018, 0.185]
+    translate: [0.000, 0.009, 0.000]
+    material:  "base_acciaio"
+
+  # Targa decorativa (piastra cromata sulla fronte della base)
+  - name: "targa"
+    type: "box"
+    scale:     [0.100, 0.010, 0.002]
+    translate: [0.000, 0.010, -0.093]
+    material:  "targa_cromata"
+
+  # Montante anteriore sinistro
+  - name: "montante_ant_sx"
+    type: "box"
+    scale:     [0.008, 0.278, 0.008]
+    translate: [-0.105, 0.139, -0.075]
+    material:  "acciaio_frame"
+
+  # Montante anteriore destro
+  - name: "montante_ant_dx"
+    type: "box"
+    scale:     [0.008, 0.278, 0.008]
+    translate: [+0.105, 0.139, -0.075]
+    material:  "acciaio_frame"
+
+  # Montante posteriore sinistro
+  - name: "montante_post_sx"
+    type: "box"
+    scale:     [0.008, 0.278, 0.008]
+    translate: [-0.105, 0.139, +0.075]
+    material:  "acciaio_frame"
+
+  # Montante posteriore destro
+  - name: "montante_post_dx"
+    type: "box"
+    scale:     [0.008, 0.278, 0.008]
+    translate: [+0.105, 0.139, +0.075]
+    material:  "acciaio_frame"
+
+  # Binario superiore anteriore  (Z = −0.075 | Y = 0.270 | attacchi fili front)
+  - name: "rail_front"
+    type: "box"
+    scale:     [0.218, 0.010, 0.010]
+    translate: [0.000, 0.270, -0.075]
+    material:  "acciaio_frame"
+
+  # Binario superiore posteriore  (Z = +0.075 | attacchi fili back)
+  - name: "rail_back"
+    type: "box"
+    scale:     [0.218, 0.010, 0.010]
+    translate: [0.000, 0.270, +0.075]
+    material:  "acciaio_frame"
+
+  # Traversa superiore sinistra  (collega rail front e back, lato sx)
+  - name: "traversa_sx"
+    type: "box"
+    scale:     [0.010, 0.010, 0.158]
+    translate: [-0.105, 0.270, 0.000]
+    material:  "acciaio_frame"
+
+  # Traversa superiore destra
+  - name: "traversa_dx"
+    type: "box"
+    scale:     [0.010, 0.010, 0.158]
+    translate: [+0.105, 0.270, 0.000]
+    material:  "acciaio_frame"
+
+  # Rinforzo centrale orizzontale sinistro  (metà altezza, irrigidisce il frame)
+  - name: "rinforzo_mid_sx"
+    type: "box"
+    scale:     [0.008, 0.008, 0.158]
+    translate: [-0.105, 0.140, 0.000]
+    material:  "acciaio_frame"
+
+  # Rinforzo centrale orizzontale destro
+  - name: "rinforzo_mid_dx"
+    type: "box"
+    scale:     [0.008, 0.008, 0.158]
+    translate: [+0.105, 0.140, 0.000]
+    material:  "acciaio_frame"
+
+
+  # ===========================================================================
+  #  SFERE — 1 sollevata + 4 in equilibrio
+  # ===========================================================================
+  #
+  #  Tutte: R = 0.019 m,  materiale: sfera_specchio (fuzz = 0.0)
+  #
+  #  Sfera 0 (sollevata 60°):
+  #    X = −0.076 − 0.170·sin(60°) = −0.076 − 0.147 = −0.223
+  #    Y =  0.270 − 0.170·cos(60°) =  0.270 − 0.085 =  0.185
+  #
+  #  Sfere 1–4 (equilibrio, Y = 0.100):
+  #    X₁=−0.038   X₂=0.000   X₃=+0.038   X₄=+0.076
+  #    (gap visibile a X=−0.076 dove normalmente stava la sfera 0)
+  # ===========================================================================
+
+  # Sfera 0: sollevata a 60° — protagonista assoluta della scena
+  - name: "sfera_0_sollevata"
+    type: "sphere"
+    center:   [-0.223, 0.185, 0.000]
+    radius:   0.019
+    seed:     1001
+    material: "sfera_specchio"
+
+  # Sfera 1: prima del gruppo a riposo (sinistra del cluster)
+  - name: "sfera_1"
+    type: "sphere"
+    center:   [-0.038, 0.100, 0.000]
+    radius:   0.019
+    seed:     1002
+    material: "sfera_specchio"
+
+  # Sfera 2
+  - name: "sfera_2"
+    type: "sphere"
+    center:   [ 0.000, 0.100, 0.000]
+    radius:   0.019
+    seed:     1003
+    material: "sfera_specchio"
+
+  # Sfera 3
+  - name: "sfera_3"
+    type: "sphere"
+    center:   [+0.038, 0.100, 0.000]
+    radius:   0.019
+    seed:     1004
+    material: "sfera_specchio"
+
+  # Sfera 4: ultima del gruppo, lato destro
+  - name: "sfera_4"
+    type: "sphere"
+    center:   [+0.076, 0.100, 0.000]
+    radius:   0.019
+    seed:     1005
+    material: "sfera_specchio"
+
+
+  # ===========================================================================
+  #  FILI DI SOSPENSIONE
+  # ===========================================================================
+  #
+  #  Ogni sfera ha 2 fili (front/back) che formano la V caratteristica.
+  #  Rappresentati come BOX ultrapiatti con rotazione 3D precisa.
+  #
+  #  Parametri comuni: scale [0.002, 0.186, 0.002]
+  #
+  #  SFERE A RIPOSO (1–4) — fili nel solo piano YZ (no X):
+  #    Attacco front: (X, 0.270, −0.075)   Attacco back: (X, 0.270, +0.075)
+  #    Sfera:         (X, 0.100,  0.000)
+  #    Rotazione front: [−24, 0, 0]   Centro: (X, 0.185, −0.0375)
+  #    Rotazione back:  [+24, 0, 0]   Centro: (X, 0.185, +0.0375)
+  #
+  #  SFERA SOLLEVATA (0) — fili in XYZ, doppia rotazione:
+  #    Direzione +Y box verso gancio: (0.790, 0.457, ∓0.403)
+  #    Rotazione front: [−24, 0, −60]   Centro: (−0.1495, 0.2275, −0.0375)
+  #    Rotazione back:  [+24, 0, −60]   Centro: (−0.1495, 0.2275, +0.0375)
+  #
+  #  Verifica endpoint filo_0_front con rotate[−24, 0, −60]:
+  #    R = Rz(−60°)·Rx(−24°)
+  #    +Y end = centro + 0.093·(+0.791, +0.457, −0.407) = (−0.076, 0.270, −0.075) ✓
+  #    −Y end = centro − 0.093·(+0.791, +0.457, −0.407) = (−0.223, 0.185,  0.000) ✓
+  # ===========================================================================
+
+  # ── SFERA 0 SOLLEVATA — fili inclinati in X, Y, Z ─────────────────────────
+
+  - name: "filo_0_front"
+    type: "box"
+    scale:     [0.002, 0.186, 0.002]
+    rotate:    [-24,   0,  -60]
+    translate: [-0.1495, 0.2275, -0.0375]
+    material:  "filo_nylon"
+
+  - name: "filo_0_back"
+    type: "box"
+    scale:     [0.002, 0.186, 0.002]
+    rotate:    [+24,   0,  -60]
+    translate: [-0.1495, 0.2275, +0.0375]
+    material:  "filo_nylon"
+
+  # ── SFERA 1  (X = −0.038) ──────────────────────────────────────────────────
+
+  - name: "filo_1_front"
+    type: "box"
+    scale:     [0.002, 0.186, 0.002]
+    rotate:    [-24, 0, 0]
+    translate: [-0.038, 0.185, -0.0375]
+    material:  "filo_nylon"
+
+  - name: "filo_1_back"
+    type: "box"
+    scale:     [0.002, 0.186, 0.002]
+    rotate:    [+24, 0, 0]
+    translate: [-0.038, 0.185, +0.0375]
+    material:  "filo_nylon"
+
+  # ── SFERA 2  (X = 0.000) ───────────────────────────────────────────────────
+
+  - name: "filo_2_front"
+    type: "box"
+    scale:     [0.002, 0.186, 0.002]
+    rotate:    [-24, 0, 0]
+    translate: [ 0.000, 0.185, -0.0375]
+    material:  "filo_nylon"
+
+  - name: "filo_2_back"
+    type: "box"
+    scale:     [0.002, 0.186, 0.002]
+    rotate:    [+24, 0, 0]
+    translate: [ 0.000, 0.185, +0.0375]
+    material:  "filo_nylon"
+
+  # ── SFERA 3  (X = +0.038) ──────────────────────────────────────────────────
+
+  - name: "filo_3_front"
+    type: "box"
+    scale:     [0.002, 0.186, 0.002]
+    rotate:    [-24, 0, 0]
+    translate: [+0.038, 0.185, -0.0375]
+    material:  "filo_nylon"
+
+  - name: "filo_3_back"
+    type: "box"
+    scale:     [0.002, 0.186, 0.002]
+    rotate:    [+24, 0, 0]
+    translate: [+0.038, 0.185, +0.0375]
+    material:  "filo_nylon"
+
+  # ── SFERA 4  (X = +0.076) ──────────────────────────────────────────────────
+
+  - name: "filo_4_front"
+    type: "box"
+    scale:     [0.002, 0.186, 0.002]
+    rotate:    [-24, 0, 0]
+    translate: [+0.076, 0.185, -0.0375]
+    material:  "filo_nylon"
+
+  - name: "filo_4_back"
+    type: "box"
+    scale:     [0.002, 0.186, 0.002]
+    rotate:    [+24, 0, 0]
+    translate: [+0.076, 0.185, +0.0375]
+    material:  "filo_nylon"
+
+
+  # ===========================================================================
+  #  GANCI — Piccole sfere ai punti di attacco (dettaglio realistico)
+  # ===========================================================================
+  #
+  #  Dieci piccole sfere cromate (R=0.004) posizionate sui binari superiori
+  #  agli X di attacco di ogni filo. Simulano i fermi/ganci su cui i fili
+  #  sono agganciati. Visibili soprattutto nei render macro e dall'alto.
+  #
+  #  Posizioni: X_att = [−0.076, −0.038, 0.000, +0.038, +0.076]
+  #             Y = 0.276  (sopra il binario: rail_top = 0.275)
+  #             Z = ±0.075
+  # ===========================================================================
+
+  - name: "gancio_0_front"
+    type: "sphere"
+    center:   [-0.076, 0.276, -0.075]
+    radius:   0.004
+    material: "acciaio_frame"
+
+  - name: "gancio_0_back"
+    type: "sphere"
+    center:   [-0.076, 0.276, +0.075]
+    radius:   0.004
+    material: "acciaio_frame"
+
+  - name: "gancio_1_front"
+    type: "sphere"
+    center:   [-0.038, 0.276, -0.075]
+    radius:   0.004
+    material: "acciaio_frame"
+
+  - name: "gancio_1_back"
+    type: "sphere"
+    center:   [-0.038, 0.276, +0.075]
+    radius:   0.004
+    material: "acciaio_frame"
+
+  - name: "gancio_2_front"
+    type: "sphere"
+    center:   [ 0.000, 0.276, -0.075]
+    radius:   0.004
+    material: "acciaio_frame"
+
+  - name: "gancio_2_back"
+    type: "sphere"
+    center:   [ 0.000, 0.276, +0.075]
+    radius:   0.004
+    material: "acciaio_frame"
+
+  - name: "gancio_3_front"
+    type: "sphere"
+    center:   [+0.038, 0.276, -0.075]
+    radius:   0.004
+    material: "acciaio_frame"
+
+  - name: "gancio_3_back"
+    type: "sphere"
+    center:   [+0.038, 0.276, +0.075]
+    radius:   0.004
+    material: "acciaio_frame"
+
+  - name: "gancio_4_front"
+    type: "sphere"
+    center:   [+0.076, 0.276, -0.075]
+    radius:   0.004
+    material: "acciaio_frame"
+
+  - name: "gancio_4_back"
+    type: "sphere"
+    center:   [+0.076, 0.276, +0.075]
+    radius:   0.004
+    material: "acciaio_frame"
+
+
+# =============================================================================
+#  LIGHTS — Schema attivo + 3 schemi alternativi commentati
+# =============================================================================
+lights:
+
+  # ───────────────────────────────────────────────────────────────────────────
+  #  SCHEMA ATTIVO ★  Studio Fotografico — Three-Point + Accent
+  #
+  #  Tecnica product photography professionale applicata a un soggetto metallico:
+  #  KEY calda da sinistra-alto per modellare le sfere con riflessi brillanti;
+  #  FILL fredda da destra per schiarire le ombre senza eliminarle;
+  #  RIM dall'alto-dietro per separare le sfere dallo sfondo scuro;
+  #  ACCENT stretto sulla sfera sollevata per enfatizzare il soggetto principale.
+  # ───────────────────────────────────────────────────────────────────────────
+
+  # KEY LIGHT — Spot dall'alto-sinistra-fronte (caldo 4800K, dominante)
+  # Posizionata a sinistra per illuminare in primo luogo la sfera sollevata
+  # e creare riflessi dinamici sull'intero gruppo.
+  - type: "spot"
+    position:    [-1.30,  1.50, -1.70]
+    direction:   [ 0.72, -0.60,  0.34]
+    color:       [1.00,  0.93,  0.84]   # tungsteno HMI caldo
+    intensity:   5
+    inner_angle: 18
+    outer_angle: 36
+
+  # FILL LIGHT — Point a destra, freddo (LED 7000K)
+  # Schiarisce le ombre sul lato destro delle sfere senza eliminarle.
+  # Il contrasto cromatico caldo/freddo è la firma della product photography.
+  - type: "point"
+    position:    [ 1.90,  0.90, -0.70]
+    color:       [0.65,  0.80,  1.00]
+    intensity:   1.0
+
+  # RIM LIGHT — Spot dall'alto-posteriore (bianco freddo-neutro)
+  # Crea un alone luminoso che separa le sfere dallo sfondo scuro,
+  # evidenziando il profilo curvilineo e i fili di sospensione.
+  - type: "spot"
+    position:    [ 0.15,  1.20,  1.30]
+    direction:   [-0.06, -0.62, -0.78]
+    color:       [0.88,  0.94,  1.00]
+    intensity:   2.5
+    inner_angle: 12
+    outer_angle: 26
+
+  # ACCENT — Faretto strettissimo solo sulla sfera sollevata
+  # Dirige l'attenzione verso la protagonista della scena. Il punto di
+  # massima luminosità guida l'occhio prima di scoprire il gruppo a riposo.
+  - type: "spot"
+    position:    [-0.55,  1.10, -0.90]
+    direction:   [ 0.20, -0.58,  0.79]
+    color:       [1.00,  0.97,  0.93]
+    intensity:   3
+    inner_angle: 7
+    outer_angle: 16
+
+  # BOUNCE — Rimbalzo caldo dalla scrivania (Global Illumination simulata)
+  # Sorgente puntiforme debolissima sotto le sfere: riempie le ombre nella
+  # zona ventrale con la tonalità ambrata della scrivania riflessa.
+  - type: "point"
+    position:    [ 0.00,  0.02,  0.05]
+    color:       [0.90,  0.70,  0.44]
+    intensity:   0.1
+
+
+  # ───────────────────────────────────────────────────────────────────────────
+  #  SCHEMA ALT-1  Finestra Nord — Luce diurna morbida (one-light natural)
+  #
+  #  Ombre lunghe e sottili, atmosfera raccolta da ufficio o studio privato.
+  #  Un riflettore panel simula il rimbalzo dalla parete opposta.
+  #
+  #  world consigliato:
+  #    ambient_light: [0.03, 0.04, 0.06]
+  #    background:    [0.14, 0.20, 0.35]   # cielo parzialmente nuvoloso
+  # ───────────────────────────────────────────────────────────────────────────
+  # - type: "directional"
+  #   direction:  [ 0.65, -0.40,  0.65]   # finestra alta a sinistra
+  #   color:      [0.88,  0.93,  1.00]    # luce nord: fredda e diffusa
+  #   intensity:  0.06
+  # - type: "point"                        # riflettore panel sul lato destro
+  #   position:   [+1.10,  0.45,  0.00]
+  #   color:      [1.00,  0.97,  0.90]
+  #   intensity:  1.6
+
+
+  # ───────────────────────────────────────────────────────────────────────────
+  #  SCHEMA ALT-2  Neon Bicolore — Cyberpunk / Dark Room
+  #
+  #  Le sfere specchio diventano lenti: ogni sfera riflette il neon opposto
+  #  creando catene infinite di colore. Effetto più forte con molti --depth.
+  #
+  #  world consigliato:
+  #    ambient_light: [0.00, 0.00, 0.00]
+  #    background:    [0.00, 0.00, 0.00]   # buio totale
+  # ───────────────────────────────────────────────────────────────────────────
+  # - type: "spot"
+  #   position:    [-1.60,  1.30, -0.90]
+  #   direction:   [ 0.78, -0.52,  0.35]
+  #   color:       [0.35,  0.75,  1.00]   # ciano ghiaccio
+  #   intensity:   28
+  #   inner_angle: 14
+  #   outer_angle: 30
+  # - type: "point"
+  #   position:    [+1.60,  0.65,  0.80]
+  #   color:       [1.00,  0.18,  0.42]   # magenta-rosso
+  #   intensity:   7
+  # - type: "point"
+  #   position:    [ 0.00,  1.00, -0.50]
+  #   color:       [0.20,  1.00,  0.55]   # verde acido (terzo accento)
+  #   intensity:   2.5
+
+
+  # ───────────────────────────────────────────────────────────────────────────
+  #  SCHEMA ALT-3  Museo / Galleria — Spotlight individuale per ogni sfera
+  #
+  #  Ogni sfera è illuminata dal suo faretto zenitale. Il fondo è buio totale.
+  #  Le sfere sembrano galleggiare nel nero come oggetti preziosi in teca.
+  #  Produce caustics visibili nelle ombre sotto ogni sfera.
+  #
+  #  world consigliato:
+  #    ambient_light: [0.00, 0.00, 0.00]
+  #    background:    [0.00, 0.00, 0.00]
+  # ───────────────────────────────────────────────────────────────────────────
+  # # Faretto dedicato sulla sfera sollevata (luce più intensa: è la star)
+  # - type: "spot"
+  #   position:    [-0.223,  1.40,  0.000]
+  #   direction:   [ 0.000, -1.000,  0.000]
+  #   color:       [1.00,  0.96,  0.88]
+  #   intensity:   20
+  #   inner_angle: 9
+  #   outer_angle: 20
+  # # Faretto sul cluster (un singolo spot copre tutte e 4 le sfere a riposo)
+  # - type: "spot"
+  #   position:    [ 0.019,  1.40,  0.000]
+  #   direction:   [ 0.000, -1.000,  0.000]
+  #   color:       [1.00,  0.97,  0.93]
+  #   intensity:   22
+  #   inner_angle: 16
+  #   outer_angle: 32
+  # # Fill ambientale debolissimo per non perdere i fili nel buio
+  # - type: "point"
+  #   position:    [ 0.000,  0.80,  0.000]
+  #   color:       [0.55,  0.65,  1.00]
+  #   intensity:   0.6

@@ -36,7 +36,7 @@ camera:
   look_at: [0, 0, 0]
   fov: 45
   aperture: 0.1
-  focal_dist: 9.43         # sqrt(0^2 + 5^2 + (-8)^2) = 9.43
+  focal_dist: 12
 
   # --- VISTA MACRO (Dettaglio sui Pezzi Centrali) ---
   # position: [1.5, 1.2, -4]
@@ -79,7 +79,7 @@ materials:
     type: "lambertian"
     texture:
       type: "wood"
-      scale: 20.0                # Venature più fini e realistiche
+      scale: 4.0                # Venature più fini e realistiche
       noise_strength: 3.2
       colors: [[0.25, 0.12, 0.05], [0.12, 0.06, 0.02]]
       randomize_offset: true
@@ -165,24 +165,24 @@ materials:
 
   - id: "piece_white_solid"
     # --- Configurazione Corrente: Marmo Bianco Lucido (Carrara) ---
-    type: "metal"                    
-    fuzz: 0.04
-    texture:
-      type: "marble"
-      scale: 30.0
-      colors: [[0.98, 0.98, 0.98], [0.75, 0.75, 0.75]]
-      noise_strength: 12.0
-      randomize_offset: true
-      randomize_rotation: true
+    # type: "metal"                    
+    # fuzz: 0.04
+    # texture:
+    #  type: "marble"
+    #  scale: 30.0
+    #  colors: [[0.98, 0.98, 0.98], [0.75, 0.75, 0.75]]
+    #  noise_strength: 12.0
+    #  randomize_offset: true
+    #  randomize_rotation: true
 
     # --- VARIANTE: VETRO PURO (Clear Glass) ---
     # type: "dielectric"
     # refraction_index: 1.5
 
     # --- VARIANTE: ARGENTO LUCIDO (Polished Silver) ---
-    # type: "metal"
-    # color: [0.95, 0.95, 0.95]
-    # fuzz: 0.02
+    type: "metal"
+    color: [0.95, 0.95, 0.95]
+    fuzz: 0.0
 
     # --- VARIANTE: PORCELLANA BIANCA (White Porcelain) ---
     # type: "lambertian"
@@ -190,15 +190,15 @@ materials:
 
   - id: "piece_black_solid"
     # --- Configurazione Corrente: Marmo Nero Lucido (Nero Marquina) ---
-    type: "metal"                    
-    fuzz: 0.08
-    texture:
-      type: "marble"
-      scale: 25.0
-      colors: [[0.02, 0.02, 0.03], [0.15, 0.15, 0.2]]
-      noise_strength: 20.0
-      randomize_offset: true
-      randomize_rotation: true
+    # type: "metal"                    
+    # fuzz: 0.08
+    # texture:
+    #  type: "marble"
+    #  scale: 25.0
+    #  colors: [[0.02, 0.02, 0.03], [0.15, 0.15, 0.2]]
+    #  noise_strength: 20.0
+    #  randomize_offset: true
+    #  randomize_rotation: true
 
     # --- VARIANTE: VETRO FUMÉ (Tinted Glass) ---
     # type: "dielectric"
@@ -211,13 +211,14 @@ materials:
     # fuzz: 0.01
 
     # --- VARIANTE: CERAMICA NERA (Black Polished Ceramic) ---
-    # type: "metal"
-    # color: [0.02, 0.02, 0.02]
-    # fuzz: 0.05
+    type: "metal"
+    color: [0.1, 0.1, 0.1]
+    fuzz: 0.0
 
 lights:
   # --- Configurazione Corrente: Luce Singola (Luce Calda e Diffusa) ---
   - { type: "point", position: [-2, 8, -2], color: [1.0, 0.95, 0.9], intensity: 30 }
+  # - { type: "point", position: [-5, 8, -2], color: [1.0, 0.95, 0.9], intensity: 160 }
 
   # --- SET: Balanced 3-Point Lighting (Luce Morbida e Diffusa) ---
   # - { type: "point", position: [5, 10, -5], color: [1.0, 1.0, 1.0], intensity: 100 }  # Key Light

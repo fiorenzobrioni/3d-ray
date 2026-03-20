@@ -26,6 +26,7 @@
    - [7.1 Point Light](#71-point-light-puntiforme)
    - [7.2 Directional Light](#72-directional-light-sole)
    - [7.3 Spot Light](#73-spot-light-faretto)
+   - [7.4 Calibrazione dell'Intensità](#74--calibrazione-dellintensità)
 8. [Illuminazione: Come Funziona](#8-illuminazione-come-funziona)
 9. [Esempi Completi](#9-esempi-completi)
 10. [Regole e Best Practices](#10-regole-e-best-practices)
@@ -508,13 +509,13 @@ Luce che irradia in tutte le direzioni da un punto. Attenuazione con il quadrato
   - type: "point"
     position: [0, 10, -5]
     color: [1, 1, 1]
-    intensity: 100.0
+    intensity: 10.0
 ```
 | Campo | Tipo | Default | Descrizione |
 |-------|------|---------|-------------|
 | `position` | `[X, Y, Z]` | `[0, 10, 0]` | Posizione nel mondo |
 | `color` | `[R, G, B]` | `[1, 1, 1]` | Colore della luce |
-| `intensity` | float | `1.0` | Intensità. Valori tipici: 40–200. |
+| `intensity` | float | `1.0` | Intensità. Valori tipici: 4–20. |
 
 ### 7.2 Directional Light (Sole)
 Luce parallela infinita (come il sole). Non ha attenuazione con la distanza.
@@ -522,13 +523,13 @@ Luce parallela infinita (come il sole). Non ha attenuazione con la distanza.
   - type: "directional"
     direction: [-1, -1, -1]     # Direzione DA cui arriva la luce
     color: [1, 1, 0.9]
-    intensity: 0.8
+    intensity: 0.08
 ```
 | Campo | Tipo | Default | Descrizione |
 |-------|------|---------|-------------|
 | `direction` | `[X, Y, Z]` | `[-1, -1, -1]` | Direzione della luce (viene normalizzata) |
 | `color` | `[R, G, B]` | `[1, 1, 1]` | Colore |
-| `intensity` | float | `1.0` | Intensità. Valori tipici: 0.3–2.0. |
+| `intensity` | float | `1.0` | Intensità. Valori tipici: 0.03–0.2. |
 
 > **Alias:** Puoi usare anche `type: "sun"` come alias per `"directional"`.
 
@@ -539,7 +540,7 @@ Luce conica con posizione e direzione. Ha un cono interno (piena intensità) e u
     position: [0, 8, -3]
     direction: [0, -1, 0]       # Punta verso il basso
     color: [1.0, 0.95, 0.9]
-    intensity: 120
+    intensity: 12
     inner_angle: 15              # Angolo cono interno (gradi)
     outer_angle: 30              # Angolo cono esterno (gradi)
 ```
@@ -548,11 +549,36 @@ Luce conica con posizione e direzione. Ha un cono interno (piena intensità) e u
 | `position` | `[X, Y, Z]` | `[0, 10, 0]` | Posizione del faretto |
 | `direction` | `[X, Y, Z]` | `[0, -1, 0]` | Direzione verso cui punta |
 | `color` | `[R, G, B]` | `[1, 1, 1]` | Colore della luce |
-| `intensity` | float | `1.0` | Intensità. Valori tipici: 60–300. |
+| `intensity` | float | `1.0` | Intensità. Valori tipici: 6–30. |
 | `inner_angle` | float | `15` | Mezzo-angolo del cono interno (piena intensità), in gradi |
 | `outer_angle` | float | `30` | Mezzo-angolo del cono esterno (sfumatura a zero), in gradi |
 
 > **Alias:** Puoi usare anche `type: "spotlight"`.
+
+---
+
+### 7.4 — Calibrazione dell'Intensità
+
+> 💡 **Nota sui valori tipici:** I range indicati nelle tabelle dei paragrafi 7.1–7.3 sono stati calibrati empiricamente su scene reali. Se l'immagine risulta sovraesposta o sottoesposta, scala **tutte** le intensità in modo uniforme mantenendo i rapporti tra le sorgenti.
+
+#### Valori di riferimento per tipo di luce
+
+| Tipo luce | Range consigliato | Note |
+|-----------|-------------------|------|
+| `point` generica | 4 – 20 | Scala con il quadrato della distanza: raddoppiare la distanza richiede ×4 l'intensità |
+| `spot` key light | 15 – 30 | Valori più alti per coni stretti (`inner_angle` < 15°) |
+| `spot` fill / rim | 5 – 15 | Tipicamente 1/3 – 1/2 della key |
+| `point` accent / bounce | 0.5 – 2 | Luci di dettaglio, quasi invisibili da sole |
+| `directional` (sole) | 0.05 – 0.15 | Non ha attenuazione con la distanza: valori bassi bastano |
+
+#### Workflow di calibrazione
+
+1. Aggiungi le luci con i valori centrali del range.
+2. Esegui un preview rapido (`-s 1 --width 400`).
+3. Se l'immagine è sovraesposta, **dimezza tutte le intensità** e ripeti.
+4. Se è sottoesposta, **raddoppiale** e ripeti.
+5. Quando l'esposizione globale è corretta, bilancia le singole sorgenti tra loro.
+6. Tieni nota dei valori finali: potrai riusarli come punto di partenza per scene simili.
 
 ---
 
@@ -573,10 +599,10 @@ lights:
   - type: "directional"
     direction: [-0.5, -1, -0.3]
     color: [1.0, 0.95, 0.85]
-    intensity: 0.9
+    intensity: 0.09
   - type: "point"
     position: [0, 20, 0]
-    intensity: 100
+    intensity: 10
 ```
 
 **Studio con Spot:**
@@ -586,7 +612,7 @@ lights:
     position: [0, 8, -5]
     direction: [0, -1, 0.5]
     color: [1.0, 0.95, 0.9]
-    intensity: 150
+    intensity: 15
     inner_angle: 20
     outer_angle: 40
 ```
@@ -597,7 +623,7 @@ lights:
   - type: "point"
     position: [0, 3, 0]
     color: [1.0, 0.8, 0.5]
-    intensity: 40
+    intensity: 4
 ```
 
 ---
@@ -668,13 +694,13 @@ lights:
   - type: "spot"
     position: [0, 10, 0]
     direction: [0, -1, 0]
-    intensity: 200
+    intensity: 20
     inner_angle: 25
     outer_angle: 45
   - type: "point"
     position: [-5, 3, -5]
     color: [0.8, 0.8, 1.0]
-    intensity: 30
+    intensity: 3
 
 entities:
   - { name: "col_sx", type: "cylinder", center: [-3, 0, 0], radius: 0.3, height: 4, material: "marmo_colonna" }
