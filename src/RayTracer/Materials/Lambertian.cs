@@ -18,6 +18,13 @@ public class Lambertian : IMaterial
         Albedo = a;
     }
 
+    // ── Direct lighting properties ──────────────────────────────────────────
+    // Fully diffuse: all direct light goes through Lambert N·L.
+    // No specular highlight — the material is perfectly matte.
+    public float DiffuseWeight => 1f;
+    public float SpecularExponent => 0f;
+    public float SpecularStrength => 0f;
+
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
         var scatterDirection = rec.Normal + MathUtils.RandomUnitVector();

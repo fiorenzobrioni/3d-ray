@@ -21,6 +21,22 @@ public class Dielectric : IMaterial
         Albedo = albedo;
     }
 
+    // ── Direct lighting properties ──────────────────────────────────────────
+    //
+    // Glass and transparent materials do NOT scatter light diffusely.
+    // All their illumination comes from the refracted/reflected rays traced
+    // recursively by the path tracer. Applying Lambert N·L would make glass
+    // look like an opaque white surface lit from one side — completely wrong.
+    //
+    // A subtle specular highlight is added to simulate the Fresnel glint that
+    // appears on glass surfaces facing point lights. This is the "sparkle"
+    // you see on a wine glass under a candle. The exponent is very high
+    // (tight highlight) and strength is moderate.
+    //
+    public float DiffuseWeight => 0f;
+    public float SpecularExponent => 512f;
+    public float SpecularStrength => 0.6f;
+
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
         attenuation = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);

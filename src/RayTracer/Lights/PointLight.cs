@@ -29,21 +29,30 @@ public class PointLight : ILight
         return (Color * attenuation, direction, distance);
     }
 
-    public bool IsInShadow(Vector3 hitPoint, IHittable world)
+    /// <summary>
+    /// Inlined illumination + shadow test using normal-based shadow origin.
+    /// Previous implementation called Illuminate() then IsInShadow() separately,
+    /// redundantly computing the direction vector twice.
+    /// </summary>
+    public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
+        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
     {
         Vector3 toLight = Position - hitPoint;
         float distance = toLight.Length();
-        Vector3 dir = toLight / distance;
-        var shadowRay = new Ray(hitPoint + dir * MathUtils.Epsilon, dir);
-        var rec = new HitRecord();
-        return world.Hit(shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon, ref rec);
-    }
+        Vector3 dirToLight = toLight / distance;
 
-    public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTest(Vector3 hitPoint, IHittable world)
-    {
-        var (color, dirToLight, distance) = Illuminate(hitPoint);
-        bool inShadow = IsInShadow(hitPoint, world);
-        return (inShadow, color, dirToLight, distance);
+        // Robust shadow origin: offset along the surface normal toward the light side.
+        // This prevents self-intersection at grazing angles where the old method
+        // (offset along ray direction) could fail.
+        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        var shadowRay = new Ray(shadowOrigin, dirToLight);
+        var rec = new HitRecord();
+        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon, ref rec);
+
+        if (inShadow)
+            return (true, Vector3.Zero, dirToLight, distance);
+
+        float attenuation = Intensity / (distance * distance);
+        return (false, Color * attenuation, dirToLight, distance);
     }
 }

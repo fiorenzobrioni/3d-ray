@@ -447,20 +447,6 @@ lights:
   # ─────────────────────────────────────────────────────────────────────────
 
   # Pannello luce principale zenitale — simula il rettangolo luminoso originale
-  # - type: "spot"
-  #   position:    [ 0.00,  1.97,  1.00]   # 3cm sotto soffitto, centrato in X e Z
-  #   direction:   [ 0.00, -1.00,  0.00]   # perfettamente verticale verso il basso
-  #   color:       [ 1.00,  0.97,  0.88]   # bianco caldo: tungsteno HMI 5200K
-  #   intensity:   6.0
-  #   inner_angle: 30                       # cono pieno: illumina il centro del pavimento
-  #   outer_angle: 62                       # bordo sfumato: declina gradualmente verso i lati
-
-  # Fill angolo posteriore — riempie l'ombra dietro il blocco alto
-  # - type: "point"
-  #   position:    [ 0.00,  1.90,  1.00]   # leggermente spostato verso il fondo
-  #   color:       [ 1.00,  0.96,  0.86]
-  #   intensity:   0.6                      # debolissimo: solo riempimento ombre profonde
-
   - type: area
     corner:      [ -0.2, 1.99, 0.2]
     u:           [0.4, 0.0, 0.4]

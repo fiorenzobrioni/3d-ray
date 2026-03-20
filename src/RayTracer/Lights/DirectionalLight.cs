@@ -26,19 +26,19 @@ public class DirectionalLight : ILight
         return (Color * Intensity, -Direction, MathUtils.Infinity);
     }
 
-    public bool IsInShadow(Vector3 hitPoint, IHittable world)
+    public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
+        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
     {
         Vector3 toLight = -Direction;
-        var shadowRay = new Ray(hitPoint + toLight * MathUtils.Epsilon, toLight);
-        var rec = new HitRecord();
-        return world.Hit(shadowRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
-    }
 
-    public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTest(Vector3 hitPoint, IHittable world)
-    {
-        var (color, dirToLight, distance) = Illuminate(hitPoint);
-        bool inShadow = IsInShadow(hitPoint, world);
-        return (inShadow, color, dirToLight, distance);
+        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        var shadowRay = new Ray(shadowOrigin, toLight);
+        var rec = new HitRecord();
+        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
+
+        if (inShadow)
+            return (true, Vector3.Zero, toLight, MathUtils.Infinity);
+
+        return (false, Color * Intensity, toLight, MathUtils.Infinity);
     }
 }

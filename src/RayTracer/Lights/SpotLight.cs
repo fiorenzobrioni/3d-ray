@@ -20,12 +20,6 @@ public class SpotLight : ILight
     /// <inheritdoc/>
     public int ShadowSamples => 1;
 
-    /// <param name="position">World-space position of the light.</param>
-    /// <param name="direction">Direction the spot light points toward (will be normalized).</param>
-    /// <param name="color">Light color (RGB, typically [0,1]).</param>
-    /// <param name="intensity">Light intensity (controls brightness).</param>
-    /// <param name="innerAngleDeg">Inner cone half-angle in degrees (full intensity).</param>
-    /// <param name="outerAngleDeg">Outer cone half-angle in degrees (falloff to zero).</param>
     public SpotLight(Vector3 position, Vector3 direction, Vector3 color,
                      float intensity = 1f, float innerAngleDeg = 15f, float outerAngleDeg = 30f)
     {
@@ -45,37 +39,50 @@ public class SpotLight : ILight
 
         float distanceAttenuation = Intensity / (distance * distance);
 
-        // Smooth falloff between inner and outer cone
         float cosAngle = Vector3.Dot(-dirToLight, Direction);
         float spotAttenuation = Math.Clamp(
             (cosAngle - CosOuterAngle) / (CosInnerAngle - CosOuterAngle),
             0f, 1f);
-        spotAttenuation *= spotAttenuation; // smooth step
+        spotAttenuation *= spotAttenuation;
 
         return (Color * distanceAttenuation * spotAttenuation, dirToLight, distance);
     }
 
-    public bool IsInShadow(Vector3 hitPoint, IHittable world)
+    /// <summary>
+    /// Fully inlined illumination + shadow test.
+    /// The previous implementation called Illuminate() then IsInShadow() separately,
+    /// which computed the direction vector, distance, and cone angle redundantly.
+    /// This version does it once and also uses normal-based shadow origin.
+    /// </summary>
+    public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
+        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
     {
         Vector3 toLight = Position - hitPoint;
         float distance = toLight.Length();
-        Vector3 dir = toLight / distance;
+        Vector3 dirToLight = toLight / distance;
 
-        // Outside outer cone — no light contribution, skip shadow test
-        float cosAngle = Vector3.Dot(-dir, Direction);
+        // Early-out: outside outer cone — no light contribution at all
+        float cosAngle = Vector3.Dot(-dirToLight, Direction);
         if (cosAngle < CosOuterAngle)
-            return true;
+            return (true, Vector3.Zero, dirToLight, distance);
 
-        var shadowRay = new Ray(hitPoint + dir * MathUtils.Epsilon, dir);
+        // Shadow test with normal-based origin
+        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        var shadowRay = new Ray(shadowOrigin, dirToLight);
         var rec = new HitRecord();
-        return world.Hit(shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon, ref rec);
-    }
+        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon, ref rec);
 
-    public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTest(Vector3 hitPoint, IHittable world)
-    {
-        var (color, dirToLight, distance) = Illuminate(hitPoint);
-        bool inShadow = IsInShadow(hitPoint, world);
-        return (inShadow, color, dirToLight, distance);
+        if (inShadow)
+            return (true, Vector3.Zero, dirToLight, distance);
+
+        // Compute illumination (only if not in shadow — avoids wasted math)
+        float distanceAttenuation = Intensity / (distance * distance);
+
+        float spotAttenuation = Math.Clamp(
+            (cosAngle - CosOuterAngle) / (CosInnerAngle - CosOuterAngle),
+            0f, 1f);
+        spotAttenuation *= spotAttenuation;
+
+        return (false, Color * distanceAttenuation * spotAttenuation, dirToLight, distance);
     }
 }

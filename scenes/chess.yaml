@@ -1,33 +1,36 @@
 # Ray-Tracing Scene - Highly Detailed Chess Set
 # Procedurally generated using fine primitives (spheres, cylinders, boxes)
+#
+# NOTE: Questa scena usa materiali metallici speculari (fuzz=0), quindi serve
+# ambient_light > 0 e/o background > 0 affinché gli specchi abbiano luce
+# ambientale da riflettere. Con ambient=[0,0,0] e background=[0,0,0] le
+# superfici specchiate appaiono nere perché non hanno nulla da riflettere.
 
 world:
-  # --- Configurazione Corrente: Studio Buio ---
-  ambient_light: [0.0, 0.0, 0.0]
-  background: [0.0, 0.0, 0.0]
+  # --- Configurazione Corrente: Studio Bilanciato per Metalli ---
+  # L'ambient fornisce una base di fill che i metalli riflettono (tinta dal loro colore).
+  # Il background dà un tono morbido ai raggi riflessi che escono dalla scena.
+  ambient_light: [0.06, 0.06, 0.07]
+  background: [0.08, 0.08, 0.12]
   ground:
     type: "infinite_plane"
     material: "table_wood"
     y: -0.2
 
-  # --- AMBIENTE: STUDIO BILANCIATO (Luce Morbida e Diffusa) ---
-  # ambient_light: [0.05, 0.05, 0.05]  # Luce di riempimento globale (fill light)
-  # background: [0.15, 0.15, 0.2]      # Colore del cielo/orizzonte
+  # --- AMBIENTE: STUDIO HIGH-KEY (Bianco Pulito per showcase) ---
+  # ambient_light: [0.15, 0.15, 0.15]
+  # background: [0.7, 0.7, 0.75]
 
   # --- AMBIENTE: MIDNIGHT BLUE (Atmosfera Notturna) ---
-  # ambient_light: [0.01, 0.01, 0.02]
-  # background: [0.02, 0.02, 0.05]
+  # ambient_light: [0.02, 0.02, 0.04]
+  # background: [0.03, 0.03, 0.08]
 
   # --- AMBIENTE: WARM SUNSET (Luce Calda di Taglio) ---
-  # ambient_light: [0.1, 0.05, 0.02]
-  # background: [0.8, 0.4, 0.1]
+  # ambient_light: [0.08, 0.05, 0.02]
+  # background: [0.6, 0.3, 0.1]
 
-  # --- AMBIENTE: HIGH-KEY STUDIO (Bianco Pulito) ---
-  # ambient_light: [0.2, 0.2, 0.2]
-  # background: [0.9, 0.9, 0.9]
-
-  # --- AMBIENTE: NOIR / THE VOID (Nero Assoluto) ---
-  # ambient_light: [0.0, 0.0, 0.0]
+  # --- AMBIENTE: THE VOID (Nero quasi assoluto — ATTENZIONE: i metalli saranno scuri) ---
+  # ambient_light: [0.01, 0.01, 0.01]
   # background: [0.0, 0.0, 0.0]
 
 camera:
@@ -79,42 +82,39 @@ materials:
     type: "lambertian"
     texture:
       type: "wood"
-      scale: 4.0                # Venature più fini e realistiche
+      scale: 4.0
       noise_strength: 3.2
       colors: [[0.25, 0.12, 0.05], [0.12, 0.06, 0.02]]
       randomize_offset: true
       rotation: [90, 0, 0]
 
     # --- VARIANTE: LEGNO LACCATO LUCIDO (Polished Rosewood) ---
-    # type: "metal"              # Base metallica per riflessi speculari
-    # fuzz: 0.08                 # Riflesso tipico della lacca
+    # type: "metal"
+    # fuzz: 0.08
     # texture:
     #   type: "wood"
     #   scale: 22.0
-    #   colors: [[0.35, 0.05, 0.02], [0.15, 0.02, 0.01]] # Toni rossastri profondi
-
-    # --- VARIANTE: QUERCIA CHIARA (Light Oak) ---
-    # type: "lambertian"
-    # texture:
-    #   type: "wood"
-    #   scale: 15.0
-    #   colors: [[0.7, 0.5, 0.3], [0.5, 0.3, 0.15]]
-
-    # --- VARIANTE: EBANO OPACO (Matte Ebony) ---
-    # type: "lambertian"
-    # texture:
-    #   type: "wood"
-    #   scale: 40.0              # Venature quasi impercettibili
-    #   colors: [[0.05, 0.05, 0.05], [0.01, 0.01, 0.01]]
+    #   colors: [[0.35, 0.05, 0.02], [0.15, 0.02, 0.01]]
 
   - id: "board_checker"
-    # --- Configurazione Corrente: Specchio Scaccato (Mirror Checker) ---
+    # --- Configurazione Corrente: Scacchiera con leggero riflesso ---
+    # fuzz: 0.02 per avere un minimo di diffuse weight che cattura la luce diretta,
+    # mantenendo i riflessi quasi speculari. fuzz=0.0 è specchio puro e non riceve
+    # luce diretta Lambert — dipende completamente dalle riflessioni.
     type: "metal"
-    fuzz: 0.0
+    fuzz: 0.02
     texture:
       type: "checker"
       scale: 0.125
       colors: [[0.95, 0.95, 0.95], [0.05, 0.05, 0.05]]
+
+    # --- VARIANTE: SPECCHIO PURO (Richiede ambient > 0) ---
+    # type: "metal"
+    # fuzz: 0.0
+    # texture:
+    #   type: "checker"
+    #   scale: 0.125
+    #   colors: [[0.95, 0.95, 0.95], [0.05, 0.05, 0.05]]
 
     # --- VARIANTE: MARMO CLASSICO (Carrara & Marquina) ---
     # type: "metal"
@@ -122,7 +122,6 @@ materials:
     # texture:
     #   type: "checker"
     #   scale: 0.125
-    #   # Ogni "colore" della scacchiera può essere a sua volta una texture (non ancora supportato nestato, usiamo colori solidi approssimati o marble texture esterna)
     #   colors: [[0.9, 0.9, 0.9], [0.1, 0.1, 0.1]]
 
     # --- VARIANTE: LEGNO CLASSICO (Acero & Noce) ---
@@ -132,40 +131,27 @@ materials:
     #   scale: 0.125
     #   colors: [[0.8, 0.7, 0.5], [0.2, 0.1, 0.05]]
 
-    # --- VARIANTE: OSSIDIANA (Deep Obsidian) ---
-    # type: "metal"
-    # fuzz: 0.0
-    # texture:
-    #   type: "checker"
-    #   scale: 0.125
-    #   colors: [[0.03, 0.03, 0.05], [0.01, 0.01, 0.02]]
-
   - id: "board_border"
     # --- Configurazione Corrente: Metallo Brunito (Gunmetal) ---
     type: "metal"
     color: [0.15, 0.15, 0.18]
     fuzz: 0.12
 
-    # --- VARIANTE: EBANO PREGIATO (Dark Wood) ---
-    # type: "lambertian"
-    # texture:
-    #   type: "wood"
-    #   scale: 40.0
-    #   colors: [[0.1, 0.08, 0.05], [0.02, 0.01, 0.01]]
-
-    # --- VARIANTE: ORO SATINATO (Brushed Gold) ---
-    # type: "metal"
-    # color: [0.85, 0.65, 0.25]
-    # fuzz: 0.1
-
-    # --- VARIANTE: ALLUMINIO SPAZZOLATO (Brushed Aluminum) ---
-    # type: "metal"
-    # color: [0.7, 0.7, 0.75]
-    # fuzz: 0.2
-
   - id: "piece_white_solid"
-    # --- Configurazione Corrente: Marmo Bianco Lucido (Carrara) ---
-    # type: "metal"                    
+    # --- Configurazione Corrente: Argento Lucido ---
+    # fuzz: 0.02 per catturare highlight speculari e un minimo di luce diretta.
+    # Con fuzz: 0.0 i pezzi dipendono al 100% da riflessioni + ambient.
+    type: "metal"
+    color: [0.95, 0.95, 0.95]
+    fuzz: 0.02
+
+    # --- VARIANTE: SPECCHIO PURO (Richiede buona illuminazione ambiente) ---
+    # type: "metal"
+    # color: [0.95, 0.95, 0.95]
+    # fuzz: 0.0
+
+    # --- VARIANTE: Marmo Bianco Lucido (Carrara) ---
+    # type: "metal"
     # fuzz: 0.04
     # texture:
     #  type: "marble"
@@ -179,18 +165,24 @@ materials:
     # type: "dielectric"
     # refraction_index: 1.5
 
-    # --- VARIANTE: ARGENTO LUCIDO (Polished Silver) ---
-    type: "metal"
-    color: [0.95, 0.95, 0.95]
-    fuzz: 0.0
-
     # --- VARIANTE: PORCELLANA BIANCA (White Porcelain) ---
     # type: "lambertian"
     # color: [0.9, 0.9, 0.9]
 
   - id: "piece_black_solid"
-    # --- Configurazione Corrente: Marmo Nero Lucido (Nero Marquina) ---
-    # type: "metal"                    
+    # --- Configurazione Corrente: Ceramica Nera Lucida ---
+    # fuzz: 0.03 per catturare luce diretta e highlight. Aspetto "piano nero laccato".
+    type: "metal"
+    color: [0.1, 0.1, 0.1]
+    fuzz: 0.03
+
+    # --- VARIANTE: SPECCHIO NERO PURO (Richiede buona illuminazione ambiente) ---
+    # type: "metal"
+    # color: [0.1, 0.1, 0.1]
+    # fuzz: 0.0
+
+    # --- VARIANTE: Marmo Nero Lucido (Nero Marquina) ---
+    # type: "metal"
     # fuzz: 0.08
     # texture:
     #  type: "marble"
@@ -203,42 +195,53 @@ materials:
     # --- VARIANTE: VETRO FUMÉ (Tinted Glass) ---
     # type: "dielectric"
     # refraction_index: 1.5
-    # color: [0.2, 0.2, 0.25] # Vetro scuro/bluastro
+    # color: [0.2, 0.2, 0.25]
 
     # --- VARIANTE: ORO PURO (Polished Gold) ---
     # type: "metal"
     # color: [1.0, 0.84, 0.0]
     # fuzz: 0.01
 
-    # --- VARIANTE: CERAMICA NERA (Black Polished Ceramic) ---
-    type: "metal"
-    color: [0.1, 0.1, 0.1]
-    fuzz: 0.0
-
 lights:
-  # --- Configurazione Corrente: Luce Singola (Luce Calda e Diffusa) ---
-  - { type: "point", position: [-2, 8, -2], color: [1.0, 0.95, 0.9], intensity: 30 }
-  # - { type: "point", position: [-5, 8, -2], color: [1.0, 0.95, 0.9], intensity: 160 }
+  # --- Configurazione Corrente: Three-Point Lighting per Metalli ---
+  # Key Light — luce principale calda dall'alto-sinistra
+  - type: "point"
+    position: [-3, 10, -4]
+    color: [1.0, 0.95, 0.9]
+    intensity: 80
 
-  # --- SET: Balanced 3-Point Lighting (Luce Morbida e Diffusa) ---
-  # - { type: "point", position: [5, 10, -5], color: [1.0, 1.0, 1.0], intensity: 100 }  # Key Light
-  # - { type: "point", position: [-5, 5, -2], color: [0.8, 0.8, 1.0], intensity: 40 }   # Fill Light
-  # - { type: "point", position: [0, 8, 5], color: [1.0, 0.9, 0.7], intensity: 60 }     # Back Light
+  # Fill Light — luce fredda più debole dall'altro lato, ammorbidisce le ombre
+  - type: "point"
+    position: [5, 6, -3]
+    color: [0.85, 0.85, 1.0]
+    intensity: 30
+
+  # Back/Rim Light — luce posteriore per distaccare i pezzi dallo sfondo
+  - type: "point"
+    position: [0, 8, 6]
+    color: [1.0, 0.95, 0.85]
+    intensity: 40
+
+  # --- SET: Luce Singola Forte (Studio Minimalista) ---
+  # - { type: "point", position: [-2, 8, -2], color: [1.0, 0.95, 0.9], intensity: 50 }
+
+  # --- SET: Area Light (Ombre Morbide — richiede shadow_samples, più lento) ---
+  # - type: "area"
+  #   corner: [-3.0, 9.0, -3.0]
+  #   u: [6.0, 0.0, 0.0]
+  #   v: [0.0, 0.0, 6.0]
+  #   color: [1.0, 0.97, 0.92]
+  #   intensity: 45.0
+  #   shadow_samples: 16
+  # - { type: "point", position: [5, 5, -4], color: [0.8, 0.85, 1.0], intensity: 15 }
 
   # --- SET: DRAMATIC RIM (Solo contorno e silhouette) ---
-  # - { type: "point", position: [0, 12, 10], color: [1.0, 1.0, 1.0], intensity: 200 } # Rim Light
-  # - { type: "point", position: [-8, 2, -2], color: [0.2, 0.2, 0.3], intensity: 20 }  # Deep Fill
+  # - { type: "point", position: [0, 12, 10], color: [1.0, 1.0, 1.0], intensity: 200 }
+  # - { type: "point", position: [-8, 2, -2], color: [0.2, 0.2, 0.3], intensity: 20 }
 
   # --- SET: WARM SUNSET (Atmosfera pomeridiana calda) ---
   # - { type: "directional", direction: [-1, -0.3, -0.5], color: [1.0, 0.6, 0.2], intensity: 2.0 }
   # - { type: "point", position: [5, 3, -5], color: [0.3, 0.3, 0.4], intensity: 15 }
-
-  # --- SET: COLD MOONLIGHT (Notte fredda e ombre nette) ---
-  # - { type: "directional", direction: [0.5, -1.0, 0.5], color: [0.6, 0.7, 1.0], intensity: 0.8 }
-  # - { type: "point", position: [0, 5, 0], color: [0.1, 0.1, 0.2], intensity: 10 }
-
-  # --- SET: HIGH-CONTRAST (Unica sorgente dura) ---
-  # - { type: "point", position: [-10, 8, -5], color: [1.0, 0.95, 0.9], intensity: 250 }
 
 entities:
   - name: "chessboard_main"

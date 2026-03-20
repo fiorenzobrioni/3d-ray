@@ -4,7 +4,17 @@ namespace RayTracer.Core;
 
 public static class MathUtils
 {
-    public static Random Rng => Random.Shared;
+    // ─────────────────────────────────────────────────────────────────────────
+    // Thread-local RNG: eliminates lock contention on Random.Shared that was
+    // bottlenecking the Parallel.For render loop. Each thread now has its own
+    // independent Random instance seeded from an atomic counter.
+    // ─────────────────────────────────────────────────────────────────────────
+    private static int _globalSeed = Environment.TickCount;
+
+    private static readonly ThreadLocal<Random> _threadRng = new(
+        () => new Random(Interlocked.Increment(ref _globalSeed)));
+
+    public static Random Rng => _threadRng.Value!;
 
     public const float Epsilon = 1e-4f;
     public const float Infinity = float.MaxValue;
@@ -72,4 +82,19 @@ public static class MathUtils
         const float s = 1e-8f;
         return MathF.Abs(v.X) < s && MathF.Abs(v.Y) < s && MathF.Abs(v.Z) < s;
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Luminance (Rec.709) — used for Russian Roulette survival probability
+    // and for weighting specular energy.
+    // ─────────────────────────────────────────────────────────────────────────
+    public static float Luminance(Vector3 color)
+        => 0.2126f * color.X + 0.7152f * color.Y + 0.0722f * color.Z;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Robust shadow origin: offsets the hit point along the geometric normal
+    // to prevent self-intersection. This is more robust than offsetting along
+    // the shadow ray direction, especially at grazing angles.
+    // ─────────────────────────────────────────────────────────────────────────
+    public static Vector3 OffsetOrigin(Vector3 point, Vector3 normal)
+        => point + normal * Epsilon;
 }
