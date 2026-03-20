@@ -1,32 +1,73 @@
 # 3D-Ray: High-Performance .NET 10 RayTracer Engine
-A modern, parallelized ray-tracing engine built with C# and .NET 10, featuring YAML scene configuration and advanced rendering capabilities.
+
+A modern, parallelized ray-tracing engine built with C# and .NET 10, featuring YAML scene configuration and advanced physically-based rendering capabilities.
 
 ![Test Render 2](test-render-2.png)
 
 ---
 
 ## 🔍 Panoramica (Overview)
-**3D-Ray** è un motore di rendering ray-tracing ad alte prestazioni sviluppato in C# su piattaforma .NET 10. È progettato per ricercatori, sviluppatori e appassionati di computer grafica che necessitano di uno strumento flessibile e potente per generare immagini fotorealistiche partendo da descrizioni testuali delle scene. Il software risolve il problema della visualizzazione di geometrie complesse e materiali fisicamente basati (PBR) attraverso un'architettura modulare e ottimizzata per il calcolo parallelo.
+
+**3D-Ray** è un motore di rendering ray-tracing ad alte prestazioni sviluppato in C# su piattaforma .NET 10. È progettato per ricercatori, sviluppatori e appassionati di computer grafica che necessitano di uno strumento flessibile e potente per generare immagini fotorealistiche partendo da descrizioni testuali delle scene.
+
+Il motore risolve il problema della visualizzazione di geometrie complesse e materiali fisicamente basati (PBR) attraverso un'architettura modulare e ottimizzata per il calcolo parallelo multi-core, con un pipeline di post-processing ACES filmic per risultati visivi di qualità cinematografica.
 
 ---
 
 ## ✨ Caratteristiche Principali (Key Features)
+
+### Rendering
 - 🚀 **Rendering Parallelo**: Sfrutta tutti i core logici della CPU tramite `Parallel.For` per una scalabilità lineare delle prestazioni.
-- 📦 **Acceleration Structure**: Implementazione di **BVH (Bounding Volume Hierarchy)** per ridurre drasticamente la complessità computazionale del test di intersezione raggio-oggetto.
-- 📐 **Primitive Geometriche**: Supporto per Sfere, Piani infiniti, Scatole (Box), Triangoli e Cilindri.
-- 💎 **Materiali Avanzati**: Modelli fisici per materiali Lambertiani (opachi), Metalli (con parametro di *fuzziness*) e Dielettrici (rifrazione del vetro con indice di rifrazione variabile).
-- 📸 **Camera Realistica**: Supporto per Field of View (FOV) regolabile, profondità di campo (Depth of Field) tramite apertura e distanza focale.
-- 💡 **Sistema di Illuminazione**: Supporto per luci puntiformi e direzionali con calcolo delle ombre.
-- 📄 **Configurazione YAML**: Definizione completa della scena (oggetti, materiali, luci, camera) tramite file YAML strutturati.
+- 🎯 **Campionamento Stratificato**: Campionamento jittered su griglia `√N × √N` per pixel per una convergenza drasticamente più rapida rispetto al campionamento casuale puro.
+- 🎞️ **ACES Filmic Tone Mapping**: Pipeline di post-processing con curva filmica ACES e correzione gamma 2.2, per highlight naturali e colori ricchi.
+
+### Accelerazione
+- 📦 **BVH (Bounding Volume Hierarchy)**: Struttura di accelerazione con euristica dell'asse più lungo (SAH-inspired) per intersezioni raggio-oggetto in tempo **O(log N)**. Attivata automaticamente per scene con più di 4 oggetti.
+
+### Primitive Geometriche
+- 🔵 **Sphere** — Sfera con UV mapping sferico
+- 📦 **Box** — Cubo unitario con UV mapping planare per faccia
+- 🔷 **Quad** — Parallelogramma con UV mapping baricentric
+- 🔺 **Triangle** — Triangolo via algoritmo Möller–Trumbore
+- 🔴 **Disk** — Disco piatto con UV mapping polare
+- 🏛️ **Cylinder** — Cilindro finito con caps e UV cylindrical
+- ∞ **Infinite Plane** — Piano infinito con UV mapping con tiling
+
+### Materiali
+- 🎨 **Lambertian** — Diffusione opaca fisicamente corretta
+- 🪞 **Metal** — Riflessione speculare con parametro `fuzz` per rugosità superficiale
+- 💎 **Dielectric** — Rifrazione con indice IOR variabile, effetto Fresnel (Schlick), supporto tinting colore
+
+### Texture Procedurali
+- ♟️ **Checker** — Scacchiera 3D con scala configurabile
+- 🌫️ **Noise** — Perlin Noise per superfici granulate o sporche
+- 🗿 **Marble** — Venature marmoree con turbolenza matematica
+- 🪵 **Wood** — Anelli di accrescimento concentrici
+
+Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzazione per-oggetto** tramite seed deterministico.
+
+### Sistema di Trasformazione
+- 🔄 **Transform wrapper** — Scale, Rotate e Translate applicabili a qualsiasi primitiva, con trasformazione corretta delle normali via matrice inversa trasposta (gestione corretta dello scaling non uniforme).
+
+### Sistema di Illuminazione
+- 💡 **Point Light** — Luce puntiforme con attenuazione quadratica della distanza
+- ☀️ **Directional Light** — Luce direzionale parallela (sole), senza attenuazione
+- 🔦 **Spot Light** — Faretto con cono interno/esterno e falloff liscio
+- 🟧 **Area Light** — Emettitore rettangolare con **soft shadows** fisicamente corretti via campionamento Monte Carlo (configurabile: 8–32 shadow samples)
+
+### Input/Output
+- 📄 **Configurazione YAML** — Definizione completa della scena tramite file YAML strutturati
+- 🖼️ **Formati immagine** — PNG (lossless), JPEG, BMP — rilevamento automatico dall'estensione
 
 ---
 
 ## 🛠️ Stack Tecnologico
+
 - **Linguaggio**: C# 13 / .NET 10
 - **Librerie Core**:
-  - `SixLabors.ImageSharp`: Per la manipolazione e il salvataggio delle immagini in vari formati.
-  - `YamlDotNet`: Per il parsing dei file di configurazione delle scene.
-  - `System.Numerics`: Per il calcolo vettoriale ottimizzato (SIMD).
+  - `SixLabors.ImageSharp 3.1.12` — Manipolazione e salvataggio immagini in vari formati
+  - `YamlDotNet 16.3.0` — Parsing dei file di configurazione delle scene
+  - `System.Numerics` — Calcolo vettoriale ottimizzato (SIMD)
 
 ---
 
@@ -36,23 +77,17 @@ A modern, parallelized ray-tracing engine built with C# and .NET 10, featuring Y
 - **.NET 10 SDK** (o versione successiva) installato sul sistema.
 
 ### Compilazione
-Clona il repository e compila il progetto utilizzando la CLI di .NET:
+Clona il repository e compila il progetto:
 
 ```powershell
-# Naviga nella cartella del progetto
 cd 3d-ray
-
-# Ripristina le dipendenze e compila
 dotnet build src/RayTracer/RayTracer.csproj -c Release
 ```
 
 ### Esecuzione
 
 ```powershell
-# Naviga nella cartella del progetto
 cd 3d-ray
-
-# Esegui il renderer della scena chess.yaml
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i ./scenes/chess.yaml -s 256 -d 50 -o render.png --width 1920 --height 1080
 ```
 
@@ -60,54 +95,61 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i ./scenes/ch
 
 ## 📖 Guida all'Uso (Usage) e CLI
 
-Per avviare il renderer, è possibile utilizzare il comando `dotnet run`. I parametri devono essere passati dopo il separatore `--`.
-
 ### Parametri CLI
 
 | Parametro | Alias | Default | Descrizione |
 |-----------|-------|---------|-------------|
-| `--input` | `-i` | `scenes/sample.yaml` | Percorso del file YAML descrittivo della scena. |
+| `--input` | `-i` | — (**obbligatorio**) | Percorso del file YAML descrittivo della scena. |
 | `--output` | `-o` | `render.png` | Nome/percorso del file immagine di output. |
-| `--width` | — | `1280` | Larghezza dell'immagine in pixel. |
-| `--height` | — | `720` | Altezza dell'immagine in pixel. |
-| `--samples`| `-s` | `16` | Numero di campioni per pixel (Anti-aliasing). |
-| `--depth` | `-d` | `50` | Massimo numero di rimbalzi ricorsivi del raggio. |
+| `--width` | — | `1200` | Larghezza dell'immagine in pixel. |
+| `--height` | — | `800` | Altezza dell'immagine in pixel. |
+| `--samples` | `-s` | `16` | Campioni per pixel (anti-aliasing e riduzione del rumore). Il numero effettivo viene arrotondato al quadrato perfetto superiore (`√N × √N`). |
+| `--depth` | `-d` | `50` | Massimo numero di rimbalzi ricorsivi per raggio (riflessi, rifrazioni). |
+| `--help` | `-h` | — | Mostra il messaggio di aiuto ed esce. |
 
 ---
 
 ## 📚 Tutorials
+
 Per approfondire l'utilizzo del motore e la creazione delle scene, consulta i seguenti tutorial:
 
-- [**Guida all'Uso**](./tutorials/01-tutorial-utilizzo.md): Dettagli completi sui parametri riga di comando, ottimizzazione del render e risoluzione dei problemi comuni.
-- [**Creazione delle Scene**](./tutorials/02-tutorial-scene.md): Guida alla sintassi YAML per definire geometrie, materiali, luci e impostazioni della camera.
-- [**Libreria di Preset e Asset**](./tutorials/03-libreria-preset.md): Un catalogo di mondi, camere, luci e materiali pronti all'uso per velocizzare la creazione di scene.
+- [**Guida all'Uso**](./tutorials/01-tutorial-utilizzo.md) — Dettagli completi sui parametri CLI, profili di rendering, ottimizzazione e risoluzione problemi.
+- [**Creazione delle Scene**](./tutorials/02-tutorial-scene.md) — Guida completa alla sintassi YAML: geometrie, materiali, texture, luci, camera e trasformazioni.
+- [**Libreria di Preset e Asset**](./tutorials/03-libreria-preset.md) — Catalogo di ambienti, configurazioni camera, sistemi di illuminazione e materiali pronti all'uso.
 
 ---
 
 ## 💡 Esempi Pratici
 
-### 1. Render Veloce di Anteprima
-Ideale per verificare rapidamente il posizionamento degli oggetti in bassa risoluzione e senza anti-aliasing:
+### Anteprima Rapida
+Verifica il posizionamento della camera e degli oggetti in pochi secondi:
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/sample.yaml -o preview.png --width 480 --height 270 -s 1 -d 5
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o preview.png --width 400 --height 267 -s 1 -d 5
 ```
 
-### 2. Rendering ad Alta Qualità (Full HD)
-Per ottenere un'immagine pulita con riflessi accurati e anti-aliasing elevato:
+### Qualità Draft
+Valuta materiali e texture senza attendere il render finale:
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/complex_scene.yaml -o final_render.png --width 1920 --height 1080 -s 128 -d 50
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o draft.png --width 800 --height 533 -s 16 -d 20
 ```
 
-### 3. Rendering in Formato JPEG
-Il software rileva automaticamente il formato dall'estensione del file:
+### Produzione Full HD
+Immagine finale pulita con anti-aliasing elevato:
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/sample.yaml -o render.jpg -s 32
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o final.png --width 1920 --height 1080 -s 128 -d 50
+```
+
+### Output in JPEG
+Il formato viene rilevato automaticamente dall'estensione:
+```powershell
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o render.jpg -s 32
 ```
 
 ---
 
 ## 📄 Licenza
+
 Questo progetto è distribuito sotto licenza **MIT**. Consulta il file [LICENSE](LICENSE) per i dettagli.
 
 > [!NOTE]
-> Il progetto utilizza `SixLabors.ImageSharp` (Split License) e `YamlDotNet` (MIT), entrambi compatibili con l'uso open-source sotto licenza MIT.
+> Il progetto utilizza `SixLabors.ImageSharp` (Six Labors Split License) e `YamlDotNet` (MIT), entrambi compatibili con l'uso open-source.
