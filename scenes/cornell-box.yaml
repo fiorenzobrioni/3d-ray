@@ -456,11 +456,18 @@ lights:
   #   outer_angle: 62                       # bordo sfumato: declina gradualmente verso i lati
 
   # Fill angolo posteriore — riempie l'ombra dietro il blocco alto
-  - type: "point"
-    position:    [ 0.00,  1.90,  1.00]   # leggermente spostato verso il fondo
-    color:       [ 1.00,  0.96,  0.86]
-    intensity:   0.6                      # debolissimo: solo riempimento ombre profonde
+  # - type: "point"
+  #   position:    [ 0.00,  1.90,  1.00]   # leggermente spostato verso il fondo
+  #   color:       [ 1.00,  0.96,  0.86]
+  #   intensity:   0.6                      # debolissimo: solo riempimento ombre profonde
 
+  - type: area
+    corner:      [ 0.0, 1.9, 1.0]
+    u:           [2.0, 0.0, 0.0]
+    v:           [0.0, 0.0, 2.0]
+    color:       [1.0, 0.95, 0.9]
+    intensity:   4.0
+    shadow_samples: 16
 
   # ─────────────────────────────────────────────────────────────────────────
   #  SCHEMA ALT-1  Luce Laterale da Finestra Sinistra
