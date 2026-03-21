@@ -1,0 +1,791 @@
+# =============================================================================
+#  SPHERE SHOWCASE — Espositore 6×6 Sfere di Materiali Diversi
+# =============================================================================
+#
+#  Un contenitore espositore in legno quadrato su un tavolo, in una stanza
+#  chiusa. Contiene 36 sfere organizzate in 6 file da 6, ciascuna di un
+#  materiale diverso:
+#
+#    Fila 6 (fondo):    Plastica morbida — pastello, opaca
+#    Fila 5:            Plastica dura — colori vivaci, lucida
+#    Fila 4:            Legno — texture procedurali di varie essenze
+#    Fila 3:            Marmo — texture procedurali di varie pietre
+#    Fila 2:            Metallo — oro, argento, rame, bronzo, cromo, gunmetal
+#    Fila 1 (davanti):  Vetro/Dielettrici — cristallo, diamante, rubino, ecc.
+#
+#  Render consigliati:
+#    Preview:    -w 600  -H 400 -s 4   -d 10 -S 4
+#    Draft:      -w 1200 -H 800 -s 25  -d 30 -S 8
+#    Produzione: -w 1920 -H 1280 -s 144 -d 50 -S 24
+#    Ultra:      -w 2560 -H 1707 -s 256 -d 50 -S 32
+#
+# =============================================================================
+
+
+# =============================================================================
+#  WORLD
+# =============================================================================
+world:
+  # Stanza chiusa: nessun cielo, solo luci esplicite
+  ambient_light: [0.04, 0.04, 0.05]
+  background: [0.0, 0.0, 0.0]
+  ground:
+    type: "infinite_plane"
+    material: "floor_stone"
+    y: 0.0
+
+  # --- VARIANTE: Ambient più alto per vetri più luminosi ---
+  # ambient_light: [0.08, 0.08, 0.1]
+  # background: [0.02, 0.02, 0.04]
+
+  # --- VARIANTE: Studio high-key (tutto luminoso) ---
+  # ambient_light: [0.12, 0.12, 0.12]
+  # background: [0.15, 0.15, 0.18]
+
+
+# =============================================================================
+#  CAMERA
+# =============================================================================
+camera:
+  # --- Camera Principale: Vista ravvicinata 3/4 dall'alto ---
+  # Inquadra l'espositore con leggero angolo laterale per dare profondità.
+  # Apertura per depth of field: vetri in primo piano a fuoco, sfondo sfumato.
+  position: [2.0, 3.8, -6.0]
+  look_at: [0.0, 1.15, 0.0]
+  fov: 36
+  aperture: 0.06
+  focal_dist: 7.2
+
+  # --- CAMERA 2: Frontale centrata (simmetrica, da catalogo) ---
+  # position: [0.0, 3.5, -6.5]
+  # look_at: [0.0, 1.15, 0.0]
+  # fov: 38
+  # aperture: 0.04
+  # focal_dist: 7.0
+
+  # --- CAMERA 3: Close-up sulle sfere di vetro (primo piano estremo) ---
+  # position: [0.5, 1.8, -4.0]
+  # look_at: [0.0, 1.22, -2.0]
+  # fov: 30
+  # aperture: 0.12
+  # focal_dist: 2.5
+
+  # --- CAMERA 4: Vista zenitale (dall'alto, stile catalogo) ---
+  # position: [0.0, 7.0, 0.01]
+  # look_at: [0.0, 1.0, 0.0]
+  # fov: 42
+  # aperture: 0.0
+  # focal_dist: 6.0
+
+  # --- CAMERA 5: Angolo basso drammatico (eye-level con le sfere) ---
+  # position: [3.5, 1.3, -5.0]
+  # look_at: [0.0, 1.22, 0.0]
+  # fov: 50
+  # aperture: 0.08
+  # focal_dist: 6.0
+
+  # --- CAMERA 6: Dutch Angle (inclinata, dinamica) ---
+  # position: [-2.5, 3.0, -5.5]
+  # look_at: [0.3, 1.15, 0.0]
+  # vup: [0.15, 1, 0]
+  # fov: 40
+  # aperture: 0.05
+  # focal_dist: 6.5
+
+  # --- CAMERA 7: Macro su fila metalli (bokeh estremo) ---
+  # position: [1.0, 1.5, -3.8]
+  # look_at: [0.0, 1.22, -1.35]
+  # fov: 25
+  # aperture: 0.2
+  # focal_dist: 3.0
+
+
+# =============================================================================
+#  MATERIALS
+# =============================================================================
+materials:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  AMBIENTE: Pavimento e Stanza
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "floor_stone"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 3.0
+      colors: [[0.18, 0.16, 0.14], [0.22, 0.20, 0.18]]
+
+  - id: "wall_paint"
+    type: "lambertian"
+    color: [0.25, 0.23, 0.22]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  TAVOLO
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "table_top"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 2.5
+      noise_strength: 2.5
+      colors: [[0.35, 0.2, 0.1], [0.2, 0.1, 0.04]]
+      rotation: [0, 30, 0]
+
+  - id: "table_legs"
+    type: "lambertian"
+    color: [0.2, 0.12, 0.06]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ESPOSITORE (Legno di noce)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "case_wood"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 3.0
+      colors: [[0.45, 0.28, 0.15], [0.30, 0.18, 0.08]]
+      randomize_rotation: true
+
+  - id: "case_felt"
+    # Feltro scuro sul fondo dell'espositore (base dove poggiano le sfere)
+    type: "lambertian"
+    color: [0.08, 0.08, 0.1]
+
+  - id: "case_divider"
+    # Listelli divisori tra le file
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 6.0
+      noise_strength: 2.0
+      colors: [[0.40, 0.25, 0.13], [0.28, 0.16, 0.07]]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 1 — PLASTICA MORBIDA (Lambertian, colori pastello tenui)
+  #  Materiale completamente opaco e matte. Simula gomma/silicone.
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "soft_pink"
+    type: "lambertian"
+    color: [0.92, 0.58, 0.62]
+
+  - id: "soft_sky"
+    type: "lambertian"
+    color: [0.55, 0.68, 0.92]
+
+  - id: "soft_mint"
+    type: "lambertian"
+    color: [0.55, 0.88, 0.62]
+
+  - id: "soft_lemon"
+    type: "lambertian"
+    color: [0.95, 0.9, 0.5]
+
+  - id: "soft_lavender"
+    type: "lambertian"
+    color: [0.72, 0.58, 0.88]
+
+  - id: "soft_peach"
+    type: "lambertian"
+    color: [0.95, 0.72, 0.55]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 2 — PLASTICA DURA (Metal con fuzz alto = sheen lucido)
+  #  Simula ABS/policarbonato con riflesso di superficie.
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "hard_cherry"
+    type: "metal"
+    color: [0.82, 0.08, 0.08]
+    fuzz: 0.35
+
+  - id: "hard_royal"
+    type: "metal"
+    color: [0.08, 0.12, 0.82]
+    fuzz: 0.35
+
+  - id: "hard_forest"
+    type: "metal"
+    color: [0.08, 0.52, 0.12]
+    fuzz: 0.30
+
+  - id: "hard_sunflower"
+    type: "metal"
+    color: [0.88, 0.82, 0.08]
+    fuzz: 0.30
+
+  - id: "hard_obsidian"
+    type: "metal"
+    color: [0.06, 0.06, 0.06]
+    fuzz: 0.25
+
+  - id: "hard_ivory"
+    type: "metal"
+    color: [0.92, 0.92, 0.90]
+    fuzz: 0.30
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 3 — LEGNO (Lambertian con texture wood, essenze diverse)
+  #  Ogni sfera ha seed fisso per venature riproducibili.
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "wood_oak"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.75, 0.55, 0.30], [0.55, 0.35, 0.15]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  - id: "wood_walnut"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.45, 0.28, 0.15], [0.30, 0.18, 0.08]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  - id: "wood_cherry"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 3.0
+      colors: [[0.6, 0.25, 0.12], [0.4, 0.15, 0.05]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  - id: "wood_maple"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 1.5
+      colors: [[0.85, 0.7, 0.5], [0.70, 0.55, 0.35]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  - id: "wood_ebony"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 6.0
+      noise_strength: 1.0
+      colors: [[0.12, 0.08, 0.05], [0.06, 0.04, 0.02]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  - id: "wood_birch"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 1.8
+      colors: [[0.90, 0.80, 0.65], [0.75, 0.65, 0.50]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 4 — MARMO (Lambertian con texture marble, pietre pregiata)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "marble_carrara"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 15.0
+      noise_strength: 12.0
+      colors: [[0.95, 0.95, 0.95], [0.45, 0.45, 0.48]]
+      randomize_offset: true
+
+  - id: "marble_nero"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 10.0
+      colors: [[0.05, 0.05, 0.06], [0.65, 0.65, 0.7]]
+      randomize_offset: true
+
+  - id: "marble_verde"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 14.0
+      noise_strength: 11.0
+      colors: [[0.12, 0.32, 0.18], [0.04, 0.14, 0.07]]
+      randomize_offset: true
+
+  - id: "marble_rosso"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 13.0
+      noise_strength: 10.0
+      colors: [[0.62, 0.14, 0.10], [0.32, 0.07, 0.04]]
+      randomize_offset: true
+
+  - id: "marble_rosa"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 16.0
+      noise_strength: 9.0
+      colors: [[0.88, 0.68, 0.63], [0.68, 0.42, 0.38]]
+      randomize_offset: true
+
+  - id: "marble_blu"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 11.0
+      noise_strength: 12.0
+      colors: [[0.14, 0.14, 0.42], [0.07, 0.07, 0.22]]
+      randomize_offset: true
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 5 — METALLO (Metal con fuzz variabile)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "metal_gold"
+    type: "metal"
+    color: [0.85, 0.65, 0.10]
+    fuzz: 0.02
+
+  - id: "metal_silver"
+    type: "metal"
+    color: [0.90, 0.90, 0.92]
+    fuzz: 0.03
+
+  - id: "metal_copper"
+    type: "metal"
+    color: [0.85, 0.45, 0.20]
+    fuzz: 0.05
+
+  - id: "metal_bronze"
+    type: "metal"
+    color: [0.70, 0.50, 0.25]
+    fuzz: 0.08
+
+  - id: "metal_chrome"
+    # Specchio perfetto — riflette tutto l'ambiente circostante
+    type: "metal"
+    color: [0.95, 0.95, 0.97]
+    fuzz: 0.0
+
+  - id: "metal_gunmetal"
+    type: "metal"
+    color: [0.22, 0.22, 0.28]
+    fuzz: 0.10
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 6 — VETRO / DIELETTRICI (prima fila, in primo piano)
+  #  Le sfere di vetro sono le più costose da renderizzare (rifrazione +
+  #  riflessione). Aumenta --depth a 50 per risultati corretti.
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "glass_clear"
+    # Vetro crown classico — completamente trasparente
+    type: "dielectric"
+    refraction_index: 1.52
+    color: [1.0, 1.0, 1.0]
+
+  - id: "glass_diamond"
+    # Diamante — IOR molto alto, dispersione e brillantezza estrema
+    type: "dielectric"
+    refraction_index: 2.42
+    color: [0.97, 0.97, 1.0]
+
+  - id: "glass_ruby"
+    # Vetro rubino — rosso profondo trasparente
+    type: "dielectric"
+    refraction_index: 1.77
+    color: [0.88, 0.15, 0.15]
+
+  - id: "glass_emerald"
+    # Vetro smeraldo — verde intenso trasparente
+    type: "dielectric"
+    refraction_index: 1.57
+    color: [0.15, 0.82, 0.30]
+
+  - id: "glass_amber"
+    # Ambra — giallo/arancione caldo trasparente
+    type: "dielectric"
+    refraction_index: 1.55
+    color: [0.92, 0.68, 0.18]
+
+  - id: "glass_sapphire"
+    # Zaffiro — blu intenso trasparente
+    type: "dielectric"
+    refraction_index: 1.77
+    color: [0.18, 0.25, 0.88]
+
+
+# =============================================================================
+#  ENTITIES
+# =============================================================================
+#
+#  Layout della griglia:
+#    Sfere raggio 0.35, centri distanziati 0.9 su X e Z
+#    X: -2.25, -1.35, -0.45, 0.45, 1.35, 2.25
+#    Z (dal fondo alla camera):
+#      Fila 6 soft plastic  Z = 2.25
+#      Fila 5 hard plastic  Z = 1.35
+#      Fila 4 legno         Z = 0.45
+#      Fila 3 marmo         Z = -0.45
+#      Fila 2 metallo       Z = -1.35
+#      Fila 1 vetro         Z = -2.25  (prima fila, primo piano)
+#
+#    Y del centro sfere: 1.22  (tavolo 0.75 + base 0.12 + raggio 0.35)
+#
+# =============================================================================
+entities:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  STANZA (pareti, pavimento tramite ground)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Parete di fondo
+  - name: "back_wall"
+    type: "quad"
+    q: [-8.0, 0.0, 8.0]
+    u: [16.0, 0.0, 0.0]
+    v: [0.0, 8.0, 0.0]
+    material: "wall_paint"
+
+  # Parete sinistra
+  - name: "left_wall"
+    type: "quad"
+    q: [-8.0, 0.0, -6.0]
+    u: [0.0, 0.0, 14.0]
+    v: [0.0, 8.0, 0.0]
+    material: "wall_paint"
+
+  # Parete destra
+  - name: "right_wall"
+    type: "quad"
+    q: [8.0, 0.0, -6.0]
+    u: [0.0, 0.0, 14.0]
+    v: [0.0, 8.0, 0.0]
+    material: "wall_paint"
+
+  # Soffitto
+  - name: "ceiling"
+    type: "quad"
+    q: [-8.0, 5.0, -6.0]
+    u: [16.0, 0.0, 0.0]
+    v: [0.0, 0.0, 14.0]
+    material: "wall_paint"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  TAVOLO
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Piano del tavolo
+  - name: "table_surface"
+    type: "box"
+    scale: [8.0, 0.10, 5.5]
+    translate: [0.0, 0.70, 0.2]
+    material: "table_top"
+
+  # Corpo del tavolo (sotto il piano)
+  - name: "table_body"
+    type: "box"
+    scale: [7.6, 0.65, 5.1]
+    translate: [0.0, 0.325, 0.2]
+    material: "table_legs"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ESPOSITORE IN LEGNO
+  #  Base Y = 0.75 (superficie tavolo)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # --- Base dell'espositore (feltro scuro) ---
+  - name: "case_base"
+    type: "box"
+    scale: [5.50, 0.12, 5.50]
+    translate: [0.0, 0.81, 0.0]
+    material: "case_felt"
+
+  # --- Pareti dell'espositore ---
+
+  # Parete posteriore (piena altezza)
+  - name: "case_wall_back"
+    type: "box"
+    scale: [5.74, 0.50, 0.12]
+    translate: [0.0, 1.12, 2.81]
+    material: "case_wood"
+
+  # Parete sinistra
+  - name: "case_wall_left"
+    type: "box"
+    scale: [0.12, 0.50, 5.74]
+    translate: [-2.81, 1.12, 0.0]
+    material: "case_wood"
+
+  # Parete destra
+  - name: "case_wall_right"
+    type: "box"
+    scale: [0.12, 0.50, 5.74]
+    translate: [2.81, 1.12, 0.0]
+    material: "case_wood"
+
+  # Parete frontale (più bassa — labbro decorativo, non copre le sfere)
+  - name: "case_wall_front"
+    type: "box"
+    scale: [5.74, 0.18, 0.12]
+    translate: [0.0, 0.96, -2.81]
+    material: "case_wood"
+
+  # --- Listelli divisori tra le file (separano visivamente le categorie) ---
+
+  - name: "divider_1"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, 1.80]
+    material: "case_divider"
+
+  - name: "divider_2"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, 0.90]
+    material: "case_divider"
+
+  - name: "divider_3"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, 0.0]
+    material: "case_divider"
+
+  - name: "divider_4"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, -0.90]
+    material: "case_divider"
+
+  - name: "divider_5"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, -1.80]
+    material: "case_divider"
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SFERE — FILA 6 (FONDO): PLASTICA MORBIDA
+  #  Z = 2.25 — Materiale opaco pastello, completamente matte
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - { name: "soft_1", type: "sphere", center: [-2.25, 1.22, 2.25], radius: 0.35, seed: 6001, material: "soft_pink" }
+  - { name: "soft_2", type: "sphere", center: [-1.35, 1.22, 2.25], radius: 0.35, seed: 6002, material: "soft_sky" }
+  - { name: "soft_3", type: "sphere", center: [-0.45, 1.22, 2.25], radius: 0.35, seed: 6003, material: "soft_mint" }
+  - { name: "soft_4", type: "sphere", center: [ 0.45, 1.22, 2.25], radius: 0.35, seed: 6004, material: "soft_lemon" }
+  - { name: "soft_5", type: "sphere", center: [ 1.35, 1.22, 2.25], radius: 0.35, seed: 6005, material: "soft_lavender" }
+  - { name: "soft_6", type: "sphere", center: [ 2.25, 1.22, 2.25], radius: 0.35, seed: 6006, material: "soft_peach" }
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SFERE — FILA 5: PLASTICA DURA
+  #  Z = 1.35 — Metal con fuzz alto simula sheen lucido plastico
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - { name: "hard_1", type: "sphere", center: [-2.25, 1.22, 1.35], radius: 0.35, seed: 5001, material: "hard_cherry" }
+  - { name: "hard_2", type: "sphere", center: [-1.35, 1.22, 1.35], radius: 0.35, seed: 5002, material: "hard_royal" }
+  - { name: "hard_3", type: "sphere", center: [-0.45, 1.22, 1.35], radius: 0.35, seed: 5003, material: "hard_forest" }
+  - { name: "hard_4", type: "sphere", center: [ 0.45, 1.22, 1.35], radius: 0.35, seed: 5004, material: "hard_sunflower" }
+  - { name: "hard_5", type: "sphere", center: [ 1.35, 1.22, 1.35], radius: 0.35, seed: 5005, material: "hard_obsidian" }
+  - { name: "hard_6", type: "sphere", center: [ 2.25, 1.22, 1.35], radius: 0.35, seed: 5006, material: "hard_ivory" }
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SFERE — FILA 4: LEGNO
+  #  Z = 0.45 — Texture wood procedurale, essenze diverse
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - { name: "wood_1", type: "sphere", center: [-2.25, 1.22, 0.45], radius: 0.35, seed: 4001, material: "wood_oak" }
+  - { name: "wood_2", type: "sphere", center: [-1.35, 1.22, 0.45], radius: 0.35, seed: 4002, material: "wood_walnut" }
+  - { name: "wood_3", type: "sphere", center: [-0.45, 1.22, 0.45], radius: 0.35, seed: 4003, material: "wood_cherry" }
+  - { name: "wood_4", type: "sphere", center: [ 0.45, 1.22, 0.45], radius: 0.35, seed: 4004, material: "wood_maple" }
+  - { name: "wood_5", type: "sphere", center: [ 1.35, 1.22, 0.45], radius: 0.35, seed: 4005, material: "wood_ebony" }
+  - { name: "wood_6", type: "sphere", center: [ 2.25, 1.22, 0.45], radius: 0.35, seed: 4006, material: "wood_birch" }
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SFERE — FILA 3: MARMO
+  #  Z = -0.45 — Texture marble procedurale, pietre pregiate
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - { name: "marble_1", type: "sphere", center: [-2.25, 1.22, -0.45], radius: 0.35, seed: 3001, material: "marble_carrara" }
+  - { name: "marble_2", type: "sphere", center: [-1.35, 1.22, -0.45], radius: 0.35, seed: 3002, material: "marble_nero" }
+  - { name: "marble_3", type: "sphere", center: [-0.45, 1.22, -0.45], radius: 0.35, seed: 3003, material: "marble_verde" }
+  - { name: "marble_4", type: "sphere", center: [ 0.45, 1.22, -0.45], radius: 0.35, seed: 3004, material: "marble_rosso" }
+  - { name: "marble_5", type: "sphere", center: [ 1.35, 1.22, -0.45], radius: 0.35, seed: 3005, material: "marble_rosa" }
+  - { name: "marble_6", type: "sphere", center: [ 2.25, 1.22, -0.45], radius: 0.35, seed: 3006, material: "marble_blu" }
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SFERE — FILA 2: METALLO
+  #  Z = -1.35 — Metal con fuzz variabile, dalla specularità di uno specchio
+  #  al satinato opaco. Le sfere metalliche riflettono il vetro davanti e il
+  #  marmo dietro, creando interplay di colori interessante.
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - { name: "metal_1", type: "sphere", center: [-2.25, 1.22, -1.35], radius: 0.35, seed: 2001, material: "metal_gold" }
+  - { name: "metal_2", type: "sphere", center: [-1.35, 1.22, -1.35], radius: 0.35, seed: 2002, material: "metal_silver" }
+  - { name: "metal_3", type: "sphere", center: [-0.45, 1.22, -1.35], radius: 0.35, seed: 2003, material: "metal_copper" }
+  - { name: "metal_4", type: "sphere", center: [ 0.45, 1.22, -1.35], radius: 0.35, seed: 2004, material: "metal_bronze" }
+  - { name: "metal_5", type: "sphere", center: [ 1.35, 1.22, -1.35], radius: 0.35, seed: 2005, material: "metal_chrome" }
+  - { name: "metal_6", type: "sphere", center: [ 2.25, 1.22, -1.35], radius: 0.35, seed: 2006, material: "metal_gunmetal" }
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SFERE — FILA 1 (DAVANTI): VETRO / DIELETTRICI
+  #  Z = -2.25 — Prima fila, in primo piano.
+  #  Queste sfere sono le più spettacolari: rifrazione, riflessione Fresnel,
+  #  caustiche. Il vetro trasparente lascia intravedere le sfere metalliche
+  #  dietro, creando un effetto ottico ricco e complesso.
+  #
+  #  ATTENZIONE: usa --depth 50 per risultati corretti con i dielettrici.
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - { name: "glass_1", type: "sphere", center: [-2.25, 1.22, -2.25], radius: 0.35, seed: 1001, material: "glass_clear" }
+  - { name: "glass_2", type: "sphere", center: [-1.35, 1.22, -2.25], radius: 0.35, seed: 1002, material: "glass_diamond" }
+  - { name: "glass_3", type: "sphere", center: [-0.45, 1.22, -2.25], radius: 0.35, seed: 1003, material: "glass_ruby" }
+  - { name: "glass_4", type: "sphere", center: [ 0.45, 1.22, -2.25], radius: 0.35, seed: 1004, material: "glass_emerald" }
+  - { name: "glass_5", type: "sphere", center: [ 1.35, 1.22, -2.25], radius: 0.35, seed: 1005, material: "glass_amber" }
+  - { name: "glass_6", type: "sphere", center: [ 2.25, 1.22, -2.25], radius: 0.35, seed: 1006, material: "glass_sapphire" }
+
+
+# =============================================================================
+#  LIGHTS
+# =============================================================================
+lights:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET CORRENTE: Studio Professionale con Area Light + Accenti
+  #
+  #  Un pannello area light da soffitto crea ombre morbide e uniformi.
+  #  Due point light laterali aggiungono dimensione e separano i materiali.
+  #  Uno spot dall'alto enfatizza il centro dell'espositore.
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Area Light — pannello soffitto principale (soft shadows)
+  - type: "area"
+    corner: [-2.5, 4.8, -2.5]
+    u: [5.0, 0.0, 0.0]
+    v: [0.0, 0.0, 5.0]
+    color: [1.0, 0.97, 0.92]
+    intensity: 1
+    shadow_samples: 24
+
+  # Key Light — punto luce caldo dall'alto-sinistra
+  - type: "point"
+    position: [-4.0, 4.5, -4.0]
+    color: [1.0, 0.95, 0.88]
+    intensity: 60
+
+  # Fill Light — luce fredda leggera dal lato opposto
+  - type: "point"
+    position: [5.0, 3.0, -2.0]
+    color: [0.85, 0.88, 1.0]
+    intensity: 25
+
+  # Spot — faretto diretto sul centro espositore per highlight extra
+  - type: "--spot"
+    position: [0.0, 4.8, -1.0]
+    direction: [0.0, -1.0, 0.3]
+    color: [1.0, 1.0, 0.98]
+    intensity: 30
+    inner_angle: 18
+    outer_angle: 35
+
+  # Back/Rim Light — separa il tavolo dallo sfondo scuro
+  - type: "--point"
+    position: [0.0, 3.5, 5.0]
+    color: [0.9, 0.85, 0.8]
+    intensity: 20
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 1: Solo Area Light (ombre ultra-morbide, minimalista)
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "area"
+  #   corner: [-3.5, 4.8, -3.5]
+  #   u: [7.0, 0.0, 0.0]
+  #   v: [0.0, 0.0, 7.0]
+  #   color: [1.0, 0.97, 0.92]
+  #   intensity: 55.0
+  #   shadow_samples: 24
+  # - type: "point"
+  #   position: [-5.0, 2.0, -3.0]
+  #   color: [0.8, 0.85, 1.0]
+  #   intensity: 8
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 2: Three-Point Classico (ombre nette, veloce)
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "point"
+  #   position: [-5, 6, -5]
+  #   color: [1.0, 0.95, 0.9]
+  #   intensity: 100
+  # - type: "point"
+  #   position: [5, 3, -2]
+  #   color: [0.85, 0.85, 1.0]
+  #   intensity: 35
+  # - type: "point"
+  #   position: [0, 6, 5]
+  #   color: [1.0, 0.95, 0.85]
+  #   intensity: 50
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 3: Warm & Cool Contrast (atmosferico)
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "point"
+  #   position: [-5, 4, -3]
+  #   color: [1.0, 0.5, 0.15]
+  #   intensity: 90
+  # - type: "point"
+  #   position: [5, 4, -3]
+  #   color: [0.15, 0.4, 1.0]
+  #   intensity: 90
+  # - type: "point"
+  #   position: [0, 5, 0]
+  #   color: [1.0, 1.0, 1.0]
+  #   intensity: 20
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 4: Dramatic Spot (museo, luce concentrata)
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "spot"
+  #   position: [0, 4.8, -2]
+  #   direction: [0, -0.9, 0.2]
+  #   color: [1.0, 0.98, 0.92]
+  #   intensity: 250
+  #   inner_angle: 15
+  #   outer_angle: 30
+  # - type: "point"
+  #   position: [-6, 2, 0]
+  #   color: [0.7, 0.7, 0.8]
+  #   intensity: 10
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 5: Neon Cyber (creativo, magenta + ciano)
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "point"
+  #   position: [-5, 3, 0]
+  #   color: [1.0, 0.0, 0.8]
+  #   intensity: 120
+  # - type: "point"
+  #   position: [5, 3, 0]
+  #   color: [0.0, 0.8, 1.0]
+  #   intensity: 120
+  # - type: "point"
+  #   position: [0, 4.5, -2]
+  #   color: [1.0, 1.0, 1.0]
+  #   intensity: 15

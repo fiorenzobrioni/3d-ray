@@ -1,8 +1,10 @@
 # 3D-Ray: High-Performance .NET 10 RayTracer Engine
 
-A modern, parallelized ray-tracing engine built with C# and .NET 10, featuring YAML scene configuration and advanced physically-based rendering capabilities.
+Un moderno motore di ray tracing ad alte prestazioni sviluppato in C# e .NET 10, con configurazione di scene tramite YAML e capacità di rendering avanzate basate su fisica (PBR).
 
-![Test Render 1](test-render-1.png)
+> **English Description:** *A modern, parallelized ray-tracing engine built with C# and .NET 10, featuring YAML scene configuration and advanced physically-based rendering capabilities.*
+
+![Test Render 6](test-render-6.png)
 
 ---
 
