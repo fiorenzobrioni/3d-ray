@@ -3,33 +3,33 @@
 //
 //  Genera un set di immagini procedurali pronte all'uso con le image textures
 //  del motore di ray tracing. Le texture vengono salvate nella cartella
-//  textures/ alla root del progetto.
+//  scenes/textures/ alla root del progetto.
 //
 //  Uso:
 //    cd 3d-ray
 //    dotnet run --project src/Tools/TextureGen/TextureGen.csproj
 //
 //  Oppure con percorso personalizzato:
-//    dotnet run --project src/Tools/TextureGen/TextureGen.csproj -- --output textures
+//    dotnet run --project src/Tools/TextureGen/TextureGen.csproj -- --output path/to/dir
 //
 //  Texture generate:
-//    brick-wall.png        512×512   Muro di mattoni rossi con malta
-//    brick-wall-white.png  512×512   Mattoni bianchi (stile scandinavo)
-//    wood-floor.png        512×512   Parquet a doghe di legno scuro
-//    wood-planks.png       512×512   Assi di legno chiaro (tavolo/staccionata)
+//    brick_wall.png        512×512   Muro di mattoni rossi con malta
+//    brick_wall_white.png  512×512   Mattoni bianchi (stile scandinavo)
+//    wood_floor.png        512×512   Parquet a doghe di legno scuro
+//    wood_planks.png       512×512   Assi di legno chiaro (tavolo/staccionata)
 //    earth.png             1024×512  Mappa terrestre stilizzata (eq. rect.)
 //    checkerboard.png      512×512   Scacchiera B/N ad alta risoluzione
-//    grid-uv.png           512×512   Griglia UV di debug (colori per quadrante)
-//    metal-scratched.png   512×512   Metallo graffiato (per metal+fuzz)
+//    grid_uv.png           512×512   Griglia UV di debug (colori per quadrante)
+//    metal_scratched.png   512×512   Metallo graffiato (per metal+fuzz)
 //    concrete.png          512×512   Cemento grezzo con macchie
-//    logo-3dray.png        512×384   Logo "3D-Ray" con gradiente
+//    logo_3dray.png        512×384   Logo "3D-Ray" con gradiente
 // ═══════════════════════════════════════════════════════════════════════════
 
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
 // ── Parse CLI ───────────────────────────────────────────────────────────────
-string outputDir = "textures";
+string outputDir = "scenes/textures";
 for (int i = 0; i < args.Length - 1; i++)
 {
     if (args[i] is "--output" or "-o")
@@ -131,15 +131,71 @@ static void GenerateBrickWall(string path, bool white)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Wood Floor — doghe di legno con venature sinusoidali
+//  Wood Floor — parquet realistico con venature multi-frequenza, nodi,
+//  variazione cromatica per doga, giunture sfalsate e bordi smussati
 // ─────────────────────────────────────────────────────────────────────────────
 static void GenerateWoodFloor(string path, bool dark)
 {
     const int w = 512, h = 512;
-    const int plankW = 128;
-    const int gapW = 2;
+    const int plankW = 96;       // Larghezza doga (px)
+    const int plankH = 256;      // Lunghezza doga prima della giuntura
+    const int gapW = 2;          // Fughe verticali tra doghe
+    const int gapH = 2;          // Fughe orizzontali (giunture)
+    const int bevel = 3;         // Smussatura bordi (px)
+    const int numPlanksX = (w + plankW - 1) / plankW + 1;
 
     using var img = new Image<Rgba32>(w, h);
+
+    // ── Per-plank properties (colore base, offset giuntura, seed per nodi) ──
+    var rng = new Random(dark ? 42 : 137);
+
+    // Pre-generate plank data: each column of planks has its own tint and grain offset
+    var plankTints = new (float r, float g, float b)[numPlanksX];
+    var plankGrainPhase = new float[numPlanksX];
+    var plankStagger = new int[numPlanksX]; // Y offset for staggered joints
+
+    for (int i = 0; i < numPlanksX; i++)
+    {
+        // Color variation: ±15% from base tone — each plank is a different piece of wood
+        float tintR = 0.85f + (float)(rng.NextDouble() * 0.30 - 0.15);
+        float tintG = 0.85f + (float)(rng.NextDouble() * 0.30 - 0.15);
+        float tintB = 0.85f + (float)(rng.NextDouble() * 0.25 - 0.12);
+        plankTints[i] = (tintR, tintG, tintB);
+        plankGrainPhase[i] = (float)(rng.NextDouble() * 200.0); // Grain phase offset
+        plankStagger[i] = rng.Next(0, plankH);                  // Staggered joints
+    }
+
+    // Pre-generate knots: position, radius, ring tightness
+    var knots = new List<(int px, int py, float radius, float tightness, float darkness)>();
+    int numKnots = dark ? 6 : 8;
+    for (int i = 0; i < numKnots; i++)
+    {
+        knots.Add((
+            rng.Next(w), rng.Next(h),
+            4f + (float)rng.NextDouble() * 10f,        // radius 4–14 px
+            2f + (float)rng.NextDouble() * 3f,          // ring tightness
+            0.3f + (float)rng.NextDouble() * 0.35f       // darkness factor
+        ));
+    }
+
+    // ── Base palette ────────────────────────────────────────────────────────
+    // Dark: noce/wengé scuro.  Light: rovere/acero chiaro.
+    float baseR, baseG, baseB;      // Color for "light grain"
+    float darkR, darkG, darkB;      // Color for "dark grain"
+    float gapR, gapG, gapB;         // Gap/joint color
+
+    if (dark)
+    {
+        baseR = 0.48f; baseG = 0.30f; baseB = 0.16f;
+        darkR = 0.25f; darkG = 0.14f; darkB = 0.07f;
+        gapR = 0.10f;  gapG = 0.07f;  gapB = 0.04f;
+    }
+    else
+    {
+        baseR = 0.82f; baseG = 0.68f; baseB = 0.48f;
+        darkR = 0.58f; darkG = 0.42f; darkB = 0.26f;
+        gapR = 0.45f;  gapG = 0.35f;  gapB = 0.22f;
+    }
 
     img.ProcessPixelRows(acc =>
     {
@@ -148,35 +204,113 @@ static void GenerateWoodFloor(string path, bool dark)
             var row = acc.GetRowSpan(y);
             for (int x = 0; x < w; x++)
             {
-                int plank = x / plankW;
-                int lx = x % plankW;
+                int plankIdx = x / plankW;
+                int lx = x % plankW;                                   // Local X within plank
+                int ly = (y + plankStagger[plankIdx]) % plankH;        // Local Y with stagger
 
-                if (lx < gapW)
+                // ── Gaps (fughe) ────────────────────────────────────
+                bool isGapV = lx < gapW;                               // Vertical gap between planks
+                bool isGapH = ly < gapH;                               // Horizontal joint
+
+                if (isGapV || isGapH)
                 {
-                    row[x] = dark ? new Rgba32(30, 22, 14) : new Rgba32(140, 120, 90);
+                    row[x] = ToRgba(gapR, gapG, gapB);
                     continue;
                 }
 
-                int plankSeed = plank * 137;
-                float grain = MathF.Sin((y + plankSeed) * 0.15f) * 0.5f + 0.5f;
-                float noise = ((x * 31 + y * 17 + plankSeed) % 100) / 100f * 0.1f;
-                float v = Math.Clamp(grain + noise, 0f, 1f);
-
-                int rv, gv, bv;
-                if (dark)
+                // ── Bevel darkening at plank edges ──────────────────
+                float bevelFactor = 1f;
+                int distFromEdgeX = Math.Min(lx - gapW, plankW - 1 - lx);
+                int distFromEdgeY = Math.Min(ly - gapH, plankH - 1 - ly);
+                int distFromEdge = Math.Min(distFromEdgeX, distFromEdgeY);
+                if (distFromEdge < bevel)
                 {
-                    rv = (int)(140 * v + 70 * (1 - v));
-                    gv = (int)(95 * v + 45 * (1 - v));
-                    bv = (int)(55 * v + 22 * (1 - v));
-                }
-                else
-                {
-                    rv = (int)(210 * v + 160 * (1 - v));
-                    gv = (int)(180 * v + 130 * (1 - v));
-                    bv = (int)(130 * v + 85 * (1 - v));
+                    bevelFactor = 0.70f + 0.30f * (distFromEdge / (float)bevel);
                 }
 
-                row[x] = new Rgba32((byte)rv, (byte)gv, (byte)bv);
+                // ── Multi-frequency grain ───────────────────────────
+                // Main grain runs along Y (length of plank).
+                // Multiple sine waves at different frequencies create realistic variation.
+                float phase = plankGrainPhase[plankIdx];
+                float fy = y + phase;
+                float fx = lx - plankW * 0.5f; // Center-relative X
+
+                // Primary grain: wide bands
+                float grain1 = MathF.Sin(fy * 0.04f + fx * 0.008f) * 0.35f;
+                // Secondary grain: medium variation
+                float grain2 = MathF.Sin(fy * 0.11f - fx * 0.02f + phase * 0.3f) * 0.20f;
+                // Tertiary grain: fine detail
+                float grain3 = MathF.Sin(fy * 0.28f + fx * 0.05f + phase * 0.7f) * 0.10f;
+                // Medullary rays: faint horizontal streaks (characteristic of quarter-sawn wood)
+                float rays = MathF.Sin(fx * 0.6f + fy * 0.01f) * MathF.Sin(fx * 1.2f) * 0.06f;
+
+                float grainTotal = 0.5f + grain1 + grain2 + grain3 + rays;
+
+                // ── Fine noise (pori del legno) ─────────────────────
+                // Cheap hash-based noise for per-pixel variation
+                int hash = ((x * 73856093) ^ (y * 19349663)) & 0xFFF;
+                float fineNoise = (hash / (float)0xFFF - 0.5f) * 0.06f;
+                grainTotal += fineNoise;
+
+                grainTotal = Math.Clamp(grainTotal, 0f, 1f);
+
+                // ── Knot influence ──────────────────────────────────
+                float knotDarken = 0f;
+                foreach (var (kx, ky, kr, kt, kd) in knots)
+                {
+                    float dx = x - kx;
+                    float dy = y - ky;
+                    float dist = MathF.Sqrt(dx * dx + dy * dy);
+
+                    if (dist < kr * 2.5f)
+                    {
+                        if (dist < kr * 0.4f)
+                        {
+                            // Knot center: very dark
+                            knotDarken = MathF.Max(knotDarken, kd * 0.9f);
+                        }
+                        else if (dist < kr)
+                        {
+                            // Knot rings: concentric dark/light bands
+                            float ring = MathF.Sin(dist * kt) * 0.5f + 0.5f;
+                            float falloff = 1f - (dist / kr);
+                            knotDarken = MathF.Max(knotDarken, kd * ring * falloff);
+                        }
+                        else
+                        {
+                            // Grain distortion around knot: wood fibers curve
+                            float influence = 1f - (dist - kr) / (kr * 1.5f);
+                            if (influence > 0)
+                            {
+                                // Warp grain slightly
+                                grainTotal = Math.Clamp(
+                                    grainTotal + MathF.Sin(dist * 0.8f) * influence * 0.15f,
+                                    0f, 1f);
+                            }
+                        }
+                    }
+                }
+
+                // ── Compose final color ─────────────────────────────
+                var (tR, tG, tB) = plankTints[plankIdx];
+                float t = grainTotal;
+
+                float r = (baseR * t + darkR * (1f - t)) * tR;
+                float g = (baseG * t + darkG * (1f - t)) * tG;
+                float b = (baseB * t + darkB * (1f - t)) * tB;
+
+                // Apply knot darkening
+                float kMul = 1f - knotDarken;
+                r *= kMul;
+                g *= kMul;
+                b *= kMul;
+
+                // Apply bevel
+                r *= bevelFactor;
+                g *= bevelFactor;
+                b *= bevelFactor;
+
+                row[x] = ToRgba(r, g, b);
             }
         }
     });
@@ -184,6 +318,11 @@ static void GenerateWoodFloor(string path, bool dark)
     img.SaveAsPng(path);
     Console.WriteLine($"  ✓ {Path.GetFileName(path),-28} {w}×{h}");
 }
+
+static Rgba32 ToRgba(float r, float g, float b) => new(
+    (byte)Math.Clamp((int)(r * 255), 0, 255),
+    (byte)Math.Clamp((int)(g * 255), 0, 255),
+    (byte)Math.Clamp((int)(b * 255), 0, 255));
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Earth Map — continenti stilizzati, proiezione equirettangolare
