@@ -72,14 +72,15 @@ class Program
         var sw = Stopwatch.StartNew();
         try 
         {
-            var (world, camera, lights, ambientLight, background) =
+            var (world, camera, lights, ambientLight, sky) =
                 SceneLoader.Load(inputPath, width, height, shadowSamplesOverride);
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
             Console.WriteLine($"  Lights: {lights.Count}");
+            Console.WriteLine($"  Sky:    {(sky.IsGradient ? "gradient" + (sky.HasSun ? " + sun disk" : "") : "flat")}");
             Console.WriteLine();
-
+ 
             // Render
-            var renderer = new Renderer(world, camera, lights, ambientLight, background, samples, depth);
+            var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth);
             sw.Restart();
             var pixels = renderer.Render(width, height);
             var elapsed = sw.Elapsed;

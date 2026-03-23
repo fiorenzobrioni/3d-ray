@@ -1,24 +1,84 @@
 # Scena 2: Classic Ray Tracing Showcase (Riflessi, Rifrazioni, Materiali)
 
-# --- CONFIGURAZIONI WORLD (Scommenta quella desiderata) ---
-# 1. Studio lighting scuro (Esaltazione riflessi scuri)
+# --- CONFIGURAZIONI WORLD E LIGHTS (Scommenta quella desiderata) ---
+# 1. Studio notturno con cielo scuro, luna tenue
 world:
   ambient_light: [0.02, 0.02, 0.02]
-  background: [0.0, 0.0, 0.0]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.01, 0.01, 0.04]
+    horizon_color: [0.04, 0.04, 0.08]
+    ground_color:  [0.02, 0.02, 0.03]
   ground: { type: "infinite_plane", material: "floor_checker", y: 0.0 }
+
+lights:
+  - type: "spot"
+    position: [0, 10, 0]
+    direction: [0, -1, 0]
+    color: [1.0, 0.95, 0.9]
+    intensity: 150
+    inner_angle: 20
+    outer_angle: 45
+  - type: "point"
+    position: [-5, 5, -5]
+    color: [0.5, 0.8, 1.0]
+    intensity: 40
+  - type: "point"
+    position: [5, 2, -2]
+    color: [1.0, 0.5, 0.2]
+    intensity: 30
 
 # 2. Natural Daylight (Esterno chiaro)
 #world:
-#  ambient_light: [0.1, 0.1, 0.15]
-#  background: [0.5, 0.7, 1.0]
+#  ambient_light: [0.06, 0.06, 0.08]
+#  sky:
+#    type: "gradient"
+#    zenith_color:  [0.10, 0.30, 0.80]
+#    horizon_color: [0.65, 0.80, 1.00]
+#    ground_color:  [0.30, 0.28, 0.22]
+#    sun:
+#      direction: [-0.5, -1.0, -0.5]
+#      color: [1.0, 0.98, 0.92]
+#      intensity: 15.0
+#      size: 2.5
+#      falloff: 48.0
 #  ground: { type: "infinite_plane", material: "floor_checker", y: 0.0 }
+#
+#lights:
+#  - type: "directional"
+#    direction: [-0.5, -1.0, -0.5]      # Allineata col sun disk
+#    color: [1.0, 0.95, 0.9]
+#    intensity: 0.10
+#  - type: "point"
+#    position: [0, 5, -5]
+#    color: [0.85, 0.88, 1.0]
+#    intensity: 8
 
-# 3. Tramonto colorato atmosferico
+# 3. Tramonto
 #world:
-#  ambient_light: [0.1, 0.05, 0.02]
-#  background: [0.8, 0.3, 0.1]
+#  ambient_light: [0.04, 0.02, 0.01]
+#  sky:
+#    type: "gradient"
+#    zenith_color:  [0.08, 0.05, 0.20]
+#    horizon_color: [0.95, 0.30, 0.05]
+#    ground_color:  [0.10, 0.05, 0.02]
+#    sun:
+#      direction: [-1.0, -0.10, -0.3]
+#      color: [1.0, 0.4, 0.05]
+#      intensity: 25.0
+#      size: 5.0
+#      falloff: 14.0
 #  ground: { type: "infinite_plane", material: "floor_checker", y: 0.0 }
-
+#
+#lights:
+#  - type: "directional"
+#    direction: [-1.0, -0.10, -0.3]
+#    color: [1.0, 0.5, 0.15]
+#    intensity: 0.08
+#  - type: "point"
+#    position: [5, 3, -3]
+#    color: [0.3, 0.3, 0.5]
+#    intensity: 5
 
 # --- CONFIGURAZIONI CAMERA (Scommenta quella desiderata) ---
 # 1. Vista principale frontale per tutti i materiali
@@ -44,7 +104,6 @@ camera:
 #  fov: 60
 #  aperture: 0.2
 #  focal_dist: 2.0
-
 
 # --- MATERIALI PENSATI PER IL MASSIMO SHOWCASE ---
 materials:
@@ -80,36 +139,6 @@ materials:
     type: "metal"
     color: [0.9, 0.9, 0.9]
     fuzz: 0.01
-
-# --- LUCI (Scommenta il setup corrispondente al world) ---
-# 1. Luci Studio (Drammatiche e taglienti)
-lights:
-  - type: "spot"
-    position: [0, 10, 0]
-    direction: [0, -1, 0]
-    color: [1.0, 0.95, 0.9]
-    intensity: 150
-    inner_angle: 20
-    outer_angle: 45
-  - type: "point"
-    position: [-5, 5, -5]
-    color: [0.5, 0.8, 1.0]
-    intensity: 40
-  - type: "point"
-    position: [5, 2, -2]
-    color: [1.0, 0.5, 0.2]
-    intensity: 30
-
-# 2. Luci Daylight (Molto ampie e naturali)
-#lights:
-#  - type: "directional"
-#    direction: [-0.5, -1, -0.5]
-#    color: [1.0, 0.95, 0.9]
-#    intensity: 1.2
-#  - type: "point"
-#    position: [0, 5, -5]
-#    intensity: 20
-
 
 # --- ENTITIES (Tutte le primitive in una scena complessa) ---
 entities:

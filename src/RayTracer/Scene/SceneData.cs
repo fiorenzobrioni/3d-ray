@@ -33,6 +33,9 @@ public class WorldData
 
     [YamlMember(Alias = "ground")]
     public GroundData? Ground { get; set; }
+
+    [YamlMember(Alias = "sky")]
+    public SkyData? Sky { get; set; }
 }
 
 public class GroundData
@@ -45,6 +48,68 @@ public class GroundData
 
     [YamlMember(Alias = "y")]
     public float Y { get; set; } = 0f;
+}
+
+public class SkyData
+{
+    /// <summary>
+    /// Sky mode: "gradient" enables vertical color lerp + optional sun disk.
+    /// Any other value (or absent) falls back to legacy flat background.
+    /// </summary>
+    [YamlMember(Alias = "type")]
+    public string? Type { get; set; }
+ 
+    /// <summary>Color at the zenith (straight up). Default: deep blue.</summary>
+    [YamlMember(Alias = "zenith_color")]
+    public List<float>? ZenithColor { get; set; }
+ 
+    /// <summary>Color at the horizon line. Default: pale blue-white.</summary>
+    [YamlMember(Alias = "horizon_color")]
+    public List<float>? HorizonColor { get; set; }
+ 
+    /// <summary>Color below the horizon (ground reflection). Default: brown-gray.</summary>
+    [YamlMember(Alias = "ground_color")]
+    public List<float>? GroundColor { get; set; }
+ 
+    /// <summary>Optional sun disk configuration.</summary>
+    [YamlMember(Alias = "sun")]
+    public SunDiskData? Sun { get; set; }
+}
+ 
+public class SunDiskData
+{
+    /// <summary>
+    /// Direction FROM which the sun shines (same convention as DirectionalLight).
+    /// Gets negated internally to point TOWARD the sun.
+    /// </summary>
+    [YamlMember(Alias = "direction")]
+    public List<float>? Direction { get; set; }
+ 
+    /// <summary>Sun disk color. Default: warm white.</summary>
+    [YamlMember(Alias = "color")]
+    public List<float>? Color { get; set; }
+ 
+    /// <summary>
+    /// Brightness multiplier for the sun disk. Typical: 5–50.
+    /// Higher values create stronger bloom through ACES tone mapping.
+    /// </summary>
+    [YamlMember(Alias = "intensity")]
+    public float Intensity { get; set; } = 10f;
+ 
+    /// <summary>
+    /// Angular diameter of the hard sun disk in degrees.
+    /// Real sun ≈ 0.53°. Typical artistic values: 1–5°.
+    /// </summary>
+    [YamlMember(Alias = "size")]
+    public float Size { get; set; } = 3f;
+ 
+    /// <summary>
+    /// Exponent for the glow halo falloff around the disk.
+    /// Higher = tighter glow, lower = wider glow.
+    /// Typical range: 8–128.
+    /// </summary>
+    [YamlMember(Alias = "falloff")]
+    public float Falloff { get; set; } = 32f;
 }
 
 public class CameraData

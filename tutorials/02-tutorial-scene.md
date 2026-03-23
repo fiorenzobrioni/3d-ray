@@ -3,6 +3,7 @@
 ## Indice
 1. [Struttura del File](#1-struttura-del-file)
 2. [Sezione `world`](#2-sezione-world)
+   - [2.1 Gradient Sky e Sun Disk](#21-gradient-sky-e-sun-disk)
 3. [Sezione `camera`](#3-sezione-camera)
 4. [Sezione `materials`](#4-sezione-materials)
    - [4.1 Lambertian (Opaco)](#41-lambertian-diffusoopaco)
@@ -70,20 +71,22 @@ world:
 | Campo | Tipo | Default | Descrizione |
 |-------|------|---------|-------------|
 | `ambient_light` | `[R, G, B]` | `[0.1, 0.1, 0.1]` | Luce piatta aggiunta a ogni superficie colpita |
-| `background` | `[R, G, B]` | `[0.5, 0.7, 1.0]` | Colore del cielo — agisce come illuminazione globale |
+| `background` | `[R, G, B]` | `[0.5, 0.7, 1.0]` | Colore del cielo piatto (per scene indoor o da studio). Ignorato se `sky` è presente |
 | `ground.type` | stringa | — | Sempre `"infinite_plane"` |
 | `ground.material` | stringa | — | ID del materiale per il terreno |
 | `ground.y` | float | `0.0` | Quota verticale del piano |
+| `sky` | oggetto | — | Configurazione del cielo procedurale (opzionale, vedi [2.1](#21-gradient-sky-e-sun-disk)) |
 
-### Come funzionano le 3 sorgenti di illuminazione
+### Come funzionano le sorgenti di illuminazione
 
-Il renderer ha **tre fonti di luce** che lavorano insieme:
+Il renderer ha più fonti di luce che lavorano insieme:
 
 | Sorgente | Cosa controlla | Effetto |
 |----------|---------------|---------|
-| `background` | Colore del cielo | I raggi che rimbalzano sugli oggetti e "escono" dalla scena raccolgono questo colore. Agisce come una sorgente di luce ambiente globale (Global Illumination). |
+| `background` / `sky` | Colore del cielo | I raggi che rimbalzano sugli oggetti e "escono" dalla scena raccolgono questo colore. Agisce come una sorgente di luce ambiente globale (Global Illumination). Con `sky: { type: "gradient" }` il colore varia in base alla direzione del raggio. |
 | `ambient_light` | Luce piatta di riempimento | Viene **sommata** alla luce diretta su ogni punto colpito. Aiuta a schiarire le ombre. |
 | `lights:` | Luci esplicite | Point, Directional, Spot, Area — illuminano selettivamente la scena. |
+| Materiali `emissive` | Oggetti luminosi | Emettono luce propria che si propaga tramite rimbalzi indiretti. |
 
 ### Esempi di ambienti
 
@@ -94,11 +97,22 @@ world:
   background: [0.0, 0.0, 0.0]
 ```
 
-**Scena diurna all'aperto:**
+**Scena diurna all'aperto (background piatto legacy):**
 ```yaml
 world:
   ambient_light: [0.05, 0.05, 0.08]
   background: [0.4, 0.6, 1.0]
+```
+
+**Scena diurna con gradient sky (raccomandato per outdoor):**
+```yaml
+world:
+  ambient_light: [0.05, 0.05, 0.08]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.10, 0.30, 0.80]
+    horizon_color: [0.65, 0.80, 1.00]
+    ground_color:  [0.30, 0.28, 0.22]
 ```
 
 **Atmosfera calda al tramonto:**
@@ -106,6 +120,107 @@ world:
 world:
   ambient_light: [0.05, 0.03, 0.01]
   background: [0.8, 0.4, 0.1]
+```
+
+---
+
+### 2.1 Gradient Sky e Sun Disk
+
+Il gradient sky sostituisce il background piatto con un cielo procedurale che varia colore in base alla direzione del raggio. Produce illuminazione globale molto più naturale: la luce dal cielo è azzurra in alto e calda all'orizzonte, colorando le ombre e i rimbalzi in modo realistico.
+
+```yaml
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.10, 0.30, 0.80]  # Blu profondo (dritto in alto)
+    horizon_color: [0.70, 0.85, 1.00]  # Azzurro pallido (linea d'orizzonte)
+    ground_color:  [0.30, 0.25, 0.20]  # Marrone scuro (sotto l'orizzonte)
+    sun:
+      direction: [-0.8, -0.25, -0.5]   # Direzione DA cui arriva la luce
+      color: [1.0, 0.85, 0.5]
+      intensity: 20.0
+      size: 4.0
+      falloff: 24.0
+```
+
+#### Parametri Sky
+
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `type` | stringa | — | `"gradient"` per attivare il cielo procedurale. Qualsiasi altro valore (o campo assente) → background piatto legacy. |
+| `zenith_color` | `[R, G, B]` | `[0.10, 0.30, 0.80]` | Colore dello zenit (dritto in alto). |
+| `horizon_color` | `[R, G, B]` | `[0.70, 0.85, 1.00]` | Colore all'orizzonte. La transizione usa `sqrt(y)` per un'ampia fascia orizzontale realistica. |
+| `ground_color` | `[R, G, B]` | `[0.30, 0.25, 0.20]` | Colore sotto l'orizzonte (riflesso del terreno nel cielo). |
+| `sun` | oggetto | — | Opzionale: configura un disco solare procedurale con glow. |
+
+#### Parametri Sun Disk
+
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `direction` | `[X, Y, Z]` | — | Direzione DA cui arriva la luce solare (stessa convenzione della Directional Light). Viene normalizzata. |
+| `color` | `[R, G, B]` | `[1, 1, 1]` | Colore del disco solare. |
+| `intensity` | float | `10.0` | Moltiplicatore di luminosità del sole. Valori tipici: 5–50. |
+| `size` | float | `3.0` | Diametro angolare del disco in gradi. Sole reale ≈ 0.53°. Valori artistici: 1–6°. |
+| `falloff` | float | `32.0` | Esponente del glow attorno al disco. Basso (8) = alone ampio, alto (128) = alone stretto. |
+
+> **Nota:** Usa `background` per scene indoor o da studio (colore piatto). Usa `sky` per scene outdoor (gradiente + sun disk). Non serve specificare entrambi: se `sky` è presente, `background` viene ignorato.
+
+> **Sun disk vs Directional Light:** Il sun disk è puramente **visuale** — è il colore che i raggi ricevono quando escono dalla scena in quella direzione. Per avere illuminazione diretta (ombre, highlight), aggiungi una `directional` light con la stessa `direction` nella sezione `lights:`.
+
+#### Preset Sky per ora del giorno
+
+**Mezzogiorno (sole alto, cielo pulito):**
+```yaml
+  sky:
+    type: "gradient"
+    zenith_color:  [0.10, 0.30, 0.80]
+    horizon_color: [0.65, 0.80, 1.00]
+    ground_color:  [0.30, 0.28, 0.22]
+    sun:
+      direction: [-0.2, -1.0, -0.3]
+      color: [1.0, 0.98, 0.92]
+      intensity: 15.0
+      size: 2.0
+      falloff: 48.0
+```
+
+**Golden Hour (sole basso, luce calda):**
+```yaml
+  sky:
+    type: "gradient"
+    zenith_color:  [0.15, 0.25, 0.55]
+    horizon_color: [0.85, 0.55, 0.25]
+    ground_color:  [0.20, 0.15, 0.10]
+    sun:
+      direction: [-0.8, -0.25, -0.5]
+      color: [1.0, 0.85, 0.5]
+      intensity: 20.0
+      size: 4.0
+      falloff: 24.0
+```
+
+**Tramonto drammatico:**
+```yaml
+  sky:
+    type: "gradient"
+    zenith_color:  [0.08, 0.05, 0.20]
+    horizon_color: [0.95, 0.30, 0.05]
+    ground_color:  [0.10, 0.05, 0.02]
+    sun:
+      direction: [-1.0, -0.08, -0.2]
+      color: [1.0, 0.4, 0.05]
+      intensity: 30.0
+      size: 6.0
+      falloff: 12.0
+```
+
+**Notte serena (senza sole):**
+```yaml
+  sky:
+    type: "gradient"
+    zenith_color:  [0.01, 0.01, 0.04]
+    horizon_color: [0.04, 0.04, 0.08]
+    ground_color:  [0.01, 0.01, 0.02]
 ```
 
 ---
@@ -187,11 +302,11 @@ Usi tipici: neon, LED, insegne, lava, fiamme, sfere magiche, pannelli luminosi, 
     intensity: 8.0
 ```
 
-|Campo|Tipo|Default|Descrizione|
-|-|-|-|-|
-|`color`|`[R, G, B]`|`[0.5, 0.5, 0.5]`|Colore della luce emessa|
-|`intensity`|float|`1.0`|Moltiplicatore di luminosità. La radiance emessa è `color × intensity`.|
-|`texture`|oggetto|—|Opzionale: texture procedurale per emissione non uniforme (es. lava con texture marble)|
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `color` | `[R, G, B]` | `[0.5, 0.5, 0.5]` | Colore della luce emessa |
+| `intensity` | float | `1.0` | Moltiplicatore di luminosità. La radiance emessa è `color × intensity`. |
+| `texture` | oggetto | — | Opzionale: texture procedurale per emissione non uniforme (es. lava con texture marble) |
 
 > **Comportamento nel path tracer:**
 > - L'emissione è **additiva** e non dipende dall'illuminazione esterna: l'oggetto è visibile anche in una scena completamente buia.
@@ -201,15 +316,14 @@ Usi tipici: neon, LED, insegne, lava, fiamme, sfere magiche, pannelli luminosi, 
 
 #### Calibrazione dell'intensità emissiva
 
-|Effetto desiderato|Range `intensity`|Note|
-|-|-|-|
-|Glow tenue (indicatore, LED spento)|0.5 – 2|Appena visibile, non illumina la scena|
-|Neon / LED visibile|3 – 10|L'oggetto brilla e colora leggermente i dintorni|
-|Pannello luminoso (sorgente primaria)|10 – 25|Illumina la scena come una area light|
-|Lava / plasma (over-bright)|25 – 100|Effetto bloom, satura il tone mapping ACES|
+| Effetto desiderato | Range `intensity` | Note |
+|--------------------|-------------------|------|
+| Glow tenue (indicatore, LED spento) | 0.5 – 2 | Appena visibile, non illumina la scena |
+| Neon / LED visibile | 3 – 10 | L'oggetto brilla e colora leggermente i dintorni |
+| Pannello luminoso (sorgente primaria) | 10 – 25 | Illumina la scena come una area light |
+| Lava / plasma (over-bright) | 25 – 100 | Effetto bloom, satura il tone mapping ACES |
 
-> **💡 Tip: Emissive con texture procedurale.**
-> Puoi usare una texture `marble` o `noise` su un materiale emissivo per creare effetti lava, plasma o pattern luminosi non uniformi:
+> **💡 Tip: Emissive con texture procedurale.** Puoi usare una texture `marble` o `noise` su un materiale emissivo per creare effetti lava, plasma o pattern luminosi non uniformi:
 > ```yaml
 >   - id: "lava"
 >     type: "emissive"
@@ -468,6 +582,8 @@ Non ha attenuazione con la distanza.
 
 > **Alias:** Puoi usare anche `type: "sun"` come alias per `"directional"`.
 
+> **💡 Tip: Allinea Directional Light e Sun Disk.** Se usi un gradient sky con sun disk, imposta la stessa `direction` sulla directional light per coerenza visiva: il sole visibile nel cielo e l'illuminazione diretta arrivano dalla stessa parte.
+
 ### 7.3 Spot Light (Faretto)
 Luce conica con posizione e direzione. Ha un cono interno (piena intensità) e un cono esterno (sfumatura smooth). L'attenuazione angolare usa un'interpolazione quadratica tra i due coni.
 ```yaml
@@ -516,16 +632,9 @@ Il motore usa campionamento Monte Carlo: per ogni punto della scena vengono spar
 
 > **Alias:** Puoi usare anche `type: "area_light"`, `type: "rect"` o `type: "rect_light"`.
 
-> **💡 Override da CLI:** Il parametro `--shadow-samples` (`-S`) da riga di comando sovrascrive il valore `shadow_samples` di **tutte** le area light nella scena. Questo permette di iterare sulla qualità senza modificare il file YAML:
-> ```powershell
-> # Preview veloce con ombre rumorose
-> dotnet run --project src\RayTracer\RayTracer.csproj -- -i scene.yaml -s 4 -S 4 -w 400 -H 267
-> # Render finale con ombre morbide
-> dotnet run --project src\RayTracer\RayTracer.csproj -- -i scene.yaml -s 128 -S 32 -w 1920 -H 1080
-> ```
-> Se `-S` non è specificato, ogni luce usa il proprio valore YAML.
+> **💡 Override da CLI:** Il parametro `--shadow-samples` (`-S`) da riga di comando sovrascrive il valore `shadow_samples` di **tutte** le area light nella scena. Questo permette di iterare sulla qualità senza modificare il file YAML.
 
-> **⚠️ Costo computazionale:** Il `shadow_samples` ha un impatto diretto sul tempo di render. Con `-s 128` campioni pixel e `-S 16` (o `shadow_samples: 16` nel YAML), ogni pixel lancia `128 × 16 = 2048` raggi ombra per questa sola luce.
+> **⚠️ Costo computazionale:** Il `shadow_samples` ha un impatto diretto sul tempo di render. Con `-s 128` campioni pixel e `-S 16`, ogni pixel lancia `128 × 16 = 2048` raggi ombra per questa sola luce.
 
 **Esempio: Pannello luminoso da soffitto**
 ```yaml
@@ -570,14 +679,16 @@ Il motore usa campionamento Monte Carlo: per ogni punto della scena vengono spar
 
 ### Il rendering è un path tracer
 Ogni pixel spara raggi nella scena. Quando un raggio colpisce una superficie, il materiale genera un raggio rimbalzato. Il processo continua fino a:
-- Il raggio esce dalla scena → riceve il colore del `background` (= luce del cielo)
+- Il raggio esce dalla scena → riceve il colore del cielo (`background` piatto oppure `sky` gradiente)
 - Il raggio raggiunge la profondità massima (`--depth`) → restituisce nero
 
-Questo significa che il `background` è effettivamente una **sorgente di luce**. Se vuoi una scena dove solo le luci esplicite illuminano, devi impostare `background: [0, 0, 0]`.
+Questo significa che il cielo è effettivamente una **sorgente di luce**. Se vuoi una scena dove solo le luci esplicite illuminano, devi impostare `background: [0, 0, 0]` (e non definire `sky`).
+
+Con il **gradient sky**, il colore del cielo varia in base alla direzione del raggio: azzurro dallo zenit, caldo dall'orizzonte. Questo produce un'illuminazione globale molto più ricca e naturale rispetto al background piatto — le ombre hanno una tinta azzurra (luce dal cielo) e le superfici rivolte verso l'orizzonte ricevono luce più calda.
 
 ### Combinazioni di Luci Consigliate
 
-**Esterno Diurno:**
+**Esterno Diurno (background piatto legacy):**
 ```yaml
 lights:
   - type: "directional"
@@ -587,6 +698,29 @@ lights:
   - type: "point"
     position: [0, 20, 0]
     intensity: 10
+```
+
+**Esterno con Gradient Sky (raccomandato):**
+```yaml
+world:
+  ambient_light: [0.04, 0.04, 0.06]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.10, 0.30, 0.80]
+    horizon_color: [0.65, 0.80, 1.00]
+    ground_color:  [0.30, 0.25, 0.20]
+    sun:
+      direction: [-0.5, -0.8, -0.3]
+      color: [1.0, 0.95, 0.85]
+      intensity: 15.0
+      size: 2.5
+      falloff: 40.0
+
+lights:
+  - type: "directional"
+    direction: [-0.5, -0.8, -0.3]     # Stessa direzione del sun disk!
+    color: [1.0, 0.95, 0.85]
+    intensity: 0.09
 ```
 
 **Studio con Area Light (ombre morbide):**
@@ -795,6 +929,63 @@ lights:
     intensity: 0.5
 ```
 
+### 9.4 — Golden Hour Landscape (Gradient Sky + Sun Disk)
+
+Scena outdoor con cielo procedurale e sole basso. Sfere metalliche riflettono il gradiente del cielo; la sfera di vetro lo rifrange. Il sun disk è visibile nei riflessi.
+
+```yaml
+world:
+  ambient_light: [0.04, 0.03, 0.02]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.15, 0.25, 0.55]
+    horizon_color: [0.85, 0.55, 0.25]
+    ground_color:  [0.20, 0.15, 0.10]
+    sun:
+      direction: [-0.8, -0.25, -0.5]
+      color: [1.0, 0.85, 0.5]
+      intensity: 20.0
+      size: 4.0
+      falloff: 24.0
+  ground: { type: "infinite_plane", material: "terreno", y: 0 }
+
+camera:
+  position: [0, 1.8, -8]
+  look_at: [0, 0.8, 0]
+  fov: 55
+
+materials:
+  - id: "terreno"
+    type: "lambertian"
+    texture: { type: "checker", scale: 1.5, colors: [[0.25, 0.22, 0.18], [0.35, 0.32, 0.26]] }
+  - id: "specchio"
+    type: "metal"
+    color: [0.95, 0.95, 0.97]
+    fuzz: 0.0
+  - id: "oro"
+    type: "metal"
+    color: [0.85, 0.65, 0.12]
+    fuzz: 0.05
+  - id: "vetro"
+    type: "dielectric"
+    refraction_index: 1.52
+
+entities:
+  - { name: "mirror", type: "sphere", center: [-2.5, 1, 0], radius: 1.0, material: "specchio" }
+  - { name: "gold", type: "sphere", center: [0, 1, 0], radius: 1.0, material: "oro" }
+  - { name: "glass", type: "sphere", center: [2.5, 1, 0], radius: 1.0, material: "vetro" }
+
+lights:
+  - type: "directional"
+    direction: [-0.8, -0.25, -0.5]
+    color: [1.0, 0.88, 0.55]
+    intensity: 0.12
+  - type: "directional"
+    direction: [0.5, -0.7, 0.3]
+    color: [0.5, 0.6, 0.85]
+    intensity: 0.03
+```
+
 ---
 
 ## 10. Regole e Best Practices
@@ -807,10 +998,11 @@ lights:
 5. **BVH:** Il motore ottimizza automaticamente le scene con più di 4 oggetti usando una BVH basata sull'asse con maggiore estensione dei centroidi.
 6. **Luci di default:** Se non specifichi nessuna luce nella sezione `lights`, il motore aggiunge automaticamente una directional + una point light.
 7. **Area Light:** I campi `corner`, `u` e `v` sono tutti obbligatori. Se uno è mancante, la luce viene saltata con un warning in console.
+8. **Gradient Sky:** Usa `background` per interni e `sky` per esterni. Se `sky` è presente, `background` viene ignorato. Se usi il sun disk, allinea la `direction` con la directional light per coerenza.
 
 ### Performance
-8. **Campioni e area light:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128 -S 16`, ogni pixel lancia oltre 2000 raggi. Usa `-S 4` da CLI per il draft — non serve modificare il YAML!
-9. **Vetro e dielettrico:** I materiali dielettrici (vetro) sono i più costosi perché ogni rimbalzo può generare sia riflessione che rifrazione. Aumenta `--depth` per scene con molto vetro.
+9. **Campioni e area light:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128 -S 16`, ogni pixel lancia oltre 2000 raggi. Usa `-S 4` da CLI per il draft — non serve modificare il YAML!
+10. **Vetro e dielettrico:** I materiali dielettrici (vetro) sono i più costosi perché ogni rimbalzo può generare sia riflessione che rifrazione. Aumenta `--depth` per scene con molto vetro.
 
 ### Checklist prima del render finale
 
@@ -820,5 +1012,6 @@ lights:
 - [ ] Il file YAML usa correttamente gli **spazi** per l'indentazione (niente TAB).
 - [ ] È stata eseguita un'anteprima a bassa risoluzione (`-w 400 -s 1 -S 4`).
 - [ ] Le area light hanno `corner`, `u` e `v` tutti definiti.
-- [ ] Se la scena deve essere buia, `background` è `[0, 0, 0]`.
+- [ ] Se la scena deve essere buia, `background` è `[0, 0, 0]` e `sky` è assente.
 - [ ] I seed degli oggetti con texture randomizzate sono fissi (se vuoi risultati riproducibili tra render).
+- [ ] Se usi gradient sky con sun disk, la `direction` è allineata con la directional light.

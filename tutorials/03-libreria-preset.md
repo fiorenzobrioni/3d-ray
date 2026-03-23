@@ -11,6 +11,7 @@ Una collezione di configurazioni pronte da copiare e incollare nel tuo file YAML
 4. [Catalogo Materiali Professionale](#4-catalogo-materiali-professionale)
 5. [Oggetti e Primitive Base](#5-oggetti-e-primitive-base)
 6. [Scene Base Complete (Stage Starter)](#6-scene-base-complete-stage-starter)
+7. [Preset Sky (Cielo Procedurale)](#7-preset-sky-cielo-procedurale)
 
 ---
 
@@ -234,9 +235,7 @@ Sfondo nero intenso con venature bianche spettacolari.
 ```
 
 ### **Emissivo: Neon Magenta**
-
 Glow vivace rosa-magenta, ideale per ambientazioni cyberpunk e sci-fi.
-
 ```yaml
   - id: "neon_magenta"
     type: "emissive"
@@ -245,9 +244,7 @@ Glow vivace rosa-magenta, ideale per ambientazioni cyberpunk e sci-fi.
 ```
 
 ### **Emissivo: Neon Ciano**
-
 Complemento freddo al magenta per effetti bicolore.
-
 ```yaml
   - id: "neon_ciano"
     type: "emissive"
@@ -256,9 +253,7 @@ Complemento freddo al magenta per effetti bicolore.
 ```
 
 ### **Emissivo: LED Bianco Caldo**
-
 Pannello luminoso con temperatura colore simile a una lampadina tungsteno.
-
 ```yaml
   - id: "led_caldo"
     type: "emissive"
@@ -267,9 +262,7 @@ Pannello luminoso con temperatura colore simile a una lampadina tungsteno.
 ```
 
 ### **Emissivo: LED Bianco Freddo**
-
 Pannello luminoso con temperatura colore daylight.
-
 ```yaml
   - id: "led_freddo"
     type: "emissive"
@@ -278,9 +271,7 @@ Pannello luminoso con temperatura colore daylight.
 ```
 
 ### **Emissivo: Lava (con Texture)**
-
 Superficie incandescente con pattern non uniforme via texture marble.
-
 ```yaml
   - id: "lava"
     type: "emissive"
@@ -293,9 +284,7 @@ Superficie incandescente con pattern non uniforme via texture marble.
 ```
 
 ### **Emissivo: Verde Acido**
-
 LED indicatore o effetto matrice.
-
 ```yaml
   - id: "led_verde"
     type: "emissive"
@@ -304,9 +293,7 @@ LED indicatore o effetto matrice.
 ```
 
 ### **Emissivo: Ambra / Fiamma**
-
 Glow caldo per candele, torce o lampade.
-
 ```yaml
   - id: "glow_ambra"
     type: "emissive"
@@ -545,9 +532,138 @@ entities:
   - { name: "oggetto_esposto", type: "sphere", center: [0, 1.5, 0], radius: 1.2, material: "esposto" }
 ```
 
+### **Stage E: Golden Hour con Gradient Sky**
+Scena outdoor con cielo procedurale, sole basso e luce calda. Ideale per paesaggi e architettura esterna.
+```yaml
+world:
+  ambient_light: [0.04, 0.03, 0.02]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.15, 0.25, 0.55]
+    horizon_color: [0.85, 0.55, 0.25]
+    ground_color:  [0.20, 0.15, 0.10]
+    sun:
+      direction: [-0.8, -0.25, -0.5]
+      color: [1.0, 0.85, 0.5]
+      intensity: 20.0
+      size: 4.0
+      falloff: 24.0
+  ground: { type: "infinite_plane", material: "terreno", y: 0 }
+
+camera:
+  position: [0, 1.8, -8]
+  look_at: [0, 0.8, 0]
+  fov: 55
+
+materials:
+  - id: "terreno"
+    type: "lambertian"
+    texture: { type: "checker", scale: 1.5, colors: [[0.25, 0.22, 0.18], [0.35, 0.32, 0.26]] }
+
+lights:
+  - type: "directional"
+    direction: [-0.8, -0.25, -0.5]
+    color: [1.0, 0.88, 0.55]
+    intensity: 0.12
+```
+
 ---
 
 > **💡 Consigli d'uso:**
 > - Usa `randomize_offset: true` e `randomize_rotation: true` nelle texture procedurali per far apparire ogni oggetto unico anche con lo stesso materiale.
 > - Per gli Stage che usano area light, usa `-S 4 -s 1` da CLI per il draft, poi `-S 16 -s 128` per il render finale — non serve modificare il YAML!
 > - I seed fissi negli oggetti garantiscono che le venature siano identiche tra render successivi — utile per iterare sull'illuminazione senza cambiare l'aspetto dei materiali.
+
+---
+
+## 7. Preset Sky (Cielo Procedurale)
+
+Configurazioni pronte per la sezione `sky:` dentro `world:`. Ogni preset include zenith, orizzonte, terreno e opzionalmente un sun disk. Copia il blocco `sky:` nel tuo `world:`.
+
+> **Nota:** Il gradient sky agisce come sorgente di illuminazione globale — i raggi che escono dalla scena campionano il gradiente. Questo produce GI naturale: ombre azzurre, riflessi caldi all'orizzonte, color bleeding realistico. Per l'illuminazione diretta (ombre sugli oggetti), aggiungi una `directional` light con la stessa `direction` del sun disk.
+
+### **Sky: Mezzogiorno (Clear Day)**
+Cielo pulito con sole alto, luce neutra-fredda.
+```yaml
+  sky:
+    type: "gradient"
+    zenith_color:  [0.10, 0.30, 0.80]
+    horizon_color: [0.65, 0.80, 1.00]
+    ground_color:  [0.30, 0.28, 0.22]
+    sun:
+      direction: [-0.2, -1.0, -0.3]
+      color: [1.0, 0.98, 0.92]
+      intensity: 15.0
+      size: 2.0
+      falloff: 48.0
+```
+
+### **Sky: Golden Hour (Ora d'Oro)**
+Sole basso, luce calda dorata. L'orizzonte è arancio, lo zenit resta blu.
+```yaml
+  sky:
+    type: "gradient"
+    zenith_color:  [0.15, 0.25, 0.55]
+    horizon_color: [0.85, 0.55, 0.25]
+    ground_color:  [0.20, 0.15, 0.10]
+    sun:
+      direction: [-0.8, -0.25, -0.5]
+      color: [1.0, 0.85, 0.5]
+      intensity: 20.0
+      size: 4.0
+      falloff: 24.0
+```
+
+### **Sky: Tramonto Drammatico**
+Rosso fuoco all'orizzonte, viola allo zenit. Sole grande e glow ampio.
+```yaml
+  sky:
+    type: "gradient"
+    zenith_color:  [0.08, 0.05, 0.20]
+    horizon_color: [0.95, 0.30, 0.05]
+    ground_color:  [0.10, 0.05, 0.02]
+    sun:
+      direction: [-1.0, -0.08, -0.2]
+      color: [1.0, 0.4, 0.05]
+      intensity: 30.0
+      size: 6.0
+      falloff: 12.0
+```
+
+### **Sky: Cielo Nuvoloso (Overcast)**
+Grigio uniforme, nessun sole visibile. Luce morbida e piatta.
+```yaml
+  sky:
+    type: "gradient"
+    zenith_color:  [0.55, 0.58, 0.62]
+    horizon_color: [0.70, 0.72, 0.75]
+    ground_color:  [0.35, 0.33, 0.30]
+```
+
+### **Sky: Notte Serena**
+Cielo scuro senza sole. Ideale per scene illuminate da emissivi o luci artificiali.
+```yaml
+  sky:
+    type: "gradient"
+    zenith_color:  [0.01, 0.01, 0.04]
+    horizon_color: [0.04, 0.04, 0.08]
+    ground_color:  [0.01, 0.01, 0.02]
+```
+
+### **Sky: Alba (Sunrise)**
+Toni freddi allo zenit con fascia rosa-arancio all'orizzonte.
+```yaml
+  sky:
+    type: "gradient"
+    zenith_color:  [0.12, 0.18, 0.45]
+    horizon_color: [0.90, 0.55, 0.40]
+    ground_color:  [0.15, 0.12, 0.10]
+    sun:
+      direction: [1.0, -0.15, -0.3]
+      color: [1.0, 0.65, 0.35]
+      intensity: 18.0
+      size: 5.0
+      falloff: 16.0
+```
+
+> **💡 Tip:** Per un risultato completo, abbina ogni sky preset a una `directional` light con la stessa `direction` e colore simile al sole. Il sun disk fornisce solo la componente visuale nel cielo; la directional light fornisce ombre e highlight sugli oggetti.

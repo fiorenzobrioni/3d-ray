@@ -183,10 +183,19 @@ Usa percorsi relativi corretti rispetto alla cartella in cui lanci il comando, o
 Il file YAML deve usare **spazi** per l'indentazione (niente TAB). Verifica la struttura con un linter YAML online in caso di dubbio.
 
 ### Gli oggetti emissivi illuminano poco o la scena è molto rumorosa
-
 I materiali `emissive` illuminano la scena solo tramite rimbalzi indiretti del path tracer (non usano Next Event Estimation come le luci esplicite). Per ottenere risultati puliti:
-
 1. Usa campioni alti: `-s 128` o superiore.
 2. Aumenta la profondità a `-d 10` o più per permettere ai rimbalzi di propagarsi.
 3. Se serve solo un fill minimo, aggiungi una `point` light con `intensity` molto bassa (0.2–1.0) per evitare ombre completamente nere.
 4. L'emissione avviene solo dalla **front face**: verifica che la geometria emissiva sia orientata verso la scena (la normale deve puntare verso gli oggetti da illuminare).
+
+### Il gradient sky non appare / il cielo è piatto
+1. Verifica che la sezione `sky:` sia **dentro** `world:` (corretto indentamento YAML).
+2. Verifica che `type: "gradient"` sia scritto correttamente (deve essere esattamente `gradient`).
+3. Se `sky`: è assente, il motore usa il campo `background` come colore piatto. Per outdoor usa `sky`; per indoor usa `background` quando non è visibile il cielo.
+4. Il sun disk non fornisce illuminazione diretta sugli oggetti (è solo visuale). Aggiungi una `directional` light con la stessa `direction` per avere ombre e highlight.
+
+### Il sun disk nel cielo è troppo grande / piccolo / assente
+1. Il parametro `size` è il diametro angolare in gradi. Il sole reale è ≈ 0.53°. Valori artistici tipici: 2–6°.
+2. Il parametro `falloff` controlla l'alone: valori bassi (8–16) = glow ampio e morbido, valori alti (64–128) = bordo netto.
+3. Se non vedi il sole, verifica che la `direction` punti nella direzione corretta e che la camera guardi verso quella parte del cielo.

@@ -7,6 +7,7 @@ using RayTracer.Materials;
 using RayTracer.Lights;
 using RayTracer.Acceleration;
 using RayTracer.Textures;
+using RayTracer.Rendering;
 
 namespace RayTracer.Scene;
 
@@ -24,7 +25,7 @@ public class SceneLoader
     /// the scene file (e.g. <c>-S 4</c> for preview, <c>-S 32</c> for production).
     /// When null, each area light uses its own YAML-defined value.
     /// </param>
-    public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, Vector3 AmbientLight, Vector3 Background)
+    public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, Vector3 AmbientLight, SkySettings Sky)
         Load(string yamlPath, int imageWidth, int imageHeight, int? shadowSamplesOverride = null)
     {
         var yaml = File.ReadAllText(yamlPath);
@@ -49,7 +50,8 @@ public class SceneLoader
 
         var ambientLight = ToVector3(data.World?.AmbientLight) ?? new Vector3(0.1f);
         var background = ToVector3(data.World?.Background) ?? new Vector3(0.5f, 0.7f, 1.0f);
-
+        var sky = BuildSkySettings(data.World?.Sky, background);
+ 
         var objects = new List<IHittable>();
 
         // Ground plane
@@ -132,7 +134,7 @@ public class SceneLoader
             lights.Add(new PointLight(new Vector3(0, 10, -5), Vector3.One, 100f));
         }
 
-        return (world, camera, lights, ambientLight, background);
+        return (world, camera, lights, ambientLight, sky);
     }
 
     // -------------------------------------------------------------------------
@@ -155,6 +157,41 @@ public class SceneLoader
         };
     }
     
+    /// <summary>
+    /// Builds a <see cref="SkySettings"/> from the YAML sky section.
+    /// Falls back to flat background color for full backward compatibility.
+    /// </summary>
+    private static SkySettings BuildSkySettings(SkyData? skyData, Vector3 background)
+    {
+        // No sky section, or type is not "gradient" → legacy flat color
+        if (skyData == null || skyData.Type?.ToLowerInvariant() != "gradient")
+            return new SkySettings(background);
+ 
+        // Gradient sky — parse colors with sensible defaults
+        var zenith  = ToVector3(skyData.ZenithColor)  ?? new Vector3(0.10f, 0.30f, 0.80f);
+        var horizon = ToVector3(skyData.HorizonColor) ?? new Vector3(0.70f, 0.85f, 1.00f);
+        var ground  = ToVector3(skyData.GroundColor)  ?? new Vector3(0.30f, 0.25f, 0.20f);
+ 
+        // Optional sun disk
+        Vector3? sunDir = null;
+        Vector3? sunColor = null;
+        float sunIntensity = 10f;
+        float sunSize = 3f;
+        float sunFalloff = 32f;
+ 
+        if (skyData.Sun != null)
+        {
+            sunDir = ToVector3(skyData.Sun.Direction);
+            sunColor = ToVector3(skyData.Sun.Color);
+            sunIntensity = skyData.Sun.Intensity;
+            sunSize = skyData.Sun.Size;
+            sunFalloff = skyData.Sun.Falloff;
+        }
+ 
+        return new SkySettings(zenith, horizon, ground,
+                               sunDir, sunColor, sunIntensity, sunSize, sunFalloff);
+    }
+ 
     private static ITexture CreateTexture(TextureData t)
     {
         ITexture tex = t.Type?.ToLowerInvariant() switch

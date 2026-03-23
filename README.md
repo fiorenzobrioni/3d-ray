@@ -26,6 +26,7 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🚀 **Rendering Parallelo**: Sfrutta tutti i core logici della CPU tramite `Parallel.For` per una scalabilità lineare delle prestazioni.
 - 🎯 **Campionamento Stratificato**: Campionamento jittered su griglia `√N × √N` per pixel per una convergenza drasticamente più rapida rispetto al campionamento casuale puro.
 - 🎞️ **ACES Filmic Tone Mapping**: Pipeline di post-processing con curva filmica ACES e correzione gamma 2.2, per highlight naturali e colori ricchi.
+- 🌅 **Gradient Sky**: Cielo procedurale con gradiente verticale zenith→orizzonte→terreno e sun disk con glow halo configurabile. Trasforma ogni scena outdoor in un ambiente fotorealistico. Le scene indoor o da studio usano il campo `background` per un colore piatto.
 
 ### Accelerazione
 - 📦 **BVH (Bounding Volume Hierarchy)**: Struttura di accelerazione con euristica dell'asse più lungo (SAH-inspired) per intersezioni raggio-oggetto in tempo **O(log N)**. Attivata automaticamente per scene con più di 4 oggetti.
@@ -39,11 +40,11 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🏛️ **Cylinder** — Cilindro finito con caps e UV cylindrical
 - ∞ **Infinite Plane** — Piano infinito con UV mapping con tiling
 
- ### Materiali
- - 🎨 **Lambertian** — Diffusione opaca fisicamente corretta
- - 🪞 **Metal** — Riflessione speculare con parametro `fuzz` per rugosità superficiale
- - 💎 **Dielectric** — Rifrazione con indice IOR variabile, effetto Fresnel (Schlick), supporto tinting colore
- - 💡 **Emissive** — Materiale auto-luminoso con `color` e `intensity` configurabili. Gli oggetti emissivi brillano di luce propria e illuminano la scena tramite rimbalzi indiretti (neon, lava, LED, insegne)
+### Materiali
+- 🎨 **Lambertian** — Diffusione opaca fisicamente corretta
+- 🪞 **Metal** — Riflessione speculare con parametro `fuzz` per rugosità superficiale
+- 💎 **Dielectric** — Rifrazione con indice IOR variabile, effetto Fresnel (Schlick), supporto tinting colore
+- 💡 **Emissive** — Materiale auto-luminoso con `color` e `intensity` configurabili. Gli oggetti emissivi brillano di luce propria e illuminano la scena tramite rimbalzi indiretti (neon, lava, LED, insegne)
 
 ### Texture Procedurali
 - ♟️ **Checker** — Scacchiera 3D con scala configurabile
@@ -62,6 +63,9 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🔦 **Spot Light** — Faretto con cono interno/esterno e falloff liscio
 - 🟧 **Area Light** — Emettitore rettangolare con **soft shadows** fisicamente corretti via campionamento Monte Carlo (configurabile: 8–32 shadow samples, override globale via CLI `-S`)
 - ✨ **Emissive Objects** — Qualsiasi geometria con materiale `emissive` diventa una sorgente di luce visibile. La luce emessa si propaga nella scena tramite i rimbalzi del path tracer, creando illuminazione indiretta naturale senza bisogno di luci esplicite.
+
+### Ambiente
+- 🌅 **Gradient Sky** — Cielo procedurale con gradiente verticale a 3 bande (zenith, orizzonte, terreno) e sun disk con glow halo. Il cielo agisce come sorgente di illuminazione globale: i raggi che escono dalla scena campionano il gradiente, producendo GI colorata naturale (azzurra dall'alto, calda dall'orizzonte). Configurabile via YAML con preset per mezzogiorno, golden hour, tramonto e notte.
 
 ### Input/Output
 - 📄 **Configurazione YAML** — Definizione completa della scena tramite file YAML strutturati

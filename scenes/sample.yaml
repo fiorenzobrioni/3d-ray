@@ -1,13 +1,128 @@
 # Ray-Tracing Scene — Sample Demo
 # Includes glass sphere, metal sphere, diffuse objects, box, and lighting.
 
+# Mezzogiorno (test veloce, cielo pulito)
+# world:
+#   ambient_light: [0.04, 0.04, 0.06]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.10, 0.30, 0.80]
+#     horizon_color: [0.65, 0.80, 1.00]
+#     ground_color:  [0.25, 0.22, 0.18]
+#     sun:
+#       direction: [-0.5, -1.0, -0.3]
+#       color: [1.0, 0.98, 0.92]
+#       intensity: 12.0
+#       size: 2.5
+#       falloff: 48.0
+#   ground: { type: "infinite_plane", material: "matte_green", y: -0.5 }
+
+# lights:
+#   # Directional allineata col sun disk
+#   - type: "directional"
+#     direction: [-0.5, -1.0, -0.3]
+#     color: [1.0, 0.95, 0.85]
+#     intensity: 0.10
+#   # Point fill — più debole, il cielo contribuisce già la GI
+#   - type: "point"
+#     position: [5, 8, -3]
+#     color: [1.0, 1.0, 1.0]
+#     intensity: 25.0
+
+# Golden Hour
+# world:
+#   ambient_light: [0.03, 0.03, 0.02]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.15, 0.25, 0.55]
+#     horizon_color: [0.85, 0.55, 0.25]
+#     ground_color:  [0.20, 0.15, 0.10]
+#     sun:
+#       direction: [-0.9, -0.20, -0.4]
+#       color: [1.0, 0.82, 0.45]
+#       intensity: 18.0
+#       size: 4.0
+#       falloff: 20.0
+#   ground: { type: "infinite_plane", material: "matte_green", y: -0.5 }
+
+# lights:
+#   - type: "directional"
+#     direction: [-0.9, -0.20, -0.4]
+#     color: [1.0, 0.85, 0.50]
+#     intensity: 0.10
+#   - type: "point"
+#     position: [5, 5, -3]
+#     color: [1.0, 0.90, 0.65]
+#     intensity: 20.0
+
+# Tramonto drammatico
+# world:
+#   ambient_light: [0.03, 0.01, 0.01]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.06, 0.04, 0.18]
+#     horizon_color: [0.90, 0.28, 0.05]
+#     ground_color:  [0.08, 0.04, 0.02]
+#     sun:
+#       direction: [-1.0, -0.08, -0.2]
+#       color: [1.0, 0.35, 0.05]
+#       intensity: 25.0
+#       size: 6.0
+#       falloff: 12.0
+#   ground: { type: "infinite_plane", material: "matte_green", y: -0.5 }
+
+# lights:
+#   - type: "directional"
+#     direction: [-1.0, -0.08, -0.2]
+#     color: [1.0, 0.45, 0.10]
+#     intensity: 0.08
+#   - type: "point"
+#     position: [4, 3, -2]
+#     color: [0.4, 0.3, 0.6]
+#     intensity: 8.0
+
+# Cielo nuvoloso
+# world:
+#   ambient_light: [0.05, 0.05, 0.06]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.52, 0.55, 0.60]
+#     horizon_color: [0.68, 0.70, 0.73]
+#     ground_color:  [0.32, 0.30, 0.28]
+#   ground: { type: "infinite_plane", material: "matte_green", y: -0.5 }
+
+# lights:
+#   # Nessuna directional — luce solo dal cielo (GI pura)
+#   - type: "point"
+#     position: [3, 6, -2]
+#     color: [0.90, 0.90, 0.95]
+#     intensity: 15.0
+
+# Notte con luna
 world:
-  ambient_light: [0.05, 0.05, 0.08]
-  background: [0.4, 0.6, 1.0]
-  ground:
-    type: "infinite_plane"
-    material: "matte_green"
-    y: -0.5
+  ambient_light: [0.005, 0.005, 0.01]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.01, 0.01, 0.05]
+    horizon_color: [0.03, 0.04, 0.08]
+    ground_color:  [0.01, 0.01, 0.02]
+    sun:
+      direction: [0.3, -0.6, 0.5]
+      color: [0.7, 0.75, 1.0]
+      intensity: 5.0
+      size: 1.5
+      falloff: 64.0
+  ground: { type: "infinite_plane", material: "matte_green", y: -0.5 }
+
+lights:
+  - type: "directional"
+    direction: [0.3, -0.6, 0.5]
+    color: [0.6, 0.65, 0.85]
+    intensity: 0.03
+  - type: "point"
+    position: [-3, 4, -2]
+    color: [0.5, 0.55, 0.80]
+    intensity: 6.0
 
 camera:
   position: [3, 2, -6]

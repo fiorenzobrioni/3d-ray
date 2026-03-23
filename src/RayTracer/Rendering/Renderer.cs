@@ -12,7 +12,7 @@ public class Renderer
     private readonly Camera.Camera _camera;
     private readonly List<ILight> _lights;
     private readonly Vector3 _ambientLight;
-    private readonly Vector3 _background;
+    private readonly SkySettings _sky;
     private readonly int _maxDepth;
     private readonly int _samplesPerPixel;
 
@@ -28,7 +28,7 @@ public class Renderer
         Camera.Camera camera,
         List<ILight> lights,
         Vector3 ambientLight,
-        Vector3 background,
+        SkySettings sky,
         int samplesPerPixel,
         int maxDepth)
     {
@@ -36,7 +36,7 @@ public class Renderer
         _camera = camera;
         _lights = lights;
         _ambientLight = ambientLight;
-        _background = background;
+        _sky = sky;
         _samplesPerPixel = samplesPerPixel;
         _maxDepth = maxDepth;
     }
@@ -291,8 +291,13 @@ public class Renderer
     // SKY / ENVIRONMENT
     // ═════════════════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// Computes the sky/environment radiance for a ray that escaped the scene.
+    /// Delegates to <see cref="SkySettings"/> which handles both legacy flat
+    /// backgrounds and the new gradient sky with sun disk.
+    /// </summary>
     private Vector3 CalculateSkyColor(Ray ray)
     {
-        return _background;
+        return _sky.Sample(ray);
     }
 }
