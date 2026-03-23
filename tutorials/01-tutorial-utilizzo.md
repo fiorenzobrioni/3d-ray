@@ -199,3 +199,14 @@ I materiali `emissive` illuminano la scena solo tramite rimbalzi indiretti del p
 1. Il parametro `size` è il diametro angolare in gradi. Il sole reale è ≈ 0.53°. Valori artistici tipici: 2–6°.
 2. Il parametro `falloff` controlla l'alone: valori bassi (8–16) = glow ampio e morbido, valori alti (64–128) = bordo netto.
 3. Se non vedi il sole, verifica che la `direction` punti nella direzione corretta e che la camera guardi verso quella parte del cielo.
+
+### L'HDRI non si carica o il cielo è magenta
+1. Verifica che il file `.hdr` esista nel percorso indicato (relativo alla directory del file YAML).
+2. Solo il formato **Radiance HDR** (`.hdr`) è supportato. File `.exr` o altri formati HDR non sono gestiti.
+3. Controlla il log in console: il motore stampa dimensioni e tempo di caricamento se il file è valido.
+4. Se il cielo appare magenta, il file non è stato trovato o è corrotto.
+
+### Le image texture non appaiono (magenta al loro posto)
+1. Verifica che il percorso in `path:` sia corretto e relativo alla cartella del file YAML.
+2. Formati supportati: PNG, JPEG, BMP, GIF, TIFF, WebP. Assicurati che l'estensione corrisponda.
+3. Controlla i warning in console — il motore stampa il percorso completo che ha tentato di caricare.

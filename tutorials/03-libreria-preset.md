@@ -667,3 +667,39 @@ Toni freddi allo zenit con fascia rosa-arancio all'orizzonte.
 ```
 
 > **💡 Tip:** Per un risultato completo, abbina ogni sky preset a una `directional` light con la stessa `direction` e colore simile al sole. Il sun disk fornisce solo la componente visuale nel cielo; la directional light fornisce ombre e highlight sugli oggetti.
+
+### Preset HDRI (Environment Map)
+
+Per usare un HDRI, scarica un file `.hdr` equirectangolare da [Poly Haven](https://polyhaven.com/hdris) e posizionalo in una cartella `hdri/` accanto al YAML. L'HDRI fornisce illuminazione realistica catturata da fotografie reali — il massimo livello di qualità per riflessi metallici e rifrazioni.
+
+**HDRI: Studio Fotografico**
+Illuminazione controllata da studio, ideale per product rendering e material showcase.
+```yaml
+  sky:
+    type: "hdri"
+    path: "hdri/studio_small_09_4k.hdr"
+    intensity: 1.0
+    rotation: 0
+```
+
+**HDRI: Esterno (Parco / Natura)**
+Luce naturale con cielo aperto, per scene outdoor con vegetazione.
+```yaml
+  sky:
+    type: "hdri"
+    path: "hdri/meadow_4k.hdr"
+    intensity: 1.2
+    rotation: 45
+```
+
+**HDRI: Interno Architettonico**
+Illuminazione da interni con finestre, per scene architettoniche.
+```yaml
+  sky:
+    type: "hdri"
+    path: "hdri/entrance_hall_4k.hdr"
+    intensity: 0.8
+    rotation: 180
+```
+
+> **💡 Tip:** Usa `rotation` per allineare la sorgente luminosa principale dell'HDRI (sole, finestra) con la direzione desiderata nella scena. Usa `intensity` per regolare l'esposizione senza modificare il file `.hdr`. Con HDRI, usa `lights: []` per luce solo dall'environment map, oppure aggiungi luci esplicite per ombre direzionali extra.

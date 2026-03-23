@@ -46,11 +46,12 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 💎 **Dielectric** — Rifrazione con indice IOR variabile, effetto Fresnel (Schlick), supporto tinting colore
 - 💡 **Emissive** — Materiale auto-luminoso con `color` e `intensity` configurabili. Gli oggetti emissivi brillano di luce propria e illuminano la scena tramite rimbalzi indiretti (neon, lava, LED, insegne)
 
-### Texture Procedurali
+### Texture
 - ♟️ **Checker** — Scacchiera 3D con scala configurabile
 - 🌫️ **Noise** — Perlin Noise per superfici granulate o sporche
 - 🗿 **Marble** — Venature marmoree con turbolenza matematica
 - 🪵 **Wood** — Anelli di accrescimento concentrici
+- 🖼️ **Image** — Texture da file immagine (PNG, JPEG, BMP, TIFF, WebP) con bilinear filtering, conversione sRGB→lineare e tiling UV configurabile. Supporta tutti i materiali e tutte le primitive.
 
 Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzazione per-oggetto** tramite seed deterministico.
 
@@ -66,6 +67,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 
 ### Ambiente
 - 🌅 **Gradient Sky** — Cielo procedurale con gradiente verticale a 3 bande (zenith, orizzonte, terreno) e sun disk con glow halo. Il cielo agisce come sorgente di illuminazione globale: i raggi che escono dalla scena campionano il gradiente, producendo GI colorata naturale (azzurra dall'alto, calda dall'orizzonte). Configurabile via YAML con preset per mezzogiorno, golden hour, tramonto e notte.
+- 🌍 **HDRI / IBL** — Image-Based Lighting con environment map HDR (formato Radiance `.hdr`). Illuminazione realistica catturata da fotografie reali: riflessi metallici credibili, rifrazioni naturali, GI accurata. Supporta rotazione Y-axis per allineare l'ambiente alla scena e moltiplicatore di intensità per il controllo dell'esposizione. File `.hdr` scaricabili gratuitamente da [Poly Haven](https://polyhaven.com/hdris).
 
 ### Input/Output
 - 📄 **Configurazione YAML** — Definizione completa della scena tramite file YAML strutturati

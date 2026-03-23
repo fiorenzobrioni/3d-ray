@@ -4,6 +4,7 @@
 1. [Struttura del File](#1-struttura-del-file)
 2. [Sezione `world`](#2-sezione-world)
    - [2.1 Gradient Sky e Sun Disk](#21-gradient-sky-e-sun-disk)
+   - [2.2 HDRI / IBL (Environment Map)](#22-hdri--ibl-environment-map)
 3. [Sezione `camera`](#3-sezione-camera)
 4. [Sezione `materials`](#4-sezione-materials)
    - [4.1 Lambertian (Opaco)](#41-lambertian-diffusoopaco)
@@ -14,6 +15,7 @@
    - [5.1 Tipi di Texture Procedurali](#51-tipi-di-texture-procedurali)
    - [5.2 Trasformazioni Spaziali (Offset & Rotation)](#52-trasformazioni-spaziali-offset--rotation)
    - [5.3 Randomizzazione per Oggetto](#53-randomizzazione-per-oggetto)
+   - [5.4 Image Texture (Texture da File)](#54-image-texture-texture-da-file)
 6. [Sezione `entities`](#6-sezione-entities)
    - [6.1 Sphere (Sfera)](#61-sphere-sfera)
    - [6.2 Box (Cubo/Parallelepipedo)](#62-box-cuboparallelepipedo)
@@ -225,6 +227,42 @@ world:
 
 ---
 
+### 2.2 HDRI / IBL (Environment Map)
+
+L'Image-Based Lighting (IBL) usa una fotografia HDR a 360° dell'ambiente reale come sorgente di illuminazione. Ogni raggio che esce dalla scena campiona la mappa HDR, producendo riflessi, rifrazioni e illuminazione globale catturate dalla realtà — il livello più alto di realismo per l'ambiente.
+
+Il motore supporta file in formato **Radiance HDR** (`.hdr`), scaricabili gratuitamente da [Poly Haven](https://polyhaven.com/hdris). File 2K o 4K sono raccomandati.
+
+```yaml
+world:
+  ambient_light: [0.0, 0.0, 0.0]      # Zero — tutta la luce dall'HDRI
+  sky:
+    type: "hdri"
+    path: "hdri/studio_small_09_4k.hdr" # Relativo al file YAML
+    intensity: 1.0                       # Esposizione (>1 più luminoso)
+    rotation: 90                         # Rotazione Y in gradi (0–360)
+```
+
+#### Parametri HDRI
+
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `type` | stringa | — | `"hdri"` per attivare l'environment map. |
+| `path` | stringa | — (**obbligatorio**) | Percorso del file `.hdr`. Relativo alla directory del file YAML. |
+| `intensity` | float | `1.0` | Moltiplicatore di luminosità. >1 per ambienti scuri, <1 per sovraesposti. |
+| `rotation` | float | `0.0` | Rotazione dell'ambiente attorno all'asse Y in gradi. Utile per allineare il sole o la finestra dell'HDRI con la scena. |
+
+> **HDRI vs Gradient Sky vs Background piatto:**
+> - **`background`** — colore piatto, per interni chiusi e studi neri.
+> - **`sky: { type: "gradient" }`** — cielo procedurale con gradiente e sun disk, per outdoor stilizzati.
+> - **`sky: { type: "hdri" }`** — environment map fotografica, per il massimo realismo. Particolarmente efficace con sfere metalliche e vetro.
+
+> **Luci esplicite con HDRI:** L'HDRI fornisce illuminazione globale tramite i rimbalzi del path tracer. Non servono luci esplicite (`lights: []`), ma puoi aggiungerne per enfatizzare ombre direzionali o highlight specifici. Se la sezione `lights:` è completamente omessa dal YAML, il motore aggiunge luci default; usa `lights: []` esplicito per avere solo luce HDRI.
+
+> **Performance:** Il file HDR viene caricato una volta al load della scena. Il sampling durante il render è una singola lettura con bilinear filtering — costo trascurabile.
+
+---
+
 ## 3. Sezione `camera`
 
 Controlla il punto di vista, l'inquadratura e l'effetto profondità di campo.
@@ -290,7 +328,6 @@ Materiale trasparente con rifrazione e riflesso Fresnel.
 | `color` | `[R, G, B]` | `[1, 1, 1]` | Tinting del vetro (bianco=trasparente, colorato=vetro colorato) |
 
 ### 4.4 Emissive (Luminoso)
-
 Materiale auto-luminoso: l'oggetto emette luce propria e brilla nella scena senza bisogno di illuminazione esterna. La luce emessa si propaga tramite i rimbalzi indiretti del path tracer, illuminando naturalmente gli oggetti circostanti.
 
 Usi tipici: neon, LED, insegne, lava, fiamme, sfere magiche, pannelli luminosi, indicatori.
@@ -412,6 +449,68 @@ materials:
       randomize_offset: true
       randomize_rotation: true
 ```
+
+### 5.4 Image Texture (Texture da File)
+
+Carica un'immagine da file e la proietta sulla superficie usando le coordinate UV della primitiva. Supporta tutti i formati gestiti da ImageSharp: PNG, JPEG, BMP, GIF, TIFF, WebP.
+
+```yaml
+    texture:
+      type: "image"
+      path: "textures/brick_wall.png"    # Relativo al file YAML
+      uv_scale: [2, 1]                   # Tiling: 2× in U, 1× in V
+```
+
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `type` | stringa | — | `"image"` |
+| `path` | stringa | — (**obbligatorio**) | Percorso del file immagine. Relativo alla directory del file YAML della scena. |
+| `uv_scale` | `[U, V]` | `[1, 1]` | Fattore di tiling su ciascun asse UV. `[3, 3]` = la texture si ripete 3 volte su ogni asse. Se si specifica un solo valore `[2]`, viene usato per entrambi gli assi. |
+
+> **Conversione sRGB → lineare:** Le immagini vengono convertite automaticamente dallo spazio sRGB allo spazio lineare tramite `pow(channel, 2.2)` al caricamento. Questo è necessario per un rendering fisicamente corretto — il tone mapping ACES lavora in spazio lineare.
+
+> **Bilinear filtering:** Le coordinate UV continue vengono interpolate tra i 4 pixel circostanti, producendo bordi smooth anche con texture a risoluzione moderata.
+
+> **Tiling:** I valori UV fuori dall'intervallo [0, 1] vengono wrappati tramite `frac()` per una ripetizione seamless.
+
+> **Fallback magenta:** Se il file non viene trovato o non può essere caricato, il motore stampa un warning in console e usa un colore magenta vivace — facile da individuare nel render per capire dove manca un file.
+
+**Esempio: Pavimento in legno con tiling 4×4**
+```yaml
+materials:
+  - id: "parquet"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/wood_floor.png"
+      uv_scale: [4, 4]
+```
+
+**Esempio: Sfera con mappa terrestre**
+```yaml
+materials:
+  - id: "terra"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/earth.png"
+
+entities:
+  - { name: "globo", type: "sphere", center: [0, 1, 0], radius: 1, material: "terra" }
+```
+
+**Esempio: Metallo texturato (riflesso + pattern)**
+```yaml
+materials:
+  - id: "acciaio_graffiato"
+    type: "metal"
+    fuzz: 0.25
+    texture:
+      type: "image"
+      path: "textures/metal_scratched.png"
+```
+
+> **💡 Tip: Generare texture di test.** Il progetto include un tool `TextureGen` che genera texture procedurali pronte all'uso (mattoni, legno, terra, griglie UV). Eseguilo con `dotnet run --project src/Tools/TextureGen/TextureGen.csproj`.
 
 ---
 
@@ -761,7 +860,6 @@ lights:
 ```
 
 **Scena illuminata solo da oggetti emissivi (Neon Lab):**
-
 ```yaml
 world:
   ambient_light: [0.005, 0.005, 0.008]
@@ -986,6 +1084,53 @@ lights:
     intensity: 0.03
 ```
 
+### 9.5 — HDRI Studio (Environment-Lit Materials)
+
+Sfere con materiali diversi illuminate esclusivamente da un environment map HDR. Nessuna luce esplicita — tutta l'illuminazione viene dalla fotografia dell'ambiente.
+
+```yaml
+world:
+  ambient_light: [0.0, 0.0, 0.0]
+  sky:
+    type: "hdri"
+    path: "hdri/studio_small_09_4k.hdr"
+    intensity: 1.0
+    rotation: 0
+  ground: { type: "infinite_plane", material: "pavimento", y: 0 }
+
+camera:
+  position: [0, 1.5, -5]
+  look_at: [0, 0.8, 0]
+  fov: 50
+
+materials:
+  - id: "pavimento"
+    type: "metal"
+    color: [0.15, 0.15, 0.18]
+    fuzz: 0.4
+  - id: "specchio"
+    type: "metal"
+    color: [0.97, 0.97, 0.98]
+    fuzz: 0.0
+  - id: "oro"
+    type: "metal"
+    color: [0.85, 0.65, 0.12]
+    fuzz: 0.02
+  - id: "vetro"
+    type: "dielectric"
+    refraction_index: 1.52
+  - id: "diffuso"
+    type: "lambertian"
+    color: [0.85, 0.85, 0.85]
+
+entities:
+  - { name: "mirror", type: "sphere", center: [-2, 0.8, 0], radius: 0.8, material: "specchio" }
+  - { name: "gold", type: "sphere", center: [0, 0.8, 0], radius: 0.8, material: "oro" }
+  - { name: "glass", type: "sphere", center: [2, 0.8, 0], radius: 0.8, material: "vetro" }
+
+lights: []
+```
+
 ---
 
 ## 10. Regole e Best Practices
@@ -996,13 +1141,15 @@ lights:
 3. **Box:** Usa sempre `scale` + `translate` per i box. Il cubo unitario ha centro nell'origine.
 4. **IDs materiale:** Ogni `id` deve essere univoco. I riferimenti `material` nelle entità sono **case-sensitive** e devono corrispondere esattamente. Un ID non trovato produce un materiale grigio di fallback senza errore.
 5. **BVH:** Il motore ottimizza automaticamente le scene con più di 4 oggetti usando una BVH basata sull'asse con maggiore estensione dei centroidi.
-6. **Luci di default:** Se non specifichi nessuna luce nella sezione `lights`, il motore aggiunge automaticamente una directional + una point light.
+6. **Luci di default:** Se la sezione `lights` è completamente assente dal YAML, il motore aggiunge automaticamente una directional + una point light. Per avere zero luci (scene HDRI-only o emissive-only), scrivi esplicitamente `lights: []`.
 7. **Area Light:** I campi `corner`, `u` e `v` sono tutti obbligatori. Se uno è mancante, la luce viene saltata con un warning in console.
-8. **Gradient Sky:** Usa `background` per interni e `sky` per esterni. Se `sky` è presente, `background` viene ignorato. Se usi il sun disk, allinea la `direction` con la directional light per coerenza.
+8. **Sky:** Usa `background` per interni, `sky: { type: "gradient" }` per outdoor procedurale, `sky: { type: "hdri" }` per illuminazione fotografica. Se `sky` è presente, `background` viene ignorato. Se usi il sun disk del gradient sky, allinea la `direction` con la directional light per coerenza.
+9. **Image Texture:** I percorsi in `texture: { type: "image", path: "..." }` sono relativi alla directory del file YAML della scena. File non trovato → fallback magenta visibile con warning in console.
+10. **HDRI:** Il percorso in `sky: { type: "hdri", path: "..." }` è relativo alla directory del YAML. Usa `rotation` per ruotare l'ambiente e allineare il sole/finestra con la scena. Con HDRI, usa `lights: []` per luce solo dall'environment map, oppure aggiungi luci per ombre direzionali extra.
 
 ### Performance
-9. **Campioni e area light:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128 -S 16`, ogni pixel lancia oltre 2000 raggi. Usa `-S 4` da CLI per il draft — non serve modificare il YAML!
-10. **Vetro e dielettrico:** I materiali dielettrici (vetro) sono i più costosi perché ogni rimbalzo può generare sia riflessione che rifrazione. Aumenta `--depth` per scene con molto vetro.
+11. **Campioni e area light:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128 -S 16`, ogni pixel lancia oltre 2000 raggi. Usa `-S 4` da CLI per il draft — non serve modificare il YAML!
+12. **Vetro e dielettrico:** I materiali dielettrici (vetro) sono i più costosi perché ogni rimbalzo può generare sia riflessione che rifrazione. Aumenta `--depth` per scene con molto vetro.
 
 ### Checklist prima del render finale
 
@@ -1015,3 +1162,5 @@ lights:
 - [ ] Se la scena deve essere buia, `background` è `[0, 0, 0]` e `sky` è assente.
 - [ ] I seed degli oggetti con texture randomizzate sono fissi (se vuoi risultati riproducibili tra render).
 - [ ] Se usi gradient sky con sun disk, la `direction` è allineata con la directional light.
+- [ ] I file delle image texture e degli HDRI esistono nel percorso indicato (relativo al YAML).
+- [ ] Per scene HDRI-only o emissive-only, usa `lights: []` esplicito (non omettere la sezione).
