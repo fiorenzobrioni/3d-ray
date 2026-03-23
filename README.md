@@ -39,10 +39,11 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🏛️ **Cylinder** — Cilindro finito con caps e UV cylindrical
 - ∞ **Infinite Plane** — Piano infinito con UV mapping con tiling
 
-### Materiali
-- 🎨 **Lambertian** — Diffusione opaca fisicamente corretta
-- 🪞 **Metal** — Riflessione speculare con parametro `fuzz` per rugosità superficiale
-- 💎 **Dielectric** — Rifrazione con indice IOR variabile, effetto Fresnel (Schlick), supporto tinting colore
+ ### Materiali
+ - 🎨 **Lambertian** — Diffusione opaca fisicamente corretta
+ - 🪞 **Metal** — Riflessione speculare con parametro `fuzz` per rugosità superficiale
+ - 💎 **Dielectric** — Rifrazione con indice IOR variabile, effetto Fresnel (Schlick), supporto tinting colore
+ - 💡 **Emissive** — Materiale auto-luminoso con `color` e `intensity` configurabili. Gli oggetti emissivi brillano di luce propria e illuminano la scena tramite rimbalzi indiretti (neon, lava, LED, insegne)
 
 ### Texture Procedurali
 - ♟️ **Checker** — Scacchiera 3D con scala configurabile
@@ -60,6 +61,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - ☀️ **Directional Light** — Luce direzionale parallela (sole), senza attenuazione
 - 🔦 **Spot Light** — Faretto con cono interno/esterno e falloff liscio
 - 🟧 **Area Light** — Emettitore rettangolare con **soft shadows** fisicamente corretti via campionamento Monte Carlo (configurabile: 8–32 shadow samples, override globale via CLI `-S`)
+- ✨ **Emissive Objects** — Qualsiasi geometria con materiale `emissive` diventa una sorgente di luce visibile. La luce emessa si propaga nella scena tramite i rimbalzi del path tracer, creando illuminazione indiretta naturale senza bisogno di luci esplicite.
 
 ### Input/Output
 - 📄 **Configurazione YAML** — Definizione completa della scena tramite file YAML strutturati

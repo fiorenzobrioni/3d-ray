@@ -134,6 +134,13 @@ public class Renderer
         float specExponent = material?.SpecularExponent ?? 0f;
         float specStrength = material?.SpecularStrength ?? 0f;
 
+        // ── Emission ────────────────────────────────────────────────────────
+        // Emissive materials add their own radiance independently of any
+        // external lighting or scattering. This is additive and NOT modulated
+        // by attenuation — the surface IS the light source.
+        Vector3 emitted = material?.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace)
+                          ?? Vector3.Zero;
+
         // ── Direct lighting (Next Event Estimation) ─────────────────────────
         // The ambient term is ALWAYS included for all materials — it represents
         // omnidirectional fill light. Even mirrors and glass interact with it:
@@ -162,7 +169,7 @@ public class Renderer
                 survivalProb = MathF.Min(survivalProb, 0.95f); // Cap to avoid infinite paths
 
                 if (MathUtils.RandomFloat() > survivalProb)
-                    return attenuation * directLight; // Terminated — return only direct contribution
+                    return emitted + attenuation * directLight; // Terminated — return only direct contribution
 
                 // Surviving path: boost energy to compensate for killed siblings
                 attenuation /= survivalProb;
@@ -170,14 +177,14 @@ public class Renderer
 
             // Skip indirect recursion for near-black materials (optimisation)
             if (attenuation.LengthSquared() < 0.001f)
-                return directLight * attenuation;
+                return emitted + directLight * attenuation;
 
             Vector3 indirect = TraceRay(scattered, depth - 1);
-            return attenuation * (directLight + indirect);
+            return emitted + attenuation * (directLight + indirect);
         }
 
         // No scatter (fully absorbed) — return direct light contribution only
-        return directLight;
+        return emitted + directLight;
     }
 
     // ═════════════════════════════════════════════════════════════════════════

@@ -8,6 +8,7 @@
    - [4.1 Lambertian (Opaco)](#41-lambertian-diffusoopaco)
    - [4.2 Metal (Metallico)](#42-metal-metallicospeculare)
    - [4.3 Dielectric (Vetro)](#43-dielectric-vetrotrasparente)
+   - [4.4 Emissive (Luminoso)](#44-emissive-luminoso)
 5. [Sezione `textures`](#5-sezione-textures)
    - [5.1 Tipi di Texture Procedurali](#51-tipi-di-texture-procedurali)
    - [5.2 Trasformazioni Spaziali (Offset & Rotation)](#52-trasformazioni-spaziali-offset--rotation)
@@ -172,6 +173,58 @@ Materiale trasparente con rifrazione e riflesso Fresnel.
 |-------|------|---------|-------------|
 | `refraction_index` | float | `1.5` | Indice di rifrazione (1.0=aria, 1.33=acqua, 1.5=vetro, 2.42=diamante) |
 | `color` | `[R, G, B]` | `[1, 1, 1]` | Tinting del vetro (bianco=trasparente, colorato=vetro colorato) |
+
+### 4.4 Emissive (Luminoso)
+
+Materiale auto-luminoso: l'oggetto emette luce propria e brilla nella scena senza bisogno di illuminazione esterna. La luce emessa si propaga tramite i rimbalzi indiretti del path tracer, illuminando naturalmente gli oggetti circostanti.
+
+Usi tipici: neon, LED, insegne, lava, fiamme, sfere magiche, pannelli luminosi, indicatori.
+
+```yaml
+  - id: "neon_magenta"
+    type: "emissive"
+    color: [1.0, 0.0, 0.8]
+    intensity: 8.0
+```
+
+|Campo|Tipo|Default|Descrizione|
+|-|-|-|-|
+|`color`|`[R, G, B]`|`[0.5, 0.5, 0.5]`|Colore della luce emessa|
+|`intensity`|float|`1.0`|Moltiplicatore di luminosità. La radiance emessa è `color × intensity`.|
+|`texture`|oggetto|—|Opzionale: texture procedurale per emissione non uniforme (es. lava con texture marble)|
+
+> **Comportamento nel path tracer:**
+> - L'emissione è **additiva** e non dipende dall'illuminazione esterna: l'oggetto è visibile anche in una scena completamente buia.
+> - L'emissione avviene solo dalla **front face** — il retro della superficie è buio, come un vero pannello LED.
+> - Gli oggetti emissivi **non scatterano** raggi: non hanno componente diffusa né speculare. Tutta la loro energia va in emissione.
+> - L'illuminazione indiretta funziona naturalmente: un neon magenta colora di rosa le pareti vicine tramite i rimbalzi del path tracer. Usa campioni alti (`-s 64+`) per risultati puliti.
+
+#### Calibrazione dell'intensità emissiva
+
+|Effetto desiderato|Range `intensity`|Note|
+|-|-|-|
+|Glow tenue (indicatore, LED spento)|0.5 – 2|Appena visibile, non illumina la scena|
+|Neon / LED visibile|3 – 10|L'oggetto brilla e colora leggermente i dintorni|
+|Pannello luminoso (sorgente primaria)|10 – 25|Illumina la scena come una area light|
+|Lava / plasma (over-bright)|25 – 100|Effetto bloom, satura il tone mapping ACES|
+
+> **💡 Tip: Emissive con texture procedurale.**
+> Puoi usare una texture `marble` o `noise` su un materiale emissivo per creare effetti lava, plasma o pattern luminosi non uniformi:
+> ```yaml
+>   - id: "lava"
+>     type: "emissive"
+>     intensity: 15.0
+>     texture:
+>       type: "marble"
+>       scale: 3.0
+>       noise_strength: 6.0
+>       colors: [[1.0, 0.3, 0.0], [1.0, 0.8, 0.0]]
+> ```
+
+> **💡 Tip: Emissive vs Area Light.** Un `quad` con materiale `emissive` è visualmente simile a un'area light, ma con differenze importanti:
+> - L'**area light** usa Next Event Estimation (NEE) e produce ombre morbide controllate con `shadow_samples`.
+> - L'**emissive** illumina solo tramite rimbalzi indiretti del path tracer — richiede più campioni (`-s`) per convergere, ma l'oggetto è fisicamente **visibile** nella scena (puoi vederlo, rifletterlo nello specchio, rifrangerlo nel vetro).
+> - Per pannelli a soffitto che devono essere visti: usa `emissive`. Per illuminazione pura senza geometria visibile: usa `area` light.
 
 ---
 
@@ -573,6 +626,28 @@ lights:
     intensity: 4
 ```
 
+**Scena illuminata solo da oggetti emissivi (Neon Lab):**
+
+```yaml
+world:
+  ambient_light: [0.005, 0.005, 0.008]
+  background: [0.0, 0.0, 0.0]
+
+# Nessuna luce esplicita — la scena è illuminata dagli emissivi
+lights: []
+
+materials:
+  - id: "neon_ciano"
+    type: "emissive"
+    color: [0.05, 0.85, 1.0]
+    intensity: 8.0
+
+entities:
+  - { name: "neon", type: "sphere", center: [0, 2, 0], radius: 0.5, material: "neon_ciano" }
+```
+
+> **💡 Nota:** Quando la scena è illuminata solo da materiali emissivi, non ci sono luci per il Next Event Estimation. Tutta l'illuminazione arriva dai rimbalzi indiretti. Usa campioni alti (`-s 128+`) e profondità adeguata (`-d 10+`) per risultati puliti. Puoi aggiungere una `point` light con intensità molto bassa (0.2–1.0) come fill minimale per evitare ombre completamente nere.
+
 ---
 
 ## 9. Esempi Completi
@@ -664,6 +739,60 @@ entities:
     translate: [0.0, 4.25, 0.0]
     material: "marmo_colonna"
   - { name: "gioiello", type: "sphere", center: [0, 2, 0], radius: 0.8, material: "vetro_cristallo" }
+```
+
+### 9.3 — Neon Lab (Solo Illuminazione Emissiva)
+
+Stanza buia illuminata esclusivamente da oggetti con materiale `emissive`. Dimostra emissione colorata, riflessione su metallo e rifrazione nel vetro.
+
+```yaml
+world:
+  ambient_light: [0.005, 0.005, 0.008]
+  background: [0.0, 0.0, 0.0]
+  ground: { type: "infinite_plane", material: "pavimento", y: 0 }
+
+camera:
+  position: [0, 2.5, -8]
+  look_at: [0, 1.2, 0]
+  fov: 50
+
+materials:
+  - id: "pavimento"
+    type: "lambertian"
+    color: [0.12, 0.12, 0.14]
+  - id: "specchio"
+    type: "metal"
+    color: [0.92, 0.92, 0.94]
+    fuzz: 0.02
+  - id: "neon_magenta"
+    type: "emissive"
+    color: [1.0, 0.05, 0.6]
+    intensity: 8.0
+  - id: "neon_ciano"
+    type: "emissive"
+    color: [0.05, 0.85, 1.0]
+    intensity: 8.0
+  - id: "pannello"
+    type: "emissive"
+    color: [1.0, 0.97, 0.92]
+    intensity: 12.0
+
+entities:
+  - { name: "neon_sx", type: "sphere", center: [-2.5, 1, 0], radius: 0.6, material: "neon_magenta" }
+  - { name: "neon_dx", type: "sphere", center: [2.5, 1, 0], radius: 0.6, material: "neon_ciano" }
+  - name: "pannello_soffitto"
+    type: "quad"
+    q: [-1.0, 4.5, -1.0]
+    u: [2.0, 0.0, 0.0]
+    v: [0.0, 0.0, 2.0]
+    material: "pannello"
+  - { name: "specchio_sfera", type: "sphere", center: [0, 0.8, -1], radius: 0.8, material: "specchio" }
+
+lights:
+  - type: "point"
+    position: [0, 5, -3]
+    color: [0.5, 0.5, 0.6]
+    intensity: 0.5
 ```
 
 ---

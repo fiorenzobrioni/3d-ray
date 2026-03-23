@@ -1,0 +1,182 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Emissive Material Showcase — Neon Lab
+#
+#  Stanza buia illuminata SOLO da oggetti emissivi. Dimostra:
+#    - Sfere emissive che brillano di luce propria (colori diversi)
+#    - Pannello emissivo (quad) che funge da sorgente di luce
+#    - Riflessione dell'emissione su superfici metalliche e vetro
+#    - Illuminazione indiretta: gli oggetti emissivi illuminano la scena
+#
+#  Render consigliato:
+#    Draft:  -w 640 -H 360 -s 16  -d 8
+#    Finale: -w 1920 -H 1080 -s 256 -d 12
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  ambient_light: [0.005, 0.005, 0.008]
+  background: [0.0, 0.0, 0.0]
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+
+camera:
+  position: [0, 2.5, -8]
+  look_at: [0, 1.2, 0]
+  fov: 50
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+
+  # --- Superfici della stanza ---
+  - id: "pavimento"
+    type: "lambertian"
+    color: [0.12, 0.12, 0.14]
+
+  - id: "parete_fondo"
+    type: "lambertian"
+    color: [0.10, 0.10, 0.12]
+
+  - id: "specchio"
+    type: "metal"
+    color: [0.92, 0.92, 0.94]
+    fuzz: 0.02
+
+  - id: "cromo_scuro"
+    type: "metal"
+    color: [0.25, 0.25, 0.28]
+    fuzz: 0.15
+
+  - id: "vetro"
+    type: "dielectric"
+    refraction_index: 1.52
+
+  # --- Materiali emissivi ---
+  - id: "neon_magenta"
+    type: "emissive"
+    color: [1.0, 0.05, 0.6]
+    intensity: 8.0
+
+  - id: "neon_ciano"
+    type: "emissive"
+    color: [0.05, 0.85, 1.0]
+    intensity: 8.0
+
+  - id: "glow_ambra"
+    type: "emissive"
+    color: [1.0, 0.65, 0.1]
+    intensity: 5.0
+
+  - id: "pannello_bianco"
+    type: "emissive"
+    color: [1.0, 0.97, 0.92]
+    intensity: 12.0
+
+  - id: "led_verde"
+    type: "emissive"
+    color: [0.1, 1.0, 0.3]
+    intensity: 4.0
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════
+#  Nessuna luce esplicita! La scena è illuminata SOLO dagli oggetti emissivi
+#  e dalla luce indiretta dei loro rimbalzi. Un piccolo punto luce appena
+#  percettibile aiuta a non avere ombre completamente nere.
+
+lights:
+  - type: "point"
+    position: [0, 5, -3]
+    color: [0.5, 0.5, 0.6]
+    intensity: 0.5
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  PARETE DI FONDO — riflette la luce emissiva
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "parete_fondo"
+    type: "quad"
+    q: [-6, 0, 4]
+    u: [12, 0, 0]
+    v: [0, 6, 0]
+    material: "parete_fondo"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  PANNELLO LUMINOSO — emissivo rettangolare a soffitto
+  #  Simula un pannello LED da soffitto che illumina dall'alto
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "pannello_soffitto"
+    type: "quad"
+    q: [-1.0, 4.5, -1.0]
+    u: [2.0, 0.0, 0.0]
+    v: [0.0, 0.0, 2.0]
+    material: "pannello_bianco"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SFERA NEON MAGENTA — a sinistra
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "neon_sx"
+    type: "sphere"
+    center: [-2.5, 1.0, 0]
+    radius: 0.6
+    material: "neon_magenta"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SFERA NEON CIANO — a destra
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "neon_dx"
+    type: "sphere"
+    center: [2.5, 1.0, 0]
+    radius: 0.6
+    material: "neon_ciano"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SFERA AMBRA — centrale, più alta, su piedistallo
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "glow_center"
+    type: "sphere"
+    center: [0, 2.2, 0]
+    radius: 0.45
+    material: "glow_ambra"
+
+  - name: "piedistallo"
+    type: "cylinder"
+    center: [0, 0, 0]
+    radius: 0.15
+    height: 1.75
+    material: "cromo_scuro"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  LED STRIP — fila di piccole sfere verdi a pavimento
+  # ─────────────────────────────────────────────────────────────────────────
+  - { name: "led_0", type: "sphere", center: [-3.0, 0.08, 2.5], radius: 0.08, material: "led_verde" }
+  - { name: "led_1", type: "sphere", center: [-2.0, 0.08, 2.5], radius: 0.08, material: "led_verde" }
+  - { name: "led_2", type: "sphere", center: [-1.0, 0.08, 2.5], radius: 0.08, material: "led_verde" }
+  - { name: "led_3", type: "sphere", center: [ 0.0, 0.08, 2.5], radius: 0.08, material: "led_verde" }
+  - { name: "led_4", type: "sphere", center: [ 1.0, 0.08, 2.5], radius: 0.08, material: "led_verde" }
+  - { name: "led_5", type: "sphere", center: [ 2.0, 0.08, 2.5], radius: 0.08, material: "led_verde" }
+  - { name: "led_6", type: "sphere", center: [ 3.0, 0.08, 2.5], radius: 0.08, material: "led_verde" }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SFERA SPECCHIO — riflette tutti i neon circostanti
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "specchio_sfera"
+    type: "sphere"
+    center: [-1.0, 0.7, -1.5]
+    radius: 0.7
+    material: "specchio"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SFERA DI VETRO — rifrange la luce emissiva
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "vetro_sfera"
+    type: "sphere"
+    center: [1.0, 0.7, -1.5]
+    radius: 0.7
+    material: "vetro"

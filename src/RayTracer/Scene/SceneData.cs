@@ -85,6 +85,9 @@ public class MaterialData
     [YamlMember(Alias = "refraction_index")]
     public float RefractionIndex { get; set; } = 1.5f;
 
+    [YamlMember(Alias = "intensity")]
+    public float Intensity { get; set; } = 1f;
+ 
     [YamlMember(Alias = "texture")]
     public TextureData? Texture { get; set; }
 }

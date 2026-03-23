@@ -181,3 +181,12 @@ Usa percorsi relativi corretti rispetto alla cartella in cui lanci il comando, o
 --input C:\Users\Nome\Documents\scena.yaml
 ```
 Il file YAML deve usare **spazi** per l'indentazione (niente TAB). Verifica la struttura con un linter YAML online in caso di dubbio.
+
+### Gli oggetti emissivi illuminano poco o la scena è molto rumorosa
+
+I materiali `emissive` illuminano la scena solo tramite rimbalzi indiretti del path tracer (non usano Next Event Estimation come le luci esplicite). Per ottenere risultati puliti:
+
+1. Usa campioni alti: `-s 128` o superiore.
+2. Aumenta la profondità a `-d 10` o più per permettere ai rimbalzi di propagarsi.
+3. Se serve solo un fill minimo, aggiungi una `point` light con `intensity` molto bassa (0.2–1.0) per evitare ombre completamente nere.
+4. L'emissione avviene solo dalla **front face**: verifica che la geometria emissiva sia orientata verso la scena (la normale deve puntare verso gli oggetti da illuminare).

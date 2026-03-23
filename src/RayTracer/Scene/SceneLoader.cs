@@ -144,16 +144,17 @@ public class SceneLoader
         ITexture albedo = m.Texture != null
             ? CreateTexture(m.Texture)
             : new SolidColor(ToVector3(m.Color) ?? new Vector3(0.5f));
-
+ 
         return m.Type?.ToLowerInvariant() switch
         {
             "lambertian" => new Lambertian(albedo),
             "metal"      => new Metal(albedo, m.Fuzz),
             "dielectric" => new Dielectric(m.RefractionIndex, albedo),
+            "emissive"   => new Emissive(albedo, m.Intensity),   // ← NEW
             _            => new Lambertian(albedo)
         };
     }
-
+    
     private static ITexture CreateTexture(TextureData t)
     {
         ITexture tex = t.Type?.ToLowerInvariant() switch

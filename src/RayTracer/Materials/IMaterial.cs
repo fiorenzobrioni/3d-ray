@@ -42,4 +42,26 @@ public interface IMaterial
     /// Intensity multiplier for the specular highlight (0–1).
     /// </summary>
     float SpecularStrength => 0f;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Emission.
+    //
+    // By default materials emit nothing. The Emissive material overrides this
+    // to return color * intensity, making the surface a visible light source.
+    // The emitted radiance is added to the path tracer's result BEFORE the
+    // scatter/indirect term, so emissive objects are self-luminous and can
+    // illuminate nearby surfaces through indirect bounces.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the emitted radiance at the given surface point.
+    /// Non-emissive materials return black (zero emission).
+    /// </summary>
+    /// <param name="u">Texture U coordinate at the hit point.</param>
+    /// <param name="v">Texture V coordinate at the hit point.</param>
+    /// <param name="point">World-space hit point (for 3D procedural textures).</param>
+    /// <param name="objectSeed">Per-object seed for texture randomisation.</param>
+    /// <param name="frontFace">True if the ray hit the front face of the surface.</param>
+    Vector3 Emit(float u, float v, Vector3 point, int objectSeed, bool frontFace)
+        => Vector3.Zero;
 }

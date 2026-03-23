@@ -1,64 +1,38 @@
 # =============================================================================
-#  CORNELL BOX — Riproduzione Classica Fedele (Revisionata)
-#  Benchmark universale per la validazione dei motori di Global Illumination
-# =============================================================================
+#  CORNELL BOX — Classica Revisionata con Pannello Emissivo
 #
-#  La Cornell Box fu sviluppata nel 1984 da Cindy Goral, Kenneth Torrance,
-#  Donald Greenberg e Bennett Battaile all'Università Cornell come scena
-#  di riferimento per misurare e confrontare algoritmi di radiosity e
-#  global illumination.
+#  Replica fedele della Cornell Box originale (Goral, Torrance et al. 1984).
+#  Scatola 2×2×2 unità, aperta sul lato frontale, con pannello luminoso
+#  fisico al soffitto — ora reso come geometria emissiva visibile,
+#  esattamente come nell'esperimento originale.
 #
-#  RIFERIMENTO ORIGINALE — dati dal Cornell Program of Computer Graphics:
-#    http://www.graphics.cornell.edu/online/box/data.html
-#
-#  Scatola originale:  556 × 548.8 × 559.2 mm
-#  Normalizzata qui a: 2.00 × 1.97 × 2.01 unità  (fattore ≈ 1/278)
-#  Per semplicità, arrotondato a 2.00 × 2.00 × 2.00 con Y in [0, 2].
-#
-#  Pannello luminoso originale: 343 × 332 mm → 1.23 × 1.19u normalizzato
-#  Arrotondato a: 0.66 × 0.66 unità (≈ 33% della larghezza della scatola)
-#  Posizionato al centro del soffitto, rientrato di 1mm (Y = 1.99).
-#
-#  Blocco corto originale:  165 × 165 × 330 mm → 0.59 × 0.59 × 1.19u
-#  Arrotondato a: 0.60 × 0.60 × 0.60  (cubo)
-#  Rotazione: ≈ +17° attorno a Y
-#
-#  Blocco alto originale:   165 × 165 × 660 mm → 0.59 × 0.59 × 2.37u
-#  NOTA: nella normalizzazione 2×2×2 il blocco alto è circa il doppio
-#  del corto → 0.60 × 1.20 × 0.60
-#  Rotazione: ≈ -15° attorno a Y (specchio asimmetrico del corto)
-#
-#  Colori misurati fotometricamente (riflettanza spettrale → sRGB lineare):
-#    Bianco:  ≈ 0.73          (energy-safe per rimbalzi multipli)
-#    Rosso:   ≈ (0.65, 0.05, 0.05)
-#    Verde:   ≈ (0.12, 0.45, 0.15)
-#
-#  Coordinate:
-#    X : [-1.00 → +1.00]   ←  parete rossa  |  parete verde  →
-#    Y : [ 0.00 → +2.00]   ↑  pavimento     |  soffitto      ↑
-#    Z : [ 0.00 → +2.00]      apertura       |  parete fondo
-#    Camera: Z negativo (davanti all'apertura), guarda verso +Z
+#  Il pannello emissivo è un quad con materiale `emissive`:
+#    ● È un oggetto fisico visibile nella scena
+#    ● Si riflette negli specchi e si rifrange nel vetro
+#    ● Emette luce propria che si propaga tramite rimbalzi indiretti
+#    ● Non usa Next Event Estimation (NEE): servono più campioni
 #
 #  ┌──────────────────────────────────────────────────────────────────────┐
-#  │  COMANDI DI RENDER CONSIGLIATI                                      │
+#  │  PARAMETRI DI RENDER CONSIGLIATI                                    │
 #  │                                                                     │
-#  │  ⚠ IMPORTANTE: usa sempre -d ≥ 20 per la corretta GI a rimbalzi   │
-#  │    multipli. Con -d basso le zone in ombra sono nero puro.          │
+#  │  ⚠ Il pannello emissivo illumina tramite path tracing puro.         │
+#  │  Servono più campioni rispetto alla versione con area light.        │
+#  │  Con -d basso le zone in ombra sono nero puro.                      │
 #  │                                                                     │
-#  │  PREVIEW  (< 5 s):                                                  │
-#  │    dotnet run ... -- -i cornell-box.yaml -s 4 -d 12                 │
-#  │                       -w 512 -H 512 -S 4                            │
+#  │  PREVIEW  (< 10 s):                                                 │
+#  │    dotnet run ... -- -i cornell-box.yaml -s 16 -d 12                │
+#  │                       -w 512 -H 512                                 │
 #  │                                                                     │
-#  │  DRAFT  (30–90 s):                                                  │
-#  │    dotnet run ... -- -i cornell-box.yaml -s 64 -d 30                │
+#  │  DRAFT  (1–3 min):                                                  │
+#  │    dotnet run ... -- -i cornell-box.yaml -s 128 -d 30               │
 #  │                       -w 512 -H 512                                 │
 #  │                                                                     │
 #  │  PRODUCTION  (qualità finale):                                      │
-#  │    dotnet run ... -- -i cornell-box.yaml -s 256 -d 50               │
+#  │    dotnet run ... -- -i cornell-box.yaml -s 512 -d 50               │
 #  │                       -w 1024 -H 1024                               │
 #  │                                                                     │
 #  │  ULTRA  (stampa/portfolio):                                         │
-#  │    dotnet run ... -- -i cornell-box.yaml -s 512 -d 50               │
+#  │    dotnet run ... -- -i cornell-box.yaml -s 1024 -d 50              │
 #  │                       -w 2048 -H 2048                               │
 #  └──────────────────────────────────────────────────────────────────────┘
 #
@@ -98,7 +72,7 @@ world:
 # ─────────────────────────────────────────────────────────────────────────────
 #  WORLD ALT-2  Vetrata immaginaria (luce diurna)
 #  Il background azzurro simula luce naturale che entra dall'apertura frontale.
-#  Ridurre l'intensità delle luci esplicite del 30–40% per compensare.
+#  Ridurre l'intensità dell'emissivo del 30–40% per compensare.
 # ─────────────────────────────────────────────────────────────────────────────
 # world:
 #   ambient_light: [0.03, 0.04, 0.06]
@@ -133,9 +107,6 @@ camera:
 #  Più cinematografica: mostra contemporaneamente soffitto con pannello luce,
 #  parete verde a destra e pavimento con ombre dei blocchi.
 #  Ideale per valorizzare la differenza di altezza tra i due blocchi.
-#
-#  Distanza camera → look_at:
-#    √((1.80-(-0.05))² + (2.60-0.75)² + (-3.80-1.00)²) ≈ 5.34
 # ─────────────────────────────────────────────────────────────────────────────
 # camera:
 #   position:   [ 1.80,  2.60, -3.80]
@@ -150,9 +121,6 @@ camera:
 #
 #  Simula un obiettivo 85mm f/1.8 da studio: blocco corto nitido,
 #  blocco alto e parete di fondo in bokeh.
-#
-#  Distanza camera → blocco corto (centro):
-#    √((0.10-(-0.30))² + (1.10-0.30)² + (-2.60-0.72)²) ≈ 3.44
 # ─────────────────────────────────────────────────────────────────────────────
 # camera:
 #   position:   [ 0.10,  1.10, -2.60]
@@ -167,10 +135,6 @@ camera:
 #
 #  Mostra la pianta della scatola con le due impronte dei blocchi
 #  e il pattern di ombre proiettate sul pavimento.
-#  vup: [0, 0, 1] orienta il "nord" verso la parete di fondo.
-#
-#  Distanza camera → look_at (pavimento):
-#    √(0 + 5.80² + 0) = 5.80
 # ─────────────────────────────────────────────────────────────────────────────
 # camera:
 #   position:   [ 0.00,  5.80,  1.00]
@@ -186,12 +150,6 @@ camera:
 #  Orizzonte inclinato: atmosfera tesa e dinamica.
 #  Ottima con lo schema luci "Neon Bicolore" (ALT-LIGHTS 2)
 #  o con la Variante B (sfera cromata).
-#
-#  Il vup è normalizzato: (0.233, 0.972, 0) → |vup| ≈ 1.0
-#  L'angolo di inclinazione: atan(0.233/0.972) ≈ 13.5°
-#
-#  Distanza camera → look_at:
-#    √((0.90-(-0.10))² + (1.40-0.90)² + (-4.00-1.00)²) ≈ 5.12
 # ─────────────────────────────────────────────────────────────────────────────
 # camera:
 #   position:   [ 0.90,  1.40, -4.00]
@@ -227,6 +185,27 @@ materials:
   - id: "verde_cornell"
     type: "lambertian"
     color: [0.12, 0.45, 0.15]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  PANNELLO LUMINOSO — Materiale Emissivo
+  #
+  #  Nella Cornell Box originale la sorgente luminosa è un pannello fisico
+  #  incassato nel soffitto. Con il materiale emissivo il pannello è una
+  #  geometria visibile che emette luce propria, esattamente come nel paper.
+  #
+  #  Colore bianco caldo (≈ 4500K) coerente con la lampada dell'esperimento.
+  #
+  #  Calibrazione intensità:
+  #    L'emissivo restituisce color × intensity come radiance diretta.
+  #    A differenza dell'area light, non usa NEE: l'illuminazione si
+  #    propaga solo tramite i rimbalzi del path tracer.
+  #    Intensity 15 → esposizione bilanciata con -s ≥ 128, -d ≥ 25.
+  #    Se sovraesposta: ridurre a 12. Se sottoesposta: alzare a 20.
+  # ─────────────────────────────────────────────────────────────────────────
+  - id: "luce_cornell"
+    type: "emissive"
+    color: [1.00, 0.98, 0.94]
+    intensity: 15.0
 
   # ─────────────────────────────────────────────────────────────────────────
   #  VARIANTI MATERIALI
@@ -311,6 +290,30 @@ entities:
     material: "verde_cornell"
 
   # ===========================================================================
+  #  PANNELLO LUMINOSO A SOFFITTO — Geometria Emissiva
+  #
+  #  Nella Cornell Box originale la sorgente è un pannello fisico rettangolare
+  #  incassato nel soffitto. Lo realizziamo come un quad con materiale emissivo.
+  #
+  #  Dimensioni originali: 343 × 332 mm → normalizzate a ≈ 0.66 × 0.66 unità.
+  #
+  #  CENTRAMENTO: il pannello è centrato in X e Z nella scatola.
+  #    X: centro = 0.0, metà-larghezza = 0.33 → da -0.33 a +0.33
+  #    Z: centro = 1.0, metà-profondità = 0.33 → da  0.67 a  1.33
+  #    Y: 1.99 (1mm sotto il soffitto a Y=2.0, evita z-fighting)
+  #
+  #  Orientamento: il quad emette dalla front face.
+  #    Cross(u, v) = Cross([0.66,0,0], [0,0,0.66]) = (0, -0.4356, 0)
+  #    Normale → verso -Y ✓ → il pannello emette verso il basso, nella stanza.
+  # ===========================================================================
+  - name: "pannello_luce"
+    type: "quad"
+    q: [-0.33, 1.99,  0.67]
+    u: [ 0.66, 0.00,  0.00]
+    v: [ 0.00, 0.00,  0.66]
+    material: "luce_cornell"
+
+  # ===========================================================================
   #  I DUE BLOCCHI BIANCHI — Canonici Cornell Box (1984)
   #
   #  Proporzioni originali normalizzate su box 2×2×2:
@@ -386,61 +389,23 @@ entities:
 
 
 # =============================================================================
-#  LIGHTS — Schema attivo + 3 schemi alternativi commentati
+#  LIGHTS
+#
+#  Lo schema ATTIVO è vuoto: nella Cornell Box standard la SOLA sorgente
+#  di luce è il pannello emissivo a soffitto (definito come entità sopra).
+#  Non servono luci esplicite.
+#
+#  Gli schemi alternativi sotto aggiungono luci supplementari per varianti
+#  creative. Se attivati, si SOMMANO alla luce del pannello emissivo.
 # =============================================================================
-lights:
-
-  # ─────────────────────────────────────────────────────────────────────────
-  #  SCHEMA ATTIVO ★  Pannello Luce da Soffitto (Cornell Box Classico)
-  #
-  #  La sorgente originale era un rettangolo luminoso al centro del soffitto.
-  #  Dimensioni originali: 343 × 332 mm → normalizzate a ≈ 0.66 × 0.66 unità.
-  #
-  #  L'area light è definita da:
-  #    corner = angolo in basso-sinistra del rettangolo
-  #    u = vettore lungo X (larghezza)
-  #    v = vettore lungo Z (profondità)
-  #
-  #  CENTRAMENTO: il pannello è centrato in X e Z nella scatola.
-  #    X: centro = 0.0, metà-larghezza = 0.33 → da -0.33 a +0.33
-  #    Z: centro = 1.0, metà-profondità = 0.33 → da  0.67 a  1.33
-  #    Y: 1.99 (1mm sotto il soffitto a Y=2.0, così non è complanare)
-  #
-  #  Normale risultante: Cross(u, v) = Cross([0.66,0,0], [0,0,0.66])
-  #    = (0, 0, 0) — NO! I vettori devono generare una normale verso -Y.
-  #  Cross([0.66, 0, 0], [0, 0, 0.66]) = (0*0.66 - 0*0, 0*0 - 0.66*0.66, 0.66*0 - 0*0)
-  #    = (0, -0.4356, 0) → normale verso -Y ✓ (il pannello emette verso il basso)
-  #
-  #  Formula illuminazione del motore:
-  #    L = Intensity * area * cos(θ_light) / (distance² * ShadowSamples)
-  #  con area = |Cross(u,v)| = 0.4356 u²
-  #
-  #  Per una scatola 2×2×2, distanza media pannello→pavimento ≈ 2.0u:
-  #    L ≈ Intensity * 0.4356 * cos(0) / (4.0 * 16) ≈ Intensity * 0.0068
-  #  Con Intensity=22 → L ≈ 0.15 per campione — corretto dopo tone mapping.
-  #
-  #  Calibrazione:
-  #    Intensity 22 → esposizione bilanciata con -s ≥ 64, -d ≥ 25
-  #    Se sovraesposta: ridurre a 18. Se sottoesposta: alzare a 28.
-  # ─────────────────────────────────────────────────────────────────────────
-  - type: "area"
-    corner:         [-0.33, 1.99,  0.67]
-    u:              [ 0.66, 0.00,  0.00]
-    v:              [ 0.00, 0.00,  0.66]
-    color:          [ 1.00, 0.98,  0.94]    # bianco caldo (≈ 4500K)
-    intensity:      22.0
-    shadow_samples: 16
+lights: []
 
   # ─────────────────────────────────────────────────────────────────────────
   #  SCHEMA ALT-1  Luce Laterale da Finestra Sinistra
   #
   #  Una finestra immaginaria nella parete sinistra (rossa).
   #  Spot penetra lateralmente: ombre lunghe e direzionali dei blocchi
-  #  sul pavimento. Parete di fondo riceve luce radente.
-  #
-  #  Calibrazione spot: Intensity / distance² al centro della scena.
-  #    Distanza pos→centro ≈ √(0.08+0.0025+0.25) ≈ 0.58
-  #    Att. = 20 / 0.34 ≈ 59, smorzata dal cono: 59 * ~0.4 ≈ 24 — ok.
+  #  sul pavimento. Si somma al pannello emissivo.
   #
   #  Richiede world:
   #    ambient_light: [0.02, 0.02, 0.03]
@@ -464,11 +429,6 @@ lights:
   #  Atmosfera cyberpunk/fashion: spot blu dall'alto + point rosso dal basso.
   #  Contrasto cromatico estremo.
   #  Abbina: Camera ALT-4 (Dutch Angle) per massimo impatto.
-  #
-  #  Calibrazione:
-  #    Spot blu: Intensity 16, cono ampio (58°) → riempie tutta la scatola
-  #    Point rosso: Intensity 4.0, quasi a pavimento → controfiamma caldo
-  #    Point verde-acqua: Intensity 1.5, accento secondario
   #
   #  Richiede world:
   #    ambient_light: [0.0, 0.0, 0.0]
@@ -495,32 +455,23 @@ lights:
   #
   #  Un faretto zenitale dedicato per ogni blocco.
   #  Ombre dure, teatrali, atmosfera da galleria.
-  #
-  #  Calibrazione:
-  #    Ciascuno spot Intensity=18, cono stretto (inner 16°, outer 30°)
-  #    Distanza pos→blocco ≈ 1.67 → Att. = 18 / 2.79 ≈ 6.5
-  #    Con il cono: ≈ 6.5 * 0.5 ≈ 3.2 — sufficiente per scena scura.
-  #    Fill debolissimo (0.6) per evitare nero assoluto sulle pareti.
+  #  Si somma alla luce morbida del pannello emissivo.
   #
   #  Richiede world:
-  #    ambient_light: [0.005, 0.005, 0.006]
+  #    ambient_light: [0.0, 0.0, 0.0]
   #    background:    [0.0, 0.0, 0.0]
   # ─────────────────────────────────────────────────────────────────────────
   # - type: "spot"
-  #   position:    [-0.33,  1.97,  0.66]
+  #   position:    [-0.33,  1.95,  0.66]
   #   direction:   [ 0.00, -1.00,  0.00]
-  #   color:       [ 1.00,  0.96,  0.88]
-  #   intensity:   18
-  #   inner_angle: 16
-  #   outer_angle: 30
+  #   color:       [ 1.00,  0.97,  0.92]
+  #   intensity:   12
+  #   inner_angle: 14
+  #   outer_angle: 28
   # - type: "spot"
-  #   position:    [ 0.33,  1.97,  1.30]
+  #   position:    [ 0.33,  1.95,  1.30]
   #   direction:   [ 0.00, -1.00,  0.00]
-  #   color:       [ 1.00,  0.96,  0.88]
-  #   intensity:   18
-  #   inner_angle: 16
-  #   outer_angle: 30
-  # - type: "point"
-  #   position:    [ 0.00,  1.92,  1.00]
-  #   color:       [ 0.80,  0.85,  1.00]
-  #   intensity:   0.6
+  #   color:       [ 1.00,  0.97,  0.92]
+  #   intensity:   12
+  #   inner_angle: 14
+  #   outer_angle: 28
