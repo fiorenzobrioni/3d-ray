@@ -1,0 +1,172 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Image Texture Showcase
+#
+#  Dimostra l'uso di texture immagine su diverse primitive geometriche.
+#  Ogni primitiva usa il proprio UV mapping nativo per proiettare l'immagine.
+#
+#  PREREQUISITO: Posiziona uno o più file immagine nella cartella textures/
+#  accanto a questo file YAML. Formati supportati: PNG, JPEG, BMP, GIF, TIFF.
+#
+#  Esempio di struttura cartelle:
+#    scenes/
+#      image-texture-showcase.yaml    ← questo file
+#      textures/
+#        brick_wall.png               ← texture muro di mattoni
+#        wood_floor.jpg               ← texture pavimento in legno
+#        earth.png                    ← mappa terrestre
+#        logo.png                     ← un logo qualsiasi
+#
+#  Se un file immagine non viene trovato, il motore stampa un warning
+#  in console e usa un colore magenta di fallback (facile da individuare).
+#
+#  Render consigliato:
+#    Draft:  -w 800  -H 450  -s 16  -d 10
+#    Finale: -w 1920 -H 1080 -s 64  -d 20
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  ambient_light: [0.06, 0.06, 0.08]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.10, 0.30, 0.80]
+    horizon_color: [0.65, 0.80, 1.00]
+    ground_color:  [0.30, 0.25, 0.20]
+    sun:
+      direction: [-0.5, -0.8, -0.3]
+      color: [1.0, 0.95, 0.85]
+      intensity: 12.0
+      size: 2.5
+      falloff: 40.0
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+
+camera:
+  position: [0, 3, -8]
+  look_at: [0, 1.2, 0]
+  fov: 50
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Pavimento con texture immagine (tiling 4×4) ────────────────────────
+  - id: "pavimento"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/wood-floor.png"
+      uv_scale: [4, 4]                   # Ripete 4 volte su ogni asse
+
+  # ── Muro di mattoni ────────────────────────────────────────────────────
+  - id: "mattoni"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/brick-wall.png"
+      uv_scale: [2, 1]                   # Ripete 2× in orizzontale
+
+  # ── Terra sulla sfera (UV sferico) ─────────────────────────────────────
+  - id: "terra"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/earth.png"
+
+  # ── Logo su un quad ────────────────────────────────────────────────────
+  - id: "logo"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/logo-3dray.png"
+
+  # ── Texture immagine su metallo (riflesso + texture) ───────────────────
+  - id: "metallo_texturato"
+    type: "metal"
+    fuzz: 0.3
+    texture:
+      type: "image"
+      path: "textures/brick-wall.png"
+
+  # ── Materiali non-image per confronto ──────────────────────────────────
+  - id: "specchio"
+    type: "metal"
+    color: [0.95, 0.95, 0.97]
+    fuzz: 0.0
+
+  - id: "bianco"
+    type: "lambertian"
+    color: [0.9, 0.9, 0.9]
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════
+lights:
+  - type: "directional"
+    direction: [-0.5, -0.8, -0.3]
+    color: [1.0, 0.95, 0.85]
+    intensity: 0.10
+  - type: "point"
+    position: [-4, 5, -3]
+    color: [0.85, 0.85, 1.0]
+    intensity: 30
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ── SFERA "TERRA" — UV sferico, mostra la mappa terrestre ──────────────
+  - name: "globe"
+    type: "sphere"
+    center: [-2.5, 1.2, 0]
+    radius: 1.2
+    material: "terra"
+
+  # ── BOX TEXTURATO — UV planare per faccia, mostra mattoni ──────────────
+  - name: "cubo_mattoni"
+    type: "box"
+    scale: [1.8, 1.8, 1.8]
+    rotate: [0, 25, 0]
+    translate: [0, 0.9, 0]
+    material: "mattoni"
+
+  # ── CILINDRO — UV cylindrical, mostra la texture avvolta ───────────────
+  - name: "colonna"
+    type: "cylinder"
+    center: [2.5, 0, 0]
+    radius: 0.6
+    height: 2.4
+    material: "mattoni"
+
+  # ── QUAD con logo — UV mapping diretto, texture 1:1 ────────────────────
+  - name: "cartello_logo"
+    type: "quad"
+    q: [1.0, 2.5, 2.0]
+    u: [-2.0, 0.0, 0.0]
+    v: [0.0, 1.5, 0.0]
+    material: "logo"
+
+  # ── PARETE DI FONDO — grande quad con mattoni in tiling ────────────────
+  - name: "parete_fondo"
+    type: "quad"
+    q: [-6, 0, 4]
+    u: [12, 0, 0]
+    v: [0, 5, 0]
+    material: "mattoni"
+
+  # ── SFERA SPECCHIO — riflette le texture circostanti ───────────────────
+  - name: "specchio_sfera"
+    type: "sphere"
+    center: [0, 0.5, -2.5]
+    radius: 0.5
+    material: "specchio"
+
+  # ── SFERA METALLO TEXTURATO — combina riflessione + texture ────────────
+  - name: "metal_tex_sphere"
+    type: "sphere"
+    center: [1.5, 0.5, -2.5]
+    radius: 0.5
+    material: "metallo_texturato"

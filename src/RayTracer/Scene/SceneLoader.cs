@@ -37,6 +37,9 @@ public class SceneLoader
         var data = deserializer.Deserialize<SceneData>(yaml);
         if (data == null) throw new InvalidOperationException("Failed to parse YAML scene.");
 
+        // Scene directory for resolving relative paths (image textures, etc.)
+        var sceneDir = Path.GetDirectoryName(Path.GetFullPath(yamlPath)) ?? ".";
+
         // Materials dictionary
         var materials = new Dictionary<string, IMaterial>();
         if (data.Materials != null)
@@ -44,7 +47,7 @@ public class SceneLoader
             foreach (var m in data.Materials)
             {
                 if (m.Id == null) continue;
-                materials[m.Id] = CreateMaterial(m);
+                materials[m.Id] = CreateMaterial(m, sceneDir);
             }
         }
 
@@ -141,10 +144,10 @@ public class SceneLoader
     // Factory helpers
     // -------------------------------------------------------------------------
 
-    private static IMaterial CreateMaterial(MaterialData m)
+    private static IMaterial CreateMaterial(MaterialData m, string sceneDir)
     {
         ITexture albedo = m.Texture != null
-            ? CreateTexture(m.Texture)
+            ? CreateTexture(m.Texture, sceneDir)
             : new SolidColor(ToVector3(m.Color) ?? new Vector3(0.5f));
  
         return m.Type?.ToLowerInvariant() switch
@@ -192,31 +195,69 @@ public class SceneLoader
                                sunDir, sunColor, sunIntensity, sunSize, sunFalloff);
     }
  
-    private static ITexture CreateTexture(TextureData t)
+    private static ITexture CreateTexture(TextureData t, string sceneDir)
     {
         ITexture tex = t.Type?.ToLowerInvariant() switch
         {
             "checker" => new CheckerTexture(t.Scale,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One  : Vector3.One,
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? Vector3.Zero : Vector3.Zero),
-
+ 
             "noise" => new NoiseTexture(t.Scale),
-
+ 
             "marble" => new MarbleTexture(t.Scale,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.9f) : new Vector3(0.9f),
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.1f) : new Vector3(0.1f)),
-
+ 
             "wood" => new WoodTexture(t.Scale, t.NoiseStrength ?? 2.0f,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.85f, 0.65f, 0.40f) : new Vector3(0.85f, 0.65f, 0.40f),
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.60f, 0.40f, 0.20f) : new Vector3(0.60f, 0.40f, 0.20f)),
-
+ 
+            "image" => CreateImageTexture(t, sceneDir),
+ 
             _ => new SolidColor(t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One : Vector3.One)
         };
-
+ 
         ApplyTextureParams(tex, t);
         return tex;
     }
 
+    /// <summary>
+    /// Creates an ImageTexture from a file path specified in the YAML.
+    /// The path is resolved relative to the scene file's directory.
+    /// </summary>
+    private static ITexture CreateImageTexture(TextureData t, string sceneDir)
+    {
+        if (string.IsNullOrWhiteSpace(t.Path))
+        {
+            Console.WriteLine("[Warning] Image texture requires a 'path' field. Using fallback magenta.");
+            return new SolidColor(new Vector3(1f, 0f, 1f)); // Magenta = missing texture
+        }
+ 
+        // Resolve relative to scene directory
+        string imagePath = Path.IsPathRooted(t.Path)
+            ? t.Path
+            : Path.Combine(sceneDir, t.Path);
+ 
+        if (!File.Exists(imagePath))
+        {
+            Console.WriteLine($"[Warning] Image texture file not found: {imagePath}. Using fallback magenta.");
+            return new SolidColor(new Vector3(1f, 0f, 1f));
+        }
+ 
+        try
+        {
+            float scaleU = t.UvScale is { Count: > 0 } ? t.UvScale[0] : 1f;
+            float scaleV = t.UvScale is { Count: > 1 } ? t.UvScale[1] : scaleU;
+            return new ImageTexture(imagePath, scaleU, scaleV);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Warning] Failed to load image texture '{imagePath}': {ex.Message}. Using fallback magenta.");
+            return new SolidColor(new Vector3(1f, 0f, 1f));
+        }
+    }
+ 
     private static void ApplyTextureParams(ITexture tex, TextureData t)
     {
         if (tex is NoiseTexture nt)

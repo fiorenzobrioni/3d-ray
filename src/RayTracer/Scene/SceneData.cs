@@ -162,6 +162,20 @@ public class TextureData
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
+    /// <summary>
+    /// File path for image textures (type: "image").
+    /// Resolved relative to the scene YAML file directory.
+    /// </summary>
+    [YamlMember(Alias = "path")]
+    public string? Path { get; set; }
+ 
+    /// <summary>
+    /// UV tiling scale for image textures: [scaleU, scaleV].
+    /// Default [1, 1] = no tiling. [2, 2] = texture repeats 2× on each axis.
+    /// </summary>
+    [YamlMember(Alias = "uv_scale")]
+    public List<float>? UvScale { get; set; }
+
     [YamlMember(Alias = "colors")]
     public List<List<float>>? Colors { get; set; }
 
