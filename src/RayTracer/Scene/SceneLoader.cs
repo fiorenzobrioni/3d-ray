@@ -53,7 +53,7 @@ public class SceneLoader
 
         var ambientLight = ToVector3(data.World?.AmbientLight) ?? new Vector3(0.1f);
         var background = ToVector3(data.World?.Background) ?? new Vector3(0.5f, 0.7f, 1.0f);
-        var sky = BuildSkySettings(data.World?.Sky, background);
+        var sky = BuildSkySettings(data.World?.Sky, background, sceneDir);
  
         var objects = new List<IHittable>();
 
@@ -130,13 +130,14 @@ public class SceneLoader
             }
         }
 
-        // Default lighting when none defined
-        if (lights.Count == 0)
-        {
-            lights.Add(new DirectionalLight(new Vector3(-1, -1, -1), Vector3.One, 0.8f));
-            lights.Add(new PointLight(new Vector3(0, 10, -5), Vector3.One, 100f));
-        }
-
+    // Default lighting only when lights section is completely absent from YAML.
+    // An explicit empty list (lights: []) means "no lights" intentionally
+    // (e.g. HDRI-only or emissive-only scenes).
+    if (lights.Count == 0 && data.Lights == null)
+    {
+        lights.Add(new DirectionalLight(new Vector3(-1, -1, -1), Vector3.One, 0.8f));
+        lights.Add(new PointLight(new Vector3(0, 10, -5), Vector3.One, 100f));
+    }
         return (world, camera, lights, ambientLight, sky);
     }
 
@@ -162,20 +163,34 @@ public class SceneLoader
     
     /// <summary>
     /// Builds a <see cref="SkySettings"/> from the YAML sky section.
-    /// Falls back to flat background color for full backward compatibility.
+    /// Supports three modes: flat (background color), gradient, and HDRI.
     /// </summary>
-    private static SkySettings BuildSkySettings(SkyData? skyData, Vector3 background)
+    private static SkySettings BuildSkySettings(SkyData? skyData, Vector3 background, string sceneDir)
     {
-        // No sky section, or type is not "gradient" → legacy flat color
-        if (skyData == null || skyData.Type?.ToLowerInvariant() != "gradient")
+        if (skyData == null)
             return new SkySettings(background);
  
-        // Gradient sky — parse colors with sensible defaults
+        string skyType = skyData.Type?.ToLowerInvariant() ?? "";
+ 
+        switch (skyType)
+        {
+            case "hdri":
+                return BuildHdriSky(skyData, sceneDir);
+ 
+            case "gradient":
+                return BuildGradientSky(skyData);
+ 
+            default:
+                return new SkySettings(background);
+        }
+    }
+ 
+    private static SkySettings BuildGradientSky(SkyData skyData)
+    {
         var zenith  = ToVector3(skyData.ZenithColor)  ?? new Vector3(0.10f, 0.30f, 0.80f);
         var horizon = ToVector3(skyData.HorizonColor) ?? new Vector3(0.70f, 0.85f, 1.00f);
         var ground  = ToVector3(skyData.GroundColor)  ?? new Vector3(0.30f, 0.25f, 0.20f);
  
-        // Optional sun disk
         Vector3? sunDir = null;
         Vector3? sunColor = null;
         float sunIntensity = 10f;
@@ -195,6 +210,42 @@ public class SceneLoader
                                sunDir, sunColor, sunIntensity, sunSize, sunFalloff);
     }
  
+    private static SkySettings BuildHdriSky(SkyData skyData, string sceneDir)
+    {
+        if (string.IsNullOrWhiteSpace(skyData.Path))
+        {
+            Console.WriteLine("[Warning] HDRI sky requires a 'path' field. Falling back to flat gray.");
+            return new SkySettings(new Vector3(0.5f));
+        }
+ 
+        string hdrPath = Path.IsPathRooted(skyData.Path)
+            ? skyData.Path
+            : Path.Combine(sceneDir, skyData.Path);
+ 
+        if (!File.Exists(hdrPath))
+        {
+            Console.WriteLine($"[Warning] HDRI file not found: {hdrPath}. Falling back to flat magenta.");
+            return new SkySettings(new Vector3(1f, 0f, 1f));
+        }
+ 
+        try
+        {
+            Console.Write($"  Loading HDRI: {skyData.Path}... ");
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var (pixels, width, height) = HdrLoader.Load(hdrPath);
+            var envMap = new EnvironmentMap(pixels, width, height,
+                                            skyData.Intensity, skyData.Rotation);
+            Console.WriteLine($"done ({width}x{height}, {sw.ElapsedMilliseconds} ms)");
+            return new SkySettings(envMap);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"failed!");
+            Console.WriteLine($"[Warning] Failed to load HDRI '{hdrPath}': {ex.Message}. Falling back to flat magenta.");
+            return new SkySettings(new Vector3(1f, 0f, 1f));
+        }
+    }
+  
     private static ITexture CreateTexture(TextureData t, string sceneDir)
     {
         ITexture tex = t.Type?.ToLowerInvariant() switch

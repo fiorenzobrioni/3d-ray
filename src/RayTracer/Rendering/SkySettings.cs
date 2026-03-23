@@ -1,15 +1,16 @@
 using System.Numerics;
 using RayTracer.Core;
+using RayTracer.Textures;
 
 namespace RayTracer.Rendering;
 
 /// <summary>
 /// Encapsulates sky/environment rendering configuration.
 ///
-/// Two modes:
-///   Flat     — returns a single solid color (legacy behavior, full backward compat)
-///   Gradient — vertical lerp between horizon and zenith, with optional ground color
-///              and procedural sun disk with glow halo
+/// Three modes:
+///   Flat     — returns a single solid color (for indoor/studio scenes)
+///   Gradient — vertical lerp between horizon and zenith, with optional sun disk
+///   HDRI     — samples an equirectangular HDR environment map for IBL
 ///
 /// The sky acts as the environment light source: rays that escape the scene
 /// sample this to get their color contribution. A richer sky = richer GI.
@@ -17,7 +18,12 @@ namespace RayTracer.Rendering;
 public class SkySettings
 {
     // ── Mode ────────────────────────────────────────────────────────────────
-    public bool IsGradient { get; }
+    public enum SkyMode { Flat, Gradient, Hdri }
+    public SkyMode Mode { get; }
+
+    // Convenience properties for Program.cs / logging
+    public bool IsGradient => Mode == SkyMode.Gradient;
+    public bool IsHdri => Mode == SkyMode.Hdri;
 
     // ── Flat mode ───────────────────────────────────────────────────────────
     public Vector3 FlatColor { get; }
@@ -27,27 +33,28 @@ public class SkySettings
     public Vector3 HorizonColor { get; }
     public Vector3 GroundColor { get; }
 
-    // ── Sun disk ────────────────────────────────────────────────────────────
+    // ── Sun disk (used by gradient mode) ────────────────────────────────────
     public bool HasSun { get; }
-    public Vector3 SunDirection { get; }    // normalised, points TOWARD the sun
+    public Vector3 SunDirection { get; }
     public Vector3 SunColor { get; }
     public float SunIntensity { get; }
-    public float SunCosAngle { get; }       // cos(half angular diameter)
-    public float SunFalloff { get; }        // exponent for glow halo around disk
+    public float SunCosAngle { get; }
+    public float SunFalloff { get; }
+
+    // ── HDRI mode ───────────────────────────────────────────────────────────
+    private readonly EnvironmentMap? _envMap;
 
     // ─────────────────────────────────────────────────────────────────────────
     //  Constructors
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Flat sky — identical to the legacy behavior where <c>background</c>
-    /// was returned for every escaped ray regardless of direction.
+    /// Flat sky — single solid color for all directions.
     /// </summary>
     public SkySettings(Vector3 flatColor)
     {
-        IsGradient = false;
+        Mode = SkyMode.Flat;
         FlatColor = flatColor;
-        // Gradient fields unused but initialised to safe defaults
         ZenithColor = flatColor;
         HorizonColor = flatColor;
         GroundColor = flatColor;
@@ -66,8 +73,8 @@ public class SkySettings
         float sunSizeDeg = 3f,
         float sunFalloff = 32f)
     {
-        IsGradient = true;
-        FlatColor = horizonColor; // fallback if somehow used in flat path
+        Mode = SkyMode.Gradient;
+        FlatColor = horizonColor;
 
         ZenithColor = zenithColor;
         HorizonColor = horizonColor;
@@ -76,15 +83,25 @@ public class SkySettings
         if (sunDirection.HasValue)
         {
             HasSun = true;
-            // The YAML convention is "direction FROM which the sun shines"
-            // (same as DirectionalLight). We negate to get the direction
-            // TOWARD the sun for the dot product with the ray direction.
             SunDirection = Vector3.Normalize(-sunDirection.Value);
             SunColor = sunColor ?? Vector3.One;
             SunIntensity = sunIntensity;
             SunCosAngle = MathF.Cos(MathUtils.DegreesToRadians(sunSizeDeg * 0.5f));
             SunFalloff = sunFalloff;
         }
+    }
+
+    /// <summary>
+    /// HDRI sky — environment map loaded from an HDR image file.
+    /// </summary>
+    public SkySettings(EnvironmentMap envMap)
+    {
+        Mode = SkyMode.Hdri;
+        _envMap = envMap;
+        FlatColor = new Vector3(0.5f);
+        ZenithColor = FlatColor;
+        HorizonColor = FlatColor;
+        GroundColor = FlatColor;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -96,63 +113,47 @@ public class SkySettings
     /// </summary>
     public Vector3 Sample(Ray ray)
     {
-        if (!IsGradient)
-            return FlatColor;
+        return Mode switch
+        {
+            SkyMode.Flat     => FlatColor,
+            SkyMode.Gradient => SampleGradient(ray),
+            SkyMode.Hdri     => _envMap!.Sample(ray.Direction),
+            _                => FlatColor
+        };
+    }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Gradient sampling
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private Vector3 SampleGradient(Ray ray)
+    {
         Vector3 dir = Vector3.Normalize(ray.Direction);
         float y = dir.Y;
-
-        // ── Sky gradient ────────────────────────────────────────────────
-        //
-        // Above horizon (y > 0): lerp horizon → zenith
-        //   t=0 at horizon, t=1 at straight up
-        //
-        // Below horizon (y < 0): lerp horizon → ground
-        //   t=0 at horizon, t=1 at straight down
-        //
-        // The pow(t, 0.5) on the sky side gives a wider horizon band
-        // (the blue concentrates toward the zenith), which looks more
-        // natural than a plain linear lerp.
 
         Vector3 skyColor;
         if (y >= 0f)
         {
-            float t = MathF.Sqrt(MathF.Min(y, 1f)); // sqrt for wider horizon band
+            float t = MathF.Sqrt(MathF.Min(y, 1f));
             skyColor = Vector3.Lerp(HorizonColor, ZenithColor, t);
         }
         else
         {
-            float t = MathF.Min(-y * 4f, 1f); // quick falloff below horizon
+            float t = MathF.Min(-y * 4f, 1f);
             skyColor = Vector3.Lerp(HorizonColor, GroundColor, t);
         }
 
-        // ── Sun disk + glow halo ────────────────────────────────────────
-        //
-        // The sun has two parts:
-        //   1. Hard disk: when the ray is within the angular radius,
-        //      return the full sun color × intensity (very bright).
-        //   2. Glow halo: outside the disk, the intensity falls off as
-        //      pow(cosAngle, falloff). This creates the warm glow around
-        //      the sun that tints the surrounding sky.
-        //
-        // Both are ADDITIVE on top of the gradient, not replacing it.
-
-        if (HasSun && y > -0.05f) // sun is only visible above (or near) horizon
+        if (HasSun && y > -0.05f)
         {
             float cosAngle = Vector3.Dot(dir, SunDirection);
-
             if (cosAngle > 0f)
             {
                 if (cosAngle >= SunCosAngle)
                 {
-                    // Inside the hard disk — full brightness
                     skyColor += SunColor * SunIntensity;
                 }
                 else
                 {
-                    // Glow halo — smooth falloff
-                    // Remap cosAngle to a 0..1 range relative to the disk edge
-                    // then raise to the falloff exponent for a soft glow
                     float glow = MathF.Pow(cosAngle, SunFalloff);
                     skyColor += SunColor * SunIntensity * glow;
                 }

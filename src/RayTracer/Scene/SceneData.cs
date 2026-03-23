@@ -59,6 +59,28 @@ public class SkyData
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
  
+    /// <summary>
+    /// File path for HDRI environment maps (type: "hdri").
+    /// Supports Radiance .hdr format. Resolved relative to the scene YAML directory.
+    /// </summary>
+    [YamlMember(Alias = "path")]
+    public string? Path { get; set; }
+ 
+    /// <summary>
+    /// Brightness multiplier for the HDRI map. Default 1.0 = original exposure.
+    /// Increase to brighten the environment lighting, decrease to dim it.
+    /// </summary>
+    [YamlMember(Alias = "intensity")]
+    public float Intensity { get; set; } = 1f;
+ 
+    /// <summary>
+    /// Y-axis rotation of the HDRI environment in degrees (0–360).
+    /// Rotates the environment map around the vertical axis to align
+    /// key lighting features (sun, windows) with the scene.
+    /// </summary>
+    [YamlMember(Alias = "rotation")]
+    public float Rotation { get; set; } = 0f;
+
     /// <summary>Color at the zenith (straight up). Default: deep blue.</summary>
     [YamlMember(Alias = "zenith_color")]
     public List<float>? ZenithColor { get; set; }

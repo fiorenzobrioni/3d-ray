@@ -27,8 +27,8 @@ public class Camera
         float viewportWidth = aspectRatio * viewportHeight;
 
         _w = Vector3.Normalize(lookFrom - lookAt);
-        _u = Vector3.Normalize(Vector3.Cross(vUp, _w));
-        _v = Vector3.Cross(_w, _u);
+        _u = Vector3.Normalize(Vector3.Cross(_w, vUp));
+        _v = Vector3.Cross(_u, _w);        
 
         _origin = lookFrom;
         _horizontal = focusDist * viewportWidth * _u;

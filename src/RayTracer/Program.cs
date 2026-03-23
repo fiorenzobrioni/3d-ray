@@ -76,7 +76,13 @@ class Program
                 SceneLoader.Load(inputPath, width, height, shadowSamplesOverride);
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
             Console.WriteLine($"  Lights: {lights.Count}");
-            Console.WriteLine($"  Sky:    {(sky.IsGradient ? "gradient" + (sky.HasSun ? " + sun disk" : "") : "flat")}");
+            string skyDesc = sky.Mode switch
+            {
+                SkySettings.SkyMode.Hdri     => "HDRI environment map",
+                SkySettings.SkyMode.Gradient => "gradient" + (sky.HasSun ? " + sun disk" : ""),
+                _                            => "flat"
+            };
+            Console.WriteLine($"  Sky:    {skyDesc}");
             Console.WriteLine();
  
             // Render

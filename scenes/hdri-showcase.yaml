@@ -1,0 +1,169 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  HDRI / IBL Showcase — Environment-Lit Material Gallery
+#
+#  Dimostra l'Image-Based Lighting con environment map HDR:
+#    - Sfera specchio → riflessione nitida dell'ambiente HDRI
+#    - Sfera metallica → riflesso colorato con fuzz dell'HDRI
+#    - Sfera di vetro → rifrazione dell'ambiente attraverso il vetro
+#    - Sfera diffusa → illuminazione morbida dall'HDRI (GI naturale)
+#    - Piano riflettente → l'ambiente si riflette nel pavimento
+#
+#  PREREQUISITO: Posiziona un file .hdr nella cartella hdri/ accanto a
+#  questo YAML. File HDR equirectangolari sono scaricabili gratuitamente
+#  da https://polyhaven.com/hdris (licenza CC0).
+#
+#  Esempio di struttura cartelle:
+#    scenes/
+#      hdri-showcase.yaml          ← questo file
+#      hdri/
+#        studio_small_09_4k.hdr    ← qualsiasi HDRI equirectangolare
+#
+#  Render consigliato:
+#    Draft:  -w 800  -H 450  -s 16  -d 10
+#    Finale: -w 1920 -H 1080 -s 128 -d 30
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  ambient_light: [0.0, 0.0, 0.0]       # Zero — tutta la luce viene dall'HDRI
+  sky:
+    type: "hdri"
+    #path: "hdri/studio_small_09_4k.hdr" # Percorso relativo al file YAML
+    path: "hdri/newman_cafeteria_4k.hdr" # Percorso relativo al file YAML
+    intensity: 1.0                       # 1.0 = esposizione originale dell'HDR
+    rotation: 0                          # Gradi di rotazione Y (0–360)
+  
+#  ground:
+#    type: "infinite_plane"
+#    material: "pavimento"
+#    y: 0
+ 
+# ─────────────────────────────────────────────────────────────────────────
+#  VARIANTE: HDRI più luminoso (ambienti scuri)
+# ─────────────────────────────────────────────────────────────────────────
+# world:
+#   ambient_light: [0.0, 0.0, 0.0]
+#   sky:
+#     type: "hdri"
+#     path: "hdri/studio_small_09_4k.hdr"
+#     intensity: 2.5                     # Boost 2.5× per ambienti scuri
+#     rotation: 180                      # Ruota di 180° per cambiare la luce
+#   ground:
+#     type: "infinite_plane"
+#     material: "pavimento"
+#     y: 0
+
+camera:
+  position: [0, 1.5, -5]
+  look_at: [0, 0.8, 0]
+  fov: 50
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+
+  - id: "pavimento"
+    type: "metal"
+    color: [0.15, 0.15, 0.18]
+    fuzz: 0.4
+
+  # Specchio perfetto — riflessione HDRI nitida e completa
+  - id: "specchio"
+    type: "metal"
+    color: [0.97, 0.97, 0.98]
+    fuzz: 0.0
+
+  # Oro lucido — riflesso HDRI con tinta calda
+  - id: "oro"
+    type: "metal"
+    color: [0.85, 0.65, 0.12]
+    fuzz: 0.02
+
+  # Rame satinato — riflesso diffuso dell'HDRI
+  - id: "rame"
+    type: "metal"
+    color: [0.72, 0.42, 0.18]
+    fuzz: 0.20
+
+  # Vetro — rifrazione dell'ambiente HDRI
+  - id: "vetro"
+    type: "dielectric"
+    refraction_index: 1.52
+
+  # Diffuso bianco — riceve GI pura dall'HDRI
+  - id: "bianco"
+    type: "lambertian"
+    color: [0.85, 0.85, 0.85]
+
+  # Diffuso colorato
+  - id: "rosso"
+    type: "lambertian"
+    color: [0.75, 0.15, 0.10]
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+#
+#  Con l'HDRI come sorgente di illuminazione primaria, spesso non servono
+#  luci esplicite. L'HDRI fornisce sia l'illuminazione diretta (le zone
+#  luminose nella mappa) che quella indiretta (i rimbalzi).
+#
+#  Se la scena risulta troppo buia, aumenta sky.intensity o aggiungi
+#  una point/directional light supplementare.
+# ═══════════════════════════════════════════════════════════════════════════
+lights: []
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ── Fila principale: 5 sfere con materiali diversi ─────────────────────
+
+  # Specchio puro — mostra l'HDRI come uno specchio
+  - name: "mirror_sphere"
+    type: "sphere"
+    center: [-3.0, 0.8, 0]
+    radius: 0.8
+    material: "specchio"
+
+  # Oro — riflesso HDRI con tinta dorata
+  - name: "gold_sphere"
+    type: "sphere"
+    center: [-1.5, 0.8, 0]
+    radius: 0.8
+    material: "oro"
+
+  # Vetro — rifrange l'HDRI
+  - name: "glass_sphere"
+    type: "sphere"
+    center: [0.0, 0.8, 0]
+    radius: 0.8
+    material: "vetro"
+
+  # Rame satinato — riflesso morbido dell'HDRI
+  - name: "copper_sphere"
+    type: "sphere"
+    center: [1.5, 0.8, 0]
+    radius: 0.8
+    material: "rame"
+
+  # Diffuso bianco — illuminazione GI pura dall'HDRI
+  - name: "white_sphere"
+    type: "sphere"
+    center: [3.0, 0.8, 0]
+    radius: 0.8
+    material: "bianco"
+
+  # ── Sfere secondarie più piccole ───────────────────────────────────────
+
+  - name: "small_red"
+    type: "sphere"
+    center: [-0.8, 0.35, -1.8]
+    radius: 0.35
+    material: "rosso"
+
+  - name: "small_mirror"
+    type: "sphere"
+    center: [0.8, 0.35, -1.8]
+    radius: 0.35
+    material: "specchio"
