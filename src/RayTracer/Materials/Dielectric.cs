@@ -36,6 +36,7 @@ public class Dielectric : IMaterial
     public float DiffuseWeight => 0f;
     public float SpecularExponent => 512f;
     public float SpecularStrength => 0.6f;
+    public NormalMapTexture? NormalMap { get; set; }
 
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {

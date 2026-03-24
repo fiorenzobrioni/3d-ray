@@ -26,7 +26,7 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🚀 **Rendering Parallelo**: Sfrutta tutti i core logici della CPU tramite `Parallel.For` per una scalabilità lineare delle prestazioni.
 - 🎯 **Campionamento Stratificato**: Campionamento jittered su griglia `√N × √N` per pixel per una convergenza drasticamente più rapida rispetto al campionamento casuale puro.
 - 🎞️ **ACES Filmic Tone Mapping**: Pipeline di post-processing con curva filmica ACES e correzione gamma 2.2, per highlight naturali e colori ricchi.
-- 🌅 **Gradient Sky**: Cielo procedurale con gradiente verticale zenith→orizzonte→terreno e sun disk con glow halo configurabile. Trasforma ogni scena outdoor in un ambiente fotorealistico. Le scene indoor o da studio usano il campo `background` per un colore piatto.
+- 🌅 **Gradient Sky**: Cielo procedurale con gradiente verticale zenith→orizzonte→terreno e sun disk con glow halo configurabile. Trasforma ogni scena outdoor in un ambiente fotorealistico.
 
 ### Accelerazione
 - 📦 **BVH (Bounding Volume Hierarchy)**: Struttura di accelerazione con euristica dell'asse più lungo (SAH-inspired) per intersezioni raggio-oggetto in tempo **O(log N)**. Attivata automaticamente per scene con più di 4 oggetti.

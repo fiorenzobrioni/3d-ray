@@ -45,6 +45,14 @@ public class Sphere : IHittable
         var (u, v) = GetSphereUV(outwardNormal);
         rec.U = u;
         rec.V = v;
+
+        // Tangent points in direction of increasing U (phi).
+        Vector3 tDir = Vector3.Cross(Vector3.UnitY, outwardNormal);
+        if (tDir.LengthSquared() < 1e-4f) tDir = Vector3.UnitX;
+        rec.Tangent = Vector3.Normalize(tDir);
+        // Bitangent points in direction of increasing V (theta, downwards)
+        rec.Bitangent = Vector3.Normalize(Vector3.Cross(outwardNormal, rec.Tangent));
+
         rec.ObjectSeed = Seed;
 
         rec.Material = Material;

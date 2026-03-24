@@ -177,6 +177,40 @@ public class MaterialData
  
     [YamlMember(Alias = "texture")]
     public TextureData? Texture { get; set; }
+
+    [YamlMember(Alias = "normal_map")]
+    public NormalMapData? NormalMap { get; set; }
+}
+
+public class NormalMapData
+{
+    /// <summary>
+    /// File path for the normal map image.
+    /// Resolved relative to the scene YAML file directory.
+    /// </summary>
+    [YamlMember(Alias = "path")]
+    public string? Path { get; set; }
+ 
+    /// <summary>
+    /// Perturbation strength. 1.0 = full effect, 0.5 = subtle, 2.0 = exaggerated.
+    /// </summary>
+    [YamlMember(Alias = "strength")]
+    public float Strength { get; set; } = 1f;
+ 
+    /// <summary>
+    /// UV tiling scale for the normal map: [scaleU, scaleV].
+    /// Should match the albedo texture tiling for correct alignment.
+    /// </summary>
+    [YamlMember(Alias = "uv_scale")]
+    public List<float>? UvScale { get; set; }
+ 
+    /// <summary>
+    /// If true, inverts the Y (green) channel for DirectX-style normal maps.
+    /// Default false = OpenGL convention (Y+ up). Set to true for maps
+    /// exported from tools that use DirectX convention.
+    /// </summary>
+    [YamlMember(Alias = "flip_y")]
+    public bool FlipY { get; set; } = false;
 }
 
 public class TextureData

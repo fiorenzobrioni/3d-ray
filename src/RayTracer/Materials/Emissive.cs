@@ -44,6 +44,7 @@ public class Emissive : IMaterial
     public float DiffuseWeight => 0f;
     public float SpecularExponent => 0f;
     public float SpecularStrength => 0f;
+    public NormalMapTexture? NormalMap { get; set; }
 
     /// <summary>
     /// Emissive materials do not scatter incoming rays.

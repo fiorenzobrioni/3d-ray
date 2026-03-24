@@ -57,6 +57,9 @@ public class Disk : IHittable
         float y = Vector3.Dot(v, vAxis) / Radius;
         rec.U = (x + 1) / 2;
         rec.V = (y + 1) / 2;
+        
+        rec.Tangent = uAxis;
+        rec.Bitangent = vAxis;
 
         return true;
     }

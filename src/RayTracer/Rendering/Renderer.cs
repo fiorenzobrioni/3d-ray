@@ -3,6 +3,7 @@ using RayTracer.Core;
 using RayTracer.Geometry;
 using RayTracer.Lights;
 using RayTracer.Materials;
+using RayTracer.Textures;
 
 namespace RayTracer.Rendering;
 
@@ -130,6 +131,18 @@ public class Renderer
 
         // ── Material properties ─────────────────────────────────────────────
         IMaterial? material = rec.Material;
+
+        // ── Normal map perturbation ─────────────────────────────────────
+        // If the material has a normal map AND the hit record has valid TBN
+        // vectors, perturb the shading normal BEFORE any lighting or scatter.
+        // This affects everything: direct lighting N·L, specular N·H,
+        // scatter direction, and emission face test.
+        if (material?.NormalMap != null && rec.Tangent.LengthSquared() > 0.5f)
+        {
+            ApplyNormalMap(ref rec, material.NormalMap);
+        }
+
+
         float diffuseWeight = material?.DiffuseWeight ?? 1f;
         float specExponent = material?.SpecularExponent ?? 0f;
         float specStrength = material?.SpecularStrength ?? 0f;
@@ -299,5 +312,48 @@ public class Renderer
     private Vector3 CalculateSkyColor(Ray ray)
     {
         return _sky.Sample(ray);
+    }
+
+    /// <summary>
+    /// Perturbs the shading normal using a tangent-space normal map.
+    ///
+    /// The normal map stores normals in tangent space where (0, 0, 1)
+    /// means "unperturbed — same as the geometric normal". The TBN matrix
+    /// transforms this into world space:
+    ///
+    ///   worldNormal = T * mapNormal.X + B * mapNormal.Y + N * mapNormal.Z
+    ///
+    /// The result replaces rec.Normal, affecting all subsequent shading.
+    /// </summary>
+    private static void ApplyNormalMap(ref HitRecord rec, NormalMapTexture normalMap)
+    {
+        // Sample the normal map at the hit UV
+        Vector3 tsNormal = normalMap.SampleNormal(rec.U, rec.V);
+ 
+        Vector3 T = rec.Tangent;
+        Vector3 B = rec.Bitangent;
+        Vector3 N = rec.Normal;
+
+        // Gram-Schmidt orthogonalization to ensure T is exactly perpendicular to N.
+        T = Vector3.Normalize(T - Vector3.Dot(T, N) * N);
+        
+        // Orthogonalize B against N and T to preserve its original intended 
+        // parametric direction while making it purely orthogonal to the basis.
+        B = Vector3.Normalize(B - Vector3.Dot(B, N) * N - Vector3.Dot(B, T) * T);
+
+        // If the normal N was flipped because we hit a backface (inside of the object),
+        // we must also flip T and B to prevent the tangent space from changing handedness,
+        // which would otherwise visually invert the normal map bumps.
+        if (!rec.FrontFace)
+        {
+            T = -T;
+            B = -B;
+        }
+ 
+        Vector3 perturbedNormal = Vector3.Normalize(
+            T * tsNormal.X + B * tsNormal.Y + N * tsNormal.Z
+        );
+ 
+        rec.Normal = perturbedNormal;
     }
 }

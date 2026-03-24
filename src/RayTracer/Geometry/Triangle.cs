@@ -49,6 +49,10 @@ public class Triangle : IHittable
         rec.SetFaceNormal(ray, _normal);
         rec.U = u;
         rec.V = v;
+
+        rec.Tangent = Vector3.Normalize(V1 - V0);
+        rec.Bitangent = Vector3.Normalize(V2 - V0);
+
         rec.ObjectSeed = Seed;
         rec.Material = Material;
         return true;

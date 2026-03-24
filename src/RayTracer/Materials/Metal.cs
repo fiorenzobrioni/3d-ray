@@ -51,6 +51,7 @@ public class Metal : IMaterial
     }
 
     public float SpecularStrength => 1f - Fuzz * 0.5f; // 1.0 at fuzz=0, 0.5 at fuzz=1
+    public NormalMapTexture? NormalMap { get; set; }
 
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {

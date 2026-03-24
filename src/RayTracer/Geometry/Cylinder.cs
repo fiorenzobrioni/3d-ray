@@ -69,6 +69,13 @@ public class Cylinder : IHittable
                     rec.U = (theta + MathF.PI) / (2f * MathF.PI);
                     rec.V = (y - _yMin) / Height;
 
+                    // Tangent points in direction of increasing U (theta).
+                    Vector3 tDir = Vector3.Cross(outwardNormal, Vector3.UnitY);
+                    if (tDir.LengthSquared() < 1e-4f) tDir = Vector3.UnitX;
+                    rec.Tangent = Vector3.Normalize(tDir);
+                    // Bitangent points in direction of increasing V (height Y)
+                    rec.Bitangent = Vector3.UnitY;
+
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;
                     hitAnything = true;
@@ -102,6 +109,10 @@ public class Cylinder : IHittable
                     // Cap UV: planar projection
                     rec.U = (p.X - Center.X + Radius) / (2f * Radius);
                     rec.V = (p.Z - Center.Z + Radius) / (2f * Radius);
+
+                    // For top/bottom caps, U increases with X, V increases with Z
+                    rec.Tangent = Vector3.UnitX;
+                    rec.Bitangent = Vector3.UnitZ;
 
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;

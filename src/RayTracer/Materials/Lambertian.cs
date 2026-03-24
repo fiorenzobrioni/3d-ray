@@ -24,6 +24,7 @@ public class Lambertian : IMaterial
     public float DiffuseWeight => 1f;
     public float SpecularExponent => 0f;
     public float SpecularStrength => 0f;
+    public NormalMapTexture? NormalMap { get; set; }
 
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {

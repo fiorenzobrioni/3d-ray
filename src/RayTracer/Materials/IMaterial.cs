@@ -1,5 +1,6 @@
 using System.Numerics;
 using RayTracer.Core;
+using RayTracer.Textures;
 
 namespace RayTracer.Materials;
 
@@ -64,4 +65,22 @@ public interface IMaterial
     /// <param name="frontFace">True if the ray hit the front face of the surface.</param>
     Vector3 Emit(float u, float v, Vector3 point, int objectSeed, bool frontFace)
         => Vector3.Zero;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Normal Mapping.
+    //
+    // When non-null, the Renderer perturbs rec.Normal using the normal map
+    // BEFORE any material logic (scatter, direct lighting, emission).
+    // The normal map is sampled at the hit point's UV coordinates, the result
+    // is transformed from tangent space to world space via the TBN matrix
+    // (built from rec.Tangent, rec.Bitangent, rec.Normal), and the
+    // perturbed normal replaces rec.Normal.
+    // ─────────────────────────────────────────────────────────────────────────
+ 
+    /// <summary>
+    /// Optional normal map for surface detail. When set, the surface normal
+    /// is perturbed before any shading computation, adding visual detail
+    /// (bumps, grooves, relief) without additional geometry.
+    /// </summary>
+    NormalMapTexture? NormalMap => null;
 }

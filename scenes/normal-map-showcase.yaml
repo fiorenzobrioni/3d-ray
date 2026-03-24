@@ -1,0 +1,153 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Normal Mapping Showcase
+#
+#  Dimostra il normal mapping su diverse primitive e materiali.
+#  Scena progettata per rendere l'effetto del normal mapping inequivocabile:
+#    - Luce RADENTE da sinistra (quasi parallela alle superfici)
+#    - Oggetti grandi e piatti per massimizzare la visibilità del bump
+#    - Confronto diretto: stessa texture, metà CON e metà SENZA normal map
+#    - Strength esagerata (2.0) per rendere l'effetto ovvio
+#
+#  PREREQUISITO: Posiziona file di normal map (immagini RGB dove il blu
+#  è la componente Z della normale) nella cartella textures/ accanto
+#  a questo file YAML.
+#
+#  Se il normal mapping funziona, la metà sinistra (con bump) mostrerà
+#  ombre e highlight sulle fughe dei mattoni. La metà destra sarà piatta.
+#
+#  Le normal map possono essere scaricate da:
+#    - https://ambientcg.com (CC0, incluse normal map separate)
+#    - https://polyhaven.com/textures (CC0, set completi PBR)
+#    - https://3dtextures.me (CC0)
+#
+#  Se un file non viene trovato, la superficie rimane liscia (no bump).
+#
+#  Render consigliato:
+#    Draft:  -w 800  -H 450  -s 16  -d 10
+#    Finale: -w 1920 -H 1080 -s 64  -d 20
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  ambient_light: [0.02, 0.02, 0.03]
+  background: [0.05, 0.05, 0.08]
+
+camera:
+  position: [0, 1.5, -5]
+  look_at: [0, 1.5, 0]
+  fov: 46
+
+materials:
+
+  # ── MATTONI CON NORMAL MAP (strength esagerata) ────────────────────────
+  - id: "mattoni_bump"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/brick-wall.png"
+      uv_scale: [0.75, 0.5]
+    normal_map:
+      path: "textures/brick-wall-normal.png"
+      strength: 2
+      uv_scale: [0.75, 0.5]
+
+  # ── MATTONI SENZA NORMAL MAP (piatto, confronto) ──────────────────────
+  - id: "mattoni_piatto"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/brick-wall.png"
+      uv_scale: [0.75, 0.5]
+
+  # ── METALLO CON GRAFFI (normal map) ────────────────────────────────────
+  - id: "metallo_graffiato"
+    type: "metal"
+    color: [0.90, 0.90, 0.92]
+    fuzz: 0.03
+    normal_map:
+      path: "textures/metal-scratched-normal.png"
+      strength: 1.5
+
+  # ── METALLO LISCIO (confronto) ─────────────────────────────────────────
+  - id: "metallo_liscio"
+    type: "metal"
+    color: [0.90, 0.90, 0.92]
+    fuzz: 0.03
+
+  # ── PAVIMENTO CON BUMP ─────────────────────────────────────────────────
+  - id: "pavimento_bump"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/concrete.png"
+      uv_scale: [4, 4]
+    normal_map:
+      path: "textures/concrete-normal.png"
+      strength: 111.5
+      uv_scale: [4, 4]
+
+  - id: "bianco"
+    type: "lambertian"
+    color: [0.9, 0.9, 0.9]
+
+entities:
+
+  # ── PAVIMENTO ──────────────────────────────────────────────────────────
+  - name: "pavimento"
+    type: "quad"
+    q: [-6, 0, -3]
+    u: [12, 0, 0]
+    v: [0, 0, 8]
+    material: "pavimento_bump"
+
+  # ── PARETE SINISTRA: mattoni CON normal map ────────────────────────────
+  - name: "parete_bump"
+    type: "quad"
+    q: [-4, 0, 4]
+    u: [4, 0, 0]
+    v: [0, 4, 0]
+    material: "mattoni_bump"
+
+  # ── PARETE DESTRA: mattoni SENZA normal map ────────────────────────────
+  - name: "parete_piatta"
+    type: "quad"
+    q: [0, 0, 4]
+    u: [4, 0, 0]
+    v: [0, 4, 0]
+    material: "mattoni_piatto"
+
+  # ── Etichetta visiva: separatore tra le due metà ───────────────────────
+  - name: "separatore"
+    type: "quad"
+    q: [-0.02, 0, 3.99]
+    u: [0.04, 0, 0]
+    v: [0, 4, 0]
+    material: "bianco"
+
+  # ── SFERA sinistra: metallo CON graffi ─────────────────────────────────
+  - name: "sfera_graffiata"
+    type: "sphere"
+    center: [-2, 1.2, 1.5]
+    radius: 1.2
+    material: "metallo_graffiato"
+
+  # ── SFERA destra: metallo LISCIO ───────────────────────────────────────
+  - name: "sfera_liscia"
+    type: "sphere"
+    center: [2, 1.2, 1.5]
+    radius: 1.2
+    material: "metallo_liscio"
+
+lights:
+  # ── LUCE RADENTE da sinistra — angolo basso per esaltare il bump ───────
+  # La luce quasi parallela alla parete crea ombre nelle fughe dei mattoni
+  # e highlight sulle creste. Senza normal map: superficie piatta uniforme.
+  - type: "point"
+    position: [-8, 2.5, 1]
+    color: [1.0, 0.95, 0.85]
+    intensity: 120
+
+  # ── Luce dall'alto debolissima (fill) ──────────────────────────────────
+  - type: "point"
+    position: [0, 8, -2]
+    color: [0.7, 0.7, 0.85]
+    intensity: 15

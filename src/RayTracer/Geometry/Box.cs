@@ -72,14 +72,20 @@ public class Box : IHittable
             case 0: // X face
                 rec.U = (rec.Point.Z - Min.Z) / (Max.Z - Min.Z);
                 rec.V = (rec.Point.Y - Min.Y) / (Max.Y - Min.Y);
+                rec.Tangent = Vector3.UnitZ;
+                rec.Bitangent = Vector3.UnitY;
                 break;
             case 1: // Y face
                 rec.U = (rec.Point.X - Min.X) / (Max.X - Min.X);
                 rec.V = (rec.Point.Z - Min.Z) / (Max.Z - Min.Z);
+                rec.Tangent = Vector3.UnitX;
+                rec.Bitangent = Vector3.UnitZ;
                 break;
             default: // Z face
                 rec.U = (rec.Point.X - Min.X) / (Max.X - Min.X);
                 rec.V = (rec.Point.Y - Min.Y) / (Max.Y - Min.Y);
+                rec.Tangent = Vector3.UnitX;
+                rec.Bitangent = Vector3.UnitY;
                 break;
         }
 

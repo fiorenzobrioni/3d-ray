@@ -58,6 +58,10 @@ public class Transform : IHittable
         Vector3 worldNormal = Vector3.Normalize(Vector3.TransformNormal(rec.Normal, _normalMatrix));
         rec.SetFaceNormal(ray, worldNormal);
 
+        // Tangent and bitangent are direction vectors, they transform with the forward matrix
+        rec.Tangent = Vector3.Normalize(Vector3.TransformNormal(rec.Tangent, _transform));
+        rec.Bitangent = Vector3.Normalize(Vector3.TransformNormal(rec.Bitangent, _transform));
+
         return true;
     }
 

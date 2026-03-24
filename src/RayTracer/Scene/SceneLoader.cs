@@ -151,14 +151,67 @@ public class SceneLoader
             ? CreateTexture(m.Texture, sceneDir)
             : new SolidColor(ToVector3(m.Color) ?? new Vector3(0.5f));
  
-        return m.Type?.ToLowerInvariant() switch
+        IMaterial material = m.Type?.ToLowerInvariant() switch
         {
             "lambertian" => new Lambertian(albedo),
             "metal"      => new Metal(albedo, m.Fuzz),
             "dielectric" => new Dielectric(m.RefractionIndex, albedo),
-            "emissive"   => new Emissive(albedo, m.Intensity),   // ← NEW
+            "emissive"   => new Emissive(albedo, m.Intensity),
             _            => new Lambertian(albedo)
         };
+ 
+        // ── Normal map (optional) ───────────────────────────────────────
+        if (m.NormalMap != null)
+        {
+            var normalMap = LoadNormalMap(m.NormalMap, sceneDir);
+            if (normalMap != null)
+            {
+                // Set via the concrete type's property (all 4 materials have it)
+                switch (material)
+                {
+                    case Lambertian lam: lam.NormalMap = normalMap; break;
+                    case Metal met:      met.NormalMap = normalMap; break;
+                    case Dielectric die: die.NormalMap = normalMap; break;
+                    case Emissive emi:   emi.NormalMap = normalMap; break;
+                }
+            }
+        }
+ 
+        return material;
+    }
+ 
+    /// <summary>
+    /// Loads a normal map texture from the YAML-specified path.
+    /// </summary>
+    private static NormalMapTexture? LoadNormalMap(NormalMapData nm, string sceneDir)
+    {
+        if (string.IsNullOrWhiteSpace(nm.Path))
+        {
+            Console.WriteLine("[Warning] Normal map requires a 'path' field. Skipping.");
+            return null;
+        }
+ 
+        string mapPath = Path.IsPathRooted(nm.Path)
+            ? nm.Path
+            : Path.Combine(sceneDir, nm.Path);
+ 
+        if (!File.Exists(mapPath))
+        {
+            Console.WriteLine($"[Warning] Normal map file not found: {mapPath}. Skipping.");
+            return null;
+        }
+ 
+        try
+        {
+            float scaleU = nm.UvScale is { Count: > 0 } ? nm.UvScale[0] : 1f;
+            float scaleV = nm.UvScale is { Count: > 1 } ? nm.UvScale[1] : scaleU;
+            return new NormalMapTexture(mapPath, nm.Strength, scaleU, scaleV, nm.FlipY);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Warning] Failed to load normal map '{mapPath}': {ex.Message}. Skipping.");
+            return null;
+        }
     }
     
     /// <summary>

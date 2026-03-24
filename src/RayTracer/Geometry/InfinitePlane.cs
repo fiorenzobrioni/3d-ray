@@ -42,6 +42,9 @@ public class InfinitePlane : IHittable
         rec.U -= MathF.Floor(rec.U);
         rec.V -= MathF.Floor(rec.V);
 
+        rec.Tangent = uAxis;
+        rec.Bitangent = vAxis;
+
         rec.ObjectSeed = Seed;
         rec.Material = Material;
         return true;
