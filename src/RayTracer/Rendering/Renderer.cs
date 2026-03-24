@@ -18,11 +18,45 @@ public class Renderer
     private readonly int _samplesPerPixel;
 
     // ── Russian Roulette configuration ──────────────────────────────────────
-    // Start applying Russian Roulette after this many bounces. Before this depth
-    // all rays survive unconditionally. This avoids premature termination of
-    // important early bounces while efficiently culling deep low-energy paths.
-    private const int RussianRouletteMinBounces = 4;
-    private const float RussianRouletteMinSurvival = 0.05f;
+    //
+    // RR is scene-adaptive: the renderer detects at construction whether the
+    // scene relies primarily on indirect/emissive light (no or dim explicit
+    // lights) and adjusts the RR aggressiveness accordingly.
+    //
+    // Normal scenes (bright explicit lights):
+    //   MinBounces = 4, MinSurvival = 0.15 → max boost 7×
+    //   Direct lighting (NEE) carries most energy, indirect is correction.
+    //   Aggressive RR is fine — killed paths lose only the small indirect term.
+    //
+    // Indirect-dominant scenes (emissive-only or very dim lights):
+    //   MinBounces = 8, MinSurvival = 0.5 → max boost 2×
+    //   ALL energy comes from indirect bounces hitting emissive surfaces.
+    //   Aggressive RR kills paths BEFORE they find the emissive → dark spots.
+    //   Conservative RR lets more paths survive to find the light source.
+    //
+    private const int RR_MinBounces_Normal   = 4;
+    private const float RR_MinSurvival_Normal = 0.15f;
+
+    private const int RR_MinBounces_Indirect   = 8;
+    private const float RR_MinSurvival_Indirect = 0.5f;
+
+    // Effective values, computed at construction based on scene analysis
+    private readonly int _rrMinBounces;
+    private readonly float _rrMinSurvival;
+
+    // ── Firefly suppression ─────────────────────────────────────────────────
+    // Maximum per-sample radiance (before tone mapping). Sits just above the
+    // safety net that catches any remaining outliers from RR boost, Disney
+    // lobe compensation, specular caustics, or NaN/Inf from edge cases.
+    // Increased from 15f to 100f to prevent catastrophic energy loss on 
+    // highly emissive elements, while still removing true numerical spikes.
+    private const float MaxSampleRadiance = 100f;
+
+    // Threshold below which the scene is considered indirect-dominant.
+    // Computed as the sum of luminance of all explicit lights evaluated at
+    // the world origin. Scenes with total light power below this rely
+    // primarily on emissive geometry and sky for illumination.
+    private const float IndirectDominantThreshold = 1.0f;
 
     public Renderer(
         IHittable world,
@@ -40,6 +74,29 @@ public class Renderer
         _sky = sky;
         _samplesPerPixel = samplesPerPixel;
         _maxDepth = maxDepth;
+
+        // ── Scene analysis: detect indirect-dominant lighting ────────────
+        // Evaluate all explicit lights at the world origin to get a rough
+        // estimate of total direct light power. If this is very low, the
+        // scene relies on emissive geometry or sky → use conservative RR.
+        float totalLightPower = 0f;
+        foreach (var light in lights)
+        {
+            var (color, _, _) = light.Illuminate(Vector3.Zero);
+            totalLightPower += MathUtils.Luminance(color);
+        }
+
+        bool isIndirectDominant = totalLightPower < IndirectDominantThreshold;
+        _rrMinBounces  = isIndirectDominant ? RR_MinBounces_Indirect  : RR_MinBounces_Normal;
+        _rrMinSurvival = isIndirectDominant ? RR_MinSurvival_Indirect : RR_MinSurvival_Normal;
+
+        if (isIndirectDominant)
+        {
+            Console.WriteLine($"  Scene analysis: indirect-dominant lighting detected " +
+                              $"(light power {totalLightPower:F3}). " +
+                              $"Using conservative RR (minBounces={_rrMinBounces}, " +
+                              $"minSurvival={_rrMinSurvival:F2}).");
+        }
     }
 
     /// <summary>
@@ -75,7 +132,17 @@ public class Renderer
                         float v = (height - j - 1 + jitterV) / height;
 
                         var ray = _camera.GetRay(u, v);
-                        cumulativeColor += TraceRay(ray, _maxDepth);
+                        Vector3 sample = TraceRay(ray, _maxDepth);
+
+                        // ── Firefly suppression ────────────────────────────
+                        // Clamp individual sample radiance to prevent outliers
+                        // (caused by specular caustics, RR boosting, or lobe
+                        // probability compensation) from dominating the average.
+                        // The threshold is generous enough to preserve all
+                        // legitimate HDR detail while killing extreme spikes.
+                        sample = ClampRadiance(sample);
+
+                        cumulativeColor += sample;
                     }
                 }
 
@@ -113,6 +180,29 @@ public class Renderer
             MathF.Pow(Math.Clamp(mapped.X, 0f, 1f), invGamma),
             MathF.Pow(Math.Clamp(mapped.Y, 0f, 1f), invGamma),
             MathF.Pow(Math.Clamp(mapped.Z, 0f, 1f), invGamma));
+    }
+
+    /// <summary>
+    /// Clamps a radiance sample to suppress firefly artifacts.
+    /// Also replaces NaN/Inf values with black to prevent corruption
+    /// from propagating into the pixel accumulator.
+    /// </summary>
+    private static Vector3 ClampRadiance(Vector3 color)
+    {
+        // NaN / Inf guard — any non-finite component becomes zero.
+        if (float.IsNaN(color.X) || float.IsInfinity(color.X)) color.X = 0f;
+        if (float.IsNaN(color.Y) || float.IsInfinity(color.Y)) color.Y = 0f;
+        if (float.IsNaN(color.Z) || float.IsInfinity(color.Z)) color.Z = 0f;
+
+        // Luminance-preserving clamp — scales the entire vector down
+        // to prevent Hue-shifting heavily saturated bright highlights.
+        float lum = MathUtils.Luminance(color);
+        if (lum > MaxSampleRadiance)
+        {
+            color *= MaxSampleRadiance / lum;
+        }
+
+        return Vector3.Max(color, Vector3.Zero);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -176,9 +266,9 @@ public class Renderer
             // the estimator unbiased. This is more efficient and less biased
             // than hard-cutting at maxDepth.
             int bouncesUsed = _maxDepth - depth;
-            if (bouncesUsed >= RussianRouletteMinBounces)
+            if (bouncesUsed >= _rrMinBounces)
             {
-                float survivalProb = MathF.Max(MathUtils.Luminance(attenuation), RussianRouletteMinSurvival);
+                float survivalProb = MathF.Max(MathUtils.Luminance(attenuation), _rrMinSurvival);
                 survivalProb = MathF.Min(survivalProb, 0.95f); // Cap to avoid infinite paths
 
                 if (MathUtils.RandomFloat() > survivalProb)
@@ -186,6 +276,13 @@ public class Renderer
 
                 // Surviving path: boost energy to compensate for killed siblings
                 attenuation /= survivalProb;
+
+                // NOTE: No attenuation cap here. With scene-adaptive RR,
+                // indirect-dominant scenes use MinSurvival=0.5 (max boost 2×)
+                // and MinBounces=8, giving paths plenty of opportunity to find
+                // emissive sources. Normal scenes use MinSurvival=0.15 (max
+                // boost 7×). Any remaining extreme outliers are caught by
+                // ClampRadiance() at the end of the render loop.
             }
 
             // Skip indirect recursion for near-black materials (optimisation)
@@ -335,11 +432,15 @@ public class Renderer
         Vector3 N = rec.Normal;
 
         // Gram-Schmidt orthogonalization to ensure T is exactly perpendicular to N.
-        T = Vector3.Normalize(T - Vector3.Dot(T, N) * N);
+        Vector3 tOrt = T - Vector3.Dot(T, N) * N;
+        if (tOrt.LengthSquared() > 1e-8f)
+            T = Vector3.Normalize(tOrt);
         
         // Orthogonalize B against N and T to preserve its original intended 
         // parametric direction while making it purely orthogonal to the basis.
-        B = Vector3.Normalize(B - Vector3.Dot(B, N) * N - Vector3.Dot(B, T) * T);
+        Vector3 bOrt = B - Vector3.Dot(B, N) * N - Vector3.Dot(B, T) * T;
+        if (bOrt.LengthSquared() > 1e-8f)
+            B = Vector3.Normalize(bOrt);
 
         // If the normal N was flipped because we hit a backface (inside of the object),
         // we must also flip T and B to prevent the tangent space from changing handedness,

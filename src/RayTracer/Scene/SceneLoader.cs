@@ -160,33 +160,48 @@ public class SceneLoader
         ITexture albedo = m.Texture != null
             ? CreateTexture(m.Texture, sceneDir)
             : new SolidColor(ToVector3(m.Color) ?? new Vector3(0.5f));
-
+ 
         IMaterial material = m.Type?.ToLowerInvariant() switch
         {
             "lambertian" => new Lambertian(albedo),
             "metal"      => new Metal(albedo, m.Fuzz),
             "dielectric" => new Dielectric(m.RefractionIndex, albedo),
             "emissive"   => new Emissive(albedo, m.Intensity),
+            "disney" or "disney_bsdf" or "pbr"
+                         => new DisneyBsdf(
+                                albedo,
+                                metallic:       m.Metallic,
+                                roughness:      m.Roughness,
+                                subsurface:     m.Subsurface,
+                                specular:       m.Specular,
+                                specularTint:   m.SpecularTint,
+                                sheen:          m.Sheen,
+                                sheenTint:      m.SheenTint,
+                                clearcoat:      m.Clearcoat,
+                                clearcoatGloss: m.ClearcoatGloss,
+                                specTrans:      m.SpecTrans,
+                                ior:            m.DisneyIor),
             _            => new Lambertian(albedo)
         };
-
+ 
         // ── Normal map (optional) ────────────────────────────────────────────
         if (m.NormalMap != null)
         {
             var normalMap = LoadNormalMap(m.NormalMap, sceneDir);
             if (normalMap != null)
             {
-                // Set via the concrete type's property (all 4 materials have it)
+                // Set via the concrete type's property (all 5 materials have it)
                 switch (material)
                 {
-                    case Lambertian lam: lam.NormalMap = normalMap; break;
-                    case Metal      met: met.NormalMap = normalMap; break;
-                    case Dielectric die: die.NormalMap = normalMap; break;
-                    case Emissive   emi: emi.NormalMap = normalMap; break;
+                    case Lambertian  lam: lam.NormalMap = normalMap; break;
+                    case Metal       met: met.NormalMap = normalMap; break;
+                    case Dielectric  die: die.NormalMap = normalMap; break;
+                    case Emissive    emi: emi.NormalMap = normalMap; break;
+                    case DisneyBsdf  dis: dis.NormalMap = normalMap; break;
                 }
             }
         }
-
+ 
         return material;
     }
 

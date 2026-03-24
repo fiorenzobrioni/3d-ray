@@ -1,0 +1,319 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Disney BSDF / PBR Material Showcase
+#
+#  Dimostra la versatilità del materiale Disney BSDF unificato.
+#  Un unico tipo di materiale (type: "disney") può rappresentare:
+#    - Plastica opaca (roughness alto, metallic 0)
+#    - Metallo lucido (metallic 1, roughness basso)
+#    - Vetro colorato (spec_trans 1)
+#    - Vernice auto (clearcoat alto)
+#    - Tessuto/velluto (sheen alto)
+#    - Pelle/cera (subsurface alto)
+#    - E qualsiasi combinazione intermedia
+#
+#  Layout: 4 file da 6 sfere su un piano, illuminate da HDRI o gradient sky.
+#
+#  Render consigliato:
+#    Draft:  -w 800  -H 450  -s 32  -d 12
+#    Medio:  -w 1280 -H 720  -s 64  -d 20
+#    Finale: -w 1920 -H 1080 -s 256 -d 30
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  ambient_light: [0.03, 0.03, 0.04]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.08, 0.15, 0.45]
+    horizon_color: [0.50, 0.55, 0.70]
+    ground_color:  [0.15, 0.13, 0.12]
+    sun:
+      direction: [-0.6, -0.5, -0.8]
+      color: [1.0, 0.95, 0.88]
+      intensity: 15.0
+      size: 3.0
+      falloff: 32.0
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+
+camera:
+  position: [0, 4.5, -9]
+  look_at: [0, 1.2, 1.0]
+  fov: 52
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LUCI
+# ═══════════════════════════════════════════════════════════════════════════
+lights:
+  - type: "directional"
+    direction: [-0.6, -0.5, -0.8]
+    color: [1.0, 0.95, 0.88]
+    intensity: 0.10
+  - type: "point"
+    position: [4, 6, -4]
+    color: [0.7, 0.8, 1.0]
+    intensity: 40
+  - type: "point"
+    position: [-5, 4, -2]
+    color: [1.0, 0.85, 0.65]
+    intensity: 25
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALI
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Pavimento ──────────────────────────────────────────────────────────
+  - id: "pavimento"
+    type: "disney"
+    color: [0.25, 0.25, 0.28]
+    roughness: 0.6
+    metallic: 0.0
+    specular: 0.3
+
+  # ── Pannello etichette ─────────────────────────────────────────────────
+  - id: "pannello"
+    type: "disney"
+    color: [0.12, 0.12, 0.14]
+    roughness: 0.8
+    metallic: 0.0
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  FILA 1 (Z = 3.0) — DIELETTRICI: da plastica opaca a lucida
+  #  Varia roughness con metallic = 0
+  # ═════════════════════════════════════════════════════════════════════════
+
+  - id: "plastic_matte"
+    type: "disney"
+    color: [0.85, 0.15, 0.10]
+    roughness: 1.0
+    metallic: 0.0
+    specular: 0.5
+
+  - id: "plastic_satin"
+    type: "disney"
+    color: [0.85, 0.15, 0.10]
+    roughness: 0.6
+    metallic: 0.0
+    specular: 0.5
+
+  - id: "plastic_semi"
+    type: "disney"
+    color: [0.85, 0.15, 0.10]
+    roughness: 0.35
+    metallic: 0.0
+    specular: 0.5
+
+  - id: "plastic_glossy"
+    type: "disney"
+    color: [0.85, 0.15, 0.10]
+    roughness: 0.15
+    metallic: 0.0
+    specular: 0.5
+
+  - id: "plastic_polished"
+    type: "disney"
+    color: [0.85, 0.15, 0.10]
+    roughness: 0.05
+    metallic: 0.0
+    specular: 0.5
+
+  - id: "plastic_mirror"
+    type: "disney"
+    color: [0.85, 0.15, 0.10]
+    roughness: 0.01
+    metallic: 0.0
+    specular: 0.8
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  FILA 2 (Z = 1.5) — METALLI: vari materiali metallici
+  #  metallic = 1.0, roughness variabile
+  # ═════════════════════════════════════════════════════════════════════════
+
+  - id: "gold"
+    type: "disney"
+    color: [1.0, 0.71, 0.29]
+    metallic: 1.0
+    roughness: 0.15
+
+  - id: "copper"
+    type: "disney"
+    color: [0.95, 0.64, 0.54]
+    metallic: 1.0
+    roughness: 0.25
+
+  - id: "chrome"
+    type: "disney"
+    color: [0.95, 0.93, 0.88]
+    metallic: 1.0
+    roughness: 0.02
+
+  - id: "brushed_steel"
+    type: "disney"
+    color: [0.58, 0.57, 0.55]
+    metallic: 1.0
+    roughness: 0.45
+
+  - id: "oxidized_iron"
+    type: "disney"
+    color: [0.56, 0.29, 0.17]
+    metallic: 0.7
+    roughness: 0.65
+
+  - id: "titanium"
+    type: "disney"
+    color: [0.54, 0.50, 0.47]
+    metallic: 1.0
+    roughness: 0.10
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  FILA 3 (Z = 0.0) — EFFETTI SPECIALI: clearcoat, sheen, subsurface
+  # ═════════════════════════════════════════════════════════════════════════
+
+  - id: "car_paint"
+    type: "disney"
+    color: [0.04, 0.08, 0.55]
+    metallic: 0.0
+    roughness: 0.35
+    clearcoat: 1.0
+    clearcoat_gloss: 0.95
+
+  - id: "lacquer_red"
+    type: "disney"
+    color: [0.72, 0.05, 0.05]
+    metallic: 0.0
+    roughness: 0.2
+    clearcoat: 0.8
+    clearcoat_gloss: 0.85
+
+  - id: "velvet"
+    type: "disney"
+    color: [0.30, 0.05, 0.20]
+    metallic: 0.0
+    roughness: 0.9
+    sheen: 0.8
+    sheen_tint: 0.7
+
+  - id: "silk"
+    type: "disney"
+    color: [0.85, 0.75, 0.55]
+    metallic: 0.0
+    roughness: 0.5
+    sheen: 0.6
+    sheen_tint: 0.3
+    specular: 0.6
+
+  - id: "wax"
+    type: "disney"
+    color: [0.90, 0.82, 0.55]
+    metallic: 0.0
+    roughness: 0.5
+    subsurface: 0.8
+    specular: 0.3
+
+  - id: "skin"
+    type: "disney"
+    color: [0.85, 0.57, 0.42]
+    metallic: 0.0
+    roughness: 0.5
+    subsurface: 0.6
+    specular: 0.3
+    sheen: 0.2
+    sheen_tint: 0.5
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  FILA 4 (Z = -1.5) — TRASMISSIONE: vetri e materiali trasparenti
+  # ═════════════════════════════════════════════════════════════════════════
+
+  - id: "glass_clear"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.52
+
+  - id: "glass_green"
+    type: "disney"
+    color: [0.5, 0.95, 0.5]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.52
+
+  - id: "glass_amber"
+    type: "disney"
+    color: [0.95, 0.65, 0.15]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.52
+
+  - id: "frosted_glass"
+    type: "disney"
+    color: [0.95, 0.95, 0.98]
+    roughness: 0.3
+    spec_trans: 0.9
+    ior: 1.45
+
+  - id: "diamond"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 2.42
+
+  - id: "water_drop"
+    type: "disney"
+    color: [0.90, 0.95, 1.0]
+    roughness: 0.0
+    spec_trans: 0.95
+    ior: 1.33
+    specular: 0.5
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 1 — DIELETTRICI (roughness sweep)
+  #  Z = 3.0
+  # ─────────────────────────────────────────────────────────────────────────
+  - { name: "d1", type: "sphere", center: [-2.5, 0.7, 3.0], radius: 0.65, material: "plastic_matte" }
+  - { name: "d2", type: "sphere", center: [-1.5, 0.7, 3.0], radius: 0.65, material: "plastic_satin" }
+  - { name: "d3", type: "sphere", center: [-0.5, 0.7, 3.0], radius: 0.65, material: "plastic_semi" }
+  - { name: "d4", type: "sphere", center: [ 0.5, 0.7, 3.0], radius: 0.65, material: "plastic_glossy" }
+  - { name: "d5", type: "sphere", center: [ 1.5, 0.7, 3.0], radius: 0.65, material: "plastic_polished" }
+  - { name: "d6", type: "sphere", center: [ 2.5, 0.7, 3.0], radius: 0.65, material: "plastic_mirror" }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 2 — METALLI
+  #  Z = 1.5
+  # ─────────────────────────────────────────────────────────────────────────
+  - { name: "m1", type: "sphere", center: [-2.5, 0.7, 1.5], radius: 0.65, material: "gold" }
+  - { name: "m2", type: "sphere", center: [-1.5, 0.7, 1.5], radius: 0.65, material: "copper" }
+  - { name: "m3", type: "sphere", center: [-0.5, 0.7, 1.5], radius: 0.65, material: "chrome" }
+  - { name: "m4", type: "sphere", center: [ 0.5, 0.7, 1.5], radius: 0.65, material: "brushed_steel" }
+  - { name: "m5", type: "sphere", center: [ 1.5, 0.7, 1.5], radius: 0.65, material: "oxidized_iron" }
+  - { name: "m6", type: "sphere", center: [ 2.5, 0.7, 1.5], radius: 0.65, material: "titanium" }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 3 — EFFETTI SPECIALI (clearcoat, sheen, subsurface)
+  #  Z = 0.0
+  # ─────────────────────────────────────────────────────────────────────────
+  - { name: "e1", type: "sphere", center: [-2.5, 0.7, 0.0], radius: 0.65, material: "car_paint" }
+  - { name: "e2", type: "sphere", center: [-1.5, 0.7, 0.0], radius: 0.65, material: "lacquer_red" }
+  - { name: "e3", type: "sphere", center: [-0.5, 0.7, 0.0], radius: 0.65, material: "velvet" }
+  - { name: "e4", type: "sphere", center: [ 0.5, 0.7, 0.0], radius: 0.65, material: "silk" }
+  - { name: "e5", type: "sphere", center: [ 1.5, 0.7, 0.0], radius: 0.65, material: "wax" }
+  - { name: "e6", type: "sphere", center: [ 2.5, 0.7, 0.0], radius: 0.65, material: "skin" }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 4 — TRASMISSIONE (vetri e trasparenti)
+  #  Z = -1.5
+  # ─────────────────────────────────────────────────────────────────────────
+  - { name: "t1", type: "sphere", center: [-2.5, 0.7, -1.5], radius: 0.65, material: "glass_clear" }
+  - { name: "t2", type: "sphere", center: [-1.5, 0.7, -1.5], radius: 0.65, material: "glass_green" }
+  - { name: "t3", type: "sphere", center: [-0.5, 0.7, -1.5], radius: 0.65, material: "glass_amber" }
+  - { name: "t4", type: "sphere", center: [ 0.5, 0.7, -1.5], radius: 0.65, material: "frosted_glass" }
+  - { name: "t5", type: "sphere", center: [ 1.5, 0.7, -1.5], radius: 0.65, material: "diamond" }
+  - { name: "t6", type: "sphere", center: [ 2.5, 0.7, -1.5], radius: 0.65, material: "water_drop" }

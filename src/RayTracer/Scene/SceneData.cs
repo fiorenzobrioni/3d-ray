@@ -180,6 +180,55 @@ public class MaterialData
 
     [YamlMember(Alias = "normal_map")]
     public NormalMapData? NormalMap { get; set; }
+
+    // ── Disney BSDF parameters ──────────────────────────────────────────────
+    // Used when type = "disney" | "disney_bsdf" | "pbr".
+    // Ignored by other material types.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Metallic factor: 0 = dielectric, 1 = metal.</summary>
+    [YamlMember(Alias = "metallic")]
+    public float Metallic { get; set; } = 0f;
+
+    /// <summary>Surface roughness: 0 = mirror, 1 = perfectly diffuse.</summary>
+    [YamlMember(Alias = "roughness")]
+    public float Roughness { get; set; } = 0.5f;
+
+    /// <summary>Subsurface scattering approximation: 0 = Lambert, 1 = full subsurface.</summary>
+    [YamlMember(Alias = "subsurface")]
+    public float Subsurface { get; set; } = 0f;
+
+    /// <summary>Dielectric specular intensity (controls F0). 0.5 = standard.</summary>
+    [YamlMember(Alias = "specular")]
+    public float Specular { get; set; } = 0.5f;
+
+    /// <summary>Tints the dielectric specular towards baseColor. 0 = white, 1 = full tint.</summary>
+    [YamlMember(Alias = "specular_tint")]
+    public float SpecularTint { get; set; } = 0f;
+
+    /// <summary>Grazing-angle sheen (fabric, velvet). 0 = none, 1 = full.</summary>
+    [YamlMember(Alias = "sheen")]
+    public float Sheen { get; set; } = 0f;
+
+    /// <summary>Tints the sheen towards baseColor. 0 = white, 1 = full tint.</summary>
+    [YamlMember(Alias = "sheen_tint")]
+    public float SheenTint { get; set; } = 0.5f;
+
+    /// <summary>Second specular lobe for clear coating (car paint, lacquer). 0 = none, 1 = full.</summary>
+    [YamlMember(Alias = "clearcoat")]
+    public float Clearcoat { get; set; } = 0f;
+
+    /// <summary>Clearcoat glossiness: 1 = glossy mirror, 0 = satin.</summary>
+    [YamlMember(Alias = "clearcoat_gloss")]
+    public float ClearcoatGloss { get; set; } = 1f;
+
+    /// <summary>Specular transmission: 0 = opaque, 1 = fully transparent (glass).</summary>
+    [YamlMember(Alias = "spec_trans")]
+    public float SpecTrans { get; set; } = 0f;
+
+    /// <summary>Index of refraction for Disney specular/transmission. Default 1.5 (glass).</summary>
+    [YamlMember(Alias = "ior")]
+    public float DisneyIor { get; set; } = 1.5f;
 }
 
 public class NormalMapData

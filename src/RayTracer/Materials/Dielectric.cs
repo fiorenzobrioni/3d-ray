@@ -45,7 +45,9 @@ public class Dielectric : IMaterial
 
         Vector3 unitDirection = Vector3.Normalize(rayIn.Direction);
         float cosTheta = MathF.Min(Vector3.Dot(-unitDirection, rec.Normal), 1f);
-        float sinTheta = MathF.Sqrt(1f - cosTheta * cosTheta);
+        // Guard against negative values in Sqrt due to floating point precision
+        // when cosTheta is very slightly greater than 1.0 or less than -1.0
+        float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
 
         bool cannotRefract = ri * sinTheta > 1f;
         Vector3 direction;
