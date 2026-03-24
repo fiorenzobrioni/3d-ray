@@ -50,6 +50,12 @@ public class Triangle : IHittable
         rec.U = u;
         rec.V = v;
 
+        // Tangent and bitangent are derived from the geometric edges, consistent with the
+        // barycentric UV mapping (U along edge V0→V1, V along edge V0→V2).
+        // Limitation: these are NOT per-vertex artist UVs. Normal maps on a triangle tile
+        // along the edge vectors and cannot be oriented independently from the geometry.
+        // For mesh loading (OBJ/GLTF) with custom UV channels, per-vertex UVs and explicit
+        // tangent vectors would be needed here.
         rec.Tangent = Vector3.Normalize(V1 - V0);
         rec.Bitangent = Vector3.Normalize(V2 - V0);
 

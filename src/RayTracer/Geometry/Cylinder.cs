@@ -69,11 +69,19 @@ public class Cylinder : IHittable
                     rec.U = (theta + MathF.PI) / (2f * MathF.PI);
                     rec.V = (y - _yMin) / Height;
 
-                    // Tangent points in direction of increasing U (theta).
+                    // T = ∂P/∂θ (direction of increasing U).
+                    // Cross(outwardNormal, UnitY) gives exactly (-sin θ, 0, cos θ) = ∂P/∂θ analytically.
+                    // B = +UnitY = direction of increasing V.
+                    //
+                    // Note: this frame is geometrically left-handed (T × B = -N) because of cylindrical
+                    // winding. Fixing it would require either flipping the visual direction of one axis
+                    // (inverting bumps) or changing the UV convention. The TBN formula in ApplyNormalMap
+                    // (worldN = T*tx + B*ty + N*tz) does not assume right-handedness, so the result is
+                    // visually correct and consistent with every other primitive in the scene.
                     Vector3 tDir = Vector3.Cross(outwardNormal, Vector3.UnitY);
                     if (tDir.LengthSquared() < 1e-4f) tDir = Vector3.UnitX;
                     rec.Tangent = Vector3.Normalize(tDir);
-                    // Bitangent points in direction of increasing V (height Y)
+                    // Bitangent points in direction of increasing V (height Y).
                     rec.Bitangent = Vector3.UnitY;
 
                     rec.ObjectSeed = Seed;

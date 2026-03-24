@@ -37,14 +37,20 @@ public class NormalMapTexture
     /// Loads a normal map image from disk.
     /// </summary>
     /// <param name="imagePath">Path to the normal map file.</param>
-    /// <param name="strength">Normal perturbation strength. 1.0 = full effect, 0.0 = no effect.</param>
+    /// <param name="strength">
+    ///   Normal perturbation strength. 1.0 = full effect, 0.0 = no effect.
+    ///   Values above 1.0 amplify the XY tangent components before renormalization.
+    ///   At 2.0 the maximum bump angle from the geometric normal is ≈70°.
+    ///   At 3.0 (the cap) it reaches ≈77° — near-tangential normals may produce
+    ///   dark halos at grazing incidence. Values above 1.5 are rarely needed.
+    /// </param>
     /// <param name="scaleU">UV tiling factor on U axis.</param>
     /// <param name="scaleV">UV tiling factor on V axis.</param>
     /// <param name="flipY">If true, inverts the Y (green) channel for DirectX-style maps.</param>
     public NormalMapTexture(string imagePath, float strength = 1f,
                             float scaleU = 1f, float scaleV = 1f, bool flipY = false)
     {
-        _strength = Math.Clamp(strength, 0f, 5f);
+        _strength = Math.Clamp(strength, 0f, 3f);
         _scaleU = scaleU;
         _scaleV = scaleV;
         _flipY = flipY;
@@ -128,11 +134,15 @@ public class NormalMapTexture
         }
         else if (_strength > 1f)
         {
-            // Amplify X and Y components for stronger bumps
+            // Amplify the XY perturbation components; Z (the base normal direction)
+            // is left unchanged. After renormalization this pushes the resulting normal
+            // further away from N, deepening the apparent bumps.
+            // At strength=2 with peak map values: max bump angle ≈ 70° from geometric N.
+            // At strength=3 (the cap): ≈ 77° — use with care on glossy surfaces.
             normal.X *= _strength;
             normal.Y *= _strength;
         }
-
+        
         return Vector3.Normalize(normal);
     }
 

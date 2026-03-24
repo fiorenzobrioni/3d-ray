@@ -16,6 +16,7 @@
    - [5.2 Trasformazioni Spaziali (Offset & Rotation)](#52-trasformazioni-spaziali-offset--rotation)
    - [5.3 Randomizzazione per Oggetto](#53-randomizzazione-per-oggetto)
    - [5.4 Image Texture (Texture da File)](#54-image-texture-texture-da-file)
+   - [5.5 Normal Map](#55-normal-map)
 6. [Sezione `entities`](#6-sezione-entities)
    - [6.1 Sphere (Sfera)](#61-sphere-sfera)
    - [6.2 Box (Cubo/Parallelepipedo)](#62-box-cuboparallelepipedo)
@@ -60,24 +61,23 @@ Definisce l'ambiente globale della scena.
 
 ```yaml
 world:
-  ambient_light: [0.05, 0.05, 0.08]   # Luce di base addizionale su ogni superficie
-  background: [0.4, 0.6, 1.0]          # Colore del cielo (sorgente di luce globale)
+  ambient_light: [0.05, 0.05, 0.08]   # Luce ambiente omnidirezionale
+  background:    [0.1, 0.1, 0.15]     # Colore di sfondo (se sky è assente)
   ground:
     type: "infinite_plane"
-    material: "nome_materiale"          # Riferimento a un materiale definito sotto
-    y: 0.0                              # Altezza del piano (default: 0)
+    material: "pavimento"
+    y: 0
+  sky:
+    type: "gradient"
+    # ... vedi sotto
 ```
-
-### Parametri
 
 | Campo | Tipo | Default | Descrizione |
 |-------|------|---------|-------------|
-| `ambient_light` | `[R, G, B]` | `[0.1, 0.1, 0.1]` | Luce piatta aggiunta a ogni superficie colpita |
-| `background` | `[R, G, B]` | `[0.5, 0.7, 1.0]` | Colore del cielo piatto (per scene indoor o da studio). Ignorato se `sky` è presente |
-| `ground.type` | stringa | — | Sempre `"infinite_plane"` |
-| `ground.material` | stringa | — | ID del materiale per il terreno |
-| `ground.y` | float | `0.0` | Quota verticale del piano |
-| `sky` | oggetto | — | Configurazione del cielo procedurale (opzionale, vedi [2.1](#21-gradient-sky-e-sun-disk)) |
+| `ambient_light` | `[R, G, B]` | `[0.05, 0.05, 0.08]` | Luce omnidirezionale di fill che illumina tutte le superfici uniformemente, indipendentemente dalla direzione. |
+| `background` | `[R, G, B]` | `[0.5, 0.7, 1.0]` | Colore dei raggi che escono dalla scena senza colpire nulla. Usato solo se `sky` è assente. |
+| `ground` | oggetto | — | Piano infinito autogenerato. Richiede un `material` definito nella sezione `materials`. |
+| `sky` | oggetto | — | Configurazione del cielo. Se presente, sovrascrive `background`. Vedi sotto. |
 
 ### Come funzionano le sorgenti di illuminazione
 
@@ -134,15 +134,15 @@ Il gradient sky sostituisce il background piatto con un cielo procedurale che va
 world:
   sky:
     type: "gradient"
-    zenith_color:  [0.10, 0.30, 0.80]  # Blu profondo (dritto in alto)
-    horizon_color: [0.70, 0.85, 1.00]  # Azzurro pallido (linea d'orizzonte)
-    ground_color:  [0.30, 0.25, 0.20]  # Marrone scuro (sotto l'orizzonte)
+    zenith_color:  [0.10, 0.30, 0.80]   # Colore allo zenit (dritto in su) (blu scuro)
+    horizon_color: [0.65, 0.80, 1.00]   # Colore all'orizzonte (azzurro chiaro)
+    ground_color:  [0.30, 0.25, 0.20]   # Colore sotto l'orizzonte (marrone scuro)
     sun:
-      direction: [-0.8, -0.25, -0.5]   # Direzione DA cui arriva la luce
-      color: [1.0, 0.85, 0.5]
-      intensity: 20.0
-      size: 4.0
-      falloff: 24.0
+      direction:  [-0.5, -0.8, -0.3]    # Verso cui punta il sole (normalizzato)
+      color:      [1.0, 0.95, 0.85]
+      intensity:  12.0
+      size:       2.5                    # Raggio angolare in gradi
+      falloff:    40.0                   # Estensione del glow attorno al disco
 ```
 
 #### Parametri Sky
@@ -294,6 +294,8 @@ camera:
 
 I materiali definiscono come le superfici interagiscono con la luce.
 
+> **Normal mapping:** Qualsiasi materiale (Lambertian, Metal, Dielectric, Emissive) accetta un campo opzionale `normal_map` che aggiunge dettaglio di superficie senza geometria aggiuntiva. Vedi [sezione 5.5](#55-normal-map) per la sintassi completa.
+
 ### 4.1 Lambertian (Diffuso/Opaco)
 Materiale opaco che diffonde la luce uniformemente in tutte le direzioni.
 ```yaml
@@ -302,30 +304,60 @@ Materiale opaco che diffonde la luce uniformemente in tutte le direzioni.
     color: [0.8, 0.2, 0.1]
 ```
 
+Con texture e normal map:
+```yaml
+  - id: "muro_mattoni"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/brick-wall.png"
+      uv_scale: [2, 2]
+    normal_map:
+      path: "textures/brick-wall-normal.png"
+      strength: 1.2
+      uv_scale: [2, 2]
+```
+
 ### 4.2 Metal (Metallico/Speculare)
 Riflette la luce come uno specchio. Il parametro `fuzz` controlla la rugosità.
+
 ```yaml
-  - id: "oro"
+  - id: "argento"
     type: "metal"
-    color: [0.85, 0.65, 0.1]
-    fuzz: 0.1
+    color: [0.9, 0.9, 0.9]
+    fuzz: 0.05
 ```
+
+Con normal map per graffi e imperfezioni:
+```yaml
+  - id: "acciaio_graffiato"
+    type: "metal"
+    color: [0.85, 0.85, 0.88]
+    fuzz: 0.03
+    normal_map:
+      path: "textures/metal-scratched-normal.png"
+      strength: 1.5
+```
+
 | Campo | Tipo | Default | Descrizione |
 |-------|------|---------|-------------|
-| `fuzz` | float | `0.0` | Rugosità: 0.0=specchio perfetto, 1.0=diffusione quasi totale |
+| `color` | `[R, G, B]` | `[0.5, 0.5, 0.5]` | Colore di riflessione (tint metallico) |
+| `fuzz` | float | `0.0` | Rugosità: `0` = specchio perfetto, `1` = molto opaco |
 
 ### 4.3 Dielectric (Vetro/Trasparente)
 Materiale trasparente con rifrazione e riflesso Fresnel.
 ```yaml
   - id: "vetro"
     type: "dielectric"
-    refraction_index: 1.5
-    color: [1.0, 0.95, 0.95]
+    refraction_index: 1.52
 ```
+
 | Campo | Tipo | Default | Descrizione |
 |-------|------|---------|-------------|
-| `refraction_index` | float | `1.5` | Indice di rifrazione (1.0=aria, 1.33=acqua, 1.5=vetro, 2.42=diamante) |
-| `color` | `[R, G, B]` | `[1, 1, 1]` | Tinting del vetro (bianco=trasparente, colorato=vetro colorato) |
+| `refraction_index` | float | `1.5` | Indice di rifrazione (IOR). Vetro comune = 1.52, diamante = 2.42, acqua = 1.33, aria = 1.00029 |
+| `color` | `[R, G, B]` | `[1, 1, 1]` | Tint del vetro (es. `[0.8, 1.0, 0.8]` per vetro verde) |
+
+> Il materiale Dielectric supporta `normal_map` per simulare vetro satinato o brocche intagliate.
 
 ### 4.4 Emissive (Luminoso)
 Materiale auto-luminoso: l'oggetto emette luce propria e brilla nella scena senza bisogno di illuminazione esterna. La luce emessa si propaga tramite i rimbalzi indiretti del path tracer, illuminando naturalmente gli oggetti circostanti.
@@ -333,9 +365,9 @@ Materiale auto-luminoso: l'oggetto emette luce propria e brilla nella scena senz
 Usi tipici: neon, LED, insegne, lava, fiamme, sfere magiche, pannelli luminosi, indicatori.
 
 ```yaml
-  - id: "neon_magenta"
+  - id: "neon_blu"
     type: "emissive"
-    color: [1.0, 0.0, 0.8]
+    color: [0.2, 0.4, 1.0]
     intensity: 8.0
 ```
 
@@ -514,6 +546,148 @@ materials:
 
 ---
 
+### 5.5 Normal Map
+
+Il normal mapping perturba la normale di shading pixel per pixel usando un'immagine RGB, simulando dettaglio geometrico (fughe, graffi, rilievi, trame) senza aggiungere triangoli alla scena. L'effetto influenza tutto il calcolo di illuminazione: diffuso N·L, speculare N·H, direzione di scatter e shadow ray origin.
+
+```yaml
+materials:
+  - id: "muro_mattoni"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/brick-wall.png"
+      uv_scale: [2, 2]
+    normal_map:
+      path: "textures/brick-wall-normal.png"
+      strength: 1.0
+      uv_scale: [2, 2]
+```
+
+#### Parametri
+
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `path` | stringa | — (**obbligatorio**) | Percorso del file normal map. Relativo alla directory del file YAML. Se il file non esiste, il motore stampa un warning e continua senza normal map (superficie liscia). |
+| `strength` | float | `1.0` | Intensità della perturbazione. `0.0` = nessun effetto, `1.0` = effetto pieno, `2.0` = esagerato. Valore massimo: `3.0`. |
+| `uv_scale` | `[U, V]` | `[1, 1]` | Tiling UV. **Deve corrispondere al `uv_scale` della texture albedo** per evitare disallineamenti tra colore e bump. |
+| `flip_y` | bool | `false` | Inverte il canale verde (G). Imposta `true` per mappe DirectX-style (usate da alcuni tool come Substance Painter in modalità DirectX). Le mappe OpenGL-style (default, es. da Blender, AmbientCG, Poly Haven) non richiedono inversione. |
+
+#### Formato delle Normal Map
+
+Le normal map sono immagini RGB dove ogni canale codifica un asse del vettore normale nel tangent space:
+
+| Canale | Asse | Colore neutro (128) | Significato |
+|--------|------|----------------------|-------------|
+| **R** (Rosso) | X | Grigio medio | Inclinazione sinistra/destra |
+| **G** (Verde) | Y | Grigio medio | Inclinazione su/giù |
+| **B** (Blu) | Z | Quasi bianco (255) | Profondità (verso l'esterno) |
+
+Una normale piatta (nessuna perturbazione) corrisponde al colore RGB `(128, 128, 255)` — la tipica tinta violetto-azzurra delle normal map.
+
+> **Le normal map NON vengono corrette in gamma.** A differenza delle texture albedo che vengono convertite sRGB→lineare, le normal map contengono dati direzionali e vengono lette come valori lineari. Non applicare correzione gamma manualmente.
+
+#### Dove trovare Normal Map
+
+Normal map gratuite e CC0 (libere da royalty):
+- [ambientcg.com](https://ambientcg.com) — set PBR completi con albedo + normal + roughness
+- [polyhaven.com/textures](https://polyhaven.com/textures) — alta qualità, set 4K con tutti i canali PBR
+- [3dtextures.me](https://3dtextures.me) — vasta libreria CC0
+
+#### Generare Normal Map di Test con NormalMapGen
+
+Il progetto include il tool `NormalMapGen` che genera normal map procedurali abbinate alle texture di `TextureGen`:
+
+```powershell
+cd 3d-ray
+dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
+```
+
+Normal map generate nella cartella `scenes/textures/`:
+
+| File | Contenuto |
+|------|-----------|
+| `brick-wall-normal.png` | Mattoni: fughe incavate con bevel, superficie ruvida |
+| `wood-floor-normal.png` | Parquet: doghe, fughe, venature |
+| `wood-planks-normal.png` | Assi larghe: giunture, nodi, grana grossa |
+| `concrete-normal.png` | Cemento: pori e ondulazioni multi-frequenza |
+| `metal-scratched-normal.png` | Metallo: graffi lineari casuali |
+| `stone-cobble-normal.png` | Ciottoli: forma Voronoi irregolare |
+| `fabric-weave-normal.png` | Tessuto: trama intrecciata |
+| `tiles-normal.png` | Piastrelle: fughe con bevel |
+| `flat-normal.png` | Piatta `(128,128,255)` — test di riferimento (nessuna perturbazione) |
+
+#### Compatibilità con le Primitive
+
+Il normal mapping funziona su tutte le primitive. Il frame TBN (Tangent, Bitangent, Normal) viene calcolato internamente da ogni primitiva in base al suo UV mapping nativo, trasformato correttamente nel caso di oggetti con `scale`, `rotate`, `translate`.
+
+| Primitiva | UV mapping | Note |
+|-----------|------------|------|
+| Sphere | Sferico (lon/lat) | TBN allineato alle direzioni di phi e theta |
+| Quad | Baricentric (alpha, beta) | T lungo U, B lungo V — identico all'UV |
+| Box | Planare per faccia | T e B allineati agli assi della faccia |
+| Cylinder (corpo) | Cilindrico (theta, altezza) | T tangenziale, B verticale |
+| Cylinder (caps) | Planare | T lungo X, B lungo Z |
+| Disk | Planare locale | T e B calcolati dalla normale del disco |
+| Infinite Plane | Planare tiled | T e B da base ortonormale locale |
+| Triangle | Baricentric | T lungo edge V0→V1, B lungo V0→V2 |
+
+#### Esempi
+
+**Muro di mattoni con rilievo pronunciato:**
+```yaml
+  - id: "mattoni_rilievo"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/brick-wall.png"
+      uv_scale: [3, 2]
+    normal_map:
+      path: "textures/brick-wall-normal.png"
+      strength: 1.5
+      uv_scale: [3, 2]            # stesso uv_scale della texture albedo
+```
+
+**Metallo graffiato con riflesso:**
+```yaml
+  - id: "acciaio"
+    type: "metal"
+    color: [0.88, 0.88, 0.90]
+    fuzz: 0.02
+    normal_map:
+      path: "textures/metal-scratched-normal.png"
+      strength: 1.2
+```
+
+**Vetro satinato (normal map su dielectric):**
+```yaml
+  - id: "vetro_satinato"
+    type: "dielectric"
+    refraction_index: 1.52
+    normal_map:
+      path: "textures/concrete-normal.png"
+      strength: 0.4              # bassa intensità per effetto satinato sottile
+```
+
+**Materiale con mappa DirectX-style** (canale verde invertito):
+```yaml
+  - id: "pietra"
+    type: "lambertian"
+    color: [0.6, 0.55, 0.5]
+    normal_map:
+      path: "textures/stone-directx-normal.png"
+      strength: 1.0
+      flip_y: true               # inverte il canale G per mappe DirectX
+```
+
+> **💡 Consigli pratici:**
+> - Mantieni sempre `uv_scale` identico tra `texture` e `normal_map` per evitare disallineamento visibile tra colore e bump.
+> - Per una luce radente (quasi parallela alla superficie), l'effetto del normal mapping è massimo e le fughe/rilievi diventano molto evidenti. Per una luce frontale, l'effetto è più sottile.
+> - Il file `flat-normal.png` generato da NormalMapGen (solo `(128,128,255)`) è il test ideale: applicarlo non deve cambiare nulla nel render — verificabile visivamente.
+> - Usa `strength: 2.0`–`3.0` solo per test o effetti volutamente esagerati. Per materiali realistici, `0.8`–`1.5` dà risultati più credibili.
+
+---
+
 ## 6. Sezione `entities`
 
 Gli oggetti 3D nella scena. Ogni entità ha un `name`, un `type`, parametri specifici per la geometria e un `material` (riferimento all'id del materiale).
@@ -621,29 +795,33 @@ Piano infinito utile per pavimenti o sfondi.
 
 ### 6.8 Trasformazioni (Translate, Rotate, Scale)
 
-Ogni entità può avere trasformazioni applicate in ordine **Scale → Rotate → Translate**:
+Qualsiasi entità supporta trasformazioni opzionali:
 
 ```yaml
   - name: "cubo_ruotato"
     type: "box"
-    scale: [2, 1, 1]
-    rotate: [0, 45, 0]           # Rotazione 45° attorno a Y
-    translate: [3, 0.5, 0]
-    material: "materiale"
+    material: "legno"
+    scale:     [1.0, 2.0, 1.0]    # Prima scala
+    rotate:    [0, 45, 0]          # Poi ruota (gradi attorno agli assi X, Y, Z)
+    translate: [2, 1, 0]           # Poi trasla
 ```
+
+Le trasformazioni vengono applicate nell'ordine: **Scale → Rotate → Translate**.
 
 ### 6.9 Parametro Seed
-Ogni entità ha un seed numerico opzionale che determina la randomizzazione delle texture procedurali:
+
+Il parametro `seed` controlla la randomizzazione delle texture procedurali per ogni oggetto. Specificarlo rende il risultato **riproducibile** tra render successivi:
+
 ```yaml
-  - name: "sfera_1"
+  - name: "sfera_marmo"
     type: "sphere"
     center: [0, 1, 0]
-    radius: 1
-    seed: 42                    # Seed fisso = texture identica tra render
+    radius: 1.0
     material: "marmo_variegato"
+    seed: 42    # Seed fisso = texture identica
 ```
 
-Se `seed` non è specificato, viene generato casualmente. Usa seed fissi per risultati riproducibili.
+Se `seed` è omesso, viene generato un valore casuale ogni volta che la scena viene caricata — le venature cambiano tra render successivi.
 
 ---
 
@@ -652,32 +830,34 @@ Se `seed` non è specificato, viene generato casualmente. Usa seed fissi per ris
 Le luci esplicite della scena. Puoi combinare più tipi di luce per ottenere l'effetto desiderato.
 
 ### 7.1 Point Light (Puntiforme)
-Luce omnidirezionale da un singolo punto. L'intensità decade con il quadrato della distanza.
+Luce omnidirezionale da un singolo punto.
 ```yaml
   - type: "point"
-    position: [0, 10, -5]
-    color: [1.0, 1.0, 1.0]
-    intensity: 8
+    position: [2, 5, -3]
+    color: [1.0, 0.95, 0.85]
+    intensity: 20.0
 ```
-| Campo | Tipo | Default | Descrizione |
-|-------|------|---------|-------------|
-| `position` | `[X, Y, Z]` | `[0, 10, 0]` | Posizione della luce |
-| `color` | `[R, G, B]` | `[1, 1, 1]` | Colore |
-| `intensity` | float | `1.0` | Intensità. Valori tipici: 4–20. |
+
+| Campo | Default | Descrizione |
+|-------|---------|-------------|
+| `position` | `[0, 10, 0]` | Posizione della sorgente nello spazio |
+| `color` | `[1, 1, 1]` | Colore della luce |
+| `intensity` | `1.0` | Intensità (attenuazione quadratica con la distanza). Valori tipici: 4–30. |
 
 ### 7.2 Directional Light (Sole)
-Non ha attenuazione con la distanza.
+
 ```yaml
   - type: "directional"
-    direction: [-1, -1, -1]     # Direzione DA cui arriva la luce
-    color: [1, 1, 0.9]
-    intensity: 0.08
+    direction: [-0.5, -1.0, -0.3]
+    color: [1.0, 0.98, 0.92]
+    intensity: 0.8
 ```
-| Campo | Tipo | Default | Descrizione |
-|-------|------|---------|-------------|
-| `direction` | `[X, Y, Z]` | `[-1, -1, -1]` | Direzione della luce (viene normalizzata) |
-| `color` | `[R, G, B]` | `[1, 1, 1]` | Colore |
-| `intensity` | float | `1.0` | Intensità. Valori tipici: 0.03–0.2. |
+
+| Campo | Default | Descrizione |
+|-------|---------|-------------|
+| `direction` | `[-1, -1, -1]` | Direzione **verso cui punta** la luce (non la sorgente). Viene normalizzata internamente. |
+| `color` | `[1, 1, 1]` | Colore della luce |
+| `intensity` | `1.0` | Intensità. Senza attenuazione con la distanza — valori tipici: 0.05–0.15. |
 
 > **Alias:** Puoi usare anche `type: "sun"` come alias per `"directional"`.
 
@@ -687,21 +867,22 @@ Non ha attenuazione con la distanza.
 Luce conica con posizione e direzione. Ha un cono interno (piena intensità) e un cono esterno (sfumatura smooth). L'attenuazione angolare usa un'interpolazione quadratica tra i due coni.
 ```yaml
   - type: "spot"
-    position: [0, 8, -3]
-    direction: [0, -1, 0]       # Punta verso il basso
-    color: [1.0, 0.95, 0.9]
-    intensity: 12
-    inner_angle: 15              # Mezzo-angolo cono interno (gradi)
-    outer_angle: 30              # Mezzo-angolo cono esterno (gradi)
+    position: [0, 5, 0]
+    direction: [0, -1, 0]    # Punta verso il basso
+    color: [1.0, 0.9, 0.7]
+    intensity: 40.0
+    inner_angle: 15
+    outer_angle: 30
 ```
+
 | Campo | Tipo | Default | Descrizione |
 |-------|------|---------|-------------|
 | `position` | `[X, Y, Z]` | `[0, 10, 0]` | Posizione del faretto |
-| `direction` | `[X, Y, Z]` | `[0, -1, 0]` | Direzione verso cui punta |
+| `direction` | `[X, Y, Z]` | `[0, -1, 0]` | Direzione verso cui punta il cono |
 | `color` | `[R, G, B]` | `[1, 1, 1]` | Colore della luce |
 | `intensity` | float | `1.0` | Intensità. Valori tipici: 6–30. |
-| `inner_angle` | float | `15` | Mezzo-angolo del cono interno (piena intensità), in gradi |
-| `outer_angle` | float | `30` | Mezzo-angolo del cono esterno (sfumatura a zero), in gradi |
+| `inner_angle` | float | `15` | Angolo del cono interno (luce piena), in gradi |
+| `outer_angle` | float | `30` | Angolo del cono esterno (fade out), in gradi |
 
 > **Alias:** Puoi usare anche `type: "spotlight"`.
 
@@ -713,20 +894,21 @@ Il motore usa campionamento Monte Carlo: per ogni punto della scena vengono spar
 
 ```yaml
   - type: "area"
-    corner: [-1.0, 4.9, -1.0]  # Un angolo del rettangolo
-    u: [2.0, 0.0, 0.0]          # Primo lato (larghezza: 2 unità in X)
-    v: [0.0, 0.0, 2.0]          # Secondo lato (profondità: 2 unità in Z)
-    color: [1.0, 0.95, 0.9]
-    intensity: 40.0
+    corner: [-1.5, 4.99, -1.5]    # Un angolo del rettangolo
+    u: [3.0, 0.0, 0.0]            # Primo lato (larghezza: 3 unità in X)
+    v: [0.0, 0.0, 3.0]            # Secondo lato (profondità: 3 unità in Z)
+    color: [1.0, 0.97, 0.9]
+    intensity: 35.0
     shadow_samples: 16
 ```
+
 | Campo | Tipo | Default | Descrizione |
 |-------|------|---------|-------------|
 | `corner` | `[X, Y, Z]` | — (**obbligatorio**) | Un angolo del rettangolo luminoso |
-| `u` | `[X, Y, Z]` | — (**obbligatorio**) | Primo vettore lato (definisce larghezza e direzione) |
-| `v` | `[X, Y, Z]` | — (**obbligatorio**) | Secondo vettore lato (definisce l'altro asse) |
+| `u` | `[X, Y, Z]` | — (**obbligatorio**) | Primo vettore lato del rettangolo |
+| `v` | `[X, Y, Z]` | — (**obbligatorio**) | Secondo vettore lato del rettangolo |
 | `color` | `[R, G, B]` | `[1, 1, 1]` | Colore emesso |
-| `intensity` | float | `20.0` | Intensità totale. Valori tipici: 15–60. |
+| `intensity` | float | `1.0` | Intensità. Valori tipici: 15–60. |
 | `shadow_samples` | int | `16` | Raggi ombra per punto (default per-luce). Sovrascrivibile da CLI con `-S`. |
 
 > **Alias:** Puoi usare anche `type: "area_light"`, `type: "rect"` o `type: "rect_light"`.
@@ -784,6 +966,17 @@ Ogni pixel spara raggi nella scena. Quando un raggio colpisce una superficie, il
 Questo significa che il cielo è effettivamente una **sorgente di luce**. Se vuoi una scena dove solo le luci esplicite illuminano, devi impostare `background: [0, 0, 0]` (e non definire `sky`).
 
 Con il **gradient sky**, il colore del cielo varia in base alla direzione del raggio: azzurro dallo zenit, caldo dall'orizzonte. Questo produce un'illuminazione globale molto più ricca e naturale rispetto al background piatto — le ombre hanno una tinta azzurra (luce dal cielo) e le superfici rivolte verso l'orizzonte ricevono luce più calda.
+
+### Ordine di calcolo per ogni hit
+
+Quando un raggio colpisce una superficie, il renderer esegue questi passi nell'ordine:
+
+1. **Normal map** — se il materiale ha una `normal_map` e la primitiva ha un frame TBN valido, la normale di shading viene perturbata prima di qualsiasi altra operazione.
+2. **Emissione** — la superficie aggiunge la propria radiance emessa.
+3. **Direct lighting (NEE)** — per ogni luce nella scena, viene calcolato il contributo diffuso (N·L) e speculare (N·H) usando la normale perturbata.
+4. **Scatter (indirect)** — il materiale genera un raggio secondario nella direzione scatter, che porta la normale perturbata nel bounce successivo.
+
+Il risultato è che il normal mapping influenza l'intera pipeline: ombre più profonde nelle fughe, highlight speculari spostati, riflessi nei materiali metal perturbati correttamente.
 
 ### Combinazioni di Luci Consigliate
 
@@ -884,7 +1077,38 @@ entities:
 
 ## 9. Esempi Completi
 
-### 9.1 — Showcase Materiali (Confronto)
+### Scena Minima
+
+```yaml
+world:
+  ambient_light: [0.1, 0.1, 0.1]
+  background: [0.5, 0.7, 1.0]
+
+camera:
+  position: [0, 1, -4]
+  look_at: [0, 0, 0]
+  fov: 60
+
+materials:
+  - id: "rosso"
+    type: "lambertian"
+    color: [0.8, 0.2, 0.1]
+
+entities:
+  - name: "sfera"
+    type: "sphere"
+    center: [0, 0, 0]
+    radius: 1
+    material: "rosso"
+
+lights:
+  - type: "point"
+    position: [3, 5, -3]
+    color: [1, 1, 1]
+    intensity: 20
+```
+
+### Showcase Materiali (Confronto)
 
 Tre sfere affiancate che mostrano i tre comportamenti fisici principali: Diffuso, Metallico e Vetro.
 
@@ -925,7 +1149,60 @@ lights:
     intensity: 8
 ```
 
-### 9.2 — Scena Architettonica con Area Light e Geometrie Miste
+### Scena con Normal Map
+
+```yaml
+world:
+  ambient_light: [0.03, 0.03, 0.04]
+  background: [0.05, 0.05, 0.08]
+
+camera:
+  position: [0, 1.5, -5]
+  look_at: [0, 1.5, 0]
+  fov: 46
+
+materials:
+  - id: "muro_mattoni"
+    type: "lambertian"
+    texture:
+      type: "image"
+      path: "textures/brick-wall.png"
+      uv_scale: [2, 1.5]
+    normal_map:
+      path: "textures/brick-wall-normal.png"
+      strength: 1.2
+      uv_scale: [2, 1.5]
+
+  - id: "acciaio"
+    type: "metal"
+    color: [0.88, 0.88, 0.90]
+    fuzz: 0.02
+    normal_map:
+      path: "textures/metal-scratched-normal.png"
+      strength: 1.5
+
+entities:
+  - name: "parete"
+    type: "quad"
+    q: [-3, 0, 3]
+    u: [6, 0, 0]
+    v: [0, 3, 0]
+    material: "muro_mattoni"
+
+  - name: "sfera_metallo"
+    type: "sphere"
+    center: [0, 1.2, 0]
+    radius: 1.2
+    material: "acciaio"
+
+lights:
+  - type: "point"
+    position: [-6, 3, 0]
+    color: [1.0, 0.95, 0.85]
+    intensity: 80
+```
+
+### Scena Architettonica con Area Light e Geometrie Miste
 
 ```yaml
 world:
@@ -1027,7 +1304,7 @@ lights:
     intensity: 0.5
 ```
 
-### 9.4 — Golden Hour Landscape (Gradient Sky + Sun Disk)
+### Golden Hour Landscape (Gradient Sky + Sun Disk)
 
 Scena outdoor con cielo procedurale e sole basso. Sfere metalliche riflettono il gradiente del cielo; la sfera di vetro lo rifrange. Il sun disk è visibile nei riflessi.
 
@@ -1084,7 +1361,7 @@ lights:
     intensity: 0.03
 ```
 
-### 9.5 — HDRI Studio (Environment-Lit Materials)
+### Scena HDRI con Materiali PBR
 
 Sfere con materiali diversi illuminate esclusivamente da un environment map HDR. Nessuna luce esplicita — tutta l'illuminazione viene dalla fotografia dell'ambiente.
 
@@ -1146,10 +1423,11 @@ lights: []
 8. **Sky:** Usa `background` per interni, `sky: { type: "gradient" }` per outdoor procedurale, `sky: { type: "hdri" }` per illuminazione fotografica. Se `sky` è presente, `background` viene ignorato. Se usi il sun disk del gradient sky, allinea la `direction` con la directional light per coerenza.
 9. **Image Texture:** I percorsi in `texture: { type: "image", path: "..." }` sono relativi alla directory del file YAML della scena. File non trovato → fallback magenta visibile con warning in console.
 10. **HDRI:** Il percorso in `sky: { type: "hdri", path: "..." }` è relativo alla directory del YAML. Usa `rotation` per ruotare l'ambiente e allineare il sole/finestra con la scena. Con HDRI, usa `lights: []` per luce solo dall'environment map, oppure aggiungi luci per ombre direzionali extra.
+11. **Normal Map:** Il `uv_scale` della normal map deve coincidere con quello della texture albedo per evitare disallineamenti. File non trovato → warning in console, superficie rimane liscia. La normale piatta di riferimento è RGB `(128, 128, 255)`: usare `flat-normal.png` generata da NormalMapGen per verificare che il sistema funzioni senza perturbazioni.
 
 ### Performance
-11. **Campioni e area light:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128 -S 16`, ogni pixel lancia oltre 2000 raggi. Usa `-S 4` da CLI per il draft — non serve modificare il YAML!
-12. **Vetro e dielettrico:** I materiali dielettrici (vetro) sono i più costosi perché ogni rimbalzo può generare sia riflessione che rifrazione. Aumenta `--depth` per scene con molto vetro.
+12. **Campioni e area light:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128 -S 16`, ogni pixel lancia oltre 2000 raggi. Usa `-S 4` da CLI per il draft — non serve modificare il YAML!
+13. **Vetro e dielettrico:** I materiali dielettrici (vetro) sono i più costosi perché ogni rimbalzo può generare sia riflessione che rifrazione. Aumenta `--depth` per scene con molto vetro.
 
 ### Checklist prima del render finale
 
@@ -1164,3 +1442,6 @@ lights: []
 - [ ] Se usi gradient sky con sun disk, la `direction` è allineata con la directional light.
 - [ ] I file delle image texture e degli HDRI esistono nel percorso indicato (relativo al YAML).
 - [ ] Per scene HDRI-only o emissive-only, usa `lights: []` esplicito (non omettere la sezione).
+- [ ] Se usi `normal_map`, il `uv_scale` coincide con quello della texture albedo.
+- [ ] I file delle normal map esistono nel percorso indicato (file mancante → superficie liscia senza errore, ma visivamente sbagliato).
+- [ ] Le normal map OpenGL-style non richiedono `flip_y`; le DirectX-style richiedono `flip_y: true`.

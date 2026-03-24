@@ -46,13 +46,13 @@ public class Disk : IHittable
         rec.Material = Material;
         rec.ObjectSeed = Seed;
 
-        // Simple UV mapping for Disk: projecting to local polar coordinates
-        // We'd need a local coordinate system to do this properly, 
-        // for now we use a simpler approach or skip it if not critical.
-        // Let's implement a basic one.
+        // Planar UV mapping using a local orthonormal basis derived from the disk normal.
+        // uAxis = cross(Normal, UnitY), giving a stable "right" direction in the disk plane.
+        // vAxis = cross(Normal, uAxis), completing the right-handed basis.
+        // The hit point is projected onto these axes, normalized from [-Radius, +Radius] to [0, 1].
         Vector3 uAxis = MathF.Abs(Normal.Y) < 0.999f ? Vector3.Normalize(Vector3.Cross(Normal, Vector3.UnitY)) : Vector3.UnitX;
         Vector3 vAxis = Vector3.Cross(Normal, uAxis);
-        
+                
         float x = Vector3.Dot(v, uAxis) / Radius;
         float y = Vector3.Dot(v, vAxis) / Radius;
         rec.U = (x + 1) / 2;

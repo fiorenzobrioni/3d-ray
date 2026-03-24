@@ -23,13 +23,16 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 ## ✨ Caratteristiche Principali (Key Features)
 
 ### Rendering
-- 🚀 **Rendering Parallelo**: Sfrutta tutti i core logici della CPU tramite `Parallel.For` per una scalabilità lineare delle prestazioni.
-- 🎯 **Campionamento Stratificato**: Campionamento jittered su griglia `√N × √N` per pixel per una convergenza drasticamente più rapida rispetto al campionamento casuale puro.
-- 🎞️ **ACES Filmic Tone Mapping**: Pipeline di post-processing con curva filmica ACES e correzione gamma 2.2, per highlight naturali e colori ricchi.
-- 🌅 **Gradient Sky**: Cielo procedurale con gradiente verticale zenith→orizzonte→terreno e sun disk con glow halo configurabile. Trasforma ogni scena outdoor in un ambiente fotorealistico.
+- 🚀 **Rendering Parallelo**: sfrutta tutti i core logici della CPU tramite `Parallel.For` per una scalabilità lineare delle prestazioni.
+- 🔁 **Path Tracing** con rimbalzi multipli (configurable max depth): riflessi, rifrazioni, occlusion ambientale e color bleeding emergono naturalmente.
+- 🎯 **Next Event Estimation (NEE)**: campionamento diretto delle sorgenti di luce per convergenza più veloce. Ogni bounce testa direttamente tutte le luci nella scena.
+- 🧮 **Campionamento Stratificato**: jittered stratified sampling `√N × √N` per pixel — riduce il rumore senza aumentare i campioni totali.
+- 🎞️ **Tone Mapping ACES Filmic**: pipeline di post-processing con curva filmica ACES e correzione gamma 2.2, per highlight naturali e colori ricchi.
+- 🌅 **Gradient Sky**: cielo procedurale con gradiente verticale zenith→orizzonte→terreno e sun disk con glow halo configurabile.
+- 🌍 **HDRI / IBL**: Image-Based Lighting con environment map HDR (formato Radiance `.hdr`). Illuminazione realistica da fotografie reali, con rotazione Y-axis e moltiplicatore di intensità.
 
 ### Accelerazione
-- 📦 **BVH (Bounding Volume Hierarchy)**: Struttura di accelerazione con euristica dell'asse più lungo (SAH-inspired) per intersezioni raggio-oggetto in tempo **O(log N)**. Attivata automaticamente per scene con più di 4 oggetti.
+- 📦 **BVH (Bounding Volume Hierarchy)**: struttura di accelerazione con euristica dell'asse più lungo (SAH-inspired) per intersezioni raggio-oggetto in tempo **O(log N)**. Attivata automaticamente per scene con più di 4 oggetti.
 
 ### Primitive Geometriche
 - 🔵 **Sphere** — Sfera con UV mapping sferico
@@ -44,7 +47,7 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🎨 **Lambertian** — Diffusione opaca fisicamente corretta
 - 🪞 **Metal** — Riflessione speculare con parametro `fuzz` per rugosità superficiale
 - 💎 **Dielectric** — Rifrazione con indice IOR variabile, effetto Fresnel (Schlick), supporto tinting colore
-- 💡 **Emissive** — Materiale auto-luminoso con `color` e `intensity` configurabili. Gli oggetti emissivi brillano di luce propria e illuminano la scena tramite rimbalzi indiretti (neon, lava, LED, insegne)
+- 💡 **Emissive** — Materiale auto-luminoso con `color` e `intensity` configurabili
 
 ### Texture
 - ♟️ **Checker** — Scacchiera 3D con scala configurabile
@@ -52,11 +55,12 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🗿 **Marble** — Venature marmoree con turbolenza matematica
 - 🪵 **Wood** — Anelli di accrescimento concentrici
 - 🖼️ **Image** — Texture da file immagine (PNG, JPEG, BMP, TIFF, WebP) con bilinear filtering, conversione sRGB→lineare e tiling UV configurabile. Supporta tutti i materiali e tutte le primitive.
+- 🗺️ **Normal Map** — Perturbazione delle normali di shading tramite immagine RGB (tangent-space). Aggiunge dettaglio di superficie (fughe, graffi, rilievi) senza geometria aggiuntiva. Supportata da tutti e 4 i tipi di materiale, su tutte le primitive. Compatibile OpenGL (R=X, G=Y, B=Z) con opzione `flip_y` per mappe DirectX-style.
 
 Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzazione per-oggetto** tramite seed deterministico.
 
 ### Sistema di Trasformazione
-- 🔄 **Transform wrapper** — Scale, Rotate e Translate applicabili a qualsiasi primitiva, con trasformazione corretta delle normali via matrice inversa trasposta (gestione corretta dello scaling non uniforme).
+- 🔄 **Transform wrapper** — Scale, Rotate e Translate applicabili a qualsiasi primitiva, con trasformazione corretta delle normali via matrice inversa trasposta (gestione corretta dello scaling non uniforme) e propagazione del frame TBN per il normal mapping.
 
 ### Sistema di Illuminazione
 - 💡 **Point Light** — Luce puntiforme con attenuazione quadratica della distanza
