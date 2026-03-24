@@ -14,6 +14,13 @@ namespace RayTracer.Scene;
 public class SceneLoader
 {
     /// <summary>
+    /// Minimum number of objects before BVH construction is beneficial.
+    /// Below this threshold, linear search in HittableList is faster due to
+    /// lower overhead. Above it, O(log N) BVH traversal wins.
+    /// </summary>
+    private const int BvhThreshold = 4;
+
+    /// <summary>
     /// Loads a scene from a YAML file.
     /// </summary>
     /// <param name="yamlPath">Path to the YAML scene file.</param>
@@ -52,9 +59,9 @@ public class SceneLoader
         }
 
         var ambientLight = ToVector3(data.World?.AmbientLight) ?? new Vector3(0.1f);
-        var background = ToVector3(data.World?.Background) ?? new Vector3(0.5f, 0.7f, 1.0f);
-        var sky = BuildSkySettings(data.World?.Sky, background, sceneDir);
- 
+        var background   = ToVector3(data.World?.Background)   ?? new Vector3(0.5f, 0.7f, 1.0f);
+        var sky          = BuildSkySettings(data.World?.Sky, background, sceneDir);
+
         var objects = new List<IHittable>();
 
         // Ground plane
@@ -71,7 +78,7 @@ public class SceneLoader
         {
             foreach (var e in data.Entities)
             {
-                var mat = GetMaterial(materials, e.Material);
+                var mat      = GetMaterial(materials, e.Material);
                 var hittable = CreateEntity(e, mat);
                 if (hittable != null)
                 {
@@ -83,11 +90,13 @@ public class SceneLoader
             }
         }
 
-        // Build BVH — separate infinite planes (no finite AABB) from finite objects
+        // Build BVH — separate infinite planes (no finite AABB) from finite objects.
+        // BVH is only beneficial above BvhThreshold objects; below that the tree
+        // construction overhead exceeds the traversal savings.
         IHittable world;
-        if (objects.Count > 4)
+        if (objects.Count > BvhThreshold)
         {
-            var finiteObjects = new List<IHittable>();
+            var finiteObjects   = new List<IHittable>();
             var infiniteObjects = new List<IHittable>();
             foreach (var obj in objects)
             {
@@ -109,12 +118,12 @@ public class SceneLoader
         }
 
         // Camera
-        float aspect = (float)imageWidth / imageHeight;
-        var camData = data.Camera ?? new CameraData();
+        float aspect  = (float)imageWidth / imageHeight;
+        var camData   = data.Camera ?? new CameraData();
         var camPos    = ToVector3(camData.Position) ?? new Vector3(0, 1, -5);
         var camLookAt = ToVector3(camData.LookAt)   ?? Vector3.Zero;
         var camVup    = ToVector3(camData.Vup)       ?? Vector3.UnitY;
-        var camera = new Camera.Camera(
+        var camera    = new Camera.Camera(
             camPos, camLookAt, camVup,
             camData.Fov, aspect,
             camData.Aperture, camData.FocalDist);
@@ -130,27 +139,28 @@ public class SceneLoader
             }
         }
 
-    // Default lighting only when lights section is completely absent from YAML.
-    // An explicit empty list (lights: []) means "no lights" intentionally
-    // (e.g. HDRI-only or emissive-only scenes).
-    if (lights.Count == 0 && data.Lights == null)
-    {
-        lights.Add(new DirectionalLight(new Vector3(-1, -1, -1), Vector3.One, 0.8f));
-        lights.Add(new PointLight(new Vector3(0, 10, -5), Vector3.One, 100f));
-    }
+        // Default lighting only when lights section is completely absent from YAML.
+        // An explicit empty list (lights: []) means "no lights" intentionally
+        // (e.g. HDRI-only or emissive-only scenes).
+        if (lights.Count == 0 && data.Lights == null)
+        {
+            lights.Add(new DirectionalLight(new Vector3(-1, -1, -1), Vector3.One, 0.8f));
+            lights.Add(new PointLight(new Vector3(0, 10, -5), Vector3.One, 100f));
+        }
+
         return (world, camera, lights, ambientLight, sky);
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // Factory helpers
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
     private static IMaterial CreateMaterial(MaterialData m, string sceneDir)
     {
         ITexture albedo = m.Texture != null
             ? CreateTexture(m.Texture, sceneDir)
             : new SolidColor(ToVector3(m.Color) ?? new Vector3(0.5f));
- 
+
         IMaterial material = m.Type?.ToLowerInvariant() switch
         {
             "lambertian" => new Lambertian(albedo),
@@ -159,8 +169,8 @@ public class SceneLoader
             "emissive"   => new Emissive(albedo, m.Intensity),
             _            => new Lambertian(albedo)
         };
- 
-        // ── Normal map (optional) ───────────────────────────────────────
+
+        // ── Normal map (optional) ────────────────────────────────────────────
         if (m.NormalMap != null)
         {
             var normalMap = LoadNormalMap(m.NormalMap, sceneDir);
@@ -170,16 +180,16 @@ public class SceneLoader
                 switch (material)
                 {
                     case Lambertian lam: lam.NormalMap = normalMap; break;
-                    case Metal met:      met.NormalMap = normalMap; break;
+                    case Metal      met: met.NormalMap = normalMap; break;
                     case Dielectric die: die.NormalMap = normalMap; break;
-                    case Emissive emi:   emi.NormalMap = normalMap; break;
+                    case Emissive   emi: emi.NormalMap = normalMap; break;
                 }
             }
         }
- 
+
         return material;
     }
- 
+
     /// <summary>
     /// Loads a normal map texture from the YAML-specified path.
     /// </summary>
@@ -190,17 +200,17 @@ public class SceneLoader
             Console.WriteLine("[Warning] Normal map requires a 'path' field. Skipping.");
             return null;
         }
- 
+
         string mapPath = Path.IsPathRooted(nm.Path)
             ? nm.Path
             : Path.Combine(sceneDir, nm.Path);
- 
+
         if (!File.Exists(mapPath))
         {
             Console.WriteLine($"[Warning] Normal map file not found: {mapPath}. Skipping.");
             return null;
         }
- 
+
         try
         {
             float scaleU = nm.UvScale is { Count: > 0 } ? nm.UvScale[0] : 1f;
@@ -213,7 +223,7 @@ public class SceneLoader
             return null;
         }
     }
-    
+
     /// <summary>
     /// Builds a <see cref="SkySettings"/> from the YAML sky section.
     /// Supports three modes: flat (background color), gradient, and HDRI.
@@ -222,47 +232,42 @@ public class SceneLoader
     {
         if (skyData == null)
             return new SkySettings(background);
- 
+
         string skyType = skyData.Type?.ToLowerInvariant() ?? "";
- 
-        switch (skyType)
+
+        return skyType switch
         {
-            case "hdri":
-                return BuildHdriSky(skyData, sceneDir);
- 
-            case "gradient":
-                return BuildGradientSky(skyData);
- 
-            default:
-                return new SkySettings(background);
-        }
+            "hdri"     => BuildHdriSky(skyData, sceneDir),
+            "gradient" => BuildGradientSky(skyData),
+            _          => new SkySettings(background)
+        };
     }
- 
+
     private static SkySettings BuildGradientSky(SkyData skyData)
     {
         var zenith  = ToVector3(skyData.ZenithColor)  ?? new Vector3(0.10f, 0.30f, 0.80f);
         var horizon = ToVector3(skyData.HorizonColor) ?? new Vector3(0.70f, 0.85f, 1.00f);
         var ground  = ToVector3(skyData.GroundColor)  ?? new Vector3(0.30f, 0.25f, 0.20f);
- 
-        Vector3? sunDir = null;
-        Vector3? sunColor = null;
-        float sunIntensity = 10f;
-        float sunSize = 3f;
-        float sunFalloff = 32f;
- 
+
+        Vector3? sunDir       = null;
+        Vector3? sunColor     = null;
+        float    sunIntensity = 10f;
+        float    sunSize      = 3f;
+        float    sunFalloff   = 32f;
+
         if (skyData.Sun != null)
         {
-            sunDir = ToVector3(skyData.Sun.Direction);
-            sunColor = ToVector3(skyData.Sun.Color);
+            sunDir       = ToVector3(skyData.Sun.Direction);
+            sunColor     = ToVector3(skyData.Sun.Color);
             sunIntensity = skyData.Sun.Intensity;
-            sunSize = skyData.Sun.Size;
-            sunFalloff = skyData.Sun.Falloff;
+            sunSize      = skyData.Sun.Size;
+            sunFalloff   = skyData.Sun.Falloff;
         }
- 
+
         return new SkySettings(zenith, horizon, ground,
                                sunDir, sunColor, sunIntensity, sunSize, sunFalloff);
     }
- 
+
     private static SkySettings BuildHdriSky(SkyData skyData, string sceneDir)
     {
         if (string.IsNullOrWhiteSpace(skyData.Path))
@@ -270,17 +275,17 @@ public class SceneLoader
             Console.WriteLine("[Warning] HDRI sky requires a 'path' field. Falling back to flat gray.");
             return new SkySettings(new Vector3(0.5f));
         }
- 
+
         string hdrPath = Path.IsPathRooted(skyData.Path)
             ? skyData.Path
             : Path.Combine(sceneDir, skyData.Path);
- 
+
         if (!File.Exists(hdrPath))
         {
             Console.WriteLine($"[Warning] HDRI file not found: {hdrPath}. Falling back to flat magenta.");
             return new SkySettings(new Vector3(1f, 0f, 1f));
         }
- 
+
         try
         {
             Console.Write($"  Loading HDRI: {skyData.Path}... ");
@@ -298,7 +303,7 @@ public class SceneLoader
             return new SkySettings(new Vector3(1f, 0f, 1f));
         }
     }
-  
+
     private static ITexture CreateTexture(TextureData t, string sceneDir)
     {
         ITexture tex = t.Type?.ToLowerInvariant() switch
@@ -306,22 +311,22 @@ public class SceneLoader
             "checker" => new CheckerTexture(t.Scale,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One  : Vector3.One,
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? Vector3.Zero : Vector3.Zero),
- 
+
             "noise" => new NoiseTexture(t.Scale),
- 
+
             "marble" => new MarbleTexture(t.Scale,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.9f) : new Vector3(0.9f),
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.1f) : new Vector3(0.1f)),
- 
+
             "wood" => new WoodTexture(t.Scale, t.NoiseStrength ?? 2.0f,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.85f, 0.65f, 0.40f) : new Vector3(0.85f, 0.65f, 0.40f),
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.60f, 0.40f, 0.20f) : new Vector3(0.60f, 0.40f, 0.20f)),
- 
+
             "image" => CreateImageTexture(t, sceneDir),
- 
+
             _ => new SolidColor(t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One : Vector3.One)
         };
- 
+
         ApplyTextureParams(tex, t);
         return tex;
     }
@@ -337,18 +342,18 @@ public class SceneLoader
             Console.WriteLine("[Warning] Image texture requires a 'path' field. Using fallback magenta.");
             return new SolidColor(new Vector3(1f, 0f, 1f)); // Magenta = missing texture
         }
- 
+
         // Resolve relative to scene directory
         string imagePath = Path.IsPathRooted(t.Path)
             ? t.Path
             : Path.Combine(sceneDir, t.Path);
- 
+
         if (!File.Exists(imagePath))
         {
             Console.WriteLine($"[Warning] Image texture file not found: {imagePath}. Using fallback magenta.");
             return new SolidColor(new Vector3(1f, 0f, 1f));
         }
- 
+
         try
         {
             float scaleU = t.UvScale is { Count: > 0 } ? t.UvScale[0] : 1f;
@@ -361,7 +366,15 @@ public class SceneLoader
             return new SolidColor(new Vector3(1f, 0f, 1f));
         }
     }
- 
+
+    /// <summary>
+    /// Applies YAML-specified transform and randomization parameters to a
+    /// procedural texture after construction.
+    /// Note: <c>noise_strength</c> is supported by <c>noise</c>, <c>marble</c>,
+    /// and <c>wood</c> texture types. For <c>marble</c> and <c>wood</c> it
+    /// overrides the amplitude already baked into the constructor; for <c>noise</c>
+    /// it controls turbulence weight (0 = smooth Perlin, >0 = turbulent output).
+    /// </summary>
     private static void ApplyTextureParams(ITexture tex, TextureData t)
     {
         if (tex is NoiseTexture nt)
@@ -370,6 +383,9 @@ public class SceneLoader
             if (t.Rotation != null) nt.Rotation = ToVector3(t.Rotation) ?? Vector3.Zero;
             nt.RandomizeOffset   = t.RandomizeOffset;
             nt.RandomizeRotation = t.RandomizeRotation;
+            // FIX (ISSUE #2): noise_strength was previously ignored for type "noise".
+            // It now sets the turbulence weight: 0 = smooth Perlin, >0 = turbulent.
+            if (t.NoiseStrength.HasValue) nt.NoiseStrength = t.NoiseStrength.Value;
         }
         else if (tex is MarbleTexture mt)
         {
@@ -394,7 +410,17 @@ public class SceneLoader
         IHittable? entity = e.Type?.ToLowerInvariant() switch
         {
             "sphere"   => new Sphere(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, mat),
-            "box"      => new Box(mat),
+
+            // FIX (BUG #1): min/max corner syntax was parsed from YAML but silently
+            // ignored — the box always appeared as a unit cube at the origin.
+            // When both min and max are specified they now define the box volume
+            // directly, equivalent to scale + translate on the unit cube.
+            // Note: if min/max AND scale/translate are both specified, the outer
+            // transform in Load() is applied on top (useful for rotation).
+            "box" => e.Min != null && e.Max != null
+                     ? CreateBoxFromMinMax(e, mat)
+                     : new Box(mat),
+
             "triangle" => new Triangle(
                 ToVector3(e.V0) ?? Vector3.Zero,
                 ToVector3(e.V1) ?? Vector3.UnitX,
@@ -416,6 +442,25 @@ public class SceneLoader
         return entity;
     }
 
+    /// <summary>
+    /// Creates a Box positioned and sized according to explicit min/max corner
+    /// coordinates. Internally wraps a unit-cube Box in a Scale+Translate transform.
+    /// This allows min/max to coexist with an additional rotate in YAML — the outer
+    /// ComputeTransformMatrix() applies any extra transform on top.
+    /// </summary>
+    private static IHittable CreateBoxFromMinMax(EntityData e, IMaterial mat)
+    {
+        var min    = ToVector3(e.Min)!.Value;
+        var max    = ToVector3(e.Max)!.Value;
+        var center = (min + max) * 0.5f;
+        var size   = max - min;
+        // Scale the unit cube to the desired dimensions, then translate to center
+        var matrix = Matrix4x4.CreateScale(size) * Matrix4x4.CreateTranslation(center);
+        var box = new Box(mat);
+        box.Seed = e.Seed ?? Random.Shared.Next();
+        return new Transform(box, matrix);
+    }
+
     private static ILight? CreateLight(LightData l, int? shadowSamplesOverride)
     {
         var color = ToVector3(l.Color) ?? Vector3.One;
@@ -435,7 +480,7 @@ public class SceneLoader
                 ToVector3(l.Direction) ?? new Vector3(0, -1, 0),
                 color, l.Intensity, l.InnerAngle, l.OuterAngle),
 
-            // ── Area light ───────────────────────────────────────────────────────
+            // ── Area light ───────────────────────────────────────────────────
             // YAML fields:
             //   corner: [x, y, z]        # one corner of the rectangle
             //   u:      [x, y, z]        # first edge vector  (e.g. [2,0,0])
@@ -469,13 +514,21 @@ public class SceneLoader
                              l.Intensity, effectiveShadowSamples);
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // Utility helpers
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
+    /// <summary>
+    /// Retrieves a material by ID. Returns a default grey Lambertian if not found
+    /// and emits a console warning to help identify typos in material references.
+    /// </summary>
     private static IMaterial GetMaterial(Dictionary<string, IMaterial> dict, string? id)
     {
         if (id != null && dict.TryGetValue(id, out var mat)) return mat;
+        // FIX (ISSUE #1): silently returning a fallback made missing IDs very hard
+        // to debug. The warning makes the problem immediately visible in the console.
+        if (id != null)
+            Console.WriteLine($"[Warning] Material '{id}' not found. Using default grey Lambertian.");
         return new Lambertian(new Vector3(0.5f));
     }
 

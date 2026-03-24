@@ -161,7 +161,7 @@ Il motore parallelizza il rendering per scanline usando `Parallel.For` con `MaxD
 1. Verifica che la camera non si trovi all'interno di un oggetto solido.
 2. Controlla che siano presenti luci (`lights`) con `intensity` > 0.
 3. Verifica che `background` non sia `[0, 0, 0]` — il background agisce come sorgente di luce globale per i raggi rimbalzati.
-4. Se vuoi una scena buia illuminata solo da luci esplicite, imposta `background: [0, 0, 0]` e `ambient_light: [0, 0, 0]`, poi aggiungi luci `point` o `spot` con intensità sufficienti (tipicamente 10–100 per point, 6–30 per spot).
+4. Se vuoi una scena buia illuminata solo da luci esplicite, imposta `background: [0, 0, 0]` e `ambient_light: [0, 0, 0]`, poi aggiungi luci `point` o `spot` con intensità sufficienti. I range tipici variano con la distanza: consulta la [tabella di calibrazione nel Tutorial Scene](02-tutorial-scene.md#75--calibrazione-dellintensità) per i valori di riferimento.
 
 ### L'immagine ha zone sovraesposte (bianche)
 Il tone mapping ACES gestisce automaticamente l'HDR, ma valori di `intensity` troppo alti sulle luci possono saturare la curva. Dimezza le intensità di tutte le luci mantenendo i rapporti tra loro, poi esegui un nuovo preview.

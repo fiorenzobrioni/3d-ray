@@ -80,6 +80,9 @@ Combinazioni di luci per scolpire la forma degli oggetti.
 
 ### **Preset: Three-Point Lighting (Standard)**
 Il setup classico del cinema: Key Light (principale), Fill Light (riempimento) e Back Light (contorno).
+
+> **Nota:** I valori di intensità in questo preset assumono oggetti principali a 6–9 unità di distanza dalle luci. Con l'attenuazione quadratica, a ~8 unità `intensity: 100` eroga circa 1.6 unità di luce effettiva — appropriato come key light dominante.
+
 ```yaml
 lights:
   - type: "point"      # Key Light
@@ -113,6 +116,9 @@ lights:
 
 ### **Preset: Studio Spot (Mirror Polish)**
 Luce Spot concentrata per creare riflessi spettacolari su metallo o vetro.
+
+> **Nota — Perché `intensity: 200`:** Lo spot accumula due attenuazioni: quadratica con la distanza (~11 unità → ÷121) e conica (solo i punti nel cono interno ricevono piena intensità). `intensity: 200` compensa entrambe producendo il classico highlight spettacolare "a puntino" su superfici metalliche o vetrose. Per scene a distanze diverse, scala proporzionalmente a `d²`.
+
 ```yaml
 lights:
   - type: "spot"
@@ -139,7 +145,9 @@ lights:
 ```
 
 ### **Preset: Moonlight (Luce Lunare)**
-Atmosfera notturna fredda con ombre molto allungate.
+Atmosfera notturna fredda con ombre molto allungate. La luna è molto più debole del sole ma,
+come unica sorgente in una scena notturna scura, `intensity: 0.4` produce un'illuminazione
+sottile e credibile senza sovraesporre.
 ```yaml
 lights:
   - type: "directional"
@@ -442,6 +450,9 @@ materials:
     fuzz: 0.1
 
 lights:
+  # intensity: 2 — valore alto intenzionale: la directional è l'unica sorgente
+  # di questa scena outdoor drammatica. Senza attenuazione con la distanza,
+  # deve compensare da sola per illuminare l'intera superficie.
   - type: "directional"
     direction: [-1, -0.2, -1]
     color: [1, 0.4, 0.1]

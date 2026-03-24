@@ -286,7 +286,9 @@ camera:
 | `vup` | `[X, Y, Z]` | `[0, 1, 0]` | Vettore verso l'alto. Cambialo per inclinare la camera (Dutch angle). |
 | `fov` | float | `60` | Campo visivo verticale in gradi. 30°=teleobiettivo, 60°=standard, 90°=grandangolo. |
 | `aperture` | float | `0.0` | Diametro dell'apertura della lente. 0.0 = tutto a fuoco (pinhole). Valori > 0 producono depth of field. |
-| `focal_dist` | float | `1.0` | Distanza dal punto di vista al piano di messa a fuoco. Gli oggetti a questa distanza saranno nitidi. |
+| `focal_dist` | float | `1.0` | Distanza dal piano di fuoco (in unità di scena). |
+
+> **⚠️ Importante — Depth of Field:** Il valore di default `focal_dist: 1.0` è valido solo se `aperture: 0` (tutto a fuoco). Appena `aperture > 0`, il piano di fuoco si trova a 1 unità dalla camera — tipicamente dentro o vicinissimo agli oggetti, producendo bokeh estremo non intenzionale. **Misura la distanza camera→soggetto** e usala come `focal_dist`. Esempio: camera in `[0, 2, -8]`, soggetto in `[0, 1, 0]` → distanza ≈ `8.1` → `focal_dist: 8.1`.
 
 ---
 
@@ -938,11 +940,12 @@ Il motore usa campionamento Monte Carlo: per ogni punto della scena vengono spar
 
 | Tipo luce | Range consigliato | Note |
 |-----------|-------------------|------|
-| `point` generica | 4 – 20 | Scala con il quadrato della distanza: raddoppiare la distanza richiede ×4 l'intensità |
+| `point` generica | 4 – 30 | Scala con il quadrato della distanza: raddoppiare la distanza richiede ×4 l'intensità |
 | `spot` key light | 15 – 30 | Valori più alti per coni stretti (`inner_angle` < 15°) |
 | `spot` fill / rim | 5 – 15 | Tipicamente 1/3 – 1/2 della key |
 | `point` accent / bounce | 0.5 – 2 | Luci di dettaglio, quasi invisibili da sole |
-| `directional` (sole) | 0.05 – 0.15 | Non ha attenuazione con la distanza: valori bassi bastano |
+| `directional` fill / multi-luce | 0.05 – 0.15 | Sorgente secondaria in scene con più luci |
+| `directional` luce principale | 0.3 – 2.0 | Come unica luce outdoor (tramonto, luna): valori più alti compensano l'assenza di altre sorgenti |
 | `area` pannello | 20 – 60 | Dipende dall'area del rettangolo e dalla distanza dalla scena |
 
 #### Workflow di calibrazione
@@ -1146,7 +1149,8 @@ entities:
 lights:
   - type: "point"
     position: [0, 8, -5]
-    intensity: 8
+    color: [1, 1, 1]
+    intensity: 60
 ```
 
 ### Scena con Normal Map
