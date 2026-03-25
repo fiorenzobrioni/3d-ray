@@ -162,4 +162,52 @@ public class SkySettings
 
         return skyColor;
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Direct Sampling (Next Event Estimation)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public bool CanSampleDirectly => IsHdri || HasSun;
+
+    /// <summary>
+    /// Samples a random direction towards a bright part of the sky (HDRI or Sun).
+    /// </summary>
+    /// <returns>The sampled direction, the unbounded radiance of that direction (Color/Intensity), and the PDF.</returns>
+    public (Vector3 Direction, Vector3 Color, float Pdf) SampleDirectly()
+    {
+        if (IsHdri && _envMap != null)
+        {
+            var (dir, pdf) = _envMap.SampleDirection();
+            return (dir, _envMap.Sample(dir), pdf);
+        }
+        else if (HasSun)
+        {
+            // Sample uniformly within the sun's cone
+            float z = 1f - MathUtils.RandomFloat() * (1f - SunCosAngle);
+            float sinTheta = MathF.Sqrt(1f - z * z);
+            float phi = 2f * MathF.PI * MathUtils.RandomFloat();
+            float x = MathF.Cos(phi) * sinTheta;
+            float y = MathF.Sin(phi) * sinTheta;
+
+            // Local basis around SunDirection (points FROM scene TO sun)
+            Vector3 w = SunDirection; // Already a normalized vector pointing to the sun
+            Vector3 u = Vector3.Normalize(Vector3.Cross(MathF.Abs(w.X) > 0.1f ? Vector3.UnitY : Vector3.UnitX, w));
+            Vector3 v = Vector3.Cross(w, u);
+            
+            Vector3 dir = Vector3.Normalize(x * u + y * v + z * w);
+
+            float solidAngle = 2f * MathF.PI * (1f - SunCosAngle);
+            float pdf = solidAngle > 0f ? 1f / solidAngle : 1f;
+
+            // Wait, we also need to account for atmospheric scattering / gradient color at that direction
+            // but for a small sun, SunColor * SunIntensity is 99% of the radiance.
+            // Let's just evaluate the full sky at that direction!
+            return (dir, SampleGradient(new Ray(Vector3.Zero, dir)), pdf);
+        }
+
+        // Fallback (Uniform sampling of hemisphere) - actually unused if CanSampleDirectly is checked
+        Vector3 randomDir = MathUtils.RandomUnitVector();
+        if (randomDir.Y < 0) randomDir.Y = -randomDir.Y;
+        return (randomDir, FlatColor, 1f / (2f * MathF.PI));
+    }
 }

@@ -7,7 +7,7 @@ namespace RayTracer.Geometry;
 /// <summary>
 /// A flat disk primitive defined by a center, a normal, and a radius.
 /// </summary>
-public class Disk : IHittable
+public class Disk : IHittable, ISamplable
 {
     public Vector3 Center { get; }
     public Vector3 Normal { get; }
@@ -62,6 +62,22 @@ public class Disk : IHittable
         rec.Bitangent = vAxis;
 
         return true;
+    }
+
+    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    {
+        float r1 = MathUtils.RandomFloat();
+        float r2 = MathUtils.RandomFloat();
+        float r = MathF.Sqrt(r1) * Radius;
+        float theta = r2 * 2f * MathF.PI;
+
+        Vector3 uAxis = MathF.Abs(Normal.Y) < 0.999f ? Vector3.Normalize(Vector3.Cross(Normal, Vector3.UnitY)) : Vector3.UnitX;
+        Vector3 vAxis = Vector3.Cross(Normal, uAxis);
+
+        Vector3 point = Center + r * MathF.Cos(theta) * uAxis + r * MathF.Sin(theta) * vAxis;
+        float area = MathF.PI * Radius * Radius;
+        
+        return (point, Normal, area);
     }
 
     public int Seed { get; set; }

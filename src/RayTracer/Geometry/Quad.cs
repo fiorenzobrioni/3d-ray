@@ -7,7 +7,7 @@ namespace RayTracer.Geometry;
 /// <summary>
 /// A quadrilateral (parallelogram) primitive defined by an origin Q and two vectors U, V.
 /// </summary>
-public class Quad : IHittable
+public class Quad : IHittable, ISamplable
 {
     public Vector3 Q { get; }
     public Vector3 U { get; }
@@ -66,6 +66,15 @@ public class Quad : IHittable
         rec.ObjectSeed = Seed;
 
         return true;
+    }
+
+    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    {
+        float u = MathUtils.RandomFloat();
+        float v = MathUtils.RandomFloat();
+        Vector3 point = Q + u * U + v * V;
+        float area = Vector3.Cross(U, V).Length();
+        return (point, _normal, area);
     }
 
     public int Seed { get; set; }

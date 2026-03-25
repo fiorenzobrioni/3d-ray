@@ -4,7 +4,7 @@ using RayTracer.Materials;
 
 namespace RayTracer.Geometry;
 
-public class Sphere : IHittable
+public class Sphere : IHittable, ISamplable
 {
     public Vector3 Center { get; }
     public float Radius { get; }
@@ -57,6 +57,13 @@ public class Sphere : IHittable
 
         rec.Material = Material;
         return true;
+    }
+
+    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    {
+        Vector3 p = MathUtils.RandomUnitVector();
+        float area = 4f * MathF.PI * Radius * Radius;
+        return (Center + p * Radius, p, area);
     }
 
     public int Seed { get; set; }

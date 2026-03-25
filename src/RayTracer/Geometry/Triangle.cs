@@ -7,7 +7,7 @@ namespace RayTracer.Geometry;
 /// <summary>
 /// Triangle primitive using the Möller–Trumbore intersection algorithm.
 /// </summary>
-public class Triangle : IHittable
+public class Triangle : IHittable, ISamplable
 {
     public Vector3 V0 { get; }
     public Vector3 V1 { get; }
@@ -62,6 +62,17 @@ public class Triangle : IHittable
         rec.ObjectSeed = Seed;
         rec.Material = Material;
         return true;
+    }
+
+    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    {
+        float r1 = MathF.Sqrt(MathUtils.RandomFloat());
+        float r2 = MathUtils.RandomFloat();
+        float u = 1f - r1;
+        float v = r2 * r1;
+        Vector3 point = V0 + u * (V1 - V0) + v * (V2 - V0);
+        float area = 0.5f * Vector3.Cross(V1 - V0, V2 - V0).Length();
+        return (point, _normal, area);
     }
 
     public int Seed { get; set; }
