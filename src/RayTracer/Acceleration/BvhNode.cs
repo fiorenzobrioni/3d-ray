@@ -14,11 +14,20 @@ public class BvhNode : IHittable
     private readonly IHittable _right;
     private readonly AABB _box;
 
+    // OPT-06: pre-allocated static comparers — zero allocations during BVH construction.
+    // Previously Comparer<T>.Create(comparator) was called at every recursive node,
+    // causing O(N) heap allocations. One delegate per axis, created once at startup.
+    private static readonly Comparer<IHittable> _compareX =
+        Comparer<IHittable>.Create((a, b) => CompareAxis(a, b, 0));
+    private static readonly Comparer<IHittable> _compareY =
+        Comparer<IHittable>.Create((a, b) => CompareAxis(a, b, 1));
+    private static readonly Comparer<IHittable> _compareZ =
+        Comparer<IHittable>.Create((a, b) => CompareAxis(a, b, 2));
+
     public BvhNode(List<IHittable> objects, int start, int end)
     {
         // Determine longest axis from the centroid bounds for optimal splitting
         int axis = ComputeLongestAxis(objects, start, end);
-        Comparison<IHittable> comparator = (a, b) => CompareAxis(a, b, axis);
 
         int span = end - start;
 
@@ -28,7 +37,8 @@ public class BvhNode : IHittable
         }
         else if (span == 2)
         {
-            if (comparator(objects[start], objects[start + 1]) < 0)
+            var comparer = axis switch { 0 => _compareX, 1 => _compareY, _ => _compareZ };
+            if (comparer.Compare(objects[start], objects[start + 1]) < 0)
             {
                 _left = objects[start];
                 _right = objects[start + 1];
@@ -41,7 +51,8 @@ public class BvhNode : IHittable
         }
         else
         {
-            objects.Sort(start, span, Comparer<IHittable>.Create(comparator));
+            var comparer = axis switch { 0 => _compareX, 1 => _compareY, _ => _compareZ };
+            objects.Sort(start, span, comparer);
             int mid = start + span / 2;
             _left = new BvhNode(objects, start, mid);
             _right = new BvhNode(objects, mid, end);

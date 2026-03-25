@@ -22,9 +22,12 @@ public class HittableList : IHittable
         bool hitAnything = false;
         float closest = tMax;
 
-        foreach (var obj in Objects)
+        // OPT-01: indexed for loop avoids IEnumerator<T> heap allocation.
+        // HittableList is on the hot rendering path (infinite planes + small scenes).
+        var list = Objects;
+        for (int i = 0; i < list.Count; i++)
         {
-            if (obj.Hit(ray, tMin, closest, ref tempRec))
+            if (list[i].Hit(ray, tMin, closest, ref tempRec))
             {
                 hitAnything = true;
                 closest = tempRec.T;

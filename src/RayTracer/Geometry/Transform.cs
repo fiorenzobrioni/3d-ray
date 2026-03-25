@@ -18,6 +18,12 @@ public class Transform : IHittable
     private readonly Matrix4x4 _inverse;
     private readonly Matrix4x4 _normalMatrix; // Transpose of the inverse
 
+    /// <summary>
+    /// The wrapped IHittable (in object space). Used by SceneLoader.IsInfinitePlane()
+    /// to detect Transform-wrapped InfinitePlane instances (BUG-02 fix).
+    /// </summary>
+    public IHittable Inner => _object;
+
     public Transform(IHittable hittable, Matrix4x4 matrix)
     {
         _object = hittable;

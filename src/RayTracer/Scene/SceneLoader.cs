@@ -76,10 +76,14 @@ public class SceneLoader
         // Entities
         if (data.Entities != null)
         {
-            foreach (var e in data.Entities)
+            // BUG-05 fix: pass the entity index so the seed is derived
+            // deterministically. Two renders of the same YAML now always produce
+            // the same result for procedural textures with randomize_offset/rotation.
+            for (int idx = 0; idx < data.Entities.Count; idx++)
             {
+                var e        = data.Entities[idx];
                 var mat      = GetMaterial(materials, e.Material);
-                var hittable = CreateEntity(e, mat);
+                var hittable = CreateEntity(e, mat, idx);
                 if (hittable != null)
                 {
                     var transform = ComputeTransformMatrix(e);
@@ -93,6 +97,11 @@ public class SceneLoader
         // Build BVH — separate infinite planes (no finite AABB) from finite objects.
         // BVH is only beneficial above BvhThreshold objects; below that the tree
         // construction overhead exceeds the traversal savings.
+        //
+        // BUG-02 fix: check also handles InfinitePlane wrapped in a Transform
+        // (e.g. a tilted infinite plane). The Transform wrapper hides the concrete
+        // type from a simple `is InfinitePlane` check. IsInfinitePlane() unwraps
+        // the Transform chain recursively to detect the underlying type.
         IHittable world;
         if (objects.Count > BvhThreshold)
         {
@@ -100,7 +109,7 @@ public class SceneLoader
             var infiniteObjects = new List<IHittable>();
             foreach (var obj in objects)
             {
-                if (obj is InfinitePlane)
+                if (IsInfinitePlane(obj))
                     infiniteObjects.Add(obj);
                 else
                     finiteObjects.Add(obj);
@@ -420,7 +429,7 @@ public class SceneLoader
         }
     }
 
-    private static IHittable? CreateEntity(EntityData e, IMaterial mat)
+    private static IHittable? CreateEntity(EntityData e, IMaterial mat, int entityIndex = 0)
     {
         IHittable? entity = e.Type?.ToLowerInvariant() switch
         {
@@ -452,7 +461,15 @@ public class SceneLoader
         };
 
         if (entity != null)
-            entity.Seed = e.Seed ?? Random.Shared.Next();
+        {
+            // BUG-05 fix: derive seed deterministically from entity index + type so
+            // that two renders of the same YAML always produce identical results for
+            // procedural textures using randomize_offset / randomize_rotation.
+            // Explicit "seed" in YAML always takes precedence.
+            entity.Seed = e.Seed ?? HashCode.Combine(entityIndex,
+                                                      e.Type?.GetHashCode() ?? 0,
+                                                      e.Name?.GetHashCode() ?? 0);
+        }
 
         return entity;
     }
@@ -463,6 +480,12 @@ public class SceneLoader
     /// This allows min/max to coexist with an additional rotate in YAML — the outer
     /// ComputeTransformMatrix() applies any extra transform on top.
     /// </summary>
+    /// <remarks>
+    /// BUG-08 fix: seed is NOT assigned here. CreateEntity() assigns it uniformly
+    /// for all entity types after construction. Assigning it here AND there caused
+    /// the Box to get a non-deterministic seed from Random.Shared.Next() instead
+    /// of the deterministic index-based one computed in CreateEntity().
+    /// </remarks>
     private static IHittable CreateBoxFromMinMax(EntityData e, IMaterial mat)
     {
         var min    = ToVector3(e.Min)!.Value;
@@ -471,9 +494,7 @@ public class SceneLoader
         var size   = max - min;
         // Scale the unit cube to the desired dimensions, then translate to center
         var matrix = Matrix4x4.CreateScale(size) * Matrix4x4.CreateTranslation(center);
-        var box = new Box(mat);
-        box.Seed = e.Seed ?? Random.Shared.Next();
-        return new Transform(box, matrix);
+        return new Transform(new Box(mat), matrix);
     }
 
     private static ILight? CreateLight(LightData l, int? shadowSamplesOverride)
@@ -532,6 +553,18 @@ public class SceneLoader
     // =========================================================================
     // Utility helpers
     // =========================================================================
+
+    /// <summary>
+    /// BUG-02 fix: Returns true if the hittable (possibly inside a Transform chain)
+    /// is ultimately an InfinitePlane. Prevents a Transform-wrapped InfinitePlane
+    /// from entering the BVH with an enormous 2×10^6 AABB that degrades the tree.
+    /// </summary>
+    private static bool IsInfinitePlane(IHittable obj) => obj switch
+    {
+        InfinitePlane => true,
+        Transform t   => IsInfinitePlane(t.Inner),
+        _             => false
+    };
 
     /// <summary>
     /// Retrieves a material by ID. Returns a default grey Lambertian if not found

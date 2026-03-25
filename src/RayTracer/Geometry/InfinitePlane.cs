@@ -20,7 +20,12 @@ public class InfinitePlane : IHittable
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         float denom = Vector3.Dot(Normal, ray.Direction);
-        if (MathF.Abs(denom) < MathUtils.Epsilon) return false;
+        // BUG-03 fix: use a dedicated parallelism epsilon (1e-6f) instead of
+        // MathUtils.Epsilon (1e-4f, intended for shadow-ray offset).
+        // At 1e-4f, rays with denom ~0.0002 (nearly parallel but not quite)
+        // were incorrectly rejected, causing visual artifacts at grazing angles.
+        const float parallelEpsilon = 1e-6f;
+        if (MathF.Abs(denom) < parallelEpsilon) return false;
 
         float t = Vector3.Dot(Point - ray.Origin, Normal) / denom;
         if (t < tMin || t > tMax) return false;

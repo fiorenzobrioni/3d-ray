@@ -413,6 +413,110 @@ Usi tipici: neon, LED, insegne, lava, fiamme, sfere magiche, pannelli luminosi, 
 
 ---
 
+### 4.5 Disney Principled BSDF (PBR Unificato)
+
+Il materiale più potente del renderer. Un singolo tipo può rappresentare qualsiasi superficie reale attraverso la combinazione di più lobi fisici. Ispirato al modello di Brent Burley (*"Physically Based Shading at Disney"*, SIGGRAPH 2012).
+
+**Dichiarazione minima:**
+```yaml
+- id: "plastica"
+  type: "disney"
+  color: [0.8, 0.2, 0.1]
+  roughness: 0.4
+```
+
+**Alias YAML validi:** `"disney"`, `"disney_bsdf"`, `"pbr"` (tutti equivalenti).
+
+**Parametri completi:**
+
+| Parametro | Range | Default | Descrizione |
+|-----------|-------|---------|-------------|
+| `color` | `[R,G,B]` | — | Colore base (albedo diffuso o colore metallico) |
+| `metallic` | 0–1 | `0` | 0 = dielettrico (plastica, legno, pelle); 1 = metallo (oro, cromo) |
+| `roughness` | 0–1 | `0.5` | 0 = superficie a specchio; 1 = perfettamente diffuso |
+| `subsurface` | 0–1 | `0` | Approssimazione SSS: 0 = Lambert, 1 = effetto cera/pelle |
+| `specular` | 0–2 | `0.5` | Intensità del lobe speculare dielettrico (controlla F0) |
+| `specular_tint` | 0–1 | `0` | Tinta lo specular verso `color`. 0 = bianco, 1 = tinta completa |
+| `sheen` | 0–1 | `0` | Lucentezza a radente (tessuti, velluto) |
+| `sheen_tint` | 0–1 | `0.5` | Tinta lo sheen verso `color` |
+| `clearcoat` | 0–1 | `0` | Secondo lobe speculare (vernice auto, lacca) |
+| `clearcoat_gloss` | 0–1 | `1` | Lucidità del clearcoat: 1 = a specchio, 0 = satinato |
+| `spec_trans` | 0–1 | `0` | Trasmissione speculare: 0 = opaco, 1 = vetro |
+| `ior` | ≥1.0 | `1.5` | Indice di rifrazione per trasmissione e specular dielettrico |
+
+**Texture** e **normal_map** sono supportati esattamente come negli altri materiali.
+
+**Esempi per tipo di superficie:**
+
+```yaml
+# Plastica opaca
+- id: "plastica_rossa"
+  type: "disney"
+  color: [0.8, 0.1, 0.1]
+  roughness: 0.8
+  metallic: 0.0
+
+# Oro
+- id: "oro"
+  type: "disney"
+  color: [1.0, 0.71, 0.29]
+  metallic: 1.0
+  roughness: 0.15
+
+# Cromo a specchio
+- id: "cromo"
+  type: "disney"
+  color: [0.95, 0.93, 0.88]
+  metallic: 1.0
+  roughness: 0.02
+
+# Vernice auto (rosso con clearcoat)
+- id: "vernice_auto"
+  type: "disney"
+  color: [0.7, 0.05, 0.05]
+  roughness: 0.3
+  clearcoat: 1.0
+  clearcoat_gloss: 0.9
+
+# Velluto
+- id: "velluto_blu"
+  type: "disney"
+  color: [0.05, 0.1, 0.5]
+  roughness: 0.9
+  sheen: 1.0
+  sheen_tint: 0.8
+
+# Pelle / cera (subsurface scattering)
+- id: "pelle"
+  type: "disney"
+  color: [0.85, 0.6, 0.45]
+  roughness: 0.6
+  subsurface: 0.4
+  specular: 0.2
+
+# Vetro trasparente
+- id: "vetro"
+  type: "disney"
+  color: [1.0, 1.0, 1.0]
+  roughness: 0.0
+  spec_trans: 1.0
+  ior: 1.5
+```
+
+**Quando usare Disney vs tipi legacy:**
+
+| Vuoi... | Usa |
+|---------|-----|
+| Solo colore diffuso semplice | `lambertian` |
+| Riflessione speculare semplice | `metal` |
+| Vetro o rifrazione base | `dielectric` |
+| Fonte di luce | `emissive` |
+| Qualsiasi altro materiale reale (metallo, vernice, tessuto, pelle, vetro PBR) | `disney` |
+
+> **💡 Tip performance:** Il Disney BSDF è computazionalmente più costoso dei materiali legacy (specialmente con `clearcoat` e `spec_trans` attivi). Per scene con molti oggetti, usa `lambertian` per le superfici di sfondo e `disney` solo per i materiali protagonisti.
+
+---
+
 ## 5. Sezione `textures`
 
 Le texture procedurali vengono definite all'interno del materiale.
@@ -432,6 +536,7 @@ Le texture procedurali vengono definite all'interno del materiale.
     texture:
       type: "noise"
       scale: 5.0
+      noise_strength: 3.0   # 0 = Perlin liscio, > 0 = turbolento (default: 0)
 ```
 
 **Marble (Marmo):**
@@ -723,6 +828,25 @@ Il Box è definito come un **cubo unitario** centrato nell'origine (da -0.5 a 0.
 | `scale` | `[X, Y, Z]` | Dimensioni del box (larghezza, altezza, profondità) |
 | `translate` | `[X, Y, Z]` | Posizione del **centro** del box nel mondo |
 | `rotate` | `[X, Y, Z]` | Rotazione in gradi (opzionale) |
+
+#### Sintassi alternativa: `min`/`max` (coordinate assolute)
+
+In alternativa a `scale`+`translate`, puoi specificare direttamente gli angoli del box:
+
+```yaml
+  - name: "cassa"
+    type: "box"
+    min: [-1, 0, -2]
+    max: [1, 1.5, 2]
+    material: "legno"
+```
+
+| Campo | Tipo | Descrizione |
+|-------|------|-------------|
+| `min` | `[X, Y, Z]` | Angolo minimo del box (coordinata assoluta) |
+| `max` | `[X, Y, Z]` | Angolo massimo del box (coordinata assoluta) |
+
+> **Nota:** `min`/`max` e `scale`/`translate` sono mutualmente esclusivi per definire forma e posizione. Puoi comunque aggiungere `rotate` a un box definito con `min`/`max` — la rotazione viene applicata sopra.
 
 > **⚠️ Importante:** Il `translate` posiziona il **centro** del box. Se vuoi che la base sia a Y=0, traslaci di `altezza / 2` in Y. Esempio: box alto 1.0 con base a terra → `translate: [0, 0.5, 0]`.
 

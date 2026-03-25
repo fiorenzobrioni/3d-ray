@@ -714,3 +714,190 @@ Illuminazione da interni con finestre, per scene architettoniche.
 ```
 
 > **💡 Tip:** Usa `rotation` per allineare la sorgente luminosa principale dell'HDRI (sole, finestra) con la direzione desiderata nella scena. Usa `intensity` per regolare l'esposizione senza modificare il file `.hdr`. Con HDRI, usa `lights: []` per luce solo dall'environment map, oppure aggiungi luci esplicite per ombre direzionali extra.
+
+---
+
+## 8. Libreria Materiali PBR (Disney BSDF)
+
+Preset copia-incolla per il materiale `type: "disney"`, organizzati per categoria.
+
+> **Quando usare Disney:** Usa `disney` per qualsiasi materiale reale che non sia puramente diffuso o puramente speculare semplice. Per superfici di sfondo non protagoniste, `lambertian` o `metal` sono più veloci.
+
+### Metalli
+
+```yaml
+# Oro
+- id: "oro"
+  type: "disney"
+  color: [1.0, 0.71, 0.29]
+  metallic: 1.0
+  roughness: 0.15
+
+# Rame
+- id: "rame"
+  type: "disney"
+  color: [0.95, 0.64, 0.54]
+  metallic: 1.0
+  roughness: 0.25
+
+# Cromo a specchio
+- id: "cromo"
+  type: "disney"
+  color: [0.95, 0.93, 0.88]
+  metallic: 1.0
+  roughness: 0.02
+
+# Acciaio satinato
+- id: "acciaio_satinato"
+  type: "disney"
+  color: [0.58, 0.57, 0.55]
+  metallic: 1.0
+  roughness: 0.45
+
+# Titanio anodizzato (blu)
+- id: "titanio_blu"
+  type: "disney"
+  color: [0.25, 0.35, 0.65]
+  metallic: 1.0
+  roughness: 0.3
+```
+
+### Plastiche e Dielettrici
+
+```yaml
+# Plastica opaca rossa
+- id: "plastica_rossa"
+  type: "disney"
+  color: [0.8, 0.1, 0.1]
+  roughness: 0.8
+  metallic: 0.0
+
+# Plastica lucida (tipo giocattolo)
+- id: "plastica_lucida"
+  type: "disney"
+  color: [0.2, 0.6, 0.9]
+  roughness: 0.15
+  metallic: 0.0
+  specular: 0.5
+
+# Gomma nera
+- id: "gomma"
+  type: "disney"
+  color: [0.05, 0.05, 0.05]
+  roughness: 0.95
+  specular: 0.1
+```
+
+### Vernici e Finiture Speciali
+
+```yaml
+# Vernice auto rosso metallizzato
+- id: "vernice_auto_rosso"
+  type: "disney"
+  color: [0.7, 0.05, 0.05]
+  metallic: 0.0
+  roughness: 0.3
+  clearcoat: 1.0
+  clearcoat_gloss: 0.95
+
+# Lacca nera pianola
+- id: "lacca_nera"
+  type: "disney"
+  color: [0.02, 0.02, 0.02]
+  roughness: 0.05
+  clearcoat: 1.0
+  clearcoat_gloss: 1.0
+```
+
+### Tessuti e Materiali Organici
+
+```yaml
+# Velluto blu
+- id: "velluto_blu"
+  type: "disney"
+  color: [0.05, 0.1, 0.5]
+  roughness: 0.9
+  sheen: 1.0
+  sheen_tint: 0.8
+
+# Pelle / cera (SSS)
+- id: "pelle"
+  type: "disney"
+  color: [0.85, 0.6, 0.45]
+  roughness: 0.6
+  subsurface: 0.4
+  specular: 0.2
+```
+
+### Vetri e Trasparenti
+
+```yaml
+# Vetro chiaro
+- id: "vetro_chiaro"
+  type: "disney"
+  color: [1.0, 1.0, 1.0]
+  roughness: 0.0
+  spec_trans: 1.0
+  ior: 1.5
+
+# Vetro colorato (verde)
+- id: "vetro_verde"
+  type: "disney"
+  color: [0.6, 1.0, 0.6]
+  roughness: 0.0
+  spec_trans: 1.0
+  ior: 1.5
+
+# Vetro smerigliato
+- id: "vetro_smerigliato"
+  type: "disney"
+  color: [0.95, 0.95, 1.0]
+  roughness: 0.35
+  spec_trans: 0.9
+  ior: 1.5
+
+# Diamante
+- id: "diamante"
+  type: "disney"
+  color: [1.0, 1.0, 1.0]
+  roughness: 0.0
+  spec_trans: 1.0
+  ior: 2.42
+```
+
+---
+
+## 9. Abbinamenti Consigliati: Materiale × Ambiente
+
+| Materiale | Ambiente consigliato | Note |
+|-----------|---------------------|------|
+| Metallo lucido (cromo, oro) | HDRI studio o gradient sky | I riflessi richiedono contenuto ambientale ricco |
+| Vetro (spec_trans) | HDRI o gradient sky con terreno | La rifrazione visibile richiede sfondo dettagliato |
+| Plastica lucida | Area light studio | Highlight controllati senza riflessi ambientali caotici |
+| Tessuto/velluto (sheen) | Area light soffitto diffusa | Lo sheen emerge con luce zenitale diffusa |
+| Pelle/cera (subsurface) | Fill light + area laterale | SSS ha bisogno di luce che "avvolge" l'oggetto |
+| Vernice auto (clearcoat) | HDRI esterno o gradient sky | Il doppio strato riflette l'intero environment |
+| Emissivo | Scena buia o ambient_light basso | L'oggetto deve emergere come sorgente primaria |
+
+### Preset: HDRI + Fill Light Direzionale
+
+Per scene in cui l'HDRI fornisce la GI ma si vuole un'ombra direzionale definita:
+
+```yaml
+world:
+  ambient_light: [0.0, 0.0, 0.0]   # Zero: tutta la luce dall'HDRI e dalla directional
+  sky:
+    type: "hdri"
+    path: "hdri/studio_small_09_4k.hdr"
+    intensity: 1.0
+    rotation: 45
+
+lights:
+  # Fill direzionale allineato alla sorgente principale dell'HDRI
+  - type: "directional"
+    direction: [-0.5, -1.0, -0.3]   # Allinea con il sole/finestra nell'HDRI
+    color: [1.0, 0.95, 0.88]
+    intensity: 0.3                   # Bassa: integra, non sovrasta l'HDRI
+```
+
+> **Nota:** Con `lights: []` (lista vuota esplicita) ottieni solo illuminazione HDRI pura — il massimo realismo ma le ombre sono morbide. Aggiungendo una `directional` light ottieni ombre direzionali definite mantenendo la GI dell'HDRI.

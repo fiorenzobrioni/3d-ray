@@ -1,0 +1,436 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Classic vs Disney BSDF — Confronto diretto fiancato
+#
+#  Layout a DUE COLONNE sugli stessi piedistalli, in coppie affiancate:
+#
+#    SINISTRA (X < 0)              |    DESTRA (X > 0)
+#    Materiale "classico"           |    Equivalente Disney BSDF
+#    ──────────────────────────────────────────────────────────
+#    lambertian (diffuso opaco)     ←→  disney (metallic 0, roughness 0.9)
+#    metal fuzz 0.0 (specchio)      ←→  disney (metallic 1, roughness 0.0)
+#    metal fuzz 0.3 (spazzolato)    ←→  disney (metallic 1, roughness 0.45)
+#    dielectric IOR 1.5 (vetro)     ←→  disney (spec_trans 1, ior 1.5)
+#    metal oro fuzz 0.15            ←→  disney oro (metallic 1, sheen 0)
+#    lambertian (marmo)             ←→  disney vernice clearcoat
+#
+#  Il SEPARATORE centrale è una parete etichetta in metallo scuro.
+#  Sfondo: gradient sky neutro + area light da studio per highlights
+#  che rivelano meglio le differenze nei lobi speculari.
+#
+#  Render consigliato:
+#    Draft:  -w 800  -H 600  -s 32  -d 15
+#    Medio:  -w 1280 -H 960  -s 64  -d 20
+#    Finale: -w 1920 -H 1080 -s 256 -d 30
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  ambient_light: [0.04, 0.04, 0.05]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.10, 0.15, 0.30]
+    horizon_color: [0.45, 0.50, 0.60]
+    ground_color:  [0.15, 0.13, 0.12]
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+
+# ─────────────────────────────────────────────────────────────────────────
+#  CAMERA
+#  Vista leggermente dall'alto per vedere entrambe le colonne.
+#  Profondità di campo sottile per mettere a fuoco la fila centrale.
+# ─────────────────────────────────────────────────────────────────────────
+camera:
+  position: [0, 3.5, -10]
+  look_at: [0, 1.2, 1.5]
+  fov: 50
+  aperture: 0.0
+  focal_dist: 11.0
+
+# Vista alternativa dall'alto per vedere tutte le file:
+#camera:
+#  position: [0, 7, -7]
+#  look_at: [0, 1.0, 2.0]
+#  fov: 55
+
+# Vista close-up fila vetro (confronto rifrazione):
+#camera:
+#  position: [0, 2.0, -3.8]
+#  look_at: [0, 1.2, 0.5]
+#  fov: 45
+#  aperture: 0.0
+
+# ─────────────────────────────────────────────────────────────────────────
+#  LUCI
+#  Due area light: una ampia (fill soffitto) + una laterale (key light
+#  direzionale per mostrare gli highlight speculari e lo sheen Disney).
+# ─────────────────────────────────────────────────────────────────────────
+lights:
+  # Area light da soffitto — fill neutro, ombre morbide
+  - type: "area"
+    corner: [-5.0, 6.0, -3.0]
+    u: [10.0, 0.0, 0.0]
+    v: [0.0, 0.0,  6.0]
+    color: [1.0, 0.97, 0.93]
+    intensity: 12.0
+    shadow_samples: 12
+
+  # Key point a sinistra, luce calda — mette in risalto lo specular
+  - type: "point"
+    position: [-6, 5, -5]
+    color: [1.0, 0.88, 0.65]
+    intensity: 100
+
+  # Fill point a destra, luce fredda — contrasto cromatico utile per
+  # evidenziare la differenza tra metallic Disney e metal classico
+  - type: "point"
+    position: [6, 4, -3]
+    color: [0.7, 0.85, 1.0]
+    intensity: 60
+
+  # Directional dal basso-destra — accende i lobi sheen e clearcoat Disney
+  - type: "directional"
+    direction: [1.0, -0.4, 0.2]
+    color: [1.0, 0.96, 0.88]
+    intensity: 0.08
+
+# ─────────────────────────────────────────────────────────────────────────
+#  MATERIALI
+# ─────────────────────────────────────────────────────────────────────────
+materials:
+
+  # ── Struttura scena ────────────────────────────────────────────────────
+
+  - id: "pavimento"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 1.5
+      colors: [[0.12, 0.12, 0.13], [0.22, 0.22, 0.24]]
+
+  # Separatore centrale — striscia verticale di metallo scuro
+  - id: "separatore"
+    type: "metal"
+    color: [0.15, 0.15, 0.18]
+    fuzz: 0.05
+
+  # Piedistalli sinistri (classici) — marmo chiaro neutro
+  - id: "piedistallo_sx"
+    type: "lambertian"
+    color: [0.80, 0.78, 0.76]
+
+  # Piedistalli destri (Disney) — antracite leggermente lucido
+  - id: "piedistallo_dx"
+    type: "disney"
+    color: [0.18, 0.18, 0.20]
+    roughness: 0.5
+    metallic: 0.0
+
+  # Etichette "CLASSICO" / "DISNEY"
+  - id: "etichetta_sx"
+    type: "emissive"
+    color: [0.7, 0.6, 0.4]
+    intensity: 0.8
+
+  - id: "etichetta_dx"
+    type: "emissive"
+    color: [0.4, 0.65, 0.9]
+    intensity: 0.8
+
+  # ══════════════════════════════════════════════════════════════════════
+  #  COPPIA 1 — DIFFUSO OPACO
+  #  Classico:  lambertian (rosso terracotta)
+  #  Disney:    disney metallic=0 roughness=0.9 → diffuso fisicamente corretto
+  #             con lobo speculare debole (Fresnel implicito in Disney)
+  # ══════════════════════════════════════════════════════════════════════
+  - id: "cl_diffuso"
+    type: "lambertian"
+    color: [0.72, 0.22, 0.12]
+
+  - id: "di_diffuso"
+    type: "disney"
+    color: [0.72, 0.22, 0.12]
+    roughness: 0.9
+    metallic: 0.0
+    specular: 0.4     # Fresnel debole — nota il sottile highlight agli angoli
+
+  # ══════════════════════════════════════════════════════════════════════
+  #  COPPIA 2 — SPECCHIO PERFETTO
+  #  Classico:  metal fuzz=0 (riflessione 100% uniforme)
+  #  Disney:    disney metallic=1.0 roughness=0.0
+  #             Disney usa F0 derivato dal colore (tinge il riflesso)
+  # ══════════════════════════════════════════════════════════════════════
+  - id: "cl_specchio"
+    type: "metal"
+    color: [0.95, 0.93, 0.90]
+    fuzz: 0.0
+
+  - id: "di_specchio"
+    type: "disney"
+    color: [0.95, 0.93, 0.90]
+    metallic: 1.0
+    roughness: 0.0
+
+  # ══════════════════════════════════════════════════════════════════════
+  #  COPPIA 3 — METALLO SPAZZOLATO
+  #  Classico:  metal fuzz=0.3  → blur gaussiano sull'intero lobe
+  #  Disney:    disney metallic=1.0 roughness=0.4 → GGX anisotropico
+  #             Il lobe Disney ha una distribuzione più realistica (coda lunga)
+  # ══════════════════════════════════════════════════════════════════════
+  - id: "cl_brushed"
+    type: "metal"
+    color: [0.60, 0.58, 0.55]
+    fuzz: 0.30
+
+  - id: "di_brushed"
+    type: "disney"
+    color: [0.60, 0.58, 0.55]
+    metallic: 1.0
+    roughness: 0.40
+
+  # ══════════════════════════════════════════════════════════════════════
+  #  COPPIA 4 — VETRO (RIFRAZIONE)
+  #  Classico:  dielectric IOR=1.52 (vetro soda-lime, bianco)
+  #  Disney:    disney spec_trans=1 ior=1.52 roughness=0
+  #             La differenza: Disney gestisce meglio il bordo Fresnel alle
+  #             angolazioni acute e può aggiungere tint/roughness/sheen.
+  # ══════════════════════════════════════════════════════════════════════
+  - id: "cl_vetro"
+    type: "dielectric"
+    refraction_index: 1.52
+    color: [1.0, 1.0, 1.0]
+
+  - id: "di_vetro"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.52
+
+  # ══════════════════════════════════════════════════════════════════════
+  #  COPPIA 5 — ORO
+  #  Classico:  metal gold → fuzz 0.12 (riflessione speculare semplice)
+  #  Disney:    disney gold → tint colorato con lobe speculare corretto
+  #             Il Disney mostra un highlight bianco (Fresnel F0 conductor)
+  #             sopra il riflesso dorato — effetto più fisicamente accurato
+  # ══════════════════════════════════════════════════════════════════════
+  - id: "cl_oro"
+    type: "metal"
+    color: [1.0, 0.71, 0.29]
+    fuzz: 0.12
+
+  - id: "di_oro"
+    type: "disney"
+    color: [1.0, 0.71, 0.29]
+    metallic: 1.0
+    roughness: 0.12
+
+  # ══════════════════════════════════════════════════════════════════════
+  #  COPPIA 6 — VERNICE (CLEARCOAT)
+  #  Classico:  approach "manuale" — metal sopra lambertian non è possibile,
+  #             quindi usiamo metal opaco (rosso scuro) come approssimazione
+  #  Disney:    disney clearcoat=1.0 → strato di vernice fisicamente corretto
+  #             Si vede la riflessione della luce sul clearcoat SOPRA il
+  #             colore di base. Non ottenibile con nessun materiale classico!
+  # ══════════════════════════════════════════════════════════════════════
+  - id: "cl_vernice"
+    type: "metal"
+    color: [0.55, 0.04, 0.04]
+    fuzz: 0.20          # Approssimazione grezza — mancano i due strati fisici
+
+  - id: "di_vernice"
+    type: "disney"
+    color: [0.70, 0.05, 0.05]
+    roughness: 0.30
+    metallic: 0.0
+    clearcoat: 1.0
+    clearcoat_gloss: 0.92
+
+# ─────────────────────────────────────────────────────────────────────────
+#  ENTITIES
+#  Layout:  6 file (una per coppia), spaziatura Z = 2 unità
+#           X = -1.4 (classico) | X = +1.4 (Disney)
+#           Separatore verticale su X = 0
+# ─────────────────────────────────────────────────────────────────────────
+entities:
+
+  # ── Separatore centrale ───────────────────────────────────────────────
+  - name: "sep"
+    type: "box"
+    scale: [0.08, 2.8, 13.0]
+    translate: [0.0, 1.4, 1.5]
+    material: "separatore"
+
+  # ── Etichette colonne ─────────────────────────────────────────────────
+  # "CLASSICO" — disco piatto a sinistra del separatore, in alto
+  - name: "label_sx"
+    type: "disk"
+    center: [-0.80, 2.9, -3.0]
+    normal: [0, 0, -1]
+    radius: 0.35
+    material: "etichetta_sx"
+
+  # "DISNEY" — disco piatto a destra
+  - name: "label_dx"
+    type: "disk"
+    center: [0.80, 2.9, -3.0]
+    normal: [0, 0, -1]
+    radius: 0.35
+    material: "etichetta_dx"
+
+  # ══════════════════════════════════════════════════════════════════════
+  #  COPPIA 1 — DIFFUSO OPACO  (Z = 6.0)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Piedistallo sx
+  - name: "p1_sx"
+    type: "box"
+    scale: [1.4, 0.15, 1.4]
+    translate: [-1.4, 0.075, 6.0]
+    material: "piedistallo_sx"
+  # Sfera classica
+  - name: "s1_cl"
+    type: "sphere"
+    center: [-1.4, 0.73, 6.0]
+    radius: 0.60
+    material: "cl_diffuso"
+
+  # Piedistallo dx
+  - name: "p1_dx"
+    type: "box"
+    scale: [1.4, 0.15, 1.4]
+    translate: [1.4, 0.075, 6.0]
+    material: "piedistallo_dx"
+  # Sfera Disney
+  - name: "s1_di"
+    type: "sphere"
+    center: [1.4, 0.73, 6.0]
+    radius: 0.60
+    material: "di_diffuso"
+
+  # ══════════════════════════════════════════════════════════════════════
+  #  COPPIA 2 — SPECCHIO PERFETTO  (Z = 4.0)
+  # ══════════════════════════════════════════════════════════════════════
+  - name: "p2_sx"
+    type: "box"
+    scale: [1.4, 0.15, 1.4]
+    translate: [-1.4, 0.075, 4.0]
+    material: "piedistallo_sx"
+  - name: "s2_cl"
+    type: "sphere"
+    center: [-1.4, 0.73, 4.0]
+    radius: 0.60
+    material: "cl_specchio"
+
+  - name: "p2_dx"
+    type: "box"
+    scale: [1.4, 0.15, 1.4]
+    translate: [1.4, 0.075, 4.0]
+    material: "piedistallo_dx"
+  - name: "s2_di"
+    type: "sphere"
+    center: [1.4, 0.73, 4.0]
+    radius: 0.60
+    material: "di_specchio"
+
+  # ══════════════════════════════════════════════════════════════════════
+  #  COPPIA 3 — METALLO SPAZZOLATO  (Z = 2.0)
+  # ══════════════════════════════════════════════════════════════════════
+  - name: "p3_sx"
+    type: "box"
+    scale: [1.4, 0.15, 1.4]
+    translate: [-1.4, 0.075, 2.0]
+    material: "piedistallo_sx"
+  - name: "s3_cl"
+    type: "sphere"
+    center: [-1.4, 0.73, 2.0]
+    radius: 0.60
+    material: "cl_brushed"
+
+  - name: "p3_dx"
+    type: "box"
+    scale: [1.4, 0.15, 1.4]
+    translate: [1.4, 0.075, 2.0]
+    material: "piedistallo_dx"
+  - name: "s3_di"
+    type: "sphere"
+    center: [1.4, 0.73, 2.0]
+    radius: 0.60
+    material: "di_brushed"
+
+  # ══════════════════════════════════════════════════════════════════════
+  #  COPPIA 4 — VETRO  (Z = 0.0)
+  # ══════════════════════════════════════════════════════════════════════
+  - name: "p4_sx"
+    type: "box"
+    scale: [1.4, 0.15, 1.4]
+    translate: [-1.4, 0.075, 0.0]
+    material: "piedistallo_sx"
+  - name: "s4_cl"
+    type: "sphere"
+    center: [-1.4, 0.73, 0.0]
+    radius: 0.60
+    material: "cl_vetro"
+
+  - name: "p4_dx"
+    type: "box"
+    scale: [1.4, 0.15, 1.4]
+    translate: [1.4, 0.075, 0.0]
+    material: "piedistallo_dx"
+  - name: "s4_di"
+    type: "sphere"
+    center: [1.4, 0.73, 0.0]
+    radius: 0.60
+    material: "di_vetro"
+
+  # ══════════════════════════════════════════════════════════════════════
+  #  COPPIA 5 — ORO  (Z = -2.0)
+  # ══════════════════════════════════════════════════════════════════════
+  - name: "p5_sx"
+    type: "box"
+    scale: [1.4, 0.15, 1.4]
+    translate: [-1.4, 0.075, -2.0]
+    material: "piedistallo_sx"
+  - name: "s5_cl"
+    type: "sphere"
+    center: [-1.4, 0.73, -2.0]
+    radius: 0.60
+    material: "cl_oro"
+
+  - name: "p5_dx"
+    type: "box"
+    scale: [1.4, 0.15, 1.4]
+    translate: [1.4, 0.075, -2.0]
+    material: "piedistallo_dx"
+  - name: "s5_di"
+    type: "sphere"
+    center: [1.4, 0.73, -2.0]
+    radius: 0.60
+    material: "di_oro"
+
+  # ══════════════════════════════════════════════════════════════════════
+  #  COPPIA 6 — VERNICE / CLEARCOAT  (Z = -4.0)
+  #  La coppia più istruttiva: il Disney clearcoat non è replicabile
+  #  con nessun materiale classico.
+  # ══════════════════════════════════════════════════════════════════════
+  - name: "p6_sx"
+    type: "box"
+    scale: [1.4, 0.15, 1.4]
+    translate: [-1.4, 0.075, -4.0]
+    material: "piedistallo_sx"
+  - name: "s6_cl"
+    type: "sphere"
+    center: [-1.4, 0.73, -4.0]
+    radius: 0.60
+    material: "cl_vernice"
+
+  - name: "p6_dx"
+    type: "box"
+    scale: [1.4, 0.15, 1.4]
+    translate: [1.4, 0.075, -4.0]
+    material: "piedistallo_dx"
+  - name: "s6_di"
+    type: "sphere"
+    center: [1.4, 0.73, -4.0]
+    radius: 0.60
+    material: "di_vernice"

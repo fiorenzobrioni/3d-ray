@@ -16,8 +16,6 @@ Un moderno motore di ray tracing ad alte prestazioni sviluppato in C# e .NET 10,
 
 Il motore risolve il problema della visualizzazione di geometrie complesse e materiali fisicamente basati (PBR) attraverso un'architettura modulare e ottimizzata per il calcolo parallelo multi-core, con un pipeline di post-processing ACES filmic per risultati visivi di qualità cinematografica.
 
-> **Nota di Sviluppo:** Sebbene il progetto sia basato su .NET 10 (cross-platform), è stato testato e validato principalmente in ambiente **Windows**.
-
 ---
 
 ## ✨ Caratteristiche Principali (Key Features)
@@ -28,8 +26,6 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🎯 **Next Event Estimation (NEE)**: campionamento diretto delle sorgenti di luce per convergenza più veloce. Ogni bounce testa direttamente tutte le luci nella scena.
 - 🧮 **Campionamento Stratificato**: jittered stratified sampling `√N × √N` per pixel — riduce il rumore senza aumentare i campioni totali.
 - 🎞️ **Tone Mapping ACES Filmic**: pipeline di post-processing con curva filmica ACES e correzione gamma 2.2, per highlight naturali e colori ricchi.
-- 🌅 **Gradient Sky**: cielo procedurale con gradiente verticale zenith→orizzonte→terreno e sun disk con glow halo configurabile.
-- 🌍 **HDRI / IBL**: Image-Based Lighting con environment map HDR (formato Radiance `.hdr`). Illuminazione realistica da fotografie reali, con rotazione Y-axis e moltiplicatore di intensità.
 
 ### Accelerazione
 - 📦 **BVH (Bounding Volume Hierarchy)**: struttura di accelerazione con euristica dell'asse più lungo (SAH-inspired) per intersezioni raggio-oggetto in tempo **O(log N)**. Attivata automaticamente per scene con più di 4 oggetti.
@@ -48,6 +44,7 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🪞 **Metal** — Riflessione speculare con parametro `fuzz` per rugosità superficiale
 - 💎 **Dielectric** — Rifrazione con indice IOR variabile, effetto Fresnel (Schlick), supporto tinting colore
 - 💡 **Emissive** — Materiale auto-luminoso con `color` e `intensity` configurabili
+- 🎭 **Disney Principled BSDF** — Materiale PBR unificato ispirato al modello Burley (SIGGRAPH 2012). 12 parametri artist-friendly: `metallic`, `roughness`, `clearcoat`, `sheen`, `subsurface`, `spec_trans` e altri. Un unico tipo copre plastica, metalli, vernice auto, tessuti, vetro e cera. Tipo YAML: `"disney"` (alias: `"disney_bsdf"`, `"pbr"`).
 
 ### Texture
 - ♟️ **Checker** — Scacchiera 3D con scala configurabile
@@ -81,7 +78,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 
 ## 🛠️ Stack Tecnologico
 
-- **Linguaggio**: C# 13 / .NET 10
+- **Linguaggio**: C# 14 / .NET 10
 - **Librerie Core**:
   - `SixLabors.ImageSharp 3.1.12` — Manipolazione e salvataggio immagini in vari formati
   - `YamlDotNet 16.3.0` — Parsing dei file di configurazione delle scene
@@ -106,7 +103,48 @@ dotnet build src/RayTracer/RayTracer.csproj -c Release
 
 ```powershell
 cd 3d-ray
-dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i ./scenes/chess.yaml -s 256 -d 50 -o render.png -w 1920 -H 1080
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/chess.yaml -s 256 -d 50 -o render.png -w 1920 -H 1080
+```
+
+---
+
+## 📁 Struttura del Progetto
+
+```
+3d-ray/
+├── src/
+│   ├── RayTracer/           # Motore principale
+│   │   ├── Acceleration/    # BVH
+│   │   ├── Camera/          # Camera con DOF
+│   │   ├── Core/            # Ray, HitRecord, MathUtils
+│   │   ├── Geometry/        # Primitive (Sphere, Box, Cylinder...)
+│   │   ├── Lights/          # Point, Directional, Spot, Area
+│   │   ├── Materials/       # Lambertian, Metal, Dielectric, Emissive, Disney BSDF
+│   │   ├── Rendering/       # Renderer, SkySettings, EnvironmentMap
+│   │   ├── Scene/           # SceneLoader, SceneData
+│   │   └── Textures/        # Checker, Noise, Marble, Wood, Image, NormalMap
+│   └── Tools/
+│       ├── TextureGen/      # Generatore texture procedurali (PNG)
+│       └── NormalMapGen/    # Generatore flat normal map per test
+├── scenes/                  # File YAML di esempio
+├── tutorials/               # Documentazione
+└── .github/workflows/       # CI con smoke test
+```
+
+---
+
+## 🛠️ Tool Inclusi
+
+### TextureGen
+Genera texture procedurali pronte all'uso (mattoni, legno, marmo, griglia UV):
+```powershell
+dotnet run --project src/Tools/TextureGen/TextureGen.csproj
+```
+
+### NormalMapGen
+Genera una normal map piatta `(128, 128, 255)` per testare il sistema di normal mapping senza artefatti:
+```powershell
+dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
 ```
 
 ---

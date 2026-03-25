@@ -136,9 +136,11 @@ class Program
             for (int x = 0; x < width; x++)
             {
                 var c = pixels[y, x];
-                byte r = (byte)(Math.Clamp(c.X, 0f, 1f) * 255.99f);
-                byte g = (byte)(Math.Clamp(c.Y, 0f, 1f) * 255.99f);
-                byte b = (byte)(Math.Clamp(c.Z, 0f, 1f) * 255.99f);
+                // BUG-04 fix: cast via int with clamp avoids the silent byte-overflow
+                // edge case that 255.99f could theoretically cause with Inf/NaN inputs.
+                byte r = (byte)Math.Clamp((int)(Math.Clamp(c.X, 0f, 1f) * 256f), 0, 255);
+                byte g = (byte)Math.Clamp((int)(Math.Clamp(c.Y, 0f, 1f) * 256f), 0, 255);
+                byte b = (byte)Math.Clamp((int)(Math.Clamp(c.Z, 0f, 1f) * 256f), 0, 255);
                 image[x, y] = new Rgba32(r, g, b, 255);
             }
         }

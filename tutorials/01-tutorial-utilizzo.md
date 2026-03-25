@@ -41,8 +41,13 @@ Se preferisci usare l'eseguibile già compilato:
 ```
 
 ### Esempio rapido:
+
 ```powershell
+# Windows (PowerShell)
 dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -o render.png -w 800 -H 600
+
+# Linux / macOS (bash)
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o render.png -w 800 -H 600
 ```
 
 ---
@@ -91,6 +96,21 @@ L'output di ogni pixel viene processato attraverso una pipeline di post-processi
 
 Il tone mapping è sempre attivo e non richiede configurazione.
 
+### Depth of Field (Messa a Fuoco)
+
+Il motore supporta la simulazione della **profondità di campo** tramite i parametri camera `aperture` e `focal_dist`, configurabili nel file YAML della scena:
+
+| Campo YAML | Tipo | Default | Descrizione |
+|------------|------|---------|-------------|
+| `aperture` | float | `0.0` | Diametro dell'obiettivo. `0` = tutto a fuoco (pinhole). Valori tipici: `0.05`–`0.2`. |
+| `focal_dist` | float | `1.0` | Distanza dal piano di messa a fuoco. Impostala pari alla distanza camera→soggetto. |
+
+> **Esempio:** camera in `[0, 2, -8]`, soggetto in `[0, 1, 0]` → distanza ≈ 8.1 → `focal_dist: 8.1`, `aperture: 0.08`.
+>
+> **Nota:** Con `aperture > 0` e `focal_dist: 1.0` (default), il piano di fuoco è a 1 unità dalla camera: il risultato è un bokeh estremo non intenzionale. **Misura sempre la distanza camera→soggetto** prima di abilitare il DOF.
+
+Vedi la [sezione Camera del Tutorial Scene](02-tutorial-scene.md#3-sezione-camera) per la sintassi YAML completa.
+
 ---
 
 ## 4. Esempi di Rendering (Profili)
@@ -98,7 +118,10 @@ Il tone mapping è sempre attivo e non richiede configurazione.
 ### 4.1 — Profilo "FAST PREVIEW" (Bozza Immediata)
 Ideale per testare la posizione della camera o delle luci.
 ```powershell
+# Windows
 dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 1 -d 5 -w 400 -H 267 -S 4
+# Linux / macOS
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -s 1 -d 5 -w 400 -H 267 -S 4
 ```
 - **Qualità**: Molto rumorosa (1 campione = niente anti-aliasing). Errori di jitter visibili.
 - **Tempo**: < 1 secondo.
@@ -210,3 +233,26 @@ I materiali `emissive` illuminano la scena solo tramite rimbalzi indiretti del p
 1. Verifica che il percorso in `path:` sia corretto e relativo alla cartella del file YAML.
 2. Formati supportati: PNG, JPEG, BMP, GIF, TIFF, WebP. Assicurati che l'estensione corrisponda.
 3. Controlla i warning in console — il motore stampa il percorso completo che ha tentato di caricare.
+
+### I box con `min`/`max` appaiono spostati o hanno dimensioni errate
+Esistono due sintassi per definire un box, entrambe valide ma mutuamente esclusive:
+
+**Metodo 1 — `scale`/`translate` sul cubo unitario (raccomandato):**
+```yaml
+- name: "cubo"
+  type: "box"
+  scale: [2, 1, 2]
+  translate: [0, 0.5, 0]
+  material: "rosso"
+```
+
+**Metodo 2 — `min`/`max` (coordinate assolute degli angoli):**
+```yaml
+- name: "cubo"
+  type: "box"
+  min: [-1, 0, -1]
+  max: [1, 1, 1]
+  material: "rosso"
+```
+
+> **Attenzione:** Non mescolare i due metodi sullo stesso oggetto. Se specifichi sia `min`/`max` che `scale`/`translate`, i primi definiscono la forma e i secondi vengono applicati come trasformazione aggiuntiva (utile per aggiungere `rotate`).
