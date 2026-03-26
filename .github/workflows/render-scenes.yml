@@ -1,0 +1,86 @@
+# This workflow will build a .NET project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+
+name: Render Scenes
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore & Build (Release)
+        run: |
+          dotnet restore src/RayTracer/RayTracer.csproj
+          dotnet publish src/RayTracer/RayTracer.csproj \
+            --configuration Release \
+            --output publish/RayTracer \
+            --no-restore
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: raytracer-bin
+          path: publish/RayTracer/
+          retention-days: 1
+
+  render:
+    name: Render ${{ matrix.scene }}
+    needs: build
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        scene:
+          - Sphere-showcase
+          - Cornell-box
+          - Chess
+          - Classic-showcase
+          - Gradient-sky-showcase
+          - Sample
+          - Classic-vs-disney
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: raytracer-bin
+          path: publish/RayTracer/
+
+      - name: Make binary executable
+        run: chmod +x publish/RayTracer/RayTracer
+
+      - name: Render ${{ matrix.scene }}
+        run: |
+          mkdir -p renders
+          publish/RayTracer/RayTracer \
+            -i scenes/${{ matrix.scene }}.yaml \
+            -o renders/${{ matrix.scene }}.png \
+            -s 1024 -d 50 -w 1920 -H 1080
+
+      - name: Upload render
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-${{ matrix.scene }}
+          path: renders/${{ matrix.scene }}.png
+          retention-days: 7
