@@ -44,6 +44,35 @@ public interface IMaterial
     /// </summary>
     float SpecularStrength => 0f;
 
+    /// <summary>
+    /// Evaluates the BRDF "shape" for direct lighting (NEE).
+    /// Called once per unshadowed light sample in ComputeDirectLighting.
+    ///
+    /// Returns a combined diffuse + specular response WITHOUT material albedo/color —
+    /// that factor is already present in the scatter attenuation applied by TraceRay.
+    /// The light color is multiplied by the caller (ComputeDirectLighting).
+    ///
+    /// Default: Lambert diffuse (N·L × diffuseWeight) + Blinn-Phong specular.
+    /// Override in materials that benefit from view-dependent Fresnel (Metal, Disney).
+    /// </summary>
+    /// <param name="toLight">Unit vector from hit point toward the light.</param>
+    /// <param name="toEye">Unit vector from hit point toward the camera.</param>
+    /// <param name="normal">Shading normal (may be perturbed by normal map).</param>
+    Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal)
+    {
+        float nDotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
+        float result = nDotL * DiffuseWeight;
+ 
+        if (SpecularExponent > 0f && SpecularStrength > 0f && nDotL > 0f)
+        {
+            Vector3 h = Vector3.Normalize(toLight + toEye);
+            float nDotH = MathF.Max(Vector3.Dot(normal, h), 0f);
+            result += MathF.Pow(nDotH, SpecularExponent) * SpecularStrength;
+        }
+ 
+        return new Vector3(result);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Emission.
     //

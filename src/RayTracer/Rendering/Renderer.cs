@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Linq;
 using RayTracer.Core;
 using RayTracer.Geometry;
 using RayTracer.Lights;
@@ -16,6 +17,7 @@ public class Renderer
     private readonly SkySettings _sky;
     private readonly int _maxDepth;
     private readonly int _samplesPerPixel;
+    private readonly HashSet<Emissive> _registeredEmitterMaterials;
 
     // ── Russian Roulette configuration ──────────────────────────────────────
     //
@@ -90,6 +92,11 @@ public class Renderer
         _rrMinBounces  = isIndirectDominant ? RR_MinBounces_Indirect  : RR_MinBounces_Normal;
         _rrMinSurvival = isIndirectDominant ? RR_MinSurvival_Indirect : RR_MinSurvival_Normal;
 
+        _registeredEmitterMaterials = lights
+            .OfType<GeometryLight>()
+            .Select(gl => gl.Material)
+            .ToHashSet();
+        
         if (isIndirectDominant)
         {
             Console.WriteLine($"  Scene analysis: indirect-dominant lighting detected " +
@@ -209,90 +216,86 @@ public class Renderer
     // CORE PATH TRACER
     // ═════════════════════════════════════════════════════════════════════════
 
-    private Vector3 TraceRay(Ray ray, int depth)
+    private Vector3 TraceRay(Ray ray, int depth, bool prevUsedNee = false)
     {
         if (depth <= 0)
             return Vector3.Zero;
-
+ 
         HitRecord rec = default;
-
+ 
         if (!_world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec))
             return CalculateSkyColor(ray);
-
+ 
         // ── Material properties ─────────────────────────────────────────────
         IMaterial? material = rec.Material;
-
-        // ── Normal map perturbation ─────────────────────────────────────
-        // If the material has a normal map AND the hit record has valid TBN
-        // vectors, perturb the shading normal BEFORE any lighting or scatter.
-        // This affects everything: direct lighting N·L, specular N·H,
-        // scatter direction, and emission face test.
+ 
+        // ── Normal map perturbation ─────────────────────────────────────────
         if (material?.NormalMap != null && rec.Tangent.LengthSquared() > 0.5f)
         {
             ApplyNormalMap(ref rec, material.NormalMap);
         }
-
-
+ 
         float diffuseWeight = material?.DiffuseWeight ?? 1f;
-        float specExponent = material?.SpecularExponent ?? 0f;
-        float specStrength = material?.SpecularStrength ?? 0f;
-
+        float specExponent  = material?.SpecularExponent ?? 0f;
+        float specStrength  = material?.SpecularStrength ?? 0f;
+ 
         // ── Emission ────────────────────────────────────────────────────────
-        // Emissive materials add their own radiance independently of any
-        // external lighting or scattering. This is additive and NOT modulated
-        // by attenuation — the surface IS the light source.
-        Vector3 emitted = material?.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace)
-                          ?? Vector3.Zero;
-
+        // Double-counting guard:
+        //   When prevUsedNee=true the previous surface was diffuse and fired NEE,
+        //   which already sampled this emitter's direct contribution. Adding Emit()
+        //   again here would count the same light twice.
+        //
+        //   We suppress emission ONLY for emitters registered in GeometryLight
+        //   (i.e. those that NEE can actually reach). Unregistered emissives
+        //   (e.g. back-faces, non-ISamplable objects) always emit normally.
+        //
+        //   Camera → emitter directly: prevUsedNee=false → emission shown. ✓
+        //   Mirror  → emitter:         prevUsedNee=false (specular, no NEE) → shown. ✓
+        //   Diffuse → emitter (NEE on): prevUsedNee=true → suppressed. ✓
+        Vector3 emitted = Vector3.Zero;
+        if (material != null)
+        {
+            bool suppressEmission = prevUsedNee
+                && material is Emissive em
+                && _registeredEmitterMaterials.Contains(em);
+ 
+            if (!suppressEmission)
+                emitted = material.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
+        }
+ 
         // ── Direct lighting (Next Event Estimation) ─────────────────────────
-        // The ambient term is ALWAYS included for all materials — it represents
-        // omnidirectional fill light. Even mirrors and glass interact with it:
-        //   - Mirrors reflect it (tinted by attenuation = metal color)
-        //   - Glass transmits it (tinted by attenuation = glass tint)
-        //   - Diffuse surfaces scatter it (weighted by attenuation = albedo)
-        // The per-light diffuse/specular components are gated by material props.
         Vector3 directLight = _ambientLight;
         bool needsLightSampling = (diffuseWeight > 0f) || (specExponent > 0f);
-
+ 
         if (needsLightSampling)
-            directLight = ComputeDirectLighting(rec, ray, diffuseWeight, specExponent, specStrength);
-
+            directLight = ComputeDirectLighting(rec, ray, material);
+ 
         // ── Scatter (indirect lighting) ─────────────────────────────────────
         if (material != null && material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
         {
             // ── Russian Roulette ────────────────────────────────────────────
-            // After a minimum number of bounces, probabilistically terminate
-            // low-energy paths. The surviving paths are boosted by 1/p to keep
-            // the estimator unbiased. This is more efficient and less biased
-            // than hard-cutting at maxDepth.
             int bouncesUsed = _maxDepth - depth;
             if (bouncesUsed >= _rrMinBounces)
             {
                 float survivalProb = MathF.Max(MathUtils.Luminance(attenuation), _rrMinSurvival);
-                survivalProb = MathF.Min(survivalProb, 0.95f); // Cap to avoid infinite paths
-
+                survivalProb = MathF.Min(survivalProb, 0.95f);
+ 
                 if (MathUtils.RandomFloat() > survivalProb)
-                    return emitted + attenuation * directLight; // Terminated — return only direct contribution
-
-                // Surviving path: boost energy to compensate for killed siblings
+                    return emitted + attenuation * directLight;
+ 
                 attenuation /= survivalProb;
-
-                // NOTE: No attenuation cap here. With scene-adaptive RR,
-                // indirect-dominant scenes use MinSurvival=0.5 (max boost 2×)
-                // and MinBounces=8, giving paths plenty of opportunity to find
-                // emissive sources. Normal scenes use MinSurvival=0.15 (max
-                // boost 7×). Any remaining extreme outliers are caught by
-                // ClampRadiance() at the end of the render loop.
             }
-
+ 
             // Skip indirect recursion for near-black materials (optimisation)
             if (attenuation.LengthSquared() < 0.001f)
                 return emitted + directLight * attenuation;
-
-            Vector3 indirect = TraceRay(scattered, depth - 1);
+ 
+            // Pass needsLightSampling as prevUsedNee for the next bounce:
+            // if THIS surface used NEE, the next hit must not double-count emitters.
+            Vector3 indirect = TraceRay(scattered, depth - 1, prevUsedNee: needsLightSampling);
             return emitted + attenuation * (directLight + indirect);
         }
-
+ 
         // No scatter (fully absorbed) — return direct light contribution only
         return emitted + directLight;
     }
@@ -304,57 +307,38 @@ public class Renderer
     /// <summary>
     /// Computes direct illumination from all lights at a surface hit point.
     ///
-    /// The computation has three parts:
+    /// 0. Ambient fill — applied unconditionally to all materials.
+    /// 1. Per-light: shadow test + material.EvaluateDirect(toLight, toEye, normal).
+    ///    EvaluateDirect encapsulates the BRDF shape (Lambert N·L + Fresnel-boosted
+    ///    Blinn-Phong), replacing the previous hard-coded diffuseWeight/specExponent/
+    ///    specStrength triple. Each material provides its own physically-calibrated
+    ///    implementation; the default in IMaterial matches the previous behaviour.
     ///
-    /// 0. **Ambient fill**: applied to ALL materials unconditionally as a base.
-    ///    Represents omnidirectional environment light that even specular surfaces
-    ///    reflect (tinted by their attenuation). NOT multiplied by diffuseWeight —
-    ///    a mirror in a room reflects the room's ambient light.
-    ///
-    /// 1. **Diffuse (Lambert)**: lightColor * N·L * diffuseWeight
-    ///    Only for materials with diffuseWeight > 0.
-    ///
-    /// 2. **Specular (Blinn-Phong)**: lightColor * (N·H)^exponent * specStrength
-    ///    Adds visible "hotspot" highlights on shiny surfaces.
+    /// The material albedo/color is NOT included in EvaluateDirect — it is applied
+    /// by TraceRay via the scatter attenuation, keeping direct and indirect paths
+    /// energetically consistent.
     /// </summary>
-    private Vector3 ComputeDirectLighting(HitRecord rec, Ray incomingRay,
-                                          float diffuseWeight, float specExponent, float specStrength)
+    private Vector3 ComputeDirectLighting(HitRecord rec, Ray incomingRay, IMaterial? material)
     {
         // ── Ambient fill ────────────────────────────────────────────────────
-        // NOT multiplied by diffuseWeight!
-        //
-        // The ambient term approximates omnidirectional environment light.
-        // All materials interact with this light — the material's attenuation
-        // vector in TraceRay handles the correct modulation:
-        //   - Diffuse: attenuation = albedo → ambient * albedo
-        //   - Metal:   attenuation = metal color → ambient reflected with tint
-        //   - Glass:   attenuation = glass tint → ambient transmitted with tint
-        //
-        // Previous version had `_ambientLight * diffuseWeight` which zeroed
-        // the ambient for metals (diffuseWeight=0), making mirror scenes with
-        // ambient_light > 0 appear completely black. This was a bug.
+        // Applied to ALL materials: diffuse, metal, glass.
+        // Not gated by diffuseWeight — a mirror in a room reflects ambient light.
         Vector3 result = _ambientLight;
-
-        // Pre-compute view direction for specular highlights
-        Vector3 viewDir = Vector3.Zero;
-        bool doSpecular = specExponent > 0f && specStrength > 0f;
-        if (doSpecular)
-            viewDir = Vector3.Normalize(-incomingRay.Direction);
-
+ 
+        Vector3 viewDir = Vector3.Normalize(-incomingRay.Direction);
+ 
         foreach (var light in _lights)
         {
             int samples = light.ShadowSamples;
             Vector3 lightAccum = Vector3.Zero;
-
+ 
             for (int s = 0; s < samples; s++)
             {
-                // Use stratified sampling for area lights — the sample index is
-                // passed through to pick a point from a specific grid cell.
                 bool inShadow;
                 Vector3 lightColor;
                 Vector3 dirToLight;
                 float distance;
-
+ 
                 if (light is AreaLight areaLight)
                 {
                     (inShadow, lightColor, dirToLight, distance) =
@@ -365,35 +349,22 @@ public class Renderer
                     (inShadow, lightColor, dirToLight, distance) =
                         light.IlluminateAndTest(rec.Point, rec.Normal, _world);
                 }
-
+ 
                 if (inShadow) continue;
-
-                // ── Diffuse component (Lambert) ─────────────────────────────
-                float nDotL = MathF.Max(0f, Vector3.Dot(rec.Normal, dirToLight));
-
-                if (diffuseWeight > 0f)
-                    lightAccum += lightColor * nDotL * diffuseWeight;
-
-                // ── Specular component (Blinn-Phong) ────────────────────────
-                // The half-vector between the view direction and the light
-                // direction gives us the "highlight" position. The N·H term
-                // raised to the specular exponent controls the size/tightness.
-                if (doSpecular && nDotL > 0f)
-                {
-                    Vector3 halfDir = Vector3.Normalize(dirToLight + viewDir);
-                    float nDotH = MathF.Max(0f, Vector3.Dot(rec.Normal, halfDir));
-                    float spec = MathF.Pow(nDotH, specExponent);
-                    lightAccum += lightColor * spec * specStrength;
-                }
+ 
+                // EvaluateDirect: BRDF shape factor (diffuse N·L + specular with Fresnel).
+                // Fallback: plain Lambert nDotL when material is null (should not happen).
+                Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal)
+                               ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f));
+ 
+                lightAccum += lightColor * brdf;
             }
-
-            // Note on energy normalisation:
-            // AreaLight pre-divides by ShadowSamples in its energy formula, so
-            // summing (not averaging) the unshadowed samples gives correct energy.
-            // Point/Directional/Spot lights with ShadowSamples==1 are unaffected.
+ 
+            // AreaLight pre-divides by ShadowSamples in its energy formula → sum (not average).
+            // Point/Directional/Spot always have ShadowSamples=1 → loop runs once.
             result += lightAccum;
         }
-
+ 
         return result;
     }
 

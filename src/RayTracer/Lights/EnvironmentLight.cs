@@ -6,35 +6,57 @@ using RayTracer.Rendering;
 namespace RayTracer.Lights;
 
 /// <summary>
-/// A light that wraps the SkySettings to provide direct lighting (Next Event Estimation)
-/// from the environment map (HDRI) or a gradient sky with a sun.
-/// Uses Importance Sampling to dramatically reduce noise compared to purely indirect gathering.
+/// Wraps SkySettings to provide direct lighting (Next Event Estimation)
+/// from an HDRI environment map or a gradient sky with a sun disk.
+/// Uses importance sampling to dramatically reduce noise vs purely indirect gathering.
+///
+/// Lifecycle:
+///   - Illuminate()        → called once at Renderer construction for scene analysis.
+///                           Returns a DETERMINISTIC luminance estimate (no PRNG).
+///   - IlluminateAndTest() → called at every surface hit during rendering.
+///                           Uses importance sampling (PRNG) for accurate NEE.
 /// </summary>
 public class EnvironmentLight : ILight
 {
     private readonly SkySettings _sky;
 
-    // How many times to sample the environment per pixel/bounce during NEE. 
-    public int ShadowSamples { get; } = 1;
+    // FIX #9: removed redundant `= 1` inline initialiser — value always comes from constructor.
+    /// <inheritdoc/>
+    public int ShadowSamples { get; }
 
     public EnvironmentLight(SkySettings sky, int shadowSamples = 1)
     {
         _sky = sky;
-        ShadowSamples = shadowSamples;
+        ShadowSamples = Math.Max(1, shadowSamples);
     }
 
+    /// <summary>
+    /// Returns a deterministic estimate of the environment's average luminance.
+    ///
+    /// FIX #7: guards on CanSampleDirectly (was missing — could return non-zero energy
+    ///         for flat skies that have no direct-sampling support).
+    /// FIX #8: divides by ShadowSamples for energetic consistency with IlluminateAndTest().
+    /// FIX #10: uses SkySettings.EstimatedAverageLuminance instead of SampleDirectly(),
+    ///          making the Renderer constructor's scene-analysis loop fully deterministic.
+    ///          SampleDirectly() uses MathUtils.RandomFloat() internally; calling it here
+    ///          made isIndirectDominant classification non-deterministic across runs.
+    /// </summary>
     public (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint)
     {
-        // This is only called via Illuminate(hitPoint) standalone, which is rare.
-        // We just sample a direction.
-        var (dir, color, pdf) = _sky.SampleDirectly();
-        if (pdf <= 0f) return (Vector3.Zero, dir, 0f);
-        
-        // Attenuation for Env Light in NEE: L / PDF
-        return (color / pdf, dir, MathUtils.Infinity);
+        // FIX #7 — guard was absent in the original
+        if (!_sky.CanSampleDirectly)
+            return (Vector3.Zero, Vector3.UnitY, 0f);
+
+        // FIX #10 — deterministic path: no PRNG
+        float avgLum = _sky.EstimatedAverageLuminance;
+
+        // FIX #8 — divide by ShadowSamples, consistent with IlluminateAndTest()
+        return (new Vector3(avgLum / ShadowSamples), Vector3.UnitY, MathUtils.Infinity);
     }
 
-    public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance) IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
+    /// <inheritdoc/>
+    public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
+        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
     {
         if (!_sky.CanSampleDirectly)
             return (true, Vector3.Zero, Vector3.UnitY, 0f);
@@ -43,10 +65,9 @@ public class EnvironmentLight : ILight
         if (pdf <= 0f)
             return (true, Vector3.Zero, dir, 0f);
 
-        // Env lights are infinitely far away
         float distance = MathUtils.Infinity;
-        
-        // Ensure the sampled direction is above the surface
+
+        // Discard samples below the surface horizon
         float nDotL = Vector3.Dot(surfaceNormal, dir);
         if (nDotL <= 0f)
             return (true, Vector3.Zero, dir, distance);
@@ -54,19 +75,14 @@ public class EnvironmentLight : ILight
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dir);
         var rec = new HitRecord();
-        
-        // Test shadow ray to infinity (practically a very large number)
-        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
 
+        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
         if (inShadow)
             return (true, Vector3.Zero, dir, distance);
 
-        // Solid-angle based attenuation for EnvLight needs to just divide by PDF.
-        // The cos(theta) factor is applied by the caller (ComputeDirectLighting in Renderer).
-        // Since we use 1 sample, attenuation = L / PDF.
-        // For ShadowSamples > 1, we divide by ShadowSamples.
+        // L / (pdf × ShadowSamples): each sample contributes 1/ShadowSamples of total energy.
+        // The N·L factor is applied by ComputeDirectLighting in Renderer (via EvaluateDirect).
         Vector3 attenuation = color / (pdf * ShadowSamples);
-
         return (false, attenuation, dir, distance);
     }
 }

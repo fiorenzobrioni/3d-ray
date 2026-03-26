@@ -170,6 +170,48 @@ public class SkySettings
     public bool CanSampleDirectly => IsHdri || HasSun;
 
     /// <summary>
+    /// Deterministic estimate of average sky radiance, used by EnvironmentLight.Illuminate()
+    /// for scene analysis in the Renderer constructor (indirect-dominant detection).
+    ///
+    /// MUST NOT call MathUtils.RandomFloat() — the constructor runs single-threaded
+    /// and must produce identical results across runs for consistent RR parameters.
+    ///
+    /// Gradient sky: weighted average of zenith/horizon/ground luminance plus the
+    /// sun's contribution scaled by its solid angle.
+    /// HDRI: delegates to EnvironmentMap.EstimatedAverageLuminance.
+    /// Flat: luminance of the flat color (CanSampleDirectly=false, but provided for completeness).
+    /// </summary>
+    public float EstimatedAverageLuminance
+    {
+        get
+        {
+            if (IsHdri && _envMap != null)
+                return _envMap.EstimatedAverageLuminance;
+ 
+            if (HasSun)
+            {
+                // Weighted average over sky hemisphere zones.
+                // Zenith covers ~25% of the upper hemisphere, horizon ~50%, ground ~25%.
+                float zenithLum  = MathUtils.Luminance(ZenithColor);
+                float horizonLum = MathUtils.Luminance(HorizonColor);
+                float groundLum  = MathUtils.Luminance(GroundColor);
+                float skyAvg = (zenithLum + horizonLum * 2f + groundLum) / 4f;
+ 
+                // Sun contribution: peak radiance × solid angle of the disk.
+                // 2π(1 − cosAngle) is the solid angle of a spherical cap.
+                float sunSolidAngle = 2f * MathF.PI * (1f - SunCosAngle);
+                float sunLum = MathUtils.Luminance(SunColor) * SunIntensity * sunSolidAngle;
+ 
+                return skyAvg + sunLum;
+            }
+ 
+            // Flat mode — CanSampleDirectly is false here, but return a value anyway
+            // so the method is always safe to call.
+            return MathUtils.Luminance(FlatColor);
+        }
+    }
+
+    /// <summary>
     /// Samples a random direction towards a bright part of the sky (HDRI or Sun).
     /// </summary>
     /// <returns>The sampled direction, the unbounded radiance of that direction (Color/Intensity), and the PDF.</returns>

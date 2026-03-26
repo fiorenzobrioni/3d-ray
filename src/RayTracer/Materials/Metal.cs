@@ -51,6 +51,42 @@ public class Metal : IMaterial
     }
 
     public float SpecularStrength => 1f - Fuzz * 0.5f; // 1.0 at fuzz=0, 0.5 at fuzz=1
+
+    /// <summary>
+    /// Metal direct lighting with view-dependent Schlick Fresnel on the specular lobe.
+    /// Replaces the uniform specStrength scalar with a Fresnel-boosted value that
+    /// produces stronger, tighter highlights at grazing angles — the defining visual
+    /// characteristic of conductors that Blinn-Phong with fixed weight misses.
+    ///
+    /// The Fresnel is scalar (achromatic boost). The color response comes from
+    /// TraceRay's attenuation = metal_albedo, keeping the two paths consistent.
+    /// </summary>
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal)
+    {
+        float nDotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
+ 
+        // Diffuse term: scales with fuzz (rough metals have some diffuse scattering)
+        float diffuse = nDotL * DiffuseWeight; // DiffuseWeight = Fuzz
+ 
+        if (SpecularExponent <= 0f || nDotL <= 0f)
+            return new Vector3(diffuse);
+ 
+        Vector3 h = Vector3.Normalize(toLight + toEye);
+        float nDotH = MathF.Max(Vector3.Dot(normal, h), 0f);
+        float vDotH = MathF.Max(Vector3.Dot(toEye, h), 0f);
+ 
+        // GGX-calibrated Blinn-Phong shape (SpecularExponent = 2/fuzz²)
+        float bpShape = MathF.Pow(nDotH, SpecularExponent);
+ 
+        // Schlick Fresnel: F0 = SpecularStrength (= 1 - fuzz/2), grazing → 1.
+        // Scalar version: color tinting comes from attenuation (metal_albedo) in TraceRay.
+        float s = 1f - vDotH;
+        s *= s * s * s * s; // (1 - V·H)^5
+        float fresnel = SpecularStrength + (1f - SpecularStrength) * s;
+ 
+        return new Vector3(diffuse + bpShape * fresnel);
+    }
+
     public NormalMapTexture? NormalMap { get; set; }
 
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)

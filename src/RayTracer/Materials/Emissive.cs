@@ -41,7 +41,7 @@ public class Emissive : IMaterial
     // ── Direct lighting properties ──────────────────────────────────────────
     // Emissive surfaces don't receive external illumination — they ARE the light.
     // No diffuse, no specular. All contribution comes from Emit().
-    public float DiffuseWeight => 0f;
+    public float DiffuseWeight    => 0f;
     public float SpecularExponent => 0f;
     public float SpecularStrength => 0f;
     public NormalMapTexture? NormalMap { get; set; }
@@ -58,6 +58,9 @@ public class Emissive : IMaterial
         return false;
     }
 
+    // Default EvaluateDirect from interface is fine (returns Zero since DiffuseWeight=0
+    // and SpecularExponent=0, so ComputeDirectLighting skips this material entirely).
+
     /// <summary>
     /// Returns the emitted radiance at the given surface point.
     /// Only emits from the front face — the back side of an emissive
@@ -68,4 +71,21 @@ public class Emissive : IMaterial
         if (!frontFace) return Vector3.Zero;
         return Albedo.Value(u, v, point, objectSeed) * Intensity;
     }
+
+    // ── FIX #11: AverageEmission ────────────────────────────────────────────
+    /// <summary>
+    /// Returns the average emitted color without requiring UV or world-space coordinates.
+    /// Used by GeometryLight for NEE evaluation when the exact sample-point UV is
+    /// not available (ISamplable.Sample() does not return UV coordinates).
+    ///
+    /// For SolidColor albedo this is exact.
+    /// For image and procedural textures it samples the center texel (u=0.5, v=0.5)
+    /// as a representative approximation — acceptable since the solid-angle-weighted
+    /// average of most textures is close to the center sample.
+    ///
+    /// The known bias (textured emissives with non-uniform brightness distributions)
+    /// is documented here pending a future ISamplable extension that returns UV coords.
+    /// </summary>
+    public Vector3 AverageEmission()
+        => Albedo.Value(0.5f, 0.5f, Vector3.Zero, 0) * Intensity;
 }

@@ -151,6 +151,40 @@ public class DisneyBsdf : IMaterial
         }
     }
 
+    /// <summary>
+    /// Disney BSDF direct lighting with view-dependent Fresnel.
+    /// Metallic materials use a high F0 (SpecularStrength ≈ 1), producing the
+    /// characteristic grazing-angle brightening. Dielectrics use F0 = 0.08×Specular
+    /// (the Disney convention for a dielectric with IOR in the 1.4–1.7 range).
+    ///
+    /// As with Metal.EvaluateDirect, the color tint comes from attenuation in TraceRay;
+    /// this method returns only the achromatic BRDF shape factor.
+    /// </summary>
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal)
+    {
+        float nDotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
+        float diffuse = nDotL * DiffuseWeight;
+ 
+        if (SpecularExponent <= 0f || SpecularStrength <= 0f || nDotL <= 0f)
+            return new Vector3(diffuse);
+ 
+        Vector3 h = Vector3.Normalize(toLight + toEye);
+        float nDotH = MathF.Max(Vector3.Dot(normal, h), 0f);
+        float vDotH = MathF.Max(Vector3.Dot(toEye, h), 0f);
+ 
+        float bpShape = MathF.Pow(nDotH, SpecularExponent);
+ 
+        // Disney Fresnel F0:
+        //   Metallic   → SpecularStrength (≈ 1 for pure metal)
+        //   Dielectric → 0.08 × Specular  (Disney: F0 = 0.08 for IOR~1.5, scaled by Specular)
+        float f0 = Metallic > 0.5f ? SpecularStrength : Specular * 0.08f;
+        float s = 1f - vDotH;
+        s *= s * s * s * s;
+        float fresnel = f0 + (1f - f0) * s;
+ 
+        return new Vector3(diffuse + bpShape * fresnel);
+    }
+
     // ═════════════════════════════════════════════════════════════════════════
     // Scatter — stochastic lobe selection for indirect rays
     //

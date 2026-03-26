@@ -170,42 +170,65 @@ public class SceneLoader
     // Factory helpers
     // =========================================================================
 
+    /// <summary>
+    /// Scans all scene objects and registers ISamplable emissives as GeometryLights
+    /// for Next Event Estimation (NEE / direct illumination).
+    ///
+    /// Handles two cases:
+    ///   1. Bare primitive (Sphere, Quad, Triangle, Disk) with Emissive material.
+    ///   2. Transform-wrapped primitive: Transform now implements ISamplable and
+    ///      correctly maps Sample() to world space, so rotated/scaled/translated
+    ///      emissives participate in NEE like any other geometry light.
+    ///
+    /// Chain transforms (Transform wrapping another Transform) are handled
+    /// recursively via UnwrapEmissive().
+    /// </summary>
     private static void ExtractGeometryLights(List<IHittable> objects, List<ILight> lights, int shadowSamples)
     {
         foreach (var obj in objects)
         {
-            // Unwrap transform to check inner object
-            var innerObj = obj;
-            if (innerObj is Transform t)
-                innerObj = t.Inner;
-
-            // Notice we wrap the *transformed* object in GeometryLight if possible. 
-            // Wait, Transform does NOT implement ISamplable right now!
-            // For simplicity, we only wrap non-transformed ISamplables, or we add ISamplable to Transform.
-            // Let's check if the raw object is ISamplable and Emissive.
-            // If it is transformed, picking points is harder without Transform.Sample().
-            // I'll assume we check the base obj if it implements ISamplable. 
-            
-            // Actually, if we just check if obj is ISamplable...
-            if (obj is ISamplable samplable)
+            var (samplable, emissive) = ResolveEmissiveSamplable(obj);
+            if (samplable != null && emissive != null)
+                lights.Add(new GeometryLight(samplable, emissive, shadowSamples));
+        }
+    }
+ 
+    /// <summary>
+    /// Returns the ISamplable and Emissive for a hittable, if it qualifies as a
+    /// geometry light. Handles bare primitives and Transform wrappers (including
+    /// nested Transform chains).
+    ///
+    /// For a Transform, <c>obj</c> itself is used as the ISamplable — Transform
+    /// now implements ISamplable and maps sample points/normals/area to world space.
+    /// </summary>
+    private static (ISamplable? Samplable, Emissive? Material) ResolveEmissiveSamplable(IHittable obj)
+    {
+        switch (obj)
+        {
+            // ── Bare primitives ────────────────────────────────────────────
+            case Sphere    s  when s.Material  is Emissive em: return (s,  em);
+            case Quad      q  when q.Material  is Emissive em: return (q,  em);
+            case Triangle  tr when tr.Material is Emissive em: return (tr, em);
+            case Disk      d  when d.Material  is Emissive em: return (d,  em);
+ 
+            // ── Transform wrapper ──────────────────────────────────────────
+            // Transform implements ISamplable: it delegates Sample() to the
+            // inner primitive and maps the result to world space with the
+            // correct Jacobian-based area conversion.
+            // We recurse into Inner to find the Emissive material; the
+            // ISamplable we register is the Transform itself (world-space sampling).
+            case Transform t:
             {
-                // We need to inspect the material. Since IHittable doesn't force a Material property,
-                // we check concrete types.
-                IMaterial? mat = null;
-                if (obj is Sphere s) mat = s.Material;
-                else if (obj is Quad q) mat = q.Material;
-                else if (obj is Triangle tr) mat = tr.Material;
-                else if (obj is Disk d) mat = d.Material;
-
-                if (mat is Emissive em)
-                {
-                    // Mark material as a direct light to avoid double-counting in some engines,
-                    // but we will keep it simple and just add the light.
-                    lights.Add(new GeometryLight(samplable, em));
-                }
+                var (innerSamplable, emissive) = ResolveEmissiveSamplable(t.Inner);
+                if (innerSamplable == null || emissive == null)
+                    return (null, null);
+ 
+                // t itself is ISamplable (Transform : IHittable, ISamplable)
+                return (t, emissive);
             }
-            // If it's a transform, check its inner for emissive, but we can't easily sample it without Transform ISamplable interface.
-            // (Skipped for brevity/simplicity for now).
+ 
+            default:
+                return (null, null);
         }
     }
 

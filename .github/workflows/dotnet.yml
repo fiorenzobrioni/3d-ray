@@ -36,9 +36,9 @@ jobs:
         -w 320 -H 213
         -s 1 -d 5 -S 4
 
-    - name: Upload render artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: render-chess
-        path: render-test.png
-        retention-days: 7
+    # - name: Upload render artifact
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: render-chess
+    #     path: render-test.png
+    #     retention-days: 7

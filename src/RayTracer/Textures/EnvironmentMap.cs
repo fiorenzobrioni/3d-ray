@@ -27,10 +27,14 @@ public class EnvironmentMap
     private readonly int _height;
     private readonly float _intensity;
     private readonly float _rotationRad; // Y-axis rotation in radians
+    // Lazy-computed average luminance. Negative sentinel = not yet computed.
+    // Thread-safe in practice: read once from the single-threaded Renderer constructor,
+    // before Parallel.For begins.
+    private float _avgLuminance = -1f;
 
     // CDFs for Importance Sampling
-    private float[] _margCdf;
-    private float[][] _condCdf;
+    private float[] _margCdf = [];
+    private float[][] _condCdf = [];
 
     /// <summary>
     /// Creates an environment map from pre-loaded HDR pixel data.
@@ -49,6 +53,34 @@ public class EnvironmentMap
         _intensity = intensity;
         _rotationRad = rotationDeg * MathF.PI / 180f;
         BuildCdfs();
+    }
+
+    /// <summary>
+    /// Average luminance across all HDRI texels, intensity-scaled.
+    /// Computed lazily on first access by iterating the pixel buffer.
+    /// O(W×H) on first call, O(1) thereafter.
+    ///
+    /// Used by SkySettings.EstimatedAverageLuminance → EnvironmentLight.Illuminate()
+    /// for deterministic scene analysis (no PRNG).
+    /// </summary>
+    public float EstimatedAverageLuminance
+    {
+        get
+        {
+            if (_avgLuminance >= 0f) return _avgLuminance;
+ 
+            float total = 0f;
+            int pixelCount = _width * _height;
+            for (int i = 0; i < pixelCount; i++)
+            {
+                int idx = i * 3;
+                total += MathUtils.Luminance(
+                    new Vector3(_pixels[idx], _pixels[idx + 1], _pixels[idx + 2]));
+            }
+ 
+            _avgLuminance = (pixelCount > 0 ? total / pixelCount : 0f) * _intensity;
+            return _avgLuminance;
+        }
     }
 
     private void BuildCdfs()
