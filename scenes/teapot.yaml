@@ -1,58 +1,132 @@
-# Ray-Tracing Scene - Multi-polygon Teapot (Updated for latest engine)
+# ═══════════════════════════════════════════════════════════════════════════
+#  Ray-Tracing Scene — Teapot  (refactoring completo per engine attuale)
+#
+#  Miglioramenti rispetto alla versione originale:
+#    • Gradient sky + sun disk (sostituisce il background piatto)
+#    • Materiale gold_teapot: Disney BSDF PBR (era metal+marble procedurale)
+#    • Schema di illuminazione three-point con area light (ombre morbide)
+#    • Directional light allineata al sun disk (highlights diretti fisici)
+#    • Camera 3/4 con DOF calibrato sul corpo della teiera
+#    • floor_wood: colori e scala ottimizzati per il nuovo schema luci
+#    • Rimosso materiale ceramic_teapot (non referenziato in nessuna entity)
+#
+#  Render consigliato:
+#    Draft:  -w 800  -H 600  -s 32  -d 15  -S 4
+#    Medio:  -w 1280 -H 960  -s 128 -d 25  -S 16
+#    Finale: -w 1920 -H 1080 -s 256 -d 40  -S 32
+# ═══════════════════════════════════════════════════════════════════════════
 
 world:
-  ambient_light: [0.05, 0.05, 0.1] # Soft blue studio ambient
-  background: [0.01, 0.01, 0.02]  # Dark night fill
+  # Ambient basso — la maggior parte della GI arriva dal gradient sky
+  ambient_light: [0.03, 0.03, 0.04]
+
+  # Gradient sky: zenit blu-navy → orizzonte azzurro caldo → sottofondo scuro
+  # Il sun disk è allineato alla key light direzionale (vedi sezione lights)
+  sky:
+    type: "gradient"
+    zenith_color:  [0.05, 0.10, 0.28]
+    horizon_color: [0.50, 0.56, 0.72]
+    ground_color:  [0.10, 0.08, 0.06]
+    sun:
+      direction: [-0.55, -0.65, -0.50]   # Da alto-sinistra-fronte
+      color:     [1.0, 0.90, 0.72]       # Bianco caldo (luce pomeridiana)
+      intensity: 14.0
+      size:      2.5
+      falloff:   36.0
+
   ground:
     type: "infinite_plane"
     material: "floor_wood"
     y: 0.0
 
+# ─────────────────────────────────────────────────────────────────────────
+#  CAMERA
+#  Angolo 3/4 leggermente rialzato — valorizza forma e highlights della teiera.
+#  DOF sottile: fuoco sul corpo centrale, leggero blur sullo sfondo del piano.
+#  focal_dist calibrato sulla distanza camera→centro teiera (~8.6 unità).
+# ─────────────────────────────────────────────────────────────────────────
 camera:
-  position: [0, 4, 10]
-  look_at: [0, 1.5, 0]
-  fov: 40
-  aperture: 0.1             # Better bokeh for a macro look
-  focal_dist: 10.5
+  position:   [3.2, 2.6, 8.0]
+  look_at:    [-0.1, 0.75, 0.0]
+  fov:        36
+  aperture:   0.05        # DOF sottile — aumenta a 0.12 per bokeh più forte
+  focal_dist: 8.6         # Distanza camera → corpo della teiera
 
+# ─────────────────────────────────────────────────────────────────────────
+#  MATERIALS
+# ─────────────────────────────────────────────────────────────────────────
 materials:
+
+  # ── Pavimento ────────────────────────────────────────────────────────────
+  # Parquet caldo. La rotazione [90,0,0] orienta le venature lungo X
+  # (parallele alla profondità della scena) — più naturale con la camera 3/4.
   - id: "floor_wood"
     type: "lambertian"
     texture:
       type: "wood"
-      scale: 15.0
-      noise_strength: 3.2
-      colors: [[0.35, 0.15, 0.08], [0.15, 0.05, 0.02]]
-      randomize_offset: true
+      scale: 12.0
+      noise_strength: 3.0
+      colors: [[0.40, 0.20, 0.09], [0.18, 0.07, 0.02]]
       rotation: [90, 0, 0]
 
+  # ── Teiera — oro lucido (Disney BSDF) ────────────────────────────────────
+  # Sostituisce il vecchio `metal` + texture marble procedurale.
+  # Disney BSDF con metallic=1 usa F0 derivato dal colore (oro fisicamente
+  # corretto): riflesso dorato in diffusione + highlight bianco-caldo in
+  # Fresnel alle angolazioni acute.  roughness=0.08 → oro quasi a specchio
+  # con una leggera morbidezza artigianale (non uno specchio perfetto freddo).
   - id: "gold_teapot"
-    type: "metal"
-    fuzz: 0.02
-    texture:
-      type: "marble"
-      scale: 30.0
-      colors: [[0.95, 0.75, 0.15], [0.75, 0.55, 0.05]]
-      noise_strength: 12.0
+    type: "disney"
+    color:     [1.0, 0.71, 0.29]   # Colore F0 oro (standard PBR)
+    metallic:  1.0
+    roughness: 0.08                 # Aumenta a 0.18 per oro satinato/antico
+    specular:  1.0
 
-  - id: "ceramic_teapot"
-    type: "dielectric"
-    refraction_index: 1.5
-
+# ─────────────────────────────────────────────────────────────────────────
+#  LIGHTS  — schema three-point + rim
+#
+#  Key  : area light calda da alto-sinistra → ombre morbide sul piano
+#  Fill : point freddo da destra → contrasto cromatico, ammorbidisce le ombre
+#  Sun  : directional allineata al sun disk → highlights diretti fisici
+#  Rim  : point posteriore → stacca la silhouette dalla parete del piano
+# ─────────────────────────────────────────────────────────────────────────
 lights:
+
+  # Key light — area rettangolare calda (ombre morbide con penombra)
+  # Shadow samples: usa -S 4 per draft, -S 16 per medio, -S 32 per finale
+  - type: "area"
+    corner:         [-4.5, 7.0, -2.5]
+    u:              [5.0, 0.0,  0.0]    # Larghezza 5 unità in X
+    v:              [0.0, 0.0,  4.0]    # Profondità 4 unità in Z
+    color:          [1.0, 0.90, 0.75]
+    intensity:      26.0
+    shadow_samples: 16
+
+  # Fill light — point freddo-neutro da destra e leggermente in basso
   - type: "point"
-    position: [5, 10, 5]
-    color: [1.0, 0.95, 0.9]
-    intensity: 150.0
+    position:  [6.5, 3.5, 3.5]
+    color:     [0.75, 0.85, 1.0]
+    intensity: 40.0
 
-  - type: "spot"
-    position: [-5, 8, 2]
-    direction: [5, -10, -2]
-    color: [1.0, 1.0, 1.0]
-    intensity: 120.0
-    inner_angle: 15.0
-    outer_angle: 35.0
+  # Directional — allineata al sun disk del gradient sky
+  # Porta ombre nitide e highlight diretti sui piani brillanti della teiera
+  # intensity bassa perché la key area light è la sorgente principale
+  - type: "directional"
+    direction: [-0.55, -0.65, -0.50]
+    color:     [1.0, 0.90, 0.72]
+    intensity: 0.10
 
+  # Rim light — da dietro-sinistra, tono freddo
+  # Fa emergere il bordo superiore del coperchio e il becco dallo sfondo scuro
+  - type: "point"
+    position:  [-2.5, 3.5, -5.0]
+    color:     [0.80, 0.90, 1.0]
+    intensity: 28.0
+
+# ─────────────────────────────────────────────────────────────────────────
+#  ENTITIES — sostituisci questa riga con l'intero blocco `entities:` del
+#             file originale (tutte le triangle entry rimangono invariate)
+# ─────────────────────────────────────────────────────────────────────────
 entities:
   - name: "tri_0"
     type: "triangle"
