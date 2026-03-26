@@ -20,7 +20,23 @@ class Program
 
         // Parse CLI arguments
         string? inputPath = GetArg(args, "--input", "-i");
-        string outputPath = GetArg(args, "--output", "-o") ?? "render.png";
+        string? outputArg = GetArg(args, "--output", "-o");
+        string outputPath;
+
+        if (outputArg != null)
+        {
+            outputPath = outputArg;
+        }
+        else if (!string.IsNullOrEmpty(inputPath))
+        {
+            // Default to "output/render-<scene>.png"
+            string sceneName = Path.GetFileNameWithoutExtension(inputPath);
+            outputPath = Path.Combine("output", $"render-{sceneName}.png");
+        }
+        else
+        {
+            outputPath = Path.Combine("output", "render.png");
+        }
         
         bool wParsed = int.TryParse(GetArg(args, "--width", "-w"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var width);
         bool hParsed = int.TryParse(GetArg(args, "--height", "-H"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var height);
@@ -94,6 +110,14 @@ class Program
 
             // Save image
             Console.Write($"Saving {outputPath}... ");
+            
+            // Ensure output directory exists
+            string? outputDir = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(outputDir))
+            {
+                Directory.CreateDirectory(outputDir);
+            }
+
             SaveImage(pixels, width, height, outputPath);
             Console.WriteLine("done!");
             Console.WriteLine();
@@ -112,7 +136,7 @@ class Program
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  -i, --input <file>          Path to the YAML scene file (Required)");
-        Console.WriteLine("  -o, --output <file>         Path to the output image (Default: render.png)");
+        Console.WriteLine("  -o, --output <file>         Path to the output image (Default: output/render-<scene>.png)");
         Console.WriteLine("  -w, --width <int>           Image width (Default: 1200)");
         Console.WriteLine("  -H, --height <int>          Image height (Default: 800)");
         Console.WriteLine("  -s, --samples <int>         Samples per pixel (Default: 16)");

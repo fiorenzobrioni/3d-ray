@@ -1,0 +1,631 @@
+# =============================================================================
+#  SPHERE SHOWCASE DISNEY — Espositore 6×6 Sfere di Materiali PBR Moderni
+# =============================================================================
+#
+#  Versione della scena sphere-showcase.yaml che utilizza esclusivamente 
+#  il materiale Disney Principled BSDF per tutte le superfici e un set
+#  di luci cinematografico con Area Lights e Sky IBL.
+#
+#  Render consigliati:
+#    Preview:    -w 600  -H 400 -s 8   -d 12 -S 8
+#    Draft:      -w 1200 -H 800 -s 32  -d 30 -S 16
+#    Produzione: -w 1920 -H 1080 -s 256 -d 50 -S 32
+#
+# =============================================================================
+
+
+# =============================================================================
+#  WORLD
+# =============================================================================
+world:
+  # Stanza con illuminazione IBL soft
+  ambient_light: [0.03, 0.03, 0.04]
+  background: [0.005, 0.005, 0.01]
+  
+  # Cielo con sole per riflessioni realistiche sui materiali PBR
+  sky:
+    type: "gradient"
+    zenith_color:  [0.08, 0.15, 0.45]
+    horizon_color: [0.50, 0.55, 0.70]
+    ground_color:  [0.15, 0.13, 0.12]
+    sun:
+      direction: [-0.6, -0.5, -0.8]
+      color: [1.0, 0.95, 0.88]
+      intensity: 12.0
+      size: 3.5
+      falloff: 32.0
+
+  ground:
+    type: "infinite_plane"
+    material: "floor_stone"
+    y: 0.0
+
+
+# =============================================================================
+#  CAMERA
+# =============================================================================
+camera:
+  # Vista 3/4 classica, ideale per mostrare riflessi e profondità
+  position: [2.0, 3.8, -6.0]
+  look_at: [0.0, 1.15, 0.0]
+  fov: 36
+  aperture: 0.06
+  focal_dist: 7.2
+
+
+# =============================================================================
+#  MATERIALS (Disney BSDF)
+# =============================================================================
+materials:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  AMBIENTE: Pavimento e Stanza
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "floor_stone"
+    type: "disney"
+    texture:
+      type: "checker"
+      scale: 3.0
+      colors: [[0.18, 0.16, 0.14], [0.22, 0.20, 0.18]]
+    roughness: 0.6
+    metallic: 0.0
+
+  - id: "wall_paint"
+    type: "disney"
+    color: [0.25, 0.23, 0.22]
+    roughness: 0.85
+    metallic: 0.0
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  TAVOLO E ARREDI
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "table_top"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 2.5
+      noise_strength: 2.5
+      colors: [[0.35, 0.2, 0.1], [0.2, 0.1, 0.04]]
+      rotation: [0, 30, 0]
+    roughness: 0.35
+    clearcoat: 0.3
+
+  - id: "table_legs"
+    type: "disney"
+    color: [0.2, 0.12, 0.06]
+    roughness: 0.7
+    metallic: 0.0
+
+  - id: "case_wood"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 3.0
+      colors: [[0.45, 0.28, 0.15], [0.30, 0.18, 0.08]]
+      randomize_rotation: true
+    roughness: 0.8
+
+  - id: "case_felt"
+    type: "disney"
+    color: [0.08, 0.08, 0.1]
+    roughness: 1.0
+    sheen: 0.8
+    sheen_tint: 0.5
+
+  - id: "case_divider"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 6.0
+      noise_strength: 2.0
+      colors: [[0.40, 0.25, 0.13], [0.28, 0.16, 0.07]]
+    roughness: 0.9
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 6 — PLASTICA MORBIDA (Disney, matte)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "soft_pink"
+    type: "disney"
+    color: [0.92, 0.58, 0.62]
+    roughness: 1.0
+    subsurface: 0.2
+
+  - id: "soft_sky"
+    type: "disney"
+    color: [0.55, 0.68, 0.92]
+    roughness: 1.0
+    subsurface: 0.2
+
+  - id: "soft_mint"
+    type: "disney"
+    color: [0.55, 0.88, 0.62]
+    roughness: 1.0
+    subsurface: 0.2
+
+  - id: "soft_lemon"
+    type: "disney"
+    color: [0.95, 0.9, 0.5]
+    roughness: 1.0
+    subsurface: 0.2
+
+  - id: "soft_lavender"
+    type: "disney"
+    color: [0.72, 0.58, 0.88]
+    roughness: 1.0
+    subsurface: 0.2
+
+  - id: "soft_peach"
+    type: "disney"
+    color: [0.95, 0.72, 0.55]
+    roughness: 1.0
+    subsurface: 0.2
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 5 — PLASTICA DURA (Disney, lucida con clearcoat)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "hard_cherry"
+    type: "disney"
+    color: [0.82, 0.08, 0.08]
+    roughness: 0.25
+    clearcoat: 0.8
+
+  - id: "hard_royal"
+    type: "disney"
+    color: [0.08, 0.12, 0.82]
+    roughness: 0.25
+    clearcoat: 0.8
+
+  - id: "hard_forest"
+    type: "disney"
+    color: [0.08, 0.52, 0.12]
+    roughness: 0.25
+    clearcoat: 0.8
+
+  - id: "hard_sunflower"
+    type: "disney"
+    color: [0.88, 0.82, 0.08]
+    roughness: 0.25
+    clearcoat: 0.8
+
+  - id: "hard_obsidian"
+    type: "disney"
+    color: [0.06, 0.06, 0.06]
+    roughness: 0.25
+    clearcoat: 0.8
+
+  - id: "hard_ivory"
+    type: "disney"
+    color: [0.92, 0.92, 0.90]
+    roughness: 0.25
+    clearcoat: 0.8
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 4 — LEGNO (Disney, vari roughness)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "wood_oak"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.75, 0.55, 0.30], [0.55, 0.35, 0.15]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.8
+
+  - id: "wood_walnut"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.45, 0.28, 0.15], [0.30, 0.18, 0.08]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.75
+
+  - id: "wood_cherry"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 3.0
+      colors: [[0.6, 0.25, 0.12], [0.4, 0.15, 0.05]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.7
+
+  - id: "wood_maple"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 1.5
+      colors: [[0.85, 0.7, 0.5], [0.70, 0.55, 0.35]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.9
+
+  - id: "wood_ebony"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 6.0
+      noise_strength: 1.0
+      colors: [[0.12, 0.08, 0.05], [0.06, 0.04, 0.02]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.6
+    clearcoat: 0.4
+
+  - id: "wood_birch"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 1.8
+      colors: [[0.90, 0.80, 0.65], [0.75, 0.65, 0.50]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.85
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 3 — MARMO (Disney, con clearcoat per effetto levigato)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "marble_carrara"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 15.0
+      noise_strength: 12.0
+      colors: [[0.95, 0.95, 0.95], [0.45, 0.45, 0.48]]
+      randomize_offset: true
+    roughness: 0.4
+    clearcoat: 0.6
+
+  - id: "marble_nero"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 10.0
+      colors: [[0.05, 0.05, 0.06], [0.65, 0.65, 0.7]]
+      randomize_offset: true
+    roughness: 0.3
+    clearcoat: 0.8
+
+  - id: "marble_verde"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 14.0
+      noise_strength: 11.0
+      colors: [[0.12, 0.32, 0.18], [0.04, 0.14, 0.07]]
+      randomize_offset: true
+    roughness: 0.4
+    clearcoat: 0.5
+
+  - id: "marble_rosso"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 13.0
+      noise_strength: 10.0
+      colors: [[0.62, 0.14, 0.10], [0.32, 0.07, 0.04]]
+      randomize_offset: true
+    roughness: 0.45
+    clearcoat: 0.6
+
+  - id: "marble_rosa"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 16.0
+      noise_strength: 9.0
+      colors: [[0.88, 0.68, 0.63], [0.68, 0.42, 0.38]]
+      randomize_offset: true
+    roughness: 0.5
+    clearcoat: 0.4
+
+  - id: "marble_blu"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 11.0
+      noise_strength: 12.0
+      colors: [[0.14, 0.14, 0.42], [0.07, 0.07, 0.22]]
+      randomize_offset: true
+    roughness: 0.35
+    clearcoat: 0.7
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 2 — METALLO (Disney, metallic 1.0)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "metal_gold"
+    type: "disney"
+    color: [1.0, 0.71, 0.29]
+    metallic: 1.0
+    roughness: 0.15
+
+  - id: "metal_silver"
+    type: "disney"
+    color: [0.95, 0.93, 0.88]
+    metallic: 1.0
+    roughness: 0.10
+
+  - id: "metal_copper"
+    type: "disney"
+    color: [0.95, 0.64, 0.54]
+    metallic: 1.0
+    roughness: 0.20
+
+  - id: "metal_bronze"
+    type: "disney"
+    color: [0.70, 0.50, 0.25]
+    metallic: 1.0
+    roughness: 0.25
+
+  - id: "metal_chrome"
+    type: "disney"
+    color: [0.95, 0.95, 0.97]
+    metallic: 1.0
+    roughness: 0.02
+
+  - id: "metal_gunmetal"
+    type: "disney"
+    color: [0.22, 0.22, 0.28]
+    metallic: 0.9
+    roughness: 0.3
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 1 — VETRO / DIELETTRICI (Disney, spec_trans 1.0)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - id: "glass_clear"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
+    ior: 1.52
+    roughness: 0.02
+
+  - id: "glass_diamond"
+    type: "disney"
+    color: [0.97, 0.97, 1.0]
+    spec_trans: 1.0
+    ior: 2.42
+    roughness: 0.01
+
+  - id: "glass_ruby"
+    type: "disney"
+    color: [0.88, 0.15, 0.15]
+    spec_trans: 1.0
+    ior: 1.77
+    roughness: 0.03
+
+  - id: "glass_emerald"
+    type: "disney"
+    color: [0.15, 0.82, 0.30]
+    spec_trans: 1.0
+    ior: 1.57
+    roughness: 0.05
+
+  - id: "glass_amber"
+    type: "disney"
+    color: [0.92, 0.68, 0.18]
+    spec_trans: 1.0
+    ior: 1.55
+    roughness: 0.02
+
+  - id: "glass_sapphire"
+    type: "disney"
+    color: [0.18, 0.25, 0.88]
+    spec_trans: 1.0
+    ior: 1.77
+    roughness: 0.04
+
+
+# =============================================================================
+#  ENTITIES (Same layout as sphere-showcase.yaml)
+# =============================================================================
+entities:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  STANZA
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: "back_wall"
+    type: "quad"
+    q: [-8.0, 0.0, 8.0]
+    u: [16.0, 0.0, 0.0]
+    v: [0.0, 8.0, 0.0]
+    material: "wall_paint"
+
+  - name: "left_wall"
+    type: "quad"
+    q: [-8.0, 0.0, -6.0]
+    u: [0.0, 0.0, 14.0]
+    v: [0.0, 8.0, 0.0]
+    material: "wall_paint"
+
+  - name: "right_wall"
+    type: "quad"
+    q: [8.0, 0.0, -6.0]
+    u: [0.0, 0.0, 14.0]
+    v: [0.0, 8.0, 0.0]
+    material: "wall_paint"
+
+  - name: "ceiling"
+    type: "quad"
+    q: [-8.0, 5.0, -6.0]
+    u: [16.0, 0.0, 0.0]
+    v: [0.0, 0.0, 14.0]
+    material: "wall_paint"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  TAVOLO
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: "table_surface"
+    type: "box"
+    scale: [8.0, 0.10, 5.5]
+    translate: [0.0, 0.70, 0.2]
+    material: "table_top"
+
+  - name: "table_body"
+    type: "box"
+    scale: [7.6, 0.65, 5.1]
+    translate: [0.0, 0.325, 0.2]
+    material: "table_legs"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ESPOSITORE
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: "case_base"
+    type: "box"
+    scale: [5.50, 0.12, 5.50]
+    translate: [0.0, 0.81, 0.0]
+    material: "case_felt"
+
+  - name: "case_wall_back"
+    type: "box"
+    scale: [5.74, 0.50, 0.12]
+    translate: [0.0, 1.12, 2.81]
+    material: "case_wood"
+
+  - name: "case_wall_left"
+    type: "box"
+    scale: [0.12, 0.50, 5.74]
+    translate: [-2.81, 1.12, 0.0]
+    material: "case_wood"
+
+  - name: "case_wall_right"
+    type: "box"
+    scale: [0.12, 0.50, 5.74]
+    translate: [2.81, 1.12, 0.0]
+    material: "case_wood"
+
+  - name: "case_wall_front"
+    type: "box"
+    scale: [5.74, 0.18, 0.12]
+    translate: [0.0, 0.96, -2.81]
+    material: "case_wood"
+
+  - name: "divider_1"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, 1.80]
+    material: "case_divider"
+
+  - name: "divider_2"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, 0.90]
+    material: "case_divider"
+
+  - name: "divider_3"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, 0.0]
+    material: "case_divider"
+
+  - name: "divider_4"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, -0.90]
+    material: "case_divider"
+
+  - name: "divider_5"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, -1.80]
+    material: "case_divider"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SFERE
+  # ═══════════════════════════════════════════════════════════════════════════
+  - { name: "soft_1", type: "sphere", center: [-2.25, 1.22, 2.25], radius: 0.35, seed: 6001, material: "soft_pink" }
+  - { name: "soft_2", type: "sphere", center: [-1.35, 1.22, 2.25], radius: 0.35, seed: 6002, material: "soft_sky" }
+  - { name: "soft_3", type: "sphere", center: [-0.45, 1.22, 2.25], radius: 0.35, seed: 6003, material: "soft_mint" }
+  - { name: "soft_4", type: "sphere", center: [ 0.45, 1.22, 2.25], radius: 0.35, seed: 6004, material: "soft_lemon" }
+  - { name: "soft_5", type: "sphere", center: [ 1.35, 1.22, 2.25], radius: 0.35, seed: 6005, material: "soft_lavender" }
+  - { name: "soft_6", type: "sphere", center: [ 2.25, 1.22, 2.25], radius: 0.35, seed: 6006, material: "soft_peach" }
+
+  - { name: "hard_1", type: "sphere", center: [-2.25, 1.22, 1.35], radius: 0.35, seed: 5001, material: "hard_cherry" }
+  - { name: "hard_2", type: "sphere", center: [-1.35, 1.22, 1.35], radius: 0.35, seed: 5002, material: "hard_royal" }
+  - { name: "hard_3", type: "sphere", center: [-0.45, 1.22, 1.35], radius: 0.35, seed: 5003, material: "hard_forest" }
+  - { name: "hard_4", type: "sphere", center: [ 0.45, 1.22, 1.35], radius: 0.35, seed: 5004, material: "hard_sunflower" }
+  - { name: "hard_5", type: "sphere", center: [ 1.35, 1.22, 1.35], radius: 0.35, seed: 5005, material: "hard_obsidian" }
+  - { name: "hard_6", type: "sphere", center: [ 2.25, 1.22, 1.35], radius: 0.35, seed: 5006, material: "hard_ivory" }
+
+  - { name: "wood_1", type: "sphere", center: [-2.25, 1.22, 0.45], radius: 0.35, seed: 4001, material: "wood_oak" }
+  - { name: "wood_2", type: "sphere", center: [-1.35, 1.22, 0.45], radius: 0.35, seed: 4002, material: "wood_walnut" }
+  - { name: "wood_3", type: "sphere", center: [-0.45, 1.22, 0.45], radius: 0.35, seed: 4003, material: "wood_cherry" }
+  - { name: "wood_4", type: "sphere", center: [ 0.45, 1.22, 0.45], radius: 0.35, seed: 4004, material: "wood_maple" }
+  - { name: "wood_5", type: "sphere", center: [ 1.35, 1.22, 0.45], radius: 0.35, seed: 4005, material: "wood_ebony" }
+  - { name: "wood_6", type: "sphere", center: [ 2.25, 1.22, 0.45], radius: 0.35, seed: 4006, material: "wood_birch" }
+
+  - { name: "marble_1", type: "sphere", center: [-2.25, 1.22, -0.45], radius: 0.35, seed: 3001, material: "marble_carrara" }
+  - { name: "marble_2", type: "sphere", center: [-1.35, 1.22, -0.45], radius: 0.35, seed: 3002, material: "marble_nero" }
+  - { name: "marble_3", type: "sphere", center: [-0.45, 1.22, -0.45], radius: 0.35, seed: 3003, material: "marble_verde" }
+  - { name: "marble_4", type: "sphere", center: [ 0.45, 1.22, -0.45], radius: 0.35, seed: 3004, material: "marble_rosso" }
+  - { name: "marble_5", type: "sphere", center: [ 1.35, 1.22, -0.45], radius: 0.35, seed: 3005, material: "marble_rosa" }
+  - { name: "marble_6", type: "sphere", center: [ 2.25, 1.22, -0.45], radius: 0.35, seed: 3006, material: "marble_blu" }
+
+  - { name: "metal_1", type: "sphere", center: [-2.25, 1.22, -1.35], radius: 0.35, seed: 2001, material: "metal_gold" }
+  - { name: "metal_2", type: "sphere", center: [-1.35, 1.22, -1.35], radius: 0.35, seed: 2002, material: "metal_silver" }
+  - { name: "metal_3", type: "sphere", center: [-0.45, 1.22, -1.35], radius: 0.35, seed: 2003, material: "metal_copper" }
+  - { name: "metal_4", type: "sphere", center: [ 0.45, 1.22, -1.35], radius: 0.35, seed: 2004, material: "metal_bronze" }
+  - { name: "metal_5", type: "sphere", center: [ 1.35, 1.22, -1.35], radius: 0.35, seed: 2005, material: "metal_chrome" }
+  - { name: "metal_6", type: "sphere", center: [ 2.25, 1.22, -1.35], radius: 0.35, seed: 2006, material: "metal_gunmetal" }
+
+  - { name: "glass_1", type: "sphere", center: [-2.25, 1.22, -2.25], radius: 0.35, seed: 1001, material: "glass_clear" }
+  - { name: "glass_2", type: "sphere", center: [-1.35, 1.22, -2.25], radius: 0.35, seed: 1002, material: "glass_diamond" }
+  - { name: "glass_3", type: "sphere", center: [-0.45, 1.22, -2.25], radius: 0.35, seed: 1003, material: "glass_ruby" }
+  - { name: "glass_4", type: "sphere", center: [ 0.45, 1.22, -2.25], radius: 0.35, seed: 1004, material: "glass_emerald" }
+  - { name: "glass_5", type: "sphere", center: [ 1.35, 1.22, -2.25], radius: 0.35, seed: 1005, material: "glass_amber" }
+  - { name: "glass_6", type: "sphere", center: [ 2.25, 1.22, -2.25], radius: 0.35, seed: 1006, material: "glass_sapphire" }
+
+
+# =============================================================================
+#  LIGHTS (Professional Studio Lighting Setup)
+# =============================================================================
+lights:
+
+  # Key Light — Area light grande e morbida dall'alto-sinistra
+  - type: "area"
+    corner: [-6.0, 5.5, -5.0]
+    u: [4.0, 0.0, 0.0]
+    v: [0.0, 0.0, 4.0]
+    color: [1.0, 0.96, 0.90] # Calda
+    intensity: 45.0
+    shadow_samples: 16
+
+  # Fill Light — Area light più piccola e fredda dal lato opposto
+  - type: "area"
+    corner: [5.0, 3.5, -2.0]
+    u: [0.0, 0.0, 3.0]
+    v: [0.0, 3.0, 0.0]
+    color: [0.85, 0.90, 1.0] # Fredda
+    intensity: 25.0
+    shadow_samples: 12
+
+  # Rim Light — Point light posteriore per staccare dal fondo
+  - type: "point"
+    position: [0.0, 4.5, 6.0]
+    color: [1.0, 1.0, 1.0]
+    intensity: 30.0
+
+  # Spotlight decorativo puntato sul primo piano (vetri)
+  - type: "spot"
+    position: [0.0, 5.0, -3.5]
+    direction: [0.0, -0.9, 0.4]
+    color: [1.0, 0.98, 0.95]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 40
