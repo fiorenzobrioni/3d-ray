@@ -1,28 +1,118 @@
 # =============================================================================
 #  IL LABORATORIO DELL'ALCHIMISTA
-#  Una stanza notturna piena di strumenti, cristalli, fiale e metalli pregiati.
-#  Illuminazione calda da candele e una fredda luce lunare dalla finestra.
+#
+#  Interno notturno con tavolo da lavoro carico di strumenti alchemici:
+#  sfera di cristallo su piedistallo, fiale di vetro colorato, astrolabio,
+#  bilancia, mortaio, clessidra, lente, libri e calamaio. Sullo sfondo,
+#  scaffali a muro con ulteriori oggetti e una finestra a croce con luce
+#  lunare. A pavimento, tappeto, vaso di terracotta, globo terrestre e
+#  una sfera di smeraldo caduta. Due colonne in marmo ai lati della stanza.
+#
+#  Illuminazione stratificata caldo/freddo: area light da soffitto, spot
+#  sulla sfera di cristallo, luce lunare direzionale, fill laterale tenue.
+#  Le fiamme dei candelieri usano materiale emissive (GeometryLight + NEE):
+#  producono luce localizzata sul tavolo con ombre proprie dei candelieri.
+#  La sfera di cristallo (IOR 1.80) e le fiale dielettriche richiedono
+#  profondità di rimbalzo elevata per sviluppare le rifrazioni correttamente.
 #
 #  Render consigliato:
-#    -w 1920 -H 1080 -s 128 -d 50 -S 16
-#  Preview rapido:
-#    -w 640 -H 360 -s 4 -d 20 -S 4
+#    Preview: dotnet run ... -- -i scenes/alchemist-lab.yaml -w 1280 -H 720 -s 16 -d 20
+#    Finale:  dotnet run ... -- -i scenes/alchemist-lab.yaml -w 1920 -H 1080 -s 256 -d 60
 # =============================================================================
 
 world:
-  ambient_light: [0.015, 0.012, 0.025]
+  # Luce ambiente molto bassa: scena notturna, le candele dominano.
+  # Il lievissimo tocco di blu evita che le ombre siano puramente nere.
+  ambient_light: [0.010, 0.009, 0.018]
+
+  # Sfondo nero assoluto: nessuna luce proveniente dall'"esterno" oltre
+  # alle luci esplicite. Coerente con interni notturni senza HDRI.
   background: [0.0, 0.0, 0.0]
+
   ground:
     type: "infinite_plane"
     material: "floor_stone"
     y: 0.0
 
+  # ── WORLD ALT-1  Luce ambiente calda (atmosfera da officina) ─────────────
+  # ambient_light: [0.025, 0.018, 0.008]
+  # background: [0.0, 0.0, 0.0]
+
+  # ── WORLD ALT-2  Luce ambiente neutra (per valutare i materiali) ─────────
+  # ambient_light: [0.04, 0.04, 0.04]
+  # background: [0.0, 0.0, 0.0]
+
+
+# =============================================================================
+#  CAMERA
+#
+#  Angolo di tre quarti leggermente rialzato: mostra il tavolo per intero,
+#  la sfera di cristallo al centro e, sullo sfondo, la finestra lunare
+#  con gli scaffali. Il DOF mette a fuoco la sfera (soggetto principale)
+#  e sfuma leggermente i bordi della scena.
+#
+#  Distanza camera → sfera di cristallo: circa 10.3 unità.
+# =============================================================================
 camera:
-  position: [3.5, 3.8, -9.0]
-  look_at: [0.0, 2.2, 1.0]
-  fov: 48
-  aperture: 0.06
-  focal_dist: 10.5
+  position:   [ 3.5,  4.2, -9.5]
+  look_at:    [ 0.0,  3.0,  0.5]
+  vup:        [ 0, 1, 0]
+  fov:        44
+  aperture:   0.08
+  focal_dist: 10.3
+
+  # ── CAMERA ALT-1  Frontale centrata, tutto a fuoco (stile catalogo) ───────
+  #
+  #  Inquadratura simmetrica sul tavolo, finestra centrata sul fondo.
+  #  Apertura zero: nitidezza totale dalla cera delle candele ai libri.
+  # ─────────────────────────────────────────────────────────────────────────
+  # camera:
+  #   position:   [ 0.0,  4.0, -9.0]
+  #   look_at:    [ 0.0,  3.0,  0.5]
+  #   vup:        [ 0, 1, 0]
+  #   fov:        42
+  #   aperture:   0.0
+  #   focal_dist: 9.3
+
+  # ── CAMERA ALT-2  Macro sulla sfera di cristallo (bokeh forte) ────────────
+  #
+  #  Avvicinamento estremo: la sfera riempie quasi il frame. Le fiale
+  #  e il resto del tavolo si dissolvono in un bokeh caldo.
+  #  Enfatizza la rifrazione interna della sfera.
+  # ─────────────────────────────────────────────────────────────────────────
+  # camera:
+  #   position:   [ 1.2,  3.8, -3.8]
+  #   look_at:    [ 0.0,  3.6,  0.3]
+  #   vup:        [ 0, 1, 0]
+  #   fov:        30
+  #   aperture:   0.18
+  #   focal_dist: 4.0
+
+  # ── CAMERA ALT-3  Vista zenitale (dall'alto, planimetria del tavolo) ──────
+  #
+  #  Posizione quasi verticale: mostra la distribuzione degli oggetti
+  #  sul piano del tavolo come una mappa. Suggestiva con s alto (128+).
+  # ─────────────────────────────────────────────────────────────────────────
+  # camera:
+  #   position:   [ 0.0,  9.5,  0.5]
+  #   look_at:    [ 0.0,  2.7,  0.5]
+  #   vup:        [ 0, 0, 1]
+  #   fov:        48
+  #   aperture:   0.0
+  #   focal_dist: 6.8
+
+  # ── CAMERA ALT-4  Dutch angle, lato sinistro (drammatico, notturno) ───────
+  #
+  #  Camera inclinata ~12° sull'asse Z: orizzonte obliquo, atmosfera
+  #  inquieta. Le candele in primo piano bruciano più alte.
+  # ─────────────────────────────────────────────────────────────────────────
+  # camera:
+  #   position:   [-4.0,  4.5, -8.0]
+  #   look_at:    [ 0.2,  3.0,  0.5]
+  #   vup:        [ 0.208, 0.978, 0]
+  #   fov:        46
+  #   aperture:   0.06
+  #   focal_dist: 9.0
 
 
 # =============================================================================
@@ -39,18 +129,18 @@ materials:
     texture:
       type: "checker"
       scale: 1.5
-      colors: [[0.12, 0.10, 0.09], [0.18, 0.15, 0.13]]
+      colors: [[0.11, 0.09, 0.08], [0.17, 0.14, 0.12]]
 
   - id: "wall_plaster"
     type: "lambertian"
     texture:
       type: "noise"
-      scale: 12.0
-      colors: [[0.22, 0.18, 0.14], [0.16, 0.13, 0.10]]
+      scale: 10.0
+      colors: [[0.24, 0.19, 0.14], [0.15, 0.12, 0.09]]
 
   - id: "wall_dark"
     type: "lambertian"
-    color: [0.10, 0.08, 0.07]
+    color: [0.09, 0.07, 0.06]
 
   # ─────────────────────────────────────────────────────────────────────────
   #  LEGNO — Tavolo da lavoro, scaffali, cornici
@@ -119,32 +209,35 @@ materials:
 
   # ─────────────────────────────────────────────────────────────────────────
   #  METALLI
+  #  Nota: i valori di fuzz sono calibrati per la luce a candela.
+  #  Un fuzz più basso (es. gold_polished: 0.02) produce highlight netti
+  #  e visibili anche con intensità candela bassa.
   # ─────────────────────────────────────────────────────────────────────────
 
   - id: "gold_polished"
     type: "metal"
-    color: [0.90, 0.72, 0.12]
+    color: [0.92, 0.74, 0.14]   # leggermente più saturo per reagire meglio alla luce calda
     fuzz: 0.02
 
   - id: "gold_satin"
     type: "metal"
-    color: [0.85, 0.68, 0.15]
-    fuzz: 0.12
+    color: [0.86, 0.70, 0.18]
+    fuzz: 0.10                   # ridotto da 0.12: riflessi più definiti sul piattino della sfera
 
   - id: "copper_aged"
     type: "metal"
-    color: [0.72, 0.42, 0.18]
-    fuzz: 0.18
+    color: [0.68, 0.40, 0.16]
+    fuzz: 0.20
 
   - id: "copper_bright"
     type: "metal"
-    color: [0.85, 0.50, 0.22]
-    fuzz: 0.05
+    color: [0.88, 0.52, 0.24]
+    fuzz: 0.04                   # ridotto da 0.05: highlight più netti sul candeliere destro
 
   - id: "bronze_dark"
     type: "metal"
-    color: [0.55, 0.38, 0.15]
-    fuzz: 0.25
+    color: [0.52, 0.36, 0.14]
+    fuzz: 0.28
 
   - id: "silver_mirror"
     type: "metal"
@@ -153,21 +246,24 @@ materials:
 
   - id: "silver_tarnished"
     type: "metal"
-    color: [0.60, 0.58, 0.62]
-    fuzz: 0.20
+    color: [0.58, 0.56, 0.60]
+    fuzz: 0.22
 
   - id: "iron_dark"
     type: "metal"
     color: [0.14, 0.13, 0.12]
-    fuzz: 0.45
+    fuzz: 0.50
 
   - id: "brass_knob"
     type: "metal"
-    color: [0.78, 0.62, 0.20]
-    fuzz: 0.08
+    color: [0.80, 0.64, 0.22]
+    fuzz: 0.06                   # ridotto da 0.08: l'astrolabio e i candelieri in ottone
+                                 # mostrano highlight più pronunciati
 
   # ─────────────────────────────────────────────────────────────────────────
   #  VETRI & CRISTALLI — Fiale, sfere, lenti
+  #  Gli IOR sono fisicamente corretti. La color agisce come filtro:
+  #  non è albedo ma tinta della luce trasmessa (Beer-Lambert implicito).
   # ─────────────────────────────────────────────────────────────────────────
 
   - id: "glass_clear"
@@ -178,45 +274,52 @@ materials:
   - id: "glass_amber"
     type: "dielectric"
     refraction_index: 1.50
-    color: [0.95, 0.75, 0.35]
+    color: [0.96, 0.76, 0.32]   # leggermente più saturo per leggere meglio nelle ombre
 
   - id: "glass_emerald"
     type: "dielectric"
     refraction_index: 1.58
-    color: [0.30, 0.85, 0.40]
+    color: [0.28, 0.88, 0.38]
 
   - id: "glass_ruby"
     type: "dielectric"
     refraction_index: 1.77
-    color: [0.90, 0.15, 0.20]
+    color: [0.92, 0.12, 0.18]
 
   - id: "glass_sapphire"
     type: "dielectric"
     refraction_index: 1.77
-    color: [0.20, 0.25, 0.92]
+    color: [0.18, 0.22, 0.95]
 
   - id: "crystal_ball"
     type: "dielectric"
-    refraction_index: 1.80
-    color: [0.92, 0.88, 1.0]
+    refraction_index: 1.80       # cristallo di piombo (flint glass): IOR più alto = più caustics
+    color: [0.94, 0.90, 1.0]    # lieve tinta viola-freddo per distinguerlo dal vetro chiaro
 
   - id: "glass_purple"
     type: "dielectric"
     refraction_index: 1.55
-    color: [0.65, 0.25, 0.85]
+    color: [0.62, 0.22, 0.88]
 
   - id: "glass_smoky"
     type: "dielectric"
     refraction_index: 1.50
-    color: [0.55, 0.52, 0.50]
+    color: [0.52, 0.50, 0.48]   # leggermente più scuro: vetro più opaco nella notte
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  SUPERFICI LUMINOSE (simulano emissione tramite lambertian chiaro)
+  #  FIAMME — Emissive
+  #  Le sfere fiamma sono materiale emissive: il motore le registra
+  #  automaticamente come GeometryLight e le include nel NEE.
+  #  Le point light delle candele rimangono ma con intensità ridotta:
+  #  funzionano da fill direzionale per garantire luce anche con pochi sample.
+  #  Intensity 6.0 su raggio 0.04 → area ≈ 0.02 u²: sorgente piccola e intensa,
+  #  produce ombre nette alla base dei candelieri.
   # ─────────────────────────────────────────────────────────────────────────
 
   - id: "candle_flame"
-    type: "lambertian"
-    color: [1.0, 0.85, 0.45]
+    type: "emissive"
+    color: [1.0, 0.82, 0.38]   # arancio-ambra: temperatura colore ~1900 K
+    intensity: 6.0
 
   - id: "candle_wax"
     type: "lambertian"
@@ -240,11 +343,11 @@ materials:
 
   - id: "felt_desk"
     type: "lambertian"
-    color: [0.12, 0.20, 0.10]
+    color: [0.11, 0.19, 0.09]   # leggermente più scuro: il feltro è vecchio e consumato
 
   - id: "paper_aged"
     type: "lambertian"
-    color: [0.82, 0.75, 0.58]
+    color: [0.80, 0.72, 0.54]   # più scuro/invecchiato
 
   - id: "ink_black"
     type: "lambertian"
@@ -252,17 +355,19 @@ materials:
 
   # ─────────────────────────────────────────────────────────────────────────
   #  CERAMICA & ARGILLA
+  #  Usiamo metal con fuzz alto per simulare la superficie semi-lucida
+  #  della ceramica smaltata (smalto opaco con qualche riflesso).
   # ─────────────────────────────────────────────────────────────────────────
 
   - id: "ceramic_white"
     type: "metal"
     color: [0.88, 0.86, 0.82]
-    fuzz: 0.35
+    fuzz: 0.32
 
   - id: "ceramic_blue"
     type: "metal"
     color: [0.15, 0.22, 0.55]
-    fuzz: 0.30
+    fuzz: 0.28
 
   - id: "clay_terracotta"
     type: "lambertian"
@@ -271,52 +376,130 @@ materials:
 
 # =============================================================================
 #  LUCI
-#  Illuminazione stratificata: candele calde in primo piano, luce lunare
-#  fredda dalla finestra in fondo, spot dall'alto per il soggetto principale.
+#
+#  Schema stratificato a tre temperature di colore:
+#   · Caldo  (candele + lanterna): 1900–2800 K  →  [1.0, 0.78, 0.32]
+#   · Neutro (spot cristallo):     3200 K        →  [1.0, 0.95, 0.85]
+#   · Freddo (luna):               6500 K        →  [0.70, 0.78, 1.0]
+#
+#  Intensità calibrate in modo che le candele siano dominanti in primo
+#  piano, lo spot esalti la sfera di cristallo, e la luna sia visibile
+#  ma non sovrasti il mood notturno.
 # =============================================================================
 lights:
 
-  # Luce principale: area light da soffitto (lanterna sospesa, calda)
+  # ── Lanterna sospesa dal soffitto (area light, calda diffusa) ─────────────
+  #  Simula una lanterna a olio appesa al centro della stanza.
+  #  Area 2×2 u: ombre morbide coerenti con una fonte grande.
   - type: "area"
-    corner: [-1.0, 5.8, -1.0]
+    corner: [-1.0, 5.8, -0.5]
     u: [2.0, 0.0, 0.0]
     v: [0.0, 0.0, 2.0]
-    color: [1.0, 0.82, 0.48]
-    intensity: 28.0
+    color: [1.0, 0.80, 0.42]
+    intensity: 22.0
     shadow_samples: 16
 
-  # Candela sul tavolo — sinistra (calda intensa)
+  # ── Candela sinistra (point, fill direzionale) ───────────────────────────
+  #  La sfera fiamma emissive è la sorgente primaria. Questa point light
+  #  è un fill tenue che garantisce luce nelle zone d'ombra con pochi sample.
+  #  Intensità ridotta rispetto allo schema lambertian+point precedente.
   - type: "point"
-    position: [-1.8, 3.35, -0.5]
-    color: [1.0, 0.75, 0.30]
-    intensity: 12
+    position: [-1.8, 3.38, -0.5]
+    color: [1.0, 0.72, 0.28]
+    intensity: 5
 
-  # Candela sul tavolo — destra (calda, leggermente più debole)
+  # ── Candela destra (point, fill direzionale) ──────────────────────────────
   - type: "point"
-    position: [1.5, 3.35, 0.2]
-    color: [1.0, 0.78, 0.35]
-    intensity: 8
-
-  # Luce lunare dalla finestra (fredda, direzionale, da dietro-sinistra)
-  - type: "directional"
-    direction: [0.6, -0.5, -1.0]
-    color: [0.55, 0.60, 1.0]
-    intensity: 0.35
-
-  # Spot dall'alto sulla sfera di cristallo (enfatizza il soggetto)
-  - type: "spot"
-    position: [0.0, 6.0, 0.0]
-    direction: [0.0, -1.0, 0.2]
-    color: [1.0, 0.95, 0.85]
-    intensity: 80
-    inner_angle: 8
-    outer_angle: 22
-
-  # Riempimento laterale destro tenue (per non perdere i dettagli)
-  - type: "point"
-    position: [6.0, 3.0, -4.0]
-    color: [0.70, 0.70, 0.85]
+    position: [1.5, 3.38, 0.2]
+    color: [1.0, 0.76, 0.32]
     intensity: 3
+
+  # ── Luce lunare (direzionale, fredda) ─────────────────────────────────────
+  #  Entra dalla finestra in alto a sinistra. Il vettore direction indica
+  #  la direzione di propagazione (dalla finestra verso l'interno).
+  #  Intensità bassa: riempimento freddo, non illuminazione principale.
+  - type: "directional"
+    direction: [0.5, -0.45, -1.0]
+    color: [0.70, 0.78, 1.0]
+    intensity: 0.28
+
+  # ── Spot sulla sfera di cristallo (neutro-caldo, soggetto principale) ─────
+  #  Posizionato appena sopra e leggermente spostato verso la camera
+  #  per creare un highlight dominante senza shadow frontale sulla sfera.
+  #  Inner/outer stretti: pool di luce concentrata.
+  - type: "spot"
+    position: [0.3, 6.2, -1.5]
+    direction: [-0.05, -1.0, 0.35]
+    color: [1.0, 0.96, 0.88]
+    intensity: 90
+    inner_angle: 7
+    outer_angle: 18
+
+  # ── Riempimento laterale destro (point, freddo-neutro, molto tenue) ────────
+  #  Evita che le zone a destra della scena cadano in nero totale.
+  #  Il colore lievemente bluastro bilancia il caldo delle candele.
+  - type: "point"
+    position: [6.5, 3.5, -3.5]
+    color: [0.65, 0.68, 0.90]
+    intensity: 4
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  LIGHTS ALT-1  Solo candele + luna (atmosfera spettrale, senza spot)
+  #  Rimuove lo spot e abbassa la lanterna: i bordi della scena si scuriscono,
+  #  la sfera di cristallo è illuminata solo da luce indiretta delle candele.
+  #  Consigliato con -s 256 -d 70 per ridurre il rumore nelle zone scure.
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "area"
+  #   corner: [-1.0, 5.8, -0.5]
+  #   u: [2.0, 0.0, 0.0]
+  #   v: [0.0, 0.0, 2.0]
+  #   color: [1.0, 0.78, 0.38]
+  #   intensity: 16.0
+  #   shadow_samples: 16
+  # - type: "point"
+  #   position: [-1.8, 3.38, -0.5]
+  #   color: [1.0, 0.70, 0.26]
+  #   intensity: 18
+  # - type: "point"
+  #   position: [1.5, 3.38, 0.2]
+  #   color: [1.0, 0.74, 0.30]
+  #   intensity: 11
+  # - type: "directional"
+  #   direction: [0.5, -0.45, -1.0]
+  #   color: [0.72, 0.80, 1.0]
+  #   intensity: 0.40
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  LIGHTS ALT-2  Schema "tramonto rosso" (luce esterna calda-arancio)
+  #  La luna diventa un sole al tramonto che illumina dal fondo.
+  #  Tutto il bilanciamento caldo/freddo si inverte: candele quasi inutili.
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "area"
+  #   corner: [-1.0, 5.8, -0.5]
+  #   u: [2.0, 0.0, 0.0]
+  #   v: [0.0, 0.0, 2.0]
+  #   color: [1.0, 0.80, 0.42]
+  #   intensity: 18.0
+  #   shadow_samples: 16
+  # - type: "point"
+  #   position: [-1.8, 3.38, -0.5]
+  #   color: [1.0, 0.72, 0.28]
+  #   intensity: 5
+  # - type: "point"
+  #   position: [1.5, 3.38, 0.2]
+  #   color: [1.0, 0.76, 0.32]
+  #   intensity: 4
+  # - type: "directional"
+  #   direction: [0.5, -0.3, -1.0]
+  #   color: [1.0, 0.55, 0.20]
+  #   intensity: 1.8
+  # - type: "spot"
+  #   position: [0.3, 6.2, -1.5]
+  #   direction: [-0.05, -1.0, 0.35]
+  #   color: [1.0, 0.85, 0.60]
+  #   intensity: 60
+  #   inner_angle: 10
+  #   outer_angle: 24
 
 
 # =============================================================================
@@ -325,7 +508,7 @@ lights:
 entities:
 
   # ═══════════════════════════════════════════════════════════════════════════
-  #  STANZA — Muri, pavimento già nel ground, soffitto
+  #  STANZA — Muri, pavimento (ground), soffitto
   # ═══════════════════════════════════════════════════════════════════════════
 
   # Parete di fondo
@@ -362,7 +545,7 @@ entities:
 
   # ═══════════════════════════════════════════════════════════════════════════
   #  FINESTRA — Apertura sulla parete di fondo con luce lunare
-  #  Simulata come un quad chiaro incastonato nel muro + cornice in legno
+  #  Vetro fumé + cornice in legno + croce interna
   # ═══════════════════════════════════════════════════════════════════════════
 
   # Vetro della finestra (riflesso notturno)
@@ -414,7 +597,6 @@ entities:
     scale: [2.4, 0.06, 0.08]
     translate: [-3.0, 4.25, 5.95]
     material: "wood_frame"
-
 
   # ═══════════════════════════════════════════════════════════════════════════
   #  TAVOLO DA LAVORO PRINCIPALE
@@ -481,10 +663,9 @@ entities:
     translate: [2.3, 0.80, 0.0]
     material: "wood_legs"
 
-
   # ═══════════════════════════════════════════════════════════════════════════
   #  SFERA DI CRISTALLO — Soggetto principale al centro del tavolo
-  #  Piedistallo in marmo nero + sfera dielectrica grande
+  #  Piedistallo in marmo nero + piattino oro + sfera dielectrica
   # ═══════════════════════════════════════════════════════════════════════════
 
   # Base piedistallo (cilindro basso in marmo nero)
@@ -518,10 +699,8 @@ entities:
     radius: 0.48
     material: "crystal_ball"
 
-
   # ═══════════════════════════════════════════════════════════════════════════
   #  FIALE E AMPOLLE — Gruppo sinistro sul tavolo
-  #  Sfere di vetro colorato che simulano fiale bombate
   # ═══════════════════════════════════════════════════════════════════════════
 
   # Fiala ambra (grande, al centro del gruppo)
@@ -539,7 +718,7 @@ entities:
     height: 0.35
     material: "glass_amber"
 
-  # Tappo della fiala ambra (sfera piccola in sughero/legno)
+  # Tappo della fiala ambra (sfera piccola in legno/sughero)
   - name: "vial_amber_stopper"
     type: "sphere"
     center: [-1.6, 3.78, -0.3]
@@ -605,7 +784,6 @@ entities:
     radius: 0.08
     material: "brass_knob"
 
-
   # ═══════════════════════════════════════════════════════════════════════════
   #  CANDELIERI — Due sul tavolo, fiancheggiando la sfera
   # ═══════════════════════════════════════════════════════════════════════════
@@ -645,7 +823,7 @@ entities:
   # Candeliere sinistro — fiamma
   - name: "candle_left_flame"
     type: "sphere"
-    center: [-1.8, 3.35, -0.5]
+    center: [-1.8, 3.38, -0.5]
     radius: 0.04
     material: "candle_flame"
 
@@ -684,10 +862,9 @@ entities:
   # Candeliere destro — fiamma
   - name: "candle_right_flame"
     type: "sphere"
-    center: [1.5, 3.35, 0.2]
+    center: [1.5, 3.38, 0.2]
     radius: 0.04
     material: "candle_flame"
-
 
   # ═══════════════════════════════════════════════════════════════════════════
   #  LIBRI — Pila di libri a destra sul tavolo
@@ -717,7 +894,7 @@ entities:
     translate: [1.7, 2.99, -0.3]
     material: "leather_blue"
 
-  # Libro aperto (fogli esposti — davanti ai libri chiusi)
+  # Libro aperto — pagina sinistra
   - name: "book_open_left"
     type: "quad"
     q: [1.2, 2.72, -0.9]
@@ -725,6 +902,7 @@ entities:
     v: [0.0, 0.0, 0.6]
     material: "paper_aged"
 
+  # Libro aperto — pagina destra
   - name: "book_open_right"
     type: "quad"
     q: [1.65, 2.76, -0.9]
@@ -739,9 +917,8 @@ entities:
     translate: [1.65, 2.73, -0.6]
     material: "leather_book"
 
-
   # ═══════════════════════════════════════════════════════════════════════════
-  #  MORTAIO E PESTELLO — A destra della sfera, in marmo bianco
+  #  MORTAIO E PESTELLO — A destra della sfera, in marmo verde
   # ═══════════════════════════════════════════════════════════════════════════
 
   # Mortaio (cilindro tozzo in marmo bianco)
@@ -768,12 +945,79 @@ entities:
     height: 0.35
     material: "marble_verde"
 
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CLESSIDRA — Sul tavolo, a destra del mortaio
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Base della clessidra
+  - name: "hourglass_base"
+    type: "box"
+    scale: [0.35, 0.06, 0.35]
+    translate: [1.1, 2.74, 0.6]
+    material: "wood_frame"
+
+  # Bulbo inferiore (vetro chiaro)
+  - name: "hourglass_bottom"
+    type: "sphere"
+    center: [1.1, 2.98, 0.6]
+    radius: 0.14
+    material: "glass_clear"
+
+  # Collo (cilindro stretto)
+  - name: "hourglass_neck"
+    type: "cylinder"
+    center: [1.1, 3.12, 0.6]
+    radius: 0.03
+    height: 0.10
+    material: "glass_clear"
+
+  # Bulbo superiore (vetro chiaro)
+  - name: "hourglass_top"
+    type: "sphere"
+    center: [1.1, 3.36, 0.6]
+    radius: 0.14
+    material: "glass_clear"
+
+  # Cappello superiore
+  - name: "hourglass_cap"
+    type: "box"
+    scale: [0.35, 0.06, 0.35]
+    translate: [1.1, 3.53, 0.6]
+    material: "wood_frame"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  LENTE D'INGRANDIMENTO — Appoggiata sul tavolo in diagonale
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Lente (disco dielectrico inclinato)
+  - name: "magnifier_lens"
+    type: "disk"
+    center: [-0.5, 2.82, -1.0]
+    normal: [0.3, 1, 0.1]
+    radius: 0.18
+    material: "glass_clear"
+
+  # Cornice della lente (disco metallico leggermente più grande)
+  - name: "magnifier_frame"
+    type: "disk"
+    center: [-0.5, 2.81, -1.0]
+    normal: [0.3, 1, 0.1]
+    radius: 0.20
+    material: "brass_knob"
+
+  # Manico (box inclinato)
+  - name: "magnifier_handle"
+    type: "box"
+    scale: [0.04, 0.30, 0.04]
+    rotate: [25, 0, 15]
+    translate: [-0.35, 2.80, -1.15]
+    material: "wood_frame"
 
   # ═══════════════════════════════════════════════════════════════════════════
   #  CALAMAIO E PENNA — Angolo anteriore destro del tavolo
   # ═══════════════════════════════════════════════════════════════════════════
 
-  # Calamaio (sfera schiacciata = sfera + disco)
+  # Calamaio (sfera + disco bordo)
   - name: "inkwell_body"
     type: "sphere"
     center: [2.0, 2.82, -0.8]
@@ -788,10 +1032,8 @@ entities:
     radius: 0.10
     material: "silver_tarnished"
 
-
   # ═══════════════════════════════════════════════════════════════════════════
   #  ASTROLABIO — Oggetto decorativo complesso a sinistra dietro le fiale
-  #  Composto da dischi, anelli e sfere metalliche
   # ═══════════════════════════════════════════════════════════════════════════
 
   # Base dell'astrolabio
@@ -802,7 +1044,7 @@ entities:
     height: 0.05
     material: "bronze_dark"
 
-  # Disco principale (brass, verticale — simulato con un box sottile ruotato)
+  # Disco principale (brass, verticale)
   - name: "astrolabe_disk"
     type: "box"
     scale: [0.50, 0.50, 0.02]
@@ -810,7 +1052,7 @@ entities:
     translate: [-2.0, 3.10, 0.8]
     material: "brass_knob"
 
-  # Anello esterno (toroide approssimato con un disco grande)
+  # Anello esterno
   - name: "astrolabe_ring"
     type: "disk"
     center: [-2.0, 3.10, 0.78]
@@ -818,18 +1060,15 @@ entities:
     radius: 0.30
     material: "gold_polished"
 
-  # Sfera centrale dell'astrolabio (rappresenta la Terra)
+  # Sfera centrale (Terra)
   - name: "astrolabe_earth"
     type: "sphere"
     center: [-2.0, 3.10, 0.8]
     radius: 0.08
     material: "copper_aged"
 
-
   # ═══════════════════════════════════════════════════════════════════════════
-  #  SCAFFALE A MURO — Sulla parete di fondo, A DESTRA della finestra
-  #  Due ripiani con fiale aggiuntive e oggetti curiosi
-  #  Centrati su X=2.6 (finestra occupa X da -4.2 a -1.8)
+  #  SCAFFALE A MURO — Sulla parete di fondo, a destra della finestra
   # ═══════════════════════════════════════════════════════════════════════════
 
   # Staffa sinistra ripiano inferiore
@@ -927,7 +1166,7 @@ entities:
 
   # --- Oggetti sul ripiano superiore ---
 
-  # Teschio in marmo bianco (sfera grande + sfera inferiore = cranio stilizzato)
+  # Cranio in marmo bianco — cranio
   - name: "skull_cranium"
     type: "sphere"
     center: [1.5, 5.38, 5.70]
@@ -935,7 +1174,7 @@ entities:
     seed: 7001
     material: "marble_white"
 
-  # Mandibola stilizzata (sfera più piccola sotto)
+  # Cranio in marmo bianco — mandibola stilizzata
   - name: "skull_jaw"
     type: "sphere"
     center: [1.5, 5.15, 5.62]
@@ -974,111 +1213,38 @@ entities:
     radius: 0.28
     material: "gold_polished"
 
-
   # ═══════════════════════════════════════════════════════════════════════════
-  #  GLOBO TERRESTRE — A pavimento a destra del tavolo
-  #  Sfera metallica su supporto ad arco
+  #  VASO DI TERRACOTTA — A pavimento a sinistra del tavolo
   # ═══════════════════════════════════════════════════════════════════════════
 
-  # Base del supporto globo
-  - name: "globe_base"
+  - name: "terracotta_vase"
     type: "cylinder"
-    center: [3.8, 0.0, 1.5]
-    radius: 0.40
-    height: 0.08
-    material: "wood_frame"
+    center: [-3.5, 0.0, -1.0]
+    radius: 0.30
+    height: 0.90
+    material: "clay_terracotta"
 
-  # Colonna del supporto
-  - name: "globe_column"
-    type: "cylinder"
-    center: [3.8, 0.08, 1.5]
-    radius: 0.06
-    height: 1.00
-    material: "brass_knob"
-
-  # Piatto di appoggio superiore
-  - name: "globe_plate"
+  # Bordo superiore del vaso
+  - name: "terracotta_rim"
     type: "disk"
-    center: [3.8, 1.08, 1.5]
+    center: [-3.5, 0.90, -1.0]
     normal: [0, 1, 0]
-    radius: 0.18
-    material: "brass_knob"
+    radius: 0.34
+    material: "clay_terracotta"
 
-  # Globo (sfera in rame con texture marble per simulare i continenti)
-  - name: "globe_sphere"
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SFERA DECORATIVA A PAVIMENTO — Vetro smeraldo, sotto il tavolo
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - name: "fallen_sphere"
     type: "sphere"
-    center: [3.8, 1.50, 1.5]
-    radius: 0.40
-    seed: 8888
-    material: "copper_aged"
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  TAPPETO — Sul pavimento sotto il tavolo
-  #  Quad con texture checker scura che simula un tappeto orientale
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  - name: "carpet"
-    type: "quad"
-    q: [-3.2, 0.01, -2.5]
-    u: [6.4, 0.0, 0.0]
-    v: [0.0, 0.0, 5.0]
-    material: "leather_book"
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  COLONNE DECORATIVE — Ai lati della stanza
-  #  Colonne in marmo verde con base e capitello
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # Colonna sinistra — base
-  - name: "column_left_base"
-    type: "box"
-    scale: [0.60, 0.25, 0.60]
-    translate: [-5.0, 0.125, 3.0]
-    material: "marble_nero"
-
-  # Colonna sinistra — fusto
-  - name: "column_left_shaft"
-    type: "cylinder"
-    center: [-5.0, 0.25, 3.0]
-    radius: 0.22
-    height: 5.0
-    material: "marble_verde"
-
-  # Colonna sinistra — capitello
-  - name: "column_left_capital"
-    type: "box"
-    scale: [0.60, 0.25, 0.60]
-    translate: [-5.0, 5.375, 3.0]
-    material: "marble_nero"
-
-  # Colonna destra — base
-  - name: "column_right_base"
-    type: "box"
-    scale: [0.60, 0.25, 0.60]
-    translate: [5.0, 0.125, 3.0]
-    material: "marble_nero"
-
-  # Colonna destra — fusto
-  - name: "column_right_shaft"
-    type: "cylinder"
-    center: [5.0, 0.25, 3.0]
-    radius: 0.22
-    height: 5.0
-    material: "marble_verde"
-
-  # Colonna destra — capitello
-  - name: "column_right_capital"
-    type: "box"
-    scale: [0.60, 0.25, 0.60]
-    translate: [5.0, 5.375, 3.0]
-    material: "marble_nero"
-
+    center: [1.2, 0.25, -0.8]
+    radius: 0.25
+    material: "glass_emerald"
 
   # ═══════════════════════════════════════════════════════════════════════════
   #  BILANCIA DELL'ALCHIMISTA — Sul tavolo a destra delle fiale
-  #  Due piatti sospesi da un braccio su una colonnina
+  #  Colonnina in ottone + braccio + due piatti in oro + pietra + contrappeso
   # ═══════════════════════════════════════════════════════════════════════════
 
   # Colonnina centrale
@@ -1126,105 +1292,100 @@ entities:
     radius: 0.07
     material: "iron_dark"
 
-
   # ═══════════════════════════════════════════════════════════════════════════
-  #  CLESSIDRA — Sul tavolo, vicino ai libri
-  #  Due sfere di vetro collegate da un cilindro sottile su base in legno
+  #  GLOBO TERRESTRE — A pavimento a destra del tavolo
+  #  Sfera in rame su supporto con colonna e piatto in ottone
   # ═══════════════════════════════════════════════════════════════════════════
 
-  # Base della clessidra
-  - name: "hourglass_base"
-    type: "box"
-    scale: [0.35, 0.06, 0.35]
-    translate: [1.1, 2.74, 0.6]
-    material: "wood_frame"
-
-  # Bulbo inferiore (vetro chiaro)
-  - name: "hourglass_bottom"
-    type: "sphere"
-    center: [1.1, 2.98, 0.6]
-    radius: 0.14
-    material: "glass_clear"
-
-  # Collo (cilindro stretto)
-  - name: "hourglass_neck"
+  # Base del supporto globo
+  - name: "globe_base"
     type: "cylinder"
-    center: [1.1, 3.12, 0.6]
-    radius: 0.03
-    height: 0.10
-    material: "glass_clear"
-
-  # Bulbo superiore (vetro chiaro)
-  - name: "hourglass_top"
-    type: "sphere"
-    center: [1.1, 3.36, 0.6]
-    radius: 0.14
-    material: "glass_clear"
-
-  # Cappello superiore
-  - name: "hourglass_cap"
-    type: "box"
-    scale: [0.35, 0.06, 0.35]
-    translate: [1.1, 3.53, 0.6]
+    center: [3.8, 0.0, 1.5]
+    radius: 0.40
+    height: 0.08
     material: "wood_frame"
 
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  LENTE D'INGRANDIMENTO — Appoggiata sul tavolo in diagonale
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # Lente (sfera appiattita → disco dielectrico)
-  - name: "magnifier_lens"
-    type: "disk"
-    center: [-0.5, 2.82, -1.0]
-    normal: [0.3, 1, 0.1]
-    radius: 0.18
-    material: "glass_clear"
-
-  # Cornice della lente (disco metallico leggermente più grande)
-  - name: "magnifier_frame"
-    type: "disk"
-    center: [-0.5, 2.81, -1.0]
-    normal: [0.3, 1, 0.1]
-    radius: 0.20
+  # Colonna del supporto
+  - name: "globe_column"
+    type: "cylinder"
+    center: [3.8, 0.08, 1.5]
+    radius: 0.06
+    height: 1.00
     material: "brass_knob"
 
-  # Manico (cilindro inclinato — approssimato come box)
-  - name: "magnifier_handle"
-    type: "box"
-    scale: [0.04, 0.30, 0.04]
-    rotate: [25, 0, 15]
-    translate: [-0.35, 2.80, -1.15]
-    material: "wood_frame"
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  VASO DI TERRACOTTA — A pavimento a sinistra del tavolo
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  - name: "terracotta_vase"
-    type: "cylinder"
-    center: [-3.5, 0.0, -1.0]
-    radius: 0.30
-    height: 0.90
-    material: "clay_terracotta"
-
-  # Bordo superiore del vaso
-  - name: "terracotta_rim"
+  # Piatto di appoggio superiore
+  - name: "globe_plate"
     type: "disk"
-    center: [-3.5, 0.90, -1.0]
+    center: [3.8, 1.08, 1.5]
     normal: [0, 1, 0]
-    radius: 0.34
-    material: "clay_terracotta"
+    radius: 0.18
+    material: "brass_knob"
 
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  SFERA DECORATIVA A PAVIMENTO — Sfera di vetro smeraldo grande
-  #  Caduta e rotolata sotto il tavolo, riflette la luce delle candele
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  - name: "fallen_sphere"
+  # Globo (sfera in rame con seed per variazione procedurale)
+  - name: "globe_sphere"
     type: "sphere"
-    center: [1.2, 0.25, -0.8]
-    radius: 0.25
-    material: "glass_emerald"
+    center: [3.8, 1.50, 1.5]
+    radius: 0.40
+    seed: 8888
+    material: "copper_aged"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  TAPPETO — Sul pavimento sotto il tavolo
+  #  Quad scuro che rompe la monotonia del pavimento a scacchi
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - name: "carpet"
+    type: "quad"
+    q: [-3.2, 0.01, -2.5]
+    u: [6.4, 0.0, 0.0]
+    v: [0.0, 0.0, 5.0]
+    material: "leather_book"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  COLONNE DECORATIVE — Ai lati della stanza
+  #  Base e capitello in marmo nero, fusto in marmo verde
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Colonna sinistra — base
+  - name: "column_left_base"
+    type: "box"
+    scale: [0.60, 0.25, 0.60]
+    translate: [-5.0, 0.125, 3.0]
+    material: "marble_nero"
+
+  # Colonna sinistra — fusto
+  - name: "column_left_shaft"
+    type: "cylinder"
+    center: [-5.0, 0.25, 3.0]
+    radius: 0.22
+    height: 5.0
+    material: "marble_verde"
+
+  # Colonna sinistra — capitello
+  - name: "column_left_capital"
+    type: "box"
+    scale: [0.60, 0.25, 0.60]
+    translate: [-5.0, 5.375, 3.0]
+    material: "marble_nero"
+
+  # Colonna destra — base
+  - name: "column_right_base"
+    type: "box"
+    scale: [0.60, 0.25, 0.60]
+    translate: [5.0, 0.125, 3.0]
+    material: "marble_nero"
+
+  # Colonna destra — fusto
+  - name: "column_right_shaft"
+    type: "cylinder"
+    center: [5.0, 0.25, 3.0]
+    radius: 0.22
+    height: 5.0
+    material: "marble_verde"
+
+  # Colonna destra — capitello
+  - name: "column_right_capital"
+    type: "box"
+    scale: [0.60, 0.25, 0.60]
+    translate: [5.0, 5.375, 3.0]
+    material: "marble_nero"

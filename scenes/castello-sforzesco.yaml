@@ -1,101 +1,223 @@
-# Ray-Tracing Scene - Castello Sforzesco di Milano
-# Detailed model with Torre del Filarete, corner towers, curtain walls,
-# crenellations, courtyard, windows, and decorative elements.
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Castello Sforzesco — Milano
+#
+#  Modello architettonico del Castello Sforzesco: la Torre del Filarete con
+#  loggia, orologio e guglia in rame, quattro torri angolari cilindriche,
+#  cinta muraria con merlature ghibelline, fossato perimetrale, ponte di
+#  accesso, cortile interno con portico a colonne, stemma Visconteo, bandiera
+#  sul pinnacolo e dettagli decorativi in rame inverdito.
+#
+#  La scena è illuminata con un gradient sky "pomeriggio estivo milanese":
+#  cielo azzurro intenso allo zenit, bianco luminoso all'orizzonte, disco
+#  solare con glow caldo abbinato a una directional light coerente.
+#  Il fossato è reso con metallo a bassissima fuzz per simulare un'acqua
+#  quasi ferma e riflettente. Le torri angolari usano brick_dark per
+#  differenziarle cromaticamente dalla cinta muraria principale.
+#
+#  Render consigliato:
+#    Preview: dotnet run ... -- -i scenes/castello-sforzesco.yaml -w 1280 -H 720 -s 64 -d 12
+#    Finale:  dotnet run ... -- -i scenes/castello-sforzesco.yaml -w 1920 -H 1080 -s 256 -d 20
+# ═══════════════════════════════════════════════════════════════════════════════
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  WORLD — Pomeriggio estivo milanese (cielo azzurro con sole alto-laterale)
+# ─────────────────────────────────────────────────────────────────────────────
 world:
-  ambient_light: [0.08, 0.07, 0.06]
-  background: [0.35, 0.50, 0.80]  # Clear Milanese sky
+  ambient_light: [0.10, 0.09, 0.08]   # lievemente alzata: GI subtile sulle zone d'ombra
+  sky:
+    type: "gradient"
+    zenith_color:  [0.12, 0.32, 0.78]  # blu profondo in alto
+    horizon_color: [0.68, 0.82, 1.00]  # azzurro chiaro/bianco all'orizzonte
+    ground_color:  [0.32, 0.28, 0.22]  # riflesso caldo del terreno sotto l'orizzonte
+    sun:
+      direction: [-0.4, -0.8, 0.3]    # sole alto, lievemente a destra (coerente con key light)
+      color: [1.0, 0.94, 0.82]        # luce solare calda pomeridiana
+      intensity: 18.0                  # disco visibile con glow netto
+      size: 2.5
+      falloff: 40.0
+
+  # ── ALT-1: Golden Hour (tramonto a sinistra) ──────────────────────────────
+  # world:
+  #   ambient_light: [0.07, 0.05, 0.04]
+  #   sky:
+  #     type: "gradient"
+  #     zenith_color:  [0.08, 0.12, 0.38]
+  #     horizon_color: [0.90, 0.50, 0.20]
+  #     ground_color:  [0.18, 0.12, 0.07]
+  #     sun:
+  #       direction: [-0.9, -0.25, 0.2]
+  #       color: [1.0, 0.72, 0.35]
+  #       intensity: 28.0
+  #       size: 5.0
+  #       falloff: 16.0
+
+  # ── ALT-2: Cielo coperto / overcast (luce piatta, no sole) ───────────────
+  # world:
+  #   ambient_light: [0.14, 0.14, 0.15]
+  #   sky:
+  #     type: "gradient"
+  #     zenith_color:  [0.55, 0.57, 0.62]
+  #     horizon_color: [0.72, 0.74, 0.78]
+  #     ground_color:  [0.35, 0.34, 0.32]
+
   ground:
     type: "infinite_plane"
     material: "cobblestone"
     y: 0.0
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  CAMERA — Angolo drammatico basso da destra, Torre del Filarete in primo piano
+# ─────────────────────────────────────────────────────────────────────────────
 camera:
-  position: [45, 8, -55]    # Low dramatic angle from front-right
-  look_at: [0, 18, 0]       # Looking up at the central tower
-  fov: 48
-  aperture: 0.08
-  focal_dist: 65.0
+  position: [42, 9, -58]     # leggermente arretrata e abbassata per più cielo in alto
+  look_at:  [0, 20, 0]       # punta verso la metà alta della Torre del Filarete
+  fov: 46                    # ridotto di 2° per comprimere lievemente la prospettiva
+  aperture: 0.06             # DOF ridotto: tutto il castello deve essere a fuoco
+  focal_dist: 68.0           # messa a fuoco sulla torre (distanza ~68 u)
 
+  # ── ALT: Vista frontale simmetrica (render da cartolina) ─────────────────
+  # camera:
+  #   position: [0, 12, -65]
+  #   look_at:  [0, 18, 0]
+  #   fov: 42
+  #   aperture: 0.0
+  #   focal_dist: 1.0
+
+  # ── ALT: Vista aerea da drone (↑ per pianta del castello) ────────────────
+  # camera:
+  #   position: [15, 55, -30]
+  #   look_at:  [0, 8, -4]
+  #   fov: 55
+  #   aperture: 0.0
+  #   focal_dist: 1.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  MATERIALS
+# ─────────────────────────────────────────────────────────────────────────────
 materials:
+  # Pavimentazione esterna e cortile
   - id: "cobblestone"
     type: "lambertian"
-    color: [0.45, 0.42, 0.38]
+    color: [0.43, 0.40, 0.36]      # leggermente scurita per maggior contrasto col castello
 
+  # Mattone principale cinta muraria — rosso mattone milanese
   - id: "brick_main"
     type: "lambertian"
-    color: [0.62, 0.32, 0.22]
+    color: [0.60, 0.30, 0.20]
 
+  # Mattone scuro torri angolari — più saturo e profondo delle mura
   - id: "brick_dark"
     type: "lambertian"
-    color: [0.50, 0.25, 0.18]
+    color: [0.48, 0.23, 0.16]
 
+  # Mattone Torre del Filarete — tono intermedio, differenziato
   - id: "brick_tower"
     type: "lambertian"
-    color: [0.58, 0.30, 0.20]
+    color: [0.56, 0.28, 0.19]
 
+  # Pietra decorativa: cornici, fasce, archi
   - id: "stone_trim"
     type: "lambertian"
-    color: [0.78, 0.75, 0.68]
+    color: [0.80, 0.76, 0.68]      # alzata leggermente per leggibilità delle cornici
 
+  # Pietra da costruzione: scarpate, ponti, basi torri
   - id: "stone_base"
     type: "lambertian"
-    color: [0.65, 0.62, 0.55]
+    color: [0.64, 0.60, 0.53]
 
+  # Marmo bianco: colonne, stemma, orologio
   - id: "marble_white"
     type: "lambertian"
-    color: [0.90, 0.88, 0.84]
+    color: [0.92, 0.90, 0.86]
 
+  # Tegole: tetto loggia, cornicioni torri angolari
   - id: "roof_tile"
     type: "lambertian"
-    color: [0.55, 0.28, 0.18]
+    color: [0.52, 0.26, 0.16]
 
+  # Legno scuro: finestre, portoni
   - id: "dark_wood"
     type: "lambertian"
-    color: [0.25, 0.15, 0.08]
+    color: [0.22, 0.13, 0.07]      # scurito per un maggior contrasto sulla facciata
 
+  # Metallo cancello / ringhiere
   - id: "gate_metal"
     type: "metal"
-    color: [0.20, 0.18, 0.16]
-    fuzz: 0.5
+    color: [0.22, 0.20, 0.18]
+    fuzz: 0.45
 
+  # Vetro finestre (non usato direttamente negli oggetti finestre,
+  # mantenuto per futuri aggiornamenti / render interni)
   - id: "window_glass"
     type: "dielectric"
     refraction_index: 1.5
 
+  # Rame inverdito: sfere decorative, guglia, spire torri
   - id: "copper_aged"
     type: "metal"
-    color: [0.30, 0.50, 0.35]
-    fuzz: 0.3
+    color: [0.28, 0.52, 0.38]
+    fuzz: 0.25                     # fuzz ridotta: dettaglio metallico più netto
 
+  # Bandiera rossa
   - id: "flag_red"
     type: "lambertian"
-    color: [0.85, 0.12, 0.10]
+    color: [0.82, 0.10, 0.09]
 
+  # Acqua fossato: metallo a fuzz quasi zero = riflesso quasi speculare
   - id: "moat_water"
     type: "metal"
-    color: [0.15, 0.25, 0.30]
-    fuzz: 0.05
+    color: [0.14, 0.24, 0.32]
+    fuzz: 0.03                     # acqua ferma: più riflessiva dell'originale (0.05)
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  LIGHTS
+# ─────────────────────────────────────────────────────────────────────────────
 lights:
+  # Sole principale (key light) — coerente con il sole nel gradient sky
   - type: "directional"
     direction: [-0.4, -0.8, 0.3]
-    color: [1.0, 0.92, 0.78]
-    intensity: 0.85
+    color: [1.0, 0.94, 0.82]      # stessa cromaticità del sun disk
+    intensity: 1.05               # leggermente alzata per ombre più nette
 
+  # Luce di riempimento dal cielo (sky fill) — colore azzurro del cielo
   - type: "directional"
     direction: [0.3, -0.5, -0.5]
-    color: [0.5, 0.55, 0.70]
-    intensity: 0.25
+    color: [0.55, 0.65, 0.85]     # tono più azzurro/freddo (sky-bounce)
+    intensity: 0.22
 
-  - type: "point"
-    position: [0, 40, -20]
-    color: [1.0, 0.95, 0.85]
-    intensity: 200.0
+  # ── RIMOSSA: Point light [0, 40, -20] intensity 200 ──────────────────────
+  # Questa luce era posizionata sopra la Torre del Filarete e produceva
+  # un'illuminazione dall'alto non coerente con la scena diurna esterna;
+  # con il gradient sky che contribuisce GI dall'alto, è superflua e
+  # introduce hotspot innaturali sulla sommità della torre.
+  # ─────────────────────────────────────────────────────────────────────────
 
+  # ── ALT-1: Aggiunta per render Golden Hour (sostituisce key light) ────────
+  # - type: "directional"
+  #   direction: [-0.9, -0.25, 0.2]
+  #   color: [1.0, 0.70, 0.30]
+  #   intensity: 1.20
+  # - type: "directional"
+  #   direction: [0.5, -0.4, -0.6]
+  #   color: [0.40, 0.45, 0.65]
+  #   intensity: 0.15
+
+  # ── ALT-2: Area light per render overcast (rimuovere directional) ─────────
+  # - type: "area"
+  #   corner: [-40, 60, -40]
+  #   u: [80, 0, 0]
+  #   v: [0, 0, 80]
+  #   color: [0.85, 0.88, 0.95]
+  #   intensity: 0.6
+  #   shadow_samples: 16
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ENTITIES
+# ─────────────────────────────────────────────────────────────────────────────
 entities:
+
   # ============================================================
-  # MOAT (fossato) - water surrounding the castle
+  # FOSSATO (moat) — acqua che circonda il castello
   # ============================================================
   - name: "moat_front"
     type: "box"
@@ -122,7 +244,7 @@ entities:
     material: "moat_water"
 
   # ============================================================
-  # STONE BASE / SCARPATA (sloped base of the walls)
+  # SCARPATA / BASE MURARIA (sloped stone base)
   # ============================================================
   - name: "base_front"
     type: "box"
@@ -149,7 +271,7 @@ entities:
     material: "stone_base"
 
   # ============================================================
-  # FRONT WALL (facciata principale)
+  # FACCIATA PRINCIPALE (front wall)
   # ============================================================
   - name: "front_wall_left"
     type: "box"
@@ -163,14 +285,14 @@ entities:
     translate: [16.000, 9.500, -28.500]
     material: "brick_main"
 
-  # Wall above the gate
+  # Parete sopra il portone
   - name: "front_wall_gate_top"
     type: "box"
     scale: [8.000, 6.000, 3.000]
     translate: [0.000, 13.000, -28.500]
     material: "brick_main"
 
-  # Stone band on front wall
+  # Fasce in pietra sulla facciata
   - name: "front_band_1"
     type: "box"
     scale: [56.000, 0.500, 0.200]
@@ -184,7 +306,7 @@ entities:
     material: "stone_trim"
 
   # ============================================================
-  # FRONT WALL CRENELLATIONS (merlature ghibelline)
+  # MERLATURE GHIBELLINE — FACCIATA (f_merlon_01..18)
   # ============================================================
   - name: "f_merlon_01"
     type: "box"
@@ -295,7 +417,7 @@ entities:
     material: "brick_main"
 
   # ============================================================
-  # SIDE WALLS
+  # MURA LATERALI E POSTERIORI
   # ============================================================
   - name: "left_wall"
     type: "box"
@@ -315,7 +437,7 @@ entities:
     translate: [0.000, 9.500, 20.500]
     material: "brick_main"
 
-  # Side wall stone bands
+  # Fasce in pietra mura laterali
   - name: "left_band"
     type: "box"
     scale: [3.200, 0.500, 52.000]
@@ -329,9 +451,8 @@ entities:
     material: "stone_trim"
 
   # ============================================================
-  # SIDE WALL CRENELLATIONS
+  # MERLATURE GHIBELLINE — MURO SINISTRO (l_merlon_01..17)
   # ============================================================
-  # Left wall merlons
   - name: "l_merlon_01"
     type: "box"
     scale: [3.400, 2.000, 1.000]
@@ -434,7 +555,9 @@ entities:
     translate: [-26.500, 17.000, 20.500]
     material: "brick_main"
 
-  # Right wall merlons
+  # ============================================================
+  # MERLATURE GHIBELLINE — MURO DESTRO (r_merlon_01..17)
+  # ============================================================
   - name: "r_merlon_01"
     type: "box"
     scale: [3.400, 2.000, 1.000]
@@ -538,23 +661,23 @@ entities:
     material: "brick_main"
 
   # ============================================================
-  # TORRE DEL FILARETE (central front tower)
+  # TORRE DEL FILARETE (torre centrale d'ingresso)
   # ============================================================
-  # Tower base
+  # Base
   - name: "filarete_base"
     type: "box"
     scale: [12.000, 3.000, 8.000]
     translate: [0.000, 4.500, -29.000]
     material: "stone_base"
 
-  # Tower main shaft
+  # Fusto principale
   - name: "filarete_shaft"
     type: "box"
     scale: [10.000, 22.000, 6.000]
     translate: [0.000, 17.000, -29.000]
     material: "brick_tower"
 
-  # Tower stone bands
+  # Fasce in pietra
   - name: "filarete_band_1"
     type: "box"
     scale: [10.400, 0.400, 6.200]
@@ -579,7 +702,7 @@ entities:
     translate: [0.000, 25.200, -29.000]
     material: "stone_trim"
 
-  # Tower clock face
+  # Orologio (quadrante)
   - name: "filarete_clock"
     type: "cylinder"
     center: [0, 22, -32.1]
@@ -587,21 +710,21 @@ entities:
     height: 0.3
     material: "marble_white"
 
-  # Clock center dot
+  # Centro orologio
   - name: "filarete_clock_center"
     type: "sphere"
     center: [0, 22, -32.5]
     radius: 0.3
     material: "gate_metal"
 
-  # Tower upper gallery (loggia)
+  # Loggia superiore (gallery base)
   - name: "filarete_gallery_base"
     type: "box"
     scale: [11.000, 1.000, 7.000]
     translate: [0.000, 25.500, -29.000]
     material: "stone_trim"
 
-  # Gallery columns (front)
+  # Colonne loggia (frontali)
   - name: "fgal_col_1"
     type: "cylinder"
     center: [-4, 26, -32.3]
@@ -637,14 +760,14 @@ entities:
     height: 3.0
     material: "marble_white"
 
-  # Gallery top
+  # Copertura loggia
   - name: "filarete_gallery_top"
     type: "box"
     scale: [11.000, 1.000, 7.000]
     translate: [0.000, 29.500, -29.000]
     material: "stone_trim"
 
-  # Tower crown crenellations
+  # Merlature torre del Filarete (ft_merlon_1..5)
   - name: "ft_merlon_1"
     type: "box"
     scale: [1.000, 2.000, 7.200]
@@ -675,7 +798,7 @@ entities:
     translate: [3.500, 31.000, -29.000]
     material: "brick_tower"
 
-  # Tower pointed roof
+  # Tetto piramidale a gradini (filarete_roof_1..5)
   - name: "filarete_roof_1"
     type: "box"
     scale: [8.000, 3.000, 4.000]
@@ -706,7 +829,7 @@ entities:
     translate: [0.000, 42.000, -29.000]
     material: "roof_tile"
 
-  # Spire
+  # Guglia in rame
   - name: "filarete_spire"
     type: "cylinder"
     center: [0, 43, -29]
@@ -714,21 +837,24 @@ entities:
     height: 3.0
     material: "copper_aged"
 
-  # Spire top sphere
+  # Sfera sommitale guglia
   - name: "filarete_spire_ball"
     type: "sphere"
     center: [0, 46.2, -29]
     radius: 0.35
     material: "copper_aged"
 
-  # Gate opening (dark recess)
+  # ============================================================
+  # PORTONE D'INGRESSO (gate)
+  # ============================================================
+  # Rientranza scura
   - name: "gate_recess"
     type: "box"
     scale: [6.000, 7.000, 3.500]
     translate: [0.000, 6.500, -28.750]
     material: "dark_wood"
 
-  # Gate arch stone frame
+  # Cornice arco — stipiti
   - name: "gate_arch_left"
     type: "box"
     scale: [0.500, 7.000, 3.700]
@@ -741,13 +867,14 @@ entities:
     translate: [3.250, 6.500, -28.750]
     material: "stone_trim"
 
+  # Architrave arco
   - name: "gate_arch_top"
     type: "box"
     scale: [7.000, 1.000, 3.700]
     translate: [0.000, 10.000, -28.750]
     material: "stone_trim"
 
-  # Gate arch keystone
+  # Chiave di volta
   - name: "gate_keystone"
     type: "box"
     scale: [1.000, 1.000, 3.900]
@@ -755,9 +882,9 @@ entities:
     material: "marble_white"
 
   # ============================================================
-  # CORNER TOWERS (torri angolari cilindriche)
+  # TORRI ANGOLARI CILINDRICHE
   # ============================================================
-  # Front-Left corner tower
+  # Torre anteriore-sinistra (FL)
   - name: "tower_fl_base"
     type: "cylinder"
     center: [-28, 0, -30]
@@ -793,7 +920,7 @@ entities:
     height: 0.5
     material: "roof_tile"
 
-  # Front-Right corner tower
+  # Torre anteriore-destra (FR)
   - name: "tower_fr_base"
     type: "cylinder"
     center: [28, 0, -30]
@@ -829,7 +956,7 @@ entities:
     height: 0.5
     material: "roof_tile"
 
-  # Back-Left corner tower
+  # Torre posteriore-sinistra (BL)
   - name: "tower_bl_base"
     type: "cylinder"
     center: [-28, 0, 22]
@@ -865,7 +992,7 @@ entities:
     height: 0.5
     material: "roof_tile"
 
-  # Back-Right corner tower
+  # Torre posteriore-destra (BR)
   - name: "tower_br_base"
     type: "cylinder"
     center: [28, 0, 22]
@@ -902,9 +1029,9 @@ entities:
     material: "roof_tile"
 
   # ============================================================
-  # FRONT WALL WINDOWS (bifore)
+  # FINESTRE FACCIATA PRINCIPALE — FILA BASSA (bifore)
   # ============================================================
-  # Left section windows
+  # Sezione sinistra
   - name: "fw_win_l1"
     type: "box"
     scale: [2.000, 3.000, 0.400]
@@ -941,7 +1068,7 @@ entities:
     translate: [-11.000, 10.000, -30.225]
     material: "stone_trim"
 
-  # Right section windows
+  # Sezione destra
   - name: "fw_win_r1"
     type: "box"
     scale: [2.000, 3.000, 0.400]
@@ -978,7 +1105,9 @@ entities:
     translate: [21.000, 10.000, -30.225]
     material: "stone_trim"
 
-  # Upper row small windows
+  # ============================================================
+  # FINESTRE FACCIATA PRINCIPALE — FILA ALTA (monofore)
+  # ============================================================
   - name: "fw_uwin_l1"
     type: "box"
     scale: [1.000, 1.500, 0.400]
@@ -1016,7 +1145,7 @@ entities:
     material: "dark_wood"
 
   # ============================================================
-  # TORRE DEL FILARETE WINDOWS
+  # FINESTRE TORRE DEL FILARETE
   # ============================================================
   - name: "ft_win_1"
     type: "box"
@@ -1043,7 +1172,7 @@ entities:
     material: "stone_trim"
 
   # ============================================================
-  # COURTYARD FLOOR
+  # PAVIMENTO CORTILE INTERNO
   # ============================================================
   - name: "courtyard_floor"
     type: "box"
@@ -1052,7 +1181,7 @@ entities:
     material: "cobblestone"
 
   # ============================================================
-  # COAT OF ARMS (stemma Visconteo - simplified)
+  # STEMMA VISCONTEO (coat of arms — semplificato)
   # ============================================================
   - name: "coat_of_arms_bg"
     type: "box"
@@ -1067,7 +1196,7 @@ entities:
     material: "stone_trim"
 
   # ============================================================
-  # BRIDGE OVER MOAT (ponte di accesso)
+  # PONTE DI ACCESSO SUL FOSSATO
   # ============================================================
   - name: "bridge_deck"
     type: "box"
@@ -1087,7 +1216,7 @@ entities:
     translate: [3.750, 4.250, -35.000]
     material: "stone_base"
 
-  # Bridge support pillars
+  # Piloni di sostegno del ponte
   - name: "bridge_pillar_1"
     type: "cylinder"
     center: [0, 0, -36]
@@ -1103,7 +1232,7 @@ entities:
     material: "stone_base"
 
   # ============================================================
-  # FLAG ON TOP OF FILARETE TOWER
+  # BANDIERA SULLA TORRE DEL FILARETE
   # ============================================================
   - name: "flag_pole"
     type: "cylinder"
@@ -1119,7 +1248,7 @@ entities:
     material: "flag_red"
 
   # ============================================================
-  # INNER COURTYARD COLUMNS (portico Rocchetta)
+  # COLONNE PORTICO INTERNO (Rocchetta) — court_col_01..08
   # ============================================================
   - name: "court_col_01"
     type: "cylinder"
@@ -1177,7 +1306,7 @@ entities:
     height: 6.0
     material: "marble_white"
 
-  # Portico architrave
+  # Architrave portico sinistro
   - name: "court_architrave_left"
     type: "box"
     scale: [2.000, 0.500, 30.000]
@@ -1185,7 +1314,7 @@ entities:
     material: "stone_trim"
 
   # ============================================================
-  # DECORATIVE SPHERES ON CORNER TOWERS
+  # SFERE DECORATIVE IN RAME SULLE TORRI ANGOLARI
   # ============================================================
   - name: "deco_fl_sphere"
     type: "sphere"
@@ -1210,3 +1339,4 @@ entities:
     center: [28, 25, 22]
     radius: 0.8
     material: "copper_aged"
+    

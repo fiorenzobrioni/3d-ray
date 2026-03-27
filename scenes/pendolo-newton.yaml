@@ -611,14 +611,14 @@ entities:
   - name: "filo_0_front"
     type: "box"
     scale:     [0.0015, 0.170, 0.0015]
-    rotate:    [-18, 0, -45]
+    rotate:    [-23, 0, -45]
     translate: [-0.119, 0.195, -0.0325]
     material:  "filo_acciaio"
 
   - name: "filo_0_back"
     type: "box"
     scale:     [0.0015, 0.170, 0.0015]
-    rotate:    [18, 0, -45]
+    rotate:    [23, 0, -45]
     translate: [-0.119, 0.195, 0.0325]
     material:  "filo_acciaio"
 

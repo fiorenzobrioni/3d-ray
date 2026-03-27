@@ -1,23 +1,85 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# Elizabeth Tower (Big Ben) — London
-# Highly detailed ray-tracing scene for 3D-Ray engine
-# Clock set to 12:15
+#  Elizabeth Tower (Big Ben) — Londra, pomeriggio
+#
+#  Veduta urbana del celebre campanile neogotico sul Tamigi con Westminster
+#  Bridge, il Palazzo di Westminster, autobus rossi a due piani, lampioni
+#  vittoriani, panchine, recinzioni in ferro battuto e giardini. La torre
+#  è riprodotta con 8 livelli di finestre gotiche, quadranti dell'orologio
+#  a ore 12:15, cella campanaria con Big Ben e tetto in rame a gradini.
+#  Il cielo procedurale con sun disk simula la luce pomeridiana londinese.
+#
+#  Render consigliato:
+#    Preview: dotnet run ... -- -i scenes/big-ben.yaml -w 1280 -H 720 -s 64 -d 12
+#    Finale:  dotnet run ... -- -i scenes/big-ben.yaml -w 1920 -H 1080 -s 128 -d 50
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:
-  ambient_light: [0.10, 0.10, 0.12]
-  background: [0.42, 0.55, 0.78]
+  ambient_light: [0.10, 0.10, 0.13]
   ground:
     type: "infinite_plane"
     material: "pavement"
     y: 0.0
+  sky:
+    type: "gradient"
+    zenith_color:  [0.22, 0.38, 0.72]   # blu Londra pomeriggio
+    horizon_color: [0.68, 0.76, 0.90]   # orizzonte chiaro lattiginoso
+    ground_color:  [0.30, 0.28, 0.25]   # riflessione a terra
+    sun:
+      direction:  [-0.40, -0.75, 0.40]  # da sud-ovest, come la key light
+      color:      [1.00, 0.93, 0.78]
+      intensity:  4.0
+      size:       0.06
 
+  # ── WORLD ALT-1: Cielo coperto / overcast (grigio londinese) ─────────────
+  # ambient_light: [0.14, 0.14, 0.15]
+  # sky:
+  #   type: "gradient"
+  #   zenith_color:  [0.55, 0.58, 0.62]
+  #   horizon_color: [0.70, 0.72, 0.74]
+  #   ground_color:  [0.28, 0.27, 0.25]
+
+  # ── WORLD ALT-2: Tramonto dorato ────────────────────────────────────────
+  # ambient_light: [0.12, 0.09, 0.07]
+  # sky:
+  #   type: "gradient"
+  #   zenith_color:  [0.10, 0.18, 0.45]
+  #   horizon_color: [0.88, 0.48, 0.14]
+  #   ground_color:  [0.25, 0.20, 0.16]
+  #   sun:
+  #     direction:  [-0.70, -0.20, 0.60]
+  #     color:      [1.00, 0.65, 0.25]
+  #     intensity:  3.0
+  #     size:       0.10
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CAMERA
+# ═══════════════════════════════════════════════════════════════════════════
 camera:
-  position: [28, 8, -48]
-  look_at: [0, 40, 0]
-  fov: 50
-  aperture: 0.06
-  focal_dist: 55.0
+  position:   [28, 8, -48]
+  look_at:    [0, 22, 0]      # abbassato da 40 a 22: include meglio la base e i bus
+  fov:        50
+  aperture:   0.06
+  focal_dist: 62.0            # distanza reale camera→torre corretta (~62 unità)
+
+  # ── CAMERA ALT-1: Vista più lontana e panoramica ─────────────────────────
+  # position:   [35, 6, -65]
+  # look_at:    [0, 30, 0]
+  # fov:        45
+  # aperture:   0.0
+  # focal_dist: 78.0
+
+  # ── CAMERA ALT-2: Close-up sui quadranti dell'orologio ───────────────────
+  # position:   [10, 56, -25]
+  # look_at:    [0, 56, 0]
+  # fov:        35
+  # aperture:   0.03
+  # focal_dist: 27.0
+
+  # ── CAMERA ALT-3: Vista dal Tamigi / basso angolo drammatico ─────────────
+  # position:   [5, 2, 20]
+  # look_at:    [0, 50, 0]
+  # fov:        55
+  # aperture:   0.0
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -31,14 +93,10 @@ materials:
       scale: 6.0
       colors: [[0.38, 0.36, 0.32], [0.32, 0.30, 0.27]]
 
-  - id: "pavement_light"
-    type: "lambertian"
-    color: [0.50, 0.48, 0.44]
-
   - id: "thames_water"
     type: "metal"
     color: [0.10, 0.16, 0.22]
-    fuzz: 0.04
+    fuzz: 0.06                # leggermente meno specchiato: superficie con piccole increspature
 
   - id: "thames_bed"
     type: "lambertian"
@@ -50,7 +108,7 @@ materials:
     texture:
       type: "marble"
       scale: 14.0
-      noise_strength: 3.5
+      noise_strength: 2.5    # ridotto da 3.5: venatura più sottile e realistica
       colors: [[0.82, 0.78, 0.68], [0.72, 0.69, 0.60]]
 
   - id: "limestone_clean"
@@ -76,8 +134,8 @@ materials:
 
   - id: "clock_rim_gold"
     type: "metal"
-    color: [0.90, 0.75, 0.15]
-    fuzz: 0.08
+    color: [0.95, 0.80, 0.18]  # oro più brillante rispetto al gold_trim generico
+    fuzz: 0.04                  # più lucido: il rim dell'orologio è rifinito a specchio
 
   - id: "clock_hand_black"
     type: "lambertian"
@@ -210,11 +268,11 @@ materials:
 
   - id: "tree_foliage"
     type: "lambertian"
-    color: [0.18, 0.40, 0.15]
+    color: [0.16, 0.38, 0.12]  # verde leggermente più scuro e saturo: platani di Londra
 
   - id: "grass"
     type: "lambertian"
-    color: [0.20, 0.42, 0.12]
+    color: [0.18, 0.40, 0.11]  # verde inglese, leggermente più profondo
 
   - id: "fence_iron"
     type: "metal"
@@ -229,29 +287,72 @@ materials:
 #  LIGHTS
 # ═══════════════════════════════════════════════════════════════════════════
 lights:
-  # Main sun — warm afternoon light from the south-west
+  # Sole pomeridiano — luce calda da sud-ovest (coerente con sun disk nel cielo)
   - type: "directional"
-    direction: [-0.4, -0.75, 0.4]
-    color: [1.0, 0.93, 0.80]
+    direction: [-0.40, -0.75, 0.40]
+    color: [1.00, 0.93, 0.80]
     intensity: 0.90
 
-  # Sky fill — cool blue from opposite side
+  # Fill cielo — azzurro freddo dal lato opposto al sole
   - type: "directional"
-    direction: [0.3, -0.5, -0.5]
+    direction: [0.30, -0.50, -0.50]
     color: [0.55, 0.60, 0.75]
     intensity: 0.22
 
-  # Accent point light — illuminates the clock faces
+  # Accent frontale quadranti — illumina i clock faces
+  # Allontanato da Z=-20 a Z=-30: ombre meno dure, stessa luce efficace
   - type: "point"
-    position: [0, 60, -20]
-    color: [1.0, 0.96, 0.88]
-    intensity: 250.0
+    position: [0, 60, -30]
+    color: [1.00, 0.96, 0.88]
+    intensity: 560.0            # compensato per la distanza maggiore (250 × (30/20)²)
 
-  # Warm fill from behind to rim-light the tower
+  # Rim-light calda da retro — distacca la torre dallo sfondo
   - type: "point"
     position: [-15, 45, 25]
-    color: [1.0, 0.90, 0.70]
+    color: [1.00, 0.90, 0.70]
     intensity: 150.0
+
+  # Fill basso frontale — schiarisce la base, i bus e i lampioni vicino alla camera
+  - type: "point"
+    position: [5, 4, -35]
+    color: [0.80, 0.85, 1.00]
+    intensity: 60.0
+
+  # ── LIGHTS ALT-1: Tramonto — sostituire tutte le luci sopra ─────────────
+  # - type: "directional"
+  #   direction: [-0.80, -0.25, 0.55]
+  #   color: [1.00, 0.65, 0.25]
+  #   intensity: 0.70
+  # - type: "directional"
+  #   direction: [0.50, -0.60, -0.40]
+  #   color: [0.60, 0.50, 0.80]
+  #   intensity: 0.15
+  # - type: "point"
+  #   position: [0, 62, -30]
+  #   color: [1.00, 0.80, 0.50]
+  #   intensity: 400.0
+  # - type: "point"
+  #   position: [-20, 40, 30]
+  #   color: [1.00, 0.70, 0.40]
+  #   intensity: 200.0
+
+  # ── LIGHTS ALT-2: Notturno / illuminazione artificiale ───────────────────
+  # - type: "directional"
+  #   direction: [0.00, -1.00, 0.00]
+  #   color: [0.10, 0.12, 0.20]
+  #   intensity: 0.04
+  # - type: "point"
+  #   position: [0, 62, -25]
+  #   color: [1.00, 0.92, 0.70]
+  #   intensity: 800.0
+  # - type: "point"
+  #   position: [-12, 50, 20]
+  #   color: [1.00, 0.85, 0.55]
+  #   intensity: 350.0
+  # - type: "point"
+  #   position: [15, 10, -30]
+  #   color: [1.00, 0.88, 0.60]
+  #   intensity: 80.0
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES
