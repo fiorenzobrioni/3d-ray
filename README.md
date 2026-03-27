@@ -30,29 +30,29 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 ### Accelerazione
 - 📦 **BVH (Bounding Volume Hierarchy)**: struttura di accelerazione con euristica dell'asse più lungo (SAH-inspired) per intersezioni raggio-oggetto in tempo **O(log N)**. Attivata automaticamente per scene con più di 4 oggetti.
 
-### Primitive Geometriche
-- 🔵 **Sphere** — Sfera con UV mapping sferico
-- 📦 **Box** — Cubo unitario con UV mapping planare per faccia
-- 🔷 **Quad** — Parallelogramma con UV mapping baricentric
-- 🔺 **Triangle** — Triangolo via algoritmo Möller–Trumbore
-- 🔴 **Disk** — Disco piatto con UV mapping polare
-- 🏛️ **Cylinder** — Cilindro finito con caps e UV cylindrical
-- ∞ **Infinite Plane** — Piano infinito con UV mapping con tiling
+### Geometrie
+- ⚪ **Sphere** — Sfera con UV mapping sferico (lon/lat)
+- 📦 **Box** — Cubo/parallelepipedo allineato agli assi (con UV planare per faccia)
+- 🔩 **Cylinder** — Cilindro finito con caps e UV cilindrico
+- 🔺 **Triangle** — Triangolo con intersezione Möller–Trumbore
+- ▰ **Quad** — Quadrilatero (parallelogramma) con UV baricentrico
+- ⏺ **Disk** — Disco piatto con centro, normale e raggio
+- ▬ **Infinite Plane** — Piano infinito con UV planare tiled
 
 ### Materiali
-- 🎨 **Lambertian** — Diffusione opaca fisicamente corretta
-- 🪞 **Metal** — Riflessione speculare con parametro `fuzz` per rugosità superficiale
-- 💎 **Dielectric** — Rifrazione con indice IOR variabile, effetto Fresnel (Schlick), supporto tinting colore
-- 💡 **Emissive** — Materiale auto-luminoso con `color` e `intensity` configurabili
-- 🎭 **Disney Principled BSDF** — Materiale PBR unificato ispirato al modello Burley (SIGGRAPH 2012). 12 parametri artist-friendly: `metallic`, `roughness`, `clearcoat`, `sheen`, `subsurface`, `spec_trans` e altri. Un unico tipo copre plastica, metalli, vernice auto, tessuti, vetro e cera. Tipo YAML: `"disney"` (alias: `"disney_bsdf"`, `"pbr"`).
+- 🎨 **Lambertian** — Materiale opaco diffuso
+- 🪞 **Metal** — Riflesso speculare con rugosità (`fuzz`) controllabile
+- 💎 **Dielectric** — Vetro/trasparente con rifrazione e riflesso Fresnel
+- 💡 **Emissive** — Materiale auto-luminoso che emette luce propria nella scena. Gli oggetti emissivi con geometria campionabile (Sphere, Quad, Triangle, Disk) partecipano automaticamente alla NEE come Geometry Lights, riducendo il rumore rispetto al path tracing puro.
+- 🌟 **Disney Principled BSDF** — Materiale PBR unificato (alias: `"disney"`, `"disney_bsdf"`, `"pbr"`). Un singolo tipo può rappresentare plastica, metallo, vetro, vernice auto, tessuto, pelle e qualsiasi combinazione intermedia tramite i parametri `metallic`, `roughness`, `subsurface`, `specular`, `sheen`, `clearcoat`, `spec_trans` e `ior`.
 
 ### Texture
-- ♟️ **Checker** — Scacchiera 3D con scala configurabile
-- 🌫️ **Noise** — Perlin Noise per superfici granulate o sporche
-- 🗿 **Marble** — Venature marmoree con turbolenza matematica
-- 🪵 **Wood** — Anelli di accrescimento concentrici
-- 🖼️ **Image** — Texture da file immagine (PNG, JPEG, BMP, TIFF, WebP) con bilinear filtering, conversione sRGB→lineare e tiling UV configurabile. Supporta tutti i materiali e tutte le primitive.
-- 🗺️ **Normal Map** — Perturbazione delle normali di shading tramite immagine RGB (tangent-space). Aggiunge dettaglio di superficie (fughe, graffi, rilievi) senza geometria aggiuntiva. Supportata da tutti e 4 i tipi di materiale, su tutte le primitive. Compatibile OpenGL (R=X, G=Y, B=Z) con opzione `flip_y` per mappe DirectX-style.
+- ♟ **Checker** — Scacchiera 3D procedurale
+- 🌀 **Noise** — Rumore Perlin (liscio o turbolento)
+- 🏔 **Marble** — Marmo procedurale
+- 🪵 **Wood** — Legno procedurale
+- 🖼 **Image Texture** — Texture da file immagine (PNG, JPEG, BMP, GIF, TIFF, WebP) con UV mapping nativo per primitiva, bilinear filtering e tiling configurabile
+- 🗺 **Normal Map** — Perturbazione della normale di shading per dettaglio geometrico senza triangoli aggiuntivi. Supportata da tutti e 4 i tipi di materiale, su tutte le primitive. Compatibile OpenGL (R=X, G=Y, B=Z) con opzione `flip_y` per mappe DirectX-style.
 
 Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzazione per-oggetto** tramite seed deterministico.
 
@@ -65,10 +65,15 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🔦 **Spot Light** — Faretto con cono interno/esterno e falloff liscio
 - 🟧 **Area Light** — Emettitore rettangolare con **soft shadows** fisicamente corretti via campionamento Monte Carlo (configurabile: 8–32 shadow samples, override globale via CLI `-S`)
 - ✨ **Emissive Objects** — Qualsiasi geometria con materiale `emissive` diventa una sorgente di luce visibile. La luce emessa si propaga nella scena tramite i rimbalzi del path tracer, creando illuminazione indiretta naturale senza bisogno di luci esplicite.
+- 🌐 **Environment Light** — Il gradient sky (con sun disk) e l'HDRI partecipano alla NEE come sorgenti direzionali campionabili, accelerando la convergenza per scene illuminate dall'ambiente.
 
 ### Ambiente
 - 🌅 **Gradient Sky** — Cielo procedurale con gradiente verticale a 3 bande (zenith, orizzonte, terreno) e sun disk con glow halo. Il cielo agisce come sorgente di illuminazione globale: i raggi che escono dalla scena campionano il gradiente, producendo GI colorata naturale (azzurra dall'alto, calda dall'orizzonte). Configurabile via YAML con preset per mezzogiorno, golden hour, tramonto e notte.
 - 🌍 **HDRI / IBL** — Image-Based Lighting con environment map HDR (formato Radiance `.hdr`). Illuminazione realistica catturata da fotografie reali: riflessi metallici credibili, rifrazioni naturali, GI accurata. Supporta rotazione Y-axis per allineare l'ambiente alla scena e moltiplicatore di intensità per il controllo dell'esposizione. File `.hdr` scaricabili gratuitamente da [Poly Haven](https://polyhaven.com/hdris).
+
+### Camera
+- 📷 **Camera con Depth of Field** — Simulazione dell'apertura della lente con piano di fuoco configurabile.
+- 🎥 **Multi-Camera** — Supporto per liste di camere nominate nel YAML (`cameras:`), selezionabili da CLI con `--camera <nome|indice>`. Utile per generare render da più angolazioni senza modificare la scena.
 
 ### Input/Output
 - 📄 **Configurazione YAML** — Definizione completa della scena tramite file YAML strutturati
@@ -127,7 +132,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │   │   ├── Camera/          # Camera con DOF
 │   │   ├── Core/            # Ray, HitRecord, MathUtils
 │   │   ├── Geometry/        # Primitive (Sphere, Box, Cylinder...)
-│   │   ├── Lights/          # Point, Directional, Spot, Area
+│   │   ├── Lights/          # Point, Directional, Spot, Area, GeometryLight, EnvironmentLight
 │   │   ├── Materials/       # Lambertian, Metal, Dielectric, Emissive, Disney BSDF
 │   │   ├── Rendering/       # Renderer, SkySettings, EnvironmentMap
 │   │   ├── Scene/           # SceneLoader, SceneData
@@ -166,12 +171,14 @@ dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
 | Parametro | Alias | Default | Descrizione |
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | — (**obbligatorio**) | Percorso del file YAML descrittivo della scena. |
-| `--output` | `-o` | `render.png` | Nome/percorso del file immagine di output. |
+| `--output` | `-o` | `output/render-<scena>.png` | Nome/percorso del file immagine di output. Se omesso, viene generato automaticamente dal nome della scena (es. `-i scenes/chess.yaml` → `output/render-chess.png`). |
 | `--width` | `-w` | `1200` | Larghezza dell'immagine in pixel. |
 | `--height` | `-H` | `800` | Altezza dell'immagine in pixel. |
 | `--samples` | `-s` | `16` | Campioni per pixel (anti-aliasing e riduzione del rumore). Il numero effettivo viene arrotondato al quadrato perfetto superiore (`√N × √N`). |
 | `--depth` | `-d` | `50` | Massimo numero di rimbalzi ricorsivi per raggio (riflessi, rifrazioni). |
 | `--shadow-samples` | `-S` | *(da YAML)* | Override globale dei shadow samples per tutte le area light. Se non specificato, ogni luce usa il proprio valore YAML (default: 16). |
+| `--camera` | `-c` | *(prima camera)* | Seleziona la camera da usare per nome o indice (0-based). Funziona solo con la sintassi `cameras:` (lista) nel YAML. |
+| `--list-cameras` | — | — | Elenca tutte le camere definite nella scena ed esce senza renderizzare. |
 | `--help` | `-h` | — | Mostra il messaggio di aiuto ed esce. |
 
 > **Nota:** `-H` usa la lettera maiuscola perché `-h` è riservato a `--help`. Analogamente, `-S` (maiuscola) è per `--shadow-samples`, mentre `-s` (minuscola) è per `--samples`.
@@ -214,6 +221,14 @@ Il formato viene rilevato automaticamente dall'estensione:
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o render.jpg -s 32
 ```
 
+### Multi-Camera
+Elenca le camere disponibili e renderizza da una specifica:
+```powershell
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml --list-cameras
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -c top -o top.png
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -c 2 -o cam2.png
+```
+
 ---
 
 ## 🤖 Collaborazione AI
@@ -229,6 +244,3 @@ Questo progetto è stato sviluppato con il supporto di tecnologie di Intelligenz
 ## 📄 Licenza
 
 Questo progetto è distribuito sotto licenza **MIT**. Consulta il file [LICENSE](LICENSE) per i dettagli.
-
-> [!NOTE]
-> Il progetto utilizza `SixLabors.ImageSharp` (Six Labors Split License) e `YamlDotNet` (MIT), entrambi compatibili con l'uso open-source.

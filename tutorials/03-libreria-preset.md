@@ -12,6 +12,8 @@ Una collezione di configurazioni pronte da copiare e incollare nel tuo file YAML
 5. [Oggetti e Primitive Base](#5-oggetti-e-primitive-base)
 6. [Scene Base Complete (Stage Starter)](#6-scene-base-complete-stage-starter)
 7. [Preset Sky (Cielo Procedurale)](#7-preset-sky-cielo-procedurale)
+8. [Libreria Materiali PBR (Disney BSDF)](#8-libreria-materiali-pbr-disney-bsdf)
+9. [Preset Multi-Camera](#9-preset-multi-camera)
 
 ---
 
@@ -867,37 +869,99 @@ Preset copia-incolla per il materiale `type: "disney"`, organizzati per categori
 
 ---
 
-## 9. Abbinamenti Consigliati: Materiale × Ambiente
+## 9. Preset Multi-Camera
 
-| Materiale | Ambiente consigliato | Note |
-|-----------|---------------------|------|
-| Metallo lucido (cromo, oro) | HDRI studio o gradient sky | I riflessi richiedono contenuto ambientale ricco |
-| Vetro (spec_trans) | HDRI o gradient sky con terreno | La rifrazione visibile richiede sfondo dettagliato |
-| Plastica lucida | Area light studio | Highlight controllati senza riflessi ambientali caotici |
-| Tessuto/velluto (sheen) | Area light soffitto diffusa | Lo sheen emerge con luce zenitale diffusa |
-| Pelle/cera (subsurface) | Fill light + area laterale | SSS ha bisogno di luce che "avvolge" l'oggetto |
-| Vernice auto (clearcoat) | HDRI esterno o gradient sky | Il doppio strato riflette l'intero environment |
-| Emissivo | Scena buia o ambient_light basso | L'oggetto deve emergere come sorgente primaria |
+Configurazioni `cameras:` pronte per scene con più punti di vista. Copia la lista nel tuo YAML e usa `--camera <nome>` da CLI per selezionare.
 
-### Preset: HDRI + Fill Light Direzionale
-
-Per scene in cui l'HDRI fornisce la GI ma si vuole un'ombra direzionale definita:
-
+### **Multi-Camera: Product Showcase (3 viste classiche)**
+Ideale per presentare un singolo oggetto da più angolazioni.
 ```yaml
-world:
-  ambient_light: [0.0, 0.0, 0.0]   # Zero: tutta la luce dall'HDRI e dalla directional
-  sky:
-    type: "hdri"
-    path: "hdri/studio_small_09_4k.hdr"
-    intensity: 1.0
-    rotation: 45
+cameras:
+  - name: "hero"
+    position: [2.0, 3.0, -6.0]
+    look_at: [0, 1, 0]
+    fov: 40
+    aperture: 0.05
+    focal_dist: 7.0
 
-lights:
-  # Fill direzionale allineato alla sorgente principale dell'HDRI
-  - type: "directional"
-    direction: [-0.5, -1.0, -0.3]   # Allinea con il sole/finestra nell'HDRI
-    color: [1.0, 0.95, 0.88]
-    intensity: 0.3                   # Bassa: integra, non sovrasta l'HDRI
+  - name: "top"
+    position: [0, 10, 0.01]
+    look_at: [0, 0, 0]
+    fov: 35
+    aperture: 0.0
+    focal_dist: 10.0
+
+  - name: "macro"
+    position: [0.5, 1.5, -3.0]
+    look_at: [0, 1, 0]
+    fov: 25
+    aperture: 0.15
+    focal_dist: 3.5
 ```
+
+**Uso da CLI:**
+```powershell
+# Render da tutte e 3 le viste
+dotnet run ... -- -i scene.yaml -c hero -o hero.png -s 64
+dotnet run ... -- -i scene.yaml -c top -o top.png -s 64
+dotnet run ... -- -i scene.yaml -c macro -o macro.png -s 64
+```
+
+### **Multi-Camera: Architetturale (4 viste interior)**
+Per scene di interni con illuminazione area light o HDRI.
+```yaml
+cameras:
+  - name: "wide"
+    position: [5, 2.5, -8]
+    look_at: [0, 1.5, 0]
+    fov: 55
+
+  - name: "detail"
+    position: [1, 1.5, -3]
+    look_at: [0, 1.2, 0]
+    fov: 35
+    aperture: 0.08
+    focal_dist: 3.5
+
+  - name: "corner"
+    position: [-4, 2, -4]
+    look_at: [0, 1, 2]
+    fov: 45
+
+  - name: "bird"
+    position: [0, 8, 0.01]
+    look_at: [0, 0, 0]
+    fov: 50
+```
+
+### **Multi-Camera: Dutch Angle + Standard**
+Quando vuoi sia l'inquadratura standard che una versione cinematografica.
+```yaml
+cameras:
+  - name: "standard"
+    position: [0, 2, -8]
+    look_at: [0, 1, 0]
+    fov: 50
+
+  - name: "dutch"
+    position: [2, 2.5, -7]
+    look_at: [0, 1, 0]
+    vup: [0.2, 1, 0]
+    fov: 50
+```
+
+> **💡 Tip — Batch render:** Puoi scriptare il render da tutte le camere con un semplice loop:
+> ```powershell
+> # PowerShell
+> foreach ($cam in "hero","top","macro") {
+>     dotnet run ... -- -i scene.yaml -c $cam -o "output/${cam}.png" -s 64
+> }
+> ```
+> ```bash
+> # Bash
+> for cam in hero top macro; do
+>     dotnet run ... -- -i scene.yaml -c "$cam" -o "output/${cam}.png" -s 64
+> done
+> ```
 
 > **Nota:** Con `lights: []` (lista vuota esplicita) ottieni solo illuminazione HDRI pura — il massimo realismo ma le ombre sono morbide. Aggiungendo una `directional` light ottieni ombre direzionali definite mantenendo la GI dell'HDRI.

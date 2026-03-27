@@ -11,6 +11,7 @@
    - [4.2 Metal (Metallico)](#42-metal-metallicospeculare)
    - [4.3 Dielectric (Vetro)](#43-dielectric-vetrotrasparente)
    - [4.4 Emissive (Luminoso)](#44-emissive-luminoso)
+   - [4.5 Disney Principled BSDF (PBR)](#45-disney-principled-bsdf-pbr-unificato)
 5. [Sezione `textures`](#5-sezione-textures)
    - [5.1 Tipi di Texture Procedurali](#51-tipi-di-texture-procedurali)
    - [5.2 Trasformazioni Spaziali (Offset & Rotation)](#52-trasformazioni-spaziali-offset--rotation)
@@ -292,6 +293,60 @@ camera:
 
 ---
 
+### 3.1 Multi-Camera (`cameras:` list)
+
+Oltre alla sintassi singola `camera:`, il motore supporta una lista di camere nominate con `cameras:`. Questo permette di definire più punti di vista nella stessa scena e selezionarne uno da CLI con `--camera <nome|indice>`.
+
+**Sintassi:**
+```yaml
+cameras:
+  - name: "main"
+    position: [0, 5, -8]
+    look_at: [0, 0, 0]
+    fov: 45
+    aperture: 0.1
+    focal_dist: 12
+
+  - name: "top"
+    position: [0, 12, 0.01]
+    look_at: [0, 0, 0]
+    fov: 35
+    aperture: 0.0
+    focal_dist: 12
+
+  - name: "closeup"
+    position: [1.5, 1.2, -4]
+    look_at: [0, 0.8, 0]
+    fov: 25
+    aperture: 0.2
+    focal_dist: 4.25
+```
+
+Ogni camera nella lista accetta gli stessi parametri della sintassi singola (`position`, `look_at`, `vup`, `fov`, `aperture`, `focal_dist`), più un campo opzionale `name` per identificarla.
+
+**Selezione da CLI:**
+```powershell
+# Elenca le camere disponibili
+dotnet run ... -- -i scenes/chess.yaml --list-cameras
+
+# Seleziona per nome (case-insensitive)
+dotnet run ... -- -i scenes/chess.yaml -c top -o top.png
+
+# Seleziona per indice (0-based)
+dotnet run ... -- -i scenes/chess.yaml -c 2 -o closeup.png
+```
+
+**Regole di precedenza:**
+- Se il YAML contiene sia `camera:` che `cameras:`, la lista `cameras:` ha la precedenza.
+- Se non si specifica `-c` e la lista ha più di una camera, viene usata la prima con un warning.
+- Se il nome o indice specificato non corrisponde a nessuna camera, viene usata la prima con un warning.
+
+> **💡 Tip:** Per scene complesse con molte angolazioni (come la scacchiera), definisci tutte le camere nella lista e usa `--list-cameras` per ricordare quali sono disponibili. Puoi poi fare batch render da script iterando su ciascuna camera.
+
+> **Retrocompatibilità:** La sintassi legacy `camera:` (singola) continua a funzionare normalmente. La migrazione a `cameras:` è opzionale.
+
+---
+
 ## 4. Sezione `materials`
 
 I materiali definiscono come le superfici interagiscono con la luce.
@@ -362,7 +417,7 @@ Materiale trasparente con rifrazione e riflesso Fresnel.
 > Il materiale Dielectric supporta `normal_map` per simulare vetro satinato o brocche intagliate.
 
 ### 4.4 Emissive (Luminoso)
-Materiale auto-luminoso: l'oggetto emette luce propria e brilla nella scena senza bisogno di illuminazione esterna. La luce emessa si propaga tramite i rimbalzi indiretti del path tracer, illuminando naturalmente gli oggetti circostanti.
+Materiale auto-luminoso: l'oggetto emette luce propria e brilla nella scena senza bisogno di illuminazione esterna. La luce emessa si propaga tramite i rimbalzi del path tracer. Le geometrie campionabili (Sphere, Quad, Triangle, Disk) con materiale emissivo partecipano automaticamente alla NEE come Geometry Lights, riducendo significativamente il rumore rispetto al path tracing puro. Le geometrie non campionabili (Box, Cylinder) illuminano solo tramite rimbalzi indiretti.
 
 Usi tipici: neon, LED, insegne, lava, fiamme, sfere magiche, pannelli luminosi, indicatori.
 
@@ -408,7 +463,7 @@ Usi tipici: neon, LED, insegne, lava, fiamme, sfere magiche, pannelli luminosi, 
 
 > **💡 Tip: Emissive vs Area Light.** Un `quad` con materiale `emissive` è visualmente simile a un'area light, ma con differenze importanti:
 > - L'**area light** usa Next Event Estimation (NEE) e produce ombre morbide controllate con `shadow_samples`.
-> - L'**emissive** illumina solo tramite rimbalzi indiretti del path tracer — richiede più campioni (`-s`) per convergere, ma l'oggetto è fisicamente **visibile** nella scena (puoi vederlo, rifletterlo nello specchio, rifrangerlo nel vetro).
+> - L'**emissive** illumina tramite rimbalzi del path tracer e, per le geometrie campionabili (Sphere, Quad, Triangle, Disk), anche tramite NEE diretta. Richiede comunque più campioni rispetto a un'area light dedicata per ombre pulite, ma l'oggetto è fisicamente visibile nella scena — richiede più campioni (`-s`) per convergere, ma l'oggetto è fisicamente **visibile** nella scena (puoi vederlo, rifletterlo nello specchio, rifrangerlo nel vetro).
 > - Per pannelli a soffitto che devono essere visti: usa `emissive`. Per illuminazione pura senza geometria visibile: usa `area` light.
 
 ---
@@ -1559,6 +1614,7 @@ lights: []
 
 ### Checklist prima del render finale
 
+- [ ] Se la scena usa `cameras:` (lista), hai verificato con `--list-cameras` che i nomi siano corretti.
 - [ ] Tutti gli `id` dei materiali sono univoci e referenziati correttamente nelle entità.
 - [ ] La `camera.position` non si trova all'interno di un oggetto solido.
 - [ ] Le texture con variazioni per-oggetto hanno `randomize_offset` o `randomize_rotation` attivo.

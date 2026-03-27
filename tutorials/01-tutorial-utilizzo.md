@@ -10,8 +10,9 @@ Benvenuto nel manuale d'uso del motore RayTracer. Questo documento ti guiderà a
 3. [Guida ai Parametri CLI](#3-guida-ai-parametri-cli)
 4. [Esempi di Rendering (Profili)](#4-esempi-di-rendering-profili)
 5. [Gestione dell'Output](#5-gestione-delloutput)
-6. [Ottimizzazione e Performance](#6-ottimizzazione-e-performance)
-7. [Risoluzione Problemi](#7-risoluzione-problemi)
+6. [Multi-Camera](#6-multi-camera)
+7. [Ottimizzazione e Performance](#7-ottimizzazione-e-performance)
+8. [Risoluzione Problemi](#8-risoluzione-problemi)
 
 ---
 
@@ -59,12 +60,14 @@ Il motore accetta i seguenti parametri per configurare l'esecuzione:
 | Parametro | Alias | Default | Descrizione |
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | — (**obbligatorio**) | Percorso del file di scena (YAML). Il programma termina con un errore se non specificato. |
-| `--output` | `-o` | `render.png` | Nome e percorso del file immagine da generare. Il formato viene rilevato automaticamente dall'estensione (`.png`, `.jpg`, `.bmp`). |
+| `--output` | `-o` | `output/render-<scena>.png` | Nome e percorso del file immagine da generare. Se omesso, viene generato automaticamente dal nome della scena (es. `-i scenes/chess.yaml` → `output/render-chess.png`). Il formato viene rilevato automaticamente dall'estensione (`.png`, `.jpg`, `.bmp`). |
 | `--width` | `-w` | `1200` | Larghezza dell'immagine in pixel. |
 | `--height` | `-H` | `800` | Altezza dell'immagine in pixel. |
 | `--samples` | `-s` | `16` | Campioni per pixel (anti-aliasing e riduzione del rumore). Vedi nota sotto. |
 | `--depth` | `-d` | `50` | Massimo numero di rimbalzi ricorsivi per ogni raggio (riflessi, rifrazioni, scattering). |
 | `--shadow-samples` | `-S` | *(da YAML)* | Override globale dei shadow samples per tutte le area light. Vedi nota sotto. |
+| `--camera` | `-c` | *(prima camera)* | Seleziona la camera da usare per nome (case-insensitive) o indice 0-based. Funziona solo con la sintassi `cameras:` (lista) nel YAML. Vedi [sezione 6](#6-multi-camera). |
+| `--list-cameras` | — | — | Elenca tutte le camere definite nella scena ed esce senza renderizzare. |
 | `--help` | `-h` | — | Mostra il messaggio di aiuto ed esce. |
 
 > **Nota sugli alias:** `-H` (maiuscola) è per `--height` perché `-h` è riservato a `--help`. Analogamente, `-S` (maiuscola) è per `--shadow-samples`, mentre `-s` (minuscola) è per `--samples`.
@@ -105,86 +108,155 @@ Il motore supporta la simulazione della **profondità di campo** tramite i param
 | `aperture` | float | `0.0` | Diametro dell'obiettivo. `0` = tutto a fuoco (pinhole). Valori tipici: `0.05`–`0.2`. |
 | `focal_dist` | float | `1.0` | Distanza dal piano di messa a fuoco. Impostala pari alla distanza camera→soggetto. |
 
-> **Esempio:** camera in `[0, 2, -8]`, soggetto in `[0, 1, 0]` → distanza ≈ 8.1 → `focal_dist: 8.1`, `aperture: 0.08`.
->
-> **Nota:** Con `aperture > 0` e `focal_dist: 1.0` (default), il piano di fuoco è a 1 unità dalla camera: il risultato è un bokeh estremo non intenzionale. **Misura sempre la distanza camera→soggetto** prima di abilitare il DOF.
-
-Vedi la [sezione Camera del Tutorial Scene](02-tutorial-scene.md#3-sezione-camera) per la sintassi YAML completa.
+> **⚠️ Importante:** Appena `aperture > 0`, il piano di fuoco si trova a `focal_dist` unità dalla camera. Il default `1.0` è troppo corto per la maggior parte delle scene — misura la distanza camera→soggetto e usala come `focal_dist`.
 
 ---
 
 ## 4. Esempi di Rendering (Profili)
 
-### 4.1 — Profilo "FAST PREVIEW" (Bozza Immediata)
-Ideale per testare la posizione della camera o delle luci.
-```powershell
-# Windows
-dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 1 -d 5 -w 400 -H 267 -S 4
-# Linux / macOS
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -s 1 -d 5 -w 400 -H 267 -S 4
-```
-- **Qualità**: Molto rumorosa (1 campione = niente anti-aliasing). Errori di jitter visibili.
-- **Tempo**: < 1 secondo.
+### Preview (Pochi Secondi)
 
-### 4.2 — Profilo "DRAFT" (Qualità Media)
-Consigliato per valutare texture procedurali e materiali metallici.
-```powershell
-dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 16 -d 20 -w 800 -H 533
-```
-- **Qualità**: Buona pulizia globale, rumore residuo nelle ombre e nei materiali dielettrici.
-- **Tempo**: 5 — 30 secondi (dipende dalla complessità della scena).
+Utile per verificare posizionamento camera, oggetti e luci senza attendere:
 
-### 4.3 — Profilo "PRODUCTION" (Alta Qualità)
-Da utilizzare per il risultato finale o per scene con molto vetro e area light.
 ```powershell
-dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 128 -d 50 -w 1920 -H 1080 -S 16
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -w 400 -H 267 -s 1 -d 5 -S 4
 ```
-- **Qualità**: Immagine pulita, ombre morbide degli area light ben definite.
-- **Tempo**: Minuti (dipende dalla CPU e dalla complessità della scena).
 
-### 4.4 — Profilo "ULTRA" (Qualità Massima)
-Per render finali con vetro, depth of field e area light ad alta qualità.
+### Draft (Minuti)
+
+Valuta materiali, texture e illuminazione con qualità sufficiente:
+
 ```powershell
-dotnet run --project src\RayTracer\RayTracer.csproj -- -i scenes\chess.yaml -s 256 -d 50 -w 3840 -H 2160 -S 32
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -w 800 -H 533 -s 16 -d 20
 ```
-- **Qualità**: Qualità fotorealistica, zero rumore visibile.
-- **Tempo**: Da decine di minuti a ore.
+
+### Produzione Full HD (Ore)
+
+Qualità finale con anti-aliasing elevato e ombre morbide:
+
+```powershell
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o final.png -w 1920 -H 1080 -s 128 -d 50 -S 32
+```
+
+### Render di una Camera Specifica
+
+Se la scena definisce più camere con `cameras:`, puoi renderizzare da una specifica:
+
+```powershell
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -c top -o top.png -s 64
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -c 2 -o cam2.png -s 64
+```
 
 ---
 
 ## 5. Gestione dell'Output
 
-Il motore determina il formato dell'immagine salvata in base all'estensione del file specificato in `--output`:
+### Nome Automatico del File
 
-| Formato | Estensione | Note |
-|---------|------------|------|
-| **PNG** | `.png` | Consigliato. Formato lossless (senza perdita di qualità). Default se l'estensione non è riconosciuta. |
-| **JPEG** | `.jpg` / `.jpeg` | Compresso con perdita. File più leggeri ma possibile degradazione dei dettagli fini (rumore da compressione sui gradienti). |
-| **BMP** | `.bmp` | Formato non compresso. File molto grandi — usare solo se necessario per compatibilità. |
+Se ometti `-o`, il motore genera automaticamente il percorso di output dalla scena di input:
+
+```
+-i scenes/chess.yaml     → output/render-chess.png
+-i scenes/cornell-box.yaml → output/render-cornell-box.png
+```
+
+### Formati Supportati
+
+Il formato di output viene determinato dall'estensione del file specificato con `-o`:
+
+| Estensione | Formato | Note |
+|------------|---------|------|
+| `.png` | PNG (lossless) | Qualità massima, file più grande. Default. |
+| `.jpg` / `.jpeg` | JPEG | Compressione lossy, file più piccolo. |
+| `.bmp` | Bitmap | Non compresso, sconsigliato. |
+
+### Directory di Output
+
+Se la directory di output non esiste, viene creata automaticamente. Esempio:
+
+```powershell
+dotnet run ... -- -i scenes/chess.yaml -o renders/2024/chess-final.png
+```
 
 ---
 
-## 6. Ottimizzazione e Performance
+## 6. Multi-Camera
+
+Il motore supporta la definizione di più camere nominate nella stessa scena tramite la sintassi `cameras:` nel YAML. Questo permette di generare render da diverse angolazioni senza modificare il file di scena.
+
+### Elencare le Camere Disponibili
+
+```powershell
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml --list-cameras
+```
+
+Output di esempio:
+```
+Cameras in scene (3):
+  #0  "main"      fov=45°  pos=[0.00, 5.00, -8.00]
+  #1  "top"       fov=35°  pos=[0.00, 12.00, 0.01]
+  #2  "closeup"   fov=25°  pos=[1.50, 1.20, -4.00]
+```
+
+### Selezionare una Camera
+
+Puoi selezionare la camera per **nome** (case-insensitive) o per **indice** (0-based):
+
+```powershell
+# Per nome
+dotnet run ... -- -i scenes/chess.yaml -c top -o top.png
+
+# Per indice
+dotnet run ... -- -i scenes/chess.yaml -c 2 -o closeup.png
+```
+
+### Regole di Risoluzione
+
+1. Se la scena usa `cameras:` (lista), il parametro `-c` seleziona per nome o indice.
+2. Se la scena usa `camera:` (singola, sintassi legacy), il parametro `-c` viene ignorato con un warning.
+3. Se `-c` non è specificato e la lista contiene più camere, viene usata la prima con un warning.
+4. Se il nome o l'indice non corrispondono a nessuna camera, viene usata la prima con un warning.
+
+### Sintassi YAML Multi-Camera
+
+Per la sintassi YAML completa con `cameras:`, consulta la [sezione 3 del Tutorial Scene](02-tutorial-scene.md#3-sezione-camera).
+
+---
+
+## 7. Ottimizzazione e Performance
+
+### Tabella dei Costi
+
+| Parametro | Effetto sulla qualità | Effetto sul tempo |
+|-----------|----------------------|-------------------|
+| `-s` (samples) | Anti-aliasing, riduzione rumore | Lineare: `2× samples = 2× tempo` |
+| `-d` (depth) | Riflessi multipli, vetro, caustics | Sublineare: i raggi si estinguono con Russian Roulette |
+| `-S` (shadow samples) | Morbidezza delle ombre delle area light | Lineare per area light |
+| `-w × -H` (risoluzione) | Dettaglio pixel | Lineare: `2× pixel = 2× tempo` |
 
 ### Strategia Iterativa Consigliata
 
-1. **Preview** (`-s 1 -w 400 -S 4`): Verifica inquadratura e posizionamento oggetti.
-2. **Draft** (`-s 16 -w 800`): Valuta materiali, texture e bilanciamento luci.
-3. **Production** (`-s 128 -w 1920 -S 16`): Render finale Full HD.
-4. **Ultra** (`-s 256 -w 3840 -S 32`): 4K con qualità massima.
+1. **Preview** (`-w 400 -s 1 -d 5 -S 4`): verifica composizione.
+2. **Draft** (`-w 800 -s 16 -d 20`): verifica materiali e luci.
+3. **Final** (`-w 1920 -s 128 -d 50 -S 32`): render definitivo.
 
-### Multi-Threading
-Il motore parallelizza il rendering per scanline usando `Parallel.For` con `MaxDegreeOfParallelism = Environment.ProcessorCount`. Tutti i core logici della CPU vengono utilizzati automaticamente senza configurazione.
+### Materiali e Costo
+
+- **Lambertian**: il più veloce — diffuso puro, nessuna riflessione.
+- **Metal**: veloce per `fuzz = 0` (un solo raggio riflesso), più lento con `fuzz` alto.
+- **Dielectric**: il più costoso — ogni rimbalzo può generare sia riflessione che rifrazione, raddoppiando i percorsi. Aumenta `-d` per scene con molto vetro.
+- **Disney BSDF**: più costoso di lambertian/metal ma più versatile. Con `spec_trans > 0` il costo è simile al dielectric. Per superfici di sfondo non protagoniste, `lambertian` o `metal` sono più veloci.
+
+### BVH (Bounding Volume Hierarchy)
+
+L'accelerazione BVH è automatica per scene con più di 4 oggetti e non richiede configurazione. I piani infiniti vengono esclusi dalla BVH e testati linearmente (non hanno AABB finita).
 
 ---
 
-## 7. Risoluzione Problemi
+## 8. Risoluzione Problemi
 
 ### L'immagine è completamente nera
-1. Verifica che la camera non si trovi all'interno di un oggetto solido.
-2. Controlla che siano presenti luci (`lights`) con `intensity` > 0.
-3. Verifica che `background` non sia `[0, 0, 0]` — il background agisce come sorgente di luce globale per i raggi rimbalzati.
-4. Se vuoi una scena buia illuminata solo da luci esplicite, imposta `background: [0, 0, 0]` e `ambient_light: [0, 0, 0]`, poi aggiungi luci `point` o `spot` con intensità sufficienti. I range tipici variano con la distanza: consulta la [tabella di calibrazione nel Tutorial Scene](02-tutorial-scene.md#75--calibrazione-dellintensità) per i valori di riferimento.
+Possibili cause: la camera è dentro un oggetto, le luci hanno `intensity: 0`, o la scena non ha luci (e non ha `sky` né oggetti emissivi). Prova ad aggiungere una `point` light con alta intensità e verifica la posizione della camera.
 
 ### L'immagine ha zone sovraesposte (bianche)
 Il tone mapping ACES gestisce automaticamente l'HDR, ma valori di `intensity` troppo alti sulle luci possono saturare la curva. Dimezza le intensità di tutte le luci mantenendo i rapporti tra loro, poi esegui un nuovo preview.
@@ -206,7 +278,7 @@ Usa percorsi relativi corretti rispetto alla cartella in cui lanci il comando, o
 Il file YAML deve usare **spazi** per l'indentazione (niente TAB). Verifica la struttura con un linter YAML online in caso di dubbio.
 
 ### Gli oggetti emissivi illuminano poco o la scena è molto rumorosa
-I materiali `emissive` illuminano la scena solo tramite rimbalzi indiretti del path tracer (non usano Next Event Estimation come le luci esplicite). Per ottenere risultati puliti:
+I materiali `emissive` illuminano la scena sia tramite rimbalzi indiretti del path tracer sia tramite Next Event Estimation (NEE) per le geometrie campionabili (Sphere, Quad, Triangle, Disk). Per ottenere risultati puliti:
 1. Usa campioni alti: `-s 128` o superiore.
 2. Aumenta la profondità a `-d 10` o più per permettere ai rimbalzi di propagarsi.
 3. Se serve solo un fill minimo, aggiungi una `point` light con `intensity` molto bassa (0.2–1.0) per evitare ombre completamente nere.
@@ -220,39 +292,11 @@ I materiali `emissive` illuminano la scena solo tramite rimbalzi indiretti del p
 
 ### Il sun disk nel cielo è troppo grande / piccolo / assente
 1. Il parametro `size` è il diametro angolare in gradi. Il sole reale è ≈ 0.53°. Valori artistici tipici: 2–6°.
-2. Il parametro `falloff` controlla l'alone: valori bassi (8–16) = glow ampio e morbido, valori alti (64–128) = bordo netto.
-3. Se non vedi il sole, verifica che la `direction` punti nella direzione corretta e che la camera guardi verso quella parte del cielo.
+2. `intensity` controlla la luminosità del disco — valori troppo bassi lo rendono invisibile, troppo alti saturano il tone mapping.
+3. `falloff` controlla l'alone: valori bassi (8–16) producono un alone ampio, alti (64–128) un punto netto.
 
-### L'HDRI non si carica o il cielo è magenta
-1. Verifica che il file `.hdr` esista nel percorso indicato (relativo alla directory del file YAML).
-2. Solo il formato **Radiance HDR** (`.hdr`) è supportato. File `.exr` o altri formati HDR non sono gestiti.
-3. Controlla il log in console: il motore stampa dimensioni e tempo di caricamento se il file è valido.
-4. Se il cielo appare magenta, il file non è stato trovato o è corrotto.
-
-### Le image texture non appaiono (magenta al loro posto)
-1. Verifica che il percorso in `path:` sia corretto e relativo alla cartella del file YAML.
-2. Formati supportati: PNG, JPEG, BMP, GIF, TIFF, WebP. Assicurati che l'estensione corrisponda.
-3. Controlla i warning in console — il motore stampa il percorso completo che ha tentato di caricare.
-
-### I box con `min`/`max` appaiono spostati o hanno dimensioni errate
-Esistono due sintassi per definire un box, entrambe valide ma mutuamente esclusive:
-
-**Metodo 1 — `scale`/`translate` sul cubo unitario (raccomandato):**
-```yaml
-- name: "cubo"
-  type: "box"
-  scale: [2, 1, 2]
-  translate: [0, 0.5, 0]
-  material: "rosso"
-```
-
-**Metodo 2 — `min`/`max` (coordinate assolute degli angoli):**
-```yaml
-- name: "cubo"
-  type: "box"
-  min: [-1, 0, -1]
-  max: [1, 1, 1]
-  material: "rosso"
-```
-
-> **Attenzione:** Non mescolare i due metodi sullo stesso oggetto. Se specifichi sia `min`/`max` che `scale`/`translate`, i primi definiscono la forma e i secondi vengono applicati come trasformazione aggiuntiva (utile per aggiungere `rotate`).
+### `--camera` non funziona / la camera specificata non viene trovata
+1. Verifica che la scena usi la sintassi `cameras:` (lista) e non `camera:` (singola). Con la sintassi legacy, `-c` viene ignorato.
+2. Usa `--list-cameras` per vedere le camere disponibili.
+3. Il match per nome è case-insensitive: `-c Top` e `-c top` funzionano entrambi.
+4. Se specifichi un indice fuori range, viene usata la camera 0 con un warning.
