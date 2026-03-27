@@ -45,17 +45,12 @@ jobs:
         scene:
           - sphere-showcase
           - cornell-box
-          - cornell-box-crystal
           - chess
           - classic-showcase
           - gradient-sky-showcase
           - sample
           - classic-vs-disney
-          - pendolo-newton
           - emissive-showcase
-          - alchemist-lab
-          - castello-sforzesco
-          - big-ben
 
     steps:
       - name: Checkout repository
