@@ -101,9 +101,18 @@ dotnet build src/RayTracer/RayTracer.csproj -c Release
 
 ### Esecuzione
 
+Render con qualità di prova della scena del pendolo di Newton:
+
 ```powershell
 cd 3d-ray
-dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/chess.yaml -s 256 -d 50 -o render.png -w 1920 -H 1080
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 16 -d 20 -o output/render-draft.png -w 480 -H 270
+```
+
+Render con qualità finale della scena del pendolo di Newton:
+
+```powershell
+cd 3d-ray
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 256 -d 60 -o output/render-final.png -w 1920 -H 1080
 ```
 
 ---
@@ -127,6 +136,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/ches
 │       ├── TextureGen/      # Generatore texture procedurali (PNG)
 │       └── NormalMapGen/    # Generatore flat normal map per test
 ├── scenes/                  # File YAML di esempio
+├── output/                  # Immagini renderizzate
 ├── tutorials/               # Documentazione
 └── .github/workflows/       # CI con smoke test
 ```

@@ -11,6 +11,7 @@
 #  Render consigliato:
 #    Preview: dotnet run ... -- -i scenes/big-ben.yaml -w 1280 -H 720 -s 64 -d 12
 #    Finale:  dotnet run ... -- -i scenes/big-ben.yaml -w 1920 -H 1080 -s 128 -d 50
+#    Ultra:   dotnet run ... -- -i scenes/big-ben.yaml -w 3840 -H 2160 -s 256 -d 50 -S 32
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:

@@ -18,6 +18,7 @@
 #  Render consigliato:
 #    Preview: dotnet run ... -- -i scenes/alchemist-lab.yaml -w 1280 -H 720 -s 16 -d 20
 #    Finale:  dotnet run ... -- -i scenes/alchemist-lab.yaml -w 1920 -H 1080 -s 256 -d 60
+#    Ultra:   dotnet run ... -- -i scenes/alchemist-lab.yaml -w 3840 -H 2160 -s 256 -d 50 -S 32
 # =============================================================================
 
 world:
