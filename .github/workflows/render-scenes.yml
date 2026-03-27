@@ -45,11 +45,17 @@ jobs:
         scene:
           - sphere-showcase
           - cornell-box
+          - cornell-box-crystal
           - chess
           - classic-showcase
           - gradient-sky-showcase
           - sample
           - classic-vs-disney
+          - pendolo-newton
+          - emissive-showcase
+          - alchemist-lab
+          - castello-sforzesco
+          - big-ben
 
     steps:
       - name: Checkout repository
@@ -74,13 +80,13 @@ jobs:
           mkdir -p renders
           publish/RayTracer/RayTracer \
             -i scenes/${{ matrix.scene }}.yaml \
-            -o renders/${{ matrix.scene }}.png \
-            -s 1024 -d 50 -w 1920 -H 1080
+            -o renders/sample-${{ matrix.scene }}.png \
+            -s 1024 -d 60 -w 1920 -H 1080
 
       - name: Upload render
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: render-${{ matrix.scene }}
-          path: renders/${{ matrix.scene }}.png
+          path: renders/sample-${{ matrix.scene }}.png
           retention-days: 7
