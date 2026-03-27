@@ -35,30 +35,27 @@ world:
     material: "pavimento"
     y: 0
 
-# ─────────────────────────────────────────────────────────────────────────
-#  CAMERA
-#  Vista leggermente dall'alto per vedere entrambe le colonne.
-#  Profondità di campo sottile per mettere a fuoco la fila centrale.
-# ─────────────────────────────────────────────────────────────────────────
-camera:
-  position: [0, 3.5, -10]
-  look_at: [0, 1.2, 1.5]
-  fov: 50
-  aperture: 0.0
-  focal_dist: 11.0
+cameras:
+  - name:       principale      # Vista leggermente dall'alto, fuoco sulla fila centrale
+    position:   [0, 3.5, -10]
+    look_at:    [0, 1.2, 1.5]
+    fov:        50
+    aperture:   0.0
+    focal_dist: 11.0
 
-# Vista alternativa dall'alto per vedere tutte le file:
-#camera:
-#  position: [0, 7, -7]
-#  look_at: [0, 1.0, 2.0]
-#  fov: 55
+  - name:       alto            # Vista dall'alto per vedere tutte le file
+    position:   [0, 7, -7]
+    look_at:    [0, 1.0, 2.0]
+    fov:        55
+    aperture:   0.0
+    focal_dist: 1.0
 
-# Vista close-up fila vetro (confronto rifrazione):
-#camera:
-#  position: [0, 2.0, -3.8]
-#  look_at: [0, 1.2, 0.5]
-#  fov: 45
-#  aperture: 0.0
+  - name:       vetro           # Close-up fila vetro, confronto rifrazione
+    position:   [0, 2.0, -3.8]
+    look_at:    [0, 1.2, 0.5]
+    fov:        45
+    aperture:   0.0
+    focal_dist: 1.0
 
 # ─────────────────────────────────────────────────────────────────────────
 #  LUCI

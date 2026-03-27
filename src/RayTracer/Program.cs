@@ -103,6 +103,7 @@ class Program
             var (world, camera, lights, ambientLight, sky) =
                 SceneLoader.Load(inputPath, width, height, shadowSamplesOverride, cameraSelector);
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
+            SceneLoader.FlushMessages();
             Console.WriteLine($"  Lights: {lights.Count}");
             string skyDesc = sky.Mode switch
             {

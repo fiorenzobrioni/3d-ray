@@ -43,78 +43,68 @@ world:
   # ambient_light: [0.04, 0.04, 0.04]
   # background: [0.0, 0.0, 0.0]
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════
+cameras:
 
-# =============================================================================
-#  CAMERA
-#
-#  Angolo di tre quarti leggermente rialzato: mostra il tavolo per intero,
-#  la sfera di cristallo al centro e, sullo sfondo, la finestra lunare
-#  con gli scaffali. Il DOF mette a fuoco la sfera (soggetto principale)
-#  e sfuma leggermente i bordi della scena.
-#
-#  Distanza camera → sfera di cristallo: circa 10.3 unità.
-# =============================================================================
-camera:
-  position:   [ 3.5,  4.2, -9.5]
-  look_at:    [ 0.0,  3.0,  0.5]
-  vup:        [ 0, 1, 0]
-  fov:        44
-  aperture:   0.08
-  focal_dist: 10.3
+  # ── #0  Tre quarti rialzato (default) ─────────────────────────────────────
+  #  Angolo di tre quarti leggermente rialzato: mostra il tavolo per intero,
+  #  la sfera di cristallo al centro e, sullo sfondo, la finestra lunare
+  #  con gli scaffali. Il DOF mette a fuoco la sfera (soggetto principale)
+  #  e sfuma leggermente i bordi della scena.
+  - name:       principale
+    position:   [ 3.5,  4.2, -9.5]
+    look_at:    [ 0.0,  3.0,  0.5]
+    vup:        [ 0, 1, 0]
+    fov:        44
+    aperture:   0.08
+    focal_dist: 10.3
 
-  # ── CAMERA ALT-1  Frontale centrata, tutto a fuoco (stile catalogo) ───────
-  #
+  # ── #1  Frontale centrata, tutto a fuoco (stile catalogo) ─────────────────
   #  Inquadratura simmetrica sul tavolo, finestra centrata sul fondo.
   #  Apertura zero: nitidezza totale dalla cera delle candele ai libri.
-  # ─────────────────────────────────────────────────────────────────────────
-  # camera:
-  #   position:   [ 0.0,  4.0, -9.0]
-  #   look_at:    [ 0.0,  3.0,  0.5]
-  #   vup:        [ 0, 1, 0]
-  #   fov:        42
-  #   aperture:   0.0
-  #   focal_dist: 9.3
+  - name:       frontale
+    position:   [ 0.0,  4.0, -9.0]
+    look_at:    [ 0.0,  3.0,  0.5]
+    vup:        [ 0, 1, 0]
+    fov:        42
+    aperture:   0.0
+    focal_dist: 9.3
 
-  # ── CAMERA ALT-2  Macro sulla sfera di cristallo (bokeh forte) ────────────
-  #
+  # ── #2  Macro sulla sfera di cristallo (bokeh forte) ──────────────────────
   #  Avvicinamento estremo: la sfera riempie quasi il frame. Le fiale
   #  e il resto del tavolo si dissolvono in un bokeh caldo.
   #  Enfatizza la rifrazione interna della sfera.
-  # ─────────────────────────────────────────────────────────────────────────
-  # camera:
-  #   position:   [ 1.2,  3.8, -3.8]
-  #   look_at:    [ 0.0,  3.6,  0.3]
-  #   vup:        [ 0, 1, 0]
-  #   fov:        30
-  #   aperture:   0.18
-  #   focal_dist: 4.0
+  - name:       macro
+    position:   [ 1.2,  3.8, -3.8]
+    look_at:    [ 0.0,  3.6,  0.3]
+    vup:        [ 0, 1, 0]
+    fov:        30
+    aperture:   0.18
+    focal_dist: 4.0
 
-  # ── CAMERA ALT-3  Vista zenitale (dall'alto, planimetria del tavolo) ──────
-  #
+  # ── #3  Vista zenitale (dall'alto, planimetria del tavolo) ─────────────────
   #  Posizione quasi verticale: mostra la distribuzione degli oggetti
-  #  sul piano del tavolo come una mappa. Suggestiva con s alto (128+).
-  # ─────────────────────────────────────────────────────────────────────────
-  # camera:
-  #   position:   [ 0.0,  9.5,  0.5]
-  #   look_at:    [ 0.0,  2.7,  0.5]
-  #   vup:        [ 0, 0, 1]
-  #   fov:        48
-  #   aperture:   0.0
-  #   focal_dist: 6.8
+  #  sul piano del tavolo come una mappa. Suggestiva con -s alto (128+).
+  - name:       zenitale
+    position:   [ 0.0,  9.5,  0.5]
+    look_at:    [ 0.0,  2.7,  0.5]
+    vup:        [ 0, 0, 1]
+    fov:        48
+    aperture:   0.0
+    focal_dist: 6.8
 
-  # ── CAMERA ALT-4  Dutch angle, lato sinistro (drammatico, notturno) ───────
-  #
+  # ── #4  Dutch angle, lato sinistro (drammatico, notturno) ─────────────────
   #  Camera inclinata ~12° sull'asse Z: orizzonte obliquo, atmosfera
   #  inquieta. Le candele in primo piano bruciano più alte.
-  # ─────────────────────────────────────────────────────────────────────────
-  # camera:
-  #   position:   [-4.0,  4.5, -8.0]
-  #   look_at:    [ 0.2,  3.0,  0.5]
-  #   vup:        [ 0.208, 0.978, 0]
-  #   fov:        46
-  #   aperture:   0.06
-  #   focal_dist: 9.0
-
+  - name:       dutch
+    position:   [-4.0,  4.5, -8.0]
+    look_at:    [ 0.2,  3.0,  0.5]
+    vup:        [ 0.208, 0.978, 0]
+    fov:        46
+    aperture:   0.06
+    focal_dist: 9.0
 
 # =============================================================================
 #  MATERIALI

@@ -71,48 +71,48 @@ world:
   #   horizon_color: [0.015, 0.015, 0.02]
   #   ground_color:  [0.005, 0.005, 0.005]
 
-camera:
-  # --- Camera Principale (Prospettiva Classica) ---
-  position: [0, 5, -8]
-  look_at: [0, 0, 0]
-  fov: 45
-  aperture: 0.1
-  focal_dist: 12
+cameras:
+  - name:       classica        # Prospettiva Classica
+    position:   [0, 5, -8]
+    look_at:    [0, 0, 0]
+    fov:        45
+    aperture:   0.1
+    focal_dist: 12.0
 
-  # --- VISTA MACRO (Dettaglio sui Pezzi Centrali) ---
-  # position: [1.5, 1.2, -4]
-  # look_at: [0, 0.8, 0]
-  # fov: 25.0
-  # aperture: 0.2
-  # focal_dist: 4.25
+  - name:       macro           # Dettaglio sui Pezzi Centrali
+    position:   [1.5, 1.2, -4]
+    look_at:    [0, 0.8, 0]
+    fov:        25.0
+    aperture:   0.2
+    focal_dist: 4.25
 
-  # --- VISTA HERO (Angolo Basso e Imponente) ---
-  # position: [0.0, 0.5, -6.5]
-  # look_at: [0.0, 1.0, 0.5]
-  # fov: 55.0
-  # aperture: 0.1
-  # focal_dist: 7.0
+  - name:       hero            # Angolo Basso e Imponente
+    position:   [0.0, 0.5, -6.5]
+    look_at:    [0.0, 1.0, 0.5]
+    fov:        55.0
+    aperture:   0.1
+    focal_dist: 7.0
 
-  # --- VISTA ZENITALE (Vista dall'alto tattica) ---
-  # position: [0.0, 12, 0.01]
-  # look_at: [0, 0, 0]
-  # fov: 35
-  # aperture: 0.0
-  # focal_dist: 12.0
+  - name:       zenitale        # Vista dall'alto tattica
+    position:   [0.0, 12.0, 0.01]
+    look_at:    [0.0, 0.0, 0.0]
+    fov:        35.0
+    aperture:   0.0
+    focal_dist: 12.0
 
-  # --- VISTA DUTCH ANGLE (Dinamica e Inclinata) ---
-  # position: [6.0, 4.0, -6.0]
-  # look_at: [0.0, 0.5, 0.0]
-  # fov: 40.0
-  # aperture: 0.1
-  # focal_dist: 8.5
+  - name:       dutch           # Dinamica e Inclinata
+    position:   [6.0, 4.0, -6.0]
+    look_at:    [0.0, 0.5, 0.0]
+    fov:        40.0
+    aperture:   0.1
+    focal_dist: 8.5
 
-  # --- VISTA PAWN'S EYE (Ad altezza pedina, Bokeh estremo) ---
-  # position: [0.0, 0.4, -3.5]
-  # look_at: [0.0, 0.6, 2.0]
-  # fov: 70.0
-  # aperture: 0.3
-  # focal_dist: 3.5
+  - name:       pawns_eye       # Ad altezza pedina, Bokeh estremo
+    position:   [0.0, 0.4, -3.5]
+    look_at:    [0.0, 0.6, 2.0]
+    fov:        70.0
+    aperture:   0.3
+    focal_dist: 3.5
 
 materials:
   - id: "table_wood"

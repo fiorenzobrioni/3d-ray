@@ -80,30 +80,27 @@ lights:
 #    color: [0.3, 0.3, 0.5]
 #    intensity: 5
 
-# --- CONFIGURAZIONI CAMERA (Scommenta quella desiderata) ---
-# 1. Vista principale frontale per tutti i materiali
-camera:
-  position: [0, 3, -8]
-  look_at: [0, 1.5, 0]
-  fov: 50
-  aperture: 0.05
-  focal_dist: 8.0
+cameras:
+  - name:       frontale        # Vista principale frontale per tutti i materiali
+    position:   [0, 3, -8]
+    look_at:    [0, 1.5, 0]
+    fov:        50
+    aperture:   0.05
+    focal_dist: 8.0
 
-# 2. Vista dall'alto (Bird's eye view) sui riflessi
-#camera:
-#  position: [4, 7, -4]
-#  look_at: [0, 1, 0]
-#  fov: 45
-#  aperture: 0.1
-#  focal_dist: 8.5
+  - name:       birds_eye       # Vista dall'alto (Bird's eye view) sui riflessi
+    position:   [4, 7, -4]
+    look_at:    [0, 1, 0]
+    fov:        45
+    aperture:   0.1
+    focal_dist: 8.5
 
-# 3. Close up estremo sulla sfera di vetro centrale (Dettaglio caustico/rifrazioni)
-#camera:
-#  position: [-1, 1.5, -2]
-#  look_at: [-0.5, 1.5, 0]
-#  fov: 60
-#  aperture: 0.2
-#  focal_dist: 2.0
+  - name:       closeup         # Close-up estremo sulla sfera di vetro centrale (Dettaglio caustico/rifrazioni)
+    position:   [-1, 1.5, -2]
+    look_at:    [-0.5, 1.5, 0]
+    fov:        60
+    aperture:   0.2
+    focal_dist: 2.0
 
 # --- MATERIALI PENSATI PER IL MASSIMO SHOWCASE ---
 materials:

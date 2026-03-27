@@ -20,6 +20,51 @@ public class SceneLoader
     /// </summary>
     private const int BvhThreshold = 4;
 
+    // =========================================================================
+    // Deferred warning / info messages
+    // =========================================================================
+    //
+    // During Load(), warnings and informational messages are collected here
+    // instead of being written directly to Console. This prevents them from
+    // appearing between Program.cs's "Loading scene... " and "done (X ms)"
+    // on the same line.
+    //
+    // After Load() returns and Program.cs has finished the "done" line, it
+    // calls FlushMessages() to print everything in a clean, indented block.
+    // =========================================================================
+
+    private static readonly List<string> _deferredMessages = new();
+
+    /// <summary>
+    /// Queues a warning message to be printed after the loading phase completes.
+    /// </summary>
+    private static void Warn(string message)
+    {
+        _deferredMessages.Add($"  [Warning] {message}");
+    }
+
+    /// <summary>
+    /// Queues an informational (non-warning) message to be printed after loading.
+    /// </summary>
+    private static void Info(string message)
+    {
+        _deferredMessages.Add($"  {message}");
+    }
+
+    /// <summary>
+    /// Writes all deferred messages to the console and clears the buffer.
+    /// Call this from Program.cs after printing the "done (X ms)" line.
+    /// </summary>
+    public static void FlushMessages()
+    {
+        if (_deferredMessages.Count == 0) return;
+
+        foreach (var msg in _deferredMessages)
+            Console.WriteLine(msg);
+
+        _deferredMessages.Clear();
+    }
+
     /// <summary>
     /// Loads a scene from a YAML file.
     /// </summary>
@@ -41,6 +86,9 @@ public class SceneLoader
         Load(string yamlPath, int imageWidth, int imageHeight,
              int? shadowSamplesOverride = null, string? cameraSelector = null)
     {
+        // Clear any leftover messages from a previous Load() call
+        _deferredMessages.Clear();
+
         var yaml = File.ReadAllText(yamlPath);
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
@@ -180,6 +228,10 @@ public class SceneLoader
     /// Reads the YAML file and lists all cameras defined in <c>cameras:</c>.
     /// Called by Program.cs when <c>--list-cameras</c> is passed.
     /// </summary>
+    /// <remarks>
+    /// This method is invoked standalone (outside the Load flow), so it writes
+    /// directly to Console — there is no "Loading scene... done" wrapper to conflict with.
+    /// </remarks>
     public static void TryListCameras(string yamlPath)
     {
         var yaml = File.ReadAllText(yamlPath);
@@ -228,8 +280,8 @@ public class SceneLoader
         if (data.Cameras == null || data.Cameras.Count == 0)
         {
             if (selector != null)
-                Console.WriteLine($"[Warning] --camera '{selector}' was specified but the scene uses " +
-                                  "the single 'camera:' syntax. Ignoring selector.");
+                Warn($"--camera '{selector}' was specified but the scene uses " +
+                     "the single 'camera:' syntax. Ignoring selector.");
             return data.Camera ?? new CameraData();
         }
 
@@ -250,17 +302,17 @@ public class SceneLoader
                 if (idx >= 0 && idx < list.Count)
                     return list[idx];
 
-                Console.WriteLine($"[Warning] --camera index {idx} is out of range " +
-                                  $"(scene has {list.Count} cameras, indices 0–{list.Count - 1}). " +
-                                  "Using camera 0.");
+                Warn($"--camera index {idx} is out of range " +
+                     $"(scene has {list.Count} cameras, indices 0–{list.Count - 1}). " +
+                     "Using camera 0.");
                 return list[0];
             }
 
             // No match by name or index
             var names = string.Join(", ",
                 list.Select((c, i) => c.Name != null ? $"\"{c.Name}\" (#{i})" : $"#{i}"));
-            Console.WriteLine($"[Warning] --camera '{selector}' not found. " +
-                              $"Available: {names}. Using camera 0.");
+            Warn($"--camera '{selector}' not found. " +
+                 $"Available: {names}. Using camera 0.");
             return list[0];
         }
 
@@ -270,8 +322,8 @@ public class SceneLoader
 
         var cameraNames = string.Join(", ",
             list.Select((c, i) => c.Name != null ? $"\"{c.Name}\" (#{i})" : $"#{i}"));
-        Console.WriteLine($"[Warning] Scene contains {list.Count} cameras. Using camera 0. " +
-                          $"Use --camera <name|index> to select one. Available: {cameraNames}");
+        Warn($"Scene contains {list.Count} cameras. Using camera 0. " +
+             $"Use --camera <name|index> to select one. Available: {cameraNames}");
         return list[0];
     }
 
@@ -372,7 +424,7 @@ public class SceneLoader
                                 ior:            m.DisneyIor),
             _            => new Lambertian(albedo)
         };
- 
+
         // ── Normal map (optional) ────────────────────────────────────────────
         if (m.NormalMap != null)
         {
@@ -390,7 +442,7 @@ public class SceneLoader
                 }
             }
         }
- 
+
         return material;
     }
 
@@ -401,7 +453,7 @@ public class SceneLoader
     {
         if (string.IsNullOrWhiteSpace(nm.Path))
         {
-            Console.WriteLine("[Warning] Normal map requires a 'path' field. Skipping.");
+            Warn("Normal map requires a 'path' field. Skipping.");
             return null;
         }
 
@@ -411,7 +463,7 @@ public class SceneLoader
 
         if (!File.Exists(mapPath))
         {
-            Console.WriteLine($"[Warning] Normal map file not found: {mapPath}. Skipping.");
+            Warn($"Normal map file not found: {mapPath}. Skipping.");
             return null;
         }
 
@@ -423,7 +475,7 @@ public class SceneLoader
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Warning] Failed to load normal map '{mapPath}': {ex.Message}. Skipping.");
+            Warn($"Failed to load normal map '{mapPath}': {ex.Message}. Skipping.");
             return null;
         }
     }
@@ -476,7 +528,7 @@ public class SceneLoader
     {
         if (string.IsNullOrWhiteSpace(skyData.Path))
         {
-            Console.WriteLine("[Warning] HDRI sky requires a 'path' field. Falling back to flat gray.");
+            Warn("HDRI sky requires a 'path' field. Falling back to flat gray.");
             return new SkySettings(new Vector3(0.5f));
         }
 
@@ -486,24 +538,22 @@ public class SceneLoader
 
         if (!File.Exists(hdrPath))
         {
-            Console.WriteLine($"[Warning] HDRI file not found: {hdrPath}. Falling back to flat magenta.");
+            Warn($"HDRI file not found: {hdrPath}. Falling back to flat magenta.");
             return new SkySettings(new Vector3(1f, 0f, 1f));
         }
 
         try
         {
-            Console.Write($"  Loading HDRI: {skyData.Path}... ");
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var (pixels, width, height) = HdrLoader.Load(hdrPath);
             var envMap = new EnvironmentMap(pixels, width, height,
                                             skyData.Intensity, skyData.Rotation);
-            Console.WriteLine($"done ({width}x{height}, {sw.ElapsedMilliseconds} ms)");
+            Info($"HDRI loaded: {skyData.Path} ({width}x{height}, {sw.ElapsedMilliseconds} ms)");
             return new SkySettings(envMap);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"failed!");
-            Console.WriteLine($"[Warning] Failed to load HDRI '{hdrPath}': {ex.Message}. Falling back to flat magenta.");
+            Warn($"Failed to load HDRI '{hdrPath}': {ex.Message}. Falling back to flat magenta.");
             return new SkySettings(new Vector3(1f, 0f, 1f));
         }
     }
@@ -543,7 +593,7 @@ public class SceneLoader
     {
         if (string.IsNullOrWhiteSpace(t.Path))
         {
-            Console.WriteLine("[Warning] Image texture requires a 'path' field. Using fallback magenta.");
+            Warn("Image texture requires a 'path' field. Using fallback magenta.");
             return new SolidColor(new Vector3(1f, 0f, 1f)); // Magenta = missing texture
         }
 
@@ -554,7 +604,7 @@ public class SceneLoader
 
         if (!File.Exists(imagePath))
         {
-            Console.WriteLine($"[Warning] Image texture file not found: {imagePath}. Using fallback magenta.");
+            Warn($"Image texture file not found: {imagePath}. Using fallback magenta.");
             return new SolidColor(new Vector3(1f, 0f, 1f));
         }
 
@@ -566,7 +616,7 @@ public class SceneLoader
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Warning] Failed to load image texture '{imagePath}': {ex.Message}. Using fallback magenta.");
+            Warn($"Failed to load image texture '{imagePath}': {ex.Message}. Using fallback magenta.");
             return new SolidColor(new Vector3(1f, 0f, 1f));
         }
     }
@@ -718,8 +768,7 @@ public class SceneLoader
 
         if (corner == null || u == null || v == null)
         {
-            Console.WriteLine(
-                "[Warning] Area light requires 'corner', 'u', and 'v' vectors. Skipping.");
+            Warn("Area light requires 'corner', 'u', and 'v' vectors. Skipping.");
             return null;
         }
 
@@ -756,7 +805,7 @@ public class SceneLoader
         // FIX (ISSUE #1): silently returning a fallback made missing IDs very hard
         // to debug. The warning makes the problem immediately visible in the console.
         if (id != null)
-            Console.WriteLine($"[Warning] Material '{id}' not found. Using default grey Lambertian.");
+            Warn($"Material '{id}' not found. Using default grey Lambertian.");
         return new Lambertian(new Vector3(0.5f));
     }
 

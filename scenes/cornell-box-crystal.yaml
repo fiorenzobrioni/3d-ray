@@ -25,7 +25,6 @@
 #    ULTRA:       -s 1024 -d 50  -w 2048 -H 2048
 # =============================================================================
 
-
 # =============================================================================
 #  WORLD
 # =============================================================================
@@ -33,49 +32,33 @@ world:
   ambient_light: [0.0, 0.0, 0.0]
   background:    [0.0, 0.0, 0.0]
 
-
 # =============================================================================
-#  CAMERA — Vista Canonica (identica alla classica)
+#  CAMERAS
 # =============================================================================
-camera:
-  position:   [ 0.00,  1.00, -4.00]
-  look_at:    [ 0.00,  1.00,  1.00]
-  vup:        [ 0, 1, 0]
-  fov:        39
-  aperture:   0.0
-  focal_dist: 5.00
+cameras:
+  - name:       canonica        # Vista canonica identica alla classica Cornell box
+    position:   [ 0.00,  1.00, -4.00]
+    look_at:    [ 0.00,  1.00,  1.00]
+    vup:        [0, 1, 0]
+    fov:        39
+    aperture:   0.0
+    focal_dist: 5.00
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  CAMERA ALT-1  Macro con DOF — focus sulla sfera
-#
-#  La sfera di cristallo è il soggetto principale. DOF pronunciato:
-#  la sfera è nitida, il blocco alto e le pareti sfumano in bokeh.
-#  L'effetto è particolarmente bello perché il bokeh mostra il color
-#  bleeding rosso/verde in modo morbido e pittorico.
-# ─────────────────────────────────────────────────────────────────────────────
-# camera:
-#   position:   [ 0.10,  0.90, -2.40]
-#   look_at:    [-0.33,  0.30,  0.66]
-#   vup:        [ 0, 1, 0]
-#   fov:        36
-#   aperture:   0.12
-#   focal_dist: 3.20
+  - name:       macro           # Macro con DOF — focus sulla sfera di cristallo
+    position:   [ 0.10,  0.90, -2.40]
+    look_at:    [-0.33,  0.30,  0.66]
+    vup:        [0, 1, 0]
+    fov:        36
+    aperture:   0.12
+    focal_dist: 3.20
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  CAMERA ALT-2  Angolazione bassa — vista "a livello pavimento"
-#
-#  Camera quasi a livello del pavimento, guarda la sfera dal basso.
-#  Enfatizza le caustics sul pavimento e la dimensione imponente
-#  del blocco alto sullo sfondo.
-# ─────────────────────────────────────────────────────────────────────────────
-# camera:
-#   position:   [ 0.40,  0.20, -2.80]
-#   look_at:    [-0.20,  0.40,  0.80]
-#   vup:        [ 0, 1, 0]
-#   fov:        44
-#   aperture:   0.0
-#   focal_dist: 3.54
-
+  - name:       pavimento       # Angolazione bassa — vista a livello pavimento
+    position:   [ 0.40,  0.20, -2.80]
+    look_at:    [-0.20,  0.40,  0.80]
+    vup:        [0, 1, 0]
+    fov:        44
+    aperture:   0.0
+    focal_dist: 3.54
 
 # =============================================================================
 #  MATERIALS
@@ -113,7 +96,6 @@ materials:
   - id: "vetro_crown"
     type: "dielectric"
     refraction_index: 1.52
-
 
 # =============================================================================
 #  ENTITIES

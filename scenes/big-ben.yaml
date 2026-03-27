@@ -53,34 +53,36 @@ world:
   #     size:       0.10
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  CAMERA
+#  CAMERAS
 # ═══════════════════════════════════════════════════════════════════════════
-camera:
-  position:   [28, 8, -48]
-  look_at:    [0, 22, 0]      # abbassato da 40 a 22: include meglio la base e i bus
-  fov:        50
-  aperture:   0.06
-  focal_dist: 62.0            # distanza reale camera→torre corretta (~62 unità)
+cameras:
+  - name:       principale
+    position:   [28, 8, -48]
+    look_at:    [0, 22, 0]      # abbassato da 40 a 22: include meglio la base e i bus
+    fov:        50
+    aperture:   0.06
+    focal_dist: 62.0            # distanza reale camera→torre corretta (~62 unità)
 
-  # ── CAMERA ALT-1: Vista più lontana e panoramica ─────────────────────────
-  # position:   [35, 6, -65]
-  # look_at:    [0, 30, 0]
-  # fov:        45
-  # aperture:   0.0
-  # focal_dist: 78.0
+  - name:       panoramica      # Vista più lontana e panoramica
+    position:   [35, 6, -65]
+    look_at:    [0, 30, 0]
+    fov:        45
+    aperture:   0.0
+    focal_dist: 78.0
 
-  # ── CAMERA ALT-2: Close-up sui quadranti dell'orologio ───────────────────
-  # position:   [10, 56, -25]
-  # look_at:    [0, 56, 0]
-  # fov:        35
-  # aperture:   0.03
-  # focal_dist: 27.0
+  - name:       orologio        # Close-up sui quadranti dell'orologio
+    position:   [10, 56, -25]
+    look_at:    [0, 56, 0]
+    fov:        35
+    aperture:   0.03
+    focal_dist: 27.0
 
-  # ── CAMERA ALT-3: Vista dal Tamigi / basso angolo drammatico ─────────────
-  # position:   [5, 2, 20]
-  # look_at:    [0, 50, 0]
-  # fov:        55
-  # aperture:   0.0
+  - name:       tamigi          # Vista dal Tamigi / basso angolo drammatico
+    position:   [5, 2, 20]
+    look_at:    [0, 50, 0]
+    fov:        55
+    aperture:   0.0
+    focal_dist: 1.0             # non era specificato nell'originale → default engine
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MATERIALS

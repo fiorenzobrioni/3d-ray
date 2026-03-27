@@ -67,30 +67,29 @@ world:
     y: 0.0
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  CAMERA — Angolo drammatico basso da destra, Torre del Filarete in primo piano
+#  CAMERAS — Castello Sforzesco
 # ─────────────────────────────────────────────────────────────────────────────
-camera:
-  position: [42, 9, -58]     # leggermente arretrata e abbassata per più cielo in alto
-  look_at:  [0, 20, 0]       # punta verso la metà alta della Torre del Filarete
-  fov: 46                    # ridotto di 2° per comprimere lievemente la prospettiva
-  aperture: 0.06             # DOF ridotto: tutto il castello deve essere a fuoco
-  focal_dist: 68.0           # messa a fuoco sulla torre (distanza ~68 u)
+cameras:
+  - name:       drammatica      # Angolo drammatico basso da destra, Torre del Filarete in primo piano
+    position:   [42, 9, -58]
+    look_at:    [0, 20, 0]      # punta verso la metà alta della Torre del Filarete
+    fov:        46              # ridotto di 2° per comprimere lievemente la prospettiva
+    aperture:   0.06            # DOF ridotto: tutto il castello deve essere a fuoco
+    focal_dist: 68.0            # messa a fuoco sulla torre (distanza ~68 u)
 
-  # ── ALT: Vista frontale simmetrica (render da cartolina) ─────────────────
-  # camera:
-  #   position: [0, 12, -65]
-  #   look_at:  [0, 18, 0]
-  #   fov: 42
-  #   aperture: 0.0
-  #   focal_dist: 1.0
+  - name:       cartolina       # Vista frontale simmetrica
+    position:   [0, 12, -65]
+    look_at:    [0, 18, 0]
+    fov:        42
+    aperture:   0.0
+    focal_dist: 1.0
 
-  # ── ALT: Vista aerea da drone (↑ per pianta del castello) ────────────────
-  # camera:
-  #   position: [15, 55, -30]
-  #   look_at:  [0, 8, -4]
-  #   fov: 55
-  #   aperture: 0.0
-  #   focal_dist: 1.0
+  - name:       drone           # Vista aerea dall'alto (pianta del castello)
+    position:   [15, 55, -30]
+    look_at:    [0, 8, -4]
+    fov:        55
+    aperture:   0.0
+    focal_dist: 1.0
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  MATERIALS
