@@ -32,8 +32,14 @@ public class SceneLoader
     /// the scene file (e.g. <c>-S 4</c> for preview, <c>-S 32</c> for production).
     /// When null, each area light uses its own YAML-defined value.
     /// </param>
+    /// <param name="cameraSelector">
+    /// When non-null, selects which camera to use from a <c>cameras:</c> list by
+    /// name (case-insensitive) or zero-based index. Ignored when the scene uses
+    /// the legacy single <c>camera:</c> syntax.
+    /// </param>
     public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, Vector3 AmbientLight, SkySettings Sky)
-        Load(string yamlPath, int imageWidth, int imageHeight, int? shadowSamplesOverride = null)
+        Load(string yamlPath, int imageWidth, int imageHeight,
+             int? shadowSamplesOverride = null, string? cameraSelector = null)
     {
         var yaml = File.ReadAllText(yamlPath);
         var deserializer = new DeserializerBuilder()
@@ -125,7 +131,7 @@ public class SceneLoader
 
         // Camera
         float aspect  = (float)imageWidth / imageHeight;
-        var camData   = data.Camera ?? new CameraData();
+        var camData   = ResolveCamera(data, cameraSelector);
         var camPos    = ToVector3(camData.Position) ?? new Vector3(0, 1, -5);
         var camLookAt = ToVector3(camData.LookAt)   ?? Vector3.Zero;
         var camVup    = ToVector3(camData.Vup)       ?? Vector3.UnitY;
@@ -167,6 +173,112 @@ public class SceneLoader
     }
 
     // =========================================================================
+    // Camera resolution
+    // =========================================================================
+
+    /// <summary>
+    /// Reads the YAML file and lists all cameras defined in <c>cameras:</c>.
+    /// Called by Program.cs when <c>--list-cameras</c> is passed.
+    /// </summary>
+    public static void TryListCameras(string yamlPath)
+    {
+        var yaml = File.ReadAllText(yamlPath);
+        var deserializer = new DeserializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .IgnoreUnmatchedProperties()
+            .Build();
+
+        var data = deserializer.Deserialize<SceneData>(yaml);
+
+        if (data?.Cameras == null || data.Cameras.Count == 0)
+        {
+            Console.WriteLine(data?.Camera != null
+                ? "This scene uses a single 'camera:' entry (no named cameras list)."
+                : "No camera defined in the scene.");
+            return;
+        }
+
+        Console.WriteLine($"Cameras in scene ({data.Cameras.Count}):");
+        for (int i = 0; i < data.Cameras.Count; i++)
+        {
+            var c     = data.Cameras[i];
+            string label = c.Name != null ? $"  #{i}  \"{c.Name}\"" : $"  #{i}  (unnamed)";
+            Console.WriteLine($"{label}   fov={c.Fov}°  pos={FormatVec(c.Position)}");
+        }
+    }
+
+    /// <summary>
+    /// Resolves which <see cref="CameraData"/> to use from the scene data.
+    ///
+    /// Resolution order:
+    /// <list type="number">
+    ///   <item>If <c>cameras:</c> list is present, it takes priority over the
+    ///         legacy <c>camera:</c> singleton.</item>
+    ///   <item>Within the list, <paramref name="selector"/> is matched first by
+    ///         name (case-insensitive), then by zero-based index.</item>
+    ///   <item>If no selector is provided and the list has more than one entry,
+    ///         a warning is printed and the first camera is used.</item>
+    ///   <item>Falls back to the legacy <c>camera:</c> singleton, or a built-in
+    ///         default if neither is present.</item>
+    /// </list>
+    /// </summary>
+    private static CameraData ResolveCamera(SceneData data, string? selector)
+    {
+        // No cameras list → fall back to legacy singleton
+        if (data.Cameras == null || data.Cameras.Count == 0)
+        {
+            if (selector != null)
+                Console.WriteLine($"[Warning] --camera '{selector}' was specified but the scene uses " +
+                                  "the single 'camera:' syntax. Ignoring selector.");
+            return data.Camera ?? new CameraData();
+        }
+
+        var list = data.Cameras;
+
+        // Selector provided → resolve by name first, then by index
+        if (selector != null)
+        {
+            // Try name match (case-insensitive)
+            var byName = list.FirstOrDefault(
+                c => string.Equals(c.Name, selector, StringComparison.OrdinalIgnoreCase));
+            if (byName != null)
+                return byName;
+
+            // Try numeric index
+            if (int.TryParse(selector, out int idx))
+            {
+                if (idx >= 0 && idx < list.Count)
+                    return list[idx];
+
+                Console.WriteLine($"[Warning] --camera index {idx} is out of range " +
+                                  $"(scene has {list.Count} cameras, indices 0–{list.Count - 1}). " +
+                                  "Using camera 0.");
+                return list[0];
+            }
+
+            // No match by name or index
+            var names = string.Join(", ",
+                list.Select((c, i) => c.Name != null ? $"\"{c.Name}\" (#{i})" : $"#{i}"));
+            Console.WriteLine($"[Warning] --camera '{selector}' not found. " +
+                              $"Available: {names}. Using camera 0.");
+            return list[0];
+        }
+
+        // No selector → use the only camera silently, or warn and use first
+        if (list.Count == 1)
+            return list[0];
+
+        var cameraNames = string.Join(", ",
+            list.Select((c, i) => c.Name != null ? $"\"{c.Name}\" (#{i})" : $"#{i}"));
+        Console.WriteLine($"[Warning] Scene contains {list.Count} cameras. Using camera 0. " +
+                          $"Use --camera <name|index> to select one. Available: {cameraNames}");
+        return list[0];
+    }
+
+    private static string FormatVec(List<float>? v) =>
+        v is { Count: >= 3 } ? $"[{v[0]:F2}, {v[1]:F2}, {v[2]:F2}]" : "(default)";
+
+    // =========================================================================
     // Factory helpers
     // =========================================================================
 
@@ -192,7 +304,7 @@ public class SceneLoader
                 lights.Add(new GeometryLight(samplable, emissive, shadowSamples));
         }
     }
- 
+
     /// <summary>
     /// Returns the ISamplable and Emissive for a hittable, if it qualifies as a
     /// geometry light. Handles bare primitives and Transform wrappers (including
@@ -210,7 +322,7 @@ public class SceneLoader
             case Quad      q  when q.Material  is Emissive em: return (q,  em);
             case Triangle  tr when tr.Material is Emissive em: return (tr, em);
             case Disk      d  when d.Material  is Emissive em: return (d,  em);
- 
+
             // ── Transform wrapper ──────────────────────────────────────────
             // Transform implements ISamplable: it delegates Sample() to the
             // inner primitive and maps the result to world space with the
@@ -222,11 +334,11 @@ public class SceneLoader
                 var (innerSamplable, emissive) = ResolveEmissiveSamplable(t.Inner);
                 if (innerSamplable == null || emissive == null)
                     return (null, null);
- 
+
                 // t itself is ISamplable (Transform : IHittable, ISamplable)
                 return (t, emissive);
             }
- 
+
             default:
                 return (null, null);
         }
@@ -237,7 +349,7 @@ public class SceneLoader
         ITexture albedo = m.Texture != null
             ? CreateTexture(m.Texture, sceneDir)
             : new SolidColor(ToVector3(m.Color) ?? new Vector3(0.5f));
- 
+
         IMaterial material = m.Type?.ToLowerInvariant() switch
         {
             "lambertian" => new Lambertian(albedo),

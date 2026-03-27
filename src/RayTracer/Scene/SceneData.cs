@@ -10,8 +10,20 @@ public class SceneData
     [YamlMember(Alias = "world")]
     public WorldData? World { get; set; }
 
+    /// <summary>
+    /// Single-camera shorthand (legacy / backward-compatible).
+    /// If both <c>camera</c> and <c>cameras</c> are present, <c>cameras</c> takes precedence.
+    /// </summary>
     [YamlMember(Alias = "camera")]
     public CameraData? Camera { get; set; }
+
+    /// <summary>
+    /// Named camera list. Use <c>--camera &lt;name|index&gt;</c> on the CLI to select
+    /// which camera to render. When more than one camera is defined and no selection
+    /// is made, the first camera in the list is used and a warning is printed.
+    /// </summary>
+    [YamlMember(Alias = "cameras")]
+    public List<CameraData>? Cameras { get; set; }
 
     [YamlMember(Alias = "materials")]
     public List<MaterialData>? Materials { get; set; }
@@ -58,21 +70,21 @@ public class SkyData
     /// </summary>
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
- 
+
     /// <summary>
     /// File path for HDRI environment maps (type: "hdri").
     /// Supports Radiance .hdr format. Resolved relative to the scene YAML directory.
     /// </summary>
     [YamlMember(Alias = "path")]
     public string? Path { get; set; }
- 
+
     /// <summary>
     /// Brightness multiplier for the HDRI map. Default 1.0 = original exposure.
     /// Increase to brighten the environment lighting, decrease to dim it.
     /// </summary>
     [YamlMember(Alias = "intensity")]
     public float Intensity { get; set; } = 1f;
- 
+
     /// <summary>
     /// Y-axis rotation of the HDRI environment in degrees (0–360).
     /// Rotates the environment map around the vertical axis to align
@@ -84,20 +96,20 @@ public class SkyData
     /// <summary>Color at the zenith (straight up). Default: deep blue.</summary>
     [YamlMember(Alias = "zenith_color")]
     public List<float>? ZenithColor { get; set; }
- 
+
     /// <summary>Color at the horizon line. Default: pale blue-white.</summary>
     [YamlMember(Alias = "horizon_color")]
     public List<float>? HorizonColor { get; set; }
- 
+
     /// <summary>Color below the horizon (ground reflection). Default: brown-gray.</summary>
     [YamlMember(Alias = "ground_color")]
     public List<float>? GroundColor { get; set; }
- 
+
     /// <summary>Optional sun disk configuration.</summary>
     [YamlMember(Alias = "sun")]
     public SunDiskData? Sun { get; set; }
 }
- 
+
 public class SunDiskData
 {
     /// <summary>
@@ -106,25 +118,25 @@ public class SunDiskData
     /// </summary>
     [YamlMember(Alias = "direction")]
     public List<float>? Direction { get; set; }
- 
+
     /// <summary>Sun disk color. Default: warm white.</summary>
     [YamlMember(Alias = "color")]
     public List<float>? Color { get; set; }
- 
+
     /// <summary>
     /// Brightness multiplier for the sun disk. Typical: 5–50.
     /// Higher values create stronger bloom through ACES tone mapping.
     /// </summary>
     [YamlMember(Alias = "intensity")]
     public float Intensity { get; set; } = 10f;
- 
+
     /// <summary>
     /// Angular diameter of the hard sun disk in degrees.
     /// Real sun ≈ 0.53°. Typical artistic values: 1–5°.
     /// </summary>
     [YamlMember(Alias = "size")]
     public float Size { get; set; } = 3f;
- 
+
     /// <summary>
     /// Exponent for the glow halo falloff around the disk.
     /// Higher = tighter glow, lower = wider glow.
@@ -136,6 +148,13 @@ public class SunDiskData
 
 public class CameraData
 {
+    /// <summary>
+    /// Optional identifier used to select this camera via <c>--camera &lt;name&gt;</c> on the CLI.
+    /// Case-insensitive. Only meaningful when using the <c>cameras:</c> list syntax.
+    /// </summary>
+    [YamlMember(Alias = "name")]
+    public string? Name { get; set; }
+
     [YamlMember(Alias = "position")]
     public List<float>? Position { get; set; }
 
@@ -174,7 +193,7 @@ public class MaterialData
 
     [YamlMember(Alias = "intensity")]
     public float Intensity { get; set; } = 1f;
- 
+
     [YamlMember(Alias = "texture")]
     public TextureData? Texture { get; set; }
 
@@ -182,82 +201,51 @@ public class MaterialData
     public NormalMapData? NormalMap { get; set; }
 
     // ── Disney BSDF parameters ──────────────────────────────────────────────
-    // Used when type = "disney" | "disney_bsdf" | "pbr".
-    // Ignored by other material types.
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /// <summary>Metallic factor: 0 = dielectric, 1 = metal.</summary>
     [YamlMember(Alias = "metallic")]
     public float Metallic { get; set; } = 0f;
 
-    /// <summary>Surface roughness: 0 = mirror, 1 = perfectly diffuse.</summary>
     [YamlMember(Alias = "roughness")]
     public float Roughness { get; set; } = 0.5f;
 
-    /// <summary>Subsurface scattering approximation: 0 = Lambert, 1 = full subsurface.</summary>
     [YamlMember(Alias = "subsurface")]
     public float Subsurface { get; set; } = 0f;
 
-    /// <summary>Dielectric specular intensity (controls F0). 0.5 = standard.</summary>
     [YamlMember(Alias = "specular")]
     public float Specular { get; set; } = 0.5f;
 
-    /// <summary>Tints the dielectric specular towards baseColor. 0 = white, 1 = full tint.</summary>
     [YamlMember(Alias = "specular_tint")]
     public float SpecularTint { get; set; } = 0f;
 
-    /// <summary>Grazing-angle sheen (fabric, velvet). 0 = none, 1 = full.</summary>
     [YamlMember(Alias = "sheen")]
     public float Sheen { get; set; } = 0f;
 
-    /// <summary>Tints the sheen towards baseColor. 0 = white, 1 = full tint.</summary>
     [YamlMember(Alias = "sheen_tint")]
     public float SheenTint { get; set; } = 0.5f;
 
-    /// <summary>Second specular lobe for clear coating (car paint, lacquer). 0 = none, 1 = full.</summary>
     [YamlMember(Alias = "clearcoat")]
     public float Clearcoat { get; set; } = 0f;
 
-    /// <summary>Clearcoat glossiness: 1 = glossy mirror, 0 = satin.</summary>
     [YamlMember(Alias = "clearcoat_gloss")]
     public float ClearcoatGloss { get; set; } = 1f;
 
-    /// <summary>Specular transmission: 0 = opaque, 1 = fully transparent (glass).</summary>
     [YamlMember(Alias = "spec_trans")]
     public float SpecTrans { get; set; } = 0f;
 
-    /// <summary>Index of refraction for Disney specular/transmission. Default 1.5 (glass).</summary>
     [YamlMember(Alias = "ior")]
     public float DisneyIor { get; set; } = 1.5f;
 }
 
 public class NormalMapData
 {
-    /// <summary>
-    /// File path for the normal map image.
-    /// Resolved relative to the scene YAML file directory.
-    /// </summary>
     [YamlMember(Alias = "path")]
     public string? Path { get; set; }
- 
-    /// <summary>
-    /// Perturbation strength. 1.0 = full effect, 0.5 = subtle, 2.0 = exaggerated.
-    /// </summary>
+
     [YamlMember(Alias = "strength")]
     public float Strength { get; set; } = 1f;
- 
-    /// <summary>
-    /// UV tiling scale for the normal map: [scaleU, scaleV].
-    /// Should match the albedo texture tiling for correct alignment.
-    /// </summary>
+
     [YamlMember(Alias = "uv_scale")]
     public List<float>? UvScale { get; set; }
- 
-    /// <summary>
-    /// If true, inverts the Y (green) channel for DirectX-style normal maps.
-    /// Default false = OpenGL convention (Y+ up). Set to true for maps
-    /// exported from tools that use DirectX convention.
-    /// </summary>
+
     [YamlMember(Alias = "flip_y")]
     public bool FlipY { get; set; } = false;
 }
@@ -267,17 +255,9 @@ public class TextureData
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
-    /// <summary>
-    /// File path for image textures (type: "image").
-    /// Resolved relative to the scene YAML file directory.
-    /// </summary>
     [YamlMember(Alias = "path")]
     public string? Path { get; set; }
- 
-    /// <summary>
-    /// UV tiling scale for image textures: [scaleU, scaleV].
-    /// Default [1, 1] = no tiling. [2, 2] = texture repeats 2× on each axis.
-    /// </summary>
+
     [YamlMember(Alias = "uv_scale")]
     public List<float>? UvScale { get; set; }
 
@@ -370,7 +350,7 @@ public class EntityData
     public List<float>? Rotate { get; set; }
 
     [YamlMember(Alias = "scale")]
-    public object? Scale { get; set; } // Can be float or List<float>
+    public object? Scale { get; set; }
 }
 
 public class LightData
@@ -378,45 +358,33 @@ public class LightData
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
-    // ── Point / Spot ──────────────────────────────────────────────
     [YamlMember(Alias = "position")]
     public List<float>? Position { get; set; }
 
-    // ── Directional / Spot ────────────────────────────────────────
     [YamlMember(Alias = "direction")]
     public List<float>? Direction { get; set; }
 
-    // ── Shared ────────────────────────────────────────────────────
     [YamlMember(Alias = "color")]
     public List<float>? Color { get; set; }
 
     [YamlMember(Alias = "intensity")]
     public float Intensity { get; set; } = 1f;
 
-    // ── Spot-light cone angles ────────────────────────────────────
     [YamlMember(Alias = "inner_angle")]
     public float InnerAngle { get; set; } = 15f;
 
     [YamlMember(Alias = "outer_angle")]
     public float OuterAngle { get; set; } = 30f;
 
-    // ── Area light ───────────────────────────────────────────────
-    /// <summary>One corner of the rectangular emitter.</summary>
     [YamlMember(Alias = "corner")]
     public List<float>? Corner { get; set; }
 
-    /// <summary>First edge vector of the rectangular emitter.</summary>
     [YamlMember(Alias = "u")]
     public List<float>? U { get; set; }
 
-    /// <summary>Second edge vector of the rectangular emitter.</summary>
     [YamlMember(Alias = "v")]
     public List<float>? V { get; set; }
 
-    /// <summary>
-    /// Number of shadow samples for area lights (default 16).
-    /// Higher = softer, smoother shadows, but proportionally more render time.
-    /// </summary>
     [YamlMember(Alias = "shadow_samples")]
     public int ShadowSamples { get; set; } = 16;
 }

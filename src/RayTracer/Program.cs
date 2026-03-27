@@ -37,16 +37,19 @@ class Program
         {
             outputPath = Path.Combine("output", "render.png");
         }
-        
-        bool wParsed = int.TryParse(GetArg(args, "--width", "-w"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var width);
-        bool hParsed = int.TryParse(GetArg(args, "--height", "-H"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var height);
+
+        bool wParsed = int.TryParse(GetArg(args, "--width",   "-w"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var width);
+        bool hParsed = int.TryParse(GetArg(args, "--height",  "-H"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var height);
         bool sParsed = int.TryParse(GetArg(args, "--samples", "-s"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var samples);
-        bool dParsed = int.TryParse(GetArg(args, "--depth", "-d"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var depth);
+        bool dParsed = int.TryParse(GetArg(args, "--depth",   "-d"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var depth);
 
         // Shadow samples CLI override (null = use per-light YAML values)
         int? shadowSamplesOverride = null;
         if (int.TryParse(GetArg(args, "--shadow-samples", "-S"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var ssOverride) && ssOverride > 0)
             shadowSamplesOverride = ssOverride;
+
+        // Camera selector: name or zero-based index
+        string? cameraSelector = GetArg(args, "--camera", "-c");
 
         // Required argument check
         if (string.IsNullOrEmpty(inputPath))
@@ -64,11 +67,18 @@ class Program
             return;
         }
 
+        // --list-cameras: print available cameras and exit
+        if (HasFlag(args, "--list-cameras", null))
+        {
+            SceneLoader.TryListCameras(inputPath);
+            return;
+        }
+
         // Default values and validation
-        if (!wParsed || width <= 0) width = 1200;
-        if (!hParsed || height <= 0) height = 800;
+        if (!wParsed || width  <= 0) width   = 1200;
+        if (!hParsed || height <= 0) height  = 800;
         if (!sParsed || samples <= 0) samples = 16;
-        if (!dParsed || depth <= 0) depth = 50;
+        if (!dParsed || depth  <= 0) depth   = 50;
 
         Console.WriteLine("╔══════════════════════════════════════════╗");
         Console.WriteLine("║       RayTracer .NET 10 Engine           ║");
@@ -81,15 +91,17 @@ class Program
         Console.WriteLine($"  Max depth:   {depth}");
         if (shadowSamplesOverride.HasValue)
             Console.WriteLine($"  Shadow smp:  {shadowSamplesOverride.Value} (CLI override)");
+        if (cameraSelector != null)
+            Console.WriteLine($"  Camera:      {cameraSelector}");
         Console.WriteLine();
 
         // Load scene
         Console.Write("Loading scene... ");
         var sw = Stopwatch.StartNew();
-        try 
+        try
         {
             var (world, camera, lights, ambientLight, sky) =
-                SceneLoader.Load(inputPath, width, height, shadowSamplesOverride);
+                SceneLoader.Load(inputPath, width, height, shadowSamplesOverride, cameraSelector);
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
             Console.WriteLine($"  Lights: {lights.Count}");
             string skyDesc = sky.Mode switch
@@ -100,7 +112,7 @@ class Program
             };
             Console.WriteLine($"  Sky:    {skyDesc}");
             Console.WriteLine();
- 
+
             // Render
             var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth);
             sw.Restart();
@@ -110,7 +122,7 @@ class Program
 
             // Save image
             Console.Write($"Saving {outputPath}... ");
-            
+
             // Ensure output directory exists
             string? outputDir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(outputDir))
@@ -132,24 +144,34 @@ class Program
 
     static void ShowHelp()
     {
-        Console.WriteLine("Usage: RayTracer --input <file> [options]");
+        Console.WriteLine("RayTracer .NET 10 Engine");
+        Console.WriteLine();
+        Console.WriteLine("Usage:");
+        Console.WriteLine("  dotnet run --project src/RayTracer/RayTracer.csproj -- [options]");
         Console.WriteLine();
         Console.WriteLine("Options:");
-        Console.WriteLine("  -i, --input <file>          Path to the YAML scene file (Required)");
-        Console.WriteLine("  -o, --output <file>         Path to the output image (Default: output/render-<scene>.png)");
-        Console.WriteLine("  -w, --width <int>           Image width (Default: 1200)");
-        Console.WriteLine("  -H, --height <int>          Image height (Default: 800)");
-        Console.WriteLine("  -s, --samples <int>         Samples per pixel (Default: 16)");
-        Console.WriteLine("  -d, --depth <int>           Maximum ray recursion depth (Default: 50)");
-        Console.WriteLine("  -S, --shadow-samples <int>  Override shadow samples for all area lights");
-        Console.WriteLine("  -h, --help                  Show this help message");
+        Console.WriteLine("  -i, --input <path>           Scene YAML file (required)");
+        Console.WriteLine("  -o, --output <path>          Output image (default: output/render-<scene>.png)");
+        Console.WriteLine("  -w, --width <px>             Image width  (default: 1200)");
+        Console.WriteLine("  -H, --height <px>            Image height (default: 800)");
+        Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16)");
+        Console.WriteLine("  -d, --depth <n>              Max ray depth (default: 50)");
+        Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override");
+        Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
+        Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
+        Console.WriteLine("  -h, --help                   Show this help");
         Console.WriteLine();
-        Console.WriteLine("Example:");
-        Console.WriteLine("  RayTracer -i scenes/chess.yaml -o my_render.png -w 1920 -H 1080 -s 64");
-        Console.WriteLine();
-        Console.WriteLine("Shadow samples:");
-        Console.WriteLine("  By default, each area light uses its own shadow_samples from the YAML file.");
-        Console.WriteLine("  Use -S to override globally: -S 4 for preview, -S 16 production, -S 32 ultra.");
+        Console.WriteLine("Examples:");
+        Console.WriteLine("  from the root of the project: ");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess.yaml -o render.png -w 1920 -H 1080 -s 128");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess.yaml --list-cameras");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess.yaml -c top -o top.png");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess.yaml -c 2 -o cam2.png");
+        Console.WriteLine("  from the bin/Debug/net10.0 folder: ");
+        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess.yaml -o render.png -w 1920 -H 1080 -s 128");
+        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess.yaml --list-cameras");
+        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess.yaml -c top -o top.png");
+        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess.yaml -c 2 -o cam2.png");
     }
 
     static void SaveImage(Vector3[,] pixels, int width, int height, string path)
