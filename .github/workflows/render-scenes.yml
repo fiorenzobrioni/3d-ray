@@ -43,9 +43,8 @@ jobs:
       fail-fast: false
       matrix:
         scene:
-          - csg-showcase
           - cristallo
-          - cornell-box
+#          - csg-showcase
 #          - sphere-showcase
 #          - cornell-box
 #          - chess
