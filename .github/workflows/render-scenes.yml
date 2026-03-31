@@ -44,6 +44,8 @@ jobs:
       matrix:
         scene:
           - csg-showcase
+          - cristallo
+          - cornell-box
 #          - sphere-showcase
 #          - cornell-box
 #          - chess

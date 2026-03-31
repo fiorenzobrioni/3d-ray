@@ -1,0 +1,274 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  CRISTALLO — Bicchiere di vino in cristallo su tavolo di legno
+#
+#  Dimostrazione avanzata del CSG annidato con materiali classici:
+#    • Coppa: (Sfera_esterna \ Sfera_interna) ∩ Box_clip → guscio cavo aperto
+#    • Vino: Sfera_vino ∩ Box_livello → liquido con menisco piatto
+#    • Stelo e base: primitive semplici, stesso materiale dielectric
+#    • Tavolo in legno scuro con texture procedurale
+#    • Pavimento a scacchi bianco/nero classico
+#
+#  Illuminazione minimalista e cinematografica (2 sole luci):
+#    • 1 spot light dall'alto-sinistra — key drammatica, pool sul tavolo
+#    • 1 point light fill fredda — apre le ombre senza appiattire
+#    • Gradient sky scuro — riflessi morbidi nel cristallo
+#
+#  Render consigliati:
+#    Preview:    -w 640  -H 360  -s 16  -d 20
+#    Draft:      -w 1280 -H 720  -s 64  -d 40
+#    Produzione: -w 1920 -H 1080 -s 256 -d 60
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  WORLD — Ambiente scuro da galleria, cielo muto per riflessi nel vetro
+# ═══════════════════════════════════════════════════════════════════════════
+world:
+  ambient_light: [0.015, 0.013, 0.02]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.02, 0.02, 0.06]
+    horizon_color: [0.07, 0.05, 0.09]
+    ground_color:  [0.03, 0.02, 0.02]
+  ground:
+    type: "infinite_plane"
+    material: "pavimento_scacchi"
+    y: 0.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════
+cameras:
+  # Vista principale: 3/4 ravvicinata, all'altezza del rim
+  # Camera a Y=2.1 → guarda leggermente verso il basso nel bicchiere,
+  # vede il vino, il rim e le rifrazioni attraverso il cristallo
+  - name:       hero
+    position:   [1.8, 3.1, -3.0]
+    look_at:    [0.0, 1.65, 0.0]
+    fov:        36
+    aperture:   0.06
+    focal_dist: 3.4
+
+  # Vista alta drammatica: cattura bicchiere intero + ombra sul tavolo
+  - name:       overhead
+    position:   [-1.0, 3.8, -2.8]
+    look_at:    [0.0, 1.6, 0.0]
+    fov:        42
+    aperture:   0.03
+    focal_dist: 3.7
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LUCI — Setup minimo ad alto impatto (2 luci)
+# ═══════════════════════════════════════════════════════════════════════════
+lights:
+  # Key light: spot dall'alto-sinistra, cono stretto → pool sul tavolo
+  - type: "spot"
+    position:  [-1.5, 4.5, -1.5]
+    direction: [0.4, -0.85, 0.3]
+    color:     [1.0, 0.93, 0.82]
+    intensity: 180
+    inner_angle: 18
+    outer_angle: 35
+
+  # Fill light: punto tenue freddo dal lato opposto
+  - type: "point"
+    position: [2.5, 2.0, -1.0]
+    color:    [0.55, 0.6, 0.85]
+    intensity: 12
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALI — Solo tipi classici (lambertian, metal, dielectric)
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Pavimento: scacchiera bianco/nero ──────────────────────────────────
+  - id: "pavimento_scacchi"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 1.8
+      colors: [[0.85, 0.83, 0.80], [0.06, 0.06, 0.07]]
+
+  # ── Tavolo: legno scuro venato ─────────────────────────────────────────
+  - id: "legno_tavolo"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 3.0
+      colors: [[0.22, 0.12, 0.06], [0.13, 0.07, 0.03]]
+      
+  # ── Gambe tavolo: legno più scuro ──────────────────────────────────────
+  - id: "legno_gambe"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.0
+      colors: [[0.14, 0.08, 0.04], [0.09, 0.05, 0.02]]
+      randomize_rotation: true
+
+  # ── Cristallo al piombo ────────────────────────────────────────────────
+  #    Disney con IOR 1.65 (lead crystal: PbO > 24%).
+  - id: "cristallo"
+    type: "disney"
+    color: [0.97, 0.97, 1.0]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.65
+
+  - id: "ccristallo"
+    type: "dielectric"
+    refraction_index: 1.65
+    color: [0.97, 0.97, 1.0]
+
+
+  # ── Vino rosso ─────────────────────────────────────────────────────────
+  #    Disney con IOR 1.345 (acqua + alcol) e tint rosso scuro.
+  #    Il colore scuro assorbe la luce trasmessa, simulando l'opacità
+  #    del vino. Fresnel mantiene la superficie lucida e riflettente.
+  - id: "vino_rosso"
+    type: "disney"
+    color: [0.35, 0.01, 0.025]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.345
+
+  - id: "vvino_rosso"
+    type: "dielectric"
+    refraction_index: 1.345
+    color: [0.35, 0.01, 0.025]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  TAVOLO — Piano rettangolare + 4 gambe cilindriche
+  #
+  #  Piano: Y = 0.70 → 0.76 (spessore 0.06, superficie a Y=0.76)
+  #  Gambe: Y = 0 → 0.70
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - name: "piano_tavolo"
+    type: "box"
+    min: [-1.4, 0.66, -0.9]
+    max: [1.4,  0.76,  0.9]
+    material: "legno_tavolo"
+
+  - { name: "gamba_fl", type: "cylinder", center: [-1.20, 0.0, -0.70], radius: 0.12, height: 0.70, material: "legno_gambe" }
+  - { name: "gamba_fr", type: "cylinder", center: [ 1.20, 0.0, -0.70], radius: 0.12, height: 0.70, material: "legno_gambe" }
+  - { name: "gamba_bl", type: "cylinder", center: [-1.20, 0.0,  0.70], radius: 0.12, height: 0.70, material: "legno_gambe" }
+  - { name: "gamba_br", type: "cylinder", center: [ 1.20, 0.0,  0.70], radius: 0.12, height: 0.70, material: "legno_gambe" }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  BICCHIERE — Base + Stelo (primitive semplici)
+  #
+  #  Stack verticale:
+  #    Base:  Y = 0.76 → 0.81   (h=0.05, R=0.48)
+  #    Stelo: Y = 0.81 → 1.66   (h=0.85, R=0.035)
+  #    Coppa: Y = 1.62 → 2.60   (CSG, sovrappone stelo top di 0.04)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Base: disco piatto in cristallo
+  - name: "base_bicchiere"
+    type: "cylinder"
+    center:   [0.0, 0.76, 0.0]
+    radius:   0.58
+    height:   0.05
+    material: "cristallo"
+
+  # Stelo sottile
+  - name: "stelo"
+    type: "cylinder"
+    center:   [0.0, 0.76, 0.0]
+    radius:   0.045
+    height:   0.64
+    material: "cristallo"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  COPPA — CSG: (Sfera_esterna \ Sfera_interna) ∩ Box_clip
+  #
+  #  Due sfere concentriche producono un guscio cavo. Il box di clip
+  #  interseca il guscio mantenendo solo Y ∈ [1.62, 2.60]:
+  #
+  #    • Clip inferiore (Y=1.62): si raccorda con lo stelo
+  #    • Clip superiore (Y=2.60): crea il RIM — l'apertura del bicchiere
+  #
+  #  Senza il clip superiore, la sfera esterna si chiuderebbe al polo
+  #  nord (Y=2.92) formando una calotta sigillata — un uovo cavo,
+  #  non un bicchiere aperto!
+  #
+  #  La sfera interna è centrata 0.03 più in alto → rim sottile in
+  #  cima, pareti più spesse in basso. Anatomia reale di un calice.
+  #
+  #  Geometria:
+  #    Outer: centro [0.25, 2.16, 0], R = 0.76
+  #    Inner: centro [0.25, 2.19, 0], R = 0.69
+  #    Clip:  Y ∈ [1.62, 2.60]
+  #
+  #  Profilo sezione (stile tulipano/Bordeaux):
+  #    Y=1.62 (base coppa): ø ext 1.07, ø int 0.78, muro 0.146
+  #    Y=2.16 (pancia):     ø ext 1.52, ø int 1.38, muro 0.071
+  #    Y=2.60 (rim):        ø ext 1.24, ø int 1.11, muro 0.065
+  #
+  #  Altezza coppa: 0.98  |  Altezza totale bicchiere: 1.84
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - name: "coppa"
+    type: "csg"
+    operation: "subtraction"
+    material: "cristallo"
+    left:
+      # Guscio: sfera esterna meno sfera interna
+      type: "csg"
+      operation: "subtraction"
+      left:
+        type: "sphere"
+        center: [0.0, 2.16, 0.0]
+        radius: 0.76
+      right:
+        type: "sphere"
+        center: [0.0, 2.19, 0.0]
+        radius: 0.75
+    right:
+      type: "box"
+      scale: [4, 2.60, 4]
+      translate: [0.0, 3.65, 0.0]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  VINO ROSSO — CSG: Sfera_vino ∩ Box_livello
+  #
+  #  La sfera del vino segue la curvatura interna della coppa (R=0.685,
+  #  appena inferiore a inner R=0.69 per evitare z-fighting).
+  #  Il box di clip taglia:
+  #    • Sopra a Y=2.22 → menisco piatto, superficie del vino
+  #    • Sotto a Y=1.62 → allineato con il clip della coppa
+  #
+  #  Riempimento: (2.22 − 1.62) / (2.60 − 1.62) ≈ 61% — proporzione
+  #  classica per la degustazione di un rosso strutturato.
+  #
+  #  Geometria:
+  #    Sfera vino: centro [0.25, 2.19, 0], R = 0.685
+  #    Box livello: Y ∈ [1.62, 2.22]
+  #      scale [4, 0.60, 4] → half-Y = 0.30
+  #      translate Y = (1.62 + 2.22) / 2 = 1.92
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - name: "vino"
+    type: "csg"
+    operation: "subtraction"
+    material: "vino_rosso"
+    left:
+      type: "sphere"
+      center: [0.0, 2.16, 0.0]
+      radius: 0.75
+    right:
+      type: "box"
+      scale: [4, 2.60, 4]
+      translate: [0.0, 3.40, 0.0]
