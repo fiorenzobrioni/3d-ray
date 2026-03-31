@@ -96,26 +96,67 @@ public class Box : IHittable
 
         rec.SetFaceNormal(ray, outwardNormal);
 
-        // Per-face planar UV mapping on the unit cube
+        // Per-face planar UV mapping on the unit cube.
+        //
+        // BUG-09 fix: Tangent and Bitangent are now chosen so that
+        // Cross(T, B) is aligned with the outward normal for every face,
+        // guaranteeing a right-handed TBN frame. Previously T and B were
+        // fixed per axis without considering the face sign, producing a
+        // left-handed frame on 3 out of 6 faces (+X, +Y, −Z). This caused
+        // the Z component of normal maps (the "out of surface" direction)
+        // to be inverted on those faces — bumps appeared as dents and
+        // vice versa.
+        //
+        // Convention per face:
+        //   +X: T = +Z, B = +Y  → Cross(+Z, +Y) = −X … flip B → −Y  ✓ Cross(+Z,−Y) = +X
+        //   −X: T = −Z, B = +Y  → Cross(−Z, +Y) = +X … flip B → −Y  ✓ Cross(−Z,−Y) = −X
+        //   +Y: T = +X, B = −Z  → Cross(+X,−Z) = +Y  ✓
+        //   −Y: T = +X, B = +Z  → Cross(+X,+Z) = −Y  ✓
+        //   +Z: T = +X, B = +Y  → Cross(+X,+Y) = +Z  ✓
+        //   −Z: T = −X, B = +Y  → Cross(−X,+Y) = −Z  ✓
         switch (hitAxis)
         {
-            case 0: // X face
+            case 0: // X faces
                 rec.U = (rec.Point.Z - Min.Z) / (Max.Z - Min.Z);
                 rec.V = (rec.Point.Y - Min.Y) / (Max.Y - Min.Y);
-                rec.Tangent = Vector3.UnitZ;
-                rec.Bitangent = Vector3.UnitY;
+                if (!hitNeg) // +X face: outward = +X
+                {
+                    rec.Tangent   = Vector3.UnitZ;
+                    rec.Bitangent = -Vector3.UnitY;
+                }
+                else // −X face: outward = −X
+                {
+                    rec.Tangent   = -Vector3.UnitZ;
+                    rec.Bitangent = -Vector3.UnitY;
+                }
                 break;
-            case 1: // Y face
+            case 1: // Y faces
                 rec.U = (rec.Point.X - Min.X) / (Max.X - Min.X);
                 rec.V = (rec.Point.Z - Min.Z) / (Max.Z - Min.Z);
-                rec.Tangent = Vector3.UnitX;
-                rec.Bitangent = Vector3.UnitZ;
+                if (!hitNeg) // +Y face: outward = +Y
+                {
+                    rec.Tangent   = Vector3.UnitX;
+                    rec.Bitangent = -Vector3.UnitZ;
+                }
+                else // −Y face: outward = −Y
+                {
+                    rec.Tangent   = Vector3.UnitX;
+                    rec.Bitangent = Vector3.UnitZ;
+                }
                 break;
-            default: // Z face
+            default: // Z faces
                 rec.U = (rec.Point.X - Min.X) / (Max.X - Min.X);
                 rec.V = (rec.Point.Y - Min.Y) / (Max.Y - Min.Y);
-                rec.Tangent = Vector3.UnitX;
-                rec.Bitangent = Vector3.UnitY;
+                if (!hitNeg) // +Z face: outward = +Z
+                {
+                    rec.Tangent   = Vector3.UnitX;
+                    rec.Bitangent = Vector3.UnitY;
+                }
+                else // −Z face: outward = −Z
+                {
+                    rec.Tangent   = -Vector3.UnitX;
+                    rec.Bitangent = Vector3.UnitY;
+                }
                 break;
         }
 

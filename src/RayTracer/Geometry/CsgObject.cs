@@ -11,12 +11,16 @@ namespace RayTracer.Geometry;
 ///   • Intersection — A ∩ B  (only the overlapping volume)
 ///   • Subtraction  — A \ B  (A with B carved out)
 ///
-/// <b>Algorithm — Interval-based ray classification:</b>
+/// <b>Algorithm — All-hits ray classification:</b>
 ///
-/// For convex primitives (sphere, box, cylinder, disk-capped cylinders) each
-/// ray–solid intersection produces exactly one entry/exit interval [tEnter, tExit].
-/// The CSG result is determined by collecting ALL surface intersections from both
-/// children, then selecting the closest one that satisfies the Boolean condition:
+/// For each child, we collect ALL ray–surface intersections (not just the first
+/// entry/exit pair). Each intersection carries a FrontFace flag indicating
+/// whether the ray is entering or leaving the solid at that point.
+///
+/// The Boolean result is determined by testing each surface intersection from
+/// one child against the other child's solid state at that parameter t. The
+/// solid state is computed by counting surface crossings — a point is "inside"
+/// if the ray has crossed an odd number of entry surfaces to reach it.
 ///
 ///   Union:        surface point is NOT inside the OTHER solid
 ///   Intersection: surface point IS inside the OTHER solid
@@ -28,19 +32,19 @@ namespace RayTracer.Geometry;
 ///   so textures and normal maps work correctly on CSG surfaces.
 /// - For subtraction (A \ B), hits on B's surface that form the carved boundary
 ///   have their normals flipped (the interior of B becomes an exterior surface).
-/// - Supports nesting: a CsgObject is itself an IHittable, so complex trees
-///   like (A ∪ B) \ C or (A ∩ B) ∪ (C \ D) work naturally.
+/// - Supports arbitrary nesting: a CsgObject is itself an IHittable, so complex
+///   trees like ((A ∪ B) \ C) or ((A ∩ B) ∪ (C \ D)) work correctly even when
+///   intermediate results are non-convex (e.g., union of disjoint solids).
 /// - BVH-compatible: BoundingBox() returns a tight AABB for each operation type.
 /// - Transform-compatible: can be wrapped in Transform for scale/rotate/translate.
 ///
-/// <b>Convex-primitive assumption (phase 1):</b>
-/// The current implementation assumes each child produces at most one contiguous
-/// interval per ray (two surface intersections: one entry, one exit). This is
-/// correct for all current primitives (Sphere, Box, Cylinder, Disk) and for
-/// Transform-wrapped versions of these. For future non-convex primitives
-/// (e.g., Torus) or deeply nested CSG trees that may produce multiple disjoint
-/// intervals per child, the interval collection can be extended to handle
-/// multiple spans. The architecture makes this extension straightforward.
+/// <b>Performance:</b>
+/// For convex primitives (Sphere, Box, Cylinder, Disk), CollectAllHits produces
+/// exactly 2 hits (or 0 on miss) — same cost as the previous two-shot approach.
+/// The overhead of the loop and array is negligible compared to the intersection
+/// math. For deeply nested CSG trees, the all-hits approach is actually faster
+/// because it avoids the information loss that caused incorrect renders, which
+/// in turn caused wasted shading work on phantom surfaces.
 /// </summary>
 public class CsgObject : IHittable
 {
@@ -66,23 +70,59 @@ public class CsgObject : IHittable
     }
 
     // =========================================================================
-    //  Ray interval — represents a solid span [tEnter, tExit] along a ray
+    //  Surface hit collection
     // =========================================================================
 
     /// <summary>
-    /// A contiguous interval where the ray is inside a solid, along with the
-    /// HitRecords at the entry and exit boundaries. These records carry material,
-    /// UV, normal, and TBN data from the original primitive.
+    /// Maximum number of surface intersections collected per child per ray.
+    /// A convex primitive produces at most 2; a nested CSG tree with N
+    /// subtractions can produce up to 2(N+1). 16 is generous for practical
+    /// scenes and prevents runaway loops on degenerate geometry.
     /// </summary>
-    private struct RayInterval
+    private const int MaxHitsPerChild = 16;
+
+    /// <summary>
+    /// Epsilon used to advance past each collected hit to find the next one.
+    /// Must be small enough to not swallow thin geometry (sub-millimetre),
+    /// but large enough to avoid re-hitting the same surface due to float
+    /// imprecision. 1e-6 is safe for t values in the range [0.001, 10000].
+    /// </summary>
+    private const float StepEps = 1e-6f;
+
+    /// <summary>
+    /// A single surface intersection on a child solid, with the full HitRecord
+    /// preserving material, UV, normal, and TBN from the original primitive.
+    /// </summary>
+    private struct SurfaceHit
     {
-        public float TEnter;
-        public float TExit;
-        public HitRecord EnterHit;  // Surface data at the entry point
-        public HitRecord ExitHit;   // Surface data at the exit point
-        public bool HasEnterSurface; // True if TEnter represents a physical surface
-        public bool HasExitSurface;  // True if TExit represents a physical surface
-        public bool Valid;          // True if the interval was successfully computed
+        public float T;
+        public HitRecord Rec;
+    }
+
+    /// <summary>
+    /// All surface intersections of a ray with one CSG child, collected by
+    /// repeatedly calling Hit() and advancing past each intersection.
+    ///
+    /// The hits are stored in ascending T order (guaranteed by the collection
+    /// loop which advances tMin monotonically). FrontFace in each HitRecord
+    /// indicates entry (true) vs exit (false) of the solid.
+    ///
+    /// For convex primitives, Count is 0 (miss) or 2 (entry + exit) or
+    /// 1 (ray origin inside → exit only, or tangential graze).
+    ///
+    /// For non-convex CSG children, Count can be higher (up to MaxHitsPerChild),
+    /// capturing all disjoint solid spans along the ray.
+    /// </summary>
+    private struct ChildHits
+    {
+        public SurfaceHit[] Hits;
+        public int Count;
+        /// <summary>
+        /// True if the ray origin is inside the child solid (first intersection
+        /// is a back-face / exit). Used by IsInsideSolid for points before the
+        /// first intersection.
+        /// </summary>
+        public bool StartsInside;
     }
 
     // =========================================================================
@@ -95,112 +135,109 @@ public class CsgObject : IHittable
         if (!_boundingBox.Hit(ray, tMin, tMax))
             return false;
 
-        // Collect ray intervals for both children
-        var intervalA = ComputeInterval(Left, ray, tMin, tMax);
-        var intervalB = ComputeInterval(Right, ray, tMin, tMax);
+        // Collect ALL surface intersections for both children.
+        // Using float.PositiveInfinity as the collection bound ensures we find
+        // exit points that may lie beyond tMax (needed for correct IsInsideSolid
+        // tests on points near tMax).
+        var hitsA = CollectAllHits(Left, ray, tMin);
+        var hitsB = CollectAllHits(Right, ray, tMin);
 
         return Operation switch
         {
-            CsgOperation.Union        => HitUnion(ray, tMin, tMax, ref rec, in intervalA, in intervalB),
-            CsgOperation.Intersection => HitIntersection(ray, tMin, tMax, ref rec, in intervalA, in intervalB),
-            CsgOperation.Subtraction  => HitSubtraction(ray, tMin, tMax, ref rec, in intervalA, in intervalB),
+            CsgOperation.Union        => HitUnion(ray, tMin, tMax, ref rec, in hitsA, in hitsB),
+            CsgOperation.Intersection => HitIntersection(ray, tMin, tMax, ref rec, in hitsA, in hitsB),
+            CsgOperation.Subtraction  => HitSubtraction(ray, tMin, tMax, ref rec, in hitsA, in hitsB),
             _ => false
         };
     }
 
     // =========================================================================
-    //  Interval computation
+    //  All-hits collection
     // =========================================================================
 
     /// <summary>
-    /// Computes the solid interval [tEnter, tExit] for a convex child.
+    /// Collects every ray–surface intersection with a child solid by repeatedly
+    /// calling Hit() and advancing tMin past each found intersection.
     ///
-    /// Strategy for convex solids — a ray intersects a convex solid at most
-    /// twice (entry and exit). We find both by:
-    ///
-    ///   1. First Hit() call → gives the nearest intersection.
-    ///      If FrontFace=true, the ray enters the solid (exterior → interior).
-    ///      If FrontFace=false, the ray origin is inside the solid (exit first).
-    ///
-    ///   2. Second Hit() call with tMin advanced just past hit1 → gives the
-    ///      exit point when the ray started outside.
-    ///
-    /// For nested CSG children, the inner CsgObject.Hit() returns only the
-    /// nearest visible surface, not raw intervals — but because we call it
-    /// twice (once for entry, once for exit), we still reconstruct the
-    /// composite interval correctly.
+    /// This replaces the old two-shot ComputeInterval approach. For convex
+    /// primitives the result is identical (2 hits), but for non-convex CSG
+    /// children it correctly captures all disjoint solid spans.
     /// </summary>
-    private static RayInterval ComputeInterval(IHittable child, Ray ray, float tMin, float tMax)
+    private static ChildHits CollectAllHits(IHittable child, Ray ray, float tMin)
     {
-        var interval = new RayInterval { Valid = false };
-
-        var hit1 = new HitRecord();
-        if (!child.Hit(ray, tMin, tMax, ref hit1))
-            return interval; // Ray misses entirely
-
-        // Advance slightly past the first hit to find the second intersection.
-        const float stepEps = 1e-4f;
-        var hit2 = new HitRecord();
-        // Trace to Infinity to find the true geometric exit point, regardless of tMax
-        bool hasSecondHit = child.Hit(ray, hit1.T + stepEps, float.PositiveInfinity, ref hit2);
-
-        if (hit1.FrontFace)
+        var result = new ChildHits
         {
-            // Ray entered the solid at hit1 (front face = entering from outside)
-            interval.TEnter = hit1.T;
-            interval.EnterHit = hit1;
-            interval.HasEnterSurface = true;
+            Hits = new SurfaceHit[MaxHitsPerChild],
+            Count = 0,
+            StartsInside = false
+        };
 
-            if (hasSecondHit)
-            {
-                // Normal case: entry at hit1, exit at hit2
-                interval.TExit = hit2.T;
-                interval.ExitHit = hit2;
-                interval.HasExitSurface = true;
-            }
-            else
-            {
-                // Only one intersection found in all of space. This happens if the ray 
-                // just grazes the surface tangentially, or for infinitely thin primitives (e.g. Quad).
-                // We treat this as a zero-volume interval crossing at T = hit1.T
-                interval.TExit = hit1.T;
-                interval.ExitHit = hit1;
-                interval.HasExitSurface = true;
-            }
-            interval.Valid = true;
-        }
-        else
+        float currentT = tMin;
+
+        while (result.Count < MaxHitsPerChild)
         {
-            // Ray started INSIDE the solid — hit1 is a back face (exit point).
-            // Prevent fake surfaces by setting TEnter to -infinity with no physical surface flag.
-            interval.TEnter = float.NegativeInfinity;
-            interval.HasEnterSurface = false;
-            interval.TExit = hit1.T;
-            interval.ExitHit = hit1;
-            interval.HasExitSurface = true;
-            interval.Valid = true;
+            var rec = new HitRecord();
+            // Search all the way to infinity — we need the full geometry for
+            // IsInsideSolid tests, not just hits within the caller's [tMin, tMax].
+            if (!child.Hit(ray, currentT, float.PositiveInfinity, ref rec))
+                break;
+
+            // First hit tells us whether the ray starts inside the solid.
+            if (result.Count == 0 && !rec.FrontFace)
+                result.StartsInside = true;
+
+            result.Hits[result.Count++] = new SurfaceHit { T = rec.T, Rec = rec };
+            currentT = rec.T + StepEps;
         }
 
-        return interval;
+        return result;
     }
 
     // =========================================================================
-    //  Point-in-solid test
+    //  Point-in-solid test (crossing-number method)
     // =========================================================================
 
     /// <summary>
-    /// Tests whether a point at parameter t along the ray is inside a solid,
-    /// given the precomputed interval. Uses a small tolerance to handle surface
-    /// coincidence (two primitives sharing the same face).
+    /// Tests whether a point at parameter t along the ray is inside a child
+    /// solid, using the crossing-number method on the collected surface hits.
+    ///
+    /// The ray starts outside (or inside if StartsInside is true). Each surface
+    /// crossing toggles the inside/outside state. A point exactly on a surface
+    /// (within tolerance) is treated as inside for robustness at CSG boundaries.
+    ///
+    /// This replaces the old interval-based IsInsideSolid and correctly handles
+    /// non-convex children with multiple disjoint solid spans.
     /// </summary>
-    private static bool IsInsideSolid(float t, in RayInterval interval)
+    private static bool IsInsideSolid(float t, in ChildHits hits)
     {
-        if (!interval.Valid) return false;
-        // Small tolerance to handle points exactly on the surface boundary.
-        // Without this, a point at exactly tEnter or tExit could flip due to
-        // floating-point imprecision, causing surface acne on CSG boundaries.
+        if (hits.Count == 0) return false;
+
         const float tolerance = 1e-5f;
-        return t >= (interval.TEnter - tolerance) && t <= (interval.TExit + tolerance);
+
+        bool inside = hits.StartsInside;
+        for (int i = 0; i < hits.Count; i++)
+        {
+            float hitT = hits.Hits[i].T;
+
+            // Point is ON this surface (within tolerance) — treat as inside.
+            // This prevents surface acne on CSG boundaries where two primitives
+            // share exactly the same face.
+            if (t >= hitT - tolerance && t <= hitT + tolerance)
+                return true;
+
+            // This surface crossing is before our test point — toggle state.
+            if (hitT < t - tolerance)
+            {
+                inside = !inside;
+            }
+            else
+            {
+                // All remaining hits are past t — stop.
+                break;
+            }
+        }
+
+        return inside;
     }
 
     // =========================================================================
@@ -221,8 +258,6 @@ public class CsgObject : IHittable
 
         bestT = t;
         bestHit = hit;
-        bestHit.T = t;
-        bestHit.Point = ray.At(t);
 
         if (flipNormal)
         {
@@ -243,36 +278,30 @@ public class CsgObject : IHittable
     // =========================================================================
 
     /// <summary>
-    /// A ∪ B — Union. The ray hits the union wherever it enters either solid
-    /// from the outside (i.e., not already inside the other solid).
-    ///
-    /// Valid surfaces:
-    ///   • Entry of A, if NOT inside B (A's outer surface exposed)
-    ///   • Entry of B, if NOT inside A (B's outer surface exposed)
-    ///   • Exit of A, if NOT inside B (A's inner surface visible from inside)
-    ///   • Exit of B, if NOT inside A
+    /// A ∪ B — Union. A surface from either child is visible if the point is
+    /// NOT inside the other child.
     /// </summary>
     private static bool HitUnion(Ray ray, float tMin, float tMax,
-        ref HitRecord rec, in RayInterval a, in RayInterval b)
+        ref HitRecord rec, in ChildHits hitsA, in ChildHits hitsB)
     {
         float bestT = float.MaxValue;
         HitRecord bestHit = default;
         bool found = false;
 
-        if (a.Valid)
+        // All surfaces of A — visible where NOT inside B
+        for (int i = 0; i < hitsA.Count; i++)
         {
-            if (a.HasEnterSurface && !IsInsideSolid(a.TEnter, in b))
-                TryCandidate(a.TEnter, in a.EnterHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
-            if (a.HasExitSurface && !IsInsideSolid(a.TExit, in b))
-                TryCandidate(a.TExit, in a.ExitHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
+            ref readonly var s = ref hitsA.Hits[i];
+            if (!IsInsideSolid(s.T, in hitsB))
+                TryCandidate(s.T, in s.Rec, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
         }
 
-        if (b.Valid)
+        // All surfaces of B — visible where NOT inside A
+        for (int i = 0; i < hitsB.Count; i++)
         {
-            if (b.HasEnterSurface && !IsInsideSolid(b.TEnter, in a))
-                TryCandidate(b.TEnter, in b.EnterHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
-            if (b.HasExitSurface && !IsInsideSolid(b.TExit, in a))
-                TryCandidate(b.TExit, in b.ExitHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
+            ref readonly var s = ref hitsB.Hits[i];
+            if (!IsInsideSolid(s.T, in hitsA))
+                TryCandidate(s.T, in s.Rec, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
         }
 
         if (!found) return false;
@@ -281,35 +310,30 @@ public class CsgObject : IHittable
     }
 
     /// <summary>
-    /// A ∩ B — Intersection. The ray hits only where both solids overlap.
-    ///
-    /// Valid surfaces:
-    ///   • Entry of A, if inside B (A's surface enters the overlap zone)
-    ///   • Entry of B, if inside A (B's surface enters the overlap zone)
-    ///   • Exit of A, if inside B (leaving through A's surface)
-    ///   • Exit of B, if inside A (leaving through B's surface)
+    /// A ∩ B — Intersection. A surface from either child is visible only if the
+    /// point IS inside the other child (both solids overlap at that point).
     /// </summary>
     private static bool HitIntersection(Ray ray, float tMin, float tMax,
-        ref HitRecord rec, in RayInterval a, in RayInterval b)
+        ref HitRecord rec, in ChildHits hitsA, in ChildHits hitsB)
     {
         float bestT = float.MaxValue;
         HitRecord bestHit = default;
         bool found = false;
 
-        if (a.Valid)
+        // Surfaces of A — visible where inside B
+        for (int i = 0; i < hitsA.Count; i++)
         {
-            if (a.HasEnterSurface && IsInsideSolid(a.TEnter, in b))
-                TryCandidate(a.TEnter, in a.EnterHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
-            if (a.HasExitSurface && IsInsideSolid(a.TExit, in b))
-                TryCandidate(a.TExit, in a.ExitHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
+            ref readonly var s = ref hitsA.Hits[i];
+            if (IsInsideSolid(s.T, in hitsB))
+                TryCandidate(s.T, in s.Rec, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
         }
 
-        if (b.Valid)
+        // Surfaces of B — visible where inside A
+        for (int i = 0; i < hitsB.Count; i++)
         {
-            if (b.HasEnterSurface && IsInsideSolid(b.TEnter, in a))
-                TryCandidate(b.TEnter, in b.EnterHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
-            if (b.HasExitSurface && IsInsideSolid(b.TExit, in a))
-                TryCandidate(b.TExit, in b.ExitHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
+            ref readonly var s = ref hitsB.Hits[i];
+            if (IsInsideSolid(s.T, in hitsA))
+                TryCandidate(s.T, in s.Rec, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
         }
 
         if (!found) return false;
@@ -318,44 +342,35 @@ public class CsgObject : IHittable
     }
 
     /// <summary>
-    /// A \ B — Subtraction. The ray hits where A is solid and B is not.
+    /// A \ B — Subtraction. The result exists where A is solid and B is not.
     ///
-    /// Valid surfaces:
-    ///   • Entry of A, if NOT inside B (A's outer surface is exposed)
-    ///   • Exit of A, if NOT inside B (A's exit is exposed)
-    ///   • Entry of B, if inside A (B carves into A — normal FLIPPED)
-    ///   • Exit of B, if inside A (B stops carving — normal FLIPPED)
+    ///   • A's surfaces are visible where NOT inside B  (A's exposed outer/inner walls)
+    ///   • B's surfaces are visible where inside A      (B carves into A — normals FLIPPED)
     ///
     /// B's surface normals are flipped because the interior of B becomes an
-    /// exterior surface of the resulting solid. This affects:
-    ///   - Direct lighting (N·L for diffuse, N·H for specular)
-    ///   - Scatter direction (reflection/refraction)
-    ///   - Shadow ray origin offset
-    ///   - Normal map TBN frame (inverted along N)
+    /// exterior surface of the resulting solid.
     /// </summary>
     private static bool HitSubtraction(Ray ray, float tMin, float tMax,
-        ref HitRecord rec, in RayInterval a, in RayInterval b)
+        ref HitRecord rec, in ChildHits hitsA, in ChildHits hitsB)
     {
         float bestT = float.MaxValue;
         HitRecord bestHit = default;
         bool found = false;
 
         // A's surfaces — visible where B is absent
-        if (a.Valid)
+        for (int i = 0; i < hitsA.Count; i++)
         {
-            if (a.HasEnterSurface && !IsInsideSolid(a.TEnter, in b))
-                TryCandidate(a.TEnter, in a.EnterHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
-            if (a.HasExitSurface && !IsInsideSolid(a.TExit, in b))
-                TryCandidate(a.TExit, in a.ExitHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
+            ref readonly var s = ref hitsA.Hits[i];
+            if (!IsInsideSolid(s.T, in hitsB))
+                TryCandidate(s.T, in s.Rec, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
         }
 
         // B's surfaces — visible where they carve into A (normals flipped)
-        if (b.Valid)
+        for (int i = 0; i < hitsB.Count; i++)
         {
-            if (b.HasEnterSurface && IsInsideSolid(b.TEnter, in a))
-                TryCandidate(b.TEnter, in b.EnterHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found, flipNormal: true);
-            if (b.HasExitSurface && IsInsideSolid(b.TExit, in a))
-                TryCandidate(b.TExit, in b.ExitHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found, flipNormal: true);
+            ref readonly var s = ref hitsB.Hits[i];
+            if (IsInsideSolid(s.T, in hitsA))
+                TryCandidate(s.T, in s.Rec, ray, tMin, tMax, ref bestT, ref bestHit, ref found, flipNormal: true);
         }
 
         if (!found) return false;

@@ -78,7 +78,8 @@ materials:
     texture:
       type: "checker"
       scale: 2.0
-      colors: [[0.15, 0.13, 0.12], [0.20, 0.18, 0.16]]
+      colors: [[0.12, 0.12, 0.12], [0.14, 1.00, 0.14]]
+      #colors: [[0.15, 0.13, 0.12], [0.20, 0.18, 0.16]]
 
   # ── Piedistalli ────────────────────────────────────────────────────────
   - id: "piedistallo"
@@ -270,7 +271,7 @@ entities:
       radius: 0.45
       height: 2.0
       rotate: [90, 0, 0]
-    translate: [4.5, 1.6, 0]
+    translate: [4.5, 1.75, 0]
     rotate: [20, -30, 0]
     material: "ceramica_blu"
 
@@ -285,16 +286,16 @@ lights:
     intensity: 0.8
 
   # ── Area light da soffitto — ombre morbide ─────────────────────────────
-  - type: "jarea"
-    corner: [-6, 6, -3]
-    u: [12, 0, 0]
-    v: [0, 0, 6]
-    color: [1.0, 0.98, 0.94]
-    intensity: 2.5
-    shadow_samples: 16
+  # - type: "area"
+  #   corner: [-6, 6, -3]
+  #   u: [12, 0, 0]
+  #   v: [0, 0, 6]
+  #   color: [1.0, 0.98, 0.94]
+  #   intensity: 2.5
+  #   shadow_samples: 16
 
   # ── Fill light laterale fredda ─────────────────────────────────────────
-  - type: "point"
-    position: [-8, 4, -6]
-    color: [0.7, 0.75, 1.0]
-    intensity: 40
+  # - type: "point"
+  #   position: [-8, 4, -6]
+  #   color: [0.7, 0.75, 1.0]
+  #   intensity: 40
