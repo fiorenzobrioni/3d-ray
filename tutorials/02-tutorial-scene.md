@@ -28,6 +28,7 @@
    - [6.7 Plane / Infinite Plane (Piano Infinito)](#67-plane--infinite-plane-piano-infinito)
    - [6.8 Trasformazioni (Translate, Rotate, Scale)](#68-trasformazioni-translate-rotate-scale)
    - [6.9 Parametro Seed](#69-parametro-seed)
+   - [6.10 CSG — Constructive Solid Geometry](#610-csg--constructive-solid-geometry)
 7. [Sezione `lights`](#7-sezione-lights)
    - [7.1 Point Light](#71-point-light-puntiforme)
    - [7.2 Directional Light](#72-directional-light-sole)
@@ -463,7 +464,7 @@ Usi tipici: neon, LED, insegne, lava, fiamme, sfere magiche, pannelli luminosi, 
 
 > **💡 Tip: Emissive vs Area Light.** Un `quad` con materiale `emissive` è visualmente simile a un'area light, ma con differenze importanti:
 > - L'**area light** usa Next Event Estimation (NEE) e produce ombre morbide controllate con `shadow_samples`.
-> - L'**emissive** illumina tramite rimbalzi del path tracer e, per le geometrie campionabili (Sphere, Quad, Triangle, Disk), anche tramite NEE diretta. Richiede comunque più campioni rispetto a un'area light dedicata per ombre pulite, ma l'oggetto è fisicamente visibile nella scena — richiede più campioni (`-s`) per convergere, ma l'oggetto è fisicamente **visibile** nella scena (puoi vederlo, rifletterlo nello specchio, rifrangerlo nel vetro).
+> - L'**emissive** illumina tramite rimbalzi del path tracer e, per le geometrie campionabili (Sphere, Quad, Triangle, Disk), anche tramite NEE diretta. Richiede più campioni (`-s`) per convergere, ma l'oggetto è fisicamente **visibile** nella scena (puoi vederlo, rifletterlo nello specchio, rifrangerlo nel vetro).
 > - Per pannelli a soffitto che devono essere visti: usa `emissive`. Per illuminazione pura senza geometria visibile: usa `area` light.
 
 ---
@@ -731,8 +732,8 @@ materials:
 | Campo | Tipo | Default | Descrizione |
 |-------|------|---------|-------------|
 | `path` | stringa | — (**obbligatorio**) | Percorso del file normal map. Relativo alla directory del file YAML. Se il file non esiste, il motore stampa un warning e continua senza normal map (superficie liscia). |
-| `strength` | float | `1.0` | Intensità della perturbazione. `0.0` = nessun effetto, `1.0` = effetto pieno, `2.0` = esagerato. Valore massimo: `3.0`. |
-| `uv_scale` | `[U, V]` | `[1, 1]` | Tiling UV. **Deve corrispondere al `uv_scale` della texture albedo** per evitare disallineamenti tra colore e bump. |
+| `strength` | float | `1.0` | Intensità della perturbazione. `0` = nessuna perturbazione, `1` = normale, `2+` = effetto esagerato. |
+| `uv_scale` | `[U, V]` | `[1, 1]` | Deve coincidere con quello della texture albedo per evitare disallineamenti. |
 | `flip_y` | bool | `false` | Inverte il canale verde (G). Imposta `true` per mappe DirectX-style (usate da alcuni tool come Substance Painter in modalità DirectX). Le mappe OpenGL-style (default, es. da Blender, AmbientCG, Poly Haven) non richiedono inversione. |
 
 #### Formato delle Normal Map
@@ -842,7 +843,7 @@ Il normal mapping funziona su tutte le primitive. Il frame TBN (Tangent, Bitange
       flip_y: true               # inverte il canale G per mappe DirectX
 ```
 
-> **💡 Consigli pratici:**
+> **💡 Tips:**
 > - Mantieni sempre `uv_scale` identico tra `texture` e `normal_map` per evitare disallineamento visibile tra colore e bump.
 > - Per una luce radente (quasi parallela alla superficie), l'effetto del normal mapping è massimo e le fughe/rilievi diventano molto evidenti. Per una luce frontale, l'effetto è più sottile.
 > - Il file `flat-normal.png` generato da NormalMapGen (solo `(128,128,255)`) è il test ideale: applicarlo non deve cambiare nulla nel render — verificabile visivamente.
@@ -1003,6 +1004,129 @@ Il parametro `seed` controlla la randomizzazione delle texture procedurali per o
 ```
 
 Se `seed` è omesso, viene generato un valore casuale ogni volta che la scena viene caricata — le venature cambiano tra render successivi.
+
+---
+
+### 6.10 CSG — Constructive Solid Geometry
+
+La CSG (Geometria Solida Costruttiva) permette di creare forme complesse combinando primitive con operazioni booleane. Un'entità `csg` è essa stessa un `IHittable` e può essere usata come figlio di altri nodi CSG, costruendo alberi booleani arbitrariamente complessi.
+
+#### Sintassi Base
+
+```yaml
+- name: "nome_oggetto"
+  type: "csg"
+  operation: "union"        # "union", "intersection" oppure "subtraction"
+  material: "mat_default"   # Materiale fallback per i figli senza materiale proprio
+  left:
+    type: "sphere"
+    center: [0, 1, 0]
+    radius: 1.0
+    material: "mat_a"       # Materiale per-figlio (opzionale)
+  right:
+    type: "sphere"
+    center: [0.8, 1, 0]
+    radius: 1.0
+    # Nessun material: usa il fallback "mat_default" del padre
+```
+
+#### Campi
+
+| Campo | Tipo | Obbligatorio | Descrizione |
+|-------|------|:---:|-------------|
+| `type` | stringa | ✓ | Deve essere `"csg"` |
+| `operation` | stringa | ✓ | `"union"`, `"intersection"`, `"subtraction"` (alias: `"subtract"`, `"difference"`) |
+| `left` | EntityData | ✓ | Operando sinistro (A). Qualsiasi primitiva o altro nodo `csg`. |
+| `right` | EntityData | ✓ | Operando destro (B). Qualsiasi primitiva o altro nodo `csg`. |
+| `material` | stringa | — | Materiale fallback per i figli senza `material` proprio. |
+
+#### Le Tre Operazioni
+
+**`union` — A ∪ B:** il volume combinato di entrambe le forme.
+
+**`intersection` — A ∩ B:** solo il volume in cui le due forme si sovrappongono.
+
+**`subtraction` — A \ B:** la forma A con il volume di B sottratto. Le normali della superficie B tagliante vengono invertite automaticamente.
+
+> **⚠️ La sottrazione non è commutativa.** `A \ B` e `B \ A` producono forme diverse. In `subtraction`, `left` è il solido che rimane, `right` è lo stampo che viene rimosso.
+
+#### Materiale per Figlio
+
+Ogni figlio può specificare il proprio `material`. Se non lo fa, eredita il `material` del nodo padre CSG:
+
+```yaml
+- name: "lente"
+  type: "csg"
+  operation: "intersection"
+  material: "vetro"          # Entrambi i figli erediteranno questo materiale
+  left:
+    type: "sphere"
+    center: [0, 1, 0]
+    radius: 1.2
+  right:
+    type: "sphere"
+    center: [0, 1, 0.7]
+    radius: 1.2
+```
+
+#### Trasformazioni sui Figli
+
+I figli supportano `translate`, `rotate`, `scale` esattamente come le entità normali:
+
+```yaml
+- name: "dado_con_foro"
+  type: "csg"
+  operation: "subtraction"
+  material: "metallo"
+  left:
+    type: "box"
+    scale: [2, 2, 2]
+    translate: [0, 1, 0]
+  right:
+    type: "cylinder"
+    center: [0, 0, 0]
+    radius: 0.5
+    height: 3.0
+```
+
+#### Alberi CSG Annidati
+
+Un figlio `csg` può essere a sua volta un nodo CSG, costruendo espressioni come `(A ∪ B) \ C`:
+
+```yaml
+- name: "forma_complessa"
+  type: "csg"
+  operation: "subtraction"
+  material: "bronzo"
+  left:
+    type: "csg"               # (A ∪ B)
+    operation: "union"
+    left:
+      type: "sphere"
+      center: [-0.5, 1, 0]
+      radius: 1.0
+    right:
+      type: "sphere"
+      center: [0.5, 1, 0]
+      radius: 1.0
+  right:
+    type: "box"               # \ C
+    scale: [3, 1, 3]
+    translate: [0, 0.5, 0]
+```
+
+#### Compatibilità
+
+| Feature | Supporto CSG |
+|---------|:---:|
+| Trasformazioni (translate, rotate, scale) | ✓ sul nodo CSG e sui figli |
+| Texture procedurali e image texture | ✓ (per materiale) |
+| Normal mapping | ✓ |
+| BVH | ✓ (AABB calcolato per operazione) |
+| Annidamento ricorsivo | ✓ |
+| Tipo `infinite_plane` come figlio | ✗ (non convesso) |
+
+> **💡 Per preset CSG pronti all'uso** (lenti, anelli, bulloni, colonne scavate ecc.) consulta la [Libreria CSG](04-libreria-csg.md).
 
 ---
 
@@ -1487,9 +1611,9 @@ lights:
     intensity: 0.5
 ```
 
-### Golden Hour Landscape (Gradient Sky + Sun Disk)
+### Scena con Gradient Sky + Sun Disk (Golden Hour)
 
-Scena outdoor con cielo procedurale e sole basso. Sfere metalliche riflettono il gradiente del cielo; la sfera di vetro lo rifrange. Il sun disk è visibile nei riflessi.
+Sfere metalliche riflettono il gradiente del cielo; la sfera di vetro lo rifrange. Il sun disk è visibile nei riflessi.
 
 ```yaml
 world:
@@ -1607,10 +1731,12 @@ lights: []
 9. **Image Texture:** I percorsi in `texture: { type: "image", path: "..." }` sono relativi alla directory del file YAML della scena. File non trovato → fallback magenta visibile con warning in console.
 10. **HDRI:** Il percorso in `sky: { type: "hdri", path: "..." }` è relativo alla directory del YAML. Usa `rotation` per ruotare l'ambiente e allineare il sole/finestra con la scena. Con HDRI, usa `lights: []` per luce solo dall'environment map, oppure aggiungi luci per ombre direzionali extra.
 11. **Normal Map:** Il `uv_scale` della normal map deve coincidere con quello della texture albedo per evitare disallineamenti. File non trovato → warning in console, superficie rimane liscia. La normale piatta di riferimento è RGB `(128, 128, 255)`: usare `flat-normal.png` generata da NormalMapGen per verificare che il sistema funzioni senza perturbazioni.
+12. **CSG:** Entrambi i figli (`left` e `right`) sono obbligatori. Il tipo `infinite_plane` non è supportato come figlio CSG. Per alberi annidati, il campo `name` sui nodi intermedi non è obbligatorio ma aiuta il debug in caso di warning in console.
 
 ### Performance
-12. **Campioni e area light:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128 -S 16`, ogni pixel lancia oltre 2000 raggi. Usa `-S 4` da CLI per il draft — non serve modificare il YAML!
-13. **Vetro e dielettrico:** I materiali dielettrici (vetro) sono i più costosi perché ogni rimbalzo può generare sia riflessione che rifrazione. Aumenta `--depth` per scene con molto vetro.
+13. **Campioni e area light:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128 -S 16`, ogni pixel lancia oltre 2000 raggi. Usa `-S 4` da CLI per il draft — non serve modificare il YAML!
+14. **Vetro e dielettrico:** I materiali dielettrici (vetro) sono i più costosi perché ogni rimbalzo può generare sia riflessione che rifrazione. Aumenta `--depth` per scene con molto vetro.
+15. **CSG:** Ogni nodo CSG lancia fino a 4 raggi interni per intersezione (due per figlio). Il costo rimane contenuto grazie al rigetto AABB anticipato. Per scene con molti oggetti CSG profondi, usa `-s` basso durante il design.
 
 ### Checklist prima del render finale
 
@@ -1629,3 +1755,5 @@ lights: []
 - [ ] Se usi `normal_map`, il `uv_scale` coincide con quello della texture albedo.
 - [ ] I file delle normal map esistono nel percorso indicato (file mancante → superficie liscia senza errore, ma visivamente sbagliato).
 - [ ] Le normal map OpenGL-style non richiedono `flip_y`; le DirectX-style richiedono `flip_y: true`.
+- [ ] Ogni nodo `csg` ha sia `left` che `right` definiti, e `operation` è uno dei valori validi (`union`, `intersection`, `subtraction`).
+- [ ] I figli CSG non usano `infinite_plane` come tipo.

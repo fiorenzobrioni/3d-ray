@@ -247,6 +247,12 @@ Per la sintassi YAML completa con `cameras:`, consulta la [sezione 3 del Tutoria
 - **Dielectric**: il più costoso — ogni rimbalzo può generare sia riflessione che rifrazione, raddoppiando i percorsi. Aumenta `-d` per scene con molto vetro.
 - **Disney BSDF**: più costoso di lambertian/metal ma più versatile. Con `spec_trans > 0` il costo è simile al dielectric. Per superfici di sfondo non protagoniste, `lambertian` o `metal` sono più veloci.
 
+### CSG e Performance
+
+Le entità CSG (Constructive Solid Geometry) richiedono fino a **4 test di intersezione** per raggio (due per ciascun figlio), anziché uno. Il costo è comunque contenuto grazie al rigetto anticipato tramite AABB: un nodo CSG semplice ha costo comparabile a 2–3 primitive separate. Suggerimenti pratici:
+- Per alberi CSG profondi (3+ livelli di annidamento), usa `-s 4 -S 4` durante la fase di composizione e aumenta solo per il render finale.
+- Il sistema BVH include i nodi CSG nella propria struttura usando l'AABB dell'operazione — la selezione dei candidati rimane O(log N).
+
 ### BVH (Bounding Volume Hierarchy)
 
 L'accelerazione BVH è automatica per scene con più di 4 oggetti e non richiede configurazione. I piani infiniti vengono esclusi dalla BVH e testati linearmente (non hanno AABB finita).
@@ -300,3 +306,10 @@ I materiali `emissive` illuminano la scena sia tramite rimbalzi indiretti del pa
 2. Usa `--list-cameras` per vedere le camere disponibili.
 3. Il match per nome è case-insensitive: `-c Top` e `-c top` funzionano entrambi.
 4. Se specifichi un indice fuori range, viene usata la camera 0 con un warning.
+
+### Un'entità CSG viene saltata / non appare nella scena
+Il motore stampa in console un warning esplicito con il nome dell'entità. Le cause più comuni sono:
+1. **`left` o `right` mancante**: entrambi i figli sono obbligatori.
+2. **`operation` mancante o errata**: i valori accettati sono `union`, `intersection`, `subtraction` (alias: `subtract`, `difference`). Un valore errato o assente skippa l'intera entità.
+3. **Geometria figlio non valida**: se il tipo del figlio non è supportato o ha parametri mancanti, l'intera entità CSG viene saltata.
+4. **Tipo `infinite_plane` come figlio CSG**: non supportato. Usa un box molto grande e piatto come sostituto.

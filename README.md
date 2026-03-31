@@ -38,6 +38,7 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - ▰ **Quad** — Quadrilatero (parallelogramma) con UV baricentrico
 - ⏺ **Disk** — Disco piatto con centro, normale e raggio
 - ▬ **Infinite Plane** — Piano infinito con UV planare tiled
+- 🔷 **CSG (Constructive Solid Geometry)** — Operazioni booleane su solidi: **Union** (A ∪ B), **Intersection** (A ∩ B) e **Subtraction** (A \ B). Gli alberi CSG sono annidabili ricorsivamente — un nodo CSG è esso stesso un `IHittable`, quindi espressioni come `(A ∪ B) \ C` si costruiscono naturalmente. Completamente compatibile con il sistema di trasformazioni (scale/rotate/translate), texture e normal mapping.
 
 ### Materiali
 - 🎨 **Lambertian** — Materiale opaco diffuso
@@ -94,7 +95,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 ## 🚀 Installazione e Compilazione
 
 ### Prerequisiti
-- **.NET 10 SDK** (o versione successiva) installato sul sistema.
+- [**.NET 10 SDK**](https://dotnet.microsoft.com/download/dotnet/10.0) installato sul sistema.
 
 ### Compilazione
 Clona il repository e compila il progetto:
@@ -131,7 +132,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │   │   ├── Acceleration/    # BVH
 │   │   ├── Camera/          # Camera con DOF
 │   │   ├── Core/            # Ray, HitRecord, MathUtils
-│   │   ├── Geometry/        # Primitive (Sphere, Box, Cylinder...)
+│   │   ├── Geometry/        # Primitive (Sphere, Box, Cylinder, CsgObject...)
 │   │   ├── Lights/          # Point, Directional, Spot, Area, GeometryLight, EnvironmentLight
 │   │   ├── Materials/       # Lambertian, Metal, Dielectric, Emissive, Disney BSDF
 │   │   ├── Rendering/       # Renderer, SkySettings, EnvironmentMap
@@ -192,6 +193,7 @@ Per approfondire l'utilizzo del motore e la creazione delle scene, consulta i se
 - [**Guida all'Uso**](./tutorials/01-tutorial-utilizzo.md) — Dettagli completi sui parametri CLI, profili di rendering, ottimizzazione e risoluzione problemi.
 - [**Creazione delle Scene**](./tutorials/02-tutorial-scene.md) — Guida completa alla sintassi YAML: geometrie, materiali, texture, luci, camera e trasformazioni.
 - [**Libreria di Preset e Asset**](./tutorials/03-libreria-preset.md) — Catalogo di ambienti, configurazioni camera, sistemi di illuminazione e materiali pronti all'uso.
+- [**Libreria CSG — Oggetti e Preset Booleani**](./tutorials/04-libreria-csg.md) — Catalogo di forme CSG pronte all'uso: lenti, anelli, colonne scavate, bulloni e alberi booleani complessi.
 
 ---
 
