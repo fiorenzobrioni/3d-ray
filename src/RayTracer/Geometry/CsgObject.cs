@@ -80,6 +80,8 @@ public class CsgObject : IHittable
         public float TExit;
         public HitRecord EnterHit;  // Surface data at the entry point
         public HitRecord ExitHit;   // Surface data at the exit point
+        public bool HasEnterSurface; // True if TEnter represents a physical surface
+        public bool HasExitSurface;  // True if TExit represents a physical surface
         public bool Valid;          // True if the interval was successfully computed
     }
 
@@ -139,38 +141,43 @@ public class CsgObject : IHittable
         // Advance slightly past the first hit to find the second intersection.
         const float stepEps = 1e-4f;
         var hit2 = new HitRecord();
-        bool hasSecondHit = child.Hit(ray, hit1.T + stepEps, tMax, ref hit2);
+        // Trace to Infinity to find the true geometric exit point, regardless of tMax
+        bool hasSecondHit = child.Hit(ray, hit1.T + stepEps, float.PositiveInfinity, ref hit2);
 
         if (hit1.FrontFace)
         {
             // Ray entered the solid at hit1 (front face = entering from outside)
             interval.TEnter = hit1.T;
             interval.EnterHit = hit1;
+            interval.HasEnterSurface = true;
 
             if (hasSecondHit)
             {
                 // Normal case: entry at hit1, exit at hit2
                 interval.TExit = hit2.T;
                 interval.ExitHit = hit2;
+                interval.HasExitSurface = true;
             }
             else
             {
-                // Only one intersection — solid extends beyond tMax, or numerical
-                // edge case (ray tangent to surface). Treat as half-open interval.
-                interval.TExit = tMax;
+                // Only one intersection found in all of space. This happens if the ray 
+                // just grazes the surface tangentially, or for infinitely thin primitives (e.g. Quad).
+                // We treat this as a zero-volume interval crossing at T = hit1.T
+                interval.TExit = hit1.T;
                 interval.ExitHit = hit1;
+                interval.HasExitSurface = true;
             }
             interval.Valid = true;
         }
         else
         {
             // Ray started INSIDE the solid — hit1 is a back face (exit point).
-            // The entry is behind the ray origin (t < tMin), so the effective
-            // interval starts at tMin.
-            interval.TEnter = tMin;
-            interval.EnterHit = hit1;
+            // Prevent fake surfaces by setting TEnter to -infinity with no physical surface flag.
+            interval.TEnter = float.NegativeInfinity;
+            interval.HasEnterSurface = false;
             interval.TExit = hit1.T;
             interval.ExitHit = hit1;
+            interval.HasExitSurface = true;
             interval.Valid = true;
         }
 
@@ -224,6 +231,8 @@ public class CsgObject : IHittable
             // (Dielectric and Disney BSDF use FrontFace for IOR direction).
             bestHit.Normal = -bestHit.Normal;
             bestHit.FrontFace = !bestHit.FrontFace;
+            // Negative normal inverts tangent space chirality. Negate Bitangent to keep TBN right-handed.
+            bestHit.Bitangent = -bestHit.Bitangent;
         }
 
         found = true;
@@ -252,17 +261,17 @@ public class CsgObject : IHittable
 
         if (a.Valid)
         {
-            if (!IsInsideSolid(a.TEnter, in b))
+            if (a.HasEnterSurface && !IsInsideSolid(a.TEnter, in b))
                 TryCandidate(a.TEnter, in a.EnterHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
-            if (!IsInsideSolid(a.TExit, in b))
+            if (a.HasExitSurface && !IsInsideSolid(a.TExit, in b))
                 TryCandidate(a.TExit, in a.ExitHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
         }
 
         if (b.Valid)
         {
-            if (!IsInsideSolid(b.TEnter, in a))
+            if (b.HasEnterSurface && !IsInsideSolid(b.TEnter, in a))
                 TryCandidate(b.TEnter, in b.EnterHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
-            if (!IsInsideSolid(b.TExit, in a))
+            if (b.HasExitSurface && !IsInsideSolid(b.TExit, in a))
                 TryCandidate(b.TExit, in b.ExitHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
         }
 
@@ -289,17 +298,17 @@ public class CsgObject : IHittable
 
         if (a.Valid)
         {
-            if (IsInsideSolid(a.TEnter, in b))
+            if (a.HasEnterSurface && IsInsideSolid(a.TEnter, in b))
                 TryCandidate(a.TEnter, in a.EnterHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
-            if (IsInsideSolid(a.TExit, in b))
+            if (a.HasExitSurface && IsInsideSolid(a.TExit, in b))
                 TryCandidate(a.TExit, in a.ExitHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
         }
 
         if (b.Valid)
         {
-            if (IsInsideSolid(b.TEnter, in a))
+            if (b.HasEnterSurface && IsInsideSolid(b.TEnter, in a))
                 TryCandidate(b.TEnter, in b.EnterHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
-            if (IsInsideSolid(b.TExit, in a))
+            if (b.HasExitSurface && IsInsideSolid(b.TExit, in a))
                 TryCandidate(b.TExit, in b.ExitHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
         }
 
@@ -334,18 +343,18 @@ public class CsgObject : IHittable
         // A's surfaces — visible where B is absent
         if (a.Valid)
         {
-            if (!IsInsideSolid(a.TEnter, in b))
+            if (a.HasEnterSurface && !IsInsideSolid(a.TEnter, in b))
                 TryCandidate(a.TEnter, in a.EnterHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
-            if (!IsInsideSolid(a.TExit, in b))
+            if (a.HasExitSurface && !IsInsideSolid(a.TExit, in b))
                 TryCandidate(a.TExit, in a.ExitHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
         }
 
         // B's surfaces — visible where they carve into A (normals flipped)
         if (b.Valid)
         {
-            if (IsInsideSolid(b.TEnter, in a))
+            if (b.HasEnterSurface && IsInsideSolid(b.TEnter, in a))
                 TryCandidate(b.TEnter, in b.EnterHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found, flipNormal: true);
-            if (IsInsideSolid(b.TExit, in a))
+            if (b.HasExitSurface && IsInsideSolid(b.TExit, in a))
                 TryCandidate(b.TExit, in b.ExitHit, ray, tMin, tMax, ref bestT, ref bestHit, ref found, flipNormal: true);
         }
 
@@ -375,13 +384,20 @@ public class CsgObject : IHittable
         {
             CsgOperation.Union => AABB.SurroundingBox(boxA, boxB),
 
-            CsgOperation.Intersection => new AABB(
-                Vector3.Max(boxA.Min, boxB.Min),
-                Vector3.Min(boxA.Max, boxB.Max)),
+            CsgOperation.Intersection => ComputeIntersectionBox(boxA, boxB),
 
             CsgOperation.Subtraction => boxA,
 
             _ => AABB.SurroundingBox(boxA, boxB)
         };
+    }
+
+    private static AABB ComputeIntersectionBox(AABB boxA, AABB boxB)
+    {
+        var min = Vector3.Max(boxA.Min, boxB.Min);
+        var max = Vector3.Min(boxA.Max, boxB.Max);
+        if (min.X > max.X || min.Y > max.Y || min.Z > max.Z)
+            return AABB.Empty;
+        return new AABB(min, max);
     }
 }

@@ -21,12 +21,6 @@ world:
     zenith_color:  [0.10, 0.30, 0.80]
     horizon_color: [0.65, 0.80, 1.00]
     ground_color:  [0.30, 0.25, 0.20]
-    sun:
-      direction: [-0.5, -0.8, -0.3]
-      color: [1.0, 0.95, 0.85]
-      intensity: 12.0
-      size: 2.5
-      falloff: 40.0
   ground:
     type: "infinite_plane"
     material: "pavimento"
@@ -35,7 +29,7 @@ world:
 cameras:
   # ── Vista principale — tutti e 4 gli oggetti visibili ──────────────────
   - name:       principale
-    position:   [0, 4.5, -10]
+    position:   [0, 6.5, -10]
     look_at:    [0, 1.8, 0]
     fov:        42
     aperture:   0.04
@@ -291,12 +285,12 @@ lights:
     intensity: 0.8
 
   # ── Area light da soffitto — ombre morbide ─────────────────────────────
-  - type: "area"
+  - type: "jarea"
     corner: [-6, 6, -3]
     u: [12, 0, 0]
     v: [0, 0, 6]
     color: [1.0, 0.98, 0.94]
-    intensity: 25.0
+    intensity: 2.5
     shadow_samples: 16
 
   # ── Fill light laterale fredda ─────────────────────────────────────────

@@ -22,10 +22,12 @@ public class Box : IHittable
 
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
-        float tNear = tMin;
-        float tFar = tMax;
-        int hitAxis = -1;
-        bool hitNeg = false;
+        float tNear = float.NegativeInfinity;
+        float tFar = float.PositiveInfinity;
+        int nearAxis = -1;
+        int farAxis = -1;
+        bool nearNeg = false;
+        bool farNeg = false;
 
         // Slab method intersection
         for (int a = 0; a < 3; a++)
@@ -35,25 +37,53 @@ public class Box : IHittable
             float bmin = a switch { 0 => Min.X, 1 => Min.Y, _ => Min.Z };
             float bmax = a switch { 0 => Max.X, 1 => Max.Y, _ => Max.Z };
 
-            float invD = 1f / dir;
-            float t0 = (bmin - origin) * invD;
-            float t1 = (bmax - origin) * invD;
-
-            bool swapped = false;
-            if (invD < 0f)
+            if (MathF.Abs(dir) < 1e-8f)
             {
-                (t0, t1) = (t1, t0);
-                swapped = true;
+                if (origin < bmin || origin > bmax) return false;
             }
+            else
+            {
+                float invD = 1f / dir;
+                float t0 = (bmin - origin) * invD;
+                float t1 = (bmax - origin) * invD;
 
-            if (t0 > tNear) { tNear = t0; hitAxis = a; hitNeg = !swapped; }
-            if (t1 < tFar) tFar = t1;
+                bool swapped = false;
+                if (invD < 0f)
+                {
+                    (t0, t1) = (t1, t0);
+                    swapped = true;
+                }
 
-            if (tFar <= tNear) return false;
+                if (t0 > tNear) { tNear = t0; nearAxis = a; nearNeg = !swapped; }
+                if (t1 < tFar) { tFar = t1; farAxis = a; farNeg = swapped; }
+
+                if (tFar <= tNear) return false;
+            }
         }
 
-        rec.T = tNear;
-        rec.Point = ray.At(tNear);
+        float tResult;
+        int hitAxis;
+        bool hitNeg;
+
+        if (tNear >= tMin && tNear <= tMax)
+        {
+            tResult = tNear;
+            hitAxis = nearAxis;
+            hitNeg = nearNeg;
+        }
+        else if (tFar >= tMin && tFar <= tMax)
+        {
+            tResult = tFar;
+            hitAxis = farAxis;
+            hitNeg = farNeg;
+        }
+        else
+        {
+            return false;
+        }
+
+        rec.T = tResult;
+        rec.Point = ray.At(tResult);
         rec.LocalPoint = rec.Point;
 
         // Compute outward normal based on which axis slab was hit
