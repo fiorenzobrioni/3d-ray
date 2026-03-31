@@ -342,6 +342,27 @@ public class EntityData
     [YamlMember(Alias = "point")]
     public List<float>? Point { get; set; }
 
+    // CSG (Constructive Solid Geometry)
+ 
+    /// <summary>
+    /// Boolean operation for CSG entities: "union", "intersection", "subtraction".
+    /// Only used when type is "csg".
+    /// </summary>
+    [YamlMember(Alias = "operation")]
+    public string? Operation { get; set; }
+ 
+    /// <summary>
+    /// Left operand (A) for CSG. Defined inline as a nested entity.
+    /// </summary>
+    [YamlMember(Alias = "left")]
+    public EntityData? Left { get; set; }
+ 
+    /// <summary>
+    /// Right operand (B) for CSG. Defined inline as a nested entity.
+    /// </summary>
+    [YamlMember(Alias = "right")]
+    public EntityData? Right { get; set; }
+
     // Transformations
     [YamlMember(Alias = "translate")]
     public List<float>? Translate { get; set; }

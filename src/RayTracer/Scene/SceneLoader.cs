@@ -132,9 +132,20 @@ public class SceneLoader
         {
             for (int idx = 0; idx < data.Entities.Count; idx++)
             {
-                var e        = data.Entities[idx];
-                var mat      = GetMaterial(materials, e.Material);
-                var hittable = CreateEntity(e, mat, idx);
+                var e   = data.Entities[idx];
+                var mat = GetMaterial(materials, e.Material);
+
+                IHittable? hittable;
+                if (string.Equals(e.Type, "csg", StringComparison.OrdinalIgnoreCase))
+                {
+                    // CSG needs the materials dictionary for per-child material resolution
+                    hittable = CreateCsgEntity(e, mat, materials, idx);
+                }
+                else
+                {
+                    hittable = CreateEntity(e, mat, idx);
+                }
+
                 if (hittable != null)
                 {
                     var transform = ComputeTransformMatrix(e);
@@ -687,6 +698,7 @@ public class SceneLoader
             "disk"     => new Disk(ToVector3(e.Center) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, e.Radius, mat),
             "plane" or "infinite_plane"
                        => new InfinitePlane(ToVector3(e.Point) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, mat),
+            "csg"      => null, // Handled separately in Load() — needs materials dictionary for per-child resolution
             _          => null
         };
 
@@ -727,6 +739,111 @@ public class SceneLoader
         return new Transform(new Box(mat), matrix);
     }
 
+    /// <summary>
+    /// Creates a CSG (Constructive Solid Geometry) entity from nested left/right
+    /// children and a Boolean operation.
+    ///
+    /// CSG entities are defined in YAML with inline children:
+    /// <code>
+    ///   - name: "lens"
+    ///     type: "csg"
+    ///     operation: "intersection"
+    ///     left:
+    ///       type: "sphere"
+    ///       center: [0, 1, 0]
+    ///       radius: 1.0
+    ///       material: "glass"         # Per-child material (optional)
+    ///     right:
+    ///       type: "sphere"
+    ///       center: [0, 1, 0.8]
+    ///       radius: 1.0
+    ///     material: "matte_white"     # Fallback for children without own material
+    /// </code>
+    ///
+    /// Each child can be any entity type, including another "csg" for complex
+    /// Boolean trees like (A ∪ B) \ C. Children inherit the parent's material
+    /// unless they specify their own via material ID.
+    /// </summary>
+    private static IHittable? CreateCsgEntity(EntityData e, IMaterial parentMat,
+        Dictionary<string, IMaterial> materials, int entityIndex)
+    {
+        if (e.Left == null || e.Right == null)
+        {
+            Warn($"CSG entity '{e.Name ?? "(unnamed)"}' requires both 'left' and 'right' children. Skipping.");
+            return null;
+        }
+ 
+        if (string.IsNullOrWhiteSpace(e.Operation))
+        {
+            Warn($"CSG entity '{e.Name ?? "(unnamed)"}' requires an 'operation' " +
+                 "(union, intersection, subtraction). Skipping.");
+            return null;
+        }
+ 
+        var operation = e.Operation.ToLowerInvariant() switch
+        {
+            "union"                                      => CsgOperation.Union,
+            "intersection"                               => CsgOperation.Intersection,
+            "subtraction" or "subtract" or "difference"  => CsgOperation.Subtraction,
+            _ => (CsgOperation?)null
+        };
+ 
+        if (operation == null)
+        {
+            Warn($"CSG entity '{e.Name ?? "(unnamed)"}': unknown operation '{e.Operation}'. " +
+                 "Valid values: union, intersection, subtraction. Skipping.");
+            return null;
+        }
+ 
+        // Build children recursively. Each child resolves its own material or
+        // falls back to the parent CSG entity's material.
+        var leftHittable  = BuildCsgChild(e.Left,  parentMat, materials, entityIndex * 1000 + 1);
+        var rightHittable = BuildCsgChild(e.Right, parentMat, materials, entityIndex * 1000 + 2);
+ 
+        if (leftHittable == null || rightHittable == null)
+        {
+            Warn($"CSG entity '{e.Name ?? "(unnamed)"}': failed to create one or both children. Skipping.");
+            return null;
+        }
+ 
+        return new CsgObject(operation.Value, leftHittable, rightHittable);
+    }
+ 
+    /// <summary>
+    /// Builds a single CSG child entity, resolving its material (own ID or parent
+    /// fallback) and applying any local transforms. Supports recursive nesting —
+    /// a child of type "csg" triggers another CreateCsgEntity() call.
+    /// </summary>
+    private static IHittable? BuildCsgChild(EntityData child, IMaterial fallbackMat,
+        Dictionary<string, IMaterial> materials, int childIndex)
+    {
+        // Per-child material: if the child specifies a material ID, resolve it
+        // from the scene's materials dictionary. Otherwise, inherit from parent.
+        var mat = child.Material != null
+            ? GetMaterial(materials, child.Material)
+            : fallbackMat;
+ 
+        IHittable? hittable;
+        if (string.Equals(child.Type, "csg", StringComparison.OrdinalIgnoreCase))
+        {
+            // Recursive CSG — child is itself a Boolean operation
+            hittable = CreateCsgEntity(child, mat, materials, childIndex);
+        }
+        else
+        {
+            hittable = CreateEntity(child, mat, childIndex);
+        }
+ 
+        if (hittable == null) return null;
+ 
+        // Apply child-level transforms (scale, rotate, translate)
+        var transform = ComputeTransformMatrix(child);
+        if (transform != Matrix4x4.Identity)
+            hittable = new Transform(hittable, transform);
+ 
+        return hittable;
+    }
+ 
     private static ILight? CreateLight(LightData l, int? shadowSamplesOverride)
     {
         var color = ToVector3(l.Color) ?? Vector3.One;

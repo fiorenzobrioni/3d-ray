@@ -43,14 +43,13 @@ jobs:
       fail-fast: false
       matrix:
         scene:
-          - sphere-showcase
-          - cornell-box
-          - chess
-          - classic-showcase
-          - gradient-sky-showcase
-          - sample
-          - classic-vs-disney
-          - emissive-showcase
+          - csg-showcase
+#          - sphere-showcase
+#          - cornell-box
+#          - chess
+#          - classic-showcase
+#          - gradient-sky-showcase
+#          - sample
 
     steps:
       - name: Checkout repository

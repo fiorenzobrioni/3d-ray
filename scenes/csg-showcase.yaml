@@ -1,0 +1,306 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  CSG Showcase — Constructive Solid Geometry (Boolean Operations)
+#
+#  Dimostra le tre operazioni booleane CSG:
+#    1. SUBTRACTION — Cubo con foro cilindrico passante (dado forato)
+#    2. INTERSECTION — Lente biconvessa (intersezione di due sfere)
+#    3. UNION — Forma organica (unione di sfere sovrapposte)
+#    4. NESTED CSG — Cubo con tre fori cilindrici ortogonali (sottrazione tripla)
+#
+#  Ogni oggetto CSG è posizionato su un piedistallo per chiara visibilità.
+#
+#  Render consigliato:
+#    Draft:  -w 800  -H 450  -s 16  -d 20
+#    Finale: -w 1920 -H 1080 -s 128 -d 40
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  ambient_light: [0.06, 0.06, 0.08]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.10, 0.30, 0.80]
+    horizon_color: [0.65, 0.80, 1.00]
+    ground_color:  [0.30, 0.25, 0.20]
+    sun:
+      direction: [-0.5, -0.8, -0.3]
+      color: [1.0, 0.95, 0.85]
+      intensity: 12.0
+      size: 2.5
+      falloff: 40.0
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+
+cameras:
+  # ── Vista principale — tutti e 4 gli oggetti visibili ──────────────────
+  - name:       principale
+    position:   [0, 4.5, -10]
+    look_at:    [0, 1.8, 0]
+    fov:        42
+    aperture:   0.04
+    focal_dist: 11.0
+
+  # ── Close-up sul dado forato (subtraction) ─────────────────────────────
+  - name:       closeup_dado
+    position:   [-4.5, 3.0, -5.0]
+    look_at:    [-4.5, 2.0, 0]
+    fov:        30
+    aperture:   0.06
+    focal_dist: 5.5
+
+  # ── Close-up sulla lente (intersection) ────────────────────────────────
+  - name:       closeup_lente
+    position:   [-1.5, 3.0, -5.0]
+    look_at:    [-1.5, 2.2, 0]
+    fov:        30
+    aperture:   0.06
+    focal_dist: 5.5
+
+  # ── Close-up sulle sfere unite (union) ─────────────────────────────────
+  - name:       closeup_union
+    position:   [1.5, 3.0, -5.0]
+    look_at:    [1.5, 2.0, 0]
+    fov:        30
+    aperture:   0.06
+    focal_dist: 5.5
+
+  # ── Close-up sul cubo traforato (nested CSG) ──────────────────────────
+  - name:       closeup_nested
+    position:   [4.5, 3.5, -5.0]
+    look_at:    [4.5, 2.0, 0]
+    fov:        30
+    aperture:   0.06
+    focal_dist: 5.5
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Pavimento ──────────────────────────────────────────────────────────
+  - id: "pavimento"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 2.0
+      colors: [[0.15, 0.13, 0.12], [0.20, 0.18, 0.16]]
+
+  # ── Piedistalli ────────────────────────────────────────────────────────
+  - id: "piedistallo"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 8.0
+      noise_strength: 4.0
+      colors: [[0.85, 0.85, 0.85], [0.65, 0.65, 0.65]]
+
+  # ── Etichetta (testo sul piedistallo) ──────────────────────────────────
+  - id: "etichetta"
+    type: "lambertian"
+    color: [0.10, 0.10, 0.12]
+
+  # ── 1. SUBTRACTION: rosso opaco per il cubo ───────────────────────────
+  - id: "rosso_cubo"
+    type: "lambertian"
+    color: [0.75, 0.12, 0.10]
+
+  # ── 2. INTERSECTION: vetro per la lente ────────────────────────────────
+  - id: "vetro_lente"
+    type: "dielectric"
+    refraction_index: 1.52
+
+  # ── 3. UNION: metallo dorato per la forma organica ────────────────────
+  - id: "oro_lucido"
+    type: "metal"
+    color: [0.85, 0.65, 0.15]
+    fuzz: 0.05
+
+  # ── 4. NESTED: PBR ceramica blu ────────────────────────────────────────
+  - id: "ceramica_blu"
+    type: "disney"
+    color: [0.15, 0.25, 0.70]
+    roughness: 0.15
+    specular: 0.8
+    clearcoat: 0.6
+    clearcoat_gloss: 0.9
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  PIEDISTALLI (4 basi in marmo)
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "piedistallo_1"
+    type: "box"
+    scale: [2.2, 0.6, 2.2]
+    translate: [-4.5, 0.3, 0]
+    material: "piedistallo"
+
+  - name: "piedistallo_2"
+    type: "box"
+    scale: [2.2, 0.6, 2.2]
+    translate: [-1.5, 0.3, 0]
+    material: "piedistallo"
+
+  - name: "piedistallo_3"
+    type: "box"
+    scale: [2.2, 0.6, 2.2]
+    translate: [1.5, 0.3, 0]
+    material: "piedistallo"
+
+  - name: "piedistallo_4"
+    type: "box"
+    scale: [2.2, 0.6, 2.2]
+    translate: [4.5, 0.3, 0]
+    material: "piedistallo"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  1. SUBTRACTION — Cubo con foro cilindrico passante
+  #
+  #     Un cubo rosso da cui viene sottratto un cilindro verticale,
+  #     creando un foro passante. Dimostra come la CSG sottrae volume
+  #     e come le normali di B vengono flippate correttamente per
+  #     illuminare l'interno del foro.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "dado_forato"
+    type: "csg"
+    operation: "subtraction"
+    left:
+      type: "box"
+      scale: [1.6, 1.6, 1.6]
+    right:
+      type: "cylinder"
+      center: [0, -0.9, 0]
+      radius: 0.45
+      height: 1.8
+    translate: [-4.5, 1.6, 0]
+    rotate: [15, 25, 0]
+    material: "rosso_cubo"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  2. INTERSECTION — Lente biconvessa
+  #
+  #     L'intersezione di due sfere sovrapposte produce una lente
+  #     biconvessa. Con il materiale dielectric (vetro), la lente
+  #     rifrange la luce in modo fisicamente corretto, visibile
+  #     come distorsione dell'ambiente dietro la lente.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "lente_biconvessa"
+    type: "csg"
+    operation: "intersection"
+    left:
+      type: "sphere"
+      center: [0, 0, -0.35]
+      radius: 1.0
+    right:
+      type: "sphere"
+      center: [0, 0, 0.35]
+      radius: 1.0
+    translate: [-1.5, 1.7, 0]
+    rotate: [0, 20, 10]
+    material: "vetro_lente"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  3. UNION — Forma organica (metaballs-style)
+  #
+  #     L'unione di tre sfere sovrapposte crea una forma organica
+  #     simile a una molecola o a un pupazzo di neve. Con metallo
+  #     dorato, i riflessi sui raccordi tra le sfere sono molto
+  #     interessanti visivamente.
+  #
+  #     Implementato come CSG nidificato: (S1 ∪ S2) ∪ S3
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "forma_organica"
+    type: "csg"
+    operation: "union"
+    left:
+      type: "csg"
+      operation: "union"
+      left:
+        type: "sphere"
+        center: [0, 0, 0]
+        radius: 0.7
+      right:
+        type: "sphere"
+        center: [0.55, 0.55, 0]
+        radius: 0.55
+    right:
+      type: "sphere"
+      center: [-0.45, 0.7, 0.35]
+      radius: 0.45
+    translate: [1.5, 1.3, 0]
+    material: "oro_lucido"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  4. NESTED CSG — Cubo con 3 fori cilindrici ortogonali
+  #
+  #     Tripla sottrazione: un cubo meno tre cilindri disposti lungo
+  #     gli assi X, Y e Z. Ogni foro passante attraversa il cubo da
+  #     parte a parte, creando una struttura complessa che dimostra
+  #     la composizione ricorsiva della CSG.
+  #
+  #     Albero: ((Cubo \ CilX) \ CilY) \ CilZ
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "cubo_traforato"
+    type: "csg"
+    operation: "subtraction"
+    left:
+      type: "csg"
+      operation: "subtraction"
+      left:
+        type: "csg"
+        operation: "subtraction"
+        left:
+          type: "box"
+          scale: [1.8, 1.8, 1.8]
+        right:
+          # Foro lungo l'asse Y (verticale)
+          type: "cylinder"
+          center: [0, -1.0, 0]
+          radius: 0.45
+          height: 2.0
+      right:
+        # Foro lungo l'asse X (orizzontale) — cilindro ruotato 90° su Z
+        type: "cylinder"
+        center: [0, -1.0, 0]
+        radius: 0.45
+        height: 2.0
+        rotate: [0, 0, 90]
+    right:
+      # Foro lungo l'asse Z (profondità) — cilindro ruotato 90° su X
+      type: "cylinder"
+      center: [0, -1.0, 0]
+      radius: 0.45
+      height: 2.0
+      rotate: [90, 0, 0]
+    translate: [4.5, 1.6, 0]
+    rotate: [20, -30, 0]
+    material: "ceramica_blu"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════
+lights:
+  # ── Luce principale direzionale (sole) ─────────────────────────────────
+  - type: "directional"
+    direction: [-0.5, -0.8, -0.3]
+    color: [1.0, 0.95, 0.85]
+    intensity: 0.8
+
+  # ── Area light da soffitto — ombre morbide ─────────────────────────────
+  - type: "area"
+    corner: [-6, 6, -3]
+    u: [12, 0, 0]
+    v: [0, 0, 6]
+    color: [1.0, 0.98, 0.94]
+    intensity: 25.0
+    shadow_samples: 16
+
+  # ── Fill light laterale fredda ─────────────────────────────────────────
+  - type: "point"
+    position: [-8, 4, -6]
+    color: [0.7, 0.75, 1.0]
+    intensity: 40
