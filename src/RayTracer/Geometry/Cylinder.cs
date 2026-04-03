@@ -5,9 +5,13 @@ using RayTracer.Materials;
 namespace RayTracer.Geometry;
 
 /// <summary>
-/// Finite cylinder aligned to the Y axis, with optional disk caps.
+/// Finite cylinder aligned to the Y axis, with disk caps.
+///
+/// Implements ISamplable for use as an emissive area light with NEE.
+/// Samples are distributed across the lateral surface and both caps,
+/// weighted by their respective areas.
 /// </summary>
-public class Cylinder : IHittable
+public class Cylinder : IHittable, ISamplable
 {
     public Vector3 Center { get; }
     public float Radius { get; }
@@ -131,6 +135,69 @@ public class Cylinder : IHittable
         }
 
         return hitAnything;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // ISamplable — NEE support for emissive cylinders
+    //
+    // Total surface area = lateral + 2 × cap
+    //   lateral = 2πR × H
+    //   cap     = πR²
+    // Sampling is area-weighted: a random number selects the part, then
+    // a uniform point is sampled on that part.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    {
+        float lateralArea = 2f * MathF.PI * Radius * Height;
+        float capArea = MathF.PI * Radius * Radius;
+        float totalArea = lateralArea + 2f * capArea;
+
+        float r = MathUtils.RandomFloat() * totalArea;
+
+        if (r < lateralArea)
+        {
+            // Sample on the lateral surface: uniform θ, uniform height
+            float theta = MathUtils.RandomFloat() * 2f * MathF.PI;
+            float h = MathUtils.RandomFloat() * Height;
+            float cosT = MathF.Cos(theta);
+            float sinT = MathF.Sin(theta);
+
+            Vector3 point = new(
+                Center.X + Radius * cosT,
+                _yMin + h,
+                Center.Z + Radius * sinT);
+            Vector3 normal = new(cosT, 0, sinT);
+
+            return (point, normal, totalArea);
+        }
+        else if (r < lateralArea + capArea)
+        {
+            // Sample on bottom cap
+            return SampleCap(Center, -Vector3.UnitY, totalArea);
+        }
+        else
+        {
+            // Sample on top cap
+            Vector3 topCenter = new(Center.X, _yMax, Center.Z);
+            return SampleCap(topCenter, Vector3.UnitY, totalArea);
+        }
+    }
+
+    private (Vector3 Point, Vector3 Normal, float Area) SampleCap(
+        Vector3 center, Vector3 normal, float totalArea)
+    {
+        float r1 = MathUtils.RandomFloat();
+        float r2 = MathUtils.RandomFloat();
+        float r = MathF.Sqrt(r1) * Radius;
+        float theta = r2 * 2f * MathF.PI;
+
+        Vector3 point = new(
+            center.X + r * MathF.Cos(theta),
+            center.Y,
+            center.Z + r * MathF.Sin(theta));
+
+        return (point, normal, totalArea);
     }
 
     public int Seed { get; set; }

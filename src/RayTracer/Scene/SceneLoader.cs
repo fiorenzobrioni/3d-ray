@@ -385,6 +385,9 @@ public class SceneLoader
             case Quad      q  when q.Material  is Emissive em: return (q,  em);
             case Triangle  tr when tr.Material is Emissive em: return (tr, em);
             case Disk      d  when d.Material  is Emissive em: return (d,  em);
+            case Box       b  when b.Material  is Emissive em: return (b,  em);
+            case Cylinder  cy when cy.Material is Emissive em: return (cy, em);
+            case Cone      co when co.Material is Emissive em: return (co, em);
 
             // ── Transform wrapper ──────────────────────────────────────────
             // Transform implements ISamplable: it delegates Sample() to the
@@ -695,6 +698,8 @@ public class SceneLoader
                 ToVector3(e.U) ?? Vector3.UnitX,
                 ToVector3(e.V) ?? Vector3.UnitY, mat),
             "cylinder" => new Cylinder(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.Height, mat),
+            "cone" or "truncated_cone" or "frustum"
+                       => new Cone(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.TopRadius, e.Height, mat),
             "disk"     => new Disk(ToVector3(e.Center) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, e.Radius, mat),
             "plane" or "infinite_plane"
                        => new InfinitePlane(ToVector3(e.Point) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, mat),

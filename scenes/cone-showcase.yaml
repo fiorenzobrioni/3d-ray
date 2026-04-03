@@ -1,0 +1,157 @@
+# ============================================================================
+# Scene: Cone Showcase + ISamplable Test
+# Tests: Cone (pointed, frustum, inverted), Box emissive, Cylinder emissive
+# ============================================================================
+
+camera:
+  position: [0, 6, -12]
+  look_at: [0, 2, 0]
+  fov: 45
+  aperture: 0.0
+
+world:
+  ambient_light: [0.04, 0.04, 0.04]
+  sky:
+    type: "gradient"
+    zenith_color: [0.05, 0.05, 0.15]
+    horizon_color: [0.1, 0.1, 0.2]
+    ground_color: [0.05, 0.05, 0.05]
+  ground:
+    type: "plane"
+    material: "pavimento"
+    y: 0
+
+materials:
+  # ── Pavimento ──────────────────────────────────────────────────────────────
+  - id: "pavimento"
+    type: "disney"
+    roughness: 0.8
+    texture:
+      type: "checker"
+      colors: [[0.15, 0.15, 0.15], [0.25, 0.25, 0.25]]
+      scale: 1.0
+
+  # ── Materiali per i coni ───────────────────────────────────────────────────
+  - id: "rosso_lucido"
+    type: "disney"
+    color: [0.8, 0.1, 0.1]
+    roughness: 0.15
+    metallic: 0.0
+
+  - id: "oro"
+    type: "disney"
+    color: [1.0, 0.84, 0.0]
+    roughness: 0.2
+    metallic: 1.0
+
+  - id: "vetro_cono"
+    type: "dielectric"
+    refraction_index: 1.5
+
+  - id: "acciaio_satinato"
+    type: "disney"
+    color: [0.8, 0.8, 0.82]
+    roughness: 0.35
+    metallic: 1.0
+
+  - id: "arancione"
+    type: "disney"
+    color: [1.0, 0.4, 0.0]
+    roughness: 0.6
+
+  # ── Lights ───────────────────────────────────────────
+
+lights:
+  - type: "point"
+    position: [5, 10, -5]
+    color: [1, 1, 1]
+    intensity: 280
+
+entities:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CONI — varie configurazioni
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # 1. Cono appuntito classico
+  - name: "cono_appuntito"
+    type: "cone"
+    center: [-4.6, 0, 0]
+    radius: 1.0
+    height: 3.0
+    material: "rosso_lucido"
+
+  # 2. Tronco di cono / frustum (secchio)
+  - name: "frustum"
+    type: "cone"
+    center: [-1.5, 0, 0]
+    radius: 1.2
+    top_radius: 0.6
+    height: 2.5
+    material: "oro"
+
+  # 3. Cono di vetro trasparente
+  - name: "cono_vetro"
+    type: "cone"
+    center: [1.5, 0, 0]
+    radius: 0.8
+    top_radius: 0.2
+    height: 3.0
+    material: "vetro_cono"
+
+  # 4. Cono invertito (più largo in alto)
+  - name: "cono_invertito"
+    type: "cone"
+    center: [4, 0, 0]
+    radius: 0.4
+    top_radius: 1.2
+    height: 2.5
+    material: "acciaio_satinato"
+
+  # 5. Cono ruotato (inclinato a 45°)
+  - name: "cono_inclinato"
+    type: "cone"
+    center: [0, 0, 4]
+    radius: 0.6
+    height: 2.0
+    material: "arancione"
+    rotate: [0, 0, -45]
+    translate: [0, 1.5, 4]
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CSG con coni
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # 6. Cono con foro cilindrico (imbuto)
+  - name: "imbuto"
+    type: "csg"
+    operation: "subtraction"
+    material: "acciaio_satinato"
+    translate: [-4, 2.8, 4]
+    rotate: [30, 0, 120]
+    left:
+      type: "cone"
+      center: [0, 0, 0]
+      radius: 1.5
+      top_radius: 0.4
+      height: 2.0
+    right:
+      type: "cylinder"
+      center: [0, -0.1, 0]
+      radius: 0.55
+      height: 2.5
+
+  # 7. Cono intersecato con box (piramide a base quadrata approssimata)
+  - name: "piramide_approssimata"
+    type: "csg"
+    operation: "intersection"
+    material: "oro"
+    translate: [4.4, 0, 6]
+    left:
+      type: "cone"
+      center: [0, 0, 0]
+      radius: 1.5
+      height: 2.5
+    right:
+      type: "box"
+      scale: [2.2, 3.0, 2.2]
+      translate: [0, 1.5, 0]

@@ -68,7 +68,7 @@ Materiale trasparente con rifrazione e riflesso Fresnel.
 > Il materiale Dielectric supporta `normal_map` per simulare vetro satinato o brocche intagliate.
 
 ## 4.4 Emissive (Luminoso)
-Materiale auto-luminoso: l'oggetto emette luce propria e brilla nella scena senza bisogno di illuminazione esterna. La luce emessa si propaga tramite i rimbalzi del path tracer. Le geometrie campionabili (Sphere, Quad, Triangle, Disk) con materiale emissivo partecipano automaticamente alla NEE come Geometry Lights, riducendo significativamente il rumore rispetto al path tracing puro. Le geometrie non campionabili (Box, Cylinder) illuminano solo tramite rimbalzi indiretti.
+Materiale auto-luminoso: l'oggetto emette luce propria e brilla nella scena senza bisogno di illuminazione esterna. La luce emessa si propaga tramite i rimbalzi del path tracer. Tutte le primitive geometriche supportano `ISamplable` e partecipano alla NEE come Geometry Lights quando usate con materiale emissivo, riducendo significativamente il rumore rispetto al path tracing puro.
 
 Usi tipici: neon, LED, insegne, lava, fiamme, sfere magiche, pannelli luminosi, indicatori.
 

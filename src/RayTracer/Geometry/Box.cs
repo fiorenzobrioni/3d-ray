@@ -7,8 +7,13 @@ namespace RayTracer.Geometry;
 /// <summary>
 /// A unit cube centered at the origin (from -0.5 to 0.5 on all axes).
 /// Use the Transform wrapper to scale, rotate and move it.
+///
+/// Implements ISamplable for use as an emissive area light with NEE.
+/// Samples uniformly across all 6 faces (each face has equal area on
+/// the unit cube; non-uniform scaling is handled by the Transform wrapper's
+/// Jacobian-based area correction).
 /// </summary>
-public class Box : IHittable
+public class Box : IHittable, ISamplable
 {
     private static readonly Vector3 Min = new(-0.5f);
     private static readonly Vector3 Max = new(0.5f);
@@ -163,6 +168,48 @@ public class Box : IHittable
         rec.ObjectSeed = Seed;
         rec.Material = Material;
         return true;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // ISamplable — NEE support for emissive boxes
+    //
+    // The unit cube has 6 faces, each of area 1×1 = 1, for a total of 6.
+    // We pick a face uniformly at random, then sample a uniform point on it.
+    // The Transform wrapper handles non-uniform scaling via the Jacobian.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    {
+        // Total surface area of the unit cube: 6 faces × 1 = 6
+        const float totalArea = 6f;
+
+        int face = (int)(MathUtils.RandomFloat() * 6f);
+        if (face > 5) face = 5; // Guard against RandomFloat() returning exactly 1.0
+
+        float u = MathUtils.RandomFloat() - 0.5f; // [-0.5, 0.5]
+        float v = MathUtils.RandomFloat() - 0.5f;
+
+        Vector3 point = face switch
+        {
+            0 => new Vector3( 0.5f, u, v),     // +X
+            1 => new Vector3(-0.5f, u, v),     // −X
+            2 => new Vector3(u,  0.5f, v),     // +Y
+            3 => new Vector3(u, -0.5f, v),     // −Y
+            4 => new Vector3(u, v,  0.5f),     // +Z
+            _ => new Vector3(u, v, -0.5f),     // −Z
+        };
+
+        Vector3 normal = face switch
+        {
+            0 =>  Vector3.UnitX,
+            1 => -Vector3.UnitX,
+            2 =>  Vector3.UnitY,
+            3 => -Vector3.UnitY,
+            4 =>  Vector3.UnitZ,
+            _ => -Vector3.UnitZ,
+        };
+
+        return (point, normal, totalArea);
     }
 
     public int Seed { get; set; }

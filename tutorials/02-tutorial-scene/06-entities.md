@@ -69,7 +69,58 @@ Cilindro finito allineato all'asse Y, con dischi di chiusura (caps) in alto e in
 | `radius` | float | Raggio del cilindro |
 | `height` | float | Altezza (estensione verso +Y dal center) |
 
-## 6.4 Triangle (Triangolo)
+## 6.4 Cone (Cono / Tronco di Cono)
+
+Cono finito allineato all'asse Y. Può essere un cono appuntito (`top_radius: 0`, default) o un tronco di cono / frustum (`top_radius > 0`). Include dischi di chiusura (caps): sempre alla base, e anche in cima se è un tronco di cono.
+
+### Cono appuntito
+```yaml
+  - name: "cono"
+    type: "cone"
+    center: [0, 0, 0]        # Centro della base inferiore
+    radius: 1.0               # Raggio della base
+    height: 2.0               # Altezza (estensione verso +Y)
+    material: "metallo"
+```
+
+### Tronco di cono (frustum)
+```yaml
+  - name: "secchio"
+    type: "cone"
+    center: [0, 0, 0]
+    radius: 1.5               # Raggio base (più largo)
+    top_radius: 1.0           # Raggio sommità (più stretto)
+    height: 2.0
+    material: "plastica"
+```
+
+### Cono invertito (più stretto alla base)
+```yaml
+  - name: "imbuto"
+    type: "cone"
+    center: [0, 0, 0]
+    radius: 0.5               # Raggio base (più stretto)
+    top_radius: 2.0           # Raggio sommità (più largo)
+    height: 1.5
+    material: "acciaio"
+```
+
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `center` | `[X, Y, Z]` | `[0, 0, 0]` | Centro della **base inferiore** del cono |
+| `radius` | float | `1.0` | Raggio alla base |
+| `top_radius` | float | `0.0` | Raggio alla sommità. `0` = cono appuntito, `> 0` = tronco di cono |
+| `height` | float | `1.0` | Altezza (estensione verso +Y dal center) |
+
+> **Alias tipo:** Oltre a `"cone"`, sono accettati anche `"truncated_cone"` e `"frustum"`.
+
+> **Trasformazioni:** Come tutte le entità, il cono supporta `translate`, `rotate` e `scale`. Per inclinare un cono, usa `rotate`. Per un cono capovolto con la punta in basso, ruota di 180° su X: `rotate: [180, 0, 0]`.
+
+> **CSG:** Il cono è un solido convesso e funziona perfettamente come operando CSG. Utile per creare punte, imbuti, raccordi conici, tetti, e forme industriali.
+
+> **Area light:** Il cono implementa `ISamplable` e può essere usato come area light emissiva con NEE. Il campionamento è pesato per area tra superficie laterale e dischi di chiusura.
+
+## 6.5 Triangle (Triangolo)
 Triangolo definito da tre vertici. Usa l'algoritmo Möller–Trumbore per l'intersezione.
 ```yaml
   - name: "triangolo"
@@ -85,7 +136,7 @@ Triangolo definito da tre vertici. Usa l'algoritmo Möller–Trumbore per l'inte
 | `v1` | `[X, Y, Z]` | Secondo vertice |
 | `v2` | `[X, Y, Z]` | Terzo vertice |
 
-## 6.5 Quad (Quadrilatero)
+## 6.6 Quad (Quadrilatero)
 Un parallelogramma definito da un punto d'origine Q e due vettori U e V che definiscono i lati.
 ```yaml
   - name: "parete"
@@ -101,7 +152,7 @@ Un parallelogramma definito da un punto d'origine Q e due vettori U e V che defi
 | `u` | `[X, Y, Z]` | Primo vettore lato |
 | `v` | `[X, Y, Z]` | Secondo vettore lato |
 
-## 6.6 Disk (Disco)
+## 6.7 Disk (Disco)
 Disco piatto con centro, normale e raggio.
 ```yaml
   - name: "disco"
@@ -112,7 +163,7 @@ Disco piatto con centro, normale e raggio.
     material: "metallo"
 ```
 
-## 6.7 Plane / Infinite Plane (Piano Infinito)
+## 6.8 Plane / Infinite Plane (Piano Infinito)
 Piano infinito utile per pavimenti o sfondi.
 ```yaml
   - name: "pavimento"
@@ -122,7 +173,7 @@ Piano infinito utile per pavimenti o sfondi.
     material: "scacchiera"
 ```
 
-## 6.8 Trasformazioni (Translate, Rotate, Scale)
+## 6.9 Trasformazioni (Translate, Rotate, Scale)
 
 Qualsiasi entità supporta trasformazioni opzionali:
 
@@ -137,7 +188,7 @@ Qualsiasi entità supporta trasformazioni opzionali:
 
 Le trasformazioni vengono applicate nell'ordine: **Scale → Rotate → Translate**.
 
-## 6.9 Parametro Seed
+## 6.10 Parametro Seed
 
 Il parametro `seed` controlla la randomizzazione delle texture procedurali per ogni oggetto. Specificarlo rende il risultato **riproducibile** tra render successivi:
 
@@ -154,7 +205,7 @@ Se `seed` è omesso, viene generato un valore casuale ogni volta che la scena vi
 
 ---
 
-## 6.10 CSG — Constructive Solid Geometry
+## 6.11 CSG — Constructive Solid Geometry
 
 La CSG (Geometria Solida Costruttiva) permette di creare forme complesse combinando primitive con operazioni booleane. Un'entità `csg` è essa stessa un `IHittable` e può essere usata come figlio di altri nodi CSG, costruendo alberi booleani arbitrariamente complessi.
 

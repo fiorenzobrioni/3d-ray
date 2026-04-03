@@ -335,6 +335,10 @@ public class EntityData
     [YamlMember(Alias = "height")]
     public float Height { get; set; } = 1f;
 
+    // Cone (truncated cone / frustum)
+    [YamlMember(Alias = "top_radius")]
+    public float TopRadius { get; set; } = 0f;
+ 
     // Plane
     [YamlMember(Alias = "normal")]
     public List<float>? Normal { get; set; }
