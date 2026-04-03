@@ -43,7 +43,8 @@ jobs:
       fail-fast: false
       matrix:
         scene:
-          - primitive-showcase
+          - showcase
+#          - primitive-showcase
 #          - cristallo
 #          - csg-showcase
 #          - sphere-showcase
@@ -77,7 +78,7 @@ jobs:
           publish/RayTracer/RayTracer \
             -i scenes/${{ matrix.scene }}.yaml \
             -o renders/sample-${{ matrix.scene }}.png \
-            -s 256 -d 60 -w 1920 -H 1080
+            -s 512 -d 60 -w 1920 -H 1080
 
       - name: Upload render
         if: always()
