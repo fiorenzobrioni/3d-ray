@@ -145,16 +145,36 @@ Questa fase sfrutta le interfacce esistenti (`ITexture`, `IMaterial`, `Calculate
 
 | # | Descrizione | Severità | Scena / File | Stato |
 |---|-------------|----------|--------------|-------|
-| 1 | — | — | — | ⬜ |
+| 1 | Valore seed nei materiali sembra non funzionare | 🔴 **Alta** | — | ⬜ |
+| 2 | — | — | — | ⬜ |
+
+Severità: 🔴 **Alta** 🟠 **Media** 🟡 **Bassa**
 
 ---
 
 ## 📝 Note
 
-### *(data)*
-
-—
+- Ricordarsi di aggiornare i tutorial ogni volta che si aggiunge una nuova primitiva o una feature.
+- Esplorare la possibilità di un set di icone personalizzato per i log in console.
+- Fare una review completa dei tutorials (cartella `tutorials/`): 
+  - verifica correttezza informazioni coerenti con il codice
+  - verifica eventuali omissioni di info e feature
+  - verifica grammatica corretta
+  - verifica descrizioni corrette
+  - verifica esempi corretti
+  - verifica file di indici se sono allineati con le sezioni dei tutorial
+- Idee per scene creative:
+  - **Showcase primitive**: Valutare se fare una scena di showcase unica per le primitive
+  - **Macro Photography**: Primo piano estremo di un orologio meccanico (usando la primitiva `Annulus` e `Cylinder`) con profondità di campo (DOF) molto spinta.
 
 ---
 
-*Ultimo aggiornamento: aprile 2026*
+## 🧪 Checklist Verifiche (Testing)
+
+Procedure da eseguire prima di ogni commit importante.
+
+- [ ] **Smoke Test**: Eseguire il render della scena `utah-teapot.yaml` (100 samples) e verificare che non ci siano crash.
+- [ ] **Visual Regression**: Confrontare il render di `cornell-box.yaml` con l'immagine di riferimento.
+- [ ] **Performance Check**: Verificare che il tempo di render di una scena standard non sia aumentato più del 5% senza motivo.
+- [ ] **YAML Validation**: Assicurarsi che ogni nuova proprietà YAML abbia un valore di default sensato nel codice.
+- [ ] 
