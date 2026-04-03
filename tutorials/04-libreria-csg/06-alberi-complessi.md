@@ -1,6 +1,6 @@
 # 6. Alberi CSG Complessi
 
-## Cubo Svizzero (A \ (B ∪ C ∪ D))
+## 6.1 Cubo Svizzero (A \ (B ∪ C ∪ D))
 
 Un cubo con tre fori ortogonali passanti — ispirato al cubo di Menger:
 
@@ -41,7 +41,7 @@ Un cubo con tre fori ortogonali passanti — ispirato al cubo di Menger:
       rotate: [90, 0, 0]
 ```
 
-## Ruota con Raggi
+## 6.2 Ruota con Raggi
 
 Hub centrale + cerchio esterno + raggi, ottenuti per differenza da un disco pieno:
 
@@ -80,7 +80,7 @@ Hub centrale + cerchio esterno + raggi, ottenuti per differenza da un disco pien
       height: 1.5
 ```
 
-## Lampada a Sospensione
+## 6.3 Lampada a Sospensione
 
 Uno dei preset più completi: paralume (sfera cava aperta sotto) con bulbo emissivo:
 
@@ -118,6 +118,45 @@ Uno dei preset più completi: paralume (sfera cava aperta sotto) con bulbo emiss
   center: [0, 2.45, 0]
   radius: 0.3
   material: "luce_calda"
+```
+
+## 6.4 Pillola Farmaceutica (Multi-Materiale via CSG)
+
+Esempio di come creare un singolo volume con materiali diversi (bicolore) utilizzando la CSG. Invece di affiancare due capsule, ne usiamo una sola che viene "tagliata" in due metà da operazioni di intersezione con volumi invisibili.
+
+```yaml
+- name: "pillola_bicolore"
+  type: "csg"
+  operation: "union"
+  translate: [0, 1, 0]
+  left:
+    # Metà inferiore (bianca)
+    type: "csg"
+    operation: "intersection"
+    material: "bianco"
+    left:
+      type: "capsule"
+      center: [0, 0, 0]
+      radius: 0.4
+      height: 1.0
+    right:
+      type: "box"
+      scale: [2, 1, 2]         # Altezza 1.0
+      translate: [0, 0, 0]     # Copre Y da -0.5 a 0.5 (taglio a 0.5)
+  right:
+    # Metà superiore (rossa)
+    type: "csg"
+    operation: "intersection"
+    material: "rosso"
+    left:
+      type: "capsule"
+      center: [0, 0, 0]
+      radius: 0.4
+      height: 1.0
+    right:
+      type: "box"
+      scale: [2, 1, 2]         # Altezza 1.0
+      translate: [0, 1, 0]     # Copre Y da 0.5 a 1.5 (giunzione perfetta a 0.5)
 ```
 
 ---

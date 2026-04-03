@@ -266,7 +266,92 @@ Toro centrato nell'origine, giacente nel piano XZ (asse del foro = Y). Definito 
 
 > **Intersezione raggio-toro:** Il toro è una forma geometricamente complessa. Il motore risolve l'intersezione in modo analitico per garantire risultati esatti e senza artefatti, anche se questo richiede una capacità di calcolo leggermente superiore rispetto alle primitive più semplici.
 
-## 6.10 Trasformazioni (Translate, Rotate, Scale)
+## 6.10 Capsule (Capsula / Pillola)
+
+Capsula allineata all'asse Y: un cilindro chiuso da due emisfere. Definita da un centro (base del corpo cilindrico), un raggio e un'altezza (lunghezza della parte cilindrica). L'altezza totale della capsula = `height + 2 × radius`.
+
+A differenza di una union CSG di sfera + cilindro, la capsula ha UV continue senza interruzioni alle giunzioni ed è più efficiente dal punto di vista del calcolo.
+
+### Capsula base
+```yaml
+  - name: "pillola"
+    type: "capsule"
+    center: [0, 0, 0]          # Base del corpo cilindrico
+    radius: 0.5
+    height: 2.0                 # Parte cilindrica (altezza totale = 2 + 2×0.5 = 3)
+    material: "plastica_bianca"
+```
+
+### Capsula orizzontale (ruotata)
+```yaml
+  - name: "tubo_raccordo"
+    type: "capsule"
+    center: [0, 0, 0]
+    radius: 0.3
+    height: 3.0
+    rotate: [0, 0, 90]         # Sdraiata lungo X
+    translate: [0, 1, 0]
+    material: "acciaio"
+```
+
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `center` | `[X, Y, Z]` | `[0, 0, 0]` | Centro della **base** del corpo cilindrico |
+| `radius` | float | `1.0` | Raggio del cilindro e delle emisfere |
+| `height` | float | `1.0` | Altezza della parte cilindrica (estensione verso +Y) |
+
+> **Alias tipo:** `"capsule"`, `"pill"`, `"sphylinder"`.
+
+> **UV Mapping:** Continuo su tutta la superficie. `U` ruota attorno all'asse Y; `V` è suddiviso tra l'emisfera inferiore ($0.0$ a $0.25$), il corpo cilindrico ($0.25$ a $0.75$) e l'emisfera superiore ($0.75$ a $1.0$).
+
+> **Area light:** La capsula implementa `ISamplable` e può essere usata come area light emissiva con NEE.
+
+> **CSG:** La capsula è un solido convesso e funziona perfettamente come operando CSG. È preferibile all'unione di sfere e cilindri per ottenere superfici e UV senza interruzioni.
+
+## 6.11 Annulus (Anello Piatto / Rondella)
+
+Disco piatto con un foro circolare concentrico. Definito da centro, normale, raggio esterno e raggio interno.
+
+Sostituisce la costruzione CSG Disk−Disk con un costo di calcolo inferiore e una gestione più semplice del raggio del foro.
+
+### Anello piatto
+```yaml
+  - name: "rondella"
+    type: "annulus"
+    center: [0, 0.5, 0]
+    normal: [0, 1, 0]
+    radius: 1.0                 # Raggio esterno
+    inner_radius: 0.4           # Raggio del foro
+    material: "acciaio"
+```
+
+### Base per colonna (anello decorativo)
+```yaml
+  - name: "base_colonna"
+    type: "annulus"
+    center: [0, 0.01, 0]
+    normal: [0, 1, 0]
+    radius: 1.5
+    inner_radius: 0.8
+    material: "marmo"
+```
+
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `center` | `[X, Y, Z]` | `[0, 0, 0]` | Centro dell'anello |
+| `normal` | `[X, Y, Z]` | `[0, 1, 0]` | Normale alla superficie |
+| `radius` | float | `1.0` | Raggio **esterno** |
+| `inner_radius` | float | `0.0` | Raggio del **foro** (0 = disco pieno = Disk) |
+
+> **Alias tipo:** `"annulus"`, `"ring_disk"`, `"washer"`.
+
+> **UV Mapping:** Identico a Disk — proiezione planare sull'intera superficie, con la regione del foro esclusa.
+
+> **Area light:** L'annulus implementa `ISamplable` e può essere usato come area light emissiva con NEE.
+
+> **Nota:** Se `inner_radius = 0` l'annulus si comporta esattamente come un Disk. Se `inner_radius ≥ radius` la geometria è vuota.
+
+## 6.12 Trasformazioni (Translate, Rotate, Scale)
 
 Qualsiasi entità supporta trasformazioni opzionali:
 
@@ -281,7 +366,7 @@ Qualsiasi entità supporta trasformazioni opzionali:
 
 Le trasformazioni vengono applicate nell'ordine: **Scale → Rotate → Translate**.
 
-## 6.11 Parametro Seed
+## 6.13 Parametro Seed
 
 Il parametro `seed` controlla la randomizzazione delle texture procedurali per ogni oggetto. Specificarlo rende il risultato **riproducibile** tra render successivi:
 
@@ -298,7 +383,7 @@ Se `seed` è omesso, viene generato un valore casuale ogni volta che la scena vi
 
 ---
 
-## 6.12 CSG — Constructive Solid Geometry
+## 6.14 CSG — Constructive Solid Geometry
 
 La CSG (Geometria Solida Costruttiva) permette di creare forme complesse combinando primitive con operazioni booleane. Un'entità `csg` è essa stessa un `IHittable` e può essere usata come figlio di altri nodi CSG, costruendo alberi booleani arbitrariamente complessi.
 

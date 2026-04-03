@@ -346,6 +346,10 @@ public class EntityData
     [YamlMember(Alias = "minor_radius")]
     public float MinorRadius { get; set; } = 0.25f;
 
+    // Annulus (ring disk)
+    [YamlMember(Alias = "inner_radius")]
+    public float InnerRadius { get; set; } = 0f;
+
     // Plane
     [YamlMember(Alias = "normal")]
     public List<float>? Normal { get; set; }

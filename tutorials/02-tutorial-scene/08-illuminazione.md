@@ -112,7 +112,7 @@ entities:
   - { name: "neon", type: "sphere", center: [0, 2, 0], radius: 0.5, material: "neon_ciano" }
 ```
 
-> **💡 Nota:** Quando la scena è illuminata solo da materiali emissivi, non ci sono luci per il Next Event Estimation. Tutta l'illuminazione arriva dai rimbalzi indiretti. Usa campioni alti (`-s 128+`) e profondità adeguata (`-d 10+`) per risultati puliti. Puoi aggiungere una `point` light con intensità molto bassa (0.2–1.0) come fill minimale per evitare ombre completamente nere.
+> **💡 Nota:** Per gli oggetti emissivi con geometrie campionabili (Sphere, Box, Cylinder, Cone, Torus, Capsule, Annulus, Quad, Triangle, Disk), il motore attiva automaticamente la **Next Event Estimation (NEE)**, campionandoli come luci dirette per ridurre il rumore. Se invece usi geometrie non campionabili (come la CSG) o se l'oggetto è una sorgente molto piccola, l'illuminazione arriverà principalmente dai rimbalzi indiretti del path tracer; in quel caso sono necessari campioni elevati (`-s 128+`) per ottenere risultati puliti.
 
 ---
 

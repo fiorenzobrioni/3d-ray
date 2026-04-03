@@ -19,30 +19,6 @@ Due sfere che si fondono in un unico solido organico.
     radius: 0.9
 ```
 
-Sfera + cilindro fuso (a forma di capsula):
-
-```yaml
-- name: "capsula"
-  type: "csg"
-  operation: "union"
-  material: "plastica_bianca"
-  left:
-    type: "sphere"
-    center: [0, 0.5, 0]
-    radius: 0.5
-  right:
-    type: "csg"
-    operation: "union"
-    left:
-      type: "cylinder"
-      center: [0, 0.5, 0]
-      radius: 0.4
-      height: 1.5
-    right:
-      type: "sphere"
-      center: [0, 2.0, 0]
-      radius: 0.5
-
 **Clessidra (Due coni fusi):**
 ```yaml
 - name: "clessidra"
@@ -60,7 +36,6 @@ Sfera + cilindro fuso (a forma di capsula):
     radius: 0.8
     height: 1.2
     rotate: [180, 0, 0]      # Capovolto per far toccare le punte
-```
 ```
 
 ---

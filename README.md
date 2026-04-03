@@ -37,7 +37,9 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🔺 **Triangle** — Triangolo con UV mapping baricentrico (u, v)
 - ▰ **Quad** — Quadrilatero (parallelogramma) con UV mapping parametrico/planare (u, v [0, 1])
 - ⏺ **Disk** — Disco piatto con UV mapping planare (proiezione locale)
+- ⭕ **Annulus** — Disco piatto con un foro circolare (rondella); ideale per dettagli meccanici e bersagli
 - 🍦 **Cone** — Cono finito (o tronco di cono) con caps; UV mapping cilindrico (corpo) e planare (caps)
+- 💊 **Capsule** — Cilindro con estremità emisferiche (pillola); UV mapping continuo senza giunzioni
 - 🍩 **Torus** — Toro (ciambella) definito da raggio maggiore e minore. Intersezione analitica tramite risolutore di quartiche per precisione assoluta senza artefatti.
 - ▬ **Infinite Plane** — Piano infinito con UV mapping planare tiled
 - 🔷 **CSG (Constructive Solid Geometry)** — Operazioni booleane su solidi: **Union** (A ∪ B), **Intersection** (A ∩ B) e **Subtraction** (A \ B). Gli alberi CSG sono annidabili ricorsivamente — un nodo CSG è esso stesso un `IHittable`, quindi espressioni come `(A ∪ B) \ C` si costruiscono naturalmente. Completamente compatibile con il sistema di trasformazioni (scale/rotate/translate), texture e normal mapping.
@@ -46,7 +48,7 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🎨 **Lambertian** — Materiale opaco diffuso
 - 🪞 **Metal** — Riflesso speculare con rugosità (`fuzz`) controllabile
 - 💎 **Dielectric** — Vetro/trasparente con rifrazione e riflesso Fresnel
-- 💡 **Emissive** — Materiale auto-luminoso che emette luce propria nella scena. Gli oggetti emissivi con geometria campionabile (Sphere, Box, Cylinder, Cone, Torus, Quad, Triangle, Disk) partecipano automaticamente alla NEE come Geometry Lights, riducendo il rumore rispetto al path tracing puro.
+- 💡 **Emissive** — Materiale auto-luminoso che emette luce propria nella scena. Gli oggetti emissivi con geometria campionabile (Sphere, Box, Cylinder, Cone, Torus, Capsule, Annulus, Quad, Triangle, Disk) partecipano automaticamente alla NEE come Geometry Lights, riducendo il rumore rispetto al path tracing puro.
 - 🌟 **Disney Principled BSDF** — Materiale PBR unificato (alias: `"disney"`, `"disney_bsdf"`, `"pbr"`). Un singolo tipo può rappresentare plastica, metallo, vetro, vernice auto, tessuto, pelle e qualsiasi combinazione intermedia tramite i parametri `metallic`, `roughness`, `subsurface`, `specular`, `sheen`, `clearcoat`, `spec_trans` e `ior`.
 
 ### Texture

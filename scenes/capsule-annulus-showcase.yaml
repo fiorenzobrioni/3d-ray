@@ -1,0 +1,299 @@
+# ============================================================================
+# Scene: Capsule & Annulus Showcase
+# Tests: Capsule (upright, rotated, glass, CSG), Annulus (flat, vertical,
+#        emissive, stacked), mixed compositions
+# ============================================================================
+
+camera:
+  position: [0, 5, -12]
+  look_at: [0, 2, 0]
+  fov: 45
+  aperture: 0.0
+
+world:
+  ambient_light: [0.03, 0.03, 0.04]
+  sky:
+    type: "gradient"
+    zenith_color: [0.08, 0.1, 0.2]
+    horizon_color: [0.15, 0.12, 0.2]
+    ground_color: [0.04, 0.04, 0.04]
+  ground:
+    type: "plane"
+    material: "pavimento"
+    y: 0
+
+materials:
+  # ── Pavimento ──────────────────────────────────────────────────────────────
+  - id: "pavimento"
+    type: "disney"
+    roughness: 0.7
+    texture:
+      type: "checker"
+      colors: [[0.12, 0.12, 0.12], [0.22, 0.22, 0.22]]
+      scale: 1.0
+
+  # ── Capsule materials ──────────────────────────────────────────────────────
+  - id: "bianco_lucido"
+    type: "disney"
+    color: [0.95, 0.95, 0.92]
+    roughness: 0.15
+
+  - id: "rosso_opaco"
+    type: "disney"
+    color: [0.85, 0.12, 0.12]
+    roughness: 0.5
+
+  - id: "vetro_capsule"
+    type: "dielectric"
+    refraction_index: 1.5
+
+  - id: "oro"
+    type: "disney"
+    color: [1.0, 0.84, 0.0]
+    roughness: 0.15
+    metallic: 1.0
+
+  - id: "pelle"
+    type: "disney"
+    color: [0.8, 0.6, 0.45]
+    roughness: 0.65
+
+  # ── Annulus materials ──────────────────────────────────────────────────────
+  - id: "acciaio"
+    type: "disney"
+    color: [0.8, 0.8, 0.82]
+    roughness: 0.2
+    metallic: 1.0
+
+  - id: "gomma_nera"
+    type: "disney"
+    color: [0.05, 0.05, 0.05]
+    roughness: 0.85
+
+  - id: "rame"
+    type: "disney"
+    color: [0.72, 0.45, 0.20]
+    roughness: 0.25
+    metallic: 1.0
+
+  - id: "rosso_bersaglio"
+    type: "disney"
+    color: [0.9, 0.1, 0.1]
+    roughness: 0.6
+
+  - id: "bianco_bersaglio"
+    type: "disney"
+    color: [0.95, 0.95, 0.9]
+    roughness: 0.6
+
+  # ── Emissive ───────────────────────────────────────────────────────────────
+  - id: "neon_capsule"
+    type: "emissive"
+    color: [0.3, 1.0, 0.5]
+    intensity: 10.0
+
+  - id: "neon_anello"
+    type: "emissive"
+    color: [1.0, 0.6, 0.2]
+    intensity: 12.0
+
+lights:
+  - type: "point"
+    position: [5, 10, -6]
+    color: [1, 1, 1]
+    intensity: 100
+
+  - type: "point"
+    position: [-4, 6, -3]
+    color: [0.8, 0.85, 1.0]
+    intensity: 40
+
+entities:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CAPSULE — varie configurazioni
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # 1. Capsule bianca classica (in piedi)
+  - name: "pillola_bianca"
+    type: "capsule"
+    center: [-4, 0, 2]
+    radius: 0.5
+    height: 2.0
+    material: "bianco_lucido"
+
+  # 2. Capsule rossa sdraiata
+  - name: "pillola_rossa"
+    type: "capsule"
+    center: [0, 0, 0]
+    radius: 0.4
+    height: 2.5
+    rotate: [0, 0, 90]
+    translate: [-1.5, 0.4, 2]
+    material: "rosso_opaco"
+
+  # 3. Capsule di vetro trasparente
+  - name: "capsule_vetro"
+    type: "capsule"
+    center: [1.5, 0, 2]
+    radius: 0.45
+    height: 1.8
+    material: "vetro_capsule"
+
+  # 4. Capsule oro (gioiello allungato)
+  - name: "capsule_oro"
+    type: "capsule"
+    center: [4, 0, 2]
+    radius: 0.3
+    height: 2.5
+    rotate: [15, 30, 0]
+    translate: [4, 0.8, 2]
+    material: "oro"
+
+  # 5. Capsule emissiva (neon a tubo arrotondato) — test ISamplable
+  - name: "neon_capsule"
+    type: "capsule"
+    center: [0, 0, 0]
+    radius: 0.06
+    height: 4.0
+    rotate: [0, 0, 90]
+    translate: [0, 5, 1]
+    material: "neon_capsule"
+
+  # 6. Bone / arto (capsule sottile inclinata)
+  - name: "bone"
+    type: "capsule"
+    center: [0, 0, 0]
+    radius: 0.12
+    height: 1.5
+    rotate: [0, 0, -35]
+    translate: [-3, 0.5, -1]
+    material: "pelle"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ANNULUS — varie configurazioni
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # 7. Rondella piatta a terra
+  - name: "rondella"
+    type: "annulus"
+    center: [3, 0.01, -1]
+    normal: [0, 1, 0]
+    radius: 1.0
+    inner_radius: 0.4
+    material: "acciaio"
+
+  # 8. Guarnizione in gomma
+  - name: "guarnizione"
+    type: "annulus"
+    center: [0, 0.01, -1]
+    normal: [0, 1, 0]
+    radius: 0.8
+    inner_radius: 0.6
+    material: "gomma_nera"
+
+  # 9. Anello verticale (come un portale)
+  - name: "portale"
+    type: "annulus"
+    center: [-3, 2, -1]
+    normal: [0, 0, -1]
+    radius: 1.5
+    inner_radius: 1.1
+    material: "rame"
+
+  # 10. Neon ad anello piatto emissivo — test ISamplable
+  - name: "neon_ring"
+    type: "annulus"
+    center: [0, 4.5, -1]
+    normal: [0, 1, 0]
+    radius: 2.0
+    inner_radius: 1.7
+    material: "neon_anello"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # BERSAGLIO — anelli concentrici (stack di annuli + disco centrale)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # 11. Anello esterno rosso
+  - name: "bersaglio_esterno"
+    type: "annulus"
+    center: [4.5, 2.5, 3]
+    normal: [0, 0, -1]
+    radius: 1.2
+    inner_radius: 0.8
+    material: "rosso_bersaglio"
+
+  # 12. Anello medio bianco
+  - name: "bersaglio_medio"
+    type: "annulus"
+    center: [4.5, 2.5, 3]
+    normal: [0, 0, -1]
+    radius: 0.8
+    inner_radius: 0.4
+    material: "bianco_bersaglio"
+
+  # 13. Centro rosso (disco pieno)
+  - name: "bersaglio_centro"
+    type: "disk"
+    center: [4.5, 2.5, 3]
+    normal: [0, 0, -1]
+    radius: 0.4
+    material: "rosso_bersaglio"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # COMPOSIZIONI MISTE — Capsule + Annulus + altre primitive
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # 14. Manubrio: 2 capsule + barra cilindrica (CSG union)
+  - name: "manubrio"
+    type: "csg"
+    operation: "union"
+    material: "acciaio"
+    translate: [-4.5, 1, -2.5]
+    left:
+      type: "csg"
+      operation: "union"
+      left:
+        # Barra
+        type: "cylinder"
+        center: [0, -0.05, 0]
+        radius: 0.08
+        height: 0.1
+        scale: [1, 1, 1]
+        rotate: [0, 0, 90]
+        translate: [0, 0, 0]
+      right:
+        # Peso sinistro
+        type: "capsule"
+        center: [-1.2, 0, 0]
+        radius: 0.35
+        height: 0.4
+    right:
+      # Peso destro
+      type: "capsule"
+      center: [1.2, 0, 0]
+      radius: 0.35
+      height: 0.4
+
+  # 15. Tubo con flangia: cilindro + annulus sopra e sotto
+  - name: "flangia_inferiore"
+    type: "annulus"
+    center: [0, 0.01, -3.5]
+    normal: [0, 1, 0]
+    radius: 0.8
+    inner_radius: 0.35
+    material: "acciaio"
+
+  - name: "tubo_centrale"
+    type: "cylinder"
+    center: [0, 0, -3.5]
+    radius: 0.35
+    height: 2.0
+    material: "rame"
+
+  - name: "flangia_superiore"
+    type: "annulus"
+    center: [0, 2.0, -3.5]
+    normal: [0, 1, 0]
+    radius: 0.8
+    inner_radius: 0.35
+    material: "acciaio"
