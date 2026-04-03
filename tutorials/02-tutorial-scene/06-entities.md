@@ -134,7 +134,7 @@ Cono finito allineato all'asse Y. Può essere un cono appuntito (`top_radius: 0`
 > **Area light:** Il cono implementa `ISamplable` e può essere usato come area light emissiva con NEE. Il campionamento è pesato per area tra superficie laterale e dischi di chiusura.
 
 ## 6.5 Triangle (Triangolo)
-Triangolo definito da tre vertici. Usa l'algoritmo Möller–Trumbore per l'intersezione.
+Triangolo definito da tre vertici.
 ```yaml
   - name: "triangolo"
     type: "triangle"
@@ -264,7 +264,7 @@ Toro centrato nell'origine, giacente nel piano XZ (asse del foro = Y). Definito 
 
 > **Area light:** Il toro implementa `ISamplable` con area = 4π²Rr. Può essere usato come area light emissiva con NEE — ideale per neon ad anello o luci decorative.
 
-> **Intersezione raggio-toro:** L'intersezione produce un'equazione di grado 4 (quartica), risolta analiticamente con il metodo di Ferrari tramite `QuarticSolver`. Questo è più costoso delle quadratiche di sfere/cilindri/coni, ma garantisce risultati esatti senza artefatti da ray marching.
+> **Intersezione raggio-toro:** Il toro è una forma geometricamente complessa. Il motore risolve l'intersezione in modo analitico per garantire risultati esatti e senza artefatti, anche se questo richiede una capacità di calcolo leggermente superiore rispetto alle primitive più semplici.
 
 ## 6.10 Trasformazioni (Translate, Rotate, Scale)
 

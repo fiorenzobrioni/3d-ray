@@ -199,6 +199,17 @@ Per approfondire l'utilizzo del motore e la creazione delle scene, consulta i se
 
 ---
 
+## 📖 Documentazione Tecnica (Deep Dives)
+
+Per chi desidera approfondire gli aspetti matematici e le scelte implementative del motore:
+
+- [**Modello di Shading e Materiali**](./docs/technical/shading-model.md) — Dettagli sul modello Disney BSDF, Fresnel (Schlick) e Normal Mapping (TBN).
+- [**Path Tracing e Illuminazione**](./docs/technical/path-tracing-and-lighting.md) — Funzionamento del motore, Next Event Estimation (NEE) e Russian Roulette.
+- [**Strutture di Accelerazione (BVH)**](./docs/technical/acceleration-structures.md) — Ottimizzazione delle intersezioni spaziali tramite Bounding Volume Hierarchy e SAH.
+- [**Geometria del Toro e Risolutore di Quartiche**](./docs/technical/quartic-solver-and-torus.md) — Derivazione analitica dell'intersezione raggio-toro e metodo di Ferrari.
+
+---
+
 ## 💡 Esempi Pratici
 
 ### Anteprima Rapida

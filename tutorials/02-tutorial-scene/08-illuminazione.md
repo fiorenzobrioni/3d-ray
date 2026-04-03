@@ -11,14 +11,13 @@ Con il **gradient sky**, il colore del cielo varia in base alla direzione del ra
 
 ## Ordine di calcolo per ogni hit
 
-Quando un raggio colpisce una superficie, il renderer esegue questi passi nell'ordine:
+Per ogni punto colpito da un raggio, il motore calcola la luce finale considerando diversi fattori:
+- **Dettaglio di superficie**: Se presente una normal map, vengono aggiunti i piccoli rilievi.
+- **Auto-illuminazione**: Se l'oggetto è emissivo, aggiunge la sua luminosità.
+- **Illuminazione Diretta**: Viene calcolato l'impatto di tutte le luci presenti nella scena (ombre e riflessi).
+- **Illuminazione Indiretta**: Viene calcolata la luce rimbalzata dalle altre superfici vicine.
 
-1. **Normal map** — se il materiale ha una `normal_map` e la primitiva ha un frame TBN valido, la normale di shading viene perturbata prima di qualsiasi altra operazione.
-2. **Emissione** — la superficie aggiunge la propria radiance emessa.
-3. **Direct lighting (NEE)** — per ogni luce nella scena, viene calcolato il contributo diffuso (N·L) e speculare (N·H) usando la normale perturbata.
-4. **Scatter (indirect)** — il materiale genera un raggio secondario nella direzione scatter, che porta la normale perturbata nel bounce successivo.
-
-Il risultato è che il normal mapping influenza l'intera pipeline: ombre più profonde nelle fughe, highlight speculari spostati, riflessi nei materiali metal perturbati correttamente.
+---
 
 ## Combinazioni di Luci Consigliate
 
