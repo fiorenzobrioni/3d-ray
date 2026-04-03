@@ -314,3 +314,15 @@ Il motore stampa in console un warning esplicito con il nome dell'entità. Le ca
 2. **`operation` mancante o errata**: i valori accettati sono `union`, `intersection`, `subtraction` (alias: `subtract`, `difference`). Un valore errato o assente skippa l'intera entità.
 3. **Geometria figlio non valida**: se il tipo del figlio non è supportato o ha parametri mancanti, l'intera entità CSG viene saltata.
 4. **Tipo `infinite_plane` come figlio CSG**: non supportato. Usa un box molto grande e piatto come sostituto.
+
+---
+
+## 9. Percorso di Apprendimento
+
+Dopo aver appreso come utilizzare l'applicazione, ti consigliamo di seguire questo ordine per creare le tue scene:
+
+- [02. Creazione dei File di Scena (YAML)](02-tutorial-scene.md) — Impara come costruire una scena da zero (camera, luci, materiali, entità).
+- [03. Libreria Universale dei Preset](03-libreria-preset.md) — Snippet pronti per accelerare il tuo workflow.
+- [04. Libreria dei Preset CSG](04-libreria-csg.md) — Modellazione avanzata tramite operazioni booleane.
+
+---
