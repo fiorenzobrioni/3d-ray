@@ -13,6 +13,7 @@ Benvenuto nel manuale d'uso del motore RayTracer. Questo documento ti guiderà a
 6. [Multi-Camera](#6-multi-camera)
 7. [Ottimizzazione e Performance](#7-ottimizzazione-e-performance)
 8. [Risoluzione Problemi](#8-risoluzione-problemi)
+9. [Percorso di Apprendimento](#9-percorso-di-apprendimento)
 
 ---
 
@@ -219,7 +220,7 @@ dotnet run ... -- -i scenes/chess.yaml -c 2 -o closeup.png
 
 ### Sintassi YAML Multi-Camera
 
-Per la sintassi YAML completa con `cameras:`, consulta la [sezione 3 del Tutorial Scene](02-tutorial-scene.md#3-sezione-camera).
+Per la sintassi YAML completa con `cameras:`, consulta la [sezione 3 del Tutorial Scene](02-tutorial-scene/03-camera.md).
 
 ---
 
@@ -271,7 +272,7 @@ Il tone mapping ACES gestisce automaticamente l'HDR, ma valori di `intensity` tr
 Aumenta il numero di shadow samples via CLI con `-S 16` o `-S 32`, oppure aumenta i campioni di rendering (`-s`). Le ombre morbide richiedono più campioni per convergere. In alternativa, usa una point light con il risultato netto di ombre nette ma render più veloce.
 
 ### Le texture appaiono "piatte" o orientate male
-Usa i parametri `rotation` e `offset` nella definizione della texture per orientare le venature. Consulta la [sezione 5.2 del Tutorial Scene](02-tutorial-scene.md#52-trasformazioni-spaziali-offset--rotation) per i dettagli tecnici.
+Usa i parametri `rotation` e `offset` nella definizione della texture per orientare le venature. Consulta la [sezione 5.2 del Tutorial Scene](02-tutorial-scene/05-textures.md) per i dettagli tecnici.
 
 ### La scena carica ma non appare nulla / oggetti mancanti
 Verifica che tutti i riferimenti `material` nelle entità corrispondano esattamente a un `id` definito nella sezione `materials` (case-sensitive). Un ID non trovato produce un materiale grigio di fallback (Lambertian 50% grigio), non un errore.
