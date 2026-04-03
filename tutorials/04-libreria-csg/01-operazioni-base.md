@@ -42,6 +42,25 @@ Sfera + cilindro fuso (a forma di capsula):
       type: "sphere"
       center: [0, 2.0, 0]
       radius: 0.5
+
+**Clessidra (Due coni fusi):**
+```yaml
+- name: "clessidra"
+  type: "csg"
+  operation: "union"
+  material: "vetro"
+  left:
+    type: "cone"
+    center: [0, 0.2, 0]
+    radius: 0.8
+    height: 1.2
+  right:
+    type: "cone"
+    center: [0, 2.6, 0]
+    radius: 0.8
+    height: 1.2
+    rotate: [180, 0, 0]      # Capovolto per far toccare le punte
+```
 ```
 
 ---

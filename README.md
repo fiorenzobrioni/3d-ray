@@ -31,20 +31,21 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 📦 **BVH (Bounding Volume Hierarchy)**: struttura di accelerazione con euristica dell'asse più lungo (SAH-inspired) per intersezioni raggio-oggetto in tempo **O(log N)**. Attivata automaticamente per scene con più di 4 oggetti.
 
 ### Geometrie
-- ⚪ **Sphere** — Sfera con UV mapping sferico (lon/lat)
-- 📦 **Box** — Cubo/parallelepipedo allineato agli assi (con UV planare per faccia)
-- 🔩 **Cylinder** — Cilindro finito con caps e UV cilindrico
-- 🔺 **Triangle** — Triangolo con intersezione Möller–Trumbore
-- ▰ **Quad** — Quadrilatero (parallelogramma) con UV baricentrico
-- ⏺ **Disk** — Disco piatto con centro, normale e raggio
-- ▬ **Infinite Plane** — Piano infinito con UV planare tiled
+- ⚪ **Sphere** — Sfera con UV mapping sferico (longitudine/latitudine)
+- 📦 **Box** — Cubo/parallelepipedo allineato agli assi con UV mapping planare per faccia
+- 🔩 **Cylinder** — Cilindro finito con caps; UV mapping cilindrico (corpo) e planare (caps)
+- 🔺 **Triangle** — Triangolo con UV mapping baricentrico (u, v)
+- ▰ **Quad** — Quadrilatero (parallelogramma) con UV mapping parametrico/planare (u, v [0, 1])
+- ⏺ **Disk** — Disco piatto con UV mapping planare (proiezione locale)
+- 🍦 **Cone** — Cono finito (o tronco di cono) con caps; UV mapping cilindrico (corpo) e planare (caps)
+- ▬ **Infinite Plane** — Piano infinito con UV mapping planare tiled
 - 🔷 **CSG (Constructive Solid Geometry)** — Operazioni booleane su solidi: **Union** (A ∪ B), **Intersection** (A ∩ B) e **Subtraction** (A \ B). Gli alberi CSG sono annidabili ricorsivamente — un nodo CSG è esso stesso un `IHittable`, quindi espressioni come `(A ∪ B) \ C` si costruiscono naturalmente. Completamente compatibile con il sistema di trasformazioni (scale/rotate/translate), texture e normal mapping.
 
 ### Materiali
 - 🎨 **Lambertian** — Materiale opaco diffuso
 - 🪞 **Metal** — Riflesso speculare con rugosità (`fuzz`) controllabile
 - 💎 **Dielectric** — Vetro/trasparente con rifrazione e riflesso Fresnel
-- 💡 **Emissive** — Materiale auto-luminoso che emette luce propria nella scena. Gli oggetti emissivi con geometria campionabile (Sphere, Quad, Triangle, Disk) partecipano automaticamente alla NEE come Geometry Lights, riducendo il rumore rispetto al path tracing puro.
+- 💡 **Emissive** — Materiale auto-luminoso che emette luce propria nella scena. Gli oggetti emissivi con geometria campionabile (Sphere, Box, Cylinder, Cone, Quad, Triangle, Disk) partecipano automaticamente alla NEE come Geometry Lights, riducendo il rumore rispetto al path tracing puro.
 - 🌟 **Disney Principled BSDF** — Materiale PBR unificato (alias: `"disney"`, `"disney_bsdf"`, `"pbr"`). Un singolo tipo può rappresentare plastica, metallo, vetro, vernice auto, tessuto, pelle e qualsiasi combinazione intermedia tramite i parametri `metallic`, `roughness`, `subsurface`, `specular`, `sheen`, `clearcoat`, `spec_trans` e `ior`.
 
 ### Texture

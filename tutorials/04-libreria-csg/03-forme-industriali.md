@@ -143,6 +143,57 @@ Un disco con foro centrale e denti cubici aggiunti con union:
 
 ---
 
+## Punta di Trapano (Drill Bit)
+
+Un cilindro lungo con una punta conica perfetta in sommità:
+
+```yaml
+- name: "punta_trapano"
+  type: "csg"
+  operation: "union"
+  material: "acciaio"
+  left:
+    # Gambo cilindrico
+    type: "cylinder"
+    center: [0, 0, 0]
+    radius: 0.15
+    height: 2.0
+  right:
+    # Punta conica
+    type: "cone"
+    center: [0, 2.0, 0]
+    radius: 0.15
+    top_radius: 0.0          # Punta perfetta
+    height: 0.3
+```
+
+## Imbuto Industriale
+
+Creato sottraendo un cono interno da un cono esterno (tronco di cono):
+
+```yaml
+- name: "imbuto"
+  type: "csg"
+  operation: "subtraction"
+  material: "plastica_rossa"
+  left:
+    # Corpo esterno
+    type: "cone"
+    center: [0, 0, 0]
+    radius: 0.5
+    top_radius: 2.5
+    height: 2.5
+  right:
+    # Scavo interno (leggermente più alto per il foro)
+    type: "cone"
+    center: [0, -0.1, 0]
+    radius: 0.4
+    top_radius: 2.4
+    height: 2.7
+```
+
+---
+
 ---
 
 [← Torna all'indice](../04-libreria-csg.md)

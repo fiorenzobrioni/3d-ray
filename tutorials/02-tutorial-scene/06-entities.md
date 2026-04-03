@@ -15,6 +15,10 @@ Gli oggetti 3D nella scena. Ogni entità ha un `name`, un `type`, parametri spec
 | `center` | `[X, Y, Z]` | Centro della sfera nel mondo |
 | `radius` | float | Raggio |
 
+> **UV Mapping:** Sferico (longitudine/latitudine). `U` ruota attorno all'asse Y ($0$ a $1$), `V` va dal polo sud al polo nord ($0$ a $1$).
+
+> **Area light:** La sfera implementa `ISamplable` e può essere usata come area light emissiva con NEE. Il campionamento è uniforme sulla superficie sferica.
+
 ## 6.2 Box (Cubo/Parallelepipedo)
 
 Il Box è definito come un **cubo unitario** centrato nell'origine (da -0.5 a 0.5 su tutti gli assi). Viene poi posizionato e dimensionato tramite le trasformazioni `scale` e `translate`.
@@ -31,6 +35,8 @@ Il Box è definito come un **cubo unitario** centrato nell'origine (da -0.5 a 0.
 | `scale` | `[X, Y, Z]` | Dimensioni del box (larghezza, altezza, profondità) |
 | `translate` | `[X, Y, Z]` | Posizione del **centro** del box nel mondo |
 | `rotate` | `[X, Y, Z]` | Rotazione in gradi (opzionale) |
+
+> **UV Mapping:** Planare per faccia. Ogni faccia del box mappa l'intero intervallo $[0, 1]$ della texture.
 
 ### Sintassi alternativa: `min`/`max` (coordinate assolute)
 
@@ -53,6 +59,8 @@ In alternativa a `scale`+`translate`, puoi specificare direttamente gli angoli d
 
 > **⚠️ Importante:** Il `translate` posiziona il **centro** del box. Se vuoi che la base sia a Y=0, traslaci di `altezza / 2` in Y. Esempio: box alto 1.0 con base a terra → `translate: [0, 0.5, 0]`.
 
+> **Area light:** Il box implementa `ISamplable` e può essere usato come area light emissiva con NEE. Il campionamento è pesato per area tra le 6 facce del box.
+
 ## 6.3 Cylinder (Cilindro)
 Cilindro finito allineato all'asse Y, con dischi di chiusura (caps) in alto e in basso.
 ```yaml
@@ -69,8 +77,11 @@ Cilindro finito allineato all'asse Y, con dischi di chiusura (caps) in alto e in
 | `radius` | float | Raggio del cilindro |
 | `height` | float | Altezza (estensione verso +Y dal center) |
 
-## 6.4 Cone (Cono / Tronco di Cono)
+> **UV Mapping:** Cilindrico sul corpo (U gira attorno a Y, V sale lungo l'altezza) e planare sui dischi di chiusura (caps).
 
+> **Area light:** Il cilindro implementa `ISamplable` e può essere usato come area light emissiva con NEE.
+
+## 6.4 Cone (Cono / Tronco di Cono)
 Cono finito allineato all'asse Y. Può essere un cono appuntito (`top_radius: 0`, default) o un tronco di cono / frustum (`top_radius > 0`). Include dischi di chiusura (caps): sempre alla base, e anche in cima se è un tronco di cono.
 
 ### Cono appuntito
@@ -109,8 +120,10 @@ Cono finito allineato all'asse Y. Può essere un cono appuntito (`top_radius: 0`
 |-------|------|---------|-------------|
 | `center` | `[X, Y, Z]` | `[0, 0, 0]` | Centro della **base inferiore** del cono |
 | `radius` | float | `1.0` | Raggio alla base |
-| `top_radius` | float | `0.0` | Raggio alla sommità. `0` = cono appuntito, `> 0` = tronco di cono |
+| `top_radius` | float | `0.0` | Raggio alla sommità. `0` = cono appuntito, `> 0` | tronco di cono |
 | `height` | float | `1.0` | Altezza (estensione verso +Y dal center) |
+
+> **UV Mapping:** Cilindrico sul corpo (U gira attorno a Y, V sale lungo l'altezza) e planare sui dischi di chiusura (caps).
 
 > **Alias tipo:** Oltre a `"cone"`, sono accettati anche `"truncated_cone"` e `"frustum"`.
 
@@ -136,6 +149,10 @@ Triangolo definito da tre vertici. Usa l'algoritmo Möller–Trumbore per l'inte
 | `v1` | `[X, Y, Z]` | Secondo vertice |
 | `v2` | `[X, Y, Z]` | Terzo vertice |
 
+> **UV Mapping:** Baricentrico. Le coordinate `u` e `v` corrispondono ai pesi dei vertici V1 e V2.
+
+> **Area light:** Il triangolo implementa `ISamplable` e può essere usato come area light emissiva con NEE.
+
 ## 6.6 Quad (Quadrilatero)
 Un parallelogramma definito da un punto d'origine Q e due vettori U e V che definiscono i lati.
 ```yaml
@@ -152,6 +169,10 @@ Un parallelogramma definito da un punto d'origine Q e due vettori U e V che defi
 | `u` | `[X, Y, Z]` | Primo vettore lato |
 | `v` | `[X, Y, Z]` | Secondo vettore lato |
 
+> **UV Mapping:** Parametrico/Planare. La texture viene stesa sul parallelogramma definito dai vettori U e V, mappando $[0, 1]$ su entrambi gli assi.
+
+> **Area light:** Il quad implementa `ISamplable` e può essere usato come area light emissiva con NEE.
+
 ## 6.7 Disk (Disco)
 Disco piatto con centro, normale e raggio.
 ```yaml
@@ -162,6 +183,15 @@ Disco piatto con centro, normale e raggio.
     radius: 2.0
     material: "metallo"
 ```
+| Campo | Tipo | Descrizione |
+|-------|------|-------------|
+| `center` | `[X, Y, Z]` | Centro del disco |
+| `normal` | `[X, Y, Z]` | Normale del piano del disco |
+| `radius` | float | Raggio |
+
+> **UV Mapping:** Planare. Proiezione locale sul piano del disco; il raggio viene mappato nell'intervallo $[0, 1]$.
+
+> **Area light:** Il disco implementa `ISamplable` e può essere usato come area light emissiva con NEE.
 
 ## 6.8 Plane / Infinite Plane (Piano Infinito)
 Piano infinito utile per pavimenti o sfondi.
@@ -172,6 +202,12 @@ Piano infinito utile per pavimenti o sfondi.
     normal: [0, 1, 0]
     material: "scacchiera"
 ```
+| Campo | Tipo | Descrizione |
+|-------|------|-------------|
+| `point` | `[X, Y, Z]` | Un punto appartenente al piano |
+| `normal` | `[X, Y, Z]` | Normale del piano |
+
+> **UV Mapping:** Planare "tiled". La texture viene ripetuta all'infinito sul piano. Utile per pavimenti e sfondi.
 
 ## 6.9 Trasformazioni (Translate, Rotate, Scale)
 
