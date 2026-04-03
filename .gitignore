@@ -81,6 +81,7 @@ StyleCopReport.xml
 *.ilk
 *.meta
 *.obj
+!scenes/**/*.obj
 *.iobj
 *.pch
 *.pdb

@@ -68,7 +68,7 @@ Materiale trasparente con rifrazione e riflesso Fresnel.
 > Il materiale Dielectric supporta `normal_map` per simulare vetro satinato o brocche intagliate.
 
 ## 4.4 Emissive (Luminoso)
-Materiale auto-luminoso: l'oggetto emette luce propria e brilla nella scena senza bisogno di illuminazione esterna. La luce emessa si propaga tramite i rimbalzi del path tracer. Tutte le primitive geometriche (Sphere, Box, Cylinder, Cone, Torus, Capsule, Annulus, Quad, Triangle, Disk) supportano `ISamplable` e partecipano alla NEE come Geometry Lights quando usate con materiale emissivo, riducendo significativamente il rumore rispetto al path tracing puro.
+Materiale auto-luminoso: l'oggetto emette luce propria e brilla nella scena senza bisogno di illuminazione esterna. La luce emessa si propaga tramite i rimbalzi del path tracer. Tutte le primitive geometriche (Sphere, Box, Cylinder, Cone, Torus, Capsule, Annulus, Mesh, SmoothTriangle, Quad, Triangle, Disk) supportano `ISamplable` e partecipano alla NEE come Geometry Lights quando usate con materiale emissivo, riducendo significativamente il rumore rispetto al path tracing puro.
 
 Usi tipici: neon, LED, insegne, lava, fiamme, sfere magiche, pannelli luminosi, indicatori.
 
@@ -114,7 +114,7 @@ Usi tipici: neon, LED, insegne, lava, fiamme, sfere magiche, pannelli luminosi, 
 
 > **💡 Tip: Emissive vs Area Light.** Un `quad` con materiale `emissive` è visualmente simile a un'area light, ma con differenze importanti:
 > - L'**area light** usa Next Event Estimation (NEE) e produce ombre morbide controllate con `shadow_samples`.
-> - L'**emissive** illumina tramite rimbalzi del path tracer e, per le geometrie campionabili (Sphere, Box, Cylinder, Cone, Torus, Capsule, Annulus, Quad, Triangle, Disk), anche tramite NEE diretta. Richiede più campioni (`-s`) per convergere, ma l'oggetto è fisicamente **visibile** nella scena (puoi vederlo, rifletterlo nello specchio, rifrangerlo nel vetro).
+> - L'**emissive** illumina tramite rimbalzi del path tracer e, per le geometrie campionabili (Sphere, Box, Cylinder, Cone, Torus, Capsule, Annulus, Mesh, SmoothTriangle, Quad, Triangle, Disk), anche tramite NEE diretta. Richiede più campioni (`-s`) per convergere, ma l'oggetto è fisicamente **visibile** nella scena (puoi vederlo, rifletterlo nello specchio, rifrangerlo nel vetro).
 > - Per pannelli a soffitto che devono essere visti: usa `emissive`. Per illuminazione pura senza geometria visibile: usa `area` light.
 
 ---

@@ -112,7 +112,7 @@ entities:
   - { name: "neon", type: "sphere", center: [0, 2, 0], radius: 0.5, material: "neon_ciano" }
 ```
 
-> **💡 Nota:** Per gli oggetti emissivi con geometrie campionabili (Sphere, Box, Cylinder, Cone, Torus, Capsule, Annulus, Quad, Triangle, Disk), il motore attiva automaticamente la **Next Event Estimation (NEE)**, campionandoli come luci dirette per ridurre il rumore. Se invece usi geometrie non campionabili (come la CSG) o se l'oggetto è una sorgente molto piccola, l'illuminazione arriverà principalmente dai rimbalzi indiretti del path tracer; in quel caso sono necessari campioni elevati (`-s 128+`) per ottenere risultati puliti.
+> **💡 Nota:** Per gli oggetti emissivi con geometrie campionabili (Sphere, Box, Cylinder, Cone, Torus, Capsule, Annulus, Mesh, SmoothTriangle, Quad, Triangle, Disk), il motore attiva automaticamente la **Next Event Estimation (NEE)**, campionandoli come luci dirette per ridurre il rumore. Se invece usi geometrie non campionabili (come la CSG) o se l'oggetto è una sorgente molto piccola, l'illuminazione arriverà principalmente dai rimbalzi indiretti del path tracer; in quel caso sono necessari campioni elevati (`-s 128+`) per ottenere risultati puliti.
 
 ---
 

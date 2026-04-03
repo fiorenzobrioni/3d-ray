@@ -138,8 +138,14 @@ public class SceneLoader
                 IHittable? hittable;
                 if (string.Equals(e.Type, "csg", StringComparison.OrdinalIgnoreCase))
                 {
-                    // CSG needs the materials dictionary for per-child material resolution
+                    // CSG needs the materials dictionary for per-child resolution
                     hittable = CreateCsgEntity(e, mat, materials, idx);
+                }
+                else if (string.Equals(e.Type, "mesh", StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(e.Type, "obj", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Mesh needs the sceneDir for OBJ path resolution
+                    hittable = CreateMeshEntity(e, mat, sceneDir, idx);
                 }
                 else
                 {
@@ -380,19 +386,21 @@ public class SceneLoader
     {
         switch (obj)
         {
-            // ── Bare primitives ────────────────────────────────────────────
-            case Sphere    s  when s.Material  is Emissive em: return (s,  em);
-            case Quad      q  when q.Material  is Emissive em: return (q,  em);
-            case Triangle  tr when tr.Material is Emissive em: return (tr, em);
-            case Disk      d  when d.Material  is Emissive em: return (d,  em);
-            case Box       b  when b.Material  is Emissive em: return (b,  em);
-            case Cylinder  cy when cy.Material is Emissive em: return (cy, em);
-            case Cone      co when co.Material is Emissive em: return (co, em);
-            case Torus     to when to.Material is Emissive em: return (to, em);
-            case Capsule   ca when ca.Material is Emissive em: return (ca, em);
-            case Annulus   an when an.Material is Emissive em: return (an, em);
+            // ── Bare primitives ──────────────────────────────────────────────────
+            case Sphere         s  when s.Material  is Emissive em: return (s,  em);
+            case Quad           q  when q.Material  is Emissive em: return (q,  em);
+            case Triangle       tr when tr.Material is Emissive em: return (tr, em);
+            case SmoothTriangle st when st.Material is Emissive em: return (st, em);
+            case Disk           d  when d.Material  is Emissive em: return (d,  em);
+            case Box            b  when b.Material  is Emissive em: return (b,  em);
+            case Cylinder       cy when cy.Material is Emissive em: return (cy, em);
+            case Cone           co when co.Material is Emissive em: return (co, em);
+            case Torus          to when to.Material is Emissive em: return (to, em);
+            case Capsule        ca when ca.Material is Emissive em: return (ca, em);
+            case Annulus        an when an.Material is Emissive em: return (an, em);
+            case Mesh           ms when ms.Material is Emissive em: return (ms, em);
 
-            // ── Transform wrapper ──────────────────────────────────────────
+            // ── Transform wrapper ────────────────────────────────────────────────
             // Transform implements ISamplable: it delegates Sample() to the
             // inner primitive and maps the result to world space with the
             // correct Jacobian-based area conversion.
@@ -691,11 +699,8 @@ public class SceneLoader
             "box" => e.Min != null && e.Max != null
                      ? CreateBoxFromMinMax(e, mat)
                      : new Box(mat),
-
-            "triangle" => new Triangle(
-                ToVector3(e.V0) ?? Vector3.Zero,
-                ToVector3(e.V1) ?? Vector3.UnitX,
-                ToVector3(e.V2) ?? Vector3.UnitY, mat),
+            "triangle" or "smooth_triangle"
+                       => CreateTriangleEntity(e, mat),
             "quad"     => new Quad(
                 ToVector3(e.Q) ?? Vector3.Zero,
                 ToVector3(e.U) ?? Vector3.UnitX,
@@ -857,7 +862,96 @@ public class SceneLoader
  
         return hittable;
     }
+
+    /// <summary>
+    /// Creates a Mesh entity by loading an OBJ file.
+    /// The OBJ path is resolved relative to the scene YAML directory.
+    /// </summary>
+    private static IHittable? CreateMeshEntity(EntityData e, IMaterial mat, string sceneDir, int entityIndex)
+    {
+        if (string.IsNullOrWhiteSpace(e.Path))
+        {
+            Warn($"Mesh entity '{e.Name ?? "(unnamed)"}' requires a 'path' to an OBJ file. Skipping.");
+            return null;
+        }
  
+        // Resolve the OBJ path relative to the YAML scene directory
+        string objPath = Path.IsPathRooted(e.Path)
+            ? e.Path
+            : Path.Combine(sceneDir, e.Path);
+ 
+        if (!File.Exists(objPath))
+        {
+            Warn($"Mesh entity '{e.Name ?? "(unnamed)"}': OBJ file not found at '{objPath}'. Skipping.");
+            return null;
+        }
+ 
+        var warnings = new List<string>();
+        var mesh = ObjLoader.Load(objPath, mat, warnings);
+ 
+        // Report OBJ warnings
+        foreach (var w in warnings)
+            Warn($"Mesh '{e.Name ?? Path.GetFileName(objPath)}': {w}");
+ 
+        if (mesh == null)
+        {
+            Warn($"Mesh entity '{e.Name ?? "(unnamed)"}': failed to load '{objPath}'. Skipping.");
+            return null;
+        }
+ 
+        // Report mesh stats
+        Info($"Mesh '{e.Name ?? Path.GetFileName(objPath)}': " +
+             $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices");
+ 
+        // Seed assignment (same logic as CreateEntity)
+        mesh.Seed = e.Seed ?? HashCode.Combine(entityIndex,
+                                                e.Type?.GetHashCode() ?? 0,
+                                                e.Name?.GetHashCode() ?? 0);
+ 
+        return mesh;
+    }
+
+    /// <summary>
+    /// Creates a Triangle or SmoothTriangle depending on whether per-vertex
+    /// normals (n0/n1/n2) are specified in the YAML.
+    ///
+    /// Both "triangle" and "smooth_triangle" types route here. This means
+    /// a plain "triangle" with n0/n1/n2 fields automatically upgrades to
+    /// smooth shading — no type change needed.
+    /// </summary>
+    private static IHittable CreateTriangleEntity(EntityData e, IMaterial mat)
+    {
+        var v0 = ToVector3(e.V0) ?? Vector3.Zero;
+        var v1 = ToVector3(e.V1) ?? Vector3.UnitX;
+        var v2 = ToVector3(e.V2) ?? Vector3.UnitY;
+ 
+        bool hasNormals = e.N0 != null && e.N1 != null && e.N2 != null;
+ 
+        if (!hasNormals)
+        {
+            // Flat triangle (original behavior)
+            return new Triangle(v0, v1, v2, mat);
+        }
+ 
+        var n0 = ToVector3(e.N0) ?? Vector3.UnitY;
+        var n1 = ToVector3(e.N1) ?? Vector3.UnitY;
+        var n2 = ToVector3(e.N2) ?? Vector3.UnitY;
+ 
+        bool hasUVs = e.UV0 != null && e.UV1 != null && e.UV2 != null;
+ 
+        if (hasUVs)
+        {
+            var uv0 = ToVector2(e.UV0) ?? System.Numerics.Vector2.Zero;
+            var uv1 = ToVector2(e.UV1) ?? System.Numerics.Vector2.UnitX;
+            var uv2 = ToVector2(e.UV2) ?? System.Numerics.Vector2.UnitY;
+            return new SmoothTriangle(v0, v1, v2, n0, n1, n2, uv0, uv1, uv2, mat);
+        }
+        else
+        {
+            return new SmoothTriangle(v0, v1, v2, n0, n1, n2, mat);
+        }
+    }
+
     private static ILight? CreateLight(LightData l, int? shadowSamplesOverride)
     {
         var color = ToVector3(l.Color) ?? Vector3.One;
@@ -944,6 +1038,12 @@ public class SceneLoader
     {
         if (list == null || list.Count < 3) return null;
         return new Vector3(list[0], list[1], list[2]);
+    }
+
+    private static System.Numerics.Vector2? ToVector2(List<float>? v)
+    {
+        if (v == null || v.Count < 2) return null;
+        return new System.Numerics.Vector2(v[0], v[1]);
     }
 
     private static Matrix4x4 ComputeTransformMatrix(EntityData e)

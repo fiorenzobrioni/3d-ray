@@ -506,6 +506,144 @@ Un figlio `csg` può essere a sua volta un nodo CSG, costruendo espressioni come
 
 ---
 
+## 6.15 Mesh (Modello 3D — OBJ)
+
+Carica un modello 3D da file Wavefront OBJ. Supporta vertici, normali per-vertex (smooth shading), coordinate texture (artist UV), e facce triangolari e quadrangolari (auto-triangolate).
+
+I modelli vengono inseriti nella scena con un BVH interno dedicato per intersezione efficiente O(log N) anche con migliaia di facce.
+
+### Mesh base
+```yaml
+  - name: "teapot"
+    type: "mesh"
+    path: "models/teapot.obj"
+    material: "ceramica"
+    scale: [0.5, 0.5, 0.5]
+    translate: [0, 0, 0]
+```
+
+### Mesh con trasformazioni
+```yaml
+  - name: "bunny"
+    type: "mesh"
+    path: "models/stanford_bunny.obj"
+    material: "marmo_bianco"
+    scale: [10, 10, 10]           # Molti OBJ sono in scala diversa
+    rotate: [0, 45, 0]
+    translate: [0, 0, 0]
+```
+
+| Campo | Tipo | Descrizione |
+|-------|------|-------------|
+| `path` | string | Percorso al file `.obj`, relativo alla directory della scena YAML |
+| `material` | string | ID del materiale (applicato a tutte le facce) |
+| `scale` | `[X, Y, Z]` | Scala (opzionale) |
+| `rotate` | `[X, Y, Z]` | Rotazione in gradi (opzionale) |
+| `translate` | `[X, Y, Z]` | Traslazione (opzionale) |
+
+> **Alias tipo:** `"mesh"`, `"obj"`.
+
+### Formato OBJ supportato
+
+Il parser legge le seguenti direttive OBJ:
+
+| Direttiva | Descrizione | Esempio |
+|-----------|-------------|---------|
+| `v x y z` | Posizione vertice | `v 1.0 2.5 -0.3` |
+| `vn nx ny nz` | Normale per-vertex | `vn 0.0 1.0 0.0` |
+| `vt u v` | Coordinata texture | `vt 0.5 0.75` |
+| `f v1 v2 v3 [v4...]` | Faccia (triangolo, quad, o poligono) | `f 1/1/1 2/2/1 3/3/1` |
+
+I formati delle facce supportati sono:
+- `f v v v` — solo posizioni (flat shading, UV baricentriche)
+- `f v/vt v/vt v/vt` — posizioni + UV (flat shading)
+- `f v/vt/vn v/vt/vn v/vt/vn` — posizioni + UV + normali (smooth shading)
+- `f v//vn v//vn v//vn` — posizioni + normali senza UV
+
+Gli indici negativi sono supportati (relativi alla fine della lista, come da specifica OBJ).
+
+Le direttive `o`, `g`, `s`, `usemtl`, `mtllib` vengono parse ma ignorate (materiale singolo per mesh; supporto MTL multi-materiale è un'estensione futura).
+
+### Smooth Shading
+
+Quando il file OBJ contiene normali per-vertex (`vn`), il renderer usa **interpolazione Phong**: la normale viene interpolata via coordinate baricentriche, producendo un'ombreggiatura liscia senza facce visibili.
+
+Quando le normali sono assenti, le facce vengono renderizzate con **flat shading** (normale della faccia geometrica), come con il Triangle standard.
+
+### UV e Normal Map su Mesh
+
+Le coordinate texture dal file OBJ vengono interpolate per pixel e usate per campionare texture e normal map. Il sistema TBN (Tangent, Bitangent, Normal) viene calcolato dal gradiente UV, garantendo che le normal map siano orientate correttamente rispetto al layout UV dell'artista.
+
+Questo significa che una texture dipinta in Blender/Maya/Substance e esportata come OBJ + PNG si mapperà correttamente sul modello nel ray tracer.
+
+### Performance e BVH interno
+
+Ogni mesh costruisce un **BVH interno** dedicato al momento del caricamento. Il BVH della scena vede la mesh come un singolo oggetto (una foglia), e delega la ricerca dei triangoli interni al BVH della mesh.
+
+Questo design a due livelli è efficiente per scene con molte mesh:
+- **BVH scena**: O(log M) dove M = numero di oggetti nella scena
+- **BVH mesh**: O(log F) dove F = numero di facce nella mesh
+- **Totale per raggio**: O(log M + log F) nel caso di un singolo hit
+
+Al caricamento, il numero di vertici e facce viene stampato nella console:
+```
+  Mesh 'teapot': 6,320 faces, 3,644 vertices
+```
+
+### Area Light
+
+La mesh implementa `ISamplable` con campionamento pesato per area: ogni faccia ha probabilità di essere campionata proporzionale alla sua superficie. Questo permette di usare mesh emissive come area light con NEE.
+
+### Limiti attuali
+
+- **Materiale singolo**: tutte le facce condividono lo stesso materiale. Supporto MTL multi-gruppo è una futura estensione.
+- **No animazione**: vertex positions sono statiche.
+- **Formato OBJ only**: glTF, FBX, STL non sono supportati (OBJ è il più universale e semplice da parsare).
+
+---
+
+## 6.16 Smooth Triangle (Triangolo Liscio)
+
+A differenza del triangolo piatto standard, lo **Smooth Triangle** supporta l'interpolazione delle normali ai vertici (Phong Shading) e coordinate UV personalizzate. È la primitiva fondamentale usata internamente dalla `Mesh`, ma può essere definita individualmente per creare superfici curve fatte a mano o forme origami complesse senza caricare file esterni.
+
+### Caratteristiche principali
+- **Phong Shading:** Elimina l'effetto sfaccettato interpolando le normali tra i vertici.
+- **Artist UVs:** Supporta mappe UV arbitrarie per texture e normal mapping preciso.
+- **Area Light:** Implementa `ISamplable`, quindi può essere usato come luce diretta (NEE) se accoppiato a un materiale `emissive`.
+
+### Triangolo Smooth base
+```yaml
+  - name: "ala_curva"
+    type: "smooth_triangle"
+    v0: [0, 0, 0]
+    v1: [1, 0, 0]
+    v2: [0, 1, 0]
+    n0: [0, 0, 1]              # Normale al vertice 0
+    n1: [0.5, 0, 0.86]         # Normale inclinata
+    n2: [0, 0.5, 0.86]         # Normale inclinata
+    material: "plastica"
+```
+
+### Triangolo con UV e Normali
+```yaml
+  - name: "faccia_mappata"
+    type: "smooth_triangle"
+    v0: [-1, 0, 0] ; v1: [1, 0, 0] ; v2: [0, 2, 0]
+    n0: [0, 0, 1]  ; n1: [0, 0, 1]  ; n2: [0, 0, 1]
+    uv0: [0, 0]    ; uv1: [1, 0]    ; uv2: [0.5, 1]
+    material: "tessuto_mappato"
+```
+
+| Campo | Tipo | Descrizione |
+|-------|------|-------------|
+| `v0, v1, v2` | array[3] | Posizioni dei tre vertici. |
+| `n0, n1, n2` | array[3] | (Opzionale) Normali ai vertici per lo shading liscio. |
+| `uv0, uv1, uv2` | array[2] | (Opzionale) Coordinate texture ai vertici. |
+
+> **💡 Nota:** Se usi il tipo `triangle` ma specifichi i campi `n0, n1, n2`, il motore lo convertirà automaticamente in un triangolo liscio.
+
+---
+
 ---
 
 [← Torna all'indice](../02-tutorial-scene.md)

@@ -321,6 +321,26 @@ public class EntityData
     [YamlMember(Alias = "v2")]
     public List<float>? V2 { get; set; }
 
+    // SmoothTriangle — per-vertex normals (optional; omit for flat shading fallback)
+    [YamlMember(Alias = "n0")]
+    public List<float>? N0 { get; set; }
+ 
+    [YamlMember(Alias = "n1")]
+    public List<float>? N1 { get; set; }
+ 
+    [YamlMember(Alias = "n2")]
+    public List<float>? N2 { get; set; }
+ 
+    // SmoothTriangle — per-vertex texture coordinates (optional; omit for barycentric UVs)
+    [YamlMember(Alias = "uv0")]
+    public List<float>? UV0 { get; set; }
+ 
+    [YamlMember(Alias = "uv1")]
+    public List<float>? UV1 { get; set; }
+ 
+    [YamlMember(Alias = "uv2")]
+    public List<float>? UV2 { get; set; }
+
     // Quad
     [YamlMember(Alias = "q")]
     public List<float>? Q { get; set; }
@@ -349,6 +369,14 @@ public class EntityData
     // Annulus (ring disk)
     [YamlMember(Alias = "inner_radius")]
     public float InnerRadius { get; set; } = 0f;
+
+    // Mesh (OBJ file)
+    /// <summary>
+    /// File path to a Wavefront OBJ mesh, resolved relative to the scene YAML directory.
+    /// Used when type is "mesh" or "obj".
+    /// </summary>
+    [YamlMember(Alias = "path")]
+    public string? Path { get; set; }
 
     // Plane
     [YamlMember(Alias = "normal")]
