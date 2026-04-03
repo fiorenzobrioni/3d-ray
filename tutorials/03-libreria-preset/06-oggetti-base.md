@@ -61,6 +61,28 @@ Struttura architettonica classica.
     scale: [7.5, 0.5, 0.9]
     translate: [0.0, 4.25, 0.0]
     material: "marmo_carrara"
+
+## **O-ring / Guarnizione**
+Un toro sottile in gomma per dettagli meccanici o idraulici.
+```yaml
+  - name: "oring"
+    type: "torus"
+    major_radius: 1.2
+    minor_radius: 0.1
+    translate: [0, 0.5, 0]
+    material: "gomma_rossa"
+```
+
+## **Neon Circolare (Anello Luminoso)**
+Sorgente luminosa toroidale emissiva.
+```yaml
+  - name: "neon_anello"
+    type: "torus"
+    major_radius: 1.0
+    minor_radius: 0.05
+    translate: [0, 3, 0]
+    material: "neon_rosa"        # materiale emissive, intensity: 12
+```
 ```
 
 ---

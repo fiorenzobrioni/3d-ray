@@ -190,6 +190,26 @@ Creato sottraendo un cono interno da un cono esterno (tronco di cono):
     radius: 0.4
     top_radius: 2.4
     height: 2.7
+
+## Toro Sezionato (Mezzo Toro)
+
+Un toro tagliato a metà tramite sottrazione di un box. Utile per guarnizioni tagliate o profili curvi:
+
+```yaml
+- name: "mezzo_toro"
+  type: "csg"
+  operation: "subtraction"
+  material: "gomma_nera"
+  translate: [0, 1, 0]
+  left:
+    type: "torus"
+    major_radius: 1.5
+    minor_radius: 0.4
+  right:
+    type: "box"
+    scale: [5, 5, 5]
+    translate: [0, 2.5, 0]     # Taglia la metà superiore
+```
 ```
 
 ---

@@ -113,6 +113,28 @@ Tre box ortogonali in union:
     material: "marmo_nero"
 ```
 
+## Catena (Anelli Concatenati)
+
+Due tori incastrati tramite operazione di union. Dimostra l'uso del posizionamento relativo:
+
+```yaml
+- name: "catena_link"
+  type: "csg"
+  operation: "union"
+  material: "acciaio"
+  left:
+    type: "torus"
+    major_radius: 0.5
+    minor_radius: 0.08
+  right:
+    # Secondo anello — verticale, incastrato nel primo
+    type: "torus"
+    major_radius: 0.5
+    minor_radius: 0.08
+    rotate: [90, 0, 0]
+    translate: [1.0, 0, 0]
+```
+
 ---
 
 ---

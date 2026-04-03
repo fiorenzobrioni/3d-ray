@@ -1,6 +1,6 @@
 # ============================================================================
 # Scene: Cone Showcase + ISamplable Test
-# Tests: Cone (pointed, frustum, inverted), Box emissive, Cylinder emissive
+# Tests: Cone (pointed, frustum, inverted), Cylinder emissive
 # ============================================================================
 
 camera:
@@ -10,7 +10,7 @@ camera:
   aperture: 0.0
 
 world:
-  ambient_light: [0.04, 0.04, 0.04]
+  ambient_light: [0.02, 0.02, 0.02]
   sky:
     type: "gradient"
     zenith_color: [0.05, 0.05, 0.15]
@@ -59,13 +59,22 @@ materials:
     color: [1.0, 0.4, 0.0]
     roughness: 0.6
 
-  # ── Lights ───────────────────────────────────────────
+  # ── Emissive per test ISamplable ───────────────────────────────────────────
+  - id: "neon_cilindro"
+    type: "emissive"
+    color: [1.0, 0.4, 0.2]
+    intensity: 40.0
+ 
+  - id: "neon_cono"
+    type: "emissive"
+    color: [0.2, 1.0, 0.3]
+    intensity: 40.0
 
 lights:
   - type: "point"
     position: [5, 10, -5]
     color: [1, 1, 1]
-    intensity: 280
+    intensity: 80
 
 entities:
   # ═══════════════════════════════════════════════════════════════════════════
@@ -155,3 +164,26 @@ entities:
       type: "box"
       scale: [2.2, 3.0, 2.2]
       translate: [0, 1.5, 0]
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # TEST ISamplable — Cylinder and Cone come area lights
+  # ═══════════════════════════════════════════════════════════════════════════
+  
+  # 8. Cilindro emissivo (tubo neon) — ora con NEE!
+  - name: "neon_tubo"
+    type: "cylinder"
+    center: [3.5, 4.2, 2]
+    radius: 0.08
+    height: 3.0
+    rotate: [0, 0, 90]
+    material: "neon_cilindro"
+ 
+  # 9. Cono emissivo (spotlight conico) — con NEE!
+  - name: "spotlight_cono"
+    type: "cone"
+    center: [0, 4.5, 0]
+    radius: 0.8
+    top_radius: 0.3
+    height: 0.5
+    material: "neon_cono"
+    

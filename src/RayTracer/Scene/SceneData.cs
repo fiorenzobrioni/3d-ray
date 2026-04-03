@@ -338,7 +338,14 @@ public class EntityData
     // Cone (truncated cone / frustum)
     [YamlMember(Alias = "top_radius")]
     public float TopRadius { get; set; } = 0f;
+
+    // Torus
+    [YamlMember(Alias = "major_radius")]
+    public float MajorRadius { get; set; } = 1f;
  
+    [YamlMember(Alias = "minor_radius")]
+    public float MinorRadius { get; set; } = 0.25f;
+
     // Plane
     [YamlMember(Alias = "normal")]
     public List<float>? Normal { get; set; }

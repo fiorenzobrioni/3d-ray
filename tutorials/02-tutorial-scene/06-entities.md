@@ -209,7 +209,64 @@ Piano infinito utile per pavimenti o sfondi.
 
 > **UV Mapping:** Planare "tiled". La texture viene ripetuta all'infinito sul piano. Utile per pavimenti e sfondi.
 
-## 6.9 Trasformazioni (Translate, Rotate, Scale)
+## 6.9 Torus (Toro / Ciambella)
+
+Toro centrato nell'origine, giacente nel piano XZ (asse del foro = Y). Definito da un raggio maggiore (distanza dal centro al centro del tubo) e un raggio minore (raggio del tubo). Usare `translate`, `rotate` e `scale` per posizionamento nel mondo.
+
+### Toro classico (anello con foro)
+```yaml
+  - name: "ciambella"
+    type: "torus"
+    major_radius: 2.0          # Distanza centro → centro tubo
+    minor_radius: 0.5          # Raggio del tubo
+    translate: [0, 1.5, 0]
+    material: "ceramica"
+```
+
+### Anello sottile (gioiello)
+```yaml
+  - name: "anello_oro"
+    type: "torus"
+    major_radius: 0.8
+    minor_radius: 0.08
+    translate: [0, 1, 0]
+    material: "oro_lucido"
+```
+
+### Pneumatico (tubo grosso)
+```yaml
+  - name: "pneumatico"
+    type: "torus"
+    major_radius: 1.5
+    minor_radius: 0.6
+    translate: [0, 2.1, 0]
+    rotate: [90, 0, 0]         # Ruotato per stare "in piedi"
+    material: "gomma_nera"
+```
+
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `major_radius` | float | `1.0` | Distanza dal centro del toro al centro del tubo (R) |
+| `minor_radius` | float | `0.25` | Raggio del tubo (r) |
+
+> **Alias tipo:** Oltre a `"torus"`, sono accettati anche `"donut"` e `"ring"`.
+
+> **Varianti geometriche:**
+> - **Ring torus** (R > r): il classico anello con foro visibile. Il caso più comune.
+> - **Horn torus** (R = r): il foro scompare, il tubo tocca il centro.
+> - **Spindle torus** (R < r): il tubo si auto-interseca, produce una forma a "mela".
+
+> **Posizionamento:** Il toro è centrato nell'origine come il Box. Usare `translate` per posizionarlo nel mondo. Per un toro verticale (come un pneumatico in piedi), ruotare di 90° su X: `rotate: [90, 0, 0]`.
+
+> **Trasformazioni:** `scale` funziona correttamente — uno scale non-uniforme deforma il toro in un ellissoide toroidale. Il wrapper Transform gestisce normali e area con il Jacobiano.
+
+> **CSG:** Il toro è **non-convesso** e può produrre fino a 4 intersezioni per raggio. Il motore CSG (CollectAllHits con MaxHitsPerChild = 16) lo gestisce correttamente. Utile per creare guarnizioni, raccordi O-ring, tubature e forme meccaniche complesse.
+
+> **Area light:** Il toro implementa `ISamplable` con area = 4π²Rr. Può essere usato come area light emissiva con NEE — ideale per neon ad anello o luci decorative.
+
+> **Intersezione raggio-toro:** L'intersezione produce un'equazione di grado 4 (quartica), risolta analiticamente con il metodo di Ferrari tramite `QuarticSolver`. Questo è più costoso delle quadratiche di sfere/cilindri/coni, ma garantisce risultati esatti senza artefatti da ray marching.
+
+## 6.10 Trasformazioni (Translate, Rotate, Scale)
 
 Qualsiasi entità supporta trasformazioni opzionali:
 
@@ -224,7 +281,7 @@ Qualsiasi entità supporta trasformazioni opzionali:
 
 Le trasformazioni vengono applicate nell'ordine: **Scale → Rotate → Translate**.
 
-## 6.10 Parametro Seed
+## 6.11 Parametro Seed
 
 Il parametro `seed` controlla la randomizzazione delle texture procedurali per ogni oggetto. Specificarlo rende il risultato **riproducibile** tra render successivi:
 
@@ -241,7 +298,7 @@ Se `seed` è omesso, viene generato un valore casuale ogni volta che la scena vi
 
 ---
 
-## 6.11 CSG — Constructive Solid Geometry
+## 6.12 CSG — Constructive Solid Geometry
 
 La CSG (Geometria Solida Costruttiva) permette di creare forme complesse combinando primitive con operazioni booleane. Un'entità `csg` è essa stessa un `IHittable` e può essere usata come figlio di altri nodi CSG, costruendo alberi booleani arbitrariamente complessi.
 
