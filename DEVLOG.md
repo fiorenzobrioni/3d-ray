@@ -135,7 +135,13 @@ Questa fase sfrutta le interfacce esistenti (`ITexture`, `IMaterial`, `Calculate
 
 ## ✅ TODO
 
-- [ ] —
+- [ ] Fare una review completa dei tutorials (cartella `tutorials/`): 
+  - verifica correttezza informazioni coerenti con il codice
+  - verifica eventuali omissioni di info e feature
+  - verifica grammatica corretta
+  - verifica descrizioni corrette
+  - verifica esempi corretti
+  - verifica file di indici se sono allineati con le sezioni dei tutorial
 - [ ] —
 - [ ] —
 
@@ -146,7 +152,6 @@ Questa fase sfrutta le interfacce esistenti (`ITexture`, `IMaterial`, `Calculate
 | # | Descrizione | Severità | Scena / File | Stato |
 |---|-------------|----------|--------------|-------|
 | 1 | Valore seed nei materiali sembra non funzionare | 🔴 **Alta** | — | ⬜ |
-| 2 | — | — | — | ⬜ |
 
 Severità: 🔴 **Alta** 🟠 **Media** 🟡 **Bassa**
 
@@ -156,13 +161,6 @@ Severità: 🔴 **Alta** 🟠 **Media** 🟡 **Bassa**
 
 - Ricordarsi di aggiornare i tutorial ogni volta che si aggiunge una nuova primitiva o una feature.
 - Esplorare la possibilità di un set di icone personalizzato per i log in console.
-- Fare una review completa dei tutorials (cartella `tutorials/`): 
-  - verifica correttezza informazioni coerenti con il codice
-  - verifica eventuali omissioni di info e feature
-  - verifica grammatica corretta
-  - verifica descrizioni corrette
-  - verifica esempi corretti
-  - verifica file di indici se sono allineati con le sezioni dei tutorial
 - Idee per scene creative:
   - **Showcase primitive**: Valutare se fare una scena di showcase unica per le primitive
   - **Macro Photography**: Primo piano estremo di un orologio meccanico (usando la primitiva `Annulus` e `Cylinder`) con profondità di campo (DOF) molto spinta.

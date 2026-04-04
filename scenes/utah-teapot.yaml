@@ -70,17 +70,6 @@ materials:
     color: [0.85, 0.12, 0.08]
     roughness: 0.6
 
-  - id: "carta_blu"
-    type: "disney"
-    color: [0.1, 0.2, 0.8]
-    roughness: 0.6
-
-  - id: "carta_oro"
-    type: "disney"
-    color: [0.9, 0.75, 0.2]
-    roughness: 0.35
-    metallic: 0.6
-
   # ── Sfera decorativa ───────────────────────────────────────────────────────
   - id: "cromo"
     type: "disney"
@@ -97,15 +86,10 @@ materials:
   - id: "luce_calda"
     type: "emissive"
     color: [1.0, 0.9, 0.7]
-    intensity: 20.0
-
-  - id: "neon_smooth"
-    type: "emissive"
-    color: [0.3, 0.8, 1.0]
-    intensity: 8.0
+    intensity: 14.0
 
 lights:
-  # Luce principale — calda da destra
+  # Key light — area calda da destra (invariata, funziona bene)
   - type: "area"
     corner: [4, 6, -2]
     u: [0, 0, 2]
@@ -114,16 +98,16 @@ lights:
     intensity: 30
     shadow_samples: 16
 
-  # Luce di riempimento — fredda da sinistra
+  # Fill — fredda da sinistra (invariata)
   - type: "point"
     position: [-5, 4, -3]
     color: [0.7, 0.8, 1.0]
     intensity: 25
 
-  # Luce di contorno — dietro
+  # Rim — spostata verso destra per coprire gru + teapot
   - type: "point"
-    position: [0, 3, 6]
-    color: [1, 1, 1]
+    position: [1.5, 3, 6]
+    color: [1.0, 0.98, 0.95]
     intensity: 15
 
 entities:
@@ -190,82 +174,118 @@ entities:
   # Dimostrano la nuova primitiva YAML con smooth shading
   # ═══════════════════════════════════════════════════════════════════════════
 
-  # Origami gru — ala sinistra (smooth triangle con normali curve)
-  - name: "origami_ala_sx"
-    type: "smooth_triangle"
-    v0: [-2.0, 1.1, 0.0]
-    v1: [-1.2, 1.5, -0.3]
-    v2: [-1.5, 1.1, 0.8]
-    n0: [0.0, 1.0, 0.0]
-    n1: [-0.3, 0.95, -0.1]
-    n2: [0.0, 0.9, 0.44]
-    uv0: [0, 0]
-    uv1: [1, 0]
-    uv2: [0.5, 1]
+# ═══════════════════════════════════════════════════════════════════════════
+  # ORIGAMI GRU (Tsuru) — 13 triangoli flat-shaded
+  # Posizione: lato destro del tavolo (dove c'era la piramide)
+  #
+  # Vertici chiave:
+  #   P_cl  [ 1.6, 1.1,  0.0]   corpo sinistra
+  #   P_cr  [ 2.4, 1.1,  0.0]   corpo destra
+  #   P_cf  [ 2.0, 1.1, -0.33]  corpo fronte
+  #   P_cb  [ 2.0, 1.1,  0.33]  corpo retro
+  #   P_top [ 2.0, 1.55, 0.0]   cresta dorsale
+  #   P_wlt [ 0.9, 1.18, 0.0]   punta ala sinistra
+  #   P_wrt [ 2.9, 1.18, 0.0]   punta ala destra
+  #   P_nh  [ 2.4, 2.0,  -0.9]  testa / becco
+  #   P_tt  [ 1.9, 2.05,  0.9]  punta coda
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ─── Corpo: 4 facce a diamante ─────────────────────────────────────────────
+  - name: "gru_corpo_sx_fr"
+    type: "triangle"
+    v0: [1.6, 1.1,  0.0]
+    v1: [2.0, 1.55, 0.0]
+    v2: [2.0, 1.1, -0.33]
     material: "carta_rossa"
 
-  # Origami gru — ala destra
-  - name: "origami_ala_dx"
-    type: "smooth_triangle"
-    v0: [-2.0, 1.1, 0.0]
-    v1: [-1.2, 1.5, -0.3]
-    v2: [-2.5, 1.1, -0.7]
-    n0: [0.0, 1.0, 0.0]
-    n1: [-0.3, 0.95, -0.1]
-    n2: [0.0, 0.9, -0.44]
+  - name: "gru_corpo_dx_fr"
+    type: "triangle"
+    v0: [2.0, 1.1, -0.33]
+    v1: [2.0, 1.55, 0.0]
+    v2: [2.4, 1.1,  0.0]
     material: "carta_rossa"
 
-  # Piramide origami — quattro smooth triangles
-  - name: "piramide_f1"
-    type: "smooth_triangle"
-    v0: [2.0, 1.1, -0.5]
-    v1: [2.5, 1.1, 0.3]
-    v2: [2.25, 1.8, -0.1]
-    n0: [0.0, 0.3, -0.95]
-    n1: [0.5, 0.3, 0.81]
-    n2: [0.0, 1.0, 0.0]
-    material: "carta_blu"
+  - name: "gru_corpo_sx_re"
+    type: "triangle"
+    v0: [2.0, 1.1,  0.33]
+    v1: [2.0, 1.55, 0.0]
+    v2: [1.6, 1.1,  0.0]
+    material: "carta_rossa"
 
-  - name: "piramide_f2"
-    type: "smooth_triangle"
-    v0: [2.5, 1.1, 0.3]
-    v1: [1.8, 1.1, 0.4]
-    v2: [2.25, 1.8, -0.1]
-    n0: [0.5, 0.3, 0.81]
-    n1: [-0.5, 0.3, 0.81]
-    n2: [0.0, 1.0, 0.0]
-    material: "carta_blu"
+  - name: "gru_corpo_dx_re"
+    type: "triangle"
+    v0: [2.4, 1.1,  0.0]
+    v1: [2.0, 1.55, 0.0]
+    v2: [2.0, 1.1,  0.33]
+    material: "carta_rossa"
 
-  - name: "piramide_f3"
-    type: "smooth_triangle"
-    v0: [1.8, 1.1, 0.4]
-    v1: [1.6, 1.1, -0.4]
-    v2: [2.25, 1.8, -0.1]
-    n0: [-0.5, 0.3, 0.81]
-    n1: [-0.5, 0.3, -0.81]
-    n2: [0.0, 1.0, 0.0]
-    material: "carta_oro"
+  # ─── Ala sinistra: 2 facce ─────────────────────────────────────────────────
+  - name: "gru_ala_sx_fr"
+    type: "triangle"
+    v0: [2.0, 1.1, -0.33]
+    v1: [0.9, 1.18, 0.0]
+    v2: [1.6, 1.1,  0.0]
+    material: "carta_rossa"
 
-  - name: "piramide_f4"
-    type: "smooth_triangle"
-    v0: [1.6, 1.1, -0.4]
-    v1: [2.0, 1.1, -0.5]
-    v2: [2.25, 1.8, -0.1]
-    n0: [-0.5, 0.3, -0.81]
-    n1: [0.0, 0.3, -0.95]
-    n2: [0.0, 1.0, 0.0]
-    material: "carta_oro"
+  - name: "gru_ala_sx_re"
+    type: "triangle"
+    v0: [1.6, 1.1,  0.0]
+    v1: [0.9, 1.18, 0.0]
+    v2: [2.0, 1.1,  0.33]
+    material: "carta_rossa"
 
-  # Triangolo emissivo smooth — piccola luce decorativa
-  - name: "luce_triangolare"
-    type: "smooth_triangle"
-    v0: [-0.5, 3.5, -1.0]
-    v1: [0.5, 3.5, -1.0]
-    v2: [0.0, 4.2, -0.8]
-    n0: [0, 0, -1]
-    n1: [0, 0, -1]
-    n2: [0, 0.3, -0.95]
-    material: "neon_smooth"
+  # ─── Ala destra: 2 facce ───────────────────────────────────────────────────
+  - name: "gru_ala_dx_fr"
+    type: "triangle"
+    v0: [2.4, 1.1,  0.0]
+    v1: [2.9, 1.18, 0.0]
+    v2: [2.0, 1.1, -0.33]
+    material: "carta_rossa"
+
+  - name: "gru_ala_dx_re"
+    type: "triangle"
+    v0: [2.0, 1.1,  0.33]
+    v1: [2.9, 1.18, 0.0]
+    v2: [2.4, 1.1,  0.0]
+    material: "carta_rossa"
+
+  # ─── Collo/testa: 2 triangoli sfalsati di 0.05 in X per spessore visivo ────
+  - name: "gru_collo_a"
+    type: "triangle"
+    v0: [2.0,  1.55, 0.0]
+    v1: [2.0,  1.1, -0.33]
+    v2: [2.4,  2.0, -0.9]
+    material: "carta_rossa"
+
+  - name: "gru_collo_b"
+    type: "triangle"
+    v0: [1.95, 1.55, 0.0]
+    v1: [1.95, 1.1, -0.33]
+    v2: [2.35, 2.0, -0.9]
+    material: "carta_rossa"
+
+  # ─── Coda: 1 faccia ────────────────────────────────────────────────────────
+  - name: "gru_coda"
+    type: "triangle"
+    v0: [2.0, 1.55, 0.0]
+    v1: [1.9, 2.05, 0.9]
+    v2: [2.0, 1.1,  0.33]
+    material: "carta_rossa"
+
+  # ─── Fondo corpo: chiude la base del diamante ──────────────────────────────
+  - name: "gru_fondo_fr"
+    type: "triangle"
+    v0: [1.6, 1.1,  0.0]
+    v1: [2.0, 1.1, -0.33]
+    v2: [2.4, 1.1,  0.0]
+    material: "carta_rossa"
+
+  - name: "gru_fondo_re"
+    type: "triangle"
+    v0: [1.6, 1.1,  0.0]
+    v1: [2.4, 1.1,  0.0]
+    v2: [2.0, 1.1,  0.33]
+    material: "carta_rossa"
 
   # ═══════════════════════════════════════════════════════════════════════════
   # OGGETTI DECORATIVI — primitive analitiche per composizione
@@ -288,7 +308,7 @@ entities:
   # Piccolo pannello luminoso caldo — area light emissiva
   - name: "pannello_luce"
     type: "quad"
-    q: [-1, 4, 1]
-    u: [2, 0, 0]
-    v: [0, 0, 1]
+    q: [0, 4, 0]
+    u: [3, 0, 0]
+    v: [0, 0, 2]
     material: "luce_calda"

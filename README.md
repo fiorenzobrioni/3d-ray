@@ -133,6 +133,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 
 ```
 3d-ray/
+├── docs/                    # Documentazione del progetto
 ├── src/
 │   ├── RayTracer/           # Motore principale
 │   │   ├── Acceleration/    # BVH
@@ -149,7 +150,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │       └── NormalMapGen/    # Generatore flat normal map per test
 ├── scenes/                  # File YAML di esempio
 ├── output/                  # Immagini renderizzate
-├── tutorials/               # Documentazione
+├── tutorials/               # Tutorial per l'uso del motore
 └── .github/workflows/       # CI con smoke test
 ```
 
