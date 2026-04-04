@@ -1,5 +1,8 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+# Smoke test — eseguito su ogni push e PR verso main.
+# Compila il progetto in Release e renderizza una scena leggera (chess.yaml,
+# 320×213, 1 sample) per verificare che il binario non crashi.
+# L'immagine prodotta viene caricata come artifact (retention 3 giorni)
+# per un'ispezione visiva rapida in caso di regressioni.
 
 name: RayTracer CI
 
@@ -28,6 +31,7 @@ jobs:
       run: dotnet build src/RayTracer/RayTracer.csproj --no-restore --configuration Release
 
     - name: Render smoke test (chess.yaml)
+      timeout-minutes: 5
       run: >
         dotnet run --project src/RayTracer/RayTracer.csproj
         --configuration Release --no-build --
@@ -36,9 +40,10 @@ jobs:
         -w 320 -H 213
         -s 1 -d 5 -S 4
 
-    # - name: Upload render artifact
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: render-chess
-    #     path: render-test.png
-    #     retention-days: 7
+    - name: Upload render artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: render-chess
+        path: render-test.png
+        retention-days: 3

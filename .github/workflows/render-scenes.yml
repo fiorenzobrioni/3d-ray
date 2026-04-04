@@ -1,5 +1,9 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+# Render manuale ad alta qualità — eseguito solo su richiesta (workflow_dispatch).
+# Compila il progetto una volta sola, poi renderizza in parallelo le scene
+# selezionate nella matrix a risoluzione 1920×1080 con 1024 samples.
+# Per attivare una scena: rimuovi il # davanti alla voce corrispondente
+# nella lista `scene:` prima di avviare il workflow.
+# I render vengono caricati come artifact (retention 7 giorni).
 
 name: Render Scenes
 
