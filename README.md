@@ -111,8 +111,8 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 ```
 3d-ray/
 ├── docs/                    # Documentazione del progetto
-│   └── technical/           # Deep dive tecnici
-├── src/
+│   ├── technical/           # Deep dive tecnici
+│   └── tutorials/           # Tutorial per l'uso del motore├── src/
 │   ├── RayTracer/           # Motore principale
 │   │   ├── Acceleration/    # BVH
 │   │   ├── Camera/          # Camera con DOF
@@ -128,7 +128,6 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │       └── NormalMapGen/    # Generatore flat normal map per test
 ├── scenes/                  # File YAML di esempio
 ├── output/                  # Immagini renderizzate
-├── tutorials/               # Tutorial per l'uso del motore
 └── .github/workflows/       # CI con smoke test
 ```
 
@@ -205,10 +204,10 @@ dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -c 2
 
 ## 📚 Tutorials
 
-- [**Guida all'Uso**](./tutorials/01-tutorial-utilizzo.md) — Dettagli completi sui parametri CLI, profili di rendering, ottimizzazione e risoluzione problemi.
-- [**Creazione delle Scene**](./tutorials/02-tutorial-scene.md) — Guida completa alla sintassi YAML: geometrie, materiali, texture, luci, camera e trasformazioni.
-- [**Libreria di Preset e Asset**](./tutorials/03-libreria-preset.md) — Catalogo di ambienti, configurazioni camera, sistemi di illuminazione e materiali pronti all'uso.
-- [**Libreria CSG — Oggetti e Preset Booleani**](./tutorials/04-libreria-csg.md) — Catalogo di forme CSG pronte all'uso: lenti, anelli, colonne scavate, bulloni e alberi booleani complessi.
+- [**Guida all'Uso**](./docs/tutorials/01-tutorial-utilizzo.md) — Dettagli completi sui parametri CLI, profili di rendering, ottimizzazione e risoluzione problemi.
+- [**Creazione delle Scene**](./docs/tutorials/02-tutorial-scene.md) — Guida completa alla sintassi YAML: geometrie, materiali, texture, luci, camera e trasformazioni.
+- [**Libreria di Preset e Asset**](./docs/tutorials/03-libreria-preset.md) — Catalogo di ambienti, configurazioni camera, sistemi di illuminazione e materiali pronti all'uso.
+- [**Libreria CSG — Oggetti e Preset Booleani**](./docs/tutorials/04-libreria-csg.md) — Catalogo di forme CSG pronte all'uso: lenti, anelli, colonne scavate, bulloni e alberi booleani complessi.
 
 ---
 

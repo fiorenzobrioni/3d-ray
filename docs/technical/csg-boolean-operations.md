@@ -226,6 +226,6 @@ Questo garantisce che il BVH possa scartare rapidamente i nodi CSG non interseca
 
 ## Riferimenti
 
-- [Tutorial YAML — CSG](../../tutorials/02-tutorial-scene/06-entities.md#614-csg--constructive-solid-geometry)
-- [Libreria Preset CSG](../../tutorials/04-libreria-csg.md)
+- [Tutorial YAML — CSG](../tutorials/02-tutorial-scene/06-entities.md#614-csg--constructive-solid-geometry)
+- [Libreria Preset CSG](../tutorials/04-libreria-csg.md)
 - Codice sorgente: `src/RayTracer/Geometry/CsgObject.cs`, `CsgOperation.cs`
