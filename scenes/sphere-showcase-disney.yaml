@@ -3,8 +3,9 @@
 # =============================================================================
 #
 #  Versione ENHANCED v2: materiali Disney avanzati, multi-camera, setup luci
-#  cinematografico a 6 punti (solo point/spot/area/directional, zero emissive),
+#  cinematografico (solo point/spot/directional, zero area light, zero emissive),
 #  ambientazione curata con muri in stucco e pavimento riflettente.
+#  Nessun gradient sky (stanza chiusa) — render molto più veloce.
 #
 #  Camere disponibili (--camera <nome>):
 #    hero          Vista 3/4 classica con DOF (default)
@@ -15,9 +16,9 @@
 #    macro_metalli Macro sulla fila metalli con bokeh
 #
 #  Render consigliati:
-#    Preview:    -w 600  -H 400 -s 8   -d 12 -S 4
-#    Draft:      -w 1200 -H 800 -s 32  -d 30 -S 8
-#    Produzione: -w 1920 -H 1080 -s 256 -d 50 -S 16
+#    Preview:    -w 600  -H 400 -s 8   -d 12
+#    Draft:      -w 1200 -H 800 -s 32  -d 30
+#    Produzione: -w 1920 -H 1080 -s 256 -d 50
 #
 # =============================================================================
 
@@ -26,22 +27,10 @@
 #  WORLD
 # =============================================================================
 world:
-  # Ambient tenue — la luce viene quasi tutta dalle sorgenti esplicite
-  ambient_light: [0.02, 0.02, 0.025]
+  # Ambient leggermente alzato per compensare l'assenza del gradient sky
+  ambient_light: [0.025, 0.025, 0.03]
+  # Sfondo quasi nero — stanza chiusa, nessun cielo visibile
   background: [0.003, 0.003, 0.008]
-
-  # Gradient sky con sun disk per riflessioni sulle superfici PBR
-  sky:
-    type: "gradient"
-    zenith_color:  [0.06, 0.12, 0.40]
-    horizon_color: [0.45, 0.50, 0.65]
-    ground_color:  [0.12, 0.10, 0.09]
-    sun:
-      direction: [-0.6, -0.5, -0.8]
-      color: [1.0, 0.95, 0.88]
-      intensity: 10.0
-      size: 3.0
-      falloff: 36.0
 
   ground:
     type: "infinite_plane"
@@ -856,37 +845,33 @@ entities:
 
 
 # =============================================================================
-#  LIGHTS — Setup Cinematografico a 6 Punti
+#  LIGHTS — Setup Cinematografico (Point + Spot + Directional)
 #
-#  Schema: Key (area) + Fill (area) + Rim (point) + Accent Spot (gemme)
-#          + Overhead Spot (tavolo) + Directional (coerenza con sun disk)
+#  Schema: Key (point) + Fill (point) + Rim (point) + Accent Spot (gemme)
+#          + Overhead Spot (tavolo) + Directional (ombre lunghe)
 #
-#  Nessun oggetto emissivo — solo luci classiche.
+#  Nessun oggetto emissivo, nessuna area light — render veloce.
 #  Contrasto caldo/freddo: key calda da sinistra, fill fredda da destra.
+#  Ombre nette (stile galleria d'arte con faretti direzionali).
 # =============================================================================
 lights:
 
   # ── 1. KEY LIGHT ─────────────────────────────────────────────────────────
-  #  Area light grande e morbida dall'alto-sinistra. Sorgente dominante.
-  #  Ombre morbide con penumbra realistica. Colore caldo dorato.
-  - type: "area"
-    corner: [-6.5, 4.8, -4.0]
-    u: [4.5, 0.0, 0.0]
-    v: [0.0, 0.0, 4.5]
+  #  Point light calda dall'alto-sinistra. Sorgente dominante della scena.
+  #  Posizionata al centro di dove stava l'area light originale.
+  #  Intensità calibrata per attenuazione quadratica (~7u di distanza).
+  - type: "point"
+    position: [-4.25, 4.8, -1.75]
     color: [1.0, 0.94, 0.86]
-    intensity: 38.0
-    shadow_samples: 16
+    intensity: 95.0
 
   # ── 2. FILL LIGHT ────────────────────────────────────────────────────────
-  #  Area light più piccola e fredda dal lato opposto (destra).
-  #  Riempie le ombre senza eliminarle, crea contrasto caldo/freddo.
-  - type: "area"
-    corner: [4.5, 3.0, -3.0]
-    u: [0.0, 0.0, 3.0]
-    v: [0.0, 2.5, 0.0]
+  #  Point light fredda dal lato destro. Riempie le ombre della key
+  #  senza eliminarle. Rapporto key:fill ~3:1 per contrasto cinematografico.
+  - type: "point"
+    position: [4.5, 4.0, -1.5]
     color: [0.78, 0.85, 1.0]
-    intensity: 18.0
-    shadow_samples: 12
+    intensity: 30.0
 
   # ── 3. RIM / BACK LIGHT ─────────────────────────────────────────────────
   #  Point light posteriore alto. Stacca le silhouette delle sfere
@@ -919,11 +904,10 @@ lights:
     inner_angle: 25
     outer_angle: 50
 
-  # ── 6. DIRECTIONAL — Coerenza con sun disk ──────────────────────────────
-  #  Allineata alla direzione del sole nel gradient sky.
-  #  Intensità molto bassa: serve solo ad aggiungere ombre lunghe
-  #  coerenti e un fill globale tenuissimo.
+  # ── 6. DIRECTIONAL — Fill globale e ombre lunghe ────────────────────────
+  #  Luce direzionale tenuissima che aggiunge ombre allungate coerenti
+  #  e un minimo di fill nelle zone più buie della stanza.
   - type: "directional"
     direction: [-0.6, -0.5, -0.8]
     color: [1.0, 0.95, 0.88]
-    intensity: 0.06
+    intensity: 0.08
