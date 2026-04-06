@@ -82,12 +82,6 @@ materials:
     refraction_index: 1.5
     color: [1.0, 0.85, 0.6]
 
-  # ── Luci emissive ──────────────────────────────────────────────────────────
-  - id: "luce_calda"
-    type: "emissive"
-    color: [1.0, 0.9, 0.7]
-    intensity: 14.0
-
 lights:
   # Key light — area calda da destra (invariata, funziona bene)
   - type: "area"
@@ -110,6 +104,19 @@ lights:
     color: [1.0, 0.98, 0.95]
     intensity: 15
 
+  # Spot teatrale — faretto dall'alto puntato sulla teiera
+  # Crea un pool di luce concentrato sulla porcellana e sulle sfere decorative,
+  # con un falloff netto che lascia i bordi della scena nell'oscurità notturna.
+  # Posizione: alto-frontale-sinistra per incrociare la key light da destra
+  # e scolpire meglio il volume della teiera dalla prospettiva "hero".
+  - type: "spot"
+    position: [-2, 9, -4]
+    direction: [0.22, -0.88, 0.42]
+    color: [1.0, 0.96, 0.88]
+    intensity: 140
+    inner_angle: 14
+    outer_angle: 28
+  
 entities:
   # ═══════════════════════════════════════════════════════════════════════════
   # PAVIMENTO
@@ -304,11 +311,4 @@ entities:
     center: [-0.8, 1.4, -0.7]
     radius: 0.3
     material: "vetro_ambra"
-
-  # Piccolo pannello luminoso caldo — area light emissiva
-  - name: "pannello_luce"
-    type: "quad"
-    q: [0, 4, 0]
-    u: [3, 0, 0]
-    v: [0, 0, 2]
-    material: "luce_calda"
+    
