@@ -83,7 +83,7 @@ jobs:
           publish/RayTracer/RayTracer \
             -i scenes/${{ matrix.scene }}.yaml \
             -o renders/sample-${{ matrix.scene }}.png \
-            -s 2048 -d 60 -w 1920 -H 1080
+            -s 1024 -d 60 -w 1920 -H 1080
 
       - name: Upload render
         if: always()
