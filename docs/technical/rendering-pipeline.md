@@ -1,0 +1,530 @@
+# Pipeline di Rendering: dall'YAML al Pixel
+
+Questo documento descrive il flusso architetturale completo del motore 3D-Ray, dal caricamento della scena alla scrittura del pixel finale. Non duplica la trattazione matematica dei documenti esistenti — la integra con una mappa navigabile che collega le fasi, i file sorgente, gli invarianti e i contratti tra componenti.
+
+**Documenti correlati:**
+- [Path Tracing e Illuminazione](./path-tracing-and-lighting.md) — NEE, Russian Roulette, campionamento HDRI, Sphere Light
+- [Modello di Shading e Materiali](./shading-model.md) — Disney BSDF, Fresnel, Normal Mapping
+- [Strutture di Accelerazione (BVH)](./acceleration-structures.md) — Bounding Volume Hierarchy e SAH
+
+**File sorgente chiave:**
+- `src/RayTracer/Program.cs` — Entry point, parsing CLI, orchestrazione
+- `src/RayTracer/Scene/SceneLoader.cs` — Parsing YAML, costruzione del world
+- `src/RayTracer/Rendering/Renderer.cs` — Cuore del path tracer
+- `src/RayTracer/Camera/Camera.cs` — Modello thin-lens
+
+---
+
+## Vista d'Insieme
+
+```
+  YAML file
+      │
+      ▼
+┌─────────────┐
+│ SceneLoader  │  Parse YAML → materiali, geometrie, luci, camera, sky
+└──────┬──────┘
+       │  (world, camera, lights, ambientLight, sky)
+       ▼
+┌─────────────┐
+│  Renderer   │  Costruttore: scene analysis + configurazione RR
+│ constructor │  Render():    loop parallelo sui pixel
+└──────┬──────┘
+       │  Per ogni pixel: √N×√N campioni stratificati
+       ▼
+┌─────────────┐
+│  TraceRay   │  Ricorsione: hit → normal map → emission → NEE → scatter → RR
+└──────┬──────┘
+       │  Radiance HDR lineare
+       ▼
+┌─────────────┐
+│ Post-process│  Firefly clamp → ACES tone map → gamma 2.2
+└──────┬──────┘
+       │  sRGB [0,1]
+       ▼
+   pixels[j,i]
+```
+
+---
+
+## Fase 1 — Caricamento della Scena
+
+**File:** `SceneLoader.cs` · **Metodo:** `Load()`
+
+### 1.1 Parsing YAML
+
+Il loader deserializza il file YAML in strutture dati intermedie (`SceneData`, `MaterialData`, `LightData`, ecc.) tramite la libreria YamlDotNet con naming convention `underscore_case`.
+
+### 1.2 Costruzione dei Materiali (due passate)
+
+I materiali vengono costruiti in due passate per supportare `MixMaterial` (che referenzia altri materiali per ID):
+
+1. **Passata 1:** tutti i materiali non-mix vengono creati e inseriti nel dizionario `materials[id]`.
+2. **Passata 2:** i materiali `mix`/`blend` vengono risolti iterativamente — un mix-di-mix si risolve quando entrambi i figli sono già nel dizionario. Il loop si ripete finché il numero di materiali irrisolti decresce; se non decresce, i riferimenti sono ciclici o inesistenti e viene emesso un warning.
+
+**Contratto:** Ogni `MaterialData.Id` deve essere univoco. Se un materiale referenziato non esiste, il loader sostituisce un Lambertian grigio di fallback ed emette un warning.
+
+### 1.3 Costruzione delle Geometrie
+
+Le entità YAML vengono trasformate in oggetti `IHittable`. Per ogni entità:
+
+1. La primitiva viene creata (`Sphere`, `Box`, `Cylinder`, ecc.).
+2. Se presente un blocco `transform`, la primitiva viene avvolta in un oggetto `Transform` che applica scale → rotate → translate nell'ordine corretto.
+3. Se la primitiva è un `InfinitePlane` (anche dentro un Transform), viene separata dalla lista BVH — il suo AABB infinito degraderebbe la struttura ad albero.
+
+Le primitive finite vengono inserite nel BVH; le infinite (piani) e i nodi CSG vengono mantenuti in una lista separata. Il world finale è un `HittableList` che contiene il BVH e le primitive non-BVH.
+
+### 1.4 Costruzione delle Luci
+
+Le luci esplicite dal YAML vengono create tramite `CreateLight()`. Poi due passaggi automatici:
+
+1. **`ExtractGeometryLights()`** — scansiona tutte le geometrie cercando primitive `ISamplable` con materiale `Emissive`. Per ognuna crea un `GeometryLight` e lo aggiunge alla lista luci. I `Transform` sono gestiti ricorsivamente: il Transform stesso funge da ISamplable (delega `Sample()` alla primitiva interna e trasforma il risultato in world space con il Jacobian corretto).
+
+2. **`EnvironmentLight`** — se il cielo supporta il campionamento diretto (`CanSampleDirectly` = true per HDRI e gradient sky con sun disk), viene creato un `EnvironmentLight` e aggiunto alla lista.
+
+Se non ci sono luci e il YAML non ha una sezione `lights:` esplicita, viene aggiunto un lighting di default (una directional + una point).
+
+**Contratto:** Il parametro `shadowSamplesOverride` da CLI (`-S`) ha la precedenza sul valore per-luce del YAML. Se null, ogni luce usa il proprio valore.
+
+### 1.5 Costruzione del Cielo
+
+`BuildSkySettings()` crea un oggetto `SkySettings` in base al tipo:
+
+- **`flat`** (default) — colore uniforme dal campo `background`.
+- **`gradient`** — zenith/horizon/ground con interpolazione, più sun disk opzionale.
+- **`hdri`** — carica il file `.hdr` tramite `HdrLoader`, costruisce l'`EnvironmentMap` con CDF per importance sampling.
+
+### 1.6 Output
+
+`Load()` restituisce una tupla `(IHittable world, Camera camera, List<ILight> lights, Vector3 ambientLight, SkySettings sky)` pronta per il Renderer.
+
+---
+
+## Fase 2 — Inizializzazione del Renderer
+
+**File:** `Renderer.cs` · **Metodo:** costruttore
+
+Il costruttore riceve gli output del loader e prepara lo stato per il rendering multi-thread.
+
+### 2.1 Scene Analysis (Classificazione dell'Illuminazione)
+
+Lo scopo è decidere se la scena è "indirect-dominant" (illuminata prevalentemente da superfici emissive e cielo) o "normal" (illuminata da luci esplicite). Questo determina l'aggressività della Russian Roulette.
+
+```csharp
+float totalLightPower = 0f;
+foreach (var light in lights)
+{
+    var (color, _, _) = light.Illuminate(Vector3.Zero);
+    totalLightPower += MathUtils.Luminance(color);
+}
+bool isIndirectDominant = totalLightPower < IndirectDominantThreshold; // 1.0
+```
+
+**⚠️ CONTRATTO CRITICO — `Illuminate()` per la scene analysis:**
+
+Il metodo `ILight.Illuminate()` ha un **doppio ruolo** nell'architettura: è definito nell'interfaccia `ILight` come metodo generico di illuminazione, ma nel contesto del motore attuale **è usato esclusivamente dal costruttore del Renderer** per la scene analysis. Il rendering vero e proprio usa `IlluminateAndTest()` / `IlluminateAndTestStratified()`.
+
+Per questo motivo, `Illuminate()` deve rispettare tre invarianti:
+
+| Invariante | Motivo |
+|------------|--------|
+| **Deterministico** — niente `RandomFloat()` | Il costruttore gira single-thread prima del `Parallel.For`. Un risultato non-deterministico renderebbe la classificazione RR instabile tra run. |
+| **Potenza piena** — niente divisione per `ShadowSamples` | Il loop di analisi chiama `Illuminate()` **una sola volta** per luce, non `ShadowSamples` volte. Dividere sottostimerebbe la potenza. |
+| **Indipendente dalla posizione** — risultato ragionevole anche a `(0,0,0)` | L'analisi valuta tutte le luci all'origine del mondo. Una luce che contribuisce zero perché l'origine è fuori dal suo cono o sul retro della sua superficie falserebbe la classificazione. |
+
+Stato di conformità per tipo di luce:
+
+| Tipo | Deterministico | Potenza piena | Posizione-indipendente | Note |
+|------|:-:|:-:|:-:|---|
+| `PointLight` | ✅ | ✅ | ✅ | `Intensity / d²` all'origine |
+| `DirectionalLight` | ✅ | ✅ | ✅ | `Intensity` costante |
+| `SpotLight` | ✅ | ✅ | ✅* | *FIX #14: usa potenza on-axis × frazione cono |
+| `AreaLight` | ✅* | ✅* | ✅* | *FIX #12a/b: centro deterministico, no `/ShadowSamples` |
+| `SphereLight` | ✅ | ✅ | ✅ | `Intensity × solidAngle` |
+| `GeometryLight` | ⚠️* | ✅* | ⚠️ | *FIX #13a/b: media emisferica, no `/ShadowSamples`. Il punto campionato resta random (accettabile per stima approssimativa). |
+| `EnvironmentLight` | ✅ | ⚠️ | ✅ | FIX #10: deterministico. Divide per `ShadowSamples` (FIX #8), ma il default è 1. |
+
+> **Nota per futuri sviluppatori:** quando si aggiunge un nuovo tipo di luce, il suo `Illuminate()` deve rispettare questi tre invarianti. Usare `SphereLight` come modello di riferimento.
+
+### 2.2 Configurazione Russian Roulette
+
+In base alla classificazione:
+
+| Tipo scena | `_rrMinBounces` | `_rrMinSurvival` | Max boost |
+|------------|:-:|:-:|:-:|
+| Normal (luci esplicite forti) | 4 | 0.15 | 6.7× |
+| Indirect-dominant (emissive/sky) | 8 | 0.50 | 2.0× |
+
+La soglia è `IndirectDominantThreshold = 1.0` sulla somma di luminanze.
+
+> **Perché la distinzione?** In scene a luce diretta, la NEE cattura la maggior parte dell'energia — i bounce indiretti sono una piccola correzione e possono essere terminati aggressivamente. In scene emissive-only, TUTTA l'energia arriva dai bounce indiretti; terminare i path troppo presto produce macchie scure.
+
+### 2.3 Registrazione degli Emitter (per il Double-Counting Guard)
+
+```csharp
+_registeredEmitterMaterials = lights
+    .OfType<GeometryLight>()
+    .Select(gl => gl.Material)
+    .ToHashSet();
+```
+
+Questo set viene usato da `TraceRay` per sapere quali materiali emissivi sono raggiungibili dalla NEE. Solo per questi l'emissione viene soppressa dopo un bounce diffuso (dove la NEE ha già contato il contributo diretto).
+
+**Vedi:** [Path Tracing e Illuminazione §2.2](./path-tracing-and-lighting.md) per la trattazione completa del double-counting.
+
+---
+
+## Fase 3 — Render Loop
+
+**File:** `Renderer.cs` · **Metodo:** `Render(int width, int height)`
+
+### 3.1 Parallelizzazione
+
+Il rendering usa `Parallel.For` sulle **scanline** (righe di pixel):
+
+```csharp
+Parallel.For(0, height, new ParallelOptions {
+    MaxDegreeOfParallelism = Environment.ProcessorCount
+}, j => { ... });
+```
+
+Ogni thread elabora una scanline completa in modo indipendente. Non c'è stato condiviso mutabile durante il rendering — `_world`, `_lights`, `_camera` e tutti i parametri sono readonly. L'unico stato thread-local è il PRNG (basato su `ThreadLocal<Random>` in `MathUtils`).
+
+Il progresso viene stampato ogni 20 righe tramite `Interlocked.Increment`.
+
+### 3.2 Campionamento Stratificato (per pixel)
+
+Per ogni pixel `(i, j)`, il motore lancia `√N × √N` raggi distribuiti su una griglia stratificata con jitter casuale:
+
+```
+┌──────────────────┐
+│ (0,0) │ (1,0) │ (2,0) │   ← cella della griglia
+│   ×   │   ×   │   ×   │   ← punto jittered dentro la cella
+├───────┼───────┼───────┤
+│ (0,1) │ (1,1) │ (2,1) │
+│   ×   │   ×   │   ×   │
+├───────┼───────┼───────┤
+│ (0,2) │ (1,2) │ (2,2) │
+│   ×   │   ×   │   ×   │
+└──────────────────┘
+         (√N = 3, N = 9 campioni)
+```
+
+Il numero di campioni effettivi è sempre un quadrato perfetto: `-s 20` → `5×5 = 25`. Per ogni campione:
+
+1. **Coordinate UV** nel viewport: `u = (i + jitter) / width`, `v = (height - j - 1 + jitter) / height`
+2. **Generazione del raggio** tramite `Camera.GetRay(u, v)`
+3. **Tracing** con `TraceRay(ray, maxDepth)`
+4. **Firefly clamp** sul campione singolo
+5. **Accumulo** nel colore cumulativo
+
+Dopo tutti i campioni, il colore medio viene tone-mappato:
+
+```csharp
+Vector3 linearColor = cumulativeColor / actualSamples;
+pixels[j, i] = AcesToneMap(linearColor);
+```
+
+### 3.3 Generazione del Raggio (Camera Thin-Lens)
+
+**File:** `Camera.cs`
+
+La camera implementa il modello **thin-lens** per il depth of field:
+
+1. Il punto di origine del raggio viene perturbato casualmente all'interno di un disco di raggio `aperture / 2` sul piano della lente.
+2. La direzione punta dal punto perturbato verso il punto corrispondente sul piano focale a distanza `focal_dist`.
+
+Con `aperture = 0` il disco degenera in un punto (pinhole) e tutti gli oggetti sono a fuoco.
+
+---
+
+## Fase 4 — TraceRay (Il Cuore del Path Tracer)
+
+**File:** `Renderer.cs` · **Metodo:** `TraceRay(Ray ray, int depth, bool prevUsedNee)`
+
+Questa è la funzione ricorsiva che risolve l'equazione del rendering. Ogni invocazione rappresenta un **bounce** (rimbalzo) del raggio nella scena.
+
+### 4.1 Condizione di Uscita
+
+```csharp
+if (depth <= 0) return Vector3.Zero;
+```
+
+Se il raggio ha esaurito i bounce, restituisce nero (energia zero). Il parametro `maxDepth` di default è 50; in pratica la Russian Roulette termina la maggior parte dei path molto prima.
+
+### 4.2 Hit Test
+
+```csharp
+if (!_world.Hit(ray, Epsilon, Infinity, ref rec))
+    return CalculateSkyColor(ray);
+```
+
+Il raggio viene testato contro il world (BVH + primitivi non-BVH). Se non colpisce nulla, il raggio è "sfuggito" dalla scena → campiona il cielo.
+
+**Vedi:** [Strutture di Accelerazione](./acceleration-structures.md) per il funzionamento del BVH.
+
+Il `HitRecord` risultante contiene: punto di hit, normale, UV, tangente/bitangente, materiale, front/back face, e il seed dell'oggetto (per texture procedurali).
+
+### 4.3 Normal Map
+
+```csharp
+if (material?.NormalMap != null && rec.Tangent.LengthSquared() > 0.5f)
+    ApplyNormalMap(ref rec, material.NormalMap);
+```
+
+Se il materiale ha una normal map, la normale del `HitRecord` viene perturbata **prima** di qualsiasi calcolo di shading. La trasformazione usa la matrice TBN (Tangent-Bitangent-Normal) ortonormalizzata con Gram-Schmidt. Le back-face invertono T e B per preservare l'handedness.
+
+**Punto chiave:** la perturbazione avviene in-place su `rec.Normal`. Tutto il codice successivo (emissione, NEE, scatter) usa la normale perturbata.
+
+**Vedi:** [Modello di Shading §Normal Mapping](./shading-model.md) per la matematica TBN.
+
+### 4.4 Emissione (con Guard anti Double-Counting)
+
+```csharp
+bool suppressEmission = prevUsedNee
+    && material is Emissive em
+    && _registeredEmitterMaterials.Contains(em);
+
+if (!suppressEmission)
+    emitted = material.Emit(u, v, localPoint, objectSeed, frontFace);
+```
+
+La logica di soppressione previene il conteggio doppio:
+
+| Percorso | `prevUsedNee` | Emissione | Motivo |
+|----------|:-:|:-:|---|
+| Camera → emissivo | `false` | ✅ Mostrata | Il raggio non ha usato NEE |
+| Specchio → emissivo | `false` | ✅ Mostrata | Lo scatter speculare non attiva la NEE |
+| Diffuso (NEE) → emissivo | `true` | ❌ Soppressa | La NEE ha già contato questo contributo |
+| Diffuso (NEE) → emissivo **non registrato** | `true` | ✅ Mostrata | Back-face, non-ISamplable — la NEE non può raggiungerli |
+
+### 4.5 Direct Lighting (NEE) — `ComputeDirectLighting`
+
+```csharp
+bool needsLightSampling = (diffuseWeight > 0f) || (specExponent > 0f);
+if (needsLightSampling)
+    directLight = ComputeDirectLighting(rec, ray, material);
+```
+
+La NEE viene attivata solo per materiali che rispondono alla luce diretta. Materiali puramente emissivi (`DiffuseWeight=0`, `SpecularExponent=0`) la saltano.
+
+**Struttura interna di `ComputeDirectLighting`:**
+
+```
+Per ogni luce nella scena:
+    Per ogni shadow sample (1 per point/spot/directional, N per area/sphere):
+        1. Campiona un punto sulla luce (stratificato per area/sphere)
+        2. Lancia shadow ray dal hit point verso il punto campionato
+        3. Se non in ombra:
+           brdf = material.EvaluateDirect(toLight, toEye, normal)
+           accumula += lightColor × brdf
+    Somma al risultato (non media — la pre-divisione per ShadowSamples
+    è già nella formula energetica di ogni luce)
+```
+
+**Dispatch per tipo di luce nel shadow loop:**
+
+- `AreaLight` → `IlluminateAndTestStratified(hitPoint, normal, world, sampleIndex)`
+- `SphereLight` → `IlluminateAndTestStratified(hitPoint, normal, world, sampleIndex)`
+- Tutte le altre → `IlluminateAndTest(hitPoint, normal, world)` (generico)
+
+La distinzione esiste perché area e sphere light supportano campionamento stratificato (il sample index determina la cella nella griglia `√N×√N`), mentre le altre luci sono puntuali e non ne hanno bisogno.
+
+**Contratto EvaluateDirect:** restituisce la risposta BRDF (diffusa + speculare) **senza** il colore/albedo del materiale. L'albedo è applicato separatamente dalla scatter attenuation in `TraceRay`, mantenendo la coerenza energetica tra illuminazione diretta e indiretta.
+
+**Vedi:** [Path Tracing e Illuminazione §2](./path-tracing-and-lighting.md) per la trattazione completa della NEE.
+
+### 4.6 Scatter (Illuminazione Indiretta)
+
+```csharp
+if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
+{
+    // Russian Roulette...
+    Vector3 indirect = TraceRay(scattered, depth - 1, prevUsedNee: needsLightSampling);
+    return emitted + attenuation * (directLight + indirect);
+}
+```
+
+`Scatter()` determina se il raggio continua a rimbalzare e in quale direzione:
+
+- **Lambertian** → rimbalzo cosine-weighted casuale nell'emisfero
+- **Metal** → riflessione GGX importance-sampled con roughness
+- **Dielectric** → riflessione o rifrazione (Schlick + Snell)
+- **Disney BSDF** → selezione stocastica tra lobe (diffuse, specular, clearcoat) con compensazione probabilistica
+
+L'`attenuation` è il colore/albedo del materiale moltiplicato per i fattori energetici del bounce (Fresnel, compensazione lobe, ecc.).
+
+Il parametro `prevUsedNee` viene propagato al bounce successivo: se QUESTA superficie ha usato la NEE (`needsLightSampling = true`), il prossimo hit dovrà sopprimere l'emissione per evitare double-counting.
+
+### 4.7 Russian Roulette
+
+```csharp
+int bouncesUsed = _maxDepth - depth;
+if (bouncesUsed >= _rrMinBounces)
+{
+    float survivalProb = Max(Luminance(attenuation), _rrMinSurvival);
+    survivalProb = Min(survivalProb, 0.95f);
+
+    if (RandomFloat() > survivalProb)
+        return emitted + attenuation * directLight;  // Path terminato
+
+    attenuation /= survivalProb;  // Compensazione energetica
+}
+```
+
+Dopo `_rrMinBounces` bounce, ogni path viene terminato con probabilità `1 - survivalProb`. I path sopravvissuti vengono "potenziati" dividendo per `survivalProb`, mantenendo lo stimatore Monte Carlo **unbiased** (non introduce bias sistematico).
+
+La probabilità di sopravvivenza è legata alla luminanza dell'attenuazione: path che trasportano poca energia vengono eliminati più frequentemente. Il floor `_rrMinSurvival` impedisce boost eccessivi (max 6.7× in scene normali, 2× in scene indirette).
+
+**Vedi:** [Path Tracing e Illuminazione §3](./path-tracing-and-lighting.md) per l'analisi di adattività.
+
+### 4.8 Composizione Finale del Bounce
+
+```
+radiance = emitted + attenuation × (directLight + indirect)
+```
+
+Dove:
+- `emitted` = auto-illuminazione della superficie (zero per materiali non emissivi)
+- `attenuation` = colore/albedo × fattori energetici del materiale
+- `directLight` = contributo NEE (ambient + tutte le luci)
+- `indirect` = radiance ricorsiva dal bounce successivo
+
+Se il materiale non fa scatter (es. `Emissive`, che assorbe tutto):
+```
+radiance = emitted + directLight
+```
+
+### 4.9 Sky Fallback
+
+Se il raggio non colpisce nulla:
+
+```csharp
+return CalculateSkyColor(ray);
+```
+
+Che delega a `SkySettings.Sample(ray)`:
+- **Flat** → colore uniforme
+- **Gradient** → interpolazione zenith/horizon/ground + sun disk con glow
+- **HDRI** → bilinear sampling della mappa equirettangolare nella direzione del raggio
+
+---
+
+## Fase 5 — Post-Processing (per campione e per pixel)
+
+### 5.1 Firefly Clamp (per campione)
+
+```csharp
+sample = ClampRadiance(sample);
+```
+
+Applicato a ogni campione individuale PRIMA dell'accumulo:
+
+1. **NaN/Inf guard** — qualsiasi componente non-finita diventa zero.
+2. **Luminance-preserving clamp** — se la luminanza del campione supera `MaxSampleRadiance` (100), il vettore viene scalato uniformemente. Questo preserva la tinta del colore (niente hue shift) eliminando i picchi estremi da caustiche, boost RR, o compensazione dei lobe Disney.
+
+### 5.2 Media dei Campioni
+
+```csharp
+Vector3 linearColor = cumulativeColor / actualSamples;
+```
+
+Il colore finale del pixel è la media aritmetica di tutti i campioni stratificati. Questo è il pixel HDR lineare.
+
+### 5.3 ACES Filmic Tone Mapping + Gamma
+
+```csharp
+pixels[j, i] = AcesToneMap(linearColor);
+```
+
+La curva ACES Filmic (approssimazione Narkowicz) mappa la radiance HDR lineare in valori LDR:
+
+$$\text{ACES}(x) = \frac{x(2.51x + 0.03)}{x(2.43x + 0.59) + 0.14}$$
+
+Seguita da gamma correction `pow(x, 1/2.2)` per la conversione in spazio sRGB.
+
+Il tone mapping produce un rolloff naturale degli highlight: le luci brillanti non "esplodono" in bianco piatto ma mantengono un gradiente morbido.
+
+---
+
+## Fase 6 — Salvataggio dell'Immagine
+
+**File:** `Program.cs` · **Metodo:** `SaveImage()`
+
+L'array `Vector3[height, width]` (valori sRGB [0, 1]) viene convertito in `Image<Rgba32>` tramite ImageSharp. Il formato di output è determinato dall'estensione del file (`-o`): PNG (lossless, default), JPEG (lossy), BMP.
+
+Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math.Clamp((int)(value * 255.999f), 0, 255)`.
+
+---
+
+## Appendice A — Mappa dei Metodi e Contratti
+
+| Metodo | File | Chiamante | Frequenza | Thread-safe? |
+|--------|------|-----------|-----------|:----:|
+| `SceneLoader.Load()` | SceneLoader.cs | Program.Main | 1× per run | N/A (single-thread) |
+| `Renderer()` costruttore | Renderer.cs | Program.Main | 1× per run | N/A (single-thread) |
+| `Renderer.Render()` | Renderer.cs | Program.Main | 1× per run | Sì (Parallel.For) |
+| `Camera.GetRay()` | Camera.cs | Render loop | W×H×N volte | Sì (readonly + thread-local PRNG) |
+| `TraceRay()` | Renderer.cs | Render loop | W×H×N×bounces | Sì (readonly state) |
+| `ComputeDirectLighting()` | Renderer.cs | TraceRay | Per ogni hit diffuso/speculare | Sì |
+| `ILight.Illuminate()` | Lights/*.cs | Costruttore Renderer | 1× per luce | **Solo single-thread** |
+| `ILight.IlluminateAndTest()` | Lights/*.cs | ComputeDirectLighting | Per ogni hit × luce × sample | Sì |
+| `IMaterial.Scatter()` | Materials/*.cs | TraceRay | Per ogni hit | Sì (thread-local PRNG) |
+| `IMaterial.EvaluateDirect()` | Materials/*.cs | ComputeDirectLighting | Per ogni hit × luce non-ombrata | Sì (pure function) |
+| `IMaterial.Emit()` | Materials/*.cs | TraceRay | Per ogni hit | Sì (pure function) |
+| `SkySettings.Sample()` | SkySettings.cs | CalculateSkyColor | Per ogni ray-miss | Sì (readonly) |
+
+### Contratti chiave
+
+**`Illuminate()` vs `IlluminateAndTest()`:**
+- `Illuminate()` è **solo per scene analysis** (costruttore Renderer). Deve essere deterministico e restituire la potenza piena.
+- `IlluminateAndTest()` / `IlluminateAndTestStratified()` sono per il **rendering**. Usano PRNG, dividono per ShadowSamples, testano le ombre.
+- I due metodi non condividono il path di esecuzione. Modificare uno non influisce sull'altro.
+
+**`EvaluateDirect()` vs `Scatter()`:**
+- `EvaluateDirect()` restituisce la risposta BRDF **senza albedo** (la moltiplica il caller con `lightColor`).
+- `Scatter()` restituisce l'`attenuation` **con albedo** (diventa il moltiplicatore per la radiance indiretta).
+- Entrambi usano lo stesso modello BRDF (GGX per Metal, Cook-Torrance per Disney), ma valutano in modi diversi: `EvaluateDirect` è analitico su una direzione specifica, `Scatter` è importance-sampled.
+
+**`prevUsedNee`:**
+- Propagato bounce-per-bounce tramite il parametro di `TraceRay`.
+- `true` = il bounce precedente era diffuso e ha usato la NEE → sopprimere emissione dei GeometryLight registrati.
+- `false` = camera ray, bounce speculare, o bounce da materiale senza NEE → emissione consentita.
+
+---
+
+## Appendice B — Diagramma di Flusso di TraceRay
+
+```
+TraceRay(ray, depth, prevUsedNee)
+│
+├── depth ≤ 0? ──────────────────────────── → return Zero
+│
+├── world.Hit(ray)? 
+│   ├── NO ──────────────────────────────── → return CalculateSkyColor(ray)
+│   └── YES
+│       │
+│       ├── Apply normal map (se presente)
+│       │
+│       ├── Compute emitted:
+│       │   ├── prevUsedNee AND registered emitter? → emitted = Zero
+│       │   └── altrimenti → emitted = material.Emit(...)
+│       │
+│       ├── Compute directLight:
+│       │   ├── needsLightSampling? → ComputeDirectLighting(...)
+│       │   └── altrimenti → ambientLight
+│       │
+│       ├── material.Scatter()?
+│       │   ├── NO → return emitted + directLight
+│       │   └── YES (attenuation, scattered)
+│       │       │
+│       │       ├── Russian Roulette:
+│       │       │   ├── bouncesUsed < minBounces? → skip RR
+│       │       │   ├── random > survivalProb? → return emitted + att × directLight
+│       │       │   └── survived → attenuation /= survivalProb
+│       │       │
+│       │       ├── attenuation ≈ 0? → return emitted + att × directLight (early-out)
+│       │       │
+│       │       └── indirect = TraceRay(scattered, depth-1, needsLightSampling)
+│       │           return emitted + attenuation × (directLight + indirect)
+```

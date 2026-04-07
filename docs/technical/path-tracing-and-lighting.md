@@ -1,5 +1,9 @@
 # Rendering: Path Tracing e Illuminazione
 
+> **Nota:** Per una vista d'insieme del flusso completo (dal caricamento YAML al pixel finale), 
+> consulta la [Pipeline di Rendering](./rendering-pipeline.md). 
+> Questo documento approfondisce la matematica dei singoli algoritmi.
+
 Questo documento spiega il funzionamento del motore di rendering di 3D-Ray, focalizzandosi sugli algoritmi di integrazione della luce e sulle tecniche di campionamento.
 
 ## 1. Architettura del Path Tracer

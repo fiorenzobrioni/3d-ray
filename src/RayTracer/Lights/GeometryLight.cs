@@ -32,26 +32,28 @@ public class GeometryLight : ILight
 
     public (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint)
     {
-        var (point, normal, area) = Geometry.Sample();
+        // Sample() gives us the total area (deterministic) and a surface point
+        // (random, but acceptable for the distance estimate).
+        var (point, _, area) = Geometry.Sample();
+ 
         Vector3 toLight = point - hitPoint;
         float distSq = toLight.LengthSquared();
         if (distSq < MathUtils.Epsilon * MathUtils.Epsilon)
             return (Vector3.Zero, Vector3.UnitY, 0f);
-
+ 
         float distance = MathF.Sqrt(distSq);
         Vector3 dirToLight = toLight / distance;
-
-        float cosLight = MathF.Max(0f, Vector3.Dot(-dirToLight, normal));
-
-        // FIX: guard was absent in the original Illuminate() (present only in IlluminateAndTest).
-        if (cosLight <= 0f)
-            return (Vector3.Zero, dirToLight, distance);
-
-        // FIX #11: use AverageEmission() instead of Emit(0, 0, ...) with dummy UV.
-        // AverageEmission() samples at (0.5, 0.5) — a better approximation for textured emissives.
+ 
         Vector3 emissiveColor = Material.AverageEmission();
-
-        float attenuation = area * cosLight / (distSq * ShadowSamples);
+ 
+        // Hemispheric-average cos(θ) = 0.5:  a Lambertian emitter seen from a
+        // random direction has an expected projected-area factor of 1/2.
+        // This eliminates the 50% zero-contribution problem of the old code.
+        const float avgCosLight = 0.5f;
+ 
+        // Full power estimate — NOT divided by ShadowSamples.
+        float attenuation = area * avgCosLight / distSq;
+ 
         return (emissiveColor * attenuation, dirToLight, distance);
     }
 

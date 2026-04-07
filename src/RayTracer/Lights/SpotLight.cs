@@ -35,17 +35,21 @@ public class SpotLight : ILight
     {
         Vector3 toLight = Position - hitPoint;
         float distance = toLight.Length();
+        if (distance < MathUtils.Epsilon)
+            return (Vector3.Zero, -Direction, 0f);
+ 
         Vector3 dirToLight = toLight / distance;
-
+ 
+        // Distance attenuation from the evaluation point (inverse square law)
         float distanceAttenuation = Intensity / (distance * distance);
-
-        float cosAngle = Vector3.Dot(-dirToLight, Direction);
-        float spotAttenuation = Math.Clamp(
-            (cosAngle - CosOuterAngle) / (CosInnerAngle - CosOuterAngle),
-            0f, 1f);
-        spotAttenuation *= spotAttenuation;
-
-        return (Color * distanceAttenuation * spotAttenuation, dirToLight, distance);
+ 
+        // Cone solid-angle fraction: what fraction of the forward hemisphere
+        // does the outer cone cover?  (1 − cos θ_outer) ranges from 0 to 1.
+        // This weights the power: a narrow spot contributes less total energy
+        // to the scene than a wide one with the same intensity.
+        float coneFraction = 1f - CosOuterAngle;
+ 
+        return (Color * distanceAttenuation * coneFraction, dirToLight, distance);
     }
 
     /// <summary>

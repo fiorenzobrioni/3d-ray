@@ -89,11 +89,25 @@ public class AreaLight : ILight
 
     public (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint)
     {
-        // For the standalone Illuminate call, use a pure random sample
-        float ru = MathUtils.RandomFloat();
-        float rv = MathUtils.RandomFloat();
-        Vector3 samplePoint = Corner + ru * U + rv * V;
-        return IlluminationFromPoint(hitPoint, samplePoint);
+        // Deterministic: sample the center of the light surface
+        Vector3 center = Corner + 0.5f * U + 0.5f * V;
+ 
+        Vector3 toLight = center - hitPoint;
+        float distSq = toLight.LengthSquared();
+        if (distSq < MathUtils.Epsilon * MathUtils.Epsilon)
+            return (Vector3.Zero, Vector3.UnitY, 0f);
+ 
+        float distance = MathF.Sqrt(distSq);
+        Vector3 dirToLight = toLight / distance;
+ 
+        float cosLight = MathF.Max(0f, Vector3.Dot(-dirToLight, _normal));
+ 
+        // Full power estimate — NOT divided by ShadowSamples.
+        // The analysis loop calls Illuminate() once; the render loop calls
+        // IlluminateAndTestStratified() ShadowSamples times (which pre-divides).
+        float attenuation = Intensity * _area * cosLight / distSq;
+ 
+        return (Color * attenuation, dirToLight, distance);
     }
 
     /// <summary>
