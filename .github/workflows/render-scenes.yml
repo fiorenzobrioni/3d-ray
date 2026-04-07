@@ -47,9 +47,9 @@ jobs:
       fail-fast: false
       matrix:
         scene:
-          - classic-vs-disney
-          - sphere-showcase-disney
-          - utah-teapot
+          - classic-vs-disney-showcase
+#          - sphere-showcase-disney
+#          - utah-teapot
 #          - primitive-showcase
 #          - cristallo
 #          - csg-showcase
