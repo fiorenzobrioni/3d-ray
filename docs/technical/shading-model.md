@@ -100,11 +100,56 @@ L'implementazione originale usava Blinn-Phong per il direct e GGX per l'indirect
 
 ---
 
-## 2. Normal Mapping e Spazio Tangente
+## 2. Varianza e Convergenza: Disney BSDF vs Materiali Classici
+
+### 2.1 Perché il Disney è più rumoroso
+
+Il materiale Disney utilizza la **selezione stocastica dei lobi**: ad ogni rimbalzo il path tracer sceglie casualmente un solo lobo tra i cinque disponibili (diffuse, specular, transmission, sheen, clearcoat), campiona una direzione da quel lobo, e divide l'attenuation per la probabilità di selezione (`1/p`) per mantenere l'estimatore Monte Carlo corretto.
+
+Questa compensazione `1/p` è la fonte principale di varianza aggiuntiva rispetto ai materiali classici:
+
+- **Lambertian**: un solo lobo (cosine-weighted), attenuation = albedo. Nessuna selezione, nessuna compensazione. Varianza minima.
+- **Metal**: un solo lobo (GGX specular), attenuation = albedo × ggxWeight (≤ 1.0). Nessuna compensazione. Varianza bassa.
+- **Dielectric**: scelta binaria riflessione/rifrazione via Fresnel, ma entrambi i path restituiscono lo stesso peso. Nessuna compensazione. Varianza bassa.
+- **Disney opaco** (es. plastica): due lobi attivi (diffuse + specular). Il ~9% dei campioni seleziona lo specular con compensazione ~11×, il ~91% seleziona il diffuse con compensazione ~1.1×. L'oscillazione tra i due crea grana visibile.
+- **Disney trasmissivo** (vetro): due lobi attivi (transmission + specular). La trasmissione gestisce già il Fresnel internamente, ma il lobo specular aggiunge campioni ridondanti con alta compensazione.
+
+### 2.2 Quando il Disney NON aggiunge rumore
+
+Il Disney metallico puro (`metallic=1.0`, senza clearcoat né sheen) ha un solo lobo attivo — lo specular con probabilità ~100%. La compensazione `1/p ≈ 1.0` non amplifica nulla. In questa configurazione, il Disney è equivalente al `metal` classico in termini di rumore.
+
+### 2.3 Guida pratica: quando usare Disney vs classici
+
+| Superficie | Materiale consigliato | Motivazione |
+|---|---|---|
+| Pavimento, muri, soffitti | `lambertian` | Grandi superfici, differenza visiva minima, rumore massimo per area coperta |
+| Tavoli, piedistalli, supporti | `lambertian` o `metal` | Superfici di sfondo, il Fresnel Disney non giustifica il costo |
+| Metalli (oro, cromo, acciaio) | `disney` metallic=1.0 | **Nessun rumore aggiuntivo**, GGX corretto, Fresnel colorato per metalli |
+| Plastica protagonista, pelle, cera | `disney` | Effetti unici (subsurface, sheen, Fresnel) non ottenibili con classici |
+| Vernice auto, lacca | `disney` con clearcoat | Effetto a due strati non ottenibile con classici |
+| Vetro chiaro semplice | `dielectric` | Più pulito e veloce del Disney equivalente |
+| Vetro colorato, smerigliato | `disney` spec_trans | Feature uniche (tint + roughness) non disponibili in `dielectric` |
+| Tessuti, velluto | `disney` con sheen | Effetto radente unico del Disney |
+
+### 2.4 Sample count consigliati per materiali Disney
+
+A causa della varianza aggiuntiva, i materiali Disney richiedono più campioni per convergere allo stesso livello di pulizia dei classici:
+
+| Qualità target | Solo classici | Mix classici + Disney | Tutto Disney |
+|---|---|---|---|
+| Preview (rumoroso) | 16 spp | 32 spp | 64 spp |
+| Draft (grana leggera) | 32 spp | 64 spp | 128 spp |
+| Produzione (pulito) | 128 spp | 256 spp | 512 spp |
+
+> **Nota tecnica:** La varianza del Disney decresce come `1/√spp` (legge dei grandi numeri). Per dimezzare il rumore visibile serve 4× i campioni. Passare da 64 a 256 spp dimezza il rumore; passare da 256 a 1024 lo dimezza ancora.
+
+---
+
+## 3. Normal Mapping e Spazio Tangente
 
 Il motore supporta Normal Mapping su tutti i materiali e primitive.
 
-### 2.1 Matrice TBN
+### 3.1 Matrice TBN
 Per perturbare la normale di shading, costruiamo una base ortonormale locale chiamata matrice TBN (Tangent, Bitangent, Normal):
 1.  **Tangent (T)** e **Bitangent (B)** sono derivati dalle coordinate UV della primitiva.
 2.  Utilizziamo l'**ortogonalizzazione di Gram-Schmidt** per garantire che T e B siano perfettamente perpendicolari alla normale geometrica N.
@@ -116,7 +161,7 @@ dove $(n_x, n_y, n_z)$ sono i valori campionati dalla texture (rimappati da $[0,
 
 ---
 
-## 3. Conservazione dell'Energia e Firefly Guard
+## 4. Conservazione dell'Energia e Firefly Guard
 
 Per garantire render puliti (senza "fireflies") e fisicamente stabili, il motore applica diverse protezioni:
 - **Albedo Clamping**: I colori base sono limitati per evitare materiali che generano più energia di quella che ricevono.

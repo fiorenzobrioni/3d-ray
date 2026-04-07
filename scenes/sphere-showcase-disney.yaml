@@ -99,113 +99,80 @@ cameras:
 materials:
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  AMBIENTE: Pavimento e Stanza
+  #  AMBIENTE: Pavimento e Stanza  [OTTIMIZZATO → lambertian]
   # ─────────────────────────────────────────────────────────────────────────
-
-  # Pavimento in pietra levigata scura — checker discreto, leggero riflesso
+ 
+  # Pavimento in pietra levigata scura — checker discreto
   - id: "floor_stone"
-    type: "disney"
+    type: "lambertian"
     texture:
       type: "checker"
       scale: 3.0
       colors: [[0.15, 0.13, 0.12], [0.20, 0.18, 0.16]]
-    roughness: 0.45
-    metallic: 0.0
-    specular: 0.4
-    clearcoat: 0.15
-    clearcoat_gloss: 0.6
-
-  # Muro in stucco veneziano — leggero sheen serico a luce radente
+ 
+  # Muro in stucco veneziano
   - id: "wall_stucco"
-    type: "disney"
+    type: "lambertian"
     color: [0.22, 0.20, 0.19]
-    roughness: 0.78
-    metallic: 0.0
-    specular: 0.15
-    sheen: 0.12
-    sheen_tint: 0.3
-    subsurface: 0.05
-
-  # Soffitto — più chiaro dei muri per rimbalzare luce morbida
+ 
+  # Soffitto — superficie di rimbalzo luce
   - id: "ceiling_paint"
-    type: "disney"
+    type: "lambertian"
     color: [0.32, 0.30, 0.28]
-    roughness: 0.90
-    metallic: 0.0
-    specular: 0.1
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  TAVOLO
+  #  TAVOLO  [OTTIMIZZATO → lambertian/metal]
   # ─────────────────────────────────────────────────────────────────────────
-
-  # Piano in legno scuro lucidato — clearcoat per il riflesso del top
+ 
+  # Piano del tavolo in legno scuro — texture venata preservata
   - id: "table_top"
-    type: "disney"
+    type: "metal"
+    fuzz: 0.35
     texture:
       type: "wood"
       scale: 2.5
       noise_strength: 2.5
       colors: [[0.35, 0.2, 0.1], [0.2, 0.1, 0.04]]
       rotation: [0, 30, 0]
-    roughness: 0.28
-    clearcoat: 0.45
-    clearcoat_gloss: 0.85
-    specular: 0.4
-
-  # Corpo tavolo — legno scuro opaco
+ 
+  # Corpo tavolo — legno scuro opaco (non visibile nelle viste principali)
   - id: "table_body"
-    type: "disney"
+    type: "lambertian"
     color: [0.15, 0.09, 0.04]
-    roughness: 0.75
-    metallic: 0.0
-    specular: 0.15
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  ESPOSITORE (Vetrina in legno e velluto)
+  #  ESPOSITORE  [OTTIMIZZATO → lambertian/metal]
   # ─────────────────────────────────────────────────────────────────────────
-
-  # Cornice in noce lucidato — legno pregiato con clearcoat
+ 
+  # Cornice in noce — texture legno preservata
   - id: "case_wood"
-    type: "disney"
+    type: "lambertian"
     texture:
       type: "wood"
       scale: 4.0
       noise_strength: 3.0
       colors: [[0.42, 0.26, 0.13], [0.28, 0.16, 0.07]]
       randomize_rotation: true
-    roughness: 0.55
-    clearcoat: 0.35
-    clearcoat_gloss: 0.75
-    specular: 0.3
-
-  # Base in velluto scuro — sheen alto per catturare la luce al radente
+ 
+  # Base in velluto scuro
   - id: "case_felt"
-    type: "disney"
+    type: "lambertian"
     color: [0.04, 0.04, 0.06]
-    roughness: 1.0
-    sheen: 0.95
-    sheen_tint: 0.2
-    subsurface: 0.15
-    specular: 0.05
-
-  # Divisori — listelli in legno più chiaro
+ 
+  # Divisori — listelli sottili tra le file
   - id: "case_divider"
-    type: "disney"
+    type: "lambertian"
     texture:
       type: "wood"
       scale: 6.0
       noise_strength: 2.0
       colors: [[0.38, 0.23, 0.12], [0.25, 0.14, 0.06]]
-    roughness: 0.85
-    specular: 0.15
-
+ 
   # Bordino metallico dell'espositore — acciaio satinato
   - id: "case_trim"
-    type: "disney"
+    type: "metal"
     color: [0.60, 0.58, 0.55]
-    metallic: 1.0
-    roughness: 0.35
-    specular: 0.5
+    fuzz: 0.35
 
   # ─────────────────────────────────────────────────────────────────────────
   #  FILA 6 — PLASTICHE MORBIDE / ORGANICHE

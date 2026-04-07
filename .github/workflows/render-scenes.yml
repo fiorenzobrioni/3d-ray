@@ -47,8 +47,9 @@ jobs:
       fail-fast: false
       matrix:
         scene:
+          - classic-vs-disney
           - sphere-showcase-disney
-#          - utah-teapot
+          - utah-teapot
 #          - primitive-showcase
 #          - cristallo
 #          - csg-showcase
@@ -83,7 +84,7 @@ jobs:
           publish/RayTracer/RayTracer \
             -i scenes/${{ matrix.scene }}.yaml \
             -o renders/sample-${{ matrix.scene }}.png \
-            -s 1024 -d 60 -w 1920 -H 1080
+            -s 1024 -d 50 -w 1920 -H 1080
 
       - name: Upload render
         if: always()

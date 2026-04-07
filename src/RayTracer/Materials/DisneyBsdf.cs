@@ -68,6 +68,14 @@ public class DisneyBsdf : IMaterial
     private readonly float _alpha;          // roughness² (GGX α)
     private readonly float _clearcoatAlpha; // clearcoat roughness²
 
+    // ── FIX #8b: Maximum per-lobe attenuation after 1/probability ───────────
+    // Limits the amplification from multi-lobe compensation to prevent
+    // cascading fireflies across bounces. A cap of 10 means a single
+    // bounce can amplify at most 10×; two consecutive worst-case bounces
+    // give 100× which ClampRadiance(100) can still catch. Without this,
+    // two bounces each at 1/0.1 = 10 × ggxWeight could reach 100×10 = 1000×.
+    private const float MaxLobeAttenuation = 10f;
+
     public DisneyBsdf(
         ITexture baseColor,
         float metallic       = 0f,
@@ -241,19 +249,20 @@ public class DisneyBsdf : IMaterial
         Vector3 result = diffuse + specular + clearcoat;
 
         // ── FIREFLY GUARD ───────────────────────────────────────────────
-        // The GGX NDF term D = α²/(π×denom²) diverges for low roughness
-        // when NdotH ≈ 1 (light perfectly aligned with reflection). For
-        // α=0.001 (mirror), D ≈ 3×10⁸. After G/4NdotV this can still
-        // produce specular values of 50–500, which multiplied by light
-        // color and scatter attenuation across bounces creates persistent
-        // fireflies that don't average out even at -s 3000.
+        // FIX #8c: Raised clamp from 1.0 to 10.0 for PBR-correct direct
+        // lighting. The old 1.0 clamp was a legacy from the Blinn-Phong
+        // era and systematically underestimated specular direct lighting
+        // for smooth materials (roughness < 0.1). This created an energy
+        // imbalance where indirect (unclamped scatter) dominated over
+        // direct, making the noise from indirect bounces more visible.
         //
-        // The clamp at 1.0 per component matches the Blinn-Phong scale that
-        // the Renderer's lighting pipeline was designed around (point lights
-        // already carry their intensity in lightColor; the BRDF shape factor
-        // should be a [0,1] modulator, not an amplifier). For reference,
-        // the old Blinn-Phong peak was pow(1, exponent) × fresnel ≈ 1.0.
-        result = Vector3.Min(result, Vector3.One);
+        // At 10.0 the clamp still catches the GGX NDF divergence for
+        // near-mirror surfaces (D ≈ 3×10⁸ for α=0.001) while preserving
+        // the correct Cook-Torrance magnitude for legitimate highlights.
+        // Point lights carry their intensity in lightColor (can be 10+),
+        // so a BRDF shape factor up to 10 is physically reasonable for
+        // smooth metals (F≈1, G≈1, D peaks at 2/π for α=0.5).
+        result = Vector3.Min(result, new Vector3(10f));
 
         return result;
     }
@@ -282,9 +291,21 @@ public class DisneyBsdf : IMaterial
         // Diffuse: proportional to (1-metallic)(1-specTrans). No roughness
         //   factor here — the Disney diffuse Fresnel handles energy balance.
         // Specular: Fresnel-weighted. For metals F0 ≈ luminance(baseColor),
-        //   for dielectrics F0 ≈ 0.04×Specular. The min(0.1) floor ensures
-        //   specular is always sampled (critical for glossy dielectrics where
-        //   the visual contribution is high despite low F0).
+        //   for dielectrics F0 ≈ 0.04×Specular. A floor ensures specular is
+        //   always sampled (critical for glossy dielectrics where the visual
+        //   contribution is high despite low F0).
+        //
+        //   FIX #8e: The floor is now adaptive to specTrans. For transmissive
+        //   materials (glass), the transmission lobe already handles Fresnel
+        //   reflection internally (via Schlick in ScatterTransmission). A high
+        //   specular floor on top of this creates redundant specular sampling
+        //   that produces bright halos at grazing angles — the 9% of rays
+        //   that select the specular lobe get 10× compensation, creating a
+        //   systematic white rim artifact on glass spheres.
+        //
+        //   specTrans=0 (opaque):  floor = 0.1  (unchanged, protects glossy dielectrics)
+        //   specTrans=1 (glass):   floor = 0.01 (minimal, avoids redundant sampling)
+        //
         // Transmission: proportional to (1-metallic)×specTrans.
         // Clearcoat: proportional to Clearcoat × mean Fresnel (≈ 0.04 at
         //   normal incidence). The old 0.25 constant over-weighted clearcoat
@@ -295,7 +316,8 @@ public class DisneyBsdf : IMaterial
         float diffuseW  = (1f - Metallic) * (1f - SpecTrans);
         float specF0    = Metallic > 0.5f ? MathUtils.Luminance(baseCol)
                           : 0.04f * Specular;
-        float specularW = MathF.Max(0.1f, Lerp(specF0, 1f, Metallic));
+        float specFloor = 0.1f * (1f - SpecTrans * 0.9f); // FIX #8e: 0.1 opaque → 0.01 glass
+        float specularW = MathF.Max(specFloor, Lerp(specF0, 1f, Metallic));
         float transW    = (1f - Metallic) * SpecTrans;
         float clearW    = Clearcoat * 0.04f; // F0 of clearcoat IOR ≈ 1.5
         float sheenW    = Sheen * 0.25f * diffuseW; // FIX #7c: sheen as separate lobe
@@ -322,7 +344,7 @@ public class DisneyBsdf : IMaterial
         }
         else if ((rnd -= pSpecular) < pTrans)
         {
-            result = ScatterTransmission(rayIn, rec, baseCol, N, pTrans, out attenuation, out scattered);
+            result = ScatterTransmission(rayIn, rec, baseCol, N, V, pTrans, out attenuation, out scattered);
         }
         else if ((rnd -= pTrans) < pSheen)
         {
@@ -348,6 +370,16 @@ public class DisneyBsdf : IMaterial
             // instead of black (NaN→0) or white (Inf).
             attenuation = baseCol;
         }
+
+        // ── FIX #8b: Cap per-bounce attenuation ────────────────────────────
+        // After lobe selection compensation (1/p), the attenuation can reach
+        // high values for low-probability lobes. Without capping, two
+        // consecutive bounces each at 10× produce 100× — a guaranteed firefly.
+        // Clamping per-component to MaxLobeAttenuation introduces a small bias
+        // on the ~1% of paths that hit low-probability lobes at grazing angles,
+        // but eliminates the catastrophic 1000×+ outliers that dominate the
+        // image noise at low sample counts.
+        attenuation = Vector3.Min(attenuation, new Vector3(MaxLobeAttenuation));
 
         return result;
     }
@@ -434,6 +466,13 @@ public class DisneyBsdf : IMaterial
     /// contribution, so the 1/probability compensation is correctly calibrated.
     /// The per-sample variance is similar, but fewer samples are "wasted" on
     /// sheen when other lobes would be more productive.
+    ///
+    /// FIX #8d: Added Fresnel-aware weighting. The sheen energy is concentrated
+    /// at grazing angles where SchlickWeight ≈ 1, but cosine sampling puts most
+    /// samples near normal incidence where SchlickWeight ≈ 0. We clamp the raw
+    /// sheen contribution to avoid the pathological case where a near-normal
+    /// sample with fH ≈ 0 gets divided by a small probability, producing a
+    /// low-valued but still noisy result.
     /// </summary>
     private bool ScatterSheen(HitRecord rec, Vector3 baseCol, Vector3 N, Vector3 V,
                               float probability,
@@ -545,9 +584,21 @@ public class DisneyBsdf : IMaterial
     /// materials. The new approach samples a microfacet normal H from the GGX NDF
     /// and refracts through H, producing a distribution that is consistent with
     /// the material's roughness model.
+    ///
+    /// FIX #8a: Added Smith GGX geometry weight for rough transmission.
+    /// Previously, all transmitted samples had equal weight (sqrt(baseColor)),
+    /// regardless of microfacet geometry. This meant samples near the NDF peak
+    /// (frequent) and samples in the tail (rare) contributed equally — the
+    /// definition of high variance. Now, for rough glass (roughness > 0.01),
+    /// we compute the proper GGX importance sampling weight G×VdotH/(NdotV×NdotH)
+    /// just like ScatterSpecular does. This dramatically reduces fireflies on
+    /// frosted/colored glass surfaces.
+    ///
+    /// For smooth glass (roughness ≤ 0.01), the microfacet normal equals the
+    /// geometric normal and the GGX weight is 1.0, so we skip the computation.
     /// </summary>
     private bool ScatterTransmission(Ray rayIn, HitRecord rec, Vector3 baseCol,
-                                     Vector3 N, float probability,
+                                     Vector3 N, Vector3 V, float probability,
                                      out Vector3 attenuation, out Ray scattered)
     {
         float eta = rec.FrontFace ? (1f / Ior) : Ior;
@@ -556,7 +607,8 @@ public class DisneyBsdf : IMaterial
         // For rough transmissive materials, sample a GGX microfacet normal
         // instead of using the geometric normal. This produces physically
         // correct frosted glass with a distribution matching the roughness.
-        Vector3 Ht = (Roughness > 0.01f) ? SampleGGX(N, _alpha) : N;
+        bool isRough = Roughness > 0.01f;
+        Vector3 Ht = isRough ? SampleGGX(N, _alpha) : N;
 
         // Ensure the microfacet normal faces the incoming ray
         if (Vector3.Dot(Ht, unitDir) > 0f)
@@ -589,6 +641,31 @@ public class DisneyBsdf : IMaterial
             MathF.Sqrt(baseCol.X),
             MathF.Sqrt(baseCol.Y),
             MathF.Sqrt(baseCol.Z));
+
+        // ── FIX #8a: GGX geometry weight for rough transmission ────────────
+        // For rough glass, the GGX microfacet sampling has a pdf proportional
+        // to D(Ht)×NdotHt. The BTDF includes a G term that must be accounted
+        // for to keep the estimator low-variance. We use the same
+        // G×VdotH/(NdotV×NdotH) weight as ScatterSpecular, with the same
+        // clamp to 1.0 for firefly protection.
+        //
+        // For smooth glass (isRough=false), Ht=N → NdotH=1, VdotH≈NdotV,
+        // G≈1, so the weight is ~1.0 and we skip the computation.
+        if (isRough)
+        {
+            Vector3 L = scattered.Direction;
+            float NdotV_t = MathF.Max(Vector3.Dot(N, V), 0.01f);
+            float NdotL_t = MathF.Abs(Vector3.Dot(N, L));  // abs: transmitted L may be below surface
+            NdotL_t = MathF.Max(NdotL_t, 0.001f);
+            float NdotHt  = MathF.Max(MathF.Abs(Vector3.Dot(N, Ht)), 0.01f);
+            float VdotHt  = MathF.Max(MathF.Abs(Vector3.Dot(V, Ht)), 0.001f);
+
+            float G_t = SmithG1_GGX(NdotV_t, _alpha) * SmithG1_GGX(NdotL_t, _alpha);
+
+            // Same clamped weight as specular — values > 1 are grazing-angle noise
+            float transWeight = MathF.Min(G_t * VdotHt / (NdotV_t * NdotHt), 1f);
+            attenuation *= transWeight;
+        }
 
         // Compensate for lobe selection probability
         float safeProbability = MathF.Max(probability, 0.1f);

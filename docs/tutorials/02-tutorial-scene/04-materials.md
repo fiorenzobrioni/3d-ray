@@ -209,19 +209,27 @@ Il materiale più potente del renderer. Un singolo tipo può rappresentare quals
   ior: 1.5
 ```
 
-**Quando usare Disney vs tipi legacy:**
+**Quando usare Disney vs materiali classici:**
 
-| Vuoi... | Usa |
-|---------|-----|
-| Solo colore diffuso semplice | `lambertian` |
-| Riflessione speculare semplice | `metal` |
-| Vetro o rifrazione base | `dielectric` |
-| Fonte di luce | `emissive` |
-| Qualsiasi altro materiale reale (metallo, vernice, tessuto, pelle, vetro PBR) | `disney` |
+| Vuoi... | Usa | Perché |
+|---------|-----|--------|
+| Pavimenti, muri, soffitti | `lambertian` | Massima pulizia, zero rumore da lobi multipli |
+| Superfici di sfondo (tavoli, piedistalli) | `lambertian` o `metal` | Il Fresnel Disney non giustifica il rumore su superfici non protagoniste |
+| Metalli (oro, cromo, rame, acciaio) | `disney` metallic=1.0 | **Nessun rumore aggiuntivo** — un solo lobo attivo, GGX corretto |
+| Plastica, ceramica (oggetti protagonisti) | `disney` | Fresnel realistico, roughness GGX, subsurface |
+| Vernice auto, lacca (clearcoat) | `disney` con clearcoat | Due strati speculari — impossibile con classici |
+| Tessuto, velluto (sheen) | `disney` con sheen | Riflesso radente — impossibile con classici |
+| Pelle, cera (subsurface) | `disney` con subsurface | Scattering sottosuperficiale — impossibile con classici |
+| Vetro chiaro e semplice | `dielectric` | Più pulito e veloce |
+| Vetro colorato o smerigliato | `disney` spec_trans | Tint del colore + roughness non disponibili in `dielectric` |
 
-> **💡 Tip performance:** Il Disney BSDF è computazionalmente più costoso dei materiali legacy (specialmente con `clearcoat` e `spec_trans` attivi). Per scene con molti oggetti, usa `lambertian` per le superfici di sfondo e `disney` solo per i materiali protagonisti.
+> **⚠️ Rumore e sample count:** Il materiale Disney utilizza una selezione stocastica a 5 lobi che lo rende **intrinsecamente più rumoroso** dei materiali classici a parità di campioni. Non è un difetto — è il costo della maggiore accuratezza fisica. Per compensare:
+>
+> - **Approccio misto** (consigliato): usa `lambertian` per pavimenti e superfici grandi, `disney` solo per gli oggetti protagonisti. Questo riduce drasticamente il rumore senza perdere realismo dove conta.
+> - **Tutto Disney**: aumenta i campioni. Una scena tutta Disney richiede circa **4× i campioni** di una scena classica per lo stesso livello di pulizia (es. 256 spp invece di 64).
+> - **Disney metallici**: l'eccezione — con `metallic: 1.0` (e senza clearcoat/sheen) il Disney ha un solo lobo attivo e produce lo stesso rumore del `metal` classico. Usali liberamente anche su grandi superfici.
 
-> **💡 Per preset materiali già pronti** (Marmo, Vetro, Oro, Vernice Auto, Velluto ecc.) consulta la [Libreria Materiali PBR](../03-libreria-preset/05-materiali-pbr.md) e il [Catalogo Materiali Professionale](../03-libreria-preset/04-materiali-base.md).
+> **💡 Regola pratica:** Se la superficie è grande e lontana dalla camera, usa un classico. Se la superficie è un oggetto protagonista con feature uniche (clearcoat, sheen, subsurface, vetro smerigliato), usa Disney e alza i campioni.
 
 ---
 

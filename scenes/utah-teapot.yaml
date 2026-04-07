@@ -38,7 +38,7 @@ world:
     ground_color: [0.02, 0.02, 0.02]
 
 materials:
-  # ── Teiera ─────────────────────────────────────────────────────────────────
+  # ── Teiera — DISNEY (protagonista, clearcoat per smaltatura) ───────────
   - id: "porcellana"
     type: "disney"
     color: [0.95, 0.93, 0.88]
@@ -48,42 +48,38 @@ materials:
     clearcoat: 0.4
     clearcoat_gloss: 0.9
 
-  # ── Tavolo ─────────────────────────────────────────────────────────────────
+  # ── Tavolo — LAMBERTIAN (superficie grande, nessun feature Disney) ─────
   - id: "legno_scuro"
-    type: "disney"
+    type: "lambertian"
     color: [0.25, 0.13, 0.06]
-    roughness: 0.5
-    metallic: 0.0
 
-  # ── Pavimento ──────────────────────────────────────────────────────────────
+  # ── Pavimento — LAMBERTIAN (superficie più grande della scena) ─────────
   - id: "pavimento"
-    type: "disney"
-    roughness: 0.6
+    type: "lambertian"
     texture:
       type: "checker"
       colors: [[0.06, 0.06, 0.06], [0.12, 0.1, 0.08]]
       scale: 1.5
 
-  # ── Origami (smooth triangles) ─────────────────────────────────────────────
+  # ── Origami — LAMBERTIAN (carta opaca, nessun riflesso speculare) ──────
   - id: "carta_rossa"
-    type: "disney"
+    type: "lambertian"
     color: [0.85, 0.12, 0.08]
-    roughness: 0.6
 
-  # ── Sfera decorativa ───────────────────────────────────────────────────────
+  # ── Sfera cromo — METAL (equivalente al disney metallic=1) ─────────────
   - id: "cromo"
-    type: "disney"
+    type: "metal"
     color: [0.95, 0.95, 0.97]
-    roughness: 0.02
-    metallic: 1.0
+    fuzz: 0.02
 
+  # ── Sfera vetro — già classico, invariato ──────────────────────────────
   - id: "vetro_ambra"
     type: "dielectric"
     refraction_index: 1.5
     color: [1.0, 0.85, 0.6]
 
 lights:
-  # Key light — area calda da destra (invariata, funziona bene)
+  # Key light — area calda da destra
   - type: "area"
     corner: [4, 6, -2]
     u: [0, 0, 2]
@@ -92,23 +88,19 @@ lights:
     intensity: 30
     shadow_samples: 16
 
-  # Fill — fredda da sinistra (invariata)
+  # Fill — fredda da sinistra
   - type: "point"
     position: [-5, 4, -3]
     color: [0.7, 0.8, 1.0]
     intensity: 25
 
-  # Rim — spostata verso destra per coprire gru + teapot
+  # Rim — posteriore
   - type: "point"
     position: [1.5, 3, 6]
     color: [1.0, 0.98, 0.95]
     intensity: 15
 
   # Spot teatrale — faretto dall'alto puntato sulla teiera
-  # Crea un pool di luce concentrato sulla porcellana e sulle sfere decorative,
-  # con un falloff netto che lascia i bordi della scena nell'oscurità notturna.
-  # Posizione: alto-frontale-sinistra per incrociare la key light da destra
-  # e scolpire meglio il volume della teiera dalla prospettiva "hero".
   - type: "spot"
     position: [-2, 9, -4]
     direction: [0.22, -0.88, 0.42]
@@ -116,7 +108,7 @@ lights:
     intensity: 140
     inner_angle: 14
     outer_angle: 28
-  
+
 entities:
   # ═══════════════════════════════════════════════════════════════════════════
   # PAVIMENTO
@@ -166,7 +158,7 @@ entities:
     material: "legno_scuro"
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # UTAH TEAPOT — il protagonista
+  # UTAH TEAPOT — il protagonista (unico Disney della scena)
   # ═══════════════════════════════════════════════════════════════════════════
   - name: "teapot"
     type: "mesh"
@@ -177,71 +169,66 @@ entities:
     translate: [0, 1.1, 0.5]
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # SMOOTH TRIANGLES — Origami decorativi accanto alla teiera
-  # Dimostrano la nuova primitiva YAML con smooth shading
+  # SMOOTH TRIANGLES — Origami (gru) accanto alla teiera
   # ═══════════════════════════════════════════════════════════════════════════
 
-# ═══════════════════════════════════════════════════════════════════════════
-  # ORIGAMI GRU (Tsuru) — 13 triangoli flat-shaded
-  # Posizione: lato destro del tavolo (dove c'era la piramide)
-  #
-  # Vertici chiave:
-  #   P_cl  [ 1.6, 1.1,  0.0]   corpo sinistra
-  #   P_cr  [ 2.4, 1.1,  0.0]   corpo destra
-  #   P_cf  [ 2.0, 1.1, -0.33]  corpo fronte
-  #   P_cb  [ 2.0, 1.1,  0.33]  corpo retro
-  #   P_top [ 2.0, 1.55, 0.0]   cresta dorsale
-  #   P_wlt [ 0.9, 1.18, 0.0]   punta ala sinistra
-  #   P_wrt [ 2.9, 1.18, 0.0]   punta ala destra
-  #   P_nh  [ 2.4, 2.0,  -0.9]  testa / becco
-  #   P_tt  [ 1.9, 2.05,  0.9]  punta coda
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ─── Corpo: 4 facce a diamante ─────────────────────────────────────────────
-  - name: "gru_corpo_sx_fr"
-    type: "triangle"
-    v0: [1.6, 1.1,  0.0]
-    v1: [2.0, 1.55, 0.0]
+  # ─── Corpo: diamante con 4 facce ───────────────────────────────────────
+  - name: "gru_corpo_top_fr"
+    type: "smooth_triangle"
+    v0: [2.0, 1.55, 0.0]
+    v1: [1.6, 1.1,  0.0]
     v2: [2.0, 1.1, -0.33]
+    n0: [0, 0.8, -0.6]
+    n1: [-0.5, -0.5, -0.5]
+    n2: [0, -0.3, -0.95]
     material: "carta_rossa"
 
-  - name: "gru_corpo_dx_fr"
-    type: "triangle"
-    v0: [2.0, 1.1, -0.33]
-    v1: [2.0, 1.55, 0.0]
+  - name: "gru_corpo_top_re"
+    type: "smooth_triangle"
+    v0: [2.0, 1.55, 0.0]
+    v1: [2.0, 1.1, 0.33]
+    v2: [1.6, 1.1, 0.0]
+    n0: [0, 0.8, 0.6]
+    n1: [0, -0.3, 0.95]
+    n2: [-0.5, -0.5, 0.5]
+    material: "carta_rossa"
+
+  - name: "gru_corpo_top_r"
+    type: "smooth_triangle"
+    v0: [2.0, 1.55, 0.0]
+    v1: [2.0, 1.1, -0.33]
     v2: [2.4, 1.1,  0.0]
+    n0: [0, 0.8, -0.6]
+    n1: [0, -0.3, -0.95]
+    n2: [0.5, -0.5, -0.5]
     material: "carta_rossa"
 
-  - name: "gru_corpo_sx_re"
-    type: "triangle"
-    v0: [2.0, 1.1,  0.33]
-    v1: [2.0, 1.55, 0.0]
-    v2: [1.6, 1.1,  0.0]
-    material: "carta_rossa"
-
-  - name: "gru_corpo_dx_re"
-    type: "triangle"
-    v0: [2.4, 1.1,  0.0]
-    v1: [2.0, 1.55, 0.0]
+  - name: "gru_corpo_top_re2"
+    type: "smooth_triangle"
+    v0: [2.0, 1.55, 0.0]
+    v1: [2.4, 1.1,  0.0]
     v2: [2.0, 1.1,  0.33]
+    n0: [0, 0.8, 0.6]
+    n1: [0.5, -0.5, 0.5]
+    n2: [0, -0.3, 0.95]
     material: "carta_rossa"
 
-  # ─── Ala sinistra: 2 facce ─────────────────────────────────────────────────
+  # ─── Ala sinistra: 2 facce ─────────────────────────────────────────────
   - name: "gru_ala_sx_fr"
     type: "triangle"
-    v0: [2.0, 1.1, -0.33]
-    v1: [0.9, 1.18, 0.0]
-    v2: [1.6, 1.1,  0.0]
+    v0: [1.6, 1.1,  0.0]
+    v1: [2.0, 1.1, -0.33]
+    v2: [1.1, 1.18, 0.0]
     material: "carta_rossa"
 
   - name: "gru_ala_sx_re"
     type: "triangle"
-    v0: [1.6, 1.1,  0.0]
-    v1: [0.9, 1.18, 0.0]
-    v2: [2.0, 1.1,  0.33]
+    v0: [2.0, 1.1,  0.33]
+    v1: [1.6, 1.1,  0.0]
+    v2: [1.1, 1.18, 0.0]
     material: "carta_rossa"
 
-  # ─── Ala destra: 2 facce ───────────────────────────────────────────────────
+  # ─── Ala destra: 2 facce ───────────────────────────────────────────────
   - name: "gru_ala_dx_fr"
     type: "triangle"
     v0: [2.4, 1.1,  0.0]
@@ -256,7 +243,7 @@ entities:
     v2: [2.4, 1.1,  0.0]
     material: "carta_rossa"
 
-  # ─── Collo/testa: 2 triangoli sfalsati di 0.05 in X per spessore visivo ────
+  # ─── Collo/testa: 2 triangoli sfalsati per spessore visivo ─────────────
   - name: "gru_collo_a"
     type: "triangle"
     v0: [2.0,  1.55, 0.0]
@@ -271,7 +258,7 @@ entities:
     v2: [2.35, 2.0, -0.9]
     material: "carta_rossa"
 
-  # ─── Coda: 1 faccia ────────────────────────────────────────────────────────
+  # ─── Coda: 1 faccia ────────────────────────────────────────────────────
   - name: "gru_coda"
     type: "triangle"
     v0: [2.0, 1.55, 0.0]
@@ -279,7 +266,7 @@ entities:
     v2: [2.0, 1.1,  0.33]
     material: "carta_rossa"
 
-  # ─── Fondo corpo: chiude la base del diamante ──────────────────────────────
+  # ─── Fondo corpo: chiude la base del diamante ──────────────────────────
   - name: "gru_fondo_fr"
     type: "triangle"
     v0: [1.6, 1.1,  0.0]
@@ -295,7 +282,7 @@ entities:
     material: "carta_rossa"
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # OGGETTI DECORATIVI — primitive analitiche per composizione
+  # OGGETTI DECORATIVI
   # ═══════════════════════════════════════════════════════════════════════════
 
   # Sfera cromo — riflette la teiera
@@ -311,4 +298,3 @@ entities:
     center: [-0.8, 1.4, -0.7]
     radius: 0.3
     material: "vetro_ambra"
-    

@@ -2,7 +2,11 @@
 
 Preset copia-incolla per il materiale `type: "disney"`, organizzati per categoria.
 
-> **Quando usare Disney:** Usa `disney` per qualsiasi materiale reale che non sia puramente diffuso o puramente speculare semplice. Per superfici di sfondo non protagoniste, `lambertian` o `metal` sono più veloci.
+> **Quando usare Disney:** Usa `disney` per gli oggetti protagonisti della scena dove servono effetti PBR avanzati (clearcoat, sheen, subsurface, vetro smerigliato). Per pavimenti, muri e superfici di sfondo, preferisci `lambertian` o `metal` — sono più veloci e producono meno rumore.
+
+> **Eccezione: metalli Disney.** I materiali con `metallic: 1.0` (senza clearcoat né sheen) hanno un solo lobo attivo e producono **lo stesso rumore** di un `metal` classico. Usali liberamente su qualsiasi superficie, anche grandi.
+
+> **Sample count:** Scene con molti materiali Disney richiedono circa 4× i campioni di scene con materiali classici per lo stesso livello di pulizia. Consiglio: 256 spp per draft Disney, 512+ per produzione. Vedi la [guida tecnica alla varianza Disney](../../technical/shading-model.md#2-varianza-e-convergenza-disney-bsdf-vs-materiali-classici) per i dettagli.
 
 ## Metalli
 
