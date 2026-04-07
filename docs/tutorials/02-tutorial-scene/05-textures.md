@@ -70,6 +70,18 @@ materials:
       randomize_rotation: true
 ```
 
+## 5.3.1 Seed Deterministico per Entità
+
+Ogni entità accetta un campo opzionale `seed`:
+
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `seed` | int | *(auto)* | Seed per la randomizzazione delle texture. Se omesso, viene calcolato deterministicamente da indice, tipo e nome dell'entità. |
+
+Un seed fisso garantisce che le venature di marmo/legno siano identiche 
+tra render successivi — utile per iterare sull'illuminazione senza 
+cambiare l'aspetto dei materiali.
+
 ## 5.4 Image Texture (Texture da File)
 
 Carica un'immagine da file e la proietta sulla superficie usando le coordinate UV della primitiva. Supporta tutti i formati gestiti da ImageSharp: PNG, JPEG, BMP, GIF, TIFF, WebP.

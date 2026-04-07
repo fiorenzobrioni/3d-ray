@@ -48,6 +48,24 @@ camera:
 
 ---
 
+## **Preset: Low Angle (Angolo dal Basso)**
+```yaml
+camera:
+  position: [2, 0.3, -5]
+  look_at: [0, 2, 0]
+  fov: 55
+```
+
+## **Preset: Macro con DOF Estremo**
+```yaml
+camera:
+  position: [0.3, 1.5, -2.5]
+  look_at: [0, 1.2, 0]
+  fov: 25
+  aperture: 0.25
+  focal_dist: 2.8
+```
+
 ---
 
 [← Torna all'indice](../03-libreria-preset.md)

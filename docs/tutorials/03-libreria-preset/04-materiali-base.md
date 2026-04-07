@@ -157,6 +157,203 @@ Glow caldo per candele, torce o lampade.
 
 ---
 
+## **Materiali Base Solidi: Bianco Puro**
+```yaml
+  - id: "bianco"
+    type: "lambertian"
+    color: [0.92, 0.92, 0.92]
+```
+
+## **Materiali Base Solidi: Rosso Base**
+```yaml
+  - id: "rosso"
+    type: "lambertian"
+    color: [0.75, 0.15, 0.10]
+```
+
+## **Materiali Base Solidi: Grigio Medio**
+```yaml
+  - id: "grigio"
+    type: "lambertian"
+    color: [0.5, 0.5, 0.5]
+```
+
+## **Materiali Base Solidi: Nero Opaco**
+```yaml
+  - id: "nero"
+    type: "lambertian"
+    color: [0.03, 0.03, 0.03]
+```
+
+## **Superfici Architettoniche: Muro Bianco**
+```yaml
+  - id: "muro_bianco"
+    type: "lambertian"
+    color: [0.88, 0.86, 0.82]
+```
+
+## **Superfici Architettoniche: Pavimento Generico (Scacchiera Discreta)**
+```yaml
+  - id: "pavimento"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 2.0
+      colors: [[0.15, 0.15, 0.15], [0.25, 0.25, 0.25]]
+```
+
+## **Superfici Architettoniche: Cemento**
+```yaml
+  - id: "cemento"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 8.0
+      colors: [[0.60, 0.60, 0.60], [0.50, 0.50, 0.50]]
+```
+
+## **Superfici Architettoniche: Mattoni**
+```yaml
+  - id: "mattoni"
+    type: "lambertian"
+    color: [0.55, 0.25, 0.18]
+```
+
+## **Superfici Architettoniche: Pietra**
+```yaml
+  - id: "pietra"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 6.0
+      colors: [[0.55, 0.52, 0.48], [0.42, 0.40, 0.36]]
+```
+
+## **Metalli Aggiuntivi: Metallo Scuro**
+```yaml
+  - id: "metallo_scuro"
+    type: "metal"
+    color: [0.12, 0.12, 0.15]
+    fuzz: 0.08
+```
+
+## **Metalli Aggiuntivi: Metallo Ruggine (Disney)**
+```yaml
+  - id: "metallo_ruggine"
+    type: "disney"
+    color: [0.55, 0.28, 0.15]
+    metallic: 0.7
+    roughness: 0.8
+```
+
+## **Pietre e Ceramiche: Marmo Base (Generico)**
+```yaml
+  - id: "marmo_base"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 8.0
+      colors: [[0.90, 0.88, 0.85], [0.50, 0.48, 0.45]]
+      randomize_offset: true
+```
+
+## **Pietre e Ceramiche: Marmo Bianco (Calacatta Style)**
+```yaml
+  - id: "marmo_bianco"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 15.0
+      noise_strength: 10.0
+      colors: [[0.96, 0.96, 0.96], [0.55, 0.55, 0.55]]
+      randomize_offset: true
+```
+
+## **Pietre e Ceramiche: Ceramica Bianca**
+```yaml
+  - id: "ceramica_bianca"
+    type: "disney"
+    color: [0.95, 0.93, 0.90]
+    roughness: 0.2
+    specular: 0.5
+```
+
+## **Pietre e Ceramiche: Avorio**
+```yaml
+  - id: "avorio"
+    type: "lambertian"
+    color: [0.96, 0.93, 0.82]
+```
+
+## **Gomme: Gomma Nera**
+```yaml
+  - id: "gomma_nera"
+    type: "disney"
+    color: [0.05, 0.05, 0.05]
+    roughness: 0.95
+    specular: 0.1
+```
+
+## **Gomme: Gomma Rossa**
+```yaml
+  - id: "gomma_rossa"
+    type: "disney"
+    color: [0.7, 0.08, 0.05]
+    roughness: 0.9
+    specular: 0.08
+```
+
+## **Plastiche Aggiuntive: Plastica Bianca**
+```yaml
+  - id: "plastica_bianca"
+    type: "disney"
+    color: [0.92, 0.92, 0.92]
+    roughness: 0.6
+    metallic: 0.0
+```
+
+## **Plastiche Aggiuntive: Plastica Arancione**
+```yaml
+  - id: "plastica_arancio"
+    type: "disney"
+    color: [0.9, 0.45, 0.05]
+    roughness: 0.5
+    metallic: 0.0
+```
+
+## **Emissivi Aggiuntivi: Neon Rosa**
+```yaml
+  - id: "neon_rosa"
+    type: "emissive"
+    color: [1.0, 0.2, 0.6]
+    intensity: 12.0
+```
+
+## **Emissivi Aggiuntivi: Neon Bianco (Daylight)**
+```yaml
+  - id: "neon_bianco"
+    type: "emissive"
+    color: [1.0, 0.98, 0.95]
+    intensity: 15.0
+```
+
+## **Emissivi Aggiuntivi: Neon Blu**
+```yaml
+  - id: "neon_blu"
+    type: "emissive"
+    color: [0.2, 0.4, 1.0]
+    intensity: 8.0
+```
+
+## **Emissivi Aggiuntivi: Luce Calda (Emissive per scene CSG)**
+```yaml
+  - id: "luce_calda"
+    type: "emissive"
+    color: [1.0, 0.85, 0.6]
+    intensity: 15.0
+```
+
 ---
 
 [← Torna all'indice](../03-libreria-preset.md)

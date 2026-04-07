@@ -45,6 +45,20 @@ Preset copia-incolla per il materiale `type: "disney"`, organizzati per categori
   color: [0.25, 0.35, 0.65]
   metallic: 1.0
   roughness: 0.3
+
+# Rame Ossidato (Patina verde)
+- id: "rame_ossidato"
+  type: "disney"
+  color: [0.35, 0.55, 0.45]
+  metallic: 0.6
+  roughness: 0.7
+
+# Ottone
+- id: "ottone"
+  type: "disney"
+  color: [0.78, 0.57, 0.11]
+  metallic: 1.0
+  roughness: 0.25
 ```
 
 ## Plastiche e Dielettrici
@@ -71,6 +85,14 @@ Preset copia-incolla per il materiale `type: "disney"`, organizzati per categori
   color: [0.05, 0.05, 0.05]
   roughness: 0.95
   specular: 0.1
+
+# Ceramica (usata nelle scene showcase)
+- id: "ceramica"
+  type: "disney"
+  color: [0.92, 0.88, 0.82]
+  roughness: 0.3
+  metallic: 0.0
+  specular: 0.5
 ```
 
 ## Vernici e Finiture Speciali
@@ -92,6 +114,23 @@ Preset copia-incolla per il materiale `type: "disney"`, organizzati per categori
   roughness: 0.05
   clearcoat: 1.0
   clearcoat_gloss: 1.0
+
+# Vernice Auto Blu
+- id: "vernice_auto_blu"
+  type: "disney"
+  color: [0.05, 0.15, 0.65]
+  roughness: 0.3
+  clearcoat: 1.0
+  clearcoat_gloss: 0.95
+
+# Legno Laccato (Metal + Wood texture)
+- id: "legno_laccato"
+  type: "metal"
+  fuzz: 0.08
+  texture:
+    type: "wood"
+    scale: 22.0
+    colors: [[0.35, 0.05, 0.02], [0.15, 0.02, 0.01]]
 ```
 
 ## Tessuti e Materiali Organici
@@ -112,6 +151,14 @@ Preset copia-incolla per il materiale `type: "disney"`, organizzati per categori
   roughness: 0.6
   subsurface: 0.4
   specular: 0.2
+
+# Cera / Candela (subsurface)
+- id: "cera"
+  type: "disney"
+  color: [0.90, 0.82, 0.60]
+  roughness: 0.7
+  subsurface: 0.6
+  specular: 0.15
 ```
 
 ## Vetri e Trasparenti
@@ -148,6 +195,22 @@ Preset copia-incolla per il materiale `type: "disney"`, organizzati per categori
   roughness: 0.0
   spec_trans: 1.0
   ior: 2.42
+
+# Vetro Ambra
+- id: "vetro_ambra"
+  type: "disney"
+  color: [0.9, 0.6, 0.2]
+  roughness: 0.0
+  spec_trans: 1.0
+  ior: 1.5
+
+# Vetro Ottico
+- id: "vetro_ottico"
+  type: "disney"
+  color: [0.97, 0.99, 1.0]
+  roughness: 0.0
+  spec_trans: 1.0
+  ior: 1.62
 ```
 
 ---

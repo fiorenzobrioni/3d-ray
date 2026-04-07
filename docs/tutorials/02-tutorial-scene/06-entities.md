@@ -353,18 +353,29 @@ Sostituisce la costruzione CSG Disk−Disk con un costo di calcolo inferiore e u
 
 ## 6.12 Trasformazioni (Translate, Rotate, Scale)
 
-Qualsiasi entità supporta trasformazioni opzionali:
+Qualsiasi entità supporta trasformazioni geometriche opzionali. Le trasformazioni permettono di posizionare, orientare e scalare gli oggetti partendo dalla loro definizione originaria (spesso centrata nell'origine).
 
 ```yaml
   - name: "cubo_ruotato"
     type: "box"
     material: "legno"
-    scale:     [1.0, 2.0, 1.0]    # Prima scala
-    rotate:    [0, 45, 0]          # Poi ruota (gradi attorno agli assi X, Y, Z)
-    translate: [2, 1, 0]           # Poi trasla
+    scale:     [1.0, 2.0, 1.0]     # Prima scala (X, Y, Z)
+    rotate:    [0, 45, 0]          # Poi ruota (gradi attorno a X, Y, Z)
+    translate: [2, 1, 0]           # Infine trasla
 ```
 
-Le trasformazioni vengono applicate nell'ordine: **Scale → Rotate → Translate**.
+### Ordine di Applicazione
+Le trasformazioni vengono rigorosamente applicate nell'ordine: **Scale → Rotate → Translate**.
+Questo garantisce che l'oggetto scali rispetto al proprio centro (prima di essere spostato) e ruoti su se stesso (prima della traslazione).
+
+### Sintassi di `scale`
+- **Uniforme (Scalare singolo):** Se passi un solo numero, l'oggetto viene scalato uniformemente. Es. `scale: 2.0` raddoppia tutte le dimensioni.
+- **Non-uniforme (Array):** Se passi un array `[X, Y, Z]`, puoi schiacciare o allungare l'oggetto asimmetricamente. Es. `scale: [1, 2, 1]` raddoppia solo l'altezza in Y.
+
+### Gotcha Comuni e Interazioni
+- **Cilindri e Coni:** Queste primitive sono definite nativamente allineate all'asse **Y** (verticale). Se vuoi un tubo o un cono disteso orizzontalmente lungo l'asse X, devi aggiungere una rotazione di 90° o -90° sull'asse Z: `rotate: [0, 0, 90]`.
+- **Box con `min/max`:** Se definisci un Box specificando le coordinate assolute `min` e `max`, il Box assume quelle coordinate esatte. È sconsigliato applicare `scale` o `rotate` a Box definiti con `min/max`, perché le trasformazioni operano relativamente all'origine globale, producendo asimmetrie ed effetti indesiderati se il box non è centrato. Usa `scale` e `translate` (implicito Box unitario all'origine) se prevedi di ruotare.
+- **Nodi CSG:** Se applichi una trasformazione (es. `translate` o `rotate`) a un nodo composito di tipo `csg`, l'effetto si applica a tutto il gruppo unitariamente. Le trasformazioni applicate ai singoli sottostanti (figli CSG) agiscono nel sistema di riferimento "locale" prima che venga applicata l'eventuale trasformazione del padre CSG.
 
 ## 6.13 Parametro Seed
 

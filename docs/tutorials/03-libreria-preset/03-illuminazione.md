@@ -82,6 +82,49 @@ lights:
 
 ---
 
+## **Preset: Rim Light Drammatico (Contorno)**
+```yaml
+lights:
+  - type: "point"
+    position: [0, 4, 5]      # Dietro il soggetto
+    color: [1.0, 0.95, 0.85]
+    intensity: 80
+  - type: "point"
+    position: [0, 2, -3]     # Fill frontale tenue
+    color: [0.5, 0.5, 0.6]
+    intensity: 5
+```
+
+## **Preset: Cross Lighting (Due spot incrociati)**
+```yaml
+lights:
+  - type: "spot"
+    position: [-5, 6, -3]
+    direction: [0.5, -0.6, 0.3]
+    color: [1.0, 0.9, 0.75]
+    intensity: 80
+    inner_angle: 12
+    outer_angle: 28
+  - type: "spot"
+    position: [5, 6, -3]
+    direction: [-0.5, -0.6, 0.3]
+    color: [0.75, 0.85, 1.0]
+    intensity: 60
+    inner_angle: 12
+    outer_angle: 28
+```
+
+## **Preset: HDRI-Only (Zero luci, solo environment map)**
+```yaml
+world:
+  ambient_light: [0.0, 0.0, 0.0]
+  sky:
+    type: "hdri"
+    path: "hdri/your_hdri.hdr"
+    intensity: 1.2
+lights: []   # Nessuna luce esplicita — solo HDRI
+```
+
 ---
 
 [← Torna all'indice](../03-libreria-preset.md)

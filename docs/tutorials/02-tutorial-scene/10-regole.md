@@ -14,6 +14,23 @@
 11. **Normal Map:** Il `uv_scale` della normal map deve coincidere con quello della texture albedo per evitare disallineamenti. File non trovato → warning in console, superficie rimane liscia. La normale piatta di riferimento è RGB `(128, 128, 255)`: usare `flat-normal.png` generata da NormalMapGen per verificare che il sistema funzioni senza perturbazioni.
 12. **CSG:** Entrambi i figli (`left` e `right`) sono obbligatori. Il tipo `infinite_plane` non è supportato come figlio CSG. Per alberi annidati, il campo `name` sui nodi intermedi non è obbligatorio ma aiuta il debug in caso di warning in console.
 
+## Alias dei Tipi YAML
+
+Molti tipi accettano nomi alternativi per comodità:
+
+| Tipo | Alias accettati |
+|------|-----------------|
+| `cone` | `truncated_cone`, `frustum` |
+| `torus` | `donut`, `ring` |
+| `capsule` | `pill`, `sphylinder` |
+| `annulus` | `ring_disk`, `washer` |
+| `plane` | `infinite_plane` |
+| `mesh` | `obj` |
+| `disney` | `disney_bsdf`, `pbr` |
+| `directional` | `sun` |
+| `spot` | `spotlight` |
+| `area` | `area_light`, `rect`, `rect_light` |
+
 ## Performance
 13. **Campioni e area light:** Il costo reale per pixel è `samples × shadow_samples` per ogni area light. Con `-s 128 -S 16`, ogni pixel lancia oltre 2000 raggi. Usa `-S 4` da CLI per il draft — non serve modificare il YAML!
 14. **Vetro e dielettrico:** I materiali dielettrici (vetro) sono i più costosi perché ogni rimbalzo può generare sia riflessione che rifrazione. Aumenta `--depth` per scene con molto vetro.
