@@ -73,7 +73,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 | 7 | OBJ Mesh Loader | ✅ Completato |
 | 8 | Torus Primitive | ✅ Completato |
 | 9 | Mix Material | ✅ Completato |
-| 10 | Sphere Light | ⬜ Da fare |
+| 10 | Sphere Light | ✅ Completato |
 | 11 | Scene Graph / Groups | ⬜ Da fare |
 
 **6. Disney BSDF / PBR ✅** — Materiale unificato con sampling stocastico a 5 lobi (diffuse, specular GGX, transmission, sheen, clearcoat). Pesi calibrati su F₀ per minimizzare la varianza. GGX importance sampling per specular e clearcoat. Frosted glass con campionamento di micronormali GGX. Consistenza energetica direct/indirect tramite Cook-Torrance analitico in `EvaluateDirect`.
@@ -84,7 +84,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 
 **9. Mix Material ✅** — Materiale composito che interpola tra due materiali figli con peso costante o texture mask spaziale. Selezione stocastica dei lobi per lo scatter (unbiased, compatibile con qualsiasi combinazione di materiali), media pesata deterministica per EvaluateDirect (bassa varianza NEE), blend pesato per emissione. Mask: qualsiasi tipo di texture (noise, marble, wood, checker, image). Luminanza Rec.709 per conversione RGB→scalare. Supporto mix-of-mix tramite risoluzione iterativa delle dipendenze nel loader. Alias YAML: `"mix"`, `"blend"`. Scena di test: `mix-material-showcase.yaml`.
 
-**10. Sphere Light ⬜** — Luce sferica dedicata con solid-angle sampling sulla porzione visibile. Nota: una sfera emissiva + GeometryLight funziona già come area light sferica, ma senza l'ottimizzazione del solid-angle sampling.
+**10. Sphere Light ✅** — Luce sferica dedicata con solid-angle sampling sulla porzione visibile (PBRT §6.2.3). Campiona direzioni uniformemente nel cono sotteso dalla sfera: cos(θ) = 1 − ξ₁(1 − cos(θ_max)), φ = 2πξ₂. Zero campioni sprecati sulla faccia posteriore, varianza 1/Ω vs 1/r² del GeometryLight equivalente — 2–10× più efficiente per sfere piccole/distanti. Stratificazione √N × √N nello spazio (cos θ, φ) per penombra a basso rumore. Intersezione analitica raggio-sfera per punto esatto sulla superficie. Caso degenere (punto interno alla sfera) gestito con Ω = 4π. Alias YAML: `"sphere"`, `"sphere_light"`, `"ball"`, `"ball_light"`. Scena di test: `sphere-light-showcase.yaml`.
 
 **11. Scene Graph / Groups ⬜** — Raggruppamento gerarchico con trasformazioni ereditate. Nuova classe `Group : IHittable` con transform cumulativo.
 

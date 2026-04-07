@@ -220,7 +220,7 @@ lights:
   - type: "directional"
     direction: [-0.4, -0.7, -0.5]
     color: [1.0, 0.95, 0.85]
-    intensity: 0.08
+    intensity: 0.8
 
   - type: "point"
     position: [-5, 6, -4]
@@ -305,28 +305,3 @@ entities:
     center: [3, 1.2, -3]
     radius: 1.0
     material: "checker_mix"
-
-  # ════════════════════════════════════════════════════════════════════════
-  #  ETICHETTE — Piccoli cubi come marker di riga
-  # ════════════════════════════════════════════════════════════════════════
-
-  # Label "costante" — piccola sfera metallica a sinistra della riga posteriore
-  - name: "label_back"
-    type: "sphere"
-    center: [-5.5, 0.3, 3]
-    radius: 0.25
-    material: "cromo"
-
-  # Label "procedurale" — piccola sfera rossa a sinistra della riga centrale
-  - name: "label_mid"
-    type: "sphere"
-    center: [-5.5, 0.3, 0]
-    radius: 0.25
-    material: "plastica_rossa"
-
-  # Label "pratico" — piccola sfera scura a sinistra della riga anteriore
-  - name: "label_front"
-    type: "sphere"
-    center: [-5.5, 0.3, -3]
-    radius: 0.25
-    material: "roccia"

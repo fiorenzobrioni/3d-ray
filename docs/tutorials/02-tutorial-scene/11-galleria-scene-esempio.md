@@ -47,6 +47,14 @@ Esempi dedicati alla creazione di oggetti tramite unione, sottrazione e intersez
 ## 🔬 Tech Showcase (Feature Test)
 Scene focalizzate sulla dimostrazione di una singola feature tecnica.
 
+### **Sphere Light Showcase**
+`[sphere-light-showcase.yaml](../../../scenes/sphere-light-showcase.yaml)`
+- **Cosa mostra:** Tre sphere light con solid-angle sampling a raggio crescente (0.15, 0.5, 1.2) posizionate sopra oggetti test (cromo, argilla, vetro). Dimostra la progressione della penumbra da quasi-netta a molto morbida.
+- **Comando suggerito:**
+```powershell
+  dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/sphere-light-showcase.yaml -s 64 -d 25 -S 4 -w 1200 -H 675
+```
+
 ### **Disney BSDF Showcase**
 `[disney-bsdf-showcase.yaml](../../../scenes/disney-bsdf-showcase.yaml)`
 - **Cosa mostra:** Una matrice di sfere che variano i parametri `metallic`, `roughness` e `spec_trans`. Dimostra la continuità del campionamento dallo specchio perfetto alla plastica pura fino al vetro PBR.

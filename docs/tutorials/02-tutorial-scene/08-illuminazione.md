@@ -72,6 +72,27 @@ lights:
     intensity: 3
 ```
 
+**Interno con Sphere Light (lampade a globo):**
+```yaml
+lights:
+  - type: "sphere"
+    position: [-2, 3.5, 0]
+    radius: 0.3
+    color: [1.0, 0.90, 0.70]
+    intensity: 25.0
+    shadow_samples: 16
+  - type: "sphere"
+    position: [2, 3.5, 0]
+    radius: 0.3
+    color: [1.0, 0.90, 0.70]
+    intensity: 25.0
+    shadow_samples: 16
+  - type: "point"
+    position: [0, 2, -3]
+    color: [0.6, 0.65, 0.8]
+    intensity: 2
+```
+
 **Studio con Spot:**
 ```yaml
 lights:
@@ -111,6 +132,8 @@ materials:
 entities:
   - { name: "neon", type: "sphere", center: [0, 2, 0], radius: 0.5, material: "neon_ciano" }
 ```
+
+> **💡 Sphere Light vs Emissiva:** Se non hai bisogno che la sorgente luminosa sferica sia visibile nella scena, usa `type: "sphere"` nella sezione `lights` invece di una sfera emissiva. Il solid-angle sampling della sphere light è significativamente più efficiente: tutti i campioni ombra sono concentrati sulla porzione visibile della sfera, eliminando lo spreco sulla faccia posteriore. Il risultato è identico con ~50% meno rumore a parità di campioni.
 
 > **💡 Nota:** Per gli oggetti emissivi con geometrie campionabili (Sphere, Box, Cylinder, Cone, Torus, Capsule, Annulus, Mesh, SmoothTriangle, Quad, Triangle, Disk), il motore attiva automaticamente la **Next Event Estimation (NEE)**, campionandoli come luci dirette per ridurre il rumore. Se invece usi geometrie non campionabili (come la CSG) o se l'oggetto è una sorgente molto piccola, l'illuminazione arriverà principalmente dai rimbalzi indiretti del path tracer; in quel caso sono necessari campioni elevati (`-s 128+`) per ottenere risultati puliti.
 

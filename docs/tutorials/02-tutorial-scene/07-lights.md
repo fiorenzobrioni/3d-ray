@@ -61,9 +61,9 @@ Luce conica con posizione e direzione. Ha un cono interno (piena intensità) e u
 
 ## 7.4 Area Light (Emettitore Rettangolare)
 
-Sorgente luminosa rettangolare che produce **ombre morbide** fisicamente corrette con gradiente di penombra. Definita da un angolo (`corner`) e due vettori che formano il rettangolo.
+Sorgente luminosa rettangolare che produce **ombre morbide** fisicamente corrette con gradiente di penumbra. Definita da un angolo (`corner`) e due vettori che formano il rettangolo.
 
-Il motore usa campionamento Monte Carlo: per ogni punto della scena vengono sparati `shadow_samples` raggi verso punti casuali sulla superficie della luce, e il risultato è la media. Più shadow samples = penombra più morbida e meno rumorosa.
+Il motore usa campionamento Monte Carlo: per ogni punto della scena vengono sparati `shadow_samples` raggi verso punti casuali sulla superficie della luce, e il risultato è la media. Più shadow samples = penumbra più morbida e meno rumorosa.
 
 ```yaml
   - type: "area"
@@ -86,7 +86,7 @@ Il motore usa campionamento Monte Carlo: per ogni punto della scena vengono spar
 
 > **Alias:** Puoi usare anche `type: "area_light"`, `type: "rect"` o `type: "rect_light"`.
 
-> **💡 Override da CLI:** Il parametro `--shadow-samples` (`-S`) da riga di comando sovrascrive il valore `shadow_samples` di **tutte** le area light nella scena. Questo permette di iterare sulla qualità senza modificare il file YAML.
+> **💡 Override da CLI:** Il parametro `--shadow-samples` (`-S`) da riga di comando sovrascrive il valore `shadow_samples` di **tutte** le area light e sphere light nella scena. Questo permette di iterare sulla qualità senza modificare il file YAML.
 
 > **⚠️ Costo computazionale:** Il `shadow_samples` ha un impatto diretto sul tempo di render. Con `-s 128` campioni pixel e `-S 16`, ogni pixel lancia `128 × 16 = 2048` raggi ombra per questa sola luce.
 
@@ -103,9 +103,75 @@ Il motore usa campionamento Monte Carlo: per ogni punto della scena vengono spar
 
 ---
 
-## 7.5 — Calibrazione dell'Intensità
+## 7.5 Sphere Light (Sfera Luminosa)
 
-> 💡 **Nota sui valori tipici:** I range indicati nelle tabelle dei paragrafi 7.1–7.4 sono stati calibrati empiricamente su scene reali. Se l'immagine risulta sovraesposta o sottoesposta, scala **tutte** le intensità in modo uniforme mantenendo i rapporti tra le sorgenti.
+Sorgente luminosa sferica che produce **ombre morbide con penumbra circolare uniforme**, ideale per simulare lampadine, lanterne, globi luminosi e qualsiasi sorgente approssimativamente sferica.
+
+A differenza dell'area light rettangolare, la sphere light produce penombrae **isotrope** (uguali in tutte le direzioni). Utilizza **solid-angle sampling** sulla porzione visibile della sfera: tutti i campioni sono concentrati sul "cappuccio" visibile dal punto di shading, eliminando completamente lo spreco di campioni sulla metà posteriore invisibile.
+
+```yaml
+  - type: "sphere"
+    position: [0, 5, 0]          # Centro della sfera luminosa
+    radius: 0.5                   # Raggio — più grande = ombre più morbide
+    color: [1.0, 0.95, 0.85]
+    intensity: 30.0
+    shadow_samples: 16
+```
+
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `position` | `[X, Y, Z]` | `[0, 10, 0]` | Centro della sfera luminosa |
+| `radius` | float | `0.5` | Raggio della sfera. Più grande = penumbra più ampia. |
+| `color` | `[R, G, B]` | `[1, 1, 1]` | Colore emesso |
+| `intensity` | float | `1.0` | Intensità (radianza). Valori tipici: 15–60. |
+| `shadow_samples` | int | `16` | Raggi ombra per punto. Sovrascrivibile da CLI con `-S`. |
+
+> **Alias:** Puoi usare anche `type: "sphere_light"`, `type: "ball"` o `type: "ball_light"`.
+
+> **💡 Raggio e penombra:** Il raggio controlla direttamente la morbidezza delle ombre. Con `radius: 0.1` le ombre sono quasi nette (simili a una point light ma con penumbra sottile); con `radius: 1.5` la penombra diventa ampia e cinematografica. L'intensità percepita resta stabile perché il campionamento è proporzionale all'angolo solido sotteso, non all'area della sfera.
+
+> **💡 Sphere Light vs Point Light:** Una sphere light con raggio molto piccolo (`radius: 0.01`) si comporta in modo quasi identico a una point light, ma produce ombre leggermente morbide invece che perfettamente nette. È un upgrade "gratuito" per scene dove vuoi un tocco di realismo senza riconfiguare nulla.
+
+**Esempio: Lampada a globo (interno)**
+```yaml
+  - type: "sphere"
+    position: [0, 3.5, 0]
+    radius: 0.3
+    color: [1.0, 0.90, 0.70]
+    intensity: 25.0
+    shadow_samples: 16
+```
+
+**Esempio: Lanterna grande (esterni/fantasy)**
+```yaml
+  - type: "sphere"
+    position: [0, 5, 0]
+    radius: 1.0
+    color: [1.0, 0.80, 0.45]
+    intensity: 35.0
+    shadow_samples: 16
+```
+
+### Sphere Light vs Sfera Emissiva (GeometryLight)
+
+Una sfera con materiale `emissive` partecipa automaticamente alla NEE come GeometryLight e funziona come area light sferica. Ma la sphere light dedicata è **significativamente più efficiente** grazie al solid-angle sampling:
+
+| Aspetto | Sphere Light (`type: "sphere"`) | Sfera Emissiva + GeometryLight |
+|---------|------|-------------|
+| **Sampling** | Solid-angle (solo cappuccio visibile) | Uniforme su tutta la superficie |
+| **Campioni sprecati** | ~0% (tutti utili) | ~50% (metà posteriore invisibile) |
+| **Varianza** | Proporzionale a 1/Ω (angolo solido) | Proporzionale a 1/r² |
+| **Visibilità** | Non visibile (luce pura, nessuna geometria) | Oggetto visibile nella scena |
+| **Materiale** | Non necessario — parametri diretti nel YAML | Richiede definizione materiale emissivo |
+| **Quando usare** | Lampadine, lanterne, sorgenti nascoste | Neon, insegne, sfere magiche, lampade decorative visibili |
+
+> **💡 Combinale:** Per il massimo realismo, piazza una sfera emissiva per la visibilità e aggiungi una sphere light co-locata per il sampling efficiente. Il motore gestisce automaticamente il doppio conteggio (flag `prevUsedNee`).
+
+---
+
+## 7.6 — Calibrazione dell'Intensità
+
+> 💡 **Nota sui valori tipici:** I range indicati nelle tabelle dei paragrafi 7.1–7.5 sono stati calibrati empiricamente su scene reali. Se l'immagine risulta sovraesposta o sottoesposta, scala **tutte** le intensità in modo uniforme mantenendo i rapporti tra le sorgenti.
 
 ### Valori di riferimento per tipo di luce
 
@@ -118,6 +184,8 @@ Il motore usa campionamento Monte Carlo: per ogni punto della scena vengono spar
 | `directional` fill / multi-luce | 0.05 – 0.15 | Sorgente secondaria in scene con più luci |
 | `directional` luce principale | 0.3 – 2.0 | Come unica luce outdoor (tramonto, luna): valori più alti compensano l'assenza di altre sorgenti |
 | `area` pannello | 20 – 60 | Dipende dall'area del rettangolo e dalla distanza dalla scena |
+| `sphere` lampada piccola | 20 – 50 | Raggio 0.1–0.3. Penumbra stretta, simile a point light ma con ombre morbide |
+| `sphere` globo grande | 15 – 40 | Raggio 0.5–1.5. Penumbra ampia e isotropa, ideale per interni |
 
 ### Workflow di calibrazione
 

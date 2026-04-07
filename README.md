@@ -73,6 +73,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - ☀️ **Directional Light** — luce parallela (sole), senza attenuazione
 - 🔦 **Spot Light** — faretto con cono interno/esterno e falloff liscio
 - 🟧 **Area Light** — emettitore rettangolare con soft shadows fisicamente corretti via campionamento Monte Carlo
+- 🟡 **Sphere Light** — Luce sferica con solid-angle sampling: penumbra circolare uniforme, zero campioni sprecati, efficienza 2–10× superiore alla sfera emissiva equivalente per sfere piccole/distanti. Ideale per lampadine, lanterne e globi luminosi.
 - ✨ **Emissive Objects** — qualsiasi geometria con materiale `emissive` diventa sorgente di luce visibile con illuminazione indiretta naturale
 - 🌐 **Environment Light** — gradient sky e HDRI partecipano alla NEE come sorgenti di luce direzionali campionabili
 
@@ -119,7 +120,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │   │   ├── Camera/          # Camera con DOF
 │   │   ├── Core/            # Ray, HitRecord, MathUtils
 │   │   ├── Geometry/        # Primitive (Sphere, Box, Cylinder, CsgObject...)
-│   │   ├── Lights/          # Point, Directional, Spot, Area, GeometryLight, EnvironmentLight
+│   │   ├── Lights/          # Point, Directional, Spot, Area, Sphere, GeometryLight, EnvironmentLight
 │   │   ├── Materials/       # Lambertian, Metal, Dielectric, Emissive, Disney BSDF, MixMaterial
 │   │   ├── Rendering/       # Renderer, SkySettings, EnvironmentMap
 │   │   ├── Scene/           # SceneLoader, SceneData

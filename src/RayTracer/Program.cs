@@ -96,7 +96,7 @@ class Program
         Console.WriteLine();
 
         // Load scene
-        Console.Write("Loading scene... ");
+        Console.Write("  Loading scene... ");
         var sw = Stopwatch.StartNew();
         try
         {

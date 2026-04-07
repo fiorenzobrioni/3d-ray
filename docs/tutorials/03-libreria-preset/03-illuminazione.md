@@ -22,7 +22,7 @@ lights:
 ```
 
 ## **Preset: Area Light Studio (Soft Shadows)**
-Un pannello luminoso da soffitto per ombre morbide con penombra realistica. Ideale per product design.
+Un pannello luminoso da soffitto per ombre morbide con penumbra realistica. Ideale per product design.
 ```yaml
 lights:
   - type: "area"
@@ -36,6 +36,63 @@ lights:
     position: [-6, 2, -3]
     color: [0.8, 0.85, 1.0]
     intensity: 4
+```
+
+## **Preset: Sphere Light Studio (Lampade a Globo)**
+Due sfere luminose laterali per ombre morbide e circolari. A differenza dell'area light rettangolare, la penumbra è isotropa (uniforme in tutte le direzioni). Ideale per ritratti e still life.
+```yaml
+lights:
+  - type: "sphere"
+    position: [-3, 4, -1]
+    radius: 0.6
+    color: [1.0, 0.95, 0.88]
+    intensity: 35.0
+    shadow_samples: 16
+  - type: "sphere"
+    position: [3, 4, -1]
+    radius: 0.4
+    color: [0.85, 0.90, 1.0]
+    intensity: 20.0
+    shadow_samples: 16
+```
+
+## **Preset: Lanterna Singola (Warm Sphere)**
+Una sola sfera luminosa calda dall'alto, atmosfera intima da lampada a olio. Il raggio grande (`0.8`) produce penumbra ampia e avvolgente.
+```yaml
+lights:
+  - type: "sphere"
+    position: [0, 5, 0]
+    radius: 0.8
+    color: [1.0, 0.80, 0.45]
+    intensity: 28.0
+    shadow_samples: 16
+```
+
+## **Preset: Sphere Three-Point (Soft Cinematic)**
+Il classico three-point lighting, ma con sphere light per penumbra morbida e uniforme. Key light grande per ombre diffuse, fill e rim più piccole per definizione.
+
+> **Nota:** La sphere light non produce ombre perfettamente nette — se hai bisogno di ombre taglienti per effetto drammatico, usa spot o point.
+
+```yaml
+lights:
+  - type: "sphere"         # Key — grande, ombre morbide
+    position: [4, 5, -4]
+    radius: 0.8
+    color: [1.0, 0.95, 0.85]
+    intensity: 40.0
+    shadow_samples: 16
+  - type: "sphere"         # Fill — piccola, penumbra stretta
+    position: [-4, 3, -1]
+    radius: 0.3
+    color: [0.80, 0.85, 1.0]
+    intensity: 15.0
+    shadow_samples: 8
+  - type: "sphere"         # Rim — media, contorno morbido
+    position: [0, 6, 5]
+    radius: 0.5
+    color: [1.0, 0.92, 0.80]
+    intensity: 25.0
+    shadow_samples: 8
 ```
 
 ## **Preset: Studio Spot (Mirror Polish)**
