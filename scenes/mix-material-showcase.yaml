@@ -23,14 +23,14 @@ world:
   sky:
     type: "gradient"
     zenith_color:  [0.08, 0.15, 0.45]
-    horizon_color: [0.55, 0.65, 0.85] 
+    horizon_color: [0.55, 0.65, 0.85]
     ground_color:  [0.25, 0.22, 0.18]
-#    sun:
-#      direction: [-0.4, -0.7, -0.5]
-#      color: [1.0, 0.95, 0.85]
-#      intensity: 10.0
-#      size: 2.0
-#      falloff: 40.0
+    sun:
+      direction: [-0.4, -0.7, -0.5]
+      color: [1.0, 0.95, 0.85]
+      intensity: 0.1
+      size: 2.0
+      falloff: 40.0
   ground:
     type: "infinite_plane"
     material: "pavimento"
@@ -217,20 +217,29 @@ materials:
 #  LIGHTS
 # ═══════════════════════════════════════════════════════════════════════════
 lights:
-  - type: "directional"
-    direction: [-0.4, -0.7, -0.5]
-    color: [1.0, 0.95, 0.85]
-    intensity: 0.8
+  # ── SOLE — key light ──────────────────────────────────────────────────────
+  - type: "sphere"
+    position: [10, 18, 13]
+    radius: 2.0
+    color: [1.0, 0.96, 0.85]
+    intensity: 12.0
+    shadow_samples: 4
 
-  - type: "point"
-    position: [-5, 6, -4]
-    color: [0.90, 0.88, 1.0]
-    intensity: 3.5
+  # ── CIELO — fill freddo ───────────────────────────────────────────────────
+  - type: "sphere"
+    position: [-14, 20, -12]
+    radius: 3.0
+    color: [0.65, 0.78, 1.0]
+    intensity: 5.0
+    shadow_samples: 4
 
-  - type: "point"
-    position: [5, 5, -3]
-    color: [1.0, 0.92, 0.80]
+  # ── TERRENO — fill caldo ──────────────────────────────────────────────────
+  - type: "sphere"
+    position: [10, 4.0, 14]
+    radius: 2.5
+    color: [0.95, 0.85, 0.65]
     intensity: 2.5
+    shadow_samples: 4
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES
