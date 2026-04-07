@@ -1060,6 +1060,15 @@ public class SceneLoader
             "area" or "area_light" or "rect" or "rect_light"
                 => CreateAreaLight(l, color, shadowSamplesOverride),
 
+            // ── Sphere light ─────────────────────────────────────────────────
+            // YAML fields:
+            //   position: [x, y, z]      # center of the sphere
+            //   radius:   0.5            # sphere radius (> 0)
+            //   intensity: 30.0          # brightness scalar
+            //   shadow_samples: 16       # per-light default (overridable via CLI -S)
+            "sphere" or "sphere_light" or "ball" or "ball_light"
+                => CreateSphereLight(l, color, shadowSamplesOverride),
+
             _ => null
         };
     }
@@ -1081,6 +1090,30 @@ public class SceneLoader
 
         return new AreaLight(corner.Value, u.Value, v.Value, color,
                              l.Intensity, effectiveShadowSamples);
+    }
+
+    private static SphereLight? CreateSphereLight(LightData l, Vector3 color,
+                                                   int? shadowSamplesOverride)
+    {
+        var position = ToVector3(l.Position);
+ 
+        if (position == null)
+        {
+            Warn("Sphere light requires 'position'. Using default [0, 10, 0].");
+            position = new Vector3(0, 10, 0);
+        }
+ 
+        if (l.Radius <= 0f)
+        {
+            Warn($"Sphere light radius must be positive (got {l.Radius:F3}). Using 0.5.");
+            l.Radius = 0.5f;
+        }
+ 
+        // CLI override takes precedence over per-light YAML value
+        int effectiveShadowSamples = shadowSamplesOverride ?? l.ShadowSamples;
+ 
+        return new SphereLight(position.Value, l.Radius, color,
+                               l.Intensity, effectiveShadowSamples);
     }
 
     // =========================================================================

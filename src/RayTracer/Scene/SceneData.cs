@@ -484,4 +484,14 @@ public class LightData
 
     [YamlMember(Alias = "shadow_samples")]
     public int ShadowSamples { get; set; } = 16;
+
+        // ── Sphere light ────────────────────────────────────────────────────────
+ 
+    /// <summary>
+    /// Radius of the spherical light source. Only used when <c>type: "sphere"</c>.
+    /// Larger radius produces softer shadows with wider penumbrae.
+    /// Default 0.5 — a small lamp-sized sphere.
+    /// </summary>
+    [YamlMember(Alias = "radius")]
+    public float Radius { get; set; } = 0.5f;
 }

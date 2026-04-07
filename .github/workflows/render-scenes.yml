@@ -47,7 +47,8 @@ jobs:
       fail-fast: false
       matrix:
         scene:
-          - mix-material-showcase
+          - sphere-light-showcase
+#          - mix-material-showcase
 #          - classic-vs-disney-showcase
 #          - sphere-showcase-disney
 #          - utah-teapot

@@ -344,6 +344,11 @@ public class Renderer
                     (inShadow, lightColor, dirToLight, distance) =
                         areaLight.IlluminateAndTestStratified(rec.Point, rec.Normal, _world, s);
                 }
+                else if (light is SphereLight sphereLight)
+                {
+                    (inShadow, lightColor, dirToLight, distance) =
+                        sphereLight.IlluminateAndTestStratified(rec.Point, rec.Normal, _world, s);
+                }
                 else
                 {
                     (inShadow, lightColor, dirToLight, distance) =
