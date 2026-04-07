@@ -42,10 +42,6 @@ Esempi dedicati alla creazione di oggetti tramite unione, sottrazione e intersez
   dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/csg-showcase.yaml -s 16
   ```
 
-### **Reliquary (Reliquiario)**
-`[csg-reliquary.yaml](../../../scenes/csg-reliquary.yaml)`
-- **Cosa mostra:** Un oggetto sacro (colonna scavata con all'interno una sfera di cristallo) costruito interamente via CSG. Utilizza sottrazioni multiple per creare la corona e l'alloggiamento interno.
-
 ---
 
 ## 🔬 Tech Showcase (Feature Test)
@@ -66,6 +62,10 @@ Scene focalizzate sulla dimostrazione di una singola feature tecnica.
 ### **Gradient Sky & HDRI**
 `[gradient-sky-showcase.yaml](../../../scenes/gradient-sky-showcase.yaml)` | `[hdri-showcase.yaml](../../../scenes/hdri-showcase.yaml)`
 - **Cosa mostra:** Illuminazione tramite ambiente globale. Il gradient sky simula la luce solare procedurale, mentre l'HDRI mostra l'illuminazione fotografica IBL.
+
+### **Mix Material Showcase**
+`[mix-material-showcase.yaml](../../../scenes/mix-material-showcase.yaml)`
+- **Cosa mostra:** Il materiale `type: "mix"` in tutte le sue modalità. Fila posteriore: blend costante cromo/ruggine a 25%, 50%, 75%. Fila centrale: maschere procedurali — noise (ruggine organica), marble (venature bianco/rosso), wood (patina anulare oro/verde). Fila anteriore: applicazioni pratiche — weathering realistico con noise ad alta turbolenza, lava che si raffredda (blend emissivo + roccia via marble mask), checker bicolore cromo/plastica rossa.
 
 ---
 

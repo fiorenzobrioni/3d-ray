@@ -72,7 +72,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 | 6 | Disney BSDF / PBR | ✅ Completato |
 | 7 | OBJ Mesh Loader | ✅ Completato |
 | 8 | Torus Primitive | ✅ Completato |
-| 9 | Mix Material | ⬜ Da fare |
+| 9 | Mix Material | ✅ Completato |
 | 10 | Sphere Light | ⬜ Da fare |
 | 11 | Scene Graph / Groups | ⬜ Da fare |
 
@@ -82,7 +82,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 
 **8. Torus Primitive ✅** — Intersezione analitica via risolutore di quartiche (metodo di Ferrari) in `QuarticSolver`. UV toroidale, `ISamplable` per NEE, compatibile CSG e Transform. Alias YAML: `"torus"`, `"donut"`, `"ring"`.
 
-**9. Mix Material ⬜** — Materiale che interpola tra due materiali con peso costante o texture mask. Essenziale per ruggine, usura, transizioni graduali. Impatto: nuova classe `MixMaterial : IMaterial`.
+**9. Mix Material ✅** — Materiale composito che interpola tra due materiali figli con peso costante o texture mask spaziale. Selezione stocastica dei lobi per lo scatter (unbiased, compatibile con qualsiasi combinazione di materiali), media pesata deterministica per EvaluateDirect (bassa varianza NEE), blend pesato per emissione. Mask: qualsiasi tipo di texture (noise, marble, wood, checker, image). Luminanza Rec.709 per conversione RGB→scalare. Supporto mix-of-mix tramite risoluzione iterativa delle dipendenze nel loader. Alias YAML: `"mix"`, `"blend"`. Scena di test: `mix-material-showcase.yaml`.
 
 **10. Sphere Light ⬜** — Luce sferica dedicata con solid-angle sampling sulla porzione visibile. Nota: una sfera emissiva + GeometryLight funziona già come area light sferica, ma senza l'ottimizzazione del solid-angle sampling.
 
@@ -214,3 +214,4 @@ Procedure da eseguire prima di ogni commit importante.
 - [ ] **YAML Validation**: Assicurarsi che ogni nuova proprietà YAML abbia un valore di default sensato nel codice.
 - [ ] **CSG Regression**: Render di `csg-showcase.yaml` — verificare union, intersection e subtraction visivamente.
 - [ ] **HDRI Test**: Render di `hdri-showcase.yaml` — verificare riflessi, rifrazioni e illuminazione globale.
+- [ ] **Mix Material Test**: Render di `mix-material-showcase.yaml` — verificare blend costante (3 livelli), maschere procedurali (noise, marble, wood), lava emissiva con blend marble e checker bicolore.

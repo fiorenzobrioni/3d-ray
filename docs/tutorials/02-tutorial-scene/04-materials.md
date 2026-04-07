@@ -233,6 +233,270 @@ Il materiale più potente del renderer. Un singolo tipo può rappresentare quals
 
 ---
 
+## 4.6 Mix Material (Blending tra Materiali)
+
+Il **Mix Material** interpola tra due materiali usando un peso costante o una texture come maschera spaziale. Essenziale per effetti di weathering (ruggine su metallo), usura, transizioni graduali, decal, e qualsiasi situazione in cui due materiali coesistono sulla stessa superficie.
+
+### Sintassi YAML
+
+#### Blend costante
+
+```yaml
+materials:
+  - id: "metallo_pulito"
+    type: "metal"
+    color: [0.85, 0.85, 0.88]
+    fuzz: 0.02
+
+  - id: "ruggine"
+    type: "disney"
+    color: [0.55, 0.25, 0.10]
+    roughness: 0.9
+    metallic: 0.3
+
+  - id: "metallo_arrugginito"
+    type: "mix"
+    material_a: "metallo_pulito"   # Materiale per blend → 0
+    material_b: "ruggine"          # Materiale per blend → 1
+    blend: 0.4                     # 40% ruggine, 60% metallo pulito
+```
+
+#### Maschera texture (blend spaziale)
+
+```yaml
+  - id: "weathered"
+    type: "mix"
+    material_a: "metallo_pulito"
+    material_b: "ruggine"
+    mask:                            # Qualsiasi tipo di texture
+      type: "noise"
+      scale: 3.0
+      noise_strength: 5.0
+```
+
+Quando è specificata una `mask`, il campo `blend` viene ignorato. La luminanza (Rec.709) del colore della texture ad ogni punto della superficie determina il fattore di blend.
+
+#### Parametri
+
+| Campo | Tipo | Default | Descrizione |
+|-------|------|---------|-------------|
+| `type` | stringa | — | `"mix"` (alias: `"blend"`) |
+| `material_a` | stringa | — (**obbligatorio**) | ID del primo materiale (blend=0) |
+| `material_b` | stringa | — (**obbligatorio**) | ID del secondo materiale (blend=1) |
+| `blend` | float | `0.5` | Peso costante [0, 1]. Ignorato se `mask` è presente. |
+| `mask` | TextureData | — | Texture che guida il blend spazialmente. Luminanza del colore = fattore di blend. |
+| `normal_map` | NormalMapData | — | Normal map opzionale applicata al mix. |
+
+### Tipi di Maschera
+
+Qualsiasi texture supportata dal motore può essere usata come maschera:
+
+**Noise (Perlin)** — Pattern organici e irregolari, ideale per ruggine, sporco, usura naturale:
+```yaml
+    mask:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 3.0
+```
+
+**Marble** — Transizioni venate, effetto pietra o crepe:
+```yaml
+    mask:
+      type: "marble"
+      scale: 8.0
+      noise_strength: 6.0
+      colors: [[1.0, 1.0, 1.0], [0.0, 0.0, 0.0]]
+```
+
+**Wood** — Anelli concentrici, transizioni circolari:
+```yaml
+    mask:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 1.5
+      colors: [[0.9, 0.9, 0.9], [0.1, 0.1, 0.1]]
+```
+
+**Checker** — Pattern regolare a scacchiera:
+```yaml
+    mask:
+      type: "checker"
+      scale: 6.0
+      colors: [[1.0, 1.0, 1.0], [0.0, 0.0, 0.0]]
+```
+
+**Image** — Maschera da file immagine (grayscale o colore):
+```yaml
+    mask:
+      type: "image"
+      path: "textures/rust_mask.png"
+      uv_scale: [2, 2]
+```
+
+> **Tip:** Per le maschere procedurali (noise, marble, wood), i `colors` controllano le due estremità del blend. Bianco `[1,1,1]` = 100% material_b, nero `[0,0,0]` = 100% material_a. Per maschere con colori custom, viene usata la luminanza Rec.709: `L = 0.2126R + 0.7152G + 0.0722B`.
+
+### Esempi Pratici
+
+#### Ruggine su metallo
+
+```yaml
+materials:
+  - id: "cromo"
+    type: "metal"
+    color: [0.85, 0.85, 0.88]
+    fuzz: 0.02
+
+  - id: "ruggine"
+    type: "disney"
+    color: [0.55, 0.25, 0.10]
+    roughness: 0.9
+    metallic: 0.3
+
+  - id: "metallo_corroso"
+    type: "mix"
+    material_a: "cromo"
+    material_b: "ruggine"
+    mask:
+      type: "noise"
+      scale: 3.0
+      noise_strength: 5.0
+
+entities:
+  - name: "tubo_arrugginito"
+    type: "cylinder"
+    center: [0, 0, 0]
+    radius: 0.3
+    height: 3.0
+    material: "metallo_corroso"
+```
+
+#### Lava che si raffredda
+
+```yaml
+materials:
+  - id: "roccia_scura"
+    type: "lambertian"
+    color: [0.15, 0.12, 0.10]
+
+  - id: "lava_incandescente"
+    type: "emissive"
+    color: [1.0, 0.35, 0.05]
+    intensity: 8.0
+
+  - id: "lava_cooling"
+    type: "mix"
+    material_a: "roccia_scura"
+    material_b: "lava_incandescente"
+    mask:
+      type: "marble"
+      scale: 5.0
+      noise_strength: 8.0
+      colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
+
+entities:
+  - name: "colata_lavica"
+    type: "sphere"
+    center: [0, 1, 0]
+    radius: 1.0
+    material: "lava_cooling"
+```
+
+#### Vernice scrostata su legno
+
+```yaml
+materials:
+  - id: "legno_naturale"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+
+  - id: "vernice_blu"
+    type: "disney"
+    color: [0.15, 0.30, 0.65]
+    roughness: 0.3
+    clearcoat: 0.6
+
+  - id: "vernice_scrostata"
+    type: "mix"
+    material_a: "vernice_blu"
+    material_b: "legno_naturale"
+    mask:
+      type: "noise"
+      scale: 5.0
+      noise_strength: 4.0
+```
+
+#### Patina su bronzo (mix-of-mix)
+
+I MixMaterial possono referenziare altri MixMaterial per composizioni complesse:
+
+```yaml
+materials:
+  - id: "bronzo"
+    type: "metal"
+    color: [0.80, 0.50, 0.20]
+    fuzz: 0.08
+
+  - id: "patina_verde"
+    type: "disney"
+    color: [0.30, 0.55, 0.35]
+    roughness: 0.85
+
+  - id: "sporco"
+    type: "lambertian"
+    color: [0.20, 0.18, 0.12]
+
+  # Prima: bronzo + patina
+  - id: "bronzo_patinato"
+    type: "mix"
+    material_a: "bronzo"
+    material_b: "patina_verde"
+    mask:
+      type: "noise"
+      scale: 3.0
+      noise_strength: 4.0
+
+  # Poi: bronzo patinato + sporco
+  - id: "statua_antica"
+    type: "mix"
+    material_a: "bronzo_patinato"
+    material_b: "sporco"
+    blend: 0.15
+```
+
+### Come Funziona (Dettagli Tecnici)
+
+#### Scatter (illuminazione indiretta)
+
+Il MixMaterial usa **selezione stocastica dei lobi**: ad ogni intersezione raggio-superficie, un numero casuale seleziona il materiale A o B con probabilità proporzionale al fattore di blend. Questo approccio:
+
+- È **non biased** (non introduce errore sistematico)
+- Funziona con **qualsiasi combinazione** di materiali (anche Dielectric + Disney, Emissive + Metal, ecc.)
+- Converge al valore corretto `(1-t)×colorA + t×colorB` su molti campioni
+- È lo stesso algoritmo usato da renderer professionali (Blender Cycles Mix Shader, Mitsuba, PBRT)
+
+#### EvaluateDirect (illuminazione diretta / NEE)
+
+Per la luce diretta, il MixMaterial usa una **media pesata deterministica** delle risposte BRDF di entrambi i materiali. Questo produce varianza inferiore rispetto alla selezione stocastica per la NEE.
+
+#### Emissione
+
+L'emissione è una blend pesata: `(1-t)×emitA + t×emitB`. Permette transizioni fluide tra zone emissive e non (es. lava che si raffredda).
+
+### Note e Limitazioni
+
+- **Normal map:** Il MixMaterial accetta la propria normal map tramite il campo `normal_map:`. Le normal map dei materiali figli NON vengono applicate durante il mixing (il Renderer perturba la normale una sola volta al livello top-level).
+
+- **NEE / Geometry Light:** Oggetti con MixMaterial che includono un figlio emissivo funzionano correttamente (emettono luce), ma non partecipano all'importance sampling NEE come GeometryLight. L'emissione avviene tramite il path tracing standard. Questo introduce più rumore rispetto a un oggetto puramente emissivo, ma il risultato è fisicamente corretto.
+
+- **Ordine di definizione:** I materiali referenziati da `material_a` e `material_b` devono essere definiti **prima** del mix material nel file YAML (o in qualsiasi ordine se sono materiali non-mix). Il loader risolve le dipendenze automaticamente, inclusi mix-of-mix.
+
+- **`randomize_offset` / `randomize_rotation`:** Le texture maschera procedurali supportano la randomizzazione per oggetto, utile quando più oggetti condividono lo stesso mix material ma devono avere pattern diversi.
+
+---
+
 ---
 
 [← Torna all'indice](../02-tutorial-scene.md)

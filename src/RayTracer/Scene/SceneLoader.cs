@@ -101,14 +101,61 @@ public class SceneLoader
         // Scene directory for resolving relative paths (image textures, etc.)
         var sceneDir = Path.GetDirectoryName(Path.GetFullPath(yamlPath)) ?? ".";
 
-        // Materials dictionary
+        // Materials dictionary — two-pass loading to resolve MixMaterial references.
+        // Pass 1: create all non-mix materials so their IDs are available.
+        // Pass 2: create mix materials that reference other materials by ID.
         var materials = new Dictionary<string, IMaterial>();
+        var deferredMix = new List<MaterialData>();
+ 
         if (data.Materials != null)
         {
+            // ── Pass 1: non-mix materials ────────────────────────────────────
             foreach (var m in data.Materials)
             {
                 if (m.Id == null) continue;
+                if (string.Equals(m.Type, "mix", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(m.Type, "blend", StringComparison.OrdinalIgnoreCase))
+                {
+                    deferredMix.Add(m);
+                    continue;
+                }
                 materials[m.Id] = CreateMaterial(m, sceneDir);
+            }
+ 
+            // ── Pass 2: mix materials ────────────────────────────────────────
+            // Supports mix-of-mix by iterating until no more can be resolved.
+            // Prevents infinite loops via progress check (remaining count must shrink).
+            var remaining = deferredMix;
+            int maxPasses = remaining.Count + 1; // safety bound
+            while (remaining.Count > 0 && maxPasses-- > 0)
+            {
+                var stillRemaining = new List<MaterialData>();
+                foreach (var m in remaining)
+                {
+                    bool canResolveA = m.MaterialA == null || materials.ContainsKey(m.MaterialA);
+                    bool canResolveB = m.MaterialB == null || materials.ContainsKey(m.MaterialB);
+ 
+                    if (canResolveA && canResolveB)
+                    {
+                        materials[m.Id!] = CreateMixMaterial(m, materials, sceneDir);
+                    }
+                    else
+                    {
+                        stillRemaining.Add(m);
+                    }
+                }
+ 
+                // No progress — remaining mix materials have circular or missing refs
+                if (stillRemaining.Count == remaining.Count)
+                {
+                    foreach (var m in stillRemaining)
+                        Warn($"Mix material '{m.Id}': cannot resolve references " +
+                             $"(material_a='{m.MaterialA}', material_b='{m.MaterialB}'). " +
+                             $"Using default grey Lambertian.");
+                    break;
+                }
+ 
+                remaining = stillRemaining;
             }
         }
 
@@ -456,7 +503,7 @@ public class SceneLoader
             var normalMap = LoadNormalMap(m.NormalMap, sceneDir);
             if (normalMap != null)
             {
-                // Set via the concrete type's property (all 5 materials have it)
+                // Set via the concrete type's property (all 6 materials have it)
                 switch (material)
                 {
                     case Lambertian  lam: lam.NormalMap = normalMap; break;
@@ -464,10 +511,42 @@ public class SceneLoader
                     case Dielectric  die: die.NormalMap = normalMap; break;
                     case Emissive    emi: emi.NormalMap = normalMap; break;
                     case DisneyBsdf  dis: dis.NormalMap = normalMap; break;
+                    case MixMaterial mix: mix.NormalMap = normalMap; break;
                 }
             }
         }
 
+        return material;
+    }
+
+    /// <summary>
+    /// Creates a MixMaterial that blends between two existing materials.
+    /// The child materials must already exist in the dictionary (enforced by
+    /// the two-pass loading in Load()).
+    /// </summary>
+    private static IMaterial CreateMixMaterial(MaterialData m,
+        Dictionary<string, IMaterial> materials, string sceneDir)
+    {
+        // Resolve child materials
+        var matA = GetMaterial(materials, m.MaterialA);
+        var matB = GetMaterial(materials, m.MaterialB);
+ 
+        // Build mask texture (optional)
+        ITexture? mask = m.Mask != null ? CreateTexture(m.Mask, sceneDir) : null;
+ 
+        float blend = Math.Clamp(m.Blend, 0f, 1f);
+        IMaterial material = new MixMaterial(matA, matB, blend, mask);
+ 
+        // ── Normal map (optional) ────────────────────────────────────────
+        if (m.NormalMap != null)
+        {
+            var normalMap = LoadNormalMap(m.NormalMap, sceneDir);
+            if (normalMap != null)
+            {
+                ((MixMaterial)material).NormalMap = normalMap;
+            }
+        }
+ 
         return material;
     }
 

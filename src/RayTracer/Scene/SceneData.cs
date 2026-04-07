@@ -233,6 +233,39 @@ public class MaterialData
 
     [YamlMember(Alias = "ior")]
     public float DisneyIor { get; set; } = 1.5f;
+
+    // ── Mix Material parameters ─────────────────────────────────────────────
+ 
+    /// <summary>
+    /// ID of the first child material (blend factor → 0 selects this material).
+    /// Only used when <c>type: "mix"</c>.
+    /// </summary>
+    [YamlMember(Alias = "material_a")]
+    public string? MaterialA { get; set; }
+ 
+    /// <summary>
+    /// ID of the second child material (blend factor → 1 selects this material).
+    /// Only used when <c>type: "mix"</c>.
+    /// </summary>
+    [YamlMember(Alias = "material_b")]
+    public string? MaterialB { get; set; }
+ 
+    /// <summary>
+    /// Constant blend factor in [0, 1]. 0 = 100% material_a, 1 = 100% material_b.
+    /// Ignored when a <c>mask</c> texture is specified.
+    /// Only used when <c>type: "mix"</c>.
+    /// </summary>
+    [YamlMember(Alias = "blend")]
+    public float Blend { get; set; } = 0.5f;
+ 
+    /// <summary>
+    /// Spatially-varying blend mask texture. Its luminance (Rec.709) at each
+    /// surface point replaces the constant <see cref="Blend"/> factor.
+    /// Supports all texture types: image, noise, marble, checker, wood.
+    /// Only used when <c>type: "mix"</c>.
+    /// </summary>
+    [YamlMember(Alias = "mask")]
+    public TextureData? Mask { get; set; }
 }
 
 public class NormalMapData

@@ -8,11 +8,12 @@ Benvenuto nella raccolta ufficiale di configurazioni e asset pronti all'uso. In 
 3. [Sistemi di Illuminazione](03-libreria-preset/03-illuminazione.md)
 4. [Catalogo Materiali Professionale](03-libreria-preset/04-materiali-base.md)
 5. [Libreria Materiali PBR (Disney BSDF)](03-libreria-preset/05-materiali-pbr.md)
-6. [Oggetti e Primitive Base](03-libreria-preset/06-oggetti-base.md)
-7. [Preset Sky (Cielo Procedurale e HDRI)](03-libreria-preset/07-sky-hdri.md)
-8. [Scene Base Complete (Stage Starter)](03-libreria-preset/08-scene-starter.md)
-9. [Preset Multi-Camera](03-libreria-preset/09-multi-camera.md)
-10. [→ Galleria delle Scene Complete (Esempi YAML)](02-tutorial-scene/11-galleria-scene-esempio.md)
+6. [Mix Material — Preset di Materiali Compositi](03-libreria-preset/06-mix-material-presets.md)
+7. [Oggetti e Primitive Base](03-libreria-preset/06-oggetti-base.md)
+8. [Preset Sky (Cielo Procedurale e HDRI)](03-libreria-preset/07-sky-hdri.md)
+9. [Scene Base Complete (Stage Starter)](03-libreria-preset/08-scene-starter.md)
+10. [Preset Multi-Camera](03-libreria-preset/09-multi-camera.md)
+11. [→ Galleria delle Scene Complete (Esempi YAML)](02-tutorial-scene/11-galleria-scene-esempio.md)
 
 ---
 

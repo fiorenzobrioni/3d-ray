@@ -53,6 +53,7 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 💎 **Dielectric** — vetro e trasparenti con rifrazione e riflesso Fresnel
 - 💡 **Emissive** — materiale auto-luminoso; gli oggetti emissivi partecipano automaticamente alla NEE come sorgenti di luce geometriche
 - 🌟 **Disney Principled BSDF** — materiale PBR unificato (`"disney"` / `"pbr"`): un singolo tipo copre plastica, metallo, vetro, vernice auto, tessuto, pelle e qualsiasi combinazione tramite parametri `metallic`, `roughness`, `subsurface`, `specular`, `sheen`, `clearcoat`, `spec_trans` e `ior`
+- 🔀 **Mix Material** — blending tra due materiali qualsiasi con peso costante o texture mask spaziale (noise, marble, image…). Per effetti di ruggine, usura, transizioni graduali, decal e composizioni ricorsive (mix-of-mix)
 
 ### Texture
 - ♟ **Checker** — scacchiera 3D procedurale
@@ -119,7 +120,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │   │   ├── Core/            # Ray, HitRecord, MathUtils
 │   │   ├── Geometry/        # Primitive (Sphere, Box, Cylinder, CsgObject...)
 │   │   ├── Lights/          # Point, Directional, Spot, Area, GeometryLight, EnvironmentLight
-│   │   ├── Materials/       # Lambertian, Metal, Dielectric, Emissive, Disney BSDF
+│   │   ├── Materials/       # Lambertian, Metal, Dielectric, Emissive, Disney BSDF, MixMaterial
 │   │   ├── Rendering/       # Renderer, SkySettings, EnvironmentMap
 │   │   ├── Scene/           # SceneLoader, SceneData
 │   │   └── Textures/        # Checker, Noise, Marble, Wood, Image, NormalMap
