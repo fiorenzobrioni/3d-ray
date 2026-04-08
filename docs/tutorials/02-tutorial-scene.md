@@ -14,8 +14,9 @@ Puoi seguire questa traccia linearmente come un corso completo, oppure consultar
 8. [Illuminazione: Come Funziona](02-tutorial-scene/08-illuminazione.md)
 9. [Esempi Completi](02-tutorial-scene/09-esempi.md)
 10. [Regole e Best Practices](02-tutorial-scene/10-regole.md)
-11. [Galleria delle Scene di Esempio](02-tutorial-scene/11-galleria-scene-esempio.md)
-12. [Prossimi Passi](#prossimi-passi)
+11. [Gruppi, Template, Istanze e Import YAML](02-tutorial-scene/11-groups-and-imports.md)
+12. [Galleria delle Scene di Esempio](02-tutorial-scene/12-galleria-scene-esempio.md)
+13. [Prossimi Passi](#prossimi-passi)
 
 ---
 

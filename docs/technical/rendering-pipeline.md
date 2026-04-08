@@ -51,11 +51,23 @@ Questo documento descrive il flusso architetturale completo del motore 3D-Ray, d
 
 **File:** `SceneLoader.cs` · **Metodo:** `Load()`
 
-### 1.1 Parsing YAML
+### 1.1 Import YAML
+
+Prima del parsing dei materiali, il loader processa la sezione `imports:`:
+
+1. Per ogni file importato, il percorso viene risolto relativamente alla directory del file che importa.
+2. Il file viene deserializzato come `SceneData` e i suoi eventuali `imports:` annidati vengono processati ricorsivamente.
+3. Un `HashSet<string>` di percorsi assoluti previene import ciclici.
+4. Le sezioni `materials`, `entities`, `lights` e `templates` importate vengono **prepese** a quelle locali.
+5. Le sezioni `world`, `camera`/`cameras` **non** vengono importate.
+
+La semantica prepend + dictionary last-write-wins garantisce che le definizioni locali con lo stesso ID sovrascrivano quelle importate.
+
+### 1.2 Parsing YAML
 
 Il loader deserializza il file YAML in strutture dati intermedie (`SceneData`, `MaterialData`, `LightData`, ecc.) tramite la libreria YamlDotNet con naming convention `underscore_case`.
 
-### 1.2 Costruzione dei Materiali (due passate)
+### 1.3 Costruzione dei Materiali (due passate)
 
 I materiali vengono costruiti in due passate per supportare `MixMaterial` (che referenzia altri materiali per ID):
 
@@ -64,7 +76,13 @@ I materiali vengono costruiti in due passate per supportare `MixMaterial` (che r
 
 **Contratto:** Ogni `MaterialData.Id` deve essere univoco. Se un materiale referenziato non esiste, il loader sostituisce un Lambertian grigio di fallback ed emette un warning.
 
-### 1.3 Costruzione delle Geometrie
+### 1.4 Costruzione dei Template
+
+I template dalla sezione `templates:` vengono registrati in un `Dictionary<string, EntityData>` keyed by `Name`. I template NON producono geometria renderizzabile — sono blueprint. La loro `EntityData` viene conservata per essere riutilizzata quando si incontra un'entità `type: "instance"`.
+
+Last-write-wins: template locali con lo stesso nome sovrascrivono template importati.
+
+### 1.5 Costruzione delle Geometrie
 
 Le entità YAML vengono trasformate in oggetti `IHittable`. Per ogni entità:
 
@@ -74,11 +92,31 @@ Le entità YAML vengono trasformate in oggetti `IHittable`. Per ogni entità:
 
 Le primitive finite vengono inserite nel BVH; le infinite (piani) e i nodi CSG vengono mantenuti in una lista separata. Il world finale è un `HittableList` che contiene il BVH e le primitive non-BVH.
 
-### 1.4 Costruzione delle Luci
+#### Gruppi (Scene Graph)
+
+Le entità `type: "group"` vengono costruite da `CreateGroupEntity()` → `BuildChildList()`:
+- Ogni figlio risolve tipo, materiale (proprio o ereditato) e trasformazione locale.
+- I figli vengono assemblati in un `Group` con BVH interno se > 4 figli finiti.
+- La trasformazione del gruppo viene applicata dal caller come `Transform` wrapper.
+
+#### Istanze (Template)
+
+Le entità `type: "instance"` vengono costruite da `CreateInstanceEntity()`:
+1. Il template viene cercato nel dizionario per nome.
+2. Il materiale viene risolto: istanza override → template default → fallback.
+3. `BuildChildList()` costruisce una nuova copia della geometria dal template.
+4. La trasformazione del template ("posa di default") viene applicata come primo `Transform`.
+5. La trasformazione dell'istanza viene applicata dal caller come secondo `Transform` sopra.
+6. La catena risultante è: `child_local → template_transform → instance_transform`.
+
+### 1.6 Costruzione delle Luci
 
 Le luci esplicite dal YAML vengono create tramite `CreateLight()`. Poi due passaggi automatici:
 
-1. **`ExtractGeometryLights()`** — scansiona tutte le geometrie cercando primitive `ISamplable` con materiale `Emissive`. Per ognuna crea un `GeometryLight` e lo aggiunge alla lista luci. I `Transform` sono gestiti ricorsivamente: il Transform stesso funge da ISamplable (delega `Sample()` alla primitiva interna e trasforma il risultato in world space con il Jacobian corretto).
+1. **`ExtractGeometryLights()`** — scansiona tutte le geometrie cercando primitive `ISamplable` con materiale `Emissive`. Per ognuna crea un `GeometryLight` e lo aggiunge alla lista luci. La scansione avviene tramite `ExtractGeometryLightsRecursive()`, che naviga l'albero della scena gestendo tre casi:
+   - **Group nudo**: itera i figli ricorsivamente.
+   - **Transform wrapping Group**: compone e propaga la matrice del Transform esterno su ogni figlio emissivo per garantirne il posizionamento in world space.
+   - **Tutto il resto**: delega a `ResolveEmissiveSamplable()`. I singoli `Transform` sono gestiti come `ISamplable` (delegano a `Sample()` sulla primitiva interna correggendo l'area con il Jacobian e convertendo in world space).
 
 2. **`EnvironmentLight`** — se il cielo supporta il campionamento diretto (`CanSampleDirectly` = true per HDRI e gradient sky con sun disk), viene creato un `EnvironmentLight` e aggiunto alla lista.
 
@@ -86,7 +124,7 @@ Se non ci sono luci e il YAML non ha una sezione `lights:` esplicita, viene aggi
 
 **Contratto:** Il parametro `shadowSamplesOverride` da CLI (`-S`) ha la precedenza sul valore per-luce del YAML. Se null, ogni luce usa il proprio valore.
 
-### 1.5 Costruzione del Cielo
+### 1.7 Costruzione del Cielo
 
 `BuildSkySettings()` crea un oggetto `SkySettings` in base al tipo:
 
@@ -94,7 +132,7 @@ Se non ci sono luci e il YAML non ha una sezione `lights:` esplicita, viene aggi
 - **`gradient`** — zenith/horizon/ground con interpolazione, più sun disk opzionale.
 - **`hdri`** — carica il file `.hdr` tramite `HdrLoader`, costruisce l'`EnvironmentMap` con CDF per importance sampling.
 
-### 1.6 Output
+### 1.8 Output
 
 `Load()` restituisce una tupla `(IHittable world, Camera camera, List<ILight> lights, Vector3 ambientLight, SkySettings sky)` pronta per il Renderer.
 

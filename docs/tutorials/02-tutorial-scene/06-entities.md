@@ -613,7 +613,19 @@ La mesh implementa `ISamplable` con campionamento pesato per area: ogni faccia h
 
 ---
 
-## 6.16 Smooth Triangle (Triangolo Liscio)
+## 6.16 Group — Composizione Gerarchica
+
+Un'entità `group` è un contenitore di figli con trasformazioni ereditate. Vedi la [sezione 11.1](11-groups-and-imports.md#111-gruppi--composizione-gerarchica) per la documentazione completa.
+
+---
+
+## 6.17 Instance — Istanza di Template
+
+Un'entità `instance` referenzia un template definito nella sezione `templates:`. Vedi la [sezione 11.2](11-groups-and-imports.md#112-template-e-istanze--oggetti-riutilizzabili) per la documentazione completa.
+
+---
+
+## 6.18 Smooth Triangle (Triangolo Liscio)
 
 A differenza del triangolo piatto standard, lo **Smooth Triangle** supporta l'interpolazione delle normali ai vertici (Phong Shading) e coordinate UV personalizzate. È la primitiva fondamentale usata internamente dalla `Mesh`, ma può essere definita individualmente per creare superfici curve fatte a mano o forme origami complesse senza caricare file esterni.
 

@@ -47,6 +47,11 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🏠 **Mesh (OBJ)** — modelli 3D da file Wavefront OBJ con smooth shading, UV mapping dell'artista e BVH interno dedicato
 - 🔷 **CSG (Constructive Solid Geometry)** — operazioni booleane su solidi: **Union** (A ∪ B), **Intersection** (A ∩ B) e **Subtraction** (A \ B), annidabili ricorsivamente per forme arbitrariamente complesse ([dettagli tecnici](./docs/technical/csg-boolean-operations.md))
 
+### Struttura della Scena
+- 🌳 **Scene Graph (Gruppi)** — Composizione gerarchica di oggetti con trasformazioni ereditate. Gruppi annidabili con primitive, CSG, mesh e altri gruppi.
+- 🏭 **Template / Istanze** — Definisci oggetti composti una volta come template, istanzia N volte con trasformazioni e materiali indipendenti. Librerie di oggetti importabili da file YAML separati.
+- 📦 **Import YAML** — Scomposizione di scene complesse in file separati. Librerie riutilizzabili di materiali, template, oggetti e luci con import annidati e protezione ciclica.
+
 ### Materiali
 - 🎨 **Lambertian** — diffuso opaco
 - 🪞 **Metal** — riflesso speculare con rugosità (`fuzz`) configurabile
@@ -119,7 +124,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │   │   ├── Acceleration/    # BVH
 │   │   ├── Camera/          # Camera con DOF
 │   │   ├── Core/            # Ray, HitRecord, MathUtils
-│   │   ├── Geometry/        # Primitive (Sphere, Box, Cylinder, CsgObject...)
+│   │   ├── Geometry/        # Primitive (Sphere, Box, Cylinder, CsgObject, Group...)
 │   │   ├── Lights/          # Point, Directional, Spot, Area, Sphere, GeometryLight, EnvironmentLight
 │   │   ├── Materials/       # Lambertian, Metal, Dielectric, Emissive, Disney BSDF, MixMaterial
 │   │   ├── Rendering/       # Renderer, SkySettings, EnvironmentMap
@@ -207,7 +212,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -c 2
 ## 📚 Tutorials
 
 - [**Guida all'Uso**](./docs/tutorials/01-tutorial-utilizzo.md) — Dettagli completi sui parametri CLI, profili di rendering, ottimizzazione e risoluzione problemi.
-- [**Creazione delle Scene**](./docs/tutorials/02-tutorial-scene.md) — Guida completa alla sintassi YAML: geometrie, materiali, texture, luci, camera e trasformazioni.
+- [**Creazione delle Scene**](./docs/tutorials/02-tutorial-scene.md) — Guida completa alla sintassi YAML: geometrie, materiali, texture, luci, camera, trasformazioni, gruppi, template e import YAML.
 - [**Libreria di Preset e Asset**](./docs/tutorials/03-libreria-preset.md) — Catalogo di ambienti, configurazioni camera, sistemi di illuminazione e materiali pronti all'uso.
 - [**Libreria CSG — Oggetti e Preset Booleani**](./docs/tutorials/04-libreria-csg.md) — Catalogo di forme CSG pronte all'uso: lenti, anelli, colonne scavate, bulloni e alberi booleani complessi.
 

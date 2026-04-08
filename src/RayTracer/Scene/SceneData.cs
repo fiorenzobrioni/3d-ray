@@ -33,6 +33,76 @@ public class SceneData
 
     [YamlMember(Alias = "lights")]
     public List<LightData>? Lights { get; set; }
+
+    // ── Scene imports ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// List of external YAML files to import. Imported files can contribute
+    /// materials, entities, lights, and templates to the current scene.
+    ///
+    /// Paths are resolved relative to the importing file's directory.
+    /// Imports are processed before local definitions, so local definitions
+    /// with the same ID/name override imported ones.
+    ///
+    /// Nested imports are supported (an imported file can itself import
+    /// other files). Circular import detection prevents infinite loops.
+    /// </summary>
+    [YamlMember(Alias = "imports")]
+    public List<ImportData>? Imports { get; set; }
+
+    // ── Templates ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Reusable object templates (prototypes). Each template defines a group
+    /// of children that can be instantiated multiple times via <c>type: "instance"</c>
+    /// in the <c>entities:</c> section.
+    ///
+    /// Templates are NOT rendered directly — they serve as blueprints.
+    /// Each instance creates its own copy of the geometry with independent
+    /// material override, transform, and seed.
+    ///
+    /// Templates support transforms (scale/rotate/translate) as a "default pose"
+    /// that composes with the instance's transform: child_local → template_transform → instance_transform.
+    ///
+    /// YAML example:
+    /// <code>
+    /// templates:
+    ///   - name: "pedina"
+    ///     material: "legno_noce"
+    ///     children:
+    ///       - type: "cylinder"
+    ///         center: [0, 0, 0]
+    ///         radius: 0.4
+    ///         height: 0.15
+    ///       - type: "sphere"
+    ///         center: [0, 0.35, 0]
+    ///         radius: 0.3
+    ///
+    /// entities:
+    ///   - type: "instance"
+    ///     template: "pedina"
+    ///     translate: [0, 0, 0]
+    ///   - type: "instance"
+    ///     template: "pedina"
+    ///     translate: [2, 0, 0]
+    ///     material: "legno_acero"   # per-instance override
+    /// </code>
+    /// </summary>
+    [YamlMember(Alias = "templates")]
+    public List<EntityData>? Templates { get; set; }
+}
+
+/// <summary>
+/// Describes an external YAML file to import into the current scene.
+/// </summary>
+public class ImportData
+{
+    /// <summary>
+    /// File path to the YAML file to import.
+    /// Resolved relative to the importing file's directory.
+    /// </summary>
+    [YamlMember(Alias = "path")]
+    public string? Path { get; set; }
 }
 
 public class WorldData
@@ -64,94 +134,51 @@ public class GroundData
 
 public class SkyData
 {
-    /// <summary>
-    /// Sky mode: "gradient" enables vertical color lerp + optional sun disk.
-    /// Any other value (or absent) falls back to legacy flat background.
-    /// </summary>
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
-    /// <summary>
-    /// File path for HDRI environment maps (type: "hdri").
-    /// Supports Radiance .hdr format. Resolved relative to the scene YAML directory.
-    /// </summary>
     [YamlMember(Alias = "path")]
     public string? Path { get; set; }
 
-    /// <summary>
-    /// Brightness multiplier for the HDRI map. Default 1.0 = original exposure.
-    /// Increase to brighten the environment lighting, decrease to dim it.
-    /// </summary>
     [YamlMember(Alias = "intensity")]
     public float Intensity { get; set; } = 1f;
 
-    /// <summary>
-    /// Y-axis rotation of the HDRI environment in degrees (0–360).
-    /// Rotates the environment map around the vertical axis to align
-    /// key lighting features (sun, windows) with the scene.
-    /// </summary>
     [YamlMember(Alias = "rotation")]
     public float Rotation { get; set; } = 0f;
 
-    /// <summary>Color at the zenith (straight up). Default: deep blue.</summary>
     [YamlMember(Alias = "zenith_color")]
     public List<float>? ZenithColor { get; set; }
 
-    /// <summary>Color at the horizon line. Default: pale blue-white.</summary>
     [YamlMember(Alias = "horizon_color")]
     public List<float>? HorizonColor { get; set; }
 
-    /// <summary>Color below the horizon (ground reflection). Default: brown-gray.</summary>
     [YamlMember(Alias = "ground_color")]
     public List<float>? GroundColor { get; set; }
 
-    /// <summary>Optional sun disk configuration.</summary>
     [YamlMember(Alias = "sun")]
     public SunDiskData? Sun { get; set; }
 }
 
 public class SunDiskData
 {
-    /// <summary>
-    /// Direction FROM which the sun shines (same convention as DirectionalLight).
-    /// Gets negated internally to point TOWARD the sun.
-    /// </summary>
     [YamlMember(Alias = "direction")]
     public List<float>? Direction { get; set; }
 
-    /// <summary>Sun disk color. Default: warm white.</summary>
     [YamlMember(Alias = "color")]
     public List<float>? Color { get; set; }
 
-    /// <summary>
-    /// Brightness multiplier for the sun disk. Typical: 5–50.
-    /// Higher values create stronger bloom through ACES tone mapping.
-    /// </summary>
     [YamlMember(Alias = "intensity")]
     public float Intensity { get; set; } = 10f;
 
-    /// <summary>
-    /// Angular diameter of the hard sun disk in degrees.
-    /// Real sun ≈ 0.53°. Typical artistic values: 1–5°.
-    /// </summary>
     [YamlMember(Alias = "size")]
     public float Size { get; set; } = 3f;
 
-    /// <summary>
-    /// Exponent for the glow halo falloff around the disk.
-    /// Higher = tighter glow, lower = wider glow.
-    /// Typical range: 8–128.
-    /// </summary>
     [YamlMember(Alias = "falloff")]
     public float Falloff { get; set; } = 32f;
 }
 
 public class CameraData
 {
-    /// <summary>
-    /// Optional identifier used to select this camera via <c>--camera &lt;name&gt;</c> on the CLI.
-    /// Case-insensitive. Only meaningful when using the <c>cameras:</c> list syntax.
-    /// </summary>
     [YamlMember(Alias = "name")]
     public string? Name { get; set; }
 
@@ -235,35 +262,16 @@ public class MaterialData
     public float DisneyIor { get; set; } = 1.5f;
 
     // ── Mix Material parameters ─────────────────────────────────────────────
- 
-    /// <summary>
-    /// ID of the first child material (blend factor → 0 selects this material).
-    /// Only used when <c>type: "mix"</c>.
-    /// </summary>
+
     [YamlMember(Alias = "material_a")]
     public string? MaterialA { get; set; }
- 
-    /// <summary>
-    /// ID of the second child material (blend factor → 1 selects this material).
-    /// Only used when <c>type: "mix"</c>.
-    /// </summary>
+
     [YamlMember(Alias = "material_b")]
     public string? MaterialB { get; set; }
- 
-    /// <summary>
-    /// Constant blend factor in [0, 1]. 0 = 100% material_a, 1 = 100% material_b.
-    /// Ignored when a <c>mask</c> texture is specified.
-    /// Only used when <c>type: "mix"</c>.
-    /// </summary>
+
     [YamlMember(Alias = "blend")]
     public float Blend { get; set; } = 0.5f;
- 
-    /// <summary>
-    /// Spatially-varying blend mask texture. Its luminance (Rec.709) at each
-    /// surface point replaces the constant <see cref="Blend"/> factor.
-    /// Supports all texture types: image, noise, marble, checker, wood.
-    /// Only used when <c>type: "mix"</c>.
-    /// </summary>
+
     [YamlMember(Alias = "mask")]
     public TextureData? Mask { get; set; }
 }
@@ -354,23 +362,23 @@ public class EntityData
     [YamlMember(Alias = "v2")]
     public List<float>? V2 { get; set; }
 
-    // SmoothTriangle — per-vertex normals (optional; omit for flat shading fallback)
+    // SmoothTriangle — per-vertex normals
     [YamlMember(Alias = "n0")]
     public List<float>? N0 { get; set; }
- 
+
     [YamlMember(Alias = "n1")]
     public List<float>? N1 { get; set; }
- 
+
     [YamlMember(Alias = "n2")]
     public List<float>? N2 { get; set; }
- 
-    // SmoothTriangle — per-vertex texture coordinates (optional; omit for barycentric UVs)
+
+    // SmoothTriangle — per-vertex texture coordinates
     [YamlMember(Alias = "uv0")]
     public List<float>? UV0 { get; set; }
- 
+
     [YamlMember(Alias = "uv1")]
     public List<float>? UV1 { get; set; }
- 
+
     [YamlMember(Alias = "uv2")]
     public List<float>? UV2 { get; set; }
 
@@ -395,7 +403,7 @@ public class EntityData
     // Torus
     [YamlMember(Alias = "major_radius")]
     public float MajorRadius { get; set; } = 1f;
- 
+
     [YamlMember(Alias = "minor_radius")]
     public float MinorRadius { get; set; } = 0.25f;
 
@@ -404,10 +412,6 @@ public class EntityData
     public float InnerRadius { get; set; } = 0f;
 
     // Mesh (OBJ file)
-    /// <summary>
-    /// File path to a Wavefront OBJ mesh, resolved relative to the scene YAML directory.
-    /// Used when type is "mesh" or "obj".
-    /// </summary>
     [YamlMember(Alias = "path")]
     public string? Path { get; set; }
 
@@ -419,25 +423,35 @@ public class EntityData
     public List<float>? Point { get; set; }
 
     // CSG (Constructive Solid Geometry)
- 
-    /// <summary>
-    /// Boolean operation for CSG entities: "union", "intersection", "subtraction".
-    /// Only used when type is "csg".
-    /// </summary>
     [YamlMember(Alias = "operation")]
     public string? Operation { get; set; }
- 
-    /// <summary>
-    /// Left operand (A) for CSG. Defined inline as a nested entity.
-    /// </summary>
+
     [YamlMember(Alias = "left")]
     public EntityData? Left { get; set; }
- 
-    /// <summary>
-    /// Right operand (B) for CSG. Defined inline as a nested entity.
-    /// </summary>
+
     [YamlMember(Alias = "right")]
     public EntityData? Right { get; set; }
+
+    // ── Group (Scene Graph) ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Child entities for group nodes (type: "group") and template definitions.
+    /// Each child can be any entity type, including other groups (arbitrary nesting).
+    /// </summary>
+    [YamlMember(Alias = "children")]
+    public List<EntityData>? Children { get; set; }
+
+    // ── Instance (Template reference) ───────────────────────────────────────
+
+    /// <summary>
+    /// Name of the template to instantiate. Only used when <c>type: "instance"</c>.
+    /// The template must be defined in the <c>templates:</c> section (or imported).
+    /// The instance inherits the template's children and default transform;
+    /// its own transform composes on top: child_local → template_transform → instance_transform.
+    /// Material can be overridden per-instance via the <c>material</c> field.
+    /// </summary>
+    [YamlMember(Alias = "template")]
+    public string? Template { get; set; }
 
     // Transformations
     [YamlMember(Alias = "translate")]
@@ -485,13 +499,6 @@ public class LightData
     [YamlMember(Alias = "shadow_samples")]
     public int ShadowSamples { get; set; } = 16;
 
-        // ── Sphere light ────────────────────────────────────────────────────────
- 
-    /// <summary>
-    /// Radius of the spherical light source. Only used when <c>type: "sphere"</c>.
-    /// Larger radius produces softer shadows with wider penumbrae.
-    /// Default 0.5 — a small lamp-sized sphere.
-    /// </summary>
     [YamlMember(Alias = "radius")]
     public float Radius { get; set; } = 0.5f;
 }

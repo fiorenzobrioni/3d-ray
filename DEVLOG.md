@@ -74,7 +74,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 | 8 | Torus Primitive | ✅ Completato |
 | 9 | Mix Material | ✅ Completato |
 | 10 | Sphere Light | ✅ Completato |
-| 11 | Scene Graph / Groups | ⬜ Da fare |
+| 11 | Scene Graph / Groups | ✅ Completato |
 
 **6. Disney BSDF / PBR ✅** — Materiale unificato con sampling stocastico a 5 lobi (diffuse, specular GGX, transmission, sheen, clearcoat). Pesi calibrati su F₀ per minimizzare la varianza. GGX importance sampling per specular e clearcoat. Frosted glass con campionamento di micronormali GGX. Consistenza energetica direct/indirect tramite Cook-Torrance analitico in `EvaluateDirect`.
 
@@ -86,7 +86,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 
 **10. Sphere Light ✅** — Luce sferica dedicata con solid-angle sampling sulla porzione visibile (PBRT §6.2.3). Campiona direzioni uniformemente nel cono sotteso dalla sfera: cos(θ) = 1 − ξ₁(1 − cos(θ_max)), φ = 2πξ₂. Zero campioni sprecati sulla faccia posteriore, varianza 1/Ω vs 1/r² del GeometryLight equivalente — 2–10× più efficiente per sfere piccole/distanti. Stratificazione √N × √N nello spazio (cos θ, φ) per penombra a basso rumore. Intersezione analitica raggio-sfera per punto esatto sulla superficie. Caso degenere (punto interno alla sfera) gestito con Ω = 4π. Alias YAML: `"sphere"`, `"sphere_light"`, `"ball"`, `"ball_light"`. Scena di test: `sphere-light-showcase.yaml`.
 
-**11. Scene Graph / Groups ⬜** — Raggruppamento gerarchico con trasformazioni ereditate. Nuova classe `Group : IHittable` con transform cumulativo.
+**11. Scene Graph / Groups ✅** — Raggruppamento gerarchico con trasformazioni ereditate. Nuova classe `Group : IHittable` con BVH interno, lista figli tipizzata, seed propagation deterministica. Composizione arbitraria: primitive, CSG, mesh OBJ e gruppi annidati a profondità illimitata. Materiale fallback ereditabile dai figli. Extraction ricorsiva delle geometry lights per NEE (gestisce Transform-wrapped Groups con composizione corretta delle matrici). **Template/Instance system:** sezione `templates:` per definire oggetti composti come blueprint riutilizzabili, tipo `"instance"` per istanziarli con transform e materiale indipendenti. I template supportano trasformazioni come "posa di default" che compone con quella dell'istanza (`child → template → instance`). Override materiale per-istanza. Template importabili da file YAML esterni per librerie di oggetti. **Import YAML:** sistema `imports:` per scomporre scene complesse in file separati — librerie di materiali, template, entità e luci riutilizzabili. Import annidati con protezione ciclica. Merge semantics: materiali/template locali override importati (last-write-wins), entità e luci prepended. World/camera non importati. Alias YAML: `"group"`, `"instance"`. Scene di test: `group-showcase.yaml`.
 
 ---
 
@@ -170,7 +170,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 #6 Disney BSDF   ──► #20 SSS (parametro subsurface già presente)
 #7 OBJ Loader    ──► #22 Instancing
                   ──► #25 Displacement Mapping
-#11 Scene Graph  ──► #22 Instancing
+#11 Scene Graph  ──► #22 Instancing (parzialmente implementato come Templates)
 #12 Importance S.──► #13 MIS ──► #23 Bidirectional PT
 #15 Tile-based   ──► #14 Adaptive Sampling
                  ──► #16 Denoiser
@@ -180,8 +180,9 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 
 ## ✅ TODO
 
+- [ ] Creare librerie di template: `scenes/libraries/chess-pieces.yaml`, `scenes/libraries/furniture.yaml`
+- [ ] Feature #22 completa: Instancing con geometria condivisa a livello BVH (memory-efficient per scene con migliaia di istanze)
 - [ ] Fare una review completa dei tutorials (`tutorials/`): correttezza rispetto al codice, omissioni di feature, grammatica, esempi, indici.
-- [ ] Verificare se `utah-teapot.yaml` esiste effettivamente o va rimossa dalla checklist di testing.
 - [ ] Aggiornare la checklist di testing con le scene di riferimento corrette.
 
 ---
@@ -215,3 +216,6 @@ Procedure da eseguire prima di ogni commit importante.
 - [ ] **CSG Regression**: Render di `csg-showcase.yaml` — verificare union, intersection e subtraction visivamente.
 - [ ] **HDRI Test**: Render di `hdri-showcase.yaml` — verificare riflessi, rifrazioni e illuminazione globale.
 - [ ] **Mix Material Test**: Render di `mix-material-showcase.yaml` — verificare blend costante (3 livelli), maschere procedurali (noise, marble, wood), lava emissiva con blend marble e checker bicolore.
+- [ ] **Group Test**: Render di `group-showcase.yaml` — verificare trasformazioni ereditate, template/istanze, import.
+- [ ] **Import Test**: Verificare che materiali e template importati da file esterni funzionino correttamente.
+- [ ] **Template Override**: Verificare che il materiale dell'istanza sovrascriva quello del template.

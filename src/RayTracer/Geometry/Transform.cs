@@ -31,9 +31,17 @@ public class Transform : IHittable, ISamplable
 
     /// <summary>
     /// The wrapped IHittable (in object space). Used by SceneLoader.IsInfinitePlane()
-    /// to detect Transform-wrapped InfinitePlane instances (BUG-02 fix).
+    /// to detect Transform-wrapped InfinitePlane instances (BUG-02 fix), and by
+    /// ExtractGeometryLightsRecursive() to detect Groups inside Transforms.
     /// </summary>
     public IHittable Inner => _object;
+
+    /// <summary>
+    /// The forward transformation matrix (object → world space).
+    /// Exposed read-only for SceneLoader to compose transforms when extracting
+    /// geometry lights from Groups wrapped in Transforms.
+    /// </summary>
+    public Matrix4x4 TransformMatrix => _transform;
 
     public Transform(IHittable hittable, Matrix4x4 matrix)
     {
@@ -49,10 +57,11 @@ public class Transform : IHittable, ISamplable
         // |det(M₃ₓ₃)| — Sarrus / cofactor expansion along the first row.
         // For a TRS matrix this equals sx × sy × sz (product of scale factors).
         // Used in Sample() as the volume-scaling factor for area conversion.
-        float det = _transform.M11 * (_transform.M22 * _transform.M33 - _transform.M23 * _transform.M32)
-                  - _transform.M12 * (_transform.M21 * _transform.M33 - _transform.M23 * _transform.M31)
-                  + _transform.M13 * (_transform.M21 * _transform.M32 - _transform.M22 * _transform.M31);
-        _absDetM = MathF.Abs(det);
+        float det3x3 =
+            matrix.M11 * (matrix.M22 * matrix.M33 - matrix.M23 * matrix.M32) -
+            matrix.M12 * (matrix.M21 * matrix.M33 - matrix.M23 * matrix.M31) +
+            matrix.M13 * (matrix.M21 * matrix.M32 - matrix.M22 * matrix.M31);
+        _absDetM = MathF.Abs(det3x3);
     }
 
     public int Seed
@@ -63,15 +72,15 @@ public class Transform : IHittable, ISamplable
 
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
-        // Transform ray into object space
-        Vector3 origin    = Vector3.Transform(ray.Origin, _inverse);
-        Vector3 direction = Vector3.TransformNormal(ray.Direction, _inverse);
-        var localRay = new Ray(origin, direction);
+        // Transform the ray from world space to object space
+        var localOrigin = Vector3.Transform(ray.Origin, _inverse);
+        var localDir = Vector3.TransformNormal(ray.Direction, _inverse);
+
+        var localRay = new Ray(localOrigin, localDir);
 
         if (!_object.Hit(localRay, tMin, tMax, ref rec))
             return false;
 
-        // rec.LocalPoint is already in object-local space (set by the wrapped primitive).
         // Leave it as-is — this is intentional. Procedural textures sample LocalPoint,
         // so they tile in the object's own coordinate system regardless of world transforms.
         // rec.LocalPoint = rec.LocalPoint;  // <-- purposely NOT transformed

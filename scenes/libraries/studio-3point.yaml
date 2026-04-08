@@ -1,0 +1,27 @@
+# ============================================================================
+# Libreria Luci — Studio 3-Point Setup
+# ============================================================================
+# Importa con:  imports: [{ path: "libraries/studio-3point.yaml" }]
+# ============================================================================
+
+lights:
+  - type: "area"
+    corner: [-4, 5.5, -2]
+    u: [2.5, 0, 0]
+    v: [0, 0, 2.5]
+    color: [1.0, 0.95, 0.88]
+    intensity: 50
+    shadow_samples: 16
+
+  - type: "area"
+    corner: [3, 3, -1]
+    u: [1.5, 0, 0]
+    v: [0, 0, 1.5]
+    color: [0.75, 0.82, 1.0]
+    intensity: 20
+    shadow_samples: 9
+
+  - type: "point"
+    position: [0, 4, 5]
+    color: [1.0, 0.98, 0.95]
+    intensity: 60

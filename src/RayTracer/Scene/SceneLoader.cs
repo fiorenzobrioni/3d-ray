@@ -101,6 +101,19 @@ public class SceneLoader
         // Scene directory for resolving relative paths (image textures, etc.)
         var sceneDir = Path.GetDirectoryName(Path.GetFullPath(yamlPath)) ?? ".";
 
+        // ── YAML Imports ─────────────────────────────────────────────────────
+        // Process imports before local definitions. Imported materials, entities,
+        // lights, and templates are merged into the current SceneData. Local
+        // definitions with the same ID/name override imported ones.
+        if (data.Imports is { Count: > 0 })
+        {
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                Path.GetFullPath(yamlPath)
+            };
+            ProcessImports(data, sceneDir, deserializer, visited);
+        }
+
         // Materials dictionary — two-pass loading to resolve MixMaterial references.
         // Pass 1: create all non-mix materials so their IDs are available.
         // Pass 2: create mix materials that reference other materials by ID.
@@ -174,6 +187,30 @@ public class SceneLoader
                 new Vector3(0, groundY, 0), Vector3.UnitY, groundMat));
         }
 
+        // Templates
+        var templates = new Dictionary<string, EntityData>(StringComparer.OrdinalIgnoreCase);
+        if (data.Templates != null)
+        {
+            foreach (var t in data.Templates)
+            {
+                if (string.IsNullOrWhiteSpace(t.Name))
+                {
+                    Warn("Template without a 'name' field. Skipping.");
+                    continue;
+                }
+                if (t.Children == null || t.Children.Count == 0)
+                {
+                    Warn($"Template '{t.Name}' has no 'children'. Skipping.");
+                    continue;
+                }
+                // Last-write-wins: local templates override imported ones
+                templates[t.Name] = t;
+            }
+            if (templates.Count > 0)
+                Info($"Templates registered: {templates.Count} " +
+                     $"({string.Join(", ", templates.Keys)})");
+        }
+
         // Entities
         if (data.Entities != null)
         {
@@ -181,24 +218,30 @@ public class SceneLoader
             {
                 var e   = data.Entities[idx];
                 var mat = GetMaterial(materials, e.Material);
-
+ 
                 IHittable? hittable;
                 if (string.Equals(e.Type, "csg", StringComparison.OrdinalIgnoreCase))
                 {
-                    // CSG needs the materials dictionary for per-child resolution
                     hittable = CreateCsgEntity(e, mat, materials, idx);
                 }
                 else if (string.Equals(e.Type, "mesh", StringComparison.OrdinalIgnoreCase)
                       || string.Equals(e.Type, "obj", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Mesh needs the sceneDir for OBJ path resolution
                     hittable = CreateMeshEntity(e, mat, sceneDir, idx);
+                }
+                else if (string.Equals(e.Type, "group", StringComparison.OrdinalIgnoreCase))
+                {
+                    hittable = CreateGroupEntity(e, mat, materials, sceneDir, idx);
+                }
+                else if (string.Equals(e.Type, "instance", StringComparison.OrdinalIgnoreCase))
+                {
+                    hittable = CreateInstanceEntity(e, materials, templates, sceneDir, idx);
                 }
                 else
                 {
                     hittable = CreateEntity(e, mat, idx);
                 }
-
+ 
                 if (hittable != null)
                 {
                     var transform = ComputeTransformMatrix(e);
@@ -212,11 +255,6 @@ public class SceneLoader
         // Build BVH — separate infinite planes (no finite AABB) from finite objects.
         // BVH is only beneficial above BvhThreshold objects; below that the tree
         // construction overhead exceeds the traversal savings.
-        //
-        // BUG-02 fix: check also handles InfinitePlane wrapped in a Transform
-        // (e.g. a tilted infinite plane). The Transform wrapper hides the concrete
-        // type from a simple `is InfinitePlane` check. IsInfinitePlane() unwraps
-        // the Transform chain recursively to detect the underlying type.
         IHittable world;
         if (objects.Count > BvhThreshold)
         {
@@ -282,6 +320,118 @@ public class SceneLoader
         }
 
         return (world, camera, lights, ambientLight, sky);
+    }
+
+    // =========================================================================
+    // YAML Imports
+    // =========================================================================
+ 
+    /// <summary>
+    /// Processes the <c>imports:</c> section of a scene file. Recursively loads
+    /// external YAML files and merges their materials, entities, lights, and
+    /// templates into the current <see cref="SceneData"/>.
+    ///
+    /// Merge semantics:
+    ///   - Materials, entities, lights, templates: imported are prepended.
+    ///     Local definitions with the same ID/name override imported ones.
+    ///   - World / Camera: NOT imported (main scene owns these).
+    ///
+    /// Circular import protection via the visited set.
+    /// </summary>
+    private static void ProcessImports(SceneData data, string baseDir,
+        IDeserializer deserializer, HashSet<string> visited)
+    {
+        if (data.Imports == null) return;
+ 
+        var importedMaterials = new List<MaterialData>();
+        var importedEntities  = new List<EntityData>();
+        var importedLights    = new List<LightData>();
+        var importedTemplates = new List<EntityData>();
+ 
+        foreach (var import in data.Imports)
+        {
+            if (string.IsNullOrWhiteSpace(import.Path))
+            {
+                Warn("Import entry has empty 'path'. Skipping.");
+                continue;
+            }
+ 
+            string importPath = Path.IsPathRooted(import.Path)
+                ? import.Path
+                : Path.Combine(baseDir, import.Path);
+ 
+            string fullPath = Path.GetFullPath(importPath);
+ 
+            if (!visited.Add(fullPath))
+            {
+                Warn($"Circular import detected: '{import.Path}'. Skipping.");
+                continue;
+            }
+ 
+            if (!File.Exists(fullPath))
+            {
+                Warn($"Import file not found: '{import.Path}' " +
+                     $"(resolved to '{fullPath}'). Skipping.");
+                continue;
+            }
+ 
+            try
+            {
+                var importYaml = File.ReadAllText(fullPath);
+                var importData = deserializer.Deserialize<SceneData>(importYaml);
+ 
+                if (importData == null)
+                {
+                    Warn($"Failed to parse import file: '{import.Path}'. Skipping.");
+                    continue;
+                }
+ 
+                var importDir = Path.GetDirectoryName(fullPath) ?? ".";
+                if (importData.Imports is { Count: > 0 })
+                    ProcessImports(importData, importDir, deserializer, visited);
+ 
+                if (importData.Materials != null)
+                    importedMaterials.AddRange(importData.Materials);
+                if (importData.Entities != null)
+                    importedEntities.AddRange(importData.Entities);
+                if (importData.Lights != null)
+                    importedLights.AddRange(importData.Lights);
+                if (importData.Templates != null)
+                    importedTemplates.AddRange(importData.Templates);
+ 
+                Info($"Imported: '{import.Path}' " +
+                     $"({importData.Materials?.Count ?? 0} materials, " +
+                     $"{importData.Entities?.Count ?? 0} entities, " +
+                     $"{importData.Lights?.Count ?? 0} lights, " +
+                     $"{importData.Templates?.Count ?? 0} templates)");
+            }
+            catch (Exception ex)
+            {
+                Warn($"Error loading import '{import.Path}': {ex.Message}. Skipping.");
+            }
+        }
+ 
+        // Merge: imported go BEFORE local (local wins on ID/name conflicts)
+        if (importedMaterials.Count > 0)
+        {
+            importedMaterials.AddRange(data.Materials ?? new List<MaterialData>());
+            data.Materials = importedMaterials;
+        }
+        if (importedEntities.Count > 0)
+        {
+            importedEntities.AddRange(data.Entities ?? new List<EntityData>());
+            data.Entities = importedEntities;
+        }
+        if (importedLights.Count > 0)
+        {
+            importedLights.AddRange(data.Lights ?? new List<LightData>());
+            data.Lights = importedLights;
+        }
+        if (importedTemplates.Count > 0)
+        {
+            importedTemplates.AddRange(data.Templates ?? new List<EntityData>());
+            data.Templates = importedTemplates;
+        }
     }
 
     // =========================================================================
@@ -402,22 +552,47 @@ public class SceneLoader
     /// Scans all scene objects and registers ISamplable emissives as GeometryLights
     /// for Next Event Estimation (NEE / direct illumination).
     ///
-    /// Handles two cases:
-    ///   1. Bare primitive (Sphere, Quad, Triangle, Disk) with Emissive material.
-    ///   2. Transform-wrapped primitive: Transform now implements ISamplable and
-    ///      correctly maps Sample() to world space, so rotated/scaled/translated
-    ///      emissives participate in NEE like any other geometry light.
-    ///
-    /// Chain transforms (Transform wrapping another Transform) are handled
-    /// recursively via UnwrapEmissive().
+    /// Handles three cases:
+    ///   1. Bare primitive with Emissive material.
+    ///   2. Transform-wrapped primitive.
+    ///   3. Group / Transform-wrapped Group: recurses into children, composing
+    ///      transforms correctly for world-space sampling.
     /// </summary>
     private static void ExtractGeometryLights(List<IHittable> objects, List<ILight> lights, int shadowSamples)
     {
         foreach (var obj in objects)
+            ExtractGeometryLightsRecursive(obj, lights, shadowSamples);
+    }
+ 
+    private static void ExtractGeometryLightsRecursive(IHittable obj, List<ILight> lights, int shadowSamples)
+    {
+        switch (obj)
         {
-            var (samplable, emissive) = ResolveEmissiveSamplable(obj);
-            if (samplable != null && emissive != null)
-                lights.Add(new GeometryLight(samplable, emissive, shadowSamples));
+            // Group: recurse into children
+            case Group g:
+                foreach (var child in g.Children)
+                    ExtractGeometryLightsRecursive(child, lights, shadowSamples);
+                break;
+ 
+            // Transform wrapping a Group: compose outer transform onto each child
+            case Transform t when t.Inner is Group innerGroup:
+                foreach (var child in innerGroup.Children)
+                {
+                    var composedChild = new Transform(child, t.TransformMatrix);
+                    var (s, e) = ResolveEmissiveSamplable(composedChild);
+                    if (s != null && e != null)
+                        lights.Add(new GeometryLight(s, e, shadowSamples));
+                }
+                break;
+ 
+            // All other objects (primitives, CSG, Transform, etc.)
+            default:
+            {
+                var (samplable, emissive) = ResolveEmissiveSamplable(obj);
+                if (samplable != null && emissive != null)
+                    lights.Add(new GeometryLight(samplable, emissive, shadowSamples));
+                break;
+            }
         }
     }
 
@@ -796,7 +971,9 @@ public class SceneLoader
             "disk"     => new Disk(ToVector3(e.Center) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, e.Radius, mat),
             "plane" or "infinite_plane"
                        => new InfinitePlane(ToVector3(e.Point) ?? Vector3.Zero, ToVector3(e.Normal) ?? Vector3.UnitY, mat),
-            "csg"      => null, // Handled separately in Load() — needs materials dictionary for per-child resolution
+            "csg"      => null, // Handled separately in Load() — needs materials dictionary
+            "group"    => null, // Handled separately in Load() — needs materials dictionary and sceneDir
+            "instance" => null, // Handled separately in Load() — needs templates dictionary
             _          => null
         };
 
@@ -991,6 +1168,144 @@ public class SceneLoader
     }
 
     /// <summary>
+    /// Creates a Group entity — a hierarchical container of children with
+    /// inherited material and shared transform.
+    /// </summary>
+    private static IHittable? CreateGroupEntity(EntityData e, IMaterial fallbackMat,
+        Dictionary<string, IMaterial> materials, string sceneDir, int entityIndex)
+    {
+        if (e.Children == null || e.Children.Count == 0)
+        {
+            Warn($"Group '{e.Name ?? "(unnamed)"}' has no children. Skipping.");
+            return null;
+        }
+ 
+        var childObjects = BuildChildList(e.Children, fallbackMat, materials, sceneDir, entityIndex);
+ 
+        if (childObjects.Count == 0)
+        {
+            Warn($"Group '{e.Name ?? "(unnamed)"}': all children failed to load. Skipping.");
+            return null;
+        }
+ 
+        var group = new Group(childObjects);
+        group.Seed = e.Seed ?? HashCode.Combine(entityIndex,
+                                                 e.Type?.GetHashCode() ?? 0,
+                                                 e.Name?.GetHashCode() ?? 0);
+ 
+        Info($"Group '{e.Name ?? "(unnamed)"}': {childObjects.Count} children");
+        return group;
+    }
+ 
+    /// <summary>
+    /// Creates an instance from a named template. The template's children are
+    /// re-built as a new Group, optionally with a material override. The template's
+    /// own transform (if any) is applied as the Group's "default pose", and the
+    /// instance's transform is applied on top by the caller in Load().
+    ///
+    /// Transform composition chain:
+    ///   child_local → template_transform → instance_transform
+    /// </summary>
+    private static IHittable? CreateInstanceEntity(EntityData e,
+        Dictionary<string, IMaterial> materials,
+        Dictionary<string, EntityData> templates,
+        string sceneDir, int entityIndex)
+    {
+        if (string.IsNullOrWhiteSpace(e.Template))
+        {
+            Warn($"Instance '{e.Name ?? "(unnamed)"}' requires a 'template' name. Skipping.");
+            return null;
+        }
+ 
+        if (!templates.TryGetValue(e.Template, out var templateDef))
+        {
+            Warn($"Instance '{e.Name ?? "(unnamed)"}': template '{e.Template}' not found. Skipping.");
+            return null;
+        }
+ 
+        // Resolve material: instance override → template default → grey fallback
+        var materialId = e.Material ?? templateDef.Material;
+        var fallbackMat = GetMaterial(materials, materialId);
+ 
+        // Build a fresh Group from the template's children
+        var childObjects = BuildChildList(
+            templateDef.Children!, fallbackMat, materials, sceneDir, entityIndex);
+ 
+        if (childObjects.Count == 0)
+        {
+            Warn($"Instance '{e.Name ?? "(unnamed)"}' of '{e.Template}': " +
+                 "all template children failed to load. Skipping.");
+            return null;
+        }
+ 
+        IHittable result = new Group(childObjects);
+ 
+        // Seed: instance seed takes precedence over template seed
+        result.Seed = e.Seed ?? templateDef.Seed ?? HashCode.Combine(
+            entityIndex, e.Template.GetHashCode(), e.Name?.GetHashCode() ?? 0);
+ 
+        // Apply the template's own transform as the "default pose".
+        // The instance's transform (from the caller in Load()) composes on top.
+        var templateTransform = ComputeTransformMatrix(templateDef);
+        if (templateTransform != Matrix4x4.Identity)
+            result = new Transform(result, templateTransform);
+ 
+        return result;
+    }
+ 
+    /// <summary>
+    /// Shared helper: builds a list of IHittable from a list of EntityData children.
+    /// Used by both CreateGroupEntity and CreateInstanceEntity.
+    /// Each child resolves its own material (own ID → fallback), type (primitive,
+    /// CSG, mesh, nested group), and local transform.
+    /// </summary>
+    private static List<IHittable> BuildChildList(List<EntityData> children,
+        IMaterial fallbackMat, Dictionary<string, IMaterial> materials,
+        string sceneDir, int parentIndex)
+    {
+        var result = new List<IHittable>();
+ 
+        for (int i = 0; i < children.Count; i++)
+        {
+            var child = children[i];
+            var mat = child.Material != null
+                ? GetMaterial(materials, child.Material)
+                : fallbackMat;
+ 
+            int childIdx = parentIndex * 1000 + i;
+ 
+            IHittable? hittable;
+            if (string.Equals(child.Type, "csg", StringComparison.OrdinalIgnoreCase))
+            {
+                hittable = CreateCsgEntity(child, mat, materials, childIdx);
+            }
+            else if (string.Equals(child.Type, "mesh", StringComparison.OrdinalIgnoreCase)
+                  || string.Equals(child.Type, "obj", StringComparison.OrdinalIgnoreCase))
+            {
+                hittable = CreateMeshEntity(child, mat, sceneDir, childIdx);
+            }
+            else if (string.Equals(child.Type, "group", StringComparison.OrdinalIgnoreCase))
+            {
+                hittable = CreateGroupEntity(child, mat, materials, sceneDir, childIdx);
+            }
+            else
+            {
+                hittable = CreateEntity(child, mat, childIdx);
+            }
+ 
+            if (hittable == null) continue;
+ 
+            var childTransform = ComputeTransformMatrix(child);
+            if (childTransform != Matrix4x4.Identity)
+                hittable = new Transform(hittable, childTransform);
+ 
+            result.Add(hittable);
+        }
+ 
+        return result;
+    }
+
+    /// <summary>
     /// Creates a Triangle or SmoothTriangle depending on whether per-vertex
     /// normals (n0/n1/n2) are specified in the YAML.
     ///
@@ -1120,15 +1435,11 @@ public class SceneLoader
     // Utility helpers
     // =========================================================================
 
-    /// <summary>
-    /// BUG-02 fix: Returns true if the hittable (possibly inside a Transform chain)
-    /// is ultimately an InfinitePlane. Prevents a Transform-wrapped InfinitePlane
-    /// from entering the BVH with an enormous 2×10^6 AABB that degrades the tree.
-    /// </summary>
     private static bool IsInfinitePlane(IHittable obj) => obj switch
     {
         InfinitePlane => true,
         Transform t   => IsInfinitePlane(t.Inner),
+        Group g       => g.Children.Count > 0 && g.Children.All(c => IsInfinitePlane(c)),
         _             => false
     };
 

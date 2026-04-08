@@ -1,4 +1,4 @@
-# 11. Galleria delle Scene di Esempio
+# 12. Galleria delle Scene di Esempio
 
 In questa sezione troverai una raccolta completa di tutti i file di scena (`.yaml`) disponibili nella cartella `scenes/` del repository. Questi file sono progettati per mostrare le varie potenzialità del motore — dai test tecnici basilari a complessi set cinematografici.
 
