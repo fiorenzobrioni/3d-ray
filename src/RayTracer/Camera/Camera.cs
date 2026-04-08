@@ -27,6 +27,15 @@ public class Camera
         float viewportWidth = aspectRatio * viewportHeight;
 
         _w = Vector3.Normalize(lookFrom - lookAt);
+
+        // When the view direction is (anti-)parallel to vUp, the cross
+        // product _w × vUp is zero and the camera basis degenerates (all NaN).
+        // This happens when looking straight down or straight up with the default
+        // vUp = (0,1,0). Detect the singularity and fall back to an alternative
+        // up vector perpendicular to _w.
+        if (Vector3.Cross(_w, vUp).LengthSquared() < 1e-8f)
+            vUp = MathF.Abs(_w.X) < 0.9f ? Vector3.UnitX : Vector3.UnitZ;
+
         _u = Vector3.Normalize(Vector3.Cross(_w, vUp));
         _v = Vector3.Cross(_u, _w);        
 

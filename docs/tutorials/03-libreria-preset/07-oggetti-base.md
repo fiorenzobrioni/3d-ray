@@ -74,6 +74,18 @@ Un toro sottile in gomma per dettagli meccanici o idraulici.
     material: "gomma_rossa"
 ```
 
+## O-ring / Guarnizione (variante con center)
+
+```yaml
+  # Variante con center — comoda nei gruppi
+  - name: "oring"
+    type: "torus"
+    center: [0, 0.5, 0]
+    major_radius: 1.2
+    minor_radius: 0.1
+    material: "gomma_rossa"
+```
+
 ## **Guarnizione O-ring Piatta**
 Anello piatto in gomma, più efficiente del toro per scopi decorativi su superfici piane.
 ```yaml
@@ -94,6 +106,18 @@ Sorgente luminosa toroidale emissiva.
     major_radius: 1.0
     minor_radius: 0.05
     translate: [0, 3, 0]
+    material: "neon_rosa"        # materiale emissive, intensity: 12
+```
+
+## Neon Circolare (variante con center)
+
+```yaml
+  # Variante con center
+  - name: "neon_anello"
+    type: "torus"
+    center: [0, 3, 0]
+    major_radius: 1.0
+    minor_radius: 0.05
     material: "neon_rosa"        # materiale emissive, intensity: 12
 ```
 

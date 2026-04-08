@@ -183,6 +183,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 - [ ] Creare librerie di template: `scenes/libraries/chess-pieces.yaml`, `scenes/libraries/furniture.yaml`
 - [ ] Feature #22 completa: Instancing con geometria condivisa a livello BVH (memory-efficient per scene con migliaia di istanze)
 - [ ] Fare una review completa dei tutorials (`tutorials/`): correttezza rispetto al codice, omissioni di feature, grammatica, esempi, indici.
+- Spezzare il file SceneLoader.cs in più file (al momento è un file troppo grande).
 - [ ] Aggiornare la checklist di testing con le scene di riferimento corrette.
 
 ---

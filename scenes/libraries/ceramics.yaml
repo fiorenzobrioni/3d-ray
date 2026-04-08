@@ -1,0 +1,799 @@
+# ============================================================================
+# Libreria Materiali — Ceramiche
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/ceramics.yaml" }]
+#
+# Raccolta completa di materiali ceramici, dalle terrecotte rustiche alle
+# porcellane da esposizione. Ogni materiale esiste in due varianti:
+#
+#   dis_  (Disney BSDF) — Per oggetti protagonisti. Supporta clearcoat
+#         (smaltatura), subsurface (traslucenza porcellana), sheen e
+#         specular tint. Richiede ~4× più campioni dei classici.
+#
+#   cls_  (Classic) — Per superfici di sfondo o render rapidi. Usa
+#         lambertian (opaco puro) o metal con fuzz (riflesso smaltato).
+#         Più veloce e silenzioso a parità di campioni.
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   PORCELLANA        Ceramica fine, corpo bianco vitrificato.
+#                     Traslucente, superficie liscia e lucida.
+#                     Usi: stoviglie eleganti, statuine, sanitari.
+#
+#   BONE CHINA        Variante inglese con cenere d'ossa. Ancora più
+#                     traslucente e sottile della porcellana classica.
+#
+#   MAIOLICA          Ceramica a corpo poroso con smalto stannifero
+#                     (bianco opaco) e decorazioni colorate sopra smalto.
+#                     Usi: piastrelle decorative, piatti da parete.
+#
+#   TERRACOTTA        Argilla cotta a basse temperature (900-1100°C).
+#                     Corpo poroso, colore caldo dal rosso all'ocra.
+#                     Può essere grezza o invetriata.
+#                     Usi: vasi, tegole, sculture da giardino.
+#
+#   GRÈS / STONEWARE  Ceramica ad alta temperatura (1200-1300°C).
+#                     Corpo denso e impermeabile, toni neutri/scuri.
+#                     Usi: tazze da tè, ciotole, brocche artigianali.
+#
+#   RAKU              Tecnica giapponese con raffreddamento rapido.
+#                     Superficie irregolare con riflessi metallici,
+#                     craquelure e macchie di riduzione.
+#                     Usi: ciotole per cerimonia del tè, arte.
+#
+#   CELADON           Smalto verde-giada tipico della ceramica cinese
+#                     e coreana. Trasparente, profondo, con sfumature
+#                     che variano dal verde salvia al verde acqua.
+#                     Usi: vasi, tazze, oggetti da collezione.
+#
+#   BISCOTTO / BISQUE Ceramica cotta una sola volta, senza smalto.
+#                     Superficie opaca, porosa, vellutata al tatto.
+#                     Usi: statuine, stampi, basi per smaltatura.
+#
+#   SMALTATA          Ceramica con smalto vetroso colorato. Superficie
+#                     lucida e impermeabile. Ampia gamma cromatica.
+#                     Usi: stoviglie quotidiane, piastrelle, vasi.
+#
+#   TERRA SIGILLATA   Antica tecnica romana. Superficie levigata e
+#                     satinata senza smalto, ottenuta con slip di
+#                     argilla finissima. Lucentezza naturale.
+#                     Usi: riproduzioni archeologiche, arte.
+#
+# ============================================================================
+
+
+materials:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  PORCELLANA — corpo bianco vitrificato, smalto lucido
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Porcellana bianca classica — la più comune, smaltatura lucida
+  - id: "dis_porcellana_bianca"
+    type: "disney"
+    color: [0.95, 0.93, 0.88]
+    roughness: 0.12
+    metallic: 0.0
+    specular: 0.8
+    clearcoat: 0.4
+    clearcoat_gloss: 0.9
+    subsurface: 0.15
+
+  # Porcellana avorio — tono caldo, leggermente invecchiata
+  - id: "dis_porcellana_avorio"
+    type: "disney"
+    color: [0.94, 0.90, 0.80]
+    roughness: 0.14
+    metallic: 0.0
+    specular: 0.7
+    clearcoat: 0.35
+    clearcoat_gloss: 0.88
+    subsurface: 0.18
+
+  # Porcellana blu cobalto — decorazione classica cinese/Delft
+  - id: "dis_porcellana_blu"
+    type: "disney"
+    color: [0.10, 0.15, 0.55]
+    roughness: 0.10
+    metallic: 0.0
+    specular: 0.85
+    clearcoat: 0.5
+    clearcoat_gloss: 0.92
+    subsurface: 0.08
+
+  # Porcellana nera — elegante, smalto a specchio profondo
+  - id: "dis_porcellana_nera"
+    type: "disney"
+    color: [0.03, 0.03, 0.04]
+    roughness: 0.06
+    metallic: 0.0
+    specular: 0.9
+    clearcoat: 0.6
+    clearcoat_gloss: 0.95
+
+  # Porcellana rosa — stile Sèvres, delicato e luminoso
+  - id: "dis_porcellana_rosa"
+    type: "disney"
+    color: [0.92, 0.72, 0.74]
+    roughness: 0.12
+    metallic: 0.0
+    specular: 0.75
+    clearcoat: 0.4
+    clearcoat_gloss: 0.90
+    subsurface: 0.20
+
+  # Porcellana craquelé — superficie con rete di micro-fessure
+  - id: "dis_porcellana_craquele"
+    type: "disney"
+    color: [0.92, 0.90, 0.84]
+    roughness: 0.22
+    metallic: 0.0
+    specular: 0.6
+    clearcoat: 0.3
+    clearcoat_gloss: 0.75
+    subsurface: 0.12
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  # Porcellana bianca — lambertian con leggero riflesso via metal-fuzz
+  - id: "cls_porcellana_bianca"
+    type: "metal"
+    color: [0.95, 0.93, 0.88]
+    fuzz: 0.30
+
+  # Porcellana avorio — tono caldo, opaca
+  - id: "cls_porcellana_avorio"
+    type: "lambertian"
+    color: [0.94, 0.90, 0.80]
+
+  # Porcellana blu cobalto
+  - id: "cls_porcellana_blu"
+    type: "metal"
+    color: [0.10, 0.15, 0.55]
+    fuzz: 0.28
+
+  # Porcellana nera — specchio scuro
+  - id: "cls_porcellana_nera"
+    type: "metal"
+    color: [0.03, 0.03, 0.04]
+    fuzz: 0.15
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  BONE CHINA — traslucenza elevata, corpo sottilissimo
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Bone china naturale — bianco caldo, traslucenza marcata
+  - id: "dis_bonechina_naturale"
+    type: "disney"
+    color: [0.96, 0.94, 0.88]
+    roughness: 0.10
+    metallic: 0.0
+    specular: 0.85
+    clearcoat: 0.45
+    clearcoat_gloss: 0.92
+    subsurface: 0.35
+
+  # Bone china blu — decorazione Wedgwood
+  - id: "dis_bonechina_blu"
+    type: "disney"
+    color: [0.55, 0.68, 0.82]
+    roughness: 0.10
+    metallic: 0.0
+    specular: 0.80
+    clearcoat: 0.4
+    clearcoat_gloss: 0.90
+    subsurface: 0.25
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_bonechina_naturale"
+    type: "metal"
+    color: [0.96, 0.94, 0.88]
+    fuzz: 0.25
+
+  - id: "cls_bonechina_blu"
+    type: "metal"
+    color: [0.55, 0.68, 0.82]
+    fuzz: 0.25
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  MAIOLICA — smalto stannifero bianco opaco, colori sopra smalto
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Maiolica bianca — base non decorata, smalto spesso e satinato
+  - id: "dis_maiolica_bianca"
+    type: "disney"
+    color: [0.92, 0.90, 0.86]
+    roughness: 0.18
+    metallic: 0.0
+    specular: 0.6
+    clearcoat: 0.3
+    clearcoat_gloss: 0.80
+
+  # Maiolica azzurra — stile Deruta, azzurro intenso
+  - id: "dis_maiolica_azzurra"
+    type: "disney"
+    color: [0.20, 0.45, 0.75]
+    roughness: 0.16
+    metallic: 0.0
+    specular: 0.65
+    clearcoat: 0.35
+    clearcoat_gloss: 0.82
+
+  # Maiolica gialla — ocra luminosa, tipica delle ceramiche toscane
+  - id: "dis_maiolica_gialla"
+    type: "disney"
+    color: [0.88, 0.75, 0.25]
+    roughness: 0.18
+    metallic: 0.0
+    specular: 0.6
+    clearcoat: 0.3
+    clearcoat_gloss: 0.78
+
+  # Maiolica verde rame — verde ramina, intenso
+  - id: "dis_maiolica_verde"
+    type: "disney"
+    color: [0.12, 0.52, 0.28]
+    roughness: 0.16
+    metallic: 0.0
+    specular: 0.65
+    clearcoat: 0.35
+    clearcoat_gloss: 0.82
+
+  # Maiolica arancio manganese — arancio caldo con sfumature brune
+  - id: "dis_maiolica_arancio"
+    type: "disney"
+    color: [0.82, 0.45, 0.12]
+    roughness: 0.18
+    metallic: 0.0
+    specular: 0.58
+    clearcoat: 0.30
+    clearcoat_gloss: 0.78
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_maiolica_bianca"
+    type: "metal"
+    color: [0.92, 0.90, 0.86]
+    fuzz: 0.35
+
+  - id: "cls_maiolica_azzurra"
+    type: "metal"
+    color: [0.20, 0.45, 0.75]
+    fuzz: 0.32
+
+  - id: "cls_maiolica_gialla"
+    type: "metal"
+    color: [0.88, 0.75, 0.25]
+    fuzz: 0.35
+
+  - id: "cls_maiolica_verde"
+    type: "metal"
+    color: [0.12, 0.52, 0.28]
+    fuzz: 0.32
+
+  - id: "cls_maiolica_arancio"
+    type: "metal"
+    color: [0.82, 0.45, 0.12]
+    fuzz: 0.35
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  TERRACOTTA — argilla a bassa temperatura, corpo poroso
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Terracotta naturale — classica, non smaltata, leggermente ruvida
+  - id: "dis_terracotta_naturale"
+    type: "disney"
+    color: [0.72, 0.42, 0.26]
+    roughness: 0.75
+    metallic: 0.0
+    specular: 0.15
+
+  # Terracotta rossa — argilla ferruginosa, tono più saturo
+  - id: "dis_terracotta_rossa"
+    type: "disney"
+    color: [0.68, 0.28, 0.15]
+    roughness: 0.78
+    metallic: 0.0
+    specular: 0.12
+
+  # Terracotta chiara — argilla calcarea, tono sabbia
+  - id: "dis_terracotta_chiara"
+    type: "disney"
+    color: [0.82, 0.68, 0.50]
+    roughness: 0.72
+    metallic: 0.0
+    specular: 0.18
+
+  # Terracotta scura — cotta a lungo, quasi bruno
+  - id: "dis_terracotta_scura"
+    type: "disney"
+    color: [0.45, 0.25, 0.15]
+    roughness: 0.80
+    metallic: 0.0
+    specular: 0.10
+
+  # Terracotta invetriata — smalto trasparente su terracotta
+  - id: "dis_terracotta_invetriata"
+    type: "disney"
+    color: [0.70, 0.40, 0.24]
+    roughness: 0.22
+    metallic: 0.0
+    specular: 0.6
+    clearcoat: 0.4
+    clearcoat_gloss: 0.82
+
+  # Terracotta smaltata verde — toscana, smalto ramina su coccio
+  - id: "dis_terracotta_smaltata_verde"
+    type: "disney"
+    color: [0.18, 0.42, 0.22]
+    roughness: 0.20
+    metallic: 0.0
+    specular: 0.55
+    clearcoat: 0.35
+    clearcoat_gloss: 0.80
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_terracotta_naturale"
+    type: "lambertian"
+    color: [0.72, 0.42, 0.26]
+
+  - id: "cls_terracotta_rossa"
+    type: "lambertian"
+    color: [0.68, 0.28, 0.15]
+
+  - id: "cls_terracotta_chiara"
+    type: "lambertian"
+    color: [0.82, 0.68, 0.50]
+
+  - id: "cls_terracotta_scura"
+    type: "lambertian"
+    color: [0.45, 0.25, 0.15]
+
+  - id: "cls_terracotta_invetriata"
+    type: "metal"
+    color: [0.70, 0.40, 0.24]
+    fuzz: 0.35
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  GRÈS / STONEWARE — alta temperatura, corpo denso e impermeabile
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Grès naturale — grigio neutro, finitura opaca artigianale
+  - id: "dis_gres_naturale"
+    type: "disney"
+    color: [0.52, 0.50, 0.46]
+    roughness: 0.65
+    metallic: 0.0
+    specular: 0.20
+
+  # Grès scuro — corpo molto denso, quasi nero
+  - id: "dis_gres_scuro"
+    type: "disney"
+    color: [0.18, 0.16, 0.15]
+    roughness: 0.60
+    metallic: 0.0
+    specular: 0.25
+
+  # Grès sabbia — tono caldo, stile scandinavo
+  - id: "dis_gres_sabbia"
+    type: "disney"
+    color: [0.68, 0.62, 0.52]
+    roughness: 0.62
+    metallic: 0.0
+    specular: 0.22
+
+  # Grès smaltato — smalto tenmoku marrone-nero, bordi più chiari
+  - id: "dis_gres_tenmoku"
+    type: "disney"
+    color: [0.15, 0.10, 0.06]
+    roughness: 0.18
+    metallic: 0.0
+    specular: 0.70
+    clearcoat: 0.5
+    clearcoat_gloss: 0.85
+
+  # Grès smaltato bianco — smalto shino, cremoso e spesso
+  - id: "dis_gres_shino"
+    type: "disney"
+    color: [0.90, 0.86, 0.78]
+    roughness: 0.25
+    metallic: 0.0
+    specular: 0.55
+    clearcoat: 0.3
+    clearcoat_gloss: 0.75
+    subsurface: 0.10
+
+  # Grès celadon chiaro — smalto verde-grigio sottile su grès
+  - id: "dis_gres_celadon"
+    type: "disney"
+    color: [0.62, 0.72, 0.60]
+    roughness: 0.15
+    metallic: 0.0
+    specular: 0.65
+    clearcoat: 0.4
+    clearcoat_gloss: 0.85
+    subsurface: 0.08
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_gres_naturale"
+    type: "lambertian"
+    color: [0.52, 0.50, 0.46]
+
+  - id: "cls_gres_scuro"
+    type: "lambertian"
+    color: [0.18, 0.16, 0.15]
+
+  - id: "cls_gres_sabbia"
+    type: "lambertian"
+    color: [0.68, 0.62, 0.52]
+
+  - id: "cls_gres_tenmoku"
+    type: "metal"
+    color: [0.15, 0.10, 0.06]
+    fuzz: 0.22
+
+  - id: "cls_gres_shino"
+    type: "metal"
+    color: [0.90, 0.86, 0.78]
+    fuzz: 0.38
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  RAKU — raffreddamento rapido, riflessi metallici, craquelure
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Raku rame — riflesso metallico ramato da riduzione in segatura
+  - id: "dis_raku_rame"
+    type: "disney"
+    color: [0.65, 0.35, 0.18]
+    roughness: 0.28
+    metallic: 0.55
+    specular: 0.7
+    specular_tint: 0.6
+
+  # Raku nero — corpo carbonizzato in post-cottura, lucentezza irregolare
+  - id: "dis_raku_nero"
+    type: "disney"
+    color: [0.06, 0.05, 0.05]
+    roughness: 0.35
+    metallic: 0.30
+    specular: 0.5
+    sheen: 0.15
+    sheen_tint: 0.3
+
+  # Raku bianco craquelé — smalto bianco con rete di fessure annerite
+  - id: "dis_raku_bianco"
+    type: "disney"
+    color: [0.88, 0.85, 0.80]
+    roughness: 0.30
+    metallic: 0.0
+    specular: 0.50
+    clearcoat: 0.25
+    clearcoat_gloss: 0.70
+
+  # Raku iridescente — riduzione intensa, riflessi cangianti
+  - id: "dis_raku_iridescente"
+    type: "disney"
+    color: [0.40, 0.30, 0.45]
+    roughness: 0.22
+    metallic: 0.65
+    specular: 0.75
+    specular_tint: 0.8
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_raku_rame"
+    type: "metal"
+    color: [0.65, 0.35, 0.18]
+    fuzz: 0.30
+
+  - id: "cls_raku_nero"
+    type: "metal"
+    color: [0.06, 0.05, 0.05]
+    fuzz: 0.40
+
+  - id: "cls_raku_bianco"
+    type: "metal"
+    color: [0.88, 0.85, 0.80]
+    fuzz: 0.42
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CELADON — smalto verde-giada, ceramica cinese e coreana
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Celadon classico — verde giada profondo, smalto spesso e luminoso
+  - id: "dis_celadon_classico"
+    type: "disney"
+    color: [0.45, 0.62, 0.48]
+    roughness: 0.12
+    metallic: 0.0
+    specular: 0.75
+    clearcoat: 0.5
+    clearcoat_gloss: 0.90
+    subsurface: 0.12
+
+  # Celadon chiaro — verde acqua tenue, stile coreano Goryeo
+  - id: "dis_celadon_chiaro"
+    type: "disney"
+    color: [0.65, 0.78, 0.68]
+    roughness: 0.10
+    metallic: 0.0
+    specular: 0.80
+    clearcoat: 0.45
+    clearcoat_gloss: 0.92
+    subsurface: 0.15
+
+  # Celadon scuro — verde oliva intenso, pezzi Song dynasty
+  - id: "dis_celadon_scuro"
+    type: "disney"
+    color: [0.28, 0.40, 0.28]
+    roughness: 0.14
+    metallic: 0.0
+    specular: 0.70
+    clearcoat: 0.45
+    clearcoat_gloss: 0.88
+    subsurface: 0.10
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_celadon_classico"
+    type: "metal"
+    color: [0.45, 0.62, 0.48]
+    fuzz: 0.22
+
+  - id: "cls_celadon_chiaro"
+    type: "metal"
+    color: [0.65, 0.78, 0.68]
+    fuzz: 0.20
+
+  - id: "cls_celadon_scuro"
+    type: "metal"
+    color: [0.28, 0.40, 0.28]
+    fuzz: 0.24
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  BISCOTTO / BISQUE — una sola cottura, senza smalto
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Biscotto bianco — porcellana non smaltata, vellutata
+  - id: "dis_biscotto_bianco"
+    type: "disney"
+    color: [0.92, 0.90, 0.86]
+    roughness: 0.82
+    metallic: 0.0
+    specular: 0.10
+    subsurface: 0.08
+
+  # Biscotto rosa — argilla con ossidi di ferro, tono carne
+  - id: "dis_biscotto_rosa"
+    type: "disney"
+    color: [0.85, 0.72, 0.65]
+    roughness: 0.85
+    metallic: 0.0
+    specular: 0.08
+
+  # Biscotto grigio — grès crudo, tono freddo
+  - id: "dis_biscotto_grigio"
+    type: "disney"
+    color: [0.58, 0.56, 0.54]
+    roughness: 0.80
+    metallic: 0.0
+    specular: 0.12
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_biscotto_bianco"
+    type: "lambertian"
+    color: [0.92, 0.90, 0.86]
+
+  - id: "cls_biscotto_rosa"
+    type: "lambertian"
+    color: [0.85, 0.72, 0.65]
+
+  - id: "cls_biscotto_grigio"
+    type: "lambertian"
+    color: [0.58, 0.56, 0.54]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SMALTATA — smalto vetroso colorato, ampia gamma cromatica
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Smaltata bianca — stoviglie quotidiane, smalto lucido pulito
+  - id: "dis_smaltata_bianca"
+    type: "disney"
+    color: [0.94, 0.93, 0.90]
+    roughness: 0.12
+    metallic: 0.0
+    specular: 0.7
+    clearcoat: 0.35
+    clearcoat_gloss: 0.88
+
+  # Smaltata rossa — rosso ossido di ferro, vibrante
+  - id: "dis_smaltata_rossa"
+    type: "disney"
+    color: [0.75, 0.12, 0.08]
+    roughness: 0.14
+    metallic: 0.0
+    specular: 0.65
+    clearcoat: 0.35
+    clearcoat_gloss: 0.85
+
+  # Smaltata blu — blu di Persia, intenso e profondo
+  - id: "dis_smaltata_blu"
+    type: "disney"
+    color: [0.08, 0.22, 0.62]
+    roughness: 0.12
+    metallic: 0.0
+    specular: 0.70
+    clearcoat: 0.40
+    clearcoat_gloss: 0.88
+
+  # Smaltata turchese — smalto alcalino, colore caraibico
+  - id: "dis_smaltata_turchese"
+    type: "disney"
+    color: [0.15, 0.65, 0.68]
+    roughness: 0.14
+    metallic: 0.0
+    specular: 0.68
+    clearcoat: 0.38
+    clearcoat_gloss: 0.85
+
+  # Smaltata giallo limone — vivace, finitura brillante
+  - id: "dis_smaltata_gialla"
+    type: "disney"
+    color: [0.90, 0.82, 0.15]
+    roughness: 0.14
+    metallic: 0.0
+    specular: 0.60
+    clearcoat: 0.30
+    clearcoat_gloss: 0.85
+
+  # Smaltata verde bottiglia — scuro, ricco, classico
+  - id: "dis_smaltata_verde"
+    type: "disney"
+    color: [0.08, 0.35, 0.15]
+    roughness: 0.14
+    metallic: 0.0
+    specular: 0.65
+    clearcoat: 0.38
+    clearcoat_gloss: 0.86
+
+  # Smaltata nera lucida — fondo nero per contrasti decorativi
+  - id: "dis_smaltata_nera"
+    type: "disney"
+    color: [0.03, 0.03, 0.03]
+    roughness: 0.08
+    metallic: 0.0
+    specular: 0.85
+    clearcoat: 0.50
+    clearcoat_gloss: 0.92
+
+  # Smaltata lavanda — tono lilla tenue, finitura satinata
+  - id: "dis_smaltata_lavanda"
+    type: "disney"
+    color: [0.62, 0.52, 0.72]
+    roughness: 0.20
+    metallic: 0.0
+    specular: 0.55
+    clearcoat: 0.25
+    clearcoat_gloss: 0.78
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_smaltata_bianca"
+    type: "metal"
+    color: [0.94, 0.93, 0.90]
+    fuzz: 0.28
+
+  - id: "cls_smaltata_rossa"
+    type: "metal"
+    color: [0.75, 0.12, 0.08]
+    fuzz: 0.30
+
+  - id: "cls_smaltata_blu"
+    type: "metal"
+    color: [0.08, 0.22, 0.62]
+    fuzz: 0.28
+
+  - id: "cls_smaltata_turchese"
+    type: "metal"
+    color: [0.15, 0.65, 0.68]
+    fuzz: 0.30
+
+  - id: "cls_smaltata_gialla"
+    type: "metal"
+    color: [0.90, 0.82, 0.15]
+    fuzz: 0.30
+
+  - id: "cls_smaltata_verde"
+    type: "metal"
+    color: [0.08, 0.35, 0.15]
+    fuzz: 0.30
+
+  - id: "cls_smaltata_nera"
+    type: "metal"
+    color: [0.03, 0.03, 0.03]
+    fuzz: 0.18
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  TERRA SIGILLATA — tecnica romana, superficie levigata senza smalto
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Terra sigillata rossa — classica romana, slip rosso lucidato
+  - id: "dis_sigillata_rossa"
+    type: "disney"
+    color: [0.65, 0.25, 0.12]
+    roughness: 0.40
+    metallic: 0.0
+    specular: 0.35
+    sheen: 0.10
+    sheen_tint: 0.6
+
+  # Terra sigillata nera — riduzione in cottura, nero satinato
+  - id: "dis_sigillata_nera"
+    type: "disney"
+    color: [0.08, 0.07, 0.06]
+    roughness: 0.38
+    metallic: 0.0
+    specular: 0.40
+    sheen: 0.12
+    sheen_tint: 0.3
+
+  # Terra sigillata ocra — tono miele, slip chiaro
+  - id: "dis_sigillata_ocra"
+    type: "disney"
+    color: [0.78, 0.58, 0.30]
+    roughness: 0.42
+    metallic: 0.0
+    specular: 0.30
+    sheen: 0.08
+    sheen_tint: 0.5
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_sigillata_rossa"
+    type: "metal"
+    color: [0.65, 0.25, 0.12]
+    fuzz: 0.45
+
+  - id: "cls_sigillata_nera"
+    type: "metal"
+    color: [0.08, 0.07, 0.06]
+    fuzz: 0.42
+
+  - id: "cls_sigillata_ocra"
+    type: "metal"
+    color: [0.78, 0.58, 0.30]
+    fuzz: 0.48

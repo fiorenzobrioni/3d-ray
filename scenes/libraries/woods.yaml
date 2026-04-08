@@ -1,0 +1,1068 @@
+# ============================================================================
+# Libreria Materiali — Legni
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/woods.yaml" }]
+#
+# Raccolta completa di essenze lignee con finiture differenziate, dal legno
+# grezzo non trattato alla lacca a specchio. Ogni materiale usa la texture
+# procedurale "wood" del motore con parametri calibrati per essenza.
+#
+#   dis_  (Disney BSDF) — Per oggetti protagonisti. Supporta clearcoat
+#         (vernice/lacca), sheen (poro aperto, oliatura), subsurface
+#         (traslucenza delle essenze chiare). Usare con ≥128 spp.
+#
+#   cls_  (Classic) — Lambertian con texture wood. Perfetto per
+#         pavimenti, tavoli, superfici di sfondo. Zero rumore Disney.
+#         Per essenze verniciate, usa metal+fuzz con texture wood.
+#
+# ── Finiture ─────────────────────────────────────────────────────────────
+#
+#   Ogni essenza viene proposta in più finiture dove appropriato:
+#
+#   _grezzo    Nessun trattamento. Roughness altissima, sheen da poro
+#              aperto, nessun clearcoat. Aspetto opaco e naturale.
+#
+#   _olio      Olio penetrante (tung, lino, danese). Esalta la venatura,
+#              leggero sheen al radente, roughness medio-alta.
+#
+#   _cera      Finitura a cera d'api. Satinata, calore morbido.
+#              Clearcoat basso con gloss medio.
+#
+#   _verniciato  Vernice trasparente (poliuretano, gommalacca).
+#                Clearcoat medio-alto, venatura visibile sotto.
+#
+#   _laccato   Lacca piena (pianoforte, mobili orientali). Clearcoat
+#              massimo, superficie quasi a specchio.
+#
+# ── Parametri texture "wood" ─────────────────────────────────────────────
+#
+#   scale          Frequenza degli anelli: basso = anelli larghi (legno
+#                  vecchio), alto = anelli stretti (crescita rapida).
+#   noise_strength Irregolarità della venatura: basso = anelli regolari
+#                  (essenze coltivate), alto = nodi e figure.
+#   colors         [colore_chiaro, colore_scuro]: il legno precoce e
+#                  tardivo che forma gli anelli. Il contrasto tra i due
+#                  definisce la "personalità" dell'essenza.
+#   randomize_offset/rotation  Sempre true per evitare pattern ripetitivi
+#                  quando la stessa essenza è usata su più oggetti.
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   LATIFOGLIE CHIARE     Acero, Betulla, Frassino, Faggio.
+#                         Toni bianchi/crema/miele, venatura delicata.
+#
+#   LATIFOGLIE MEDIE      Quercia, Ciliegio, Teak, Iroko.
+#                         Toni dorati/ambrati, venatura pronunciata.
+#
+#   LATIFOGLIE SCURE      Noce, Mogano, Wengé, Palissandro.
+#                         Toni bruni/cioccolato, venatura ricca.
+#
+#   LEGNI NERI            Ebano, Ebano Macassar, Grenadilla.
+#                         Toni quasi neri, estrema durezza.
+#
+#   CONIFERE              Pino, Abete, Cedro, Larice.
+#                         Toni chiari/rosati, nodi prominenti.
+#
+#   LEGNI ESOTICI         Zebrano, Padouk, Amaranto, Bocote.
+#                         Figure eccezionali, colori vivaci.
+#
+#   LEGNI TRATTATI        Legno sbiancato, carbonizzato (Shou Sugi Ban),
+#                         invecchiato (barnwood), tinto.
+#
+# ============================================================================
+
+
+materials:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  LATIFOGLIE CHIARE — toni bianchi/crema/miele
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── ACERO ──────────────────────────────────────────────────────────────
+
+  # Disney — grezzo (poro aperto, nessuna finitura)
+  - id: "dis_acero_grezzo"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 1.5
+      colors: [[0.85, 0.72, 0.52], [0.72, 0.58, 0.38]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.90
+    specular: 0.15
+    sheen: 0.20
+    sheen_tint: 0.9
+    subsurface: 0.10
+
+  # Disney — olio (finitura a olio danese)
+  - id: "dis_acero_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 1.5
+      colors: [[0.82, 0.68, 0.48], [0.68, 0.54, 0.34]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.72
+    specular: 0.28
+    sheen: 0.12
+    sheen_tint: 0.8
+
+  # Disney — verniciato (poliuretano satinato)
+  - id: "dis_acero_verniciato"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 1.5
+      colors: [[0.80, 0.66, 0.45], [0.65, 0.50, 0.30]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.30
+    specular: 0.50
+    clearcoat: 0.6
+    clearcoat_gloss: 0.85
+
+  # Classic — lambertian (sfondo, pavimenti)
+  - id: "cls_acero"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 1.5
+      colors: [[0.85, 0.72, 0.52], [0.72, 0.58, 0.38]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── BETULLA ────────────────────────────────────────────────────────────
+
+  - id: "dis_betulla_grezzo"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 1.8
+      colors: [[0.90, 0.82, 0.68], [0.78, 0.68, 0.52]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.88
+    specular: 0.18
+    sheen: 0.10
+    sheen_tint: 0.7
+    subsurface: 0.15
+
+  - id: "dis_betulla_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 1.8
+      colors: [[0.88, 0.78, 0.62], [0.75, 0.64, 0.48]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.68
+    specular: 0.30
+    sheen: 0.08
+    sheen_tint: 0.7
+
+  - id: "cls_betulla"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 1.8
+      colors: [[0.90, 0.82, 0.68], [0.78, 0.68, 0.52]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── FRASSINO ───────────────────────────────────────────────────────────
+
+  - id: "dis_frassino_grezzo"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.2
+      colors: [[0.82, 0.72, 0.55], [0.62, 0.52, 0.38]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.85
+    specular: 0.18
+    sheen: 0.15
+    sheen_tint: 0.8
+
+  - id: "dis_frassino_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.2
+      colors: [[0.78, 0.68, 0.50], [0.58, 0.48, 0.34]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.70
+    specular: 0.30
+    sheen: 0.10
+    sheen_tint: 0.8
+
+  - id: "cls_frassino"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.2
+      colors: [[0.82, 0.72, 0.55], [0.62, 0.52, 0.38]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── FAGGIO ─────────────────────────────────────────────────────────────
+
+  - id: "dis_faggio_grezzo"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 1.2
+      colors: [[0.80, 0.65, 0.45], [0.68, 0.52, 0.35]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.85
+    specular: 0.20
+    sheen: 0.12
+    sheen_tint: 0.8
+
+  - id: "dis_faggio_verniciato"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 1.2
+      colors: [[0.76, 0.60, 0.40], [0.64, 0.48, 0.30]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.32
+    specular: 0.48
+    clearcoat: 0.55
+    clearcoat_gloss: 0.82
+
+  - id: "cls_faggio"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 1.2
+      colors: [[0.80, 0.65, 0.45], [0.68, 0.52, 0.35]]
+      randomize_offset: true
+      randomize_rotation: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  LATIFOGLIE MEDIE — toni dorati/ambrati
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── QUERCIA ────────────────────────────────────────────────────────────
+
+  - id: "dis_quercia_grezzo"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.75, 0.55, 0.30], [0.55, 0.35, 0.15]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.88
+    specular: 0.20
+    sheen: 0.18
+    sheen_tint: 0.8
+
+  - id: "dis_quercia_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.72, 0.52, 0.28], [0.52, 0.32, 0.14]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.72
+    specular: 0.28
+    sheen: 0.12
+    sheen_tint: 0.8
+
+  - id: "dis_quercia_cera"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.70, 0.50, 0.26], [0.50, 0.30, 0.12]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.58
+    specular: 0.35
+    clearcoat: 0.20
+    clearcoat_gloss: 0.60
+
+  - id: "cls_quercia"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.75, 0.55, 0.30], [0.55, 0.35, 0.15]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── CILIEGIO ───────────────────────────────────────────────────────────
+
+  - id: "dis_ciliegio_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 3.0
+      colors: [[0.65, 0.28, 0.14], [0.45, 0.16, 0.06]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.65
+    specular: 0.35
+    sheen: 0.08
+    sheen_tint: 0.6
+
+  - id: "dis_ciliegio_verniciato"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 3.0
+      colors: [[0.62, 0.24, 0.12], [0.42, 0.14, 0.05]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.30
+    specular: 0.50
+    clearcoat: 0.75
+    clearcoat_gloss: 0.90
+
+  - id: "cls_ciliegio"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 3.0
+      colors: [[0.65, 0.28, 0.14], [0.45, 0.16, 0.06]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── TEAK ───────────────────────────────────────────────────────────────
+
+  - id: "dis_teak_grezzo"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.62, 0.45, 0.22], [0.45, 0.30, 0.12]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.82
+    specular: 0.22
+    sheen: 0.10
+    sheen_tint: 0.7
+
+  - id: "dis_teak_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.58, 0.42, 0.20], [0.42, 0.28, 0.10]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.65
+    specular: 0.32
+    sheen: 0.06
+    sheen_tint: 0.6
+
+  - id: "cls_teak"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.62, 0.45, 0.22], [0.45, 0.30, 0.12]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── IROKO ──────────────────────────────────────────────────────────────
+
+  - id: "dis_iroko_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 1.8
+      colors: [[0.58, 0.40, 0.18], [0.40, 0.25, 0.10]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.68
+    specular: 0.30
+    sheen: 0.08
+    sheen_tint: 0.7
+
+  - id: "cls_iroko"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 1.8
+      colors: [[0.58, 0.40, 0.18], [0.40, 0.25, 0.10]]
+      randomize_offset: true
+      randomize_rotation: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  LATIFOGLIE SCURE — toni bruni/cioccolato
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── NOCE ───────────────────────────────────────────────────────────────
+
+  - id: "dis_noce_grezzo"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.45, 0.28, 0.15], [0.30, 0.18, 0.08]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.82
+    specular: 0.22
+    sheen: 0.12
+    sheen_tint: 0.7
+
+  - id: "dis_noce_cera"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.42, 0.26, 0.13], [0.28, 0.16, 0.07]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.60
+    specular: 0.38
+    clearcoat: 0.22
+    clearcoat_gloss: 0.62
+
+  - id: "dis_noce_verniciato"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.40, 0.24, 0.12], [0.26, 0.15, 0.06]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.28
+    specular: 0.50
+    clearcoat: 0.70
+    clearcoat_gloss: 0.88
+
+  - id: "cls_noce"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.45, 0.28, 0.15], [0.30, 0.18, 0.08]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # Classic — verniciato (metal + fuzz per riflesso di vernice)
+  - id: "cls_noce_verniciato"
+    type: "metal"
+    fuzz: 0.12
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.40, 0.24, 0.12], [0.26, 0.15, 0.06]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── MOGANO ─────────────────────────────────────────────────────────────
+
+  - id: "dis_mogano_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.48, 0.18, 0.08], [0.30, 0.10, 0.04]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.62
+    specular: 0.38
+    sheen: 0.06
+    sheen_tint: 0.5
+
+  - id: "dis_mogano_laccato"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.45, 0.16, 0.06], [0.28, 0.08, 0.03]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.15
+    specular: 0.65
+    clearcoat: 0.90
+    clearcoat_gloss: 0.95
+
+  - id: "cls_mogano"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.48, 0.18, 0.08], [0.30, 0.10, 0.04]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── WENGÉ ──────────────────────────────────────────────────────────────
+
+  - id: "dis_wenge_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.5
+      noise_strength: 2.8
+      colors: [[0.25, 0.16, 0.10], [0.12, 0.08, 0.05]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.65
+    specular: 0.32
+    sheen: 0.05
+    sheen_tint: 0.4
+
+  - id: "cls_wenge"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 5.5
+      noise_strength: 2.8
+      colors: [[0.25, 0.16, 0.10], [0.12, 0.08, 0.05]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── PALISSANDRO ────────────────────────────────────────────────────────
+
+  - id: "dis_palissandro_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 3.5
+      colors: [[0.38, 0.18, 0.12], [0.18, 0.08, 0.05]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.58
+    specular: 0.40
+    sheen: 0.05
+    sheen_tint: 0.4
+
+  - id: "dis_palissandro_laccato"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 3.5
+      colors: [[0.35, 0.16, 0.10], [0.16, 0.07, 0.04]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.12
+    specular: 0.65
+    clearcoat: 0.88
+    clearcoat_gloss: 0.95
+
+  - id: "cls_palissandro"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 3.5
+      colors: [[0.38, 0.18, 0.12], [0.18, 0.08, 0.05]]
+      randomize_offset: true
+      randomize_rotation: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  LEGNI NERI — toni quasi neri, estrema durezza
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── EBANO ──────────────────────────────────────────────────────────────
+
+  - id: "dis_ebano_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 6.0
+      noise_strength: 1.0
+      colors: [[0.12, 0.08, 0.05], [0.06, 0.04, 0.02]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.55
+    specular: 0.45
+    sheen: 0.04
+    sheen_tint: 0.3
+
+  - id: "dis_ebano_laccato"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 6.0
+      noise_strength: 1.0
+      colors: [[0.10, 0.07, 0.04], [0.05, 0.03, 0.02]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.10
+    specular: 0.72
+    clearcoat: 1.0
+    clearcoat_gloss: 1.0
+
+  - id: "cls_ebano"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 6.0
+      noise_strength: 1.0
+      colors: [[0.12, 0.08, 0.05], [0.06, 0.04, 0.02]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # Classic — laccato (metal per il riflesso a specchio)
+  - id: "cls_ebano_laccato"
+    type: "metal"
+    fuzz: 0.08
+    texture:
+      type: "wood"
+      scale: 6.0
+      noise_strength: 1.0
+      colors: [[0.10, 0.07, 0.04], [0.05, 0.03, 0.02]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── EBANO MACASSAR — striature chiare su fondo scuro ───────────────────
+
+  - id: "dis_ebano_macassar"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 4.0
+      colors: [[0.22, 0.14, 0.06], [0.06, 0.04, 0.02]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.45
+    specular: 0.50
+    clearcoat: 0.5
+    clearcoat_gloss: 0.85
+
+  - id: "cls_ebano_macassar"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 4.0
+      colors: [[0.22, 0.14, 0.06], [0.06, 0.04, 0.02]]
+      randomize_offset: true
+      randomize_rotation: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CONIFERE — toni chiari/rosati, nodi prominenti
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── PINO ───────────────────────────────────────────────────────────────
+
+  - id: "dis_pino_grezzo"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 3.0
+      colors: [[0.82, 0.70, 0.48], [0.60, 0.45, 0.25]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.88
+    specular: 0.15
+    sheen: 0.18
+    sheen_tint: 0.8
+    subsurface: 0.08
+
+  - id: "dis_pino_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 3.0
+      colors: [[0.78, 0.65, 0.42], [0.56, 0.40, 0.22]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.72
+    specular: 0.28
+    sheen: 0.10
+    sheen_tint: 0.7
+
+  - id: "dis_pino_verniciato"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 3.0
+      colors: [[0.75, 0.62, 0.40], [0.54, 0.38, 0.20]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.32
+    specular: 0.45
+    clearcoat: 0.55
+    clearcoat_gloss: 0.82
+
+  - id: "cls_pino"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 3.0
+      colors: [[0.82, 0.70, 0.48], [0.60, 0.45, 0.25]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── ABETE ──────────────────────────────────────────────────────────────
+
+  - id: "dis_abete_grezzo"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 2.0
+      colors: [[0.85, 0.75, 0.58], [0.68, 0.55, 0.38]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.90
+    specular: 0.12
+    sheen: 0.15
+    sheen_tint: 0.8
+
+  - id: "cls_abete"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 2.0
+      colors: [[0.85, 0.75, 0.58], [0.68, 0.55, 0.38]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── CEDRO ──────────────────────────────────────────────────────────────
+
+  - id: "dis_cedro_grezzo"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.5
+      colors: [[0.72, 0.48, 0.30], [0.52, 0.30, 0.16]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.82
+    specular: 0.20
+    sheen: 0.12
+    sheen_tint: 0.6
+
+  - id: "cls_cedro"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.5
+      colors: [[0.72, 0.48, 0.30], [0.52, 0.30, 0.16]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── LARICE ─────────────────────────────────────────────────────────────
+
+  - id: "dis_larice_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 2.2
+      colors: [[0.70, 0.52, 0.32], [0.50, 0.34, 0.18]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.68
+    specular: 0.30
+    sheen: 0.08
+    sheen_tint: 0.6
+
+  - id: "cls_larice"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 2.2
+      colors: [[0.70, 0.52, 0.32], [0.50, 0.34, 0.18]]
+      randomize_offset: true
+      randomize_rotation: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  LEGNI ESOTICI — figure eccezionali, colori vivaci
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── ZEBRANO — striature marcatissime, chiaro su scuro ──────────────────
+
+  - id: "dis_zebrano_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 6.0
+      noise_strength: 5.0
+      colors: [[0.72, 0.55, 0.30], [0.28, 0.15, 0.06]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.62
+    specular: 0.38
+    sheen: 0.06
+    sheen_tint: 0.5
+
+  - id: "cls_zebrano"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 6.0
+      noise_strength: 5.0
+      colors: [[0.72, 0.55, 0.30], [0.28, 0.15, 0.06]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── PADOUK — rosso-arancio vivace, unico nel mondo del legno ───────────
+
+  - id: "dis_padouk_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 1.8
+      colors: [[0.72, 0.22, 0.08], [0.52, 0.14, 0.05]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.62
+    specular: 0.35
+    sheen: 0.06
+    sheen_tint: 0.5
+
+  - id: "cls_padouk"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 1.8
+      colors: [[0.72, 0.22, 0.08], [0.52, 0.14, 0.05]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── AMARANTO / PURPLEHEART — viola intenso, unico ──────────────────────
+
+  - id: "dis_amaranto_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 2.0
+      colors: [[0.42, 0.12, 0.32], [0.25, 0.06, 0.18]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.60
+    specular: 0.38
+    sheen: 0.05
+    sheen_tint: 0.4
+
+  - id: "cls_amaranto"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 2.0
+      colors: [[0.42, 0.12, 0.32], [0.25, 0.06, 0.18]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── BOCOTE — figure elaborate, marrone con striature nere ───────────────
+
+  - id: "dis_bocote_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.5
+      noise_strength: 4.5
+      colors: [[0.55, 0.38, 0.18], [0.15, 0.08, 0.03]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.58
+    specular: 0.42
+    sheen: 0.04
+    sheen_tint: 0.4
+
+  - id: "cls_bocote"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 5.5
+      noise_strength: 4.5
+      colors: [[0.55, 0.38, 0.18], [0.15, 0.08, 0.03]]
+      randomize_offset: true
+      randomize_rotation: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  LEGNI TRATTATI — effetti speciali e finiture creative
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── SBIANCATO — legno decolorato, shabby chic ─────────────────────────
+
+  - id: "dis_legno_sbiancato"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.88, 0.85, 0.80], [0.78, 0.74, 0.68]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.82
+    specular: 0.15
+    sheen: 0.10
+    sheen_tint: 0.5
+    subsurface: 0.08
+
+  - id: "cls_legno_sbiancato"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.88, 0.85, 0.80], [0.78, 0.74, 0.68]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── SHOU SUGI BAN — carbonizzato giapponese, nero-carbone ─────────────
+
+  - id: "dis_shou_sugi_ban"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 3.5
+      colors: [[0.08, 0.06, 0.05], [0.03, 0.02, 0.02]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.75
+    specular: 0.18
+    sheen: 0.08
+    sheen_tint: 0.2
+
+  - id: "cls_shou_sugi_ban"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 3.5
+      colors: [[0.08, 0.06, 0.05], [0.03, 0.02, 0.02]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── BARNWOOD — legno di recupero, invecchiato, grigio argento ──────────
+
+  - id: "dis_barnwood"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 3.0
+      colors: [[0.48, 0.45, 0.42], [0.32, 0.30, 0.28]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.90
+    specular: 0.10
+    sheen: 0.12
+    sheen_tint: 0.3
+
+  - id: "cls_barnwood"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 3.0
+      colors: [[0.48, 0.45, 0.42], [0.32, 0.30, 0.28]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── TINTO NERO — legno tinto con mordente nero, venatura visibile ──────
+
+  - id: "dis_legno_tinto_nero"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.5
+      colors: [[0.12, 0.10, 0.08], [0.05, 0.04, 0.03]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.55
+    specular: 0.40
+    clearcoat: 0.35
+    clearcoat_gloss: 0.78
+
+  - id: "cls_legno_tinto_nero"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.5
+      colors: [[0.12, 0.10, 0.08], [0.05, 0.04, 0.03]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # ── TINTO GRIGIO — stile scandinavo moderno ────────────────────────────
+
+  - id: "dis_legno_tinto_grigio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 1.8
+      colors: [[0.52, 0.50, 0.48], [0.38, 0.36, 0.35]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.72
+    specular: 0.25
+    sheen: 0.06
+    sheen_tint: 0.3
+
+  - id: "cls_legno_tinto_grigio"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 1.8
+      colors: [[0.52, 0.50, 0.48], [0.38, 0.36, 0.35]]
+      randomize_offset: true
+      randomize_rotation: true

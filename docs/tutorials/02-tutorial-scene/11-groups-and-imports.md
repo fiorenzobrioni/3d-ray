@@ -135,6 +135,8 @@ entities:
 | `rotate` | `[x, y, z]` | — | Rotazione della posa di default. |
 | `scale` | scalare o `[x, y, z]` | — | Scala della posa di default. |
 
+> **Nota sul `center` nei figli:** Nei children dei template e dei gruppi, tutte le primitive che supportano `center` (sphere, cylinder, cone, capsule, torus, annulus, disk) lo interpretano come posizione locale nell'object space del gruppo. Questo è il modo più naturale per comporre oggetti: allineare i pezzi usando `center` relativo, poi posizionare il gruppo nel mondo con `translate` sull'istanza.
+
 ### Campi dell'Instance
 
 | Campo | Tipo | Obbligatorio | Descrizione |

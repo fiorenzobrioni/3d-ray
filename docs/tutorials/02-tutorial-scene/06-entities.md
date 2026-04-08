@@ -209,31 +209,41 @@ Piano infinito utile per pavimenti o sfondi.
 
 > **UV Mapping:** Planare "tiled". La texture viene ripetuta all'infinito sul piano. Utile per pavimenti e sfondi.
 
-## 6.9 Torus (Toro / Ciambella)
+### 6.9 Torus (Toro / Ciambella)
 
-Toro centrato nell'origine, giacente nel piano XZ (asse del foro = Y). Definito da un raggio maggiore (distanza dal centro al centro del tubo) e un raggio minore (raggio del tubo). Usare `translate`, `rotate` e `scale` per posizionamento nel mondo.
+Toro centrato nell'origine, giacente nel piano XZ (asse del foro = Y). Definito da un raggio maggiore (distanza dal centro al centro del tubo) e un raggio minore (raggio del tubo).
 
-### Toro classico (anello con foro)
+#### Toro classico (anello con foro)
 ```yaml
   - name: "ciambella"
     type: "torus"
+    center: [0, 1.5, 0]
     major_radius: 2.0          # Distanza centro → centro tubo
     minor_radius: 0.5          # Raggio del tubo
+    material: "ceramica"
+```
+
+#### Posizionamento con translate (equivalente)
+```yaml
+  - name: "ciambella"
+    type: "torus"
+    major_radius: 2.0
+    minor_radius: 0.5
     translate: [0, 1.5, 0]
     material: "ceramica"
 ```
 
-### Anello sottile (gioiello)
+#### Anello sottile (gioiello)
 ```yaml
   - name: "anello_oro"
     type: "torus"
+    center: [0, 1, 0]
     major_radius: 0.8
     minor_radius: 0.08
-    translate: [0, 1, 0]
     material: "oro_lucido"
 ```
 
-### Pneumatico (tubo grosso)
+#### Pneumatico (tubo grosso)
 ```yaml
   - name: "pneumatico"
     type: "torus"
@@ -246,25 +256,26 @@ Toro centrato nell'origine, giacente nel piano XZ (asse del foro = Y). Definito 
 
 | Campo | Tipo | Default | Descrizione |
 |-------|------|---------|-------------|
+| `center` | `[X, Y, Z]` | `[0,0,0]` | Centro dell'anello (punto equidistante da tutto il major circle). Equivalente a un `translate` interno — si compone con eventuali `translate` YAML. |
 | `major_radius` | float | `1.0` | Distanza dal centro del toro al centro del tubo (R) |
 | `minor_radius` | float | `0.25` | Raggio del tubo (r) |
 
 > **Alias tipo:** Oltre a `"torus"`, sono accettati anche `"donut"` e `"ring"`.
+
+> **`center` vs `translate`:** Entrambi posizionano il toro. `center` è comodo nei **figli di gruppi e template** per allineare il toro ad altre primitive che usano `center` (cylinder, sphere, cone). `translate` è la trasformazione standard. Se specificati entrambi, si compongono: il toro viene prima spostato al `center`, poi la trasformazione `translate` agisce sopra.
 
 > **Varianti geometriche:**
 > - **Ring torus** (R > r): il classico anello con foro visibile. Il caso più comune.
 > - **Horn torus** (R = r): il foro scompare, il tubo tocca il centro.
 > - **Spindle torus** (R < r): il tubo si auto-interseca, produce una forma a "mela".
 
-> **Posizionamento:** Il toro è centrato nell'origine come il Box. Usare `translate` per posizionarlo nel mondo. Per un toro verticale (come un pneumatico in piedi), ruotare di 90° su X: `rotate: [90, 0, 0]`.
+> **Posizionamento:** Il toro è centrato nell'origine come il Box. Usare `center` o `translate` per posizionarlo nel mondo. Per un toro verticale (come un pneumatico in piedi), ruotare di 90° su X: `rotate: [90, 0, 0]`.
 
 > **Trasformazioni:** `scale` funziona correttamente — uno scale non-uniforme deforma il toro in un ellissoide toroidale. Il wrapper Transform gestisce normali e area con il Jacobiano.
 
 > **CSG:** Il toro è **non-convesso** e può produrre fino a 4 intersezioni per raggio. Il motore CSG (CollectAllHits con MaxHitsPerChild = 16) lo gestisce correttamente. Utile per creare guarnizioni, raccordi O-ring, tubature e forme meccaniche complesse.
 
-> **Area light:** Il toro implementa `ISamplable` con area = 4π²Rr. Può essere usato come area light emissiva con NEE — ideale per neon ad anello o luci decorative.
-
-> **Intersezione raggio-toro:** Il toro è una forma geometricamente complessa. Il motore risolve l'intersezione in modo analitico per garantire risultati esatti e senza artefatti, anche se questo richiede una capacità di calcolo leggermente superiore rispetto alle primitive più semplici.
+> **Area light:** Il toro implementa `ISamplable` con area = 4π²Rr.
 
 ## 6.10 Capsule (Capsula / Pillola)
 

@@ -79,6 +79,15 @@ public static class QuarticSolver
         for (int i = 0; i < count; i++)
         {
             double t = roots[i] + shift;
+
+            // BUG-11 fix: Newton-Raphson refinement on the monic quartic.
+            // Ferrari's method suffers from catastrophic cancellation when the
+            // resolvent parameter s is small (q/(2s) blows up), producing roots
+            // with significant error — visible as geometric distortion on the
+            // torus at shallow viewing angles. 2-3 Newton iterations recover
+            // full double precision at negligible cost (~4 FMA per iteration).
+            t = RefineRoot(c3, c2, c1, c0, t);
+
             if (t >= tMin && t <= tMax)
                 roots[valid++] = t;
         }
@@ -354,6 +363,49 @@ public static class QuarticSolver
             while (j >= 0 && s[j] > key) { s[j + 1] = s[j]; j--; }
             s[j + 1] = key;
         }
+    }
+
+    /// <summary>
+    /// Refines a root of the monic quartic t⁴ + c3·t³ + c2·t² + c1·t + c0 = 0
+    /// using Newton-Raphson iteration: t ← t − f(t)/f'(t).
+    ///
+    /// Ferrari's analytical method can lose significant digits when the resolvent
+    /// parameter s is small, causing the q/(2s) division to amplify errors in the
+    /// cubic root. This manifests as systematic geometric distortion on torus
+    /// intersections at shallow viewing angles (BUG-11).
+    ///
+    /// Newton-Raphson converges quadratically from a close initial guess — the
+    /// analytical root is always close enough. 2 iterations typically recover
+    /// full double precision; a 3rd is included as a safety margin.
+    ///
+    /// Cost: ~12 multiplications + 3 divisions total — negligible compared to
+    /// the cubic/quartic solve overhead (~200 ns total per SolveQuartic call).
+    /// </summary>
+    private static double RefineRoot(double c3, double c2, double c1, double c0, double t)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            double t2 = t * t;
+            double t3 = t2 * t;
+
+            // f(t) = t⁴ + c3·t³ + c2·t² + c1·t + c0
+            double f = t2 * t2 + c3 * t3 + c2 * t2 + c1 * t + c0;
+
+            // f'(t) = 4t³ + 3·c3·t² + 2·c2·t + c1
+            double fp = 4.0 * t3 + 3.0 * c3 * t2 + 2.0 * c2 * t + c1;
+
+            if (Math.Abs(fp) < 1e-15)
+                break; // Near a double root — derivative too small for safe division
+
+            double delta = f / fp;
+            t -= delta;
+
+            // Early exit if correction is negligible (already at machine precision)
+            if (Math.Abs(delta) < 1e-14 * Math.Abs(t))
+                break;
+        }
+
+        return t;
     }
 
     /// <summary>Removes near-duplicate values from an unsorted span.</summary>

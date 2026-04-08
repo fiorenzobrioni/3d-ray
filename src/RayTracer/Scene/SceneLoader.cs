@@ -963,7 +963,7 @@ public class SceneLoader
             "cone" or "truncated_cone" or "frustum"
                        => new Cone(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.TopRadius, e.Height, mat),
             "torus" or "donut" or "ring"
-                       => new Torus(e.MajorRadius, e.MinorRadius, mat),
+                       => CreateTorusEntity(e, mat),
             "capsule" or "pill" or "sphylinder"
                        => new Capsule(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.Height, mat),
             "annulus" or "ring_disk" or "washer"
@@ -991,6 +991,28 @@ public class SceneLoader
         return entity;
     }
 
+    /// <summary>
+    /// Creates a Torus centered at the origin, optionally wrapped in a
+    /// translation Transform when a <c>center</c> is specified in YAML.
+    ///
+    /// The Torus primitive is always defined at the origin (XZ plane, Y axis
+    /// as hole axis). When the YAML specifies a <c>center</c>, the torus is
+    /// wrapped in a Translate transform — consistent with how Sphere, Cylinder,
+    /// Cone, and Capsule handle their <c>center</c> parameter.
+    ///
+    /// Any additional transforms (scale/rotate/translate from YAML) are applied
+    /// on top by the caller via <see cref="ComputeTransformMatrix"/>.
+    /// </summary>
+    private static IHittable CreateTorusEntity(EntityData e, IMaterial mat)
+    {
+        IHittable torus = new Torus(e.MajorRadius, e.MinorRadius, mat);
+
+        var center = ToVector3(e.Center);
+        if (center.HasValue && center.Value != Vector3.Zero)
+            torus = new Transform(torus, Matrix4x4.CreateTranslation(center.Value));
+
+        return torus;
+    }
     /// <summary>
     /// Creates a Box positioned and sized according to explicit min/max corner
     /// coordinates. Internally wraps a unit-cube Box in a Scale+Translate transform.
