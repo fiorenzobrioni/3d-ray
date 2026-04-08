@@ -1,0 +1,793 @@
+# ============================================================================
+# Libreria Materiali — Organici e Naturali
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/organics.yaml" }]
+#
+# Raccolta completa di materiali di origine naturale, animale, vegetale
+# e minerale organica. Dalla cera d'api alla madreperla, dal sughero
+# alla pergamena.
+#
+#   dis_  (Disney BSDF) — Essenziale per questa categoria: subsurface
+#         è il parametro protagonista. La maggior parte dei materiali
+#         organici è traslucente — la luce penetra, rimbalza nel bulk
+#         e riemerge attenuata. Clearcoat simula superfici lucidate
+#         (avorio lavorato, ambra, corno). Sheen per peluria/fibra.
+#
+#   cls_  (Classic) — Lambertian per materiali opachi (carta, cartone,
+#         sughero, osso grezzo). Metal+fuzz per materiali lucidati
+#         (avorio, ambra, corno). Nessun effetto subsurface: la
+#         traslucenza è il compromesso principale.
+#
+# ── Fisica dei materiali organici ────────────────────────────────────────
+#
+#   I materiali organici condividono una proprietà: la traslucenza.
+#   A differenza dei metalli (dove tutta la luce viene riflessa dalla
+#   superficie) e delle plastiche (dove il pigmento è concentrato),
+#   nei materiali organici la luce viaggia attraverso strati di fibre,
+#   cellule, cristalli o polimeri naturali prima di essere riassorbita.
+#
+#   Subsurface nel Disney BSDF interpola tra il diffuse Lambertiano
+#   standard (subsurface=0, ombre nette) e un profilo piatto
+#   (subsurface=1, luce che "avvolge" l'oggetto). Valori tipici:
+#     0.10–0.20  Legno, osso, avorio (leggera morbidezza)
+#     0.25–0.40  Cera, candela, sapone (traslucenza evidente)
+#     0.45–0.65  Pelle umana, cera sottile (forte traslucenza)
+#     0.70–0.90  Latte, miele denso (quasi trasparente)
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   CERA E CANDELA      Cera d'api, paraffina, stearica.
+#                       Subsurface alto, colori caldi.
+#
+#   AMBRA               Resina fossile, giallo-arancio, traslucente.
+#                       IOR 1.54, subsurface + spec_trans leggero.
+#
+#   AVORIO E OSSO       Tessuto osseo, bianco-crema.
+#                       Avorio lucidato vs osso grezzo.
+#
+#   CORNO E TARTARUGA   Cheratina animale, toni bruni striati.
+#                       Semi-traslucente, lucidabile.
+#
+#   GUSCIO D'UOVO       Calcite porosa, bianco opaco delicato.
+#                       Roughness alto, fragilità visiva.
+#
+#   CORALLO             Carbonato di calcio marino. Rosso, rosa,
+#                       bianco. Leggermente poroso.
+#
+#   MADREPERLA          Nacre — strati di aragonite iridescenti.
+#                       Specular tint per iridescenza, clearcoat.
+#
+#   CONCHIGLIA          Guscio esterno, opaco o lucido.
+#                       Toni crema, rosa, marroni.
+#
+#   SUGHERO             Corteccia di quercia da sughero, porosa.
+#                       Roughness altissimo, toni caldi.
+#
+#   CARTA               Fibre di cellulosa pressate. Bianca, kraft,
+#                       da pacchi, riso. Subsurface per retroillum.
+#
+#   CARTONE             Più spesso e scuro della carta. Ondulato,
+#                       grigio, kraft. Opaco.
+#
+#   PERGAMENA           Pelle animale trattata, tono caldo antico.
+#                       Subsurface per traslucenza.
+#
+#   SAPONE              Solido traslucente, colori tenui.
+#                       Subsurface alto, roughness medio.
+#
+#   BAMBÙ               Graminacea lignificata, toni giallo-verdi.
+#                       Nodi visibili, finitura naturale o laccata.
+#
+#   CUOIO VEGETALE      Materiali biodegradabili, cellulosa compressa.
+#                       Simile a carta densa, toni naturali.
+#
+# ============================================================================
+
+
+materials:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CERA E CANDELA — subsurface alto, colori caldi
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Cera d'api naturale — giallo caldo, molto traslucente
+  - id: "dis_cera_api"
+    type: "disney"
+    color: [0.88, 0.72, 0.30]
+    roughness: 0.58
+    specular: 0.25
+    subsurface: 0.50
+
+  # Cera paraffina bianca — candele classiche
+  - id: "dis_cera_paraffina"
+    type: "disney"
+    color: [0.92, 0.90, 0.85]
+    roughness: 0.55
+    specular: 0.28
+    subsurface: 0.55
+
+  # Candela avorio — cera stearica, tono caldo
+  - id: "dis_candela_avorio"
+    type: "disney"
+    color: [0.90, 0.85, 0.68]
+    roughness: 0.52
+    specular: 0.25
+    subsurface: 0.48
+
+  # Candela rossa — cera pigmentata, decorativa
+  - id: "dis_candela_rossa"
+    type: "disney"
+    color: [0.68, 0.10, 0.08]
+    roughness: 0.55
+    specular: 0.22
+    subsurface: 0.35
+
+  # Candela nera — decorativa, gotica
+  - id: "dis_candela_nera"
+    type: "disney"
+    color: [0.06, 0.06, 0.06]
+    roughness: 0.55
+    specular: 0.28
+    subsurface: 0.15
+
+  # Cera di soia — bianca, leggermente traslucente
+  - id: "dis_cera_soia"
+    type: "disney"
+    color: [0.94, 0.92, 0.86]
+    roughness: 0.50
+    specular: 0.22
+    subsurface: 0.52
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_cera_api"
+    type: "lambertian"
+    color: [0.88, 0.72, 0.30]
+
+  - id: "cls_cera_paraffina"
+    type: "lambertian"
+    color: [0.92, 0.90, 0.85]
+
+  - id: "cls_candela_avorio"
+    type: "lambertian"
+    color: [0.90, 0.85, 0.68]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  AMBRA — resina fossile, giallo-arancio, traslucente
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Ambra chiara — baltica, goccia di miele fossile
+  - id: "dis_ambra_chiara"
+    type: "disney"
+    color: [0.92, 0.65, 0.12]
+    roughness: 0.08
+    specular: 0.68
+    subsurface: 0.30
+    clearcoat: 0.55
+    clearcoat_gloss: 0.90
+    spec_trans: 0.20
+    ior: 1.54
+
+  # Ambra scura — inclusioni, tono bruno-arancio
+  - id: "dis_ambra_scura"
+    type: "disney"
+    color: [0.62, 0.35, 0.08]
+    roughness: 0.10
+    specular: 0.62
+    subsurface: 0.25
+    clearcoat: 0.50
+    clearcoat_gloss: 0.88
+    spec_trans: 0.12
+    ior: 1.54
+
+  # Ambra rossa — cherry amber, rara
+  - id: "dis_ambra_rossa"
+    type: "disney"
+    color: [0.72, 0.18, 0.05]
+    roughness: 0.08
+    specular: 0.65
+    subsurface: 0.22
+    clearcoat: 0.52
+    clearcoat_gloss: 0.90
+    spec_trans: 0.15
+    ior: 1.54
+
+  # Ambra grezza — non lucidata, superficie opaca
+  - id: "dis_ambra_grezza"
+    type: "disney"
+    color: [0.78, 0.52, 0.15]
+    roughness: 0.55
+    specular: 0.28
+    subsurface: 0.30
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_ambra_chiara"
+    type: "metal"
+    color: [0.92, 0.65, 0.12]
+    fuzz: 0.12
+
+  - id: "cls_ambra_scura"
+    type: "metal"
+    color: [0.62, 0.35, 0.08]
+    fuzz: 0.15
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  AVORIO E OSSO — tessuto osseo, bianco-crema
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Avorio lucido — tasti pianoforte, sculture, netsuke
+  - id: "dis_avorio_lucido"
+    type: "disney"
+    color: [0.94, 0.90, 0.78]
+    roughness: 0.22
+    specular: 0.52
+    subsurface: 0.20
+    clearcoat: 0.30
+    clearcoat_gloss: 0.78
+
+  # Avorio invecchiato — patinato, tono più scuro
+  - id: "dis_avorio_invecchiato"
+    type: "disney"
+    color: [0.82, 0.75, 0.58]
+    roughness: 0.32
+    specular: 0.42
+    subsurface: 0.18
+    clearcoat: 0.15
+    clearcoat_gloss: 0.65
+
+  # Osso grezzo — non lucidato, poroso
+  - id: "dis_osso_grezzo"
+    type: "disney"
+    color: [0.85, 0.80, 0.70]
+    roughness: 0.75
+    specular: 0.15
+    subsurface: 0.12
+
+  # Osso levigato — lavorato, manici, bottoni
+  - id: "dis_osso_levigato"
+    type: "disney"
+    color: [0.88, 0.84, 0.74]
+    roughness: 0.45
+    specular: 0.35
+    subsurface: 0.15
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_avorio"
+    type: "lambertian"
+    color: [0.94, 0.90, 0.78]
+
+  - id: "cls_osso_grezzo"
+    type: "lambertian"
+    color: [0.85, 0.80, 0.70]
+
+  - id: "cls_osso_levigato"
+    type: "metal"
+    color: [0.88, 0.84, 0.74]
+    fuzz: 0.38
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CORNO E TARTARUGA — cheratina, toni bruni striati
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Corno naturale — bottoni, manici, occhiali vintage
+  - id: "dis_corno_naturale"
+    type: "disney"
+    color: [0.28, 0.18, 0.08]
+    roughness: 0.35
+    specular: 0.48
+    subsurface: 0.15
+    clearcoat: 0.25
+    clearcoat_gloss: 0.75
+
+  # Corno chiaro — semitrasparente, tono miele
+  - id: "dis_corno_chiaro"
+    type: "disney"
+    color: [0.72, 0.52, 0.22]
+    roughness: 0.30
+    specular: 0.50
+    subsurface: 0.22
+    clearcoat: 0.30
+    clearcoat_gloss: 0.78
+    spec_trans: 0.08
+    ior: 1.55
+
+  # Tartaruga (simulata) — pattern marrone/ambra
+  - id: "dis_tartaruga"
+    type: "disney"
+    color: [0.45, 0.25, 0.10]
+    roughness: 0.18
+    specular: 0.58
+    subsurface: 0.18
+    clearcoat: 0.55
+    clearcoat_gloss: 0.88
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_corno_naturale"
+    type: "metal"
+    color: [0.28, 0.18, 0.08]
+    fuzz: 0.30
+
+  - id: "cls_tartaruga"
+    type: "metal"
+    color: [0.45, 0.25, 0.10]
+    fuzz: 0.18
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  GUSCIO D'UOVO — calcite porosa, bianco opaco delicato
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Guscio bianco — gallina, delicato, poroso
+  - id: "dis_guscio_uovo_bianco"
+    type: "disney"
+    color: [0.90, 0.88, 0.82]
+    roughness: 0.78
+    specular: 0.15
+    subsurface: 0.12
+
+  # Guscio marrone — gallina ruspante, più scuro
+  - id: "dis_guscio_uovo_marrone"
+    type: "disney"
+    color: [0.62, 0.45, 0.30]
+    roughness: 0.78
+    specular: 0.15
+    subsurface: 0.10
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_guscio_uovo_bianco"
+    type: "lambertian"
+    color: [0.90, 0.88, 0.82]
+
+  - id: "cls_guscio_uovo_marrone"
+    type: "lambertian"
+    color: [0.62, 0.45, 0.30]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CORALLO — carbonato di calcio marino, rosso/rosa/bianco
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Corallo rosso — Mediterraneo, gioielleria
+  - id: "dis_corallo_rosso"
+    type: "disney"
+    color: [0.72, 0.15, 0.10]
+    roughness: 0.42
+    specular: 0.38
+    subsurface: 0.12
+    clearcoat: 0.20
+    clearcoat_gloss: 0.72
+
+  # Corallo rosa — pelle d'angelo, delicatissimo
+  - id: "dis_corallo_rosa"
+    type: "disney"
+    color: [0.88, 0.58, 0.52]
+    roughness: 0.40
+    specular: 0.40
+    subsurface: 0.15
+    clearcoat: 0.22
+    clearcoat_gloss: 0.74
+
+  # Corallo bianco — ramificato, decorativo
+  - id: "dis_corallo_bianco"
+    type: "disney"
+    color: [0.90, 0.88, 0.84]
+    roughness: 0.62
+    specular: 0.22
+    subsurface: 0.10
+
+  # Corallo nero — antipatharia, gioielleria rara
+  - id: "dis_corallo_nero"
+    type: "disney"
+    color: [0.06, 0.05, 0.05]
+    roughness: 0.30
+    specular: 0.50
+    clearcoat: 0.35
+    clearcoat_gloss: 0.82
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_corallo_rosso"
+    type: "metal"
+    color: [0.72, 0.15, 0.10]
+    fuzz: 0.35
+
+  - id: "cls_corallo_bianco"
+    type: "lambertian"
+    color: [0.90, 0.88, 0.84]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  MADREPERLA — nacre, strati di aragonite iridescenti
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney (solo — serve specular_tint per iridescenza) ────────────────
+
+  # Madreperla bianca — interno conchiglie, bottoni
+  - id: "dis_madreperla_bianca"
+    type: "disney"
+    color: [0.88, 0.86, 0.84]
+    roughness: 0.10
+    specular: 0.75
+    specular_tint: 0.30
+    clearcoat: 0.60
+    clearcoat_gloss: 0.92
+    subsurface: 0.10
+
+  # Madreperla rosa — abalone rosa, gioielleria
+  - id: "dis_madreperla_rosa"
+    type: "disney"
+    color: [0.85, 0.72, 0.72]
+    roughness: 0.10
+    specular: 0.72
+    specular_tint: 0.35
+    clearcoat: 0.58
+    clearcoat_gloss: 0.90
+    subsurface: 0.10
+
+  # Madreperla abalone — iridescenza verde-blu-viola
+  - id: "dis_madreperla_abalone"
+    type: "disney"
+    color: [0.50, 0.65, 0.62]
+    roughness: 0.08
+    specular: 0.78
+    specular_tint: 0.45
+    clearcoat: 0.65
+    clearcoat_gloss: 0.94
+    subsurface: 0.08
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_madreperla_bianca"
+    type: "metal"
+    color: [0.88, 0.86, 0.84]
+    fuzz: 0.12
+
+  - id: "cls_madreperla_abalone"
+    type: "metal"
+    color: [0.50, 0.65, 0.62]
+    fuzz: 0.10
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CONCHIGLIA — guscio esterno, opaco o lucido
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Conchiglia crema — cauri, ciprea, superficie liscia
+  - id: "dis_conchiglia_crema"
+    type: "disney"
+    color: [0.88, 0.82, 0.70]
+    roughness: 0.28
+    specular: 0.45
+    subsurface: 0.10
+    clearcoat: 0.25
+    clearcoat_gloss: 0.78
+
+  # Conchiglia rosa — strombus, toni salmone
+  - id: "dis_conchiglia_rosa"
+    type: "disney"
+    color: [0.85, 0.62, 0.55]
+    roughness: 0.35
+    specular: 0.38
+    subsurface: 0.08
+
+  # Conchiglia spirale — nautilus, superficie esterna rugosa
+  - id: "dis_conchiglia_rugosa"
+    type: "disney"
+    color: [0.65, 0.55, 0.42]
+    roughness: 0.68
+    specular: 0.18
+    subsurface: 0.06
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_conchiglia_crema"
+    type: "lambertian"
+    color: [0.88, 0.82, 0.70]
+
+  - id: "cls_conchiglia_rosa"
+    type: "lambertian"
+    color: [0.85, 0.62, 0.55]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SUGHERO — corteccia di quercia, porosa, leggera
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Sughero naturale — tappi, pannelli, pavimenti
+  - id: "dis_sughero_naturale"
+    type: "disney"
+    color: [0.62, 0.48, 0.30]
+    roughness: 0.92
+    specular: 0.06
+    sheen: 0.04
+
+  # Sughero chiaro — pannelli decorativi, bacheche
+  - id: "dis_sughero_chiaro"
+    type: "disney"
+    color: [0.72, 0.58, 0.38]
+    roughness: 0.92
+    specular: 0.06
+
+  # Sughero scuro — tappi invecchiati, agglomerato
+  - id: "dis_sughero_scuro"
+    type: "disney"
+    color: [0.38, 0.28, 0.16]
+    roughness: 0.92
+    specular: 0.06
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_sughero_naturale"
+    type: "lambertian"
+    color: [0.62, 0.48, 0.30]
+
+  - id: "cls_sughero_chiaro"
+    type: "lambertian"
+    color: [0.72, 0.58, 0.38]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CARTA — fibre di cellulosa pressate
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Carta bianca — fogli A4, stampa, origami
+  - id: "dis_carta_bianca"
+    type: "disney"
+    color: [0.90, 0.88, 0.85]
+    roughness: 0.82
+    specular: 0.10
+    subsurface: 0.18
+
+  # Carta kraft — sacchetti, imballaggi, buste
+  - id: "dis_carta_kraft"
+    type: "disney"
+    color: [0.62, 0.48, 0.30]
+    roughness: 0.88
+    specular: 0.08
+    subsurface: 0.12
+
+  # Carta di riso — paralumi, shoji giapponesi, traslucente
+  - id: "dis_carta_riso"
+    type: "disney"
+    color: [0.90, 0.87, 0.80]
+    roughness: 0.78
+    specular: 0.12
+    subsurface: 0.35
+    spec_trans: 0.15
+    ior: 1.50
+
+  # Carta da giornale — grigia, leggermente traslucente
+  - id: "dis_carta_giornale"
+    type: "disney"
+    color: [0.75, 0.72, 0.68]
+    roughness: 0.88
+    specular: 0.06
+    subsurface: 0.10
+
+  # Carta velina — sottilissima, colorata, molto traslucente
+  - id: "dis_carta_velina_rossa"
+    type: "disney"
+    color: [0.78, 0.10, 0.08]
+    roughness: 0.75
+    specular: 0.10
+    subsurface: 0.42
+    spec_trans: 0.20
+    ior: 1.50
+
+  # Carta patinata — riviste, fotografia, superficie liscia
+  - id: "dis_carta_patinata"
+    type: "disney"
+    color: [0.92, 0.90, 0.88]
+    roughness: 0.42
+    specular: 0.35
+    subsurface: 0.08
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_carta_bianca"
+    type: "lambertian"
+    color: [0.90, 0.88, 0.85]
+
+  - id: "cls_carta_kraft"
+    type: "lambertian"
+    color: [0.62, 0.48, 0.30]
+
+  - id: "cls_carta_giornale"
+    type: "lambertian"
+    color: [0.75, 0.72, 0.68]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CARTONE — più spesso e scuro della carta, opaco
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Cartone ondulato — scatole, imballaggi
+  - id: "dis_cartone_ondulato"
+    type: "disney"
+    color: [0.52, 0.40, 0.26]
+    roughness: 0.92
+    specular: 0.05
+
+  # Cartone grigio — retro blocchi, rilegature
+  - id: "dis_cartone_grigio"
+    type: "disney"
+    color: [0.48, 0.46, 0.44]
+    roughness: 0.90
+    specular: 0.06
+
+  # Cartone nero — scatole premium, packaging lusso
+  - id: "dis_cartone_nero"
+    type: "disney"
+    color: [0.06, 0.06, 0.06]
+    roughness: 0.88
+    specular: 0.08
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_cartone_ondulato"
+    type: "lambertian"
+    color: [0.52, 0.40, 0.26]
+
+  - id: "cls_cartone_grigio"
+    type: "lambertian"
+    color: [0.48, 0.46, 0.44]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  PERGAMENA — pelle animale trattata, tono caldo antico
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Pergamena naturale — manoscritti, diplomi
+  - id: "dis_pergamena_naturale"
+    type: "disney"
+    color: [0.82, 0.75, 0.58]
+    roughness: 0.70
+    specular: 0.18
+    subsurface: 0.22
+
+  # Pergamena invecchiata — ingiallita, macchie d'età
+  - id: "dis_pergamena_invecchiata"
+    type: "disney"
+    color: [0.72, 0.62, 0.42]
+    roughness: 0.72
+    specular: 0.15
+    subsurface: 0.20
+
+  # Vellum — vitello, più fine e bianca, calligrafia
+  - id: "dis_vellum"
+    type: "disney"
+    color: [0.88, 0.84, 0.72]
+    roughness: 0.62
+    specular: 0.22
+    subsurface: 0.28
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_pergamena_naturale"
+    type: "lambertian"
+    color: [0.82, 0.75, 0.58]
+
+  - id: "cls_pergamena_invecchiata"
+    type: "lambertian"
+    color: [0.72, 0.62, 0.42]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SAPONE — solido traslucente, colori tenui
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney (solo — serve subsurface alto) ──────────────────────────────
+
+  # Sapone bianco — Marsiglia classico
+  - id: "dis_sapone_bianco"
+    type: "disney"
+    color: [0.90, 0.88, 0.82]
+    roughness: 0.55
+    specular: 0.30
+    subsurface: 0.45
+
+  # Sapone miele — glicerina, artigianale
+  - id: "dis_sapone_miele"
+    type: "disney"
+    color: [0.82, 0.62, 0.22]
+    roughness: 0.48
+    specular: 0.35
+    subsurface: 0.50
+    spec_trans: 0.10
+    ior: 1.50
+
+  # Sapone lavanda — viola chiaro, aromatico
+  - id: "dis_sapone_lavanda"
+    type: "disney"
+    color: [0.62, 0.48, 0.65]
+    roughness: 0.55
+    specular: 0.28
+    subsurface: 0.42
+
+  # Sapone verde oliva — Aleppo, tradizionale
+  - id: "dis_sapone_oliva"
+    type: "disney"
+    color: [0.42, 0.48, 0.25]
+    roughness: 0.58
+    specular: 0.25
+    subsurface: 0.38
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_sapone_bianco"
+    type: "lambertian"
+    color: [0.90, 0.88, 0.82]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  BAMBÙ — graminacea lignificata, toni giallo-verdi
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Bambù naturale — canne, arredi, pavimenti
+  - id: "dis_bambu_naturale"
+    type: "disney"
+    color: [0.72, 0.62, 0.35]
+    roughness: 0.62
+    specular: 0.28
+    sheen: 0.06
+    sheen_tint: 0.5
+
+  # Bambù carbonizzato — trattato termicamente, tono scuro
+  - id: "dis_bambu_carbonizzato"
+    type: "disney"
+    color: [0.38, 0.28, 0.15]
+    roughness: 0.58
+    specular: 0.32
+    clearcoat: 0.15
+    clearcoat_gloss: 0.65
+
+  # Bambù laccato — arredo orientale, lucido
+  - id: "dis_bambu_laccato"
+    type: "disney"
+    color: [0.68, 0.55, 0.28]
+    roughness: 0.22
+    specular: 0.50
+    clearcoat: 0.60
+    clearcoat_gloss: 0.88
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_bambu_naturale"
+    type: "lambertian"
+    color: [0.72, 0.62, 0.35]
+
+  - id: "cls_bambu_carbonizzato"
+    type: "lambertian"
+    color: [0.38, 0.28, 0.15]

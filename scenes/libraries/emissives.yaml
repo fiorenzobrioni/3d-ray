@@ -1,0 +1,636 @@
+# ============================================================================
+# Libreria Materiali — Emissivi e Sorgenti Luminose
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/emissives.yaml" }]
+#
+# Raccolta completa di materiali emissivi per illuminazione, insegne,
+# schermi e effetti speciali. Ogni materiale emette luce propria e
+# partecipa automaticamente alla NEE (Next Event Estimation) quando
+# applicato a primitive che implementano ISamplable (sfere, cilindri,
+# coni, tori, box, quad, disk, annulus, capsule).
+#
+# ── Nessuna distinzione dis_/cls_ ───────────────────────────────────────
+#
+#   Il tipo "emissive" è unico nel motore: non ha varianti Disney né
+#   Classic. Un emissivo è definito solo da colore e intensità. Questa
+#   libreria usa quindi nomi diretti senza prefisso.
+#
+# ── Parametri ────────────────────────────────────────────────────────────
+#
+#   color      Colore della luce emessa in RGB lineare [0–1].
+#              Moltiplicato per intensity per ottenere la radianza.
+#
+#   intensity  Moltiplicatore di luminosità. Valori tipici:
+#                1–5    Bagliore tenue (braci, indicatori)
+#                5–15   Illuminazione ambientale (lampade, neon)
+#                15–40  Illuminazione principale (faretti, pannelli)
+#                40–100 Sorgenti intense (sole, flash, esplosioni)
+#
+# ── Note sulla temperatura colore ────────────────────────────────────────
+#
+#   I colori RGB sono calibrati sulle temperature colore reali:
+#
+#     1800K  Candela, alba/tramonto     [1.0, 0.45, 0.08]
+#     2200K  Incandescente vintage      [1.0, 0.58, 0.18]
+#     2700K  Incandescente standard     [1.0, 0.68, 0.34]
+#     3000K  Alogena / LED caldo        [1.0, 0.75, 0.45]
+#     3500K  LED neutro-caldo           [1.0, 0.82, 0.58]
+#     4000K  Fluorescente neutro        [1.0, 0.88, 0.72]
+#     5000K  Luce diurna / flash        [1.0, 0.94, 0.88]
+#     5500K  Mezzogiorno                [1.0, 0.96, 0.92]
+#     6500K  Cielo coperto / daylight   [0.95, 0.96, 1.0]
+#     7500K  Cielo azzurro / ombra      [0.88, 0.92, 1.0]
+#     10000K Cielo sereno (zenith)      [0.78, 0.85, 1.0]
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   TEMPERATURA COLORE  Set calibrato sulle temperature Kelvin standard.
+#                       Base neutra per illuminazione fotorealistica.
+#
+#   LED                 LED moderni a diverse temperature: caldo,
+#                       neutro, freddo, daylight. I più comuni oggi.
+#
+#   INCANDESCENZA       Filamento al tungsteno, edison vintage,
+#                       alogena. Toni caldi e molto caldi.
+#
+#   FLUORESCENTE        Tubi neon bianchi, cool white, warm white,
+#                       ufficio. Toni leggermente verdastri.
+#
+#   NEON COLORATI       Insegne luminose: rosso, blu, verde, viola,
+#                       rosa, arancione, giallo, ciano, bianco.
+#                       Colori saturi, intensità media.
+#
+#   FIAMMA              Candela, fuoco, torcia, falò.
+#                       Toni arancio-rosso molto caldi.
+#
+#   BRACI E LAVA        Braci ardenti, lava incandescente, ferro
+#                       rovente. Emissione rossa/arancione intensa.
+#
+#   SCHERMI             Monitor, TV, telefono, tablet.
+#                       Luce bianco-fredda, intensità bassa.
+#
+#   INSEGNE E DISPLAY   Lettere luminose, exit sign, indicatori LED,
+#                       cruscotto, orologi digitali.
+#
+#   EFFETTI SPECIALI    Magia, sci-fi, portali, laser, plasma,
+#                       radioattivo. Colori fantasiosi.
+#
+#   BIOLUMINESCENZA     Lucciole, meduse, funghi, plancton.
+#                       Toni verdi/blu tenue, intensità bassa.
+#
+# ============================================================================
+
+
+materials:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  TEMPERATURA COLORE — set calibrato per illuminazione fotorealistica
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # 1800K — candela, alba estrema
+  - id: "luce_1800k"
+    type: "emissive"
+    color: [1.0, 0.45, 0.08]
+    intensity: 8.0
+
+  # 2200K — incandescente vintage, Edison
+  - id: "luce_2200k"
+    type: "emissive"
+    color: [1.0, 0.58, 0.18]
+    intensity: 10.0
+
+  # 2700K — incandescente standard, domestica
+  - id: "luce_2700k"
+    type: "emissive"
+    color: [1.0, 0.68, 0.34]
+    intensity: 12.0
+
+  # 3000K — alogena, LED caldo
+  - id: "luce_3000k"
+    type: "emissive"
+    color: [1.0, 0.75, 0.45]
+    intensity: 12.0
+
+  # 3500K — LED neutro-caldo
+  - id: "luce_3500k"
+    type: "emissive"
+    color: [1.0, 0.82, 0.58]
+    intensity: 12.0
+
+  # 4000K — fluorescente neutro
+  - id: "luce_4000k"
+    type: "emissive"
+    color: [1.0, 0.88, 0.72]
+    intensity: 12.0
+
+  # 5000K — luce diurna, flash fotografico
+  - id: "luce_5000k"
+    type: "emissive"
+    color: [1.0, 0.94, 0.88]
+    intensity: 15.0
+
+  # 5500K — mezzogiorno
+  - id: "luce_5500k"
+    type: "emissive"
+    color: [1.0, 0.96, 0.92]
+    intensity: 15.0
+
+  # 6500K — cielo coperto, daylight standard (D65)
+  - id: "luce_6500k"
+    type: "emissive"
+    color: [0.95, 0.96, 1.0]
+    intensity: 15.0
+
+  # 7500K — cielo azzurro, ombra
+  - id: "luce_7500k"
+    type: "emissive"
+    color: [0.88, 0.92, 1.0]
+    intensity: 15.0
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  LED — sorgenti moderne a stato solido
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # LED caldo — soggiorno, camera, atmosfera accogliente
+  - id: "led_caldo"
+    type: "emissive"
+    color: [1.0, 0.75, 0.42]
+    intensity: 12.0
+
+  # LED neutro — cucina, bagno, lavoro
+  - id: "led_neutro"
+    type: "emissive"
+    color: [1.0, 0.88, 0.72]
+    intensity: 14.0
+
+  # LED freddo — ufficio, ospedale, laboratorio
+  - id: "led_freddo"
+    type: "emissive"
+    color: [0.90, 0.93, 1.0]
+    intensity: 15.0
+
+  # LED daylight — studio fotografico, D50
+  - id: "led_daylight"
+    type: "emissive"
+    color: [1.0, 0.95, 0.90]
+    intensity: 18.0
+
+  # LED warm dim — ristorante, intensità bassa, molto caldo
+  - id: "led_warm_dim"
+    type: "emissive"
+    color: [1.0, 0.62, 0.25]
+    intensity: 6.0
+
+  # LED strip bianco — retroilluminazione, profili, mobili
+  - id: "led_strip_bianco"
+    type: "emissive"
+    color: [1.0, 0.92, 0.82]
+    intensity: 8.0
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  INCANDESCENZA — filamento al tungsteno, alogena, vintage
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Tungsteno 40W — luce soffusa, camera da letto
+  - id: "tungsteno_40w"
+    type: "emissive"
+    color: [1.0, 0.65, 0.28]
+    intensity: 8.0
+
+  # Tungsteno 60W — uso domestico standard
+  - id: "tungsteno_60w"
+    type: "emissive"
+    color: [1.0, 0.68, 0.32]
+    intensity: 12.0
+
+  # Tungsteno 100W — più bianca, lavoro
+  - id: "tungsteno_100w"
+    type: "emissive"
+    color: [1.0, 0.72, 0.38]
+    intensity: 18.0
+
+  # Edison vintage — filamento a vista, molto calda
+  - id: "edison_vintage"
+    type: "emissive"
+    color: [1.0, 0.55, 0.15]
+    intensity: 6.0
+
+  # Alogena — più bianca del tungsteno, 3200K
+  - id: "alogena"
+    type: "emissive"
+    color: [1.0, 0.78, 0.50]
+    intensity: 15.0
+
+  # Alogena dicroica — spot, musei, faretto
+  - id: "alogena_spot"
+    type: "emissive"
+    color: [1.0, 0.80, 0.55]
+    intensity: 25.0
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  FLUORESCENTE — tubi, uffici, negozi
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Fluorescente warm white — 3000K, tono leggermente rosato
+  - id: "fluorescente_warm"
+    type: "emissive"
+    color: [1.0, 0.82, 0.65]
+    intensity: 12.0
+
+  # Fluorescente cool white — 4100K, ufficio standard
+  - id: "fluorescente_cool"
+    type: "emissive"
+    color: [0.95, 0.95, 1.0]
+    intensity: 14.0
+
+  # Fluorescente daylight — 6500K, sfumatura leggermente blu
+  - id: "fluorescente_daylight"
+    type: "emissive"
+    color: [0.92, 0.94, 1.0]
+    intensity: 16.0
+
+  # Fluorescente old-school — verdastro, parcheggi, seminterrati
+  - id: "fluorescente_verdastro"
+    type: "emissive"
+    color: [0.82, 0.95, 0.78]
+    intensity: 10.0
+
+  # Fluorescente rosa — macellerie, panetterie (esalta i rossi)
+  - id: "fluorescente_rosa"
+    type: "emissive"
+    color: [1.0, 0.80, 0.82]
+    intensity: 12.0
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  NEON COLORATI — insegne luminose, estetica retrò/cyberpunk
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Neon rosso — il classico delle insegne, gas neon puro
+  - id: "neon_rosso"
+    type: "emissive"
+    color: [1.0, 0.10, 0.05]
+    intensity: 10.0
+
+  # Neon arancione — neon + argon
+  - id: "neon_arancione"
+    type: "emissive"
+    color: [1.0, 0.45, 0.05]
+    intensity: 10.0
+
+  # Neon giallo — argon con mercurio
+  - id: "neon_giallo"
+    type: "emissive"
+    color: [1.0, 0.90, 0.10]
+    intensity: 10.0
+
+  # Neon verde — argon con fosfori verdi
+  - id: "neon_verde"
+    type: "emissive"
+    color: [0.15, 1.0, 0.25]
+    intensity: 10.0
+
+  # Neon blu — argon con fosfori blu
+  - id: "neon_blu"
+    type: "emissive"
+    color: [0.10, 0.30, 1.0]
+    intensity: 10.0
+
+  # Neon ciano — turchese elettrico
+  - id: "neon_ciano"
+    type: "emissive"
+    color: [0.10, 0.85, 1.0]
+    intensity: 10.0
+
+  # Neon viola — estetica synthwave
+  - id: "neon_viola"
+    type: "emissive"
+    color: [0.55, 0.10, 1.0]
+    intensity: 10.0
+
+  # Neon rosa — hot pink, vaporwave, Tokyo
+  - id: "neon_rosa"
+    type: "emissive"
+    color: [1.0, 0.15, 0.55]
+    intensity: 10.0
+
+  # Neon magenta — fucsia elettrico
+  - id: "neon_magenta"
+    type: "emissive"
+    color: [1.0, 0.05, 0.65]
+    intensity: 10.0
+
+  # Neon bianco — insegne moderne, tubo bianco freddo
+  - id: "neon_bianco"
+    type: "emissive"
+    color: [0.92, 0.95, 1.0]
+    intensity: 12.0
+
+  # Neon bianco caldo — insegne vintage, warm white
+  - id: "neon_bianco_caldo"
+    type: "emissive"
+    color: [1.0, 0.88, 0.65]
+    intensity: 10.0
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  FIAMMA — candela, fuoco, torcia, falò
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Fiamma candela — molto calda, 1800K, tenue
+  - id: "fiamma_candela"
+    type: "emissive"
+    color: [1.0, 0.55, 0.12]
+    intensity: 4.0
+
+  # Fiamma torcia — più grande e calda
+  - id: "fiamma_torcia"
+    type: "emissive"
+    color: [1.0, 0.50, 0.08]
+    intensity: 8.0
+
+  # Fiamma focolare — fuoco domestico, legna
+  - id: "fiamma_focolare"
+    type: "emissive"
+    color: [1.0, 0.45, 0.06]
+    intensity: 12.0
+
+  # Fiamma falò — grande, intensa
+  - id: "fiamma_falo"
+    type: "emissive"
+    color: [1.0, 0.42, 0.05]
+    intensity: 20.0
+
+  # Fiamma gas — fornello, blu, calda-fredda
+  - id: "fiamma_gas"
+    type: "emissive"
+    color: [0.35, 0.55, 1.0]
+    intensity: 6.0
+
+  # Fiamma saldatura — bianco-azzurro, intensissima
+  - id: "fiamma_saldatura"
+    type: "emissive"
+    color: [0.75, 0.85, 1.0]
+    intensity: 60.0
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  BRACI E LAVA — emissione rossa/arancione, calore intenso
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Braci ardenti — legna quasi consumata, rosso profondo
+  - id: "braci"
+    type: "emissive"
+    color: [1.0, 0.25, 0.02]
+    intensity: 5.0
+
+  # Braci morenti — quasi spente, rosso cupo
+  - id: "braci_morenti"
+    type: "emissive"
+    color: [0.65, 0.10, 0.02]
+    intensity: 2.0
+
+  # Lava incandescente — fusa, arancio-gialla
+  - id: "lava_incandescente"
+    type: "emissive"
+    color: [1.0, 0.38, 0.05]
+    intensity: 15.0
+
+  # Lava che si raffredda — più rossa, meno intensa
+  - id: "lava_raffreddamento"
+    type: "emissive"
+    color: [0.85, 0.18, 0.02]
+    intensity: 6.0
+
+  # Ferro rovente — arancio vivo, fucina
+  - id: "ferro_rovente"
+    type: "emissive"
+    color: [1.0, 0.48, 0.05]
+    intensity: 10.0
+
+  # Ferro rosso ciliegia — primo stadio di riscaldamento
+  - id: "ferro_rosso_ciliegia"
+    type: "emissive"
+    color: [0.72, 0.12, 0.02]
+    intensity: 4.0
+
+  # Ferro bianco — temperatura massima, quasi bianco
+  - id: "ferro_bianco"
+    type: "emissive"
+    color: [1.0, 0.85, 0.65]
+    intensity: 30.0
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SCHERMI — monitor, TV, telefono, tablet
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Schermo generico — bianco-azzurro, intensità medio-bassa
+  - id: "schermo_bianco"
+    type: "emissive"
+    color: [0.85, 0.90, 1.0]
+    intensity: 5.0
+
+  # Schermo warm — night mode, f.lux, toni caldi
+  - id: "schermo_warm"
+    type: "emissive"
+    color: [1.0, 0.82, 0.55]
+    intensity: 4.0
+
+  # Schermo cinema — proiezione, luce riflessa
+  - id: "schermo_cinema"
+    type: "emissive"
+    color: [0.92, 0.92, 0.95]
+    intensity: 3.0
+
+  # Schermo OLED nero — quasi spento, bagliore minimo
+  - id: "schermo_oled_dim"
+    type: "emissive"
+    color: [0.60, 0.65, 0.80]
+    intensity: 1.5
+
+  # Schermo gaming — RGB vivace, contenuto colorato
+  - id: "schermo_gaming_blu"
+    type: "emissive"
+    color: [0.20, 0.40, 1.0]
+    intensity: 5.0
+
+  - id: "schermo_gaming_rosso"
+    type: "emissive"
+    color: [1.0, 0.15, 0.10]
+    intensity: 5.0
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  INSEGNE E DISPLAY — lettere luminose, indicatori, cruscotti
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Exit sign — verde emergenza, retroilluminato
+  - id: "insegna_exit"
+    type: "emissive"
+    color: [0.15, 1.0, 0.20]
+    intensity: 6.0
+
+  # Exit sign rosso — standard USA
+  - id: "insegna_exit_rosso"
+    type: "emissive"
+    color: [1.0, 0.08, 0.05]
+    intensity: 6.0
+
+  # LED indicatore rosso — standby, recording
+  - id: "indicatore_rosso"
+    type: "emissive"
+    color: [1.0, 0.05, 0.02]
+    intensity: 3.0
+
+  # LED indicatore verde — power on, ok
+  - id: "indicatore_verde"
+    type: "emissive"
+    color: [0.10, 1.0, 0.15]
+    intensity: 3.0
+
+  # LED indicatore blu — Bluetooth, connessione
+  - id: "indicatore_blu"
+    type: "emissive"
+    color: [0.10, 0.30, 1.0]
+    intensity: 3.0
+
+  # Display orologio — verde retrò, cifre digitali
+  - id: "display_orologio"
+    type: "emissive"
+    color: [0.20, 1.0, 0.30]
+    intensity: 4.0
+
+  # Cruscotto auto — retroilluminazione arancione
+  - id: "cruscotto_arancione"
+    type: "emissive"
+    color: [1.0, 0.52, 0.08]
+    intensity: 3.0
+
+  # Cruscotto moderno — bianco-azzurro
+  - id: "cruscotto_bianco"
+    type: "emissive"
+    color: [0.85, 0.92, 1.0]
+    intensity: 4.0
+
+  # Lettera luminosa marquee — lampadine Edison su insegna
+  - id: "marquee_caldo"
+    type: "emissive"
+    color: [1.0, 0.62, 0.20]
+    intensity: 6.0
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  EFFETTI SPECIALI — magia, sci-fi, energia, laser
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Magia arcana — blu-viola, incantesimi fantasy
+  - id: "fx_magia_arcana"
+    type: "emissive"
+    color: [0.30, 0.15, 1.0]
+    intensity: 12.0
+
+  # Magia sacra — bianco-oro, guarigione
+  - id: "fx_magia_sacra"
+    type: "emissive"
+    color: [1.0, 0.92, 0.60]
+    intensity: 15.0
+
+  # Magia oscura — viola-rosso, necromanzia
+  - id: "fx_magia_oscura"
+    type: "emissive"
+    color: [0.65, 0.05, 0.35]
+    intensity: 8.0
+
+  # Magia naturale — verde foresta, druidica
+  - id: "fx_magia_natura"
+    type: "emissive"
+    color: [0.15, 0.85, 0.25]
+    intensity: 10.0
+
+  # Portale sci-fi — ciano elettrico
+  - id: "fx_portale"
+    type: "emissive"
+    color: [0.10, 0.80, 1.0]
+    intensity: 20.0
+
+  # Laser rosso — sottile, intensissimo
+  - id: "fx_laser_rosso"
+    type: "emissive"
+    color: [1.0, 0.02, 0.02]
+    intensity: 50.0
+
+  # Laser verde — puntatore, spettacolo
+  - id: "fx_laser_verde"
+    type: "emissive"
+    color: [0.05, 1.0, 0.10]
+    intensity: 50.0
+
+  # Plasma — blu-bianco, arco elettrico
+  - id: "fx_plasma"
+    type: "emissive"
+    color: [0.60, 0.72, 1.0]
+    intensity: 35.0
+
+  # Radioattivo — verde Cherenkov, inquietante
+  - id: "fx_radioattivo"
+    type: "emissive"
+    color: [0.20, 1.0, 0.30]
+    intensity: 8.0
+
+  # Energia rossa — sith, allarme, pericolo
+  - id: "fx_energia_rossa"
+    type: "emissive"
+    color: [1.0, 0.08, 0.05]
+    intensity: 15.0
+
+  # Energia blu — scudi, campo di forza
+  - id: "fx_energia_blu"
+    type: "emissive"
+    color: [0.15, 0.45, 1.0]
+    intensity: 15.0
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  BIOLUMINESCENZA — lucciole, meduse, funghi, plancton
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Lucciola — giallo-verde caldo, intermittente
+  - id: "bio_lucciola"
+    type: "emissive"
+    color: [0.72, 0.92, 0.15]
+    intensity: 3.0
+
+  # Medusa — blu-viola tenue, profondo
+  - id: "bio_medusa"
+    type: "emissive"
+    color: [0.25, 0.35, 0.85]
+    intensity: 4.0
+
+  # Plancton — ciano bioluminescente, onde notturne
+  - id: "bio_plancton"
+    type: "emissive"
+    color: [0.10, 0.65, 0.82]
+    intensity: 2.5
+
+  # Fungo bioluminescente — verde pallido, foresta
+  - id: "bio_fungo"
+    type: "emissive"
+    color: [0.30, 0.75, 0.28]
+    intensity: 2.0
+
+  # Corallo fluorescente — arancione-rosa, acquario
+  - id: "bio_corallo"
+    type: "emissive"
+    color: [1.0, 0.45, 0.25]
+    intensity: 3.0
+
+  # Abisso — anglerfish, lure blu pallido
+  - id: "bio_abisso"
+    type: "emissive"
+    color: [0.20, 0.48, 0.72]
+    intensity: 2.0

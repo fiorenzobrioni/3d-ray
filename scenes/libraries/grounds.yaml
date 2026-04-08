@@ -1,0 +1,456 @@
+# ============================================================================
+# Libreria Materiali — Pavimenti e Terreni
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/grounds.yaml" }]
+#
+# Raccolta di materiali per superfici grandi: pavimenti, terreni, strade.
+# Pensata per infinite_plane e ground plane nelle scene.
+#
+# ── PREVALENZA CLASSIC ───────────────────────────────────────────────────
+#
+#   Questa libreria privilegia i materiali classici. Le superfici grandi
+#   coprono la maggior parte dei pixel: il rumore Disney su queste aree
+#   domina il rumore totale della scena. La regola d'oro:
+#
+#     → Pavimenti e terreni: SEMPRE classic (lambertian o metal+fuzz)
+#     → Usare Disney solo se il pavimento è protagonista della scena
+#       (close-up su marmo lucido) e si hanno almeno 512 spp
+#
+#   cls_  (Classic) — Lambertian con texture checker/noise/marble.
+#         Metal+fuzz per superfici lucide. SCELTA RACCOMANDATA.
+#
+#   dis_  (Disney BSDF) — Solo per close-up. Clearcoat per parquet
+#         laccato, subsurface per neve, sheen per moquette/erba.
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   CHECKER             Scacchiera bicolore, il pattern iconico.
+#   PARQUET             Legno per interni, texture wood.
+#   PIASTRELLE          Ceramica, gres, cotto.
+#   MARMO PAVIMENTO     Marmi lucidati per interni.
+#   CEMENTO E ASFALTO   Industriale, stradale.
+#   TERRA E FANGO       Terreni naturali.
+#   SABBIA              Spiaggia, deserto, dune.
+#   GHIAIA              Vialetti, giardini zen.
+#   ERBA                Prato, campo sportivo.
+#   NEVE                Fresca, compatta, sporca.
+#   MOQUETTE            Tessuto a pavimento.
+#   ACQUA               Laghi, pozzanghere.
+#
+# ============================================================================
+
+
+materials:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CHECKER — il pattern iconico del ray tracing
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: "cls_checker_bn"
+    type: "lambertian"
+    texture: { type: "checker", colors: [[0.85, 0.83, 0.80], [0.06, 0.06, 0.07]], scale: 1.5 }
+
+  - id: "cls_checker_grigio"
+    type: "lambertian"
+    texture: { type: "checker", colors: [[0.65, 0.63, 0.60], [0.25, 0.24, 0.23]], scale: 1.5 }
+
+  - id: "cls_checker_piccolo"
+    type: "lambertian"
+    texture: { type: "checker", colors: [[0.88, 0.86, 0.82], [0.08, 0.08, 0.08]], scale: 0.8 }
+
+  - id: "cls_checker_grande"
+    type: "lambertian"
+    texture: { type: "checker", colors: [[0.82, 0.80, 0.76], [0.05, 0.05, 0.06]], scale: 3.0 }
+
+  - id: "cls_checker_marmo"
+    type: "metal"
+    fuzz: 0.12
+    texture: { type: "checker", colors: [[0.90, 0.88, 0.85], [0.06, 0.06, 0.07]], scale: 1.5 }
+
+  - id: "cls_checker_terracotta"
+    type: "lambertian"
+    texture: { type: "checker", colors: [[0.85, 0.80, 0.70], [0.55, 0.25, 0.15]], scale: 1.5 }
+
+  - id: "cls_checker_azzurro"
+    type: "lambertian"
+    texture: { type: "checker", colors: [[0.88, 0.88, 0.86], [0.35, 0.55, 0.72]], scale: 1.0 }
+
+  - id: "dis_checker_marmo"
+    type: "disney"
+    roughness: 0.10
+    specular: 0.65
+    clearcoat: 0.70
+    clearcoat_gloss: 0.90
+    texture: { type: "checker", colors: [[0.90, 0.88, 0.85], [0.06, 0.06, 0.07]], scale: 1.5 }
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  PARQUET — legno per interni
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: "cls_parquet_rovere_chiaro"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.72, 0.58, 0.35], [0.55, 0.42, 0.22]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  - id: "cls_parquet_rovere_scuro"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.42, 0.28, 0.14], [0.28, 0.18, 0.08]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  - id: "cls_parquet_noce"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.40, 0.25, 0.13], [0.26, 0.15, 0.07]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  - id: "cls_parquet_teak"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 2.0
+      colors: [[0.55, 0.40, 0.20], [0.40, 0.28, 0.12]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  - id: "cls_parquet_wenge"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 5.5
+      noise_strength: 2.8
+      colors: [[0.22, 0.14, 0.08], [0.10, 0.07, 0.04]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  - id: "cls_parquet_verniciato"
+    type: "metal"
+    fuzz: 0.18
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.65, 0.48, 0.28], [0.48, 0.32, 0.15]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  - id: "dis_parquet_laccato"
+    type: "disney"
+    roughness: 0.18
+    specular: 0.48
+    clearcoat: 0.65
+    clearcoat_gloss: 0.88
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.55, 0.38, 0.18], [0.38, 0.24, 0.10]]
+      randomize_offset: true
+      randomize_rotation: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  PIASTRELLE — ceramica, gres, cotto
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: "cls_gres_bianco"
+    type: "lambertian"
+    color: [0.88, 0.86, 0.82]
+
+  - id: "cls_gres_grigio"
+    type: "lambertian"
+    color: [0.48, 0.46, 0.44]
+
+  - id: "cls_gres_antracite"
+    type: "lambertian"
+    color: [0.18, 0.17, 0.16]
+
+  - id: "cls_cotto_toscano"
+    type: "lambertian"
+    color: [0.62, 0.35, 0.20]
+
+  - id: "cls_cotto_chiaro"
+    type: "lambertian"
+    color: [0.75, 0.55, 0.38]
+
+  - id: "cls_gres_lucido_bianco"
+    type: "metal"
+    color: [0.88, 0.86, 0.82]
+    fuzz: 0.15
+
+  - id: "dis_gres_lucido_bianco"
+    type: "disney"
+    color: [0.88, 0.86, 0.82]
+    roughness: 0.10
+    specular: 0.60
+    clearcoat: 0.55
+    clearcoat_gloss: 0.88
+
+  - id: "dis_gres_lucido_antracite"
+    type: "disney"
+    color: [0.18, 0.17, 0.16]
+    roughness: 0.08
+    specular: 0.68
+    clearcoat: 0.60
+    clearcoat_gloss: 0.90
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  MARMO PAVIMENTO
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: "cls_pavimento_carrara"
+    type: "lambertian"
+    texture: { type: "marble", scale: 15.0, noise_strength: 12.0, colors: [[0.94, 0.93, 0.92], [0.42, 0.43, 0.48]], randomize_offset: true }
+
+  - id: "cls_pavimento_carrara_lucido"
+    type: "metal"
+    fuzz: 0.10
+    texture: { type: "marble", scale: 15.0, noise_strength: 12.0, colors: [[0.94, 0.93, 0.92], [0.42, 0.43, 0.48]], randomize_offset: true }
+
+  - id: "cls_pavimento_nero"
+    type: "lambertian"
+    texture: { type: "marble", scale: 12.0, noise_strength: 10.0, colors: [[0.05, 0.05, 0.06], [0.55, 0.52, 0.48]], randomize_offset: true }
+
+  - id: "cls_pavimento_travertino"
+    type: "lambertian"
+    texture: { type: "noise", scale: 8.0, noise_strength: 4.0, colors: [[0.82, 0.75, 0.62], [0.68, 0.60, 0.46]], randomize_offset: true }
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CEMENTO E ASFALTO
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: "cls_cemento_grezzo"
+    type: "lambertian"
+    texture: { type: "noise", scale: 8.0, noise_strength: 3.0, colors: [[0.55, 0.53, 0.51], [0.42, 0.40, 0.39]], randomize_offset: true }
+
+  - id: "cls_cemento_liscio"
+    type: "lambertian"
+    texture: { type: "noise", scale: 14.0, noise_strength: 2.0, colors: [[0.58, 0.56, 0.54], [0.48, 0.46, 0.44]], randomize_offset: true }
+
+  - id: "cls_asfalto_nuovo"
+    type: "lambertian"
+    texture: { type: "noise", scale: 12.0, noise_strength: 2.5, colors: [[0.12, 0.12, 0.12], [0.08, 0.08, 0.08]], randomize_offset: true }
+
+  - id: "cls_asfalto_vecchio"
+    type: "lambertian"
+    texture: { type: "noise", scale: 10.0, noise_strength: 3.5, colors: [[0.28, 0.27, 0.26], [0.15, 0.14, 0.14]], randomize_offset: true }
+
+  - id: "cls_asfalto_bagnato"
+    type: "metal"
+    fuzz: 0.10
+    texture: { type: "noise", scale: 12.0, noise_strength: 2.5, colors: [[0.08, 0.08, 0.08], [0.04, 0.04, 0.04]], randomize_offset: true }
+
+  - id: "cls_marciapiede"
+    type: "lambertian"
+    texture: { type: "noise", scale: 10.0, noise_strength: 2.0, colors: [[0.52, 0.50, 0.48], [0.40, 0.38, 0.36]], randomize_offset: true }
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  TERRA E FANGO
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: "cls_terra_battuta"
+    type: "lambertian"
+    texture: { type: "noise", scale: 6.0, noise_strength: 4.0, colors: [[0.45, 0.32, 0.18], [0.32, 0.22, 0.12]], randomize_offset: true }
+
+  - id: "cls_terra_scura"
+    type: "lambertian"
+    texture: { type: "noise", scale: 6.0, noise_strength: 4.5, colors: [[0.22, 0.16, 0.10], [0.14, 0.10, 0.06]], randomize_offset: true }
+
+  - id: "cls_terra_rossa"
+    type: "lambertian"
+    texture: { type: "noise", scale: 6.0, noise_strength: 3.5, colors: [[0.58, 0.25, 0.10], [0.42, 0.18, 0.08]], randomize_offset: true }
+
+  - id: "cls_argilla"
+    type: "lambertian"
+    texture: { type: "noise", scale: 8.0, noise_strength: 3.0, colors: [[0.58, 0.50, 0.35], [0.45, 0.38, 0.25]], randomize_offset: true }
+
+  - id: "cls_fango"
+    type: "metal"
+    fuzz: 0.35
+    texture: { type: "noise", scale: 5.0, noise_strength: 5.0, colors: [[0.18, 0.14, 0.08], [0.10, 0.08, 0.05]], randomize_offset: true }
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SABBIA
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: "cls_sabbia_dorata"
+    type: "lambertian"
+    texture: { type: "noise", scale: 18.0, noise_strength: 2.0, colors: [[0.78, 0.68, 0.45], [0.65, 0.55, 0.35]], randomize_offset: true }
+
+  - id: "cls_sabbia_bianca"
+    type: "lambertian"
+    texture: { type: "noise", scale: 20.0, noise_strength: 1.5, colors: [[0.88, 0.86, 0.80], [0.78, 0.75, 0.68]], randomize_offset: true }
+
+  - id: "cls_sabbia_deserto"
+    type: "lambertian"
+    texture: { type: "noise", scale: 16.0, noise_strength: 2.5, colors: [[0.82, 0.62, 0.30], [0.70, 0.50, 0.22]], randomize_offset: true }
+
+  - id: "cls_sabbia_bagnata"
+    type: "metal"
+    fuzz: 0.22
+    texture: { type: "noise", scale: 18.0, noise_strength: 2.0, colors: [[0.52, 0.42, 0.28], [0.40, 0.32, 0.20]], randomize_offset: true }
+
+  - id: "cls_sabbia_vulcanica"
+    type: "lambertian"
+    texture: { type: "noise", scale: 18.0, noise_strength: 2.0, colors: [[0.12, 0.11, 0.10], [0.06, 0.06, 0.05]], randomize_offset: true }
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  GHIAIA E PIETRISCO
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: "cls_ghiaia_grigia"
+    type: "lambertian"
+    texture: { type: "noise", scale: 8.0, noise_strength: 5.0, colors: [[0.55, 0.53, 0.50], [0.35, 0.33, 0.30]], randomize_offset: true }
+
+  - id: "cls_ghiaia_bianca"
+    type: "lambertian"
+    texture: { type: "noise", scale: 8.0, noise_strength: 4.5, colors: [[0.85, 0.83, 0.78], [0.65, 0.62, 0.58]], randomize_offset: true }
+
+  - id: "cls_pietrisco"
+    type: "lambertian"
+    texture: { type: "noise", scale: 5.0, noise_strength: 6.0, colors: [[0.38, 0.36, 0.34], [0.20, 0.19, 0.18]], randomize_offset: true }
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ERBA
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: "cls_erba_prato"
+    type: "lambertian"
+    texture: { type: "noise", scale: 10.0, noise_strength: 3.0, colors: [[0.18, 0.38, 0.08], [0.10, 0.25, 0.05]], randomize_offset: true }
+
+  - id: "cls_erba_secca"
+    type: "lambertian"
+    texture: { type: "noise", scale: 8.0, noise_strength: 3.5, colors: [[0.52, 0.48, 0.22], [0.38, 0.35, 0.15]], randomize_offset: true }
+
+  - id: "cls_erba_campo"
+    type: "lambertian"
+    texture: { type: "noise", scale: 14.0, noise_strength: 2.0, colors: [[0.12, 0.42, 0.08], [0.08, 0.30, 0.05]], randomize_offset: true }
+
+  - id: "cls_muschio"
+    type: "lambertian"
+    texture: { type: "noise", scale: 6.0, noise_strength: 4.0, colors: [[0.12, 0.28, 0.08], [0.06, 0.15, 0.04]], randomize_offset: true }
+
+  - id: "dis_erba_prato"
+    type: "disney"
+    roughness: 0.90
+    specular: 0.10
+    sheen: 0.15
+    sheen_tint: 0.7
+    texture: { type: "noise", scale: 10.0, noise_strength: 3.0, colors: [[0.18, 0.38, 0.08], [0.10, 0.25, 0.05]], randomize_offset: true }
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  NEVE
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: "cls_neve_fresca"
+    type: "lambertian"
+    color: [0.90, 0.92, 0.95]
+
+  - id: "cls_neve_compatta"
+    type: "lambertian"
+    texture: { type: "noise", scale: 14.0, noise_strength: 1.5, colors: [[0.85, 0.87, 0.90], [0.75, 0.77, 0.82]], randomize_offset: true }
+
+  - id: "cls_neve_sporca"
+    type: "lambertian"
+    texture: { type: "noise", scale: 8.0, noise_strength: 4.0, colors: [[0.72, 0.72, 0.70], [0.42, 0.40, 0.35]], randomize_offset: true }
+
+  - id: "dis_neve_fresca"
+    type: "disney"
+    color: [0.90, 0.92, 0.95]
+    roughness: 0.85
+    specular: 0.18
+    subsurface: 0.40
+    sheen: 0.12
+    sheen_tint: 0.2
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  MOQUETTE
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: "cls_moquette_grigia"
+    type: "lambertian"
+    color: [0.35, 0.34, 0.33]
+
+  - id: "cls_moquette_blu"
+    type: "lambertian"
+    color: [0.10, 0.15, 0.35]
+
+  - id: "cls_moquette_rossa"
+    type: "lambertian"
+    color: [0.48, 0.08, 0.06]
+
+  - id: "cls_moquette_beige"
+    type: "lambertian"
+    color: [0.58, 0.50, 0.38]
+
+  - id: "cls_moquette_verde"
+    type: "lambertian"
+    color: [0.10, 0.30, 0.12]
+
+  - id: "dis_moquette_grigia"
+    type: "disney"
+    color: [0.35, 0.34, 0.33]
+    roughness: 0.95
+    specular: 0.05
+    sheen: 0.18
+    sheen_tint: 0.3
+
+  - id: "dis_moquette_rossa"
+    type: "disney"
+    color: [0.48, 0.08, 0.06]
+    roughness: 0.95
+    specular: 0.05
+    sheen: 0.18
+    sheen_tint: 0.5
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ACQUA — superfici piatte
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - id: "cls_acqua_calma"
+    type: "dielectric"
+    refraction_index: 1.333
+    color: [0.85, 0.90, 0.95]
+
+  - id: "cls_acqua_scura"
+    type: "dielectric"
+    refraction_index: 1.333
+    color: [0.15, 0.22, 0.28]
+
+  - id: "cls_pozzanghera"
+    type: "metal"
+    color: [0.12, 0.15, 0.18]
+    fuzz: 0.04
+
+  - id: "dis_acqua_mossa"
+    type: "disney"
+    color: [0.45, 0.58, 0.65]
+    roughness: 0.08
+    spec_trans: 0.85
+    ior: 1.333
+    specular: 0.72

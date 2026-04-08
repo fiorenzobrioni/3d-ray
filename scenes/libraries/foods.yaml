@@ -1,0 +1,850 @@
+# ============================================================================
+# Libreria Materiali — Alimenti e Bevande
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/foods.yaml" }]
+#
+# Raccolta di materiali alimentari per still life fotorealistiche.
+# Cioccolato, frutta, formaggi, pane, dolci, liquidi e condimenti.
+#
+#   dis_  (Disney BSDF) — Essenziale: la quasi totalità degli alimenti
+#         è traslucente (subsurface) e/o ha una superficie umida/cerosa
+#         (specular, clearcoat). Frutta e verdura usano subsurface per
+#         la luce che penetra nella polpa. I liquidi usano spec_trans.
+#
+#   cls_  (Classic) — Lambertian per alimenti opachi (pane, crosta,
+#         formaggio stagionato). Dielectric per liquidi trasparenti
+#         (acqua, vino, olio). Metal+fuzz per superfici lucide (mela,
+#         cioccolato temperato). Nessun subsurface: meno fotorealistico
+#         ma molto più veloce.
+#
+# ── Fisica degli alimenti ────────────────────────────────────────────────
+#
+#   Gli alimenti sono tra i materiali più complessi in natura:
+#
+#   Frutta: buccia cerosa (clearcoat) sopra polpa traslucente
+#           (subsurface). Il colore viene dal bulk, non dalla superficie.
+#
+#   Liquidi: spec_trans per trasparenza, IOR ~1.33–1.50.
+#            Il colore determina l'assorbimento per spessore.
+#
+#   Cioccolato: fondente = roughness basso (snap lucido dopo tempera),
+#               al latte = roughness medio, bianco = subsurface alto.
+#
+#   Pane/pasta: crosta opaca (roughness alto), mollica traslucente
+#               (subsurface) con colore chiaro.
+#
+#   Formaggio: dalla cera rossa (Edam) al cristallino (Parmigiano),
+#              subsurface variabile, roughness da basso a molto alto.
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   CIOCCOLATO          Fondente, latte, bianco, cacao in polvere.
+#                       Temperato = lucido, fuso = roughness alto.
+#
+#   FRUTTA              Mela, arancia, limone, uva, pesca, ciliegia,
+#                       banana, fragola. Buccia cerosa + polpa SSS.
+#
+#   VERDURA             Pomodoro, peperone, melanzana, zucca.
+#                       Buccia lucida + polpa traslucente.
+#
+#   FORMAGGI            Parmigiano, Cheddar, Brie, Gouda, mozzarella,
+#                       Gorgonzola. Dal cristallino al cremoso.
+#
+#   PANE E PASTA        Crosta dorata, mollica chiara, pasta cruda,
+#                       pasta cotta. Subsurface per la mollica.
+#
+#   DOLCI E ZUCCHERO    Zucchero, caramello, marzapane, glassa,
+#                       meringhe. Traslucenza e lucentezza.
+#
+#   BURRO E GRASSI      Burro, margarina, strutto, olio solidificato.
+#                       Subsurface alto, colori giallo-crema.
+#
+#   LIQUIDI             Acqua, latte, vino, birra, olio, miele,
+#                       succo, caffè. Spec_trans + IOR specifici.
+#                       (Integra glasses.yaml con liquidi alimentari)
+#
+#   CONDIMENTI          Senape, ketchup, salsa di soia, aceto.
+#                       Liquidi densi, subsurface variabile.
+#
+#   CARNE E PESCE       Cruda, cotta, affumicata. Subsurface per
+#                       la traslucenza del tessuto muscolare.
+#
+# ============================================================================
+
+
+materials:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CIOCCOLATO — temperato (lucido), fuso, in polvere
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Fondente temperato — 70% cacao, snap lucido
+  - id: "dis_cioccolato_fondente"
+    type: "disney"
+    color: [0.12, 0.06, 0.04]
+    roughness: 0.15
+    specular: 0.55
+    clearcoat: 0.40
+    clearcoat_gloss: 0.85
+    subsurface: 0.05
+
+  # Cioccolato al latte — tono più chiaro, meno lucido
+  - id: "dis_cioccolato_latte"
+    type: "disney"
+    color: [0.32, 0.18, 0.08]
+    roughness: 0.22
+    specular: 0.48
+    clearcoat: 0.30
+    clearcoat_gloss: 0.80
+    subsurface: 0.08
+
+  # Cioccolato bianco — quasi crema, subsurface alto
+  - id: "dis_cioccolato_bianco"
+    type: "disney"
+    color: [0.88, 0.82, 0.62]
+    roughness: 0.28
+    specular: 0.42
+    clearcoat: 0.25
+    clearcoat_gloss: 0.75
+    subsurface: 0.20
+
+  # Cioccolato fuso — superficie irregolare, lucida
+  - id: "dis_cioccolato_fuso"
+    type: "disney"
+    color: [0.18, 0.08, 0.04]
+    roughness: 0.10
+    specular: 0.60
+    clearcoat: 0.50
+    clearcoat_gloss: 0.88
+    subsurface: 0.10
+
+  # Cacao in polvere — opaco, granuloso
+  - id: "dis_cacao_polvere"
+    type: "disney"
+    color: [0.25, 0.12, 0.06]
+    roughness: 0.92
+    specular: 0.05
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_cioccolato_fondente"
+    type: "metal"
+    color: [0.12, 0.06, 0.04]
+    fuzz: 0.18
+
+  - id: "cls_cioccolato_latte"
+    type: "metal"
+    color: [0.32, 0.18, 0.08]
+    fuzz: 0.25
+
+  - id: "cls_cacao_polvere"
+    type: "lambertian"
+    color: [0.25, 0.12, 0.06]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  FRUTTA — buccia cerosa + polpa traslucente
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Mela rossa — buccia cerosa, polpa chiara sotto
+  - id: "dis_mela_rossa"
+    type: "disney"
+    color: [0.68, 0.06, 0.05]
+    roughness: 0.25
+    specular: 0.55
+    clearcoat: 0.45
+    clearcoat_gloss: 0.88
+    subsurface: 0.18
+
+  # Mela verde — Granny Smith, lucida e acida
+  - id: "dis_mela_verde"
+    type: "disney"
+    color: [0.32, 0.58, 0.10]
+    roughness: 0.22
+    specular: 0.55
+    clearcoat: 0.48
+    clearcoat_gloss: 0.90
+    subsurface: 0.20
+
+  # Arancia — buccia rugosa con micropori
+  - id: "dis_arancia"
+    type: "disney"
+    color: [0.88, 0.48, 0.05]
+    roughness: 0.58
+    specular: 0.30
+    subsurface: 0.22
+
+  # Limone — giallo brillante, buccia leggermente ruvida
+  - id: "dis_limone"
+    type: "disney"
+    color: [0.90, 0.82, 0.12]
+    roughness: 0.52
+    specular: 0.32
+    subsurface: 0.18
+
+  # Uva nera — buccia cerosa con pruina (bloom)
+  - id: "dis_uva_nera"
+    type: "disney"
+    color: [0.12, 0.04, 0.15]
+    roughness: 0.30
+    specular: 0.50
+    clearcoat: 0.35
+    clearcoat_gloss: 0.82
+    subsurface: 0.15
+
+  # Uva bianca — verde-gialla, traslucente
+  - id: "dis_uva_bianca"
+    type: "disney"
+    color: [0.62, 0.68, 0.22]
+    roughness: 0.28
+    specular: 0.52
+    clearcoat: 0.38
+    clearcoat_gloss: 0.85
+    subsurface: 0.28
+
+  # Pesca — buccia vellutata (sheen), polpa SSS
+  - id: "dis_pesca"
+    type: "disney"
+    color: [0.85, 0.52, 0.25]
+    roughness: 0.62
+    specular: 0.28
+    sheen: 0.20
+    sheen_tint: 0.6
+    subsurface: 0.22
+
+  # Ciliegia — lucidissima, quasi laccata
+  - id: "dis_ciliegia"
+    type: "disney"
+    color: [0.52, 0.04, 0.06]
+    roughness: 0.12
+    specular: 0.62
+    clearcoat: 0.55
+    clearcoat_gloss: 0.92
+    subsurface: 0.15
+
+  # Banana — gialla opaca, buccia liscia
+  - id: "dis_banana"
+    type: "disney"
+    color: [0.88, 0.78, 0.18]
+    roughness: 0.52
+    specular: 0.30
+    subsurface: 0.12
+
+  # Fragola — rossa con semi, superficie irregolare
+  - id: "dis_fragola"
+    type: "disney"
+    color: [0.72, 0.10, 0.08]
+    roughness: 0.55
+    specular: 0.35
+    subsurface: 0.18
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_mela_rossa"
+    type: "metal"
+    color: [0.68, 0.06, 0.05]
+    fuzz: 0.28
+
+  - id: "cls_arancia"
+    type: "lambertian"
+    color: [0.88, 0.48, 0.05]
+
+  - id: "cls_limone"
+    type: "lambertian"
+    color: [0.90, 0.82, 0.12]
+
+  - id: "cls_banana"
+    type: "lambertian"
+    color: [0.88, 0.78, 0.18]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  VERDURA — buccia lucida + polpa traslucente
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Pomodoro — rosso, pelle liscia e lucida
+  - id: "dis_pomodoro"
+    type: "disney"
+    color: [0.72, 0.10, 0.06]
+    roughness: 0.22
+    specular: 0.55
+    clearcoat: 0.40
+    clearcoat_gloss: 0.88
+    subsurface: 0.25
+
+  # Peperone rosso — lucidissimo, quasi laccato
+  - id: "dis_peperone_rosso"
+    type: "disney"
+    color: [0.75, 0.08, 0.05]
+    roughness: 0.15
+    specular: 0.60
+    clearcoat: 0.55
+    clearcoat_gloss: 0.92
+    subsurface: 0.15
+
+  # Peperone giallo — brillante
+  - id: "dis_peperone_giallo"
+    type: "disney"
+    color: [0.90, 0.78, 0.10]
+    roughness: 0.15
+    specular: 0.58
+    clearcoat: 0.52
+    clearcoat_gloss: 0.90
+    subsurface: 0.15
+
+  # Melanzana — viola scuro, buccia lucida
+  - id: "dis_melanzana"
+    type: "disney"
+    color: [0.18, 0.05, 0.22]
+    roughness: 0.18
+    specular: 0.58
+    clearcoat: 0.48
+    clearcoat_gloss: 0.88
+    subsurface: 0.10
+
+  # Zucca — arancione, buccia opaca rugosa
+  - id: "dis_zucca"
+    type: "disney"
+    color: [0.82, 0.45, 0.08]
+    roughness: 0.68
+    specular: 0.20
+    subsurface: 0.15
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_pomodoro"
+    type: "metal"
+    color: [0.72, 0.10, 0.06]
+    fuzz: 0.25
+
+  - id: "cls_zucca"
+    type: "lambertian"
+    color: [0.82, 0.45, 0.08]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  FORMAGGI — dal cristallino al cremoso
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Parmigiano — cristallino, giallo paglierino, granuloso
+  - id: "dis_parmigiano"
+    type: "disney"
+    color: [0.78, 0.65, 0.32]
+    roughness: 0.72
+    specular: 0.18
+    subsurface: 0.10
+
+  # Cheddar — arancione, compatto, leggermente lucido
+  - id: "dis_cheddar"
+    type: "disney"
+    color: [0.82, 0.52, 0.10]
+    roughness: 0.55
+    specular: 0.28
+    subsurface: 0.15
+
+  # Brie — crosta bianca morbida, interno cremoso
+  - id: "dis_brie_crosta"
+    type: "disney"
+    color: [0.90, 0.88, 0.82]
+    roughness: 0.82
+    specular: 0.08
+    subsurface: 0.12
+    sheen: 0.06
+
+  - id: "dis_brie_interno"
+    type: "disney"
+    color: [0.90, 0.85, 0.65]
+    roughness: 0.48
+    specular: 0.30
+    subsurface: 0.35
+
+  # Gouda — giallo dorato, superficie cerata
+  - id: "dis_gouda"
+    type: "disney"
+    color: [0.82, 0.62, 0.22]
+    roughness: 0.35
+    specular: 0.42
+    clearcoat: 0.20
+    clearcoat_gloss: 0.72
+    subsurface: 0.18
+
+  # Mozzarella — bianca, umida, molto traslucente
+  - id: "dis_mozzarella"
+    type: "disney"
+    color: [0.92, 0.90, 0.82]
+    roughness: 0.40
+    specular: 0.38
+    subsurface: 0.42
+
+  # Gorgonzola — venature blu-verdi su pasta gialla
+  - id: "dis_gorgonzola"
+    type: "disney"
+    color: [0.78, 0.72, 0.52]
+    roughness: 0.65
+    specular: 0.20
+    subsurface: 0.18
+
+  # Cera per formaggio (Edam, Gouda) — rossa, liscia
+  - id: "dis_cera_formaggio_rossa"
+    type: "disney"
+    color: [0.72, 0.08, 0.05]
+    roughness: 0.35
+    specular: 0.40
+    subsurface: 0.15
+    clearcoat: 0.20
+    clearcoat_gloss: 0.72
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_parmigiano"
+    type: "lambertian"
+    color: [0.78, 0.65, 0.32]
+
+  - id: "cls_cheddar"
+    type: "lambertian"
+    color: [0.82, 0.52, 0.10]
+
+  - id: "cls_mozzarella"
+    type: "lambertian"
+    color: [0.92, 0.90, 0.82]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  PANE E PASTA — crosta dorata, mollica chiara
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Crosta di pane — dorata, Maillard, leggermente lucida
+  - id: "dis_crosta_pane"
+    type: "disney"
+    color: [0.55, 0.32, 0.12]
+    roughness: 0.72
+    specular: 0.15
+    subsurface: 0.06
+
+  # Mollica — bianca, porosa, traslucente
+  - id: "dis_mollica"
+    type: "disney"
+    color: [0.85, 0.78, 0.58]
+    roughness: 0.88
+    specular: 0.08
+    subsurface: 0.22
+
+  # Pasta cruda — giallo uovo, semola, opaca
+  - id: "dis_pasta_cruda"
+    type: "disney"
+    color: [0.82, 0.68, 0.28]
+    roughness: 0.70
+    specular: 0.15
+    subsurface: 0.10
+
+  # Pasta cotta — più scura, leggermente lucida (amido)
+  - id: "dis_pasta_cotta"
+    type: "disney"
+    color: [0.75, 0.60, 0.25]
+    roughness: 0.42
+    specular: 0.35
+    subsurface: 0.15
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_crosta_pane"
+    type: "lambertian"
+    color: [0.55, 0.32, 0.12]
+
+  - id: "cls_mollica"
+    type: "lambertian"
+    color: [0.85, 0.78, 0.58]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  DOLCI E ZUCCHERO — traslucenza e lucentezza
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Zucchero bianco — cristalli, semi-traslucente
+  - id: "dis_zucchero"
+    type: "disney"
+    color: [0.92, 0.91, 0.88]
+    roughness: 0.55
+    specular: 0.35
+    subsurface: 0.30
+
+  # Caramello — ambra scura, lucido, denso
+  - id: "dis_caramello"
+    type: "disney"
+    color: [0.55, 0.28, 0.05]
+    roughness: 0.08
+    specular: 0.62
+    clearcoat: 0.50
+    clearcoat_gloss: 0.90
+    subsurface: 0.20
+
+  # Marzapane — pasta di mandorle, opaco morbido
+  - id: "dis_marzapane"
+    type: "disney"
+    color: [0.85, 0.78, 0.52]
+    roughness: 0.68
+    specular: 0.18
+    subsurface: 0.25
+
+  # Glassa bianca — zucchero a velo + acqua, lucida
+  - id: "dis_glassa_bianca"
+    type: "disney"
+    color: [0.94, 0.93, 0.90]
+    roughness: 0.15
+    specular: 0.55
+    clearcoat: 0.45
+    clearcoat_gloss: 0.88
+    subsurface: 0.22
+
+  # Glassa al cioccolato — ganache, lucida
+  - id: "dis_glassa_cioccolato"
+    type: "disney"
+    color: [0.15, 0.08, 0.04]
+    roughness: 0.10
+    specular: 0.58
+    clearcoat: 0.48
+    clearcoat_gloss: 0.88
+    subsurface: 0.08
+
+  # Meringa — bianca, leggerissima, porosa
+  - id: "dis_meringa"
+    type: "disney"
+    color: [0.92, 0.90, 0.82]
+    roughness: 0.78
+    specular: 0.12
+    subsurface: 0.15
+
+  # Zucchero di canna — cristalli dorati
+  - id: "dis_zucchero_canna"
+    type: "disney"
+    color: [0.62, 0.42, 0.15]
+    roughness: 0.60
+    specular: 0.30
+    subsurface: 0.25
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_caramello"
+    type: "metal"
+    color: [0.55, 0.28, 0.05]
+    fuzz: 0.12
+
+  - id: "cls_marzapane"
+    type: "lambertian"
+    color: [0.85, 0.78, 0.52]
+
+  - id: "cls_meringa"
+    type: "lambertian"
+    color: [0.92, 0.90, 0.82]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  BURRO E GRASSI — subsurface alto, colori giallo-crema
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Burro — giallo crema, molto traslucente
+  - id: "dis_burro"
+    type: "disney"
+    color: [0.90, 0.82, 0.45]
+    roughness: 0.48
+    specular: 0.32
+    subsurface: 0.45
+
+  # Burro fuso — liquido dorato
+  - id: "dis_burro_fuso"
+    type: "disney"
+    color: [0.88, 0.72, 0.18]
+    roughness: 0.05
+    specular: 0.58
+    subsurface: 0.20
+    spec_trans: 0.30
+    ior: 1.46
+
+  # Margarina — più chiara del burro, meno gialla
+  - id: "dis_margarina"
+    type: "disney"
+    color: [0.88, 0.85, 0.58]
+    roughness: 0.50
+    specular: 0.28
+    subsurface: 0.40
+
+  # Strutto — bianco, opaco, denso
+  - id: "dis_strutto"
+    type: "disney"
+    color: [0.90, 0.88, 0.82]
+    roughness: 0.55
+    specular: 0.25
+    subsurface: 0.35
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_burro"
+    type: "lambertian"
+    color: [0.90, 0.82, 0.45]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  LIQUIDI ALIMENTARI — spec_trans + IOR specifici
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Acqua — incolore, IOR 1.333
+  - id: "dis_acqua"
+    type: "disney"
+    color: [0.96, 0.97, 1.0]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.333
+    specular: 0.75
+
+  # Latte intero — bianco, forte scattering, quasi opaco
+  - id: "dis_latte"
+    type: "disney"
+    color: [0.95, 0.94, 0.88]
+    roughness: 0.0
+    spec_trans: 0.28
+    ior: 1.35
+    specular: 0.50
+    subsurface: 0.55
+
+  # Vino rosso — rubino profondo, alta assorbanza
+  - id: "dis_vino_rosso"
+    type: "disney"
+    color: [0.35, 0.02, 0.03]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.345
+    specular: 0.70
+
+  # Vino bianco — giallo paglierino
+  - id: "dis_vino_bianco"
+    type: "disney"
+    color: [0.88, 0.82, 0.48]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.34
+    specular: 0.68
+
+  # Birra chiara — ambra dorata, lager
+  - id: "dis_birra_chiara"
+    type: "disney"
+    color: [0.88, 0.65, 0.12]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.345
+    specular: 0.65
+
+  # Birra scura — stout, marrone profondo
+  - id: "dis_birra_scura"
+    type: "disney"
+    color: [0.22, 0.10, 0.04]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.35
+    specular: 0.62
+
+  # Olio d'oliva — giallo-verde, IOR 1.47
+  - id: "dis_olio_oliva"
+    type: "disney"
+    color: [0.72, 0.68, 0.18]
+    roughness: 0.0
+    spec_trans: 0.95
+    ior: 1.47
+    specular: 0.70
+
+  # Miele liquido — ambra densa, viscoso
+  - id: "dis_miele"
+    type: "disney"
+    color: [0.92, 0.58, 0.08]
+    roughness: 0.0
+    spec_trans: 0.92
+    ior: 1.50
+    specular: 0.72
+    subsurface: 0.08
+
+  # Succo d'arancia — opaco, polpa in sospensione
+  - id: "dis_succo_arancia"
+    type: "disney"
+    color: [0.88, 0.52, 0.05]
+    roughness: 0.0
+    spec_trans: 0.55
+    ior: 1.35
+    specular: 0.50
+    subsurface: 0.25
+
+  # Caffè nero — marrone scurissimo
+  - id: "dis_caffe"
+    type: "disney"
+    color: [0.12, 0.06, 0.03]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.34
+    specular: 0.65
+
+  # Caffè con latte — crema, semi-opaco
+  - id: "dis_caffelatte"
+    type: "disney"
+    color: [0.62, 0.42, 0.22]
+    roughness: 0.0
+    spec_trans: 0.60
+    ior: 1.35
+    specular: 0.52
+    subsurface: 0.30
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_acqua"
+    type: "dielectric"
+    refraction_index: 1.333
+    color: [0.96, 0.97, 1.0]
+
+  - id: "cls_vino_rosso"
+    type: "dielectric"
+    refraction_index: 1.345
+    color: [0.35, 0.02, 0.03]
+
+  - id: "cls_olio_oliva"
+    type: "dielectric"
+    refraction_index: 1.47
+    color: [0.72, 0.68, 0.18]
+
+  - id: "cls_miele"
+    type: "dielectric"
+    refraction_index: 1.50
+    color: [0.92, 0.58, 0.08]
+
+  - id: "cls_birra_chiara"
+    type: "dielectric"
+    refraction_index: 1.345
+    color: [0.88, 0.65, 0.12]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CONDIMENTI — liquidi densi, subsurface variabile
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Ketchup — rosso scuro, denso, lucido
+  - id: "dis_ketchup"
+    type: "disney"
+    color: [0.55, 0.08, 0.04]
+    roughness: 0.15
+    specular: 0.50
+    clearcoat: 0.35
+    clearcoat_gloss: 0.82
+    subsurface: 0.18
+
+  # Senape — giallo intenso, grana media
+  - id: "dis_senape"
+    type: "disney"
+    color: [0.78, 0.62, 0.08]
+    roughness: 0.45
+    specular: 0.30
+    subsurface: 0.22
+
+  # Salsa di soia — quasi nera, lucida
+  - id: "dis_salsa_soia"
+    type: "disney"
+    color: [0.08, 0.04, 0.02]
+    roughness: 0.05
+    specular: 0.65
+    spec_trans: 0.80
+    ior: 1.38
+
+  # Aceto balsamico — bruno scuro, lucido, denso
+  - id: "dis_aceto_balsamico"
+    type: "disney"
+    color: [0.12, 0.05, 0.02]
+    roughness: 0.05
+    specular: 0.62
+    spec_trans: 0.85
+    ior: 1.37
+
+  # Maionese — crema densa, opaca
+  - id: "dis_maionese"
+    type: "disney"
+    color: [0.90, 0.85, 0.60]
+    roughness: 0.48
+    specular: 0.30
+    subsurface: 0.35
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_ketchup"
+    type: "lambertian"
+    color: [0.55, 0.08, 0.04]
+
+  - id: "cls_senape"
+    type: "lambertian"
+    color: [0.78, 0.62, 0.08]
+
+  - id: "cls_maionese"
+    type: "lambertian"
+    color: [0.90, 0.85, 0.60]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CARNE E PESCE — traslucenza del tessuto muscolare
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Carne cruda — manzo, rosso vivo, umida
+  - id: "dis_carne_cruda"
+    type: "disney"
+    color: [0.55, 0.10, 0.08]
+    roughness: 0.42
+    specular: 0.38
+    subsurface: 0.25
+
+  # Carne cotta — Maillard, crosta bruna
+  - id: "dis_carne_cotta"
+    type: "disney"
+    color: [0.35, 0.18, 0.10]
+    roughness: 0.62
+    specular: 0.22
+    subsurface: 0.10
+
+  # Salmone crudo — arancione, traslucente
+  - id: "dis_salmone_crudo"
+    type: "disney"
+    color: [0.82, 0.42, 0.18]
+    roughness: 0.35
+    specular: 0.40
+    subsurface: 0.30
+
+  # Prosciutto crudo — rosa-rosso, stagionato
+  - id: "dis_prosciutto"
+    type: "disney"
+    color: [0.62, 0.25, 0.18]
+    roughness: 0.55
+    specular: 0.28
+    subsurface: 0.18
+    sheen: 0.05
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_carne_cruda"
+    type: "lambertian"
+    color: [0.55, 0.10, 0.08]
+
+  - id: "cls_carne_cotta"
+    type: "lambertian"
+    color: [0.35, 0.18, 0.10]

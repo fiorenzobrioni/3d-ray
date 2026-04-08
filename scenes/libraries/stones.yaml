@@ -1,0 +1,1116 @@
+# ============================================================================
+# Libreria Materiali — Pietre e Minerali
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/stones.yaml" }]
+#
+# Raccolta completa di pietre naturali, rocce e materiali cementizi. Usa
+# le texture procedurali "marble" (per venature) e "noise" (per grana
+# irregolare) per simulare la struttura interna della pietra.
+#
+#   dis_  (Disney BSDF) — Per pietre protagoniste. Clearcoat simula
+#         la lucidatura a specchio dei marmi lavorati. Subsurface dona
+#         profondità alle pietre traslucenti (onice, alabastro).
+#         Specular_tint colora i riflessi delle pietre scure.
+#
+#   cls_  (Classic) — Lambertian con texture marble/noise. Perfetto
+#         per pavimenti, muri, sfondo. Zero rumore Disney. Per pietre
+#         lucidate, usa metal+fuzz con texture.
+#
+# ── Finiture ─────────────────────────────────────────────────────────────
+#
+#   _lucido     Lucidatura a specchio. Clearcoat alto, roughness bassa.
+#               Pavimenti di marmo, top cucina, sculture finite.
+#
+#   _levigato   Levigatura fine senza lucidatura. Superficie liscia
+#               ma opaca, niente riflessi speculari.
+#
+#   _spacco     Faccia naturale di spacco. Roughness altissima,
+#               superficie irregolare, nessuna lavorazione.
+#
+#   _bocciardato Martellatura a punte. Grana grossa uniforme,
+#                roughness alta, aspetto architettonico.
+#
+# ── Parametri texture ────────────────────────────────────────────────────
+#
+#   Texture "marble":
+#     scale          Frequenza venature: basso = ampie, alto = fitte.
+#     noise_strength Intensità: basso = appena visibili, alto = drammatiche.
+#     colors         [colore_base, colore_venatura].
+#
+#   Texture "noise":
+#     scale          Frequenza grana: basso = macchie grandi, alto = fine.
+#     noise_strength Intensità: basso = uniforme, alto = variato.
+#     colors         [colore_chiaro, colore_scuro] della grana.
+#
+#   randomize_offset è sempre true per evitare pattern identici tra
+#   più oggetti con lo stesso materiale.
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   MARMI BIANCHI       Carrara, Calacatta, Statuario, Thassos.
+#                       Le pietre più nobili, venature su fondo bianco.
+#
+#   MARMI SCURI         Nero Marquinia, Nero Belgio, Port Laurent.
+#                       Fondi neri con venature chiare o dorate.
+#
+#   MARMI COLORATI      Verde Guatemala, Rosso Levanto, Rosa Portogallo,
+#                       Blu Sodalite, Giallo Siena, Arabescato Orobico.
+#
+#   GRANITI             Grigio, rosa, nero assoluto, bianco cristallo.
+#                       Grana puntinata (noise), molto duri.
+#
+#   TRAVERTINO          Pietra calcarea porosa, toni caldi crema/noce.
+#                       Fori naturali, finiture levigata o spacco.
+#
+#   ARDESIA / SLATE     Pietra metamorfica a strati, toni grigio-blu.
+#                       Superfici sfogliate, tegole, pavimenti.
+#
+#   ONICE               Calcite traslucente con bande colorate.
+#                       Retroilluminabile, subsurface alto.
+#
+#   ALABASTRO           Gesso traslucente, bianco-miele.
+#                       Sculture, lampade, subsurface marcato.
+#
+#   ARENARIA            Roccia sedimentaria, grana sabbiosa.
+#                       Toni caldi, superficie ruvida naturale.
+#
+#   BASALTO E LAVA      Rocce ignee scure. Basalto compatto e liscio,
+#                       lava porosa e irregolare.
+#
+#   CALCESTRUZZO        Cemento industriale, béton brut, microcemento.
+#                       Texture noise fine, toni grigi neutri.
+#
+#   MATTONI E LATERIZI  Terracotta strutturale. Toni rossi e ocra,
+#                       superfici rugose.
+#
+# ============================================================================
+
+
+materials:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  MARMI BIANCHI — le pietre più nobili
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── CARRARA ────────────────────────────────────────────────────────────
+
+  # Disney — lucido (pavimenti pregiati, sculture finite)
+  - id: "dis_carrara_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 15.0
+      noise_strength: 12.0
+      colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
+      randomize_offset: true
+    roughness: 0.10
+    clearcoat: 0.90
+    clearcoat_gloss: 0.95
+    specular: 0.72
+    subsurface: 0.08
+
+  # Disney — levigato (sculture classiche, bagni)
+  - id: "dis_carrara_levigato"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 15.0
+      noise_strength: 12.0
+      colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
+      randomize_offset: true
+    roughness: 0.38
+    specular: 0.40
+    subsurface: 0.10
+
+  # Classic — lambertian
+  - id: "cls_carrara"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 15.0
+      noise_strength: 12.0
+      colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
+      randomize_offset: true
+
+  # Classic — lucido (metal + fuzz per riflesso)
+  - id: "cls_carrara_lucido"
+    type: "metal"
+    fuzz: 0.10
+    texture:
+      type: "marble"
+      scale: 15.0
+      noise_strength: 12.0
+      colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
+      randomize_offset: true
+
+  # ── CALACATTA ──────────────────────────────────────────────────────────
+
+  - id: "dis_calacatta_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 10.0
+      noise_strength: 14.0
+      colors: [[0.97, 0.96, 0.93], [0.48, 0.42, 0.32]]
+      randomize_offset: true
+    roughness: 0.08
+    clearcoat: 0.92
+    clearcoat_gloss: 0.96
+    specular: 0.75
+    subsurface: 0.06
+
+  - id: "cls_calacatta"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 10.0
+      noise_strength: 14.0
+      colors: [[0.97, 0.96, 0.93], [0.48, 0.42, 0.32]]
+      randomize_offset: true
+
+  # ── STATUARIO ──────────────────────────────────────────────────────────
+
+  - id: "dis_statuario_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 8.0
+      colors: [[0.97, 0.97, 0.96], [0.55, 0.54, 0.58]]
+      randomize_offset: true
+    roughness: 0.10
+    clearcoat: 0.88
+    clearcoat_gloss: 0.94
+    specular: 0.70
+    subsurface: 0.08
+
+  - id: "cls_statuario"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 8.0
+      colors: [[0.97, 0.97, 0.96], [0.55, 0.54, 0.58]]
+      randomize_offset: true
+
+  # ── THASSOS — bianco puro greco, quasi senza venature ──────────────────
+
+  - id: "dis_thassos_lucido"
+    type: "disney"
+    color: [0.96, 0.96, 0.95]
+    roughness: 0.08
+    clearcoat: 0.85
+    clearcoat_gloss: 0.94
+    specular: 0.70
+    subsurface: 0.10
+
+  - id: "cls_thassos"
+    type: "lambertian"
+    color: [0.96, 0.96, 0.95]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  MARMI SCURI — fondi neri con venature chiare o dorate
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── NERO MARQUINIA ─────────────────────────────────────────────────────
+
+  - id: "dis_nero_marquinia_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 10.0
+      colors: [[0.04, 0.04, 0.05], [0.60, 0.58, 0.52]]
+      randomize_offset: true
+    roughness: 0.06
+    clearcoat: 1.0
+    clearcoat_gloss: 1.0
+    specular: 0.85
+
+  - id: "dis_nero_marquinia_levigato"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 10.0
+      colors: [[0.04, 0.04, 0.05], [0.60, 0.58, 0.52]]
+      randomize_offset: true
+    roughness: 0.35
+    specular: 0.50
+
+  - id: "cls_nero_marquinia"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 10.0
+      colors: [[0.04, 0.04, 0.05], [0.60, 0.58, 0.52]]
+      randomize_offset: true
+
+  # ── NERO BELGIO — nero uniforme, quasi senza venature ──────────────────
+
+  - id: "dis_nero_belgio_lucido"
+    type: "disney"
+    color: [0.05, 0.05, 0.06]
+    roughness: 0.06
+    clearcoat: 0.95
+    clearcoat_gloss: 1.0
+    specular: 0.82
+
+  - id: "cls_nero_belgio"
+    type: "lambertian"
+    color: [0.05, 0.05, 0.06]
+
+  # ── PORT LAURENT — nero con venature dorate ────────────────────────────
+
+  - id: "dis_port_laurent_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 10.0
+      noise_strength: 11.0
+      colors: [[0.05, 0.04, 0.03], [0.72, 0.58, 0.22]]
+      randomize_offset: true
+    roughness: 0.08
+    clearcoat: 0.95
+    clearcoat_gloss: 0.96
+    specular: 0.80
+
+  - id: "cls_port_laurent"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 10.0
+      noise_strength: 11.0
+      colors: [[0.05, 0.04, 0.03], [0.72, 0.58, 0.22]]
+      randomize_offset: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  MARMI COLORATI — pietre pregiate con tonalità vivaci
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── VERDE GUATEMALA ────────────────────────────────────────────────────
+
+  - id: "dis_verde_guatemala_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 14.0
+      noise_strength: 11.0
+      colors: [[0.10, 0.30, 0.16], [0.03, 0.12, 0.06]]
+      randomize_offset: true
+    roughness: 0.12
+    clearcoat: 0.75
+    clearcoat_gloss: 0.88
+    specular: 0.62
+    subsurface: 0.05
+
+  - id: "cls_verde_guatemala"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 14.0
+      noise_strength: 11.0
+      colors: [[0.10, 0.30, 0.16], [0.03, 0.12, 0.06]]
+      randomize_offset: true
+
+  # ── ROSSO LEVANTO ──────────────────────────────────────────────────────
+
+  - id: "dis_rosso_levanto_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 13.0
+      noise_strength: 10.0
+      colors: [[0.65, 0.12, 0.08], [0.30, 0.06, 0.03]]
+      randomize_offset: true
+    roughness: 0.14
+    clearcoat: 0.70
+    clearcoat_gloss: 0.85
+    specular: 0.58
+    specular_tint: 0.2
+
+  - id: "cls_rosso_levanto"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 13.0
+      noise_strength: 10.0
+      colors: [[0.65, 0.12, 0.08], [0.30, 0.06, 0.03]]
+      randomize_offset: true
+
+  # ── ROSA PORTOGALLO ────────────────────────────────────────────────────
+
+  - id: "dis_rosa_portogallo_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 16.0
+      noise_strength: 9.0
+      colors: [[0.88, 0.66, 0.60], [0.65, 0.40, 0.36]]
+      randomize_offset: true
+    roughness: 0.16
+    clearcoat: 0.60
+    clearcoat_gloss: 0.82
+    specular: 0.48
+    subsurface: 0.08
+
+  - id: "cls_rosa_portogallo"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 16.0
+      noise_strength: 9.0
+      colors: [[0.88, 0.66, 0.60], [0.65, 0.40, 0.36]]
+      randomize_offset: true
+
+  # ── BLU SODALITE ───────────────────────────────────────────────────────
+
+  - id: "dis_blu_sodalite_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 11.0
+      noise_strength: 12.0
+      colors: [[0.12, 0.12, 0.45], [0.05, 0.05, 0.20]]
+      randomize_offset: true
+    roughness: 0.08
+    clearcoat: 0.88
+    clearcoat_gloss: 0.95
+    specular: 0.75
+
+  - id: "cls_blu_sodalite"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 11.0
+      noise_strength: 12.0
+      colors: [[0.12, 0.12, 0.45], [0.05, 0.05, 0.20]]
+      randomize_offset: true
+
+  # ── GIALLO SIENA ───────────────────────────────────────────────────────
+
+  - id: "dis_giallo_siena_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 14.0
+      noise_strength: 10.0
+      colors: [[0.82, 0.68, 0.28], [0.55, 0.38, 0.12]]
+      randomize_offset: true
+    roughness: 0.14
+    clearcoat: 0.68
+    clearcoat_gloss: 0.85
+    specular: 0.55
+
+  - id: "cls_giallo_siena"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 14.0
+      noise_strength: 10.0
+      colors: [[0.82, 0.68, 0.28], [0.55, 0.38, 0.12]]
+      randomize_offset: true
+
+  # ── ARABESCATO OROBICO — grigio con venature bianche drammatiche ───────
+
+  - id: "dis_arabescato_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 10.0
+      noise_strength: 15.0
+      colors: [[0.45, 0.44, 0.42], [0.92, 0.90, 0.88]]
+      randomize_offset: true
+    roughness: 0.10
+    clearcoat: 0.82
+    clearcoat_gloss: 0.92
+    specular: 0.68
+
+  - id: "cls_arabescato"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 10.0
+      noise_strength: 15.0
+      colors: [[0.45, 0.44, 0.42], [0.92, 0.90, 0.88]]
+      randomize_offset: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  GRANITI — grana puntinata, cristallina, durissimi
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Granito grigio — il più comune, grana media
+  - id: "dis_granito_grigio_lucido"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 18.0
+      noise_strength: 3.0
+      colors: [[0.52, 0.50, 0.48], [0.35, 0.34, 0.32]]
+      randomize_offset: true
+    roughness: 0.12
+    clearcoat: 0.65
+    clearcoat_gloss: 0.88
+    specular: 0.55
+
+  # Granito rosa baveno — rosa-grigio con cristalli di feldspato
+  - id: "dis_granito_rosa_lucido"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 16.0
+      noise_strength: 3.5
+      colors: [[0.72, 0.55, 0.50], [0.48, 0.38, 0.36]]
+      randomize_offset: true
+    roughness: 0.14
+    clearcoat: 0.60
+    clearcoat_gloss: 0.85
+    specular: 0.52
+
+  # Nero assoluto — granito nero indiano, quasi senza grana visibile
+  - id: "dis_nero_assoluto_lucido"
+    type: "disney"
+    color: [0.04, 0.04, 0.05]
+    roughness: 0.06
+    clearcoat: 1.0
+    clearcoat_gloss: 1.0
+    specular: 0.88
+
+  # Bianco cristallo — quarzo bianco con puntini grigi
+  - id: "dis_granito_bianco_lucido"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 20.0
+      noise_strength: 2.5
+      colors: [[0.90, 0.88, 0.86], [0.65, 0.63, 0.62]]
+      randomize_offset: true
+    roughness: 0.12
+    clearcoat: 0.68
+    clearcoat_gloss: 0.88
+    specular: 0.58
+
+  # Granito fiammato — finitura termica, grana aperta, antiscivolo
+  - id: "dis_granito_grigio_fiammato"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 14.0
+      noise_strength: 4.0
+      colors: [[0.55, 0.53, 0.50], [0.38, 0.36, 0.34]]
+      randomize_offset: true
+    roughness: 0.78
+    specular: 0.18
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_granito_grigio"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 18.0
+      noise_strength: 3.0
+      colors: [[0.52, 0.50, 0.48], [0.35, 0.34, 0.32]]
+      randomize_offset: true
+
+  - id: "cls_granito_rosa"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 16.0
+      noise_strength: 3.5
+      colors: [[0.72, 0.55, 0.50], [0.48, 0.38, 0.36]]
+      randomize_offset: true
+
+  - id: "cls_nero_assoluto"
+    type: "lambertian"
+    color: [0.04, 0.04, 0.05]
+
+  - id: "cls_granito_bianco"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 20.0
+      noise_strength: 2.5
+      colors: [[0.90, 0.88, 0.86], [0.65, 0.63, 0.62]]
+      randomize_offset: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  TRAVERTINO — calcare poroso, toni caldi crema/noce
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Travertino chiaro — classico romano, crema caldo
+  - id: "dis_travertino_chiaro_lucido"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 4.0
+      colors: [[0.85, 0.78, 0.65], [0.72, 0.64, 0.50]]
+      randomize_offset: true
+    roughness: 0.18
+    clearcoat: 0.50
+    clearcoat_gloss: 0.78
+    specular: 0.45
+    subsurface: 0.06
+
+  # Travertino noce — tono più scuro, elegante
+  - id: "dis_travertino_noce_lucido"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 4.5
+      colors: [[0.58, 0.45, 0.32], [0.42, 0.32, 0.22]]
+      randomize_offset: true
+    roughness: 0.18
+    clearcoat: 0.55
+    clearcoat_gloss: 0.80
+    specular: 0.48
+
+  # Travertino grezzo — faccia di spacco, fori aperti
+  - id: "dis_travertino_spacco"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 5.0
+      colors: [[0.82, 0.75, 0.62], [0.65, 0.56, 0.42]]
+      randomize_offset: true
+    roughness: 0.82
+    specular: 0.15
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_travertino_chiaro"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 4.0
+      colors: [[0.85, 0.78, 0.65], [0.72, 0.64, 0.50]]
+      randomize_offset: true
+
+  - id: "cls_travertino_noce"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 4.5
+      colors: [[0.58, 0.45, 0.32], [0.42, 0.32, 0.22]]
+      randomize_offset: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ARDESIA / SLATE — metamorfica a strati, toni grigio-blu
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Ardesia grigia — tegole, pavimenti, lavagne
+  - id: "dis_ardesia_grigia"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 10.0
+      noise_strength: 2.0
+      colors: [[0.35, 0.34, 0.36], [0.22, 0.22, 0.24]]
+      randomize_offset: true
+    roughness: 0.60
+    specular: 0.28
+    sheen: 0.06
+    sheen_tint: 0.3
+
+  # Ardesia nera — più scura, quasi antracite
+  - id: "dis_ardesia_nera"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 10.0
+      noise_strength: 1.8
+      colors: [[0.15, 0.14, 0.16], [0.08, 0.08, 0.10]]
+      randomize_offset: true
+    roughness: 0.55
+    specular: 0.32
+    sheen: 0.05
+
+  # Ardesia verde — variante con sfumatura verde
+  - id: "dis_ardesia_verde"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 10.0
+      noise_strength: 2.2
+      colors: [[0.28, 0.32, 0.28], [0.16, 0.20, 0.16]]
+      randomize_offset: true
+    roughness: 0.58
+    specular: 0.30
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_ardesia_grigia"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 10.0
+      noise_strength: 2.0
+      colors: [[0.35, 0.34, 0.36], [0.22, 0.22, 0.24]]
+      randomize_offset: true
+
+  - id: "cls_ardesia_nera"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 10.0
+      noise_strength: 1.8
+      colors: [[0.15, 0.14, 0.16], [0.08, 0.08, 0.10]]
+      randomize_offset: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ONICE — calcite traslucente con bande, retroilluminabile
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney (solo — servono subsurface e spec_trans) ────────────────────
+
+  # Onice bianco — bande crema su fondo bianco, traslucente
+  - id: "dis_onice_bianco"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 8.0
+      noise_strength: 6.0
+      colors: [[0.95, 0.92, 0.85], [0.80, 0.72, 0.58]]
+      randomize_offset: true
+    roughness: 0.08
+    clearcoat: 0.80
+    clearcoat_gloss: 0.92
+    specular: 0.68
+    subsurface: 0.25
+    spec_trans: 0.15
+    ior: 1.49
+
+  # Onice miele — bande ambra dorate
+  - id: "dis_onice_miele"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 7.0
+      noise_strength: 7.0
+      colors: [[0.88, 0.68, 0.25], [0.62, 0.42, 0.12]]
+      randomize_offset: true
+    roughness: 0.08
+    clearcoat: 0.78
+    clearcoat_gloss: 0.90
+    specular: 0.65
+    subsurface: 0.30
+    spec_trans: 0.18
+    ior: 1.49
+
+  # Onice verde — bande verde giada
+  - id: "dis_onice_verde"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 8.0
+      noise_strength: 6.5
+      colors: [[0.25, 0.52, 0.30], [0.10, 0.30, 0.14]]
+      randomize_offset: true
+    roughness: 0.08
+    clearcoat: 0.75
+    clearcoat_gloss: 0.90
+    specular: 0.62
+    subsurface: 0.22
+    spec_trans: 0.12
+    ior: 1.49
+
+  # ── Classic (approssimazione opaca) ────────────────────────────────────
+
+  - id: "cls_onice_bianco"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 8.0
+      noise_strength: 6.0
+      colors: [[0.95, 0.92, 0.85], [0.80, 0.72, 0.58]]
+      randomize_offset: true
+
+  - id: "cls_onice_miele"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 7.0
+      noise_strength: 7.0
+      colors: [[0.88, 0.68, 0.25], [0.62, 0.42, 0.12]]
+      randomize_offset: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ALABASTRO — gesso traslucente, bianco-miele, sculture e lampade
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney (solo — serve subsurface alto) ──────────────────────────────
+
+  # Alabastro bianco — scultura classica, morbido, traslucente
+  - id: "dis_alabastro_bianco"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 4.0
+      colors: [[0.94, 0.92, 0.88], [0.85, 0.80, 0.72]]
+      randomize_offset: true
+    roughness: 0.32
+    specular: 0.42
+    subsurface: 0.40
+    spec_trans: 0.08
+    ior: 1.52
+
+  # Alabastro miele — tono caldo ambrato
+  - id: "dis_alabastro_miele"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 5.0
+      colors: [[0.88, 0.78, 0.55], [0.72, 0.58, 0.35]]
+      randomize_offset: true
+    roughness: 0.30
+    specular: 0.40
+    subsurface: 0.45
+    spec_trans: 0.10
+    ior: 1.52
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_alabastro_bianco"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 4.0
+      colors: [[0.94, 0.92, 0.88], [0.85, 0.80, 0.72]]
+      randomize_offset: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ARENARIA — sedimentaria, grana sabbiosa, toni caldi
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Arenaria dorata — tipo Petra, tono miele caldo
+  - id: "dis_arenaria_dorata"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 3.5
+      colors: [[0.78, 0.65, 0.40], [0.62, 0.48, 0.28]]
+      randomize_offset: true
+    roughness: 0.78
+    specular: 0.15
+
+  # Arenaria rossa — Utah, canyon, deserto
+  - id: "dis_arenaria_rossa"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 7.0
+      noise_strength: 4.0
+      colors: [[0.72, 0.38, 0.18], [0.55, 0.25, 0.12]]
+      randomize_offset: true
+    roughness: 0.80
+    specular: 0.12
+
+  # Arenaria grigia — più fredda, uso architettonico
+  - id: "dis_arenaria_grigia"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 3.0
+      colors: [[0.58, 0.55, 0.50], [0.42, 0.40, 0.36]]
+      randomize_offset: true
+    roughness: 0.75
+    specular: 0.18
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_arenaria_dorata"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 3.5
+      colors: [[0.78, 0.65, 0.40], [0.62, 0.48, 0.28]]
+      randomize_offset: true
+
+  - id: "cls_arenaria_rossa"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 7.0
+      noise_strength: 4.0
+      colors: [[0.72, 0.38, 0.18], [0.55, 0.25, 0.12]]
+      randomize_offset: true
+
+  - id: "cls_arenaria_grigia"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 3.0
+      colors: [[0.58, 0.55, 0.50], [0.42, 0.40, 0.36]]
+      randomize_offset: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  BASALTO E LAVA — rocce ignee scure
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Basalto lucido — tagliato e levigato, quasi nero
+  - id: "dis_basalto_lucido"
+    type: "disney"
+    color: [0.08, 0.08, 0.09]
+    roughness: 0.15
+    specular: 0.55
+    clearcoat: 0.40
+    clearcoat_gloss: 0.80
+
+  # Basalto grezzo — colonnare, superficie naturale
+  - id: "dis_basalto_grezzo"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 12.0
+      noise_strength: 2.5
+      colors: [[0.12, 0.11, 0.10], [0.06, 0.06, 0.05]]
+      randomize_offset: true
+    roughness: 0.72
+    specular: 0.18
+
+  # Pietra lavica — porosa, irregolare, grigio scuro
+  - id: "dis_pietra_lavica"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 5.0
+      colors: [[0.18, 0.16, 0.15], [0.08, 0.07, 0.06]]
+      randomize_offset: true
+    roughness: 0.88
+    specular: 0.10
+
+  # Pomice — ultraleggera, porosa, grigio chiaro
+  - id: "dis_pomice"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_strength: 5.5
+      colors: [[0.72, 0.70, 0.68], [0.55, 0.52, 0.50]]
+      randomize_offset: true
+    roughness: 0.92
+    specular: 0.08
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_basalto"
+    type: "lambertian"
+    color: [0.08, 0.08, 0.09]
+
+  - id: "cls_pietra_lavica"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 5.0
+      colors: [[0.18, 0.16, 0.15], [0.08, 0.07, 0.06]]
+      randomize_offset: true
+
+  - id: "cls_pomice"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_strength: 5.5
+      colors: [[0.72, 0.70, 0.68], [0.55, 0.52, 0.50]]
+      randomize_offset: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CALCESTRUZZO — cemento industriale, béton brut, microcemento
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Calcestruzzo grezzo — béton brut, casseforme visibili
+  - id: "dis_calcestruzzo_grezzo"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 3.0
+      colors: [[0.58, 0.56, 0.54], [0.45, 0.43, 0.42]]
+      randomize_offset: true
+    roughness: 0.82
+    specular: 0.12
+
+  # Calcestruzzo liscio — gettata liscia, grigio medio
+  - id: "dis_calcestruzzo_liscio"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 12.0
+      noise_strength: 2.0
+      colors: [[0.60, 0.58, 0.56], [0.50, 0.48, 0.46]]
+      randomize_offset: true
+    roughness: 0.65
+    specular: 0.18
+
+  # Microcemento — finitura decorativa, superficie quasi uniforme
+  - id: "dis_microcemento_grigio"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 16.0
+      noise_strength: 1.5
+      colors: [[0.55, 0.53, 0.52], [0.48, 0.46, 0.45]]
+      randomize_offset: true
+    roughness: 0.45
+    specular: 0.28
+
+  # Microcemento antracite — tono scuro contemporaneo
+  - id: "dis_microcemento_antracite"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 16.0
+      noise_strength: 1.5
+      colors: [[0.22, 0.21, 0.20], [0.16, 0.15, 0.15]]
+      randomize_offset: true
+    roughness: 0.42
+    specular: 0.30
+
+  # Calcestruzzo colorato — pigmento ocra
+  - id: "dis_calcestruzzo_ocra"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 10.0
+      noise_strength: 2.5
+      colors: [[0.65, 0.52, 0.32], [0.52, 0.40, 0.25]]
+      randomize_offset: true
+    roughness: 0.72
+    specular: 0.14
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_calcestruzzo_grezzo"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 3.0
+      colors: [[0.58, 0.56, 0.54], [0.45, 0.43, 0.42]]
+      randomize_offset: true
+
+  - id: "cls_calcestruzzo_liscio"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 12.0
+      noise_strength: 2.0
+      colors: [[0.60, 0.58, 0.56], [0.50, 0.48, 0.46]]
+      randomize_offset: true
+
+  - id: "cls_microcemento_grigio"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 16.0
+      noise_strength: 1.5
+      colors: [[0.55, 0.53, 0.52], [0.48, 0.46, 0.45]]
+      randomize_offset: true
+
+  - id: "cls_microcemento_antracite"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 16.0
+      noise_strength: 1.5
+      colors: [[0.22, 0.21, 0.20], [0.16, 0.15, 0.15]]
+      randomize_offset: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  MATTONI E LATERIZI — terracotta strutturale
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Mattone rosso — classico, cotto a media temperatura
+  - id: "dis_mattone_rosso"
+    type: "disney"
+    color: [0.55, 0.22, 0.14]
+    roughness: 0.82
+    specular: 0.10
+
+  # Mattone arancio — cottura bassa, tono più chiaro
+  - id: "dis_mattone_arancio"
+    type: "disney"
+    color: [0.68, 0.38, 0.18]
+    roughness: 0.80
+    specular: 0.12
+
+  # Mattone giallo — argilla calcarea, stile londinese
+  - id: "dis_mattone_giallo"
+    type: "disney"
+    color: [0.72, 0.62, 0.38]
+    roughness: 0.78
+    specular: 0.12
+
+  # Mattone scuro — clinker, quasi nero, cottura altissima
+  - id: "dis_mattone_scuro"
+    type: "disney"
+    color: [0.18, 0.14, 0.12]
+    roughness: 0.72
+    specular: 0.18
+
+  # Mattone sbiancato — whitewash, tono pallido
+  - id: "dis_mattone_sbiancato"
+    type: "disney"
+    color: [0.78, 0.72, 0.65]
+    roughness: 0.85
+    specular: 0.08
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_mattone_rosso"
+    type: "lambertian"
+    color: [0.55, 0.22, 0.14]
+
+  - id: "cls_mattone_arancio"
+    type: "lambertian"
+    color: [0.68, 0.38, 0.18]
+
+  - id: "cls_mattone_giallo"
+    type: "lambertian"
+    color: [0.72, 0.62, 0.38]
+
+  - id: "cls_mattone_scuro"
+    type: "lambertian"
+    color: [0.18, 0.14, 0.12]

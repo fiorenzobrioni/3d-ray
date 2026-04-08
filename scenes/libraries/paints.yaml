@@ -1,0 +1,909 @@
+# ============================================================================
+# Libreria Materiali — Vernici e Finiture
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/paints.yaml" }]
+#
+# Raccolta completa di vernici, lacche, smalti e pitture. Dalla vernice
+# auto metallizzata alla chalk paint shabby chic.
+#
+#   dis_  (Disney BSDF) — Essenziale per le vernici: clearcoat è il
+#         parametro protagonista, simula lo strato trasparente lucido
+#         sopra il colore base. Combinato con metallic (flake metallico),
+#         roughness (finitura opaca/satinata/lucida) e specular_tint.
+#
+#   cls_  (Classic) — Metal+fuzz per vernici lucide (approssima il
+#         riflesso speculare). Lambertian per vernici opache (chalk,
+#         primer, pittura murale). Non supporta clearcoat né flake
+#         metallico — solo un'approssimazione della lucentezza.
+#
+# ── Fisica delle vernici ─────────────────────────────────────────────────
+#
+#   Una vernice auto ha tipicamente 3 strati:
+#     1. Primer — fondo aggrappante, grigio opaco
+#     2. Basecoat — colore + eventuale flake metallico/perlato
+#     3. Clearcoat — vernice trasparente lucida protettiva
+#
+#   Nel Disney BSDF:
+#     - Il colore base è il basecoat
+#     - metallic > 0 simula i flake metallici nel basecoat
+#     - clearcoat + clearcoat_gloss simulano il terzo strato
+#     - specular_tint colora i riflessi Fresnel del basecoat
+#
+#   Le vernici NON metallizzate (smalto, lacca) hanno metallic = 0
+#   e usano solo clearcoat per la lucentezza.
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   VERNICE AUTO          Metallizzata con clearcoat. Flake nel basecoat
+#   METALLIZZATA          creano effetto "scintillante" al sole.
+#                         Usi: carrozzeria, moto, biciclette.
+#
+#   VERNICE AUTO          Colore pieno senza flake, clearcoat lucido.
+#   PASTELLO              Tinta unita, finitura a specchio.
+#                         Usi: auto d'epoca, Fiat 500, Vespa.
+#
+#   VERNICE AUTO          Pigmenti interferenziali (mica + ossidi) che
+#   PERLATA               cambiano tono con l'angolo di osservazione.
+#                         Usi: auto premium, bianco perla, champagne.
+#
+#   LACCA                 Finitura a specchio profonda, senza flake.
+#                         Clearcoat massimo, roughness minima.
+#                         Usi: pianoforte, mobili orientali, chitarre.
+#
+#   SMALTO LUCIDO         Vernice domestica/industriale lucida.
+#                         Clearcoat medio, superficie liscia.
+#                         Usi: porte, ringhiere, mobili.
+#
+#   SMALTO SATINATO       Finitura semi-lucida, il compromesso.
+#                         Clearcoat basso, roughness medio.
+#                         Usi: pareti bagno, mobili, legno.
+#
+#   SMALTO OPACO          Finitura matt, nessun riflesso speculare.
+#                         Zero clearcoat, roughness alto.
+#                         Usi: mobili moderni, pareti design.
+#
+#   PRIMER / FONDO        Strato preparatorio, grigio/bianco/rosso.
+#                         Roughness altissimo, specular minimo.
+#
+#   CHALK PAINT           Pittura a gesso, finish ultra-opaco vellutato.
+#                         Roughness massimo, sheen leggerissimo.
+#                         Usi: shabby chic, restauro mobili.
+#
+#   PITTURA MURALE        Idropittura da interni/esterni, opaca o lavabile.
+#                         Roughness alto, superfici grandi → classic.
+#
+#   VERNICE SPRAY         Bomboletta, finitura uniforme sottile.
+#                         Varianti opaca, satinata, lucida.
+#
+#   VERNICE EPOSSIDICA    Bicomponente, resistentissima, lucida.
+#                         Pavimenti garage, barche, industria.
+#
+#   VERNICE A POLVERE     Verniciatura elettrostatica, finitura densa.
+#                         Goffrata, liscia o bucciata.
+#                         Usi: componenti metallici, mobili da ufficio.
+#
+# ============================================================================
+
+
+materials:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  VERNICE AUTO METALLIZZATA — flake + clearcoat
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Rosso metallizzato — Ferrari, Alfa Romeo
+  - id: "dis_auto_rosso_met"
+    type: "disney"
+    color: [0.70, 0.05, 0.04]
+    metallic: 0.0
+    roughness: 0.28
+    specular: 0.65
+    clearcoat: 1.0
+    clearcoat_gloss: 0.96
+
+  # Blu metallizzato — BMW, Subaru
+  - id: "dis_auto_blu_met"
+    type: "disney"
+    color: [0.05, 0.12, 0.58]
+    metallic: 0.0
+    roughness: 0.28
+    specular: 0.65
+    clearcoat: 1.0
+    clearcoat_gloss: 0.96
+
+  # Nero metallizzato — tono profondo con scintillio
+  - id: "dis_auto_nero_met"
+    type: "disney"
+    color: [0.02, 0.02, 0.03]
+    metallic: 0.0
+    roughness: 0.22
+    specular: 0.72
+    clearcoat: 1.0
+    clearcoat_gloss: 0.98
+
+  # Grigio metallizzato — Audi, Mercedes, tono neutro
+  - id: "dis_auto_grigio_met"
+    type: "disney"
+    color: [0.32, 0.32, 0.34]
+    metallic: 0.0
+    roughness: 0.25
+    specular: 0.68
+    clearcoat: 1.0
+    clearcoat_gloss: 0.96
+
+  # Argento metallizzato — classico, molto riflettente
+  - id: "dis_auto_argento_met"
+    type: "disney"
+    color: [0.62, 0.62, 0.65]
+    metallic: 0.0
+    roughness: 0.22
+    specular: 0.72
+    clearcoat: 1.0
+    clearcoat_gloss: 0.97
+
+  # Verde metallizzato — British Racing, Porsche, Aston Martin
+  - id: "dis_auto_verde_met"
+    type: "disney"
+    color: [0.04, 0.28, 0.10]
+    metallic: 0.0
+    roughness: 0.28
+    specular: 0.62
+    clearcoat: 1.0
+    clearcoat_gloss: 0.95
+
+  # Arancione metallizzato — Lamborghini, McLaren
+  - id: "dis_auto_arancione_met"
+    type: "disney"
+    color: [0.85, 0.35, 0.02]
+    metallic: 0.0
+    roughness: 0.26
+    specular: 0.65
+    clearcoat: 1.0
+    clearcoat_gloss: 0.96
+
+  # Giallo metallizzato — Ferrari, Corvette
+  - id: "dis_auto_giallo_met"
+    type: "disney"
+    color: [0.90, 0.78, 0.05]
+    metallic: 0.0
+    roughness: 0.26
+    specular: 0.62
+    clearcoat: 1.0
+    clearcoat_gloss: 0.95
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_auto_rosso_met"
+    type: "metal"
+    color: [0.70, 0.05, 0.04]
+    fuzz: 0.22
+
+  - id: "cls_auto_blu_met"
+    type: "metal"
+    color: [0.05, 0.12, 0.58]
+    fuzz: 0.22
+
+  - id: "cls_auto_nero_met"
+    type: "metal"
+    color: [0.02, 0.02, 0.03]
+    fuzz: 0.16
+
+  - id: "cls_auto_argento_met"
+    type: "metal"
+    color: [0.62, 0.62, 0.65]
+    fuzz: 0.18
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  VERNICE AUTO PASTELLO — tinta unita, clearcoat, no flake
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Rosso corsa — Ferrari classica, Alfa vintage
+  - id: "dis_auto_rosso_pastello"
+    type: "disney"
+    color: [0.75, 0.06, 0.05]
+    roughness: 0.18
+    specular: 0.58
+    clearcoat: 0.90
+    clearcoat_gloss: 0.95
+
+  # Bianco — Fiat 500, Vespa, minimalismo
+  - id: "dis_auto_bianco"
+    type: "disney"
+    color: [0.92, 0.91, 0.88]
+    roughness: 0.18
+    specular: 0.55
+    clearcoat: 0.85
+    clearcoat_gloss: 0.94
+
+  # Nero pastello — eleganza classica
+  - id: "dis_auto_nero_pastello"
+    type: "disney"
+    color: [0.03, 0.03, 0.03]
+    roughness: 0.15
+    specular: 0.65
+    clearcoat: 0.92
+    clearcoat_gloss: 0.97
+
+  # Azzurro chiaro — Fiat 500, Vespa, retrò
+  - id: "dis_auto_azzurro"
+    type: "disney"
+    color: [0.45, 0.65, 0.78]
+    roughness: 0.20
+    specular: 0.55
+    clearcoat: 0.85
+    clearcoat_gloss: 0.93
+
+  # Giallo pastello — Fiat 500, VW Beetle
+  - id: "dis_auto_giallo_pastello"
+    type: "disney"
+    color: [0.90, 0.82, 0.25]
+    roughness: 0.20
+    specular: 0.52
+    clearcoat: 0.82
+    clearcoat_gloss: 0.92
+
+  # Verde oliva — Land Rover, militare
+  - id: "dis_auto_verde_oliva"
+    type: "disney"
+    color: [0.25, 0.30, 0.15]
+    roughness: 0.35
+    specular: 0.42
+    clearcoat: 0.55
+    clearcoat_gloss: 0.78
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_auto_rosso_pastello"
+    type: "metal"
+    color: [0.75, 0.06, 0.05]
+    fuzz: 0.18
+
+  - id: "cls_auto_bianco"
+    type: "metal"
+    color: [0.92, 0.91, 0.88]
+    fuzz: 0.22
+
+  - id: "cls_auto_nero_pastello"
+    type: "metal"
+    color: [0.03, 0.03, 0.03]
+    fuzz: 0.12
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  VERNICE AUTO PERLATA — pigmenti interferenziali, tono cangiante
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Bianco perla — il perlato più comune, iridescenza calda
+  - id: "dis_auto_bianco_perla"
+    type: "disney"
+    color: [0.94, 0.92, 0.88]
+    roughness: 0.18
+    specular: 0.65
+    specular_tint: 0.15
+    clearcoat: 0.95
+    clearcoat_gloss: 0.97
+
+  # Champagne perlato — beige dorato, lusso
+  - id: "dis_auto_champagne"
+    type: "disney"
+    color: [0.82, 0.75, 0.58]
+    roughness: 0.20
+    specular: 0.62
+    specular_tint: 0.25
+    clearcoat: 0.92
+    clearcoat_gloss: 0.96
+
+  # Blu perlato — profondo, cangiante verso viola
+  - id: "dis_auto_blu_perla"
+    type: "disney"
+    color: [0.06, 0.10, 0.48]
+    roughness: 0.22
+    specular: 0.68
+    specular_tint: 0.30
+    clearcoat: 0.95
+    clearcoat_gloss: 0.97
+
+  # Rosso perlato — cangiante verso arancione
+  - id: "dis_auto_rosso_perla"
+    type: "disney"
+    color: [0.62, 0.06, 0.05]
+    roughness: 0.22
+    specular: 0.65
+    specular_tint: 0.28
+    clearcoat: 0.94
+    clearcoat_gloss: 0.96
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_auto_bianco_perla"
+    type: "metal"
+    color: [0.94, 0.92, 0.88]
+    fuzz: 0.15
+
+  - id: "cls_auto_champagne"
+    type: "metal"
+    color: [0.82, 0.75, 0.58]
+    fuzz: 0.18
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  LACCA — finitura a specchio profonda, pianoforte, mobili orientali
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Lacca nera pianoforte — la finitura più profonda
+  - id: "dis_lacca_nera"
+    type: "disney"
+    color: [0.02, 0.02, 0.02]
+    roughness: 0.04
+    specular: 0.88
+    clearcoat: 1.0
+    clearcoat_gloss: 1.0
+
+  # Lacca bianca pianoforte — Steinway bianco
+  - id: "dis_lacca_bianca"
+    type: "disney"
+    color: [0.94, 0.93, 0.90]
+    roughness: 0.04
+    specular: 0.82
+    clearcoat: 1.0
+    clearcoat_gloss: 1.0
+
+  # Lacca rossa cinese — mobili orientali, scrigni
+  - id: "dis_lacca_rossa"
+    type: "disney"
+    color: [0.65, 0.04, 0.03]
+    roughness: 0.05
+    specular: 0.80
+    clearcoat: 1.0
+    clearcoat_gloss: 0.98
+
+  # Lacca ciliegia — chitarre Gibson, mobili Art Déco
+  - id: "dis_lacca_ciliegia"
+    type: "disney"
+    color: [0.42, 0.08, 0.06]
+    roughness: 0.05
+    specular: 0.78
+    clearcoat: 0.95
+    clearcoat_gloss: 0.97
+
+  # Lacca blu notte — chitarre custom, auto show
+  - id: "dis_lacca_blu"
+    type: "disney"
+    color: [0.03, 0.05, 0.35]
+    roughness: 0.05
+    specular: 0.82
+    clearcoat: 1.0
+    clearcoat_gloss: 0.98
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_lacca_nera"
+    type: "metal"
+    color: [0.02, 0.02, 0.02]
+    fuzz: 0.05
+
+  - id: "cls_lacca_bianca"
+    type: "metal"
+    color: [0.94, 0.93, 0.90]
+    fuzz: 0.08
+
+  - id: "cls_lacca_rossa"
+    type: "metal"
+    color: [0.65, 0.04, 0.03]
+    fuzz: 0.06
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SMALTO LUCIDO — vernice domestica/industriale brillante
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Smalto bianco lucido — porte, battiscopa, radiatori
+  - id: "dis_smalto_bianco_lucido"
+    type: "disney"
+    color: [0.92, 0.91, 0.88]
+    roughness: 0.12
+    specular: 0.58
+    clearcoat: 0.65
+    clearcoat_gloss: 0.90
+
+  # Smalto nero lucido — ringhiere, cancelli
+  - id: "dis_smalto_nero_lucido"
+    type: "disney"
+    color: [0.03, 0.03, 0.03]
+    roughness: 0.10
+    specular: 0.65
+    clearcoat: 0.70
+    clearcoat_gloss: 0.92
+
+  # Smalto rosso lucido — porte, librerie, accenti
+  - id: "dis_smalto_rosso_lucido"
+    type: "disney"
+    color: [0.72, 0.08, 0.06]
+    roughness: 0.12
+    specular: 0.55
+    clearcoat: 0.62
+    clearcoat_gloss: 0.88
+
+  # Smalto verde lucido — persiane, mobili da giardino
+  - id: "dis_smalto_verde_lucido"
+    type: "disney"
+    color: [0.06, 0.38, 0.12]
+    roughness: 0.12
+    specular: 0.55
+    clearcoat: 0.60
+    clearcoat_gloss: 0.88
+
+  # Smalto blu lucido — porte, barche
+  - id: "dis_smalto_blu_lucido"
+    type: "disney"
+    color: [0.06, 0.15, 0.55]
+    roughness: 0.12
+    specular: 0.55
+    clearcoat: 0.62
+    clearcoat_gloss: 0.88
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_smalto_bianco_lucido"
+    type: "metal"
+    color: [0.92, 0.91, 0.88]
+    fuzz: 0.22
+
+  - id: "cls_smalto_nero_lucido"
+    type: "metal"
+    color: [0.03, 0.03, 0.03]
+    fuzz: 0.16
+
+  - id: "cls_smalto_rosso_lucido"
+    type: "metal"
+    color: [0.72, 0.08, 0.06]
+    fuzz: 0.22
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SMALTO SATINATO — semi-lucido, il compromesso
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Smalto bianco satinato — pareti bagno, mobili
+  - id: "dis_smalto_bianco_satinato"
+    type: "disney"
+    color: [0.90, 0.89, 0.86]
+    roughness: 0.35
+    specular: 0.40
+    clearcoat: 0.25
+    clearcoat_gloss: 0.70
+
+  # Smalto grigio satinato — mobili moderni, cucine
+  - id: "dis_smalto_grigio_satinato"
+    type: "disney"
+    color: [0.48, 0.47, 0.46]
+    roughness: 0.35
+    specular: 0.40
+    clearcoat: 0.25
+    clearcoat_gloss: 0.70
+
+  # Smalto nero satinato — mobili design, cucine
+  - id: "dis_smalto_nero_satinato"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.32
+    specular: 0.45
+    clearcoat: 0.30
+    clearcoat_gloss: 0.72
+
+  # Smalto verde salvia satinato — arredo contemporaneo
+  - id: "dis_smalto_verde_salvia"
+    type: "disney"
+    color: [0.42, 0.52, 0.40]
+    roughness: 0.35
+    specular: 0.38
+    clearcoat: 0.22
+    clearcoat_gloss: 0.68
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_smalto_bianco_satinato"
+    type: "metal"
+    color: [0.90, 0.89, 0.86]
+    fuzz: 0.35
+
+  - id: "cls_smalto_nero_satinato"
+    type: "metal"
+    color: [0.04, 0.04, 0.04]
+    fuzz: 0.30
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SMALTO OPACO — matt, zero riflesso speculare
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Smalto bianco opaco — mobili scandinavi
+  - id: "dis_smalto_bianco_opaco"
+    type: "disney"
+    color: [0.90, 0.89, 0.86]
+    roughness: 0.72
+    specular: 0.18
+
+  # Smalto nero opaco — design industriale, hi-fi
+  - id: "dis_smalto_nero_opaco"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.70
+    specular: 0.20
+
+  # Smalto grigio antracite opaco — mobili moderni
+  - id: "dis_smalto_antracite_opaco"
+    type: "disney"
+    color: [0.20, 0.20, 0.21]
+    roughness: 0.72
+    specular: 0.18
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_smalto_bianco_opaco"
+    type: "lambertian"
+    color: [0.90, 0.89, 0.86]
+
+  - id: "cls_smalto_nero_opaco"
+    type: "lambertian"
+    color: [0.04, 0.04, 0.04]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  PRIMER / FONDO — strato preparatorio
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Primer grigio — il più comune, fondo universale
+  - id: "dis_primer_grigio"
+    type: "disney"
+    color: [0.52, 0.50, 0.48]
+    roughness: 0.82
+    specular: 0.10
+
+  # Primer bianco — per colori chiari
+  - id: "dis_primer_bianco"
+    type: "disney"
+    color: [0.85, 0.84, 0.82]
+    roughness: 0.82
+    specular: 0.10
+
+  # Primer rosso antiruggine — minio, fondo per metalli
+  - id: "dis_primer_rosso"
+    type: "disney"
+    color: [0.62, 0.22, 0.08]
+    roughness: 0.78
+    specular: 0.12
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_primer_grigio"
+    type: "lambertian"
+    color: [0.52, 0.50, 0.48]
+
+  - id: "cls_primer_rosso"
+    type: "lambertian"
+    color: [0.62, 0.22, 0.08]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CHALK PAINT — pittura a gesso, ultra-opaco vellutato
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Chalk bianco antico — mobili shabby chic
+  - id: "dis_chalk_bianco"
+    type: "disney"
+    color: [0.88, 0.86, 0.80]
+    roughness: 0.95
+    specular: 0.05
+    sheen: 0.06
+    sheen_tint: 0.3
+
+  # Chalk grigio — stile scandinavo, French country
+  - id: "dis_chalk_grigio"
+    type: "disney"
+    color: [0.58, 0.56, 0.54]
+    roughness: 0.95
+    specular: 0.05
+    sheen: 0.06
+    sheen_tint: 0.3
+
+  # Chalk azzurro — provence, cottage
+  - id: "dis_chalk_azzurro"
+    type: "disney"
+    color: [0.52, 0.65, 0.72]
+    roughness: 0.95
+    specular: 0.05
+    sheen: 0.06
+    sheen_tint: 0.4
+
+  # Chalk verde salvia — farmhouse, country
+  - id: "dis_chalk_verde"
+    type: "disney"
+    color: [0.45, 0.55, 0.42]
+    roughness: 0.95
+    specular: 0.05
+    sheen: 0.06
+    sheen_tint: 0.4
+
+  # Chalk rosa antico — camerette, boudoir
+  - id: "dis_chalk_rosa"
+    type: "disney"
+    color: [0.78, 0.60, 0.58]
+    roughness: 0.95
+    specular: 0.05
+    sheen: 0.06
+    sheen_tint: 0.4
+
+  # Chalk nero — mobili industrial chic
+  - id: "dis_chalk_nero"
+    type: "disney"
+    color: [0.06, 0.06, 0.06]
+    roughness: 0.95
+    specular: 0.05
+    sheen: 0.04
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_chalk_bianco"
+    type: "lambertian"
+    color: [0.88, 0.86, 0.80]
+
+  - id: "cls_chalk_grigio"
+    type: "lambertian"
+    color: [0.58, 0.56, 0.54]
+
+  - id: "cls_chalk_azzurro"
+    type: "lambertian"
+    color: [0.52, 0.65, 0.72]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  PITTURA MURALE — idropittura, superfici grandi
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Bianco puro — il colore pareti più comune
+  - id: "dis_murale_bianco"
+    type: "disney"
+    color: [0.90, 0.89, 0.86]
+    roughness: 0.80
+    specular: 0.10
+
+  # Grigio tortora — pareti eleganti, moderno
+  - id: "dis_murale_tortora"
+    type: "disney"
+    color: [0.58, 0.52, 0.46]
+    roughness: 0.80
+    specular: 0.10
+
+  # Grigio perla — pareti luminose, fresco
+  - id: "dis_murale_grigio_perla"
+    type: "disney"
+    color: [0.72, 0.70, 0.68]
+    roughness: 0.80
+    specular: 0.10
+
+  # Blu polvere — camerette, bagni
+  - id: "dis_murale_blu_polvere"
+    type: "disney"
+    color: [0.58, 0.68, 0.78]
+    roughness: 0.80
+    specular: 0.10
+
+  # Verde salvia — cucine, soggiorni
+  - id: "dis_murale_verde_salvia"
+    type: "disney"
+    color: [0.52, 0.60, 0.48]
+    roughness: 0.80
+    specular: 0.10
+
+  # Terracotta — accento caldo, stile mediterraneo
+  - id: "dis_murale_terracotta"
+    type: "disney"
+    color: [0.72, 0.42, 0.22]
+    roughness: 0.82
+    specular: 0.08
+
+  # ── Classic (preferiti per superfici grandi) ───────────────────────────
+
+  - id: "cls_murale_bianco"
+    type: "lambertian"
+    color: [0.90, 0.89, 0.86]
+
+  - id: "cls_murale_tortora"
+    type: "lambertian"
+    color: [0.58, 0.52, 0.46]
+
+  - id: "cls_murale_grigio_perla"
+    type: "lambertian"
+    color: [0.72, 0.70, 0.68]
+
+  - id: "cls_murale_blu_polvere"
+    type: "lambertian"
+    color: [0.58, 0.68, 0.78]
+
+  - id: "cls_murale_verde_salvia"
+    type: "lambertian"
+    color: [0.52, 0.60, 0.48]
+
+  - id: "cls_murale_terracotta"
+    type: "lambertian"
+    color: [0.72, 0.42, 0.22]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  VERNICE SPRAY — bomboletta, finitura uniforme
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Spray nero opaco — graffiti, modellismo
+  - id: "dis_spray_nero_opaco"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.65
+    specular: 0.22
+
+  # Spray nero lucido — auto, custom, modellismo
+  - id: "dis_spray_nero_lucido"
+    type: "disney"
+    color: [0.03, 0.03, 0.03]
+    roughness: 0.15
+    specular: 0.60
+    clearcoat: 0.55
+    clearcoat_gloss: 0.88
+
+  # Spray bianco satinato — DIY, mobili
+  - id: "dis_spray_bianco_satinato"
+    type: "disney"
+    color: [0.90, 0.89, 0.86]
+    roughness: 0.38
+    specular: 0.38
+    clearcoat: 0.20
+    clearcoat_gloss: 0.68
+
+  # Spray oro — decorazione, cornici, Natale
+  - id: "dis_spray_oro"
+    type: "disney"
+    color: [0.78, 0.60, 0.15]
+    metallic: 0.75
+    roughness: 0.30
+    specular: 0.55
+
+  # Spray argento — decorazione, effetto cromato
+  - id: "dis_spray_argento"
+    type: "disney"
+    color: [0.72, 0.72, 0.74]
+    metallic: 0.80
+    roughness: 0.25
+    specular: 0.60
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_spray_nero_opaco"
+    type: "lambertian"
+    color: [0.04, 0.04, 0.04]
+
+  - id: "cls_spray_oro"
+    type: "metal"
+    color: [0.78, 0.60, 0.15]
+    fuzz: 0.25
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  VERNICE EPOSSIDICA — bicomponente, pavimenti, barche
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Epossidica grigia — pavimento garage, officina
+  - id: "dis_epossidica_grigia"
+    type: "disney"
+    color: [0.52, 0.51, 0.50]
+    roughness: 0.18
+    specular: 0.55
+    clearcoat: 0.50
+    clearcoat_gloss: 0.85
+
+  # Epossidica bianca — laboratorio, cleanroom
+  - id: "dis_epossidica_bianca"
+    type: "disney"
+    color: [0.90, 0.89, 0.86]
+    roughness: 0.15
+    specular: 0.55
+    clearcoat: 0.55
+    clearcoat_gloss: 0.88
+
+  # Epossidica trasparente — rivestimento tavoli, river table
+  - id: "dis_epossidica_trasparente"
+    type: "disney"
+    color: [0.96, 0.95, 0.90]
+    roughness: 0.05
+    specular: 0.70
+    clearcoat: 0.80
+    clearcoat_gloss: 0.95
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_epossidica_grigia"
+    type: "metal"
+    color: [0.52, 0.51, 0.50]
+    fuzz: 0.18
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  VERNICE A POLVERE — elettrostatica, mobili metallici, componenti
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Polvere bianca liscia — mobili ufficio, elettrodomestici
+  - id: "dis_polvere_bianca"
+    type: "disney"
+    color: [0.90, 0.89, 0.86]
+    roughness: 0.28
+    specular: 0.45
+    clearcoat: 0.30
+    clearcoat_gloss: 0.78
+
+  # Polvere nera goffrata — scaffali, armadi
+  - id: "dis_polvere_nera_goffrata"
+    type: "disney"
+    color: [0.05, 0.05, 0.05]
+    roughness: 0.58
+    specular: 0.28
+
+  # Polvere grigio antracite — industriale, macchinari
+  - id: "dis_polvere_antracite"
+    type: "disney"
+    color: [0.22, 0.22, 0.23]
+    roughness: 0.35
+    specular: 0.40
+    clearcoat: 0.25
+    clearcoat_gloss: 0.72
+
+  # Polvere giallo sicurezza — macchinari, protezioni
+  - id: "dis_polvere_giallo"
+    type: "disney"
+    color: [0.88, 0.78, 0.08]
+    roughness: 0.35
+    specular: 0.38
+    clearcoat: 0.22
+    clearcoat_gloss: 0.70
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_polvere_bianca"
+    type: "metal"
+    color: [0.90, 0.89, 0.86]
+    fuzz: 0.28
+
+  - id: "cls_polvere_nera_goffrata"
+    type: "lambertian"
+    color: [0.05, 0.05, 0.05]
+
+  - id: "cls_polvere_antracite"
+    type: "metal"
+    color: [0.22, 0.22, 0.23]
+    fuzz: 0.30

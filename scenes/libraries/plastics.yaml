@@ -1,0 +1,837 @@
+# ============================================================================
+# Libreria Materiali — Plastiche e Polimeri
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/plastics.yaml" }]
+#
+# Raccolta completa di plastiche, gomme, siliconi e polimeri tecnici.
+# Dalla plastica lucida da giocattolo alla gomma industriale.
+#
+#   dis_  (Disney BSDF) — Per oggetti protagonisti. Specular controlla
+#         il riflesso Fresnel dielettrico (tipico delle plastiche lucide),
+#         clearcoat simula una lacca protettiva, sheen dona il bagliore
+#         radente delle gomme e dei siliconi. Richiede ≥128 spp.
+#
+#   cls_  (Classic) — Lambertian per plastiche opache (massima pulizia),
+#         metal+fuzz per plastiche lucide (riflesso speculare semplice).
+#         Ideale per superfici grandi e render veloci.
+#
+# ── Fisica delle plastiche ───────────────────────────────────────────────
+#
+#   Le plastiche sono dielettrici: riflesso Fresnel dal salto di IOR
+#   (tipicamente 1.45–1.60) che produce un highlight bianco sulla
+#   superficie, indipendente dal colore del materiale. Questo è il
+#   parametro "specular" del Disney (default 0.5 ≈ IOR 1.5).
+#
+#   A differenza dei metalli, il colore della plastica viene dal bulk:
+#   la luce penetra, rimbalza sui pigmenti e riemerge colorata. Per
+#   questo il parametro "metallic" è sempre 0.0 nelle plastiche.
+#
+#   Roughness controlla la finitura: 0.0 = stampaggio a specchio,
+#   0.5 = stampaggio standard, 0.9 = gomma/silicone.
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   ABS / STAMPAGGIO    Il polimero da iniezione più comune. Lucido,
+#                       opaco o satinato. LEGO, elettrodomestici,
+#                       cruscotti, cover telefoni.
+#
+#   POLICARBONATO       Trasparente e resistente agli urti. Visiere,
+#                       occhiali, CD, fari auto. IOR 1.586.
+#                       (varianti trasparenti in glasses.yaml)
+#
+#   ACRILICO / PMMA     Plexiglass opaco, colorato, stampato.
+#                       Insegne, display, arredamento.
+#                       (varianti trasparenti in glasses.yaml)
+#
+#   PVC                 Rigido o morbido. Tubi, infissi, cavi,
+#                       pavimenti vinilici. Toni grigi/bianchi.
+#
+#   NYLON / PA          Ingranaggi, cerniere, tessuto tecnico.
+#                       Leggermente ceroso, semi-traslucente.
+#
+#   PLA / STAMPA 3D     Filamento per FDM. Superficie con leggere
+#                       rigature di layer. Colori vivaci.
+#
+#   TEFLON / PTFE       Bianco, ceroso, bassissimo attrito.
+#                       Superfici ultra-lisce, anti-aderente.
+#
+#   POLIETILENE / PE    HD-PE e LD-PE. Bottiglie, contenitori,
+#                       sacchetti. Ceroso, semi-traslucente.
+#
+#   POLIPROPILENE / PP  Cerniere viventi, contenitori alimentari.
+#                       Simile al PE ma più rigido.
+#
+#   BACHELITE           Prima plastica sintetica (1907). Scura,
+#                       termoindurente, lucida. Interruttori,
+#                       telefoni vintage, manici.
+#
+#   GOMMA NATURALE      Elastomero, alta roughness, sheen al
+#                       radente. Pneumatici, guarnizioni.
+#
+#   GOMMA SILICONICA    Morbida, traslucente, medicale/alimentare.
+#                       Subsurface per la traslucenza.
+#
+#   GOMMAPIUMA / EVA    Schiuma morbida, opacissima. Tappetini,
+#                       ciabatte, imballaggio.
+#
+#   VINILE / ECOPELLE   Finta pelle, sedili, borse. Sheen per
+#                       l'effetto lucido/grinzoso superficiale.
+#
+# ============================================================================
+
+
+materials:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ABS / STAMPAGGIO — il polimero da iniezione più comune
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # ABS bianco lucido — elettrodomestici, cover
+  - id: "dis_abs_bianco_lucido"
+    type: "disney"
+    color: [0.92, 0.92, 0.90]
+    roughness: 0.12
+    specular: 0.6
+    clearcoat: 0.3
+    clearcoat_gloss: 0.85
+
+  # ABS bianco opaco — interruttori, prese elettriche
+  - id: "dis_abs_bianco_opaco"
+    type: "disney"
+    color: [0.90, 0.90, 0.88]
+    roughness: 0.55
+    specular: 0.4
+
+  # ABS nero lucido — elettronica, monitor, tastiere
+  - id: "dis_abs_nero_lucido"
+    type: "disney"
+    color: [0.03, 0.03, 0.03]
+    roughness: 0.08
+    specular: 0.8
+    clearcoat: 0.5
+    clearcoat_gloss: 0.92
+
+  # ABS nero opaco — controller, utensili, cruscotti
+  - id: "dis_abs_nero_opaco"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.60
+    specular: 0.35
+
+  # ABS rosso LEGO — rosso classico brillante
+  - id: "dis_abs_rosso"
+    type: "disney"
+    color: [0.78, 0.06, 0.06]
+    roughness: 0.15
+    specular: 0.6
+    clearcoat: 0.3
+    clearcoat_gloss: 0.88
+
+  # ABS giallo LEGO — giallo vivace
+  - id: "dis_abs_giallo"
+    type: "disney"
+    color: [0.90, 0.78, 0.05]
+    roughness: 0.15
+    specular: 0.6
+    clearcoat: 0.3
+    clearcoat_gloss: 0.88
+
+  # ABS blu LEGO — blu classico
+  - id: "dis_abs_blu"
+    type: "disney"
+    color: [0.05, 0.12, 0.72]
+    roughness: 0.15
+    specular: 0.6
+    clearcoat: 0.3
+    clearcoat_gloss: 0.88
+
+  # ABS verde — verde brillante da giocattolo
+  - id: "dis_abs_verde"
+    type: "disney"
+    color: [0.06, 0.52, 0.12]
+    roughness: 0.15
+    specular: 0.6
+    clearcoat: 0.3
+    clearcoat_gloss: 0.88
+
+  # ABS arancione — vivace, segnaletica, sicurezza
+  - id: "dis_abs_arancione"
+    type: "disney"
+    color: [0.92, 0.45, 0.05]
+    roughness: 0.15
+    specular: 0.6
+    clearcoat: 0.3
+    clearcoat_gloss: 0.88
+
+  # ABS grigio — elettronica, stampanti, macchinari
+  - id: "dis_abs_grigio"
+    type: "disney"
+    color: [0.45, 0.45, 0.46]
+    roughness: 0.45
+    specular: 0.45
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_abs_bianco_lucido"
+    type: "metal"
+    color: [0.92, 0.92, 0.90]
+    fuzz: 0.30
+
+  - id: "cls_abs_bianco_opaco"
+    type: "lambertian"
+    color: [0.90, 0.90, 0.88]
+
+  - id: "cls_abs_nero_lucido"
+    type: "metal"
+    color: [0.03, 0.03, 0.03]
+    fuzz: 0.18
+
+  - id: "cls_abs_nero_opaco"
+    type: "lambertian"
+    color: [0.04, 0.04, 0.04]
+
+  - id: "cls_abs_rosso"
+    type: "metal"
+    color: [0.78, 0.06, 0.06]
+    fuzz: 0.32
+
+  - id: "cls_abs_giallo"
+    type: "metal"
+    color: [0.90, 0.78, 0.05]
+    fuzz: 0.32
+
+  - id: "cls_abs_blu"
+    type: "metal"
+    color: [0.05, 0.12, 0.72]
+    fuzz: 0.32
+
+  - id: "cls_abs_grigio"
+    type: "lambertian"
+    color: [0.45, 0.45, 0.46]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  POLICARBONATO — opaco/satinato (trasparente → glasses.yaml)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Policarbonato bianco — diffusore LED, paralumi
+  - id: "dis_policarbonato_bianco"
+    type: "disney"
+    color: [0.92, 0.91, 0.90]
+    roughness: 0.35
+    specular: 0.55
+    subsurface: 0.10
+
+  # Policarbonato nero — visiere, occhiali da sole
+  - id: "dis_policarbonato_nero"
+    type: "disney"
+    color: [0.03, 0.03, 0.04]
+    roughness: 0.10
+    specular: 0.75
+    clearcoat: 0.4
+    clearcoat_gloss: 0.90
+
+  # Policarbonato fumé — schermi, protezioni
+  - id: "dis_policarbonato_fume"
+    type: "disney"
+    color: [0.25, 0.24, 0.23]
+    roughness: 0.08
+    specular: 0.70
+    clearcoat: 0.35
+    clearcoat_gloss: 0.88
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_policarbonato_bianco"
+    type: "lambertian"
+    color: [0.92, 0.91, 0.90]
+
+  - id: "cls_policarbonato_nero"
+    type: "metal"
+    color: [0.03, 0.03, 0.04]
+    fuzz: 0.20
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ACRILICO / PMMA — opaco/colorato (trasparente → glasses.yaml)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Acrilico bianco opaco — insegne retroilluminate
+  - id: "dis_acrilico_bianco"
+    type: "disney"
+    color: [0.94, 0.93, 0.92]
+    roughness: 0.30
+    specular: 0.55
+    subsurface: 0.12
+
+  # Acrilico rosso opaco — display, segnaletica
+  - id: "dis_acrilico_rosso"
+    type: "disney"
+    color: [0.82, 0.08, 0.06]
+    roughness: 0.25
+    specular: 0.55
+    clearcoat: 0.2
+    clearcoat_gloss: 0.80
+
+  # Acrilico nero lucido — pannelli, arredamento
+  - id: "dis_acrilico_nero"
+    type: "disney"
+    color: [0.02, 0.02, 0.02]
+    roughness: 0.06
+    specular: 0.82
+    clearcoat: 0.55
+    clearcoat_gloss: 0.95
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_acrilico_bianco"
+    type: "lambertian"
+    color: [0.94, 0.93, 0.92]
+
+  - id: "cls_acrilico_nero"
+    type: "metal"
+    color: [0.02, 0.02, 0.02]
+    fuzz: 0.12
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  PVC — rigido (tubi, infissi) e morbido (cavi, pavimenti)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # PVC bianco rigido — tubi idraulici, infissi
+  - id: "dis_pvc_bianco"
+    type: "disney"
+    color: [0.90, 0.90, 0.88]
+    roughness: 0.42
+    specular: 0.45
+
+  # PVC grigio rigido — tubi elettrici, canaline
+  - id: "dis_pvc_grigio"
+    type: "disney"
+    color: [0.48, 0.48, 0.50]
+    roughness: 0.45
+    specular: 0.42
+
+  # PVC nero morbido — guaine cavi, tubi flessibili
+  - id: "dis_pvc_nero_morbido"
+    type: "disney"
+    color: [0.05, 0.05, 0.05]
+    roughness: 0.65
+    specular: 0.30
+    sheen: 0.06
+
+  # PVC arancione — tubi corrugati, segnaletica
+  - id: "dis_pvc_arancione"
+    type: "disney"
+    color: [0.88, 0.42, 0.05]
+    roughness: 0.48
+    specular: 0.40
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_pvc_bianco"
+    type: "lambertian"
+    color: [0.90, 0.90, 0.88]
+
+  - id: "cls_pvc_grigio"
+    type: "lambertian"
+    color: [0.48, 0.48, 0.50]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  NYLON / PA — ingranaggi, cerniere, tessuto tecnico
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Nylon naturale — bianco ceroso, semi-traslucente
+  - id: "dis_nylon_naturale"
+    type: "disney"
+    color: [0.88, 0.86, 0.82]
+    roughness: 0.52
+    specular: 0.40
+    subsurface: 0.15
+    sheen: 0.05
+
+  # Nylon nero — ingranaggi, componenti meccanici
+  - id: "dis_nylon_nero"
+    type: "disney"
+    color: [0.06, 0.06, 0.06]
+    roughness: 0.50
+    specular: 0.42
+
+  # Nylon bianco SLS — stampa 3D a sinterizzazione, grana fine
+  - id: "dis_nylon_sls"
+    type: "disney"
+    color: [0.90, 0.88, 0.85]
+    roughness: 0.68
+    specular: 0.25
+    subsurface: 0.10
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_nylon_naturale"
+    type: "lambertian"
+    color: [0.88, 0.86, 0.82]
+
+  - id: "cls_nylon_nero"
+    type: "lambertian"
+    color: [0.06, 0.06, 0.06]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  PLA / STAMPA 3D FDM — filamento, leggere rigature di layer
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # PLA bianco — filamento standard
+  - id: "dis_pla_bianco"
+    type: "disney"
+    color: [0.92, 0.91, 0.90]
+    roughness: 0.48
+    specular: 0.40
+
+  # PLA nero — filamento scuro
+  - id: "dis_pla_nero"
+    type: "disney"
+    color: [0.05, 0.05, 0.05]
+    roughness: 0.48
+    specular: 0.42
+
+  # PLA rosso — colore vivace da maker
+  - id: "dis_pla_rosso"
+    type: "disney"
+    color: [0.82, 0.10, 0.08]
+    roughness: 0.45
+    specular: 0.42
+
+  # PLA blu — colore da maker
+  - id: "dis_pla_blu"
+    type: "disney"
+    color: [0.10, 0.18, 0.75]
+    roughness: 0.45
+    specular: 0.42
+
+  # PLA verde — colore da maker
+  - id: "dis_pla_verde"
+    type: "disney"
+    color: [0.10, 0.62, 0.18]
+    roughness: 0.45
+    specular: 0.42
+
+  # PLA arancione — colore da maker
+  - id: "dis_pla_arancione"
+    type: "disney"
+    color: [0.92, 0.48, 0.05]
+    roughness: 0.45
+    specular: 0.42
+
+  # PLA grigio — prototipazione
+  - id: "dis_pla_grigio"
+    type: "disney"
+    color: [0.52, 0.52, 0.53]
+    roughness: 0.48
+    specular: 0.38
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_pla_bianco"
+    type: "lambertian"
+    color: [0.92, 0.91, 0.90]
+
+  - id: "cls_pla_nero"
+    type: "lambertian"
+    color: [0.05, 0.05, 0.05]
+
+  - id: "cls_pla_rosso"
+    type: "lambertian"
+    color: [0.82, 0.10, 0.08]
+
+  - id: "cls_pla_grigio"
+    type: "lambertian"
+    color: [0.52, 0.52, 0.53]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  TEFLON / PTFE — bianco, ceroso, bassissimo attrito
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Teflon bianco — guarnizioni, nastro idraulico, padelle
+  - id: "dis_teflon"
+    type: "disney"
+    color: [0.94, 0.94, 0.93]
+    roughness: 0.38
+    specular: 0.35
+    sheen: 0.08
+    sheen_tint: 0.2
+    subsurface: 0.10
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_teflon"
+    type: "lambertian"
+    color: [0.94, 0.94, 0.93]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  POLIETILENE / PE — bottiglie, contenitori, ceroso
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # HDPE bianco — flaconi detersivo, contenitori
+  - id: "dis_hdpe_bianco"
+    type: "disney"
+    color: [0.92, 0.91, 0.90]
+    roughness: 0.50
+    specular: 0.38
+    subsurface: 0.08
+
+  # HDPE nero — tubi irrigazione, cassonetti
+  - id: "dis_hdpe_nero"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.55
+    specular: 0.35
+
+  # LDPE traslucente — buste, pellicole, semi-trasparente
+  - id: "dis_ldpe_traslucente"
+    type: "disney"
+    color: [0.90, 0.90, 0.88]
+    roughness: 0.40
+    specular: 0.35
+    subsurface: 0.20
+    spec_trans: 0.15
+    ior: 1.50
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_hdpe_bianco"
+    type: "lambertian"
+    color: [0.92, 0.91, 0.90]
+
+  - id: "cls_hdpe_nero"
+    type: "lambertian"
+    color: [0.04, 0.04, 0.04]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  POLIPROPILENE / PP — contenitori alimentari, cerniere viventi
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # PP trasparente satinato — contenitori Tupperware
+  - id: "dis_pp_trasparente"
+    type: "disney"
+    color: [0.92, 0.91, 0.90]
+    roughness: 0.30
+    specular: 0.42
+    subsurface: 0.12
+    spec_trans: 0.20
+    ior: 1.49
+
+  # PP bianco — sedie da giardino, arredi
+  - id: "dis_pp_bianco"
+    type: "disney"
+    color: [0.90, 0.90, 0.88]
+    roughness: 0.50
+    specular: 0.40
+
+  # PP nero — valigette, componenti auto
+  - id: "dis_pp_nero"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.52
+    specular: 0.38
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_pp_bianco"
+    type: "lambertian"
+    color: [0.90, 0.90, 0.88]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  BACHELITE — prima plastica sintetica, termoindurente, vintage
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Bachelite nera — telefoni vintage, interruttori anni '30
+  - id: "dis_bachelite_nera"
+    type: "disney"
+    color: [0.04, 0.03, 0.03]
+    roughness: 0.10
+    specular: 0.80
+    clearcoat: 0.6
+    clearcoat_gloss: 0.92
+    sheen: 0.10
+    sheen_tint: 0.2
+
+  # Bachelite marrone — manici, manopole, radio vintage
+  - id: "dis_bachelite_marrone"
+    type: "disney"
+    color: [0.25, 0.12, 0.05]
+    roughness: 0.12
+    specular: 0.75
+    clearcoat: 0.55
+    clearcoat_gloss: 0.90
+
+  # Bachelite rosso scuro — giocattoli d'epoca
+  - id: "dis_bachelite_rossa"
+    type: "disney"
+    color: [0.45, 0.06, 0.04]
+    roughness: 0.12
+    specular: 0.72
+    clearcoat: 0.50
+    clearcoat_gloss: 0.88
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_bachelite_nera"
+    type: "metal"
+    color: [0.04, 0.03, 0.03]
+    fuzz: 0.15
+
+  - id: "cls_bachelite_marrone"
+    type: "metal"
+    color: [0.25, 0.12, 0.05]
+    fuzz: 0.18
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  GOMMA NATURALE — pneumatici, guarnizioni, alta roughness
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Gomma nera — pneumatici, guarnizioni O-ring
+  - id: "dis_gomma_nera"
+    type: "disney"
+    color: [0.05, 0.05, 0.05]
+    roughness: 0.92
+    specular: 0.10
+    sheen: 0.05
+
+  # Gomma grigia — suole, tappetini tecnici
+  - id: "dis_gomma_grigia"
+    type: "disney"
+    color: [0.35, 0.35, 0.36]
+    roughness: 0.88
+    specular: 0.12
+    sheen: 0.04
+
+  # Gomma rossa — guarnizioni, palle da gioco
+  - id: "dis_gomma_rossa"
+    type: "disney"
+    color: [0.72, 0.10, 0.06]
+    roughness: 0.85
+    specular: 0.12
+    sheen: 0.04
+
+  # Gomma bianca — suole sneakers, guarnizioni alimentari
+  - id: "dis_gomma_bianca"
+    type: "disney"
+    color: [0.88, 0.88, 0.86]
+    roughness: 0.85
+    specular: 0.12
+
+  # Gomma blu — piscina, tappetini, giocattoli
+  - id: "dis_gomma_blu"
+    type: "disney"
+    color: [0.08, 0.15, 0.55]
+    roughness: 0.85
+    specular: 0.12
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_gomma_nera"
+    type: "lambertian"
+    color: [0.05, 0.05, 0.05]
+
+  - id: "cls_gomma_grigia"
+    type: "lambertian"
+    color: [0.35, 0.35, 0.36]
+
+  - id: "cls_gomma_rossa"
+    type: "lambertian"
+    color: [0.72, 0.10, 0.06]
+
+  - id: "cls_gomma_bianca"
+    type: "lambertian"
+    color: [0.88, 0.88, 0.86]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  GOMMA SILICONICA — morbida, traslucente, medicale/alimentare
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney (solo — serve subsurface per traslucenza) ───────────────────
+
+  # Silicone bianco — stampi, utensili cucina
+  - id: "dis_silicone_bianco"
+    type: "disney"
+    color: [0.90, 0.89, 0.87]
+    roughness: 0.72
+    specular: 0.25
+    subsurface: 0.25
+    sheen: 0.06
+
+  # Silicone rosso — spatole, guanti forno
+  - id: "dis_silicone_rosso"
+    type: "disney"
+    color: [0.78, 0.10, 0.08]
+    roughness: 0.70
+    specular: 0.28
+    subsurface: 0.18
+
+  # Silicone trasparente — guarnizioni, cover telefono
+  - id: "dis_silicone_trasparente"
+    type: "disney"
+    color: [0.92, 0.92, 0.94]
+    roughness: 0.55
+    specular: 0.35
+    subsurface: 0.30
+    spec_trans: 0.25
+    ior: 1.42
+
+  # Silicone medicale — catetere, protesi, bianco puro
+  - id: "dis_silicone_medicale"
+    type: "disney"
+    color: [0.94, 0.94, 0.93]
+    roughness: 0.60
+    specular: 0.30
+    subsurface: 0.35
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_silicone_bianco"
+    type: "lambertian"
+    color: [0.90, 0.89, 0.87]
+
+  - id: "cls_silicone_rosso"
+    type: "lambertian"
+    color: [0.78, 0.10, 0.08]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  GOMMAPIUMA / EVA — schiuma morbida, opacissima
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # EVA nera — tappetini palestra, infradito
+  - id: "dis_eva_nera"
+    type: "disney"
+    color: [0.06, 0.06, 0.06]
+    roughness: 0.95
+    specular: 0.05
+
+  # EVA bianca — suole, imbottiture
+  - id: "dis_eva_bianca"
+    type: "disney"
+    color: [0.90, 0.90, 0.88]
+    roughness: 0.95
+    specular: 0.05
+
+  # EVA colorata — tappetini bimbi, puzzle
+  - id: "dis_eva_rossa"
+    type: "disney"
+    color: [0.75, 0.12, 0.08]
+    roughness: 0.95
+    specular: 0.05
+
+  - id: "dis_eva_blu"
+    type: "disney"
+    color: [0.10, 0.18, 0.62]
+    roughness: 0.95
+    specular: 0.05
+
+  - id: "dis_eva_verde"
+    type: "disney"
+    color: [0.12, 0.55, 0.18]
+    roughness: 0.95
+    specular: 0.05
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_eva_nera"
+    type: "lambertian"
+    color: [0.06, 0.06, 0.06]
+
+  - id: "cls_eva_bianca"
+    type: "lambertian"
+    color: [0.90, 0.90, 0.88]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  VINILE / ECOPELLE — finta pelle, sedili, borse
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Vinile nero — sedili auto, divani, borse
+  - id: "dis_vinile_nero"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.42
+    specular: 0.48
+    sheen: 0.12
+    sheen_tint: 0.3
+
+  # Vinile marrone — ecopelle vintage, cinturini
+  - id: "dis_vinile_marrone"
+    type: "disney"
+    color: [0.35, 0.18, 0.08]
+    roughness: 0.45
+    specular: 0.45
+    sheen: 0.10
+    sheen_tint: 0.5
+
+  # Vinile bianco — divani moderni, interni yacht
+  - id: "dis_vinile_bianco"
+    type: "disney"
+    color: [0.90, 0.89, 0.86]
+    roughness: 0.38
+    specular: 0.48
+    sheen: 0.10
+    sheen_tint: 0.2
+
+  # Vinile rosso — sedili sportivi, diner americano
+  - id: "dis_vinile_rosso"
+    type: "disney"
+    color: [0.68, 0.08, 0.06]
+    roughness: 0.40
+    specular: 0.50
+    sheen: 0.10
+    sheen_tint: 0.4
+
+  # ── Classic ────────────────────────────────────────────────────────────
+
+  - id: "cls_vinile_nero"
+    type: "metal"
+    color: [0.04, 0.04, 0.04]
+    fuzz: 0.38
+
+  - id: "cls_vinile_marrone"
+    type: "metal"
+    color: [0.35, 0.18, 0.08]
+    fuzz: 0.40
+
+  - id: "cls_vinile_bianco"
+    type: "metal"
+    color: [0.90, 0.89, 0.86]
+    fuzz: 0.38
