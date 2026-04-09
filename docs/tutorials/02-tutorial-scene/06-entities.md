@@ -3,6 +3,7 @@
 Gli oggetti 3D nella scena. Ogni entità ha un `name`, un `type`, parametri specifici per la geometria e un `material` (riferimento all'id del materiale).
 
 ## 6.1 Sphere (Sfera)
+
 ```yaml
   - name: "sfera_principale"
     type: "sphere"
@@ -10,6 +11,7 @@ Gli oggetti 3D nella scena. Ogni entità ha un `name`, un `type`, parametri spec
     radius: 1.0
     material: "marmo_bianco"
 ```
+
 | Campo | Tipo | Descrizione |
 |-------|------|-------------|
 | `center` | `[X, Y, Z]` | Centro della sfera nel mondo |
@@ -18,6 +20,8 @@ Gli oggetti 3D nella scena. Ogni entità ha un `name`, un `type`, parametri spec
 > **UV Mapping:** Sferico (longitudine/latitudine). `U` ruota attorno all'asse Y ($0$ a $1$), `V` va dal polo sud al polo nord ($0$ a $1$).
 
 > **Area light:** La sfera implementa `ISamplable` e può essere usata come area light emissiva con NEE. Il campionamento è uniforme sulla superficie sferica.
+
+> **Trasformazioni:** `scale` funziona correttamente — uno scale non-uniforme deforma la sfera in un ellissoide. Il wrapper Transform gestisce normali e area con il Jacobiano.
 
 ## 6.2 Box (Cubo/Parallelepipedo)
 
