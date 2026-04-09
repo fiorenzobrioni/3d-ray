@@ -135,23 +135,6 @@ templates:
 # ============================================================================
 entities:
 
-  # 8. Catena — due anelli concatenati
-  - name: "catena"
-    type: "csg"
-    operation: "union"
-    material: "acciaio"
-    translate: [0, 1.2, -3]
-    left:
-      type: "torus"
-      major_radius: 0.7
-      minor_radius: 0.1
-    right:
-      type: "torus"
-      major_radius: 0.7
-      minor_radius: 0.1
-      rotate: [90, 0, 0]
-      translate: [1.3, 0, 0]
-
   # ── Pavimento ──────────────────────────────────────────────────────────
   - name: "suolo"
     type: "infinite_plane"
