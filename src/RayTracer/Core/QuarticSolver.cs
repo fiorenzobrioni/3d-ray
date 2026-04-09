@@ -250,6 +250,14 @@ public static class QuarticSolver
     // ═════════════════════════════════════════════════════════════════════════
 
     /// <summary>
+    /// Relative tolerance for discriminant acceptance in Ferrari's sub-quadratics.
+    /// Scaled by coefficient magnitudes to handle both large and small tori.
+    /// The value 1e-6 accepts numerical errors from near-double roots (typically
+    /// 1e-8 to 1e-10) while rejecting genuine non-intersections (disc &lt;&lt; -1e-6).
+    /// </summary>
+    private const double DiscRelEps = 1e-6;
+ 
+    /// <summary>
     /// Solves the depressed quartic u⁴ + p*u² + q*u + r = 0 via Ferrari.
     /// Returns real roots in the roots span (may contain duplicates, unsorted).
     /// </summary>
@@ -257,62 +265,69 @@ public static class QuarticSolver
     {
         // Resolvent cubic: 8y³ - 4py² - 8ry + (4pr - q²) = 0
         // Monic form: y³ - (p/2)y² - ry + (pr/2 - q²/8) = 0
-        //           = y³ + ay² + by + c  where:
         double ra = -p / 2.0;
         double rb = -r;
         double rc = (p * r) / 2.0 - (q * q) / 8.0;
-
+ 
         double y = CubicRealRoot(ra, rb, rc);
-
+ 
         // From the resolvent root y, factor the quartic into two quadratics:
         //   (u² + y + s*u)(u² + y - s*u) = u⁴ + p*u² + q*u + r
         // where s² = 2y - p (must be ≥ 0 for real factorization)
-
+ 
         double s2 = 2.0 * y - p;
-        if (s2 < -Eps)
+ 
+        // Relative tolerance on s²: for tangent rays the resolvent cubic
+        // may produce y with enough error that s² lands slightly below 0.
+        double s2Scale = Math.Max(1.0, 2.0 * Math.Abs(y) + Math.Abs(p));
+        if (s2 < -DiscRelEps * s2Scale)
         {
-            // No real factorization — quartic has no real roots
+            // Genuinely no real factorization — quartic has no real roots
             return 0;
         }
         double s = Math.Sqrt(Math.Max(0.0, s2));
-
+ 
         if (s < Eps)
         {
             // s ≈ 0: degenerate case, fall back to biquadratic
             return SolveBiquadratic(p, r, roots);
         }
-
+ 
         // Two quadratics:
         //   u² + s*u + (y + q/(2s)) = 0      … (I)
         //   u² - s*u + (y - q/(2s)) = 0      … (II)
         double halfQoverS = q / (2.0 * s);
-
+ 
         int count = 0;
-
-        // Quadratic I: u² + s*u + (y + halfQoverS) = 0
-        double discI = s * s - 4.0 * (y + halfQoverS);
-        if (discI >= -Eps)
+ 
+        // ── Quadratic I: u² + s*u + (y + halfQoverS) = 0 ───────────────
+        double constI = y + halfQoverS;
+        double discI = s * s - 4.0 * constI;
+        double scaleI = Math.Max(1.0, s * s + 4.0 * Math.Abs(constI));
+        if (discI >= -DiscRelEps * scaleI)
         {
             double sqrtI = Math.Sqrt(Math.Max(0.0, discI));
             roots[count++] = (-s + sqrtI) / 2.0;
             roots[count++] = (-s - sqrtI) / 2.0;
         }
-
-        // Quadratic II: u² - s*u + (y - halfQoverS) = 0
-        double discII = s * s - 4.0 * (y - halfQoverS);
-        if (discII >= -Eps)
+ 
+        // ── Quadratic II: u² - s*u + (y - halfQoverS) = 0 ──────────────
+        double constII = y - halfQoverS;
+        double discII = s * s - 4.0 * constII;
+        double scaleII = Math.Max(1.0, s * s + 4.0 * Math.Abs(constII));
+        if (discII >= -DiscRelEps * scaleII)
         {
             double sqrtII = Math.Sqrt(Math.Max(0.0, discII));
             roots[count++] = (s + sqrtII) / 2.0;
             roots[count++] = (s - sqrtII) / 2.0;
         }
-
+ 
         // Deduplicate near-identical roots
         count = Deduplicate(roots, count);
-
+ 
         return count;
     }
-
+ 
     /// <summary>
     /// Solves the biquadratic u⁴ + p*u² + r = 0 by substitution w = u².
     /// </summary>
@@ -320,31 +335,40 @@ public static class QuarticSolver
     {
         // w² + pw + r = 0
         double disc = p * p - 4.0 * r;
-        if (disc < -Eps) return 0;
-
+ 
+        // Relative tolerance: same rationale as the sub-quadratic discriminants.
+        // For tangent rays routed through the biquadratic path (q ≈ 0),
+        // the discriminant can be slightly negative due to accumulated error.
+        double scale = Math.Max(1.0, p * p + 4.0 * Math.Abs(r));
+        if (disc < -DiscRelEps * scale) return 0;
+ 
         double sqrtDisc = Math.Sqrt(Math.Max(0.0, disc));
         double w1 = (-p + sqrtDisc) / 2.0;
         double w2 = (-p - sqrtDisc) / 2.0;
-
+ 
         int count = 0;
-
-        if (w1 >= -Eps)
+ 
+        // Relative tolerance for w ≥ 0 check: w should be ≥ 0 for real u = ±√w.
+        // Near tangent: w ≈ 0 but numerical errors may make it slightly negative.
+        double wTol = DiscRelEps * Math.Max(1.0, Math.Abs(p) + sqrtDisc);
+ 
+        if (w1 >= -wTol)
         {
-            double s = Math.Sqrt(Math.Max(0.0, w1));
-            roots[count++] = s;
-            if (s > RootDedupEps) roots[count++] = -s;
+            double sq = Math.Sqrt(Math.Max(0.0, w1));
+            roots[count++] = sq;
+            if (sq > RootDedupEps) roots[count++] = -sq;
         }
-
-        if (w2 >= -Eps && Math.Abs(w2 - w1) > Eps)
+ 
+        if (w2 >= -wTol && Math.Abs(w2 - w1) > Eps)
         {
-            double s = Math.Sqrt(Math.Max(0.0, w2));
-            roots[count++] = s;
-            if (s > RootDedupEps) roots[count++] = -s;
+            double sq = Math.Sqrt(Math.Max(0.0, w2));
+            roots[count++] = sq;
+            if (sq > RootDedupEps) roots[count++] = -sq;
         }
-
+ 
         return count;
     }
-
+ 
     // ═════════════════════════════════════════════════════════════════════════
     // HELPERS
     // ═════════════════════════════════════════════════════════════════════════

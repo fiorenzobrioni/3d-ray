@@ -80,7 +80,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 
 **7. OBJ Mesh Loader ✅** — Parser Wavefront OBJ con smooth normals (interpolazione Phong), artist UV, TBN da gradiente UV per normal mapping, BVH interno dedicato. Supporta `v/vt/vn`, indici negativi, quad auto-triangolati. Alias YAML: `"mesh"`, `"obj"`.
 
-**8. Torus Primitive ✅** — Intersezione analitica via risolutore di quartiche (metodo di Ferrari) in `QuarticSolver`. UV toroidale, `ISamplable` per NEE, compatibile CSG e Transform. Alias YAML: `"torus"`, `"donut"`, `"ring"`.
+**8. Torus Primitive ✅** — Intersezione analitica via risolutore di quartiche (metodo di Ferrari) in `QuarticSolver`. La direzione del raggio viene normalizzata prima del calcolo dei coefficienti per garantire c₄ = 1 e un condizionamento ottimale della quartica indipendentemente dal focal_dist della camera o da scale Transform. Le radici vengono validate contro l'equazione implicita del toro per scartare falsi positivi. UV toroidale, `ISamplable` per NEE, compatibile CSG e Transform. Alias YAML: `"torus"`, `"donut"`, `"ring"`.
 
 **9. Mix Material ✅** — Materiale composito che interpola tra due materiali figli con peso costante o texture mask spaziale. Selezione stocastica dei lobi per lo scatter (unbiased, compatibile con qualsiasi combinazione di materiali), media pesata deterministica per EvaluateDirect (bassa varianza NEE), blend pesato per emissione. Mask: qualsiasi tipo di texture (noise, marble, wood, checker, image). Luminanza Rec.709 per conversione RGB→scalare. Supporto mix-of-mix tramite risoluzione iterativa delle dipendenze nel loader. Alias YAML: `"mix"`, `"blend"`. Scena di test: `mix-material-showcase.yaml`.
 
@@ -203,6 +203,7 @@ Severità: 🔴 **Alta** 🟠 **Media** 🟡 **Bassa**
 - Aggiornare i tutorial ogni volta che si aggiunge una nuova primitiva o una feature.
 - Idee per scene creative:
   - **Macro Photography**: Primo piano estremo di un orologio meccanico (usando `Annulus` e `Cylinder`) con DOF molto spinta.
+- Quando si compongono oggetti con torus decorativi (base pedone, colletto, anello), verificare che le geometrie adiacenti coprano il tubo del torus: il raggio del cono/cilindro sovrapposto deve essere ≥ `MajorRadius - MinorRadius` con margine di sicurezza, altrimenti il tubo protrude attraverso la superficie adiacente.
 
 ---
 
@@ -218,5 +219,6 @@ Procedure da eseguire prima di ogni commit importante.
 - [ ] **HDRI Test**: Render di `hdri-showcase.yaml` — verificare riflessi, rifrazioni e illuminazione globale.
 - [ ] **Mix Material Test**: Render di `mix-material-showcase.yaml` — verificare blend costante (3 livelli), maschere procedurali (noise, marble, wood), lava emissiva con blend marble e checker bicolore.
 - [ ] **Group Test**: Render di `group-showcase.yaml` — verificare trasformazioni ereditate, template/istanze, import.
+- [ ] **Torus Test**: Render di `torus-showcase.yaml` con camera `pinhole`, `dof_soft` e `dof_extreme` — verificare assenza di contorni fantasma, deformazioni geometriche con DoF, occlusione corretta torus/cono e torus/cilindro. Verificare annulus (piatto, verticale, inclinato) e torus emissivo.
 - [ ] **Import Test**: Verificare che materiali e template importati da file esterni funzionino correttamente.
 - [ ] **Template Override**: Verificare che il materiale dell'istanza sovrascriva quello del template.
