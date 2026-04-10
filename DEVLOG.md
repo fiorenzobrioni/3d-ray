@@ -131,7 +131,17 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 
 **18. Motion Blur ⬜** — Parametro temporale nel `Ray` con interpolazione posizioni.
 
-**19. Volumetric Rendering ⬜** — Fog/fumo con Beer-Lambert e free-path sampling.
+**19. Volumetric Rendering 🔧** — Fog/fumo con Beer-Lambert e free-path sampling.
+Stage 1:
+Medium globale opt-in via world.medium (default null ⇒ output bit-identical su scene esistenti, verificato).
+IMedium + HomogeneousMedium con Beer-Lambert + free-path sampling spectrally-aware (uniform channel pick, MIS-style pdf).
+Fasi: IsotropicPhase (1/4π) e HenyeyGreensteinPhase (g ∈ [-0.999, 0.999]).
+Renderer.TraceRay esteso: campiona evento volumetrico prima di shading; se scatter, NEE+phase+ricorsione; altrimenti surface path moltiplicato per Tr/pdf.
+ComputeDirectLighting attenua ogni shadow ray con medium.Transmittance lungo la distanza alla luce.
+MediumInterface placeholder per Stage 2 (boundary per-entità).
+Scena volumetric-fog-showcase.yaml per validare god-rays da spotlight.
+
+Note implementative: il free-path channel-pick uniforme è la scelta più semplice; un MIS spectrally-balanced verrà valutato se compaiono firefly cromatici. Il path bit-identical è garantito perché quando _globalMedium == null non viene consumato alcun random number aggiuntivo e il branch volumetrico è completamente bypassato.
 
 **20. Subsurface Scattering ⬜** — BSSRDF o random-walk SSS per materiali traslucidi (pelle, cera, marmo). Il parametro `subsurface` del Disney BSDF è già presente come approssimazione flat.
 
