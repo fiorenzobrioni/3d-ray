@@ -118,6 +118,9 @@ public class WorldData
 
     [YamlMember(Alias = "sky")]
     public SkyData? Sky { get; set; }
+
+    [YamlMember(Alias = "medium")]
+    public MediumData? Medium { get; set; }
 }
 
 public class GroundData
@@ -501,4 +504,32 @@ public class LightData
 
     [YamlMember(Alias = "radius")]
     public float Radius { get; set; } = 0.5f;
+}
+
+/// <summary>
+/// Participating medium definition (Stage 1: homogeneous global only).
+/// Lives under <c>world.medium</c>. When absent, the renderer runs in
+/// surface-only mode and produces bit-identical output to pre-volumetric builds.
+/// </summary>
+public class MediumData
+{
+    /// <summary>"homogeneous" (only type supported in Stage 1).</summary>
+    [YamlMember(Alias = "type")]
+    public string? Type { get; set; }
+
+    /// <summary>Absorption coefficient σ_a per RGB channel (units: 1/world-unit).</summary>
+    [YamlMember(Alias = "sigma_a")]
+    public List<float>? SigmaA { get; set; }
+
+    /// <summary>Scattering coefficient σ_s per RGB channel (units: 1/world-unit).</summary>
+    [YamlMember(Alias = "sigma_s")]
+    public List<float>? SigmaS { get; set; }
+
+    /// <summary>"isotropic" or "hg" (Henyey-Greenstein). Default: "isotropic".</summary>
+    [YamlMember(Alias = "phase")]
+    public string? Phase { get; set; }
+
+    /// <summary>HG anisotropy parameter g ∈ (-1, 1). Ignored for isotropic.</summary>
+    [YamlMember(Alias = "g")]
+    public float G { get; set; } = 0f;
 }

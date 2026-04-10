@@ -8,6 +8,7 @@ using RayTracer.Lights;
 using RayTracer.Acceleration;
 using RayTracer.Textures;
 using RayTracer.Rendering;
+using RayTracer.Volumetrics;
 
 namespace RayTracer.Scene;
 
@@ -82,7 +83,7 @@ public class SceneLoader
     /// name (case-insensitive) or zero-based index. Ignored when the scene uses
     /// the legacy single <c>camera:</c> syntax.
     /// </param>
-    public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, Vector3 AmbientLight, SkySettings Sky)
+    public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, Vector3 AmbientLight, SkySettings Sky, IMedium? GlobalMedium)
         Load(string yamlPath, int imageWidth, int imageHeight,
              int? shadowSamplesOverride = null, string? cameraSelector = null)
     {
@@ -175,6 +176,42 @@ public class SceneLoader
         var ambientLight = ToVector3(data.World?.AmbientLight) ?? new Vector3(0.1f);
         var background   = ToVector3(data.World?.Background)   ?? new Vector3(0.5f, 0.7f, 1.0f);
         var sky          = BuildSkySettings(data.World?.Sky, background, sceneDir);
+
+        // ── Global participating medium (opt-in, Stage 1) ────────────────────────
+        // Default null = surface-only path, bit-identical to pre-volumetric output.
+        IMedium? globalMedium = null;
+        if (data.World?.Medium is { } md)
+        {
+            if (!string.Equals(md.Type, "homogeneous", StringComparison.OrdinalIgnoreCase))
+            {
+                Warn($"Unsupported medium type '{md.Type}'. Only 'homogeneous' is supported in Stage 1. Ignoring.");
+            }
+            else
+            {
+                var sigmaA = ToVector3(md.SigmaA) ?? Vector3.Zero;
+                var sigmaS = ToVector3(md.SigmaS) ?? Vector3.Zero;
+
+                IPhaseFunction phase;
+                if (string.IsNullOrWhiteSpace(md.Phase) ||
+                    string.Equals(md.Phase, "isotropic", StringComparison.OrdinalIgnoreCase))
+                {
+                    phase = new IsotropicPhase();
+                }
+                else if (string.Equals(md.Phase, "hg", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(md.Phase, "henyey_greenstein", StringComparison.OrdinalIgnoreCase))
+                {
+                    phase = new HenyeyGreensteinPhase(md.G);
+                }
+                else
+                {
+                    Warn($"Unknown phase function '{md.Phase}'. Falling back to isotropic.");
+                    phase = new IsotropicPhase();
+                }
+
+                globalMedium = new HomogeneousMedium(sigmaA, sigmaS, phase);
+                Info($"Global medium: homogeneous, σ_a={sigmaA}, σ_s={sigmaS}, phase={md.Phase ?? "isotropic"}");
+            }
+        }
 
         var objects = new List<IHittable>();
 
@@ -319,7 +356,7 @@ public class SceneLoader
             lights.Add(new PointLight(new Vector3(0, 10, -5), Vector3.One, 100f));
         }
 
-        return (world, camera, lights, ambientLight, sky);
+        return (world, camera, lights, ambientLight, sky, globalMedium);
     }
 
     // =========================================================================

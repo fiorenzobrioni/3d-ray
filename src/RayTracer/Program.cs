@@ -4,6 +4,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using RayTracer.Rendering;
 using RayTracer.Scene;
+using RayTracer.Volumetrics;
 
 namespace RayTracer;
 
@@ -100,8 +101,9 @@ class Program
         var sw = Stopwatch.StartNew();
         try
         {
-            var (world, camera, lights, ambientLight, sky) =
+            var (world, camera, lights, ambientLight, sky, globalMedium) =
                 SceneLoader.Load(inputPath, width, height, shadowSamplesOverride, cameraSelector);
+
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
             SceneLoader.FlushMessages();
             Console.WriteLine($"  Lights: {lights.Count}");
@@ -115,7 +117,7 @@ class Program
             Console.WriteLine();
 
             // Render
-            var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth);
+            var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth, globalMedium);
             sw.Restart();
             var pixels = renderer.Render(width, height);
             var elapsed = sw.Elapsed;

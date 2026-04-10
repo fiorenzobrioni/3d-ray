@@ -1,0 +1,26 @@
+world:
+  ambient_light: [0.005, 0.005, 0.008]
+  background:   [0.0, 0.0, 0.0]
+  ground: { y: 0, material: floor }
+  medium:
+    type: homogeneous
+    sigma_a: [0.005, 0.005, 0.005]
+    sigma_s: [0.06, 0.06, 0.07]
+#    phase: hg
+    g: 0.85
+camera: { position: [0, 2.0, 8], look_at: [0, 1.5, 0], vup: [0,1,0], fov: 35, aperture: 0, focal_dist: 8 }
+materials:
+  - { id: floor, type: lambertian, albedo: [0.25, 0.22, 0.20] }
+  - { id: pillar, type: lambertian, albedo: [0.55, 0.5, 0.45] }
+lights:
+  - type: spot
+    position: [-3, 6, 2]
+    direction: [0.5, -1, -0.3]
+    color: [1.0, 0.92, 0.78]
+    intensity: 800
+    inner_angle: 4
+    outer_angle: 9
+entities:
+  - { type: box, min: [-1.5, 0, -1.5], max: [-1.0, 3.0, -1.0], material: pillar }
+  - { type: box, min: [ 1.0, 0, -1.5], max: [ 1.5, 3.0, -1.0], material: pillar }
+  - { type: box, min: [-0.4, 0, 0.0],  max: [ 0.4, 1.2,  0.8], material: pillar }

@@ -5,6 +5,7 @@ using RayTracer.Geometry;
 using RayTracer.Lights;
 using RayTracer.Materials;
 using RayTracer.Textures;
+using RayTracer.Volumetrics;
 
 namespace RayTracer.Rendering;
 
@@ -18,6 +19,7 @@ public class Renderer
     private readonly int _maxDepth;
     private readonly int _samplesPerPixel;
     private readonly HashSet<Emissive> _registeredEmitterMaterials;
+    private readonly IMedium? _globalMedium;
 
     // ── Russian Roulette configuration ──────────────────────────────────────
     //
@@ -67,7 +69,8 @@ public class Renderer
         Vector3 ambientLight,
         SkySettings sky,
         int samplesPerPixel,
-        int maxDepth)
+        int maxDepth,
+        IMedium? globalMedium = null)
     {
         _world = world;
         _camera = camera;
@@ -76,6 +79,7 @@ public class Renderer
         _sky = sky;
         _samplesPerPixel = samplesPerPixel;
         _maxDepth = maxDepth;
+        _globalMedium = globalMedium;
 
         // ── Scene analysis: detect indirect-dominant lighting ────────────
         // Evaluate all explicit lights at the world origin to get a rough
@@ -139,7 +143,7 @@ public class Renderer
                         float v = (height - j - 1 + jitterV) / height;
 
                         var ray = _camera.GetRay(u, v);
-                        Vector3 sample = TraceRay(ray, _maxDepth);
+                        Vector3 sample = TraceRay(ray, _maxDepth, prevUsedNee: false);
 
                         // ── Firefly suppression ────────────────────────────
                         // Clamp individual sample radiance to prevent outliers
@@ -216,16 +220,8 @@ public class Renderer
     // CORE PATH TRACER
     // ═════════════════════════════════════════════════════════════════════════
 
-    private Vector3 TraceRay(Ray ray, int depth, bool prevUsedNee = false)
-    {
-        if (depth <= 0)
-            return Vector3.Zero;
- 
-        HitRecord rec = default;
- 
-        if (!_world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec))
-            return CalculateSkyColor(ray);
- 
+    private Vector3 ShadeSurface(Ray ray, HitRecord rec, int depth, bool prevUsedNee)
+    { 
         // ── Material properties ─────────────────────────────────────────────
         IMaterial? material = rec.Material;
  
@@ -300,6 +296,52 @@ public class Renderer
         return emitted + directLight;
     }
 
+    /// <summary>
+    /// Top-level radiance estimator. Decides between the surface-only path
+    /// (no medium → bit-identical to pre-volumetric builds) and the volumetric
+    /// path (homogeneous global medium with Beer-Lambert + free-path sampling).
+    /// </summary>
+    private Vector3 TraceRay(Ray ray, int depth, bool prevUsedNee)
+    {
+        if (depth <= 0) return Vector3.Zero;
+
+        var rec = new HitRecord();
+        bool hit = _world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
+
+        // ── Surface-only fast path (no medium) ──────────────────────────────
+        // Consumes zero extra random numbers → output is bit-identical to the
+        // pre-volumetric renderer when world.medium is absent.
+        if (_globalMedium == null)
+        {
+            if (!hit) return CalculateSkyColor(ray);
+            return ShadeSurface(ray, rec, depth, prevUsedNee);
+        }
+
+        // ── Volumetric path ─────────────────────────────────────────────────
+        float tMax = hit ? rec.T : 1e30f;
+        bool didScatter = _globalMedium.Sample(ray, tMax, out float tMed, out Vector3 beta, out _);
+
+        if (didScatter)
+        {
+            // Medium scattering event at p = ray(tMed).
+            Vector3 p = ray.Origin + ray.Direction * tMed;
+
+            // NEE in-scattering: shadow ray to each light, weighted by phase × Tr.
+            Vector3 Lnee = ComputeDirectLightingMedium(p, ray.Direction);
+
+            // Indirect: importance-sample the phase function.
+            var (wi, _) = _globalMedium.Phase.Sample(ray.Direction);
+            Vector3 Lind = TraceRay(new Ray(p, wi), depth - 1, prevUsedNee: true);
+
+            return beta * (Lnee + Lind);
+        }
+
+        // No medium event before tMax → continue with surface (or sky) shading,
+        // attenuated by the medium throughput beta = Tr / pdf.
+        if (!hit) return beta * CalculateSkyColor(ray);
+        return beta * ShadeSurface(ray, rec, depth, prevUsedNee);
+    }
+
     // ═════════════════════════════════════════════════════════════════════════
     // DIRECT LIGHTING (NEXT EVENT ESTIMATION)
     // ═════════════════════════════════════════════════════════════════════════
@@ -356,13 +398,22 @@ public class Renderer
                 }
  
                 if (inShadow) continue;
- 
+
                 // EvaluateDirect: BRDF shape factor (diffuse N·L + specular with Fresnel).
-                // Fallback: plain Lambert nDotL when material is null (should not happen).
                 Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal)
                                ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f));
- 
-                lightAccum += lightColor * brdf;
+
+                // Volumetric attenuation along the shadow ray (Beer-Lambert).
+                // No-op when there is no global medium → bit-identical to surface-only path.
+                Vector3 Tr = Vector3.One;
+                if (_globalMedium != null)
+                {
+                    float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
+                    var shadowRay = new Ray(rec.Point, dirToLight);
+                    Tr = _globalMedium.Transmittance(shadowRay, shadowDist);
+                }
+
+                lightAccum += lightColor * brdf * Tr;
             }
  
             // AreaLight pre-divides by ShadowSamples in its energy formula → sum (not average).
@@ -370,6 +421,57 @@ public class Renderer
             result += lightAccum;
         }
  
+        return result;
+    }
+
+    /// <summary>
+    /// Direct lighting at a medium scattering event.
+    /// Mirrors ComputeDirectLighting but uses the phase function in place of
+    /// the BRDF and attenuates each shadow ray by the medium transmittance.
+    /// </summary>
+    /// <param name="p">Scattering point in world space (along the ray at tMed).</param>
+    /// <param name="wo">Direction of the ray that produced the scattering event
+    ///                  (i.e. ray.Direction). Passed to the phase function as-is —
+    ///                  IsotropicPhase / HenyeyGreensteinPhase use the convention
+    ///                  that wo points "into" the event.</param>
+    private Vector3 ComputeDirectLightingMedium(Vector3 p, Vector3 wo)
+    {
+        Vector3 result = Vector3.Zero;
+        if (_globalMedium == null) return result;
+
+        // We need a fake HitRecord-like context only for IlluminateAndTest signatures
+        // that take a surface normal. For medium events there is no surface normal,
+        // so we pass an arbitrary unit vector and trust that lights ignore the N·L
+        // gating when they cannot apply it (point/spot/directional do not gate).
+        // For lights that DO gate by normal (area/sphere/environment), we re-test
+        // visibility ourselves with a raw shadow ray to avoid spurious occlusion.
+        Vector3 dummyNormal = Vector3.UnitY;
+
+        foreach (var light in _lights)
+        {
+            int samples = light.ShadowSamples;
+            Vector3 lightAccum = Vector3.Zero;
+
+            for (int s = 0; s < samples; s++)
+            {
+                (bool inShadow, Vector3 lightColor, Vector3 dirToLight, float distance) =
+                light.IlluminateAndTest(p, dummyNormal, _world);
+
+                if (inShadow) continue;
+
+                // Phase function value for this in-scattering direction.
+                float phaseVal = _globalMedium.Phase.Evaluate(wo, dirToLight);
+
+                // Beer-Lambert attenuation along the shadow ray.
+                float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
+                Vector3 Tr = _globalMedium.Transmittance(new Ray(p, dirToLight), shadowDist);
+
+                lightAccum += lightColor * phaseVal * Tr;
+            }
+
+            result += lightAccum;
+        }
+
         return result;
     }
 
