@@ -19,6 +19,7 @@ public static class MathUtils
     public const float Epsilon = 1e-4f;
     public const float Infinity = float.MaxValue;
     public const float Pi = MathF.PI;
+    public const float Inv4Pi = 0.0795774715f; // 1 / (4π)
 
     public static float DegreesToRadians(float degrees) => degrees * Pi / 180f;
 
