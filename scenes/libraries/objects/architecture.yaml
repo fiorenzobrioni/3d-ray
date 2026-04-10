@@ -1,0 +1,1747 @@
+# ============================================================================
+# Libreria Oggetti — Architettura (Architecture)
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/architecture.yaml" }]
+#
+# Elementi architettonici classici e strutturali: colonne, archi, scale,
+# balaustre, cupole, portali. Ogni pezzo è dimensionato in scala reale
+# (unità ≈ metri) e progettato per la composizione modulare.
+#
+# ── Materiali inclusi ────────────────────────────────────────────────────
+#
+#   Prefisso ID:  arc_   (architecture)
+#
+#   Pietre con texture procedurali (marble, noise) per variazione
+#   naturale. I materiali strutturali usano randomize_offset: true
+#   per evitare che colonne identiche appaiano come cloni esatti.
+#
+# ── Convenzioni di design ────────────────────────────────────────────────
+#
+#   ORIGINE       Base a Y=0, centrato in XZ.
+#   SCALA         Unità = metri. Una colonna è ~3.0 m alta,
+#                 un arco ~2.8 m, uno scalino ~0.17 m.
+#   MODULARITÀ    I pezzi sono progettati per comporsi: una balaustra
+#                 può essere messa sopra una scalinata, un frontone
+#                 sopra un portale, una cupola sopra un tamburo.
+#
+# ── Catalogo template ────────────────────────────────────────────────────
+#
+#   COLONNA_DORICA          Colonna dorica con fusto scanalato (CSG
+#                           12 scanalature), echino e abaco.
+#                           ~Ø 0.46 × 3.00 m.
+#
+#   COLONNA_IONICA          Colonna ionica con fusto scanalato,
+#                           volute a spirale e base attica.
+#                           ~Ø 0.44 × 3.20 m.
+#
+#   COLONNA_LISCIA          Colonna liscia semplificata (senza
+#                           scanalature) con base e capitello
+#                           toscano. Meno primitivi, più veloce.
+#                           ~Ø 0.40 × 3.00 m.
+#
+#   ARCO_TUTTO_SESTO        Arco a tutto sesto con pilastri,
+#                           imposta, ghiera e chiave di volta.
+#                           ~1.40 × 2.80 × 0.40 m.
+#
+#   ARCO_GOTICO             Arco a sesto acuto con pilastri
+#                           ottagonali e profilo ogivale.
+#                           ~1.30 × 3.20 × 0.40 m.
+#
+#   SCALINATA               Scalinata a 7 gradini con alzata e
+#                           pedata realistiche. ~1.40 × 1.19 × 2.10 m.
+#
+#   BALAUSTRO               Balaustro singolo tornito con profilo
+#                           classico. ~Ø 0.10 × 0.70 m.
+#
+#   BALAUSTRA               Sezione completa di balaustra con 5
+#                           balaustri, corrimano e zoccolatura.
+#                           ~1.20 × 0.90 × 0.14 m.
+#
+#   PILASTRO                Pilastro rettangolare con base attica,
+#                           fusto e capitello a modanature.
+#                           ~0.30 × 3.00 × 0.08 m.
+#
+#   FRONTONE                Frontone triangolare (timpano) su
+#                           trabeazione con cornice dentellata.
+#                           ~2.40 × 0.70 × 0.40 m.
+#
+#   CUPOLA                  Cupola emisferica su tamburo cilindrico
+#                           con lanterna e croce sommitale.
+#                           ~Ø 2.00 × 2.40 m.
+#
+#   NICCHIA                 Nicchia murale con volta a conchiglia
+#                           (semicilindro), cornice e piedistallo.
+#                           ~0.60 × 1.60 × 0.35 m.
+#
+#   PORTALE_CLASSICO        Portale con stipiti, architrave,
+#                           fregio e cornice con dentelli.
+#                           ~1.80 × 2.80 × 0.40 m.
+#
+#   CORNICIONE              Sezione di cornicione classico con
+#                           gola, dentelli, gocciolatoio e
+#                           modanatura corona. ~1.00 × 0.30 × 0.35 m.
+#
+# ============================================================================
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALI — Pietre, intonaci e metalli architettonici
+# ═══════════════════════════════════════════════════════════════════════════
+
+materials:
+
+  # ── Marmo ──────────────────────────────────────────────────────────────
+
+  # Marmo bianco di Carrara — colonne, capitelli
+  - id: "arc_marmo"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 14.0
+      noise_strength: 7.0
+      colors: [[0.95, 0.94, 0.92], [0.62, 0.60, 0.58]]
+      randomize_offset: true
+
+  # Marmo travertino — archi, facciate (tono caldo)
+  - id: "arc_travertino"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 10.0
+      noise_strength: 12.0
+      colors: [[0.88, 0.82, 0.70], [0.68, 0.60, 0.48]]
+      randomize_offset: true
+
+  # ── Pietra ─────────────────────────────────────────────────────────────
+
+  # Arenaria — muri, scalini, balaustre
+  - id: "arc_arenaria"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 18.0
+      noise_strength: 4.0
+      colors: [[0.78, 0.70, 0.55], [0.65, 0.58, 0.45]]
+      randomize_offset: true
+
+  # Pietra grigia — gradini, pilastri rustici
+  - id: "arc_pietra_grigia"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 20.0
+      noise_strength: 5.0
+      colors: [[0.48, 0.46, 0.44], [0.38, 0.36, 0.34]]
+      randomize_offset: true
+
+  # Granito rosa — colonne monumentali
+  - id: "arc_granito_rosa"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 30.0
+      noise_strength: 3.0
+      colors: [[0.72, 0.55, 0.52], [0.58, 0.42, 0.40]]
+      randomize_offset: true
+
+  # ── Intonaco e stucco ──────────────────────────────────────────────────
+
+  # Intonaco bianco — facciate, interni
+  - id: "arc_intonaco"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 40.0
+      noise_strength: 1.5
+      colors: [[0.92, 0.90, 0.87], [0.88, 0.86, 0.83]]
+
+  # Stucco invecchiato — effetto patinato
+  - id: "arc_stucco_antico"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 15.0
+      noise_strength: 6.0
+      colors: [[0.82, 0.78, 0.68], [0.65, 0.60, 0.50]]
+      randomize_offset: true
+
+  # ── Mattone ────────────────────────────────────────────────────────────
+
+  # Mattone rosso
+  - id: "arc_mattone"
+    type: "lambertian"
+    color: [0.55, 0.22, 0.14]
+
+  # ── Metallo architettonico ─────────────────────────────────────────────
+
+  # Bronzo scuro — decorazioni, grate
+  - id: "arc_bronzo"
+    type: "disney"
+    color: [0.35, 0.25, 0.14]
+    metallic: 0.85
+    roughness: 0.45
+    specular: 0.40
+
+  # Ferro battuto — cancelli, ringhiere
+  - id: "arc_ferro"
+    type: "disney"
+    color: [0.10, 0.10, 0.10]
+    metallic: 0.85
+    roughness: 0.60
+    specular: 0.35
+
+  # Rame ossidato — cupole, coperture
+  - id: "arc_rame_patina"
+    type: "disney"
+    color: [0.32, 0.55, 0.42]
+    metallic: 0.50
+    roughness: 0.65
+    specular: 0.28
+
+  # Oro foglia — decorazioni, croci
+  - id: "arc_oro"
+    type: "disney"
+    color: [0.95, 0.70, 0.22]
+    metallic: 1.0
+    roughness: 0.12
+    specular: 0.75
+
+  # Piombo — coperture, giunti
+  - id: "arc_piombo"
+    type: "disney"
+    color: [0.40, 0.40, 0.42]
+    metallic: 0.90
+    roughness: 0.55
+    specular: 0.35
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  TEMPLATES — Elementi architettonici
+# ═══════════════════════════════════════════════════════════════════════════
+
+templates:
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  COLONNA_DORICA — Fusto scanalato, capitello dorico
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.46 × 3.00 m
+  #  Struttura:  Stilobate (gradino), fusto scanalato rastremato (CSG:
+  #              cono tronco − 12 cilindri disposti radialmente),
+  #              collarino (torus), echino (cono tronco espanso),
+  #              abaco (box quadrato).
+  #
+  #  Materiale default: arc_marmo
+  #
+  - name: "colonna_dorica"
+    material: "arc_marmo"
+    children:
+
+      # ── Stilobate (gradino di base) ────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.28
+        height: 0.08
+
+      - type: "torus"
+        center: [0, 0.08, 0]
+        major_radius: 0.275
+        minor_radius: 0.012
+
+      # ── Fusto scanalato rastremato (CSG) ───────────────────────────────
+      # Cono tronco (rastremato da 0.23 a 0.19) meno 12 scanalature
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cone"
+          center: [0, 0.08, 0]
+          radius: 0.23
+          top_radius: 0.19
+          height: 2.55
+        right:
+          # 12 scanalature disposte a 30° l'una dall'altra
+          # Albero CSG bilanciato: ((1∪2)∪(3∪4)) ∪ ((5∪6)∪(7∪8)) ecc.
+          type: "csg"
+          operation: "union"
+          left:
+            type: "csg"
+            operation: "union"
+            left:
+              type: "csg"
+              operation: "union"
+              left:
+                type: "csg"
+                operation: "union"
+                left:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    # 0°
+                    type: "cylinder"
+                    center: [0.215, 0.06, 0]
+                    radius: 0.045
+                    height: 2.60
+                  right:
+                    # 30°
+                    type: "cylinder"
+                    center: [0.1862, 0.06, 0.1075]
+                    radius: 0.045
+                    height: 2.60
+                right:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    # 60°
+                    type: "cylinder"
+                    center: [0.1075, 0.06, 0.1862]
+                    radius: 0.045
+                    height: 2.60
+                  right:
+                    # 90°
+                    type: "cylinder"
+                    center: [0, 0.06, 0.215]
+                    radius: 0.045
+                    height: 2.60
+              right:
+                type: "csg"
+                operation: "union"
+                left:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    # 120°
+                    type: "cylinder"
+                    center: [-0.1075, 0.06, 0.1862]
+                    radius: 0.045
+                    height: 2.60
+                  right:
+                    # 150°
+                    type: "cylinder"
+                    center: [-0.1862, 0.06, 0.1075]
+                    radius: 0.045
+                    height: 2.60
+                right:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    # 180°
+                    type: "cylinder"
+                    center: [-0.215, 0.06, 0]
+                    radius: 0.045
+                    height: 2.60
+                  right:
+                    # 210°
+                    type: "cylinder"
+                    center: [-0.1862, 0.06, -0.1075]
+                    radius: 0.045
+                    height: 2.60
+            right:
+              type: "csg"
+              operation: "union"
+              left:
+                type: "csg"
+                operation: "union"
+                left:
+                  # 240°
+                  type: "cylinder"
+                  center: [-0.1075, 0.06, -0.1862]
+                  radius: 0.045
+                  height: 2.60
+                right:
+                  # 270°
+                  type: "cylinder"
+                  center: [0, 0.06, -0.215]
+                  radius: 0.045
+                  height: 2.60
+              right:
+                type: "csg"
+                operation: "union"
+                left:
+                  # 300°
+                  type: "cylinder"
+                  center: [0.1075, 0.06, -0.1862]
+                  radius: 0.045
+                  height: 2.60
+                right:
+                  # 330°
+                  type: "cylinder"
+                  center: [0.1862, 0.06, -0.1075]
+                  radius: 0.045
+                  height: 2.60
+
+      # ── Collarini (anelli in cima al fusto) ────────────────────────────
+      - type: "torus"
+        center: [0, 2.60, 0]
+        major_radius: 0.185
+        minor_radius: 0.008
+      - type: "torus"
+        center: [0, 2.62, 0]
+        major_radius: 0.188
+        minor_radius: 0.006
+
+      # ── Echino (cono tronco espanso) ───────────────────────────────────
+      - type: "cone"
+        center: [0, 2.63, 0]
+        radius: 0.19
+        top_radius: 0.23
+        height: 0.10
+
+      # ── Abaco (lastra quadrata) ────────────────────────────────────────
+      - type: "box"
+        scale: [0.50, 0.06, 0.50]
+        translate: [0, 2.76, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  COLONNA_IONICA — Fusto scanalato con base attica e volute
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.44 × 3.20 m
+  #  Struttura:  Base attica (plinto box + 2 torus scotia + torus),
+  #              fusto scanalato (CSG 12 scanalature come la dorica),
+  #              capitello con echino sottile, 2 volute laterali
+  #              (torus schiacciati + spirale approssimata con sfere
+  #              decrescenti), abaco modanato.
+  #
+  #  Materiale default: arc_marmo
+  #
+  - name: "colonna_ionica"
+    material: "arc_marmo"
+    children:
+
+      # ── Base attica ────────────────────────────────────────────────────
+      # Plinto quadrato
+      - type: "box"
+        scale: [0.40, 0.05, 0.40]
+        translate: [0, 0.025, 0]
+
+      # Toro inferiore (torus grande)
+      - type: "torus"
+        center: [0, 0.06, 0]
+        major_radius: 0.175
+        minor_radius: 0.022
+
+      # Scotia (rientranza concava) — approssimata con cilindro stretto
+      - type: "cylinder"
+        center: [0, 0.08, 0]
+        radius: 0.155
+        height: 0.03
+
+      # Toro superiore (più piccolo)
+      - type: "torus"
+        center: [0, 0.115, 0]
+        major_radius: 0.165
+        minor_radius: 0.018
+
+      # Collarino base
+      - type: "torus"
+        center: [0, 0.14, 0]
+        major_radius: 0.155
+        minor_radius: 0.008
+
+      # ── Fusto scanalato rastremato (CSG) ───────────────────────────────
+      # Stessa tecnica della dorica: cono - 12 cilindri
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cone"
+          center: [0, 0.14, 0]
+          radius: 0.20
+          top_radius: 0.17
+          height: 2.50
+        right:
+          type: "csg"
+          operation: "union"
+          left:
+            type: "csg"
+            operation: "union"
+            left:
+              type: "csg"
+              operation: "union"
+              left:
+                type: "csg"
+                operation: "union"
+                left:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    type: "cylinder"
+                    center: [0.19, 0.12, 0]
+                    radius: 0.038
+                    height: 2.56
+                  right:
+                    type: "cylinder"
+                    center: [0.1645, 0.12, 0.095]
+                    radius: 0.038
+                    height: 2.56
+                right:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    type: "cylinder"
+                    center: [0.095, 0.12, 0.1645]
+                    radius: 0.038
+                    height: 2.56
+                  right:
+                    type: "cylinder"
+                    center: [0, 0.12, 0.19]
+                    radius: 0.038
+                    height: 2.56
+              right:
+                type: "csg"
+                operation: "union"
+                left:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    type: "cylinder"
+                    center: [-0.095, 0.12, 0.1645]
+                    radius: 0.038
+                    height: 2.56
+                  right:
+                    type: "cylinder"
+                    center: [-0.1645, 0.12, 0.095]
+                    radius: 0.038
+                    height: 2.56
+                right:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    type: "cylinder"
+                    center: [-0.19, 0.12, 0]
+                    radius: 0.038
+                    height: 2.56
+                  right:
+                    type: "cylinder"
+                    center: [-0.1645, 0.12, -0.095]
+                    radius: 0.038
+                    height: 2.56
+            right:
+              type: "csg"
+              operation: "union"
+              left:
+                type: "csg"
+                operation: "union"
+                left:
+                  type: "cylinder"
+                  center: [-0.095, 0.12, -0.1645]
+                  radius: 0.038
+                  height: 2.56
+                right:
+                  type: "cylinder"
+                  center: [0, 0.12, -0.19]
+                  radius: 0.038
+                  height: 2.56
+              right:
+                type: "csg"
+                operation: "union"
+                left:
+                  type: "cylinder"
+                  center: [0.095, 0.12, -0.1645]
+                  radius: 0.038
+                  height: 2.56
+                right:
+                  type: "cylinder"
+                  center: [0.1645, 0.12, -0.095]
+                  radius: 0.038
+                  height: 2.56
+
+      # ── Capitello ionico ───────────────────────────────────────────────
+      # Collarini sommitali
+      - type: "torus"
+        center: [0, 2.62, 0]
+        major_radius: 0.166
+        minor_radius: 0.006
+      - type: "torus"
+        center: [0, 2.64, 0]
+        major_radius: 0.170
+        minor_radius: 0.008
+
+      # Echino (ovolo) — basso e arrotondato
+      - type: "cone"
+        center: [0, 2.65, 0]
+        radius: 0.17
+        top_radius: 0.19
+        height: 0.04
+
+      # Canale delle volute (cilindro orizzontale largo)
+      - type: "cylinder"
+        center: [0, 2.70, 0]
+        radius: 0.025
+        height: 0.50
+        rotate: [0, 0, 90]
+
+      # Voluta sinistra (torus schiacciato + spirale di sfere)
+      - type: "torus"
+        center: [-0.22, 2.70, 0]
+        major_radius: 0.050
+        minor_radius: 0.018
+        scale: [1.0, 0.60, 1.0]
+      # Spirale: sfere concentriche decrescenti
+      - type: "sphere"
+        center: [-0.22, 2.70, 0]
+        radius: 0.035
+        scale: [1.0, 0.50, 1.0]
+      - type: "sphere"
+        center: [-0.22, 2.70, 0]
+        radius: 0.020
+
+      # Voluta destra
+      - type: "torus"
+        center: [0.22, 2.70, 0]
+        major_radius: 0.050
+        minor_radius: 0.018
+        scale: [1.0, 0.60, 1.0]
+      - type: "sphere"
+        center: [0.22, 2.70, 0]
+        radius: 0.035
+        scale: [1.0, 0.50, 1.0]
+      - type: "sphere"
+        center: [0.22, 2.70, 0]
+        radius: 0.020
+
+      # ── Abaco ──────────────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.52, 0.04, 0.36]
+        translate: [0, 2.74, 0]
+
+      - type: "torus"
+        center: [0, 2.76, 0]
+        major_radius: 0.24
+        minor_radius: 0.008
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  COLONNA_LISCIA — Colonna toscana semplificata (no scanalature)
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.40 × 3.00 m
+  #  Struttura:  Base con plinto e toro, fusto conico liscio
+  #              (senza CSG), collarino, echino, abaco.
+  #              Più leggera sul render — ideale per colonnati.
+  #
+  #  Materiale default: arc_travertino
+  #
+  - name: "colonna_liscia"
+    material: "arc_travertino"
+    children:
+
+      # ── Base ───────────────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.36, 0.05, 0.36]
+        translate: [0, 0.025, 0]
+
+      - type: "torus"
+        center: [0, 0.06, 0]
+        major_radius: 0.160
+        minor_radius: 0.020
+
+      - type: "cylinder"
+        center: [0, 0.06, 0]
+        radius: 0.145
+        height: 0.025
+
+      - type: "torus"
+        center: [0, 0.09, 0]
+        major_radius: 0.150
+        minor_radius: 0.015
+
+      # ── Fusto conico liscio (rastremato) ───────────────────────────────
+      - type: "cone"
+        center: [0, 0.10, 0]
+        radius: 0.19
+        top_radius: 0.16
+        height: 2.50
+
+      # ── Collarino ─────────────────────────────────────────────────────
+      - type: "torus"
+        center: [0, 2.58, 0]
+        major_radius: 0.158
+        minor_radius: 0.008
+      - type: "torus"
+        center: [0, 2.60, 0]
+        major_radius: 0.162
+        minor_radius: 0.006
+
+      # ── Echino ─────────────────────────────────────────────────────────
+      - type: "cone"
+        center: [0, 2.61, 0]
+        radius: 0.163
+        top_radius: 0.20
+        height: 0.08
+
+      # ── Abaco ──────────────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.44, 0.05, 0.44]
+        translate: [0, 2.72, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  ARCO_TUTTO_SESTO — Arco semicircolare con pilastri
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~1.40 × 2.80 × 0.40 m (luce ~1.00 m)
+  #  Struttura:  2 pilastri con base e imposta (capitello semplice),
+  #              arco semicircolare (CSG: cilindro grande − cilindro
+  #              più piccolo → anello, ∩ box per metà superiore),
+  #              chiave di volta (box sporgente).
+  #
+  #  Materiale default: arc_travertino
+  #
+  - name: "arco_tutto_sesto"
+    material: "arc_travertino"
+    children:
+
+      # ── Pilastro sinistro ──────────────────────────────────────────────
+      - type: "box"
+        scale: [0.20, 1.80, 0.40]
+        translate: [-0.60, 0.90, 0]
+
+      # Base del pilastro sinistro
+      - type: "box"
+        scale: [0.26, 0.06, 0.44]
+        translate: [-0.60, 0.03, 0]
+
+      # Imposta (capitello semplice) sinistra
+      - type: "box"
+        scale: [0.24, 0.06, 0.42]
+        translate: [-0.60, 1.83, 0]
+
+      - type: "torus"
+        center: [-0.60, 1.80, 0]
+        major_radius: 0.11
+        minor_radius: 0.010
+        scale: [1.0, 1.0, 1.8]
+
+      # ── Pilastro destro ────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.20, 1.80, 0.40]
+        translate: [0.60, 0.90, 0]
+
+      - type: "box"
+        scale: [0.26, 0.06, 0.44]
+        translate: [0.60, 0.03, 0]
+
+      - type: "box"
+        scale: [0.24, 0.06, 0.42]
+        translate: [0.60, 1.83, 0]
+
+      - type: "torus"
+        center: [0.60, 1.80, 0]
+        major_radius: 0.11
+        minor_radius: 0.010
+        scale: [1.0, 1.0, 1.8]
+
+      # ── Arco semicircolare (CSG) ──────────────────────────────────────
+      # Anello = cilindro grande − cilindro piccolo,
+      # poi ∩ box per tenere solo la metà superiore + solo lo spessore Z
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "csg"
+          operation: "subtraction"
+          left:
+            # Cilindro esterno (diametro = luce + spessore pilastri)
+            type: "cylinder"
+            center: [0, 1.86, 0]
+            radius: 0.60
+            height: 0.40
+            rotate: [90, 0, 0]
+          right:
+            # Cilindro interno (luce dell'arco)
+            type: "cylinder"
+            center: [0, 1.86, 0]
+            radius: 0.50
+            height: 0.44
+            rotate: [90, 0, 0]
+        right:
+          # Box di taglio: solo metà superiore e spessore corretto
+          type: "box"
+          scale: [1.30, 0.65, 0.40]
+          translate: [0, 2.18, 0]
+
+      # ── Chiave di volta ────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.08, 0.14, 0.42]
+        translate: [0, 2.39, 0]
+
+      # Decorazione a cuneo della chiave
+      - type: "cone"
+        center: [0, 2.46, 0]
+        radius: 0.05
+        top_radius: 0.035
+        height: 0.06
+
+      # ── Cornice superiore ──────────────────────────────────────────────
+      - type: "box"
+        scale: [1.40, 0.06, 0.42]
+        translate: [0, 2.53, 0]
+
+      - type: "torus"
+        center: [0, 2.56, 0]
+        major_radius: 0.68
+        minor_radius: 0.010
+        scale: [1.0, 1.0, 0.20]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  ARCO_GOTICO — Arco a sesto acuto
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~1.30 × 3.20 × 0.40 m
+  #  Struttura:  2 pilastri stretti e alti, arco ogivale (CSG:
+  #              intersezione di 2 cilindri orizzontali decentrati
+  #              → forma a ogiva, poi − cilindri interni più piccoli
+  #              → ghiera cava), pinnacolo sommitale.
+  #
+  #  Materiale default: arc_pietra_grigia
+  #
+  - name: "arco_gotico"
+    material: "arc_pietra_grigia"
+    children:
+
+      # ── Pilastro sinistro ──────────────────────────────────────────────
+      - type: "box"
+        scale: [0.18, 2.00, 0.38]
+        translate: [-0.56, 1.00, 0]
+
+      # Base
+      - type: "box"
+        scale: [0.24, 0.06, 0.42]
+        translate: [-0.56, 0.03, 0]
+
+      # ── Pilastro destro ────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.18, 2.00, 0.38]
+        translate: [0.56, 1.00, 0]
+
+      - type: "box"
+        scale: [0.24, 0.06, 0.42]
+        translate: [0.56, 0.03, 0]
+
+      # ── Arco ogivale (CSG) ────────────────────────────────────────────
+      # Intersezione di 2 cilindri decentrati → profilo a ogiva
+      # Ghiera esterna − ghiera interna → arco cavo
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "csg"
+          operation: "subtraction"
+          left:
+            # Ghiera esterna = intersezione dei 2 cilindri
+            type: "csg"
+            operation: "intersection"
+            left:
+              type: "cylinder"
+              center: [-0.30, 2.00, 0]
+              radius: 0.90
+              height: 0.38
+              rotate: [90, 0, 0]
+            right:
+              type: "cylinder"
+              center: [0.30, 2.00, 0]
+              radius: 0.90
+              height: 0.38
+              rotate: [90, 0, 0]
+          right:
+            # Ghiera interna (luce dell'arco)
+            type: "csg"
+            operation: "intersection"
+            left:
+              type: "cylinder"
+              center: [-0.30, 2.00, 0]
+              radius: 0.80
+              height: 0.42
+              rotate: [90, 0, 0]
+            right:
+              type: "cylinder"
+              center: [0.30, 2.00, 0]
+              radius: 0.80
+              height: 0.42
+              rotate: [90, 0, 0]
+        right:
+          # Box di taglio: solo la parte sopra l'imposta
+          type: "box"
+          scale: [1.20, 1.40, 0.38]
+          translate: [0, 2.70, 0]
+
+      # ── Pinnacolo sommitale ────────────────────────────────────────────
+      - type: "cone"
+        center: [0, 3.05, 0]
+        radius: 0.05
+        top_radius: 0.0
+        height: 0.12
+
+      - type: "sphere"
+        center: [0, 3.17, 0]
+        radius: 0.025
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  SCALINATA — 7 gradini con pedata e alzata realistiche
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~1.40 × 1.19 × 2.10 m
+  #  Struttura:  7 gradini (box sovrapposti sfalsati), ciascuno con
+  #              bordo anteriore arrotondato (cilindro), pedana
+  #              d'arrivo in cima.
+  #
+  #  Proporzioni: alzata 0.17 m, pedata 0.30 m (norme edilizie).
+  #
+  #  Materiale default: arc_arenaria
+  #
+  - name: "scalinata"
+    material: "arc_arenaria"
+    children:
+
+      # Gradino 1 (più basso, davanti)
+      - type: "box"
+        scale: [1.40, 0.17, 0.30]
+        translate: [0, 0.085, -0.90]
+      - type: "cylinder"
+        center: [0, 0.17, -1.05]
+        radius: 0.012
+        height: 1.40
+        rotate: [0, 0, 90]
+
+      # Gradino 2
+      - type: "box"
+        scale: [1.40, 0.17, 0.30]
+        translate: [0, 0.255, -0.60]
+      - type: "cylinder"
+        center: [0, 0.34, -0.75]
+        radius: 0.012
+        height: 1.40
+        rotate: [0, 0, 90]
+
+      # Gradino 3
+      - type: "box"
+        scale: [1.40, 0.17, 0.30]
+        translate: [0, 0.425, -0.30]
+      - type: "cylinder"
+        center: [0, 0.51, -0.45]
+        radius: 0.012
+        height: 1.40
+        rotate: [0, 0, 90]
+
+      # Gradino 4
+      - type: "box"
+        scale: [1.40, 0.17, 0.30]
+        translate: [0, 0.595, 0]
+      - type: "cylinder"
+        center: [0, 0.68, -0.15]
+        radius: 0.012
+        height: 1.40
+        rotate: [0, 0, 90]
+
+      # Gradino 5
+      - type: "box"
+        scale: [1.40, 0.17, 0.30]
+        translate: [0, 0.765, 0.30]
+      - type: "cylinder"
+        center: [0, 0.85, 0.15]
+        radius: 0.012
+        height: 1.40
+        rotate: [0, 0, 90]
+
+      # Gradino 6
+      - type: "box"
+        scale: [1.40, 0.17, 0.30]
+        translate: [0, 0.935, 0.60]
+      - type: "cylinder"
+        center: [0, 1.02, 0.45]
+        radius: 0.012
+        height: 1.40
+        rotate: [0, 0, 90]
+
+      # Gradino 7
+      - type: "box"
+        scale: [1.40, 0.17, 0.30]
+        translate: [0, 1.105, 0.90]
+      - type: "cylinder"
+        center: [0, 1.19, 0.75]
+        radius: 0.012
+        height: 1.40
+        rotate: [0, 0, 90]
+
+      # Pedana d'arrivo (pianerottolo)
+      - type: "box"
+        scale: [1.40, 0.17, 0.60]
+        translate: [0, 1.105, 1.35]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  BALAUSTRO — Balaustro singolo tornito
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.10 × 0.70 m
+  #  Struttura:  Base quadrata, piede a bulbo (sfera schiacciata),
+  #              ventre (ellissoide grande), collo rastremato, colletto
+  #              con anello, pomo superiore.
+  #
+  #  Materiale default: arc_marmo
+  #
+  - name: "balaustro"
+    material: "arc_marmo"
+    children:
+
+      # Base quadrata
+      - type: "box"
+        scale: [0.08, 0.035, 0.08]
+        translate: [0, 0.018, 0]
+
+      # Piede (torus)
+      - type: "torus"
+        center: [0, 0.04, 0]
+        major_radius: 0.035
+        minor_radius: 0.008
+
+      # Segmento inferiore
+      - type: "cylinder"
+        center: [0, 0.04, 0]
+        radius: 0.025
+        height: 0.06
+
+      # Anello sotto il ventre
+      - type: "torus"
+        center: [0, 0.10, 0]
+        major_radius: 0.030
+        minor_radius: 0.006
+
+      # Ventre (ellissoide — la parte più larga)
+      - type: "sphere"
+        center: [0, 0.22, 0]
+        radius: 0.048
+        scale: [1.0, 2.0, 1.0]
+
+      # Anello sopra il ventre
+      - type: "torus"
+        center: [0, 0.34, 0]
+        major_radius: 0.030
+        minor_radius: 0.006
+
+      # Collo rastremato
+      - type: "cone"
+        center: [0, 0.34, 0]
+        radius: 0.028
+        top_radius: 0.020
+        height: 0.24
+
+      # Colletto superiore
+      - type: "torus"
+        center: [0, 0.58, 0]
+        major_radius: 0.025
+        minor_radius: 0.006
+
+      # Segmento finale
+      - type: "cylinder"
+        center: [0, 0.58, 0]
+        radius: 0.022
+        height: 0.06
+
+      # Piattino superiore (dove appoggia il corrimano)
+      - type: "box"
+        scale: [0.07, 0.030, 0.07]
+        translate: [0, 0.655, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  BALAUSTRA — Sezione completa con 5 balaustri e corrimano
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~1.20 × 0.90 × 0.14 m
+  #  Struttura:  Zoccolatura continua (box lungo), 5 balaustri
+  #              equidistanti (cilindro+sfere semplificati per
+  #              non esplodere il conteggio primitive), corrimano
+  #              superiore (box con bordo arrotondato).
+  #
+  #  Materiale default: arc_marmo
+  #
+  - name: "balaustra"
+    material: "arc_marmo"
+    children:
+
+      # ── Zoccolatura (base continua) ────────────────────────────────────
+      - type: "box"
+        scale: [1.20, 0.08, 0.12]
+        translate: [0, 0.04, 0]
+
+      - type: "torus"
+        center: [0, 0.08, 0]
+        major_radius: 0.06
+        minor_radius: 0.006
+        scale: [10.0, 1.0, 1.0]
+
+      # ── Balaustro 1 (X = -0.48) ───────────────────────────────────────
+      - type: "cylinder"
+        center: [-0.48, 0.08, 0]
+        radius: 0.022
+        height: 0.58
+      - type: "sphere"
+        center: [-0.48, 0.26, 0]
+        radius: 0.038
+        scale: [1.0, 1.8, 1.0]
+      - type: "torus"
+        center: [-0.48, 0.14, 0]
+        major_radius: 0.026
+        minor_radius: 0.005
+      - type: "torus"
+        center: [-0.48, 0.42, 0]
+        major_radius: 0.026
+        minor_radius: 0.005
+
+      # ── Balaustro 2 (X = -0.24) ───────────────────────────────────────
+      - type: "cylinder"
+        center: [-0.24, 0.08, 0]
+        radius: 0.022
+        height: 0.58
+      - type: "sphere"
+        center: [-0.24, 0.26, 0]
+        radius: 0.038
+        scale: [1.0, 1.8, 1.0]
+      - type: "torus"
+        center: [-0.24, 0.14, 0]
+        major_radius: 0.026
+        minor_radius: 0.005
+      - type: "torus"
+        center: [-0.24, 0.42, 0]
+        major_radius: 0.026
+        minor_radius: 0.005
+
+      # ── Balaustro 3 (X = 0) ───────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.08, 0]
+        radius: 0.022
+        height: 0.58
+      - type: "sphere"
+        center: [0, 0.26, 0]
+        radius: 0.038
+        scale: [1.0, 1.8, 1.0]
+      - type: "torus"
+        center: [0, 0.14, 0]
+        major_radius: 0.026
+        minor_radius: 0.005
+      - type: "torus"
+        center: [0, 0.42, 0]
+        major_radius: 0.026
+        minor_radius: 0.005
+
+      # ── Balaustro 4 (X = 0.24) ────────────────────────────────────────
+      - type: "cylinder"
+        center: [0.24, 0.08, 0]
+        radius: 0.022
+        height: 0.58
+      - type: "sphere"
+        center: [0.24, 0.26, 0]
+        radius: 0.038
+        scale: [1.0, 1.8, 1.0]
+      - type: "torus"
+        center: [0.24, 0.14, 0]
+        major_radius: 0.026
+        minor_radius: 0.005
+      - type: "torus"
+        center: [0.24, 0.42, 0]
+        major_radius: 0.026
+        minor_radius: 0.005
+
+      # ── Balaustro 5 (X = 0.48) ────────────────────────────────────────
+      - type: "cylinder"
+        center: [0.48, 0.08, 0]
+        radius: 0.022
+        height: 0.58
+      - type: "sphere"
+        center: [0.48, 0.26, 0]
+        radius: 0.038
+        scale: [1.0, 1.8, 1.0]
+      - type: "torus"
+        center: [0.48, 0.14, 0]
+        major_radius: 0.026
+        minor_radius: 0.005
+      - type: "torus"
+        center: [0.48, 0.42, 0]
+        major_radius: 0.026
+        minor_radius: 0.005
+
+      # ── Corrimano ─────────────────────────────────────────────────────
+      - type: "box"
+        scale: [1.20, 0.06, 0.13]
+        translate: [0, 0.69, 0]
+
+      # Bordo arrotondato del corrimano
+      - type: "cylinder"
+        center: [0, 0.72, -0.065]
+        radius: 0.030
+        height: 1.20
+        rotate: [0, 0, 90]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  PILASTRO — Pilastro rettangolare con base e capitello
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~0.30 × 3.00 × 0.08 m (a ridosso di un muro)
+  #  Struttura:  Base con plinto e modanature, fusto rettangolare
+  #              liscio, capitello con echino e abaco.
+  #
+  #  Materiale default: arc_intonaco
+  #
+  - name: "pilastro"
+    material: "arc_intonaco"
+    children:
+
+      # ── Base ───────────────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.34, 0.05, 0.10]
+        translate: [0, 0.025, 0]
+
+      - type: "box"
+        scale: [0.32, 0.03, 0.09]
+        translate: [0, 0.065, 0]
+
+      # Modanatura base (cilindro orizzontale)
+      - type: "cylinder"
+        center: [0, 0.08, -0.04]
+        radius: 0.010
+        height: 0.32
+        rotate: [0, 0, 90]
+
+      # ── Fusto ──────────────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.28, 2.55, 0.07]
+        translate: [0, 1.36, 0]
+
+      # ── Capitello ─────────────────────────────────────────────────────
+      # Modanatura sotto il capitello
+      - type: "cylinder"
+        center: [0, 2.64, -0.04]
+        radius: 0.010
+        height: 0.30
+        rotate: [0, 0, 90]
+
+      - type: "box"
+        scale: [0.32, 0.03, 0.09]
+        translate: [0, 2.665, 0]
+
+      # Echino
+      - type: "box"
+        scale: [0.34, 0.04, 0.10]
+        translate: [0, 2.70, 0]
+
+      # Abaco
+      - type: "box"
+        scale: [0.36, 0.05, 0.11]
+        translate: [0, 2.745, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  FRONTONE — Timpano triangolare su trabeazione
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~2.40 × 0.70 × 0.40 m
+  #  Struttura:  Architrave (box), fregio (box), cornice con gocciolatoio
+  #              (box + torus), timpano triangolare (CSG: box ∩ 2 box
+  #              inclinati per creare la forma a V rovesciata).
+  #
+  #  Materiale default: arc_marmo
+  #
+  - name: "frontone"
+    material: "arc_marmo"
+    children:
+
+      # ── Architrave ─────────────────────────────────────────────────────
+      - type: "box"
+        scale: [2.40, 0.08, 0.40]
+        translate: [0, 0.04, 0]
+
+      # ── Fregio ─────────────────────────────────────────────────────────
+      - type: "box"
+        scale: [2.40, 0.10, 0.38]
+        translate: [0, 0.13, 0]
+
+      # ── Cornice (con gocciolatoio) ─────────────────────────────────────
+      - type: "box"
+        scale: [2.50, 0.05, 0.42]
+        translate: [0, 0.205, 0]
+
+      # Gocciolatoio (torus lungo il bordo frontale)
+      - type: "cylinder"
+        center: [0, 0.23, -0.21]
+        radius: 0.012
+        height: 2.50
+        rotate: [0, 0, 90]
+
+      # ── Timpano triangolare (CSG) ─────────────────────────────────────
+      # Box ∩ (box inclinato sinistro ∩ box inclinato destro) → triangolo
+      - type: "csg"
+        operation: "intersection"
+        left:
+          # Box alto che limita l'altezza del timpano
+          type: "box"
+          scale: [2.30, 0.50, 0.36]
+          translate: [0, 0.48, 0]
+        right:
+          type: "csg"
+          operation: "intersection"
+          left:
+            # Falda sinistra (box grande ruotato)
+            type: "box"
+            scale: [3.0, 3.0, 0.36]
+            translate: [-1.15, 0.23, 0]
+            rotate: [0, 0, 25]
+          right:
+            # Falda destra (box grande ruotato)
+            type: "box"
+            scale: [3.0, 3.0, 0.36]
+            translate: [1.15, 0.23, 0]
+            rotate: [0, 0, -25]
+
+      # ── Cornice rampante (bordi del timpano) ───────────────────────────
+      # Bordo sinistro
+      - type: "cylinder"
+        center: [-0.55, 0.47, -0.18]
+        radius: 0.015
+        height: 1.28
+        rotate: [0, 0, 25]
+
+      # Bordo destro
+      - type: "cylinder"
+        center: [0.55, 0.47, -0.18]
+        radius: 0.015
+        height: 1.28
+        rotate: [0, 0, -25]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  CUPOLA — Cupola emisferica su tamburo con lanterna
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 2.00 × 2.40 m
+  #  Struttura:  Tamburo cilindrico con cornice e finestre (CSG),
+  #              cupola emisferica (CSG: sfera ∩ cilindro), costoloni
+  #              decorativi (torus verticali), lanterna sommitale
+  #              (cilindro + cupoletta + croce/sfera).
+  #
+  #  Materiale default: arc_intonaco (tamburo)
+  #  Materiale esplicito: arc_rame_patina (cupola), arc_oro (croce)
+  #
+  - name: "cupola"
+    material: "arc_intonaco"
+    children:
+
+      # ── Tamburo cilindrico ─────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 1.00
+        height: 0.80
+
+      # Cornice base del tamburo
+      - type: "torus"
+        center: [0, 0.0, 0]
+        major_radius: 1.01
+        minor_radius: 0.025
+
+      # Cornice superiore del tamburo
+      - type: "torus"
+        center: [0, 0.80, 0]
+        major_radius: 1.01
+        minor_radius: 0.025
+
+      # ── Cupola emisferica (CSG) ────────────────────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        material: "arc_rame_patina"
+        left:
+          type: "sphere"
+          center: [0, 0.80, 0]
+          radius: 1.00
+        right:
+          type: "cylinder"
+          center: [0, 0.80, 0]
+          radius: 1.05
+          height: 1.10
+
+      # ── Anello alla base della lanterna ────────────────────────────────
+      - type: "torus"
+        center: [0, 1.78, 0]
+        major_radius: 0.22
+        minor_radius: 0.030
+
+      # ── Lanterna ──────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 1.78, 0]
+        radius: 0.20
+        height: 0.30
+
+      # Colonnine della lanterna (8 cilindri sottili)
+      - type: "cylinder"
+        center: [0.18, 1.78, 0]
+        radius: 0.015
+        height: 0.30
+      - type: "cylinder"
+        center: [-0.18, 1.78, 0]
+        radius: 0.015
+        height: 0.30
+      - type: "cylinder"
+        center: [0, 1.78, 0.18]
+        radius: 0.015
+        height: 0.30
+      - type: "cylinder"
+        center: [0, 1.78, -0.18]
+        radius: 0.015
+        height: 0.30
+      - type: "cylinder"
+        center: [0.127, 1.78, 0.127]
+        radius: 0.015
+        height: 0.30
+      - type: "cylinder"
+        center: [-0.127, 1.78, 0.127]
+        radius: 0.015
+        height: 0.30
+      - type: "cylinder"
+        center: [0.127, 1.78, -0.127]
+        radius: 0.015
+        height: 0.30
+      - type: "cylinder"
+        center: [-0.127, 1.78, -0.127]
+        radius: 0.015
+        height: 0.30
+
+      # Cornicetta della lanterna
+      - type: "torus"
+        center: [0, 2.08, 0]
+        major_radius: 0.21
+        minor_radius: 0.020
+
+      # Cupoletta della lanterna (emisfera piccola)
+      - type: "csg"
+        operation: "intersection"
+        material: "arc_rame_patina"
+        left:
+          type: "sphere"
+          center: [0, 2.08, 0]
+          radius: 0.20
+        right:
+          type: "cylinder"
+          center: [0, 2.08, 0]
+          radius: 0.22
+          height: 0.22
+
+      # ── Sfera e croce sommitale ────────────────────────────────────────
+      - type: "sphere"
+        center: [0, 2.30, 0]
+        radius: 0.04
+        material: "arc_oro"
+
+      # Croce (2 cilindri incrociati)
+      - type: "cylinder"
+        center: [0, 2.34, 0]
+        radius: 0.010
+        height: 0.10
+        material: "arc_oro"
+
+      - type: "cylinder"
+        center: [0, 2.40, 0]
+        radius: 0.010
+        height: 0.06
+        rotate: [0, 0, 90]
+        material: "arc_oro"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  NICCHIA — Nicchia murale con volta
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~0.60 × 1.60 × 0.35 m
+  #  Struttura:  Incasso rettangolare (pannello di fondo), volta a
+  #              semicilindro in cima (CSG: cilindro ∩ box per
+  #              l'emiciclo), cornice perimetrale (box e cilindri),
+  #              piedistallo interno per esporre oggetti.
+  #
+  #  Materiale default: arc_stucco_antico
+  #
+  - name: "nicchia"
+    material: "arc_stucco_antico"
+    children:
+
+      # ── Pannello di fondo (incasso) ────────────────────────────────────
+      - type: "box"
+        scale: [0.50, 1.20, 0.04]
+        translate: [0, 0.60, 0.16]
+
+      # ── Volta a semicilindro (CSG) ────────────────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "cylinder"
+          center: [0, 1.20, 0.16]
+          radius: 0.25
+          height: 0.04
+          rotate: [90, 0, 0]
+        right:
+          # Solo la metà superiore
+          type: "box"
+          scale: [0.52, 0.28, 0.06]
+          translate: [0, 1.34, 0.16]
+
+      # ── Cornice esterna ────────────────────────────────────────────────
+      # Stipite sinistro
+      - type: "box"
+        scale: [0.04, 1.20, 0.06]
+        translate: [-0.27, 0.60, 0.13]
+
+      # Stipite destro
+      - type: "box"
+        scale: [0.04, 1.20, 0.06]
+        translate: [0.27, 0.60, 0.13]
+
+      # Architrave (sopra la volta)
+      - type: "box"
+        scale: [0.58, 0.04, 0.06]
+        translate: [0, 1.48, 0.13]
+
+      # Soglia
+      - type: "box"
+        scale: [0.58, 0.04, 0.08]
+        translate: [0, 0.02, 0.12]
+
+      # Conchiglia decorativa (torus schiacciato nella volta)
+      - type: "torus"
+        center: [0, 1.30, 0.15]
+        major_radius: 0.18
+        minor_radius: 0.010
+        scale: [1.0, 0.50, 0.20]
+
+      # ── Piedistallo interno ────────────────────────────────────────────
+      - type: "box"
+        scale: [0.30, 0.06, 0.18]
+        translate: [0, 0.07, 0.07]
+
+      - type: "cylinder"
+        center: [0, 0.10, 0.07]
+        radius: 0.08
+        height: 0.02
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  PORTALE_CLASSICO — Portale con stipiti, trabeazione, cornice
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~1.80 × 2.80 × 0.40 m (luce porta ~1.00 × 2.20)
+  #  Struttura:  2 stipiti a pilastro con base e capitellino,
+  #              architrave, fregio con dentelli (piccoli box),
+  #              cornice con gocciolatoio.
+  #
+  #  Materiale default: arc_arenaria
+  #
+  - name: "portale_classico"
+    material: "arc_arenaria"
+    children:
+
+      # ── Stipite sinistro ───────────────────────────────────────────────
+      # Base
+      - type: "box"
+        scale: [0.30, 0.08, 0.40]
+        translate: [-0.75, 0.04, 0]
+
+      # Fusto
+      - type: "box"
+        scale: [0.24, 2.02, 0.36]
+        translate: [-0.75, 1.09, 0]
+
+      # Capitellino
+      - type: "box"
+        scale: [0.28, 0.06, 0.38]
+        translate: [-0.75, 2.13, 0]
+
+      - type: "torus"
+        center: [-0.75, 2.10, 0]
+        major_radius: 0.13
+        minor_radius: 0.008
+        scale: [1.0, 1.0, 1.5]
+
+      # ── Stipite destro ─────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.30, 0.08, 0.40]
+        translate: [0.75, 0.04, 0]
+
+      - type: "box"
+        scale: [0.24, 2.02, 0.36]
+        translate: [0.75, 1.09, 0]
+
+      - type: "box"
+        scale: [0.28, 0.06, 0.38]
+        translate: [0.75, 2.13, 0]
+
+      - type: "torus"
+        center: [0.75, 2.10, 0]
+        major_radius: 0.13
+        minor_radius: 0.008
+        scale: [1.0, 1.0, 1.5]
+
+      # ── Architrave ─────────────────────────────────────────────────────
+      - type: "box"
+        scale: [1.80, 0.10, 0.38]
+        translate: [0, 2.21, 0]
+
+      # ── Fregio con dentelli ────────────────────────────────────────────
+      - type: "box"
+        scale: [1.80, 0.12, 0.36]
+        translate: [0, 2.32, 0]
+
+      # Dentelli (15 piccoli box equidistanti)
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [-0.77, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [-0.66, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [-0.55, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [-0.44, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [-0.33, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [-0.22, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [-0.11, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [0.0, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [0.11, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [0.22, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [0.33, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [0.44, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [0.55, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [0.66, 2.35, -0.17]
+      - type: "box"
+        scale: [0.04, 0.06, 0.04]
+        translate: [0.77, 2.35, -0.17]
+
+      # ── Cornice superiore ──────────────────────────────────────────────
+      - type: "box"
+        scale: [1.88, 0.06, 0.42]
+        translate: [0, 2.41, 0]
+
+      # Gocciolatoio
+      - type: "cylinder"
+        center: [0, 2.44, -0.21]
+        radius: 0.015
+        height: 1.88
+        rotate: [0, 0, 90]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  CORNICIONE — Sezione di cornicione classico
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~1.00 × 0.30 × 0.35 m (sezione modulare)
+  #  Struttura:  Cyma recta (gola superiore), corona (gocciolatoio),
+  #              dentelli, ovolo (torus), fascia liscia.
+  #              Componibile: affiancare più sezioni per coprire la
+  #              lunghezza desiderata.
+  #
+  #  Materiale default: arc_marmo
+  #
+  - name: "cornicione"
+    material: "arc_marmo"
+    children:
+
+      # ── Fascia liscia (base) ───────────────────────────────────────────
+      - type: "box"
+        scale: [1.00, 0.06, 0.20]
+        translate: [0, 0.03, 0]
+
+      # ── Ovolo (torus orizzontale) ──────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.07, -0.10]
+        radius: 0.014
+        height: 1.00
+        rotate: [0, 0, 90]
+
+      # ── Fascia dentelli ────────────────────────────────────────────────
+      - type: "box"
+        scale: [1.00, 0.06, 0.24]
+        translate: [0, 0.10, -0.02]
+
+      # Dentelli (10 per sezione da 1 m)
+      - type: "box"
+        scale: [0.03, 0.04, 0.03]
+        translate: [-0.45, 0.12, -0.14]
+      - type: "box"
+        scale: [0.03, 0.04, 0.03]
+        translate: [-0.35, 0.12, -0.14]
+      - type: "box"
+        scale: [0.03, 0.04, 0.03]
+        translate: [-0.25, 0.12, -0.14]
+      - type: "box"
+        scale: [0.03, 0.04, 0.03]
+        translate: [-0.15, 0.12, -0.14]
+      - type: "box"
+        scale: [0.03, 0.04, 0.03]
+        translate: [-0.05, 0.12, -0.14]
+      - type: "box"
+        scale: [0.03, 0.04, 0.03]
+        translate: [0.05, 0.12, -0.14]
+      - type: "box"
+        scale: [0.03, 0.04, 0.03]
+        translate: [0.15, 0.12, -0.14]
+      - type: "box"
+        scale: [0.03, 0.04, 0.03]
+        translate: [0.25, 0.12, -0.14]
+      - type: "box"
+        scale: [0.03, 0.04, 0.03]
+        translate: [0.35, 0.12, -0.14]
+      - type: "box"
+        scale: [0.03, 0.04, 0.03]
+        translate: [0.45, 0.12, -0.14]
+
+      # ── Corona (gocciolatoio) ──────────────────────────────────────────
+      - type: "box"
+        scale: [1.02, 0.04, 0.30]
+        translate: [0, 0.15, -0.05]
+
+      # Bordo del gocciolatoio
+      - type: "cylinder"
+        center: [0, 0.17, -0.20]
+        radius: 0.012
+        height: 1.02
+        rotate: [0, 0, 90]
+
+      # ── Cyma recta (gola superiore — profilo a S) ─────────────────────
+      # Approssimata con un cono tronco + torus
+      - type: "cone"
+        center: [0, 0.17, -0.04]
+        radius: 0.14
+        top_radius: 0.12
+        height: 0.06
+        scale: [3.6, 1.0, 1.0]
+
+      - type: "box"
+        scale: [1.02, 0.04, 0.28]
+        translate: [0, 0.25, -0.04]
+
+      # Listello finale in cima
+      - type: "cylinder"
+        center: [0, 0.27, -0.18]
+        radius: 0.008
+        height: 1.02
+        rotate: [0, 0, 90]

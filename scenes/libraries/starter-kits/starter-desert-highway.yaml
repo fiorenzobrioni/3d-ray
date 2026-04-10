@@ -1,0 +1,483 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  STARTER KIT — Desert Highway
+#
+#  Una strada rettilinea nel deserto americano. Asfalto crepato, guard rail
+#  metallici, massi erosi dal vento (ellissoidi con scale differenziale),
+#  cactus stilizzati (cilindri + sfere) e cespugli secchi. L'orizzonte è
+#  vasto e il cielo domina la composizione.
+#
+#  AMBIENTAZIONE: Outdoor — deserto arido, orizzonte aperto
+#  STILE: Fotorealistico, cinematografico (stile road movie)
+#
+#  COME USARE QUESTO STARTER KIT:
+#    1. Copia questo file nella cartella scenes/
+#    2. Scegli un world (attivo o commentato) per l'atmosfera desiderata
+#    3. Scegli un set di luci (attivo o commentato)
+#    4. Seleziona la camera con --camera <nome> sulla CLI
+#    5. Aggiungi i tuoi oggetti nella sezione entities
+#
+#  Render consigliato:
+#    Draft:    -w 800  -H 450  -s 16  -d 15 -S 4
+#    Preview:  -w 1280 -H 720  -s 64  -d 25 -S 8
+#    Finale:   -w 1920 -H 1080 -s 256 -d 40 -S 16
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  WORLD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── WORLD ATTIVO ★ Mezzogiorno torrido — sole alto, cielo lavato ────────────
+world:
+  ambient_light: [0.06, 0.05, 0.04]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.18, 0.35, 0.78]
+    horizon_color: [0.75, 0.82, 0.90]
+    ground_color:  [0.45, 0.38, 0.28]
+    sun:
+      direction: [-0.2, -1.0, -0.3]
+      color: [1.0, 0.97, 0.90]
+      intensity: 18.0
+      size: 2.0
+      falloff: 48.0
+  ground:
+    type: "infinite_plane"
+    material: "sabbia_deserto"
+    y: 0
+
+# ─── WORLD ALT-1: Golden Hour — sole basso, luce calda dorata ───────────────
+# world:
+#   ambient_light: [0.05, 0.04, 0.03]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.15, 0.25, 0.55]
+#     horizon_color: [0.85, 0.55, 0.25]
+#     ground_color:  [0.30, 0.22, 0.12]
+#     sun:
+#       direction: [-0.85, -0.20, -0.4]
+#       color: [1.0, 0.82, 0.45]
+#       intensity: 22.0
+#       size: 4.5
+#       falloff: 20.0
+#   ground:
+#     type: "infinite_plane"
+#     material: "sabbia_deserto"
+#     y: 0
+
+# ─── WORLD ALT-2: Tramonto drammatico — cielo infuocato ─────────────────────
+# world:
+#   ambient_light: [0.04, 0.02, 0.02]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.06, 0.04, 0.18]
+#     horizon_color: [0.92, 0.28, 0.05]
+#     ground_color:  [0.12, 0.06, 0.03]
+#     sun:
+#       direction: [-1.0, -0.08, -0.15]
+#       color: [1.0, 0.35, 0.05]
+#       intensity: 30.0
+#       size: 7.0
+#       falloff: 10.0
+#   ground:
+#     type: "infinite_plane"
+#     material: "sabbia_deserto"
+#     y: 0
+
+# ─── WORLD ALT-3: Notte stellata — cielo scurissimo, nessun sole ────────────
+# world:
+#   ambient_light: [0.005, 0.005, 0.01]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.005, 0.005, 0.025]
+#     horizon_color: [0.02, 0.02, 0.04]
+#     ground_color:  [0.01, 0.01, 0.015]
+#   ground:
+#     type: "infinite_plane"
+#     material: "sabbia_deserto"
+#     y: 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════════
+cameras:
+
+  # ── Principale: vista dal ciglio della strada, verso l'orizzonte ───────────
+  - name: "strada"
+    position: [-1.5, 1.2, -12]
+    look_at:  [0.0, 0.5, 20]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 15.0
+
+  # ── Panoramica: visuale ampia che cattura il paesaggio completo ────────────
+  - name: "panoramica"
+    position: [8, 3.5, -8]
+    look_at:  [0, 0.5, 5]
+    fov: 65
+    aperture: 0.0
+    focal_dist: 12.0
+
+  # ── Dettaglio: close-up sul cactus con DOF per sfondo sfocato ──────────────
+  - name: "dettaglio_cactus"
+    position: [4.5, 1.5, -1]
+    look_at:  [5.5, 1.8, 2]
+    fov: 38
+    aperture: 0.08
+    focal_dist: 4.0
+
+  # ── Zenitale: vista dall'alto per layout planning ──────────────────────────
+  - name: "zenitale"
+    position: [0, 20, 3]
+    look_at:  [0, 0, 3]
+    vup: [0, 0, 1]
+    fov: 50
+    aperture: 0.0
+    focal_dist: 20.0
+
+  # ── Drammatica: bassa, rasoterra, verso il sole ────────────────────────────
+  - name: "rasoterra"
+    position: [0.5, 0.15, -5]
+    look_at:  [0, 0.8, 15]
+    fov: 70
+    aperture: 0.0
+    focal_dist: 10.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Terreno: sabbia del deserto ────────────────────────────────────────────
+  - id: "sabbia_deserto"
+    type: "disney"
+    color: [0.72, 0.58, 0.38]
+    roughness: 0.95
+    metallic: 0.0
+    specular: 0.1
+
+  # ── Asfalto stradale — grigio scuro ruvido ─────────────────────────────────
+  - id: "asfalto"
+    type: "disney"
+    color: [0.12, 0.12, 0.13]
+    roughness: 0.85
+    metallic: 0.0
+    specular: 0.2
+
+  # ── Linea gialla centrale della strada ─────────────────────────────────────
+  - id: "vernice_gialla"
+    type: "disney"
+    color: [0.85, 0.72, 0.12]
+    roughness: 0.55
+    metallic: 0.0
+    specular: 0.3
+
+  # ── Guard rail: acciaio galvanizzato ───────────────────────────────────────
+  - id: "acciaio_guardrail"
+    type: "disney"
+    color: [0.65, 0.65, 0.68]
+    roughness: 0.35
+    metallic: 0.85
+    specular: 0.8
+
+  # ── Pali del guard rail: acciaio scuro ─────────────────────────────────────
+  - id: "acciaio_palo"
+    type: "disney"
+    color: [0.35, 0.35, 0.38]
+    roughness: 0.45
+    metallic: 0.9
+    specular: 0.6
+
+  # ── Roccia del deserto — arenaria erosa ────────────────────────────────────
+  - id: "arenaria"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 3.0
+      noise_strength: 0.6
+      colors: [[0.68, 0.52, 0.32], [0.55, 0.40, 0.25]]
+      randomize_offset: true
+    roughness: 0.92
+    metallic: 0.0
+
+  # ── Roccia scura — basalto per varietà ─────────────────────────────────────
+  - id: "basalto"
+    type: "disney"
+    color: [0.18, 0.16, 0.15]
+    roughness: 0.80
+    metallic: 0.0
+    specular: 0.3
+
+  # ── Cactus: verde scuro opaco ──────────────────────────────────────────────
+  - id: "cactus_verde"
+    type: "disney"
+    color: [0.15, 0.32, 0.10]
+    roughness: 0.75
+    metallic: 0.0
+    specular: 0.15
+    subsurface: 0.2
+
+  # ── Legno secco — rami e sterpaglie ────────────────────────────────────────
+  - id: "legno_secco"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 8.0
+      colors: [[0.35, 0.25, 0.12], [0.28, 0.18, 0.08]]
+      randomize_offset: true
+    roughness: 0.90
+    metallic: 0.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  TEMPLATES
+# ═══════════════════════════════════════════════════════════════════════════════
+templates:
+
+  # ── Cactus saguaro stilizzato (tronco + 2 braccia) ────────────────────────
+  - name: "saguaro"
+    material: "cactus_verde"
+    children:
+      # Tronco principale
+      - type: "capsule"
+        center: [0, 0, 0]
+        radius: 0.30
+        height: 3.0
+      # Braccio sinistro (cilindro verticale + sfera top)
+      - type: "cylinder"
+        center: [-0.45, 1.2, 0]
+        radius: 0.18
+        height: 0.6
+      - type: "capsule"
+        center: [-0.45, 1.8, 0]
+        radius: 0.18
+        height: 1.2
+      # Braccio destro
+      - type: "cylinder"
+        center: [0.40, 1.8, 0]
+        radius: 0.16
+        height: 0.5
+      - type: "capsule"
+        center: [0.40, 2.3, 0]
+        radius: 0.16
+        height: 0.8
+
+  # ── Palo guard rail con riflettore ─────────────────────────────────────────
+  - name: "palo_guardrail"
+    material: "acciaio_palo"
+    children:
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.04
+        height: 0.75
+      # Piccolo riflettore rosso in cima
+      - type: "sphere"
+        center: [0, 0.78, 0]
+        radius: 0.03
+        material: "vernice_gialla"
+
+  # ── Cespuglio secco (cluster di sfere ellissoidali) ────────────────────────
+  - name: "cespuglio_secco"
+    material: "legno_secco"
+    children:
+      - type: "sphere"
+        center: [0, 0.15, 0]
+        radius: 0.25
+        scale: [1.0, 0.6, 1.0]
+      - type: "sphere"
+        center: [0.15, 0.22, 0.1]
+        radius: 0.18
+        scale: [1.0, 0.7, 0.9]
+      - type: "sphere"
+        center: [-0.12, 0.18, -0.08]
+        radius: 0.20
+        scale: [0.9, 0.65, 1.0]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  STRADA — Nastro d'asfalto con striscia gialla centrale
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Manto stradale (box lungo e piatto)
+  - name: "asfalto_strada"
+    type: "box"
+    scale: [6.0, 0.05, 60.0]
+    translate: [0, 0.025, 10]
+    material: "asfalto"
+
+  # Striscia gialla centrale (segmenti tratteggiati)
+  - { name: "striscia_1",  type: "box", scale: [0.12, 0.06, 2.5], translate: [0, 0.055, -4],   material: "vernice_gialla" }
+  - { name: "striscia_2",  type: "box", scale: [0.12, 0.06, 2.5], translate: [0, 0.055, 0],    material: "vernice_gialla" }
+  - { name: "striscia_3",  type: "box", scale: [0.12, 0.06, 2.5], translate: [0, 0.055, 4],    material: "vernice_gialla" }
+  - { name: "striscia_4",  type: "box", scale: [0.12, 0.06, 2.5], translate: [0, 0.055, 8],    material: "vernice_gialla" }
+  - { name: "striscia_5",  type: "box", scale: [0.12, 0.06, 2.5], translate: [0, 0.055, 12],   material: "vernice_gialla" }
+  - { name: "striscia_6",  type: "box", scale: [0.12, 0.06, 2.5], translate: [0, 0.055, 16],   material: "vernice_gialla" }
+  - { name: "striscia_7",  type: "box", scale: [0.12, 0.06, 2.5], translate: [0, 0.055, 20],   material: "vernice_gialla" }
+  - { name: "striscia_8",  type: "box", scale: [0.12, 0.06, 2.5], translate: [0, 0.055, 24],   material: "vernice_gialla" }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  GUARD RAIL — Lato destro della strada
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Nastro metallico orizzontale
+  - name: "guardrail_nastro"
+    type: "box"
+    scale: [0.08, 0.25, 40.0]
+    translate: [3.3, 0.55, 5]
+    material: "acciaio_guardrail"
+
+  # Pali di sostegno
+  - { type: "instance", template: "palo_guardrail", translate: [3.3, 0, -8] }
+  - { type: "instance", template: "palo_guardrail", translate: [3.3, 0, -4] }
+  - { type: "instance", template: "palo_guardrail", translate: [3.3, 0, 0] }
+  - { type: "instance", template: "palo_guardrail", translate: [3.3, 0, 4] }
+  - { type: "instance", template: "palo_guardrail", translate: [3.3, 0, 8] }
+  - { type: "instance", template: "palo_guardrail", translate: [3.3, 0, 12] }
+  - { type: "instance", template: "palo_guardrail", translate: [3.3, 0, 16] }
+  - { type: "instance", template: "palo_guardrail", translate: [3.3, 0, 20] }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ROCCE — Massi erosi sparsi nel deserto (ellissoidi con scale)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Massi grandi lato sinistro
+  - name: "masso_grande_1"
+    type: "sphere"
+    center: [-7, 0, 5]
+    radius: 1.8
+    scale: [1.2, 0.6, 1.0]
+    material: "arenaria"
+    seed: 101
+
+  - name: "masso_grande_2"
+    type: "sphere"
+    center: [-5.5, 0, 12]
+    radius: 1.4
+    scale: [1.0, 0.55, 1.3]
+    material: "arenaria"
+    seed: 102
+
+  - name: "masso_basalto"
+    type: "sphere"
+    center: [-9, 0, 0]
+    radius: 2.0
+    scale: [1.3, 0.5, 0.9]
+    material: "basalto"
+    seed: 103
+
+  # Massi lato destro (oltre il guard rail)
+  - name: "masso_dx_1"
+    type: "sphere"
+    center: [6, 0, 8]
+    radius: 1.2
+    scale: [1.1, 0.5, 1.0]
+    material: "arenaria"
+    seed: 201
+
+  - name: "masso_dx_2"
+    type: "sphere"
+    center: [8, 0, 15]
+    radius: 0.9
+    scale: [1.0, 0.65, 1.2]
+    material: "basalto"
+    seed: 202
+
+  # Sassi piccoli sparsi
+  - { name: "sasso_1", type: "sphere", center: [-4, 0, -3],  radius: 0.35, scale: [1.2, 0.5, 0.9], material: "arenaria", seed: 301 }
+  - { name: "sasso_2", type: "sphere", center: [5, 0, 2],    radius: 0.25, scale: [1.0, 0.6, 1.1], material: "arenaria", seed: 302 }
+  - { name: "sasso_3", type: "sphere", center: [-6, 0, 18],  radius: 0.40, scale: [0.9, 0.5, 1.0], material: "basalto",  seed: 303 }
+  - { name: "sasso_4", type: "sphere", center: [7.5, 0, 22], radius: 0.30, scale: [1.1, 0.55, 1.0], material: "arenaria", seed: 304 }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  CACTUS — Saguaro e cactus bassi
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - { type: "instance", template: "saguaro", translate: [5.5, 0, 2],  rotate: [0, 15, 0] }
+  - { type: "instance", template: "saguaro", translate: [9, 0, 10],   rotate: [0, -30, 0], scale: [0.8, 0.9, 0.8] }
+  - { type: "instance", template: "saguaro", translate: [-8, 0, 8],   rotate: [0, 45, 0], scale: [1.1, 1.2, 1.1] }
+  - { type: "instance", template: "saguaro", translate: [7, 0, 20],   rotate: [0, -60, 0], scale: [0.7, 0.85, 0.7] }
+
+  # Cactus a barile (sfere schiacciate)
+  - name: "barrel_cactus_1"
+    type: "sphere"
+    center: [-5, 0.25, -1]
+    radius: 0.40
+    scale: [1.0, 0.75, 1.0]
+    material: "cactus_verde"
+    seed: 401
+
+  - name: "barrel_cactus_2"
+    type: "sphere"
+    center: [4.8, 0.20, 6]
+    radius: 0.30
+    scale: [1.0, 0.8, 1.0]
+    material: "cactus_verde"
+    seed: 402
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  CESPUGLI SECCHI
+  # ─────────────────────────────────────────────────────────────────────────
+  - { type: "instance", template: "cespuglio_secco", translate: [-3.5, 0, 3],  seed: 501 }
+  - { type: "instance", template: "cespuglio_secco", translate: [5, 0, 14],    seed: 502, scale: [1.3, 1.0, 1.3] }
+  - { type: "instance", template: "cespuglio_secco", translate: [-6.5, 0, 16], seed: 503, scale: [0.8, 0.7, 0.8] }
+  - { type: "instance", template: "cespuglio_secco", translate: [8, 0, 5],     seed: 504 }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── LUCI ATTIVE ★ Mezzogiorno — sole forte + fill cielo ────────────────────
+lights:
+  - type: "directional"
+    direction: [-0.2, -1.0, -0.3]
+    color: [1.0, 0.97, 0.90]
+    intensity: 1.2
+
+  - type: "directional"
+    direction: [0.4, -0.6, 0.3]
+    color: [0.55, 0.65, 0.85]
+    intensity: 0.08
+
+# ─── LUCI ALT-1: Golden Hour — sole caldo radente + fill freddo ─────────────
+#   Abbina a WORLD ALT-1
+# lights:
+#   - type: "directional"
+#     direction: [-0.85, -0.20, -0.4]
+#     color: [1.0, 0.82, 0.45]
+#     intensity: 1.0
+#   - type: "directional"
+#     direction: [0.5, -0.5, 0.3]
+#     color: [0.4, 0.5, 0.75]
+#     intensity: 0.04
+
+# ─── LUCI ALT-2: Tramonto drammatico — luce arancione + rim viola ───────────
+#   Abbina a WORLD ALT-2
+# lights:
+#   - type: "directional"
+#     direction: [-1.0, -0.08, -0.15]
+#     color: [1.0, 0.40, 0.08]
+#     intensity: 0.8
+#   - type: "directional"
+#     direction: [0.6, -0.3, 0.5]
+#     color: [0.35, 0.20, 0.50]
+#     intensity: 0.03
+
+# ─── LUCI ALT-3: Notte — point light da lampione + luna ─────────────────────
+#   Abbina a WORLD ALT-3
+# lights:
+#   - type: "point"
+#     position: [3.3, 4.5, 3]
+#     color: [1.0, 0.85, 0.5]
+#     intensity: 80.0
+#   - type: "directional"
+#     direction: [0.3, -0.8, -0.5]
+#     color: [0.15, 0.18, 0.35]
+#     intensity: 0.02

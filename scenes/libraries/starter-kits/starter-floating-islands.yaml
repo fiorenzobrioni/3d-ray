@@ -1,0 +1,381 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  STARTER KIT — Floating Islands
+#
+#  Isole sospese nel vuoto in un cielo fantasy. Ogni isola è costruita con
+#  combinazioni di box e sfere per basi rocciose, con alberi a palloncino
+#  (sfere su cilindri), cascata stilizzata (cilindro dielectric), ponticello
+#  tra isole e cristalli luminosi (dielectric + emissive). Cielo con gradiente
+#  intenso viola/arancio da sogno.
+#
+#  AMBIENTAZIONE: Outdoor — fantasy surreale, isole volanti
+#  STILE: Onirico, colorato, composizione verticale
+#
+#  Render consigliato:
+#    Draft:    -w 800  -H 600  -s 16  -d 20 -S 4
+#    Preview:  -w 1280 -H 960  -s 64  -d 30 -S 8
+#    Finale:   -w 1920 -H 1440 -s 256 -d 50 -S 16
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ─── WORLD ATTIVO ★ Cielo fantasy — gradiente viola/arancio ──────────────────
+world:
+  ambient_light: [0.08, 0.06, 0.10]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.12, 0.05, 0.35]
+    horizon_color: [0.85, 0.50, 0.30]
+    ground_color:  [0.15, 0.10, 0.25]
+    sun:
+      direction: [-0.6, -0.35, -0.5]
+      color: [1.0, 0.80, 0.50]
+      intensity: 16.0
+      size: 4.0
+      falloff: 18.0
+
+# ─── WORLD ALT-1: Alba pastello — rosa e azzurro ────────────────────────────
+# world:
+#   ambient_light: [0.08, 0.07, 0.09]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.25, 0.35, 0.70]
+#     horizon_color: [0.90, 0.65, 0.60]
+#     ground_color:  [0.40, 0.30, 0.45]
+#     sun:
+#       direction: [-0.5, -0.25, -0.6]
+#       color: [1.0, 0.85, 0.65]
+#       intensity: 14.0
+#       size: 5.0
+#       falloff: 20.0
+
+# ─── WORLD ALT-2: Notte stellata magica — scuro con accenti ─────────────────
+# world:
+#   ambient_light: [0.01, 0.01, 0.03]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.01, 0.005, 0.05]
+#     horizon_color: [0.05, 0.03, 0.10]
+#     ground_color:  [0.02, 0.015, 0.04]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════════
+cameras:
+
+  - name: "panoramica"
+    position: [0, 2, -14]
+    look_at:  [0, 1, 0]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 14.0
+
+  - name: "isola_grande"
+    position: [-4, 3, -8]
+    look_at:  [0, 1, 0]
+    fov: 48
+    aperture: 0.04
+    focal_dist: 10.0
+
+  - name: "dal_basso"
+    position: [0, -5, -10]
+    look_at:  [0, 2, 0]
+    fov: 60
+    aperture: 0.0
+    focal_dist: 12.0
+
+  - name: "ponte"
+    position: [3, 2.5, -5]
+    look_at:  [1, 1.5, 2]
+    fov: 45
+    aperture: 0.05
+    focal_dist: 8.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Roccia delle isole — arenaria calda ────────────────────────────────────
+  - id: "roccia_isola"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.6
+      colors: [[0.55, 0.42, 0.28], [0.40, 0.30, 0.20]]
+      randomize_offset: true
+    roughness: 0.85
+    metallic: 0.0
+
+  # ── Terra erbosa in cima ───────────────────────────────────────────────────
+  - id: "erba_isola"
+    type: "disney"
+    color: [0.18, 0.40, 0.10]
+    roughness: 0.90
+    metallic: 0.0
+    subsurface: 0.15
+
+  # ── Tronco albero a palloncino ─────────────────────────────────────────────
+  - id: "tronco_palloncino"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 10.0
+      colors: [[0.35, 0.22, 0.10], [0.25, 0.15, 0.06]]
+      randomize_offset: true
+    roughness: 0.80
+    metallic: 0.0
+
+  # ── Chioma albero — verde vivace ───────────────────────────────────────────
+  - id: "chioma_verde"
+    type: "disney"
+    color: [0.15, 0.45, 0.12]
+    roughness: 0.80
+    metallic: 0.0
+    subsurface: 0.25
+
+  # ── Chioma albero — rosa (fiori di ciliegio) ──────────────────────────────
+  - id: "chioma_rosa"
+    type: "disney"
+    color: [0.80, 0.40, 0.50]
+    roughness: 0.80
+    metallic: 0.0
+    subsurface: 0.3
+
+  # ── Acqua della cascata ────────────────────────────────────────────────────
+  - id: "acqua_cascata"
+    type: "dielectric"
+    refraction_index: 1.33
+    color: [0.70, 0.85, 0.95]
+
+  # ── Cristallo magico — emissivo + dielectric ──────────────────────────────
+  - id: "cristallo_magico"
+    type: "emissive"
+    color: [0.40, 0.70, 1.0]
+    intensity: 6.0
+
+  # ── Cristallo ambra ────────────────────────────────────────────────────────
+  - id: "cristallo_ambra"
+    type: "dielectric"
+    refraction_index: 1.55
+    color: [0.95, 0.70, 0.30]
+
+  # ── Legno del ponticello ───────────────────────────────────────────────────
+  - id: "legno_ponte"
+    type: "disney"
+    color: [0.42, 0.28, 0.14]
+    roughness: 0.70
+    metallic: 0.0
+
+  # ── Corda ──────────────────────────────────────────────────────────────────
+  - id: "corda"
+    type: "disney"
+    color: [0.55, 0.45, 0.30]
+    roughness: 0.92
+    metallic: 0.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  TEMPLATES
+# ═══════════════════════════════════════════════════════════════════════════════
+templates:
+
+  # ── Albero a palloncino ────────────────────────────────────────────────────
+  - name: "albero_palloncino"
+    children:
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.08
+        height: 1.5
+        material: "tronco_palloncino"
+      - type: "sphere"
+        center: [0, 1.8, 0]
+        radius: 0.65
+        material: "chioma_verde"
+
+  # ── Albero a palloncino rosa ───────────────────────────────────────────────
+  - name: "albero_rosa"
+    children:
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.07
+        height: 1.2
+        material: "tronco_palloncino"
+      - type: "sphere"
+        center: [0, 1.5, 0]
+        radius: 0.55
+        material: "chioma_rosa"
+
+  # ── Cristallo a punta (cono sottile) ───────────────────────────────────────
+  - name: "cristallo_punta"
+    material: "cristallo_magico"
+    children:
+      - type: "cone"
+        center: [0, 0, 0]
+        radius: 0.12
+        top_radius: 0.0
+        height: 0.8
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ISOLA GRANDE (centrale) — piattaforma + base rocciosa sospesa
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Piattaforma superiore (erba)
+  - name: "isola_grande_top"
+    type: "cylinder"
+    center: [0, 0.5, 0]
+    radius: 3.5
+    height: 0.5
+    material: "erba_isola"
+
+  # Base rocciosa (sfera schiacciata che pende sotto)
+  - name: "isola_grande_base"
+    type: "sphere"
+    center: [0, -0.5, 0]
+    radius: 3.5
+    scale: [1.0, 0.7, 1.0]
+    material: "roccia_isola"
+    seed: 100
+
+  # Stalattiti sotto l'isola
+  - { name: "stalattite_1", type: "cone", center: [0.5, -2.8, 0.3],  radius: 0.3, top_radius: 0.0, height: 1.0, rotate: [180, 0, 0], material: "roccia_isola" }
+  - { name: "stalattite_2", type: "cone", center: [-0.8, -2.5, -0.5], radius: 0.2, top_radius: 0.0, height: 0.7, rotate: [180, 0, 0], material: "roccia_isola" }
+  - { name: "stalattite_3", type: "cone", center: [1.2, -2.3, 0.8],  radius: 0.25, top_radius: 0.0, height: 0.8, rotate: [180, 0, 0], material: "roccia_isola" }
+
+  # Alberi sull'isola grande
+  - { type: "instance", template: "albero_palloncino", translate: [-1.2, 1.0, 0.5], scale: [1.2, 1.3, 1.2], seed: 201 }
+  - { type: "instance", template: "albero_palloncino", translate: [0.8, 1.0, -0.8], scale: [0.9, 1.0, 0.9], seed: 202 }
+  - { type: "instance", template: "albero_rosa",       translate: [1.5, 1.0, 0.6],  scale: [1.0, 1.1, 1.0], seed: 203 }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ISOLA PICCOLA (sinistra, più in alto)
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "isola_piccola_top"
+    type: "cylinder"
+    center: [-5, 2.5, 3]
+    radius: 1.8
+    height: 0.35
+    material: "erba_isola"
+
+  - name: "isola_piccola_base"
+    type: "sphere"
+    center: [-5, 1.8, 3]
+    radius: 1.8
+    scale: [1.0, 0.6, 1.0]
+    material: "roccia_isola"
+    seed: 110
+
+  - { type: "instance", template: "albero_rosa", translate: [-5.3, 2.85, 3.2], scale: [1.3, 1.4, 1.3], seed: 211 }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ISOLA ROCCIOSA (destra, più bassa) — con cascata
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "isola_roccia_top"
+    type: "cylinder"
+    center: [5, -0.5, 2]
+    radius: 2.2
+    height: 0.4
+    material: "erba_isola"
+
+  - name: "isola_roccia_base"
+    type: "sphere"
+    center: [5, -1.3, 2]
+    radius: 2.2
+    scale: [1.0, 0.65, 1.0]
+    material: "roccia_isola"
+    seed: 120
+
+  # Cascata — cilindro verticale di acqua che scende
+  - name: "cascata"
+    type: "cylinder"
+    center: [4, -3.5, 2.5]
+    radius: 0.25
+    height: 4.0
+    material: "acqua_cascata"
+
+  # Specchio d'acqua in cima
+  - name: "laghetto"
+    type: "disk"
+    center: [4.5, -0.09, 2.3]
+    normal: [0, 1, 0]
+    radius: 0.8
+    material: "acqua_cascata"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  PONTICELLO DI CORDA tra isola grande e isola destra
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "ponte_tavole"
+    type: "box"
+    scale: [0.6, 0.04, 5.0]
+    rotate: [0, 20, -8]
+    translate: [2.5, 0.2, 1.2]
+    material: "legno_ponte"
+
+  - name: "ponte_corda_sx"
+    type: "cylinder"
+    center: [0, 0, 0]
+    radius: 0.02
+    height: 5.2
+    rotate: [0, 20, -8]
+    translate: [2.2, 0.45, 1.1]
+    material: "corda"
+
+  - name: "ponte_corda_dx"
+    type: "cylinder"
+    center: [0, 0, 0]
+    radius: 0.02
+    height: 5.2
+    rotate: [0, 20, -8]
+    translate: [2.8, 0.45, 1.3]
+    material: "corda"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  CRISTALLI MAGICI — cluster sull'isola grande
+  # ─────────────────────────────────────────────────────────────────────────
+  - { type: "instance", template: "cristallo_punta", translate: [0, 1.0, 0],     rotate: [0, 0, 0],  scale: [1.0, 1.5, 1.0] }
+  - { type: "instance", template: "cristallo_punta", translate: [0.25, 1.0, 0.15], rotate: [0, 30, 12], scale: [0.7, 1.0, 0.7] }
+  - { type: "instance", template: "cristallo_punta", translate: [-0.2, 1.0, 0.2], rotate: [0, -20, -8], scale: [0.6, 0.9, 0.6] }
+
+  # Cristallo ambra sull'isola piccola
+  - name: "cristallo_ambra_isolotto"
+    type: "sphere"
+    center: [-4.5, 3.1, 2.5]
+    radius: 0.25
+    scale: [0.6, 1.3, 0.6]
+    material: "cristallo_ambra"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── LUCI ATTIVE ★ Sole fantasy + fill ambient ──────────────────────────────
+lights:
+  - type: "directional"
+    direction: [-0.6, -0.35, -0.5]
+    color: [1.0, 0.82, 0.50]
+    intensity: 0.9
+
+  - type: "directional"
+    direction: [0.5, -0.4, 0.5]
+    color: [0.40, 0.30, 0.60]
+    intensity: 0.06
+
+# ─── LUCI ALT-1: Notte magica — cristalli come luce principale ──────────────
+#   Abbina a WORLD ALT-2
+# lights:
+#   - type: "directional"
+#     direction: [0.2, -0.7, -0.4]
+#     color: [0.10, 0.12, 0.28]
+#     intensity: 0.03
+#   - type: "point"
+#     position: [0, 2.0, 0]
+#     color: [0.40, 0.70, 1.0]
+#     intensity: 40.0

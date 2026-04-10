@@ -1,0 +1,1457 @@
+# ============================================================================
+# Libreria Oggetti — Meccanica e Industria (Mechanical)
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/mechanical.yaml" }]
+#
+# Componenti meccanici, organi di trasmissione, viteria e strumentazione
+# industriale. Uso intensivo di CSG per fori, smussi, scanalature e
+# profili esagonali.
+#
+# ── Materiali inclusi ────────────────────────────────────────────────────
+#
+#   Prefisso ID:  mec_   (mechanical)
+#
+#   Metalli calibrati su riflettanze reali: acciaio, ghisa, ottone,
+#   cromo, alluminio, bronzo, gomma, ossido nero.
+#
+# ── Convenzioni di design ────────────────────────────────────────────────
+#
+#   ORIGINE       Asse di simmetria su Y, base/centro a Y=0.
+#   SCALA         Unità = metri. Un bullone M10 ha raggio gambo 0.005,
+#                 un ingranaggio ~Ø 0.12. Scalare le istanze per
+#                 adattare alla scena.
+#   ASSE          Tutti i pezzi rotanti usano Y come asse di rotazione.
+#                 Per montaggio orizzontale, ruotare l'istanza di 90°.
+#
+# ── Catalogo template ────────────────────────────────────────────────────
+#
+#   INGRANAGGIO             Ruota dentata a 8 denti con mozzo, foro
+#                           e smusso. ~Ø 0.12 × 0.025 m.
+#
+#   DADO_ESAGONALE          Dado M10 con profilo esagonale (CSG 3
+#                           box intersecati) e foro filettato.
+#                           ~Ø 0.019 × 0.008 m.
+#
+#   BULLONE                 Bullone a testa esagonale con gambo liscio
+#                           e punta conica. ~Ø 0.019 × 0.045 m.
+#
+#   VITE_BRUGOLA            Vite a testa cilindrica con incavo
+#                           esagonale (CSG). ~Ø 0.016 × 0.035 m.
+#
+#   CUSCINETTO              Cuscinetto a sfere con anello esterno,
+#                           interno e 8 sfere. ~Ø 0.06 × 0.016 m.
+#
+#   PISTONE                 Pistone con corona, gonna, spinotto e
+#                           3 sedi per fasce elastiche (CSG).
+#                           ~Ø 0.08 × 0.07 m.
+#
+#   VALVOLA                 Valvola a saracinesca con corpo, flange,
+#                           bonnet, stelo e volantino. ~0.18 × 0.30 m.
+#
+#   FLANGIA                 Flangia cieca con 6 fori passanti disposti
+#                           sul cerchio delle viti (CSG).
+#                           ~Ø 0.16 × 0.022 m.
+#
+#   PULEGGIA                Puleggia a gola trapezoidale con mozzo,
+#                           foro e chiavetta (CSG). ~Ø 0.12 × 0.030 m.
+#
+#   MOLLA                   Molla elicoidale a compressione approssimata
+#                           con 6 torus sfalsati. ~Ø 0.04 × 0.10 m.
+#
+#   BIELLA                  Biella con testa grande, fusto a sezione
+#                           I e occhio piccolo. ~0.02 × 0.16 m.
+#
+#   MANOMETRO               Manometro industriale con cassa, vetro,
+#                           quadrante, lancetta e attacco filettato.
+#                           ~Ø 0.10 × 0.08 m.
+#
+#   CILINDRO_IDRAULICO      Cilindro a doppio effetto con camicia,
+#                           stelo cromato, testata e attacco a
+#                           forcella. ~Ø 0.06 × 0.32 m.
+#
+#   GIUNTO_FLANGIATO        Giunto rigido a flange con 4 bulloni
+#                           e foro passante. ~Ø 0.10 × 0.06 m.
+#
+# ============================================================================
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALI — Metalli e gomme industriali
+# ═══════════════════════════════════════════════════════════════════════════
+
+materials:
+
+  # Acciaio lucido — alberi, perni, superfici lavorate
+  - id: "mec_acciaio"
+    type: "disney"
+    color: [0.58, 0.57, 0.55]
+    metallic: 1.0
+    roughness: 0.12
+    specular: 0.80
+
+  # Acciaio satinato — bulloni, dadi, gambi
+  - id: "mec_acciaio_sat"
+    type: "disney"
+    color: [0.54, 0.53, 0.51]
+    metallic: 1.0
+    roughness: 0.30
+    specular: 0.60
+
+  # Acciaio brunito / ossido nero — viti brugola
+  - id: "mec_ossido_nero"
+    type: "disney"
+    color: [0.08, 0.08, 0.10]
+    metallic: 0.92
+    roughness: 0.28
+    specular: 0.55
+
+  # Ghisa — corpi valvola, carter, supporti
+  - id: "mec_ghisa"
+    type: "disney"
+    color: [0.18, 0.17, 0.16]
+    metallic: 0.75
+    roughness: 0.70
+    specular: 0.30
+
+  # Cromo — steli, cilindri idraulici
+  - id: "mec_cromo"
+    type: "disney"
+    color: [0.95, 0.93, 0.88]
+    metallic: 1.0
+    roughness: 0.03
+    specular: 0.95
+
+  # Ottone — boccole, raccordi, manometri
+  - id: "mec_ottone"
+    type: "disney"
+    color: [0.85, 0.68, 0.20]
+    metallic: 1.0
+    roughness: 0.20
+    specular: 0.65
+
+  # Bronzo per cuscinetti — lega Cu-Sn antifrizione
+  - id: "mec_bronzo_cusc"
+    type: "disney"
+    color: [0.70, 0.48, 0.22]
+    metallic: 1.0
+    roughness: 0.35
+    specular: 0.50
+
+  # Alluminio anodizzato — coperchi, pulegge, corpi leggeri
+  - id: "mec_alluminio"
+    type: "disney"
+    color: [0.88, 0.88, 0.90]
+    metallic: 1.0
+    roughness: 0.18
+    specular: 0.72
+
+  # Gomma nera — guarnizioni, o-ring, paraoli
+  - id: "mec_gomma"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.90
+    metallic: 0.0
+    specular: 0.15
+
+  # Rosso segnaletico — volantini, leve, sicurezze
+  - id: "mec_rosso"
+    type: "disney"
+    color: [0.75, 0.10, 0.08]
+    roughness: 0.60
+    metallic: 0.0
+    specular: 0.30
+
+  # Vetro strumentazione — quadrante manometro
+  - id: "mec_vetro"
+    type: "dielectric"
+    refraction_index: 1.52
+
+  # Bianco quadrante — sfondo scala manometro
+  - id: "mec_bianco"
+    type: "lambertian"
+    color: [0.95, 0.95, 0.93]
+
+  # Nero opaco — lancette, indicazioni
+  - id: "mec_nero_opaco"
+    type: "lambertian"
+    color: [0.03, 0.03, 0.03]
+
+  # Giallo sicurezza — segnaletica industriale
+  - id: "mec_giallo"
+    type: "disney"
+    color: [0.90, 0.78, 0.05]
+    roughness: 0.55
+    metallic: 0.0
+    specular: 0.30
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  TEMPLATES — Componenti meccanici
+# ═══════════════════════════════════════════════════════════════════════════
+
+templates:
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  INGRANAGGIO — Ruota dentata a 8 denti
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.12 × 0.025 m
+  #  Struttura:  Disco corpo (cilindro), 8 denti (box radiali uniti
+  #              al corpo), mozzo rialzato, foro centrale + chiavetta
+  #              (CSG subtraction). Smussi con torus.
+  #
+  #  Materiale default: mec_acciaio
+  #
+  - name: "ingranaggio"
+    material: "mec_acciaio"
+    children:
+
+      # Corpo completo: disco + denti − foro − chiavetta
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "csg"
+          operation: "subtraction"
+          left:
+            # Disco + denti
+            type: "group"
+            children:
+              # Disco corpo principale
+              - type: "cylinder"
+                center: [0, 0, 0]
+                radius: 0.048
+                height: 0.020
+
+              # Mozzo rialzato
+              - type: "cylinder"
+                center: [0, 0, 0]
+                radius: 0.018
+                height: 0.025
+
+              # Smusso superiore del disco
+              - type: "torus"
+                center: [0, 0.020, 0]
+                major_radius: 0.046
+                minor_radius: 0.004
+
+              # 8 denti a 45° l'uno dall'altro
+              # Dente 0° (X+)
+              - type: "box"
+                scale: [0.018, 0.020, 0.014]
+                translate: [0.055, 0.010, 0]
+              # Dente 45°
+              - type: "box"
+                scale: [0.018, 0.020, 0.014]
+                translate: [0.0389, 0.010, 0.0389]
+                rotate: [0, 45, 0]
+              # Dente 90° (Z+)
+              - type: "box"
+                scale: [0.018, 0.020, 0.014]
+                translate: [0, 0.010, 0.055]
+                rotate: [0, 90, 0]
+              # Dente 135°
+              - type: "box"
+                scale: [0.018, 0.020, 0.014]
+                translate: [-0.0389, 0.010, 0.0389]
+                rotate: [0, 135, 0]
+              # Dente 180° (X−)
+              - type: "box"
+                scale: [0.018, 0.020, 0.014]
+                translate: [-0.055, 0.010, 0]
+                rotate: [0, 180, 0]
+              # Dente 225°
+              - type: "box"
+                scale: [0.018, 0.020, 0.014]
+                translate: [-0.0389, 0.010, -0.0389]
+                rotate: [0, 225, 0]
+              # Dente 270° (Z−)
+              - type: "box"
+                scale: [0.018, 0.020, 0.014]
+                translate: [0, 0.010, -0.055]
+                rotate: [0, 270, 0]
+              # Dente 315°
+              - type: "box"
+                scale: [0.018, 0.020, 0.014]
+                translate: [0.0389, 0.010, -0.0389]
+                rotate: [0, 315, 0]
+
+          right:
+            # Foro centrale
+            type: "cylinder"
+            center: [0, -0.005, 0]
+            radius: 0.008
+            height: 0.040
+
+        right:
+          # Chiavetta (scanalatura nel foro)
+          type: "box"
+          scale: [0.004, 0.040, 0.020]
+          translate: [0.008, 0.010, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  DADO_ESAGONALE — Dado M10
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~chiave 17 mm × altezza 8 mm
+  #  Struttura:  CSG: cilindro ∩ box ∩ box(60°) ∩ box(−60°) → esagono,
+  #              meno cilindro foro, meno cono svasatura per entrambi
+  #              i lati.
+  #
+  #  Materiale default: mec_acciaio_sat
+  #
+  - name: "dado_esagonale"
+    material: "mec_acciaio_sat"
+    children:
+
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          # Profilo esagonale
+          type: "csg"
+          operation: "intersection"
+          left:
+            type: "csg"
+            operation: "intersection"
+            left:
+              type: "cylinder"
+              center: [0, 0, 0]
+              radius: 0.0098
+              height: 0.008
+            right:
+              type: "box"
+              scale: [0.022, 0.010, 0.017]
+              translate: [0, 0.004, 0]
+          right:
+            type: "csg"
+            operation: "intersection"
+            left:
+              type: "box"
+              scale: [0.022, 0.010, 0.017]
+              translate: [0, 0.004, 0]
+              rotate: [0, 60, 0]
+            right:
+              type: "box"
+              scale: [0.022, 0.010, 0.017]
+              translate: [0, 0.004, 0]
+              rotate: [0, -60, 0]
+        right:
+          # Foro + svasature
+          type: "group"
+          children:
+            # Foro passante M10
+            - type: "cylinder"
+              center: [0, -0.002, 0]
+              radius: 0.005
+              height: 0.014
+
+            # Svasatura inferiore (cono)
+            - type: "cone"
+              center: [0, -0.002, 0]
+              radius: 0.008
+              top_radius: 0.005
+              height: 0.003
+
+            # Svasatura superiore
+            - type: "cone"
+              center: [0, 0.006, 0]
+              radius: 0.005
+              top_radius: 0.008
+              height: 0.003
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  BULLONE — Bullone a testa esagonale M10×40
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: testa Ø17 × 7 mm, gambo Ø10 × 40 mm
+  #  Struttura:  Testa esagonale (CSG come il dado), gambo cilindrico,
+  #              punta conica, smusso sotto testa (torus).
+  #
+  #  Materiale default: mec_acciaio_sat
+  #
+  - name: "bullone"
+    material: "mec_acciaio_sat"
+    children:
+
+      # ── Testa esagonale (CSG) ──────────────────────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "csg"
+          operation: "intersection"
+          left:
+            type: "cylinder"
+            center: [0, 0.033, 0]
+            radius: 0.0098
+            height: 0.007
+          right:
+            type: "box"
+            scale: [0.022, 0.009, 0.017]
+            translate: [0, 0.037, 0]
+        right:
+          type: "csg"
+          operation: "intersection"
+          left:
+            type: "box"
+            scale: [0.022, 0.009, 0.017]
+            translate: [0, 0.037, 0]
+            rotate: [0, 60, 0]
+          right:
+            type: "box"
+            scale: [0.022, 0.009, 0.017]
+            translate: [0, 0.037, 0]
+            rotate: [0, -60, 0]
+
+      # Smusso sotto testa
+      - type: "torus"
+        center: [0, 0.033, 0]
+        major_radius: 0.008
+        minor_radius: 0.002
+
+      # ── Gambo ──────────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.005
+        height: 0.033
+
+      # Filetto visibile (3 anelli sottili per suggerire il passo)
+      - type: "torus"
+        center: [0, 0.008, 0]
+        major_radius: 0.0055
+        minor_radius: 0.0008
+      - type: "torus"
+        center: [0, 0.014, 0]
+        major_radius: 0.0055
+        minor_radius: 0.0008
+      - type: "torus"
+        center: [0, 0.020, 0]
+        major_radius: 0.0055
+        minor_radius: 0.0008
+
+      # ── Punta conica ───────────────────────────────────────────────────
+      - type: "cone"
+        center: [0, -0.003, 0]
+        radius: 0.005
+        top_radius: 0.0
+        height: 0.003
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  VITE_BRUGOLA — Vite a testa cilindrica con incavo esagonale
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: testa Ø16 × 10 mm, gambo Ø8 × 25 mm
+  #  Struttura:  Testa cilindrica con incavo esagonale (CSG: 3 box
+  #              intersecati sottratti dalla testa), smusso, gambo
+  #              con anelli filetto, punta.
+  #
+  #  Materiale default: mec_ossido_nero
+  #
+  - name: "vite_brugola"
+    material: "mec_ossido_nero"
+    children:
+
+      # ── Testa con incavo esagonale ─────────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cylinder"
+          center: [0, 0.025, 0]
+          radius: 0.008
+          height: 0.010
+        right:
+          # Incavo esagonale (cilindro ∩ 3 box ruotati)
+          type: "csg"
+          operation: "intersection"
+          left:
+            type: "csg"
+            operation: "intersection"
+            left:
+              type: "cylinder"
+              center: [0, 0.030, 0]
+              radius: 0.005
+              height: 0.008
+            right:
+              type: "box"
+              scale: [0.012, 0.010, 0.0087]
+              translate: [0, 0.032, 0]
+          right:
+            type: "csg"
+            operation: "intersection"
+            left:
+              type: "box"
+              scale: [0.012, 0.010, 0.0087]
+              translate: [0, 0.032, 0]
+              rotate: [0, 60, 0]
+            right:
+              type: "box"
+              scale: [0.012, 0.010, 0.0087]
+              translate: [0, 0.032, 0]
+              rotate: [0, -60, 0]
+
+      # Smusso testa (torus)
+      - type: "torus"
+        center: [0, 0.035, 0]
+        major_radius: 0.0075
+        minor_radius: 0.0015
+
+      # ── Gambo ──────────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.004
+        height: 0.025
+
+      # Anelli filetto decorativi
+      - type: "torus"
+        center: [0, 0.006, 0]
+        major_radius: 0.0045
+        minor_radius: 0.0006
+      - type: "torus"
+        center: [0, 0.010, 0]
+        major_radius: 0.0045
+        minor_radius: 0.0006
+      - type: "torus"
+        center: [0, 0.014, 0]
+        major_radius: 0.0045
+        minor_radius: 0.0006
+
+      # Punta
+      - type: "cone"
+        center: [0, -0.002, 0]
+        radius: 0.004
+        top_radius: 0.0
+        height: 0.002
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  CUSCINETTO — Cuscinetto a sfere
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.062 × 0.016 m (tipo 6206)
+  #  Struttura:  Anello esterno (CSG: cilindro − cilindro − torus per
+  #              la pista), anello interno (CSG analogo), 8 sfere
+  #              disposte sul diametro primitivo.
+  #
+  #  Materiale default: mec_acciaio (anelli)
+  #  Materiale esplicito: mec_cromo (sfere)
+  #
+  - name: "cuscinetto"
+    material: "mec_acciaio"
+    children:
+
+      # ── Anello esterno (CSG) ───────────────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cylinder"
+          center: [0, 0, 0]
+          radius: 0.031
+          height: 0.016
+        right:
+          type: "group"
+          children:
+            # Foro anello esterno
+            - type: "cylinder"
+              center: [0, -0.002, 0]
+              radius: 0.025
+              height: 0.020
+            # Pista (gola toroidale interna)
+            - type: "torus"
+              center: [0, 0.008, 0]
+              major_radius: 0.025
+              minor_radius: 0.005
+
+      # ── Anello interno (CSG) ───────────────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cylinder"
+          center: [0, 0, 0]
+          radius: 0.019
+          height: 0.016
+        right:
+          type: "group"
+          children:
+            # Foro albero
+            - type: "cylinder"
+              center: [0, -0.002, 0]
+              radius: 0.015
+              height: 0.020
+            # Pista (gola toroidale esterna)
+            - type: "torus"
+              center: [0, 0.008, 0]
+              major_radius: 0.019
+              minor_radius: 0.005
+
+      # ── 8 sfere sul diametro primitivo (Ø 0.044) ──────────────────────
+      # Raggio di posizionamento = 0.022
+      - type: "sphere"
+        center: [0.022, 0.008, 0]
+        radius: 0.004
+        material: "mec_cromo"
+      - type: "sphere"
+        center: [0.01556, 0.008, 0.01556]
+        radius: 0.004
+        material: "mec_cromo"
+      - type: "sphere"
+        center: [0, 0.008, 0.022]
+        radius: 0.004
+        material: "mec_cromo"
+      - type: "sphere"
+        center: [-0.01556, 0.008, 0.01556]
+        radius: 0.004
+        material: "mec_cromo"
+      - type: "sphere"
+        center: [-0.022, 0.008, 0]
+        radius: 0.004
+        material: "mec_cromo"
+      - type: "sphere"
+        center: [-0.01556, 0.008, -0.01556]
+        radius: 0.004
+        material: "mec_cromo"
+      - type: "sphere"
+        center: [0, 0.008, -0.022]
+        radius: 0.004
+        material: "mec_cromo"
+      - type: "sphere"
+        center: [0.01556, 0.008, -0.01556]
+        radius: 0.004
+        material: "mec_cromo"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  PISTONE — Pistone motore con spinotto
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.080 × 0.070 m
+  #  Struttura:  Corona (cilindro spesso), 3 sedi per fasce elastiche
+  #              (torus sottratti CSG), gonna (cilindro più sottile),
+  #              2 bossoli spinotto (cilindri laterali), spinotto
+  #              passante (cilindro cromato).
+  #
+  #  Materiale default: mec_alluminio
+  #  Materiale esplicito: mec_acciaio (spinotto)
+  #
+  - name: "pistone"
+    material: "mec_alluminio"
+    children:
+
+      # Corpo del pistone con sedi fasce (CSG)
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "group"
+          children:
+            # Corona (parte superiore spessa)
+            - type: "cylinder"
+              center: [0, 0.045, 0]
+              radius: 0.040
+              height: 0.025
+
+            # Gonna (parte inferiore più leggera)
+            - type: "cylinder"
+              center: [0, 0, 0]
+              radius: 0.039
+              height: 0.045
+
+            # Bossolo spinotto sinistro
+            - type: "cylinder"
+              center: [-0.022, 0.018, 0]
+              radius: 0.012
+              height: 0.022
+
+            # Bossolo spinotto destro
+            - type: "cylinder"
+              center: [0.022, 0.018, 0]
+              radius: 0.012
+              height: 0.022
+
+        right:
+          type: "group"
+          children:
+            # Sede 1ª fascia (compressione)
+            - type: "torus"
+              center: [0, 0.062, 0]
+              major_radius: 0.039
+              minor_radius: 0.0025
+
+            # Sede 2ª fascia (compressione)
+            - type: "torus"
+              center: [0, 0.055, 0]
+              major_radius: 0.039
+              minor_radius: 0.0025
+
+            # Sede 3ª fascia (raschiaolio)
+            - type: "torus"
+              center: [0, 0.048, 0]
+              major_radius: 0.039
+              minor_radius: 0.003
+
+            # Foro spinotto passante
+            - type: "cylinder"
+              center: [0, 0.018, 0]
+              radius: 0.007
+              height: 0.090
+              rotate: [0, 0, 90]
+
+      # ── Spinotto ───────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.018, 0]
+        radius: 0.0068
+        height: 0.070
+        rotate: [0, 0, 90]
+        material: "mec_acciaio"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  VALVOLA — Valvola a saracinesca con volantino
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~0.18 × 0.30 m
+  #  Struttura:  Corpo sferico (sfera schiacciata), 2 flange laterali
+  #              (cilindri), bonnet (cilindro superiore), premistoppa
+  #              (torus), stelo (cilindro lungo), volantino (torus +
+  #              4 raggi + mozzo), foro passante (CSG).
+  #
+  #  Materiale default: mec_ghisa (corpo)
+  #  Materiali espliciti: mec_acciaio (stelo), mec_rosso (volantino)
+  #
+  - name: "valvola"
+    material: "mec_ghisa"
+    children:
+
+      # ── Corpo (sfera schiacciata con foro passante CSG) ────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "sphere"
+          center: [0, 0.06, 0]
+          radius: 0.055
+          scale: [1.2, 0.90, 1.0]
+        right:
+          # Foro passante orizzontale (asse Z)
+          type: "cylinder"
+          center: [0, 0.06, 0]
+          radius: 0.022
+          height: 0.20
+          rotate: [90, 0, 0]
+
+      # ── Flangia sinistra ───────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.06, -0.06]
+        radius: 0.042
+        height: 0.014
+        rotate: [90, 0, 0]
+
+      - type: "torus"
+        center: [0, 0.06, -0.067]
+        major_radius: 0.040
+        minor_radius: 0.005
+        rotate: [90, 0, 0]
+
+      # ── Flangia destra ─────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.06, 0.06]
+        radius: 0.042
+        height: 0.014
+        rotate: [90, 0, 0]
+
+      - type: "torus"
+        center: [0, 0.06, 0.067]
+        major_radius: 0.040
+        minor_radius: 0.005
+        rotate: [90, 0, 0]
+
+      # ── Bonnet (cappello superiore) ────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.10, 0]
+        radius: 0.028
+        height: 0.04
+
+      - type: "torus"
+        center: [0, 0.10, 0]
+        major_radius: 0.030
+        minor_radius: 0.006
+
+      # Premistoppa (dado esagonale approssimato con cilindro)
+      - type: "cylinder"
+        center: [0, 0.14, 0]
+        radius: 0.018
+        height: 0.012
+
+      - type: "torus"
+        center: [0, 0.14, 0]
+        major_radius: 0.020
+        minor_radius: 0.004
+
+      # ── Stelo ──────────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.152, 0]
+        radius: 0.005
+        height: 0.10
+        material: "mec_acciaio"
+
+      # ── Volantino ──────────────────────────────────────────────────────
+      # Anello principale
+      - type: "torus"
+        center: [0, 0.26, 0]
+        major_radius: 0.040
+        minor_radius: 0.006
+        material: "mec_rosso"
+
+      # 4 raggi
+      - type: "cylinder"
+        center: [0.020, 0.26, 0]
+        radius: 0.004
+        height: 0.040
+        rotate: [0, 0, 90]
+        material: "mec_rosso"
+      - type: "cylinder"
+        center: [-0.020, 0.26, 0]
+        radius: 0.004
+        height: 0.040
+        rotate: [0, 0, 90]
+        material: "mec_rosso"
+      - type: "cylinder"
+        center: [0, 0.26, 0.020]
+        radius: 0.004
+        height: 0.040
+        rotate: [90, 0, 0]
+        material: "mec_rosso"
+      - type: "cylinder"
+        center: [0, 0.26, -0.020]
+        radius: 0.004
+        height: 0.040
+        rotate: [90, 0, 0]
+        material: "mec_rosso"
+
+      # Mozzo volantino
+      - type: "cylinder"
+        center: [0, 0.255, 0]
+        radius: 0.010
+        height: 0.010
+        material: "mec_rosso"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  FLANGIA — Flangia cieca con 6 fori
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.16 × 0.022 m
+  #  Struttura:  Disco pieno, raised face (rialzo centrale), 6 fori
+  #              passanti disposti a 60° sul cerchio viti (CSG), foro
+  #              centrale (CSG).
+  #
+  #  Materiale default: mec_acciaio_sat
+  #
+  - name: "flangia"
+    material: "mec_acciaio_sat"
+    children:
+
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "group"
+          children:
+            # Disco principale
+            - type: "cylinder"
+              center: [0, 0, 0]
+              radius: 0.080
+              height: 0.018
+
+            # Raised face (rialzo centrale)
+            - type: "cylinder"
+              center: [0, 0.018, 0]
+              radius: 0.050
+              height: 0.004
+
+            # Bordo torus
+            - type: "torus"
+              center: [0, 0.018, 0]
+              major_radius: 0.077
+              minor_radius: 0.005
+
+        right:
+          type: "group"
+          children:
+            # Foro centrale
+            - type: "cylinder"
+              center: [0, -0.004, 0]
+              radius: 0.025
+              height: 0.030
+
+            # 6 fori passanti sul cerchio R=0.060 a 60°
+            - type: "cylinder"
+              center: [0.060, -0.004, 0]
+              radius: 0.007
+              height: 0.030
+            - type: "cylinder"
+              center: [0.030, -0.004, 0.0520]
+              radius: 0.007
+              height: 0.030
+            - type: "cylinder"
+              center: [-0.030, -0.004, 0.0520]
+              radius: 0.007
+              height: 0.030
+            - type: "cylinder"
+              center: [-0.060, -0.004, 0]
+              radius: 0.007
+              height: 0.030
+            - type: "cylinder"
+              center: [-0.030, -0.004, -0.0520]
+              radius: 0.007
+              height: 0.030
+            - type: "cylinder"
+              center: [0.030, -0.004, -0.0520]
+              radius: 0.007
+              height: 0.030
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  PULEGGIA — Puleggia a gola trapezoidale
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.12 × 0.030 m
+  #  Struttura:  Disco, gola a V (torus sottratto dal bordo), mozzo
+  #              rialzato, foro con chiavetta (CSG).
+  #
+  #  Materiale default: mec_ghisa
+  #
+  - name: "puleggia"
+    material: "mec_ghisa"
+    children:
+
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "group"
+          children:
+            # Disco
+            - type: "cylinder"
+              center: [0, 0, 0]
+              radius: 0.060
+              height: 0.028
+
+            # Fianchi della gola (bordi rialzati)
+            - type: "torus"
+              center: [0, 0.003, 0]
+              major_radius: 0.058
+              minor_radius: 0.005
+            - type: "torus"
+              center: [0, 0.025, 0]
+              major_radius: 0.058
+              minor_radius: 0.005
+
+            # Mozzo
+            - type: "cylinder"
+              center: [0, 0, 0]
+              radius: 0.020
+              height: 0.030
+
+        right:
+          type: "group"
+          children:
+            # Gola a V (torus grande che incide il bordo)
+            - type: "torus"
+              center: [0, 0.014, 0]
+              major_radius: 0.058
+              minor_radius: 0.010
+
+            # Foro albero
+            - type: "cylinder"
+              center: [0, -0.004, 0]
+              radius: 0.010
+              height: 0.040
+
+            # Chiavetta
+            - type: "box"
+              scale: [0.004, 0.040, 0.016]
+              translate: [0.010, 0.014, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  MOLLA — Molla elicoidale a compressione
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.04 × 0.10 m (6 spire attive)
+  #  Struttura:  Spire approssimate con 6 torus impilati, ciascuno
+  #              con leggero offset su X per suggerire l'andamento
+  #              elicoidale. Spire terminali piane (appiattite).
+  #
+  #  Materiale default: mec_acciaio
+  #
+  - name: "molla"
+    material: "mec_acciaio"
+    children:
+
+      # Spira terminale inferiore (piatta, appoggio)
+      - type: "torus"
+        center: [0, 0.004, 0]
+        major_radius: 0.018
+        minor_radius: 0.003
+        scale: [1.0, 0.40, 1.0]
+
+      # Spira 1
+      - type: "torus"
+        center: [0.002, 0.016, 0]
+        major_radius: 0.018
+        minor_radius: 0.003
+
+      # Spira 2
+      - type: "torus"
+        center: [-0.002, 0.032, 0]
+        major_radius: 0.018
+        minor_radius: 0.003
+
+      # Spira 3
+      - type: "torus"
+        center: [0.002, 0.048, 0]
+        major_radius: 0.018
+        minor_radius: 0.003
+
+      # Spira 4
+      - type: "torus"
+        center: [-0.002, 0.064, 0]
+        major_radius: 0.018
+        minor_radius: 0.003
+
+      # Spira 5
+      - type: "torus"
+        center: [0.002, 0.080, 0]
+        major_radius: 0.018
+        minor_radius: 0.003
+
+      # Spira 6
+      - type: "torus"
+        center: [-0.002, 0.096, 0]
+        major_radius: 0.018
+        minor_radius: 0.003
+
+      # Spira terminale superiore (piatta)
+      - type: "torus"
+        center: [0, 0.108, 0]
+        major_radius: 0.018
+        minor_radius: 0.003
+        scale: [1.0, 0.40, 1.0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  BIELLA — Biella motore con testa e piede
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~0.02 × 0.16 m
+  #  Struttura:  Testa grande (anello per albero motore), fusto a
+  #              sezione a I (box + flanges), piede piccolo (anello
+  #              per spinotto).
+  #
+  #  Materiale default: mec_acciaio
+  #
+  - name: "biella"
+    material: "mec_acciaio"
+    children:
+
+      # ── Testa grande (occhio di biella) ────────────────────────────────
+      # Anello: cilindro − foro
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cylinder"
+          center: [0, 0, 0]
+          radius: 0.018
+          height: 0.014
+          rotate: [90, 0, 0]
+        right:
+          type: "cylinder"
+          center: [0, 0, 0]
+          radius: 0.012
+          height: 0.018
+          rotate: [90, 0, 0]
+
+      # Bulloni di biella (2 sfere suggestive)
+      - type: "sphere"
+        center: [0.016, 0, 0]
+        radius: 0.004
+      - type: "sphere"
+        center: [-0.016, 0, 0]
+        radius: 0.004
+
+      # ── Fusto a sezione I ──────────────────────────────────────────────
+      # Anima centrale (sottile)
+      - type: "box"
+        scale: [0.006, 0.12, 0.010]
+        translate: [0, 0.07, 0]
+
+      # Flangia superiore
+      - type: "box"
+        scale: [0.014, 0.12, 0.003]
+        translate: [0, 0.07, 0.0065]
+
+      # Flangia inferiore
+      - type: "box"
+        scale: [0.014, 0.12, 0.003]
+        translate: [0, 0.07, -0.0065]
+
+      # ── Piede piccolo (occhio spinotto) ────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cylinder"
+          center: [0, 0.14, 0]
+          radius: 0.012
+          height: 0.012
+          rotate: [90, 0, 0]
+        right:
+          type: "cylinder"
+          center: [0, 0.14, 0]
+          radius: 0.007
+          height: 0.016
+          rotate: [90, 0, 0]
+
+      # Boccola in bronzo nel piede
+      - type: "torus"
+        center: [0, 0.14, 0]
+        major_radius: 0.008
+        minor_radius: 0.002
+        rotate: [90, 0, 0]
+        material: "mec_bronzo_cusc"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  MANOMETRO — Manometro industriale
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.10 × 0.08 m
+  #  Struttura:  Cassa cilindrica (ghisa), anello frontale (bezel in
+  #              ottone), vetro emisferica (CSG sfera ∩ cilindro),
+  #              quadrante (disco bianco), lancetta (box sottile
+  #              nero), attacco filettato inferiore (cilindro + cono).
+  #
+  #  Materiale default: mec_ghisa (cassa)
+  #  Materiali espliciti: mec_ottone, mec_vetro, mec_bianco, mec_nero_opaco
+  #
+  - name: "manometro"
+    material: "mec_ghisa"
+    children:
+
+      # ── Cassa ──────────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.05, 0]
+        radius: 0.050
+        height: 0.025
+        rotate: [90, 0, 0]
+
+      # ── Bezel (anello frontale in ottone) ──────────────────────────────
+      - type: "torus"
+        center: [0, 0.05, -0.025]
+        major_radius: 0.048
+        minor_radius: 0.006
+        rotate: [90, 0, 0]
+        material: "mec_ottone"
+
+      # ── Vetro (emisfera CSG) ───────────────────────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        material: "mec_vetro"
+        left:
+          type: "sphere"
+          center: [0, 0.05, -0.028]
+          radius: 0.046
+        right:
+          type: "cylinder"
+          center: [0, 0.05, -0.04]
+          radius: 0.050
+          height: 0.025
+          rotate: [90, 0, 0]
+
+      # ── Quadrante (disco bianco) ───────────────────────────────────────
+      - type: "disk"
+        center: [0, 0.05, -0.020]
+        normal: [0, 0, -1]
+        radius: 0.042
+        material: "mec_bianco"
+
+      # ── Lancetta ───────────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.002, 0.036, 0.001]
+        translate: [0, 0.06, -0.022]
+        rotate: [0, 0, -35]
+        material: "mec_nero_opaco"
+
+      # Perno centrale
+      - type: "sphere"
+        center: [0, 0.05, -0.022]
+        radius: 0.003
+        material: "mec_ossido_nero"
+
+      # ── Attacco filettato inferiore ────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.008
+        height: 0.020
+        material: "mec_ottone"
+
+      - type: "cone"
+        center: [0, 0.020, 0]
+        radius: 0.012
+        top_radius: 0.008
+        height: 0.008
+        material: "mec_ottone"
+
+      # Torus raccordo
+      - type: "torus"
+        center: [0, 0.020, 0]
+        major_radius: 0.010
+        minor_radius: 0.003
+        material: "mec_ottone"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  CILINDRO_IDRAULICO — Cilindro a doppio effetto
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.06 × 0.32 m (stelo estratto)
+  #  Struttura:  Camicia (cilindro principale), testata posteriore con
+  #              attacco a forcella (2 piastre + perno), testata
+  #              anteriore con premistoppa (torus + anello), stelo
+  #              cromato, testa stelo con forcella.
+  #
+  #  Materiale default: mec_ghisa (camicia)
+  #  Materiali espliciti: mec_cromo (stelo), mec_acciaio, mec_giallo
+  #
+  - name: "cilindro_idraulico"
+    material: "mec_ghisa"
+    children:
+
+      # ── Camicia (corpo principale) ─────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.04, 0]
+        radius: 0.030
+        height: 0.16
+        rotate: [90, 0, 0]
+
+      # Nervature esterne (2 anelli)
+      - type: "torus"
+        center: [0, 0.04, -0.04]
+        major_radius: 0.032
+        minor_radius: 0.004
+        rotate: [90, 0, 0]
+      - type: "torus"
+        center: [0, 0.04, -0.12]
+        major_radius: 0.032
+        minor_radius: 0.004
+        rotate: [90, 0, 0]
+
+      # ── Testata posteriore ─────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.04, -0.16]
+        radius: 0.034
+        height: 0.015
+        rotate: [90, 0, 0]
+
+      # Attacco a forcella posteriore
+      # Piastra sinistra
+      - type: "box"
+        scale: [0.008, 0.04, 0.020]
+        translate: [-0.018, 0.04, -0.185]
+        material: "mec_acciaio"
+      # Piastra destra
+      - type: "box"
+        scale: [0.008, 0.04, 0.020]
+        translate: [0.018, 0.04, -0.185]
+        material: "mec_acciaio"
+      # Perno
+      - type: "cylinder"
+        center: [0, 0.04, -0.185]
+        radius: 0.006
+        height: 0.044
+        rotate: [0, 0, 90]
+        material: "mec_acciaio"
+
+      # ── Testata anteriore (premistoppa) ────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.04, 0.04]
+        radius: 0.034
+        height: 0.020
+        rotate: [90, 0, 0]
+
+      - type: "torus"
+        center: [0, 0.04, 0.06]
+        major_radius: 0.032
+        minor_radius: 0.005
+        rotate: [90, 0, 0]
+
+      # O-ring (guarnizione visibile)
+      - type: "torus"
+        center: [0, 0.04, 0.055]
+        major_radius: 0.016
+        minor_radius: 0.003
+        rotate: [90, 0, 0]
+        material: "mec_gomma"
+
+      # ── Stelo cromato ──────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.04, 0.06]
+        radius: 0.014
+        height: 0.14
+        rotate: [90, 0, 0]
+        material: "mec_cromo"
+
+      # ── Testa stelo con forcella ───────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.04, 0.20]
+        radius: 0.018
+        height: 0.010
+        rotate: [90, 0, 0]
+        material: "mec_acciaio"
+
+      # Forcella anteriore
+      - type: "box"
+        scale: [0.008, 0.032, 0.018]
+        translate: [-0.016, 0.04, 0.215]
+        material: "mec_acciaio"
+      - type: "box"
+        scale: [0.008, 0.032, 0.018]
+        translate: [0.016, 0.04, 0.215]
+        material: "mec_acciaio"
+      # Perno anteriore
+      - type: "cylinder"
+        center: [0, 0.04, 0.215]
+        radius: 0.005
+        height: 0.040
+        rotate: [0, 0, 90]
+        material: "mec_acciaio"
+
+      # ── Attacchi idraulici (2 tubi laterali) ───────────────────────────
+      - type: "cylinder"
+        center: [0.034, 0.04, -0.06]
+        radius: 0.006
+        height: 0.020
+        rotate: [0, 0, 90]
+        material: "mec_acciaio"
+      - type: "cylinder"
+        center: [0.034, 0.04, 0.02]
+        radius: 0.006
+        height: 0.020
+        rotate: [0, 0, 90]
+        material: "mec_acciaio"
+
+      # Fascia gialla di sicurezza sulla camicia
+      - type: "torus"
+        center: [0, 0.04, -0.08]
+        major_radius: 0.031
+        minor_radius: 0.002
+        rotate: [90, 0, 0]
+        material: "mec_giallo"
+      - type: "torus"
+        center: [0, 0.04, -0.085]
+        major_radius: 0.031
+        minor_radius: 0.002
+        rotate: [90, 0, 0]
+        material: "mec_giallo"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  GIUNTO_FLANGIATO — Giunto rigido a flange con 4 bulloni
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.10 × 0.06 m
+  #  Struttura:  2 semiflange (cilindri) unite, mozzo centrale
+  #              passante (CSG), 4 bulloni (cilindro + sfera testa)
+  #              disposti a 90°.
+  #
+  #  Materiale default: mec_acciaio_sat
+  #
+  - name: "giunto_flangiato"
+    material: "mec_acciaio_sat"
+    children:
+
+      # ── Semiflangia sinistra ───────────────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "group"
+          children:
+            - type: "cylinder"
+              center: [0, 0, 0]
+              radius: 0.050
+              height: 0.015
+            # Mozzo
+            - type: "cylinder"
+              center: [0, 0.015, 0]
+              radius: 0.025
+              height: 0.015
+        right:
+          # Foro albero
+          type: "cylinder"
+          center: [0, -0.004, 0]
+          radius: 0.015
+          height: 0.040
+
+      # ── Semiflangia destra ─────────────────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "group"
+          children:
+            - type: "cylinder"
+              center: [0, 0.030, 0]
+              radius: 0.050
+              height: 0.015
+            - type: "cylinder"
+              center: [0, 0.015, 0]
+              radius: 0.025
+              height: 0.015
+        right:
+          type: "cylinder"
+          center: [0, 0.016, 0]
+          radius: 0.015
+          height: 0.040
+
+      # ── 4 bulloni a 90° sul cerchio R=0.038 ───────────────────────────
+      # Bullone 1 (0°)
+      - type: "cylinder"
+        center: [0.038, -0.004, 0]
+        radius: 0.004
+        height: 0.053
+      - type: "sphere"
+        center: [0.038, 0.049, 0]
+        radius: 0.007
+        scale: [1.0, 0.50, 1.0]
+
+      # Bullone 2 (90°)
+      - type: "cylinder"
+        center: [0, -0.004, 0.038]
+        radius: 0.004
+        height: 0.053
+      - type: "sphere"
+        center: [0, 0.049, 0.038]
+        radius: 0.007
+        scale: [1.0, 0.50, 1.0]
+
+      # Bullone 3 (180°)
+      - type: "cylinder"
+        center: [-0.038, -0.004, 0]
+        radius: 0.004
+        height: 0.053
+      - type: "sphere"
+        center: [-0.038, 0.049, 0]
+        radius: 0.007
+        scale: [1.0, 0.50, 1.0]
+
+      # Bullone 4 (270°)
+      - type: "cylinder"
+        center: [0, -0.004, -0.038]
+        radius: 0.004
+        height: 0.053
+      - type: "sphere"
+        center: [0, 0.049, -0.038]
+        radius: 0.007
+        scale: [1.0, 0.50, 1.0]
+
+      # Linea di giunzione (torus sottile)
+      - type: "torus"
+        center: [0, 0.023, 0]
+        major_radius: 0.051
+        minor_radius: 0.002

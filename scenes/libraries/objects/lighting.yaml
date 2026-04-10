@@ -1,0 +1,1459 @@
+# ============================================================================
+# Libreria Oggetti — Illuminazione (Lighting Fixtures)
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/lighting.yaml" }]
+#
+# Apparecchi di illuminazione per interni ed esterni: lampadari,
+# applique, faretti, lampioni, lanterne, neon. Ogni pezzo include
+# almeno una sorgente emissiva che partecipa alla NEE come
+# GeometryLight, illuminando effettivamente la scena.
+#
+# ── Note sull'illuminazione ──────────────────────────────────────────────
+#
+#   I materiali emissivi (lit_*) sono calibrati per scene con
+#   ambient_light basso o nullo. Ogni fixture emette luce reale:
+#   le sfere emissive partecipano alla NEE. Per scene con HDRI o
+#   sole forte, abbassare l'intensity ridefinendo il materiale
+#   localmente.
+#
+# ── Convenzioni ──────────────────────────────────────────────────────────
+#
+#   ORIGINE       Centro di montaggio. Per i pendenti: punto di
+#                 attacco al soffitto a Y=0, l'apparecchio pende
+#                 verso Y negativo. Per applique: piastra a Z=0,
+#                 sporge verso Z negativo. Per lampioni: base a Y=0.
+#   SCALA         Unità = metri.
+#
+# ── Catalogo template ────────────────────────────────────────────────────
+#
+#   LAMPADARIO_CLASSICO     Lampadario a 6 bracci con candele,
+#                           gocce di cristallo e corona.
+#                           ~Ø 0.60 × 0.55 m.
+#
+#   SOSPENSIONE_SFERA       Lampada a sospensione con globo in
+#                           vetro opalino e rosone. ~Ø 0.30 × 0.50 m.
+#
+#   SOSPENSIONE_INDUSTRIALE Pendente con paralume a campana in
+#                           metallo e lampadina a vista.
+#                           ~Ø 0.35 × 0.45 m.
+#
+#   SOSPENSIONE_TIFFANY     Pendente con cupola a segmenti di
+#                           vetro colorato (stile Tiffany).
+#                           ~Ø 0.40 × 0.45 m.
+#
+#   APPLIQUE_CLASSICA       Applique da muro con braccio curvo,
+#                           paralume conico e piastra decorata.
+#                           ~0.16 × 0.30 × 0.22 m.
+#
+#   APPLIQUE_MODERNA        Applique up/down a LED con corpo
+#                           rettangolare e 2 fessure emissive.
+#                           ~0.08 × 0.18 × 0.10 m.
+#
+#   PLAFONIERA              Plafoniera a soffitto con cupola in
+#                           vetro opalino e base in cromo.
+#                           ~Ø 0.35 × 0.12 m.
+#
+#   FARETTO                 Faretto orientabile su supporto a
+#                           giunto sferico con ghiera e LED.
+#                           ~Ø 0.10 × 0.18 m.
+#
+#   LAMPIONE_CLASSICO       Lampione vittoriano a 3 lanterne su
+#                           palo rastremato con base decorata.
+#                           ~Ø 0.60 × 3.50 m.
+#
+#   LAMPIONE_MODERNO        Lampione stradale moderno con palo
+#                           conico e pannello LED inclinato.
+#                           ~0.40 × 4.50 m.
+#
+#   LANTERNA                Lanterna pensile esagonale con pannelli
+#                           di vetro, telaio in ferro e candela.
+#                           ~Ø 0.22 × 0.45 m.
+#
+#   NEON_ANELLO             Anello luminoso LED sospeso con cavi,
+#                           luce diffusa omogenea. ~Ø 0.50 × 0.03 m.
+#
+#   NEON_TUBO               Tubo fluorescente lineare con staffe
+#                           e riflettore. ~0.04 × 0.06 × 1.20 m.
+#
+#   TORCIA_MEDIEVALE        Torcia da muro con staffa in ferro,
+#                           manico in legno e fiamma emissiva.
+#                           ~0.12 × 0.45 × 0.14 m.
+#
+# ============================================================================
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALI
+# ═══════════════════════════════════════════════════════════════════════════
+
+materials:
+
+  # ── Metalli ────────────────────────────────────────────────────────────
+
+  # Ottone lucido — lampadari classici, applique
+  - id: "lit_ottone"
+    type: "disney"
+    color: [0.88, 0.70, 0.22]
+    metallic: 1.0
+    roughness: 0.10
+    specular: 0.75
+
+  # Ferro battuto — lanterne, torce, bracci
+  - id: "lit_ferro"
+    type: "disney"
+    color: [0.12, 0.11, 0.10]
+    metallic: 0.85
+    roughness: 0.60
+    specular: 0.35
+
+  # Nero opaco — faretti, binari, industriale
+  - id: "lit_nero_opaco"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    metallic: 0.80
+    roughness: 0.70
+    specular: 0.28
+
+  # Cromo lucido — faretti, plafoniere, moderno
+  - id: "lit_cromo"
+    type: "disney"
+    color: [0.95, 0.93, 0.88]
+    metallic: 1.0
+    roughness: 0.04
+    specular: 0.92
+
+  # Rame — industriale vintage
+  - id: "lit_rame"
+    type: "disney"
+    color: [0.90, 0.58, 0.46]
+    metallic: 1.0
+    roughness: 0.18
+    specular: 0.70
+
+  # Alluminio grigio — lampioni, paleria
+  - id: "lit_alluminio"
+    type: "disney"
+    color: [0.55, 0.55, 0.57]
+    metallic: 1.0
+    roughness: 0.30
+    specular: 0.60
+
+  # Ghisa verde scuro — lampioni classici
+  - id: "lit_ghisa_verde"
+    type: "disney"
+    color: [0.08, 0.14, 0.08]
+    metallic: 0.75
+    roughness: 0.65
+    specular: 0.30
+
+  # ── Vetro e diffusori ──────────────────────────────────────────────────
+
+  # Vetro opalino — diffusore bianco lattiginoso
+  - id: "lit_opalino"
+    type: "disney"
+    color: [0.95, 0.93, 0.90]
+    roughness: 0.30
+    metallic: 0.0
+    spec_trans: 0.55
+    ior: 1.50
+
+  # Vetro trasparente — lanterne, lampadari
+  - id: "lit_vetro"
+    type: "dielectric"
+    refraction_index: 1.52
+
+  # Vetro ambrato — vintage, industriale
+  - id: "lit_vetro_ambra"
+    type: "disney"
+    color: [0.90, 0.62, 0.15]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.52
+    specular: 0.78
+
+  # Vetro Tiffany rosso
+  - id: "lit_tiffany_rosso"
+    type: "disney"
+    color: [0.80, 0.10, 0.08]
+    roughness: 0.02
+    spec_trans: 0.85
+    ior: 1.52
+    specular: 0.72
+
+  # Vetro Tiffany verde
+  - id: "lit_tiffany_verde"
+    type: "disney"
+    color: [0.10, 0.60, 0.18]
+    roughness: 0.02
+    spec_trans: 0.85
+    ior: 1.52
+    specular: 0.72
+
+  # Vetro Tiffany ambra
+  - id: "lit_tiffany_ambra"
+    type: "disney"
+    color: [0.88, 0.68, 0.12]
+    roughness: 0.02
+    spec_trans: 0.85
+    ior: 1.52
+    specular: 0.72
+
+  # ── Paralume tessuto ───────────────────────────────────────────────────
+
+  # Tessuto panna — paralume classico
+  - id: "lit_paralume"
+    type: "disney"
+    color: [0.88, 0.82, 0.70]
+    roughness: 0.92
+    metallic: 0.0
+    spec_trans: 0.12
+    ior: 1.35
+
+  # ── Legno ──────────────────────────────────────────────────────────────
+
+  # Legno torcia — grezzo, scuro
+  - id: "lit_legno_grezzo"
+    type: "lambertian"
+    color: [0.22, 0.14, 0.08]
+
+  # ── Emissivi ───────────────────────────────────────────────────────────
+
+  # Lampadina calda — 2700K (classica a filamento)
+  - id: "lit_bulb_caldo"
+    type: "emissive"
+    color: [1.0, 0.82, 0.55]
+    intensity: 15.0
+
+  # LED bianco neutro — 4000K
+  - id: "lit_led_neutro"
+    type: "emissive"
+    color: [1.0, 0.95, 0.88]
+    intensity: 18.0
+
+  # LED bianco freddo — 6500K
+  - id: "lit_led_freddo"
+    type: "emissive"
+    color: [0.88, 0.92, 1.0]
+    intensity: 20.0
+
+  # Fiamma — torce, candele
+  - id: "lit_fiamma"
+    type: "emissive"
+    color: [1.0, 0.70, 0.25]
+    intensity: 8.0
+
+  # Neon bianco caldo
+  - id: "lit_neon_caldo"
+    type: "emissive"
+    color: [1.0, 0.90, 0.72]
+    intensity: 10.0
+
+  # Neon fluorescente — luce da ufficio
+  - id: "lit_fluorescente"
+    type: "emissive"
+    color: [0.92, 0.98, 1.0]
+    intensity: 12.0
+
+  # Cristallo goccia — riflesso punto luce (glow debole)
+  - id: "lit_cristallo"
+    type: "dielectric"
+    refraction_index: 1.62
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  TEMPLATES
+# ═══════════════════════════════════════════════════════════════════════════
+
+templates:
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  LAMPADARIO_CLASSICO — 6 bracci con candele e gocce
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: Y=0 = attacco al soffitto, pende verso Y negativo.
+  #  Dimensioni: ~Ø 0.60 × 0.55 m
+  #
+  - name: "lampadario_classico"
+    material: "lit_ottone"
+    children:
+
+      # ── Rosone (piatto al soffitto) ────────────────────────────────────
+      - type: "cylinder"
+        center: [0, -0.005, 0]
+        radius: 0.06
+        height: 0.010
+
+      - type: "torus"
+        center: [0, -0.010, 0]
+        major_radius: 0.055
+        minor_radius: 0.006
+
+      # ── Catena / stelo ─────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, -0.01, 0]
+        radius: 0.005
+        height: 0.15
+
+      # ── Corona superiore ───────────────────────────────────────────────
+      - type: "torus"
+        center: [0, -0.16, 0]
+        major_radius: 0.040
+        minor_radius: 0.008
+
+      # Coppa decorativa
+      - type: "cone"
+        center: [0, -0.20, 0]
+        radius: 0.008
+        top_radius: 0.045
+        height: 0.04
+
+      # ── Corpo centrale (sfere + cilindro) ──────────────────────────────
+      - type: "sphere"
+        center: [0, -0.22, 0]
+        radius: 0.035
+
+      - type: "cylinder"
+        center: [0, -0.22, 0]
+        radius: 0.010
+        height: 0.08
+
+      - type: "sphere"
+        center: [0, -0.30, 0]
+        radius: 0.025
+
+      # Pendente inferiore (goccia)
+      - type: "cone"
+        center: [0, -0.35, 0]
+        radius: 0.015
+        top_radius: 0.0
+        height: 0.030
+        material: "lit_cristallo"
+
+      # ── 6 bracci a 60° con candela ────────────────────────────────────
+
+      # Braccio 1 (0°, direzione X+)
+      - type: "cylinder"
+        center: [0.08, -0.24, 0]
+        radius: 0.005
+        height: 0.16
+        rotate: [0, 0, 90]
+      - type: "sphere"
+        center: [0.16, -0.24, 0]
+        radius: 0.007
+      - type: "cylinder"
+        center: [0.22, -0.24, 0]
+        radius: 0.005
+        height: 0.04
+      # Piattino portacandela
+      - type: "cylinder"
+        center: [0.22, -0.20, 0]
+        radius: 0.016
+        height: 0.005
+      - type: "torus"
+        center: [0.22, -0.195, 0]
+        major_radius: 0.016
+        minor_radius: 0.003
+      # Candela (cilindro emissivo)
+      - type: "cylinder"
+        center: [0.22, -0.195, 0]
+        radius: 0.006
+        height: 0.05
+        material: "lit_bulb_caldo"
+
+      # Braccio 2 (60°)
+      - type: "cylinder"
+        center: [0.04, -0.24, 0.0693]
+        radius: 0.005
+        height: 0.16
+        rotate: [30, 0, 90]
+      - type: "sphere"
+        center: [0.08, -0.24, 0.1386]
+        radius: 0.007
+      - type: "cylinder"
+        center: [0.11, -0.24, 0.1905]
+        radius: 0.005
+        height: 0.04
+      - type: "cylinder"
+        center: [0.11, -0.20, 0.1905]
+        radius: 0.016
+        height: 0.005
+      - type: "torus"
+        center: [0.11, -0.195, 0.1905]
+        major_radius: 0.016
+        minor_radius: 0.003
+      - type: "cylinder"
+        center: [0.11, -0.195, 0.1905]
+        radius: 0.006
+        height: 0.05
+        material: "lit_bulb_caldo"
+
+      # Braccio 3 (120°)
+      - type: "cylinder"
+        center: [-0.04, -0.24, 0.0693]
+        radius: 0.005
+        height: 0.16
+        rotate: [30, 0, -90]
+      - type: "sphere"
+        center: [-0.08, -0.24, 0.1386]
+        radius: 0.007
+      - type: "cylinder"
+        center: [-0.11, -0.24, 0.1905]
+        radius: 0.005
+        height: 0.04
+      - type: "cylinder"
+        center: [-0.11, -0.20, 0.1905]
+        radius: 0.016
+        height: 0.005
+      - type: "torus"
+        center: [-0.11, -0.195, 0.1905]
+        major_radius: 0.016
+        minor_radius: 0.003
+      - type: "cylinder"
+        center: [-0.11, -0.195, 0.1905]
+        radius: 0.006
+        height: 0.05
+        material: "lit_bulb_caldo"
+
+      # Braccio 4 (180°)
+      - type: "cylinder"
+        center: [-0.08, -0.24, 0]
+        radius: 0.005
+        height: 0.16
+        rotate: [0, 0, -90]
+      - type: "sphere"
+        center: [-0.16, -0.24, 0]
+        radius: 0.007
+      - type: "cylinder"
+        center: [-0.22, -0.24, 0]
+        radius: 0.005
+        height: 0.04
+      - type: "cylinder"
+        center: [-0.22, -0.20, 0]
+        radius: 0.016
+        height: 0.005
+      - type: "torus"
+        center: [-0.22, -0.195, 0]
+        major_radius: 0.016
+        minor_radius: 0.003
+      - type: "cylinder"
+        center: [-0.22, -0.195, 0]
+        radius: 0.006
+        height: 0.05
+        material: "lit_bulb_caldo"
+
+      # Braccio 5 (240°)
+      - type: "cylinder"
+        center: [-0.04, -0.24, -0.0693]
+        radius: 0.005
+        height: 0.16
+        rotate: [-30, 0, -90]
+      - type: "sphere"
+        center: [-0.08, -0.24, -0.1386]
+        radius: 0.007
+      - type: "cylinder"
+        center: [-0.11, -0.24, -0.1905]
+        radius: 0.005
+        height: 0.04
+      - type: "cylinder"
+        center: [-0.11, -0.20, -0.1905]
+        radius: 0.016
+        height: 0.005
+      - type: "torus"
+        center: [-0.11, -0.195, -0.1905]
+        major_radius: 0.016
+        minor_radius: 0.003
+      - type: "cylinder"
+        center: [-0.11, -0.195, -0.1905]
+        radius: 0.006
+        height: 0.05
+        material: "lit_bulb_caldo"
+
+      # Braccio 6 (300°)
+      - type: "cylinder"
+        center: [0.04, -0.24, -0.0693]
+        radius: 0.005
+        height: 0.16
+        rotate: [-30, 0, 90]
+      - type: "sphere"
+        center: [0.08, -0.24, -0.1386]
+        radius: 0.007
+      - type: "cylinder"
+        center: [0.11, -0.24, -0.1905]
+        radius: 0.005
+        height: 0.04
+      - type: "cylinder"
+        center: [0.11, -0.20, -0.1905]
+        radius: 0.016
+        height: 0.005
+      - type: "torus"
+        center: [0.11, -0.195, -0.1905]
+        major_radius: 0.016
+        minor_radius: 0.003
+      - type: "cylinder"
+        center: [0.11, -0.195, -0.1905]
+        radius: 0.006
+        height: 0.05
+        material: "lit_bulb_caldo"
+
+      # ── Gocce di cristallo (6 pendenti dalla corona) ───────────────────
+      - type: "sphere"
+        center: [0.040, -0.18, 0]
+        radius: 0.006
+        scale: [0.6, 1.4, 0.6]
+        material: "lit_cristallo"
+      - type: "sphere"
+        center: [-0.040, -0.18, 0]
+        radius: 0.006
+        scale: [0.6, 1.4, 0.6]
+        material: "lit_cristallo"
+      - type: "sphere"
+        center: [0.020, -0.18, 0.0346]
+        radius: 0.006
+        scale: [0.6, 1.4, 0.6]
+        material: "lit_cristallo"
+      - type: "sphere"
+        center: [-0.020, -0.18, 0.0346]
+        radius: 0.006
+        scale: [0.6, 1.4, 0.6]
+        material: "lit_cristallo"
+      - type: "sphere"
+        center: [0.020, -0.18, -0.0346]
+        radius: 0.006
+        scale: [0.6, 1.4, 0.6]
+        material: "lit_cristallo"
+      - type: "sphere"
+        center: [-0.020, -0.18, -0.0346]
+        radius: 0.006
+        scale: [0.6, 1.4, 0.6]
+        material: "lit_cristallo"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  SOSPENSIONE_SFERA — Globo opalino pendente
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: Y=0 = soffitto, pende verso Y negativo.
+  #  Dimensioni: ~Ø 0.30 × 0.50 m
+  #
+  - name: "sospensione_sfera"
+    material: "lit_cromo"
+    children:
+
+      # Rosone
+      - type: "cylinder"
+        center: [0, -0.004, 0]
+        radius: 0.05
+        height: 0.008
+
+      # Cavo/stelo
+      - type: "cylinder"
+        center: [0, -0.008, 0]
+        radius: 0.003
+        height: 0.18
+
+      # Portalampada (raccordo stelo-globo)
+      - type: "cylinder"
+        center: [0, -0.19, 0]
+        radius: 0.012
+        height: 0.020
+
+      - type: "torus"
+        center: [0, -0.21, 0]
+        major_radius: 0.014
+        minor_radius: 0.004
+
+      # Globo opalino
+      - type: "sphere"
+        center: [0, -0.36, 0]
+        radius: 0.15
+        material: "lit_opalino"
+
+      # Lampadina interna
+      - type: "sphere"
+        center: [0, -0.32, 0]
+        radius: 0.04
+        material: "lit_bulb_caldo"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  SOSPENSIONE_INDUSTRIALE — Pendente a campana metallica
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: Y=0 = soffitto.
+  #  Dimensioni: ~Ø 0.35 × 0.45 m
+  #
+  - name: "sospensione_industriale"
+    material: "lit_nero_opaco"
+    children:
+
+      # Rosone
+      - type: "cylinder"
+        center: [0, -0.004, 0]
+        radius: 0.04
+        height: 0.008
+
+      # Cavo
+      - type: "cylinder"
+        center: [0, -0.008, 0]
+        radius: 0.004
+        height: 0.15
+
+      # Raccordo
+      - type: "cone"
+        center: [0, -0.16, 0]
+        radius: 0.006
+        top_radius: 0.016
+        height: 0.015
+
+      # Paralume a campana (CSG cono tronco cavo)
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cone"
+          center: [0, -0.36, 0]
+          radius: 0.175
+          top_radius: 0.020
+          height: 0.20
+        right:
+          type: "cone"
+          center: [0, -0.365, 0]
+          radius: 0.170
+          top_radius: 0.016
+          height: 0.21
+
+      # Bordo inferiore (torus)
+      - type: "torus"
+        center: [0, -0.36, 0]
+        major_radius: 0.172
+        minor_radius: 0.006
+
+      # Portalampada interno
+      - type: "cylinder"
+        center: [0, -0.20, 0]
+        radius: 0.008
+        height: 0.03
+        material: "lit_ottone"
+
+      # Lampadina a vista (sfera emissiva)
+      - type: "sphere"
+        center: [0, -0.28, 0]
+        radius: 0.035
+        material: "lit_bulb_caldo"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  SOSPENSIONE_TIFFANY — Cupola a vetri colorati
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: Y=0 = soffitto.
+  #  Dimensioni: ~Ø 0.40 × 0.45 m
+  #
+  - name: "sospensione_tiffany"
+    material: "lit_ottone"
+    children:
+
+      # Rosone
+      - type: "cylinder"
+        center: [0, -0.004, 0]
+        radius: 0.04
+        height: 0.008
+
+      # 3 catenelle
+      - type: "cylinder"
+        center: [0.05, -0.008, 0]
+        radius: 0.002
+        height: 0.12
+      - type: "cylinder"
+        center: [-0.025, -0.008, 0.0433]
+        radius: 0.002
+        height: 0.12
+      - type: "cylinder"
+        center: [-0.025, -0.008, -0.0433]
+        radius: 0.002
+        height: 0.12
+
+      # Corona di raccordo
+      - type: "torus"
+        center: [0, -0.13, 0]
+        major_radius: 0.050
+        minor_radius: 0.005
+
+      # Cupola emisferica in vetro colorato (CSG: sfera cava ∩ cilindro)
+      # La cupola è composta da 3 fasce colorate (intersezioni con box)
+
+      # Fascia centrale (ambra) — la più grande
+      - type: "csg"
+        operation: "intersection"
+        material: "lit_tiffany_ambra"
+        left:
+          type: "csg"
+          operation: "subtraction"
+          left:
+            type: "sphere"
+            center: [0, -0.13, 0]
+            radius: 0.20
+          right:
+            type: "sphere"
+            center: [0, -0.13, 0]
+            radius: 0.19
+        right:
+          type: "box"
+          scale: [0.50, 0.12, 0.50]
+          translate: [0, -0.22, 0]
+
+      # Fascia superiore (verde)
+      - type: "csg"
+        operation: "intersection"
+        material: "lit_tiffany_verde"
+        left:
+          type: "csg"
+          operation: "subtraction"
+          left:
+            type: "sphere"
+            center: [0, -0.13, 0]
+            radius: 0.20
+          right:
+            type: "sphere"
+            center: [0, -0.13, 0]
+            radius: 0.19
+        right:
+          type: "box"
+          scale: [0.50, 0.06, 0.50]
+          translate: [0, -0.14, 0]
+
+      # Fascia inferiore (rossa)
+      - type: "csg"
+        operation: "intersection"
+        material: "lit_tiffany_rosso"
+        left:
+          type: "csg"
+          operation: "subtraction"
+          left:
+            type: "sphere"
+            center: [0, -0.13, 0]
+            radius: 0.20
+          right:
+            type: "sphere"
+            center: [0, -0.13, 0]
+            radius: 0.19
+        right:
+          type: "box"
+          scale: [0.50, 0.04, 0.50]
+          translate: [0, -0.32, 0]
+
+      # Bordo inferiore decorato (torus)
+      - type: "torus"
+        center: [0, -0.33, 0]
+        major_radius: 0.12
+        minor_radius: 0.005
+
+      # Lampadina interna
+      - type: "sphere"
+        center: [0, -0.22, 0]
+        radius: 0.04
+        material: "lit_bulb_caldo"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  APPLIQUE_CLASSICA — Applique da muro con braccio
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: Z=0 = muro, sporge verso Z negativo.
+  #  Dimensioni: ~0.16 × 0.30 × 0.22 m
+  #
+  - name: "applique_classica"
+    material: "lit_ottone"
+    children:
+
+      # Piastra a muro (ellissoide schiacciata)
+      - type: "sphere"
+        center: [0, 0.15, -0.008]
+        radius: 0.045
+        scale: [0.80, 1.50, 0.25]
+
+      # Braccio curvo (cilindro + sfera raccordo)
+      - type: "cylinder"
+        center: [0, 0.14, -0.04]
+        radius: 0.006
+        height: 0.08
+        rotate: [45, 0, 0]
+
+      - type: "sphere"
+        center: [0, 0.18, -0.10]
+        radius: 0.009
+
+      - type: "cylinder"
+        center: [0, 0.18, -0.10]
+        radius: 0.006
+        height: 0.06
+
+      # Portalampada
+      - type: "cylinder"
+        center: [0, 0.24, -0.10]
+        radius: 0.009
+        height: 0.012
+
+      # Paralume conico cavo (CSG)
+      - type: "csg"
+        operation: "subtraction"
+        material: "lit_paralume"
+        left:
+          type: "cone"
+          center: [0, 0.20, -0.10]
+          radius: 0.08
+          top_radius: 0.04
+          height: 0.10
+        right:
+          type: "cone"
+          center: [0, 0.195, -0.10]
+          radius: 0.075
+          top_radius: 0.036
+          height: 0.11
+
+      # Lampadina
+      - type: "sphere"
+        center: [0, 0.26, -0.10]
+        radius: 0.018
+        material: "lit_bulb_caldo"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  APPLIQUE_MODERNA — Up/down lighter rettangolare
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: Z=0 = muro.
+  #  Dimensioni: ~0.08 × 0.18 × 0.10 m
+  #
+  - name: "applique_moderna"
+    material: "lit_alluminio"
+    children:
+
+      # Corpo rettangolare
+      - type: "box"
+        scale: [0.075, 0.16, 0.08]
+        translate: [0, 0.09, -0.04]
+
+      # Fessura emissiva superiore (luce verso l'alto)
+      - type: "box"
+        scale: [0.065, 0.008, 0.06]
+        translate: [0, 0.172, -0.035]
+        material: "lit_led_neutro"
+
+      # Fessura emissiva inferiore (luce verso il basso)
+      - type: "box"
+        scale: [0.065, 0.008, 0.06]
+        translate: [0, 0.008, -0.035]
+        material: "lit_led_neutro"
+
+      # Piastra a muro
+      - type: "box"
+        scale: [0.060, 0.12, 0.005]
+        translate: [0, 0.09, -0.002]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  PLAFONIERA — Flush mount a cupola opalina
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: Y=0 = soffitto, pende leggermente.
+  #  Dimensioni: ~Ø 0.35 × 0.12 m
+  #
+  - name: "plafoniera"
+    material: "lit_cromo"
+    children:
+
+      # Base (disco al soffitto)
+      - type: "cylinder"
+        center: [0, -0.004, 0]
+        radius: 0.16
+        height: 0.008
+
+      # Bordo decorativo
+      - type: "torus"
+        center: [0, -0.008, 0]
+        major_radius: 0.155
+        minor_radius: 0.006
+
+      # Cupola opalina (CSG: emisfera cava)
+      - type: "csg"
+        operation: "intersection"
+        material: "lit_opalino"
+        left:
+          type: "csg"
+          operation: "subtraction"
+          left:
+            type: "sphere"
+            center: [0, -0.01, 0]
+            radius: 0.16
+          right:
+            type: "sphere"
+            center: [0, -0.01, 0]
+            radius: 0.15
+        right:
+          # Solo la metà inferiore
+          type: "cylinder"
+          center: [0, -0.10, 0]
+          radius: 0.18
+          height: 0.12
+
+      # Sorgente LED interna
+      - type: "disk"
+        center: [0, -0.015, 0]
+        normal: [0, -1, 0]
+        radius: 0.12
+        material: "lit_led_neutro"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  FARETTO — Faretto orientabile su supporto
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: Y=0 = soffitto/binario.
+  #  Dimensioni: ~Ø 0.10 × 0.18 m
+  #
+  - name: "faretto"
+    material: "lit_nero_opaco"
+    children:
+
+      # Piastra di fissaggio
+      - type: "cylinder"
+        center: [0, -0.003, 0]
+        radius: 0.025
+        height: 0.006
+
+      # Stelo corto
+      - type: "cylinder"
+        center: [0, -0.006, 0]
+        radius: 0.006
+        height: 0.04
+
+      # Giunto sferico (snodo)
+      - type: "sphere"
+        center: [0, -0.05, 0]
+        radius: 0.012
+
+      # Corpo faretto (cono tronco inclinato)
+      - type: "cone"
+        center: [0, -0.06, -0.02]
+        radius: 0.025
+        top_radius: 0.045
+        height: 0.10
+        rotate: [15, 0, 0]
+
+      # Ghiera frontale
+      - type: "torus"
+        center: [0, -0.085, -0.046]
+        major_radius: 0.043
+        minor_radius: 0.005
+        rotate: [15, 0, 0]
+        material: "lit_cromo"
+
+      # LED (disco emissivo nella ghiera)
+      - type: "disk"
+        center: [0, -0.085, -0.048]
+        normal: [0, -0.26, -0.97]
+        radius: 0.038
+        material: "lit_led_freddo"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  LAMPIONE_CLASSICO — Lampione vittoriano a 3 lanterne
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: base a Y=0.
+  #  Dimensioni: ~Ø 0.60 × 3.50 m
+  #
+  - name: "lampione_classico"
+    material: "lit_ghisa_verde"
+    children:
+
+      # ── Base decorata ──────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.18
+        height: 0.05
+
+      - type: "torus"
+        center: [0, 0.05, 0]
+        major_radius: 0.175
+        minor_radius: 0.015
+
+      - type: "cone"
+        center: [0, 0.05, 0]
+        radius: 0.16
+        top_radius: 0.08
+        height: 0.15
+
+      - type: "torus"
+        center: [0, 0.20, 0]
+        major_radius: 0.082
+        minor_radius: 0.010
+
+      # ── Palo rastremato ────────────────────────────────────────────────
+      - type: "cone"
+        center: [0, 0.20, 0]
+        radius: 0.06
+        top_radius: 0.04
+        height: 2.50
+
+      # Anelli decorativi sul palo
+      - type: "torus"
+        center: [0, 1.0, 0]
+        major_radius: 0.048
+        minor_radius: 0.008
+      - type: "torus"
+        center: [0, 2.0, 0]
+        major_radius: 0.042
+        minor_radius: 0.008
+
+      # ── Nodo sommitale ─────────────────────────────────────────────────
+      - type: "sphere"
+        center: [0, 2.72, 0]
+        radius: 0.050
+
+      - type: "torus"
+        center: [0, 2.78, 0]
+        major_radius: 0.035
+        minor_radius: 0.008
+
+      # ── 3 bracci porta-lanterna a 120° ────────────────────────────────
+      # Braccio 1 (X+)
+      - type: "cylinder"
+        center: [0.08, 2.72, 0]
+        radius: 0.010
+        height: 0.14
+        rotate: [0, 0, 70]
+      - type: "sphere"
+        center: [0.20, 2.82, 0]
+        radius: 0.014
+
+      # Lanterna 1 (cilindro + sfera emissiva)
+      - type: "cylinder"
+        center: [0.20, 2.82, 0]
+        radius: 0.05
+        height: 0.005
+      - type: "cylinder"
+        center: [0.20, 2.82, 0]
+        radius: 0.045
+        height: 0.12
+        material: "lit_vetro_ambra"
+      - type: "cone"
+        center: [0.20, 2.94, 0]
+        radius: 0.048
+        top_radius: 0.010
+        height: 0.06
+      - type: "sphere"
+        center: [0.20, 3.005, 0]
+        radius: 0.012
+      - type: "sphere"
+        center: [0.20, 2.88, 0]
+        radius: 0.025
+        material: "lit_bulb_caldo"
+
+      # Braccio 2 (120°)
+      - type: "cylinder"
+        center: [-0.04, 2.72, 0.0693]
+        radius: 0.010
+        height: 0.14
+        rotate: [-24, 0, -60]
+      - type: "sphere"
+        center: [-0.10, 2.82, 0.1732]
+        radius: 0.014
+      - type: "cylinder"
+        center: [-0.10, 2.82, 0.1732]
+        radius: 0.05
+        height: 0.005
+      - type: "cylinder"
+        center: [-0.10, 2.82, 0.1732]
+        radius: 0.045
+        height: 0.12
+        material: "lit_vetro_ambra"
+      - type: "cone"
+        center: [-0.10, 2.94, 0.1732]
+        radius: 0.048
+        top_radius: 0.010
+        height: 0.06
+      - type: "sphere"
+        center: [-0.10, 3.005, 0.1732]
+        radius: 0.012
+      - type: "sphere"
+        center: [-0.10, 2.88, 0.1732]
+        radius: 0.025
+        material: "lit_bulb_caldo"
+
+      # Braccio 3 (240°)
+      - type: "cylinder"
+        center: [-0.04, 2.72, -0.0693]
+        radius: 0.010
+        height: 0.14
+        rotate: [24, 0, -60]
+      - type: "sphere"
+        center: [-0.10, 2.82, -0.1732]
+        radius: 0.014
+      - type: "cylinder"
+        center: [-0.10, 2.82, -0.1732]
+        radius: 0.05
+        height: 0.005
+      - type: "cylinder"
+        center: [-0.10, 2.82, -0.1732]
+        radius: 0.045
+        height: 0.12
+        material: "lit_vetro_ambra"
+      - type: "cone"
+        center: [-0.10, 2.94, -0.1732]
+        radius: 0.048
+        top_radius: 0.010
+        height: 0.06
+      - type: "sphere"
+        center: [-0.10, 3.005, -0.1732]
+        radius: 0.012
+      - type: "sphere"
+        center: [-0.10, 2.88, -0.1732]
+        radius: 0.025
+        material: "lit_bulb_caldo"
+
+      # Pinnacolo sommitale
+      - type: "cone"
+        center: [0, 2.80, 0]
+        radius: 0.012
+        top_radius: 0.0
+        height: 0.08
+      - type: "sphere"
+        center: [0, 2.88, 0]
+        radius: 0.015
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  LAMPIONE_MODERNO — Palo con pannello LED
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: base a Y=0.
+  #  Dimensioni: ~0.40 × 4.50 m
+  #
+  - name: "lampione_moderno"
+    material: "lit_alluminio"
+    children:
+
+      # Base
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.12
+        height: 0.03
+
+      # Palo conico
+      - type: "cone"
+        center: [0, 0.03, 0]
+        radius: 0.06
+        top_radius: 0.035
+        height: 3.80
+
+      # Braccio orizzontale
+      - type: "cylinder"
+        center: [0.06, 3.83, 0]
+        radius: 0.025
+        height: 0.30
+        rotate: [0, 0, 80]
+
+      # Raccordo sferico
+      - type: "sphere"
+        center: [0.30, 3.88, 0]
+        radius: 0.030
+
+      # Pannello LED (box piatto inclinato verso il basso)
+      - type: "box"
+        scale: [0.35, 0.020, 0.16]
+        translate: [0.30, 3.85, 0]
+        rotate: [5, 0, 0]
+
+      # Superficie emissiva LED (sotto il pannello)
+      - type: "box"
+        scale: [0.32, 0.004, 0.14]
+        translate: [0.30, 3.838, 0]
+        rotate: [5, 0, 0]
+        material: "lit_led_freddo"
+
+      # Visiera antiriflesso (box sottile sopra)
+      - type: "box"
+        scale: [0.36, 0.005, 0.04]
+        translate: [0.30, 3.865, -0.065]
+        rotate: [5, 0, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  LANTERNA — Lanterna pensile con pannelli vetro
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: Y=0 = gancio superiore.
+  #  Dimensioni: ~Ø 0.22 × 0.45 m
+  #
+  - name: "lanterna"
+    material: "lit_ferro"
+    children:
+
+      # Anello di sospensione
+      - type: "torus"
+        center: [0, -0.012, 0]
+        major_radius: 0.020
+        minor_radius: 0.004
+
+      # Catena corta
+      - type: "cylinder"
+        center: [0, -0.025, 0]
+        radius: 0.003
+        height: 0.04
+
+      # Cappello (cono tronco)
+      - type: "cone"
+        center: [0, -0.065, 0]
+        radius: 0.12
+        top_radius: 0.035
+        height: 0.06
+
+      # Foro di ventilazione nel cappello (torus)
+      - type: "torus"
+        center: [0, -0.065, 0]
+        major_radius: 0.035
+        minor_radius: 0.004
+
+      # ── 4 montanti verticali ──────────────────────────────────────────
+      - type: "cylinder"
+        center: [0.08, -0.125, 0.08]
+        radius: 0.004
+        height: 0.20
+      - type: "cylinder"
+        center: [-0.08, -0.125, 0.08]
+        radius: 0.004
+        height: 0.20
+      - type: "cylinder"
+        center: [0.08, -0.125, -0.08]
+        radius: 0.004
+        height: 0.20
+      - type: "cylinder"
+        center: [-0.08, -0.125, -0.08]
+        radius: 0.004
+        height: 0.20
+
+      # ── 4 pannelli in vetro ────────────────────────────────────────────
+      # Frontale
+      - type: "box"
+        scale: [0.14, 0.17, 0.003]
+        translate: [0, -0.21, -0.082]
+        material: "lit_vetro_ambra"
+      # Posteriore
+      - type: "box"
+        scale: [0.14, 0.17, 0.003]
+        translate: [0, -0.21, 0.082]
+        material: "lit_vetro_ambra"
+      # Sinistro
+      - type: "box"
+        scale: [0.003, 0.17, 0.14]
+        translate: [-0.082, -0.21, 0]
+        material: "lit_vetro_ambra"
+      # Destro
+      - type: "box"
+        scale: [0.003, 0.17, 0.14]
+        translate: [0.082, -0.21, 0]
+        material: "lit_vetro_ambra"
+
+      # Base della lanterna
+      - type: "box"
+        scale: [0.18, 0.008, 0.18]
+        translate: [0, -0.329, 0]
+
+      # Piedini decorativi (4 sfere)
+      - type: "sphere"
+        center: [0.07, -0.338, 0.07]
+        radius: 0.008
+      - type: "sphere"
+        center: [-0.07, -0.338, 0.07]
+        radius: 0.008
+      - type: "sphere"
+        center: [0.07, -0.338, -0.07]
+        radius: 0.008
+      - type: "sphere"
+        center: [-0.07, -0.338, -0.07]
+        radius: 0.008
+
+      # ── Candela interna ────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, -0.325, 0]
+        radius: 0.012
+        height: 0.10
+        material: "lit_paralume"
+
+      # Fiamma
+      - type: "sphere"
+        center: [0, -0.22, 0]
+        radius: 0.012
+        scale: [0.6, 1.6, 0.6]
+        material: "lit_fiamma"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  NEON_ANELLO — Anello luminoso LED sospeso
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: Y=0 = soffitto.
+  #  Dimensioni: ~Ø 0.50 × 0.03 m
+  #
+  - name: "neon_anello"
+    material: "lit_cromo"
+    children:
+
+      # Rosone
+      - type: "cylinder"
+        center: [0, -0.003, 0]
+        radius: 0.03
+        height: 0.006
+
+      # 3 cavi di sospensione
+      - type: "cylinder"
+        center: [0.15, -0.006, 0]
+        radius: 0.001
+        height: 0.20
+      - type: "cylinder"
+        center: [-0.075, -0.006, 0.1299]
+        radius: 0.001
+        height: 0.20
+      - type: "cylinder"
+        center: [-0.075, -0.006, -0.1299]
+        radius: 0.001
+        height: 0.20
+
+      # Anello emissivo (torus grande)
+      - type: "torus"
+        center: [0, -0.22, 0]
+        major_radius: 0.24
+        minor_radius: 0.015
+        material: "lit_neon_caldo"
+
+      # Struttura portante interna (torus metallico sottile)
+      - type: "torus"
+        center: [0, -0.22, 0]
+        major_radius: 0.24
+        minor_radius: 0.005
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  NEON_TUBO — Tubo fluorescente lineare con riflettore
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: centro del tubo, montaggio a soffitto.
+  #  Dimensioni: ~0.04 × 0.06 × 1.20 m
+  #
+  - name: "neon_tubo"
+    material: "lit_alluminio"
+    children:
+
+      # Corpo riflettore (box sottile lungo Z)
+      - type: "box"
+        scale: [0.06, 0.030, 1.20]
+        translate: [0, -0.015, 0]
+
+      # Riflettore parabolico approssimato (mezzo cilindro CSG)
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "cylinder"
+          center: [0, -0.030, 0]
+          radius: 0.028
+          height: 1.18
+          rotate: [90, 0, 0]
+        right:
+          type: "box"
+          scale: [0.06, 0.03, 1.20]
+          translate: [0, -0.045, 0]
+
+      # ── Tubo fluorescente ──────────────────────────────────────────────
+      - type: "capsule"
+        center: [0, -0.038, 0]
+        radius: 0.014
+        height: 1.14
+        rotate: [90, 0, 0]
+        material: "lit_fluorescente"
+
+      # ── Staffe di montaggio (2) ────────────────────────────────────────
+      - type: "box"
+        scale: [0.065, 0.008, 0.025]
+        translate: [0, -0.004, -0.40]
+      - type: "box"
+        scale: [0.065, 0.008, 0.025]
+        translate: [0, -0.004, 0.40]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  TORCIA_MEDIEVALE — Torcia da muro con staffa in ferro
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: Z=0 = muro, sporge verso Z negativo.
+  #  Dimensioni: ~0.12 × 0.45 × 0.14 m
+  #
+  - name: "torcia_medievale"
+    material: "lit_ferro"
+    children:
+
+      # ── Staffa a muro ─────────────────────────────────────────────────
+      # Piastra
+      - type: "box"
+        scale: [0.06, 0.08, 0.008]
+        translate: [0, 0.20, -0.004]
+
+      # Braccio orizzontale
+      - type: "cylinder"
+        center: [0, 0.22, -0.04]
+        radius: 0.008
+        height: 0.08
+        rotate: [60, 0, 0]
+
+      # Raccordo
+      - type: "sphere"
+        center: [0, 0.26, -0.10]
+        radius: 0.012
+
+      # Anello porta-torcia
+      - type: "torus"
+        center: [0, 0.26, -0.10]
+        major_radius: 0.025
+        minor_radius: 0.005
+
+      # ── Manico torcia (legno grezzo) ───────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.12, -0.10]
+        radius: 0.015
+        height: 0.28
+        material: "lit_legno_grezzo"
+
+      # Fascia di rinforzo (ferro)
+      - type: "torus"
+        center: [0, 0.20, -0.10]
+        major_radius: 0.017
+        minor_radius: 0.003
+
+      - type: "torus"
+        center: [0, 0.30, -0.10]
+        major_radius: 0.017
+        minor_radius: 0.003
+
+      # ── Testa della torcia (involucro combustibile) ────────────────────
+      # Cono tronco di stoffa/pece
+      - type: "cone"
+        center: [0, 0.36, -0.10]
+        radius: 0.025
+        top_radius: 0.018
+        height: 0.04
+        material: "lit_legno_grezzo"
+
+      # ── Fiamma (ellissoide emissiva) ───────────────────────────────────
+      - type: "sphere"
+        center: [0, 0.41, -0.10]
+        radius: 0.020
+        scale: [0.65, 1.80, 0.65]
+        material: "lit_fiamma"
+
+      # Nucleo caldo della fiamma (più piccolo, più luminoso)
+      - type: "sphere"
+        center: [0, 0.40, -0.10]
+        radius: 0.010
+        scale: [0.50, 1.40, 0.50]
+        material: "lit_bulb_caldo"

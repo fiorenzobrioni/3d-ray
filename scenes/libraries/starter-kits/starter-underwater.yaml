@@ -1,0 +1,305 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  STARTER KIT — Underwater Scene
+#
+#  Fondale marino con sabbia fine, formazioni rocciose, coralli stilizzati
+#  (CSG union di sfere e cilindri), bolle (sfere dielectric), alghe (capsule
+#  verdi sottili), stelle marine (dischi piatti). Luce dall'alto filtrata
+#  dall'acqua con gradiente blu-verde.
+#
+#  AMBIENTAZIONE: Outdoor — fondale oceanico
+#  STILE: Onirico, luminoso, toni blu-verde
+#
+#  Render consigliato:
+#    Draft:    -w 800  -H 600  -s 16  -d 20 -S 4
+#    Preview:  -w 1280 -H 960  -s 64  -d 30 -S 8
+#    Finale:   -w 1920 -H 1080 -s 256 -d 50 -S 16
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ─── WORLD ATTIVO ★ Acqua profonda — gradiente blu scuro ────────────────────
+world:
+  ambient_light: [0.02, 0.04, 0.06]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.01, 0.05, 0.12]
+    horizon_color: [0.03, 0.10, 0.18]
+    ground_color:  [0.02, 0.06, 0.10]
+  ground:
+    type: "infinite_plane"
+    material: "sabbia"
+    y: 0
+
+# ─── WORLD ALT-1: Acque poco profonde — più luminose e verdi ────────────────
+# world:
+#   ambient_light: [0.04, 0.08, 0.06]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.05, 0.15, 0.20]
+#     horizon_color: [0.08, 0.22, 0.25]
+#     ground_color:  [0.04, 0.12, 0.10]
+#   ground:
+#     type: "infinite_plane"
+#     material: "sabbia"
+#     y: 0
+
+# ─── WORLD ALT-2: Abisso — molto scuro, bioluminescenza ─────────────────────
+# world:
+#   ambient_light: [0.003, 0.005, 0.010]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.002, 0.003, 0.008]
+#     horizon_color: [0.005, 0.008, 0.015]
+#     ground_color:  [0.002, 0.004, 0.006]
+#   ground:
+#     type: "infinite_plane"
+#     material: "sabbia"
+#     y: 0
+
+
+cameras:
+
+  - name: "esplorazione"
+    position: [0, 2, -7]
+    look_at:  [0, 1.0, 2]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 9.0
+
+  - name: "corallo"
+    position: [-2, 1.5, -3]
+    look_at:  [-1, 1.2, 1]
+    fov: 45
+    aperture: 0.04
+    focal_dist: 5.0
+
+  - name: "fondale"
+    position: [0, 0.5, -4]
+    look_at:  [0, 0.8, 3]
+    fov: 60
+    aperture: 0.0
+    focal_dist: 7.0
+
+  - name: "bolle"
+    position: [2, 3, -2]
+    look_at:  [1, 2, 1]
+    fov: 42
+    aperture: 0.05
+    focal_dist: 4.0
+
+
+materials:
+
+  - id: "sabbia"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 1.5
+      noise_strength: 0.3
+      colors: [[0.55, 0.48, 0.35], [0.48, 0.42, 0.30]]
+      randomize_offset: true
+    roughness: 0.92
+    metallic: 0.0
+
+  - id: "roccia_marina"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_strength: 0.5
+      colors: [[0.30, 0.28, 0.25], [0.20, 0.22, 0.20]]
+      randomize_offset: true
+    roughness: 0.80
+    metallic: 0.0
+
+  # ── Coralli ────────────────────────────────────────────────────────────────
+  - id: "corallo_rosso"
+    type: "disney"
+    color: [0.75, 0.15, 0.10]
+    roughness: 0.65
+    metallic: 0.0
+    subsurface: 0.3
+
+  - id: "corallo_arancio"
+    type: "disney"
+    color: [0.85, 0.50, 0.12]
+    roughness: 0.60
+    subsurface: 0.25
+
+  - id: "corallo_rosa"
+    type: "disney"
+    color: [0.80, 0.40, 0.55]
+    roughness: 0.55
+    subsurface: 0.35
+
+  - id: "corallo_viola"
+    type: "disney"
+    color: [0.40, 0.15, 0.55]
+    roughness: 0.60
+    subsurface: 0.3
+
+  # ── Alghe ──────────────────────────────────────────────────────────────────
+  - id: "alga_verde"
+    type: "disney"
+    color: [0.10, 0.40, 0.08]
+    roughness: 0.70
+    subsurface: 0.4
+
+  - id: "alga_bruna"
+    type: "disney"
+    color: [0.30, 0.22, 0.05]
+    roughness: 0.75
+    subsurface: 0.3
+
+  # ── Bolle ──────────────────────────────────────────────────────────────────
+  - id: "bolla"
+    type: "dielectric"
+    refraction_index: 1.33
+    color: [0.90, 0.95, 1.0]
+
+  # ── Stella marina ──────────────────────────────────────────────────────────
+  - id: "stella_marina"
+    type: "disney"
+    color: [0.85, 0.35, 0.10]
+    roughness: 0.70
+    subsurface: 0.4
+
+  # ── Bioluminescenza ────────────────────────────────────────────────────────
+  - id: "bioluminescente"
+    type: "emissive"
+    color: [0.15, 0.60, 0.80]
+    intensity: 5.0
+
+  - id: "biolum_verde"
+    type: "emissive"
+    color: [0.10, 0.80, 0.30]
+    intensity: 4.0
+
+
+templates:
+
+  # ── Corallo ramificato (unione di capsule) ─────────────────────────────────
+  - name: "corallo_ramo"
+    children:
+      - type: "capsule"
+        center: [0, 0, 0]
+        radius: 0.08
+        height: 0.6
+      - type: "capsule"
+        center: [0, 0, 0]
+        radius: 0.06
+        height: 0.45
+        rotate: [0, 0, 30]
+        translate: [0.05, 0.3, 0]
+      - type: "capsule"
+        center: [0, 0, 0]
+        radius: 0.05
+        height: 0.35
+        rotate: [0, 0, -25]
+        translate: [-0.04, 0.4, 0.03]
+      - type: "sphere"
+        center: [0, 0.62, 0]
+        radius: 0.10
+      - type: "sphere"
+        center: [0.12, 0.55, 0]
+        radius: 0.07
+      - type: "sphere"
+        center: [-0.08, 0.58, 0.04]
+        radius: 0.06
+
+  # ── Corallo cervello (sfera con texture noise) ─────────────────────────────
+  - name: "corallo_cervello"
+    children:
+      - type: "sphere"
+        center: [0, 0.20, 0]
+        radius: 0.35
+        scale: [1.2, 0.7, 1.0]
+
+  # ── Alga ondulante (serie di capsule sottili) ──────────────────────────────
+  - name: "alga"
+    material: "alga_verde"
+    children:
+      - type: "capsule"
+        center: [0, 0, 0]
+        radius: 0.02
+        height: 0.5
+        rotate: [5, 0, 3]
+      - type: "capsule"
+        center: [0, 0.5, 0]
+        radius: 0.018
+        height: 0.4
+        rotate: [-8, 0, 5]
+      - type: "capsule"
+        center: [0, 0.9, 0.02]
+        radius: 0.015
+        height: 0.3
+        rotate: [10, 0, -4]
+
+
+entities:
+
+  # ── ROCCE DEL FONDALE ──────────────────────────────────────────────────────
+  - { name: "roccia_1", type: "sphere", center: [-2, 0, 3], radius: 1.2, scale: [1.3, 0.5, 1.0], material: "roccia_marina", seed: 101 }
+  - { name: "roccia_2", type: "sphere", center: [2.5, 0, 5], radius: 0.9, scale: [1.0, 0.6, 1.2], material: "roccia_marina", seed: 102 }
+  - { name: "roccia_3", type: "sphere", center: [0.5, 0, 7], radius: 1.5, scale: [1.1, 0.45, 1.3], material: "roccia_marina", seed: 103 }
+  - { name: "roccia_4", type: "sphere", center: [-3, 0, 6], radius: 0.7, scale: [1.2, 0.55, 0.9], material: "roccia_marina", seed: 104 }
+
+  # ── CORALLI ────────────────────────────────────────────────────────────────
+  - { type: "instance", template: "corallo_ramo", material: "corallo_rosso", translate: [-1, 0, 2], scale: [1.2, 1.3, 1.2], seed: 201 }
+  - { type: "instance", template: "corallo_ramo", material: "corallo_arancio", translate: [1, 0, 3], scale: [0.9, 1.0, 0.9], seed: 202, rotate: [0, 45, 0] }
+  - { type: "instance", template: "corallo_ramo", material: "corallo_rosa", translate: [-0.5, 0, 5], scale: [1.1, 1.4, 1.1], seed: 203, rotate: [0, -30, 0] }
+  - { type: "instance", template: "corallo_ramo", material: "corallo_viola", translate: [2, 0, 4.5], scale: [0.8, 0.9, 0.8], seed: 204 }
+
+  - { type: "instance", template: "corallo_cervello", material: "corallo_rosa", translate: [0, 0, 4], scale: [1.0, 1.0, 1.0], seed: 210 }
+  - { type: "instance", template: "corallo_cervello", material: "corallo_arancio", translate: [-2.5, 0, 5], scale: [0.7, 0.8, 0.7], seed: 211 }
+
+  # ── ALGHE ──────────────────────────────────────────────────────────────────
+  - { type: "instance", template: "alga", translate: [-1.5, 0, 1], seed: 301, scale: [1.0, 1.2, 1.0] }
+  - { type: "instance", template: "alga", translate: [-1.3, 0, 1.2], seed: 302, scale: [1.0, 0.9, 1.0] }
+  - { type: "instance", template: "alga", translate: [1.8, 0, 2.5], seed: 303, scale: [1.0, 1.5, 1.0], material: "alga_bruna" }
+  - { type: "instance", template: "alga", translate: [1.5, 0, 2.3], seed: 304, scale: [1.0, 1.1, 1.0] }
+  - { type: "instance", template: "alga", translate: [0.2, 0, 6], seed: 305, scale: [1.0, 1.3, 1.0] }
+  - { type: "instance", template: "alga", translate: [-2.8, 0, 4], seed: 306, scale: [1.0, 0.8, 1.0], material: "alga_bruna" }
+
+  # ── BOLLE ──────────────────────────────────────────────────────────────────
+  - { name: "bolla_1", type: "sphere", center: [0.5, 1.5, 2], radius: 0.08, material: "bolla" }
+  - { name: "bolla_2", type: "sphere", center: [0.3, 2.2, 2.3], radius: 0.05, material: "bolla" }
+  - { name: "bolla_3", type: "sphere", center: [0.7, 2.8, 1.8], radius: 0.04, material: "bolla" }
+  - { name: "bolla_4", type: "sphere", center: [-1, 1.8, 3], radius: 0.06, material: "bolla" }
+  - { name: "bolla_5", type: "sphere", center: [-0.8, 2.5, 3.2], radius: 0.035, material: "bolla" }
+  - { name: "bolla_6", type: "sphere", center: [1.5, 3.0, 4], radius: 0.07, material: "bolla" }
+  - { name: "bolla_7", type: "sphere", center: [1.3, 3.8, 3.8], radius: 0.03, material: "bolla" }
+
+  # ── STELLE MARINE ──────────────────────────────────────────────────────────
+  - { name: "stella_1", type: "disk", center: [1.5, 0.02, 1], normal: [0.05, 1, 0.02], radius: 0.18, material: "stella_marina" }
+  - { name: "stella_2", type: "disk", center: [-0.8, 0.02, 3.5], normal: [-0.03, 1, 0.04], radius: 0.15, material: "stella_marina" }
+
+  # ── ELEMENTI BIOLUMINESCENTI ───────────────────────────────────────────────
+  - { name: "biolum_1", type: "sphere", center: [-1.8, 0.5, 4.5], radius: 0.06, material: "bioluminescente" }
+  - { name: "biolum_2", type: "sphere", center: [2.2, 0.3, 5.5], radius: 0.05, material: "biolum_verde" }
+  - { name: "biolum_3", type: "sphere", center: [0.3, 0.8, 6.5], radius: 0.04, material: "bioluminescente" }
+
+
+lights:
+
+  # ─── LUCI ATTIVE ★ Luce dall'alto filtrata dall'acqua ─────────────────────
+  - type: "directional"
+    direction: [-0.1, -1.0, -0.1]
+    color: [0.15, 0.35, 0.55]
+    intensity: 0.5
+
+  - type: "directional"
+    direction: [0.3, -0.8, -0.2]
+    color: [0.10, 0.25, 0.40]
+    intensity: 0.15
+
+  # Raggi di luce caustica (spot dall'alto)
+  - type: "spot"
+    position: [0, 8, 2]
+    direction: [0, -1, 0]
+    color: [0.20, 0.50, 0.60]
+    intensity: 20
+    inner_angle: 15
+    outer_angle: 40
+
+# ─── LUCI ALT-1: Abisso — solo bioluminescenza ──────────────────────────────
+# lights: []

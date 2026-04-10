@@ -1,0 +1,267 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  STARTER KIT — Material Showroom
+#
+#  Griglia di piedistalli cilindrici con sfere, ognuna con un materiale diverso:
+#  metalli (oro, cromo, rame), vetri (cristallo, ambra, rubino), plastiche e
+#  legni, marmi e tessuti. Illuminazione neutra da studio per valutazione
+#  materiali. Il catalogo materiali perfetto.
+#
+#  AMBIENTAZIONE: Indoor — showroom neutro, display materiali
+#  STILE: Tecnico/artistico, reference, illuminazione calibrata
+#
+#  Render consigliato:
+#    Draft:    -w 800  -H 450  -s 16  -d 20 -S 4
+#    Preview:  -w 1280 -H 720  -s 64  -d 30 -S 8
+#    Finale:   -w 1920 -H 1080 -s 256 -d 50 -S 16
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+world:
+  ambient_light: [0.05, 0.05, 0.06]
+  background: [0.15, 0.15, 0.18]
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+
+
+cameras:
+
+  - name: "panorama"
+    position: [0, 3.5, -8]
+    look_at:  [0, 1.0, 1.5]
+    fov: 52
+    aperture: 0.0
+    focal_dist: 10.0
+
+  - name: "fila_frontale"
+    position: [0, 1.5, -5]
+    look_at:  [0, 1.2, 1.5]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 7.0
+
+  - name: "dettaglio_metalli"
+    position: [-3, 1.5, -2]
+    look_at:  [-2, 1.2, 0]
+    fov: 38
+    aperture: 0.05
+    focal_dist: 3.5
+
+  - name: "dettaglio_vetri"
+    position: [3, 1.5, -2]
+    look_at:  [2, 1.2, 1.5]
+    fov: 38
+    aperture: 0.05
+    focal_dist: 3.5
+
+
+materials:
+
+  - id: "pavimento"
+    type: "disney"
+    color: [0.12, 0.12, 0.14]
+    roughness: 0.15
+    metallic: 0.0
+    specular: 0.7
+
+  - id: "piedistallo_mat"
+    type: "disney"
+    color: [0.25, 0.25, 0.27]
+    roughness: 0.20
+    metallic: 0.0
+    specular: 0.5
+
+  # ── METALLI ────────────────────────────────────────────────────────────────
+  - id: "oro"
+    type: "disney"
+    color: [1.0, 0.76, 0.33]
+    metallic: 1.0
+    roughness: 0.10
+    specular: 1.0
+
+  - id: "cromo"
+    type: "metal"
+    color: [0.95, 0.95, 0.97]
+    fuzz: 0.0
+
+  - id: "rame"
+    type: "disney"
+    color: [0.72, 0.45, 0.20]
+    metallic: 1.0
+    roughness: 0.20
+    specular: 0.8
+
+  - id: "acciaio_satinato"
+    type: "metal"
+    color: [0.70, 0.70, 0.73]
+    fuzz: 0.25
+
+  # ── VETRI ──────────────────────────────────────────────────────────────────
+  - id: "cristallo"
+    type: "dielectric"
+    refraction_index: 1.52
+    color: [1.0, 1.0, 1.0]
+
+  - id: "vetro_ambra"
+    type: "dielectric"
+    refraction_index: 1.55
+    color: [0.95, 0.70, 0.30]
+
+  - id: "vetro_rubino"
+    type: "dielectric"
+    refraction_index: 1.55
+    color: [0.80, 0.10, 0.15]
+
+  - id: "vetro_smerigliato"
+    type: "disney"
+    color: [0.95, 0.97, 1.0]
+    roughness: 0.30
+    spec_trans: 0.85
+    ior: 1.52
+
+  # ── ORGANICI ───────────────────────────────────────────────────────────────
+  - id: "marmo"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 10.0
+      noise_strength: 8.0
+      colors: [[0.92, 0.90, 0.86], [0.40, 0.38, 0.35]]
+      randomize_offset: true
+    roughness: 0.22
+    specular: 0.5
+    clearcoat: 0.6
+    clearcoat_gloss: 0.9
+
+  - id: "legno_noce"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 8.0
+      colors: [[0.40, 0.22, 0.10], [0.28, 0.14, 0.05]]
+      randomize_offset: true
+    roughness: 0.45
+    specular: 0.4
+
+  - id: "plastica_rossa"
+    type: "disney"
+    color: [0.80, 0.08, 0.06]
+    roughness: 0.25
+    metallic: 0.0
+    specular: 0.5
+    clearcoat: 0.4
+    clearcoat_gloss: 0.8
+
+  - id: "ceramica_bianca"
+    type: "disney"
+    color: [0.95, 0.93, 0.90]
+    roughness: 0.12
+    specular: 0.7
+    clearcoat: 0.9
+    clearcoat_gloss: 0.95
+
+  - id: "gomma_nera"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.85
+    metallic: 0.0
+    specular: 0.1
+
+  - id: "cera"
+    type: "disney"
+    color: [0.85, 0.75, 0.50]
+    roughness: 0.60
+    subsurface: 0.7
+    specular: 0.2
+
+
+templates:
+
+  - name: "piedistallo"
+    material: "piedistallo_mat"
+    children:
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.50
+        height: 0.70
+      - type: "cylinder"
+        center: [0, 0.70, 0]
+        radius: 0.55
+        height: 0.04
+
+
+entities:
+
+  # ── GRIGLIA 4×4 di piedistalli + sfere ─────────────────────────────────────
+  #    X: -3, -1, 1, 3   Z: 0, 1.5, 3.0, 4.5
+
+  # Fila 1 (Z=0): Metalli
+  - { type: "instance", template: "piedistallo", translate: [-3, 0, 0] }
+  - { name: "s_oro",    type: "sphere", center: [-3, 1.10, 0], radius: 0.35, material: "oro" }
+  - { type: "instance", template: "piedistallo", translate: [-1, 0, 0] }
+  - { name: "s_cromo",  type: "sphere", center: [-1, 1.10, 0], radius: 0.35, material: "cromo" }
+  - { type: "instance", template: "piedistallo", translate: [1, 0, 0] }
+  - { name: "s_rame",   type: "sphere", center: [1, 1.10, 0], radius: 0.35, material: "rame" }
+  - { type: "instance", template: "piedistallo", translate: [3, 0, 0] }
+  - { name: "s_acciaio", type: "sphere", center: [3, 1.10, 0], radius: 0.35, material: "acciaio_satinato" }
+
+  # Fila 2 (Z=1.5): Vetri
+  - { type: "instance", template: "piedistallo", translate: [-3, 0, 1.5] }
+  - { name: "s_cristallo", type: "sphere", center: [-3, 1.10, 1.5], radius: 0.35, material: "cristallo" }
+  - { type: "instance", template: "piedistallo", translate: [-1, 0, 1.5] }
+  - { name: "s_ambra",     type: "sphere", center: [-1, 1.10, 1.5], radius: 0.35, material: "vetro_ambra" }
+  - { type: "instance", template: "piedistallo", translate: [1, 0, 1.5] }
+  - { name: "s_rubino",    type: "sphere", center: [1, 1.10, 1.5], radius: 0.35, material: "vetro_rubino" }
+  - { type: "instance", template: "piedistallo", translate: [3, 0, 1.5] }
+  - { name: "s_smerig",    type: "sphere", center: [3, 1.10, 1.5], radius: 0.35, material: "vetro_smerigliato" }
+
+  # Fila 3 (Z=3.0): Organici texturati
+  - { type: "instance", template: "piedistallo", translate: [-3, 0, 3] }
+  - { name: "s_marmo",  type: "sphere", center: [-3, 1.10, 3], radius: 0.35, material: "marmo", seed: 301 }
+  - { type: "instance", template: "piedistallo", translate: [-1, 0, 3] }
+  - { name: "s_legno",  type: "sphere", center: [-1, 1.10, 3], radius: 0.35, material: "legno_noce", seed: 302 }
+  - { type: "instance", template: "piedistallo", translate: [1, 0, 3] }
+  - { name: "s_cera",   type: "sphere", center: [1, 1.10, 3], radius: 0.35, material: "cera" }
+  - { type: "instance", template: "piedistallo", translate: [3, 0, 3] }
+  - { name: "s_gomma",  type: "sphere", center: [3, 1.10, 3], radius: 0.35, material: "gomma_nera" }
+
+  # Fila 4 (Z=4.5): Finiture lucide
+  - { type: "instance", template: "piedistallo", translate: [-3, 0, 4.5] }
+  - { name: "s_plastica", type: "sphere", center: [-3, 1.10, 4.5], radius: 0.35, material: "plastica_rossa" }
+  - { type: "instance", template: "piedistallo", translate: [-1, 0, 4.5] }
+  - { name: "s_ceramica", type: "sphere", center: [-1, 1.10, 4.5], radius: 0.35, material: "ceramica_bianca" }
+  - { type: "instance", template: "piedistallo", translate: [1, 0, 4.5] }
+  # Slot libero per il tuo materiale custom
+  - { type: "instance", template: "piedistallo", translate: [3, 0, 4.5] }
+
+
+lights:
+
+  # ─── LUCI ATTIVE ★ Studio neutro — area + fill ────────────────────────────
+  - type: "area"
+    corner: [-4, 5.5, -1]
+    u: [8, 0, 0]
+    v: [0, 0, 6]
+    color: [1.0, 0.98, 0.95]
+    intensity: 25.0
+    shadow_samples: 16
+
+  - type: "directional"
+    direction: [0.5, -0.5, 0.3]
+    color: [0.80, 0.82, 0.90]
+    intensity: 0.08
+
+# ─── LUCI ALT-1: Spot singoli per ogni sfera (gallery) ──────────────────────
+# lights:
+#   - type: "area"
+#     corner: [-4, 5.5, -1]
+#     u: [8, 0, 0]
+#     v: [0, 0, 6]
+#     color: [1.0, 0.98, 0.95]
+#     intensity: 8.0
+#     shadow_samples: 8
+#   - { type: "spot", position: [-3, 4, 0], direction: [0, -1, 0], color: [1.0, 0.97, 0.92], intensity: 20, inner_angle: 10, outer_angle: 22 }
+#   - { type: "spot", position: [-1, 4, 0], direction: [0, -1, 0], color: [1.0, 0.97, 0.92], intensity: 20, inner_angle: 10, outer_angle: 22 }
+#   - { type: "spot", position: [1, 4, 0],  direction: [0, -1, 0], color: [1.0, 0.97, 0.92], intensity: 20, inner_angle: 10, outer_angle: 22 }
+#   - { type: "spot", position: [3, 4, 0],  direction: [0, -1, 0], color: [1.0, 0.97, 0.92], intensity: 20, inner_angle: 10, outer_angle: 22 }

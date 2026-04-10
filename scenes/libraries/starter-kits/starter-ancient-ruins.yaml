@@ -1,0 +1,391 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  STARTER KIT — Ancient Ruins
+#
+#  Rovine di un tempio classico al tramonto. Colonne doriche spezzate
+#  (cilindri + CSG subtraction per i danni), arco in pietra, piedistalli
+#  con sfere decorative, pavimento in marmo frantumato, edera stilizzata.
+#  L'atmosfera è epica e nostalgica con luce drammatica.
+#
+#  AMBIENTAZIONE: Outdoor — rovine classiche, paesaggio mediterraneo
+#  STILE: Epico, fotografico, luce cinematografica
+#
+#  Render consigliato:
+#    Draft:    -w 800  -H 450  -s 16  -d 20 -S 4
+#    Preview:  -w 1280 -H 720  -s 64  -d 30 -S 8
+#    Finale:   -w 1920 -H 1080 -s 256 -d 50 -S 16
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ─── WORLD ATTIVO ★ Tramonto drammatico ──────────────────────────────────────
+world:
+  ambient_light: [0.04, 0.03, 0.03]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.08, 0.06, 0.22]
+    horizon_color: [0.90, 0.35, 0.10]
+    ground_color:  [0.15, 0.10, 0.06]
+    sun:
+      direction: [-0.95, -0.12, -0.3]
+      color: [1.0, 0.45, 0.10]
+      intensity: 28.0
+      size: 6.0
+      falloff: 12.0
+  ground:
+    type: "infinite_plane"
+    material: "erba_secca"
+    y: 0
+
+# ─── WORLD ALT-1: Mezzogiorno mediterraneo ──────────────────────────────────
+# world:
+#   ambient_light: [0.06, 0.06, 0.05]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.15, 0.32, 0.78]
+#     horizon_color: [0.60, 0.72, 0.90]
+#     ground_color:  [0.35, 0.30, 0.22]
+#     sun:
+#       direction: [-0.3, -0.95, -0.2]
+#       color: [1.0, 0.97, 0.90]
+#       intensity: 16.0
+#       size: 2.0
+#       falloff: 42.0
+#   ground:
+#     type: "infinite_plane"
+#     material: "erba_secca"
+#     y: 0
+
+# ─── WORLD ALT-2: Notte di luna — atmosfera mistica ─────────────────────────
+# world:
+#   ambient_light: [0.005, 0.006, 0.012]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.008, 0.008, 0.035]
+#     horizon_color: [0.03, 0.03, 0.06]
+#     ground_color:  [0.015, 0.015, 0.02]
+#   ground:
+#     type: "infinite_plane"
+#     material: "erba_secca"
+#     y: 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════════
+cameras:
+
+  - name: "epica"
+    position: [0, 2.0, -10]
+    look_at:  [0, 2.5, 3]
+    fov: 50
+    aperture: 0.0
+    focal_dist: 12.0
+
+  - name: "arco"
+    position: [-5, 1.8, -2]
+    look_at:  [0, 3.0, 2]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 7.0
+
+  - name: "dettaglio_colonna"
+    position: [2, 1.2, -1]
+    look_at:  [3, 2.5, 1]
+    fov: 40
+    aperture: 0.06
+    focal_dist: 4.0
+
+  - name: "passeggiata"
+    position: [0, 1.6, 0]
+    look_at:  [0, 2.0, 8]
+    fov: 60
+    aperture: 0.0
+    focal_dist: 8.0
+
+  - name: "zenitale"
+    position: [0, 20, 3]
+    look_at:  [0, 0, 3]
+    vup: [0, 0, 1]
+    fov: 50
+    aperture: 0.0
+    focal_dist: 20.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════════
+materials:
+
+  - id: "erba_secca"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.4
+      colors: [[0.35, 0.30, 0.15], [0.28, 0.24, 0.12]]
+      randomize_offset: true
+    roughness: 0.95
+    metallic: 0.0
+
+  - id: "marmo_antico"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 8.0
+      noise_strength: 6.0
+      colors: [[0.85, 0.82, 0.75], [0.55, 0.50, 0.42]]
+      randomize_offset: true
+    roughness: 0.55
+    metallic: 0.0
+    specular: 0.4
+
+  - id: "marmo_pavimento"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 3.0
+      noise_strength: 8.0
+      colors: [[0.75, 0.72, 0.65], [0.45, 0.40, 0.35]]
+      randomize_offset: true
+    roughness: 0.65
+    metallic: 0.0
+
+  - id: "pietra_grezza"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 0.5
+      colors: [[0.50, 0.48, 0.42], [0.38, 0.35, 0.30]]
+      randomize_offset: true
+    roughness: 0.82
+    metallic: 0.0
+
+  - id: "bronzo_patinato"
+    type: "disney"
+    color: [0.35, 0.45, 0.30]
+    roughness: 0.50
+    metallic: 0.75
+    specular: 0.6
+
+  - id: "edera"
+    type: "disney"
+    color: [0.10, 0.25, 0.06]
+    roughness: 0.85
+    metallic: 0.0
+    subsurface: 0.2
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  TEMPLATES
+# ═══════════════════════════════════════════════════════════════════════════════
+templates:
+
+  # ── Colonna dorica intera ──────────────────────────────────────────────────
+  - name: "colonna_intera"
+    material: "marmo_antico"
+    children:
+      # Base (toro piatto)
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.55
+        height: 0.15
+      # Fusto scanalato (approssimato con cilindro liscio)
+      - type: "cylinder"
+        center: [0, 0.15, 0]
+        radius: 0.40
+        height: 4.0
+      # Capitello (cilindro più largo)
+      - type: "cylinder"
+        center: [0, 4.15, 0]
+        radius: 0.55
+        height: 0.25
+      # Abaco (box piatto in cima)
+      - type: "box"
+        scale: [1.2, 0.12, 1.2]
+        translate: [0, 4.46, 0]
+
+  # ── Colonna spezzata (rotta a metà) ────────────────────────────────────────
+  - name: "colonna_spezzata"
+    material: "marmo_antico"
+    children:
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.55
+        height: 0.15
+      - type: "cylinder"
+        center: [0, 0.15, 0]
+        radius: 0.40
+        height: 2.2
+      # Rottura in cima (sfera che simula la frattura)
+      - type: "sphere"
+        center: [0, 2.35, 0]
+        radius: 0.40
+        scale: [1.0, 0.3, 1.0]
+
+  # ── Piedistallo con sfera decorativa ───────────────────────────────────────
+  - name: "piedistallo_sferico"
+    material: "pietra_grezza"
+    children:
+      - type: "box"
+        scale: [0.80, 0.60, 0.80]
+        translate: [0, 0.30, 0]
+      - type: "box"
+        scale: [0.65, 0.08, 0.65]
+        translate: [0, 0.64, 0]
+      - type: "sphere"
+        center: [0, 0.95, 0]
+        radius: 0.30
+        material: "bronzo_patinato"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  PAVIMENTO — Lastroni di marmo
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "pavimento"
+    type: "box"
+    scale: [12, 0.15, 16]
+    translate: [0, 0.075, 4]
+    material: "marmo_pavimento"
+    seed: 50
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  COLONNATO — 4 colonne intere + 2 spezzate
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Colonne integre (lato sinistro)
+  - { type: "instance", template: "colonna_intera", translate: [-3, 0.15, 2], seed: 1001 }
+  - { type: "instance", template: "colonna_intera", translate: [-3, 0.15, 5], seed: 1002 }
+
+  # Colonne integre (lato destro)
+  - { type: "instance", template: "colonna_intera", translate: [3, 0.15, 2], seed: 1003 }
+  - { type: "instance", template: "colonna_intera", translate: [3, 0.15, 5], seed: 1004 }
+
+  # Colonne spezzate
+  - { type: "instance", template: "colonna_spezzata", translate: [-3, 0.15, 8], seed: 1005 }
+  - { type: "instance", template: "colonna_spezzata", translate: [3, 0.15, 8], seed: 1006, scale: [1.0, 0.8, 1.0] }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ARCHITRAVE — Trave sopra le colonne integre
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "architrave_sx"
+    type: "box"
+    scale: [1.0, 0.40, 3.8]
+    translate: [-3, 4.78, 3.5]
+    material: "marmo_antico"
+    seed: 60
+
+  - name: "architrave_dx"
+    type: "box"
+    scale: [1.0, 0.40, 3.8]
+    translate: [3, 4.78, 3.5]
+    material: "marmo_antico"
+    seed: 61
+
+  # Trave trasversale frontale
+  - name: "architrave_front"
+    type: "box"
+    scale: [7.2, 0.35, 0.60]
+    translate: [0, 4.76, 2]
+    material: "marmo_antico"
+    seed: 62
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ARCO — CSG intersection per creare un arco semicircolare
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "arco"
+    type: "csg"
+    operation: "subtraction"
+    translate: [0, 0.15, 9]
+    material: "pietra_grezza"
+    left:
+      # Muro pieno con apertura
+      type: "box"
+      scale: [5.0, 4.5, 0.8]
+      translate: [0, 2.25, 0]
+    right:
+      # Foro ad arco (cilindro + box per la parte bassa)
+      type: "csg"
+      operation: "union"
+      left:
+        type: "cylinder"
+        center: [0, 2.0, 0]
+        radius: 1.5
+        height: 1.2
+        rotate: [90, 0, 0]
+      right:
+        type: "box"
+        scale: [3.0, 2.0, 1.2]
+        translate: [0, 1.0, 0]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  PIEDISTALLI con sfere decorative
+  # ─────────────────────────────────────────────────────────────────────────
+  - { type: "instance", template: "piedistallo_sferico", translate: [-1.5, 0.15, 1], seed: 2001 }
+  - { type: "instance", template: "piedistallo_sferico", translate: [1.5, 0.15, 1], seed: 2002 }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  MACERIE — Frammenti sparsi (box piccoli e sfere)
+  # ─────────────────────────────────────────────────────────────────────────
+  - { name: "maceria_1", type: "box", scale: [0.6, 0.3, 0.5], rotate: [10, 35, 5], translate: [1.5, 0.15, 7], material: "marmo_antico", seed: 3001 }
+  - { name: "maceria_2", type: "box", scale: [0.4, 0.25, 0.35], rotate: [-5, 60, 12], translate: [-2, 0.12, 6.5], material: "marmo_antico", seed: 3002 }
+  - { name: "maceria_3", type: "cylinder", center: [2.5, 0.15, 6], radius: 0.40, height: 0.9, rotate: [0, 0, 85], material: "marmo_antico", seed: 3003 }
+  - { name: "maceria_4", type: "box", scale: [0.8, 0.2, 0.3], rotate: [0, 22, 0], translate: [-1, 0.10, 9.5], material: "pietra_grezza", seed: 3004 }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  EDERA — Macchie di vegetazione sulle colonne
+  # ─────────────────────────────────────────────────────────────────────────
+  - { name: "edera_1", type: "sphere", center: [-3, 1.5, 2], radius: 0.55, scale: [0.4, 1.5, 0.4], material: "edera" }
+  - { name: "edera_2", type: "sphere", center: [3, 2.0, 5], radius: 0.50, scale: [0.35, 1.8, 0.35], material: "edera" }
+  - { name: "edera_3", type: "sphere", center: [0.5, 2.5, 9], radius: 0.60, scale: [1.0, 0.8, 0.3], material: "edera" }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── LUCI ATTIVE ★ Tramonto drammatico ───────────────────────────────────────
+lights:
+  - type: "directional"
+    direction: [-0.95, -0.12, -0.3]
+    color: [1.0, 0.48, 0.12]
+    intensity: 0.9
+
+  - type: "directional"
+    direction: [0.5, -0.5, 0.4]
+    color: [0.30, 0.25, 0.45]
+    intensity: 0.04
+
+# ─── LUCI ALT-1: Mezzogiorno — sole forte ───────────────────────────────────
+# lights:
+#   - type: "directional"
+#     direction: [-0.3, -0.95, -0.2]
+#     color: [1.0, 0.97, 0.90]
+#     intensity: 1.1
+#   - type: "directional"
+#     direction: [0.4, -0.5, 0.3]
+#     color: [0.50, 0.60, 0.82]
+#     intensity: 0.06
+
+# ─── LUCI ALT-2: Notte lunare + torce ───────────────────────────────────────
+# lights:
+#   - type: "directional"
+#     direction: [0.4, -0.7, -0.5]
+#     color: [0.15, 0.18, 0.35]
+#     intensity: 0.04
+#   - type: "sphere"
+#     position: [-1.5, 1.2, 1]
+#     radius: 0.10
+#     color: [1.0, 0.6, 0.2]
+#     intensity: 15.0
+#     shadow_samples: 8
+#   - type: "sphere"
+#     position: [1.5, 1.2, 1]
+#     radius: 0.10
+#     color: [1.0, 0.6, 0.2]
+#     intensity: 15.0
+#     shadow_samples: 8

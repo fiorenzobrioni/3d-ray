@@ -1,0 +1,444 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  STARTER KIT — Zen Garden
+#
+#  Giardino giapponese contemplativo. Ghiaia rastrellata bianca (checker fine),
+#  rocce lisce disposte asimmetricamente (ellissoidi in arenaria scura),
+#  lanterna in pietra (template CSG), ciotola d'acqua (CSG sfera cava con
+#  dielectric), ponticello ad arco in legno e bambù stilizzato.
+#
+#  AMBIENTAZIONE: Outdoor — giardino zen, luce dorata naturale
+#  STILE: Minimalista, meditativo, composizione asimmetrica wabi-sabi
+#
+#  Render consigliato:
+#    Draft:    -w 800  -H 450  -s 16  -d 15 -S 4
+#    Preview:  -w 1280 -H 720  -s 64  -d 25 -S 8
+#    Finale:   -w 1920 -H 1080 -s 256 -d 40 -S 16
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  WORLD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── WORLD ATTIVO ★ Golden hour — luce dorata morbida ────────────────────────
+world:
+  ambient_light: [0.06, 0.05, 0.04]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.18, 0.30, 0.62]
+    horizon_color: [0.80, 0.60, 0.35]
+    ground_color:  [0.25, 0.20, 0.14]
+    sun:
+      direction: [-0.75, -0.30, -0.5]
+      color: [1.0, 0.85, 0.55]
+      intensity: 18.0
+      size: 3.5
+      falloff: 22.0
+  ground:
+    type: "infinite_plane"
+    material: "ghiaia"
+    y: 0
+
+# ─── WORLD ALT-1: Mattina nebbiosa — luce diffusa morbida ───────────────────
+# world:
+#   ambient_light: [0.10, 0.10, 0.11]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.50, 0.55, 0.62]
+#     horizon_color: [0.72, 0.74, 0.78]
+#     ground_color:  [0.55, 0.52, 0.48]
+#   ground:
+#     type: "infinite_plane"
+#     material: "ghiaia"
+#     y: 0
+
+# ─── WORLD ALT-2: Tramonto autunnale — caldo e drammatico ───────────────────
+# world:
+#   ambient_light: [0.04, 0.03, 0.02]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.10, 0.08, 0.25]
+#     horizon_color: [0.90, 0.40, 0.12]
+#     ground_color:  [0.18, 0.10, 0.05]
+#     sun:
+#       direction: [-0.95, -0.10, -0.25]
+#       color: [1.0, 0.45, 0.10]
+#       intensity: 25.0
+#       size: 6.0
+#       falloff: 12.0
+#   ground:
+#     type: "infinite_plane"
+#     material: "ghiaia"
+#     y: 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════════
+cameras:
+
+  - name: "contemplativa"
+    position: [0, 2.5, -7]
+    look_at:  [0, 0.3, 1]
+    fov: 48
+    aperture: 0.0
+    focal_dist: 9.0
+
+  - name: "lanterna"
+    position: [-3, 1.5, -3]
+    look_at:  [-1.5, 0.8, 1]
+    fov: 42
+    aperture: 0.05
+    focal_dist: 5.0
+
+  - name: "rocce"
+    position: [3, 0.8, -2]
+    look_at:  [1, 0.3, 2]
+    fov: 50
+    aperture: 0.04
+    focal_dist: 5.5
+
+  - name: "ponticello"
+    position: [5, 1.8, 2]
+    look_at:  [3, 0.3, 4]
+    fov: 45
+    aperture: 0.0
+    focal_dist: 4.0
+
+  - name: "zenitale"
+    position: [0, 14, 2]
+    look_at:  [0, 0, 2]
+    vup: [0, 0, 1]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 14.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Ghiaia rastrellata — checker finissimo bianco/crema ────────────────────
+  - id: "ghiaia"
+    type: "disney"
+    texture:
+      type: "checker"
+      scale: 0.15
+      colors: [[0.88, 0.86, 0.80], [0.82, 0.80, 0.74]]
+    roughness: 0.90
+    metallic: 0.0
+    specular: 0.05
+
+  # ── Pietra scura — rocce del giardino ──────────────────────────────────────
+  - id: "pietra_scura"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_strength: 0.4
+      colors: [[0.22, 0.20, 0.18], [0.15, 0.14, 0.12]]
+      randomize_offset: true
+    roughness: 0.75
+    metallic: 0.0
+    specular: 0.3
+
+  # ── Granito — per la lanterna ──────────────────────────────────────────────
+  - id: "granito"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 12.0
+      noise_strength: 0.3
+      colors: [[0.45, 0.43, 0.40], [0.35, 0.33, 0.30]]
+      randomize_offset: true
+    roughness: 0.65
+    metallic: 0.0
+    specular: 0.25
+
+  # ── Acqua — dielectric per la ciotola ──────────────────────────────────────
+  - id: "acqua"
+    type: "dielectric"
+    refraction_index: 1.33
+    color: [0.85, 0.92, 0.95]
+
+  # ── Legno rosso — ponticello ───────────────────────────────────────────────
+  - id: "legno_rosso"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 8.0
+      colors: [[0.45, 0.12, 0.05], [0.35, 0.08, 0.03]]
+      randomize_offset: true
+    roughness: 0.55
+    metallic: 0.0
+    specular: 0.3
+    clearcoat: 0.3
+    clearcoat_gloss: 0.5
+
+  # ── Bambù ──────────────────────────────────────────────────────────────────
+  - id: "bambu"
+    type: "disney"
+    color: [0.45, 0.52, 0.20]
+    roughness: 0.60
+    metallic: 0.0
+    specular: 0.4
+    clearcoat: 0.4
+    clearcoat_gloss: 0.6
+
+  # ── Muschio — verde intenso morbido ────────────────────────────────────────
+  - id: "muschio"
+    type: "disney"
+    color: [0.12, 0.28, 0.08]
+    roughness: 0.95
+    metallic: 0.0
+    subsurface: 0.3
+
+  # ── Emissivo lanterna — luce calda ─────────────────────────────────────────
+  - id: "luce_lanterna"
+    type: "emissive"
+    color: [1.0, 0.75, 0.35]
+    intensity: 8.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  TEMPLATES
+# ═══════════════════════════════════════════════════════════════════════════════
+templates:
+
+  # ── Lanterna tōrō giapponese ───────────────────────────────────────────────
+  #  Base → pilastro → camera della luce → tetto a pagoda
+  - name: "toro_lanterna"
+    material: "granito"
+    children:
+      # Base (piedistallo basso)
+      - type: "box"
+        scale: [0.55, 0.12, 0.55]
+        translate: [0, 0.06, 0]
+      # Pilastro ottagonale (approssimato con cilindro)
+      - type: "cylinder"
+        center: [0, 0.12, 0]
+        radius: 0.10
+        height: 0.8
+      # Camera della luce (box con aperture simulate)
+      - type: "box"
+        scale: [0.45, 0.40, 0.45]
+        translate: [0, 1.12, 0]
+      # Luce interna (sfera emissiva piccola dentro la camera)
+      - type: "sphere"
+        center: [0, 1.15, 0]
+        radius: 0.12
+        material: "luce_lanterna"
+      # Tetto (cono basso, tipo pagoda)
+      - type: "cone"
+        center: [0, 1.32, 0]
+        radius: 0.50
+        top_radius: 0.05
+        height: 0.30
+      # Pomello in cima
+      - type: "sphere"
+        center: [0, 1.68, 0]
+        radius: 0.06
+
+  # ── Canna di bambù ────────────────────────────────────────────────────────
+  - name: "canna_bambu"
+    material: "bambu"
+    children:
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.04
+        height: 3.5
+      # Nodi del bambù (tori sottili)
+      - type: "torus"
+        major_radius: 0.05
+        minor_radius: 0.012
+        translate: [0, 0.8, 0]
+      - type: "torus"
+        major_radius: 0.05
+        minor_radius: 0.012
+        translate: [0, 1.6, 0]
+      - type: "torus"
+        major_radius: 0.05
+        minor_radius: 0.012
+        translate: [0, 2.4, 0]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ROCCE — Disposizione asimmetrica (stile Ryōan-ji)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Gruppo principale (3 rocce, composizione triangolare)
+  - name: "roccia_1"
+    type: "sphere"
+    center: [0.5, 0, 2]
+    radius: 0.65
+    scale: [1.3, 0.7, 1.0]
+    material: "pietra_scura"
+    seed: 101
+
+  - name: "roccia_2"
+    type: "sphere"
+    center: [1.5, 0, 2.8]
+    radius: 0.45
+    scale: [1.0, 0.8, 1.2]
+    material: "pietra_scura"
+    seed: 102
+
+  - name: "roccia_3"
+    type: "sphere"
+    center: [0.8, 0, 3.2]
+    radius: 0.35
+    scale: [1.1, 0.55, 0.9]
+    material: "pietra_scura"
+    seed: 103
+
+  # Roccia solitaria meditativa
+  - name: "roccia_solitaria"
+    type: "sphere"
+    center: [-2, 0, 4]
+    radius: 0.80
+    scale: [1.0, 1.2, 0.8]
+    material: "pietra_scura"
+    seed: 104
+
+  # Coppia di sassi piccoli
+  - name: "sasso_a"
+    type: "sphere"
+    center: [2.5, 0, 0.5]
+    radius: 0.25
+    scale: [1.2, 0.5, 1.0]
+    material: "pietra_scura"
+    seed: 105
+
+  - name: "sasso_b"
+    type: "sphere"
+    center: [2.8, 0, 0.8]
+    radius: 0.18
+    scale: [1.0, 0.6, 1.1]
+    material: "pietra_scura"
+    seed: 106
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  LANTERNA
+  # ─────────────────────────────────────────────────────────────────────────
+  - type: "instance"
+    template: "toro_lanterna"
+    translate: [-1.5, 0, 1]
+    seed: 200
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  CIOTOLA D'ACQUA (tsukubai) — CSG sfera cava
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Ciotola in pietra (sfera scavata + taglio box)
+  - name: "tsukubai"
+    type: "csg"
+    operation: "subtraction"
+    translate: [2, 0.25, 4]
+    material: "granito"
+    left:
+      type: "csg"
+      operation: "subtraction"
+      left:
+        type: "sphere"
+        center: [0, 0, 0]
+        radius: 0.40
+      right:
+        type: "sphere"
+        center: [0, 0.05, 0]
+        radius: 0.34
+    right:
+      # Taglio inferiore per base piatta
+      type: "box"
+        scale: [1.0, 0.5, 1.0]
+        translate: [0, -0.45, 0]
+
+  # Acqua dentro la ciotola
+  - name: "acqua_tsukubai"
+    type: "disk"
+    center: [2, 0.28, 4]
+    normal: [0, 1, 0]
+    radius: 0.32
+    material: "acqua"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  PONTICELLO AD ARCO — struttura in legno rosso
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Piano del ponte (box leggermente arcuato — simulato con box inclinato)
+  - name: "ponte_piano"
+    type: "box"
+    scale: [1.2, 0.06, 2.5]
+    rotate: [0, -25, 0]
+    translate: [3.5, 0.35, 4.5]
+    material: "legno_rosso"
+
+  # Ringhiera sinistra
+  - name: "ponte_ringhiera_sx"
+    type: "box"
+    scale: [0.04, 0.30, 2.5]
+    rotate: [0, -25, 0]
+    translate: [2.95, 0.53, 4.2]
+    material: "legno_rosso"
+
+  # Ringhiera destra
+  - name: "ponte_ringhiera_dx"
+    type: "box"
+    scale: [0.04, 0.30, 2.5]
+    rotate: [0, -25, 0]
+    translate: [4.05, 0.53, 4.8]
+    material: "legno_rosso"
+
+  # Piloni
+  - { name: "pilone_1", type: "cylinder", center: [3.0, 0, 3.5], radius: 0.06, height: 0.35, material: "legno_rosso" }
+  - { name: "pilone_2", type: "cylinder", center: [4.0, 0, 5.5], radius: 0.06, height: 0.35, material: "legno_rosso" }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  BAMBÙ — Gruppo di canne
+  # ─────────────────────────────────────────────────────────────────────────
+  - { type: "instance", template: "canna_bambu", translate: [-4, 0, 6],   scale: [1.0, 1.0, 1.0], seed: 301 }
+  - { type: "instance", template: "canna_bambu", translate: [-3.7, 0, 6.3], scale: [1.0, 0.9, 1.0], seed: 302 }
+  - { type: "instance", template: "canna_bambu", translate: [-4.2, 0, 6.5], scale: [1.0, 1.1, 1.0], seed: 303 }
+  - { type: "instance", template: "canna_bambu", translate: [-3.5, 0, 6.8], scale: [1.0, 0.85, 1.0], seed: 304 }
+  - { type: "instance", template: "canna_bambu", translate: [-4.4, 0, 5.8], scale: [1.0, 1.05, 1.0], seed: 305 }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  MUSCHIO — Macchie verdi tra le rocce
+  # ─────────────────────────────────────────────────────────────────────────
+  - { name: "muschio_1", type: "sphere", center: [0.3, 0.01, 2.5], radius: 0.30, scale: [1.5, 0.08, 1.2], material: "muschio" }
+  - { name: "muschio_2", type: "sphere", center: [-1.8, 0.01, 1.3], radius: 0.25, scale: [1.3, 0.06, 1.0], material: "muschio" }
+  - { name: "muschio_3", type: "sphere", center: [2.2, 0.01, 3.8], radius: 0.20, scale: [1.0, 0.07, 1.4], material: "muschio" }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── LUCI ATTIVE ★ Golden hour — sole caldo + fill cielo ────────────────────
+lights:
+  - type: "directional"
+    direction: [-0.75, -0.30, -0.5]
+    color: [1.0, 0.85, 0.55]
+    intensity: 0.8
+
+  - type: "directional"
+    direction: [0.5, -0.6, 0.3]
+    color: [0.45, 0.55, 0.80]
+    intensity: 0.05
+
+# ─── LUCI ALT-1: Mattina nebbiosa — uniforme e morbida ──────────────────────
+#   Abbina a WORLD ALT-1
+# lights:
+#   - type: "directional"
+#     direction: [-0.3, -1.0, -0.2]
+#     color: [0.82, 0.85, 0.90]
+#     intensity: 0.5
+
+# ─── LUCI ALT-2: Notte con lanterna — solo luce emissiva ────────────────────
+#   Abbina a WORLD ALT-2 (notte) — la lanterna è la sorgente principale
+# lights: []

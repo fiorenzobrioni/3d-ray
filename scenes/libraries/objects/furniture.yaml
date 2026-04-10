@@ -1,0 +1,1432 @@
+# ============================================================================
+# Libreria Oggetti — Arredamento (Furniture)
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/furniture.yaml" }]
+#
+# Raccolta di mobili e complementi d'arredo come template riutilizzabili.
+# Ogni template è progettato per poggiare a Y=0 (base a terra) e può
+# essere istanziato con translate, rotate, scale e material override.
+#
+# ── Materiali inclusi ────────────────────────────────────────────────────
+#
+#   Questa libreria include materiali di default ottimizzati per ogni
+#   oggetto. L'istanza può sovrascrivere il materiale globale, ma i
+#   figli con materiale esplicito (es. la lampadina emissiva) mantengono
+#   il proprio — vedi regole di override nella doc (sez. 11.2).
+#
+#   Prefisso ID:  frn_   (furniture)
+#
+#   Per sostituire i materiali di default, definisci nella tua scena
+#   materiali con lo stesso id: il merge locale sovrascrive l'importato.
+#
+# ── Convenzioni di design ────────────────────────────────────────────────
+#
+#   ORIGINE       Tutti i template hanno la base a Y=0, centrati in XZ.
+#                 Istanziare con translate: [x, 0, z] li appoggia al
+#                 pavimento senza offset manuali.
+#
+#   SCALA         Dimensioni in unità ≈ metri. Un tavolo è ~1.4 largo,
+#                 una sedia ~0.90 alta. Scala 1:1 per scene realistiche.
+#
+#   DETTAGLIO     Ogni pezzo usa la geometria più ricca disponibile:
+#                 torus per bordi arrotondati, sfere scalate asimmetriche
+#                 per ellissoidi, coni tronchi per gambe rastremate,
+#                 CSG per volumi cavi e incassi.
+#
+# ── Catalogo template ────────────────────────────────────────────────────
+#
+#   TAVOLO_CLASSICO         Tavolo da pranzo con gambe tornite e
+#                           fascia sottopiano. ~1.40 × 0.76 × 0.80 m.
+#
+#   SEDIA_CLASSICA          Sedia da pranzo con schienale a stecche,
+#                           seduta e gambe coniche. ~0.44 × 0.90 × 0.44 m.
+#
+#   TAVOLINO_CAFFE          Tavolino rotondo con colonna centrale,
+#                           base pesante e anello decorativo.
+#                           Ø 0.80 × 0.45 m.
+#
+#   LAMPADA_TAVOLO          Lampada da tavolo con base, stelo,
+#                           paralume conico cavo (CSG) e lampadina
+#                           emissiva. ~Ø 0.28 × 0.48 m.
+#
+#   LAMPADA_TERRA           Lampada da terra alta con base pesante,
+#                           stelo sottile, paralume conico cavo e
+#                           lampadina emissiva. ~Ø 0.38 × 1.65 m.
+#
+#   SCAFFALE                Libreria a 5 ripiani con fiancate,
+#                           schienale e bordo frontale arrotondato.
+#                           0.80 × 1.80 × 0.30 m.
+#
+#   SGABELLO_BAR            Sgabello alto con seduta rotonda imbottita,
+#                           4 gambe rastremate e poggiapiedi ad anello.
+#                           Ø 0.36 × 0.75 m.
+#
+#   COMODINO                Comodino con cassetto, pomello sferico,
+#                           gambe tornite e piano d'appoggio.
+#                           0.45 × 0.55 × 0.40 m.
+#
+#   CANDELABRO              Candeliere a 3 bracci con base decorata,
+#                           stelo centrale e candele con fiamma
+#                           emissiva. ~Ø 0.40 × 0.50 m.
+#
+#   VASO_DECORATIVO         Vaso a profilo classico con collo stretto,
+#                           corpo bombato e piede sagomato.
+#                           ~Ø 0.24 × 0.35 m.
+#
+# ============================================================================
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALI — Default per i template di arredamento
+# ═══════════════════════════════════════════════════════════════════════════
+
+materials:
+
+  # ── Legni ──────────────────────────────────────────────────────────────
+
+  # Noce scuro — tavoli classici, sedie formali
+  - id: "frn_noce"
+    type: "disney"
+    color: [0.28, 0.16, 0.08]
+    roughness: 0.35
+    metallic: 0.0
+    specular: 0.45
+    clearcoat: 0.30
+    clearcoat_gloss: 0.70
+
+  # Noce chiaro — variante più calda
+  - id: "frn_noce_chiaro"
+    type: "disney"
+    color: [0.45, 0.28, 0.14]
+    roughness: 0.32
+    metallic: 0.0
+    specular: 0.40
+    clearcoat: 0.25
+    clearcoat_gloss: 0.65
+
+  # Rovere — grana aperta, tono miele
+  - id: "frn_rovere"
+    type: "disney"
+    color: [0.55, 0.38, 0.20]
+    roughness: 0.38
+    metallic: 0.0
+    specular: 0.35
+    clearcoat: 0.20
+    clearcoat_gloss: 0.60
+
+  # Ciliegio — tono rossastro caldo
+  - id: "frn_ciliegio"
+    type: "disney"
+    color: [0.48, 0.22, 0.12]
+    roughness: 0.30
+    metallic: 0.0
+    specular: 0.50
+    clearcoat: 0.35
+    clearcoat_gloss: 0.75
+
+  # Mogano — scuro e ricco, mobili d'epoca
+  - id: "frn_mogano"
+    type: "disney"
+    color: [0.32, 0.12, 0.06]
+    roughness: 0.28
+    metallic: 0.0
+    specular: 0.55
+    clearcoat: 0.40
+    clearcoat_gloss: 0.80
+
+  # Acero — chiaro e luminoso, mobili scandinavi
+  - id: "frn_acero"
+    type: "disney"
+    color: [0.72, 0.58, 0.40]
+    roughness: 0.34
+    metallic: 0.0
+    specular: 0.38
+    clearcoat: 0.15
+    clearcoat_gloss: 0.55
+
+  # Frassino — chiaro con venature evidenti
+  - id: "frn_frassino"
+    type: "disney"
+    color: [0.65, 0.52, 0.36]
+    roughness: 0.36
+    metallic: 0.0
+    specular: 0.35
+    clearcoat: 0.18
+    clearcoat_gloss: 0.58
+
+  # Legno laccato nero — finitura pianoforte
+  - id: "frn_laccato_nero"
+    type: "disney"
+    color: [0.02, 0.02, 0.02]
+    roughness: 0.05
+    metallic: 0.0
+    specular: 0.80
+    clearcoat: 0.90
+    clearcoat_gloss: 0.95
+
+  # Legno laccato bianco — mobili contemporanei
+  - id: "frn_laccato_bianco"
+    type: "disney"
+    color: [0.92, 0.90, 0.88]
+    roughness: 0.08
+    metallic: 0.0
+    specular: 0.65
+    clearcoat: 0.70
+    clearcoat_gloss: 0.90
+
+  # ── Tessuti e imbottiture ──────────────────────────────────────────────
+
+  # Velluto bordeaux — sedute classiche
+  - id: "frn_velluto_bordeaux"
+    type: "disney"
+    color: [0.42, 0.08, 0.10]
+    roughness: 0.85
+    metallic: 0.0
+    sheen: 0.60
+    sheen_tint: 0.80
+
+  # Lino naturale — sedute scandinave
+  - id: "frn_lino"
+    type: "disney"
+    color: [0.72, 0.68, 0.58]
+    roughness: 0.90
+    metallic: 0.0
+    sheen: 0.15
+    sheen_tint: 0.30
+
+  # Pelle marrone — sedie e poltrone
+  - id: "frn_pelle"
+    type: "disney"
+    color: [0.35, 0.20, 0.10]
+    roughness: 0.50
+    metallic: 0.0
+    specular: 0.40
+    sheen: 0.25
+    sheen_tint: 0.60
+
+  # Pelle nera — sedie ufficio, sgabelli
+  - id: "frn_pelle_nera"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.45
+    metallic: 0.0
+    specular: 0.50
+    sheen: 0.20
+    sheen_tint: 0.30
+
+  # ── Metalli per ferramenta ─────────────────────────────────────────────
+
+  # Ottone antico — pomelli, cerniere, dettagli
+  - id: "frn_ottone"
+    type: "disney"
+    color: [0.70, 0.55, 0.18]
+    metallic: 1.0
+    roughness: 0.30
+    specular: 0.55
+
+  # Ferro nero — gambe industriali, ferramenta
+  - id: "frn_ferro"
+    type: "disney"
+    color: [0.08, 0.08, 0.08]
+    metallic: 0.90
+    roughness: 0.55
+    specular: 0.40
+
+  # Cromo satinato — gambe moderne, pomelli
+  - id: "frn_cromo"
+    type: "disney"
+    color: [0.90, 0.88, 0.84]
+    metallic: 1.0
+    roughness: 0.15
+    specular: 0.80
+
+  # ── Paralume e vetri ───────────────────────────────────────────────────
+
+  # Tessuto paralume — beige traslucido
+  - id: "frn_paralume"
+    type: "disney"
+    color: [0.85, 0.78, 0.65]
+    roughness: 0.92
+    metallic: 0.0
+    spec_trans: 0.15
+    ior: 1.35
+
+  # Vetro paralume — leggermente lattiginoso
+  - id: "frn_vetro_latte"
+    type: "disney"
+    color: [0.95, 0.93, 0.90]
+    roughness: 0.25
+    metallic: 0.0
+    spec_trans: 0.70
+    ior: 1.50
+
+  # ── Emissivi ───────────────────────────────────────────────────────────
+
+  # Lampadina accesa — luce calda da lampada
+  - id: "frn_lampadina"
+    type: "emissive"
+    color: [1.0, 0.88, 0.65]
+    intensity: 12.0
+
+  # Fiamma candela — luce calda tremolante
+  - id: "frn_fiamma"
+    type: "emissive"
+    color: [1.0, 0.72, 0.28]
+    intensity: 8.0
+
+  # ── Superfici di appoggio ──────────────────────────────────────────────
+
+  # Marmo bianco — piani tavolo eleganti
+  - id: "frn_marmo_bianco"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 8.0
+      colors: [[0.96, 0.95, 0.93], [0.60, 0.58, 0.55]]
+
+  # Cera / stucco chiaro — candele, decorazioni
+  - id: "frn_cera"
+    type: "disney"
+    color: [0.90, 0.85, 0.72]
+    roughness: 0.55
+    metallic: 0.0
+    specular: 0.30
+    subsurface: 0.40
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  TEMPLATES — Oggetti d'arredamento riutilizzabili
+# ═══════════════════════════════════════════════════════════════════════════
+
+templates:
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  TAVOLO_CLASSICO — Tavolo da pranzo con gambe tornite
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~1.40 × 0.76 × 0.80 m
+  #  Struttura:  Piano in massello con bordo arrotondato (box + torus
+  #              perimetrale), fascia sottopiano (4 pannelli thin box),
+  #              4 gambe tornite (cilindro principale + sfera bulbo +
+  #              torus anello + cono piede rastremato).
+  #
+  #  Materiale default: frn_noce (sovrascrivibile dall'istanza).
+  #  Il piano usa il materiale del template; per un piano in marmo,
+  #  creare un template derivato o usare override.
+  #
+  - name: "tavolo_classico"
+    material: "frn_noce"
+    children:
+
+      # ── Piano ──────────────────────────────────────────────────────────
+      # Box piatto con leggero spessore realistico (4 cm)
+      - type: "box"
+        scale: [1.40, 0.04, 0.80]
+        translate: [0, 0.76, 0]
+
+      # Bordo arrotondato lungo il perimetro del piano (4 torus)
+      # Bordo frontale (Z negativo)
+      - type: "torus"
+        center: [0, 0.76, -0.40]
+        major_radius: 0.70
+        minor_radius: 0.020
+        scale: [1.0, 1.0, 0.01]
+      # Bordo posteriore (Z positivo)
+      - type: "torus"
+        center: [0, 0.76, 0.40]
+        major_radius: 0.70
+        minor_radius: 0.020
+        scale: [1.0, 1.0, 0.01]
+      # Bordo sinistro (X negativo)
+      - type: "torus"
+        center: [-0.70, 0.76, 0]
+        major_radius: 0.40
+        minor_radius: 0.020
+        scale: [0.01, 1.0, 1.0]
+      # Bordo destro (X positivo)
+      - type: "torus"
+        center: [0.70, 0.76, 0]
+        major_radius: 0.40
+        minor_radius: 0.020
+        scale: [0.01, 1.0, 1.0]
+
+      # ── Fascia sottopiano (apron) ──────────────────────────────────────
+      # 4 pannelli che collegano le gambe sotto il piano
+      # Frontale
+      - type: "box"
+        scale: [1.16, 0.08, 0.02]
+        translate: [0, 0.70, -0.34]
+      # Posteriore
+      - type: "box"
+        scale: [1.16, 0.08, 0.02]
+        translate: [0, 0.70, 0.34]
+      # Sinistro
+      - type: "box"
+        scale: [0.02, 0.08, 0.68]
+        translate: [-0.58, 0.70, 0]
+      # Destro
+      - type: "box"
+        scale: [0.02, 0.08, 0.68]
+        translate: [0.58, 0.70, 0]
+
+      # ── Gamba anteriore sinistra ───────────────────────────────────────
+      # Fusto principale
+      - type: "cylinder"
+        center: [-0.58, 0.0, -0.34]
+        radius: 0.028
+        height: 0.64
+      # Bulbo tornito (sfera scalata → ellissoide schiacciato)
+      - type: "sphere"
+        center: [-0.58, 0.12, -0.34]
+        radius: 0.040
+        scale: [1.0, 0.60, 1.0]
+      # Anello tornito sopra il bulbo
+      - type: "torus"
+        center: [-0.58, 0.20, -0.34]
+        major_radius: 0.032
+        minor_radius: 0.008
+      # Piede rastremato (cono tronco)
+      - type: "cone"
+        center: [-0.58, 0.0, -0.34]
+        radius: 0.035
+        top_radius: 0.028
+        height: 0.04
+
+      # ── Gamba anteriore destra ─────────────────────────────────────────
+      - type: "cylinder"
+        center: [0.58, 0.0, -0.34]
+        radius: 0.028
+        height: 0.64
+      - type: "sphere"
+        center: [0.58, 0.12, -0.34]
+        radius: 0.040
+        scale: [1.0, 0.60, 1.0]
+      - type: "torus"
+        center: [0.58, 0.20, -0.34]
+        major_radius: 0.032
+        minor_radius: 0.008
+      - type: "cone"
+        center: [0.58, 0.0, -0.34]
+        radius: 0.035
+        top_radius: 0.028
+        height: 0.04
+
+      # ── Gamba posteriore sinistra ──────────────────────────────────────
+      - type: "cylinder"
+        center: [-0.58, 0.0, 0.34]
+        radius: 0.028
+        height: 0.64
+      - type: "sphere"
+        center: [-0.58, 0.12, 0.34]
+        radius: 0.040
+        scale: [1.0, 0.60, 1.0]
+      - type: "torus"
+        center: [-0.58, 0.20, 0.34]
+        major_radius: 0.032
+        minor_radius: 0.008
+      - type: "cone"
+        center: [-0.58, 0.0, 0.34]
+        radius: 0.035
+        top_radius: 0.028
+        height: 0.04
+
+      # ── Gamba posteriore destra ────────────────────────────────────────
+      - type: "cylinder"
+        center: [0.58, 0.0, 0.34]
+        radius: 0.028
+        height: 0.64
+      - type: "sphere"
+        center: [0.58, 0.12, 0.34]
+        radius: 0.040
+        scale: [1.0, 0.60, 1.0]
+      - type: "torus"
+        center: [0.58, 0.20, 0.34]
+        major_radius: 0.032
+        minor_radius: 0.008
+      - type: "cone"
+        center: [0.58, 0.0, 0.34]
+        radius: 0.035
+        top_radius: 0.028
+        height: 0.04
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  SEDIA_CLASSICA — Sedia da pranzo con schienale a stecche
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~0.44 × 0.90 × 0.44 m
+  #  Struttura:  Seduta piatta con bordo frontale arrotondato, 4 gambe
+  #              coniche rastremate, traversine di rinforzo, schienale
+  #              con 2 montanti verticali + traversa superiore + 3 stecche.
+  #
+  #  Materiale default: frn_ciliegio
+  #
+  - name: "sedia_classica"
+    material: "frn_ciliegio"
+    children:
+
+      # ── Seduta ─────────────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.42, 0.028, 0.40]
+        translate: [0, 0.455, 0.02]
+
+      # Bordo anteriore arrotondato della seduta (cilindro orizzontale)
+      - type: "cylinder"
+        center: [0, 0.455, -0.18]
+        radius: 0.014
+        height: 0.42
+        rotate: [0, 0, 90]
+
+      # ── Gambe anteriori (coniche, rastremate verso il basso) ────────────
+      # Anteriore sinistra
+      - type: "cone"
+        center: [-0.17, 0.0, -0.16]
+        radius: 0.022
+        top_radius: 0.016
+        height: 0.44
+      # Anteriore destra
+      - type: "cone"
+        center: [0.17, 0.0, -0.16]
+        radius: 0.022
+        top_radius: 0.016
+        height: 0.44
+
+      # ── Gambe posteriori (più alte, diventano montanti dello schienale) ─
+      # Posteriore sinistra — gamba + montante come unico cilindro alto
+      - type: "cylinder"
+        center: [-0.17, 0.0, 0.18]
+        radius: 0.018
+        height: 0.88
+      # Posteriore destra
+      - type: "cylinder"
+        center: [0.17, 0.0, 0.18]
+        radius: 0.018
+        height: 0.88
+
+      # ── Traversine inferiori (rinforzo gambe) ──────────────────────────
+      # Traversina frontale
+      - type: "cylinder"
+        center: [0, 0.14, -0.16]
+        radius: 0.010
+        height: 0.30
+        rotate: [0, 0, 90]
+      # Traversina posteriore
+      - type: "cylinder"
+        center: [0, 0.14, 0.18]
+        radius: 0.010
+        height: 0.30
+        rotate: [0, 0, 90]
+      # Traversina laterale sinistra
+      - type: "cylinder"
+        center: [-0.17, 0.14, 0.01]
+        radius: 0.010
+        height: 0.30
+        rotate: [90, 0, 0]
+      # Traversina laterale destra
+      - type: "cylinder"
+        center: [0.17, 0.14, 0.01]
+        radius: 0.010
+        height: 0.30
+        rotate: [90, 0, 0]
+
+      # ── Schienale ──────────────────────────────────────────────────────
+      # Traversa superiore (arco)
+      - type: "cylinder"
+        center: [0, 0.86, 0.18]
+        radius: 0.016
+        height: 0.34
+        rotate: [0, 0, 90]
+      # Traversa intermedia
+      - type: "cylinder"
+        center: [0, 0.54, 0.18]
+        radius: 0.012
+        height: 0.30
+        rotate: [0, 0, 90]
+      # Stecca sinistra
+      - type: "cylinder"
+        center: [-0.09, 0.54, 0.18]
+        radius: 0.008
+        height: 0.32
+      # Stecca centrale
+      - type: "cylinder"
+        center: [0, 0.54, 0.18]
+        radius: 0.008
+        height: 0.32
+      # Stecca destra
+      - type: "cylinder"
+        center: [0.09, 0.54, 0.18]
+        radius: 0.008
+        height: 0.32
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  TAVOLINO_CAFFE — Tavolino rotondo con colonna centrale
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: Ø 0.80 × 0.45 m
+  #  Struttura:  Piano circolare (cilindro piatto), colonna centrale
+  #              tornita (cilindro + sfere + torus), base circolare
+  #              pesante con anello decorativo.
+  #
+  #  Materiale default: frn_mogano
+  #
+  - name: "tavolino_caffe"
+    material: "frn_mogano"
+    children:
+
+      # ── Piano circolare ────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.43, 0]
+        radius: 0.40
+        height: 0.025
+
+      # Bordo arrotondato del piano
+      - type: "torus"
+        center: [0, 0.43, 0]
+        major_radius: 0.395
+        minor_radius: 0.013
+
+      # ── Colonna centrale ───────────────────────────────────────────────
+      # Fusto principale
+      - type: "cylinder"
+        center: [0, 0.08, 0]
+        radius: 0.038
+        height: 0.35
+
+      # Collarino superiore (torus sotto il piano)
+      - type: "torus"
+        center: [0, 0.40, 0]
+        major_radius: 0.050
+        minor_radius: 0.014
+
+      # Nodo sferico decorativo al centro della colonna
+      - type: "sphere"
+        center: [0, 0.24, 0]
+        radius: 0.055
+
+      # Anello tornito sotto il nodo
+      - type: "torus"
+        center: [0, 0.16, 0]
+        major_radius: 0.045
+        minor_radius: 0.010
+
+      # ── Base ───────────────────────────────────────────────────────────
+      # Disco pesante di base
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.22
+        height: 0.03
+
+      # Bordo arrotondato della base
+      - type: "torus"
+        center: [0, 0.03, 0]
+        major_radius: 0.215
+        minor_radius: 0.015
+
+      # Piedini (3 sfere schiacciate equidistanti a 120°)
+      - type: "sphere"
+        center: [0.18, 0.0, 0]
+        radius: 0.016
+        scale: [1.2, 0.5, 1.2]
+      - type: "sphere"
+        center: [-0.09, 0.0, 0.156]
+        radius: 0.016
+        scale: [1.2, 0.5, 1.2]
+      - type: "sphere"
+        center: [-0.09, 0.0, -0.156]
+        radius: 0.016
+        scale: [1.2, 0.5, 1.2]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  LAMPADA_TAVOLO — Lampada con paralume conico cavo
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.28 × 0.48 m
+  #  Struttura:  Base circolare pesante (cilindro + torus), stelo
+  #              sottile, paralume troncoconico cavo (CSG subtraction
+  #              di due coni tronchi), lampadina sferica emissiva.
+  #
+  #  Materiale default: frn_ottone (base e stelo)
+  #  Materiali espliciti: frn_paralume (paralume), frn_lampadina (bulbo)
+  #
+  - name: "lampada_tavolo"
+    material: "frn_ottone"
+    children:
+
+      # ── Base ───────────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.09
+        height: 0.018
+
+      # Bordo arrotondato della base
+      - type: "torus"
+        center: [0, 0.018, 0]
+        major_radius: 0.085
+        minor_radius: 0.009
+
+      # Rialzo centrale della base
+      - type: "cylinder"
+        center: [0, 0.018, 0]
+        radius: 0.04
+        height: 0.010
+
+      # ── Stelo ──────────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.028, 0]
+        radius: 0.008
+        height: 0.30
+
+      # Nodo decorativo a metà stelo
+      - type: "sphere"
+        center: [0, 0.18, 0]
+        radius: 0.014
+
+      # ── Portalampada ───────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.328, 0]
+        radius: 0.012
+        height: 0.03
+
+      # ── Paralume (cono tronco cavo via CSG) ────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        material: "frn_paralume"
+        left:
+          type: "cone"
+          center: [0, 0.30, 0]
+          radius: 0.14
+          top_radius: 0.07
+          height: 0.18
+        right:
+          type: "cone"
+          center: [0, 0.295, 0]
+          radius: 0.134
+          top_radius: 0.065
+          height: 0.19
+
+      # ── Lampadina emissiva ─────────────────────────────────────────────
+      - type: "sphere"
+        center: [0, 0.38, 0]
+        radius: 0.030
+        material: "frn_lampadina"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  LAMPADA_TERRA — Lampada da terra alta
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.38 × 1.65 m
+  #  Struttura:  Base circolare pesante con 3 piedini, stelo alto e
+  #              sottile con collarini, paralume conico grande (CSG),
+  #              lampadina emissiva.
+  #
+  #  Materiale default: frn_ottone
+  #  Materiali espliciti: frn_paralume, frn_lampadina
+  #
+  - name: "lampada_terra"
+    material: "frn_ottone"
+    children:
+
+      # ── Base ───────────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.14
+        height: 0.025
+
+      # Bordo base
+      - type: "torus"
+        center: [0, 0.025, 0]
+        major_radius: 0.135
+        minor_radius: 0.012
+
+      # 3 piedini sferici (equidistanti 120°)
+      - type: "sphere"
+        center: [0.12, 0.0, 0]
+        radius: 0.018
+        scale: [1.3, 0.4, 1.3]
+      - type: "sphere"
+        center: [-0.06, 0.0, 0.104]
+        radius: 0.018
+        scale: [1.3, 0.4, 1.3]
+      - type: "sphere"
+        center: [-0.06, 0.0, -0.104]
+        radius: 0.018
+        scale: [1.3, 0.4, 1.3]
+
+      # ── Stelo (3 segmenti con collarini) ───────────────────────────────
+      # Segmento inferiore
+      - type: "cylinder"
+        center: [0, 0.025, 0]
+        radius: 0.014
+        height: 0.55
+
+      # Collarino 1
+      - type: "torus"
+        center: [0, 0.58, 0]
+        major_radius: 0.018
+        minor_radius: 0.006
+
+      # Segmento medio
+      - type: "cylinder"
+        center: [0, 0.58, 0]
+        radius: 0.012
+        height: 0.50
+
+      # Collarino 2
+      - type: "torus"
+        center: [0, 1.08, 0]
+        major_radius: 0.016
+        minor_radius: 0.005
+
+      # Segmento superiore
+      - type: "cylinder"
+        center: [0, 1.08, 0]
+        radius: 0.010
+        height: 0.30
+
+      # ── Portalampada ───────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 1.38, 0]
+        radius: 0.014
+        height: 0.04
+
+      # ── Paralume conico cavo (CSG) ─────────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        material: "frn_paralume"
+        left:
+          type: "cone"
+          center: [0, 1.32, 0]
+          radius: 0.19
+          top_radius: 0.10
+          height: 0.24
+        right:
+          type: "cone"
+          center: [0, 1.315, 0]
+          radius: 0.184
+          top_radius: 0.095
+          height: 0.25
+
+      # ── Lampadina emissiva ─────────────────────────────────────────────
+      - type: "sphere"
+        center: [0, 1.42, 0]
+        radius: 0.035
+        material: "frn_lampadina"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  SCAFFALE — Libreria a 5 ripiani
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: 0.80 × 1.80 × 0.30 m
+  #  Struttura:  2 fiancate piene, 5 ripiani equidistanti, schienale
+  #              sottile, bordo frontale arrotondato su ogni ripiano.
+  #
+  #  Materiale default: frn_rovere
+  #
+  - name: "scaffale"
+    material: "frn_rovere"
+    children:
+
+      # ── Fiancata sinistra ──────────────────────────────────────────────
+      - type: "box"
+        scale: [0.022, 1.80, 0.30]
+        translate: [-0.40, 0.90, 0]
+
+      # ── Fiancata destra ────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.022, 1.80, 0.30]
+        translate: [0.40, 0.90, 0]
+
+      # ── Schienale ─────────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.756, 1.80, 0.008]
+        translate: [0, 0.90, 0.146]
+
+      # ── Ripiano 1 (base) ──────────────────────────────────────────────
+      - type: "box"
+        scale: [0.756, 0.022, 0.30]
+        translate: [0, 0.011, 0]
+      - type: "cylinder"
+        center: [0, 0.022, -0.15]
+        radius: 0.011
+        height: 0.756
+        rotate: [0, 0, 90]
+
+      # ── Ripiano 2 ─────────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.756, 0.022, 0.30]
+        translate: [0, 0.36, 0]
+      - type: "cylinder"
+        center: [0, 0.371, -0.15]
+        radius: 0.011
+        height: 0.756
+        rotate: [0, 0, 90]
+
+      # ── Ripiano 3 ─────────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.756, 0.022, 0.30]
+        translate: [0, 0.72, 0]
+      - type: "cylinder"
+        center: [0, 0.731, -0.15]
+        radius: 0.011
+        height: 0.756
+        rotate: [0, 0, 90]
+
+      # ── Ripiano 4 ─────────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.756, 0.022, 0.30]
+        translate: [0, 1.08, 0]
+      - type: "cylinder"
+        center: [0, 1.091, -0.15]
+        radius: 0.011
+        height: 0.756
+        rotate: [0, 0, 90]
+
+      # ── Ripiano 5 (top) ───────────────────────────────────────────────
+      - type: "box"
+        scale: [0.756, 0.022, 0.30]
+        translate: [0, 1.44, 0]
+      - type: "cylinder"
+        center: [0, 1.451, -0.15]
+        radius: 0.011
+        height: 0.756
+        rotate: [0, 0, 90]
+
+      # ── Coperchio superiore ────────────────────────────────────────────
+      - type: "box"
+        scale: [0.80, 0.022, 0.30]
+        translate: [0, 1.789, 0]
+      - type: "cylinder"
+        center: [0, 1.80, -0.15]
+        radius: 0.011
+        height: 0.80
+        rotate: [0, 0, 90]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  SGABELLO_BAR — Sgabello alto con poggiapiedi ad anello
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: Ø 0.36 × 0.75 m
+  #  Struttura:  Seduta rotonda imbottita (cilindro + torus bordo +
+  #              ellissoide cuscino), 4 gambe coniche leggermente
+  #              divaricate, anello poggiapiedi (torus grande),
+  #              traversine diagonali.
+  #
+  #  Materiale default: frn_noce_chiaro (struttura)
+  #  Materiale esplicito: frn_pelle_nera (cuscino seduta)
+  #
+  - name: "sgabello_bar"
+    material: "frn_noce_chiaro"
+    children:
+
+      # ── Seduta ─────────────────────────────────────────────────────────
+      # Bordo in legno della seduta (anello spesso)
+      - type: "cylinder"
+        center: [0, 0.70, 0]
+        radius: 0.17
+        height: 0.030
+
+      # Bordo arrotondato
+      - type: "torus"
+        center: [0, 0.73, 0]
+        major_radius: 0.165
+        minor_radius: 0.015
+
+      # Cuscino imbottito (ellissoide schiacciato sopra il bordo)
+      - type: "sphere"
+        center: [0, 0.735, 0]
+        radius: 0.155
+        scale: [1.0, 0.20, 1.0]
+        material: "frn_pelle_nera"
+
+      # ── Gambe (4 coni leggermente inclinati verso l'esterno) ───────────
+      # Gamba frontale sinistra
+      - type: "cone"
+        center: [-0.12, 0.0, -0.12]
+        radius: 0.016
+        top_radius: 0.013
+        height: 0.70
+        rotate: [2, 0, -2]
+
+      # Gamba frontale destra
+      - type: "cone"
+        center: [0.12, 0.0, -0.12]
+        radius: 0.016
+        top_radius: 0.013
+        height: 0.70
+        rotate: [2, 0, 2]
+
+      # Gamba posteriore sinistra
+      - type: "cone"
+        center: [-0.12, 0.0, 0.12]
+        radius: 0.016
+        top_radius: 0.013
+        height: 0.70
+        rotate: [-2, 0, -2]
+
+      # Gamba posteriore destra
+      - type: "cone"
+        center: [0.12, 0.0, 0.12]
+        radius: 0.016
+        top_radius: 0.013
+        height: 0.70
+        rotate: [-2, 0, 2]
+
+      # ── Poggiapiedi (torus grande) ─────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.22, 0]
+        major_radius: 0.155
+        minor_radius: 0.008
+        material: "frn_ferro"
+
+      # ── Traversine a X (rinforzo tra gambe) ────────────────────────────
+      # Diagonale 1
+      - type: "cylinder"
+        center: [0, 0.35, 0]
+        radius: 0.006
+        height: 0.34
+        rotate: [45, 45, 0]
+
+      # Diagonale 2
+      - type: "cylinder"
+        center: [0, 0.35, 0]
+        radius: 0.006
+        height: 0.34
+        rotate: [45, -45, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  COMODINO — Comodino con cassetto e pomello
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: 0.45 × 0.55 × 0.40 m
+  #  Struttura:  Piano d'appoggio con bordo, vano aperto superiore,
+  #              cassetto con pannello frontale incassato e pomello
+  #              sferico in ottone, 4 gambe tornite corte, base.
+  #
+  #  Materiale default: frn_ciliegio
+  #  Materiale esplicito: frn_ottone (pomello)
+  #
+  - name: "comodino"
+    material: "frn_ciliegio"
+    children:
+
+      # ── Piano superiore ────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.45, 0.025, 0.40]
+        translate: [0, 0.538, 0]
+
+      # Bordo arrotondato frontale del piano
+      - type: "cylinder"
+        center: [0, 0.55, -0.20]
+        radius: 0.0125
+        height: 0.45
+        rotate: [0, 0, 90]
+
+      # ── Fiancata sinistra ──────────────────────────────────────────────
+      - type: "box"
+        scale: [0.018, 0.40, 0.37]
+        translate: [-0.216, 0.31, 0]
+
+      # ── Fiancata destra ────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.018, 0.40, 0.37]
+        translate: [0.216, 0.31, 0]
+
+      # ── Schienale ─────────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.414, 0.40, 0.012]
+        translate: [0, 0.31, 0.179]
+
+      # ── Divisorio interno (separa vano e cassetto) ─────────────────────
+      - type: "box"
+        scale: [0.414, 0.014, 0.37]
+        translate: [0, 0.31, 0]
+
+      # ── Fronte cassetto ────────────────────────────────────────────────
+      - type: "box"
+        scale: [0.42, 0.18, 0.016]
+        translate: [0, 0.20, -0.192]
+
+      # Cornice incassata del fronte cassetto (4 cilindri sottili)
+      # Superiore
+      - type: "cylinder"
+        center: [0, 0.285, -0.198]
+        radius: 0.004
+        height: 0.38
+        rotate: [0, 0, 90]
+      # Inferiore
+      - type: "cylinder"
+        center: [0, 0.115, -0.198]
+        radius: 0.004
+        height: 0.38
+        rotate: [0, 0, 90]
+      # Sinistro
+      - type: "cylinder"
+        center: [-0.19, 0.20, -0.198]
+        radius: 0.004
+        height: 0.17
+      # Destro
+      - type: "cylinder"
+        center: [0.19, 0.20, -0.198]
+        radius: 0.004
+        height: 0.17
+
+      # ── Pomello (sfera + mini-cilindro di attacco) ─────────────────────
+      - type: "cylinder"
+        center: [0, 0.20, -0.204]
+        radius: 0.006
+        height: 0.014
+        rotate: [90, 0, 0]
+        material: "frn_ottone"
+
+      - type: "sphere"
+        center: [0, 0.20, -0.222]
+        radius: 0.014
+        material: "frn_ottone"
+
+      # ── Gambe tornite ──────────────────────────────────────────────────
+      # Anteriore sinistra
+      - type: "cylinder"
+        center: [-0.19, 0.0, -0.16]
+        radius: 0.018
+        height: 0.10
+      - type: "sphere"
+        center: [-0.19, 0.04, -0.16]
+        radius: 0.025
+        scale: [1.0, 0.55, 1.0]
+      # Anteriore destra
+      - type: "cylinder"
+        center: [0.19, 0.0, -0.16]
+        radius: 0.018
+        height: 0.10
+      - type: "sphere"
+        center: [0.19, 0.04, -0.16]
+        radius: 0.025
+        scale: [1.0, 0.55, 1.0]
+      # Posteriore sinistra
+      - type: "cylinder"
+        center: [-0.19, 0.0, 0.16]
+        radius: 0.018
+        height: 0.10
+      - type: "sphere"
+        center: [-0.19, 0.04, 0.16]
+        radius: 0.025
+        scale: [1.0, 0.55, 1.0]
+      # Posteriore destra
+      - type: "cylinder"
+        center: [0.19, 0.0, 0.16]
+        radius: 0.018
+        height: 0.10
+      - type: "sphere"
+        center: [0.19, 0.04, 0.16]
+        radius: 0.025
+        scale: [1.0, 0.55, 1.0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  CANDELABRO — Candeliere a 3 bracci
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.40 × 0.50 m
+  #  Struttura:  Base circolare decorata (cilindro + torus), stelo
+  #              centrale con nodo sferico, 3 bracci (ciascuno con
+  #              segmento orizzontale + raccordo sferico + segmento
+  #              verticale), porta-candela con anello, candela in cera
+  #              e fiamma ellissoidale emissiva. Bracci a 120°.
+  #
+  #  Materiale default: frn_ottone
+  #  Materiali espliciti: frn_cera (candele), frn_fiamma (fiamme)
+  #
+  - name: "candelabro"
+    material: "frn_ottone"
+    children:
+
+      # ── Base decorata ──────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.08
+        height: 0.015
+
+      - type: "torus"
+        center: [0, 0.015, 0]
+        major_radius: 0.075
+        minor_radius: 0.008
+
+      # Rialzo centrale della base
+      - type: "cone"
+        center: [0, 0.015, 0]
+        radius: 0.06
+        top_radius: 0.035
+        height: 0.02
+
+      # ── Stelo centrale ─────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.035, 0]
+        radius: 0.012
+        height: 0.24
+
+      # Nodo sferico decorativo
+      - type: "sphere"
+        center: [0, 0.18, 0]
+        radius: 0.022
+
+      # Anello sotto il nodo
+      - type: "torus"
+        center: [0, 0.14, 0]
+        major_radius: 0.016
+        minor_radius: 0.005
+
+      # Anello sopra il nodo
+      - type: "torus"
+        center: [0, 0.22, 0]
+        major_radius: 0.016
+        minor_radius: 0.005
+
+      # ── Porta-candela centrale (sopra lo stelo) ────────────────────────
+      - type: "cylinder"
+        center: [0, 0.275, 0]
+        radius: 0.022
+        height: 0.012
+
+      - type: "torus"
+        center: [0, 0.287, 0]
+        major_radius: 0.022
+        minor_radius: 0.005
+
+      # Puntale di bloccaggio candela
+      - type: "cone"
+        center: [0, 0.287, 0]
+        radius: 0.008
+        top_radius: 0.002
+        height: 0.015
+
+      # Candela centrale
+      - type: "cylinder"
+        center: [0, 0.30, 0]
+        radius: 0.010
+        height: 0.12
+        material: "frn_cera"
+
+      # Fiamma centrale (ellissoide allungato verticalmente)
+      - type: "sphere"
+        center: [0, 0.43, 0]
+        radius: 0.008
+        scale: [0.6, 1.5, 0.6]
+        material: "frn_fiamma"
+
+      # ── Braccio 1 (direzione X+, angolo 0°) ───────────────────────────
+      # Segmento orizzontale
+      - type: "cylinder"
+        center: [0.06, 0.24, 0]
+        radius: 0.008
+        height: 0.10
+        rotate: [0, 0, 90]
+      # Raccordo sferico (curva)
+      - type: "sphere"
+        center: [0.11, 0.24, 0]
+        radius: 0.010
+      # Segmento verticale
+      - type: "cylinder"
+        center: [0.14, 0.24, 0]
+        radius: 0.008
+        height: 0.06
+      # Piattino porta-candela
+      - type: "cylinder"
+        center: [0.14, 0.30, 0]
+        radius: 0.022
+        height: 0.008
+      - type: "torus"
+        center: [0.14, 0.308, 0]
+        major_radius: 0.022
+        minor_radius: 0.004
+      # Puntale
+      - type: "cone"
+        center: [0.14, 0.308, 0]
+        radius: 0.008
+        top_radius: 0.002
+        height: 0.012
+      # Candela
+      - type: "cylinder"
+        center: [0.14, 0.32, 0]
+        radius: 0.010
+        height: 0.10
+        material: "frn_cera"
+      # Fiamma
+      - type: "sphere"
+        center: [0.14, 0.43, 0]
+        radius: 0.008
+        scale: [0.6, 1.5, 0.6]
+        material: "frn_fiamma"
+
+      # ── Braccio 2 (angolo 120°) ───────────────────────────────────────
+      # Segmento orizzontale
+      - type: "cylinder"
+        center: [-0.030, 0.24, 0.052]
+        radius: 0.008
+        height: 0.10
+        rotate: [30, 0, 90]
+      # Raccordo sferico
+      - type: "sphere"
+        center: [-0.055, 0.24, 0.095]
+        radius: 0.010
+      # Segmento verticale
+      - type: "cylinder"
+        center: [-0.070, 0.24, 0.121]
+        radius: 0.008
+        height: 0.06
+      # Piattino
+      - type: "cylinder"
+        center: [-0.070, 0.30, 0.121]
+        radius: 0.022
+        height: 0.008
+      - type: "torus"
+        center: [-0.070, 0.308, 0.121]
+        major_radius: 0.022
+        minor_radius: 0.004
+      # Puntale
+      - type: "cone"
+        center: [-0.070, 0.308, 0.121]
+        radius: 0.008
+        top_radius: 0.002
+        height: 0.012
+      # Candela
+      - type: "cylinder"
+        center: [-0.070, 0.32, 0.121]
+        radius: 0.010
+        height: 0.10
+        material: "frn_cera"
+      # Fiamma
+      - type: "sphere"
+        center: [-0.070, 0.43, 0.121]
+        radius: 0.008
+        scale: [0.6, 1.5, 0.6]
+        material: "frn_fiamma"
+
+      # ── Braccio 3 (angolo 240°) ───────────────────────────────────────
+      # Segmento orizzontale
+      - type: "cylinder"
+        center: [-0.030, 0.24, -0.052]
+        radius: 0.008
+        height: 0.10
+        rotate: [-30, 0, 90]
+      # Raccordo sferico
+      - type: "sphere"
+        center: [-0.055, 0.24, -0.095]
+        radius: 0.010
+      # Segmento verticale
+      - type: "cylinder"
+        center: [-0.070, 0.24, -0.121]
+        radius: 0.008
+        height: 0.06
+      # Piattino
+      - type: "cylinder"
+        center: [-0.070, 0.30, -0.121]
+        radius: 0.022
+        height: 0.008
+      - type: "torus"
+        center: [-0.070, 0.308, -0.121]
+        major_radius: 0.022
+        minor_radius: 0.004
+      # Puntale
+      - type: "cone"
+        center: [-0.070, 0.308, -0.121]
+        radius: 0.008
+        top_radius: 0.002
+        height: 0.012
+      # Candela
+      - type: "cylinder"
+        center: [-0.070, 0.32, -0.121]
+        radius: 0.010
+        height: 0.10
+        material: "frn_cera"
+      # Fiamma
+      - type: "sphere"
+        center: [-0.070, 0.43, -0.121]
+        radius: 0.008
+        scale: [0.6, 1.5, 0.6]
+        material: "frn_fiamma"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  VASO_DECORATIVO — Vaso classico a profilo sagomato
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.24 × 0.35 m
+  #  Struttura:  Profilo a "urna" classico costruito impilando sezioni
+  #              di geometria diversa: piede (cono tronco), peduncolo
+  #              (cilindro stretto), corpo bombato (sfera scalata →
+  #              ellissoide), spalla (cono tronco invertito), collo
+  #              (cilindro), labbro (torus). Interno cavo via CSG.
+  #
+  #  Materiale default: frn_marmo_bianco
+  #
+  - name: "vaso_decorativo"
+    material: "frn_marmo_bianco"
+    children:
+
+      # Per ottenere un vaso cavo usiamo CSG: il profilo esterno
+      # completo meno un cilindro interno.
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          # ── Profilo esterno (group) ────────────────────────────────────
+          type: "group"
+          children:
+            # Piede — cono tronco basso e largo
+            - type: "cone"
+              center: [0, 0, 0]
+              radius: 0.08
+              top_radius: 0.05
+              height: 0.025
+
+            # Peduncolo — cilindro stretto
+            - type: "cylinder"
+              center: [0, 0.025, 0]
+              radius: 0.042
+              height: 0.04
+
+            # Anello decorativo alla base del corpo
+            - type: "torus"
+              center: [0, 0.065, 0]
+              major_radius: 0.055
+              minor_radius: 0.012
+
+            # Corpo bombato — ellissoide (sfera scalata asimmetrica)
+            - type: "sphere"
+              center: [0, 0.16, 0]
+              radius: 0.12
+              scale: [1.0, 1.15, 1.0]
+
+            # Spalla — cono tronco (dal corpo largo al collo stretto)
+            - type: "cone"
+              center: [0, 0.24, 0]
+              radius: 0.095
+              top_radius: 0.050
+              height: 0.05
+
+            # Collo — cilindro stretto
+            - type: "cylinder"
+              center: [0, 0.29, 0]
+              radius: 0.045
+              height: 0.04
+
+            # Labbro — torus sporgente in cima
+            - type: "torus"
+              center: [0, 0.33, 0]
+              major_radius: 0.052
+              minor_radius: 0.012
+
+        right:
+          # ── Cavità interna ─────────────────────────────────────────────
+          # Cilindro che scava l'interno dal labbro fino quasi alla base
+          type: "cylinder"
+          center: [0, 0.04, 0]
+          radius: 0.038
+          height: 0.32

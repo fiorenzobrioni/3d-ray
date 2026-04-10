@@ -1,0 +1,472 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  STARTER KIT — Dining Room
+#
+#  Stanza classica con tavolo da pranzo rettangolare e 4 sedie. Pavimento in
+#  legno, pareti chiare, finestra simulata con area light laterale. Un
+#  centrotavola con vaso e fiori stilizzati. Lampada a sospensione sopra il
+#  tavolo. Ambiente realistico e familiare, punto di partenza ideale per
+#  costruire qualsiasi scena indoor.
+#
+#  AMBIENTAZIONE: Indoor — sala da pranzo, abitazione
+#  STILE: Domestico, realistico, luce naturale da finestra
+#
+#  Render consigliato:
+#    Draft:    -w 800  -H 600  -s 16  -d 15 -S 4
+#    Preview:  -w 1280 -H 960  -s 64  -d 25 -S 8
+#    Finale:   -w 1920 -H 1080 -s 256 -d 40 -S 16
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ─── WORLD ATTIVO ★ Stanza chiusa — luce da finestra ────────────────────────
+world:
+  ambient_light: [0.04, 0.04, 0.04]
+  background: [0.0, 0.0, 0.0]
+
+# ─── WORLD ALT-1: Più luminosa — luce pomeridiana ───────────────────────────
+# world:
+#   ambient_light: [0.08, 0.08, 0.07]
+#   background: [0.0, 0.0, 0.0]
+
+# ─── WORLD ALT-2: Sera — luce artificiale calda ─────────────────────────────
+# world:
+#   ambient_light: [0.015, 0.012, 0.008]
+#   background: [0.0, 0.0, 0.0]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════════
+cameras:
+
+  - name: "angolo_stanza"
+    position: [-3.5, 2.0, -3.5]
+    look_at:  [0, 0.8, 0]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 5.5
+
+  - name: "tavolo"
+    position: [0, 2.5, -3]
+    look_at:  [0, 0.75, 0]
+    fov: 48
+    aperture: 0.0
+    focal_dist: 4.0
+
+  - name: "posto_a_sedere"
+    position: [0, 1.2, -1.8]
+    look_at:  [0, 0.8, 0.5]
+    fov: 55
+    aperture: 0.04
+    focal_dist: 2.5
+
+  - name: "centrotavola"
+    position: [0.8, 1.2, -1.5]
+    look_at:  [0, 0.90, 0]
+    fov: 38
+    aperture: 0.06
+    focal_dist: 2.0
+
+  - name: "dalla_finestra"
+    position: [-4, 1.8, 0]
+    look_at:  [0, 0.80, 0]
+    fov: 52
+    aperture: 0.0
+    focal_dist: 5.0
+
+  - name: "zenitale"
+    position: [0, 6, 0]
+    look_at:  [0, 0, 0]
+    vup: [0, 0, 1]
+    fov: 50
+    aperture: 0.0
+    focal_dist: 6.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Pareti — bianco caldo ──────────────────────────────────────────────────
+  - id: "parete"
+    type: "lambertian"
+    color: [0.88, 0.86, 0.82]
+
+  # ── Soffitto ───────────────────────────────────────────────────────────────
+  - id: "soffitto"
+    type: "lambertian"
+    color: [0.92, 0.91, 0.90]
+
+  # ── Pavimento in legno ─────────────────────────────────────────────────────
+  - id: "parquet"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.0
+      colors: [[0.45, 0.30, 0.14], [0.35, 0.22, 0.08]]
+      randomize_offset: true
+    roughness: 0.35
+    metallic: 0.0
+    specular: 0.4
+    clearcoat: 0.3
+    clearcoat_gloss: 0.7
+
+  # ── Battiscopa ─────────────────────────────────────────────────────────────
+  - id: "battiscopa"
+    type: "disney"
+    color: [0.82, 0.80, 0.76]
+    roughness: 0.35
+    specular: 0.3
+
+  # ── Tavolo — legno di noce lucido ──────────────────────────────────────────
+  - id: "legno_tavolo"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.0
+      colors: [[0.42, 0.25, 0.10], [0.32, 0.18, 0.06]]
+      randomize_offset: true
+    roughness: 0.22
+    metallic: 0.0
+    specular: 0.5
+    clearcoat: 0.6
+    clearcoat_gloss: 0.88
+
+  # ── Gambe del tavolo ───────────────────────────────────────────────────────
+  - id: "legno_gambe"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 8.0
+      colors: [[0.38, 0.22, 0.09], [0.28, 0.15, 0.05]]
+      randomize_offset: true
+    roughness: 0.35
+    metallic: 0.0
+    specular: 0.3
+
+  # ── Sedie — legno chiaro (acero) ──────────────────────────────────────────
+  - id: "legno_sedia"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 7.0
+      colors: [[0.60, 0.48, 0.28], [0.50, 0.38, 0.20]]
+      randomize_offset: true
+    roughness: 0.38
+    metallic: 0.0
+    specular: 0.3
+
+  # ── Cuscino sedia — tessuto ────────────────────────────────────────────────
+  - id: "tessuto_cuscino"
+    type: "disney"
+    color: [0.55, 0.22, 0.12]
+    roughness: 0.85
+    metallic: 0.0
+    sheen: 0.5
+    sheen_tint: 0.8
+
+  # ── Vaso in ceramica ───────────────────────────────────────────────────────
+  - id: "ceramica_vaso"
+    type: "disney"
+    color: [0.85, 0.82, 0.78]
+    roughness: 0.12
+    specular: 0.7
+    clearcoat: 0.8
+    clearcoat_gloss: 0.95
+
+  # ── Fiori ──────────────────────────────────────────────────────────────────
+  - id: "fiore_rosso"
+    type: "disney"
+    color: [0.75, 0.12, 0.15]
+    roughness: 0.65
+    subsurface: 0.3
+
+  - id: "fiore_bianco"
+    type: "disney"
+    color: [0.92, 0.90, 0.85]
+    roughness: 0.60
+    subsurface: 0.3
+
+  - id: "gambo"
+    type: "disney"
+    color: [0.15, 0.35, 0.08]
+    roughness: 0.70
+
+  # ── Metallo lampada ────────────────────────────────────────────────────────
+  - id: "metallo_lampada"
+    type: "disney"
+    color: [0.25, 0.22, 0.18]
+    roughness: 0.30
+    metallic: 0.85
+
+  - id: "paralume_tessuto"
+    type: "disney"
+    color: [0.75, 0.70, 0.60]
+    roughness: 0.80
+    subsurface: 0.4
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  TEMPLATES
+# ═══════════════════════════════════════════════════════════════════════════════
+templates:
+
+  # ── Sedia (seduta + schienale + 4 gambe) ───────────────────────────────────
+  - name: "sedia"
+    material: "legno_sedia"
+    children:
+      # Seduta (box piatto)
+      - type: "box"
+        scale: [0.42, 0.035, 0.40]
+        translate: [0, 0.44, 0]
+      # Cuscino
+      - type: "box"
+        scale: [0.38, 0.04, 0.36]
+        translate: [0, 0.475, -0.01]
+        material: "tessuto_cuscino"
+      # Schienale (box verticale)
+      - type: "box"
+        scale: [0.42, 0.50, 0.035]
+        translate: [0, 0.71, 0.18]
+      # Traversa schienale superiore
+      - type: "box"
+        scale: [0.38, 0.04, 0.03]
+        translate: [0, 0.92, 0.18]
+      # Traversa schienale inferiore
+      - type: "box"
+        scale: [0.38, 0.03, 0.03]
+        translate: [0, 0.55, 0.18]
+      # Gambe anteriori
+      - type: "cylinder"
+        center: [-0.17, 0, -0.16]
+        radius: 0.018
+        height: 0.44
+      - type: "cylinder"
+        center: [0.17, 0, -0.16]
+        radius: 0.018
+        height: 0.44
+      # Gambe posteriori (più alte, vanno fino allo schienale)
+      - type: "cylinder"
+        center: [-0.17, 0, 0.16]
+        radius: 0.018
+        height: 0.96
+      - type: "cylinder"
+        center: [0.17, 0, 0.16]
+        radius: 0.018
+        height: 0.96
+      # Traversa laterale tra le gambe (rinforzo)
+      - type: "box"
+        scale: [0.01, 0.01, 0.30]
+        translate: [-0.17, 0.20, 0]
+      - type: "box"
+        scale: [0.01, 0.01, 0.30]
+        translate: [0.17, 0.20, 0]
+
+  # ── Fiore stilizzato (gambo + sfera petali) ────────────────────────────────
+  - name: "fiore"
+    children:
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.008
+        height: 0.25
+        material: "gambo"
+      - type: "sphere"
+        center: [0, 0.27, 0]
+        radius: 0.04
+        scale: [1.0, 0.6, 1.0]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  STANZA — 4 pareti + pavimento + soffitto
+  # ─────────────────────────────────────────────────────────────────────────
+
+  - { name: "pavimento", type: "quad", q: [-4.5, 0, -3.5], u: [9, 0, 0], v: [0, 0, 7], material: "parquet", seed: 10 }
+  - { name: "soffitto",  type: "quad", q: [-4.5, 3, -3.5], u: [9, 0, 0], v: [0, 0, 7], material: "soffitto" }
+  - { name: "muro_fondo",  type: "quad", q: [-4.5, 0, 3.5], u: [9, 0, 0], v: [0, 3, 0], material: "parete" }
+  - { name: "muro_sx",     type: "quad", q: [-4.5, 0, -3.5], u: [0, 0, 7], v: [0, 3, 0], material: "parete" }
+  - { name: "muro_dx",     type: "quad", q: [4.5, 0, -3.5], u: [0, 0, 7], v: [0, 3, 0], material: "parete" }
+  - { name: "muro_fronte", type: "quad", q: [-4.5, 0, -3.5], u: [9, 0, 0], v: [0, 3, 0], material: "parete" }
+
+  # Battiscopa
+  - { name: "batt_fondo", type: "box", scale: [9, 0.10, 0.03], translate: [0, 0.05, 3.48], material: "battiscopa" }
+  - { name: "batt_sx",    type: "box", scale: [0.03, 0.10, 7], translate: [-4.48, 0.05, 0], material: "battiscopa" }
+  - { name: "batt_dx",    type: "box", scale: [0.03, 0.10, 7], translate: [4.48, 0.05, 0], material: "battiscopa" }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  TAVOLO DA PRANZO — Piano + 4 gambe
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Piano (box rettangolare)
+  - name: "piano_tavolo"
+    type: "box"
+    scale: [1.8, 0.05, 0.90]
+    translate: [0, 0.75, 0]
+    material: "legno_tavolo"
+    seed: 50
+
+  # Fascia sotto il piano (rinforzo strutturale)
+  - name: "fascia_tavolo"
+    type: "box"
+    scale: [1.70, 0.06, 0.80]
+    translate: [0, 0.69, 0]
+    material: "legno_gambe"
+
+  # Gambe (4 cilindri rastremati simulati con cilindri)
+  - { name: "gamba_FL", type: "cylinder", center: [-0.78, 0, -0.38], radius: 0.035, height: 0.66, material: "legno_gambe" }
+  - { name: "gamba_FR", type: "cylinder", center: [0.78, 0, -0.38], radius: 0.035, height: 0.66, material: "legno_gambe" }
+  - { name: "gamba_BL", type: "cylinder", center: [-0.78, 0, 0.38], radius: 0.035, height: 0.66, material: "legno_gambe" }
+  - { name: "gamba_BR", type: "cylinder", center: [0.78, 0, 0.38], radius: 0.035, height: 0.66, material: "legno_gambe" }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SEDIE — 4 sedie intorno al tavolo
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Sedia Nord (dietro il tavolo)
+  - type: "instance"
+    template: "sedia"
+    translate: [0, 0, 0.85]
+    rotate: [0, 180, 0]
+    seed: 601
+
+  # Sedia Sud (davanti, di fronte alla camera)
+  - type: "instance"
+    template: "sedia"
+    translate: [0, 0, -0.85]
+    seed: 602
+
+  # Sedia Est (lato destro)
+  - type: "instance"
+    template: "sedia"
+    translate: [1.15, 0, 0]
+    rotate: [0, -90, 0]
+    seed: 603
+
+  # Sedia Ovest (lato sinistro)
+  - type: "instance"
+    template: "sedia"
+    translate: [-1.15, 0, 0]
+    rotate: [0, 90, 0]
+    seed: 604
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  CENTROTAVOLA — Vaso con fiori
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Vaso (CSG: cilindro – cilindro interno + cono per forma)
+  - name: "vaso"
+    type: "csg"
+    operation: "subtraction"
+    translate: [0, 0.78, 0]
+    material: "ceramica_vaso"
+    left:
+      type: "cylinder"
+      center: [0, 0, 0]
+      radius: 0.08
+      height: 0.18
+    right:
+      type: "cylinder"
+      center: [0, 0.03, 0]
+      radius: 0.065
+      height: 0.18
+
+  # Fiori nel vaso
+  - { type: "instance", template: "fiore", material: "fiore_rosso",  translate: [0.02, 0.94, 0.01], rotate: [5, 0, -3], seed: 701 }
+  - { type: "instance", template: "fiore", material: "fiore_bianco", translate: [-0.02, 0.94, 0.02], rotate: [-3, 20, 5], seed: 702 }
+  - { type: "instance", template: "fiore", material: "fiore_rosso",  translate: [0, 0.94, -0.02], rotate: [4, -15, 2], seed: 703 }
+  - { type: "instance", template: "fiore", material: "fiore_bianco", translate: [0.03, 0.94, 0.03], rotate: [-5, 40, -4], seed: 704 }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  LAMPADA A SOSPENSIONE — sopra il tavolo
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Asta di sospensione
+  - name: "asta_lampada"
+    type: "cylinder"
+    center: [0, 2.2, 0]
+    radius: 0.008
+    height: 0.8
+    material: "metallo_lampada"
+
+  # Paralume (cono aperto verso il basso)
+  - name: "paralume"
+    type: "cone"
+    center: [0, 1.85, 0]
+    radius: 0.35
+    top_radius: 0.12
+    height: 0.20
+    material: "paralume_tessuto"
+
+  # Base metallica del paralume
+  - name: "base_paralume"
+    type: "cylinder"
+    center: [0, 2.05, 0]
+    radius: 0.13
+    height: 0.03
+    material: "metallo_lampada"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── LUCI ATTIVE ★ Finestra laterale + lampada sospesa ──────────────────────
+lights:
+  # Finestra laterale sinistra (area light simulata)
+  - type: "area"
+    corner: [-4.4, 0.8, -1.5]
+    u: [0, 0, 3.0]
+    v: [0, 1.5, 0]
+    color: [1.0, 0.96, 0.88]
+    intensity: 30.0
+    shadow_samples: 16
+
+  # Lampada a sospensione (sphere light calda)
+  - type: "sphere"
+    position: [0, 1.90, 0]
+    radius: 0.10
+    color: [1.0, 0.85, 0.60]
+    intensity: 40.0
+    shadow_samples: 8
+
+  # Fill morbida dal soffitto
+  - type: "area"
+    corner: [-2, 2.95, -1.5]
+    u: [4, 0, 0]
+    v: [0, 0, 3]
+    color: [0.85, 0.88, 0.95]
+    intensity: 4.0
+    shadow_samples: 4
+
+# ─── LUCI ALT-1: Solo luce naturale (senza lampada) ─────────────────────────
+#   Abbina a WORLD ALT-1
+# lights:
+#   - type: "area"
+#     corner: [-4.4, 0.6, -2]
+#     u: [0, 0, 4]
+#     v: [0, 2.0, 0]
+#     color: [1.0, 0.97, 0.90]
+#     intensity: 45.0
+#     shadow_samples: 16
+#   - type: "directional"
+#     direction: [0.6, -0.5, 0.2]
+#     color: [0.50, 0.55, 0.70]
+#     intensity: 0.04
+
+# ─── LUCI ALT-2: Cena a lume di candela — calda e intima ────────────────────
+#   Abbina a WORLD ALT-2
+# lights:
+#   - type: "sphere"
+#     position: [0, 1.90, 0]
+#     radius: 0.10
+#     color: [1.0, 0.75, 0.40]
+#     intensity: 25.0
+#     shadow_samples: 8
+#   - type: "point"
+#     position: [0, 0.82, 0]
+#     color: [1.0, 0.65, 0.25]
+#     intensity: 5.0

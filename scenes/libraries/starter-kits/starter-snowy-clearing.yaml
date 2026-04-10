@@ -1,0 +1,405 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  STARTER KIT — Snowy Clearing
+#
+#  Una radura invernale in un bosco di conifere. Neve fresca al suolo,
+#  alberi stilizzati (coni verdi + tronchi cilindrici), un lago ghiacciato
+#  (disco dielectric), rocce coperte di neve (sfere con cap bianche) e
+#  un tronco caduto. L'atmosfera è silenziosa e luminosa.
+#
+#  AMBIENTAZIONE: Outdoor — radura innevata, bosco nordico
+#  STILE: Paesaggio invernale, luce fredda diffusa
+#
+#  Render consigliato:
+#    Draft:    -w 800  -H 450  -s 16  -d 15 -S 4
+#    Preview:  -w 1280 -H 720  -s 64  -d 25 -S 8
+#    Finale:   -w 1920 -H 1080 -s 256 -d 40 -S 16
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  WORLD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── WORLD ATTIVO ★ Giornata invernale coperta — cielo grigio luminoso ───────
+world:
+  ambient_light: [0.12, 0.13, 0.15]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.55, 0.58, 0.65]
+    horizon_color: [0.78, 0.80, 0.84]
+    ground_color:  [0.60, 0.62, 0.65]
+  ground:
+    type: "infinite_plane"
+    material: "neve"
+    y: 0
+
+# ─── WORLD ALT-1: Mattina soleggiata invernale — sole basso dorato ──────────
+# world:
+#   ambient_light: [0.08, 0.08, 0.10]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.20, 0.35, 0.72]
+#     horizon_color: [0.70, 0.75, 0.88]
+#     ground_color:  [0.55, 0.55, 0.60]
+#     sun:
+#       direction: [-0.7, -0.25, -0.5]
+#       color: [1.0, 0.90, 0.70]
+#       intensity: 14.0
+#       size: 3.5
+#       falloff: 28.0
+#   ground:
+#     type: "infinite_plane"
+#     material: "neve"
+#     y: 0
+
+# ─── WORLD ALT-2: Notte serena — cielo scuro con luna ───────────────────────
+# world:
+#   ambient_light: [0.008, 0.010, 0.018]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.01, 0.01, 0.04]
+#     horizon_color: [0.04, 0.05, 0.10]
+#     ground_color:  [0.02, 0.02, 0.04]
+#   ground:
+#     type: "infinite_plane"
+#     material: "neve"
+#     y: 0
+
+# ─── WORLD ALT-3: Tramonto rosa invernale ───────────────────────────────────
+# world:
+#   ambient_light: [0.06, 0.05, 0.06]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.12, 0.10, 0.30]
+#     horizon_color: [0.80, 0.45, 0.50]
+#     ground_color:  [0.35, 0.28, 0.30]
+#     sun:
+#       direction: [-0.9, -0.12, -0.3]
+#       color: [1.0, 0.55, 0.45]
+#       intensity: 18.0
+#       size: 5.0
+#       falloff: 14.0
+#   ground:
+#     type: "infinite_plane"
+#     material: "neve"
+#     y: 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════════
+cameras:
+
+  - name: "panorama"
+    position: [0, 2.0, -10]
+    look_at:  [0, 0.8, 3]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 12.0
+
+  - name: "lago"
+    position: [-4, 1.2, -4]
+    look_at:  [-2, 0.1, 2]
+    fov: 45
+    aperture: 0.05
+    focal_dist: 7.0
+
+  - name: "tra_gli_alberi"
+    position: [6, 1.5, 0]
+    look_at:  [0, 1.0, 3]
+    fov: 50
+    aperture: 0.0
+    focal_dist: 8.0
+
+  - name: "dettaglio"
+    position: [1, 0.8, -2]
+    look_at:  [0, 0.5, 1]
+    fov: 38
+    aperture: 0.06
+    focal_dist: 4.0
+
+  - name: "zenitale"
+    position: [0, 18, 2]
+    look_at:  [0, 0, 2]
+    vup: [0, 0, 1]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 18.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Neve fresca — bianco luminoso, leggermente subsurface ──────────────────
+  - id: "neve"
+    type: "disney"
+    color: [0.90, 0.91, 0.95]
+    roughness: 0.85
+    metallic: 0.0
+    subsurface: 0.5
+    specular: 0.15
+
+  # ── Ghiaccio del lago — dielectric con leggera tinta blu ──────────────────
+  - id: "ghiaccio"
+    type: "dielectric"
+    refraction_index: 1.31
+    color: [0.85, 0.90, 0.98]
+
+  # ── Corteccia degli alberi — marrone scuro ruvido ──────────────────────────
+  - id: "corteccia"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 15.0
+      colors: [[0.25, 0.15, 0.08], [0.18, 0.10, 0.05]]
+      randomize_offset: true
+    roughness: 0.92
+    metallic: 0.0
+
+  # ── Fogliame conifere — verde scuro ────────────────────────────────────────
+  - id: "conifere"
+    type: "disney"
+    color: [0.08, 0.20, 0.06]
+    roughness: 0.80
+    metallic: 0.0
+    subsurface: 0.15
+
+  # ── Neve sugli alberi — cap bianca ─────────────────────────────────────────
+  - id: "neve_ramo"
+    type: "disney"
+    color: [0.92, 0.93, 0.97]
+    roughness: 0.80
+    subsurface: 0.4
+
+  # ── Roccia esposta — grigio scuro ──────────────────────────────────────────
+  - id: "roccia"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.5
+      colors: [[0.35, 0.33, 0.30], [0.25, 0.24, 0.22]]
+      randomize_offset: true
+    roughness: 0.88
+    metallic: 0.0
+
+  # ── Legno tronco caduto ────────────────────────────────────────────────────
+  - id: "legno_caduto"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 6.0
+      colors: [[0.30, 0.20, 0.10], [0.22, 0.14, 0.06]]
+      randomize_offset: true
+    roughness: 0.85
+    metallic: 0.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  TEMPLATES
+# ═══════════════════════════════════════════════════════════════════════════════
+templates:
+
+  # ── Abete stilizzato: 3 coni sovrapposti + tronco ─────────────────────────
+  - name: "abete"
+    children:
+      # Tronco
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.12
+        height: 1.0
+        material: "corteccia"
+      # Chioma bassa (cono largo)
+      - type: "cone"
+        center: [0, 0.8, 0]
+        radius: 1.0
+        top_radius: 0.05
+        height: 1.5
+        material: "conifere"
+      # Chioma media
+      - type: "cone"
+        center: [0, 1.6, 0]
+        radius: 0.75
+        top_radius: 0.04
+        height: 1.3
+        material: "conifere"
+      # Chioma alta (punta)
+      - type: "cone"
+        center: [0, 2.4, 0]
+        radius: 0.50
+        top_radius: 0.0
+        height: 1.0
+        material: "conifere"
+      # Neve sulla chioma (disco piatto sopra ogni livello)
+      - type: "disk"
+        center: [0, 2.3, 0]
+        normal: [0, 1, 0]
+        radius: 0.72
+        material: "neve_ramo"
+      - type: "disk"
+        center: [0, 2.9, 0]
+        normal: [0, 1, 0]
+        radius: 0.48
+        material: "neve_ramo"
+      - type: "disk"
+        center: [0, 3.4, 0]
+        normal: [0, 1, 0]
+        radius: 0.20
+        material: "neve_ramo"
+
+  # ── Abete piccolo (giovane) ────────────────────────────────────────────────
+  - name: "abete_piccolo"
+    children:
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.06
+        height: 0.4
+        material: "corteccia"
+      - type: "cone"
+        center: [0, 0.3, 0]
+        radius: 0.45
+        top_radius: 0.0
+        height: 0.9
+        material: "conifere"
+      - type: "disk"
+        center: [0, 0.75, 0]
+        normal: [0, 1, 0]
+        radius: 0.35
+        material: "neve_ramo"
+
+  # ── Roccia con neve sopra ──────────────────────────────────────────────────
+  - name: "roccia_innevata"
+    children:
+      # Corpo della roccia (ellissoide)
+      - type: "sphere"
+        center: [0, 0.25, 0]
+        radius: 0.50
+        scale: [1.2, 0.6, 1.0]
+        material: "roccia"
+      # Cap di neve sopra
+      - type: "sphere"
+        center: [0, 0.38, 0]
+        radius: 0.48
+        scale: [1.15, 0.2, 0.95]
+        material: "neve_ramo"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  LAGO GHIACCIATO — disco piatto di ghiaccio
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "lago_ghiacciato"
+    type: "disk"
+    center: [-2, 0.01, 3]
+    normal: [0, 1, 0]
+    radius: 3.5
+    material: "ghiaccio"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ALBERI — Corona di abeti intorno alla radura
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Fila posteriore (lontani)
+  - { type: "instance", template: "abete", translate: [-6, 0, 12],  scale: [1.2, 1.3, 1.2], seed: 1001 }
+  - { type: "instance", template: "abete", translate: [-3, 0, 14],  scale: [1.0, 1.1, 1.0], seed: 1002 }
+  - { type: "instance", template: "abete", translate: [0, 0, 15],   scale: [1.3, 1.4, 1.3], seed: 1003 }
+  - { type: "instance", template: "abete", translate: [3, 0, 13],   scale: [0.9, 1.0, 0.9], seed: 1004 }
+  - { type: "instance", template: "abete", translate: [6, 0, 12],   scale: [1.1, 1.2, 1.1], seed: 1005 }
+  - { type: "instance", template: "abete", translate: [9, 0, 11],   scale: [1.0, 1.15, 1.0], seed: 1006 }
+
+  # Lato sinistro
+  - { type: "instance", template: "abete", translate: [-8, 0, 5],   scale: [1.1, 1.2, 1.1], seed: 1010 }
+  - { type: "instance", template: "abete", translate: [-9, 0, 8],   scale: [1.3, 1.5, 1.3], seed: 1011 }
+  - { type: "instance", template: "abete", translate: [-7, 0, 0],   scale: [0.9, 1.0, 0.9], seed: 1012 }
+
+  # Lato destro
+  - { type: "instance", template: "abete", translate: [8, 0, 4],    scale: [1.0, 1.1, 1.0], seed: 1020 }
+  - { type: "instance", template: "abete", translate: [9, 0, 7],    scale: [1.2, 1.3, 1.2], seed: 1021 }
+  - { type: "instance", template: "abete", translate: [7, 0, 1],    scale: [1.1, 1.2, 1.1], seed: 1022 }
+
+  # Alberelli giovani sparsi nella radura
+  - { type: "instance", template: "abete_piccolo", translate: [2, 0, 1],   seed: 1030 }
+  - { type: "instance", template: "abete_piccolo", translate: [-1, 0, -1],  seed: 1031 }
+  - { type: "instance", template: "abete_piccolo", translate: [4, 0, 6],    seed: 1032, scale: [0.8, 0.7, 0.8] }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ROCCE INNEVATE
+  # ─────────────────────────────────────────────────────────────────────────
+  - { type: "instance", template: "roccia_innevata", translate: [3, 0, 2],   scale: [1.5, 1.2, 1.3], seed: 2001 }
+  - { type: "instance", template: "roccia_innevata", translate: [-4, 0, 0],  scale: [1.0, 0.8, 1.1], seed: 2002 }
+  - { type: "instance", template: "roccia_innevata", translate: [1, 0, 7],   scale: [1.8, 1.0, 1.5], seed: 2003 }
+  - { type: "instance", template: "roccia_innevata", translate: [5, 0, 9],   scale: [0.8, 0.6, 0.9], seed: 2004 }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  TRONCO CADUTO — cilindro lungo con rami spezzati
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "tronco_caduto"
+    type: "cylinder"
+    center: [0, 0, 0]
+    radius: 0.18
+    height: 4.0
+    rotate: [0, 0, 88]
+    translate: [1, 0.18, -1]
+    material: "legno_caduto"
+    seed: 3001
+
+  # Ramo spezzato
+  - name: "ramo_spezzato"
+    type: "cylinder"
+    center: [0, 0, 0]
+    radius: 0.06
+    height: 0.8
+    rotate: [0, 0, 45]
+    translate: [0.5, 0.25, -0.9]
+    material: "legno_caduto"
+
+  # Neve accumulata sul tronco
+  - name: "neve_tronco"
+    type: "sphere"
+    center: [1, 0.30, -1]
+    radius: 2.2
+    scale: [1.0, 0.05, 0.15]
+    material: "neve_ramo"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── LUCI ATTIVE ★ Cielo coperto — luce diffusa uniforme ────────────────────
+lights:
+  - type: "directional"
+    direction: [-0.3, -1.0, -0.2]
+    color: [0.85, 0.88, 0.95]
+    intensity: 0.6
+
+  - type: "directional"
+    direction: [0.5, -0.5, 0.4]
+    color: [0.70, 0.72, 0.80]
+    intensity: 0.15
+
+# ─── LUCI ALT-1: Mattina soleggiata — sole basso + fill cielo ───────────────
+#   Abbina a WORLD ALT-1
+# lights:
+#   - type: "directional"
+#     direction: [-0.7, -0.25, -0.5]
+#     color: [1.0, 0.90, 0.70]
+#     intensity: 0.9
+#   - type: "directional"
+#     direction: [0.4, -0.6, 0.3]
+#     color: [0.55, 0.60, 0.78]
+#     intensity: 0.06
+
+# ─── LUCI ALT-2: Notte di luna — luce bluastra fredda ───────────────────────
+#   Abbina a WORLD ALT-2
+# lights:
+#   - type: "directional"
+#     direction: [0.3, -0.8, -0.4]
+#     color: [0.20, 0.25, 0.50]
+#     intensity: 0.06

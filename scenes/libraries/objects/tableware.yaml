@@ -1,0 +1,1078 @@
+# ============================================================================
+# Libreria Oggetti — Stoviglie e Tavola (Tableware)
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/tableware.yaml" }]
+#
+# Oggetti per la tavola e la cucina: bicchieri, calici, tazze, piatti,
+# bottiglie, caraffe, teiere, posate. Ogni pezzo sfrutta al massimo
+# la CSG per i volumi cavi, i torus per i bordi e i raccordi, gli
+# ellissoidi per le forme organiche.
+#
+# ── Materiali inclusi ────────────────────────────────────────────────────
+#
+#   Prefisso ID:  tbw_   (tableware)
+#
+#   Per vetri, cristalli e liquidi più specifici, importa anche
+#   libraries/glasses.yaml e libraries/foods.yaml nella scena.
+#
+# ── Convenzioni di design ────────────────────────────────────────────────
+#
+#   ORIGINE       Base a Y=0, centrato in XZ.
+#   SCALA         Unità ≈ metri. Un bicchiere da vino è ~0.22 m alto,
+#                 un piatto ~0.26 m di diametro.
+#   DETTAGLIO     Livello professionale: pareti sottili (CSG), steli
+#                 torniti, manici sagomati (mezzo-torus), beccucci.
+#
+# ── Catalogo template ────────────────────────────────────────────────────
+#
+#   BICCHIERE_VINO          Calice da vino con piede, stelo tornito
+#                           e coppa cava a profilo ellissoidale.
+#                           ~Ø 0.08 × 0.22 m.
+#
+#   CALICE_CRISTALLO        Calice solenne con coppa profonda, stelo
+#                           decorato e piede sfaccettato.
+#                           ~Ø 0.09 × 0.20 m.
+#
+#   TUMBLER                 Bicchiere basso conico da whisky con
+#                           fondo spesso e pareti rastremate.
+#                           ~Ø 0.08 × 0.10 m.
+#
+#   TAZZA_CAFFE             Tazza da caffè con manico ad orecchio,
+#                           corpo cilindrico cavo e piattino.
+#                           ~Ø 0.12 × 0.10 m (con piattino).
+#
+#   PIATTO_PIANO            Piatto da portata con tesa, cavetto e
+#                           specchio, tutto cavo tramite CSG.
+#                           ~Ø 0.26 × 0.025 m.
+#
+#   BOTTIGLIA_VINO          Bottiglia bordolese classica con corpo,
+#                           spalla conica, collo cilindrico e labbro.
+#                           ~Ø 0.08 × 0.32 m.
+#
+#   CARAFFA                 Caraffa in vetro con corpo bombato,
+#                           collo stretto, beccuccio e manico.
+#                           ~Ø 0.14 × 0.28 m.
+#
+#   TEIERA                  Teiera classica con corpo sferico cavo,
+#                           beccuccio, manico e coperchio con pomello.
+#                           ~Ø 0.22 × 0.16 m.
+#
+#   ZUCCHERIERA             Ciotola con coperchio a cupola e pomello,
+#                           due manici laterali ad orecchio.
+#                           ~Ø 0.12 × 0.12 m.
+#
+#   CUCCHIAIO               Cucchiaio da tavola con manico sagomato
+#                           e paletta emisferica concava.
+#                           ~0.04 × 0.005 × 0.19 m.
+#
+# ============================================================================
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALI — Default per stoviglie
+# ═══════════════════════════════════════════════════════════════════════════
+
+materials:
+
+  # ── Vetro e cristallo ──────────────────────────────────────────────────
+
+  # Cristallo da tavola — alto IOR per fuoco e brillantezza
+  - id: "tbw_cristallo"
+    type: "disney"
+    color: [0.97, 0.97, 1.0]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.62
+    specular: 0.90
+
+  # Vetro soda-lime — bicchieri comuni
+  - id: "tbw_vetro"
+    type: "dielectric"
+    refraction_index: 1.52
+
+  # Vetro verde bottiglia
+  - id: "tbw_vetro_verde"
+    type: "disney"
+    color: [0.18, 0.52, 0.20]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.52
+    specular: 0.78
+
+  # ── Ceramica e porcellana ──────────────────────────────────────────────
+
+  # Porcellana bianca — bone china
+  - id: "tbw_porcellana"
+    type: "disney"
+    color: [0.96, 0.94, 0.90]
+    roughness: 0.10
+    metallic: 0.0
+    specular: 0.60
+    clearcoat: 0.50
+    clearcoat_gloss: 0.90
+
+  # Porcellana avorio — tono più caldo
+  - id: "tbw_porcellana_avorio"
+    type: "disney"
+    color: [0.94, 0.90, 0.80]
+    roughness: 0.12
+    metallic: 0.0
+    specular: 0.55
+    clearcoat: 0.45
+    clearcoat_gloss: 0.88
+
+  # Ceramica blu cobalto — decorazione stile Delft
+  - id: "tbw_ceramica_blu"
+    type: "disney"
+    color: [0.10, 0.15, 0.58]
+    roughness: 0.08
+    metallic: 0.0
+    specular: 0.65
+    clearcoat: 0.60
+    clearcoat_gloss: 0.92
+
+  # Terracotta smaltata — piatti rustici
+  - id: "tbw_terracotta"
+    type: "disney"
+    color: [0.65, 0.35, 0.18]
+    roughness: 0.55
+    metallic: 0.0
+    specular: 0.30
+    clearcoat: 0.15
+    clearcoat_gloss: 0.50
+
+  # ── Metalli da tavola ──────────────────────────────────────────────────
+
+  # Argento sterling — posate formali
+  - id: "tbw_argento"
+    type: "disney"
+    color: [0.97, 0.96, 0.92]
+    metallic: 1.0
+    roughness: 0.05
+    specular: 0.90
+
+  # Acciaio inox — posate moderne
+  - id: "tbw_inox"
+    type: "disney"
+    color: [0.58, 0.57, 0.55]
+    metallic: 1.0
+    roughness: 0.15
+    specular: 0.75
+
+  # Oro (bordo decorativo)
+  - id: "tbw_oro"
+    type: "disney"
+    color: [1.0, 0.71, 0.29]
+    metallic: 1.0
+    roughness: 0.08
+    specular: 0.80
+
+  # Rame — caffettiera, pentole
+  - id: "tbw_rame"
+    type: "disney"
+    color: [0.95, 0.64, 0.54]
+    metallic: 1.0
+    roughness: 0.10
+    specular: 0.75
+
+  # Ghisa smaltata — teiera giapponese
+  - id: "tbw_ghisa"
+    type: "disney"
+    color: [0.06, 0.06, 0.07]
+    metallic: 0.80
+    roughness: 0.65
+    specular: 0.35
+
+  # ── Legno ──────────────────────────────────────────────────────────────
+
+  # Bambù — sottobicchieri, manici
+  - id: "tbw_bambu"
+    type: "disney"
+    color: [0.70, 0.58, 0.35]
+    roughness: 0.42
+    metallic: 0.0
+    specular: 0.30
+    clearcoat: 0.10
+    clearcoat_gloss: 0.45
+
+  # ── Tessuto ────────────────────────────────────────────────────────────
+
+  # Lino bianco — tovagliolo, tovaglia
+  - id: "tbw_lino"
+    type: "disney"
+    color: [0.90, 0.88, 0.82]
+    roughness: 0.92
+    metallic: 0.0
+    sheen: 0.15
+    sheen_tint: 0.20
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  TEMPLATES — Stoviglie riutilizzabili
+# ═══════════════════════════════════════════════════════════════════════════
+
+templates:
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  BICCHIERE_VINO — Calice da vino con coppa ellissoidale
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.08 × 0.22 m
+  #  Struttura:  Piede piatto (cilindro sottile + torus), stelo sottile
+  #              con nodo sferico, coppa cava (CSG: ellissoide esterno
+  #              − ellissoide interno, ∩ cilindro per tagliare la metà
+  #              inferiore), bordo torus sottile.
+  #
+  #  Materiale default: tbw_cristallo
+  #
+  - name: "bicchiere_vino"
+    material: "tbw_cristallo"
+    children:
+
+      # ── Piede ──────────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.038
+        height: 0.005
+
+      - type: "torus"
+        center: [0, 0.005, 0]
+        major_radius: 0.035
+        minor_radius: 0.004
+
+      # ── Stelo ──────────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.005, 0]
+        radius: 0.003
+        height: 0.10
+
+      # Nodo decorativo sullo stelo
+      - type: "sphere"
+        center: [0, 0.06, 0]
+        radius: 0.006
+
+      # ── Raccordo stelo-coppa ───────────────────────────────────────────
+      - type: "cone"
+        center: [0, 0.105, 0]
+        radius: 0.005
+        top_radius: 0.020
+        height: 0.015
+
+      # ── Coppa cava (CSG) ───────────────────────────────────────────────
+      # Ellissoide esterno − ellissoide interno → guscio
+      # poi ∩ cilindro → solo la metà superiore (calice aperto)
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "csg"
+          operation: "subtraction"
+          left:
+            # Guscio esterno — sfera scalata in ellissoide verticale
+            type: "sphere"
+            center: [0, 0.17, 0]
+            radius: 0.040
+            scale: [1.0, 1.35, 1.0]
+          right:
+            # Guscio interno — leggermente più piccolo
+            type: "sphere"
+            center: [0, 0.17, 0]
+            radius: 0.037
+            scale: [1.0, 1.35, 1.0]
+        right:
+          # Cilindro che tiene solo la porzione superiore
+          type: "cylinder"
+          center: [0, 0.12, 0]
+          radius: 0.06
+          height: 0.12
+
+      # ── Bordo ──────────────────────────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.215, 0]
+        major_radius: 0.033
+        minor_radius: 0.002
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  CALICE_CRISTALLO — Calice solenne con coppa profonda
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.09 × 0.20 m
+  #  Struttura:  Piede a gradini, stelo spesso con doppio nodo tornito,
+  #              coppa profonda a profilo cilindro-sferico (CSG),
+  #              bordo dorato.
+  #
+  #  Materiale default: tbw_cristallo
+  #  Materiale esplicito: tbw_oro (bordo)
+  #
+  - name: "calice_cristallo"
+    material: "tbw_cristallo"
+    children:
+
+      # ── Piede a gradini ────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.042
+        height: 0.006
+
+      - type: "torus"
+        center: [0, 0.006, 0]
+        major_radius: 0.039
+        minor_radius: 0.004
+
+      - type: "cylinder"
+        center: [0, 0.006, 0]
+        radius: 0.035
+        height: 0.005
+
+      # ── Stelo con doppio nodo ──────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.011, 0]
+        radius: 0.006
+        height: 0.07
+
+      # Nodo inferiore (ellissoide schiacciato)
+      - type: "sphere"
+        center: [0, 0.035, 0]
+        radius: 0.012
+        scale: [1.0, 0.55, 1.0]
+
+      # Anello tra i nodi
+      - type: "torus"
+        center: [0, 0.05, 0]
+        major_radius: 0.008
+        minor_radius: 0.003
+
+      # Nodo superiore
+      - type: "sphere"
+        center: [0, 0.065, 0]
+        radius: 0.010
+        scale: [1.0, 0.60, 1.0]
+
+      # ── Raccordo stelo-coppa ───────────────────────────────────────────
+      - type: "cone"
+        center: [0, 0.081, 0]
+        radius: 0.008
+        top_radius: 0.028
+        height: 0.020
+
+      # ── Coppa profonda cava (CSG) ──────────────────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "csg"
+          operation: "subtraction"
+          left:
+            # Forma esterna: cilindro + emisfera in cima
+            type: "csg"
+            operation: "union"
+            left:
+              type: "cylinder"
+              center: [0, 0.10, 0]
+              radius: 0.038
+              height: 0.08
+            right:
+              type: "sphere"
+              center: [0, 0.10, 0]
+              radius: 0.038
+          right:
+            # Cavità interna
+            type: "csg"
+            operation: "union"
+            left:
+              type: "cylinder"
+              center: [0, 0.105, 0]
+              radius: 0.034
+              height: 0.08
+            right:
+              type: "sphere"
+              center: [0, 0.105, 0]
+              radius: 0.034
+        right:
+          # Taglia: tieni solo da Y=0.08 in su
+          type: "cylinder"
+          center: [0, 0.08, 0]
+          radius: 0.06
+          height: 0.14
+
+      # ── Bordo dorato ──────────────────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.195, 0]
+        major_radius: 0.036
+        minor_radius: 0.002
+        material: "tbw_oro"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  TUMBLER — Bicchiere basso da whisky
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.08 × 0.10 m
+  #  Struttura:  Cono tronco cavo (pareti rastremate verso l'alto) con
+  #              fondo spesso trasparente e bordo arrotondato.
+  #
+  #  Materiale default: tbw_cristallo
+  #
+  - name: "tumbler"
+    material: "tbw_cristallo"
+    children:
+
+      # ── Corpo cavo (CSG) ───────────────────────────────────────────────
+      # Cono tronco esterno − cono tronco interno (fondo spesso)
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cone"
+          center: [0, 0, 0]
+          radius: 0.036
+          top_radius: 0.040
+          height: 0.095
+        right:
+          type: "cone"
+          center: [0, 0.012, 0]
+          radius: 0.032
+          top_radius: 0.037
+          height: 0.090
+
+      # ── Bordo arrotondato ──────────────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.095, 0]
+        major_radius: 0.039
+        minor_radius: 0.002
+
+      # ── Fondo spesso (disco pieno visibile attraverso il vetro) ────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.036
+        height: 0.012
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  TAZZA_CAFFE — Tazza con manico e piattino
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.12 × 0.10 m (incluso piattino)
+  #  Struttura:  Piattino (disco con depressione CSG), tazza cilindrica
+  #              cava (CSG), manico ad orecchio (mezzo torus via CSG),
+  #              bordo arrotondato, base con piede ad anello.
+  #
+  #  Materiale default: tbw_porcellana
+  #  Materiale esplicito: tbw_oro (bordo)
+  #
+  - name: "tazza_caffe"
+    material: "tbw_porcellana"
+    children:
+
+      # ── Piattino ──────────────────────────────────────────────────────
+      # Disco pieno con depressione centrale
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cylinder"
+          center: [0, 0, 0]
+          radius: 0.060
+          height: 0.008
+        right:
+          # Depressione centrale (cilindro poco profondo)
+          type: "cylinder"
+          center: [0, 0.004, 0]
+          radius: 0.028
+          height: 0.008
+
+      # Bordo piattino
+      - type: "torus"
+        center: [0, 0.008, 0]
+        major_radius: 0.057
+        minor_radius: 0.003
+
+      # Piede anulare del piattino
+      - type: "torus"
+        center: [0, 0.0, 0]
+        major_radius: 0.042
+        minor_radius: 0.002
+
+      # ── Tazza — corpo cavo (CSG) ──────────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          # Esterno: cono tronco leggero (si allarga un po' in alto)
+          type: "cone"
+          center: [0, 0.008, 0]
+          radius: 0.032
+          top_radius: 0.038
+          height: 0.070
+        right:
+          # Interno
+          type: "cone"
+          center: [0, 0.012, 0]
+          radius: 0.029
+          top_radius: 0.035
+          height: 0.070
+
+      # Bordo dorato della tazza
+      - type: "torus"
+        center: [0, 0.078, 0]
+        major_radius: 0.037
+        minor_radius: 0.0015
+        material: "tbw_oro"
+
+      # Piede anulare della tazza
+      - type: "torus"
+        center: [0, 0.008, 0]
+        major_radius: 0.026
+        minor_radius: 0.002
+
+      # ── Manico ad orecchio (mezzo torus via CSG) ───────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "torus"
+          center: [0.038, 0.045, 0]
+          major_radius: 0.022
+          minor_radius: 0.005
+          rotate: [0, 0, 90]
+        right:
+          # Box che tiene solo la metà esterna (X positivo)
+          type: "box"
+          scale: [0.06, 0.06, 0.06]
+          translate: [0.056, 0.045, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  PIATTO_PIANO — Piatto da portata con tesa e cavetto
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.26 × 0.025 m
+  #  Struttura:  Tesa piatta (disco esterno), cavetto (curva di
+  #              raccordo tesa-specchio via torus), specchio concavo
+  #              (CSG: cilindro − sfera grande per leggera concavità),
+  #              piede anulare sotto, bordo esterno arrotondato.
+  #
+  #  Materiale default: tbw_porcellana
+  #
+  - name: "piatto_piano"
+    material: "tbw_porcellana"
+    children:
+
+      # ── Corpo del piatto (CSG) ─────────────────────────────────────────
+      # Disco pieno − sfera grande (crea concavità leggera nello specchio)
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          # Disco pieno con leggera rastrematura (più alto al centro)
+          type: "csg"
+          operation: "union"
+          left:
+            # Tesa e base
+            type: "cylinder"
+            center: [0, 0, 0]
+            radius: 0.130
+            height: 0.012
+          right:
+            # Rialzo leggero al centro per lo specchio
+            type: "cylinder"
+            center: [0, 0, 0]
+            radius: 0.085
+            height: 0.016
+        right:
+          # Sfera grande che scava una concavità nello specchio
+          type: "sphere"
+          center: [0, 0.50, 0]
+          radius: 0.495
+
+      # ── Bordo esterno arrotondato ──────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.012, 0]
+        major_radius: 0.127
+        minor_radius: 0.004
+
+      # ── Cavetto (torus di raccordo tesa-specchio) ──────────────────────
+      - type: "torus"
+        center: [0, 0.012, 0]
+        major_radius: 0.085
+        minor_radius: 0.003
+
+      # ── Piede anulare ──────────────────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.0, 0]
+        major_radius: 0.055
+        minor_radius: 0.003
+
+      # ── Bordo dorato (filetto decorativo) ──────────────────────────────
+      - type: "torus"
+        center: [0, 0.012, 0]
+        major_radius: 0.115
+        minor_radius: 0.001
+        material: "tbw_oro"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  BOTTIGLIA_VINO — Bordolese classica
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.08 × 0.32 m
+  #  Struttura:  Fondo con incavo (CSG: cilindro − sfera per il punt),
+  #              corpo cilindrico, spalla conica, collo cilindrico
+  #              stretto, collarino torus, labbro spesso.
+  #              Tutto cavo internamente con un unico CSG sottrattivo.
+  #
+  #  Materiale default: tbw_vetro_verde
+  #
+  - name: "bottiglia_vino"
+    material: "tbw_vetro_verde"
+    children:
+
+      # ── Profilo esterno cavo (CSG globale) ─────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          # ── Forma esterna completa ─────────────────────────────────────
+          type: "group"
+          children:
+            # Corpo principale
+            - type: "cylinder"
+              center: [0, 0, 0]
+              radius: 0.038
+              height: 0.18
+
+            # Spalla (cono tronco)
+            - type: "cone"
+              center: [0, 0.18, 0]
+              radius: 0.038
+              top_radius: 0.014
+              height: 0.06
+
+            # Collo
+            - type: "cylinder"
+              center: [0, 0.24, 0]
+              radius: 0.014
+              height: 0.065
+
+            # Collarino (anello alla base del labbro)
+            - type: "torus"
+              center: [0, 0.298, 0]
+              major_radius: 0.015
+              minor_radius: 0.003
+
+            # Labbro (anello spesso in cima)
+            - type: "cylinder"
+              center: [0, 0.298, 0]
+              radius: 0.016
+              height: 0.012
+
+        right:
+          # ── Cavità interna ─────────────────────────────────────────────
+          type: "group"
+          children:
+            # Cavità corpo
+            - type: "cylinder"
+              center: [0, 0.006, 0]
+              radius: 0.034
+              height: 0.18
+
+            # Cavità spalla
+            - type: "cone"
+              center: [0, 0.18, 0]
+              radius: 0.034
+              top_radius: 0.011
+              height: 0.058
+
+            # Cavità collo
+            - type: "cylinder"
+              center: [0, 0.238, 0]
+              radius: 0.011
+              height: 0.08
+
+      # ── Punt (incavo sotto la bottiglia via CSG) ───────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cylinder"
+          center: [0, 0, 0]
+          radius: 0.038
+          height: 0.006
+        right:
+          # Sfera che crea l'incavo conico
+          type: "sphere"
+          center: [0, 0.03, 0]
+          radius: 0.032
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  CARAFFA — Caraffa in vetro con beccuccio e manico
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.14 × 0.28 m
+  #  Struttura:  Base pesante (cilindro + torus), corpo bombato
+  #              (ellissoide cavo CSG), collo stretto, labbro con
+  #              beccuccio (torus + inclinazione), manico (mezzo
+  #              torus grande via CSG).
+  #
+  #  Materiale default: tbw_cristallo
+  #
+  - name: "caraffa"
+    material: "tbw_cristallo"
+    children:
+
+      # ── Corpo cavo bombato (CSG) ───────────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "group"
+          children:
+            # Corpo: ellissoide bombato
+            - type: "sphere"
+              center: [0, 0.10, 0]
+              radius: 0.065
+              scale: [1.0, 1.40, 1.0]
+
+            # Collo cilindrico
+            - type: "cylinder"
+              center: [0, 0.18, 0]
+              radius: 0.030
+              height: 0.08
+
+            # Labbro svasato (cono tronco invertito)
+            - type: "cone"
+              center: [0, 0.26, 0]
+              radius: 0.030
+              top_radius: 0.038
+              height: 0.018
+        right:
+          type: "group"
+          children:
+            # Cavità corpo
+            - type: "sphere"
+              center: [0, 0.10, 0]
+              radius: 0.060
+              scale: [1.0, 1.40, 1.0]
+
+            # Cavità collo
+            - type: "cylinder"
+              center: [0, 0.18, 0]
+              radius: 0.026
+              height: 0.10
+
+      # ── Base ───────────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.042
+        height: 0.008
+
+      - type: "torus"
+        center: [0, 0.008, 0]
+        major_radius: 0.040
+        minor_radius: 0.004
+
+      # ── Bordo superiore ────────────────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.278, 0]
+        major_radius: 0.036
+        minor_radius: 0.002
+
+      # ── Manico (mezzo torus grande via CSG) ────────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "torus"
+          center: [0.055, 0.17, 0]
+          major_radius: 0.065
+          minor_radius: 0.007
+          rotate: [0, 0, 90]
+        right:
+          type: "box"
+          scale: [0.10, 0.20, 0.10]
+          translate: [0.085, 0.17, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  TEIERA — Teiera classica con beccuccio, manico e coperchio
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.22 × 0.16 m (manico a manico)
+  #  Struttura:  Corpo sferico cavo (CSG subtraction), beccuccio
+  #              conico, manico ad arco (mezzo torus grande), coperchio
+  #              a cupola (CSG emisfera) con pomello sferico, piede
+  #              anulare.
+  #
+  #  Materiale default: tbw_porcellana
+  #  Materiale esplicito: tbw_oro (pomello, bordi)
+  #
+  - name: "teiera"
+    material: "tbw_porcellana"
+    children:
+
+      # ── Piede anulare ──────────────────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.0, 0]
+        major_radius: 0.038
+        minor_radius: 0.004
+
+      # ── Corpo sferico cavo (CSG) ───────────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          # Esterno: sfera leggermente schiacciata
+          type: "sphere"
+          center: [0, 0.065, 0]
+          radius: 0.065
+          scale: [1.0, 0.85, 1.0]
+        right:
+          # Interno
+          type: "sphere"
+          center: [0, 0.065, 0]
+          radius: 0.060
+          scale: [1.0, 0.85, 1.0]
+
+      # ── Apertura superiore (cilindro di taglio in cima) ────────────────
+      # Colletto su cui poggia il coperchio
+      - type: "cylinder"
+        center: [0, 0.115, 0]
+        radius: 0.030
+        height: 0.008
+
+      # Bordo dorato del colletto
+      - type: "torus"
+        center: [0, 0.123, 0]
+        major_radius: 0.029
+        minor_radius: 0.002
+        material: "tbw_oro"
+
+      # ── Coperchio a cupola (CSG: emisfera) ─────────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "sphere"
+          center: [0, 0.123, 0]
+          radius: 0.029
+        right:
+          type: "cylinder"
+          center: [0, 0.123, 0]
+          radius: 0.035
+          height: 0.035
+
+      # Pomello del coperchio
+      - type: "sphere"
+        center: [0, 0.155, 0]
+        radius: 0.008
+        material: "tbw_oro"
+
+      # ── Beccuccio (serie di coni e cilindri) ───────────────────────────
+      # Attacco alla sfera (cono che esce dal corpo)
+      - type: "cone"
+        center: [0.055, 0.06, 0]
+        radius: 0.016
+        top_radius: 0.010
+        height: 0.04
+        rotate: [0, 0, -55]
+
+      # Segmento medio del beccuccio
+      - type: "cylinder"
+        center: [0.082, 0.085, 0]
+        radius: 0.009
+        height: 0.03
+        rotate: [0, 0, -40]
+
+      # Punta del beccuccio (cono appuntito)
+      - type: "cone"
+        center: [0.098, 0.108, 0]
+        radius: 0.009
+        top_radius: 0.005
+        height: 0.018
+        rotate: [0, 0, -30]
+
+      # ── Manico ad arco (mezzo torus via CSG) ───────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "torus"
+          center: [-0.065, 0.065, 0]
+          major_radius: 0.048
+          minor_radius: 0.008
+          rotate: [0, 0, 90]
+        right:
+          type: "box"
+          scale: [0.10, 0.14, 0.10]
+          translate: [-0.10, 0.065, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  ZUCCHERIERA — Ciotola con coperchio e due manici
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.12 × 0.12 m
+  #  Struttura:  Ciotola emisferica cava (CSG), piede anulare, bordo
+  #              torus, 2 manici ad orecchio (mezzo torus CSG),
+  #              coperchio a cupola con pomello sferico.
+  #
+  #  Materiale default: tbw_porcellana_avorio
+  #  Materiale esplicito: tbw_oro (bordi, pomello)
+  #
+  - name: "zuccheriera"
+    material: "tbw_porcellana_avorio"
+    children:
+
+      # ── Piede anulare ──────────────────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.0, 0]
+        major_radius: 0.030
+        minor_radius: 0.003
+
+      # ── Ciotola emisferica cava (CSG) ──────────────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "csg"
+          operation: "subtraction"
+          left:
+            type: "sphere"
+            center: [0, 0.01, 0]
+            radius: 0.048
+          right:
+            type: "sphere"
+            center: [0, 0.01, 0]
+            radius: 0.043
+        right:
+          # Solo la metà superiore
+          type: "cylinder"
+          center: [0, 0.01, 0]
+          radius: 0.060
+          height: 0.060
+
+      # ── Bordo dorato ──────────────────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.058, 0]
+        major_radius: 0.042
+        minor_radius: 0.002
+        material: "tbw_oro"
+
+      # ── Colletto per il coperchio ──────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.058, 0]
+        radius: 0.038
+        height: 0.005
+
+      # ── Manico sinistro (mezzo torus) ──────────────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "torus"
+          center: [-0.048, 0.04, 0]
+          major_radius: 0.018
+          minor_radius: 0.004
+          rotate: [0, 0, 90]
+        right:
+          type: "box"
+          scale: [0.06, 0.06, 0.06]
+          translate: [-0.062, 0.04, 0]
+
+      # ── Manico destro ──────────────────────────────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "torus"
+          center: [0.048, 0.04, 0]
+          major_radius: 0.018
+          minor_radius: 0.004
+          rotate: [0, 0, 90]
+        right:
+          type: "box"
+          scale: [0.06, 0.06, 0.06]
+          translate: [0.062, 0.04, 0]
+
+      # ── Coperchio a cupola (CSG emisfera) ──────────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "sphere"
+          center: [0, 0.063, 0]
+          radius: 0.037
+        right:
+          type: "cylinder"
+          center: [0, 0.063, 0]
+          radius: 0.042
+          height: 0.042
+
+      # Filetto dorato sul coperchio
+      - type: "torus"
+        center: [0, 0.078, 0]
+        major_radius: 0.028
+        minor_radius: 0.001
+        material: "tbw_oro"
+
+      # ── Pomello ────────────────────────────────────────────────────────
+      - type: "cone"
+        center: [0, 0.098, 0]
+        radius: 0.008
+        top_radius: 0.004
+        height: 0.008
+        material: "tbw_oro"
+
+      - type: "sphere"
+        center: [0, 0.110, 0]
+        radius: 0.007
+        material: "tbw_oro"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  CUCCHIAIO — Cucchiaio da tavola
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~0.04 × 0.005 × 0.19 m
+  #  Struttura:  Manico allungato (capsule schiacciata per lo stelo,
+  #              con ellissoide finale), raccordo, paletta concava
+  #              (CSG: ellissoide cavo = ellissoide − ellissoide più
+  #              piccolo, intersecato con box per tenere solo la metà
+  #              superiore → conca).
+  #
+  #  Materiale default: tbw_argento
+  #
+  - name: "cucchiaio"
+    material: "tbw_argento"
+    children:
+
+      # ── Manico ─────────────────────────────────────────────────────────
+      # Capsule schiacciata per il corpo del manico
+      - type: "capsule"
+        center: [0, 0.002, -0.05]
+        radius: 0.005
+        height: 0.10
+        scale: [0.60, 0.35, 1.0]
+        rotate: [90, 0, 0]
+
+      # Estremità del manico (ellissoide appiattito, "a goccia")
+      - type: "sphere"
+        center: [0, 0.002, -0.105]
+        radius: 0.008
+        scale: [0.80, 0.30, 1.20]
+
+      # ── Raccordo manico-paletta ────────────────────────────────────────
+      - type: "sphere"
+        center: [0, 0.002, 0.005]
+        radius: 0.007
+        scale: [0.80, 0.30, 1.0]
+
+      # ── Paletta concava (CSG) ──────────────────────────────────────────
+      # Ellissoide esterno − ellissoide interno → guscio concavo
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "csg"
+          operation: "subtraction"
+          left:
+            # Paletta esterna — ellissoide schiacciata orizzontalmente
+            type: "sphere"
+            center: [0, 0.004, 0.040]
+            radius: 0.020
+            scale: [0.85, 0.35, 1.15]
+          right:
+            # Cavità interna (stessa forma, leggermente più piccola, spostata in su)
+            type: "sphere"
+            center: [0, 0.008, 0.040]
+            radius: 0.018
+            scale: [0.80, 0.35, 1.10]
+        right:
+          # Box di taglio: tieni solo la metà superiore
+          type: "box"
+          scale: [0.06, 0.02, 0.06]
+          translate: [0, 0.006, 0.040]

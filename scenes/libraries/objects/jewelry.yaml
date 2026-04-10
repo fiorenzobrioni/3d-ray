@@ -1,0 +1,1374 @@
+# ============================================================================
+# Libreria Oggetti — Gioielleria (Jewelry)
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/jewelry.yaml" }]
+#
+# Gioielli, gemme e accessori da esposizione. Ogni pezzo sfrutta al
+# massimo i materiali dielettrici ad alto IOR per le gemme, i metalli
+# Disney con clearcoat per le finitura lucide, e la CSG per castoni,
+# tagli sfaccettati e profili cavi.
+#
+# ── Scala ────────────────────────────────────────────────────────────────
+#
+#   Gli oggetti sono in scala "da vetrina": ~5× la dimensione reale,
+#   così un anello è ~Ø 0.09 m e una gemma ~0.03 m. Questo rende i
+#   pezzi visibili in scene con mobili e altri oggetti.
+#   Per close-up di prodotto, usare scale: 2.0–4.0 sull'istanza.
+#   Per scala reale (1:1), usare scale: 0.2 sull'istanza.
+#
+# ── Catalogo template ────────────────────────────────────────────────────
+#
+#   GEMMA_BRILLANTE         Gemma taglio brillante (57 facce
+#                           approssimate: corona + tavola + padiglione).
+#                           ~Ø 0.030 × 0.020 m.
+#
+#   GEMMA_CABOCHON          Gemma taglio cabochon (cupola liscia su
+#                           base piatta). ~Ø 0.025 × 0.014 m.
+#
+#   ANELLO_SOLITARIO        Anello con gemma brillante in castone
+#                           a 6 griffe. ~Ø 0.09 × 0.055 m.
+#
+#   ANELLO_FASCIA           Fede nuziale con bordi milgrain e
+#                           canale centrale inciso. ~Ø 0.09 × 0.03 m.
+#
+#   ANELLO_TRILOGY           Anello con 3 gemme in fila su castone
+#                           a griffe. ~Ø 0.09 × 0.05 m.
+#
+#   ANELLO_SIGILLO          Anello con piatto ovale inciso.
+#                           ~Ø 0.09 × 0.04 m.
+#
+#   PENDENTE_GOCCIA         Pendente a goccia con gemma, cornice
+#                           e bale (anello di aggancio).
+#                           ~0.025 × 0.065 m.
+#
+#   PENDENTE_CROCE          Croce latina con gemma centrale e
+#                           bale. ~0.035 × 0.070 m.
+#
+#   ORECCHINO_CERCHIO       Cerchio (creola) con chiusura a
+#                           perno. ~Ø 0.04 × 0.003 m.
+#
+#   ORECCHINO_GOCCIA        Orecchino pendente con gemma a goccia,
+#                           montatura e gancio. ~0.02 × 0.065 m.
+#
+#   BRACCIALE_RIGIDO        Bangle con sezione a D e chiusura
+#                           decorata. ~Ø 0.070 × 0.012 m.
+#
+#   COLLANA_PERLE           Filo di 15 perle graduate con
+#                           chiusura a moschettone. ~0.30 × 0.04 m.
+#
+#   TIARA                   Diadema con arco, punte e gemme.
+#                           ~0.14 × 0.06 m.
+#
+#   PORTAGIOIE              Cofanetto aperto con cuscino in
+#                           velluto e bordo dorato.
+#                           ~0.08 × 0.05 × 0.06 m.
+#
+# ============================================================================
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALI — Metalli preziosi, gemme e supporti
+# ═══════════════════════════════════════════════════════════════════════════
+
+materials:
+
+  # ── Metalli preziosi ───────────────────────────────────────────────────
+
+  # Oro giallo 18K lucido
+  - id: "jwl_oro"
+    type: "disney"
+    color: [1.0, 0.76, 0.33]
+    metallic: 1.0
+    roughness: 0.04
+    specular: 0.85
+
+  # Oro bianco / Rodio — rivestimento classico gioielleria
+  - id: "jwl_oro_bianco"
+    type: "disney"
+    color: [0.88, 0.87, 0.84]
+    metallic: 1.0
+    roughness: 0.04
+    specular: 0.88
+
+  # Oro rosa 14K
+  - id: "jwl_oro_rosa"
+    type: "disney"
+    color: [0.92, 0.62, 0.47]
+    metallic: 1.0
+    roughness: 0.05
+    specular: 0.82
+
+  # Platino lucido
+  - id: "jwl_platino"
+    type: "disney"
+    color: [0.83, 0.81, 0.78]
+    metallic: 1.0
+    roughness: 0.03
+    specular: 0.90
+
+  # Argento sterling lucido
+  - id: "jwl_argento"
+    type: "disney"
+    color: [0.97, 0.96, 0.92]
+    metallic: 1.0
+    roughness: 0.04
+    specular: 0.90
+
+  # Argento ossidato — gioielli antichi
+  - id: "jwl_argento_oss"
+    type: "disney"
+    color: [0.35, 0.34, 0.38]
+    metallic: 0.85
+    roughness: 0.40
+    specular: 0.50
+
+  # ── Gemme (dielettrici ad alto IOR) ────────────────────────────────────
+
+  # Diamante — IOR 2.42, massima dispersione
+  - id: "jwl_diamante"
+    type: "dielectric"
+    refraction_index: 2.42
+
+  # Rubino — rosso profondo, IOR 1.77
+  - id: "jwl_rubino"
+    type: "disney"
+    color: [0.75, 0.03, 0.08]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.77
+    specular: 0.90
+
+  # Zaffiro blu — IOR 1.77
+  - id: "jwl_zaffiro"
+    type: "disney"
+    color: [0.08, 0.10, 0.72]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.77
+    specular: 0.90
+
+  # Smeraldo — verde, IOR 1.57, leggermente incluso
+  - id: "jwl_smeraldo"
+    type: "disney"
+    color: [0.06, 0.58, 0.18]
+    roughness: 0.02
+    spec_trans: 0.95
+    ior: 1.57
+    specular: 0.82
+
+  # Ametista — viola, IOR 1.54
+  - id: "jwl_ametista"
+    type: "disney"
+    color: [0.42, 0.10, 0.62]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.54
+    specular: 0.85
+
+  # Topazio imperiale — arancio-rosa
+  - id: "jwl_topazio"
+    type: "disney"
+    color: [0.90, 0.52, 0.22]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.63
+    specular: 0.88
+
+  # Perla — subsurface, non trasparente
+  - id: "jwl_perla"
+    type: "disney"
+    color: [0.95, 0.92, 0.85]
+    roughness: 0.25
+    metallic: 0.0
+    specular: 0.55
+    subsurface: 0.50
+    sheen: 0.60
+    sheen_tint: 0.30
+
+  # Onice nero — opaco lucido
+  - id: "jwl_onice"
+    type: "disney"
+    color: [0.02, 0.02, 0.03]
+    roughness: 0.06
+    metallic: 0.0
+    specular: 0.70
+    clearcoat: 0.60
+    clearcoat_gloss: 0.95
+
+  # ── Supporti espositivi ────────────────────────────────────────────────
+
+  # Velluto nero — cuscino portagioie
+  - id: "jwl_velluto"
+    type: "disney"
+    color: [0.015, 0.015, 0.02]
+    roughness: 0.95
+    metallic: 0.0
+    sheen: 0.45
+    sheen_tint: 0.15
+
+  # Velluto bordeaux
+  - id: "jwl_velluto_rosso"
+    type: "disney"
+    color: [0.35, 0.04, 0.06]
+    roughness: 0.92
+    metallic: 0.0
+    sheen: 0.50
+    sheen_tint: 0.70
+
+  # Pelle scamosciata — interno cofanetto
+  - id: "jwl_scamosciato"
+    type: "disney"
+    color: [0.22, 0.18, 0.14]
+    roughness: 0.92
+    metallic: 0.0
+    sheen: 0.30
+    sheen_tint: 0.50
+
+  # Legno laccato — cofanetto
+  - id: "jwl_laccato"
+    type: "disney"
+    color: [0.12, 0.04, 0.02]
+    roughness: 0.06
+    metallic: 0.0
+    specular: 0.75
+    clearcoat: 0.85
+    clearcoat_gloss: 0.95
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  TEMPLATES — Gioielli
+# ═══════════════════════════════════════════════════════════════════════════
+
+templates:
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  GEMMA_BRILLANTE — Taglio brillante rotondo
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.030 × 0.020 m
+  #  Struttura:  Padiglione (cono rovesciato) ∩ corona (cono superiore)
+  #              con tavola (box subtraction che taglia la punta
+  #              superiore della corona) e cintola (cilindro sottile).
+  #
+  #  Materiale default: jwl_diamante
+  #
+  - name: "gemma_brillante"
+    material: "jwl_diamante"
+    children:
+
+      # Forma: intersezione dei due coni + cintura
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "csg"
+          operation: "intersection"
+          left:
+            # Padiglione (cono con vertice in basso)
+            type: "cone"
+            center: [0, 0, 0]
+            radius: 0.015
+            top_radius: 0.0
+            height: 0.013
+            rotate: [180, 0, 0]
+          right:
+            # Corona (cono più aperto sopra)
+            type: "cone"
+            center: [0, -0.004, 0]
+            radius: 0.020
+            top_radius: 0.0
+            height: 0.020
+        right:
+          # Tavola: box che taglia la punta → faccia piatta superiore
+          type: "box"
+          scale: [0.04, 0.02, 0.04]
+          translate: [0, 0.016, 0]
+
+      # Cintola (girdle) — anello sottile al diametro massimo
+      - type: "torus"
+        center: [0, 0.0, 0]
+        major_radius: 0.0148
+        minor_radius: 0.0008
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  GEMMA_CABOCHON — Taglio cabochon (cupola liscia)
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.025 × 0.014 m
+  #  Struttura:  Cupola (CSG: sfera schiacciata ∩ cilindro → emisfera
+  #              bassa), base piatta (cilindro sottile).
+  #
+  #  Materiale default: jwl_rubino
+  #
+  - name: "gemma_cabochon"
+    material: "jwl_rubino"
+    children:
+
+      # Cupola (emisfera schiacciata)
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "sphere"
+          center: [0, 0.002, 0]
+          radius: 0.013
+          scale: [1.0, 0.65, 1.0]
+        right:
+          type: "cylinder"
+          center: [0, 0.002, 0]
+          radius: 0.014
+          height: 0.014
+
+      # Base piatta
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.0125
+        height: 0.002
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  ANELLO_SOLITARIO — Anello con brillante in castone a 6 griffe
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.09 × 0.055 m
+  #  Struttura:  Fascia (torus), castone a cestello (cono tronco cavo
+  #              CSG), 6 griffe (coni sottili disposti a 60°),
+  #              gemma brillante incassata (coni ∩ CSG).
+  #
+  #  Materiale default: jwl_oro_bianco (montatura)
+  #  Materiale esplicito: jwl_diamante (gemma)
+  #
+  - name: "anello_solitario"
+    material: "jwl_oro_bianco"
+    children:
+
+      # ── Fascia (corpo dell'anello) ─────────────────────────────────────
+      # Torus con sezione a D (schiacciato leggermente)
+      - type: "torus"
+        center: [0, 0, 0]
+        major_radius: 0.040
+        minor_radius: 0.006
+        scale: [1.0, 0.80, 1.0]
+
+      # ── Spallette (raccordi fascia → castone) ─────────────────────────
+      # Due rampe laterali
+      - type: "sphere"
+        center: [0, 0.005, -0.040]
+        radius: 0.008
+        scale: [0.60, 0.80, 1.40]
+
+      - type: "sphere"
+        center: [0, 0.005, 0.040]
+        radius: 0.008
+        scale: [0.60, 0.80, 1.40]
+
+      # ── Castone a cestello (cono tronco cavo) ─────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cone"
+          center: [0, 0.008, 0]
+          radius: 0.010
+          top_radius: 0.014
+          height: 0.022
+        right:
+          type: "cone"
+          center: [0, 0.010, 0]
+          radius: 0.008
+          top_radius: 0.012
+          height: 0.024
+
+      # ── 6 griffe a 60° ────────────────────────────────────────────────
+      # Griffe 0°
+      - type: "cone"
+        center: [0.013, 0.025, 0]
+        radius: 0.0020
+        top_radius: 0.0008
+        height: 0.010
+      # Griffe 60°
+      - type: "cone"
+        center: [0.0065, 0.025, 0.01126]
+        radius: 0.0020
+        top_radius: 0.0008
+        height: 0.010
+      # Griffe 120°
+      - type: "cone"
+        center: [-0.0065, 0.025, 0.01126]
+        radius: 0.0020
+        top_radius: 0.0008
+        height: 0.010
+      # Griffe 180°
+      - type: "cone"
+        center: [-0.013, 0.025, 0]
+        radius: 0.0020
+        top_radius: 0.0008
+        height: 0.010
+      # Griffe 240°
+      - type: "cone"
+        center: [-0.0065, 0.025, -0.01126]
+        radius: 0.0020
+        top_radius: 0.0008
+        height: 0.010
+      # Griffe 300°
+      - type: "cone"
+        center: [0.0065, 0.025, -0.01126]
+        radius: 0.0020
+        top_radius: 0.0008
+        height: 0.010
+
+      # ── Gemma brillante ────────────────────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        material: "jwl_diamante"
+        left:
+          type: "csg"
+          operation: "intersection"
+          left:
+            type: "cone"
+            center: [0, 0.030, 0]
+            radius: 0.012
+            top_radius: 0.0
+            height: 0.011
+            rotate: [180, 0, 0]
+          right:
+            type: "cone"
+            center: [0, 0.026, 0]
+            radius: 0.017
+            top_radius: 0.0
+            height: 0.016
+        right:
+          type: "box"
+          scale: [0.04, 0.016, 0.04]
+          translate: [0, 0.043, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  ANELLO_FASCIA — Fede nuziale con milgrain
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.09 × 0.03 m
+  #  Struttura:  Fascia principale (torus), 2 bordi milgrain (torus
+  #              più piccoli), canale inciso (torus sottratto CSG).
+  #
+  #  Materiale default: jwl_oro
+  #
+  - name: "anello_fascia"
+    material: "jwl_oro"
+    children:
+
+      # Fascia principale
+      - type: "torus"
+        center: [0, 0, 0]
+        major_radius: 0.040
+        minor_radius: 0.008
+
+      # Bordo milgrain superiore (fila di "perlini" → torus molto sottile)
+      - type: "torus"
+        center: [0, 0.007, 0]
+        major_radius: 0.040
+        minor_radius: 0.0012
+
+      # Bordo milgrain inferiore
+      - type: "torus"
+        center: [0, -0.007, 0]
+        major_radius: 0.040
+        minor_radius: 0.0012
+
+      # Canale satinato centrale (torus leggermente inciso)
+      - type: "torus"
+        center: [0, 0, 0]
+        major_radius: 0.0405
+        minor_radius: 0.003
+        scale: [1.0, 0.40, 1.0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  ANELLO_TRILOGY — Anello con 3 gemme
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.09 × 0.05 m
+  #  Struttura:  Fascia, 3 castoni con griffe (gem centrale più grande,
+  #              laterali più piccole), 3 gemme brillanti.
+  #
+  #  Materiale default: jwl_platino (montatura)
+  #  Materiale esplicito: jwl_zaffiro (gemme)
+  #
+  - name: "anello_trilogy"
+    material: "jwl_platino"
+    children:
+
+      # ── Fascia ─────────────────────────────────────────────────────────
+      - type: "torus"
+        center: [0, 0, 0]
+        major_radius: 0.040
+        minor_radius: 0.005
+        scale: [1.0, 0.80, 1.0]
+
+      # ── Piattaforma superiore per i castoni ────────────────────────────
+      - type: "box"
+        scale: [0.032, 0.004, 0.012]
+        translate: [0, 0.006, 0]
+
+      # ── Castone centrale (cilindro cavo) ───────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cylinder"
+          center: [0, 0.008, 0]
+          radius: 0.009
+          height: 0.014
+        right:
+          type: "cylinder"
+          center: [0, 0.010, 0]
+          radius: 0.007
+          height: 0.016
+
+      # Gemma centrale (grande) — zaffiro
+      - type: "csg"
+        operation: "subtraction"
+        material: "jwl_zaffiro"
+        left:
+          type: "csg"
+          operation: "intersection"
+          left:
+            type: "cone"
+            center: [0, 0.019, 0]
+            radius: 0.008
+            top_radius: 0.0
+            height: 0.008
+            rotate: [180, 0, 0]
+          right:
+            type: "cone"
+            center: [0, 0.016, 0]
+            radius: 0.012
+            top_radius: 0.0
+            height: 0.012
+        right:
+          type: "box"
+          scale: [0.03, 0.01, 0.03]
+          translate: [0, 0.030, 0]
+
+      # 4 griffe centrali
+      - type: "cone"
+        center: [0.008, 0.018, 0]
+        radius: 0.0015
+        top_radius: 0.0006
+        height: 0.007
+      - type: "cone"
+        center: [-0.008, 0.018, 0]
+        radius: 0.0015
+        top_radius: 0.0006
+        height: 0.007
+      - type: "cone"
+        center: [0, 0.018, 0.008]
+        radius: 0.0015
+        top_radius: 0.0006
+        height: 0.007
+      - type: "cone"
+        center: [0, 0.018, -0.008]
+        radius: 0.0015
+        top_radius: 0.0006
+        height: 0.007
+
+      # ── Castone sinistro ───────────────────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cylinder"
+          center: [-0.014, 0.006, 0]
+          radius: 0.006
+          height: 0.010
+        right:
+          type: "cylinder"
+          center: [-0.014, 0.008, 0]
+          radius: 0.005
+          height: 0.012
+
+      # Gemma sinistra (piccola)
+      - type: "sphere"
+        center: [-0.014, 0.014, 0]
+        radius: 0.005
+        scale: [1.0, 0.65, 1.0]
+        material: "jwl_zaffiro"
+
+      # ── Castone destro ─────────────────────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "cylinder"
+          center: [0.014, 0.006, 0]
+          radius: 0.006
+          height: 0.010
+        right:
+          type: "cylinder"
+          center: [0.014, 0.008, 0]
+          radius: 0.005
+          height: 0.012
+
+      # Gemma destra (piccola)
+      - type: "sphere"
+        center: [0.014, 0.014, 0]
+        radius: 0.005
+        scale: [1.0, 0.65, 1.0]
+        material: "jwl_zaffiro"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  ANELLO_SIGILLO — Anello con piatto ovale
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.09 × 0.04 m
+  #  Struttura:  Fascia spessa, piatto sigillo (ellissoide schiacciato),
+  #              spallette coniche di raccordo, bordo inciso (torus).
+  #
+  #  Materiale default: jwl_oro
+  #  Materiale esplicito: jwl_onice (piatto)
+  #
+  - name: "anello_sigillo"
+    material: "jwl_oro"
+    children:
+
+      # Fascia robusta
+      - type: "torus"
+        center: [0, 0, 0]
+        major_radius: 0.040
+        minor_radius: 0.007
+        scale: [1.0, 0.75, 1.0]
+
+      # Spallette (sfere schiacciate di raccordo)
+      - type: "sphere"
+        center: [0, 0.004, -0.040]
+        radius: 0.010
+        scale: [0.50, 0.70, 1.50]
+
+      - type: "sphere"
+        center: [0, 0.004, 0.040]
+        radius: 0.010
+        scale: [0.50, 0.70, 1.50]
+
+      # Piatto sigillo (ellissoide schiacciato ovale)
+      - type: "sphere"
+        center: [0, 0.010, 0]
+        radius: 0.014
+        scale: [1.20, 0.25, 0.90]
+        material: "jwl_onice"
+
+      # Cornice del piatto (torus schiacciato)
+      - type: "torus"
+        center: [0, 0.010, 0]
+        major_radius: 0.014
+        minor_radius: 0.0015
+        scale: [1.20, 0.40, 0.90]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  PENDENTE_GOCCIA — Pendente con gemma a goccia
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~0.025 × 0.065 m
+  #  Struttura:  Bale (anello di aggancio → torus piccolo), raccordo,
+  #              cornice (filo metallico → torus sagomato), gemma a
+  #              goccia (ellissoide allungato), coppetta terminale.
+  #
+  #  Materiale default: jwl_oro (montatura)
+  #  Materiale esplicito: jwl_ametista (gemma)
+  #
+  - name: "pendente_goccia"
+    material: "jwl_oro"
+    children:
+
+      # ── Bale (anello di sospensione) ───────────────────────────────────
+      - type: "torus"
+        center: [0, 0.060, 0]
+        major_radius: 0.006
+        minor_radius: 0.0015
+
+      # ── Raccordo bale → cornice ────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.052, 0]
+        radius: 0.002
+        height: 0.008
+
+      # Decorazione: sfera schiacciata sotto il raccordo
+      - type: "sphere"
+        center: [0, 0.050, 0]
+        radius: 0.004
+        scale: [1.0, 0.50, 1.0]
+
+      # ── Cornice della gemma (castone a lira) ───────────────────────────
+      # Anello principale che abbraccia la gemma
+      - type: "torus"
+        center: [0, 0.030, 0]
+        major_radius: 0.010
+        minor_radius: 0.0015
+        scale: [1.0, 1.50, 1.0]
+
+      # Braccetti laterali (cilindretti che collegano anello e bale)
+      - type: "cylinder"
+        center: [-0.008, 0.042, 0]
+        radius: 0.0012
+        height: 0.018
+      - type: "cylinder"
+        center: [0.008, 0.042, 0]
+        radius: 0.0012
+        height: 0.018
+
+      # ── Gemma a goccia (ellissoide allungato) ─────────────────────────
+      - type: "sphere"
+        center: [0, 0.028, 0]
+        radius: 0.010
+        scale: [0.80, 1.50, 0.80]
+        material: "jwl_ametista"
+
+      # ── Coppetta terminale inferiore ───────────────────────────────────
+      - type: "cone"
+        center: [0, 0.010, 0]
+        radius: 0.004
+        top_radius: 0.001
+        height: 0.005
+
+      # Perlina finale
+      - type: "sphere"
+        center: [0, 0.008, 0]
+        radius: 0.002
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  PENDENTE_CROCE — Croce latina con gemma
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~0.035 × 0.070 m
+  #  Struttura:  Bale, braccio verticale (capsule), braccio orizzontale
+  #              (capsule), incrocio con gemma cabochon, terminali
+  #              sferici decorativi.
+  #
+  #  Materiale default: jwl_argento (corpo)
+  #  Materiale esplicito: jwl_rubino (gemma)
+  #
+  - name: "pendente_croce"
+    material: "jwl_argento"
+    children:
+
+      # ── Bale ───────────────────────────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.065, 0]
+        major_radius: 0.005
+        minor_radius: 0.0015
+
+      # Raccordo
+      - type: "cylinder"
+        center: [0, 0.058, 0]
+        radius: 0.002
+        height: 0.006
+
+      # ── Braccio verticale ──────────────────────────────────────────────
+      - type: "capsule"
+        center: [0, 0.028, 0]
+        radius: 0.004
+        height: 0.048
+
+      # ── Braccio orizzontale ────────────────────────────────────────────
+      - type: "capsule"
+        center: [0, 0.042, 0]
+        radius: 0.004
+        height: 0.028
+        rotate: [0, 0, 90]
+
+      # ── Gemma cabochon al centro ───────────────────────────────────────
+      # Cupola
+      - type: "csg"
+        operation: "intersection"
+        material: "jwl_rubino"
+        left:
+          type: "sphere"
+          center: [0, 0.043, 0]
+          radius: 0.005
+          scale: [1.0, 0.55, 1.0]
+        right:
+          type: "cylinder"
+          center: [0, 0.043, 0]
+          radius: 0.006
+          height: 0.006
+
+      # Castone circolare attorno alla gemma
+      - type: "torus"
+        center: [0, 0.043, 0]
+        major_radius: 0.006
+        minor_radius: 0.0012
+
+      # ── Terminali sferici decorativi (4 estremità) ─────────────────────
+      - type: "sphere"
+        center: [0, 0.058, 0]
+        radius: 0.003
+      - type: "sphere"
+        center: [0, 0.004, 0]
+        radius: 0.003
+      - type: "sphere"
+        center: [-0.018, 0.042, 0]
+        radius: 0.003
+      - type: "sphere"
+        center: [0.018, 0.042, 0]
+        radius: 0.003
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  ORECCHINO_CERCHIO — Creola (hoop earring)
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.04 × 0.003 m
+  #  Struttura:  Cerchio principale (torus), fermo a cerniera (sfera
+  #              piccola), perno di chiusura (cilindro sottile).
+  #
+  #  Materiale default: jwl_oro
+  #
+  - name: "orecchino_cerchio"
+    material: "jwl_oro"
+    children:
+
+      # Cerchio principale
+      - type: "torus"
+        center: [0, 0, 0]
+        major_radius: 0.020
+        minor_radius: 0.0018
+        rotate: [90, 0, 0]
+
+      # Cerniera superiore (sfera)
+      - type: "sphere"
+        center: [0, 0.020, 0]
+        radius: 0.003
+
+      # Perno di chiusura
+      - type: "cylinder"
+        center: [0, 0.018, 0.002]
+        radius: 0.0008
+        height: 0.008
+
+      # Fermo posteriore (sfera piccola)
+      - type: "sphere"
+        center: [0, 0.018, 0.007]
+        radius: 0.002
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  ORECCHINO_GOCCIA — Orecchino pendente con gemma
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~0.02 × 0.065 m
+  #  Struttura:  Gancio a filo (cilindro curvo approssimato con arco
+  #              torus), anello di raccordo, catenella (3 anelli),
+  #              cornice, gemma sfaccettata, goccia terminale.
+  #
+  #  Materiale default: jwl_oro_rosa (montatura)
+  #  Materiale esplicito: jwl_topazio (gemma)
+  #
+  - name: "orecchino_goccia"
+    material: "jwl_oro_rosa"
+    children:
+
+      # ── Gancio (mezzo torus) ───────────────────────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "torus"
+          center: [0, 0.055, 0]
+          major_radius: 0.008
+          minor_radius: 0.001
+          rotate: [0, 90, 0]
+        right:
+          type: "box"
+          scale: [0.02, 0.02, 0.02]
+          translate: [0, 0.055, 0.008]
+
+      # ── Catenella (3 anellini) ─────────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.044, 0]
+        major_radius: 0.003
+        minor_radius: 0.0008
+
+      - type: "torus"
+        center: [0, 0.038, 0]
+        major_radius: 0.003
+        minor_radius: 0.0008
+        rotate: [90, 0, 0]
+
+      - type: "torus"
+        center: [0, 0.032, 0]
+        major_radius: 0.003
+        minor_radius: 0.0008
+
+      # ── Cornice gemma ──────────────────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.020, 0]
+        major_radius: 0.008
+        minor_radius: 0.0012
+        scale: [1.0, 1.30, 1.0]
+
+      # ── Gemma sfaccettata (ellissoide) ─────────────────────────────────
+      - type: "sphere"
+        center: [0, 0.020, 0]
+        radius: 0.008
+        scale: [0.85, 1.20, 0.85]
+        material: "jwl_topazio"
+
+      # ── Goccia terminale ───────────────────────────────────────────────
+      - type: "cone"
+        center: [0, 0.006, 0]
+        radius: 0.003
+        top_radius: 0.0
+        height: 0.006
+
+      - type: "sphere"
+        center: [0, 0.004, 0]
+        radius: 0.002
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  BRACCIALE_RIGIDO — Bangle con sezione a D
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.070 × 0.012 m
+  #  Struttura:  Torus principale (il bangle), sezione ellittica
+  #              (scale Y schiacciato), decorazione frontale con
+  #              3 gemme cabochon equidistanti, bordi milgrain.
+  #
+  #  Materiale default: jwl_oro
+  #  Materiale esplicito: jwl_smeraldo (gemme)
+  #
+  - name: "bracciale_rigido"
+    material: "jwl_oro"
+    children:
+
+      # Corpo principale (torus schiacciato → sezione D)
+      - type: "torus"
+        center: [0, 0, 0]
+        major_radius: 0.034
+        minor_radius: 0.006
+        scale: [1.0, 0.65, 1.0]
+
+      # Bordo milgrain superiore
+      - type: "torus"
+        center: [0, 0.0035, 0]
+        major_radius: 0.034
+        minor_radius: 0.0008
+
+      # Bordo milgrain inferiore
+      - type: "torus"
+        center: [0, -0.0035, 0]
+        major_radius: 0.034
+        minor_radius: 0.0008
+
+      # ── 3 gemme cabochon a 120° ───────────────────────────────────────
+      # Gemma 1 (X+)
+      - type: "csg"
+        operation: "intersection"
+        material: "jwl_smeraldo"
+        left:
+          type: "sphere"
+          center: [0.034, 0.006, 0]
+          radius: 0.004
+          scale: [1.0, 0.50, 1.0]
+        right:
+          type: "cylinder"
+          center: [0.034, 0.006, 0]
+          radius: 0.005
+          height: 0.005
+      # Castone 1
+      - type: "torus"
+        center: [0.034, 0.005, 0]
+        major_radius: 0.0042
+        minor_radius: 0.0008
+
+      # Gemma 2 (120°)
+      - type: "csg"
+        operation: "intersection"
+        material: "jwl_smeraldo"
+        left:
+          type: "sphere"
+          center: [-0.017, 0.006, 0.02944]
+          radius: 0.004
+          scale: [1.0, 0.50, 1.0]
+        right:
+          type: "cylinder"
+          center: [-0.017, 0.006, 0.02944]
+          radius: 0.005
+          height: 0.005
+      - type: "torus"
+        center: [-0.017, 0.005, 0.02944]
+        major_radius: 0.0042
+        minor_radius: 0.0008
+
+      # Gemma 3 (240°)
+      - type: "csg"
+        operation: "intersection"
+        material: "jwl_smeraldo"
+        left:
+          type: "sphere"
+          center: [-0.017, 0.006, -0.02944]
+          radius: 0.004
+          scale: [1.0, 0.50, 1.0]
+        right:
+          type: "cylinder"
+          center: [-0.017, 0.006, -0.02944]
+          radius: 0.005
+          height: 0.005
+      - type: "torus"
+        center: [-0.017, 0.005, -0.02944]
+        major_radius: 0.0042
+        minor_radius: 0.0008
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  COLLANA_PERLE — Filo di 15 perle graduate
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~0.30 × 0.04 m (stesa a semicerchio)
+  #  Struttura:  15 sfere disposte su un arco semicircolare con
+  #              diametro graduato (più grandi al centro), moschettone
+  #              a un'estremità (torus + cilindro).
+  #
+  #  Materiale default: jwl_perla
+  #  Materiale esplicito: jwl_oro (chiusura)
+  #
+  - name: "collana_perle"
+    material: "jwl_perla"
+    children:
+
+      # 15 perle su arco semicircolare (R = 0.14, da -75° a +75°)
+      # Gradazione: R_perla = 0.007 al centro, 0.005 ai bordi
+      # Angoli: -75, -64.3, -53.6, -42.9, -32.1, -21.4, -10.7, 0,
+      #          10.7, 21.4, 32.1, 42.9, 53.6, 64.3, 75 gradi
+
+      # Perla 1 (−75°, piccola)
+      - type: "sphere"
+        center: [0.0362, 0.1352, 0]
+        radius: 0.005
+
+      # Perla 2 (−64.3°)
+      - type: "sphere"
+        center: [0.0609, 0.1261, 0]
+        radius: 0.0053
+
+      # Perla 3 (−53.6°)
+      - type: "sphere"
+        center: [0.0830, 0.1128, 0]
+        radius: 0.0056
+
+      # Perla 4 (−42.9°)
+      - type: "sphere"
+        center: [0.1018, 0.0953, 0]
+        radius: 0.0060
+
+      # Perla 5 (−32.1°)
+      - type: "sphere"
+        center: [0.1166, 0.0744, 0]
+        radius: 0.0063
+
+      # Perla 6 (−21.4°)
+      - type: "sphere"
+        center: [0.1264, 0.0511, 0]
+        radius: 0.0066
+
+      # Perla 7 (−10.7°)
+      - type: "sphere"
+        center: [0.1316, 0.0260, 0]
+        radius: 0.0068
+
+      # Perla 8 (centro, 0°) — la più grande
+      - type: "sphere"
+        center: [0.1320, 0.0, 0]
+        radius: 0.007
+
+      # Perla 9 (+10.7°)
+      - type: "sphere"
+        center: [0.1316, -0.0260, 0]
+        radius: 0.0068
+
+      # Perla 10 (+21.4°)
+      - type: "sphere"
+        center: [0.1264, -0.0511, 0]
+        radius: 0.0066
+
+      # Perla 11 (+32.1°)
+      - type: "sphere"
+        center: [0.1166, -0.0744, 0]
+        radius: 0.0063
+
+      # Perla 12 (+42.9°)
+      - type: "sphere"
+        center: [0.1018, -0.0953, 0]
+        radius: 0.0060
+
+      # Perla 13 (+53.6°)
+      - type: "sphere"
+        center: [0.0830, -0.1128, 0]
+        radius: 0.0056
+
+      # Perla 14 (+64.3°)
+      - type: "sphere"
+        center: [0.0609, -0.1261, 0]
+        radius: 0.0053
+
+      # Perla 15 (+75°, piccola)
+      - type: "sphere"
+        center: [0.0362, -0.1352, 0]
+        radius: 0.005
+
+      # ── Chiusura moschettone ───────────────────────────────────────────
+      - type: "torus"
+        center: [0.028, -0.140, 0]
+        major_radius: 0.004
+        minor_radius: 0.0012
+        material: "jwl_oro"
+
+      - type: "cylinder"
+        center: [0.028, -0.136, 0]
+        radius: 0.001
+        height: 0.008
+        material: "jwl_oro"
+
+      # Anellino all'altra estremità
+      - type: "torus"
+        center: [0.028, 0.140, 0]
+        major_radius: 0.003
+        minor_radius: 0.001
+        material: "jwl_oro"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  TIARA — Diadema con arco, punte e gemme
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~0.14 × 0.06 m
+  #  Struttura:  Arco semicircolare (mezzo torus CSG), 5 punte
+  #              verticali (coni rastremarti) con gemme sferiche
+  #              in cima (la centrale più alta), filo decorativo
+  #              ondulato (sfere piccole su arco), bordi milgrain.
+  #
+  #  Materiale default: jwl_oro_bianco
+  #  Materiale esplicito: jwl_diamante (gemme)
+  #
+  - name: "tiara"
+    material: "jwl_oro_bianco"
+    children:
+
+      # ── Arco principale (mezzo torus → diadema) ────────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "torus"
+          center: [0, 0, 0]
+          major_radius: 0.065
+          minor_radius: 0.004
+          scale: [1.0, 1.0, 0.50]
+        right:
+          # Solo la metà anteriore (Z negativo)
+          type: "box"
+          scale: [0.16, 0.02, 0.04]
+          translate: [0, 0, -0.02]
+
+      # Bordo milgrain superiore dell'arco
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "torus"
+          center: [0, 0.004, 0]
+          major_radius: 0.065
+          minor_radius: 0.001
+          scale: [1.0, 1.0, 0.50]
+        right:
+          type: "box"
+          scale: [0.16, 0.01, 0.04]
+          translate: [0, 0.004, -0.02]
+
+      # ── 5 punte verticali con gemme ────────────────────────────────────
+      # Punta centrale (la più alta)
+      - type: "cone"
+        center: [0, 0.004, -0.032]
+        radius: 0.005
+        top_radius: 0.002
+        height: 0.040
+      - type: "sphere"
+        center: [0, 0.046, -0.032]
+        radius: 0.005
+        material: "jwl_diamante"
+      - type: "torus"
+        center: [0, 0.042, -0.032]
+        major_radius: 0.004
+        minor_radius: 0.001
+
+      # Punta 2 (sinistra interna)
+      - type: "cone"
+        center: [-0.022, 0.004, -0.030]
+        radius: 0.004
+        top_radius: 0.0015
+        height: 0.030
+      - type: "sphere"
+        center: [-0.022, 0.036, -0.030]
+        radius: 0.004
+        material: "jwl_diamante"
+
+      # Punta 3 (destra interna)
+      - type: "cone"
+        center: [0.022, 0.004, -0.030]
+        radius: 0.004
+        top_radius: 0.0015
+        height: 0.030
+      - type: "sphere"
+        center: [0.022, 0.036, -0.030]
+        radius: 0.004
+        material: "jwl_diamante"
+
+      # Punta 4 (sinistra esterna)
+      - type: "cone"
+        center: [-0.042, 0.003, -0.025]
+        radius: 0.003
+        top_radius: 0.001
+        height: 0.020
+      - type: "sphere"
+        center: [-0.042, 0.025, -0.025]
+        radius: 0.003
+        material: "jwl_diamante"
+
+      # Punta 5 (destra esterna)
+      - type: "cone"
+        center: [0.042, 0.003, -0.025]
+        radius: 0.003
+        top_radius: 0.001
+        height: 0.020
+      - type: "sphere"
+        center: [0.042, 0.025, -0.025]
+        radius: 0.003
+        material: "jwl_diamante"
+
+      # ── Decorazioni ad arco tra le punte ───────────────────────────────
+      # Sfere piccole che formano un festone
+      - type: "sphere"
+        center: [-0.011, 0.014, -0.032]
+        radius: 0.002
+      - type: "sphere"
+        center: [0.011, 0.014, -0.032]
+        radius: 0.002
+      - type: "sphere"
+        center: [-0.032, 0.010, -0.028]
+        radius: 0.002
+      - type: "sphere"
+        center: [0.032, 0.010, -0.028]
+        radius: 0.002
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  PORTAGIOIE — Cofanetto aperto con cuscino
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~0.08 × 0.05 × 0.06 m
+  #  Struttura:  Base del cofanetto (box cavo CSG), cuscino interno
+  #              (ellissoide schiacciato in velluto), bordo dorato
+  #              (torus perimetrale), cerniera posteriore (cilindro),
+  #              coperchio aperto (box sottile inclinato).
+  #
+  #  Materiale default: jwl_laccato (cofanetto)
+  #  Materiali espliciti: jwl_velluto_rosso, jwl_oro
+  #
+  - name: "portagioie"
+    material: "jwl_laccato"
+    children:
+
+      # ── Base del cofanetto (box cavo) ──────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "box"
+          scale: [0.080, 0.030, 0.060]
+          translate: [0, 0.015, 0]
+        right:
+          type: "box"
+          scale: [0.074, 0.026, 0.054]
+          translate: [0, 0.017, 0]
+
+      # ── Bordo dorato superiore (4 cilindri) ────────────────────────────
+      # Frontale
+      - type: "cylinder"
+        center: [0, 0.030, -0.030]
+        radius: 0.0015
+        height: 0.080
+        rotate: [0, 0, 90]
+        material: "jwl_oro"
+      # Posteriore
+      - type: "cylinder"
+        center: [0, 0.030, 0.030]
+        radius: 0.0015
+        height: 0.080
+        rotate: [0, 0, 90]
+        material: "jwl_oro"
+      # Sinistro
+      - type: "cylinder"
+        center: [-0.040, 0.030, 0]
+        radius: 0.0015
+        height: 0.060
+        rotate: [90, 0, 0]
+        material: "jwl_oro"
+      # Destro
+      - type: "cylinder"
+        center: [0.040, 0.030, 0]
+        radius: 0.0015
+        height: 0.060
+        rotate: [90, 0, 0]
+        material: "jwl_oro"
+
+      # ── Piedini (4 sfere schiacciate dorate) ───────────────────────────
+      - type: "sphere"
+        center: [-0.032, 0, -0.022]
+        radius: 0.004
+        scale: [1.0, 0.40, 1.0]
+        material: "jwl_oro"
+      - type: "sphere"
+        center: [0.032, 0, -0.022]
+        radius: 0.004
+        scale: [1.0, 0.40, 1.0]
+        material: "jwl_oro"
+      - type: "sphere"
+        center: [-0.032, 0, 0.022]
+        radius: 0.004
+        scale: [1.0, 0.40, 1.0]
+        material: "jwl_oro"
+      - type: "sphere"
+        center: [0.032, 0, 0.022]
+        radius: 0.004
+        scale: [1.0, 0.40, 1.0]
+        material: "jwl_oro"
+
+      # ── Cuscino in velluto (ellissoide schiacciato) ────────────────────
+      - type: "sphere"
+        center: [0, 0.024, 0]
+        radius: 0.034
+        scale: [1.05, 0.20, 0.76]
+        material: "jwl_velluto_rosso"
+
+      # ── Cerniera posteriore ────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.030, 0.030]
+        radius: 0.003
+        height: 0.040
+        rotate: [0, 0, 90]
+        material: "jwl_oro"
+
+      # ── Coperchio aperto (inclinato all'indietro ~110°) ────────────────
+      - type: "box"
+        scale: [0.080, 0.004, 0.060]
+        translate: [0, 0.058, 0.046]
+        rotate: [-20, 0, 0]
+
+      # Bordo dorato del coperchio
+      - type: "cylinder"
+        center: [0, 0.056, 0.032]
+        radius: 0.0012
+        height: 0.080
+        rotate: [0, 0, 90]
+        material: "jwl_oro"
+
+      # Interno coperchio (scamosciato)
+      - type: "box"
+        scale: [0.074, 0.002, 0.054]
+        translate: [0, 0.056, 0.046]
+        rotate: [-20, 0, 0]
+        material: "jwl_scamosciato"
