@@ -1,6 +1,6 @@
 # 🎬 Starter Kit — Scene Pronte all'Uso
 
-Questa raccolta contiene **16 scene YAML complete**, pensate come punto di partenza per creare nuove scene. Ogni file è autonomo, dettagliato e renderizzabile immediatamente.
+Questa raccolta contiene **18 scene YAML complete**, pensate come punto di partenza per creare nuove scene. Ogni file è autonomo, dettagliato e renderizzabile immediatamente.
 
 ## Come Usare uno Starter Kit
 
@@ -41,6 +41,8 @@ Per cambiare atmosfera basta commentare il world/lights attivo e decommentare un
 | `starter-zen-garden.yaml` | **Zen Garden** | Giardino giapponese contemplativo. Rocce asimmetriche (ellissoidi), lanterna tōrō (template con emissivo), tsukubai ciotola d'acqua (CSG sfera cava), ponticello in legno rosso, bambù con nodi (tori). |
 | `starter-ancient-ruins.yaml` | **Ancient Ruins** | Rovine di tempio classico. Colonne doriche (template intere e spezzate), architrave, arco in pietra (CSG subtraction), piedistalli con sfere di bronzo, macerie sparse, edera stilizzata. |
 | `starter-floating-islands.yaml` | **Floating Islands** | Isole sospese nel vuoto in cielo fantasy. Basi rocciose, alberi a palloncino (template), cascata dielectric, ponticello di corda, cristalli magici emissivi. Cielo: viola-arancio / pastello / notte stellata. |
+| `starter-golden-hour.yaml` | **Golden Hour** | Cielo procedurale a gradiente con disco solare basso sull'orizzonte, luce direzionale calda radente. Suolo intercambiabile: prato (3 varianti), oceano metallico o terreno a scacchi. |
+| `starter-sunset.yaml` | **Tramonto Drammatico** | Orizzonte aperto con sfondo monocromatico arancio e luce direzionale calda monocromatica. Suolo metallico riflettente di default; varianti prato e terreno incluse. Luce singola ad alta intensità. |
 
 ### Indoor
 
@@ -114,8 +116,8 @@ Ogni file include i parametri suggeriti nel commento iniziale. Come riferimento 
 | **Capsule** | Desert Highway, Museum Gallery, Underwater |
 | **Disk / Annulus** | Snowy Clearing, Zen Garden, Kitchen Counter, Underwater |
 | **Cone** | Snowy Clearing, Floating Islands, Photography Studio, Pool Table, Underwater |
-| **Multi-camera** | Tutti (3-6 camere per scena) |
-| **Gradient Sky** (con sun disk) | Desert Highway, Snowy Clearing, Zen Garden, Ancient Ruins, Floating Islands, Underwater |
+| **Multi-camera** | Desert Highway, Snowy Clearing, Zen Garden, Ancient Ruins, Floating Islands, Photography Studio, Cornell Box, Museum Gallery, Kitchen Counter, Wine Cellar, Dining Room, Infinite Mirror Room, Material Showroom, Chess Set, Pool Table, Underwater (Golden Hour e Tramonto hanno camera singola) |
+| **Gradient Sky** (con sun disk) | Desert Highway, Snowy Clearing, Zen Garden, Ancient Ruins, Floating Islands, Underwater, Golden Hour |
 | **Area Light** | Photography Studio, Museum Gallery, Kitchen Counter, Dining Room, Material Showroom, Infinite Mirror Room |
 | **Sphere Light** | Wine Cellar, Pool Table, Dining Room |
 | **Spot Light** | Museum Gallery, Ancient Ruins, Photography Studio, Cornell Box, Underwater |

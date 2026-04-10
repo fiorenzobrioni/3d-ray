@@ -1,0 +1,59 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  STARTER KIT — Tramonto Drammatico
+#
+#  Orizzonte vasto con luce direzionale calda a basso angolo e sfondo
+#  monocromatico arancio. Il suolo metallico riflettente (oceano) amplifica
+#  la drammaticità; sostituendo il materiale si ottengono varianti prato o
+#  terreno. La directional è l'unica sorgente luminosa: l'intensità è volutamente
+#  alta per compensare la mancanza di attenuazione con la distanza.
+#
+#  AMBIENTAZIONE: Outdoor — orizzonte aperto, tramonto
+#  STILE: Drammatico, epico, ombre lunghe
+#
+#  Render consigliato:
+#    Draft:    -w 800  -H 450  -s 16  -d 15 -S 4
+#    Preview:  -w 1280 -H 720  -s 64  -d 25 -S 8
+#    Finale:   -w 1920 -H 1080 -s 256 -d 40 -S 16
+# ═══════════════════════════════════════════════════════════════════════════════
+
+world:
+  ambient_light: [0.05, 0.05, 0.1]
+  background: [0.8, 0.4, 0.2]
+  ground: { type: "infinite_plane", material: "oceano", y: 0 }
+  # Sostituisci material per cambiare terreno: prato_1, prato_2, prato_3, oceano, terreno
+
+camera:
+  position: [0, 1, -15]
+  look_at: [0, 1.5, 0]
+  fov: 35
+
+materials:
+  - id: "prato_1" # Verde Erba Naturale (Vivace), per un prato in piena salute
+    type: "lambertian"
+    color: [0.20, 0.50, 0.15]
+
+  - id: "prato_2" # Prato Primaverile (Chiaro/Luminoso), se cerchi un effetto "fresco" o un prato illuminato dal sole
+    type: "lambertian"
+    color: [0.50, 0.85, 0.30]
+
+  - id: "prato_3" # Prato "Wild" (Più desaturato/Salvia), per un effetto più naturale, simile alle erbe spontanee di un campo
+    type: "lambertian"
+    color: [0.45, 0.55, 0.35]
+
+  - id: "oceano"
+    type: "metal"
+    color: [0.1, 0.2, 0.4]
+    fuzz: 0.1
+
+  - id: "terreno"
+    type: "lambertian"
+    texture: { type: "checker", scale: 1.5, colors: [[0.25, 0.22, 0.18], [0.35, 0.32, 0.26]] }
+
+lights:
+  # intensity: 2 — valore alto intenzionale: la directional è l'unica sorgente
+  # di questa scena outdoor drammatica. Senza attenuazione con la distanza,
+  # deve compensare da sola per illuminare l'intera superficie.
+  - type: "directional"
+    direction: [-1, -0.2, -1]
+    color: [1, 0.4, 0.1]
+    intensity: 2

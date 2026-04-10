@@ -154,7 +154,7 @@ di ogni sorgente e il world abbinato consigliato.
 
 ### 🎬 Starter Kit — `starter-kits/`
 
-**16 scene YAML complete e renderizzabili immediatamente**
+**18 scene YAML complete e renderizzabili immediatamente**
 
 Scene già pronte con world, camere multiple, materiali, template, luci e
 oggetti. Pensate come punto di partenza: copiare, rinominare e modificare.
@@ -166,6 +166,8 @@ oggetti. Pensate come punto di partenza: copiare, rinominare e modificare.
 | **Outdoor** | `starter-zen-garden.yaml` | Giardino giapponese con lanterna tōrō e tsukubai |
 | **Outdoor** | `starter-ancient-ruins.yaml` | Rovine di tempio greco con colonne e archi CSG |
 | **Outdoor** | `starter-floating-islands.yaml` | Isole fantasy sospese in cielo viola-arancio |
+| **Outdoor** | `starter-golden-hour.yaml` | Cielo a gradiente procedurale con sole basso, luce calda radente |
+| **Outdoor** | `starter-sunset.yaml` | Orizzonte aperto con sfondo arancio e suolo metallico riflettente |
 | **Indoor** | `starter-photography-studio.yaml` | Studio fotografico con cyclorama e softbox |
 | **Indoor** | `starter-cornell-box-extended.yaml` | Cornell Box arricchita — benchmark classico |
 | **Indoor** | `starter-museum-gallery.yaml` | Galleria d'arte con 5 piedistalli e sculture |
