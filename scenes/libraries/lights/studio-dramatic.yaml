@@ -1,0 +1,80 @@
+# =============================================================================
+#  LIBRERIA LUCI — Studio Dramatic (Low Key / Chiaroscuro)
+#  scenes/libraries/lights/studio-dramatic.yaml
+# =============================================================================
+#
+#  Illuminazione "Low Key": scena quasi buia con una singola sorgente dura
+#  che taglia la forma dal fondo nero. Ispirato alla pittura di Caravaggio
+#  e alla fotografia noir: le ombre sono protagoniste quanto la luce.
+#  Il contrasto è estremo, il volume è scolpito con forza.
+#
+#  SCHEMA:
+#    Key Spot   — Spot duro laterale-alto  → luce scultorea, ombre nette e profonde
+#    Hair Light — Point dall'alto-retro    → sottile bordo luminoso sui capelli/bordi
+#    Fill Ghost — Point debolissimo        → evita il nero assoluto (solo accenno)
+#
+#  LUCI USATE:  spot · point · point
+#
+#  USO CONSIGLIATO:
+#    imports:
+#      - path: "libraries/lights/studio-dramatic.yaml"
+#
+#  WORLD ABBINATO (studio nero assoluto — nessuna luce ambiente):
+#    world:
+#      ambient_light: [0.0, 0.0, 0.0]
+#      background: [0.0, 0.0, 0.0]
+#
+#  RENDER CONSIGLIATO:
+#    Draft  : -w 800  -H 450 -s 32  -d 20 -S 4
+#    Preview: -w 1280 -H 720 -s 128 -d 30 -S 8
+#    Final  : -w 1920 -H 1080 -s 512 -d 50 -S 16
+#
+#  NOTE:
+#    - Con ambient_light [0,0,0] le zone non illuminate sono nero assoluto.
+#      Se preferisci un nero "cinematografico" (non digitale), usa
+#      ambient_light [0.005, 0.005, 0.005].
+#    - Il fill ghost è facoltativo: commentarlo per il chiaroscuro più puro.
+#    - Aumenta inner_angle / outer_angle per ammorbidire la transizione
+#      luce/ombra sulla key spot.
+#    - Funziona benissimo con materiali con specular alto: i materiali
+#      lucidi creano un highlight brillante sul bordo illuminato.
+# =============================================================================
+
+lights:
+
+  # ── KEY SPOT (REMBRANDT LIGHT) ────────────────────────────────────────────
+  #  Spot duro dall'alto-sinistra, angolo di circa 45° rispetto all'asse
+  #  della camera. È l'unica sorgente significativa della scena.
+  #  Inner/outer stretti producono una transizione penombra netta —
+  #  ombra con bordo quasi secco, stile Rembrandt o faretto teatrale.
+  #  Colore leggermente ambrato: evoca una fonte a incandescenza o una
+  #  lampada da studio vintage (anziché una LED neutra).
+  - type: "spot"
+    position: [-4.5, 5.5, -1.0]
+    direction: [0.70, -0.65, 0.30]
+    color: [1.0, 0.90, 0.72]
+    intensity: 120.0
+    inner_angle: 10
+    outer_angle: 22
+
+  # ── HAIR LIGHT (RIM) ──────────────────────────────────────────────────────
+  #  Point dal retro-alto. Crea un alone luminoso sottile lungo il profilo
+  #  superiore del soggetto (capelli, spalle, bordo oggetto) che lo separa
+  #  dal fondo nero senza tradire la filosofia low-key.
+  #  Colore caldo come la key: la sorgente sembra la stessa proveniente
+  #  dal retro per un rimbalzo realistico nell'immaginario dello spettatore.
+  - type: "point"
+    position: [1.5, 6.0, 4.0]
+    color: [1.0, 0.88, 0.68]
+    intensity: 28.0
+
+  # ── FILL GHOST ────────────────────────────────────────────────────────────
+  #  Point quasi impercettibile dal lato opposto alla key. Intensità
+  #  calibrata per mostrare a malapena il dettaglio nelle zone d'ombra
+  #  profonda — simula la luce riflessa dalle pareti di uno studio anche
+  #  se dipinto di nero. Se vuoi il chiaroscuro assoluto: commenta questo.
+  #  Colore freddo: le ombre "respirano" azzurro come nella fotografia noir.
+  - type: "point"
+    position: [5.0, 2.0, -2.0]
+    color: [0.55, 0.65, 1.0]
+    intensity: 2.5

@@ -1,0 +1,88 @@
+# =============================================================================
+#  LIBRERIA LUCI — Cielo Coperto (Overcast)
+#  scenes/libraries/lights/outdoor-overcast.yaml
+# =============================================================================
+#
+#  Il cielo nuvoloso è — paradossalmente — l'illuminazione outdoor tecnica
+#  per eccellenza: nessuna ombra dura, luce perfettamente diffusa dall'intera
+#  volta celeste, colori fedeli senza distorsioni cromatiche. Photographers
+#  adorano la luce "piatta" per ritratti, auto, architettura e prodotti
+#  che devono mostrare ogni dettaglio senza zone bruciate.
+#
+#  SCHEMA:
+#    Cloud Dome  — Area enorme dall'alto           → luce diffusa uniforme, zero ombre
+#    Horizon Rim — Directional dall'orizzonte      → luce bassa che modella leggermente
+#    Ambient Sky — Directional generale            → fill uniforme complementare
+#
+#  LUCI USATE:  area · directional · directional
+#
+#  USO CONSIGLIATO:
+#    imports:
+#      - path: "libraries/lights/outdoor-overcast.yaml"
+#
+#  WORLD ABBINATO (cielo nuvoloso bianco-grigio):
+#    world:
+#      ambient_light: [0.08, 0.09, 0.10]
+#      sky:
+#        type: "gradient"
+#        zenith_color:  [0.50, 0.53, 0.58]
+#        horizon_color: [0.68, 0.70, 0.72]
+#        ground_color:  [0.30, 0.28, 0.25]
+#
+#  RENDER CONSIGLIATO:
+#    Draft  : -w 800  -H 450 -s 16  -d 12
+#    Preview: -w 1280 -H 720 -s 64  -d 20
+#    Final  : -w 1920 -H 1080 -s 256 -d 35
+#
+#  NOTE:
+#    - L'assenza di sun disk nel world è intenzionale: con il cielo coperto
+#      il disco solare non è visibile. Niente sun disk = coerenza visiva.
+#    - L'area light enorme (10×10 u) simula la volta celeste come emettitore
+#      uniforme. Più è grande, più le ombre (già quasi assenti) sono morbide.
+#    - ambient_light alto compensa l'assenza di bounce tra oggetti ravvicinati.
+#    - Per visualizzazione architettonica abbinare a materiali con roughness
+#      alta (cemento, pietra, intonaco): la luce diffusa ne esalta le texture.
+#    - La directional orizzonte introduce un minimo di direzionalità per
+#      evitare che la scena sembri illuminata da una lightbox digitale.
+# =============================================================================
+
+lights:
+
+  # ── CLOUD DOME (SORGENTE PRINCIPALE) ─────────────────────────────────────
+  #  Area rettangolare molto grande posizionata in alto sulla scena,
+  #  che simula la volta celeste coperta di nuvole come emettitore uniforme.
+  #  La dimensione 10×10 unità garantisce una luce quasi perfettamente
+  #  diffusa su soggetti di scala umana (1–3 u). Le ombre prodotte sono
+  #  così morbide da essere a malapena percepibili.
+  #  Colore bianco-grigio caldo: le nuvole sono otticamente bianche ma
+  #  l'atmosfera introduce una lieve tinta calda alla diffusione.
+  - type: "area"
+    corner: [-5.0, 8.0, -5.0]
+    u: [10.0, 0.0, 0.0]
+    v: [0.0, 0.0, 10.0]
+    color: [0.92, 0.93, 0.95]
+    intensity: 18.0
+    shadow_samples: 16
+
+  # ── HORIZON FILL (LUCE BASSA) ─────────────────────────────────────────────
+  #  Directional che simula la luce che filtra dall'orizzonte sotto lo strato
+  #  nuvoloso (fenomeno del "silver lining"). Introduce un minimo di direziona-
+  #  lità: i lati degli oggetti ricevono una luce bassa leggermente diversa
+  #  dalla cupola. Senza questa, la scena appare come una lightbox piatta.
+  #  Direzione orizzontale da fronte-sinistra, intensità molto bassa.
+  - type: "directional"
+    direction: [-0.60, -0.30, -0.75]
+    color: [0.85, 0.88, 0.95]
+    intensity: 0.022
+
+  # ── AMBIENT COMPLEMENT ────────────────────────────────────────────────────
+  #  Seconda directional dal lato opposto, ancora più debole, che completa
+  #  il "wrap" della luce intorno agli oggetti. Con le due directional
+  #  da direzioni quasi opposte si ottiene un'illuminazione avvolgente
+  #  che simula la GI della cupola senza richiedere spp altissimi.
+  #  Colore leggermente più freddo: la luce che viene dall'alto del cielo
+  #  è più azzurra di quella dell'orizzonte.
+  - type: "directional"
+    direction: [0.50, -0.55, 0.65]
+    color: [0.78, 0.83, 0.95]
+    intensity: 0.015

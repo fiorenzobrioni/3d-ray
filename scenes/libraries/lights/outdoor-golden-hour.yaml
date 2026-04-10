@@ -1,0 +1,88 @@
+# =============================================================================
+#  LIBRERIA LUCI — Esterno Golden Hour (Ora d'Oro)
+#  scenes/libraries/lights/outdoor-golden-hour.yaml
+# =============================================================================
+#
+#  L'"ora d'oro" — i 30-60 minuti subito dopo l'alba o prima del tramonto.
+#  Il sole è basso sull'orizzonte, la luce attraversa uno spessore d'atmosfera
+#  maggiore che disperde i blu e lascia passare solo il rosso-arancio-ambra.
+#  Le ombre sono lunghissime, soffici all'estremità, e di colore viola freddo
+#  (complementare dell'arancio). Ogni fotografo e cinematografo la ama.
+#
+#  SCHEMA:
+#    Golden Sun  — Directional bassa orizzontale   → luce calda ambrata, ombre lunghe
+#    Sky Fill    — Directional dall'alto            → cielo azzurro complementare
+#    Warm Bounce — Directional dal basso            → terreno caldo che rimbalza verso l'alto
+#
+#  LUCI USATE:  directional · directional · directional
+#
+#  USO CONSIGLIATO:
+#    imports:
+#      - path: "libraries/lights/outdoor-golden-hour.yaml"
+#
+#  WORLD ABBINATO (golden hour gradient sky):
+#    world:
+#      ambient_light: [0.05, 0.04, 0.02]
+#      sky:
+#        type: "gradient"
+#        zenith_color:  [0.14, 0.22, 0.55]
+#        horizon_color: [0.88, 0.58, 0.22]
+#        ground_color:  [0.18, 0.13, 0.08]
+#        sun:
+#          direction: [-0.80, -0.25, -0.55]
+#          color: [1.0, 0.82, 0.42]
+#          intensity: 22.0
+#          size: 4.0
+#          falloff: 20.0
+#
+#  RENDER CONSIGLIATO:
+#    Draft  : -w 800  -H 450 -s 16  -d 15
+#    Preview: -w 1280 -H 720 -s 64  -d 25
+#    Final  : -w 1920 -H 1080 -s 256 -d 40
+#
+#  NOTE:
+#    - La direzione [-0.80, -0.25, -0.55] posiziona il sole in basso a sx-retro:
+#      le ombre si allungano verso la camera (effetto cinematografico massimo).
+#    - Il contrasto caldo/freddo (sole arancio vs fill cielo azzurro) è il
+#      cuore del look: non ridurre l'intensità del fill per non perderlo.
+#    - Con materiali metallic alto la luce golden hour crea highlight
+#      dorati spettacolari — questo setup è eccellente per showcase di metalli.
+#    - Per la variante "alba" (luce leggermente più fredda e rosata):
+#      sostituire il colore del sole con [1.0, 0.75, 0.60] e abbassa
+#      l'intensità a 0.07 (il sole mattutino è meno intenso di sera).
+# =============================================================================
+
+lights:
+
+  # ── SOLE GOLDEN HOUR (KEY) ────────────────────────────────────────────────
+  #  Directional rasante, angolo di circa 15° rispetto all'orizzonte.
+  #  Il colore ambrato-dorato è la firma visiva dell'ora d'oro: i blu
+  #  dell'atmosfera sono stati assorbiti dallo spessore d'aria attraversato.
+  #  Le ombre prodotte sono lunghissime e aggiungono volume al terreno.
+  #  Deve avere la stessa direction del sun disk nel world.sky.
+  - type: "directional"
+    direction: [-0.80, -0.25, -0.55]
+    color: [1.0, 0.82, 0.42]
+    intensity: 0.12
+
+  # ── FILL CIELO AZZURRO (SKY FILL) ────────────────────────────────────────
+  #  Il cielo all'ora d'oro è ancora azzurro nello zenit, e quella luce
+  #  azzurra illumina i lati in ombra con la tinta complementare al sole.
+  #  Questo contrasto caldo/freddo è ciò che rende l'ora d'oro così
+  #  fotogenica: le ombre non sono mai grigie, ma viola-azzurre.
+  #  Direzione dall'alto verso il basso = luce dello zenit.
+  - type: "directional"
+    direction: [0.15, -0.95, 0.25]
+    color: [0.42, 0.60, 1.0]
+    intensity: 0.038
+
+  # ── WARM GROUND BOUNCE ────────────────────────────────────────────────────
+  #  La luce solare bassa colpisce il terreno (terra, sabbia, asfalto) che
+  #  rimbalza il calore verso l'alto. I lati inferiori degli oggetti ricevono
+  #  una tinta ambrata dal basso — effetto molto visibile su automobili e
+  #  architettura. Il colore è più caldo del sole stesso (terreno assorbe i
+  #  blu ulteriormente). Intensità minima: solo un accenno cromatico.
+  - type: "directional"
+    direction: [0.0, 1.0, 0.0]
+    color: [1.0, 0.75, 0.35]
+    intensity: 0.018

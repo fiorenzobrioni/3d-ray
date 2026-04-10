@@ -1,0 +1,86 @@
+# =============================================================================
+#  LIBRERIA LUCI — Studio High Key
+#  scenes/libraries/lights/studio-highkey.yaml
+# =============================================================================
+#
+#  Illuminazione "High Key": scene luminose, ariose, quasi prive di ombre.
+#  Una grande sorgente frontale diffusa è affiancata da due fill simmetrici
+#  laterali e da un bounce morbido dal basso. Il risultato è un look pulito,
+#  ottimista e commerciale — tipico di cosmetica, moda, packaging.
+#
+#  SCHEMA:
+#    Main Softbox  — Area frontale enorme dall'alto  → luce primaria diffusissima
+#    Fill Sx       — Point morbido da sinistra        → annulla le ombre sx
+#    Fill Dx       — Point morbido da destra          → annulla le ombre dx
+#    Bounce        — Point dal basso                  → schiarisce le ombre sotto
+#
+#  LUCI USATE:  area · point · point · point
+#
+#  USO CONSIGLIATO:
+#    imports:
+#      - path: "libraries/lights/studio-highkey.yaml"
+#
+#  WORLD ABBINATO (studio bianco — sfondo luminoso):
+#    world:
+#      ambient_light: [0.18, 0.18, 0.20]
+#      background: [0.95, 0.95, 0.97]
+#
+#  RENDER CONSIGLIATO:
+#    Draft  : -w 800  -H 450 -s 16  -d 12 -S 4
+#    Preview: -w 1280 -H 720 -s 64  -d 20 -S 8
+#    Final  : -w 1920 -H 1080 -s 256 -d 35 -S 16
+#
+#  NOTE:
+#    - Con ambient_light alto e background chiaro le ombre scompaiono quasi
+#      del tutto: è l'effetto cercato in questo setup.
+#    - Se vuoi reintrodurre una piccola ombra, abbassa ambient a [0.08,0.08,0.10]
+#      e ridimensiona la main softbox del 30%.
+#    - Ideale abbinato a materiali con roughness 0.3–0.7 (plastic, ceramic).
+# =============================================================================
+
+lights:
+
+  # ── MAIN SOFTBOX (KEY) ────────────────────────────────────────────────────
+  #  Area rettangolare molto grande (4×3 u), posizionata frontalmente
+  #  e leggermente sopra il soggetto. La dimensione estesa garantisce
+  #  una luce morbidissima, quasi senza ombra. Colore bianco leggermente
+  #  caldo (simula una softbox professionale con diffusore bianco latte).
+  - type: "area"
+    corner: [-2.0, 5.5, -3.5]
+    u: [4.0, 0.0, 0.0]
+    v: [0.0, 0.0, 3.0]
+    color: [1.0, 0.98, 0.95]
+    intensity: 38.0
+    shadow_samples: 16
+
+  # ── FILL SINISTRO ─────────────────────────────────────────────────────────
+  #  Point light da sinistra a media distanza. Simula un pannello riflettente
+  #  bianco ("reflector") posizionato fuori campo per rimandare la luce della
+  #  softbox verso le zone in ombra sul lato sinistro del soggetto.
+  #  Colore neutro-freddo: il rimbalzo su una superficie bianca raffredda
+  #  leggermente il tono rispetto alla sorgente calda.
+  - type: "point"
+    position: [-5.0, 2.5, -1.5]
+    color: [0.90, 0.93, 1.0]
+    intensity: 22.0
+
+  # ── FILL DESTRO ───────────────────────────────────────────────────────────
+  #  Simmetrico al fill sinistro ma leggermente più basso per seguire
+  #  il volume del soggetto. Stessa logica: pannello rimbalzo fuori campo.
+  #  L'intensità leggermente inferiore evita una luce perfettamente piatta
+  #  mantenendo un minimo di direzione percepibile.
+  - type: "point"
+    position: [5.0, 2.0, -1.5]
+    color: [0.90, 0.93, 1.0]
+    intensity: 18.0
+
+  # ── BOUNCE (GROUND FILL) ──────────────────────────────────────────────────
+  #  Point light dal basso, simula la luce rimbalzata dal pavimento bianco
+  #  dello studio. Elimina le ombre dure nella zona sotto il soggetto
+  #  (fondamentale per prodotti piccoli come orologi o gioielli).
+  #  Colore quasi bianco puro, intensità bassa: effetto "luminosità dal basso"
+  #  senza creare highlight innaturali sulle superfici inferiori.
+  - type: "point"
+    position: [0.0, -1.5, -1.0]
+    color: [0.95, 0.95, 0.98]
+    intensity: 10.0

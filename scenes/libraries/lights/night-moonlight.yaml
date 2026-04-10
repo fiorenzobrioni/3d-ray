@@ -1,0 +1,92 @@
+# =============================================================================
+#  LIBRERIA LUCI — Notte con Luna
+#  scenes/libraries/lights/night-moonlight.yaml
+# =============================================================================
+#
+#  Illuminazione notturna lunare: la luna piena ha circa 1/400.000 della
+#  luminosità del sole, ma nel rendering basta scalare i valori relativi
+#  per ottenere l'aspetto corretto. Il risultato è una luce azzurra-grigia
+#  fredda, ombre morbide, visibilità ridotta con dettagli in penombra.
+#  Atmosfera: misteriosa, noir, fantasy, thriller.
+#
+#  SCHEMA:
+#    Moon Direct  — Directional lunare fredda      → luce principale, ombre definite
+#    Starlight    — Directional stellata            → fill freddissimo dall'alto
+#    Lantern Hint — Point arancio tenue opzionale  → accento di calore (fuoco/lanterna)
+#
+#  LUCI USATE:  directional · directional · point
+#
+#  USO CONSIGLIATO:
+#    imports:
+#      - path: "libraries/lights/night-moonlight.yaml"
+#
+#  WORLD ABBINATO (notte serena):
+#    world:
+#      ambient_light: [0.005, 0.005, 0.012]
+#      sky:
+#        type: "gradient"
+#        zenith_color:  [0.010, 0.010, 0.040]
+#        horizon_color: [0.030, 0.035, 0.075]
+#        ground_color:  [0.010, 0.010, 0.018]
+#        sun:
+#          direction: [0.35, -0.70, 0.60]
+#          color: [0.72, 0.78, 1.0]
+#          intensity: 5.0
+#          size: 1.5
+#          falloff: 64.0
+#
+#  RENDER CONSIGLIATO:
+#    Draft  : -w 800  -H 450 -s 64  -d 20
+#    Preview: -w 1280 -H 720 -s 256 -d 35
+#    Final  : -w 1920 -H 1080 -s 512 -d 55
+#
+#  NOTE:
+#    - ambient_light quasi zero è fondamentale: in una notte reale non c'è
+#      luce ambiente. Aumentarlo solo per scopi di leggibilità.
+#    - La lantern hint (point arancio) è progettata per situazioni con
+#      una fonte di calore nella scena (fuoco, lanterna, finestra illuminata).
+#      Va posizionata manualmente nella scena locale o commentata.
+#    - La direzione della moon direct deve corrispondere al sun disk nel
+#      world (stessa direction) per avere la luna visibile nel cielo.
+#    - Per la versione "luna nuova" (solo stelle): rimuovi moon direct,
+#      abbassa starlight a intensity 0.002 e usa ambient [0.002,0.002,0.005].
+# =============================================================================
+
+lights:
+
+  # ── LUNA DIRETTA (KEY LUNARE) ─────────────────────────────────────────────
+  #  La luna piena illumina gli oggetti con circa 0.1–0.3 lux — molto meno
+  #  del sole (100.000 lux), ma abbastanza per vedere chiaramente all'aperto.
+  #  Nel motore questo si traduce in un'intensità molto bassa rispetto alle
+  #  scene diurne. Il colore è bianco-azzurro freddo: la luce lunare è luce
+  #  solare riflessa dalla superficie della luna (che ha un leggero cast grigio)
+  #  ma filtrata dall'atmosfera notturna che la rende percepibilmente blu.
+  #  Direzione deve corrispondere al sun disk nel world.sky.
+  - type: "directional"
+    direction: [0.35, -0.70, 0.60]
+    color: [0.68, 0.75, 1.0]
+    intensity: 0.032
+
+  # ── LUCE STELLARE (STARLIGHT FILL) ───────────────────────────────────────
+  #  Le stelle e il bagliore della Via Lattea contribuiscono con una luce
+  #  diffusissima che viene dall'intera volta celeste. È la sorgente più
+  #  debole della scena: il suo compito è evitare il nero assoluto nelle
+  #  zone non raggiunte dalla luna (lato in ombra degli oggetti).
+  #  Colore leggermente più freddo della luna: le stelle emettono spettri
+  #  vari ma il risultato percettivo notturno è un leggero azzurro-viola.
+  - type: "directional"
+    direction: [-0.20, -0.98, 0.10]
+    color: [0.48, 0.52, 0.80]
+    intensity: 0.005
+
+  # ── LANTERN HINT (ACCENTO CALORE — OPZIONALE) ─────────────────────────────
+  #  Point arancio tenue che simula una fonte di calore lontana nella scena:
+  #  una lanterna, una finestra illuminata, un fuoco in lontananza.
+  #  Il contrasto caldo/freddo con la luce lunare è visivamente potente
+  #  e narrativo: il fuoco significa vita e calore nel freddo della notte.
+  #  POSIZIONE: va adattata alla scena specifica (qui placeholder fuori campo).
+  #  Commenta questa luce se la scena è un paesaggio senza fonti artificiali.
+  - type: "point"
+    position: [-8.0, 3.0, -6.0]
+    color: [1.0, 0.58, 0.12]
+    intensity: 15.0

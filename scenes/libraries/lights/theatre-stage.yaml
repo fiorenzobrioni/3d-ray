@@ -1,0 +1,114 @@
+# =============================================================================
+#  LIBRERIA LUCI — Teatro / Palcoscenico
+#  scenes/libraries/lights/theatre-stage.yaml
+# =============================================================================
+#
+#  Illuminazione teatrale professionale: riflettori direzionali (fresnel,
+#  PC, profile) provenienti da diverse posizioni del graticcio e della buca.
+#  Ogni faretto ha un ruolo specifico — key, wash, rim, footlight — e i
+#  colori variano con i gel colorati tipici del teatro. Atmosfera: opera,
+#  spettacolo, varietà, auditorium, drammatico.
+#
+#  SCHEMA:
+#    Key Fresnel  — Spot caldo frontale-alto      → luce principale del soggetto
+#    Blue Wash    — Spot blu dal lato              → wash colorato, atmosfera
+#    Rim Fresnel  — Spot bianco dall'alto-retro   → separa il soggetto dal fondale
+#    Footlight    — Directional bassa verso l'alto → uplight della ribalta (classico)
+#    Backdrop     — Point lontano per il fondale  → colora il cyclorama di sfondo
+#
+#  LUCI USATE:  spot · spot · spot · directional · point
+#
+#  USO CONSIGLIATO:
+#    imports:
+#      - path: "libraries/lights/theatre-stage.yaml"
+#
+#  WORLD ABBINATO (palcoscenico buio, fondale nero o cyclorama):
+#    world:
+#      ambient_light: [0.0, 0.0, 0.0]
+#      background: [0.0, 0.0, 0.0]
+#
+#  RENDER CONSIGLIATO:
+#    Draft  : -w 800  -H 450 -s 32  -d 20
+#    Preview: -w 1280 -H 720 -s 128 -d 35
+#    Final  : -w 1920 -H 1080 -s 512 -d 55
+#
+#  NOTE:
+#    - Il soggetto è assunto al centro del palcoscenico, posizione [0,0,0].
+#      Le luci sono calibrate per una scala standard con soggetti alti 1–2 u.
+#    - Il footlight (ribalta) è la firma visiva del teatro d'opera classico:
+#      crea un'illuminazione drammatica verso l'alto non naturalistica,
+#      che trasforma qualsiasi soggetto in un "attore sul palco".
+#    - La backdrop point colora il fondale (es. un infinite_plane verticale
+#      a Z positivo nella scena). Cambia colore per cambiare l'atmosfera.
+#    - Per effetti con gel diversi: cambia i colori degli spot mantenendo
+#      le posizioni. Il teatro usa gel CTO (caldo), CTB (freddo), Lee 182
+#      (Light Red), Lee 079 (Just Blue), Lee 049 (Canary Yellow), etc.
+# =============================================================================
+
+lights:
+
+  # ── KEY FRESNEL (FRONTALE PRINCIPALE) ─────────────────────────────────────
+  #  Il faretto principale (fresnel o PC) dal graticcio frontale, posizionato
+  #  a ~45° sopra il soggetto. Colore caldo (gel CTO leggero = tungsteno
+  #  warm): la classica luce teatrale da incandescenza che avvolge il soggetto
+  #  di un calore riconoscibile. Inner/outer ampi: un fresnel teatrale ha
+  #  un bordo morbido (campo/proiezione), non secco come un profile spot.
+  - type: "spot"
+    position: [-3.0, 7.0, -5.0]
+    direction: [0.38, -0.72, 0.58]
+    color: [1.0, 0.88, 0.65]
+    intensity: 95.0
+    inner_angle: 20
+    outer_angle: 40
+
+  # ── BLUE WASH (LUCE DI SCENA LATERALE) ────────────────────────────────────
+  #  Spot con gel azzurro dal lato destro del graticcio (lato pubblico).
+  #  Il "wash" blu è onnipresente nel teatro per creare atmosfera, indicare
+  #  notte o sogno, o semplicemente riempire il palco di colore.
+  #  Il contrasto con il calore della key crea la tensione visiva teatrale.
+  #  Inner/outer ancora più aperti: un wash ha luce diffusa, non spot.
+  - type: "spot"
+    position: [5.5, 5.5, -1.0]
+    direction: [-0.70, -0.60, 0.38]
+    color: [0.20, 0.45, 1.0]
+    intensity: 50.0
+    inner_angle: 25
+    outer_angle: 50
+
+  # ── RIM FRESNEL (BACKLIGHT DAL GRATICCIO) ─────────────────────────────────
+  #  Faretto dal retro del graticcio che illumina il profilo superiore del
+  #  soggetto separandolo dal fondale buio. Questo "backlight" è essenziale
+  #  in teatro: senza di esso, gli attori si fondono con il fondale scuro.
+  #  Colore bianco freddo: il backlight teatrale è tipicamente neutro o
+  #  leggermente azzurro per non alterare il colore della costumistica.
+  - type: "spot"
+    position: [0.0, 7.5, 5.5]
+    direction: [0.0, -0.70, -0.72]
+    color: [0.88, 0.92, 1.0]
+    intensity: 60.0
+    inner_angle: 15
+    outer_angle: 30
+
+  # ── FOOTLIGHT (RIBALTA — UPLIGHT) ─────────────────────────────────────────
+  #  La ribalta è il bordo del palcoscenico verso il pubblico. I footlight
+  #  illuminano il soggetto dal basso verso l'alto — effetto non naturalistico
+  #  che nel teatro classico era l'unica fonte di luce prima dell'elettricità.
+  #  Ancora usata per atmosfere oniriche, horror, opera, per quel look
+  #  "illuminato dal basso" che trasforma qualsiasi volto in maschera teatrale.
+  #  Direzione verso l'alto, posizione bassa-frontale, colore ambrato.
+  - type: "directional"
+    direction: [0.0, 0.80, 0.60]
+    color: [1.0, 0.82, 0.48]
+    intensity: 0.035
+
+  # ── BACKDROP COLOR (FONDALE) ──────────────────────────────────────────────
+  #  Point molto arretrata sul lato opposto alla camera, progettata per
+  #  colorare il cyclorama o il fondale della scena. Il fondale è tipicamente
+  #  un piano verticale a Z positivo grande. Questo accento lilla-viola
+  #  crea l'atmosfera di un'opera lirica o di un dramma romantico.
+  #  Cambia il colore liberamente: rosso per passione, verde per suspense,
+  #  giallo per commedia, azzurro per nostalgia.
+  - type: "point"
+    position: [0.0, 4.0, 12.0]
+    color: [0.55, 0.20, 0.90]
+    intensity: 45.0

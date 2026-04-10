@@ -1,0 +1,87 @@
+# =============================================================================
+#  LIBRERIA LUCI — Tramonto Drammatico
+#  scenes/libraries/lights/outdoor-sunset.yaml
+# =============================================================================
+#
+#  Tramonto avanzato: il sole è quasi all'orizzonte, il cielo brucia di rosso
+#  e arancio intenso, mentre lo zenit vira al viola profondo. L'illuminazione
+#  è rasante al massimo grado — ogni oggetto proietta ombre lunghissime che
+#  dominano la composizione. Atmosfera romantica, malinconica o epica.
+#
+#  SCHEMA:
+#    Sunset Sun  — Directional radente rossa     → luce primaria fuoco, ombre orizzontali
+#    Dusk Sky    — Directional viola dallo zenit → fill viola scuro complementare
+#    Silhouette  — Point dal retro basso         → accento di controluce sul profilo
+#
+#  LUCI USATE:  directional · directional · point
+#
+#  USO CONSIGLIATO:
+#    imports:
+#      - path: "libraries/lights/outdoor-sunset.yaml"
+#
+#  WORLD ABBINATO (tramonto rosso fuoco):
+#    world:
+#      ambient_light: [0.04, 0.02, 0.01]
+#      sky:
+#        type: "gradient"
+#        zenith_color:  [0.07, 0.04, 0.18]
+#        horizon_color: [0.95, 0.30, 0.04]
+#        ground_color:  [0.10, 0.05, 0.02]
+#        sun:
+#          direction: [-1.0, -0.08, -0.15]
+#          color: [1.0, 0.38, 0.04]
+#          intensity: 28.0
+#          size: 6.0
+#          falloff: 10.0
+#
+#  RENDER CONSIGLIATO:
+#    Draft  : -w 800  -H 450 -s 32  -d 20
+#    Preview: -w 1280 -H 720 -s 128 -d 30
+#    Final  : -w 1920 -H 1080 -s 512 -d 45
+#
+#  NOTE:
+#    - Direzione [-1.0, -0.08, -0.15] = sole quasi all'orizzonte sinistro,
+#      quasi orizzontale. Le ombre si allungano verso destra quasi all'infinito.
+#    - Il point di silhouette enfatizza il profilo posteriore del soggetto
+#      con un accento caldo arancio — commentalo per soggetti non centrali.
+#    - Con materialiMetallic+roughness bassa le riflessioni del cielo
+#      color fuoco sono spettacolari. Funziona meglio su auto, armature, sculture.
+#    - Per un tramonto più "dolce" (golden hour tarda) usa colori meno saturi:
+#      [1.0, 0.55, 0.20] per il sole e [0.12, 0.08, 0.22] per il fill viola.
+# =============================================================================
+
+lights:
+
+  # ── SOLE AL TRAMONTO (KEY RASANTE) ───────────────────────────────────────
+  #  Directional quasi orizzontale che simula il sole negli ultimi minuti
+  #  prima del tramonto. Il colore rosso intenso è fisicamente corretto:
+  #  il sole deve attraversare la maggiore quantità di atmosfera possibile,
+  #  eliminando completamente l'azzurro. L'intensità è bassa (il sole al
+  #  tramonto è fisicamente meno luminoso nella banda visibile) ma le ombre
+  #  lunghissime compensano visivamente l'effetto drammatico.
+  - type: "directional"
+    direction: [-1.0, -0.08, -0.15]
+    color: [1.0, 0.38, 0.04]
+    intensity: 0.08
+
+  # ── FILL CIELO CREPUSCOLARE (DUSK SKY) ───────────────────────────────────
+  #  Il cielo allo zenit al tramonto è già quasi buio, viola-indaco.
+  #  Questa directional simula quella tenue luminosità dell'alto che
+  #  colora le superfici superiori degli oggetti con il viola crepuscolare.
+  #  È l'opposto cromatico del sole rosso: il contrasto è estremo e teatrale.
+  #  Intensità molto bassa — deve essere un'ombra viola, non una luce viola.
+  - type: "directional"
+    direction: [0.10, -0.95, 0.20]
+    color: [0.22, 0.12, 0.55]
+    intensity: 0.025
+
+  # ── SILHOUETTE ACCENT ─────────────────────────────────────────────────────
+  #  Point basso dal retro che simula il riflesso del sole rossastro sulla
+  #  superficie del terreno dietro il soggetto. Crea un alone caldo sul
+  #  bordo inferiore-posteriore del soggetto, accentuando la sensazione di
+  #  controluce e rafforzando la silhouette. Commentalo per paesaggi
+  #  aperti dove non c'è un "soggetto" principale con bordi netti.
+  - type: "point"
+    position: [0.0, 0.8, 5.5]
+    color: [1.0, 0.42, 0.08]
+    intensity: 12.0

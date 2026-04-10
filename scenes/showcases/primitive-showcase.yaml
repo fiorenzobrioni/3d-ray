@@ -1,0 +1,565 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Primitive Showcase — "Il Giardino delle Forme"
+#
+#  Scena dimostrativa di TUTTE le primitive geometriche del ray tracer,
+#  disposte in un layout scenografico su un pavimento a scacchi.
+#  Ogni primitiva usa un materiale diverso per massimizzare la varietà
+#  visiva e testare tutte le interazioni luce-superficie.
+#
+#  PRIMITIVE MOSTRATE (14):
+#    Sphere, Box, Cylinder, Cone, Torus, Capsule, Annulus, Disk,
+#    Quad, Triangle, Infinite Plane (ground), CSG (subtraction + union)
+#
+#  MATERIALI USATI (7 tipi):
+#    Lambertian (checker, marble, wood), Metal (fuzz variabile),
+#    Dielectric (vetro), Emissive (neon), Disney BSDF (chrome, car paint,
+#    velvet, plastica lucida, vetro smerigliato, oro)
+#
+#  ILLUMINAZIONE:
+#    Area light principale (soft shadows) + spot accent (pool di luce) +
+#    point fill freddo + directional rim + oggetti emissivi (toro neon)
+#
+#  CAMERE (5):
+#    principale  — Vista d'insieme drammatica dall'alto-sinistra
+#    frontale    — Vista frontale classica
+#    dettaglio   — Close-up sulle forme centrali con DOF
+#    zenitale    — Pianta dall'alto
+#    dutch       — Angolo olandese cinematografico
+#
+#  Render consigliato:
+#    Draft:    -w 800  -H 450  -s 16  -d 12  -S 4
+#    Preview:  -w 1280 -H 720  -s 64  -d 20  -S 8
+#    Finale:   -w 1920 -H 1080 -s 256 -d 40  -S 16
+#    Ultra:    -w 2560 -H 1440 -s 512 -d 50  -S 24
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  WORLD
+# ═══════════════════════════════════════════════════════════════════════════
+world:
+  ambient_light: [0.02, 0.02, 0.03]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.04, 0.06, 0.20]    # Blu notte profondo
+    horizon_color: [0.35, 0.20, 0.45]    # Viola crepuscolare
+    ground_color:  [0.08, 0.06, 0.05]    # Terreno scuro
+    sun:
+      direction: [-0.7, -0.20, -0.5]     # Sole bassissimo (crepuscolo)
+      color: [1.0, 0.60, 0.25]
+      intensity: 12.0
+      size: 5.0                           # Disco solare grande (tramonto)
+      falloff: 16.0                       # Glow ampio e diffuso
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════
+cameras:
+
+  # ── #1  Principale — Vista d'insieme drammatica ──────────────────────────
+  #  Dall'alto-sinistra, abbastanza distante da catturare tutte le forme.
+  #  Angolo basso per enfatizzare la verticalità delle geometrie e
+  #  catturare il cielo crepuscolare nello sfondo.
+  - name:       principale
+    position:   [-8.0, 5.5, -10.0]
+    look_at:    [0.5, 1.2, 1.5]
+    fov:        48
+    aperture:   0.0
+    focal_dist: 14.0
+
+  # ── #2  Frontale — Vista classica centrata ────────────────────────────────
+  - name:       frontale
+    position:   [0.0, 3.0, -11.0]
+    look_at:    [0.0, 1.5, 1.0]
+    fov:        52
+    aperture:   0.0
+    focal_dist: 12.0
+
+  # ── #3  Dettaglio — Close-up con depth of field ──────────────────────────
+  #  Fuoco sulla sfera di vetro centrale, sfocatura sullo sfondo.
+  - name:       dettaglio
+    position:   [-3.0, 2.0, -4.0]
+    look_at:    [0.0, 1.3, 0.0]
+    fov:        40
+    aperture:   0.12
+    focal_dist: 5.0
+
+  # ── #4  Zenitale — Vista dall'alto ────────────────────────────────────────
+  - name:       zenitale
+    position:   [0.5, 14.0, 1.0]
+    look_at:    [0.5, 0.0, 1.0]
+    vup:        [0, 0, 1]
+    fov:        50
+    aperture:   0.0
+    focal_dist: 14.0
+
+  # ── #5  Dutch — Angolo olandese cinematografico ───────────────────────────
+  #  Camera inclinata con orizzonte obliquo, punto di vista basso.
+  - name:       dutch
+    position:   [7.0, 2.5, -6.0]
+    look_at:    [-1.0, 2.0, 1.5]
+    vup:        [-0.15, 0.98, 0]
+    fov:        44
+    aperture:   0.05
+    focal_dist: 10.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  PAVIMENTO — Scacchiera scura, tenue, non distrae
+  # ─────────────────────────────────────────────────────────────────────────
+  - id: "pavimento"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 1.2
+      colors: [[0.12, 0.11, 0.13], [0.22, 0.20, 0.24]]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  MATERIALI CLASSICI (Lambertian, Metal, Dielectric, Emissive)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Marmo bianco per la sfera principale
+  - id: "marmo_bianco"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 8.0
+      colors: [[0.95, 0.93, 0.90], [0.55, 0.50, 0.58]]
+      randomize_offset: true
+
+  # Legno caldo per il box
+  - id: "legno_noce"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.5
+      colors: [[0.50, 0.30, 0.15], [0.30, 0.18, 0.08]]
+      rotation: [0, 30, 0]
+
+  # Specchio cromato per il cilindro
+  - id: "cromo"
+    type: "metal"
+    color: [0.92, 0.90, 0.88]
+    fuzz: 0.0
+
+  # Oro satinato per il cono
+  - id: "oro_satinato"
+    type: "metal"
+    color: [0.85, 0.65, 0.12]
+    fuzz: 0.08
+
+  # Vetro cristallino per la sfera centrale
+  - id: "vetro_cristallo"
+    type: "dielectric"
+    refraction_index: 1.52
+
+  # Neon magenta per il toro emissivo
+  - id: "neon_magenta"
+    type: "emissive"
+    color: [1.0, 0.10, 0.60]
+    intensity: 6.0
+
+  # Neon ciano per l'anello emissivo
+  - id: "neon_ciano"
+    type: "emissive"
+    color: [0.05, 0.80, 1.0]
+    intensity: 5.0
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  MATERIALI DISNEY BSDF
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Vernice auto blu scuro (capsule)
+  - id: "vernice_auto"
+    type: "disney"
+    color: [0.04, 0.08, 0.50]
+    metallic: 0.0
+    roughness: 0.28
+    clearcoat: 1.0
+    clearcoat_gloss: 0.95
+
+  # Velluto bordeaux (quad)
+  - id: "velluto"
+    type: "disney"
+    color: [0.40, 0.05, 0.12]
+    roughness: 0.92
+    sheen: 1.0
+    sheen_tint: 0.8
+
+  # Plastica lucida arancione (triangolo)
+  - id: "plastica_arancio"
+    type: "disney"
+    color: [0.95, 0.45, 0.05]
+    roughness: 0.12
+    metallic: 0.0
+    specular: 0.6
+
+  # Rame ossidato (annulus)
+  - id: "rame_ossidato"
+    type: "disney"
+    color: [0.60, 0.40, 0.30]
+    metallic: 0.85
+    roughness: 0.40
+
+  # Vetro smerigliato ambra (disco)
+  - id: "vetro_ambra"
+    type: "disney"
+    color: [0.95, 0.65, 0.15]
+    roughness: 0.20
+    spec_trans: 1.0
+    ior: 1.52
+
+  # Lacca nera (piedistallo CSG)
+  - id: "lacca_nera"
+    type: "disney"
+    color: [0.02, 0.02, 0.03]
+    roughness: 0.05
+    clearcoat: 1.0
+    clearcoat_gloss: 1.0
+
+  # Titanio blu (CSG sfera-cubi)
+  - id: "titanio_blu"
+    type: "disney"
+    color: [0.25, 0.35, 0.65]
+    metallic: 1.0
+    roughness: 0.22
+
+  # Marmo nero per piedistalli
+  - id: "marmo_nero"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 10.0
+      noise_strength: 7.0
+      colors: [[0.06, 0.05, 0.07], [0.25, 0.22, 0.28]]
+      randomize_offset: true
+
+  # Ceramica avorio (toro decorativo)
+  - id: "ceramica_avorio"
+    type: "disney"
+    color: [0.92, 0.88, 0.78]
+    roughness: 0.35
+    specular: 0.4
+    subsurface: 0.2
+
+  # Cera calda (sfera subsurface)
+  - id: "cera"
+    type: "disney"
+    color: [0.95, 0.85, 0.50]
+    roughness: 0.50
+    subsurface: 0.8
+    specular: 0.3
+
+  # Rumore perlin metallico
+  - id: "metallo_rumoroso"
+    type: "metal"
+    fuzz: 0.15
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 2.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS — Schema drammatico crepuscolare
+# ═══════════════════════════════════════════════════════════════════════════
+lights:
+
+  # ── Key Light — Area light grande dall'alto-sinistra ─────────────────────
+  #  Ombre morbide principali, temperatura calda per coerenza col tramonto.
+  - type: "area"
+    corner: [-5.0, 7.5, -3.0]
+    u: [6.0, 0.0, 0.0]
+    v: [0.0, 0.0, 6.0]
+    color: [1.0, 0.85, 0.60]
+    intensity: 32.0
+    shadow_samples: 16
+
+  # ── Accent — Spot stretto dall'alto, pool di luce sulla sfera di vetro ──
+  #  Crea un cono di luce concentrato che evidenzia il pezzo forte.
+  - type: "spot"
+    position: [0.0, 8.0, -1.0]
+    direction: [0.0, -0.95, 0.15]
+    color: [1.0, 0.96, 0.90]
+    intensity: 120
+    inner_angle: 10
+    outer_angle: 25
+
+  # ── Fill — Point freddo dal lato destro ──────────────────────────────────
+  #  Evita il nero totale sui lati in ombra, aggiunge contrasto caldo/freddo.
+  - type: "point"
+    position: [8.0, 4.0, -2.0]
+    color: [0.60, 0.70, 1.0]
+    intensity: 18
+
+  # ── Rim — Directional dal retro ──────────────────────────────────────────
+  #  Contorno sottile per staccare le forme dallo sfondo scuro.
+  #  Allineata col sun disk per coerenza col crepuscolo.
+  - type: "directional"
+    direction: [-0.7, -0.20, -0.5]
+    color: [1.0, 0.60, 0.25]
+    intensity: 0.12
+
+  # ── Bounce — Point tenue dal basso ───────────────────────────────────────
+  #  Simula il riflesso del pavimento, scalda le parti basse.
+  - type: "point"
+    position: [0.0, 0.3, 0.0]
+    color: [0.70, 0.50, 0.35]
+    intensity: 1.5
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 1: Studio neutro (area light ampia, no colore)
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "area"
+  #   corner: [-4.0, 6.8, -4.0]
+  #   u: [8.0, 0.0, 0.0]
+  #   v: [0.0, 0.0, 8.0]
+  #   color: [1.0, 0.98, 0.95]
+  #   intensity: 45.0
+  #   shadow_samples: 24
+  # - type: "point"
+  #   position: [-6, 3, -2]
+  #   color: [0.8, 0.85, 1.0]
+  #   intensity: 8
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 2: Neon cyber (magenta + ciano, atmosfera sintetica)
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "point"
+  #   position: [-6, 4, 0]
+  #   color: [1.0, 0.0, 0.7]
+  #   intensity: 100
+  # - type: "point"
+  #   position: [6, 4, 0]
+  #   color: [0.0, 0.7, 1.0]
+  #   intensity: 100
+  # - type: "point"
+  #   position: [0, 6, -3]
+  #   color: [1.0, 1.0, 1.0]
+  #   intensity: 12
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES — Le forme, disposte in un arco scenografico
+#
+#  Layout (vista dall'alto):
+#
+#                    CSG sfera-cubi
+#            Toro         |        Capsule
+#       Cono     Cilindro | Sfera vetro   Box      Triangolo
+#            Annulus   Disco   Quad                
+#                    Toro neon (emissivo)
+#
+#  Fila posteriore (Z ≈ 4):   forme alte
+#  Fila centrale   (Z ≈ 1):   pezzi principali
+#  Fila anteriore  (Z ≈ -2):  forme basse / piatte
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  FILA CENTRALE — I protagonisti (Z ≈ 0 .. 2)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── 1. SFERA DI VETRO — Pezzo forte, centro scena ───────────────────────
+  #  Sfera dielectric posizionata su un sottile piedistallo cilindrico nero.
+  #  Lo spot dall'alto crea caustiche e riflessi interni affascinanti.
+  - name: "sfera_vetro"
+    type: "sphere"
+    center: [0, 1.5, 0]
+    radius: 1.2
+    material: "vetro_cristallo"
+
+  # Piedistallo della sfera di vetro
+  - name: "piedistallo_vetro"
+    type: "cylinder"
+    center: [0, 0, 0]
+    radius: 0.6
+    height: 0.30
+    material: "lacca_nera"
+
+  # ── 2. SFERA DI MARMO — Classica, a sinistra ────────────────────────────
+  - name: "sfera_marmo"
+    type: "sphere"
+    center: [-3.5, 1.0, 0.5]
+    radius: 1.0
+    material: "marmo_bianco"
+    seed: 42
+
+  # ── 3. BOX — Legno caldo, ruotato, a destra ─────────────────────────────
+  - name: "box_legno"
+    type: "box"
+    material: "legno_noce"
+    scale: [1.6, 1.6, 1.6]
+    rotate: [0, 35, 0]
+    translate: [3.5, 0.8, 0.5]
+
+  # ── 4. SFERA CERA — Subsurface, accanto al vetro ────────────────────────
+  - name: "sfera_cera"
+    type: "sphere"
+    center: [1.8, 0.7, -1.2]
+    radius: 0.7
+    material: "cera"
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  FILA POSTERIORE — Forme alte (Z ≈ 3 .. 5)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── 5. CILINDRO — Cromo a specchio ──────────────────────────────────────
+  - name: "cilindro_cromo"
+    type: "cylinder"
+    center: [-1.5, 0, 3.5]
+    radius: 0.6
+    height: 2.8
+    material: "cromo"
+
+  # ── 6. CONO — Oro satinato, tronco di cono ──────────────────────────────
+  - name: "cono_oro"
+    type: "cone"
+    center: [2.0, 0, 3.5]
+    radius: 0.9
+    top_radius: 0.25
+    height: 2.5
+    material: "oro_satinato"
+
+  # ── 7. CAPSULE — Vernice auto blu ───────────────────────────────────────
+  - name: "capsula_auto"
+    type: "capsule"
+    center: [5.0, 0, 3.0]
+    radius: 0.5
+    height: 2.0
+    material: "vernice_auto"
+
+  # ── 8. TORO — Ceramica avorio, leggermente inclinato ────────────────────
+  - name: "toro_ceramica"
+    type: "torus"
+    major_radius: 0.9
+    minor_radius: 0.28
+    material: "ceramica_avorio"
+    rotate: [15, 0, 0]
+    translate: [-4.5, 1.2, 3.5]
+
+  # ── 9. CSG — Sfera con cavità cubica ruotata (titanio blu) ──────────────
+  #  Dimostra la sottrazione booleana: una sfera intagliata da un cubo
+  #  ruotato crea una forma scultorea impossibile da ottenere altrimenti.
+  - name: "sfera_intagliata"
+    type: "csg"
+    operation: "subtraction"
+    material: "titanio_blu"
+    translate: [0.0, 1.6, 4.5]
+    left:
+      type: "sphere"
+      center: [0, 0, 0]
+      radius: 1.1
+    right:
+      type: "box"
+      scale: [1.3, 1.3, 1.3]
+      rotate: [25, 40, 15]
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  FILA ANTERIORE — Forme basse e piatte (Z ≈ -2 .. -3)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── 10. ANNULUS — Rame ossidato, orizzontale su supporto ────────────────
+  - name: "annulus_rame"
+    type: "annulus"
+    center: [-3.0, 0.8, -2.5]
+    normal: [0, 1, 0]
+    radius: 1.0
+    inner_radius: 0.45
+    material: "rame_ossidato"
+
+  # Supporto cilindrico sotto l'annulus
+  - name: "supporto_annulus"
+    type: "cylinder"
+    center: [-3.0, 0, -2.5]
+    radius: 0.20
+    height: 0.80
+    material: "marmo_nero"
+
+  # ── 11. DISK — Vetro ambra, inclinato come un piatto da esposizione ─────
+  - name: "disco_ambra"
+    type: "disk"
+    center: [0, 1.2, -2.8]
+    normal: [0.0, 0.85, -0.52]
+    radius: 0.9
+    material: "vetro_ambra"
+
+  # ── 12. QUAD — Velluto bordeaux, come un tessuto drappeggiato ────────────
+  #  Pannello verticale leggermente inclinato.
+  - name: "quad_velluto"
+    type: "quad"
+    q: [2.5, 0.0, -2.0]
+    u: [2.0, 0.0, 0.0]
+    v: [0.0, 2.2, 0.3]
+    material: "velluto"
+
+  # ── 13. TRIANGLE — Plastica arancione, piramide appuntita ────────────────
+  - name: "triangolo_arancio"
+    type: "triangle"
+    v0: [5.5, 0.0, -2.5]
+    v1: [6.8, 0.0, -1.8]
+    v2: [6.15, 2.4, -2.15]
+    material: "plastica_arancio"
+
+  # Secondo triangolo per dare spessore (forma a vela)
+  - name: "triangolo_retro"
+    type: "triangle"
+    v0: [6.15, 0.0, -1.5]
+    v1: [5.5, 0.0, -2.5]
+    v2: [6.15, 2.4, -2.15]
+    material: "plastica_arancio"
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ELEMENTI DECORATIVI E LUCI GEOMETRICHE
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── TORO NEON — Emissivo magenta, fluttuante ────────────────────────────
+  #  Un anello luminoso che galleggia dietro la scena come un halo.
+  #  Funziona come Geometry Light tramite NEE per ridurre il rumore.
+  - name: "halo_neon"
+    type: "torus"
+    major_radius: 2.5
+    minor_radius: 0.08
+    material: "neon_magenta"
+    rotate: [75, 0, 15]
+    translate: [-1.0, 4.5, 5.0]
+
+  # ── CAPSULE NEON — Tubo ciano verticale ──────────────────────────────────
+  #  Pilastro luminoso che bagna di ciano il lato destro della scena.
+  - name: "pilastro_neon"
+    type: "capsule"
+    center: [7.0, 0, 1.0]
+    radius: 0.06
+    height: 5.5
+    material: "neon_ciano"
+
+  # ── CSG UNION — Due sfere fuse (blob organico, metallo rumoroso) ─────────
+  #  Dimostra l'operazione union: due sfere che si fondono in un blob.
+  - name: "blob_metallico"
+    type: "csg"
+    operation: "union"
+    material: "metallo_rumoroso"
+    translate: [-6.0, 0.9, 1.0]
+    left:
+      type: "sphere"
+      center: [-0.45, 0, 0]
+      radius: 0.8
+    right:
+      type: "sphere"
+      center: [0.45, 0, 0]
+      radius: 0.8

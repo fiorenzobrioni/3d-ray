@@ -1,0 +1,203 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Gradient Sky Showcase — Golden Hour Landscape
+#
+#  Dimostra tutte le feature del nuovo gradient sky:
+#    - Lerp verticale zenith → horizon → ground
+#    - Sun disk procedurale con glow halo
+#    - Cielo visibile nei riflessi delle sfere metalliche
+#    - Illuminazione globale colorata dal gradiente del cielo
+#
+#  Tre varianti commentate: Mezzogiorno, Tramonto, Notte Stellata.
+#
+#  Render consigliato:
+#    Draft:  -w 800  -H 450  -s 16  -d 10
+#    Finale: -w 1920 -H 1080 -s 128 -d 30
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  WORLD — Golden Hour (ora d'oro, sole basso)
+# ═══════════════════════════════════════════════════════════════════════════
+world:
+  ambient_light: [0.04, 0.03, 0.02]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.15, 0.25, 0.55]  # Blu profondo in alto
+    horizon_color: [0.85, 0.55, 0.25]  # Arancio caldo all'orizzonte
+    ground_color:  [0.20, 0.15, 0.10]  # Marrone scuro sotto l'orizzonte
+    sun:
+      direction: [-0.8, -0.25, -0.5]   # Sole basso a sinistra
+      color: [1.0, 0.85, 0.5]
+      intensity: 20.0
+      size: 4.0                         # Disco solare leggermente grande
+      falloff: 24.0                     # Glow ampio e caldo
+
+  ground:
+    type: "infinite_plane"
+    material: "terreno"
+    y: 0
+
+# ─────────────────────────────────────────────────────────────────────────
+#  WORLD ALT-1 — Mezzogiorno (cielo pulito, sole alto)
+# ─────────────────────────────────────────────────────────────────────────
+# world:
+#   ambient_light: [0.06, 0.06, 0.08]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.10, 0.30, 0.80]
+#     horizon_color: [0.65, 0.80, 1.00]
+#     ground_color:  [0.30, 0.28, 0.22]
+#     sun:
+#       direction: [-0.2, -1.0, -0.3]   # Sole quasi a picco
+#       color: [1.0, 0.98, 0.92]
+#       intensity: 15.0
+#       size: 2.0
+#       falloff: 48.0                    # Glow stretto, sole netto
+#   ground:
+#     type: "infinite_plane"
+#     material: "terreno"
+#     y: 0
+
+# ─────────────────────────────────────────────────────────────────────────
+#  WORLD ALT-2 — Tramonto drammatico (rosso fuoco)
+# ─────────────────────────────────────────────────────────────────────────
+# world:
+#   ambient_light: [0.03, 0.01, 0.01]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.08, 0.05, 0.20]  # Viola scuro
+#     horizon_color: [0.95, 0.30, 0.05]  # Rosso fuoco
+#     ground_color:  [0.10, 0.05, 0.02]
+#     sun:
+#       direction: [-1.0, -0.08, -0.2]   # Sole quasi all'orizzonte
+#       color: [1.0, 0.4, 0.05]
+#       intensity: 30.0
+#       size: 6.0                          # Disco grande, effetto sole gigante
+#       falloff: 12.0                      # Glow molto ampio
+#   ground:
+#     type: "infinite_plane"
+#     material: "terreno"
+#     y: 0
+
+# ─────────────────────────────────────────────────────────────────────────
+#  WORLD ALT-3 — Notte serena (senza sole, solo gradiente)
+# ─────────────────────────────────────────────────────────────────────────
+# world:
+#   ambient_light: [0.005, 0.005, 0.01]
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.01, 0.01, 0.04]
+#     horizon_color: [0.04, 0.04, 0.08]
+#     ground_color:  [0.01, 0.01, 0.02]
+#     # Niente sezione sun: → notte senza sole
+#   ground:
+#     type: "infinite_plane"
+#     material: "terreno"
+#     y: 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CAMERA
+# ═══════════════════════════════════════════════════════════════════════════
+camera:
+  position: [0, 1.8, -8]
+  look_at: [0, 0.8, 0]
+  fov: 55
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+
+  - id: "terreno"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 1.5
+      colors: [[0.25, 0.22, 0.18], [0.35, 0.32, 0.26]]
+
+  # Specchio perfetto — mostra il gradiente del cielo nel riflesso
+  - id: "specchio"
+    type: "metal"
+    color: [0.95, 0.95, 0.97]
+    fuzz: 0.0
+
+  # Metallo dorato — riflette il tramonto con tinta calda
+  - id: "oro"
+    type: "metal"
+    color: [0.85, 0.65, 0.12]
+    fuzz: 0.05
+
+  # Metallo satinato — riflesso diffuso del cielo
+  - id: "acciaio"
+    type: "metal"
+    color: [0.70, 0.70, 0.75]
+    fuzz: 0.25
+
+  # Vetro — rifrange il cielo
+  - id: "vetro"
+    type: "dielectric"
+    refraction_index: 1.52
+
+  # Diffuso chiaro — riceve il color cast dal cielo (GI)
+  - id: "pietra"
+    type: "lambertian"
+    color: [0.75, 0.72, 0.68]
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS — Sole direzionale coerente col sun disk
+# ═══════════════════════════════════════════════════════════════════════════
+lights:
+  # La directional light è allineata alla stessa direzione del sun disk.
+  # Il sun disk è solo visuale (radiance per i raggi che escono dalla scena),
+  # la directional light fornisce l'illuminazione diretta (NEE) sugli oggetti.
+  - type: "directional"
+    direction: [-0.8, -0.25, -0.5]
+    color: [1.0, 0.88, 0.55]
+    intensity: 0.12
+
+  # Fill fredda dal lato opposto (simula luce del cielo)
+  - type: "directional"
+    direction: [0.5, -0.7, 0.3]
+    color: [0.5, 0.6, 0.85]
+    intensity: 0.03
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES — Sfere su un piano per mostrare i riflessi del cielo
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+
+  # Sfera specchio — riflette l'intero gradiente cielo + sun disk
+  - name: "mirror_sphere"
+    type: "sphere"
+    center: [-2.5, 1.0, 0]
+    radius: 1.0
+    material: "specchio"
+
+  # Sfera d'oro — cielo riflesso con tinta calda
+  - name: "gold_sphere"
+    type: "sphere"
+    center: [0, 1.0, 0]
+    radius: 1.0
+    material: "oro"
+
+  # Sfera di vetro — rifrange il cielo
+  - name: "glass_sphere"
+    type: "sphere"
+    center: [2.5, 1.0, 0]
+    radius: 1.0
+    material: "vetro"
+
+  # Sfera acciaio satinato — riflesso diffuso, mostra color blending del cielo
+  - name: "steel_sphere"
+    type: "sphere"
+    center: [-1.2, 0.5, -2.5]
+    radius: 0.5
+    material: "acciaio"
+
+  # Piedistallo in pietra — riceve il color cast caldo dal cielo (GI)
+  - name: "piedistallo"
+    type: "box"
+    scale: [8, 0.15, 3]
+    translate: [0, 0.075, 0]
+    material: "pietra"

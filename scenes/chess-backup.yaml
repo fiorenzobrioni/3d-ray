@@ -1,0 +1,1478 @@
+# Ray-Tracing Scene - Highly Detailed Chess Set
+# Procedurally generated using fine primitives (spheres, cylinders, boxes)
+#
+# NOTE: Questa scena usa materiali metallici speculari (fuzz=0). I metalli
+# riflettono il cielo (sky gradient) e la luce ambiente. Con ambient=[0,0,0]
+# e sky scuro le superfici specchiate appaiono nere. Il gradient sky fornisce
+# un cielo ricco che i pezzi cromati riflettono in modo naturale.
+
+world:
+  # --- Configurazione Corrente: Giardino Pomeridiano per Metalli ---
+  # Lo sky gradient fornisce ai metalli un cielo credibile da riflettere.
+  # L'ambient fill schiarisce le ombre senza appiattire i contrasti.
+  ambient_light: [0.06, 0.06, 0.07]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.12, 0.28, 0.70]
+    horizon_color: [0.55, 0.70, 0.90]
+    ground_color:  [0.15, 0.12, 0.08]
+    sun:
+      direction: [-0.6, -0.8, -0.4]
+      color: [1.0, 0.96, 0.88]
+      intensity: 12.0
+      size: 2.5
+      falloff: 40.0
+  ground:
+    type: "infinite_plane"
+    material: "table_wood"
+    y: -0.2
+
+  # --- AMBIENTE: STUDIO HIGH-KEY (Cielo bianco luminoso per showcase) ---
+  # ambient_light: [0.15, 0.15, 0.15]
+  # sky:
+  #   type: "gradient"
+  #   zenith_color:  [0.60, 0.65, 0.72]
+  #   horizon_color: [0.85, 0.85, 0.88]
+  #   ground_color:  [0.50, 0.48, 0.45]
+
+  # --- AMBIENTE: MIDNIGHT BLUE (Notte serena, luna fredda) ---
+  # ambient_light: [0.02, 0.02, 0.04]
+  # sky:
+  #   type: "gradient"
+  #   zenith_color:  [0.01, 0.01, 0.05]
+  #   horizon_color: [0.04, 0.05, 0.10]
+  #   ground_color:  [0.02, 0.02, 0.03]
+  #   sun:
+  #     direction: [0.3, -0.4, -0.8]
+  #     color: [0.6, 0.7, 1.0]
+  #     intensity: 4.0
+  #     size: 2.0
+  #     falloff: 60.0
+
+  # --- AMBIENTE: WARM SUNSET (Golden hour, sole basso a sinistra) ---
+  # ambient_light: [0.06, 0.04, 0.02]
+  # sky:
+  #   type: "gradient"
+  #   zenith_color:  [0.12, 0.15, 0.40]
+  #   horizon_color: [0.90, 0.45, 0.12]
+  #   ground_color:  [0.18, 0.10, 0.05]
+  #   sun:
+  #     direction: [-1.0, -0.18, -0.5]
+  #     color: [1.0, 0.70, 0.25]
+  #     intensity: 25.0
+  #     size: 5.0
+  #     falloff: 16.0
+
+  # --- AMBIENTE: THE VOID (Quasi nero — i metalli riflettono solo le luci) ---
+  # ambient_light: [0.01, 0.01, 0.01]
+  # sky:
+  #   type: "gradient"
+  #   zenith_color:  [0.005, 0.005, 0.01]
+  #   horizon_color: [0.015, 0.015, 0.02]
+  #   ground_color:  [0.005, 0.005, 0.005]
+
+cameras:
+  - name:       classica        # Prospettiva Classica
+    position:   [0, 5, -8]
+    look_at:    [0, 0, 0]
+    fov:        45
+    aperture:   0.1
+    focal_dist: 12.0
+
+  - name:       macro           # Dettaglio sui Pezzi Centrali
+    position:   [1.5, 1.2, -4]
+    look_at:    [0, 0.8, 0]
+    fov:        25.0
+    aperture:   0.2
+    focal_dist: 4.25
+
+  - name:       hero            # Angolo Basso e Imponente
+    position:   [0.0, 0.5, -6.5]
+    look_at:    [0.0, 1.0, 0.5]
+    fov:        55.0
+    aperture:   0.1
+    focal_dist: 7.0
+
+  - name:       zenitale        # Vista dall'alto tattica
+    position:   [0.0, 12.0, 0.01]
+    look_at:    [0.0, 0.0, 0.0]
+    fov:        35.0
+    aperture:   0.0
+    focal_dist: 12.0
+
+  - name:       dutch           # Dinamica e Inclinata
+    position:   [6.0, 4.0, -6.0]
+    look_at:    [0.0, 0.5, 0.0]
+    fov:        40.0
+    aperture:   0.1
+    focal_dist: 8.5
+
+  - name:       pawns_eye       # Ad altezza pedina, Bokeh estremo
+    position:   [0.0, 0.4, -3.5]
+    look_at:    [0.0, 0.6, 2.0]
+    fov:        70.0
+    aperture:   0.3
+    focal_dist: 3.5
+
+materials:
+  - id: "table_wood"
+    # --- Configurazione Corrente: Noce Satinato (Walnut) ---
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 3.2
+      colors: [[0.25, 0.12, 0.05], [0.12, 0.06, 0.02]]
+      randomize_offset: true
+      rotation: [90, 0, 0]
+
+    # --- VARIANTE: LEGNO LACCATO LUCIDO (Polished Rosewood) ---
+    # type: "metal"
+    # fuzz: 0.08
+    # texture:
+    #   type: "wood"
+    #   scale: 22.0
+    #   colors: [[0.35, 0.05, 0.02], [0.15, 0.02, 0.01]]
+
+  - id: "board_checker"
+    # --- Configurazione Corrente: Scacchiera con leggero riflesso ---
+    # fuzz: 0.02 per avere un minimo di diffuse weight che cattura la luce diretta,
+    # mantenendo i riflessi quasi speculari. fuzz=0.0 è specchio puro e non riceve
+    # luce diretta Lambert — dipende completamente dalle riflessioni.
+    type: "metal"
+    fuzz: 0.02
+    texture:
+      type: "checker"
+      scale: 0.125
+      colors: [[0.95, 0.95, 0.95], [0.05, 0.05, 0.05]]
+
+    # --- VARIANTE: SPECCHIO PURO (Richiede ambient > 0) ---
+    # type: "metal"
+    # fuzz: 0.0
+    # texture:
+    #   type: "checker"
+    #   scale: 0.125
+    #   colors: [[0.95, 0.95, 0.95], [0.05, 0.05, 0.05]]
+
+    # --- VARIANTE: MARMO CLASSICO (Carrara & Marquina) ---
+    # type: "metal"
+    # fuzz: 0.02
+    # texture:
+    #   type: "checker"
+    #   scale: 0.125
+    #   colors: [[0.9, 0.9, 0.9], [0.1, 0.1, 0.1]]
+
+    # --- VARIANTE: LEGNO CLASSICO (Acero & Noce) ---
+    # type: "lambertian"
+    # texture:
+    #   type: "checker"
+    #   scale: 0.125
+    #   colors: [[0.8, 0.7, 0.5], [0.2, 0.1, 0.05]]
+
+  - id: "board_border"
+    # --- Configurazione Corrente: Metallo Brunito (Gunmetal) ---
+    type: "metal"
+    color: [0.15, 0.15, 0.18]
+    fuzz: 0.12
+
+  - id: "piece_white_solid"
+    # --- Configurazione Corrente: Argento Lucido ---
+    # fuzz: 0.02 per catturare highlight speculari e un minimo di luce diretta.
+    # Con fuzz: 0.0 i pezzi dipendono al 100% da riflessioni + ambient.
+    type: "metal"
+    color: [0.95, 0.95, 0.95]
+    fuzz: 0.02
+
+    # --- VARIANTE: SPECCHIO PURO (Richiede buona illuminazione ambiente) ---
+    # type: "metal"
+    # color: [0.95, 0.95, 0.95]
+    # fuzz: 0.0
+
+    # --- VARIANTE: Marmo Bianco Lucido (Carrara) ---
+    # type: "metal"
+    # fuzz: 0.04
+    # texture:
+    #  type: "marble"
+    #  scale: 30.0
+    #  colors: [[0.98, 0.98, 0.98], [0.75, 0.75, 0.75]]
+    #  noise_strength: 12.0
+    #  randomize_offset: true
+    #  randomize_rotation: true
+
+    # --- VARIANTE: VETRO PURO (Clear Glass) ---
+    # type: "dielectric"
+    # refraction_index: 1.5
+
+    # --- VARIANTE: PORCELLANA BIANCA (White Porcelain) ---
+    # type: "lambertian"
+    # color: [0.9, 0.9, 0.9]
+
+  - id: "piece_black_solid"
+    # --- Configurazione Corrente: Ceramica Nera Lucida ---
+    # fuzz: 0.03 per catturare luce diretta e highlight. Aspetto "piano nero laccato".
+    type: "metal"
+    color: [0.1, 0.1, 0.1]
+    fuzz: 0.03
+
+    # --- VARIANTE: SPECCHIO NERO PURO (Richiede buona illuminazione ambiente) ---
+    # type: "metal"
+    # color: [0.1, 0.1, 0.1]
+    # fuzz: 0.0
+
+    # --- VARIANTE: Marmo Nero Lucido (Nero Marquina) ---
+    # type: "metal"
+    # fuzz: 0.08
+    # texture:
+    #  type: "marble"
+    #  scale: 25.0
+    #  colors: [[0.02, 0.02, 0.03], [0.15, 0.15, 0.2]]
+    #  noise_strength: 20.0
+    #  randomize_offset: true
+    #  randomize_rotation: true
+
+    # --- VARIANTE: VETRO FUMÉ (Tinted Glass) ---
+    # type: "dielectric"
+    # refraction_index: 1.5
+    # color: [0.2, 0.2, 0.25]
+
+    # --- VARIANTE: ORO PURO (Polished Gold) ---
+    # type: "metal"
+    # color: [1.0, 0.84, 0.0]
+    # fuzz: 0.01
+
+lights:
+  # --- Configurazione Corrente: Three-Point Lighting per Metalli ---
+  # Key Light — allineata approssimativamente alla direzione del sun disk
+  - type: "point"
+    position: [-3, 10, -4]
+    color: [1.0, 0.95, 0.9]
+    intensity: 80
+
+  # Fill Light — luce fredda più debole dall'altro lato, ammorbidisce le ombre
+  - type: "point"
+    position: [5, 6, -3]
+    color: [0.85, 0.85, 1.0]
+    intensity: 30
+
+  # Back/Rim Light — luce posteriore per distaccare i pezzi dallo sfondo
+  - type: "point"
+    position: [0, 8, 6]
+    color: [1.0, 0.95, 0.85]
+    intensity: 40
+
+  # --- SET: Luce Singola Forte (Studio Minimalista) ---
+  # - { type: "point", position: [-2, 8, -2], color: [1.0, 0.95, 0.9], intensity: 50 }
+
+  # --- SET: Area Light (Ombre Morbide — richiede shadow_samples, più lento) ---
+  # - type: "area"
+  #   corner: [-3.0, 9.0, -3.0]
+  #   u: [6.0, 0.0, 0.0]
+  #   v: [0.0, 0.0, 6.0]
+  #   color: [1.0, 0.97, 0.92]
+  #   intensity: 45.0
+  #   shadow_samples: 16
+  # - { type: "point", position: [5, 5, -4], color: [0.8, 0.85, 1.0], intensity: 15 }
+
+  # --- SET: DRAMATIC RIM (Solo contorno e silhouette) ---
+  # - { type: "point", position: [0, 12, 10], color: [1.0, 1.0, 1.0], intensity: 200 }
+  # - { type: "point", position: [-8, 2, -2], color: [0.2, 0.2, 0.3], intensity: 20 }
+
+  # --- SET: WARM SUNSET (Allineato al sun disk del sky Warm Sunset) ---
+  # - { type: "directional", direction: [-1.0, -0.18, -0.5], color: [1.0, 0.70, 0.25], intensity: 0.15 }
+  # - { type: "point", position: [5, 3, -5], color: [0.3, 0.3, 0.5], intensity: 15 }
+
+entities:
+  - name: "chessboard_main"
+    type: "box"
+    scale: [8.000, 0.100, 8.000]
+    translate: [0.000, -0.050, 0.000]
+    material: "board_checker"
+  - name: "border"
+    type: "box"
+    scale: [8.400, 0.140, 8.400]
+    translate: [0.000, -0.080, 0.000]
+    material: "board_border"
+  - name: "wp_0_base1"
+    type: "cylinder"
+    center: [-3.500, 0.000, -2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wp_0_base2"
+    type: "cylinder"
+    center: [-3.500, 0.100, -2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_0_stem"
+    type: "cylinder"
+    center: [-3.500, 0.150, -2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_white_solid"
+  - name: "wp_0_neck"
+    type: "cylinder"
+    center: [-3.500, 0.550, -2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_0_head"
+    type: "sphere"
+    center: [-3.500, 0.800, -2.500]
+    radius: 0.250
+    material: "piece_white_solid"
+  - name: "bp_0_base1"
+    type: "cylinder"
+    center: [-3.500, 0.000, 2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bp_0_base2"
+    type: "cylinder"
+    center: [-3.500, 0.100, 2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_0_stem"
+    type: "cylinder"
+    center: [-3.500, 0.150, 2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_black_solid"
+  - name: "bp_0_neck"
+    type: "cylinder"
+    center: [-3.500, 0.550, 2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_0_head"
+    type: "sphere"
+    center: [-3.500, 0.800, 2.500]
+    radius: 0.250
+    material: "piece_black_solid"
+  - name: "wr_0_base1"
+    type: "cylinder"
+    center: [-3.500, 0.000, -3.500]
+    radius: 0.400
+    height: 0.150
+    material: "piece_white_solid"
+  - name: "wr_0_base2"
+    type: "cylinder"
+    center: [-3.500, 0.150, -3.500]
+    radius: 0.300
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wr_0_stem"
+    type: "cylinder"
+    center: [-3.500, 0.200, -3.500]
+    radius: 0.250
+    height: 0.600
+    material: "piece_white_solid"
+  - name: "wr_0_head_base"
+    type: "cylinder"
+    center: [-3.500, 0.800, -3.500]
+    radius: 0.350
+    height: 0.200
+    material: "piece_white_solid"
+  - name: "wr_0_cren1"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.700, 1.050, -3.700]
+    material: "piece_white_solid"
+
+  - name: "wr_0_cren2"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.300, 1.050, -3.700]
+    material: "piece_white_solid"
+
+  - name: "wr_0_cren3"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.700, 1.050, -3.300]
+    material: "piece_white_solid"
+
+  - name: "wr_0_cren4"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.300, 1.050, -3.300]
+    material: "piece_white_solid"
+
+  - name: "br_0_base1"
+    type: "cylinder"
+    center: [-3.500, 0.000, 3.500]
+    radius: 0.400
+    height: 0.150
+    material: "piece_black_solid"
+  - name: "br_0_base2"
+    type: "cylinder"
+    center: [-3.500, 0.150, 3.500]
+    radius: 0.300
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "br_0_stem"
+    type: "cylinder"
+    center: [-3.500, 0.200, 3.500]
+    radius: 0.250
+    height: 0.600
+    material: "piece_black_solid"
+  - name: "br_0_head_base"
+    type: "cylinder"
+    center: [-3.500, 0.800, 3.500]
+    radius: 0.350
+    height: 0.200
+    material: "piece_black_solid"
+  - name: "br_0_cren1"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.700, 1.050, 3.300]
+    material: "piece_black_solid"
+
+  - name: "br_0_cren2"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.300, 1.050, 3.300]
+    material: "piece_black_solid"
+
+  - name: "br_0_cren3"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.700, 1.050, 3.700]
+    material: "piece_black_solid"
+
+  - name: "br_0_cren4"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [-3.300, 1.050, 3.700]
+    material: "piece_black_solid"
+
+  - name: "wp_1_base1"
+    type: "cylinder"
+    center: [-2.500, 0.000, -2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wp_1_base2"
+    type: "cylinder"
+    center: [-2.500, 0.100, -2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_1_stem"
+    type: "cylinder"
+    center: [-2.500, 0.150, -2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_white_solid"
+  - name: "wp_1_neck"
+    type: "cylinder"
+    center: [-2.500, 0.550, -2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_1_head"
+    type: "sphere"
+    center: [-2.500, 0.800, -2.500]
+    radius: 0.250
+    material: "piece_white_solid"
+  - name: "bp_1_base1"
+    type: "cylinder"
+    center: [-2.500, 0.000, 2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bp_1_base2"
+    type: "cylinder"
+    center: [-2.500, 0.100, 2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_1_stem"
+    type: "cylinder"
+    center: [-2.500, 0.150, 2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_black_solid"
+  - name: "bp_1_neck"
+    type: "cylinder"
+    center: [-2.500, 0.550, 2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_1_head"
+    type: "sphere"
+    center: [-2.500, 0.800, 2.500]
+    radius: 0.250
+    material: "piece_black_solid"
+  - name: "wn_1_base"
+    type: "cylinder"
+    center: [-2.500, 0.000, -3.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wn_1_base2"
+    type: "cylinder"
+    center: [-2.500, 0.100, -3.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wn_1_stem"
+    type: "cylinder"
+    center: [-2.500, 0.150, -3.500]
+    radius: 0.220
+    height: 0.400
+    material: "piece_white_solid"
+  - name: "wn_1_chest"
+    type: "sphere"
+    center: [-2.500, 0.650, -3.500]
+    radius: 0.250
+    material: "piece_white_solid"
+  - name: "wn_1_head"
+    type: "sphere"
+    center: [-2.500, 0.900, -3.400]
+    radius: 0.220
+    material: "piece_white_solid"
+  - name: "wn_1_snout"
+    type: "box"
+    scale: [0.300, 0.200, 0.360]
+    translate: [-2.500, 0.850, -3.250]
+    material: "piece_white_solid"
+
+  - name: "wn_1_ear_L"
+    type: "sphere"
+    center: [-2.600, 1.050, -3.550]
+    radius: 0.060
+    material: "piece_white_solid"
+  - name: "wn_1_ear_R"
+    type: "sphere"
+    center: [-2.400, 1.050, -3.550]
+    radius: 0.060
+    material: "piece_white_solid"
+  - name: "bn_1_base"
+    type: "cylinder"
+    center: [-2.500, 0.000, 3.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bn_1_base2"
+    type: "cylinder"
+    center: [-2.500, 0.100, 3.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bn_1_stem"
+    type: "cylinder"
+    center: [-2.500, 0.150, 3.500]
+    radius: 0.220
+    height: 0.400
+    material: "piece_black_solid"
+  - name: "bn_1_chest"
+    type: "sphere"
+    center: [-2.500, 0.650, 3.500]
+    radius: 0.250
+    material: "piece_black_solid"
+  - name: "bn_1_head"
+    type: "sphere"
+    center: [-2.500, 0.900, 3.400]
+    radius: 0.220
+    material: "piece_black_solid"
+  - name: "bn_1_snout"
+    type: "box"
+    scale: [0.300, 0.200, 0.360]
+    translate: [-2.500, 0.850, 3.250]
+    material: "piece_black_solid"
+
+  - name: "bn_1_ear_L"
+    type: "sphere"
+    center: [-2.600, 1.050, 3.550]
+    radius: 0.060
+    material: "piece_black_solid"
+  - name: "bn_1_ear_R"
+    type: "sphere"
+    center: [-2.400, 1.050, 3.550]
+    radius: 0.060
+    material: "piece_black_solid"
+  - name: "wp_2_base1"
+    type: "cylinder"
+    center: [-1.500, 0.000, -2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wp_2_base2"
+    type: "cylinder"
+    center: [-1.500, 0.100, -2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_2_stem"
+    type: "cylinder"
+    center: [-1.500, 0.150, -2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_white_solid"
+  - name: "wp_2_neck"
+    type: "cylinder"
+    center: [-1.500, 0.550, -2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_2_head"
+    type: "sphere"
+    center: [-1.500, 0.800, -2.500]
+    radius: 0.250
+    material: "piece_white_solid"
+  - name: "bp_2_base1"
+    type: "cylinder"
+    center: [-1.500, 0.000, 2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bp_2_base2"
+    type: "cylinder"
+    center: [-1.500, 0.100, 2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_2_stem"
+    type: "cylinder"
+    center: [-1.500, 0.150, 2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_black_solid"
+  - name: "bp_2_neck"
+    type: "cylinder"
+    center: [-1.500, 0.550, 2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_2_head"
+    type: "sphere"
+    center: [-1.500, 0.800, 2.500]
+    radius: 0.250
+    material: "piece_black_solid"
+  - name: "wb_2_base"
+    type: "cylinder"
+    center: [-1.500, 0.000, -3.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wb_2_stem"
+    type: "cylinder"
+    center: [-1.500, 0.100, -3.500]
+    radius: 0.150
+    height: 0.600
+    material: "piece_white_solid"
+  - name: "wb_2_neck"
+    type: "cylinder"
+    center: [-1.500, 0.700, -3.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wb_2_head1"
+    type: "sphere"
+    center: [-1.500, 0.900, -3.500]
+    radius: 0.220
+    material: "piece_white_solid"
+  - name: "wb_2_head2"
+    type: "sphere"
+    center: [-1.500, 1.050, -3.500]
+    radius: 0.150
+    material: "piece_white_solid"
+  - name: "wb_2_top_ball"
+    type: "sphere"
+    center: [-1.500, 1.250, -3.500]
+    radius: 0.050
+    material: "piece_white_solid"
+  - name: "bb_2_base"
+    type: "cylinder"
+    center: [-1.500, 0.000, 3.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bb_2_stem"
+    type: "cylinder"
+    center: [-1.500, 0.100, 3.500]
+    radius: 0.150
+    height: 0.600
+    material: "piece_black_solid"
+  - name: "bb_2_neck"
+    type: "cylinder"
+    center: [-1.500, 0.700, 3.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bb_2_head1"
+    type: "sphere"
+    center: [-1.500, 0.900, 3.500]
+    radius: 0.220
+    material: "piece_black_solid"
+  - name: "bb_2_head2"
+    type: "sphere"
+    center: [-1.500, 1.050, 3.500]
+    radius: 0.150
+    material: "piece_black_solid"
+  - name: "bb_2_top_ball"
+    type: "sphere"
+    center: [-1.500, 1.250, 3.500]
+    radius: 0.050
+    material: "piece_black_solid"
+  - name: "wp_3_base1"
+    type: "cylinder"
+    center: [-0.500, 0.000, -2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wp_3_base2"
+    type: "cylinder"
+    center: [-0.500, 0.100, -2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_3_stem"
+    type: "cylinder"
+    center: [-0.500, 0.150, -2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_white_solid"
+  - name: "wp_3_neck"
+    type: "cylinder"
+    center: [-0.500, 0.550, -2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_3_head"
+    type: "sphere"
+    center: [-0.500, 0.800, -2.500]
+    radius: 0.250
+    material: "piece_white_solid"
+  - name: "bp_3_base1"
+    type: "cylinder"
+    center: [-0.500, 0.000, 2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bp_3_base2"
+    type: "cylinder"
+    center: [-0.500, 0.100, 2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_3_stem"
+    type: "cylinder"
+    center: [-0.500, 0.150, 2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_black_solid"
+  - name: "bp_3_neck"
+    type: "cylinder"
+    center: [-0.500, 0.550, 2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_3_head"
+    type: "sphere"
+    center: [-0.500, 0.800, 2.500]
+    radius: 0.250
+    material: "piece_black_solid"
+  - name: "wq_base"
+    type: "cylinder"
+    center: [-0.500, 0.000, -3.500]
+    radius: 0.400
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wq_base2"
+    type: "cylinder"
+    center: [-0.500, 0.100, -3.500]
+    radius: 0.300
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wq_stem"
+    type: "cylinder"
+    center: [-0.500, 0.150, -3.500]
+    radius: 0.200
+    height: 0.800
+    material: "piece_white_solid"
+  - name: "wq_neck"
+    type: "cylinder"
+    center: [-0.500, 0.950, -3.500]
+    radius: 0.300
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wq_head"
+    type: "sphere"
+    center: [-0.500, 1.150, -3.500]
+    radius: 0.200
+    material: "piece_white_solid"
+  - name: "wq_crown_0"
+    type: "sphere"
+    center: [-0.300, 1.250, -3.500]
+    radius: 0.050
+    material: "piece_white_solid"
+  - name: "wq_crown_1"
+    type: "sphere"
+    center: [-0.359, 1.250, -3.359]
+    radius: 0.050
+    material: "piece_white_solid"
+  - name: "wq_crown_2"
+    type: "sphere"
+    center: [-0.500, 1.250, -3.300]
+    radius: 0.050
+    material: "piece_white_solid"
+  - name: "wq_crown_3"
+    type: "sphere"
+    center: [-0.641, 1.250, -3.359]
+    radius: 0.050
+    material: "piece_white_solid"
+  - name: "wq_crown_4"
+    type: "sphere"
+    center: [-0.700, 1.250, -3.500]
+    radius: 0.050
+    material: "piece_white_solid"
+  - name: "wq_crown_5"
+    type: "sphere"
+    center: [-0.641, 1.250, -3.641]
+    radius: 0.050
+    material: "piece_white_solid"
+  - name: "wq_crown_6"
+    type: "sphere"
+    center: [-0.500, 1.250, -3.700]
+    radius: 0.050
+    material: "piece_white_solid"
+  - name: "wq_crown_7"
+    type: "sphere"
+    center: [-0.359, 1.250, -3.641]
+    radius: 0.050
+    material: "piece_white_solid"
+  - name: "bq_base"
+    type: "cylinder"
+    center: [-0.500, 0.000, 3.500]
+    radius: 0.400
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bq_base2"
+    type: "cylinder"
+    center: [-0.500, 0.100, 3.500]
+    radius: 0.300
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bq_stem"
+    type: "cylinder"
+    center: [-0.500, 0.150, 3.500]
+    radius: 0.200
+    height: 0.800
+    material: "piece_black_solid"
+  - name: "bq_neck"
+    type: "cylinder"
+    center: [-0.500, 0.950, 3.500]
+    radius: 0.300
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bq_head"
+    type: "sphere"
+    center: [-0.500, 1.150, 3.500]
+    radius: 0.200
+    material: "piece_black_solid"
+  - name: "bq_crown_0"
+    type: "sphere"
+    center: [-0.300, 1.250, 3.500]
+    radius: 0.050
+    material: "piece_black_solid"
+  - name: "bq_crown_1"
+    type: "sphere"
+    center: [-0.359, 1.250, 3.641]
+    radius: 0.050
+    material: "piece_black_solid"
+  - name: "bq_crown_2"
+    type: "sphere"
+    center: [-0.500, 1.250, 3.700]
+    radius: 0.050
+    material: "piece_black_solid"
+  - name: "bq_crown_3"
+    type: "sphere"
+    center: [-0.641, 1.250, 3.641]
+    radius: 0.050
+    material: "piece_black_solid"
+  - name: "bq_crown_4"
+    type: "sphere"
+    center: [-0.700, 1.250, 3.500]
+    radius: 0.050
+    material: "piece_black_solid"
+  - name: "bq_crown_5"
+    type: "sphere"
+    center: [-0.641, 1.250, 3.359]
+    radius: 0.050
+    material: "piece_black_solid"
+  - name: "bq_crown_6"
+    type: "sphere"
+    center: [-0.500, 1.250, 3.300]
+    radius: 0.050
+    material: "piece_black_solid"
+  - name: "bq_crown_7"
+    type: "sphere"
+    center: [-0.359, 1.250, 3.359]
+    radius: 0.050
+    material: "piece_black_solid"
+  - name: "wp_4_base1"
+    type: "cylinder"
+    center: [0.500, 0.000, -2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wp_4_base2"
+    type: "cylinder"
+    center: [0.500, 0.100, -2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_4_stem"
+    type: "cylinder"
+    center: [0.500, 0.150, -2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_white_solid"
+  - name: "wp_4_neck"
+    type: "cylinder"
+    center: [0.500, 0.550, -2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_4_head"
+    type: "sphere"
+    center: [0.500, 0.800, -2.500]
+    radius: 0.250
+    material: "piece_white_solid"
+  - name: "bp_4_base1"
+    type: "cylinder"
+    center: [0.500, 0.000, 2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bp_4_base2"
+    type: "cylinder"
+    center: [0.500, 0.100, 2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_4_stem"
+    type: "cylinder"
+    center: [0.500, 0.150, 2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_black_solid"
+  - name: "bp_4_neck"
+    type: "cylinder"
+    center: [0.500, 0.550, 2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_4_head"
+    type: "sphere"
+    center: [0.500, 0.800, 2.500]
+    radius: 0.250
+    material: "piece_black_solid"
+  - name: "wk_base"
+    type: "cylinder"
+    center: [0.500, 0.000, -3.500]
+    radius: 0.400
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wk_base2"
+    type: "cylinder"
+    center: [0.500, 0.100, -3.500]
+    radius: 0.300
+    height: 0.080
+    material: "piece_white_solid"
+  - name: "wk_stem"
+    type: "cylinder"
+    center: [0.500, 0.180, -3.500]
+    radius: 0.220
+    height: 0.850
+    material: "piece_white_solid"
+  - name: "wk_neck"
+    type: "cylinder"
+    center: [0.500, 1.030, -3.500]
+    radius: 0.350
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wk_head"
+    type: "sphere"
+    center: [0.500, 1.250, -3.500]
+    radius: 0.250
+    material: "piece_white_solid"
+  - name: "wk_cross_v"
+    type: "box"
+    scale: [0.060, 0.240, 0.060]
+    translate: [0.500, 1.600, -3.500]
+    material: "piece_white_solid"
+
+  - name: "wk_cross_h"
+    type: "box"
+    scale: [0.160, 0.060, 0.060]
+    translate: [0.500, 1.620, -3.500]
+    material: "piece_white_solid"
+
+  - name: "bk_base"
+    type: "cylinder"
+    center: [0.500, 0.000, 3.500]
+    radius: 0.400
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bk_base2"
+    type: "cylinder"
+    center: [0.500, 0.100, 3.500]
+    radius: 0.300
+    height: 0.080
+    material: "piece_black_solid"
+  - name: "bk_stem"
+    type: "cylinder"
+    center: [0.500, 0.180, 3.500]
+    radius: 0.220
+    height: 0.850
+    material: "piece_black_solid"
+  - name: "bk_neck"
+    type: "cylinder"
+    center: [0.500, 1.030, 3.500]
+    radius: 0.350
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bk_head"
+    type: "sphere"
+    center: [0.500, 1.250, 3.500]
+    radius: 0.250
+    material: "piece_black_solid"
+  - name: "bk_cross_v"
+    type: "box"
+    scale: [0.060, 0.240, 0.060]
+    translate: [0.500, 1.600, 3.500]
+    material: "piece_black_solid"
+
+  - name: "bk_cross_h"
+    type: "box"
+    scale: [0.160, 0.060, 0.060]
+    translate: [0.500, 1.620, 3.500]
+    material: "piece_black_solid"
+
+  - name: "wp_5_base1"
+    type: "cylinder"
+    center: [1.500, 0.000, -2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wp_5_base2"
+    type: "cylinder"
+    center: [1.500, 0.100, -2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_5_stem"
+    type: "cylinder"
+    center: [1.500, 0.150, -2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_white_solid"
+  - name: "wp_5_neck"
+    type: "cylinder"
+    center: [1.500, 0.550, -2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_5_head"
+    type: "sphere"
+    center: [1.500, 0.800, -2.500]
+    radius: 0.250
+    material: "piece_white_solid"
+  - name: "bp_5_base1"
+    type: "cylinder"
+    center: [1.500, 0.000, 2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bp_5_base2"
+    type: "cylinder"
+    center: [1.500, 0.100, 2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_5_stem"
+    type: "cylinder"
+    center: [1.500, 0.150, 2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_black_solid"
+  - name: "bp_5_neck"
+    type: "cylinder"
+    center: [1.500, 0.550, 2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_5_head"
+    type: "sphere"
+    center: [1.500, 0.800, 2.500]
+    radius: 0.250
+    material: "piece_black_solid"
+  - name: "wb_5_base"
+    type: "cylinder"
+    center: [1.500, 0.000, -3.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wb_5_stem"
+    type: "cylinder"
+    center: [1.500, 0.100, -3.500]
+    radius: 0.150
+    height: 0.600
+    material: "piece_white_solid"
+  - name: "wb_5_neck"
+    type: "cylinder"
+    center: [1.500, 0.700, -3.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wb_5_head1"
+    type: "sphere"
+    center: [1.500, 0.900, -3.500]
+    radius: 0.220
+    material: "piece_white_solid"
+  - name: "wb_5_head2"
+    type: "sphere"
+    center: [1.500, 1.050, -3.500]
+    radius: 0.150
+    material: "piece_white_solid"
+  - name: "wb_5_top_ball"
+    type: "sphere"
+    center: [1.500, 1.250, -3.500]
+    radius: 0.050
+    material: "piece_white_solid"
+  - name: "bb_5_base"
+    type: "cylinder"
+    center: [1.500, 0.000, 3.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bb_5_stem"
+    type: "cylinder"
+    center: [1.500, 0.100, 3.500]
+    radius: 0.150
+    height: 0.600
+    material: "piece_black_solid"
+  - name: "bb_5_neck"
+    type: "cylinder"
+    center: [1.500, 0.700, 3.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bb_5_head1"
+    type: "sphere"
+    center: [1.500, 0.900, 3.500]
+    radius: 0.220
+    material: "piece_black_solid"
+  - name: "bb_5_head2"
+    type: "sphere"
+    center: [1.500, 1.050, 3.500]
+    radius: 0.150
+    material: "piece_black_solid"
+  - name: "bb_5_top_ball"
+    type: "sphere"
+    center: [1.500, 1.250, 3.500]
+    radius: 0.050
+    material: "piece_black_solid"
+  - name: "wp_6_base1"
+    type: "cylinder"
+    center: [2.500, 0.000, -2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wp_6_base2"
+    type: "cylinder"
+    center: [2.500, 0.100, -2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_6_stem"
+    type: "cylinder"
+    center: [2.500, 0.150, -2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_white_solid"
+  - name: "wp_6_neck"
+    type: "cylinder"
+    center: [2.500, 0.550, -2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_6_head"
+    type: "sphere"
+    center: [2.500, 0.800, -2.500]
+    radius: 0.250
+    material: "piece_white_solid"
+  - name: "bp_6_base1"
+    type: "cylinder"
+    center: [2.500, 0.000, 2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bp_6_base2"
+    type: "cylinder"
+    center: [2.500, 0.100, 2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_6_stem"
+    type: "cylinder"
+    center: [2.500, 0.150, 2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_black_solid"
+  - name: "bp_6_neck"
+    type: "cylinder"
+    center: [2.500, 0.550, 2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_6_head"
+    type: "sphere"
+    center: [2.500, 0.800, 2.500]
+    radius: 0.250
+    material: "piece_black_solid"
+  - name: "wn_6_base"
+    type: "cylinder"
+    center: [2.500, 0.000, -3.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wn_6_base2"
+    type: "cylinder"
+    center: [2.500, 0.100, -3.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wn_6_stem"
+    type: "cylinder"
+    center: [2.500, 0.150, -3.500]
+    radius: 0.220
+    height: 0.400
+    material: "piece_white_solid"
+  - name: "wn_6_chest"
+    type: "sphere"
+    center: [2.500, 0.650, -3.500]
+    radius: 0.250
+    material: "piece_white_solid"
+  - name: "wn_6_head"
+    type: "sphere"
+    center: [2.500, 0.900, -3.400]
+    radius: 0.220
+    material: "piece_white_solid"
+  - name: "wn_6_snout"
+    type: "box"
+    scale: [0.300, 0.200, 0.360]
+    translate: [2.500, 0.850, -3.250]
+    material: "piece_white_solid"
+
+  - name: "wn_6_ear_L"
+    type: "sphere"
+    center: [2.400, 1.050, -3.550]
+    radius: 0.060
+    material: "piece_white_solid"
+  - name: "wn_6_ear_R"
+    type: "sphere"
+    center: [2.600, 1.050, -3.550]
+    radius: 0.060
+    material: "piece_white_solid"
+  - name: "bn_6_base"
+    type: "cylinder"
+    center: [2.500, 0.000, 3.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bn_6_base2"
+    type: "cylinder"
+    center: [2.500, 0.100, 3.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bn_6_stem"
+    type: "cylinder"
+    center: [2.500, 0.150, 3.500]
+    radius: 0.220
+    height: 0.400
+    material: "piece_black_solid"
+  - name: "bn_6_chest"
+    type: "sphere"
+    center: [2.500, 0.650, 3.500]
+    radius: 0.250
+    material: "piece_black_solid"
+  - name: "bn_6_head"
+    type: "sphere"
+    center: [2.500, 0.900, 3.400]
+    radius: 0.220
+    material: "piece_black_solid"
+  - name: "bn_6_snout"
+    type: "box"
+    scale: [0.300, 0.200, 0.360]
+    translate: [2.500, 0.850, 3.250]
+    material: "piece_black_solid"
+
+  - name: "bn_6_ear_L"
+    type: "sphere"
+    center: [2.400, 1.050, 3.550]
+    radius: 0.060
+    material: "piece_black_solid"
+  - name: "bn_6_ear_R"
+    type: "sphere"
+    center: [2.600, 1.050, 3.550]
+    radius: 0.060
+    material: "piece_black_solid"
+  - name: "wp_7_base1"
+    type: "cylinder"
+    center: [3.500, 0.000, -2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_white_solid"
+  - name: "wp_7_base2"
+    type: "cylinder"
+    center: [3.500, 0.100, -2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_7_stem"
+    type: "cylinder"
+    center: [3.500, 0.150, -2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_white_solid"
+  - name: "wp_7_neck"
+    type: "cylinder"
+    center: [3.500, 0.550, -2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wp_7_head"
+    type: "sphere"
+    center: [3.500, 0.800, -2.500]
+    radius: 0.250
+    material: "piece_white_solid"
+  - name: "bp_7_base1"
+    type: "cylinder"
+    center: [3.500, 0.000, 2.500]
+    radius: 0.350
+    height: 0.100
+    material: "piece_black_solid"
+  - name: "bp_7_base2"
+    type: "cylinder"
+    center: [3.500, 0.100, 2.500]
+    radius: 0.250
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_7_stem"
+    type: "cylinder"
+    center: [3.500, 0.150, 2.500]
+    radius: 0.180
+    height: 0.400
+    material: "piece_black_solid"
+  - name: "bp_7_neck"
+    type: "cylinder"
+    center: [3.500, 0.550, 2.500]
+    radius: 0.220
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "bp_7_head"
+    type: "sphere"
+    center: [3.500, 0.800, 2.500]
+    radius: 0.250
+    material: "piece_black_solid"
+  - name: "wr_7_base1"
+    type: "cylinder"
+    center: [3.500, 0.000, -3.500]
+    radius: 0.400
+    height: 0.150
+    material: "piece_white_solid"
+  - name: "wr_7_base2"
+    type: "cylinder"
+    center: [3.500, 0.150, -3.500]
+    radius: 0.300
+    height: 0.050
+    material: "piece_white_solid"
+  - name: "wr_7_stem"
+    type: "cylinder"
+    center: [3.500, 0.200, -3.500]
+    radius: 0.250
+    height: 0.600
+    material: "piece_white_solid"
+  - name: "wr_7_head_base"
+    type: "cylinder"
+    center: [3.500, 0.800, -3.500]
+    radius: 0.350
+    height: 0.200
+    material: "piece_white_solid"
+  - name: "wr_7_cren1"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.300, 1.050, -3.700]
+    material: "piece_white_solid"
+
+  - name: "wr_7_cren2"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.700, 1.050, -3.700]
+    material: "piece_white_solid"
+
+  - name: "wr_7_cren3"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.300, 1.050, -3.300]
+    material: "piece_white_solid"
+
+  - name: "wr_7_cren4"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.700, 1.050, -3.300]
+    material: "piece_white_solid"
+
+  - name: "br_7_base1"
+    type: "cylinder"
+    center: [3.500, 0.000, 3.500]
+    radius: 0.400
+    height: 0.150
+    material: "piece_black_solid"
+  - name: "br_7_base2"
+    type: "cylinder"
+    center: [3.500, 0.150, 3.500]
+    radius: 0.300
+    height: 0.050
+    material: "piece_black_solid"
+  - name: "br_7_stem"
+    type: "cylinder"
+    center: [3.500, 0.200, 3.500]
+    radius: 0.250
+    height: 0.600
+    material: "piece_black_solid"
+  - name: "br_7_head_base"
+    type: "cylinder"
+    center: [3.500, 0.800, 3.500]
+    radius: 0.350
+    height: 0.200
+    material: "piece_black_solid"
+  - name: "br_7_cren1"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.300, 1.050, 3.300]
+    material: "piece_black_solid"
+
+  - name: "br_7_cren2"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.700, 1.050, 3.300]
+    material: "piece_black_solid"
+
+  - name: "br_7_cren3"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.300, 1.050, 3.700]
+    material: "piece_black_solid"
+
+  - name: "br_7_cren4"
+    type: "box"
+    scale: [0.160, 0.100, 0.160]
+    translate: [3.700, 1.050, 3.700]
+    material: "piece_black_solid"
+

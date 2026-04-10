@@ -1,27 +1,76 @@
-# ============================================================================
-# Libreria Luci — Studio 3-Point Setup
-# ============================================================================
-# Importa con:  imports: [{ path: "libraries/studio-3point.yaml" }]
-# ============================================================================
+# =============================================================================
+#  LIBRERIA LUCI — Studio 3-Point Classico
+#  scenes/libraries/lights/studio-3point.yaml
+# =============================================================================
+#
+#  Il setup fotografico e cinematografico più universale: tre sorgenti con
+#  ruoli distinti che separano il soggetto dallo sfondo, modellano il volume
+#  e ne disegnano il contorno. Adatto a qualsiasi soggetto neutro — prodotti,
+#  ritratti stilizzati, materiali PBR, showcase di oggetti.
+#
+#  SCHEMA:
+#    Key Light  — Area grande dall'alto-sinistra  → luce principale, ombre morbide
+#    Fill Light — Area più piccola da destra      → schiarisce le ombre, fredda
+#    Rim Light  — Point dal retro-alto            → separa il soggetto dallo sfondo
+#
+#  LUCI USATE:  area · area · point
+#
+#  USO CONSIGLIATO:
+#    imports:
+#      - path: "libraries/lights/studio-3point.yaml"
+#
+#  WORLD ABBINATO (studio nero — sfondo assente):
+#    world:
+#      ambient_light: [0.02, 0.02, 0.03]
+#      background: [0.0, 0.0, 0.0]
+#
+#  RENDER CONSIGLIATO:
+#    Draft  : -w 800  -H 450 -s 16  -d 15 -S 4
+#    Preview: -w 1280 -H 720 -s 64  -d 25 -S 8
+#    Final  : -w 1920 -H 1080 -s 256 -d 40 -S 16
+#
+#  NOTE:
+#    - Il soggetto è assunto centrato attorno all'origine, altezza ~1–2 u.
+#    - Per soggetti più grandi scalare le distanze proporzionalmente.
+#    - La rim light è intenzionalmente calda per il classico contrasto
+#      caldo/freddo: key neutra, fill fredda, rim calda.
+# =============================================================================
 
 lights:
+
+  # ── KEY LIGHT ─────────────────────────────────────────────────────────────
+  #  Area rettangolare 2×2 unità dall'alto-sinistra, inclinata verso il basso.
+  #  È la sorgente dominante: definisce le ombre principali e modella il volume.
+  #  Colore leggermente caldo (tungsteno bilanciato) per un risultato naturale.
+  #  Rapporto key/fill ≈ 3:1 (classico ritratto).
   - type: "area"
-    corner: [-4, 5.5, -2]
-    u: [2.5, 0, 0]
-    v: [0, 0, 2.5]
-    color: [1.0, 0.95, 0.88]
-    intensity: 50
+    corner: [-4.0, 4.0, -2.0]
+    u: [2.0, 0.0, 0.0]
+    v: [0.0, 0.0, 2.0]
+    color: [1.0, 0.96, 0.90]
+    intensity: 45.0
     shadow_samples: 16
 
+  # ── FILL LIGHT ────────────────────────────────────────────────────────────
+  #  Area più piccola (1.2×1.2) dall'alto-destra, a quota inferiore alla key.
+  #  Colore freddo (cielo) che crea il contrasto caldo/freddo tipico dello
+  #  studio: le ombre non sono mai neutre, ma leggermente azzurrine.
+  #  Intensità ~1/3 della key → rapporto 3:1, look commerciale pulito.
   - type: "area"
-    corner: [3, 3, -1]
-    u: [1.5, 0, 0]
-    v: [0, 0, 1.5]
-    color: [0.75, 0.82, 1.0]
-    intensity: 20
+    corner: [3.0, 3.0, -1.5]
+    u: [1.2, 0.0, 0.0]
+    v: [0.0, 0.0, 1.2]
+    color: [0.72, 0.82, 1.0]
+    intensity: 15.0
     shadow_samples: 9
 
+  # ── RIM LIGHT (BACK LIGHT) ────────────────────────────────────────────────
+  #  Point dal retro-alto, leggermente spostata a destra del centro.
+  #  Non serve a illuminare la scena: la sua funzione è creare un bordo
+  #  luminoso ("rim") lungo il profilo del soggetto, separandolo dal fondo
+  #  scuro e aggiungendo profondità tridimensionale.
+  #  Colore caldo-neutro: si fonde con la key evitando un look artificioso.
   - type: "point"
-    position: [0, 4, 5]
-    color: [1.0, 0.98, 0.95]
-    intensity: 60
+    position: [1.0, 4.5, 4.5]
+    color: [1.0, 0.97, 0.88]
+    intensity: 55.0

@@ -119,7 +119,8 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 3d-ray/
 ├── docs/                    # Documentazione del progetto
 │   ├── technical/           # Deep dive tecnici
-│   └── tutorials/           # Tutorial per l'uso del motore├── src/
+│   └── tutorials/           # Tutorial per l'uso del motore
+├── src/
 │   ├── RayTracer/           # Motore principale
 │   │   ├── Acceleration/    # BVH
 │   │   ├── Camera/          # Camera con DOF
@@ -133,7 +134,15 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │   └── Tools/
 │       ├── TextureGen/      # Generatore texture procedurali (PNG)
 │       └── NormalMapGen/    # Generatore flat normal map per test
-├── scenes/                  # File YAML di esempio
+├── scenes/                  # File YAML di scene
+│   ├── libraries/           # Risorse riutilizzabili via import YAML
+│   │   ├── materials/       # Materiali PBR (Disney/Classic)
+│   │   ├── objects/         # Template di oggetti composti
+│   │   ├── lights/          # Setup di illuminazione pronti all'uso
+│   │   ├── starter-kits/    # Scene complete pronte all'uso, da personalizzare
+│   │   └── textures/        # Texture PNG (albedo e normal map)
+│   ├── showcases/           # Scene dimostrative per singola feature
+│   └── *.yaml               # Scene principali del progetto
 ├── output/                  # Immagini renderizzate
 └── .github/workflows/       # CI con smoke test
 ```

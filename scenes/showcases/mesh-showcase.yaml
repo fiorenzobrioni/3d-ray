@@ -1,0 +1,178 @@
+# ============================================================================
+# Scene: Mesh Loading Showcase
+# Tests: Smooth sphere OBJ, flat cube OBJ, torus mesh OBJ, transforms, materials
+# NOTE: Place test-sphere.obj, test-cube.obj, test-torus-mesh.obj in the models folder
+# ============================================================================
+
+camera:
+  position: [0, 3, -8]
+  look_at: [0, 1, 0]
+  fov: 50
+  aperture: 0.0
+
+world:
+  ambient_light: [0.03, 0.03, 0.04]
+  sky:
+    type: "gradient"
+    zenith_color: [0.1, 0.12, 0.25]
+    horizon_color: [0.4, 0.35, 0.5]
+    ground_color: [0.06, 0.06, 0.06]
+  ground:
+    type: "plane"
+    material: "pavimento"
+    y: 0
+
+materials:
+  - id: "pavimento"
+    type: "disney"
+    roughness: 0.7
+    texture:
+      type: "checker"
+      colors: [[0.1, 0.1, 0.1], [0.2, 0.2, 0.2]]
+      scale: 1.0
+
+  # ── Mesh materials ─────────────────────────────────────────────────────────
+  - id: "ceramica"
+    type: "disney"
+    color: [0.92, 0.88, 0.82]
+    roughness: 0.3
+    metallic: 0.0
+
+  - id: "oro"
+    type: "disney"
+    color: [1.0, 0.84, 0.0]
+    roughness: 0.15
+    metallic: 1.0
+
+  - id: "vetro"
+    type: "dielectric"
+    refraction_index: 1.5
+
+  - id: "legno"
+    type: "disney"
+    color: [0.55, 0.35, 0.15]
+    roughness: 0.7
+
+  - id: "rosso_lucido"
+    type: "disney"
+    color: [0.85, 0.1, 0.1]
+    roughness: 0.15
+
+  - id: "acciaio"
+    type: "disney"
+    color: [0.8, 0.8, 0.82]
+    roughness: 0.2
+    metallic: 1.0
+
+  - id: "neon_mesh"
+    type: "emissive"
+    color: [0.5, 0.8, 1.0]
+    intensity: 8.0
+
+lights:
+  - type: "point"
+    position: [4, 8, -5]
+    color: [1, 1, 1]
+    intensity: 100
+
+  - type: "point"
+    position: [-4, 5, -3]
+    color: [0.85, 0.9, 1.0]
+    intensity: 40
+
+entities:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SMOOTH SPHERE OBJ — test smooth shading + artist UVs
+  # Compare visually with a native Sphere primitive
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # 1. Mesh sphere (OBJ with smooth normals + UVs)
+  - name: "sfera_mesh"
+    type: "mesh"
+    path: "models/test-sphere.obj"
+    material: "ceramica"
+    translate: [-3, 1, 0]
+
+  # 2. Native sphere for visual comparison (same material, same position offset)
+  - name: "sfera_nativa"
+    type: "sphere"
+    center: [-1, 1, 0]
+    radius: 1.0
+    material: "ceramica"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # FLAT CUBE OBJ — test flat shading (no vn in OBJ) + quad triangulation
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # 3. Mesh cube (flat shaded — no normals in OBJ)
+  - name: "cubo_mesh"
+    type: "mesh"
+    path: "models/test-cube.obj"
+    material: "legno"
+    scale: [1.5, 1.5, 1.5]
+    translate: [1.5, 0.75, 0]
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # TORUS MESH OBJ — test complex smooth mesh + transforms
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # 4. Torus mesh — oro lucido
+  - name: "toro_mesh_oro"
+    type: "mesh"
+    path: "models/test-torus-mesh.obj"
+    material: "oro"
+    translate: [4, 1.5, 0]
+
+  # 5. Same torus mesh — glass (test refrazioni su mesh smooth)
+  - name: "toro_mesh_vetro"
+    type: "mesh"
+    path: "models/test-torus-mesh.obj"
+    material: "vetro"
+    scale: [0.7, 0.7, 0.7]
+    translate: [-3, 1.5, 3]
+
+  # 6. Torus mesh ruotato — acciaio
+  - name: "toro_mesh_acciaio"
+    type: "mesh"
+    path: "models/test-torus-mesh.obj"
+    material: "acciaio"
+    scale: [0.6, 0.6, 0.6]
+    rotate: [90, 0, 0]
+    translate: [0, 1.5, 3]
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # MESH EMISSIVE — test ISamplable su mesh per NEE
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # 7. Piccola sfera mesh emissiva
+  - name: "luce_mesh"
+    type: "mesh"
+    path: "models/test-sphere.obj"
+    material: "neon_mesh"
+    scale: [0.3, 0.3, 0.3]
+    translate: [3, 3.5, -1]
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # COMPOSIZIONE MISTA — mesh + primitive analitiche
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # 8. Piedistallo per la sfera mesh
+  - name: "piedistallo"
+    type: "cylinder"
+    center: [-3, 0, 0]
+    radius: 0.6
+    height: 0.02
+    material: "acciaio"
+
+  # 9. Sfere decorative attorno al toro
+  - name: "sfera_deco_1"
+    type: "sphere"
+    center: [4, 0.3, -1.5]
+    radius: 0.3
+    material: "rosso_lucido"
+
+  - name: "sfera_deco_2"
+    type: "sphere"
+    center: [4, 0.3, 1.5]
+    radius: 0.3
+    material: "rosso_lucido"

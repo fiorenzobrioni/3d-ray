@@ -39,7 +39,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
 // ── Parse CLI ───────────────────────────────────────────────────────────────
-string outputDir = "scenes/textures";
+string outputDir = "scenes/libraries/textures";
 for (int i = 0; i < args.Length - 1; i++)
 {
     if (args[i] is "--output" or "-o")

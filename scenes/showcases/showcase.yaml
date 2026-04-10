@@ -1,0 +1,346 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ✦  SHOWCASE  —  The Ray Tracer's Calling Card
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+#  Cinque oggetti iconici su un palcoscenico scuro e riflettente. Ogni pezzo
+#  dimostra una feature chiave del motore:
+#
+#    ① Sfera di cristallo   → Dielectric (rifrazione, riflesso Fresnel)
+#    ② Toro d'oro            → Disney BSDF metallico + geometria Torus
+#    ③ Lente CSG             → Constructive Solid Geometry + vetro colorato
+#    ④ Colonna di marmo      → Texture procedurale Marble + Cylinder
+#    ⑤ Sfera emissiva        → Materiale Emissive (geometry light con NEE)
+#
+#  Illuminazione drammatica: area light per ombre morbide, spot di accento,
+#  fill freddo per contrasto warm/cool, e gradient sky con sun disk per
+#  riflessi realistici sulle superfici metalliche.
+#
+#  ─────────────────────────────────────────────────────────────────────────────
+#  Render consigliati:
+#
+#    Preview veloce:   -w 480  -H 270  -s 4   -d 8  -S 4
+#    Draft:            -w 960  -H 540  -s 16  -d 20 -S 8
+#    Qualità:          -w 1920 -H 1080 -s 128 -d 50 -S 16
+#    Produzione:       -w 2560 -H 1440 -s 256 -d 60 -S 32
+#
+#  Camere disponibili (--camera <nome>):
+#    hero       — Vista principale 3/4 bassa, drammatica (default)
+#    panoramic  — Inquadratura ampia, leggermente dall'alto
+#    intimate   — Close-up sulla sfera di cristallo con DOF
+#    profile    — Vista laterale, skyline con silhouettes
+#    birds_eye  — Dall'alto, composizione geometrica
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  WORLD
+# ═════════════════════════════════════════════════════════════════════════════
+world:
+  ambient_light: [0.02, 0.02, 0.03]
+
+  sky:
+    type: "gradient"
+    zenith_color:  [0.05, 0.08, 0.22]    # Blu notte profondo
+    horizon_color: [0.40, 0.25, 0.12]    # Arancio caldo — crepuscolo
+    ground_color:  [0.06, 0.05, 0.04]    # Quasi nero sotto l'orizzonte
+    sun:
+      direction: [-0.9, -0.18, -0.4]     # Sole molto basso a sinistra
+      color: [1.0, 0.78, 0.40]
+      intensity: 18.0
+      size: 5.0                           # Disco grande, spettacolare
+      falloff: 20.0                       # Glow ampio
+
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═════════════════════════════════════════════════════════════════════════════
+cameras:
+
+  # ── Hero shot: la vista principale, bassa e drammatica ──────────────────
+  - name: "hero"
+    position: [3.5, 1.8, -7.0]
+    look_at:  [0.0, 1.0, 0.0]
+    fov: 42
+    aperture: 0.03
+    focal_dist: 8.0
+
+  # ── Vista panoramica: inquadratura ampia dall'alto ──────────────────────
+  - name: "panoramic"
+    position: [0.0, 5.0, -9.0]
+    look_at:  [0.0, 0.8, 0.5]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 1.0
+
+  # ── Intimate: close-up sulla sfera con profondità di campo ──────────────
+  - name: "intimate"
+    position: [1.2, 1.2, -3.5]
+    look_at:  [0.0, 1.1, 0.0]
+    fov: 35
+    aperture: 0.12
+    focal_dist: 3.8
+
+  # ── Profile: vista laterale, skyline drammatico ─────────────────────────
+  - name: "profile"
+    position: [-8.0, 1.5, 0.5]
+    look_at:  [0.0, 1.2, 0.0]
+    fov: 38
+    aperture: 0.0
+    focal_dist: 1.0
+
+  # ── Dall'alto: composizione geometrica ──────────────────────────────────
+  - name: "birds_eye"
+    position: [0.5, 9.0, -2.0]
+    look_at:  [0.0, 0.0, 0.5]
+    fov: 48
+    aperture: 0.0
+    focal_dist: 1.0
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═════════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Pavimento: checker scuro riflettente ────────────────────────────────
+  - id: "pavimento"
+    type: "disney"
+    texture:
+      type: "checker"
+      scale: 1.2
+      colors: [[0.04, 0.04, 0.05], [0.10, 0.10, 0.11]]
+    roughness: 0.15
+    metallic: 0.0
+    specular: 0.8
+
+  # ── ① Cristallo: vetro ad alto indice di rifrazione ─────────────────────
+  - id: "cristallo"
+    type: "dielectric"
+    refraction_index: 1.52
+    color: [1.0, 1.0, 1.0]
+
+  # ── ② Oro: Disney BSDF metallico ───────────────────────────────────────
+  - id: "oro"
+    type: "disney"
+    color: [1.0, 0.76, 0.33]
+    metallic: 1.0
+    roughness: 0.12
+    specular: 1.0
+
+  # ── ③ Vetro ambra per la lente CSG ─────────────────────────────────────
+  - id: "vetro_ambra"
+    type: "dielectric"
+    refraction_index: 1.65
+    color: [0.95, 0.75, 0.40]
+
+  # ── ④ Marmo venato per la colonna ──────────────────────────────────────
+  - id: "marmo_colonna"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 10.0
+      colors: [[0.92, 0.90, 0.86], [0.35, 0.33, 0.30]]
+      randomize_offset: true
+    roughness: 0.25
+    clearcoat: 0.7
+    clearcoat_gloss: 0.9
+
+  # ── ⑤ Emissive: sfera luminosa calda ───────────────────────────────────
+  - id: "luce_calda"
+    type: "emissive"
+    color: [1.0, 0.65, 0.25]
+    intensity: 15.0
+
+  # ── Piedistallo scuro per la sfera ─────────────────────────────────────
+  - id: "basalto"
+    type: "disney"
+    color: [0.08, 0.08, 0.09]
+    roughness: 0.35
+    metallic: 0.0
+    specular: 0.6
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═════════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ① SFERA DI CRISTALLO — Protagonista al centro
+  #  Dielectric puro: rifrazione interna, riflesso Fresnel, caustiche.
+  #  Poggia su un piedistallo basso di basalto scuro.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "piedistallo"
+    type: "cylinder"
+    center: [0, 0, 0]
+    radius: 0.85
+    height: 0.25
+    material: "basalto"
+
+  - name: "sfera_cristallo"
+    type: "sphere"
+    center: [0, 1.25, 0]
+    radius: 1.0
+    material: "cristallo"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ② TORO D'ORO — A sinistra, inclinato elegantemente
+  #  Disney BSDF metallic: riflesso dorato con highlight sun disk.
+  #  Dimostra la geometria Torus e il material PBR unificato.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "toro_oro"
+    type: "torus"
+    major_radius: 0.9
+    minor_radius: 0.22
+    material: "oro"
+    rotate: [25, -15, 12]
+    translate: [-2.8, 1.0, 0.8]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ③ LENTE CSG — A destra, leggermente arretrata
+  #  Intersezione di due sfere → lente biconvessa in vetro ambra.
+  #  Dimostra il sistema CSG con rifrazione colorata.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "lente"
+    type: "csg"
+    operation: "intersection"
+    material: "vetro_ambra"
+    translate: [2.5, 1.3, 1.0]
+    rotate: [0, 30, 15]
+    left:
+      type: "sphere"
+      center: [0, 0, -0.35]
+      radius: 1.0
+    right:
+      type: "sphere"
+      center: [0, 0, 0.35]
+      radius: 1.0
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ④ COLONNA DI MARMO — Dietro a sinistra, verticalità
+  #  Cilindro con texture marble procedurale + clearcoat.
+  #  Dimostra texture procedurali e cilindri.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "colonna"
+    type: "cylinder"
+    center: [-1.8, 0, 3.0]
+    radius: 0.35
+    height: 3.2
+    material: "marmo_colonna"
+    seed: 77
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ⑤ SFERA EMISSIVA — Galleggia accanto alla colonna
+  #  Materiale emissive con NEE: proietta luce calda sugli oggetti vicini
+  #  e glow visibile. Dimostra le geometry lights.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "lucciola"
+    type: "sphere"
+    center: [-1.0, 2.8, 2.2]
+    radius: 0.18
+    material: "luce_calda"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═════════════════════════════════════════════════════════════════════════════
+lights:
+
+  # ── KEY: Area light dall'alto-sinistra — ombre morbide, calore ─────────
+  #  Pannello 2×2 posizionato alto e davanti-sinistra.
+  #  L'area ampia produce penumbra morbida e naturale.
+  - type: "area"
+    corner: [-3.5, 5.5, -3.0]
+    u: [2.5, 0.0, 0.0]
+    v: [0.0, 0.0, 2.5]
+    color: [1.0, 0.92, 0.78]
+    intensity: 28.0
+    shadow_samples: 16
+
+  # ── ACCENT: Spot sulla sfera di cristallo — il punto focale ────────────
+  #  Cono stretto dall'alto per creare un pool di luce concentrato
+  #  sulla protagonista. Evidenzia le caustiche interne.
+  - type: "spot"
+    position: [0.5, 6.0, -1.5]
+    direction: [-0.05, -1.0, 0.2]
+    color: [1.0, 0.98, 0.94]
+    intensity: 80
+    inner_angle: 8
+    outer_angle: 20
+
+  # ── FILL: Point freddo dal lato destro — contrasto warm/cool ───────────
+  #  Luce bluastra tenue che riempie le ombre senza eliminarle.
+  #  Crea il classico contrasto cinematografico caldo/freddo.
+  - type: "point"
+    position: [6.0, 3.0, -2.0]
+    color: [0.60, 0.72, 1.0]
+    intensity: 18
+
+  # ── RIM: Controluce dal retro — stacca gli oggetti dallo sfondo ────────
+  #  Posizionato alto e dietro la scena, crea un bordo luminoso
+  #  che separa le silhouette dal fondo scuro.
+  - type: "point"
+    position: [0.0, 4.5, 6.0]
+    color: [0.85, 0.80, 0.70]
+    intensity: 25
+
+  # ── DIRECTIONAL: allineata al sun disk del gradient sky ─────────────────
+  #  Luce direzionale tenue che aggiunge ombre allungate coerenti
+  #  con la posizione del sole nel cielo. Intensità bassa: supporto,
+  #  non protagonista.
+  - type: "directional"
+    direction: [-0.9, -0.18, -0.4]
+    color: [1.0, 0.80, 0.45]
+    intensity: 0.08
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  LUCI ALTERNATIVE
+# ═════════════════════════════════════════════════════════════════════════════
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ALT-1: "Midnight Gallery" — Solo spot + fill freddo, nessuna area light.
+#  Ombre nette e drammatiche, atmosfera da museo notturno.
+#  Rendering veloce (no shadow_samples). Consigliato: -s 64 -d 30
+# ─────────────────────────────────────────────────────────────────────────────
+# lights:
+#   - type: "spot"
+#     position: [0.5, 7.0, -2.0]
+#     direction: [-0.05, -1.0, 0.2]
+#     color: [1.0, 0.95, 0.88]
+#     intensity: 120
+#     inner_angle: 12
+#     outer_angle: 28
+#   - type: "point"
+#     position: [5.0, 2.5, -3.0]
+#     color: [0.50, 0.60, 1.0]
+#     intensity: 12
+#   - type: "point"
+#     position: [-1.0, 3.5, 5.0]
+#     color: [0.80, 0.75, 0.65]
+#     intensity: 15
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ALT-2: "Neon Contrast" — Magenta/Ciano, atmosfera cyber.
+#  Due point laterali con colori saturi opposti + fill neutro dall'alto.
+#  Consigliato: -s 64 -d 25
+# ─────────────────────────────────────────────────────────────────────────────
+# lights:
+#   - type: "point"
+#     position: [-5, 3, 0]
+#     color: [1.0, 0.15, 0.6]
+#     intensity: 90
+#   - type: "point"
+#     position: [5, 3, 0]
+#     color: [0.15, 0.6, 1.0]
+#     intensity: 90
+#   - type: "point"
+#     position: [0, 5.5, -2]
+#     color: [1.0, 1.0, 1.0]
+#     intensity: 10
