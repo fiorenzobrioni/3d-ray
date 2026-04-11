@@ -191,6 +191,16 @@ public class SceneLoader
                 var sigmaA = ToVector3(md.SigmaA) ?? Vector3.Zero;
                 var sigmaS = ToVector3(md.SigmaS) ?? Vector3.Zero;
 
+                // Negative coefficients are physically nonsense and would break
+                // Beer-Lambert. Clamp to zero and warn the author of the scene.
+                if (sigmaA.X < 0f || sigmaA.Y < 0f || sigmaA.Z < 0f ||
+                    sigmaS.X < 0f || sigmaS.Y < 0f || sigmaS.Z < 0f)
+                {
+                    Warn($"Medium has negative σ_a={sigmaA} or σ_s={sigmaS}. Clamping to zero.");
+                    sigmaA = Vector3.Max(sigmaA, Vector3.Zero);
+                    sigmaS = Vector3.Max(sigmaS, Vector3.Zero);
+                }
+
                 IPhaseFunction phase;
                 if (string.IsNullOrWhiteSpace(md.Phase) ||
                     string.Equals(md.Phase, "isotropic", StringComparison.OrdinalIgnoreCase))

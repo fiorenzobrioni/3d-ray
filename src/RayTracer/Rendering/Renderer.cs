@@ -329,9 +329,33 @@ public class Renderer
             // NEE in-scattering: shadow ray to each light, weighted by phase × Tr.
             Vector3 Lnee = ComputeDirectLightingMedium(p, ray.Direction);
 
-            // Indirect: importance-sample the phase function.
-            var (wi, _) = _globalMedium.Phase.Sample(ray.Direction);
-            Vector3 Lind = TraceRay(new Ray(p, wi), depth - 1, prevUsedNee: true);
+            // ── Russian Roulette on the indirect (phase-sampled) bounce ─────
+            // Applied only to the recursive continuation, not to Lnee, so the
+            // estimator stays unbiased regardless of the kill/survive outcome.
+            Vector3 Lind = Vector3.Zero;
+            int bouncesUsedS = _maxDepth - depth;
+            float indirectScale = 1f;
+            bool killIndirect = false;
+            if (bouncesUsedS >= _rrMinBounces)
+            {
+                float survivalProb = MathF.Max(MathUtils.Luminance(beta), _rrMinSurvival);
+                survivalProb = MathF.Min(survivalProb, 0.95f);
+                if (MathUtils.RandomFloat() > survivalProb) killIndirect = true;
+                else indirectScale = 1f / survivalProb;
+            }
+
+            if (!killIndirect)
+            {
+                // Indirect: importance-sample the phase function.
+                // We keep phase/pdf explicit so future phase functions where
+                // Sample.Pdf ≠ Evaluate (e.g. multi-lobe / truncated) remain
+                // unbiased. For Isotropic and HG this factor collapses to 1.
+                var (wi, phasePdf) = _globalMedium.Phase.Sample(ray.Direction);
+                float phaseVal = _globalMedium.Phase.Evaluate(ray.Direction, wi);
+                float phaseWeight = phasePdf > 1e-20f ? phaseVal / phasePdf : 0f;
+                Lind = phaseWeight * indirectScale
+                     * TraceRay(new Ray(p, wi), depth - 1, prevUsedNee: true);
+            }
 
             return beta * (Lnee + Lind);
         }
@@ -439,12 +463,12 @@ public class Renderer
         Vector3 result = Vector3.Zero;
         if (_globalMedium == null) return result;
 
-        // We need a fake HitRecord-like context only for IlluminateAndTest signatures
-        // that take a surface normal. For medium events there is no surface normal,
-        // so we pass an arbitrary unit vector and trust that lights ignore the N·L
-        // gating when they cannot apply it (point/spot/directional do not gate).
-        // For lights that DO gate by normal (area/sphere/environment), we re-test
-        // visibility ourselves with a raw shadow ray to avoid spurious occlusion.
+        // Lights use `surfaceNormal` ONLY to offset the shadow-ray origin
+        // (see AreaLight.IlluminateAndTestStratified / SphereLight ditto).
+        // No N·L gating happens inside the light, so a free-space scattering
+        // event can safely pass an arbitrary unit vector here: the ε-offset
+        // along it is harmless because p is in empty space (strictly before
+        // any surface hit along the parent ray).
         Vector3 dummyNormal = Vector3.UnitY;
 
         foreach (var light in _lights)
@@ -454,8 +478,31 @@ public class Renderer
 
             for (int s = 0; s < samples; s++)
             {
-                (bool inShadow, Vector3 lightColor, Vector3 dirToLight, float distance) =
-                light.IlluminateAndTest(p, dummyNormal, _world);
+                // Mirror the dispatch used by ComputeDirectLighting so that
+                // AreaLight and SphereLight keep their stratified samples in
+                // the volumetric path too — this is where low-discrepancy
+                // shadow sampling matters most (large area lights seen through
+                // dense fog are the worst-case variance scenario).
+                bool inShadow;
+                Vector3 lightColor;
+                Vector3 dirToLight;
+                float distance;
+
+                if (light is AreaLight areaLight)
+                {
+                    (inShadow, lightColor, dirToLight, distance) =
+                        areaLight.IlluminateAndTestStratified(p, dummyNormal, _world, s);
+                }
+                else if (light is SphereLight sphereLight)
+                {
+                    (inShadow, lightColor, dirToLight, distance) =
+                        sphereLight.IlluminateAndTestStratified(p, dummyNormal, _world, s);
+                }
+                else
+                {
+                    (inShadow, lightColor, dirToLight, distance) =
+                        light.IlluminateAndTest(p, dummyNormal, _world);
+                }
 
                 if (inShadow) continue;
 
