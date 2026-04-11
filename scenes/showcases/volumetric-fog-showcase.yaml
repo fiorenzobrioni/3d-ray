@@ -21,6 +21,6 @@ lights:
     inner_angle: 4
     outer_angle: 9
 entities:
-  - { type: box, min: [-1.5, 0, -1.5], max: [-1.0, 3.0, -1.0], material: pillar }
-  - { type: box, min: [ 1.0, 0, -1.5], max: [ 1.5, 3.0, -1.0], material: pillar }
-  - { type: box, min: [-0.4, 0, 0.0],  max: [ 0.4, 1.2,  0.8], material: pillar }
+  - { type: box, scale: [0.5, 3.0, 0.5], translate: [-1.25, 1.5, -1.25], material: pillar }
+  - { type: box, scale: [0.5, 3.0, 0.5], translate: [ 1.25, 1.5, -1.25], material: pillar }
+  - { type: box, scale: [0.8, 1.2, 0.8], translate: [ 0.0,  0.6,  0.4 ], material: pillar }

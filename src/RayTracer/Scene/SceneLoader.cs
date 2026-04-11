@@ -990,16 +990,7 @@ public class SceneLoader
         IHittable? entity = e.Type?.ToLowerInvariant() switch
         {
             "sphere"   => new Sphere(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, mat),
-
-            // FIX (BUG #1): min/max corner syntax was parsed from YAML but silently
-            // ignored — the box always appeared as a unit cube at the origin.
-            // When both min and max are specified they now define the box volume
-            // directly, equivalent to scale + translate on the unit cube.
-            // Note: if min/max AND scale/translate are both specified, the outer
-            // transform in Load() is applied on top (useful for rotation).
-            "box" => e.Min != null && e.Max != null
-                     ? CreateBoxFromMinMax(e, mat)
-                     : new Box(mat),
+            "box"      => new Box(mat),
             "triangle" or "smooth_triangle"
                        => CreateTriangleEntity(e, mat),
             "quad"     => new Quad(
@@ -1060,29 +1051,6 @@ public class SceneLoader
 
         return torus;
     }
-    /// <summary>
-    /// Creates a Box positioned and sized according to explicit min/max corner
-    /// coordinates. Internally wraps a unit-cube Box in a Scale+Translate transform.
-    /// This allows min/max to coexist with an additional rotate in YAML — the outer
-    /// ComputeTransformMatrix() applies any extra transform on top.
-    /// </summary>
-    /// <remarks>
-    /// BUG-08 fix: seed is NOT assigned here. CreateEntity() assigns it uniformly
-    /// for all entity types after construction. Assigning it here AND there caused
-    /// the Box to get a non-deterministic seed from Random.Shared.Next() instead
-    /// of the deterministic index-based one computed in CreateEntity().
-    /// </remarks>
-    private static IHittable CreateBoxFromMinMax(EntityData e, IMaterial mat)
-    {
-        var min    = ToVector3(e.Min)!.Value;
-        var max    = ToVector3(e.Max)!.Value;
-        var center = (min + max) * 0.5f;
-        var size   = max - min;
-        // Scale the unit cube to the desired dimensions, then translate to center
-        var matrix = Matrix4x4.CreateScale(size) * Matrix4x4.CreateTranslation(center);
-        return new Transform(new Box(mat), matrix);
-    }
-
     /// <summary>
     /// Creates a CSG (Constructive Solid Geometry) entity from nested left/right
     /// children and a Boolean operation.

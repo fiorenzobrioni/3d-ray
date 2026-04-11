@@ -42,25 +42,6 @@ Il Box è definito come un **cubo unitario** centrato nell'origine (da -0.5 a 0.
 
 > **UV Mapping:** Planare per faccia. Ogni faccia del box mappa l'intero intervallo $[0, 1]$ della texture.
 
-### Sintassi alternativa: `min`/`max` (coordinate assolute)
-
-In alternativa a `scale`+`translate`, puoi specificare direttamente gli angoli del box:
-
-```yaml
-  - name: "cassa"
-    type: "box"
-    min: [-1, 0, -2]
-    max: [1, 1.5, 2]
-    material: "legno"
-```
-
-| Campo | Tipo | Descrizione |
-|-------|------|-------------|
-| `min` | `[X, Y, Z]` | Angolo minimo del box (coordinata assoluta) |
-| `max` | `[X, Y, Z]` | Angolo massimo del box (coordinata assoluta) |
-
-> **Nota:** `min`/`max` e `scale`/`translate` sono mutualmente esclusivi per definire forma e posizione. Puoi comunque aggiungere `rotate` a un box definito con `min`/`max` — la rotazione viene applicata sopra.
-
 > **⚠️ Importante:** Il `translate` posiziona il **centro** del box. Se vuoi che la base sia a Y=0, traslaci di `altezza / 2` in Y. Esempio: box alto 1.0 con base a terra → `translate: [0, 0.5, 0]`.
 
 > **Area light:** Il box implementa `ISamplable` e può essere usato come area light emissiva con NEE. Il campionamento è pesato per area tra le 6 facce del box.
@@ -389,7 +370,6 @@ Questo garantisce che l'oggetto scali rispetto al proprio centro (prima di esser
 
 ### Gotcha Comuni e Interazioni
 - **Cilindri e Coni:** Queste primitive sono definite nativamente allineate all'asse **Y** (verticale). Se vuoi un tubo o un cono disteso orizzontalmente lungo l'asse X, devi aggiungere una rotazione di 90° o -90° sull'asse Z: `rotate: [0, 0, 90]`.
-- **Box con `min/max`:** Se definisci un Box specificando le coordinate assolute `min` e `max`, il Box assume quelle coordinate esatte. È sconsigliato applicare `scale` o `rotate` a Box definiti con `min/max`, perché le trasformazioni operano relativamente all'origine globale, producendo asimmetrie ed effetti indesiderati se il box non è centrato. Usa `scale` e `translate` (implicito Box unitario all'origine) se prevedi di ruotare.
 - **Nodi CSG:** Se applichi una trasformazione (es. `translate` o `rotate`) a un nodo composito di tipo `csg`, l'effetto si applica a tutto il gruppo unitariamente. Le trasformazioni applicate ai singoli sottostanti (figli CSG) agiscono nel sistema di riferimento "locale" prima che venga applicata l'eventuale trasformazione del padre CSG.
 
 ## 6.13 Parametro Seed

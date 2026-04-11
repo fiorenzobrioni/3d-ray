@@ -167,8 +167,8 @@ entities:
 
   - name: "piano_tavolo"
     type: "box"
-    min: [-1.4, 0.66, -0.9]
-    max: [1.4,  0.76,  0.9]
+    scale: [2.8, 0.1, 1.8]
+    translate: [0.0, 0.71, 0.0]
     material: "legno_tavolo"
 
   - { name: "gamba_fl", type: "cylinder", center: [-1.20, 0.0, -0.70], radius: 0.12, height: 0.70, material: "legno_gambe" }
