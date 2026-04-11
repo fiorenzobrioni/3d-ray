@@ -118,8 +118,9 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 ```
 3d-ray/
 ├── docs/                    # Documentazione del progetto
+│   ├── reference/           # Guide di riferimento rapido (IT/EN)
 │   ├── technical/           # Deep dive tecnici
-│   └── tutorials/           # Tutorial per l'uso del motore
+│   └── tutorial/            # Tutorial passo-passo
 ├── src/
 │   ├── RayTracer/           # Motore principale
 │   │   ├── Acceleration/    # BVH
@@ -218,12 +219,19 @@ dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -c 2
 
 ---
 
-## 📚 Tutorials
+## 📖 Documentazione e Guide
 
-- [**Guida all'Uso**](./docs/tutorials/01-tutorial-utilizzo.md) — Dettagli completi sui parametri CLI, profili di rendering, ottimizzazione e risoluzione problemi.
-- [**Creazione delle Scene**](./docs/tutorials/02-tutorial-scene.md) — Guida completa alla sintassi YAML: geometrie, materiali, texture, luci, camera, trasformazioni, gruppi, template e import YAML.
-- [**Libreria di Preset e Asset**](./docs/tutorials/03-libreria-preset.md) — Catalogo di ambienti, configurazioni camera, sistemi di illuminazione e materiali pronti all'uso.
-- [**Libreria CSG — Oggetti e Preset Booleani**](./docs/tutorials/04-libreria-csg.md) — Catalogo di forme CSG pronte all'uso: lenti, anelli, colonne scavate, bulloni e alberi booleani complessi.
+### Reference (Consultazione Rapida)
+
+- [**Guida di Riferimento delle Scene (IT)**](./docs/reference/riferimento-scene.md) — Sintassi completa, regole e parametri YAML per la creazione delle scene.
+- [**Scene Reference Guide (EN)**](./docs/reference/scene-reference.md) — Complete YAML syntax, rules, and parameters for scene creation.
+
+### Tutorial (Apprendimento / Learning)
+
+- [**01. Guida Rapida e Utilizzo**](./docs/tutorial/01-guida-rapida.md) | [**01. Quick Start & Usage**](./docs/tutorial/01-quick-start.md)
+- [**02. Costruire una Scena**](./docs/tutorial/02-costruire-una-scena.md) | [**02. Building a Scene**](./docs/tutorial/02-building-a-scene.md)
+- [**03. Tecniche Avanzate**](./docs/tutorial/03-tecniche-avanzate.md) | [**03. Advanced Techniques**](./docs/tutorial/03-advanced-techniques.md)
+- [**04. Catalogo dei Preset**](./docs/tutorial/04-catalogo-preset.md) | [**04. Preset Catalog**](./docs/tutorial/04-preset-catalog.md)
 
 ---
 

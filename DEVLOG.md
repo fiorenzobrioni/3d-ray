@@ -192,7 +192,7 @@ Note implementative: il free-path channel-pick uniforme è la scelta più sempli
 
 - [ ] Creare librerie di template: `scenes/libraries/chess-pieces.yaml`, `scenes/libraries/furniture.yaml`
 - [ ] Feature #22 completa: Instancing con geometria condivisa a livello BVH (memory-efficient per scene con migliaia di istanze)
-- [ ] Fare una review completa dei tutorials (`tutorials/`): correttezza rispetto al codice, omissioni di feature, grammatica, esempi, indici.
+- [ ] Fare una review completa dei tutorial (`tutorial/`): correttezza rispetto al codice, omissioni di feature, grammatica, esempi, indici.
 - Spezzare il file SceneLoader.cs in più file (al momento è un file troppo grande).
 - [ ] Aggiornare la checklist di testing con le scene di riferimento corrette.
 
@@ -210,7 +210,7 @@ Severità: 🔴 **Alta** 🟠 **Media** 🟡 **Bassa**
 
 ## 📝 Note
 
-- Aggiornare i tutorial ogni volta che si aggiunge una nuova primitiva o una feature.
+- Aggiornare i reference e i tutorial ogni volta che si aggiunge una nuova primitiva o una feature.
 - Idee per scene creative:
   - **Macro Photography**: Primo piano estremo di un orologio meccanico (usando `Annulus` e `Cylinder`) con DOF molto spinta.
 - Quando si compongono oggetti con torus decorativi (base pedone, colletto, anello), verificare che le geometrie adiacenti coprano il tubo del torus: il raggio del cono/cilindro sovrapposto deve essere ≥ `MajorRadius - MinorRadius` con margine di sicurezza, altrimenti il tubo protrude attraverso la superficie adiacente.

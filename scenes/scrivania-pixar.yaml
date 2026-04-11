@@ -1,0 +1,861 @@
+# =============================================================================
+#  SCRIVANIA PIXAR — Ray Tracing Scene
+#  Illuminazione singola lampada da scrivania, stile Pixar/Renderman.
+#  Una stanza buia, un cono di luce calda, oggetti con carattere.
+# =============================================================================
+#
+#  Layout coordinate:
+#    X = destra, Y = su, Z = verso camera (negativo = in profondità)
+#
+#  Tavolo: top a Y=0.76, base pavimento Y=0
+#  Tappetino scrivania: su Y=0.762, davanti alla lampada
+#  Camera: posizione quasi frontale, leggermente sopraelevata, DOF morbido
+#
+#  Render consigliato (draft):
+#    dotnet run -- -i scrivania-pixar.yaml -s 64 -d 30 -w 1280 -H 720
+#  Render production:
+#    dotnet run -- -i scrivania-pixar.yaml -s 256 -d 50 -w 1920 -H 1080 -S 24
+# =============================================================================
+
+world:
+  ambient_light: [0.012, 0.010, 0.018]   # Quasi buio totale — solo tracce blu-viola
+  background: [0.01, 0.01, 0.015]        # Stanza quasi nera
+
+# -----------------------------------------------------------------------------
+# CAMERAS
+# -----------------------------------------------------------------------------
+cameras:
+  - name: "main"
+    # Angolo Pixar: leggermente dall'alto, di tre quarti, vicino alla scena
+    position: [1.6, 1.45, -2.4]
+    look_at:  [0.0, 0.80,  0.3]
+    vup: [0, 1, 0]
+    fov: 42
+    aperture: 0.028
+    focal_dist: 2.85                      # Fuoco sul centro tappetino/penna
+
+  - name: "overhead"
+    # Vista dall'alto per verificare il layout
+    position: [0.2, 3.5, -0.5]
+    look_at:  [0.2, 0.76, 0.3]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 2.8
+
+  - name: "close_pen"
+    # Macro sulla penna — per beauty shot
+    position: [0.5, 1.10, -1.30]
+    look_at:  [0.05, 0.80, 0.20]
+    fov: 28
+    aperture: 0.018
+    focal_dist: 1.10
+
+# -----------------------------------------------------------------------------
+# MATERIALS
+# -----------------------------------------------------------------------------
+materials:
+
+  # --- STRUTTURA STANZA -------------------------------------------------
+
+  - id: "parquet"
+    type: "disney"
+    color: [0.38, 0.26, 0.14]
+    metallic: 0.0
+    roughness: 0.55
+    specular: 0.35
+    clearcoat: 0.4
+    clearcoat_gloss: 0.6
+    texture:
+      type: "wood"
+      scale: 2.2
+      noise_strength: 2.8
+      colors: [[0.48, 0.33, 0.17], [0.28, 0.18, 0.08]]
+
+  - id: "muro_fondo"
+    type: "lambertian"
+    color: [0.11, 0.09, 0.13]            # Grigio scuro quasi nero, leggermente viola
+
+  - id: "muro_sx"
+    type: "lambertian"
+    color: [0.10, 0.08, 0.12]
+
+  - id: "soffitto"
+    type: "lambertian"
+    color: [0.07, 0.07, 0.09]
+
+  # --- TAVOLO -----------------------------------------------------------
+
+  - id: "piano_tavolo"
+    type: "disney"
+    color: [0.52, 0.35, 0.18]
+    metallic: 0.0
+    roughness: 0.30
+    specular: 0.55
+    clearcoat: 0.8
+    clearcoat_gloss: 0.85
+    texture:
+      type: "wood"
+      scale: 1.8
+      noise_strength: 2.0
+      colors: [[0.62, 0.43, 0.22], [0.40, 0.26, 0.12]]
+      rotation: [0, 15, 0]
+
+  - id: "gambe_tavolo"
+    type: "disney"
+    color: [0.22, 0.14, 0.07]
+    metallic: 0.0
+    roughness: 0.45
+    specular: 0.3
+    clearcoat: 0.3
+    clearcoat_gloss: 0.5
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 1.5
+      colors: [[0.28, 0.18, 0.09], [0.18, 0.11, 0.05]]
+
+  # --- TAPPETINO DA SCRIVANIA -------------------------------------------
+
+  - id: "tappetino"
+    type: "disney"
+    color: [0.08, 0.08, 0.09]            # Nero con leggerissima firma blu
+    metallic: 0.0
+    roughness: 0.92
+    specular: 0.05
+    sheen: 0.15
+    sheen_tint: 0.3
+
+  - id: "tappetino_bordo"
+    type: "disney"
+    color: [0.18, 0.18, 0.20]
+    metallic: 0.0
+    roughness: 0.85
+    specular: 0.05
+
+  # --- LAMPADA DA SCRIVANIA ---------------------------------------------
+
+  - id: "metallo_lampada"
+    type: "disney"
+    color: [0.72, 0.72, 0.74]           # Alluminio satinato
+    metallic: 1.0
+    roughness: 0.22
+    specular: 0.9
+
+  - id: "metallo_snodo"
+    type: "disney"
+    color: [0.60, 0.60, 0.62]
+    metallic: 1.0
+    roughness: 0.35
+    specular: 0.8
+
+  - id: "paralume_interno"
+    type: "emissive"
+    color: [1.0, 0.88, 0.60]            # Giallo-arancio caldo incandescente
+    intensity: 14.0
+
+  - id: "paralume_esterno"
+    type: "disney"
+    color: [0.65, 0.65, 0.67]
+    metallic: 1.0
+    roughness: 0.18
+    specular: 0.95
+
+  - id: "base_lampada"
+    type: "disney"
+    color: [0.55, 0.55, 0.57]
+    metallic: 1.0
+    roughness: 0.30
+    specular: 0.85
+
+  # --- PENNA STILOGRAFICA -----------------------------------------------
+
+  - id: "corpo_penna"
+    type: "disney"
+    color: [0.06, 0.06, 0.28]           # Blu notte profondo
+    metallic: 0.0
+    roughness: 0.08
+    specular: 0.85
+    clearcoat: 1.0
+    clearcoat_gloss: 0.98
+
+  - id: "pennino_oro"
+    type: "disney"
+    color: [0.92, 0.78, 0.28]           # Oro pennino
+    metallic: 1.0
+    roughness: 0.12
+    specular: 1.0
+
+  - id: "clip_penna"
+    type: "disney"
+    color: [0.85, 0.72, 0.25]
+    metallic: 1.0
+    roughness: 0.20
+    specular: 0.9
+
+  # --- TAZZA CAFFÈ ------------------------------------------------------
+
+  - id: "ceramica_tazza"
+    type: "disney"
+    color: [0.95, 0.94, 0.92]           # Bianco porcellana lievemente caldo
+    metallic: 0.0
+    roughness: 0.12
+    specular: 0.75
+    clearcoat: 0.6
+    clearcoat_gloss: 0.95
+
+  - id: "caffe_liquido"
+    type: "disney"
+    color: [0.12, 0.07, 0.03]           # Nero caffè intenso
+    metallic: 0.0
+    roughness: 0.05
+    specular: 0.8
+    clearcoat: 0.2
+
+  # --- LIBRO CHIUSO -----------------------------------------------------
+
+  - id: "copertina_libro"
+    type: "disney"
+    color: [0.55, 0.12, 0.08]           # Rosso scuro bordeaux
+    metallic: 0.0
+    roughness: 0.65
+    specular: 0.25
+    sheen: 0.1
+
+  - id: "pagine_libro"
+    type: "lambertian"
+    color: [0.92, 0.90, 0.84]           # Avorio pagine invecchiate
+
+  # --- MATITA -----------------------------------------------------------
+
+  - id: "corpo_matita"
+    type: "disney"
+    color: [0.92, 0.72, 0.10]           # Giallo matita classica
+    metallic: 0.0
+    roughness: 0.50
+    specular: 0.30
+    clearcoat: 0.3
+    clearcoat_gloss: 0.7
+
+  - id: "grafite_matita"
+    type: "disney"
+    color: [0.25, 0.25, 0.26]
+    metallic: 0.0
+    roughness: 0.75
+    specular: 0.15
+
+  - id: "gomma_matita"
+    type: "disney"
+    color: [0.88, 0.62, 0.60]           # Rosa gomma
+    metallic: 0.0
+    roughness: 0.80
+    specular: 0.10
+
+  - id: "ferrule_matita"
+    type: "metal"
+    color: [0.82, 0.82, 0.82]
+    fuzz: 0.05
+
+  # --- BLOCCO NOTE ------------------------------------------------------
+
+  - id: "copertina_notes"
+    type: "disney"
+    color: [0.12, 0.28, 0.18]           # Verde muschio
+    metallic: 0.0
+    roughness: 0.70
+    specular: 0.20
+    sheen: 0.15
+
+  - id: "spirale_notes"
+    type: "metal"
+    color: [0.78, 0.78, 0.80]
+    fuzz: 0.08
+
+  - id: "fogli_notes"
+    type: "disney"
+    color: [0.96, 0.96, 0.92]
+    metallic: 0.0
+    roughness: 0.85
+    specular: 0.05
+
+  # --- OROLOGIO DA TAVOLO -----------------------------------------------
+
+  - id: "cassa_orologio"
+    type: "disney"
+    color: [0.80, 0.68, 0.22]           # Ottone spazzolato
+    metallic: 1.0
+    roughness: 0.28
+    specular: 0.9
+
+  - id: "quadrante_orologio"
+    type: "disney"
+    color: [0.96, 0.95, 0.90]
+    metallic: 0.0
+    roughness: 0.15
+    specular: 0.6
+    clearcoat: 0.8
+    clearcoat_gloss: 0.95
+
+  - id: "lancette_orologio"
+    type: "metal"
+    color: [0.15, 0.15, 0.18]
+    fuzz: 0.02
+
+  - id: "vetro_orologio"
+    type: "dielectric"
+    refraction_index: 1.52
+    color: [0.98, 0.99, 1.0]
+
+  # --- POSACENERE / PORTA-PENNE -----------------------------------------
+
+  - id: "porta_penne"
+    type: "disney"
+    color: [0.18, 0.12, 0.08]           # Cuoio scuro
+    metallic: 0.0
+    roughness: 0.72
+    specular: 0.25
+    sheen: 0.08
+
+  # --- CAVO USB (dettaglio realistico) ----------------------------------
+
+  - id: "cavo_usb"
+    type: "disney"
+    color: [0.10, 0.10, 0.12]
+    metallic: 0.0
+    roughness: 0.78
+    specular: 0.08
+
+  # --- LIBRO APERTO (optional accent) -----------------------------------
+
+  - id: "copertina_libro2"
+    type: "disney"
+    color: [0.18, 0.22, 0.45]           # Blu oceano
+    metallic: 0.0
+    roughness: 0.60
+    specular: 0.30
+
+# -----------------------------------------------------------------------------
+# ENTITIES
+# -----------------------------------------------------------------------------
+entities:
+
+  # ==========================================================================
+  #  STANZA
+  # ==========================================================================
+
+  - name: "pavimento"
+    type: "infinite_plane"
+    point: [0, 0, 0]
+    normal: [0, 1, 0]
+    material: "parquet"
+
+  - name: "muro_posteriore"
+    type: "quad"
+    q:  [-4.0, 0.0,  2.5]
+    u:  [ 8.0, 0.0,  0.0]
+    v:  [ 0.0, 4.5,  0.0]
+    material: "muro_fondo"
+
+  - name: "muro_sinistro"
+    type: "quad"
+    q:  [-4.0, 0.0, -3.0]
+    u:  [ 0.0, 0.0,  5.5]
+    v:  [ 0.0, 4.5,  0.0]
+    material: "muro_sx"
+
+  - name: "soffitto_piano"
+    type: "quad"
+    q:  [-4.0, 4.5, -3.0]
+    u:  [ 8.0, 0.0,  0.0]
+    v:  [ 0.0, 0.0,  5.5]
+    material: "soffitto"
+
+  # ==========================================================================
+  #  TAVOLO
+  #  Piano: 1.40 x 0.70, alto 0.76. Gambe 4 angoli.
+  # ==========================================================================
+
+  - name: "tavolo"
+    type: "group"
+    translate: [0, 0, 0]
+    children:
+
+      # Piano del tavolo — box centrato, base a Y=0.72, top a Y=0.76
+      - name: "piano"
+        type: "box"
+        scale: [1.40, 0.045, 0.70]
+        translate: [0.0, 0.7425, 0.55]
+        material: "piano_tavolo"
+
+      # Gamba anteriore sinistra
+      - name: "gamba_ant_sx"
+        type: "cylinder"
+        center: [-0.62, 0.0, 0.22]
+        radius: 0.030
+        height: 0.720
+        material: "gambe_tavolo"
+
+      # Gamba anteriore destra
+      - name: "gamba_ant_dx"
+        type: "cylinder"
+        center: [ 0.62, 0.0, 0.22]
+        radius: 0.030
+        height: 0.720
+        material: "gambe_tavolo"
+
+      # Gamba posteriore sinistra
+      - name: "gamba_post_sx"
+        type: "cylinder"
+        center: [-0.62, 0.0, 0.88]
+        radius: 0.030
+        height: 0.720
+        material: "gambe_tavolo"
+
+      # Gamba posteriore destra
+      - name: "gamba_post_dx"
+        type: "cylinder"
+        center: [ 0.62, 0.0, 0.88]
+        radius: 0.030
+        height: 0.720
+        material: "gambe_tavolo"
+
+      # Traversa longitudinale sinistra (irrigidimento)
+      - name: "traversa_sx"
+        type: "box"
+        scale: [0.025, 0.025, 0.66]
+        translate: [-0.62, 0.12, 0.55]
+        material: "gambe_tavolo"
+
+      # Traversa longitudinale destra
+      - name: "traversa_dx"
+        type: "box"
+        scale: [0.025, 0.025, 0.66]
+        translate: [ 0.62, 0.12, 0.55]
+        material: "gambe_tavolo"
+
+  # ==========================================================================
+  #  TAPPETINO DA SCRIVANIA
+  #  38 x 20 cm, spessore 3 mm, posizionato al centro-destra del tavolo
+  # ==========================================================================
+
+  - name: "tappetino_scrivania"
+    type: "group"
+    translate: [0, 0, 0]
+    children:
+      # Superficie principale
+      - type: "box"
+        scale: [0.38, 0.003, 0.20]
+        translate: [0.08, 0.7635, 0.50]
+        material: "tappetino"
+
+      # Bordo leggermente rialzato (effetto mouse pad premium)
+      - type: "box"
+        scale: [0.382, 0.0045, 0.202]
+        translate: [0.08, 0.7618, 0.50]
+        material: "tappetino_bordo"
+
+  # ==========================================================================
+  #  LAMPADA DA SCRIVANIA — Stile Luxo Jr. / Anglepoise
+  #  Base sul tavolo, braccio snodato, paralume conico puntato verso il basso
+  # ==========================================================================
+
+  - name: "lampada"
+    type: "group"
+    translate: [-0.42, 0.765, 0.75]    # Lampada sul lato sinistro del tavolo
+    children:
+
+      # BASE — disco pesante
+      - name: "base"
+        type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.075
+        height: 0.022
+        material: "base_lampada"
+
+      # Perno centrale
+      - name: "perno_base"
+        type: "cylinder"
+        center: [0, 0.022, 0]
+        radius: 0.018
+        height: 0.030
+        material: "metallo_snodo"
+
+      # PRIMO BRACCIO — inclinato verso il basso e avanti
+      - name: "braccio1"
+        type: "group"
+        translate: [0, 0.052, 0]
+        rotate: [30, 0, 0]             # Inclinato 30° avanti (verso camera)
+        children:
+          - type: "cylinder"
+            center: [0, 0, 0]
+            radius: 0.012
+            height: 0.28
+            material: "metallo_lampada"
+          # Snodo intermedio
+          - type: "sphere"
+            center: [0, 0.28, 0]
+            radius: 0.022
+            material: "metallo_snodo"
+
+      # SECONDO BRACCIO — dal gomito giù verso il paralume
+      - name: "braccio2"
+        type: "group"
+        translate: [0, 0.052, 0]
+        rotate: [30, 0, 0]
+        children:
+          - name: "braccio2_inner"
+            type: "group"
+            translate: [0, 0.28, 0]
+            rotate: [-70, 0, 0]        # Scende verso il piano, angolo di lettura
+            children:
+              - type: "cylinder"
+                center: [0, 0, 0]
+                radius: 0.010
+                height: 0.22
+                material: "metallo_lampada"
+
+              # PARALUME CONICO
+              - name: "paralume_group"
+                type: "group"
+                translate: [0, 0.22, 0]
+                rotate: [0, 0, 0]
+                children:
+                  # Esterno paralume (frustum / cono troncato)
+                  - type: "cone"
+                    center: [0, 0, 0]
+                    radius: 0.095       # Base (apertura)
+                    top_radius: 0.030   # Sommità stretta (attacco braccio)
+                    height: 0.130
+                    material: "paralume_esterno"
+                  # Interno emissivo (l'interno riflette la luce)
+                  - type: "cone"
+                    center: [0, 0.003, 0]
+                    radius: 0.091
+                    top_radius: 0.028
+                    height: 0.124
+                    material: "paralume_interno"
+                  # Bulbo — piccola sfera emissiva al centro del paralume
+                  - type: "sphere"
+                    center: [0, 0.060, 0]
+                    radius: 0.018
+                    material: "paralume_interno"
+
+  # ==========================================================================
+  #  PENNA STILOGRAFICA
+  #  Distesa diagonalmente sul tappetino
+  # ==========================================================================
+
+  - name: "penna_stilografica"
+    type: "group"
+    translate: [0.06, 0.767, 0.48]
+    rotate: [0, -28, 0]               # Angolo diagonale sul tappetino
+    children:
+      # Corpo principale (capsula)
+      - type: "capsule"
+        center: [0, 0, 0]
+        radius: 0.0065
+        height: 0.120
+        material: "corpo_penna"
+      # Pennino (cono sottile all'estremità)
+      - type: "cone"
+        center: [0, 0.120, 0]
+        radius: 0.0065
+        top_radius: 0.0005
+        height: 0.030
+        material: "pennino_oro"
+      # Clip laterale
+      - type: "box"
+        scale: [0.0018, 0.002, 0.065]
+        translate: [0.0075, 0.040, 0]
+        material: "clip_penna"
+      # Anello decorativo alla base del cappuccio
+      - type: "torus"
+        center: [0, 0.002, 0]
+        major_radius: 0.0068
+        minor_radius: 0.0010
+        material: "clip_penna"
+
+  # ==========================================================================
+  #  MATITA
+  #  Vicino alla penna, leggermente parallela
+  # ==========================================================================
+
+  - name: "matita"
+    type: "group"
+    translate: [0.14, 0.767, 0.42]
+    rotate: [0, -22, 0]
+    children:
+      # Corpo esagonale approssimato con capsule/box
+      - type: "capsule"
+        center: [0, 0, 0]
+        radius: 0.0045
+        height: 0.145
+        material: "corpo_matita"
+      # Punta grafite
+      - type: "cone"
+        center: [0, 0.145, 0]
+        radius: 0.0045
+        top_radius: 0.0003
+        height: 0.018
+        material: "grafite_matita"
+      # Ferrule metallica
+      - type: "cylinder"
+        center: [0, -0.003, 0]
+        radius: 0.0048
+        height: 0.012
+        material: "ferrule_matita"
+      # Gomma
+      - type: "cylinder"
+        center: [0, -0.015, 0]
+        radius: 0.0040
+        height: 0.009
+        material: "gomma_matita"
+
+  # ==========================================================================
+  #  TAZZA DA CAFFÈ
+  #  Posizionata sul lato destro del tavolo, fuori tappetino
+  # ==========================================================================
+
+  - name: "tazza_caffe"
+    type: "group"
+    translate: [0.50, 0.765, 0.42]
+    children:
+      # Corpo tazza (frustum leggermente svasato)
+      - type: "cone"
+        center: [0, 0, 0]
+        radius: 0.040
+        top_radius: 0.048
+        height: 0.080
+        material: "ceramica_tazza"
+      # Caffè (disco scuro alla sommità)
+      - type: "disk"
+        center: [0, 0.075, 0]
+        normal: [0, 1, 0]
+        radius: 0.044
+        material: "caffe_liquido"
+      # Manico — toro parziale approssimato con toro piatto
+      - type: "torus"
+        center: [0.056, 0.038, 0]
+        major_radius: 0.020
+        minor_radius: 0.006
+        material: "ceramica_tazza"
+      # Piattino
+      - type: "cylinder"
+        center: [0, -0.008, 0]
+        radius: 0.062
+        height: 0.006
+        material: "ceramica_tazza"
+
+  # ==========================================================================
+  #  LIBRO CHIUSO (impilato sul tavolo, lato sinistro)
+  # ==========================================================================
+
+  - name: "libro1"
+    type: "group"
+    translate: [-0.50, 0.765, 0.55]
+    rotate: [0, 8, 0]
+    children:
+      # Corpo libro
+      - type: "box"
+        scale: [0.155, 0.032, 0.215]
+        translate: [0, 0.016, 0]
+        material: "copertina_libro"
+      # Taglio pagine (lato destro)
+      - type: "box"
+        scale: [0.148, 0.026, 0.208]
+        translate: [0.004, 0.016, 0]
+        material: "pagine_libro"
+
+  # Secondo libro sopra al primo (angolo diverso)
+  - name: "libro2"
+    type: "group"
+    translate: [-0.50, 0.797, 0.54]
+    rotate: [0, -5, 0]
+    children:
+      - type: "box"
+        scale: [0.140, 0.024, 0.195]
+        translate: [0, 0.012, 0]
+        material: "copertina_libro2"
+      - type: "box"
+        scale: [0.133, 0.019, 0.188]
+        translate: [0.004, 0.012, 0]
+        material: "pagine_libro"
+
+  # ==========================================================================
+  #  BLOCCO NOTE / MOLESKINE
+  #  Aperto sul tavolo, leggermente a destra della penna
+  # ==========================================================================
+
+  - name: "moleskine"
+    type: "group"
+    translate: [0.20, 0.766, 0.60]
+    rotate: [0, 12, 0]
+    children:
+      # Copertina posteriore
+      - type: "box"
+        scale: [0.115, 0.008, 0.180]
+        translate: [0, 0.004, 0]
+        material: "copertina_notes"
+      # Pagine — leggermente aperte (due quad inclinati)
+      - type: "box"
+        scale: [0.114, 0.004, 0.176]
+        translate: [-0.001, 0.010, 0]
+        material: "fogli_notes"
+      # Spirale laterale sinistra
+      - type: "cylinder"
+        center: [-0.060, 0.009, 0]
+        radius: 0.003
+        height: 0.180
+        material: "spirale_notes"
+
+  # ==========================================================================
+  #  OROLOGIO DA TAVOLO
+  #  Piccolo, circolare, in ottone — lato destro vicino alla tazza
+  # ==========================================================================
+
+  - name: "orologio"
+    type: "group"
+    translate: [0.58, 0.765, 0.70]
+    rotate: [0, -15, 0]
+    children:
+      # Cassa esterna
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.042
+        height: 0.016
+        material: "cassa_orologio"
+      # Quadrante (disco interno, leggermente incassato)
+      - type: "disk"
+        center: [0, 0.014, 0]
+        normal: [0, 1, 0]
+        radius: 0.036
+        material: "quadrante_orologio"
+      # Vetro protettivo
+      - type: "disk"
+        center: [0, 0.017, 0]
+        normal: [0, 1, 0]
+        radius: 0.035
+        material: "vetro_orologio"
+      # Lancetta ore (corta)
+      - type: "box"
+        scale: [0.002, 0.001, 0.018]
+        translate: [0, 0.0155, 0.008]
+        material: "lancette_orologio"
+      # Lancetta minuti (lunga)
+      - type: "box"
+        scale: [0.0015, 0.001, 0.026]
+        translate: [-0.012, 0.0155, 0.004]
+        rotate: [0, 40, 0]
+        material: "lancette_orologio"
+      # Piedini (due sfere piccole)
+      - type: "sphere"
+        center: [-0.030, 0.003, 0]
+        radius: 0.006
+        material: "cassa_orologio"
+      - type: "sphere"
+        center: [ 0.030, 0.003, 0]
+        radius: 0.006
+        material: "cassa_orologio"
+
+  # ==========================================================================
+  #  PORTA-PENNE IN CUOIO
+  #  Cilindro basso, lato sinistro del tavolo — contiene matite extra
+  # ==========================================================================
+
+  - name: "porta_penne_contenitore"
+    type: "group"
+    translate: [-0.55, 0.765, 0.38]
+    children:
+      # Corpo cilindrico
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.038
+        height: 0.095
+        material: "porta_penne"
+      # Fondo interno (disco)
+      - type: "disk"
+        center: [0, 0.003, 0]
+        normal: [0, 1, 0]
+        radius: 0.036
+        material: "porta_penne"
+      # Matita extra dentro al porta-penne (solo la punta visibile)
+      - type: "cylinder"
+        center: [0.010, 0.095, 0.005]
+        radius: 0.0045
+        height: 0.045
+        material: "corpo_matita"
+      - type: "cylinder"
+        center: [-0.012, 0.095, -0.008]
+        radius: 0.0040
+        height: 0.035
+        material: "corpo_penna"
+
+  # ==========================================================================
+  #  CAVO USB (serpeggiante sul bordo del tavolo — dettaglio di vita)
+  # ==========================================================================
+
+  - name: "cavo_usb_tratto1"
+    type: "capsule"
+    center: [0.30, 0.767, 0.22]
+    radius: 0.006
+    height: 0.12
+    material: "cavo_usb"
+
+  - name: "cavo_usb_tratto2"
+    type: "capsule"
+    center: [0.42, 0.767, 0.25]
+    radius: 0.006
+    height: 0.09
+    material: "cavo_usb"
+
+  - name: "connettore_usb"
+    type: "box"
+    scale: [0.018, 0.008, 0.032]
+    translate: [0.38, 0.768, 0.20]
+    material: "metallo_lampada"
+
+# -----------------------------------------------------------------------------
+# LIGHTS
+# -----------------------------------------------------------------------------
+lights:
+
+  # ==========================================================================
+  #  LUCE PRINCIPALE — Sphere light co-locata con il bulbo della lampada
+  #  Posizione derivata dalla geometria lampada:
+  #    base: translate(-0.42, 0.765, 0.75)
+  #    braccio1 (h=0.28, rot 30°): offset ~(0, 0.243, 0.14)
+  #    braccio2 (h=0.22, rot -70°): offset ~(0, -0.206, 0.075)
+  #    paralume metà (0.065 lungo asse): ~ (0, -0.060, 0.023)
+  #  Posizione bulbo approssimativa: (-0.42, 0.782, 0.988)
+  # ==========================================================================
+
+  - type: "sphere"
+    position: [-0.42, 0.790, 0.98]
+    radius: 0.018
+    color: [1.0, 0.87, 0.58]           # Arancio-giallo tungsteno caldo
+    intensity: 42.0
+    shadow_samples: 20
+
+  # Luce spot che simula il cono di luce del paralume
+  - type: "spot"
+    position: [-0.42, 0.790, 0.98]
+    direction: [0.08, -1.0, -0.15]     # Punta verso il piano del tavolo
+    color: [1.0, 0.90, 0.62]
+    intensity: 28.0
+    inner_angle: 22
+    outer_angle: 42
+
+  # ==========================================================================
+  #  FILL LIGHT debolissima (simula luce ambiente dispersa dalla stanza)
+  #  Solo per evitare zone completamente nere non interessanti
+  # ==========================================================================
+
+  - type: "point"
+    position: [1.5, 3.8, -1.5]
+    color: [0.55, 0.60, 0.80]          # Luce lunare/ambiente fredda
+    intensity: 0.80
+
+  # Piccolo bounce simulato dal soffitto (rimbalzo calore lampada)
+  - type: "point"
+    position: [-0.5, 2.8, 1.0]
+    color: [1.0, 0.85, 0.55]
+    intensity: 0.40
