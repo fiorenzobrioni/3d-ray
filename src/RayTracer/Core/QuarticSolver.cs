@@ -271,9 +271,13 @@ public static class QuarticSolver
  
         double y = CubicRealRoot(ra, rb, rc);
  
-        // From the resolvent root y, factor the quartic into two quadratics:
-        //   (u² + y + s*u)(u² + y - s*u) = u⁴ + p*u² + q*u + r
-        // where s² = 2y - p (must be ≥ 0 for real factorization)
+        // From the resolvent root y, factor the quartic into two quadratics.
+        // Starting from (u² + y)² = (2y − p)·u² − q·u + (y² − r), the RHS
+        // becomes a perfect square (s·u − q/(2s))² with s² = 2y − p, and
+        // the difference of squares gives:
+        //   (u² − s*u + (y + q/(2s))) · (u² + s*u + (y − q/(2s)))
+        //   = u⁴ + p*u² + q*u + r
+        // (must have s² ≥ 0 for real factorization).
  
         double s2 = 2.0 * y - p;
  
@@ -293,15 +297,20 @@ public static class QuarticSolver
             return SolveBiquadratic(p, r, roots);
         }
  
-        // Two quadratics:
-        //   u² + s*u + (y + q/(2s)) = 0      … (I)
-        //   u² - s*u + (y - q/(2s)) = 0      … (II)
+        // Two quadratics (BUG-13 FIX): pairing of ± s·u with (y ∓ q/(2s))
+        // must match the sign of the linear term q in the original quartic.
+        // Previously constI and constII were swapped, which implicitly solved
+        // u⁴ + p·u² − q·u + r instead of u⁴ + p·u² + q·u + r — returning the
+        // negatives of the true roots. This manifested as missing hits /
+        // phantom holes on torus silhouettes whenever q ≠ 0 (asymmetric rays).
+        //   u² + s*u + (y − q/(2s)) = 0      … (I)
+        //   u² − s*u + (y + q/(2s)) = 0      … (II)
         double halfQoverS = q / (2.0 * s);
- 
+
         int count = 0;
- 
-        // ── Quadratic I: u² + s*u + (y + halfQoverS) = 0 ───────────────
-        double constI = y + halfQoverS;
+
+        // ── Quadratic I: u² + s*u + (y − halfQoverS) = 0 ───────────────
+        double constI = y - halfQoverS;
         double discI = s * s - 4.0 * constI;
         double scaleI = Math.Max(1.0, s * s + 4.0 * Math.Abs(constI));
         if (discI >= -DiscRelEps * scaleI)
@@ -310,9 +319,9 @@ public static class QuarticSolver
             roots[count++] = (-s + sqrtI) / 2.0;
             roots[count++] = (-s - sqrtI) / 2.0;
         }
- 
-        // ── Quadratic II: u² - s*u + (y - halfQoverS) = 0 ──────────────
-        double constII = y - halfQoverS;
+
+        // ── Quadratic II: u² − s*u + (y + halfQoverS) = 0 ──────────────
+        double constII = y + halfQoverS;
         double discII = s * s - 4.0 * constII;
         double scaleII = Math.Max(1.0, s * s + 4.0 * Math.Abs(constII));
         if (discII >= -DiscRelEps * scaleII)
@@ -321,10 +330,10 @@ public static class QuarticSolver
             roots[count++] = (s + sqrtII) / 2.0;
             roots[count++] = (s - sqrtII) / 2.0;
         }
- 
+
         // Deduplicate near-identical roots
         count = Deduplicate(roots, count);
- 
+
         return count;
     }
  
