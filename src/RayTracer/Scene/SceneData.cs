@@ -348,13 +348,6 @@ public class EntityData
     [YamlMember(Alias = "radius")]
     public float Radius { get; set; } = 1f;
 
-    // Box
-    [YamlMember(Alias = "min")]
-    public List<float>? Min { get; set; }
-
-    [YamlMember(Alias = "max")]
-    public List<float>? Max { get; set; }
-
     // Triangle
     [YamlMember(Alias = "v0")]
     public List<float>? V0 { get; set; }

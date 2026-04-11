@@ -124,8 +124,8 @@ entities:
   # ═══════════════════════════════════════════════════════════════════════════
   - name: "piano_tavolo"
     type: "box"
-    min: [-3, 0.9, -2]
-    max: [3, 1.1, 3]
+    scale: [6.0, 0.2, 5.0]
+    translate: [0.0, 1.0, 0.5]
     material: "legno_scuro"
 
   # Gambe del tavolo
