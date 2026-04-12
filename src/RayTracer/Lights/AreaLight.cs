@@ -160,19 +160,4 @@ public class AreaLight : ILight
         return (false, Color * attenuation, dirToLight, distance);
     }
 
-    // ── Private helpers ─────────────────────────────────────────────────────
-
-    private (Vector3 Color, Vector3 DirectionToLight, float Distance) IlluminationFromPoint(
-        Vector3 hitPoint, Vector3 samplePoint)
-    {
-        Vector3 toLight = samplePoint - hitPoint;
-        float distSq = toLight.LengthSquared();
-        float distance = MathF.Sqrt(distSq);
-        Vector3 dirToLight = toLight / distance;
-
-        float cosLight = MathF.Max(0f, Vector3.Dot(-dirToLight, _normal));
-        float attenuation = Intensity * _area * cosLight / (distSq * ShadowSamples);
-
-        return (Color * attenuation, dirToLight, distance);
-    }
 }

@@ -158,7 +158,22 @@ public class Transform : IHittable, ISamplable
             return (Vector3.Zero, Vector3.UnitY, 0f); // guard — should not happen
 
         var (pointObj, normalObj, areaObj) = inner.Sample();
+        return TransformSample(pointObj, normalObj, areaObj);
+    }
 
+    /// <inheritdoc/>
+    public (Vector3 Point, Vector3 Normal, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    {
+        if (_object is not ISamplable inner)
+            return (Vector3.Zero, Vector3.UnitY, 0f);
+
+        var (pointObj, normalObj, areaObj) = inner.SampleStratified(sampleIndex, sqrtSamples);
+        return TransformSample(pointObj, normalObj, areaObj);
+    }
+
+    private (Vector3 Point, Vector3 Normal, float Area) TransformSample(
+        Vector3 pointObj, Vector3 normalObj, float areaObj)
+    {
         // Transform sample point to world space
         Vector3 worldPoint = Vector3.Transform(pointObj, _transform);
 

@@ -23,19 +23,18 @@ public class Dielectric : IMaterial
 
     // ── Direct lighting properties ──────────────────────────────────────────
     //
-    // Glass and transparent materials do NOT scatter light diffusely.
-    // All their illumination comes from the refracted/reflected rays traced
-    // recursively by the path tracer. Applying Lambert N·L would make glass
-    // look like an opaque white surface lit from one side — completely wrong.
+    // Glass and transparent materials are purely specular: all their
+    // illumination comes from the traced reflected/refracted rays.
+    // The path tracer's Fresnel reflection already produces the correct
+    // specular highlight from light sources — adding a Blinn-Phong highlight
+    // via NEE would double-count that energy.
     //
-    // A subtle specular highlight is added to simulate the Fresnel glint that
-    // appears on glass surfaces facing point lights. This is the "sparkle"
-    // you see on a wine glass under a candle. The exponent is very high
-    // (tight highlight) and strength is moderate.
+    // DiffuseWeight=0 + SpecularExponent=0 → needsLightSampling=false in
+    // Renderer, so ComputeDirectLighting is skipped entirely for glass.
     //
     public float DiffuseWeight => 0f;
-    public float SpecularExponent => 512f;
-    public float SpecularStrength => 0.6f;
+    public float SpecularExponent => 0f;
+    public float SpecularStrength => 0f;
     public NormalMapTexture? NormalMap { get; set; }
 
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)

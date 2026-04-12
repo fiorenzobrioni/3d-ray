@@ -14,6 +14,8 @@ namespace RayTracer.Lights;
 ///   - shadowSamples propagated from constructor (was hardcoded to 1).
 ///   - cosLight guard added to Illuminate() (was only in IlluminateAndTest).
 ///   - AverageEmission() used instead of Emit(0,0,...) for UV-independent evaluation.
+///   - Stratified sampling: when ShadowSamples > 1, the surface is divided into a
+///     √N × √N grid (matching AreaLight/SphereLight strategy) for lower noise.
 /// </summary>
 public class GeometryLight : ILight
 {
@@ -23,11 +25,15 @@ public class GeometryLight : ILight
     /// <inheritdoc/>
     public int ShadowSamples { get; }
 
+    // ── Stratified sampling grid ────────────────────────────────────────────
+    private readonly int _sqrtSamples;
+
     public GeometryLight(ISamplable geometry, Emissive material, int shadowSamples = 1)
     {
         Geometry = geometry;
         Material = material;
         ShadowSamples = Math.Max(1, shadowSamples);
+        _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
     }
 
     public (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint)
@@ -60,7 +66,20 @@ public class GeometryLight : ILight
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
         IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
     {
-        var (samplePoint, lightNormal, area) = Geometry.Sample();
+        return IlluminateAndTestStratified(hitPoint, surfaceNormal, world, -1);
+    }
+
+    /// <summary>
+    /// Stratified version: call with a specific sample index for optimal noise reduction.
+    /// Delegates to <see cref="ISamplable.SampleStratified"/> which divides the
+    /// surface into a grid, matching the AreaLight/SphereLight strategy.
+    /// </summary>
+    public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
+        IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex)
+    {
+        var (samplePoint, lightNormal, area) = sampleIndex >= 0
+            ? Geometry.SampleStratified(sampleIndex, _sqrtSamples)
+            : Geometry.Sample();
 
         Vector3 toLight = samplePoint - hitPoint;
         float distSq = toLight.LengthSquared();
