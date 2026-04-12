@@ -177,7 +177,7 @@ Il rendering volumetrico è più impegnativo del rendering solo superficiale. Ti
 
 4. **Le luci puntiformi brillano.** Nella nebbia, ogni luce puntiforme riceve un alone radiale morbido la cui dimensione dipende dalla densità del mezzo.
 
-5. **Il mezzo è globale.** Colpisce ogni raggio nella scena, compresi i raggi d'ombra (le luci appaiono più deboli attraverso la nebbia). Non c'è modo di confinare il mezzo a un volume specifico -- riempie l'intero spazion del mondo.
+5. **Il mezzo è globale.** Colpisce ogni raggio nella scena, compresi i raggi d'ombra (le luci appaiono più deboli attraverso la nebbia). Non c'è modo di confinare il mezzo a un volume specifico -- riempie l'intero spazio del mondo.
 
 6. **Inizia in modo sottile, poi aumenta.** È più facile aggiungere nebbia che rimuoverla. Inizia con valori di `sigma_s` molto bassi (0.01--0.03) e aumenta fino a ottenere l'effetto desiderato.
 
@@ -218,7 +218,7 @@ materials:
     roughness: 0.6
     specular: 0.3
     texture:
-      type: "marmo"
+      type: "marble"
       scale: 5.0
       noise_strength: 3.0
       colors: [[0.65, 0.6, 0.55], [0.4, 0.37, 0.33]]

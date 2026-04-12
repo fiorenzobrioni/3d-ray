@@ -216,4 +216,4 @@ Con queste basi, si è pronti a scrivere la prima scena.
 
 ---
 
-[Successivo: La prima scena](./02-first-scene.md) | [Indice del tutorial](./README.md)
+[Successivo: La prima scena](./02-first-scene.md) | [Indice del Tutorial](./README.md)
