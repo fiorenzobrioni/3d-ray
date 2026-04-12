@@ -1,6 +1,6 @@
 # Capitolo 5: Trasformazioni, gruppi e organizzazione della scena
 
-Man mano che le scene crescono, avrai bisogno di strumenti per posizionare gli oggetti con precisione, comporli in gerarchie, riutilizzarli in modo efficiente e suddividere le definizioni su più file. Questo capitolo copre tutto questo.
+Man mano che le scene crescono, occorrono strumenti per posizionare gli oggetti con precisione, comporli in gerarchie, riutilizzarli in modo efficiente e suddividere le definizioni su più file. Questo capitolo copre tutto questo.
 
 ---
 
@@ -10,7 +10,7 @@ Ogni entità nella sezione `entities:` (e ogni figlio all'interno di un gruppo o
 
 ```yaml
 - type: "box"
-  material: "legno"
+  material: "wood"
   translate: [2, 0.5, -1]
   rotate: [0, 45, 0]
   scale: [1.5, 1, 1.5]
@@ -43,7 +43,7 @@ scale: [sx, sy, sz]    # Scala non uniforme
 scale: 2.0             # Scala uniforme (equivale a [2, 2, 2])
 ```
 
-Scala l'oggetto lungo ciascun asse. Puoi fornire un vettore di tre elementi per una scala non uniforme o un singolo numero per una scala uniforme.
+Scala l'oggetto lungo ciascun asse. Si può fornire un vettore di tre elementi per una scala non uniforme o un singolo numero per una scala uniforme.
 
 - `scale: [2, 1, 1]` allunga l'oggetto fino a raddoppiarne la larghezza.
 - `scale: 0.5` rimpicciolisce l'oggetto della metà in tutte le direzioni.
@@ -70,10 +70,10 @@ Un **gruppo** (group) raccoglie più entità in una singola unità logica. Quals
 
 ```yaml
 entities:
-  - name: "tavolo_semplice"
+  - name: "simple_table"
     type: "group"
     translate: [3, 0, 0]
-    material: "quercia"
+    material: "oak"
     children:
       # Piano del tavolo
       - type: "box"
@@ -116,12 +116,12 @@ Un gruppo può specificare un `material:` che funge da predefinito per tutti i f
 
 ```yaml
 - type: "group"
-  material: "quercia"       # Predefinito per tutti i figli
+  material: "oak"       # Predefinito per tutti i figli
   children:
     - type: "box"           # Usa "quercia" (ereditato)
       ...
     - type: "sphere"
-      material: "vetro"     # Usa "vetro" (sovrascrive)
+      material: "glass"     # Usa "vetro" (sovrascrive)
       ...
 ```
 
@@ -139,7 +139,7 @@ I gruppi possono contenere altri gruppi, a qualsiasi profondità:
         - type: "sphere"
           center: [0, 0.5, 0]
           radius: 0.5
-          material: "rosso"
+          material: "red"
 ```
 
 La sfera finisce in `[1, 0.5, 0]` (il suo centro più la traslazione del gruppo interno).
@@ -148,14 +148,14 @@ La sfera finisce in `[1, 0.5, 0]` (il suo centro più la traslazione del gruppo 
 
 ## 5.3 Template: Modelli Riutilizzabili
 
-Se hai bisogno dello stesso oggetto in più punti -- sedie attorno a un tavolo, alberi in una foresta, luci lungo un corridoio -- definiscilo una volta come **template** e inseriscilo nella scena con tutte le **istanze** che desideri.
+Quando lo stesso oggetto è necessario in più punti -- sedie attorno a un tavolo, alberi in una foresta, luci lungo un corridoio -- lo si definisce una volta come **template** e lo si inserisce nella scena con tutte le **istanze** che si desidera.
 
 I template sono definiti nella sezione `templates:` e **non vengono renderizzati direttamente**. Fungono da modelli.
 
 ```yaml
 templates:
-  - name: "candela"
-    material: "cera_bianca"
+  - name: "candle"
+    material: "white_wax"
     children:
       # Corpo
       - type: "cylinder"
@@ -167,7 +167,7 @@ templates:
       - type: "sphere"
         center: [0, 0.14, 0]
         radius: 0.01
-        material: "fiamma"
+        material: "flame"
 ```
 
 Un template ha:
@@ -186,13 +186,13 @@ Un template ha:
 ```yaml
 entities:
   - type: "instance"
-    template: "candela"
+    template: "candle"
     translate: [-0.1, 0.78, 0.05]
 
   - type: "instance"
-    template: "candela"
+    template: "candle"
     translate: [0.1, 0.78, -0.05]
-    material: "cera_rossa"     # Sovrascrive il materiale predefinito
+    material: "red_wax"     # Sovrascrive il materiale predefinito
 ```
 
 | Campo        | Descrizione                                                   |
@@ -206,7 +206,7 @@ entities:
 
 Quando imposti un `material:` su un'istanza, questo sostituisce il materiale predefinito del template per tutti i figli che non hanno un proprio materiale esplicito. I figli che definiscono esplicitamente un materiale (come la sfera "fiamma" nell'esempio della candela) mantengono il proprio.
 
-Questo ti permette di definire un singolo template per un pezzo degli scacchi e istanziarlo sia in bianco che in nero semplicemente sovrascrivendo il materiale.
+Questo permette di definire un singolo template per un pezzo degli scacchi e istanziarlo sia in bianco che in nero semplicemente sovrascrivendo il materiale.
 
 ### Composizione delle trasformazioni
 
@@ -222,12 +222,12 @@ Quando un materiale utilizza texture procedurali con `randomize_offset: true` o 
 
 ```yaml
 - type: "instance"
-  template: "asse_legno"
+  template: "wood_plank"
   seed: 1
   translate: [0, 0, 0]
 
 - type: "instance"
-  template: "asse_legno"
+  template: "wood_plank"
   seed: 2
   translate: [1, 0, 0]
 ```
@@ -238,7 +238,7 @@ Ogni asse riceve un motivo venato unico, pur condividendo lo stesso materiale.
 
 ## 5.5 Importazione YAML: Scene su più file
 
-Man mano che le scene crescono, tenere tutto in un unico file diventa complicato. La sezione `imports:` ti permette di caricare materiali, entità, luci e template da file YAML esterni.
+Man mano che le scene crescono, tenere tutto in un unico file diventa complicato. La sezione `imports:` permette di caricare materiali, entità, luci e template da file YAML esterni.
 
 ```yaml
 imports:
@@ -250,11 +250,11 @@ imports:
 
 ### Come funzionano gli import
 
-1. I percorsi sono risolti **rispetto alla directory del file che importa**. Se la tua scena è in `scenes/mia-scena.yaml`, il percorso `"libraries/materials/metals.yaml"` si risolve in `scenes/libraries/materials/metals.yaml`.
+1. I percorsi sono risolti **rispetto alla directory del file che importa**. Se la scena si trova in `scenes/my-scene.yaml`, il percorso `"libraries/materials/metals.yaml"` si risolve in `scenes/libraries/materials/metals.yaml`.
 
 2. Il file importato può contribuire alle quattro sezioni: `materials`, `entities`, `lights` e `templates`. Queste vengono unite alla scena principale.
 
-3. **Le definizioni locali vincono.** Se sia il file importato che la tua scena definiscono un materiale con lo stesso `id`, la tua versione locale ha la precedenza. Questo ti permette di importare una libreria e poi sovrascrivere specifici materiali.
+3. **Le definizioni locali vincono.** Se sia il file importato che la scena definiscono un materiale con lo stesso `id`, la versione locale ha la precedenza. Questo permette di importare una libreria e poi sovrascrivere specifici materiali.
 
 4. **Il World e la Camera NON vengono importati.** Il file di scena principale possiede sempre le impostazioni del mondo e le definizioni delle fotocamere.
 
@@ -290,7 +290,7 @@ materials:
 **Scene grandi (200+ entità):**
 - Suddividi in più file: uno per i materiali, uno per i template degli oggetti, uno per la disposizione della scena principale.
 - Usa l'ecosistema delle librerie (Capitolo 10).
-- Dai a ogni entità e template un `name:` descrittivo.
+- Assegnare a ogni entità e template un `name:` descrittivo.
 - Usa convenzioni di nomi coerenti (ad esempio, anteponi all'ID del materiale una categoria: `mat_floor`, `mat_wall`, `mat_glass`).
 
 ---
@@ -315,7 +315,7 @@ camera:
 
 materials:
   # Tavolo
-  - id: "legno_scuro"
+  - id: "dark_wood"
     type: "disney"
     roughness: 0.25
     clearcoat: 0.5
@@ -327,7 +327,7 @@ materials:
       colors: [[0.35, 0.2, 0.1], [0.22, 0.12, 0.06]]
 
   # Piatto di porcellana
-  - id: "porcellana"
+  - id: "porcelain"
     type: "disney"
     color: [0.95, 0.93, 0.88]
     roughness: 0.12
@@ -335,20 +335,20 @@ materials:
     subsurface: 0.2
 
   # Posate in acciaio
-  - id: "acciaio"
+  - id: "steel"
     type: "disney"
     color: [0.75, 0.75, 0.78]
     metallic: 1.0
     roughness: 0.15
 
   # Vetro di cristallo
-  - id: "cristallo"
+  - id: "crystal"
     type: "dielectric"
     refraction_index: 1.65
     color: [0.98, 0.98, 1.0]
 
   # Tovaglia (accento opzionale)
-  - id: "lino"
+  - id: "linen"
     type: "disney"
     color: [0.88, 0.85, 0.78]
     roughness: 0.7
@@ -363,8 +363,8 @@ materials:
 
 templates:
   # Un semplice piatto (disco + bordo toroidale)
-  - name: "piatto"
-    material: "porcellana"
+  - name: "plate"
+    material: "porcelain"
     children:
       - type: "disk"
         center: [0, 0, 0]
@@ -375,8 +375,8 @@ templates:
         minor_radius: 0.008
 
   # Un bicchiere da vino (semplificato: stelo + calice)
-  - name: "bicchiere_vino"
-    material: "cristallo"
+  - name: "wine_glass"
+    material: "crystal"
     children:
       # Base
       - type: "disk"
@@ -394,24 +394,24 @@ templates:
         radius: 0.045
 
   # Una forchetta (semplificata)
-  - name: "forchetta"
-    material: "acciaio"
+  - name: "fork"
+    material: "steel"
     children:
       - type: "box"
         scale: [0.01, 0.003, 0.12]
         translate: [0, 0.002, 0]
 
   # Un coperto (piatto + bicchiere + forchetta) come gruppo
-  - name: "coperto"
+  - name: "place_setting"
     children:
       - type: "instance"
-        template: "piatto"
+        template: "plate"
         translate: [0, 0, 0]
       - type: "instance"
-        template: "bicchiere_vino"
+        template: "wine_glass"
         translate: [0.08, 0, -0.1]
       - type: "instance"
-        template: "forchetta"
+        template: "fork"
         translate: [-0.15, 0, 0]
 
 # ── Scena ────────────────────────────────────────────────────────────
@@ -424,9 +424,9 @@ entities:
     material: "floor"
 
   # Tavolo (gruppo: piano + 4 gambe)
-  - name: "tavolo"
+  - name: "table"
     type: "group"
-    material: "legno_scuro"
+    material: "dark_wood"
     children:
       - type: "box"
         scale: [1.4, 0.05, 0.9]
@@ -450,20 +450,20 @@ entities:
 
   # Quattro coperti attorno al tavolo
   - type: "instance"
-    template: "coperto"
+    template: "place_setting"
     translate: [-0.35, 0.79, -0.25]
 
   - type: "instance"
-    template: "coperto"
+    template: "place_setting"
     translate: [0.35, 0.79, -0.25]
 
   - type: "instance"
-    template: "coperto"
+    template: "place_setting"
     translate: [-0.35, 0.79, 0.25]
     rotate: [0, 180, 0]
 
   - type: "instance"
-    template: "coperto"
+    template: "place_setting"
     translate: [0.35, 0.79, 0.25]
     rotate: [0, 180, 0]
 
@@ -492,7 +492,7 @@ Esegui il rendering con:
 
 ---
 
-## Cosa hai imparato
+## Cosa si è imparato
 
 - **translate**, **rotate** e **scale** posizionano qualsiasi entità; l'ordine è sempre Scala -> Rotazione -> Traslazione.
 - I **Gruppi** compongono più entità in un'unità mobile con trasformazioni e materiali ereditati.

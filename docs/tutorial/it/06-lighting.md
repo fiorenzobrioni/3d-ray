@@ -1,6 +1,6 @@
 # Capitolo 6: Padronanza dell'illuminazione
 
-L'illuminazione definisce l'atmosfera, la profondità e il realismo di una scena. 3D-Ray supporta sei tipi di luce espliciti, oltre alle luci geometriche estratte automaticamente dalle superfici emissive. Questo capitolo le analizza tutte e ti mostra come combinarle in configurazioni professionali.
+L'illuminazione definisce l'atmosfera, la profondità e il realismo di una scena. 3D-Ray supporta sei tipi di luce espliciti, oltre alle luci geometriche estratte automaticamente dalle superfici emissive. Questo capitolo le analizza tutte e mostra come combinarle in configurazioni professionali.
 
 ---
 
@@ -38,7 +38,7 @@ Una luce puntiforme irradia uniformemente in tutte le direzioni da un singolo pu
 
 Poiché le luci puntiformi sono infinitamente piccole, producono **ombre nette** (hard shadows) con bordi precisi. Questo appare poco realistico per sorgenti luminose grandi e vicine, ma va bene per luci distanti o piccoli accenti.
 
-**Guida all'intensità:** A causa del decadimento con l'inverso del quadrato, le luci puntiformi richiedono valori di intensità più alti di quanto ci si potrebbe aspettare. Per un oggetto a 2 unità di distanza, un'intensità di 15--30 è tipica. Per 5 unità, prova 50--100.
+**Guida all'intensità:** A causa del decadimento con l'inverso del quadrato, le luci puntiformi richiedono valori di intensità più alti di quanto ci si potrebbe aspettare. Per un oggetto a 2 unità di distanza, un'intensità di 15--30 è tipica. Per 5 unità, provare 50--100.
 
 ---
 
@@ -141,7 +141,7 @@ Il flag CLI `-S` sovrascrive `shadow_samples` per **tutte** le luci area e spher
 
 ### Importante: Le luci Area sono invisibili
 
-Le luci area illuminano la scena ma **non sono visibili** come oggetti. Un raggio che colpisce il rettangolo della luce non vede una superficie luminosa -- attraversa. Se vuoi un pannello luminoso visibile, usa un quad emissivo (vedi Sezione 6.7).
+Le luci area illuminano la scena ma **non sono visibili** come oggetti. Un raggio che colpisce il rettangolo della luce non vede una superficie luminosa -- attraversa. Se si vuole un pannello luminoso visibile, usare un quad emissivo (vedi Sezione 6.7).
 
 ---
 
@@ -178,19 +178,19 @@ Qualsiasi entità con un materiale `emissive` viene registrata automaticamente c
 
 ```yaml
 materials:
-  - id: "pannello_luminoso"
+  - id: "panel_glow"
     type: "emissive"
     color: [1, 0.95, 0.9]
     intensity: 25.0
 
 entities:
   # Un pannello luminoso visibile sul soffitto
-  - name: "luce_soffitto"
+  - name: "ceiling_light"
     type: "quad"
     q: [-0.5, 2.99, -0.5]
     u: [1, 0, 0]
     v: [0, 0, 1]
-    material: "pannello_luminoso"
+    material: "panel_glow"
 ```
 
 ### Luci Geometriche vs Luci Esplicite
@@ -203,7 +203,7 @@ entities:
 | Ombre morbide                 | Sì                   | Sì                           |
 | Efficienza                    | Buona                | Leggermente migliore         |
 
-Usa le luci geometriche quando la sorgente luminosa deve essere **vista** (insegne al neon, flussi di lava, sfere incandescenti, lampadine). Usa le luci esplicite quando vuoi una sorgente luminosa invisibile (softbox fuori campo, luci di riempimento).
+Usare le luci geometriche quando la sorgente luminosa deve essere **vista** (insegne al neon, flussi di lava, sfere incandescenti, lampadine). Usare le luci esplicite quando si vuole una sorgente luminosa invisibile (softbox fuori campo, luci di riempimento).
 
 Il motore supporta le luci geometriche su qualsiasi primitiva campionabile: sfere, quad, dischi, box, cilindri, coni, tori, capsule, annuli e mesh.
 
@@ -349,7 +349,7 @@ materials:
   - id: "floor"
     type: "lambertian"
     color: [0.35, 0.35, 0.35]
-  - id: "plastica_bianca"
+  - id: "white_plastic"
     type: "disney"
     color: [0.9, 0.88, 0.85]
     roughness: 0.3
@@ -375,7 +375,7 @@ entities:
   - type: "sphere"
     center: [-6, 1.5, 0]
     radius: 0.6
-    material: "plastica_bianca"
+    material: "white_plastic"
   - type: "cylinder"
     center: [-6, 0, 0]
     radius: 0.4
@@ -386,7 +386,7 @@ entities:
   - type: "sphere"
     center: [-3, 1.5, 0]
     radius: 0.6
-    material: "plastica_bianca"
+    material: "white_plastic"
   - type: "cylinder"
     center: [-3, 0, 0]
     radius: 0.4
@@ -397,7 +397,7 @@ entities:
   - type: "sphere"
     center: [0, 1.5, 0]
     radius: 0.6
-    material: "plastica_bianca"
+    material: "white_plastic"
   - type: "cylinder"
     center: [0, 0, 0]
     radius: 0.4
@@ -408,7 +408,7 @@ entities:
   - type: "sphere"
     center: [3, 1.5, 0]
     radius: 0.6
-    material: "plastica_bianca"
+    material: "white_plastic"
   - type: "cylinder"
     center: [3, 0, 0]
     radius: 0.4
@@ -419,7 +419,7 @@ entities:
   - type: "sphere"
     center: [6, 1.5, 0]
     radius: 0.6
-    material: "plastica_bianca"
+    material: "white_plastic"
   - type: "cylinder"
     center: [6, 0, 0]
     radius: 0.4
@@ -466,7 +466,7 @@ Questa scena pone cinque sfere identiche in fila. Ognuna è illuminata principal
 
 ---
 
-## Cosa hai imparato
+## Cosa si è imparato
 
 - Le luci **Point** irradiano da un punto (decadimento con l'inverso del quadrato, ombre nette).
 - Le luci **Directional** inviano raggi paralleli (nessun decadimento, ombre nette).

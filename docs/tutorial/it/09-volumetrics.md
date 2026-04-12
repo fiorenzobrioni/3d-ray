@@ -169,9 +169,9 @@ world:
 
 Il rendering volumetrico è più impegnativo del rendering solo superficiale. Tieni a mente questi suggerimenti:
 
-1. **Aumenta i campioni (samples).** Il mezzo aggiunge un'altra fonte di rumore (eventi di scattering casuali lungo ogni raggio). Usa almeno 64 SPP; 256+ per risultati puliti.
+1. **Aumentare i campioni (samples).** Il mezzo aggiunge un'altra fonte di rumore (eventi di scattering casuali lungo ogni raggio). Usare almeno 64 SPP; 256+ per risultati puliti.
 
-2. **Aumenta la profondità (depth).** Ogni evento di scattering conta come un rimbalzo. Con un mezzo denso, i raggi possono diffondersi più volte prima di raggiungere una luce. Usa `-d 30` o superiore.
+2. **Aumentare la profondità (depth).** Ogni evento di scattering conta come un rimbalzo. Con un mezzo denso, i raggi possono diffondersi più volte prima di raggiungere una luce. Usare `-d 30` o superiore.
 
 3. **Le luci spot creano i fasci di luce (God Rays).** Una luce spot che brilla attraverso la nebbia produce un cono di luce visibile. Questo è uno degli effetti più spettacolari possibili con i mezzi partecipanti.
 
@@ -179,7 +179,7 @@ Il rendering volumetrico è più impegnativo del rendering solo superficiale. Ti
 
 5. **Il mezzo è globale.** Colpisce ogni raggio nella scena, compresi i raggi d'ombra (le luci appaiono più deboli attraverso la nebbia). Non c'è modo di confinare il mezzo a un volume specifico -- riempie l'intero spazio del mondo.
 
-6. **Inizia in modo sottile, poi aumenta.** È più facile aggiungere nebbia che rimuoverla. Inizia con valori di `sigma_s` molto bassi (0.01--0.03) e aumenta fino a ottenere l'effetto desiderato.
+6. **Iniziare da valori sottili, poi aumentare.** È più facile aggiungere nebbia che rimuoverla. Iniziare con valori di `sigma_s` molto bassi (0.01--0.03) e aumentare fino a ottenere l'effetto desiderato.
 
 ---
 
@@ -213,7 +213,7 @@ materials:
       scale: 0.5
       colors: [[0.25, 0.22, 0.2], [0.15, 0.13, 0.12]]
 
-  - id: "pilastro_pietra"
+  - id: "stone_pillar"
     type: "disney"
     roughness: 0.6
     specular: 0.3
@@ -224,7 +224,7 @@ materials:
       colors: [[0.65, 0.6, 0.55], [0.4, 0.37, 0.33]]
       randomize_offset: true
 
-  - id: "soffitto"
+  - id: "ceiling"
     type: "lambertian"
     color: [0.2, 0.18, 0.16]
 
@@ -239,28 +239,28 @@ entities:
   - type: "infinite_plane"
     point: [0, 5, 0]
     normal: [0, -1, 0]
-    material: "soffitto"
+    material: "ceiling"
 
   # Fila sinistra di pilastri
   - type: "cylinder"
     center: [-2, 0, -2]
     radius: 0.3
     height: 5.0
-    material: "pilastro_pietra"
+    material: "stone_pillar"
     seed: 1
 
   - type: "cylinder"
     center: [-2, 0, 2]
     radius: 0.3
     height: 5.0
-    material: "pilastro_pietra"
+    material: "stone_pillar"
     seed: 2
 
   - type: "cylinder"
     center: [-2, 0, 6]
     radius: 0.3
     height: 5.0
-    material: "pilastro_pietra"
+    material: "stone_pillar"
     seed: 3
 
   # Fila destra di pilastri
@@ -268,21 +268,21 @@ entities:
     center: [2, 0, -2]
     radius: 0.3
     height: 5.0
-    material: "pilastro_pietra"
+    material: "stone_pillar"
     seed: 4
 
   - type: "cylinder"
     center: [2, 0, 2]
     radius: 0.3
     height: 5.0
-    material: "pilastro_pietra"
+    material: "stone_pillar"
     seed: 5
 
   - type: "cylinder"
     center: [2, 0, 6]
     radius: 0.3
     height: 5.0
-    material: "pilastro_pietra"
+    material: "stone_pillar"
     seed: 6
 
 lights:
@@ -312,7 +312,7 @@ La luce spot crea un drammatico fascio visibile che taglia la nebbia tra i pilas
 
 ---
 
-## Cosa hai imparato
+## Cosa si è imparato
 
 - **sigma_a** controlla l'assorbimento (oscuramento della luce con la distanza).
 - **sigma_s** controlla lo scattering (densità della nebbia, fasci di luce).

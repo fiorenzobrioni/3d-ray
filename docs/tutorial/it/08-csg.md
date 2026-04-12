@@ -1,6 +1,6 @@
 # Capitolo 8: Constructive Solid Geometry (CSG)
 
-A volte le forme viste nel Capitolo 4 non sono sufficienti. Potresti aver bisogno di una sfera con un foro attraverso di essa, o di un cubo con gli angoli arrotondati, o di una parete con una finestra ad arco. La **Constructive Solid Geometry** (CSG) ti permette di creare forme complesse combinando primitive semplici con operazioni booleane.
+A volte le forme viste nel Capitolo 4 non sono sufficienti. Può essere necessaria una sfera con un foro attraverso di essa, un cubo con gli angoli arrotondati, o una parete con una finestra ad arco. La **Constructive Solid Geometry** (CSG) permette di creare forme complesse combinando primitive semplici con operazioni booleane.
 
 ---
 
@@ -32,10 +32,10 @@ La Union produce il volume combinato di due forme. Dove si sovrappongono, l'inte
 
 ```yaml
 # Pupazzo di neve: tre sfere impilate
-- name: "pupazzo_neve"
+- name: "snowman"
   type: "csg"
   operation: "union"
-  material: "neve"
+  material: "snow"
   left:
     type: "csg"
     operation: "union"
@@ -53,7 +53,7 @@ La Union produce il volume combinato di due forme. Dove si sovrappongono, l'inte
     radius: 0.25
 ```
 
-L'operazione Union è utile quando vuoi trattare più forme come un unico solido -- ad esempio, quando in seguito vuoi sottrarre qualcosa dalla forma combinata, o quando hai bisogno di un unico materiale che copra una forma senza giunture.
+L'operazione Union è utile quando si vogliono trattare più forme come un unico solido -- ad esempio, quando si vuole sottrarre qualcosa dalla forma combinata, o quando si ha bisogno di un unico materiale che copra una forma senza giunture.
 
 ---
 
@@ -63,10 +63,10 @@ L'Intersection mantiene solo il volume in cui entrambe le forme esistono contemp
 
 ```yaml
 # Lente: intersezione di due sfere sovrapposte
-- name: "lente"
+- name: "lens"
   type: "csg"
   operation: "intersection"
-  material: "vetro"
+  material: "glass"
   left:
     type: "sphere"
     center: [0, 1, -0.3]
@@ -84,10 +84,10 @@ Le due sfere si sovrappongono al centro, creando un volume a forma di lente. L'e
 Interseca un box con una sfera per arrotondare gli angoli del cubo:
 
 ```yaml
-- name: "cubo_arrotondato"
+- name: "rounded_cube"
   type: "csg"
   operation: "intersection"
-  material: "plastica_bianca"
+  material: "white_plastic"
   left:
     type: "box"
     scale: [1.4, 1.4, 1.4]
@@ -106,10 +106,10 @@ La Subtraction rimuove il volume della forma di destra dalla forma di sinistra. 
 
 ```yaml
 # Sfera con un foro cilindrico passante
-- name: "sfera_forata"
+- name: "drilled_sphere"
   type: "csg"
   operation: "subtraction"
-  material: "marmo"
+  material: "marble"
   left:
     type: "sphere"
     center: [0, 1, 0]
@@ -128,10 +128,10 @@ Il cilindro è più alto della sfera, assicurando che passi completamente attrav
 ### Esempio: Ingresso ad arco in una parete
 
 ```yaml
-- name: "parete_con_arco"
+- name: "wall_with_arch"
   type: "csg"
   operation: "subtraction"
-  material: "pietra"
+  material: "stone"
   left:
     type: "box"
     scale: [4, 3, 0.3]
@@ -160,18 +160,18 @@ Ogni figlio CSG può avere il proprio materiale. I figli senza un materiale espl
 ```yaml
 - type: "csg"
   operation: "subtraction"
-  material: "marmo_bianco"          # Ripiego per i figli senza materiale
+  material: "white_marble"          # Ripiego per i figli senza materiale
   left:
     type: "sphere"
     center: [0, 1, 0]
     radius: 1.0
-    material: "marmo_bianco"        # Esplicito: la superficie esterna è marmo
+    material: "white_marble"        # Esplicito: la superficie esterna è marmo
   right:
     type: "cylinder"
     center: [0, 0, 0]
     radius: 0.3
     height: 3.0
-    material: "oro_lucido"          # La superficie interna del foro è oro
+    material: "shiny_gold"          # La superficie interna del foro è oro
 ```
 
 Quando esegui una sottrazione, le superfici interne che vengono "esposte" dalla sottrazione ereditano il loro materiale dal figlio di destra. Questo ti permette di creare oggetti con materiali diversi all'esterno e all'interno -- come un geode o un guscio di cioccolato.
@@ -185,7 +185,7 @@ Ogni figlio supporta `translate`, `rotate` e `scale`:
 ```yaml
 - type: "csg"
   operation: "subtraction"
-  material: "acciaio"
+  material: "steel"
   left:
     type: "box"
     scale: [2, 2, 2]
@@ -210,10 +210,10 @@ Poiché un figlio CSG può essere a sua volta un'entità CSG, puoi costruire for
 ### Esempio: Cubo con tre fori perpendicolari
 
 ```yaml
-- name: "cubo_forato"
+- name: "drilled_cube"
   type: "csg"
   operation: "subtraction"
-  material: "acciaio"
+  material: "steel"
   translate: [0, 1.2, 0]
   left:
     type: "box"
@@ -254,10 +254,10 @@ Questo crea un cubo solido con tre tunnel cilindrici scavati lungo ciascun asse.
 ### Esempio: Un semplice calice
 
 ```yaml
-- name: "calice"
+- name: "goblet"
   type: "csg"
   operation: "union"
-  material: "cristallo"
+  material: "crystal"
   left:
     # Calice: sfera con la parte superiore tagliata e l'interno scavato
     type: "csg"
@@ -305,7 +305,7 @@ Questo crea un cubo solido con tre tunnel cilindrici scavati lungo ciascun asse.
 
 4. **L'ordine delle sottrazioni conta.** `A - B` è diverso da `B - A`. Il figlio di sinistra è sempre la forma "positiva" che sopravvive.
 
-5. **Combina con le trasformazioni.** L'entità CSG padre supporta `translate`, `rotate` e `scale` proprio come qualsiasi altra entità. Questo ti permette di posizionare e orientare il risultato CSG finito senza modificare i figli.
+5. **Combina con le trasformazioni.** L'entità CSG padre supporta `translate`, `rotate` e `scale` proprio come qualsiasi altra entità. Questo permette di posizionare e orientare il risultato CSG finito senza modificare i figli.
 
 ---
 
@@ -328,25 +328,25 @@ materials:
   - id: "floor"
     type: "lambertian"
     color: [0.3, 0.28, 0.25]
-  - id: "marmo"
+  - id: "marble"
     type: "disney"
     color: [0.92, 0.90, 0.86]
     roughness: 0.12
     specular: 0.7
-  - id: "vetro"
+  - id: "glass"
     type: "dielectric"
     refraction_index: 1.52
-  - id: "acciaio"
+  - id: "steel"
     type: "disney"
     color: [0.7, 0.7, 0.72]
     metallic: 1.0
     roughness: 0.15
-  - id: "oro_interno"
+  - id: "inner_gold"
     type: "disney"
     color: [1.0, 0.76, 0.33]
     metallic: 1.0
     roughness: 0.05
-  - id: "pietra"
+  - id: "stone"
     type: "disney"
     roughness: 0.6
     texture:
@@ -362,10 +362,10 @@ entities:
     material: "floor"
 
   # 1. Lente (intersezione) -- estrema sinistra
-  - name: "lente"
+  - name: "lens"
     type: "csg"
     operation: "intersection"
-    material: "vetro"
+    material: "glass"
     translate: [-3, 1.2, 0]
     left:
       type: "sphere"
@@ -377,7 +377,7 @@ entities:
       radius: 0.8
 
   # 2. Sfera forata (sottrazione) -- centro-sinistra
-  - name: "sfera_forata"
+  - name: "drilled_sphere"
     type: "csg"
     operation: "subtraction"
     translate: [-1, 1.2, 0]
@@ -385,19 +385,19 @@ entities:
       type: "sphere"
       center: [0, 0, 0]
       radius: 0.7
-      material: "marmo"
+      material: "marble"
     right:
       type: "cylinder"
       center: [0, -1, 0]
       radius: 0.25
       height: 2.5
-      material: "oro_interno"
+      material: "inner_gold"
 
   # 3. Parete perforata (sottrazione) -- centro
-  - name: "parete_perforata"
+  - name: "perforated_wall"
     type: "csg"
     operation: "subtraction"
-    material: "pietra"
+    material: "stone"
     translate: [1, 1.2, 0]
     left:
       type: "box"
@@ -422,10 +422,10 @@ entities:
           radius: 0.2
 
   # 4. Cubo forato (sottrazione nidificata) -- estrema destra
-  - name: "cubo_forato"
+  - name: "drilled_cube"
     type: "csg"
     operation: "subtraction"
-    material: "acciaio"
+    material: "steel"
     translate: [3, 1.2, 0]
     left:
       type: "box"
@@ -477,7 +477,7 @@ Esegui il rendering con:
 
 ---
 
-## Cosa hai imparato
+## Cosa si è imparato
 
 - **Union** fonde due forme in un unico solido.
 - **Intersection** mantiene solo la parte in cui entrambe le forme si sovrappongono.
