@@ -1,208 +1,190 @@
 # ============================================================================
-# Torus & Annulus — Showcase Scene
+#  THE CELESTIAL COMPASS — Torus & Annulus Showcase
 # ============================================================================
 #
-# Scena progettata per mostrare:
-#   1. Contorno fantasma del torus dietro altri oggetti (cono, cilindro)
-#   2. Deformazioni geometriche del torus con Depth of Field (focal_dist)
-#   3. Rendering corretto dell'annulus
-#   4. Comportamento con scale non uniformi (pedina grande)
+#  DESCRIZIONE:
+#  Una composizione monumentale a simmetria radiale progettata per mostrare
+#  la precisione geometrica dei primitivi Torus e Annulus in un contesto
+#  di design premium (Museum / High-End Jewelry style).
 #
-# Camere:
-#   - "pinhole"     : senza DoF, riferimento baseline
-#   - "dof_soft"    : DoF moderato (aperture 0.08, focal_dist 8)
-#   - "dof_extreme" : DoF forte (aperture 0.2, focal_dist 10)  
-#   - "closeup"     : primo piano sulla pedina per ispezionare il contorno
-#   - "top"         : zenitale per verificare la simmetria del torus
+#  HIGHLIGHTS:
+#  - "The Gyroscope": scultura centrale con 3 tori intrecciati (Oro).
+#  - "Radial Cardinals": 4 stazioni satelliti con test di occlusione e rifrazione.
+#  - "Annulus Mandala": base circolare geometricamente perfetta.
+#  - "Studio Lighting": setup a 4 punti perfettamente bilanciato.
 #
-# Uso:
-#   dotnet run -- -i scenes/torus-showcase.yaml -c pinhole -s 36 -w 800 -H 533
-#   dotnet run -- -i scenes/torus-showcase.yaml -c dof_soft -s 36 -w 800 -H 533
-#   dotnet run -- -i scenes/torus-showcase.yaml -c closeup -s 64 -w 800 -H 533
+#  USO:
+#  dotnet run -- -i scenes/showcases/torus-showcase.yaml -c main -s 64 -w 1200 -H 800
 # ============================================================================
 
 world:
-  ambient_light: [0.03, 0.03, 0.04]
-  background: [0.0, 0.0, 0.0]
+  ambient_light: [0.015, 0.015, 0.018]
+  background: [0.02, 0.02, 0.03]
   sky:
     type: "gradient"
-    zenith_color: [0.05, 0.05, 0.12]
-    horizon_color: [0.12, 0.12, 0.18]
-    ground_color: [0.04, 0.04, 0.06]
+    zenith_color: [0.02, 0.02, 0.05]
+    horizon_color: [0.05, 0.05, 0.08]
+    ground_color: [0.01, 0.01, 0.01]
   ground:
     y: 0.0
-    material: "pavimento"
+    material: "pavimento_nero"
 
 cameras:
-  # ── Baseline: pinhole, tutto a fuoco ──────────────────────────────────
-  - name: "pinhole"
-    position: [4, 3, -6]
-    look_at: [0, 0.6, 0]
-    fov: 45
+  # ── Inquadratura Principale: Simmetrica e bilanciata ────────────────────
+  - name: "main"
+    position: [0.0, 3.5, -7.5]
+    look_at: [0.0, 0.45, 0.0]
+    fov: 38
+    aperture: 0.01
+    focal_dist: 7.5
+
+  # ── Zenitale: La perfezione radiale del Mandala ────────────────────────
+  - name: "zenith"
+    position: [0.0, 8.5, 0.01]
+    look_at: [0.0, 0.0, 0.0]
+    fov: 42
     aperture: 0.0
     focal_dist: 1
 
-  # ── DoF morbido: test deformazioni con focal_dist medio ──────────────
-  - name: "dof_soft"
-    position: [4, 3, -6]
-    look_at: [0, 0.6, 0]
-    fov: 45
-    aperture: 0.08
-    focal_dist: 8
-
-  # ── DoF estremo: stress test per il quartic solver ────────────────────
-  - name: "dof_extreme"
-    position: [4, 3, -6]
-    look_at: [0, 0.6, 0]
-    fov: 45
-    aperture: 0.2
-    focal_dist: 10
-
-  # ── Closeup: primo piano sulla pedina per ispezionare il contorno ─────
-  - name: "closeup"
-    position: [1.2, 0.5, -2.0]
-    look_at: [0, 0.25, 0]
+  # ── Closeup Gyroscope: Dettaglio del cuore dorato ──────────────────────
+  - name: "gyro_detail"
+    position: [-1.2, 1.8, -3.5]
+    look_at: [0.0, 1.0, 0.0]
     fov: 30
-    aperture: 0.0
-    focal_dist: 1
+    aperture: 0.03
+    focal_dist: 4.2
 
-  # ── Zenitale: vista dall'alto per simmetria ───────────────────────────
-  - name: "top"
-    position: [0, 6, 0.01]
-    look_at: [0, 0, 0]
-    fov: 50
-    aperture: 0.0
-    focal_dist: 1
+  # ── Satellite Focus: Ispezione dei test di occlusione ──────────────────
+  - name: "satellite_left"
+    position: [-4.5, 1.5, -1.5]
+    look_at: [-2.5, 0.5, 0.0]
+    fov: 35
+    aperture: 0.02
+    focal_dist: 3.5
 
 # ============================================================================
 # MATERIALI
 # ============================================================================
 materials:
 
-  - id: "pavimento"
+  - id: "pavimento_nero"
     type: "disney"
-    roughness: 0.6
-    metallic: 0.0
-    specular: 0.0
-    texture:
-      type: "checker"
-      colors: [[0.10, 0.10, 0.12], [0.22, 0.22, 0.25]]
-      scale: 1.0
+    color: [0.05, 0.05, 0.06]
+    roughness: 0.12
+    specular: 0.8
+    metallic: 0.1
 
-  # ── Materiali per le geometrie di test ────────────────────────────────
-  - id: "ceramica_bianca"
+  - id: "oro_lucido"
     type: "disney"
-    color: [0.92, 0.90, 0.88]
-    roughness: 0.25
-    metallic: 0.0
+    color: [1.0, 0.82, 0.45]
+    roughness: 0.08
+    metallic: 1.0
+    specular: 1.0
+
+  - id: "acciaio_satinato"
+    type: "disney"
+    color: [0.85, 0.85, 0.88]
+    roughness: 0.2
+    metallic: 0.9
+
+  - id: "marmo_puro"
+    type: "disney"
+    color: [0.98, 0.98, 1.0]
+    roughness: 0.15
     specular: 0.5
+    texture:
+      type: "marble"
+      scale: 3.0
+      vein_color: [0.85, 0.85, 0.9]
+
+  - id: "ceramica_navy"
+    type: "disney"
+    color: [0.15, 0.25, 0.45]
+    roughness: 0.2
     clearcoat: 0.8
 
-  - id: "ceramica_azzurra"
-    type: "disney"
-    color: [0.35, 0.55, 0.85]
-    roughness: 0.2
-    metallic: 0.0
-    specular: 0.5
-    clearcoat: 0.6
-
-  - id: "rame"
-    type: "disney"
-    color: [0.85, 0.55, 0.35]
-    roughness: 0.3
-    metallic: 0.95
-
-  - id: "acciaio"
-    type: "disney"
-    color: [0.6, 0.6, 0.62]
-    roughness: 0.15
-    metallic: 1.0
-
-  - id: "vetro"
+  - id: "vetro_ottico"
     type: "dielectric"
-    refraction_index: 1.5
+    refraction_index: 1.52
 
-  - id: "gomma_grigia"
-    type: "disney"
-    color: [0.25, 0.25, 0.25]
-    roughness: 0.9
-    metallic: 0.0
-
-  - id: "rosso_opaco"
+  - id: "rosso_accento"
     type: "lambertian"
-    color: [0.75, 0.15, 0.12]
+    color: [0.8, 0.1, 0.05]
 
-  - id: "verde_opaco"
+  - id: "verde_accento"
     type: "lambertian"
-    color: [0.15, 0.65, 0.25]
-
-  - id: "giallo_opaco"
-    type: "lambertian"
-    color: [0.85, 0.75, 0.15]
-
-  - id: "luce_area"
-    type: "emissive"
-    color: [1.0, 0.95, 0.85]
-    intensity: 15.0
-
-  - id: "luce_accento"
-    type: "emissive"
-    color: [0.6, 0.8, 1.0]
-    intensity: 10.0
+    color: [0.1, 0.6, 0.2]
 
 # ============================================================================
 # LUCI
 # ============================================================================
 lights:
-  # Key light — sopra e davanti a sinistra
-  - type: "point"
-    position: [-3, 5, -4]
-    color: [1.0, 0.95, 0.85]
-    intensity: 25
 
-  # Fill light — destra, più morbida
-  - type: "point"
-    position: [5, 3, -2]
-    color: [0.7, 0.8, 1.0]
-    intensity: 12
+  # ── KEY LIGHT: Sphere zenitale ──────────────────────────────────────────
+  - type: "sphere"
+    position: [0.0, 7.0, 0.0]
+    radius: 1.2
+    color: [1.0, 0.98, 0.92]
+    intensity: 45.0
+    shadow_samples: 16
 
-  # Rim light — dietro
-  - type: "point"
-    position: [0, 4, 5]
-    color: [1.0, 0.9, 0.7]
-    intensity: 10
+  # ── FILL LIGHTS (Symmetrically balanced) ────────────────────────────────
+  - type: "area"
+    corner: [-6.0, 3.0, -4.0] # FR DX
+    u: [0.0, 0.0, 2.5]
+    v: [0.0, 4.0, 0.0]
+    color: [0.8, 0.9, 1.0] # Fredda
+    intensity: 15.0
+    shadow_samples: 16
+
+  - type: "area"
+    corner: [6.0, 3.0, -4.0] # FR SX
+    u: [0.0, 0.0, 2.5]
+    v: [0.0, 4.0, 0.0]
+    color: [1.0, 0.9, 0.8] # Calda
+    intensity: 15.0
+    shadow_samples: 16
+
+  - type: "area"
+    corner: [-6.0, 3.0, 4.0] # RR DX
+    u: [0.0, 0.0, 2.5]
+    v: [0.0, 4.0, 0.0]
+    color: [0.9, 0.95, 1.0]
+    intensity: 10.0
+    shadow_samples: 16
+
+  - type: "area"
+    corner: [6.0, 3.0, 4.0] # RR SX
+    u: [0.0, 0.0, 2.5]
+    v: [0.0, 4.0, 0.0]
+    color: [1.0, 0.95, 0.9]
+    intensity: 10.0
+    shadow_samples: 16
 
 # ============================================================================
-# TEMPLATE: pedina di test
+# TEMPLATES
 # ============================================================================
 templates:
 
-  - name: "pedina"
+  # Piedistallo satellitare (Pillar)
+  - name: "satellite_base"
     children:
+      - type: "annulus"
+        center: [0, 0.005, 0]
+        normal: [0, 1, 0]
+        radius: 0.6
+        inner_radius: 0.4
+        material: "acciaio_satinato"
       - type: "cylinder"
         center: [0, 0, 0]
-        radius: 0.38
-        height: 0.05
-      - type: "torus"
-        translate: [0, 0.05, 0]
-        major_radius: 0.35
-        minor_radius: 0.06
-      - type: "cone"
-        center: [0, 0.05, 0]
-        radius: 0.30
-        top_radius: 0.13
-        height: 0.48
-      - type: "torus"
-        translate: [0, 0.53, 0]
-        major_radius: 0.15
-        minor_radius: 0.04
-      - type: "cylinder"
-        center: [0, 0.53, 0]
-        radius: 0.09
-        height: 0.12
-      - type: "sphere"
-        center: [0, 0.74, 0]
-        radius: 0.16
+        radius: 0.25
+        height: 0.7
+        material: "ceramica_navy"
+      - type: "disk"
+        center: [0, 0.7, 0]
+        normal: [0, 1, 0]
+        radius: 0.3
+        material: "acciaio_satinato"
 
 # ============================================================================
 # ENTITIES
@@ -210,118 +192,139 @@ templates:
 entities:
 
   # ═══════════════════════════════════════════════════════════════════════
-  # TEST 1: Pedina 1
+  # IL CUORE (THE CORE GYROSCOPE)
   # ═══════════════════════════════════════════════════════════════════════
-  - name: "pedina_1"
-    type: "instance"
-    template: "pedina"
-    material: "ceramica_bianca"
-    translate: [-2, 0, 0]
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # TEST 2: Pedina 2
-  # ═══════════════════════════════════════════════════════════════════════
-  - name: "pedina_2"
-    type: "instance"
-    template: "pedina"
-    material: "ceramica_azzurra"
-    #material: "rosso_opaco"
-    translate: [0, 0, 0]
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # TEST 3: Pedina scalata (stress test per Transform + quartica)
-  # ═══════════════════════════════════════════════════════════════════════
-  - name: "pedina_grande"
-    type: "instance"
-    template: "pedina"
-    material: "rame"
-    translate: [2.2, 0, 0]
-    scale: 1.5
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # TEST 4: Torus isolato con cono nel buco (test puro di occlusione)
-  # ═══════════════════════════════════════════════════════════════════════
-  - name: "torus_grande"
-    type: "torus"
-    center: [-2, 0.4, 2.5]
-    major_radius: 0.6
-    minor_radius: 0.15
-    material: "acciaio"
-
-  - name: "cono_nel_buco"
-    type: "cone"
-    center: [-2, 0, 2.5]
-    radius: 0.50           # era 0.35 → copre l'inner edge del torus (0.45)
-    top_radius: 0.10
-    height: 0.9
-    material: "rosso_opaco"
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # TEST 5: Torus con cilindro attraverso il buco
-  # ═══════════════════════════════════════════════════════════════════════
-  - name: "torus_cilindro"
-    type: "torus"
-    center: [0, 0.5, 2.5]
-    major_radius: 0.5
-    minor_radius: 0.12
-    material: "ceramica_azzurra"
-
-  - name: "cilindro_attraverso"
+  - name: "gyro_pedestal"
     type: "cylinder"
-    center: [0, 0, 2.5]
-    radius: 0.36           # era 0.28 → chiude il gap col torus inner edge (0.38)
-    height: 1.0
-    material: "verde_opaco"
+    center: [0, 0, 0]
+    radius: 1.5
+    height: 0.4
+    material: "ceramica_navy"
 
-  # ═══════════════════════════════════════════════════════════════════════
-  # TEST 6: Torus in vetro (test rifrazione + quartica)
-  # ═══════════════════════════════════════════════════════════════════════
-  - name: "torus_vetro"
-    type: "torus"
-    center: [2, 0.35, 2.5]
-    major_radius: 0.45
-    minor_radius: 0.12
-    material: "vetro"
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # TEST 7: Annulus — disco piatto con foro
-  # ═══════════════════════════════════════════════════════════════════════
-  - name: "annulus_piatto"
+  - name: "gyro_mandala_base"
     type: "annulus"
-    center: [-2, 0.01, -2]
+    center: [0, 0.405, 0]
     normal: [0, 1, 0]
-    radius: 0.8
-    inner_radius: 0.35
-    material: "rame"
+    radius: 1.6
+    inner_radius: 1.2
+    material: "acciaio_satinato"
 
-  # ═══════════════════════════════════════════════════════════════════════
-  # TEST 8: Annulus verticale (test orientamento normale)
-  # ═══════════════════════════════════════════════════════════════════════
-  - name: "annulus_verticale"
-    type: "annulus"
-    center: [0, 0.6, -2]
-    normal: [0, 0, -1]
-    radius: 0.6
-    inner_radius: 0.25
-    material: "giallo_opaco"
+  - name: "gyro_sphere"
+    type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.55
+    translate: [0, 1.3, 0]
+    material: "marmo_puro"
 
-  # ═══════════════════════════════════════════════════════════════════════
-  # TEST 9: Annulus inclinato
-  # ═══════════════════════════════════════════════════════════════════════
-  - name: "annulus_inclinato"
-    type: "annulus"
-    center: [2, 0.5, -2]
-    normal: [0.3, 1, -0.2]
-    radius: 0.5
-    inner_radius: 0.2
-    material: "ceramica_bianca"
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # TEST 10: Torus emissivo (test ISamplable + NEE)
-  # ═══════════════════════════════════════════════════════════════════════
-  - name: "neon_anello"
+  - name: "gyro_ring_1"
     type: "torus"
-    center: [0, 2.5, 1]
-    major_radius: 0.8
-    minor_radius: 0.03
-    material: "luce_accento"
+    center: [0, 0, 0]
+    major_radius: 1.0
+    minor_radius: 0.12
+    translate: [0, 1.3, 0]
+    material: "oro_lucido"
+
+  - name: "gyro_ring_2"
+    type: "torus"
+    center: [0, 0, 0]
+    major_radius: 1.02 # Offset per evitare z-fighting
+    minor_radius: 0.12
+    rotate: [120, 0, 0]
+    translate: [0, 1.3, 0]
+    material: "oro_lucido"
+
+  - name: "gyro_ring_3"
+    type: "torus"
+    center: [0, 0, 0]
+    major_radius: 1.04 # Offset per evitare z-fighting
+    minor_radius: 0.12
+    rotate: [240, 0, 0]
+    translate: [0, 1.3, 0]
+    material: "oro_lucido"
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # COMPASS POINTS (THE SATELLITES)
+  # ═══════════════════════════════════════════════════════════════════════
+
+  # --- SUD: Test Occlusione (Cono) ---
+  - name: "station_south"
+    type: "instance"
+    template: "satellite_base"
+    translate: [0, 0, -2.8]
+
+  - name: "obj_south_torus"
+    type: "torus"
+    center: [0, 1.2, -2.8]
+    major_radius: 0.5
+    minor_radius: 0.1
+    material: "ceramica_navy"
+
+  - name: "obj_south_cone"
+    type: "cone"
+    center: [0, 0.7, -2.8]
+    radius: 0.4
+    top_radius: 0.1
+    height: 1.0
+    material: "rosso_accento"
+
+  # --- NORD: Test Occlusione (Cilindro) ---
+  - name: "station_north"
+    type: "instance"
+    template: "satellite_base"
+    translate: [0, 0, 2.8]
+
+  - name: "obj_north_torus"
+    type: "torus"
+    center: [0, 1.2, 2.8]
+    major_radius: 0.5
+    minor_radius: 0.1
+    material: "ceramica_navy"
+
+  - name: "obj_north_cyl"
+    type: "cylinder"
+    center: [0, 0.7, 2.8]
+    radius: 0.35
+    height: 1.0
+    material: "verde_accento"
+
+  # --- EST: Test Rifrazione (Vetro) ---
+  - name: "station_east"
+    type: "instance"
+    template: "satellite_base"
+    translate: [2.8, 0, 0]
+
+  - name: "obj_east_torus"
+    type: "torus"
+    center: [0, 0, 0]
+    major_radius: 0.6
+    minor_radius: 0.18
+    rotate: [0, 0, 90]
+    translate: [2.8, 1.44, 0]
+    material: "vetro_ottico"
+
+  # --- OVEST: Test Annulus Mandala ---
+  - name: "station_west"
+    type: "instance"
+    template: "satellite_base"
+    translate: [-2.8, 0, 0]
+
+  - name: "obj_west_mandala"
+    children:
+      - type: "annulus"
+        center: [-2.8, 1.25, 0]
+        normal: [0, 0, -1]
+        radius: 0.55
+        inner_radius: 0.35
+        material: "oro_lucido"
+      - type: "annulus"
+        center: [-2.8, 1.25, 0]
+        normal: [0, 0, -1]
+        radius: 0.3
+        inner_radius: 0.15
+        material: "acciaio_satinato"
+      - type: "annulus"
+        center: [-2.8, 1.25, 0]
+        normal: [0, 0, -1]
+        radius: 0.1
+        inner_radius: 0.05
+        material: "oro_lucido"
