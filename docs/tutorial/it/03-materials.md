@@ -1,6 +1,6 @@
 # Capitolo 3: I materiali in dettaglio
 
-Nel capitolo precedente hai utilizzato i materiali Lambertian e Metal. Il motore supporta in totale sei tipi di materiale, oltre a un ricco sistema di texture. Questo capitolo li analizza tutti, parametro per parametro.
+Nel capitolo precedente si sono utilizzati i materiali Lambertian e Metal. Il motore supporta in totale sei tipi di materiale, oltre a un ricco sistema di texture. Questo capitolo li analizza tutti, parametro per parametro.
 
 ---
 
@@ -38,7 +38,7 @@ entities:
 ## 3.2 Lambertian (Opaco Diffuso)
 
 ```yaml
-- id: "gesso"
+- id: "chalk"
   type: "lambertian"
   color: [0.95, 0.92, 0.88]
 ```
@@ -57,7 +57,7 @@ Quando è presente un blocco `texture:`, esso sovrascrive `color`. Maggiori info
 ## 3.3 Metal (Metallo)
 
 ```yaml
-- id: "rame_satinato"
+- id: "copper_satin"
   type: "metal"
   color: [0.95, 0.64, 0.54]
   fuzz: 0.12
@@ -70,18 +70,18 @@ Le superfici metalliche riflettono la luce in modo speculare. Il motore utilizza
 | `color`   | `[R,G,B]` | --          | Colore di riflettanza (tinta metallica)         |
 | `fuzz`    | `float`   | `0.0`       | Rugosità: 0 = specchio perfetto, maggiore = sfocato |
 
-Il valore `fuzz` è mappato internamente a un parametro di rugosità (`alpha = fuzz * fuzz`). Mantienilo nell'intervallo 0.0--0.6 per metalli realistici; valori più alti iniziano a sembrare poco naturali.
+Il valore `fuzz` è mappato internamente a un parametro di rugosità (`alpha = fuzz * fuzz`). Tenerlo nell'intervallo 0.0--0.6 per metalli realistici; valori più alti iniziano a sembrare poco naturali.
 
 ---
 
 ## 3.4 Dielectric (Vetro e Materiali Trasparenti)
 
 ```yaml
-- id: "vetro_finestra"
+- id: "window_glass"
   type: "dielectric"
   refraction_index: 1.52
 
-- id: "vetro_rosso"
+- id: "red_glass"
   type: "dielectric"
   refraction_index: 1.52
   color: [0.9, 0.1, 0.08]
@@ -109,10 +109,10 @@ I materiali dielettrici sono trasparenti. La luce viene divisa ad ogni superfici
 
 ### Importante: Il vetro richiede più profondità dei raggi (Ray Depth)
 
-Ogni superficie di vetro che un raggio entra ed esce costa due rimbalzi (bounces). Se hai oggetti di vetro nidificati (ad esempio un bicchiere d'acqua), imposta la profondità dei raggi ad almeno 30:
+Ogni superficie di vetro che un raggio entra ed esce costa due rimbalzi (bounces). Se ci sono oggetti di vetro nidificati (ad esempio un bicchiere d'acqua), impostare la profondità dei raggi ad almeno 30:
 
 ```
-3d-ray -i mia-scena.yaml -s 64 -d 30
+3d-ray -i my-scene.yaml -s 64 -d 30
 ```
 
 ---
@@ -120,7 +120,7 @@ Ogni superficie di vetro che un raggio entra ed esce costa due rimbalzi (bounces
 ## 3.5 Emissive (Superfici Auto-Illuminanti)
 
 ```yaml
-- id: "bagliore_caldo"
+- id: "warm_glow"
   type: "emissive"
   color: [1.0, 0.85, 0.6]
   intensity: 10.0
@@ -148,7 +148,7 @@ Usa i materiali emissivi per pannelli luminosi, sfere incandescenti, insegne al 
 ## 3.6 Disney/PBR (Materiale Principled)
 
 ```yaml
-- id: "vernice_auto_rossa"
+- id: "red_car_paint"
   type: "disney"
   color: [0.7, 0.05, 0.05]
   metallic: 0.0
@@ -158,7 +158,7 @@ Usa i materiali emissivi per pannelli luminosi, sfere incandescenti, insegne al 
   clearcoat_gloss: 0.9
 ```
 
-Il Disney Principled BSDF (noto anche come PBR) è il tipo di materiale più versatile. Combina riflessione diffusa, speculare, metallica, clearcoat, subsurface scattering, sheen e trasmissione in un unico materiale con parametri intuitivi. Puoi usarlo al posto di lambertian, metal o dielectric per qualsiasi superficie.
+Il Disney Principled BSDF (noto anche come PBR) è il tipo di materiale più versatile. Combina riflessione diffusa, speculare, metallica, clearcoat, subsurface scattering, sheen e trasmissione in un unico materiale con parametri intuitivi. Lo si può usare al posto di lambertian, metal o dielectric per qualsiasi superficie.
 
 Alias del tipo: `disney`, `disney_bsdf`, `pbr` (tutti creano lo stesso materiale).
 
@@ -183,7 +183,7 @@ Alias del tipo: `disney`, `disney_bsdf`, `pbr` (tutti creano lo stesso materiale
 
 ### Come i Parametri Lavorano Insieme
 
-Pensa al materiale Disney come a un sistema a strati:
+Il materiale Disney è un sistema a strati:
 
 1. **Strato di base** (`metallic` = 0): una superficie dielettrica con riflessione diffusa, controllata da `roughness`. Come plastica, legno, pelle.
 2. **Modalità metallo** (`metallic` = 1): riflessione solo speculare tinta dal `color`. Come oro, acciaio, rame.
@@ -196,7 +196,7 @@ Pensa al materiale Disney come a un sistema a strati:
 
 **Oro lucido:**
 ```yaml
-- id: "oro_lucido"
+- id: "shiny_gold"
   type: "disney"
   color: [1.0, 0.76, 0.33]
   metallic: 1.0
@@ -206,7 +206,7 @@ Pensa al materiale Disney come a un sistema a strati:
 
 **Plastica rossa:**
 ```yaml
-- id: "plastica_rossa"
+- id: "red_plastic"
   type: "disney"
   color: [0.8, 0.1, 0.1]
   metallic: 0.0
@@ -216,7 +216,7 @@ Pensa al materiale Disney come a un sistema a strati:
 
 **Vernice auto (con clearcoat):**
 ```yaml
-- id: "auto_blu"
+- id: "blue_car"
   type: "disney"
   color: [0.02, 0.1, 0.45]
   metallic: 0.0
@@ -227,7 +227,7 @@ Pensa al materiale Disney come a un sistema a strati:
 
 **Vetro smerigliato:**
 ```yaml
-- id: "smerigliato"
+- id: "frosted_glass"
   type: "disney"
   color: [0.95, 0.97, 1.0]
   roughness: 0.3
@@ -238,7 +238,7 @@ Pensa al materiale Disney come a un sistema a strati:
 
 **Velluto viola:**
 ```yaml
-- id: "velluto_viola"
+- id: "purple_velvet"
   type: "disney"
   color: [0.3, 0.05, 0.2]
   roughness: 0.85
@@ -248,7 +248,7 @@ Pensa al materiale Disney come a un sistema a strati:
 
 **Porcellana (subsurface):**
 ```yaml
-- id: "porcellana"
+- id: "porcelain"
   type: "disney"
   color: [0.95, 0.93, 0.88]
   roughness: 0.15
@@ -258,7 +258,7 @@ Pensa al materiale Disney come a un sistema a strati:
 
 **Acciaio spazzolato:**
 ```yaml
-- id: "acciaio_spazzolato"
+- id: "brushed_steel"
   type: "disney"
   color: [0.7, 0.7, 0.72]
   metallic: 1.0
@@ -270,10 +270,10 @@ Pensa al materiale Disney come a un sistema a strati:
 ## 3.7 Materiale Mix/Blend
 
 ```yaml
-- id: "metallo_usurato"
+- id: "worn_metal"
   type: "mix"
-  material_a: "acciaio_pulito"
-  material_b: "ruggine"
+  material_a: "clean_steel"
+  material_b: "rust"
   blend: 0.4
 ```
 
@@ -288,26 +288,26 @@ Un materiale Mix miscela due altri materiali. Sia `material_a` che `material_b` 
 
 ### Mix con una Maschera Texture
 
-Invece di una miscela uniforme, puoi usare una texture procedurale per controllare *dove* appare ogni materiale:
+Invece di una miscela uniforme, si può usare una texture procedurale per controllare *dove* appare ogni materiale:
 
 ```yaml
 materials:
-  - id: "acciaio_pulito"
+  - id: "clean_steel"
     type: "disney"
     color: [0.7, 0.7, 0.72]
     metallic: 1.0
     roughness: 0.15
 
-  - id: "ruggine"
+  - id: "rust"
     type: "disney"
     color: [0.55, 0.25, 0.08]
     metallic: 0.3
     roughness: 0.7
 
-  - id: "acciaio_usurato"
+  - id: "worn_steel"
     type: "mix"
-    material_a: "acciaio_pulito"
-    material_b: "ruggine"
+    material_a: "clean_steel"
+    material_b: "rust"
     mask:
       type: "noise"
       scale: 3.0
@@ -388,13 +388,13 @@ Tutte le texture procedurali supportano questi parametri aggiuntivi:
 
 I flag `randomize_*` sono estremamente utili quando lo stesso materiale viene applicato a più oggetti: ogni istanza riceve una variazione di texture unica in modo che gli oggetti non sembrino tutti identici.
 
-Per ottenere una randomizzazione deterministica, imposta il campo `seed` su ogni entità:
+Per una randomizzazione deterministica, impostare il campo `seed` su ogni entità:
 
 ```yaml
 entities:
   - type: "sphere"
     seed: 42
-    material: "legno_con_random"
+    material: "wood_with_random"
     ...
 ```
 
@@ -403,7 +403,7 @@ entities:
 ## 3.9 Texture Immagine
 
 ```yaml
-- id: "terra"
+- id: "earth"
   type: "lambertian"
   texture:
     type: "image"
@@ -420,7 +420,7 @@ Le texture immagine caricano un'immagine da un file e la avvolgono sulla superfi
 
 Formati supportati: PNG, JPEG, BMP, GIF, TIFF, WebP.
 
-Il percorso viene risolto rispetto alla directory del file di scena. Se la tua scena è in `scenes/mia-scena.yaml` e la texture è in `scenes/textures/brick.png`, usa `path: "textures/brick.png"`.
+Il percorso viene risolto rispetto alla directory del file di scena. Se la scena si trova in `scenes/my-scene.yaml` e la texture è in `scenes/textures/brick.png`, usare `path: "textures/brick.png"`.
 
 ---
 
@@ -429,7 +429,7 @@ Il percorso viene risolto rispetto alla directory del file di scena. Se la tua s
 Le normal map aggiungono l'illusione del dettaglio superficiale (protuberanze, solchi, graffi) senza aggiungere geometria effettiva. Funzionano perturbando la normale della superficie in ogni punto di ombreggiatura.
 
 ```yaml
-- id: "muro_mattoni"
+- id: "brick_wall"
   type: "disney"
   color: [0.65, 0.3, 0.2]
   roughness: 0.7
@@ -446,7 +446,7 @@ Le normal map aggiungono l'illusione del dettaglio superficiale (protuberanze, s
 | `uv_scale` | `[U, V]`   | --          | Ripetizione UV per la normal map                     |
 | `flip_y`   | `bool`     | `false`     | Inverte l'asse Y (imposta `true` per mappe DirectX) |
 
-3D-Ray utilizza la convenzione OpenGL per le normal map (Y verso l'alto). Se le tue normal map provengono da uno strumento che utilizza la convenzione DirectX (Y verso il basso), imposta `flip_y: true`.
+3D-Ray utilizza la convenzione OpenGL per le normal map (Y verso l'alto). Se le normal map provengono da uno strumento che utilizza la convenzione DirectX (Y verso il basso), impostare `flip_y: true`.
 
 Le normal map possono essere aggiunte a qualsiasi tipo di materiale che le supporti (Lambertian, Metal, Disney). Vengono applicate prima di tutti i calcoli di ombreggiatura (shading).
 
@@ -612,7 +612,7 @@ Esegui il rendering con:
 
 ---
 
-## Cosa hai imparato
+## Cosa si è imparato
 
 - I materiali **Dielectric** sono trasparenti con rifrazione controllabile. Il vetro richiede una maggiore profondità dei raggi.
 - I materiali **Emissive** brillano e agiscono automaticamente come sorgenti luminose.

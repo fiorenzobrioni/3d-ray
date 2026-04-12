@@ -27,7 +27,7 @@ world:
 
 Senza una sezione `sky:`, i raggi che escono dalla scena restituiscono il colore di `background`. Questo è perfettamente adeguato per scene da studio con illuminazione controllata (dove lo sfondo è solitamente nero) o semplici bozze all'aperto.
 
-Puoi anche essere esplicito:
+Si può anche essere espliciti:
 
 ```yaml
 world:
@@ -85,7 +85,7 @@ world:
 | `size`         | `3.0`       | Diametro angolare in gradi                      |
 | `falloff`      | `32.0`      | Nitidezza del bordo (più alto = bordo più netto)|
 
-Il disco solare appare come un punto luminoso nel cielo. Partecipa all'illuminazione diretta (il motore lo campiona per la Next Event Estimation), il che significa che produce ombre e riflessi proprio come una sorgente luminosa esplicita. Puoi usare un cielo gradiente con un disco solare come **unica sorgente luminosa** in una scena all'aperto.
+Il disco solare appare come un punto luminoso nel cielo. Partecipa all'illuminazione diretta (il motore lo campiona per la Next Event Estimation), il che significa che produce ombre e riflessi proprio come una sorgente luminosa esplicita. Si può usare un cielo gradiente con un disco solare come **unica sorgente luminosa** in una scena all'aperto.
 
 ### Preset: Golden Hour (Ora d'oro)
 
@@ -166,8 +166,8 @@ La mappa HDRI avvolge l'intera scena come una sfera. Il motore utilizza l'**impo
 
 - I file HDRI sono tipicamente nel formato `.hdr` (Radiance) o `.exr` (OpenEXR).
 - HDRIs gratuiti sono disponibili su siti come Poly Haven (licenza CC0).
-- Usa `intensity` per schiarire o scurire l'ambiente senza modificare il file. Valori di 0.5--2.0 sono tipici.
-- Usa `rotation` per ruotare l'ambiente in modo che il sole si trovi dove desideri rispetto alla tua scena.
+- Usare `intensity` per schiarire o scurire l'ambiente senza modificare il file. Valori di 0.5--2.0 sono tipici.
+- Usare `rotation` per ruotare l'ambiente in modo che il sole si trovi dove si desidera.
 - L'illuminazione HDRI fornisce un'illuminazione morbida e naturale con gradienti di colore complessi. Spesso è l'unica sorgente luminosa necessaria per scene all'aperto.
 
 ---
@@ -198,8 +198,8 @@ camera:
 
 ### Guida pratica
 
-1. Imposta `focal_dist` sulla distanza tra la fotocamera e il tuo soggetto. Il vettore da `position` a `look_at` ha questa lunghezza.
-2. Inizia con un'apertura piccola (0.05--0.1) e aumentala fino a ottenere la sfocatura desiderata.
+1. Impostare `focal_dist` sulla distanza tra la fotocamera e il soggetto. Il vettore da `position` a `look_at` ha questa lunghezza.
+2. Iniziare con un'apertura piccola (0.05--0.1) e aumentarla fino a ottenere la sfocatura desiderata.
 3. La DOF richiede **più campioni** per un risultato pulito. Usa almeno 64 SPP; 256+ è raccomandato per la produzione.
 
 ### Esempio: Mettere a fuoco la sfera centrale
@@ -241,7 +241,7 @@ cameras:
     fov: 45
 ```
 
-Usa la chiave `cameras:` (plurale, lista) invece della singolare `camera:`. Ogni fotocamera deve avere un `name:` unico.
+Usare la chiave `cameras:` (plurale, lista) invece della singolare `camera:`. Ogni fotocamera deve avere un `name:` unico.
 
 ### Selezionare una fotocamera dalla riga di comando (CLI)
 
@@ -393,7 +393,7 @@ La fotocamera "macro" ha la DOF abilitata -- la sfera d'oro sarà nitida mentre 
 
 ---
 
-## Cosa hai imparato
+## Cosa si è imparato
 
 - Il cielo **flat** utilizza il colore di background ed è ideale per scene in studio.
 - Il cielo **gradient** fornisce una sfumatura verticale a tre bande; l'aggiunta di un disco `sun:` lo trasforma in una sorgente luminosa completa per esterni.

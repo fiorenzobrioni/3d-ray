@@ -10,7 +10,7 @@
 - type: "sphere"
   center: [0, 1, 0]
   radius: 1.0
-  material: "mio_materiale"
+  material: "my_material"
 ```
 
 | Parametro  | Predefinito | Descrizione                         |
@@ -28,7 +28,7 @@ Per posizionare una sfera appoggiata su un pavimento a Y=0, imposta `center` a `
 
 ```yaml
 - type: "box"
-  material: "legno"
+  material: "wood"
   translate: [0, 0.5, 0]
   scale: [2, 1, 1.5]
   rotate: [0, 30, 0]
@@ -36,7 +36,7 @@ Per posizionare una sfera appoggiata su un pavimento a Y=0, imposta `center` a `
 
 Il box è sempre un **cubo unitario** che va da -0.5 a +0.5 su ogni asse. Non ha parametri `center` o `size`. Tutto il posizionamento e il dimensionamento avviene tramite le trasformazioni.
 
-Questo design significa che **devi** usare `translate`, `scale` e/o `rotate` per posizionare un box nella tua scena.
+Questo design significa che **si deve** usare `translate`, `scale` e/o `rotate` per posizionare un box nella scena.
 
 | Trasformazione       | Effetto sul cubo unitario                        |
 |----------------------|--------------------------------------------------|
@@ -48,7 +48,7 @@ Questo design significa che **devi** usare `translate`, `scale` e/o `rotate` per
 
 ```yaml
 - type: "box"
-  material: "legno"
+  material: "wood"
   scale: [2.0, 0.08, 1.0]
   translate: [0, 0.79, 0]
 ```
@@ -61,7 +61,7 @@ Questo design significa che **devi** usare `translate`, `scale` e/o `rotate` per
 - type: "infinite_plane"
   point: [0, 0, 0]
   normal: [0, 1, 0]
-  material: "pavimento"
+  material: "floor"
 ```
 
 | Parametro | Predefinito | Descrizione                                     |
@@ -93,7 +93,7 @@ Disponibile anche come `type: "plane"`.
   center: [0, 0, 0]
   radius: 0.3
   height: 2.0
-  material: "acciaio"
+  material: "steel"
 ```
 
 | Parametro | Predefinito | Descrizione                                   |
@@ -111,7 +111,7 @@ Il cilindro è allineato all'asse Y (verticale) e chiuso alle estremità. Il `ce
   center: [0, 0, 0]
   radius: 0.25
   height: 3.0
-  material: "marmo"
+  material: "marble"
 ```
 
 ---
@@ -125,7 +125,7 @@ Il cilindro è allineato all'asse Y (verticale) e chiuso alle estremità. Il `ce
   radius: 0.5
   top_radius: 0.0
   height: 1.5
-  material: "rosso"
+  material: "red"
 
 # Cono troncato / frustum
 - type: "cone"
@@ -133,7 +133,7 @@ Il cilindro è allineato all'asse Y (verticale) e chiuso alle estremità. Il `ce
   radius: 0.6
   top_radius: 0.2
   height: 1.0
-  material: "blu"
+  material: "blue"
 ```
 
 | Parametro    | Predefinito | Descrizione                                   |
@@ -155,7 +155,7 @@ Alias del tipo: `cone`, `truncated_cone`, `frustum`.
 - type: "torus"
   major_radius: 1.0
   minor_radius: 0.3
-  material: "oro"
+  material: "gold"
   translate: [0, 0.3, 0]
 ```
 
@@ -183,7 +183,7 @@ Alias del tipo: `torus`, `donut`.
   center: [0, 0, 0]
   radius: 0.3
   height: 1.5
-  material: "bianco"
+  material: "white"
 ```
 
 | Parametro | Predefinito | Descrizione                                   |
@@ -206,7 +206,7 @@ Alias del tipo: `capsule`, `pill`.
   radius: 1.0
   inner_radius: 0.5
   normal: [0, 1, 0]
-  material: "metallo"
+  material: "metal"
 ```
 
 | Parametro      | Predefinito | Descrizione                         |
@@ -229,7 +229,7 @@ Alias del tipo: `annulus`, `ring_disk`.
   center: [0, 0, 0]
   radius: 1.0
   normal: [0, 1, 0]
-  material: "bianco"
+  material: "white"
 ```
 
 | Parametro | Predefinito | Descrizione                          |
@@ -251,7 +251,7 @@ Un disco circolare piatto e pieno. Usalo per sottobicchieri, monete o superfici 
   v0: [-1, 0, 0]
   v1: [1, 0, 0]
   v2: [0, 1.5, 0]
-  material: "rosso"
+  material: "red"
 ```
 
 Tre vertici definiscono un triangolo piatto con una singola normale di superficie (calcolata dal prodotto vettoriale degli spigoli). L'ordine di avvolgimento determina quale lato è la faccia anteriore.
@@ -269,7 +269,7 @@ Tre vertici definiscono un triangolo piatto con una singola normale di superfici
   uv0: [0, 0]
   uv1: [1, 0]
   uv2: [0.5, 1]
-  material: "texturizzato"
+  material: "textured"
 ```
 
 | Parametro | Descrizione                                     |
@@ -291,7 +291,7 @@ Raramente definirai triangoli a mano. Sono i mattoni delle mesh caricate da file
   q: [-1, 0, -1]
   u: [2, 0, 0]
   v: [0, 0, 2]
-  material: "pavimento_scacchi"
+  material: "checker_floor"
 ```
 
 | Parametro | Descrizione                                       |
@@ -311,7 +311,7 @@ La normale della faccia è `cross(u, v)` (normalizzata). Questo è importante pe
   q: [-1, 0, -1]
   u: [2, 0, 0]
   v: [0, 0, 2]
-  material: "pavimento"
+  material: "floor"
 ```
 
 **Esempio: un pannello a parete:**
@@ -321,7 +321,7 @@ La normale della faccia è `cross(u, v)` (normalizzata). Questo è importante pe
   q: [-1.5, 0, 3]
   u: [3, 0, 0]
   v: [0, 2.5, 0]
-  material: "parete"
+  material: "wall"
 ```
 
 I quad sono estremamente utili per i pannelli luminosi (quad emissivi), pareti, pavimenti con confini definiti e cornici di quadri.
@@ -333,7 +333,7 @@ I quad sono estremamente utili per i pannelli luminosi (quad emissivi), pareti, 
 ```yaml
 - type: "mesh"
   path: "models/teapot.obj"
-  material: "porcellana"
+  material: "porcelain"
   scale: 0.05
   translate: [0, 0, 0]
 ```
@@ -538,9 +538,9 @@ Esegui il rendering con:
 
 ---
 
-## Cosa hai imparato
+## Cosa si è imparato
 
-- Il motore supporta 13 primitive geometriche plus gruppi, istanze e operazioni CSG.
+- Il motore supporta 13 primitive geometriche più gruppi, istanze e operazioni CSG.
 - Il **box** è un cubo unitario -- usa le trasformazioni per ogni dimensionamento e posizionamento.
 - Il **torus** è definito nel piano XZ all'origine.
 - I **piani infiniti** servono per superfici non delimitate (pavimenti, pareti).

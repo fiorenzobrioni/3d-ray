@@ -45,8 +45,7 @@ Renderizzarlo con:
 3d-ray -i hello.yaml -w 800 -H 450 -s 16
 ```
 
-Si dovrebbe vedere una sfera bianca che galleggia su uno sfondo scuro. Analizziamo
-ogni sezione.
+Si dovrebbe vedere una sfera bianca che galleggia su uno sfondo scuro. Si analizza di seguito ogni sezione.
 
 ---
 
@@ -60,7 +59,7 @@ world:
 
 **`ambient_light`** è una quantità costante di luce che raggiunge ogni superficie
 della scena indipendentemente dal fatto che una sorgente luminosa la possa vedere.
-Pensatela come una luce di riempimento molto fioca che evita ombre completamente nere.
+La si può pensare come una luce di riempimento molto fioca che evita ombre completamente nere.
 Tenerla bassa (0.01-0.05 per canale) o la scena sembrerà slavata.
 
 **`background`** è il colore restituito dai raggi che mancano tutti gli oggetti e
@@ -241,8 +240,7 @@ Le altre forme (box, cilindri, tori, coni e altro) si troveranno nel Capitolo 4.
 ## 2.6 Luci: illuminare la scena
 
 Senza luci, l'unica illuminazione proviene dalla luce ambientale e dal colore di
-sfondo -- il che produce un'immagine molto fioca e piatta. Aggiungiamo due sorgenti
-luminose esplicite.
+sfondo -- il che produce un'immagine molto fioca e piatta. Si aggiungono ora due sorgenti luminose esplicite.
 
 ### Luce direzionale
 

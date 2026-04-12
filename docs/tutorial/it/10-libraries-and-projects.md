@@ -1,6 +1,6 @@
 # Capitolo 10: Librerie di asset e scene complete
 
-3D-Ray viene fornito con un ricco ecosistema di asset predefiniti: oltre 800 materiali, 154 template di oggetti, 14 preset di illuminazione e 18 scene starter-kit complete. Questo capitolo ti mostra come utilizzarli, fornisce il riferimento completo della CLI e ti guida nella costruzione di un vero progetto.
+3D-Ray viene fornito con un ricco ecosistema di asset predefiniti: oltre 800 materiali, 154 template di oggetti, 14 preset di illuminazione e 18 scene starter-kit complete. Questo capitolo mostra come utilizzarli, fornisce il riferimento completo della CLI e guida nella costruzione di un vero progetto.
 
 ---
 
@@ -23,7 +23,7 @@ Le librerie vengono caricate tramite la sezione `imports:` nel file della scena.
 
 ## 10.2 Librerie dei Materiali
 
-Dodici file a tema che coprono ogni tipo di superficie di cui potresti aver bisogno:
+Dodici file a tema che coprono ogni tipo di superficie di cui si potrebbe aver bisogno:
 
 | File                       | Contenuti                                       | Quantità |
 |----------------------------|-------------------------------------------------|----------|
@@ -211,7 +211,7 @@ world:
 
 ## 10.5 Starter Kit: Scene Complete
 
-Diciotto scene renderizzabili che combinano materiali, oggetti, illuminazione e fotocamere. Usale come punti di partenza per le tue creazioni -- copiane una, rinominala e modificala.
+Diciotto scene renderizzabili che combinano materiali, oggetti, illuminazione e fotocamere. Si possono usare come punti di partenza -- copiarne uno, rinominarlo e modificarlo.
 
 ### Esterni (7)
 - `starter-desert-highway.yaml` -- Strada nel deserto con cactus
@@ -346,7 +346,7 @@ Ecco il flusso di lavoro per creare una scena da zero utilizzando le librerie:
 
 ### Passo 1: Scegli uno Starter Kit (o inizia da zero)
 
-Scegli uno starter kit vicino a ciò che desideri, copialo e rinominalo. Oppure crea un nuovo file vuoto.
+Si sceglie uno starter kit vicino a ciò che si desidera, lo si copia e lo si rinomina. Oppure si crea un nuovo file vuoto.
 
 ### Passo 2: Configura World e Camera
 
@@ -399,13 +399,13 @@ entities:
 
 ```
 # Anteprima veloce (secondi)
-3d-ray -i mia-scena.yaml -w 400 -H 225 -s 1 -d 5 -S 1
+3d-ray -i my-scene.yaml -w 400 -H 225 -s 1 -d 5 -S 1
 
 # Bozza (minuti)
-3d-ray -i mia-scena.yaml -w 800 -H 450 -s 16 -d 20 -S 4
+3d-ray -i my-scene.yaml -w 800 -H 450 -s 16 -d 20 -S 4
 
 # Finale (produzione)
-3d-ray -i mia-scena.yaml -w 1920 -H 1080 -s 256 -d 50 -S 16
+3d-ray -i my-scene.yaml -w 1920 -H 1080 -s 256 -d 50 -S 16
 ```
 
 ---
@@ -413,40 +413,40 @@ entities:
 ## 10.9 Guida alla risoluzione dei problemi
 
 ### Immagine nera
-- **Nessuna luce.** Aggiungi luci nella sezione `lights:` o usa oggetti emissivi / cielo HDRI.
-- **Fotocamera all'interno di un oggetto.** Sposta la `position` della fotocamera fuori da ogni geometria.
-- **Fotocamera rivolta nella direzione sbagliata.** Controlla il punto `look_at`.
+- **Nessuna luce.** Aggiungere luci nella sezione `lights:` o usare oggetti emissivi / cielo HDRI.
+- **Fotocamera all'interno di un oggetto.** Spostare la `position` della fotocamera fuori da ogni geometria.
+- **Fotocamera rivolta nella direzione sbagliata.** Controllare il punto `look_at`.
 
 ### Troppo rumore
-- Aumenta i campioni: `-s 64` o `-s 256`.
-- Aumenta i campioni d'ombra: `-S 16`.
+- Aumentare i campioni: `-s 64` o `-s 256`.
+- Aumentare i campioni d'ombra: `-S 16`.
 - I materiali Disney densi (subsurface, sheen) necessitano di più campioni rispetto ai tipi classici.
 
 ### Rendering molto lento
-- Riduci la risoluzione e i campioni durante i test.
-- Usa il flusso di lavoro anteprima/bozza/finale.
-- Sostituisci i materiali Disney con equivalenti classici per le superfici di sfondo.
+- Ridurre la risoluzione e i campioni durante i test.
+- Usare il flusso di lavoro anteprima/bozza/finale.
+- Sostituire i materiali Disney con equivalenti classici per le superfici di sfondo.
 
 ### Materiale mancante (l'oggetto appare grigio predefinito)
-- Controlla eventuali errori di battitura nell'ID del materiale.
-- Assicurati che la libreria sia importata correttamente in `imports:`.
-- Controlla i messaggi di avviso sulla console per riferimenti a materiali non risolti.
+- Controllare eventuali errori di battitura nell'ID del materiale.
+- Assicurarsi che la libreria sia importata correttamente in `imports:`.
+- Controllare i messaggi di avviso sulla console per riferimenti a materiali non risolti.
 
 ### Colori sbagliati
 - I colori sono `[R, G, B]` nell'intervallo **0.0--1.0**, non 0--255. `[255, 0, 0]` non è rosso -- è un bianco estremamente luminoso.
 
 ### Il vetro appare strano (troppo scuro o solido)
-- Aumenta la profondità dei raggi: `-d 30` o superiore. Il vetro necessita di 2 rimbalzi per superficie.
-- Assicurati che ci sia luce dietro/intorno all'oggetto di vetro (il vetro trasmette la luce, quindi ha bisogno di qualcosa da trasmettere).
+- Aumentare la profondità dei raggi: `-d 30` o superiore. Il vetro necessita di 2 rimbalzi per superficie.
+- Assicurarsi che ci sia luce dietro/intorno all'oggetto di vetro (il vetro trasmette la luce, quindi ha bisogno di qualcosa da trasmettere).
 
 ### Le texture non vengono visualizzate (ripiego magenta/rosa)
-- Controlla che il percorso del file della texture sia corretto e relativo al file della scena.
-- Verifica che il file esista e sia in un formato supportato (PNG, JPEG, BMP).
+- Controllare che il percorso del file della texture sia corretto e relativo al file della scena.
+- Verificare che il file esista e sia in un formato supportato (PNG, JPEG, BMP).
 
 ### Gli import non funzionano
 - I percorsi sono relativi al **file che importa**, non alla directory di lavoro corrente.
-- Controlla la presenza di import circolari (il motore avvisa sulla console).
-- Assicurati che il file importato abbia la struttura YAML corretta (`materials:`, `templates:`, ecc.).
+- Controllare la presenza di import circolari (il motore avvisa sulla console).
+- Assicurarsi che il file importato abbia la struttura YAML corretta (`materials:`, `templates:`, ecc.).
 
 ---
 
@@ -599,7 +599,7 @@ Renderizza con:
 
 ---
 
-## Cosa hai imparato
+## Cosa si è imparato
 
 - L'ecosistema delle librerie fornisce 800+ materiali, 154+ template, 14 preset di illuminazione e 18 scene starter-kit.
 - I materiali utilizzano i prefissi `dis_` (Disney PBR) e `cls_` (Classic).
