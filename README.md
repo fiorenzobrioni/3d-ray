@@ -86,6 +86,9 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🌅 **Gradient Sky** — cielo procedurale con gradiente verticale a 3 bande (zenith, orizzonte, terreno) e sun disk con glow halo. Configurabile via YAML con preset per mezzogiorno, golden hour, tramonto e notte.
 - 🌍 **IBL / HDRI** — Image-Based Lighting da file Radiance `.hdr`: illuminazione globale fotorealistica catturata da fotografie HDR a 360° con importance sampling per convergenza rapida. Compatibile con [Poly Haven](https://polyhaven.com/hdris) (CC0).
 
+### Volumetria (Participating Media)
+- 🌫️ **Homogeneous Medium** — mezzo partecipante omogeneo globale per nebbia, foschia ed effetti subacquei. Parametri configurabili via YAML: `density` (densità del mezzo), `absorption` (colore di assorbimento per lunghezza d'onda), `scattering` (diffusione della luce) e `anisotropy` (funzione di fase Henyey-Greenstein, da −1 retroriflettente a +1 forward-scattering). I raggi perdono energia e cambiano direzione attraverso il mezzo, producendo attenuazione distanza-dipendente, god rays e riduzioni di contrasto fisicamente corrette.
+
 ---
 
 ## 🚀 Quick Start
@@ -118,9 +121,11 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 ```
 3d-ray/
 ├── docs/                    # Documentazione del progetto
-│   ├── reference/           # Guide di riferimento rapido (IT/EN)
-│   ├── technical/           # Deep dive tecnici
-│   └── tutorial/            # Tutorial passo-passo
+│   ├── reference/           # Riferimento YAML completo (EN/IT)
+│   ├── technical/           # Approfondimenti tecnici interni
+│   └── tutorial/            # Tutorial in 10 capitoli (EN/IT)
+│       ├── en/              # Tutorial in English
+│       └── it/              # Tutorial in italiano
 ├── src/
 │   ├── RayTracer/           # Motore principale
 │   │   ├── Acceleration/    # BVH
@@ -219,19 +224,21 @@ dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -c 2
 
 ---
 
-## 📖 Documentazione e Guide
+## 📖 Documentazione e Guide (Documentation)
 
-### Reference (Consultazione Rapida)
+### 📚 Tutorial
 
-- [**Guida di Riferimento delle Scene (IT)**](./docs/reference/riferimento-scene.md) — Sintassi completa, regole e parametri YAML per la creazione delle scene.
-- [**Scene Reference Guide (EN)**](./docs/reference/scene-reference.md) — Complete YAML syntax, rules, and parameters for scene creation.
+Guida completa in 10 capitoli: dalla teoria del ray tracing alla creazione di scene di produzione con materiali PBR, illuminazione avanzata, CSG, volumetria e librerie di asset. Disponibile in inglese e italiano.  
+*10-chapter guide from ray tracing theory to production scenes with PBR materials, advanced lighting, CSG, volumetrics, and asset libraries. Available in English and Italian.*
 
-### Tutorial (Apprendimento / Learning)
+[EN](./docs/tutorial/en/README.md) · [IT](./docs/tutorial/it/README.md) · [Indice bilingue / Bilingual index](./docs/tutorial/README.md)
 
-- [**01. Guida Rapida e Utilizzo**](./docs/tutorial/01-guida-rapida.md) | [**01. Quick Start & Usage**](./docs/tutorial/01-quick-start.md)
-- [**02. Costruire una Scena**](./docs/tutorial/02-costruire-una-scena.md) | [**02. Building a Scene**](./docs/tutorial/02-building-a-scene.md)
-- [**03. Tecniche Avanzate**](./docs/tutorial/03-tecniche-avanzate.md) | [**03. Advanced Techniques**](./docs/tutorial/03-advanced-techniques.md)
-- [**04. Catalogo dei Preset**](./docs/tutorial/04-catalogo-preset.md) | [**04. Preset Catalog**](./docs/tutorial/04-preset-catalog.md)
+### 📋 Reference
+
+Riferimento tecnico completo di ogni chiave YAML accettata dal motore: world, camera, materiali, primitive, luci, CSG, import e template. Disponibile in inglese e italiano.  
+*Complete technical reference for every YAML key the engine accepts: world, camera, materials, primitives, lights, CSG, imports, and templates. Available in English and Italian.*
+
+[EN](./docs/reference/scene-reference.md) · [IT](./docs/reference/riferimento-scene.md) · [Indice bilingue / Bilingual index](./docs/reference/README.md)
 
 ---
 
