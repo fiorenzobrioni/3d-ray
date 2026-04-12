@@ -163,8 +163,8 @@ The CLI flag `-S` overrides `shadow_samples` for **all** area and sphere
 lights in the scene, which is useful during draft renders:
 
 ```
-3d-ray -i scene.yaml -s 16 -S 4      # Fast draft with low shadow quality
-3d-ray -i scene.yaml -s 256 -S 16    # Final render with smooth shadows
+RayTracer -i scene.yaml -s 16 -S 4      # Fast draft with low shadow quality
+RayTracer -i scene.yaml -s 256 -S 16    # Final render with smooth shadows
 ```
 
 ### Important: Area Lights Are Invisible
@@ -386,7 +386,7 @@ A single sphere and pedestal lit by different light types.
 ```yaml
 # lighting-comparison.yaml
 # The same subject under five different lights.
-# Render with: 3d-ray -i lighting-comparison.yaml -w 1600 -H 500 -s 64
+# Render with: RayTracer -i lighting-comparison.yaml -w 1600 -H 500 -s 64
 
 world:
   ambient_light: [0.01, 0.01, 0.015]

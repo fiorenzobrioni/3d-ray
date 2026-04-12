@@ -135,8 +135,8 @@ Il parametro `shadow_samples` controlla quanti punti casuali sul rettangolo veng
 Il flag CLI `-S` sovrascrive `shadow_samples` per **tutte** le luci area e sphere nella scena, il che è utile durante i render di prova:
 
 ```
-3d-ray -i scena.yaml -s 16 -S 4      # Prova veloce con bassa qualità d'ombra
-3d-ray -i scena.yaml -s 256 -S 16    # Rendering finale con ombre morbide
+RayTracer -i scena.yaml -s 16 -S 4      # Prova veloce con bassa qualità d'ombra
+RayTracer -i scena.yaml -s 256 -S 16    # Rendering finale con ombre morbide
 ```
 
 ### Importante: Le luci Area sono invisibili
@@ -334,7 +334,7 @@ Un'unica sfera e un piedistallo illuminati da diversi tipi di luce.
 ```yaml
 # lighting-comparison.yaml
 # Lo stesso soggetto sotto cinque diverse luci.
-# Render con: 3d-ray -i lighting-comparison.yaml -w 1600 -H 500 -s 64
+# Render con: RayTracer -i lighting-comparison.yaml -w 1600 -H 500 -s 64
 
 world:
   ambient_light: [0.01, 0.01, 0.015]

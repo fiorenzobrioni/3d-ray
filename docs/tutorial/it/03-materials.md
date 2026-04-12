@@ -112,7 +112,7 @@ I materiali dielettrici sono trasparenti. La luce viene divisa ad ogni superfici
 Ogni superficie di vetro che un raggio entra ed esce costa due rimbalzi (bounces). Se ci sono oggetti di vetro nidificati (ad esempio un bicchiere d'acqua), impostare la profondità dei raggi ad almeno 30:
 
 ```
-3d-ray -i my-scene.yaml -s 64 -d 30
+RayTracer -i my-scene.yaml -s 64 -d 30
 ```
 
 ---
@@ -607,7 +607,7 @@ lights:
 Esegui il rendering con:
 
 ```
-3d-ray -i material-gallery.yaml -w 1600 -H 600 -s 64 -d 30
+RayTracer -i material-gallery.yaml -w 1600 -H 600 -s 64 -d 30
 ```
 
 ---

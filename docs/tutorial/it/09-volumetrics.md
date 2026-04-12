@@ -305,7 +305,7 @@ lights:
 Esegui il rendering con:
 
 ```
-3d-ray -i cathedral-fog.yaml -w 1200 -H 800 -s 256 -d 40
+RayTracer -i cathedral-fog.yaml -w 1200 -H 800 -s 256 -d 40
 ```
 
 La luce spot crea un drammatico fascio visibile che taglia la nebbia tra i pilastri. La funzione di fase HG concentrata in avanti (g=0.82) focalizza il bagliore attorno alla direzione del raggio, proprio come nella nebbia reale.

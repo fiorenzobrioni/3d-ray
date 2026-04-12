@@ -281,15 +281,15 @@ Each camera must have a unique `name:`.
 ### Selecting a Camera from the CLI
 
 ```
-3d-ray -i scene.yaml --camera wide
-3d-ray -i scene.yaml --camera closeup
-3d-ray -i scene.yaml -c 2            # By zero-based index (topdown)
+RayTracer -i scene.yaml --camera wide
+RayTracer -i scene.yaml --camera closeup
+RayTracer -i scene.yaml -c 2            # By zero-based index (topdown)
 ```
 
 ### Listing Available Cameras
 
 ```
-3d-ray -i scene.yaml --list-cameras
+RayTracer -i scene.yaml --list-cameras
 ```
 
 This prints the names and indices of all defined cameras without
@@ -423,9 +423,9 @@ lights:
 ### Rendering the Three Cameras
 
 ```
-3d-ray -i golden-hour.yaml -c landscape -w 1920 -H 800 -s 128 -d 30
-3d-ray -i golden-hour.yaml -c macro -w 1200 -H 800 -s 256 -d 30
-3d-ray -i golden-hour.yaml -c dramatic -w 1920 -H 800 -s 128 -d 30
+RayTracer -i golden-hour.yaml -c landscape -w 1920 -H 800 -s 128 -d 30
+RayTracer -i golden-hour.yaml -c macro -w 1200 -H 800 -s 256 -d 30
+RayTracer -i golden-hour.yaml -c dramatic -w 1920 -H 800 -s 128 -d 30
 ```
 
 The "macro" camera has DOF enabled -- the gold sphere will be sharp while

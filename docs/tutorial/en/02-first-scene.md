@@ -42,7 +42,7 @@ lights:
 Render it:
 
 ```
-3d-ray -i hello.yaml -w 800 -H 450 -s 16
+RayTracer -i hello.yaml -w 800 -H 450 -s 16
 ```
 
 You should see a white sphere floating against a dark background. Let us
@@ -366,19 +366,19 @@ lights:
 Start with a quick preview to check composition:
 
 ```
-3d-ray -i three-spheres.yaml -w 400 -H 225 -s 1 -d 5
+RayTracer -i three-spheres.yaml -w 400 -H 225 -s 1 -d 5
 ```
 
 Then a draft to check materials and lighting:
 
 ```
-3d-ray -i three-spheres.yaml -w 800 -H 450 -s 16 -d 20
+RayTracer -i three-spheres.yaml -w 800 -H 450 -s 16 -d 20
 ```
 
 And finally a clean render:
 
 ```
-3d-ray -i three-spheres.yaml -w 1920 -H 1080 -s 256 -d 50
+RayTracer -i three-spheres.yaml -w 1920 -H 1080 -s 256 -d 50
 ```
 
 ### What You Should See

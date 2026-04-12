@@ -246,15 +246,15 @@ Usare la chiave `cameras:` (plurale, lista) invece della singolare `camera:`. Og
 ### Selezionare una fotocamera dalla riga di comando (CLI)
 
 ```
-3d-ray -i scena.yaml --camera wide
-3d-ray -i scena.yaml --camera closeup
-3d-ray -i scena.yaml -c 2            # Tramite indice base zero (topdown)
+RayTracer -i scena.yaml --camera wide
+RayTracer -i scena.yaml --camera closeup
+RayTracer -i scena.yaml -c 2            # Tramite indice base zero (topdown)
 ```
 
 ### Elencare le fotocamere disponibili
 
 ```
-3d-ray -i scena.yaml --list-cameras
+RayTracer -i scena.yaml --list-cameras
 ```
 
 Questo stampa i nomi e gli indici di tutte le fotocamere definite senza avviare il rendering.
@@ -384,9 +384,9 @@ lights:
 ### Renderizzare le tre fotocamere
 
 ```
-3d-ray -i golden-hour.yaml -c landscape -w 1920 -H 800 -s 128 -d 30
-3d-ray -i golden-hour.yaml -c macro -w 1200 -H 800 -s 256 -d 30
-3d-ray -i golden-hour.yaml -c dramatic -w 1920 -H 800 -s 128 -d 30
+RayTracer -i golden-hour.yaml -c landscape -w 1920 -H 800 -s 128 -d 30
+RayTracer -i golden-hour.yaml -c macro -w 1200 -H 800 -s 256 -d 30
+RayTracer -i golden-hour.yaml -c dramatic -w 1920 -H 800 -s 128 -d 30
 ```
 
 La fotocamera "macro" ha la DOF abilitata -- la sfera d'oro sarà nitida mentre lo sfondo sfumerà morbidamente.
