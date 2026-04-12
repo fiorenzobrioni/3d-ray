@@ -86,6 +86,9 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🌅 **Gradient Sky** — cielo procedurale con gradiente verticale a 3 bande (zenith, orizzonte, terreno) e sun disk con glow halo. Configurabile via YAML con preset per mezzogiorno, golden hour, tramonto e notte.
 - 🌍 **IBL / HDRI** — Image-Based Lighting da file Radiance `.hdr`: illuminazione globale fotorealistica catturata da fotografie HDR a 360° con importance sampling per convergenza rapida. Compatibile con [Poly Haven](https://polyhaven.com/hdris) (CC0).
 
+### Volumetria (Participating Media)
+- 🌫️ **Homogeneous Medium** — mezzo partecipante omogeneo globale per nebbia, foschia ed effetti subacquei. Parametri configurabili via YAML: `density` (densità del mezzo), `absorption` (colore di assorbimento per lunghezza d'onda), `scattering` (diffusione della luce) e `anisotropy` (funzione di fase Henyey-Greenstein, da −1 retroriflettente a +1 forward-scattering). I raggi perdono energia e cambiano direzione attraverso il mezzo, producendo attenuazione distanza-dipendente, god rays e riduzioni di contrasto fisicamente corrette.
+
 ---
 
 ## 🚀 Quick Start
