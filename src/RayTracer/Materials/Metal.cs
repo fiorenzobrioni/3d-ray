@@ -92,7 +92,7 @@ public class Metal : IMaterial
     /// The BRDF is achromatic (scalar) — the metallic color tint comes from
     /// TraceRay's attenuation (= Albedo), keeping both paths consistent.
     /// </summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal)
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
     {
         float NdotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
         if (NdotL <= 0f) return Vector3.Zero;
@@ -127,10 +127,12 @@ public class Metal : IMaterial
 
         // FIREFLY GUARD: The GGX NDF diverges for low alpha (polished metals).
         // D×G×F/(4×NdotV) can reach 50–500 for fuzz < 0.05 when NdotH ≈ 1.
-        // The Renderer multiplies this by lightColor (can be 10+), then by
-        // scatter attenuation across bounces — producing persistent fireflies.
-        // Clamp to 1.0 to match the [0,1] scale the lighting pipeline expects.
-        float total = diffuse + MathF.Min(specular, 1f);
+        // Clamp to 10.0 — consistent with DisneyBsdf.EvaluateDirect — to
+        // preserve physically correct highlights for smooth metals while still
+        // catching the GGX singularity. The old 1.0 clamp systematically
+        // underestimated specular direct lighting, making polished metals
+        // (gold, chrome) appear too dull under direct light.
+        float total = diffuse + MathF.Min(specular, 10f);
         return new Vector3(total);
     }
 

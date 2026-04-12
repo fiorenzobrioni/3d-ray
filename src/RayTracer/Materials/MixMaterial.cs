@@ -143,22 +143,15 @@ public class MixMaterial : IMaterial
     /// produces lower variance than stochastic selection here because both
     /// materials contribute to every NEE sample.
     ///
-    /// NOTE: The blend factor is evaluated at (0.5, 0.5) as a representative
-    /// average because EvaluateDirect does not receive UV/hit-point coordinates.
-    /// This matches the same approximation used by DisneyBsdf.EvaluateDirect
-    /// for textured base colors. A future refactor passing HitRecord through
-    /// IMaterial.EvaluateDirect would eliminate this approximation.
+    /// The blend factor is evaluated at the hit point's UV coordinates from the
+    /// HitRecord, giving correct spatial blending for texture-masked mix materials.
     /// </summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal)
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
     {
-        // Approximate blend factor — no UV available in this interface
-        float t = Mask != null
-            ? MathUtils.Luminance(Mask.Value(0.5f, 0.5f, Vector3.Zero, 0))
-            : Blend;
-        t = Math.Clamp(t, 0f, 1f);
+        float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
 
-        Vector3 brdfA = MaterialA.EvaluateDirect(toLight, toEye, normal);
-        Vector3 brdfB = MaterialB.EvaluateDirect(toLight, toEye, normal);
+        Vector3 brdfA = MaterialA.EvaluateDirect(toLight, toEye, normal, rec);
+        Vector3 brdfB = MaterialB.EvaluateDirect(toLight, toEye, normal, rec);
 
         return Vector3.Lerp(brdfA, brdfB, t);
     }

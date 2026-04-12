@@ -52,24 +52,30 @@ public interface IMaterial
     /// that factor is already present in the scatter attenuation applied by TraceRay.
     /// The light color is multiplied by the caller (ComputeDirectLighting).
     ///
+    /// <paramref name="rec"/> provides UV coordinates, local point, and object seed
+    /// so that textured materials (e.g. DisneyBsdf with a BaseColor texture) can
+    /// evaluate the correct surface properties at the hit point rather than using
+    /// a fixed (0.5, 0.5) approximation.
+    ///
     /// Default: Lambert diffuse (N·L × diffuseWeight) + Blinn-Phong specular.
     /// Override in materials that benefit from view-dependent Fresnel (Metal, Disney).
     /// </summary>
     /// <param name="toLight">Unit vector from hit point toward the light.</param>
     /// <param name="toEye">Unit vector from hit point toward the camera.</param>
     /// <param name="normal">Shading normal (may be perturbed by normal map).</param>
-    Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal)
+    /// <param name="rec">Hit record with UV, LocalPoint, ObjectSeed for texture lookups.</param>
+    Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
     {
         float nDotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
         float result = nDotL * DiffuseWeight;
- 
+
         if (SpecularExponent > 0f && SpecularStrength > 0f && nDotL > 0f)
         {
             Vector3 h = Vector3.Normalize(toLight + toEye);
             float nDotH = MathF.Max(Vector3.Dot(normal, h), 0f);
             result += MathF.Pow(nDotH, SpecularExponent) * SpecularStrength;
         }
- 
+
         return new Vector3(result);
     }
 

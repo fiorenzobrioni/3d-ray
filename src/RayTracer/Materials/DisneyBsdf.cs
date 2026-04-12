@@ -180,12 +180,11 @@ public class DisneyBsdf : IMaterial
     /// and clearcoat GGX lobe. The material albedo/color is NOT included — it is
     /// applied by TraceRay via the scatter attenuation.
     ///
-    /// NOTE: BaseColor is sampled at (0.5, 0.5) as a representative average since
-    /// EvaluateDirect does not receive UV coordinates. For textured Disney materials
-    /// this is an approximation; a future refactor could pass HitRecord through the
-    /// IMaterial.EvaluateDirect interface.
+    /// BaseColor is sampled at the hit point's UV coordinates from the HitRecord,
+    /// giving correct Fresnel F0 for textured Disney materials (e.g. a metallic
+    /// texture map with varying colors).
     /// </summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal)
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
     {
         float NdotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
         if (NdotL <= 0f) return Vector3.Zero;
@@ -220,7 +219,7 @@ public class DisneyBsdf : IMaterial
 
         // F: Schlick Fresnel with continuous metallic→dielectric blend
         // Uses ComputeF0 for consistent F0 with scatter (no binary threshold)
-        Vector3 baseCol = BaseColor.Value(0.5f, 0.5f, Vector3.Zero, 0);
+        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         Vector3 F0 = ComputeF0(baseCol);
         Vector3 F = FresnelSchlick(VdotH, F0);
 

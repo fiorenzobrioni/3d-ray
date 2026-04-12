@@ -286,9 +286,24 @@ public class Renderer
             if (attenuation.LengthSquared() < 0.001f)
                 return emitted + directLight * attenuation;
  
-            // Pass needsLightSampling as prevUsedNee for the next bounce:
-            // if THIS surface used NEE, the next hit must not double-count emitters.
-            Vector3 indirect = TraceRay(scattered, depth - 1, prevUsedNee: needsLightSampling);
+            // Pass prevUsedNee for the next bounce's double-counting guard.
+            //
+            // Only suppress emission when THIS surface has a diffuse NEE
+            // component (diffuseWeight > 0). The diffuse lobe's NEE properly
+            // samples emitters via ComputeDirectLighting — adding the emitter's
+            // Emit() on the next bounce would double-count that energy.
+            //
+            // Purely specular surfaces (Dielectric, smooth Metal with fuzz=0)
+            // have diffuseWeight=0. Their NEE is just a small approximation
+            // (Blinn-Phong glint or narrow GGX peak) that does NOT replace the
+            // traced reflected ray as the primary path to see emissive objects.
+            // Suppressing emission on reflected rays would make glass and mirrors
+            // unable to reflect registered emissive lights → black reflections.
+            //
+            // This decouples "needs NEE for direct lighting" (needsLightSampling)
+            // from "NEE properly replaces the emitter contribution" (diffuseWeight > 0).
+            bool neeReplacesEmission = diffuseWeight > 0f;
+            Vector3 indirect = TraceRay(scattered, depth - 1, prevUsedNee: neeReplacesEmission);
             return emitted + attenuation * (directLight + indirect);
         }
  
@@ -415,6 +430,11 @@ public class Renderer
                     (inShadow, lightColor, dirToLight, distance) =
                         sphereLight.IlluminateAndTestStratified(rec.Point, rec.Normal, _world, s);
                 }
+                else if (light is GeometryLight geometryLight)
+                {
+                    (inShadow, lightColor, dirToLight, distance) =
+                        geometryLight.IlluminateAndTestStratified(rec.Point, rec.Normal, _world, s);
+                }
                 else
                 {
                     (inShadow, lightColor, dirToLight, distance) =
@@ -424,7 +444,7 @@ public class Renderer
                 if (inShadow) continue;
 
                 // EvaluateDirect: BRDF shape factor (diffuse N·L + specular with Fresnel).
-                Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal)
+                Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
                                ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f));
 
                 // Volumetric attenuation along the shadow ray (Beer-Lambert).
@@ -463,13 +483,11 @@ public class Renderer
         Vector3 result = Vector3.Zero;
         if (_globalMedium == null) return result;
 
-        // Lights use `surfaceNormal` ONLY to offset the shadow-ray origin
-        // (see AreaLight.IlluminateAndTestStratified / SphereLight ditto).
-        // No N·L gating happens inside the light, so a free-space scattering
-        // event can safely pass an arbitrary unit vector here: the ε-offset
-        // along it is harmless because p is in empty space (strictly before
-        // any surface hit along the parent ray).
-        Vector3 dummyNormal = Vector3.UnitY;
+        // Lights use `surfaceNormal` ONLY to offset the shadow-ray origin via
+        // OffsetOrigin(p, n) = p + n × ε. For a volumetric scattering event
+        // there is no surface to self-intersect with, so no offset is needed.
+        // Passing Zero ensures OffsetOrigin returns the point unchanged.
+        Vector3 dummyNormal = Vector3.Zero;
 
         foreach (var light in _lights)
         {
@@ -497,6 +515,11 @@ public class Renderer
                 {
                     (inShadow, lightColor, dirToLight, distance) =
                         sphereLight.IlluminateAndTestStratified(p, dummyNormal, _world, s);
+                }
+                else if (light is GeometryLight geometryLight)
+                {
+                    (inShadow, lightColor, dirToLight, distance) =
+                        geometryLight.IlluminateAndTestStratified(p, dummyNormal, _world, s);
                 }
                 else
                 {

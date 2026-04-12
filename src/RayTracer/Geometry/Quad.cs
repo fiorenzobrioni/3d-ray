@@ -77,6 +77,19 @@ public class Quad : IHittable, ISamplable
         return (point, _normal, area);
     }
 
+    public (Vector3 Point, Vector3 Normal, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    {
+        float inv = 1f / sqrtSamples;
+        int su = sampleIndex % sqrtSamples;
+        int sv = sampleIndex / sqrtSamples;
+
+        float u = (su + MathUtils.RandomFloat()) * inv;
+        float v = (sv + MathUtils.RandomFloat()) * inv;
+        Vector3 point = Q + u * U + v * V;
+        float area = Vector3.Cross(U, V).Length();
+        return (point, _normal, area);
+    }
+
     public int Seed { get; set; }
 
     public AABB BoundingBox()

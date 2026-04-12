@@ -66,6 +66,24 @@ public class Sphere : IHittable, ISamplable
         return (Center + p * Radius, p, area);
     }
 
+    public (Vector3 Point, Vector3 Normal, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    {
+        float inv = 1f / sqrtSamples;
+        int su = sampleIndex % sqrtSamples;
+        int sv = sampleIndex / sqrtSamples;
+
+        // Stratified sampling in (cosTheta, phi) space — uniform on the sphere.
+        // cosTheta ∈ [-1, 1], phi ∈ [0, 2π]
+        float cosTheta = 1f - 2f * (su + MathUtils.RandomFloat()) * inv;
+        float phi = 2f * MathF.PI * (sv + MathUtils.RandomFloat()) * inv;
+
+        float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
+        Vector3 p = new(sinTheta * MathF.Cos(phi), sinTheta * MathF.Sin(phi), cosTheta);
+
+        float area = 4f * MathF.PI * Radius * Radius;
+        return (Center + p * Radius, p, area);
+    }
+
     public int Seed { get; set; }
 
     private static (float U, float V) GetSphereUV(Vector3 p)
