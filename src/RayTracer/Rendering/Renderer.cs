@@ -286,9 +286,24 @@ public class Renderer
             if (attenuation.LengthSquared() < 0.001f)
                 return emitted + directLight * attenuation;
  
-            // Pass needsLightSampling as prevUsedNee for the next bounce:
-            // if THIS surface used NEE, the next hit must not double-count emitters.
-            Vector3 indirect = TraceRay(scattered, depth - 1, prevUsedNee: needsLightSampling);
+            // Pass prevUsedNee for the next bounce's double-counting guard.
+            //
+            // Only suppress emission when THIS surface has a diffuse NEE
+            // component (diffuseWeight > 0). The diffuse lobe's NEE properly
+            // samples emitters via ComputeDirectLighting — adding the emitter's
+            // Emit() on the next bounce would double-count that energy.
+            //
+            // Purely specular surfaces (Dielectric, smooth Metal with fuzz=0)
+            // have diffuseWeight=0. Their NEE is just a small approximation
+            // (Blinn-Phong glint or narrow GGX peak) that does NOT replace the
+            // traced reflected ray as the primary path to see emissive objects.
+            // Suppressing emission on reflected rays would make glass and mirrors
+            // unable to reflect registered emissive lights → black reflections.
+            //
+            // This decouples "needs NEE for direct lighting" (needsLightSampling)
+            // from "NEE properly replaces the emitter contribution" (diffuseWeight > 0).
+            bool neeReplacesEmission = diffuseWeight > 0f;
+            Vector3 indirect = TraceRay(scattered, depth - 1, prevUsedNee: neeReplacesEmission);
             return emitted + attenuation * (directLight + indirect);
         }
  
