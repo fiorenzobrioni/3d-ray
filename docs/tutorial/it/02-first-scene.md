@@ -400,4 +400,4 @@ E infine un render pulito:
 
 ---
 
-[Precedente: Che cos'è il ray tracing?](./01-what-is-ray-tracing.md) | [Successivo: I materiali in dettaglio](./03-materials.md) | [Indice del tutorial](./README.md)
+[Precedente: Che cos'è il ray tracing?](./01-what-is-ray-tracing.md) | [Successivo: I materiali in dettaglio](./03-materials.md) | [Indice del Tutorial](./README.md)

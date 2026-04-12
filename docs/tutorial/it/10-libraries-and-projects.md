@@ -312,7 +312,7 @@ L'insieme completo dei parametri della riga di comando:
 | `-H` | `--height`          | `800`                        | Altezza dell'immagine in pixel                        |
 | `-s` | `--samples`         | `16`                         | Campioni per pixel (arrotondati al quadrato perfetto) |
 | `-d` | `--depth`           | `50`                         | Numero massimo di rimbalzi dei raggi                  |
-| `-S` | `--shadow-samples`  | *(per luce)*                 | Sovrascrive i campioni d'ombra per tutte le luci area |
+| `-S` | `--shadow-samples`  | *(per luce)*                 | Sovrascrive i campioni d'ombra per tutte le luci area/sphere |
 | `-c` | `--camera`          | `0`                          | Seleziona la fotocamera per nome o indice base zero   |
 |      | `--list-cameras`    |                              | Elenca le fotocamere disponibili ed esce              |
 | `-h` | `--help`            |                              | Mostra l'aiuto                                        |

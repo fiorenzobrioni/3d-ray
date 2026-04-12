@@ -350,7 +350,7 @@ materials:
     type: "disney"
     roughness: 0.6
     texture:
-      type: "marmo"
+      type: "marble"
       scale: 8.0
       noise_strength: 4.0
       colors: [[0.85, 0.82, 0.78], [0.5, 0.48, 0.44]]
