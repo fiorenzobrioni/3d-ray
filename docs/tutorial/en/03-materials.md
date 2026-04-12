@@ -124,7 +124,7 @@ nested glass objects (e.g. a glass of water), set the ray depth to at
 least 30:
 
 ```
-3d-ray -i my-scene.yaml -s 64 -d 30
+RayTracer -i my-scene.yaml -s 64 -d 30
 ```
 
 ---
@@ -667,7 +667,7 @@ lights:
 Render with:
 
 ```
-3d-ray -i material-gallery.yaml -w 1600 -H 600 -s 64 -d 30
+RayTracer -i material-gallery.yaml -w 1600 -H 600 -s 64 -d 30
 ```
 
 ---

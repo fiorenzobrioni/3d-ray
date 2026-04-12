@@ -42,7 +42,7 @@ lights:
 Renderizzarlo con:
 
 ```
-3d-ray -i hello.yaml -w 800 -H 450 -s 16
+RayTracer -i hello.yaml -w 800 -H 450 -s 16
 ```
 
 Si dovrebbe vedere una sfera bianca che galleggia su uno sfondo scuro. Si analizza di seguito ogni sezione.
@@ -359,19 +359,19 @@ lights:
 Iniziare con una rapida anteprima per verificare la composizione:
 
 ```
-3d-ray -i three-spheres.yaml -w 400 -H 225 -s 1 -d 5
+RayTracer -i three-spheres.yaml -w 400 -H 225 -s 1 -d 5
 ```
 
 Poi una bozza per verificare materiali e illuminazione:
 
 ```
-3d-ray -i three-spheres.yaml -w 800 -H 450 -s 16 -d 20
+RayTracer -i three-spheres.yaml -w 800 -H 450 -s 16 -d 20
 ```
 
 E infine un render pulito:
 
 ```
-3d-ray -i three-spheres.yaml -w 1920 -H 1080 -s 256 -d 50
+RayTracer -i three-spheres.yaml -w 1920 -H 1080 -s 256 -d 50
 ```
 
 ### Cosa si dovrebbe vedere

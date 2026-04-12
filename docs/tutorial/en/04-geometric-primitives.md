@@ -566,7 +566,7 @@ lights:
 Render with:
 
 ```
-3d-ray -i shape-gallery.yaml -w 1600 -H 700 -s 64 -d 20
+RayTracer -i shape-gallery.yaml -w 1600 -H 700 -s 64 -d 20
 ```
 
 ---

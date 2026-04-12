@@ -340,7 +340,7 @@ lights:
 Render with:
 
 ```
-3d-ray -i cathedral-fog.yaml -w 1200 -H 800 -s 256 -d 40
+RayTracer -i cathedral-fog.yaml -w 1200 -H 800 -s 256 -d 40
 ```
 
 The spot light creates a dramatic visible beam cutting through the fog

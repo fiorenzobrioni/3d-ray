@@ -472,7 +472,7 @@ lights:
 Esegui il rendering con:
 
 ```
-3d-ray -i sculptor-workshop.yaml -w 1600 -H 700 -s 64 -d 30
+RayTracer -i sculptor-workshop.yaml -w 1600 -H 700 -s 64 -d 30
 ```
 
 ---

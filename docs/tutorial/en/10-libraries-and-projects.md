@@ -255,19 +255,19 @@ rename it, and modify it.
 ### Rendering a Starter Kit
 
 ```
-3d-ray -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -w 800 -H 800 -s 64 -d 30
+RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -w 800 -H 800 -s 64 -d 30
 ```
 
 Most starter kits define multiple cameras. List them with:
 
 ```
-3d-ray -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml --list-cameras
+RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml --list-cameras
 ```
 
 Then render a specific one:
 
 ```
-3d-ray -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -c "tre_quarti" -s 128
+RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -c "tre_quarti" -s 128
 ```
 
 ---
@@ -415,13 +415,13 @@ entities:
 
 ```
 # Quick preview (seconds)
-3d-ray -i my-scene.yaml -w 400 -H 225 -s 1 -d 5 -S 1
+RayTracer -i my-scene.yaml -w 400 -H 225 -s 1 -d 5 -S 1
 
 # Draft (minutes)
-3d-ray -i my-scene.yaml -w 800 -H 450 -s 16 -d 20 -S 4
+RayTracer -i my-scene.yaml -w 800 -H 450 -s 16 -d 20 -S 4
 
 # Final (production)
-3d-ray -i my-scene.yaml -w 1920 -H 1080 -s 256 -d 50 -S 16
+RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 256 -d 50 -S 16
 ```
 
 ---
@@ -619,8 +619,8 @@ lights:
 Render with:
 
 ```
-3d-ray -i exhibition-hall.yaml -c overview -w 1920 -H 1080 -s 128 -d 30
-3d-ray -i exhibition-hall.yaml -c detail -w 1200 -H 800 -s 256 -d 30
+RayTracer -i exhibition-hall.yaml -c overview -w 1920 -H 1080 -s 128 -d 30
+RayTracer -i exhibition-hall.yaml -c detail -w 1200 -H 800 -s 256 -d 30
 ```
 
 ---

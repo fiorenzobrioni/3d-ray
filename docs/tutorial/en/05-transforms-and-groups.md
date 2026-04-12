@@ -532,7 +532,7 @@ lights:
 Render with:
 
 ```
-3d-ray -i dinner-table.yaml -w 1200 -H 800 -s 64 -d 30
+RayTracer -i dinner-table.yaml -w 1200 -H 800 -s 64 -d 30
 ```
 
 ---
