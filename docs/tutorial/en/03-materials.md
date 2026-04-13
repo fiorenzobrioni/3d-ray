@@ -524,10 +524,27 @@ world:
   ambient_light: [0.02, 0.02, 0.03]
   background: [0.02, 0.02, 0.03]
 
-camera:
-  position: [0, 3, -10]
-  look_at: [0, 1.2, 0]
-  fov: 48
+cameras:
+  - name: "main"
+    position: [0, 3, -10]
+    look_at: [0, 1.2, 0]
+    fov: 48
+
+lights:
+  # Key light (large area for soft shadows)
+  - type: "area"
+    corner: [-4, 5, -3]
+    u: [8, 0, 0]
+    v: [0, 0, 6]
+    color: [1.0, 0.97, 0.92]
+    intensity: 30.0
+    shadow_samples: 16
+
+  # Fill light from lower right
+  - type: "point"
+    position: [6, 2, -5]
+    color: [0.7, 0.8, 1.0]
+    intensity: 25.0
 
 materials:
   # Floor
@@ -646,22 +663,6 @@ entities:
     center: [5.25, 1.3, 0]
     radius: 0.65
     material: "mat_checker"
-
-lights:
-  # Key light (large area for soft shadows)
-  - type: "area"
-    corner: [-4, 5, -3]
-    u: [8, 0, 0]
-    v: [0, 0, 6]
-    color: [1.0, 0.97, 0.92]
-    intensity: 30.0
-    shadow_samples: 16
-
-  # Fill light from lower right
-  - type: "point"
-    position: [6, 2, -5]
-    color: [0.7, 0.8, 1.0]
-    intensity: 25.0
 ```
 
 Render with:

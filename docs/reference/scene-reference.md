@@ -20,10 +20,10 @@ Every scene YAML file has **5 main sections** (in this order):
 imports:    # (optional) External YAML files to load
 templates:  # (optional) Reusable object blueprints
 world:      # Environment (sky, ambient light, background, ground)
-camera:     # or cameras: (list for multi-camera support)
+cameras:    # Camera list (or camera: for legacy single-camera)
+lights:     # Explicit light sources
 materials:  # Material definitions
 entities:   # 3D objects (primitives, groups, instances, CSG, meshes)
-lights:     # Explicit light sources
 ```
 **Key Coordinate System:**
 - **X** = right
@@ -74,16 +74,6 @@ sky:
 - **Overcast** (high ambient, uniform sky)
 ---
 ### 4. **CAMERA SECTION**
-#### **Single Camera** (legacy):
-```yaml
-camera:
-  position: [0, 2, -8]                    # Camera location
-  look_at: [0, 0, 0]                      # Target point
-  vup: [0, 1, 0]                          # "Up" vector (for roll)
-  fov: 60                                  # Vertical field of view (degrees)
-  aperture: 0.1                            # Lens diameter (0 = pinhole)
-  focal_dist: 8.0                          # Distance to focus plane
-```
 #### **Multi-Camera** (recommended):
 ```yaml
 cameras:
@@ -99,6 +89,16 @@ cameras:
     fov: 35
     aperture: 0.0
     focal_dist: 12
+```
+#### **Single Camera** (legacy):
+```yaml
+camera:
+  position: [0, 2, -8]                    # Camera location
+  look_at: [0, 0, 0]                      # Target point
+  vup: [0, 1, 0]                          # "Up" vector (for roll)
+  fov: 60                                  # Vertical field of view (degrees)
+  aperture: 0.1                            # Lens diameter (0 = pinhole)
+  focal_dist: 8.0                          # Distance to focus plane
 ```
 **Usage from CLI:**
 ```bash
@@ -560,12 +560,22 @@ world:
     type: "infinite_plane"
     material: "grass"
     y: 0.0
-camera:
-  position: [3, 2, -6]
-  look_at: [0, 1, 0]
-  fov: 45
-  aperture: 0.05
-  focal_dist: 7
+cameras:
+  - name: "main"
+    position: [3, 2, -6]
+    look_at: [0, 1, 0]
+    fov: 45
+    aperture: 0.05
+    focal_dist: 7
+lights:
+  - type: "directional"
+    direction: [-0.5, -1.0, -0.3]
+    color: [1.0, 0.95, 0.85]
+    intensity: 1.0
+  - type: "point"
+    position: [5, 8, -3]
+    color: [1.0, 1.0, 1.0]
+    intensity: 50.0
 materials:
   - id: "grass"
     type: "lambertian"
@@ -588,15 +598,6 @@ entities:
     scale: [1.0, 1.0, 1.0]
     translate: [-2, 0.5, 0]
     material: "gold"
-lights:
-  - type: "directional"
-    direction: [-0.5, -1.0, -0.3]
-    color: [1.0, 0.95, 0.85]
-    intensity: 1.0
-  - type: "point"
-    position: [5, 8, -3]
-    color: [1.0, 1.0, 1.0]
-    intensity: 50.0
 ```
 ---
 ### 11. **KEY FILES IN PROJECT**

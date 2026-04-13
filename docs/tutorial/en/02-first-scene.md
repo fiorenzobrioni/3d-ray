@@ -15,10 +15,17 @@ world:
   ambient_light: [0.03, 0.03, 0.04]
   background: [0.05, 0.05, 0.08]
 
-camera:
-  position: [0, 1, -5]
-  look_at: [0, 0.5, 0]
-  fov: 50
+cameras:
+  - name: "main"
+    position: [0, 1, -5]
+    look_at: [0, 0.5, 0]
+    fov: 50
+
+lights:
+  - type: "directional"
+    direction: [-1, -1, 1]
+    color: [1, 1, 1]
+    intensity: 2.0
 
 materials:
   - id: "white"
@@ -31,12 +38,6 @@ entities:
     center: [0, 0.5, 0]
     radius: 0.5
     material: "white"
-
-lights:
-  - type: "directional"
-    direction: [-1, -1, 1]
-    color: [1, 1, 1]
-    intensity: 2.0
 ```
 
 Render it:
@@ -90,10 +91,11 @@ produce the same result.
 ## 2.3 The Camera
 
 ```yaml
-camera:
-  position: [0, 1, -5]
-  look_at: [0, 0.5, 0]
-  fov: 50
+cameras:
+  - name: "main"
+    position: [0, 1, -5]
+    look_at: [0, 0.5, 0]
+    fov: 50
 ```
 
 The camera defines your viewpoint:
@@ -122,9 +124,9 @@ the scene. A large value (e.g. 90) acts like a wide-angle lens.
 in Chapter 7. Set `aperture` to `0` (the default) for everything to be
 in focus.
 
-> **Tip:** You can define multiple cameras using the `cameras:` list
-> (plural) instead of the singular `camera:`. This is covered in
-> Chapter 7.
+> **Tip:** `cameras:` (the list form) is the recommended format -- it
+> works for one camera or many. The singular `camera:` key still works
+> for backward compatibility. Multi-camera setup is covered in Chapter 7.
 
 ---
 
@@ -294,10 +296,24 @@ world:
   ambient_light: [0.02, 0.02, 0.03]
   background: [0.05, 0.05, 0.08]
 
-camera:
-  position: [0, 2, -6]
-  look_at: [0, 0.5, 0]
-  fov: 45
+cameras:
+  - name: "main"
+    position: [0, 2, -6]
+    look_at: [0, 0.5, 0]
+    fov: 45
+
+lights:
+  # Main light from upper-left
+  - type: "directional"
+    direction: [-1, -1, 1]
+    color: [1, 0.98, 0.95]
+    intensity: 2.5
+
+  # Fill light from right
+  - type: "point"
+    position: [4, 3, -3]
+    color: [0.8, 0.85, 1.0]
+    intensity: 20.0
 
 materials:
   - id: "grey_floor"
@@ -346,19 +362,6 @@ entities:
     center: [1.5, 0.5, 0]
     radius: 0.5
     material: "mirror"
-
-lights:
-  # Main light from upper-left
-  - type: "directional"
-    direction: [-1, -1, 1]
-    color: [1, 0.98, 0.95]
-    intensity: 2.5
-
-  # Fill light from right
-  - type: "point"
-    position: [4, 3, -3]
-    color: [0.8, 0.85, 1.0]
-    intensity: 20.0
 ```
 
 ### Rendering
@@ -396,7 +399,7 @@ RayTracer -i three-spheres.yaml -w 1920 -H 1080 -s 256 -d 50
 
 ## What You Have Learned
 
-- A scene needs at minimum: `world`, `camera`, at least one `material`,
+- A scene needs at minimum: `world`, `cameras:`, at least one `material`,
   at least one `entity`, and at least one `light`.
 - `lambertian` gives a matte diffuse surface; `metal` gives a reflective
   one, controlled by `fuzz`.

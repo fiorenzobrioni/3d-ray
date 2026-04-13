@@ -199,10 +199,27 @@ world:
     phase: "hg"
     g: 0.82
 
-camera:
-  position: [0, 1.5, -6]
-  look_at: [0, 2, 2]
-  fov: 55
+cameras:
+  - name: "main"
+    position: [0, 1.5, -6]
+    look_at: [0, 2, 2]
+    fov: 55
+
+lights:
+  # L'effetto principale: una luce spot che crea un fascio visibile nella nebbia
+  - type: "spot"
+    position: [0, 4.8, 4]
+    direction: [0, -0.7, -0.3]
+    color: [1.0, 0.92, 0.75]
+    intensity: 120.0
+    inner_angle: 10
+    outer_angle: 22
+
+  # Lieve riempimento per far sì che i pilastri non siano completamente neri
+  - type: "point"
+    position: [0, 4, -4]
+    color: [0.5, 0.55, 0.7]
+    intensity: 8.0
 
 materials:
   - id: "floor"
@@ -284,22 +301,6 @@ entities:
     height: 5.0
     material: "stone_pillar"
     seed: 6
-
-lights:
-  # L'effetto principale: una luce spot che crea un fascio visibile nella nebbia
-  - type: "spot"
-    position: [0, 4.8, 4]
-    direction: [0, -0.7, -0.3]
-    color: [1.0, 0.92, 0.75]
-    intensity: 120.0
-    inner_angle: 10
-    outer_angle: 22
-
-  # Lieve riempimento per far sì che i pilastri non siano completamente neri
-  - type: "point"
-    position: [0, 4, -4]
-    color: [0.5, 0.55, 0.7]
-    intensity: 8.0
 ```
 
 Esegui il rendering con:
