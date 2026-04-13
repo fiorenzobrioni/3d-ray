@@ -177,12 +177,13 @@ La mappa HDRI avvolge l'intera scena come una sfera. Il motore utilizza l'**impo
 Nel mondo reale, l'obiettivo di una fotocamera mette a fuoco a una distanza specifica. Gli oggetti a quella distanza sono nitidi; gli oggetti più vicini o più lontani sono sfocati. Questo effetto è chiamato **profondità di campo** (DOF).
 
 ```yaml
-camera:
-  position: [0, 1.5, -5]
-  look_at: [0, 0.8, 0]
-  fov: 40
-  aperture: 0.15
-  focal_dist: 5.0
+cameras:
+  - name: "main"
+    position: [0, 1.5, -5]
+    look_at: [0, 0.8, 0]
+    fov: 40
+    aperture: 0.15
+    focal_dist: 5.0
 ```
 
 | Parametro    | Predefinito | Descrizione                                          |
@@ -205,12 +206,13 @@ camera:
 ### Esempio: Mettere a fuoco la sfera centrale
 
 ```yaml
-camera:
-  position: [0, 1, -6]
-  look_at: [0, 0.5, 0]
-  fov: 45
-  aperture: 0.12
-  focal_dist: 6.0       # Distanza dalla fila dei soggetti
+cameras:
+  - name: "main"
+    position: [0, 1, -6]
+    look_at: [0, 0.5, 0]
+    fov: 45
+    aperture: 0.12
+    focal_dist: 6.0       # Distanza dalla fila dei soggetti
 ```
 
 Gli oggetti più vicini e più lontani dalla fotocamera rispetto a 6 unità appariranno sfocati, con una sfocatura crescente man mano che si allontanano dal piano focale.
@@ -303,6 +305,14 @@ cameras:
     look_at: [0, 0.5, 0]
     fov: 70
 
+lights:
+  # Il cielo gradiente + il sole sono la sorgente principale.
+  # Aggiungiamo un sottile filler per schiarire le ombre più profonde.
+  - type: "directional"
+    direction: [0.5, -0.5, -0.3]
+    color: [0.4, 0.5, 0.7]
+    intensity: 0.4
+
 materials:
   - id: "ground"
     type: "disney"
@@ -371,14 +381,6 @@ entities:
     center: [0.5, 0.06, 0.8]
     radius: 0.06
     material: "grass"
-
-lights:
-  # Il cielo gradiente + il sole sono la sorgente principale.
-  # Aggiungiamo un sottile filler per schiarire le ombre più profonde.
-  - type: "directional"
-    direction: [0.5, -0.5, -0.3]
-    color: [0.4, 0.5, 0.7]
-    intensity: 0.4
 ```
 
 ### Renderizzare le tre fotocamere

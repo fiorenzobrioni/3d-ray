@@ -203,12 +203,13 @@ at that distance are sharp; objects closer or farther away are blurred.
 This is **depth of field** (DOF).
 
 ```yaml
-camera:
-  position: [0, 1.5, -5]
-  look_at: [0, 0.8, 0]
-  fov: 40
-  aperture: 0.15
-  focal_dist: 5.0
+cameras:
+  - name: "main"
+    position: [0, 1.5, -5]
+    look_at: [0, 0.8, 0]
+    fov: 40
+    aperture: 0.15
+    focal_dist: 5.0
 ```
 
 | Parameter    | Default | Description                                  |
@@ -237,12 +238,13 @@ camera:
 ### Example: Focusing on the Middle Sphere
 
 ```yaml
-camera:
-  position: [0, 1, -6]
-  look_at: [0, 0.5, 0]
-  fov: 45
-  aperture: 0.12
-  focal_dist: 6.0       # Distance to the subject row
+cameras:
+  - name: "main"
+    position: [0, 1, -6]
+    look_at: [0, 0.5, 0]
+    fov: 45
+    aperture: 0.12
+    focal_dist: 6.0       # Distance to the subject row
 ```
 
 Objects closer to and farther from the camera than 6 units will appear
@@ -342,6 +344,14 @@ cameras:
     look_at: [0, 0.5, 0]
     fov: 70
 
+lights:
+  # The gradient sky + sun is the primary light source.
+  # Add a subtle fill to lift the deepest shadows.
+  - type: "directional"
+    direction: [0.5, -0.5, -0.3]
+    color: [0.4, 0.5, 0.7]
+    intensity: 0.4
+
 materials:
   - id: "ground"
     type: "disney"
@@ -410,14 +420,6 @@ entities:
     center: [0.5, 0.06, 0.8]
     radius: 0.06
     material: "grass"
-
-lights:
-  # The gradient sky + sun is the primary light source.
-  # Add a subtle fill to lift the deepest shadows.
-  - type: "directional"
-    direction: [0.5, -0.5, -0.3]
-    color: [0.4, 0.5, 0.7]
-    intensity: 0.4
 ```
 
 ### Rendering the Three Cameras

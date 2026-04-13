@@ -15,10 +15,17 @@ world:
   ambient_light: [0.03, 0.03, 0.04]
   background: [0.05, 0.05, 0.08]
 
-camera:
-  position: [0, 1, -5]
-  look_at: [0, 0.5, 0]
-  fov: 50
+cameras:
+  - name: "main"
+    position: [0, 1, -5]
+    look_at: [0, 0.5, 0]
+    fov: 50
+
+lights:
+  - type: "directional"
+    direction: [-1, -1, 1]
+    color: [1, 1, 1]
+    intensity: 2.0
 
 materials:
   - id: "white"
@@ -31,12 +38,6 @@ entities:
     center: [0, 0.5, 0]
     radius: 0.5
     material: "white"
-
-lights:
-  - type: "directional"
-    direction: [-1, -1, 1]
-    color: [1, 1, 1]
-    intensity: 2.0
 ```
 
 Renderizzarlo con:
@@ -88,10 +89,11 @@ può usare questa scorciatoia o un'entità esplicita -- il risultato è identico
 ## 2.3 La fotocamera
 
 ```yaml
-camera:
-  position: [0, 1, -5]
-  look_at: [0, 0.5, 0]
-  fov: 50
+cameras:
+  - name: "main"
+    position: [0, 1, -5]
+    look_at: [0, 0.5, 0]
+    fov: 50
 ```
 
 La fotocamera definisce il punto di vista:
@@ -119,8 +121,9 @@ Un valore grande (es. 90) agisce come un grandangolo.
 **`aperture`** e **`focal_dist`** controllano la profondità di campo e sono trattati
 nel Capitolo 7. Impostare `aperture` a `0` (predefinito) per avere tutto a fuoco.
 
-> **Suggerimento:** Si possono definire più fotocamere usando la lista `cameras:`
-> (plurale) invece del singolare `camera:`. Questo è trattato nel Capitolo 7.
+> **Suggerimento:** `cameras:` (la forma a lista) è il formato raccomandato -- funziona
+> sia per una camera sola che per più camere. La chiave singolare `camera:` è ancora
+> supportata per compatibilità. La configurazione multi-fotocamera è trattata nel Capitolo 7.
 
 ---
 
@@ -287,10 +290,24 @@ world:
   ambient_light: [0.02, 0.02, 0.03]
   background: [0.05, 0.05, 0.08]
 
-camera:
-  position: [0, 2, -6]
-  look_at: [0, 0.5, 0]
-  fov: 45
+cameras:
+  - name: "main"
+    position: [0, 2, -6]
+    look_at: [0, 0.5, 0]
+    fov: 45
+
+lights:
+  # Luce principale dall'alto a sinistra
+  - type: "directional"
+    direction: [-1, -1, 1]
+    color: [1, 0.98, 0.95]
+    intensity: 2.5
+
+  # Luce di riempimento da destra
+  - type: "point"
+    position: [4, 3, -3]
+    color: [0.8, 0.85, 1.0]
+    intensity: 20.0
 
 materials:
   - id: "grey_floor"
@@ -339,19 +356,6 @@ entities:
     center: [1.5, 0.5, 0]
     radius: 0.5
     material: "mirror"
-
-lights:
-  # Luce principale dall'alto a sinistra
-  - type: "directional"
-    direction: [-1, -1, 1]
-    color: [1, 0.98, 0.95]
-    intensity: 2.5
-
-  # Luce di riempimento da destra
-  - type: "point"
-    position: [4, 3, -3]
-    color: [0.8, 0.85, 1.0]
-    intensity: 20.0
 ```
 
 ### Rendering
@@ -388,7 +392,7 @@ RayTracer -i three-spheres.yaml -w 1920 -H 1080 -s 256 -d 50
 
 ## Cosa si è imparato
 
-- Una scena ha bisogno come minimo di: `world`, `camera`, almeno un `material`,
+- Una scena ha bisogno come minimo di: `world`, `cameras:`, almeno un `material`,
   almeno un'`entity` e almeno una `light`.
 - `lambertian` dà una superficie diffusa opaca; `metal` dà una superficie riflessiva,
   controllata da `fuzz`.

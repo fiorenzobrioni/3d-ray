@@ -308,10 +308,27 @@ world:
   ambient_light: [0.02, 0.015, 0.01]
   background: [0.01, 0.01, 0.02]
 
-camera:
-  position: [0, 3.5, -4]
-  look_at: [0, 0.78, 0]
-  fov: 50
+cameras:
+  - name: "main"
+    position: [0, 3.5, -4]
+    look_at: [0, 0.78, 0]
+    fov: 50
+
+lights:
+  # Luce calda diffusa dall'alto
+  - type: "area"
+    corner: [-0.6, 2.5, -0.4]
+    u: [1.2, 0, 0]
+    v: [0, 0, 0.8]
+    color: [1.0, 0.92, 0.78]
+    intensity: 40.0
+    shadow_samples: 16
+
+  # Riempimento freddo dal lato
+  - type: "point"
+    position: [3, 2, -2]
+    color: [0.7, 0.8, 1.0]
+    intensity: 15.0
 
 materials:
   # Tavolo
@@ -466,22 +483,6 @@ entities:
     template: "place_setting"
     translate: [0.35, 0.79, 0.25]
     rotate: [0, 180, 0]
-
-lights:
-  # Luce calda diffusa dall'alto
-  - type: "area"
-    corner: [-0.6, 2.5, -0.4]
-    u: [1.2, 0, 0]
-    v: [0, 0, 0.8]
-    color: [1.0, 0.92, 0.78]
-    intensity: 40.0
-    shadow_samples: 16
-
-  # Riempimento freddo dal lato
-  - type: "point"
-    position: [3, 2, -2]
-    color: [0.7, 0.8, 1.0]
-    intensity: 15.0
 ```
 
 Esegui il rendering con:

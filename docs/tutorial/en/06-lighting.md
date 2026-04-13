@@ -392,10 +392,42 @@ world:
   ambient_light: [0.01, 0.01, 0.015]
   background: [0.02, 0.02, 0.03]
 
-camera:
-  position: [0, 3, -10]
-  look_at: [0, 1, 0]
-  fov: 50
+cameras:
+  - name: "main"
+    position: [0, 3, -10]
+    look_at: [0, 1, 0]
+    fov: 50
+
+lights:
+  # 1. Point light over the first sphere
+  - type: "point"
+    position: [-6, 3.5, -1]
+    color: [1, 0.95, 0.9]
+    intensity: 25.0
+
+  # 2. Directional light for the second sphere
+  - type: "directional"
+    direction: [-0.3, -1, 0.5]
+    color: [1, 0.98, 0.92]
+    intensity: 2.5
+
+  # 3. Spot light for the third sphere
+  - type: "spot"
+    position: [0, 4, -1]
+    direction: [0, -1, 0.2]
+    color: [1, 1, 1]
+    intensity: 50.0
+    inner_angle: 12
+    outer_angle: 25
+
+  # 4. Area light for the fourth sphere
+  - type: "area"
+    corner: [2, 3.5, -1.5]
+    u: [2, 0, 0]
+    v: [0, 0, 2]
+    color: [1, 0.97, 0.93]
+    intensity: 30.0
+    shadow_samples: 16
 
 materials:
   - id: "floor"
@@ -481,37 +513,6 @@ entities:
     center: [6, 3.2, -0.5]
     radius: 0.15
     material: "glow"
-
-lights:
-  # 1. Point light over the first sphere
-  - type: "point"
-    position: [-6, 3.5, -1]
-    color: [1, 0.95, 0.9]
-    intensity: 25.0
-
-  # 2. Directional light for the second sphere
-  - type: "directional"
-    direction: [-0.3, -1, 0.5]
-    color: [1, 0.98, 0.92]
-    intensity: 2.5
-
-  # 3. Spot light for the third sphere
-  - type: "spot"
-    position: [0, 4, -1]
-    direction: [0, -1, 0.2]
-    color: [1, 1, 1]
-    intensity: 50.0
-    inner_angle: 12
-    outer_angle: 25
-
-  # 4. Area light for the fourth sphere
-  - type: "area"
-    corner: [2, 3.5, -1.5]
-    u: [2, 0, 0]
-    v: [0, 0, 2]
-    color: [1, 0.97, 0.93]
-    intensity: 30.0
-    shadow_samples: 16
 ```
 
 This scene places five identical spheres in a row. Each is primarily
