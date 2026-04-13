@@ -22,10 +22,20 @@ world:
   ground: { type: "infinite_plane", material: "oceano", y: 0 }
   # Sostituisci material per cambiare terreno: prato_1, prato_2, prato_3, oceano, terreno
 
-camera:
-  position: [0, 1, -15]
-  look_at: [0, 1.5, 0]
-  fov: 35
+cameras:
+  - name: "main"
+    position: [0, 1, -15]
+    look_at: [0, 1.5, 0]
+    fov: 35
+
+lights:
+  # intensity: 2 — valore alto intenzionale: la directional è l'unica sorgente
+  # di questa scena outdoor drammatica. Senza attenuazione con la distanza,
+  # deve compensare da sola per illuminare l'intera superficie.
+  - type: "directional"
+    direction: [-1, -0.2, -1]
+    color: [1, 0.4, 0.1]
+    intensity: 2
 
 materials:
   - id: "prato_1" # Verde Erba Naturale (Vivace), per un prato in piena salute
