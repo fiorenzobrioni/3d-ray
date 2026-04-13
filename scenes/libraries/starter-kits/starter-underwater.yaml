@@ -87,6 +87,32 @@ cameras:
     focal_dist: 4.0
 
 
+lights:
+
+  # ─── LUCI ATTIVE ★ Luce dall'alto filtrata dall'acqua ─────────────────────
+  - type: "directional"
+    direction: [-0.1, -1.0, -0.1]
+    color: [0.15, 0.35, 0.55]
+    intensity: 0.5
+
+  - type: "directional"
+    direction: [0.3, -0.8, -0.2]
+    color: [0.10, 0.25, 0.40]
+    intensity: 0.15
+
+  # Raggi di luce caustica (spot dall'alto)
+  - type: "spot"
+    position: [0, 8, 2]
+    direction: [0, -1, 0]
+    color: [0.20, 0.50, 0.60]
+    intensity: 20
+    inner_angle: 15
+    outer_angle: 40
+
+# ─── LUCI ALT-1: Abisso — solo bioluminescenza ──────────────────────────────
+# lights: []
+
+
 materials:
 
   - id: "sabbia"
@@ -278,28 +304,3 @@ entities:
   - { name: "biolum_2", type: "sphere", center: [2.2, 0.3, 5.5], radius: 0.05, material: "biolum_verde" }
   - { name: "biolum_3", type: "sphere", center: [0.3, 0.8, 6.5], radius: 0.04, material: "bioluminescente" }
 
-
-lights:
-
-  # ─── LUCI ATTIVE ★ Luce dall'alto filtrata dall'acqua ─────────────────────
-  - type: "directional"
-    direction: [-0.1, -1.0, -0.1]
-    color: [0.15, 0.35, 0.55]
-    intensity: 0.5
-
-  - type: "directional"
-    direction: [0.3, -0.8, -0.2]
-    color: [0.10, 0.25, 0.40]
-    intensity: 0.15
-
-  # Raggi di luce caustica (spot dall'alto)
-  - type: "spot"
-    position: [0, 8, 2]
-    direction: [0, -1, 0]
-    color: [0.20, 0.50, 0.60]
-    intensity: 20
-    inner_angle: 15
-    outer_angle: 40
-
-# ─── LUCI ALT-1: Abisso — solo bioluminescenza ──────────────────────────────
-# lights: []

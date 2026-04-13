@@ -19,10 +19,11 @@ world:
   ambient_light: [0.02, 0.02, 0.03]
   background: [0.0, 0.0, 0.0]
 
-camera:
-  position: [0, 2, -6]
-  look_at: [0, 1, 0]
-  fov: 45
+cameras:
+  - name: "main"
+    position: [0, 2, -6]
+    look_at: [0, 1, 0]
+    fov: 45
 
 entities:
   - name: "soggetto"

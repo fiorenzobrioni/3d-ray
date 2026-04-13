@@ -31,10 +31,17 @@ world:
   ground: { type: "infinite_plane", material: "terreno", y: 0 }
   # Sostituisci material per cambiare terreno: prato_1, prato_2, prato_3, oceano, terreno
 
-camera:
-  position: [0, 1.8, -8]
-  look_at: [0, 0.8, 0]
-  fov: 55
+cameras:
+  - name: "main"
+    position: [0, 1.8, -8]
+    look_at: [0, 0.8, 0]
+    fov: 55
+
+lights:
+  - type: "directional"
+    direction: [-0.8, -0.25, -0.5]
+    color: [1.0, 0.88, 0.55]
+    intensity: 0.12
 
 materials:
   - id: "prato_1" # Verde Erba Naturale (Vivace), per un prato in piena salute
@@ -58,8 +65,3 @@ materials:
     type: "lambertian"
     texture: { type: "checker", scale: 1.5, colors: [[0.25, 0.22, 0.18], [0.35, 0.32, 0.26]] }
 
-lights:
-  - type: "directional"
-    direction: [-0.8, -0.25, -0.5]
-    color: [1.0, 0.88, 0.55]
-    intensity: 0.12

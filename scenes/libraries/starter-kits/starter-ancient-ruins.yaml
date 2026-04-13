@@ -111,6 +111,53 @@ cameras:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── LUCI ATTIVE ★ Tramonto drammatico ───────────────────────────────────────
+lights:
+  - type: "directional"
+    direction: [-0.95, -0.12, -0.3]
+    color: [1.0, 0.48, 0.12]
+    intensity: 0.9
+
+  - type: "directional"
+    direction: [0.5, -0.5, 0.4]
+    color: [0.30, 0.25, 0.45]
+    intensity: 0.04
+
+# ─── LUCI ALT-1: Mezzogiorno — sole forte ───────────────────────────────────
+# lights:
+#   - type: "directional"
+#     direction: [-0.3, -0.95, -0.2]
+#     color: [1.0, 0.97, 0.90]
+#     intensity: 1.1
+#   - type: "directional"
+#     direction: [0.4, -0.5, 0.3]
+#     color: [0.50, 0.60, 0.82]
+#     intensity: 0.06
+
+# ─── LUCI ALT-2: Notte lunare + torce ───────────────────────────────────────
+# lights:
+#   - type: "directional"
+#     direction: [0.4, -0.7, -0.5]
+#     color: [0.15, 0.18, 0.35]
+#     intensity: 0.04
+#   - type: "sphere"
+#     position: [-1.5, 1.2, 1]
+#     radius: 0.10
+#     color: [1.0, 0.6, 0.2]
+#     intensity: 15.0
+#     shadow_samples: 8
+#   - type: "sphere"
+#     position: [1.5, 1.2, 1]
+#     radius: 0.10
+#     color: [1.0, 0.6, 0.2]
+#     intensity: 15.0
+#     shadow_samples: 8
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  MATERIALS
 # ═══════════════════════════════════════════════════════════════════════════════
 materials:
@@ -343,49 +390,3 @@ entities:
   - { name: "edera_2", type: "sphere", center: [3, 2.0, 5], radius: 0.50, scale: [0.35, 1.8, 0.35], material: "edera" }
   - { name: "edera_3", type: "sphere", center: [0.5, 2.5, 9], radius: 0.60, scale: [1.0, 0.8, 0.3], material: "edera" }
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  LIGHTS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# ─── LUCI ATTIVE ★ Tramonto drammatico ───────────────────────────────────────
-lights:
-  - type: "directional"
-    direction: [-0.95, -0.12, -0.3]
-    color: [1.0, 0.48, 0.12]
-    intensity: 0.9
-
-  - type: "directional"
-    direction: [0.5, -0.5, 0.4]
-    color: [0.30, 0.25, 0.45]
-    intensity: 0.04
-
-# ─── LUCI ALT-1: Mezzogiorno — sole forte ───────────────────────────────────
-# lights:
-#   - type: "directional"
-#     direction: [-0.3, -0.95, -0.2]
-#     color: [1.0, 0.97, 0.90]
-#     intensity: 1.1
-#   - type: "directional"
-#     direction: [0.4, -0.5, 0.3]
-#     color: [0.50, 0.60, 0.82]
-#     intensity: 0.06
-
-# ─── LUCI ALT-2: Notte lunare + torce ───────────────────────────────────────
-# lights:
-#   - type: "directional"
-#     direction: [0.4, -0.7, -0.5]
-#     color: [0.15, 0.18, 0.35]
-#     intensity: 0.04
-#   - type: "sphere"
-#     position: [-1.5, 1.2, 1]
-#     radius: 0.10
-#     color: [1.0, 0.6, 0.2]
-#     intensity: 15.0
-#     shadow_samples: 8
-#   - type: "sphere"
-#     position: [1.5, 1.2, 1]
-#     radius: 0.10
-#     color: [1.0, 0.6, 0.2]
-#     intensity: 15.0
-#     shadow_samples: 8

@@ -51,6 +51,38 @@ cameras:
     focal_dist: 4.0
 
 
+lights:
+
+  # ─── LUCI ATTIVE ★ Lanterna calda + candele ───────────────────────────────
+  - type: "sphere"
+    position: [0, 2.2, 1]
+    radius: 0.15
+    color: [1.0, 0.75, 0.40]
+    intensity: 35.0
+    shadow_samples: 8
+
+  - type: "point"
+    position: [0.8, 0.95, 0.85]
+    color: [1.0, 0.65, 0.25]
+    intensity: 5.0
+
+  - type: "point"
+    position: [-2.5, 1.05, 3.5]
+    color: [1.0, 0.65, 0.25]
+    intensity: 5.0
+
+# ─── LUCI ALT-1: Solo candele (più buio e drammatico) ───────────────────────
+# lights:
+#   - type: "point"
+#     position: [0.8, 0.95, 0.85]
+#     color: [1.0, 0.65, 0.25]
+#     intensity: 12.0
+#   - type: "point"
+#     position: [-2.5, 1.05, 3.5]
+#     color: [1.0, 0.65, 0.25]
+#     intensity: 12.0
+
+
 materials:
 
   - id: "pietra_cantina"
@@ -271,34 +303,3 @@ entities:
   - { type: "instance", template: "candela", translate: [0.8, 0.80, 0.85] }
   - { type: "instance", template: "candela", translate: [-2.5, 0.92, 3.5] }
 
-
-lights:
-
-  # ─── LUCI ATTIVE ★ Lanterna calda + candele ───────────────────────────────
-  - type: "sphere"
-    position: [0, 2.2, 1]
-    radius: 0.15
-    color: [1.0, 0.75, 0.40]
-    intensity: 35.0
-    shadow_samples: 8
-
-  - type: "point"
-    position: [0.8, 0.95, 0.85]
-    color: [1.0, 0.65, 0.25]
-    intensity: 5.0
-
-  - type: "point"
-    position: [-2.5, 1.05, 3.5]
-    color: [1.0, 0.65, 0.25]
-    intensity: 5.0
-
-# ─── LUCI ALT-1: Solo candele (più buio e drammatico) ───────────────────────
-# lights:
-#   - type: "point"
-#     position: [0.8, 0.95, 0.85]
-#     color: [1.0, 0.65, 0.25]
-#     intensity: 12.0
-#   - type: "point"
-#     position: [-2.5, 1.05, 3.5]
-#     color: [1.0, 0.65, 0.25]
-#     intensity: 12.0

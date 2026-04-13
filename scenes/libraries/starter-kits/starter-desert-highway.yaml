@@ -146,6 +146,59 @@ cameras:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── LUCI ATTIVE ★ Mezzogiorno — sole forte + fill cielo ────────────────────
+lights:
+  - type: "directional"
+    direction: [-0.2, -1.0, -0.3]
+    color: [1.0, 0.97, 0.90]
+    intensity: 1.2
+
+  - type: "directional"
+    direction: [0.4, -0.6, 0.3]
+    color: [0.55, 0.65, 0.85]
+    intensity: 0.08
+
+# ─── LUCI ALT-1: Golden Hour — sole caldo radente + fill freddo ─────────────
+#   Abbina a WORLD ALT-1
+# lights:
+#   - type: "directional"
+#     direction: [-0.85, -0.20, -0.4]
+#     color: [1.0, 0.82, 0.45]
+#     intensity: 1.0
+#   - type: "directional"
+#     direction: [0.5, -0.5, 0.3]
+#     color: [0.4, 0.5, 0.75]
+#     intensity: 0.04
+
+# ─── LUCI ALT-2: Tramonto drammatico — luce arancione + rim viola ───────────
+#   Abbina a WORLD ALT-2
+# lights:
+#   - type: "directional"
+#     direction: [-1.0, -0.08, -0.15]
+#     color: [1.0, 0.40, 0.08]
+#     intensity: 0.8
+#   - type: "directional"
+#     direction: [0.6, -0.3, 0.5]
+#     color: [0.35, 0.20, 0.50]
+#     intensity: 0.03
+
+# ─── LUCI ALT-3: Notte — point light da lampione + luna ─────────────────────
+#   Abbina a WORLD ALT-3
+# lights:
+#   - type: "point"
+#     position: [3.3, 4.5, 3]
+#     color: [1.0, 0.85, 0.5]
+#     intensity: 80.0
+#   - type: "directional"
+#     direction: [0.3, -0.8, -0.5]
+#     color: [0.15, 0.18, 0.35]
+#     intensity: 0.02
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  MATERIALS
 # ═══════════════════════════════════════════════════════════════════════════════
 materials:
@@ -429,55 +482,3 @@ entities:
   - { type: "instance", template: "cespuglio_secco", translate: [-6.5, 0, 16], seed: 503, scale: [0.8, 0.7, 0.8] }
   - { type: "instance", template: "cespuglio_secco", translate: [8, 0, 5],     seed: 504 }
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  LIGHTS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# ─── LUCI ATTIVE ★ Mezzogiorno — sole forte + fill cielo ────────────────────
-lights:
-  - type: "directional"
-    direction: [-0.2, -1.0, -0.3]
-    color: [1.0, 0.97, 0.90]
-    intensity: 1.2
-
-  - type: "directional"
-    direction: [0.4, -0.6, 0.3]
-    color: [0.55, 0.65, 0.85]
-    intensity: 0.08
-
-# ─── LUCI ALT-1: Golden Hour — sole caldo radente + fill freddo ─────────────
-#   Abbina a WORLD ALT-1
-# lights:
-#   - type: "directional"
-#     direction: [-0.85, -0.20, -0.4]
-#     color: [1.0, 0.82, 0.45]
-#     intensity: 1.0
-#   - type: "directional"
-#     direction: [0.5, -0.5, 0.3]
-#     color: [0.4, 0.5, 0.75]
-#     intensity: 0.04
-
-# ─── LUCI ALT-2: Tramonto drammatico — luce arancione + rim viola ───────────
-#   Abbina a WORLD ALT-2
-# lights:
-#   - type: "directional"
-#     direction: [-1.0, -0.08, -0.15]
-#     color: [1.0, 0.40, 0.08]
-#     intensity: 0.8
-#   - type: "directional"
-#     direction: [0.6, -0.3, 0.5]
-#     color: [0.35, 0.20, 0.50]
-#     intensity: 0.03
-
-# ─── LUCI ALT-3: Notte — point light da lampione + luna ─────────────────────
-#   Abbina a WORLD ALT-3
-# lights:
-#   - type: "point"
-#     position: [3.3, 4.5, 3]
-#     color: [1.0, 0.85, 0.5]
-#     intensity: 80.0
-#   - type: "directional"
-#     direction: [0.3, -0.8, -0.5]
-#     color: [0.15, 0.18, 0.35]
-#     intensity: 0.02

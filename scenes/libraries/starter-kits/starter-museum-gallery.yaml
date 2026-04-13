@@ -61,6 +61,87 @@ cameras:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── LUCI ATTIVE ★ Spot museali individuali + area generale ──────────────────
+lights:
+  # Luce ambiente soffitto (area light larga)
+  - type: "area"
+    corner: [-5, 4.4, -1]
+    u: [10, 0, 0]
+    v: [0, 0, 8]
+    color: [1.0, 0.98, 0.95]
+    intensity: 12.0
+    shadow_samples: 12
+
+  # Spot su sfera vetro
+  - type: "spot"
+    position: [-3, 4.2, 0]
+    direction: [0, -1, 0]
+    color: [1.0, 0.97, 0.92]
+    intensity: 25
+    inner_angle: 10
+    outer_angle: 22
+
+  # Spot su scultura CSG
+  - type: "spot"
+    position: [0, 4.2, 1]
+    direction: [0, -1, 0]
+    color: [1.0, 0.97, 0.92]
+    intensity: 25
+    inner_angle: 10
+    outer_angle: 22
+
+  # Spot su toro bronzo
+  - type: "spot"
+    position: [3, 4.2, 0]
+    direction: [0, -1, 0]
+    color: [1.0, 0.97, 0.92]
+    intensity: 25
+    inner_angle: 10
+    outer_angle: 22
+
+  # Spot su capsule corten
+  - type: "spot"
+    position: [-4.5, 4.2, 4]
+    direction: [0, -1, 0]
+    color: [1.0, 0.97, 0.92]
+    intensity: 25
+    inner_angle: 10
+    outer_angle: 22
+
+  # Spot su ceramica
+  - type: "spot"
+    position: [4.5, 4.2, 4]
+    direction: [0, -1, 0]
+    color: [1.0, 0.97, 0.92]
+    intensity: 25
+    inner_angle: 10
+    outer_angle: 22
+
+# ─── LUCI ALT-1: Solo luce naturale da lucernario ───────────────────────────
+# lights:
+#   - type: "area"
+#     corner: [-3, 4.4, 0]
+#     u: [6, 0, 0]
+#     v: [0, 0, 4]
+#     color: [0.85, 0.90, 1.0]
+#     intensity: 45.0
+#     shadow_samples: 16
+
+# ─── LUCI ALT-2: Drammatica — singolo spot da laterale ──────────────────────
+# lights:
+#   - type: "spot"
+#     position: [-6.5, 3.5, 2]
+#     direction: [0.9, -0.3, 0.0]
+#     color: [1.0, 0.90, 0.75]
+#     intensity: 60
+#     inner_angle: 15
+#     outer_angle: 45
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  MATERIALS
 # ═══════════════════════════════════════════════════════════════════════════════
 materials:
@@ -276,83 +357,3 @@ entities:
     scale: [1.0, 1.5, 0.8]
     material: "ceramica_bianca"
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  LIGHTS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# ─── LUCI ATTIVE ★ Spot museali individuali + area generale ──────────────────
-lights:
-  # Luce ambiente soffitto (area light larga)
-  - type: "area"
-    corner: [-5, 4.4, -1]
-    u: [10, 0, 0]
-    v: [0, 0, 8]
-    color: [1.0, 0.98, 0.95]
-    intensity: 12.0
-    shadow_samples: 12
-
-  # Spot su sfera vetro
-  - type: "spot"
-    position: [-3, 4.2, 0]
-    direction: [0, -1, 0]
-    color: [1.0, 0.97, 0.92]
-    intensity: 25
-    inner_angle: 10
-    outer_angle: 22
-
-  # Spot su scultura CSG
-  - type: "spot"
-    position: [0, 4.2, 1]
-    direction: [0, -1, 0]
-    color: [1.0, 0.97, 0.92]
-    intensity: 25
-    inner_angle: 10
-    outer_angle: 22
-
-  # Spot su toro bronzo
-  - type: "spot"
-    position: [3, 4.2, 0]
-    direction: [0, -1, 0]
-    color: [1.0, 0.97, 0.92]
-    intensity: 25
-    inner_angle: 10
-    outer_angle: 22
-
-  # Spot su capsule corten
-  - type: "spot"
-    position: [-4.5, 4.2, 4]
-    direction: [0, -1, 0]
-    color: [1.0, 0.97, 0.92]
-    intensity: 25
-    inner_angle: 10
-    outer_angle: 22
-
-  # Spot su ceramica
-  - type: "spot"
-    position: [4.5, 4.2, 4]
-    direction: [0, -1, 0]
-    color: [1.0, 0.97, 0.92]
-    intensity: 25
-    inner_angle: 10
-    outer_angle: 22
-
-# ─── LUCI ALT-1: Solo luce naturale da lucernario ───────────────────────────
-# lights:
-#   - type: "area"
-#     corner: [-3, 4.4, 0]
-#     u: [6, 0, 0]
-#     v: [0, 0, 4]
-#     color: [0.85, 0.90, 1.0]
-#     intensity: 45.0
-#     shadow_samples: 16
-
-# ─── LUCI ALT-2: Drammatica — singolo spot da laterale ──────────────────────
-# lights:
-#   - type: "spot"
-#     position: [-6.5, 3.5, 2]
-#     direction: [0.9, -0.3, 0.0]
-#     color: [1.0, 0.90, 0.75]
-#     intensity: 60
-#     inner_angle: 15
-#     outer_angle: 45
