@@ -59,18 +59,23 @@ public class NoiseTexture : ITexture
         Vector3 transformedP = TextureTransform.Apply(
             p, Offset, Rotation, objectSeed, RandomizeOffset, RandomizeRotation);
 
+        // Pick a deterministic Perlin instance per object seed so the procedural
+        // pattern is reproducible across renders. objectSeed == 0 falls back to
+        // the canonical default instance (also seeded deterministically).
+        Perlin noise = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
+
         float noiseVal;
         if (NoiseStrength > 0f)
         {
             // Turbulent mode: use summed octaves for a rougher appearance.
-            noiseVal = _noise.Turbulence(_scale * transformedP) * NoiseStrength;
+            noiseVal = noise.Turbulence(_scale * transformedP) * NoiseStrength;
             // Clamp to [0, 1] since turbulence output * strength can exceed 1.
             noiseVal = Math.Clamp(noiseVal, 0f, 1f);
         }
         else
         {
             // Smooth mode: remap Perlin output from [-1, 1] to [0, 1].
-            noiseVal = (_noise.Noise(_scale * transformedP) + 1f) * 0.5f;
+            noiseVal = (noise.Noise(_scale * transformedP) + 1f) * 0.5f;
         }
 
         return Vector3.One * noiseVal;

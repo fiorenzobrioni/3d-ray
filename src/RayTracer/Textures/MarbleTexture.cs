@@ -36,7 +36,11 @@ public class MarbleTexture : ITexture
     {
         Vector3 transformedP = TextureTransform.Apply(p, Offset, Rotation, objectSeed, RandomizeOffset, RandomizeRotation);
 
-        float noiseVal = _noise.Turbulence(transformedP);
+        // Per-object deterministic Perlin: same objectSeed → same marble pattern
+        // across the whole render and across runs.
+        Perlin noise = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
+
+        float noiseVal = noise.Turbulence(transformedP);
         float sinVal = MathF.Sin(_scale * transformedP.Z + NoiseStrength * noiseVal);
         
         float interpolationVal = (sinVal + 1f) * 0.5f;
