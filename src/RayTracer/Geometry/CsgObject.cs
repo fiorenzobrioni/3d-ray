@@ -57,7 +57,23 @@ public class CsgObject : IHittable
     /// <summary>Right operand (B).</summary>
     public IHittable Right { get; }
 
-    public int Seed { get; set; }
+    private int _seed;
+
+    /// <summary>
+    /// A CSG object is one logical solid: setting Seed propagates the same
+    /// value to both Left and Right operands so procedural textures are
+    /// uniform across the carved/combined result.
+    /// </summary>
+    public int Seed
+    {
+        get => _seed;
+        set
+        {
+            _seed = value;
+            Left.Seed = value;
+            Right.Seed = value;
+        }
+    }
 
     private readonly AABB _boundingBox;
 

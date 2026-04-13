@@ -27,8 +27,9 @@ namespace RayTracer.Geometry;
 /// in the cumulative Transform chain).
 ///
 /// <b>Seed propagation:</b>
-/// Setting Seed propagates to all children, ensuring procedural textures
-/// within the group are deterministic.
+/// A Group is treated as a single logical object: setting Seed propagates the
+/// same value to every child, so procedural textures within the group share a
+/// uniform deterministic pattern (as if the group were one solid).
 ///
 /// YAML example:
 /// <code>
@@ -58,6 +59,7 @@ public class Group : IHittable
 
     private readonly IHittable _root;
     private readonly List<IHittable> _children;
+    private int _seed;
 
     /// <summary>Number of direct children in this group.</summary>
     public int ChildCount => _children.Count;
@@ -121,13 +123,15 @@ public class Group : IHittable
 
     public int Seed
     {
-        get => 0;
+        get => _seed;
         set
         {
-            // Propagate seed to all children for deterministic procedural textures.
-            // Each child gets a unique derived seed to avoid identical patterns.
+            // Propagate the SAME seed to all children. A Group is one logical
+            // object, so every child shares the same deterministic seed and
+            // procedural textures appear uniform across the whole group.
+            _seed = value;
             for (int i = 0; i < _children.Count; i++)
-                _children[i].Seed = HashCode.Combine(value, i);
+                _children[i].Seed = value;
         }
     }
 
