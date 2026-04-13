@@ -54,6 +54,17 @@ cameras:
     focal_dist: 3.0
 
 
+lights:
+  # Luce ambiente dal soffitto (molto bassa)
+  - type: "area"
+    corner: [-1, 2.98, 1]
+    u: [2, 0, 0]
+    v: [0, 0, 4]
+    color: [0.80, 0.82, 0.90]
+    intensity: 3.0
+    shadow_samples: 8
+
+
 materials:
 
   - id: "specchio"
@@ -175,13 +186,3 @@ entities:
     radius: 0.25
     material: "cromo"
 
-
-lights:
-  # Luce ambiente dal soffitto (molto bassa)
-  - type: "area"
-    corner: [-1, 2.98, 1]
-    u: [2, 0, 0]
-    v: [0, 0, 4]
-    color: [0.80, 0.82, 0.90]
-    intensity: 3.0
-    shadow_samples: 8

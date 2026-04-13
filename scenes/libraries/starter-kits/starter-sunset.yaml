@@ -59,11 +59,3 @@ materials:
     type: "lambertian"
     texture: { type: "checker", scale: 1.5, colors: [[0.25, 0.22, 0.18], [0.35, 0.32, 0.26]] }
 
-lights:
-  # intensity: 2 — valore alto intenzionale: la directional è l'unica sorgente
-  # di questa scena outdoor drammatica. Senza attenuazione con la distanza,
-  # deve compensare da sola per illuminare l'intera superficie.
-  - type: "directional"
-    direction: [-1, -0.2, -1]
-    color: [1, 0.4, 0.1]
-    intensity: 2

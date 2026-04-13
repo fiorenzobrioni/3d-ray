@@ -92,6 +92,35 @@ cameras:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── LUCI ATTIVE ★ Sole fantasy + fill ambient ──────────────────────────────
+lights:
+  - type: "directional"
+    direction: [-0.6, -0.35, -0.5]
+    color: [1.0, 0.82, 0.50]
+    intensity: 0.9
+
+  - type: "directional"
+    direction: [0.5, -0.4, 0.5]
+    color: [0.40, 0.30, 0.60]
+    intensity: 0.06
+
+# ─── LUCI ALT-1: Notte magica — cristalli come luce principale ──────────────
+#   Abbina a WORLD ALT-2
+# lights:
+#   - type: "directional"
+#     direction: [0.2, -0.7, -0.4]
+#     color: [0.10, 0.12, 0.28]
+#     intensity: 0.03
+#   - type: "point"
+#     position: [0, 2.0, 0]
+#     color: [0.40, 0.70, 1.0]
+#     intensity: 40.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  MATERIALS
 # ═══════════════════════════════════════════════════════════════════════════════
 materials:
@@ -351,31 +380,3 @@ entities:
     scale: [0.6, 1.3, 0.6]
     material: "cristallo_ambra"
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  LIGHTS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# ─── LUCI ATTIVE ★ Sole fantasy + fill ambient ──────────────────────────────
-lights:
-  - type: "directional"
-    direction: [-0.6, -0.35, -0.5]
-    color: [1.0, 0.82, 0.50]
-    intensity: 0.9
-
-  - type: "directional"
-    direction: [0.5, -0.4, 0.5]
-    color: [0.40, 0.30, 0.60]
-    intensity: 0.06
-
-# ─── LUCI ALT-1: Notte magica — cristalli come luce principale ──────────────
-#   Abbina a WORLD ALT-2
-# lights:
-#   - type: "directional"
-#     direction: [0.2, -0.7, -0.4]
-#     color: [0.10, 0.12, 0.28]
-#     intensity: 0.03
-#   - type: "point"
-#     position: [0, 2.0, 0]
-#     color: [0.40, 0.70, 1.0]
-#     intensity: 40.0

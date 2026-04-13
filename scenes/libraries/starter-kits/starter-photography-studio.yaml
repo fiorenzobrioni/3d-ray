@@ -80,6 +80,79 @@ cameras:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── LUCI ATTIVE ★ 3-Point Lighting classico ────────────────────────────────
+lights:
+  # Key light — area light grande da sinistra-alto
+  - type: "area"
+    corner: [-3.5, 3.0, -2.0]
+    u: [2.0, 0.0, 0.0]
+    v: [0.0, 1.5, 0.0]
+    color: [1.0, 0.97, 0.92]
+    intensity: 40.0
+    shadow_samples: 16
+
+  # Fill light — più debole da destra
+  - type: "point"
+    position: [4, 2.5, -3]
+    color: [0.85, 0.88, 1.0]
+    intensity: 25.0
+
+  # Rim/back light — da dietro per separare dal fondale
+  - type: "spot"
+    position: [0, 4.5, 3]
+    direction: [0, -0.7, -1.0]
+    color: [1.0, 0.98, 0.95]
+    intensity: 30
+    inner_angle: 18
+    outer_angle: 35
+
+# ─── LUCI ALT-1: High Key — luce piatta bianca ──────────────────────────────
+#   Abbina a WORLD ALT-1 + fondale_bianco sulle entità
+# lights:
+#   - type: "area"
+#     corner: [-4, 4.5, -3]
+#     u: [8, 0, 0]
+#     v: [0, 0, 6]
+#     color: [1.0, 0.98, 0.96]
+#     intensity: 50.0
+#     shadow_samples: 16
+#   - type: "point"
+#     position: [-5, 2, -2]
+#     color: [1.0, 1.0, 1.0]
+#     intensity: 30.0
+#   - type: "point"
+#     position: [5, 2, -2]
+#     color: [1.0, 1.0, 1.0]
+#     intensity: 30.0
+
+# ─── LUCI ALT-2: Dramatic — singola luce laterale dura ──────────────────────
+#   Abbina a WORLD ATTIVO (studio nero)
+# lights:
+#   - type: "spot"
+#     position: [-4, 3, -1]
+#     direction: [0.8, -0.5, 0.2]
+#     color: [1.0, 0.92, 0.80]
+#     intensity: 80
+#     inner_angle: 12
+#     outer_angle: 30
+
+# ─── LUCI ALT-3: Neon bicolore — mood creativo ──────────────────────────────
+#   Abbina a WORLD ATTIVO (studio nero)
+# lights:
+#   - type: "point"
+#     position: [-4, 2.5, 0]
+#     color: [1.0, 0.15, 0.50]
+#     intensity: 60.0
+#   - type: "point"
+#     position: [4, 2.5, 0]
+#     color: [0.15, 0.60, 1.0]
+#     intensity: 60.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  MATERIALS
 # ═══════════════════════════════════════════════════════════════════════════════
 materials:
@@ -259,75 +332,3 @@ entities:
   - { type: "instance", template: "softbox", translate: [-3, 0, -2], rotate: [0, 25, 0] }
   - { type: "instance", template: "softbox", translate: [3.5, 0, -1], rotate: [0, -30, 0] }
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  LIGHTS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# ─── LUCI ATTIVE ★ 3-Point Lighting classico ────────────────────────────────
-lights:
-  # Key light — area light grande da sinistra-alto
-  - type: "area"
-    corner: [-3.5, 3.0, -2.0]
-    u: [2.0, 0.0, 0.0]
-    v: [0.0, 1.5, 0.0]
-    color: [1.0, 0.97, 0.92]
-    intensity: 40.0
-    shadow_samples: 16
-
-  # Fill light — più debole da destra
-  - type: "point"
-    position: [4, 2.5, -3]
-    color: [0.85, 0.88, 1.0]
-    intensity: 25.0
-
-  # Rim/back light — da dietro per separare dal fondale
-  - type: "spot"
-    position: [0, 4.5, 3]
-    direction: [0, -0.7, -1.0]
-    color: [1.0, 0.98, 0.95]
-    intensity: 30
-    inner_angle: 18
-    outer_angle: 35
-
-# ─── LUCI ALT-1: High Key — luce piatta bianca ──────────────────────────────
-#   Abbina a WORLD ALT-1 + fondale_bianco sulle entità
-# lights:
-#   - type: "area"
-#     corner: [-4, 4.5, -3]
-#     u: [8, 0, 0]
-#     v: [0, 0, 6]
-#     color: [1.0, 0.98, 0.96]
-#     intensity: 50.0
-#     shadow_samples: 16
-#   - type: "point"
-#     position: [-5, 2, -2]
-#     color: [1.0, 1.0, 1.0]
-#     intensity: 30.0
-#   - type: "point"
-#     position: [5, 2, -2]
-#     color: [1.0, 1.0, 1.0]
-#     intensity: 30.0
-
-# ─── LUCI ALT-2: Dramatic — singola luce laterale dura ──────────────────────
-#   Abbina a WORLD ATTIVO (studio nero)
-# lights:
-#   - type: "spot"
-#     position: [-4, 3, -1]
-#     direction: [0.8, -0.5, 0.2]
-#     color: [1.0, 0.92, 0.80]
-#     intensity: 80
-#     inner_angle: 12
-#     outer_angle: 30
-
-# ─── LUCI ALT-3: Neon bicolore — mood creativo ──────────────────────────────
-#   Abbina a WORLD ATTIVO (studio nero)
-# lights:
-#   - type: "point"
-#     position: [-4, 2.5, 0]
-#     color: [1.0, 0.15, 0.50]
-#     intensity: 60.0
-#   - type: "point"
-#     position: [4, 2.5, 0]
-#     color: [0.15, 0.60, 1.0]
-#     intensity: 60.0

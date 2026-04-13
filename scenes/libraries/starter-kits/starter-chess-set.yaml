@@ -57,6 +57,25 @@ cameras:
     focal_dist: 10.0
 
 
+lights:
+
+  - type: "area"
+    corner: [-2, 4.5, -2]
+    u: [4, 0, 0]
+    v: [0, 0, 4]
+    color: [1.0, 0.97, 0.92]
+    intensity: 30.0
+    shadow_samples: 16
+
+  - type: "spot"
+    position: [2.5, 3, -2.5]
+    direction: [-0.4, -0.8, 0.4]
+    color: [1.0, 0.92, 0.80]
+    intensity: 15
+    inner_angle: 15
+    outer_angle: 35
+
+
 materials:
 
   - id: "tavolo"
@@ -329,21 +348,3 @@ entities:
   - { type: "instance", template: "cavallo", material: "pezzo_nero", translate: [0.94, 0.14, 1.31], seed: 3016, rotate: [0, 180, 0] }
   - { type: "instance", template: "torre",   material: "pezzo_nero", translate: [1.31, 0.14, 1.31], seed: 3017 }
 
-
-lights:
-
-  - type: "area"
-    corner: [-2, 4.5, -2]
-    u: [4, 0, 0]
-    v: [0, 0, 4]
-    color: [1.0, 0.97, 0.92]
-    intensity: 30.0
-    shadow_samples: 16
-
-  - type: "spot"
-    position: [2.5, 3, -2.5]
-    direction: [-0.4, -0.8, 0.4]
-    color: [1.0, 0.92, 0.80]
-    intensity: 15
-    inner_angle: 15
-    outer_angle: 35

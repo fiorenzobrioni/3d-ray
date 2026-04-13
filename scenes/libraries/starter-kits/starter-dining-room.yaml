@@ -83,6 +83,68 @@ cameras:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── LUCI ATTIVE ★ Finestra laterale + lampada sospesa ──────────────────────
+lights:
+  # Finestra laterale sinistra (area light simulata)
+  - type: "area"
+    corner: [-4.4, 0.8, -1.5]
+    u: [0, 0, 3.0]
+    v: [0, 1.5, 0]
+    color: [1.0, 0.96, 0.88]
+    intensity: 30.0
+    shadow_samples: 16
+
+  # Lampada a sospensione (sphere light calda)
+  - type: "sphere"
+    position: [0, 1.90, 0]
+    radius: 0.10
+    color: [1.0, 0.85, 0.60]
+    intensity: 40.0
+    shadow_samples: 8
+
+  # Fill morbida dal soffitto
+  - type: "area"
+    corner: [-2, 2.95, -1.5]
+    u: [4, 0, 0]
+    v: [0, 0, 3]
+    color: [0.85, 0.88, 0.95]
+    intensity: 4.0
+    shadow_samples: 4
+
+# ─── LUCI ALT-1: Solo luce naturale (senza lampada) ─────────────────────────
+#   Abbina a WORLD ALT-1
+# lights:
+#   - type: "area"
+#     corner: [-4.4, 0.6, -2]
+#     u: [0, 0, 4]
+#     v: [0, 2.0, 0]
+#     color: [1.0, 0.97, 0.90]
+#     intensity: 45.0
+#     shadow_samples: 16
+#   - type: "directional"
+#     direction: [0.6, -0.5, 0.2]
+#     color: [0.50, 0.55, 0.70]
+#     intensity: 0.04
+
+# ─── LUCI ALT-2: Cena a lume di candela — calda e intima ────────────────────
+#   Abbina a WORLD ALT-2
+# lights:
+#   - type: "sphere"
+#     position: [0, 1.90, 0]
+#     radius: 0.10
+#     color: [1.0, 0.75, 0.40]
+#     intensity: 25.0
+#     shadow_samples: 8
+#   - type: "point"
+#     position: [0, 0.82, 0]
+#     color: [1.0, 0.65, 0.25]
+#     intensity: 5.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  MATERIALS
 # ═══════════════════════════════════════════════════════════════════════════════
 materials:
@@ -409,64 +471,3 @@ entities:
     height: 0.03
     material: "metallo_lampada"
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  LIGHTS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# ─── LUCI ATTIVE ★ Finestra laterale + lampada sospesa ──────────────────────
-lights:
-  # Finestra laterale sinistra (area light simulata)
-  - type: "area"
-    corner: [-4.4, 0.8, -1.5]
-    u: [0, 0, 3.0]
-    v: [0, 1.5, 0]
-    color: [1.0, 0.96, 0.88]
-    intensity: 30.0
-    shadow_samples: 16
-
-  # Lampada a sospensione (sphere light calda)
-  - type: "sphere"
-    position: [0, 1.90, 0]
-    radius: 0.10
-    color: [1.0, 0.85, 0.60]
-    intensity: 40.0
-    shadow_samples: 8
-
-  # Fill morbida dal soffitto
-  - type: "area"
-    corner: [-2, 2.95, -1.5]
-    u: [4, 0, 0]
-    v: [0, 0, 3]
-    color: [0.85, 0.88, 0.95]
-    intensity: 4.0
-    shadow_samples: 4
-
-# ─── LUCI ALT-1: Solo luce naturale (senza lampada) ─────────────────────────
-#   Abbina a WORLD ALT-1
-# lights:
-#   - type: "area"
-#     corner: [-4.4, 0.6, -2]
-#     u: [0, 0, 4]
-#     v: [0, 2.0, 0]
-#     color: [1.0, 0.97, 0.90]
-#     intensity: 45.0
-#     shadow_samples: 16
-#   - type: "directional"
-#     direction: [0.6, -0.5, 0.2]
-#     color: [0.50, 0.55, 0.70]
-#     intensity: 0.04
-
-# ─── LUCI ALT-2: Cena a lume di candela — calda e intima ────────────────────
-#   Abbina a WORLD ALT-2
-# lights:
-#   - type: "sphere"
-#     position: [0, 1.90, 0]
-#     radius: 0.10
-#     color: [1.0, 0.75, 0.40]
-#     intensity: 25.0
-#     shadow_samples: 8
-#   - type: "point"
-#     position: [0, 0.82, 0]
-#     color: [1.0, 0.65, 0.25]
-#     intensity: 5.0
