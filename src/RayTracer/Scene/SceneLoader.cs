@@ -258,6 +258,11 @@ public class SceneLoader
                      $"({string.Join(", ", templates.Keys)})");
         }
 
+        // Built once per template, on first instance request. Subsequent
+        // instances share the same IHittable reference (and its BVH/meshes),
+        // turning N instances of a heavy mesh from O(N) memory to O(1).
+        var templateCache = new Dictionary<string, IHittable>(StringComparer.OrdinalIgnoreCase);
+
         // Entities
         if (data.Entities != null)
         {
@@ -282,7 +287,7 @@ public class SceneLoader
                 }
                 else if (string.Equals(e.Type, "instance", StringComparison.OrdinalIgnoreCase))
                 {
-                    hittable = CreateInstanceEntity(e, materials, templates, sceneDir, idx);
+                    hittable = CreateInstanceEntity(e, materials, templates, templateCache, sceneDir, idx);
                 }
                 else
                 {
@@ -1246,17 +1251,23 @@ public class SceneLoader
     }
  
     /// <summary>
-    /// Creates an instance from a named template. The template's children are
-    /// re-built as a new Group, optionally with a material override. The template's
-    /// own transform (if any) is applied as the Group's "default pose", and the
-    /// instance's transform is applied on top by the caller in Load().
+    /// Creates an instance from a named template, sharing the template's geometry
+    /// across all instances via <paramref name="templateCache"/>. The first instance
+    /// of a given template triggers the build (children + template transform); every
+    /// subsequent instance reuses the same <see cref="IHittable"/> reference, paying
+    /// memory for the geometry, BVH and meshes only once per template.
     ///
-    /// Transform composition chain:
+    /// Per-instance state (seed for procedural textures and an optional material
+    /// override) is carried by an <see cref="Instance"/> wrapper around the shared
+    /// template — see <see cref="Instance"/> for the override semantics.
+    ///
+    /// Transform composition chain (object → world space):
     ///   child_local → template_transform → instance_transform
     /// </summary>
     private static IHittable? CreateInstanceEntity(EntityData e,
         Dictionary<string, IMaterial> materials,
         Dictionary<string, EntityData> templates,
+        Dictionary<string, IHittable> templateCache,
         string sceneDir, int entityIndex)
     {
         if (string.IsNullOrWhiteSpace(e.Template))
@@ -1264,40 +1275,76 @@ public class SceneLoader
             Warn($"Instance '{e.Name ?? "(unnamed)"}' requires a 'template' name. Skipping.");
             return null;
         }
- 
+
         if (!templates.TryGetValue(e.Template, out var templateDef))
         {
             Warn($"Instance '{e.Name ?? "(unnamed)"}': template '{e.Template}' not found. Skipping.");
             return null;
         }
- 
-        // Resolve material: instance override → template default → grey fallback
-        var materialId = e.Material ?? templateDef.Material;
-        var fallbackMat = GetMaterial(materials, materialId);
- 
-        // Build a fresh Group from the template's children
-        var childObjects = BuildChildList(
-            templateDef.Children!, fallbackMat, materials, sceneDir, entityIndex);
- 
-        if (childObjects.Count == 0)
+
+        // Build the template once, on the first request, then reuse the same
+        // reference for every subsequent instance. This is the memory-sharing
+        // path of feature #22.
+        if (!templateCache.TryGetValue(e.Template, out var sharedTemplate))
         {
-            Warn($"Instance '{e.Name ?? "(unnamed)"}' of '{e.Template}': " +
-                 "all template children failed to load. Skipping.");
-            return null;
+            var built = BuildTemplateGeometry(templateDef, materials, sceneDir);
+            if (built == null)
+            {
+                Warn($"Instance '{e.Name ?? "(unnamed)"}' of '{e.Template}': " +
+                     "all template children failed to load. Skipping.");
+                return null;
+            }
+            sharedTemplate = built;
+            templateCache[e.Template] = sharedTemplate;
+            Info($"Template '{e.Template}' built and cached for instancing.");
         }
- 
-        IHittable result = new Group(childObjects);
- 
-        // Seed: instance seed takes precedence over template seed
-        result.Seed = e.Seed ?? templateDef.Seed ?? HashCode.Combine(
+
+        // Material override is applied only when the YAML instance specifies a
+        // material. When omitted, the template's per-child materials show through.
+        var overrideMat = e.Material != null ? GetMaterial(materials, e.Material) : null;
+
+        var instance = new Instance(sharedTemplate, overrideMat);
+
+        // Seed precedence: instance → template → deterministic hash.
+        // Stored on the Instance wrapper, not on the shared template.
+        instance.Seed = e.Seed ?? templateDef.Seed ?? HashCode.Combine(
             entityIndex, e.Template.GetHashCode(), e.Name?.GetHashCode() ?? 0);
- 
-        // Apply the template's own transform as the "default pose".
-        // The instance's transform (from the caller in Load()) composes on top.
+
+        return instance;
+    }
+
+    /// <summary>
+    /// Builds the shared geometry for a template: children resolved against the
+    /// template's default material, wrapped in a Group, and (if the template
+    /// defines transforms) wrapped again in a Transform for the default pose.
+    ///
+    /// The returned IHittable is immutable from the renderer's point of view —
+    /// its Seed is intentionally left at the default value because each
+    /// <see cref="Instance"/> overrides <c>rec.ObjectSeed</c> at hit time.
+    /// </summary>
+    private static IHittable? BuildTemplateGeometry(EntityData templateDef,
+        Dictionary<string, IMaterial> materials, string sceneDir)
+    {
+        var fallbackMat = GetMaterial(materials, templateDef.Material);
+
+        // A stable per-template index keeps child seeding deterministic
+        // regardless of which instance triggers the build. Child seeds are
+        // overridden per-instance at hit time, so this only matters for
+        // procedural state computed at build time (none currently).
+        int templateIndex = templateDef.Name?.GetHashCode() ?? 0;
+
+        var childObjects = BuildChildList(
+            templateDef.Children!, fallbackMat, materials, sceneDir, templateIndex);
+
+        if (childObjects.Count == 0)
+            return null;
+
+        IHittable result = new Group(childObjects);
+
         var templateTransform = ComputeTransformMatrix(templateDef);
         if (templateTransform != Matrix4x4.Identity)
             result = new Transform(result, templateTransform);
- 
+
         return result;
     }
  

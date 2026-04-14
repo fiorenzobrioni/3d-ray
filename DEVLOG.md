@@ -127,7 +127,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 | 19 | Volumetric Rendering | ⬜ Da fare |
 | 20 | Subsurface Scattering | ⬜ Da fare |
 | 21 | CSG (Boolean Operations) | ✅ Completato |
-| 22 | Instancing | ⬜ Da fare |
+| 22 | Instancing | ✅ Completato |
 
 **18. Motion Blur ⬜** — Parametro temporale nel `Ray` con interpolazione posizioni.
 
@@ -147,7 +147,7 @@ Note implementative: il free-path channel-pick uniforme è la scelta più sempli
 
 **21. CSG ✅** — Operazioni booleane union, intersection, subtraction con algoritmo all-hits per correttezza su solidi non-convessi. Annidamento ricorsivo arbitrario, materiali per-figlio, compatibilità BVH (AABB tight per tipo di operazione) e Transform (Jacobian area-preserving). Normali invertite automaticamente sulla superficie tagliante della subtraction con propagazione corretta del frame TBN.
 
-**22. Instancing ⬜** — Copie efficienti con geometria condivisa e transform individuale. Dipende da: #7, #11.
+**22. Instancing ✅** — Copie efficienti con geometria condivisa e transform individuale. Il `SceneLoader` mantiene un `templateCache` (`Dictionary<string, IHittable>`) che costruisce ogni template **una sola volta** alla prima richiesta; ogni `type: instance` successivo riusa lo stesso riferimento, condividendo geometria, BVH e mesh — N istanze di una mesh pesante passano da O(N) a O(1) in memoria. La nuova classe `Instance : IHittable` avvolge il template condiviso e aggiunge per-istanza: (a) override di `rec.ObjectSeed` al ritorno di `Hit()` per dare seed indipendenti alle texture procedurali nonostante la geometria condivisa, (b) override opzionale di `rec.Material` quando l'istanza dichiara un proprio `material:`. **Semantica del material override**: se l'istanza specifica un materiale, *tutti* i figli del template usano quel materiale (uniforma anche figli con materiale esplicito); se l'istanza non lo specifica, i materiali per-figlio del template restano invariati — è la scelta intuitiva e non richiede flag/marker sui figli. Catena di trasformazioni: `child_local → template_transform → instance_transform`. **Limitazione accettata**: gli emissive interni a un template istanziato non vengono registrati come `GeometryLight` separati per istanza (NEE non li considera; restano visibili tramite BSDF sampling). Una scena con centinaia di luci istanziate richiederebbe per-instance light registration con composizione di transform — complicazione non giustificata per casi d'uso reali. Dipende da: #7, #11.
 
 ---
 
@@ -191,7 +191,7 @@ Note implementative: il free-path channel-pick uniforme è la scelta più sempli
 ## ✅ TODO
 
 - [ ] Creare librerie di template: `scenes/libraries/chess-pieces.yaml`, `scenes/libraries/furniture.yaml`
-- [ ] Feature #22 completa: Instancing con geometria condivisa a livello BVH (memory-efficient per scene con migliaia di istanze)
+- [x] Feature #22 completa: Instancing con geometria condivisa a livello BVH (memory-efficient per scene con migliaia di istanze)
 - [ ] Fare una review completa dei tutorial (`tutorial/`): correttezza rispetto al codice, omissioni di feature, grammatica, esempi, indici.
 - Spezzare il file SceneLoader.cs in più file (al momento è un file troppo grande).
 - [ ] Aggiornare la checklist di testing con le scene di riferimento corrette.
