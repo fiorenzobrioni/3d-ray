@@ -127,7 +127,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 | 19 | Volumetric Rendering | ⬜ Da fare |
 | 20 | Subsurface Scattering | ⬜ Da fare |
 | 21 | CSG (Boolean Operations) | ✅ Completato |
-| 22 | Instancing | ⬜ Da fare |
+| 22 | Instancing | ✅ Completato |
 
 **18. Motion Blur ⬜** — Parametro temporale nel `Ray` con interpolazione posizioni.
 
@@ -147,7 +147,7 @@ Note implementative: il free-path channel-pick uniforme è la scelta più sempli
 
 **21. CSG ✅** — Operazioni booleane union, intersection, subtraction con algoritmo all-hits per correttezza su solidi non-convessi. Annidamento ricorsivo arbitrario, materiali per-figlio, compatibilità BVH (AABB tight per tipo di operazione) e Transform (Jacobian area-preserving). Normali invertite automaticamente sulla superficie tagliante della subtraction con propagazione corretta del frame TBN.
 
-**22. Instancing ⬜** — Copie efficienti con geometria condivisa e transform individuale. Dipende da: #7, #11.
+**22. Instancing ✅** — Copie efficienti con geometria condivisa e transform individuale. Il `SceneLoader` mantiene un `templateCache` (`Dictionary<string, IHittable>`) che costruisce ogni template **una sola volta** alla prima richiesta; ogni `type: instance` successivo riusa lo stesso riferimento, condividendo geometria, BVH e mesh — N istanze di una mesh pesante passano da O(N) a O(1) in memoria. La nuova classe `Instance : IHittable` avvolge il template condiviso e aggiunge per-istanza: (a) override di `rec.ObjectSeed` al ritorno di `Hit()` per dare seed indipendenti alle texture procedurali nonostante la geometria condivisa, (b) override opzionale di `rec.Material` quando l'istanza dichiara un proprio `material:`. **Semantica del material override**: se l'istanza specifica un materiale, *tutti* i figli del template usano quel materiale (uniforma anche figli con materiale esplicito); se l'istanza non lo specifica, i materiali per-figlio del template restano invariati — è la scelta intuitiva e non richiede flag/marker sui figli. Catena di trasformazioni: `child_local → template_transform → instance_transform`. **Limitazione accettata**: gli emissive interni a un template istanziato non vengono registrati come `GeometryLight` separati per istanza (NEE non li considera; restano visibili tramite BSDF sampling). Una scena con centinaia di luci istanziate richiederebbe per-instance light registration con composizione di transform — complicazione non giustificata per casi d'uso reali. Dipende da: #7, #11.
 
 ---
 
@@ -191,7 +191,7 @@ Note implementative: il free-path channel-pick uniforme è la scelta più sempli
 ## ✅ TODO
 
 - [ ] Creare librerie di template: `scenes/libraries/chess-pieces.yaml`, `scenes/libraries/furniture.yaml`
-- [ ] Feature #22 completa: Instancing con geometria condivisa a livello BVH (memory-efficient per scene con migliaia di istanze)
+- [x] Feature #22 completa: Instancing con geometria condivisa a livello BVH (memory-efficient per scene con migliaia di istanze)
 - [ ] Fare una review completa dei tutorial (`tutorial/`): correttezza rispetto al codice, omissioni di feature, grammatica, esempi, indici.
 - Spezzare il file SceneLoader.cs in più file (al momento è un file troppo grande).
 - [ ] Aggiornare la checklist di testing con le scene di riferimento corrette.
@@ -202,7 +202,8 @@ Note implementative: il free-path channel-pick uniforme è la scelta più sempli
 
 | # | Descrizione | Severità | Scena / File | Stato |
 |---|-------------|----------|--------------|-------|
-| 1 | Il parametro `seed` nei materiali procedurali non produce risultati riproducibili tra render della stessa scena. Atteso: seed fisso → texture identica a ogni render. Reale: venature cambiano. Da verificare se il problema è nella randomizzazione del seed o nell'ordine di costruzione degli oggetti. | 🔴 **Alta** | Qualsiasi scena con `seed` esplicito e texture `marble`/`wood`/`noise` | ⬜ |
+| 1 | ~~Il parametro `seed` nei materiali procedurali non produce risultati riproducibili tra render della stessa scena.~~ **Risolto** da tre commit in sequenza: `fix(perlin): make procedural noise textures deterministic per object seed` (determinismo di `Perlin.GetOrCreate`) + `fix(seed): stable hash for scene seed fallback` (hash FNV-1a stabile al posto di `string.GetHashCode()` randomizzato per processo) + `fix(seed): replace HashCode.Combine in seed fallback` (mixer Boost-style al posto di `System.HashCode.Combine`, anch'esso randomizzato per processo in .NET). Ora vale: **pattern procedurale identico tra render della stessa scena**, sia con `seed:` esplicito sia senza. La variazione per-oggetto senza seed è comunque derivata dall'indice/tipo/nome in modo stabile cross-run. | 🔴 **Alta** | Qualsiasi scena con texture `marble`/`wood`/`noise` | ✅ |
+| 2 | L'RNG globale del path tracing è seedato da `Environment.TickCount` in `MathUtils.cs:12`, quindi due render della stessa scena producono **rumore di rendering diverso** (pattern high-frequency da sampling stocastico di luci, BSDF, DoF, RR, ecc.). A sample count alto (≥ 64) il rumore si media e l'immagine converge, ma a sample count basso le differenze sono visibili. Questo **non riguarda** i pattern procedurali (risolto dal bug #1), ma la riproducibilità bit-identica dell'immagine finale. Vedi sezione "RNG globale e determinismo totale" nelle Note per dettagli su architettura della fix e impatti. | 🟠 **Media** | Qualsiasi scena renderizzata con pochi sample | ⬜ |
 
 Severità: 🔴 **Alta** 🟠 **Media** 🟡 **Bassa**
 
@@ -214,6 +215,44 @@ Severità: 🔴 **Alta** 🟠 **Media** 🟡 **Bassa**
 - Idee per scene creative:
   - **Macro Photography**: Primo piano estremo di un orologio meccanico (usando `Annulus` e `Cylinder`) con DOF molto spinta.
 - Quando si compongono oggetti con torus decorativi (base pedone, colletto, anello), verificare che le geometrie adiacenti coprano il tubo del torus: il raggio del cono/cilindro sovrapposto deve essere ≥ `MajorRadius - MinorRadius` con margine di sicurezza, altrimenti il tubo protrude attraverso la superficie adiacente.
+
+### RNG globale e determinismo totale (riferimento per bug #2)
+
+**Stato attuale.** `MathUtils.cs:12-17` espone un RNG thread-local seedato da un counter atomico inizializzato a `Environment.TickCount`:
+
+```csharp
+private static int _globalSeed = Environment.TickCount;
+private static readonly ThreadLocal<Random> _threadRng = new(
+    () => new Random(Interlocked.Increment(ref _globalSeed)));
+public static Random Rng => _threadRng.Value!;
+```
+
+Questo RNG è usato ovunque nel renderer per decisioni stocastiche: direzioni BSDF, campionamento luci (NEE), lens sampling (DoF), Russian Roulette, stratified jitter, ecc. Essendo seedato dal tempo di sistema, ogni esecuzione parte da uno stato diverso → lo stesso YAML renderizzato due volte dà pixel diversi (visibile soprattutto con basso numero di sample).
+
+**Perché è un problema (a volte).**
+- **Visual regression testing**: non esiste un baseline riferito perché l'output cambia sempre.
+- **Comparazioni A/B**: cambio un parametro (materiale, luce, camera) e voglio vedere *quel* diff, invece vedo diff + rumore casuale.
+- **Animazioni / sequenze**: frame consecutivi renderizzati in momenti diversi hanno rumore scorrelato → flickering temporale.
+- **Debug**: "perché questo pixel ha quel valore?" non è riproducibile.
+
+**Perché non è stato fixato insieme al bug #1.**
+- Scope diverso: bug #1 riguardava i **pattern procedurali** (determinismo spaziale della texture, cross-run). Bug #2 riguarda il **rumore di sampling** (determinismo stocastico del percorso dei ray, cross-run).
+- Costo architetturale maggiore: un fix richiede di rimpiazzare l'RNG globale thread-local con un seeding deterministico per pixel × sample, tipicamente una funzione pura `hash(pixelX, pixelY, sampleIndex, bounceDepth) → state`. Tutti i siti di uso di `MathUtils.Rng` vanno rivisti per prendere lo stato come parametro.
+- Rischio performance: la nuova strategia deve evitare di allocare `Random` per pixel e non deve perdere l'indipendenza tra thread.
+
+**Architettura proposta per la fix (quando verrà fatta).**
+1. Introdurre uno `Sampler` per-pixel che incapsula lo stato RNG, seedato deterministicamente da `(pixelX, pixelY, sampleIndex)` tramite hash stabile (PCG, xoshiro, o splittable RNG alla Salmon).
+2. Propagare il `Sampler` attraverso la call chain del path tracer (`TraceRay`, `Scatter`, `EvaluateDirect`, `SampleLight`, …) come parametro esplicito invece che via singleton.
+3. Rimuovere `MathUtils.Rng` e le helper statiche `RandomFloat`/`RandomInUnitSphere`/ecc., sostituendole con metodi del `Sampler`.
+4. Opzionale: aggiungere CLI flag `--render-seed N` per fissare esplicitamente il seed del frame (default: 0, tutti i render identici; override per variazione intenzionale tra frame di animazione).
+
+**Impatti attesi.**
+- Output **bit-identico** tra render della stessa scena.
+- Smoke test CI diventa verificabile contro un baseline stabile (possibilmente anche con hash dell'immagine).
+- Possibile leggero overhead (hash per sample invece di `rng.Next`) compensato dalla rimozione del counter atomico globale e dal fatto che ogni pixel ha uno stato RNG indipendente (meglio per cache locality con #15 Tile-based Rendering).
+- Cambio di output visivo rispetto ai render attuali: l'immagine "finale" di una scena sarà diversa da qualsiasi render specifico fatto finora, ma sarà l'unica immagine che quella scena può produrre da quel momento in poi.
+
+**Dipendenze.** Idealmente va affrontato insieme o dopo #15 (Tile-based Rendering), perché il tile è il granulo naturale per il seeding per-pixel e per parallelizzare lo stato del sampler senza contesa.
 
 ---
 

@@ -258,6 +258,11 @@ public class SceneLoader
                      $"({string.Join(", ", templates.Keys)})");
         }
 
+        // Built once per template, on first instance request. Subsequent
+        // instances share the same IHittable reference (and its BVH/meshes),
+        // turning N instances of a heavy mesh from O(N) memory to O(1).
+        var templateCache = new Dictionary<string, IHittable>(StringComparer.OrdinalIgnoreCase);
+
         // Entities
         if (data.Entities != null)
         {
@@ -282,7 +287,7 @@ public class SceneLoader
                 }
                 else if (string.Equals(e.Type, "instance", StringComparison.OrdinalIgnoreCase))
                 {
-                    hittable = CreateInstanceEntity(e, materials, templates, sceneDir, idx);
+                    hittable = CreateInstanceEntity(e, materials, templates, templateCache, sceneDir, idx);
                 }
                 else
                 {
@@ -1021,9 +1026,7 @@ public class SceneLoader
             // that two renders of the same YAML always produce identical results for
             // procedural textures using randomize_offset / randomize_rotation.
             // Explicit "seed" in YAML always takes precedence.
-            entity.Seed = e.Seed ?? HashCode.Combine(entityIndex,
-                                                      e.Type?.GetHashCode() ?? 0,
-                                                      e.Name?.GetHashCode() ?? 0);
+            entity.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
         }
 
         return entity;
@@ -1125,9 +1128,7 @@ public class SceneLoader
         // one from entity index + type + name. The CsgObject setter then
         // propagates the same value to Left and Right so the whole solid
         // shares a uniform procedural-texture pattern.
-        csg.Seed = e.Seed ?? HashCode.Combine(entityIndex,
-                                              e.Type?.GetHashCode() ?? 0,
-                                              e.Name?.GetHashCode() ?? 0);
+        csg.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
 
         return csg;
     }
@@ -1208,9 +1209,7 @@ public class SceneLoader
              $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices");
  
         // Seed assignment (same logic as CreateEntity)
-        mesh.Seed = e.Seed ?? HashCode.Combine(entityIndex,
-                                                e.Type?.GetHashCode() ?? 0,
-                                                e.Name?.GetHashCode() ?? 0);
+        mesh.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
  
         return mesh;
     }
@@ -1237,26 +1236,30 @@ public class SceneLoader
         }
  
         var group = new Group(childObjects);
-        group.Seed = e.Seed ?? HashCode.Combine(entityIndex,
-                                                 e.Type?.GetHashCode() ?? 0,
-                                                 e.Name?.GetHashCode() ?? 0);
+        group.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
  
         Info($"Group '{e.Name ?? "(unnamed)"}': {childObjects.Count} children");
         return group;
     }
  
     /// <summary>
-    /// Creates an instance from a named template. The template's children are
-    /// re-built as a new Group, optionally with a material override. The template's
-    /// own transform (if any) is applied as the Group's "default pose", and the
-    /// instance's transform is applied on top by the caller in Load().
+    /// Creates an instance from a named template, sharing the template's geometry
+    /// across all instances via <paramref name="templateCache"/>. The first instance
+    /// of a given template triggers the build (children + template transform); every
+    /// subsequent instance reuses the same <see cref="IHittable"/> reference, paying
+    /// memory for the geometry, BVH and meshes only once per template.
     ///
-    /// Transform composition chain:
+    /// Per-instance state (seed for procedural textures and an optional material
+    /// override) is carried by an <see cref="Instance"/> wrapper around the shared
+    /// template — see <see cref="Instance"/> for the override semantics.
+    ///
+    /// Transform composition chain (object → world space):
     ///   child_local → template_transform → instance_transform
     /// </summary>
     private static IHittable? CreateInstanceEntity(EntityData e,
         Dictionary<string, IMaterial> materials,
         Dictionary<string, EntityData> templates,
+        Dictionary<string, IHittable> templateCache,
         string sceneDir, int entityIndex)
     {
         if (string.IsNullOrWhiteSpace(e.Template))
@@ -1264,40 +1267,75 @@ public class SceneLoader
             Warn($"Instance '{e.Name ?? "(unnamed)"}' requires a 'template' name. Skipping.");
             return null;
         }
- 
+
         if (!templates.TryGetValue(e.Template, out var templateDef))
         {
             Warn($"Instance '{e.Name ?? "(unnamed)"}': template '{e.Template}' not found. Skipping.");
             return null;
         }
- 
-        // Resolve material: instance override → template default → grey fallback
-        var materialId = e.Material ?? templateDef.Material;
-        var fallbackMat = GetMaterial(materials, materialId);
- 
-        // Build a fresh Group from the template's children
-        var childObjects = BuildChildList(
-            templateDef.Children!, fallbackMat, materials, sceneDir, entityIndex);
- 
-        if (childObjects.Count == 0)
+
+        // Build the template once, on the first request, then reuse the same
+        // reference for every subsequent instance. This is the memory-sharing
+        // path of feature #22.
+        if (!templateCache.TryGetValue(e.Template, out var sharedTemplate))
         {
-            Warn($"Instance '{e.Name ?? "(unnamed)"}' of '{e.Template}': " +
-                 "all template children failed to load. Skipping.");
-            return null;
+            var built = BuildTemplateGeometry(templateDef, materials, sceneDir);
+            if (built == null)
+            {
+                Warn($"Instance '{e.Name ?? "(unnamed)"}' of '{e.Template}': " +
+                     "all template children failed to load. Skipping.");
+                return null;
+            }
+            sharedTemplate = built;
+            templateCache[e.Template] = sharedTemplate;
+            Info($"Template '{e.Template}' built and cached for instancing.");
         }
- 
+
+        // Material override is applied only when the YAML instance specifies a
+        // material. When omitted, the template's per-child materials show through.
+        var overrideMat = e.Material != null ? GetMaterial(materials, e.Material) : null;
+
+        var instance = new Instance(sharedTemplate, overrideMat);
+
+        // Seed precedence: instance → template → deterministic hash.
+        // Stored on the Instance wrapper, not on the shared template.
+        instance.Seed = e.Seed ?? templateDef.Seed ?? StableSeed(entityIndex, e.Template, e.Name);
+
+        return instance;
+    }
+
+    /// <summary>
+    /// Builds the shared geometry for a template: children resolved against the
+    /// template's default material, wrapped in a Group, and (if the template
+    /// defines transforms) wrapped again in a Transform for the default pose.
+    ///
+    /// The returned IHittable is immutable from the renderer's point of view —
+    /// its Seed is intentionally left at the default value because each
+    /// <see cref="Instance"/> overrides <c>rec.ObjectSeed</c> at hit time.
+    /// </summary>
+    private static IHittable? BuildTemplateGeometry(EntityData templateDef,
+        Dictionary<string, IMaterial> materials, string sceneDir)
+    {
+        var fallbackMat = GetMaterial(materials, templateDef.Material);
+
+        // A stable per-template index keeps child seeding deterministic
+        // regardless of which instance triggers the build. Child seeds are
+        // overridden per-instance at hit time, so this only matters for
+        // procedural state computed at build time (none currently).
+        int templateIndex = StableHash(templateDef.Name);
+
+        var childObjects = BuildChildList(
+            templateDef.Children!, fallbackMat, materials, sceneDir, templateIndex);
+
+        if (childObjects.Count == 0)
+            return null;
+
         IHittable result = new Group(childObjects);
- 
-        // Seed: instance seed takes precedence over template seed
-        result.Seed = e.Seed ?? templateDef.Seed ?? HashCode.Combine(
-            entityIndex, e.Template.GetHashCode(), e.Name?.GetHashCode() ?? 0);
- 
-        // Apply the template's own transform as the "default pose".
-        // The instance's transform (from the caller in Load()) composes on top.
+
         var templateTransform = ComputeTransformMatrix(templateDef);
         if (templateTransform != Matrix4x4.Identity)
             result = new Transform(result, templateTransform);
- 
+
         return result;
     }
  
@@ -1503,6 +1541,50 @@ public class SceneLoader
         if (id != null)
             Warn($"Material '{id}' not found. Using default grey Lambertian.");
         return new Lambertian(new Vector3(0.5f));
+    }
+
+    /// <summary>
+    /// Deterministic 32-bit hash of a string (FNV-1a). Used for seed fallback
+    /// when the YAML does not specify <c>seed:</c> on an entity with procedural
+    /// textures.
+    ///
+    /// <b>Why not <c>string.GetHashCode()</c>?</b> Since .NET Core 3, the built-in
+    /// hash is randomized per process (mitigation against hash-collision DoS).
+    /// For a ray tracer this would mean the same scene produces different Perlin
+    /// patterns on every run — breaking reproducibility, visual regression tests,
+    /// and the general expectation that "scene description = image". FNV-1a is
+    /// stable across processes and architectures, has good dispersion for short
+    /// strings, and costs essentially nothing.
+    /// </summary>
+    private static int StableHash(string? s)
+    {
+        if (string.IsNullOrEmpty(s)) return 0;
+        uint hash = 2166136261u; // FNV offset basis
+        foreach (char c in s)
+            hash = (hash ^ c) * 16777619u; // FNV prime
+        return unchecked((int)hash);
+    }
+
+    /// <summary>
+    /// Builds a deterministic per-object seed from an integer index and up to
+    /// two string identifiers (e.g. type + name, or template + name).
+    ///
+    /// <b>Why not <c>HashCode.Combine</c>?</b> Same reason as <see cref="StableHash"/>:
+    /// .NET's <c>HashCode</c> intentionally injects per-process randomness, so
+    /// using it here would re-introduce the cross-run non-determinism the
+    /// FNV-1a hash is meant to avoid. The Boost-style mixer below is fully
+    /// deterministic, has excellent avalanche behavior for small inputs, and
+    /// is used widely in C++ codebases for the same purpose.
+    /// </summary>
+    private static int StableSeed(int index, string? a, string? b)
+    {
+        unchecked
+        {
+            uint h = (uint)index;
+            h ^= (uint)StableHash(a) + 0x9e3779b9u + (h << 6) + (h >> 2);
+            h ^= (uint)StableHash(b) + 0x9e3779b9u + (h << 6) + (h >> 2);
+            return (int)h;
+        }
     }
 
     private static Vector3? ToVector3(List<float>? list)

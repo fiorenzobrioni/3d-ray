@@ -1,0 +1,520 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Instancing Forest Showcase — Bosco con template e istanze condivise
+#
+#  Dimostra il feature #22 (Instancing) con scenario realistico:
+#
+#    ▸ 3 TEMPLATE di alberi, ciascuno = Group con 2 CSG figli
+#          (tronco + chioma), ognuno a sua volta unione di più primitive
+#
+#    ▸ 30 ISTANZE totali (10 per template) che CONDIVIDONO la geometria
+#          del template (e quindi la sua BVH) variando solo
+#          translate / scale / rotate → footprint di memoria ≈ 1/10
+#
+#    ▸ Seed deterministico per-istanza (StableSeed): ogni albero ha una
+#          texture procedurale leggermente diversa pur condividendo la
+#          geometria, e il risultato è riproducibile tra run.
+#
+#    ▸ Materiali ereditati dal template: nessuna istanza fa override,
+#          così i figli CSG mantengono i loro materiali specifici
+#          (tronco scuro + chioma verde) — esattamente il comportamento
+#          atteso per una libreria di alberi.
+#
+#  Render consigliato:
+#    Draft : -w 960  -H 540  -s 32  -d 12
+#    Finale: -w 1920 -H 1080 -s 256 -d 20
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  ambient_light: [0.05, 0.06, 0.08]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.25, 0.45, 0.80]
+    horizon_color: [0.90, 0.78, 0.60]
+    ground_color:  [0.18, 0.16, 0.12]
+
+cameras:
+  # ── Panoramica a livello del suolo — guarda dentro al bosco ────────────
+  - name:       panorama
+    position:   [-13, 2.2, -13]
+    look_at:    [2, 2.5, 2]
+    fov:        55
+    aperture:   0.05
+    focal_dist: 18.0
+
+  # ── Aerea — vista d'insieme, mostra la distribuzione degli alberi ─────
+  - name:       aerea
+    position:   [0, 22, -14]
+    look_at:    [0, 0, 0]
+    fov:        50
+    aperture:   0.0
+    focal_dist: 26.0
+
+  # ── Close-up — per ispezionare la struttura CSG di un singolo albero ──
+  - name:       closeup
+    position:   [-4.5, 2.8, -10]
+    look_at:    [-3, 2.8, -7]
+    fov:        35
+    aperture:   0.08
+    focal_dist: 4.0
+
+  # ── Radente — camminata fra i tronchi, forte profondità di campo ─────
+  - name:       radente
+    position:   [7.5, 1.4, 8]
+    look_at:    [-1, 1.8, -2]
+    fov:        50
+    aperture:   0.12
+    focal_dist: 12.0
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Terreno: prato con marble procedurale (mottled verde) ─────────────
+  - id: "terreno"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 3.0
+      noise_strength: 6.0
+      colors: [[0.22, 0.38, 0.14], [0.32, 0.48, 0.20]]
+      randomize_offset: true
+
+  # ── TRONCHI (marroni, una variante per specie) ─────────────────────────
+  #   Pino: corteccia scura, opaca
+  - id: "tronco_pino"
+    type: "disney"
+    color: [0.22, 0.14, 0.08]
+    roughness: 0.88
+
+  #   Quercia: texture wood → anelli visibili, texture più "nobile"
+  - id: "tronco_quercia"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.5
+      colors: [[0.55, 0.38, 0.22], [0.28, 0.16, 0.08]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  #   Betulla: corteccia chiara, tipico bianco-grigio
+  - id: "tronco_betulla"
+    type: "disney"
+    color: [0.82, 0.80, 0.75]
+    roughness: 0.75
+
+  # ── CHIOME (verdi, una variante per specie) ────────────────────────────
+  #   Pino: verde scuro, opaco
+  - id: "fogliame_pino"
+    type: "lambertian"
+    color: [0.10, 0.26, 0.12]
+
+  #   Quercia: verde medio con texture marble per mottled fogliame
+  - id: "fogliame_quercia"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 4.0
+      noise_strength: 3.0
+      colors: [[0.22, 0.44, 0.18], [0.32, 0.56, 0.24]]
+      randomize_offset: true
+
+  #   Betulla: verde chiaro, tendente al lime
+  - id: "fogliame_betulla"
+    type: "lambertian"
+    color: [0.52, 0.68, 0.26]
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  TEMPLATES — 3 specie d'albero, ciascuno un Group con 2 CSG figli
+# ═══════════════════════════════════════════════════════════════════════════
+templates:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  1. PINO — conifera conica, chioma a cono multi-livello
+  #
+  #     Tronco : CSG union di cilindro principale + cono di slargamento
+  #              alla base (radici affioranti).
+  #     Chioma : CSG union di 3 coni sovrapposti, decrescenti verso l'alto,
+  #              a formare la silhouette classica dell'abete/pino.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "pino"
+    children:
+
+      - name: "tronco"
+        type: "csg"
+        operation: "union"
+        material: "tronco_pino"
+        left:
+          type: "cylinder"
+          center: [0, 0, 0]
+          radius: 0.18
+          height: 1.6
+        right:
+          type: "cone"
+          center: [0, 0, 0]
+          radius: 0.40
+          top_radius: 0.18
+          height: 0.35
+
+      - name: "chioma"
+        type: "csg"
+        operation: "union"
+        material: "fogliame_pino"
+        left:
+          type: "csg"
+          operation: "union"
+          left:
+            # Livello basso, largo
+            type: "cone"
+            center: [0, 1.3, 0]
+            radius: 1.25
+            top_radius: 0.05
+            height: 1.4
+          right:
+            # Livello medio
+            type: "cone"
+            center: [0, 2.2, 0]
+            radius: 0.95
+            top_radius: 0.05
+            height: 1.3
+        right:
+          # Livello alto, punta
+          type: "cone"
+          center: [0, 3.1, 0]
+          radius: 0.60
+          top_radius: 0.02
+          height: 1.2
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  2. QUERCIA — latifoglia dalla chioma tondeggiante e tronco robusto
+  #
+  #     Tronco : CSG union di cilindro largo + cono di base per lo slargo
+  #              delle radici.
+  #     Chioma : CSG union di 3 sfere offset, a formare una massa fogliare
+  #              corposa e irregolare.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "quercia"
+    children:
+
+      - name: "tronco"
+        type: "csg"
+        operation: "union"
+        material: "tronco_quercia"
+        left:
+          type: "cylinder"
+          center: [0, 0, 0]
+          radius: 0.28
+          height: 1.9
+        right:
+          type: "cone"
+          center: [0, 0, 0]
+          radius: 0.55
+          top_radius: 0.28
+          height: 0.45
+
+      - name: "chioma"
+        type: "csg"
+        operation: "union"
+        material: "fogliame_quercia"
+        left:
+          type: "csg"
+          operation: "union"
+          left:
+            type: "sphere"
+            center: [0, 2.8, 0]
+            radius: 1.25
+          right:
+            type: "sphere"
+            center: [0.85, 2.55, 0.20]
+            radius: 0.95
+        right:
+          type: "sphere"
+          center: [-0.70, 2.55, -0.25]
+          radius: 1.05
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  3. BETULLA — alta e slanciata, chioma leggera a doppia massa
+  #
+  #     Tronco : CSG union di cilindro sottile ma lungo + cono di base.
+  #     Chioma : CSG union di 2 sfere in verticale per suggerire il fogliame
+  #              rado e alto tipico della betulla.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "betulla"
+    children:
+
+      - name: "tronco"
+        type: "csg"
+        operation: "union"
+        material: "tronco_betulla"
+        left:
+          type: "cylinder"
+          center: [0, 0, 0]
+          radius: 0.11
+          height: 2.6
+        right:
+          type: "cone"
+          center: [0, 0, 0]
+          radius: 0.25
+          top_radius: 0.11
+          height: 0.30
+
+      - name: "chioma"
+        type: "csg"
+        operation: "union"
+        material: "fogliame_betulla"
+        left:
+          type: "sphere"
+          center: [0, 3.0, 0]
+          radius: 0.85
+        right:
+          type: "sphere"
+          center: [0.10, 3.75, -0.05]
+          radius: 0.70
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES — 30 istanze (10 per template) + terreno
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ── Suolo del bosco ────────────────────────────────────────────────────
+  - name: "suolo"
+    type: "infinite_plane"
+    point: [0, 0, 0]
+    normal: [0, 1, 0]
+    material: "terreno"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  PINI (10) — sparsi con scale e rotazioni variate
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "pino_01"
+    type: "instance"
+    template: "pino"
+    translate: [-9.0, 0, -8.5]
+    scale: 1.15
+    rotate: [0, 23, 0]
+
+  - name: "pino_02"
+    type: "instance"
+    template: "pino"
+    translate: [-6.2, 0,  3.0]
+    scale: 0.95
+    rotate: [0, 147, 0]
+
+  - name: "pino_03"
+    type: "instance"
+    template: "pino"
+    translate: [-3.0, 0, -9.2]
+    scale: 1.25
+    rotate: [0, 62, 0]
+
+  - name: "pino_04"
+    type: "instance"
+    template: "pino"
+    translate: [ 1.2, 0, -6.4]
+    scale: 0.88
+    rotate: [0, 201, 0]
+
+  - name: "pino_05"
+    type: "instance"
+    template: "pino"
+    translate: [ 4.8, 0, -4.8]
+    scale: 1.10
+    rotate: [0, 95, 0]
+
+  - name: "pino_06"
+    type: "instance"
+    template: "pino"
+    translate: [ 7.6, 0, -2.5]
+    scale: 1.30
+    rotate: [0, 312, 0]
+
+  - name: "pino_07"
+    type: "instance"
+    template: "pino"
+    translate: [ 9.2, 0,  2.4]
+    scale: 0.92
+    rotate: [0, 44, 0]
+
+  - name: "pino_08"
+    type: "instance"
+    template: "pino"
+    translate: [ 5.5, 0,  6.8]
+    scale: 1.05
+    rotate: [0, 178, 0]
+
+  - name: "pino_09"
+    type: "instance"
+    template: "pino"
+    translate: [-1.0, 0,  8.5]
+    scale: 1.20
+    rotate: [0, 256, 0]
+
+  - name: "pino_10"
+    type: "instance"
+    template: "pino"
+    translate: [-5.4, 0,  9.0]
+    scale: 1.00
+    rotate: [0, 88, 0]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  QUERCE (10) — maestose, prevalenti nella fascia media del bosco
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "quercia_01"
+    type: "instance"
+    template: "quercia"
+    translate: [-7.5, 0, -0.2]
+    scale: 1.10
+    rotate: [0, 15, 0]
+
+  - name: "quercia_02"
+    type: "instance"
+    template: "quercia"
+    translate: [-4.2, 0,  5.5]
+    scale: 0.92
+    rotate: [0, 130, 0]
+
+  - name: "quercia_03"
+    type: "instance"
+    template: "quercia"
+    translate: [-2.5, 0, -3.4]
+    scale: 1.28
+    rotate: [0, 72, 0]
+
+  - name: "quercia_04"
+    type: "instance"
+    template: "quercia"
+    translate: [ 2.8, 0, -1.2]
+    scale: 0.95
+    rotate: [0, 210, 0]
+
+  - name: "quercia_05"
+    type: "instance"
+    template: "quercia"
+    translate: [ 6.4, 0,  0.6]
+    scale: 1.15
+    rotate: [0, 290, 0]
+
+  - name: "quercia_06"
+    type: "instance"
+    template: "quercia"
+    translate: [ 3.2, 0,  3.4]
+    scale: 1.05
+    rotate: [0, 50, 0]
+
+  - name: "quercia_07"
+    type: "instance"
+    template: "quercia"
+    translate: [ 8.2, 0,  5.6]
+    scale: 0.88
+    rotate: [0, 165, 0]
+
+  - name: "quercia_08"
+    type: "instance"
+    template: "quercia"
+    translate: [ 0.2, 0,  2.3]
+    scale: 1.20
+    rotate: [0, 98, 0]
+
+  - name: "quercia_09"
+    type: "instance"
+    template: "quercia"
+    translate: [-6.5, 0, -5.0]
+    scale: 1.00
+    rotate: [0, 245, 0]
+
+  - name: "quercia_10"
+    type: "instance"
+    template: "quercia"
+    translate: [ 4.0, 0,  8.5]
+    scale: 0.96
+    rotate: [0, 32, 0]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  BETULLE (10) — slanciate, frammiste per contrasto cromatico (bianco)
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "betulla_01"
+    type: "instance"
+    template: "betulla"
+    translate: [-8.5, 0,  5.8]
+    scale: 1.05
+    rotate: [0, 10, 0]
+
+  - name: "betulla_02"
+    type: "instance"
+    template: "betulla"
+    translate: [-5.0, 0, -2.2]
+    scale: 0.92
+    rotate: [0, 122, 0]
+
+  - name: "betulla_03"
+    type: "instance"
+    template: "betulla"
+    translate: [-2.0, 0,  4.2]
+    scale: 1.15
+    rotate: [0, 64, 0]
+
+  - name: "betulla_04"
+    type: "instance"
+    template: "betulla"
+    translate: [ 0.5, 0, -3.5]
+    scale: 1.25
+    rotate: [0, 198, 0]
+
+  - name: "betulla_05"
+    type: "instance"
+    template: "betulla"
+    translate: [ 1.8, 0,  1.0]
+    scale: 0.90
+    rotate: [0, 280, 0]
+
+  - name: "betulla_06"
+    type: "instance"
+    template: "betulla"
+    translate: [ 3.6, 0, -8.2]
+    scale: 1.08
+    rotate: [0, 45, 0]
+
+  - name: "betulla_07"
+    type: "instance"
+    template: "betulla"
+    translate: [ 5.8, 0,  2.5]
+    scale: 1.20
+    rotate: [0, 156, 0]
+
+  - name: "betulla_08"
+    type: "instance"
+    template: "betulla"
+    translate: [ 8.5, 0, -6.5]
+    scale: 0.95
+    rotate: [0, 88, 0]
+
+  - name: "betulla_09"
+    type: "instance"
+    template: "betulla"
+    translate: [ 6.2, 0, -9.0]
+    scale: 1.10
+    rotate: [0, 220, 0]
+
+  - name: "betulla_10"
+    type: "instance"
+    template: "betulla"
+    translate: [-3.2, 0,  1.8]
+    scale: 1.00
+    rotate: [0, 305, 0]
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS — sole direzionale caldo, ombre morbide dal cielo ambientale
+# ═══════════════════════════════════════════════════════════════════════════
+lights:
+  # ── Sole — luce direzionale principale ─────────────────────────────────
+  - type: "directional"
+    direction: [-0.45, -0.80, -0.40]
+    color: [1.0, 0.92, 0.78]
+    intensity: 1.4
+
+  # ── Fill freddo da nord (cielo aperto) ─────────────────────────────────
+  - type: "directional"
+    direction: [0.35, -0.40, 0.85]
+    color: [0.70, 0.82, 1.0]
+    intensity: 0.35
