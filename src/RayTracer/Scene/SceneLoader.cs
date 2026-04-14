@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -693,7 +694,10 @@ public class SceneLoader
     /// <see cref="MixMaterial.Emit"/> returns. This lets NEE fire on surfaces such
     /// as "cooling lava" (Emissive + Lambertian) or "partial neon" (Emissive + Metal).
     /// </summary>
-    private static bool TryGetSamplableEmissive(IHittable obj, out ISamplable? samplable, out Emissive? material)
+    private static bool TryGetSamplableEmissive(
+        IHittable obj,
+        [NotNullWhen(true)] out ISamplable? samplable,
+        [NotNullWhen(true)] out Emissive? material)
     {
         samplable = null;
         material = null;
