@@ -6,6 +6,21 @@ Documento di lavoro per roadmap, attività, bug noti e note di sviluppo.
 
 ---
 
+## 📌 Note & Appunti Rapidi
+
+- Aggiornare i reference e i tutorial ogni volta che si aggiunge una nuova primitiva o una feature.
+- Idee per scene creative:
+  - **Macro Photography**: Primo piano estremo di un orologio meccanico (usando `Annulus` e `Cylinder`) con DOF molto spinta.
+- Quando si compongono oggetti con torus decorativi (base pedone, colletto, anello), verificare che le geometrie adiacenti coprano il tubo del torus: il raggio del cono/cilindro sovrapposto deve essere ≥ `MajorRadius - MinorRadius` con margine di sicurezza, altrimenti il tubo protrude attraverso la superficie adiacente.
+- Proprietà `medium:` per effetti volumetrici (nebbia, ecc.): spiegata nei tutorial ma manca la sintassi di consultazione rapida nei reference.
+- Creare 2 scene starter-kit con effetti volumetrici/nebbia e aggiornare i README di `starter-kits` e `libraries`.
+- Revisione app **ChessGen**:
+  - Riallineare il codice per generare `chess.yaml` nel formato attuale.
+  - Modificare l'app affinché generi un `template` per ogni pedina e usi le `instance` sulla scacchiera (più ordinato e compatto).
+- Valutare parametro CLI per **log verboso**: togliere dal log di default info di dettaglio (es: children counts, mesh stats) per una lettura più pulita.
+
+---
+
 ## 🗺️ Roadmap
 
 La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (già implementate prima della pianificazione delle fasi successive); le **Fasi 1–5** coprono le feature sviluppate o pianificate in modo incrementale.
@@ -124,7 +139,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 | # | Feature | Stato |
 |---|---------|-------|
 | 18 | Motion Blur | ⬜ Da fare |
-| 19 | Volumetric Rendering | ⬜ Da fare |
+| 19 | Volumetric Rendering | 🔧 In corso |
 | 20 | Subsurface Scattering | ⬜ Da fare |
 | 21 | CSG (Boolean Operations) | ✅ Completato |
 | 22 | Instancing | ✅ Completato |
@@ -203,18 +218,13 @@ Note implementative: il free-path channel-pick uniforme è la scelta più sempli
 | # | Descrizione | Severità | Scena / File | Stato |
 |---|-------------|----------|--------------|-------|
 | 1 | ~~Il parametro `seed` nei materiali procedurali non produce risultati riproducibili tra render della stessa scena.~~ **Risolto** da tre commit in sequenza: `fix(perlin): make procedural noise textures deterministic per object seed` (determinismo di `Perlin.GetOrCreate`) + `fix(seed): stable hash for scene seed fallback` (hash FNV-1a stabile al posto di `string.GetHashCode()` randomizzato per processo) + `fix(seed): replace HashCode.Combine in seed fallback` (mixer Boost-style al posto di `System.HashCode.Combine`, anch'esso randomizzato per processo in .NET). Ora vale: **pattern procedurale identico tra render della stessa scena**, sia con `seed:` esplicito sia senza. La variazione per-oggetto senza seed è comunque derivata dall'indice/tipo/nome in modo stabile cross-run. | 🔴 **Alta** | Qualsiasi scena con texture `marble`/`wood`/`noise` | ✅ |
-| 2 | L'RNG globale del path tracing è seedato da `Environment.TickCount` in `MathUtils.cs:12`, quindi due render della stessa scena producono **rumore di rendering diverso** (pattern high-frequency da sampling stocastico di luci, BSDF, DoF, RR, ecc.). A sample count alto (≥ 64) il rumore si media e l'immagine converge, ma a sample count basso le differenze sono visibili. Questo **non riguarda** i pattern procedurali (risolto dal bug #1), ma la riproducibilità bit-identica dell'immagine finale. Vedi sezione "RNG globale e determinismo totale" nelle Note per dettagli su architettura della fix e impatti. | 🟠 **Media** | Qualsiasi scena renderizzata con pochi sample | ⬜ |
+| 2 | L'RNG globale del path tracing è seedato da `Environment.TickCount` in `MathUtils.cs:12`, quindi due render della stessa scena producono **rumore di rendering diverso** (pattern high-frequency da sampling stocastico di luci, BSDF, DoF, RR, ecc.). A sample count alto (≥ 64) il rumore si media e l'immagine converge, ma a sample count basso le differenze sono visibili. Questo **non riguarda** i pattern procedurali (risolto dal bug #1), ma la riproducibilità bit-identica dell'immagine finale. Vedi sezione "RNG globale e determinismo totale" nei Riferimenti Tecnici per dettagli su architettura della fix e impatti. | 🟠 **Media** | Qualsiasi scena renderizzata con pochi sample | ⬜ |
 
 Severità: 🔴 **Alta** 🟠 **Media** 🟡 **Bassa**
 
 ---
 
-## 📝 Note
-
-- Aggiornare i reference e i tutorial ogni volta che si aggiunge una nuova primitiva o una feature.
-- Idee per scene creative:
-  - **Macro Photography**: Primo piano estremo di un orologio meccanico (usando `Annulus` e `Cylinder`) con DOF molto spinta.
-- Quando si compongono oggetti con torus decorativi (base pedone, colletto, anello), verificare che le geometrie adiacenti coprano il tubo del torus: il raggio del cono/cilindro sovrapposto deve essere ≥ `MajorRadius - MinorRadius` con margine di sicurezza, altrimenti il tubo protrude attraverso la superficie adiacente.
+## 📚 Riferimenti Tecnici
 
 ### RNG globale e determinismo totale (riferimento per bug #2)
 
