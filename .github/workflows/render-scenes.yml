@@ -47,7 +47,15 @@ jobs:
       fail-fast: false
       matrix:
         scene:
-          - sphere-light-showcase
+          - cornell-box
+          - cornell-box-sphere
+          - showcases/emissive-showcase
+          - showcases/group-showcase
+          - chess
+          - sample
+          - pendolo-newton
+          - alchemist-lab
+#          - showcases/sphere-light-showcase
 #          - mix-material-showcase
 #          - classic-vs-disney-showcase
 #          - sphere-showcase-disney

@@ -316,7 +316,7 @@ entities:
 
   # ─── BLOCCO CORTO (sx, frontale) ──────────────────────────────────────────
   - name: "blocco_corto"
-    type: "box"
+    type: "-box"
     scale:     [0.60, 0.60, 0.60]
     rotate:    [0, 17, 0]
     translate: [-0.33, 0.30, 0.66]
@@ -324,7 +324,7 @@ entities:
 
   # ─── BLOCCO ALTO (dx, posteriore) ─────────────────────────────────────────
   - name: "blocco_alto"
-    type: "box"
+    type: "-box"
     scale:     [0.60, 1.20, 0.60]
     rotate:    [0, -15, 0]
     translate: [ 0.33, 0.60, 1.30]
@@ -374,23 +374,23 @@ entities:
 
   #─── VARIANTE E: 3 sfere: opaca, specchio, vetro (caustics sul pavimento e riflessi) ──────────────────
   # PRIMA: commentare "blocco_corto" e "blocco_alto" sopra.
-  # - name: "sphere_left"
-  #   type: "sphere"
-  #   material: "dis_bianco_opaco"
-  #   center: [-0.52, 0.32, 1.2]
-  #   radius: 0.32
+  - name: "sphere_left"
+    type: "sphere"
+    material: "dis_bianco_opaco"
+    center: [-0.52, 0.32, 1.2]
+    radius: 0.32
 
-  # - name: "sphere_right"
-  #   type: "sphere"
-  #   material: "dis_cromo_specchio"
-  #   center: [0.52, 0.32, 1.2]
-  #   radius: 0.32
+  - name: "sphere_right"
+    type: "sphere"
+    material: "dis_cromo_specchio"
+    center: [0.52, 0.32, 1.2]
+    radius: 0.32
 
-  # - name: "sphere_center_front"
-  #   type: "sphere"
-  #   material: "dis_cristallo"
-  #   center: [0.0, 0.32, 0.4]
-  #   radius: 0.32
+  - name: "sphere_center_front"
+    type: "sphere"
+    material: "dis_cristallo"
+    center: [0.0, 0.32, 0.4]
+    radius: 0.32
 
 # =============================================================================
 #  LIGHTS

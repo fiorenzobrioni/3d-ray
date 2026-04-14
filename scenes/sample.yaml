@@ -126,7 +126,7 @@ lights:
 
 camera:
   position: [3, 2, -6]
-  look_at: [0, 0.5, 0]
+  look_at: [-0.5, 0.5, 0]
   fov: 45
   aperture: 0.05
   focal_dist: 7.0
