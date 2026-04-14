@@ -212,11 +212,18 @@ public class SphereLight : ILight
             return (true, Vector3.Zero, dirToLight, sampleDist);
 
         // ── Shadow test ─────────────────────────────────────────────────────
+        // tMax is computed in shadow-ray-parameter space (relative to
+        // shadowOrigin, not hitPoint). Using sampleDist directly — which is
+        // measured from hitPoint — would cancel the OffsetOrigin shift when
+        // dirToLight aligns with the surface normal, so the sphere's own
+        // surface would self-intersect the shadow ray at t == tMax and the
+        // strict `t > tMax` reject in Sphere.Hit would miss it, producing a
+        // black disc directly under the light.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight);
         var rec = new HitRecord();
-        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon,
-                                  sampleDist - MathUtils.Epsilon, ref rec);
+        float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
+        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, shadowTMax, ref rec);
 
         if (inShadow)
             return (true, Vector3.Zero, dirToLight, sampleDist);

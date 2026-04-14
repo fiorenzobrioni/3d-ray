@@ -176,7 +176,13 @@ public class GeometryLight : ILight
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight);
         var rec = new HitRecord();
-        if (world.Hit(shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon, ref rec))
+        // Compute tMax in shadow-ray parameter space (relative to shadowOrigin,
+        // not hitPoint). Using `distance - Epsilon` as tMax would cancel the
+        // OffsetOrigin shift whenever `dirToLight ≈ normal`, producing systematic
+        // self-intersection with the light's own surface and a black hole
+        // directly underneath small / close emitters.
+        float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
+        if (world.Hit(shadowRay, MathUtils.Epsilon, shadowTMax, ref rec))
             return (true, Vector3.Zero, dirToLight, distance);
 
         Vector3 emissiveColor = Material.EmissionAt(uv.X, uv.Y, samplePoint);
@@ -222,7 +228,12 @@ public class GeometryLight : ILight
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight);
         var rec = new HitRecord();
-        if (world.Hit(shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon, ref rec))
+        // See ComputeAreaSample for the derivation of this tMax — this bug bites
+        // the cone-sampling path systematically: every sample of a floor point
+        // directly under a floating sphere has dirToLight ≈ normal, so every
+        // sample self-intersects the emitter under the naive `distance - Epsilon`.
+        float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
+        if (world.Hit(shadowRay, MathUtils.Epsilon, shadowTMax, ref rec))
             return (true, Vector3.Zero, dirToLight, distance);
 
         Vector3 emissiveColor = Material.EmissionAt(uv.X, uv.Y, samplePoint);
