@@ -1026,9 +1026,7 @@ public class SceneLoader
             // that two renders of the same YAML always produce identical results for
             // procedural textures using randomize_offset / randomize_rotation.
             // Explicit "seed" in YAML always takes precedence.
-            entity.Seed = e.Seed ?? HashCode.Combine(entityIndex,
-                                                      StableHash(e.Type),
-                                                      StableHash(e.Name));
+            entity.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
         }
 
         return entity;
@@ -1130,9 +1128,7 @@ public class SceneLoader
         // one from entity index + type + name. The CsgObject setter then
         // propagates the same value to Left and Right so the whole solid
         // shares a uniform procedural-texture pattern.
-        csg.Seed = e.Seed ?? HashCode.Combine(entityIndex,
-                                              StableHash(e.Type),
-                                              StableHash(e.Name));
+        csg.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
 
         return csg;
     }
@@ -1213,9 +1209,7 @@ public class SceneLoader
              $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices");
  
         // Seed assignment (same logic as CreateEntity)
-        mesh.Seed = e.Seed ?? HashCode.Combine(entityIndex,
-                                                StableHash(e.Type),
-                                                StableHash(e.Name));
+        mesh.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
  
         return mesh;
     }
@@ -1242,9 +1236,7 @@ public class SceneLoader
         }
  
         var group = new Group(childObjects);
-        group.Seed = e.Seed ?? HashCode.Combine(entityIndex,
-                                                 StableHash(e.Type),
-                                                 StableHash(e.Name));
+        group.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
  
         Info($"Group '{e.Name ?? "(unnamed)"}': {childObjects.Count} children");
         return group;
@@ -1307,8 +1299,7 @@ public class SceneLoader
 
         // Seed precedence: instance → template → deterministic hash.
         // Stored on the Instance wrapper, not on the shared template.
-        instance.Seed = e.Seed ?? templateDef.Seed ?? HashCode.Combine(
-            entityIndex, StableHash(e.Template), StableHash(e.Name));
+        instance.Seed = e.Seed ?? templateDef.Seed ?? StableSeed(entityIndex, e.Template, e.Name);
 
         return instance;
     }
@@ -1572,6 +1563,28 @@ public class SceneLoader
         foreach (char c in s)
             hash = (hash ^ c) * 16777619u; // FNV prime
         return unchecked((int)hash);
+    }
+
+    /// <summary>
+    /// Builds a deterministic per-object seed from an integer index and up to
+    /// two string identifiers (e.g. type + name, or template + name).
+    ///
+    /// <b>Why not <c>HashCode.Combine</c>?</b> Same reason as <see cref="StableHash"/>:
+    /// .NET's <c>HashCode</c> intentionally injects per-process randomness, so
+    /// using it here would re-introduce the cross-run non-determinism the
+    /// FNV-1a hash is meant to avoid. The Boost-style mixer below is fully
+    /// deterministic, has excellent avalanche behavior for small inputs, and
+    /// is used widely in C++ codebases for the same purpose.
+    /// </summary>
+    private static int StableSeed(int index, string? a, string? b)
+    {
+        unchecked
+        {
+            uint h = (uint)index;
+            h ^= (uint)StableHash(a) + 0x9e3779b9u + (h << 6) + (h >> 2);
+            h ^= (uint)StableHash(b) + 0x9e3779b9u + (h << 6) + (h >> 2);
+            return (int)h;
+        }
     }
 
     private static Vector3? ToVector3(List<float>? list)
