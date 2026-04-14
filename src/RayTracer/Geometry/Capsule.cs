@@ -206,19 +206,38 @@ public class Capsule : IHittable, ISamplable
     // The two hemispheres together form one complete sphere.
     // ═════════════════════════════════════════════════════════════════════════
 
-    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
+        => SampleImpl(MathUtils.RandomFloat(), MathUtils.RandomFloat(), MathUtils.RandomFloat());
+
+    /// <summary>
+    /// Stratified version: jitters (θ, h) or (θ, cosφ) on a
+    /// <c>sqrtSamples × sqrtSamples</c> grid. The body/hemisphere selection
+    /// stays uniform to preserve area weighting.
+    /// </summary>
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    {
+        float inv = 1f / sqrtSamples;
+        int su = sampleIndex % sqrtSamples;
+        int sv = sampleIndex / sqrtSamples;
+        float xiPart = MathUtils.RandomFloat();
+        float xi1 = (su + MathUtils.RandomFloat()) * inv;
+        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        return SampleImpl(xiPart, xi1, xi2);
+    }
+
+    private (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleImpl(float xiPart, float xi1, float xi2)
     {
         float cylinderArea = 2f * MathF.PI * Radius * Height;
         float sphereArea = 4f * MathF.PI * Radius * Radius;
         float totalArea = cylinderArea + sphereArea;
 
-        float r = MathUtils.RandomFloat() * totalArea;
+        float r = xiPart * totalArea;
 
         if (r < cylinderArea)
         {
             // Sample on cylindrical body
-            float theta = MathUtils.RandomFloat() * 2f * MathF.PI;
-            float h = MathUtils.RandomFloat() * Height;
+            float theta = xi1 * 2f * MathF.PI;
+            float h = xi2 * Height;
             float cosT = MathF.Cos(theta);
             float sinT = MathF.Sin(theta);
 
@@ -227,21 +246,23 @@ public class Capsule : IHittable, ISamplable
                 _yMin + h,
                 Center.Z + Radius * sinT);
             Vector3 normal = new(cosT, 0, sinT);
-            return (point, normal, totalArea);
+            return (point, normal, new Vector2(xi1, xi2), totalArea);
         }
         else
         {
             // Sample on the sphere (split into hemispheres)
-            Vector3 randDir = MathUtils.RandomUnitVector();
             bool top = r < cylinderArea + sphereArea / 2f;
-
-            // Force the direction into the correct hemisphere
-            if (top && randDir.Y < 0) randDir.Y = -randDir.Y;
-            if (!top && randDir.Y > 0) randDir.Y = -randDir.Y;
-
+            // Uniform hemisphere sampling: cosPhi ∈ [0, 1], theta ∈ [0, 2π)
+            float cosPhi = xi1;                  // 0..1
+            float sinPhi = MathF.Sqrt(MathF.Max(0f, 1f - cosPhi * cosPhi));
+            float theta  = xi2 * 2f * MathF.PI;
+            Vector3 dir = new(
+                sinPhi * MathF.Cos(theta),
+                top ? cosPhi : -cosPhi,
+                sinPhi * MathF.Sin(theta));
             Vector3 hemiCenter = top ? _topCenter : _bottomCenter;
-            Vector3 point = hemiCenter + randDir * Radius;
-            return (point, randDir, totalArea);
+            Vector3 point = hemiCenter + dir * Radius;
+            return (point, dir, new Vector2(xi1, xi2), totalArea);
         }
     }
 

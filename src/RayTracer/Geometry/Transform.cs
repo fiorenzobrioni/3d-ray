@@ -152,27 +152,27 @@ public class Transform : IHittable, ISamplable
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <inheritdoc/>
-    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         if (_object is not ISamplable inner)
-            return (Vector3.Zero, Vector3.UnitY, 0f); // guard — should not happen
+            return (Vector3.Zero, Vector3.UnitY, new Vector2(0.5f, 0.5f), 0f); // guard
 
-        var (pointObj, normalObj, areaObj) = inner.Sample();
-        return TransformSample(pointObj, normalObj, areaObj);
+        var (pointObj, normalObj, uvObj, areaObj) = inner.Sample();
+        return TransformSample(pointObj, normalObj, uvObj, areaObj);
     }
 
     /// <inheritdoc/>
-    public (Vector3 Point, Vector3 Normal, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
     {
         if (_object is not ISamplable inner)
-            return (Vector3.Zero, Vector3.UnitY, 0f);
+            return (Vector3.Zero, Vector3.UnitY, new Vector2(0.5f, 0.5f), 0f);
 
-        var (pointObj, normalObj, areaObj) = inner.SampleStratified(sampleIndex, sqrtSamples);
-        return TransformSample(pointObj, normalObj, areaObj);
+        var (pointObj, normalObj, uvObj, areaObj) = inner.SampleStratified(sampleIndex, sqrtSamples);
+        return TransformSample(pointObj, normalObj, uvObj, areaObj);
     }
 
-    private (Vector3 Point, Vector3 Normal, float Area) TransformSample(
-        Vector3 pointObj, Vector3 normalObj, float areaObj)
+    private (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) TransformSample(
+        Vector3 pointObj, Vector3 normalObj, Vector2 uvObj, float areaObj)
     {
         // Transform sample point to world space
         Vector3 worldPoint = Vector3.Transform(pointObj, _transform);
@@ -181,7 +181,7 @@ public class Transform : IHittable, ISamplable
         Vector3 normalRaw = Vector3.TransformNormal(normalObj, _normalMatrix);
         float normalLen = normalRaw.Length();
         if (normalLen < 1e-6f)
-            return (worldPoint, normalObj, areaObj); // degenerate transform — return unchanged
+            return (worldPoint, normalObj, uvObj, areaObj); // degenerate transform — return unchanged
 
         Vector3 worldNormal = normalRaw / normalLen;
 
@@ -190,6 +190,8 @@ public class Transform : IHittable, ISamplable
         // change of the surface element; _absDetM accounts for volume scaling.
         float worldArea = areaObj * _absDetM * normalLen;
 
-        return (worldPoint, worldNormal, worldArea);
+        // UV is in the inner primitive's texture space and is not affected
+        // by the spatial transform (same as rec.LocalPoint — see Hit()).
+        return (worldPoint, worldNormal, uvObj, worldArea);
     }
 }

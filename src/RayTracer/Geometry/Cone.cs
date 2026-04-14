@@ -241,7 +241,26 @@ public class Cone : IHittable, ISamplable
     // ISamplable — NEE support for emissive cones
     // ═════════════════════════════════════════════════════════════════════════
 
-    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
+        => SampleImpl(MathUtils.RandomFloat(), MathUtils.RandomFloat(), MathUtils.RandomFloat());
+
+    /// <summary>
+    /// Stratified version: jitters (v, θ) on a <c>sqrtSamples × sqrtSamples</c>
+    /// grid. The part selection (lateral / bottom / top) stays uniform so that
+    /// area-weighting between the three surfaces is preserved.
+    /// </summary>
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    {
+        float inv = 1f / sqrtSamples;
+        int su = sampleIndex % sqrtSamples;
+        int sv = sampleIndex / sqrtSamples;
+        float xiPart = MathUtils.RandomFloat();
+        float xi1 = (su + MathUtils.RandomFloat()) * inv;
+        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        return SampleImpl(xiPart, xi1, xi2);
+    }
+
+    private (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleImpl(float xiPart, float u1, float u2)
     {
         // Compute areas of each part
         float slantHeight = MathF.Sqrt(Height * Height + (Radius - TopRadius) * (Radius - TopRadius));
@@ -252,7 +271,7 @@ public class Cone : IHittable, ISamplable
         float topArea = TopRadius > 1e-6f ? MathF.PI * TopRadius * TopRadius : 0f;
         float totalArea = lateralArea + bottomArea + topArea;
 
-        float r = MathUtils.RandomFloat() * totalArea;
+        float r = xiPart * totalArea;
 
         if (r < lateralArea)
         {
@@ -262,8 +281,6 @@ public class Cone : IHittable, ISamplable
             // weighted by the local circumference: sample v such that
             // the probability is proportional to r(v).
             // CDF inversion: v is sampled so that r(v) is linearly weighted.
-            float u1 = MathUtils.RandomFloat();
-            float u2 = MathUtils.RandomFloat();
 
             // Weighted sampling: P(v) ∝ r(v) = R + (TopR - R)*v
             // CDF: F(v) = (R*v + (TopR-R)*v²/2) / (R + (TopR-R)/2)
@@ -297,28 +314,26 @@ public class Cone : IHittable, ISamplable
             Vector3 normal = Vector3.Normalize(
                 new Vector3(radial.X, -rAtV * _slope, radial.Z));
 
-            return (point, normal, totalArea);
+            return (point, normal, new Vector2(theta / (2f * MathF.PI), v), totalArea);
         }
         else if (r < lateralArea + bottomArea)
         {
             // Sample on bottom cap
-            return SampleDisk(Center, -Vector3.UnitY, Radius, totalArea);
+            return SampleDisk(Center, -Vector3.UnitY, Radius, totalArea, u1, u2);
         }
         else
         {
             // Sample on top cap
             Vector3 topCenter = new(Center.X, _yMax, Center.Z);
-            return SampleDisk(topCenter, Vector3.UnitY, TopRadius, totalArea);
+            return SampleDisk(topCenter, Vector3.UnitY, TopRadius, totalArea, u1, u2);
         }
     }
 
-    private static (Vector3 Point, Vector3 Normal, float Area) SampleDisk(
-        Vector3 center, Vector3 normal, float radius, float totalArea)
+    private static (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleDisk(
+        Vector3 center, Vector3 normal, float radius, float totalArea, float u1, float u2)
     {
-        float r1 = MathUtils.RandomFloat();
-        float r2 = MathUtils.RandomFloat();
-        float r = MathF.Sqrt(r1) * radius;
-        float theta = r2 * 2f * MathF.PI;
+        float r = MathF.Sqrt(u1) * radius;
+        float theta = u2 * 2f * MathF.PI;
 
         Vector3 uAxis = MathF.Abs(normal.Y) < 0.999f
             ? Vector3.Normalize(Vector3.Cross(normal, Vector3.UnitY))
@@ -326,7 +341,11 @@ public class Cone : IHittable, ISamplable
         Vector3 vAxis = Vector3.Cross(normal, uAxis);
 
         Vector3 point = center + r * MathF.Cos(theta) * uAxis + r * MathF.Sin(theta) * vAxis;
-        return (point, normal, totalArea);
+
+        float invR = radius > 0f ? 1f / radius : 0f;
+        float uu = (r * MathF.Cos(theta) * invR + 1f) * 0.5f;
+        float vv = (r * MathF.Sin(theta) * invR + 1f) * 0.5f;
+        return (point, normal, new Vector2(uu, vv), totalArea);
     }
 
     public int Seed { get; set; }

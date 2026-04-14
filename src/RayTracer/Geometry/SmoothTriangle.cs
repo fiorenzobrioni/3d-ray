@@ -187,17 +187,36 @@ public class SmoothTriangle : IHittable, ISamplable
         return true;
     }
 
-    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
+        => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
+
+    /// <summary>
+    /// Stratified version — uses the same unit-square-to-triangle warp as
+    /// <see cref="Triangle.SampleStratified"/>.
+    /// </summary>
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
     {
-        float r1 = MathF.Sqrt(MathUtils.RandomFloat());
-        float r2 = MathUtils.RandomFloat();
+        float inv = 1f / sqrtSamples;
+        int su = sampleIndex % sqrtSamples;
+        int sv = sampleIndex / sqrtSamples;
+        float xi1 = (su + MathUtils.RandomFloat()) * inv;
+        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        return SampleAt(xi1, xi2);
+    }
+
+    private (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleAt(float xi1, float xi2)
+    {
+        float r1 = MathF.Sqrt(xi1);
         float w1 = 1f - r1;
-        float w2 = r2 * r1;
+        float w2 = xi2 * r1;
         float w0 = 1f - w1 - w2;
         Vector3 point = w0 * V0 + w1 * V1 + w2 * V2;
         Vector3 normal = Vector3.Normalize(w0 * N0 + w1 * N1 + w2 * N2);
+        // Interpolate per-vertex UVs — matches Hit() exactly so textured
+        // emissives get the correct UV at NEE sample points.
+        Vector2 uv = w0 * UV0 + w1 * UV1 + w2 * UV2;
         float area = 0.5f * Vector3.Cross(V1 - V0, V2 - V0).Length();
-        return (point, normal, area);
+        return (point, normal, uv, area);
     }
 
     public int Seed { get; set; }

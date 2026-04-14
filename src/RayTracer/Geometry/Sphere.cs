@@ -59,14 +59,15 @@ public class Sphere : IHittable, ISamplable
         return true;
     }
 
-    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         Vector3 p = MathUtils.RandomUnitVector();
         float area = 4f * MathF.PI * Radius * Radius;
-        return (Center + p * Radius, p, area);
+        var (u, v) = GetSphereUV(p);
+        return (Center + p * Radius, p, new Vector2(u, v), area);
     }
 
-    public (Vector3 Point, Vector3 Normal, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
     {
         float inv = 1f / sqrtSamples;
         int su = sampleIndex % sqrtSamples;
@@ -81,7 +82,8 @@ public class Sphere : IHittable, ISamplable
         Vector3 p = new(sinTheta * MathF.Cos(phi), sinTheta * MathF.Sin(phi), cosTheta);
 
         float area = 4f * MathF.PI * Radius * Radius;
-        return (Center + p * Radius, p, area);
+        var (u, v) = GetSphereUV(p);
+        return (Center + p * Radius, p, new Vector2(u, v), area);
     }
 
     public int Seed { get; set; }

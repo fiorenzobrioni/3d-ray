@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -353,8 +354,10 @@ public class SceneLoader
             }
         }
 
-        // Add Emissive Objects as Geometry Lights
-        ExtractGeometryLights(objects, lights, shadowSamplesOverride ?? 1);
+        // Add Emissive Objects as Geometry Lights. The default for geometry
+        // lights is aligned with AreaLight/SphereLight (16), so emissive
+        // primitives get comparable soft-shadow quality without extra YAML.
+        ExtractGeometryLights(objects, lights, shadowSamplesOverride ?? GeometryLight.DefaultShadowSamples);
 
         // Add Environment Light if applicable
         if (sky.CanSampleDirectly)
@@ -604,95 +607,210 @@ public class SceneLoader
     /// Scans all scene objects and registers ISamplable emissives as GeometryLights
     /// for Next Event Estimation (NEE / direct illumination).
     ///
-    /// Handles three cases:
+    /// Handles:
     ///   1. Bare primitive with Emissive material.
-    ///   2. Transform-wrapped primitive.
-    ///   3. Group / Transform-wrapped Group: recurses into children, composing
-    ///      transforms correctly for world-space sampling.
+    ///   2. Transform-wrapped primitive (at any nesting depth, transforms composed).
+    ///   3. Group / Transform(Group(...)) / Transform(Transform(...)) : recurses
+    ///      into children, composing transforms for correct world-space sampling.
+    ///   4. MixMaterial(Emissive, …) on a primitive — registered as a geometry light
+    ///      using a synthetic <see cref="Emissive"/> built from the blended emission
+    ///      of the two sub-materials (see <see cref="ExtractMixEmissive"/>).
+    ///   5. CSG containing an Emissive leaf — emits a one-time warning because
+    ///      CSG is not ISamplable and therefore cannot participate in NEE.
     /// </summary>
     private static void ExtractGeometryLights(List<IHittable> objects, List<ILight> lights, int shadowSamples)
     {
         foreach (var obj in objects)
-            ExtractGeometryLightsRecursive(obj, lights, shadowSamples);
+            ExtractGeometryLightsRecursive(obj, lights, shadowSamples, Matrix4x4.Identity, hasOuterTransform: false);
     }
- 
-    private static void ExtractGeometryLightsRecursive(IHittable obj, List<ILight> lights, int shadowSamples)
+
+    /// <summary>
+    /// Recursively walks the scene graph composing transforms and registering
+    /// every emissive leaf it encounters. The composed matrix
+    /// <paramref name="outerMatrix"/> accumulates the transforms seen so far;
+    /// when a primitive is reached it is wrapped in a single <see cref="Transform"/>
+    /// carrying the composed matrix (unless the accumulated matrix is still
+    /// identity, in which case the primitive is registered directly).
+    /// </summary>
+    private static void ExtractGeometryLightsRecursive(
+        IHittable obj,
+        List<ILight> lights,
+        int shadowSamples,
+        Matrix4x4 outerMatrix,
+        bool hasOuterTransform)
     {
         switch (obj)
         {
-            // Group: recurse into children
+            // ── Group: recurse into children with the current outer transform
             case Group g:
                 foreach (var child in g.Children)
-                    ExtractGeometryLightsRecursive(child, lights, shadowSamples);
+                    ExtractGeometryLightsRecursive(child, lights, shadowSamples, outerMatrix, hasOuterTransform);
                 break;
- 
-            // Transform wrapping a Group: compose outer transform onto each child
-            case Transform t when t.Inner is Group innerGroup:
-                foreach (var child in innerGroup.Children)
-                {
-                    var composedChild = new Transform(child, t.TransformMatrix);
-                    var (s, e) = ResolveEmissiveSamplable(composedChild);
-                    if (s != null && e != null)
-                        lights.Add(new GeometryLight(s, e, shadowSamples));
-                }
+
+            // ── Transform: compose and recurse into Inner
+            // Composition order follows left-to-right matrix multiplication:
+            // world = M_outer * M_inner  →  the inner transform is applied first.
+            case Transform t:
+            {
+                Matrix4x4 composed = hasOuterTransform
+                    ? t.TransformMatrix * outerMatrix
+                    : t.TransformMatrix;
+                ExtractGeometryLightsRecursive(t.Inner, lights, shadowSamples, composed, hasOuterTransform: true);
                 break;
- 
-            // All other objects (primitives, CSG, Transform, etc.)
+            }
+
+            // ── CSG: currently not supported for NEE; warn once if it hides an emissive leaf
+            case CsgObject csg:
+                WarnIfCsgContainsEmissive(csg);
+                break;
+
+            // ── Leaf primitive: try to register it
             default:
             {
-                var (samplable, emissive) = ResolveEmissiveSamplable(obj);
-                if (samplable != null && emissive != null)
-                    lights.Add(new GeometryLight(samplable, emissive, shadowSamples));
+                if (!TryGetSamplableEmissive(obj, out ISamplable? samplable, out Emissive? emissive))
+                    return;
+
+                // Wrap in a Transform only when there is an accumulated outer transform.
+                // When outerMatrix is identity we register the primitive directly to
+                // avoid the minor Jacobian overhead of a no-op Transform.
+                ISamplable finalSamplable = hasOuterTransform
+                    ? new Transform(obj, outerMatrix)
+                    : samplable;
+
+                lights.Add(new GeometryLight(finalSamplable, emissive, shadowSamples));
                 break;
             }
         }
     }
 
     /// <summary>
-    /// Returns the ISamplable and Emissive for a hittable, if it qualifies as a
-    /// geometry light. Handles bare primitives and Transform wrappers (including
-    /// nested Transform chains).
+    /// Returns <c>true</c> and sets the ISamplable / Emissive pair when
+    /// <paramref name="obj"/> is a primitive with either:
+    ///   • a direct <see cref="Emissive"/> material, or
+    ///   • a <see cref="MixMaterial"/> whose blend contains an Emissive component.
     ///
-    /// For a Transform, <c>obj</c> itself is used as the ISamplable — Transform
-    /// now implements ISamplable and maps sample points/normals/area to world space.
+    /// For the Mix case the returned Emissive is a wrapper whose average emission
+    /// is the blend of the two sub-materials' emissions — matching what
+    /// <see cref="MixMaterial.Emit"/> returns. This lets NEE fire on surfaces such
+    /// as "cooling lava" (Emissive + Lambertian) or "partial neon" (Emissive + Metal).
     /// </summary>
-    private static (ISamplable? Samplable, Emissive? Material) ResolveEmissiveSamplable(IHittable obj)
+    private static bool TryGetSamplableEmissive(
+        IHittable obj,
+        [NotNullWhen(true)] out ISamplable? samplable,
+        [NotNullWhen(true)] out Emissive? material)
     {
-        switch (obj)
+        samplable = null;
+        material = null;
+
+        if (obj is not ISamplable s)
+            return false;
+
+        IMaterial? mat = obj switch
         {
-            // ── Bare primitives ──────────────────────────────────────────────────
-            case Sphere         s  when s.Material  is Emissive em: return (s,  em);
-            case Quad           q  when q.Material  is Emissive em: return (q,  em);
-            case Triangle       tr when tr.Material is Emissive em: return (tr, em);
-            case SmoothTriangle st when st.Material is Emissive em: return (st, em);
-            case Disk           d  when d.Material  is Emissive em: return (d,  em);
-            case Box            b  when b.Material  is Emissive em: return (b,  em);
-            case Cylinder       cy when cy.Material is Emissive em: return (cy, em);
-            case Cone           co when co.Material is Emissive em: return (co, em);
-            case Torus          to when to.Material is Emissive em: return (to, em);
-            case Capsule        ca when ca.Material is Emissive em: return (ca, em);
-            case Annulus        an when an.Material is Emissive em: return (an, em);
-            case Mesh           ms when ms.Material is Emissive em: return (ms, em);
+            Sphere         sp => sp.Material,
+            Quad           q  => q.Material,
+            Triangle       tr => tr.Material,
+            SmoothTriangle st => st.Material,
+            Disk           d  => d.Material,
+            Box            b  => b.Material,
+            Cylinder       cy => cy.Material,
+            Cone           co => co.Material,
+            Torus          to => to.Material,
+            Capsule        ca => ca.Material,
+            Annulus        an => an.Material,
+            Mesh           ms => ms.Material,
+            _ => null
+        };
 
-            // ── Transform wrapper ────────────────────────────────────────────────
-            // Transform implements ISamplable: it delegates Sample() to the
-            // inner primitive and maps the result to world space with the
-            // correct Jacobian-based area conversion.
-            // We recurse into Inner to find the Emissive material; the
-            // ISamplable we register is the Transform itself (world-space sampling).
-            case Transform t:
-            {
-                var (innerSamplable, emissive) = ResolveEmissiveSamplable(t.Inner);
-                if (innerSamplable == null || emissive == null)
-                    return (null, null);
+        switch (mat)
+        {
+            case Emissive em:
+                samplable = s;
+                material = em;
+                return true;
 
-                // t itself is ISamplable (Transform : IHittable, ISamplable)
-                return (t, emissive);
-            }
+            case MixMaterial mix when ExtractMixEmissive(mix) is Emissive mixEm:
+                samplable = s;
+                material = mixEm;
+                return true;
 
             default:
-                return (null, null);
+                return false;
         }
+    }
+
+    /// <summary>
+    /// Produces a synthetic <see cref="Emissive"/> representing the effective
+    /// emission of a MixMaterial. For a Mix(A, B) the emission is
+    /// <c>lerp(A.Emit, B.Emit, t)</c> where t is the blend factor. We cannot
+    /// evaluate t analytically without UV/world coords, so we use the documented
+    /// neutral mid-value (t = 0.5) of the blend texture and the center-texel
+    /// approximation for the two sub-emissives.
+    /// Returns null when the mix contains no emissive sub-material.
+    /// </summary>
+    private static Emissive? ExtractMixEmissive(MixMaterial mix)
+    {
+        Emissive? a = mix.MaterialA as Emissive;
+        Emissive? b = mix.MaterialB as Emissive;
+        if (a is null && b is null) return null;
+
+        // Representative emission of each sub-material at the centre texel.
+        Vector3 ea = a is not null ? a.EmissionAt(0.5f, 0.5f, Vector3.Zero) : Vector3.Zero;
+        Vector3 eb = b is not null ? b.EmissionAt(0.5f, 0.5f, Vector3.Zero) : Vector3.Zero;
+
+        // Blend factor neutral assumption: t = 0.5.
+        Vector3 blended = 0.5f * (ea + eb);
+        float maxC = MathF.Max(blended.X, MathF.Max(blended.Y, blended.Z));
+        if (maxC <= 1e-6f) return null;
+
+        // Encode as (colour, intensity) with intensity = max channel luminance,
+        // matching the SolidColor(colour) × intensity representation of Emissive.
+        Vector3 normalised = blended / maxC;
+        return new Emissive(normalised, maxC);
+    }
+
+    /// <summary>
+    /// Walks a CSG tree and, if any leaf carries an Emissive material, prints
+    /// a one-time warning explaining why it won't contribute to NEE.
+    /// </summary>
+    private static void WarnIfCsgContainsEmissive(CsgObject csg)
+    {
+        if (ContainsEmissive(csg.Left) || ContainsEmissive(csg.Right))
+        {
+            if (_csgEmissiveWarningEmitted) return;
+            _csgEmissiveWarningEmitted = true;
+            Console.WriteLine(
+                "  Warning: CSG object contains an Emissive leaf. CSG objects are " +
+                "not sampleable, so their emitters will NOT participate in Next " +
+                "Event Estimation. The emissive surface will still glow via " +
+                "indirect bounces (high variance). Consider wrapping the " +
+                "emissive primitive outside the CSG if direct lighting is needed.");
+        }
+    }
+
+    private static bool _csgEmissiveWarningEmitted;
+
+    private static bool ContainsEmissive(IHittable obj)
+    {
+        return obj switch
+        {
+            CsgObject csg    => ContainsEmissive(csg.Left) || ContainsEmissive(csg.Right),
+            Transform t      => ContainsEmissive(t.Inner),
+            Group g          => g.Children.Any(ContainsEmissive),
+            Sphere s         => s.Material is Emissive,
+            Quad q           => q.Material is Emissive,
+            Triangle tr      => tr.Material is Emissive,
+            SmoothTriangle st=> st.Material is Emissive,
+            Disk d           => d.Material is Emissive,
+            Box b            => b.Material is Emissive,
+            Cylinder cy      => cy.Material is Emissive,
+            Cone co          => co.Material is Emissive,
+            Torus to         => to.Material is Emissive,
+            Capsule ca       => ca.Material is Emissive,
+            Annulus an       => an.Material is Emissive,
+            Mesh ms          => ms.Material is Emissive,
+            _ => false
+        };
     }
 
     private static IMaterial CreateMaterial(MaterialData m, string sceneDir)

@@ -102,15 +102,30 @@ public class Annulus : IHittable, ISamplable
     // (CDF inversion for uniform-in-area on a ring).
     // ═════════════════════════════════════════════════════════════════════════
 
-    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
+        => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
+
+    /// <summary>
+    /// Stratified version: jitters (r², θ) on a <c>sqrtSamples × sqrtSamples</c>
+    /// grid. Using r² keeps the uniform-area property of the sampling.
+    /// </summary>
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    {
+        float inv = 1f / sqrtSamples;
+        int su = sampleIndex % sqrtSamples;
+        int sv = sampleIndex / sqrtSamples;
+        float xi1 = (su + MathUtils.RandomFloat()) * inv;
+        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        return SampleAt(xi1, xi2);
+    }
+
+    private (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleAt(float u1, float u2)
     {
         float area = MathF.PI * (_outerRadiusSq - _innerRadiusSq);
 
         // Uniform area sampling on an annulus:
         //   r = sqrt(lerp(r_inner², r_outer², u))
         // This is the CDF inversion for P(r) ∝ r on [r_inner, r_outer].
-        float u1 = MathUtils.RandomFloat();
-        float u2 = MathUtils.RandomFloat();
         float r = MathF.Sqrt(_innerRadiusSq + u1 * (_outerRadiusSq - _innerRadiusSq));
         float theta = u2 * 2f * MathF.PI;
 
@@ -120,7 +135,7 @@ public class Annulus : IHittable, ISamplable
         Vector3 vAxis = Vector3.Cross(Normal, uAxis);
 
         Vector3 point = Center + r * MathF.Cos(theta) * uAxis + r * MathF.Sin(theta) * vAxis;
-        return (point, Normal, area);
+        return (point, Normal, new Vector2(u1, u2), area);
     }
 
     public int Seed { get; set; }

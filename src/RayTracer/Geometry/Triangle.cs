@@ -64,15 +64,37 @@ public class Triangle : IHittable, ISamplable
         return true;
     }
 
-    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
+        => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
+
+    /// <summary>
+    /// Stratified sampling on the triangle via the unit-square → triangle
+    /// warp <c>(xi1, xi2) → (1-√xi1, xi2·√xi1)</c>. Each cell of the
+    /// <c>sqrtSamples × sqrtSamples</c> grid in (xi1, xi2) maps to a region
+    /// of approximately equal area on the triangle, so jittered samples
+    /// remain evenly distributed after the warp.
+    /// </summary>
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
     {
-        float r1 = MathF.Sqrt(MathUtils.RandomFloat());
-        float r2 = MathUtils.RandomFloat();
+        float inv = 1f / sqrtSamples;
+        int su = sampleIndex % sqrtSamples;
+        int sv = sampleIndex / sqrtSamples;
+        float xi1 = (su + MathUtils.RandomFloat()) * inv;
+        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        return SampleAt(xi1, xi2);
+    }
+
+    private (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleAt(float xi1, float xi2)
+    {
+        float r1 = MathF.Sqrt(xi1);
         float u = 1f - r1;
-        float v = r2 * r1;
+        float v = xi2 * r1;
         Vector3 point = V0 + u * (V1 - V0) + v * (V2 - V0);
         float area = 0.5f * Vector3.Cross(V1 - V0, V2 - V0).Length();
-        return (point, _normal, area);
+        // Triangle's Hit() stores the Möller-Trumbore (u, v) barycentric
+        // coordinates directly into rec.U, rec.V — keep the sample UV
+        // consistent with that convention.
+        return (point, _normal, new Vector2(u, v), area);
     }
 
     public int Seed { get; set; }

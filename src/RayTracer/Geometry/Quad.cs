@@ -68,16 +68,16 @@ public class Quad : IHittable, ISamplable
         return true;
     }
 
-    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         float u = MathUtils.RandomFloat();
         float v = MathUtils.RandomFloat();
         Vector3 point = Q + u * U + v * V;
         float area = Vector3.Cross(U, V).Length();
-        return (point, _normal, area);
+        return (point, _normal, new Vector2(u, v), area);
     }
 
-    public (Vector3 Point, Vector3 Normal, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
     {
         float inv = 1f / sqrtSamples;
         int su = sampleIndex % sqrtSamples;
@@ -87,7 +87,7 @@ public class Quad : IHittable, ISamplable
         float v = (sv + MathUtils.RandomFloat()) * inv;
         Vector3 point = Q + u * U + v * V;
         float area = Vector3.Cross(U, V).Length();
-        return (point, _normal, area);
+        return (point, _normal, new Vector2(u, v), area);
     }
 
     public int Seed { get; set; }
