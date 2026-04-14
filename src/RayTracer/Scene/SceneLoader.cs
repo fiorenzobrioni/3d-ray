@@ -1027,8 +1027,8 @@ public class SceneLoader
             // procedural textures using randomize_offset / randomize_rotation.
             // Explicit "seed" in YAML always takes precedence.
             entity.Seed = e.Seed ?? HashCode.Combine(entityIndex,
-                                                      e.Type?.GetHashCode() ?? 0,
-                                                      e.Name?.GetHashCode() ?? 0);
+                                                      StableHash(e.Type),
+                                                      StableHash(e.Name));
         }
 
         return entity;
@@ -1131,8 +1131,8 @@ public class SceneLoader
         // propagates the same value to Left and Right so the whole solid
         // shares a uniform procedural-texture pattern.
         csg.Seed = e.Seed ?? HashCode.Combine(entityIndex,
-                                              e.Type?.GetHashCode() ?? 0,
-                                              e.Name?.GetHashCode() ?? 0);
+                                              StableHash(e.Type),
+                                              StableHash(e.Name));
 
         return csg;
     }
@@ -1214,8 +1214,8 @@ public class SceneLoader
  
         // Seed assignment (same logic as CreateEntity)
         mesh.Seed = e.Seed ?? HashCode.Combine(entityIndex,
-                                                e.Type?.GetHashCode() ?? 0,
-                                                e.Name?.GetHashCode() ?? 0);
+                                                StableHash(e.Type),
+                                                StableHash(e.Name));
  
         return mesh;
     }
@@ -1243,8 +1243,8 @@ public class SceneLoader
  
         var group = new Group(childObjects);
         group.Seed = e.Seed ?? HashCode.Combine(entityIndex,
-                                                 e.Type?.GetHashCode() ?? 0,
-                                                 e.Name?.GetHashCode() ?? 0);
+                                                 StableHash(e.Type),
+                                                 StableHash(e.Name));
  
         Info($"Group '{e.Name ?? "(unnamed)"}': {childObjects.Count} children");
         return group;
@@ -1308,7 +1308,7 @@ public class SceneLoader
         // Seed precedence: instance → template → deterministic hash.
         // Stored on the Instance wrapper, not on the shared template.
         instance.Seed = e.Seed ?? templateDef.Seed ?? HashCode.Combine(
-            entityIndex, e.Template.GetHashCode(), e.Name?.GetHashCode() ?? 0);
+            entityIndex, StableHash(e.Template), StableHash(e.Name));
 
         return instance;
     }
@@ -1331,7 +1331,7 @@ public class SceneLoader
         // regardless of which instance triggers the build. Child seeds are
         // overridden per-instance at hit time, so this only matters for
         // procedural state computed at build time (none currently).
-        int templateIndex = templateDef.Name?.GetHashCode() ?? 0;
+        int templateIndex = StableHash(templateDef.Name);
 
         var childObjects = BuildChildList(
             templateDef.Children!, fallbackMat, materials, sceneDir, templateIndex);
@@ -1550,6 +1550,28 @@ public class SceneLoader
         if (id != null)
             Warn($"Material '{id}' not found. Using default grey Lambertian.");
         return new Lambertian(new Vector3(0.5f));
+    }
+
+    /// <summary>
+    /// Deterministic 32-bit hash of a string (FNV-1a). Used for seed fallback
+    /// when the YAML does not specify <c>seed:</c> on an entity with procedural
+    /// textures.
+    ///
+    /// <b>Why not <c>string.GetHashCode()</c>?</b> Since .NET Core 3, the built-in
+    /// hash is randomized per process (mitigation against hash-collision DoS).
+    /// For a ray tracer this would mean the same scene produces different Perlin
+    /// patterns on every run — breaking reproducibility, visual regression tests,
+    /// and the general expectation that "scene description = image". FNV-1a is
+    /// stable across processes and architectures, has good dispersion for short
+    /// strings, and costs essentially nothing.
+    /// </summary>
+    private static int StableHash(string? s)
+    {
+        if (string.IsNullOrEmpty(s)) return 0;
+        uint hash = 2166136261u; // FNV offset basis
+        foreach (char c in s)
+            hash = (hash ^ c) * 16777619u; // FNV prime
+        return unchecked((int)hash);
     }
 
     private static Vector3? ToVector3(List<float>? list)

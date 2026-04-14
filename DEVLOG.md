@@ -202,7 +202,7 @@ Note implementative: il free-path channel-pick uniforme è la scelta più sempli
 
 | # | Descrizione | Severità | Scena / File | Stato |
 |---|-------------|----------|--------------|-------|
-| 1 | Il parametro `seed` nei materiali procedurali non produce risultati riproducibili tra render della stessa scena. Atteso: seed fisso → texture identica a ogni render. Reale: venature cambiano. Da verificare se il problema è nella randomizzazione del seed o nell'ordine di costruzione degli oggetti. | 🔴 **Alta** | Qualsiasi scena con `seed` esplicito e texture `marble`/`wood`/`noise` | ⬜ |
+| 1 | ~~Il parametro `seed` nei materiali procedurali non produce risultati riproducibili tra render della stessa scena.~~ **Risolto** da `fix(perlin): make procedural noise textures deterministic per object seed` (determinismo di `Perlin.GetOrCreate`) + `fix(seed): stable hash for scene seed fallback` (hash FNV-1a stabile al posto di `string.GetHashCode()` randomizzato per processo). Ora vale: **scena identica → immagine identica**, sia con `seed:` esplicito sia senza. La variazione per-oggetto senza seed è comunque derivata dall'indice/tipo/nome in modo stabile cross-run. | 🔴 **Alta** | Qualsiasi scena con texture `marble`/`wood`/`noise` | ✅ |
 
 Severità: 🔴 **Alta** 🟠 **Media** 🟡 **Bassa**
 
