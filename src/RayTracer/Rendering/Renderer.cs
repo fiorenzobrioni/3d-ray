@@ -260,11 +260,14 @@ public class Renderer
         }
  
         // ── Direct lighting (Next Event Estimation) ─────────────────────────
-        Vector3 directLight = _ambientLight;
+        // Pure emitters (diffuseWeight = 0, specExponent = 0) do NOT receive
+        // external illumination — they are the light source. Adding ambient to
+        // them would double-bias the emission. Only non-emissive hits carry the
+        // ambient fill and fire NEE.
         bool needsLightSampling = (diffuseWeight > 0f) || (specExponent > 0f);
- 
-        if (needsLightSampling)
-            directLight = ComputeDirectLighting(rec, ray, material);
+        Vector3 directLight = needsLightSampling
+            ? ComputeDirectLighting(rec, ray, material)
+            : Vector3.Zero;
  
         // ── Scatter (indirect lighting) ─────────────────────────────────────
         if (material != null && material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))

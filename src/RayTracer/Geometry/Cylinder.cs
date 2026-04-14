@@ -147,19 +147,40 @@ public class Cylinder : IHittable, ISamplable
     // a uniform point is sampled on that part.
     // ═════════════════════════════════════════════════════════════════════════
 
-    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
+        => SampleImpl(MathUtils.RandomFloat(), MathUtils.RandomFloat(), MathUtils.RandomFloat());
+
+    /// <summary>
+    /// Stratified version: three random numbers are taken from a jittered
+    /// <c>sqrtSamples × sqrtSamples</c> grid in (θ, h) or (r², θ) space
+    /// depending on which part of the surface the sample falls on. The part
+    /// (lateral / bottom / top) is still chosen by a uniform random in [0, 1)
+    /// so that the area-weighted ratio between parts is preserved.
+    /// </summary>
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    {
+        float inv = 1f / sqrtSamples;
+        int su = sampleIndex % sqrtSamples;
+        int sv = sampleIndex / sqrtSamples;
+        float xiPart = MathUtils.RandomFloat();
+        float xi1 = (su + MathUtils.RandomFloat()) * inv;
+        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        return SampleImpl(xiPart, xi1, xi2);
+    }
+
+    private (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleImpl(float xiPart, float xi1, float xi2)
     {
         float lateralArea = 2f * MathF.PI * Radius * Height;
         float capArea = MathF.PI * Radius * Radius;
         float totalArea = lateralArea + 2f * capArea;
 
-        float r = MathUtils.RandomFloat() * totalArea;
+        float r = xiPart * totalArea;
 
         if (r < lateralArea)
         {
             // Sample on the lateral surface: uniform θ, uniform height
-            float theta = MathUtils.RandomFloat() * 2f * MathF.PI;
-            float h = MathUtils.RandomFloat() * Height;
+            float theta = xi1 * 2f * MathF.PI;
+            float h = xi2 * Height;
             float cosT = MathF.Cos(theta);
             float sinT = MathF.Sin(theta);
 
@@ -169,35 +190,37 @@ public class Cylinder : IHittable, ISamplable
                 Center.Z + Radius * sinT);
             Vector3 normal = new(cosT, 0, sinT);
 
-            return (point, normal, totalArea);
+            // UV mirrors a natural cylindrical unwrap: U along θ, V along height
+            return (point, normal, new Vector2(theta / (2f * MathF.PI), xi2), totalArea);
         }
         else if (r < lateralArea + capArea)
         {
             // Sample on bottom cap
-            return SampleCap(Center, -Vector3.UnitY, totalArea);
+            return SampleCap(Center, -Vector3.UnitY, totalArea, xi1, xi2);
         }
         else
         {
             // Sample on top cap
             Vector3 topCenter = new(Center.X, _yMax, Center.Z);
-            return SampleCap(topCenter, Vector3.UnitY, totalArea);
+            return SampleCap(topCenter, Vector3.UnitY, totalArea, xi1, xi2);
         }
     }
 
-    private (Vector3 Point, Vector3 Normal, float Area) SampleCap(
-        Vector3 center, Vector3 normal, float totalArea)
+    private (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleCap(
+        Vector3 center, Vector3 normal, float totalArea, float xi1, float xi2)
     {
-        float r1 = MathUtils.RandomFloat();
-        float r2 = MathUtils.RandomFloat();
-        float r = MathF.Sqrt(r1) * Radius;
-        float theta = r2 * 2f * MathF.PI;
+        float r = MathF.Sqrt(xi1) * Radius;
+        float theta = xi2 * 2f * MathF.PI;
 
         Vector3 point = new(
             center.X + r * MathF.Cos(theta),
             center.Y,
             center.Z + r * MathF.Sin(theta));
 
-        return (point, normal, totalArea);
+        float invR = Radius > 0f ? 1f / Radius : 0f;
+        float u = (r * MathF.Cos(theta) * invR + 1f) * 0.5f;
+        float v = (r * MathF.Sin(theta) * invR + 1f) * 0.5f;
+        return (point, normal, new Vector2(u, v), totalArea);
     }
 
     public int Seed { get; set; }

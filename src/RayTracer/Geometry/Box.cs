@@ -178,16 +178,39 @@ public class Box : IHittable, ISamplable
     // The Transform wrapper handles non-uniform scaling via the Jacobian.
     // ═════════════════════════════════════════════════════════════════════════
 
-    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
+    {
+        int face = (int)(MathUtils.RandomFloat() * 6f);
+        if (face > 5) face = 5; // Guard against RandomFloat() returning exactly 1.0
+        return SampleFace(face, MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    }
+
+    /// <summary>
+    /// Stratified version: the 6 faces × sqrtSamples² cells form a uniform
+    /// grid. The sample index is split into a face index (round-robin) and a
+    /// jittered (u, v) within the face. Dividing the total strata across faces
+    /// keeps each face's share of samples proportional to its area, and each
+    /// face sees its own sub-grid of stratified points.
+    /// </summary>
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
+    {
+        int face = sampleIndex % 6;
+        int within = sampleIndex / 6;
+        int su = within % sqrtSamples;
+        int sv = within / sqrtSamples;
+        float inv = 1f / sqrtSamples;
+        float xi1 = (su + MathUtils.RandomFloat()) * inv;
+        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        return SampleFace(face, xi1, xi2);
+    }
+
+    private static (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleFace(int face, float xi1, float xi2)
     {
         // Total surface area of the unit cube: 6 faces × 1 = 6
         const float totalArea = 6f;
 
-        int face = (int)(MathUtils.RandomFloat() * 6f);
-        if (face > 5) face = 5; // Guard against RandomFloat() returning exactly 1.0
-
-        float u = MathUtils.RandomFloat() - 0.5f; // [-0.5, 0.5]
-        float v = MathUtils.RandomFloat() - 0.5f;
+        float u = xi1 - 0.5f; // [-0.5, 0.5]
+        float v = xi2 - 0.5f;
 
         Vector3 point = face switch
         {
@@ -209,7 +232,10 @@ public class Box : IHittable, ISamplable
             _ => -Vector3.UnitZ,
         };
 
-        return (point, normal, totalArea);
+        // Uniform UV in [0,1]² over each face — a reasonable default for Box's
+        // procedural/solid emissives. Box's Hit() does not define per-face UVs,
+        // so this is not expected to coincide with any artist UV atlas.
+        return (point, normal, new Vector2(xi1, xi2), totalArea);
     }
 
     public int Seed { get; set; }

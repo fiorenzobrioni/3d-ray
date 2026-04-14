@@ -72,20 +72,17 @@ public class Emissive : IMaterial
         return Albedo.Value(u, v, point, objectSeed) * Intensity;
     }
 
-    // ── FIX #11: AverageEmission ────────────────────────────────────────────
     /// <summary>
-    /// Returns the average emitted color without requiring UV or world-space coordinates.
-    /// Used by GeometryLight for NEE evaluation when the exact sample-point UV is
-    /// not available (ISamplable.Sample() does not return UV coordinates).
+    /// Returns the emitted radiance evaluated at a specific sample point on
+    /// the surface. Used by <see cref="Lights.GeometryLight"/> for NEE, which
+    /// now receives both UV and world-space point from <see cref="Geometry.ISamplable.Sample"/>.
     ///
-    /// For SolidColor albedo this is exact.
-    /// For image and procedural textures it samples the center texel (u=0.5, v=0.5)
-    /// as a representative approximation — acceptable since the solid-angle-weighted
-    /// average of most textures is close to the center sample.
-    ///
-    /// The known bias (textured emissives with non-uniform brightness distributions)
-    /// is documented here pending a future ISamplable extension that returns UV coords.
+    /// Unlike the old <c>AverageEmission()</c>, this evaluates the texture at the
+    /// actual sampled (u, v, point) — eliminating the center-texel approximation bias
+    /// for image textures, checker textures and 3D procedural textures
+    /// (marble, wood, noise). The sample PDF is uniform on the surface area,
+    /// so the estimator remains unbiased.
     /// </summary>
-    public Vector3 AverageEmission()
-        => Albedo.Value(0.5f, 0.5f, Vector3.Zero, 0) * Intensity;
+    public Vector3 EmissionAt(float u, float v, Vector3 worldPoint, int objectSeed = 0)
+        => Albedo.Value(u, v, worldPoint, objectSeed) * Intensity;
 }

@@ -64,20 +64,40 @@ public class Disk : IHittable, ISamplable
         return true;
     }
 
-    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
+        => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
+
+    /// <summary>
+    /// Stratified version: jitters (r², θ) independently on a
+    /// <c>sqrtSamples × sqrtSamples</c> grid. Using r² rather than r
+    /// preserves the uniform-area property of the sampling.
+    /// </summary>
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
     {
-        float r1 = MathUtils.RandomFloat();
-        float r2 = MathUtils.RandomFloat();
-        float r = MathF.Sqrt(r1) * Radius;
-        float theta = r2 * 2f * MathF.PI;
+        float inv = 1f / sqrtSamples;
+        int su = sampleIndex % sqrtSamples;
+        int sv = sampleIndex / sqrtSamples;
+        float xi1 = (su + MathUtils.RandomFloat()) * inv;
+        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        return SampleAt(xi1, xi2);
+    }
+
+    private (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleAt(float xi1, float xi2)
+    {
+        float r = MathF.Sqrt(xi1) * Radius;
+        float theta = xi2 * 2f * MathF.PI;
 
         Vector3 uAxis = MathF.Abs(Normal.Y) < 0.999f ? Vector3.Normalize(Vector3.Cross(Normal, Vector3.UnitY)) : Vector3.UnitX;
         Vector3 vAxis = Vector3.Cross(Normal, uAxis);
 
         Vector3 point = Center + r * MathF.Cos(theta) * uAxis + r * MathF.Sin(theta) * vAxis;
         float area = MathF.PI * Radius * Radius;
-        
-        return (point, Normal, area);
+
+        // UV matches Hit()'s planar convention: (r·cosθ/R + 1)/2, (r·sinθ/R + 1)/2
+        float invR = Radius > 0f ? 1f / Radius : 0f;
+        float u = (r * MathF.Cos(theta) * invR + 1f) * 0.5f;
+        float v = (r * MathF.Sin(theta) * invR + 1f) * 0.5f;
+        return (point, Normal, new Vector2(u, v), area);
     }
 
     public int Seed { get; set; }

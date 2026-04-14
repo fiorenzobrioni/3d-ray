@@ -303,10 +303,30 @@ public class Torus : IHittable, ISamplable
     // and normal from toroidal coordinates.
     // ═════════════════════════════════════════════════════════════════════════
 
-    public (Vector3 Point, Vector3 Normal, float Area) Sample()
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
+        => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
+
+    /// <summary>
+    /// Stratified version: jitters (φ, θ) on a <c>sqrtSamples × sqrtSamples</c>
+    /// grid. This is an area-weighted approximation — the true area element
+    /// of a torus is not uniform in (φ, θ) — but it is consistent with the
+    /// existing uniform-in-(φ, θ) <see cref="Sample"/>, which the rest of
+    /// the codebase treats as "uniform enough".
+    /// </summary>
+    public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
     {
-        float phi = MathUtils.RandomFloat() * 2f * MathF.PI;
-        float theta = MathUtils.RandomFloat() * 2f * MathF.PI;
+        float inv = 1f / sqrtSamples;
+        int su = sampleIndex % sqrtSamples;
+        int sv = sampleIndex / sqrtSamples;
+        float xi1 = (su + MathUtils.RandomFloat()) * inv;
+        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        return SampleAt(xi1, xi2);
+    }
+
+    private (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleAt(float xi1, float xi2)
+    {
+        float phi = xi1 * 2f * MathF.PI;
+        float theta = xi2 * 2f * MathF.PI;
 
         float cosPhi = MathF.Cos(phi);
         float sinPhi = MathF.Sin(phi);
@@ -327,7 +347,7 @@ public class Torus : IHittable, ISamplable
 
         float area = 4f * MathF.PI * MathF.PI * MajorRadius * MinorRadius;
 
-        return (point, normal, area);
+        return (point, normal, new Vector2(xi1, xi2), area);
     }
 
     public int Seed { get; set; }
