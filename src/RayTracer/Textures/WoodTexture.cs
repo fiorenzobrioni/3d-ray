@@ -38,8 +38,12 @@ public class WoodTexture : ITexture
     {
         Vector3 transformedP = TextureTransform.Apply(p, Offset, Rotation, objectSeed, RandomizeOffset, RandomizeRotation);
 
+        // Per-object deterministic Perlin: same objectSeed → same wood grain
+        // pattern across the whole render and across runs.
+        Perlin noise = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
+
         float dist = MathF.Sqrt(transformedP.X * transformedP.X + transformedP.Z * transformedP.Z);
-        float distNoise = dist + NoiseStrength * _noise.Noise(transformedP);
+        float distNoise = dist + NoiseStrength * noise.Noise(transformedP);
         
         float ring = distNoise * _scale;
         float interpolationVal = ring - MathF.Floor(ring);

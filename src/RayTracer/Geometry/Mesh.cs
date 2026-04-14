@@ -31,6 +31,7 @@ public class Mesh : IHittable, ISamplable
 {
     private readonly IHittable _bvh;
     private readonly List<IHittable> _triangles;
+    private int _seed;
 
     // Precomputed for ISamplable: cumulative area distribution
     private readonly float[] _cumulativeAreas;
@@ -102,10 +103,12 @@ public class Mesh : IHittable, ISamplable
 
     public int Seed
     {
-        get => 0;
+        get => _seed;
         set
         {
-            // Propagate seed to all triangles
+            // A Mesh is one logical object: every triangle shares the same seed
+            // so procedural textures appear uniform across the whole surface.
+            _seed = value;
             foreach (var tri in _triangles)
                 tri.Seed = value;
         }

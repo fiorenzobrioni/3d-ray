@@ -1118,7 +1118,18 @@ public class SceneLoader
             return null;
         }
  
-        return new CsgObject(operation.Value, leftHittable, rightHittable);
+        var csg = new CsgObject(operation.Value, leftHittable, rightHittable);
+
+        // Assign a deterministic seed (same convention as regular primitives /
+        // groups / meshes). Explicit "seed:" in YAML wins; otherwise we derive
+        // one from entity index + type + name. The CsgObject setter then
+        // propagates the same value to Left and Right so the whole solid
+        // shares a uniform procedural-texture pattern.
+        csg.Seed = e.Seed ?? HashCode.Combine(entityIndex,
+                                              e.Type?.GetHashCode() ?? 0,
+                                              e.Name?.GetHashCode() ?? 0);
+
+        return csg;
     }
  
     /// <summary>
