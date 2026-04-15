@@ -43,6 +43,9 @@ world:
   sky:                                     # (optional) Replaces background
     type: "gradient"  # or "hdri"
     # ... see details below
+  medium:                                  # (optional) Global participating medium
+    type: "homogeneous"
+    # ... see details below
 ```
 #### **Gradient Sky** (recommended for outdoor scenes):
 ```yaml
@@ -72,6 +75,19 @@ sky:
 - **Sunset** (dramatic orange horizon)
 - **Night** (minimal zenith/horizon values, dim sun disk)
 - **Overcast** (high ambient, uniform sky)
+
+#### **Volumetrics (Participating Media)**:
+```yaml
+medium:
+  type: "homogeneous"
+  sigma_a: [0.01, 0.01, 0.01]              # Absorption (light dimming)
+  sigma_s: [0.06, 0.06, 0.06]              # Scattering (fog density, god rays)
+  phase: "hg"                              # "isotropic" or "hg"
+  g: 0.85                                  # For "hg": >0 forward scattering, 0 isotropic
+```
+- **Usage:** Simulates fog, smoke, underwater, and atmospheric haze.
+- **Tip:** Requires higher samples (`-s 128+`) and depth (`-d 30+`) for clean results.
+- **Effects:** Spot lights create visible beams (god rays), point lights create halos.
 ---
 ### 4. **CAMERA SECTION**
 #### **Multi-Camera** (recommended):

@@ -47,11 +47,11 @@ jobs:
       fail-fast: false
       matrix:
         scene:
-          - showcases/emissive-showcase
-          - sample
+          #- showcases/emissive-showcase
+          #- sample
           # --- Elenco disattivato (rimuovi il # per attivare) ---
           # - alchemist-lab
-          # - chess
+           - chess
           # - classic-showcase
           # - classic-vs-disney-showcase
           # - cornell-box

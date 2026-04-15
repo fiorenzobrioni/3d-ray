@@ -9,15 +9,13 @@ Documento di lavoro per roadmap, attività, bug noti e note di sviluppo.
 ## 📌 Note & Appunti Rapidi
 
 - Aggiornare i reference e i tutorial ogni volta che si aggiunge una nuova primitiva o una feature.
-- Idee per scene creative:
-  - **Macro Photography**: Primo piano estremo di un orologio meccanico (usando `Annulus` e `Cylinder`) con DOF molto spinta.
-- Quando si compongono oggetti con torus decorativi (base pedone, colletto, anello), verificare che le geometrie adiacenti coprano il tubo del torus: il raggio del cono/cilindro sovrapposto deve essere ≥ `MajorRadius - MinorRadius` con margine di sicurezza, altrimenti il tubo protrude attraverso la superficie adiacente.
-- Proprietà `medium:` per effetti volumetrici (nebbia, ecc.): spiegata nei tutorial ma manca la sintassi di consultazione rapida nei reference.
 - Creare 2 scene starter-kit con effetti volumetrici/nebbia e aggiornare i README di `starter-kits` e `libraries`.
 - Revisione app **ChessGen**:
   - Riallineare il codice per generare `chess.yaml` nel formato attuale.
   - Modificare l'app affinché generi un `template` per ogni pedina e usi le `instance` sulla scacchiera (più ordinato e compatto).
 - Valutare parametro CLI per **log verboso**: togliere dal log di default info di dettaglio (es: children counts, mesh stats) per una lettura più pulita.
+- Idee per scene creative:
+  - **Macro Photography**: Primo piano estremo di un orologio meccanico (usando `Annulus` e `Cylinder`) con DOF molto spinta.
 
 ---
 

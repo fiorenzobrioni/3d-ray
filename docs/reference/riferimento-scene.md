@@ -48,6 +48,9 @@ world:
   sky:                                     # (opzionale) Sostituisce lo sfondo
     type: "gradient"  # o "hdri"
     # ... vedi dettagli sotto
+  medium:                                  # (opzionale) Mezzo partecipante globale
+    type: "homogeneous"
+    # ... vedi dettagli sotto
 ```
 
 #### **Gradient Sky** (raccomandato per scene all'aperto):
@@ -80,6 +83,19 @@ sky:
 - **Sunset** (orizzonte arancione drammatico)
 - **Night** (valori minimi per zenith/orizzonte, disco solare fioco)
 - **Overcast** (luce ambientale alta, cielo uniforme)
+
+#### **Volumetria (Mezzi Partecipanti)**:
+```yaml
+medium:
+  type: "homogeneous"
+  sigma_a: [0.01, 0.01, 0.01]              # Assorbimento (oscuramento della luce)
+  sigma_s: [0.06, 0.06, 0.06]              # Scattering (densità nebbia, fasci di luce)
+  phase: "hg"                              # "isotropic" o "hg"
+  g: 0.85                                  # Per "hg": >0 scattering in avanti, 0 isotropo
+```
+- **Uso:** Simula nebbia, fumo, effetti subacquei e foschia atmosferica.
+- **Tip:** Richiede campioni più alti (`-s 128+`) e profondità maggiore (`-d 30+`) per risultati puliti.
+- **Effetti:** Le luci spot creano raggi visibili (god rays), le luci point creano aloni.
 
 ---
 
