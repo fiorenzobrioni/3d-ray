@@ -319,18 +319,18 @@ materials:
 
 The complete set of command-line parameters:
 
-| Flag | Long form          | Default                      | Description                                   |
-|------|--------------------|------------------------------|-----------------------------------------------|
-| `-i` | `--input`          | *(required)*                 | Path to the scene YAML file                   |
-| `-o` | `--output`         | `output/render-<scene>.png`  | Output image path (PNG, JPG, or BMP)          |
-| `-w` | `--width`          | `1200`                       | Image width in pixels                         |
-| `-H` | `--height`         | `800`                        | Image height in pixels                        |
-| `-s` | `--samples`        | `16`                         | Samples per pixel (rounded up to nearest perfect square) |
-| `-d` | `--depth`          | `50`                         | Maximum ray bounces                           |
-| `-S` | `--shadow-samples` | *(per light)*                | Override shadow samples for all area/sphere lights |
-| `-c` | `--camera`         | `0`                          | Select camera by name or zero-based index     |
-|      | `--list-cameras`   |                              | List available cameras and exit                |
-| `-h` | `--help`           |                              | Show help                                     |
+| Flag | Long form          | Default                       | Description                                              |
+|------|--------------------|-------------------------------|----------------------------------------------------------|
+| `-i` | `--input`          | *(required)*                  | Path to the scene YAML file                              |
+| `-o` | `--output`         | `renders/render-<scene>.png`  | Output image path (PNG, JPG, or BMP)                     |
+| `-w` | `--width`          | `1200`                        | Image width in pixels                                    |
+| `-H` | `--height`         | `800`                         | Image height in pixels                                   |
+| `-s` | `--samples`        | `16`                          | Samples per pixel (rounded up to nearest perfect square) |
+| `-d` | `--depth`          | `50`                          | Maximum ray bounces                                      |
+| `-S` | `--shadow-samples` | *(per light)*                 | Override shadow samples for all area/sphere lights       |
+| `-c` | `--camera`         | `0`                           | Select camera by name or zero-based index                |
+|      | `--list-cameras`   |                               | List available cameras and exit                          |
+| `-h` | `--help`           |                               | Show help                                                |
 
 ### Output Format
 

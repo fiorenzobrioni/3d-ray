@@ -6,7 +6,7 @@ Un moderno motore di ray tracing ad alte prestazioni sviluppato in C# e .NET 10,
 
 > **English Description:** *A modern, parallelized ray-tracing engine built with C# and .NET 10, featuring YAML scene configuration and advanced physically-based rendering capabilities.*
 
-![Sample Sphere Showcase](output/sample-sphere-showcase.png)
+![Sphere Showcase](renders/sphere-showcase.png)
 
 ---
 
@@ -106,12 +106,12 @@ dotnet build src/RayTracer/RayTracer.csproj -c Release
 
 Render di prova (veloce):
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 16 -d 20 -o output/render-draft.png -w 480 -H 270
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 16 -d 20 -o renders/render-draft.png -w 480 -H 270
 ```
 
 Render finale Full HD:
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 256 -d 60 -o output/render-final.png -w 1920 -H 1080
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 256 -d 60 -o renders/render-final.png -w 1920 -H 1080
 ```
 
 ---
@@ -149,7 +149,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │   │   └── textures/        # Texture PNG (albedo e normal map)
 │   ├── showcases/           # Scene dimostrative per singola feature
 │   └── *.yaml               # Scene principali del progetto
-├── output/                  # Immagini renderizzate
+├── renders/                 # Immagini renderizzate
 └── .github/workflows/       # CI con smoke test
 ```
 
@@ -178,7 +178,7 @@ dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
 | Parametro | Alias | Default | Descrizione |
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | — (**obbligatorio**) | Percorso del file YAML della scena. |
-| `--output` | `-o` | `output/render-<scena>.png` | File di output. Se omesso, generato dal nome della scena. |
+| `--output` | `-o` | `renders/render-<scena>.png` | File di output. Se omesso, generato dal nome della scena. |
 | `--width` | `-w` | `1200` | Larghezza in pixel. |
 | `--height` | `-H` | `800` | Altezza in pixel. |
 | `--samples` | `-s` | `16` | Campioni per pixel. Il numero effettivo viene arrotondato al quadrato perfetto superiore (`√N × √N`). |

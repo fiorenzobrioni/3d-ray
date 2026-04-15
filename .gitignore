@@ -483,5 +483,4 @@ $RECYCLE.BIN/
 *.swp
 
 # Output renders
-output/render-*.*
-
+renders/*-test-render.*

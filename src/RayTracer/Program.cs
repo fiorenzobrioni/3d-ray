@@ -30,13 +30,13 @@ class Program
         }
         else if (!string.IsNullOrEmpty(inputPath))
         {
-            // Default to "output/render-<scene>.png"
+            // Default to "renders/render-<scene>.png"
             string sceneName = Path.GetFileNameWithoutExtension(inputPath);
-            outputPath = Path.Combine("output", $"render-{sceneName}.png");
+            outputPath = Path.Combine("renders", $"render-{sceneName}.png");
         }
         else
         {
-            outputPath = Path.Combine("output", "render.png");
+            outputPath = Path.Combine("renders", "render.png");
         }
 
         bool wParsed = int.TryParse(GetArg(args, "--width",   "-w"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var width);
@@ -154,7 +154,7 @@ class Program
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  -i, --input <path>           Scene YAML file (required)");
-        Console.WriteLine("  -o, --output <path>          Output image (default: output/render-<scene>.png)");
+        Console.WriteLine("  -o, --output <path>          Output image (default: renders/render-<scene>.png)");
         Console.WriteLine("  -w, --width <px>             Image width  (default: 1200)");
         Console.WriteLine("  -H, --height <px>            Image height (default: 800)");
         Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16)");

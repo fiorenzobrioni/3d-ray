@@ -304,18 +304,18 @@ materials:
 
 L'insieme completo dei parametri della riga di comando:
 
-| Flag | Forma lunga         | Predefinito                  | Descrizione                                           |
-|------|---------------------|------------------------------|-------------------------------------------------------|
-| `-i` | `--input`           | *(richiesto)*                | Percorso del file YAML della scena                    |
-| `-o` | `--output`          | `output/render-<scena>.png`  | Percorso dell'immagine di output (PNG, JPG o BMP)     |
-| `-w` | `--width`           | `1200`                       | Larghezza dell'immagine in pixel                      |
-| `-H` | `--height`          | `800`                        | Altezza dell'immagine in pixel                        |
-| `-s` | `--samples`         | `16`                         | Campioni per pixel (arrotondati al quadrato perfetto) |
-| `-d` | `--depth`           | `50`                         | Numero massimo di rimbalzi dei raggi                  |
-| `-S` | `--shadow-samples`  | *(per luce)*                 | Sovrascrive i campioni d'ombra per tutte le luci area/sphere |
-| `-c` | `--camera`          | `0`                          | Seleziona la fotocamera per nome o indice base zero   |
-|      | `--list-cameras`    |                              | Elenca le fotocamere disponibili ed esce              |
-| `-h` | `--help`            |                              | Mostra l'aiuto                                        |
+| Flag | Forma lunga         | Predefinito                   | Descrizione                                                  |
+|------|---------------------|-------------------------------|--------------------------------------------------------------|
+| `-i` | `--input`           | *(richiesto)*                 | Percorso del file YAML della scena                           |
+| `-o` | `--output`          | `renders/render-<scena>.png`  | Percorso dell'immagine di output (PNG, JPG o BMP)            |
+| `-w` | `--width`           | `1200`                        | Larghezza dell'immagine in pixel                             |
+| `-H` | `--height`          | `800`                         | Altezza dell'immagine in pixel                               |
+| `-s` | `--samples`         | `16`                          | Campioni per pixel (arrotondati al quadrato perfetto)        |
+| `-d` | `--depth`           | `50`                          | Numero massimo di rimbalzi dei raggi                         |
+| `-S` | `--shadow-samples`  | *(per luce)*                  | Sovrascrive i campioni d'ombra per tutte le luci area/sphere |
+| `-c` | `--camera`          | `0`                           | Seleziona la fotocamera per nome o indice base zero          |
+|      | `--list-cameras`    |                               | Elenca le fotocamere disponibili ed esce                     |
+| `-h` | `--help`            |                               | Mostra l'aiuto                                               |
 
 ### Formato di output
 
