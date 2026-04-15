@@ -580,8 +580,8 @@ public class SceneLoader
             // No match by name or index
             var names = string.Join(", ",
                 list.Select((c, i) => c.Name != null ? $"\"{c.Name}\" (#{i})" : $"#{i}"));
-            Warn($"--camera '{selector}' not found. " +
-                 $"Available: {names}. Using camera 0.");
+            Warn($"--camera '{selector}' not found. Using camera 0.");
+            Warn($"Available cameras: {names}");
             return list[0];
         }
 
@@ -592,7 +592,8 @@ public class SceneLoader
         var cameraNames = string.Join(", ",
             list.Select((c, i) => c.Name != null ? $"\"{c.Name}\" (#{i})" : $"#{i}"));
         Warn($"Scene contains {list.Count} cameras. Using camera 0. " +
-             $"Use --camera <name|index> to select one. Available: {cameraNames}");
+             $"Use --camera <name|index> to select one.");
+        Warn($"Available cameras: {cameraNames}");
         return list[0];
     }
 
