@@ -1,4 +1,4 @@
-# 3D-Ray: High-Performance .NET 10 RayTracer Engine
+# 3D-Ray: High-Performance C# .NET 10 RayTracer Engine
 
 ![C#](https://img.shields.io/badge/language-C%23-239120?logo=c-sharp&logoColor=white) ![.NET 10](https://img.shields.io/badge/framework-.NET%2010-512BD4?logo=dotnet&logoColor=white) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D4) ![License](https://img.shields.io/badge/license-MIT-blue)
 
