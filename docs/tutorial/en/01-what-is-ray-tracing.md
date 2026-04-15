@@ -10,9 +10,10 @@ model you will rely on for the rest of the tutorial.
 ## 1.1 Light, Surfaces, and the Camera
 
 In the physical world a light source emits photons. Those photons travel
-in straight lines until they hit a surface, where they may be absorbed,
-reflected, refracted, or re-emitted. A tiny fraction of them eventually
-enters a camera (or your eye), and the pattern they form becomes an image.
+in straight lines until they hit a surface (or scatter inside a medium 
+like fog), where they may be absorbed, reflected, refracted, or re-emitted. 
+A tiny fraction of them eventually enters a camera (or your eye), and the 
+pattern they form becomes an image.
 
 Simulating this process forwards -- from the light source to the camera --
 is extremely wasteful. Most photons never reach the camera at all. Ray
@@ -65,6 +66,13 @@ one possible route that light could take. To produce a smooth, noise-free
 image we need to average many such paths. This is **Monte Carlo
 integration**: the engine fires many random rays per pixel, each following
 a slightly different path, and averages the results.
+
+To make this process dramatically more efficient, 3D-Ray relies on **Next 
+Event Estimation (NEE)**. Instead of just bouncing randomly and blindly hoping
+to hit a light source (which causes immense noise), at *each* intersection 3D-Ray
+explicitly fires deterministic "shadow rays" directly toward the known light
+sources. This separates direct lighting from the purely stochastic indirect 
+bounces, accelerating the convergence of photorealistic scenes.
 
 The key parameter is **samples per pixel** (SPP). With 1 sample the image
 is extremely noisy -- every pixel is essentially a single random guess.
@@ -208,6 +216,7 @@ grey.
 |----------------------|--------------------------------------------------------|
 | Backward ray tracing | Rays go from camera into the scene, not from lights    |
 | Path tracing         | Follow each ray through multiple bounces               |
+| Next Event Estimation| Explicit shadow rays toward lights to reduce noise     |
 | Monte Carlo sampling | Average many random paths per pixel to reduce noise    |
 | Samples per pixel    | More samples = less noise = longer render              |
 | Ray depth            | Maximum number of surface bounces per path             |

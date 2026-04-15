@@ -10,9 +10,10 @@ modello mentale su cui si farà affidamento per il resto del tutorial.
 ## 1.1 Luce, superfici e fotocamera
 
 Nel mondo fisico, una sorgente luminosa emette fotoni. Questi fotoni viaggiano
-in linea retta finché non colpiscono una superficie, dove possono essere assorbiti,
-riflessi, rifratti o re-emessi. Una piccola frazione di essi entra alla fine in una
-fotocamera (o nell'occhio), e il pattern che formano diventa un'immagine.
+in linea retta finché non colpiscono una superficie (o si disperdono in un mezzo 
+volumetrico come la nebbia), dove possono essere assorbiti, riflessi, rifratti o re-emessi. 
+Una piccola frazione di essi entra alla fine in una fotocamera (o nell'occhio), 
+e il pattern che formano diventa un'immagine.
 
 Simulare questo processo in avanti -- dalla sorgente luminosa alla fotocamera --
 è estremamente inefficiente. La maggior parte dei fotoni non raggiunge mai la
@@ -65,6 +66,8 @@ cattura solo una delle possibili traiettorie della luce. Per produrre un'immagin
 uniforme e priva di rumore è necessario mediare molti percorsi. Questa è
 **l'integrazione Monte Carlo**: il motore lancia molti raggi casuali per pixel,
 ciascuno seguendo un percorso leggermente diverso, e ne fa la media.
+
+Per rendere l'intero processo infinitamente più efficiente, 3D-Ray utilizza una tecnica chiave chiamata **Next Event Estimation (NEE)**. Invece di affidarsi al puro caso sperando che un raggio rimbalzante colpisca "alla cieca" una sorgente di luce (il che causerebbe molto rumore), ad ogni intersezione 3D-Ray lancia attivamente e deterministicamente "raggi d'ombra" (shadow rays) direttamente verso le sorgenti luminose conosciute. Questo separa di fatto l'illuminazione diretta dai rimbalzi puramente stocastici e indiretti, accelerando drasticamente la convergenza e la pulizia del render finale.
 
 Il parametro chiave è il **numero di campioni per pixel** (SPP). Con 1 campione
 l'immagine è estremamente rumorosa -- ogni pixel è essenzialmente un'unica stima
@@ -205,6 +208,7 @@ I colori sono specificati come triplette `[R, G, B]` nell'intervallo **0.0 - 1.0
 |-----------------------|----------------------------------------------------------|
 | Backward ray tracing  | I raggi vanno dalla fotocamera nella scena, non dalle luci |
 | Path tracing          | Segue ogni raggio attraverso molteplici rimbalzi         |
+| Next Event Estimation | Raggi d'ombra espliciti verso le luci per ridurre il rumore |
 | Campionamento Monte Carlo | Media molti percorsi casuali per pixel per ridurre il rumore |
 | Campioni per pixel    | Più campioni = meno rumore = render più lento            |
 | Profondità del raggio | Numero massimo di rimbalzi su superficie per percorso    |
