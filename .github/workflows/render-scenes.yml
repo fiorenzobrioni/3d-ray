@@ -47,28 +47,26 @@ jobs:
       fail-fast: false
       matrix:
         scene:
-#          - cornell-box
-#          - cornell-box-sphere
           - showcases/emissive-showcase
-          - showcases/group-showcase
-#          - chess
-#          - sample
-#          - pendolo-newton
-          - alchemist-lab
-#          - showcases/sphere-light-showcase
-#          - mix-material-showcase
-#          - classic-vs-disney-showcase
-#          - sphere-showcase-disney
-#          - utah-teapot
-#          - primitive-showcase
-#          - cristallo
-#          - csg-showcase
-#          - sphere-showcase
-#          - cornell-box
-#          - chess
-#          - classic-showcase
-#          - gradient-sky-showcase
-#          - sample
+          - sample
+          # --- Elenco disattivato (rimuovi il # per attivare) ---
+          # - alchemist-lab
+          # - chess
+          # - classic-showcase
+          # - classic-vs-disney-showcase
+          # - cornell-box
+          # - cornell-box-sphere
+          # - cristallo
+          # - csg-showcase
+          # - gradient-sky-showcase
+          # - mix-material-showcase
+          # - pendolo-newton
+          # - primitive-showcase
+          # - showcases/group-showcase
+          # - showcases/sphere-light-showcase
+          # - sphere-showcase
+          # - sphere-showcase-disney
+          # - utah-teapot
 
     steps:
       - name: Checkout repository
@@ -88,18 +86,26 @@ jobs:
       - name: Make binary executable
         run: chmod +x publish/RayTracer/RayTracer
 
-      - name: Render ${{ matrix.scene }}
+      - name: Execute Render
         run: |
-          mkdir -p renders
+          # Estrae il nome base per l'artifact (es. da "showcases/chess" diventa "chess")
+          SCENE_NAME=$(basename "${{ matrix.scene }}")
+          echo "SCENE_NAME=$SCENE_NAME" >> $GITHUB_ENV
+          
+          # Crea la struttura di cartelle necessaria ad ospitare l'output
+          mkdir -p "$(dirname "renders/${{ matrix.scene }}")"
+          
+          # Lancia il RayTracer (aggiornato a 1024 samples)
           publish/RayTracer/RayTracer \
             -i scenes/${{ matrix.scene }}.yaml \
             -o renders/${{ matrix.scene }}.png \
-            -s 512 -d 40 -w 1920 -H 1080
+            -s 10 -d 10 -w 1920 -H 1080
 
       - name: Upload render
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: render # render-${{ matrix.scene }}
+          name: render-${{ env.SCENE_NAME }}
           path: renders/${{ matrix.scene }}.png
           retention-days: 7
+          if-no-files-found: warn
