@@ -47,13 +47,13 @@ jobs:
       fail-fast: false
       matrix:
         scene:
-          - cornell-box
-          - cornell-box-sphere
+#          - cornell-box
+#          - cornell-box-sphere
           - showcases/emissive-showcase
           - showcases/group-showcase
-          - chess
-          - sample
-          - pendolo-newton
+#          - chess
+#          - sample
+#          - pendolo-newton
           - alchemist-lab
 #          - showcases/sphere-light-showcase
 #          - mix-material-showcase
@@ -93,13 +93,13 @@ jobs:
           mkdir -p renders
           publish/RayTracer/RayTracer \
             -i scenes/${{ matrix.scene }}.yaml \
-            -o renders/sample-${{ matrix.scene }}.png \
-            -s 1024 -d 50 -w 1920 -H 1080
+            -o renders/${{ matrix.scene }}.png \
+            -s 512 -d 40 -w 1920 -H 1080
 
       - name: Upload render
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: render-${{ matrix.scene }}
-          path: renders/sample-${{ matrix.scene }}.png
+          name: render # render-${{ matrix.scene }}
+          path: renders/${{ matrix.scene }}.png
           retention-days: 7
