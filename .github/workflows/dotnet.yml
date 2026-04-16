@@ -38,7 +38,7 @@ jobs:
         -i scenes/chess.yaml
         -o render-test.png
         -w 320 -H 213
-        -s 1 -d 5 -S 4
+        -s 32 -d 4 -S 4
 
     - name: Upload render artifact
       if: always()
