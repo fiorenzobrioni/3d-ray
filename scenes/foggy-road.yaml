@@ -1,0 +1,443 @@
+# ==============================================================================
+# SCENE: Nebbia Serale Londinese
+# ARCHITETTO: 3D-Ray YAML Expert
+# ==============================================================================
+
+world:
+  # Un cielo serale profondo, essenziale per far risaltare il bagliore dei lampioni
+  background: [0.02, 0.03, 0.06]
+  medium:
+    type: "homogeneous"
+    # L'assorbimento scurisce la luce sulla distanza (nebbia scura/fuliggine)
+    sigma_a: [0.015, 0.015, 0.015]
+    # Lo scattering definisce quanto è "fitta" la nebbia
+    sigma_s: [0.08, 0.08, 0.08]
+    phase: "hg"
+    # Un valore alto di 'g' crea aloni molto concentrati attorno alle fonti di luce
+    g: 0.85
+
+cameras:
+  - name: "main"
+    position: [0, 1.7, 5]      # Altezza occhi umani, partiamo da z=5
+    look_at: [0, 1.5, -50]     # Sguardo perso verso il fondo della strada
+    fov: 45                    # FOV leggermente stretto per comprimere la prospettiva
+
+lights:
+  # ============================================================================
+  # LUCI SPOT (Una per ogni istanza del lampione)
+  # Illuminate con un angolo caldo per penetrare la nebbia verso la strada
+  # ============================================================================
+  # Lato Sinistro (puntano verso il centro della strada)
+  - type: "spot"
+    position: [-3.5, 3.9, 0]
+    direction: [0.5, -1, 0]
+    color: [1.0, 0.6, 0.2]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 40
+  - type: "spot"
+    position: [-3.5, 3.9, -10]
+    direction: [0.5, -1, 0]
+    color: [1.0, 0.6, 0.2]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 40
+  - type: "spot"
+    position: [-3.5, 3.9, -20]
+    direction: [0.5, -1, 0]
+    color: [1.0, 0.6, 0.2]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 65
+  - type: "spot"
+    position: [-3.5, 3.9, -30]
+    direction: [0.5, -1, 0]
+    color: [1.0, 0.6, 0.2]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 65
+  - type: "spot"
+    position: [-3.5, 3.9, -40]
+    direction: [0.5, -1, 0]
+    color: [1.0, 0.6, 0.2]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 65
+  - type: "spot"
+    position: [-3.5, 3.9, -50]
+    direction: [0.5, -1, 0]
+    color: [1.0, 0.6, 0.2]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 65
+
+  # Lato Destro (puntano verso il centro della strada)
+  - type: "spot"
+    position: [3.5, 3.9, 0]
+    direction: [-0.5, -1, 0]
+    color: [1.0, 0.6, 0.2]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 40
+  - type: "spot"
+    position: [3.5, 3.9, -10]
+    direction: [-0.5, -1, 0]
+    color: [1.0, 0.6, 0.2]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 40
+  - type: "spot"
+    position: [3.5, 3.9, -20]
+    direction: [-0.5, -1, 0]
+    color: [1.0, 0.6, 0.2]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 65
+  - type: "spot"
+    position: [3.5, 3.9, -30]
+    direction: [-0.5, -1, 0]
+    color: [1.0, 0.6, 0.2]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 65
+  - type: "spot"
+    position: [3.5, 3.9, -40]
+    direction: [-0.5, -1, 0]
+    color: [1.0, 0.6, 0.2]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 65
+  - type: "spot"
+    position: [3.5, 3.9, -50]
+    direction: [-0.5, -1, 0]
+    color: [1.0, 0.6, 0.2]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 65
+
+materials:
+  - id: "mat_asphalt"
+    type: "disney"
+    color: [0.15, 0.15, 0.16]
+    roughness: 0.35            # Abbastanza liscio da simulare umidità
+    specular: 0.6              # Rifletterà splendidamente i lampioni
+
+  - id: "mat_wet_grass"
+    type: "disney"
+    color: [0.05, 0.15, 0.04]  # Verde scuro, desaturato dalla sera
+    roughness: 0.8
+    specular: 0.1
+
+  - id: "mat_cast_iron"
+    type: "disney"
+    color: [0.02, 0.02, 0.02]
+    metallic: 0.8
+    roughness: 0.6
+    clearcoat: 0.2             # Vernice nera protettiva della ghisa
+
+  - id: "mat_warm_glow"
+    type: "emissive"
+    color: [1.0, 0.6, 0.2]     
+    intensity: 15.0            
+
+  - id: "mat_glass_bulb"
+    type: "dielectric"
+    ior: 1.5
+    color: [1, 1, 1]
+
+  - id: "mat_sidewalk"
+    type: "disney"
+    color: [0.25, 0.25, 0.25]  # Grigio cemento opaco
+    roughness: 0.85            # Più ruvido e meno riflettente dell'asfalto
+    specular: 0.15
+
+  - id: "mat_dark_cloth"
+    type: "disney"
+    #color: [0.04, 0.04, 0.04]  # Stoffa nera/grigio molto scura
+    #roughness: 0.9             # Molto opaco per non riflettere luce diretta
+    #specular: 0.0
+    color: [0.02, 0.02, 0.02]
+    roughness: 0.90
+    sheen: 0.85
+    sheen_tint: 0.3
+    specular: 0.10
+
+templates:
+  # ============================================================================
+  # VARIANTE 1: Lampione con Geometria Emissiva (Riserva)
+  # ============================================================================
+  - name: "london_lamp_emissive"
+    type: "group"
+    children:
+      - type: "csg"
+        operation: "subtraction"
+        material: "mat_cast_iron"
+        left:
+          type: "cylinder"
+          center: [0, 0, 0]
+          radius: 0.3
+          height: 0.6
+        right:
+          type: "cylinder"
+          center: [0, 0.6, 0]
+          radius: 0.4
+          height: 0.3
+          rotate: [90, 0, 0]
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.08
+        height: 3.5
+        material: "mat_cast_iron"
+      - type: "cylinder"
+        center: [0, 2.5, 0]
+        radius: 0.02
+        height: 0.6
+        rotate: [0, 0, 90]
+        material: "mat_cast_iron"
+      - type: "cone"
+        center: [0, 3.5, 0]
+        radius: 0.05
+        top_radius: 0.25
+        height: 0.2
+        material: "mat_cast_iron"
+      - type: "sphere"
+        center: [0, 3.9, 0]
+        radius: 0.15
+        material: "mat_warm_glow"
+      - type: "cone"
+        center: [0, 4.2, 0]
+        radius: 0.3
+        top_radius: 0.02
+        height: 0.3
+        material: "mat_cast_iron"
+      - type: "sphere"
+        center: [0, 4.5, 0]
+        radius: 0.04
+        material: "mat_cast_iron"
+
+  # ============================================================================
+  # VARIANTE 3: NUOVO Lampione Spot (Definitivo - Uso Attuale)
+  # Paralume in ghisa direzionale verso il basso senza sfere che blocchino la luce
+  # ============================================================================
+  - name: "london_lamp_spot"
+    type: "group"
+    children:
+      # BASE, PALO E BARRA TRASVERSALE (Ereditati dallo stile precedente)
+      - type: "csg"
+        operation: "subtraction"
+        material: "mat_cast_iron"
+        left:
+          type: "cylinder"
+          center: [0, 0, 0]
+          radius: 0.3
+          height: 0.6
+        right:
+          type: "cylinder"
+          center: [0, 0.6, 0]
+          radius: 0.4
+          height: 0.3
+          rotate: [90, 0, 0]
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.08
+        height: 3.5
+        material: "mat_cast_iron"
+      - type: "-cylinder"
+        center: [0, 2.5, 0]
+        radius: 0.02
+        height: 0.6
+        rotate: [0, 0, 90]
+        material: "mat_cast_iron"
+
+      # CAPPELLO / PARALUME (Scavato con CSG per non bloccare la luce)
+      - type: "csg"
+        operation: "subtraction"
+        material: "mat_cast_iron"
+        left:
+          type: "cone"
+          center: [0, 3.8, 0]       
+          radius: 0.35              
+          top_radius: 0.05          
+          height: 0.3
+        right:
+          type: "cone"
+          center: [0, 3.79, 0]      # Leggermente più in basso per scavare
+          radius: 0.33              # Leggermente più stretto per creare il bordo
+          top_radius: 0.04
+          height: 0.32              # Più alto per bucare fino in fondo
+        
+      # PUNTA DECORATIVA SUPERIORE
+      - type: "sphere"
+        center: [0, 4.15, 0]
+        radius: 0.05
+        material: "mat_cast_iron"
+
+entities:
+  # 1. IL SUOLO (Prato)
+  - name: "grass_plane"
+    type: "box"
+    translate: [0, -0.5, 0]
+    scale: [200, 1, 200]
+    material: "mat_wet_grass"
+
+  # 2. LA STRADA
+  - name: "road"
+    type: "box"
+    translate: [0, -0.49, 0]
+    scale: [6, 1, 200]
+    material: "mat_asphalt"
+
+  # 3. MARCIAPIEDE SINISTRO
+  - name: "sidewalk_left"
+    type: "box"
+    translate: [-3.75, -0.4, 0] # Altezza Y=+0.05: crea un piccolo gradino sopra l'asfalto (Y=+0.01)
+    scale: [1.5, 1, 200]
+    material: "mat_sidewalk"
+
+  # 4. MARCIAPIEDE DESTRO
+  - name: "sidewalk_right"
+    type: "box"
+    translate: [3.75, -0.4, 0]  # Centrato esattamente a filo con la strada, copre la base dei lampioni
+    scale: [1.5, 1, 200]
+    material: "mat_sidewalk"
+
+  # 5. I LAMPIONI (Lato Sinistro, X = -3.5) - SOSTITUITI CON IL NUOVO TEMPLATE
+  - type: "instance"
+    template: "london_lamp_spot"
+    translate: [-3.5, 0, 0]
+  - type: "instance"
+    template: "london_lamp_spot"
+    translate: [-3.5, 0, -10]
+  - type: "instance"
+    template: "london_lamp_spot"
+    translate: [-3.5, 0, -20]
+  - type: "instance"
+    template: "london_lamp_spot"
+    translate: [-3.5, 0, -30]
+  - type: "instance"
+    template: "london_lamp_spot"
+    translate: [-3.5, 0, -40]
+  - type: "instance"
+    template: "london_lamp_spot"
+    translate: [-3.5, 0, -50]
+
+  # 6. I LAMPIONI (Lato Destro, X = 3.5) - SOSTITUITI CON IL NUOVO TEMPLATE
+  - type: "instance"
+    template: "london_lamp_spot"
+    translate: [3.5, 0, 0]
+  - type: "instance"
+    template: "london_lamp_spot"
+    translate: [3.5, 0, -10]
+  - type: "instance"
+    template: "london_lamp_spot"
+    translate: [3.5, 0, -20]
+  - type: "instance"
+    template: "london_lamp_spot"
+    translate: [3.5, 0, -30]
+  - type: "instance"
+    template: "london_lamp_spot"
+    translate: [3.5, 0, -40]
+  - type: "instance"
+    template: "london_lamp_spot"
+    translate: [3.5, 0, -50]
+
+  # 7. UOMO NELLA NEBBIA (Silhouette Dettagliata e Corretta)
+  - name: "mysterious_man"
+    type: "group"
+    translate: [-1.1, 0.01, -10] # Appoggiato sull'asfalto, lontano nella nebbia
+    rotate: [0,15,0]
+    children:
+      # --- Scarpe (h=0.1, base=0.0) ---
+      - type: "box"
+        translate: [-0.15, 0.05, 0]
+        scale: [0.12, 0.1, 0.25]
+        material: "mat_dark_cloth"
+      - type: "box"
+        translate: [0.15, 0.05, 0]
+        scale: [0.12, 0.1, 0.25]
+        material: "mat_dark_cloth"
+
+      # --- Gambe (h=0.9, base=0.1) ---
+      - type: "cylinder"
+        center: [-0.15, 0.1, -0.05]
+        radius: 0.08
+        height: 0.9
+        material: "mat_dark_cloth"
+      - type: "cylinder"
+        center: [0.15, 0.1, -0.05]
+        radius: 0.08
+        height: 0.9
+        material: "mat_dark_cloth"
+
+      # --- Busto / Cappotto (h=0.7, base=1.0) ---
+      - type: "cone"
+        center: [0, 0.9, 0]
+        radius: 0.35 
+        top_radius: 0.22 
+        height: 0.8
+        scale: [1, 1, 0.5]
+        material: "mat_dark_cloth"
+
+      # --- Bavero alzato (h=0.15, base=1.7) ---
+      - type: "cone"
+        center: [0, 1.7, 0]
+        radius: 0.22 
+        top_radius: 0.26 
+        height: 0.15
+        scale: [1, 1, 0.5]
+        material: "mat_dark_cloth"
+
+      # --- Braccia (h=0.6, aggancio=1.7, scendono fino a 1.1) ---
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.07
+        height: 0.6
+        rotate: [0, 0, -5]
+        translate: [-0.34, 1.1, 0]
+        material: "mat_dark_cloth"
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.07
+        height: 0.6
+        rotate: [0, 0, 5]
+        translate: [0.34, 1.1, 0]
+        material: "mat_dark_cloth"
+
+      # --- Mani (Raggio=0.06, centro=1.1) ---
+      - type: "sphere"
+        center: [-0.34, 1.1, 0]
+        radius: 0.08
+        material: "mat_dark_cloth"
+      - type: "sphere"
+        center: [0.34, 1.1, 0]
+        radius: 0.08
+        material: "mat_dark_cloth"
+
+      # --- Bastone (h=0.95, base=0.01) ---
+      - type: "cylinder"
+        center: [0.34, 0.0, 0]
+        radius: 0.015
+        height: 1.1
+        material: "mat_cast_iron"
+
+      # --- Testa ---
+      - type: "sphere"
+        center: [0, 1.95, 0]
+        radius: 0.14
+        material: "mat_dark_cloth"
+
+      # --- Cappello ---
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.22
+        height: 0.02
+        rotate: [12, 0, -5] 
+        translate: [0, 1.99, 0]
+        material: "mat_dark_cloth"
+      - type: "cylinder"
+        center: [0, 0, 0] 
+        radius: 0.12
+        height: 0.18
+        rotate: [12, 0, -5]
+        translate: [0, 1.990, 0]
+        material: "mat_dark_cloth"
