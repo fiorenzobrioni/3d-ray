@@ -171,7 +171,7 @@ Il rendering volumetrico è più impegnativo del rendering solo superficiale. Ti
 
 1. **Aumentare i campioni (samples).** Il mezzo aggiunge un'altra fonte di rumore (eventi di scattering casuali lungo ogni raggio). Usare almeno 64 SPP; 256+ per risultati puliti.
 
-2. **Aumentare la profondità (depth).** Ogni evento di scattering conta come un rimbalzo. Con un mezzo denso, i raggi possono diffondersi più volte prima di raggiungere una luce. Usare `-d 30` o superiore.
+2. **Aumentare la profondità (depth).** Ogni evento di scattering conta come un rimbalzo. Con un mezzo denso, i raggi possono diffondersi più volte prima di raggiungere una luce. Usa `-d 12` (nebbia/fumo densi); la Russian Roulette termina automaticamente i path molto lunghi, quindi valori sopra `-d 16` raramente migliorano la qualità.
 
 3. **Le luci spot creano i fasci di luce (God Rays).** Una luce spot che brilla attraverso la nebbia produce un cono di luce visibile. Questo è uno degli effetti più spettacolari possibili con i mezzi partecipanti.
 
@@ -306,7 +306,7 @@ entities:
 Esegui il rendering con:
 
 ```
-RayTracer -i cathedral-fog.yaml -w 1200 -H 800 -s 256 -d 40
+RayTracer -i cathedral-fog.yaml -w 1200 -H 800 -s 256 -d 12
 ```
 
 La luce spot crea un drammatico fascio visibile che taglia la nebbia tra i pilastri. La funzione di fase HG concentrata in avanti (g=0.82) focalizza il bagliore attorno alla direzione del raggio, proprio come nella nebbia reale.

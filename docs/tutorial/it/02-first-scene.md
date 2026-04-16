@@ -363,19 +363,19 @@ entities:
 Iniziare con una rapida anteprima per verificare la composizione:
 
 ```
-RayTracer -i three-spheres.yaml -w 400 -H 225 -s 1 -d 5
+RayTracer -i three-spheres.yaml -w 400 -H 225 -s 64 -d 4 -S 1
 ```
 
-Poi una bozza per verificare materiali e illuminazione:
+Poi una bozza per verificare materiali e illuminazione (profilo Standard):
 
 ```
-RayTracer -i three-spheres.yaml -w 800 -H 450 -s 16 -d 20
+RayTracer -i three-spheres.yaml -w 800 -H 450 -s 256 -d 6
 ```
 
-E infine un render pulito:
+E infine un render pulito (profilo Final):
 
 ```
-RayTracer -i three-spheres.yaml -w 1920 -H 1080 -s 256 -d 50
+RayTracer -i three-spheres.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 ```
 
 ### Cosa si dovrebbe vedere

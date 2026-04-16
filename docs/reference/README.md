@@ -10,6 +10,11 @@ light sources, procedural and image textures, CSG, groups, templates, and the im
 
 **[→ Scene Reference (English)](./scene-reference.md)**
 
+Practical reference for tuning the render-quality CLI parameters (`-s`, `-d`, `-S`, `-C`)
+with three canonical profiles (Preview, Standard, Final) and tips for avoiding wasted render time.
+
+**[→ Rendering Profiles (English)](./rendering-profiles.md)**
+
 ---
 
 ## Italiano
@@ -20,3 +25,8 @@ ogni primitiva geometrica, le sorgenti luminose, le texture procedurali e da imm
 la CSG, i gruppi, i template e il sistema di import.
 
 **[→ Riferimento Scene (Italiano)](./riferimento-scene.md)**
+
+Riferimento pratico per regolare i parametri CLI di qualità render (`-s`, `-d`, `-S`, `-C`)
+con tre profili canonici (Preview, Standard, Final) e tip per non sprecare tempo di render.
+
+**[→ Profili di Rendering (Italiano)](./profili-di-rendering.md)**

@@ -52,9 +52,11 @@ public class Renderer
     // Maximum per-sample radiance (before tone mapping). Sits just above the
     // safety net that catches any remaining outliers from RR boost, Disney
     // lobe compensation, specular caustics, or NaN/Inf from edge cases.
-    // Increased from 15f to 100f to prevent catastrophic energy loss on 
+    // Increased from 15f to 100f to prevent catastrophic energy loss on
     // highly emissive elements, while still removing true numerical spikes.
-    private const float MaxSampleRadiance = 100f;
+    // Can be overridden via the constructor (CLI flag --clamp/-C).
+    public const float DefaultMaxSampleRadiance = 100f;
+    private readonly float _maxSampleRadiance;
 
     // Threshold below which the scene is considered indirect-dominant.
     // Computed as the sum of luminance of all explicit lights evaluated at
@@ -70,7 +72,8 @@ public class Renderer
         SkySettings sky,
         int samplesPerPixel,
         int maxDepth,
-        IMedium? globalMedium = null)
+        IMedium? globalMedium = null,
+        float? maxSampleRadiance = null)
     {
         _world = world;
         _camera = camera;
@@ -80,6 +83,7 @@ public class Renderer
         _samplesPerPixel = samplesPerPixel;
         _maxDepth = maxDepth;
         _globalMedium = globalMedium;
+        _maxSampleRadiance = maxSampleRadiance ?? DefaultMaxSampleRadiance;
 
         // ── Scene analysis: detect indirect-dominant lighting ────────────
         // Evaluate all explicit lights at the world origin to get a rough
@@ -198,7 +202,7 @@ public class Renderer
     /// Also replaces NaN/Inf values with black to prevent corruption
     /// from propagating into the pixel accumulator.
     /// </summary>
-    private static Vector3 ClampRadiance(Vector3 color)
+    private Vector3 ClampRadiance(Vector3 color)
     {
         // NaN / Inf guard — any non-finite component becomes zero.
         if (float.IsNaN(color.X) || float.IsInfinity(color.X)) color.X = 0f;
@@ -208,9 +212,9 @@ public class Renderer
         // Luminance-preserving clamp — scales the entire vector down
         // to prevent Hue-shifting heavily saturated bright highlights.
         float lum = MathUtils.Luminance(color);
-        if (lum > MaxSampleRadiance)
+        if (lum > _maxSampleRadiance)
         {
-            color *= MaxSampleRadiance / lum;
+            color *= _maxSampleRadiance / lum;
         }
 
         return Vector3.Max(color, Vector3.Zero);

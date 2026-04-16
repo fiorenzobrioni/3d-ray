@@ -10,9 +10,9 @@
 #  STILE: Tecnico/artistico, reference, illuminazione calibrata
 #
 #  Render consigliato:
-#    Draft:    -w 800  -H 450  -s 16  -d 20 -S 4
-#    Preview:  -w 1280 -H 720  -s 64  -d 30 -S 8
-#    Finale:   -w 1920 -H 1080 -s 256 -d 50 -S 16
+#    Draft:    -w 400  -H 225  -s 64   -d 4  -S 1
+#    Preview:  -w 800  -H 450  -s 256  -d 6
+#    Finale:   -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════════
 
 

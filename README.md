@@ -104,15 +104,17 @@ dotnet build src/RayTracer/RayTracer.csproj -c Release
 
 ### Esecuzione
 
-Render di prova (veloce):
+Render di prova (profilo Standard):
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 16 -d 20 -o renders/render-draft.png -w 480 -H 270
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 256 -d 6 -o renders/render-draft.png -w 480 -H 270
 ```
 
-Render finale Full HD:
+Render finale Full HD (profilo Final):
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 256 -d 60 -o renders/render-final.png -w 1920 -H 1080
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 1024 -d 8 -S 4 -o renders/render-final.png -w 1920 -H 1080
 ```
+
+> Per i profili completi (Preview / Standard / Final) e i tip su `-d`, `-s`, `-S`, `-C` consulta la guida [Profili di Rendering](./docs/reference/profili-di-rendering.md) ([English version](./docs/reference/rendering-profiles.md)).
 
 ---
 
@@ -182,31 +184,34 @@ dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
 | `--width` | `-w` | `1200` | Larghezza in pixel. |
 | `--height` | `-H` | `800` | Altezza in pixel. |
 | `--samples` | `-s` | `16` | Campioni per pixel. Il numero effettivo viene arrotondato al quadrato perfetto superiore (`√N × √N`). |
-| `--depth` | `-d` | `50` | Massimo numero di rimbalzi ricorsivi per raggio. |
-| `--shadow-samples` | `-S` | *(da YAML)* | Override globale dei shadow samples per tutte le area light. |
+| `--depth` | `-d` | `8` | Massimo numero di rimbalzi ricorsivi per raggio. Alza a `16+` solo per dielettrici impilati (vetri annidati, liquidi nei bicchieri). |
+| `--shadow-samples` | `-S` | *(da YAML)* | Override globale dei shadow samples per tutte le area light. Usa quadrati perfetti (`1, 4, 9, 16`). |
+| `--clamp` | `-C` | `100` | Firefly clamp: massima radianza per-campione prima del tone mapping. Abbassa (es. `25`) per scene problematiche con vetri/nebbia, alza per highlight molto intensi. |
 | `--camera` | `-c` | *(prima camera)* | Seleziona la camera per nome o indice (0-based). |
 | `--list-cameras` | — | — | Elenca le camere disponibili nella scena ed esce. |
 | `--help` | `-h` | — | Mostra il messaggio di aiuto ed esce. |
 
-> **Nota:** `-H` è maiuscola perché `-h` è riservato a `--help`. `-S` (maiuscola) è per `--shadow-samples`, `-s` (minuscola) per `--samples`.
+> **Nota:** `-H` è maiuscola perché `-h` è riservato a `--help`. Le maiuscole sono usate per gli "override avanzati": `-S` (`--shadow-samples`) e `-C` (`--clamp`); `-s` minuscola per `--samples`, `-c` minuscola per `--camera`.
+
+> **Profili di rendering pronti all'uso:** vedi [Profili di Rendering](./docs/reference/profili-di-rendering.md) · [Rendering Profiles (EN)](./docs/reference/rendering-profiles.md).
 
 ---
 
 ## 💡 Esempi Pratici
 
-### Anteprima Rapida
+### Profilo Preview (composizione, camere, materiali — secondi)
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o preview.png -w 400 -H 267 -s 1 -d 5 -S 4
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o preview.png -w 400 -H 267 -s 64 -d 4 -S 1
 ```
 
-### Qualità Draft
+### Profilo Standard (CI/CD, review, log — minuti)
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o draft.png -w 800 -H 533 -s 16 -d 20
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o draft.png -w 800 -H 533 -s 256 -d 6
 ```
 
-### Produzione Full HD
+### Profilo Final (portfolio, copertina README — Full HD)
 ```powershell
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o final.png -w 1920 -H 1080 -s 128 -d 50 -S 32
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o final.png -w 1920 -H 1080 -s 1024 -d 8 -S 4
 ```
 
 ### Output in JPEG
@@ -239,6 +244,11 @@ Riferimento tecnico completo di ogni chiave YAML accettata dal motore: world, ca
 *Complete technical reference for every YAML key the engine accepts: world, camera, materials, primitives, lights, CSG, imports, and templates. Available in English and Italian.*
 
 [EN](./docs/reference/scene-reference.md) · [IT](./docs/reference/riferimento-scene.md) · [Indice bilingue / Bilingual index](./docs/reference/README.md)
+
+**Profili di Rendering / Rendering Profiles** — guida pratica ai parametri CLI di qualità render (`-s`, `-d`, `-S`, `-C`) con tre profili canonici (Preview / Standard / Final) e tip per non sprecare tempo di render.  
+*Practical guide to the render-quality CLI parameters (`-s`, `-d`, `-S`, `-C`) with three canonical profiles and tips for avoiding wasted render time.*
+
+[EN](./docs/reference/rendering-profiles.md) · [IT](./docs/reference/profili-di-rendering.md)
 
 ---
 

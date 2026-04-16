@@ -11,9 +11,9 @@
 #    • Rimosso materiale ceramic_teapot (non referenziato in nessuna entity)
 #
 #  Render consigliato:
-#    Draft:  -w 800  -H 600  -s 32  -d 15  -S 4
-#    Medio:  -w 1280 -H 960  -s 128 -d 25  -S 16
-#    Finale: -w 1920 -H 1080 -s 256 -d 40  -S 32
+#    Draft:  -w 400  -H 225  -s 64   -d 4  -S 1
+#    Medio:  -w 800  -H 450  -s 256  -d 6
+#    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:

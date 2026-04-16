@@ -119,13 +119,17 @@ according to the Fresnel equations: some is reflected, some is refracted
 
 ### Important: Glass Needs More Ray Depth
 
-Every glass surface a ray enters and exits costs two bounces. If you have
-nested glass objects (e.g. a glass of water), set the ray depth to at
-least 30:
+Every glass surface a ray enters and exits costs two bounces. The default
+depth is `-d 8` (enough for most scenes thanks to Russian Roulette). If you
+have nested glass objects (e.g. a glass of water, bottles behind bottles),
+raise the ray depth to at least 16:
 
 ```
-RayTracer -i my-scene.yaml -s 64 -d 30
+RayTracer -i my-scene.yaml -s 64 -d 16
 ```
+
+See [Rendering Profiles](../../reference/rendering-profiles.md) for the full
+explanation of when to raise `-d`.
 
 ---
 
@@ -668,7 +672,7 @@ entities:
 Render with:
 
 ```
-RayTracer -i material-gallery.yaml -w 1600 -H 600 -s 64 -d 30
+RayTracer -i material-gallery.yaml -w 1600 -H 600 -s 1024 -d 8 -S 4
 ```
 
 ---

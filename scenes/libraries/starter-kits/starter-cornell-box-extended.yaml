@@ -10,10 +10,10 @@
 #  STILE: Tecnico/artistico, test di GI e materiali
 #
 #  Render consigliato (scena quadrata):
-#    Draft:    -w 512  -H 512  -s 16  -d 15 -S 4
-#    Preview:  -w 800  -H 800  -s 64  -d 25 -S 8
-#    Finale:   -w 1024 -H 1024 -s 256 -d 50 -S 16
-#    Ultra:    -w 2048 -H 2048 -s 512 -d 60 -S 24
+#    Draft:    -w 400  -H 225  -s 64   -d 4  -S 1
+#    Preview:  -w 800  -H 450  -s 256  -d 16
+#    Finale:   -w 1920 -H 1080 -s 1024 -d 20 -S 4
+#    Ultra:    -w 3840 -H 2160 -s 1600 -d 20 -S 4
 # ═══════════════════════════════════════════════════════════════════════════════
 
 

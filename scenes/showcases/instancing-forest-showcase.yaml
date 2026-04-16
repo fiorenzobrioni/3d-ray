@@ -20,8 +20,8 @@
 #          atteso per una libreria di alberi.
 #
 #  Render consigliato:
-#    Draft : -w 960  -H 540  -s 32  -d 12
-#    Finale: -w 1920 -H 1080 -s 256 -d 20
+#    Draft : -w 400  -H 225  -s 64   -d 4  -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:

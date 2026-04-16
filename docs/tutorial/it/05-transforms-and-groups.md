@@ -488,7 +488,7 @@ entities:
 Esegui il rendering con:
 
 ```
-RayTracer -i dinner-table.yaml -w 1200 -H 800 -s 64 -d 30
+RayTracer -i dinner-table.yaml -w 1200 -H 800 -s 256 -d 6
 ```
 
 ---

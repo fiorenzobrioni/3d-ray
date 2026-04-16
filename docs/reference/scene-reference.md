@@ -86,7 +86,7 @@ medium:
   g: 0.85                                  # For "hg": >0 forward scattering, 0 isotropic
 ```
 - **Usage:** Simulates fog, smoke, underwater, and atmospheric haze.
-- **Tip:** Requires higher samples (`-s 128+`) and depth (`-d 30+`) for clean results.
+- **Tip:** Volumetrics benefit from more samples and bounces than surface-only scenes. Start from the Standard profile and raise depth to `-d 12`; for dense media combine with `-s 1024 -d 12 -S 4`. See [Rendering Profiles](./rendering-profiles.md) for the full guide.
 - **Effects:** Spot lights create visible beams (god rays), point lights create halos.
 ---
 ### 4. **CAMERA SECTION**
@@ -653,7 +653,7 @@ entities:
    - Use `cameras: []` list for multi-shot capabilities
    - Set `focal_dist` to actual distance to main subject
    - Use aperture=0.0 for draft passes, add aperture for final renders
-   - Test with low resolution + low samples first (`-w 400 -H 267 -s 4 -d 10`)
+   - Test with low resolution + Preview profile first (`-w 400 -H 267 -s 64 -d 4 -S 1`)
 4. **Performance Optimization:**
    - Use templates + instances for repeated objects
    - Import shared materials/lights from libraries
@@ -663,11 +663,11 @@ entities:
    - Polyhaven.com — Free HDRIs and PBR textures (CC0)
    - AmbientCG.com — Complete PBR texture sets
    - Procedurals (noise, marble, wood) for artistic control
-6. **Render Parameters:**
-   - Preview: `-s 1 -d 5 -w 400`
-   - Draft: `-s 16 -d 20 -w 800`
-   - Production: `-s 128 -d 50 -w 1920`
-   - Ultra: `-s 256 -d 50 -w 3840 -S 32`
+6. **Render Parameters:** (see [Rendering Profiles](./rendering-profiles.md) for full tables and tips)
+   - Preview: `-s 64 -d 4 -S 1 -w 400`
+   - Standard: `-s 256 -d 6 -w 800`
+   - Final: `-s 1024 -d 8 -S 4 -w 1920`
+   - Ultra: `-s 1600 -d 8 -S 4 -w 3840`
 ---
 
 This comprehensive guide covers everything needed to write production-quality YAML scene files. All information is sourced directly from the project documentation, example files, and source code structure.

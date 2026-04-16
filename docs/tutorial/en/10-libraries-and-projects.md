@@ -255,7 +255,8 @@ rename it, and modify it.
 ### Rendering a Starter Kit
 
 ```
-RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -w 800 -H 800 -s 64 -d 30
+# Cornell box is indirect-dominant, so -d is raised above the Standard profile default.
+RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -w 800 -H 800 -s 256 -d 20 -S 4
 ```
 
 Most starter kits define multiple cameras. List them with:
@@ -267,7 +268,7 @@ RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml --l
 Then render a specific one:
 
 ```
-RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -c "tre_quarti" -s 128
+RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -c "tre_quarti" -s 256 -d 20
 ```
 
 ---
@@ -326,8 +327,9 @@ The complete set of command-line parameters:
 | `-w` | `--width`          | `1200`                        | Image width in pixels                                    |
 | `-H` | `--height`         | `800`                         | Image height in pixels                                   |
 | `-s` | `--samples`        | `16`                          | Samples per pixel (rounded up to nearest perfect square) |
-| `-d` | `--depth`          | `50`                          | Maximum ray bounces                                      |
-| `-S` | `--shadow-samples` | *(per light)*                 | Override shadow samples for all area/sphere lights       |
+| `-d` | `--depth`          | `8`                           | Maximum ray bounces (raise to 16+ only for stacked glass) |
+| `-S` | `--shadow-samples` | *(per light)*                 | Override shadow samples for all area/sphere lights (perfect squares) |
+| `-C` | `--clamp`          | `100`                         | Firefly clamp: max per-sample radiance before tone mapping |
 | `-c` | `--camera`         | `0`                           | Select camera by name or zero-based index                |
 |      | `--list-cameras`   |                               | List available cameras and exit                          |
 | `-h` | `--help`           |                               | Show help                                                |
@@ -413,16 +415,22 @@ entities:
 
 ### Step 5: Iterate
 
-```
-# Quick preview (seconds)
-RayTracer -i my-scene.yaml -w 400 -H 225 -s 1 -d 5 -S 1
+Use the three canonical rendering profiles:
 
-# Draft (minutes)
-RayTracer -i my-scene.yaml -w 800 -H 450 -s 16 -d 20 -S 4
-
-# Final (production)
-RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 256 -d 50 -S 16
 ```
+# Preview — composition / cameras / materials (seconds)
+RayTracer -i my-scene.yaml -w 400 -H 225 -s 64 -d 4 -S 1
+
+# Standard — CI/CD and review renders (minutes)
+RayTracer -i my-scene.yaml -w 800 -H 450 -s 256 -d 6
+
+# Final — portfolio / README cover quality
+RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
+```
+
+For the full explanation of each parameter, Russian Roulette behavior, the
+glass-stacked exception that forces `-d 16+`, and the `-C`/`--clamp` firefly
+knob, see **[Rendering Profiles Reference](../../reference/rendering-profiles.md)**.
 
 ---
 
@@ -457,8 +465,8 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 256 -d 50 -S 16
   `[255, 0, 0]` is not red -- it is an extremely bright white.
 
 ### Glass Looks Wrong (Too Dark or Solid)
-- Increase ray depth: `-d 30` or higher. Glass needs 2 bounces per
-  surface.
+- Increase ray depth: `-d 16` or higher (glass consumes 2 bounces per
+  surface, so stacked or nested glass easily exhausts the default `-d 8`).
 - Ensure there is light behind/around the glass object (glass transmits
   light, so it needs something to transmit).
 
@@ -619,8 +627,12 @@ lights:
 Render with:
 
 ```
-RayTracer -i exhibition-hall.yaml -c overview -w 1920 -H 1080 -s 128 -d 30
-RayTracer -i exhibition-hall.yaml -c detail -w 1200 -H 800 -s 256 -d 30
+# Standard — quick review
+RayTracer -i exhibition-hall.yaml -c overview -w 800 -H 450 -s 256 -d 6
+
+# Final — portfolio quality
+RayTracer -i exhibition-hall.yaml -c overview -w 1920 -H 1080 -s 1024 -d 8 -S 4
+RayTracer -i exhibition-hall.yaml -c detail -w 1200 -H 800 -s 1024 -d 8 -S 4
 ```
 
 ---

@@ -9,9 +9,9 @@
 #  Il cielo procedurale con sun disk simula la luce pomeridiana londinese.
 #
 #  Render consigliato:
-#    Preview: dotnet run ... -- -i scenes/big-ben.yaml -w 1280 -H 720 -s 64 -d 12
-#    Finale:  dotnet run ... -- -i scenes/big-ben.yaml -w 1920 -H 1080 -s 128 -d 50
-#    Ultra:   dotnet run ... -- -i scenes/big-ben.yaml -w 3840 -H 2160 -s 256 -d 50 -S 32
+#    Preview: dotnet run ... -- -i scenes/big-ben.yaml -w 400  -H 225  -s 64   -d 4  -S 1
+#    Finale:  dotnet run ... -- -i scenes/big-ben.yaml -w 1920 -H 1080 -s 1024 -d 8  -S 4
+#    Ultra:   dotnet run ... -- -i scenes/big-ben.yaml -w 3840 -H 2160 -s 1600 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:

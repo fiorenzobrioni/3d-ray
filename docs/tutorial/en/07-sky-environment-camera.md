@@ -425,9 +425,9 @@ entities:
 ### Rendering the Three Cameras
 
 ```
-RayTracer -i golden-hour.yaml -c landscape -w 1920 -H 800 -s 128 -d 30
-RayTracer -i golden-hour.yaml -c macro -w 1200 -H 800 -s 256 -d 30
-RayTracer -i golden-hour.yaml -c dramatic -w 1920 -H 800 -s 128 -d 30
+RayTracer -i golden-hour.yaml -c landscape -w 1920 -H 800 -s 256 -d 6
+RayTracer -i golden-hour.yaml -c macro -w 1200 -H 800 -s 1024 -d 8 -S 4
+RayTracer -i golden-hour.yaml -c dramatic -w 1920 -H 800 -s 256 -d 6
 ```
 
 The "macro" camera has DOF enabled -- the gold sphere will be sharp while

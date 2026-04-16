@@ -27,9 +27,9 @@
 #      background: [0.0, 0.0, 0.0]
 #
 #  RENDER CONSIGLIATO:
-#    Draft  : -w 800  -H 450 -s 32  -d 20 -S 4
-#    Preview: -w 1280 -H 720 -s 128 -d 35 -S 8
-#    Final  : -w 1920 -H 1080 -s 512 -d 55 -S 16
+#    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1
+#    Preview: -w 800  -H 450 -s 256  -d 6
+#    Final  : -w 1920 -H 1080 -s 1024 -d 8  -S 4
 #
 #  NOTE:
 #    - Questo setup è pensato per 3 exhibit disposti lungo un asse centrale.

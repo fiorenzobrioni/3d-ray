@@ -24,10 +24,10 @@ Una guida in 10 capitoli dai principi fondamentali alle scene di produzione — 
 Complete YAML format reference for every parameter the engine accepts — available in English and Italian.  
 Riferimento completo del formato YAML per ogni parametro accettato dal motore — disponibile in inglese e italiano.
 
-| | Link |
-|-|------|
-| English | [Scene Reference](./reference/scene-reference.md) |
-| Italiano | [Riferimento Scene](./reference/riferimento-scene.md) |
+| | Scene Reference | Rendering Profiles |
+|-|------|------|
+| English | [Scene Reference](./reference/scene-reference.md) | [Rendering Profiles](./reference/rendering-profiles.md) |
+| Italiano | [Riferimento Scene](./reference/riferimento-scene.md) | [Profili di Rendering](./reference/profili-di-rendering.md) |
 
 [→ Reference overview page](./reference/README.md)
 
