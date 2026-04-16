@@ -27,9 +27,9 @@
 #      background: [0.06, 0.06, 0.08]
 #
 #  RENDER CONSIGLIATO:
-#    Draft  : -w 800  -H 450 -s 32  -d 20 -S 4
-#    Preview: -w 1280 -H 720 -s 128 -d 35 -S 12
-#    Final  : -w 1920 -H 1080 -s 512 -d 60 -S 24
+#    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1
+#    Preview: -w 800  -H 450 -s 256  -d 12
+#    Final  : -w 1920 -H 1080 -s 1024 -d 16 -S 4
 #
 #  NOTE:
 #    - La sphere light zenitale produce catchlight circolari (l'"occhio"

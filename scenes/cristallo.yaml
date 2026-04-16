@@ -14,9 +14,9 @@
 #    • Gradient sky scuro — riflessi morbidi nel cristallo
 #
 #  Render consigliati:
-#    Preview:    -w 640  -H 360  -s 16  -d 20
-#    Draft:      -w 1280 -H 720  -s 64  -d 40
-#    Produzione: -w 1920 -H 1080 -s 256 -d 60
+#    Preview:    -w 400  -H 225  -s 64   -d 4   -S 1
+#    Standard:   -w 800  -H 450  -s 256  -d 16
+#    Produzione: -w 1920 -H 1080 -s 1024 -d 20  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
 

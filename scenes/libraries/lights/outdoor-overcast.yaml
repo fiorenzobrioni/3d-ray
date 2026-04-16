@@ -30,9 +30,9 @@
 #        ground_color:  [0.30, 0.28, 0.25]
 #
 #  RENDER CONSIGLIATO:
-#    Draft  : -w 800  -H 450 -s 16  -d 12
-#    Preview: -w 1280 -H 720 -s 64  -d 20
-#    Final  : -w 1920 -H 1080 -s 256 -d 35
+#    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1
+#    Preview: -w 800  -H 450 -s 256  -d 6
+#    Final  : -w 1920 -H 1080 -s 1024 -d 8  -S 4
 #
 #  NOTE:
 #    - L'assenza di sun disk nel world è intenzionale: con il cielo coperto

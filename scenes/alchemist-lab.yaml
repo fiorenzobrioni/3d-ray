@@ -16,9 +16,9 @@
 #  profondità di rimbalzo elevata per sviluppare le rifrazioni correttamente.
 #
 #  Render consigliato:
-#    Preview: dotnet run ... -- -i scenes/alchemist-lab.yaml -w 1280 -H 720 -s 16 -d 20
-#    Finale:  dotnet run ... -- -i scenes/alchemist-lab.yaml -w 1920 -H 1080 -s 256 -d 60
-#    Ultra:   dotnet run ... -- -i scenes/alchemist-lab.yaml -w 3840 -H 2160 -s 256 -d 50 -S 32
+#    Preview: dotnet run ... -- -i scenes/alchemist-lab.yaml -w 800  -H 450  -s 256  -d 16
+#    Finale:  dotnet run ... -- -i scenes/alchemist-lab.yaml -w 1920 -H 1080 -s 1024 -d 20 -S 4
+#    Ultra:   dotnet run ... -- -i scenes/alchemist-lab.yaml -w 3840 -H 2160 -s 1600 -d 20 -S 4
 # =============================================================================
 
 world:
@@ -438,7 +438,7 @@ lights:
   #  LIGHTS ALT-1  Solo candele + luna (atmosfera spettrale, senza spot)
   #  Rimuove lo spot e abbassa la lanterna: i bordi della scena si scuriscono,
   #  la sfera di cristallo è illuminata solo da luce indiretta delle candele.
-  #  Consigliato con -s 256 -d 70 per ridurre il rumore nelle zone scure.
+  #  Consigliato con -s 1024 -d 20 -S 4 per ridurre il rumore nelle zone scure.
   # ─────────────────────────────────────────────────────────────────────────
   # - type: "area"
   #   corner: [-1.0, 5.8, -0.5]

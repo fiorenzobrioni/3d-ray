@@ -27,9 +27,9 @@
 #      background: [0.0, 0.0, 0.0]
 #
 #  RENDER CONSIGLIATO:
-#    Draft  : -w 800  -H 450 -s 64  -d 25
-#    Preview: -w 1280 -H 720 -s 256 -d 40
-#    Final  : -w 1920 -H 1080 -s 512 -d 60
+#    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1
+#    Preview: -w 800  -H 450 -s 256  -d 12
+#    Final  : -w 1920 -H 1080 -s 1024 -d 16
 #
 #  NOTE:
 #    - Le candele sono molto vicine al soggetto (1–3 u): l'attenuazione

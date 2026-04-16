@@ -255,7 +255,8 @@ rename it, and modify it.
 ### Rendering a Starter Kit
 
 ```
-RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -w 800 -H 800 -s 64 -d 30
+# Cornell box is indirect-dominant, so -d is raised above the Standard profile default.
+RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -w 800 -H 800 -s 256 -d 20 -S 4
 ```
 
 Most starter kits define multiple cameras. List them with:
@@ -267,7 +268,7 @@ RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml --l
 Then render a specific one:
 
 ```
-RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -c "tre_quarti" -s 128
+RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -c "tre_quarti" -s 256 -d 20
 ```
 
 ---
@@ -464,8 +465,8 @@ knob, see **[Rendering Profiles Reference](../../reference/rendering-profiles.md
   `[255, 0, 0]` is not red -- it is an extremely bright white.
 
 ### Glass Looks Wrong (Too Dark or Solid)
-- Increase ray depth: `-d 30` or higher. Glass needs 2 bounces per
-  surface.
+- Increase ray depth: `-d 16` or higher (glass consumes 2 bounces per
+  surface, so stacked or nested glass easily exhausts the default `-d 8`).
 - Ensure there is light behind/around the glass object (glass transmits
   light, so it needs something to transmit).
 
@@ -626,8 +627,12 @@ lights:
 Render with:
 
 ```
-RayTracer -i exhibition-hall.yaml -c overview -w 1920 -H 1080 -s 128 -d 30
-RayTracer -i exhibition-hall.yaml -c detail -w 1200 -H 800 -s 256 -d 30
+# Standard — quick review
+RayTracer -i exhibition-hall.yaml -c overview -w 800 -H 450 -s 256 -d 6
+
+# Final — portfolio quality
+RayTracer -i exhibition-hall.yaml -c overview -w 1920 -H 1080 -s 1024 -d 8 -S 4
+RayTracer -i exhibition-hall.yaml -c detail -w 1200 -H 800 -s 1024 -d 8 -S 4
 ```
 
 ---

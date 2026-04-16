@@ -5,8 +5,8 @@
 #  Tre file: vetro, plastica, metallo. Sinistra=classico, destra=Disney.
 #
 #  Render consigliato:
-#    Test veloce: -s 64  -d 20  -w 960 -H 540
-#    Confronto:   -s 256 -d 30  -w 1280 -H 720
+#    Test veloce: -s 64   -d 4  -w 400  -H 225 -S 1
+#    Confronto:   -s 1024 -d 8  -w 1920 -H 1080 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:

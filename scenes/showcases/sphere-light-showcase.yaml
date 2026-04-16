@@ -6,9 +6,9 @@
 #  penumbra: da quasi-netta (R=0.15) a molto morbida (R=1.2).
 #
 #  Render consigliati:
-#    Preview:  -s 16  -d 12 -w 640  -H 360 -S 4
-#    Draft:    -s 64  -d 25 -w 1200 -H 675
-#    Final:    -s 256 -d 50 -w 1920 -H 1080 -S 32
+#    Preview:  -s 64   -d 4  -w 400  -H 225 -S 1
+#    Draft:    -s 256  -d 6  -w 800  -H 450
+#    Final:    -s 1024 -d 8  -w 1920 -H 1080 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:

@@ -473,7 +473,7 @@ entities:
 Esegui il rendering con:
 
 ```
-RayTracer -i sculptor-workshop.yaml -w 1600 -H 700 -s 64 -d 30
+RayTracer -i sculptor-workshop.yaml -w 1600 -H 700 -s 256 -d 6
 ```
 
 ---

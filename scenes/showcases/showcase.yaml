@@ -18,10 +18,10 @@
 #  ─────────────────────────────────────────────────────────────────────────────
 #  Render consigliati:
 #
-#    Preview veloce:   -w 480  -H 270  -s 4   -d 8  -S 4
-#    Draft:            -w 960  -H 540  -s 16  -d 20 -S 8
-#    Qualità:          -w 1920 -H 1080 -s 128 -d 50 -S 16
-#    Produzione:       -w 2560 -H 1440 -s 256 -d 60 -S 32
+#    Preview veloce:   -w 400  -H 225  -s 64   -d 4  -S 1
+#    Draft:            -w 400  -H 225  -s 64   -d 4  -S 1
+#    Qualità:          -w 800  -H 450  -s 256  -d 16
+#    Produzione:       -w 1920 -H 1080 -s 1024 -d 20 -S 4
 #
 #  Camere disponibili (--camera <nome>):
 #    hero       — Vista principale 3/4 bassa, drammatica (default)
@@ -307,7 +307,7 @@ lights:
 # ─────────────────────────────────────────────────────────────────────────────
 #  ALT-1: "Midnight Gallery" — Solo spot + fill freddo, nessuna area light.
 #  Ombre nette e drammatiche, atmosfera da museo notturno.
-#  Rendering veloce (no shadow_samples). Consigliato: -s 64 -d 30
+#  Rendering veloce (no shadow_samples). Consigliato: -s 256 -d 16
 # ─────────────────────────────────────────────────────────────────────────────
 # lights:
 #   - type: "spot"
@@ -329,7 +329,7 @@ lights:
 # ─────────────────────────────────────────────────────────────────────────────
 #  ALT-2: "Neon Contrast" — Magenta/Ciano, atmosfera cyber.
 #  Due point laterali con colori saturi opposti + fill neutro dall'alto.
-#  Consigliato: -s 64 -d 25
+#  Consigliato: -s 256 -d 16
 # ─────────────────────────────────────────────────────────────────────────────
 # lights:
 #   - type: "point"

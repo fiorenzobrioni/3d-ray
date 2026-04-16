@@ -11,7 +11,7 @@ Questa raccolta contiene **18 scene YAML complete**, pensate come punto di parte
 5. **Aggiungi** i tuoi oggetti nella sezione `entities`
 6. **Renderizza** con un draft veloce per verificare:
    ```
-   dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/la-tua-scena.yaml -w 480 -H 270 -s 4 -d 10 -S 2
+   dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/la-tua-scena.yaml -w 400 -H 225 -s 64 -d 4 -S 1
    ```
 
 ## Struttura di ogni file
@@ -54,7 +54,7 @@ Per cambiare atmosfera basta commentare il world/lights attivo e decommentare un
 | `starter-kitchen-counter.yaml` | **Kitchen Counter** | Still life su piano cucina in marmo di Carrara. Bicchiere d'acqua (CSG), ciotola con frutta (CSG + sfere), bottiglia di vino (template), tazza con manico (toro), tagliere in legno. Luce da finestra. |
 | `starter-wine-cellar.yaml` | **Wine Cellar** | Cantina con botti (template: cilindro + tori in ferro), scaffali con bottiglie coricati, tavolo d'assaggio con bicchiere di vino, candele emissive. Atmosfera calda e intima da chiaroscuro. |
 | `starter-dining-room.yaml` | **Dining Room** | Sala da pranzo classica con tavolo rettangolare, 4 sedie dettagliate (template: seduta, cuscino, schienale, gambe, traverse), vaso con fiori, lampada a sospensione. Parquet, battiscopa, pareti. |
-| `starter-infinite-mirror-room.yaml` | **Infinite Mirror Room** | Installazione artistica: due specchi paralleli con sfere emissive multicolore sospese. Effetto tunnel infinito. Pavimento riflettente, sfera di vetro e sfera cromata. Usare `-d 40+` per i riflessi profondi. |
+| `starter-infinite-mirror-room.yaml` | **Infinite Mirror Room** | Installazione artistica: due specchi paralleli con sfere emissive multicolore sospese. Effetto tunnel infinito. Pavimento riflettente, sfera di vetro e sfera cromata. Usa `-d 32` per apprezzare i riflessi profondi. |
 
 ### Showcase
 
@@ -89,15 +89,18 @@ Tipologie di camere presenti nei vari kit:
 
 Ogni file include i parametri suggeriti nel commento iniziale. Come riferimento generale:
 
-| Livello | Larghezza | Campioni | Profondità | Shadow | Uso |
-|---------|-----------|----------|------------|--------|-----|
-| Test | `-w 480 -H 270` | `-s 4` | `-d 10` | `-S 2` | Verifica layout (< 5s) |
-| Draft | `-w 800 -H 450` | `-s 16` | `-d 15` | `-S 4` | Bozza veloce (< 30s) |
-| Preview | `-w 1280 -H 720` | `-s 64` | `-d 25` | `-S 8` | Anteprima (1-5 min) |
-| Finale | `-w 1920 -H 1080` | `-s 256` | `-d 40` | `-S 16` | Produzione (10-30 min) |
-| Ultra | `-w 2560 -H 1440` | `-s 512` | `-d 50` | `-S 24` | Portfolio (30+ min) |
+I profili canonici allineati a [Profili di Rendering](../../../docs/reference/profili-di-rendering.md):
 
-> **Nota:** Per la scena Infinite Mirror Room usare `-d 40+` per apprezzare la profondità dei riflessi. Per scene con molto vetro (Kitchen Counter, Wine Cellar) aumentare `-d` a 30+.
+| Profilo | Larghezza | Campioni | Profondità | Shadow | Uso |
+|---------|-----------|----------|------------|--------|-----|
+| Preview | `-w 400 -H 225` | `-s 64` | `-d 4` | `-S 1` | Iterazione composizione/camere (< 5s) |
+| Standard | `-w 800 -H 450` | `-s 256` | `-d 6` | *(default)* | CI/CD e review (1–3 min) |
+| Final | `-w 1920 -H 1080` | `-s 1024` | `-d 8` | `-S 4` | Portfolio / README (10–20 min) |
+| Ultra (4K) | `-w 3840 -H 2160` | `-s 1600` | `-d 8` | `-S 4` | Print / wallpaper (40+ min) |
+
+> **Eccezioni fisiche:** la Russian Roulette termina la maggior parte dei path oltre 4–6 rimbalzi, quindi `-d 8` basta per scene generiche. Alza `-d` solo dove serve:
+> - **Infinite Mirror Room** → `-d 32` (riflessi concatenati profondi).
+> - **Kitchen Counter, Wine Cellar, Cornell Box** e altre scene con molto vetro / indirect-dominant → `-d 16–20` (ogni vetro consuma 2 rimbalzi).
 
 ---
 

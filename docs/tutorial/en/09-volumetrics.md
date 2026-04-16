@@ -199,7 +199,8 @@ Keep these tips in mind:
 
 2. **Increase depth.** Each scattering event counts as a bounce. With a
    dense medium, rays may scatter several times before reaching a light.
-   Use `-d 30` or higher.
+   Use `-d 12` (dense fog/smoke); Russian Roulette terminates very long
+   paths automatically, so values above `-d 16` rarely improve quality.
 
 3. **Spot lights create god rays.** A spot light shining through fog
    produces a visible cone of light. This is one of the most dramatic
@@ -341,7 +342,7 @@ entities:
 Render with:
 
 ```
-RayTracer -i cathedral-fog.yaml -w 1200 -H 800 -s 256 -d 40
+RayTracer -i cathedral-fog.yaml -w 1200 -H 800 -s 256 -d 12
 ```
 
 The spot light creates a dramatic visible beam cutting through the fog

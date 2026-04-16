@@ -27,10 +27,10 @@
 #    dutch       — Angolo olandese cinematografico
 #
 #  Render consigliato:
-#    Draft:    -w 800  -H 450  -s 16  -d 12  -S 4
-#    Preview:  -w 1280 -H 720  -s 64  -d 20  -S 8
-#    Finale:   -w 1920 -H 1080 -s 256 -d 40  -S 16
-#    Ultra:    -w 2560 -H 1440 -s 512 -d 50  -S 24
+#    Draft:    -w 400  -H 225  -s 64   -d 4   -S 1
+#    Preview:  -w 800  -H 450  -s 256  -d 12
+#    Finale:   -w 1920 -H 1080 -s 1024 -d 12  -S 4
+#    Ultra:    -w 3840 -H 2160 -s 1600 -d 12  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
 

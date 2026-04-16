@@ -184,9 +184,9 @@ oggetti. Pensate come punto di partenza: copiare, rinominare e modificare.
 **Uso:** copia il file in `scenes/`, rinominalo e renderizza subito.
 
 ```powershell
-# Test rapido (< 5 secondi)
+# Preview rapido (< 5 secondi)
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-  -i scenes/mia-scena.yaml -w 480 -H 270 -s 4 -d 10 -S 2
+  -i scenes/mia-scena.yaml -w 400 -H 225 -s 64 -d 4 -S 1
 ```
 
 📖 **Documentazione completa:** [`starter-kits/README.md`](starter-kits/README.md)
@@ -242,11 +242,16 @@ imports:
 
 ## Parametri di Render di Riferimento
 
-| Livello | CLI | Tempo stimato |
+Profili canonici allineati a [Profili di Rendering](../../docs/reference/profili-di-rendering.md):
+
+| Profilo | CLI | Tempo stimato |
 |---------|-----|---------------|
 | Smoke test | `-w 160 -H 90 -s 1 -d 5` | < 1 s |
-| Test layout | `-w 480 -H 270 -s 4 -d 10 -S 2` | < 5 s |
-| Draft | `-w 800 -H 450 -s 16 -d 15 -S 4` | < 30 s |
-| Preview | `-w 1280 -H 720 -s 64 -d 25 -S 8` | 1–5 min |
-| Finale | `-w 1920 -H 1080 -s 256 -d 40 -S 16` | 10–30 min |
-| Portfolio | `-w 2560 -H 1440 -s 512 -d 55 -S 24` | 30+ min |
+| Preview | `-w 400 -H 225 -s 64 -d 4 -S 1` | < 5 s |
+| Standard | `-w 800 -H 450 -s 256 -d 6` | 1–3 min |
+| Final | `-w 1920 -H 1080 -s 1024 -d 8 -S 4` | 10–20 min |
+| Ultra (4K) | `-w 3840 -H 2160 -s 1600 -d 8 -S 4` | 40+ min |
+
+> Per scene glass-heavy / indirect-dominant (Cornell Box, Kitchen Counter,
+> Wine Cellar) alza a `-d 16–20`. Per `starter-infinite-mirror-room.yaml`
+> usa `-d 32`.

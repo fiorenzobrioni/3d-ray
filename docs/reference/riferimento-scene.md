@@ -94,7 +94,7 @@ medium:
   g: 0.85                                  # Per "hg": >0 scattering in avanti, 0 isotropo
 ```
 - **Uso:** Simula nebbia, fumo, effetti subacquei e foschia atmosferica.
-- **Tip:** Richiede campioni più alti (`-s 128+`) e profondità maggiore (`-d 30+`) per risultati puliti.
+- **Tip:** I volumetrici traggono beneficio da più campioni e rimbalzi rispetto alle scene solo-superficie. Parti dal profilo Standard alzando `-d 12`; per mezzi densi combina `-s 1024 -d 12 -S 4`. Vedi [Profili di Rendering](./profili-di-rendering.md) per la guida completa.
 - **Effetti:** Le luci spot creano raggi visibili (god rays), le luci point creano aloni.
 
 ---

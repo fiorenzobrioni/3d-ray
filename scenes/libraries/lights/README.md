@@ -124,17 +124,18 @@ Riferimento rapido:
 
 ## Parametri di Render Consigliati
 
-| Livello | Risoluzione | Campioni | Profondità | Shadow | Tempo |
+Allineati a [Profili di Rendering](../../../docs/reference/profili-di-rendering.md):
+
+| Profilo | Risoluzione | Campioni | Profondità | Shadow | Tempo |
 |---------|-------------|----------|------------|--------|-------|
-| Test | `480×270` | `-s 4` | `-d 10` | `-S 2` | < 5 s |
-| Draft | `800×450` | `-s 16` | `-d 15` | `-S 4` | < 30 s |
-| Preview | `1280×720` | `-s 64` | `-d 25` | `-S 8` | 1–5 min |
-| Finale | `1920×1080` | `-s 256` | `-d 40` | `-S 16` | 10–30 min |
-| Ultra | `2560×1440` | `-s 512` | `-d 55` | `-S 24` | 30+ min |
+| Preview | `400×225` | `-s 64` | `-d 4` | `-S 1` | < 5 s |
+| Standard | `800×450` | `-s 256` | `-d 6` | *(default)* | 1–3 min |
+| Final | `1920×1080` | `-s 1024` | `-d 8` | `-S 4` | 10–20 min |
+| Ultra (4K) | `3840×2160` | `-s 1600` | `-d 8` | `-S 4` | 40+ min |
 
 > Setup con poco ambient e sorgenti puntiformi (candele, neon, studio dramatic)
-> richiedono **spp più alto** per ridurre il rumore nelle zone di penombra.
-> Partire da `-s 64` in draft per questi setup.
+> richiedono **spp più alto** per ridurre il rumore nelle zone di penombra:
+> parti dal profilo Standard/Final e considera `-S 4` anche nel profilo Standard.
 
 ---
 
