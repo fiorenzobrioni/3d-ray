@@ -49,6 +49,11 @@ class Program
         if (int.TryParse(GetArg(args, "--shadow-samples", "-S"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var ssOverride) && ssOverride > 0)
             shadowSamplesOverride = ssOverride;
 
+        // Firefly clamp CLI override (null = use Renderer.DefaultMaxSampleRadiance)
+        float? clampOverride = null;
+        if (float.TryParse(GetArg(args, "--clamp", "-C"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cOverride) && cOverride > 0f)
+            clampOverride = cOverride;
+
         // Camera selector: name or zero-based index
         string? cameraSelector = GetArg(args, "--camera", "-c");
 
@@ -79,7 +84,7 @@ class Program
         if (!wParsed || width  <= 0) width   = 1200;
         if (!hParsed || height <= 0) height  = 800;
         if (!sParsed || samples <= 0) samples = 16;
-        if (!dParsed || depth  <= 0) depth   = 50;
+        if (!dParsed || depth  <= 0) depth   = 8;
 
         Console.WriteLine("╔══════════════════════════════════════════╗");
         Console.WriteLine("║       RayTracer .NET 10 Engine           ║");
@@ -92,6 +97,8 @@ class Program
         Console.WriteLine($"  Max depth:   {depth}");
         if (shadowSamplesOverride.HasValue)
             Console.WriteLine($"  Shadow smp:  {shadowSamplesOverride.Value} (CLI override)");
+        if (clampOverride.HasValue)
+            Console.WriteLine($"  Clamp:       {clampOverride.Value} (CLI override)");
         if (cameraSelector != null)
             Console.WriteLine($"  Camera:      {cameraSelector}");
         Console.WriteLine();
@@ -117,7 +124,7 @@ class Program
             Console.WriteLine();
 
             // Render
-            var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth, globalMedium);
+            var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth, globalMedium, clampOverride);
             sw.Restart();
             var pixels = renderer.Render(width, height);
             var elapsed = sw.Elapsed;
@@ -157,9 +164,10 @@ class Program
         Console.WriteLine("  -o, --output <path>          Output image (default: renders/render-<scene>.png)");
         Console.WriteLine("  -w, --width <px>             Image width  (default: 1200)");
         Console.WriteLine("  -H, --height <px>            Image height (default: 800)");
-        Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16)");
-        Console.WriteLine("  -d, --depth <n>              Max ray depth (default: 50)");
-        Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override");
+        Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16, see rendering profiles)");
+        Console.WriteLine("  -d, --depth <n>              Max ray depth (default: 8, raise to 16+ for stacked glass)");
+        Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override (perfect squares)");
+        Console.WriteLine("  -C, --clamp <n>              Max per-sample radiance / firefly clamp (default: 100)");
         Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
         Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
         Console.WriteLine("  -h, --help                   Show this help");
