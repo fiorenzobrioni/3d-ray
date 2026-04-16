@@ -99,8 +99,11 @@ per percorso.
   Box) traggono vantaggio da una profondità maggiore perché la luce deve rimbalzare
   molte volte per illuminare la stanza.
 
-La profondità predefinita in 3D-Ray è **50**, generosa abbastanza per praticamente
-qualsiasi scena. Ridurla durante i render di anteprima accelera le operazioni.
+La profondità predefinita in 3D-Ray è **8**, più che sufficiente per la
+stragrande maggioranza delle scene grazie alla Russian Roulette (sezione 1.5).
+Alzala a 16–20 solo quando renderizzi vetri impilati (liquidi nei bicchieri,
+dielettrici annidati). Consulta [Profili di Rendering](../../reference/profili-di-rendering.md)
+per la guida completa.
 
 ---
 
@@ -155,8 +158,9 @@ I flag CLI che controllano queste impostazioni sono:
 | `-w` | `--width`          | 1200        | Larghezza immagine in pixel                 |
 | `-H` | `--height`         | 800         | Altezza immagine in pixel                   |
 | `-s` | `--samples`        | 16          | Campioni per pixel                          |
-| `-d` | `--depth`          | 50          | Rimbalzi massimi del raggio                 |
+| `-d` | `--depth`          | 8           | Rimbalzi massimi del raggio                 |
 | `-S` | `--shadow-samples` | *(per luce)*| Sovrascrive il conteggio dei campioni d'ombra per tutte le luci area/sphere |
+| `-C` | `--clamp`          | 100         | Firefly clamp (radianza per-campione)       |
 
 Il riferimento CLI completo è nel Capitolo 10. Per ora è sufficiente ricordare il
 pattern anteprima/bozza/finale -- farà risparmiare ore di lavoro.

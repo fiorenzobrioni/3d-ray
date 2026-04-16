@@ -311,8 +311,9 @@ L'insieme completo dei parametri della riga di comando:
 | `-w` | `--width`           | `1200`                        | Larghezza dell'immagine in pixel                             |
 | `-H` | `--height`          | `800`                         | Altezza dell'immagine in pixel                               |
 | `-s` | `--samples`         | `16`                          | Campioni per pixel (arrotondati al quadrato perfetto)        |
-| `-d` | `--depth`           | `50`                          | Numero massimo di rimbalzi dei raggi                         |
-| `-S` | `--shadow-samples`  | *(per luce)*                  | Sovrascrive i campioni d'ombra per tutte le luci area/sphere |
+| `-d` | `--depth`           | `8`                           | Numero massimo di rimbalzi dei raggi (alza a 16+ solo per vetri impilati) |
+| `-S` | `--shadow-samples`  | *(per luce)*                  | Sovrascrive i campioni d'ombra per tutte le luci area/sphere (quadrati perfetti) |
+| `-C` | `--clamp`           | `100`                         | Firefly clamp: radianza massima per-campione prima del tone mapping |
 | `-c` | `--camera`          | `0`                           | Seleziona la fotocamera per nome o indice base zero          |
 |      | `--list-cameras`    |                               | Elenca le fotocamere disponibili ed esce                     |
 | `-h` | `--help`            |                               | Mostra l'aiuto                                               |
@@ -397,16 +398,23 @@ entities:
 
 ### Passo 5: Itera
 
-```
-# Anteprima veloce (secondi)
-RayTracer -i my-scene.yaml -w 400 -H 225 -s 1 -d 5 -S 1
+Usa i tre profili di rendering canonici:
 
-# Bozza (minuti)
-RayTracer -i my-scene.yaml -w 800 -H 450 -s 16 -d 20 -S 4
-
-# Finale (produzione)
-RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 256 -d 50 -S 16
 ```
+# Preview — composizione / camere / materiali (secondi)
+RayTracer -i my-scene.yaml -w 400 -H 225 -s 64 -d 4 -S 1
+
+# Standard — render di review e CI/CD (minuti)
+RayTracer -i my-scene.yaml -w 800 -H 450 -s 256 -d 6
+
+# Final — qualità portfolio / copertina README
+RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
+```
+
+Per la spiegazione completa di ciascun parametro, il comportamento della
+Russian Roulette, l'eccezione dei vetri impilati che impone `-d 16+` e la
+manopola `-C`/`--clamp` del firefly clamp, consulta
+**[Profili di Rendering](../../reference/profili-di-rendering.md)**.
 
 ---
 

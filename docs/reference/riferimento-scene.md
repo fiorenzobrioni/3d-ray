@@ -670,7 +670,7 @@ entities:
 3. **Camera e Composizione:**
    - Usa la lista `cameras: []` per gestire più inquadrature.
    - Imposta `focal_dist` sulla distanza reale dal soggetto.
-   - Testa con bassa risoluzione e pochi campioni (`-w 400 -H 267 -s 4 -d 10`).
+   - Testa con il profilo Preview (`-w 400 -H 267 -s 64 -d 4 -S 1`) — vedi [Profili di Rendering](./profili-di-rendering.md).
 4. **Ottimizzazione Performance:**
    - Usa template + istanze per oggetti ripetuti.
    - Importa materiali/luci condivisi dalle librerie.

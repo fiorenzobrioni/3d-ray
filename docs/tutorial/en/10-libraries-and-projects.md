@@ -326,8 +326,9 @@ The complete set of command-line parameters:
 | `-w` | `--width`          | `1200`                        | Image width in pixels                                    |
 | `-H` | `--height`         | `800`                         | Image height in pixels                                   |
 | `-s` | `--samples`        | `16`                          | Samples per pixel (rounded up to nearest perfect square) |
-| `-d` | `--depth`          | `50`                          | Maximum ray bounces                                      |
-| `-S` | `--shadow-samples` | *(per light)*                 | Override shadow samples for all area/sphere lights       |
+| `-d` | `--depth`          | `8`                           | Maximum ray bounces (raise to 16+ only for stacked glass) |
+| `-S` | `--shadow-samples` | *(per light)*                 | Override shadow samples for all area/sphere lights (perfect squares) |
+| `-C` | `--clamp`          | `100`                         | Firefly clamp: max per-sample radiance before tone mapping |
 | `-c` | `--camera`         | `0`                           | Select camera by name or zero-based index                |
 |      | `--list-cameras`   |                               | List available cameras and exit                          |
 | `-h` | `--help`           |                               | Show help                                                |
@@ -413,16 +414,22 @@ entities:
 
 ### Step 5: Iterate
 
-```
-# Quick preview (seconds)
-RayTracer -i my-scene.yaml -w 400 -H 225 -s 1 -d 5 -S 1
+Use the three canonical rendering profiles:
 
-# Draft (minutes)
-RayTracer -i my-scene.yaml -w 800 -H 450 -s 16 -d 20 -S 4
-
-# Final (production)
-RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 256 -d 50 -S 16
 ```
+# Preview — composition / cameras / materials (seconds)
+RayTracer -i my-scene.yaml -w 400 -H 225 -s 64 -d 4 -S 1
+
+# Standard — CI/CD and review renders (minutes)
+RayTracer -i my-scene.yaml -w 800 -H 450 -s 256 -d 6
+
+# Final — portfolio / README cover quality
+RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
+```
+
+For the full explanation of each parameter, Russian Roulette behavior, the
+glass-stacked exception that forces `-d 16+`, and the `-C`/`--clamp` firefly
+knob, see **[Rendering Profiles Reference](../../reference/rendering-profiles.md)**.
 
 ---
 

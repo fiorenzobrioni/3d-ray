@@ -663,11 +663,11 @@ entities:
    - Polyhaven.com — Free HDRIs and PBR textures (CC0)
    - AmbientCG.com — Complete PBR texture sets
    - Procedurals (noise, marble, wood) for artistic control
-6. **Render Parameters:**
-   - Preview: `-s 1 -d 5 -w 400`
-   - Draft: `-s 16 -d 20 -w 800`
-   - Production: `-s 128 -d 50 -w 1920`
-   - Ultra: `-s 256 -d 50 -w 3840 -S 32`
+6. **Render Parameters:** (see [Rendering Profiles](./rendering-profiles.md) for full tables and tips)
+   - Preview: `-s 64 -d 4 -S 1 -w 400`
+   - Standard: `-s 256 -d 6 -w 800`
+   - Final: `-s 1024 -d 8 -S 4 -w 1920`
+   - Ultra: `-s 1600 -d 8 -S 4 -w 3840`
 ---
 
 This comprehensive guide covers everything needed to write production-quality YAML scene files. All information is sourced directly from the project documentation, example files, and source code structure.

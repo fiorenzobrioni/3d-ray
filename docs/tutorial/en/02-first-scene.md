@@ -369,19 +369,19 @@ entities:
 Start with a quick preview to check composition:
 
 ```
-RayTracer -i three-spheres.yaml -w 400 -H 225 -s 1 -d 5
+RayTracer -i three-spheres.yaml -w 400 -H 225 -s 64 -d 4 -S 1
 ```
 
-Then a draft to check materials and lighting:
+Then a draft to check materials and lighting (Standard profile):
 
 ```
-RayTracer -i three-spheres.yaml -w 800 -H 450 -s 16 -d 20
+RayTracer -i three-spheres.yaml -w 800 -H 450 -s 256 -d 6
 ```
 
-And finally a clean render:
+And finally a clean render (Final profile):
 
 ```
-RayTracer -i three-spheres.yaml -w 1920 -H 1080 -s 256 -d 50
+RayTracer -i three-spheres.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 ```
 
 ### What You Should See

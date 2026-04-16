@@ -288,7 +288,7 @@ Questa è la funzione ricorsiva che risolve l'equazione del rendering. Ogni invo
 if (depth <= 0) return Vector3.Zero;
 ```
 
-Se il raggio ha esaurito i bounce, restituisce nero (energia zero). Il parametro `maxDepth` di default è 50; in pratica la Russian Roulette termina la maggior parte dei path molto prima.
+Se il raggio ha esaurito i bounce, restituisce nero (energia zero). Il parametro `maxDepth` di default è 8 (CLI `-d`); in pratica la Russian Roulette termina la maggior parte dei path prima di questo limite. Per scene con vetri impilati alzalo a 16+ (vedi [Profili di Rendering](../reference/profili-di-rendering.md)).
 
 ### 4.2 Hit Test
 

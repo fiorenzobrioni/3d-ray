@@ -104,8 +104,10 @@ path.
   benefit from higher depth because the light must bounce many times to
   illuminate the room.
 
-The default depth in 3D-Ray is **50**, which is generous enough for
-virtually any scene. Lowering it during preview renders speeds things up.
+The default depth in 3D-Ray is **8**, which is plenty for the vast majority
+of scenes thanks to Russian Roulette (section 1.5). Raise it to 16–20 only
+when rendering stacked glass (liquids in glasses, nested dielectrics). See
+[Rendering Profiles](../../reference/rendering-profiles.md) for the full guide.
 
 ---
 
@@ -161,8 +163,9 @@ The CLI flags that control these settings are:
 | `-w` | `--width`         | 1200    | Image width in pixels                 |
 | `-H` | `--height`        | 800     | Image height in pixels                |
 | `-s` | `--samples`       | 16      | Samples per pixel                     |
-| `-d` | `--depth`         | 50      | Maximum ray bounces                   |
+| `-d` | `--depth`         | 8       | Maximum ray bounces                   |
 | `-S` | `--shadow-samples`| *(per light)* | Override shadow sample count for all area/sphere lights |
+| `-C` | `--clamp`         | 100     | Firefly clamp (per-sample radiance)   |
 
 You will learn the full CLI in Chapter 10. For now, just remember the
 preview/draft/final pattern -- it will save you hours.
