@@ -110,7 +110,51 @@ Il clamp usa **scaling con preservazione della luminanza**, quindi non altera la
 
 ---
 
-### 8. **DOCUMENTAZIONE CORRELATA**
+### 8. **TIP SPECIFICI PER MEZZI PARTECIPANTI (NEBBIA / FUMO)**
+
+3D-Ray supporta quattro tipi di medium globali — `homogeneous`, `height_fog`,
+`procedural`, `grid` — più le phase function `isotropic`, `hg`, `rayleigh`,
+`double_hg`, `schlick`. Ogni tipo ha un costo/rumore molto diverso.
+
+- **Homogeneous e height_fog sono "gratis"** rispetto al rendering normale: la
+  trasmittanza ha forma chiusa, nessun delta tracking. Un Preview è già
+  usabile; uno Standard è quasi sempre sufficiente.
+- **Procedural (Perlin fBm) e grid usano delta tracking** (Woodcock) + ratio
+  tracking: più rumorosi per costruzione, soprattutto nelle zone dense.
+  - Preview mostra grana evidente — va bene per la composizione.
+  - Per immagini pubblicabili punta a `-s 576` (24×24) o `-s 1024`.
+  - Se vedi rumore concentrato nel cono luminoso, aumenta `-s` (non `-S`).
+- **Firefly clamp con nebbia densa.** Mezzi con `sigma_s` alto e `-d 8+`
+  producono talvolta spike luminosi rari. Abbassa `-C` a `25` o `15` senza
+  timore: perdi poco dinamica, guadagni molto pulito.
+- **Non alzare `-d` per la nebbia.** Il path volumetrico è già gestito
+  correttamente a `-d 6–8`. Più rimbalzi nella nebbia = più costo, non più
+  realismo (la Russian Roulette termina comunque i cammini).
+- **Phase function con g → 1 (es. HG g=0.95)** rende god-ray più stretti e
+  drammatici ma **aumenta la varianza**: se vedi coni "rumorosi", abbassa `g`
+  a 0.7-0.85 oppure passa a `double_hg` con pesi più equilibrati.
+- **Rayleigh** è economica (closed-form) e utile per cieli/atmosfera.
+  `double_hg` e `schlick` costano quanto HG standard.
+- **Grid medium: attenzione alla risoluzione.** Griglie inline-YAML fino a 8³
+  sono ok; sopra passa al formato binario `.vol` (campo `file:` invece di
+  `data:`). La risoluzione non incide sul costo di rendering — solo sul
+  tempo di parsing e sull'uso di memoria.
+
+**Profilo consigliato per showcase volumetric:**
+```bash
+# Preview volumetric (controllo composizione, ~30-60 s)
+RayTracer -i scene.yaml -w 400 -H 225 -s 64 -d 4 -S 1
+
+# Standard volumetric (review; delta-tracking ancora un po' rumoroso)
+RayTracer -i scene.yaml -w 800 -H 450 -s 400 -d 6 -S 1
+
+# Final volumetric (pulizia pubblicabile)
+RayTracer -i scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4 -C 50
+```
+
+---
+
+### 9. **DOCUMENTAZIONE CORRELATA**
 
 - [`docs/technical/path-tracing-and-lighting.md`](../technical/path-tracing-and-lighting.md) — interni del path tracer, NEE e Russian Roulette.
 - [`docs/technical/rendering-pipeline.md`](../technical/rendering-pipeline.md) — panoramica della pipeline.

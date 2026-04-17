@@ -1,6 +1,6 @@
 # Capitolo 9: Mezzi partecipanti (Volumetrics)
 
-L'aria reale non è perfettamente trasparente. La nebbia diffonde la luce, l'acqua assorbe le lunghezze d'onda del rosso, il fumo brilla quando viene attraversato da un raggio. 3D-Ray supporta un **mezzo partecipante globale omogeneo** che simula questi effetti.
+L'aria reale non è perfettamente trasparente. La nebbia diffonde la luce, l'acqua assorbe le lunghezze d'onda del rosso, il fumo brilla quando viene attraversato da un raggio. 3D-Ray supporta **quattro tipi di mezzo partecipante globale** (omogeneo, height fog, procedurale, grid) e **cinque phase function** (isotropic, HG, Rayleigh, double-HG, Schlick), sufficienti per coprire la maggior parte dei casi pratici: nebbia uniforme, foschia atmosferica, nubi, fumo localizzato, cielo.
 
 ---
 
@@ -32,11 +32,13 @@ world:
 
 | Parametro | Tipo      | Predefinito   | Descrizione                                     |
 |-----------|-----------|---------------|-------------------------------------------------|
-| `type`    | `string`  | --            | Al momento solo `"homogeneous"`                 |
+| `type`    | `string`  | --            | `"homogeneous"`, `"height_fog"`, `"procedural"`, `"grid"` |
 | `sigma_a` | `[R,G,B]` | --            | Coefficiente di assorbimento per canale         |
 | `sigma_s` | `[R,G,B]` | --            | Coefficiente di scattering per canale           |
-| `phase`   | `string`  | `"isotropic"` | Tipo di funzione di fase (phase function)       |
-| `g`       | `float`   | `0.0`         | Parametro di asimmetria (per la funzione `"hg"`)|
+| `phase`   | `string`  | `"isotropic"` | `"isotropic"`, `"hg"`, `"rayleigh"`, `"double_hg"`, `"schlick"` |
+| `g`       | `float`   | `0.0`         | Parametro di asimmetria (per `"hg"` / `"schlick"`) |
+
+Campi aggiuntivi specifici per tipo (height fog: `y0`, `scale_height`; procedural: `frequency`, `octaves`, `lacunarity`, `gain`, `seed`; grid: `bounds_min`, `bounds_max`, `nx`, `ny`, `nz`, `data`/`file`) sono documentati nella sezione 9.4.
 
 ### sigma_a (Assorbimento)
 
@@ -59,7 +61,7 @@ Il coefficiente di estinzione totale è `sigma_t = sigma_a + sigma_s`. Questo de
 
 ## 9.3 Funzioni di Fase: Come la luce si diffonde
 
-La funzione di fase determina la distribuzione angolare della luce diffusa.
+La funzione di fase determina la distribuzione angolare della luce diffusa. 3D-Ray ne supporta cinque.
 
 ### Isotropic (Isotropa - Predefinita)
 
@@ -67,16 +69,16 @@ La funzione di fase determina la distribuzione angolare della luce diffusa.
 phase: "isotropic"
 ```
 
-La luce si diffonde equamente in tutte le direzioni. Questo è il modello più semplice e funziona bene per foschia generica o fumo.
+La luce si diffonde equamente in tutte le direzioni. Modello più semplice; funziona bene per fumo denso, nubi spesse, mezzi molto turbidi.
 
-### Henyey-Greenstein
+### Henyey-Greenstein (HG)
 
 ```yaml
 phase: "hg"
 g: 0.85
 ```
 
-La funzione di fase Henyey-Greenstein (HG) permette una distorsione direzionale:
+Permette una distorsione direzionale dello scattering:
 
 | Valore di `g` | Comportamento                                      |
 |---------------|----------------------------------------------------|
@@ -86,13 +88,158 @@ La funzione di fase Henyey-Greenstein (HG) permette una distorsione direzionale:
 | `0.85`        | Scattering molto concentrato in avanti (nebbia densa, caligine) |
 | `-0.3`        | Scattering all'indietro (insolito, artistico)      |
 
-Lo scattering in avanti (`g > 0`) significa che la luce tende a continuare all'incirca nella stessa direzione dopo aver colpito una particella. Questo è fisicamente accurato per la maggior parte dei mezzi reali (nebbia, polvere, aerosol) e crea bagliori luminosi intorno alle sorgenti luminose quando viste attraverso il mezzo.
+Lo scattering in avanti (`g > 0`) è fisicamente accurato per la maggior parte dei mezzi reali (nebbia, polvere, aerosol) e crea bagliori luminosi intorno alle sorgenti luminose.
 
 Alias: `"hg"`, `"henyey_greenstein"`.
 
+### Rayleigh (Scattering atmosferico)
+
+```yaml
+phase: "rayleigh"
+```
+
+Formula `p(θ) = (3/16π)(1 + cos²θ)`: scattering tipico delle molecole d'aria, usato in tutti i modelli di cielo e aerial perspective (Bruneton, Hosek-Wilkie). Nessun parametro. Adatto a nebbie molto sottili pensate per simulare atmosfera planetaria.
+
+### Double Henyey-Greenstein (nubi realistiche)
+
+```yaml
+phase: "double_hg"
+g1: 0.85
+g2: -0.3
+w: 0.7
+```
+
+Combinazione lineare di due lobi HG: uno forward (`g1 ≈ 0.85`) e uno laterale/backward (`g2 ≈ -0.3`), pesati da `w ∈ [0,1]`. È il modello usato da Nubis (Guerrilla Games) per le nubi volumetriche di *Horizon Zero Dawn* e da Arnold per il rendering di cumuli. Dà un silver-lining morbido attorno al contorno delle nubi che HG singolo non riesce a produrre.
+
+### Schlick (fast-HG)
+
+```yaml
+phase: "schlick"
+g: 0.6
+```
+
+Approssimazione razionale di HG senza `sqrt`: `p(θ) = (1 - k²) / (4π · (1 + k · cosθ)²)` con `k ≈ 1.55·g − 0.55·g³`. Usata da RenderMan e Cycles quando si vuole massimizzare il throughput. Visivamente quasi indistinguibile da HG per `|g| < 0.9`.
+
+**Quale scegliere?**
+- Nebbia generica / nube fumosa → `hg` con `g = 0.6-0.85`.
+- Cielo e foschia atmosferica su scala planetaria → `rayleigh`.
+- Nubi cumuli realistiche con silver-lining → `double_hg`.
+- Path tracer con milioni di valutazioni di phase → `schlick` (velocità).
+- Fumo denso, scena sottomarina torbida → `isotropic`.
+
 ---
 
-## 9.4 Ricette pratiche
+## 9.4 Oltre l'omogeneo: tipi di mezzo eterogenei
+
+La nebbia uniforme ha un limite: nel mondo reale la densità cambia con l'altitudine, forma sacche irregolari, o è confinata in un volume localizzato (una nuvola, una colonna di fumo). 3D-Ray offre tre tipi aggiuntivi per coprire questi casi.
+
+### 9.4.1 `height_fog` — foschia esponenziale in altezza
+
+Densità che cala esponenzialmente con la quota: `σ_T(y) = σ_T0 · exp(-(y - y0) / H)`. È il modello "atmosphere / aerial perspective" di Arnold `atmosphere_volume` e V-Ray `EnvironmentFog`. L'integrale lungo il raggio ha forma chiusa → **costo quasi identico al medium omogeneo**, nessun delta tracking.
+
+```yaml
+world:
+  medium:
+    type: "height_fog"
+    sigma_a: [0.02, 0.02, 0.025]
+    sigma_s: [0.25, 0.28, 0.32]
+    y0: 0.0                # Quota di riferimento (dove la densità è nominale)
+    scale_height: 2.0      # Distanza in Y per calo 1/e della densità
+    phase: "hg"
+    g: 0.6
+```
+
+- **`y0`**: sopra questa quota la densità decresce, sotto cresce.
+- **`scale_height`**: `H` piccolo → strato sottile attaccato al suolo; `H` grande → gradiente dolce visibile su tutta la scena.
+
+**Uso tipico:** scene outdoor con montagne, strade all'alba, mare all'orizzonte, vedute urbane con smog. Permette di "far respirare" la scena senza appesantirla di nebbia uniforme.
+
+**Tip:** se la camera è bassa e guarda quasi orizzontalmente lungo raggi che attraversano molta nebbia, alza `-s` almeno a 256.
+
+### 9.4.2 `procedural` — Perlin fBm
+
+Densità guidata da **noise Perlin con fractal brownian motion** (fBm). Il free-path sampling usa **delta tracking (Woodcock)** e la trasmittanza è stimata via **ratio tracking**. Analogo ad Arnold `standard_volume` con input noise o RenderMan `PxrVolume` in modalità procedurale.
+
+```yaml
+world:
+  medium:
+    type: "procedural"
+    sigma_a: [0.01, 0.01, 0.01]
+    sigma_s: [0.5, 0.5, 0.55]
+    frequency: 0.45        # Frequenza del noise (world units)
+    octaves: 4             # Numero di ottave fBm (1-8)
+    lacunarity: 2.0        # Moltiplicatore di frequenza fra ottave (≥ 1)
+    gain: 0.55             # Moltiplicatore di ampiezza fra ottave (0.01-0.99)
+    seed: 42               # Seed deterministico
+    phase: "hg"
+    g: 0.75
+```
+
+- **`frequency`** alto → sacche piccole e fitte; basso → macchie grandi.
+- **`octaves`** 3–4 bastano per una nebbia convincente; 6+ aggiunge dettaglio fine (ma più rumore nel render).
+- **`lacunarity`** = 2.0 è il classico (raddoppio fra ottave).
+- **`gain`** < 0.5 → noise dolce, > 0.5 → noise più duro.
+- **`seed`**: cambialo per variare la forma del noise a parità di altri parametri.
+
+**Uso tipico:** stanze con nebbia irregolare, scene horror, god-ray non omogenei, foreste nebbiose, superfici d'acqua con foschia a chiazze.
+
+**Tip:** delta tracking è più rumoroso → alza `-s` a 400 o 1024 per render finali.
+
+### 9.4.3 `grid` — densità da griglia 3D
+
+Densità campionata su una **griglia 3D regolare** dentro una AABB world-space, con filtro di ricostruzione selezionabile (trilineare di default, tricubico opzionale). Fuori dall'AABB: vuoto. Analogo a PBRT `GridMedium`, Arnold `volume` (modalità VDB) e V-Ray `VolumeGrid`. Due forme: dati inline nello YAML o file binario esterno `.vol`.
+
+**Forma A — inline (per griglie piccole, ≤ 8³):**
+
+```yaml
+world:
+  medium:
+    type: "grid"
+    sigma_a: [0.1, 0.1, 0.1]
+    sigma_s: [3.0, 3.0, 3.2]
+    bounds_min: [-1.5, 0.5, -1.5]
+    bounds_max: [ 1.5, 3.5,  1.5]
+    nx: 4
+    ny: 4
+    nz: 4
+    interpolation: "trilinear"   # Opzionale: "trilinear" (default) o "tricubic"
+    phase: "hg"
+    g: 0.5
+    data:
+      # nx*ny*nz valori in [0,1]; layout z-major (y outer, x inner per slice z)
+      - 0.0
+      - 0.0
+      # ... (64 valori totali per nx=ny=nz=4)
+```
+
+**Forma B — file binario `.vol` (consigliata per griglie ≥ 16³):**
+
+```yaml
+world:
+  medium:
+    type: "grid"
+    sigma_a: [0.1, 0.1, 0.1]
+    sigma_s: [3.0, 3.0, 3.2]
+    interpolation: "tricubic"    # Smoothing Catmull-Rom
+    phase: "hg"
+    g: 0.5
+    file: "cloud-64x64x64.vol"   # Path relativo allo YAML
+```
+
+Il formato `.vol` (VOL1) è: magic `"VOL1"` (4 byte) + `nx`, `ny`, `nz` (3 × int32 little-endian) + `bounds_min.{x,y,z}`, `bounds_max.{x,y,z}` (6 × float32 little-endian) + `nx*ny*nz` float32 di densità. È pensato come passo intermedio semplice: si può generare facilmente da Houdini/Blender tramite uno script Python.
+
+**Uso tipico:** fumo localizzato, nuvole isolate, esplosioni, "asset" di fumo pre-simulati importati da altri software. La risoluzione della griglia non incide sul costo di rendering (solo sul parsing e sulla memoria).
+
+**Filtro di ricostruzione (`interpolation`).** Quando un sample cade tra i voxel, 3D-Ray interpola la densità in uno dei due modi:
+
+- **`trilinear`** (default, 8 taps, C⁰). Economico. A risoluzioni basse (≤ 16³) la derivata del campo di densità è discontinua ai confini delle celle → si vedono bande lineari nel render. È un artefatto universale dei renderer volumetrici a basso budget (Arnold, V-Ray, RenderMan) e in produzione si risolve usando griglie fitte (128³–1024³) dove i salti sono sub-pixel.
+- **`tricubic`** (64 taps, C¹, cardinal spline Catmull-Rom con τ = 0.5). ~8× il costo per sample, ma il campo di densità è derivabile con continuità → niente kink anche su griglie minuscole. Il risultato viene clampato in `[0,1]` per preservare l'invariante del majorant del delta tracking. Alias accettati: `cubic`, `catmull-rom`, `smooth`. Corrisponde al filtro "cubic"/"smooth" offerto da Arnold, Houdini e RenderMan su VDB.
+
+**Tip:** fuori dalla AABB il medium è vuoto → i raggi che non la intersecano sono gratis. Dimensiona bene i bounds per massimizzare le performance. Se usi `tricubic`, aspettati render ~5–10% più lenti sui raggi che attraversano la AABB.
+
+---
+
+## 9.5 Ricette pratiche
 
 ### Nebbia leggera (Light Fog)
 
@@ -165,25 +312,29 @@ world:
 
 ---
 
-## 9.5 Considerazioni sul rendering
+## 9.6 Considerazioni sul rendering
 
 Il rendering volumetrico è più impegnativo del rendering solo superficiale. Tieni a mente questi suggerimenti:
 
-1. **Aumentare i campioni (samples).** Il mezzo aggiunge un'altra fonte di rumore (eventi di scattering casuali lungo ogni raggio). Usare almeno 64 SPP; 256+ per risultati puliti.
+1. **Aumentare i campioni (samples).** Il mezzo aggiunge un'altra fonte di rumore (eventi di scattering casuali lungo ogni raggio). `homogeneous` e `height_fog` sono analitici e già a 64 SPP danno risultati decenti. `procedural` e `grid` usano delta tracking → servono 256+ SPP per risultati puliti, 1024+ per publication-ready.
 
-2. **Aumentare la profondità (depth).** Ogni evento di scattering conta come un rimbalzo. Con un mezzo denso, i raggi possono diffondersi più volte prima di raggiungere una luce. Usa `-d 12` (nebbia/fumo densi); la Russian Roulette termina automaticamente i path molto lunghi, quindi valori sopra `-d 16` raramente migliorano la qualità.
+2. **Non esagerare con la profondità (depth).** Il path volumetrico è già gestito correttamente a `-d 6-8`. Russian Roulette termina automaticamente i path lunghi, quindi valori sopra `-d 10` raramente migliorano la qualità e costano sempre tempo.
 
-3. **Le luci spot creano i fasci di luce (God Rays).** Una luce spot che brilla attraverso la nebbia produce un cono di luce visibile. Questo è uno degli effetti più spettacolari possibili con i mezzi partecipanti.
+3. **Firefly clamp con nebbia densa.** Mezzi con `sigma_s` alto + `-d 8+` talvolta producono spike luminosi rari. Abbassa `-C` a `25` o `15` senza timore: perdi poco dinamica, guadagni pulizia.
 
-4. **Le luci puntiformi brillano.** Nella nebbia, ogni luce puntiforme riceve un alone radiale morbido la cui dimensione dipende dalla densità del mezzo.
+4. **Le luci spot creano i fasci di luce (God Rays).** Una luce spot attraverso la nebbia produce un cono di luce visibile. Effetto spettacolare, specialmente con `procedural` (god-ray irregolari) o `height_fog` (god-ray che si rarefanno salendo).
 
-5. **Il mezzo è globale.** Colpisce ogni raggio nella scena, compresi i raggi d'ombra (le luci appaiono più deboli attraverso la nebbia). Non c'è modo di confinare il mezzo a un volume specifico -- riempie l'intero spazio del mondo.
+5. **Le luci puntiformi brillano.** Nella nebbia ogni point light riceve un alone radiale morbido la cui dimensione dipende dalla densità del mezzo.
 
-6. **Iniziare da valori sottili, poi aumentare.** È più facile aggiungere nebbia che rimuoverla. Iniziare con valori di `sigma_s` molto bassi (0.01--0.03) e aumentare fino a ottenere l'effetto desiderato.
+6. **Il mezzo è globale** (tranne `grid`, che è confinato alla AABB). `homogeneous`, `height_fog`, `procedural` riempiono l'intero spazio del mondo e colpiscono ogni raggio compresi quelli d'ombra. `grid` lascia passare senza attenuazione i raggi che non intersecano la sua AABB.
+
+7. **Inizia da valori sottili, poi aumenta.** È più facile aggiungere nebbia che rimuoverla. Parti con `sigma_s` bassi (0.01–0.03 per homogeneous/height_fog, 0.3–0.5 per procedural/grid) e aumenta fino all'effetto desiderato.
+
+8. **Phase function con `g` → 1** (es. HG con `g = 0.95`) rende god-ray più stretti e drammatici ma **aumenta la varianza**: se vedi coni rumorosi, abbassa `g` a 0.7-0.85 oppure passa a `double_hg` con pesi più equilibrati.
 
 ---
 
-## 9.6 Esempio Completo: Cattedrale nella Nebbia
+## 9.7 Esempio Completo: Cattedrale nella Nebbia
 
 ```yaml
 # cathedral-fog.yaml
@@ -313,13 +464,30 @@ La luce spot crea un drammatico fascio visibile che taglia la nebbia tra i pilas
 
 ---
 
+## 9.8 Scene di showcase
+
+Nel repository trovi quattro showcase pronte, una per ogni tipo di mezzo, in `scenes/showcases/`:
+
+| Scena | Tipo mezzo | Cosa mostra |
+|---|---|---|
+| `volumetric-01-homogeneous-showcase.yaml` | `homogeneous` | God-ray classico di uno spot in nebbia uniforme |
+| `volumetric-02-height-fog-showcase.yaml` | `height_fog` | Aerial perspective outdoor con gradiente verticale |
+| `volumetric-03-procedural-showcase.yaml` | `procedural` | Nebbia irregolare Perlin con god-ray non omogenei |
+| `volumetric-04-grid-showcase.yaml` | `grid` | Fumo localizzato in una griglia 4³ inline |
+
+Ogni scena include un header descrittivo e i comandi pronti per i profili Preview/Standard/Final.
+
+---
+
 ## Cosa si è imparato
 
 - **sigma_a** controlla l'assorbimento (oscuramento della luce con la distanza).
 - **sigma_s** controlla lo scattering (densità della nebbia, fasci di luce).
-- La funzione di fase **isotropic** diffonde equamente; **Henyey-Greenstein** permette una preferenza direzionale (scattering in avanti per la nebbia).
-- Il mezzo è globale e influenza tutti i raggi, comprese le ombre.
-- Le scene volumetriche necessitano di più campioni e profondità rispetto alle scene solo superficiali.
+- 3D-Ray supporta **quattro tipi di mezzo**: `homogeneous` (uniforme, analitico), `height_fog` (esponenziale in altezza, analitico), `procedural` (Perlin fBm, delta tracking) e `grid` (griglia 3D da dati o file `.vol`, delta tracking).
+- Cinque phase function: `isotropic`, `hg`, `rayleigh` (atmosfera), `double_hg` (nubi realistiche), `schlick` (fast-HG).
+- I mezzi analitici (`homogeneous`, `height_fog`) sono economici; quelli con delta tracking (`procedural`, `grid`) sono più rumorosi → più SPP.
+- Il mezzo è globale e influenza tutti i raggi, tranne `grid` che è confinato alla sua AABB.
+- Le scene volumetriche necessitano di più campioni rispetto a quelle solo-superficie; `-d 6-8` è sufficiente, non esagerare.
 - Le luci spot nella nebbia creano fasci di luce (god rays); le luci puntiformi creano aloni.
 
 ---

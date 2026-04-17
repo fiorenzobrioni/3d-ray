@@ -85,17 +85,123 @@ sky:
 - **Overcast** (luce ambientale alta, cielo uniforme)
 
 #### **Volumetria (Mezzi Partecipanti)**:
+
+3D-Ray supporta **quattro tipi di medium globali** (`homogeneous`, `height_fog`, `procedural`, `grid`) e **cinque phase function** (`isotropic`, `hg`, `rayleigh`, `double_hg`, `schlick`). Il campo `medium:` è a livello di `world`.
+
+**Parametri comuni a tutti i tipi:**
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `type` | string | `homogeneous` \| `height_fog` \| `procedural` \| `grid` |
+| `sigma_a` | RGB | Coefficiente di assorbimento (oscuramento della luce) |
+| `sigma_s` | RGB | Coefficiente di scattering (densità visiva della nebbia, fasci di luce) |
+| `phase` | string | Phase function (default `isotropic`); se `g` è presente → `hg` |
+
+**Tipo 1 — `homogeneous`** (densità costante, analitico, economico):
 ```yaml
 medium:
   type: "homogeneous"
-  sigma_a: [0.01, 0.01, 0.01]              # Assorbimento (oscuramento della luce)
-  sigma_s: [0.06, 0.06, 0.06]              # Scattering (densità nebbia, fasci di luce)
-  phase: "hg"                              # "isotropic" o "hg"
-  g: 0.85                                  # Per "hg": >0 scattering in avanti, 0 isotropo
+  sigma_a: [0.005, 0.005, 0.005]
+  sigma_s: [0.06, 0.06, 0.07]
+  phase: "hg"
+  g: 0.85
 ```
-- **Uso:** Simula nebbia, fumo, effetti subacquei e foschia atmosferica.
-- **Tip:** I volumetrici traggono beneficio da più campioni e rimbalzi rispetto alle scene solo-superficie. Parti dal profilo Standard alzando `-d 12`; per mezzi densi combina `-s 1024 -d 12 -S 4`. Vedi [Profili di Rendering](./profili-di-rendering.md) per la guida completa.
-- **Effetti:** Le luci spot creano raggi visibili (god rays), le luci point creano aloni.
+
+**Tipo 2 — `height_fog`** (densità esponenziale in altezza, analitico):
+```yaml
+medium:
+  type: "height_fog"
+  sigma_a: [0.02, 0.02, 0.025]
+  sigma_s: [0.25, 0.28, 0.32]
+  y0: 0.0                              # Quota di riferimento (densità nominale)
+  scale_height: 2.0                    # Distanza in Y per un calo 1/e della densità
+  phase: "hg"
+  g: 0.6
+```
+
+**Tipo 3 — `procedural`** (Perlin fBm, delta tracking):
+```yaml
+medium:
+  type: "procedural"
+  sigma_a: [0.01, 0.01, 0.01]
+  sigma_s: [0.5, 0.5, 0.55]
+  frequency: 0.45                      # Frequenza noise (world units)
+  octaves: 4                           # Numero di ottave fBm (1-8)
+  lacunarity: 2.0                      # Moltiplicatore frequenza fra ottave (≥1)
+  gain: 0.55                           # Moltiplicatore ampiezza fra ottave (0.01-0.99)
+  seed: 42                             # Seed deterministico del noise
+  phase: "hg"
+  g: 0.75
+```
+
+**Tipo 4 — `grid`** (griglia 3D inline o da file `.vol`, delta tracking + filtro di ricostruzione):
+```yaml
+# Variante A — dati inline (utile per griglie piccole, es. ≤ 8³)
+medium:
+  type: "grid"
+  sigma_a: [0.1, 0.1, 0.1]
+  sigma_s: [3.0, 3.0, 3.2]
+  bounds_min: [-1.5, 0.5, -1.5]        # AABB world-space del volume
+  bounds_max: [ 1.5, 3.5,  1.5]
+  nx: 4                                # Risoluzione griglia (min. 2 per asse)
+  ny: 4
+  nz: 4
+  interpolation: "trilinear"           # Opzionale: "trilinear" (default) o "tricubic"
+  phase: "hg"
+  g: 0.5
+  data: [0.0, 0.0, ...]                # Array di nx*ny*nz float in [0,1], layout z-major
+
+# Variante B — file binario esterno (consigliato per griglie grandi)
+medium:
+  type: "grid"
+  sigma_a: [0.1, 0.1, 0.1]
+  sigma_s: [3.0, 3.0, 3.2]
+  interpolation: "tricubic"            # Smoothing Catmull-Rom; utile su griglie basso-res
+  phase: "hg"
+  g: 0.5
+  file: "cloud-64x64x64.vol"           # Path relativo allo YAML; bounds e risoluzione dall'header del file
+```
+
+**Formato `.vol` (VOL1):** magic string `"VOL1"` (4 byte) + `nx`, `ny`, `nz` (3 × int32 little-endian) + `bounds_min.{x,y,z}`, `bounds_max.{x,y,z}` (6 × float32 little-endian) + `nx·ny·nz` float32 di densità, layout z-major (y outer, x inner dentro ogni slice z).
+
+**Filtri di ricostruzione (`interpolation`):**
+
+| Valore | Taps | Continuità | Quando usarlo |
+|---|---|---|---|
+| `trilinear` (default) | 8 | C⁰ | Default. Cheap, ma a risoluzioni basse (≤16³) la derivata salta ai confini delle celle → bande lineari visibili. |
+| `tricubic` | 64 | C¹ | Catmull-Rom cardinal spline (τ = 0.5). ~8× costo per sample, ma rimuove i kink su griglie basso-res e levigna i dati binari. Risultato clampato in `[0,1]` per preservare l'invariante del majorant. Alias accettati: `cubic`, `catmull-rom`, `smooth`. |
+
+Su griglie ad alta risoluzione (128³+) con densità smoothly varying i due filtri convergono visivamente — `trilinear` è sufficiente. Su griglie piccole inline o su dati binari 0/1, `tricubic` è il modo standard per nascondere gli artefatti (analogo a Arnold/Houdini "cubic" filter su VDB).
+
+**Phase function disponibili:**
+
+| Valore `phase` | Parametri | Uso tipico |
+|---|---|---|
+| `isotropic` | — | Scattering uniforme in tutte le direzioni (fumo denso, nubi spesse) |
+| `hg` | `g` ∈ (-1, 1) | Henyey-Greenstein: `g > 0` forward, `g < 0` backward, `g = 0` ≈ isotropo |
+| `rayleigh` | — | Scattering atmosferico `(3/16π)(1+cos²θ)`; cielo, aerial perspective |
+| `double_hg` | `g1`, `g2`, `w` | Due lobi HG combinati con peso `w` ∈ [0,1]; nubi realistiche (Nubis) |
+| `schlick` | `g` | Approssimazione razionale rapida di HG (senza sqrt) |
+
+Esempi:
+```yaml
+# Cielo Rayleigh
+phase: "rayleigh"
+
+# Nube realistica tipo cumulo (forward g1=0.85 + lobo lato g2=-0.3)
+phase: "double_hg"
+g1: 0.85
+g2: -0.3
+w: 0.7
+
+# HG fast
+phase: "schlick"
+g: 0.6
+```
+
+- **Uso:** Simula nebbia, fumo, foschia atmosferica, nubi, effetti subacquei.
+- **Tip rendering:** `homogeneous` e `height_fog` sono analitici ed economici. `procedural` e `grid` usano delta tracking e sono più rumorosi — alza `-s` a 400/576/1024 e mantieni `-d 6-8`. Per scene con nebbia densa considera `-C 25`. Vedi [Profili di Rendering](./profili-di-rendering.md) §8 per la guida completa.
+- **Effetti:** Luci spot → god-ray visibili; point light → aloni; directional → aerial perspective (con `height_fog`).
 
 ---
 

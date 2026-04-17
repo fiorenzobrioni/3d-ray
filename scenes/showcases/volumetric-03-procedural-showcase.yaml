@@ -1,0 +1,85 @@
+# =============================================================================
+# Volumetrics #03 — Nebbia procedurale (Perlin fBm)
+# =============================================================================
+#
+# SCENA
+#   Stessa sala buia con tre pilastri della showcase #01, ma la nebbia non è
+#   più uniforme: ha sacche più dense e zone rarefatte generate da rumore
+#   Perlin. Lo spot warm dall'alto a sinistra taglia la nebbia irregolare
+#   producendo god-ray non omogenei, con "buchi" e filamenti di luce.
+#
+# EFFETTO NEBBIA
+#   Nebbia eterogenea procedurale: d(p) = fBm(p · frequency) ∈ [0, 1], con
+#   σ_T(p) = σ_base · d(p). Analoga ad Arnold standard_volume con input noise
+#   o RenderMan PxrVolume modalità procedurale. Il free-path sampling usa
+#   delta tracking (Woodcock) con majorant σ_base_T; la trasmittanza è
+#   stimata via ratio tracking (stimatore unbiased).
+#
+# PARAMETRI DEL MEDIUM
+#   type: procedural       - densità guidata da Perlin fBm
+#   sigma_a: [0.01, 0.01, 0.01]
+#                          - coefficiente di assorbimento base (leggero)
+#   sigma_s: [0.5, 0.5, 0.55]
+#                          - coefficiente di scattering base (forte → cono
+#                            dello spot molto visibile nelle zone dense)
+#   frequency: 0.45        - frequenza del noise in world units (più alta →
+#                            sacche di nebbia più piccole e fitte)
+#   octaves: 4             - numero di ottave fBm (dettaglio multiscala)
+#   lacunarity: 2.0        - moltiplicatore di frequenza fra ottave
+#                            (2.0 = raddoppio classico)
+#   gain: 0.55             - moltiplicatore di ampiezza fra ottave
+#                            (< 0.5 → noise dolce, > 0.5 → noise più "duro")
+#   seed: 42               - seed deterministico del generatore Perlin
+#   phase: hg
+#   g: 0.75                - HG molto in avanti: god-ray stretti e luminosi
+#
+# PROFILI DI RENDERING
+#   Il delta tracking è più rumoroso della nebbia omogenea, soprattutto nelle
+#   sacche dense. Regole pratiche:
+#     - Preview: utile per controllare la forma del noise, ma aspettarsi grain.
+#     - Standard: spesso sufficiente; se vedi banding nei coni alza -s a 400.
+#     - Final: per un render pulito usa -s 1024 o 1600.
+#
+#   Preview:
+#     RayTracer -i volumetric-03-procedural-showcase.yaml -w 400 -H 225 -s 64  -d 4 -S 1
+#   Standard:
+#     RayTracer -i volumetric-03-procedural-showcase.yaml -w 800 -H 450 -s 256 -d 6 -S 1
+#   Final:
+#     RayTracer -i volumetric-03-procedural-showcase.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
+#
+#   Tip: se emergono fireflies nella nebbia densa con -d alto, abbassa -C da
+#   100 a 25 (firefly clamp più aggressivo, vedi profili-di-rendering.md §6).
+#
+# =============================================================================
+
+world:
+  ambient_light: [0.005, 0.005, 0.008]
+  background:   [0.0, 0.0, 0.0]
+  ground: { y: 0, material: floor }
+  medium:
+    type: procedural
+    sigma_a: [0.01, 0.01, 0.01]
+    sigma_s: [0.5, 0.5, 0.55]
+    frequency: 0.45
+    octaves: 4
+    lacunarity: 2.0
+    gain: 0.55
+    seed: 42
+    phase: hg
+    g: 0.75
+camera: { position: [0, 2.0, 8], look_at: [0, 1.5, 0], vup: [0,1,0], fov: 35, aperture: 0, focal_dist: 8 }
+materials:
+  - { id: floor, type: lambertian, albedo: [0.25, 0.22, 0.20] }
+  - { id: pillar, type: lambertian, albedo: [0.55, 0.5, 0.45] }
+lights:
+  - type: spot
+    position: [-3, 6, 2]
+    direction: [0.5, -1, -0.3]
+    color: [1.0, 0.92, 0.78]
+    intensity: 1200
+    inner_angle: 4
+    outer_angle: 9
+entities:
+  - { type: box, scale: [0.5, 3.0, 0.5], translate: [-1.25, 1.5, -1.25], material: pillar }
+  - { type: box, scale: [0.5, 3.0, 0.5], translate: [ 1.25, 1.5, -1.25], material: pillar }
+  - { type: box, scale: [0.8, 1.2, 0.8], translate: [ 0.0,  0.6,  0.4 ], material: pillar }

@@ -77,17 +77,123 @@ sky:
 - **Overcast** (high ambient, uniform sky)
 
 #### **Volumetrics (Participating Media)**:
+
+3D-Ray supports **four global medium types** (`homogeneous`, `height_fog`, `procedural`, `grid`) and **five phase functions** (`isotropic`, `hg`, `rayleigh`, `double_hg`, `schlick`). The `medium:` field lives at the `world` level.
+
+**Fields common to all types:**
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | string | `homogeneous` \| `height_fog` \| `procedural` \| `grid` |
+| `sigma_a` | RGB | Absorption coefficient (light dimming) |
+| `sigma_s` | RGB | Scattering coefficient (visual fog density, god-rays) |
+| `phase` | string | Phase function (default `isotropic`); if `g` is present → `hg` |
+
+**Type 1 — `homogeneous`** (constant density, analytic, cheap):
 ```yaml
 medium:
   type: "homogeneous"
-  sigma_a: [0.01, 0.01, 0.01]              # Absorption (light dimming)
-  sigma_s: [0.06, 0.06, 0.06]              # Scattering (fog density, god rays)
-  phase: "hg"                              # "isotropic" or "hg"
-  g: 0.85                                  # For "hg": >0 forward scattering, 0 isotropic
+  sigma_a: [0.005, 0.005, 0.005]
+  sigma_s: [0.06, 0.06, 0.07]
+  phase: "hg"
+  g: 0.85
 ```
-- **Usage:** Simulates fog, smoke, underwater, and atmospheric haze.
-- **Tip:** Volumetrics benefit from more samples and bounces than surface-only scenes. Start from the Standard profile and raise depth to `-d 12`; for dense media combine with `-s 1024 -d 12 -S 4`. See [Rendering Profiles](./rendering-profiles.md) for the full guide.
-- **Effects:** Spot lights create visible beams (god rays), point lights create halos.
+
+**Type 2 — `height_fog`** (exponential density in altitude, analytic):
+```yaml
+medium:
+  type: "height_fog"
+  sigma_a: [0.02, 0.02, 0.025]
+  sigma_s: [0.25, 0.28, 0.32]
+  y0: 0.0                              # Reference height (nominal density)
+  scale_height: 2.0                    # Y distance for a 1/e density falloff
+  phase: "hg"
+  g: 0.6
+```
+
+**Type 3 — `procedural`** (Perlin fBm, delta tracking):
+```yaml
+medium:
+  type: "procedural"
+  sigma_a: [0.01, 0.01, 0.01]
+  sigma_s: [0.5, 0.5, 0.55]
+  frequency: 0.45                      # Noise frequency (world units)
+  octaves: 4                           # fBm octave count (1-8)
+  lacunarity: 2.0                      # Frequency multiplier between octaves (≥1)
+  gain: 0.55                           # Amplitude multiplier between octaves (0.01-0.99)
+  seed: 42                             # Deterministic noise seed
+  phase: "hg"
+  g: 0.75
+```
+
+**Type 4 — `grid`** (3D grid inline or from `.vol` file, delta tracking + reconstruction filter):
+```yaml
+# Variant A — inline data (useful for small grids, e.g. ≤ 8³)
+medium:
+  type: "grid"
+  sigma_a: [0.1, 0.1, 0.1]
+  sigma_s: [3.0, 3.0, 3.2]
+  bounds_min: [-1.5, 0.5, -1.5]        # World-space AABB of the volume
+  bounds_max: [ 1.5, 3.5,  1.5]
+  nx: 4                                # Grid resolution (min. 2 per axis)
+  ny: 4
+  nz: 4
+  interpolation: "trilinear"           # Optional: "trilinear" (default) or "tricubic"
+  phase: "hg"
+  g: 0.5
+  data: [0.0, 0.0, ...]                # nx*ny*nz floats in [0,1], z-major layout
+
+# Variant B — external binary file (recommended for large grids)
+medium:
+  type: "grid"
+  sigma_a: [0.1, 0.1, 0.1]
+  sigma_s: [3.0, 3.0, 3.2]
+  interpolation: "tricubic"            # Catmull-Rom smoothing; useful on low-res grids
+  phase: "hg"
+  g: 0.5
+  file: "cloud-64x64x64.vol"           # Path relative to the YAML; bounds and resolution read from file header
+```
+
+**`.vol` file format (VOL1):** magic string `"VOL1"` (4 bytes) + `nx`, `ny`, `nz` (3 × int32 little-endian) + `bounds_min.{x,y,z}`, `bounds_max.{x,y,z}` (6 × float32 little-endian) + `nx·ny·nz` float32 density values, z-major layout (y outer, x inner inside each z-slice).
+
+**Reconstruction filters (`interpolation`):**
+
+| Value | Taps | Continuity | When to use |
+|---|---|---|---|
+| `trilinear` (default) | 8 | C⁰ | Default. Cheap, but at low resolutions (≤16³) the derivative jumps at cell boundaries → visible linear banding. |
+| `tricubic` | 64 | C¹ | Catmull-Rom cardinal spline (τ = 0.5). ~8× per-sample cost, but removes kinks on low-res grids and smooths binary data. Result is clamped to `[0,1]` to preserve the delta-tracking majorant invariant. Accepted aliases: `cubic`, `catmull-rom`, `smooth`. |
+
+On high-resolution grids (128³+) with smoothly varying density the two filters are visually indistinguishable — `trilinear` is enough. On small inline grids or binary 0/1 data, `tricubic` is the standard way to hide artifacts (analogous to Arnold/Houdini "cubic" filter on VDB).
+
+**Available phase functions:**
+
+| `phase` value | Parameters | Typical use |
+|---|---|---|
+| `isotropic` | — | Uniform scattering in all directions (dense smoke, thick clouds) |
+| `hg` | `g` ∈ (-1, 1) | Henyey-Greenstein: `g > 0` forward, `g < 0` backward, `g = 0` ≈ isotropic |
+| `rayleigh` | — | Atmospheric scattering `(3/16π)(1+cos²θ)`; sky, aerial perspective |
+| `double_hg` | `g1`, `g2`, `w` | Two HG lobes mixed with weight `w` ∈ [0,1]; realistic clouds (Nubis) |
+| `schlick` | `g` | Fast rational approximation of HG (no sqrt) |
+
+Examples:
+```yaml
+# Rayleigh sky
+phase: "rayleigh"
+
+# Realistic cumulus cloud (forward g1=0.85 + side lobe g2=-0.3)
+phase: "double_hg"
+g1: 0.85
+g2: -0.3
+w: 0.7
+
+# Fast HG
+phase: "schlick"
+g: 0.6
+```
+
+- **Usage:** Simulates fog, smoke, atmospheric haze, clouds, underwater effects.
+- **Rendering tip:** `homogeneous` and `height_fog` are analytic and cheap. `procedural` and `grid` use delta tracking and are noisier — raise `-s` to 400/576/1024 and keep `-d 6-8`. For dense-fog scenes consider `-C 25`. See [Rendering Profiles](./rendering-profiles.md) §8 for the full guide.
+- **Effects:** Spot lights → visible god-rays; point lights → halos; directional → aerial perspective (with `height_fog`).
 ---
 ### 4. **CAMERA SECTION**
 #### **Multi-Camera** (recommended):

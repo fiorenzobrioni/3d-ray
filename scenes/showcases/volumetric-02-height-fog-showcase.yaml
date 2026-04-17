@@ -1,0 +1,74 @@
+# =============================================================================
+# Volumetrics #02 — Height fog esponenziale (aerial perspective)
+# =============================================================================
+#
+# SCENA
+#   Ambiente outdoor diurno, cielo chiaro in background, luce solare direzionale
+#   da sinistra. Quattro pilastri di altezza diversa permettono alla camera di
+#   osservare il gradiente verticale della nebbia dal basso verso l'alto.
+#
+# EFFETTO NEBBIA
+#   Foschia atmosferica che si dirada con l'altitudine: densa a livello del
+#   suolo (y = 0), sempre più rarefatta salendo. È il modello "height fog" /
+#   aerial perspective usato da Arnold atmosphere_volume e V-Ray EnvironmentFog.
+#   Matematicamente σ_T(y) = σ_T0 · exp(-(y - y0) / H); l'integrale lungo il
+#   raggio ha forma chiusa, quindi il campionamento è analitico (niente delta
+#   tracking) ed è rapido quasi quanto la nebbia omogenea.
+#
+# PARAMETRI DEL MEDIUM
+#   type: height_fog       - densità esponenziale in y
+#   sigma_a: [0.02, 0.02, 0.025]
+#                          - assorbimento a quota y0 (leggero bluish)
+#   sigma_s: [0.25, 0.28, 0.32]
+#                          - scattering a quota y0 (dominante → aspetto "lattiginoso")
+#   y0: 0.0                - quota di riferimento: sopra di questa la densità
+#                            decresce; sotto di questa cresce.
+#   scale_height: 2.0      - distanza in Y oltre cui la densità cala di un
+#                            fattore 1/e. Valori piccoli → strato sottile
+#                            appiccicato al suolo; valori grandi → gradiente
+#                            dolce e visibile su tutta la scena.
+#   phase: hg              - Henyey-Greenstein
+#   g: 0.6                 - forward scattering moderato (atmosfera realistica)
+#
+# PROFILI DI RENDERING
+#   Height fog è analitico → costo quasi identico alla nebbia omogenea.
+#   Consigli:
+#     - In Preview già si vede bene l'effetto (poco rumore).
+#     - Se la camera è bassa e guarda l'orizzonte lungo raggi quasi orizzontali,
+#       alza -s almeno a 256: la nebbia molto profonda amplifica il rumore.
+#
+#   Preview:
+#     RayTracer -i volumetric-02-height-fog-showcase.yaml -w 400 -H 225 -s 64  -d 4 -S 1
+#   Standard:
+#     RayTracer -i volumetric-02-height-fog-showcase.yaml -w 800 -H 450 -s 256 -d 6 -S 1
+#   Final:
+#     RayTracer -i volumetric-02-height-fog-showcase.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
+#
+# =============================================================================
+
+world:
+  ambient_light: [0.02, 0.02, 0.03]
+  background:   [0.35, 0.45, 0.6]
+  ground: { y: 0, material: floor }
+  medium:
+    type: height_fog
+    sigma_a: [0.02, 0.02, 0.025]
+    sigma_s: [0.25, 0.28, 0.32]
+    y0: 0.0
+    scale_height: 2.0
+    phase: hg
+    g: 0.6
+camera: { position: [0, 3, 12], look_at: [0, 2, 0], vup: [0,1,0], fov: 45, aperture: 0, focal_dist: 12 }
+materials:
+  - { id: floor, type: lambertian, albedo: [0.35, 0.32, 0.28] }
+  - { id: pillar, type: lambertian, albedo: [0.7, 0.65, 0.55] }
+lights:
+  - type: directional
+    direction: [-0.3, -1.0, -0.4]
+    color: [1.0, 0.95, 0.85]
+    intensity: 4
+entities:
+  - { type: box, scale: [0.4, 8.0, 0.4], translate: [-3.0, 4.0, -2.0], material: pillar }
+  - { type: box, scale: [0.4, 8.0, 0.4], translate: [ 3.0, 4.0, -2.0], material: pillar }
+  - { type: box, scale: [0.4, 5.0, 0.4], translate: [-1.0, 2.5, -1.0], material: pillar }
+  - { type: box, scale: [0.4, 5.0, 0.4], translate: [ 1.0, 2.5, -1.0], material: pillar }

@@ -87,7 +87,11 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🌍 **IBL / HDRI** — Image-Based Lighting da file Radiance `.hdr`: illuminazione globale fotorealistica catturata da fotografie HDR a 360° con importance sampling per convergenza rapida. Compatibile con [Poly Haven](https://polyhaven.com/hdris) (CC0).
 
 ### Volumetria (Participating Media)
-- 🌫️ **Homogeneous Medium** — mezzo partecipante omogeneo globale per nebbia, foschia ed effetti subacquei. Parametri configurabili via YAML: `density` (densità del mezzo), `absorption` (colore di assorbimento per lunghezza d'onda), `scattering` (diffusione della luce) e `anisotropy` (funzione di fase Henyey-Greenstein, da −1 retroriflettente a +1 forward-scattering). I raggi perdono energia e cambiano direzione attraverso il mezzo, producendo attenuazione distanza-dipendente, god rays e riduzioni di contrasto fisicamente corrette.
+- 🌫️ **Homogeneous Medium** — mezzo partecipante uniforme globale per nebbia densa, foschia e effetti subacquei. Beer-Lambert analitico, economico, adatto come base di partenza.
+- 🏔️ **Height Fog** — foschia atmosferica con densità che cala esponenzialmente con la quota (`scale_height`, `y0`). Modello "aerial perspective" per scene outdoor: montagne, strade all'alba, vedute urbane.
+- 🌀 **Procedural Medium (Perlin fBm)** — nebbia eterogenea generata da rumore Perlin multi-ottava con delta tracking e ratio tracking. Sacche di densità irregolari, god-ray non omogenei, atmosfere da film horror o nubi sparse.
+- 🧊 **Grid Medium** — densità campionata su griglia 3D regolare (inline YAML o file binario `.vol`) confinata in una AABB world-space, con filtro di ricostruzione selezionabile: **trilineare** (default, 8 taps C⁰) o **tricubico** Catmull-Rom (64 taps C¹) per rimuovere i kink visibili sulle griglie a bassa risoluzione. Ideale per fumo localizzato, esplosioni, nuvole isolate.
+- 🎇 **Cinque phase function** — `isotropic` (scattering uniforme), `hg` (Henyey-Greenstein, asimmetria direzionale), `rayleigh` (scattering atmosferico), `double_hg` (due lobi misti per nubi realistiche stile Nubis) e `schlick` (approssimazione fast-HG). Ogni mezzo combinabile con qualsiasi phase function.
 
 ---
 
