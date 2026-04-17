@@ -1,0 +1,101 @@
+# Grid medium showcase: a 4^3 inline density grid forming a roughly spherical
+# smoke blob suspended above the ground. Density is 1 in the central 2x2x2
+# cells and 0 on the boundary; trilinear interpolation smooths the edges.
+# Outside the bounds the medium is vacuum (surface-only path).
+world:
+  ambient_light: [0.02, 0.02, 0.03]
+  background:   [0.05, 0.05, 0.08]
+  ground: { y: 0, material: floor }
+  medium:
+    type: grid
+    sigma_a: [0.1, 0.1, 0.1]
+    sigma_s: [3.0, 3.0, 3.2]
+    bounds_min: [-1.5, 0.5, -1.5]
+    bounds_max: [ 1.5, 3.5,  1.5]
+    nx: 4
+    ny: 4
+    nz: 4
+    phase: hg
+    g: 0.5
+    # z-major layout: 16 values per z-slice (y outer, x inner).
+    data:
+      # z = 0 (bottom slice)
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      # z = 1
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
+      - 1.0
+      - 0.0
+      - 0.0
+      - 1.0
+      - 1.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      # z = 2
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
+      - 1.0
+      - 0.0
+      - 0.0
+      - 1.0
+      - 1.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      # z = 3 (top slice)
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+camera: { position: [0, 2.0, 7], look_at: [0, 2.0, 0], vup: [0,1,0], fov: 40, aperture: 0, focal_dist: 7 }
+materials:
+  - { id: floor, type: lambertian, albedo: [0.3, 0.3, 0.3] }
+lights:
+  - type: point
+    position: [3, 4, 3]
+    color: [1.0, 0.95, 0.85]
+    intensity: 120
+  - type: directional
+    direction: [-0.4, -1.0, -0.2]
+    color: [0.6, 0.7, 0.9]
+    intensity: 1.5

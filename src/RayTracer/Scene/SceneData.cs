@@ -500,13 +500,26 @@ public class LightData
 }
 
 /// <summary>
-/// Participating medium definition (Stage 1: homogeneous global only).
-/// Lives under <c>world.medium</c>. When absent, the renderer runs in
-/// surface-only mode and produces bit-identical output to pre-volumetric builds.
+/// Participating medium definition. Lives under <c>world.medium</c>.
+/// When absent, the renderer runs in surface-only mode and produces
+/// bit-identical output to pre-volumetric builds.
+///
+/// Supported <c>type</c> values:
+///   - <c>homogeneous</c>: constant σ_a, σ_s everywhere (uses sigma_a, sigma_s)
+///   - <c>height_fog</c>: exponential altitude falloff (sigma_a/sigma_s as density at <c>y0</c>; <c>scale_height</c>)
+///   - <c>procedural</c>: Perlin-fBm noise density (frequency, octaves, lacunarity, gain, seed)
+///   - <c>grid</c>: 3D voxel grid (bounds_min/max, nx/ny/nz, and either <c>data</c> inline or <c>file</c>)
+///
+/// Supported <c>phase</c> values:
+///   - <c>isotropic</c> (default)
+///   - <c>hg</c> / <c>henyey_greenstein</c>: needs <c>g</c>
+///   - <c>rayleigh</c>: no parameters
+///   - <c>schlick</c>: needs <c>g</c> (mapped to Schlick's k)
+///   - <c>double_hg</c>: needs <c>g1</c>, <c>g2</c>, <c>w</c>
 /// </summary>
 public class MediumData
 {
-    /// <summary>"homogeneous" (only type supported in Stage 1).</summary>
+    /// <summary>"homogeneous", "height_fog", "procedural", "grid".</summary>
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
@@ -518,11 +531,83 @@ public class MediumData
     [YamlMember(Alias = "sigma_s")]
     public List<float>? SigmaS { get; set; }
 
-    /// <summary>"isotropic" or "hg" (Henyey-Greenstein). Default: "isotropic".</summary>
+    /// <summary>Phase function identifier. Default: "isotropic".</summary>
     [YamlMember(Alias = "phase")]
     public string? Phase { get; set; }
 
-    /// <summary>HG anisotropy parameter g ∈ (-1, 1). Ignored for isotropic.</summary>
+    /// <summary>HG / Schlick anisotropy parameter g ∈ (-1, 1). Ignored for isotropic and rayleigh.</summary>
     [YamlMember(Alias = "g")]
     public float G { get; set; } = 0f;
+
+    // ── double_hg phase ──────────────────────────────────────────────────
+    /// <summary>Double-HG forward lobe anisotropy.</summary>
+    [YamlMember(Alias = "g1")]
+    public float G1 { get; set; } = 0.85f;
+
+    /// <summary>Double-HG backward lobe anisotropy.</summary>
+    [YamlMember(Alias = "g2")]
+    public float G2 { get; set; } = -0.3f;
+
+    /// <summary>Double-HG weight of the forward lobe (0..1).</summary>
+    [YamlMember(Alias = "w")]
+    public float W { get; set; } = 0.5f;
+
+    // ── height_fog ────────────────────────────────────────────────────────
+    /// <summary>Reference altitude for <c>height_fog</c>: σ = sigma_a/sigma_s at y = y0.</summary>
+    [YamlMember(Alias = "y0")]
+    public float Y0 { get; set; } = 0f;
+
+    /// <summary>Exponential scale height H for <c>height_fog</c> (density halves every H · ln 2).</summary>
+    [YamlMember(Alias = "scale_height")]
+    public float ScaleHeight { get; set; } = 1f;
+
+    // ── procedural ────────────────────────────────────────────────────────
+    /// <summary>Spatial frequency multiplier of the noise for <c>procedural</c>.</summary>
+    [YamlMember(Alias = "frequency")]
+    public float Frequency { get; set; } = 1f;
+
+    /// <summary>Number of fBm octaves for <c>procedural</c> (1..8).</summary>
+    [YamlMember(Alias = "octaves")]
+    public int Octaves { get; set; } = 4;
+
+    /// <summary>Frequency multiplier between octaves for <c>procedural</c>.</summary>
+    [YamlMember(Alias = "lacunarity")]
+    public float Lacunarity { get; set; } = 2f;
+
+    /// <summary>Amplitude multiplier between octaves for <c>procedural</c>.</summary>
+    [YamlMember(Alias = "gain")]
+    public float Gain { get; set; } = 0.5f;
+
+    /// <summary>Noise seed for <c>procedural</c>. Same seed → identical volume.</summary>
+    [YamlMember(Alias = "seed")]
+    public int Seed { get; set; } = 0;
+
+    // ── grid ──────────────────────────────────────────────────────────────
+    /// <summary>World-space AABB min corner for <c>grid</c>.</summary>
+    [YamlMember(Alias = "bounds_min")]
+    public List<float>? BoundsMin { get; set; }
+
+    /// <summary>World-space AABB max corner for <c>grid</c>.</summary>
+    [YamlMember(Alias = "bounds_max")]
+    public List<float>? BoundsMax { get; set; }
+
+    /// <summary>Grid resolution along X for <c>grid</c>.</summary>
+    [YamlMember(Alias = "nx")]
+    public int Nx { get; set; } = 0;
+
+    /// <summary>Grid resolution along Y for <c>grid</c>.</summary>
+    [YamlMember(Alias = "ny")]
+    public int Ny { get; set; } = 0;
+
+    /// <summary>Grid resolution along Z for <c>grid</c>.</summary>
+    [YamlMember(Alias = "nz")]
+    public int Nz { get; set; } = 0;
+
+    /// <summary>Inline flat density array (length nx*ny*nz, z-major) for small <c>grid</c> volumes.</summary>
+    [YamlMember(Alias = "data")]
+    public List<float>? Data { get; set; }
+
+    /// <summary>Path to a <c>.vol</c> binary file (relative to the scene YAML) for larger <c>grid</c> volumes.</summary>
+    [YamlMember(Alias = "file")]
+    public string? File { get; set; }
 }
