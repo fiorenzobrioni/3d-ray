@@ -1894,9 +1894,11 @@ public class SceneLoader
 
         try
         {
-            return new GridMedium(sigmaA, sigmaS,
-                                  boundsMin.Value, boundsMax.Value,
-                                  nx, ny, nz, data!, phase, interp);
+            var medium = new GridMedium(sigmaA, sigmaS,
+                                        boundsMin.Value, boundsMax.Value,
+                                        nx, ny, nz, data!, phase, interp);
+            Info($"Global medium: grid interpolation = {interp.ToString().ToLowerInvariant()}");
+            return medium;
         }
         catch (Exception ex)
         {
