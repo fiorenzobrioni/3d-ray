@@ -4,13 +4,28 @@ using RayTracer.Core;
 namespace RayTracer.Volumetrics;
 
 /// <summary>
+/// Reconstruction filter used when sampling the density grid between voxels.
+///   * <see cref="Trilinear"/> — 8-tap C⁰ filter, default. Cheap; shows
+///     visible cell-boundary kinks at very low resolutions.
+///   * <see cref="Tricubic"/> — 64-tap Catmull-Rom cardinal spline. C¹
+///     continuous → no kinks, at ~8× the sample cost. Matches the
+///     "cubic"/"smooth" filter offered by Arnold, RenderMan and Houdini
+///     on low-resolution VDB grids.
+/// </summary>
+public enum GridInterpolation
+{
+    Trilinear,
+    Tricubic,
+}
+
+/// <summary>
 /// Heterogeneous medium backed by a regular 3D density grid inside an
 /// axis-aligned bounding box — the model used by Arnold's <c>volume</c> node
 /// (when reading VDB), V-Ray <c>VolumeGrid</c>, RenderMan <c>PxrVolume</c>
 /// grid mode, and PBRT <c>GridMedium</c>.
 ///
 /// The grid stores a scalar density d(i,j,k) ∈ [0, 1]. Local coefficients
-/// come from base values scaled by the trilinearly-interpolated density:
+/// come from base values scaled by the interpolated density:
 ///   σ_T(p) = σ_base_T · d(p),   σ_S(p) = σ_base_S · d(p).
 ///
 /// Free-path sampling uses delta tracking with majorant
@@ -33,6 +48,7 @@ public sealed class GridMedium : IMedium
     private readonly int _nx, _ny, _nz;
     private readonly float[] _density;
     private readonly float _maxDensity;
+    private readonly GridInterpolation _interpolation;
 
     private const int MaxIterations = 4096;
 
@@ -42,7 +58,8 @@ public sealed class GridMedium : IMedium
         Vector3 sigmaBaseA, Vector3 sigmaBaseS,
         Vector3 boundsMin, Vector3 boundsMax,
         int nx, int ny, int nz, float[] density,
-        IPhaseFunction phase)
+        IPhaseFunction phase,
+        GridInterpolation interpolation = GridInterpolation.Trilinear)
     {
         if (density.Length != nx * ny * nz)
             throw new ArgumentException(
@@ -65,6 +82,7 @@ public sealed class GridMedium : IMedium
 
         _nx = nx; _ny = ny; _nz = nz;
         _density = density;
+        _interpolation = interpolation;
 
         float maxD = 0f;
         for (int i = 0; i < density.Length; i++)
@@ -88,6 +106,14 @@ public sealed class GridMedium : IMedium
         return v;
     }
 
+    private float FetchClamped(int ix, int iy, int iz)
+    {
+        if (ix < 0) ix = 0; else if (ix > _nx - 1) ix = _nx - 1;
+        if (iy < 0) iy = 0; else if (iy > _ny - 1) iy = _ny - 1;
+        if (iz < 0) iz = 0; else if (iz > _nz - 1) iz = _nz - 1;
+        return Fetch(ix, iy, iz);
+    }
+
     private float DensityAt(Vector3 p)
     {
         Vector3 u = (p - _boundsMin) * _invExtent;  // normalised grid coords ∈ [0, 1]
@@ -98,6 +124,13 @@ public sealed class GridMedium : IMedium
         float gy = u.Y * (_ny - 1);
         float gz = u.Z * (_nz - 1);
 
+        return _interpolation == GridInterpolation.Tricubic
+            ? TricubicAt(gx, gy, gz)
+            : TrilinearAt(gx, gy, gz);
+    }
+
+    private float TrilinearAt(float gx, float gy, float gz)
+    {
         int ix = (int)MathF.Floor(gx);
         int iy = (int)MathF.Floor(gy);
         int iz = (int)MathF.Floor(gz);
@@ -125,6 +158,63 @@ public sealed class GridMedium : IMedium
         float d0  = d00  + fy * (d10  - d00 );
         float d1  = d01  + fy * (d11  - d01 );
         return d0 + fz * (d1 - d0);
+    }
+
+    /// <summary>
+    /// Separable tricubic reconstruction with a Catmull-Rom basis (τ = 0.5).
+    /// 16 interpolations along x → 4 along y → 1 along z = 64 taps.
+    /// Boundary voxels are addressed with clamp-to-edge so the filter stays
+    /// well-defined at the grid border. The Catmull-Rom spline can overshoot
+    /// slightly between voxels, so the result is clamped to [0, 1] — this is
+    /// required for the delta-tracking majorant invariant (σ_T ≤ σ_maj).
+    /// </summary>
+    private float TricubicAt(float gx, float gy, float gz)
+    {
+        int ix = (int)MathF.Floor(gx);
+        int iy = (int)MathF.Floor(gy);
+        int iz = (int)MathF.Floor(gz);
+        float fx = gx - ix;
+        float fy = gy - iy;
+        float fz = gz - iz;
+
+        Span<float> cy = stackalloc float[4];
+        Span<float> cz = stackalloc float[4];
+
+        for (int kk = -1; kk <= 2; kk++)
+        {
+            int zk = iz + kk;
+            for (int jj = -1; jj <= 2; jj++)
+            {
+                int yj = iy + jj;
+                float c0 = FetchClamped(ix - 1, yj, zk);
+                float c1 = FetchClamped(ix,     yj, zk);
+                float c2 = FetchClamped(ix + 1, yj, zk);
+                float c3 = FetchClamped(ix + 2, yj, zk);
+                cy[jj + 1] = CatmullRom(c0, c1, c2, c3, fx);
+            }
+            cz[kk + 1] = CatmullRom(cy[0], cy[1], cy[2], cy[3], fy);
+        }
+
+        float d = CatmullRom(cz[0], cz[1], cz[2], cz[3], fz);
+        if (d < 0f) d = 0f;
+        if (d > 1f) d = 1f;
+        return d;
+    }
+
+    /// <summary>
+    /// Catmull-Rom cardinal spline, τ = 0.5. Interpolates between p1 and p2
+    /// with p0 and p3 as tangent hints. Returns p1 at t=0 and p2 at t=1.
+    /// </summary>
+    private static float CatmullRom(float p0, float p1, float p2, float p3, float t)
+    {
+        float t2 = t * t;
+        float t3 = t2 * t;
+        // 0.5 * ((2p1) + (-p0 + p2)t + (2p0 - 5p1 + 4p2 - p3)t² + (-p0 + 3p1 - 3p2 + p3)t³)
+        return 0.5f * (
+            (2f * p1) +
+            (-p0 + p2) * t +
+            (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 +
+            (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
     }
 
     /// <summary>

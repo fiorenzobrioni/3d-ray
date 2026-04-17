@@ -187,7 +187,7 @@ world:
 
 ### 9.4.3 `grid` — densità da griglia 3D
 
-Densità campionata su una **griglia 3D regolare** con interpolazione trilineare dentro una AABB world-space. Fuori dall'AABB: vuoto. Analogo a PBRT `GridMedium`, Arnold `volume` (modalità VDB) e V-Ray `VolumeGrid`. Due forme: dati inline nello YAML o file binario esterno `.vol`.
+Densità campionata su una **griglia 3D regolare** dentro una AABB world-space, con filtro di ricostruzione selezionabile (trilineare di default, tricubico opzionale). Fuori dall'AABB: vuoto. Analogo a PBRT `GridMedium`, Arnold `volume` (modalità VDB) e V-Ray `VolumeGrid`. Due forme: dati inline nello YAML o file binario esterno `.vol`.
 
 **Forma A — inline (per griglie piccole, ≤ 8³):**
 
@@ -202,6 +202,7 @@ world:
     nx: 4
     ny: 4
     nz: 4
+    interpolation: "trilinear"   # Opzionale: "trilinear" (default) o "tricubic"
     phase: "hg"
     g: 0.5
     data:
@@ -219,6 +220,7 @@ world:
     type: "grid"
     sigma_a: [0.1, 0.1, 0.1]
     sigma_s: [3.0, 3.0, 3.2]
+    interpolation: "tricubic"    # Smoothing Catmull-Rom
     phase: "hg"
     g: 0.5
     file: "cloud-64x64x64.vol"   # Path relativo allo YAML
@@ -228,7 +230,12 @@ Il formato `.vol` (VOL1) è: magic `"VOL1"` (4 byte) + `nx`, `ny`, `nz` (3 × in
 
 **Uso tipico:** fumo localizzato, nuvole isolate, esplosioni, "asset" di fumo pre-simulati importati da altri software. La risoluzione della griglia non incide sul costo di rendering (solo sul parsing e sulla memoria).
 
-**Tip:** fuori dalla AABB il medium è vuoto → i raggi che non la intersecano sono gratis. Dimensiona bene i bounds per massimizzare le performance.
+**Filtro di ricostruzione (`interpolation`).** Quando un sample cade tra i voxel, 3D-Ray interpola la densità in uno dei due modi:
+
+- **`trilinear`** (default, 8 taps, C⁰). Economico. A risoluzioni basse (≤ 16³) la derivata del campo di densità è discontinua ai confini delle celle → si vedono bande lineari nel render. È un artefatto universale dei renderer volumetrici a basso budget (Arnold, V-Ray, RenderMan) e in produzione si risolve usando griglie fitte (128³–1024³) dove i salti sono sub-pixel.
+- **`tricubic`** (64 taps, C¹, cardinal spline Catmull-Rom con τ = 0.5). ~8× il costo per sample, ma il campo di densità è derivabile con continuità → niente kink anche su griglie minuscole. Il risultato viene clampato in `[0,1]` per preservare l'invariante del majorant del delta tracking. Alias accettati: `cubic`, `catmull-rom`, `smooth`. Corrisponde al filtro "cubic"/"smooth" offerto da Arnold, Houdini e RenderMan su VDB.
+
+**Tip:** fuori dalla AABB il medium è vuoto → i raggi che non la intersecano sono gratis. Dimensiona bene i bounds per massimizzare le performance. Se usi `tricubic`, aspettati render ~5–10% più lenti sui raggi che attraversano la AABB.
 
 ---
 

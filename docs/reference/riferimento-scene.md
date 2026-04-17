@@ -134,7 +134,7 @@ medium:
   g: 0.75
 ```
 
-**Tipo 4 — `grid`** (griglia 3D inline o da file `.vol`, delta tracking + trilinear):
+**Tipo 4 — `grid`** (griglia 3D inline o da file `.vol`, delta tracking + filtro di ricostruzione):
 ```yaml
 # Variante A — dati inline (utile per griglie piccole, es. ≤ 8³)
 medium:
@@ -146,6 +146,7 @@ medium:
   nx: 4                                # Risoluzione griglia (min. 2 per asse)
   ny: 4
   nz: 4
+  interpolation: "trilinear"           # Opzionale: "trilinear" (default) o "tricubic"
   phase: "hg"
   g: 0.5
   data: [0.0, 0.0, ...]                # Array di nx*ny*nz float in [0,1], layout z-major
@@ -155,12 +156,22 @@ medium:
   type: "grid"
   sigma_a: [0.1, 0.1, 0.1]
   sigma_s: [3.0, 3.0, 3.2]
+  interpolation: "tricubic"            # Smoothing Catmull-Rom; utile su griglie basso-res
   phase: "hg"
   g: 0.5
   file: "cloud-64x64x64.vol"           # Path relativo allo YAML; bounds e risoluzione dall'header del file
 ```
 
 **Formato `.vol` (VOL1):** magic string `"VOL1"` (4 byte) + `nx`, `ny`, `nz` (3 × int32 little-endian) + `bounds_min.{x,y,z}`, `bounds_max.{x,y,z}` (6 × float32 little-endian) + `nx·ny·nz` float32 di densità, layout z-major (y outer, x inner dentro ogni slice z).
+
+**Filtri di ricostruzione (`interpolation`):**
+
+| Valore | Taps | Continuità | Quando usarlo |
+|---|---|---|---|
+| `trilinear` (default) | 8 | C⁰ | Default. Cheap, ma a risoluzioni basse (≤16³) la derivata salta ai confini delle celle → bande lineari visibili. |
+| `tricubic` | 64 | C¹ | Catmull-Rom cardinal spline (τ = 0.5). ~8× costo per sample, ma rimuove i kink su griglie basso-res e levigna i dati binari. Risultato clampato in `[0,1]` per preservare l'invariante del majorant. Alias accettati: `cubic`, `catmull-rom`, `smooth`. |
+
+Su griglie ad alta risoluzione (128³+) con densità smoothly varying i due filtri convergono visivamente — `trilinear` è sufficiente. Su griglie piccole inline o su dati binari 0/1, `tricubic` è il modo standard per nascondere gli artefatti (analogo a Arnold/Houdini "cubic" filter su VDB).
 
 **Phase function disponibili:**
 

@@ -235,10 +235,11 @@ renders.
 
 ### 9.4.3 `grid` — Density from a 3D Grid
 
-Density sampled on a **regular 3D grid** with trilinear interpolation
-inside a world-space AABB. Outside the AABB: vacuum. Analogous to PBRT's
-`GridMedium`, Arnold's `volume` (VDB mode) and V-Ray's `VolumeGrid`. Two
-forms: inline data in the YAML or an external binary `.vol` file.
+Density sampled on a **regular 3D grid** inside a world-space AABB, with
+a selectable reconstruction filter (trilinear by default, tricubic as an
+option). Outside the AABB: vacuum. Analogous to PBRT's `GridMedium`,
+Arnold's `volume` (VDB mode) and V-Ray's `VolumeGrid`. Two forms: inline
+data in the YAML or an external binary `.vol` file.
 
 **Form A — inline (for small grids, ≤ 8³):**
 
@@ -253,6 +254,7 @@ world:
     nx: 4
     ny: 4
     nz: 4
+    interpolation: "trilinear"   # Optional: "trilinear" (default) or "tricubic"
     phase: "hg"
     g: 0.5
     data:
@@ -270,6 +272,7 @@ world:
     type: "grid"
     sigma_a: [0.1, 0.1, 0.1]
     sigma_s: [3.0, 3.0, 3.2]
+    interpolation: "tricubic"    # Catmull-Rom smoothing
     phase: "hg"
     g: 0.5
     file: "cloud-64x64x64.vol"   # Path relative to the YAML
@@ -285,8 +288,26 @@ a Python script.
 simulated smoke "assets" imported from other tools. Grid resolution does
 not affect render cost (only parse time and memory).
 
+**Reconstruction filter (`interpolation`).** When a sample falls between
+voxels, 3D-Ray interpolates density in one of two ways:
+
+- **`trilinear`** (default, 8 taps, C⁰). Cheap. At low resolutions
+  (≤ 16³) the density field has a discontinuous derivative at cell
+  boundaries → visible linear banding in the render. This is a universal
+  artifact of low-budget volumetric renderers (Arnold, V-Ray, RenderMan)
+  and in production it is solved by using dense grids (128³–1024³) where
+  the jumps are sub-pixel.
+- **`tricubic`** (64 taps, C¹, Catmull-Rom cardinal spline with τ = 0.5).
+  About 8× per-sample cost, but the density field is continuously
+  differentiable → no kinks even on tiny grids. The result is clamped to
+  `[0,1]` to preserve the delta-tracking majorant invariant. Accepted
+  aliases: `cubic`, `catmull-rom`, `smooth`. Matches the "cubic"/"smooth"
+  filter offered by Arnold, Houdini and RenderMan on VDB grids.
+
 **Tip:** outside the AABB the medium is vacuum → rays that miss it are
-free. Size the bounds carefully to maximize performance.
+free. Size the bounds carefully to maximize performance. With
+`tricubic`, expect renders to be ~5–10% slower on rays that cross the
+AABB.
 
 ---
 

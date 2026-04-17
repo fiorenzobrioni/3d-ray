@@ -1871,11 +1871,32 @@ public class SceneLoader
             return null;
         }
 
+        GridInterpolation interp = GridInterpolation.Trilinear;
+        string interpKey = (md.Interpolation ?? "trilinear").Trim().ToLowerInvariant();
+        switch (interpKey)
+        {
+            case "":
+            case "trilinear":
+            case "linear":
+                interp = GridInterpolation.Trilinear;
+                break;
+            case "tricubic":
+            case "cubic":
+            case "catmull-rom":
+            case "catmull_rom":
+            case "smooth":
+                interp = GridInterpolation.Tricubic;
+                break;
+            default:
+                Warn($"Medium 'grid' unknown interpolation '{md.Interpolation}'. Using 'trilinear'.");
+                break;
+        }
+
         try
         {
             return new GridMedium(sigmaA, sigmaS,
                                   boundsMin.Value, boundsMax.Value,
-                                  nx, ny, nz, data!, phase);
+                                  nx, ny, nz, data!, phase, interp);
         }
         catch (Exception ex)
         {

@@ -610,4 +610,12 @@ public class MediumData
     /// <summary>Path to a <c>.vol</c> binary file (relative to the scene YAML) for larger <c>grid</c> volumes.</summary>
     [YamlMember(Alias = "file")]
     public string? File { get; set; }
+
+    /// <summary>
+    /// Reconstruction filter used when sampling between voxels in a <c>grid</c>
+    /// medium. Accepts <c>trilinear</c> (default, C⁰, 8 taps) or <c>tricubic</c>
+    /// (C¹ Catmull-Rom, 64 taps — smoother at low resolutions, ~8× cost).
+    /// </summary>
+    [YamlMember(Alias = "interpolation")]
+    public string Interpolation { get; set; } = "trilinear";
 }

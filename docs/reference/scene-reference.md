@@ -126,7 +126,7 @@ medium:
   g: 0.75
 ```
 
-**Type 4 — `grid`** (3D grid inline or from `.vol` file, delta tracking + trilinear):
+**Type 4 — `grid`** (3D grid inline or from `.vol` file, delta tracking + reconstruction filter):
 ```yaml
 # Variant A — inline data (useful for small grids, e.g. ≤ 8³)
 medium:
@@ -138,6 +138,7 @@ medium:
   nx: 4                                # Grid resolution (min. 2 per axis)
   ny: 4
   nz: 4
+  interpolation: "trilinear"           # Optional: "trilinear" (default) or "tricubic"
   phase: "hg"
   g: 0.5
   data: [0.0, 0.0, ...]                # nx*ny*nz floats in [0,1], z-major layout
@@ -147,12 +148,22 @@ medium:
   type: "grid"
   sigma_a: [0.1, 0.1, 0.1]
   sigma_s: [3.0, 3.0, 3.2]
+  interpolation: "tricubic"            # Catmull-Rom smoothing; useful on low-res grids
   phase: "hg"
   g: 0.5
   file: "cloud-64x64x64.vol"           # Path relative to the YAML; bounds and resolution read from file header
 ```
 
 **`.vol` file format (VOL1):** magic string `"VOL1"` (4 bytes) + `nx`, `ny`, `nz` (3 × int32 little-endian) + `bounds_min.{x,y,z}`, `bounds_max.{x,y,z}` (6 × float32 little-endian) + `nx·ny·nz` float32 density values, z-major layout (y outer, x inner inside each z-slice).
+
+**Reconstruction filters (`interpolation`):**
+
+| Value | Taps | Continuity | When to use |
+|---|---|---|---|
+| `trilinear` (default) | 8 | C⁰ | Default. Cheap, but at low resolutions (≤16³) the derivative jumps at cell boundaries → visible linear banding. |
+| `tricubic` | 64 | C¹ | Catmull-Rom cardinal spline (τ = 0.5). ~8× per-sample cost, but removes kinks on low-res grids and smooths binary data. Result is clamped to `[0,1]` to preserve the delta-tracking majorant invariant. Accepted aliases: `cubic`, `catmull-rom`, `smooth`. |
+
+On high-resolution grids (128³+) with smoothly varying density the two filters are visually indistinguishable — `trilinear` is enough. On small inline grids or binary 0/1 data, `tricubic` is the standard way to hide artifacts (analogous to Arnold/Houdini "cubic" filter on VDB).
 
 **Available phase functions:**
 
