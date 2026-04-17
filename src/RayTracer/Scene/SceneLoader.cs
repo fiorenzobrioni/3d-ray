@@ -1767,7 +1767,7 @@ public class SceneLoader
             case "double_henyey_greenstein":
                 return new DoubleHenyeyGreensteinPhase(md.G1, md.G2, md.W);
             default:
-                Warn($"Unknown phase function '{phase}'. Supported: isotropic, hg, rayleigh, schlick, double_hg. Falling back to isotropic.");
+                Warn($"Unknown phase function '{md.Phase}'. Supported: isotropic, hg, rayleigh, schlick, double_hg. Falling back to isotropic.");
                 return new IsotropicPhase();
         }
     }
