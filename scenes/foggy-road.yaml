@@ -7,12 +7,12 @@ world:
   # Un cielo serale profondo, essenziale per far risaltare il bagliore dei lampioni
   background: [0.02, 0.03, 0.06]
   medium:
-    type: "homogeneous"
+    type: homogeneous
     # L'assorbimento scurisce la luce sulla distanza (nebbia scura/fuliggine)
     sigma_a: [0.015, 0.015, 0.015]
     # Lo scattering definisce quanto è "fitta" la nebbia
     sigma_s: [0.08, 0.08, 0.08]
-    phase: "hg"
+    phase: hg
     # Un valore alto di 'g' crea aloni molto concentrati attorno alle fonti di luce
     g: 0.85
 

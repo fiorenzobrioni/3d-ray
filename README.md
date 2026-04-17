@@ -38,14 +38,14 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🔩 **Cylinder** — cilindro finito con caps
 - 🍦 **Cone** — cono finito o tronco di cono con caps
 - 💊 **Capsule** — cilindro con estremità emisferiche
-- 🍩 **Torus** — toro con intersezione analitica esatta ([dettagli tecnici](./docs/technical/quartic-solver-and-torus.md))
+- 🍩 **Torus** — toro con intersezione analitica esatta
 - ⭕ **Annulus** — disco con foro circolare (rondella)
 - ⏺ **Disk** — disco piatto
 - ▰ **Quad** — quadrilatero parametrico
 - 🔺 **Triangle / SmoothTriangle** — triangolo con shading flat o interpolato per-vertex (Phong)
 - ▬ **Infinite Plane** — piano infinito per pavimenti e sfondi
 - 🏠 **Mesh (OBJ)** — modelli 3D da file Wavefront OBJ con smooth shading, UV mapping dell'artista e BVH interno dedicato
-- 🔷 **CSG (Constructive Solid Geometry)** — operazioni booleane su solidi: **Union** (A ∪ B), **Intersection** (A ∩ B) e **Subtraction** (A \ B), annidabili ricorsivamente per forme arbitrariamente complesse ([dettagli tecnici](./docs/technical/csg-boolean-operations.md))
+- 🔷 **CSG (Constructive Solid Geometry)** — operazioni booleane su solidi: **Union** (A ∪ B), **Intersection** (A ∩ B) e **Subtraction** (A \ B), annidabili ricorsivamente per forme arbitrariamente complesse
 
 ### Struttura della Scena
 - 🌳 **Scene Graph (Gruppi)** — Composizione gerarchica di oggetti con trasformazioni ereditate. Gruppi annidabili con primitive, CSG, mesh e altri gruppi.
