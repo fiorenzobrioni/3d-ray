@@ -46,8 +46,9 @@ let you sculpt complex shapes from simple primitives. Nested operations,
 per-child materials, and practical modeling recipes.
 
 ### [09 -- Participating Media (Volumetrics)](./09-volumetrics.md)
-Fog, mist, underwater haze. How absorption and scattering work, phase
-functions, and the YAML configuration for the global homogeneous medium.
+Fog, mist, underwater haze, clouds, localized smoke. Four medium types
+(homogeneous, height fog, procedural Perlin fBm, 3D grid) and five phase
+functions (isotropic, HG, Rayleigh, double-HG, Schlick).
 
 ### [10 -- Asset Libraries and Complete Scenes](./10-libraries-and-projects.md)
 The bundled library ecosystem: 800+ materials, 154+ object templates,

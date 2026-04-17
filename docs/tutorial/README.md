@@ -18,7 +18,7 @@ A complete 10-chapter guide to creating photorealistic images with the 3D-Ray en
 | 06 | [Lighting Mastery](./en/06-lighting.md) | 6 light types, soft shadows, three-point setup |
 | 07 | [Sky, Environment and Camera Effects](./en/07-sky-environment-camera.md) | Sky modes, HDRI, depth of field, multi-camera |
 | 08 | [Constructive Solid Geometry (CSG)](./en/08-csg.md) | Boolean operations, nested CSG |
-| 09 | [Participating Media (Volumetrics)](./en/09-volumetrics.md) | Fog, mist, absorption, scattering |
+| 09 | [Participating Media (Volumetrics)](./en/09-volumetrics.md) | Homogeneous / height / procedural / grid media, phase functions |
 | 10 | [Asset Libraries and Complete Scenes](./en/10-libraries-and-projects.md) | 800+ materials, 154+ templates, CLI reference |
 
 ---
@@ -39,5 +39,5 @@ Una guida completa in 10 capitoli alla creazione di immagini fotorealistiche con
 | 06 | [Padronanza dell'illuminazione](./it/06-lighting.md) | 6 tipi di luce, ombre morbide, schema a tre punti |
 | 07 | [Cielo, ambiente ed effetti fotocamera](./it/07-sky-environment-camera.md) | Modalità cielo, HDRI, profondità di campo, multi-camera |
 | 08 | [Constructive Solid Geometry (CSG)](./it/08-csg.md) | Operazioni booleane, CSG annidata |
-| 09 | [Mezzi partecipanti (Volumetrics)](./it/09-volumetrics.md) | Nebbia, foschia, assorbimento, scattering |
+| 09 | [Mezzi partecipanti (Volumetrics)](./it/09-volumetrics.md) | Mezzi homogeneous / height / procedural / grid, phase function |
 | 10 | [Librerie di asset e scene complete](./it/10-libraries-and-projects.md) | 800+ materiali, 154+ template, riferimento CLI |

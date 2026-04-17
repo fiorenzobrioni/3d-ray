@@ -46,8 +46,9 @@ scolpire forme complesse a partire da primitive semplici. Operazioni annidate,
 materiali per figlio e ricette di modellazione pratiche.
 
 ### [09 -- Mezzi partecipanti (Volumetrics)](./09-volumetrics.md)
-Nebbia, foschia, effetto sott'acqua. Come funzionano assorbimento e scattering,
-le funzioni di fase e la configurazione YAML per il mezzo omogeneo globale.
+Nebbia, foschia, effetto sott'acqua, nubi, fumo localizzato. Quattro tipi di
+mezzo (homogeneous, height fog, procedurale Perlin fBm, grid 3D) e cinque
+phase function (isotropic, HG, Rayleigh, double-HG, Schlick).
 
 ### [10 -- Librerie di asset e scene complete](./10-libraries-and-projects.md)
 L'ecosistema di librerie incluso: 800+ materiali, 154+ template di oggetti,

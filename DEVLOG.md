@@ -137,7 +137,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 | # | Feature | Stato |
 |---|---------|-------|
 | 18 | Motion Blur | ⬜ Da fare |
-| 19 | Volumetric Rendering | 🔧 In corso |
+| 19 | Volumetric Rendering | 🔧 In corso (Stage 1 + Stage 1.5 ✅) |
 | 20 | Subsurface Scattering | ⬜ Da fare |
 | 21 | CSG (Boolean Operations) | ✅ Completato |
 | 22 | Instancing | ✅ Completato |
@@ -145,16 +145,43 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 **18. Motion Blur ⬜** — Parametro temporale nel `Ray` con interpolazione posizioni.
 
 **19. Volumetric Rendering 🔧** — Fog/fumo con Beer-Lambert e free-path sampling.
-Stage 1:
+
+*Stage 1 ✅* — Fondamenta
 Medium globale opt-in via world.medium (default null ⇒ output bit-identical su scene esistenti, verificato).
 IMedium + HomogeneousMedium con Beer-Lambert + free-path sampling spectrally-aware (uniform channel pick, MIS-style pdf).
 Fasi: IsotropicPhase (1/4π) e HenyeyGreensteinPhase (g ∈ [-0.999, 0.999]).
 Renderer.TraceRay esteso: campiona evento volumetrico prima di shading; se scatter, NEE+phase+ricorsione; altrimenti surface path moltiplicato per Tr/pdf.
 ComputeDirectLighting attenua ogni shadow ray con medium.Transmittance lungo la distanza alla luce.
 MediumInterface placeholder per Stage 2 (boundary per-entità).
-Scena volumetric-fog-showcase.yaml per validare god-rays da spotlight.
+Scena `volumetric-01-homogeneous-showcase.yaml` (ex `volumetric-fog-showcase.yaml`) per validare god-rays da spotlight.
 
 Note implementative: il free-path channel-pick uniforme è la scelta più semplice; un MIS spectrally-balanced verrà valutato se compaiono firefly cromatici. Il path bit-identical è garantito perché quando _globalMedium == null non viene consumato alcun random number aggiuntivo e il branch volumetrico è completamente bypassato.
+
+*Stage 1.5 ✅* — Tipi aggiuntivi di medium e phase function (senza cambi architetturali)
+
+Estensione del catalogo di volumetrics senza toccare `IMedium` / `IPhaseFunction` / `HitRecord` / `Renderer`. Tutti i nuovi tipi si agganciano via dispatch in `SceneLoader` e implementano le interfacce esistenti.
+
+Nuovi `IMedium`:
+- **HeightFogMedium** — densità esponenziale in altezza `σ_T(y) = σ_T0·exp(-(y - y0)/H)`, integrale lungo il raggio in forma chiusa (niente delta tracking). Analogo ad Arnold `atmosphere_volume` / V-Ray `EnvironmentFog` / `PxrAtmosphere`. Showcase: `volumetric-02-height-fog-showcase.yaml`.
+- **HeterogeneousProceduralMedium** — densità da Perlin fBm (`PerlinNoise` utility interna, Ken Perlin improved 2002), delta tracking (Woodcock) per free-path + ratio tracking per transmittance. Analogo ad Arnold `standard_volume` + noise / PBRT `CloudMedium`. Showcase: `volumetric-03-procedural-showcase.yaml`.
+- **GridMedium** — griglia 3D dentro AABB world-space, slab-clip + trilinear interpolation + delta tracking con majorant `σ_base_T · maxDensity`. Formato custom `.vol` (VOL1) o dati inline YAML. Analogo a PBRT `GridMedium` / Arnold `volume` (VDB) / V-Ray `VolumeGrid`. Showcase: `volumetric-04-grid-showcase.yaml`.
+
+Nuove `IPhaseFunction`:
+- **RayleighPhase** — `(3/16π)(1 + cos²θ)`, closed-form inverse-CDF sampling. Per atmosfere planetarie.
+- **DoubleHenyeyGreensteinPhase** — combinazione `w·HG(g1) + (1-w)·HG(g2)`, selezione stocastica del lobo. Modello Nubis (Guerrilla) per cumuli.
+- **SchlickPhase** — approssimazione razionale di HG senza `sqrt`, `k ≈ 1.55g − 0.55g³`. Fast-HG stile RenderMan / Cycles.
+
+Estensione YAML: `medium.type ∈ {homogeneous, height_fog, procedural, grid}` (default `homogeneous`); `medium.phase ∈ {isotropic, hg, rayleigh, double_hg, schlick}`. Nessuna regressione: ogni path del `Renderer` non tocca i nuovi tipi.
+
+File: `src/RayTracer/Volumetrics/{HeightFogMedium,HeterogeneousProceduralMedium,GridMedium,PerlinNoise,RayleighPhase,DoubleHenyeyGreensteinPhase,SchlickPhase}.cs`. Dispatch esteso in `SceneLoader.BuildGlobalMedium` / `BuildPhaseFunction`.
+
+*Stage 2 ⬜* — Cambi architetturali (deferred)
+Richiedono modifiche a `IMedium` / `HitRecord` / `Renderer.TraceRay` e perciò sono rinviati:
+- EmissiveMedium / blackbody (estensione `IMedium` con `Emission`/`SampleEmission`, accumulo emissione nel path volumetrico).
+- MediumInterface per-entity (stack di medium per transitions inside/outside, campo dedicato su `HitRecord`).
+- SSS random-walk (dipende da MediumInterface per-entity).
+- OpenVDB / NanoVDB nativo (P/Invoke, dipendenza pesante).
+- Spectral tracking / null-scattering avanzato (refactor del path volumetrico).
 
 **20. Subsurface Scattering ⬜** — BSSRDF o random-walk SSS per materiali traslucidi (pelle, cera, marmo). Il parametro `subsurface` del Disney BSDF è già presente come approssimazione flat.
 

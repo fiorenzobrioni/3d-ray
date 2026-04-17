@@ -1,0 +1,155 @@
+# =============================================================================
+# Volumetrics #04 — Grid medium (fumo in un volume localizzato)
+# =============================================================================
+#
+# SCENA
+#   Una nuvoletta di fumo "tangibile" sospesa sopra il pavimento: un blob
+#   roughly sferico costruito da una griglia 3D inline 4×4×4 dentro un
+#   bounding box. Illuminazione combinata: point light warm dall'alto a destra
+#   e directional azzurrina (cielo) dall'alto a sinistra. Fuori dal bounding
+#   box il mondo è vuoto (trasmittanza = 1).
+#
+# EFFETTO NEBBIA
+#   Grid medium: densità discreta d(i,j,k) ∈ [0,1] campionata su voxel, con
+#   σ_T(p) = σ_base · d(p) per interpolazione trilineare. Il raggio è
+#   ritagliato sulla AABB della griglia (slab test) e il delta tracking usa
+#   un majorant σ_base · maxDensity. Analogo a PBRT GridMedium, Arnold volume
+#   (modalità VDB) e V-Ray VolumeGrid. Qui i dati sono inline nello YAML; per
+#   griglie più grandi usa `file: foo.vol` (formato binario VOL1).
+#
+# PARAMETRI DEL MEDIUM
+#   type: grid             - densità campionata su griglia regolare
+#   sigma_a: [0.1, 0.1, 0.1]
+#                          - coefficiente di assorbimento quando d = 1
+#                            (scuro → il fumo trattiene luce)
+#   sigma_s: [3.0, 3.0, 3.2]
+#                          - coefficiente di scattering quando d = 1 (alto →
+#                            il blob appare denso e luminoso dove c'è densità)
+#   bounds_min / bounds_max
+#                          - AABB world-space del volume. Fuori: vuoto.
+#   nx, ny, nz: 4          - risoluzione della griglia (qui 4³ = 64 voxel).
+#                            Minimo consentito: 2 per asse.
+#   phase: hg
+#   g: 0.5                 - forward scattering moderato
+#
+#   data (layout z-major):
+#     - 16 valori per z-slice (y outer, x inner) → 4×4 = 16 float per slice
+#     - 4 slice (z = 0..3) → 64 valori totali
+#     - Nel file: slice z=0 e z=3 tutte vuote, z=1 e z=2 hanno il blocchetto
+#       centrale 2×2 riempito a 1 (blob "squadrato" che la trilinear smussa)
+#
+# PROFILI DI RENDERING
+#   Il grid è delta tracking come il procedurale, ma ha un'AABB piccola:
+#   la maggior parte dei raggi manca completamente il volume → molto veloce.
+#   Rumore concentrato dove il raggio entra nella densità alta.
+#
+#   Preview:
+#     RayTracer -i volumetric-04-grid-showcase.yaml -w 400 -H 225 -s 64  -d 4 -S 1
+#   Standard:
+#     RayTracer -i volumetric-04-grid-showcase.yaml -w 800 -H 450 -s 256 -d 6 -S 1
+#   Final:
+#     RayTracer -i volumetric-04-grid-showcase.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
+#
+#   Tip: per griglie ad alta risoluzione (64³ o più) inline-YAML diventa
+#   ingestibile; esporta in formato binario VOL1 e referenzialo con
+#   `file: path/to/volume.vol` (path relativo allo YAML).
+#
+# =============================================================================
+
+world:
+  ambient_light: [0.02, 0.02, 0.03]
+  background:   [0.05, 0.05, 0.08]
+  ground: { y: 0, material: floor }
+  medium:
+    type: grid
+    sigma_a: [0.1, 0.1, 0.1]
+    sigma_s: [3.0, 3.0, 3.2]
+    bounds_min: [-1.5, 0.5, -1.5]
+    bounds_max: [ 1.5, 3.5,  1.5]
+    nx: 4
+    ny: 4
+    nz: 4
+    phase: hg
+    g: 0.5
+    # z-major layout: 16 values per z-slice (y outer, x inner).
+    data:
+      # z = 0 (bottom slice)
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      # z = 1
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
+      - 1.0
+      - 0.0
+      - 0.0
+      - 1.0
+      - 1.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      # z = 2
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
+      - 1.0
+      - 0.0
+      - 0.0
+      - 1.0
+      - 1.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      # z = 3 (top slice)
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+camera: { position: [0, 2.0, 7], look_at: [0, 2.0, 0], vup: [0,1,0], fov: 40, aperture: 0, focal_dist: 7 }
+materials:
+  - { id: floor, type: lambertian, albedo: [0.3, 0.3, 0.3] }
+lights:
+  - type: point
+    position: [3, 4, 3]
+    color: [1.0, 0.95, 0.85]
+    intensity: 120
+  - type: directional
+    direction: [-0.4, -1.0, -0.2]
+    color: [0.6, 0.7, 0.9]
+    intensity: 1.5

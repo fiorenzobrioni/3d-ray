@@ -110,7 +110,52 @@ The clamp uses **luminance-preserving scaling**, so it does not shift hue on bri
 
 ---
 
-### 8. **RELATED DOCUMENTATION**
+### 8. **TIPS FOR PARTICIPATING MEDIA (FOG / SMOKE)**
+
+3D-Ray supports four global medium types — `homogeneous`, `height_fog`,
+`procedural`, `grid` — plus phase functions `isotropic`, `hg`, `rayleigh`,
+`double_hg`, `schlick`. Each type has very different cost and noise
+characteristics.
+
+- **Homogeneous and height_fog are "free"** relative to normal rendering:
+  transmittance has a closed form, no delta tracking required. A Preview is
+  already usable; Standard is almost always sufficient.
+- **Procedural (Perlin fBm) and grid use delta tracking** (Woodcock) + ratio
+  tracking: noisier by construction, especially in dense regions.
+  - Preview shows obvious grain — fine for composition work.
+  - For publication-ready images aim for `-s 576` (24×24) or `-s 1024`.
+  - If noise concentrates in the light cone, raise `-s` (not `-S`).
+- **Firefly clamp with dense fog.** Media with high `sigma_s` and `-d 8+`
+  occasionally produce rare bright spikes. Lower `-C` to `25` or `15` without
+  hesitation: you lose little dynamic range and gain a much cleaner image.
+- **Do not raise `-d` for the fog.** The volumetric path is already handled
+  correctly at `-d 6–8`. More bounces in the fog = more cost, not more
+  realism (Russian Roulette terminates the walks anyway).
+- **Phase functions with g → 1 (e.g. HG g=0.95)** produce tighter, more
+  dramatic god-rays but **increase variance**: if cones look "noisy" lower
+  `g` to 0.7–0.85 or switch to `double_hg` with more balanced weights.
+- **Rayleigh** is cheap (closed-form) and useful for skies / atmosphere.
+  `double_hg` and `schlick` cost about the same as standard HG.
+- **Grid medium: watch the resolution.** Inline-YAML grids up to 8³ are fine;
+  above that switch to the binary `.vol` format (`file:` field instead of
+  `data:`). Grid resolution does not affect render cost — only parse time
+  and memory footprint.
+
+**Recommended profile for volumetric showcases:**
+```bash
+# Volumetric Preview (composition check, ~30-60 s)
+RayTracer -i scene.yaml -w 400 -H 225 -s 64 -d 4 -S 1
+
+# Volumetric Standard (review; delta-tracking still a bit noisy)
+RayTracer -i scene.yaml -w 800 -H 450 -s 400 -d 6 -S 1
+
+# Volumetric Final (publication-ready cleanliness)
+RayTracer -i scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4 -C 50
+```
+
+---
+
+### 9. **RELATED DOCUMENTATION**
 
 - [`docs/technical/path-tracing-and-lighting.md`](../technical/path-tracing-and-lighting.md) — internals of the path tracer, NEE, and Russian Roulette.
 - [`docs/technical/rendering-pipeline.md`](../technical/rendering-pipeline.md) — pipeline overview.
