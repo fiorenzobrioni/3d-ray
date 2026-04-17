@@ -76,6 +76,7 @@ world:
   ground: { y: 0, material: floor }
   medium:
     type: grid
+    interpolation: "tricubic"
     sigma_a: [0.05, 0.05, 0.05]
     sigma_s: [1.5, 1.5, 1.6]
     bounds_min: [-1.5, 0.5, -1.5]
