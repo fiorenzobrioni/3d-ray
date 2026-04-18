@@ -17,7 +17,7 @@ Questo documento è un riferimento tecnico completo per la creazione e configura
 ---
 
 ### 2. **STRUTTURA DEI FILE DI SCENA YAML**
-Ogni file YAML di scena ha **5 sezioni principali** (in questo ordine):
+Ogni file YAML di scena ha **5 sezioni principali** (ordine consigliato):
 ```yaml
 imports:    # (opzionale) File YAML esterni da caricare
 templates:  # (opzionale) Blueprint di oggetti riutilizzabili

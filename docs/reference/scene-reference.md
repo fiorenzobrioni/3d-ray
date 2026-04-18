@@ -15,7 +15,7 @@ This document is a comprehensive technical reference for creating and configurin
 - Hierarchical scene graphs (groups and templates)
 ---
 ### 2. **YAML SCENE FILE STRUCTURE**
-Every scene YAML file has **5 main sections** (in this order):
+Every scene YAML file has **5 main sections** (recommended order):
 ```yaml
 imports:    # (optional) External YAML files to load
 templates:  # (optional) Reusable object blueprints
