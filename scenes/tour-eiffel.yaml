@@ -1,0 +1,1239 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  TOUR EIFFEL — Parigi, Ora d'Oro
+#
+#  La Torre Eiffel al tramonto vista dal Champ de Mars: il reticolo di ferro
+#  battuto con le quattro gambe rastremate, le tre piattaforme di osservazione,
+#  l'arco decorativo al primo livello, il fusto centrale fino alla sommità e
+#  l'antenna. Il parco circostante con vialetti in ghiaia, panchine in ghisa,
+#  alberi potati alla francese e lampioni parigini completano l'ambientazione.
+#  Illuminazione golden hour con cielo dorato e ombre lunghe violacee.
+#
+#  Engine features demonstrated:
+#    • templates + instance  — albero, panchina, lampione
+#    • groups               — gambe multi-segmento, archi decorativi
+#    • rotate               — segmenti inclinati delle gambe
+#    • cameras (named)      — 5 inquadrature con DOF
+#    • sky gradient + sun   — ora d'oro parigina
+#
+#  Render consigliato:
+#    Preview: dotnet run ... -- -i scenes/tour-eiffel.yaml -w 400  -H 225  -s 64   -d 4  -S 1
+#    Finale:  dotnet run ... -- -i scenes/tour-eiffel.yaml -w 1920 -H 1080 -s 1024 -d 8  -S 4
+#    Ultra:   dotnet run ... -- -i scenes/tour-eiffel.yaml -w 3840 -H 2160 -s 1600 -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  WORLD — Ora d'oro parigina (golden hour, sole basso a sud-ovest)
+# ─────────────────────────────────────────────────────────────────────────────
+world:
+  ambient_light: [0.06, 0.05, 0.03]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.14, 0.22, 0.55]    # blu profondo allo zenit
+    horizon_color: [0.88, 0.58, 0.22]    # ambra caldo all'orizzonte
+    ground_color:  [0.18, 0.13, 0.08]    # terra scura sotto l'orizzonte
+    sun:
+      direction:  [-0.80, -0.25, -0.55]  # sole basso a sx-retro, ombre lunghe
+      color:      [1.0, 0.82, 0.42]      # luce dorata tipica golden hour
+      intensity:  22.0
+      size:       4.0
+      falloff:    20.0
+
+  # ── ALT-1: Pomeriggio estivo (cielo azzurro, sole alto) ───────────────────
+  # world:
+  #   ambient_light: [0.10, 0.09, 0.08]
+  #   sky:
+  #     type: "gradient"
+  #     zenith_color:  [0.15, 0.35, 0.78]
+  #     horizon_color: [0.70, 0.82, 1.00]
+  #     ground_color:  [0.30, 0.26, 0.20]
+  #     sun:
+  #       direction: [-0.4, -0.8, 0.3]
+  #       color: [1.0, 0.95, 0.85]
+  #       intensity: 16.0
+  #       size: 2.5
+  #       falloff: 40.0
+
+  # ── ALT-2: Notte con illuminazione artificiale ────────────────────────────
+  # world:
+  #   ambient_light: [0.008, 0.008, 0.015]
+  #   background: [0.01, 0.01, 0.03]
+
+  ground:
+    type: "infinite_plane"
+    material: "prato"
+    y: 0.0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CAMERAS — Tour Eiffel
+# ─────────────────────────────────────────────────────────────────────────────
+cameras:
+  # Vista classica tre quarti da sud-est — la torre intera nell'inquadratura
+  - name:       principale
+    position:   [220, 35, 320]
+    look_at:    [0, 130, 0]
+    fov:        48
+    aperture:   0.08
+    focal_dist: 400.0
+
+  # Dal Champ de Mars — prospettiva simmetrica frontale
+  - name:       champ_de_mars
+    position:   [0, 6, 420]
+    look_at:    [0, 130, 0]
+    fov:        42
+    aperture:   0.0
+    focal_dist: 1.0
+
+  # Angolo basso drammatico — dal di sotto della torre
+  - name:       dal_basso
+    position:   [18, 2, 55]
+    look_at:    [0, 180, 0]
+    fov:        70
+    aperture:   0.0
+    focal_dist: 1.0
+
+  # Primo piano sulla struttura all'altezza del primo livello
+  - name:       primo_piano
+    position:   [85, 55, 85]
+    look_at:    [32, 48, 32]
+    fov:        50
+    aperture:   0.04
+    focal_dist: 75.0
+
+  # Panoramica larga da nord-ovest — torre nel contesto del parco
+  - name:       panoramica
+    position:   [-280, 45, -180]
+    look_at:    [0, 140, 0]
+    fov:        55
+    aperture:   0.0
+    focal_dist: 1.0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  LIGHTS — Illuminazione golden hour (3 direzionali + accent)
+# ─────────────────────────────────────────────────────────────────────────────
+lights:
+  # Sole golden hour (key) — basso a sud-ovest, ombre lunghe
+  - type: "directional"
+    direction: [-0.80, -0.25, -0.55]
+    color: [1.0, 0.82, 0.42]
+    intensity: 0.95
+
+  # Fill cielo azzurro — luce complementare fredda dallo zenit
+  - type: "directional"
+    direction: [0.15, -0.95, 0.25]
+    color: [0.42, 0.60, 1.0]
+    intensity: 0.18
+
+  # Warm ground bounce — rimbalzo caldo dal terreno illuminato
+  - type: "directional"
+    direction: [0.0, 1.0, 0.0]
+    color: [1.0, 0.75, 0.35]
+    intensity: 0.06
+
+  # Accent sulla torre — illumina la facciata rivolta alla camera
+  - type: "point"
+    position: [100, 80, 200]
+    color: [1.0, 0.90, 0.70]
+    intensity: 800.0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  MATERIALS — Tour Eiffel
+# ─────────────────────────────────────────────────────────────────────────────
+materials:
+
+  # ── Ferro della torre ──────────────────────────────────────────────────────
+
+  # Ferro verniciato "brun Tour Eiffel" — il colore iconico della torre
+  - id: "ferro_eiffel"
+    type: "disney"
+    color: [0.38, 0.26, 0.15]
+    metallic: 0.85
+    roughness: 0.45
+    specular: 0.50
+
+  # Ferro più scuro — controventi, diagonali, dettagli strutturali
+  - id: "ferro_scuro"
+    type: "disney"
+    color: [0.28, 0.20, 0.12]
+    metallic: 0.82
+    roughness: 0.50
+    specular: 0.40
+
+  # Ferro chiaro — piattaforme, parapetti
+  - id: "ferro_chiaro"
+    type: "disney"
+    color: [0.44, 0.32, 0.20]
+    metallic: 0.80
+    roughness: 0.40
+    specular: 0.55
+
+  # ── Piattaforme e fondazioni ───────────────────────────────────────────────
+
+  # Pietra calcarea — basamenti delle gambe
+  - id: "pietra_base"
+    type: "lambertian"
+    color: [0.78, 0.74, 0.66]
+
+  # Pavimentazione piattaforme — legno/metallo
+  - id: "piano_piattaforma"
+    type: "lambertian"
+    color: [0.42, 0.36, 0.28]
+
+  # ── Parco e ambiente ───────────────────────────────────────────────────────
+
+  # Prato del Champ de Mars
+  - id: "prato"
+    type: "lambertian"
+    color: [0.15, 0.35, 0.10]
+
+  # Ghiaia vialetti
+  - id: "ghiaia"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 4.0
+      colors: [[0.62, 0.58, 0.50], [0.55, 0.52, 0.45]]
+
+  # Tronco albero
+  - id: "tronco"
+    type: "lambertian"
+    color: [0.28, 0.18, 0.09]
+
+  # Fogliame potate alla francese
+  - id: "fogliame"
+    type: "lambertian"
+    color: [0.12, 0.32, 0.08]
+
+  # Ghisa panchina — verde scuro parigino
+  - id: "ghisa_panchina"
+    type: "disney"
+    color: [0.05, 0.12, 0.05]
+    metallic: 0.75
+    roughness: 0.60
+    specular: 0.30
+
+  # Legno panchina — doghe verniciate
+  - id: "legno_panchina"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 3.0
+      colors: [[0.42, 0.28, 0.13], [0.34, 0.22, 0.10]]
+
+  # Ferro lampione — ghisa scura
+  - id: "ferro_lampione"
+    type: "metal"
+    color: [0.14, 0.12, 0.10]
+    fuzz: 0.50
+
+  # Luce lampione — globo luminoso caldo
+  - id: "luce_lampione"
+    type: "emissive"
+    color: [1.0, 0.88, 0.55]
+    intensity: 3.0
+
+  # Dettagli dorati — bordi piattaforme, cornici
+  - id: "oro_decoro"
+    type: "metal"
+    color: [0.88, 0.72, 0.14]
+    fuzz: 0.06
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  TEMPLATES — Elementi ripetuti
+# ─────────────────────────────────────────────────────────────────────────────
+templates:
+
+  # Albero parigino potato a sfera (platano/ippocastano)
+  - name: "albero_parigino"
+    type: "group"
+    children:
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.30
+        height: 4.5
+        material: "tronco"
+      - type: "sphere"
+        center: [0, 5.5, 0]
+        radius: 2.8
+        material: "fogliame"
+      - type: "sphere"
+        center: [-1.0, 5.0, 0.7]
+        radius: 2.2
+        material: "fogliame"
+      - type: "sphere"
+        center: [0.8, 6.0, -0.5]
+        radius: 2.4
+        material: "fogliame"
+      - type: "sphere"
+        center: [0.3, 7.0, 0.4]
+        radius: 1.6
+        material: "fogliame"
+
+  # Panchina parigina in ghisa e legno
+  - name: "panchina_parco"
+    type: "group"
+    children:
+      # Seduta
+      - type: "box"
+        scale: [1.80, 0.08, 0.48]
+        translate: [0, 0.46, 0]
+        material: "legno_panchina"
+      # Schienale
+      - type: "box"
+        scale: [1.80, 0.52, 0.06]
+        translate: [0, 0.78, 0.22]
+        material: "legno_panchina"
+      # Gambe ghisa
+      - type: "box"
+        scale: [0.06, 0.46, 0.06]
+        translate: [-0.78, 0.23, -0.16]
+        material: "ghisa_panchina"
+      - type: "box"
+        scale: [0.06, 0.46, 0.06]
+        translate: [-0.78, 0.23, 0.16]
+        material: "ghisa_panchina"
+      - type: "box"
+        scale: [0.06, 0.46, 0.06]
+        translate: [0.78, 0.23, -0.16]
+        material: "ghisa_panchina"
+      - type: "box"
+        scale: [0.06, 0.46, 0.06]
+        translate: [0.78, 0.23, 0.16]
+        material: "ghisa_panchina"
+      # Braccioli
+      - type: "box"
+        scale: [0.06, 0.22, 0.40]
+        translate: [-0.90, 0.60, 0.02]
+        material: "ghisa_panchina"
+      - type: "box"
+        scale: [0.06, 0.22, 0.40]
+        translate: [0.90, 0.60, 0.02]
+        material: "ghisa_panchina"
+
+  # Lampione parigino a colonna con globo
+  - name: "lampione_parigino"
+    type: "group"
+    children:
+      # Base
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.22
+        height: 0.30
+        material: "ferro_lampione"
+      # Fusto
+      - type: "cylinder"
+        center: [0, 0.30, 0]
+        radius: 0.08
+        height: 4.20
+        material: "ferro_lampione"
+      # Capitello
+      - type: "cylinder"
+        center: [0, 4.50, 0]
+        radius: 0.15
+        height: 0.12
+        material: "ferro_lampione"
+      # Globo luminoso
+      - type: "sphere"
+        center: [0, 4.85, 0]
+        radius: 0.22
+        material: "luce_lampione"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ENTITIES — Tour Eiffel + Ambiente
+# ─────────────────────────────────────────────────────────────────────────────
+entities:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  FONDAZIONI — 4 basamenti in pietra calcarea
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: "fondazione_se"
+    type: "box"
+    scale: [18.0, 5.0, 18.0]
+    translate: [47, 2.5, 47]
+    material: "pietra_base"
+
+  - name: "fondazione_sw"
+    type: "box"
+    scale: [18.0, 5.0, 18.0]
+    translate: [-47, 2.5, 47]
+    material: "pietra_base"
+
+  - name: "fondazione_ne"
+    type: "box"
+    scale: [18.0, 5.0, 18.0]
+    translate: [47, 2.5, -47]
+    material: "pietra_base"
+
+  - name: "fondazione_nw"
+    type: "box"
+    scale: [18.0, 5.0, 18.0]
+    translate: [-47, 2.5, -47]
+    material: "pietra_base"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  GAMBE — Sezione base (Y = 5 → 57) — 4 gambe × 4 segmenti inclinati
+  #
+  #  Ogni gamba va da ±47 (base) a ±32 (1° piattaforma), rastremandosi
+  #  verso il centro. Ogni segmento è un box inclinato con rotate.
+  #  Inclinazione per segmento: ≈ 13.8° in X e Z.
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Gamba SE (+X, +Z) ─────────────────────────────────────────────────────
+  - name: "gamba_se_0"
+    type: "box"
+    scale: [8.0, 14.5, 8.0]
+    translate: [45.8, 12.25, 45.8]
+    rotate: [-14.0, 0, 14.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_se_1"
+    type: "box"
+    scale: [7.5, 14.5, 7.5]
+    translate: [42.0, 25.75, 42.0]
+    rotate: [-13.0, 0, 13.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_se_2"
+    type: "box"
+    scale: [7.0, 14.0, 7.0]
+    translate: [38.2, 38.5, 38.2]
+    rotate: [-11.0, 0, 11.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_se_3"
+    type: "box"
+    scale: [6.5, 13.0, 6.5]
+    translate: [35.0, 50.5, 35.0]
+    rotate: [-8.0, 0, 8.0]
+    material: "ferro_eiffel"
+
+  # ── Gamba SW (-X, +Z) ─────────────────────────────────────────────────────
+  - name: "gamba_sw_0"
+    type: "box"
+    scale: [8.0, 14.5, 8.0]
+    translate: [-45.8, 12.25, 45.8]
+    rotate: [-14.0, 0, -14.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_sw_1"
+    type: "box"
+    scale: [7.5, 14.5, 7.5]
+    translate: [-42.0, 25.75, 42.0]
+    rotate: [-13.0, 0, -13.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_sw_2"
+    type: "box"
+    scale: [7.0, 14.0, 7.0]
+    translate: [-38.2, 38.5, 38.2]
+    rotate: [-11.0, 0, -11.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_sw_3"
+    type: "box"
+    scale: [6.5, 13.0, 6.5]
+    translate: [-35.0, 50.5, 35.0]
+    rotate: [-8.0, 0, -8.0]
+    material: "ferro_eiffel"
+
+  # ── Gamba NE (+X, -Z) ─────────────────────────────────────────────────────
+  - name: "gamba_ne_0"
+    type: "box"
+    scale: [8.0, 14.5, 8.0]
+    translate: [45.8, 12.25, -45.8]
+    rotate: [14.0, 0, 14.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_ne_1"
+    type: "box"
+    scale: [7.5, 14.5, 7.5]
+    translate: [42.0, 25.75, -42.0]
+    rotate: [13.0, 0, 13.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_ne_2"
+    type: "box"
+    scale: [7.0, 14.0, 7.0]
+    translate: [38.2, 38.5, -38.2]
+    rotate: [11.0, 0, 11.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_ne_3"
+    type: "box"
+    scale: [6.5, 13.0, 6.5]
+    translate: [35.0, 50.5, -35.0]
+    rotate: [8.0, 0, 8.0]
+    material: "ferro_eiffel"
+
+  # ── Gamba NW (-X, -Z) ─────────────────────────────────────────────────────
+  - name: "gamba_nw_0"
+    type: "box"
+    scale: [8.0, 14.5, 8.0]
+    translate: [-45.8, 12.25, -45.8]
+    rotate: [14.0, 0, -14.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_nw_1"
+    type: "box"
+    scale: [7.5, 14.5, 7.5]
+    translate: [-42.0, 25.75, -42.0]
+    rotate: [13.0, 0, -13.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_nw_2"
+    type: "box"
+    scale: [7.0, 14.0, 7.0]
+    translate: [-38.2, 38.5, -38.2]
+    rotate: [11.0, 0, -11.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_nw_3"
+    type: "box"
+    scale: [6.5, 13.0, 6.5]
+    translate: [-35.0, 50.5, -35.0]
+    rotate: [8.0, 0, -8.0]
+    material: "ferro_eiffel"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CONTROVENTI ORIZZONTALI — Sezione base (Y = 5 → 57)
+  #  Travi orizzontali tra gambe adiacenti a 3 altezze
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Livello Y ≈ 15 — controventi bassi
+  - name: "trave_sud_15"
+    type: "box"
+    scale: [78.0, 1.8, 1.8]
+    translate: [0, 15, 44]
+    material: "ferro_scuro"
+
+  - name: "trave_nord_15"
+    type: "box"
+    scale: [78.0, 1.8, 1.8]
+    translate: [0, 15, -44]
+    material: "ferro_scuro"
+
+  - name: "trave_est_15"
+    type: "box"
+    scale: [1.8, 1.8, 78.0]
+    translate: [44, 15, 0]
+    material: "ferro_scuro"
+
+  - name: "trave_ovest_15"
+    type: "box"
+    scale: [1.8, 1.8, 78.0]
+    translate: [-44, 15, 0]
+    material: "ferro_scuro"
+
+  # Livello Y ≈ 30 — controventi intermedi
+  - name: "trave_sud_30"
+    type: "box"
+    scale: [68.0, 1.5, 1.5]
+    translate: [0, 30, 40]
+    material: "ferro_scuro"
+
+  - name: "trave_nord_30"
+    type: "box"
+    scale: [68.0, 1.5, 1.5]
+    translate: [0, 30, -40]
+    material: "ferro_scuro"
+
+  - name: "trave_est_30"
+    type: "box"
+    scale: [1.5, 1.5, 68.0]
+    translate: [40, 30, 0]
+    material: "ferro_scuro"
+
+  - name: "trave_ovest_30"
+    type: "box"
+    scale: [1.5, 1.5, 68.0]
+    translate: [-40, 30, 0]
+    material: "ferro_scuro"
+
+  # Livello Y ≈ 45 — controventi alti (sotto gli archi)
+  - name: "trave_sud_45"
+    type: "box"
+    scale: [58.0, 1.5, 1.5]
+    translate: [0, 45, 37]
+    material: "ferro_scuro"
+
+  - name: "trave_nord_45"
+    type: "box"
+    scale: [58.0, 1.5, 1.5]
+    translate: [0, 45, -37]
+    material: "ferro_scuro"
+
+  - name: "trave_est_45"
+    type: "box"
+    scale: [1.5, 1.5, 58.0]
+    translate: [37, 45, 0]
+    material: "ferro_scuro"
+
+  - name: "trave_ovest_45"
+    type: "box"
+    scale: [1.5, 1.5, 58.0]
+    translate: [-37, 45, 0]
+    material: "ferro_scuro"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ARCHI DECORATIVI — sotto la 1ª piattaforma (Y ≈ 35 → 55)
+  #  Arco semplificato: montante sinistro inclinato + montante destro + chiave
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Arco faccia sud (tra gambe SE e SW, Z ≈ 36)
+  - name: "arco_sud_sx"
+    type: "box"
+    scale: [1.5, 22.0, 1.5]
+    translate: [-18, 44, 36]
+    rotate: [0, 0, -20]
+    material: "ferro_chiaro"
+
+  - name: "arco_sud_dx"
+    type: "box"
+    scale: [1.5, 22.0, 1.5]
+    translate: [18, 44, 36]
+    rotate: [0, 0, 20]
+    material: "ferro_chiaro"
+
+  - name: "arco_sud_chiave"
+    type: "box"
+    scale: [12.0, 2.0, 1.5]
+    translate: [0, 54, 36]
+    material: "ferro_chiaro"
+
+  # Arco faccia nord
+  - name: "arco_nord_sx"
+    type: "box"
+    scale: [1.5, 22.0, 1.5]
+    translate: [-18, 44, -36]
+    rotate: [0, 0, -20]
+    material: "ferro_chiaro"
+
+  - name: "arco_nord_dx"
+    type: "box"
+    scale: [1.5, 22.0, 1.5]
+    translate: [18, 44, -36]
+    rotate: [0, 0, 20]
+    material: "ferro_chiaro"
+
+  - name: "arco_nord_chiave"
+    type: "box"
+    scale: [12.0, 2.0, 1.5]
+    translate: [0, 54, -36]
+    material: "ferro_chiaro"
+
+  # Arco faccia est
+  - name: "arco_est_sx"
+    type: "box"
+    scale: [1.5, 22.0, 1.5]
+    translate: [36, 44, -18]
+    rotate: [20, 0, 0]
+    material: "ferro_chiaro"
+
+  - name: "arco_est_dx"
+    type: "box"
+    scale: [1.5, 22.0, 1.5]
+    translate: [36, 44, 18]
+    rotate: [-20, 0, 0]
+    material: "ferro_chiaro"
+
+  - name: "arco_est_chiave"
+    type: "box"
+    scale: [1.5, 2.0, 12.0]
+    translate: [36, 54, 0]
+    material: "ferro_chiaro"
+
+  # Arco faccia ovest
+  - name: "arco_ovest_sx"
+    type: "box"
+    scale: [1.5, 22.0, 1.5]
+    translate: [-36, 44, -18]
+    rotate: [20, 0, 0]
+    material: "ferro_chiaro"
+
+  - name: "arco_ovest_dx"
+    type: "box"
+    scale: [1.5, 22.0, 1.5]
+    translate: [-36, 44, 18]
+    rotate: [-20, 0, 0]
+    material: "ferro_chiaro"
+
+  - name: "arco_ovest_chiave"
+    type: "box"
+    scale: [1.5, 2.0, 12.0]
+    translate: [-36, 54, 0]
+    material: "ferro_chiaro"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  PRIMA PIATTAFORMA — Y = 57 (primo livello di osservazione)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: "piattaforma_1"
+    type: "box"
+    scale: [70.0, 2.5, 70.0]
+    translate: [0, 57, 0]
+    material: "piano_piattaforma"
+
+  - name: "piattaforma_1_bordo"
+    type: "box"
+    scale: [72.0, 1.2, 72.0]
+    translate: [0, 58.8, 0]
+    material: "ferro_chiaro"
+
+  # Parapetti 1ª piattaforma (4 lati)
+  - name: "parapetto_1_sud"
+    type: "box"
+    scale: [70.0, 3.0, 0.5]
+    translate: [0, 59.8, 35.5]
+    material: "ferro_scuro"
+
+  - name: "parapetto_1_nord"
+    type: "box"
+    scale: [70.0, 3.0, 0.5]
+    translate: [0, 59.8, -35.5]
+    material: "ferro_scuro"
+
+  - name: "parapetto_1_est"
+    type: "box"
+    scale: [0.5, 3.0, 70.0]
+    translate: [35.5, 59.8, 0]
+    material: "ferro_scuro"
+
+  - name: "parapetto_1_ovest"
+    type: "box"
+    scale: [0.5, 3.0, 70.0]
+    translate: [-35.5, 59.8, 0]
+    material: "ferro_scuro"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  GAMBE — Sezione intermedia (Y = 57 → 115) — verso la 2ª piattaforma
+  #  Le gambe proseguono da ±32 a ±20, con inclinazione ridotta
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Gamba SE ───────────────────────────────────────────────────────────────
+  - name: "gamba_se_4"
+    type: "box"
+    scale: [6.0, 30.0, 6.0]
+    translate: [28.5, 72, 28.5]
+    rotate: [-8.0, 0, 8.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_se_5"
+    type: "box"
+    scale: [5.5, 28.0, 5.5]
+    translate: [23.0, 101, 23.0]
+    rotate: [-6.0, 0, 6.0]
+    material: "ferro_eiffel"
+
+  # ── Gamba SW ───────────────────────────────────────────────────────────────
+  - name: "gamba_sw_4"
+    type: "box"
+    scale: [6.0, 30.0, 6.0]
+    translate: [-28.5, 72, 28.5]
+    rotate: [-8.0, 0, -8.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_sw_5"
+    type: "box"
+    scale: [5.5, 28.0, 5.5]
+    translate: [-23.0, 101, 23.0]
+    rotate: [-6.0, 0, -6.0]
+    material: "ferro_eiffel"
+
+  # ── Gamba NE ───────────────────────────────────────────────────────────────
+  - name: "gamba_ne_4"
+    type: "box"
+    scale: [6.0, 30.0, 6.0]
+    translate: [28.5, 72, -28.5]
+    rotate: [8.0, 0, 8.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_ne_5"
+    type: "box"
+    scale: [5.5, 28.0, 5.5]
+    translate: [23.0, 101, -23.0]
+    rotate: [6.0, 0, 6.0]
+    material: "ferro_eiffel"
+
+  # ── Gamba NW ───────────────────────────────────────────────────────────────
+  - name: "gamba_nw_4"
+    type: "box"
+    scale: [6.0, 30.0, 6.0]
+    translate: [-28.5, 72, -28.5]
+    rotate: [8.0, 0, -8.0]
+    material: "ferro_eiffel"
+
+  - name: "gamba_nw_5"
+    type: "box"
+    scale: [5.5, 28.0, 5.5]
+    translate: [-23.0, 101, -23.0]
+    rotate: [6.0, 0, -6.0]
+    material: "ferro_eiffel"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CONTROVENTI ORIZZONTALI — Sezione intermedia
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - name: "trave_sud_76"
+    type: "box"
+    scale: [48.0, 1.5, 1.5]
+    translate: [0, 76, 27]
+    material: "ferro_scuro"
+
+  - name: "trave_nord_76"
+    type: "box"
+    scale: [48.0, 1.5, 1.5]
+    translate: [0, 76, -27]
+    material: "ferro_scuro"
+
+  - name: "trave_est_76"
+    type: "box"
+    scale: [1.5, 1.5, 48.0]
+    translate: [27, 76, 0]
+    material: "ferro_scuro"
+
+  - name: "trave_ovest_76"
+    type: "box"
+    scale: [1.5, 1.5, 48.0]
+    translate: [-27, 76, 0]
+    material: "ferro_scuro"
+
+  - name: "trave_sud_100"
+    type: "box"
+    scale: [38.0, 1.2, 1.2]
+    translate: [0, 100, 22]
+    material: "ferro_scuro"
+
+  - name: "trave_nord_100"
+    type: "box"
+    scale: [38.0, 1.2, 1.2]
+    translate: [0, 100, -22]
+    material: "ferro_scuro"
+
+  - name: "trave_est_100"
+    type: "box"
+    scale: [1.2, 1.2, 38.0]
+    translate: [22, 100, 0]
+    material: "ferro_scuro"
+
+  - name: "trave_ovest_100"
+    type: "box"
+    scale: [1.2, 1.2, 38.0]
+    translate: [-22, 100, 0]
+    material: "ferro_scuro"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SECONDA PIATTAFORMA — Y = 115 (secondo livello di osservazione)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: "piattaforma_2"
+    type: "box"
+    scale: [44.0, 2.0, 44.0]
+    translate: [0, 115, 0]
+    material: "piano_piattaforma"
+
+  - name: "piattaforma_2_bordo"
+    type: "box"
+    scale: [46.0, 1.0, 46.0]
+    translate: [0, 116.5, 0]
+    material: "ferro_chiaro"
+
+  # Parapetti 2ª piattaforma
+  - name: "parapetto_2_sud"
+    type: "box"
+    scale: [44.0, 2.5, 0.4]
+    translate: [0, 117.7, 22.2]
+    material: "ferro_scuro"
+
+  - name: "parapetto_2_nord"
+    type: "box"
+    scale: [44.0, 2.5, 0.4]
+    translate: [0, 117.7, -22.2]
+    material: "ferro_scuro"
+
+  - name: "parapetto_2_est"
+    type: "box"
+    scale: [0.4, 2.5, 44.0]
+    translate: [22.2, 117.7, 0]
+    material: "ferro_scuro"
+
+  - name: "parapetto_2_ovest"
+    type: "box"
+    scale: [0.4, 2.5, 44.0]
+    translate: [-22.2, 117.7, 0]
+    material: "ferro_scuro"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  FUSTO SUPERIORE — (Y = 115 → 276) — struttura rastremata centrale
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Sezione inferiore del fusto (Y = 115 → 170)
+  - name: "fusto_basso"
+    type: "box"
+    scale: [18.0, 55.0, 18.0]
+    translate: [0, 142.5, 0]
+    material: "ferro_eiffel"
+
+  # Sezione intermedia (Y = 170 → 225)
+  - name: "fusto_medio"
+    type: "box"
+    scale: [14.0, 55.0, 14.0]
+    translate: [0, 197.5, 0]
+    material: "ferro_eiffel"
+
+  # Sezione superiore (Y = 225 → 264)
+  - name: "fusto_alto"
+    type: "box"
+    scale: [10.0, 39.0, 10.0]
+    translate: [0, 244.5, 0]
+    material: "ferro_eiffel"
+
+  # Colletto sotto la 3ª piattaforma (Y = 264 → 276)
+  - name: "fusto_colletto"
+    type: "box"
+    scale: [8.0, 12.0, 8.0]
+    translate: [0, 270, 0]
+    material: "ferro_eiffel"
+
+  # Controventi fusto a Y ≈ 150
+  - name: "trave_fusto_sud_150"
+    type: "box"
+    scale: [20.0, 1.2, 1.2]
+    translate: [0, 150, 9.5]
+    material: "ferro_scuro"
+
+  - name: "trave_fusto_nord_150"
+    type: "box"
+    scale: [20.0, 1.2, 1.2]
+    translate: [0, 150, -9.5]
+    material: "ferro_scuro"
+
+  - name: "trave_fusto_est_150"
+    type: "box"
+    scale: [1.2, 1.2, 20.0]
+    translate: [9.5, 150, 0]
+    material: "ferro_scuro"
+
+  - name: "trave_fusto_ovest_150"
+    type: "box"
+    scale: [1.2, 1.2, 20.0]
+    translate: [-9.5, 150, 0]
+    material: "ferro_scuro"
+
+  # Controventi fusto a Y ≈ 200
+  - name: "trave_fusto_sud_200"
+    type: "box"
+    scale: [16.0, 1.0, 1.0]
+    translate: [0, 200, 7.5]
+    material: "ferro_scuro"
+
+  - name: "trave_fusto_nord_200"
+    type: "box"
+    scale: [16.0, 1.0, 1.0]
+    translate: [0, 200, -7.5]
+    material: "ferro_scuro"
+
+  - name: "trave_fusto_est_200"
+    type: "box"
+    scale: [1.0, 1.0, 16.0]
+    translate: [7.5, 200, 0]
+    material: "ferro_scuro"
+
+  - name: "trave_fusto_ovest_200"
+    type: "box"
+    scale: [1.0, 1.0, 16.0]
+    translate: [-7.5, 200, 0]
+    material: "ferro_scuro"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  TERZA PIATTAFORMA — Y = 276 (terrazza sommitale)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: "piattaforma_3"
+    type: "box"
+    scale: [16.0, 1.5, 16.0]
+    translate: [0, 276, 0]
+    material: "piano_piattaforma"
+
+  - name: "piattaforma_3_bordo"
+    type: "box"
+    scale: [18.0, 0.8, 18.0]
+    translate: [0, 277.2, 0]
+    material: "oro_decoro"
+
+  # Parapetti sommitali
+  - name: "parapetto_3_sud"
+    type: "box"
+    scale: [16.0, 2.0, 0.3]
+    translate: [0, 278.3, 8.2]
+    material: "ferro_scuro"
+
+  - name: "parapetto_3_nord"
+    type: "box"
+    scale: [16.0, 2.0, 0.3]
+    translate: [0, 278.3, -8.2]
+    material: "ferro_scuro"
+
+  - name: "parapetto_3_est"
+    type: "box"
+    scale: [0.3, 2.0, 16.0]
+    translate: [8.2, 278.3, 0]
+    material: "ferro_scuro"
+
+  - name: "parapetto_3_ovest"
+    type: "box"
+    scale: [0.3, 2.0, 16.0]
+    translate: [-8.2, 278.3, 0]
+    material: "ferro_scuro"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ANTENNA — (Y = 276 → 324)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: "antenna_base"
+    type: "cylinder"
+    center: [0, 277, 0]
+    radius: 3.0
+    height: 15.0
+    material: "ferro_eiffel"
+
+  - name: "antenna_fusto"
+    type: "cylinder"
+    center: [0, 292, 0]
+    radius: 1.5
+    height: 25.0
+    material: "ferro_eiffel"
+
+  - name: "antenna_punta"
+    type: "cylinder"
+    center: [0, 317, 0]
+    radius: 0.6
+    height: 7.0
+    material: "ferro_scuro"
+
+  - name: "antenna_sfera"
+    type: "sphere"
+    center: [0, 324.5, 0]
+    radius: 0.8
+    material: "oro_decoro"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  CHAMP DE MARS — Parco, vialetti, arredi
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Viale centrale — ghiaia, dal Trocadéro alla torre
+  - name: "viale_centrale"
+    type: "box"
+    scale: [12.0, 0.08, 350.0]
+    translate: [0, 0.04, 220]
+    material: "ghiaia"
+
+  # Viale trasversale — perpendicolare, altezza 1ª piattaforma
+  - name: "viale_trasversale"
+    type: "box"
+    scale: [200.0, 0.08, 8.0]
+    translate: [0, 0.04, 120]
+    material: "ghiaia"
+
+  # Piazzale alla base della torre
+  - name: "piazzale_base"
+    type: "box"
+    scale: [120.0, 0.06, 120.0]
+    translate: [0, 0.03, 0]
+    material: "ghiaia"
+
+  # ── Alberi lungo il viale centrale ─────────────────────────────────────────
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [10, 0, 80]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [-10, 0, 80]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [10, 0, 120]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [-10, 0, 120]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [10, 0, 160]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [-10, 0, 160]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [10, 0, 200]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [-10, 0, 200]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [10, 0, 240]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [-10, 0, 240]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [10, 0, 280]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [-10, 0, 280]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [10, 0, 320]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [-10, 0, 320]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [10, 0, 360]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [-10, 0, 360]
+
+  # ── Alberi laterali ────────────────────────────────────────────────────────
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [55, 0, 80]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [-55, 0, 80]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [55, 0, 160]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [-55, 0, 160]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [55, 0, 240]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [-55, 0, 240]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [55, 0, 320]
+
+  - type: "instance"
+    template: "albero_parigino"
+    translate: [-55, 0, 320]
+
+  # ── Panchine lungo il viale ────────────────────────────────────────────────
+  - type: "instance"
+    template: "panchina_parco"
+    translate: [8, 0, 100]
+    rotate: [0, -90, 0]
+
+  - type: "instance"
+    template: "panchina_parco"
+    translate: [-8, 0, 100]
+    rotate: [0, 90, 0]
+
+  - type: "instance"
+    template: "panchina_parco"
+    translate: [8, 0, 180]
+    rotate: [0, -90, 0]
+
+  - type: "instance"
+    template: "panchina_parco"
+    translate: [-8, 0, 180]
+    rotate: [0, 90, 0]
+
+  - type: "instance"
+    template: "panchina_parco"
+    translate: [8, 0, 260]
+    rotate: [0, -90, 0]
+
+  - type: "instance"
+    template: "panchina_parco"
+    translate: [-8, 0, 260]
+    rotate: [0, 90, 0]
+
+  - type: "instance"
+    template: "panchina_parco"
+    translate: [8, 0, 340]
+    rotate: [0, -90, 0]
+
+  - type: "instance"
+    template: "panchina_parco"
+    translate: [-8, 0, 340]
+    rotate: [0, 90, 0]
+
+  # ── Lampioni parigini lungo il viale ───────────────────────────────────────
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [7, 0, 90]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [-7, 0, 90]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [7, 0, 140]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [-7, 0, 140]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [7, 0, 190]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [-7, 0, 190]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [7, 0, 240]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [-7, 0, 240]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [7, 0, 290]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [-7, 0, 290]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [7, 0, 340]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [-7, 0, 340]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [7, 0, 390]
+
+  - type: "instance"
+    template: "lampione_parigino"
+    translate: [-7, 0, 390]
