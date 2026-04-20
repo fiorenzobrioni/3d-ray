@@ -11,11 +11,15 @@ Un **BVH Node** è un contenitore che racchiude un gruppo di oggetti (foglie) o 
 Se un raggio non colpisce l'AABB del nodo, possiamo scartare istantaneamente tutto il contenuto del nodo senza testare i singoli oggetti al suo interno.
 
 ### 1.2 Algoritmo di Costruzione
-Il motore costruisce l'albero in modo ricorsivo:
+
+Il motore usa un **longest-axis object-median split**: una euristica semplice e priva di valutazione di costo (non è una vera SAH). L'albero viene costruito ricorsivamente:
+
 1.  **Analisi dei Centroidi**: Per l'insieme di oggetti corrente, calcoliamo il bounding box dei loro centroidi (i punti centrali degli AABB degli oggetti).
-2.  **Scelta dell'Asse (SAH-lite)**: Identifichiamo l'asse (X, Y o Z) con l'estensione maggiore. Questo assicura che lo "split" degli oggetti sia il più bilanciato possibile lungo la dimensione spaziale dominante.
-3.  **Ordinamento e Partizione**: Gli oggetti vengono ordinati lungo l'asse scelto e divisi in due metà (sinistra e destra).
+2.  **Scelta dell'Asse (longest extent)**: Identifichiamo l'asse (X, Y o Z) con l'estensione maggiore tra i centroidi. Questo assicura che lo split sia il più bilanciato possibile lungo la dimensione spaziale dominante.
+3.  **Ordinamento e Partizione (object median)**: Gli oggetti vengono ordinati lungo l'asse scelto e divisi a metà per *numero di oggetti* (median index). Non c'è ponderazione su area di superficie.
 4.  **Ricorsione**: Il processo continua fino a quando ogni nodo contiene uno o due oggetti al massimo.
+
+> **Nota**: la vera Surface Area Heuristic (SAH) — usata da PBRT, Embree, OptiX — valuta più candidate-split ponderando il costo di traversal con la probabilità di hit (proporzionale all'area dei figli). Implementarla è una possibile estensione futura.
 
 ---
 

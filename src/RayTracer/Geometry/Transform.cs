@@ -29,6 +29,12 @@ public class Transform : IHittable, ISamplable
     // Used in Sample() to convert object-space area to world-space area.
     private readonly float _absDetM;
 
+    // Cached world-space AABB. Computed once at construction since both the
+    // wrapped object's bbox and the matrix are immutable. Avoids the 8-corner
+    // re-projection on every BVH build/sort comparison (called O(N log N) times
+    // by BvhNode for Transform-wrapped primitives).
+    private readonly AABB _worldBox;
+
     /// <summary>
     /// The wrapped IHittable (in object space). Used by SceneLoader.IsInfinitePlane()
     /// to detect Transform-wrapped InfinitePlane instances (BUG-02 fix), and by
@@ -62,6 +68,8 @@ public class Transform : IHittable, ISamplable
             matrix.M12 * (matrix.M21 * matrix.M33 - matrix.M23 * matrix.M31) +
             matrix.M13 * (matrix.M21 * matrix.M32 - matrix.M22 * matrix.M31);
         _absDetM = MathF.Abs(det3x3);
+
+        _worldBox = ComputeWorldBox(_object.BoundingBox(), _transform);
     }
 
     public int Seed
@@ -99,11 +107,12 @@ public class Transform : IHittable, ISamplable
         return true;
     }
 
-    public AABB BoundingBox()
+    public AABB BoundingBox() => _worldBox;
+
+    private static AABB ComputeWorldBox(AABB local, Matrix4x4 transform)
     {
-        AABB bbox = _object.BoundingBox();
-        Vector3 min = bbox.Min;
-        Vector3 max = bbox.Max;
+        Vector3 min = local.Min;
+        Vector3 max = local.Max;
 
         // Transform all 8 corners of the AABB to find the new world-space AABB
         Span<Vector3> corners = stackalloc Vector3[]
@@ -123,7 +132,7 @@ public class Transform : IHittable, ISamplable
 
         foreach (var c in corners)
         {
-            Vector3 tc = Vector3.Transform(c, _transform);
+            Vector3 tc = Vector3.Transform(c, transform);
             newMin = Vector3.Min(newMin, tc);
             newMax = Vector3.Max(newMax, tc);
         }

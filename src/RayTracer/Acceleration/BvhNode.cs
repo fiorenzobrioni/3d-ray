@@ -5,13 +5,17 @@ namespace RayTracer.Acceleration;
 
 /// <summary>
 /// Bounding Volume Hierarchy node for O(log N) ray intersection.
-/// Recursively splits the object list by a random axis.
+/// Build heuristic: longest-axis object-median split — at each level the axis
+/// with the largest extent across object centroids is chosen, the objects in
+/// the range are sorted along that axis, and the range is split at the median
+/// index. This is *not* a Surface Area Heuristic (SAH); it is the simpler
+/// object-count median split popularised by "Ray Tracing in One Weekend".
 /// </summary>
 public class BvhNode : IHittable
 {
     public int Seed { get; set; }
     private readonly IHittable _left;
-    private readonly IHittable _right;
+    private readonly IHittable? _right;
     private readonly AABB _box;
 
     // OPT-06: pre-allocated static comparers — zero allocations during BVH construction.
@@ -33,7 +37,10 @@ public class BvhNode : IHittable
 
         if (span == 1)
         {
-            _left = _right = objects[start];
+            // Single-primitive leaf: keep _right null and short-circuit in Hit
+            // to avoid testing the same object twice.
+            _left = objects[start];
+            _right = null;
         }
         else if (span == 2)
         {
@@ -58,7 +65,9 @@ public class BvhNode : IHittable
             _right = new BvhNode(objects, mid, end);
         }
 
-        _box = AABB.SurroundingBox(_left.BoundingBox(), _right.BoundingBox());
+        _box = _right is null
+            ? _left.BoundingBox()
+            : AABB.SurroundingBox(_left.BoundingBox(), _right.BoundingBox());
     }
 
 
@@ -70,6 +79,9 @@ public class BvhNode : IHittable
             return false;
 
         bool hitLeft = _left.Hit(ray, tMin, tMax, ref rec);
+        if (_right is null)
+            return hitLeft;
+
         bool hitRight = _right.Hit(ray, tMin, hitLeft ? rec.T : tMax, ref rec);
         return hitLeft || hitRight;
     }
