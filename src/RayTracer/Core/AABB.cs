@@ -46,6 +46,20 @@ public readonly struct AABB
         return new AABB(min, max);
     }
 
+    /// <summary>
+    /// Surface area of the box (2·(w·h + w·d + h·d)). Used by the BVH
+    /// Surface-Area Heuristic to weight candidate splits by the probability
+    /// that a random ray hits each child — which is proportional to the
+    /// child's surface area over the parent's.
+    /// Returns 0 for an empty/degenerate box (any extent negative).
+    /// </summary>
+    public float SurfaceArea()
+    {
+        Vector3 d = Max - Min;
+        if (d.X < 0f || d.Y < 0f || d.Z < 0f) return 0f;
+        return 2f * (d.X * d.Y + d.X * d.Z + d.Y * d.Z);
+    }
+
     public static AABB Empty => new(
         new Vector3(float.MaxValue), new Vector3(float.MinValue));
 }

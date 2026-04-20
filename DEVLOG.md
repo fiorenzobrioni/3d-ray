@@ -33,7 +33,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 |---------|-------|
 | Path Tracer multi-bounce con profondità configurabile | ✅ |
 | Rendering parallelo multi-core (`Parallel.For`) | ✅ |
-| BVH (Bounding Volume Hierarchy) con longest-axis object-median split | ✅ |
+| BVH (Bounding Volume Hierarchy) con SAH binning, fat leaves, ordered traversal e build parallelo | ✅ |
 | Camera con thin lens model e Depth of Field (`aperture`, `focal_dist`) | ✅ |
 | Multi-Camera — lista `cameras:` con selezione da CLI (`--camera`) | ✅ |
 | Primitivi: Sphere, Box, Cylinder, Triangle, Quad, InfinitePlane | ✅ |
