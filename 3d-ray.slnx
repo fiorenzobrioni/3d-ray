@@ -1,6 +1,8 @@
 <Solution>
   <Folder Name="/RayTracer/">
     <Project Path="src/RayTracer/RayTracer.csproj" />
+    <Project Path="src/RayTracer.Benchmarks/RayTracer.Benchmarks.csproj" />
+    <Project Path="src/RayTracer.Tests/RayTracer.Tests.csproj" />
   </Folder>
   <Folder Name="/Tools/">
     <Project Path="src/Tools/TextureGen/TextureGen.csproj" />
