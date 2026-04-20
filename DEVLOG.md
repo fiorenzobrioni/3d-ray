@@ -230,6 +230,7 @@ Richiedono modifiche a `IMedium` / `HitRecord` / `Renderer.TraceRay` e perciò s
 
 ## ✅ TODO
 
+- [ ] Refactoring: spostare la proprietà `Seed` dall'interfaccia `IHittable` a un'interfaccia più appropriata (es. `ISeeded` o specifica per le primitive), in quanto nodi strutturali come `BvhNode` o `Transform` non necessitano di un seed.
 - [ ] Creare librerie di template: `scenes/libraries/chess-pieces.yaml`, `scenes/libraries/furniture.yaml`
 - [x] Feature #22 completa: Instancing con geometria condivisa a livello BVH (memory-efficient per scene con migliaia di istanze)
 - [ ] Fare una review completa dei tutorial (`tutorial/`): correttezza rispetto al codice, omissioni di feature, grammatica, esempi, indici.
