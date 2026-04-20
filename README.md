@@ -30,7 +30,7 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🎞️ **Tone Mapping ACES Filmic** — post-processing cinematografico con highlight naturali e colori ricchi.
 
 ### Accelerazione
-- 📦 **BVH (Bounding Volume Hierarchy)** — struttura di accelerazione spaziale per intersezioni raggio-oggetto in tempo **O(log N)**, attivata automaticamente in base alla complessità della scena.
+- 📦 **BVH (Bounding Volume Hierarchy)** — struttura di accelerazione spaziale con **Surface Area Heuristic (SAH) a binning**, fat leaves e *ordered traversal*. Build parallelizzato per scene grandi. Intersezioni raggio-oggetto in tempo **O(log N)**, attivazione automatica in base alla complessità della scena.
 
 ### Geometrie
 - ⚪ **Sphere** — sfera analitica
@@ -266,6 +266,8 @@ Per chi vuole approfondire gli aspetti matematici e le scelte implementative:
 - [**Strutture di Accelerazione (BVH)**](./docs/technical/acceleration-structures.md) — Bounding Volume Hierarchy e SAH.
 - [**Geometria del Toro e Risolutore di Quartiche**](./docs/technical/quartic-solver-and-torus.md) — Intersezione analitica raggio-toro e metodo di Ferrari.
 - [**CSG — Constructive Solid Geometry**](./docs/technical/csg-boolean-operations.md) — Algoritmo di classificazione a intervalli, gestione delle normali e alberi booleani annidati.
+- [**Benchmark (`RayTracer.Benchmarks`)**](./docs/technical/benchmarks.md) — Harness BenchmarkDotNet per AABB e BVH: esecuzione, output, aggiunta di nuovi benchmark.
+- [**Testing (`RayTracer.Tests`)**](./docs/technical/testing.md) — Suite xUnit: test di equivalenza BVH ↔ HittableList, differenziali AABB, pattern riusabili.
 
 ---
 
