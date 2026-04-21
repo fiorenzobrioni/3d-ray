@@ -700,6 +700,184 @@ public class DisneyBsdfTests
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Disney 2015: thin_walled / diff_trans / flatness / subsurface_color
+    // (phase 2 step 10)
+    //
+    // Thin-walled glass is a membrane: refraction is disabled, Fresnel is
+    // evaluated on both faces with η = 1/IOR, no Beer-Lambert medium switch
+    // is emitted. diff_trans adds a dedicated cosine-weighted back-hemisphere
+    // diffuse lobe tinted by subsurface_color. Flatness blends the Lambert
+    // shape toward the HK "flat" subsurface approximation independently of
+    // the Subsurface parameter.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void ThinWalled_RefractionKeepsIncomingDirection_NoMediumSwitch()
+    {
+        // Smooth thin-walled glass with a saturated tint. Refraction samples
+        // must continue along the incoming ray (no bending) and must NOT
+        // emit a medium-switch signal — thin-walled has no interior volume.
+        var material = new DisneyBsdf(
+            baseColor: new SolidColor(Vector3.One),
+            metallic: 0f, roughness: 0f, subsurface: 0f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 1f, ior: 1.5f,
+            anisotropic: 0f, anisotropicRotation: 0f,
+            transmissionColor: new SolidColor(new Vector3(0.4f, 0.8f, 0.2f)),
+            transmissionDepth: new FloatTexture(3f), // would be Beer-Lambert if not thin-walled
+            thinWalled: true);
+
+        var rec = MakeRec();
+        // Oblique view so refraction would normally bend the ray visibly.
+        var view = Vector3.Normalize(new Vector3(0.4f, 0.9f, 0.15f));
+        Vector3 expectedWo = -view; // incoming direction = -view
+
+        int refractions = 0;
+        for (int i = 0; i < 512; i++)
+        {
+            var s = material.Sample(view, rec);
+            if (!s.HasValue) continue;
+            var sample = s.Value;
+            float NdotWo = Vector3.Dot(rec.Normal, sample.Wo);
+            if (NdotWo < 0f && sample.IsDelta)
+            {
+                refractions++;
+                Assert.False(sample.NextSegmentAbsorption.HasValue,
+                    "thin-walled refraction must not signal a medium switch");
+                AssertVectorClose(sample.Wo, expectedWo, relTol: 1e-4f, absTol: 1e-5f);
+            }
+        }
+        Assert.True(refractions > 0,
+            "expected at least one thin-walled refraction sample");
+    }
+
+    [Fact]
+    public void DiffTrans_ProducesBackHemisphereSamples_WithSubsurfaceTint()
+    {
+        // A pure foliage material: all diffuse energy goes backward, tinted
+        // by subsurface_color (simulating the translucent green a leaf
+        // acquires when backlit).
+        var leafTint = new Vector3(0.2f, 0.7f, 0.1f);
+        var material = new DisneyBsdf(
+            baseColor: new SolidColor(new Vector3(0.4f, 0.6f, 0.25f)),
+            metallic: 0f, roughness: 1f, subsurface: 0f, specular: 0f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f,
+            anisotropic: 0f, anisotropicRotation: 0f,
+            subsurfaceColor: new SolidColor(leafTint),
+            diffTrans: 1f); // all diffuse goes backward
+
+        var rec = MakeRec();
+        var view = Vector3.UnitY;
+
+        int backSamples = 0;
+        for (int i = 0; i < 512; i++)
+        {
+            var s = material.Sample(view, rec);
+            if (!s.HasValue) continue;
+            float NdotWo = Vector3.Dot(rec.Normal, s.Value.Wo);
+            if (NdotWo < 0f) backSamples++;
+        }
+        Assert.True(backSamples > 100,
+            $"expected majority of samples to land in back hemisphere; got {backSamples}/512");
+
+        // Analytical BRDF at a back-hemisphere L should be leafTint · (1/π)
+        // scaled by diffAll (= 1 here). Reflection lobes must return zero.
+        var Lback = Vector3.Normalize(new Vector3(0.1f, -0.8f, 0.2f));
+        var f = material.Evaluate(view, Lback, rec);
+        var expected = leafTint / MathF.PI;
+        AssertVectorClose(f, expected, relTol: 1e-4f, absTol: 1e-6f);
+    }
+
+    [Fact]
+    public void DiffTrans_PdfIsPositiveAndNormalised()
+    {
+        // With diff_trans = 0.5 the PDF splits evenly between the forward
+        // diffuse hemisphere and the back diff_trans hemisphere. Integrated
+        // over the unit sphere it must still land on 1.
+        var material = new DisneyBsdf(
+            baseColor: new SolidColor(new Vector3(0.5f, 0.5f, 0.5f)),
+            metallic: 0f, roughness: 1f, subsurface: 0f, specular: 0f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f,
+            diffTrans: 0.5f);
+
+        var rec = MakeRec();
+        var view = Vector3.Normalize(new Vector3(0.2f, 0.9f, 0.1f));
+
+        var rng = new Random(4242);
+        const int N = 32768;
+        double sum = 0;
+        int backHits = 0;
+        for (int i = 0; i < N; i++)
+        {
+            var l = UniformSphereDirection(rng);
+            float p = material.Pdf(view, l, rec);
+            sum += p;
+            if (p > 0f && Vector3.Dot(rec.Normal, l) < 0f) backHits++;
+        }
+        double integral = 4.0 * Math.PI * sum / N;
+        Assert.InRange(integral, 0.92, 1.08);
+        Assert.True(backHits > 100,
+            $"expected back-hemisphere PDF to be nonzero for diff_trans > 0; got {backHits}");
+    }
+
+    [Fact]
+    public void Flatness_FullyFlat_MatchesSubsurfaceFullyOn()
+    {
+        // flatness=1 should produce the same Evaluate value as subsurface=1,
+        // flatness=0 — both collapse the Lambert↔HK-flat blend onto the
+        // pure HK-flat shape regardless of the other slider.
+        var baseColor = new SolidColor(new Vector3(0.7f, 0.5f, 0.3f));
+        var flatOnly = new DisneyBsdf(baseColor,
+            metallic: 0f, roughness: 0.6f, subsurface: 0f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0.5f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f,
+            flatness: 1f);
+        var ssOnly = new DisneyBsdf(baseColor,
+            metallic: 0f, roughness: 0.6f, subsurface: 1f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0.5f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f,
+            flatness: 0f);
+
+        var rec = MakeRec();
+        var V = Vector3.Normalize(new Vector3(0.3f, 1f, 0.2f));
+        var L = Vector3.Normalize(new Vector3(-0.15f, 0.85f, 0.5f));
+
+        AssertVectorClose(
+            flatOnly.Evaluate(V, L, rec),
+            ssOnly.Evaluate(V, L, rec),
+            relTol: 1e-5f, absTol: 1e-7f);
+    }
+
+    [Fact]
+    public void SubsurfaceColor_OverridesBaseColorInFlatLobe()
+    {
+        // With subsurface = 1 the diffuse shape is entirely HK-flat and is
+        // tinted by subsurface_color rather than base_color. A red base with
+        // a blue subsurface_color should produce a blue-biased diffuse
+        // response, not a red one.
+        var baseColor = new Vector3(0.9f, 0.1f, 0.1f); // red
+        var ssTint    = new Vector3(0.1f, 0.1f, 0.9f); // blue
+        var material = new DisneyBsdf(
+            baseColor: new SolidColor(baseColor),
+            metallic: 0f, roughness: 0.8f, subsurface: 1f, specular: 0f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f,
+            subsurfaceColor: new SolidColor(ssTint));
+
+        var rec = MakeRec();
+        var V = Vector3.Normalize(new Vector3(0.2f, 1f, 0.1f));
+        var L = Vector3.Normalize(new Vector3(-0.1f, 0.9f, 0.3f));
+
+        var f = material.Evaluate(V, L, rec);
+        // Blue component must dominate — exact value depends on the HK
+        // shape but the hue shift must be unmistakable.
+        Assert.True(f.Z > f.X * 2f,
+            $"subsurface_color tint should dominate: expected blue > 2× red; got {f}");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 

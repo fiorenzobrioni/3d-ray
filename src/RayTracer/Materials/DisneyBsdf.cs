@@ -83,6 +83,29 @@ public class DisneyBsdf : IMaterial
     public ITexture?    TransmissionColor   { get; }
     public FloatTexture TransmissionDepth   { get; }
 
+    // ── Disney 2015 additions (thin-walled, foliage, subsurface tint) ──────
+    // SubsurfaceColor: tints the Hanrahan-Krueger "flat" component of the
+    //   diffuse lobe in place of BaseColor. Used to decouple the overall
+    //   surface colour from the colour that light acquires as it scatters
+    //   through the interior (skin, wax, milk). When null the legacy
+    //   BaseColor-based tint is used for backward compatibility.
+    // DiffTrans: fraction of the diffuse lobe that transmits through to the
+    //   back hemisphere. Implements Disney 2015's thin-walled diffuse
+    //   transmission used for foliage, paper, fabric. Sampled as a dedicated
+    //   cosine-weighted back-hemisphere lobe.
+    // Flatness: blends the regular Lambertian diffuse shape with the flatter
+    //   HK subsurface approximation, independently of the Subsurface
+    //   parameter. Useful on materials that need a "waxy" feel without the
+    //   full subsurface blend.
+    // ThinWalled: disables refraction on the transmission lobe so the
+    //   transmitted ray continues in the incoming direction (no bending,
+    //   no medium switch). The Fresnel split is preserved so the grazing-
+    //   angle reflection of a thin slab still reads correctly.
+    public ITexture?    SubsurfaceColor    { get; }
+    public FloatTexture DiffTrans          { get; }
+    public FloatTexture Flatness           { get; }
+    public bool         ThinWalled         { get; }
+
     // ── Normal map support ──────────────────────────────────────────────────
     public NormalMapTexture? NormalMap { get; set; }
 
@@ -110,7 +133,11 @@ public class DisneyBsdf : IMaterial
         FloatTexture? anisotropic         = null,
         FloatTexture? anisotropicRotation = null,
         ITexture?     transmissionColor   = null,
-        FloatTexture? transmissionDepth   = null)
+        FloatTexture? transmissionDepth   = null,
+        ITexture?     subsurfaceColor     = null,
+        FloatTexture? diffTrans           = null,
+        FloatTexture? flatness            = null,
+        bool          thinWalled          = false)
     {
         BaseColor           = baseColor;
         Metallic            = metallic            ?? new FloatTexture(0f);
@@ -128,6 +155,10 @@ public class DisneyBsdf : IMaterial
         AnisotropicRotation = anisotropicRotation ?? new FloatTexture(0f);
         TransmissionColor   = transmissionColor;
         TransmissionDepth   = transmissionDepth   ?? new FloatTexture(0f);
+        SubsurfaceColor     = subsurfaceColor;
+        DiffTrans           = diffTrans           ?? new FloatTexture(0f);
+        Flatness            = flatness            ?? new FloatTexture(0f);
+        ThinWalled          = thinWalled;
 
         // Representative values — evaluated once, never per-shading-point.
         float repMetal     = Math.Clamp(Metallic.RepresentativeValue,  0f, 1f);
@@ -161,6 +192,8 @@ public class DisneyBsdf : IMaterial
         public readonly float Ior;
         public readonly float Anisotropic;          // 0 = isotropic, 1 = fully stretched along T
         public readonly float AnisotropicRotation;  // [0, 1], fraction of 2π around N
+        public readonly float DiffTrans;            // [0, 1] fraction of diffuse that transmits
+        public readonly float Flatness;             // [0, 1] Lambert → HK-flat blend
         public readonly float Alpha;                // roughness² (mean GGX α)
         public readonly float AlphaX;               // α along T (Burley 2012 §5.4)
         public readonly float AlphaY;               // α along B
@@ -172,7 +205,8 @@ public class DisneyBsdf : IMaterial
             float sheen, float sheenTint,
             float clearcoat, float clearcoatGloss,
             float specTrans, float ior,
-            float anisotropic, float anisotropicRotation)
+            float anisotropic, float anisotropicRotation,
+            float diffTrans, float flatness)
         {
             Metallic            = Math.Clamp(metallic, 0f, 1f);
             Roughness           = Math.Clamp(roughness, 0f, 1f);
@@ -187,6 +221,8 @@ public class DisneyBsdf : IMaterial
             Ior                 = MathF.Max(ior, 1.0001f);
             Anisotropic         = Math.Clamp(anisotropic, 0f, 1f);
             AnisotropicRotation = anisotropicRotation - MathF.Floor(anisotropicRotation); // [0, 1)
+            DiffTrans           = Math.Clamp(diffTrans, 0f, 1f);
+            Flatness            = Math.Clamp(flatness, 0f, 1f);
 
             Alpha          = MathF.Max(Roughness * Roughness, 0.001f);
             // Burley 2012 §5.4: aspect = sqrt(1 - 0.9·anisotropic), αx = α/aspect, αy = α·aspect.
@@ -217,7 +253,9 @@ public class DisneyBsdf : IMaterial
             SpecTrans.Value(u, v, p, seed),
             Ior.Value(u, v, p, seed),
             Anisotropic.Value(u, v, p, seed),
-            AnisotropicRotation.Value(u, v, p, seed));
+            AnisotropicRotation.Value(u, v, p, seed),
+            DiffTrans.Value(u, v, p, seed),
+            Flatness.Value(u, v, p, seed));
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -300,8 +338,8 @@ public class DisneyBsdf : IMaterial
 
         ShadingParams sp = EvalParams(rec);
 
-        // ── Disney diffuse lobe ─────────────────────────────────────────
-        float diffuseW = (1f - sp.Metallic) * (1f - sp.SpecTrans);
+        // ── Disney diffuse lobe (forward hemisphere, post diff_trans split) ─
+        float diffuseW = (1f - sp.Metallic) * (1f - sp.SpecTrans) * (1f - sp.DiffTrans);
         Vector3 diffuse = Vector3.Zero;
         if (diffuseW > 0f)
         {
@@ -373,24 +411,42 @@ public class DisneyBsdf : IMaterial
     // built on top of them (MIS, furnace tests, reciprocity tests) stay
     // consistent with the indirect-lighting path.
     //
-    // Transmission is currently excluded from Evaluate/Pdf (returns zero for
-    // L below the surface). The transmission lobe lives on a different
-    // hemisphere and requires its own half-vector construction and dispatch —
-    // that work belongs to the VNDF step and will land together with the
-    // generalised glass BSDF.
+    // Back-hemisphere L is handled by the diff_trans lobe only (Disney 2015):
+    // reflection and specular transmission are still excluded from the
+    // analytical PDF. Specular transmission uses a delta sample path that
+    // never invokes Evaluate/Pdf, so limiting the analytical form to the
+    // cosine-weighted back-hemisphere lobe keeps MIS unbiased without
+    // introducing a half-vector construction for refraction.
     // ═════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Evaluates the multi-lobe Disney BRDF f(V, L) at the hit point, without
-    /// the N·L cosine. Reflection lobes only — returns zero for L below the
-    /// surface.
+    /// Evaluates the multi-lobe Disney BSDF f(V, L) at the hit point, without
+    /// the N·L cosine. Covers all reflection lobes and — for diff_trans > 0 —
+    /// the back-hemisphere Lambertian diffuse-transmission lobe. Specular
+    /// transmission (glass refraction) is excluded and handled by the delta
+    /// sample path instead.
     /// </summary>
     public Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec)
     {
         Vector3 N = rec.Normal;
         float NdotL = Vector3.Dot(N, L);
         float NdotV = Vector3.Dot(N, V);
-        if (NdotL <= 0f || NdotV <= 0f) return Vector3.Zero;
+        if (NdotV <= 0f) return Vector3.Zero;
+
+        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        ShadingParams sp = EvalParams(rec);
+
+        // ── Back-hemisphere: diff_trans lobe only ──────────────────────────
+        // Disney 2015 diffuse transmission is a Lambertian lobe in the
+        // opposite hemisphere with the subsurface_color tint. All reflection
+        // lobes contribute zero here.
+        if (NdotL <= 0f)
+        {
+            float diffAll = (1f - sp.Metallic) * (1f - sp.SpecTrans);
+            if (diffAll <= 0f || sp.DiffTrans <= 0f) return Vector3.Zero;
+            Vector3 ssCol = ResolveSubsurfaceColor(rec, baseCol);
+            return ssCol * (diffAll * sp.DiffTrans / MathF.PI);
+        }
 
         Vector3 Hraw = V + L;
         if (Hraw.LengthSquared() < 1e-14f) return Vector3.Zero;
@@ -399,11 +455,11 @@ public class DisneyBsdf : IMaterial
         float VdotH = MathF.Max(Vector3.Dot(V, H), 0f);
         float LdotH = MathF.Max(Vector3.Dot(L, H), 0f);
 
-        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
-        ShadingParams sp = EvalParams(rec);
-
-        // ── Disney diffuse (retro-reflection Fresnel) ──────────────────────
-        float diffuseScalar = (1f - sp.Metallic) * (1f - sp.SpecTrans);
+        // ── Disney diffuse (retro-reflection Fresnel + HK flat blend) ──────
+        // Forward lobe energy = diffAll · (1 - diffTrans). The Lambert vs
+        // flat shape blend is driven by Subsurface and Flatness, and the
+        // flat component uses SubsurfaceColor when present.
+        float diffuseScalar = (1f - sp.Metallic) * (1f - sp.SpecTrans) * (1f - sp.DiffTrans);
         Vector3 diffuse = Vector3.Zero;
         if (diffuseScalar > 0f)
         {
@@ -411,7 +467,23 @@ public class DisneyBsdf : IMaterial
             float fI = SchlickWeight(NdotV);
             float fO = SchlickWeight(NdotL);
             float fd = (1f + (fd90 - 1f) * fI) * (1f + (fd90 - 1f) * fO);
-            diffuse = baseCol * (diffuseScalar * fd / MathF.PI);
+
+            // HK "flat" shape (Burley 2015) shared between the Subsurface
+            // and Flatness blends. Grazing-angle denominator clamped to keep
+            // the evaluation finite (matches ScatterDiffuse).
+            float fss90 = sp.Roughness * LdotH * LdotH;
+            float fssI = 1f + (fss90 - 1f) * fI;
+            float fssO = 1f + (fss90 - 1f) * fO;
+            float ssRaw = 1.25f * (fssI * fssO *
+                                   (1f / (NdotV + NdotL + 0.001f) - 0.5f) + 0.5f);
+            float ss = Math.Clamp(ssRaw, 0f, 2f);
+
+            Vector3 ssCol = ResolveSubsurfaceColor(rec, baseCol);
+            Vector3 lambert = baseCol * fd;
+            Vector3 flat    = ssCol   * ss;
+            Vector3 mixed   = Vector3.Lerp(lambert, flat, sp.Subsurface);
+            Vector3 shaped  = Vector3.Lerp(mixed,   flat, sp.Flatness);
+            diffuse = shaped * (diffuseScalar / MathF.PI);
         }
 
         // ── Sheen (separate lobe since FIX #7c) ────────────────────────────
@@ -464,30 +536,38 @@ public class DisneyBsdf : IMaterial
 
     /// <summary>
     /// Solid-angle PDF of sampling L from this BSDF's importance distribution,
-    /// given the view direction V. Reflection lobes only (mirrors Evaluate).
+    /// given the view direction V. Covers the same lobes as
+    /// <see cref="Evaluate"/>: reflection lobes in the forward hemisphere,
+    /// plus the cosine-weighted diff_trans lobe in the back hemisphere.
+    /// Specular transmission is excluded (delta sample path only).
     ///
     /// Combined PDF = Σ_lobe p_lobe · pdf_lobe(L), matching the one-sample
-    /// mixture estimator used in Scatter. Transmission is excluded — returning
-    /// zero for below-surface L keeps MIS unbiased for non-transmissive
-    /// materials; transmissive materials fall back to the Scatter-only path
-    /// until the VNDF + glass work lands.
+    /// mixture estimator used in Scatter.
     /// </summary>
     public float Pdf(Vector3 V, Vector3 L, HitRecord rec)
     {
         Vector3 N = rec.Normal;
         float NdotL = Vector3.Dot(N, L);
         float NdotV = Vector3.Dot(N, V);
-        if (NdotL <= 0f || NdotV <= 0f) return 0f;
+        if (NdotV <= 0f) return 0f;
+
+        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        ShadingParams sp = EvalParams(rec);
+        LobeWeights w = ComputeLobeWeights(baseCol, sp);
+
+        // Back hemisphere: only the diff_trans lobe samples there.
+        //   pdf_back = |NdotL| / π   (cosine-weighted about -N)
+        if (NdotL <= 0f)
+        {
+            if (w.DiffTrans <= 0f) return 0f;
+            return w.PDiffTrans * (-NdotL / MathF.PI);
+        }
 
         Vector3 Hraw = V + L;
         if (Hraw.LengthSquared() < 1e-14f) return 0f;
         Vector3 H = Vector3.Normalize(Hraw);
         float NdotH = MathF.Max(Vector3.Dot(N, H), 0f);
         float VdotH = MathF.Max(Vector3.Dot(V, H), 1e-7f);
-
-        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
-        ShadingParams sp = EvalParams(rec);
-        LobeWeights w = ComputeLobeWeights(baseCol, sp);
 
         // Cosine-weighted PDF shared by diffuse and sheen.
         float cosPdf = NdotL / MathF.PI;
@@ -550,15 +630,25 @@ public class DisneyBsdf : IMaterial
         if (NdotWo <= 0f)
         {
             Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
-            (_, Vector3 sigma) = ResolveTransmission(rec, baseCol);
-            // Non-null only when the segment actually crosses into a new
-            // medium; emitting null lets the renderer keep whatever interior
-            // state it was already tracking (harmless for vacuum↔vacuum).
-            bool hasSigma = sigma.X > 0f || sigma.Y > 0f || sigma.Z > 0f;
+            // Thin-walled surfaces never switch the interior medium (by
+            // definition they have no interior bulk). Emit null so the
+            // renderer preserves its current absorption state.
             Vector3? next;
-            if (rec.FrontFace && hasSigma) next = sigma;
-            else if (!rec.FrontFace) next = Vector3.Zero; // exiting → restore vacuum
-            else next = null;
+            if (ThinWalled)
+            {
+                next = null;
+            }
+            else
+            {
+                (_, Vector3 sigma) = ResolveTransmission(rec, baseCol);
+                // Non-null only when the segment actually crosses into a new
+                // medium; emitting null lets the renderer keep whatever interior
+                // state it was already tracking (harmless for vacuum↔vacuum).
+                bool hasSigma = sigma.X > 0f || sigma.Y > 0f || sigma.Z > 0f;
+                if (rec.FrontFace && hasSigma) next = sigma;
+                else if (!rec.FrontFace) next = Vector3.Zero; // exiting → restore vacuum
+                else next = null;
+            }
             return new BsdfSample(wo, scatterAttn, 1f, isDelta: true,
                                   nextSegmentAbsorption: next);
         }
@@ -646,12 +736,14 @@ public class DisneyBsdf : IMaterial
         public readonly float Clearcoat;
         public readonly float Sheen;
         public readonly float Multiscatter;
+        public readonly float DiffTrans;
         public readonly float Total;
 
-        public LobeWeights(float d, float s, float t, float c, float sh, float ms)
+        public LobeWeights(float d, float s, float t, float c, float sh, float ms, float dt)
         {
-            Diffuse = d; Specular = s; Transmission = t; Clearcoat = c; Sheen = sh; Multiscatter = ms;
-            float sum = d + s + t + c + sh + ms;
+            Diffuse = d; Specular = s; Transmission = t;
+            Clearcoat = c; Sheen = sh; Multiscatter = ms; DiffTrans = dt;
+            float sum = d + s + t + c + sh + ms + dt;
             Total = sum < 1e-6f ? 1f : sum;
         }
 
@@ -661,18 +753,28 @@ public class DisneyBsdf : IMaterial
         public float PClearcoat    => Clearcoat / Total;
         public float PSheen        => Sheen / Total;
         public float PMultiscatter => Multiscatter / Total;
+        public float PDiffTrans    => DiffTrans / Total;
     }
 
     private static LobeWeights ComputeLobeWeights(Vector3 baseCol, in ShadingParams sp)
     {
-        float diffuseW  = (1f - sp.Metallic) * (1f - sp.SpecTrans);
+        float diffuseAll = (1f - sp.Metallic) * (1f - sp.SpecTrans);
+        // Disney 2015: diffTrans splits the diffuse energy between the
+        // forward (ScatterDiffuse) and back-hemisphere (ScatterDiffTrans)
+        // lobes. Their selection probabilities scale accordingly so the
+        // one-sample estimator stays unbiased.
+        float diffuseW   = diffuseAll * (1f - sp.DiffTrans);
+        float diffTransW = diffuseAll * sp.DiffTrans;
         float specF0    = sp.Metallic > 0.5f ? MathUtils.Luminance(baseCol)
                           : 0.04f * sp.Specular;
         float specFloor = 0.1f * (1f - sp.SpecTrans * 0.9f); // FIX #8e
         float specularW = MathF.Max(specFloor, Lerp(specF0, 1f, sp.Metallic));
         float transW    = (1f - sp.Metallic) * sp.SpecTrans;
         float clearW    = sp.Clearcoat * 0.04f;
-        float sheenW    = sp.Sheen * 0.25f * diffuseW;
+        // Sheen stays proportional to the full diffuse pool (forward + back),
+        // since grazing-angle sheen is present on both sides of a thin-walled
+        // leaf or on the front of a foliage surface regardless of diffTrans.
+        float sheenW    = sp.Sheen * 0.25f * diffuseAll;
         // Multi-scattering compensation lobe: scaled by the specular lobe's
         // expected energy deficit (1 - E_avg(α)). Near-mirror surfaces have
         // E_avg ≈ 1 and the lobe receives ~0% of samples; rough surfaces
@@ -682,7 +784,7 @@ public class DisneyBsdf : IMaterial
         float alphaIso   = MathF.Sqrt(sp.AlphaX * sp.AlphaY);
         float eAvg       = EnergyCompensationLut.SampleEAvg(alphaIso);
         float msW        = specularW * (1f - eAvg);
-        return new LobeWeights(diffuseW, specularW, transW, clearW, sheenW, msW);
+        return new LobeWeights(diffuseW, specularW, transW, clearW, sheenW, msW, diffTransW);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -706,6 +808,7 @@ public class DisneyBsdf : IMaterial
         float pTrans        = w.PTransmission;
         float pSheen        = w.PSheen;
         float pMultiscatter = w.PMultiscatter;
+        float pDiffTrans    = w.PDiffTrans;
         // pClearcoat = remainder
 
         float rnd = MathUtils.RandomFloat();
@@ -730,6 +833,10 @@ public class DisneyBsdf : IMaterial
         else if ((rnd -= pSheen) < pMultiscatter)
         {
             result = ScatterMultiscatter(rec, baseCol, N, V, sp, pMultiscatter, out attenuation, out scattered);
+        }
+        else if ((rnd -= pMultiscatter) < pDiffTrans)
+        {
+            result = ScatterDiffTrans(rec, baseCol, N, V, sp, pDiffTrans, out attenuation, out scattered);
         }
         else
         {
@@ -810,14 +917,72 @@ public class DisneyBsdf : IMaterial
         float ssRaw = 1.25f * (fssI * fssO * (1f / (NdotV + NdotL + 0.001f) - 0.5f) + 0.5f);
         float ss = Math.Clamp(ssRaw, 0f, 2f);
 
-        // Blend Lambert and subsurface — result is now bounded [0, ~2.5]
-        float diffuseFactor = Lerp(fd, ss, sp.Subsurface);
-        attenuation = baseCol * diffuseFactor;
+        // Disney 2015: the HK "flat" shape uses subsurface_color when the
+        // artist supplied one, otherwise falls back to base_color — so
+        // skin/milk/wax carry an internal colour that's decoupled from the
+        // surface albedo. Flatness pushes toward the flat shape even when
+        // Subsurface = 0 (e.g. matte paper, unfinished wood).
+        Vector3 ssCol = ResolveSubsurfaceColor(rec, baseCol);
+        Vector3 diffLambert = baseCol * fd;
+        Vector3 diffFlat    = ssCol   * ss;
+        Vector3 diffMixed   = Vector3.Lerp(diffLambert, diffFlat, sp.Subsurface);
+        attenuation = Vector3.Lerp(diffMixed, diffFlat, sp.Flatness);
+
+        // Disney 2015: diff_trans splits the diffuse lobe between forward
+        // and back hemispheres. The forward lobe (this path) keeps only
+        // (1 - diffTrans) of the energy; the remaining diffTrans is sampled
+        // by ScatterDiffTrans. Leaves, paper, fabric: diffTrans ≈ 0.5-0.7.
+        attenuation *= (1f - sp.DiffTrans);
 
         // Compensate for lobe selection probability (multi-lobe MIS).
         float safeProbability = MathF.Max(probability, 0.1f);
         attenuation /= safeProbability;
 
+        return true;
+    }
+
+    /// <summary>
+    /// Resolves the per-hit subsurface tint: sampled from
+    /// <see cref="SubsurfaceColor"/> when present, else a passthrough of
+    /// <paramref name="baseCol"/>. Used by both the approximate subsurface
+    /// shape in <see cref="ScatterDiffuse"/> and the diffuse-transmission
+    /// lobe for foliage materials.
+    /// </summary>
+    private Vector3 ResolveSubsurfaceColor(HitRecord rec, Vector3 baseCol)
+        => SubsurfaceColor == null
+            ? baseCol
+            : SubsurfaceColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+
+    /// <summary>
+    /// Disney 2015 diffuse transmission (diff_trans) lobe. Cosine-weighted
+    /// sampling about the INVERTED normal so the scattered ray enters the
+    /// back hemisphere — the physical behaviour of a translucent thin
+    /// surface like a leaf, a paper lampshade, or a silk curtain: light
+    /// that hits the front face is partially forward-scattered (Lambert)
+    /// and partially transmitted and re-emitted from the back side.
+    ///
+    /// Value is <c>ssCol · (1/π)</c> (Lambertian in the back hemisphere).
+    /// The per-lobe energy carried is <c>diffTrans</c>, and the estimator
+    /// weight is <c>f · |NdotL| / pdf</c> = <c>ssCol · diffTrans</c> once the
+    /// cosine and cosine-PDF cancel.
+    /// </summary>
+    private bool ScatterDiffTrans(HitRecord rec, Vector3 baseCol, Vector3 N, Vector3 V,
+                                  in ShadingParams sp, float probability,
+                                  out Vector3 attenuation, out Ray scattered)
+    {
+        // Cosine-weighted hemisphere about -N (back side).
+        Vector3 scatterDir = -N + MathUtils.RandomUnitVector();
+        if (MathUtils.NearZero(scatterDir))
+            scatterDir = -N;
+        scatterDir = Vector3.Normalize(scatterDir);
+
+        scattered = new Ray(rec.Point, scatterDir);
+
+        Vector3 ssCol = ResolveSubsurfaceColor(rec, baseCol);
+        attenuation = ssCol * sp.DiffTrans;
+
+        float safeProbability = MathF.Max(probability, 0.05f);
+        attenuation /= safeProbability;
         return true;
     }
 
@@ -953,13 +1118,24 @@ public class DisneyBsdf : IMaterial
     /// the hit produces a neutral attenuation and the renderer tracks
     /// Beer-Lambert absorption along the next interior ray segment via
     /// <see cref="BsdfSample.NextSegmentAbsorption"/>.
+    ///
+    /// When <see cref="ThinWalled"/> is set the surface is treated as a
+    /// membrane with no interior (leaves, paper, lampshade fabric):
+    /// refraction is disabled (transmitted direction stays parallel to the
+    /// incoming ray), Fresnel is evaluated with the outside-to-inside
+    /// η = 1/IOR regardless of face, and no medium-switch signal is emitted.
+    /// Beer-Lambert absorption is also skipped — a thin wall has no bulk
+    /// volume to absorb through.
     /// </summary>
     private bool ScatterTransmission(Ray rayIn, HitRecord rec, Vector3 baseCol,
                                      Vector3 N, Vector3 V, in ShadingParams sp,
                                      float probability,
                                      out Vector3 attenuation, out Ray scattered)
     {
-        float eta = rec.FrontFace ? (1f / sp.Ior) : sp.Ior;
+        // Thin-walled geometry has no interior: both faces reflect/transmit
+        // with the same 1/IOR Fresnel, so we don't flip η across faces.
+        float eta = ThinWalled ? (1f / sp.Ior)
+                              : (rec.FrontFace ? (1f / sp.Ior) : sp.Ior);
         Vector3 unitDir = Vector3.Normalize(rayIn.Direction);
 
         // For rough transmissive materials, sample a visible microfacet
@@ -990,7 +1166,9 @@ public class DisneyBsdf : IMaterial
         float cosTheta = MathF.Min(Vector3.Dot(-unitDir, Ht), 1f);
         float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
 
-        bool cannotRefract = eta * sinTheta > 1f;
+        // Thin-walled geometry never undergoes total internal reflection:
+        // there is no "inside" for the ray to be trapped in.
+        bool cannotRefract = !ThinWalled && eta * sinTheta > 1f;
         Vector3 direction;
 
         float fr = cannotRefract ? 1f : MathUtils.FresnelDielectric(cosTheta, eta);
@@ -998,6 +1176,13 @@ public class DisneyBsdf : IMaterial
         {
             // Total internal reflection or Fresnel reflection
             direction = MathUtils.Reflect(unitDir, Ht);
+        }
+        else if (ThinWalled)
+        {
+            // Thin-walled transmission: ray passes through without bending.
+            // Matches Disney 2015's thin_walled_glass treatment and is also
+            // what USDPreviewSurface produces when thinWalled = true.
+            direction = unitDir;
         }
         else
         {

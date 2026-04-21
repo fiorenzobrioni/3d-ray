@@ -287,6 +287,37 @@ public class MaterialData
     [YamlMember(Alias = "transmission_depth")]
     public float TransmissionDepth { get; set; } = 0f;
 
+    // ── Disney 2015: subsurface / leaf-like thin-walled extensions ──────────
+    // subsurface_color: tints the approximate subsurface lobe (used in place
+    //   of base_color inside the Hanrahan-Krueger blend). Defaults to null,
+    //   in which case base_color is used — matching the pre-Disney-2015
+    //   single-colour convention.
+    // subsurface_radius: per-channel mean free path (world units) for the
+    //   future random-walk SSS implementation. Currently unused by the
+    //   approximate SS lobe but persisted in the material so existing scene
+    //   files authored for the full SSS pipeline can be loaded.
+    // thin_walled: treats the surface as having no interior (leaves, paper,
+    //   fabric). Disables refraction; enables diff_trans backface sampling.
+    // diff_trans: fraction of the diffuse lobe that transmits through the
+    //   surface — relevant when thin_walled or when modelling foliage.
+    // flatness: blends the Lambert diffuse lobe with a flat (subsurface-
+    //   approximation) lobe. 1.0 gives the classic HK "flat" look even for
+    //   surfaces that don't use the full subsurface parameter.
+    [YamlMember(Alias = "subsurface_color")]
+    public List<float>? SubsurfaceColor { get; set; }
+
+    [YamlMember(Alias = "subsurface_radius")]
+    public List<float>? SubsurfaceRadius { get; set; }
+
+    [YamlMember(Alias = "thin_walled")]
+    public bool ThinWalled { get; set; } = false;
+
+    [YamlMember(Alias = "diff_trans")]
+    public float DiffTrans { get; set; } = 0f;
+
+    [YamlMember(Alias = "flatness")]
+    public float Flatness { get; set; } = 0f;
+
     // ── Disney BSDF parameter textures (optional; override the scalar) ──────
     // Each *_texture block is parsed as a full TextureData, so any existing
     // texture type (solid, image, checker, noise, marble, wood) works. When
@@ -336,6 +367,15 @@ public class MaterialData
 
     [YamlMember(Alias = "transmission_depth_texture")]
     public TextureData? TransmissionDepthTexture { get; set; }
+
+    [YamlMember(Alias = "subsurface_color_texture")]
+    public TextureData? SubsurfaceColorTexture { get; set; }
+
+    [YamlMember(Alias = "diff_trans_texture")]
+    public TextureData? DiffTransTexture { get; set; }
+
+    [YamlMember(Alias = "flatness_texture")]
+    public TextureData? FlatnessTexture { get; set; }
 
     // ── Mix Material parameters ─────────────────────────────────────────────
 

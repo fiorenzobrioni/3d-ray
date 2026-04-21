@@ -805,7 +805,11 @@ public class SceneLoader
                                 anisotropic:         DisneyParam(m.Anisotropic,         m.AnisotropicTexture,         sceneDir),
                                 anisotropicRotation: DisneyParam(m.AnisotropicRotation, m.AnisotropicRotationTexture, sceneDir),
                                 transmissionColor:   DisneyColorParam(m.TransmissionColor, m.TransmissionColorTexture, sceneDir),
-                                transmissionDepth:   DisneyParam(m.TransmissionDepth,   m.TransmissionDepthTexture,   sceneDir)),
+                                transmissionDepth:   DisneyParam(m.TransmissionDepth,   m.TransmissionDepthTexture,   sceneDir),
+                                subsurfaceColor:     DisneyColorParam(m.SubsurfaceColor, m.SubsurfaceColorTexture,    sceneDir),
+                                diffTrans:           DisneyParam(m.DiffTrans,           m.DiffTransTexture,           sceneDir),
+                                flatness:            DisneyParam(m.Flatness,            m.FlatnessTexture,            sceneDir),
+                                thinWalled:          m.ThinWalled),
             _            => new Lambertian(albedo)
         };
 
