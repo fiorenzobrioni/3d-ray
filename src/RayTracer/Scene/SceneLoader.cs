@@ -791,17 +791,19 @@ public class SceneLoader
             "disney" or "disney_bsdf" or "pbr"
                          => new DisneyBsdf(
                                 albedo,
-                                metallic:       DisneyParam(m.Metallic,       m.MetallicTexture,       sceneDir),
-                                roughness:      DisneyParam(m.Roughness,      m.RoughnessTexture,      sceneDir),
-                                subsurface:     DisneyParam(m.Subsurface,     m.SubsurfaceTexture,     sceneDir),
-                                specular:       DisneyParam(m.Specular,       m.SpecularTexture,       sceneDir),
-                                specularTint:   DisneyParam(m.SpecularTint,   m.SpecularTintTexture,   sceneDir),
-                                sheen:          DisneyParam(m.Sheen,          m.SheenTexture,          sceneDir),
-                                sheenTint:      DisneyParam(m.SheenTint,      m.SheenTintTexture,      sceneDir),
-                                clearcoat:      DisneyParam(m.Clearcoat,      m.ClearcoatTexture,      sceneDir),
-                                clearcoatGloss: DisneyParam(m.ClearcoatGloss, m.ClearcoatGlossTexture, sceneDir),
-                                specTrans:      DisneyParam(m.SpecTrans,      m.SpecTransTexture,      sceneDir),
-                                ior:            DisneyParam(m.DisneyIor,      m.IorTexture,            sceneDir)),
+                                metallic:            DisneyParam(m.Metallic,            m.MetallicTexture,            sceneDir),
+                                roughness:           DisneyParam(m.Roughness,           m.RoughnessTexture,           sceneDir),
+                                subsurface:          DisneyParam(m.Subsurface,          m.SubsurfaceTexture,          sceneDir),
+                                specular:            DisneyParam(m.Specular,            m.SpecularTexture,            sceneDir),
+                                specularTint:        DisneyParam(m.SpecularTint,        m.SpecularTintTexture,        sceneDir),
+                                sheen:               DisneyParam(m.Sheen,               m.SheenTexture,               sceneDir),
+                                sheenTint:           DisneyParam(m.SheenTint,           m.SheenTintTexture,           sceneDir),
+                                clearcoat:           DisneyParam(m.Clearcoat,           m.ClearcoatTexture,           sceneDir),
+                                clearcoatGloss:      DisneyParam(m.ClearcoatGloss,      m.ClearcoatGlossTexture,      sceneDir),
+                                specTrans:           DisneyParam(m.SpecTrans,           m.SpecTransTexture,           sceneDir),
+                                ior:                 DisneyParam(m.DisneyIor,           m.IorTexture,                 sceneDir),
+                                anisotropic:         DisneyParam(m.Anisotropic,         m.AnisotropicTexture,         sceneDir),
+                                anisotropicRotation: DisneyParam(m.AnisotropicRotation, m.AnisotropicRotationTexture, sceneDir)),
             _            => new Lambertian(albedo)
         };
 

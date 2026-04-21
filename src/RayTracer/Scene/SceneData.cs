@@ -264,6 +264,15 @@ public class MaterialData
     [YamlMember(Alias = "ior")]
     public float DisneyIor { get; set; } = 1.5f;
 
+    [YamlMember(Alias = "anisotropic")]
+    public float Anisotropic { get; set; } = 0f;
+
+    // Rotation of the anisotropic highlight around the surface normal, expressed
+    // as a fraction of a full turn in [0, 1). Values outside the range are
+    // wrapped at sample time.
+    [YamlMember(Alias = "anisotropic_rotation")]
+    public float AnisotropicRotation { get; set; } = 0f;
+
     // ── Disney BSDF parameter textures (optional; override the scalar) ──────
     // Each *_texture block is parsed as a full TextureData, so any existing
     // texture type (solid, image, checker, noise, marble, wood) works. When
@@ -301,6 +310,12 @@ public class MaterialData
 
     [YamlMember(Alias = "ior_texture")]
     public TextureData? IorTexture { get; set; }
+
+    [YamlMember(Alias = "anisotropic_texture")]
+    public TextureData? AnisotropicTexture { get; set; }
+
+    [YamlMember(Alias = "anisotropic_rotation_texture")]
+    public TextureData? AnisotropicRotationTexture { get; set; }
 
     // ── Mix Material parameters ─────────────────────────────────────────────
 

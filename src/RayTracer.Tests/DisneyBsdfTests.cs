@@ -347,6 +347,157 @@ public class DisneyBsdfTests
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Anisotropy (phase 2 step 7)
+    //
+    // With anisotropic > 0 the specular NDF is stretched along the tangent
+    // axis (αx = α/aspect > αy = α·aspect), so highlights widen along T and
+    // tighten along B. We verify the direction-dependent asymmetry with a
+    // pure metal at V = N, sampling two L directions of equal NdotL — one
+    // pushed toward +T, the other toward +B. The T-aligned direction must
+    // land in a region of higher NDF energy, so Evaluate must be strictly
+    // greater along T than along B.
+    //
+    // Reciprocity and PDF-integration are also checked once more under
+    // anisotropy to confirm the tangent-space formulation has not broken
+    // either invariant.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private static HitRecord MakeRecWithTBN(Vector3 N, Vector3 T)
+    {
+        var bit = Vector3.Normalize(Vector3.Cross(N, T));
+        var tan = Vector3.Cross(bit, N); // re-orthogonalised tangent
+        return new HitRecord
+        {
+            Normal = Vector3.Normalize(N),
+            Tangent = Vector3.Normalize(tan),
+            Bitangent = bit,
+            Point = Vector3.Zero,
+            LocalPoint = Vector3.Zero,
+            U = 0f,
+            V = 0f,
+            ObjectSeed = 0,
+            FrontFace = true,
+        };
+    }
+
+    [Fact]
+    public void Anisotropic_StretchesLobeAlongTangent()
+    {
+        // Smooth metal (α ≈ 0.09) with heavy anisotropy: αx ≈ 0.21, αy ≈ 0.039.
+        var baseColor = new SolidColor(new Vector3(1f, 1f, 1f));
+        var material = new DisneyBsdf(
+            baseColor,
+            metallic: 1f, roughness: 0.3f, subsurface: 0f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f,
+            anisotropic: 0.9f, anisotropicRotation: 0f);
+
+        // Shading frame with T = +X, N = +Y → B = -Z.
+        var rec = MakeRecWithTBN(N: Vector3.UnitY, T: Vector3.UnitX);
+
+        // V along the normal so the perfect-reflection direction is +N. Any
+        // off-normal L then sits symmetrically in the lobe and the asymmetry
+        // isolates to the (αx, αy) anisotropy.
+        var V = Vector3.UnitY;
+        const float off = 0.35f;
+        float up = MathF.Sqrt(1f - off * off);
+
+        // Push L equally along T (+X) and along B-axis (±Z). Both have the
+        // same NdotL and the same reflection-half-vector elevation, so any
+        // difference in Evaluate is attributable to αx ≠ αy.
+        var Ltan = Vector3.Normalize(new Vector3(off, up, 0f));
+        var Lbit = Vector3.Normalize(new Vector3(0f, up, off));
+
+        var fT = material.Evaluate(V, Ltan, rec);
+        var fB = material.Evaluate(V, Lbit, rec);
+
+        // Lobe is stretched along T → the T-aligned sample is still inside
+        // the bright core while the B-aligned sample has fallen onto the
+        // narrow, steep flank. Factor of 2× is a conservative floor; the
+        // real ratio at these params is ~10×.
+        Assert.True(fT.X > 2f * fB.X,
+            $"expected tangent-aligned f > 2× bitangent-aligned f; got fT={fT.X}, fB={fB.X}");
+    }
+
+    [Fact]
+    public void Anisotropic_RotationSwapsTangentAndBitangent()
+    {
+        // A 0.25 rotation (90° CCW around N) maps T → B and B → -T, so the
+        // stretch axis rotates accordingly and the T-vs-B relationship
+        // from the previous test flips sign.
+        var baseColor = new SolidColor(Vector3.One);
+        var rotated = new DisneyBsdf(
+            baseColor,
+            metallic: 1f, roughness: 0.3f, subsurface: 0f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f,
+            anisotropic: 0.9f, anisotropicRotation: 0.25f);
+
+        var rec = MakeRecWithTBN(N: Vector3.UnitY, T: Vector3.UnitX);
+        var V = Vector3.UnitY;
+        const float off = 0.35f;
+        float up = MathF.Sqrt(1f - off * off);
+        var Ltan = Vector3.Normalize(new Vector3(off, up, 0f));
+        var Lbit = Vector3.Normalize(new Vector3(0f, up, off));
+
+        var fT = rotated.Evaluate(V, Ltan, rec);
+        var fB = rotated.Evaluate(V, Lbit, rec);
+
+        Assert.True(fB.X > 2f * fT.X,
+            $"expected bitangent-aligned f > 2× tangent-aligned f after 90° rotation; got fT={fT.X}, fB={fB.X}");
+    }
+
+    [Fact]
+    public void Anisotropic_ReciprocityHolds()
+    {
+        var baseColor = new SolidColor(new Vector3(0.7f, 0.5f, 0.3f));
+        var material = new DisneyBsdf(
+            baseColor,
+            metallic: 1f, roughness: 0.4f, subsurface: 0f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f,
+            anisotropic: 0.8f, anisotropicRotation: 0.1f);
+        var rec = MakeRecWithTBN(N: Vector3.UnitY, T: Vector3.UnitX);
+
+        var rng = new Random(9741);
+        for (int i = 0; i < 256; i++)
+        {
+            var v = UniformHemisphereDirection(rec.Normal, rng);
+            var l = UniformHemisphereDirection(rec.Normal, rng);
+            var fVL = material.Evaluate(v, l, rec);
+            var fLV = material.Evaluate(l, v, rec);
+            AssertVectorClose(fVL, fLV, relTol: 1e-4f, absTol: 1e-6f);
+        }
+    }
+
+    [Fact]
+    public void Anisotropic_PdfIntegratesToOne()
+    {
+        var baseColor = new SolidColor(Vector3.One);
+        // Rough metal — broad enough lobe to let uniform-sphere MC land
+        // close to 1 in a reasonable sample budget even under anisotropy.
+        var material = new DisneyBsdf(
+            baseColor,
+            metallic: 1f, roughness: 0.7f, subsurface: 0f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f,
+            anisotropic: 0.6f, anisotropicRotation: 0f);
+        var rec = MakeRecWithTBN(N: Vector3.UnitY, T: Vector3.UnitX);
+        var view = Vector3.Normalize(new Vector3(0.3f, 0.9f, 0.2f));
+
+        var rng = new Random(8842);
+        const int N = 32768;
+        double sum = 0;
+        for (int i = 0; i < N; i++)
+        {
+            var l = UniformSphereDirection(rng);
+            sum += material.Pdf(view, l, rec);
+        }
+        double integral = 4.0 * Math.PI * sum / N;
+        Assert.InRange(integral, 0.92, 1.08);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 

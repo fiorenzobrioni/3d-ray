@@ -52,18 +52,20 @@ public class DisneyBsdf : IMaterial
     // per-shading-point variation from a texture lookup. Pass a plain
     // float to any constructor argument — the implicit conversion produces
     // a constant FloatTexture transparently.
-    public ITexture BaseColor          { get; }
-    public FloatTexture Metallic       { get; }
-    public FloatTexture Roughness      { get; }
-    public FloatTexture Subsurface     { get; }
-    public FloatTexture Specular       { get; }
-    public FloatTexture SpecularTint   { get; }
-    public FloatTexture Sheen          { get; }
-    public FloatTexture SheenTint      { get; }
-    public FloatTexture Clearcoat      { get; }
-    public FloatTexture ClearcoatGloss { get; }
-    public FloatTexture SpecTrans      { get; }
-    public FloatTexture Ior            { get; }
+    public ITexture BaseColor               { get; }
+    public FloatTexture Metallic            { get; }
+    public FloatTexture Roughness           { get; }
+    public FloatTexture Subsurface          { get; }
+    public FloatTexture Specular            { get; }
+    public FloatTexture SpecularTint        { get; }
+    public FloatTexture Sheen               { get; }
+    public FloatTexture SheenTint           { get; }
+    public FloatTexture Clearcoat           { get; }
+    public FloatTexture ClearcoatGloss      { get; }
+    public FloatTexture SpecTrans           { get; }
+    public FloatTexture Ior                 { get; }
+    public FloatTexture Anisotropic         { get; }
+    public FloatTexture AnisotropicRotation { get; }
 
     // ── Normal map support ──────────────────────────────────────────────────
     public NormalMapTexture? NormalMap { get; set; }
@@ -78,30 +80,34 @@ public class DisneyBsdf : IMaterial
 
     public DisneyBsdf(
         ITexture baseColor,
-        FloatTexture? metallic       = null,
-        FloatTexture? roughness      = null,
-        FloatTexture? subsurface     = null,
-        FloatTexture? specular       = null,
-        FloatTexture? specularTint   = null,
-        FloatTexture? sheen          = null,
-        FloatTexture? sheenTint      = null,
-        FloatTexture? clearcoat      = null,
-        FloatTexture? clearcoatGloss = null,
-        FloatTexture? specTrans      = null,
-        FloatTexture? ior            = null)
+        FloatTexture? metallic            = null,
+        FloatTexture? roughness           = null,
+        FloatTexture? subsurface          = null,
+        FloatTexture? specular            = null,
+        FloatTexture? specularTint        = null,
+        FloatTexture? sheen               = null,
+        FloatTexture? sheenTint           = null,
+        FloatTexture? clearcoat           = null,
+        FloatTexture? clearcoatGloss      = null,
+        FloatTexture? specTrans           = null,
+        FloatTexture? ior                 = null,
+        FloatTexture? anisotropic         = null,
+        FloatTexture? anisotropicRotation = null)
     {
-        BaseColor      = baseColor;
-        Metallic       = metallic       ?? new FloatTexture(0f);
-        Roughness      = roughness      ?? new FloatTexture(0.5f);
-        Subsurface     = subsurface     ?? new FloatTexture(0f);
-        Specular       = specular       ?? new FloatTexture(0.5f);
-        SpecularTint   = specularTint   ?? new FloatTexture(0f);
-        Sheen          = sheen          ?? new FloatTexture(0f);
-        SheenTint      = sheenTint      ?? new FloatTexture(0.5f);
-        Clearcoat      = clearcoat      ?? new FloatTexture(0f);
-        ClearcoatGloss = clearcoatGloss ?? new FloatTexture(1f);
-        SpecTrans      = specTrans      ?? new FloatTexture(0f);
-        Ior            = ior            ?? new FloatTexture(1.5f);
+        BaseColor           = baseColor;
+        Metallic            = metallic            ?? new FloatTexture(0f);
+        Roughness           = roughness           ?? new FloatTexture(0.5f);
+        Subsurface          = subsurface          ?? new FloatTexture(0f);
+        Specular            = specular            ?? new FloatTexture(0.5f);
+        SpecularTint        = specularTint        ?? new FloatTexture(0f);
+        Sheen               = sheen               ?? new FloatTexture(0f);
+        SheenTint           = sheenTint           ?? new FloatTexture(0.5f);
+        Clearcoat           = clearcoat           ?? new FloatTexture(0f);
+        ClearcoatGloss      = clearcoatGloss      ?? new FloatTexture(1f);
+        SpecTrans           = specTrans           ?? new FloatTexture(0f);
+        Ior                 = ior                 ?? new FloatTexture(1.5f);
+        Anisotropic         = anisotropic         ?? new FloatTexture(0f);
+        AnisotropicRotation = anisotropicRotation ?? new FloatTexture(0f);
 
         // Representative values — evaluated once, never per-shading-point.
         float repMetal     = Math.Clamp(Metallic.RepresentativeValue,  0f, 1f);
@@ -133,29 +139,42 @@ public class DisneyBsdf : IMaterial
         public readonly float ClearcoatGloss;
         public readonly float SpecTrans;
         public readonly float Ior;
-        public readonly float Alpha;           // roughness² (GGX α)
-        public readonly float ClearcoatAlpha;  // Burley 2012 §5.4
+        public readonly float Anisotropic;          // 0 = isotropic, 1 = fully stretched along T
+        public readonly float AnisotropicRotation;  // [0, 1], fraction of 2π around N
+        public readonly float Alpha;                // roughness² (mean GGX α)
+        public readonly float AlphaX;               // α along T (Burley 2012 §5.4)
+        public readonly float AlphaY;               // α along B
+        public readonly float ClearcoatAlpha;       // isotropic — clearcoat never anisotropic
 
         public ShadingParams(
             float metallic, float roughness, float subsurface,
             float specular, float specularTint,
             float sheen, float sheenTint,
             float clearcoat, float clearcoatGloss,
-            float specTrans, float ior)
+            float specTrans, float ior,
+            float anisotropic, float anisotropicRotation)
         {
-            Metallic       = Math.Clamp(metallic, 0f, 1f);
-            Roughness      = Math.Clamp(roughness, 0f, 1f);
-            Subsurface     = Math.Clamp(subsurface, 0f, 1f);
-            Specular       = Math.Clamp(specular, 0f, 2f);
-            SpecularTint   = Math.Clamp(specularTint, 0f, 1f);
-            Sheen          = Math.Clamp(sheen, 0f, 1f);
-            SheenTint      = Math.Clamp(sheenTint, 0f, 1f);
-            Clearcoat      = Math.Clamp(clearcoat, 0f, 1f);
-            ClearcoatGloss = Math.Clamp(clearcoatGloss, 0f, 1f);
-            SpecTrans      = Math.Clamp(specTrans, 0f, 1f);
-            Ior            = MathF.Max(ior, 1.0001f);
+            Metallic            = Math.Clamp(metallic, 0f, 1f);
+            Roughness           = Math.Clamp(roughness, 0f, 1f);
+            Subsurface          = Math.Clamp(subsurface, 0f, 1f);
+            Specular            = Math.Clamp(specular, 0f, 2f);
+            SpecularTint        = Math.Clamp(specularTint, 0f, 1f);
+            Sheen               = Math.Clamp(sheen, 0f, 1f);
+            SheenTint           = Math.Clamp(sheenTint, 0f, 1f);
+            Clearcoat           = Math.Clamp(clearcoat, 0f, 1f);
+            ClearcoatGloss      = Math.Clamp(clearcoatGloss, 0f, 1f);
+            SpecTrans           = Math.Clamp(specTrans, 0f, 1f);
+            Ior                 = MathF.Max(ior, 1.0001f);
+            Anisotropic         = Math.Clamp(anisotropic, 0f, 1f);
+            AnisotropicRotation = anisotropicRotation - MathF.Floor(anisotropicRotation); // [0, 1)
 
             Alpha          = MathF.Max(Roughness * Roughness, 0.001f);
+            // Burley 2012 §5.4: aspect = sqrt(1 - 0.9·anisotropic), αx = α/aspect, αy = α·aspect.
+            // Floor αx/αy at 0.001 independently to keep the anisotropic NDF well-defined at
+            // the extremes (anisotropic=1, roughness≈0 would otherwise push αy to zero).
+            float aspect = MathF.Sqrt(1f - 0.9f * Anisotropic);
+            AlphaX         = MathF.Max(Alpha / aspect, 0.001f);
+            AlphaY         = MathF.Max(Alpha * aspect, 0.001f);
             ClearcoatAlpha = Lerp(0.1f, 0.001f, ClearcoatGloss);
         }
     }
@@ -176,7 +195,9 @@ public class DisneyBsdf : IMaterial
             Clearcoat.Value(u, v, p, seed),
             ClearcoatGloss.Value(u, v, p, seed),
             SpecTrans.Value(u, v, p, seed),
-            Ior.Value(u, v, p, seed));
+            Ior.Value(u, v, p, seed),
+            Anisotropic.Value(u, v, p, seed),
+            AnisotropicRotation.Value(u, v, p, seed));
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -272,14 +293,18 @@ public class DisneyBsdf : IMaterial
             diffuse = new Vector3(diffuseW * fd * NdotL / MathF.PI);
         }
 
-        // ── GGX specular lobe ───────────────────────────────────────────
-        // D: GGX (Trowbridge-Reitz) NDF
-        float a2 = sp.Alpha * sp.Alpha;
-        float denom = NdotH * NdotH * (a2 - 1f) + 1f;
-        float D = a2 / (MathF.PI * denom * denom);
+        // ── Anisotropic GGX specular lobe ───────────────────────────────
+        // Evaluated in tangent space so αx (along T) and αy (along B) apply
+        // directly to the NDF and Smith Lambda. Reduces to the isotropic
+        // form exactly when anisotropic = 0 (αx = αy = α).
+        ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
+        Vector3 Vloc = frame.ToLocal(toEye);
+        Vector3 Lloc = frame.ToLocal(toLight);
+        Vector3 Hloc = frame.ToLocal(H);
 
-        // G: Smith separable masking/shadowing
-        float G = SmithG1_GGX(NdotV, sp.Alpha) * SmithG1_GGX(NdotL, sp.Alpha);
+        float D = DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
+        float G = G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
+                * G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
 
         // F: Schlick Fresnel with continuous metallic→dielectric blend
         Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
@@ -289,7 +314,7 @@ public class DisneyBsdf : IMaterial
         // Cook-Torrance: D × G × F / (4 × NdotV × NdotL), then × NdotL
         Vector3 specular = D * G * F / MathF.Max(4f * NdotV, 1e-6f);
 
-        // ── Clearcoat GGX lobe ──────────────────────────────────────────
+        // ── Clearcoat GGX lobe (isotropic — Disney convention) ──────────
         Vector3 clearcoat = Vector3.Zero;
         if (sp.Clearcoat > 0f)
         {
@@ -373,16 +398,19 @@ public class DisneyBsdf : IMaterial
             sheen = sp.Sheen * SchlickWeight(LdotH) * sheenCol;
         }
 
-        // ── GGX specular (full Cook-Torrance) ──────────────────────────────
-        float a2 = sp.Alpha * sp.Alpha;
-        float denom = NdotH * NdotH * (a2 - 1f) + 1f;
-        float D = a2 / (MathF.PI * denom * denom);
-        float G = SmithG1_GGX(NdotV, sp.Alpha) * SmithG1_GGX(NdotL, sp.Alpha);
+        // ── Anisotropic GGX specular (full Cook-Torrance in tangent space) ─
+        ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
+        Vector3 Vloc = frame.ToLocal(V);
+        Vector3 Lloc = frame.ToLocal(L);
+        Vector3 Hloc = frame.ToLocal(H);
+        float D = DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
+        float G = G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
+                * G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
         Vector3 F0 = ComputeF0(baseCol, sp);
         Vector3 F = FresnelSchlick(VdotH, F0);
         Vector3 specular = D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f) * F;
 
-        // ── Clearcoat GGX ──────────────────────────────────────────────────
+        // ── Clearcoat GGX (isotropic) ──────────────────────────────────────
         Vector3 clearcoat = Vector3.Zero;
         if (sp.Clearcoat > 0f)
         {
@@ -433,13 +461,16 @@ public class DisneyBsdf : IMaterial
         // VNDF PDF in L-space (Heitz 2018):
         //   Dv(H) = G1(V) · max(V·H, 0) · D(H) / NdotV
         // Reflection Jacobian dωH/dωL = 1/(4·|V·H|) → pdf_L cancels the
-        // (V·H) factor and yields G1(V) · D / (4 · NdotV).
+        // (V·H) factor and yields G1(V) · D / (4 · NdotV). The anisotropic
+        // NDF and Smith G1 are evaluated in the tangent frame; the scalar
+        // result matches the isotropic formula exactly when αx = αy.
         float safeNdotV = MathF.Max(NdotV, 1e-7f);
 
-        float a2 = sp.Alpha * sp.Alpha;
-        float dDenom = NdotH * NdotH * (a2 - 1f) + 1f;
-        float D = a2 / (MathF.PI * dDenom * dDenom);
-        float g1V = SmithG1_GGX(NdotV, sp.Alpha);
+        ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
+        Vector3 Vloc = frame.ToLocal(V);
+        Vector3 Hloc = frame.ToLocal(H);
+        float D = DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
+        float g1V = G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY);
         float specPdf = g1V * D / (4f * safeNdotV);
 
         float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
@@ -741,8 +772,13 @@ public class DisneyBsdf : IMaterial
                                  in ShadingParams sp, float probability,
                                  out Vector3 attenuation, out Ray scattered)
     {
-        // Sample a visible microfacet normal (Heitz 2018)
-        Vector3 H = SampleGgxVndf(N, V, sp.Alpha);
+        // Sample a visible microfacet normal in the tangent frame so αx/αy
+        // stretch the NDF correctly along T and B.
+        ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
+        Vector3 Vloc = frame.ToLocal(V);
+        Vector3 Hloc = SampleGgxVndfAniso(Vloc, sp.AlphaX, sp.AlphaY,
+                                          MathUtils.RandomFloat(), MathUtils.RandomFloat());
+        Vector3 H = frame.ToWorld(Hloc);
         Vector3 L = MathUtils.Reflect(-V, H);
 
         if (Vector3.Dot(L, N) <= 0f)
@@ -756,7 +792,6 @@ public class DisneyBsdf : IMaterial
 
         scattered = new Ray(rec.Point, L);
 
-        float NdotL = MathF.Max(Vector3.Dot(N, L), 1e-4f);
         float VdotH = MathF.Max(Vector3.Dot(V, H), 1e-4f);
 
         Vector3 F0 = ComputeF0(baseCol, sp);
@@ -769,7 +804,8 @@ public class DisneyBsdf : IMaterial
         //
         // G1(L) is inherently in [0, 1], so the old "clamp ggxWeight to 1"
         // firefly guard from Walter-2007 NDF sampling is no longer needed.
-        float g1L = SmithG1_GGX(NdotL, sp.Alpha);
+        Vector3 Lloc = frame.ToLocal(L);
+        float g1L = G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
         attenuation = fresnel * g1L;
 
         // Compensate for lobe selection probability.
@@ -802,13 +838,25 @@ public class DisneyBsdf : IMaterial
         Vector3 unitDir = Vector3.Normalize(rayIn.Direction);
 
         // For rough transmissive materials, sample a visible microfacet
-        // normal (Heitz 2018 VNDF) instead of the geometric normal. VNDF
+        // normal (Heitz 2018 anisotropic VNDF) in the tangent frame. VNDF
         // samples are drawn from the subset of the GGX distribution that
         // is actually visible from V, which eliminates the masked-sample
         // variance that forced the old NDF-sampling path to clamp the
         // geometry weight to 1.
+        ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
         bool isRough = sp.Roughness > 0.01f;
-        Vector3 Ht = isRough ? SampleGgxVndf(N, V, sp.Alpha) : N;
+        Vector3 Ht;
+        if (isRough)
+        {
+            Vector3 Vloc = frame.ToLocal(V);
+            Vector3 Hloc = SampleGgxVndfAniso(Vloc, sp.AlphaX, sp.AlphaY,
+                                              MathUtils.RandomFloat(), MathUtils.RandomFloat());
+            Ht = frame.ToWorld(Hloc);
+        }
+        else
+        {
+            Ht = N;
+        }
 
         // Ensure the microfacet normal faces the incoming ray
         if (Vector3.Dot(Ht, unitDir) > 0f)
@@ -852,8 +900,12 @@ public class DisneyBsdf : IMaterial
         if (isRough)
         {
             Vector3 L = scattered.Direction;
-            float NdotL_t = MathF.Max(MathF.Abs(Vector3.Dot(N, L)), 1e-4f);
-            float g1L = SmithG1_GGX(NdotL_t, sp.Alpha);
+            Vector3 Lloc = frame.ToLocal(L);
+            // Smith Λ/G1 is parametrised by |cosθ| (the direction's sign is
+            // absorbed by Λ's even dependence on wz); flipping Lloc.Z for the
+            // transmission hemisphere keeps the lookup well-defined.
+            Lloc.Z = MathF.Abs(Lloc.Z);
+            float g1L = G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
             attenuation *= g1L;
         }
 
@@ -907,98 +959,93 @@ public class DisneyBsdf : IMaterial
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // GGX sampling, geometry, and Fresnel utilities
+    // Anisotropic GGX sampling, geometry, and Fresnel utilities
+    //
+    // The NDF, Smith Λ/G1 and VNDF sampler all live in tangent space and take
+    // independent αx (along T) and αy (along B) roughness. Passing αx = αy = α
+    // recovers the isotropic formulae exactly, so these helpers replace the
+    // previous isotropic-only implementations without introducing a branch.
+    // Derivation: Heitz 2014 ("Understanding the Masking-Shadowing Function"),
+    // Heitz 2018 ("Sampling the GGX Distribution of Visible Normals"),
+    // Burley 2012 §5.4 (aspect ratio).
     // ═════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Smith G1 masking/shadowing function for the GGX microfacet distribution.
-    /// Uses the height-correlated form: G1(v) = 2·NdotX / (NdotX + sqrt(α² + (1-α²)·NdotX²))
-    ///
-    /// The full geometry term G(V,L) = G1(V) × G1(L) approximates the separable
-    /// Smith model. This is standard practice in real-time and offline PBR.
+    /// Orthonormal shading frame (T, B, N) used by the anisotropic lobes to
+    /// express directions in tangent space. World → local via dot products;
+    /// local → world via the linear combination of basis vectors.
     /// </summary>
-    private static float SmithG1_GGX(float NdotX, float alpha)
+    private readonly struct ShadingFrame
     {
-        float a2 = alpha * alpha;
-        float NdotX2 = NdotX * NdotX;
-        float denom = NdotX + MathF.Sqrt(a2 + (1f - a2) * NdotX2);
-        return 2f * NdotX / MathF.Max(denom, 1e-7f);
+        public readonly Vector3 T;
+        public readonly Vector3 B;
+        public readonly Vector3 N;
+
+        public ShadingFrame(Vector3 t, Vector3 b, Vector3 n) { T = t; B = b; N = n; }
+
+        public Vector3 ToLocal(Vector3 w)
+            => new(Vector3.Dot(w, T), Vector3.Dot(w, B), Vector3.Dot(w, N));
+
+        public Vector3 ToWorld(Vector3 w)
+            => w.X * T + w.Y * B + w.Z * N;
     }
 
     /// <summary>
-    /// Samples a visible microfacet normal from the GGX distribution using
-    /// the Heitz 2018 algorithm ("Sampling the GGX Distribution of Visible
-    /// Normals", JCGT vol. 7 no. 4).
+    /// Builds the shading frame for a hit, preferring the geometry's
+    /// <see cref="HitRecord.Tangent"/> / <see cref="HitRecord.Bitangent"/>
+    /// when they are valid (non-zero) so anisotropic highlights align with
+    /// the surface's parameterisation (brushed-metal direction, wood grain,
+    /// fabric weave). Falls back to Frisvad's branchless ONB when the
+    /// geometry didn't populate a TBN.
     ///
-    /// Unlike the classic Walter 2007 NDF sampling (which samples H from
-    /// D(H)·NdotH without regard to the viewing direction), VNDF samples
-    /// only the portion of the microfacet distribution that is actually
-    /// visible from V. This eliminates "wasted" samples in masked regions
-    /// and drives the BRDF/pdf ratio to a well-behaved closed form
-    ///   weight = F · G1(L)   (separable Smith)
-    /// that is bounded in [0, |F|] and does NOT require the clamp-to-1
-    /// firefly guards the old NDF sampling needed.
-    ///
-    /// Algorithm (isotropic case):
-    ///   1. Build an orthonormal frame around N and express V in it.
-    ///   2. Stretch V along the z-axis by the GGX α to map the ellipsoidal
-    ///      distribution onto a hemisphere.
-    ///   3. Sample a point on the visible disk of that hemisphere using
-    ///      the trapezoid-based reparameterisation from Heitz 2018 §3.2.
-    ///   4. Project to the hemisphere and unstretch to recover the
-    ///      world-space half-vector.
+    /// If <paramref name="rotation"/> is non-zero, rotates T toward B by an
+    /// angle 2π·rotation, letting the artist control the anisotropic axis
+    /// independently of the UV mapping.
     /// </summary>
-    private static Vector3 SampleGgxVndf(Vector3 N, Vector3 V, float alpha)
+    private static ShadingFrame GetShadingFrame(HitRecord rec, float rotation)
     {
-        // Build a tangent frame (T, B) around N
-        BuildTangentFrame(N, out Vector3 T, out Vector3 B);
+        Vector3 N = rec.Normal;
+        Vector3 T, B;
+        if (rec.Tangent.LengthSquared() > 1e-10f && rec.Bitangent.LengthSquared() > 1e-10f)
+        {
+            // Re-orthogonalise against the shading normal (which may have been
+            // perturbed by a normal map after the primitive set Tangent/Bitangent)
+            // and re-derive B = N × T to guarantee a right-handed frame.
+            T = rec.Tangent - Vector3.Dot(rec.Tangent, N) * N;
+            float tLenSq = T.LengthSquared();
+            if (tLenSq > 1e-10f)
+            {
+                T /= MathF.Sqrt(tLenSq);
+                B = Vector3.Cross(N, T);
+            }
+            else
+            {
+                BuildTangentFrame(N, out T, out B);
+            }
+        }
+        else
+        {
+            BuildTangentFrame(N, out T, out B);
+        }
 
-        // Express V in tangent space (z-up = shading normal)
-        Vector3 Vl = new(Vector3.Dot(V, T), Vector3.Dot(V, B), Vector3.Dot(V, N));
+        if (rotation != 0f)
+        {
+            float angle = 2f * MathF.PI * rotation;
+            float c = MathF.Cos(angle);
+            float s = MathF.Sin(angle);
+            Vector3 Tr =  c * T + s * B;
+            Vector3 Br = -s * T + c * B;
+            T = Tr; B = Br;
+        }
 
-        // Stretch V by the GGX α (isotropic: αx = αy = α)
-        Vector3 Vh = Vector3.Normalize(new Vector3(alpha * Vl.X, alpha * Vl.Y, Vl.Z));
-
-        // Orthonormal basis spanning the plane perpendicular to Vh
-        float lenSq = Vh.X * Vh.X + Vh.Y * Vh.Y;
-        Vector3 T1 = lenSq > 0f
-            ? new Vector3(-Vh.Y, Vh.X, 0f) / MathF.Sqrt(lenSq)
-            : new Vector3(1f, 0f, 0f);
-        Vector3 T2 = Vector3.Cross(Vh, T1);
-
-        // Sample a point on the visible disk (Heitz 2018 eq. 5)
-        float u1 = MathUtils.RandomFloat();
-        float u2 = MathUtils.RandomFloat();
-        float r  = MathF.Sqrt(u1);
-        float phi = 2f * MathF.PI * u2;
-        float t1 = r * MathF.Cos(phi);
-        float t2 = r * MathF.Sin(phi);
-        float s  = 0.5f * (1f + Vh.Z);
-        t2 = (1f - s) * MathF.Sqrt(MathF.Max(0f, 1f - t1 * t1)) + s * t2;
-
-        // Project onto the hemisphere — the visible-normal half-vector in
-        // stretched space.
-        Vector3 Nh = t1 * T1 + t2 * T2
-                   + MathF.Sqrt(MathF.Max(0f, 1f - t1 * t1 - t2 * t2)) * Vh;
-
-        // Unstretch by dividing through by α and re-normalise. Clamp the z
-        // component to zero to keep H on the upper hemisphere (numerically
-        // robust at grazing incidence where Nh.Z may fall slightly below 0).
-        Vector3 Hl = Vector3.Normalize(new Vector3(
-            alpha * Nh.X,
-            alpha * Nh.Y,
-            MathF.Max(0f, Nh.Z)));
-
-        // Back to world space
-        Vector3 result = Hl.X * T + Hl.Y * B + Hl.Z * N;
-        float resultLenSq = result.LengthSquared();
-        return resultLenSq > 1e-8f ? result / MathF.Sqrt(resultLenSq) : N;
+        return new ShadingFrame(T, B, N);
     }
 
     /// <summary>
     /// Constructs an orthonormal tangent frame (T, B) around N using
     /// Frisvad's method, with a safe branch for near-south-pole normals
-    /// where the 1/(1+N.Z) term would explode.
+    /// where the 1/(1+N.Z) term would explode. Used as the fallback when
+    /// the hit record carries no geometric tangent.
     /// </summary>
     private static void BuildTangentFrame(Vector3 N, out Vector3 T, out Vector3 B)
     {
@@ -1014,6 +1061,114 @@ public class DisneyBsdf : IMaterial
             T = new Vector3(1f - N.X * N.X * a, b, -N.X);
             B = new Vector3(b, 1f - N.Y * N.Y * a, -N.Y);
         }
+    }
+
+    /// <summary>
+    /// Anisotropic GGX (Trowbridge-Reitz) NDF in tangent space.
+    ///   D(H) = 1 / (π · αx · αy · [(Hx/αx)² + (Hy/αy)² + Hz²]²)
+    /// Collapses to the isotropic form 1/(π α² · ((α²-1)·Hz² + 1)²) when αx = αy = α.
+    /// </summary>
+    private static float DGgxAniso(Vector3 Hloc, float ax, float ay)
+    {
+        float hx = Hloc.X / ax;
+        float hy = Hloc.Y / ay;
+        float d  = hx * hx + hy * hy + Hloc.Z * Hloc.Z;
+        return 1f / MathF.Max(MathF.PI * ax * ay * d * d, 1e-20f);
+    }
+
+    /// <summary>
+    /// Smith Λ for anisotropic GGX (Heitz 2014 eq. 86).
+    ///   Λ(ω) = (-1 + sqrt(1 + (αx²·ωx² + αy²·ωy²) / ωz²)) / 2
+    /// </summary>
+    private static float LambdaGgxAniso(Vector3 wloc, float ax, float ay)
+    {
+        float cos2 = wloc.Z * wloc.Z;
+        if (cos2 < 1e-14f) return 1e10f;   // grazing → G1 → 0
+        float num = (ax * wloc.X) * (ax * wloc.X) + (ay * wloc.Y) * (ay * wloc.Y);
+        return 0.5f * (-1f + MathF.Sqrt(1f + num / cos2));
+    }
+
+    /// <summary>
+    /// Smith G1 masking/shadowing for anisotropic GGX. Separable form
+    /// G(V, L) = G1(V) · G1(L) is standard for Disney-style BSDFs.
+    /// </summary>
+    private static float G1GgxAniso(Vector3 wloc, float ax, float ay)
+        => 1f / (1f + LambdaGgxAniso(wloc, ax, ay));
+
+    /// <summary>
+    /// Isotropic Smith G1 in closed form, retained for the isotropic
+    /// clearcoat lobe where building a tangent-space vector would be
+    /// wasteful.
+    ///   G1(NdotX) = 2·NdotX / (NdotX + sqrt(α² + (1-α²)·NdotX²))
+    /// </summary>
+    private static float SmithG1_GGX(float NdotX, float alpha)
+    {
+        float a2 = alpha * alpha;
+        float NdotX2 = NdotX * NdotX;
+        float denom = NdotX + MathF.Sqrt(a2 + (1f - a2) * NdotX2);
+        return 2f * NdotX / MathF.Max(denom, 1e-7f);
+    }
+
+    /// <summary>
+    /// Samples a visible microfacet normal from the anisotropic GGX
+    /// distribution (Heitz 2018 §3.2, JCGT vol. 7 no. 4). Inputs and
+    /// outputs are in tangent space — the caller is responsible for the
+    /// local↔world transform via <see cref="ShadingFrame"/>.
+    ///
+    /// Algorithm:
+    ///   1. Stretch V by (αx, αy, 1) to reduce anisotropic GGX to the
+    ///      isotropic case on a hemisphere.
+    ///   2. Build an orthonormal basis (T1, T2) in the plane perpendicular
+    ///      to the stretched V.
+    ///   3. Sample a point on the unit disk via the trapezoid
+    ///      reparameterisation from Heitz 2018 eq. 6, which warps the disk
+    ///      so the resulting half-vector weight is already uniform (no
+    ///      rejection sampling).
+    ///   4. Project onto the hemisphere and unstretch by (αx, αy, 1),
+    ///      clamping Hz to zero for numerical robustness at grazing.
+    /// </summary>
+    private static Vector3 SampleGgxVndfAniso(Vector3 Vloc, float ax, float ay,
+                                              float u1, float u2)
+    {
+        Vector3 Vh = Vector3.Normalize(new Vector3(ax * Vloc.X, ay * Vloc.Y, Vloc.Z));
+        float lenSq = Vh.X * Vh.X + Vh.Y * Vh.Y;
+        Vector3 T1 = lenSq > 0f
+            ? new Vector3(-Vh.Y, Vh.X, 0f) / MathF.Sqrt(lenSq)
+            : new Vector3(1f, 0f, 0f);
+        Vector3 T2 = Vector3.Cross(Vh, T1);
+
+        float r   = MathF.Sqrt(u1);
+        float phi = 2f * MathF.PI * u2;
+        float t1  = r * MathF.Cos(phi);
+        float t2  = r * MathF.Sin(phi);
+        float s   = 0.5f * (1f + Vh.Z);
+        t2 = (1f - s) * MathF.Sqrt(MathF.Max(0f, 1f - t1 * t1)) + s * t2;
+
+        Vector3 Nh = t1 * T1 + t2 * T2
+                   + MathF.Sqrt(MathF.Max(0f, 1f - t1 * t1 - t2 * t2)) * Vh;
+
+        return Vector3.Normalize(new Vector3(
+            ax * Nh.X,
+            ay * Nh.Y,
+            MathF.Max(0f, Nh.Z)));
+    }
+
+    /// <summary>
+    /// Isotropic VNDF sampler used by the clearcoat lobe, which is
+    /// deliberately never anisotropic in Disney's model. Thin wrapper
+    /// around <see cref="SampleGgxVndfAniso"/> with a Frisvad frame and
+    /// αx = αy = α, exposed as a convenience at call sites that don't
+    /// care about the tangent frame.
+    /// </summary>
+    private static Vector3 SampleGgxVndf(Vector3 N, Vector3 V, float alpha)
+    {
+        BuildTangentFrame(N, out Vector3 T, out Vector3 B);
+        Vector3 Vloc = new(Vector3.Dot(V, T), Vector3.Dot(V, B), Vector3.Dot(V, N));
+        Vector3 Hloc = SampleGgxVndfAniso(Vloc, alpha, alpha,
+                                          MathUtils.RandomFloat(), MathUtils.RandomFloat());
+        Vector3 result = Hloc.X * T + Hloc.Y * B + Hloc.Z * N;
+        float resultLenSq = result.LengthSquared();
+        return resultLenSq > 1e-8f ? result / MathF.Sqrt(resultLenSq) : N;
     }
 
     /// <summary>
