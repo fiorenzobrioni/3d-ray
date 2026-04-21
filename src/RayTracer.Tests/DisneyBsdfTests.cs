@@ -470,6 +470,114 @@ public class DisneyBsdfTests
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Multi-scatter energy compensation (phase 2 step 8)
+    //
+    // Smith single-scattering GGX leaks energy at high α — a white rough
+    // metal without compensation integrates to ~0.65 directional albedo
+    // instead of 1. The Kulla-Conty additive lobe recovers the missing
+    // energy; at white F₀ = 1 the closed-form identity makes the total
+    // directional-hemispherical reflectance land exactly on 1 (modulo MC
+    // noise).
+    //
+    // We verify the closed-form identity with a uniform-sphere MC estimator
+    // on Evaluate — high sample count because the narrow near-mirror tail
+    // of the specular lobe converges slowly even at α = 0.81. The PDF
+    // invariant is re-checked with compensation active to confirm the new
+    // cosine-weighted multiscatter lobe preserves the one-sphere integral.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Multiscatter_RoughWhiteMetal_ApproachesUnityReflectance()
+    {
+        // White metal, α = 0.81 (roughness = 0.9). E(1, 0.81) ≈ 0.7 and
+        // E_avg(0.81) ≈ 0.7, so the single-scatter directional albedo is
+        // ~0.70. After compensation the identity
+        //   R = E(μo) + F_ms · (1 − E(μo)) · 1   (with F̄ = F_ms = 1)
+        //     = E(μo) + (1 − E(μo)) = 1
+        // holds exactly for white F₀; MC noise on uniform-sphere sampling
+        // of a glossy lobe floors the measurable reflectance around 0.90.
+        var baseColor = new SolidColor(Vector3.One);
+        var material = new DisneyBsdf(
+            baseColor,
+            metallic: 1f, roughness: 0.9f, subsurface: 0f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f);
+
+        var rec = MakeRec();
+        var view = Vector3.UnitY; // normal incidence: μo = 1
+
+        var rng = new Random(2026);
+        const int N = 131072;
+        double sumR = 0.0;
+        int hits = 0;
+        for (int i = 0; i < N; i++)
+        {
+            var l = UniformSphereDirection(rng);
+            float nDotL = Vector3.Dot(NormalUp, l);
+            if (nDotL <= 0f) continue;
+            hits++;
+            var f = material.Evaluate(view, l, rec);
+            sumR += f.X * nDotL;
+        }
+        double reflectance = 4.0 * Math.PI * sumR / N;
+
+        Assert.True(hits > N / 3, $"expected ≥N/3 upper-hemisphere samples, got {hits}");
+        // Floor at 0.90 gives ample headroom for MC noise at 131k samples;
+        // without compensation the value would be ~0.70 and would fail
+        // this bound cleanly, catching regressions on the LUT wiring.
+        Assert.True(reflectance > 0.90,
+            $"expected reflectance > 0.90 after multiscatter, got {reflectance}");
+        // Upper bound guards against over-compensation — a physical BRDF
+        // can never exceed unit directional-hemispherical reflectance.
+        Assert.True(reflectance <= 1.05,
+            $"reflectance should not exceed 1 (furnace violation), got {reflectance}");
+    }
+
+    [Fact]
+    public void Multiscatter_ColouredMetal_RetainsHueAtHighRoughness()
+    {
+        // Without compensation a rough gold metal darkens AND desaturates
+        // (every channel loses ~30% proportionally, but the saturation drop
+        // is visible because channels drop by slightly different amounts).
+        // With compensation the per-channel hue is preserved while each
+        // channel reaches its own F̄-conditioned ceiling.
+        //
+        // We check that the red channel (baseCol.X = 1) lands much closer
+        // to 1 than the blue channel (baseCol.Z = 0.3) — i.e. chrominance
+        // is retained, not washed out.
+        var baseColor = new SolidColor(new Vector3(1.0f, 0.71f, 0.29f));
+        var material = new DisneyBsdf(
+            baseColor,
+            metallic: 1f, roughness: 0.85f, subsurface: 0f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f);
+
+        var rec = MakeRec();
+        var view = Vector3.UnitY;
+
+        var rng = new Random(77);
+        const int N = 131072;
+        Vector3 sum = Vector3.Zero;
+        for (int i = 0; i < N; i++)
+        {
+            var l = UniformSphereDirection(rng);
+            float nDotL = Vector3.Dot(NormalUp, l);
+            if (nDotL <= 0f) continue;
+            sum += material.Evaluate(view, l, rec) * nDotL;
+        }
+        Vector3 reflectance = 4f * MathF.PI * sum / N;
+
+        // Red channel lands close to 1 (F₀ = 1), blue near its F̄ ceiling (~0.34).
+        Assert.True(reflectance.X > 0.85,
+            $"red reflectance should retain close to F₀=1 intensity, got {reflectance.X}");
+        // The ratio R/B must stay substantially above 1 — if it collapsed
+        // toward 1 we'd have desaturated gold to grey, the exact failure
+        // mode compensation is supposed to avoid.
+        Assert.True(reflectance.X / reflectance.Z > 2.0f,
+            $"gold should retain chroma (R/B ratio), got {reflectance.X / reflectance.Z}");
+    }
+
     [Fact]
     public void Anisotropic_PdfIntegratesToOne()
     {

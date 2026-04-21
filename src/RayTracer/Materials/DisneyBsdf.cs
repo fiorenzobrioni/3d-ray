@@ -302,9 +302,9 @@ public class DisneyBsdf : IMaterial
         Vector3 Lloc = frame.ToLocal(toLight);
         Vector3 Hloc = frame.ToLocal(H);
 
-        float D = DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
-        float G = G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
-                * G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
+        float D = Microfacet.DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
+        float G = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
+                * Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
 
         // F: Schlick Fresnel with continuous metallic→dielectric blend
         Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
@@ -321,7 +321,7 @@ public class DisneyBsdf : IMaterial
             float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
             float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
             float cD = ca2 / (MathF.PI * cDenom * cDenom);
-            float cG = SmithG1_GGX(NdotV, sp.ClearcoatAlpha) * SmithG1_GGX(NdotL, sp.ClearcoatAlpha);
+            float cG = Microfacet.SmithG1(NdotV, sp.ClearcoatAlpha) * Microfacet.SmithG1(NdotL, sp.ClearcoatAlpha);
 
             float cF0 = 0.04f;
             float cF = cF0 + (1f - cF0) * SchlickWeight(VdotH);
@@ -330,12 +330,18 @@ public class DisneyBsdf : IMaterial
                         / MathF.Max(4f * NdotV, 1e-6f));
         }
 
+        // ── Multi-scatter compensation (Kulla-Conty) ───────────────────────
+        // Returned shape is f · N·L (same convention as the rest of
+        // EvaluateDirect). Shares the same LUT lookup used by Evaluate so
+        // direct and indirect lighting stay energetically consistent.
+        Vector3 multiscatter = EvaluateMultiscatter(F0, sp, NdotV, NdotL) * NdotL;
+
         // The global firefly clamp lives in the renderer (`--clamp`/`-C`) and
         // is the right place to cap the per-sample radiance if a scene still
         // produces outliers. The old 10.0 bias on the BRDF itself is gone
         // now that the indirect lobes use VNDF sampling and no longer
         // systematically overshoot the direct-light contribution.
-        return diffuse + specular + clearcoat;
+        return diffuse + specular + multiscatter + clearcoat;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -403,9 +409,9 @@ public class DisneyBsdf : IMaterial
         Vector3 Vloc = frame.ToLocal(V);
         Vector3 Lloc = frame.ToLocal(L);
         Vector3 Hloc = frame.ToLocal(H);
-        float D = DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
-        float G = G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
-                * G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
+        float D = Microfacet.DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
+        float G = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
+                * Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
         Vector3 F0 = ComputeF0(baseCol, sp);
         Vector3 F = FresnelSchlick(VdotH, F0);
         Vector3 specular = D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f) * F;
@@ -417,7 +423,7 @@ public class DisneyBsdf : IMaterial
             float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
             float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
             float cD = ca2 / (MathF.PI * cDenom * cDenom);
-            float cG = SmithG1_GGX(NdotV, sp.ClearcoatAlpha) * SmithG1_GGX(NdotL, sp.ClearcoatAlpha);
+            float cG = Microfacet.SmithG1(NdotV, sp.ClearcoatAlpha) * Microfacet.SmithG1(NdotL, sp.ClearcoatAlpha);
             float cF0 = 0.04f;
             float cF = cF0 + (1f - cF0) * SchlickWeight(VdotH);
             float cc = sp.Clearcoat * 0.25f * cD * cG * cF
@@ -425,7 +431,15 @@ public class DisneyBsdf : IMaterial
             clearcoat = new Vector3(cc);
         }
 
-        return diffuse + sheen + specular + clearcoat;
+        // ── Multi-scatter compensation (Kulla-Conty) ───────────────────────
+        // Compensates the energy that Smith single-scatter drops at high α;
+        // near-mirror surfaces see (1−E(μo))·(1−E(μi)) ≈ 0 so the term
+        // vanishes automatically. Applied whether or not the surface is
+        // metal — dielectrics carry the same multi-scatter deficit, scaled
+        // by the smaller dielectric F̄.
+        Vector3 multiscatter = EvaluateMultiscatter(F0, sp, NdotV, NdotL);
+
+        return diffuse + sheen + specular + multiscatter + clearcoat;
     }
 
     /// <summary>
@@ -469,19 +483,21 @@ public class DisneyBsdf : IMaterial
         ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
         Vector3 Vloc = frame.ToLocal(V);
         Vector3 Hloc = frame.ToLocal(H);
-        float D = DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
-        float g1V = G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY);
+        float D = Microfacet.DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
+        float g1V = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY);
         float specPdf = g1V * D / (4f * safeNdotV);
 
         float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
         float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
         float cD = ca2 / (MathF.PI * cDenom * cDenom);
-        float cG1V = SmithG1_GGX(NdotV, sp.ClearcoatAlpha);
+        float cG1V = Microfacet.SmithG1(NdotV, sp.ClearcoatAlpha);
         float ccPdf = cG1V * cD / (4f * safeNdotV);
 
+        // Multiscatter is cosine-weighted (see ScatterMultiscatter).
         return w.PDiffuse * cosPdf
              + w.PSheen * cosPdf
              + w.PSpecular * specPdf
+             + w.PMultiscatter * cosPdf
              + w.PClearcoat * ccPdf;
     }
 
@@ -541,12 +557,13 @@ public class DisneyBsdf : IMaterial
         public readonly float Transmission;
         public readonly float Clearcoat;
         public readonly float Sheen;
+        public readonly float Multiscatter;
         public readonly float Total;
 
-        public LobeWeights(float d, float s, float t, float c, float sh)
+        public LobeWeights(float d, float s, float t, float c, float sh, float ms)
         {
-            Diffuse = d; Specular = s; Transmission = t; Clearcoat = c; Sheen = sh;
-            float sum = d + s + t + c + sh;
+            Diffuse = d; Specular = s; Transmission = t; Clearcoat = c; Sheen = sh; Multiscatter = ms;
+            float sum = d + s + t + c + sh + ms;
             Total = sum < 1e-6f ? 1f : sum;
         }
 
@@ -555,6 +572,7 @@ public class DisneyBsdf : IMaterial
         public float PTransmission => Transmission / Total;
         public float PClearcoat    => Clearcoat / Total;
         public float PSheen        => Sheen / Total;
+        public float PMultiscatter => Multiscatter / Total;
     }
 
     private static LobeWeights ComputeLobeWeights(Vector3 baseCol, in ShadingParams sp)
@@ -567,7 +585,16 @@ public class DisneyBsdf : IMaterial
         float transW    = (1f - sp.Metallic) * sp.SpecTrans;
         float clearW    = sp.Clearcoat * 0.04f;
         float sheenW    = sp.Sheen * 0.25f * diffuseW;
-        return new LobeWeights(diffuseW, specularW, transW, clearW, sheenW);
+        // Multi-scattering compensation lobe: scaled by the specular lobe's
+        // expected energy deficit (1 - E_avg(α)). Near-mirror surfaces have
+        // E_avg ≈ 1 and the lobe receives ~0% of samples; rough surfaces
+        // (α ~ 1) push (1 - E_avg) toward 0.5 and shift samples into the
+        // compensation path exactly where the single-scatter lobe is
+        // leaking energy.
+        float alphaIso   = MathF.Sqrt(sp.AlphaX * sp.AlphaY);
+        float eAvg       = EnergyCompensationLut.SampleEAvg(alphaIso);
+        float msW        = specularW * (1f - eAvg);
+        return new LobeWeights(diffuseW, specularW, transW, clearW, sheenW, msW);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -586,10 +613,11 @@ public class DisneyBsdf : IMaterial
         Vector3 V = Vector3.Normalize(-rayIn.Direction);
 
         LobeWeights w = ComputeLobeWeights(baseCol, sp);
-        float pDiffuse  = w.PDiffuse;
-        float pSpecular = w.PSpecular;
-        float pTrans    = w.PTransmission;
-        float pSheen    = w.PSheen;
+        float pDiffuse      = w.PDiffuse;
+        float pSpecular     = w.PSpecular;
+        float pTrans        = w.PTransmission;
+        float pSheen        = w.PSheen;
+        float pMultiscatter = w.PMultiscatter;
         // pClearcoat = remainder
 
         float rnd = MathUtils.RandomFloat();
@@ -610,6 +638,10 @@ public class DisneyBsdf : IMaterial
         else if ((rnd -= pTrans) < pSheen)
         {
             result = ScatterSheen(rec, baseCol, N, V, sp, pSheen, out attenuation, out scattered);
+        }
+        else if ((rnd -= pSheen) < pMultiscatter)
+        {
+            result = ScatterMultiscatter(rec, baseCol, N, V, sp, pMultiscatter, out attenuation, out scattered);
         }
         else
         {
@@ -776,7 +808,7 @@ public class DisneyBsdf : IMaterial
         // stretch the NDF correctly along T and B.
         ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
         Vector3 Vloc = frame.ToLocal(V);
-        Vector3 Hloc = SampleGgxVndfAniso(Vloc, sp.AlphaX, sp.AlphaY,
+        Vector3 Hloc = Microfacet.SampleGgxVndfAniso(Vloc, sp.AlphaX, sp.AlphaY,
                                           MathUtils.RandomFloat(), MathUtils.RandomFloat());
         Vector3 H = frame.ToWorld(Hloc);
         Vector3 L = MathUtils.Reflect(-V, H);
@@ -805,7 +837,7 @@ public class DisneyBsdf : IMaterial
         // G1(L) is inherently in [0, 1], so the old "clamp ggxWeight to 1"
         // firefly guard from Walter-2007 NDF sampling is no longer needed.
         Vector3 Lloc = frame.ToLocal(L);
-        float g1L = G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
+        float g1L = Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
         attenuation = fresnel * g1L;
 
         // Compensate for lobe selection probability.
@@ -849,7 +881,7 @@ public class DisneyBsdf : IMaterial
         if (isRough)
         {
             Vector3 Vloc = frame.ToLocal(V);
-            Vector3 Hloc = SampleGgxVndfAniso(Vloc, sp.AlphaX, sp.AlphaY,
+            Vector3 Hloc = Microfacet.SampleGgxVndfAniso(Vloc, sp.AlphaX, sp.AlphaY,
                                               MathUtils.RandomFloat(), MathUtils.RandomFloat());
             Ht = frame.ToWorld(Hloc);
         }
@@ -905,7 +937,7 @@ public class DisneyBsdf : IMaterial
             // absorbed by Λ's even dependence on wz); flipping Lloc.Z for the
             // transmission hemisphere keeps the lookup well-defined.
             Lloc.Z = MathF.Abs(Lloc.Z);
-            float g1L = G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
+            float g1L = Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
             attenuation *= g1L;
         }
 
@@ -929,7 +961,16 @@ public class DisneyBsdf : IMaterial
                                   in ShadingParams sp, float probability,
                                   out Vector3 attenuation, out Ray scattered)
     {
-        Vector3 H = SampleGgxVndf(N, V, sp.ClearcoatAlpha);
+        // Clearcoat is isotropic by convention, but we still go through the
+        // shared tangent-space VNDF sampler (αx = αy = α_cc) to keep one
+        // implementation path. Anisotropic rotation is ignored — the NDF is
+        // rotationally symmetric when αx = αy, so rotating the frame is a
+        // no-op for the sampler.
+        ShadingFrame frame = GetShadingFrame(rec, 0f);
+        Vector3 Vloc = frame.ToLocal(V);
+        Vector3 Hloc = Microfacet.SampleGgxVndfAniso(Vloc, sp.ClearcoatAlpha, sp.ClearcoatAlpha,
+                                                     MathUtils.RandomFloat(), MathUtils.RandomFloat());
+        Vector3 H = frame.ToWorld(Hloc);
         Vector3 L = MathUtils.Reflect(-V, H);
 
         if (Vector3.Dot(L, N) <= 0f)
@@ -949,7 +990,7 @@ public class DisneyBsdf : IMaterial
         float fresnel = f0 + (1f - f0) * SchlickWeight(VdotH);
 
         // VNDF weight: F · G1(L) (see ScatterSpecular for the derivation).
-        float g1L = SmithG1_GGX(NdotL, sp.ClearcoatAlpha);
+        float g1L = Microfacet.SmithG1(NdotL, sp.ClearcoatAlpha);
         attenuation = new Vector3(fresnel * g1L);
 
         float safeProbability = MathF.Max(probability, 0.1f);
@@ -958,16 +999,44 @@ public class DisneyBsdf : IMaterial
         return true;
     }
 
+    /// <summary>
+    /// Kulla-Conty multi-scattering compensation lobe. Cosine-weighted
+    /// hemisphere sampling (the f_ms integrand is nearly Lambertian — a
+    /// product of two slowly-varying directional-albedo terms with a 1/π
+    /// normalisation). The sample is carried by the symmetric f_ms so the
+    /// estimator BRDF·cos / pdf_cos reduces to
+    ///   F_ms · (1 − E(μo)) · (1 − E(μi)) / (1 − E_avg) / prob.
+    /// </summary>
+    private bool ScatterMultiscatter(HitRecord rec, Vector3 baseCol, Vector3 N, Vector3 V,
+                                     in ShadingParams sp, float probability,
+                                     out Vector3 attenuation, out Ray scattered)
+    {
+        Vector3 scatterDir = N + MathUtils.RandomUnitVector();
+        if (MathUtils.NearZero(scatterDir)) scatterDir = N;
+        scatterDir = Vector3.Normalize(scatterDir);
+
+        scattered = new Ray(rec.Point, scatterDir);
+        Vector3 L = scatterDir;
+
+        float NdotV = MathF.Max(Vector3.Dot(N, V), 1e-3f);
+        float NdotL = MathF.Max(Vector3.Dot(N, L), 1e-3f);
+        Vector3 F0 = ComputeF0(baseCol, sp);
+
+        // f_ms · π cancels the 1/π inside f_ms. (cosPdf = NdotL/π → weight = f·π.)
+        Vector3 weight = MultiscatterWeight(F0, sp, NdotV, NdotL);
+
+        float safeProbability = MathF.Max(probability, 0.05f);
+        attenuation = weight / safeProbability;
+        return true;
+    }
+
     // ═════════════════════════════════════════════════════════════════════════
-    // Anisotropic GGX sampling, geometry, and Fresnel utilities
+    // Shading frame
     //
-    // The NDF, Smith Λ/G1 and VNDF sampler all live in tangent space and take
-    // independent αx (along T) and αy (along B) roughness. Passing αx = αy = α
-    // recovers the isotropic formulae exactly, so these helpers replace the
-    // previous isotropic-only implementations without introducing a branch.
-    // Derivation: Heitz 2014 ("Understanding the Masking-Shadowing Function"),
-    // Heitz 2018 ("Sampling the GGX Distribution of Visible Normals"),
-    // Burley 2012 §5.4 (aspect ratio).
+    // GGX sampling, D, and Smith Λ/G1 now live in Microfacet.cs so the
+    // energy-compensation LUT builder shares one implementation. Disney keeps
+    // only the tangent-frame construction, which depends on HitRecord and
+    // therefore isn't shareable as-is.
     // ═════════════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -1020,12 +1089,12 @@ public class DisneyBsdf : IMaterial
             }
             else
             {
-                BuildTangentFrame(N, out T, out B);
+                Microfacet.BuildTangentFrame(N, out T, out B);
             }
         }
         else
         {
-            BuildTangentFrame(N, out T, out B);
+            Microfacet.BuildTangentFrame(N, out T, out B);
         }
 
         if (rotation != 0f)
@@ -1041,135 +1110,64 @@ public class DisneyBsdf : IMaterial
         return new ShadingFrame(T, B, N);
     }
 
+    // ═════════════════════════════════════════════════════════════════════════
+    // Multi-scattering energy compensation (Kulla-Conty 2017 / Turquin 2019)
+    //
+    // <see cref="EnergyCompensationLut"/> pre-tabulates E(μ, α) and E_avg(α)
+    // for the white single-scatter GGX BRDF. The compensation lobe
+    //   f_ms(V, L; F₀, α) = F_ms · (1 − E(μo, α)) · (1 − E(μi, α))
+    //                       / (π · (1 − E_avg(α)))
+    // with
+    //   F̄    = F₀ + (1 − F₀) / 21           (Schlick-averaged F over μ)
+    //   F_ms = F̄² · E_avg / (1 − F̄·(1 − E_avg))  (per-channel)
+    // is added to the single-scatter lobe in Evaluate/EvaluateDirect and
+    // sampled by <see cref="ScatterMultiscatter"/>. For a white metal this
+    // makes the directional-hemispherical albedo tend to 1 at all α; for
+    // coloured metals it retains hue at high roughness (avoiding the
+    // classic "rough gold turns brown" artefact).
+    //
+    // Isotropic α — the LUT is built at αx = αy and we reduce anisotropic
+    // surfaces to α_iso = √(αx·αy). Compensation is slightly less precise
+    // under strong anisotropy, which is the standard trade-off accepted by
+    // Arnold, Cycles and Renderman.
+    // ═════════════════════════════════════════════════════════════════════════
+
     /// <summary>
-    /// Constructs an orthonormal tangent frame (T, B) around N using
-    /// Frisvad's method, with a safe branch for near-south-pole normals
-    /// where the 1/(1+N.Z) term would explode. Used as the fallback when
-    /// the hit record carries no geometric tangent.
+    /// Per-channel multi-scatter BRDF value (without the cosine factor),
+    /// divided by the compensation lobe's cosine PDF — i.e. the quantity
+    /// returned as scatter attenuation or added to Evaluate after scaling.
     /// </summary>
-    private static void BuildTangentFrame(Vector3 N, out Vector3 T, out Vector3 B)
+    private static Vector3 MultiscatterWeight(Vector3 F0, in ShadingParams sp,
+                                              float NdotV, float NdotL)
     {
-        if (N.Z < -0.999f)
-        {
-            T = new Vector3(0f, -1f, 0f);
-            B = new Vector3(-1f, 0f, 0f);
-        }
-        else
-        {
-            float a = 1f / (1f + N.Z);
-            float b = -N.X * N.Y * a;
-            T = new Vector3(1f - N.X * N.X * a, b, -N.X);
-            B = new Vector3(b, 1f - N.Y * N.Y * a, -N.Y);
-        }
+        float alphaIso = MathF.Sqrt(sp.AlphaX * sp.AlphaY);
+        float eOut  = EnergyCompensationLut.SampleE(NdotV, alphaIso);
+        float eIn   = EnergyCompensationLut.SampleE(NdotL, alphaIso);
+        float eAvg  = EnergyCompensationLut.SampleEAvg(alphaIso);
+        float one_minus_eAvg = MathF.Max(1f - eAvg, 1e-6f);
+
+        Vector3 fAvg = F0 + (Vector3.One - F0) * (1f / 21f);
+        Vector3 denom = Vector3.One - fAvg * (1f - eAvg);
+        // Componentwise floor — denom vanishes when F̄ = 1 AND E_avg = 1,
+        // which never co-occurs in practice but the guard is cheap.
+        denom = new Vector3(
+            MathF.Max(denom.X, 1e-6f),
+            MathF.Max(denom.Y, 1e-6f),
+            MathF.Max(denom.Z, 1e-6f));
+        Vector3 fMs = fAvg * fAvg * eAvg / denom;
+
+        return fMs * ((1f - eOut) * (1f - eIn) / one_minus_eAvg);
     }
 
     /// <summary>
-    /// Anisotropic GGX (Trowbridge-Reitz) NDF in tangent space.
-    ///   D(H) = 1 / (π · αx · αy · [(Hx/αx)² + (Hy/αy)² + Hz²]²)
-    /// Collapses to the isotropic form 1/(π α² · ((α²-1)·Hz² + 1)²) when αx = αy = α.
+    /// Multi-scatter BRDF value f_ms(V, L) (no cosine), as added into
+    /// <see cref="Evaluate"/>, <see cref="EvaluateDirect"/> and the analytic
+    /// PDF path. Shares <see cref="MultiscatterWeight"/> and divides by π
+    /// to recover the BRDF form (weight/π == f_ms).
     /// </summary>
-    private static float DGgxAniso(Vector3 Hloc, float ax, float ay)
-    {
-        float hx = Hloc.X / ax;
-        float hy = Hloc.Y / ay;
-        float d  = hx * hx + hy * hy + Hloc.Z * Hloc.Z;
-        return 1f / MathF.Max(MathF.PI * ax * ay * d * d, 1e-20f);
-    }
-
-    /// <summary>
-    /// Smith Λ for anisotropic GGX (Heitz 2014 eq. 86).
-    ///   Λ(ω) = (-1 + sqrt(1 + (αx²·ωx² + αy²·ωy²) / ωz²)) / 2
-    /// </summary>
-    private static float LambdaGgxAniso(Vector3 wloc, float ax, float ay)
-    {
-        float cos2 = wloc.Z * wloc.Z;
-        if (cos2 < 1e-14f) return 1e10f;   // grazing → G1 → 0
-        float num = (ax * wloc.X) * (ax * wloc.X) + (ay * wloc.Y) * (ay * wloc.Y);
-        return 0.5f * (-1f + MathF.Sqrt(1f + num / cos2));
-    }
-
-    /// <summary>
-    /// Smith G1 masking/shadowing for anisotropic GGX. Separable form
-    /// G(V, L) = G1(V) · G1(L) is standard for Disney-style BSDFs.
-    /// </summary>
-    private static float G1GgxAniso(Vector3 wloc, float ax, float ay)
-        => 1f / (1f + LambdaGgxAniso(wloc, ax, ay));
-
-    /// <summary>
-    /// Isotropic Smith G1 in closed form, retained for the isotropic
-    /// clearcoat lobe where building a tangent-space vector would be
-    /// wasteful.
-    ///   G1(NdotX) = 2·NdotX / (NdotX + sqrt(α² + (1-α²)·NdotX²))
-    /// </summary>
-    private static float SmithG1_GGX(float NdotX, float alpha)
-    {
-        float a2 = alpha * alpha;
-        float NdotX2 = NdotX * NdotX;
-        float denom = NdotX + MathF.Sqrt(a2 + (1f - a2) * NdotX2);
-        return 2f * NdotX / MathF.Max(denom, 1e-7f);
-    }
-
-    /// <summary>
-    /// Samples a visible microfacet normal from the anisotropic GGX
-    /// distribution (Heitz 2018 §3.2, JCGT vol. 7 no. 4). Inputs and
-    /// outputs are in tangent space — the caller is responsible for the
-    /// local↔world transform via <see cref="ShadingFrame"/>.
-    ///
-    /// Algorithm:
-    ///   1. Stretch V by (αx, αy, 1) to reduce anisotropic GGX to the
-    ///      isotropic case on a hemisphere.
-    ///   2. Build an orthonormal basis (T1, T2) in the plane perpendicular
-    ///      to the stretched V.
-    ///   3. Sample a point on the unit disk via the trapezoid
-    ///      reparameterisation from Heitz 2018 eq. 6, which warps the disk
-    ///      so the resulting half-vector weight is already uniform (no
-    ///      rejection sampling).
-    ///   4. Project onto the hemisphere and unstretch by (αx, αy, 1),
-    ///      clamping Hz to zero for numerical robustness at grazing.
-    /// </summary>
-    private static Vector3 SampleGgxVndfAniso(Vector3 Vloc, float ax, float ay,
-                                              float u1, float u2)
-    {
-        Vector3 Vh = Vector3.Normalize(new Vector3(ax * Vloc.X, ay * Vloc.Y, Vloc.Z));
-        float lenSq = Vh.X * Vh.X + Vh.Y * Vh.Y;
-        Vector3 T1 = lenSq > 0f
-            ? new Vector3(-Vh.Y, Vh.X, 0f) / MathF.Sqrt(lenSq)
-            : new Vector3(1f, 0f, 0f);
-        Vector3 T2 = Vector3.Cross(Vh, T1);
-
-        float r   = MathF.Sqrt(u1);
-        float phi = 2f * MathF.PI * u2;
-        float t1  = r * MathF.Cos(phi);
-        float t2  = r * MathF.Sin(phi);
-        float s   = 0.5f * (1f + Vh.Z);
-        t2 = (1f - s) * MathF.Sqrt(MathF.Max(0f, 1f - t1 * t1)) + s * t2;
-
-        Vector3 Nh = t1 * T1 + t2 * T2
-                   + MathF.Sqrt(MathF.Max(0f, 1f - t1 * t1 - t2 * t2)) * Vh;
-
-        return Vector3.Normalize(new Vector3(
-            ax * Nh.X,
-            ay * Nh.Y,
-            MathF.Max(0f, Nh.Z)));
-    }
-
-    /// <summary>
-    /// Isotropic VNDF sampler used by the clearcoat lobe, which is
-    /// deliberately never anisotropic in Disney's model. Thin wrapper
-    /// around <see cref="SampleGgxVndfAniso"/> with a Frisvad frame and
-    /// αx = αy = α, exposed as a convenience at call sites that don't
-    /// care about the tangent frame.
-    /// </summary>
-    private static Vector3 SampleGgxVndf(Vector3 N, Vector3 V, float alpha)
-    {
-        BuildTangentFrame(N, out Vector3 T, out Vector3 B);
-        Vector3 Vloc = new(Vector3.Dot(V, T), Vector3.Dot(V, B), Vector3.Dot(V, N));
-        Vector3 Hloc = SampleGgxVndfAniso(Vloc, alpha, alpha,
-                                          MathUtils.RandomFloat(), MathUtils.RandomFloat());
-        Vector3 result = Hloc.X * T + Hloc.Y * B + Hloc.Z * N;
-        float resultLenSq = result.LengthSquared();
-        return resultLenSq > 1e-8f ? result / MathF.Sqrt(resultLenSq) : N;
-    }
+    private static Vector3 EvaluateMultiscatter(Vector3 F0, in ShadingParams sp,
+                                                float NdotV, float NdotL)
+        => MultiscatterWeight(F0, sp, NdotV, NdotL) * (1f / MathF.PI);
 
     /// <summary>
     /// Computes the Fresnel reflectance at normal incidence (F0).
