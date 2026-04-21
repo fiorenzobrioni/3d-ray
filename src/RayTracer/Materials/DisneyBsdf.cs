@@ -66,15 +66,7 @@ public class DisneyBsdf : IMaterial
 
     // ── Cached derived values ───────────────────────────────────────────────
     private readonly float _alpha;          // roughness² (GGX α)
-    private readonly float _clearcoatAlpha; // clearcoat roughness²
-
-    // ── FIX #8b: Maximum per-lobe attenuation after 1/probability ───────────
-    // Limits the amplification from multi-lobe compensation to prevent
-    // cascading fireflies across bounces. A cap of 10 means a single
-    // bounce can amplify at most 10×; two consecutive worst-case bounces
-    // give 100× which ClampRadiance(100) can still catch. Without this,
-    // two bounces each at 1/0.1 = 10 × ggxWeight could reach 100×10 = 1000×.
-    private const float MaxLobeAttenuation = 10f;
+    private readonly float _clearcoatAlpha; // clearcoat α (Burley 2012 §5.4)
 
     public DisneyBsdf(
         ITexture baseColor,
@@ -248,25 +240,12 @@ public class DisneyBsdf : IMaterial
                         / MathF.Max(4f * NdotV, 1e-6f));
         }
 
-        Vector3 result = diffuse + specular + clearcoat;
-
-        // ── FIREFLY GUARD ───────────────────────────────────────────────
-        // FIX #8c: Raised clamp from 1.0 to 10.0 for PBR-correct direct
-        // lighting. The old 1.0 clamp was a legacy from the Blinn-Phong
-        // era and systematically underestimated specular direct lighting
-        // for smooth materials (roughness < 0.1). This created an energy
-        // imbalance where indirect (unclamped scatter) dominated over
-        // direct, making the noise from indirect bounces more visible.
-        //
-        // At 10.0 the clamp still catches the GGX NDF divergence for
-        // near-mirror surfaces (D ≈ 3×10⁸ for α=0.001) while preserving
-        // the correct Cook-Torrance magnitude for legitimate highlights.
-        // Point lights carry their intensity in lightColor (can be 10+),
-        // so a BRDF shape factor up to 10 is physically reasonable for
-        // smooth metals (F≈1, G≈1, D peaks at 2/π for α=0.5).
-        result = Vector3.Min(result, new Vector3(10f));
-
-        return result;
+        // The global firefly clamp lives in the renderer (`--clamp`/`-C`) and
+        // is the right place to cap the per-sample radiance if a scene still
+        // produces outliers. The old 10.0 bias on the BRDF itself is gone
+        // now that the indirect lobes use VNDF sampling and no longer
+        // systematically overshoot the direct-light contribution.
+        return diffuse + specular + clearcoat;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -384,16 +363,23 @@ public class DisneyBsdf : IMaterial
         // Cosine-weighted PDF shared by diffuse and sheen.
         float cosPdf = NdotL / MathF.PI;
 
-        // GGX-sampled H, then L = reflect(-V, H). Jacobian: 1/(4·|V·H|).
+        // VNDF PDF in L-space (Heitz 2018):
+        //   Dv(H) = G1(V) · max(V·H, 0) · D(H) / NdotV
+        // Reflection Jacobian dωH/dωL = 1/(4·|V·H|) → pdf_L cancels the
+        // (V·H) factor and yields G1(V) · D / (4 · NdotV).
+        float safeNdotV = MathF.Max(NdotV, 1e-7f);
+
         float a2 = _alpha * _alpha;
         float dDenom = NdotH * NdotH * (a2 - 1f) + 1f;
         float D = a2 / (MathF.PI * dDenom * dDenom);
-        float specPdf = D * NdotH / (4f * VdotH);
+        float g1V = SmithG1_GGX(NdotV, _alpha);
+        float specPdf = g1V * D / (4f * safeNdotV);
 
         float ca2 = _clearcoatAlpha * _clearcoatAlpha;
         float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
         float cD = ca2 / (MathF.PI * cDenom * cDenom);
-        float ccPdf = cD * NdotH / (4f * VdotH);
+        float cG1V = SmithG1_GGX(NdotV, _clearcoatAlpha);
+        float ccPdf = cG1V * cD / (4f * safeNdotV);
 
         return w.PDiffuse * cosPdf
              + w.PSheen * cosPdf
@@ -545,16 +531,6 @@ public class DisneyBsdf : IMaterial
             attenuation = baseCol;
         }
 
-        // ── FIX #8b: Cap per-bounce attenuation ────────────────────────────
-        // After lobe selection compensation (1/p), the attenuation can reach
-        // high values for low-probability lobes. Without capping, two
-        // consecutive bounces each at 10× produce 100× — a guaranteed firefly.
-        // Clamping per-component to MaxLobeAttenuation introduces a small bias
-        // on the ~1% of paths that hit low-probability lobes at grazing angles,
-        // but eliminates the catastrophic 1000×+ outliers that dominate the
-        // image noise at low sample counts.
-        attenuation = Vector3.Min(attenuation, new Vector3(MaxLobeAttenuation));
-
         return result;
     }
 
@@ -695,13 +671,14 @@ public class DisneyBsdf : IMaterial
                                  float probability,
                                  out Vector3 attenuation, out Ray scattered)
     {
-        // Sample GGX microfacet normal
-        Vector3 H = SampleGGX(N, _alpha);
+        // Sample a visible microfacet normal (Heitz 2018)
+        Vector3 H = SampleGgxVndf(N, V, _alpha);
         Vector3 L = MathUtils.Reflect(-V, H);
 
         if (Vector3.Dot(L, N) <= 0f)
         {
-            // Below-surface reflection — absorb
+            // Below-surface reflection — absorb. VNDF reduces the
+            // frequency of this case dramatically versus NDF sampling.
             attenuation = Vector3.Zero;
             scattered = new Ray(rec.Point, N);
             return false;
@@ -709,38 +686,23 @@ public class DisneyBsdf : IMaterial
 
         scattered = new Ray(rec.Point, L);
 
-        // Dot product floors: NdotV and NdotH appear in the denominator of
-        // the GGX weight. Floor at 0.01 (≈ 89.4°) instead of 0.001 (≈ 89.94°)
-        // — the visual difference in that 0.5° sliver is imperceptible, but
-        // the spike reduction is 10×.
-        float NdotV = MathF.Max(Vector3.Dot(N, V), 0.01f);
-        float NdotL = MathF.Max(Vector3.Dot(N, L), 0.001f);
-        float NdotH = MathF.Max(Vector3.Dot(N, H), 0.01f);
-        float VdotH = MathF.Max(Vector3.Dot(V, H), 0.001f);
+        float NdotL = MathF.Max(Vector3.Dot(N, L), 1e-4f);
+        float VdotH = MathF.Max(Vector3.Dot(V, H), 1e-4f);
 
-        // Compute Fresnel
         Vector3 F0 = ComputeF0(baseCol);
         Vector3 fresnel = FresnelSchlick(VdotH, F0);
 
-        // Smith GGX geometry (masking/shadowing) — separable approximation
-        float G = SmithG1_GGX(NdotV, _alpha) * SmithG1_GGX(NdotL, _alpha);
-
-        // BRDF/pdf importance sampling weight for GGX NDF sampling:
-        //   BRDF  = D(H) × F × G / (4 × NdotV × NdotL)
-        //   pdf   = D(H) × NdotH / (4 × VdotH)
-        //   weight = F × G × VdotH / (NdotV × NdotH)
+        // VNDF importance-sampling weight.
+        //   BRDF            = F · D · G / (4 · NdotV · NdotL)
+        //   VNDF pdf_L      = G1(V) · D / (4 · NdotV)
+        //   BRDF·cos / pdf  = F · G / G1(V) = F · G1(L)   (separable Smith)
         //
-        // FIREFLY GUARD: The GGX weight should theoretically stay near 1.0
-        // for well-behaved configurations (Smith G damps the VdotH/(NdotV×NdotH)
-        // ratio). Values above 1.0 come from near-degenerate grazing angles
-        // where the floor values dominate — these are noise, not signal.
-        // Clamping to 1.0 eliminates fireflies with no perceptible quality loss:
-        // the affected samples are at extreme silhouette edges (< 1° sliver)
-        // where the human eye can't distinguish the difference anyway.
-        float ggxWeight = MathF.Min(G * VdotH / (NdotV * NdotH), 1f);
-        attenuation = fresnel * ggxWeight;
+        // G1(L) is inherently in [0, 1], so the old "clamp ggxWeight to 1"
+        // firefly guard from Walter-2007 NDF sampling is no longer needed.
+        float g1L = SmithG1_GGX(NdotL, _alpha);
+        attenuation = fresnel * g1L;
 
-        // Compensate for lobe selection probability
+        // Compensate for lobe selection probability.
         float safeProbability = MathF.Max(probability, 0.1f);
         attenuation /= safeProbability;
 
@@ -748,28 +710,18 @@ public class DisneyBsdf : IMaterial
     }
 
     /// <summary>
-    /// Specular transmission for glass-like materials.
-    /// Uses Schlick's approximation for reflection vs refraction choice.
+    /// Specular transmission for glass-like materials. Selects between
+    /// Fresnel reflection and refraction stochastically (Schlick approximation)
+    /// and applies Beer-like tinting via sqrt(baseColor).
     ///
-    /// FIX #7a: Frosted glass now uses GGX-sampled microfacet normals instead
-    /// of uniform-sphere perturbation of the refracted direction. The old approach
-    /// added random noise with a uniform distribution that didn't match the GGX
-    /// BRDF used by the specular lobe, causing high variance for rough transmissive
-    /// materials. The new approach samples a microfacet normal H from the GGX NDF
-    /// and refracts through H, producing a distribution that is consistent with
-    /// the material's roughness model.
+    /// Frosted glass (Roughness &gt; 0.01) samples the microfacet normal via
+    /// visible-NDF sampling (Heitz 2018) and reduces to a G1(L) geometry
+    /// weight in [0, 1] — the same closed form used by <see cref="ScatterSpecular"/>.
+    /// Smooth glass reuses the geometric normal and needs no weight.
     ///
-    /// FIX #8a: Added Smith GGX geometry weight for rough transmission.
-    /// Previously, all transmitted samples had equal weight (sqrt(baseColor)),
-    /// regardless of microfacet geometry. This meant samples near the NDF peak
-    /// (frequent) and samples in the tail (rare) contributed equally — the
-    /// definition of high variance. Now, for rough glass (roughness > 0.01),
-    /// we compute the proper GGX importance sampling weight G×VdotH/(NdotV×NdotH)
-    /// just like ScatterSpecular does. This dramatically reduces fireflies on
-    /// frosted/colored glass surfaces.
-    ///
-    /// For smooth glass (roughness ≤ 0.01), the microfacet normal equals the
-    /// geometric normal and the GGX weight is 1.0, so we skip the computation.
+    /// A full dispersive dielectric (unified reflection/refraction lobe with
+    /// Beer-Lambert attenuation through a volume stack) is scheduled for the
+    /// glass-BSDF step and will replace this approximation.
     /// </summary>
     private bool ScatterTransmission(Ray rayIn, HitRecord rec, Vector3 baseCol,
                                      Vector3 N, Vector3 V, float probability,
@@ -778,11 +730,14 @@ public class DisneyBsdf : IMaterial
         float eta = rec.FrontFace ? (1f / Ior) : Ior;
         Vector3 unitDir = Vector3.Normalize(rayIn.Direction);
 
-        // For rough transmissive materials, sample a GGX microfacet normal
-        // instead of using the geometric normal. This produces physically
-        // correct frosted glass with a distribution matching the roughness.
+        // For rough transmissive materials, sample a visible microfacet
+        // normal (Heitz 2018 VNDF) instead of the geometric normal. VNDF
+        // samples are drawn from the subset of the GGX distribution that
+        // is actually visible from V, which eliminates the masked-sample
+        // variance that forced the old NDF-sampling path to clamp the
+        // geometry weight to 1.
         bool isRough = Roughness > 0.01f;
-        Vector3 Ht = isRough ? SampleGGX(N, _alpha) : N;
+        Vector3 Ht = isRough ? SampleGgxVndf(N, V, _alpha) : N;
 
         // Ensure the microfacet normal faces the incoming ray
         if (Vector3.Dot(Ht, unitDir) > 0f)
@@ -816,29 +771,19 @@ public class DisneyBsdf : IMaterial
             MathF.Sqrt(baseCol.Y),
             MathF.Sqrt(baseCol.Z));
 
-        // ── FIX #8a: GGX geometry weight for rough transmission ────────────
-        // For rough glass, the GGX microfacet sampling has a pdf proportional
-        // to D(Ht)×NdotHt. The BTDF includes a G term that must be accounted
-        // for to keep the estimator low-variance. We use the same
-        // G×VdotH/(NdotV×NdotH) weight as ScatterSpecular, with the same
-        // clamp to 1.0 for firefly protection.
-        //
-        // For smooth glass (isRough=false), Ht=N → NdotH=1, VdotH≈NdotV,
-        // G≈1, so the weight is ~1.0 and we skip the computation.
+        // ── VNDF geometry weight for rough transmission ────────────────────
+        // Same F · G1(L) simplification as reflection: with VNDF sampling
+        // the transmission BSDF/pdf ratio collapses to G1(L) (and the
+        // Fresnel factor is applied separately by the caller via the
+        // branch probability). For smooth glass (isRough = false), Ht = N
+        // so G1(L) = G1(NdotL) = 1 within rounding and the weight is
+        // effectively unity — we skip the computation.
         if (isRough)
         {
             Vector3 L = scattered.Direction;
-            float NdotV_t = MathF.Max(Vector3.Dot(N, V), 0.01f);
-            float NdotL_t = MathF.Abs(Vector3.Dot(N, L));  // abs: transmitted L may be below surface
-            NdotL_t = MathF.Max(NdotL_t, 0.001f);
-            float NdotHt  = MathF.Max(MathF.Abs(Vector3.Dot(N, Ht)), 0.01f);
-            float VdotHt  = MathF.Max(MathF.Abs(Vector3.Dot(V, Ht)), 0.001f);
-
-            float G_t = SmithG1_GGX(NdotV_t, _alpha) * SmithG1_GGX(NdotL_t, _alpha);
-
-            // Same clamped weight as specular — values > 1 are grazing-angle noise
-            float transWeight = MathF.Min(G_t * VdotHt / (NdotV_t * NdotHt), 1f);
-            attenuation *= transWeight;
+            float NdotL_t = MathF.Max(MathF.Abs(Vector3.Dot(N, L)), 1e-4f);
+            float g1L = SmithG1_GGX(NdotL_t, _alpha);
+            attenuation *= g1L;
         }
 
         // Compensate for lobe selection probability
@@ -849,20 +794,19 @@ public class DisneyBsdf : IMaterial
     }
 
     /// <summary>
-    /// Clearcoat: a fixed-IOR (1.5) secondary specular lobe with its own roughness.
-    /// Always white (physically: a thin transparent varnish layer).
+    /// Clearcoat: a fixed-IOR (1.5) secondary specular lobe with its own
+    /// roughness. Always white (physically: a thin transparent varnish layer).
     ///
-    /// Uses the same GGX importance sampling weight as ScatterSpecular but with
-    /// _clearcoatAlpha and fixed F0 = 0.04. The Clearcoat intensity parameter
-    /// is NOT multiplied into the attenuation — it is already encoded in the
-    /// lobe selection probability (clearW = Clearcoat × 0.25), and the 1/probability
-    /// compensation keeps the estimator unbiased.
+    /// Same VNDF sampling and F · G1(L) weight as <see cref="ScatterSpecular"/>,
+    /// but with <c>_clearcoatAlpha</c> and fixed F0 = 0.04. The <c>Clearcoat</c>
+    /// intensity is encoded in the lobe selection probability, not in the
+    /// attenuation — the 1/probability compensation keeps the estimator unbiased.
     /// </summary>
     private bool ScatterClearcoat(HitRecord rec, Vector3 N, Vector3 V,
                                   float probability,
                                   out Vector3 attenuation, out Ray scattered)
     {
-        Vector3 H = SampleGGX(N, _clearcoatAlpha);
+        Vector3 H = SampleGgxVndf(N, V, _clearcoatAlpha);
         Vector3 L = MathUtils.Reflect(-V, H);
 
         if (Vector3.Dot(L, N) <= 0f)
@@ -874,25 +818,17 @@ public class DisneyBsdf : IMaterial
 
         scattered = new Ray(rec.Point, L);
 
-        // Same raised floors as ScatterSpecular (see comment there).
-        float NdotV = MathF.Max(Vector3.Dot(N, V), 0.01f);
-        float NdotL = MathF.Max(Vector3.Dot(N, L), 0.001f);
-        float NdotH = MathF.Max(Vector3.Dot(N, H), 0.01f);
-        float VdotH = MathF.Max(Vector3.Dot(V, H), 0.001f);
+        float NdotL = MathF.Max(Vector3.Dot(N, L), 1e-4f);
+        float VdotH = MathF.Max(Vector3.Dot(V, H), 1e-4f);
 
-        // Clearcoat uses fixed F0 = 0.04 (IOR ≈ 1.5)
+        // Clearcoat: fixed F0 = 0.04 (IOR ≈ 1.5)
         float f0 = 0.04f;
         float fresnel = f0 + (1f - f0) * SchlickWeight(VdotH);
 
-        // Smith GGX geometry with clearcoat alpha
-        float G = SmithG1_GGX(NdotV, _clearcoatAlpha) * SmithG1_GGX(NdotL, _clearcoatAlpha);
+        // VNDF weight: F · G1(L) (see ScatterSpecular for the derivation).
+        float g1L = SmithG1_GGX(NdotL, _clearcoatAlpha);
+        attenuation = new Vector3(fresnel * g1L);
 
-        // GGX importance sampling weight: F × G × VdotH / (NdotV × NdotH)
-        // FIREFLY GUARD: clamp to 1.0 (see ScatterSpecular comment).
-        float ggxWeight = MathF.Min(G * VdotH / (NdotV * NdotH), 1f);
-        attenuation = new Vector3(fresnel * ggxWeight);
-
-        // Compensate for lobe selection probability
         float safeProbability = MathF.Max(probability, 0.1f);
         attenuation /= safeProbability;
 
@@ -919,43 +855,82 @@ public class DisneyBsdf : IMaterial
     }
 
     /// <summary>
-    /// Importance-samples a microfacet normal from the GGX (Trowbridge-Reitz)
-    /// distribution. Returns a half-vector H in world space.
+    /// Samples a visible microfacet normal from the GGX distribution using
+    /// the Heitz 2018 algorithm ("Sampling the GGX Distribution of Visible
+    /// Normals", JCGT vol. 7 no. 4).
+    ///
+    /// Unlike the classic Walter 2007 NDF sampling (which samples H from
+    /// D(H)·NdotH without regard to the viewing direction), VNDF samples
+    /// only the portion of the microfacet distribution that is actually
+    /// visible from V. This eliminates "wasted" samples in masked regions
+    /// and drives the BRDF/pdf ratio to a well-behaved closed form
+    ///   weight = F · G1(L)   (separable Smith)
+    /// that is bounded in [0, |F|] and does NOT require the clamp-to-1
+    /// firefly guards the old NDF sampling needed.
+    ///
+    /// Algorithm (isotropic case):
+    ///   1. Build an orthonormal frame around N and express V in it.
+    ///   2. Stretch V along the z-axis by the GGX α to map the ellipsoidal
+    ///      distribution onto a hemisphere.
+    ///   3. Sample a point on the visible disk of that hemisphere using
+    ///      the trapezoid-based reparameterisation from Heitz 2018 §3.2.
+    ///   4. Project to the hemisphere and unstretch to recover the
+    ///      world-space half-vector.
     /// </summary>
-    private static Vector3 SampleGGX(Vector3 N, float alpha)
+    private static Vector3 SampleGgxVndf(Vector3 N, Vector3 V, float alpha)
     {
+        // Build a tangent frame (T, B) around N
+        BuildTangentFrame(N, out Vector3 T, out Vector3 B);
+
+        // Express V in tangent space (z-up = shading normal)
+        Vector3 Vl = new(Vector3.Dot(V, T), Vector3.Dot(V, B), Vector3.Dot(V, N));
+
+        // Stretch V by the GGX α (isotropic: αx = αy = α)
+        Vector3 Vh = Vector3.Normalize(new Vector3(alpha * Vl.X, alpha * Vl.Y, Vl.Z));
+
+        // Orthonormal basis spanning the plane perpendicular to Vh
+        float lenSq = Vh.X * Vh.X + Vh.Y * Vh.Y;
+        Vector3 T1 = lenSq > 0f
+            ? new Vector3(-Vh.Y, Vh.X, 0f) / MathF.Sqrt(lenSq)
+            : new Vector3(1f, 0f, 0f);
+        Vector3 T2 = Vector3.Cross(Vh, T1);
+
+        // Sample a point on the visible disk (Heitz 2018 eq. 5)
         float u1 = MathUtils.RandomFloat();
         float u2 = MathUtils.RandomFloat();
-
-        // GGX sampling in spherical coordinates
-        float a2 = alpha * alpha;
-        float cosTheta = MathF.Sqrt((1f - u1) / (1f + (a2 - 1f) * u1));
-        float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
+        float r  = MathF.Sqrt(u1);
         float phi = 2f * MathF.PI * u2;
+        float t1 = r * MathF.Cos(phi);
+        float t2 = r * MathF.Sin(phi);
+        float s  = 0.5f * (1f + Vh.Z);
+        t2 = (1f - s) * MathF.Sqrt(MathF.Max(0f, 1f - t1 * t1)) + s * t2;
 
-        // Local tangent-space H
-        Vector3 Hlocal = new(
-            sinTheta * MathF.Cos(phi),
-            sinTheta * MathF.Sin(phi),
-            cosTheta);
+        // Project onto the hemisphere — the visible-normal half-vector in
+        // stretched space.
+        Vector3 Nh = t1 * T1 + t2 * T2
+                   + MathF.Sqrt(MathF.Max(0f, 1f - t1 * t1 - t2 * t2)) * Vh;
 
-        // Transform to world space using an orthonormal basis around N
-        return TangentToWorld(Hlocal, N);
+        // Unstretch by dividing through by α and re-normalise. Clamp the z
+        // component to zero to keep H on the upper hemisphere (numerically
+        // robust at grazing incidence where Nh.Z may fall slightly below 0).
+        Vector3 Hl = Vector3.Normalize(new Vector3(
+            alpha * Nh.X,
+            alpha * Nh.Y,
+            MathF.Max(0f, Nh.Z)));
+
+        // Back to world space
+        Vector3 result = Hl.X * T + Hl.Y * B + Hl.Z * N;
+        float resultLenSq = result.LengthSquared();
+        return resultLenSq > 1e-8f ? result / MathF.Sqrt(resultLenSq) : N;
     }
 
     /// <summary>
-    /// Builds an orthonormal basis around N and transforms a tangent-space
-    /// vector to world space. Uses Frisvad's robust method.
+    /// Constructs an orthonormal tangent frame (T, B) around N using
+    /// Frisvad's method, with a safe branch for near-south-pole normals
+    /// where the 1/(1+N.Z) term would explode.
     /// </summary>
-    private static Vector3 TangentToWorld(Vector3 local, Vector3 N)
+    private static void BuildTangentFrame(Vector3 N, out Vector3 T, out Vector3 B)
     {
-        Vector3 T, B;
-        // Frisvad's method — but the 1/(1+N.Z) term becomes numerically
-        // unstable as N.Z approaches -1. At N.Z = -0.999, a = 1000 and
-        // the resulting T/B vectors are near-degenerate, potentially
-        // producing NaN after normalization. Widen the threshold to -0.999
-        // (was -0.9999) to use the safe fallback basis for near-south-pole
-        // normals. The error is imperceptible (0.1° of normal deviation).
         if (N.Z < -0.999f)
         {
             T = new Vector3(0f, -1f, 0f);
@@ -968,11 +943,6 @@ public class DisneyBsdf : IMaterial
             T = new Vector3(1f - N.X * N.X * a, b, -N.X);
             B = new Vector3(b, 1f - N.Y * N.Y * a, -N.Y);
         }
-
-        Vector3 result = local.X * T + local.Y * B + local.Z * N;
-        float lenSq = result.LengthSquared();
-        // Guard against degenerate zero-length vector → NaN from Normalize
-        return lenSq > 1e-8f ? result / MathF.Sqrt(lenSq) : N;
     }
 
     /// <summary>
