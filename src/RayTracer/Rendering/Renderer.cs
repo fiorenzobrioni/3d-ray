@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Linq;
 using RayTracer.Core;
+using RayTracer.Core.Sampling;
 using RayTracer.Geometry;
 using RayTracer.Lights;
 using RayTracer.Materials;
@@ -147,11 +148,27 @@ public class Renderer
             {
                 Vector3 cumulativeColor = Vector3.Zero;
 
+                // Per-pixel scramble seed: combine pixel coordinates so each
+                // pixel walks an independent Owen-scrambled sequence. Without
+                // this, every pixel would start from the same Sobol prefix
+                // and the resulting Moiré would be more visible than plain
+                // PRNG noise — the very failure mode Owen scrambling exists
+                // to fix.
+                uint pixelSeed = (uint)(i * 73856093) ^ (uint)(j * 19349663);
+
                 // Stratified sampling: divide pixel into sqrtSpp x sqrtSpp grid
                 for (int sy = 0; sy < sqrtSpp; sy++)
                 {
                     for (int sx = 0; sx < sqrtSpp; sx++)
                     {
+                        // Open the per-pixel-sample low-discrepancy context.
+                        // Sobol uses dimensions 0..N to draw camera-jitter,
+                        // BSDF, light and volumetric samples in declaration
+                        // order; PRNG mode is a no-op so the legacy path stays
+                        // hot.
+                        uint sampleIndex = (uint)(sy * sqrtSpp + sx);
+                        Sampler.BeginPixelSample(pixelSeed, sampleIndex);
+
                         float jitterU = (sx + MathUtils.RandomFloat()) * invSqrtSpp;
                         float jitterV = (sy + MathUtils.RandomFloat()) * invSqrtSpp;
 
@@ -162,6 +179,8 @@ public class Renderer
                         // Camera rays: treat as "delta" so emission at the primary
                         // hit is shown at full weight.
                         Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true);
+
+                        Sampler.EndPixelSample();
 
                         // ── Firefly suppression ────────────────────────────
                         // Clamp individual sample radiance to prevent outliers

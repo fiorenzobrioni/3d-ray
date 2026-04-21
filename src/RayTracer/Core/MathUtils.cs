@@ -1,4 +1,5 @@
 using System.Numerics;
+using RayTracer.Core.Sampling;
 
 namespace RayTracer.Core;
 
@@ -23,7 +24,18 @@ public static class MathUtils
 
     public static float DegreesToRadians(float degrees) => degrees * Pi / 180f;
 
-    public static float RandomFloat() => (float)Rng.NextDouble();
+    /// <summary>
+    /// Uniform [0, 1) draw routed through the active per-pixel sampler.
+    /// When the Sobol sampler is installed and a per-pixel-sample
+    /// context is open (see <see cref="Sampler"/>), draws are
+    /// Owen-scrambled and successive calls walk independent dimensions
+    /// of the low-discrepancy sequence — typically a 2-5× convergence
+    /// improvement at fixed spp on path-traced scenes. When the PRNG
+    /// sampler is active or the context is closed (e.g. tests, scene
+    /// loader), falls through to the legacy thread-local
+    /// <see cref="Random"/>.
+    /// </summary>
+    public static float RandomFloat() => Sampler.Sample1D();
     public static float RandomFloat(float min, float max) => min + (max - min) * RandomFloat();
 
     public static Vector3 RandomVector3() =>
