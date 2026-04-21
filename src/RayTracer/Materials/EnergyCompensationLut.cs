@@ -38,10 +38,17 @@ internal static class EnergyCompensationLut
     private static readonly float[] E = new float[MuRes * AlphaRes];
     private static readonly float[] EAvg = new float[AlphaRes];
 
+    // Sequential — deliberately NOT Parallel.For. The static ctor may fire
+    // from inside Renderer.Render's outer Parallel.For if the first Disney
+    // hit happens on a worker thread; spawning a nested Parallel.For there
+    // starves the shared ThreadPool and deadlocks (first worker holds the
+    // static-ctor lock, all other workers block on that lock, nested tasks
+    // have no free workers to run). Callers that care about cold-start cost
+    // should invoke <see cref="Prewarm"/> once from the main thread before
+    // any rendering begins.
     static EnergyCompensationLut()
     {
-        // Independent α rows parallelise trivially.
-        Parallel.For(0, AlphaRes, ai =>
+        for (int ai = 0; ai < AlphaRes; ai++)
         {
             float alpha = AlphaValue(ai);
             for (int mi = 0; mi < MuRes; mi++)
@@ -61,7 +68,20 @@ internal static class EnergyCompensationLut
             for (int mi = 0; mi < MuRes; mi++)
                 avg += 2f * E[mi * AlphaRes + ai] * MuValue(mi);
             EAvg[ai] = Math.Clamp(avg / MuRes, 0f, 1f);
-        });
+        }
+    }
+
+    /// <summary>
+    /// Forces the static constructor to run on the current thread. Call once
+    /// before rendering so the (~few-hundred-ms) MC build cost is paid on the
+    /// main thread rather than inside the parallel render loop, where it would
+    /// serialise one worker while the rest wait on the static-ctor lock.
+    /// </summary>
+    public static void Prewarm()
+    {
+        // Touch both tables so readers on any axis trigger the static ctor.
+        _ = SampleE(0.5f, 0.5f);
+        _ = SampleEAvg(0.5f);
     }
 
     // Bin centres. μ ∈ (0, 1], α ∈ [0.001, 1] — α is floored to keep the

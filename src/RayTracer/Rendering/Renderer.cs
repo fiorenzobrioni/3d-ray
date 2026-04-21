@@ -109,6 +109,13 @@ public class Renderer
             _emitterToLight[gl.Material] = gl;
         }
         _envLight = lights.OfType<EnvironmentLight>().FirstOrDefault();
+
+        // Pre-warm the Kulla-Conty energy-compensation LUT on the construction
+        // thread. Without this, the table is built lazily on first access,
+        // which in the multi-threaded render path can saturate the shared
+        // ThreadPool and deadlock. Pre-warming also moves the (~few-hundred-ms)
+        // build cost out of the wall-clock render time and into Renderer setup.
+        EnergyCompensationLut.Prewarm();
         
         if (isIndirectDominant)
         {
