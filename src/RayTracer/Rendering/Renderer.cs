@@ -262,7 +262,8 @@ public class Renderer
     // ═════════════════════════════════════════════════════════════════════════
 
     private Vector3 ShadeSurface(Ray ray, HitRecord rec, int depth,
-                                  float prevBsdfPdf, bool prevIsDelta)
+                                  float prevBsdfPdf, bool prevIsDelta,
+                                  Vector3 currentAbsorption)
     {
         IMaterial? material = rec.Material;
 
@@ -304,7 +305,8 @@ public class Renderer
         BsdfSample? mis = material.Sample(viewDir, rec);
         if (mis.HasValue)
         {
-            return ShadeSampleBounce(material, rec, mis.Value, depth, emitted, directLight);
+            return ShadeSampleBounce(material, rec, mis.Value, depth, emitted, directLight,
+                                     currentAbsorption);
         }
 
         if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
@@ -326,8 +328,13 @@ public class Renderer
             // delta bounce, emission passes through. Diffuse scatter => NEE
             // replaces emission, suppress registered emitters at next hit.
             bool nextIsDelta = diffuseWeight <= 0f;
+            // Legacy Scatter materials don't participate in volume stacking —
+            // they don't emit medium-switch signals. Pass through the incoming
+            // currentAbsorption so any enclosing Disney-glass interior still
+            // absorbs along the continued ray segment.
             Vector3 indirect = TraceRay(scattered, depth - 1,
-                                         prevBsdfPdf: 0f, prevIsDelta: nextIsDelta);
+                                         prevBsdfPdf: 0f, prevIsDelta: nextIsDelta,
+                                         currentAbsorption: currentAbsorption);
             return emitted + attenuation * (directLight + indirect);
         }
 
@@ -341,7 +348,8 @@ public class Renderer
     /// </summary>
     private Vector3 ShadeSampleBounce(IMaterial material, HitRecord rec,
                                        BsdfSample s, int depth,
-                                       Vector3 emitted, Vector3 directLight)
+                                       Vector3 emitted, Vector3 directLight,
+                                       Vector3 currentAbsorption)
     {
         Vector3 attenuation;
         if (s.IsDelta)
@@ -378,7 +386,13 @@ public class Renderer
 
         float nextPdf = s.IsDelta ? 0f : s.Pdf;
         bool nextIsDelta = s.IsDelta;
-        Vector3 indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta);
+        // Interior-medium switch: refraction samples emit NextSegmentAbsorption
+        // to tell the renderer to switch the σ_a tracked along the next segment
+        // (entering glass → σ_a; exiting → vacuum). Reflection samples keep
+        // the caller's currentAbsorption untouched.
+        Vector3 nextAbsorption = s.NextSegmentAbsorption ?? currentAbsorption;
+        Vector3 indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
+                                     currentAbsorption: nextAbsorption);
         return emitted + attenuation * (directLight + indirect);
     }
 
@@ -410,8 +424,18 @@ public class Renderer
     /// Top-level radiance estimator. Decides between the surface-only path
     /// (no medium → bit-identical to pre-volumetric builds) and the volumetric
     /// path (homogeneous global medium with Beer-Lambert + free-path sampling).
+    ///
+    /// <paramref name="currentAbsorption"/> is the Beer-Lambert coefficient
+    /// σ_a of whatever medium the ray is currently traversing (zero vector
+    /// = vacuum, populated by refractive Disney samples when the ray enters
+    /// a dielectric interior). A non-zero value multiplies the returned
+    /// radiance by exp(-σ_a · t) where t is the distance the ray travelled
+    /// before its next interaction. The global <see cref="_globalMedium"/>
+    /// stacks multiplicatively with this interior absorption — they track
+    /// independent media and are accumulated in series.
     /// </summary>
-    private Vector3 TraceRay(Ray ray, int depth, float prevBsdfPdf, bool prevIsDelta)
+    private Vector3 TraceRay(Ray ray, int depth, float prevBsdfPdf, bool prevIsDelta,
+                             Vector3 currentAbsorption = default)
     {
         if (depth <= 0) return Vector3.Zero;
 
@@ -421,8 +445,14 @@ public class Renderer
         // ── Surface-only fast path (no medium) ──────────────────────────────
         if (_globalMedium == null)
         {
-            if (!hit) return SampleSky(ray, prevBsdfPdf, prevIsDelta);
-            return ShadeSurface(ray, rec, depth, prevBsdfPdf, prevIsDelta);
+            Vector3 result = !hit
+                ? SampleSky(ray, prevBsdfPdf, prevIsDelta)
+                : ShadeSurface(ray, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption);
+            // Beer-Lambert along the segment just traversed. Sky miss with
+            // non-zero σ_a means the ray escaped the bounded medium — the
+            // exp(-σ_a · ∞) is zero for any absorbing channel, so we collapse
+            // it to black; the common vacuum case skips this entirely.
+            return ApplyBeerLambert(result, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
         }
 
         // ── Volumetric path ─────────────────────────────────────────────────
@@ -462,16 +492,36 @@ public class Renderer
                 float phaseWeight = phasePdf > 1e-20f ? phaseVal / phasePdf : 0f;
                 Lind = phaseWeight * indirectScale
                      * TraceRay(new Ray(p, wi), depth - 1,
-                                 prevBsdfPdf: 0f, prevIsDelta: false);
+                                 prevBsdfPdf: 0f, prevIsDelta: false,
+                                 currentAbsorption: currentAbsorption);
             }
 
-            return beta * (Lnee + Lind);
+            return ApplyBeerLambert(beta * (Lnee + Lind), currentAbsorption, tMed);
         }
 
         // No medium event before tMax → continue with surface (or sky) shading,
         // attenuated by the medium throughput beta = Tr / pdf.
-        if (!hit) return beta * SampleSky(ray, prevBsdfPdf, prevIsDelta);
-        return beta * ShadeSurface(ray, rec, depth, prevBsdfPdf, prevIsDelta);
+        Vector3 surfaceOrSky = !hit
+            ? beta * SampleSky(ray, prevBsdfPdf, prevIsDelta)
+            : beta * ShadeSurface(ray, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption);
+        return ApplyBeerLambert(surfaceOrSky, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
+    }
+
+    /// <summary>
+    /// exp(-σ_a · t) per channel. Vacuum (σ_a = 0) short-circuits the exp()
+    /// calls; an infinite segment with any non-zero σ_a collapses the channel
+    /// to zero (the ray was inside a bounded medium but didn't hit its
+    /// boundary — treat as fully absorbed).
+    /// </summary>
+    private static Vector3 ApplyBeerLambert(Vector3 radiance, Vector3 sigma, float t)
+    {
+        if (sigma.X <= 0f && sigma.Y <= 0f && sigma.Z <= 0f) return radiance;
+        if (float.IsPositiveInfinity(t)) return Vector3.Zero;
+        if (t <= 0f) return radiance;
+        return radiance * new Vector3(
+            sigma.X > 0f ? MathF.Exp(-sigma.X * t) : 1f,
+            sigma.Y > 0f ? MathF.Exp(-sigma.Y * t) : 1f,
+            sigma.Z > 0f ? MathF.Exp(-sigma.Z * t) : 1f);
     }
 
     /// <summary>

@@ -606,6 +606,100 @@ public class DisneyBsdfTests
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Glass: Beer-Lambert interior absorption (step 9)
+    //
+    // The Disney glass lobe carries a medium-switch signal on refraction
+    // (BsdfSample.NextSegmentAbsorption) so the renderer can apply
+    // exp(-σ_a · t) along the next segment. These tests verify that σ_a is
+    // derived from transmission_color / transmission_depth according to the
+    // Beer-Lambert formula σ_a = -ln(C) / D, and that front-face vs back-face
+    // refractions populate the signal correctly.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void TransmissionSample_FrontFace_ReportsBeerLambertSigma()
+    {
+        // tColor in (0, 1) at depth 1 → σ_a = -ln(tColor).
+        var tColor = new Vector3(0.8f, 0.5f, 0.1f);
+        var expectedSigma = new Vector3(
+            -MathF.Log(tColor.X),
+            -MathF.Log(tColor.Y),
+            -MathF.Log(tColor.Z));
+
+        var material = new DisneyBsdf(
+            baseColor: new SolidColor(Vector3.One),
+            metallic: 0f, roughness: 0.0f, subsurface: 0f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 1f, ior: 1.5f,
+            anisotropic: 0f, anisotropicRotation: 0f,
+            transmissionColor: new SolidColor(tColor),
+            transmissionDepth: new FloatTexture(1.0f));
+
+        // View pointing into the surface from above (N = +Y). FrontFace = true.
+        var rec = MakeRec();
+        var view = Vector3.UnitY;
+
+        int refractions = 0;
+        for (int i = 0; i < 256; i++)
+        {
+            var s = material.Sample(view, rec);
+            if (!s.HasValue) continue;
+            var sample = s.Value;
+            float NdotWo = Vector3.Dot(rec.Normal, sample.Wo);
+            if (NdotWo < 0f && sample.IsDelta)
+            {
+                refractions++;
+                Assert.True(sample.NextSegmentAbsorption.HasValue,
+                    "front-face refraction sample must carry a medium-switch signal");
+                AssertVectorClose(sample.NextSegmentAbsorption!.Value, expectedSigma,
+                                  relTol: 1e-3f, absTol: 1e-4f);
+            }
+        }
+        // 256 samples on a smooth glass at normal incidence: most Schlick
+        // coin flips favour refraction (F ≈ 0.04). Requiring ≥ 1 refraction
+        // is extremely conservative and guards against a degenerate lobe
+        // selection that would silently skip the assertion.
+        Assert.True(refractions > 0,
+            "expected at least one front-face refraction sample");
+    }
+
+    [Fact]
+    public void TransmissionSample_ThinGlass_EmitsNoMediumSwitch()
+    {
+        // With depth = 0 the σ_a is zero → the sampler should not emit a
+        // medium-switch signal on FrontFace refractions (there is no
+        // interior medium to enter). The per-hit tint is carried by
+        // BsdfSample.F instead.
+        var material = new DisneyBsdf(
+            baseColor: new SolidColor(Vector3.One),
+            metallic: 0f, roughness: 0.0f, subsurface: 0f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 1f, ior: 1.5f,
+            anisotropic: 0f, anisotropicRotation: 0f,
+            transmissionColor: new SolidColor(new Vector3(0.9f, 0.6f, 0.3f)),
+            transmissionDepth: new FloatTexture(0f));
+
+        var rec = MakeRec();
+        var view = Vector3.UnitY;
+
+        int refractions = 0;
+        for (int i = 0; i < 256; i++)
+        {
+            var s = material.Sample(view, rec);
+            if (!s.HasValue) continue;
+            var sample = s.Value;
+            float NdotWo = Vector3.Dot(rec.Normal, sample.Wo);
+            if (NdotWo < 0f && sample.IsDelta)
+            {
+                refractions++;
+                Assert.False(sample.NextSegmentAbsorption.HasValue,
+                    "thin-glass refraction must not signal a medium switch");
+            }
+        }
+        Assert.True(refractions > 0);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 

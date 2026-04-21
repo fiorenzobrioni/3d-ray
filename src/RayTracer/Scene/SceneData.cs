@@ -273,6 +273,20 @@ public class MaterialData
     [YamlMember(Alias = "anisotropic_rotation")]
     public float AnisotropicRotation { get; set; } = 0f;
 
+    // ── Volumetric interior (Beer-Lambert through glass) ────────────────────
+    // transmission_color is the colour light takes on after travelling
+    // transmission_depth units through the material. Internally converted to
+    // a per-channel absorption σ_a = -ln(color) / depth and applied as
+    // exp(-σ_a · t) to the ray segment inside the glass by the renderer's
+    // interior-medium stack. transmission_depth = 0 disables Beer-Lambert
+    // and falls back to a thin-approximation tint (equivalent to the pre-
+    // stack baseColor-based attenuation).
+    [YamlMember(Alias = "transmission_color")]
+    public List<float>? TransmissionColor { get; set; }
+
+    [YamlMember(Alias = "transmission_depth")]
+    public float TransmissionDepth { get; set; } = 0f;
+
     // ── Disney BSDF parameter textures (optional; override the scalar) ──────
     // Each *_texture block is parsed as a full TextureData, so any existing
     // texture type (solid, image, checker, noise, marble, wood) works. When
@@ -316,6 +330,12 @@ public class MaterialData
 
     [YamlMember(Alias = "anisotropic_rotation_texture")]
     public TextureData? AnisotropicRotationTexture { get; set; }
+
+    [YamlMember(Alias = "transmission_color_texture")]
+    public TextureData? TransmissionColorTexture { get; set; }
+
+    [YamlMember(Alias = "transmission_depth_texture")]
+    public TextureData? TransmissionDepthTexture { get; set; }
 
     // ── Mix Material parameters ─────────────────────────────────────────────
 

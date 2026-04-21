@@ -67,6 +67,22 @@ public class DisneyBsdf : IMaterial
     public FloatTexture Anisotropic         { get; }
     public FloatTexture AnisotropicRotation { get; }
 
+    // ── Glass / transmission volume ────────────────────────────────────────
+    // TransmissionColor: tint the light acquires after travelling through
+    //   TransmissionDepth scene units of the medium. When null (the default),
+    //   the material keeps the legacy Disney 2012 approximation of
+    //   sqrt(baseColor) applied at each refraction event — preserved for
+    //   backward compatibility with scenes authored before Beer-Lambert.
+    // TransmissionDepth: the reference distance (in world units) at which the
+    //   transmitted colour equals TransmissionColor. Zero means "thin glass"
+    //   — TransmissionColor is applied as a per-hit tint without volume
+    //   tracking, matching a surface-only Disney glass. Positive depth
+    //   activates Beer-Lambert: σ_a = -ln(TransmissionColor)/TransmissionDepth
+    //   (per channel), applied along the next segment via the renderer's
+    //   interior-medium tracker.
+    public ITexture?    TransmissionColor   { get; }
+    public FloatTexture TransmissionDepth   { get; }
+
     // ── Normal map support ──────────────────────────────────────────────────
     public NormalMapTexture? NormalMap { get; set; }
 
@@ -92,7 +108,9 @@ public class DisneyBsdf : IMaterial
         FloatTexture? specTrans           = null,
         FloatTexture? ior                 = null,
         FloatTexture? anisotropic         = null,
-        FloatTexture? anisotropicRotation = null)
+        FloatTexture? anisotropicRotation = null,
+        ITexture?     transmissionColor   = null,
+        FloatTexture? transmissionDepth   = null)
     {
         BaseColor           = baseColor;
         Metallic            = metallic            ?? new FloatTexture(0f);
@@ -108,6 +126,8 @@ public class DisneyBsdf : IMaterial
         Ior                 = ior                 ?? new FloatTexture(1.5f);
         Anisotropic         = anisotropic         ?? new FloatTexture(0f);
         AnisotropicRotation = anisotropicRotation ?? new FloatTexture(0f);
+        TransmissionColor   = transmissionColor;
+        TransmissionDepth   = transmissionDepth   ?? new FloatTexture(0f);
 
         // Representative values — evaluated once, never per-shading-point.
         float repMetal     = Math.Clamp(Metallic.RepresentativeValue,  0f, 1f);
@@ -521,15 +541,83 @@ public class DisneyBsdf : IMaterial
         Vector3 wo = scattered.Direction;
         float NdotWo = Vector3.Dot(rec.Normal, wo);
         // Transmission lobe → treat as a delta sample. F carries Scatter's
-        // attenuation directly (it already contains the Fresnel + sqrt(baseColor)
-        // tint); delta samples in BsdfSample are interpreted by the renderer as
-        // "attenuation = F" with no cos / pdf factor.
+        // attenuation directly (it already contains the Fresnel × per-hit
+        // tint); delta samples in BsdfSample are interpreted by the renderer
+        // as "attenuation = F" with no cos / pdf factor. The sample also
+        // carries the medium-switch signal so the renderer can apply
+        // Beer-Lambert absorption along the next interior segment (entering
+        // glass → σ_a; exiting → vacuum).
         if (NdotWo <= 0f)
-            return new BsdfSample(wo, scatterAttn, 1f, isDelta: true);
+        {
+            Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+            (_, Vector3 sigma) = ResolveTransmission(rec, baseCol);
+            // Non-null only when the segment actually crosses into a new
+            // medium; emitting null lets the renderer keep whatever interior
+            // state it was already tracking (harmless for vacuum↔vacuum).
+            bool hasSigma = sigma.X > 0f || sigma.Y > 0f || sigma.Z > 0f;
+            Vector3? next;
+            if (rec.FrontFace && hasSigma) next = sigma;
+            else if (!rec.FrontFace) next = Vector3.Zero; // exiting → restore vacuum
+            else next = null;
+            return new BsdfSample(wo, scatterAttn, 1f, isDelta: true,
+                                  nextSegmentAbsorption: next);
+        }
 
         Vector3 f = Evaluate(V, wo, rec);
         float pdf = Pdf(V, wo, rec);
         return new BsdfSample(wo, f, pdf, isDelta: false);
+    }
+
+    /// <summary>
+    /// Resolves the per-hit transmission tint and the interior Beer-Lambert
+    /// absorption coefficient σ_a from <see cref="TransmissionColor"/> and
+    /// <see cref="TransmissionDepth"/>.
+    ///
+    /// Three regimes:
+    ///   • TransmissionColor null (legacy): tint = sqrt(baseColor), σ_a = 0.
+    ///     Matches the Disney-2012 approximation preserved for pre-Beer-Lambert
+    ///     scenes.
+    ///   • Explicit TransmissionColor, depth = 0: thin glass. tint =
+    ///     TransmissionColor, σ_a = 0. Colour is applied once per refraction
+    ///     event (entry and exit symmetrically when a ray crosses a glass slab).
+    ///   • Explicit TransmissionColor, depth &gt; 0: Beer-Lambert. tint = 1,
+    ///     σ_a = -ln(TransmissionColor) / TransmissionDepth per channel.
+    ///     Colour accrues along the interior segment proportional to path
+    ///     length — the physical behaviour measured in real glass/wine/ink.
+    /// </summary>
+    private (Vector3 tint, Vector3 sigma) ResolveTransmission(HitRecord rec, Vector3 baseCol)
+    {
+        float u = rec.U, v = rec.V;
+        Vector3 p = rec.LocalPoint;
+        int seed = rec.ObjectSeed;
+
+        if (TransmissionColor == null)
+        {
+            Vector3 legacy = new(
+                MathF.Sqrt(MathF.Max(baseCol.X, 0f)),
+                MathF.Sqrt(MathF.Max(baseCol.Y, 0f)),
+                MathF.Sqrt(MathF.Max(baseCol.Z, 0f)));
+            return (legacy, Vector3.Zero);
+        }
+
+        Vector3 tColor = TransmissionColor.Value(u, v, p, seed);
+        float tDepth = MathF.Max(TransmissionDepth.Value(u, v, p, seed), 0f);
+
+        if (tDepth <= 0f)
+            return (tColor, Vector3.Zero);
+
+        // σ_a = -ln(C) / D. Floor each channel at a tiny positive value so
+        // log() stays finite for the "perfectly absorbing" C = 0 limit.
+        Vector3 c = new(
+            MathF.Max(tColor.X, 1e-6f),
+            MathF.Max(tColor.Y, 1e-6f),
+            MathF.Max(tColor.Z, 1e-6f));
+        float invD = 1f / tDepth;
+        Vector3 sigma = new(
+            -MathF.Log(c.X) * invD,
+            -MathF.Log(c.Y) * invD,
+            -MathF.Log(c.Z) * invD);
+        return (Vector3.One, sigma);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -849,17 +937,22 @@ public class DisneyBsdf : IMaterial
 
     /// <summary>
     /// Specular transmission for glass-like materials. Selects between
-    /// Fresnel reflection and refraction stochastically (Schlick approximation)
-    /// and applies Beer-like tinting via sqrt(baseColor).
+    /// Fresnel reflection and refraction stochastically using the exact
+    /// unpolarised dielectric Fresnel equations (Schlick diverges from the
+    /// true value by several percent at grazing incidence — enough to bias
+    /// a converged glass render).
     ///
     /// Frosted glass (Roughness &gt; 0.01) samples the microfacet normal via
     /// visible-NDF sampling (Heitz 2018) and reduces to a G1(L) geometry
     /// weight in [0, 1] — the same closed form used by <see cref="ScatterSpecular"/>.
     /// Smooth glass reuses the geometric normal and needs no weight.
     ///
-    /// A full dispersive dielectric (unified reflection/refraction lobe with
-    /// Beer-Lambert attenuation through a volume stack) is scheduled for the
-    /// glass-BSDF step and will replace this approximation.
+    /// Transmitted colour is driven by <see cref="TransmissionColor"/> and
+    /// <see cref="TransmissionDepth"/>. With depth = 0 (the "thin glass"
+    /// default) the colour is applied as a per-hit tint; with depth &gt; 0
+    /// the hit produces a neutral attenuation and the renderer tracks
+    /// Beer-Lambert absorption along the next interior ray segment via
+    /// <see cref="BsdfSample.NextSegmentAbsorption"/>.
     /// </summary>
     private bool ScatterTransmission(Ray rayIn, HitRecord rec, Vector3 baseCol,
                                      Vector3 N, Vector3 V, in ShadingParams sp,
@@ -900,7 +993,8 @@ public class DisneyBsdf : IMaterial
         bool cannotRefract = eta * sinTheta > 1f;
         Vector3 direction;
 
-        if (cannotRefract || MathUtils.Schlick(cosTheta, eta) > MathUtils.RandomFloat())
+        float fr = cannotRefract ? 1f : MathUtils.FresnelDielectric(cosTheta, eta);
+        if (fr > MathUtils.RandomFloat())
         {
             // Total internal reflection or Fresnel reflection
             direction = MathUtils.Reflect(unitDir, Ht);
@@ -916,11 +1010,11 @@ public class DisneyBsdf : IMaterial
 
         scattered = new Ray(rec.Point, Vector3.Normalize(direction));
 
-        // Tint transmitted light by sqrt(baseColor) for colored glass
-        attenuation = new Vector3(
-            MathF.Sqrt(baseCol.X),
-            MathF.Sqrt(baseCol.Y),
-            MathF.Sqrt(baseCol.Z));
+        // Per-hit transmission tint. In Beer-Lambert mode (depth > 0) this is
+        // white and the colour comes entirely from the interior-segment
+        // absorption; in thin-glass mode (depth == 0) this carries the tint.
+        (Vector3 tint, _) = ResolveTransmission(rec, baseCol);
+        attenuation = tint;
 
         // ── VNDF geometry weight for rough transmission ────────────────────
         // Same F · G1(L) simplification as reflection: with VNDF sampling

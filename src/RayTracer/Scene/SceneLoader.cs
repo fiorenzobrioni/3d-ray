@@ -803,7 +803,9 @@ public class SceneLoader
                                 specTrans:           DisneyParam(m.SpecTrans,           m.SpecTransTexture,           sceneDir),
                                 ior:                 DisneyParam(m.DisneyIor,           m.IorTexture,                 sceneDir),
                                 anisotropic:         DisneyParam(m.Anisotropic,         m.AnisotropicTexture,         sceneDir),
-                                anisotropicRotation: DisneyParam(m.AnisotropicRotation, m.AnisotropicRotationTexture, sceneDir)),
+                                anisotropicRotation: DisneyParam(m.AnisotropicRotation, m.AnisotropicRotationTexture, sceneDir),
+                                transmissionColor:   DisneyColorParam(m.TransmissionColor, m.TransmissionColorTexture, sceneDir),
+                                transmissionDepth:   DisneyParam(m.TransmissionDepth,   m.TransmissionDepthTexture,   sceneDir)),
             _            => new Lambertian(albedo)
         };
 
@@ -978,6 +980,20 @@ public class SceneLoader
     /// </summary>
     private static FloatTexture DisneyParam(float scalar, TextureData? tex, string sceneDir)
         => tex != null ? new FloatTexture(CreateTexture(tex, sceneDir)) : new FloatTexture(scalar);
+
+    /// <summary>
+    /// Builds a nullable <see cref="ITexture"/> for a Disney colour parameter
+    /// where "unset" is semantically meaningful — e.g. <c>transmission_color</c>,
+    /// whose null value activates the legacy sqrt(baseColor) fallback in
+    /// <see cref="DisneyBsdf"/>. Prefers the texture block when supplied; else
+    /// wraps the RGB triplet if the user provided one; else returns null.
+    /// </summary>
+    private static ITexture? DisneyColorParam(List<float>? scalar, TextureData? tex, string sceneDir)
+    {
+        if (tex != null) return CreateTexture(tex, sceneDir);
+        Vector3? c = ToVector3(scalar);
+        return c.HasValue ? new SolidColor(c.Value) : null;
+    }
 
     private static ITexture CreateTexture(TextureData t, string sceneDir)
     {

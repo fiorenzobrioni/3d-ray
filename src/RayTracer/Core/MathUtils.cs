@@ -78,6 +78,29 @@ public static class MathUtils
         return r0 + (1f - r0) * MathF.Pow(1f - cosine, 5f);
     }
 
+    /// <summary>
+    /// Exact unpolarised Fresnel reflectance for a dielectric interface.
+    /// <paramref name="cosThetaI"/> is the incident cosine (|V·N|, always ≥ 0);
+    /// <paramref name="eta"/> is ηi/ηt — the ratio of the incident-side IOR to the
+    /// transmitted-side IOR. Returns 1 on total internal reflection.
+    ///
+    /// Schlick's approximation is exposed separately and is fine for metals/
+    /// paint/coat, but dielectric glass at grazing angles diverges from Schlick
+    /// by several percent — enough to bias a 1024-spp render noticeably — so we
+    /// use the full Fresnel equations for the transmission lobe.
+    /// </summary>
+    public static float FresnelDielectric(float cosThetaI, float eta)
+    {
+        cosThetaI = Math.Clamp(cosThetaI, 0f, 1f);
+        float sin2ThetaI = MathF.Max(0f, 1f - cosThetaI * cosThetaI);
+        float sin2ThetaT = eta * eta * sin2ThetaI;
+        if (sin2ThetaT >= 1f) return 1f; // TIR
+        float cosThetaT = MathF.Sqrt(1f - sin2ThetaT);
+        float rParl = (cosThetaI - eta * cosThetaT) / (cosThetaI + eta * cosThetaT);
+        float rPerp = (eta * cosThetaI - cosThetaT) / (eta * cosThetaI + cosThetaT);
+        return 0.5f * (rParl * rParl + rPerp * rPerp);
+    }
+
     public static bool NearZero(Vector3 v)
     {
         const float s = 1e-8f;
