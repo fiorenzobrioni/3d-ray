@@ -106,9 +106,12 @@ public class DisneyBsdf : IMaterial
         // GGX α parameter — clamp to avoid singularity at zero
         _alpha = MathF.Max(Roughness * Roughness, 0.001f);
 
-        // Clearcoat uses a separate roughness: clearcoatGloss blends 0.1→0.001
-        float ccRough = Lerp(0.1f, 0.001f, ClearcoatGloss);
-        _clearcoatAlpha = ccRough * ccRough;
+        // Clearcoat: Burley 2012 §5.4 defines αc = mix(0.1, 0.001, clearcoatGloss)
+        // already as the GGX α parameter — NOT as perceptual roughness. Storing it
+        // directly (without squaring) keeps the convention consistent with _alpha
+        // above (which stores α = Roughness²) so that a² = alpha * alpha in both
+        // the NDF and Smith G1 formulas yields the correct α² term.
+        _clearcoatAlpha = Lerp(0.1f, 0.001f, ClearcoatGloss);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
