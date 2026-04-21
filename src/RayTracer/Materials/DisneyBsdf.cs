@@ -106,6 +106,26 @@ public class DisneyBsdf : IMaterial
     public FloatTexture Flatness           { get; }
     public bool         ThinWalled         { get; }
 
+    // ── Clearcoat (Arnold standard_surface "coat" parameters) ──────────────
+    // Disney 2012 hard-coded F0 = 0.04 (IOR ≈ 1.5) and parameterised
+    // sharpness through ClearcoatGloss (γ-clamped to [0.001, 0.1]). Arnold
+    // and modern Disney 2015+ implementations expose:
+    //   coat_ior:       index of refraction of the lacquer film. Defaults
+    //                   to 1.5 (matches the legacy Disney 0.04). Higher
+    //                   IOR → brighter Fresnel highlight (1.7-2.4 for
+    //                   automotive paints, 2.4 for diamond-clear coat).
+    //   coat_roughness: direct roughness control [0, 1] mapped to α via
+    //                   roughness². Replaces the gloss-based mapping when
+    //                   present; when null the legacy ClearcoatGloss path
+    //                   is preserved for backwards compatibility.
+    //   coat_normal:    optional dedicated normal map for the coat layer,
+    //                   independent of the base surface normal map. Models
+    //                   wave patterns or scratches in a clear lacquer that
+    //                   sit on top of an otherwise smooth substrate.
+    public FloatTexture     CoatIor       { get; }
+    public FloatTexture?    CoatRoughness { get; }
+    public NormalMapTexture? CoatNormal   { get; set; }
+
     // ── Normal map support ──────────────────────────────────────────────────
     public NormalMapTexture? NormalMap { get; set; }
 
@@ -137,7 +157,9 @@ public class DisneyBsdf : IMaterial
         ITexture?     subsurfaceColor     = null,
         FloatTexture? diffTrans           = null,
         FloatTexture? flatness            = null,
-        bool          thinWalled          = false)
+        bool          thinWalled          = false,
+        FloatTexture? coatIor             = null,
+        FloatTexture? coatRoughness       = null)
     {
         BaseColor           = baseColor;
         Metallic            = metallic            ?? new FloatTexture(0f);
@@ -159,6 +181,8 @@ public class DisneyBsdf : IMaterial
         DiffTrans           = diffTrans           ?? new FloatTexture(0f);
         Flatness            = flatness            ?? new FloatTexture(0f);
         ThinWalled          = thinWalled;
+        CoatIor             = coatIor             ?? new FloatTexture(1.5f);
+        CoatRoughness       = coatRoughness;
 
         // Representative values — evaluated once, never per-shading-point.
         float repMetal     = Math.Clamp(Metallic.RepresentativeValue,  0f, 1f);
@@ -198,6 +222,7 @@ public class DisneyBsdf : IMaterial
         public readonly float AlphaX;               // α along T (Burley 2012 §5.4)
         public readonly float AlphaY;               // α along B
         public readonly float ClearcoatAlpha;       // isotropic — clearcoat never anisotropic
+        public readonly float ClearcoatF0;          // ((η-1)/(η+1))² for the coat layer
 
         public ShadingParams(
             float metallic, float roughness, float subsurface,
@@ -206,7 +231,8 @@ public class DisneyBsdf : IMaterial
             float clearcoat, float clearcoatGloss,
             float specTrans, float ior,
             float anisotropic, float anisotropicRotation,
-            float diffTrans, float flatness)
+            float diffTrans, float flatness,
+            float coatIor, float coatRoughness)
         {
             Metallic            = Math.Clamp(metallic, 0f, 1f);
             Roughness           = Math.Clamp(roughness, 0f, 1f);
@@ -231,7 +257,22 @@ public class DisneyBsdf : IMaterial
             float aspect = MathF.Sqrt(1f - 0.9f * Anisotropic);
             AlphaX         = MathF.Max(Alpha / aspect, 0.001f);
             AlphaY         = MathF.Max(Alpha * aspect, 0.001f);
-            ClearcoatAlpha = Lerp(0.1f, 0.001f, ClearcoatGloss);
+            // Two clearcoat α paths: the legacy Disney "gloss" slider in
+            // [0, 1] mapped to α ∈ [0.1, 0.001], or the modern direct
+            // roughness used by Arnold standard_surface (α = roughness²).
+            // A negative coatRoughness sentinel selects the legacy path so
+            // existing scenes keep their look without an explicit override.
+            ClearcoatAlpha = coatRoughness >= 0f
+                ? MathF.Max(coatRoughness * coatRoughness, 0.001f)
+                : Lerp(0.1f, 0.001f, ClearcoatGloss);
+            // F0 for the coat layer derived from its IOR. Schlick's
+            // approximation is exact at normal incidence and within ~1% of
+            // the unpolarised dielectric Fresnel up to η ≈ 2.4 — adequate
+            // for everything from default lacquer (η = 1.5, F0 = 0.04) to
+            // automotive clear-coat with mica flakes (η = 2.4, F0 ≈ 0.17).
+            float etaCoat = MathF.Max(coatIor, 1.0001f);
+            float r0 = (etaCoat - 1f) / (etaCoat + 1f);
+            ClearcoatF0 = r0 * r0;
         }
     }
 
@@ -240,6 +281,10 @@ public class DisneyBsdf : IMaterial
         float u = rec.U, v = rec.V;
         Vector3 p = rec.LocalPoint;
         int seed = rec.ObjectSeed;
+        // CoatRoughness == null selects the legacy Disney 2012 gloss path via
+        // a negative sentinel, so scenes without an explicit coat_roughness
+        // value keep their previous appearance (α derived from ClearcoatGloss).
+        float coatRough = CoatRoughness?.Value(u, v, p, seed) ?? -1f;
         return new ShadingParams(
             Metallic.Value(u, v, p, seed),
             Roughness.Value(u, v, p, seed),
@@ -255,7 +300,9 @@ public class DisneyBsdf : IMaterial
             Anisotropic.Value(u, v, p, seed),
             AnisotropicRotation.Value(u, v, p, seed),
             DiffTrans.Value(u, v, p, seed),
-            Flatness.Value(u, v, p, seed));
+            Flatness.Value(u, v, p, seed),
+            CoatIor.Value(u, v, p, seed),
+            coatRough);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -373,19 +420,34 @@ public class DisneyBsdf : IMaterial
         Vector3 specular = D * G * F / MathF.Max(4f * NdotV, 1e-6f);
 
         // ── Clearcoat GGX lobe (isotropic — Disney convention) ──────────
+        // Evaluated on its own shading normal (CoatNormal) so a scene with a
+        // distinct coat bump map renders the coat highlight shape
+        // independently of the substrate. CoatNormal == null inherits the
+        // shaded surface normal — classic Disney behaviour.
         Vector3 clearcoat = Vector3.Zero;
         if (sp.Clearcoat > 0f)
         {
-            float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
-            float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
-            float cD = ca2 / (MathF.PI * cDenom * cDenom);
-            float cG = Microfacet.SmithG1(NdotV, sp.ClearcoatAlpha) * Microfacet.SmithG1(NdotL, sp.ClearcoatAlpha);
+            Vector3 coatN = GetCoatNormal(rec);
+            float ccNdotV = MathF.Max(Vector3.Dot(coatN, toEye), 0.001f);
+            float ccNdotL = Vector3.Dot(coatN, toLight);
+            if (ccNdotL > 0f)
+            {
+                float ccNdotH = MathF.Max(Vector3.Dot(coatN, H), 0f);
+                float ccVdotH = MathF.Max(Vector3.Dot(toEye, H), 0f);
 
-            float cF0 = 0.04f;
-            float cF = cF0 + (1f - cF0) * SchlickWeight(VdotH);
+                float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
+                float cDenom = ccNdotH * ccNdotH * (ca2 - 1f) + 1f;
+                float cD = ca2 / (MathF.PI * cDenom * cDenom);
+                float cG = Microfacet.SmithG1(ccNdotV, sp.ClearcoatAlpha) * Microfacet.SmithG1(ccNdotL, sp.ClearcoatAlpha);
 
-            clearcoat = new Vector3(sp.Clearcoat * 0.25f * cD * cG * cF
-                        / MathF.Max(4f * NdotV, 1e-6f));
+                float cF = sp.ClearcoatF0 + (1f - sp.ClearcoatF0) * SchlickWeight(ccVdotH);
+
+                // Returned shape is f · cos θᵢ, consistent with the specular
+                // lobe above: the D·G/(4·ccNdotV·ccNdotL) BRDF is multiplied
+                // by ccNdotL, which cancels the cosine in the denominator.
+                clearcoat = new Vector3(sp.Clearcoat * 0.25f * cD * cG * cF
+                            / MathF.Max(4f * ccNdotV, 1e-6f));
+            }
         }
 
         // ── Multi-scatter compensation (Kulla-Conty) ───────────────────────
@@ -508,19 +570,32 @@ public class DisneyBsdf : IMaterial
         Vector3 F = FresnelSchlick(VdotH, F0);
         Vector3 specular = D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f) * F;
 
-        // ── Clearcoat GGX (isotropic) ──────────────────────────────────────
+        // ── Clearcoat GGX (isotropic, evaluated on the coat normal) ────────
+        // The coat sits in its own shading frame so a dedicated coat_normal
+        // map perturbs the highlight without disturbing the base lobes. When
+        // the coat normal differs from the base normal, ccNdotL can flip
+        // sign (the base front-hemisphere L lands behind the coat) — in that
+        // case the coat lobe contributes nothing, the rest of the BSDF still
+        // does.
         Vector3 clearcoat = Vector3.Zero;
         if (sp.Clearcoat > 0f)
         {
-            float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
-            float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
-            float cD = ca2 / (MathF.PI * cDenom * cDenom);
-            float cG = Microfacet.SmithG1(NdotV, sp.ClearcoatAlpha) * Microfacet.SmithG1(NdotL, sp.ClearcoatAlpha);
-            float cF0 = 0.04f;
-            float cF = cF0 + (1f - cF0) * SchlickWeight(VdotH);
-            float cc = sp.Clearcoat * 0.25f * cD * cG * cF
-                     / MathF.Max(4f * NdotV * NdotL, 1e-7f);
-            clearcoat = new Vector3(cc);
+            Vector3 coatN = GetCoatNormal(rec);
+            float ccNdotV = Vector3.Dot(coatN, V);
+            float ccNdotL = Vector3.Dot(coatN, L);
+            if (ccNdotV > 0f && ccNdotL > 0f)
+            {
+                float ccNdotH = MathF.Max(Vector3.Dot(coatN, H), 0f);
+                float ccVdotH = MathF.Max(Vector3.Dot(V, H), 0f);
+                float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
+                float cDenom = ccNdotH * ccNdotH * (ca2 - 1f) + 1f;
+                float cD = ca2 / (MathF.PI * cDenom * cDenom);
+                float cG = Microfacet.SmithG1(ccNdotV, sp.ClearcoatAlpha) * Microfacet.SmithG1(ccNdotL, sp.ClearcoatAlpha);
+                float cF = sp.ClearcoatF0 + (1f - sp.ClearcoatF0) * SchlickWeight(ccVdotH);
+                float cc = sp.Clearcoat * 0.25f * cD * cG * cF
+                         / MathF.Max(4f * ccNdotV * ccNdotL, 1e-7f);
+                clearcoat = new Vector3(cc);
+            }
         }
 
         // ── Multi-scatter compensation (Kulla-Conty) ───────────────────────
@@ -590,12 +665,24 @@ public class DisneyBsdf : IMaterial
                 float D = Microfacet.DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
                 float g1V = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY);
                 specPdf = g1V * D / (4f * safeNdotV);
+            }
 
+            // Clearcoat lives in its own shading frame and uses its own
+            // half-vector basis, so its VNDF density is computed against the
+            // coat normal (not the base normal). Without this the coat PDF
+            // mass would shift off the perturbed coat lobe whenever a coat
+            // normal map is in play, breaking MIS reciprocity.
+            Vector3 coatN = GetCoatNormal(rec);
+            float ccNdotV = Vector3.Dot(coatN, V);
+            float ccNdotH = Vector3.Dot(coatN, H);
+            if (ccNdotV > 0f && ccNdotH > 0f)
+            {
+                float safeCcNdotV = MathF.Max(ccNdotV, 1e-7f);
                 float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
-                float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
+                float cDenom = ccNdotH * ccNdotH * (ca2 - 1f) + 1f;
                 float cD = ca2 / (MathF.PI * cDenom * cDenom);
-                float cG1V = Microfacet.SmithG1(NdotV, sp.ClearcoatAlpha);
-                ccPdf = cG1V * cD / (4f * safeNdotV);
+                float cG1V = Microfacet.SmithG1(ccNdotV, sp.ClearcoatAlpha);
+                ccPdf = cG1V * cD / (4f * safeCcNdotV);
             }
         }
 
@@ -1234,31 +1321,51 @@ public class DisneyBsdf : IMaterial
     }
 
     /// <summary>
-    /// Clearcoat: a fixed-IOR (1.5) secondary specular lobe with its own
-    /// roughness. Always white (physically: a thin transparent varnish layer).
+    /// Clearcoat: a secondary specular lobe parameterised by an Arnold-style
+    /// coat IOR (defaults to 1.5 → F0 ≈ 0.04, classic Disney) and either an
+    /// explicit coat_roughness or the legacy clearcoat_gloss slider. A
+    /// dedicated coat_normal map perturbs the highlight independently of the
+    /// substrate's NormalMap.
     ///
     /// Same VNDF sampling and F · G1(L) weight as <see cref="ScatterSpecular"/>,
-    /// but with <c>sp.ClearcoatAlpha</c> and fixed F0 = 0.04. The clearcoat
-    /// intensity is encoded in the lobe selection probability, not in the
-    /// attenuation — the 1/probability compensation keeps the estimator unbiased.
+    /// applied with <c>sp.ClearcoatAlpha</c> and <c>sp.ClearcoatF0</c>. The
+    /// clearcoat intensity is encoded in the lobe selection probability, not
+    /// in the attenuation — the 1/probability compensation keeps the
+    /// estimator unbiased.
     /// </summary>
     private bool ScatterClearcoat(HitRecord rec, Vector3 N, Vector3 V,
                                   in ShadingParams sp, float probability,
                                   out Vector3 attenuation, out Ray scattered)
     {
-        // Clearcoat is isotropic by convention, but we still go through the
-        // shared tangent-space VNDF sampler (αx = αy = α_cc) to keep one
-        // implementation path. Anisotropic rotation is ignored — the NDF is
-        // rotationally symmetric when αx = αy, so rotating the frame is a
-        // no-op for the sampler.
-        ShadingFrame frame = GetShadingFrame(rec, 0f);
+        // Clearcoat is isotropic by convention, so a Frisvad ONB built on the
+        // coat normal is sufficient (no need to align with the substrate's
+        // anisotropic rotation, which only matters when αx ≠ αy). Sampling
+        // happens in this dedicated coat frame so a coat_normal map shapes
+        // the lobe correctly.
+        ShadingFrame frame = GetClearcoatFrame(rec);
+        Vector3 coatN = frame.N;
+        // VNDF requires the view above the local hemisphere. When the coat
+        // normal tilts past the silhouette of the substrate, V can dip below
+        // the coat surface — bail out (no coat reflection from this view).
+        if (Vector3.Dot(coatN, V) <= 0f)
+        {
+            attenuation = Vector3.Zero;
+            scattered = new Ray(rec.Point, N);
+            return false;
+        }
+
         Vector3 Vloc = frame.ToLocal(V);
         Vector3 Hloc = Microfacet.SampleGgxVndfAniso(Vloc, sp.ClearcoatAlpha, sp.ClearcoatAlpha,
                                                      MathUtils.RandomFloat(), MathUtils.RandomFloat());
         Vector3 H = frame.ToWorld(Hloc);
         Vector3 L = MathUtils.Reflect(-V, H);
 
-        if (Vector3.Dot(L, N) <= 0f)
+        // Reject below-surface samples against BOTH the macro normal and the
+        // coat normal. A coat-frame upper-hemisphere L can still land below
+        // the macro normal (and vice versa) when coatN tilts; the renderer
+        // wouldn't see anything beyond the macro surface, so the sample is
+        // wasted and the contribution must be zero.
+        if (Vector3.Dot(L, N) <= 0f || Vector3.Dot(L, coatN) <= 0f)
         {
             attenuation = Vector3.Zero;
             scattered = new Ray(rec.Point, N);
@@ -1267,15 +1374,14 @@ public class DisneyBsdf : IMaterial
 
         scattered = new Ray(rec.Point, L);
 
-        float NdotL = MathF.Max(Vector3.Dot(N, L), 1e-4f);
-        float VdotH = MathF.Max(Vector3.Dot(V, H), 1e-4f);
+        float ccNdotL = MathF.Max(Vector3.Dot(coatN, L), 1e-4f);
+        float ccVdotH = MathF.Max(Vector3.Dot(V, H), 1e-4f);
 
-        // Clearcoat: fixed F0 = 0.04 (IOR ≈ 1.5)
-        float f0 = 0.04f;
-        float fresnel = f0 + (1f - f0) * SchlickWeight(VdotH);
+        // Clearcoat Schlick Fresnel from the coat IOR (Arnold parity).
+        float fresnel = sp.ClearcoatF0 + (1f - sp.ClearcoatF0) * SchlickWeight(ccVdotH);
 
         // VNDF weight: F · G1(L) (see ScatterSpecular for the derivation).
-        float g1L = Microfacet.SmithG1(NdotL, sp.ClearcoatAlpha);
+        float g1L = Microfacet.SmithG1(ccNdotL, sp.ClearcoatAlpha);
         attenuation = new Vector3(fresnel * g1L);
 
         float safeProbability = MathF.Max(probability, 0.1f);
@@ -1342,6 +1448,55 @@ public class DisneyBsdf : IMaterial
 
         public Vector3 ToWorld(Vector3 w)
             => w.X * T + w.Y * B + w.Z * N;
+    }
+
+    /// <summary>
+    /// Resolves the effective surface normal used by the clearcoat lobe.
+    /// When <see cref="CoatNormal"/> is null the coat inherits the shaded
+    /// surface normal (already perturbed by <see cref="NormalMap"/> upstream
+    /// in the renderer), so a scene with no coat-specific normal map keeps
+    /// the substrate's bumps under the coat. When a dedicated coat normal
+    /// map is provided it's sampled in the same tangent frame as the base
+    /// NM and layered on top of <c>rec.Normal</c>, modelling scratches or
+    /// orange-peel effects in the lacquer that sit independently of the
+    /// substrate. Falls back gracefully to <c>rec.Normal</c> when the
+    /// geometry didn't populate a usable TBN.
+    /// </summary>
+    private Vector3 GetCoatNormal(HitRecord rec)
+    {
+        if (CoatNormal == null) return rec.Normal;
+        if (rec.Tangent.LengthSquared() < 1e-10f || rec.Bitangent.LengthSquared() < 1e-10f)
+            return rec.Normal;
+
+        Vector3 N = rec.Normal;
+        Vector3 T = rec.Tangent - Vector3.Dot(rec.Tangent, N) * N;
+        float tLenSq = T.LengthSquared();
+        if (tLenSq < 1e-10f) return rec.Normal;
+        T /= MathF.Sqrt(tLenSq);
+        Vector3 B = Vector3.Cross(N, T);
+        // Preserve tangent-space handedness on backfaces (matches the base
+        // NormalMap convention in Renderer.ApplyNormalMap).
+        if (!rec.FrontFace) { T = -T; B = -B; }
+
+        Vector3 ts = CoatNormal.SampleNormal(rec.U, rec.V);
+        Vector3 perturbed = T * ts.X + B * ts.Y + N * ts.Z;
+        float len = perturbed.LengthSquared();
+        return len < 1e-10f ? rec.Normal : perturbed / MathF.Sqrt(len);
+    }
+
+    /// <summary>
+    /// Isotropic shading frame for the clearcoat lobe. Coat is rotationally
+    /// symmetric (αx = αy) so any orthonormal pair spanning the plane
+    /// perpendicular to the coat normal works — we use Frisvad's branchless
+    /// ONB directly on <see cref="GetCoatNormal"/>. Returning a frame keeps
+    /// the VNDF sampling in <see cref="ScatterClearcoat"/> on the shared
+    /// tangent-space path.
+    /// </summary>
+    private ShadingFrame GetClearcoatFrame(HitRecord rec)
+    {
+        Vector3 coatN = GetCoatNormal(rec);
+        Microfacet.BuildTangentFrame(coatN, out Vector3 T, out Vector3 B);
+        return new ShadingFrame(T, B, coatN);
     }
 
     /// <summary>

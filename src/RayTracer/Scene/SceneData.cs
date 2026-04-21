@@ -377,6 +377,37 @@ public class MaterialData
     [YamlMember(Alias = "flatness_texture")]
     public TextureData? FlatnessTexture { get; set; }
 
+    // ── Arnold standard_surface "coat" parameters ──────────────────────────
+    // coat_ior:       index of refraction of the lacquer layer (default 1.5,
+    //                 matching the legacy Disney F0 = 0.04). Higher values
+    //                 brighten the coat highlight (1.7-2.4 for automotive
+    //                 paint and diamond-clear coats).
+    // coat_roughness: optional explicit roughness in [0, 1] for the coat
+    //                 lobe; α = roughness² (matches the base specular
+    //                 mapping). When omitted (null) the legacy
+    //                 clearcoat_gloss slider is used so existing scenes
+    //                 keep their look.
+    // coat_normal_map: dedicated normal map perturbing the coat highlight
+    //                 independently of the base NormalMap. Models scratches
+    //                 or orange peel in the lacquer that sit on top of an
+    //                 otherwise-different substrate normal.
+    [YamlMember(Alias = "coat_ior")]
+    public float CoatIor { get; set; } = 1.5f;
+
+    // -1 sentinel matches the DisneyBsdf "use legacy gloss" path. Authors
+    // should set the value in [0, 1] to take the explicit-roughness branch.
+    [YamlMember(Alias = "coat_roughness")]
+    public float CoatRoughness { get; set; } = -1f;
+
+    [YamlMember(Alias = "coat_ior_texture")]
+    public TextureData? CoatIorTexture { get; set; }
+
+    [YamlMember(Alias = "coat_roughness_texture")]
+    public TextureData? CoatRoughnessTexture { get; set; }
+
+    [YamlMember(Alias = "coat_normal_map")]
+    public NormalMapData? CoatNormalMap { get; set; }
+
     // ── Mix Material parameters ─────────────────────────────────────────────
 
     [YamlMember(Alias = "material_a")]

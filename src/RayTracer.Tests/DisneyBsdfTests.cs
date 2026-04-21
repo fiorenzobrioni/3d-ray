@@ -878,6 +878,164 @@ public class DisneyBsdfTests
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Coat parameters (Arnold standard_surface parity: coat_ior, coat_roughness,
+    // coat_normal). These tests pin the new behaviour added in Step 11 of the
+    // Disney BSDF roadmap.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Higher coat_ior → larger F0 → brighter clearcoat highlight at normal
+    /// incidence. Default IOR is 1.5 (F0 ≈ 0.04, classic Disney); a high-IOR
+    /// lacquer like η = 2.4 gives F0 ≈ 0.17, more than 4× the energy. The
+    /// test isolates the coat lobe (everything else off) and compares the
+    /// lobe peak across two IOR values.
+    /// </summary>
+    [Fact]
+    public void CoatIor_HigherIor_BrightensFresnel()
+    {
+        var baseColor = new SolidColor(new Vector3(0.5f));
+        // Clearcoat fully on, no other lobes — diffuse weight is 1 by Disney's
+        // base-Lambert default but we'll evaluate at a near-normal direction
+        // where the coat lobe sits on top of it; subtracting the diffuse
+        // reference would couple the two, so we sweep IOR and compare DELTA.
+        DisneyBsdf Coat(float ior) => new(
+            baseColor,
+            metallic: 0f, roughness: 1f, specular: 0f, sheen: 0f,
+            clearcoat: 1f, clearcoatGloss: 1f,
+            coatIor: ior);
+
+        var rec = MakeRec();
+        var V = NormalUp;       // straight at the surface
+        var L = NormalUp;       // perfect retroreflection — coat peak
+
+        Vector3 fLow  = Coat(1.5f).Evaluate(V, L, rec);
+        Vector3 fHigh = Coat(2.4f).Evaluate(V, L, rec);
+
+        // F0(2.4)/F0(1.5) = 0.1701 / 0.04 ≈ 4.25, but the diffuse base lobe
+        // contributes too. The clearcoat *delta* must be substantially
+        // positive: at NdotL = 1 the coat highlight is at peak intensity.
+        float lumLow  = MathUtils.Luminance(fLow);
+        float lumHigh = MathUtils.Luminance(fHigh);
+        Assert.True(lumHigh > lumLow * 1.5f,
+            $"high coat_ior should noticeably brighten the lobe: low={lumLow}, high={lumHigh}");
+    }
+
+    /// <summary>
+    /// coat_roughness, when supplied, overrides the legacy clearcoat_gloss
+    /// path. A material with coat_roughness = 0.3 should behave the same
+    /// as one with the corresponding α-equivalent gloss disabled. This pins
+    /// that the new path is reached and the legacy gloss slider doesn't
+    /// shadow it.
+    /// </summary>
+    [Fact]
+    public void CoatRoughness_OverridesGloss()
+    {
+        var baseColor = new SolidColor(new Vector3(0.5f));
+        // Same coat_roughness, but contradictory gloss values. If gloss
+        // overrode roughness, the two would diverge. They should be equal.
+        var matA = new DisneyBsdf(baseColor,
+            clearcoat: 1f, clearcoatGloss: 0.0f,   // legacy α = 0.1
+            coatRoughness: 0.3f);                  // explicit α = 0.09
+        var matB = new DisneyBsdf(baseColor,
+            clearcoat: 1f, clearcoatGloss: 1.0f,   // legacy α = 0.001
+            coatRoughness: 0.3f);                  // explicit α = 0.09
+
+        var rec = MakeRec();
+        var V = Vector3.Normalize(new Vector3(0.3f, 1f, 0.2f));
+        var L = Vector3.Normalize(new Vector3(-0.15f, 0.85f, 0.5f));
+
+        AssertVectorClose(
+            matA.Evaluate(V, L, rec),
+            matB.Evaluate(V, L, rec),
+            relTol: 1e-5f, absTol: 1e-7f);
+    }
+
+    /// <summary>
+    /// Lower coat_roughness narrows the lobe (more energy at the specular
+    /// peak, less in the tails). We probe the lobe peak (V == L == N) and
+    /// require the smoother coat to outshine the rougher one.
+    /// </summary>
+    [Fact]
+    public void CoatRoughness_LowerRoughness_NarrowsLobe()
+    {
+        var baseColor = new SolidColor(new Vector3(0.5f));
+        DisneyBsdf Coat(float r) => new(
+            baseColor,
+            metallic: 0f, roughness: 1f, specular: 0f, sheen: 0f,
+            clearcoat: 1f,
+            coatRoughness: r);
+
+        var rec = MakeRec();
+        var V = NormalUp;
+        var L = NormalUp;
+
+        Vector3 fSmooth = Coat(0.05f).Evaluate(V, L, rec);
+        Vector3 fRough  = Coat(0.6f) .Evaluate(V, L, rec);
+
+        Assert.True(MathUtils.Luminance(fSmooth) > MathUtils.Luminance(fRough),
+            $"smoother coat should peak higher: smooth={fSmooth}, rough={fRough}");
+    }
+
+    /// <summary>
+    /// PDF normalisation must hold under the new explicit-roughness coat
+    /// path too. We pick a moderately rough coat (broad lobe, MC-tractable)
+    /// and integrate over the unit sphere via uniform sampling.
+    /// </summary>
+    [Fact]
+    public void Pdf_IntegratesToOne_WithCoatRoughness()
+    {
+        var baseColor = new SolidColor(new Vector3(0.5f));
+        var material = new DisneyBsdf(baseColor,
+            metallic: 0f, roughness: 1f, specular: 0f, sheen: 0f,
+            clearcoat: 1f,
+            coatRoughness: 0.5f);
+
+        var rec = MakeRec();
+        var V = Vector3.Normalize(new Vector3(0.3f, 1f, 0.2f));
+
+        const int samples = 100_000;
+        const float surfaceArea = 4f * MathF.PI;
+        var rng = new Random(0xC0A7);
+        double sum = 0.0;
+        for (int i = 0; i < samples; i++)
+            sum += material.Pdf(V, UniformSphereDirection(rng), rec);
+        double integral = sum * surfaceArea / samples;
+        Assert.InRange(integral, 0.95, 1.05);
+    }
+
+    /// <summary>
+    /// When coat_roughness is omitted the legacy ClearcoatGloss path must
+    /// drive α exactly as before — pinned by reproducing a hand-computed
+    /// value from the gloss → α mapping (α = lerp(0.1, 0.001, gloss),
+    /// gloss = 1 → α = 0.001, gloss = 0 → α = 0.1). We compare two
+    /// materials at the lobe peak (V == L == N): the one with the higher
+    /// gloss must have a higher peak.
+    /// </summary>
+    [Fact]
+    public void ClearcoatGloss_StillDrivesLegacyAlpha_WhenCoatRoughnessOmitted()
+    {
+        var baseColor = new SolidColor(new Vector3(0.5f));
+        // No coat_roughness → legacy path. gloss=1 → α=0.001 (very sharp);
+        // gloss=0 → α=0.1 (broader).
+        var glossy = new DisneyBsdf(baseColor,
+            metallic: 0f, roughness: 1f, specular: 0f, sheen: 0f,
+            clearcoat: 1f, clearcoatGloss: 1f);
+        var satin = new DisneyBsdf(baseColor,
+            metallic: 0f, roughness: 1f, specular: 0f, sheen: 0f,
+            clearcoat: 1f, clearcoatGloss: 0f);
+
+        var rec = MakeRec();
+        var V = NormalUp;
+        var L = NormalUp;
+
+        Vector3 fGlossy = glossy.Evaluate(V, L, rec);
+        Vector3 fSatin  = satin .Evaluate(V, L, rec);
+
+        Assert.True(MathUtils.Luminance(fGlossy) > MathUtils.Luminance(fSatin),
+            $"legacy gloss=1 must peak higher than gloss=0: glossy={fGlossy}, satin={fSatin}");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 

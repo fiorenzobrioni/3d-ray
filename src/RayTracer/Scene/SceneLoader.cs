@@ -809,7 +809,15 @@ public class SceneLoader
                                 subsurfaceColor:     DisneyColorParam(m.SubsurfaceColor, m.SubsurfaceColorTexture,    sceneDir),
                                 diffTrans:           DisneyParam(m.DiffTrans,           m.DiffTransTexture,           sceneDir),
                                 flatness:            DisneyParam(m.Flatness,            m.FlatnessTexture,            sceneDir),
-                                thinWalled:          m.ThinWalled),
+                                thinWalled:          m.ThinWalled,
+                                coatIor:             DisneyParam(m.CoatIor,             m.CoatIorTexture,             sceneDir),
+                                // coat_roughness: only forwarded when the user
+                                // explicitly set a non-negative value or a
+                                // texture; otherwise null selects the legacy
+                                // ClearcoatGloss path inside DisneyBsdf.
+                                coatRoughness:       (m.CoatRoughness >= 0f || m.CoatRoughnessTexture != null)
+                                                        ? DisneyParam(MathF.Max(m.CoatRoughness, 0f), m.CoatRoughnessTexture, sceneDir)
+                                                        : null),
             _            => new Lambertian(albedo)
         };
 
@@ -830,6 +838,14 @@ public class SceneLoader
                     case MixMaterial mix: mix.NormalMap = normalMap; break;
                 }
             }
+        }
+
+        // ── Coat normal map (Disney only — exclusive to the clearcoat lobe) ─
+        if (m.CoatNormalMap != null && material is DisneyBsdf disneyMat)
+        {
+            var coatNormal = LoadNormalMap(m.CoatNormalMap, sceneDir);
+            if (coatNormal != null)
+                disneyMat.CoatNormal = coatNormal;
         }
 
         return material;
