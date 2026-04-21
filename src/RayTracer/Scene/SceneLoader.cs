@@ -818,7 +818,9 @@ public class SceneLoader
                                 // ClearcoatGloss path inside DisneyBsdf.
                                 coatRoughness:       (m.CoatRoughness >= 0f || m.CoatRoughnessTexture != null)
                                                         ? DisneyParam(MathF.Max(m.CoatRoughness, 0f), m.CoatRoughnessTexture, sceneDir)
-                                                        : null),
+                                                        : null,
+                                thinFilmThickness:   DisneyParam(m.ThinFilmThickness,   m.ThinFilmThicknessTexture, sceneDir),
+                                thinFilmIor:         DisneyParam(m.ThinFilmIor,         m.ThinFilmIorTexture,       sceneDir)),
             _            => new Lambertian(albedo)
         };
 

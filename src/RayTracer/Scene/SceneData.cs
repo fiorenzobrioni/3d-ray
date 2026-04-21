@@ -418,6 +418,26 @@ public class MaterialData
     [YamlMember(Alias = "coat_normal_map")]
     public NormalMapData? CoatNormalMap { get; set; }
 
+    // ── Thin-film iridescence (Belcour-Barla 2017) ─────────────────────────
+    // thin_film_thickness: film thickness in nanometres. 0 (default) leaves
+    //   the BSDF on the plain Schlick Fresnel; values in 100-800 nm produce
+    //   the visible-spectrum colour sweep characteristic of soap bubbles,
+    //   beetle elytra and anti-reflection coatings.
+    // thin_film_ior: refractive index of the film (default 1.5 — generic
+    //   lacquer). Drives the contrast of the interference fringes; higher
+    //   IOR with the same thickness yields more saturated colours.
+    [YamlMember(Alias = "thin_film_thickness")]
+    public float ThinFilmThickness { get; set; } = 0f;
+
+    [YamlMember(Alias = "thin_film_ior")]
+    public float ThinFilmIor { get; set; } = 1.5f;
+
+    [YamlMember(Alias = "thin_film_thickness_texture")]
+    public TextureData? ThinFilmThicknessTexture { get; set; }
+
+    [YamlMember(Alias = "thin_film_ior_texture")]
+    public TextureData? ThinFilmIorTexture { get; set; }
+
     // ── Mix Material parameters ─────────────────────────────────────────────
 
     [YamlMember(Alias = "material_a")]

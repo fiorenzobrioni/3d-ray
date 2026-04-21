@@ -132,6 +132,21 @@ public class DisneyBsdf : IMaterial
     public FloatTexture?    CoatRoughness { get; }
     public NormalMapTexture? CoatNormal   { get; set; }
 
+    // ── Thin-film iridescence (Belcour-Barla 2017) ─────────────────────────
+    // ThinFilmThickness: film thickness in nanometres. 0 disables the
+    //   iridescent Fresnel and the BSDF reverts to plain Schlick on F0.
+    //   Useful range is roughly 100-800 nm — that's where one to two
+    //   visible-band wavelengths fit a single round trip and the colour
+    //   sweep through the spectrum is most pronounced (soap bubbles,
+    //   beetle elytra, anti-reflection coatings, oil on water).
+    // ThinFilmIor: index of refraction of the film itself (η₂). Defaults
+    //   to 1.5 (an oily lacquer); 1.33 for water films, 2.0+ for highly
+    //   refractive coatings. The substrate IOR is inferred per channel
+    //   from the underlying F0 so the iridescence sits correctly on top
+    //   of metals as well as dielectrics.
+    public FloatTexture ThinFilmThickness { get; }
+    public FloatTexture ThinFilmIor       { get; }
+
     // ── Normal map support ──────────────────────────────────────────────────
     public NormalMapTexture? NormalMap { get; set; }
 
@@ -166,7 +181,9 @@ public class DisneyBsdf : IMaterial
         FloatTexture? flatness            = null,
         bool          thinWalled          = false,
         FloatTexture? coatIor             = null,
-        FloatTexture? coatRoughness       = null)
+        FloatTexture? coatRoughness       = null,
+        FloatTexture? thinFilmThickness   = null,
+        FloatTexture? thinFilmIor         = null)
     {
         BaseColor           = baseColor;
         Metallic            = metallic            ?? new FloatTexture(0f);
@@ -191,6 +208,8 @@ public class DisneyBsdf : IMaterial
         ThinWalled          = thinWalled;
         CoatIor             = coatIor             ?? new FloatTexture(1.5f);
         CoatRoughness       = coatRoughness;
+        ThinFilmThickness   = thinFilmThickness   ?? new FloatTexture(0f);
+        ThinFilmIor         = thinFilmIor         ?? new FloatTexture(1.5f);
 
         // Representative values — evaluated once, never per-shading-point.
         float repMetal     = Math.Clamp(Metallic.RepresentativeValue,  0f, 1f);
@@ -232,6 +251,8 @@ public class DisneyBsdf : IMaterial
         public readonly float AlphaY;               // α along B
         public readonly float ClearcoatAlpha;       // isotropic — clearcoat never anisotropic
         public readonly float ClearcoatF0;          // ((η-1)/(η+1))² for the coat layer
+        public readonly float ThinFilmThicknessNm;  // 0 = disabled
+        public readonly float ThinFilmIor;          // film η₂
 
         public ShadingParams(
             float metallic, float roughness, float subsurface,
@@ -241,7 +262,8 @@ public class DisneyBsdf : IMaterial
             float specTrans, float ior,
             float anisotropic, float anisotropicRotation,
             float diffTrans, float flatness,
-            float coatIor, float coatRoughness)
+            float coatIor, float coatRoughness,
+            float thinFilmThickness, float thinFilmIor)
         {
             Metallic            = Math.Clamp(metallic, 0f, 1f);
             Roughness           = Math.Clamp(roughness, 0f, 1f);
@@ -283,6 +305,12 @@ public class DisneyBsdf : IMaterial
             float etaCoat = MathF.Max(coatIor, 1.0001f);
             float r0 = (etaCoat - 1f) / (etaCoat + 1f);
             ClearcoatF0 = r0 * r0;
+            // Thin-film parameters: clamp thickness ≥ 0 (the smooth
+            // degeneracy in ThinFilm.Evaluate handles t → 0); film IOR
+            // floored at 1.0001 like the substrate IOR so Snell stays
+            // well-defined when the artist accidentally enters 1.0.
+            ThinFilmThicknessNm = MathF.Max(thinFilmThickness, 0f);
+            ThinFilmIor         = MathF.Max(thinFilmIor, 1.0001f);
         }
     }
 
@@ -313,7 +341,9 @@ public class DisneyBsdf : IMaterial
             DiffTrans.Value(u, v, p, seed),
             Flatness.Value(u, v, p, seed),
             CoatIor.Value(u, v, p, seed),
-            coatRough);
+            coatRough,
+            ThinFilmThickness.Value(u, v, p, seed),
+            ThinFilmIor.Value(u, v, p, seed));
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -422,10 +452,11 @@ public class DisneyBsdf : IMaterial
         float G = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
                 * Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
 
-        // F: Schlick Fresnel with continuous metallic→dielectric blend
+        // F: Schlick Fresnel with continuous metallic→dielectric blend, or
+        // Belcour-Barla 2017 thin-film Fresnel when ThinFilmThicknessNm > 0.
         Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         Vector3 F0 = ComputeF0(baseCol, sp);
-        Vector3 F = FresnelSchlick(VdotH, F0);
+        Vector3 F = EvalFresnel(VdotH, F0, sp);
 
         // Cook-Torrance: D × G × F / (4 × NdotV × NdotL), then × NdotL
         Vector3 specular = D * G * F / MathF.Max(4f * NdotV, 1e-6f);
@@ -601,7 +632,7 @@ public class DisneyBsdf : IMaterial
         float G = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
                 * Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
         Vector3 F0 = ComputeF0(baseCol, sp);
-        Vector3 F = FresnelSchlick(VdotH, F0);
+        Vector3 F = EvalFresnel(VdotH, F0, sp);
         Vector3 specular = D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f) * F;
 
         // ── Clearcoat GGX (isotropic, evaluated on the coat normal) ────────
@@ -1199,7 +1230,7 @@ public class DisneyBsdf : IMaterial
         float VdotH = MathF.Max(Vector3.Dot(V, H), 1e-4f);
 
         Vector3 F0 = ComputeF0(baseCol, sp);
-        Vector3 fresnel = FresnelSchlick(VdotH, F0);
+        Vector3 fresnel = EvalFresnel(VdotH, F0, sp);
 
         // VNDF importance-sampling weight.
         //   BRDF            = F · D · G / (4 · NdotV · NdotL)
@@ -1665,6 +1696,27 @@ public class DisneyBsdf : IMaterial
     {
         float w = SchlickWeight(cosTheta);
         return f0 + (Vector3.One - f0) * w;
+    }
+
+    /// <summary>
+    /// Fresnel evaluator that picks between Schlick (no thin film) and the
+    /// Belcour-Barla 2017 iridescent Fresnel when ThinFilmThicknessNm > 0.
+    /// All specular and metallic Fresnel evaluations in the BSDF route
+    /// through this helper so iridescence applies uniformly across the
+    /// reflection lobes (including the multi-scatter compensation, which
+    /// uses the same F₀ basis).
+    ///
+    /// Clearcoat and the back-of-glass Fresnel intentionally bypass the
+    /// thin-film path: the coat sits on top of the iridescent layer and
+    /// has its own dielectric Fresnel; transmissive Fresnel needs the full
+    /// wave-optics treatment for iridescent dielectrics, which exceeds
+    /// the scope of an opaque-substrate Belcour-Barla projection.
+    /// </summary>
+    private static Vector3 EvalFresnel(float cosTheta, Vector3 f0, in ShadingParams sp)
+    {
+        if (sp.ThinFilmThicknessNm <= 0f)
+            return FresnelSchlick(cosTheta, f0);
+        return ThinFilm.Evaluate(cosTheta, sp.ThinFilmIor, sp.ThinFilmThicknessNm, f0);
     }
 
     /// <summary>

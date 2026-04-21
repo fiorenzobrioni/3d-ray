@@ -1177,6 +1177,100 @@ public class DisneyBsdfTests
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Thin-film iridescence (Belcour-Barla 2017)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Zero thickness must reproduce the plain Schlick Fresnel exactly —
+    /// scenes authored before the thin-film parameters were added (= default
+    /// thickness 0) are held strictly backwards-compatible.
+    /// </summary>
+    [Fact]
+    public void ThinFilm_ZeroThickness_MatchesSchlick()
+    {
+        var baseColor = new SolidColor(new Vector3(0.7f, 0.2f, 0.1f));
+        var plain = new DisneyBsdf(baseColor,
+            metallic: 1f, roughness: 0.15f,
+            specular: 1f, clearcoat: 0f);
+        var film = new DisneyBsdf(baseColor,
+            metallic: 1f, roughness: 0.15f,
+            specular: 1f, clearcoat: 0f,
+            thinFilmThickness: 0f);
+
+        var rec = MakeRec();
+        Vector3 V = new(0.342f, 0.940f, 0f);   // 20° from normal
+        Vector3 L = new(-0.342f, 0.940f, 0f);  // mirror of V through N
+
+        Vector3 fPlain = plain.Evaluate(V, L, rec);
+        Vector3 fFilm  = film .Evaluate(V, L, rec);
+
+        AssertVectorClose(fFilm, fPlain, relTol: 1e-4f, absTol: 1e-6f);
+    }
+
+    /// <summary>
+    /// A thickness around 380-550 nm places one half-wavelength of visible
+    /// light in the film, which is where Airy fringes are brightest and the
+    /// reflectance per channel deviates most strongly from the neutral
+    /// substrate Fresnel. Test: on a white (R=G=B) metal, the thin-film
+    /// Fresnel must break channel parity — at least one channel must differ
+    /// from the others by more than a plain Schlick evaluation would allow
+    /// (which is zero by construction).
+    /// </summary>
+    [Fact]
+    public void ThinFilm_BreaksChannelParity_OnWhiteMetal()
+    {
+        var baseColor = new SolidColor(new Vector3(0.9f));
+        var film = new DisneyBsdf(baseColor,
+            metallic: 1f, roughness: 0.1f,
+            specular: 1f, clearcoat: 0f,
+            thinFilmThickness: 500f, thinFilmIor: 1.5f);
+
+        var rec = MakeRec();
+        Vector3 V = new(0.342f, 0.940f, 0f);
+        Vector3 L = new(-0.342f, 0.940f, 0f);
+
+        Vector3 f = film.Evaluate(V, L, rec);
+
+        float rg = MathF.Abs(f.X - f.Y);
+        float gb = MathF.Abs(f.Y - f.Z);
+        float rb = MathF.Abs(f.X - f.Z);
+        float maxGap = MathF.Max(rg, MathF.Max(gb, rb));
+        float meanMag = (f.X + f.Y + f.Z) / 3f;
+
+        Assert.True(maxGap > 0.02f * meanMag,
+            $"thin-film Fresnel must colour-split a neutral metal: f = {f}, max |Δ| = {maxGap:F5}");
+    }
+
+    /// <summary>
+    /// Sweeping thickness moves the interference fringes through the
+    /// spectrum. Two thicknesses half a wavelength apart (here 250 nm vs
+    /// 500 nm, which at η₂ = 1.5 and normal incidence place OPDs of 750
+    /// and 1500 nm — one full cycle of the deep-red band) must produce
+    /// different Fresnel output. This guards against accidentally
+    /// short-circuiting the thickness input inside the Airy summation.
+    /// </summary>
+    [Fact]
+    public void ThinFilm_ThicknessSweep_ShiftsColour()
+    {
+        var baseColor = new SolidColor(new Vector3(0.9f));
+        DisneyBsdf MakeFilm(float thickness) => new(baseColor,
+            metallic: 1f, roughness: 0.1f,
+            specular: 1f, clearcoat: 0f,
+            thinFilmThickness: thickness, thinFilmIor: 1.5f);
+
+        var rec = MakeRec();
+        Vector3 V = new(0.342f, 0.940f, 0f);
+        Vector3 L = new(-0.342f, 0.940f, 0f);
+
+        Vector3 fThin  = MakeFilm(250f).Evaluate(V, L, rec);
+        Vector3 fThick = MakeFilm(500f).Evaluate(V, L, rec);
+
+        float distance = (fThin - fThick).Length();
+        Assert.True(distance > 0.02f,
+            $"thin-film colour must shift with thickness: thin = {fThin}, thick = {fThick}");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 
