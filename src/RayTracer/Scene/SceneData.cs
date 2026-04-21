@@ -264,6 +264,44 @@ public class MaterialData
     [YamlMember(Alias = "ior")]
     public float DisneyIor { get; set; } = 1.5f;
 
+    // ── Disney BSDF parameter textures (optional; override the scalar) ──────
+    // Each *_texture block is parsed as a full TextureData, so any existing
+    // texture type (solid, image, checker, noise, marble, wood) works. When
+    // present it replaces the corresponding scalar at lookup time; when null
+    // the scalar value above is used unchanged.
+    [YamlMember(Alias = "metallic_texture")]
+    public TextureData? MetallicTexture { get; set; }
+
+    [YamlMember(Alias = "roughness_texture")]
+    public TextureData? RoughnessTexture { get; set; }
+
+    [YamlMember(Alias = "subsurface_texture")]
+    public TextureData? SubsurfaceTexture { get; set; }
+
+    [YamlMember(Alias = "specular_texture")]
+    public TextureData? SpecularTexture { get; set; }
+
+    [YamlMember(Alias = "specular_tint_texture")]
+    public TextureData? SpecularTintTexture { get; set; }
+
+    [YamlMember(Alias = "sheen_texture")]
+    public TextureData? SheenTexture { get; set; }
+
+    [YamlMember(Alias = "sheen_tint_texture")]
+    public TextureData? SheenTintTexture { get; set; }
+
+    [YamlMember(Alias = "clearcoat_texture")]
+    public TextureData? ClearcoatTexture { get; set; }
+
+    [YamlMember(Alias = "clearcoat_gloss_texture")]
+    public TextureData? ClearcoatGlossTexture { get; set; }
+
+    [YamlMember(Alias = "spec_trans_texture")]
+    public TextureData? SpecTransTexture { get; set; }
+
+    [YamlMember(Alias = "ior_texture")]
+    public TextureData? IorTexture { get; set; }
+
     // ── Mix Material parameters ─────────────────────────────────────────────
 
     [YamlMember(Alias = "material_a")]

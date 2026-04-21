@@ -48,62 +48,135 @@ namespace RayTracer.Materials;
 public class DisneyBsdf : IMaterial
 {
     // ── Core parameters ─────────────────────────────────────────────────────
-    public ITexture BaseColor  { get; }
-    public float Metallic      { get; }
-    public float Roughness     { get; }
-    public float Subsurface    { get; }
-    public float Specular      { get; }
-    public float SpecularTint  { get; }
-    public float Sheen         { get; }
-    public float SheenTint     { get; }
-    public float Clearcoat     { get; }
-    public float ClearcoatGloss{ get; }
-    public float SpecTrans     { get; }
-    public float Ior           { get; }
+    // All scalar Disney parameters are stored as FloatTexture, enabling
+    // per-shading-point variation from a texture lookup. Pass a plain
+    // float to any constructor argument — the implicit conversion produces
+    // a constant FloatTexture transparently.
+    public ITexture BaseColor          { get; }
+    public FloatTexture Metallic       { get; }
+    public FloatTexture Roughness      { get; }
+    public FloatTexture Subsurface     { get; }
+    public FloatTexture Specular       { get; }
+    public FloatTexture SpecularTint   { get; }
+    public FloatTexture Sheen          { get; }
+    public FloatTexture SheenTint      { get; }
+    public FloatTexture Clearcoat      { get; }
+    public FloatTexture ClearcoatGloss { get; }
+    public FloatTexture SpecTrans      { get; }
+    public FloatTexture Ior            { get; }
 
     // ── Normal map support ──────────────────────────────────────────────────
     public NormalMapTexture? NormalMap { get; set; }
 
-    // ── Cached derived values ───────────────────────────────────────────────
-    private readonly float _alpha;          // roughness² (GGX α)
-    private readonly float _clearcoatAlpha; // clearcoat α (Burley 2012 §5.4)
+    // ── Cached representative values (for material-wide queries) ───────────
+    // Rendered once at construction by sampling the texture at (0,0,0).
+    // Used by the Renderer's needsLightSampling gate and the legacy-emission
+    // suppression flag — neither path needs per-point accuracy, and both
+    // need a constant answer across a material.
+    private readonly float _repDiffuseWeight;
+    private readonly float _repAlpha;
 
     public DisneyBsdf(
         ITexture baseColor,
-        float metallic       = 0f,
-        float roughness      = 0.5f,
-        float subsurface     = 0f,
-        float specular       = 0.5f,
-        float specularTint   = 0f,
-        float sheen          = 0f,
-        float sheenTint      = 0.5f,
-        float clearcoat      = 0f,
-        float clearcoatGloss = 1f,
-        float specTrans      = 0f,
-        float ior            = 1.5f)
+        FloatTexture? metallic       = null,
+        FloatTexture? roughness      = null,
+        FloatTexture? subsurface     = null,
+        FloatTexture? specular       = null,
+        FloatTexture? specularTint   = null,
+        FloatTexture? sheen          = null,
+        FloatTexture? sheenTint      = null,
+        FloatTexture? clearcoat      = null,
+        FloatTexture? clearcoatGloss = null,
+        FloatTexture? specTrans      = null,
+        FloatTexture? ior            = null)
     {
         BaseColor      = baseColor;
-        Metallic       = Math.Clamp(metallic, 0f, 1f);
-        Roughness      = Math.Clamp(roughness, 0f, 1f);
-        Subsurface     = Math.Clamp(subsurface, 0f, 1f);
-        Specular       = Math.Clamp(specular, 0f, 2f);   // Allow > 1 for artistic control
-        SpecularTint   = Math.Clamp(specularTint, 0f, 1f);
-        Sheen          = Math.Clamp(sheen, 0f, 1f);
-        SheenTint      = Math.Clamp(sheenTint, 0f, 1f);
-        Clearcoat      = Math.Clamp(clearcoat, 0f, 1f);
-        ClearcoatGloss = Math.Clamp(clearcoatGloss, 0f, 1f);
-        SpecTrans      = Math.Clamp(specTrans, 0f, 1f);
-        Ior            = MathF.Max(ior, 1.0001f);
+        Metallic       = metallic       ?? new FloatTexture(0f);
+        Roughness      = roughness      ?? new FloatTexture(0.5f);
+        Subsurface     = subsurface     ?? new FloatTexture(0f);
+        Specular       = specular       ?? new FloatTexture(0.5f);
+        SpecularTint   = specularTint   ?? new FloatTexture(0f);
+        Sheen          = sheen          ?? new FloatTexture(0f);
+        SheenTint      = sheenTint      ?? new FloatTexture(0.5f);
+        Clearcoat      = clearcoat      ?? new FloatTexture(0f);
+        ClearcoatGloss = clearcoatGloss ?? new FloatTexture(1f);
+        SpecTrans      = specTrans      ?? new FloatTexture(0f);
+        Ior            = ior            ?? new FloatTexture(1.5f);
 
-        // GGX α parameter — clamp to avoid singularity at zero
-        _alpha = MathF.Max(Roughness * Roughness, 0.001f);
+        // Representative values — evaluated once, never per-shading-point.
+        float repMetal     = Math.Clamp(Metallic.RepresentativeValue,  0f, 1f);
+        float repRoughness = Math.Clamp(Roughness.RepresentativeValue, 0f, 1f);
+        float repTrans     = Math.Clamp(SpecTrans.RepresentativeValue, 0f, 1f);
+        _repDiffuseWeight  = (1f - repMetal) * (1f - repTrans);
+        _repAlpha          = MathF.Max(repRoughness * repRoughness, 0.001f);
+    }
 
-        // Clearcoat: Burley 2012 §5.4 defines αc = mix(0.1, 0.001, clearcoatGloss)
-        // already as the GGX α parameter — NOT as perceptual roughness. Storing it
-        // directly (without squaring) keeps the convention consistent with _alpha
-        // above (which stores α = Roughness²) so that a² = alpha * alpha in both
-        // the NDF and Smith G1 formulas yields the correct α² term.
-        _clearcoatAlpha = Lerp(0.1f, 0.001f, ClearcoatGloss);
+    // ═════════════════════════════════════════════════════════════════════════
+    // Per-shading-point parameter snapshot.
+    //
+    // Textures vary with (u, v, p) — so all 11 scalar parameters are sampled
+    // once at the top of every public entry (Scatter, Evaluate, Pdf,
+    // EvaluateDirect) and passed by ref-readonly through the private lobe
+    // helpers. This keeps the number of texture fetches per BSDF call small
+    // and predictable, and centralises the Math.Clamp / _alpha derivation.
+    // ═════════════════════════════════════════════════════════════════════════
+    private readonly struct ShadingParams
+    {
+        public readonly float Metallic;
+        public readonly float Roughness;
+        public readonly float Subsurface;
+        public readonly float Specular;
+        public readonly float SpecularTint;
+        public readonly float Sheen;
+        public readonly float SheenTint;
+        public readonly float Clearcoat;
+        public readonly float ClearcoatGloss;
+        public readonly float SpecTrans;
+        public readonly float Ior;
+        public readonly float Alpha;           // roughness² (GGX α)
+        public readonly float ClearcoatAlpha;  // Burley 2012 §5.4
+
+        public ShadingParams(
+            float metallic, float roughness, float subsurface,
+            float specular, float specularTint,
+            float sheen, float sheenTint,
+            float clearcoat, float clearcoatGloss,
+            float specTrans, float ior)
+        {
+            Metallic       = Math.Clamp(metallic, 0f, 1f);
+            Roughness      = Math.Clamp(roughness, 0f, 1f);
+            Subsurface     = Math.Clamp(subsurface, 0f, 1f);
+            Specular       = Math.Clamp(specular, 0f, 2f);
+            SpecularTint   = Math.Clamp(specularTint, 0f, 1f);
+            Sheen          = Math.Clamp(sheen, 0f, 1f);
+            SheenTint      = Math.Clamp(sheenTint, 0f, 1f);
+            Clearcoat      = Math.Clamp(clearcoat, 0f, 1f);
+            ClearcoatGloss = Math.Clamp(clearcoatGloss, 0f, 1f);
+            SpecTrans      = Math.Clamp(specTrans, 0f, 1f);
+            Ior            = MathF.Max(ior, 1.0001f);
+
+            Alpha          = MathF.Max(Roughness * Roughness, 0.001f);
+            ClearcoatAlpha = Lerp(0.1f, 0.001f, ClearcoatGloss);
+        }
+    }
+
+    private ShadingParams EvalParams(HitRecord rec)
+    {
+        float u = rec.U, v = rec.V;
+        Vector3 p = rec.LocalPoint;
+        int seed = rec.ObjectSeed;
+        return new ShadingParams(
+            Metallic.Value(u, v, p, seed),
+            Roughness.Value(u, v, p, seed),
+            Subsurface.Value(u, v, p, seed),
+            Specular.Value(u, v, p, seed),
+            SpecularTint.Value(u, v, p, seed),
+            Sheen.Value(u, v, p, seed),
+            SheenTint.Value(u, v, p, seed),
+            Clearcoat.Value(u, v, p, seed),
+            ClearcoatGloss.Value(u, v, p, seed),
+            SpecTrans.Value(u, v, p, seed),
+            Ior.Value(u, v, p, seed));
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -114,50 +187,44 @@ public class DisneyBsdf : IMaterial
     // ═════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Diffuse weight decreases with metallic and specTrans — metals and glass
-    /// don't have a diffuse lobe.
-    ///
-    /// FIX #4: Removed the artificial MathF.Max(0.3f, Roughness) floor that was
-    /// inflating direct diffuse by up to 6× for smooth dielectrics (roughness=0.05
-    /// was clamped to 0.3). The Disney diffuse Fresnel (fd90) already handles the
-    /// roughness-dependent energy balance correctly.
+    /// Material-wide representative DiffuseWeight used by the renderer's
+    /// needsLightSampling gate and legacy emission suppression. Computed
+    /// once from the parameters' representative values; texture variation
+    /// is ignored here since both downstream consumers only need a
+    /// yes/no answer ("does this material have a diffuse lobe at all?").
     /// </summary>
-    public float DiffuseWeight
-    {
-        get
-        {
-            return (1f - Metallic) * (1f - SpecTrans);
-        }
-    }
+    public float DiffuseWeight => _repDiffuseWeight;
 
     /// <summary>
-    /// Blinn-Phong exponent derived from roughness for direct light highlights.
-    /// Low roughness → tight sharp highlight; high roughness → broad soft highlight.
-    /// NOTE: Retained for IMaterial interface compatibility. Not used by Disney's
-    /// own EvaluateDirect (which uses analytic GGX), but may be read by Renderer
-    /// for needsLightSampling checks.
+    /// Representative Blinn-Phong exponent derived from the material-wide
+    /// roughness. Retained for IMaterial compatibility; used only by the
+    /// renderer's needsLightSampling gate, which is a coarse boolean and
+    /// can tolerate a constant-per-material answer.
     /// </summary>
     public float SpecularExponent
     {
         get
         {
-            if (_alpha >= 1f) return 2f;
-            return MathF.Min(2f / (_alpha * _alpha), 2048f);
+            if (_repAlpha >= 1f) return 2f;
+            return MathF.Min(2f / (_repAlpha * _repAlpha), 2048f);
         }
     }
 
     /// <summary>
-    /// Specular highlight strength: strong for metals and smooth dielectrics,
-    /// with clearcoat adding extra highlight intensity.
-    /// NOTE: Retained for IMaterial interface compatibility.
+    /// Representative specular highlight strength. Used only for the
+    /// renderer's needsLightSampling gate (IMaterial compatibility).
     /// </summary>
     public float SpecularStrength
     {
         get
         {
-            float baseSpec = Metallic > 0.5f ? 1f : Specular;
-            float ccBoost = Clearcoat * 0.25f;
-            return MathF.Min(baseSpec * (1f - Roughness * 0.5f) + ccBoost, 1f);
+            float rMetal     = Metallic.RepresentativeValue;
+            float rSpec      = Specular.RepresentativeValue;
+            float rClearcoat = Clearcoat.RepresentativeValue;
+            float rRoughness = Roughness.RepresentativeValue;
+            float baseSpec = rMetal > 0.5f ? 1f : rSpec;
+            float ccBoost = rClearcoat * 0.25f;
+            return MathF.Min(baseSpec * (1f - rRoughness * 0.5f) + ccBoost, 1f);
         }
     }
 
@@ -190,12 +257,14 @@ public class DisneyBsdf : IMaterial
         float NdotH = MathF.Max(Vector3.Dot(normal, H), 0f);
         float VdotH = MathF.Max(Vector3.Dot(toEye, H), 0f);
 
+        ShadingParams sp = EvalParams(rec);
+
         // ── Disney diffuse lobe ─────────────────────────────────────────
-        float diffuseW = (1f - Metallic) * (1f - SpecTrans);
+        float diffuseW = (1f - sp.Metallic) * (1f - sp.SpecTrans);
         Vector3 diffuse = Vector3.Zero;
         if (diffuseW > 0f)
         {
-            float fd90 = 0.5f + 2f * Roughness * VdotH * VdotH;
+            float fd90 = 0.5f + 2f * sp.Roughness * VdotH * VdotH;
             float fI = SchlickWeight(NdotV);
             float fO = SchlickWeight(NdotL);
             float fd = (1f + (fd90 - 1f) * fI) * (1f + (fd90 - 1f) * fO);
@@ -205,38 +274,34 @@ public class DisneyBsdf : IMaterial
 
         // ── GGX specular lobe ───────────────────────────────────────────
         // D: GGX (Trowbridge-Reitz) NDF
-        float a2 = _alpha * _alpha;
+        float a2 = sp.Alpha * sp.Alpha;
         float denom = NdotH * NdotH * (a2 - 1f) + 1f;
         float D = a2 / (MathF.PI * denom * denom);
 
         // G: Smith separable masking/shadowing
-        float G = SmithG1_GGX(NdotV, _alpha) * SmithG1_GGX(NdotL, _alpha);
+        float G = SmithG1_GGX(NdotV, sp.Alpha) * SmithG1_GGX(NdotL, sp.Alpha);
 
         // F: Schlick Fresnel with continuous metallic→dielectric blend
-        // Uses ComputeF0 for consistent F0 with scatter (no binary threshold)
         Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
-        Vector3 F0 = ComputeF0(baseCol);
+        Vector3 F0 = ComputeF0(baseCol, sp);
         Vector3 F = FresnelSchlick(VdotH, F0);
 
         // Cook-Torrance: D × G × F / (4 × NdotV × NdotL), then × NdotL
-        // The NdotL cancels, leaving D × G × F / (4 × NdotV).
         Vector3 specular = D * G * F / MathF.Max(4f * NdotV, 1e-6f);
 
         // ── Clearcoat GGX lobe ──────────────────────────────────────────
         Vector3 clearcoat = Vector3.Zero;
-        if (Clearcoat > 0f)
+        if (sp.Clearcoat > 0f)
         {
-            float ca2 = _clearcoatAlpha * _clearcoatAlpha;
+            float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
             float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
             float cD = ca2 / (MathF.PI * cDenom * cDenom);
-            float cG = SmithG1_GGX(NdotV, _clearcoatAlpha) * SmithG1_GGX(NdotL, _clearcoatAlpha);
+            float cG = SmithG1_GGX(NdotV, sp.ClearcoatAlpha) * SmithG1_GGX(NdotL, sp.ClearcoatAlpha);
 
-            // Fixed F0 = 0.04 for clearcoat (IOR ≈ 1.5)
             float cF0 = 0.04f;
             float cF = cF0 + (1f - cF0) * SchlickWeight(VdotH);
 
-            // Clearcoat weight: 0.25 matches the lobe selection weight in Scatter
-            clearcoat = new Vector3(Clearcoat * 0.25f * cD * cG * cF
+            clearcoat = new Vector3(sp.Clearcoat * 0.25f * cD * cG * cF
                         / MathF.Max(4f * NdotV, 1e-6f));
         }
 
@@ -284,13 +349,14 @@ public class DisneyBsdf : IMaterial
         float LdotH = MathF.Max(Vector3.Dot(L, H), 0f);
 
         Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        ShadingParams sp = EvalParams(rec);
 
         // ── Disney diffuse (retro-reflection Fresnel) ──────────────────────
-        float diffuseScalar = (1f - Metallic) * (1f - SpecTrans);
+        float diffuseScalar = (1f - sp.Metallic) * (1f - sp.SpecTrans);
         Vector3 diffuse = Vector3.Zero;
         if (diffuseScalar > 0f)
         {
-            float fd90 = 0.5f + 2f * Roughness * LdotH * LdotH;
+            float fd90 = 0.5f + 2f * sp.Roughness * LdotH * LdotH;
             float fI = SchlickWeight(NdotV);
             float fO = SchlickWeight(NdotL);
             float fd = (1f + (fd90 - 1f) * fI) * (1f + (fd90 - 1f) * fO);
@@ -299,34 +365,34 @@ public class DisneyBsdf : IMaterial
 
         // ── Sheen (separate lobe since FIX #7c) ────────────────────────────
         Vector3 sheen = Vector3.Zero;
-        if (Sheen > 0f && diffuseScalar > 0f)
+        if (sp.Sheen > 0f && diffuseScalar > 0f)
         {
             float lum = MathUtils.Luminance(baseCol);
             Vector3 tintCol = lum > 0f ? baseCol / lum : Vector3.One;
-            Vector3 sheenCol = Vector3.Lerp(Vector3.One, tintCol, SheenTint);
-            sheen = Sheen * SchlickWeight(LdotH) * sheenCol;
+            Vector3 sheenCol = Vector3.Lerp(Vector3.One, tintCol, sp.SheenTint);
+            sheen = sp.Sheen * SchlickWeight(LdotH) * sheenCol;
         }
 
         // ── GGX specular (full Cook-Torrance) ──────────────────────────────
-        float a2 = _alpha * _alpha;
+        float a2 = sp.Alpha * sp.Alpha;
         float denom = NdotH * NdotH * (a2 - 1f) + 1f;
         float D = a2 / (MathF.PI * denom * denom);
-        float G = SmithG1_GGX(NdotV, _alpha) * SmithG1_GGX(NdotL, _alpha);
-        Vector3 F0 = ComputeF0(baseCol);
+        float G = SmithG1_GGX(NdotV, sp.Alpha) * SmithG1_GGX(NdotL, sp.Alpha);
+        Vector3 F0 = ComputeF0(baseCol, sp);
         Vector3 F = FresnelSchlick(VdotH, F0);
         Vector3 specular = D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f) * F;
 
         // ── Clearcoat GGX ──────────────────────────────────────────────────
         Vector3 clearcoat = Vector3.Zero;
-        if (Clearcoat > 0f)
+        if (sp.Clearcoat > 0f)
         {
-            float ca2 = _clearcoatAlpha * _clearcoatAlpha;
+            float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
             float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
             float cD = ca2 / (MathF.PI * cDenom * cDenom);
-            float cG = SmithG1_GGX(NdotV, _clearcoatAlpha) * SmithG1_GGX(NdotL, _clearcoatAlpha);
+            float cG = SmithG1_GGX(NdotV, sp.ClearcoatAlpha) * SmithG1_GGX(NdotL, sp.ClearcoatAlpha);
             float cF0 = 0.04f;
             float cF = cF0 + (1f - cF0) * SchlickWeight(VdotH);
-            float cc = Clearcoat * 0.25f * cD * cG * cF
+            float cc = sp.Clearcoat * 0.25f * cD * cG * cF
                      / MathF.Max(4f * NdotV * NdotL, 1e-7f);
             clearcoat = new Vector3(cc);
         }
@@ -358,7 +424,8 @@ public class DisneyBsdf : IMaterial
         float VdotH = MathF.Max(Vector3.Dot(V, H), 1e-7f);
 
         Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
-        LobeWeights w = ComputeLobeWeights(baseCol);
+        ShadingParams sp = EvalParams(rec);
+        LobeWeights w = ComputeLobeWeights(baseCol, sp);
 
         // Cosine-weighted PDF shared by diffuse and sheen.
         float cosPdf = NdotL / MathF.PI;
@@ -369,16 +436,16 @@ public class DisneyBsdf : IMaterial
         // (V·H) factor and yields G1(V) · D / (4 · NdotV).
         float safeNdotV = MathF.Max(NdotV, 1e-7f);
 
-        float a2 = _alpha * _alpha;
+        float a2 = sp.Alpha * sp.Alpha;
         float dDenom = NdotH * NdotH * (a2 - 1f) + 1f;
         float D = a2 / (MathF.PI * dDenom * dDenom);
-        float g1V = SmithG1_GGX(NdotV, _alpha);
+        float g1V = SmithG1_GGX(NdotV, sp.Alpha);
         float specPdf = g1V * D / (4f * safeNdotV);
 
-        float ca2 = _clearcoatAlpha * _clearcoatAlpha;
+        float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
         float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
         float cD = ca2 / (MathF.PI * cDenom * cDenom);
-        float cG1V = SmithG1_GGX(NdotV, _clearcoatAlpha);
+        float cG1V = SmithG1_GGX(NdotV, sp.ClearcoatAlpha);
         float ccPdf = cG1V * cD / (4f * safeNdotV);
 
         return w.PDiffuse * cosPdf
@@ -459,16 +526,16 @@ public class DisneyBsdf : IMaterial
         public float PSheen        => Sheen / Total;
     }
 
-    private LobeWeights ComputeLobeWeights(Vector3 baseCol)
+    private static LobeWeights ComputeLobeWeights(Vector3 baseCol, in ShadingParams sp)
     {
-        float diffuseW  = (1f - Metallic) * (1f - SpecTrans);
-        float specF0    = Metallic > 0.5f ? MathUtils.Luminance(baseCol)
-                          : 0.04f * Specular;
-        float specFloor = 0.1f * (1f - SpecTrans * 0.9f); // FIX #8e
-        float specularW = MathF.Max(specFloor, Lerp(specF0, 1f, Metallic));
-        float transW    = (1f - Metallic) * SpecTrans;
-        float clearW    = Clearcoat * 0.04f;
-        float sheenW    = Sheen * 0.25f * diffuseW;
+        float diffuseW  = (1f - sp.Metallic) * (1f - sp.SpecTrans);
+        float specF0    = sp.Metallic > 0.5f ? MathUtils.Luminance(baseCol)
+                          : 0.04f * sp.Specular;
+        float specFloor = 0.1f * (1f - sp.SpecTrans * 0.9f); // FIX #8e
+        float specularW = MathF.Max(specFloor, Lerp(specF0, 1f, sp.Metallic));
+        float transW    = (1f - sp.Metallic) * sp.SpecTrans;
+        float clearW    = sp.Clearcoat * 0.04f;
+        float sheenW    = sp.Sheen * 0.25f * diffuseW;
         return new LobeWeights(diffuseW, specularW, transW, clearW, sheenW);
     }
 
@@ -483,10 +550,11 @@ public class DisneyBsdf : IMaterial
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
         Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        ShadingParams sp = EvalParams(rec);
         Vector3 N = rec.Normal;
         Vector3 V = Vector3.Normalize(-rayIn.Direction);
 
-        LobeWeights w = ComputeLobeWeights(baseCol);
+        LobeWeights w = ComputeLobeWeights(baseCol, sp);
         float pDiffuse  = w.PDiffuse;
         float pSpecular = w.PSpecular;
         float pTrans    = w.PTransmission;
@@ -498,24 +566,24 @@ public class DisneyBsdf : IMaterial
         bool result;
         if (rnd < pDiffuse)
         {
-            result = ScatterDiffuse(rec, baseCol, N, V, pDiffuse, out attenuation, out scattered);
+            result = ScatterDiffuse(rec, baseCol, N, V, sp, pDiffuse, out attenuation, out scattered);
         }
         else if ((rnd -= pDiffuse) < pSpecular)
         {
-            result = ScatterSpecular(rec, baseCol, N, V, pSpecular, out attenuation, out scattered);
+            result = ScatterSpecular(rec, baseCol, N, V, sp, pSpecular, out attenuation, out scattered);
         }
         else if ((rnd -= pSpecular) < pTrans)
         {
-            result = ScatterTransmission(rayIn, rec, baseCol, N, V, pTrans, out attenuation, out scattered);
+            result = ScatterTransmission(rayIn, rec, baseCol, N, V, sp, pTrans, out attenuation, out scattered);
         }
         else if ((rnd -= pTrans) < pSheen)
         {
-            result = ScatterSheen(rec, baseCol, N, V, pSheen, out attenuation, out scattered);
+            result = ScatterSheen(rec, baseCol, N, V, sp, pSheen, out attenuation, out scattered);
         }
         else
         {
             float pClearcoat = w.PClearcoat;
-            result = ScatterClearcoat(rec, N, V, pClearcoat, out attenuation, out scattered);
+            result = ScatterClearcoat(rec, N, V, sp, pClearcoat, out attenuation, out scattered);
         }
 
         // ── Sanitize attenuation ────────────────────────────────────────────
@@ -550,7 +618,7 @@ public class DisneyBsdf : IMaterial
     /// distribution (strong at normal incidence).
     /// </summary>
     private bool ScatterDiffuse(HitRecord rec, Vector3 baseCol, Vector3 N, Vector3 V,
-                                float probability,
+                                in ShadingParams sp, float probability,
                                 out Vector3 attenuation, out Ray scattered)
     {
         // Cosine-weighted hemisphere sampling
@@ -574,7 +642,7 @@ public class DisneyBsdf : IMaterial
         float LdotH = MathF.Max(Vector3.Dot(L, H), 0f);
 
         // Disney diffuse Fresnel factor (retro-reflection at grazing angles)
-        float fd90 = 0.5f + 2f * Roughness * LdotH * LdotH;
+        float fd90 = 0.5f + 2f * sp.Roughness * LdotH * LdotH;
         float fI = SchlickWeight(NdotV);
         float fO = SchlickWeight(NdotL);
         float fd = (1f + (fd90 - 1f) * fI) * (1f + (fd90 - 1f) * fO);
@@ -585,14 +653,14 @@ public class DisneyBsdf : IMaterial
         // Physically the subsurface effect is a ~1.25× brightness boost,
         // not a 400× explosion. Clamping ss to [0, 2] preserves the visual
         // effect while eliminating the firefly source.
-        float fss90 = Roughness * LdotH * LdotH;
+        float fss90 = sp.Roughness * LdotH * LdotH;
         float fssI = 1f + (fss90 - 1f) * fI;
         float fssO = 1f + (fss90 - 1f) * fO;
         float ssRaw = 1.25f * (fssI * fssO * (1f / (NdotV + NdotL + 0.001f) - 0.5f) + 0.5f);
         float ss = Math.Clamp(ssRaw, 0f, 2f);
 
         // Blend Lambert and subsurface — result is now bounded [0, ~2.5]
-        float diffuseFactor = Lerp(fd, ss, Subsurface);
+        float diffuseFactor = Lerp(fd, ss, sp.Subsurface);
         attenuation = baseCol * diffuseFactor;
 
         // Compensate for lobe selection probability (multi-lobe MIS).
@@ -627,7 +695,7 @@ public class DisneyBsdf : IMaterial
     /// low-valued but still noisy result.
     /// </summary>
     private bool ScatterSheen(HitRecord rec, Vector3 baseCol, Vector3 N, Vector3 V,
-                              float probability,
+                              in ShadingParams sp, float probability,
                               out Vector3 attenuation, out Ray scattered)
     {
         // Cosine-weighted hemisphere sampling (same as diffuse)
@@ -650,8 +718,8 @@ public class DisneyBsdf : IMaterial
         float fH = SchlickWeight(LdotH);
         float lum = MathUtils.Luminance(baseCol);
         Vector3 tintCol = lum > 0f ? baseCol / lum : Vector3.One;
-        Vector3 sheenCol = Vector3.Lerp(Vector3.One, tintCol, SheenTint);
-        attenuation = Sheen * fH * sheenCol;
+        Vector3 sheenCol = Vector3.Lerp(Vector3.One, tintCol, sp.SheenTint);
+        attenuation = sp.Sheen * fH * sheenCol;
 
         // Compensate for lobe selection probability
         float safeProbability = MathF.Max(probability, 0.1f);
@@ -670,11 +738,11 @@ public class DisneyBsdf : IMaterial
     /// where G is the Smith height-correlated masking/shadowing term.
     /// </summary>
     private bool ScatterSpecular(HitRecord rec, Vector3 baseCol, Vector3 N, Vector3 V,
-                                 float probability,
+                                 in ShadingParams sp, float probability,
                                  out Vector3 attenuation, out Ray scattered)
     {
         // Sample a visible microfacet normal (Heitz 2018)
-        Vector3 H = SampleGgxVndf(N, V, _alpha);
+        Vector3 H = SampleGgxVndf(N, V, sp.Alpha);
         Vector3 L = MathUtils.Reflect(-V, H);
 
         if (Vector3.Dot(L, N) <= 0f)
@@ -691,7 +759,7 @@ public class DisneyBsdf : IMaterial
         float NdotL = MathF.Max(Vector3.Dot(N, L), 1e-4f);
         float VdotH = MathF.Max(Vector3.Dot(V, H), 1e-4f);
 
-        Vector3 F0 = ComputeF0(baseCol);
+        Vector3 F0 = ComputeF0(baseCol, sp);
         Vector3 fresnel = FresnelSchlick(VdotH, F0);
 
         // VNDF importance-sampling weight.
@@ -701,7 +769,7 @@ public class DisneyBsdf : IMaterial
         //
         // G1(L) is inherently in [0, 1], so the old "clamp ggxWeight to 1"
         // firefly guard from Walter-2007 NDF sampling is no longer needed.
-        float g1L = SmithG1_GGX(NdotL, _alpha);
+        float g1L = SmithG1_GGX(NdotL, sp.Alpha);
         attenuation = fresnel * g1L;
 
         // Compensate for lobe selection probability.
@@ -726,10 +794,11 @@ public class DisneyBsdf : IMaterial
     /// glass-BSDF step and will replace this approximation.
     /// </summary>
     private bool ScatterTransmission(Ray rayIn, HitRecord rec, Vector3 baseCol,
-                                     Vector3 N, Vector3 V, float probability,
+                                     Vector3 N, Vector3 V, in ShadingParams sp,
+                                     float probability,
                                      out Vector3 attenuation, out Ray scattered)
     {
-        float eta = rec.FrontFace ? (1f / Ior) : Ior;
+        float eta = rec.FrontFace ? (1f / sp.Ior) : sp.Ior;
         Vector3 unitDir = Vector3.Normalize(rayIn.Direction);
 
         // For rough transmissive materials, sample a visible microfacet
@@ -738,8 +807,8 @@ public class DisneyBsdf : IMaterial
         // is actually visible from V, which eliminates the masked-sample
         // variance that forced the old NDF-sampling path to clamp the
         // geometry weight to 1.
-        bool isRough = Roughness > 0.01f;
-        Vector3 Ht = isRough ? SampleGgxVndf(N, V, _alpha) : N;
+        bool isRough = sp.Roughness > 0.01f;
+        Vector3 Ht = isRough ? SampleGgxVndf(N, V, sp.Alpha) : N;
 
         // Ensure the microfacet normal faces the incoming ray
         if (Vector3.Dot(Ht, unitDir) > 0f)
@@ -784,7 +853,7 @@ public class DisneyBsdf : IMaterial
         {
             Vector3 L = scattered.Direction;
             float NdotL_t = MathF.Max(MathF.Abs(Vector3.Dot(N, L)), 1e-4f);
-            float g1L = SmithG1_GGX(NdotL_t, _alpha);
+            float g1L = SmithG1_GGX(NdotL_t, sp.Alpha);
             attenuation *= g1L;
         }
 
@@ -800,15 +869,15 @@ public class DisneyBsdf : IMaterial
     /// roughness. Always white (physically: a thin transparent varnish layer).
     ///
     /// Same VNDF sampling and F · G1(L) weight as <see cref="ScatterSpecular"/>,
-    /// but with <c>_clearcoatAlpha</c> and fixed F0 = 0.04. The <c>Clearcoat</c>
+    /// but with <c>sp.ClearcoatAlpha</c> and fixed F0 = 0.04. The clearcoat
     /// intensity is encoded in the lobe selection probability, not in the
     /// attenuation — the 1/probability compensation keeps the estimator unbiased.
     /// </summary>
     private bool ScatterClearcoat(HitRecord rec, Vector3 N, Vector3 V,
-                                  float probability,
+                                  in ShadingParams sp, float probability,
                                   out Vector3 attenuation, out Ray scattered)
     {
-        Vector3 H = SampleGgxVndf(N, V, _clearcoatAlpha);
+        Vector3 H = SampleGgxVndf(N, V, sp.ClearcoatAlpha);
         Vector3 L = MathUtils.Reflect(-V, H);
 
         if (Vector3.Dot(L, N) <= 0f)
@@ -828,7 +897,7 @@ public class DisneyBsdf : IMaterial
         float fresnel = f0 + (1f - f0) * SchlickWeight(VdotH);
 
         // VNDF weight: F · G1(L) (see ScatterSpecular for the derivation).
-        float g1L = SmithG1_GGX(NdotL, _clearcoatAlpha);
+        float g1L = SmithG1_GGX(NdotL, sp.ClearcoatAlpha);
         attenuation = new Vector3(fresnel * g1L);
 
         float safeProbability = MathF.Max(probability, 0.1f);
@@ -952,22 +1021,22 @@ public class DisneyBsdf : IMaterial
     /// Metals use baseColor directly; dielectrics use IOR-derived value
     /// optionally tinted towards baseColor via specularTint.
     /// </summary>
-    private Vector3 ComputeF0(Vector3 baseCol)
+    private static Vector3 ComputeF0(Vector3 baseCol, in ShadingParams sp)
     {
         // Dielectric F0 from IOR
-        float r = (Ior - 1f) / (Ior + 1f);
+        float r = (sp.Ior - 1f) / (sp.Ior + 1f);
         float f0d = r * r;
 
         // Disney's specular parameter scales F0 (0.5 → standard, 1.0 → 2× brighter)
-        float scaledF0 = f0d * 2f * Specular;
+        float scaledF0 = f0d * 2f * sp.Specular;
 
         // Tint towards baseColor if specularTint > 0
         float lum = MathUtils.Luminance(baseCol);
         Vector3 tintCol = lum > 0f ? baseCol / lum : Vector3.One;
-        Vector3 dielectricF0 = Vector3.Lerp(new Vector3(scaledF0), scaledF0 * tintCol, SpecularTint);
+        Vector3 dielectricF0 = Vector3.Lerp(new Vector3(scaledF0), scaledF0 * tintCol, sp.SpecularTint);
 
         // Blend between dielectric and metallic F0
-        return Vector3.Lerp(dielectricF0, baseCol, Metallic);
+        return Vector3.Lerp(dielectricF0, baseCol, sp.Metallic);
     }
 
     /// <summary>

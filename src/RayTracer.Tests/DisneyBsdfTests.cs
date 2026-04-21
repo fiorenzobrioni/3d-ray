@@ -305,6 +305,48 @@ public class DisneyBsdfTests
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Textured parameter dispatch (phase 2 step 6)
+    //
+    // When a Disney parameter is texture-backed, EvalParams must pick up the
+    // texture's per-point value instead of the ctor scalar. We spot-check by
+    // wrapping "metallic" in a solid-color texture (constant = 1) and
+    // confirming Evaluate returns the same value it would for a scalar
+    // metallic = 1 build. Equality must hold at floating-point precision —
+    // the code path is identical, only the source of the scalar differs.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void EvalParams_TextureBackedMetallic_MatchesScalarBuild()
+    {
+        var baseColor = new SolidColor(new Vector3(0.7f, 0.5f, 0.3f));
+
+        var scalarBuild = new DisneyBsdf(baseColor,
+            metallic: 1f, roughness: 0.4f, subsurface: 0f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f);
+
+        var textureBuild = new DisneyBsdf(baseColor,
+            metallic: new FloatTexture(new SolidColor(Vector3.One)), // 1.0 everywhere
+            roughness: 0.4f, subsurface: 0f, specular: 0.5f,
+            specularTint: 0f, sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f, specTrans: 0f, ior: 1.5f);
+
+        var rec = MakeRec();
+        var V = Vector3.Normalize(new Vector3(0.3f, 1f, 0.2f));
+        var L = Vector3.Normalize(new Vector3(-0.2f, 0.8f, 0.4f));
+
+        AssertVectorClose(
+            scalarBuild.Evaluate(V, L, rec),
+            textureBuild.Evaluate(V, L, rec),
+            relTol: 1e-6f, absTol: 1e-8f);
+
+        AssertClose(
+            scalarBuild.Pdf(V, L, rec),
+            textureBuild.Pdf(V, L, rec),
+            relTol: 1e-6f, absTol: 1e-8f);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 

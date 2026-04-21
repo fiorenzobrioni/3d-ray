@@ -791,17 +791,17 @@ public class SceneLoader
             "disney" or "disney_bsdf" or "pbr"
                          => new DisneyBsdf(
                                 albedo,
-                                metallic:       m.Metallic,
-                                roughness:      m.Roughness,
-                                subsurface:     m.Subsurface,
-                                specular:       m.Specular,
-                                specularTint:   m.SpecularTint,
-                                sheen:          m.Sheen,
-                                sheenTint:      m.SheenTint,
-                                clearcoat:      m.Clearcoat,
-                                clearcoatGloss: m.ClearcoatGloss,
-                                specTrans:      m.SpecTrans,
-                                ior:            m.DisneyIor),
+                                metallic:       DisneyParam(m.Metallic,       m.MetallicTexture,       sceneDir),
+                                roughness:      DisneyParam(m.Roughness,      m.RoughnessTexture,      sceneDir),
+                                subsurface:     DisneyParam(m.Subsurface,     m.SubsurfaceTexture,     sceneDir),
+                                specular:       DisneyParam(m.Specular,       m.SpecularTexture,       sceneDir),
+                                specularTint:   DisneyParam(m.SpecularTint,   m.SpecularTintTexture,   sceneDir),
+                                sheen:          DisneyParam(m.Sheen,          m.SheenTexture,          sceneDir),
+                                sheenTint:      DisneyParam(m.SheenTint,      m.SheenTintTexture,      sceneDir),
+                                clearcoat:      DisneyParam(m.Clearcoat,      m.ClearcoatTexture,      sceneDir),
+                                clearcoatGloss: DisneyParam(m.ClearcoatGloss, m.ClearcoatGlossTexture, sceneDir),
+                                specTrans:      DisneyParam(m.SpecTrans,      m.SpecTransTexture,      sceneDir),
+                                ior:            DisneyParam(m.DisneyIor,      m.IorTexture,            sceneDir)),
             _            => new Lambertian(albedo)
         };
 
@@ -969,6 +969,13 @@ public class SceneLoader
             return new SkySettings(new Vector3(1f, 0f, 1f));
         }
     }
+
+    /// <summary>
+    /// Builds a <see cref="FloatTexture"/> for a Disney BSDF parameter: prefers
+    /// the texture block when supplied, otherwise wraps the scalar value.
+    /// </summary>
+    private static FloatTexture DisneyParam(float scalar, TextureData? tex, string sceneDir)
+        => tex != null ? new FloatTexture(CreateTexture(tex, sceneDir)) : new FloatTexture(scalar);
 
     private static ITexture CreateTexture(TextureData t, string sceneDir)
     {
