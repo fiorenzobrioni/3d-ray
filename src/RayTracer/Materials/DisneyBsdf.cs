@@ -555,50 +555,56 @@ public class DisneyBsdf : IMaterial
         ShadingParams sp = EvalParams(rec);
         LobeWeights w = ComputeLobeWeights(baseCol, sp);
 
-        // Back hemisphere: only the diff_trans lobe samples there.
-        //   pdf_back = |NdotL| / π   (cosine-weighted about -N)
-        if (NdotL <= 0f)
+        // Cosine-weighted lobes (diffuse, sheen, multiscatter) only sample
+        // the upper hemisphere; diff_trans only samples the back hemisphere.
+        float cosPdf       = NdotL > 0f ?  NdotL / MathF.PI : 0f;
+        float diffTransPdf = NdotL < 0f ? -NdotL / MathF.PI : 0f;
+
+        // VNDF lobes (specular, clearcoat) sample H from the visible
+        // hemisphere of the microfacet NDF and reflect V; the resulting L
+        // can land in either hemisphere of the macro normal (a microfacet
+        // visible from V can still reflect into the macro-shadow zone).
+        // Heitz 2018 / PBRT convention is to report the un-truncated VNDF
+        // density over the full sphere of L — below-surface samples carry
+        // zero BRDF mass via the G2 / G1 weight in ScatterSpecular, so MIS
+        // stays unbiased without renormalising the PDF. Truncating the PDF
+        // to the upper hemisphere here would under-report the lobe density
+        // for back-hemisphere L by ~10-20% at α ≈ 0.4, breaking the
+        // ∫ pdf dω = 1 invariant on the unit sphere.
+        float specPdf = 0f;
+        float ccPdf   = 0f;
+        Vector3 Hraw = V + L;
+        if (Hraw.LengthSquared() >= 1e-14f)
         {
-            if (w.DiffTrans <= 0f) return 0f;
-            return w.PDiffTrans * (-NdotL / MathF.PI);
+            Vector3 H = Vector3.Normalize(Hraw);
+            float NdotH = Vector3.Dot(N, H);
+            // VNDF support requires H_z > 0; for back-hemisphere L far from
+            // V the half-vector H = normalise(V+L) can dip below the macro
+            // surface, in which case the microfacet NDF carries no mass.
+            if (NdotH > 0f)
+            {
+                float safeNdotV = MathF.Max(NdotV, 1e-7f);
+                ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
+                Vector3 Vloc = frame.ToLocal(V);
+                Vector3 Hloc = frame.ToLocal(H);
+                float D = Microfacet.DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
+                float g1V = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY);
+                specPdf = g1V * D / (4f * safeNdotV);
+
+                float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
+                float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
+                float cD = ca2 / (MathF.PI * cDenom * cDenom);
+                float cG1V = Microfacet.SmithG1(NdotV, sp.ClearcoatAlpha);
+                ccPdf = cG1V * cD / (4f * safeNdotV);
+            }
         }
 
-        Vector3 Hraw = V + L;
-        if (Hraw.LengthSquared() < 1e-14f) return 0f;
-        Vector3 H = Vector3.Normalize(Hraw);
-        float NdotH = MathF.Max(Vector3.Dot(N, H), 0f);
-        float VdotH = MathF.Max(Vector3.Dot(V, H), 1e-7f);
-
-        // Cosine-weighted PDF shared by diffuse and sheen.
-        float cosPdf = NdotL / MathF.PI;
-
-        // VNDF PDF in L-space (Heitz 2018):
-        //   Dv(H) = G1(V) · max(V·H, 0) · D(H) / NdotV
-        // Reflection Jacobian dωH/dωL = 1/(4·|V·H|) → pdf_L cancels the
-        // (V·H) factor and yields G1(V) · D / (4 · NdotV). The anisotropic
-        // NDF and Smith G1 are evaluated in the tangent frame; the scalar
-        // result matches the isotropic formula exactly when αx = αy.
-        float safeNdotV = MathF.Max(NdotV, 1e-7f);
-
-        ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
-        Vector3 Vloc = frame.ToLocal(V);
-        Vector3 Hloc = frame.ToLocal(H);
-        float D = Microfacet.DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
-        float g1V = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY);
-        float specPdf = g1V * D / (4f * safeNdotV);
-
-        float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
-        float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
-        float cD = ca2 / (MathF.PI * cDenom * cDenom);
-        float cG1V = Microfacet.SmithG1(NdotV, sp.ClearcoatAlpha);
-        float ccPdf = cG1V * cD / (4f * safeNdotV);
-
-        // Multiscatter is cosine-weighted (see ScatterMultiscatter).
-        return w.PDiffuse * cosPdf
-             + w.PSheen * cosPdf
-             + w.PSpecular * specPdf
+        return w.PDiffuse      * cosPdf
+             + w.PSheen        * cosPdf
              + w.PMultiscatter * cosPdf
-             + w.PClearcoat * ccPdf;
+             + w.PSpecular     * specPdf
+             + w.PClearcoat    * ccPdf
+             + w.PDiffTrans    * diffTransPdf;
     }
 
     /// <summary>
