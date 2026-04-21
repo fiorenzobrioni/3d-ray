@@ -798,6 +798,7 @@ public class SceneLoader
                                 specularTint:        DisneyParam(m.SpecularTint,        m.SpecularTintTexture,        sceneDir),
                                 sheen:               DisneyParam(m.Sheen,               m.SheenTexture,               sceneDir),
                                 sheenTint:           DisneyParam(m.SheenTint,           m.SheenTintTexture,           sceneDir),
+                                sheenRoughness:      DisneyParam(m.SheenRoughness,      m.SheenRoughnessTexture,      sceneDir),
                                 clearcoat:           DisneyParam(m.Clearcoat,           m.ClearcoatTexture,           sceneDir),
                                 clearcoatGloss:      DisneyParam(m.ClearcoatGloss,      m.ClearcoatGlossTexture,      sceneDir),
                                 specTrans:           DisneyParam(m.SpecTrans,           m.SpecTransTexture,           sceneDir),

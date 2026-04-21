@@ -60,6 +60,12 @@ public class DisneyBsdf : IMaterial
     public FloatTexture SpecularTint        { get; }
     public FloatTexture Sheen               { get; }
     public FloatTexture SheenTint           { get; }
+    // Estevez-Kulla 2017 "Charlie" sheen roughness in (0, 1]. Lower values
+    // give the thin, tightly grazing-angle look of velvet/satin; higher
+    // values produce a broader, more dust-like sheen. Defaults to 0.3,
+    // matching the Imageworks reference and Arnold's standard_surface
+    // sheen_roughness default.
+    public FloatTexture SheenRoughness      { get; }
     public FloatTexture Clearcoat           { get; }
     public FloatTexture ClearcoatGloss      { get; }
     public FloatTexture SpecTrans           { get; }
@@ -146,6 +152,7 @@ public class DisneyBsdf : IMaterial
         FloatTexture? specularTint        = null,
         FloatTexture? sheen               = null,
         FloatTexture? sheenTint           = null,
+        FloatTexture? sheenRoughness      = null,
         FloatTexture? clearcoat           = null,
         FloatTexture? clearcoatGloss      = null,
         FloatTexture? specTrans           = null,
@@ -169,6 +176,7 @@ public class DisneyBsdf : IMaterial
         SpecularTint        = specularTint        ?? new FloatTexture(0f);
         Sheen               = sheen               ?? new FloatTexture(0f);
         SheenTint           = sheenTint           ?? new FloatTexture(0.5f);
+        SheenRoughness      = sheenRoughness      ?? new FloatTexture(0.3f);
         Clearcoat           = clearcoat           ?? new FloatTexture(0f);
         ClearcoatGloss      = clearcoatGloss      ?? new FloatTexture(1f);
         SpecTrans           = specTrans           ?? new FloatTexture(0f);
@@ -210,6 +218,7 @@ public class DisneyBsdf : IMaterial
         public readonly float SpecularTint;
         public readonly float Sheen;
         public readonly float SheenTint;
+        public readonly float SheenRoughness;     // Charlie NDF α ∈ (0, 1]
         public readonly float Clearcoat;
         public readonly float ClearcoatGloss;
         public readonly float SpecTrans;
@@ -227,7 +236,7 @@ public class DisneyBsdf : IMaterial
         public ShadingParams(
             float metallic, float roughness, float subsurface,
             float specular, float specularTint,
-            float sheen, float sheenTint,
+            float sheen, float sheenTint, float sheenRoughness,
             float clearcoat, float clearcoatGloss,
             float specTrans, float ior,
             float anisotropic, float anisotropicRotation,
@@ -241,6 +250,7 @@ public class DisneyBsdf : IMaterial
             SpecularTint        = Math.Clamp(specularTint, 0f, 1f);
             Sheen               = Math.Clamp(sheen, 0f, 1f);
             SheenTint           = Math.Clamp(sheenTint, 0f, 1f);
+            SheenRoughness      = Math.Clamp(sheenRoughness, 0.04f, 1f);
             Clearcoat           = Math.Clamp(clearcoat, 0f, 1f);
             ClearcoatGloss      = Math.Clamp(clearcoatGloss, 0f, 1f);
             SpecTrans           = Math.Clamp(specTrans, 0f, 1f);
@@ -293,6 +303,7 @@ public class DisneyBsdf : IMaterial
             SpecularTint.Value(u, v, p, seed),
             Sheen.Value(u, v, p, seed),
             SheenTint.Value(u, v, p, seed),
+            SheenRoughness.Value(u, v, p, seed),
             Clearcoat.Value(u, v, p, seed),
             ClearcoatGloss.Value(u, v, p, seed),
             SpecTrans.Value(u, v, p, seed),
@@ -450,6 +461,23 @@ public class DisneyBsdf : IMaterial
             }
         }
 
+        // ── Sheen (Estevez-Kulla Charlie BRDF) ─────────────────────────────
+        // Direct lighting was previously missing the sheen lobe entirely —
+        // NEE on a velvet/fabric material would only see diffuse + specular,
+        // killing the grazing-angle highlight that defines the look. The
+        // Charlie BRDF is symmetric in V/L and was already wired through
+        // Evaluate; mirroring it here closes the energy gap between direct
+        // and indirect estimators.
+        Vector3 sheen = Vector3.Zero;
+        if (sp.Sheen > 0f && diffuseW > 0f)
+        {
+            float lum = MathUtils.Luminance(baseCol);
+            Vector3 tintCol = lum > 0f ? baseCol / lum : Vector3.One;
+            Vector3 sheenCol = Vector3.Lerp(Vector3.One, tintCol, sp.SheenTint);
+            float sheenBrdf = SheenCharlie.Brdf(NdotV, NdotL, NdotH, sp.SheenRoughness);
+            sheen = sp.Sheen * sheenBrdf * sheenCol * NdotL;
+        }
+
         // ── Multi-scatter compensation (Kulla-Conty) ───────────────────────
         // Returned shape is f · N·L (same convention as the rest of
         // EvaluateDirect). Shares the same LUT lookup used by Evaluate so
@@ -461,7 +489,7 @@ public class DisneyBsdf : IMaterial
         // produces outliers. The old 10.0 bias on the BRDF itself is gone
         // now that the indirect lobes use VNDF sampling and no longer
         // systematically overshoot the direct-light contribution.
-        return diffuse + specular + multiscatter + clearcoat;
+        return diffuse + sheen + specular + multiscatter + clearcoat;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -548,14 +576,20 @@ public class DisneyBsdf : IMaterial
             diffuse = shaped * (diffuseScalar / MathF.PI);
         }
 
-        // ── Sheen (separate lobe since FIX #7c) ────────────────────────────
+        // ── Sheen (Estevez-Kulla "Charlie" microfacet sheen) ───────────────
+        // Cook-Torrance over the Charlie inverted-Gaussian NDF and Smith Λ
+        // polynomial fit. The scalar Brdf is then tinted by the artist
+        // sheen colour (1 → sheenTint·baseCol/luminance) so monochromatic
+        // sheen and tinted sheen share one path. Multiplied by sp.Sheen at
+        // the end so the slider remains a clean energy multiplier.
         Vector3 sheen = Vector3.Zero;
         if (sp.Sheen > 0f && diffuseScalar > 0f)
         {
             float lum = MathUtils.Luminance(baseCol);
             Vector3 tintCol = lum > 0f ? baseCol / lum : Vector3.One;
             Vector3 sheenCol = Vector3.Lerp(Vector3.One, tintCol, sp.SheenTint);
-            sheen = sp.Sheen * SchlickWeight(LdotH) * sheenCol;
+            float sheenBrdf = SheenCharlie.Brdf(NdotV, NdotL, NdotH, sp.SheenRoughness);
+            sheen = sp.Sheen * sheenBrdf * sheenCol;
         }
 
         // ── Anisotropic GGX specular (full Cook-Torrance in tangent space) ─
@@ -1080,34 +1114,25 @@ public class DisneyBsdf : IMaterial
     }
 
     /// <summary>
-    /// FIX #7c: Dedicated sheen lobe with its own sampling.
+    /// Dedicated sheen lobe using the Estevez-Kulla "Charlie" microfacet
+    /// BRDF. Sampling stays cosine-weighted (the Charlie NDF has no closed-
+    /// form inverse CDF, and every production renderer cited by Imageworks
+    /// uses cosine sampling here) but the BRDF weight now uses the proper
+    /// inverted-Gaussian D and Smith Λ — so the strength of the lobe at
+    /// grazing angles is preserved instead of being washed out by the old
+    /// SchlickWeight approximation, and the 1/π Lambertian normaliser is
+    /// included so the lobe is correctly energy-conserving.
     ///
-    /// Sheen contributes primarily at grazing angles (Schlick weight on L·H).
-    /// When it was embedded in ScatterDiffuse, it was sampled with cosine-weighted
-    /// hemisphere sampling — which concentrates samples near the normal, exactly
-    /// where sheen contributes least. This mismatch increased variance for
-    /// materials with strong sheen (velvet, silk, fabric).
-    ///
-    /// As a separate lobe, sheen still uses cosine-weighted sampling (a perfect
-    /// importance-sampled distribution for sheen would require sampling the
-    /// Schlick weight profile, which is complex). However, the key improvement
-    /// is that the lobe selection probability now reflects sheen's actual energy
-    /// contribution, so the 1/probability compensation is correctly calibrated.
-    /// The per-sample variance is similar, but fewer samples are "wasted" on
-    /// sheen when other lobes would be more productive.
-    ///
-    /// FIX #8d: Added Fresnel-aware weighting. The sheen energy is concentrated
-    /// at grazing angles where SchlickWeight ≈ 1, but cosine sampling puts most
-    /// samples near normal incidence where SchlickWeight ≈ 0. We clamp the raw
-    /// sheen contribution to avoid the pathological case where a near-normal
-    /// sample with fH ≈ 0 gets divided by a small probability, producing a
-    /// low-valued but still noisy result.
+    /// Estimator weight: f · cos θ_l / pdf = f · π · cos θ_l / cos θ_l =
+    /// π · f. We multiply f (the Charlie BRDF, no cosine) by π and then
+    /// apply the per-channel sheen tint.
     /// </summary>
     private bool ScatterSheen(HitRecord rec, Vector3 baseCol, Vector3 N, Vector3 V,
                               in ShadingParams sp, float probability,
                               out Vector3 attenuation, out Ray scattered)
     {
-        // Cosine-weighted hemisphere sampling (same as diffuse)
+        // Cosine-weighted hemisphere sampling — BRDF and pdf cancel cleanly
+        // (see method-level comment above).
         Vector3 scatterDir = N + MathUtils.RandomUnitVector();
         if (MathUtils.NearZero(scatterDir))
             scatterDir = N;
@@ -1116,19 +1141,20 @@ public class DisneyBsdf : IMaterial
         scattered = new Ray(rec.Point, scatterDir);
 
         Vector3 L = scatterDir;
+        float NdotV = MathF.Max(Vector3.Dot(N, V), 1e-4f);
+        float NdotL = MathF.Max(Vector3.Dot(N, L), 1e-4f);
 
-        // Half-vector for L·H computation
         Vector3 Hraw = V + L;
         float hLenSq = Hraw.LengthSquared();
         Vector3 H = hLenSq > 1e-7f ? Hraw / MathF.Sqrt(hLenSq) : N;
-        float LdotH = MathF.Max(Vector3.Dot(L, H), 0f);
+        float NdotH = MathF.Max(Vector3.Dot(N, H), 0f);
 
-        // Sheen: Schlick weight at grazing angle × tinted color
-        float fH = SchlickWeight(LdotH);
+        float sheenBrdf = SheenCharlie.Brdf(NdotV, NdotL, NdotH, sp.SheenRoughness);
         float lum = MathUtils.Luminance(baseCol);
         Vector3 tintCol = lum > 0f ? baseCol / lum : Vector3.One;
         Vector3 sheenCol = Vector3.Lerp(Vector3.One, tintCol, sp.SheenTint);
-        attenuation = sp.Sheen * fH * sheenCol;
+        // π · BRDF · sheen_amount · tint  (cosine cancels with cosine pdf).
+        attenuation = sp.Sheen * MathF.PI * sheenBrdf * sheenCol;
 
         // Compensate for lobe selection probability
         float safeProbability = MathF.Max(probability, 0.1f);

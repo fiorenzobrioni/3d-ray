@@ -252,6 +252,13 @@ public class MaterialData
     [YamlMember(Alias = "sheen_tint")]
     public float SheenTint { get; set; } = 0.5f;
 
+    // Estevez-Kulla 2017 "Charlie" sheen NDF roughness in (0, 1]. Lower
+    // values give thin grazing-angle velvet; higher values broaden the lobe
+    // toward dust/cloth. Defaults to 0.3, matching the Imageworks reference
+    // and Arnold's standard_surface sheen_roughness default.
+    [YamlMember(Alias = "sheen_roughness")]
+    public float SheenRoughness { get; set; } = 0.3f;
+
     [YamlMember(Alias = "clearcoat")]
     public float Clearcoat { get; set; } = 0f;
 
@@ -343,6 +350,9 @@ public class MaterialData
 
     [YamlMember(Alias = "sheen_tint_texture")]
     public TextureData? SheenTintTexture { get; set; }
+
+    [YamlMember(Alias = "sheen_roughness_texture")]
+    public TextureData? SheenRoughnessTexture { get; set; }
 
     [YamlMember(Alias = "clearcoat_texture")]
     public TextureData? ClearcoatTexture { get; set; }

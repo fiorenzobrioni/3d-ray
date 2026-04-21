@@ -1036,6 +1036,147 @@ public class DisneyBsdfTests
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Sheen — Estevez-Kulla "Charlie" model (Step 12 of the Disney roadmap).
+    //
+    // The defining property of the Charlie sheen is that the lobe peaks at
+    // grazing angles (where the inverted-Gaussian NDF concentrates), unlike
+    // the legacy Disney 2012 Schlick-weighted sheen which only modulated a
+    // diffuse-shaped lobe by a Schlick factor. These tests pin the new
+    // grazing-angle response and verify the parameter behaves sensibly.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Charlie sheen at near-grazing reflection (V and L both very low NdotN)
+    /// must be substantially brighter than at normal incidence (V == L == N).
+    /// This is the production-defining property: a velvet curtain seen
+    /// edge-on glows; head-on it's matte. The legacy Schlick-weighted sheen
+    /// missed this — it bound the lobe's shape to LdotH and so produced
+    /// almost the opposite behaviour.
+    /// </summary>
+    [Fact]
+    public void Sheen_PeaksAtGrazing_NotAtNormal()
+    {
+        var baseColor = new SolidColor(new Vector3(0.5f));
+        var material = new DisneyBsdf(baseColor,
+            metallic: 0f, roughness: 1f, specular: 0f,
+            sheen: 1f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f);
+        var rec = MakeRec();
+
+        // Grazing geometry: both V and L ≈ 5° above the surface, in the
+        // same half-plane. NdotN ≈ 0.087 each.
+        const float graze = 0.087f;
+        const float side  = 0.996f; // sqrt(1 - graze²)
+        Vector3 V_grazing = new(side, graze, 0f);
+        Vector3 L_grazing = new(side, graze, 0f);
+
+        Vector3 V_normal = NormalUp;
+        Vector3 L_normal = NormalUp;
+
+        Vector3 fGraze = material.Evaluate(V_grazing, L_grazing, rec);
+        Vector3 fNormal = material.Evaluate(V_normal, L_normal, rec);
+
+        Assert.True(MathUtils.Luminance(fGraze) > MathUtils.Luminance(fNormal) * 5f,
+            $"Charlie sheen must peak at grazing: graze={fGraze}, normal={fNormal}");
+    }
+
+    /// <summary>
+    /// Lower sheen_roughness narrows the Charlie NDF: for α → 0 the
+    /// inverted-Gaussian is concentrated at a half-vector near the tangent
+    /// plane, so the BRDF drops off steeply when H moves away from grazing.
+    /// For α → 1 the NDF flattens and the BRDF decays much more gradually.
+    ///
+    /// Absolute magnitudes are NOT monotonic in α at fixed geometry (the
+    /// valid integration domain V, L ≥ 0 can never reach H·N = 0, so a
+    /// sharper NDF can read lower than a flatter one at any reachable H).
+    /// The correct "narrowing" diagnostic is the ratio of the grazing
+    /// response to the moderate-angle response: the smoother lobe's
+    /// grazing/moderate ratio dwarfs the rougher one's.
+    /// </summary>
+    [Fact]
+    public void SheenRoughness_LowerRoughness_NarrowsLobe()
+    {
+        var baseColor = new SolidColor(new Vector3(0.5f));
+        DisneyBsdf MakeSheen(float r) => new(
+            baseColor,
+            metallic: 0f, roughness: 1f, specular: 0f,
+            sheen: 1f, sheenTint: 0f, sheenRoughness: r,
+            clearcoat: 0f, clearcoatGloss: 1f);
+        var noSheen = new DisneyBsdf(
+            baseColor,
+            metallic: 0f, roughness: 1f, specular: 0f,
+            sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f);
+        var rec = MakeRec();
+
+        // Back-scatter probe (V == L) at two elevations: grazing (θ ≈ 85°,
+        // NdotV ≈ 0.087) and moderate (θ = 60°, NdotV = 0.5). Subtract the
+        // no-sheen baseline to isolate the Charlie contribution — Disney
+        // diffuse-Schlick boost at grazing is large enough on its own to
+        // mask the NDF shape if we compare absolute Evaluate values.
+        Vector3 graze = new(0.996f, 0.087f, 0f);
+        Vector3 mid   = new(MathF.Sqrt(3f) / 2f, 0.5f, 0f);
+
+        float baseGraze = MathUtils.Luminance(noSheen.Evaluate(graze, graze, rec));
+        float baseMid   = MathUtils.Luminance(noSheen.Evaluate(mid,   mid,   rec));
+
+        float smoothGraze = MathUtils.Luminance(MakeSheen(0.05f).Evaluate(graze, graze, rec)) - baseGraze;
+        float smoothMid   = MathUtils.Luminance(MakeSheen(0.05f).Evaluate(mid,   mid,   rec)) - baseMid;
+        float roughGraze  = MathUtils.Luminance(MakeSheen(0.7f) .Evaluate(graze, graze, rec)) - baseGraze;
+        float roughMid    = MathUtils.Luminance(MakeSheen(0.7f) .Evaluate(mid,   mid,   rec)) - baseMid;
+
+        float smoothRatio = smoothGraze / MathF.Max(smoothMid, 1e-6f);
+        float roughRatio  = roughGraze  / MathF.Max(roughMid,  1e-6f);
+
+        // Sharp α = 0.05 concentrates Charlie density near the grazing
+        // half-vector; broad α = 0.7 spreads it across the upper hemisphere.
+        // The grazing/moderate ratio of the isolated sheen lobe is therefore
+        // an order of magnitude larger for the smoother material — measured
+        // ratio is ≈ 17× vs ≈ 2× with the Estevez-Kulla fit.
+        Assert.True(smoothRatio > roughRatio * 5f,
+            $"smooth Charlie must fall off faster from grazing: smooth={smoothRatio:F2}×, rough={roughRatio:F2}×");
+    }
+
+    /// <summary>
+    /// Direct lighting (NEE) must include the sheen lobe — previously
+    /// EvaluateDirect omitted it entirely, so a pure-sheen material lit by
+    /// a direct light returned zero. Pin the bug fix by evaluating
+    /// EvaluateDirect at a grazing geometry where Charlie sheen contributes
+    /// strongly and require a non-trivial response.
+    /// </summary>
+    [Fact]
+    public void EvaluateDirect_IncludesSheenLobe()
+    {
+        var baseColor = new SolidColor(new Vector3(0.5f));
+        var material = new DisneyBsdf(baseColor,
+            metallic: 0f, roughness: 1f, specular: 0f,   // suppress all other reflective lobes
+            sheen: 1f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f);
+        var withoutSheen = new DisneyBsdf(baseColor,
+            metallic: 0f, roughness: 1f, specular: 0f,
+            sheen: 0f, sheenTint: 0f,
+            clearcoat: 0f, clearcoatGloss: 1f);
+
+        var rec = MakeRec();
+        Vector3 toEye   = new(0.996f, 0.087f, 0f);
+        Vector3 toLight = new(0.996f, 0.087f, 0f);
+
+        Vector3 fOn  = material   .EvaluateDirect(toLight, toEye, rec.Normal, rec);
+        Vector3 fOff = withoutSheen.EvaluateDirect(toLight, toEye, rec.Normal, rec);
+
+        // Charlie sheen at unit weight contributes ~30-40% over the Disney
+        // diffuse baseline at this geometry: Smith shadowing flattens the NDF
+        // peak when V and L are both grazing, so sheen tops up the direct
+        // estimator rather than dominating it. The ≥20% threshold is well
+        // above floating-point noise (the actual ratio is ≈1.37) and confirms
+        // that EvaluateDirect now plumbs the sheen lobe — the previous
+        // implementation forgot it entirely, leaving NEE on velvet identical
+        // to a Lambertian.
+        Assert.True(MathUtils.Luminance(fOn) > MathUtils.Luminance(fOff) * 1.2f,
+            $"sheen must contribute to direct lighting: with={fOn}, without={fOff}");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 
