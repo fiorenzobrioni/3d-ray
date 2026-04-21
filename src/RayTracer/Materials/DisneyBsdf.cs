@@ -401,15 +401,17 @@ public class DisneyBsdf : IMaterial
         // Synthesize an incoming ray with direction -V. Origin is unused by
         // Scatter beyond rec.Point, so any origin works.
         Ray incoming = new(rec.Point, -V);
-        if (!Scatter(incoming, rec, out _, out Ray scattered))
+        if (!Scatter(incoming, rec, out Vector3 scatterAttn, out Ray scattered))
             return null;
 
         Vector3 wo = scattered.Direction;
         float NdotWo = Vector3.Dot(rec.Normal, wo);
-        // Transmission lobe falls through to Scatter-only; MIS skips it by
-        // treating it as a delta sample with unit weight.
+        // Transmission lobe → treat as a delta sample. F carries Scatter's
+        // attenuation directly (it already contains the Fresnel + sqrt(baseColor)
+        // tint); delta samples in BsdfSample are interpreted by the renderer as
+        // "attenuation = F" with no cos / pdf factor.
         if (NdotWo <= 0f)
-            return new BsdfSample(wo, Vector3.Zero, 1f, isDelta: true);
+            return new BsdfSample(wo, scatterAttn, 1f, isDelta: true);
 
         Vector3 f = Evaluate(V, wo, rec);
         float pdf = Pdf(V, wo, rec);

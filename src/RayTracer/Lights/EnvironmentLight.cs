@@ -85,4 +85,21 @@ public class EnvironmentLight : ILight
         Vector3 attenuation = color / (pdf * ShadowSamples);
         return (false, attenuation, dir, distance);
     }
+
+    // ── MIS ─────────────────────────────────────────────────────────────────
+    public bool IsDelta => false;
+
+    /// <inheritdoc/>
+    public float PdfSolidAngle(Vector3 hitPoint, Vector3 wi)
+    {
+        if (!_sky.CanSampleDirectly)
+            return 0f;
+        return _sky.PdfSolidAngle(wi);
+    }
+
+    /// <summary>
+    /// Exposes the wrapped sky so the renderer can query environment radiance
+    /// when a BSDF ray escapes the scene and apply the MIS weight.
+    /// </summary>
+    public SkySettings Sky => _sky;
 }

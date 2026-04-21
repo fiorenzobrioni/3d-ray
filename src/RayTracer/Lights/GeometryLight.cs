@@ -240,4 +240,40 @@ public class GeometryLight : ILight
         float attenuation = 1f / (pdf * ShadowSamples);
         return (false, emissiveColor * attenuation, dirToLight, distance);
     }
+
+    // ── MIS ─────────────────────────────────────────────────────────────────
+    public bool IsDelta => false;
+
+    /// <summary>
+    /// Solid-angle PDF of sampling direction <paramref name="wi"/> from
+    /// <paramref name="hitPoint"/> under whichever strategy this GeometryLight
+    /// uses (solid-angle cone for spheres, uniform-area for everything else).
+    /// Returns 0 when the direction does not reach the geometry.
+    /// </summary>
+    public float PdfSolidAngle(Vector3 hitPoint, Vector3 wi)
+    {
+        if (_solidAngleSampler != null)
+            return _solidAngleSampler.SolidAnglePdf(hitPoint, wi);
+
+        // Area-sample fallback: intersect wi with the geometry and convert
+        // pdf_A = 1/area to pdf_ω via pdf_ω = dist² / (area · cos θ_light).
+        if (Geometry is not IHittable hittable)
+            return 0f;
+
+        var ray = new Ray(hitPoint, wi);
+        var rec = new HitRecord();
+        if (!hittable.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec))
+            return 0f;
+
+        float cosLight = MathF.Abs(Vector3.Dot(-wi, rec.Normal));
+        if (cosLight < 1e-6f)
+            return 0f;
+
+        float distSq = rec.T * rec.T;
+        float area = _representativeArea;
+        if (area < 1e-12f)
+            return 0f;
+
+        return distSq / (area * cosLight);
+    }
 }

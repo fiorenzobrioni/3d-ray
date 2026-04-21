@@ -234,6 +234,45 @@ public class EnvironmentMap
         return (Vector3.Normalize(dir), pdfSolidAngle);
     }
 
+    /// <summary>
+    /// Solid-angle PDF of <see cref="SampleDirection"/> at an arbitrary direction.
+    /// Mirrors the sampling routine: maps direction → equirect pixel → pdfPixel
+    /// from the marginal/conditional CDFs, then converts to solid angle via the
+    /// pixel's own dω = sin θ · dθ · dφ. Used for MIS.
+    /// </summary>
+    public float PdfDirection(Vector3 direction)
+    {
+        Vector3 dir = Vector3.Normalize(direction);
+
+        float phi = MathF.Atan2(dir.X, -dir.Z); // undo the -cos/sin pairing used in SampleDirection
+        // SampleDirection builds dir = (cos θ sin φ, sin θ, -cos θ cos φ), so
+        // atan2(dir.X, -dir.Z) recovers φ in (-π, π].
+        float theta = MathF.Asin(Math.Clamp(dir.Y, -1f, 1f));
+
+        // Apply the same rotation convention as the sampling routine (phi was
+        // emitted with `phi -= _rotationRad` from the raw pixel angle, so to
+        // look up by direction we add it back).
+        phi += _rotationRad;
+
+        // phi ∈ (-π, π] → u ∈ [0, 1); theta ∈ [-π/2, π/2] → v ∈ [0, 1]
+        float u = (phi / (2f * MathF.PI)) + 0.5f;
+        u -= MathF.Floor(u);
+        float v = 0.5f - theta / MathF.PI;
+
+        int x = Math.Clamp((int)(u * _width), 0, _width - 1);
+        int y = Math.Clamp((int)(v * _height), 0, _height - 1);
+
+        float pdfRow = (y == 0 ? _margCdf[0] : _margCdf[y] - _margCdf[y - 1]);
+        float pdfCol = (x == 0 ? _condCdf[y][0] : _condCdf[y][x] - _condCdf[y][x - 1]);
+        float pdfPixel = pdfRow * pdfCol;
+
+        float dTheta = MathF.PI / _height;
+        float dPhi = 2f * MathF.PI / _width;
+        float sinColat = MathF.Cos(theta); // sin(colat) = cos(lat)
+        float dW = sinColat * dTheta * dPhi;
+        return dW > 1e-8f ? pdfPixel / dW : 0f;
+    }
+
     private Vector3 GetPixel(int x, int y)
     {
         int idx = (y * _width + x) * 3;

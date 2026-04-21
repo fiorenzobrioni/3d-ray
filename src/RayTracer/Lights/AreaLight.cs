@@ -165,4 +165,51 @@ public class AreaLight : ILight
         return (false, Color * attenuation, dirToLight, distance);
     }
 
+    // ── MIS ─────────────────────────────────────────────────────────────────
+    public bool IsDelta => false;
+
+    /// <summary>
+    /// Solid-angle PDF of uniform-area sampling on the rect light.
+    /// Intersects the ray (hitPoint, wi) with the rect's plane and checks that
+    /// the hit lies inside the parallelogram [0,1]×[0,1] in (U, V) space.
+    /// pdf_ω = dist² / (area · cos θ_light) when visible, 0 otherwise.
+    /// </summary>
+    public float PdfSolidAngle(Vector3 hitPoint, Vector3 wi)
+    {
+        // Ray-plane intersection: rect plane has point Corner and normal _normal.
+        float denom = Vector3.Dot(_normal, wi);
+        if (MathF.Abs(denom) < 1e-7f)
+            return 0f;
+
+        float t = Vector3.Dot(Corner - hitPoint, _normal) / denom;
+        if (t <= MathUtils.Epsilon)
+            return 0f;
+
+        Vector3 p = hitPoint + t * wi;
+        Vector3 local = p - Corner;
+
+        // Solve (u, v) such that local = u*U + v*V. Use the Gram-matrix formulation
+        // (projection onto the non-orthogonal basis {U, V}).
+        float uu = Vector3.Dot(U, U);
+        float vv = Vector3.Dot(V, V);
+        float uv = Vector3.Dot(U, V);
+        float detG = uu * vv - uv * uv;
+        if (detG < 1e-12f)
+            return 0f;
+
+        float lu = Vector3.Dot(local, U);
+        float lv = Vector3.Dot(local, V);
+        float u = (lu * vv - lv * uv) / detG;
+        float v = (lv * uu - lu * uv) / detG;
+
+        if (u < 0f || u > 1f || v < 0f || v > 1f)
+            return 0f;
+
+        float cosLight = MathF.Abs(denom); // |-wi · n_light| = |wi · n|
+        if (cosLight < 1e-6f)
+            return 0f;
+
+        // distance from hitPoint to the rect hit = t (since wi is unit).
+        return (t * t) / (_area * cosLight);
+    }
 }

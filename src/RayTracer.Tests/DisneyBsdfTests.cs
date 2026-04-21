@@ -208,8 +208,10 @@ public class DisneyBsdfTests
     // A well-formed BsdfSample must carry the same F and Pdf values that
     // Evaluate and Pdf would return for the sampled direction — anything
     // else would break the MIS weight computation downstream. For delta
-    // lobes (IsDelta = true) the stored F is zero and Pdf is one by
-    // convention and is skipped by this test.
+    // lobes (IsDelta = true) F carries the Scatter attenuation directly
+    // and Pdf is 1 by convention; these samples are skipped by this test
+    // since Evaluate / Pdf are defined only for the non-delta reflection
+    // lobes.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Theory]

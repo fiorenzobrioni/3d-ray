@@ -32,4 +32,39 @@ public interface ILight
     /// Computes the illumination from this light at a given point, without shadow testing.
     /// </summary>
     (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint);
+
+    // ── MIS support ─────────────────────────────────────────────────────────
+    //
+    // Multiple Importance Sampling combines NEE (sampling the light) with BSDF
+    // sampling (sampling the material) using the balance heuristic. This
+    // requires two things from each light:
+    //
+    //   1. IsDelta — whether the light is described by a Dirac distribution
+    //      (point, directional, spot). Delta lights cannot be hit by a BSDF
+    //      ray, so their NEE contribution is always taken at full weight and
+    //      no BSDF-sampled emission is ever attributed to them.
+    //
+    //   2. PdfSolidAngle(hitPoint, wi) — the solid-angle PDF this light's
+    //      sampler would assign to direction wi from hitPoint. Returns 0 when
+    //      wi is outside the light's support cone (e.g. outside a sphere
+    //      light's visible cap, or below a rect light's plane). Delta lights
+    //      return 0 everywhere.
+    //
+    // Defaults match a delta light so existing implementations remain correct
+    // without code changes; area-like lights override both.
+    // ────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// True if the light is a Dirac-delta emitter (point, directional, spot).
+    /// Delta lights: NEE is always taken at full MIS weight and BSDF samples
+    /// never reach them.
+    /// </summary>
+    bool IsDelta => true;
+
+    /// <summary>
+    /// Evaluates the solid-angle PDF of sampling direction <paramref name="wi"/>
+    /// from <paramref name="hitPoint"/>. Returns 0 for delta lights or for
+    /// directions outside the light's sampling support.
+    /// </summary>
+    float PdfSolidAngle(Vector3 hitPoint, Vector3 wi) => 0f;
 }
