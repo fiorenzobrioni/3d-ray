@@ -270,6 +270,221 @@ public class DisneyBsdf : IMaterial
     }
 
     // ═════════════════════════════════════════════════════════════════════════
+    // Symmetric BSDF interface: Evaluate, Pdf, Sample
+    //
+    // These methods expose the multi-lobe BRDF value and its solid-angle PDF
+    // at an arbitrary (V, L) direction pair, without the cosine term. They
+    // consume the same lobe weights used by Scatter so Monte Carlo estimators
+    // built on top of them (MIS, furnace tests, reciprocity tests) stay
+    // consistent with the indirect-lighting path.
+    //
+    // Transmission is currently excluded from Evaluate/Pdf (returns zero for
+    // L below the surface). The transmission lobe lives on a different
+    // hemisphere and requires its own half-vector construction and dispatch —
+    // that work belongs to the VNDF step and will land together with the
+    // generalised glass BSDF.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Evaluates the multi-lobe Disney BRDF f(V, L) at the hit point, without
+    /// the N·L cosine. Reflection lobes only — returns zero for L below the
+    /// surface.
+    /// </summary>
+    public Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec)
+    {
+        Vector3 N = rec.Normal;
+        float NdotL = Vector3.Dot(N, L);
+        float NdotV = Vector3.Dot(N, V);
+        if (NdotL <= 0f || NdotV <= 0f) return Vector3.Zero;
+
+        Vector3 Hraw = V + L;
+        if (Hraw.LengthSquared() < 1e-14f) return Vector3.Zero;
+        Vector3 H = Vector3.Normalize(Hraw);
+        float NdotH = MathF.Max(Vector3.Dot(N, H), 0f);
+        float VdotH = MathF.Max(Vector3.Dot(V, H), 0f);
+        float LdotH = MathF.Max(Vector3.Dot(L, H), 0f);
+
+        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+
+        // ── Disney diffuse (retro-reflection Fresnel) ──────────────────────
+        float diffuseScalar = (1f - Metallic) * (1f - SpecTrans);
+        Vector3 diffuse = Vector3.Zero;
+        if (diffuseScalar > 0f)
+        {
+            float fd90 = 0.5f + 2f * Roughness * LdotH * LdotH;
+            float fI = SchlickWeight(NdotV);
+            float fO = SchlickWeight(NdotL);
+            float fd = (1f + (fd90 - 1f) * fI) * (1f + (fd90 - 1f) * fO);
+            diffuse = baseCol * (diffuseScalar * fd / MathF.PI);
+        }
+
+        // ── Sheen (separate lobe since FIX #7c) ────────────────────────────
+        Vector3 sheen = Vector3.Zero;
+        if (Sheen > 0f && diffuseScalar > 0f)
+        {
+            float lum = MathUtils.Luminance(baseCol);
+            Vector3 tintCol = lum > 0f ? baseCol / lum : Vector3.One;
+            Vector3 sheenCol = Vector3.Lerp(Vector3.One, tintCol, SheenTint);
+            sheen = Sheen * SchlickWeight(LdotH) * sheenCol;
+        }
+
+        // ── GGX specular (full Cook-Torrance) ──────────────────────────────
+        float a2 = _alpha * _alpha;
+        float denom = NdotH * NdotH * (a2 - 1f) + 1f;
+        float D = a2 / (MathF.PI * denom * denom);
+        float G = SmithG1_GGX(NdotV, _alpha) * SmithG1_GGX(NdotL, _alpha);
+        Vector3 F0 = ComputeF0(baseCol);
+        Vector3 F = FresnelSchlick(VdotH, F0);
+        Vector3 specular = D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f) * F;
+
+        // ── Clearcoat GGX ──────────────────────────────────────────────────
+        Vector3 clearcoat = Vector3.Zero;
+        if (Clearcoat > 0f)
+        {
+            float ca2 = _clearcoatAlpha * _clearcoatAlpha;
+            float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
+            float cD = ca2 / (MathF.PI * cDenom * cDenom);
+            float cG = SmithG1_GGX(NdotV, _clearcoatAlpha) * SmithG1_GGX(NdotL, _clearcoatAlpha);
+            float cF0 = 0.04f;
+            float cF = cF0 + (1f - cF0) * SchlickWeight(VdotH);
+            float cc = Clearcoat * 0.25f * cD * cG * cF
+                     / MathF.Max(4f * NdotV * NdotL, 1e-7f);
+            clearcoat = new Vector3(cc);
+        }
+
+        return diffuse + sheen + specular + clearcoat;
+    }
+
+    /// <summary>
+    /// Solid-angle PDF of sampling L from this BSDF's importance distribution,
+    /// given the view direction V. Reflection lobes only (mirrors Evaluate).
+    ///
+    /// Combined PDF = Σ_lobe p_lobe · pdf_lobe(L), matching the one-sample
+    /// mixture estimator used in Scatter. Transmission is excluded — returning
+    /// zero for below-surface L keeps MIS unbiased for non-transmissive
+    /// materials; transmissive materials fall back to the Scatter-only path
+    /// until the VNDF + glass work lands.
+    /// </summary>
+    public float Pdf(Vector3 V, Vector3 L, HitRecord rec)
+    {
+        Vector3 N = rec.Normal;
+        float NdotL = Vector3.Dot(N, L);
+        float NdotV = Vector3.Dot(N, V);
+        if (NdotL <= 0f || NdotV <= 0f) return 0f;
+
+        Vector3 Hraw = V + L;
+        if (Hraw.LengthSquared() < 1e-14f) return 0f;
+        Vector3 H = Vector3.Normalize(Hraw);
+        float NdotH = MathF.Max(Vector3.Dot(N, H), 0f);
+        float VdotH = MathF.Max(Vector3.Dot(V, H), 1e-7f);
+
+        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        LobeWeights w = ComputeLobeWeights(baseCol);
+
+        // Cosine-weighted PDF shared by diffuse and sheen.
+        float cosPdf = NdotL / MathF.PI;
+
+        // GGX-sampled H, then L = reflect(-V, H). Jacobian: 1/(4·|V·H|).
+        float a2 = _alpha * _alpha;
+        float dDenom = NdotH * NdotH * (a2 - 1f) + 1f;
+        float D = a2 / (MathF.PI * dDenom * dDenom);
+        float specPdf = D * NdotH / (4f * VdotH);
+
+        float ca2 = _clearcoatAlpha * _clearcoatAlpha;
+        float cDenom = NdotH * NdotH * (ca2 - 1f) + 1f;
+        float cD = ca2 / (MathF.PI * cDenom * cDenom);
+        float ccPdf = cD * NdotH / (4f * VdotH);
+
+        return w.PDiffuse * cosPdf
+             + w.PSheen * cosPdf
+             + w.PSpecular * specPdf
+             + w.PClearcoat * ccPdf;
+    }
+
+    /// <summary>
+    /// Samples an outgoing direction from the multi-lobe Disney BSDF. Wraps
+    /// <see cref="Scatter"/> internally and re-evaluates F and Pdf via the
+    /// symmetric methods so the returned sample is consumable by MIS.
+    ///
+    /// Returns null when Scatter fails (below-surface reflection etc.) or
+    /// when the sampled direction is in the transmission hemisphere (which
+    /// is not yet covered by Evaluate/Pdf — use Scatter directly for glass).
+    /// </summary>
+    public BsdfSample? Sample(Vector3 V, HitRecord rec)
+    {
+        // Synthesize an incoming ray with direction -V. Origin is unused by
+        // Scatter beyond rec.Point, so any origin works.
+        Ray incoming = new(rec.Point, -V);
+        if (!Scatter(incoming, rec, out _, out Ray scattered))
+            return null;
+
+        Vector3 wo = scattered.Direction;
+        float NdotWo = Vector3.Dot(rec.Normal, wo);
+        // Transmission lobe falls through to Scatter-only; MIS skips it by
+        // treating it as a delta sample with unit weight.
+        if (NdotWo <= 0f)
+            return new BsdfSample(wo, Vector3.Zero, 1f, isDelta: true);
+
+        Vector3 f = Evaluate(V, wo, rec);
+        float pdf = Pdf(V, wo, rec);
+        return new BsdfSample(wo, f, pdf, isDelta: false);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // Lobe selection probabilities (shared between Scatter and Pdf)
+    //
+    // Historical calibration (see FIX #5, FIX #7c, FIX #8e):
+    //   - Diffuse ∝ (1-metallic)(1-specTrans). No roughness factor — the
+    //     Disney diffuse Fresnel handles the energy balance.
+    //   - Specular Fresnel-weighted: F0 ≈ luminance(baseColor) for metals,
+    //     0.04·Specular for dielectrics. An adaptive floor ensures specular
+    //     is always sampled for opaque glossy dielectrics but is relaxed for
+    //     glass (where the transmission lobe already handles Fresnel
+    //     reflection internally, avoiding the redundant-sampling halo).
+    //   - Transmission ∝ (1-metallic)·specTrans.
+    //   - Clearcoat ∝ Clearcoat × mean Fresnel (≈ 0.04).
+    //   - Sheen as a separate lobe ∝ Sheen × diffuseW (post FIX #7c).
+    //
+    // Returns the absolute weights plus their sum. Probabilities are computed
+    // as weight/total by callers (avoids recomputing the total in tight loops).
+    // ═════════════════════════════════════════════════════════════════════════
+    private readonly struct LobeWeights
+    {
+        public readonly float Diffuse;
+        public readonly float Specular;
+        public readonly float Transmission;
+        public readonly float Clearcoat;
+        public readonly float Sheen;
+        public readonly float Total;
+
+        public LobeWeights(float d, float s, float t, float c, float sh)
+        {
+            Diffuse = d; Specular = s; Transmission = t; Clearcoat = c; Sheen = sh;
+            float sum = d + s + t + c + sh;
+            Total = sum < 1e-6f ? 1f : sum;
+        }
+
+        public float PDiffuse      => Diffuse / Total;
+        public float PSpecular     => Specular / Total;
+        public float PTransmission => Transmission / Total;
+        public float PClearcoat    => Clearcoat / Total;
+        public float PSheen        => Sheen / Total;
+    }
+
+    private LobeWeights ComputeLobeWeights(Vector3 baseCol)
+    {
+        float diffuseW  = (1f - Metallic) * (1f - SpecTrans);
+        float specF0    = Metallic > 0.5f ? MathUtils.Luminance(baseCol)
+                          : 0.04f * Specular;
+        float specFloor = 0.1f * (1f - SpecTrans * 0.9f); // FIX #8e
+        float specularW = MathF.Max(specFloor, Lerp(specF0, 1f, Metallic));
+        float transW    = (1f - Metallic) * SpecTrans;
+        float clearW    = Clearcoat * 0.04f;
+        float sheenW    = Sheen * 0.25f * diffuseW;
+        return new LobeWeights(diffuseW, specularW, transW, clearW, sheenW);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
     // Scatter — stochastic lobe selection for indirect rays
     //
     // Each bounce randomly selects one lobe weighted by expected contribution.
@@ -283,54 +498,11 @@ public class DisneyBsdf : IMaterial
         Vector3 N = rec.Normal;
         Vector3 V = Vector3.Normalize(-rayIn.Direction);
 
-        // ── Compute lobe weights for importance sampling ────────────────────
-        // FIX #5: Calibrated weights to better approximate each lobe's expected
-        // energy contribution. This reduces the variance introduced by the
-        // 1/probability compensation, especially for lobes with low selection
-        // probability (clearcoat with low Clearcoat values, weak specular on
-        // rough dielectrics).
-        //
-        // Diffuse: proportional to (1-metallic)(1-specTrans). No roughness
-        //   factor here — the Disney diffuse Fresnel handles energy balance.
-        // Specular: Fresnel-weighted. For metals F0 ≈ luminance(baseColor),
-        //   for dielectrics F0 ≈ 0.04×Specular. A floor ensures specular is
-        //   always sampled (critical for glossy dielectrics where the visual
-        //   contribution is high despite low F0).
-        //
-        //   FIX #8e: The floor is now adaptive to specTrans. For transmissive
-        //   materials (glass), the transmission lobe already handles Fresnel
-        //   reflection internally (via Schlick in ScatterTransmission). A high
-        //   specular floor on top of this creates redundant specular sampling
-        //   that produces bright halos at grazing angles — the 9% of rays
-        //   that select the specular lobe get 10× compensation, creating a
-        //   systematic white rim artifact on glass spheres.
-        //
-        //   specTrans=0 (opaque):  floor = 0.1  (unchanged, protects glossy dielectrics)
-        //   specTrans=1 (glass):   floor = 0.01 (minimal, avoids redundant sampling)
-        //
-        // Transmission: proportional to (1-metallic)×specTrans.
-        // Clearcoat: proportional to Clearcoat × mean Fresnel (≈ 0.04 at
-        //   normal incidence). The old 0.25 constant over-weighted clearcoat
-        //   relative to its actual energy, causing amplification spikes.
-        // Sheen (FIX #7c): separated from diffuse into its own lobe with
-        //   cosine-weighted sampling. Weight proportional to Sheen × diffuseW
-        //   since sheen only exists on dielectric/non-transmissive surfaces.
-        float diffuseW  = (1f - Metallic) * (1f - SpecTrans);
-        float specF0    = Metallic > 0.5f ? MathUtils.Luminance(baseCol)
-                          : 0.04f * Specular;
-        float specFloor = 0.1f * (1f - SpecTrans * 0.9f); // FIX #8e: 0.1 opaque → 0.01 glass
-        float specularW = MathF.Max(specFloor, Lerp(specF0, 1f, Metallic));
-        float transW    = (1f - Metallic) * SpecTrans;
-        float clearW    = Clearcoat * 0.04f; // F0 of clearcoat IOR ≈ 1.5
-        float sheenW    = Sheen * 0.25f * diffuseW; // FIX #7c: sheen as separate lobe
-
-        float totalW = diffuseW + specularW + transW + clearW + sheenW;
-        if (totalW < 1e-6f) { totalW = 1f; specularW = 1f; } // Fallback
-
-        float pDiffuse  = diffuseW / totalW;
-        float pSpecular = specularW / totalW;
-        float pTrans    = transW / totalW;
-        float pSheen    = sheenW / totalW;
+        LobeWeights w = ComputeLobeWeights(baseCol);
+        float pDiffuse  = w.PDiffuse;
+        float pSpecular = w.PSpecular;
+        float pTrans    = w.PTransmission;
+        float pSheen    = w.PSheen;
         // pClearcoat = remainder
 
         float rnd = MathUtils.RandomFloat();
@@ -354,7 +526,7 @@ public class DisneyBsdf : IMaterial
         }
         else
         {
-            float pClearcoat = clearW / totalW;
+            float pClearcoat = w.PClearcoat;
             result = ScatterClearcoat(rec, N, V, pClearcoat, out attenuation, out scattered);
         }
 

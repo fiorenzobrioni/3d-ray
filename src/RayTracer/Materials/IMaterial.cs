@@ -80,6 +80,44 @@ public interface IMaterial
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Symmetric BSDF interface (BRDF value, PDF, sampling).
+    //
+    // These complement Scatter/EvaluateDirect and are what MIS, furnace tests,
+    // and reciprocity tests consume directly. Unlike EvaluateDirect, Evaluate
+    // returns the BRDF WITHOUT the cosine term so that reciprocity holds
+    // symbolically: f(V, L) = f(L, V) for reciprocal materials.
+    //
+    // Default implementations return zero / no-sample — materials that want
+    // to participate in MIS and the BSDF test suite must override.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Evaluates the BRDF f(V, L) at the hit point for the given view direction
+    /// V (surface → camera) and outgoing direction L (surface → next bounce).
+    /// Returns the BRDF value WITHOUT the N·L cosine — callers multiply by
+    /// max(N·L, 0) themselves. Returns zero for directions below the surface.
+    /// </summary>
+    Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec) => Vector3.Zero;
+
+    /// <summary>
+    /// Solid-angle PDF of sampling the outgoing direction L given the view
+    /// direction V from this material's importance-sampler. Non-zero only in
+    /// the hemisphere(s) the sampler actually covers. Delta lobes return zero
+    /// here — they must be sampled via <see cref="Sample"/> and tagged
+    /// via <see cref="BsdfSample.IsDelta"/>.
+    /// </summary>
+    float Pdf(Vector3 V, Vector3 L, HitRecord rec) => 0f;
+
+    /// <summary>
+    /// Samples an outgoing direction from this material's importance distribution.
+    /// Returns null when sampling fails (fully absorbed, below-surface reflection,
+    /// degenerate tangent frame, etc.). The returned <see cref="BsdfSample.F"/>
+    /// matches <see cref="Evaluate"/>; <see cref="BsdfSample.Pdf"/> matches
+    /// <see cref="Pdf"/> in solid angle.
+    /// </summary>
+    BsdfSample? Sample(Vector3 V, HitRecord rec) => null;
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Emission.
     //
     // By default materials emit nothing. The Emissive material overrides this
