@@ -44,32 +44,78 @@ public static class MathUtils
     public static Vector3 RandomVector3(float min, float max) =>
         new(RandomFloat(min, max), RandomFloat(min, max), RandomFloat(min, max));
 
-    public static Vector3 RandomInUnitSphere()
+    // ─────────────────────────────────────────────────────────────────────────
+    // Direct (non-rejection) samplers.
+    //
+    // Rejection sampling is poison for low-discrepancy sequences: each
+    // rejected attempt burns dimensions, so the dimension count consumed
+    // by a single call becomes data-dependent. The Sobol sampler then
+    // sees the same logical decision (e.g. "first diffuse scatter
+    // direction") map to different dimensions across pixels and samples,
+    // destroying the (0,1)-net stratification it relies on. The result
+    // looks visibly noisier than plain PRNG, which is the failure mode
+    // we hit on the Cornell box at -s 64 -d 8.
+    //
+    // Each helper below consumes a fixed number of Sample1D draws and
+    // is uniform on its domain, so Sobol's per-dimension stratification
+    // is preserved across every call.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Uniform point on the unit sphere via inverse-CDF sampling.
+    /// Consumes exactly two Sample1D draws.
+    /// </summary>
+    public static Vector3 RandomUnitVector()
     {
-        while (true)
-        {
-            var p = RandomVector3(-1f, 1f);
-            if (p.LengthSquared() < 1f)
-                return p;
-        }
+        float u = RandomFloat();
+        float v = RandomFloat();
+        float z = 1f - 2f * u;
+        float r = MathF.Sqrt(MathF.Max(0f, 1f - z * z));
+        float phi = 2f * Pi * v;
+        return new Vector3(r * MathF.Cos(phi), r * MathF.Sin(phi), z);
     }
 
-    public static Vector3 RandomUnitVector() => Vector3.Normalize(RandomInUnitSphere());
+    /// <summary>
+    /// Uniform point inside the unit ball. Consumes exactly three
+    /// Sample1D draws: two for the direction (inverse-CDF on the
+    /// sphere) and one for the radius (cube-root for volumetric
+    /// uniformity, since p(r) ∝ r²).
+    /// </summary>
+    public static Vector3 RandomInUnitSphere()
+    {
+        Vector3 dir = RandomUnitVector();
+        float r = MathF.Cbrt(RandomFloat());
+        return r * dir;
+    }
 
     public static Vector3 RandomInHemisphere(Vector3 normal)
     {
-        var inUnitSphere = RandomInUnitSphere();
-        return Vector3.Dot(inUnitSphere, normal) > 0 ? inUnitSphere : -inUnitSphere;
+        var p = RandomUnitVector();
+        return Vector3.Dot(p, normal) > 0 ? p : -p;
     }
 
+    /// <summary>
+    /// Uniform point inside the unit disk via Shirley's concentric
+    /// mapping. Consumes exactly two Sample1D draws.
+    /// </summary>
     public static Vector3 RandomInUnitDisk()
     {
-        while (true)
+        float a = 2f * RandomFloat() - 1f;
+        float b = 2f * RandomFloat() - 1f;
+        if (a == 0f && b == 0f) return Vector3.Zero;
+
+        float r, phi;
+        if (a * a > b * b)
         {
-            var p = new Vector3(RandomFloat(-1f, 1f), RandomFloat(-1f, 1f), 0f);
-            if (p.LengthSquared() < 1f)
-                return p;
+            r = a;
+            phi = (Pi / 4f) * (b / a);
         }
+        else
+        {
+            r = b;
+            phi = (Pi / 2f) - (Pi / 4f) * (a / b);
+        }
+        return new Vector3(r * MathF.Cos(phi), r * MathF.Sin(phi), 0f);
     }
 
     public static Vector3 Reflect(Vector3 v, Vector3 n) =>
