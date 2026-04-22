@@ -582,25 +582,22 @@ public class DisneyBsdf : IMaterial
         }
 
         // ── Anisotropic GGX specular (full Cook-Torrance in tangent space) ─
-        // Skipped when α sits at the smoothness floor: at that point the
-        // lobe is a delta handled by Sample's delta branch, and computing
-        // the analytical D·G/(4·NdotV·NdotL) anyway feeds the near-zero
-        // denominator into MIS and drives the rim-halo artefact. F0 stays
-        // hoisted because multi-scatter compensation below still needs it.
+        //
+        // Evaluate runs on arbitrary (V, L) pairs — notably the symmetric
+        // BSDF peak V = L = N — where 4·NdotV·NdotL is well-behaved, so
+        // the near-delta skip is NOT applied here. The rim-halo artefact
+        // is confined to EvaluateDirect / Pdf where L comes from a shadow
+        // ray at grazing NdotV and the 1/(4·NdotV) denominator spikes.
+        ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
+        Vector3 Vloc = frame.ToLocal(V);
+        Vector3 Lloc = frame.ToLocal(L);
+        Vector3 Hloc = frame.ToLocal(H);
+        float D = Microfacet.DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
+        float G = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
+                * Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
         Vector3 F0 = ComputeF0(baseCol, sp);
-        Vector3 specular = Vector3.Zero;
-        if (sp.Alpha > DeltaAlphaThreshold)
-        {
-            ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
-            Vector3 Vloc = frame.ToLocal(V);
-            Vector3 Lloc = frame.ToLocal(L);
-            Vector3 Hloc = frame.ToLocal(H);
-            float D = Microfacet.DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
-            float G = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
-                    * Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
-            Vector3 F = EvalFresnel(VdotH, F0, sp);
-            specular = D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f) * F;
-        }
+        Vector3 F = EvalFresnel(VdotH, F0, sp);
+        Vector3 specular = D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f) * F;
 
         // ── Clearcoat GGX (isotropic, evaluated on the coat normal) ────────
         // The coat sits in its own shading frame so a dedicated coat_normal
@@ -610,7 +607,7 @@ public class DisneyBsdf : IMaterial
         // case the coat lobe contributes nothing, the rest of the BSDF still
         // does.
         Vector3 clearcoat = Vector3.Zero;
-        if (sp.Clearcoat > 0f && sp.ClearcoatAlpha > DeltaAlphaThreshold)
+        if (sp.Clearcoat > 0f)
         {
             Vector3 coatN = GetCoatNormal(rec);
             float ccNdotV = Vector3.Dot(coatN, V);
@@ -964,11 +961,15 @@ public class DisneyBsdf : IMaterial
     private enum Lobe : byte { Diffuse, Specular, Transmission, Sheen, Multiscatter, DiffTrans, Clearcoat }
 
     // Smoothness threshold below which a GGX lobe is treated as a delta
-    // distribution: PBRT-v4's TrowbridgeReitzDistribution::EffectivelySmooth()
-    // uses α ≤ 1e-3, Arnold uses roughness ≤ 0.01. Our α carries a 1e-3 floor
-    // already (ShadingParams ctor), so this check catches any lobe configured
-    // as "perfectly smooth" from YAML.
-    private const float DeltaAlphaThreshold = 1e-3f;
+    // distribution. PBRT-v4's TrowbridgeReitzDistribution::EffectivelySmooth()
+    // uses α ≤ 1e-3, which maps to roughness ≤ 0.032 — strict enough that a
+    // "frosted" glass at roughness = 0.04 drops back into the analytical VNDF
+    // path and the 1/(4·NdotV) denominator still spikes at the rim (the halo
+    // reappears as a visible ring on the sphere silhouette). Arnold's smooth
+    // path cuts over at roughness ≤ 0.05 — α ≈ 2.5e-3 — which covers every
+    // realistic "polished glass / lacquer" finish without intruding on the
+    // genuinely glossy metals (metal_silver at α ≈ 3.6e-3 stays analytical).
+    private const float DeltaAlphaThreshold = 2.5e-3f;
 
     private bool ScatterInternal(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered, out Lobe lobe)
     {
