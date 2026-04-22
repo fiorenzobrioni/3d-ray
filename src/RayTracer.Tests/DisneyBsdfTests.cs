@@ -1271,6 +1271,106 @@ public class DisneyBsdfTests
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Near-delta regression
+    //
+    // A GGX lobe with roughness → 0 is a delta distribution in spirit: it
+    // can only be reached by BSDF sampling of the mirror direction, not by
+    // an arbitrary NEE shadow-ray direction. Evaluating the analytical form
+    // for an arbitrary L anyway produces a D·G/(4·NdotV·NdotL) spike at
+    // grazing angles — the rim-halo "pennarello bianco" artefact on the
+    // amber-glass and soap-bubble showcase spheres. Also pins Pdf to zero
+    // for those directions so MIS routes the emission through the delta
+    // path (prevIsDelta = true, full-weight emission) instead of dividing
+    // by a near-zero analytical pdf.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void NearDeltaGlass_EvaluateDirectOnShadowRayIsNegligible()
+    {
+        var glass = new DisneyBsdf(new SolidColor(Vector3.One),
+            metallic: 0f, roughness: 0f,
+            specTrans: 1f, ior: 1.52f);
+        var rec = MakeRec();
+
+        // Shadow ray to a fictional area light directly overhead — NEE
+        // direction, not the specular mirror. Pre-fix the specular lobe
+        // returned a D·G/(4·NdotV) spike here that produced the "pennarello
+        // bianco" rim on the showcase glass spheres. After the fix only
+        // the residual multiscatter pool remains, and its weight at
+        // α = 1e-3 is numerically negligible (≈ 1e-6).
+        Vector3 toEye   = new(0.5f, 0.866f, 0f);
+        Vector3 toLight = Vector3.UnitY;
+
+        Vector3 direct = glass.EvaluateDirect(toLight, toEye, NormalUp, rec);
+
+        const float cap = 1e-4f;
+        Assert.True(direct.X < cap && direct.Y < cap && direct.Z < cap,
+            $"pure-glass NEE contribution should be negligible, got {direct}");
+    }
+
+    [Fact]
+    public void NearDeltaGlass_PdfOnShadowRayIsNegligible()
+    {
+        var glass = new DisneyBsdf(new SolidColor(Vector3.One),
+            metallic: 0f, roughness: 0f,
+            specTrans: 1f, ior: 1.52f);
+        var rec = MakeRec();
+
+        Vector3 V = new(0.5f, 0.866f, 0f);
+        Vector3 L = Vector3.UnitY;
+
+        float pdf = glass.Pdf(V, L, rec);
+
+        // Specular and clearcoat are now skipped by the near-delta guard;
+        // diffuse/sheen/diffTrans are zero-weighted for pure glass, so the
+        // only residue is a whisper of multiscatter pdf at the floor α.
+        Assert.True(pdf < 1e-4f, $"pure-glass Pdf on a shadow ray should be ≈ 0, got {pdf}");
+    }
+
+    [Fact]
+    public void NearDeltaGlass_ReflectionSamplesAreDelta()
+    {
+        var glass = new DisneyBsdf(new SolidColor(Vector3.One),
+            metallic: 0f, roughness: 0f,
+            specTrans: 1f, ior: 1.52f);
+        var rec = MakeRec();
+        Vector3 V = new(0.5f, 0.866f, 0f);
+        Vector3 mirror = MathUtils.Reflect(-V, NormalUp);
+
+        // Sampling is stochastic and also produces (a) transmission samples,
+        // which are already delta via the legacy path, and (b) occasional
+        // multiscatter/diffuse-pool samples with zero weight that the
+        // renderer discards on Pdf ≤ 0. What must never happen is a
+        // reflection sample that lands near the mirror direction with
+        // IsDelta = false — that pairs a finite f with a near-zero pdf and
+        // produces the firefly spikes the fix is meant to eliminate.
+        int reflectionDeltaCount = 0;
+        for (int i = 0; i < 512; i++)
+        {
+            var s = glass.Sample(V, rec);
+            if (s is null) continue;
+            bool nearMirror = Vector3.Dot(s.Value.Wo, mirror) > 0.995f;
+            if (nearMirror)
+            {
+                Assert.True(s.Value.IsDelta,
+                    $"near-mirror reflection sample must be flagged delta (Wo = {s.Value.Wo}, Pdf = {s.Value.Pdf}, F = {s.Value.F})");
+                reflectionDeltaCount++;
+            }
+            // Non-delta samples must either have a usable pdf or be a
+            // wasted sample the renderer discards (pdf ≤ 0).
+            if (!s.Value.IsDelta && s.Value.Pdf > 0f)
+            {
+                float nDotWo = Vector3.Dot(NormalUp, s.Value.Wo);
+                float ratio = s.Value.F.Length() * MathF.Max(nDotWo, 0f) / s.Value.Pdf;
+                Assert.True(ratio < 10f,
+                    $"non-delta sample produced an exploding f·cos/pdf = {ratio} (Wo = {s.Value.Wo})");
+            }
+        }
+        Assert.True(reflectionDeltaCount > 0,
+            "test did not observe any reflection samples — retry with more iterations");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 
