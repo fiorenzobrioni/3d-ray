@@ -18,13 +18,16 @@ public class Lambertian : IMaterial
         Albedo = a;
     }
 
-    // ── Direct lighting properties ──────────────────────────────────────────
-    // Fully diffuse: all direct light goes through Lambert N·L.
-    // No specular highlight — the material is perfectly matte.
-    public float DiffuseWeight => 1f;
-    public float SpecularExponent => 0f;
-    public float SpecularStrength => 0f;
     public NormalMapTexture? NormalMap { get; set; }
+
+    /// <summary>
+    /// Lambertian direct lighting: flat N·L cosine. The 1/π normalisation
+    /// is absorbed by <see cref="Scatter"/>, which uses a cosine-weighted
+    /// hemisphere sampler whose BRDF/pdf ratio equals the albedo — so keeping
+    /// EvaluateDirect at plain N·L matches the indirect path's energy budget.
+    /// </summary>
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
+        => new(MathF.Max(Vector3.Dot(normal, toLight), 0f));
 
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {

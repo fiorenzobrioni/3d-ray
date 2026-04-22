@@ -38,12 +38,9 @@ public class Emissive : IMaterial
         Intensity = MathF.Max(intensity, 0f);
     }
 
-    // ── Direct lighting properties ──────────────────────────────────────────
     // Emissive surfaces don't receive external illumination — they ARE the light.
-    // No diffuse, no specular. All contribution comes from Emit().
-    public float DiffuseWeight    => 0f;
-    public float SpecularExponent => 0f;
-    public float SpecularStrength => 0f;
+    // All contribution comes from Emit(); skip NEE entirely.
+    public bool NeedsDirectLighting => false;
     public NormalMapTexture? NormalMap { get; set; }
 
     /// <summary>
@@ -58,8 +55,8 @@ public class Emissive : IMaterial
         return false;
     }
 
-    // Default EvaluateDirect from interface is fine (returns Zero since DiffuseWeight=0
-    // and SpecularExponent=0, so ComputeDirectLighting skips this material entirely).
+    // Default EvaluateDirect from IMaterial returns Vector3.Zero. ComputeDirectLighting
+    // does not call it at all for emissives because NeedsDirectLighting is false.
 
     /// <summary>
     /// Returns the emitted radiance at the given surface point.

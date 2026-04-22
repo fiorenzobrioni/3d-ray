@@ -83,23 +83,18 @@ public class MixMaterial : IMaterial
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // Direct lighting properties
+    // Direct lighting flags
     // ═════════════════════════════════════════════════════════════════════════
 
-    // Take the maximum of both children to ensure the Renderer's
-    // needsLightSampling check is satisfied if EITHER material needs it.
-    // A weighted average could cause the check to fail when one material
-    // is purely specular (DiffuseWeight=0) and the other is fully diffuse,
-    // resulting in missing direct illumination on the diffuse portions.
-
+    // NEE fires if EITHER child wants it — otherwise the diffuse portion of
+    // a mixed emissive/diffuse material would go unlit.
     /// <inheritdoc/>
-    public float DiffuseWeight => MathF.Max(MaterialA.DiffuseWeight, MaterialB.DiffuseWeight);
+    public bool NeedsDirectLighting => MaterialA.NeedsDirectLighting || MaterialB.NeedsDirectLighting;
 
+    // Delta only if BOTH children are delta; any non-delta lobe makes the
+    // mixture reachable by NEE / BSDF importance sampling at the next bounce.
     /// <inheritdoc/>
-    public float SpecularExponent => MathF.Max(MaterialA.SpecularExponent, MaterialB.SpecularExponent);
-
-    /// <inheritdoc/>
-    public float SpecularStrength => MathF.Max(MaterialA.SpecularStrength, MaterialB.SpecularStrength);
+    public bool IsDeltaScatter => MaterialA.IsDeltaScatter && MaterialB.IsDeltaScatter;
 
     /// <inheritdoc/>
     public NormalMapTexture? NormalMap { get; set; }

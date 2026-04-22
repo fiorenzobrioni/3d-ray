@@ -55,7 +55,7 @@ public sealed class FloatTexture
     /// <summary>
     /// Returns a representative scalar — the constant when no texture, else the
     /// sample at (u=0, v=0, p=0, seed=0). Used by material-wide queries that
-    /// have no hit record context (e.g. IMaterial.DiffuseWeight).
+    /// have no hit record context.
     /// </summary>
     public float RepresentativeValue =>
         _texture == null ? _scalar : Value(0f, 0f, Vector3.Zero, 0);

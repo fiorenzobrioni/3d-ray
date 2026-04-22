@@ -9,40 +9,32 @@ public interface IMaterial
     bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered);
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Direct lighting control properties.
+    // Direct-lighting control flags.
     //
-    // DiffuseWeight:
-    //   Fraction of incoming direct light that is diffusely reflected (Lambertian term).
-    //   1.0 for fully diffuse materials, 0.0 for pure specular (mirrors, glass).
-    //   Metal uses Fuzz as the weight — a perfect mirror gets zero diffuse and relies
-    //   entirely on the traced reflected ray; a rough metal gets some direct diffuse.
-    //
-    // SpecularExponent:
-    //   Controls the tightness of the Blinn-Phong specular highlight on direct lights.
-    //   Higher values = sharper, smaller highlight. 0 = no highlight.
-    //   Only used for materials that have a specular component to their direct lighting.
-    //
-    // SpecularStrength:
-    //   The intensity multiplier of the specular highlight (0–1).
-    //   Lets materials control how prominent their highlights are.
+    // Two coarse booleans replace the old Blinn-Phong (DiffuseWeight /
+    // SpecularExponent / SpecularStrength) triple that the renderer used to
+    // read. Both answer yes/no questions the renderer asks once per hit; they
+    // are NOT consumed by any BSDF math any more.
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// How much of the direct light is diffusely reflected (Lambert N·L term).
-    /// 0 = pure specular (mirror/glass), 1 = fully diffuse.
+    /// True when the renderer should run next-event estimation on this hit
+    /// (sample every light, call <see cref="EvaluateDirect"/>). False means
+    /// NEE is a waste of shadow rays — used by <see cref="Emissive"/>, which
+    /// is the light source itself and absorbs no incoming illumination.
     /// </summary>
-    float DiffuseWeight => 1f;
+    bool NeedsDirectLighting => true;
 
     /// <summary>
-    /// Blinn-Phong specular exponent for direct light highlights.
-    /// 0 = no highlight. Higher = tighter, sharper highlight.
+    /// True when the indirect bounce produced by <see cref="Scatter"/> is a
+    /// delta function (perfect mirror, ideal refraction). The renderer uses
+    /// this to set <c>prevIsDelta</c> for the next TraceRay call — delta
+    /// bounces see emission at full weight since no NEE sampler can reach
+    /// through them. Materials that use the <see cref="Sample"/> API instead
+    /// convey deltaness via <see cref="BsdfSample.IsDelta"/> and this flag
+    /// is ignored.
     /// </summary>
-    float SpecularExponent => 0f;
-
-    /// <summary>
-    /// Intensity multiplier for the specular highlight (0–1).
-    /// </summary>
-    float SpecularStrength => 0f;
+    bool IsDeltaScatter => false;
 
     /// <summary>
     /// Evaluates the BRDF "shape" for direct lighting (NEE).
@@ -57,27 +49,16 @@ public interface IMaterial
     /// evaluate the correct surface properties at the hit point rather than using
     /// a fixed (0.5, 0.5) approximation.
     ///
-    /// Default: Lambert diffuse (N·L × diffuseWeight) + Blinn-Phong specular.
-    /// Override in materials that benefit from view-dependent Fresnel (Metal, Disney).
+    /// Default: zero — delta BSDFs (Dielectric mirror/refraction, Emissive) do
+    /// not receive direct lighting. Lambertian, Metal, MixMaterial and DisneyBsdf
+    /// override this with their full analytic response.
     /// </summary>
     /// <param name="toLight">Unit vector from hit point toward the light.</param>
     /// <param name="toEye">Unit vector from hit point toward the camera.</param>
     /// <param name="normal">Shading normal (may be perturbed by normal map).</param>
     /// <param name="rec">Hit record with UV, LocalPoint, ObjectSeed for texture lookups.</param>
     Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
-    {
-        float nDotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
-        float result = nDotL * DiffuseWeight;
-
-        if (SpecularExponent > 0f && SpecularStrength > 0f && nDotL > 0f)
-        {
-            Vector3 h = Vector3.Normalize(toLight + toEye);
-            float nDotH = MathF.Max(Vector3.Dot(normal, h), 0f);
-            result += MathF.Pow(nDotH, SpecularExponent) * SpecularStrength;
-        }
-
-        return new Vector3(result);
-    }
+        => Vector3.Zero;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Symmetric BSDF interface (BRDF value, PDF, sampling).
@@ -149,7 +130,7 @@ public interface IMaterial
     // (built from rec.Tangent, rec.Bitangent, rec.Normal), and the
     // perturbed normal replaces rec.Normal.
     // ─────────────────────────────────────────────────────────────────────────
- 
+
     /// <summary>
     /// Optional normal map for surface detail. When set, the surface normal
     /// is perturbed before any shading computation, adding visual detail

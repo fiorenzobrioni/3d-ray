@@ -54,32 +54,9 @@ public class Metal : IMaterial
         _alpha = MathF.Max(Fuzz * Fuzz, 0.001f);
     }
 
-    // ── Direct lighting properties ──────────────────────────────────────────
-    //
-    // DiffuseWeight:
-    //   A perfect mirror (fuzz=0) should receive ZERO direct diffuse lighting —
-    //   its illumination comes entirely from the traced reflected ray.
-    //   As fuzz increases the surface becomes rougher and behaves more diffusely,
-    //   so we linearly ramp the diffuse contribution with fuzz.
-    //
-    // SpecularExponent / SpecularStrength:
-    //   Retained for IMaterial interface compatibility and the Renderer's
-    //   needsLightSampling check. Not used by our EvaluateDirect (which now
-    //   uses analytic GGX).
-    //
-    public float DiffuseWeight => Fuzz;
-
-    public float SpecularExponent
-    {
-        get
-        {
-            if (Fuzz >= 1f) return 2f;
-            float f = MathF.Max(Fuzz, 0.001f);
-            return MathF.Min(2f / (f * f), 2048f);
-        }
-    }
-
-    public float SpecularStrength => 1f - Fuzz * 0.5f; // 1.0 at fuzz=0, 0.5 at fuzz=1
+    // A perfect mirror (fuzz=0) is a delta BSDF and cannot be reached by NEE;
+    // any fuzz > 0 broadens the lobe into a sampleable GGX distribution.
+    public bool IsDeltaScatter => Fuzz <= 0f;
 
     /// <summary>
     /// Metal direct lighting using analytic Cook-Torrance GGX.
@@ -98,7 +75,7 @@ public class Metal : IMaterial
         if (NdotL <= 0f) return Vector3.Zero;
 
         // Diffuse term: scales with fuzz (rough metals have some diffuse scattering)
-        float diffuse = NdotL * DiffuseWeight;
+        float diffuse = NdotL * Fuzz;
 
         float NdotV = MathF.Max(Vector3.Dot(normal, toEye), 0.001f);
 
@@ -114,9 +91,10 @@ public class Metal : IMaterial
         // G: Smith separable masking/shadowing
         float G = SmithG1_GGX(NdotV, _alpha) * SmithG1_GGX(NdotL, _alpha);
 
-        // F: Schlick Fresnel — scalar, F0 = SpecularStrength (≈ 1 for polished metal)
-        // Color tinting comes from attenuation in TraceRay, not here.
-        float f0 = SpecularStrength;
+        // F: Schlick Fresnel — scalar, F0 ≈ 1 for polished metal and drops with fuzz
+        // to model the softer highlight of rough microfacets. Colour tinting comes
+        // from attenuation in TraceRay, not here.
+        float f0 = 1f - Fuzz * 0.5f;
         float s = 1f - VdotH;
         s *= s * s * s * s; // (1 - V·H)^5
         float fresnel = f0 + (1f - f0) * s;

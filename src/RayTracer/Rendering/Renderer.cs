@@ -299,9 +299,6 @@ public class Renderer
             ApplyNormalMap(ref rec, material.NormalMap);
         }
 
-        float diffuseWeight = material?.DiffuseWeight ?? 1f;
-        float specExponent  = material?.SpecularExponent ?? 0f;
-
         // ── Emission (MIS-weighted) ─────────────────────────────────────────
         Vector3 emitted = Vector3.Zero;
         if (material != null)
@@ -314,7 +311,7 @@ public class Renderer
         }
 
         // ── Direct lighting (Next Event Estimation, MIS-weighted) ───────────
-        bool needsLightSampling = (diffuseWeight > 0f) || (specExponent > 0f);
+        bool needsLightSampling = material?.NeedsDirectLighting ?? true;
         Vector3 directLight = needsLightSampling
             ? ComputeDirectLighting(rec, ray, material)
             : Vector3.Zero;
@@ -326,7 +323,7 @@ public class Renderer
         // Prefer the Sample() API when the material implements it — it gives
         // us a well-defined BSDF PDF for MIS at the next bounce. Fall back to
         // Scatter() for legacy materials (Lambert, Metal, Dielectric, Mix)
-        // which still use the diffuseWeight-encoded suppression convention.
+        // which still use the IsDeltaScatter-encoded suppression convention.
         Vector3 viewDir = Vector3.Normalize(-ray.Direction);
         BsdfSample? mis = material.Sample(viewDir, rec);
         if (mis.HasValue)
@@ -350,10 +347,11 @@ public class Renderer
             if (attenuation.LengthSquared() < 0.001f)
                 return emitted + directLight * attenuation;
 
-            // Legacy encoding: purely specular scatter (diffuseWeight = 0) =>
-            // delta bounce, emission passes through. Diffuse scatter => NEE
-            // replaces emission, suppress registered emitters at next hit.
-            bool nextIsDelta = diffuseWeight <= 0f;
+            // IsDeltaScatter materials (mirror/refraction) emit a delta bounce,
+            // so emission passes through at full weight at the next hit. Non-
+            // delta Scatter materials rely on the legacy "NEE replaced emission"
+            // convention (prevBsdfPdf = 0) to suppress double-counting.
+            bool nextIsDelta = material.IsDeltaScatter;
             // Legacy Scatter materials don't participate in volume stacking —
             // they don't emit medium-switch signals. Pass through the incoming
             // currentAbsorption so any enclosing Disney-glass interior still

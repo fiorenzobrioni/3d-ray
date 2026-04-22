@@ -150,14 +150,6 @@ public class DisneyBsdf : IMaterial
     // ── Normal map support ──────────────────────────────────────────────────
     public NormalMapTexture? NormalMap { get; set; }
 
-    // ── Cached representative values (for material-wide queries) ───────────
-    // Rendered once at construction by sampling the texture at (0,0,0).
-    // Used by the Renderer's needsLightSampling gate and the legacy-emission
-    // suppression flag — neither path needs per-point accuracy, and both
-    // need a constant answer across a material.
-    private readonly float _repDiffuseWeight;
-    private readonly float _repAlpha;
-
     public DisneyBsdf(
         ITexture baseColor,
         FloatTexture? metallic            = null,
@@ -210,13 +202,6 @@ public class DisneyBsdf : IMaterial
         CoatRoughness       = coatRoughness;
         ThinFilmThickness   = thinFilmThickness   ?? new FloatTexture(0f);
         ThinFilmIor         = thinFilmIor         ?? new FloatTexture(1.5f);
-
-        // Representative values — evaluated once, never per-shading-point.
-        float repMetal     = Math.Clamp(Metallic.RepresentativeValue,  0f, 1f);
-        float repRoughness = Math.Clamp(Roughness.RepresentativeValue, 0f, 1f);
-        float repTrans     = Math.Clamp(SpecTrans.RepresentativeValue, 0f, 1f);
-        _repDiffuseWeight  = (1f - repMetal) * (1f - repTrans);
-        _repAlpha          = MathF.Max(repRoughness * repRoughness, 0.001f);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -349,51 +334,12 @@ public class DisneyBsdf : IMaterial
     // ═════════════════════════════════════════════════════════════════════════
     // Direct lighting interface
     //
-    // Maps Disney parameters to the renderer's DiffuseWeight / SpecularExponent
-    // / SpecularStrength interface used by ComputeDirectLighting().
+    // Disney materials always have at least one non-delta lobe reachable by
+    // NEE (diffuse or GGX specular), and the transmission path is handled by
+    // Sample() / BsdfSample.IsDelta — so we leave NeedsDirectLighting and
+    // IsDeltaScatter at their interface defaults (true, false) and let the
+    // Renderer decide per sample via BsdfSample.
     // ═════════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Material-wide representative DiffuseWeight used by the renderer's
-    /// needsLightSampling gate and legacy emission suppression. Computed
-    /// once from the parameters' representative values; texture variation
-    /// is ignored here since both downstream consumers only need a
-    /// yes/no answer ("does this material have a diffuse lobe at all?").
-    /// </summary>
-    public float DiffuseWeight => _repDiffuseWeight;
-
-    /// <summary>
-    /// Representative Blinn-Phong exponent derived from the material-wide
-    /// roughness. Retained for IMaterial compatibility; used only by the
-    /// renderer's needsLightSampling gate, which is a coarse boolean and
-    /// can tolerate a constant-per-material answer.
-    /// </summary>
-    public float SpecularExponent
-    {
-        get
-        {
-            if (_repAlpha >= 1f) return 2f;
-            return MathF.Min(2f / (_repAlpha * _repAlpha), 2048f);
-        }
-    }
-
-    /// <summary>
-    /// Representative specular highlight strength. Used only for the
-    /// renderer's needsLightSampling gate (IMaterial compatibility).
-    /// </summary>
-    public float SpecularStrength
-    {
-        get
-        {
-            float rMetal     = Metallic.RepresentativeValue;
-            float rSpec      = Specular.RepresentativeValue;
-            float rClearcoat = Clearcoat.RepresentativeValue;
-            float rRoughness = Roughness.RepresentativeValue;
-            float baseSpec = rMetal > 0.5f ? 1f : rSpec;
-            float ccBoost = rClearcoat * 0.25f;
-            return MathF.Min(baseSpec * (1f - rRoughness * 0.5f) + ccBoost, 1f);
-        }
-    }
 
     /// <summary>
     /// Disney BSDF direct lighting using analytic GGX — matching the indirect
