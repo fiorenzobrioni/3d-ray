@@ -58,9 +58,9 @@ public class GeometryLight : ILight
     // solid-angle cone sampling instead of uniform area sampling.
     private readonly ISolidAngleSamplable? _solidAngleSampler;
 
-    // Deterministic representative data for Illuminate() — computed once from
-    // the underlying IHittable's bounding box so scene analysis in Renderer is
-    // reproducible regardless of the PRNG state.
+    // Deterministic representative data for ApproximatePower() — computed once
+    // from the underlying IHittable's bounding box so scene classification in
+    // Renderer is reproducible regardless of the PRNG state.
     private readonly Vector3 _representativePoint;
     private readonly float   _representativeArea;
 
@@ -97,33 +97,13 @@ public class GeometryLight : ILight
         _representativeArea = area;
     }
 
-    public (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint)
+    // Lambertian emissive surface: Φ = π · L · A.
+    // L is sampled at (u=0.5, v=0.5, point=AABB centre) — exact for SolidColor
+    // emission, representative for procedural or texture-based emission.
+    public float ApproximatePower(AABB sceneBounds)
     {
-        // Deterministic power estimate using the AABB centre. This is only
-        // used by Renderer's constructor for the indirect-dominant scene
-        // classifier — it does not need to be physically rigorous, just
-        // reproducible across runs.
-        Vector3 toLight = _representativePoint - hitPoint;
-        float distSq = toLight.LengthSquared();
-        if (distSq < MathUtils.Epsilon * MathUtils.Epsilon)
-            return (Vector3.Zero, Vector3.UnitY, 0f);
-
-        float distance = MathF.Sqrt(distSq);
-        Vector3 dirToLight = toLight / distance;
-
-        // Use the solid-color average (u=0.5, v=0.5, point=centre) — exact for
-        // SolidColor, representative for everything else. Good enough for a
-        // "total power" heuristic; the correct, unbiased per-sample value is
-        // used in IlluminateAndTest().
-        Vector3 emissiveColor = Material.EmissionAt(0.5f, 0.5f, _representativePoint);
-
-        // Hemispheric-average cos(θ) = 0.5 is a reasonable scalar proxy for
-        // the projected-area factor of a Lambertian emitter seen from a
-        // random direction.
-        const float avgCosLight = 0.5f;
-        float attenuation = _representativeArea * avgCosLight / distSq;
-
-        return (emissiveColor * attenuation, dirToLight, distance);
+        Vector3 emission = Material.EmissionAt(0.5f, 0.5f, _representativePoint);
+        return MathF.PI * _representativeArea * MathUtils.Luminance(emission);
     }
 
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)

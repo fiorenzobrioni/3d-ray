@@ -61,10 +61,36 @@ public class Renderer
     private readonly float _maxSampleRadiance;
 
     // Threshold below which the scene is considered indirect-dominant.
-    // Computed as the sum of luminance of all explicit lights evaluated at
-    // the world origin. Scenes with total light power below this rely
-    // primarily on emissive geometry and sky for illumination.
-    private const float IndirectDominantThreshold = 1.0f;
+    // Expressed as the scene-averaged irradiance [Rec.709 luminance]:
+    //
+    //     Ē = Φ_total / (4π · R²)
+    //
+    // where Φ_total is the sum of `ApproximatePower(sceneBounds)` across all
+    // lights and R is the scene bounding-sphere radius. This quantity is the
+    // mean luminance landing on a sphere enclosing the scene and is invariant
+    // to scene translation and — crucially — to uniform scene scaling: point
+    // lights' 4π·I normalised by 4π·R² gives I/R², area lights' π·L·A divided
+    // by 4π·R² gives L·A/(4R²), both of which describe the "light-per-surface"
+    // that actually drives NEE convergence. Identical lighting setups classify
+    // identically regardless of the scene's world-space units.
+    //
+    // Calibration: a Cornell-like enclosed emissive-only scene (∼Ē < 0.3)
+    // stays conservative; a daylight-bright sky (Ē ≈ π/4 ≈ 0.78) or a unit-
+    // intensity directional sun (Ē ≈ 0.25 per scaled-I) in a normal-radius
+    // scene crosses the threshold; 0.5 is the midpoint that preserves the
+    // original classifier's intent on reference scenes without its
+    // scene-scale dependence.
+    private const float IndirectDominantThreshold = 0.5f;
+
+    // Clamp used on the world AABB before scene analysis. InfinitePlane reports
+    // a ±1e6 AABB (its "fake finite box" for BVH compatibility); this would
+    // dominate the bounding sphere and drive DirectionalLight / EnvironmentLight
+    // flux toward ∞ while still dividing by ∞² in the normalisation, so the
+    // classifier would silently collapse to "zero irradiance" on any scene
+    // with an infinite plane. Clamping to ±1e3 recovers a realistic finite
+    // extent for all practical YAML scenes while still accommodating
+    // architectural exteriors hundreds of units across.
+    private const float SceneBoundsClamp = 1.0e3f;
 
     public Renderer(
         IHittable world,
@@ -88,17 +114,32 @@ public class Renderer
         _maxSampleRadiance = maxSampleRadiance ?? DefaultMaxSampleRadiance;
 
         // ── Scene analysis: detect indirect-dominant lighting ────────────
-        // Evaluate all explicit lights at the world origin to get a rough
-        // estimate of total direct light power. If this is very low, the
-        // scene relies on emissive geometry or sky → use conservative RR.
-        float totalLightPower = 0f;
-        foreach (var light in lights)
-        {
-            var (color, _, _) = light.Illuminate(Vector3.Zero);
-            totalLightPower += MathUtils.Luminance(color);
-        }
+        // Sum each light's approximate radiant flux [Rec.709 luminance] and
+        // normalise by the scene's enclosing-sphere surface area (4π R²).
+        // The resulting mean irradiance is invariant to scene scale and
+        // translation — see IndirectDominantThreshold for the full rationale.
+        //
+        // The bounding sphere is computed from the *finite* portion of the
+        // world only: InfinitePlane reports a ±1e6 AABB (a BVH-compatibility
+        // sentinel), which — unclamped — would inflate R until a scene's
+        // physical lights become invisible to the classifier. We fall back
+        // to a hard clamp only if no finite geometry exists at all.
+        AABB sceneBounds = ComputeFiniteSceneBounds(world);
 
-        bool isIndirectDominant = totalLightPower < IndirectDominantThreshold;
+        float totalFlux = 0f;
+        foreach (var light in lights)
+            totalFlux += light.ApproximatePower(sceneBounds);
+
+        Vector3 extent = sceneBounds.Max - sceneBounds.Min;
+        // Guard against degenerate single-point bounds (empty scenes,
+        // synthetic unit tests). 1e-3 floors the radius at 1 mm of world unit
+        // so the division is safe; the normalised irradiance will be huge and
+        // the scene correctly classified as direct-dominant.
+        float sceneRadius = MathF.Max(0.5f * extent.Length(), 1e-3f);
+        float sphereArea  = 4f * MathF.PI * sceneRadius * sceneRadius;
+        float meanIrradiance = totalFlux / sphereArea;
+
+        bool isIndirectDominant = meanIrradiance < IndirectDominantThreshold;
         _rrMinBounces  = isIndirectDominant ? RR_MinBounces_Indirect  : RR_MinBounces_Normal;
         _rrMinSurvival = isIndirectDominant ? RR_MinSurvival_Indirect : RR_MinSurvival_Normal;
 
@@ -121,10 +162,60 @@ public class Renderer
         if (isIndirectDominant)
         {
             Console.WriteLine($"  Scene analysis: indirect-dominant lighting detected " +
-                              $"(light power {totalLightPower:F3}). " +
+                              $"(mean irradiance {meanIrradiance:F3}, " +
+                              $"flux {totalFlux:F1}, scene R {sceneRadius:F1}). " +
                               $"Using conservative RR (minBounces={_rrMinBounces}, " +
                               $"minSurvival={_rrMinSurvival:F2}).");
         }
+    }
+
+    // Per-axis extent above which an AABB is treated as an "infinite" sentinel
+    // and excluded from the finite-scene-bounds union. InfinitePlane reports
+    // ±1e6 per-axis (a BVH-compatibility dummy); real geometry never
+    // approaches this in practice.
+    private const float InfiniteExtentSentinel = 1.0e5f;
+
+    /// <summary>
+    /// Computes the AABB of the *finite* portion of the world for scene-scale
+    /// normalisation. Walks the top-level children of a <see cref="HittableList"/>
+    /// and excludes any whose bounding box has an axis extent above
+    /// <see cref="InfiniteExtentSentinel"/> — this filters out
+    /// <see cref="InfinitePlane"/> and its wrappers without peeking inside
+    /// BVH-acceleration structures, whose union bbox is already bounded by
+    /// their finite contents.
+    ///
+    /// Fallback: if no finite child exists (pure infinite-plane scenes or
+    /// unit-test stubs), returns the raw world bbox clamped to
+    /// <see cref="SceneBoundsClamp"/> along each axis. This keeps the
+    /// normalisation denominator finite and produces a realistic R for
+    /// environment/directional flux.
+    /// </summary>
+    private static AABB ComputeFiniteSceneBounds(IHittable world)
+    {
+        if (world is HittableList list && list.Objects.Count > 0)
+        {
+            AABB acc = AABB.Empty;
+            bool any = false;
+            for (int i = 0; i < list.Objects.Count; i++)
+            {
+                var b = list.Objects[i].BoundingBox();
+                Vector3 d = b.Max - b.Min;
+                if (d.X < InfiniteExtentSentinel &&
+                    d.Y < InfiniteExtentSentinel &&
+                    d.Z < InfiniteExtentSentinel)
+                {
+                    acc = any ? AABB.SurroundingBox(acc, b) : b;
+                    any = true;
+                }
+            }
+            if (any) return acc;
+        }
+
+        var raw = world.BoundingBox();
+        Vector3 v = new(SceneBoundsClamp);
+        return new AABB(
+            Vector3.Max(raw.Min, -v),
+            Vector3.Min(raw.Max,  v));
     }
 
     /// <summary>

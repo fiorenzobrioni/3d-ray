@@ -146,43 +146,43 @@ Il costruttore riceve gli output del loader e prepara lo stato per il rendering 
 
 ### 2.1 Scene Analysis (Classificazione dell'Illuminazione)
 
-Lo scopo è decidere se la scena è "indirect-dominant" (illuminata prevalentemente da superfici emissive e cielo) o "normal" (illuminata da luci esplicite). Questo determina l'aggressività della Russian Roulette.
+Lo scopo è decidere se la scena è "indirect-dominant" (illuminata prevalentemente da superfici emissive e cielo in scene chiuse) o "normal" (illuminata da luci esplicite). Questo determina l'aggressività della Russian Roulette.
+
+La metrica è l'**irradianza media** (Rec.709 luminance) proiettata sulla sfera che racchiude la scena:
 
 ```csharp
-float totalLightPower = 0f;
-foreach (var light in lights)
-{
-    var (color, _, _) = light.Illuminate(Vector3.Zero);
-    totalLightPower += MathUtils.Luminance(color);
-}
-bool isIndirectDominant = totalLightPower < IndirectDominantThreshold; // 1.0
+AABB sceneBounds = ClampInfiniteExtents(world.BoundingBox(), ±1e3);
+float totalFlux = lights.Sum(l => l.ApproximatePower(sceneBounds));
+float sceneRadius = 0.5f · |sceneBounds.Max − sceneBounds.Min|;
+float meanIrradiance = totalFlux / (4π · sceneRadius²);
+bool isIndirectDominant = meanIrradiance < IndirectDominantThreshold; // 0.5
 ```
 
-**⚠️ CONTRATTO CRITICO — `Illuminate()` per la scene analysis:**
+**⚠️ CONTRATTO CRITICO — `ILight.ApproximatePower(sceneBounds)`:**
 
-Il metodo `ILight.Illuminate()` ha un **doppio ruolo** nell'architettura: è definito nell'interfaccia `ILight` come metodo generico di illuminazione, ma nel contesto del motore attuale **è usato esclusivamente dal costruttore del Renderer** per la scene analysis. Il rendering vero e proprio usa `IlluminateAndTest()` / `IlluminateAndTestStratified()`.
+Il metodo restituisce il flusso radiante approssimato della luce (Φ in unità di luminanza Rec.709). È usato **esclusivamente dal costruttore del Renderer** per la scene classification; il rendering vero e proprio usa `IlluminateAndTest()` / `IlluminateAndTestStratified()`.
 
-Per questo motivo, `Illuminate()` deve rispettare tre invarianti:
+Tre invarianti obbligatori:
 
 | Invariante | Motivo |
 |------------|--------|
 | **Deterministico** — niente `RandomFloat()` | Il costruttore gira single-thread prima del `Parallel.For`. Un risultato non-deterministico renderebbe la classificazione RR instabile tra run. |
-| **Potenza piena** — niente divisione per `ShadowSamples` | Il loop di analisi chiama `Illuminate()` **una sola volta** per luce, non `ShadowSamples` volte. Dividere sottostimerebbe la potenza. |
-| **Indipendente dalla posizione** — risultato ragionevole anche a `(0,0,0)` | L'analisi valuta tutte le luci all'origine del mondo. Una luce che contribuisce zero perché l'origine è fuori dal suo cono o sul retro della sua superficie falserebbe la classificazione. |
+| **Receiver-independent** — nessuna dipendenza da un punto di shading | Il flusso è una proprietà intrinseca della luce, non dell'osservatore. Evaluare a un punto arbitrario (come faceva il vecchio `Illuminate(Vector3.Zero)`) rende la classificazione dipendente dalla posizione del mondo. |
+| **Finito** — lights con apertura infinita usano `sceneBounds` | `DirectionalLight` e `EnvironmentLight` non hanno flusso finito senza un riferimento geometrico. Usare la sezione trasversale della scena (π·R²) bounds il flusso in modo fisicamente coerente. |
 
-Stato di conformità per tipo di luce:
+Formula per tipo di luce (tutti i risultati sono moltiplicati per `Luminance(Color)`):
 
-| Tipo | Deterministico | Potenza piena | Posizione-indipendente | Note |
-|------|:-:|:-:|:-:|---|
-| `PointLight` | ✅ | ✅ | ✅ | `Intensity / d²` all'origine |
-| `DirectionalLight` | ✅ | ✅ | ✅ | `Intensity` costante |
-| `SpotLight` | ✅ | ✅ | ✅* | *FIX #14: usa potenza on-axis × frazione cono |
-| `AreaLight` | ✅* | ✅* | ✅* | *FIX #12a/b: centro deterministico, no `/ShadowSamples` |
-| `SphereLight` | ✅ | ✅ | ✅ | `Intensity × solidAngle` |
-| `GeometryLight` | ⚠️* | ✅* | ⚠️ | *FIX #13a/b: media emisferica, no `/ShadowSamples`. Il punto campionato resta random (accettabile per stima approssimativa). |
-| `EnvironmentLight` | ✅ | ⚠️ | ✅ | FIX #10: deterministico. Divide per `ShadowSamples` (FIX #8), ma il default è 1. |
+| Tipo | Flusso Φ | Note |
+|------|---------|------|
+| `PointLight` | `4π · I` | Emettitore isotropo, integrato su sfera completa |
+| `DirectionalLight` | `I · π · R²` | Irradianza × sezione trasversale della scena |
+| `SpotLight` | `I · (Ω_core + Ω_fall/3)` | `Ω_core = 2π(1−cosInner)`, `Ω_fall = 2π(cosInner−cosOuter)` |
+| `AreaLight` | `π · I · A` | Emettitore lambertiano, `A = |U × V|` |
+| `SphereLight` | `4π · I` | Intensità radiante (W/sr) integrata su 4π |
+| `GeometryLight` | `π · emission · A` | Lambertiano dal materiale `Emissive`, area dal Sample() |
+| `EnvironmentLight` | `π · L̄_sky · π · R²` | Irradianza emisferica × sezione scena |
 
-> **Nota per futuri sviluppatori:** quando si aggiunge un nuovo tipo di luce, il suo `Illuminate()` deve rispettare questi tre invarianti. Usare `SphereLight` come modello di riferimento.
+> **Nota per futuri sviluppatori:** quando si aggiunge un nuovo tipo di luce, il suo `ApproximatePower` deve rispettare questi tre invarianti. Usare `PointLight` (caso finito) o `DirectionalLight` (caso infinito con `sceneBounds`) come modelli di riferimento.
 
 ### 2.2 Configurazione Russian Roulette
 
@@ -193,9 +193,13 @@ In base alla classificazione:
 | Normal (luci esplicite forti) | 4 | 0.15 | 6.7× |
 | Indirect-dominant (emissive/sky) | 8 | 0.50 | 2.0× |
 
-La soglia è `IndirectDominantThreshold = 1.0` sulla somma di luminanze.
+La soglia è `IndirectDominantThreshold = 0.5` sull'irradianza media (Rec.709 luminance per unità di area della sfera di scena).
 
-> **Perché la distinzione?** In scene a luce diretta, la NEE cattura la maggior parte dell'energia — i bounce indiretti sono una piccola correzione e possono essere terminati aggressivamente. In scene emissive-only, TUTTA l'energia arriva dai bounce indiretti; terminare i path troppo presto produce macchie scure.
+**Invarianza di scala**. La normalizzazione per `4π·R²` rende la metrica indipendente dalle unità world-space della scena: raddoppiare tutte le coordinate lascia la classificazione invariata (PointLight: 4π·I / (4π·(2R)²) vs 4π·I / (4π·R²) → scala come 1/R², ma lo stesso fa la distanza tipica delle luci, quindi l'"illuminamento per bounce" è lo stesso).
+
+**Clamp delle estensioni infinite**. `InfinitePlane` riporta un AABB fittizio a ±1e6 per compatibilità con il BVH. Senza clamp, il raggio di scena divergerebbe e `EnvironmentLight`/`DirectionalLight` (che scalano con π·R²) produrrebbero un meanIrradiance fisso e arbitrario. Il clamp a ±1e3 restituisce un raggio realistico per tutte le scene pratiche.
+
+> **Perché la distinzione?** In scene a luce diretta, la NEE cattura la maggior parte dell'energia — i bounce indiretti sono una piccola correzione e possono essere terminati aggressivamente. In scene emissive-only chiuse (Cornell), TUTTA l'energia arriva dai bounce indiretti; terminare i path troppo presto produce macchie scure.
 
 ### 2.3 Registrazione degli Emitter (per il Double-Counting Guard)
 
@@ -512,7 +516,7 @@ Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math
 | `Camera.GetRay()` | Camera.cs | Render loop | W×H×N volte | Sì (readonly + thread-local PRNG) |
 | `TraceRay()` | Renderer.cs | Render loop | W×H×N×bounces | Sì (readonly state) |
 | `ComputeDirectLighting()` | Renderer.cs | TraceRay | Per ogni hit diffuso/speculare | Sì |
-| `ILight.Illuminate()` | Lights/*.cs | Costruttore Renderer | 1× per luce | **Solo single-thread** |
+| `ILight.ApproximatePower()` | Lights/*.cs | Costruttore Renderer | 1× per luce | **Solo single-thread** |
 | `ILight.IlluminateAndTest()` | Lights/*.cs | ComputeDirectLighting | Per ogni hit × luce × sample | Sì |
 | `IMaterial.Scatter()` | Materials/*.cs | TraceRay | Per ogni hit | Sì (thread-local PRNG) |
 | `IMaterial.EvaluateDirect()` | Materials/*.cs | ComputeDirectLighting | Per ogni hit × luce non-ombrata | Sì (pure function) |
@@ -521,8 +525,8 @@ Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math
 
 ### Contratti chiave
 
-**`Illuminate()` vs `IlluminateAndTest()`:**
-- `Illuminate()` è **solo per scene analysis** (costruttore Renderer). Deve essere deterministico e restituire la potenza piena.
+**`ApproximatePower()` vs `IlluminateAndTest()`:**
+- `ApproximatePower(sceneBounds)` è **solo per scene classification** (costruttore Renderer). Restituisce il flusso radiante totale della luce (Rec.709 luminance), deterministico, receiver-independent, finito (usa `sceneBounds` per directional/environment).
 - `IlluminateAndTest()` / `IlluminateAndTestStratified()` sono per il **rendering**. Usano PRNG, dividono per ShadowSamples, testano le ombre.
 - I due metodi non condividono il path di esecuzione. Modificare uno non influisce sull'altro.
 

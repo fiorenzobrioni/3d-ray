@@ -11,8 +11,9 @@ namespace RayTracer.Lights;
 /// Uses importance sampling to dramatically reduce noise vs purely indirect gathering.
 ///
 /// Lifecycle:
-///   - Illuminate()        → called once at Renderer construction for scene analysis.
-///                           Returns a DETERMINISTIC luminance estimate (no PRNG).
+///   - ApproximatePower()  → called once at Renderer construction for scene
+///                           classification. Returns a DETERMINISTIC flux estimate
+///                           scaled by the scene's cross-section (no PRNG).
 ///   - IlluminateAndTest() → called at every surface hit during rendering.
 ///                           Uses importance sampling (PRNG) for accurate NEE.
 /// </summary>
@@ -31,27 +32,31 @@ public class EnvironmentLight : ILight
     }
 
     /// <summary>
-    /// Returns a deterministic estimate of the environment's average luminance.
+    /// Approximate flux received by the scene from the environment.
     ///
-    /// FIX #7: guards on CanSampleDirectly (was missing — could return non-zero energy
-    ///         for flat skies that have no direct-sampling support).
-    /// FIX #8: divides by ShadowSamples for energetic consistency with IlluminateAndTest().
-    /// FIX #10: uses SkySettings.EstimatedAverageLuminance instead of SampleDirectly(),
-    ///          making the Renderer constructor's scene-analysis loop fully deterministic.
-    ///          SampleDirectly() uses MathUtils.RandomFloat() internally; calling it here
-    ///          made isIndirectDominant classification non-deterministic across runs.
+    ///   • Hemispheric irradiance onto a diffuse point: E = π · L̄  where L̄ is the
+    ///     scene-averaged sky radiance (<see cref="SkySettings.EstimatedAverageLuminance"/>).
+    ///   • Flux through the scene's cross-section: Φ = E · π · R².
+    ///
+    /// Returns 0 when the sky has no direct-sampling support (flat ambient fills),
+    /// since NEE cannot draw samples from it and the classifier must treat such
+    /// scenes as indirect-only.
+    ///
+    /// Fully deterministic: reads <see cref="SkySettings.EstimatedAverageLuminance"/>
+    /// which itself avoids PRNG (gradient hemisphere weighted mean or cached HDRI
+    /// average), ensuring identical classification across runs.
     /// </summary>
-    public (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint)
+    public float ApproximatePower(AABB sceneBounds)
     {
-        // FIX #7 — guard was absent in the original
         if (!_sky.CanSampleDirectly)
-            return (Vector3.Zero, Vector3.UnitY, 0f);
+            return 0f;
 
-        // FIX #10 — deterministic path: no PRNG
-        float avgLum = _sky.EstimatedAverageLuminance;
+        Vector3 extent = sceneBounds.Max - sceneBounds.Min;
+        float radius = 0.5f * extent.Length();
+        float crossSection = MathF.PI * radius * radius;
 
-        // FIX #8 — divide by ShadowSamples, consistent with IlluminateAndTest()
-        return (new Vector3(avgLum / ShadowSamples), Vector3.UnitY, MathUtils.Infinity);
+        float irradiance = MathF.PI * _sky.EstimatedAverageLuminance;
+        return irradiance * crossSection;
     }
 
     /// <inheritdoc/>

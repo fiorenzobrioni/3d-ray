@@ -148,7 +148,7 @@ Il sole viene trattato come una luce direzionale con area finita: può proiettar
 
 ### 5.6 Stima Deterministica della Luminanza (per la Russian Roulette)
 
-Il costruttore del renderer, prima di avviare `Parallel.For`, effettua un'analisi della scena per decidere i parametri della Russian Roulette (scene in luce diretta vs. indiretta). Questa analisi chiama `EnvironmentLight.Illuminate()`, che deve essere **completamente deterministica** — senza chiamate a `RandomFloat()`.
+Il costruttore del renderer, prima di avviare `Parallel.For`, effettua un'analisi della scena per decidere i parametri della Russian Roulette (scene in luce diretta vs. indiretta). Questa analisi chiama `EnvironmentLight.ApproximatePower(sceneBounds)`, che deve essere **completamente deterministica** — senza chiamate a `RandomFloat()`.
 
 Per l'HDRI, la luminanza stimata viene calcolata iterando una sola volta il buffer di pixel e calcolando la media pesata:
 
