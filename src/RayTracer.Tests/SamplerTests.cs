@@ -165,6 +165,45 @@ public class SamplerTests
     }
 
     /// <summary>
+    /// 1D stratification at high dimensions. The Joe-Kuo direction
+    /// matrices only cover dim 0 and 1; every higher dim falls through
+    /// to the Burley 2020 hash-based path. That path used to call a
+    /// bare Laine-Karras permutation on the sample index where Burley
+    /// requires a full nested-uniform-scramble, which silently dropped
+    /// the (0,1)-net guarantee — Sobol degenerated to PRNG-quality at
+    /// dim ≥ 2 and ended up *noisier* than plain PRNG on every
+    /// indirect-dominant scene (the Cornell box at -s 64 -d 8 was the
+    /// failure mode that surfaced this). Pin the high-dim invariant
+    /// so a future scrambler regression can't silently re-introduce
+    /// the same bug.
+    /// </summary>
+    [Fact]
+    public void Sobol_StratifiesEachDimension1D_AtHighDims()
+    {
+        Sampler.SetKind(SamplerKind.Sobol);
+        try
+        {
+            const int N = 64;
+            for (uint targetDim = 2; targetDim < 16; targetDim++)
+            {
+                int[] hits = new int[N];
+                for (uint s = 0; s < N; s++)
+                {
+                    Sampler.BeginPixelSample(0u, s);
+                    for (uint d = 0; d < targetDim; d++) Sampler.Sample1D();
+                    float v = Sampler.Sample1D();
+                    Sampler.EndPixelSample();
+                    hits[System.Math.Min((int)(v * N), N - 1)]++;
+                }
+                for (int i = 0; i < N; i++)
+                    Assert.True(hits[i] == 1,
+                        $"dim {targetDim} stratum {i} hit {hits[i]} times — Burley high-dim shuffle is no longer a (0,1)-net");
+            }
+        }
+        finally { Sampler.SetKind(SamplerKind.Prng); }
+    }
+
+    /// <summary>
     /// PRNG mode and "Sobol mode without an open context" must both
     /// route through System.Random — the legacy fallback that lets unit
     /// tests, the scene loader, and any non-render callers keep working.

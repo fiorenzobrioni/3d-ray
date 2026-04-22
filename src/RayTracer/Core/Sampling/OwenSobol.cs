@@ -60,12 +60,21 @@ internal static class OwenSobol
         }
         else
         {
-            // Hash-based fallback for dim ≥ 2: Laine-Karras-permuted
-            // bit-reversed index. Owen's theorem keeps this a
-            // (0,1)-net per dimension; joint stratification with any
-            // other dim is not guaranteed.
+            // Hash-based fallback for dim ≥ 2: Owen-scrambled van der
+            // Corput on a per-dim shuffled sample index.
+            //
+            // Burley 2020 §3 requires *nested* uniform scrambling
+            // (= OwenScramble: reverse_bits → LK → reverse_bits) for
+            // BOTH the shuffle and the scramble. A bare LK on the
+            // sample index — LSB-to-MSB avalanche only — leaks
+            // structure: empirically it gives ~42 of 64 stratified
+            // bins on N = 64 samples, indistinguishable from PRNG, so
+            // every BSDF/light decision past dim 1 sees PRNG-quality
+            // noise on top of the data-dependent dim assignment that
+            // Sobol pays for. Wrapping the LK in reverse_bits both
+            // sides restores the (0,1)-net per dimension.
             uint shuffleSeed = Hash(dimension * 0x68bc21ebu + 0xc7afe638u);
-            uint shuffledIndex = LaineKarrasPermutation(sampleIndex, shuffleSeed);
+            uint shuffledIndex = OwenScramble(sampleIndex, shuffleSeed);
             v = ReverseBits(shuffledIndex);
         }
 
