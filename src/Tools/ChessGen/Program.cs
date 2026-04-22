@@ -74,13 +74,13 @@ namespace ChessGen
             sb.AppendLine("  ambient_light: [0.10, 0.10, 0.11]");
             sb.AppendLine("  sky:");
             sb.AppendLine("    type: \"gradient\"");
-            sb.AppendLine("    zenith_color:  [0.22, 0.38, 0.70]");
-            sb.AppendLine("    horizon_color: [0.75, 0.82, 0.92]");
-            sb.AppendLine("    ground_color:  [0.18, 0.15, 0.10]");
+            sb.AppendLine("    zenith_color:  [0.20, 0.35, 0.65]");
+            sb.AppendLine("    horizon_color: [0.60, 0.70, 0.85]");
+            sb.AppendLine("    ground_color:  [0.15, 0.12, 0.08]");
             sb.AppendLine("    sun:");
             sb.AppendLine("      direction: [-0.55, -0.78, -0.30]");
             sb.AppendLine("      color: [1.0, 0.96, 0.88]");
-            sb.AppendLine("      intensity: 10.0");
+            sb.AppendLine("      intensity: 5.0");
             sb.AppendLine("      size: 2.0");
             sb.AppendLine("      falloff: 48.0");
             sb.AppendLine("  ground:");
@@ -204,7 +204,7 @@ namespace ChessGen
             sb.AppendLine("    u: [3.5, 0.0, 0.0]");
             sb.AppendLine("    v: [0.0, 0.0, 3.5]");
             sb.AppendLine("    color: [1.0, 0.95, 0.85]");
-            sb.AppendLine("    intensity: 55.0");
+            sb.AppendLine("    intensity: 22.0");
             sb.AppendLine("    shadow_samples: 16");
             sb.AppendLine();
             sb.AppendLine("  # FILL: cool sphere light from camera-right, softens key-side shadows.");
@@ -212,7 +212,7 @@ namespace ChessGen
             sb.AppendLine("    position: [4.5, 4.0, -2.5]");
             sb.AppendLine("    radius: 0.8");
             sb.AppendLine("    color: [0.80, 0.86, 1.0]");
-            sb.AppendLine("    intensity: 22.0");
+            sb.AppendLine("    intensity: 10.0");
             sb.AppendLine("    shadow_samples: 12");
             sb.AppendLine();
             sb.AppendLine("  # RIM/BACK: warm sphere light behind board, separates pieces from background.");
@@ -220,7 +220,7 @@ namespace ChessGen
             sb.AppendLine("    position: [0.0, 5.5, 5.5]");
             sb.AppendLine("    radius: 0.6");
             sb.AppendLine("    color: [1.0, 0.92, 0.80]");
-            sb.AppendLine("    intensity: 30.0");
+            sb.AppendLine("    intensity: 14.0");
             sb.AppendLine("    shadow_samples: 12");
             sb.AppendLine();
         }

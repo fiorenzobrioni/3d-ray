@@ -10,13 +10,13 @@ world:
   ambient_light: [0.10, 0.10, 0.11]
   sky:
     type: "gradient"
-    zenith_color:  [0.22, 0.38, 0.70]
-    horizon_color: [0.75, 0.82, 0.92]
-    ground_color:  [0.18, 0.15, 0.10]
+    zenith_color:  [0.20, 0.35, 0.65]
+    horizon_color: [0.60, 0.70, 0.85]
+    ground_color:  [0.15, 0.12, 0.08]
     sun:
       direction: [-0.55, -0.78, -0.30]
       color: [1.0, 0.96, 0.88]
-      intensity: 10.0
+      intensity: 5.0
       size: 2.0
       falloff: 48.0
   ground:
@@ -118,7 +118,7 @@ lights:
     u: [3.5, 0.0, 0.0]
     v: [0.0, 0.0, 3.5]
     color: [1.0, 0.95, 0.85]
-    intensity: 55.0
+    intensity: 22.0
     shadow_samples: 16
 
   # FILL: cool sphere light from camera-right, softens key-side shadows.
@@ -126,7 +126,7 @@ lights:
     position: [4.5, 4.0, -2.5]
     radius: 0.8
     color: [0.80, 0.86, 1.0]
-    intensity: 22.0
+    intensity: 10.0
     shadow_samples: 12
 
   # RIM/BACK: warm sphere light behind board, separates pieces from background.
@@ -134,7 +134,7 @@ lights:
     position: [0.0, 5.5, 5.5]
     radius: 0.6
     color: [1.0, 0.92, 0.80]
-    intensity: 30.0
+    intensity: 14.0
     shadow_samples: 12
 
 templates:
