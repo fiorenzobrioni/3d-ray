@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using RayTracer.Core.Sampling;
 using RayTracer.Rendering;
 using RayTracer.Scene;
 using RayTracer.Volumetrics;
@@ -57,6 +58,29 @@ class Program
         // Camera selector: name or zero-based index
         string? cameraSelector = GetArg(args, "--camera", "-c");
 
+        // Sampler kind: defaults to Sobol (Burley 2020 hash-based Owen
+        // scrambling) for the 2-5× per-spp convergence improvement; pass
+        // `--sampler prng` to fall back to the legacy thread-local PRNG
+        // for A/B comparisons or to reproduce pre-Sobol golden images.
+        SamplerKind samplerKind = SamplerKind.Sobol;
+        string? samplerArg = GetArg(args, "--sampler", null);
+        if (samplerArg != null)
+        {
+            switch (samplerArg.ToLowerInvariant())
+            {
+                case "prng":
+                case "random":
+                    samplerKind = SamplerKind.Prng; break;
+                case "sobol":
+                case "owen":
+                    samplerKind = SamplerKind.Sobol; break;
+                default:
+                    Console.WriteLine($"Error: Unknown --sampler '{samplerArg}'. Valid: prng, sobol.");
+                    return;
+            }
+        }
+        Sampler.SetKind(samplerKind);
+
         // Required argument check
         if (string.IsNullOrEmpty(inputPath))
         {
@@ -101,6 +125,7 @@ class Program
             Console.WriteLine($"  Clamp:       {clampOverride.Value} (CLI override)");
         if (cameraSelector != null)
             Console.WriteLine($"  Camera:      {cameraSelector}");
+        Console.WriteLine($"  Sampler:     {samplerKind.ToString().ToLowerInvariant()}");
         Console.WriteLine();
 
         // Load scene
@@ -169,6 +194,7 @@ class Program
         Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override (perfect squares)");
         Console.WriteLine("  -C, --clamp <n>              Max per-sample radiance / firefly clamp (default: 100)");
         Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
+        Console.WriteLine("      --sampler <prng|sobol>   Per-pixel sampler (default: sobol — Burley 2020)");
         Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
         Console.WriteLine("  -h, --help                   Show this help");
         Console.WriteLine();

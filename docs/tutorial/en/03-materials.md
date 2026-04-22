@@ -14,7 +14,7 @@ This chapter covers every one of them, parameter by parameter.
 | `metal`      | --                   | Specular reflection           |
 | `dielectric` | --                   | Transparent glass / refraction|
 | `emissive`   | --                   | Self-luminous glow            |
-| `disney`     | `disney_bsdf`, `pbr` | Universal PBR (12 parameters) |
+| `disney`     | `disney_bsdf`, `pbr` | Universal PBR (anisotropy, glass absorption, thin-film, sheen...) |
 | `mix`        | `blend`              | Blend two materials together  |
 
 Every material is defined in the `materials:` section with a unique `id`:
@@ -195,22 +195,41 @@ material).
 
 ### Complete Parameter Reference
 
-| Parameter         | Default | Range   | Description                                     |
-|-------------------|---------|---------|-------------------------------------------------|
-| `color`           | --      | 0--1    | Base albedo color                                |
-| `metallic`        | `0.0`   | 0--1    | 0 = dielectric (plastic, wood), 1 = conductor (metal) |
-| `roughness`       | `0.5`   | 0--1    | 0 = mirror-smooth, 1 = fully diffuse            |
-| `subsurface`      | `0.0`   | 0--1    | Blend toward subsurface scattering diffuse model |
-| `specular`        | `0.5`   | 0--1    | Dielectric specular intensity (Fresnel F0)       |
-| `specular_tint`   | `0.0`   | 0--1    | Tint specular reflection by base color           |
-| `sheen`           | `0.0`   | 0--1    | Grazing-angle soft highlight (fabric, velvet)    |
-| `sheen_tint`      | `0.5`   | 0--1    | Tint the sheen by base color                     |
-| `clearcoat`       | `0.0`   | 0--1    | Second specular lobe (lacquer, varnish)          |
-| `clearcoat_gloss` | `1.0`   | 0--1    | Clearcoat smoothness (1 = glossy, 0 = satin)    |
-| `spec_trans`      | `0.0`   | 0--1    | Specular transmission (0 = opaque, 1 = glass)    |
-| `ior`             | `1.5`   | 1+      | Index of refraction (used for specular and transmission) |
-| `texture`         | --      | --      | Procedural or image texture (replaces color)     |
-| `normal_map`      | --      | --      | Surface detail via normal perturbation           |
+| Parameter             | Default  | Range        | Description                                     |
+|-----------------------|----------|--------------|-------------------------------------------------|
+| `color`               | --       | 0--1         | Base albedo color                                |
+| `metallic`            | `0.0`    | 0--1         | 0 = dielectric (plastic, wood), 1 = conductor (metal) |
+| `roughness`           | `0.5`    | 0--1         | 0 = mirror-smooth, 1 = fully diffuse            |
+| `subsurface`          | `0.0`    | 0--1         | Blend toward subsurface scattering diffuse model |
+| `specular`            | `0.5`    | 0--1         | Dielectric specular intensity (Fresnel F0)       |
+| `specular_tint`       | `0.0`    | 0--1         | Tint specular reflection by base color           |
+| `sheen`               | `0.0`    | 0--1         | Grazing-angle soft highlight (fabric, velvet)    |
+| `sheen_tint`          | `0.5`    | 0--1         | Tint the sheen by base color                     |
+| `sheen_roughness`     | `0.3`    | 0.04--1      | Charlie sheen α — width of the grazing halo     |
+| `clearcoat`           | `0.0`    | 0--1         | Second specular lobe (lacquer, varnish)          |
+| `clearcoat_gloss`     | `1.0`    | 0--1         | Legacy clearcoat smoothness slider              |
+| `coat_ior`            | `1.5`    | 1+           | Clearcoat IOR (overrides the default lacquer)   |
+| `coat_roughness`      | unset    | 0--1         | When set, switches to Arnold-style coat (roughness as α² directly) |
+| `coat_normal_map`     | --       | image path   | Normal map applied **only** to the clearcoat lobe |
+| `spec_trans`          | `0.0`    | 0--1         | Specular transmission (0 = opaque, 1 = glass)    |
+| `transmission_color`  | `[1,1,1]`| 0--1         | Colour of the glass interior at `transmission_depth` |
+| `transmission_depth`  | `0.0`    | 0+           | Distance (scene units) at which `transmission_color` is reached |
+| `ior`                 | `1.5`    | 1+           | Index of refraction (specular and transmission) |
+| `anisotropic`         | `0.0`    | 0--1         | 0 = isotropic, 1 = stretched along the tangent  |
+| `anisotropic_rotation`| `0.0`    | 0--1         | Fraction of 2π rotation around the normal       |
+| `diff_trans`          | `0.0`    | 0--1         | Diffuse transmission fraction (foliage, thin fabric) |
+| `flatness`            | `0.0`    | 0--1         | Blend Lambert → HK-flat diffuse shape           |
+| `thin_walled`         | `false`  | bool         | Skip refraction / double-hit — foliage, paper   |
+| `subsurface_color`    | --       | 0--1 colour  | Tint used by the subsurface / flatness / diff_trans lobes |
+| `thin_film_thickness` | `0.0`    | 0+ (nm)      | Iridescent film thickness (bubbles, opal, AR)   |
+| `thin_film_ior`       | `1.5`    | 1+           | Iridescent film IOR (η₂)                        |
+| `texture`             | --       | --           | Procedural or image texture (replaces color)    |
+| `normal_map`          | --       | --           | Surface detail via normal perturbation          |
+
+> **Texturing every parameter.** Every scalar parameter accepts a
+> `*_texture` variant (e.g. `roughness_texture`) and the three colour
+> inputs (`color`, `transmission_color`, `subsurface_color`) accept a
+> matching `*_texture` block. Example: `roughness_texture: { type: "image", path: "rough.png" }`.
 
 ### How the Parameters Work Together
 
@@ -228,7 +247,21 @@ Think of the Disney material as a layered system:
    diffuses inside. Gives a softer, flatter look to thin objects.
    Used for skin, wax, porcelain, leaves.
 6. **Sheen** (`sheen` > 0): a soft glow at grazing angles. Used for
-   fabric, velvet, some organic materials.
+   fabric, velvet, some organic materials. `sheen_roughness` controls
+   the width of the glow (small values = crisp halo, large = soft wash).
+7. **Anisotropy** (`anisotropic` > 0): stretches the specular highlight
+   along the tangent direction. Brushed metal, hair, vinyl records.
+   Rotate the tangent frame with `anisotropic_rotation`.
+8. **Thin-film iridescence** (`thin_film_thickness` > 0): multiplies the
+   Fresnel by a wavelength-dependent thin-film factor. Soap bubbles,
+   opal, dielectric AR coatings.
+9. **Coloured glass** (`spec_trans > 0` with `transmission_color` and a
+   `transmission_depth > 0`): switches the transmission path to
+   Beer-Lambert absorption, so the light passing through the glass is
+   exponentially tinted with distance (thicker sections are darker).
+10. **Thin-walled surfaces** (`thin_walled: true` with `diff_trans` or
+    `spec_trans`): the engine stops modelling refraction through two
+    interfaces — ideal for leaves, paper, thin fabric, stained-glass.
 
 ### Recipes: Real-World Materials
 
@@ -294,13 +327,90 @@ Think of the Disney material as a layered system:
   subsurface: 0.3
 ```
 
-**Brushed steel:**
+**Brushed steel (anisotropic):**
 ```yaml
 - id: "brushed_steel"
   type: "disney"
   color: [0.7, 0.7, 0.72]
   metallic: 1.0
   roughness: 0.35
+  anisotropic: 0.75
+  anisotropic_rotation: 0.0    # brush aligned with the tangent U direction
+```
+
+**Coloured glass (bottle of brandy):**
+```yaml
+- id: "brandy_glass"
+  type: "disney"
+  color: [1.0, 1.0, 1.0]
+  metallic: 0.0
+  roughness: 0.0
+  spec_trans: 1.0
+  ior: 1.52
+  transmission_color: [0.95, 0.55, 0.15]
+  transmission_depth: 6.0      # the colour is reached after 6 scene units
+```
+
+**Soap bubble (thin-film iridescence):**
+```yaml
+- id: "soap_bubble"
+  type: "disney"
+  color: [1.0, 1.0, 1.0]
+  metallic: 0.0
+  roughness: 0.01
+  spec_trans: 1.0
+  thin_walled: true            # no double refraction
+  thin_film_thickness: 520     # ~520 nm film
+  thin_film_ior: 1.33
+```
+
+**Car paint with Arnold-style clearcoat and a coat normal map:**
+```yaml
+- id: "metallic_pearl"
+  type: "disney"
+  color: [0.05, 0.1, 0.35]
+  metallic: 0.9
+  roughness: 0.25
+  clearcoat: 1.0
+  coat_ior: 1.55
+  coat_roughness: 0.15         # any ≥ 0 value switches to Arnold coat
+  coat_normal_map: "textures/orange_peel_normal.png"
+```
+
+**Velvet with Charlie sheen:**
+```yaml
+- id: "moss_velvet"
+  type: "disney"
+  color: [0.1, 0.25, 0.08]
+  metallic: 0.0
+  roughness: 0.95
+  sheen: 1.0
+  sheen_tint: 1.0
+  sheen_roughness: 0.25        # crisp, slightly narrow halo
+```
+
+**Green leaf (diffuse transmission + thin-walled):**
+```yaml
+- id: "tree_leaf"
+  type: "disney"
+  color: [0.25, 0.5, 0.18]
+  metallic: 0.0
+  roughness: 0.8
+  diff_trans: 0.55             # half of the diffuse energy goes through
+  thin_walled: true
+  subsurface_color: [0.35, 0.65, 0.25]
+```
+
+**Porcelain skin (HK flatness + subsurface tint):**
+```yaml
+- id: "porcelain_skin"
+  type: "disney"
+  color: [0.95, 0.82, 0.76]
+  metallic: 0.0
+  roughness: 0.4
+  subsurface: 0.5
+  subsurface_color: [1.0, 0.55, 0.45]
+  flatness: 0.4
 ```
 
 ---

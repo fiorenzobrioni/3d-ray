@@ -24,8 +24,9 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🚀 **Rendering Parallelo** — sfrutta tutti i core logici della CPU per una scalabilità lineare delle prestazioni.
 - 🔁 **Path Tracing** con rimbalzi multipli configurabili: riflessi, rifrazioni, occlusione ambientale e color bleeding emergono naturalmente dalla simulazione fisica.
 - 📷 **Camera con Depth of Field** — apertura e distanza di messa a fuoco configurabili per effetti bokeh fotorealistici.
-- 🎯 **Next Event Estimation (NEE)** — campionamento diretto delle sorgenti di luce per convergenza più rapida e meno rumore.
+- 🎯 **Next Event Estimation con MIS** — campionamento diretto delle sorgenti di luce con Multiple Importance Sampling (balance heuristic) per un buon comportamento sia su luci piccole e brillanti sia su superfici lucide di materiali complessi.
 - 🧮 **Campionamento Stratificato** — riduce il rumore a parità di campioni totali.
+- 🔢 **Sobol + Owen Scrambling** — sequenza quasi-Monte Carlo a bassa discrepanza (default del motore, selezionabile con `--sampler sobol|prng`); converge più in fretta del PRNG classico su pixel jitter, lens sampling e primi bounce. Il fallback `prng` resta disponibile per scene storiche.
 - 🎲 **Russian Roulette** adattiva — terminazione stocastica dei raggi calibrata sull'illuminazione della scena per efficienza ottimale.
 - 🎞️ **Tone Mapping ACES Filmic** — post-processing cinematografico con highlight naturali e colori ricchi.
 
@@ -57,7 +58,15 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🪞 **Metal** — riflesso speculare con rugosità (`fuzz`) configurabile
 - 💎 **Dielectric** — vetro e trasparenti con rifrazione e riflesso Fresnel
 - 💡 **Emissive** — materiale auto-luminoso; gli oggetti emissivi partecipano automaticamente alla NEE come sorgenti di luce geometriche
-- 🌟 **Disney Principled BSDF** — materiale PBR unificato (`"disney"` / `"pbr"`): un singolo tipo copre plastica, metallo, vetro, vernice auto, tessuto, pelle e qualsiasi combinazione tramite parametri `metallic`, `roughness`, `subsurface`, `specular`, `sheen`, `clearcoat`, `spec_trans` e `ior`
+- 🌟 **Disney Principled BSDF** — materiale PBR unificato (`"disney"` / `"pbr"`): un singolo tipo copre plastica, metallo, vetro, vernice auto, tessuto, pelle, bolle di sapone e qualsiasi combinazione. Parametri classici (`metallic`, `roughness`, `subsurface`, `specular`, `sheen`, `clearcoat`, `spec_trans`, `ior`) più:
+  - **Anisotropia** (`anisotropic`, `anisotropic_rotation`) — highlight allungati stile metallo spazzolato, capelli, vinile.
+  - **Multi-scattering Kulla-Conty** — ricupera l'energia che il singolo bounce GGX disperdeva sulle superfici rugose (gold/rame convincenti anche a roughness alta).
+  - **Beer-Lambert per il vetro** (`transmission_color`, `transmission_depth`) — assorbimento volumetrico con attenuazione esponenziale sulla distanza percorsa: liquori, bottiglie colorate, acque profonde.
+  - **Diffuse transmission & thin-walled** (`diff_trans`, `thin_walled`) — fogli, foglie, tendaggi e paralumi in pochi parametri.
+  - **Subsurface shaping** (`subsurface_color`, `flatness`) — tinte sotto-pelle indipendenti dal `base_color` più la forma "HK flat" di Disney 2015 per pelle, cera e marmo.
+  - **Clearcoat stile Arnold** (`coat_ior`, `coat_roughness`, `coat_normal`) — la vernice trasparente diventa un lobo con IOR e normal map proprie (carrozzerie, lacche, vinile protetto).
+  - **Charlie sheen** (`sheen_roughness`) — microfibra realistica (velluto, pesca, muschio) con il lobo Estevez-Kulla al posto del vecchio Schlick.
+  - **Thin-film iridescence** (`thin_film_thickness`, `thin_film_ior`) — bolle di sapone, opal, anti-riflesso, rivestimenti dicroici via Belcour-Barla 2017.
 - 🔀 **Mix Material** — blending tra due materiali qualsiasi con peso costante o texture mask spaziale (noise, marble, image…). Per effetti di ruggine, usura, transizioni graduali, decal e composizioni ricorsive (mix-of-mix)
 
 ### Texture
@@ -192,6 +201,7 @@ dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
 | `--shadow-samples` | `-S` | *(da YAML)* | Override globale dei shadow samples per tutte le area light. Usa quadrati perfetti (`1, 4, 9, 16`). |
 | `--clamp` | `-C` | `100` | Firefly clamp: massima radianza per-campione prima del tone mapping. Abbassa (es. `25`) per scene problematiche con vetri/nebbia, alza per highlight molto intensi. |
 | `--camera` | `-c` | *(prima camera)* | Seleziona la camera per nome o indice (0-based). |
+| `--sampler` | — | `sobol` | Campionatore per-pixel: `sobol` (Owen-scrambled, default) o `prng` (legacy thread-local). Nessuna differenza di interfaccia scena: cambia solo la sequenza dei numeri casuali. |
 | `--list-cameras` | — | — | Elenca le camere disponibili nella scena ed esce. |
 | `--help` | `-h` | — | Mostra il messaggio di aiuto ed esce. |
 

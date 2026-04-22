@@ -242,6 +242,39 @@ public class SphereLight : ILight
         return (false, Color * attenuation, dirToLight, sampleDist);
     }
 
+    // ── MIS ─────────────────────────────────────────────────────────────────
+    public bool IsDelta => false;
+
+    /// <summary>
+    /// Solid-angle PDF of uniform cone sampling toward the visible cap.
+    /// Returns 1/Ω for directions inside the cone, 0 otherwise.
+    /// </summary>
+    public float PdfSolidAngle(Vector3 hitPoint, Vector3 wi)
+    {
+        Vector3 toCenter = Center - hitPoint;
+        float distSq = toCenter.LengthSquared();
+        float rSq = Radius * Radius;
+
+        if (distSq <= rSq)
+            return 1f / (4f * MathF.PI); // observer inside — full sphere
+
+        float sinThetaMaxSq = rSq / distSq;
+        float cosThetaMax = MathF.Sqrt(MathF.Max(0f, 1f - sinThetaMaxSq));
+
+        float wiLen = wi.Length();
+        if (wiLen < MathUtils.Epsilon)
+            return 0f;
+
+        float dist = MathF.Sqrt(distSq);
+        Vector3 wDir = toCenter / dist;
+        float cosTheta = Vector3.Dot(wi, wDir) / wiLen;
+        if (cosTheta < cosThetaMax)
+            return 0f;
+
+        float solidAngle = 2f * MathF.PI * (1f - cosThetaMax);
+        return solidAngle > MathUtils.Epsilon ? 1f / solidAngle : 0f;
+    }
+
     // ═════════════════════════════════════════════════════════════════════════
     //  Private helpers
     // ═════════════════════════════════════════════════════════════════════════

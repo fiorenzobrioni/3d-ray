@@ -1,0 +1,229 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  disney-materials-showcase.yaml — Le nuove feature del Disney BSDF
+#
+#  Sei sfere allineate su un pavimento semi-lucido, ognuna illustra UNA
+#  feature aggiunta nell'ultimo ciclo di review. Lettura ordinata da
+#  sinistra a destra, nessuna primitiva decorativa che distrae.
+#
+#    1.  Brushed steel            — anisotropic + anisotropic_rotation
+#    2.  Oro rugoso               — Kulla-Conty multi-scattering
+#    3.  Vetro ambrato            — Beer-Lambert (transmission_color/depth)
+#    4.  Bolla di sapone          — thin-film iridescence + thin_walled
+#    5.  Velluto moss             — Charlie sheen (sheen_roughness)
+#    6.  Vernice perla            — coat stile Arnold (coat_ior + coat_roughness)
+#
+#  Illuminazione a tre punti: area key calda dall'alto-destra, area fill
+#  fredda dall'alto-sinistra, rim caldo emissivo posteriore. Cielo
+#  gradient da museo notturno per far stagliare i profili Fresnel.
+#
+#  Render consigliati:
+#    Preview:  -s 64   -d 6  -w 480  -H 270  -S 1
+#    Standard: -s 256  -d 8  -w 960  -H 540
+#    Final:    -s 1024 -d 10 -w 1920 -H 1080 -S 4 --sampler sobol
+#
+#  La bolla iridescente richiede -d ≥ 8: thin_walled attraversa due
+#  interfacce (entrata + uscita) e il thin-film si vede meglio sui raggi
+#  che rimbalzano ancora dopo la bolla.
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  ambient_light: [0.015, 0.018, 0.025]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.015, 0.025, 0.055]
+    horizon_color: [0.12,  0.15,  0.22]
+    ground_color:  [0.02,  0.02,  0.02]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0
+
+camera:
+  position: [0, 3.1, 9.0]
+  look_at:  [0, 0.95, 0]
+  vup:      [0, 1, 0]
+  fov: 42
+  aperture: 0.04
+  focal_dist: 9.0
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  LIGHTS — key calda, fill fredda, rim emissivo
+# ═════════════════════════════════════════════════════════════════════════════
+lights:
+  # Key: area light calda dall'alto-destra
+  - type: "area"
+    corner:    [ 2.0, 5.6,  3.2]
+    u:         [ 2.2, 0.0,  0.0]
+    v:         [ 0.0, 0.0, -2.0]
+    color:     [1.00, 0.92, 0.78]
+    intensity: 32
+    shadow_samples: 9
+
+  # Fill: area light fredda dall'alto-sinistra, più grande e tenue
+  - type: "area"
+    corner:    [-5.5, 4.2,  2.4]
+    u:         [ 2.4, 0.0,  0.0]
+    v:         [ 0.0, 0.0, -1.6]
+    color:     [0.72, 0.82, 1.00]
+    intensity: 14
+    shadow_samples: 9
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═════════════════════════════════════════════════════════════════════════════
+materials:
+
+  # ── Pavimento: calcestruzzo lucido medio-scuro, riflette le sfere ────────
+  - id: "floor"
+    type: "disney"
+    color: [0.16, 0.165, 0.18]
+    metallic: 0.0
+    roughness: 0.28
+    specular: 0.5
+
+  # ── Pannello di fondo: basalto opaco per chiudere la scena ───────────────
+  - id: "backdrop"
+    type: "lambertian"
+    color: [0.08, 0.08, 0.10]
+
+  # ── Rim emissivo caldo, intenso ma piccolo ───────────────────────────────
+  - id: "rim_warm"
+    type: "emissive"
+    color: [1.00, 0.55, 0.25]
+    intensity: 6.0
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  1. BRUSHED STEEL — anisotropic GGX con frame tangente ruotato
+  #     L'highlight si allunga lungo la verticale della sfera (rotation=0.25
+  #     corrisponde a un quarto di giro ≈ π/2).
+  # ═════════════════════════════════════════════════════════════════════════
+  - id: "brushed_steel"
+    type: "disney"
+    color: [0.78, 0.80, 0.82]
+    metallic: 1.0
+    roughness: 0.28
+    anisotropic: 0.85
+    anisotropic_rotation: 0.25
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  2. ORO RUGOSO — Kulla-Conty multi-scattering compensation
+  #     A roughness 0.7 lo Smith single-scatter perderebbe ~25% di energia:
+  #     la compensazione di secondo bounce mantiene il colore saturo invece
+  #     di farlo virare su un oro "sporco" e bruno.
+  # ═════════════════════════════════════════════════════════════════════════
+  - id: "rough_gold"
+    type: "disney"
+    color: [1.00, 0.78, 0.35]
+    metallic: 1.0
+    roughness: 0.70
+    specular: 0.6
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  3. VETRO AMBRATO — Beer-Lambert lungo il cammino interno
+  #     transmission_color indica il colore del vetro visto attraverso
+  #     transmission_depth unità di materiale: σ_a = −ln(color) / depth.
+  #     Il centro della sfera (2·r = 1.8 unità) esce più saturo del bordo.
+  # ═════════════════════════════════════════════════════════════════════════
+  - id: "amber_glass"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    metallic: 0.0
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.52
+    transmission_color: [0.98, 0.55, 0.12]
+    transmission_depth: 1.5
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  4. BOLLA DI SAPONE — thin-film iridescence + thin_walled
+  #     Spessore ≈ 520 nm = banda di interferenza centrata sul verde/magenta;
+  #     thin_walled evita la doppia rifrazione e rende la bolla un guscio.
+  # ═════════════════════════════════════════════════════════════════════════
+  - id: "soap_bubble"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    metallic: 0.0
+    roughness: 0.02
+    spec_trans: 1.0
+    ior: 1.33
+    thin_walled: true
+    thin_film_thickness: 520
+    thin_film_ior: 1.33
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  5. VELLUTO MOSS — Charlie sheen (Estevez-Kulla 2017)
+  #     Base quasi-Lambertiana; lo sheen disegna la corona radente della
+  #     microfibra. sheen_roughness=0.28 ⇒ halo stretto e definito.
+  # ═════════════════════════════════════════════════════════════════════════
+  - id: "moss_velvet"
+    type: "disney"
+    color: [0.13, 0.27, 0.10]
+    metallic: 0.0
+    roughness: 0.95
+    sheen: 1.0
+    sheen_tint: 0.7
+    sheen_roughness: 0.28
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  6. VERNICE PERLA — coat stile Arnold (coat_ior + coat_roughness)
+  #     Base metallic blu scuro + clearcoat indipendente con IOR esplicita
+  #     1.55 (lacca automotive) e roughness 0.08. coat_roughness ≥ 0
+  #     abilita il percorso Arnold al posto del legacy clearcoat_gloss.
+  # ═════════════════════════════════════════════════════════════════════════
+  - id: "pearl_paint"
+    type: "disney"
+    color: [0.04, 0.09, 0.32]
+    metallic: 0.85
+    roughness: 0.22
+    specular: 0.6
+    clearcoat: 1.0
+    coat_ior: 1.55
+    coat_roughness: 0.08
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═════════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ── Pannello di fondo: box sottile dietro le sfere per tagliare il cielo ─
+  - type: "box"
+    material: "backdrop"
+    scale:     [18.0, 4.0, 0.4]
+    translate: [ 0.0, 2.0, -3.0]
+
+  # ── Rim emissivo sopra il pannello (strip orizzontale) ───────────────────
+  - type: "box"
+    material: "rim_warm"
+    scale:     [13.0, 0.20, 0.08]
+    translate: [ 0.0, 3.85, -2.80]
+
+  # ── SFERE — raggio 0.9, centro a y=0.9, passo 2.2 su X ───────────────────
+  - type: "sphere"
+    material: "brushed_steel"
+    center: [-5.5, 0.9, 0.0]
+    radius: 0.9
+
+  - type: "sphere"
+    material: "rough_gold"
+    center: [-3.3, 0.9, 0.0]
+    radius: 0.9
+
+  - type: "sphere"
+    material: "amber_glass"
+    center: [-1.1, 0.9, 0.0]
+    radius: 0.9
+
+  - type: "sphere"
+    material: "soap_bubble"
+    center: [ 1.1, 0.9, 0.0]
+    radius: 0.9
+
+  - type: "sphere"
+    material: "moss_velvet"
+    center: [ 3.3, 0.9, 0.0]
+    radius: 0.9
+
+  - type: "sphere"
+    material: "pearl_paint"
+    center: [ 5.5, 0.9, 0.0]
+    radius: 0.9

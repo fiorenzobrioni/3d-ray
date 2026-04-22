@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Linq;
 using RayTracer.Core;
+using RayTracer.Core.Sampling;
 using RayTracer.Geometry;
 using RayTracer.Lights;
 using RayTracer.Materials;
@@ -18,7 +19,8 @@ public class Renderer
     private readonly SkySettings _sky;
     private readonly int _maxDepth;
     private readonly int _samplesPerPixel;
-    private readonly HashSet<Emissive> _registeredEmitterMaterials;
+    private readonly Dictionary<Emissive, ILight> _emitterToLight;
+    private readonly EnvironmentLight? _envLight;
     private readonly IMedium? _globalMedium;
 
     // ── Russian Roulette configuration ──────────────────────────────────────
@@ -100,10 +102,21 @@ public class Renderer
         _rrMinBounces  = isIndirectDominant ? RR_MinBounces_Indirect  : RR_MinBounces_Normal;
         _rrMinSurvival = isIndirectDominant ? RR_MinSurvival_Indirect : RR_MinSurvival_Normal;
 
-        _registeredEmitterMaterials = lights
-            .OfType<GeometryLight>()
-            .Select(gl => gl.Material)
-            .ToHashSet();
+        _emitterToLight = new Dictionary<Emissive, ILight>();
+        foreach (var gl in lights.OfType<GeometryLight>())
+        {
+            // Last-write-wins if the same material is shared across multiple
+            // geometry lights — that's degenerate and not expected in practice.
+            _emitterToLight[gl.Material] = gl;
+        }
+        _envLight = lights.OfType<EnvironmentLight>().FirstOrDefault();
+
+        // Pre-warm the Kulla-Conty energy-compensation LUT on the construction
+        // thread. Without this, the table is built lazily on first access,
+        // which in the multi-threaded render path can saturate the shared
+        // ThreadPool and deadlock. Pre-warming also moves the (~few-hundred-ms)
+        // build cost out of the wall-clock render time and into Renderer setup.
+        EnergyCompensationLut.Prewarm();
         
         if (isIndirectDominant)
         {
@@ -135,11 +148,27 @@ public class Renderer
             {
                 Vector3 cumulativeColor = Vector3.Zero;
 
+                // Per-pixel scramble seed: combine pixel coordinates so each
+                // pixel walks an independent Owen-scrambled sequence. Without
+                // this, every pixel would start from the same Sobol prefix
+                // and the resulting Moiré would be more visible than plain
+                // PRNG noise — the very failure mode Owen scrambling exists
+                // to fix.
+                uint pixelSeed = (uint)(i * 73856093) ^ (uint)(j * 19349663);
+
                 // Stratified sampling: divide pixel into sqrtSpp x sqrtSpp grid
                 for (int sy = 0; sy < sqrtSpp; sy++)
                 {
                     for (int sx = 0; sx < sqrtSpp; sx++)
                     {
+                        // Open the per-pixel-sample low-discrepancy context.
+                        // Sobol uses dimensions 0..N to draw camera-jitter,
+                        // BSDF, light and volumetric samples in declaration
+                        // order; PRNG mode is a no-op so the legacy path stays
+                        // hot.
+                        uint sampleIndex = (uint)(sy * sqrtSpp + sx);
+                        Sampler.BeginPixelSample(pixelSeed, sampleIndex);
+
                         float jitterU = (sx + MathUtils.RandomFloat()) * invSqrtSpp;
                         float jitterV = (sy + MathUtils.RandomFloat()) * invSqrtSpp;
 
@@ -147,7 +176,11 @@ public class Renderer
                         float v = (height - j - 1 + jitterV) / height;
 
                         var ray = _camera.GetRay(u, v);
-                        Vector3 sample = TraceRay(ray, _maxDepth, prevUsedNee: false);
+                        // Camera rays: treat as "delta" so emission at the primary
+                        // hit is shown at full weight.
+                        Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true);
+
+                        Sampler.EndPixelSample();
 
                         // ── Firefly suppression ────────────────────────────
                         // Clamp individual sample radiance to prevent outliers
@@ -224,106 +257,209 @@ public class Renderer
     // CORE PATH TRACER
     // ═════════════════════════════════════════════════════════════════════════
 
-    private Vector3 ShadeSurface(Ray ray, HitRecord rec, int depth, bool prevUsedNee)
-    { 
-        // ── Material properties ─────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // Multiple Importance Sampling (Veach, balance heuristic)
+    //
+    // Each bounce threads forward (prevBsdfPdf, prevIsDelta) to the next
+    // ShadeSurface / sky miss. This encodes three cases:
+    //
+    //   prevIsDelta = true                 Emission is shown at full weight.
+    //                                      Used for camera rays and for pure-
+    //                                      delta BSDF samples (mirror / perfect
+    //                                      refraction) that cannot participate
+    //                                      in MIS with area lights.
+    //
+    //   prevIsDelta = false, pdf > 0       Proper MIS balance-heuristic weight
+    //                                      on any emission. w_bsdf = pdf /
+    //                                      (pdf + p_light). Used for materials
+    //                                      that expose IMaterial.Sample() and
+    //                                      return a non-delta reflection sample
+    //                                      (Disney BSDF today).
+    //
+    //   prevIsDelta = false, pdf = 0       Legacy "NEE replaced emission" mode
+    //                                      for materials that only expose
+    //                                      Scatter() (Lambert, Metal, Dielectric).
+    //                                      Emission from NEE-registered emitters
+    //                                      is zeroed; unregistered emissives keep
+    //                                      their full emission. This preserves
+    //                                      the pre-MIS behavior without double-
+    //                                      counting until those materials are
+    //                                      migrated to the Sample() API.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private Vector3 ShadeSurface(Ray ray, HitRecord rec, int depth,
+                                  float prevBsdfPdf, bool prevIsDelta,
+                                  Vector3 currentAbsorption)
+    {
         IMaterial? material = rec.Material;
- 
+
         // ── Normal map perturbation ─────────────────────────────────────────
         if (material?.NormalMap != null && rec.Tangent.LengthSquared() > 0.5f)
         {
             ApplyNormalMap(ref rec, material.NormalMap);
         }
- 
-        float diffuseWeight = material?.DiffuseWeight ?? 1f;
-        float specExponent  = material?.SpecularExponent ?? 0f;
-        float specStrength  = material?.SpecularStrength ?? 0f;
- 
-        // ── Emission ────────────────────────────────────────────────────────
-        // Double-counting guard:
-        //   When prevUsedNee=true the previous surface was diffuse and fired NEE,
-        //   which already sampled this emitter's direct contribution. Adding Emit()
-        //   again here would count the same light twice.
-        //
-        //   We suppress emission ONLY for emitters registered in GeometryLight
-        //   (i.e. those that NEE can actually reach). Unregistered emissives
-        //   (e.g. back-faces, non-ISamplable objects) always emit normally.
-        //
-        //   Camera → emitter directly: prevUsedNee=false → emission shown. ✓
-        //   Mirror  → emitter:         prevUsedNee=false (specular, no NEE) → shown. ✓
-        //   Diffuse → emitter (NEE on): prevUsedNee=true → suppressed. ✓
+
+        // ── Emission (MIS-weighted) ─────────────────────────────────────────
         Vector3 emitted = Vector3.Zero;
         if (material != null)
         {
-            bool suppressEmission = prevUsedNee
-                && material is Emissive em
-                && _registeredEmitterMaterials.Contains(em);
- 
-            if (!suppressEmission)
-                emitted = material.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
+            Vector3 raw = material.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
+            if (raw.X > 0f || raw.Y > 0f || raw.Z > 0f)
+            {
+                emitted = WeightEmission(raw, material, ray, prevBsdfPdf, prevIsDelta);
+            }
         }
- 
-        // ── Direct lighting (Next Event Estimation) ─────────────────────────
-        // Pure emitters (diffuseWeight = 0, specExponent = 0) do NOT receive
-        // external illumination — they are the light source. Adding ambient to
-        // them would double-bias the emission. Only non-emissive hits carry the
-        // ambient fill and fire NEE.
-        bool needsLightSampling = (diffuseWeight > 0f) || (specExponent > 0f);
+
+        // ── Direct lighting (Next Event Estimation, MIS-weighted) ───────────
+        bool needsLightSampling = material?.NeedsDirectLighting ?? true;
         Vector3 directLight = needsLightSampling
             ? ComputeDirectLighting(rec, ray, material)
             : Vector3.Zero;
- 
-        // ── Scatter (indirect lighting) ─────────────────────────────────────
-        if (material != null && material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
+
+        if (material == null)
+            return emitted + directLight;
+
+        // ── Indirect bounce ─────────────────────────────────────────────────
+        // Prefer the Sample() API when the material implements it — it gives
+        // us a well-defined BSDF PDF for MIS at the next bounce. Fall back to
+        // Scatter() for legacy materials (Lambert, Metal, Dielectric, Mix)
+        // which still use the IsDeltaScatter-encoded suppression convention.
+        Vector3 viewDir = Vector3.Normalize(-ray.Direction);
+        BsdfSample? mis = material.Sample(viewDir, rec);
+        if (mis.HasValue)
         {
-            // ── Russian Roulette ────────────────────────────────────────────
+            return ShadeSampleBounce(material, rec, mis.Value, depth, emitted, directLight,
+                                     currentAbsorption);
+        }
+
+        if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
+        {
             int bouncesUsed = _maxDepth - depth;
             if (bouncesUsed >= _rrMinBounces)
             {
                 float survivalProb = MathF.Max(MathUtils.Luminance(attenuation), _rrMinSurvival);
                 survivalProb = MathF.Min(survivalProb, 0.95f);
- 
                 if (MathUtils.RandomFloat() > survivalProb)
                     return emitted + attenuation * directLight;
- 
                 attenuation /= survivalProb;
             }
- 
-            // Skip indirect recursion for near-black materials (optimisation)
+
             if (attenuation.LengthSquared() < 0.001f)
                 return emitted + directLight * attenuation;
- 
-            // Pass prevUsedNee for the next bounce's double-counting guard.
-            //
-            // Only suppress emission when THIS surface has a diffuse NEE
-            // component (diffuseWeight > 0). The diffuse lobe's NEE properly
-            // samples emitters via ComputeDirectLighting — adding the emitter's
-            // Emit() on the next bounce would double-count that energy.
-            //
-            // Purely specular surfaces (Dielectric, smooth Metal with fuzz=0)
-            // have diffuseWeight=0. Their NEE is just a small approximation
-            // (Blinn-Phong glint or narrow GGX peak) that does NOT replace the
-            // traced reflected ray as the primary path to see emissive objects.
-            // Suppressing emission on reflected rays would make glass and mirrors
-            // unable to reflect registered emissive lights → black reflections.
-            //
-            // This decouples "needs NEE for direct lighting" (needsLightSampling)
-            // from "NEE properly replaces the emitter contribution" (diffuseWeight > 0).
-            bool neeReplacesEmission = diffuseWeight > 0f;
-            Vector3 indirect = TraceRay(scattered, depth - 1, prevUsedNee: neeReplacesEmission);
+
+            // IsDeltaScatter materials (mirror/refraction) emit a delta bounce,
+            // so emission passes through at full weight at the next hit. Non-
+            // delta Scatter materials rely on the legacy "NEE replaced emission"
+            // convention (prevBsdfPdf = 0) to suppress double-counting.
+            bool nextIsDelta = material.IsDeltaScatter;
+            // Legacy Scatter materials don't participate in volume stacking —
+            // they don't emit medium-switch signals. Pass through the incoming
+            // currentAbsorption so any enclosing Disney-glass interior still
+            // absorbs along the continued ray segment.
+            Vector3 indirect = TraceRay(scattered, depth - 1,
+                                         prevBsdfPdf: 0f, prevIsDelta: nextIsDelta,
+                                         currentAbsorption: currentAbsorption);
             return emitted + attenuation * (directLight + indirect);
         }
- 
-        // No scatter (fully absorbed) — return direct light contribution only
+
         return emitted + directLight;
+    }
+
+    /// <summary>
+    /// Handles an indirect bounce using the material.Sample() path — produces
+    /// a direction with an explicit BSDF PDF, applies Russian Roulette, and
+    /// recurses into TraceRay with the MIS metadata.
+    /// </summary>
+    private Vector3 ShadeSampleBounce(IMaterial material, HitRecord rec,
+                                       BsdfSample s, int depth,
+                                       Vector3 emitted, Vector3 directLight,
+                                       Vector3 currentAbsorption)
+    {
+        Vector3 attenuation;
+        if (s.IsDelta)
+        {
+            // Delta lobe: F already carries the full attenuation (Fresnel ×
+            // baseColor tint for transmission, etc.). No cos or pdf factor.
+            attenuation = s.F;
+        }
+        else
+        {
+            float NdotWo = Vector3.Dot(rec.Normal, s.Wo);
+            if (NdotWo <= 0f || s.Pdf <= 0f)
+                return emitted + directLight;
+            attenuation = s.F * NdotWo / s.Pdf;
+        }
+
+        if (attenuation.LengthSquared() < 0.001f)
+            return emitted + directLight * attenuation;
+
+        int bouncesUsed = _maxDepth - depth;
+        if (bouncesUsed >= _rrMinBounces)
+        {
+            float survivalProb = MathF.Max(MathUtils.Luminance(attenuation), _rrMinSurvival);
+            survivalProb = MathF.Min(survivalProb, 0.95f);
+            if (MathUtils.RandomFloat() > survivalProb)
+                return emitted + attenuation * directLight;
+            attenuation /= survivalProb;
+        }
+
+        // Offset ray origin on the side of the normal that matches the outgoing
+        // direction — transmission bounces sit on the far side of the surface.
+        Vector3 offsetDir = Vector3.Dot(s.Wo, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
+        var scattered = new Ray(MathUtils.OffsetOrigin(rec.Point, offsetDir), s.Wo);
+
+        float nextPdf = s.IsDelta ? 0f : s.Pdf;
+        bool nextIsDelta = s.IsDelta;
+        // Interior-medium switch: refraction samples emit NextSegmentAbsorption
+        // to tell the renderer to switch the σ_a tracked along the next segment
+        // (entering glass → σ_a; exiting → vacuum). Reflection samples keep
+        // the caller's currentAbsorption untouched.
+        Vector3 nextAbsorption = s.NextSegmentAbsorption ?? currentAbsorption;
+        Vector3 indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
+                                     currentAbsorption: nextAbsorption);
+        return emitted + attenuation * (directLight + indirect);
+    }
+
+    /// <summary>
+    /// Applies the balance-heuristic MIS weight to surface emission at the
+    /// current hit — the "BSDF-sample hit a light" half of Veach's estimator.
+    /// </summary>
+    private Vector3 WeightEmission(Vector3 rawEmission, IMaterial material, Ray ray,
+                                    float prevBsdfPdf, bool prevIsDelta)
+    {
+        if (prevIsDelta)
+            return rawEmission;
+
+        if (material is Emissive em && _emitterToLight.TryGetValue(em, out var light))
+        {
+            float pLight = light.PdfSolidAngle(ray.Origin, ray.Direction);
+            float denom = prevBsdfPdf + pLight;
+            if (denom <= 1e-20f)
+                return Vector3.Zero;
+            float wBsdf = prevBsdfPdf / denom;
+            return rawEmission * wBsdf;
+        }
+
+        // Unregistered emitter (no NEE sampler could reach it) — full weight.
+        return rawEmission;
     }
 
     /// <summary>
     /// Top-level radiance estimator. Decides between the surface-only path
     /// (no medium → bit-identical to pre-volumetric builds) and the volumetric
     /// path (homogeneous global medium with Beer-Lambert + free-path sampling).
+    ///
+    /// <paramref name="currentAbsorption"/> is the Beer-Lambert coefficient
+    /// σ_a of whatever medium the ray is currently traversing (zero vector
+    /// = vacuum, populated by refractive Disney samples when the ray enters
+    /// a dielectric interior). A non-zero value multiplies the returned
+    /// radiance by exp(-σ_a · t) where t is the distance the ray travelled
+    /// before its next interaction. The global <see cref="_globalMedium"/>
+    /// stacks multiplicatively with this interior absorption — they track
+    /// independent media and are accumulated in series.
     /// </summary>
-    private Vector3 TraceRay(Ray ray, int depth, bool prevUsedNee)
+    private Vector3 TraceRay(Ray ray, int depth, float prevBsdfPdf, bool prevIsDelta,
+                             Vector3 currentAbsorption = default)
     {
         if (depth <= 0) return Vector3.Zero;
 
@@ -331,12 +467,16 @@ public class Renderer
         bool hit = _world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
 
         // ── Surface-only fast path (no medium) ──────────────────────────────
-        // Consumes zero extra random numbers → output is bit-identical to the
-        // pre-volumetric renderer when world.medium is absent.
         if (_globalMedium == null)
         {
-            if (!hit) return CalculateSkyColor(ray);
-            return ShadeSurface(ray, rec, depth, prevUsedNee);
+            Vector3 result = !hit
+                ? SampleSky(ray, prevBsdfPdf, prevIsDelta)
+                : ShadeSurface(ray, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption);
+            // Beer-Lambert along the segment just traversed. Sky miss with
+            // non-zero σ_a means the ray escaped the bounded medium — the
+            // exp(-σ_a · ∞) is zero for any absorbing channel, so we collapse
+            // it to black; the common vacuum case skips this entirely.
+            return ApplyBeerLambert(result, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
         }
 
         // ── Volumetric path ─────────────────────────────────────────────────
@@ -352,8 +492,6 @@ public class Renderer
             Vector3 Lnee = ComputeDirectLightingMedium(p, ray.Direction);
 
             // ── Russian Roulette on the indirect (phase-sampled) bounce ─────
-            // Applied only to the recursive continuation, not to Lnee, so the
-            // estimator stays unbiased regardless of the kill/survive outcome.
             Vector3 Lind = Vector3.Zero;
             int bouncesUsedS = _maxDepth - depth;
             float indirectScale = 1f;
@@ -368,24 +506,67 @@ public class Renderer
 
             if (!killIndirect)
             {
-                // Indirect: importance-sample the phase function.
-                // We keep phase/pdf explicit so future phase functions where
-                // Sample.Pdf ≠ Evaluate (e.g. multi-lobe / truncated) remain
-                // unbiased. For Isotropic and HG this factor collapses to 1.
+                // Indirect: importance-sample the phase function. Phase-MIS is
+                // not implemented yet — the recursive call uses legacy "NEE
+                // replaced emission" semantics (prevBsdfPdf=0, prevIsDelta=false)
+                // so the next hit's registered emission is suppressed to avoid
+                // double-counting with ComputeDirectLightingMedium above.
                 var (wi, phasePdf) = _globalMedium.Phase.Sample(ray.Direction);
                 float phaseVal = _globalMedium.Phase.Evaluate(ray.Direction, wi);
                 float phaseWeight = phasePdf > 1e-20f ? phaseVal / phasePdf : 0f;
                 Lind = phaseWeight * indirectScale
-                     * TraceRay(new Ray(p, wi), depth - 1, prevUsedNee: true);
+                     * TraceRay(new Ray(p, wi), depth - 1,
+                                 prevBsdfPdf: 0f, prevIsDelta: false,
+                                 currentAbsorption: currentAbsorption);
             }
 
-            return beta * (Lnee + Lind);
+            return ApplyBeerLambert(beta * (Lnee + Lind), currentAbsorption, tMed);
         }
 
         // No medium event before tMax → continue with surface (or sky) shading,
         // attenuated by the medium throughput beta = Tr / pdf.
-        if (!hit) return beta * CalculateSkyColor(ray);
-        return beta * ShadeSurface(ray, rec, depth, prevUsedNee);
+        Vector3 surfaceOrSky = !hit
+            ? beta * SampleSky(ray, prevBsdfPdf, prevIsDelta)
+            : beta * ShadeSurface(ray, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption);
+        return ApplyBeerLambert(surfaceOrSky, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
+    }
+
+    /// <summary>
+    /// exp(-σ_a · t) per channel. Vacuum (σ_a = 0) short-circuits the exp()
+    /// calls; an infinite segment with any non-zero σ_a collapses the channel
+    /// to zero (the ray was inside a bounded medium but didn't hit its
+    /// boundary — treat as fully absorbed).
+    /// </summary>
+    private static Vector3 ApplyBeerLambert(Vector3 radiance, Vector3 sigma, float t)
+    {
+        if (sigma.X <= 0f && sigma.Y <= 0f && sigma.Z <= 0f) return radiance;
+        if (float.IsPositiveInfinity(t)) return Vector3.Zero;
+        if (t <= 0f) return radiance;
+        return radiance * new Vector3(
+            sigma.X > 0f ? MathF.Exp(-sigma.X * t) : 1f,
+            sigma.Y > 0f ? MathF.Exp(-sigma.Y * t) : 1f,
+            sigma.Z > 0f ? MathF.Exp(-sigma.Z * t) : 1f);
+    }
+
+    /// <summary>
+    /// Evaluates the sky for a missed ray and applies the MIS weight for the
+    /// "BSDF-sample escaped into the environment" half of the estimator.
+    /// </summary>
+    private Vector3 SampleSky(Ray ray, float prevBsdfPdf, bool prevIsDelta)
+    {
+        Vector3 sky = CalculateSkyColor(ray);
+
+        // When the sky isn't registered as an NEE light, or this is a delta
+        // bounce / camera ray, show it at full weight — nothing else sampled it.
+        if (prevIsDelta || _envLight == null || !_envLight.Sky.CanSampleDirectly)
+            return sky;
+
+        float pLight = _envLight.PdfSolidAngle(ray.Origin, ray.Direction);
+        float denom = prevBsdfPdf + pLight;
+        if (denom <= 1e-20f)
+            return Vector3.Zero;
+        float wBsdf = prevBsdfPdf / denom;
+        return sky * wBsdf;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -396,11 +577,18 @@ public class Renderer
     /// Computes direct illumination from all lights at a surface hit point.
     ///
     /// 0. Ambient fill — applied unconditionally to all materials.
-    /// 1. Per-light: shadow test + material.EvaluateDirect(toLight, toEye, normal).
-    ///    EvaluateDirect encapsulates the BRDF shape (Lambert N·L + Fresnel-boosted
-    ///    Blinn-Phong), replacing the previous hard-coded diffuseWeight/specExponent/
-    ///    specStrength triple. Each material provides its own physically-calibrated
-    ///    implementation; the default in IMaterial matches the previous behaviour.
+    /// 1. Per-light, per-shadow-sample:
+    ///    - shadow test + stratified emitter sample
+    ///    - material.EvaluateDirect(toLight, toEye, normal) for the BRDF shape
+    ///    - balance-heuristic MIS weight w_nee = p_light / (p_light + p_bsdf)
+    ///      using the material's own IMaterial.Pdf() in solid angle.
+    ///
+    /// For delta lights (point/directional/spot) no BSDF sampler can reach them,
+    /// so w_nee = 1 unconditionally. For materials that do not implement Pdf()
+    /// (Lambert, Metal, Dielectric, Mix) the default IMaterial.Pdf returns 0,
+    /// which also yields w_nee = 1 — equivalent to the pre-MIS behavior and
+    /// unbiased when paired with those materials' Scatter() legacy emission
+    /// suppression.
     ///
     /// The material albedo/color is NOT included in EvaluateDirect — it is applied
     /// by TraceRay via the scatter attenuation, keeping direct and indirect paths
@@ -408,25 +596,22 @@ public class Renderer
     /// </summary>
     private Vector3 ComputeDirectLighting(HitRecord rec, Ray incomingRay, IMaterial? material)
     {
-        // ── Ambient fill ────────────────────────────────────────────────────
-        // Applied to ALL materials: diffuse, metal, glass.
-        // Not gated by diffuseWeight — a mirror in a room reflects ambient light.
         Vector3 result = _ambientLight;
- 
+
         Vector3 viewDir = Vector3.Normalize(-incomingRay.Direction);
- 
+
         foreach (var light in _lights)
         {
             int samples = light.ShadowSamples;
             Vector3 lightAccum = Vector3.Zero;
- 
+
             for (int s = 0; s < samples; s++)
             {
                 bool inShadow;
                 Vector3 lightColor;
                 Vector3 dirToLight;
                 float distance;
- 
+
                 if (light is AreaLight areaLight)
                 {
                     (inShadow, lightColor, dirToLight, distance) =
@@ -447,15 +632,12 @@ public class Renderer
                     (inShadow, lightColor, dirToLight, distance) =
                         light.IlluminateAndTest(rec.Point, rec.Normal, _world);
                 }
- 
+
                 if (inShadow) continue;
 
-                // EvaluateDirect: BRDF shape factor (diffuse N·L + specular with Fresnel).
                 Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
                                ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f));
 
-                // Volumetric attenuation along the shadow ray (Beer-Lambert).
-                // No-op when there is no global medium → bit-identical to surface-only path.
                 Vector3 Tr = Vector3.One;
                 if (_globalMedium != null)
                 {
@@ -464,14 +646,28 @@ public class Renderer
                     Tr = _globalMedium.Transmittance(shadowRay, shadowDist);
                 }
 
-                lightAccum += lightColor * brdf * Tr;
+                // ── MIS balance-heuristic weight ────────────────────────────
+                // Delta lights: always weight 1 (no BSDF sampler can hit them).
+                // Non-delta lights: if the material exposes Pdf() > 0, the
+                // weight reduces variance via Veach's balance heuristic.
+                float wNee = 1f;
+                if (!light.IsDelta && material != null)
+                {
+                    float pBsdf = material.Pdf(viewDir, dirToLight, rec);
+                    if (pBsdf > 0f)
+                    {
+                        float pLight = light.PdfSolidAngle(rec.Point, dirToLight);
+                        float denom = pLight + pBsdf;
+                        wNee = denom > 0f ? pLight / denom : 1f;
+                    }
+                }
+
+                lightAccum += wNee * lightColor * brdf * Tr;
             }
- 
-            // AreaLight pre-divides by ShadowSamples in its energy formula → sum (not average).
-            // Point/Directional/Spot always have ShadowSamples=1 → loop runs once.
+
             result += lightAccum;
         }
- 
+
         return result;
     }
 

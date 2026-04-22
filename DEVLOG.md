@@ -89,7 +89,16 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 | 10 | Sphere Light | ✅ Completato |
 | 11 | Scene Graph / Groups | ✅ Completato |
 
-**6. Disney BSDF / PBR ✅** — Materiale unificato con sampling stocastico a 5 lobi (diffuse, specular GGX, transmission, sheen, clearcoat). Pesi calibrati su F₀ per minimizzare la varianza. GGX importance sampling per specular e clearcoat. Frosted glass con campionamento di micronormali GGX. Consistenza energetica direct/indirect tramite Cook-Torrance analitico in `EvaluateDirect`.
+**6. Disney BSDF / PBR ✅** — Materiale unificato con sampling stocastico multi-lobo:
+- **Lobi base**: diffuse, specular GGX, clearcoat, transmission.
+- **Multi-scattering Kulla-Conty** — recupero energia dispersa dal singolo bounce GGX (LUT E(μ, α) 32×32 lazy-initialised con guardia anti-deadlock sul thread pool).
+- **Anisotropia GGX** (`anisotropic`, `anisotropic_rotation`) con VNDF sampling e shading frame tangente-aware.
+- **Beer-Lambert per la trasmissione** (`transmission_color`, `transmission_depth`) — assorbimento volumetrico all'interno del vetro via medium-switch su `BsdfSample.NextSegmentAbsorption`.
+- **Disney 2015: thin_walled, diff_trans, flatness, subsurface_color** — lobo di diffuse transmission (foglie, fogli, tendaggi), blend "HK flat" e tinte sotto-pelle indipendenti dal `base_color`.
+- **Clearcoat stile Arnold** (`coat_ior`, `coat_roughness`, `coat_normal`) — lobo di coat con IOR esplicita e normal map dedicata (fallback al classico `clearcoat_gloss` di Disney 2012 quando l'artista non forza la roughness).
+- **Charlie sheen** (`sheen_roughness`) — fitting Estevez-Kulla 2017 (NDF invertita + Λ polinomiale) che rimpiazza lo Schlick approssimato.
+- **Thin-film iridescence** (`thin_film_thickness`, `thin_film_ior`) — Belcour-Barla 2017 per bolle di sapone, opal, AR coating.
+- Pesi di lobo calibrati e coerenti tra `Sample` / `Evaluate` / `Pdf` per un MIS corretto (furnace / reciprocity test nella suite `DisneyBsdfTests`).
 
 **7. OBJ Mesh Loader ✅** — Parser Wavefront OBJ con smooth normals (interpolazione Phong), artist UV, TBN da gradiente UV per normal mapping, BVH interno dedicato. Supporta `v/vt/vn`, indici negativi, quad auto-triangolati. Alias YAML: `"mesh"`, `"obj"`.
 
@@ -110,15 +119,18 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 | # | Feature | Stato |
 |---|---------|-------|
 | 12 | Importance Sampling | ✅ Completato |
-| 13 | Multi-Importance Sampling | ⬜ Da fare |
+| 13 | Multi-Importance Sampling | ✅ Completato |
 | 14 | Adaptive Sampling | ⬜ Da fare |
 | 15 | Tile-based Rendering | ⬜ Da fare |
 | 16 | Denoiser | ⬜ Da fare |
 | 17 | HDR Output (EXR/PFM) | ⬜ Da fare |
+| +  | Sobol + Owen Scrambling Sampler | ✅ Completato |
 
 **12. Importance Sampling ✅** — GGX importance sampling in `Metal` e `DisneyBsdf` (specular, clearcoat, transmission). Environment map importance sampling via CDF 2D. Il diffuse usa cosine-weighted sampling by construction.
 
-**13. Multi-Importance Sampling ⬜** — Balance heuristic (Veach) tra NEE e BSDF sampling. Attualmente i contributi diretti e indiretti sono sommati indipendentemente. Dipende da: #12.
+**13. Multi-Importance Sampling ✅** — Balance heuristic (Veach) tra NEE (sampling della luce) e BSDF sampling (sampling del materiale). `IMaterial` espone ora la tripla simmetrica `Evaluate(V, L)` / `Pdf(V, L)` / `Sample(V)` implementata dal `DisneyBsdf`; il Renderer propaga la `prevBsdfPdf` + `prevIsDelta` lungo il path, pesa l'emissione al prossimo hit con la balance heuristic e combina NEE con il BSDF PDF dentro `ComputeDirectLighting`. Le luci espongono `IsDelta` e `PdfSolidAngle` per chiudere il cerchio. I materiali "legacy" (Lambert/Metal/Dielectric/Mix) continuano a usare solo `Scatter` ma con semantica di delta / non-delta pulita (`IsDeltaScatter`) al posto dei vecchi campi Blinn-Phong.
+
+**Sampler Sobol + Owen Scrambling ✅** — Sequenza quasi-Monte Carlo a bassa discrepanza (tabelle Joe-Kuo, scrambling hash-based di Burley 2020) selezionabile con `--sampler sobol` (default: `prng` per retro-compatibilità). Riduce varianza nel campionamento di pixel, lens, AA e dei primi bounce rispetto al PRNG; senza `--sampler sobol` il renderer è bit-identico al comportamento precedente.
 
 **14. Adaptive Sampling ⬜** — Campionamento per pixel basato sulla varianza. Pixel convergenti terminano in anticipo. Dipende da: #15.
 
@@ -225,6 +237,37 @@ Richiedono modifiche a `IMedium` / `HitRecord` / `Renderer.TraceRay` e perciò s
 #15 Tile-based   ──► #14 Adaptive Sampling
                  ──► #16 Denoiser
 ```
+
+---
+
+## 🗓️ Ciclo di Review — Disney BSDF & Sampling (Apr 2026)
+
+Riepilogo delle feature atterrate in questo ciclo (branch
+`claude/review-disney-materials-QO2mO`):
+
+- **MIS balance heuristic** — `IMaterial` passa da `Scatter` da solo a tripla
+  simmetrica `Sample / Evaluate / Pdf`; il path tracer propaga `prevBsdfPdf` +
+  `prevIsDelta` e combina NEE con BSDF sampling tramite Veach (`ComputeDirectLighting` + `WeightEmission`). Le luci espongono `IsDelta` e `PdfSolidAngle`.
+- **Disney BSDF: parametri mancanti** — aggiunti `anisotropic` /
+  `anisotropic_rotation`, `transmission_color` / `transmission_depth` (Beer-Lambert
+  con medium-switch), `thin_walled`, `diff_trans`, `flatness`, `subsurface_color`,
+  `coat_ior` / `coat_roughness` / `coat_normal`, `sheen_roughness`,
+  `thin_film_thickness` / `thin_film_ior`. Parametri texturabili.
+- **Kulla-Conty multi-scattering** — LUT 32×32 con lazy init protetta da
+  dead-lock del thread pool; compensa la dispersione d'energia del singolo
+  bounce GGX per dielettrici e metalli rugosi.
+- **VNDF sampling** — Heitz 2018 per specular e transmission; rimossi i
+  clamp empirici di roughness. PDF riportata full-sphere per back-hemisphere L.
+- **Charlie sheen** — fit Estevez-Kulla 2017 rimpiazza lo Schlick sheen.
+- **Thin-film iridescence** — Belcour-Barla 2017 per bolle, opal, AR coating.
+- **Sampler Sobol + Owen scramble** — opt-in via `--sampler sobol`.
+- **Pulizia IMaterial** — rimossi i vestigi Blinn-Phong
+  (`DiffuseWeight`/`SpecularExponent`/`SpecularStrength`); sostituiti da due
+  booleani espliciti: `NeedsDirectLighting` (spegne la NEE per gli emissivi) e
+  `IsDeltaScatter` (marca i bounce delta per non sopprimere l'emissione al
+  prossimo hit). Lambert/Metal/Dielectric/Mix aggiornati coerentemente.
+- **Suite di test `DisneyBsdfTests`** — correttezza dei lobi riflessivi,
+  reciprocity, copertura delle nuove feature (sheen Charlie, anisotropic VNDF).
 
 ---
 

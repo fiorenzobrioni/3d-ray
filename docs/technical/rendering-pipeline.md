@@ -278,7 +278,7 @@ Con `aperture = 0` il disco degenera in un punto (pinhole) e tutti gli oggetti s
 
 ## Fase 4 — TraceRay (Il Cuore del Path Tracer)
 
-**File:** `Renderer.cs` · **Metodo:** `TraceRay(Ray ray, int depth, bool prevUsedNee)`
+**File:** `Renderer.cs` · **Metodo:** `TraceRay(Ray ray, int depth, float prevBsdfPdf, bool prevIsDelta, Vector3 currentAbsorption = default)`
 
 Questa è la funzione ricorsiva che risolve l'equazione del rendering. Ogni invocazione rappresenta un **bounce** (rimbalzo) del raggio nella scena.
 
@@ -316,35 +316,32 @@ Se il materiale ha una normal map, la normale del `HitRecord` viene perturbata *
 
 **Vedi:** [Modello di Shading §Normal Mapping](./shading-model.md) per la matematica TBN.
 
-### 4.4 Emissione (con Guard anti Double-Counting)
+### 4.4 Emissione (con MIS balance heuristic)
 
 ```csharp
-bool suppressEmission = prevUsedNee
-    && material is Emissive em
-    && _registeredEmitterMaterials.Contains(em);
-
-if (!suppressEmission)
-    emitted = material.Emit(u, v, localPoint, objectSeed, frontFace);
+Vector3 raw = material.Emit(u, v, localPoint, objectSeed, frontFace);
+emitted = WeightEmission(raw, material, ray, prevBsdfPdf, prevIsDelta);
 ```
 
-La logica di soppressione previene il conteggio doppio:
+Il peso dipende dallo stato del bounce precedente:
 
-| Percorso | `prevUsedNee` | Emissione | Motivo |
-|----------|:-:|:-:|---|
-| Camera → emissivo | `false` | ✅ Mostrata | Il raggio non ha usato NEE |
-| Specchio → emissivo | `false` | ✅ Mostrata | Lo scatter speculare non attiva la NEE |
-| Diffuso (NEE) → emissivo | `true` | ❌ Soppressa | La NEE ha già contato questo contributo |
-| Diffuso (NEE) → emissivo **non registrato** | `true` | ✅ Mostrata | Back-face, non-ISamplable — la NEE non può raggiungerli |
+| Percorso | `prevIsDelta` | `prevBsdfPdf` | Emissione | Motivo |
+|----------|:-:|:-:|:-:|---|
+| Camera → superficie | `true` | — | ✅ Piena | Il raggio primario non può essere campionato da NEE |
+| Mirror / glass → emissivo | `true` | — | ✅ Piena | Bounce delta: nessuna NEE può raggiungerlo |
+| Disney sample (non-delta) → emissivo registrato | `false` | `> 0` | ⚖️ MIS | `w_bsdf = prevBsdfPdf / (prevBsdfPdf + p_light)` |
+| Lambert/Metal/Mix Scatter → emissivo registrato | `false` | `0` | ❌ Soppressa | Modalità legacy: NEE ha già contato l'emettitore |
+| Qualunque → emissivo **non registrato** | — | — | ✅ Piena | Back-face, non-ISamplable — la NEE non può raggiungerlo |
 
 ### 4.5 Direct Lighting (NEE) — `ComputeDirectLighting`
 
 ```csharp
-bool needsLightSampling = (diffuseWeight > 0f) || (specExponent > 0f);
+bool needsLightSampling = material?.NeedsDirectLighting ?? true;
 if (needsLightSampling)
     directLight = ComputeDirectLighting(rec, ray, material);
 ```
 
-La NEE viene attivata solo per materiali che rispondono alla luce diretta. Materiali puramente emissivi (`DiffuseWeight=0`, `SpecularExponent=0`) la saltano.
+La NEE viene attivata solo per materiali che rispondono alla luce diretta. Le sorgenti di luce stesse (`Emissive`) ritornano `NeedsDirectLighting = false` e saltano l'intero passaggio.
 
 **Struttura interna di `ComputeDirectLighting`:**
 
@@ -372,27 +369,37 @@ La distinzione esiste perché area e sphere light supportano campionamento strat
 
 **Vedi:** [Path Tracing e Illuminazione §2](./path-tracing-and-lighting.md) per la trattazione completa della NEE.
 
-### 4.6 Scatter (Illuminazione Indiretta)
+### 4.6 Scatter / Sample (Illuminazione Indiretta)
 
 ```csharp
+// Percorso preferito: MIS via Sample()
+BsdfSample? mis = material.Sample(viewDir, rec);
+if (mis.HasValue)
+    return ShadeSampleBounce(material, rec, mis.Value, depth, emitted, directLight, currentAbsorption);
+
+// Fallback legacy: Scatter() + convenzione IsDeltaScatter
 if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
 {
     // Russian Roulette...
-    Vector3 indirect = TraceRay(scattered, depth - 1, prevUsedNee: needsLightSampling);
+    bool nextIsDelta = material.IsDeltaScatter;
+    Vector3 indirect = TraceRay(scattered, depth - 1,
+                                 prevBsdfPdf: 0f,
+                                 prevIsDelta: nextIsDelta,
+                                 currentAbsorption: currentAbsorption);
     return emitted + attenuation * (directLight + indirect);
 }
 ```
 
-`Scatter()` determina se il raggio continua a rimbalzare e in quale direzione:
+Il renderer preferisce la tripla simmetrica `Sample / Evaluate / Pdf` quando il materiale la implementa (Disney BSDF): il sample restituisce direzione, F, PDF, flag `IsDelta` e un'eventuale `NextSegmentAbsorption` per il medium-switch, così il bounce successivo può calcolare il peso MIS corretto per l'emissione.
+
+Per i materiali "legacy" (Lambertian, Metal, Dielectric, Mix) il renderer cade su `Scatter()` e passa `prevBsdfPdf = 0` al ramo successivo. La convenzione `prevBsdfPdf = 0` attiva la modalità "NEE replaced emission": al prossimo hit gli emettitori registrati vedono il loro contributo azzerato (evitando il doppio conteggio con NEE sulla superficie corrente). Se invece il bounce è delta (`material.IsDeltaScatter == true` — Dielectric, Metal con `fuzz=0`), `nextIsDelta = true` dice al renderer che l'emissione deve passare a pieno peso (una NEE non può raggiungere una BSDF delta, quindi non c'è nulla da sopprimere).
 
 - **Lambertian** → rimbalzo cosine-weighted casuale nell'emisfero
 - **Metal** → riflessione GGX importance-sampled con roughness
-- **Dielectric** → riflessione o rifrazione (Schlick + Snell)
-- **Disney BSDF** → selezione stocastica tra lobe (diffuse, specular, clearcoat) con compensazione probabilistica
+- **Dielectric** → riflessione o rifrazione (Schlick + Snell) — delta BSDF
+- **Disney BSDF** → selezione stocastica tra lobi (diffuse, specular, clearcoat, transmission, sheen, multi-scatter, diff-trans) con VNDF sampling e MIS balance heuristic
 
 L'`attenuation` è il colore/albedo del materiale moltiplicato per i fattori energetici del bounce (Fresnel, compensazione lobe, ecc.).
-
-Il parametro `prevUsedNee` viene propagato al bounce successivo: se QUESTA superficie ha usato la NEE (`needsLightSampling = true`), il prossimo hit dovrà sopprimere l'emissione per evitare double-counting.
 
 ### 4.7 Russian Roulette
 
@@ -524,17 +531,19 @@ Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math
 - `Scatter()` restituisce l'`attenuation` **con albedo** (diventa il moltiplicatore per la radiance indiretta).
 - Entrambi usano lo stesso modello BRDF (GGX per Metal, Cook-Torrance per Disney), ma valutano in modi diversi: `EvaluateDirect` è analitico su una direzione specifica, `Scatter` è importance-sampled.
 
-**`prevUsedNee`:**
-- Propagato bounce-per-bounce tramite il parametro di `TraceRay`.
-- `true` = il bounce precedente era diffuso e ha usato la NEE → sopprimere emissione dei GeometryLight registrati.
-- `false` = camera ray, bounce speculare, o bounce da materiale senza NEE → emissione consentita.
+**`prevBsdfPdf` / `prevIsDelta`:**
+- Propagati bounce-per-bounce via i parametri di `TraceRay`.
+- Camera ray → `prevIsDelta = true`, emissione sempre mostrata.
+- Bounce delta (mirror/refraction) → `prevIsDelta = true`, emissione mostrata.
+- Sample MIS Disney → `prevIsDelta = false`, `prevBsdfPdf = pdf dal BsdfSample`, emissione pesata via balance heuristic al prossimo hit.
+- Scatter legacy (Lambert/Metal/Mix) → `prevIsDelta = material.IsDeltaScatter`, `prevBsdfPdf = 0` — emissione dai GeometryLight registrati soppressa (NEE ha già contato), da altri emettitori passa integra.
 
 ---
 
 ## Appendice B — Diagramma di Flusso di TraceRay
 
 ```
-TraceRay(ray, depth, prevUsedNee)
+TraceRay(ray, depth, prevBsdfPdf, prevIsDelta, currentAbsorption)
 │
 ├── depth ≤ 0? ──────────────────────────── → return Zero
 │
@@ -544,15 +553,20 @@ TraceRay(ray, depth, prevUsedNee)
 │       │
 │       ├── Apply normal map (se presente)
 │       │
-│       ├── Compute emitted:
-│       │   ├── prevUsedNee AND registered emitter? → emitted = Zero
-│       │   └── altrimenti → emitted = material.Emit(...)
+│       ├── Compute emitted (MIS-weighted):
+│       │   ├── prevIsDelta? → emitted = raw (full weight)
+│       │   ├── material is registered Emissive? → w_bsdf = prevBsdfPdf/(prevBsdfPdf+p_light)
+│       │   └── unregistered emitter → emitted = raw (full weight)
 │       │
 │       ├── Compute directLight:
-│       │   ├── needsLightSampling? → ComputeDirectLighting(...)
-│       │   └── altrimenti → ambientLight
+│       │   ├── material.NeedsDirectLighting? → ComputeDirectLighting(...) con MIS balance
+│       │   └── altrimenti (Emissive) → ambientLight
 │       │
-│       ├── material.Scatter()?
+│       ├── material.Sample(V, rec)?  // percorso MIS preferito
+│       │   └── YES (BsdfSample { Wo, F, Pdf, IsDelta, NextSegmentAbsorption })
+│       │       └── ShadeSampleBounce → TraceRay(depth-1, s.Pdf, s.IsDelta, ...)
+│       │
+│       ├── material.Scatter()? // fallback per materiali legacy
 │       │   ├── NO → return emitted + directLight
 │       │   └── YES (attenuation, scattered)
 │       │       │
@@ -563,6 +577,7 @@ TraceRay(ray, depth, prevUsedNee)
 │       │       │
 │       │       ├── attenuation ≈ 0? → return emitted + att × directLight (early-out)
 │       │       │
-│       │       └── indirect = TraceRay(scattered, depth-1, needsLightSampling)
+│       │       └── indirect = TraceRay(scattered, depth-1,
+│       │                              prevBsdfPdf=0, prevIsDelta=material.IsDeltaScatter)
 │       │           return emitted + attenuation × (directLight + indirect)
 ```

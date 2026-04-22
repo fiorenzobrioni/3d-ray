@@ -791,17 +791,36 @@ public class SceneLoader
             "disney" or "disney_bsdf" or "pbr"
                          => new DisneyBsdf(
                                 albedo,
-                                metallic:       m.Metallic,
-                                roughness:      m.Roughness,
-                                subsurface:     m.Subsurface,
-                                specular:       m.Specular,
-                                specularTint:   m.SpecularTint,
-                                sheen:          m.Sheen,
-                                sheenTint:      m.SheenTint,
-                                clearcoat:      m.Clearcoat,
-                                clearcoatGloss: m.ClearcoatGloss,
-                                specTrans:      m.SpecTrans,
-                                ior:            m.DisneyIor),
+                                metallic:            DisneyParam(m.Metallic,            m.MetallicTexture,            sceneDir),
+                                roughness:           DisneyParam(m.Roughness,           m.RoughnessTexture,           sceneDir),
+                                subsurface:          DisneyParam(m.Subsurface,          m.SubsurfaceTexture,          sceneDir),
+                                specular:            DisneyParam(m.Specular,            m.SpecularTexture,            sceneDir),
+                                specularTint:        DisneyParam(m.SpecularTint,        m.SpecularTintTexture,        sceneDir),
+                                sheen:               DisneyParam(m.Sheen,               m.SheenTexture,               sceneDir),
+                                sheenTint:           DisneyParam(m.SheenTint,           m.SheenTintTexture,           sceneDir),
+                                sheenRoughness:      DisneyParam(m.SheenRoughness,      m.SheenRoughnessTexture,      sceneDir),
+                                clearcoat:           DisneyParam(m.Clearcoat,           m.ClearcoatTexture,           sceneDir),
+                                clearcoatGloss:      DisneyParam(m.ClearcoatGloss,      m.ClearcoatGlossTexture,      sceneDir),
+                                specTrans:           DisneyParam(m.SpecTrans,           m.SpecTransTexture,           sceneDir),
+                                ior:                 DisneyParam(m.DisneyIor,           m.IorTexture,                 sceneDir),
+                                anisotropic:         DisneyParam(m.Anisotropic,         m.AnisotropicTexture,         sceneDir),
+                                anisotropicRotation: DisneyParam(m.AnisotropicRotation, m.AnisotropicRotationTexture, sceneDir),
+                                transmissionColor:   DisneyColorParam(m.TransmissionColor, m.TransmissionColorTexture, sceneDir),
+                                transmissionDepth:   DisneyParam(m.TransmissionDepth,   m.TransmissionDepthTexture,   sceneDir),
+                                subsurfaceColor:     DisneyColorParam(m.SubsurfaceColor, m.SubsurfaceColorTexture,    sceneDir),
+                                diffTrans:           DisneyParam(m.DiffTrans,           m.DiffTransTexture,           sceneDir),
+                                flatness:            DisneyParam(m.Flatness,            m.FlatnessTexture,            sceneDir),
+                                thinWalled:          m.ThinWalled,
+                                coatIor:             DisneyParam(m.CoatIor,             m.CoatIorTexture,             sceneDir),
+                                // coat_roughness: only forwarded when the user
+                                // explicitly set a non-negative value or a
+                                // texture; otherwise null selects the legacy
+                                // ClearcoatGloss path inside DisneyBsdf.
+                                coatRoughness:       (m.CoatRoughness >= 0f || m.CoatRoughnessTexture != null)
+                                                        ? DisneyParam(MathF.Max(m.CoatRoughness, 0f), m.CoatRoughnessTexture, sceneDir)
+                                                        : null,
+                                thinFilmThickness:   DisneyParam(m.ThinFilmThickness,   m.ThinFilmThicknessTexture, sceneDir),
+                                thinFilmIor:         DisneyParam(m.ThinFilmIor,         m.ThinFilmIorTexture,       sceneDir)),
             _            => new Lambertian(albedo)
         };
 
@@ -822,6 +841,14 @@ public class SceneLoader
                     case MixMaterial mix: mix.NormalMap = normalMap; break;
                 }
             }
+        }
+
+        // ── Coat normal map (Disney only — exclusive to the clearcoat lobe) ─
+        if (m.CoatNormalMap != null && material is DisneyBsdf disneyMat)
+        {
+            var coatNormal = LoadNormalMap(m.CoatNormalMap, sceneDir);
+            if (coatNormal != null)
+                disneyMat.CoatNormal = coatNormal;
         }
 
         return material;
@@ -968,6 +995,27 @@ public class SceneLoader
             Warn($"Failed to load HDRI '{hdrPath}': {ex.Message}. Falling back to flat magenta.");
             return new SkySettings(new Vector3(1f, 0f, 1f));
         }
+    }
+
+    /// <summary>
+    /// Builds a <see cref="FloatTexture"/> for a Disney BSDF parameter: prefers
+    /// the texture block when supplied, otherwise wraps the scalar value.
+    /// </summary>
+    private static FloatTexture DisneyParam(float scalar, TextureData? tex, string sceneDir)
+        => tex != null ? new FloatTexture(CreateTexture(tex, sceneDir)) : new FloatTexture(scalar);
+
+    /// <summary>
+    /// Builds a nullable <see cref="ITexture"/> for a Disney colour parameter
+    /// where "unset" is semantically meaningful — e.g. <c>transmission_color</c>,
+    /// whose null value activates the legacy sqrt(baseColor) fallback in
+    /// <see cref="DisneyBsdf"/>. Prefers the texture block when supplied; else
+    /// wraps the RGB triplet if the user provided one; else returns null.
+    /// </summary>
+    private static ITexture? DisneyColorParam(List<float>? scalar, TextureData? tex, string sceneDir)
+    {
+        if (tex != null) return CreateTexture(tex, sceneDir);
+        Vector3? c = ToVector3(scalar);
+        return c.HasValue ? new SolidColor(c.Value) : null;
     }
 
     private static ITexture CreateTexture(TextureData t, string sceneDir)

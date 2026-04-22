@@ -252,6 +252,13 @@ public class MaterialData
     [YamlMember(Alias = "sheen_tint")]
     public float SheenTint { get; set; } = 0.5f;
 
+    // Estevez-Kulla 2017 "Charlie" sheen NDF roughness in (0, 1]. Lower
+    // values give thin grazing-angle velvet; higher values broaden the lobe
+    // toward dust/cloth. Defaults to 0.3, matching the Imageworks reference
+    // and Arnold's standard_surface sheen_roughness default.
+    [YamlMember(Alias = "sheen_roughness")]
+    public float SheenRoughness { get; set; } = 0.3f;
+
     [YamlMember(Alias = "clearcoat")]
     public float Clearcoat { get; set; } = 0f;
 
@@ -263,6 +270,173 @@ public class MaterialData
 
     [YamlMember(Alias = "ior")]
     public float DisneyIor { get; set; } = 1.5f;
+
+    [YamlMember(Alias = "anisotropic")]
+    public float Anisotropic { get; set; } = 0f;
+
+    // Rotation of the anisotropic highlight around the surface normal, expressed
+    // as a fraction of a full turn in [0, 1). Values outside the range are
+    // wrapped at sample time.
+    [YamlMember(Alias = "anisotropic_rotation")]
+    public float AnisotropicRotation { get; set; } = 0f;
+
+    // ── Volumetric interior (Beer-Lambert through glass) ────────────────────
+    // transmission_color is the colour light takes on after travelling
+    // transmission_depth units through the material. Internally converted to
+    // a per-channel absorption σ_a = -ln(color) / depth and applied as
+    // exp(-σ_a · t) to the ray segment inside the glass by the renderer's
+    // interior-medium stack. transmission_depth = 0 disables Beer-Lambert
+    // and falls back to a thin-approximation tint (equivalent to the pre-
+    // stack baseColor-based attenuation).
+    [YamlMember(Alias = "transmission_color")]
+    public List<float>? TransmissionColor { get; set; }
+
+    [YamlMember(Alias = "transmission_depth")]
+    public float TransmissionDepth { get; set; } = 0f;
+
+    // ── Disney 2015: subsurface / leaf-like thin-walled extensions ──────────
+    // subsurface_color: tints the approximate subsurface lobe (used in place
+    //   of base_color inside the Hanrahan-Krueger blend). Defaults to null,
+    //   in which case base_color is used — matching the pre-Disney-2015
+    //   single-colour convention.
+    // subsurface_radius: per-channel mean free path (world units) for the
+    //   future random-walk SSS implementation. Currently unused by the
+    //   approximate SS lobe but persisted in the material so existing scene
+    //   files authored for the full SSS pipeline can be loaded.
+    // thin_walled: treats the surface as having no interior (leaves, paper,
+    //   fabric). Disables refraction; enables diff_trans backface sampling.
+    // diff_trans: fraction of the diffuse lobe that transmits through the
+    //   surface — relevant when thin_walled or when modelling foliage.
+    // flatness: blends the Lambert diffuse lobe with a flat (subsurface-
+    //   approximation) lobe. 1.0 gives the classic HK "flat" look even for
+    //   surfaces that don't use the full subsurface parameter.
+    [YamlMember(Alias = "subsurface_color")]
+    public List<float>? SubsurfaceColor { get; set; }
+
+    [YamlMember(Alias = "subsurface_radius")]
+    public List<float>? SubsurfaceRadius { get; set; }
+
+    [YamlMember(Alias = "thin_walled")]
+    public bool ThinWalled { get; set; } = false;
+
+    [YamlMember(Alias = "diff_trans")]
+    public float DiffTrans { get; set; } = 0f;
+
+    [YamlMember(Alias = "flatness")]
+    public float Flatness { get; set; } = 0f;
+
+    // ── Disney BSDF parameter textures (optional; override the scalar) ──────
+    // Each *_texture block is parsed as a full TextureData, so any existing
+    // texture type (solid, image, checker, noise, marble, wood) works. When
+    // present it replaces the corresponding scalar at lookup time; when null
+    // the scalar value above is used unchanged.
+    [YamlMember(Alias = "metallic_texture")]
+    public TextureData? MetallicTexture { get; set; }
+
+    [YamlMember(Alias = "roughness_texture")]
+    public TextureData? RoughnessTexture { get; set; }
+
+    [YamlMember(Alias = "subsurface_texture")]
+    public TextureData? SubsurfaceTexture { get; set; }
+
+    [YamlMember(Alias = "specular_texture")]
+    public TextureData? SpecularTexture { get; set; }
+
+    [YamlMember(Alias = "specular_tint_texture")]
+    public TextureData? SpecularTintTexture { get; set; }
+
+    [YamlMember(Alias = "sheen_texture")]
+    public TextureData? SheenTexture { get; set; }
+
+    [YamlMember(Alias = "sheen_tint_texture")]
+    public TextureData? SheenTintTexture { get; set; }
+
+    [YamlMember(Alias = "sheen_roughness_texture")]
+    public TextureData? SheenRoughnessTexture { get; set; }
+
+    [YamlMember(Alias = "clearcoat_texture")]
+    public TextureData? ClearcoatTexture { get; set; }
+
+    [YamlMember(Alias = "clearcoat_gloss_texture")]
+    public TextureData? ClearcoatGlossTexture { get; set; }
+
+    [YamlMember(Alias = "spec_trans_texture")]
+    public TextureData? SpecTransTexture { get; set; }
+
+    [YamlMember(Alias = "ior_texture")]
+    public TextureData? IorTexture { get; set; }
+
+    [YamlMember(Alias = "anisotropic_texture")]
+    public TextureData? AnisotropicTexture { get; set; }
+
+    [YamlMember(Alias = "anisotropic_rotation_texture")]
+    public TextureData? AnisotropicRotationTexture { get; set; }
+
+    [YamlMember(Alias = "transmission_color_texture")]
+    public TextureData? TransmissionColorTexture { get; set; }
+
+    [YamlMember(Alias = "transmission_depth_texture")]
+    public TextureData? TransmissionDepthTexture { get; set; }
+
+    [YamlMember(Alias = "subsurface_color_texture")]
+    public TextureData? SubsurfaceColorTexture { get; set; }
+
+    [YamlMember(Alias = "diff_trans_texture")]
+    public TextureData? DiffTransTexture { get; set; }
+
+    [YamlMember(Alias = "flatness_texture")]
+    public TextureData? FlatnessTexture { get; set; }
+
+    // ── Arnold standard_surface "coat" parameters ──────────────────────────
+    // coat_ior:       index of refraction of the lacquer layer (default 1.5,
+    //                 matching the legacy Disney F0 = 0.04). Higher values
+    //                 brighten the coat highlight (1.7-2.4 for automotive
+    //                 paint and diamond-clear coats).
+    // coat_roughness: optional explicit roughness in [0, 1] for the coat
+    //                 lobe; α = roughness² (matches the base specular
+    //                 mapping). When omitted (null) the legacy
+    //                 clearcoat_gloss slider is used so existing scenes
+    //                 keep their look.
+    // coat_normal_map: dedicated normal map perturbing the coat highlight
+    //                 independently of the base NormalMap. Models scratches
+    //                 or orange peel in the lacquer that sit on top of an
+    //                 otherwise-different substrate normal.
+    [YamlMember(Alias = "coat_ior")]
+    public float CoatIor { get; set; } = 1.5f;
+
+    // -1 sentinel matches the DisneyBsdf "use legacy gloss" path. Authors
+    // should set the value in [0, 1] to take the explicit-roughness branch.
+    [YamlMember(Alias = "coat_roughness")]
+    public float CoatRoughness { get; set; } = -1f;
+
+    [YamlMember(Alias = "coat_ior_texture")]
+    public TextureData? CoatIorTexture { get; set; }
+
+    [YamlMember(Alias = "coat_roughness_texture")]
+    public TextureData? CoatRoughnessTexture { get; set; }
+
+    [YamlMember(Alias = "coat_normal_map")]
+    public NormalMapData? CoatNormalMap { get; set; }
+
+    // ── Thin-film iridescence (Belcour-Barla 2017) ─────────────────────────
+    // thin_film_thickness: film thickness in nanometres. 0 (default) leaves
+    //   the BSDF on the plain Schlick Fresnel; values in 100-800 nm produce
+    //   the visible-spectrum colour sweep characteristic of soap bubbles,
+    //   beetle elytra and anti-reflection coatings.
+    // thin_film_ior: refractive index of the film (default 1.5 — generic
+    //   lacquer). Drives the contrast of the interference fringes; higher
+    //   IOR with the same thickness yields more saturated colours.
+    [YamlMember(Alias = "thin_film_thickness")]
+    public float ThinFilmThickness { get; set; } = 0f;
+
+    [YamlMember(Alias = "thin_film_ior")]
+    public float ThinFilmIor { get; set; } = 1.5f;
+
+    [YamlMember(Alias = "thin_film_thickness_texture")]
+    public TextureData? ThinFilmThicknessTexture { get; set; }
+
+    [YamlMember(Alias = "thin_film_ior_texture")]
+    public TextureData? ThinFilmIorTexture { get; set; }
 
     // ── Mix Material parameters ─────────────────────────────────────────────
 

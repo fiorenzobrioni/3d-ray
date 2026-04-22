@@ -295,28 +295,61 @@ dotnet run ... -- -i scene.yaml -c 1 -o cam1.png    # Per indice (base 0)
 - id: "car_paint"
   type: "disney"  # Alias: "pbr", "disney_bsdf"
   color: [0.8, 0.2, 0.1]
+
+  # ── Parametri classici Disney 2012 ──────────────────────────────────
   metallic: 0.0                            # 0=dielettrico, 1=metallo
   roughness: 0.3                           # 0=specchio, 1=diffuso
-  subsurface: 0.0                          # SSS (cera, pelle)
-  specular: 0.5                            # Intensità speculare dielettrica
-  specular_tint: 0.0                       # Tinta speculare verso il colore
-  sheen: 0.0                                # Lucentezza radente (tessuto)
-  sheen_tint: 0.5
-  clearcoat: 1.0                           # Secondo lobo speculare
-  clearcoat_gloss: 0.9                     # Rugosità clearcoat
-  spec_trans: 0.0                          # 0=opaco, 1=vetro
-  ior: 1.5                                  # Indice di rifrazione
-  texture: (opzionale)
+  subsurface: 0.0                          # Approssimazione subsurface (pelle, cera)
+  specular: 0.5                            # Intensità speculare per dielettrici (F₀ × 0.08)
+  specular_tint: 0.0                       # Tinta dello specular dielettrico verso base_color
+  sheen: 0.0                               # Lucentezza radente (tessuti, velluto)
+  sheen_tint: 0.5                          # Tinta dello sheen verso base_color
+  clearcoat: 1.0                           # Energia del secondo lobo speculare
+  clearcoat_gloss: 0.9                     # Rugosità legacy del clearcoat (slider Disney 2012)
+  spec_trans: 0.0                          # 0=opaco, 1=rifrattivo (vetro)
+  ior: 1.5                                 # Indice di rifrazione per spec_trans e Fresnel
+
+  # ── Anisotropia (Burley 2012 §5.4) ──────────────────────────────────
+  anisotropic: 0.0                         # 0=isotropo, 1=allungato sulla tangente
+  anisotropic_rotation: 0.0                # 0..1 frazione di 2π intorno alla normale
+
+  # ── Estensioni Disney 2015 ──────────────────────────────────────────
+  diff_trans: 0.0                          # Lambert diffuse transmission (foglie, fogli)
+  flatness: 0.0                            # Blend Lambert → HK-flat (Disney 2015)
+  thin_walled: false                       # Disattiva la rifrazione: foglie, carta, tele sottili
+  subsurface_color: [0.9, 0.6, 0.5]        # Tinta indipendente per subsurface/flatness/diff_trans
+
+  # ── Assorbimento Beer-Lambert per vetri colorati ────────────────────
+  transmission_color: [0.2, 0.8, 0.9]      # Colore del vetro raggiunto a transmission_depth
+  transmission_depth: 0.0                  # Distanza (unità scena) a cui si raggiunge quel colore
+
+  # ── Coat stile Arnold (override opzionali) ──────────────────────────
+  coat_ior: 1.5                            # IOR del coat (default 1.5 = lacca)
+  coat_roughness: -1.0                     # ≥ 0 abilita il coat stile Arnold; <0 usa clearcoat_gloss
+  coat_normal_map: "textures/coat.png"     # Normal map dedicata al clearcoat
+  sheen_roughness: 0.3                     # α dello sheen Charlie (0.04..1)
+
+  # ── Thin-film iridescence (Belcour-Barla 2017) ──────────────────────
+  thin_film_thickness: 0.0                 # Spessore del film in nanometri (0 = disabilitato)
+  thin_film_ior: 1.5                       # IOR del film (η₂)
+
+  # ── Texturing ───────────────────────────────────────────────────────
+  texture: (opzionale)                     # Texture del base color
   normal_map: (opzionale)
+  # Tutti i parametri scalari e i colour map sopra accettano la versione
+  # *_texture, ad es. roughness_texture: { type: "image", path: "rough.png" }.
 ```
 - **Quando usarlo:**
-  - Metalli: `metallic=1.0`, rugosità variabile
+  - Metalli: `metallic=1.0`, rugosità variabile. Aggiungi `anisotropic` per acciaio spazzolato.
   - Plastiche: `metallic=0.0`, `roughness=0.4–0.8`
-  - Vernice auto: `metallic=0.0`, `clearcoat=1.0`
-  - Tessuti: `metallic=0.0`, `sheen=0.5–1.0`
-  - Pelle: `metallic=0.0`, `subsurface=0.3–0.5`
-  - Vetro: `metallic=0.0`, `spec_trans=1.0`, `roughness=0.0`
-- **⚠️ Rumore (Noise):** Disney richiede circa 4 volte i campioni rispetto ai materiali classici.
+  - Vernice auto: `metallic=0.0`, `clearcoat=1.0` (+ `coat_roughness` per il coat stile Arnold)
+  - Tessuti / velluto: `metallic=0.0`, `sheen=0.8–1.0`, `sheen_roughness=0.2–0.4`
+  - Pelle: `metallic=0.0`, `subsurface=0.4`, `subsurface_color=[1.0, 0.6, 0.55]`, `flatness=0.3`
+  - Vetro chiaro: `spec_trans=1.0`, `roughness=0.0`, `ior=1.52`
+  - Vetro colorato: aggiungi `transmission_color` + `transmission_depth` (es. 5 unità per una bottiglia di brandy)
+  - Bolle / opal: `thin_film_thickness=350..700`, `thin_film_ior=1.33..1.5`
+  - Foglie / carta: `diff_trans=0.5`, `thin_walled=true`
+- **⚠️ Rumore (Noise):** Disney ha più lobi dei classici; per pelle/vetro/clearcoat in primo piano conta di usare circa 4× i campioni.
 - **💡 Best practice:** Usa lambertian per le grandi superfici, Disney solo per gli oggetti protagonisti.
 
 #### **5.6 Mix Material (Fonde Due Materiali)**

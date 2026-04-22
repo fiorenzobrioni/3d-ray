@@ -36,6 +36,9 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 | `-d` / `--depth` | `8` | `Program.cs` |
 | `-S` / `--shadow-samples` | non impostato → valore YAML per-luce | `Program.cs` |
 | `-C` / `--clamp` | `100` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
+| `--sampler` | `sobol` (Owen scramble) | `Program.cs` / `Sampler.SetKind` |
+
+> Il sampler default `sobol` (Burley 2020, Owen scrambling hash-based sulla tabella Joe-Kuo) converge più rapidamente del PRNG thread-local su pixel jitter, lens sampling e primi bounce. Passa `--sampler prng` per tornare al vecchio comportamento — utile quando confronti con render storici o debugghi regressioni stocastiche.
 
 I default sono pensati per **iterazione rapida**, non per qualità finale. Considera il profilo Preview come il minimo per un render "presentabile"; usa Standard o Final quando devi pubblicare.
 

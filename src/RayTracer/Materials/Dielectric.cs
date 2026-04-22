@@ -21,25 +21,10 @@ public class Dielectric : IMaterial
         Albedo = albedo;
     }
 
-    // ── Direct lighting properties ──────────────────────────────────────────
-    //
-    // Glass is purely specular: its illumination comes from traced
-    // reflected/refracted rays. A full-strength Blinn-Phong highlight
-    // via NEE would double-count the Fresnel reflection energy.
-    //
-    // However, at practical sample counts the path-traced Fresnel
-    // highlight is noisy (each sample stochastically reflects OR
-    // refracts). A reduced NEE highlight acts as a low-variance
-    // approximation of the Fresnel glint until MIS is implemented.
-    //
-    // SpecularStrength is set to 0.25 (was 0.6) — enough for the
-    // visual "sparkle" on glass under point/spot lights, low enough
-    // that the double-counted energy is negligible (~12% of a
-    // typical Fresnel peak at normal incidence for IOR 1.5).
-    //
-    public float DiffuseWeight => 0f;
-    public float SpecularExponent => 512f;
-    public float SpecularStrength => 0.25f;
+    // Glass is a pair of delta lobes (perfect reflection + perfect refraction).
+    // NEE cannot reach a delta BSDF, so direct lighting contributes zero and
+    // the renderer must preserve emission weight across the bounce.
+    public bool IsDeltaScatter => true;
     public NormalMapTexture? NormalMap { get; set; }
 
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)

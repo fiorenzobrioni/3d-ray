@@ -252,4 +252,31 @@ public class SkySettings
         if (randomDir.Y < 0) randomDir.Y = -randomDir.Y;
         return (randomDir, FlatColor, 1f / (2f * MathF.PI));
     }
+
+    /// <summary>
+    /// Solid-angle PDF of <see cref="SampleDirectly"/> evaluated at the given
+    /// direction. Mirrors the sampling strategy: HDRI uses the environment map's
+    /// learned PDF, gradient-with-sun uses uniform-cone sampling inside the sun
+    /// disk (and 0 elsewhere). Used for MIS balance heuristic when a BSDF-sampled
+    /// ray escapes the scene.
+    /// </summary>
+    public float PdfSolidAngle(Vector3 direction)
+    {
+        if (!CanSampleDirectly)
+            return 0f;
+
+        if (IsHdri && _envMap != null)
+            return _envMap.PdfDirection(direction);
+
+        if (HasSun)
+        {
+            float cosAngle = Vector3.Dot(Vector3.Normalize(direction), SunDirection);
+            if (cosAngle < SunCosAngle)
+                return 0f;
+            float solidAngle = 2f * MathF.PI * (1f - SunCosAngle);
+            return solidAngle > 0f ? 1f / solidAngle : 0f;
+        }
+
+        return 0f;
+    }
 }
