@@ -661,71 +661,86 @@ materials:
 
   # ─────────────────────────────────────────────────────────────────────────
   #  FILA 1 — VETRO (gemme preziose)
+  #
+  #  Ogni gemma usa il path Beer-Lambert del Disney BSDF: il colore della
+  #  pietra nasce dall'assorbimento accumulato lungo il cammino interno
+  #  del raggio (transmission_color come riferimento, transmission_depth
+  #  come distanza-scala). baseColor resta neutro perché la diffuse pool
+  #  su vetro puro (spec_trans=1) ha peso zero — il colore non deve essere
+  #  veicolato da quel canale o si ottiene una sfera "opaca colorata"
+  #  invece di un vetro tinto. Stesso motivo per cui subsurface e
+  #  specular_tint sono assenti: il primo richiede un volume diffondente
+  #  che il vetro non ha, il secondo colorerebbe il riflesso Fresnel
+  #  esterno (look "dichroic" che non è quello di una gemma vera).
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Cristallo puro — vetro ottico perfetto
+  # Cristallo puro — vetro ottico perfetto, IOR alto stile flint
   - id: "glass_clear"
     type: "disney"
-    color: [0.99, 0.99, 1.0]
+    color: [1.0, 1.0, 1.0]
     spec_trans: 1.0
     ior: 1.8
     roughness: 0.0
-    specular: 0.95
+    specular: 1.0
+    transmission_color: [0.97, 0.97, 1.0]
+    transmission_depth: 1.0
 
-  # Diamante — dispersione altissima, fuoco interno
+  # Diamante — IOR 2.42, riflessi luminosi e piccola lacca esterna
   - id: "glass_diamond"
     type: "disney"
-    color: [0.98, 0.98, 1.0]
+    color: [1.0, 1.0, 1.0]
     spec_trans: 1.0
     ior: 2.42
     roughness: 0.003
-    specular: 1.2
+    specular: 1.0
     clearcoat: 0.3
     clearcoat_gloss: 1.0
+    transmission_color: [0.99, 0.99, 1.0]
+    transmission_depth: 1.0
 
-  # Rubino — rosso profondo con leggera diffusione interna
+  # Rubino — rosso profondo, assorbimento progressivo nel canale verde/blu
   - id: "glass_ruby"
     type: "disney"
-    color: [0.85, 0.08, 0.10]
-    spec_trans: 0.92
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
     ior: 1.77
     roughness: 0.015
     specular: 0.9
-    subsurface: 0.08
-    specular_tint: 0.3
+    transmission_color: [0.88, 0.10, 0.12]
+    transmission_depth: 0.4
 
-  # Smeraldo — verde intenso, inclusioni naturali
+  # Smeraldo — verde intenso saturo via Beer-Lambert
   - id: "glass_emerald"
     type: "disney"
-    color: [0.10, 0.78, 0.25]
-    spec_trans: 0.88
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
     ior: 1.57
     roughness: 0.04
     specular: 0.75
-    subsurface: 0.1
-    specular_tint: 0.4
+    transmission_color: [0.18, 0.82, 0.38]
+    transmission_depth: 0.4
 
-  # Ambra — resina fossile calda, traslucenza con subsurface
+  # Ambra — resina fossile calda, assorbimento giallo-arancio
   - id: "glass_amber"
     type: "disney"
-    color: [0.92, 0.62, 0.10]
-    spec_trans: 0.85
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
     ior: 1.55
     roughness: 0.025
     specular: 0.6
-    subsurface: 0.2
-    specular_tint: 0.5
+    transmission_color: [0.92, 0.55, 0.15]
+    transmission_depth: 0.5
 
   # Zaffiro — blu profondissimo, pulizia ottica estrema
   - id: "glass_sapphire"
     type: "disney"
-    color: [0.12, 0.18, 0.88]
-    spec_trans: 0.94
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
     ior: 1.77
     roughness: 0.01
     specular: 0.95
-    subsurface: 0.05
-    specular_tint: 0.2
+    transmission_color: [0.10, 0.18, 0.85]
+    transmission_depth: 0.35
 
 
 # =============================================================================
