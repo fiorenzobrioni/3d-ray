@@ -1,0 +1,378 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# 3D-Ray — Showcase "Atelier"
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# This is the flagship / "business card" scene for the 3D-Ray engine.
+# A single cinematic still-life designed to demonstrate, in one glance,
+# the visual language of the renderer:
+#
+#   • Disney Principled BSDF  (metallic anisotropy, thin-film iridescence,
+#                              colored glass with Beer-Lambert absorption,
+#                              velvet sheen, automotive clearcoat)
+#   • CSG boolean operations   (nested union + subtraction on the back
+#                              monolith and on the marble pedestal)
+#   • Analytic torus           (perfectly smooth gold ring via quartic solver)
+#   • Volumetric atmosphere    (homogeneous medium with Henyey-Greenstein
+#                              phase function → soft god-rays from the key light)
+#   • Area + sphere lights     (soft penumbra + colored rim)
+#   • Gradient sky with sun    (indirect ambient illumination)
+#   • Depth of field           (aperture + focus on the hero subject)
+#   • ACES filmic tone mapping (applied automatically by the renderer)
+#
+# Composition: scuro atmosferico, con palette oro / ambra calda e rim azzurro
+# freddo posteriore. I soggetti sono disposti su un piedistallo in marmo
+# davanti a una parete di fondo procedurale; il pavimento lucido riflette
+# la scena raddoppiandone la lettura visiva.
+#
+# ─── Available cameras ──────────────────────────────────────────────────────
+#   hero           3/4 frontale, DOF sul toroide oro — shot candidato README
+#   wide           grandangolo leggero, inquadra tutta la composizione
+#   detail-torus   macro sul toroide oro, forte DOF per l'anisotropia
+#   detail-bubble  macro sulla bolla iridescente (thin-film)
+#   top            quasi dall'alto, rivela il layout e il riflesso del pavimento
+#
+# ─── Suggested renders ──────────────────────────────────────────────────────
+# Preview (sanity check, pochi secondi):
+#   dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#     -i scenes/showcase.yaml -c hero -w 400 -H 225 -s 64 -d 6 -S 2 \
+#     -o renders/00-test-showcase.png
+#
+# Standard (medium quality):
+#   dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#     -i scenes/showcase.yaml -c hero -w 1280 -H 720 -s 256 -d 8 -S 4 \
+#     -o renders/showcase-std.png
+#
+# Final (readme hero, 1080p):
+#   dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#     -i scenes/showcase.yaml -c hero -w 1920 -H 1080 -s 1024 -d 12 -S 4 \
+#     -C 50 -o renders/showcase.png
+#
+# Note: la bolla di sapone e la sfera ambra beneficiano di `-d 12` per evitare
+# zone nere; il firefly clamp `-C 50` tiene a bada i picchi della bolla
+# iridescente combinata con l'area light.
+# ─────────────────────────────────────────────────────────────────────────────
+
+world:
+  ambient_light: [0.015, 0.018, 0.025]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.02, 0.03, 0.06]
+    horizon_color: [0.08, 0.07, 0.09]
+    ground_color:  [0.01, 0.01, 0.015]
+    sun:
+      direction:  [-0.35, -0.85, -0.4]
+      color:      [1.0, 0.92, 0.78]
+      intensity:  3.0
+      size:       1.5
+      falloff:    64.0
+
+  medium:
+    type: "homogeneous"
+    sigma_a: [0.003, 0.003, 0.004]
+    sigma_s: [0.015, 0.016, 0.020]
+    phase: "hg"
+    g: 0.7
+
+cameras:
+  # Hero — il candidato per il README.
+  # 3/4 frontale, leggermente ribassato rispetto al piedistallo,
+  # messa a fuoco sul toroide oro centrale.
+  - name: "hero"
+    position: [3.4, 2.1, -6.2]
+    look_at: [0.0, 1.35, 0.0]
+    vup: [0, 1, 0]
+    fov: 36
+    aperture: 0.08
+    focal_dist: 7.2
+
+  # Wide — grandangolare, inquadra l'intera scena incluso pavimento e parete.
+  - name: "wide"
+    position: [4.5, 2.6, -7.5]
+    look_at: [0.0, 1.1, 0.2]
+    vup: [0, 1, 0]
+    fov: 55
+    aperture: 0.04
+    focal_dist: 9.0
+
+  # Detail torus — macro sul toroide oro, DOF molto stretta.
+  - name: "detail-torus"
+    position: [1.8, 1.8, -3.6]
+    look_at: [0.0, 1.4, 0.0]
+    vup: [0, 1, 0]
+    fov: 24
+    aperture: 0.15
+    focal_dist: 4.1
+
+  # Detail bubble — macro sulla bolla iridescente.
+  - name: "detail-bubble"
+    position: [2.4, 1.9, -3.5]
+    look_at: [1.35, 1.75, 0.25]
+    vup: [0, 1, 0]
+    fov: 20
+    aperture: 0.12
+    focal_dist: 4.3
+
+  # Top — vista quasi zenitale per mostrare il layout e il riflesso del pavimento.
+  # vup ruotato leggermente per evitare la degenerazione di look-straight-down.
+  - name: "top"
+    position: [0.0, 9.0, -0.01]
+    look_at: [0.0, 0.9, 0.0]
+    vup: [0, 0, -1]
+    fov: 32
+    aperture: 0.0
+    focal_dist: 9.0
+
+# ─── Materials ──────────────────────────────────────────────────────────────
+materials:
+
+  # -- Pavimento: laccato scuro, leggermente riflettente ---------------------
+  - id: "floor_lacquer"
+    type: "disney"
+    color: [0.035, 0.035, 0.04]
+    metallic: 0.0
+    roughness: 0.18
+    specular: 0.6
+    clearcoat: 0.3
+    clearcoat_gloss: 0.9
+
+  # -- Parete di fondo: mix tra marmo scuro e un rumore cupo ----------------
+  - id: "wall_marble_dark"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 6.0
+      noise_strength: 5.0
+      colors: [[0.09, 0.08, 0.09], [0.02, 0.02, 0.03]]
+
+  - id: "wall_noise_dark"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 2.5
+
+  - id: "wall_back"
+    type: "mix"
+    material_a: "wall_marble_dark"
+    material_b: "wall_noise_dark"
+    blend: 0.35
+
+  # -- Piedistallo: marmo bianco/grigio venato ------------------------------
+  - id: "pedestal_marble"
+    type: "disney"
+    color: [0.92, 0.90, 0.88]
+    roughness: 0.35
+    specular: 0.5
+    clearcoat: 0.15
+    texture:
+      type: "marble"
+      scale: 8.0
+      noise_strength: 6.0
+      colors: [[0.94, 0.93, 0.90], [0.55, 0.52, 0.50]]
+
+  # -- Oggetto-eroe 1: toroide oro spazzolato anisotropico ------------------
+  - id: "gold_brushed"
+    type: "disney"
+    color: [1.0, 0.78, 0.35]
+    metallic: 1.0
+    roughness: 0.32
+    anisotropic: 0.8
+    anisotropic_rotation: 0.25
+
+  # -- Oggetto-eroe 2: sfera di vetro ambra (Beer-Lambert) ------------------
+  - id: "amber_glass"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
+    roughness: 0.02
+    ior: 1.52
+    transmission_color: [0.95, 0.55, 0.15]
+    transmission_depth: 2.8
+
+  # -- Oggetto-eroe 3: bolla di sapone (thin-film iridescence) --------------
+  - id: "soap_bubble"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
+    roughness: 0.0
+    ior: 1.33
+    thin_walled: true
+    thin_film_thickness: 480
+    thin_film_ior: 1.33
+
+  # -- Oggetto-eroe 4: plastica rossa automotive (clearcoat) ----------------
+  - id: "car_paint_red"
+    type: "disney"
+    color: [0.55, 0.03, 0.05]
+    metallic: 0.1
+    roughness: 0.45
+    specular: 0.5
+    clearcoat: 1.0
+    clearcoat_gloss: 0.92
+
+  # -- Oggetto-eroe 5: velluto viola (sheen) --------------------------------
+  - id: "purple_velvet"
+    type: "disney"
+    color: [0.28, 0.06, 0.24]
+    roughness: 0.88
+    sheen: 1.0
+    sheen_tint: 0.5
+    sheen_roughness: 0.35
+
+  # -- Accento metallico freddo per lo stand del toroide --------------------
+  - id: "brushed_steel"
+    type: "disney"
+    color: [0.72, 0.73, 0.76]
+    metallic: 1.0
+    roughness: 0.28
+    anisotropic: 0.4
+
+  # -- Emissive per il pannello (non usato direttamente: usiamo area light) -
+  # Lasciato qui come riferimento per chi studia il file.
+  # - id: "panel_white"
+  #   type: "emissive"
+  #   color: [1.0, 0.98, 0.95]
+  #   intensity: 20.0
+
+# ─── Lights ─────────────────────────────────────────────────────────────────
+lights:
+
+  # Key light — pannello rettangolare in alto, leggermente davanti ai soggetti.
+  # Produce soft shadows e god-rays attraverso la nebbia.
+  - type: "area"
+    corner: [-1.6, 5.2, -2.4]
+    u: [3.2, 0.0, 0.0]
+    v: [0.0, 0.0, 2.0]
+    color: [1.0, 0.96, 0.88]
+    intensity: 32.0
+    shadow_samples: 16
+
+  # Rim light — sphere azzurra posteriore, stacca i soggetti dal fondo.
+  - type: "sphere"
+    position: [-2.0, 2.6, 3.2]
+    radius: 0.4
+    color: [0.45, 0.68, 1.0]
+    intensity: 28.0
+    shadow_samples: 8
+
+  # Accent warm — piccolo faretto caldo fuori dal frame destro,
+  # enfatizza l'highlight anisotropico dell'oro.
+  - type: "sphere"
+    position: [4.8, 2.2, -1.5]
+    radius: 0.2
+    color: [1.0, 0.72, 0.35]
+    intensity: 22.0
+    shadow_samples: 8
+
+# ─── Entities ───────────────────────────────────────────────────────────────
+entities:
+
+  # Pavimento infinito lucido
+  - name: "floor"
+    type: "infinite_plane"
+    point: [0, 0, 0]
+    normal: [0, 1, 0]
+    material: "floor_lacquer"
+
+  # Parete di fondo — quad largo dietro la composizione
+  - name: "back_wall"
+    type: "quad"
+    q: [-8, 0, 4.2]
+    u: [16, 0, 0]
+    v: [0, 7, 0]
+    material: "wall_back"
+
+  # ─── Piedistallo in marmo con bordo smussato (CSG subtraction) ───────────
+  # Un box 2.4 × 0.6 × 1.6 da cui sottraiamo un torus sottile disposto
+  # attorno al bordo superiore per ricavare un chamfer decorativo.
+  - name: "pedestal"
+    type: "csg"
+    operation: "subtraction"
+    material: "pedestal_marble"
+    left:
+      type: "box"
+      scale: [2.4, 0.6, 1.6]
+      translate: [0, 0.3, 0]
+    right:
+      type: "torus"
+      center: [0, 0.6, 0]
+      major_radius: 1.35
+      minor_radius: 0.05
+
+  # ─── Oggetto-eroe centrale: toroide oro su piccolo stand in acciaio ──────
+  - name: "torus_stand"
+    type: "cylinder"
+    center: [0, 0.6, 0]
+    radius: 0.08
+    height: 0.65
+    material: "brushed_steel"
+
+  - name: "gold_torus"
+    type: "torus"
+    center: [0, 1.35, 0]
+    major_radius: 0.55
+    minor_radius: 0.18
+    rotate: [18, 0, -8]
+    material: "gold_brushed"
+
+  # ─── Sfera di vetro ambra (sinistra) ─────────────────────────────────────
+  - name: "amber_sphere"
+    type: "sphere"
+    center: [-1.15, 1.05, -0.3]
+    radius: 0.45
+    material: "amber_glass"
+
+  # ─── Bolla di sapone iridescente (destra, leggermente in alto) ───────────
+  - name: "iridescent_bubble"
+    type: "sphere"
+    center: [1.35, 1.75, 0.25]
+    radius: 0.38
+    material: "soap_bubble"
+
+  # Piccolo anello in acciaio alla base della bolla — stile "sospensione"
+  - name: "bubble_ring"
+    type: "torus"
+    center: [1.35, 1.37, 0.25]
+    major_radius: 0.14
+    minor_radius: 0.012
+    material: "brushed_steel"
+
+  # ─── Sfera in velluto viola (foreground destra, piccola) ─────────────────
+  - name: "velvet_sphere"
+    type: "sphere"
+    center: [0.95, 0.82, -0.75]
+    radius: 0.22
+    material: "purple_velvet"
+
+  # ─── Monolito CSG: plastica rossa automotive, retro sinistra ─────────────
+  # Cilindro verticale con un foro cilindrico passante + un torus sottratto
+  # per un solco decorativo. Mostra CSG annidata (subtraction di subtraction).
+  - name: "red_monolith"
+    type: "csg"
+    operation: "subtraction"
+    material: "car_paint_red"
+    left:
+      type: "csg"
+      operation: "subtraction"
+      left:
+        type: "cylinder"
+        center: [-1.9, 0.6, 0.9]
+        radius: 0.35
+        height: 2.2
+      right:
+        type: "cylinder"
+        center: [-1.9, 0.4, 0.9]
+        radius: 0.14
+        height: 2.6
+    right:
+      type: "torus"
+      center: [-1.9, 2.05, 0.9]
+      major_radius: 0.35
+      minor_radius: 0.035
+
+  # ─── Dettaglio: piccola sfera dorata come "gioiello" nel cuore del monolito ─
+  - name: "monolith_jewel"
+    type: "sphere"
+    center: [-1.9, 1.55, 0.9]
+    radius: 0.1
+    material: "gold_brushed"
