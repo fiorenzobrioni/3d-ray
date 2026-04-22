@@ -74,33 +74,14 @@ public class SphereLight : ILight
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    //  ILight — Illuminate (deterministic, used for scene analysis)
+    //  ILight — ApproximatePower (deterministic, used for scene classification)
     // ═════════════════════════════════════════════════════════════════════════
 
-    public (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint)
-    {
-        Vector3 toCenter = Center - hitPoint;
-        float distSq = toCenter.LengthSquared();
-        float dist = MathF.Sqrt(distSq);
-
-        if (dist < MathUtils.Epsilon)
-            return (Vector3.Zero, Vector3.UnitY, 0f);
-
-        Vector3 dirToLight = toCenter / dist;
-
-        // Solid angle of the visible cap
-        float sinThetaMaxSq = Radius * Radius / distSq;
-        float cosThetaMax = (sinThetaMaxSq >= 1f)
-            ? 0f // inside the sphere — full hemisphere visible
-            : MathF.Sqrt(1f - sinThetaMaxSq);
-
-        float solidAngle = 2f * MathF.PI * (1f - cosThetaMax);
-
-        // Deterministic energy estimate (no PRNG — safe for constructor analysis)
-        float attenuation = Intensity * solidAngle;
-
-        return (Color * attenuation, dirToLight, dist);
-    }
+    // Isotropic spherical emitter with radiant intensity I (W/sr) — the
+    // IlluminateAndTest formula is L = I · Ω/N, so I is per-steradian and the
+    // total flux integrated over 4π sr is 4π · I.
+    public float ApproximatePower(AABB sceneBounds) =>
+        4f * MathF.PI * MathUtils.Luminance(Color) * Intensity;
 
     // ═════════════════════════════════════════════════════════════════════════
     //  ILight — IlluminateAndTest (stochastic, called per-hit during render)

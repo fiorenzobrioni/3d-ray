@@ -20,10 +20,18 @@ public class DirectionalLight : ILight
         Intensity = intensity;
     }
 
-    public (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint)
+    // Directional emitter: irradiance I (W/m²) on a plane perpendicular to the
+    // direction, integrated over the scene's projected cross-section.
+    //   Φ = I · π · R²   where R = scene bounding-sphere radius.
+    // This produces a flux that scales with scene size the same way the other
+    // lights do, so the Renderer's normalised-irradiance classifier behaves
+    // consistently whether the scene is lit by a sun, a sky, or finite emitters.
+    public float ApproximatePower(AABB sceneBounds)
     {
-        // Direction is "from light", so "to light" is negated
-        return (Color * Intensity, -Direction, MathUtils.Infinity);
+        Vector3 extent = sceneBounds.Max - sceneBounds.Min;
+        float radius = 0.5f * extent.Length();
+        float crossSection = MathF.PI * radius * radius;
+        return MathUtils.Luminance(Color) * Intensity * crossSection;
     }
 
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)

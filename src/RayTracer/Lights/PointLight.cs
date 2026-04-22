@@ -20,14 +20,10 @@ public class PointLight : ILight
         Intensity = intensity;
     }
 
-    public (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint)
-    {
-        Vector3 toLight = Position - hitPoint;
-        float distance = toLight.Length();
-        Vector3 direction = toLight / distance;
-        float attenuation = Intensity / (distance * distance);
-        return (Color * attenuation, direction, distance);
-    }
+    // Isotropic point emitter: Φ = 4π · I · Luminance(Color).
+    // Integrating radiant intensity I (W/sr) over the full sphere.
+    public float ApproximatePower(AABB sceneBounds) =>
+        4f * MathF.PI * MathUtils.Luminance(Color) * Intensity;
 
     /// <summary>
     /// Inlined illumination + shadow test using normal-based shadow origin.

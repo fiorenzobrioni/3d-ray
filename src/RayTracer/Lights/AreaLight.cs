@@ -87,28 +87,11 @@ public class AreaLight : ILight
         return Corner + ru * U + rv * V;
     }
 
-    public (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint)
-    {
-        // Deterministic: sample the center of the light surface
-        Vector3 center = Corner + 0.5f * U + 0.5f * V;
- 
-        Vector3 toLight = center - hitPoint;
-        float distSq = toLight.LengthSquared();
-        if (distSq < MathUtils.Epsilon * MathUtils.Epsilon)
-            return (Vector3.Zero, Vector3.UnitY, 0f);
- 
-        float distance = MathF.Sqrt(distSq);
-        Vector3 dirToLight = toLight / distance;
- 
-        float cosLight = MathF.Max(0f, Vector3.Dot(-dirToLight, _normal));
- 
-        // Full power estimate — NOT divided by ShadowSamples.
-        // The analysis loop calls Illuminate() once; the render loop calls
-        // IlluminateAndTestStratified() ShadowSamples times (which pre-divides).
-        float attenuation = Intensity * _area * cosLight / distSq;
- 
-        return (Color * attenuation, dirToLight, distance);
-    }
+    // Lambertian rectangular emitter: Φ = π · L · A, where L is the radiance
+    // (the per-sample `Intensity` in our parameterisation — see IlluminateAndTest
+    // which multiplies by area · cos / r²) and A is the surface area.
+    public float ApproximatePower(AABB sceneBounds) =>
+        MathF.PI * _area * MathUtils.Luminance(Color) * Intensity;
 
     /// <summary>
     /// Performs stratified shadow test + illumination for sample <paramref name="sampleIndex"/>.

@@ -29,9 +29,34 @@ public interface ILight
         IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world);
 
     /// <summary>
-    /// Computes the illumination from this light at a given point, without shadow testing.
+    /// Approximate total radiant flux emitted by this light, in luminance-weighted
+    /// units (Rec.709). Used by the renderer for scene classification
+    /// (direct-dominant vs. indirect-dominant → Russian-Roulette tuning) and as
+    /// a building block for future light-importance-sampling passes.
+    ///
+    /// <para><b>Contract.</b> Implementations MUST be:</para>
+    /// <list type="bullet">
+    ///   <item><description><b>Deterministic.</b> No PRNG; identical value across runs.</description></item>
+    ///   <item><description><b>Receiver-independent.</b> Depends only on the light's own
+    ///   parameters, never on a shading point.</description></item>
+    ///   <item><description><b>Finite-valued.</b> Infinite-aperture lights
+    ///   (<see cref="DirectionalLight"/>, <see cref="EnvironmentLight"/>) must use
+    ///   <paramref name="sceneBounds"/> to bound the flux integral over the scene's
+    ///   finite cross-section.</description></item>
+    /// </list>
+    ///
+    /// <para>Units are consistent across light types up to the convention that each
+    /// light's <c>Intensity</c>/<c>emission</c> represents the physical quantity
+    /// natural to its formulation (radiant intensity W/sr for point/spot/sphere,
+    /// radiance W/m²/sr for area/emissive surfaces, irradiance W/m² for
+    /// directional and environment). All results are scaled by Rec.709 luminance
+    /// of the tinting colour, giving a single scalar that the classifier sums.
+    /// </para>
     /// </summary>
-    (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint);
+    /// <param name="sceneBounds">Finite AABB of the renderable scene (infinite
+    /// planes clamped). Only consumed by lights whose flux depends on scene
+    /// extent; finite lights may ignore it.</param>
+    float ApproximatePower(AABB sceneBounds);
 
     // ── MIS support ─────────────────────────────────────────────────────────
     //

@@ -170,8 +170,9 @@ public class SkySettings
     public bool CanSampleDirectly => IsHdri || HasSun;
 
     /// <summary>
-    /// Deterministic estimate of average sky radiance, used by EnvironmentLight.Illuminate()
-    /// for scene analysis in the Renderer constructor (indirect-dominant detection).
+    /// Deterministic estimate of average sky radiance, used by
+    /// EnvironmentLight.ApproximatePower() for scene classification in the
+    /// Renderer constructor (indirect-dominant detection).
     ///
     /// MUST NOT call MathUtils.RandomFloat() — the constructor runs single-threaded
     /// and must produce identical results across runs for consistent RR parameters.

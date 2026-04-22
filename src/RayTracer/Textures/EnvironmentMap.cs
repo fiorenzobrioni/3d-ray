@@ -60,8 +60,8 @@ public class EnvironmentMap
     /// Computed lazily on first access by iterating the pixel buffer.
     /// O(W×H) on first call, O(1) thereafter.
     ///
-    /// Used by SkySettings.EstimatedAverageLuminance → EnvironmentLight.Illuminate()
-    /// for deterministic scene analysis (no PRNG).
+    /// Used by SkySettings.EstimatedAverageLuminance → EnvironmentLight.ApproximatePower()
+    /// for deterministic scene classification (no PRNG).
     /// </summary>
     public float EstimatedAverageLuminance
     {

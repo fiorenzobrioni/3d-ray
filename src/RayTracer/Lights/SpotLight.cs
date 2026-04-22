@@ -31,32 +31,19 @@ public class SpotLight : ILight
         CosOuterAngle = MathF.Cos(MathUtils.DegreesToRadians(outerAngleDeg));
     }
 
-    public (Vector3 Color, Vector3 DirectionToLight, float Distance) Illuminate(Vector3 hitPoint)
+    // Finite cone emitter: Φ = I · Ω_eff where Ω_eff accounts for the smoothstep²
+    // angular falloff from 1 at the inner half-angle to 0 at the outer.
+    //   Ω_core   = 2π(1 − cosInner)              (full-intensity core)
+    //   Ω_falloff = 2π(cosInner − cosOuter) · ⟨f²⟩   where ⟨f²⟩ = ∫₀¹ x² dx = 1/3
+    // (the smoothstep ramps roughly linearly in cos θ over the ring, squared, so
+    // its mean-squared contribution is ~1/3). This is an approximation but
+    // matches the actual IlluminateAndTest() integral to within a small constant.
+    public float ApproximatePower(AABB sceneBounds)
     {
-        Vector3 toLight = Position - hitPoint;
-        float distance = toLight.Length();
-        if (distance < MathUtils.Epsilon)
-            return (Vector3.Zero, -Direction, 0f);
-
-        Vector3 dirToLight = toLight / distance;
-
-        // Distance attenuation (inverse square law)
-        float distanceAttenuation = Intensity / (distance * distance);
-
-        // Cone attenuation: same smoothstep² formula as IlluminateAndTest()
-        // to keep the scene-analysis estimate (used by Renderer constructor
-        // to detect indirect-dominant lighting) consistent with the actual
-        // per-sample energy during rendering.
-        float cosAngle = Vector3.Dot(-dirToLight, Direction);
-        if (cosAngle < CosOuterAngle)
-            return (Vector3.Zero, dirToLight, distance);
-
-        float spotAttenuation = Math.Clamp(
-            (cosAngle - CosOuterAngle) / (CosInnerAngle - CosOuterAngle),
-            0f, 1f);
-        spotAttenuation *= spotAttenuation;
-
-        return (Color * distanceAttenuation * spotAttenuation, dirToLight, distance);
+        float coreSolidAngle = 2f * MathF.PI * (1f - CosInnerAngle);
+        float falloffSolidAngle = 2f * MathF.PI * (CosInnerAngle - CosOuterAngle) / 3f;
+        float omegaEff = coreSolidAngle + falloffSolidAngle;
+        return MathUtils.Luminance(Color) * Intensity * omegaEff;
     }
 
     /// <summary>

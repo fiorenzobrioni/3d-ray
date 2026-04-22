@@ -271,6 +271,40 @@ Riepilogo delle feature atterrate in questo ciclo (branch
 
 ---
 
+## 🗓️ Ciclo di Review — Rendering & Scene Classification (Apr 2026)
+
+Riepilogo delle modifiche in questo ciclo (branch
+`claude/review-raytracer-rendering-7hQpu`):
+
+- **Scene classifier basato sul flusso** — sostituito
+  `ILight.Illuminate(Vector3.Zero)` con `ILight.ApproximatePower(AABB sceneBounds)`,
+  un flusso radiante deterministico, receiver-independent, scene-scale-aware
+  (Rec.709 luminance). Il Renderer normalizza il flusso totale per la
+  superficie della sfera di scena (`4π R²`) ottenendo un'irradianza media
+  invariante per traslazione e scala uniforme. Threshold ricalibrata
+  `1.0 → 0.5`. Formule per tipo: `4π·I` (point/sphere), `I·π·R²` (directional),
+  `I·(Ω_core + Ω_fall/3)` (spot), `π·L·A` (area/geometry), `π·L̄·π·R²`
+  (environment).
+- **Finite-scene bounds** — nuovo helper `Renderer.ComputeFiniteSceneBounds`
+  che unisce solo i figli del `HittableList` con estensione assiale sotto la
+  soglia di sentinel (1e5), filtrando l'AABB ±1e6 di `InfinitePlane`. Prima,
+  qualsiasi scena con pavimento inflava R a ~1700 e rendeva invisibili al
+  classificatore point/spot light a intensità realistica (chess veniva
+  classificato come indirect-dominant per errore).
+- **Rimozione `ILight.Illuminate()`** — aveva un unico chiamante (il
+  costruttore del Renderer) e un contratto receiver-dependent che richiedeva
+  FIX #7..#14 su più implementazioni per workaround. Eliminato insieme ai
+  suoi asterischi; ora il contratto è espresso da `ApproximatePower`.
+- **Verifica su scene di riferimento** — Cornell (indirect ✓, 0.427),
+  chess (direct ✓), foggy-road (indirect ✓), alchemist-lab (indirect ✓),
+  sample/teapot (direct ✓). 72/72 test passano; render Cornell 400² s=64 d=10
+  senza dark-spot regressions.
+
+Doc aggiornata: `docs/technical/rendering-pipeline.md` §2.1 + tabella runtime,
+`docs/technical/path-tracing-and-lighting.md` §5.6.
+
+---
+
 ## ✅ TODO
 
 - [ ] Refactoring: spostare la proprietà `Seed` dall'interfaccia `IHittable` a un'interfaccia più appropriata (es. `ISeeded` o specifica per le primitive), in quanto nodi strutturali come `BvhNode` o `Transform` non necessitano di un seed.
