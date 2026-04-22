@@ -389,23 +389,35 @@ public class DisneyBsdf : IMaterial
         // Evaluated in tangent space so αx (along T) and αy (along B) apply
         // directly to the NDF and Smith Lambda. Reduces to the isotropic
         // form exactly when anisotropic = 0 (αx = αy = α).
-        ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
-        Vector3 Vloc = frame.ToLocal(toEye);
-        Vector3 Lloc = frame.ToLocal(toLight);
-        Vector3 Hloc = frame.ToLocal(H);
-
-        float D = Microfacet.DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
-        float G = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
-                * Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
-
-        // F: Schlick Fresnel with continuous metallic→dielectric blend, or
-        // Belcour-Barla 2017 thin-film Fresnel when ThinFilmThicknessNm > 0.
+        //
+        // When α sits at the floor (roughness ≈ 0) the lobe is a pure
+        // mirror delta — it cannot be reached by an arbitrary shadow-ray
+        // direction, so its NEE contribution is zero by construction.
+        // Evaluating the analytical form anyway produces a D · G / (4 NdotV)
+        // spike at grazing NdotV that manifests as the "pennarello bianco"
+        // rim halo on glass/mirror spheres. Sample() routes the matching
+        // path through the delta branch so MIS stays energy-consistent.
         Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         Vector3 F0 = ComputeF0(baseCol, sp);
-        Vector3 F = EvalFresnel(VdotH, F0, sp);
+        Vector3 specular = Vector3.Zero;
+        if (sp.Alpha > DeltaAlphaThreshold)
+        {
+            ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
+            Vector3 Vloc = frame.ToLocal(toEye);
+            Vector3 Lloc = frame.ToLocal(toLight);
+            Vector3 Hloc = frame.ToLocal(H);
 
-        // Cook-Torrance: D × G × F / (4 × NdotV × NdotL), then × NdotL
-        Vector3 specular = D * G * F / MathF.Max(4f * NdotV, 1e-6f);
+            float D = Microfacet.DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
+            float G = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
+                    * Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
+
+            // F: Schlick Fresnel with continuous metallic→dielectric blend, or
+            // Belcour-Barla 2017 thin-film Fresnel when ThinFilmThicknessNm > 0.
+            Vector3 F = EvalFresnel(VdotH, F0, sp);
+
+            // Cook-Torrance: D × G × F / (4 × NdotV × NdotL), then × NdotL
+            specular = D * G * F / MathF.Max(4f * NdotV, 1e-6f);
+        }
 
         // ── Clearcoat GGX lobe (isotropic — Disney convention) ──────────
         // Evaluated on its own shading normal (CoatNormal) so a scene with a
@@ -413,7 +425,7 @@ public class DisneyBsdf : IMaterial
         // independently of the substrate. CoatNormal == null inherits the
         // shaded surface normal — classic Disney behaviour.
         Vector3 clearcoat = Vector3.Zero;
-        if (sp.Clearcoat > 0f)
+        if (sp.Clearcoat > 0f && sp.ClearcoatAlpha > DeltaAlphaThreshold)
         {
             Vector3 coatN = GetCoatNormal(rec);
             float ccNdotV = MathF.Max(Vector3.Dot(coatN, toEye), 0.001f);
@@ -570,16 +582,25 @@ public class DisneyBsdf : IMaterial
         }
 
         // ── Anisotropic GGX specular (full Cook-Torrance in tangent space) ─
-        ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
-        Vector3 Vloc = frame.ToLocal(V);
-        Vector3 Lloc = frame.ToLocal(L);
-        Vector3 Hloc = frame.ToLocal(H);
-        float D = Microfacet.DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
-        float G = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
-                * Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
+        // Skipped when α sits at the smoothness floor: at that point the
+        // lobe is a delta handled by Sample's delta branch, and computing
+        // the analytical D·G/(4·NdotV·NdotL) anyway feeds the near-zero
+        // denominator into MIS and drives the rim-halo artefact. F0 stays
+        // hoisted because multi-scatter compensation below still needs it.
         Vector3 F0 = ComputeF0(baseCol, sp);
-        Vector3 F = EvalFresnel(VdotH, F0, sp);
-        Vector3 specular = D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f) * F;
+        Vector3 specular = Vector3.Zero;
+        if (sp.Alpha > DeltaAlphaThreshold)
+        {
+            ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
+            Vector3 Vloc = frame.ToLocal(V);
+            Vector3 Lloc = frame.ToLocal(L);
+            Vector3 Hloc = frame.ToLocal(H);
+            float D = Microfacet.DGgxAniso(Hloc, sp.AlphaX, sp.AlphaY);
+            float G = Microfacet.G1GgxAniso(Vloc, sp.AlphaX, sp.AlphaY)
+                    * Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
+            Vector3 F = EvalFresnel(VdotH, F0, sp);
+            specular = D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f) * F;
+        }
 
         // ── Clearcoat GGX (isotropic, evaluated on the coat normal) ────────
         // The coat sits in its own shading frame so a dedicated coat_normal
@@ -589,7 +610,7 @@ public class DisneyBsdf : IMaterial
         // case the coat lobe contributes nothing, the rest of the BSDF still
         // does.
         Vector3 clearcoat = Vector3.Zero;
-        if (sp.Clearcoat > 0f)
+        if (sp.Clearcoat > 0f && sp.ClearcoatAlpha > DeltaAlphaThreshold)
         {
             Vector3 coatN = GetCoatNormal(rec);
             float ccNdotV = Vector3.Dot(coatN, V);
@@ -657,6 +678,13 @@ public class DisneyBsdf : IMaterial
         // to the upper hemisphere here would under-report the lobe density
         // for back-hemisphere L by ~10-20% at α ≈ 0.4, breaking the
         // ∫ pdf dω = 1 invariant on the unit sphere.
+        // Near-delta lobes do not contribute to the analytical PDF — they
+        // are routed through Sample's delta path (see Sample above) and
+        // MIS treats them with weight 1 on the emission-hit side. Leaving
+        // their pdf as an integrable density here would double-count the
+        // lobe inside the balance heuristic and, worse, pair a near-zero
+        // analytical pdf with a near-infinite D(H) in Evaluate — exactly
+        // the regime that produces rim-halo spikes on glass/mirror hits.
         float specPdf = 0f;
         float ccPdf   = 0f;
         Vector3 Hraw = V + L;
@@ -667,7 +695,7 @@ public class DisneyBsdf : IMaterial
             // VNDF support requires H_z > 0; for back-hemisphere L far from
             // V the half-vector H = normalise(V+L) can dip below the macro
             // surface, in which case the microfacet NDF carries no mass.
-            if (NdotH > 0f)
+            if (NdotH > 0f && sp.Alpha > DeltaAlphaThreshold)
             {
                 float safeNdotV = MathF.Max(NdotV, 1e-7f);
                 ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
@@ -683,17 +711,20 @@ public class DisneyBsdf : IMaterial
             // coat normal (not the base normal). Without this the coat PDF
             // mass would shift off the perturbed coat lobe whenever a coat
             // normal map is in play, breaking MIS reciprocity.
-            Vector3 coatN = GetCoatNormal(rec);
-            float ccNdotV = Vector3.Dot(coatN, V);
-            float ccNdotH = Vector3.Dot(coatN, H);
-            if (ccNdotV > 0f && ccNdotH > 0f)
+            if (sp.ClearcoatAlpha > DeltaAlphaThreshold)
             {
-                float safeCcNdotV = MathF.Max(ccNdotV, 1e-7f);
-                float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
-                float cDenom = ccNdotH * ccNdotH * (ca2 - 1f) + 1f;
-                float cD = ca2 / (MathF.PI * cDenom * cDenom);
-                float cG1V = Microfacet.SmithG1(ccNdotV, sp.ClearcoatAlpha);
-                ccPdf = cG1V * cD / (4f * safeCcNdotV);
+                Vector3 coatN = GetCoatNormal(rec);
+                float ccNdotV = Vector3.Dot(coatN, V);
+                float ccNdotH = Vector3.Dot(coatN, H);
+                if (ccNdotV > 0f && ccNdotH > 0f)
+                {
+                    float safeCcNdotV = MathF.Max(ccNdotV, 1e-7f);
+                    float ca2 = sp.ClearcoatAlpha * sp.ClearcoatAlpha;
+                    float cDenom = ccNdotH * ccNdotH * (ca2 - 1f) + 1f;
+                    float cD = ca2 / (MathF.PI * cDenom * cDenom);
+                    float cG1V = Microfacet.SmithG1(ccNdotV, sp.ClearcoatAlpha);
+                    ccPdf = cG1V * cD / (4f * safeCcNdotV);
+                }
             }
         }
 
@@ -719,7 +750,7 @@ public class DisneyBsdf : IMaterial
         // Synthesize an incoming ray with direction -V. Origin is unused by
         // Scatter beyond rec.Point, so any origin works.
         Ray incoming = new(rec.Point, -V);
-        if (!Scatter(incoming, rec, out Vector3 scatterAttn, out Ray scattered))
+        if (!ScatterInternal(incoming, rec, out Vector3 scatterAttn, out Ray scattered, out Lobe lobe))
             return null;
 
         Vector3 wo = scattered.Direction;
@@ -756,6 +787,30 @@ public class DisneyBsdf : IMaterial
             return new BsdfSample(wo, scatterAttn, 1f, isDelta: true,
                                   nextSegmentAbsorption: next);
         }
+
+        // Near-delta reflection (roughness → 0 specular, or gloss → 1
+        // clearcoat) takes the same delta path as transmission: the lobe's
+        // VNDF collapses to a mirror direction, the analytical Pdf for any
+        // other outgoing direction is zero, and attempting to evaluate
+        // f · cos / pdf would divide a near-zero by a near-zero at grazing
+        // angles — that is exactly the "rim halo" + firefly combination
+        // the showcase was producing on the glass spheres. scatterAttn
+        // already carries F (Fresnel × tint, divided by the 1/probability
+        // lobe selection factor), so passing it through unchanged is the
+        // right delta-sample contract.
+        // A smooth Transmission sample that came back in the upper
+        // hemisphere is a Fresnel *reflection* off the glass surface —
+        // that lobe is a delta just like the Specular lobe, but Scatter
+        // tagged it Lobe.Transmission because the dielectric pair lives
+        // in ScatterTransmission for medium-tracking reasons. Treat it
+        // the same as Specular here, otherwise smooth glass keeps
+        // emitting non-delta reflection samples with near-zero pdf.
+        ShadingParams sp = EvalParams(rec);
+        bool nearDeltaSpec = (lobe == Lobe.Specular || lobe == Lobe.Transmission)
+                             && sp.Alpha <= DeltaAlphaThreshold;
+        bool nearDeltaCoat = lobe == Lobe.Clearcoat && sp.ClearcoatAlpha <= DeltaAlphaThreshold;
+        if (nearDeltaSpec || nearDeltaCoat)
+            return new BsdfSample(wo, scatterAttn, 1f, isDelta: true);
 
         Vector3 f = Evaluate(V, wo, rec);
         float pdf = Pdf(V, wo, rec);
@@ -900,6 +955,22 @@ public class DisneyBsdf : IMaterial
     // ═════════════════════════════════════════════════════════════════════════
 
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
+        => ScatterInternal(rayIn, rec, out attenuation, out scattered, out _);
+
+    // Tag identifying which lobe the sampler selected on the most recent
+    // call — surfaces via ScatterInternal so Sample() can flip near-delta
+    // reflections (roughness → 0) onto the delta path, skipping the f/pdf
+    // division that would otherwise blow up at grazing angles.
+    private enum Lobe : byte { Diffuse, Specular, Transmission, Sheen, Multiscatter, DiffTrans, Clearcoat }
+
+    // Smoothness threshold below which a GGX lobe is treated as a delta
+    // distribution: PBRT-v4's TrowbridgeReitzDistribution::EffectivelySmooth()
+    // uses α ≤ 1e-3, Arnold uses roughness ≤ 0.01. Our α carries a 1e-3 floor
+    // already (ShadingParams ctor), so this check catches any lobe configured
+    // as "perfectly smooth" from YAML.
+    private const float DeltaAlphaThreshold = 1e-3f;
+
+    private bool ScatterInternal(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered, out Lobe lobe)
     {
         Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         ShadingParams sp = EvalParams(rec);
@@ -920,30 +991,37 @@ public class DisneyBsdf : IMaterial
         bool result;
         if (rnd < pDiffuse)
         {
+            lobe = Lobe.Diffuse;
             result = ScatterDiffuse(rec, baseCol, N, V, sp, pDiffuse, out attenuation, out scattered);
         }
         else if ((rnd -= pDiffuse) < pSpecular)
         {
+            lobe = Lobe.Specular;
             result = ScatterSpecular(rec, baseCol, N, V, sp, pSpecular, out attenuation, out scattered);
         }
         else if ((rnd -= pSpecular) < pTrans)
         {
+            lobe = Lobe.Transmission;
             result = ScatterTransmission(rayIn, rec, baseCol, N, V, sp, pTrans, out attenuation, out scattered);
         }
         else if ((rnd -= pTrans) < pSheen)
         {
+            lobe = Lobe.Sheen;
             result = ScatterSheen(rec, baseCol, N, V, sp, pSheen, out attenuation, out scattered);
         }
         else if ((rnd -= pSheen) < pMultiscatter)
         {
+            lobe = Lobe.Multiscatter;
             result = ScatterMultiscatter(rec, baseCol, N, V, sp, pMultiscatter, out attenuation, out scattered);
         }
         else if ((rnd -= pMultiscatter) < pDiffTrans)
         {
+            lobe = Lobe.DiffTrans;
             result = ScatterDiffTrans(rec, baseCol, N, V, sp, pDiffTrans, out attenuation, out scattered);
         }
         else
         {
+            lobe = Lobe.Clearcoat;
             float pClearcoat = w.PClearcoat;
             result = ScatterClearcoat(rec, N, V, sp, pClearcoat, out attenuation, out scattered);
         }

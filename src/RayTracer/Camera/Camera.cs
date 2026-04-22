@@ -48,6 +48,18 @@ public class Camera
 
     public Ray GetRay(float s, float t)
     {
+        // Pinhole fast path. Sampling the disk for a zero-radius lens
+        // would burn two Sobol dimensions on a value that gets multiplied
+        // by zero — wasting the structurally best Sobol(2D) dims for an
+        // unused lens offset and shifting every downstream BSDF/light
+        // decision onto worse-stratified hash dimensions.
+        if (_lensRadius == 0f)
+        {
+            return new Ray(
+                _origin,
+                _lowerLeftCorner + s * _horizontal + t * _vertical - _origin);
+        }
+
         Vector3 rd = _lensRadius * MathUtils.RandomInUnitDisk();
         Vector3 offset = _u * rd.X + _v * rd.Y;
 
