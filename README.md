@@ -1,6 +1,6 @@
 # 3D-Ray: High-Performance C# .NET 10 RayTracer Engine
 
-![C#](https://img.shields.io/badge/language-C%23-239120?logo=c-sharp&logoColor=white) ![.NET 10](https://img.shields.io/badge/framework-.NET%2010-512BD4?logo=dotnet&logoColor=white) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D4) ![License](https://img.shields.io/badge/license-MIT-blue)
+![C#](https://img.shields.io/badge/language-C%23-239120?logo=c-sharp&logoColor=white) ![.NET 10](https://img.shields.io/badge/framework-.NET%2010-512BD4?logo=dotnet&logoColor=white) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D4) ![License](https://img.shields.io/badge/license-MIT-blue) [![CI](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml/badge.svg)](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml)
 
 Un moderno motore di ray tracing ad alte prestazioni sviluppato in C# e .NET 10, con configurazione di scene tramite YAML e capacità di rendering avanzate basate su fisica (PBR).
 
@@ -12,9 +12,11 @@ Un moderno motore di ray tracing ad alte prestazioni sviluppato in C# e .NET 10,
 
 ## 🔍 Panoramica (Overview)
 
-**3D-Ray** è un motore di rendering ray-tracing ad alte prestazioni sviluppato in C# su piattaforma .NET 10. È progettato per sviluppatori e appassionati di computer grafica che necessitano di uno strumento flessibile e potente per generare immagini fotorealistiche partendo da descrizioni testuali delle scene.
+3D-Ray trasforma una descrizione YAML in un'immagine fotorealistica, senza dover scrivere codice. È pensato per chi vuole comporre scene ricche — interni, still life, paesaggi atmosferici, composizioni artistiche — sfruttando scene graph gerarchico con gruppi, trasformazioni e template, librerie riutilizzabili di materiali e oggetti, un BSDF Disney unificato che copre dal metallo spazzolato alle bolle di sapone, effetti volumetrici (nebbia, fumo, nubi) e illuminazione basata su HDRI.
 
-Il motore risolve il problema della visualizzazione di geometrie complesse e materiali fisicamente basati (PBR) attraverso un'architettura modulare ottimizzata per il calcolo parallelo multi-core, con una pipeline di post-processing ACES filmic per risultati visivi di qualità cinematografica.
+Il motore è progettato per il calcolo parallelo multi-core, con BVH automatica, Next Event Estimation e campionamento Sobol per convergere in fretta, e chiude con un tone mapping ACES filmic per un look cinematografico.
+
+Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il [**DEVLOG**](./DEVLOG.md).
 
 ---
 
@@ -24,11 +26,13 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🚀 **Rendering Parallelo** — sfrutta tutti i core logici della CPU per una scalabilità lineare delle prestazioni.
 - 🔁 **Path Tracing** con rimbalzi multipli configurabili: riflessi, rifrazioni, occlusione ambientale e color bleeding emergono naturalmente dalla simulazione fisica.
 - 📷 **Camera con Depth of Field** — apertura e distanza di messa a fuoco configurabili per effetti bokeh fotorealistici.
-- 🎯 **Next Event Estimation con MIS** — campionamento diretto delle sorgenti di luce con Multiple Importance Sampling (balance heuristic) per un buon comportamento sia su luci piccole e brillanti sia su superfici lucide di materiali complessi.
+- 🎬 **Multi-Camera** — più camere definite nella stessa scena, selezionabili da CLI per nome o indice per generare più inquadrature dallo stesso file YAML.
+- 🎯 **Next Event Estimation con MIS** — campionamento diretto delle sorgenti di luce con Multiple Importance Sampling per un buon comportamento sia su luci piccole e brillanti sia su superfici lucide.
 - 🧮 **Campionamento Stratificato** — riduce il rumore a parità di campioni totali.
-- 🔢 **Sobol + Owen Scrambling** — sequenza quasi-Monte Carlo a bassa discrepanza (default del motore, selezionabile con `--sampler sobol|prng`); converge più in fretta del PRNG classico su pixel jitter, lens sampling e primi bounce. Il fallback `prng` resta disponibile per scene storiche.
+- 🔢 **Sobol + Owen Scrambling** — sequenza quasi-Monte Carlo a bassa discrepanza che converge più in fretta del PRNG classico su pixel jitter, lens sampling e primi bounce.
 - 🎲 **Russian Roulette** adattiva — terminazione stocastica dei raggi calibrata sull'illuminazione della scena per efficienza ottimale.
 - 🎞️ **Tone Mapping ACES Filmic** — post-processing cinematografico con highlight naturali e colori ricchi.
+- 🖼️ **Output multi-formato** — PNG, JPEG e BMP con rilevamento automatico dall'estensione del file.
 
 ### Accelerazione
 - 📦 **BVH (Bounding Volume Hierarchy)** — struttura di accelerazione spaziale con **Surface Area Heuristic (SAH) a binning**, fat leaves e *ordered traversal*. Build parallelizzato per scene grandi. Intersezioni raggio-oggetto in tempo **O(log N)**, attivazione automatica in base alla complessità della scena.
@@ -52,21 +56,24 @@ Il motore risolve il problema della visualizzazione di geometrie complesse e mat
 - 🌳 **Scene Graph (Gruppi)** — Composizione gerarchica di oggetti con trasformazioni ereditate. Gruppi annidabili con primitive, CSG, mesh e altri gruppi.
 - 🏭 **Template / Istanze** — Definisci oggetti composti una volta come template, istanzia N volte con trasformazioni e materiali indipendenti. Librerie di oggetti importabili da file YAML separati.
 - 📦 **Import YAML** — Scomposizione di scene complesse in file separati. Librerie riutilizzabili di materiali, template, oggetti e luci con import annidati e protezione ciclica.
+- 🎁 **Starter Kit** — 18 scene complete pronte all'uso (dining room, photography studio, wine cellar, underwater, zen garden…) da personalizzare come punto di partenza. Vedi [`scenes/libraries/starter-kits/`](./scenes/libraries/starter-kits/).
 
 ### Materiali
 - 🎨 **Lambertian** — diffuso opaco
 - 🪞 **Metal** — riflesso speculare con rugosità (`fuzz`) configurabile
 - 💎 **Dielectric** — vetro e trasparenti con rifrazione e riflesso Fresnel
 - 💡 **Emissive** — materiale auto-luminoso; gli oggetti emissivi partecipano automaticamente alla NEE come sorgenti di luce geometriche
-- 🌟 **Disney Principled BSDF** — materiale PBR unificato (`"disney"` / `"pbr"`): un singolo tipo copre plastica, metallo, vetro, vernice auto, tessuto, pelle, bolle di sapone e qualsiasi combinazione. Parametri classici (`metallic`, `roughness`, `subsurface`, `specular`, `sheen`, `clearcoat`, `spec_trans`, `ior`) più:
-  - **Anisotropia** (`anisotropic`, `anisotropic_rotation`) — highlight allungati stile metallo spazzolato, capelli, vinile.
-  - **Multi-scattering Kulla-Conty** — ricupera l'energia che il singolo bounce GGX disperdeva sulle superfici rugose (gold/rame convincenti anche a roughness alta).
-  - **Beer-Lambert per il vetro** (`transmission_color`, `transmission_depth`) — assorbimento volumetrico con attenuazione esponenziale sulla distanza percorsa: liquori, bottiglie colorate, acque profonde.
-  - **Diffuse transmission & thin-walled** (`diff_trans`, `thin_walled`) — fogli, foglie, tendaggi e paralumi in pochi parametri.
-  - **Subsurface shaping** (`subsurface_color`, `flatness`) — tinte sotto-pelle indipendenti dal `base_color` più la forma "HK flat" di Disney 2015 per pelle, cera e marmo.
-  - **Clearcoat stile Arnold** (`coat_ior`, `coat_roughness`, `coat_normal`) — la vernice trasparente diventa un lobo con IOR e normal map proprie (carrozzerie, lacche, vinile protetto).
-  - **Charlie sheen** (`sheen_roughness`) — microfibra realistica (velluto, pesca, muschio) con il lobo Estevez-Kulla al posto del vecchio Schlick.
-  - **Thin-film iridescence** (`thin_film_thickness`, `thin_film_ior`) — bolle di sapone, opal, anti-riflesso, rivestimenti dicroici via Belcour-Barla 2017.
+- 🌟 **Disney Principled BSDF** — materiale PBR unificato (`"disney"` / `"pbr"`): un singolo tipo copre plastica, metallo, vetro, vernice auto, tessuto, pelle, bolle di sapone e qualsiasi combinazione. Oltre ai parametri classici (`metallic`, `roughness`, `specular`, `sheen`, `clearcoat`, `spec_trans`, `ior`) supporta:
+  - **Anisotropia** per highlight allungati stile metallo spazzolato, capelli e vinile.
+  - **Multi-scattering energy compensation** per metalli rugosi convincenti (oro e rame anche a roughness alta).
+  - **Beer-Lambert per il vetro** con assorbimento dipendente dallo spessore: liquori, bottiglie colorate, acque profonde.
+  - **Diffuse transmission & thin-walled** per fogli, foglie, tendaggi e paralumi.
+  - **Subsurface shaping** con tinte sotto-pelle dedicate per pelle, cera e marmo.
+  - **Clearcoat avanzato** con IOR e normal map proprie per carrozzerie, lacche e vinile protetto.
+  - **Charlie sheen** per microfibre realistiche (velluto, pesca, muschio).
+  - **Thin-film iridescence** per bolle di sapone, opal e rivestimenti dicroici.
+
+  Dettagli matematici e riferimenti bibliografici in [`docs/technical/shading-model.md`](./docs/technical/shading-model.md).
 - 🔀 **Mix Material** — blending tra due materiali qualsiasi con peso costante o texture mask spaziale (noise, marble, image…). Per effetti di ruggine, usura, transizioni graduali, decal e composizioni ricorsive (mix-of-mix)
 
 ### Texture
@@ -99,7 +106,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🌫️ **Homogeneous Medium** — mezzo partecipante uniforme globale per nebbia densa, foschia e effetti subacquei. Beer-Lambert analitico, economico, adatto come base di partenza.
 - 🏔️ **Height Fog** — foschia atmosferica con densità che cala esponenzialmente con la quota (`scale_height`, `y0`). Modello "aerial perspective" per scene outdoor: montagne, strade all'alba, vedute urbane.
 - 🌀 **Procedural Medium (Perlin fBm)** — nebbia eterogenea generata da rumore Perlin multi-ottava con delta tracking e ratio tracking. Sacche di densità irregolari, god-ray non omogenei, atmosfere da film horror o nubi sparse.
-- 🧊 **Grid Medium** — densità campionata su griglia 3D regolare (inline YAML o file binario `.vol`) confinata in una AABB world-space, con filtro di ricostruzione selezionabile: **trilineare** (default, 8 taps C⁰) o **tricubico** Catmull-Rom (64 taps C¹) per rimuovere i kink visibili sulle griglie a bassa risoluzione. Ideale per fumo localizzato, esplosioni, nuvole isolate.
+- 🧊 **Grid Medium** — densità campionata su griglia 3D regolare (inline YAML o file binario `.vol`) confinata in una AABB world-space, con filtro di ricostruzione selezionabile: **trilineare** (default, veloce) o **tricubico** Catmull-Rom (più liscio) per rimuovere i kink visibili sulle griglie a bassa risoluzione. Ideale per fumo localizzato, esplosioni, nuvole isolate.
 - 🎇 **Cinque phase function** — `isotropic` (scattering uniforme), `hg` (Henyey-Greenstein, asimmetria direzionale), `rayleigh` (scattering atmosferico), `double_hg` (due lobi misti per nubi realistiche stile Nubis) e `schlick` (approssimazione fast-HG). Ogni mezzo combinabile con qualsiasi phase function.
 
 ---
@@ -109,8 +116,10 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 ### Prerequisiti
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 
+> I comandi qui sotto sono `dotnet` standard: funzionano identici su bash, zsh e PowerShell.
+
 ### Compilazione
-```powershell
+```bash
 cd 3d-ray
 dotnet build src/RayTracer/RayTracer.csproj -c Release
 ```
@@ -118,12 +127,12 @@ dotnet build src/RayTracer/RayTracer.csproj -c Release
 ### Esecuzione
 
 Render di prova (profilo Standard):
-```powershell
+```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 256 -d 6 -o renders/render-draft.png -w 480 -H 270
 ```
 
 Render finale Full HD (profilo Final):
-```powershell
+```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 1024 -d 8 -S 4 -o renders/render-final.png -w 1920 -H 1080
 ```
 
@@ -142,30 +151,33 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │       ├── en/              # Tutorial in English
 │       └── it/              # Tutorial in italiano
 ├── src/
-│   ├── RayTracer/           # Motore principale
-│   │   ├── Acceleration/    # BVH
-│   │   ├── Camera/          # Camera con DOF
-│   │   ├── Core/            # Ray, HitRecord, MathUtils
-│   │   ├── Geometry/        # Primitive (Sphere, Box, Cylinder, CsgObject, Group...)
-│   │   ├── Lights/          # Point, Directional, Spot, Area, Sphere, GeometryLight, EnvironmentLight
-│   │   ├── Materials/       # Lambertian, Metal, Dielectric, Emissive, Disney BSDF, MixMaterial
-│   │   ├── Rendering/       # Renderer, SkySettings, EnvironmentMap
-│   │   ├── Scene/           # SceneLoader, SceneData
-│   │   └── Textures/        # Checker, Noise, Marble, Wood, Image, NormalMap
+│   ├── RayTracer/              # Motore principale
+│   │   ├── Acceleration/       # BVH
+│   │   ├── Camera/             # Camera con DOF
+│   │   ├── Core/               # Ray, HitRecord, MathUtils, sampling
+│   │   ├── Geometry/           # Primitive (Sphere, Box, Cylinder, CsgObject, Group...)
+│   │   ├── Lights/             # Point, Directional, Spot, Area, Sphere, GeometryLight, EnvironmentLight
+│   │   ├── Materials/          # Lambertian, Metal, Dielectric, Emissive, Disney BSDF, MixMaterial
+│   │   ├── Rendering/          # Renderer, SkySettings, EnvironmentMap
+│   │   ├── Scene/              # SceneLoader, SceneData
+│   │   ├── Textures/           # Checker, Noise, Marble, Wood, Image, NormalMap
+│   │   └── Volumetrics/        # Homogeneous, HeightFog, Procedural, GridMedium e phase function
+│   ├── RayTracer.Tests/        # Suite xUnit (equivalenza BVH, AABB, ...)
+│   ├── RayTracer.Benchmarks/   # Harness BenchmarkDotNet
 │   └── Tools/
-│       ├── TextureGen/      # Generatore texture procedurali (PNG)
-│       └── NormalMapGen/    # Generatore flat normal map per test
-├── scenes/                  # File YAML di scene
-│   ├── libraries/           # Risorse riutilizzabili via import YAML
-│   │   ├── materials/       # Materiali PBR (Disney/Classic)
-│   │   ├── objects/         # Template di oggetti composti
-│   │   ├── lights/          # Setup di illuminazione pronti all'uso
-│   │   ├── starter-kits/    # Scene complete pronte all'uso, da personalizzare
-│   │   └── textures/        # Texture PNG (albedo e normal map)
-│   ├── showcases/           # Scene dimostrative per singola feature
-│   └── *.yaml               # Scene principali del progetto
-├── renders/                 # Immagini renderizzate
-└── .github/workflows/       # CI con smoke test
+│       ├── TextureGen/         # Generatore texture procedurali (PNG)
+│       └── NormalMapGen/       # Generatore flat normal map per test
+├── scenes/                     # File YAML di scene
+│   ├── libraries/              # Risorse riutilizzabili via import YAML
+│   │   ├── materials/          # Materiali PBR (Disney/Classic)
+│   │   ├── objects/            # Template di oggetti composti
+│   │   ├── lights/             # Setup di illuminazione pronti all'uso
+│   │   ├── starter-kits/       # Scene complete pronte all'uso, da personalizzare
+│   │   └── textures/           # Texture PNG (albedo e normal map)
+│   ├── showcases/              # Scene dimostrative per singola feature
+│   └── *.yaml                  # Scene principali del progetto
+├── renders/                    # Immagini renderizzate
+└── .github/workflows/          # CI con smoke test
 ```
 
 ---
@@ -174,13 +186,13 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 
 ### TextureGen
 Genera texture procedurali pronte all'uso (mattoni, legno, marmo, griglia UV):
-```powershell
+```bash
 dotnet run --project src/Tools/TextureGen/TextureGen.csproj
 ```
 
 ### NormalMapGen
 Genera una normal map piatta per testare il sistema di normal mapping:
-```powershell
+```bash
 dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
 ```
 
@@ -214,28 +226,28 @@ dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
 ## 💡 Esempi Pratici
 
 ### Profilo Preview (composizione, camere, materiali — secondi)
-```powershell
+```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o preview.png -w 400 -H 267 -s 64 -d 4 -S 1
 ```
 
 ### Profilo Standard (CI/CD, review, log — minuti)
-```powershell
+```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o draft.png -w 800 -H 533 -s 256 -d 6
 ```
 
 ### Profilo Final (portfolio, copertina README — Full HD)
-```powershell
+```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o final.png -w 1920 -H 1080 -s 1024 -d 8 -S 4
 ```
 
 ### Output in JPEG
 Il formato viene rilevato automaticamente dall'estensione:
-```powershell
+```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o render.jpg -s 32
 ```
 
 ### Multi-Camera
-```powershell
+```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml --list-cameras
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -c top -o top.png
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -c 2 -o cam2.png
