@@ -12,7 +12,7 @@ Nel capitolo precedente si sono utilizzati i materiali Lambertian e Metal. Il mo
 | `metal`      | --                   | Riflessione speculare           |
 | `dielectric` | --                   | Vetro trasparente / rifrazione  |
 | `emissive`   | --                   | Bagliore auto-illuminante       |
-| `disney`     | `disney_bsdf`, `pbr` | PBR universale (12 parametri)   |
+| `disney`     | `disney_bsdf`, `pbr` | PBR universale (anisotropia, assorbimento vetro, thin-film, sheen...) |
 | `mix`        | `blend`              | Miscela due materiali insieme   |
 
 Ogni materiale è definito nella sezione `materials:` con un `id` unico:
@@ -166,22 +166,42 @@ Alias del tipo: `disney`, `disney_bsdf`, `pbr` (tutti creano lo stesso materiale
 
 ### Riferimento Completo dei Parametri
 
-| Parametro         | Predefinito | Intervallo | Descrizione                                         |
-|-------------------|-------------|------------|-----------------------------------------------------|
-| `color`           | --          | 0--1       | Colore albedo di base                               |
-| `metallic`        | `0.0`       | 0--1       | 0 = dielettrico (plastica, legno), 1 = conduttore (metallo) |
-| `roughness`       | `0.5`       | 0--1       | 0 = perfettamente liscio, 1 = completamente diffuso |
-| `subsurface`      | `0.0`       | 0--1       | Miscela verso il modello diffuso subsurface scattering |
-| `specular`        | `0.5`       | 0--1       | Intensità speculare dielettrica (Fresnel F0)        |
-| `specular_tint`   | `0.0`       | 0--1       | Tinge la riflessione speculare con il colore di base |
-| `sheen`           | `0.0`       | 0--1       | Highlight morbido ad angoli radenti (tessuto, velluto) |
-| `sheen_tint`      | `0.5`       | 0--1       | Tinge lo sheen con il colore di base                |
-| `clearcoat`       | `0.0`       | 0--1       | Secondo lobo speculare (lacca, vernice)             |
-| `clearcoat_gloss` | `1.0`       | 0--1       | Lucentezza del clearcoat (1 = lucido, 0 = satinato) |
-| `spec_trans`      | `0.0`       | 0--1       | Trasmissione speculare (0 = opaco, 1 = vetro)       |
-| `ior`             | `1.5`       | 1+         | Indice di rifrazione (usato per specular e trasmissione) |
-| `texture`         | --          | --         | Texture procedurale o immagine (sostituisce color)  |
-| `normal_map`      | --          | --         | Dettagli di superficie tramite perturbazione delle normali |
+| Parametro              | Predefinito | Intervallo    | Descrizione                                         |
+|------------------------|-------------|---------------|-----------------------------------------------------|
+| `color`                | --          | 0--1          | Colore albedo di base                               |
+| `metallic`             | `0.0`       | 0--1          | 0 = dielettrico (plastica, legno), 1 = conduttore (metallo) |
+| `roughness`            | `0.5`       | 0--1          | 0 = perfettamente liscio, 1 = completamente diffuso |
+| `subsurface`           | `0.0`       | 0--1          | Miscela verso il modello diffuso subsurface scattering |
+| `specular`             | `0.5`       | 0--1          | Intensità speculare dielettrica (Fresnel F₀)        |
+| `specular_tint`        | `0.0`       | 0--1          | Tinge la riflessione speculare con il colore di base |
+| `sheen`                | `0.0`       | 0--1          | Highlight morbido ad angoli radenti (tessuto, velluto) |
+| `sheen_tint`           | `0.5`       | 0--1          | Tinge lo sheen con il colore di base                |
+| `sheen_roughness`      | `0.3`       | 0.04--1       | α del Charlie sheen — larghezza dell'alone radente |
+| `clearcoat`            | `0.0`       | 0--1          | Secondo lobo speculare (lacca, vernice)             |
+| `clearcoat_gloss`      | `1.0`       | 0--1          | Slider legacy della lucentezza clearcoat            |
+| `coat_ior`             | `1.5`       | 1+            | IOR del coat (default 1.5 = lacca)                 |
+| `coat_roughness`       | non imp.    | 0--1          | Quando impostato, attiva il coat stile Arnold (α = roughness²) |
+| `coat_normal_map`      | --          | path immagine | Normal map applicata **solo** al lobo clearcoat     |
+| `spec_trans`           | `0.0`       | 0--1          | Trasmissione speculare (0 = opaco, 1 = vetro)       |
+| `transmission_color`   | `[1,1,1]`   | 0--1          | Colore raggiunto dentro il vetro a `transmission_depth` |
+| `transmission_depth`   | `0.0`       | 0+            | Distanza (unità scena) a cui si raggiunge quel colore |
+| `ior`                  | `1.5`       | 1+            | Indice di rifrazione (specular + trasmissione)      |
+| `anisotropic`          | `0.0`       | 0--1          | 0 = isotropo, 1 = allungato lungo la tangente      |
+| `anisotropic_rotation` | `0.0`       | 0--1          | Frazione di rotazione di 2π intorno alla normale    |
+| `diff_trans`           | `0.0`       | 0--1          | Trasmissione diffusa (foglie, tele sottili)         |
+| `flatness`             | `0.0`       | 0--1          | Blend Lambert → HK-flat (Disney 2015)               |
+| `thin_walled`          | `false`     | bool          | Disattiva la doppia rifrazione — foglie, carta      |
+| `subsurface_color`     | --          | colore 0--1   | Tinta per i lobi subsurface / flatness / diff_trans |
+| `thin_film_thickness`  | `0.0`       | 0+ (nm)       | Spessore del film iridescente (bolle, opal, AR)    |
+| `thin_film_ior`        | `1.5`       | 1+            | IOR del film iridescente (η₂)                      |
+| `texture`              | --          | --            | Texture procedurale o immagine (sostituisce color)  |
+| `normal_map`           | --          | --            | Dettagli di superficie tramite perturbazione delle normali |
+
+> **Texturing di ogni parametro.** Ogni parametro scalare accetta la
+> variante `*_texture` (per esempio `roughness_texture`) e i tre input
+> colore (`color`, `transmission_color`, `subsurface_color`) accettano
+> un blocco `*_texture` dedicato. Esempio:
+> `roughness_texture: { type: "image", path: "rough.png" }`.
 
 ### Come i Parametri Lavorano Insieme
 
@@ -192,7 +212,11 @@ Il materiale Disney è un sistema a strati:
 3. **Strato Clearcoat** (`clearcoat` > 0): un rivestimento lucido indipendente sopra qualsiasi cosa ci sia sotto. Come la vernice delle auto o il legno laccato.
 4. **Trasmissione** (`spec_trans` > 0): la luce attraversa il materiale. Combinato con `roughness` > 0 si ottiene il vetro smerigliato.
 5. **Subsurface** (`subsurface` > 0): la luce penetra la superficie e si diffonde all'interno. Dona un aspetto più morbido e piatto agli oggetti sottili. Usato per pelle, cera, porcellana, foglie.
-6. **Sheen** (`sheen` > 0): un tenue bagliore agli angoli radenti. Usato per tessuti, velluto e alcuni materiali organici.
+6. **Sheen** (`sheen` > 0): un tenue bagliore agli angoli radenti. Usato per tessuti, velluto e alcuni materiali organici. `sheen_roughness` controlla la larghezza del bagliore (valori bassi = alone stretto, valori alti = halo morbido).
+7. **Anisotropia** (`anisotropic` > 0): allunga l'highlight speculare lungo la direzione tangente. Acciaio spazzolato, capelli, vinile. Ruota il frame tangente con `anisotropic_rotation`.
+8. **Iridescenza thin-film** (`thin_film_thickness` > 0): moltiplica il Fresnel per un fattore film sottile dipendente dalla lunghezza d'onda. Bolle di sapone, opal, anti-riflesso dielettrico.
+9. **Vetro colorato** (`spec_trans > 0` con `transmission_color` e `transmission_depth > 0`): il percorso di trasmissione usa l'assorbimento Beer-Lambert, quindi la luce che attraversa il vetro viene tinta esponenzialmente con la distanza (le sezioni più spesse diventano più scure).
+10. **Superfici thin-walled** (`thin_walled: true` con `diff_trans` o `spec_trans`): il motore disattiva la doppia rifrazione — ideale per foglie, carta, tele sottili, vetrate.
 
 ### Ricette: Materiali del Mondo Reale
 
@@ -258,13 +282,90 @@ Il materiale Disney è un sistema a strati:
   subsurface: 0.3
 ```
 
-**Acciaio spazzolato:**
+**Acciaio spazzolato (anisotropo):**
 ```yaml
 - id: "brushed_steel"
   type: "disney"
   color: [0.7, 0.7, 0.72]
   metallic: 1.0
   roughness: 0.35
+  anisotropic: 0.75
+  anisotropic_rotation: 0.0     # spazzolatura lungo la tangente U
+```
+
+**Vetro colorato (bottiglia di brandy):**
+```yaml
+- id: "brandy_glass"
+  type: "disney"
+  color: [1.0, 1.0, 1.0]
+  metallic: 0.0
+  roughness: 0.0
+  spec_trans: 1.0
+  ior: 1.52
+  transmission_color: [0.95, 0.55, 0.15]
+  transmission_depth: 6.0       # il colore si raggiunge dopo 6 unità scena
+```
+
+**Bolla di sapone (thin-film iridescence):**
+```yaml
+- id: "soap_bubble"
+  type: "disney"
+  color: [1.0, 1.0, 1.0]
+  metallic: 0.0
+  roughness: 0.01
+  spec_trans: 1.0
+  thin_walled: true             # niente doppia rifrazione
+  thin_film_thickness: 520      # ~520 nm di film
+  thin_film_ior: 1.33
+```
+
+**Vernice auto con coat stile Arnold e coat normal map:**
+```yaml
+- id: "metallic_pearl"
+  type: "disney"
+  color: [0.05, 0.1, 0.35]
+  metallic: 0.9
+  roughness: 0.25
+  clearcoat: 1.0
+  coat_ior: 1.55
+  coat_roughness: 0.15          # ≥ 0 abilita il coat stile Arnold
+  coat_normal_map: "textures/orange_peel_normal.png"
+```
+
+**Velluto con Charlie sheen:**
+```yaml
+- id: "moss_velvet"
+  type: "disney"
+  color: [0.1, 0.25, 0.08]
+  metallic: 0.0
+  roughness: 0.95
+  sheen: 1.0
+  sheen_tint: 1.0
+  sheen_roughness: 0.25         # alone radente stretto e nitido
+```
+
+**Foglia verde (diffuse transmission + thin-walled):**
+```yaml
+- id: "tree_leaf"
+  type: "disney"
+  color: [0.25, 0.5, 0.18]
+  metallic: 0.0
+  roughness: 0.8
+  diff_trans: 0.55              # metà dell'energia diffusa attraversa
+  thin_walled: true
+  subsurface_color: [0.35, 0.65, 0.25]
+```
+
+**Pelle di porcellana (flatness HK + tinta subsurface):**
+```yaml
+- id: "porcelain_skin"
+  type: "disney"
+  color: [0.95, 0.82, 0.76]
+  metallic: 0.0
+  roughness: 0.4
+  subsurface: 0.5
+  subsurface_color: [1.0, 0.55, 0.45]
+  flatness: 0.4
 ```
 
 ---
