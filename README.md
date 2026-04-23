@@ -166,7 +166,8 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │   ├── RayTracer.Benchmarks/   # Harness BenchmarkDotNet
 │   └── Tools/
 │       ├── TextureGen/         # Generatore texture procedurali (PNG)
-│       └── NormalMapGen/       # Generatore flat normal map per test
+│       ├── NormalMapGen/       # Generatore flat normal map per test
+│       └── ChessGen/           # Generatore scacchiera con set Staunton
 ├── scenes/                     # File YAML di scene
 │   ├── libraries/              # Risorse riutilizzabili via import YAML
 │   │   ├── materials/          # Materiali PBR (Disney/Classic)
@@ -194,6 +195,14 @@ dotnet run --project src/Tools/TextureGen/TextureGen.csproj
 Genera una normal map piatta per testare il sistema di normal mapping:
 ```bash
 dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
+```
+
+### ChessGen
+Genera il file YAML di una scacchiera Staunton completa (board 8×8 +
+32 pezzi posizionati con trasformazioni). Usato per produrre
+`scenes/chess.yaml`:
+```bash
+dotnet run --project src/Tools/ChessGen/ChessGen.csproj
 ```
 
 ---
