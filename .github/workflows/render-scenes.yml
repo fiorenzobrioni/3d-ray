@@ -47,26 +47,26 @@ jobs:
       fail-fast: false
       matrix:
         scene:
+          # --- Elenco disattivato (rimuovi il # per attivare) ---
           #- showcases/emissive-showcase
           #- sample
-          # --- Elenco disattivato (rimuovi il # per attivare) ---
-          # - alchemist-lab
-          - chess
-          # - classic-showcase
-          # - classic-vs-disney-showcase
-          # - cornell-box
-          # - cornell-box-sphere
-          # - cristallo
-          # - csg-showcase
-          # - gradient-sky-showcase
-          # - mix-material-showcase
-          # - pendolo-newton
-          # - primitive-showcase
-          # - showcases/group-showcase
-          # - showcases/sphere-light-showcase
-          - showcases/sphere-showcase
-          # - sphere-showcase-disney
-          # - utah-teapot
+          #- alchemist-lab
+          #- chess
+          #- classic-showcase
+          #- classic-vs-disney-showcase
+          #- cornell-box
+          #- cornell-box-sphere
+          #- cristallo
+          #- csg-showcase
+          - gradient-sky-showcase
+          - mix-material-showcase
+          #- pendolo-newton
+          #- primitive-showcase
+          #- showcases/group-showcase
+          #- showcases/sphere-light-showcase
+          #- showcases/sphere-showcase
+          #- sphere-showcase-disney
+          #- utah-teapot
 
     steps:
       - name: Checkout repository
