@@ -633,9 +633,24 @@ entities:
 - Supports `translate`, `rotate`, `scale`
 #### **7.13 CSG (Boolean Operations)**
 ```yaml
+# Union (A ∪ B) — fuses two solids into one (e.g. snowman body + head)
+- name: "snowman"
+  type: "csg"
+  operation: "union"
+  operand_a:
+    type: "sphere"
+    center: [0, 0, 0]
+    radius: 1.0
+  operand_b:
+    type: "sphere"
+    center: [0, 1.4, 0]
+    radius: 0.7
+  material: "snow"
+
+# Intersection (A ∩ B) — keeps only the volume shared by both solids (lens shape)
 - name: "lens"
   type: "csg"
-  operation: "intersection"                # "union", "intersection", "subtraction"
+  operation: "intersection"
   operand_a:
     type: "sphere"
     center: [-0.5, 0, 0]
@@ -645,9 +660,24 @@ entities:
     center: [0.5, 0, 0]
     radius: 1.0
   material: "glass"
+
+# Subtraction (A \ B) — removes B from A (bead: sphere with a hole drilled through it)
+- name: "bead"
+  type: "csg"
+  operation: "subtraction"
+  operand_a:
+    type: "sphere"
+    center: [0, 0, 0]
+    radius: 1.0
+  operand_b:
+    type: "cylinder"
+    center: [0, -1.5, 0]
+    radius: 0.3
+    height: 3.0
+  material: "wood"
 ```
-- Supports recursively nested CSG trees
 - Operations: `union` (A∪B), `intersection` (A∩B), `subtraction` (A\B)
+- Supports recursively nested CSG trees (an `operand_a` or `operand_b` can itself be a `csg` node)
 #### **7.14 Group (Hierarchical Composition)**
 ```yaml
 - name: "lamppost"
