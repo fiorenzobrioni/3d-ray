@@ -1147,6 +1147,8 @@ public class SceneLoader
                        => new Cone(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.TopRadius, e.Height, mat),
             "torus" or "donut" or "ring"
                        => CreateTorusEntity(e, mat),
+            "lathe" or "revolution" or "surface_of_revolution"
+                       => CreateLatheEntity(e, mat),
             "capsule" or "pill" or "sphylinder"
                        => new Capsule(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.Height, mat),
             "annulus" or "ring_disk" or "washer"
@@ -1193,6 +1195,108 @@ public class SceneLoader
             torus = new Transform(torus, Matrix4x4.CreateTranslation(center.Value));
 
         return torus;
+    }
+
+    /// <summary>
+    /// Creates a <see cref="Lathe"/> from the YAML <c>profile</c>, optional
+    /// <c>profile_type</c> (<c>linear</c> / <c>catmull_rom</c> / <c>bezier</c>)
+    /// and, for the Bezier mode, <c>profile_bezier_controls</c>. Validates the
+    /// profile (≥ 2 points, r ≥ 0, y monotonic) and routes bad inputs to a
+    /// deferred warning rather than crashing the load.
+    /// </summary>
+    private static IHittable? CreateLatheEntity(EntityData e, IMaterial mat)
+    {
+        if (e.Profile == null || e.Profile.Count < 2)
+        {
+            Warn($"Lathe entity '{e.Name ?? "(unnamed)"}' requires a 'profile' of at least 2 [r, y] points. Skipping.");
+            return null;
+        }
+
+        var pts = new List<Vector2>(e.Profile.Count);
+        foreach (var p in e.Profile)
+        {
+            if (p == null || p.Count < 2)
+            {
+                Warn($"Lathe entity '{e.Name ?? "(unnamed)"}': each profile point must be [r, y]. Skipping entity.");
+                return null;
+            }
+            float r = p[0];
+            float y = p[1];
+            if (r < 0f)
+            {
+                Warn($"Lathe entity '{e.Name ?? "(unnamed)"}': negative radius {r} clamped to 0.");
+                r = 0f;
+            }
+            pts.Add(new Vector2(r, y));
+        }
+
+        // Ensure y is monotonically non-decreasing — silently sort if not.
+        bool needsSort = false;
+        for (int i = 1; i < pts.Count; i++)
+            if (pts[i].Y < pts[i - 1].Y) { needsSort = true; break; }
+        if (needsSort)
+        {
+            Warn($"Lathe entity '{e.Name ?? "(unnamed)"}': profile y values were not monotonic; sorting by y.");
+            pts.Sort((a, b) => a.Y.CompareTo(b.Y));
+        }
+
+        string rawMode = (e.ProfileType ?? "linear").Trim().ToLowerInvariant();
+        LatheMode mode = rawMode switch
+        {
+            "linear" or ""            => LatheMode.Linear,
+            "catmull_rom" or "catmull" or "smooth"
+                                      => LatheMode.CatmullRom,
+            "bezier" or "bézier"      => LatheMode.Bezier,
+            _ => LatheMode.Linear,
+        };
+        if (mode == LatheMode.Linear && !string.IsNullOrEmpty(rawMode) && rawMode != "linear")
+            Warn($"Lathe entity '{e.Name ?? "(unnamed)"}': unknown profile_type '{e.ProfileType}'. Falling back to 'linear'.");
+
+        if (mode == LatheMode.CatmullRom && pts.Count < 4)
+        {
+            Warn($"Lathe entity '{e.Name ?? "(unnamed)"}': Catmull-Rom needs at least 4 points, got {pts.Count}. " +
+                 "Falling back to 'linear'.");
+            mode = LatheMode.Linear;
+        }
+
+        List<Vector2>? controls = null;
+        if (mode == LatheMode.Bezier)
+        {
+            int expected = 4 * (pts.Count - 1);
+            if (e.ProfileBezierControls == null || e.ProfileBezierControls.Count != expected)
+            {
+                Warn($"Lathe entity '{e.Name ?? "(unnamed)"}': profile_bezier_controls requires exactly " +
+                     $"{expected} entries (got {e.ProfileBezierControls?.Count ?? 0}). Skipping entity.");
+                return null;
+            }
+            controls = new List<Vector2>(expected);
+            foreach (var c in e.ProfileBezierControls)
+            {
+                if (c == null || c.Count < 2)
+                {
+                    Warn($"Lathe entity '{e.Name ?? "(unnamed)"}': each bezier control must be [r, y]. Skipping entity.");
+                    return null;
+                }
+                controls.Add(new Vector2(MathF.Max(0f, c[0]), c[1]));
+            }
+        }
+
+        IHittable lathe;
+        try
+        {
+            lathe = new Lathe(pts, mode, mat, controls);
+        }
+        catch (ArgumentException ex)
+        {
+            Warn($"Lathe entity '{e.Name ?? "(unnamed)"}': {ex.Message}. Skipping.");
+            return null;
+        }
+
+        var center = ToVector3(e.Center);
+        if (center.HasValue && center.Value != Vector3.Zero)
+            lathe = new Transform(lathe, Matrix4x4.CreateTranslation(center.Value));
+
+        return lathe;
     }
     /// <summary>
     /// Creates a CSG (Constructive Solid Geometry) entity from nested left/right

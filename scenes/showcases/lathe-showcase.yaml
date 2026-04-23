@@ -1,0 +1,150 @@
+# ============================================================================
+# Scene: Lathe Showcase
+# Tests: Lathe primitive — linear, Catmull-Rom and Bezier profiles, plus a
+#        Bezier emissive bowl exercising the NEE path through ISamplable.
+# ============================================================================
+
+camera:
+  position: [0, 3.5, -9]
+  look_at: [0, 1.2, 0]
+  fov: 42
+  aperture: 0.0
+
+world:
+  ambient_light: [0.03, 0.03, 0.035]
+  sky:
+    type: "gradient"
+    zenith_color: [0.04, 0.05, 0.10]
+    horizon_color: [0.12, 0.12, 0.18]
+    ground_color: [0.03, 0.03, 0.04]
+  ground:
+    type: "plane"
+    material: "pavimento"
+    y: 0
+
+materials:
+  - id: "pavimento"
+    type: "disney"
+    roughness: 0.85
+    texture:
+      type: "checker"
+      colors: [[0.10, 0.10, 0.11], [0.22, 0.22, 0.23]]
+      scale: 0.7
+
+  # ── Ceramic vase (Catmull-Rom) ───────────────────────────────────────────
+  - id: "porcellana"
+    type: "disney"
+    color: [0.94, 0.92, 0.88]
+    roughness: 0.25
+    specular: 0.6
+
+  # ── Faceted column (linear) — the turned-by-hand look ────────────────────
+  - id: "marmo"
+    type: "disney"
+    color: [0.88, 0.86, 0.82]
+    roughness: 0.35
+
+  # ── Glass chalice (Catmull-Rom, dielectric) ──────────────────────────────
+  - id: "cristallo"
+    type: "dielectric"
+    refraction_index: 1.5
+
+  # ── Emissive bowl (Bezier) — NEE area light ──────────────────────────────
+  - id: "lampada"
+    type: "emissive"
+    color: [1.0, 0.65, 0.35]
+    intensity: 35.0
+
+lights:
+  - type: "point"
+    position: [-6, 10, -8]
+    color: [1, 1, 1]
+    intensity: 110
+
+entities:
+  # ═════════════════════════════════════════════════════════════════════════
+  # 1. Ceramic Ming-style vase — centripetal Catmull-Rom
+  # ═════════════════════════════════════════════════════════════════════════
+  - name: "vaso"
+    type: "lathe"
+    profile_type: "catmull_rom"
+    material: "porcellana"
+    translate: [-2.8, 0, 0]
+    profile:
+      - [0.00, 0.00]
+      - [0.35, 0.00]
+      - [0.55, 0.10]
+      - [0.80, 0.30]
+      - [0.95, 0.55]
+      - [0.75, 0.90]
+      - [0.55, 1.30]
+      - [0.45, 1.70]
+      - [0.55, 2.00]
+      - [0.60, 2.10]
+      - [0.40, 2.15]
+      - [0.00, 2.15]
+
+  # ═════════════════════════════════════════════════════════════════════════
+  # 2. Faceted doric-style column — linear profile (faceted ridges)
+  # ═════════════════════════════════════════════════════════════════════════
+  - name: "colonna"
+    type: "lathe"
+    profile_type: "linear"
+    material: "marmo"
+    translate: [0, 0, 0]
+    profile:
+      - [0.00, 0.00]
+      - [0.55, 0.00]
+      - [0.55, 0.10]
+      - [0.48, 0.15]
+      - [0.42, 0.25]
+      - [0.42, 2.00]
+      - [0.48, 2.10]
+      - [0.55, 2.15]
+      - [0.55, 2.25]
+      - [0.00, 2.25]
+
+  # ═════════════════════════════════════════════════════════════════════════
+  # 3. Glass chalice — smooth Catmull-Rom with a refractive material
+  # ═════════════════════════════════════════════════════════════════════════
+  - name: "calice"
+    type: "lathe"
+    profile_type: "catmull_rom"
+    material: "cristallo"
+    translate: [2.6, 0, 0]
+    profile:
+      - [0.00, 0.00]
+      - [0.45, 0.00]
+      - [0.40, 0.05]
+      - [0.08, 0.10]
+      - [0.08, 0.60]
+      - [0.20, 0.80]
+      - [0.55, 1.20]
+      - [0.55, 1.65]
+      - [0.25, 1.75]
+      - [0.00, 1.75]
+
+  # ═════════════════════════════════════════════════════════════════════════
+  # 4. Emissive bowl — explicit Bezier control points.
+  #    Two segments: base (r = 0 → 0.55) and bowl wall (0.55 → 0.65 → 0).
+  # ═════════════════════════════════════════════════════════════════════════
+  - name: "ciotola_emissiva"
+    type: "lathe"
+    profile_type: "bezier"
+    material: "lampada"
+    translate: [0.5, 0.05, 3.8]
+    profile:
+      - [0.00, 0.00]
+      - [0.55, 0.30]
+      - [0.00, 0.65]
+    profile_bezier_controls:
+      # Segment A — base rises from the axis to the bowl lip
+      - [0.00, 0.00]
+      - [0.30, 0.00]
+      - [0.50, 0.10]
+      - [0.55, 0.30]
+      # Segment B — bowl wall curves up and back to the axis
+      - [0.55, 0.30]
+      - [0.60, 0.45]
+      - [0.40, 0.65]
+      - [0.00, 0.65]

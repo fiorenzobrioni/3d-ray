@@ -668,6 +668,76 @@ entities:
 - Nesting supported (groups can contain groups)
 - Transformations compose hierarchically
 - All children inherit material unless overridden
+#### **7.15.1 Lathe (Surface of Revolution)**
+```yaml
+# Linear profile — faceted look of a real turned piece (hard vertex ridges)
+- name: "column"
+  type: "lathe"                           # aliases: "revolution", "surface_of_revolution"
+  profile_type: "linear"                  # default — can be omitted
+  material: "marble"
+  profile:                                # list of [r, y] points, y monotonic
+    - [0.30, 0.0]
+    - [0.30, 0.1]
+    - [0.25, 0.2]
+    - [0.28, 2.0]
+    - [0.35, 2.1]
+
+# Catmull-Rom profile — smooth, passes through every control point (centripetal)
+- name: "vase"
+  type: "lathe"
+  profile_type: "catmull_rom"             # aliases: "catmull", "smooth"
+  material: "ceramic"
+  profile:
+    - [0.00, 0.00]                        # closed bottom (r = 0 → cap absent)
+    - [0.30, 0.00]
+    - [0.55, 0.40]
+    - [0.45, 0.80]
+    - [0.55, 0.95]
+    - [0.00, 0.95]                        # closed top
+
+# Bezier profile — explicit 4 cubic-Bezier control points per segment
+- name: "bowl"
+  type: "lathe"
+  profile_type: "bezier"
+  material: "porcelain"
+  profile:                                # segment endpoints — (N-1) segments
+    - [0.0, 0.0]
+    - [0.5, 0.3]
+    - [0.5, 0.6]
+  profile_bezier_controls:                # 4 × (N-1) control points, concatenated
+    - [0.0, 0.0]
+    - [0.3, 0.0]
+    - [0.5, 0.1]
+    - [0.5, 0.3]
+    - [0.5, 0.3]
+    - [0.5, 0.45]
+    - [0.5, 0.5]
+    - [0.5, 0.6]
+```
+- Revolves a 2D profile 360° around the local Y axis. Positioning goes
+  through `center`/`translate`/`rotate` like any other primitive.
+- Three interpolation modes. `linear` stacks analytic frustums — fast and
+  exact, but shows hard vertex ridges. `catmull_rom` uses centripetal
+  Catmull-Rom (Yuksel et al. 2011) — passes through every point, C¹
+  continuous, no self-intersections. `bezier` lets you author every cubic
+  control point yourself; `profile_bezier_controls` must hold exactly
+  `4 × (N − 1)` entries.
+- The cap discs at the bottom / top are added automatically when the
+  profile leaves the axis (`r > 0`) at that end.
+- V coordinate on the lateral surface is the normalised cumulative
+  arc length of the profile; U is the azimuthal angle like Cylinder/Cone.
+- Catmull-Rom requires at least 4 points; profiles with 2 or 3 points are
+  transparently downgraded to `linear` with a loader warning.
+- Emissive Lathes participate in NEE automatically: `Sample()` uses the
+  area-weighted CDF across segments and caps so shadows and direct
+  lighting receive noise-free samples.
+- Ray intersection is analytic quadratic for `linear`; for spline modes
+  the ray-surface equation is a polynomial of degree 6 solved with a
+  Sturm chain + Newton-Raphson hybrid (`SturmSolver`), matching the
+  approach used by PovRay's `lathe` and PBRT's `Curve`. Expect ~10× the
+  per-ray cost of a Cone hit on spline segments — prefer `linear` when
+  faceting is acceptable.
+
 #### **7.15 Template + Instance (Reusable Objects)**
 ```yaml
 templates:
