@@ -71,7 +71,7 @@ lights:
     v: [0.0, 0.0, 2.0]
     color: [0.85, 0.88, 1.0]
     intensity: 8.0
-    shadow_samples: 8
+    shadow_samples: 9
 
 # ─── LUCI ALT-1: Sera — luce calda artificiale dall'alto ────────────────────
 # lights:

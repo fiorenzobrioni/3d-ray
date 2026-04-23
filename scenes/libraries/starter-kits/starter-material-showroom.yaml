@@ -13,6 +13,9 @@
 #    Draft:    -w 400  -H 225  -s 64   -d 4  -S 1
 #    Preview:  -w 800  -H 450  -s 256  -d 6
 #    Finale:   -w 1920 -H 1080 -s 1024 -d 8  -S 4
+#
+#  Noise: aggiungere -C 25 su Preview/Finale — il vetro smerigliato
+#  (spec_trans=0.85) produce caustiche rumorose sotto il clamp default.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 

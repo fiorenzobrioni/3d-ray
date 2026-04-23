@@ -495,8 +495,6 @@ materials:
     roughness: 0.35
     metallic: 0.30
     specular: 0.5
-    sheen: 0.15
-    sheen_tint: 0.3
 
   # Raku bianco craquelé — smalto bianco con rete di fessure annerite
   - id: "dis_raku_bianco"
@@ -775,8 +773,6 @@ materials:
     roughness: 0.40
     metallic: 0.0
     specular: 0.35
-    sheen: 0.10
-    sheen_tint: 0.6
 
   # Terra sigillata nera — riduzione in cottura, nero satinato
   - id: "dis_sigillata_nera"
@@ -785,8 +781,6 @@ materials:
     roughness: 0.38
     metallic: 0.0
     specular: 0.40
-    sheen: 0.12
-    sheen_tint: 0.3
 
   # Terra sigillata ocra — tono miele, slip chiaro
   - id: "dis_sigillata_ocra"
@@ -795,8 +789,6 @@ materials:
     roughness: 0.42
     metallic: 0.0
     specular: 0.30
-    sheen: 0.08
-    sheen_tint: 0.5
 
   # ── Classic ────────────────────────────────────────────────────────────
 

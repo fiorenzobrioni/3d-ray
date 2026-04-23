@@ -351,8 +351,6 @@ materials:
     roughness: 0.45
     specular: 0.40
     specular_tint: 0.6
-    sheen: 0.08
-    sheen_tint: 0.4
 
   # Bronzo patinato verde — statua esposta alle intemperie
   - id: "dis_bronzo_patinato"
@@ -568,7 +566,6 @@ materials:
     metallic: 0.80
     roughness: 0.50
     specular: 0.38
-    sheen: 0.05
 
   # Ferro lucido — levigato e oliato, come un'incudine nuova
   - id: "dis_ferro_lucido"
@@ -756,7 +753,7 @@ materials:
     type: "disney"
     color: [0.95, 0.93, 0.88]
     metallic: 1.0
-    roughness: 0.01
+    roughness: 0.03
     specular: 1.0
 
   # Cromo satinato — meno riflesso, più soft
@@ -945,7 +942,6 @@ materials:
     metallic: 0.88
     roughness: 0.45
     specular: 0.40
-    sheen: 0.06
 
   # Stagno puro — più chiaro del peltro, quasi argenteo
   - id: "dis_stagno_lucido"

@@ -14,6 +14,10 @@
 #    Preview:  -w 800  -H 450  -s 256  -d 16
 #    Finale:   -w 1920 -H 1080 -s 1024 -d 20 -S 4
 #    Ultra:    -w 3840 -H 2160 -s 1600 -d 20 -S 4
+#
+#  Noise: aggiungere -C 50 sui profili Preview — il pannello emissivo
+#  (intensity=15) combinato con la GI produce fireflies sotto il clamp
+#  default 100.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 

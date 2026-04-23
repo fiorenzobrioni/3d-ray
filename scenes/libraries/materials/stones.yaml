@@ -628,8 +628,6 @@ materials:
       randomize_offset: true
     roughness: 0.60
     specular: 0.28
-    sheen: 0.06
-    sheen_tint: 0.3
 
   # Ardesia nera — più scura, quasi antracite
   - id: "dis_ardesia_nera"
@@ -642,7 +640,6 @@ materials:
       randomize_offset: true
     roughness: 0.55
     specular: 0.32
-    sheen: 0.05
 
   # Ardesia verde — variante con sfumatura verde
   - id: "dis_ardesia_verde"

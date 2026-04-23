@@ -15,6 +15,9 @@
 #    Draft:    -w 400  -H 225  -s 64   -d 4  -S 1
 #    Preview:  -w 800  -H 450  -s 256  -d 16
 #    Finale:   -w 1920 -H 1080 -s 1024 -d 32 -S 4
+#
+#  Noise: aggiungere -C 50 su Preview — 5 emissivi + 2 specchi paralleli
+#  generano ricorsioni di emissive-on-mirror rumorose.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
@@ -62,7 +65,7 @@ lights:
     v: [0, 0, 4]
     color: [0.80, 0.82, 0.90]
     intensity: 3.0
-    shadow_samples: 8
+    shadow_samples: 9
 
 
 materials:
