@@ -51,7 +51,7 @@ jobs:
           #- sample
           # --- Elenco disattivato (rimuovi il # per attivare) ---
           # - alchemist-lab
-           - chess
+          - chess
           # - classic-showcase
           # - classic-vs-disney-showcase
           # - cornell-box
@@ -64,7 +64,7 @@ jobs:
           # - primitive-showcase
           # - showcases/group-showcase
           # - showcases/sphere-light-showcase
-          # - sphere-showcase
+          - showcases/sphere-showcase
           # - sphere-showcase-disney
           # - utah-teapot
 
@@ -99,7 +99,7 @@ jobs:
           publish/RayTracer/RayTracer \
             -i scenes/${{ matrix.scene }}.yaml \
             -o renders/${{ matrix.scene }}.png \
-            -s 512 -d 6 -w 1920 -H 1080
+            -s 1024 -d 6 -w 1920 -H 1080
 
       - name: Upload render
         if: always()
