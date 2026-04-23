@@ -632,6 +632,19 @@ public class EntityData
 
     [YamlMember(Alias = "scale")]
     public object? Scale { get; set; }
+
+    // ── Internal: origin tracking ───────────────────────────────────────────
+    /// <summary>
+    /// Absolute directory of the YAML file that declared this entity. Set by
+    /// <c>SceneLoader.ProcessImports</c> for entities/templates loaded from an
+    /// imported library file; null for entities declared directly in the
+    /// top-level scene. Used by <c>CreateMeshEntity</c> as the fallback base
+    /// directory for resolving relative <c>path:</c> references when the path
+    /// is not found relative to the top-level scene directory. Never
+    /// serialized to / from YAML.
+    /// </summary>
+    [YamlIgnore]
+    public string? SourceDir { get; set; }
 }
 
 public class LightData

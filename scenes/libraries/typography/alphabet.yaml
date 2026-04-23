@@ -1,0 +1,300 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Libreria Tipografia — Alfabeto A–Z e Cifre 0–9
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  36 glifi procedurali in stile geometric sans-serif (famiglia Futura/Avenir).
+#  Modellati con triangoli piani e SmoothTriangle (per le curve), estrusi
+#  in 3D, esportati come OBJ e avvolti qui in template istanziabili.
+#
+#  Metriche uniformi per tutti i glifi:
+#    • Cap-height: 1.0          (altezza delle maiuscole)
+#    • Baseline:   y = 0
+#    • Bordo sx:   x = 0
+#    • Faccia frontale: z = 0   (estrusione verso −Z)
+#    • Profondità: 0.15
+#    • Larghezza tratto: 0.15
+#    • Advance width: proporzionale per glifo (vedi commento a lato)
+#
+#  Uso base:
+#    imports:
+#      - path: "libraries/typography/alphabet.yaml"
+#    entities:
+#      - { type: "instance", template: "glyph_C", translate: [0.00, 0, 0] }
+#      - { type: "instance", template: "glyph_I", translate: [0.90, 0, 0] }
+#      - { type: "instance", template: "glyph_A", translate: [1.20, 0, 0] }
+#      - { type: "instance", template: "glyph_O", translate: [2.10, 0, 0] }
+#
+#  Override del materiale per istanza:
+#    - { type: "instance", template: "glyph_A", material: "dis_oro_lucido" }
+#
+#  Rigenerabile con:
+#    dotnet run --project src/Tools/TypographyGen
+# ═══════════════════════════════════════════════════════════════════════════
+
+materials:
+  # Materiale di default usato dai template — neutro, leggermente opaco,
+  # adatto a qualsiasi sfondo. Ridefinibile nella scena (local wins).
+  - id: "font_primary"
+    type: "disney"
+    color: [0.92, 0.92, 0.92]
+    roughness: 0.35
+    specular: 0.45
+
+  # Varianti "pronte" — l'utente può selezionarle nell'istanza con `material:`.
+  - id: "font_ink"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.50
+    specular: 0.35
+
+  - id: "font_gold"
+    type: "disney"
+    color: [1.00, 0.75, 0.30]
+    metallic: 1.00
+    roughness: 0.15
+    specular: 0.80
+
+  - id: "font_copper"
+    type: "disney"
+    color: [0.95, 0.55, 0.35]
+    metallic: 1.00
+    roughness: 0.22
+
+  - id: "font_chrome"
+    type: "disney"
+    color: [0.85, 0.85, 0.87]
+    metallic: 1.00
+    roughness: 0.08
+
+  - id: "font_neon"
+    type: "emissive"
+    color: [1.00, 0.35, 0.85]
+    intensity: 8.0
+
+# ─── Template dei 36 glifi ────────────────────────────────────────────────
+#
+# Ogni template è un wrapper minimale attorno alla mesh OBJ del glifo. Il
+# `name` segue la convenzione `glyph_<char>`. L'`advance` annotato come
+# commento indica la larghezza orizzontale da utilizzare per l'avanzamento
+# tra glifi consecutivi quando si compongono parole.
+
+templates:
+
+  # ═══ Lettere A–M ═══
+  - name: "glyph_A"       # advance: 0.85
+    children:
+      - type: "mesh"
+        path: "glyphs/A.obj"
+        material: "font_primary"
+
+  - name: "glyph_B"       # advance: 0.65
+    children:
+      - type: "mesh"
+        path: "glyphs/B.obj"
+        material: "font_primary"
+
+  - name: "glyph_C"       # advance: 0.80
+    children:
+      - type: "mesh"
+        path: "glyphs/C.obj"
+        material: "font_primary"
+
+  - name: "glyph_D"       # advance: 0.75
+    children:
+      - type: "mesh"
+        path: "glyphs/D.obj"
+        material: "font_primary"
+
+  - name: "glyph_E"       # advance: 0.65
+    children:
+      - type: "mesh"
+        path: "glyphs/E.obj"
+        material: "font_primary"
+
+  - name: "glyph_F"       # advance: 0.65
+    children:
+      - type: "mesh"
+        path: "glyphs/F.obj"
+        material: "font_primary"
+
+  - name: "glyph_G"       # advance: 0.85
+    children:
+      - type: "mesh"
+        path: "glyphs/G.obj"
+        material: "font_primary"
+
+  - name: "glyph_H"       # advance: 0.80
+    children:
+      - type: "mesh"
+        path: "glyphs/H.obj"
+        material: "font_primary"
+
+  - name: "glyph_I"       # advance: 0.25
+    children:
+      - type: "mesh"
+        path: "glyphs/I.obj"
+        material: "font_primary"
+
+  - name: "glyph_J"       # advance: 0.55
+    children:
+      - type: "mesh"
+        path: "glyphs/J.obj"
+        material: "font_primary"
+
+  - name: "glyph_K"       # advance: 0.75
+    children:
+      - type: "mesh"
+        path: "glyphs/K.obj"
+        material: "font_primary"
+
+  - name: "glyph_L"       # advance: 0.60
+    children:
+      - type: "mesh"
+        path: "glyphs/L.obj"
+        material: "font_primary"
+
+  - name: "glyph_M"       # advance: 1.00
+    children:
+      - type: "mesh"
+        path: "glyphs/M.obj"
+        material: "font_primary"
+
+  # ═══ Lettere N–Z ═══
+  - name: "glyph_N"       # advance: 0.85
+    children:
+      - type: "mesh"
+        path: "glyphs/N.obj"
+        material: "font_primary"
+
+  - name: "glyph_O"       # advance: 0.90
+    children:
+      - type: "mesh"
+        path: "glyphs/O.obj"
+        material: "font_primary"
+
+  - name: "glyph_P"       # advance: 0.70
+    children:
+      - type: "mesh"
+        path: "glyphs/P.obj"
+        material: "font_primary"
+
+  - name: "glyph_Q"       # advance: 1.00
+    children:
+      - type: "mesh"
+        path: "glyphs/Q.obj"
+        material: "font_primary"
+
+  - name: "glyph_R"       # advance: 0.75
+    children:
+      - type: "mesh"
+        path: "glyphs/R.obj"
+        material: "font_primary"
+
+  - name: "glyph_S"       # advance: 0.70
+    children:
+      - type: "mesh"
+        path: "glyphs/S.obj"
+        material: "font_primary"
+
+  - name: "glyph_T"       # advance: 0.75
+    children:
+      - type: "mesh"
+        path: "glyphs/T.obj"
+        material: "font_primary"
+
+  - name: "glyph_U"       # advance: 0.80
+    children:
+      - type: "mesh"
+        path: "glyphs/U.obj"
+        material: "font_primary"
+
+  - name: "glyph_V"       # advance: 0.85
+    children:
+      - type: "mesh"
+        path: "glyphs/V.obj"
+        material: "font_primary"
+
+  - name: "glyph_W"       # advance: 1.15
+    children:
+      - type: "mesh"
+        path: "glyphs/W.obj"
+        material: "font_primary"
+
+  - name: "glyph_X"       # advance: 0.80
+    children:
+      - type: "mesh"
+        path: "glyphs/X.obj"
+        material: "font_primary"
+
+  - name: "glyph_Y"       # advance: 0.80
+    children:
+      - type: "mesh"
+        path: "glyphs/Y.obj"
+        material: "font_primary"
+
+  - name: "glyph_Z"       # advance: 0.75
+    children:
+      - type: "mesh"
+        path: "glyphs/Z.obj"
+        material: "font_primary"
+
+  # ═══ Cifre 0–9 ═══
+  - name: "glyph_0"       # advance: 0.80
+    children:
+      - type: "mesh"
+        path: "glyphs/0.obj"
+        material: "font_primary"
+
+  - name: "glyph_1"       # advance: 0.40
+    children:
+      - type: "mesh"
+        path: "glyphs/1.obj"
+        material: "font_primary"
+
+  - name: "glyph_2"       # advance: 0.70
+    children:
+      - type: "mesh"
+        path: "glyphs/2.obj"
+        material: "font_primary"
+
+  - name: "glyph_3"       # advance: 0.70
+    children:
+      - type: "mesh"
+        path: "glyphs/3.obj"
+        material: "font_primary"
+
+  - name: "glyph_4"       # advance: 0.80
+    children:
+      - type: "mesh"
+        path: "glyphs/4.obj"
+        material: "font_primary"
+
+  - name: "glyph_5"       # advance: 0.70
+    children:
+      - type: "mesh"
+        path: "glyphs/5.obj"
+        material: "font_primary"
+
+  - name: "glyph_6"       # advance: 0.75
+    children:
+      - type: "mesh"
+        path: "glyphs/6.obj"
+        material: "font_primary"
+
+  - name: "glyph_7"       # advance: 0.70
+    children:
+      - type: "mesh"
+        path: "glyphs/7.obj"
+        material: "font_primary"
+
+  - name: "glyph_8"       # advance: 0.70
+    children:
+      - type: "mesh"
+        path: "glyphs/8.obj"
+        material: "font_primary"
+
+  - name: "glyph_9"       # advance: 0.75
+    children:
+      - type: "mesh"
+        path: "glyphs/9.obj"
+        material: "font_primary"

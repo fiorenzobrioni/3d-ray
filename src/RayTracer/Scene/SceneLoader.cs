@@ -406,7 +406,17 @@ public class SceneLoader
                 var importDir = Path.GetDirectoryName(fullPath) ?? ".";
                 if (importData.Imports is { Count: > 0 })
                     ProcessImports(importData, importDir, deserializer, visited);
- 
+
+                // Stamp every imported entity / template (recursing into children)
+                // with the absolute directory of the YAML file that declared them.
+                // CreateMeshEntity falls back to this when a mesh `path:` does not
+                // resolve against the top-level scene directory — letting libraries
+                // ship their own mesh assets with paths relative to the library.
+                if (importData.Entities != null)
+                    foreach (var ent in importData.Entities) StampSourceDir(ent, importDir);
+                if (importData.Templates != null)
+                    foreach (var tpl in importData.Templates) StampSourceDir(tpl, importDir);
+
                 if (importData.Materials != null)
                     importedMaterials.AddRange(importData.Materials);
                 if (importData.Entities != null)
@@ -449,6 +459,23 @@ public class SceneLoader
             importedTemplates.AddRange(data.Templates ?? new List<EntityData>());
             data.Templates = importedTemplates;
         }
+    }
+
+    /// <summary>
+    /// Recursively stamps <see cref="EntityData.SourceDir"/> on an entity and
+    /// all of its descendants (children, csg left/right). Called by
+    /// <see cref="ProcessImports"/> so that mesh <c>path:</c> fields declared
+    /// in an imported library file can be resolved relative to that library
+    /// file's directory (see <see cref="CreateMeshEntity"/>).
+    /// </summary>
+    private static void StampSourceDir(EntityData? e, string sourceDir)
+    {
+        if (e == null) return;
+        e.SourceDir ??= sourceDir;
+        if (e.Children != null)
+            foreach (var c in e.Children) StampSourceDir(c, sourceDir);
+        StampSourceDir(e.Left, sourceDir);
+        StampSourceDir(e.Right, sourceDir);
     }
 
     // =========================================================================
@@ -1309,11 +1336,25 @@ public class SceneLoader
             return null;
         }
  
-        // Resolve the OBJ path relative to the YAML scene directory
-        string objPath = Path.IsPathRooted(e.Path)
-            ? e.Path
-            : Path.Combine(sceneDir, e.Path);
- 
+        // Resolve the OBJ path. Primary base: the top-level scene directory.
+        // Fallback: the directory of the YAML library file that declared this
+        // entity (set by ProcessImports -> StampSourceDir). This lets libraries
+        // ship their own mesh assets with paths relative to the library.
+        string objPath;
+        if (Path.IsPathRooted(e.Path))
+        {
+            objPath = e.Path;
+        }
+        else
+        {
+            objPath = Path.Combine(sceneDir, e.Path);
+            if (!File.Exists(objPath) && !string.IsNullOrEmpty(e.SourceDir))
+            {
+                var libPath = Path.Combine(e.SourceDir, e.Path);
+                if (File.Exists(libPath)) objPath = libPath;
+            }
+        }
+
         if (!File.Exists(objPath))
         {
             Warn($"Mesh entity '{e.Name ?? "(unnamed)"}': OBJ file not found at '{objPath}'. Skipping.");

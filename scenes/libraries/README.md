@@ -48,7 +48,36 @@ entities:
 
 ---
 
-## Le Quattro Librerie
+## Le Cinque Librerie
+
+### 🅰️ Tipografia — `typography/`
+
+**36 glifi (A–Z, 0–9) · OBJ smooth + template YAML**
+
+Alfabeto maiuscolo e cifre in stile geometric sans-serif, modellati in 3D
+come mesh estruse (curve con `SmoothTriangle`), esportati in OBJ e avvolti
+in template istanziabili per comporre parole e numeri nelle scene.
+
+- Cap-height uniforme a 1.0, baseline a y=0, estrusione 0.15 verso −Z
+- Advance width proporzionale per glifo (da 0.25 di "I" a 1.15 di "W")
+- Template `glyph_A` … `glyph_Z` e `glyph_0` … `glyph_9` con materiale
+  default `font_primary` sovrascrivibile per istanza
+- Rigenerabile via `dotnet run --project src/Tools/TypographyGen`
+
+**Uso base:**
+```yaml
+imports:
+  - path: "libraries/typography/alphabet.yaml"
+entities:
+  - { type: "instance", template: "glyph_C", translate: [0.0,  0, 0] }
+  - { type: "instance", template: "glyph_I", translate: [0.9,  0, 0] }
+  - { type: "instance", template: "glyph_A", translate: [1.2,  0, 0] }
+  - { type: "instance", template: "glyph_O", translate: [2.1,  0, 0] }
+```
+
+📖 **Documentazione completa:** [`typography/README.md`](typography/README.md)
+
+---
 
 ### 🎨 Materiali — `materials/`
 

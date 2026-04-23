@@ -1,0 +1,183 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Typography Showcase — Alfabeto A–Z + Cifre 0–9
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Vetrina di tutti i 36 glifi della libreria tipografica disposti in griglia
+#  6×6. Dimostra l'uniformità delle metriche (cap-height = 1.0, baseline allineata)
+#  e la resa delle curve smooth (B, C, D, G, O, P, Q, R, S, U, 0, 3, 6, 8, 9).
+#
+#  Ogni riga contiene sei glifi con spaziatura di 1.5 unità (advance massimo
+#  è W = 1.15, restano 0.35 di gap). Le righe sono spaziate di 1.5 per lasciare
+#  mezza unità di gap verticale sopra ogni cap-height.
+#
+#  AMBIENTAZIONE: studio neutro, luce soft-box diffusa
+#  STILE: vetrina catalogo, illuminazione calibrata per leggibilità
+#
+#  Render consigliato (il glifo più fine — 1 — è largo 0.15 units, serve
+#  risoluzione sufficiente per rendere le curve delle cifre):
+#    Smoke:    -w 400  -H 300  -s 32   -d 4
+#    Preview:  -w 800  -H 600  -s 128  -d 5
+#    Finale:   -w 1920 -H 1440 -s 512  -d 6  -S 2
+# ═══════════════════════════════════════════════════════════════════════════
+
+imports:
+  - path: "../typography/alphabet.yaml"
+
+world:
+  ambient_light: [0.08, 0.08, 0.10]
+  background: [0.14, 0.15, 0.18]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.20, 0.24, 0.32]
+    horizon_color: [0.55, 0.58, 0.65]
+    ground_color:  [0.18, 0.17, 0.16]
+  ground:
+    type: "infinite_plane"
+    y: -0.01
+    material: "floor_showcase"
+
+materials:
+  # Materiali dedicati del showcase (override opzionali)
+  - id: "floor_showcase"
+    type: "disney"
+    color: [0.75, 0.75, 0.76]
+    roughness: 0.55
+    specular: 0.15
+
+  - id: "backdrop_showcase"
+    type: "lambertian"
+    color: [0.94, 0.93, 0.91]
+
+cameras:
+  # La camera del motore usa la convenzione u = w × up (con w = lookFrom −
+  # lookAt), per cui posizionando la camera sul lato +Z dei glifi la X-world
+  # si vede specchiata. I glifi sono estrusi verso −Z: piazzando la camera
+  # sul lato −Z inquadriamo la faccia posteriore dell'estrusione (stessa
+  # sagoma della frontale) con orientamento X corretto.
+
+  - name: "griglia"
+    position: [0, 4.5, -13]
+    look_at:  [0, 4.5, 0]
+    fov: 42
+    aperture: 0.0
+    focal_dist: 13.0
+
+  - name: "dettaglio_curve"
+    # Close-up sulla riga centrale dove ci sono i glifi più curvi (M N O P Q R)
+    position: [0.5, 5.0, -3.5]
+    look_at:  [0.5, 5.0, 0]
+    fov: 38
+    aperture: 0.02
+    focal_dist: 3.5
+
+  - name: "prospettiva_3_4"
+    # Vista 3/4 obliqua: mostra l'estrusione e le curve smooth.
+    position: [6, 5.5, -9]
+    look_at:  [-1.5, 4.0, 0]
+    fov: 45
+    aperture: 0.04
+    focal_dist: 10.0
+
+  - name: "riga_cifre"
+    # Close-up della riga 5 (cifre 4-9 con materiali diversi: oro, cromo…)
+    position: [0, 0.55, -4]
+    look_at:  [0, 0.55, 0]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 4.0
+
+lights:
+  # Softbox frontale-alto (key) — illumina le facce visibili dei glifi (back
+  # dell'estrusione + laterali), posizionato sul lato della camera.
+  - type: "area"
+    corner: [-5, 10, -6]
+    u: [10, 0, 0]
+    v: [0, 0, -4]
+    color: [1.00, 0.97, 0.93]
+    intensity: 18.0
+    shadow_samples: 16
+
+  # Fill laterale (lato camera)
+  - type: "area"
+    corner: [-8, 3, -2]
+    u: [0, 6, 0]
+    v: [0, 0, -4]
+    color: [0.85, 0.90, 1.00]
+    intensity: 8.0
+    shadow_samples: 8
+
+  # Rim / kicker dall'altro lato (stacca i glifi dal fondale)
+  - type: "directional"
+    direction: [0.2, -0.25, -1.0]
+    color: [1.00, 0.95, 0.85]
+    intensity: 0.35
+
+entities:
+
+  # ─── Fondale bianco alle spalle dei glifi (dietro alla faccia visibile,
+  # cioè dietro al back-cap dell'estrusione a z = −0.15). ─────────────────
+  - name: "backdrop"
+    type: "box"
+    min: [-7, -0.01, 0.20]
+    max: [ 7,  9.2, 0.40]
+    material: "backdrop_showcase"
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  GRIGLIA 6 × 6 — tutti i 36 glifi (A–Z, 0–9)
+  #  Le righe vanno dall'alto al basso, ogni riga è a 1.5 unità dalla
+  #  successiva. Le colonne sono a 1.5 unità l'una dall'altra, con la colonna
+  #  0 che ha il bordo sinistro a x = -4.5.
+  #
+  #  Tutti i glifi usano il materiale default "font_primary" del template.
+  #  Override per-istanza dimostrato sulla parola "CIAO" più in basso.
+  # ═══════════════════════════════════════════════════════════════════════
+
+  # Row 0: A B C D E F  (baseline y = 7.5)
+  - { type: "instance", template: "glyph_A", translate: [-4.5, 7.5, 0] }
+  - { type: "instance", template: "glyph_B", translate: [-3.0, 7.5, 0] }
+  - { type: "instance", template: "glyph_C", translate: [-1.5, 7.5, 0] }
+  - { type: "instance", template: "glyph_D", translate: [ 0.0, 7.5, 0] }
+  - { type: "instance", template: "glyph_E", translate: [ 1.5, 7.5, 0] }
+  - { type: "instance", template: "glyph_F", translate: [ 3.0, 7.5, 0] }
+
+  # Row 1: G H I J K L  (baseline y = 6.0)
+  - { type: "instance", template: "glyph_G", translate: [-4.5, 6.0, 0] }
+  - { type: "instance", template: "glyph_H", translate: [-3.0, 6.0, 0] }
+  - { type: "instance", template: "glyph_I", translate: [-1.5, 6.0, 0] }
+  - { type: "instance", template: "glyph_J", translate: [ 0.0, 6.0, 0] }
+  - { type: "instance", template: "glyph_K", translate: [ 1.5, 6.0, 0] }
+  - { type: "instance", template: "glyph_L", translate: [ 3.0, 6.0, 0] }
+
+  # Row 2: M N O P Q R  (baseline y = 4.5)
+  - { type: "instance", template: "glyph_M", translate: [-4.5, 4.5, 0] }
+  - { type: "instance", template: "glyph_N", translate: [-3.0, 4.5, 0] }
+  - { type: "instance", template: "glyph_O", translate: [-1.5, 4.5, 0] }
+  - { type: "instance", template: "glyph_P", translate: [ 0.0, 4.5, 0] }
+  - { type: "instance", template: "glyph_Q", translate: [ 1.5, 4.5, 0] }
+  - { type: "instance", template: "glyph_R", translate: [ 3.0, 4.5, 0] }
+
+  # Row 3: S T U V W X  (baseline y = 3.0)
+  - { type: "instance", template: "glyph_S", translate: [-4.5, 3.0, 0] }
+  - { type: "instance", template: "glyph_T", translate: [-3.0, 3.0, 0] }
+  - { type: "instance", template: "glyph_U", translate: [-1.5, 3.0, 0] }
+  - { type: "instance", template: "glyph_V", translate: [ 0.0, 3.0, 0] }
+  - { type: "instance", template: "glyph_W", translate: [ 1.5, 3.0, 0] }
+  - { type: "instance", template: "glyph_X", translate: [ 3.0, 3.0, 0] }
+
+  # Row 4: Y Z 0 1 2 3  (baseline y = 1.5)
+  - { type: "instance", template: "glyph_Y", translate: [-4.5, 1.5, 0] }
+  - { type: "instance", template: "glyph_Z", translate: [-3.0, 1.5, 0] }
+  - { type: "instance", template: "glyph_0", translate: [-1.5, 1.5, 0] }
+  - { type: "instance", template: "glyph_1", translate: [ 0.0, 1.5, 0] }
+  - { type: "instance", template: "glyph_2", translate: [ 1.5, 1.5, 0] }
+  - { type: "instance", template: "glyph_3", translate: [ 3.0, 1.5, 0] }
+
+  # Row 5: 4 5 6 7 8 9  (baseline y = 0.0)
+  # Questa riga dimostra il material override per-istanza: i 6 glifi
+  # hanno materiali diversi per mostrare cosa si può fare componendo parole.
+  - { type: "instance", template: "glyph_4", translate: [-4.5, 0.0, 0], material: "font_gold"   }
+  - { type: "instance", template: "glyph_5", translate: [-3.0, 0.0, 0], material: "font_chrome" }
+  - { type: "instance", template: "glyph_6", translate: [-1.5, 0.0, 0], material: "font_copper" }
+  - { type: "instance", template: "glyph_7", translate: [ 0.0, 0.0, 0], material: "font_ink"    }
+  - { type: "instance", template: "glyph_8", translate: [ 1.5, 0.0, 0], material: "font_neon"   }
+  - { type: "instance", template: "glyph_9", translate: [ 3.0, 0.0, 0], material: "font_primary"}
