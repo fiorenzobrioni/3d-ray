@@ -199,12 +199,12 @@ namespace ChessGen
         {
             sb.AppendLine("lights:");
             sb.AppendLine("  # KEY: wide warm area light high-left (window), aligned with sky sun.");
-            sb.AppendLine("  - type: \"area\"");
+            sb.AppendLine("  - type: \"--area\"");
             sb.AppendLine("    corner: [-5.0, 8.0, -4.0]");
             sb.AppendLine("    u: [3.5, 0.0, 0.0]");
             sb.AppendLine("    v: [0.0, 0.0, 3.5]");
             sb.AppendLine("    color: [1.0, 0.95, 0.85]");
-            sb.AppendLine("    intensity: 55.0");
+            sb.AppendLine("    intensity: 5.0");
             sb.AppendLine("    shadow_samples: 16");
             sb.AppendLine();
             sb.AppendLine("  # FILL: cool sphere light from camera-right, softens key-side shadows.");
