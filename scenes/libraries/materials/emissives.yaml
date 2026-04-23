@@ -375,7 +375,7 @@ materials:
   - id: "fiamma_saldatura"
     type: "emissive"
     color: [0.75, 0.85, 1.0]
-    intensity: 60.0
+    intensity: 30.0
 
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -562,13 +562,13 @@ materials:
   - id: "fx_laser_rosso"
     type: "emissive"
     color: [1.0, 0.02, 0.02]
-    intensity: 50.0
+    intensity: 35.0
 
   # Laser verde — puntatore, spettacolo
   - id: "fx_laser_verde"
     type: "emissive"
     color: [0.05, 1.0, 0.10]
-    intensity: 50.0
+    intensity: 35.0
 
   # Plasma — blu-bianco, arco elettrico
   - id: "fx_plasma"

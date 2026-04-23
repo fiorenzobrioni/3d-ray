@@ -89,7 +89,7 @@ materials:
     metallic: 0.0
     specular: 0.4
     clearcoat: 0.5
-    clearcoat_gloss: 0.8
+    coat_roughness: 0.20
 
   - id: "casa_chiara"
     type: "disney"
@@ -108,7 +108,7 @@ materials:
     roughness: 0.25
     specular: 0.6
     clearcoat: 0.3
-    clearcoat_gloss: 0.7
+    coat_roughness: 0.30
 
   - id: "bordo_scacchiera"
     type: "disney"
@@ -120,7 +120,7 @@ materials:
     roughness: 0.30
     specular: 0.5
     clearcoat: 0.4
-    clearcoat_gloss: 0.8
+    coat_roughness: 0.20
 
   # ── Pezzi bianchi: marmo ───────────────────────────────────────────────────
   - id: "pezzo_bianco"
@@ -134,7 +134,7 @@ materials:
     roughness: 0.18
     specular: 0.6
     clearcoat: 0.5
-    clearcoat_gloss: 0.9
+    coat_roughness: 0.10
 
   # ── Pezzi neri: legno d'ebano lucido ───────────────────────────────────────
   - id: "pezzo_nero"
@@ -143,7 +143,7 @@ materials:
     roughness: 0.15
     specular: 0.7
     clearcoat: 0.6
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
 
 
 templates:

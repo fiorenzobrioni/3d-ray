@@ -155,7 +155,7 @@ materials:
     metallic: 0.0
     specular: 0.40
     clearcoat: 0.20
-    clearcoat_gloss: 0.60
+    coat_roughness: 0.40
 
   # ── Pietra e mattone ───────────────────────────────────────────────────
 

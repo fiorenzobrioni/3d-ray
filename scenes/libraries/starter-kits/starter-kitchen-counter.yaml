@@ -71,7 +71,7 @@ lights:
     v: [0.0, 0.0, 2.0]
     color: [0.85, 0.88, 1.0]
     intensity: 8.0
-    shadow_samples: 8
+    shadow_samples: 9
 
 # ─── LUCI ALT-1: Sera — luce calda artificiale dall'alto ────────────────────
 # lights:
@@ -98,7 +98,7 @@ materials:
     metallic: 0.0
     specular: 0.6
     clearcoat: 0.4
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   - id: "parete_cucina"
     type: "lambertian"
@@ -131,7 +131,7 @@ materials:
     metallic: 0.0
     specular: 0.7
     clearcoat: 0.8
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   # ── Legno tagliere ─────────────────────────────────────────────────────────
   - id: "legno_tagliere"
@@ -152,7 +152,7 @@ materials:
     metallic: 0.0
     specular: 0.5
     clearcoat: 0.6
-    clearcoat_gloss: 0.8
+    coat_roughness: 0.20
 
   - id: "mela_verde"
     type: "disney"
@@ -161,7 +161,7 @@ materials:
     metallic: 0.0
     specular: 0.4
     clearcoat: 0.5
-    clearcoat_gloss: 0.7
+    coat_roughness: 0.30
 
   - id: "arancia"
     type: "disney"
@@ -186,7 +186,7 @@ materials:
     metallic: 0.0
     specular: 0.5
     clearcoat: 0.6
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   - id: "acqua"
     type: "dielectric"

@@ -133,7 +133,7 @@ materials:
     roughness: 0.18
     specular: 0.6
     clearcoat: 0.3
-    clearcoat_gloss: 0.9
+    coat_roughness: 0.10
 
   # -- Parete di fondo: mix tra marmo scuro e un rumore cupo ----------------
   - id: "wall_marble_dark"
@@ -208,7 +208,7 @@ materials:
     roughness: 0.45
     specular: 0.5
     clearcoat: 1.0
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
 
   # -- Oggetto-eroe 5: velluto viola (sheen) --------------------------------
   - id: "purple_velvet"

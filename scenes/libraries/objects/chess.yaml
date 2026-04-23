@@ -66,7 +66,7 @@ materials:
     metallic: 0.0
     specular: 0.45
     clearcoat: 0.35
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
 
   # Ebano (neri) — nero profondo, lucido
   - id: "chs_ebano"
@@ -76,7 +76,7 @@ materials:
     metallic: 0.0
     specular: 0.55
     clearcoat: 0.50
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # Feltro verde — fondo pezzi
   - id: "chs_feltro"
@@ -96,7 +96,7 @@ materials:
     metallic: 0.0
     specular: 0.40
     clearcoat: 0.30
-    clearcoat_gloss: 0.72
+    coat_roughness: 0.28
 
   # Case scure (noce)
   - id: "chs_casa_scura"
@@ -106,7 +106,7 @@ materials:
     metallic: 0.0
     specular: 0.40
     clearcoat: 0.30
-    clearcoat_gloss: 0.72
+    coat_roughness: 0.28
 
   # Scacchiera checker (texture procedurale)
   - id: "chs_checker_legno"
@@ -180,7 +180,7 @@ materials:
     metallic: 0.0
     specular: 0.50
     clearcoat: 0.40
-    clearcoat_gloss: 0.82
+    coat_roughness: 0.18
 
   # Noce — cornice alternativa
   - id: "chs_noce"
@@ -190,7 +190,7 @@ materials:
     metallic: 0.0
     specular: 0.42
     clearcoat: 0.30
-    clearcoat_gloss: 0.75
+    coat_roughness: 0.25
 
   # Ottone — cerniere, chiusure
   - id: "chs_ottone"

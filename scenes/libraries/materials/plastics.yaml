@@ -96,7 +96,7 @@ materials:
     roughness: 0.12
     specular: 0.6
     clearcoat: 0.3
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   # ABS bianco opaco — interruttori, prese elettriche
   - id: "dis_abs_bianco_opaco"
@@ -112,7 +112,7 @@ materials:
     roughness: 0.08
     specular: 0.8
     clearcoat: 0.5
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
 
   # ABS nero opaco — controller, utensili, cruscotti
   - id: "dis_abs_nero_opaco"
@@ -128,7 +128,7 @@ materials:
     roughness: 0.15
     specular: 0.6
     clearcoat: 0.3
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # ABS giallo LEGO — giallo vivace
   - id: "dis_abs_giallo"
@@ -137,7 +137,7 @@ materials:
     roughness: 0.15
     specular: 0.6
     clearcoat: 0.3
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # ABS blu LEGO — blu classico
   - id: "dis_abs_blu"
@@ -146,7 +146,7 @@ materials:
     roughness: 0.15
     specular: 0.6
     clearcoat: 0.3
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # ABS verde — verde brillante da giocattolo
   - id: "dis_abs_verde"
@@ -155,7 +155,7 @@ materials:
     roughness: 0.15
     specular: 0.6
     clearcoat: 0.3
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # ABS arancione — vivace, segnaletica, sicurezza
   - id: "dis_abs_arancione"
@@ -164,7 +164,7 @@ materials:
     roughness: 0.15
     specular: 0.6
     clearcoat: 0.3
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # ABS grigio — elettronica, stampanti, macchinari
   - id: "dis_abs_grigio"
@@ -234,7 +234,7 @@ materials:
     roughness: 0.10
     specular: 0.75
     clearcoat: 0.4
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
 
   # Policarbonato fumé — schermi, protezioni
   - id: "dis_policarbonato_fume"
@@ -243,7 +243,7 @@ materials:
     roughness: 0.08
     specular: 0.70
     clearcoat: 0.35
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -278,7 +278,7 @@ materials:
     roughness: 0.25
     specular: 0.55
     clearcoat: 0.2
-    clearcoat_gloss: 0.80
+    coat_roughness: 0.20
 
   # Acrilico nero lucido — pannelli, arredamento
   - id: "dis_acrilico_nero"
@@ -287,7 +287,7 @@ materials:
     roughness: 0.06
     specular: 0.82
     clearcoat: 0.55
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -577,7 +577,7 @@ materials:
     roughness: 0.10
     specular: 0.80
     clearcoat: 0.6
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
     sheen: 0.10
     sheen_tint: 0.2
 
@@ -588,7 +588,7 @@ materials:
     roughness: 0.12
     specular: 0.75
     clearcoat: 0.55
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
 
   # Bachelite rosso scuro — giocattoli d'epoca
   - id: "dis_bachelite_rossa"
@@ -597,7 +597,7 @@ materials:
     roughness: 0.12
     specular: 0.72
     clearcoat: 0.50
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # ── Classic ────────────────────────────────────────────────────────────
 

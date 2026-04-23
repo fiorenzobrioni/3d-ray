@@ -194,7 +194,7 @@ materials:
     metallic: 0.0
     specular: 0.70
     clearcoat: 0.60
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   # ── Supporti espositivi ────────────────────────────────────────────────
 
@@ -233,7 +233,7 @@ materials:
     metallic: 0.0
     specular: 0.75
     clearcoat: 0.85
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
 
 # ═══════════════════════════════════════════════════════════════════════════

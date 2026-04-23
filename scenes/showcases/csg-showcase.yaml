@@ -118,7 +118,7 @@ materials:
     roughness: 0.15
     specular: 0.8
     clearcoat: 0.6
-    clearcoat_gloss: 0.9
+    coat_roughness: 0.10
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES

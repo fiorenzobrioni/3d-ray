@@ -793,7 +793,7 @@ materials:
     roughness: 0.04
     specular: 0.85
     clearcoat: 0.90
-    clearcoat_gloss: 0.98
+    coat_roughness: 0.05
 
   # Verniciata rossa — scarpe, cinture, Louboutin
   - id: "dis_verniciata_rossa"
@@ -802,7 +802,7 @@ materials:
     roughness: 0.05
     specular: 0.80
     clearcoat: 0.88
-    clearcoat_gloss: 0.96
+    coat_roughness: 0.05
 
   # Verniciata bianca — scarpe da cerimonia, infermieri
   - id: "dis_verniciata_bianca"
@@ -811,7 +811,7 @@ materials:
     roughness: 0.05
     specular: 0.78
     clearcoat: 0.85
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   # ── Classic ────────────────────────────────────────────────────────────
 

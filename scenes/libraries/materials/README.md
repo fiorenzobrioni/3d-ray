@@ -1,8 +1,10 @@
 # Libreria Materiali — 3D-Ray
 
 Raccolta completa di materiali PBR per il motore di ray tracing 3D-Ray.
-12 file YAML tematici con oltre **800 materiali** pronti all'uso, organizzati
-per categoria e con doppia variante Disney/Classic.
+12 file YAML tematici con oltre **1080 materiali** pronti all'uso, organizzati
+per categoria e con doppia variante Disney/Classic. Ogni materiale Disney
+usa le chiavi moderne del BSDF (`coat_roughness` + `coat_ior` al posto del
+legacy `clearcoat_gloss`, `sheen_roughness` dove appropriato).
 
 ---
 
@@ -66,16 +68,16 @@ in vari colori), titanio (anodizzato blu, viola, oro), cromo (specchio,
 nero PVD), platino, nichel, zinco, stagno/peltro, corten.
 Include alias di retrocompatibilità con il vecchio `metals.yaml`.
 
-**120 materiali** · 15 categorie
+**128 materiali** · 15 categorie
 
 ### Ceramiche — `ceramics.yaml`
-Porcellana (bianca, avorio, blu cobalto, nera, rosa, craquelé), bone china,
+Porcellana (bianca, avorio, blu cobalto, nera, rosa, craquelé, crepuscolo), bone china,
 maiolica (azzurra, gialla, verde, arancio), terracotta (naturale, invetriata,
 smaltata verde), grès/stoneware (tenmoku, shino, celadon), raku (rame,
 nero, iridescente), celadon (classico, chiaro, scuro), biscotto/bisque,
 ceramica smaltata (8 colori), terra sigillata (rossa, nera, ocra).
 
-**67 materiali** · 9 categorie
+**88 materiali** · 9 categorie
 
 ### Legni — `woods.yaml`
 Latifoglie chiare (acero, betulla, frassino, faggio), medie (quercia,
@@ -85,7 +87,7 @@ esotici (zebrano, padouk, amaranto, bocote), trattati (sbiancato,
 shou sugi ban, barnwood, tinto nero/grigio). Ogni essenza in più
 finiture: grezzo, olio, cera, verniciato, laccato.
 
-**85 materiali** · 7 categorie
+**72 materiali** · 7 categorie
 
 ### Vetri e trasparenti — `glasses.yaml`
 Vetri industriali (soda-lime, borosilicato, float, temperato), ottici
@@ -220,9 +222,9 @@ protagonisti. Questo bilancia qualità visiva e tempo di rendering.
 
 | File | Materiali |
 |------|-----------|
-| metals.yaml | 120 |
-| ceramics.yaml | 67 |
-| woods.yaml | 85 |
+| metals.yaml | 128 |
+| ceramics.yaml | 88 |
+| woods.yaml | 72 |
 | glasses.yaml | 96 |
 | stones.yaml | 87 |
 | plastics.yaml | 95 |
@@ -232,4 +234,4 @@ protagonisti. Questo bilancia qualità visiva e tempo di rendering.
 | foods.yaml | 91 |
 | emissives.yaml | 83 |
 | grounds.yaml | 66 |
-| **Totale** | **1069** |
+| **Totale** | **1085** |

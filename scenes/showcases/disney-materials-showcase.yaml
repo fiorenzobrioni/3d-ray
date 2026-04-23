@@ -1,25 +1,34 @@
 # ═══════════════════════════════════════════════════════════════════════════
-#  disney-materials-showcase.yaml — Le nuove feature del Disney BSDF
+#  disney-materials-showcase.yaml — Le feature del Disney BSDF
 #
-#  Sei sfere allineate su un pavimento semi-lucido, ognuna illustra UNA
-#  feature aggiunta nell'ultimo ciclo di review. Lettura ordinata da
-#  sinistra a destra, nessuna primitiva decorativa che distrae.
+#  Nove sfere allineate su un pavimento semi-lucido, ognuna illustra UNA
+#  feature del Disney BSDF moderno. Lettura ordinata da sinistra a destra,
+#  nessuna primitiva decorativa che distrae.
 #
-#    1.  Brushed steel            — anisotropic + anisotropic_rotation
-#    2.  Oro rugoso               — Kulla-Conty multi-scattering
-#    3.  Vetro ambrato            — Beer-Lambert (transmission_color/depth)
-#    4.  Bolla di sapone          — thin-film iridescence + thin_walled
-#    5.  Velluto moss             — Charlie sheen (sheen_roughness)
-#    6.  Vernice perla            — coat stile Arnold (coat_ior + coat_roughness)
+#    1.  Foglia/carta             — diff_trans + thin_walled + subsurface_color
+#    2.  Intonaco matte           — flatness (HK-flat indipendente da subsurface)
+#    3.  Pelle umana              — subsurface_color + subsurface + sheen
+#    4.  Brushed steel            — anisotropic + anisotropic_rotation
+#    5.  Oro rugoso               — Kulla-Conty multi-scattering
+#    6.  Vetro ambrato            — Beer-Lambert (transmission_color/depth)
+#    7.  Bolla di sapone          — thin-film iridescence + thin_walled
+#    8.  Velluto moss             — Charlie sheen (sheen_roughness)
+#    9.  Vernice perla            — coat stile Arnold (coat_ior + coat_roughness)
 #
 #  Illuminazione a tre punti: area key calda dall'alto-destra, area fill
 #  fredda dall'alto-sinistra, rim caldo emissivo posteriore. Cielo
 #  gradient da museo notturno per far stagliare i profili Fresnel.
+#  shadow_samples=16 (4×4 stratificato) sulle area light per ombre più
+#  pulite senza alzare -s globale.
 #
 #  Render consigliati:
 #    Preview:  -s 64   -d 6  -w 480  -H 270  -S 1
 #    Standard: -s 256  -d 8  -w 960  -H 540
 #    Final:    -s 1024 -d 10 -w 1920 -H 1080 -S 4 --sampler sobol
+#
+#  Nota: aggiungere -C 50 al profilo Final se la bolla iridescente o i
+#  materiali traslucidi producono spike occasionali (thin-film + NEE
+#  hanno varianza intrinseca più alta).
 #
 #  La bolla iridescente richiede -d ≥ 8: thin_walled attraversa due
 #  interfacce (entrata + uscita) e il thin-film si vede meglio sui raggi
@@ -39,12 +48,12 @@ world:
     y: 0
 
 camera:
-  position: [0, 3.1, 9.0]
+  position: [0, 3.4, 11.0]
   look_at:  [0, 0.95, 0]
   vup:      [0, 1, 0]
-  fov: 42
+  fov: 46
   aperture: 0.04
-  focal_dist: 9.0
+  focal_dist: 11.0
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  LIGHTS — key calda, fill fredda, rim emissivo
@@ -57,7 +66,7 @@ lights:
     v:         [ 0.0, 0.0, -2.0]
     color:     [1.00, 0.92, 0.78]
     intensity: 32
-    shadow_samples: 9
+    shadow_samples: 16
 
   # Fill: area light fredda dall'alto-sinistra, più grande e tenue
   - type: "area"
@@ -66,7 +75,7 @@ lights:
     v:         [ 0.0, 0.0, -1.6]
     color:     [0.72, 0.82, 1.00]
     intensity: 14
-    shadow_samples: 9
+    shadow_samples: 16
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -93,7 +102,59 @@ materials:
     intensity: 6.0
 
   # ═════════════════════════════════════════════════════════════════════════
-  #  1. BRUSHED STEEL — anisotropic GGX con frame tangente ruotato
+  #  1. FOGLIA / CARTA TRASLUCIDA — diff_trans + thin_walled + subsurface_color
+  #     diff_trans=0.55 sposta metà energia diffusa sul back-hemisphere,
+  #     thin_walled disattiva la doppia rifrazione (membrana sottile) e
+  #     subsurface_color dà il chlorophyllo-verde interno. flatness leggero
+  #     per l'aspetto HK appiattito tipico del cartaceo.
+  # ═════════════════════════════════════════════════════════════════════════
+  - id: "leaf_paper"
+    type: "disney"
+    color: [0.35, 0.62, 0.15]
+    metallic: 0.0
+    roughness: 0.40
+    specular: 0.40
+    thin_walled: true
+    diff_trans: 0.55
+    subsurface_color: [0.55, 0.85, 0.40]
+    flatness: 0.25
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  2. INTONACO MATTE — flatness indipendente da subsurface
+  #     subsurface=0, ma flatness=0.75 spinge comunque la diffuse verso la
+  #     forma HK-flat: aspetto più "spento" e uniforme dell'intonaco o del
+  #     cemento, senza il retro-riflesso Lambert classico.
+  # ═════════════════════════════════════════════════════════════════════════
+  - id: "matte_stucco"
+    type: "disney"
+    color: [0.72, 0.70, 0.68]
+    metallic: 0.0
+    roughness: 0.80
+    flatness: 0.75
+    specular: 0.25
+    sheen: 0.10
+    sheen_roughness: 0.50
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  3. PELLE UMANA — subsurface_color + subsurface + sheen fine
+  #     baseColor dà la tinta "esterna", subsurface_color il rosso internal
+  #     del sangue capillare. sheen leggero simula il "peach-fuzz"; la
+  #     combinazione subsurface 0.55 + roughness 0.40 è sotto la soglia di
+  #     alta varianza (0.7) e produce un render pulito a -s 1024.
+  # ═════════════════════════════════════════════════════════════════════════
+  - id: "human_skin"
+    type: "disney"
+    color: [0.87, 0.65, 0.61]
+    metallic: 0.0
+    roughness: 0.40
+    subsurface: 0.55
+    subsurface_color: [0.92, 0.41, 0.23]
+    specular: 0.5
+    sheen: 0.08
+    sheen_roughness: 0.35
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  4. BRUSHED STEEL — anisotropic GGX con frame tangente ruotato
   #     L'highlight si allunga lungo la verticale della sfera (rotation=0.25
   #     corrisponde a un quarto di giro ≈ π/2).
   # ═════════════════════════════════════════════════════════════════════════
@@ -106,7 +167,7 @@ materials:
     anisotropic_rotation: 0.25
 
   # ═════════════════════════════════════════════════════════════════════════
-  #  2. ORO RUGOSO — Kulla-Conty multi-scattering compensation
+  #  5. ORO RUGOSO — Kulla-Conty multi-scattering compensation
   #     A roughness 0.7 lo Smith single-scatter perderebbe ~25% di energia:
   #     la compensazione di secondo bounce mantiene il colore saturo invece
   #     di farlo virare su un oro "sporco" e bruno.
@@ -119,7 +180,7 @@ materials:
     specular: 0.6
 
   # ═════════════════════════════════════════════════════════════════════════
-  #  3. VETRO AMBRATO — Beer-Lambert lungo il cammino interno
+  #  6. VETRO AMBRATO — Beer-Lambert lungo il cammino interno
   #     transmission_color indica il colore del vetro visto attraverso
   #     transmission_depth unità di materiale: σ_a = −ln(color) / depth.
   #     Il centro della sfera (2·r = 1.8 unità) esce più saturo del bordo.
@@ -135,7 +196,7 @@ materials:
     transmission_depth: 1.5
 
   # ═════════════════════════════════════════════════════════════════════════
-  #  4. BOLLA DI SAPONE — thin-film iridescence + thin_walled
+  #  7. BOLLA DI SAPONE — thin-film iridescence + thin_walled
   #     Spessore ≈ 520 nm = banda di interferenza centrata sul verde/magenta;
   #     thin_walled evita la doppia rifrazione e rende la bolla un guscio.
   # ═════════════════════════════════════════════════════════════════════════
@@ -151,7 +212,7 @@ materials:
     thin_film_ior: 1.33
 
   # ═════════════════════════════════════════════════════════════════════════
-  #  5. VELLUTO MOSS — Charlie sheen (Estevez-Kulla 2017)
+  #  8. VELLUTO MOSS — Charlie sheen (Estevez-Kulla 2017)
   #     Base quasi-Lambertiana; lo sheen disegna la corona radente della
   #     microfibra. sheen_roughness=0.28 ⇒ halo stretto e definito.
   # ═════════════════════════════════════════════════════════════════════════
@@ -165,7 +226,7 @@ materials:
     sheen_roughness: 0.28
 
   # ═════════════════════════════════════════════════════════════════════════
-  #  6. VERNICE PERLA — coat stile Arnold (coat_ior + coat_roughness)
+  #  9. VERNICE PERLA — coat stile Arnold (coat_ior + coat_roughness)
   #     Base metallic blu scuro + clearcoat indipendente con IOR esplicita
   #     1.55 (lacca automotive) e roughness 0.08. coat_roughness ≥ 0
   #     abilita il percorso Arnold al posto del legacy clearcoat_gloss.
@@ -197,33 +258,51 @@ entities:
     scale:     [13.0, 0.20, 0.08]
     translate: [ 0.0, 3.85, -2.80]
 
-  # ── SFERE — raggio 0.9, centro a y=0.9, passo 2.2 su X ───────────────────
+  # ── SFERE — raggio 0.9, centro a y=0.9, passo 1.9 su X (range -7.6…+7.6) ─
+  #  L'ordine delle X corrisponde alla lettura "da sinistra a destra" in
+  #  camera: nella convenzione usata (vup=+Y, look verso -Z) +X proietta
+  #  a sinistra nell'immagine, quindi X decresce avanzando verso destra.
+  - type: "sphere"
+    material: "leaf_paper"
+    center: [ 7.6, 0.9, 0.0]
+    radius: 0.9
+
+  - type: "sphere"
+    material: "matte_stucco"
+    center: [ 5.7, 0.9, 0.0]
+    radius: 0.9
+
+  - type: "sphere"
+    material: "human_skin"
+    center: [ 3.8, 0.9, 0.0]
+    radius: 0.9
+
   - type: "sphere"
     material: "brushed_steel"
-    center: [-5.5, 0.9, 0.0]
+    center: [ 1.9, 0.9, 0.0]
     radius: 0.9
 
   - type: "sphere"
     material: "rough_gold"
-    center: [-3.3, 0.9, 0.0]
+    center: [ 0.0, 0.9, 0.0]
     radius: 0.9
 
   - type: "sphere"
     material: "amber_glass"
-    center: [-1.1, 0.9, 0.0]
+    center: [-1.9, 0.9, 0.0]
     radius: 0.9
 
   - type: "sphere"
     material: "soap_bubble"
-    center: [ 1.1, 0.9, 0.0]
+    center: [-3.8, 0.9, 0.0]
     radius: 0.9
 
   - type: "sphere"
     material: "moss_velvet"
-    center: [ 3.3, 0.9, 0.0]
+    center: [-5.7, 0.9, 0.0]
     radius: 0.9
 
   - type: "sphere"
     material: "pearl_paint"
-    center: [ 5.5, 0.9, 0.0]
+    center: [-7.6, 0.9, 0.0]
     radius: 0.9

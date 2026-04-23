@@ -339,6 +339,81 @@ dotnet run ... -- -i scene.yaml -c 1 -o cam1.png    # Per indice (base 0)
   # Tutti i parametri scalari e i colour map sopra accettano la versione
   # *_texture, ad es. roughness_texture: { type: "image", path: "rough.png" }.
 ```
+
+##### **Riepilogo proprietà Disney**
+Riferimento a colpo d'occhio di ogni chiave Disney accettata dal loader.
+Il campo `Stato` marca le chiavi che si comportano in modo diverso dalle
+altre: quelle `Legacy` sono ancora onorate ma vanno sostituite nelle nuove
+scene; quelle `Non usata` sono parsate per forward-compatibility ma non
+hanno effetto sul renderer corrente (il loader emette un `Info` al
+caricamento quando ne trova una).
+
+| Proprietà | Tipo | Default | Range | Stato | Note |
+|---|---|---|---|---|---|
+| `color` | colore | obbligatorio | 0–1 | Core | Albedo di base (texturabile) |
+| `metallic` | float | 0.0 | 0–1 | Core | 0 = dielettrico, 1 = conduttore |
+| `roughness` | float | 0.5 | 0–1 | Core | 0 = specchio, 1 = diffuso |
+| `specular` | float | 0.5 | 0–1 | Core | Scala F₀ dielettrici (F₀ ≈ 0.08 × valore) |
+| `specular_tint` | float | 0.0 | 0–1 | Core | Tinge il Fresnel dielettrico col colore di base |
+| `sheen` | float | 0.0 | 0–1 | Core | Alone radente (tessuti, velluto) |
+| `sheen_tint` | float | 0.5 | 0–1 | Core | Tinge lo sheen col colore di base |
+| `sheen_roughness` | float | 0.3 | 0.04–1 | Ext. | α Charlie NDF (Estevez-Kulla 2017) |
+| `clearcoat` | float | 0.0 | 0–1 | Core | Secondo lobo speculare indipendente |
+| `clearcoat_gloss` | float | 1.0 | 0–1 | **Legacy** | Slider Disney-2012; sostituito da `coat_roughness` |
+| `coat_ior` | float | 1.5 | ≥ 1 | Coat | IOR del coat stile Arnold |
+| `coat_roughness` | float | -1.0 | -1 oppure 0–1 | Coat | -1 = usa `clearcoat_gloss`; qualsiasi ≥ 0 attiva il path Arnold |
+| `coat_normal_map` | path | — | — | Coat | Normal map dedicata al lobo coat |
+| `spec_trans` | float | 0.0 | 0–1 | Core | 0 = opaco, 1 = vetro |
+| `ior` | float | 1.5 | ≥ 1 | Core | Indice di rifrazione (speculare + trasmissione) |
+| `transmission_color` | colore | `[1,1,1]` | 0–1 | Core | Colore interno a `transmission_depth` |
+| `transmission_depth` | float | 0.0 | ≥ 0 | Core | Distanza Beer-Lambert (0 = sottile, tinta applicata una volta) |
+| `anisotropic` | float | 0.0 | 0–1 | Aniso | 0 = isotropo, 1 = stirato lungo la tangente |
+| `anisotropic_rotation` | float | 0.0 | 0–1 | Aniso | Frazione di 2π attorno alla normale |
+| `subsurface` | float | 0.0 | 0–1 | 2015 | Blend Lambert ↔ lobo HK-flat |
+| `subsurface_color` | colore | — | 0–1 | 2015 | Tinta per subsurface / flatness / diff_trans |
+| `subsurface_radius` | `[R,G,B]` | — | ≥ 0 | **Non usata** | Parsata ma mai letta — riservata per una futura SSS random-walk |
+| `diff_trans` | float | 0.0 | 0–1 | 2015 | Trasmissione diffusa (foglie, tele sottili) |
+| `flatness` | float | 0.0 | 0–1 | 2015 | Blend Lambert → HK-flat indipendente da `subsurface` |
+| `thin_walled` | bool | false | — | 2015 | Disattiva la rifrazione interna (foglie, carta) |
+| `thin_film_thickness` | float | 0.0 | ≥ 0 (nm) | Thin-film | Belcour-Barla 2017; 100–800 nm = iridescenza |
+| `thin_film_ior` | float | 1.5 | ≥ 1 | Thin-film | η₂ del film (acqua = 1.33, sapone = 1.40) |
+| `texture` | blocco | — | — | Texturing | Procedurale o immagine, sostituisce `color` |
+| `normal_map` | blocco | — | — | Texturing | Perturbazione della superficie |
+
+> Ogni parametro scalare accetta la variante `*_texture` (ad esempio
+> `roughness_texture`) e i tre input colore (`color`,
+> `transmission_color`, `subsurface_color`) accettano un blocco
+> `*_texture` dedicato.
+
+##### **Clearcoat: legacy vs stile Arnold**
+
+Il lobo coat è disponibile in due parametrizzazioni compatibili:
+
+- **Disney 2012 (legacy).** Un unico slider `clearcoat_gloss` (1 = a
+  specchio, 0 = ruvido) con IOR implicito 1.5. Mantenuto funzionante per
+  tutte le scene scritte prima delle estensioni Arnold.
+- **Arnold Standard Surface (preferito).** `coat_ior` + `coat_roughness`
+  tunable (0 = a specchio, 1 = ruvido). Corrisponde alla convenzione dei
+  principali DCC e dà controllo esplicito sull'highlight.
+
+**Regola di selezione.** `coat_roughness` ha default `-1` (sentinella).
+Finché rimane negativo il motore usa il path legacy basato su
+`clearcoat_gloss`. Appena imposti `coat_roughness >= 0` (o colleghi
+`coat_roughness_texture`) il path Arnold prende il sopravvento e
+`clearcoat_gloss` viene ignorato — la conversione spannometrica è
+`coat_roughness ≈ 1 - clearcoat_gloss`.
+
+> **Le nuove scene dovrebbero usare `coat_roughness` + `coat_ior`.** Le
+> scene esistenti continuano a funzionare invariate; nulla viene rimosso.
+
+##### **`subsurface_radius`: parsata ma non usata**
+
+`subsurface_radius` è riservata per una futura pipeline di SSS
+random-walk. Il lobo subsurface approssimato attuale (`subsurface` +
+`subsurface_color` + opzionale `flatness`) non la legge. Il loader emette
+un messaggio `Info` al caricamento quando la chiave è presente — omettila
+nelle nuove scene.
+
 - **Quando usarlo:**
   - Metalli: `metallic=1.0`, rugosità variabile. Aggiungi `anisotropic` per acciaio spazzolato.
   - Plastiche: `metallic=0.0`, `roughness=0.4–0.8`

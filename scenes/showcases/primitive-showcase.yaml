@@ -188,7 +188,7 @@ materials:
     metallic: 0.0
     roughness: 0.28
     clearcoat: 1.0
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   # Velluto bordeaux (quad)
   - id: "velluto"
@@ -197,6 +197,7 @@ materials:
     roughness: 0.92
     sheen: 1.0
     sheen_tint: 0.8
+    sheen_roughness: 0.30
 
   # Plastica lucida arancione (triangolo)
   - id: "plastica_arancio"
@@ -227,7 +228,7 @@ materials:
     color: [0.02, 0.02, 0.03]
     roughness: 0.05
     clearcoat: 1.0
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
 
   # Titanio blu (CSG sfera-cubi)
   - id: "titanio_blu"

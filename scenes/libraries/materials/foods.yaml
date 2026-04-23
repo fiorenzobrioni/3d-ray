@@ -88,7 +88,7 @@ materials:
     roughness: 0.15
     specular: 0.55
     clearcoat: 0.40
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
     subsurface: 0.05
 
   # Cioccolato al latte — tono più chiaro, meno lucido
@@ -98,7 +98,7 @@ materials:
     roughness: 0.22
     specular: 0.48
     clearcoat: 0.30
-    clearcoat_gloss: 0.80
+    coat_roughness: 0.20
     subsurface: 0.08
 
   # Cioccolato bianco — quasi crema, subsurface alto
@@ -108,7 +108,7 @@ materials:
     roughness: 0.28
     specular: 0.42
     clearcoat: 0.25
-    clearcoat_gloss: 0.75
+    coat_roughness: 0.25
     subsurface: 0.20
 
   # Cioccolato fuso — superficie irregolare, lucida
@@ -118,7 +118,7 @@ materials:
     roughness: 0.10
     specular: 0.60
     clearcoat: 0.50
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
     subsurface: 0.10
 
   # Cacao in polvere — opaco, granuloso
@@ -158,7 +158,7 @@ materials:
     roughness: 0.25
     specular: 0.55
     clearcoat: 0.45
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
     subsurface: 0.18
 
   # Mela verde — Granny Smith, lucida e acida
@@ -168,7 +168,7 @@ materials:
     roughness: 0.22
     specular: 0.55
     clearcoat: 0.48
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
     subsurface: 0.20
 
   # Arancia — buccia rugosa con micropori
@@ -194,7 +194,7 @@ materials:
     roughness: 0.30
     specular: 0.50
     clearcoat: 0.35
-    clearcoat_gloss: 0.82
+    coat_roughness: 0.18
     subsurface: 0.15
 
   # Uva bianca — verde-gialla, traslucente
@@ -204,7 +204,7 @@ materials:
     roughness: 0.28
     specular: 0.52
     clearcoat: 0.38
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
     subsurface: 0.28
 
   # Pesca — buccia vellutata (sheen), polpa SSS
@@ -224,7 +224,7 @@ materials:
     roughness: 0.12
     specular: 0.62
     clearcoat: 0.55
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
     subsurface: 0.15
 
   # Banana — gialla opaca, buccia liscia
@@ -276,7 +276,7 @@ materials:
     roughness: 0.22
     specular: 0.55
     clearcoat: 0.40
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
     subsurface: 0.25
 
   # Peperone rosso — lucidissimo, quasi laccato
@@ -286,7 +286,7 @@ materials:
     roughness: 0.15
     specular: 0.60
     clearcoat: 0.55
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
     subsurface: 0.15
 
   # Peperone giallo — brillante
@@ -296,7 +296,7 @@ materials:
     roughness: 0.15
     specular: 0.58
     clearcoat: 0.52
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
     subsurface: 0.15
 
   # Melanzana — viola scuro, buccia lucida
@@ -306,7 +306,7 @@ materials:
     roughness: 0.18
     specular: 0.58
     clearcoat: 0.48
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
     subsurface: 0.10
 
   # Zucca — arancione, buccia opaca rugosa
@@ -374,7 +374,7 @@ materials:
     roughness: 0.35
     specular: 0.42
     clearcoat: 0.20
-    clearcoat_gloss: 0.72
+    coat_roughness: 0.28
     subsurface: 0.18
 
   # Mozzarella — bianca, umida, molto traslucente
@@ -401,7 +401,7 @@ materials:
     specular: 0.40
     subsurface: 0.15
     clearcoat: 0.20
-    clearcoat_gloss: 0.72
+    coat_roughness: 0.28
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -488,7 +488,7 @@ materials:
     roughness: 0.08
     specular: 0.62
     clearcoat: 0.50
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
     subsurface: 0.20
 
   # Marzapane — pasta di mandorle, opaco morbido
@@ -506,7 +506,7 @@ materials:
     roughness: 0.15
     specular: 0.55
     clearcoat: 0.45
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
     subsurface: 0.22
 
   # Glassa al cioccolato — ganache, lucida
@@ -516,7 +516,7 @@ materials:
     roughness: 0.10
     specular: 0.58
     clearcoat: 0.48
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
     subsurface: 0.08
 
   # Meringa — bianca, leggerissima, porosa
@@ -748,7 +748,7 @@ materials:
     roughness: 0.15
     specular: 0.50
     clearcoat: 0.35
-    clearcoat_gloss: 0.82
+    coat_roughness: 0.18
     subsurface: 0.18
 
   # Senape — giallo intenso, grana media

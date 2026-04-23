@@ -12,6 +12,10 @@
 #    Draft:    -w 400  -H 225  -s 64   -d 4  -S 1
 #    Preview:  -w 800  -H 450  -s 256  -d 16
 #    Finale:   -w 1920 -H 1080 -s 1024 -d 20 -S 4
+#
+#  Noise: aggiungere -C 25 su Preview/Finale — il vino ha spec_trans=1 e
+#  la fiamma emissive intensity=12 possono produrre fireflies sopra il
+#  clamp default 100.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
@@ -59,7 +63,7 @@ lights:
     radius: 0.15
     color: [1.0, 0.75, 0.40]
     intensity: 35.0
-    shadow_samples: 8
+    shadow_samples: 12
 
   - type: "point"
     position: [0.8, 0.95, 0.85]
@@ -163,7 +167,7 @@ materials:
     metallic: 0.0
     specular: 0.3
     clearcoat: 0.3
-    clearcoat_gloss: 0.6
+    coat_roughness: 0.40
 
   - id: "candela_cera"
     type: "disney"

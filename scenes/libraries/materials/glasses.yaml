@@ -376,7 +376,7 @@ materials:
   - id: "dis_vetro_acidato"
     type: "disney"
     color: [0.95, 0.95, 0.97]
-    roughness: 0.50
+    roughness: 0.35
     spec_trans: 0.75
     ior: 1.52
     specular: 0.5
@@ -417,7 +417,7 @@ materials:
     ior: 2.42
     specular: 1.0
     clearcoat: 0.3
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
 
   # Diamante fancy yellow — tonalità calda, rarissimo
   - id: "dis_diamante_giallo"

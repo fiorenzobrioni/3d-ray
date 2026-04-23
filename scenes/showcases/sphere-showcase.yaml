@@ -2,9 +2,16 @@
 #  SPHERE SHOWCASE DISNEY — Espositore 6×6 Sfere di Materiali PBR Moderni
 # =============================================================================
 #
-#  Versione ENHANCED v2: materiali Disney avanzati, multi-camera, setup luci
-#  cinematografico (solo point/spot/directional, zero area light, zero emissive),
-#  ambientazione curata con muri in stucco e pavimento riflettente.
+#  Versione ENHANCED v3: allineata alle estensioni Disney BSDF recenti —
+#  sheen Charlie con sheen_roughness esplicito, Arnold-style coat
+#  (coat_roughness sostituisce clearcoat_gloss legacy), anisotropic +
+#  anisotropic_rotation sui metalli spazzolati (copper/bronze/gunmetal).
+#  table_top convertito da metal+fuzz a disney opaco per eliminare il
+#  rumore dell'ombra proiettata dal case sul piano del tavolo. glass_diamond
+#  senza clearcoat (evita il conflitto delta↔delta tra transmission e coat
+#  che generava fireflies sulla sfera). Multi-camera, setup luci
+#  cinematografico (solo point/spot/directional, zero area light, zero
+#  emissive), ambientazione curata con muri in stucco.
 #  Nessun gradient sky (stanza chiusa) — render molto più veloce.
 #
 #  Camere disponibili (--camera <nome>):
@@ -225,10 +232,15 @@ materials:
   #  TAVOLO  [OTTIMIZZATO → lambertian/metal]
   # ─────────────────────────────────────────────────────────────────────────
  
-  # Piano del tavolo in legno scuro — texture venata preservata
+  # Piano del tavolo in legno scuro — finitura ad olio opaca
   - id: "table_top"
-    type: "metal"
-    fuzz: 0.35
+    type: "disney"
+    metallic: 0.0
+    roughness: 0.70
+    specular: 0.25
+    sheen: 0.15
+    sheen_tint: 0.8
+    sheen_roughness: 0.6
     texture:
       type: "wood"
       scale: 2.5
@@ -291,6 +303,7 @@ materials:
     specular: 0.2
     sheen: 0.4
     sheen_tint: 0.6
+    sheen_roughness: 0.55
 
   # Azzurro cielo — gomma schiumosa opaca, quasi zero riflesso
   - id: "soft_sky"
@@ -301,6 +314,7 @@ materials:
     specular: 0.1
     sheen: 0.2
     sheen_tint: 0.4
+    sheen_roughness: 0.65
 
   # Menta — pelle sintetica con subsurface pronunciato
   - id: "soft_mint"
@@ -311,6 +325,7 @@ materials:
     specular: 0.3
     sheen: 0.15
     sheen_tint: 0.5
+    sheen_roughness: 0.50
 
   # Limone — cera d'api, subsurface forte e specular basso
   - id: "soft_lemon"
@@ -320,6 +335,7 @@ materials:
     subsurface: 0.7
     specular: 0.35
     sheen: 0.05
+    sheen_roughness: 0.45
 
   # Lavanda — marshmallow, subsurface altissimo per traslucenza
   - id: "soft_lavender"
@@ -330,6 +346,7 @@ materials:
     specular: 0.15
     sheen: 0.3
     sheen_tint: 0.7
+    sheen_roughness: 0.60
 
   # Pesca — sapone artigianale, sheen pronunciato al radente
   - id: "soft_peach"
@@ -340,6 +357,7 @@ materials:
     specular: 0.25
     sheen: 0.6
     sheen_tint: 0.8
+    sheen_roughness: 0.70
 
   # ─────────────────────────────────────────────────────────────────────────
   #  FILA 5 — PLASTICHE DURE / FINITURE INDUSTRIALI
@@ -354,7 +372,7 @@ materials:
     color: [0.78, 0.04, 0.04]
     roughness: 0.28
     clearcoat: 1.0
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.08
     specular: 0.6
     metallic: 0.0
 
@@ -364,7 +382,7 @@ materials:
     color: [0.04, 0.06, 0.72]
     roughness: 0.05
     clearcoat: 1.0
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
     specular: 0.8
     metallic: 0.0
 
@@ -374,7 +392,7 @@ materials:
     color: [0.06, 0.48, 0.10]
     roughness: 0.20
     clearcoat: 0.7
-    clearcoat_gloss: 0.75
+    coat_roughness: 0.25
     specular: 0.5
     specular_tint: 0.3
 
@@ -384,7 +402,7 @@ materials:
     color: [0.90, 0.80, 0.05]
     roughness: 0.12
     clearcoat: 0.6
-    clearcoat_gloss: 0.9
+    coat_roughness: 0.12
     specular: 0.7
     metallic: 0.0
 
@@ -394,7 +412,7 @@ materials:
     color: [0.03, 0.03, 0.04]
     roughness: 0.08
     clearcoat: 1.0
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
     specular: 0.9
     sheen: 0.25
     sheen_tint: 0.2
@@ -405,7 +423,7 @@ materials:
     color: [0.94, 0.92, 0.85]
     roughness: 0.18
     clearcoat: 0.5
-    clearcoat_gloss: 0.80
+    coat_roughness: 0.20
     specular: 0.6
     subsurface: 0.2
     specular_tint: 0.1
@@ -428,6 +446,7 @@ materials:
     specular: 0.25
     sheen: 0.15
     sheen_tint: 0.8
+    sheen_roughness: 0.40
 
   # Noce — finitura a cera, satinato
   - id: "wood_walnut"
@@ -442,7 +461,7 @@ materials:
     roughness: 0.65
     specular: 0.35
     clearcoat: 0.2
-    clearcoat_gloss: 0.6
+    coat_roughness: 0.35
 
   # Ciliegio — verniciato lucido, clearcoat pieno
   - id: "wood_cherry"
@@ -456,7 +475,7 @@ materials:
       randomize_rotation: true
     roughness: 0.35
     clearcoat: 0.8
-    clearcoat_gloss: 0.9
+    coat_roughness: 0.12
     specular: 0.5
 
   # Acero — legno grezzo, alta rugosità, niente finitura
@@ -473,6 +492,7 @@ materials:
     specular: 0.15
     sheen: 0.25
     sheen_tint: 0.9
+    sheen_roughness: 0.35
     subsurface: 0.1
 
   # Ebano — finitura laccata a specchio, legno prezioso
@@ -487,7 +507,7 @@ materials:
       randomize_rotation: true
     roughness: 0.12
     clearcoat: 1.0
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
     specular: 0.7
 
   # Betulla — finitura naturale opaca con velatura chiara
@@ -505,6 +525,7 @@ materials:
     subsurface: 0.15
     sheen: 0.1
     sheen_tint: 0.7
+    sheen_roughness: 0.45
 
   # ─────────────────────────────────────────────────────────────────────────
   #  FILA 3 — MARMO (pietre pregiate con lucidatura differenziata)
@@ -521,7 +542,7 @@ materials:
       randomize_offset: true
     roughness: 0.12
     clearcoat: 0.9
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.08
     specular: 0.7
     subsurface: 0.08
 
@@ -536,7 +557,7 @@ materials:
       randomize_offset: true
     roughness: 0.08
     clearcoat: 1.0
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
     specular: 0.85
 
   # Verde Guatemala — lucidatura media, profondità della pietra
@@ -550,7 +571,7 @@ materials:
       randomize_offset: true
     roughness: 0.22
     clearcoat: 0.7
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.18
     specular: 0.6
     subsurface: 0.05
 
@@ -565,7 +586,7 @@ materials:
       randomize_offset: true
     roughness: 0.28
     clearcoat: 0.65
-    clearcoat_gloss: 0.80
+    coat_roughness: 0.22
     specular: 0.55
     specular_tint: 0.2
 
@@ -580,7 +601,7 @@ materials:
       randomize_offset: true
     roughness: 0.38
     clearcoat: 0.45
-    clearcoat_gloss: 0.70
+    coat_roughness: 0.32
     specular: 0.4
     subsurface: 0.1
 
@@ -595,7 +616,7 @@ materials:
       randomize_offset: true
     roughness: 0.10
     clearcoat: 0.85
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.08
     specular: 0.75
 
   # ─────────────────────────────────────────────────────────────────────────
@@ -619,7 +640,7 @@ materials:
     roughness: 0.06
     specular: 0.9
 
-  # Rame antico — ossidazione leggera, patina calda
+  # Rame antico — ossidazione leggera, patina calda, lieve spazzolatura
   - id: "metal_copper"
     type: "disney"
     color: [0.88, 0.55, 0.42]
@@ -628,9 +649,11 @@ materials:
     specular: 0.6
     specular_tint: 0.5
     clearcoat: 0.15
-    clearcoat_gloss: 0.4
+    coat_roughness: 0.45
+    anisotropic: 0.55
+    anisotropic_rotation: 0.15
 
-  # Bronzo rinascimentale — patina verde-scuro, roughness alto
+  # Bronzo rinascimentale — patina verde-scuro, roughness alto, brushed
   - id: "metal_bronze"
     type: "disney"
     color: [0.60, 0.42, 0.20]
@@ -640,6 +663,8 @@ materials:
     specular_tint: 0.6
     sheen: 0.1
     sheen_tint: 0.4
+    anisotropic: 0.65
+    anisotropic_rotation: 0.40
 
   # Cromo liquido — specchio perfetto
   - id: "metal_chrome"
@@ -649,7 +674,7 @@ materials:
     roughness: 0.01
     specular: 1.0
 
-  # Gunmetal anodizzato — scuro con clearcoat industriale
+  # Gunmetal anodizzato — scuro con clearcoat industriale, anisotropia verticale
   - id: "metal_gunmetal"
     type: "disney"
     color: [0.18, 0.18, 0.24]
@@ -657,7 +682,9 @@ materials:
     roughness: 0.22
     specular: 0.7
     clearcoat: 0.35
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
+    anisotropic: 0.40
+    anisotropic_rotation: 0.70
 
   # ─────────────────────────────────────────────────────────────────────────
   #  FILA 1 — VETRO (gemme preziose)
@@ -685,7 +712,10 @@ materials:
     transmission_color: [0.97, 0.97, 1.0]
     transmission_depth: 1.0
 
-  # Diamante — IOR 2.42, riflessi luminosi e piccola lacca esterna
+  # Diamante — IOR 2.42, riflessi luminosi (il F0 Fresnel ~0.172 a IOR 2.42
+  # produce già la brillantezza caratteristica; niente clearcoat per evitare
+  # il conflitto delta↔delta quando transmission e coat sono entrambi a
+  # specchio — causa documentata di fireflies sulle gemme di vetro).
   - id: "glass_diamond"
     type: "disney"
     color: [1.0, 1.0, 1.0]
@@ -693,8 +723,6 @@ materials:
     ior: 2.42
     roughness: 0.003
     specular: 1.0
-    clearcoat: 0.3
-    clearcoat_gloss: 1.0
     transmission_color: [0.99, 0.99, 1.0]
     transmission_depth: 1.0
 

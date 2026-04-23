@@ -79,7 +79,7 @@ materials:
     metallic: 0.0
     specular: 0.8
     clearcoat: 0.4
-    clearcoat_gloss: 0.9
+    coat_roughness: 0.10
     subsurface: 0.15
 
   # Porcellana avorio — tono caldo, leggermente invecchiata
@@ -90,7 +90,7 @@ materials:
     metallic: 0.0
     specular: 0.7
     clearcoat: 0.35
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
     subsurface: 0.18
 
   # Porcellana blu cobalto — decorazione classica cinese/Delft
@@ -101,7 +101,7 @@ materials:
     metallic: 0.0
     specular: 0.85
     clearcoat: 0.5
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
     subsurface: 0.08
 
   # Porcellana nera — elegante, smalto a specchio profondo
@@ -112,7 +112,7 @@ materials:
     metallic: 0.0
     specular: 0.9
     clearcoat: 0.6
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   # Porcellana rosa — stile Sèvres, delicato e luminoso
   - id: "dis_porcellana_rosa"
@@ -122,7 +122,7 @@ materials:
     metallic: 0.0
     specular: 0.75
     clearcoat: 0.4
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
     subsurface: 0.20
 
   # Porcellana craquelé — superficie con rete di micro-fessure
@@ -133,8 +133,19 @@ materials:
     metallic: 0.0
     specular: 0.6
     clearcoat: 0.3
-    clearcoat_gloss: 0.75
+    coat_roughness: 0.25
     subsurface: 0.12
+
+  # Porcellana crepuscolo — tono grigio-cenere, stoneware asiatico moderno
+  - id: "dis_porcellana_crepuscolo"
+    type: "disney"
+    color: [0.48, 0.48, 0.50]
+    roughness: 0.18
+    metallic: 0.0
+    specular: 0.65
+    clearcoat: 0.55
+    coat_roughness: 0.12
+    subsurface: 0.08
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -161,6 +172,12 @@ materials:
     color: [0.03, 0.03, 0.04]
     fuzz: 0.15
 
+  # Porcellana crepuscolo — grigio-cenere satinato
+  - id: "cls_porcellana_crepuscolo"
+    type: "metal"
+    color: [0.50, 0.50, 0.52]
+    fuzz: 0.18
+
 
   # ═══════════════════════════════════════════════════════════════════════════
   #  BONE CHINA — traslucenza elevata, corpo sottilissimo
@@ -176,7 +193,7 @@ materials:
     metallic: 0.0
     specular: 0.85
     clearcoat: 0.45
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
     subsurface: 0.35
 
   # Bone china blu — decorazione Wedgwood
@@ -187,7 +204,7 @@ materials:
     metallic: 0.0
     specular: 0.80
     clearcoat: 0.4
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
     subsurface: 0.25
 
   # ── Classic ────────────────────────────────────────────────────────────
@@ -217,7 +234,7 @@ materials:
     metallic: 0.0
     specular: 0.6
     clearcoat: 0.3
-    clearcoat_gloss: 0.80
+    coat_roughness: 0.20
 
   # Maiolica azzurra — stile Deruta, azzurro intenso
   - id: "dis_maiolica_azzurra"
@@ -227,7 +244,7 @@ materials:
     metallic: 0.0
     specular: 0.65
     clearcoat: 0.35
-    clearcoat_gloss: 0.82
+    coat_roughness: 0.18
 
   # Maiolica gialla — ocra luminosa, tipica delle ceramiche toscane
   - id: "dis_maiolica_gialla"
@@ -237,7 +254,7 @@ materials:
     metallic: 0.0
     specular: 0.6
     clearcoat: 0.3
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
 
   # Maiolica verde rame — verde ramina, intenso
   - id: "dis_maiolica_verde"
@@ -247,7 +264,7 @@ materials:
     metallic: 0.0
     specular: 0.65
     clearcoat: 0.35
-    clearcoat_gloss: 0.82
+    coat_roughness: 0.18
 
   # Maiolica arancio manganese — arancio caldo con sfumature brune
   - id: "dis_maiolica_arancio"
@@ -257,7 +274,7 @@ materials:
     metallic: 0.0
     specular: 0.58
     clearcoat: 0.30
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -333,7 +350,7 @@ materials:
     metallic: 0.0
     specular: 0.6
     clearcoat: 0.4
-    clearcoat_gloss: 0.82
+    coat_roughness: 0.18
 
   # Terracotta smaltata verde — toscana, smalto ramina su coccio
   - id: "dis_terracotta_smaltata_verde"
@@ -343,7 +360,7 @@ materials:
     metallic: 0.0
     specular: 0.55
     clearcoat: 0.35
-    clearcoat_gloss: 0.80
+    coat_roughness: 0.20
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -407,7 +424,7 @@ materials:
     metallic: 0.0
     specular: 0.70
     clearcoat: 0.5
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   # Grès smaltato bianco — smalto shino, cremoso e spesso
   - id: "dis_gres_shino"
@@ -417,7 +434,7 @@ materials:
     metallic: 0.0
     specular: 0.55
     clearcoat: 0.3
-    clearcoat_gloss: 0.75
+    coat_roughness: 0.25
     subsurface: 0.10
 
   # Grès celadon chiaro — smalto verde-grigio sottile su grès
@@ -428,7 +445,7 @@ materials:
     metallic: 0.0
     specular: 0.65
     clearcoat: 0.4
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
     subsurface: 0.08
 
   # ── Classic ────────────────────────────────────────────────────────────
@@ -478,8 +495,6 @@ materials:
     roughness: 0.35
     metallic: 0.30
     specular: 0.5
-    sheen: 0.15
-    sheen_tint: 0.3
 
   # Raku bianco craquelé — smalto bianco con rete di fessure annerite
   - id: "dis_raku_bianco"
@@ -489,7 +504,7 @@ materials:
     metallic: 0.0
     specular: 0.50
     clearcoat: 0.25
-    clearcoat_gloss: 0.70
+    coat_roughness: 0.30
 
   # Raku iridescente — riduzione intensa, riflessi cangianti
   - id: "dis_raku_iridescente"
@@ -532,7 +547,7 @@ materials:
     metallic: 0.0
     specular: 0.75
     clearcoat: 0.5
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
     subsurface: 0.12
 
   # Celadon chiaro — verde acqua tenue, stile coreano Goryeo
@@ -543,7 +558,7 @@ materials:
     metallic: 0.0
     specular: 0.80
     clearcoat: 0.45
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
     subsurface: 0.15
 
   # Celadon scuro — verde oliva intenso, pezzi Song dynasty
@@ -554,7 +569,7 @@ materials:
     metallic: 0.0
     specular: 0.70
     clearcoat: 0.45
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
     subsurface: 0.10
 
   # ── Classic ────────────────────────────────────────────────────────────
@@ -635,7 +650,7 @@ materials:
     metallic: 0.0
     specular: 0.7
     clearcoat: 0.35
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # Smaltata rossa — rosso ossido di ferro, vibrante
   - id: "dis_smaltata_rossa"
@@ -645,7 +660,7 @@ materials:
     metallic: 0.0
     specular: 0.65
     clearcoat: 0.35
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   # Smaltata blu — blu di Persia, intenso e profondo
   - id: "dis_smaltata_blu"
@@ -655,7 +670,7 @@ materials:
     metallic: 0.0
     specular: 0.70
     clearcoat: 0.40
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # Smaltata turchese — smalto alcalino, colore caraibico
   - id: "dis_smaltata_turchese"
@@ -665,7 +680,7 @@ materials:
     metallic: 0.0
     specular: 0.68
     clearcoat: 0.38
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   # Smaltata giallo limone — vivace, finitura brillante
   - id: "dis_smaltata_gialla"
@@ -675,7 +690,7 @@ materials:
     metallic: 0.0
     specular: 0.60
     clearcoat: 0.30
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   # Smaltata verde bottiglia — scuro, ricco, classico
   - id: "dis_smaltata_verde"
@@ -685,7 +700,7 @@ materials:
     metallic: 0.0
     specular: 0.65
     clearcoat: 0.38
-    clearcoat_gloss: 0.86
+    coat_roughness: 0.14
 
   # Smaltata nera lucida — fondo nero per contrasti decorativi
   - id: "dis_smaltata_nera"
@@ -695,7 +710,7 @@ materials:
     metallic: 0.0
     specular: 0.85
     clearcoat: 0.50
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
 
   # Smaltata lavanda — tono lilla tenue, finitura satinata
   - id: "dis_smaltata_lavanda"
@@ -705,7 +720,7 @@ materials:
     metallic: 0.0
     specular: 0.55
     clearcoat: 0.25
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -758,8 +773,6 @@ materials:
     roughness: 0.40
     metallic: 0.0
     specular: 0.35
-    sheen: 0.10
-    sheen_tint: 0.6
 
   # Terra sigillata nera — riduzione in cottura, nero satinato
   - id: "dis_sigillata_nera"
@@ -768,8 +781,6 @@ materials:
     roughness: 0.38
     metallic: 0.0
     specular: 0.40
-    sheen: 0.12
-    sheen_tint: 0.3
 
   # Terra sigillata ocra — tono miele, slip chiaro
   - id: "dis_sigillata_ocra"
@@ -778,8 +789,6 @@ materials:
     roughness: 0.42
     metallic: 0.0
     specular: 0.30
-    sheen: 0.08
-    sheen_tint: 0.5
 
   # ── Classic ────────────────────────────────────────────────────────────
 
