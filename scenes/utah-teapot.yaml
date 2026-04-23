@@ -46,7 +46,7 @@ materials:
     metallic: 0.0
     specular: 0.8
     clearcoat: 0.4
-    clearcoat_gloss: 0.9
+    coat_roughness: 0.10
 
   # ── Tavolo — LAMBERTIAN (superficie grande, nessun feature Disney) ─────
   - id: "legno_scuro"

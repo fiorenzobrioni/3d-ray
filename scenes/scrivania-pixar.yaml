@@ -229,7 +229,7 @@ materials:
     metallic: 0.0
     specular: 0.50
     clearcoat: 0.35
-    clearcoat_gloss: 0.75
+    coat_roughness: 0.25
 
   # ─────────────────────────────────────────────────────────────────────────
   #  LAMPADA LUXO JR — Corpo crema, lampadina
@@ -244,7 +244,7 @@ materials:
     metallic: 0.0
     specular: 0.45
     clearcoat: 0.28
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
 
   # Lampadina incandescente — emissivo molto caldo (2700K).
   # Diventa GeometryLight automatico per NEE.
@@ -265,7 +265,7 @@ materials:
     metallic: 0.0
     specular: 0.30
     clearcoat: 0.10
-    clearcoat_gloss: 0.50
+    coat_roughness: 0.50
 
   # Schermo attivo — bagliore freddo (6500K). GeometryLight per NEE.
   # Intensità bassa: fill secondario, non abbaglia.
@@ -287,7 +287,7 @@ materials:
     metallic: 0.0
     specular: 0.65
     clearcoat: 0.25
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
 
   # Terracotta non smaltata — vaso pianta grezzo, opaco, poroso.
   - id: "dis_terracotta"
@@ -359,7 +359,7 @@ materials:
     metallic: 0.0
     specular: 0.30
     clearcoat: 0.15
-    clearcoat_gloss: 0.60
+    coat_roughness: 0.40
 
   # Punta grafite matita — grigio scuro quasi metallico.
   - id: "cls_grafite"
@@ -380,7 +380,7 @@ materials:
     metallic: 0.0
     specular: 0.50
     clearcoat: 0.35
-    clearcoat_gloss: 0.80
+    coat_roughness: 0.20
 
   # Toy Pixar testa — rosso brillante satinato.
   - id: "dis_toy_testa"
@@ -390,7 +390,7 @@ materials:
     metallic: 0.0
     specular: 0.45
     clearcoat: 0.28
-    clearcoat_gloss: 0.75
+    coat_roughness: 0.25
 
   # Tastiera — plastica grigio chiaro, quasi piatta.
   - id: "cls_tastiera"

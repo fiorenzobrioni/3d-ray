@@ -82,7 +82,7 @@ materials:
       uv_scale: [4, 4]
     normal_map:
       path: "../libraries/textures/concrete-normal.png"
-      strength: 111.5
+      strength: 1.5
       uv_scale: [4, 4]
 
   - id: "bianco"

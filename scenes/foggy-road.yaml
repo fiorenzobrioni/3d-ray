@@ -160,6 +160,7 @@ materials:
     roughness: 0.90
     sheen: 0.85
     sheen_tint: 0.3
+    sheen_roughness: 0.40
     specular: 0.10
 
 templates:
