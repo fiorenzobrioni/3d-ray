@@ -178,9 +178,9 @@ Alias del tipo: `disney`, `disney_bsdf`, `pbr` (tutti creano lo stesso materiale
 | `sheen_tint`           | `0.5`       | 0--1          | Tinge lo sheen con il colore di base                |
 | `sheen_roughness`      | `0.3`       | 0.04--1       | α del Charlie sheen — larghezza dell'alone radente |
 | `clearcoat`            | `0.0`       | 0--1          | Secondo lobo speculare (lacca, vernice)             |
-| `clearcoat_gloss`      | `1.0`       | 0--1          | Slider legacy della lucentezza clearcoat            |
+| `clearcoat_gloss`      | `1.0`       | 0--1          | **Legacy** — preferire `coat_roughness` (≈ `1 - clearcoat_gloss`) |
 | `coat_ior`             | `1.5`       | 1+            | IOR del coat (default 1.5 = lacca)                 |
-| `coat_roughness`       | non imp.    | 0--1          | Quando impostato, attiva il coat stile Arnold (α = roughness²) |
+| `coat_roughness`       | `-1.0`      | -1 o 0--1     | Sentinella `-1` usa il `clearcoat_gloss` legacy; qualsiasi `≥ 0` attiva il coat stile Arnold e `clearcoat_gloss` viene ignorato |
 | `coat_normal_map`      | --          | path immagine | Normal map applicata **solo** al lobo clearcoat     |
 | `spec_trans`           | `0.0`       | 0--1          | Trasmissione speculare (0 = opaco, 1 = vetro)       |
 | `transmission_color`   | `[1,1,1]`   | 0--1          | Colore raggiunto dentro il vetro a `transmission_depth` |
@@ -192,6 +192,7 @@ Alias del tipo: `disney`, `disney_bsdf`, `pbr` (tutti creano lo stesso materiale
 | `flatness`             | `0.0`       | 0--1          | Blend Lambert → HK-flat (Disney 2015)               |
 | `thin_walled`          | `false`     | bool          | Disattiva la doppia rifrazione — foglie, carta      |
 | `subsurface_color`     | --          | colore 0--1   | Tinta per i lobi subsurface / flatness / diff_trans |
+| `subsurface_radius`    | --          | `[R,G,B]` ≥ 0 | **Non usato** — letto dal parser ma riservato a una futura SSS random-walk; oggi non ha alcun effetto |
 | `thin_film_thickness`  | `0.0`       | 0+ (nm)       | Spessore del film iridescente (bolle, opal, AR)    |
 | `thin_film_ior`        | `1.5`       | 1+            | IOR del film iridescente (η₂)                      |
 | `texture`              | --          | --            | Texture procedurale o immagine (sostituisce color)  |
@@ -367,6 +368,42 @@ Il materiale Disney è un sistema a strati:
   subsurface_color: [1.0, 0.55, 0.45]
   flatness: 0.4
 ```
+
+### Cheat-Sheet Rapido
+
+Riferimento compatto che copre l'intera tassonomia delle superfici Disney.
+Usalo come punto di partenza e poi affina `roughness` e `specular` per il
+look finale. Sono elencate solo le chiavi non-default — omettile per
+mantenere il valore predefinito.
+
+| Famiglia materiale | Ricetta essenziale |
+|---|---|
+| Diffuso opaco (intonaco, legno grezzo) | `roughness: 0.9`, `specular: 0.2`, opzionale `sheen: 0.1–0.2` |
+| Opaco "piatto" (carta, cemento) | `roughness: 0.85`, `flatness: 0.5–0.8`, `specular: 0.2` |
+| Plastica lucida | `metallic: 0`, `roughness: 0.2–0.4`, `specular: 0.5`, opzionale `clearcoat: 0.3` |
+| Gomma / silicone | `metallic: 0`, `roughness: 0.7–0.9`, `specular: 0.25`, `sheen: 0.2`, `sheen_roughness: 0.5` |
+| Velluto / tessuto | `roughness: 0.9`, `sheen: 1.0`, `sheen_tint: 0.7`, `sheen_roughness: 0.2–0.4` |
+| Pelle / porcellana | `metallic: 0`, `roughness: 0.4`, `subsurface: 0.5`, `subsurface_color: [0.9, 0.5, 0.45]`, `flatness: 0.3`, `sheen: 0.05` |
+| Foglia / carta (traslucida) | `roughness: 0.4`, `thin_walled: true`, `diff_trans: 0.5`, `subsurface_color: <tinta interna>`, opzionale `flatness: 0.3` |
+| Metallo lucido (oro, argento, cromo) | `metallic: 1`, `roughness: 0.02–0.15`, `specular: 0.9–1.0` |
+| Metallo ruvido / satinato | `metallic: 1`, `roughness: 0.4–0.7`, `specular: 0.6` |
+| Metallo spazzolato | `metallic: 1`, `roughness: 0.25`, `anisotropic: 0.7–0.9`, `anisotropic_rotation: 0.0–1.0` |
+| Vernice auto (slider legacy) | `metallic: 0`, `roughness: 0.3`, `clearcoat: 1`, `clearcoat_gloss: 0.9` |
+| Vernice auto (coat Arnold) | `metallic: 0–0.9`, `roughness: 0.25`, `clearcoat: 1`, `coat_ior: 1.55`, `coat_roughness: 0.05–0.15` |
+| Legno laccato / pianoforte nero | `roughness: 0.1`, `clearcoat: 1`, `coat_roughness: 0.05`, `specular: 0.7` |
+| Ceramica / porcellana dura | `metallic: 0`, `roughness: 0.15`, `specular: 0.7`, `clearcoat: 0.5`, `coat_roughness: 0.2` |
+| Vetro trasparente | `spec_trans: 1`, `roughness: 0.0`, `ior: 1.5`, `specular: 1.0` |
+| Vetro colorato / gemma | `spec_trans: 1`, `roughness: 0.0–0.02`, `ior: 1.5–1.77`, `transmission_color: <tinta>`, `transmission_depth: 0.3–1.0` |
+| Diamante | `spec_trans: 1`, `roughness: 0.003`, `ior: 2.42`, `specular: 1.0` |
+| Vetro smerigliato | `spec_trans: 1`, `roughness: 0.2–0.3`, `ior: 1.5`, `specular: 0.7` |
+| Bolla di sapone / film iridescente | `spec_trans: 1`, `roughness: 0.02`, `ior: 1.33`, `thin_walled: true`, `thin_film_thickness: 300–700 (nm)`, `thin_film_ior: 1.33` |
+| Metallo anodizzato / verniciato | `metallic: 0.9`, `roughness: 0.25`, `clearcoat: 0.4`, `coat_roughness: 0.15` |
+
+> **Tip.** Per convertire una scena Disney-2012 al parametro moderno, la
+> regola spannometrica è `coat_roughness ≈ 1 - clearcoat_gloss` (poi
+> rimuovi la chiave legacy). Per materiali con sheen forte, imposta
+> `sheen_roughness` a 0.4 o più: l'halo Charlie risulta più morbido del
+> picco stretto del default 0.3.
 
 ---
 

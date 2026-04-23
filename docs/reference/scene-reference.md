@@ -321,6 +321,78 @@ dotnet run ... -- -i scene.yaml -c 1 -o cam1.png    # By index (0-based)
   #   roughness_texture: { type: "image", path: "rough.png" }
   # Same for colour parameters (transmission_color_texture, subsurface_color_texture).
 ```
+
+##### **Disney Properties Summary**
+A single-glance reference of every Disney key the loader accepts.
+`Status` flags keys that behave differently from the rest: `Legacy` keys
+are still honoured but should be replaced in new scenes; `Unused` keys are
+parsed for forward-compatibility only and have no effect on the current
+renderer (the loader emits an `Info` line when it sees one).
+
+| Property | Type | Default | Range | Status | Notes |
+|---|---|---|---|---|---|
+| `color` | colour | required | 0–1 | Core | Base albedo (texturable) |
+| `metallic` | float | 0.0 | 0–1 | Core | 0 = dielectric, 1 = conductor |
+| `roughness` | float | 0.5 | 0–1 | Core | 0 = mirror, 1 = diffuse |
+| `specular` | float | 0.5 | 0–1 | Core | Dielectric F₀ scale (F₀ ≈ 0.08 × value) |
+| `specular_tint` | float | 0.0 | 0–1 | Core | Tint dielectric Fresnel by base colour |
+| `sheen` | float | 0.0 | 0–1 | Core | Grazing-angle luster (fabric, velvet) |
+| `sheen_tint` | float | 0.5 | 0–1 | Core | Tint sheen by base colour |
+| `sheen_roughness` | float | 0.3 | 0.04–1 | Ext. | Charlie NDF α (Estevez-Kulla 2017) |
+| `clearcoat` | float | 0.0 | 0–1 | Core | Independent second specular lobe |
+| `clearcoat_gloss` | float | 1.0 | 0–1 | **Legacy** | Disney-2012 slider; superseded by `coat_roughness` |
+| `coat_ior` | float | 1.5 | ≥ 1 | Coat | Arnold-style coat IOR |
+| `coat_roughness` | float | -1.0 | -1 or 0–1 | Coat | -1 = use `clearcoat_gloss`; any ≥ 0 selects Arnold path |
+| `coat_normal_map` | path | — | — | Coat | Dedicated normal map for the coat lobe |
+| `spec_trans` | float | 0.0 | 0–1 | Core | 0 = opaque, 1 = glass |
+| `ior` | float | 1.5 | ≥ 1 | Core | Refraction index for specular + transmission |
+| `transmission_color` | colour | `[1,1,1]` | 0–1 | Core | Interior colour at `transmission_depth` |
+| `transmission_depth` | float | 0.0 | ≥ 0 | Core | Beer-Lambert depth (0 = thin, tint applied once) |
+| `anisotropic` | float | 0.0 | 0–1 | Aniso | 0 = isotropic, 1 = fully stretched along tangent |
+| `anisotropic_rotation` | float | 0.0 | 0–1 | Aniso | Fraction of 2π around the normal |
+| `subsurface` | float | 0.0 | 0–1 | 2015 | Blend Lambert ↔ HK-flat lobe |
+| `subsurface_color` | colour | — | 0–1 | 2015 | Tint used by subsurface / flatness / diff_trans |
+| `subsurface_radius` | `[R,G,B]` | — | ≥ 0 | **Unused** | Parsed but not read — reserved for future random-walk SSS |
+| `diff_trans` | float | 0.0 | 0–1 | 2015 | Diffuse transmission (foliage, thin fabric) |
+| `flatness` | float | 0.0 | 0–1 | 2015 | Blend Lambert → HK-flat independently of `subsurface` |
+| `thin_walled` | bool | false | — | 2015 | Skip interior refraction (foliage, paper) |
+| `thin_film_thickness` | float | 0.0 | ≥ 0 (nm) | Thin-film | Belcour-Barla 2017; 100–800 nm = iridescence |
+| `thin_film_ior` | float | 1.5 | ≥ 1 | Thin-film | Film η₂ (water = 1.33, soap = 1.40) |
+| `texture` | block | — | — | Texturing | Procedural or image, replaces `color` |
+| `normal_map` | block | — | — | Texturing | Surface perturbation |
+
+> Every scalar parameter accepts a matching `*_texture` variant (e.g.
+> `roughness_texture`) and the three colour inputs (`color`,
+> `transmission_color`, `subsurface_color`) accept a matching
+> `*_texture` block.
+
+##### **Clearcoat: legacy vs Arnold-style**
+
+The coat lobe has two compatible parameterisations:
+
+- **Disney 2012 (legacy).** Single slider `clearcoat_gloss` (1 = mirror,
+  0 = rough) with an implicit IOR of 1.5. Kept working for every scene
+  authored before the Arnold extension landed.
+- **Arnold Standard Surface (preferred).** Tunable `coat_ior` +
+  `coat_roughness` (0 = mirror, 1 = rough). Matches every major DCC and
+  gives you explicit control over the highlight.
+
+**Selection rule.** `coat_roughness` defaults to `-1` (sentinel). While
+it stays negative the engine uses the legacy `clearcoat_gloss` path. As
+soon as you set `coat_roughness >= 0` (or bind `coat_roughness_texture`),
+the Arnold path takes over and `clearcoat_gloss` is ignored — the
+conversion is roughly `coat_roughness ≈ 1 - clearcoat_gloss`.
+
+> **New scenes should use `coat_roughness` + `coat_ior`.** Existing
+> scenes keep working without changes; nothing is removed.
+
+##### **`subsurface_radius`: parsed but not used**
+
+`subsurface_radius` is reserved for a future random-walk SSS pipeline.
+The current approximate subsurface lobe (`subsurface` + `subsurface_color`
++ optional `flatness`) never reads it. The loader emits an `Info`
+message at scene load when the key is present — omit it from new scenes.
+
 - **When to use:**
   - Metals: `metallic=1.0`, varied roughness. Add `anisotropic` for brushed steel.
   - Plastics: `metallic=0.0`, `roughness=0.4–0.8`

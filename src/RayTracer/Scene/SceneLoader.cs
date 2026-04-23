@@ -851,6 +851,17 @@ public class SceneLoader
                 disneyMat.CoatNormal = coatNormal;
         }
 
+        // subsurface_radius is parsed for forward-compatibility with a future
+        // random-walk SSS pipeline but has no effect on the current approximate
+        // subsurface lobe. Surface the fact to the author so it doesn't look
+        // like a silent typo.
+        if (material is DisneyBsdf
+            && m.SubsurfaceRadius != null && m.SubsurfaceRadius.Count > 0)
+        {
+            Info($"Material '{m.Id}': 'subsurface_radius' parsed but not used " +
+                 "(reserved for future random-walk SSS).");
+        }
+
         return material;
     }
 

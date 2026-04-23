@@ -207,9 +207,9 @@ material).
 | `sheen_tint`          | `0.5`    | 0--1         | Tint the sheen by base color                     |
 | `sheen_roughness`     | `0.3`    | 0.04--1      | Charlie sheen α — width of the grazing halo     |
 | `clearcoat`           | `0.0`    | 0--1         | Second specular lobe (lacquer, varnish)          |
-| `clearcoat_gloss`     | `1.0`    | 0--1         | Legacy clearcoat smoothness slider              |
+| `clearcoat_gloss`     | `1.0`    | 0--1         | **Legacy** — prefer `coat_roughness` (≈ `1 - clearcoat_gloss`) |
 | `coat_ior`            | `1.5`    | 1+           | Clearcoat IOR (overrides the default lacquer)   |
-| `coat_roughness`      | unset    | 0--1         | When set, switches to Arnold-style coat (roughness as α² directly) |
+| `coat_roughness`      | `-1.0`   | -1 or 0--1   | Sentinel `-1` falls back to `clearcoat_gloss`; any `≥ 0` enables the Arnold coat and `clearcoat_gloss` is ignored |
 | `coat_normal_map`     | --       | image path   | Normal map applied **only** to the clearcoat lobe |
 | `spec_trans`          | `0.0`    | 0--1         | Specular transmission (0 = opaque, 1 = glass)    |
 | `transmission_color`  | `[1,1,1]`| 0--1         | Colour of the glass interior at `transmission_depth` |
@@ -221,6 +221,7 @@ material).
 | `flatness`            | `0.0`    | 0--1         | Blend Lambert → HK-flat diffuse shape           |
 | `thin_walled`         | `false`  | bool         | Skip refraction / double-hit — foliage, paper   |
 | `subsurface_color`    | --       | 0--1 colour  | Tint used by the subsurface / flatness / diff_trans lobes |
+| `subsurface_radius`   | --       | `[R,G,B]` ≥ 0 | **Unused** — parsed for a future random-walk SSS pipeline, currently has no effect |
 | `thin_film_thickness` | `0.0`    | 0+ (nm)      | Iridescent film thickness (bubbles, opal, AR)   |
 | `thin_film_ior`       | `1.5`    | 1+           | Iridescent film IOR (η₂)                        |
 | `texture`             | --       | --           | Procedural or image texture (replaces color)    |
@@ -412,6 +413,41 @@ Think of the Disney material as a layered system:
   subsurface_color: [1.0, 0.55, 0.45]
   flatness: 0.4
 ```
+
+### Quick Cheat-Sheet
+
+A compact reference covering the whole Disney surface taxonomy.
+Use it to pick a starting point, then tune `roughness` and `specular` for
+the specific hero look. Only the non-default keys are listed — omit a key
+to keep its default.
+
+| Material family | Core recipe |
+|---|---|
+| Matte diffuse (plaster, unfinished wood) | `roughness: 0.9`, `specular: 0.2`, optional `sheen: 0.1–0.2` |
+| Flat matte (paper, concrete) | `roughness: 0.85`, `flatness: 0.5–0.8`, `specular: 0.2` |
+| Polished plastic | `metallic: 0`, `roughness: 0.2–0.4`, `specular: 0.5`, optional `clearcoat: 0.3` |
+| Rubber / silicone | `metallic: 0`, `roughness: 0.7–0.9`, `specular: 0.25`, `sheen: 0.2`, `sheen_roughness: 0.5` |
+| Velvet / fabric | `roughness: 0.9`, `sheen: 1.0`, `sheen_tint: 0.7`, `sheen_roughness: 0.2–0.4` |
+| Skin / porcelain | `metallic: 0`, `roughness: 0.4`, `subsurface: 0.5`, `subsurface_color: [0.9, 0.5, 0.45]`, `flatness: 0.3`, `sheen: 0.05` |
+| Leaf / paper (translucent) | `roughness: 0.4`, `thin_walled: true`, `diff_trans: 0.5`, `subsurface_color: <interior tint>`, optional `flatness: 0.3` |
+| Polished metal (gold, silver, chrome) | `metallic: 1`, `roughness: 0.02–0.15`, `specular: 0.9–1.0` |
+| Rough / satin metal | `metallic: 1`, `roughness: 0.4–0.7`, `specular: 0.6` |
+| Brushed metal | `metallic: 1`, `roughness: 0.25`, `anisotropic: 0.7–0.9`, `anisotropic_rotation: 0.0–1.0` |
+| Car paint (legacy slider) | `metallic: 0`, `roughness: 0.3`, `clearcoat: 1`, `clearcoat_gloss: 0.9` |
+| Car paint (Arnold coat) | `metallic: 0–0.9`, `roughness: 0.25`, `clearcoat: 1`, `coat_ior: 1.55`, `coat_roughness: 0.05–0.15` |
+| Lacquered wood / piano black | `roughness: 0.1`, `clearcoat: 1`, `coat_roughness: 0.05`, `specular: 0.7` |
+| Ceramic / porcelain (hard) | `metallic: 0`, `roughness: 0.15`, `specular: 0.7`, `clearcoat: 0.5`, `coat_roughness: 0.2` |
+| Clear glass | `spec_trans: 1`, `roughness: 0.0`, `ior: 1.5`, `specular: 1.0` |
+| Coloured glass / gemstone | `spec_trans: 1`, `roughness: 0.0–0.02`, `ior: 1.5–1.77`, `transmission_color: <tint>`, `transmission_depth: 0.3–1.0` |
+| Diamond | `spec_trans: 1`, `roughness: 0.003`, `ior: 2.42`, `specular: 1.0` |
+| Frosted glass | `spec_trans: 1`, `roughness: 0.2–0.3`, `ior: 1.5`, `specular: 0.7` |
+| Soap bubble / iridescent film | `spec_trans: 1`, `roughness: 0.02`, `ior: 1.33`, `thin_walled: true`, `thin_film_thickness: 300–700 (nm)`, `thin_film_ior: 1.33` |
+| Anodised / painted metal | `metallic: 0.9`, `roughness: 0.25`, `clearcoat: 0.4`, `coat_roughness: 0.15` |
+
+> **Tip.** When converting a Disney-2012 scene to the modern parameters,
+> the near-one-liner is `coat_roughness ≈ 1 - clearcoat_gloss` (and drop
+> the old key). For sheen-heavy materials, set `sheen_roughness` to 0.4
+> or higher so the Charlie halo is softer than the default 0.3 peak.
 
 ---
 
