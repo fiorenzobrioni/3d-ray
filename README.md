@@ -51,7 +51,7 @@ Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il
 - ▬ **Infinite Plane** — piano infinito per pavimenti e sfondi
 - 🏠 **Mesh (OBJ)** — modelli 3D da file Wavefront OBJ con smooth shading, UV mapping dell'artista e BVH interno dedicato
 - 🔷 **CSG (Constructive Solid Geometry)** — operazioni booleane su solidi: **Union** (A ∪ B), **Intersection** (A ∩ B) e **Subtraction** (A \ B), annidabili ricorsivamente per forme arbitrariamente complesse
-- 🏺 **Lathe (Superficie di Rivoluzione)** — superficie implicita ottenuta facendo ruotare un profilo 2D `(r, y)` attorno all'asse Y. Tre modalità di profilo: **linear** (frustum analitici, look tornito con spigoli), **Catmull-Rom centripeto** (C¹ continuo, passa per ogni punto, niente overshoot) e **Bezier cubico esplicito** (control point manuali). Le modalità spline vengono risolte con polinomio di grado 6 tramite **Sturm chain + Newton-Raphson** (stesso approccio di PovRay `lathe` e PBRT `Curve`), cap automatici, UV arc-length e supporto NEE area-weighted per lathe emissivi. Vasi, calici, colonne e lampade senza tassellatura.
+- 🏺 **Lathe (Superficie di Rivoluzione)** — profilo 2D fatto ruotare attorno all'asse Y per ottenere vasi, calici, colonne e lampade senza tassellatura. Tre modalità di profilo: **linear** (segmenti con spigoli netti, look tornito), **Catmull-Rom** (curva liscia che passa per ogni punto) e **Bezier cubico** (control point manuali).
 
 ### Struttura della Scena
 - 🌳 **Scene Graph (Gruppi)** — Composizione gerarchica di oggetti con trasformazioni ereditate. Gruppi annidabili con primitive, CSG, mesh e altri gruppi.

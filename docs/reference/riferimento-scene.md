@@ -668,9 +668,24 @@ entities:
 
 #### **7.13 CSG (Operazioni Booleane)**
 ```yaml
-- name: "lens"
+# Union (A ∪ B) — fonde due solidi in uno solo (es. corpo + testa di un pupazzo di neve)
+- name: "pupazzo"
   type: "csg"
-  operation: "intersection"                # "union", "intersection", "subtraction"
+  operation: "union"
+  operand_a:
+    type: "sphere"
+    center: [0, 0, 0]
+    radius: 1.0
+  operand_b:
+    type: "sphere"
+    center: [0, 1.4, 0]
+    radius: 0.7
+  material: "neve"
+
+# Intersection (A ∩ B) — tiene solo il volume condiviso tra i due solidi (forma a lente)
+- name: "lente"
+  type: "csg"
+  operation: "intersection"
   operand_a:
     type: "sphere"
     center: [-0.5, 0, 0]
@@ -679,9 +694,25 @@ entities:
     type: "sphere"
     center: [0.5, 0, 0]
     radius: 1.0
-  material: "glass"
+  material: "vetro"
+
+# Subtraction (A \ B) — rimuove B da A (perla: sfera con foro passante)
+- name: "perla"
+  type: "csg"
+  operation: "subtraction"
+  operand_a:
+    type: "sphere"
+    center: [0, 0, 0]
+    radius: 1.0
+  operand_b:
+    type: "cylinder"
+    center: [0, -1.5, 0]
+    radius: 0.3
+    height: 3.0
+  material: "legno"
 ```
-- Supporta alberi CSG nidificati ricorsivamente
+- Operazioni: `union` (A∪B), `intersection` (A∩B), `subtraction` (A\B)
+- Supporta alberi CSG nidificati ricorsivamente (un `operand_a` o `operand_b` può essere a sua volta un nodo `csg`)
 
 #### **7.14 Group (Composizione Gerarchica)**
 ```yaml
