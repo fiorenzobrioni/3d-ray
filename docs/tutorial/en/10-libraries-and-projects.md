@@ -101,22 +101,38 @@ materials:
 ## 10.3 Object Libraries
 
 Twelve themed files with pre-built templates using primitives, groups,
-and CSG:
+CSG, and the **`lathe` (surface of revolution) primitive** for
+professionally-turned rotationally-symmetric bodies:
 
 | File                           | Templates | Example objects                    |
 |--------------------------------|-----------|------------------------------------|
-| `objects/furniture.yaml`       | 10        | Tables, chairs, lamps, shelves     |
-| `objects/decorative-objects.yaml`| 10      | Vases, frames, candles, clocks     |
-| `objects/tableware.yaml`       | 10        | Plates, glasses, cutlery, teapots  |
-| `objects/architecture.yaml`    | 14        | Columns (Doric/Ionic), arches, stairs |
+| `objects/furniture.yaml`       | 11        | Tables, chairs, lamps, shelves, turned candelabra (lathe) |
+| `objects/decorative-objects.yaml`| 12      | Ming vases (lathe), Greek amphorae (lathe), clocks, pedestals (lathe) |
+| `objects/tableware.yaml`       | 11        | Wine glasses (lathe), bottles (lathe), decanters (lathe), teapots |
+| `objects/architecture.yaml`    | 15        | Columns (lathe), arches, stairs, balusters (lathe), pinnacles (lathe) |
 | `objects/mechanical.yaml`      | 14        | Gears, bolts, pistons, bearings    |
 | `objects/jewelry.yaml`         | 14        | Rings, necklaces, gems, tiara      |
-| `objects/lighting.yaml`        | 14        | Chandeliers, pendants, sconces     |
-| `objects/laboratory.yaml`      | 14        | Test tubes, flasks, microscope     |
-| `objects/musical.yaml`         | 14        | Violin, guitar, piano, drums       |
-| `objects/outdoor.yaml`         | 14        | Benches, fountains, planters       |
-| `objects/chess.yaml`           | 11        | Full Staunton set + boards         |
+| `objects/lighting.yaml`        | 15        | Chandeliers, lampshades (lathe), pendants, sconces |
+| `objects/laboratory.yaml`      | 14        | Erlenmeyer flasks (lathe), round-bottom flasks (lathe), funnels (lathe) |
+| `objects/musical.yaml`         | 14        | Violin, guitar, bronze bells (lathe), timpani kettles (lathe) |
+| `objects/outdoor.yaml`         | 15        | Benches, fountains, planters (lathe), garden vases (lathe) |
+| `objects/chess.yaml`           | 11        | Full turned Staunton set (lathe) + boards |
 | `objects/nature.yaml`          | 15        | Trees, flowers, mushrooms, crystals|
+
+### Lathe-based templates
+
+Over **26 templates** across 9 of the libraries use the `lathe`
+primitive for their rotationally-symmetric bodies — wine glasses,
+bottles, turned columns, balusters, Ming vases, laboratory glassware,
+Staunton chess pieces, bells, and lampshades. A single Catmull-Rom
+profile generates a C¹-continuous silhouette impossible to achieve by
+stacking spheres/cones/torus, and typically collapses 5–15 primitives
+into one. For transparent glass (Pyrex, crystal) the lathe is kept
+solid — refraction produces the thin-wall optical look naturally. For
+opaque thin-walled shells (terracotta planters, fabric lampshades) a
+CSG subtraction of two lathes generates a constant-thickness wall.
+See **[Chapter 11: Surfaces of Revolution (Lathe)](./11-lathe-surface-of-revolution.md)**
+for the full schema, profile modes, and cost trade-offs.
 
 ### Material Prefixes per Library
 

@@ -9,6 +9,18 @@
 # istanzia con material: "chs_legno_chiaro" per i bianchi e
 # "chs_ebano" per i neri.
 #
+# ── Costruzione ──────────────────────────────────────────────────────────
+#
+#   I pezzi Staunton sono nati come oggetti tornio-canonici (sono
+#   letteralmente "turned" al tornio nella fabbricazione reale), per
+#   questo tutto il corpo centrale è generato da un singolo `lathe`
+#   Catmull-Rom che descrive in un'unica curva C¹ la base modanata, il
+#   collarino, lo stelo, il collo e il nodo/testa. Gli ornamenti
+#   non-simmetrici (merlatura della torre, mitra fessa dell'alfiere,
+#   coronet a 8 punte della regina, corona + croce pattée del re)
+#   restano in CSG. Il cavallo non è tornito ed è tenuto in sfere
+#   scalate come da versione originale.
+#
 # ── Scala ────────────────────────────────────────────────────────────────
 #
 #   Pezzi proporzionati allo standard Staunton:
@@ -35,17 +47,17 @@
 #
 # ── Catalogo ─────────────────────────────────────────────────────────────
 #
-#   PEDONE_STAUNTON         ~Ø 0.028 × 0.046 m
-#   TORRE_STAUNTON          ~Ø 0.030 × 0.048 m
-#   ALFIERE_STAUNTON        ~Ø 0.030 × 0.072 m
-#   CAVALLO_STAUNTON        ~0.032 × 0.062 × 0.028 m
-#   REGINA_STAUNTON         ~Ø 0.032 × 0.085 m
-#   RE_STAUNTON             ~Ø 0.032 × 0.095 m
-#   SCACCHIERA_LEGNO        ~0.46 × 0.035 × 0.46 m
-#   SCACCHIERA_MARMO        ~0.48 × 0.030 × 0.48 m
-#   SCACCHIERA_MODERNA      ~0.44 × 0.020 × 0.44 m
-#   SCATOLA_SCACCHI         ~0.30 × 0.10 × 0.22 m
-#   SCATOLA_SCACCHI_LUSSO   ~0.34 × 0.12 × 0.24 m
+#   PEDONE_STAUNTON   (lathe) ~Ø 0.028 × 0.046 m
+#   TORRE_STAUNTON    (lathe) ~Ø 0.030 × 0.048 m   (+ merlatura CSG)
+#   ALFIERE_STAUNTON  (lathe) ~Ø 0.030 × 0.072 m   (+ mitra fessa CSG)
+#   CAVALLO_STAUNTON          ~0.032 × 0.062 × 0.028 m
+#   REGINA_STAUNTON   (lathe) ~Ø 0.032 × 0.085 m   (+ coronet 8 punte)
+#   RE_STAUNTON       (lathe) ~Ø 0.032 × 0.095 m   (+ corona, croce pattée)
+#   SCACCHIERA_LEGNO          ~0.46 × 0.035 × 0.46 m
+#   SCACCHIERA_MARMO          ~0.48 × 0.030 × 0.48 m
+#   SCACCHIERA_MODERNA        ~0.44 × 0.020 × 0.44 m
+#   SCATOLA_SCACCHI           ~0.30 × 0.10 × 0.22 m
+#   SCATOLA_SCACCHI_LUSSO     ~0.34 × 0.12 × 0.24 m
 #
 # ============================================================================
 
@@ -227,7 +239,7 @@ materials:
 templates:
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  PEDONE — Il più semplice, profilo classico a sfera
+  #  PEDONE — Il più semplice, profilo classico tornito (lathe)
   # ═══════════════════════════════════════════════════════════════════════
   - name: "pedone_staunton"
     material: "chs_legno_chiaro"
@@ -240,43 +252,31 @@ templates:
         radius: 0.014
         material: "chs_feltro"
 
-      # Base
-      - type: "cylinder"
-        center: [0, 0, 0]
-        radius: 0.014
-        height: 0.006
-      - type: "torus"
-        center: [0, 0.006, 0]
-        major_radius: 0.0135
-        minor_radius: 0.003
-
-      # Cono di transizione
-      - type: "cone"
-        center: [0, 0.009, 0]
-        radius: 0.012
-        top_radius: 0.006
-        height: 0.010
-
-      # Stelo
-      - type: "cylinder"
-        center: [0, 0.019, 0]
-        radius: 0.005
-        height: 0.015
-
-      # Collare
-      - type: "torus"
-        center: [0, 0.034, 0]
-        major_radius: 0.007
-        minor_radius: 0.003
-
-      # Testa (sfera)
-      - type: "sphere"
-        center: [0, 0.040, 0]
-        radius: 0.010
+      # ── Corpo tornito: base + collarino + stelo + collo + testa ────────
+      # Un unico lathe Catmull-Rom descrive l'intero pezzo Staunton
+      # standard con silhouette C¹ continua dall'appoggio fino al pomo.
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]
+          - [0.014, 0.000]   # bordo esterno della base
+          - [0.014, 0.005]
+          - [0.0135, 0.009]  # collarino base (toro)
+          - [0.012, 0.011]
+          - [0.009, 0.015]
+          - [0.006, 0.019]   # inizio stelo
+          - [0.005, 0.025]   # stelo sottile
+          - [0.005, 0.030]
+          - [0.007, 0.033]   # collarino sotto la testa
+          - [0.006, 0.036]
+          - [0.010, 0.040]   # equatore testa
+          - [0.009, 0.045]
+          - [0.005, 0.048]
+          - [0.000, 0.050]   # chiusura sull'asse (apice testa)
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  TORRE — Torrione con merlatura
+  #  TORRE — Torrione con merlatura (lathe + CSG)
   # ═══════════════════════════════════════════════════════════════════════
   - name: "torre_staunton"
     material: "chs_legno_chiaro"
@@ -288,48 +288,31 @@ templates:
         radius: 0.016
         material: "chs_feltro"
 
-      # Base
-      - type: "cylinder"
-        center: [0, 0, 0]
-        radius: 0.016
-        height: 0.006
-      - type: "torus"
-        center: [0, 0.006, 0]
-        major_radius: 0.0155
-        minor_radius: 0.003
-
-      # Cono transizione
-      - type: "cone"
-        center: [0, 0.009, 0]
-        radius: 0.014
-        top_radius: 0.008
-        height: 0.010
-
-      # Stelo (più grosso)
-      - type: "cylinder"
-        center: [0, 0.019, 0]
-        radius: 0.007
-        height: 0.015
-
-      # Collare
-      - type: "torus"
-        center: [0, 0.034, 0]
-        major_radius: 0.009
-        minor_radius: 0.003
-
-      # Torrione (cilindro che si allarga)
-      - type: "cone"
-        center: [0, 0.037, 0]
-        radius: 0.010
-        top_radius: 0.013
-        height: 0.015
+      # ── Corpo tornito fino alla base del torrione (lathe Catmull-Rom) ──
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]
+          - [0.016, 0.000]   # bordo base
+          - [0.016, 0.006]
+          - [0.0155, 0.009]  # collarino base
+          - [0.014, 0.012]
+          - [0.011, 0.016]   # cono di transizione
+          - [0.008, 0.019]
+          - [0.007, 0.024]   # stelo
+          - [0.007, 0.032]
+          - [0.009, 0.035]   # collarino sotto il torrione
+          - [0.008, 0.038]
+          - [0.010, 0.040]
+          - [0.013, 0.052]   # torrione che si allarga verso l'alto
+          - [0.013, 0.055]   # base della merlatura
 
       # ── Merlatura (CSG: cilindro pieno − 4 tacche) ────────────────────
       - type: "csg"
         operation: "subtraction"
         left:
           type: "cylinder"
-          center: [0, 0.052, 0]
+          center: [0, 0.059, 0]
           radius: 0.013
           height: 0.008
         right:
@@ -338,28 +321,28 @@ templates:
             # 4 tacche rettangolari a 90°
             - type: "box"
               scale: [0.030, 0.006, 0.006]
-              translate: [0, 0.058, 0]
+              translate: [0, 0.063, 0]
             - type: "box"
               scale: [0.006, 0.006, 0.030]
-              translate: [0, 0.058, 0]
+              translate: [0, 0.063, 0]
 
-      # Cavità interna (CSG)
+      # Cavità interna del torrione (CSG)
       - type: "csg"
         operation: "subtraction"
         left:
           type: "cylinder"
-          center: [0, 0.052, 0]
+          center: [0, 0.058, 0]
           radius: 0.011
           height: 0.005
         right:
           type: "cylinder"
-          center: [0, 0.050, 0]
+          center: [0, 0.056, 0]
           radius: 0.009
           height: 0.005
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  ALFIERE — Mitra con fenditura e pomo
+  #  ALFIERE — Mitra con fenditura e pomo (lathe + CSG)
   # ═══════════════════════════════════════════════════════════════════════
   - name: "alfiere_staunton"
     material: "chs_legno_chiaro"
@@ -371,36 +354,24 @@ templates:
         radius: 0.016
         material: "chs_feltro"
 
-      # Base
-      - type: "cylinder"
-        center: [0, 0, 0]
-        radius: 0.016
-        height: 0.006
-      - type: "torus"
-        center: [0, 0.006, 0]
-        major_radius: 0.0155
-        minor_radius: 0.003
+      # ── Corpo tornito: base + stelo + raccordo alla mitra (lathe) ──────
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]
+          - [0.016, 0.000]   # bordo base
+          - [0.016, 0.006]
+          - [0.0155, 0.009]  # collarino base
+          - [0.014, 0.012]
+          - [0.010, 0.016]
+          - [0.007, 0.021]   # inizio stelo (raggio più piccolo)
+          - [0.006, 0.030]   # stelo sottile
+          - [0.006, 0.039]
+          - [0.008, 0.042]   # collarino sotto la mitra
+          - [0.007, 0.045]
+          - [0.010, 0.046]   # attacco alla mitra
 
-      # Cono transizione
-      - type: "cone"
-        center: [0, 0.009, 0]
-        radius: 0.014
-        top_radius: 0.007
-        height: 0.012
-
-      # Stelo
-      - type: "cylinder"
-        center: [0, 0.021, 0]
-        radius: 0.006
-        height: 0.020
-
-      # Collare
-      - type: "torus"
-        center: [0, 0.041, 0]
-        major_radius: 0.008
-        minor_radius: 0.003
-
-      # Mitra (ellissoide allungato con fenditura CSG)
+      # ── Mitra (ellissoide allungato con fenditura diagonale, CSG) ──────
       - type: "csg"
         operation: "subtraction"
         left:
@@ -510,7 +481,7 @@ templates:
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  REGINA — Corona con coronet e globo
+  #  REGINA — Corona con coronet e globo (lathe + CSG)
   # ═══════════════════════════════════════════════════════════════════════
   - name: "regina_staunton"
     material: "chs_legno_chiaro"
@@ -522,47 +493,26 @@ templates:
         radius: 0.017
         material: "chs_feltro"
 
-      # Base
-      - type: "cylinder"
-        center: [0, 0, 0]
-        radius: 0.017
-        height: 0.007
-      - type: "torus"
-        center: [0, 0.007, 0]
-        major_radius: 0.0165
-        minor_radius: 0.0035
-
-      # Cono transizione
-      - type: "cone"
-        center: [0, 0.010, 0]
-        radius: 0.015
-        top_radius: 0.007
-        height: 0.014
-
-      # Stelo
-      - type: "cylinder"
-        center: [0, 0.024, 0]
-        radius: 0.006
-        height: 0.025
-
-      # Collare inferiore
-      - type: "torus"
-        center: [0, 0.049, 0]
-        major_radius: 0.008
-        minor_radius: 0.003
-
-      # Corpo corona (cono che si allarga)
-      - type: "cone"
-        center: [0, 0.052, 0]
-        radius: 0.010
-        top_radius: 0.014
-        height: 0.018
-
-      # Collare superiore
-      - type: "torus"
-        center: [0, 0.070, 0]
-        major_radius: 0.013
-        minor_radius: 0.003
+      # ── Corpo tornito (lathe): base + stelo + coppa corona svasata ─────
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]
+          - [0.017, 0.000]   # bordo base
+          - [0.017, 0.007]
+          - [0.0165, 0.011]  # collarino base
+          - [0.015, 0.014]
+          - [0.011, 0.018]
+          - [0.008, 0.024]   # inizio stelo
+          - [0.006, 0.035]   # stelo sottile
+          - [0.006, 0.046]
+          - [0.008, 0.050]   # collarino inferiore corona
+          - [0.007, 0.053]
+          - [0.010, 0.055]   # base coppa corona
+          - [0.014, 0.068]   # svasatura superiore (bordo su cui posa il coronet)
+          - [0.014, 0.072]   # faccia piana superiore
+          - [0.013, 0.072]   # collarino superiore (raccordo)
+          - [0.013, 0.074]
 
       # ── Coronet (8 punte — sfere piccole sul bordo) ────────────────────
       - type: "sphere"
@@ -597,7 +547,7 @@ templates:
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  RE — Il più alto, corona con croce
+  #  RE — Il più alto, corona con croce (lathe + CSG)
   # ═══════════════════════════════════════════════════════════════════════
   - name: "re_staunton"
     material: "chs_legno_chiaro"
@@ -609,59 +559,31 @@ templates:
         radius: 0.018
         material: "chs_feltro"
 
-      # Base (la più larga)
-      - type: "cylinder"
-        center: [0, 0, 0]
-        radius: 0.018
-        height: 0.007
-      - type: "torus"
-        center: [0, 0.007, 0]
-        major_radius: 0.0175
-        minor_radius: 0.004
-
-      # Cono transizione
-      - type: "cone"
-        center: [0, 0.011, 0]
-        radius: 0.016
-        top_radius: 0.008
-        height: 0.015
-
-      # Stelo (il più alto)
-      - type: "cylinder"
-        center: [0, 0.026, 0]
-        radius: 0.007
-        height: 0.028
-
-      # Collare inferiore
-      - type: "torus"
-        center: [0, 0.054, 0]
-        major_radius: 0.009
-        minor_radius: 0.003
-
-      # Corpo corona (cono espanso)
-      - type: "cone"
-        center: [0, 0.057, 0]
-        radius: 0.011
-        top_radius: 0.015
-        height: 0.018
-
-      # Collare superiore (coronet)
-      - type: "torus"
-        center: [0, 0.075, 0]
-        major_radius: 0.014
-        minor_radius: 0.003
-
-      # Fascia corona
-      - type: "cylinder"
-        center: [0, 0.075, 0]
-        radius: 0.013
-        height: 0.006
-
-      # Cuscino (sfera schiacciata sopra la corona)
-      - type: "sphere"
-        center: [0, 0.082, 0]
-        radius: 0.011
-        scale: [1.0, 0.40, 1.0]
+      # ── Corpo tornito fino al cuscino (lathe Catmull-Rom) ──────────────
+      # Profilo completo: base, stelo lungo, corpo corona svasato,
+      # collarino superiore, fascia della corona, cuscino appiattito.
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]
+          - [0.018, 0.000]   # bordo base (la più larga)
+          - [0.018, 0.007]
+          - [0.0175, 0.011]  # collarino base
+          - [0.016, 0.014]
+          - [0.012, 0.018]
+          - [0.009, 0.024]   # inizio stelo
+          - [0.007, 0.034]   # stelo lungo
+          - [0.007, 0.048]
+          - [0.009, 0.052]   # collarino sotto la corona
+          - [0.008, 0.055]
+          - [0.011, 0.057]   # base della coppa corona
+          - [0.015, 0.072]   # svasatura verso l'alto
+          - [0.014, 0.078]   # collarino superiore
+          - [0.013, 0.081]
+          - [0.011, 0.085]   # inizio cuscino
+          - [0.010, 0.087]   # cuscino schiacciato (semi-ellissoide)
+          - [0.005, 0.089]
+          - [0.000, 0.090]   # chiusura sull'asse (apice cuscino)
 
       # ── Croce pattée ──────────────────────────────────────────────────
       # Stelo verticale

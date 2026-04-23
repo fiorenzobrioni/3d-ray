@@ -8,6 +8,15 @@
 # Ogni template è progettato per poggiare a Y=0 (base a terra) e può
 # essere istanziato con translate, rotate, scale e material override.
 #
+# ── Costruzione ──────────────────────────────────────────────────────────
+#
+#   Gli elementi torniti — stelo del candelabro, candelabro tornito
+#   barocco — sono generati con la primitiva `lathe` a profilo
+#   Catmull-Rom: un solo profilo descrive la silhouette C¹ completa
+#   (base a gradini, ventre ellissoidale, collarini, coppetta superiore).
+#   Gli elementi non-simmetrici (gambe di tavoli, bracci del candelabro,
+#   paralumi di lampade da terra/tavolo) restano in CSG / primitive.
+#
 # ── Materiali inclusi ────────────────────────────────────────────────────
 #
 #   Questa libreria include materiali di default ottimizzati per ogni
@@ -36,43 +45,48 @@
 #
 # ── Catalogo template ────────────────────────────────────────────────────
 #
-#   TAVOLO_CLASSICO         Tavolo da pranzo con gambe tornite e
-#                           fascia sottopiano. ~1.40 × 0.76 × 0.80 m.
+#   TAVOLO_CLASSICO           Tavolo da pranzo con gambe tornite e
+#                             fascia sottopiano. ~1.40 × 0.76 × 0.80 m.
 #
-#   SEDIA_CLASSICA          Sedia da pranzo con schienale a stecche,
-#                           seduta e gambe coniche. ~0.44 × 0.90 × 0.44 m.
+#   SEDIA_CLASSICA            Sedia da pranzo con schienale a stecche,
+#                             seduta e gambe coniche. ~0.44 × 0.90 × 0.44 m.
 #
-#   TAVOLINO_CAFFE          Tavolino rotondo con colonna centrale,
-#                           base pesante e anello decorativo.
-#                           Ø 0.80 × 0.45 m.
+#   TAVOLINO_CAFFE            Tavolino rotondo con colonna centrale,
+#                             base pesante e anello decorativo.
+#                             Ø 0.80 × 0.45 m.
 #
-#   LAMPADA_TAVOLO          Lampada da tavolo con base, stelo,
-#                           paralume conico cavo (CSG) e lampadina
-#                           emissiva. ~Ø 0.28 × 0.48 m.
+#   LAMPADA_TAVOLO            Lampada da tavolo con base, stelo,
+#                             paralume conico cavo (CSG) e lampadina
+#                             emissiva. ~Ø 0.28 × 0.48 m.
 #
-#   LAMPADA_TERRA           Lampada da terra alta con base pesante,
-#                           stelo sottile, paralume conico cavo e
-#                           lampadina emissiva. ~Ø 0.38 × 1.65 m.
+#   LAMPADA_TERRA             Lampada da terra alta con base pesante,
+#                             stelo sottile, paralume conico cavo e
+#                             lampadina emissiva. ~Ø 0.38 × 1.65 m.
 #
-#   SCAFFALE                Libreria a 5 ripiani con fiancate,
-#                           schienale e bordo frontale arrotondato.
-#                           0.80 × 1.80 × 0.30 m.
+#   SCAFFALE                  Libreria a 5 ripiani con fiancate,
+#                             schienale e bordo frontale arrotondato.
+#                             0.80 × 1.80 × 0.30 m.
 #
-#   SGABELLO_BAR            Sgabello alto con seduta rotonda imbottita,
-#                           4 gambe rastremate e poggiapiedi ad anello.
-#                           Ø 0.36 × 0.75 m.
+#   SGABELLO_BAR              Sgabello alto con seduta rotonda imbottita,
+#                             4 gambe rastremate e poggiapiedi ad anello.
+#                             Ø 0.36 × 0.75 m.
 #
-#   COMODINO                Comodino con cassetto, pomello sferico,
-#                           gambe tornite e piano d'appoggio.
-#                           0.45 × 0.55 × 0.40 m.
+#   COMODINO                  Comodino con cassetto, pomello sferico,
+#                             gambe tornite e piano d'appoggio.
+#                             0.45 × 0.55 × 0.40 m.
 #
-#   CANDELABRO              Candeliere a 3 bracci con base decorata,
-#                           stelo centrale e candele con fiamma
-#                           emissiva. ~Ø 0.40 × 0.50 m.
+#   CANDELABRO        (lathe) Candeliere a 3 bracci: stelo centrale
+#                             come lathe Catmull-Rom (base, ventre,
+#                             coppette), bracci CSG e candele emissive.
+#                             ~Ø 0.40 × 0.50 m.
 #
-#   VASO_DECORATIVO         Vaso a profilo classico con collo stretto,
-#                           corpo bombato e piede sagomato.
-#                           ~Ø 0.24 × 0.35 m.
+#   VASO_DECORATIVO           Vaso a profilo classico con collo stretto,
+#                             corpo bombato e piede sagomato.
+#                             ~Ø 0.24 × 0.35 m.
+#
+#   CANDELABRO_TORNITO (lathe) Candelabro barocco alto, integralmente
+#                             tornito (singolo lathe dal piede alla
+#                             coppetta superiore). ~Ø 0.18 × 0.50 m.
 #
 # ============================================================================
 
@@ -1148,64 +1162,32 @@ templates:
     material: "frn_ottone"
     children:
 
-      # ── Base decorata ──────────────────────────────────────────────────
-      - type: "cylinder"
-        center: [0, 0, 0]
-        radius: 0.08
-        height: 0.015
-
-      - type: "torus"
-        center: [0, 0.015, 0]
-        major_radius: 0.075
-        minor_radius: 0.008
-
-      # Rialzo centrale della base
-      - type: "cone"
-        center: [0, 0.015, 0]
-        radius: 0.06
-        top_radius: 0.035
-        height: 0.02
-
-      # ── Stelo centrale ─────────────────────────────────────────────────
-      - type: "cylinder"
-        center: [0, 0.035, 0]
-        radius: 0.012
-        height: 0.24
-
-      # Nodo sferico decorativo
-      - type: "sphere"
-        center: [0, 0.18, 0]
-        radius: 0.022
-
-      # Anello sotto il nodo
-      - type: "torus"
-        center: [0, 0.14, 0]
-        major_radius: 0.016
-        minor_radius: 0.005
-
-      # Anello sopra il nodo
-      - type: "torus"
-        center: [0, 0.22, 0]
-        major_radius: 0.016
-        minor_radius: 0.005
-
-      # ── Porta-candela centrale (sopra lo stelo) ────────────────────────
-      - type: "cylinder"
-        center: [0, 0.275, 0]
-        radius: 0.022
-        height: 0.012
-
-      - type: "torus"
-        center: [0, 0.287, 0]
-        major_radius: 0.022
-        minor_radius: 0.005
-
-      # Puntale di bloccaggio candela
-      - type: "cone"
-        center: [0, 0.287, 0]
-        radius: 0.008
-        top_radius: 0.002
-        height: 0.015
+      # ── Base + stelo centrale + porta-candela (lathe Catmull-Rom) ──────
+      # Un unico profilo genera la silhouette tornita: base a disco,
+      # rialzo conico, fusto con nodo ellissoidale centrale, collarini
+      # sotto/sopra il nodo, porta-candela superiore con piattino.
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]
+          - [0.080, 0.000]   # bordo esterno della base
+          - [0.080, 0.012]
+          - [0.075, 0.018]   # modanatura (toro) della base
+          - [0.060, 0.030]   # rialzo conico
+          - [0.035, 0.040]   # raccordo allo stelo
+          - [0.014, 0.050]
+          - [0.012, 0.080]   # stelo
+          - [0.012, 0.130]
+          - [0.016, 0.140]   # anello sotto il nodo
+          - [0.022, 0.180]   # equatore del nodo ellissoidale
+          - [0.016, 0.220]   # anello sopra il nodo
+          - [0.012, 0.230]
+          - [0.012, 0.268]   # stelo superiore
+          - [0.022, 0.275]   # piattino porta-candela
+          - [0.022, 0.287]   # bordo (toro) del piattino
+          - [0.008, 0.295]   # puntale bloccaggio candela
+          - [0.002, 0.302]
+          - [0.000, 0.302]   # chiusura sull'asse
 
       # Candela centrale
       - type: "cylinder"
@@ -1430,3 +1412,68 @@ templates:
           center: [0, 0.04, 0]
           radius: 0.038
           height: 0.32
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  CANDELABRO_TORNITO — Candelabro barocco a un braccio, tutto tornito
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.18 × 0.50 m
+  #  Struttura:  Candeliere classico a braccio singolo, generato da un
+  #              unico lathe Catmull-Rom che descrive l'intera silhouette
+  #              dal piede largo modanato, passando per il doppio ventre
+  #              del fusto tornito a "balaustri" barocco, fino alla
+  #              coppetta porta-candela con puntale di bloccaggio.
+  #              La candela e la fiamma sono primitive separate
+  #              posizionate sopra.
+  #
+  #  Materiale default: frn_ottone
+  #  Materiali espliciti: frn_cera (candela), frn_fiamma (fiamma)
+  #
+  - name: "candelabro_tornito"
+    material: "frn_ottone"
+    children:
+
+      # ── Corpo tornito (lathe Catmull-Rom) ──────────────────────────────
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]
+          - [0.090, 0.000]   # piede largo
+          - [0.090, 0.010]
+          - [0.085, 0.018]   # modanatura piede (toro)
+          - [0.060, 0.028]   # rastrematura iniziale
+          - [0.045, 0.045]
+          - [0.038, 0.065]
+          - [0.042, 0.090]   # primo ventre (balaustro inferiore)
+          - [0.048, 0.115]   # equatore ventre 1
+          - [0.042, 0.145]
+          - [0.030, 0.170]   # strozzatura fra ventri
+          - [0.024, 0.195]
+          - [0.028, 0.215]
+          - [0.038, 0.240]   # secondo ventre (balaustro superiore)
+          - [0.044, 0.275]
+          - [0.040, 0.310]
+          - [0.028, 0.345]
+          - [0.022, 0.380]
+          - [0.028, 0.400]   # anello sotto la coppetta
+          - [0.024, 0.420]
+          - [0.036, 0.440]   # coppetta porta-candela
+          - [0.036, 0.458]   # bordo (faccia superiore) della coppetta
+          - [0.010, 0.462]   # puntale di bloccaggio
+          - [0.004, 0.472]
+          - [0.000, 0.475]   # chiusura sull'asse
+
+      # ── Candela ────────────────────────────────────────────────────────
+      - type: "cylinder"
+        center: [0, 0.475, 0]
+        radius: 0.012
+        height: 0.10
+        material: "frn_cera"
+
+      # ── Fiamma ─────────────────────────────────────────────────────────
+      - type: "sphere"
+        center: [0, 0.595, 0]
+        radius: 0.010
+        scale: [0.6, 1.6, 0.6]
+        material: "frn_fiamma"

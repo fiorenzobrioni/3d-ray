@@ -86,25 +86,31 @@ individualmente. Tutti i materiali Disney usano le chiavi moderne del BSDF
 
 ### 📦 Oggetti — `objects/`
 
-**12 file · 154 template · ~230 materiali dedicati**
+**12 file · 160 template · ~230 materiali dedicati**
 
 Template di oggetti composti pronti all'istanziazione. Ogni file contiene
-oggetti costruiti con primitive, CSG, torus e gruppi annidati. I materiali
-dedicati sono inclusi nel file e si fondono con quelli della scena.
+oggetti costruiti con primitive, CSG, torus, **lathe (superficie di
+rivoluzione)** e gruppi annidati. I corpi assi-simmetrici (calici, bottiglie,
+vasi, colonne tornite, balaustri, vetreria, pezzi Staunton, campane) sono
+generati con `lathe` a profilo Catmull-Rom / Linear per silhouette C¹
+continua e meno primitive — vedi il cap. 11 del tutorial
+([`docs/tutorial/it/11-lathe-surface-of-revolution.md`](../../docs/tutorial/it/11-lathe-surface-of-revolution.md)).
+I materiali dedicati sono inclusi nel file e si fondono con quelli della
+scena.
 
 | File | Template | Descrizione |
 |------|----------|-------------|
-| `furniture.yaml` | 10 | Tavoli, sedie, scaffali, lampade, divani, comodini |
-| `decorative-objects.yaml` | 10 | Vasi, cornici, candele, orologi, libri, sfere decorative |
-| `tableware.yaml` | 10 | Piatti, bicchieri, posate, teiere, tazze, bottiglie |
-| `architecture.yaml` | 14 | Colonne, archi, scale, finestre, portali, cornici |
+| `furniture.yaml` | 11 | Tavoli, sedie, scaffali, lampade, comodini, candelabri (lathe) |
+| `decorative-objects.yaml` | 12 | Vasi Ming/greci (lathe), clessidre, globi, sfere su piedistallo (lathe) |
+| `tableware.yaml` | 11 | Calici (lathe), bottiglie (lathe), decanter (lathe), teiere, tazze |
+| `architecture.yaml` | 15 | Colonne (lathe), archi, scale, balaustri (lathe), pinnacoli (lathe) |
 | `mechanical.yaml` | 14 | Ingranaggi, pistoni, molle, viti, tubi, giunti |
 | `jewelry.yaml` | 14 | Anelli, collane, orecchini, spille, bracciali, gemme |
-| `lighting.yaml` | 14 | Lampade da tavolo/terra, plafoniere, faretti, lanterne |
-| `laboratory.yaml` | 14 | Beute, burette, microscopi, bilance, bunsen, storte |
-| `musical.yaml` | 14 | Violino, chitarra, pianoforte, tromba, tamburo, flauto |
-| `outdoor.yaml` | 14 | Fontane, panchine, lampioni, staccionate, alberi, fioriere |
-| `chess.yaml` | 11 | Set Staunton completo: re, regina, alfiere, cavallo, torre, pedone |
+| `lighting.yaml` | 15 | Lampadari, plafoniere (lathe), paralumi (lathe), lampioni |
+| `laboratory.yaml` | 14 | Beute (lathe), palloni (lathe), imbuti (lathe), microscopi |
+| `musical.yaml` | 14 | Violino, chitarra, tromba, campane (lathe), timpani (lathe) |
+| `outdoor.yaml` | 15 | Fontane, panchine, fioriere (lathe), vasi giardino (lathe) |
+| `chess.yaml` | 11 | Set Staunton completo tornito (lathe) — re, regina, alfiere, torre, pedone |
 | `nature.yaml` | 15 | Alberi, cespugli, fiori, funghi, cristalli, bonsai |
 
 **Uso base:**

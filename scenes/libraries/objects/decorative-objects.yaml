@@ -6,9 +6,16 @@
 #
 # Oggetti ornamentali, da esposizione e da tavolo. Ogni pezzo è pensato
 # per essere il protagonista di una scena o un complemento di lusso in
-# ambienti interni. Ampio uso di CSG per volumi cavi, sfere scalate per
-# ellissoidi organici, torus per anelli e raccordi, coni tronchi per
-# profili sagomati.
+# ambienti interni.
+#
+# ── Costruzione ──────────────────────────────────────────────────────────
+#
+#   I piedistalli torniti, le colonnine con modanature e i vasi (Ming,
+#   anfora greca) sono generati con la primitiva `lathe` (profilo
+#   Catmull-Rom per le curve dolci, Linear per i profili sfaccettati).
+#   Un singolo lathe sostituisce 8–15 primitive impilate, con silhouette
+#   C¹ continua e bounding box identico. Gli ornamenti non-simmetrici
+#   (scanalature, manici, finial multipli, treppiedi) restano in CSG.
 #
 # ── Materiali inclusi ────────────────────────────────────────────────────
 #
@@ -21,50 +28,60 @@
 #
 #   ORIGINE       Base a Y=0, centrato in XZ.
 #   SCALA         Unità ≈ metri. Gli oggetti da tavolo misurano 0.15–0.50 m.
-#   DETTAGLIO     Livello professionale: ogni pezzo usa 15–60+ primitive,
-#                 CSG multipli, dettagli torniti, raccordi sferici.
+#   DETTAGLIO     Livello professionale: lathe per i corpi torniti,
+#                 CSG multipli, dettagli tagliati, raccordi sferici.
 #
 # ── Catalogo template ────────────────────────────────────────────────────
 #
-#   OBELISCO                Obelisco classico egizio su basamento a
-#                           tre gradini con pyramidion appuntito.
-#                           ~0.14 × 0.65 m.
+#   OBELISCO                  Obelisco classico egizio su basamento a
+#                             tre gradini con pyramidion appuntito.
+#                             ~0.14 × 0.65 m.
 #
-#   SFERA_PIEDISTALLO       Sfera lucida su piedistallo classico
-#                           tornito con base modanata.
-#                           ~Ø 0.26 × 0.50 m.
+#   SFERA_PIEDISTALLO (lathe) Sfera lucida su piedistallo tornito con
+#                             profilo Catmull-Rom: base modanata,
+#                             fusto rastremato, nodo centrale, capitello.
+#                             ~Ø 0.26 × 0.50 m.
 #
-#   CLESSIDRA               Clessidra con bulbi in vetro (CSG),
-#                           telaio in legno con montanti e dischi,
-#                           sabbia interna. ~0.14 × 0.32 m.
+#   CLESSIDRA                 Clessidra con bulbi in vetro (CSG),
+#                             telaio in legno con montanti e dischi,
+#                             sabbia interna. ~0.14 × 0.32 m.
 #
-#   GLOBO                   Globo sferico su supporto con anello
-#                           meridiano inclinato e base pesante.
-#                           ~Ø 0.30 × 0.42 m.
+#   GLOBO                     Globo sferico su supporto con anello
+#                             meridiano inclinato e base pesante.
+#                             ~Ø 0.30 × 0.42 m.
 #
-#   COPPA_TROFEO            Coppa su piedistallo con corpo cavo
-#                           (CSG), manici ad anello e base a
-#                           gradini. ~Ø 0.22 × 0.40 m.
+#   COPPA_TROFEO              Coppa su piedistallo con corpo cavo
+#                             (CSG), manici ad anello e base a
+#                             gradini. ~Ø 0.22 × 0.40 m.
 #
-#   UOVO_ORNAMENTALE        Uovo stile Fabergé su treppiede dorato,
-#                           fascia equatoriale, finial superiore.
-#                           ~Ø 0.12 × 0.22 m.
+#   UOVO_ORNAMENTALE          Uovo stile Fabergé su treppiede dorato,
+#                             fascia equatoriale, finial superiore.
+#                             ~Ø 0.12 × 0.22 m.
 #
-#   SFERA_ARMILLARE         Sfera armillare con 3 anelli orbitali
-#                           annidati, asse polare e globo centrale
-#                           su colonna classica. ~Ø 0.34 × 0.50 m.
+#   SFERA_ARMILLARE           Sfera armillare con 3 anelli orbitali
+#                             annidati, asse polare e globo centrale
+#                             su colonna classica. ~Ø 0.34 × 0.50 m.
 #
-#   FERMACARTE              Cupola di vetro emisferica su base in
-#                           legno con sfera decorativa interna.
-#                           ~Ø 0.10 × 0.09 m.
+#   FERMACARTE                Cupola di vetro emisferica su base in
+#                             legno con sfera decorativa interna.
+#                             ~Ø 0.10 × 0.09 m.
 #
-#   PIRAMIDE_CRISTALLO      Piramide in cristallo trasparente su
-#                           base di velluto nero, con luce interna.
-#                           ~0.12 × 0.18 m.
+#   PIRAMIDE_CRISTALLO        Piramide in cristallo trasparente su
+#                             base di velluto nero, con luce interna.
+#                             ~0.12 × 0.18 m.
 #
-#   COLONNINA               Colonnina decorativa bassa con fusto
-#                           scanalato (CSG), capitello modanato e
-#                           base a plinto. ~Ø 0.18 × 0.55 m.
+#   COLONNINA         (lathe) Colonnina decorativa con fusto lathe
+#                             Linear rastremato (entasi) + capitello e
+#                             base modanati; scanalature CSG preservate.
+#                             ~Ø 0.18 × 0.55 m.
+#
+#   VASO_MING         (lathe) Vaso cinese classico lathe Catmull-Rom:
+#                             piede stretto, pancia bombata, spalla
+#                             rastremata, collo alto. ~Ø 0.22 × 0.42 m.
+#
+#   ANFORA_GRECA      (lathe) Anfora lathe Catmull-Rom (piede conico,
+#                             pancia ovoidale, collo stretto) con due
+#                             manici CSG mezzo-torus. ~Ø 0.22 × 0.38 m.
 #
 # ============================================================================
 
@@ -207,6 +224,16 @@ materials:
     clearcoat: 0.45
     coat_roughness: 0.12
 
+  # Porcellana blu cobalto — stile Ming, vasi cinesi classici
+  - id: "dec_porcellana_blu"
+    type: "disney"
+    color: [0.08, 0.16, 0.52]
+    roughness: 0.12
+    metallic: 0.0
+    specular: 0.65
+    clearcoat: 0.65
+    coat_roughness: 0.08
+
   # Smalto blu reale — Fabergé
   - id: "dec_smalto_blu"
     type: "disney"
@@ -335,14 +362,17 @@ templates:
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  SFERA_PIEDISTALLO — Sfera decorativa su piedistallo classico
+  #  SFERA_PIEDISTALLO — Sfera decorativa su piedistallo (lathe)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Dimensioni: ~Ø 0.26 × 0.50 m
-  #  Struttura:  Base quadrata modanata (box + torus), plinto
-  #              intermedio, colonna tornita (cilindro + sfere +
-  #              anelli torus), capitello espanso (cono tronco
-  #              invertito + torus), piattino, sfera grande.
+  #  Struttura:  Base quadrata (box + box) per dare spigoli netti al
+  #              plinto, poi un unico lathe Catmull-Rom per tutto il
+  #              piedistallo tornito (transizione base, fusto, nodo
+  #              centrale, capitello espanso, piattino d'appoggio).
+  #              Il box della base è intenzionalmente fuori dal lathe
+  #              perché ha sezione quadrata; il lathe comincia sopra.
+  #              La sfera sommitale resta una `sphere` (bronzo).
   #
   #  Materiale default: dec_marmo_statuario (piedistallo)
   #  Materiale esplicito: dec_bronzo (sfera)
@@ -351,74 +381,43 @@ templates:
     material: "dec_marmo_statuario"
     children:
 
-      # ── Base quadrata modanata ─────────────────────────────────────────
-      # Plinto inferiore
+      # ── Plinto a base quadrata ─────────────────────────────────────────
+      # Due dadi sovrapposti per dare lo stacco architettonico di base
       - type: "box"
         scale: [0.16, 0.018, 0.16]
         translate: [0, 0.009, 0]
 
-      # Modanatura (torus schiacciato attorno alla base)
-      - type: "torus"
-        center: [0, 0.018, 0]
-        major_radius: 0.075
-        minor_radius: 0.008
-
-      # Dado sopra la base
       - type: "box"
         scale: [0.13, 0.025, 0.13]
         translate: [0, 0.031, 0]
 
-      # ── Colonna tornita ────────────────────────────────────────────────
-      # Cono tronco di transizione base-colonna
-      - type: "cone"
-        center: [0, 0.044, 0]
-        radius: 0.050
-        top_radius: 0.032
-        height: 0.025
-
-      # Fusto principale
-      - type: "cylinder"
-        center: [0, 0.069, 0]
-        radius: 0.030
-        height: 0.20
-
-      # Anello decorativo inferiore
-      - type: "torus"
-        center: [0, 0.12, 0]
-        major_radius: 0.034
-        minor_radius: 0.006
-
-      # Nodo sferico centrale
-      - type: "sphere"
-        center: [0, 0.17, 0]
-        radius: 0.038
-        scale: [1.0, 0.70, 1.0]
-
-      # Anello decorativo superiore
-      - type: "torus"
-        center: [0, 0.22, 0]
-        major_radius: 0.034
-        minor_radius: 0.006
-
-      # ── Capitello ─────────────────────────────────────────────────────
-      # Cono tronco espanso verso l'alto
-      - type: "cone"
-        center: [0, 0.269, 0]
-        radius: 0.032
-        top_radius: 0.055
-        height: 0.03
-
-      # Torus di coronamento del capitello
-      - type: "torus"
-        center: [0, 0.30, 0]
-        major_radius: 0.052
-        minor_radius: 0.008
-
-      # ── Piattino d'appoggio ────────────────────────────────────────────
-      - type: "cylinder"
-        center: [0, 0.30, 0]
-        radius: 0.048
-        height: 0.008
+      # ── Piedistallo tornito (lathe Catmull-Rom) ────────────────────────
+      # Profilo: sale dal dado, fusto tondo, nodo ellissoidale, capitello
+      # svasato, piattino finale su cui poggia la sfera.
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.044]   # asse sulla superficie del dado superiore
+          - [0.055, 0.044]   # bordo esterno del piattino di raccordo
+          - [0.055, 0.048]
+          - [0.042, 0.056]   # cono di transizione base→fusto
+          - [0.032, 0.066]
+          - [0.034, 0.095]   # collarino inferiore (anellino tornito)
+          - [0.030, 0.110]   # ritorno al fusto
+          - [0.030, 0.145]
+          - [0.038, 0.160]   # ingresso nel nodo
+          - [0.040, 0.175]   # equatore nodo
+          - [0.038, 0.190]
+          - [0.030, 0.205]   # uscita dal nodo
+          - [0.030, 0.225]
+          - [0.034, 0.240]   # collarino superiore
+          - [0.030, 0.255]
+          - [0.032, 0.275]   # base del capitello
+          - [0.055, 0.295]   # capitello svasato
+          - [0.060, 0.305]   # massima espansione del capitello
+          - [0.048, 0.315]   # piattino d'appoggio
+          - [0.048, 0.320]   # faccia piana del piattino
+          - [0.000, 0.320]   # chiusura sull'asse
 
       # ── Sfera decorativa ───────────────────────────────────────────────
       - type: "sphere"
@@ -1245,17 +1244,25 @@ templates:
         major_radius: 0.058
         minor_radius: 0.006
 
-      # ── Fusto scanalato (CSG) ─────────────────────────────────────────
-      # Cilindro principale meno 8 scanalature cilindriche
+      # ── Fusto scanalato (CSG lathe − 8 scanalature) ───────────────────
+      # Il fusto è un lathe Linear con profilo a entasi (rigonfio leggero
+      # a circa 1/3 dell'altezza) da cui vengono sottratte 8 scanalature
+      # cilindriche verticali.
       - type: "csg"
         operation: "subtraction"
         left:
-          # Cilindro del fusto, leggermente rastremato via cone
-          type: "cone"
-          center: [0, 0.042, 0]
-          radius: 0.055
-          top_radius: 0.048
-          height: 0.38
+          # Fusto tornito con entasi (profilo classico dell'ordine toscano)
+          type: "lathe"
+          profile_type: "linear"
+          profile:
+            - [0.000, 0.042]
+            - [0.055, 0.042]
+            - [0.055, 0.060]   # base del fusto
+            - [0.058, 0.170]   # ventre dell'entasi (max larghezza)
+            - [0.053, 0.300]   # rastrematura verso l'alto
+            - [0.048, 0.380]
+            - [0.048, 0.422]
+            - [0.000, 0.422]
         right:
           # 8 scanalature (cilindri sottili rimossi lungo il perimetro)
           # Raggruppati in CSG union per sottrarli tutti insieme
@@ -1359,3 +1366,116 @@ templates:
       - type: "box"
         scale: [0.15, 0.016, 0.15]
         translate: [0, 0.458, 0]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  VASO_MING — Vaso cinese classico stile Ming (lathe)
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.22 × 0.42 m
+  #  Struttura:  Unico lathe Catmull-Rom con silhouette canonica del
+  #              vaso Ming: piede stretto e stabile, spalla bassa che
+  #              si apre in una pancia ampia, rastrematura dolce verso
+  #              il collo alto, bordo a piattello. La forma è
+  #              intenzionalmente solida (non cavità) perché i Ming
+  #              sono visti sempre da fuori in esposizione.
+  #
+  #  Materiale default: dec_porcellana_blu (blu cobalto classico)
+  #
+  - name: "vaso_ming"
+    material: "dec_porcellana_blu"
+    children:
+
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]   # asse al centro del piede
+          - [0.055, 0.000]   # bordo esterno del piede (largo)
+          - [0.055, 0.008]
+          - [0.048, 0.018]   # incavo sotto la pancia
+          - [0.062, 0.040]   # inizio pancia
+          - [0.090, 0.075]
+          - [0.108, 0.115]   # massima espansione della pancia
+          - [0.110, 0.145]
+          - [0.102, 0.180]   # spalla alta
+          - [0.085, 0.215]
+          - [0.062, 0.250]   # rastrematura verso il collo
+          - [0.045, 0.285]
+          - [0.038, 0.320]   # collo cilindrico
+          - [0.038, 0.370]
+          - [0.042, 0.395]   # svaso del labbro
+          - [0.050, 0.410]   # piattello del bordo
+          - [0.048, 0.418]
+          - [0.000, 0.420]   # chiusura sull'asse
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  ANFORA_GRECA — Anfora greca classica con manici (lathe + CSG)
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.22 × 0.38 m
+  #  Struttura:  Corpo tornito in un unico lathe Catmull-Rom (piede
+  #              conico alto, pancia ovoidale bassa, collo dritto,
+  #              labbro svasato). I due manici verticali che vanno
+  #              dalla spalla al collo sono CSG mezzo-torus, come nei
+  #              vasi figurati attici. Il materiale di default è la
+  #              terracotta che si presta ai colori ocra-nero delle
+  #              ceramiche a figure rosse.
+  #
+  #  Materiale default: dec_bronzo (finitura patinata)
+  #
+  - name: "anfora_greca"
+    material: "dec_bronzo"
+    children:
+
+      # ── Corpo dell'anfora (lathe Catmull-Rom) ──────────────────────────
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]   # asse alla base
+          - [0.028, 0.000]   # piede stretto
+          - [0.028, 0.010]
+          - [0.022, 0.030]   # stelo del piede
+          - [0.035, 0.055]   # primo svaso verso la pancia
+          - [0.075, 0.085]
+          - [0.105, 0.130]   # equatore pancia
+          - [0.108, 0.160]
+          - [0.098, 0.195]   # rastrematura della spalla
+          - [0.075, 0.230]
+          - [0.052, 0.265]   # inizio collo
+          - [0.045, 0.295]   # collo cilindrico
+          - [0.045, 0.335]
+          - [0.055, 0.358]   # labbro svasato
+          - [0.060, 0.372]
+          - [0.056, 0.380]   # faccia superiore del labbro
+          - [0.000, 0.380]   # chiusura sull'asse
+
+      # ── Manico sinistro (mezzo torus verticale, CSG) ───────────────────
+      # Collega la spalla (y≈0.195) al collo (y≈0.295).
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "torus"
+          center: [-0.080, 0.245, 0]
+          major_radius: 0.055
+          minor_radius: 0.008
+          rotate: [0, 0, 90]
+        right:
+          # Box che conserva solo la metà esterna (X negativo)
+          type: "box"
+          scale: [0.12, 0.20, 0.08]
+          translate: [-0.115, 0.245, 0]
+
+      # ── Manico destro (mezzo torus verticale, CSG) ─────────────────────
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "torus"
+          center: [0.080, 0.245, 0]
+          major_radius: 0.055
+          minor_radius: 0.008
+          rotate: [0, 0, 90]
+        right:
+          type: "box"
+          scale: [0.12, 0.20, 0.08]
+          translate: [0.115, 0.245, 0]

@@ -93,22 +93,40 @@ materials:
 
 ## 10.3 Librerie degli Oggetti
 
-Dodici file a tema con template predefiniti che utilizzano primitive, gruppi e CSG:
+Dodici file a tema con template predefiniti che utilizzano primitive,
+gruppi, CSG e la **primitiva `lathe` (superficie di rivoluzione)** per
+corpi torniti di livello professionale:
 
 | File                             | Template | Esempi di oggetti                    |
 |----------------------------------|----------|--------------------------------------|
-| `objects/furniture.yaml`         | 10       | Tavoli, sedie, lampade, scaffali     |
-| `objects/decorative-objects.yaml`| 10       | Vasi, cornici, candele, orologi      |
-| `objects/tableware.yaml`         | 10       | Piatti, bicchieri, posate, teiere    |
-| `objects/architecture.yaml`      | 14       | Colonne (Doriche/Ioniche), archi, scale |
+| `objects/furniture.yaml`         | 11       | Tavoli, sedie, lampade, scaffali, candelabri torniti (lathe) |
+| `objects/decorative-objects.yaml`| 12       | Vasi Ming (lathe), anfore greche (lathe), orologi, piedistalli (lathe) |
+| `objects/tableware.yaml`         | 11       | Calici (lathe), bottiglie (lathe), decanter (lathe), teiere |
+| `objects/architecture.yaml`      | 15       | Colonne (lathe), archi, scale, balaustri (lathe), pinnacoli (lathe) |
 | `objects/mechanical.yaml`        | 14       | Ingranaggi, bulloni, pistoni, cuscinetti |
 | `objects/jewelry.yaml`           | 14       | Anelli, collane, gemme, tiara        |
-| `objects/lighting.yaml`          | 14       | Lampadari, sospensioni, applique     |
-| `objects/laboratory.yaml`        | 14       | Provette, matracci, microscopio      |
-| `objects/musical.yaml`           | 14       | Violino, chitarra, pianoforte, tamburi |
-| `objects/outdoor.yaml`           | 14       | Panchine, fontane, fioriere          |
-| `objects/chess.yaml`             | 11       | Set Staunton completo + scacchiere   |
+| `objects/lighting.yaml`          | 15       | Lampadari, plafoniere (lathe), paralumi (lathe), lampioni |
+| `objects/laboratory.yaml`        | 14       | Beute (lathe), palloni (lathe), imbuti (lathe), microscopio |
+| `objects/musical.yaml`           | 14       | Violino, chitarra, campane in bronzo (lathe), timpani (lathe) |
+| `objects/outdoor.yaml`           | 15       | Panchine, fontane, fioriere (lathe), vasi giardino (lathe) |
+| `objects/chess.yaml`             | 11       | Set Staunton completo tornito (lathe) + scacchiere |
 | `objects/nature.yaml`            | 15       | Alberi, fiori, funghi, cristalli     |
+
+### Template basati su lathe
+
+Oltre **26 template** distribuiti su 9 librerie sfruttano la primitiva
+`lathe` per i corpi assi-simmetrici: calici da vino, bottiglie, colonne
+tornite, balaustri, vasi Ming, vetreria da laboratorio, pezzi Staunton,
+campane, paralumi. Un singolo profilo Catmull-Rom genera una silhouette
+C¹ continua impossibile da ottenere impilando sfere/coni/torus e
+sostituisce tipicamente 5–15 primitive con una sola. Per il vetro
+trasparente (Pyrex, cristallo) il lathe è mantenuto solido — la
+rifrazione del materiale produce naturalmente l'effetto ottico della
+parete sottile. Per i gusci sottili opachi (fioriere in terracotta,
+paralumi in tessuto) una sottrazione CSG di due lathe genera una
+parete di spessore costante. Vedi il
+**[Capitolo 11: Superfici di rivoluzione (Lathe)](./11-lathe-surface-of-revolution.md)**
+per lo schema completo, i modi di profilo e il costo di intersezione.
 
 ### Prefissi dei materiali per libreria
 

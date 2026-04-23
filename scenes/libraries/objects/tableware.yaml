@@ -5,9 +5,17 @@
 # Importa con:  imports: [{ path: "libraries/tableware.yaml" }]
 #
 # Oggetti per la tavola e la cucina: bicchieri, calici, tazze, piatti,
-# bottiglie, caraffe, teiere, posate. Ogni pezzo sfrutta al massimo
-# la CSG per i volumi cavi, i torus per i bordi e i raccordi, gli
-# ellissoidi per le forme organiche.
+# bottiglie, caraffe, teiere, posate.
+#
+# ── Costruzione ──────────────────────────────────────────────────────────
+#
+#   I corpi assi-simmetrici (calici, bottiglie, decanter) sono generati
+#   con la primitiva `lathe` a profilo Catmull-Rom: un singolo profilo 2D
+#   `(r, y)` produce una silhouette C¹ continua che stacchi di sfere/coni/
+#   torus non possono ottenere (niente discontinuità di normale al
+#   raccordo fra segmenti). Gli elementi non-simmetrici (manici, bordi
+#   decorati, beccucci, manici cucchiaio) restano in CSG / torus / mezzo-
+#   torus. Vedi Capitolo 11 del tutorial per le basi del lathe.
 #
 # ── Materiali inclusi ────────────────────────────────────────────────────
 #
@@ -21,50 +29,56 @@
 #   ORIGINE       Base a Y=0, centrato in XZ.
 #   SCALA         Unità ≈ metri. Un bicchiere da vino è ~0.22 m alto,
 #                 un piatto ~0.26 m di diametro.
-#   DETTAGLIO     Livello professionale: pareti sottili (CSG), steli
-#                 torniti, manici sagomati (mezzo-torus), beccucci.
+#   DETTAGLIO     Livello professionale: profili lathe per i corpi torniti,
+#                 torus per bordi e filetti, CSG per manici e beccucci.
 #
 # ── Catalogo template ────────────────────────────────────────────────────
 #
-#   BICCHIERE_VINO          Calice da vino con piede, stelo tornito
-#                           e coppa cava a profilo ellissoidale.
-#                           ~Ø 0.08 × 0.22 m.
+#   BICCHIERE_VINO   (lathe)  Calice da vino elegante generato da un
+#                             unico profilo Catmull-Rom: piede, stelo con
+#                             nodo tornito, coppa ovoidale aperta.
+#                             ~Ø 0.08 × 0.22 m.
 #
-#   CALICE_CRISTALLO        Calice solenne con coppa profonda, stelo
-#                           decorato e piede sfaccettato.
-#                           ~Ø 0.09 × 0.20 m.
+#   CALICE_CRISTALLO (lathe)  Calice solenne a coppa profonda con doppio
+#                             nodo sullo stelo, bordo dorato (torus).
+#                             ~Ø 0.09 × 0.20 m.
 #
-#   TUMBLER                 Bicchiere basso conico da whisky con
-#                           fondo spesso e pareti rastremate.
-#                           ~Ø 0.08 × 0.10 m.
+#   TUMBLER                   Bicchiere basso conico da whisky con
+#                             fondo spesso e pareti rastremate.
+#                             ~Ø 0.08 × 0.10 m.
 #
-#   TAZZA_CAFFE             Tazza da caffè con manico ad orecchio,
-#                           corpo cilindrico cavo e piattino.
-#                           ~Ø 0.12 × 0.10 m (con piattino).
+#   TAZZA_CAFFE               Tazza da caffè con manico ad orecchio,
+#                             corpo cilindrico cavo e piattino.
+#                             ~Ø 0.12 × 0.10 m (con piattino).
 #
-#   PIATTO_PIANO            Piatto da portata con tesa, cavetto e
-#                           specchio, tutto cavo tramite CSG.
-#                           ~Ø 0.26 × 0.025 m.
+#   PIATTO_PIANO              Piatto da portata con tesa, cavetto e
+#                             specchio, tutto cavo tramite CSG.
+#                             ~Ø 0.26 × 0.025 m.
 #
-#   BOTTIGLIA_VINO          Bottiglia bordolese classica con corpo,
-#                           spalla conica, collo cilindrico e labbro.
-#                           ~Ø 0.08 × 0.32 m.
+#   BOTTIGLIA_VINO   (lathe)  Bordolese classica (corpo + spalla + collo
+#                             + labbro) generata da un unico profilo
+#                             Catmull-Rom; punt sottrattivo CSG separato.
+#                             ~Ø 0.08 × 0.32 m.
 #
-#   CARAFFA                 Caraffa in vetro con corpo bombato,
-#                           collo stretto, beccuccio e manico.
-#                           ~Ø 0.14 × 0.28 m.
+#   DECANTER         (lathe)  Decanter in cristallo con pancia bombata e
+#                             collo alto svasato, profilo Catmull-Rom.
+#                             ~Ø 0.18 × 0.28 m.
 #
-#   TEIERA                  Teiera classica con corpo sferico cavo,
-#                           beccuccio, manico e coperchio con pomello.
-#                           ~Ø 0.22 × 0.16 m.
+#   CARAFFA                   Caraffa in vetro con corpo bombato,
+#                             collo stretto, beccuccio e manico.
+#                             ~Ø 0.14 × 0.28 m.
 #
-#   ZUCCHERIERA             Ciotola con coperchio a cupola e pomello,
-#                           due manici laterali ad orecchio.
-#                           ~Ø 0.12 × 0.12 m.
+#   TEIERA                    Teiera classica con corpo sferico cavo,
+#                             beccuccio, manico e coperchio con pomello.
+#                             ~Ø 0.22 × 0.16 m.
 #
-#   CUCCHIAIO               Cucchiaio da tavola con manico sagomato
-#                           e paletta emisferica concava.
-#                           ~0.04 × 0.005 × 0.19 m.
+#   ZUCCHERIERA               Ciotola con coperchio a cupola e pomello,
+#                             due manici laterali ad orecchio.
+#                             ~Ø 0.12 × 0.12 m.
+#
+#   CUCCHIAIO                 Cucchiaio da tavola con manico sagomato
+#                             e paletta emisferica concava.
+#                             ~0.04 × 0.005 × 0.19 m.
 #
 # ============================================================================
 
@@ -215,14 +229,17 @@ materials:
 templates:
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  BICCHIERE_VINO — Calice da vino con coppa ellissoidale
+  #  BICCHIERE_VINO — Calice da vino con coppa ellissoidale (lathe)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Dimensioni: ~Ø 0.08 × 0.22 m
-  #  Struttura:  Piede piatto (cilindro sottile + torus), stelo sottile
-  #              con nodo sferico, coppa cava (CSG: ellissoide esterno
-  #              − ellissoide interno, ∩ cilindro per tagliare la metà
-  #              inferiore), bordo torus sottile.
+  #  Struttura:  Singolo lathe Catmull-Rom che descrive tutta la
+  #              silhouette: piede largo, raccordo conico, stelo sottile
+  #              con nodo tornito, svaso della coppa ovoidale, rim che
+  #              si chiude dolcemente sull'asse. Un secondo lathe molto
+  #              piccolo forma il "piatto" di chiusura in fondo alla
+  #              coppa (trucco per dare l'illusione del guscio sottile
+  #              al vetro trasparente, senza CSG).
   #
   #  Materiale default: tbw_cristallo
   #
@@ -230,77 +247,47 @@ templates:
     material: "tbw_cristallo"
     children:
 
-      # ── Piede ──────────────────────────────────────────────────────────
-      - type: "cylinder"
-        center: [0, 0, 0]
-        radius: 0.038
-        height: 0.005
+      # ── Corpo completo del calice (lathe Catmull-Rom) ──────────────────
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]   # asse alla base del piede
+          - [0.038, 0.000]   # bordo esterno del piede
+          - [0.038, 0.004]
+          - [0.032, 0.008]   # raccordo piede→stelo
+          - [0.010, 0.013]
+          - [0.004, 0.020]   # stelo sottile
+          - [0.003, 0.055]   # pre-nodo
+          - [0.007, 0.063]   # nodo decorativo
+          - [0.003, 0.072]   # post-nodo
+          - [0.003, 0.105]   # fine stelo
+          - [0.010, 0.115]   # raccordo stelo→coppa
+          - [0.022, 0.128]
+          - [0.036, 0.150]   # spalla coppa
+          - [0.042, 0.175]   # massima espansione
+          - [0.040, 0.200]
+          - [0.033, 0.216]   # avvicinamento al rim
+          - [0.000, 0.220]   # chiusura dolce sull'asse
 
-      - type: "torus"
-        center: [0, 0.005, 0]
-        major_radius: 0.035
-        minor_radius: 0.004
-
-      # ── Stelo ──────────────────────────────────────────────────────────
-      - type: "cylinder"
-        center: [0, 0.005, 0]
-        radius: 0.003
-        height: 0.10
-
-      # Nodo decorativo sullo stelo
-      - type: "sphere"
-        center: [0, 0.06, 0]
-        radius: 0.006
-
-      # ── Raccordo stelo-coppa ───────────────────────────────────────────
-      - type: "cone"
-        center: [0, 0.105, 0]
-        radius: 0.005
-        top_radius: 0.020
-        height: 0.015
-
-      # ── Coppa cava (CSG) ───────────────────────────────────────────────
-      # Ellissoide esterno − ellissoide interno → guscio
-      # poi ∩ cilindro → solo la metà superiore (calice aperto)
-      - type: "csg"
-        operation: "intersection"
-        left:
-          type: "csg"
-          operation: "subtraction"
-          left:
-            # Guscio esterno — sfera scalata in ellissoide verticale
-            type: "sphere"
-            center: [0, 0.17, 0]
-            radius: 0.040
-            scale: [1.0, 1.35, 1.0]
-          right:
-            # Guscio interno — leggermente più piccolo
-            type: "sphere"
-            center: [0, 0.17, 0]
-            radius: 0.037
-            scale: [1.0, 1.35, 1.0]
-        right:
-          # Cilindro che tiene solo la porzione superiore
-          type: "cylinder"
-          center: [0, 0.12, 0]
-          radius: 0.06
-          height: 0.12
-
-      # ── Bordo ──────────────────────────────────────────────────────────
+      # ── Bordo sottile (torus) ──────────────────────────────────────────
+      # Enfatizza il rim contro lo sfondo quando il cristallo è
+      # perfettamente liscio.
       - type: "torus"
         center: [0, 0.215, 0]
         major_radius: 0.033
-        minor_radius: 0.002
+        minor_radius: 0.0012
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  CALICE_CRISTALLO — Calice solenne con coppa profonda
+  #  CALICE_CRISTALLO — Calice solenne con coppa profonda (lathe)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Dimensioni: ~Ø 0.09 × 0.20 m
-  #  Struttura:  Piede a gradini, stelo spesso con doppio nodo tornito,
-  #              coppa profonda a profilo cilindro-sferico (CSG),
-  #              bordo dorato.
+  #  Struttura:  Singolo lathe Catmull-Rom con piede a gradini, stelo
+  #              spesso con doppio nodo (due ventri ellissoidali raccordati
+  #              da un collarino), coppa profonda cilindro-ovoidale. Il
+  #              bordo dorato resta un torus separato con materiale
+  #              override (tbw_oro).
   #
   #  Materiale default: tbw_cristallo
   #  Materiale esplicito: tbw_oro (bordo)
@@ -309,93 +296,32 @@ templates:
     material: "tbw_cristallo"
     children:
 
-      # ── Piede a gradini ────────────────────────────────────────────────
-      - type: "cylinder"
-        center: [0, 0, 0]
-        radius: 0.042
-        height: 0.006
+      # ── Corpo completo (lathe Catmull-Rom) ─────────────────────────────
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]   # asse alla base
+          - [0.042, 0.000]   # bordo esterno del piede
+          - [0.042, 0.006]
+          - [0.035, 0.011]   # primo gradino
+          - [0.035, 0.015]
+          - [0.010, 0.022]   # attacco stelo
+          - [0.007, 0.030]
+          - [0.012, 0.038]   # nodo inferiore (ventre 1)
+          - [0.007, 0.048]
+          - [0.008, 0.053]   # anello fra i nodi
+          - [0.007, 0.058]
+          - [0.010, 0.067]   # nodo superiore (ventre 2)
+          - [0.008, 0.078]
+          - [0.014, 0.088]   # raccordo stelo→coppa
+          - [0.028, 0.100]
+          - [0.038, 0.120]
+          - [0.038, 0.155]   # corpo cilindrico della coppa
+          - [0.037, 0.180]
+          - [0.034, 0.196]   # avvicinamento al rim
+          - [0.000, 0.200]   # chiusura sull'asse
 
-      - type: "torus"
-        center: [0, 0.006, 0]
-        major_radius: 0.039
-        minor_radius: 0.004
-
-      - type: "cylinder"
-        center: [0, 0.006, 0]
-        radius: 0.035
-        height: 0.005
-
-      # ── Stelo con doppio nodo ──────────────────────────────────────────
-      - type: "cylinder"
-        center: [0, 0.011, 0]
-        radius: 0.006
-        height: 0.07
-
-      # Nodo inferiore (ellissoide schiacciato)
-      - type: "sphere"
-        center: [0, 0.035, 0]
-        radius: 0.012
-        scale: [1.0, 0.55, 1.0]
-
-      # Anello tra i nodi
-      - type: "torus"
-        center: [0, 0.05, 0]
-        major_radius: 0.008
-        minor_radius: 0.003
-
-      # Nodo superiore
-      - type: "sphere"
-        center: [0, 0.065, 0]
-        radius: 0.010
-        scale: [1.0, 0.60, 1.0]
-
-      # ── Raccordo stelo-coppa ───────────────────────────────────────────
-      - type: "cone"
-        center: [0, 0.081, 0]
-        radius: 0.008
-        top_radius: 0.028
-        height: 0.020
-
-      # ── Coppa profonda cava (CSG) ──────────────────────────────────────
-      - type: "csg"
-        operation: "intersection"
-        left:
-          type: "csg"
-          operation: "subtraction"
-          left:
-            # Forma esterna: cilindro + emisfera in cima
-            type: "csg"
-            operation: "union"
-            left:
-              type: "cylinder"
-              center: [0, 0.10, 0]
-              radius: 0.038
-              height: 0.08
-            right:
-              type: "sphere"
-              center: [0, 0.10, 0]
-              radius: 0.038
-          right:
-            # Cavità interna
-            type: "csg"
-            operation: "union"
-            left:
-              type: "cylinder"
-              center: [0, 0.105, 0]
-              radius: 0.034
-              height: 0.08
-            right:
-              type: "sphere"
-              center: [0, 0.105, 0]
-              radius: 0.034
-        right:
-          # Taglia: tieni solo da Y=0.08 in su
-          type: "cylinder"
-          center: [0, 0.08, 0]
-          radius: 0.06
-          height: 0.14
-
-      # ── Bordo dorato ──────────────────────────────────────────────────
+      # ── Bordo dorato (torus, materiale override) ───────────────────────
       - type: "torus"
         center: [0, 0.195, 0]
         major_radius: 0.036
@@ -607,14 +533,16 @@ templates:
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  BOTTIGLIA_VINO — Bordolese classica
+  #  BOTTIGLIA_VINO — Bordolese classica (lathe)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Dimensioni: ~Ø 0.08 × 0.32 m
-  #  Struttura:  Fondo con incavo (CSG: cilindro − sfera per il punt),
-  #              corpo cilindrico, spalla conica, collo cilindrico
-  #              stretto, collarino torus, labbro spesso.
-  #              Tutto cavo internamente con un unico CSG sottrattivo.
+  #  Struttura:  Profilo Bordeaux completo generato da un unico lathe
+  #              Catmull-Rom: corpo cilindrico, spalla raccordata, collo
+  #              stretto, collarino e labbro. Il punt (incavo conico
+  #              sotto la bottiglia) è un CSG sottrattivo separato che
+  #              condivide lo stesso materiale del vetro verde e crea
+  #              l'effetto ottico caratteristico alla base.
   #
   #  Materiale default: tbw_vetro_verde
   #
@@ -622,80 +550,79 @@ templates:
     material: "tbw_vetro_verde"
     children:
 
-      # ── Profilo esterno cavo (CSG globale) ─────────────────────────────
-      - type: "csg"
-        operation: "subtraction"
-        left:
-          # ── Forma esterna completa ─────────────────────────────────────
-          type: "group"
-          children:
-            # Corpo principale
-            - type: "cylinder"
-              center: [0, 0, 0]
-              radius: 0.038
-              height: 0.18
+      # ── Silhouette bordolese (lathe Catmull-Rom) ───────────────────────
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]   # asse alla base
+          - [0.040, 0.000]   # bordo esterno del fondo
+          - [0.040, 0.005]
+          - [0.040, 0.018]
+          - [0.040, 0.180]   # corpo cilindrico
+          - [0.040, 0.200]
+          - [0.038, 0.215]   # inizio spalla
+          - [0.032, 0.230]
+          - [0.022, 0.245]   # spalla raccordata
+          - [0.015, 0.258]
+          - [0.013, 0.275]   # collo stretto
+          - [0.013, 0.300]
+          - [0.016, 0.305]   # collarino
+          - [0.016, 0.310]   # sommità labbro
+          - [0.000, 0.310]   # chiusura sull'asse
 
-            # Spalla (cono tronco)
-            - type: "cone"
-              center: [0, 0.18, 0]
-              radius: 0.038
-              top_radius: 0.014
-              height: 0.06
-
-            # Collo
-            - type: "cylinder"
-              center: [0, 0.24, 0]
-              radius: 0.014
-              height: 0.065
-
-            # Collarino (anello alla base del labbro)
-            - type: "torus"
-              center: [0, 0.298, 0]
-              major_radius: 0.015
-              minor_radius: 0.003
-
-            # Labbro (anello spesso in cima)
-            - type: "cylinder"
-              center: [0, 0.298, 0]
-              radius: 0.016
-              height: 0.012
-
-        right:
-          # ── Cavità interna ─────────────────────────────────────────────
-          type: "group"
-          children:
-            # Cavità corpo
-            - type: "cylinder"
-              center: [0, 0.006, 0]
-              radius: 0.034
-              height: 0.18
-
-            # Cavità spalla
-            - type: "cone"
-              center: [0, 0.18, 0]
-              radius: 0.034
-              top_radius: 0.011
-              height: 0.058
-
-            # Cavità collo
-            - type: "cylinder"
-              center: [0, 0.238, 0]
-              radius: 0.011
-              height: 0.08
-
-      # ── Punt (incavo sotto la bottiglia via CSG) ───────────────────────
+      # ── Punt (incavo conico sotto la bottiglia) ────────────────────────
+      # CSG sottrattivo: un cilindro basso della stessa altezza della
+      # base meno una sfera che "preme" dal basso, creando la tipica
+      # rientranza ottica del fondo bottiglia.
       - type: "csg"
         operation: "subtraction"
         left:
           type: "cylinder"
           center: [0, 0, 0]
-          radius: 0.038
+          radius: 0.040
           height: 0.006
         right:
-          # Sfera che crea l'incavo conico
           type: "sphere"
           center: [0, 0.03, 0]
           radius: 0.032
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  DECANTER — Decanter da vino in cristallo (lathe)
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.18 × 0.28 m
+  #  Struttura:  Singolo lathe Catmull-Rom con pancia larga bombata per
+  #              ossigenare il vino, collo alto stretto e labbro leggermente
+  #              svasato. Ideale in coppia con bicchiere_vino o
+  #              calice_cristallo per scene still life.
+  #
+  #  Materiale default: tbw_cristallo
+  #
+  - name: "decanter"
+    material: "tbw_cristallo"
+    children:
+
+      # ── Silhouette completa (lathe Catmull-Rom) ────────────────────────
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]   # asse al fondo
+          - [0.060, 0.000]   # bordo esterno della base
+          - [0.065, 0.010]
+          - [0.080, 0.030]   # inizio pancia
+          - [0.088, 0.055]
+          - [0.090, 0.080]   # massima espansione della pancia
+          - [0.086, 0.110]
+          - [0.072, 0.135]   # rastrematura superiore
+          - [0.048, 0.160]
+          - [0.026, 0.185]   # raccordo verso il collo
+          - [0.018, 0.210]
+          - [0.018, 0.240]   # collo stretto verticale
+          - [0.020, 0.258]
+          - [0.026, 0.270]   # labbro svasato
+          - [0.022, 0.278]
+          - [0.000, 0.280]   # chiusura sull'asse
 
 
   # ═══════════════════════════════════════════════════════════════════════

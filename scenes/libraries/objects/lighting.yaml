@@ -9,6 +9,14 @@
 # almeno una sorgente emissiva che partecipa alla NEE come
 # GeometryLight, illuminando effettivamente la scena.
 #
+# ── Costruzione ──────────────────────────────────────────────────────────
+#
+#   I paralumi e le cupole di diffusore sono generati con la primitiva
+#   `lathe`: la cupola della plafoniera è un profilo Catmull-Rom che
+#   descrive il diffusore opalino in un'unica superficie C¹; i paralumi
+#   svasati (come `paralume_svasato`) sono lathe Linear con profilo
+#   andata-ritorno per creare una parete a spessore uniforme.
+#
 # ── Note sull'illuminazione ──────────────────────────────────────────────
 #
 #   I materiali emissivi (lit_*) sono calibrati per scene con
@@ -27,58 +35,62 @@
 #
 # ── Catalogo template ────────────────────────────────────────────────────
 #
-#   LAMPADARIO_CLASSICO     Lampadario a 6 bracci con candele,
-#                           gocce di cristallo e corona.
-#                           ~Ø 0.60 × 0.55 m.
+#   LAMPADARIO_CLASSICO       Lampadario a 6 bracci con candele,
+#                             gocce di cristallo e corona.
+#                             ~Ø 0.60 × 0.55 m.
 #
-#   SOSPENSIONE_SFERA       Lampada a sospensione con globo in
-#                           vetro opalino e rosone. ~Ø 0.30 × 0.50 m.
+#   SOSPENSIONE_SFERA         Lampada a sospensione con globo in
+#                             vetro opalino e rosone. ~Ø 0.30 × 0.50 m.
 #
-#   SOSPENSIONE_INDUSTRIALE Pendente con paralume a campana in
-#                           metallo e lampadina a vista.
-#                           ~Ø 0.35 × 0.45 m.
+#   SOSPENSIONE_INDUSTRIALE   Pendente con paralume a campana in
+#                             metallo e lampadina a vista.
+#                             ~Ø 0.35 × 0.45 m.
 #
-#   SOSPENSIONE_TIFFANY     Pendente con cupola a segmenti di
-#                           vetro colorato (stile Tiffany).
-#                           ~Ø 0.40 × 0.45 m.
+#   SOSPENSIONE_TIFFANY       Pendente con cupola a segmenti di
+#                             vetro colorato (stile Tiffany).
+#                             ~Ø 0.40 × 0.45 m.
 #
-#   APPLIQUE_CLASSICA       Applique da muro con braccio curvo,
-#                           paralume conico e piastra decorata.
-#                           ~0.16 × 0.30 × 0.22 m.
+#   APPLIQUE_CLASSICA         Applique da muro con braccio curvo,
+#                             paralume conico e piastra decorata.
+#                             ~0.16 × 0.30 × 0.22 m.
 #
-#   APPLIQUE_MODERNA        Applique up/down a LED con corpo
-#                           rettangolare e 2 fessure emissive.
-#                           ~0.08 × 0.18 × 0.10 m.
+#   APPLIQUE_MODERNA          Applique up/down a LED con corpo
+#                             rettangolare e 2 fessure emissive.
+#                             ~0.08 × 0.18 × 0.10 m.
 #
-#   PLAFONIERA              Plafoniera a soffitto con cupola in
-#                           vetro opalino e base in cromo.
-#                           ~Ø 0.35 × 0.12 m.
+#   PLAFONIERA        (lathe) Plafoniera con cupola opalina lathe
+#                             Catmull-Rom (diffusore C¹) e base in cromo.
+#                             ~Ø 0.35 × 0.12 m.
 #
-#   FARETTO                 Faretto orientabile su supporto a
-#                           giunto sferico con ghiera e LED.
-#                           ~Ø 0.10 × 0.18 m.
+#   FARETTO                   Faretto orientabile su supporto a
+#                             giunto sferico con ghiera e LED.
+#                             ~Ø 0.10 × 0.18 m.
 #
-#   LAMPIONE_CLASSICO       Lampione vittoriano a 3 lanterne su
-#                           palo rastremato con base decorata.
-#                           ~Ø 0.60 × 3.50 m.
+#   LAMPIONE_CLASSICO         Lampione vittoriano a 3 lanterne su
+#                             palo rastremato con base decorata.
+#                             ~Ø 0.60 × 3.50 m.
 #
-#   LAMPIONE_MODERNO        Lampione stradale moderno con palo
-#                           conico e pannello LED inclinato.
-#                           ~0.40 × 4.50 m.
+#   LAMPIONE_MODERNO          Lampione stradale moderno con palo
+#                             conico e pannello LED inclinato.
+#                             ~0.40 × 4.50 m.
 #
-#   LANTERNA                Lanterna pensile esagonale con pannelli
-#                           di vetro, telaio in ferro e candela.
-#                           ~Ø 0.22 × 0.45 m.
+#   LANTERNA                  Lanterna pensile esagonale con pannelli
+#                             di vetro, telaio in ferro e candela.
+#                             ~Ø 0.22 × 0.45 m.
 #
-#   NEON_ANELLO             Anello luminoso LED sospeso con cavi,
-#                           luce diffusa omogenea. ~Ø 0.50 × 0.03 m.
+#   NEON_ANELLO               Anello luminoso LED sospeso con cavi,
+#                             luce diffusa omogenea. ~Ø 0.50 × 0.03 m.
 #
-#   NEON_TUBO               Tubo fluorescente lineare con staffe
-#                           e riflettore. ~0.04 × 0.06 × 1.20 m.
+#   NEON_TUBO                 Tubo fluorescente lineare con staffe
+#                             e riflettore. ~0.04 × 0.06 × 1.20 m.
 #
-#   TORCIA_MEDIEVALE        Torcia da muro con staffa in ferro,
-#                           manico in legno e fiamma emissiva.
-#                           ~0.12 × 0.45 × 0.14 m.
+#   TORCIA_MEDIEVALE          Torcia da muro con staffa in ferro,
+#                             manico in legno e fiamma emissiva.
+#                             ~0.12 × 0.45 × 0.14 m.
+#
+#   PARALUME_SVASATO  (lathe) Paralume troncoconico a parete sottile per
+#                             lampade da tavolo/terra; lathe Linear con
+#                             profilo andata-ritorno. ~Ø 0.30 × 0.22 m.
 #
 # ============================================================================
 
@@ -853,11 +865,16 @@ templates:
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  PLAFONIERA — Flush mount a cupola opalina
+  #  PLAFONIERA — Flush mount a cupola opalina (lathe)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Origine: Y=0 = soffitto, pende leggermente.
   #  Dimensioni: ~Ø 0.35 × 0.12 m
+  #  Struttura:  Cupola opalina come singolo lathe Catmull-Rom (il
+  #              diffusore è opalino semi-traslucente, quindi un lathe
+  #              pieno produce lo stesso effetto visivo di un guscio
+  #              cavo — la luce viene diffusa dal materiale, non dalla
+  #              geometria). Base in cromo e LED emissivo invariati.
   #
   - name: "plafoniera"
     material: "lit_cromo"
@@ -875,27 +892,21 @@ templates:
         major_radius: 0.155
         minor_radius: 0.006
 
-      # Cupola opalina (CSG: emisfera cava)
-      - type: "csg"
-        operation: "intersection"
+      # ── Cupola opalina (lathe Catmull-Rom) ─────────────────────────────
+      # Profilo di una cupola bassa schiacciata (flush-mount): raggio
+      # massimo alla base, apice appena sotto il soffitto. Y va da
+      # -0.12 (punto più basso della cupola) a -0.008 (attacco al bordo).
+      - type: "lathe"
+        profile_type: "catmull_rom"
         material: "lit_opalino"
-        left:
-          type: "csg"
-          operation: "subtraction"
-          left:
-            type: "sphere"
-            center: [0, -0.01, 0]
-            radius: 0.16
-          right:
-            type: "sphere"
-            center: [0, -0.01, 0]
-            radius: 0.15
-        right:
-          # Solo la metà inferiore
-          type: "cylinder"
-          center: [0, -0.10, 0]
-          radius: 0.18
-          height: 0.12
+        profile:
+          - [0.000, -0.120]   # asse, apice della cupola
+          - [0.055, -0.118]
+          - [0.098, -0.110]
+          - [0.130, -0.090]
+          - [0.150, -0.060]
+          - [0.158, -0.030]
+          - [0.160, -0.008]   # raccordo con il bordo cromato
 
       # Sorgente LED interna
       - type: "disk"
@@ -1456,4 +1467,63 @@ templates:
         center: [0, 0.40, -0.10]
         radius: 0.010
         scale: [0.50, 1.40, 0.50]
+        material: "lit_bulb_caldo"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  PARALUME_SVASATO — Paralume troncoconico a parete sottile (lathe)
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Origine: Y=0 = base del paralume (tipicamente appoggiata sul
+  #  portalampada di una lampada da tavolo o terra).
+  #  Dimensioni: ~Ø 0.30 × 0.22 m
+  #  Struttura:  Il paralume è un guscio troncoconico: CSG subtraction
+  #              fra un lathe Linear esterno (raggio 0.080→0.150 dal
+  #              basso all'alto) e un lathe Linear interno 5 mm più
+  #              piccolo. Il materiale opaco (tessuto/pergamena) rende
+  #              visibile lo spessore della parete sul bordo superiore.
+  #              Include anello in ottone alla base e sorgente emissiva
+  #              disco che simula la lampadina sottostante.
+  #
+  #  Materiale default: lit_paralume (tessuto color panna)
+  #
+  - name: "paralume_svasato"
+    material: "lit_paralume"
+    children:
+
+      # ── Guscio del paralume (CSG: esterno − interno) ───────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          # Profilo esterno: troncocono che si svasa verso l'alto.
+          type: "lathe"
+          profile_type: "linear"
+          profile:
+            - [0.000, 0.000]
+            - [0.080, 0.000]   # bordo esterno inferiore
+            - [0.150, 0.220]   # bordo esterno superiore
+            - [0.000, 0.222]   # chiusura (tappo virtuale)
+        right:
+          # Profilo interno: stesso troncocono ma 5 mm più stretto e
+          # leggermente più alto per tagliare via il tappo superiore.
+          type: "lathe"
+          profile_type: "linear"
+          profile:
+            - [0.000, 0.002]
+            - [0.076, 0.002]
+            - [0.145, 0.222]
+            - [0.000, 0.224]
+
+      # ── Anello in ottone in basso ─────────────────────────────────────
+      - type: "torus"
+        center: [0, 0.000, 0]
+        major_radius: 0.078
+        minor_radius: 0.003
+        material: "lit_ottone"
+
+      # ── Sorgente emissiva (disco sul fondo, simula la lampadina) ───────
+      - type: "disk"
+        center: [0, 0.015, 0]
+        normal: [0, -1, 0]
+        radius: 0.050
         material: "lit_bulb_caldo"

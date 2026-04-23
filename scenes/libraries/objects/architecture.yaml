@@ -8,6 +8,16 @@
 # balaustre, cupole, portali. Ogni pezzo è dimensionato in scala reale
 # (unità ≈ metri) e progettato per la composizione modulare.
 #
+# ── Costruzione ──────────────────────────────────────────────────────────
+#
+#   I corpi torniti (balaustri, fusti di colonne tornite, pinnacoli) sono
+#   generati con la primitiva `lathe`. Il balaustro classico è un singolo
+#   lathe Catmull-Rom che descrive plinto + ventre ellissoidale + collarino
+#   + capitello in un unico pezzo, con silhouette continua. Il fusto della
+#   colonna liscia usa un lathe Linear con entasi (rigonfio a ~1/3
+#   dell'altezza) come da tradizione vitruviana. Le scanalature delle
+#   colonne doriche/ioniche restano in CSG sottrattiva.
+#
 # ── Materiali inclusi ────────────────────────────────────────────────────
 #
 #   Prefisso ID:  arc_   (architecture)
@@ -27,60 +37,65 @@
 #
 # ── Catalogo template ────────────────────────────────────────────────────
 #
-#   COLONNA_DORICA          Colonna dorica con fusto scanalato (CSG
-#                           12 scanalature), echino e abaco.
-#                           ~Ø 0.46 × 3.00 m.
+#   COLONNA_DORICA            Colonna dorica con fusto scanalato (CSG
+#                             12 scanalature), echino e abaco.
+#                             ~Ø 0.46 × 3.00 m.
 #
-#   COLONNA_IONICA          Colonna ionica con fusto scanalato,
-#                           volute a spirale e base attica.
-#                           ~Ø 0.44 × 3.20 m.
+#   COLONNA_IONICA            Colonna ionica con fusto scanalato,
+#                             volute a spirale e base attica.
+#                             ~Ø 0.44 × 3.20 m.
 #
-#   COLONNA_LISCIA          Colonna liscia semplificata (senza
-#                           scanalature) con base e capitello
-#                           toscano. Meno primitivi, più veloce.
-#                           ~Ø 0.40 × 3.00 m.
+#   COLONNA_LISCIA    (lathe) Colonna liscia toscana con fusto lathe
+#                             Linear a entasi e capitello/base semplificati.
+#                             ~Ø 0.40 × 3.00 m.
 #
-#   ARCO_TUTTO_SESTO        Arco a tutto sesto con pilastri,
-#                           imposta, ghiera e chiave di volta.
-#                           ~1.40 × 2.80 × 0.40 m.
+#   ARCO_TUTTO_SESTO          Arco a tutto sesto con pilastri,
+#                             imposta, ghiera e chiave di volta.
+#                             ~1.40 × 2.80 × 0.40 m.
 #
-#   ARCO_GOTICO             Arco a sesto acuto con pilastri
-#                           ottagonali e profilo ogivale.
-#                           ~1.30 × 3.20 × 0.40 m.
+#   ARCO_GOTICO               Arco a sesto acuto con pilastri
+#                             ottagonali e profilo ogivale.
+#                             ~1.30 × 3.20 × 0.40 m.
 #
-#   SCALINATA               Scalinata a 7 gradini con alzata e
-#                           pedata realistiche. ~1.40 × 1.19 × 2.10 m.
+#   SCALINATA                 Scalinata a 7 gradini con alzata e
+#                             pedata realistiche. ~1.40 × 1.19 × 2.10 m.
 #
-#   BALAUSTRO               Balaustro singolo tornito con profilo
-#                           classico. ~Ø 0.10 × 0.70 m.
+#   BALAUSTRO         (lathe) Balaustro singolo tornito, singolo lathe
+#                             Catmull-Rom con plinto, ventre ellissoidale,
+#                             collarino, capitello e abaco.
+#                             ~Ø 0.10 × 0.70 m.
 #
-#   BALAUSTRA               Sezione completa di balaustra con 5
-#                           balaustri, corrimano e zoccolatura.
-#                           ~1.20 × 0.90 × 0.14 m.
+#   BALAUSTRA                 Sezione completa di balaustra con 5
+#                             balaustri, corrimano e zoccolatura.
+#                             ~1.20 × 0.90 × 0.14 m.
 #
-#   PILASTRO                Pilastro rettangolare con base attica,
-#                           fusto e capitello a modanature.
-#                           ~0.30 × 3.00 × 0.08 m.
+#   PILASTRO                  Pilastro rettangolare con base attica,
+#                             fusto e capitello a modanature.
+#                             ~0.30 × 3.00 × 0.08 m.
 #
-#   FRONTONE                Frontone triangolare (timpano) su
-#                           trabeazione con cornice dentellata.
-#                           ~2.40 × 0.70 × 0.40 m.
+#   FRONTONE                  Frontone triangolare (timpano) su
+#                             trabeazione con cornice dentellata.
+#                             ~2.40 × 0.70 × 0.40 m.
 #
-#   CUPOLA                  Cupola emisferica su tamburo cilindrico
-#                           con lanterna e croce sommitale.
-#                           ~Ø 2.00 × 2.40 m.
+#   CUPOLA                    Cupola emisferica su tamburo cilindrico
+#                             con lanterna e croce sommitale.
+#                             ~Ø 2.00 × 2.40 m.
 #
-#   NICCHIA                 Nicchia murale con volta a conchiglia
-#                           (semicilindro), cornice e piedistallo.
-#                           ~0.60 × 1.60 × 0.35 m.
+#   NICCHIA                   Nicchia murale con volta a conchiglia
+#                             (semicilindro), cornice e piedistallo.
+#                             ~0.60 × 1.60 × 0.35 m.
 #
-#   PORTALE_CLASSICO        Portale con stipiti, architrave,
-#                           fregio e cornice con dentelli.
-#                           ~1.80 × 2.80 × 0.40 m.
+#   PORTALE_CLASSICO          Portale con stipiti, architrave,
+#                             fregio e cornice con dentelli.
+#                             ~1.80 × 2.80 × 0.40 m.
 #
-#   CORNICIONE              Sezione di cornicione classico con
-#                           gola, dentelli, gocciolatoio e
-#                           modanatura corona. ~1.00 × 0.30 × 0.35 m.
+#   CORNICIONE                Sezione di cornicione classico con
+#                             gola, dentelli, gocciolatoio e
+#                             modanatura corona. ~1.00 × 0.30 × 0.35 m.
+#
+#   PINNACOLO         (lathe) Pinnacolo architettonico, lathe Linear con
+#                             dado, fusto svasato con doppia espansione e
+#                             cuspide conica. ~Ø 0.18 × 0.80 m.
 #
 # ============================================================================
 
@@ -613,13 +628,17 @@ templates:
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  COLONNA_LISCIA — Colonna toscana semplificata (no scanalature)
+  #  COLONNA_LISCIA — Colonna toscana con entasi (lathe)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Dimensioni: ~Ø 0.40 × 3.00 m
-  #  Struttura:  Base con plinto e toro, fusto conico liscio
-  #              (senza CSG), collarino, echino, abaco.
-  #              Più leggera sul render — ideale per colonnati.
+  #  Struttura:  Base a plinto e toro (box + torus), fusto lathe Linear
+  #              con entasi classica (rigonfio massimo a ~1/3
+  #              dell'altezza secondo Vitruvio, raggio 0.195 alla base,
+  #              0.200 all'entasi, 0.163 in cima), collarino torus,
+  #              echino conico, abaco quadrato. Il fusto tornito è una
+  #              sola primitiva (lathe a 6 punti) invece del cono tronco
+  #              rastremato: silhouette più fedele allo stile toscano.
   #
   #  Materiale default: arc_travertino
   #
@@ -647,12 +666,19 @@ templates:
         major_radius: 0.150
         minor_radius: 0.015
 
-      # ── Fusto conico liscio (rastremato) ───────────────────────────────
-      - type: "cone"
-        center: [0, 0.10, 0]
-        radius: 0.19
-        top_radius: 0.16
-        height: 2.50
+      # ── Fusto con entasi (lathe Linear) ────────────────────────────────
+      # 6 punti: base→entasi→cima, rigonfio dolce come da canone classico.
+      - type: "lathe"
+        profile_type: "linear"
+        profile:
+          - [0.000, 0.100]
+          - [0.195, 0.100]   # diametro alla base del fusto
+          - [0.200, 0.900]   # entasi: raggio massimo a ~1/3 altezza
+          - [0.190, 1.700]
+          - [0.175, 2.300]   # rastrematura verso la sommità
+          - [0.163, 2.600]
+          - [0.163, 2.610]   # piatto sotto il collarino
+          - [0.000, 2.610]
 
       # ── Collarino ─────────────────────────────────────────────────────
       - type: "torus"
@@ -972,13 +998,18 @@ templates:
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  BALAUSTRO — Balaustro singolo tornito
+  #  BALAUSTRO — Balaustro singolo tornito (lathe)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Dimensioni: ~Ø 0.10 × 0.70 m
-  #  Struttura:  Base quadrata, piede a bulbo (sfera schiacciata),
-  #              ventre (ellissoide grande), collo rastremato, colletto
-  #              con anello, pomo superiore.
+  #  Struttura:  Base e abaco quadrati (box, per dare angoli architet-
+  #              tonici netti agli appoggi), fra loro un unico lathe
+  #              Catmull-Rom che descrive l'intero profilo classico:
+  #              piede, collarino inferiore, ventre ellissoidale ampio,
+  #              collarino mediano, collo rastremato, collarino alto,
+  #              pomo superiore. Una sola primitiva sostituisce una
+  #              catena di 9 elementi (cylinder/sphere/cone/torus) e
+  #              produce una silhouette C¹ continua.
   #
   #  Materiale default: arc_marmo
   #
@@ -986,61 +1017,37 @@ templates:
     material: "arc_marmo"
     children:
 
-      # Base quadrata
+      # ── Plinto quadrato di base ────────────────────────────────────────
       - type: "box"
         scale: [0.08, 0.035, 0.08]
         translate: [0, 0.018, 0]
 
-      # Piede (torus)
-      - type: "torus"
-        center: [0, 0.04, 0]
-        major_radius: 0.035
-        minor_radius: 0.008
+      # ── Corpo tornito (lathe Catmull-Rom) ──────────────────────────────
+      # Profilo canonico del balaustro barocco/neoclassico.
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.035]   # asse sopra il plinto
+          - [0.038, 0.035]   # bordo esterno (allargato, toro inferiore)
+          - [0.034, 0.050]   # prima rastrematura
+          - [0.026, 0.070]
+          - [0.030, 0.095]   # anellino sotto il ventre
+          - [0.036, 0.130]   # inizio del ventre
+          - [0.048, 0.175]   # massima espansione del ventre
+          - [0.048, 0.220]   # ventre piatto al centro (ellissoide alto)
+          - [0.040, 0.265]
+          - [0.028, 0.310]   # fine del ventre
+          - [0.030, 0.340]   # collarino mediano
+          - [0.024, 0.370]   # collo rastremato
+          - [0.020, 0.460]   # collo sottile
+          - [0.020, 0.540]
+          - [0.028, 0.570]   # colletto superiore
+          - [0.022, 0.595]
+          - [0.024, 0.620]   # pomo terminale
+          - [0.020, 0.635]
+          - [0.000, 0.640]   # chiusura sull'asse
 
-      # Segmento inferiore
-      - type: "cylinder"
-        center: [0, 0.04, 0]
-        radius: 0.025
-        height: 0.06
-
-      # Anello sotto il ventre
-      - type: "torus"
-        center: [0, 0.10, 0]
-        major_radius: 0.030
-        minor_radius: 0.006
-
-      # Ventre (ellissoide — la parte più larga)
-      - type: "sphere"
-        center: [0, 0.22, 0]
-        radius: 0.048
-        scale: [1.0, 2.0, 1.0]
-
-      # Anello sopra il ventre
-      - type: "torus"
-        center: [0, 0.34, 0]
-        major_radius: 0.030
-        minor_radius: 0.006
-
-      # Collo rastremato
-      - type: "cone"
-        center: [0, 0.34, 0]
-        radius: 0.028
-        top_radius: 0.020
-        height: 0.24
-
-      # Colletto superiore
-      - type: "torus"
-        center: [0, 0.58, 0]
-        major_radius: 0.025
-        minor_radius: 0.006
-
-      # Segmento finale
-      - type: "cylinder"
-        center: [0, 0.58, 0]
-        radius: 0.022
-        height: 0.06
-
-      # Piattino superiore (dove appoggia il corrimano)
+      # ── Abaco superiore (dove poggia il corrimano) ─────────────────────
       - type: "box"
         scale: [0.07, 0.030, 0.07]
         translate: [0, 0.655, 0]
@@ -1745,3 +1752,54 @@ templates:
         radius: 0.008
         height: 1.02
         rotate: [0, 0, 90]
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  PINNACOLO — Pinnacolo architettonico sommitale (lathe)
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.25 × 0.80 m
+  #  Struttura:  Base quadrata (box) per l'incastro sul timpano/cornice,
+  #              poi un unico lathe Linear per il corpo principale:
+  #              dado modanato, cono rovesciato di transizione, fusto
+  #              svasato a balaustro, collarini, cuspide conica terminale.
+  #              Si usa come coronamento di frontone, di torrette o di
+  #              balaustrate.
+  #
+  #  Materiale default: arc_pietra_grigia
+  #
+  - name: "pinnacolo"
+    material: "arc_pietra_grigia"
+    children:
+
+      # ── Zoccolatura quadrata (box) ─────────────────────────────────────
+      - type: "box"
+        scale: [0.16, 0.030, 0.16]
+        translate: [0, 0.015, 0]
+
+      # ── Corpo tornito (lathe Linear) ───────────────────────────────────
+      # Profilo sfaccettato: ogni segmento produce una superficie liscia
+      # ma con stacchi netti di normale ai raccordi — tipico dei pinnacoli
+      # in pietra scolpita.
+      - type: "lathe"
+        profile_type: "linear"
+        profile:
+          - [0.000, 0.030]
+          - [0.080, 0.030]   # bordo esterno del dado inferiore
+          - [0.080, 0.055]   # dado verticale
+          - [0.070, 0.070]   # gola
+          - [0.092, 0.090]   # modanatura allargata
+          - [0.092, 0.105]
+          - [0.062, 0.135]   # rastrematura del ventre
+          - [0.052, 0.180]
+          - [0.060, 0.230]   # prima espansione del fusto
+          - [0.055, 0.280]
+          - [0.068, 0.330]   # seconda espansione (bulbo barocco)
+          - [0.050, 0.400]
+          - [0.038, 0.470]   # rastrematura verso la punta
+          - [0.045, 0.510]   # collarino alto
+          - [0.040, 0.540]
+          - [0.028, 0.600]   # base della cuspide
+          - [0.020, 0.680]   # cuspide
+          - [0.010, 0.760]
+          - [0.000, 0.800]   # punta
