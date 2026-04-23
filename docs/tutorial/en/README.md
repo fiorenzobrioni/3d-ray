@@ -55,6 +55,12 @@ The bundled library ecosystem: 800+ materials, 154+ object templates,
 14 lighting presets, and 18 starter-kit scenes. CLI reference, project
 workflow, and a troubleshooting guide.
 
+### [11 -- Surfaces of Revolution (Lathe)](./11-lathe-surface-of-revolution.md)
+The `lathe` primitive: spin a 2D profile around the Y axis to get an
+analytic surface of revolution. Three interpolation modes (linear,
+centripetal Catmull-Rom, explicit Bezier), automatic end caps, NEE for
+emissive lathes, and the Sturm-chain solver behind the scenes.
+
 ---
 
 > Each chapter builds on the previous one. If you are new to ray tracing,

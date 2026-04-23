@@ -728,6 +728,80 @@ entities:
     scale: 1.2                             # Override dimensione
 ```
 
+#### **7.16 Lathe (Superficie di Rivoluzione)**
+```yaml
+# Profilo Linear — look sfaccettato del tornio reale (spigoli vivi sui vertici)
+- name: "colonna"
+  type: "lathe"                           # alias: "revolution", "surface_of_revolution"
+  profile_type: "linear"                  # default — può essere omesso
+  material: "marmo"
+  profile:                                # lista di punti [r, y], y monotona
+    - [0.30, 0.0]
+    - [0.30, 0.1]
+    - [0.25, 0.2]
+    - [0.28, 2.0]
+    - [0.35, 2.1]
+
+# Profilo Catmull-Rom — liscio, passa per ogni punto di controllo (centripeto)
+- name: "vaso"
+  type: "lathe"
+  profile_type: "catmull_rom"             # alias: "catmull", "smooth"
+  material: "ceramica"
+  profile:
+    - [0.00, 0.00]                        # base chiusa (r = 0 → cap assente)
+    - [0.30, 0.00]
+    - [0.55, 0.40]
+    - [0.45, 0.80]
+    - [0.55, 0.95]
+    - [0.00, 0.95]                        # apertura chiusa
+
+# Profilo Bezier — 4 control point cubici espliciti per ogni segmento
+- name: "ciotola"
+  type: "lathe"
+  profile_type: "bezier"
+  material: "porcellana"
+  profile:                                # estremi dei segmenti — (N-1) segmenti
+    - [0.0, 0.0]
+    - [0.5, 0.3]
+    - [0.5, 0.6]
+  profile_bezier_controls:                # 4 × (N-1) control point, concatenati
+    - [0.0, 0.0]
+    - [0.3, 0.0]
+    - [0.5, 0.1]
+    - [0.5, 0.3]
+    - [0.5, 0.3]
+    - [0.5, 0.45]
+    - [0.5, 0.5]
+    - [0.5, 0.6]
+```
+- Fa ruotare un profilo 2D di 360° attorno all'asse Y locale. Il
+  posizionamento passa da `center`/`translate`/`rotate` come per ogni
+  altra primitiva.
+- Tre modalità di interpolazione. `linear` impila frustum analitici —
+  veloce ed esatto, ma mostra gli spigoli vivi ai vertici. `catmull_rom`
+  usa Catmull-Rom centripeto (Yuksel et al. 2011) — passa per ogni
+  punto, C¹ continuo, niente auto-intersezioni. `bezier` lascia
+  all'utente i 4 control point cubici per segmento;
+  `profile_bezier_controls` deve contenere esattamente `4 × (N − 1)`
+  voci.
+- I dischi di cap inferiore e superiore vengono aggiunti
+  automaticamente quando il profilo lascia l'asse (`r > 0`) a
+  quell'estremo.
+- La coordinata V sulla superficie laterale è l'arco cumulativo
+  normalizzato del profilo; U è l'angolo azimutale come per
+  Cylinder/Cone.
+- Catmull-Rom richiede almeno 4 punti; profili con 2 o 3 punti vengono
+  degradati in modo trasparente a `linear` con un warning del loader.
+- I Lathe emissivi partecipano automaticamente al NEE: `Sample()` usa
+  la CDF pesata per area su segmenti e cap, così ombre e illuminazione
+  diretta ricevono campioni senza rumore.
+- L'intersezione raggio-superficie è quadratica analitica per `linear`;
+  per le modalità spline l'equazione è un polinomio di grado 6
+  risolto con ibrido Sturm chain + Newton-Raphson (`SturmSolver`), lo
+  stesso approccio della `lathe` di PovRay e della `Curve` di PBRT.
+  Aspettati ~10× il costo per-raggio di un hit su Cone sui segmenti
+  spline — preferisci `linear` quando lo sfaccettato è accettabile.
+
 ---
 
 ### 8. **SEZIONE LIGHTS** — Cinque Tipi

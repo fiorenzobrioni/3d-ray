@@ -668,7 +668,32 @@ entities:
 - Nesting supported (groups can contain groups)
 - Transformations compose hierarchically
 - All children inherit material unless overridden
-#### **7.15.1 Lathe (Surface of Revolution)**
+#### **7.15 Template + Instance (Reusable Objects)**
+```yaml
+templates:
+  - name: "chess_pawn"
+    material: "wood"
+    children:
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.4
+        height: 0.15
+      - type: "sphere"
+        center: [0, 0.35, 0]
+        radius: 0.3
+entities:
+  - name: "pawn_e2"
+    type: "instance"
+    template: "chess_pawn"
+    translate: [0, 0, 0]
+  - name: "pawn_d2"
+    type: "instance"
+    template: "chess_pawn"
+    translate: [2, 0, 0]
+    material: "ebony"                     # Override material
+    scale: 1.2                             # Override size
+```
+#### **7.16 Lathe (Surface of Revolution)**
 ```yaml
 # Linear profile — faceted look of a real turned piece (hard vertex ridges)
 - name: "column"
@@ -737,32 +762,6 @@ entities:
   approach used by PovRay's `lathe` and PBRT's `Curve`. Expect ~10× the
   per-ray cost of a Cone hit on spline segments — prefer `linear` when
   faceting is acceptable.
-
-#### **7.15 Template + Instance (Reusable Objects)**
-```yaml
-templates:
-  - name: "chess_pawn"
-    material: "wood"
-    children:
-      - type: "cylinder"
-        center: [0, 0, 0]
-        radius: 0.4
-        height: 0.15
-      - type: "sphere"
-        center: [0, 0.35, 0]
-        radius: 0.3
-entities:
-  - name: "pawn_e2"
-    type: "instance"
-    template: "chess_pawn"
-    translate: [0, 0, 0]
-  - name: "pawn_d2"
-    type: "instance"
-    template: "chess_pawn"
-    translate: [2, 0, 0]
-    material: "ebony"                     # Override material
-    scale: 1.2                             # Override size
-```
 ---
 ### 8. **LIGHTS SECTION** — Five Types
 #### **8.1 Point Light (Omnidirectional)**
