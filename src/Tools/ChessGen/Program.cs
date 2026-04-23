@@ -180,7 +180,7 @@ namespace ChessGen
             sb.AppendLine("    roughness: 0.28");
             sb.AppendLine("    specular: 0.5");
             sb.AppendLine("    clearcoat: 0.5");
-            sb.AppendLine("    clearcoat_gloss: 0.85");
+            sb.AppendLine("    coat_roughness: 0.15");
             sb.AppendLine();
 
             // Black pieces: lacquered ebony (deep black, high gloss clearcoat).
@@ -191,7 +191,7 @@ namespace ChessGen
             sb.AppendLine("    roughness: 0.22");
             sb.AppendLine("    specular: 0.5");
             sb.AppendLine("    clearcoat: 0.6");
-            sb.AppendLine("    clearcoat_gloss: 0.90");
+            sb.AppendLine("    coat_roughness: 0.10");
             sb.AppendLine();
         }
 
@@ -199,7 +199,7 @@ namespace ChessGen
         {
             sb.AppendLine("lights:");
             sb.AppendLine("  # KEY: wide warm area light high-left (window), aligned with sky sun.");
-            sb.AppendLine("  - type: \"--area\"");
+            sb.AppendLine("  - type: \"area\"");
             sb.AppendLine("    corner: [-5.0, 8.0, -4.0]");
             sb.AppendLine("    u: [3.5, 0.0, 0.0]");
             sb.AppendLine("    v: [0.0, 0.0, 3.5]");
