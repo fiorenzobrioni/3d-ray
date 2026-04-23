@@ -623,6 +623,34 @@ public class EntityData
     [YamlMember(Alias = "template")]
     public string? Template { get; set; }
 
+    // ── Lathe (Surface of Revolution) ───────────────────────────────────────
+
+    /// <summary>
+    /// Profile points for a <c>type: "lathe"</c> entity. Each entry is a
+    /// <c>[r, y]</c> pair in lathe-local coordinates (r ≥ 0, y monotonically
+    /// non-decreasing). Must contain at least two points.
+    /// </summary>
+    [YamlMember(Alias = "profile")]
+    public List<List<float>>? Profile { get; set; }
+
+    /// <summary>
+    /// Interpolation mode for the <c>profile</c>. One of <c>linear</c>
+    /// (default — polyline / faceted frustum stack), <c>catmull_rom</c>
+    /// (centripetal, smooth, passes through all points) or <c>bezier</c>
+    /// (explicit control points via <c>profile_bezier_controls</c>).
+    /// </summary>
+    [YamlMember(Alias = "profile_type")]
+    public string? ProfileType { get; set; }
+
+    /// <summary>
+    /// Explicit cubic-Bezier control points for <c>profile_type: bezier</c>.
+    /// Layout: four <c>[r, y]</c> entries per segment, concatenated for every
+    /// segment of the profile (length must equal <c>4 · (profile.Count − 1)</c>).
+    /// Ignored for the linear and Catmull-Rom modes.
+    /// </summary>
+    [YamlMember(Alias = "profile_bezier_controls")]
+    public List<List<float>>? ProfileBezierControls { get; set; }
+
     // Transformations
     [YamlMember(Alias = "translate")]
     public List<float>? Translate { get; set; }

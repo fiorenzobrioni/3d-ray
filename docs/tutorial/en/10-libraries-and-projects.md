@@ -653,4 +653,4 @@ RayTracer -i exhibition-hall.yaml -c detail -w 1200 -H 800 -s 1024 -d 8 -S 4
 
 ---
 
-[Previous: Participating Media (Volumetrics)](./09-volumetrics.md) | [Tutorial Index](./README.md)
+[Previous: Participating Media (Volumetrics)](./09-volumetrics.md) | [Next: Surfaces of Revolution (Lathe)](./11-lathe-surface-of-revolution.md) | [Tutorial Index](./README.md)

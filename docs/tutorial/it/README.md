@@ -55,6 +55,13 @@ L'ecosistema di librerie incluso: 800+ materiali, 154+ template di oggetti,
 14 preset di illuminazione e 18 scene starter kit. Riferimento CLI, flusso di
 lavoro del progetto e guida alla risoluzione dei problemi.
 
+### [11 -- Superfici di rivoluzione (Lathe)](./11-lathe-surface-of-revolution.md)
+La primitiva `lathe`: fai ruotare un profilo 2D attorno all'asse Y per
+ottenere una superficie di rivoluzione analitica. Tre modalità di
+interpolazione (linear, Catmull-Rom centripeta, Bezier esplicita), cap
+automatici, NEE per i lathe emissivi e il solver Sturm-chain dietro le
+quinte.
+
 ---
 
 > Ogni capitolo si basa sul precedente. Chi è alle prime armi con il ray tracing

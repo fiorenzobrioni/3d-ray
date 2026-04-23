@@ -623,4 +623,4 @@ RayTracer -i exhibition-hall.yaml -c detail -w 1200 -H 800 -s 1024 -d 8 -S 4
 
 ---
 
-[Precedente: Mezzi partecipanti (Volumetrics)](./09-volumetrics.md) | [Indice del Tutorial](./README.md)
+[Precedente: Mezzi partecipanti (Volumetrics)](./09-volumetrics.md) | [Successivo: Superfici di rivoluzione (Lathe)](./11-lathe-surface-of-revolution.md) | [Indice del Tutorial](./README.md)
