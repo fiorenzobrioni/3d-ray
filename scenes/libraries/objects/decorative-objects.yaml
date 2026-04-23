@@ -94,7 +94,7 @@ materials:
     metallic: 0.0
     specular: 0.70
     clearcoat: 0.50
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
 
   # Granito grigio scuro — piedistalli pesanti
   - id: "dec_granito"
@@ -183,7 +183,7 @@ materials:
     metallic: 0.0
     specular: 0.55
     clearcoat: 0.40
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   # Palissandro — legno scuro con tono viola
   - id: "dec_palissandro"
@@ -193,7 +193,7 @@ materials:
     metallic: 0.0
     specular: 0.48
     clearcoat: 0.35
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
 
   # ── Ceramica e smalto ──────────────────────────────────────────────────
 
@@ -205,7 +205,7 @@ materials:
     metallic: 0.0
     specular: 0.60
     clearcoat: 0.45
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # Smalto blu reale — Fabergé
   - id: "dec_smalto_blu"
@@ -215,7 +215,7 @@ materials:
     metallic: 0.0
     specular: 0.70
     clearcoat: 0.80
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   # ── Tessuti e basi ─────────────────────────────────────────────────────
 

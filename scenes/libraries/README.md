@@ -52,26 +52,28 @@ entities:
 
 ### 🎨 Materiali — `materials/`
 
-**12 file · 800+ materiali PBR**
+**12 file · 1085 materiali PBR**
 
 Raccolta completa di materiali fisicamente corretti con varianti Disney BSDF
 (`dis_`) e Classic (`cls_`). Ogni categoria è un file separato importabile
-individualmente.
+individualmente. Tutti i materiali Disney usano le chiavi moderne del BSDF
+(`coat_roughness` + `coat_ior`, `sheen_roughness`, `subsurface_color`,
+`thin_film_*` dove appropriato).
 
 | File | Contenuto |
 |------|-----------|
-| `metals.yaml` | Oro, argento, rame, bronzo, acciaio, alluminio, titanio, cromo... (120 mat.) |
-| `ceramics.yaml` | Porcellana, maiolica, terracotta, grès, raku, celadon... (100 mat.) |
-| `woods.yaml` | Rovere, noce, pino, ebano, teak, bambù, compensato... (90 mat.) |
-| `stones.yaml` | Marmi, graniti, ardesia, travertino, basalto, quarzo... (90 mat.) |
-| `glass.yaml` | Vetro trasparente, colorato, smerigliato, specchio, cristallo... (60 mat.) |
-| `plastics.yaml` | ABS, PVC, acrilico, nylon, silicone, gomma, resina... (80 mat.) |
-| `fabrics.yaml` | Cotone, velluto, seta, denim, lino, pelle, feltro... (70 mat.) |
-| `emissives.yaml` | LED, neon, plasma, lava, brace, bioluminescenza... (50 mat.) |
-| `organics.yaml` | Pelle umana, legno vivo, foglie, muschio, corallo... (60 mat.) |
-| `procedural.yaml` | Checker, noise, marmo, legno, gradiente — texture parametriche (40 mat.) |
-| `special.yaml` | Materiali fisici estremi: black body, retroriflettente, iridescente... (30 mat.) |
-| `mix-presets.yaml` | MixMaterial precalibrati: usura, strati, transizioni (50 mat.) |
+| `metals.yaml` | Oro, argento, rame, bronzo, acciaio, alluminio, titanio, cromo, platino, nichel, zinco, peltro, corten... (128 mat.) |
+| `ceramics.yaml` | Porcellana, bone china, maiolica, terracotta, grès, raku, celadon, smaltate, sigillate... (88 mat.) |
+| `woods.yaml` | Latifoglie chiare/medie/scure, ebano, esotici, trattati (shou sugi ban, barnwood), tinti... (72 mat.) |
+| `stones.yaml` | Marmi bianchi/scuri/colorati, graniti, travertino, ardesia, onice, alabastro, basalto, mattoni... (87 mat.) |
+| `glasses.yaml` | Vetri industriali/ottici, cristalli, gemme preziose e semipreziose, ghiaccio, liquidi, resine... (96 mat.) |
+| `plastics.yaml` | ABS, policarbonato, acrilico, PVC, nylon, PLA, teflon, bachelite, gomma, silicone, EVA, vinile... (95 mat.) |
+| `fabrics.yaml` | Velluto, seta, raso, cotone, lino, lana, denim, tweed, feltro, pelle, scamosciata, cuoio... (100 mat.) |
+| `paints.yaml` | Vernice auto metallizzata/pastello/perlata, lacche, smalti, chalk paint, pittura murale, spray... (98 mat.) |
+| `organics.yaml` | Cera, ambra, avorio, corno, corallo, madreperla, conchiglia, sughero, carta, sapone, bambù... (81 mat.) |
+| `foods.yaml` | Cioccolato, frutta, verdura, formaggi, dolci, liquidi alimentari, condimenti, carne... (91 mat.) |
+| `emissives.yaml` | Temperatura colore 1800K–7500K, LED, neon, fiamme, lava, schermi, insegne, bioluminescenza... (83 mat.) |
+| `grounds.yaml` | Checker, parquet, piastrelle, marmo pavimento, cemento, asfalto, terra, sabbia, ghiaia, erba, neve... (66 mat.) |
 
 **Convenzione dei nomi:** `prefisso_categoria_variante`
 - `dis_` → Disney BSDF (close-up, effetti PBR avanzati)

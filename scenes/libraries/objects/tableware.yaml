@@ -110,7 +110,7 @@ materials:
     metallic: 0.0
     specular: 0.60
     clearcoat: 0.50
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
 
   # Porcellana avorio — tono più caldo
   - id: "tbw_porcellana_avorio"
@@ -120,7 +120,7 @@ materials:
     metallic: 0.0
     specular: 0.55
     clearcoat: 0.45
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # Ceramica blu cobalto — decorazione stile Delft
   - id: "tbw_ceramica_blu"
@@ -130,7 +130,7 @@ materials:
     metallic: 0.0
     specular: 0.65
     clearcoat: 0.60
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
 
   # Terracotta smaltata — piatti rustici
   - id: "tbw_terracotta"
@@ -140,7 +140,7 @@ materials:
     metallic: 0.0
     specular: 0.30
     clearcoat: 0.15
-    clearcoat_gloss: 0.50
+    coat_roughness: 0.50
 
   # ── Metalli da tavola ──────────────────────────────────────────────────
 
@@ -194,7 +194,7 @@ materials:
     metallic: 0.0
     specular: 0.30
     clearcoat: 0.10
-    clearcoat_gloss: 0.45
+    coat_roughness: 0.55
 
   # ── Tessuto ────────────────────────────────────────────────────────────
 

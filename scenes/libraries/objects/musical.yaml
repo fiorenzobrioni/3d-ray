@@ -130,7 +130,7 @@ materials:
     metallic: 0.0
     specular: 0.42
     clearcoat: 0.50
-    clearcoat_gloss: 0.80
+    coat_roughness: 0.20
 
   # Acero — fondo e fasce violino, manico chitarra
   - id: "mus_acero"
@@ -140,7 +140,7 @@ materials:
     metallic: 0.0
     specular: 0.48
     clearcoat: 0.55
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   # Ebano — tastiere, piroli, mentoniera
   - id: "mus_ebano"
@@ -150,7 +150,7 @@ materials:
     metallic: 0.0
     specular: 0.55
     clearcoat: 0.45
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # Mogano — corpo chitarra, base metronomo
   - id: "mus_mogano"
@@ -160,7 +160,7 @@ materials:
     metallic: 0.0
     specular: 0.50
     clearcoat: 0.45
-    clearcoat_gloss: 0.82
+    coat_roughness: 0.18
 
   # Palissandro — tastiere, ponti chitarra
   - id: "mus_palissandro"
@@ -170,7 +170,7 @@ materials:
     metallic: 0.0
     specular: 0.45
     clearcoat: 0.35
-    clearcoat_gloss: 0.75
+    coat_roughness: 0.25
 
   # Vernice laccata rossa — violino, finiture
   - id: "mus_lacca_rossa"
@@ -180,7 +180,7 @@ materials:
     metallic: 0.0
     specular: 0.60
     clearcoat: 0.70
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
 
   # Vernice burst (sunburst chitarra) — arancio scuro
   - id: "mus_sunburst"
@@ -190,7 +190,7 @@ materials:
     metallic: 0.0
     specular: 0.55
     clearcoat: 0.65
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
 
   # ── Pelle e feltro ─────────────────────────────────────────────────────
 

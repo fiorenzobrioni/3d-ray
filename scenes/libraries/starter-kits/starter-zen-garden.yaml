@@ -203,7 +203,7 @@ materials:
     metallic: 0.0
     specular: 0.3
     clearcoat: 0.3
-    clearcoat_gloss: 0.5
+    coat_roughness: 0.50
 
   # ── Bambù ──────────────────────────────────────────────────────────────────
   - id: "bambu"
@@ -213,7 +213,7 @@ materials:
     metallic: 0.0
     specular: 0.4
     clearcoat: 0.4
-    clearcoat_gloss: 0.6
+    coat_roughness: 0.40
 
   # ── Muschio — verde intenso morbido ────────────────────────────────────────
   - id: "muschio"

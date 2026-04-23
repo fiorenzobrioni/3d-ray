@@ -125,7 +125,7 @@ materials:
     roughness: 0.30
     specular: 0.50
     clearcoat: 0.6
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   # Classic — lambertian (sfondo, pavimenti)
   - id: "cls_acero"
@@ -247,7 +247,7 @@ materials:
     roughness: 0.32
     specular: 0.48
     clearcoat: 0.55
-    clearcoat_gloss: 0.82
+    coat_roughness: 0.18
 
   - id: "cls_faggio"
     type: "lambertian"
@@ -306,7 +306,7 @@ materials:
     roughness: 0.58
     specular: 0.35
     clearcoat: 0.20
-    clearcoat_gloss: 0.60
+    coat_roughness: 0.40
 
   - id: "cls_quercia"
     type: "lambertian"
@@ -346,7 +346,7 @@ materials:
     roughness: 0.30
     specular: 0.50
     clearcoat: 0.75
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
 
   - id: "cls_ciliegio"
     type: "lambertian"
@@ -457,7 +457,7 @@ materials:
     roughness: 0.60
     specular: 0.38
     clearcoat: 0.22
-    clearcoat_gloss: 0.62
+    coat_roughness: 0.38
 
   - id: "dis_noce_verniciato"
     type: "disney"
@@ -471,7 +471,7 @@ materials:
     roughness: 0.28
     specular: 0.50
     clearcoat: 0.70
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   - id: "cls_noce"
     type: "lambertian"
@@ -523,7 +523,7 @@ materials:
     roughness: 0.15
     specular: 0.65
     clearcoat: 0.90
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   - id: "cls_mogano"
     type: "lambertian"
@@ -589,7 +589,7 @@ materials:
     roughness: 0.12
     specular: 0.65
     clearcoat: 0.88
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   - id: "cls_palissandro"
     type: "lambertian"
@@ -634,7 +634,7 @@ materials:
     roughness: 0.10
     specular: 0.72
     clearcoat: 1.0
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
 
   - id: "cls_ebano"
     type: "lambertian"
@@ -672,7 +672,7 @@ materials:
     roughness: 0.45
     specular: 0.50
     clearcoat: 0.5
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   - id: "cls_ebano_macassar"
     type: "lambertian"
@@ -732,7 +732,7 @@ materials:
     roughness: 0.32
     specular: 0.45
     clearcoat: 0.55
-    clearcoat_gloss: 0.82
+    coat_roughness: 0.18
 
   - id: "cls_pino"
     type: "lambertian"
@@ -1029,7 +1029,7 @@ materials:
     roughness: 0.55
     specular: 0.40
     clearcoat: 0.35
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
 
   - id: "cls_legno_tinto_nero"
     type: "lambertian"

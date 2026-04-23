@@ -79,7 +79,7 @@ materials:
     metallic: 0.0
     specular: 0.9
     clearcoat: 0.8
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   - id: "nero"
     type: "lambertian"

@@ -222,7 +222,7 @@ materials:
     metallic: 0.0
     specular: 0.45
     clearcoat: 0.25
-    clearcoat_gloss: 0.70
+    coat_roughness: 0.30
 
   # Spine — bianco-giallo
   - id: "nat_spine"
@@ -248,7 +248,7 @@ materials:
     metallic: 0.0
     specular: 0.45
     clearcoat: 0.30
-    clearcoat_gloss: 0.80
+    coat_roughness: 0.20
 
   # Gambo fungo — bianco crema
   - id: "nat_fungo_gambo"
@@ -316,7 +316,7 @@ materials:
     metallic: 0.0
     specular: 0.60
     clearcoat: 0.55
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
 
   # Stelo verde — gambo fiori
   - id: "nat_stelo"
@@ -344,7 +344,7 @@ materials:
     metallic: 0.0
     specular: 0.40
     clearcoat: 0.30
-    clearcoat_gloss: 0.75
+    coat_roughness: 0.25
 
   # Ghiaia — base zen
   - id: "nat_ghiaia"
@@ -363,7 +363,7 @@ materials:
     metallic: 0.0
     specular: 0.42
     clearcoat: 0.20
-    clearcoat_gloss: 0.65
+    coat_roughness: 0.35
     subsurface: 0.20
 
 

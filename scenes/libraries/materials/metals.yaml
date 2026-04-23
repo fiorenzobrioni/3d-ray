@@ -639,7 +639,7 @@ materials:
     roughness: 0.20
     specular: 0.65
     clearcoat: 0.25
-    clearcoat_gloss: 0.82
+    coat_roughness: 0.18
 
   # Alluminio anodizzato rosso — componenti racing, custodie
   - id: "dis_alluminio_anodizzato_rosso"
@@ -649,7 +649,7 @@ materials:
     roughness: 0.18
     specular: 0.60
     clearcoat: 0.30
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   # Alluminio anodizzato blu — componentistica, mod
   - id: "dis_alluminio_anodizzato_blu"
@@ -659,7 +659,7 @@ materials:
     roughness: 0.18
     specular: 0.60
     clearcoat: 0.30
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   # ── Classic ────────────────────────────────────────────────────────────
 

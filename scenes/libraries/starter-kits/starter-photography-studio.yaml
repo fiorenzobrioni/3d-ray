@@ -175,7 +175,7 @@ materials:
     metallic: 0.0
     specular: 0.8
     clearcoat: 0.6
-    clearcoat_gloss: 0.9
+    coat_roughness: 0.10
 
   # ── Piedistallo — bianco opaco ─────────────────────────────────────────────
   - id: "piedistallo_bianco"

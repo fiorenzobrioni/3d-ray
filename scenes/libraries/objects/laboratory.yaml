@@ -147,7 +147,7 @@ materials:
     metallic: 0.0
     specular: 0.55
     clearcoat: 0.40
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   # ── Gomma e sughero ────────────────────────────────────────────────────
 
@@ -177,7 +177,7 @@ materials:
     metallic: 0.0
     specular: 0.30
     clearcoat: 0.15
-    clearcoat_gloss: 0.55
+    coat_roughness: 0.45
 
   # ── Emissivi ───────────────────────────────────────────────────────────
 

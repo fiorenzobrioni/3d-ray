@@ -166,7 +166,7 @@ materials:
     metallic: 0.0
     specular: 0.6
     clearcoat: 0.5
-    clearcoat_gloss: 0.8
+    coat_roughness: 0.20
 
   - id: "piedistallo_marmo"
     type: "disney"
@@ -189,7 +189,7 @@ materials:
     metallic: 0.0
     specular: 0.7
     clearcoat: 0.8
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   - id: "vetro_museo"
     type: "dielectric"

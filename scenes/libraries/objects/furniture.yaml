@@ -93,7 +93,7 @@ materials:
     metallic: 0.0
     specular: 0.45
     clearcoat: 0.30
-    clearcoat_gloss: 0.70
+    coat_roughness: 0.30
 
   # Noce chiaro — variante più calda
   - id: "frn_noce_chiaro"
@@ -103,7 +103,7 @@ materials:
     metallic: 0.0
     specular: 0.40
     clearcoat: 0.25
-    clearcoat_gloss: 0.65
+    coat_roughness: 0.35
 
   # Rovere — grana aperta, tono miele
   - id: "frn_rovere"
@@ -113,7 +113,7 @@ materials:
     metallic: 0.0
     specular: 0.35
     clearcoat: 0.20
-    clearcoat_gloss: 0.60
+    coat_roughness: 0.40
 
   # Ciliegio — tono rossastro caldo
   - id: "frn_ciliegio"
@@ -123,7 +123,7 @@ materials:
     metallic: 0.0
     specular: 0.50
     clearcoat: 0.35
-    clearcoat_gloss: 0.75
+    coat_roughness: 0.25
 
   # Mogano — scuro e ricco, mobili d'epoca
   - id: "frn_mogano"
@@ -133,7 +133,7 @@ materials:
     metallic: 0.0
     specular: 0.55
     clearcoat: 0.40
-    clearcoat_gloss: 0.80
+    coat_roughness: 0.20
 
   # Acero — chiaro e luminoso, mobili scandinavi
   - id: "frn_acero"
@@ -143,7 +143,7 @@ materials:
     metallic: 0.0
     specular: 0.38
     clearcoat: 0.15
-    clearcoat_gloss: 0.55
+    coat_roughness: 0.45
 
   # Frassino — chiaro con venature evidenti
   - id: "frn_frassino"
@@ -153,7 +153,7 @@ materials:
     metallic: 0.0
     specular: 0.35
     clearcoat: 0.18
-    clearcoat_gloss: 0.58
+    coat_roughness: 0.42
 
   # Legno laccato nero — finitura pianoforte
   - id: "frn_laccato_nero"
@@ -163,7 +163,7 @@ materials:
     metallic: 0.0
     specular: 0.80
     clearcoat: 0.90
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   # Legno laccato bianco — mobili contemporanei
   - id: "frn_laccato_bianco"
@@ -173,7 +173,7 @@ materials:
     metallic: 0.0
     specular: 0.65
     clearcoat: 0.70
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
 
   # ── Tessuti e imbottiture ──────────────────────────────────────────────
 

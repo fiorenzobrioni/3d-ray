@@ -417,7 +417,7 @@ materials:
     ior: 2.42
     specular: 1.0
     clearcoat: 0.3
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
 
   # Diamante fancy yellow — tonalità calda, rarissimo
   - id: "dis_diamante_giallo"

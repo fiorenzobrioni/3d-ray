@@ -100,7 +100,7 @@ materials:
     roughness: 0.30
     specular: 0.5
     clearcoat: 0.6
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   - id: "gomma_sponda"
     type: "disney"
@@ -140,15 +140,15 @@ materials:
     specular: 0.4
 
   # ── Bilie — plastica lucida con clearcoat ──────────────────────────────────
-  - { id: "bilia_bianca",  type: "disney", color: [0.95, 0.93, 0.88], roughness: 0.08, specular: 0.7, clearcoat: 0.9, clearcoat_gloss: 0.98 }
-  - { id: "bilia_gialla",  type: "disney", color: [0.90, 0.80, 0.10], roughness: 0.08, specular: 0.7, clearcoat: 0.9, clearcoat_gloss: 0.98 }
-  - { id: "bilia_blu",     type: "disney", color: [0.05, 0.10, 0.65], roughness: 0.08, specular: 0.7, clearcoat: 0.9, clearcoat_gloss: 0.98 }
-  - { id: "bilia_rossa",   type: "disney", color: [0.75, 0.06, 0.06], roughness: 0.08, specular: 0.7, clearcoat: 0.9, clearcoat_gloss: 0.98 }
-  - { id: "bilia_viola",   type: "disney", color: [0.30, 0.05, 0.40], roughness: 0.08, specular: 0.7, clearcoat: 0.9, clearcoat_gloss: 0.98 }
-  - { id: "bilia_arancio", type: "disney", color: [0.90, 0.45, 0.05], roughness: 0.08, specular: 0.7, clearcoat: 0.9, clearcoat_gloss: 0.98 }
-  - { id: "bilia_verde",   type: "disney", color: [0.05, 0.45, 0.10], roughness: 0.08, specular: 0.7, clearcoat: 0.9, clearcoat_gloss: 0.98 }
-  - { id: "bilia_marrone",  type: "disney", color: [0.45, 0.20, 0.05], roughness: 0.08, specular: 0.7, clearcoat: 0.9, clearcoat_gloss: 0.98 }
-  - { id: "bilia_nera",    type: "disney", color: [0.03, 0.03, 0.03], roughness: 0.08, specular: 0.7, clearcoat: 0.9, clearcoat_gloss: 0.98 }
+  - { id: "bilia_bianca",  type: "disney", color: [0.95, 0.93, 0.88], roughness: 0.08, specular: 0.7, clearcoat: 0.9, coat_roughness: 0.05 }
+  - { id: "bilia_gialla",  type: "disney", color: [0.90, 0.80, 0.10], roughness: 0.08, specular: 0.7, clearcoat: 0.9, coat_roughness: 0.05 }
+  - { id: "bilia_blu",     type: "disney", color: [0.05, 0.10, 0.65], roughness: 0.08, specular: 0.7, clearcoat: 0.9, coat_roughness: 0.05 }
+  - { id: "bilia_rossa",   type: "disney", color: [0.75, 0.06, 0.06], roughness: 0.08, specular: 0.7, clearcoat: 0.9, coat_roughness: 0.05 }
+  - { id: "bilia_viola",   type: "disney", color: [0.30, 0.05, 0.40], roughness: 0.08, specular: 0.7, clearcoat: 0.9, coat_roughness: 0.05 }
+  - { id: "bilia_arancio", type: "disney", color: [0.90, 0.45, 0.05], roughness: 0.08, specular: 0.7, clearcoat: 0.9, coat_roughness: 0.05 }
+  - { id: "bilia_verde",   type: "disney", color: [0.05, 0.45, 0.10], roughness: 0.08, specular: 0.7, clearcoat: 0.9, coat_roughness: 0.05 }
+  - { id: "bilia_marrone",  type: "disney", color: [0.45, 0.20, 0.05], roughness: 0.08, specular: 0.7, clearcoat: 0.9, coat_roughness: 0.05 }
+  - { id: "bilia_nera",    type: "disney", color: [0.03, 0.03, 0.03], roughness: 0.08, specular: 0.7, clearcoat: 0.9, coat_roughness: 0.05 }
 
   - id: "stecca"
     type: "disney"
@@ -158,7 +158,7 @@ materials:
       colors: [[0.65, 0.50, 0.28], [0.55, 0.40, 0.20]]
     roughness: 0.35
     clearcoat: 0.5
-    clearcoat_gloss: 0.8
+    coat_roughness: 0.20
 
 
 entities:

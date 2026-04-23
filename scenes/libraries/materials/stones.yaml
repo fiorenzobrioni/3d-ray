@@ -106,7 +106,7 @@ materials:
       randomize_offset: true
     roughness: 0.10
     clearcoat: 0.90
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
     specular: 0.72
     subsurface: 0.08
 
@@ -156,7 +156,7 @@ materials:
       randomize_offset: true
     roughness: 0.08
     clearcoat: 0.92
-    clearcoat_gloss: 0.96
+    coat_roughness: 0.05
     specular: 0.75
     subsurface: 0.06
 
@@ -181,7 +181,7 @@ materials:
       randomize_offset: true
     roughness: 0.10
     clearcoat: 0.88
-    clearcoat_gloss: 0.94
+    coat_roughness: 0.06
     specular: 0.70
     subsurface: 0.08
 
@@ -201,7 +201,7 @@ materials:
     color: [0.96, 0.96, 0.95]
     roughness: 0.08
     clearcoat: 0.85
-    clearcoat_gloss: 0.94
+    coat_roughness: 0.06
     specular: 0.70
     subsurface: 0.10
 
@@ -226,7 +226,7 @@ materials:
       randomize_offset: true
     roughness: 0.06
     clearcoat: 1.0
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
     specular: 0.85
 
   - id: "dis_nero_marquinia_levigato"
@@ -256,7 +256,7 @@ materials:
     color: [0.05, 0.05, 0.06]
     roughness: 0.06
     clearcoat: 0.95
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
     specular: 0.82
 
   - id: "cls_nero_belgio"
@@ -275,7 +275,7 @@ materials:
       randomize_offset: true
     roughness: 0.08
     clearcoat: 0.95
-    clearcoat_gloss: 0.96
+    coat_roughness: 0.05
     specular: 0.80
 
   - id: "cls_port_laurent"
@@ -304,7 +304,7 @@ materials:
       randomize_offset: true
     roughness: 0.12
     clearcoat: 0.75
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
     specular: 0.62
     subsurface: 0.05
 
@@ -329,7 +329,7 @@ materials:
       randomize_offset: true
     roughness: 0.14
     clearcoat: 0.70
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
     specular: 0.58
     specular_tint: 0.2
 
@@ -354,7 +354,7 @@ materials:
       randomize_offset: true
     roughness: 0.16
     clearcoat: 0.60
-    clearcoat_gloss: 0.82
+    coat_roughness: 0.18
     specular: 0.48
     subsurface: 0.08
 
@@ -379,7 +379,7 @@ materials:
       randomize_offset: true
     roughness: 0.08
     clearcoat: 0.88
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
     specular: 0.75
 
   - id: "cls_blu_sodalite"
@@ -403,7 +403,7 @@ materials:
       randomize_offset: true
     roughness: 0.14
     clearcoat: 0.68
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
     specular: 0.55
 
   - id: "cls_giallo_siena"
@@ -427,7 +427,7 @@ materials:
       randomize_offset: true
     roughness: 0.10
     clearcoat: 0.82
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
     specular: 0.68
 
   - id: "cls_arabescato"
@@ -457,7 +457,7 @@ materials:
       randomize_offset: true
     roughness: 0.12
     clearcoat: 0.65
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
     specular: 0.55
 
   # Granito rosa baveno — rosa-grigio con cristalli di feldspato
@@ -471,7 +471,7 @@ materials:
       randomize_offset: true
     roughness: 0.14
     clearcoat: 0.60
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
     specular: 0.52
 
   # Nero assoluto — granito nero indiano, quasi senza grana visibile
@@ -480,7 +480,7 @@ materials:
     color: [0.04, 0.04, 0.05]
     roughness: 0.06
     clearcoat: 1.0
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
     specular: 0.88
 
   # Bianco cristallo — quarzo bianco con puntini grigi
@@ -494,7 +494,7 @@ materials:
       randomize_offset: true
     roughness: 0.12
     clearcoat: 0.68
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
     specular: 0.58
 
   # Granito fiammato — finitura termica, grana aperta, antiscivolo
@@ -560,7 +560,7 @@ materials:
       randomize_offset: true
     roughness: 0.18
     clearcoat: 0.50
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
     specular: 0.45
     subsurface: 0.06
 
@@ -575,7 +575,7 @@ materials:
       randomize_offset: true
     roughness: 0.18
     clearcoat: 0.55
-    clearcoat_gloss: 0.80
+    coat_roughness: 0.20
     specular: 0.48
 
   # Travertino grezzo — faccia di spacco, fori aperti
@@ -694,7 +694,7 @@ materials:
       randomize_offset: true
     roughness: 0.08
     clearcoat: 0.80
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
     specular: 0.68
     subsurface: 0.25
     spec_trans: 0.15
@@ -711,7 +711,7 @@ materials:
       randomize_offset: true
     roughness: 0.08
     clearcoat: 0.78
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
     specular: 0.65
     subsurface: 0.30
     spec_trans: 0.18
@@ -728,7 +728,7 @@ materials:
       randomize_offset: true
     roughness: 0.08
     clearcoat: 0.75
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
     specular: 0.62
     subsurface: 0.22
     spec_trans: 0.12
@@ -888,7 +888,7 @@ materials:
     roughness: 0.15
     specular: 0.55
     clearcoat: 0.40
-    clearcoat_gloss: 0.80
+    coat_roughness: 0.20
 
   # Basalto grezzo — colonnare, superficie naturale
   - id: "dis_basalto_grezzo"

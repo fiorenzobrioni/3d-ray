@@ -170,7 +170,7 @@ materials:
     specular: 0.68
     subsurface: 0.30
     clearcoat: 0.55
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
     spec_trans: 0.20
     ior: 1.54
 
@@ -182,7 +182,7 @@ materials:
     specular: 0.62
     subsurface: 0.25
     clearcoat: 0.50
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
     spec_trans: 0.12
     ior: 1.54
 
@@ -194,7 +194,7 @@ materials:
     specular: 0.65
     subsurface: 0.22
     clearcoat: 0.52
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
     spec_trans: 0.15
     ior: 1.54
 
@@ -233,7 +233,7 @@ materials:
     specular: 0.52
     subsurface: 0.20
     clearcoat: 0.30
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
 
   # Avorio invecchiato — patinato, tono più scuro
   - id: "dis_avorio_invecchiato"
@@ -243,7 +243,7 @@ materials:
     specular: 0.42
     subsurface: 0.18
     clearcoat: 0.15
-    clearcoat_gloss: 0.65
+    coat_roughness: 0.35
 
   # Osso grezzo — non lucidato, poroso
   - id: "dis_osso_grezzo"
@@ -291,7 +291,7 @@ materials:
     specular: 0.48
     subsurface: 0.15
     clearcoat: 0.25
-    clearcoat_gloss: 0.75
+    coat_roughness: 0.25
 
   # Corno chiaro — semitrasparente, tono miele
   - id: "dis_corno_chiaro"
@@ -301,7 +301,7 @@ materials:
     specular: 0.50
     subsurface: 0.22
     clearcoat: 0.30
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
     spec_trans: 0.08
     ior: 1.55
 
@@ -313,7 +313,7 @@ materials:
     specular: 0.58
     subsurface: 0.18
     clearcoat: 0.55
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -375,7 +375,7 @@ materials:
     specular: 0.38
     subsurface: 0.12
     clearcoat: 0.20
-    clearcoat_gloss: 0.72
+    coat_roughness: 0.28
 
   # Corallo rosa — pelle d'angelo, delicatissimo
   - id: "dis_corallo_rosa"
@@ -385,7 +385,7 @@ materials:
     specular: 0.40
     subsurface: 0.15
     clearcoat: 0.22
-    clearcoat_gloss: 0.74
+    coat_roughness: 0.26
 
   # Corallo bianco — ramificato, decorativo
   - id: "dis_corallo_bianco"
@@ -402,7 +402,7 @@ materials:
     roughness: 0.30
     specular: 0.50
     clearcoat: 0.35
-    clearcoat_gloss: 0.82
+    coat_roughness: 0.18
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -430,7 +430,7 @@ materials:
     specular: 0.75
     specular_tint: 0.30
     clearcoat: 0.60
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
     subsurface: 0.10
 
   # Madreperla rosa — abalone rosa, gioielleria
@@ -441,7 +441,7 @@ materials:
     specular: 0.72
     specular_tint: 0.35
     clearcoat: 0.58
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
     subsurface: 0.10
 
   # Madreperla abalone — iridescenza verde-blu-viola
@@ -452,7 +452,7 @@ materials:
     specular: 0.78
     specular_tint: 0.45
     clearcoat: 0.65
-    clearcoat_gloss: 0.94
+    coat_roughness: 0.06
     subsurface: 0.08
 
   # ── Classic ────────────────────────────────────────────────────────────
@@ -482,7 +482,7 @@ materials:
     specular: 0.45
     subsurface: 0.10
     clearcoat: 0.25
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
 
   # Conchiglia rosa — strombus, toni salmone
   - id: "dis_conchiglia_rosa"
@@ -771,7 +771,7 @@ materials:
     roughness: 0.58
     specular: 0.32
     clearcoat: 0.15
-    clearcoat_gloss: 0.65
+    coat_roughness: 0.35
 
   # Bambù laccato — arredo orientale, lucido
   - id: "dis_bambu_laccato"
@@ -780,7 +780,7 @@ materials:
     roughness: 0.22
     specular: 0.50
     clearcoat: 0.60
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # ── Classic ────────────────────────────────────────────────────────────
 

@@ -27,7 +27,9 @@
 #   Nel Disney BSDF:
 #     - Il colore base è il basecoat
 #     - metallic > 0 simula i flake metallici nel basecoat
-#     - clearcoat + clearcoat_gloss simulano il terzo strato
+#     - clearcoat + coat_roughness simulano il terzo strato (coat_ior
+#       tunabile per lacche automotive; coat_roughness sostituisce il
+#       legacy clearcoat_gloss con la convenzione "0 = a specchio")
 #     - specular_tint colora i riflessi Fresnel del basecoat
 #
 #   Le vernici NON metallizzate (smalto, lacca) hanno metallic = 0
@@ -102,7 +104,7 @@ materials:
     roughness: 0.28
     specular: 0.65
     clearcoat: 1.0
-    clearcoat_gloss: 0.96
+    coat_roughness: 0.05
 
   # Blu metallizzato — BMW, Subaru
   - id: "dis_auto_blu_met"
@@ -112,7 +114,7 @@ materials:
     roughness: 0.28
     specular: 0.65
     clearcoat: 1.0
-    clearcoat_gloss: 0.96
+    coat_roughness: 0.05
 
   # Nero metallizzato — tono profondo con scintillio
   - id: "dis_auto_nero_met"
@@ -122,7 +124,7 @@ materials:
     roughness: 0.22
     specular: 0.72
     clearcoat: 1.0
-    clearcoat_gloss: 0.98
+    coat_roughness: 0.05
 
   # Grigio metallizzato — Audi, Mercedes, tono neutro
   - id: "dis_auto_grigio_met"
@@ -132,7 +134,7 @@ materials:
     roughness: 0.25
     specular: 0.68
     clearcoat: 1.0
-    clearcoat_gloss: 0.96
+    coat_roughness: 0.05
 
   # Argento metallizzato — classico, molto riflettente
   - id: "dis_auto_argento_met"
@@ -142,7 +144,7 @@ materials:
     roughness: 0.22
     specular: 0.72
     clearcoat: 1.0
-    clearcoat_gloss: 0.97
+    coat_roughness: 0.05
 
   # Verde metallizzato — British Racing, Porsche, Aston Martin
   - id: "dis_auto_verde_met"
@@ -152,7 +154,7 @@ materials:
     roughness: 0.28
     specular: 0.62
     clearcoat: 1.0
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   # Arancione metallizzato — Lamborghini, McLaren
   - id: "dis_auto_arancione_met"
@@ -162,7 +164,7 @@ materials:
     roughness: 0.26
     specular: 0.65
     clearcoat: 1.0
-    clearcoat_gloss: 0.96
+    coat_roughness: 0.05
 
   # Giallo metallizzato — Ferrari, Corvette
   - id: "dis_auto_giallo_met"
@@ -172,7 +174,7 @@ materials:
     roughness: 0.26
     specular: 0.62
     clearcoat: 1.0
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -210,7 +212,7 @@ materials:
     roughness: 0.18
     specular: 0.58
     clearcoat: 0.90
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   # Bianco — Fiat 500, Vespa, minimalismo
   - id: "dis_auto_bianco"
@@ -219,7 +221,7 @@ materials:
     roughness: 0.18
     specular: 0.55
     clearcoat: 0.85
-    clearcoat_gloss: 0.94
+    coat_roughness: 0.06
 
   # Nero pastello — eleganza classica
   - id: "dis_auto_nero_pastello"
@@ -228,7 +230,7 @@ materials:
     roughness: 0.15
     specular: 0.65
     clearcoat: 0.92
-    clearcoat_gloss: 0.97
+    coat_roughness: 0.05
 
   # Azzurro chiaro — Fiat 500, Vespa, retrò
   - id: "dis_auto_azzurro"
@@ -237,7 +239,7 @@ materials:
     roughness: 0.20
     specular: 0.55
     clearcoat: 0.85
-    clearcoat_gloss: 0.93
+    coat_roughness: 0.07
 
   # Giallo pastello — Fiat 500, VW Beetle
   - id: "dis_auto_giallo_pastello"
@@ -246,7 +248,7 @@ materials:
     roughness: 0.20
     specular: 0.52
     clearcoat: 0.82
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
 
   # Verde oliva — Land Rover, militare
   - id: "dis_auto_verde_oliva"
@@ -255,7 +257,7 @@ materials:
     roughness: 0.35
     specular: 0.42
     clearcoat: 0.55
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -289,7 +291,7 @@ materials:
     specular: 0.65
     specular_tint: 0.15
     clearcoat: 0.95
-    clearcoat_gloss: 0.97
+    coat_roughness: 0.05
 
   # Champagne perlato — beige dorato, lusso
   - id: "dis_auto_champagne"
@@ -299,7 +301,7 @@ materials:
     specular: 0.62
     specular_tint: 0.25
     clearcoat: 0.92
-    clearcoat_gloss: 0.96
+    coat_roughness: 0.05
 
   # Blu perlato — profondo, cangiante verso viola
   - id: "dis_auto_blu_perla"
@@ -309,7 +311,7 @@ materials:
     specular: 0.68
     specular_tint: 0.30
     clearcoat: 0.95
-    clearcoat_gloss: 0.97
+    coat_roughness: 0.05
 
   # Rosso perlato — cangiante verso arancione
   - id: "dis_auto_rosso_perla"
@@ -319,7 +321,7 @@ materials:
     specular: 0.65
     specular_tint: 0.28
     clearcoat: 0.94
-    clearcoat_gloss: 0.96
+    coat_roughness: 0.05
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -347,7 +349,7 @@ materials:
     roughness: 0.04
     specular: 0.88
     clearcoat: 1.0
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
 
   # Lacca bianca pianoforte — Steinway bianco
   - id: "dis_lacca_bianca"
@@ -356,7 +358,7 @@ materials:
     roughness: 0.04
     specular: 0.82
     clearcoat: 1.0
-    clearcoat_gloss: 1.0
+    coat_roughness: 0.05
 
   # Lacca rossa cinese — mobili orientali, scrigni
   - id: "dis_lacca_rossa"
@@ -365,7 +367,7 @@ materials:
     roughness: 0.05
     specular: 0.80
     clearcoat: 1.0
-    clearcoat_gloss: 0.98
+    coat_roughness: 0.05
 
   # Lacca ciliegia — chitarre Gibson, mobili Art Déco
   - id: "dis_lacca_ciliegia"
@@ -374,7 +376,7 @@ materials:
     roughness: 0.05
     specular: 0.78
     clearcoat: 0.95
-    clearcoat_gloss: 0.97
+    coat_roughness: 0.05
 
   # Lacca blu notte — chitarre custom, auto show
   - id: "dis_lacca_blu"
@@ -383,7 +385,7 @@ materials:
     roughness: 0.05
     specular: 0.82
     clearcoat: 1.0
-    clearcoat_gloss: 0.98
+    coat_roughness: 0.05
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -416,7 +418,7 @@ materials:
     roughness: 0.12
     specular: 0.58
     clearcoat: 0.65
-    clearcoat_gloss: 0.90
+    coat_roughness: 0.10
 
   # Smalto nero lucido — ringhiere, cancelli
   - id: "dis_smalto_nero_lucido"
@@ -425,7 +427,7 @@ materials:
     roughness: 0.10
     specular: 0.65
     clearcoat: 0.70
-    clearcoat_gloss: 0.92
+    coat_roughness: 0.08
 
   # Smalto rosso lucido — porte, librerie, accenti
   - id: "dis_smalto_rosso_lucido"
@@ -434,7 +436,7 @@ materials:
     roughness: 0.12
     specular: 0.55
     clearcoat: 0.62
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # Smalto verde lucido — persiane, mobili da giardino
   - id: "dis_smalto_verde_lucido"
@@ -443,7 +445,7 @@ materials:
     roughness: 0.12
     specular: 0.55
     clearcoat: 0.60
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # Smalto blu lucido — porte, barche
   - id: "dis_smalto_blu_lucido"
@@ -452,7 +454,7 @@ materials:
     roughness: 0.12
     specular: 0.55
     clearcoat: 0.62
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -485,7 +487,7 @@ materials:
     roughness: 0.35
     specular: 0.40
     clearcoat: 0.25
-    clearcoat_gloss: 0.70
+    coat_roughness: 0.30
 
   # Smalto grigio satinato — mobili moderni, cucine
   - id: "dis_smalto_grigio_satinato"
@@ -494,7 +496,7 @@ materials:
     roughness: 0.35
     specular: 0.40
     clearcoat: 0.25
-    clearcoat_gloss: 0.70
+    coat_roughness: 0.30
 
   # Smalto nero satinato — mobili design, cucine
   - id: "dis_smalto_nero_satinato"
@@ -503,7 +505,7 @@ materials:
     roughness: 0.32
     specular: 0.45
     clearcoat: 0.30
-    clearcoat_gloss: 0.72
+    coat_roughness: 0.28
 
   # Smalto verde salvia satinato — arredo contemporaneo
   - id: "dis_smalto_verde_salvia"
@@ -512,7 +514,7 @@ materials:
     roughness: 0.35
     specular: 0.38
     clearcoat: 0.22
-    clearcoat_gloss: 0.68
+    coat_roughness: 0.32
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -772,7 +774,7 @@ materials:
     roughness: 0.15
     specular: 0.60
     clearcoat: 0.55
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # Spray bianco satinato — DIY, mobili
   - id: "dis_spray_bianco_satinato"
@@ -781,7 +783,7 @@ materials:
     roughness: 0.38
     specular: 0.38
     clearcoat: 0.20
-    clearcoat_gloss: 0.68
+    coat_roughness: 0.32
 
   # Spray oro — decorazione, cornici, Natale
   - id: "dis_spray_oro"
@@ -824,7 +826,7 @@ materials:
     roughness: 0.18
     specular: 0.55
     clearcoat: 0.50
-    clearcoat_gloss: 0.85
+    coat_roughness: 0.15
 
   # Epossidica bianca — laboratorio, cleanroom
   - id: "dis_epossidica_bianca"
@@ -833,7 +835,7 @@ materials:
     roughness: 0.15
     specular: 0.55
     clearcoat: 0.55
-    clearcoat_gloss: 0.88
+    coat_roughness: 0.12
 
   # Epossidica trasparente — rivestimento tavoli, river table
   - id: "dis_epossidica_trasparente"
@@ -842,7 +844,7 @@ materials:
     roughness: 0.05
     specular: 0.70
     clearcoat: 0.80
-    clearcoat_gloss: 0.95
+    coat_roughness: 0.05
 
   # ── Classic ────────────────────────────────────────────────────────────
 
@@ -865,7 +867,7 @@ materials:
     roughness: 0.28
     specular: 0.45
     clearcoat: 0.30
-    clearcoat_gloss: 0.78
+    coat_roughness: 0.22
 
   # Polvere nera goffrata — scaffali, armadi
   - id: "dis_polvere_nera_goffrata"
@@ -881,7 +883,7 @@ materials:
     roughness: 0.35
     specular: 0.40
     clearcoat: 0.25
-    clearcoat_gloss: 0.72
+    coat_roughness: 0.28
 
   # Polvere giallo sicurezza — macchinari, protezioni
   - id: "dis_polvere_giallo"
@@ -890,7 +892,7 @@ materials:
     roughness: 0.35
     specular: 0.38
     clearcoat: 0.22
-    clearcoat_gloss: 0.70
+    coat_roughness: 0.30
 
   # ── Classic ────────────────────────────────────────────────────────────
 

@@ -174,7 +174,7 @@ materials:
     metallic: 0.0
     specular: 0.5
     clearcoat: 0.5
-    clearcoat_gloss: 0.8
+    coat_roughness: 0.20
 
   # ── Cromo specchio ─────────────────────────────────────────────────────────
   - id: "cromo"
