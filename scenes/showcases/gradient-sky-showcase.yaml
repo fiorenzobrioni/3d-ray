@@ -154,13 +154,13 @@ lights:
   - type: "directional"
     direction: [-0.8, -0.25, -0.5]
     color: [1.0, 0.88, 0.55]
-    intensity: 0.12
+    intensity: 1.2
 
   # Fill fredda dal lato opposto (simula luce del cielo)
   - type: "directional"
     direction: [0.5, -0.7, 0.3]
     color: [0.5, 0.6, 0.85]
-    intensity: 0.03
+    intensity: 0.3
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES — Sfere su un piano per mostrare i riflessi del cielo

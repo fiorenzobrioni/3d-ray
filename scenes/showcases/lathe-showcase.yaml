@@ -73,17 +73,30 @@ materials:
     subsurface: 0.08
 
     #type: "disney"
+    #texture:
+    #  type: "marble"
+    #  scale: 15.0
+    #  noise_strength: 12.0
+    #  colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
+    #  randomize_offset: true
+    #roughness: 0.10
+    #clearcoat: 0.90
+    #coat_roughness: 0.05
+    #specular: 0.72
+    #subsurface: 0.08
+
+    #type: "disney"
     #color: [0.88, 0.86, 0.82]
     #roughness: 0.35
 
   # ── Glass chalice (Catmull-Rom) ──────────────────────────────
   - id: "cristallo"
     type: "disney"
-    color: [0.97, 0.97, 1.0]
+    color: [0.99, 0.99, 1.0]
     roughness: 0.0
     spec_trans: 1.0
-    ior: 1.65
-    specular: 0.90
+    ior: 1.8
+    specular: 0.95
 
     #type: "dielectric"
     #refraction_index: 1.5
@@ -145,8 +158,41 @@ entities:
   # ═════════════════════════════════════════════════════════════════════════
   # 3. Glass chalice — smooth Catmull-Rom with a refractive material
   # ═════════════════════════════════════════════════════════════════════════
+
+  - name: "calice_1"
+    type: "csg"
+    operation: "subtraction"
+    left:
+      type: "lathe"
+      profile_type: "catmull_rom"
+      profile:
+        - [0.00, 0.00]
+        - [0.45, 0.00]
+        - [0.40, 0.05]
+        - [0.08, 0.10]
+        - [0.08, 0.60]
+        - [0.20, 0.80]
+        - [0.55, 1.20]
+        - [0.55, 1.65]
+        - [0.50, 1.75]
+        - [0.00, 1.75]
+    right:
+      type: "lathe"
+      profile_type: "catmull_rom"
+      profile:
+        - [0.00, 0.80]
+        - [0.54, 1.20]
+        - [0.54, 1.65]
+        - [0.49, 1.75]
+        - [0.00, 1.78]
+    translate: [2.6, 0, 0]
+    rotate: [0, 0, 0]
+    material: "cristallo"
+
+
+
   - name: "calice"
-    type: "lathe"
+    type: "-lathe"
     profile_type: "catmull_rom"
     material: "cristallo"
     translate: [2.6, 0, 0]
@@ -159,15 +205,28 @@ entities:
       - [0.20, 0.80]
       - [0.55, 1.20]
       - [0.55, 1.65]
-      - [0.25, 1.75]
+      - [0.50, 1.75]
       - [0.00, 1.75]
+
+  - name: "calice_2"
+    type: "-lathe"
+    profile_type: "catmull_rom"
+    material: "porcellana"
+    translate: [2.6, 0, 0]
+    profile:
+      - [0.00, 0.80]
+      - [0.18, 0.80]
+      - [0.54, 1.20]
+      - [0.54, 1.65]
+      - [0.49, 1.75]
+      - [0.00, 1.78]
 
   # ═════════════════════════════════════════════════════════════════════════
   # 4. Bowl.
   #    Two segments: base (r = 0 → 0.55) and bowl wall (0.55 → 0.65 → 0).
   # ═════════════════════════════════════════════════════════════════════════
   - name: "ciotola"
-    type: "lathe"
+    type: "-lathe"
     profile_type: "bezier"
     material: "porcellana"
     translate: [1.5, 0.05, 3.0]
