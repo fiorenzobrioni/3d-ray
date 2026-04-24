@@ -465,6 +465,7 @@ texture:
   type: "noise"
   scale: 5.0
   noise_strength: 3.0                     # 0=liscio, >0=turbolento
+  colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]  # opzionale: default nero→bianco
 ```
 **Marble:**
 ```yaml

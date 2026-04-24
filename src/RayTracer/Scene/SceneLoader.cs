@@ -1037,7 +1037,9 @@ public class SceneLoader
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One  : Vector3.One,
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? Vector3.Zero : Vector3.Zero),
 
-            "noise" => new NoiseTexture(t.Scale),
+            "noise" => new NoiseTexture(t.Scale,
+                t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.Zero : Vector3.Zero,
+                t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? Vector3.One  : Vector3.One),
 
             "marble" => new MarbleTexture(t.Scale,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.9f) : new Vector3(0.9f),
