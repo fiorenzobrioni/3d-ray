@@ -14,7 +14,7 @@ La CSG lavora con tre operazioni:
 | `intersection`  | --                             | Solo il volume sovrapposto          |
 | `subtraction`   | `subtract`, `difference`       | La forma di sinistra meno quella di destra |
 
-Ogni entità CSG ha un figlio `left` e un figlio `right`. Ogni figlio è una definizione di entità inline (qualsiasi primitiva, gruppo o anche un'altra CSG).
+Ogni entità CSG ha un figlio `left` e un figlio `right`. Ogni figlio è una definizione di entità inline: una primitiva solida (sphere, box, cylinder, cone, torus, capsule, quad, disk, lathe, ...) oppure un altro nodo `csg` per alberi booleani annidati. **I gruppi, le mesh e le istanze di template NON sono supportati come figli CSG** — vedi il callout al termine di questa sezione.
 
 ```yaml
 - type: "csg"
@@ -23,6 +23,8 @@ Ogni entità CSG ha un figlio `left` e un figlio `right`. Ogni figlio è una def
   right: { ... }
   material: "materiale_predefinito"
 ```
+
+> **⚠️ Tipi ammessi come figli CSG.** Il motore CSG richiede che ogni figlio sia una *primitiva solida* con interno/esterno ben definiti (il classificatore all-hits deve poter determinare se un punto è dentro o fuori dal solido). Ammessi: qualunque primitiva solida fra quelle elencate, oppure un altro nodo `csg`. **Non ammessi, scartati silenziosamente con un warning** (`CSG entity '…': failed to create one or both children. Skipping.`): `type: "group"`, `type: "mesh"` / `type: "obj"`, `type: "instance"`, `type: "plane"` / `type: "infinite_plane"`. Se serve sottrarre l'unione di due box da un cilindro, scrivi l'unione esplicitamente come `csg: union` annidato invece di avvolgere i due box in un `type: "group"`.
 
 ---
 

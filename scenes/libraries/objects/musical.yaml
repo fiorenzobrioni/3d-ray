@@ -8,6 +8,16 @@
 # Le forme organiche degli strumenti sono approssimate con CSG e
 # sfere scalate; le superfici laccate usano Disney clearcoat.
 #
+# ── Costruzione ──────────────────────────────────────────────────────────
+#
+#   Le campane e le caldaie dei timpani sono forme torno-canoniche e
+#   sono generate con la primitiva `lathe` a profilo Catmull-Rom: un
+#   singolo profilo descrive il profilo bronzeo completo della campana
+#   (colletto stretto → fianco convesso → bordo svasato) in una
+#   silhouette C¹ impossibile da ottenere con sfere impilate. Gli
+#   strumenti non-simmetrici (violini, chitarre, metronomi) restano
+#   in CSG / primitive scalate.
+#
 # ── Convenzioni ──────────────────────────────────────────────────────────
 #
 #   ORIGINE       Base/appoggio a Y=0, centrato in XZ.
@@ -16,50 +26,54 @@
 #
 # ── Catalogo template ────────────────────────────────────────────────────
 #
-#   CAMPANA                 Campana in bronzo con batacchio.
-#                           ~Ø 0.30 × 0.30 m.
+#   CAMPANA          (lathe)  Campana in bronzo: singolo lathe
+#                             Catmull-Rom con profilo della campana
+#                             (spalla, fianco, bordo svasato) +
+#                             batacchio sferico. ~Ø 0.30 × 0.30 m.
 #
-#   TAMBURO_RULLANTE        Rullante con fusto, pelli, cerchi e tiranti.
-#                           ~Ø 0.36 × 0.18 m.
+#   TAMBURO_RULLANTE          Rullante con fusto, pelli, cerchi e tiranti.
+#                             ~Ø 0.36 × 0.18 m.
 #
-#   TIMPANO                 Timpano orchestrale (caldaia emisferica
-#                           + pelle + cerchio). ~Ø 0.65 × 0.50 m.
+#   TIMPANO          (lathe)  Timpano orchestrale con caldaia emisferica
+#                             in rame generata da lathe Catmull-Rom;
+#                             pelle e cerchio invariati.
+#                             ~Ø 0.65 × 0.50 m.
 #
-#   DIAPASON                Diapason in acciaio con 2 rebbi e manico.
-#                           ~0.025 × 0.12 m.
+#   DIAPASON                  Diapason in acciaio con 2 rebbi e manico.
+#                             ~0.025 × 0.12 m.
 #
-#   METRONOMO               Metronomo meccanico a piramide con
-#                           pendolo e scala. ~0.12 × 0.22 × 0.11 m.
+#   METRONOMO                 Metronomo meccanico a piramide con
+#                             pendolo e scala. ~0.12 × 0.22 × 0.11 m.
 #
-#   GONG                    Gong su telaio con battente, boss
-#                           centrale. ~Ø 0.60 × 0.80 m.
+#   GONG                      Gong su telaio con battente, boss
+#                             centrale. ~Ø 0.60 × 0.80 m.
 #
-#   PIATTO_BATTERIA         Piatto su asta con inclinazione,
-#                           dado e feltri. ~Ø 0.40 × 0.90 m.
+#   PIATTO_BATTERIA           Piatto su asta con inclinazione,
+#                             dado e feltri. ~Ø 0.40 × 0.90 m.
 #
-#   XILOFONO                Xilofono a 8 lame su telaio con
-#                           risuonatori tubolari. ~0.60 × 0.20 × 0.12 m.
+#   XILOFONO                  Xilofono a 8 lame su telaio con
+#                             risuonatori tubolari. ~0.60 × 0.20 × 0.12 m.
 #
-#   VIOLINO                 Violino semplificato con cassa, manico,
-#                           riccio, ponte, cordiera e 4 corde.
-#                           ~0.14 × 0.06 × 0.60 m.
+#   VIOLINO                   Violino semplificato con cassa, manico,
+#                             riccio, ponte, cordiera e 4 corde.
+#                             ~0.14 × 0.06 × 0.60 m.
 #
-#   CHITARRA_ACUSTICA       Chitarra acustica con cassa bombata, buca,
-#                           rosetta, manico, paletta e 6 corde.
-#                           ~0.38 × 0.10 × 1.00 m.
+#   CHITARRA_ACUSTICA         Chitarra acustica con cassa bombata, buca,
+#                             rosetta, manico, paletta e 6 corde.
+#                             ~0.38 × 0.10 × 1.00 m.
 #
-#   TROMBA                  Tromba semplificata con campana, canneggio,
-#                           3 pistoni e bocchino. ~0.14 × 0.14 × 0.50 m.
+#   TROMBA                    Tromba semplificata con campana, canneggio,
+#                             3 pistoni e bocchino. ~0.14 × 0.14 × 0.50 m.
 #
-#   GRAMMOFONO              Grammofono vintage con base, piatto,
-#                           braccio e tromba conica.
-#                           ~0.40 × 0.35 × 0.40 m.
+#   GRAMMOFONO                Grammofono vintage con base, piatto,
+#                             braccio e tromba conica.
+#                             ~0.40 × 0.35 × 0.40 m.
 #
-#   MARACAS                 Coppia di maracas con corpo sferico e
-#                           manico. ~Ø 0.07 × 0.25 m cad.
+#   MARACAS                   Coppia di maracas con corpo sferico e
+#                             manico. ~Ø 0.07 × 0.25 m cad.
 #
-#   TRIANGOLO               Triangolo in acciaio con battente e
-#                           clip di sospensione. ~0.18 × 0.20 m.
+#   TRIANGOLO                 Triangolo in acciaio con battente e
+#                             clip di sospensione. ~0.18 × 0.20 m.
 #
 # ============================================================================
 
@@ -246,62 +260,44 @@ materials:
 templates:
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  CAMPANA — Campana in bronzo con batacchio
+  #  CAMPANA — Campana in bronzo con batacchio (lathe)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Dimensioni: ~Ø 0.30 × 0.30 m
-  #  Struttura:  Corpo: CSG (sfera cava tagliata → profilo a campana,
-  #              poi unione con cilindro per la corona), batacchio
-  #              (cilindro + sfera). Anello di sospensione in cima.
+  #  Struttura:  Corpo della campana come singolo lathe Catmull-Rom che
+  #              descrive il profilo classico del bronzo fuso: colletto
+  #              stretto in cima → spalla → fianco convesso → labbro
+  #              svasato → bordo spesso. Il batacchio interno (asta +
+  #              sfera) e l'anello di sospensione restano separati.
   #
   - name: "campana"
     material: "mus_bronzo"
     children:
 
-      # Corpo della campana: sfera cava tagliata a profilo
-      - type: "csg"
-        operation: "intersection"
-        left:
-          type: "csg"
-          operation: "subtraction"
-          left:
-            # Esterno: sfera schiacciata in alto
-            type: "sphere"
-            center: [0, 0.16, 0]
-            radius: 0.15
-            scale: [1.0, 1.10, 1.0]
-          right:
-            # Interno
-            type: "sphere"
-            center: [0, 0.16, 0]
-            radius: 0.14
-            scale: [1.0, 1.10, 1.0]
-        right:
-          # Box di taglio: solo la metà inferiore + corona
-          type: "box"
-          scale: [0.35, 0.25, 0.35]
-          translate: [0, 0.12, 0]
+      # ── Profilo della campana (lathe Catmull-Rom) ──────────────────────
+      # Profilo acustico classico: colletto stretto (corona di
+      # sospensione), raccordo a spalla bassa, fianco convesso che si
+      # apre dolcemente, labbro svasato con bordo spesso.
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.020]   # asse all'altezza del labbro spesso
+          - [0.140, 0.020]   # bordo esterno del labbro
+          - [0.148, 0.045]   # toro del labbro
+          - [0.142, 0.070]   # risalita del fianco
+          - [0.138, 0.110]
+          - [0.120, 0.160]   # spalla iniziale
+          - [0.095, 0.200]
+          - [0.065, 0.230]   # rastrematura verso il colletto
+          - [0.045, 0.250]
+          - [0.040, 0.265]
+          - [0.035, 0.275]   # colletto (corona di sospensione)
+          - [0.033, 0.290]
+          - [0.000, 0.295]   # chiusura sull'asse
 
-      # Labbro inferiore (bordo spesso)
+      # Anello di sospensione (sopra il colletto)
       - type: "torus"
-        center: [0, 0.04, 0]
-        major_radius: 0.145
-        minor_radius: 0.012
-
-      # Corona superiore (cilindro)
-      - type: "cylinder"
-        center: [0, 0.26, 0]
-        radius: 0.035
-        height: 0.025
-
-      - type: "torus"
-        center: [0, 0.285, 0]
-        major_radius: 0.033
-        minor_radius: 0.006
-
-      # Anello di sospensione
-      - type: "torus"
-        center: [0, 0.30, 0]
+        center: [0, 0.305, 0]
         major_radius: 0.018
         minor_radius: 0.005
 
@@ -471,37 +467,36 @@ templates:
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  TIMPANO — Timpano orchestrale
+  #  TIMPANO — Timpano orchestrale (lathe + pelle)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Dimensioni: ~Ø 0.65 × 0.50 m
-  #  Struttura:  Caldaia emisferica in rame (CSG sfera cava ∩ cilindro),
-  #              pelle, cerchio, pedale (semplificato).
+  #  Struttura:  Caldaia emisferica in rame generata da singolo lathe
+  #              Catmull-Rom (profilo solido — il rame patinato è opaco,
+  #              non serve guscio cavo). Pelle come disco orizzontale,
+  #              cerchio di tensione come torus, gambe invariate.
   #
   - name: "timpano"
     material: "mus_rame_vintage"
     children:
 
-      # Caldaia emisferica cava
-      - type: "csg"
-        operation: "intersection"
-        left:
-          type: "csg"
-          operation: "subtraction"
-          left:
-            type: "sphere"
-            center: [0, 0.32, 0]
-            radius: 0.32
-          right:
-            type: "sphere"
-            center: [0, 0.32, 0]
-            radius: 0.31
-        right:
-          # Solo la metà inferiore + orlo
-          type: "cylinder"
-          center: [0, 0.10, 0]
-          radius: 0.34
-          height: 0.30
+      # ── Caldaia emisferica (lathe Catmull-Rom) ─────────────────────────
+      # Profilo: dal fondo stretto sale a emisfera aperta; l'orlo
+      # superiore corrisponde a y=0.40 (posizione della pelle).
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]
+          - [0.060, 0.005]   # piccolo piatto sul fondo
+          - [0.120, 0.025]   # raccordo verso l'emisfera
+          - [0.200, 0.070]
+          - [0.260, 0.130]
+          - [0.295, 0.200]   # fianco dell'emisfera
+          - [0.315, 0.280]
+          - [0.320, 0.360]   # raccordo verso l'orlo
+          - [0.320, 0.395]   # orlo superiore (dove poggia la pelle)
+          - [0.310, 0.400]
+          - [0.000, 0.400]   # chiusura (tappo virtuale superiore)
 
       # Pelle
       - type: "disk"

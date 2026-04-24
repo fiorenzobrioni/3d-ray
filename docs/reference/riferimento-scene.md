@@ -672,11 +672,11 @@ entities:
 - name: "pupazzo"
   type: "csg"
   operation: "union"
-  operand_a:
+  left:
     type: "sphere"
     center: [0, 0, 0]
     radius: 1.0
-  operand_b:
+  right:
     type: "sphere"
     center: [0, 1.4, 0]
     radius: 0.7
@@ -686,11 +686,11 @@ entities:
 - name: "lente"
   type: "csg"
   operation: "intersection"
-  operand_a:
+  left:
     type: "sphere"
     center: [-0.5, 0, 0]
     radius: 1.0
-  operand_b:
+  right:
     type: "sphere"
     center: [0.5, 0, 0]
     radius: 1.0
@@ -700,19 +700,21 @@ entities:
 - name: "perla"
   type: "csg"
   operation: "subtraction"
-  operand_a:
+  left:
     type: "sphere"
     center: [0, 0, 0]
     radius: 1.0
-  operand_b:
+  right:
     type: "cylinder"
     center: [0, -1.5, 0]
     radius: 0.3
     height: 3.0
   material: "legno"
 ```
-- Operazioni: `union` (A∪B), `intersection` (A∩B), `subtraction` (A\B)
-- Supporta alberi CSG nidificati ricorsivamente (un `operand_a` o `operand_b` può essere a sua volta un nodo `csg`)
+- Operazioni: `union` (A∪B), `intersection` (A∩B), `subtraction` (A\B); `subtract` e `difference` sono alias accettati di `subtraction`
+- Le chiavi dei figli sono `left` e `right` (operandi del nodo booleano)
+- Supporta alberi CSG nidificati ricorsivamente (un `left` o `right` può essere a sua volta un nodo `csg`)
+- **Tipi ammessi come figli CSG.** Ogni figlio deve essere una primitiva solida con interno/esterno ben definiti. Supportati: `sphere`, `box`, `cylinder`, `cone`, `torus`, `capsule`, `quad`, `disk`, `annulus`, `triangle`, `lathe` (alias `revolution` / `surface_of_revolution`), oppure un `csg` annidato. **Non supportati e scartati silenziosamente** (il loader emette `CSG entity '…': failed to create one or both children. Skipping.` e il nodo viene rimosso): `group`, `mesh` / `obj`, `instance`, `plane` / `infinite_plane`. Per unire due primitive come operando CSG, usa un `csg: union` esplicito invece di avvolgerle in un `group`.
 
 #### **7.14 Group (Composizione Gerarchica)**
 ```yaml

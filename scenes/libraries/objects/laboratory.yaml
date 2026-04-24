@@ -5,66 +5,81 @@
 # Importa con:  imports: [{ path: "libraries/laboratory.yaml" }]
 #
 # Vetreria, strumentazione e accessori da laboratorio chimico/fisico.
-# Il vetro borosilicato (Pyrex) è il protagonista: pareti sottili
-# ottenute con CSG subtraction, trasparenza Disney spec_trans, IOR 1.47.
+# Il vetro borosilicato (Pyrex) è il protagonista: trasparenza Disney
+# spec_trans, IOR 1.47.
+#
+# ── Costruzione ──────────────────────────────────────────────────────────
+#
+#   La vetreria assi-simmetrica (beute, palloni, imbuti, matracci) è
+#   generata con la primitiva `lathe`. I palloni di distillazione usano
+#   un profilo Catmull-Rom che descrive in un'unica curva il bulbo
+#   sferico e il collo cilindrico con raccordo C¹; beute e imbuti usano
+#   un profilo Linear "andata-ritorno" per ottenere pareti sottili e
+#   costanti in una sola primitiva, senza CSG. Solido vetro chiaro:
+#   dato l'IOR del Pyrex (1.47), la trasparenza produce naturalmente
+#   l'effetto ottico delle pareti sottili.
 #
 # ── Convenzioni ──────────────────────────────────────────────────────────
 #
 #   ORIGINE       Base a Y=0, centrato in XZ.
 #   SCALA         Unità = metri. Una beuta è ~0.18 m alta.
-#   VETRERIA      Tutti i pezzi in vetro sono cavi (CSG). Per
-#                 riempirli con un liquido, aggiungere un cilindro
-#                 o sfera con materiale liquido all'interno, nella
-#                 scena (non nel template, così il livello è libero).
+#   VETRERIA      Pezzi assi-simmetrici: lathe a singolo profilo (solid
+#                 se vetro trasparente, o guscio lathe+CSG se necessario).
+#                 Per riempirli con un liquido, aggiungere un cilindro
+#                 o sfera con materiale liquido all'interno, nella scena
+#                 (non nel template, così il livello è libero).
 #
 # ── Catalogo template ────────────────────────────────────────────────────
 #
-#   PROVETTA                Provetta con fondo emisferico cavo.
-#                           ~Ø 0.018 × 0.15 m.
+#   PROVETTA                       Provetta con fondo emisferico cavo.
+#                                  ~Ø 0.018 × 0.15 m.
 #
-#   BEUTA_ERLENMEYER        Beuta conica con collo cilindrico.
-#                           ~Ø 0.10 × 0.18 m.
+#   BEUTA_ERLENMEYER       (lathe) Beuta conica: lathe Linear andata-
+#                                  ritorno a parete sottile, collo e
+#                                  labbro inclusi. ~Ø 0.10 × 0.18 m.
 #
-#   PALLONE_DISTILLAZIONE   Pallone sferico con collo lungo e
-#                           raccordo laterale. ~Ø 0.12 × 0.22 m.
+#   PALLONE_DISTILLAZIONE  (lathe) Pallone sferico: lathe Catmull-Rom
+#                                  unico (bulbo + collo + labbro con
+#                                  raccordo C¹). ~Ø 0.12 × 0.22 m.
 #
-#   MATRACCIO               Matraccio tarato con corpo sferico,
-#                           fondo piatto e collo lungo e stretto.
-#                           ~Ø 0.10 × 0.26 m.
+#   MATRACCIO                      Matraccio tarato con corpo sferico,
+#                                  fondo piatto e collo lungo e stretto.
+#                                  ~Ø 0.10 × 0.26 m.
 #
-#   BECHER                  Becher cilindrico cavo con beccuccio
-#                           e graduazioni suggerite. ~Ø 0.08 × 0.11 m.
+#   BECHER                         Becher cilindrico cavo con beccuccio
+#                                  e graduazioni suggerite. ~Ø 0.08 × 0.11 m.
 #
-#   CILINDRO_GRADUATO       Cilindro graduato alto e stretto con
-#                           base esagonale. ~Ø 0.04 × 0.30 m.
+#   CILINDRO_GRADUATO              Cilindro graduato alto e stretto con
+#                                  base esagonale. ~Ø 0.04 × 0.30 m.
 #
-#   IMBUTO                  Imbuto conico con gambo lungo.
-#                           ~Ø 0.10 × 0.16 m.
+#   IMBUTO                 (lathe) Imbuto conico: lathe Linear andata-
+#                                  ritorno con gambo lungo rastremato.
+#                                  ~Ø 0.10 × 0.16 m.
 #
-#   MORTAIO_PESTELLO        Mortaio emisferico in ceramica con
-#                           pestello a clava. ~Ø 0.12 × 0.10 m.
+#   MORTAIO_PESTELLO               Mortaio emisferico in ceramica con
+#                                  pestello a clava. ~Ø 0.12 × 0.10 m.
 #
-#   BUNSEN                  Becco Bunsen con base, camino, presa
-#                           d'aria e fiamma emissiva.
-#                           ~Ø 0.05 × 0.20 m.
+#   BUNSEN                         Becco Bunsen con base, camino, presa
+#                                  d'aria e fiamma emissiva.
+#                                  ~Ø 0.05 × 0.20 m.
 #
-#   PORTAPROVETTE           Portaprovette in legno per 6 provette,
-#                           con pioli e base. ~0.22 × 0.10 × 0.06 m.
+#   PORTAPROVETTE                  Portaprovette in legno per 6 provette,
+#                                  con pioli e base. ~0.22 × 0.10 × 0.06 m.
 #
-#   MICROSCOPIO             Microscopio ottico semplificato con base,
-#                           stativo, tavolino, revolver, obiettivi e
-#                           oculare. ~0.15 × 0.35 × 0.10 m.
+#   MICROSCOPIO                    Microscopio ottico semplificato con
+#                                  base, stativo, tavolino, revolver,
+#                                  obiettivi e oculare. ~0.15 × 0.35 × 0.10 m.
 #
-#   CONDENSATORE            Condensatore a riflusso (tubo in tubo)
-#                           con raccordi laterali per acqua.
-#                           ~Ø 0.04 × 0.30 m.
+#   CONDENSATORE                   Condensatore a riflusso (tubo in tubo)
+#                                  con raccordi laterali per acqua.
+#                                  ~Ø 0.04 × 0.30 m.
 #
-#   STORTA                  Storta alchemica: pallone con collo
-#                           curvo discendente. ~0.12 × 0.18 × 0.12 m.
+#   STORTA                         Storta alchemica: pallone con collo
+#                                  curvo discendente. ~0.12 × 0.18 × 0.12 m.
 #
-#   BILANCIA_ANALITICA      Bilancia a bracci con fulcro, piatti
-#                           sospesi e base con piedini.
-#                           ~0.30 × 0.30 × 0.08 m.
+#   BILANCIA_ANALITICA             Bilancia a bracci con fulcro, piatti
+#                                  sospesi e base con piedini.
+#                                  ~0.30 × 0.30 × 0.08 m.
 #
 # ============================================================================
 
@@ -224,52 +239,56 @@ templates:
     material: "lab_pyrex"
     children:
 
-      # Corpo cavo: cilindro − cilindro + fondo emisferico
+      # Corpo cavo: (tubo esterno ⊎ fondo esterno) − (tubo interno ⊎ fondo interno)
+      # Le unioni sono scritte come csg:union annidate (i group non sono
+      # ammessi come figli CSG e verrebbero scartati).
       - type: "csg"
         operation: "subtraction"
         left:
-          type: "group"
-          children:
+          type: "csg"
+          operation: "union"
+          left:
             # Tubo esterno
-            - type: "cylinder"
+            type: "cylinder"
+            center: [0, 0.018, 0]
+            radius: 0.009
+            height: 0.130
+          right:
+            # Fondo emisferico esterno
+            type: "csg"
+            operation: "intersection"
+            left:
+              type: "sphere"
               center: [0, 0.018, 0]
               radius: 0.009
-              height: 0.130
-
-            # Fondo emisferico esterno
-            - type: "csg"
-              operation: "intersection"
-              left:
-                type: "sphere"
-                center: [0, 0.018, 0]
-                radius: 0.009
-              right:
-                type: "cylinder"
-                center: [0, 0.005, 0]
-                radius: 0.010
-                height: 0.014
+            right:
+              type: "cylinder"
+              center: [0, 0.005, 0]
+              radius: 0.010
+              height: 0.014
 
         right:
-          type: "group"
-          children:
+          type: "csg"
+          operation: "union"
+          left:
             # Tubo interno
-            - type: "cylinder"
-              center: [0, 0.020, 0]
-              radius: 0.008
-              height: 0.135
-
+            type: "cylinder"
+            center: [0, 0.020, 0]
+            radius: 0.008
+            height: 0.135
+          right:
             # Fondo emisferico interno
-            - type: "csg"
-              operation: "intersection"
-              left:
-                type: "sphere"
-                center: [0, 0.018, 0]
-                radius: 0.008
-              right:
-                type: "cylinder"
-                center: [0, 0.008, 0]
-                radius: 0.009
-                height: 0.012
+            type: "csg"
+            operation: "intersection"
+            left:
+              type: "sphere"
+              center: [0, 0.018, 0]
+              radius: 0.008
+            right:
+              type: "cylinder"
+              center: [0, 0.008, 0]
+              radius: 0.009
+              height: 0.012
 
       # Bordo superiore (labbro arrotondato)
       - type: "torus"
@@ -285,117 +304,78 @@ templates:
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  BEUTA_ERLENMEYER — Beuta conica con collo
+  #  BEUTA_ERLENMEYER — Beuta conica con collo (lathe)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Dimensioni: ~Ø 0.10 × 0.18 m
-  #  Struttura:  Corpo conico cavo (CSG cono − cono), collo cilindrico
-  #              cavo, raccordo sferico alla transizione, bordo, fondo
-  #              piatto.
+  #  Struttura:  Corpo intero come singolo lathe Linear solido (Pyrex
+  #              IOR 1.47 trasparente: la rifrazione del vetro produce
+  #              naturalmente l'illusione della parete sottile sulla
+  #              silhouette senza bisogno di CSG cavo). Profilo: base
+  #              larga → cono → raccordo sferico schiacciato → collo
+  #              cilindrico → labbro svasato → chiusura sull'asse.
   #
   - name: "beuta_erlenmeyer"
     material: "lab_pyrex"
     children:
 
-      - type: "csg"
-        operation: "subtraction"
-        left:
-          type: "group"
-          children:
-            # Corpo conico esterno
-            - type: "cone"
-              center: [0, 0, 0]
-              radius: 0.050
-              top_radius: 0.016
-              height: 0.12
+      - type: "lathe"
+        profile_type: "linear"
+        profile:
+          - [0.000, 0.000]   # asse, base
+          - [0.050, 0.000]   # bordo esterno del fondo
+          - [0.050, 0.008]
+          - [0.016, 0.120]   # corpo conico esterno fino al collo
+          - [0.018, 0.128]   # raccordo sferico schiacciato
+          - [0.016, 0.142]
+          - [0.016, 0.175]   # collo cilindrico
+          - [0.020, 0.180]   # labbro svasato
+          - [0.000, 0.182]   # chiusura sull'asse (tappo superiore)
 
-            # Raccordo collo (sfera schiacciata)
-            - type: "sphere"
-              center: [0, 0.12, 0]
-              radius: 0.018
-              scale: [1.0, 0.50, 1.0]
-
-            # Collo cilindrico esterno
-            - type: "cylinder"
-              center: [0, 0.12, 0]
-              radius: 0.016
-              height: 0.055
-
-        right:
-          type: "group"
-          children:
-            # Corpo conico interno
-            - type: "cone"
-              center: [0, 0.003, 0]
-              radius: 0.047
-              top_radius: 0.014
-              height: 0.118
-
-            # Collo interno
-            - type: "cylinder"
-              center: [0, 0.115, 0]
-              radius: 0.014
-              height: 0.065
-
-      # Bordo (labbro)
+      # Bordo (torus sottile per enfatizzare il rim)
       - type: "torus"
-        center: [0, 0.175, 0]
-        major_radius: 0.0155
-        minor_radius: 0.0015
-
-      # Fondo piatto (disco sottile)
-      - type: "cylinder"
-        center: [0, 0, 0]
-        radius: 0.050
-        height: 0.003
+        center: [0, 0.180, 0]
+        major_radius: 0.017
+        minor_radius: 0.0012
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  PALLONE_DISTILLAZIONE — Pallone sferico con collo e raccordo
+  #  PALLONE_DISTILLAZIONE — Pallone sferico con collo (lathe + raccordo)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Dimensioni: ~Ø 0.12 × 0.22 m
-  #  Struttura:  Corpo sferico cavo (CSG), collo cilindrico cavo,
-  #              raccordo laterale inclinato (cilindro per il tubo
-  #              di distillazione), bordo con torus.
+  #  Struttura:  Corpo tornito in un unico lathe Catmull-Rom (fondo
+  #              piatto per stabilità → bulbo sferico → raccordo dolce
+  #              al collo → collo cilindrico → labbro svasato). Il
+  #              raccordo laterale inclinato (tubo di distillazione) è
+  #              un secondo pezzo ruotato che resta CSG perché non
+  #              appartiene all'asse di rivoluzione.
   #
   - name: "pallone_distillazione"
     material: "lab_pyrex"
     children:
 
-      # Corpo sferico cavo
-      - type: "csg"
-        operation: "subtraction"
-        left:
-          type: "sphere"
-          center: [0, 0.065, 0]
-          radius: 0.060
-        right:
-          type: "sphere"
-          center: [0, 0.065, 0]
-          radius: 0.057
+      # ── Corpo + collo (lathe Catmull-Rom, solido vetro trasparente) ────
+      - type: "lathe"
+        profile_type: "catmull_rom"
+        profile:
+          - [0.000, 0.000]
+          - [0.025, 0.000]   # fondo piatto per stabilità
+          - [0.025, 0.005]
+          - [0.045, 0.015]   # raccordo verso il bulbo
+          - [0.060, 0.055]
+          - [0.060, 0.075]   # equatore del bulbo
+          - [0.054, 0.105]
+          - [0.036, 0.125]   # raccordo dolce verso il collo
+          - [0.020, 0.145]
+          - [0.016, 0.165]   # collo cilindrico
+          - [0.016, 0.195]
+          - [0.019, 0.205]   # labbro svasato
+          - [0.017, 0.210]   # faccia superiore
+          - [0.000, 0.210]   # chiusura
 
-      # Collo cilindrico cavo
-      - type: "csg"
-        operation: "subtraction"
-        left:
-          type: "cylinder"
-          center: [0, 0.125, 0]
-          radius: 0.016
-          height: 0.08
-        right:
-          type: "cylinder"
-          center: [0, 0.122, 0]
-          radius: 0.014
-          height: 0.09
-
-      # Bordo superiore
-      - type: "torus"
-        center: [0, 0.205, 0]
-        major_radius: 0.0155
-        minor_radius: 0.0015
-
-      # Raccordo laterale (tubo di distillazione)
+      # ── Raccordo laterale (tubo di distillazione, CSG) ────────────────
+      # Inclinato a ~50°, cavo per mostrare il canale.
       - type: "csg"
         operation: "subtraction"
         left:
@@ -411,16 +391,10 @@ templates:
           height: 0.07
           rotate: [0, 0, 50]
 
-      # Sfera di raccordo alla giunzione
+      # Sfera di raccordo alla giunzione col collo
       - type: "sphere"
         center: [0.015, 0.155, 0]
         radius: 0.010
-
-      # Fondo piatto (stabilità)
-      - type: "cylinder"
-        center: [0, 0, 0]
-        radius: 0.025
-        height: 0.005
 
 
   # ═══════════════════════════════════════════════════════════════════════
@@ -672,63 +646,42 @@ templates:
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  IMBUTO — Imbuto conico con gambo
+  #  IMBUTO — Imbuto conico con gambo (lathe)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Dimensioni: ~Ø 0.10 × 0.16 m
-  #  Struttura:  Cono cavo (CSG), gambo cilindrico cavo, raccordo,
-  #              bordo arrotondato.
+  #  Struttura:  Unico lathe Linear solido (vetro Pyrex trasparente):
+  #              gambo cilindrico stretto (Ø 12 mm) → raccordo dolce al
+  #              cono → imbocco svasato (Ø 100 mm). La rifrazione del
+  #              vetro rende naturale l'illusione della parete sottile.
+  #              Due torus decorativi fanno da bordo e anello di
+  #              rinforzo sulla transizione gambo-cono.
   #
   - name: "imbuto"
     material: "lab_pyrex"
     children:
 
-      # Imbuto cavo
-      - type: "csg"
-        operation: "subtraction"
-        left:
-          type: "group"
-          children:
-            # Cono esterno (rovesciato: largo in alto)
-            - type: "cone"
-              center: [0, 0.06, 0]
-              radius: 0.010
-              top_radius: 0.050
-              height: 0.08
+      - type: "lathe"
+        profile_type: "linear"
+        profile:
+          - [0.000, 0.000]   # asse, base del gambo
+          - [0.006, 0.000]   # bordo esterno gambo
+          - [0.006, 0.055]   # gambo esterno
+          - [0.010, 0.060]   # raccordo gambo→cono
+          - [0.050, 0.140]   # bordo esterno del cono
+          - [0.000, 0.142]   # chiusura sull'asse
 
-            # Gambo esterno
-            - type: "cylinder"
-              center: [0, 0, 0]
-              radius: 0.006
-              height: 0.06
-
-        right:
-          type: "group"
-          children:
-            # Cono interno
-            - type: "cone"
-              center: [0, 0.062, 0]
-              radius: 0.008
-              top_radius: 0.048
-              height: 0.08
-
-            # Gambo interno
-            - type: "cylinder"
-              center: [0, -0.004, 0]
-              radius: 0.005
-              height: 0.07
-
-      # Bordo superiore
+      # Bordo superiore (rim)
       - type: "torus"
-        center: [0, 0.14, 0]
+        center: [0, 0.140, 0]
         major_radius: 0.049
         minor_radius: 0.0015
 
-      # Anello di rinforzo
+      # Anello di rinforzo alla transizione gambo-cono
       - type: "torus"
-        center: [0, 0.10, 0]
-        major_radius: 0.030
-        minor_radius: 0.0010
+        center: [0, 0.060, 0]
+        major_radius: 0.010
+        minor_radius: 0.0015
 
 
   # ═══════════════════════════════════════════════════════════════════════
@@ -929,7 +882,9 @@ templates:
     material: "lab_legno"
     children:
 
-      # ── Pannello superiore (con fori) ──────────────────────────────────
+      # ── Pannello superiore (con 6 fori) ────────────────────────────────
+      # La lista dei 6 cilindri-foro è espressa come catena di csg:union
+      # annidate (i group non sono ammessi come figli CSG).
       - type: "csg"
         operation: "subtraction"
         left:
@@ -937,34 +892,53 @@ templates:
           scale: [0.20, 0.010, 0.05]
           translate: [0, 0.090, 0]
         right:
-          type: "group"
-          children:
-            - type: "cylinder"
-              center: [-0.075, 0.082, 0]
-              radius: 0.010
-              height: 0.020
-            - type: "cylinder"
+          # Unione dei 6 fori: union(c1, union(c2, union(c3, union(c4, union(c5, c6)))))
+          type: "csg"
+          operation: "union"
+          left:
+            type: "cylinder"
+            center: [-0.075, 0.082, 0]
+            radius: 0.010
+            height: 0.020
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              type: "cylinder"
               center: [-0.045, 0.082, 0]
               radius: 0.010
               height: 0.020
-            - type: "cylinder"
-              center: [-0.015, 0.082, 0]
-              radius: 0.010
-              height: 0.020
-            - type: "cylinder"
-              center: [0.015, 0.082, 0]
-              radius: 0.010
-              height: 0.020
-            - type: "cylinder"
-              center: [0.045, 0.082, 0]
-              radius: 0.010
-              height: 0.020
-            - type: "cylinder"
-              center: [0.075, 0.082, 0]
-              radius: 0.010
-              height: 0.020
+            right:
+              type: "csg"
+              operation: "union"
+              left:
+                type: "cylinder"
+                center: [-0.015, 0.082, 0]
+                radius: 0.010
+                height: 0.020
+              right:
+                type: "csg"
+                operation: "union"
+                left:
+                  type: "cylinder"
+                  center: [0.015, 0.082, 0]
+                  radius: 0.010
+                  height: 0.020
+                right:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    type: "cylinder"
+                    center: [0.045, 0.082, 0]
+                    radius: 0.010
+                    height: 0.020
+                  right:
+                    type: "cylinder"
+                    center: [0.075, 0.082, 0]
+                    radius: 0.010
+                    height: 0.020
 
-      # ── Pannello inferiore (con fori più piccoli → appoggio) ───────────
+      # ── Pannello inferiore (con 6 fori più piccoli → appoggio) ─────────
       - type: "csg"
         operation: "subtraction"
         left:
@@ -972,32 +946,50 @@ templates:
           scale: [0.20, 0.010, 0.05]
           translate: [0, 0.035, 0]
         right:
-          type: "group"
-          children:
-            - type: "cylinder"
-              center: [-0.075, 0.028, 0]
-              radius: 0.006
-              height: 0.020
-            - type: "cylinder"
+          type: "csg"
+          operation: "union"
+          left:
+            type: "cylinder"
+            center: [-0.075, 0.028, 0]
+            radius: 0.006
+            height: 0.020
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              type: "cylinder"
               center: [-0.045, 0.028, 0]
               radius: 0.006
               height: 0.020
-            - type: "cylinder"
-              center: [-0.015, 0.028, 0]
-              radius: 0.006
-              height: 0.020
-            - type: "cylinder"
-              center: [0.015, 0.028, 0]
-              radius: 0.006
-              height: 0.020
-            - type: "cylinder"
-              center: [0.045, 0.028, 0]
-              radius: 0.006
-              height: 0.020
-            - type: "cylinder"
-              center: [0.075, 0.028, 0]
-              radius: 0.006
-              height: 0.020
+            right:
+              type: "csg"
+              operation: "union"
+              left:
+                type: "cylinder"
+                center: [-0.015, 0.028, 0]
+                radius: 0.006
+                height: 0.020
+              right:
+                type: "csg"
+                operation: "union"
+                left:
+                  type: "cylinder"
+                  center: [0.015, 0.028, 0]
+                  radius: 0.006
+                  height: 0.020
+                right:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    type: "cylinder"
+                    center: [0.045, 0.028, 0]
+                    radius: 0.006
+                    height: 0.020
+                  right:
+                    type: "cylinder"
+                    center: [0.075, 0.028, 0]
+                    radius: 0.006
+                    height: 0.020
 
       # ── 2 pioli di connessione ─────────────────────────────────────────
       - type: "cylinder"

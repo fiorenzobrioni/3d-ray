@@ -384,8 +384,8 @@ entities:
     right:
       # Taglio inferiore per base piatta
       type: "box"
-        scale: [1.0, 0.5, 1.0]
-        translate: [0, -0.45, 0]
+      scale: [1.0, 0.5, 1.0]
+      translate: [0, -0.45, 0]
 
   # Acqua dentro la ciotola
   - name: "acqua_tsukubai"

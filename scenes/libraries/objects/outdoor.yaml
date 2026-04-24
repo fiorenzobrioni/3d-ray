@@ -8,6 +8,14 @@
 # Pezzi modulari: sezioni di staccionata e pergolato affiancabili,
 # fontane e pozzi come centrotavola di scene all'aperto.
 #
+# ── Costruzione ──────────────────────────────────────────────────────────
+#
+#   I vasi da giardino (fioriera, vaso_giardino_classico) sono costruiti
+#   con la primitiva `lathe` Catmull-Rom: un solo profilo 2D (r, y)
+#   produce la silhouette esterna completa. La cavità interna è ottenuta
+#   con un secondo lathe sottrattivo (operazione CSG `subtraction`) per
+#   mantenere pareti di spessore uniforme.
+#
 # ── Convenzioni ──────────────────────────────────────────────────────────
 #
 #   ORIGINE       Base a Y=0, centrato in XZ.
@@ -16,47 +24,53 @@
 #
 # ── Catalogo template ────────────────────────────────────────────────────
 #
-#   PANCHINA                Panchina da parco con doghe in legno e
-#                           struttura in ghisa. ~1.50 × 0.80 × 0.60 m.
+#   PANCHINA                       Panchina da parco con doghe in legno e
+#                                  struttura in ghisa. ~1.50 × 0.80 × 0.60 m.
 #
-#   TAVOLO_PICNIC           Tavolo da picnic con 2 panche integrate.
-#                           ~1.60 × 0.75 × 0.75 m.
+#   TAVOLO_PICNIC                  Tavolo da picnic con 2 panche integrate.
+#                                  ~1.60 × 0.75 × 0.75 m.
 #
-#   FONTANA                 Fontana a 3 vasche impilate con zampillo
-#                           e bacino di raccolta. ~Ø 1.20 × 1.50 m.
+#   FONTANA                        Fontana a 3 vasche impilate con zampillo
+#                                  e bacino di raccolta. ~Ø 1.20 × 1.50 m.
 #
-#   FIORIERA                Vaso da esterno in terracotta con bordo
-#                           e piede modanato. ~Ø 0.40 × 0.38 m.
+#   FIORIERA              (lathe)  Vaso in terracotta con parete sottile:
+#                                  profilo esterno lathe Catmull-Rom meno
+#                                  profilo interno più piccolo (CSG).
+#                                  ~Ø 0.40 × 0.38 m.
 #
-#   STACCIONATA             Sezione di staccionata (5 picchetti +
-#                           2 traverse). ~1.20 × 1.00 × 0.08 m.
+#   STACCIONATA                    Sezione di staccionata (5 picchetti +
+#                                  2 traverse). ~1.20 × 1.00 × 0.08 m.
 #
-#   PERGOLATO               Sezione di pergolato con 2 colonne e
-#                           4 travetti. ~2.00 × 2.50 × 0.30 m.
+#   PERGOLATO                      Sezione di pergolato con 2 colonne e
+#                                  4 travetti. ~2.00 × 2.50 × 0.30 m.
 #
-#   POZZO                   Pozzo medievale con parapetto, tetto a
-#                           2 falde, argano e secchio. ~Ø 1.00 × 2.20 m.
+#   POZZO                          Pozzo medievale con parapetto, tetto a
+#                                  2 falde, argano e secchio. ~Ø 1.00 × 2.20 m.
 #
-#   IDRANTE                 Idrante antincendio a colonna con
-#                           attacchi e cappello. ~Ø 0.20 × 0.70 m.
+#   IDRANTE                        Idrante antincendio a colonna con
+#                                  attacchi e cappello. ~Ø 0.20 × 0.70 m.
 #
-#   CESTINO                 Cestino portarifiuti cilindrico con
-#                           coperchio a cupola. ~Ø 0.40 × 0.90 m.
+#   CESTINO                        Cestino portarifiuti cilindrico con
+#                                  coperchio a cupola. ~Ø 0.40 × 0.90 m.
 #
-#   CASSETTA_POSTALE        Cassetta postale americana su palo con
-#                           bandierina. ~0.20 × 1.20 × 0.22 m.
+#   CASSETTA_POSTALE               Cassetta postale americana su palo con
+#                                  bandierina. ~0.20 × 1.20 × 0.22 m.
 #
-#   BIRDBATH                Bagno per uccelli con colonna tornita
-#                           e vasca. ~Ø 0.50 × 0.75 m.
+#   BIRDBATH                       Bagno per uccelli con colonna tornita
+#                                  e vasca. ~Ø 0.50 × 0.75 m.
 #
-#   MERIDIANA               Meridiana su piedistallo con gnomone.
-#                           ~Ø 0.30 × 0.80 m.
+#   MERIDIANA                      Meridiana su piedistallo con gnomone.
+#                                  ~Ø 0.30 × 0.80 m.
 #
-#   GAZEBO                  Gazebo esagonale con 6 colonne, tetto
-#                           a padiglione e balaustra. ~Ø 3.00 × 3.20 m.
+#   GAZEBO                         Gazebo esagonale con 6 colonne, tetto
+#                                  a padiglione e balaustra. ~Ø 3.00 × 3.20 m.
 #
-#   BARBECUE                Barbecue sferico su treppiede con
-#                           coperchio e griglia. ~Ø 0.55 × 0.90 m.
+#   BARBECUE                       Barbecue sferico su treppiede con
+#                                  coperchio e griglia. ~Ø 0.55 × 0.90 m.
+#
+#   VASO_GIARDINO_CLASSICO (lathe) Vaso da giardino grande con bordo
+#                                  arrotolato e piede largo (lathe
+#                                  Catmull-Rom). ~Ø 0.55 × 0.70 m.
 #
 # ============================================================================
 
@@ -537,52 +551,62 @@ templates:
 
 
   # ═══════════════════════════════════════════════════════════════════════
-  #  FIORIERA — Vaso da esterno in terracotta
+  #  FIORIERA — Vaso da esterno in terracotta (lathe)
   # ═══════════════════════════════════════════════════════════════════════
   #
   #  Dimensioni: ~Ø 0.40 × 0.38 m
+  #  Struttura:  Guscio terracotta generato da CSG subtraction fra un
+  #              lathe Catmull-Rom esterno (profilo: piede modanato,
+  #              fascia decorativa a metà, rastrematura verso l'alto,
+  #              bordo arrotolato) e un lathe Catmull-Rom interno più
+  #              piccolo che scava la cavità per la terra. Risultato:
+  #              parete sottile e costante senza artefatti di raccordo.
   #
   - name: "fioriera"
     material: "out_terracotta"
     children:
 
-      # Corpo cavo (cono tronco)
+      # ── Guscio: esterno − interno (CSG) ────────────────────────────────
       - type: "csg"
         operation: "subtraction"
         left:
-          type: "cone"
-          center: [0, 0.03, 0]
-          radius: 0.14
-          top_radius: 0.20
-          height: 0.32
+          # Profilo esterno completo
+          type: "lathe"
+          profile_type: "catmull_rom"
+          profile:
+            - [0.000, 0.000]
+            - [0.130, 0.000]   # piede largo e piatto
+            - [0.135, 0.015]   # modanatura del piede
+            - [0.130, 0.030]
+            - [0.135, 0.050]   # raccordo verso il corpo
+            - [0.155, 0.090]   # inizio del corpo svasato
+            - [0.175, 0.170]   # espansione a metà altezza
+            - [0.178, 0.220]
+            - [0.185, 0.280]   # massima espansione verso l'alto
+            - [0.195, 0.340]
+            - [0.205, 0.360]   # labbro arrotolato (toro esterno)
+            - [0.195, 0.376]
+            - [0.180, 0.380]   # faccia superiore del labbro
+            - [0.000, 0.380]   # chiusura sull'asse (tappo superiore)
         right:
-          type: "cone"
-          center: [0, 0.05, 0]
-          radius: 0.12
-          top_radius: 0.18
-          height: 0.32
+          # Profilo interno (cavità): stesso corpo rimpicciolito
+          type: "lathe"
+          profile_type: "catmull_rom"
+          profile:
+            - [0.000, 0.030]   # fondo interno della cavità
+            - [0.115, 0.030]
+            - [0.135, 0.090]   # inizio del corpo
+            - [0.155, 0.170]   # equatore interno
+            - [0.160, 0.260]
+            - [0.170, 0.340]
+            - [0.180, 0.370]   # rientranza del labbro
+            - [0.180, 0.395]   # aperta in cima (tagli via il tappo esterno)
+            - [0.000, 0.395]
 
-      # Bordo superiore (labbro arrotondato)
-      - type: "torus"
-        center: [0, 0.35, 0]
-        major_radius: 0.195
-        minor_radius: 0.015
-
-      # Piede
-      - type: "cylinder"
-        center: [0, 0, 0]
-        radius: 0.12
-        height: 0.03
-
-      - type: "torus"
-        center: [0, 0.03, 0]
-        major_radius: 0.13
-        minor_radius: 0.010
-
-      # Anello decorativo a metà altezza
+      # Anello decorativo a metà altezza (accento scolpito)
       - type: "torus"
         center: [0, 0.18, 0]
-        major_radius: 0.172
+        major_radius: 0.180
         minor_radius: 0.008
 
 
@@ -1467,3 +1491,71 @@ templates:
         normal: [0, 1, 0]
         radius: 0.16
         material: "out_zincato"
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  VASO_GIARDINO_CLASSICO — Grande vaso da giardino a imboccatura larga
+  # ═══════════════════════════════════════════════════════════════════════
+  #
+  #  Dimensioni: ~Ø 0.55 × 0.70 m
+  #  Struttura:  Guscio terracotta a parete sottile formato da CSG
+  #              subtraction fra profilo esterno e interno (lathe
+  #              Catmull-Rom). Silhouette a "cassetta classica": piede
+  #              largo a gradini, ventre basso bombato, svaso superiore
+  #              ampio con labbro arrotolato fuori-dentro. Ideale per
+  #              scene di giardino classico, rovine, terrazze all'italiana.
+  #
+  #  Materiale default: out_terracotta
+  #
+  - name: "vaso_giardino_classico"
+    material: "out_terracotta"
+    children:
+
+      # ── Guscio (CSG esterno − interno) ─────────────────────────────────
+      - type: "csg"
+        operation: "subtraction"
+        left:
+          type: "lathe"
+          profile_type: "catmull_rom"
+          profile:
+            - [0.000, 0.000]
+            - [0.180, 0.000]   # bordo esterno del piede
+            - [0.180, 0.025]
+            - [0.170, 0.040]   # piccolo incavo fra piede e corpo
+            - [0.210, 0.080]   # inizio ventre
+            - [0.260, 0.180]   # ventre bombato (metà bassa)
+            - [0.270, 0.250]   # equatore (max espansione)
+            - [0.252, 0.360]   # rastrematura superiore
+            - [0.230, 0.470]
+            - [0.240, 0.560]   # ri-espansione verso l'imboccatura
+            - [0.270, 0.640]   # bordo svasato
+            - [0.275, 0.680]   # labbro arrotolato esterno
+            - [0.260, 0.700]   # labbro arrotolato interno (fine esterno)
+            - [0.000, 0.700]   # chiusura superiore (tappo virtuale)
+        right:
+          type: "lathe"
+          profile_type: "catmull_rom"
+          profile:
+            - [0.000, 0.030]   # fondo cavo
+            - [0.160, 0.030]
+            - [0.190, 0.080]
+            - [0.240, 0.180]   # seguace interno
+            - [0.250, 0.250]
+            - [0.232, 0.360]
+            - [0.210, 0.470]
+            - [0.220, 0.560]
+            - [0.250, 0.640]
+            - [0.250, 0.710]   # aperta in cima (taglia il tappo)
+            - [0.000, 0.710]
+
+      # Anello decorativo scanalato sotto l'equatore
+      - type: "torus"
+        center: [0, 0.130, 0]
+        major_radius: 0.247
+        minor_radius: 0.010
+
+      # Filetto decorativo sopra il bordo interno
+      - type: "torus"
+        center: [0, 0.640, 0]
+        major_radius: 0.265
+        minor_radius: 0.004

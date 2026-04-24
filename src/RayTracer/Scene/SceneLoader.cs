@@ -1319,9 +1319,13 @@ public class SceneLoader
     ///     material: "matte_white"     # Fallback for children without own material
     /// </code>
     ///
-    /// Each child can be any entity type, including another "csg" for complex
-    /// Boolean trees like (A ∪ B) \ C. Children inherit the parent's material
-    /// unless they specify their own via material ID.
+    /// Each child must be a solid primitive (sphere, box, cylinder, cone,
+    /// torus, capsule, quad, disk, annulus, triangle, lathe) or another "csg"
+    /// node for nested Boolean trees like (A ∪ B) \ C. Groups, meshes,
+    /// instances and infinite planes are NOT accepted as CSG children —
+    /// BuildCsgChild returns null and the entire CSG node is dropped with
+    /// a "failed to create one or both children" warning. Children inherit
+    /// the parent's material unless they specify their own via material ID.
     /// </summary>
     private static IHittable? CreateCsgEntity(EntityData e, IMaterial parentMat,
         Dictionary<string, IMaterial> materials, int entityIndex)

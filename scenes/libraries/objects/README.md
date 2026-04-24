@@ -1,6 +1,6 @@
 # 📦 Libreria Oggetti — Template Riutilizzabili
 
-Raccolta di **154 template** e **~230 materiali** dedicati, organizzati in 12 librerie tematiche. Ogni file contiene oggetti composti professionali costruiti con primitive, CSG, sfere scalate (ellissoidi), torus e gruppi annidati.
+Raccolta di **160 template** e **~230 materiali** dedicati, organizzati in 12 librerie tematiche. Ogni file contiene oggetti composti professionali costruiti con primitive, **lathe (superficie di rivoluzione)**, CSG, torus, sfere scalate (ellissoidi) e gruppi annidati. Oltre 26 template sfruttano la primitiva `lathe` per corpi torniti di livello professionale — vedi la sezione [Profili di rivoluzione (lathe)](#profili-di-rivoluzione-lathe) più avanti.
 
 ---
 
@@ -8,16 +8,16 @@ Raccolta di **154 template** e **~230 materiali** dedicati, organizzati in 12 li
 
 ```
 scenes/libraries/objects/
-├── furniture.yaml            10 template — Arredamento da interni
-├── decorative-objects.yaml   10 template — Oggetti decorativi e da esposizione
-├── tableware.yaml            10 template — Stoviglie e tavola
-├── architecture.yaml         14 template — Elementi architettonici classici
+├── furniture.yaml            11 template — Arredamento da interni
+├── decorative-objects.yaml   12 template — Oggetti decorativi e da esposizione
+├── tableware.yaml            11 template — Stoviglie e tavola
+├── architecture.yaml         15 template — Elementi architettonici classici
 ├── mechanical.yaml           14 template — Meccanica e industria
 ├── jewelry.yaml              14 template — Gioielleria
-├── lighting.yaml             14 template — Apparecchi di illuminazione
+├── lighting.yaml             15 template — Apparecchi di illuminazione
 ├── laboratory.yaml           14 template — Attrezzatura da laboratorio
 ├── musical.yaml              14 template — Strumenti musicali
-├── outdoor.yaml              14 template — Arredo esterno e giardino
+├── outdoor.yaml              15 template — Arredo esterno e giardino
 ├── chess.yaml                11 template — Set di scacchi Staunton
 └── nature.yaml               15 template — Piante, fiori e natura
 ```
@@ -137,8 +137,9 @@ entities:
 | `scaffale` | Libreria a 5 ripiani con bordi arrotondati | 0.80 × 1.80 × 0.30 m |
 | `sgabello_bar` | Sgabello con seduta imbottita e poggiapiedi ad anello | Ø 0.36 × 0.75 m |
 | `comodino` | Comodino con cassetto e pomello in ottone | 0.45 × 0.55 × 0.40 m |
-| `candelabro` | Candeliere a 3 bracci con fiamme emissive | Ø 0.40 × 0.50 m |
+| `candelabro` *(lathe)* | Candeliere a 3 bracci con stelo tornito (lathe) e fiamme emissive | Ø 0.40 × 0.50 m |
 | `vaso_decorativo` | Vaso classico a profilo sagomato, cavo (CSG) | Ø 0.24 × 0.35 m |
+| `candelabro_tornito` *(lathe)* | Candelabro barocco a braccio singolo, integralmente tornito (singolo lathe) | Ø 0.18 × 0.58 m |
 
 Prefisso materiali: `frn_`
 
@@ -147,7 +148,7 @@ Prefisso materiali: `frn_`
 | Template | Descrizione | Dimensioni |
 |----------|-------------|------------|
 | `obelisco` | Obelisco egizio con pyramidion dorato (CSG) | 0.14 × 0.65 m |
-| `sfera_piedistallo` | Sfera su piedistallo classico tornito | Ø 0.26 × 0.50 m |
+| `sfera_piedistallo` *(lathe)* | Sfera su piedistallo tornito (singolo lathe Catmull-Rom) | Ø 0.26 × 0.50 m |
 | `clessidra` | Clessidra con bulbi in vetro (CSG profonda) e telaio | 0.14 × 0.32 m |
 | `globo` | Globo con anello meridiano inclinato 23.5° | Ø 0.30 × 0.42 m |
 | `coppa_trofeo` | Coppa con manici ad anello (mezzo torus CSG) | Ø 0.22 × 0.40 m |
@@ -155,7 +156,9 @@ Prefisso materiali: `frn_`
 | `sfera_armillare` | Sfera armillare con 4 anelli orbitali | Ø 0.34 × 0.50 m |
 | `fermacarte` | Cupola di cristallo emisferica (CSG) con glow | Ø 0.10 × 0.09 m |
 | `piramide_cristallo` | Piramide trasparente (CSG cono ∩ box) con glow | 0.12 × 0.18 m |
-| `colonnina` | Colonnina con fusto scanalato (CSG 8 scanalature) | Ø 0.18 × 0.55 m |
+| `colonnina` *(lathe)* | Colonnina con fusto lathe Linear ad entasi + 8 scanalature CSG | Ø 0.18 × 0.55 m |
+| `vaso_ming` *(lathe)* | Vaso cinese classico — piede, pancia bombata, collo alto (lathe) | Ø 0.22 × 0.42 m |
+| `anfora_greca` *(lathe)* | Anfora greca con corpo lathe e 2 manici mezzo-torus CSG | Ø 0.22 × 0.38 m |
 
 Prefisso materiali: `dec_`
 
@@ -163,12 +166,13 @@ Prefisso materiali: `dec_`
 
 | Template | Descrizione | Dimensioni |
 |----------|-------------|------------|
-| `bicchiere_vino` | Calice con coppa ellissoidale cava (CSG) | Ø 0.08 × 0.22 m |
-| `calice_cristallo` | Calice solenne con doppio nodo e bordo dorato | Ø 0.09 × 0.20 m |
+| `bicchiere_vino` *(lathe)* | Calice con coppa ovoidale, singolo lathe Catmull-Rom | Ø 0.08 × 0.22 m |
+| `calice_cristallo` *(lathe)* | Calice con doppio nodo e bordo dorato, corpo lathe | Ø 0.09 × 0.20 m |
 | `tumbler` | Bicchiere basso da whisky con fondo spesso | Ø 0.08 × 0.10 m |
 | `tazza_caffe` | Tazza con manico e piattino, bordo dorato | Ø 0.12 × 0.10 m |
 | `piatto_piano` | Piatto con tesa, cavetto e specchio concavo (CSG) | Ø 0.26 × 0.025 m |
-| `bottiglia_vino` | Bordolese con punt e profilo completo cavo | Ø 0.08 × 0.32 m |
+| `bottiglia_vino` *(lathe)* | Bordolese — corpo/spalla/collo/labbro in un solo lathe + punt CSG | Ø 0.08 × 0.32 m |
+| `decanter` *(lathe)* | Decanter in cristallo con pancia bombata e collo alto svasato | Ø 0.18 × 0.28 m |
 | `caraffa` | Caraffa con corpo bombato e manico (mezzo torus) | Ø 0.14 × 0.28 m |
 | `teiera` | Teiera con beccuccio articolato e coperchio a cupola | Ø 0.22 × 0.16 m |
 | `zuccheriera` | Ciotola con coperchio, 2 manici e pomello | Ø 0.12 × 0.12 m |
@@ -182,11 +186,11 @@ Prefisso materiali: `tbw_`
 |----------|-------------|------------|
 | `colonna_dorica` | Fusto scanalato (CSG 12 cilindri), echino, abaco | Ø 0.46 × 3.00 m |
 | `colonna_ionica` | Base attica, fusto scanalato, volute a spirale | Ø 0.44 × 3.20 m |
-| `colonna_liscia` | Colonna toscana senza scanalature (leggera) | Ø 0.40 × 3.00 m |
+| `colonna_liscia` *(lathe)* | Colonna toscana con fusto lathe Linear ad entasi vitruviana | Ø 0.40 × 3.00 m |
 | `arco_tutto_sesto` | Arco semicircolare con pilastri e chiave di volta | 1.40 × 2.80 × 0.40 m |
 | `arco_gotico` | Arco ogivale (CSG 2 cilindri intersecati) | 1.30 × 3.20 × 0.40 m |
 | `scalinata` | 7 gradini con proporzioni reali (17 × 30 cm) | 1.40 × 1.19 × 2.10 m |
-| `balaustro` | Balaustro singolo tornito con ventre ellissoidale | Ø 0.10 × 0.70 m |
+| `balaustro` *(lathe)* | Balaustro singolo — plinto, ventre, collarini, capitello in un solo lathe | Ø 0.10 × 0.70 m |
 | `balaustra` | Sezione con 5 balaustri, zoccolatura e corrimano | 1.20 × 0.90 × 0.14 m |
 | `pilastro` | Pilastro rettangolare a ridosso di muro | 0.30 × 3.00 × 0.08 m |
 | `frontone` | Timpano triangolare (CSG) su trabeazione | 2.40 × 0.70 × 0.40 m |
@@ -194,6 +198,7 @@ Prefisso materiali: `tbw_`
 | `nicchia` | Nicchia murale con volta a semicilindro (CSG) | 0.60 × 1.60 × 0.35 m |
 | `portale_classico` | Portale con trabeazione e 15 dentelli | 1.80 × 2.80 × 0.40 m |
 | `cornicione` | Sezione modulare con dentelli e gocciolatoio | 1.00 × 0.30 × 0.35 m |
+| `pinnacolo` *(lathe)* | Pinnacolo architettonico tornito con cuspide terminale | Ø 0.18 × 0.80 m |
 
 Prefisso materiali: `arc_`
 
@@ -249,7 +254,7 @@ Prefisso materiali: `jwl_` — Scala ~5×: `scale: 0.2` per dimensioni reali.
 | `sospensione_tiffany` | Cupola a vetri colorati in 3 fasce (CSG) | Ø 0.40 × 0.45 m |
 | `applique_classica` | Applique con braccio curvo e paralume (CSG) | 0.16 × 0.30 × 0.22 m |
 | `applique_moderna` | Up/down LED rettangolare | 0.08 × 0.18 × 0.10 m |
-| `plafoniera` | Cupola opalina cava (CSG) a soffitto | Ø 0.35 × 0.12 m |
+| `plafoniera` *(lathe)* | Cupola opalina a diffusore, lathe Catmull-Rom | Ø 0.35 × 0.12 m |
 | `faretto` | Faretto orientabile su giunto sferico | Ø 0.10 × 0.18 m |
 | `lampione_classico` | Lampione vittoriano a 3 lanterne | Ø 0.60 × 3.50 m |
 | `lampione_moderno` | Palo conico con pannello LED | 0.40 × 4.50 m |
@@ -257,6 +262,7 @@ Prefisso materiali: `jwl_` — Scala ~5×: `scale: 0.2` per dimensioni reali.
 | `neon_anello` | Anello LED sospeso con 3 cavi | Ø 0.50 × 0.03 m |
 | `neon_tubo` | Tubo fluorescente con riflettore (CSG) | 0.04 × 0.06 × 1.20 m |
 | `torcia_medievale` | Torcia da muro con fiamma doppia emissiva | 0.12 × 0.45 × 0.14 m |
+| `paralume_svasato` *(lathe)* | Paralume troncoconico cavo (CSG di due lathe) con emissione interna | Ø 0.30 × 0.22 m |
 
 Prefisso materiali: `lit_` — Tutti emettono luce reale (NEE).
 
@@ -268,12 +274,12 @@ Prefisso materiali: `lit_` — Tutti emettono luce reale (NEE).
 | Template | Descrizione | Dimensioni |
 |----------|-------------|------------|
 | `provetta` | Tubo con fondo emisferico cavo (CSG) | Ø 0.018 × 0.15 m |
-| `beuta_erlenmeyer` | Beuta conica cava con collo | Ø 0.10 × 0.18 m |
-| `pallone_distillazione` | Pallone sferico con raccordo laterale | Ø 0.12 × 0.22 m |
+| `beuta_erlenmeyer` *(lathe)* | Beuta conica — profilo lathe Linear con collo e labbro | Ø 0.10 × 0.18 m |
+| `pallone_distillazione` *(lathe)* | Pallone sferico — bulbo + collo in un solo lathe + raccordo CSG | Ø 0.12 × 0.22 m |
 | `matraccio` | Matraccio tarato con linea di taratura | Ø 0.10 × 0.26 m |
 | `becher` | Becher con beccuccio e graduazioni | Ø 0.08 × 0.11 m |
 | `cilindro_graduato` | Cilindro alto con base esagonale (CSG) | Ø 0.04 × 0.30 m |
-| `imbuto` | Imbuto conico cavo con gambo lungo | Ø 0.10 × 0.16 m |
+| `imbuto` *(lathe)* | Imbuto conico con gambo — profilo lathe Linear solido | Ø 0.10 × 0.16 m |
 | `mortaio_pestello` | Mortaio emisferico con pestello inclinato | Ø 0.12 × 0.10 m |
 | `bunsen` | Becco Bunsen con fiamma blu doppia emissiva | Ø 0.05 × 0.20 m |
 | `portaprovette` | Rack in legno per 6 provette (CSG fori) | 0.22 × 0.10 × 0.06 m |
@@ -288,9 +294,9 @@ Prefisso materiali: `lab_` — Vetro borosilicato (Pyrex) IOR 1.47.
 
 | Template | Descrizione | Dimensioni |
 |----------|-------------|------------|
-| `campana` | Campana in bronzo con batacchio (CSG) | Ø 0.30 × 0.30 m |
+| `campana` *(lathe)* | Campana in bronzo con profilo acustico lathe Catmull-Rom + batacchio | Ø 0.30 × 0.30 m |
 | `tamburo_rullante` | Rullante con 8 tiranti e chiavette | Ø 0.36 × 0.18 m |
-| `timpano` | Timpano orchestrale con caldaia in rame (CSG) | Ø 0.65 × 0.50 m |
+| `timpano` *(lathe)* | Timpano con caldaia in rame lathe Catmull-Rom + pelle | Ø 0.65 × 0.50 m |
 | `diapason` | Diapason in acciaio con 2 rebbi | 0.025 × 0.12 m |
 | `metronomo` | Metronomo a piramide tronca (CSG) con pendolo | 0.12 × 0.22 × 0.11 m |
 | `gong` | Gong su telaio in ebano con boss | Ø 0.60 × 0.80 m |
@@ -312,7 +318,7 @@ Prefisso materiali: `mus_`
 | `panchina` | Panchina con doghe in teak e ghisa (arco CSG) | 1.50 × 0.80 × 0.60 m |
 | `tavolo_picnic` | Tavolo con panche integrate e cavalletti ad A | 1.60 × 0.75 × 0.75 m |
 | `fontana` | Fontana a 3 vasche con zampillo d'acqua | Ø 1.20 × 1.50 m |
-| `fioriera` | Vaso terracotta cavo (CSG) con bordo e piede | Ø 0.40 × 0.38 m |
+| `fioriera` *(lathe)* | Vaso terracotta cavo — CSG di lathe esterno e interno | Ø 0.40 × 0.38 m |
 | `staccionata` | Sezione con 5 picchetti e punte coniche | 1.20 × 1.00 × 0.08 m |
 | `pergolato` | Sezione con 2 colonne e 4 travetti | 2.00 × 2.50 × 0.30 m |
 | `pozzo` | Pozzo medievale con tetto, argano e secchio (CSG) | Ø 1.00 × 2.20 m |
@@ -323,6 +329,7 @@ Prefisso materiali: `mus_`
 | `meridiana` | Meridiana su piedistallo con gnomone in ottone | Ø 0.30 × 0.80 m |
 | `gazebo` | Gazebo esagonale con 6 colonne e tetto a padiglione | Ø 3.00 × 3.20 m |
 | `barbecue` | Barbecue sferico su treppiede (CSG emisfere cave) | Ø 0.55 × 0.90 m |
+| `vaso_giardino_classico` *(lathe)* | Grande vaso a imboccatura larga — lathe esterno/interno CSG | Ø 0.55 × 0.70 m |
 
 Prefisso materiali: `out_`
 
@@ -330,12 +337,12 @@ Prefisso materiali: `out_`
 
 | Template | Descrizione | Dimensioni |
 |----------|-------------|------------|
-| `pedone_staunton` | Pedone con testa sferica | Ø 0.028 × 0.046 m |
-| `torre_staunton` | Torre con merlatura (CSG) | Ø 0.030 × 0.048 m |
-| `alfiere_staunton` | Alfiere con mitra fesa (CSG) e pomo | Ø 0.030 × 0.072 m |
+| `pedone_staunton` *(lathe)* | Pedone intero in un singolo lathe (base + stelo + testa) | Ø 0.028 × 0.050 m |
+| `torre_staunton` *(lathe)* | Torre — corpo lathe + merlatura CSG (4 tacche) | Ø 0.030 × 0.063 m |
+| `alfiere_staunton` *(lathe)* | Alfiere — corpo lathe + mitra fessa CSG | Ø 0.030 × 0.076 m |
 | `cavallo_staunton` | Cavallo stilizzato (sfere scalate multiple) | 0.032 × 0.062 × 0.028 m |
-| `regina_staunton` | Regina con coronet a 8 punte e globo | Ø 0.032 × 0.085 m |
-| `re_staunton` | Re con corona e croce pattée | Ø 0.032 × 0.095 m |
+| `regina_staunton` *(lathe)* | Regina — corpo lathe fino al collarino + coronet 8 sfere | Ø 0.032 × 0.082 m |
+| `re_staunton` *(lathe)* | Re — corpo lathe fino al cuscino + croce pattée CSG | Ø 0.036 × 0.095 m |
 | `scacchiera_legno` | Scacchiera classica in mogano (checker 8×8) | 0.46 × 0.035 × 0.46 m |
 | `scacchiera_marmo` | Scacchiera in marmo bianco e nero venato | 0.48 × 0.030 × 0.48 m |
 | `scacchiera_moderna` | Scacchiera in vetro fumé e alluminio | 0.44 × 0.020 × 0.44 m |
@@ -404,6 +411,46 @@ Per personalizzare un materiale importato, ridefiniscilo nella scena con lo stes
 ### Seed e Variazione
 
 I materiali con `randomize_offset: true` (cortecce, pietre, marmi) generano automaticamente una variazione diversa per ogni istanza grazie al seed deterministico. Non serve fare nulla: due alberi affiancati avranno corteccia diversa.
+
+---
+
+## Profili di Rivoluzione (lathe)
+
+Oltre 26 template di queste librerie sfruttano la primitiva `lathe` (superficie di rivoluzione) — marcati con *(lathe)* nelle tabelle sopra. Il motivo: i corpi assi-simmetrici (calici, bottiglie, vasi, colonne tornite, balaustri, vetreria da laboratorio, pezzi Staunton, campane, paralumi) sono intrinsecamente generati per rivoluzione di un profilo 2D attorno all'asse Y. Una singola primitiva `lathe` con profilo Catmull-Rom produce:
+
+- **silhouette C¹ continua** — nessuna discontinuità di normale al raccordo fra segmenti, impossibile da ottenere impilando sfere/coni/torus;
+- **meno primitive** — un balaustro classico passa da 9 primitive (cylinder/sphere/cone/torus/box) a **un solo** lathe;
+- **UV coerenti** — U lungo l'angolo azimutale, V lungo la lunghezza d'arco del profilo, utile per texture decal;
+- **editing rapido** — modificare la forma significa cambiare pochi punti `[r, y]` nel profilo, non ricalcolare CSG annidati.
+
+### Tre strategie implementate nelle librerie
+
+1. **Lathe solido per vetro trasparente.** Calici, bottiglie e vetreria da laboratorio (Pyrex IOR 1.47, cristallo IOR 1.62) sono un singolo `lathe` pieno: la rifrazione del materiale crea naturalmente l'effetto ottico della parete sottile, senza bisogno di CSG cavo. Esempi: `bicchiere_vino`, `bottiglia_vino`, `decanter`, `beuta_erlenmeyer`, `pallone_distillazione`, `imbuto`.
+
+2. **Lathe solido per opachi non cavi.** Pezzi torniti in legno, pietra, bronzo o porcellana dove non serve vedere una cavità interna: il lathe solido sostituisce una catena di primitive. Esempi: `balaustro`, `colonna_liscia`, `pinnacolo`, `sfera_piedistallo`, `vaso_ming`, `anfora_greca` (corpo), `campana`, `timpano` (caldaia), tutto il set Staunton (`pedone_staunton`, `torre_staunton`, `alfiere_staunton`, `regina_staunton`, `re_staunton`), stelo di `candelabro`, `candelabro_tornito`.
+
+3. **CSG di due lathe per gusci a parete sottile opachi.** Quando il materiale è opaco (terracotta, tessuto) e la cavità interna deve essere visibile, due lathe in `csg: subtraction` generano un guscio di spessore costante. Esempi: `fioriera`, `vaso_giardino_classico`, `paralume_svasato`.
+
+### Schema YAML di base
+
+```yaml
+- type: "lathe"
+  material: "..."
+  profile_type: "catmull_rom"   # oppure "linear" | "bezier"
+  profile:
+    - [0.000, 0.000]   # [r, y] — minimo 2 punti (4 per catmull_rom)
+    - [0.050, 0.000]
+    - [0.040, 0.100]
+    - [0.000, 0.120]
+```
+
+Regole chiave:
+- **r ≥ 0**, asse di rivoluzione sempre Y.
+- **y monotona non-decrescente** (il loader auto-ordina e avvisa se non lo è).
+- **catmull_rom** richiede ≥ 4 punti (downgrade a linear con warning).
+- Se `r_first > 0` viene aggiunto un **tappo inferiore**; se `r_last > 0` un tappo superiore. Per chiudere dolcemente sull'asse, termina con `[0, y]`.
+
+Per il riferimento completo (inclusi Bezier e costi di intersezione), vedi [Capitolo 11: Superfici di rivoluzione](../../../docs/tutorial/it/11-lathe-surface-of-revolution.md).
 
 ---
 

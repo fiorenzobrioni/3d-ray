@@ -152,6 +152,53 @@ Non esiste un limite teorico alla profondità dell'albero. In pratica, la comple
 
 ---
 
+## 4bis. Tipi ammessi come figli CSG
+
+Il classificatore all-hits richiede che ogni figlio di un nodo CSG sia una **primitiva solida** con una funzione interno/esterno ben definita (due intersezioni di entrata/uscita per raggio nel caso convesso, un numero pari in quello non convesso). Solo così la regola di selezione del §2.3 ("se il punto è interno all'altro operando") è ben posta.
+
+**Tipi ammessi come `left` / `right`:**
+- Primitive analitiche solide: `sphere`, `box`, `cylinder`, `cone` (anche troncato), `torus`, `capsule`, `quad`, `disk`, `annulus`, `triangle`, `lathe` (alias `revolution` / `surface_of_revolution`).
+- Un altro nodo `csg`, per alberi booleani annidati con profondità arbitraria (§4).
+
+**Tipi NON ammessi**, scartati silenziosamente dal loader con il messaggio `CSG entity '…': failed to create one or both children. Skipping.` — il nodo CSG intero viene rimosso dalla scena:
+
+| Tipo scartato | Motivo tecnico |
+|---------------|----------------|
+| `group` | Un gruppo è una collezione di hittable senza interno/esterno definito. Il test "punto dentro il solido" (§2.2) richiederebbe di contare le intersezioni con l'unione, che è un concetto booleano diverso dal raggruppamento scene-graph. |
+| `mesh` / `obj` | Le mesh triangolari non sono garantite essere chiuse né orientabili; il conteggio delle intersezioni per il test di parità può dare risultati errati. |
+| `instance` | Risolvere il template richiederebbe accesso al dizionario dei templates durante la costruzione CSG, che al momento non avviene nel percorso `BuildCsgChild`. |
+| `plane` / `infinite_plane` | Un piano infinito ha "interno" non definito (metà spazio? entrambi?), incompatibile con l'algoritmo di classificazione. |
+
+### Ricetta: sostituire un `group` con un `csg: union`
+
+L'uso più comune di `group` come figlio CSG è "sottrai questi N cilindri da un box". La riscrittura corretta è un albero di `csg: union`:
+
+```yaml
+# ❌ NON FUNZIONA — il group viene scartato, la CSG salta
+- type: "csg"
+  operation: "subtraction"
+  left:  { type: "box",  scale: [2, 2, 2] }
+  right:
+    type: "group"
+    children:
+      - { type: "cylinder", center: [0,0,0],  radius: 0.3, height: 3 }
+      - { type: "cylinder", center: [0,0,0],  radius: 0.3, height: 3, rotate: [0,0,90] }
+
+# ✅ FUNZIONA — union esplicito fra i due cilindri, poi sottrazione
+- type: "csg"
+  operation: "subtraction"
+  left:  { type: "box",  scale: [2, 2, 2] }
+  right:
+    type: "csg"
+    operation: "union"
+    left:  { type: "cylinder", center: [0,0,0], radius: 0.3, height: 3 }
+    right: { type: "cylinder", center: [0,0,0], radius: 0.3, height: 3, rotate: [0,0,90] }
+```
+
+Per N ≥ 3 cilindri si annidano più `csg: union`: l'albero ha profondità `log₂(N)` in forma bilanciata o `N−1` in forma lineare; il costo di intersezione scala linearmente con il numero di foglie.
+
+---
+
 ## 5. Compatibilità con il Sistema di Trasformazioni
 
 Un nodo CSG può essere avvolto in un `Transform` (scale, rotate, translate) esattamente come qualsiasi altra primitiva. Le trasformazioni vengono applicate all'intero albero CSG come unità, con gestione corretta delle normali via matrice inversa trasposta.

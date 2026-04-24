@@ -18,7 +18,11 @@ CSG works with three operations:
 | `subtraction`   | `subtract`, `difference`       | Left shape minus the right shape    |
 
 Every CSG entity has a `left` child and a `right` child. Each child is
-an inline entity definition (any primitive, group, or even another CSG).
+an inline entity definition: a primitive (sphere, box, cylinder, cone,
+torus, capsule, quad, disk, lathe, ...) or another `csg` node for
+nested Boolean trees. **Groups, meshes and template instances are
+NOT supported as CSG children** — see the callout at the end of this
+section.
 
 ```yaml
 - type: "csg"
@@ -27,6 +31,18 @@ an inline entity definition (any primitive, group, or even another CSG).
   right: { ... }
   material: "default_material"
 ```
+
+> **⚠️ Valid CSG child types.** The CSG engine requires that each
+> child be a *solid primitive* with a well-defined interior/exterior
+> (so the all-hits classifier can determine whether a point is inside
+> or outside the solid). Supported: any of the solid primitives listed
+> above, plus another `csg` node. **Not supported and silently skipped
+> with a warning** (`CSG entity '…': failed to create one or both
+> children. Skipping.`): `type: "group"`, `type: "mesh"` / `type: "obj"`,
+> `type: "instance"`, `type: "plane"` / `type: "infinite_plane"`. If you
+> need to subtract the union of two boxes from a cylinder, write the
+> union explicitly as a nested `csg: union` rather than wrapping the
+> two boxes in a `type: "group"`.
 
 ---
 
