@@ -637,11 +637,11 @@ entities:
 - name: "snowman"
   type: "csg"
   operation: "union"
-  operand_a:
+  left:
     type: "sphere"
     center: [0, 0, 0]
     radius: 1.0
-  operand_b:
+  right:
     type: "sphere"
     center: [0, 1.4, 0]
     radius: 0.7
@@ -651,11 +651,11 @@ entities:
 - name: "lens"
   type: "csg"
   operation: "intersection"
-  operand_a:
+  left:
     type: "sphere"
     center: [-0.5, 0, 0]
     radius: 1.0
-  operand_b:
+  right:
     type: "sphere"
     center: [0.5, 0, 0]
     radius: 1.0
@@ -665,19 +665,21 @@ entities:
 - name: "bead"
   type: "csg"
   operation: "subtraction"
-  operand_a:
+  left:
     type: "sphere"
     center: [0, 0, 0]
     radius: 1.0
-  operand_b:
+  right:
     type: "cylinder"
     center: [0, -1.5, 0]
     radius: 0.3
     height: 3.0
   material: "wood"
 ```
-- Operations: `union` (A∪B), `intersection` (A∩B), `subtraction` (A\B)
-- Supports recursively nested CSG trees (an `operand_a` or `operand_b` can itself be a `csg` node)
+- Operations: `union` (A∪B), `intersection` (A∩B), `subtraction` (A\B); `subtract` and `difference` are accepted aliases of `subtraction`
+- Child keys are `left` and `right` (Boolean-tree operands of the node)
+- Supports recursively nested CSG trees (a `left` or `right` can itself be a `csg` node)
+- **Valid CSG child types.** Each child must be a solid primitive with well-defined interior/exterior. Supported: `sphere`, `box`, `cylinder`, `cone`, `torus`, `capsule`, `quad`, `disk`, `annulus`, `triangle`, `lathe` (and aliases `revolution` / `surface_of_revolution`), or a nested `csg`. **Not supported and silently skipped** (loader emits `CSG entity '…': failed to create one or both children. Skipping.` and the node is dropped): `group`, `mesh` / `obj`, `instance`, `plane` / `infinite_plane`. To union two primitives as a CSG operand, use an explicit `csg: union` rather than wrapping them in a `group`.
 #### **7.14 Group (Hierarchical Composition)**
 ```yaml
 - name: "lamppost"
