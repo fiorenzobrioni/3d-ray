@@ -308,6 +308,10 @@ templates:
           - [0.013, 0.055]   # base della merlatura
 
       # ── Merlatura (CSG: cilindro pieno − 4 tacche) ────────────────────
+      # Il right child è una CSG union dei due box a croce: la CSG
+      # subtraction non accetta un `group` come figlio (CreateEntity
+      # riconosce solo primitive o CSG annidate), quindi si compone
+      # l'unione esplicitamente.
       - type: "csg"
         operation: "subtraction"
         left:
@@ -316,15 +320,17 @@ templates:
           radius: 0.013
           height: 0.008
         right:
-          type: "group"
-          children:
-            # 4 tacche rettangolari a 90°
-            - type: "box"
-              scale: [0.030, 0.006, 0.006]
-              translate: [0, 0.063, 0]
-            - type: "box"
-              scale: [0.006, 0.006, 0.030]
-              translate: [0, 0.063, 0]
+          # Unione delle 2 tacche rettangolari a 90° → croce passante
+          type: "csg"
+          operation: "union"
+          left:
+            type: "box"
+            scale: [0.030, 0.006, 0.006]
+            translate: [0, 0.063, 0]
+          right:
+            type: "box"
+            scale: [0.006, 0.006, 0.030]
+            translate: [0, 0.063, 0]
 
       # Cavità interna del torrione (CSG)
       - type: "csg"
