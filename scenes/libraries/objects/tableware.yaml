@@ -641,44 +641,54 @@ templates:
     material: "tbw_cristallo"
     children:
 
-      # ── Corpo cavo bombato (CSG) ───────────────────────────────────────
+      # ── Corpo cavo bombato (CSG: esterno − interno, entrambi unioni) ──
+      # Nota: i figli di una CSG non possono essere `group` (verrebbero
+      # scartati silenziosamente); le unioni sono quindi scritte come
+      # nodi `csg: union` annidati.
       - type: "csg"
         operation: "subtraction"
         left:
-          type: "group"
-          children:
+          # Esterno = corpo ⊎ collo ⊎ labbro
+          type: "csg"
+          operation: "union"
+          left:
             # Corpo: ellissoide bombato
-            - type: "sphere"
-              center: [0, 0.10, 0]
-              radius: 0.065
-              scale: [1.0, 1.40, 1.0]
-
-            # Collo cilindrico
-            - type: "cylinder"
+            type: "sphere"
+            center: [0, 0.10, 0]
+            radius: 0.065
+            scale: [1.0, 1.40, 1.0]
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              # Collo cilindrico
+              type: "cylinder"
               center: [0, 0.18, 0]
               radius: 0.030
               height: 0.08
-
-            # Labbro svasato (cono tronco invertito)
-            - type: "cone"
+            right:
+              # Labbro svasato (cono tronco invertito)
+              type: "cone"
               center: [0, 0.26, 0]
               radius: 0.030
               top_radius: 0.038
               height: 0.018
         right:
-          type: "group"
-          children:
+          # Interno = cavità corpo ⊎ cavità collo
+          type: "csg"
+          operation: "union"
+          left:
             # Cavità corpo
-            - type: "sphere"
-              center: [0, 0.10, 0]
-              radius: 0.060
-              scale: [1.0, 1.40, 1.0]
-
+            type: "sphere"
+            center: [0, 0.10, 0]
+            radius: 0.060
+            scale: [1.0, 1.40, 1.0]
+          right:
             # Cavità collo
-            - type: "cylinder"
-              center: [0, 0.18, 0]
-              radius: 0.026
-              height: 0.10
+            type: "cylinder"
+            center: [0, 0.18, 0]
+            radius: 0.026
+            height: 0.10
 
       # ── Base ───────────────────────────────────────────────────────────
       - type: "cylinder"

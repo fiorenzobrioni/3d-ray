@@ -1353,57 +1353,76 @@ templates:
     material: "frn_marmo_bianco"
     children:
 
-      # Per ottenere un vaso cavo usiamo CSG: il profilo esterno
-      # completo meno un cilindro interno.
+      # Vaso cavo: profilo esterno (unione dei 7 elementi modellati) meno
+      # un cilindro interno. L'unione è scritta come catena di csg:union
+      # annidate (i group non sono ammessi come figli CSG e verrebbero
+      # scartati).
       - type: "csg"
         operation: "subtraction"
         left:
-          # ── Profilo esterno (group) ────────────────────────────────────
-          type: "group"
-          children:
+          # ── Profilo esterno: piede ⊎ peduncolo ⊎ anello ⊎ corpo ⊎
+          #                    spalla ⊎ collo ⊎ labbro
+          type: "csg"
+          operation: "union"
+          left:
             # Piede — cono tronco basso e largo
-            - type: "cone"
-              center: [0, 0, 0]
-              radius: 0.08
-              top_radius: 0.05
-              height: 0.025
-
-            # Peduncolo — cilindro stretto
-            - type: "cylinder"
+            type: "cone"
+            center: [0, 0, 0]
+            radius: 0.08
+            top_radius: 0.05
+            height: 0.025
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              # Peduncolo — cilindro stretto
+              type: "cylinder"
               center: [0, 0.025, 0]
               radius: 0.042
               height: 0.04
-
-            # Anello decorativo alla base del corpo
-            - type: "torus"
-              center: [0, 0.065, 0]
-              major_radius: 0.055
-              minor_radius: 0.012
-
-            # Corpo bombato — ellissoide (sfera scalata asimmetrica)
-            - type: "sphere"
-              center: [0, 0.16, 0]
-              radius: 0.12
-              scale: [1.0, 1.15, 1.0]
-
-            # Spalla — cono tronco (dal corpo largo al collo stretto)
-            - type: "cone"
-              center: [0, 0.24, 0]
-              radius: 0.095
-              top_radius: 0.050
-              height: 0.05
-
-            # Collo — cilindro stretto
-            - type: "cylinder"
-              center: [0, 0.29, 0]
-              radius: 0.045
-              height: 0.04
-
-            # Labbro — torus sporgente in cima
-            - type: "torus"
-              center: [0, 0.33, 0]
-              major_radius: 0.052
-              minor_radius: 0.012
+            right:
+              type: "csg"
+              operation: "union"
+              left:
+                # Anello decorativo alla base del corpo
+                type: "torus"
+                center: [0, 0.065, 0]
+                major_radius: 0.055
+                minor_radius: 0.012
+              right:
+                type: "csg"
+                operation: "union"
+                left:
+                  # Corpo bombato — ellissoide
+                  type: "sphere"
+                  center: [0, 0.16, 0]
+                  radius: 0.12
+                  scale: [1.0, 1.15, 1.0]
+                right:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    # Spalla — cono tronco
+                    type: "cone"
+                    center: [0, 0.24, 0]
+                    radius: 0.095
+                    top_radius: 0.050
+                    height: 0.05
+                  right:
+                    type: "csg"
+                    operation: "union"
+                    left:
+                      # Collo — cilindro stretto
+                      type: "cylinder"
+                      center: [0, 0.29, 0]
+                      radius: 0.045
+                      height: 0.04
+                    right:
+                      # Labbro — torus sporgente in cima
+                      type: "torus"
+                      center: [0, 0.33, 0]
+                      major_radius: 0.052
+                      minor_radius: 0.012
 
         right:
           # ── Cavità interna ─────────────────────────────────────────────

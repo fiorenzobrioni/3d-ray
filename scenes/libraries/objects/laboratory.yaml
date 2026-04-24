@@ -239,52 +239,56 @@ templates:
     material: "lab_pyrex"
     children:
 
-      # Corpo cavo: cilindro − cilindro + fondo emisferico
+      # Corpo cavo: (tubo esterno ⊎ fondo esterno) − (tubo interno ⊎ fondo interno)
+      # Le unioni sono scritte come csg:union annidate (i group non sono
+      # ammessi come figli CSG e verrebbero scartati).
       - type: "csg"
         operation: "subtraction"
         left:
-          type: "group"
-          children:
+          type: "csg"
+          operation: "union"
+          left:
             # Tubo esterno
-            - type: "cylinder"
+            type: "cylinder"
+            center: [0, 0.018, 0]
+            radius: 0.009
+            height: 0.130
+          right:
+            # Fondo emisferico esterno
+            type: "csg"
+            operation: "intersection"
+            left:
+              type: "sphere"
               center: [0, 0.018, 0]
               radius: 0.009
-              height: 0.130
-
-            # Fondo emisferico esterno
-            - type: "csg"
-              operation: "intersection"
-              left:
-                type: "sphere"
-                center: [0, 0.018, 0]
-                radius: 0.009
-              right:
-                type: "cylinder"
-                center: [0, 0.005, 0]
-                radius: 0.010
-                height: 0.014
+            right:
+              type: "cylinder"
+              center: [0, 0.005, 0]
+              radius: 0.010
+              height: 0.014
 
         right:
-          type: "group"
-          children:
+          type: "csg"
+          operation: "union"
+          left:
             # Tubo interno
-            - type: "cylinder"
-              center: [0, 0.020, 0]
-              radius: 0.008
-              height: 0.135
-
+            type: "cylinder"
+            center: [0, 0.020, 0]
+            radius: 0.008
+            height: 0.135
+          right:
             # Fondo emisferico interno
-            - type: "csg"
-              operation: "intersection"
-              left:
-                type: "sphere"
-                center: [0, 0.018, 0]
-                radius: 0.008
-              right:
-                type: "cylinder"
-                center: [0, 0.008, 0]
-                radius: 0.009
-                height: 0.012
+            type: "csg"
+            operation: "intersection"
+            left:
+              type: "sphere"
+              center: [0, 0.018, 0]
+              radius: 0.008
+            right:
+              type: "cylinder"
+              center: [0, 0.008, 0]
+              radius: 0.009
+              height: 0.012
 
       # Bordo superiore (labbro arrotondato)
       - type: "torus"
@@ -878,7 +882,9 @@ templates:
     material: "lab_legno"
     children:
 
-      # ── Pannello superiore (con fori) ──────────────────────────────────
+      # ── Pannello superiore (con 6 fori) ────────────────────────────────
+      # La lista dei 6 cilindri-foro è espressa come catena di csg:union
+      # annidate (i group non sono ammessi come figli CSG).
       - type: "csg"
         operation: "subtraction"
         left:
@@ -886,34 +892,53 @@ templates:
           scale: [0.20, 0.010, 0.05]
           translate: [0, 0.090, 0]
         right:
-          type: "group"
-          children:
-            - type: "cylinder"
-              center: [-0.075, 0.082, 0]
-              radius: 0.010
-              height: 0.020
-            - type: "cylinder"
+          # Unione dei 6 fori: union(c1, union(c2, union(c3, union(c4, union(c5, c6)))))
+          type: "csg"
+          operation: "union"
+          left:
+            type: "cylinder"
+            center: [-0.075, 0.082, 0]
+            radius: 0.010
+            height: 0.020
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              type: "cylinder"
               center: [-0.045, 0.082, 0]
               radius: 0.010
               height: 0.020
-            - type: "cylinder"
-              center: [-0.015, 0.082, 0]
-              radius: 0.010
-              height: 0.020
-            - type: "cylinder"
-              center: [0.015, 0.082, 0]
-              radius: 0.010
-              height: 0.020
-            - type: "cylinder"
-              center: [0.045, 0.082, 0]
-              radius: 0.010
-              height: 0.020
-            - type: "cylinder"
-              center: [0.075, 0.082, 0]
-              radius: 0.010
-              height: 0.020
+            right:
+              type: "csg"
+              operation: "union"
+              left:
+                type: "cylinder"
+                center: [-0.015, 0.082, 0]
+                radius: 0.010
+                height: 0.020
+              right:
+                type: "csg"
+                operation: "union"
+                left:
+                  type: "cylinder"
+                  center: [0.015, 0.082, 0]
+                  radius: 0.010
+                  height: 0.020
+                right:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    type: "cylinder"
+                    center: [0.045, 0.082, 0]
+                    radius: 0.010
+                    height: 0.020
+                  right:
+                    type: "cylinder"
+                    center: [0.075, 0.082, 0]
+                    radius: 0.010
+                    height: 0.020
 
-      # ── Pannello inferiore (con fori più piccoli → appoggio) ───────────
+      # ── Pannello inferiore (con 6 fori più piccoli → appoggio) ─────────
       - type: "csg"
         operation: "subtraction"
         left:
@@ -921,32 +946,50 @@ templates:
           scale: [0.20, 0.010, 0.05]
           translate: [0, 0.035, 0]
         right:
-          type: "group"
-          children:
-            - type: "cylinder"
-              center: [-0.075, 0.028, 0]
-              radius: 0.006
-              height: 0.020
-            - type: "cylinder"
+          type: "csg"
+          operation: "union"
+          left:
+            type: "cylinder"
+            center: [-0.075, 0.028, 0]
+            radius: 0.006
+            height: 0.020
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              type: "cylinder"
               center: [-0.045, 0.028, 0]
               radius: 0.006
               height: 0.020
-            - type: "cylinder"
-              center: [-0.015, 0.028, 0]
-              radius: 0.006
-              height: 0.020
-            - type: "cylinder"
-              center: [0.015, 0.028, 0]
-              radius: 0.006
-              height: 0.020
-            - type: "cylinder"
-              center: [0.045, 0.028, 0]
-              radius: 0.006
-              height: 0.020
-            - type: "cylinder"
-              center: [0.075, 0.028, 0]
-              radius: 0.006
-              height: 0.020
+            right:
+              type: "csg"
+              operation: "union"
+              left:
+                type: "cylinder"
+                center: [-0.015, 0.028, 0]
+                radius: 0.006
+                height: 0.020
+              right:
+                type: "csg"
+                operation: "union"
+                left:
+                  type: "cylinder"
+                  center: [0.015, 0.028, 0]
+                  radius: 0.006
+                  height: 0.020
+                right:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    type: "cylinder"
+                    center: [0.045, 0.028, 0]
+                    radius: 0.006
+                    height: 0.020
+                  right:
+                    type: "cylinder"
+                    center: [0.075, 0.028, 0]
+                    radius: 0.006
+                    height: 0.020
 
       # ── 2 pioli di connessione ─────────────────────────────────────────
       - type: "cylinder"

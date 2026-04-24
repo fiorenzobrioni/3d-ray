@@ -207,74 +207,111 @@ templates:
     material: "mec_acciaio"
     children:
 
-      # Corpo completo: disco + denti − foro − chiavetta
+      # Corpo completo: (disco ⊎ mozzo ⊎ smusso ⊎ 8 denti) − foro − chiavetta
+      # L'unione degli 11 elementi è scritta come catena di csg:union
+      # annidate (i group non sono ammessi come figli CSG).
       - type: "csg"
         operation: "subtraction"
         left:
           type: "csg"
           operation: "subtraction"
           left:
-            # Disco + denti
-            type: "group"
-            children:
+            # Disco + mozzo + smusso + 8 denti (unione in catena right-leaning)
+            type: "csg"
+            operation: "union"
+            left:
               # Disco corpo principale
-              - type: "cylinder"
-                center: [0, 0, 0]
-                radius: 0.048
-                height: 0.020
-
-              # Mozzo rialzato
-              - type: "cylinder"
+              type: "cylinder"
+              center: [0, 0, 0]
+              radius: 0.048
+              height: 0.020
+            right:
+              type: "csg"
+              operation: "union"
+              left:
+                # Mozzo rialzato
+                type: "cylinder"
                 center: [0, 0, 0]
                 radius: 0.018
                 height: 0.025
-
-              # Smusso superiore del disco
-              - type: "torus"
-                center: [0, 0.020, 0]
-                major_radius: 0.046
-                minor_radius: 0.004
-
-              # 8 denti a 45° l'uno dall'altro
-              # Dente 0° (X+)
-              - type: "box"
-                scale: [0.018, 0.020, 0.014]
-                translate: [0.055, 0.010, 0]
-              # Dente 45°
-              - type: "box"
-                scale: [0.018, 0.020, 0.014]
-                translate: [0.0389, 0.010, 0.0389]
-                rotate: [0, 45, 0]
-              # Dente 90° (Z+)
-              - type: "box"
-                scale: [0.018, 0.020, 0.014]
-                translate: [0, 0.010, 0.055]
-                rotate: [0, 90, 0]
-              # Dente 135°
-              - type: "box"
-                scale: [0.018, 0.020, 0.014]
-                translate: [-0.0389, 0.010, 0.0389]
-                rotate: [0, 135, 0]
-              # Dente 180° (X−)
-              - type: "box"
-                scale: [0.018, 0.020, 0.014]
-                translate: [-0.055, 0.010, 0]
-                rotate: [0, 180, 0]
-              # Dente 225°
-              - type: "box"
-                scale: [0.018, 0.020, 0.014]
-                translate: [-0.0389, 0.010, -0.0389]
-                rotate: [0, 225, 0]
-              # Dente 270° (Z−)
-              - type: "box"
-                scale: [0.018, 0.020, 0.014]
-                translate: [0, 0.010, -0.055]
-                rotate: [0, 270, 0]
-              # Dente 315°
-              - type: "box"
-                scale: [0.018, 0.020, 0.014]
-                translate: [0.0389, 0.010, -0.0389]
-                rotate: [0, 315, 0]
+              right:
+                type: "csg"
+                operation: "union"
+                left:
+                  # Smusso superiore del disco
+                  type: "torus"
+                  center: [0, 0.020, 0]
+                  major_radius: 0.046
+                  minor_radius: 0.004
+                right:
+                  # 8 denti a 45° l'uno dall'altro
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    # Dente 0° (X+)
+                    type: "box"
+                    scale: [0.018, 0.020, 0.014]
+                    translate: [0.055, 0.010, 0]
+                  right:
+                    type: "csg"
+                    operation: "union"
+                    left:
+                      # Dente 45°
+                      type: "box"
+                      scale: [0.018, 0.020, 0.014]
+                      translate: [0.0389, 0.010, 0.0389]
+                      rotate: [0, 45, 0]
+                    right:
+                      type: "csg"
+                      operation: "union"
+                      left:
+                        # Dente 90° (Z+)
+                        type: "box"
+                        scale: [0.018, 0.020, 0.014]
+                        translate: [0, 0.010, 0.055]
+                        rotate: [0, 90, 0]
+                      right:
+                        type: "csg"
+                        operation: "union"
+                        left:
+                          # Dente 135°
+                          type: "box"
+                          scale: [0.018, 0.020, 0.014]
+                          translate: [-0.0389, 0.010, 0.0389]
+                          rotate: [0, 135, 0]
+                        right:
+                          type: "csg"
+                          operation: "union"
+                          left:
+                            # Dente 180° (X−)
+                            type: "box"
+                            scale: [0.018, 0.020, 0.014]
+                            translate: [-0.055, 0.010, 0]
+                            rotate: [0, 180, 0]
+                          right:
+                            type: "csg"
+                            operation: "union"
+                            left:
+                              # Dente 225°
+                              type: "box"
+                              scale: [0.018, 0.020, 0.014]
+                              translate: [-0.0389, 0.010, -0.0389]
+                              rotate: [0, 225, 0]
+                            right:
+                              type: "csg"
+                              operation: "union"
+                              left:
+                                # Dente 270° (Z−)
+                                type: "box"
+                                scale: [0.018, 0.020, 0.014]
+                                translate: [0, 0.010, -0.055]
+                                rotate: [0, 270, 0]
+                              right:
+                                # Dente 315°
+                                type: "box"
+                                scale: [0.018, 0.020, 0.014]
+                                translate: [0.0389, 0.010, -0.0389]
+                                rotate: [0, 315, 0]
 
           right:
             # Foro centrale
@@ -337,24 +374,29 @@ templates:
               translate: [0, 0.004, 0]
               rotate: [0, -60, 0]
         right:
-          # Foro + svasature
-          type: "group"
-          children:
+          # Foro + 2 svasature: foro passante ⊎ svasatura inf. ⊎ svasatura sup.
+          # (catena di csg:union — i group non sono ammessi come figli CSG).
+          type: "csg"
+          operation: "union"
+          left:
             # Foro passante M10
-            - type: "cylinder"
-              center: [0, -0.002, 0]
-              radius: 0.005
-              height: 0.014
-
-            # Svasatura inferiore (cono)
-            - type: "cone"
+            type: "cylinder"
+            center: [0, -0.002, 0]
+            radius: 0.005
+            height: 0.014
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              # Svasatura inferiore (cono)
+              type: "cone"
               center: [0, -0.002, 0]
               radius: 0.008
               top_radius: 0.005
               height: 0.003
-
-            # Svasatura superiore
-            - type: "cone"
+            right:
+              # Svasatura superiore
+              type: "cone"
               center: [0, 0.006, 0]
               radius: 0.005
               top_radius: 0.008
@@ -542,6 +584,7 @@ templates:
     children:
 
       # ── Anello esterno (CSG) ───────────────────────────────────────────
+      # Sottrae l'unione di (foro anello esterno ⊎ gola pista) dal cilindro.
       - type: "csg"
         operation: "subtraction"
         left:
@@ -550,18 +593,20 @@ templates:
           radius: 0.031
           height: 0.016
         right:
-          type: "group"
-          children:
+          type: "csg"
+          operation: "union"
+          left:
             # Foro anello esterno
-            - type: "cylinder"
-              center: [0, -0.002, 0]
-              radius: 0.025
-              height: 0.020
+            type: "cylinder"
+            center: [0, -0.002, 0]
+            radius: 0.025
+            height: 0.020
+          right:
             # Pista (gola toroidale interna)
-            - type: "torus"
-              center: [0, 0.008, 0]
-              major_radius: 0.025
-              minor_radius: 0.005
+            type: "torus"
+            center: [0, 0.008, 0]
+            major_radius: 0.025
+            minor_radius: 0.005
 
       # ── Anello interno (CSG) ───────────────────────────────────────────
       - type: "csg"
@@ -572,18 +617,20 @@ templates:
           radius: 0.019
           height: 0.016
         right:
-          type: "group"
-          children:
+          type: "csg"
+          operation: "union"
+          left:
             # Foro albero
-            - type: "cylinder"
-              center: [0, -0.002, 0]
-              radius: 0.015
-              height: 0.020
+            type: "cylinder"
+            center: [0, -0.002, 0]
+            radius: 0.015
+            height: 0.020
+          right:
             # Pista (gola toroidale esterna)
-            - type: "torus"
-              center: [0, 0.008, 0]
-              major_radius: 0.019
-              minor_radius: 0.005
+            type: "torus"
+            center: [0, 0.008, 0]
+            major_radius: 0.019
+            minor_radius: 0.005
 
       # ── 8 sfere sul diametro primitivo (Ø 0.044) ──────────────────────
       # Raggio di posizionamento = 0.022
@@ -639,62 +686,79 @@ templates:
     children:
 
       # Corpo del pistone con sedi fasce (CSG)
+      # (corona ⊎ gonna ⊎ bossolo sx ⊎ bossolo dx) − (3 sedi fasce ⊎ foro spinotto)
       - type: "csg"
         operation: "subtraction"
         left:
-          type: "group"
-          children:
+          # Esterno: 4 cilindri uniti
+          type: "csg"
+          operation: "union"
+          left:
             # Corona (parte superiore spessa)
-            - type: "cylinder"
-              center: [0, 0.045, 0]
-              radius: 0.040
-              height: 0.025
-
-            # Gonna (parte inferiore più leggera)
-            - type: "cylinder"
+            type: "cylinder"
+            center: [0, 0.045, 0]
+            radius: 0.040
+            height: 0.025
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              # Gonna (parte inferiore più leggera)
+              type: "cylinder"
               center: [0, 0, 0]
               radius: 0.039
               height: 0.045
-
-            # Bossolo spinotto sinistro
-            - type: "cylinder"
-              center: [-0.022, 0.018, 0]
-              radius: 0.012
-              height: 0.022
-
-            # Bossolo spinotto destro
-            - type: "cylinder"
-              center: [0.022, 0.018, 0]
-              radius: 0.012
-              height: 0.022
+            right:
+              type: "csg"
+              operation: "union"
+              left:
+                # Bossolo spinotto sinistro
+                type: "cylinder"
+                center: [-0.022, 0.018, 0]
+                radius: 0.012
+                height: 0.022
+              right:
+                # Bossolo spinotto destro
+                type: "cylinder"
+                center: [0.022, 0.018, 0]
+                radius: 0.012
+                height: 0.022
 
         right:
-          type: "group"
-          children:
+          # Sottrazioni: 3 sedi fasce + foro spinotto
+          type: "csg"
+          operation: "union"
+          left:
             # Sede 1ª fascia (compressione)
-            - type: "torus"
-              center: [0, 0.062, 0]
-              major_radius: 0.039
-              minor_radius: 0.0025
-
-            # Sede 2ª fascia (compressione)
-            - type: "torus"
+            type: "torus"
+            center: [0, 0.062, 0]
+            major_radius: 0.039
+            minor_radius: 0.0025
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              # Sede 2ª fascia (compressione)
+              type: "torus"
               center: [0, 0.055, 0]
               major_radius: 0.039
               minor_radius: 0.0025
-
-            # Sede 3ª fascia (raschiaolio)
-            - type: "torus"
-              center: [0, 0.048, 0]
-              major_radius: 0.039
-              minor_radius: 0.003
-
-            # Foro spinotto passante
-            - type: "cylinder"
-              center: [0, 0.018, 0]
-              radius: 0.007
-              height: 0.090
-              rotate: [0, 0, 90]
+            right:
+              type: "csg"
+              operation: "union"
+              left:
+                # Sede 3ª fascia (raschiaolio)
+                type: "torus"
+                center: [0, 0.048, 0]
+                major_radius: 0.039
+                minor_radius: 0.003
+              right:
+                # Foro spinotto passante
+                type: "cylinder"
+                center: [0, 0.018, 0]
+                radius: 0.007
+                height: 0.090
+                rotate: [0, 0, 90]
 
       # ── Spinotto ───────────────────────────────────────────────────────
       - type: "cylinder"
@@ -850,63 +914,96 @@ templates:
     material: "mec_acciaio_sat"
     children:
 
+      # Flangia: (disco ⊎ raised face ⊎ bordo) − (foro centrale ⊎ 6 fori)
       - type: "csg"
         operation: "subtraction"
         left:
-          type: "group"
-          children:
+          # Esterno: disco + raised face + bordo
+          type: "csg"
+          operation: "union"
+          left:
             # Disco principale
-            - type: "cylinder"
-              center: [0, 0, 0]
-              radius: 0.080
-              height: 0.018
-
-            # Raised face (rialzo centrale)
-            - type: "cylinder"
+            type: "cylinder"
+            center: [0, 0, 0]
+            radius: 0.080
+            height: 0.018
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              # Raised face (rialzo centrale)
+              type: "cylinder"
               center: [0, 0.018, 0]
               radius: 0.050
               height: 0.004
-
-            # Bordo torus
-            - type: "torus"
+            right:
+              # Bordo torus
+              type: "torus"
               center: [0, 0.018, 0]
               major_radius: 0.077
               minor_radius: 0.005
 
         right:
-          type: "group"
-          children:
+          # Sottrazioni: foro centrale + 6 fori passanti a 60°
+          type: "csg"
+          operation: "union"
+          left:
             # Foro centrale
-            - type: "cylinder"
-              center: [0, -0.004, 0]
-              radius: 0.025
-              height: 0.030
-
-            # 6 fori passanti sul cerchio R=0.060 a 60°
-            - type: "cylinder"
+            type: "cylinder"
+            center: [0, -0.004, 0]
+            radius: 0.025
+            height: 0.030
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              # Foro 1 (0°)
+              type: "cylinder"
               center: [0.060, -0.004, 0]
               radius: 0.007
               height: 0.030
-            - type: "cylinder"
-              center: [0.030, -0.004, 0.0520]
-              radius: 0.007
-              height: 0.030
-            - type: "cylinder"
-              center: [-0.030, -0.004, 0.0520]
-              radius: 0.007
-              height: 0.030
-            - type: "cylinder"
-              center: [-0.060, -0.004, 0]
-              radius: 0.007
-              height: 0.030
-            - type: "cylinder"
-              center: [-0.030, -0.004, -0.0520]
-              radius: 0.007
-              height: 0.030
-            - type: "cylinder"
-              center: [0.030, -0.004, -0.0520]
-              radius: 0.007
-              height: 0.030
+            right:
+              type: "csg"
+              operation: "union"
+              left:
+                # Foro 2 (60°)
+                type: "cylinder"
+                center: [0.030, -0.004, 0.0520]
+                radius: 0.007
+                height: 0.030
+              right:
+                type: "csg"
+                operation: "union"
+                left:
+                  # Foro 3 (120°)
+                  type: "cylinder"
+                  center: [-0.030, -0.004, 0.0520]
+                  radius: 0.007
+                  height: 0.030
+                right:
+                  type: "csg"
+                  operation: "union"
+                  left:
+                    # Foro 4 (180°)
+                    type: "cylinder"
+                    center: [-0.060, -0.004, 0]
+                    radius: 0.007
+                    height: 0.030
+                  right:
+                    type: "csg"
+                    operation: "union"
+                    left:
+                      # Foro 5 (240°)
+                      type: "cylinder"
+                      center: [-0.030, -0.004, -0.0520]
+                      radius: 0.007
+                      height: 0.030
+                    right:
+                      # Foro 6 (300°)
+                      type: "cylinder"
+                      center: [0.030, -0.004, -0.0520]
+                      radius: 0.007
+                      height: 0.030
 
 
   # ═══════════════════════════════════════════════════════════════════════
@@ -923,50 +1020,64 @@ templates:
     material: "mec_ghisa"
     children:
 
+      # Puleggia: (disco ⊎ 2 fianchi ⊎ mozzo) − (gola ⊎ foro ⊎ chiavetta)
       - type: "csg"
         operation: "subtraction"
         left:
-          type: "group"
-          children:
+          type: "csg"
+          operation: "union"
+          left:
             # Disco
-            - type: "cylinder"
-              center: [0, 0, 0]
-              radius: 0.060
-              height: 0.028
-
-            # Fianchi della gola (bordi rialzati)
-            - type: "torus"
+            type: "cylinder"
+            center: [0, 0, 0]
+            radius: 0.060
+            height: 0.028
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              # Fianco inferiore della gola
+              type: "torus"
               center: [0, 0.003, 0]
               major_radius: 0.058
               minor_radius: 0.005
-            - type: "torus"
-              center: [0, 0.025, 0]
-              major_radius: 0.058
-              minor_radius: 0.005
-
-            # Mozzo
-            - type: "cylinder"
-              center: [0, 0, 0]
-              radius: 0.020
-              height: 0.030
+            right:
+              type: "csg"
+              operation: "union"
+              left:
+                # Fianco superiore della gola
+                type: "torus"
+                center: [0, 0.025, 0]
+                major_radius: 0.058
+                minor_radius: 0.005
+              right:
+                # Mozzo
+                type: "cylinder"
+                center: [0, 0, 0]
+                radius: 0.020
+                height: 0.030
 
         right:
-          type: "group"
-          children:
+          type: "csg"
+          operation: "union"
+          left:
             # Gola a V (torus grande che incide il bordo)
-            - type: "torus"
-              center: [0, 0.014, 0]
-              major_radius: 0.058
-              minor_radius: 0.010
-
-            # Foro albero
-            - type: "cylinder"
+            type: "torus"
+            center: [0, 0.014, 0]
+            major_radius: 0.058
+            minor_radius: 0.010
+          right:
+            type: "csg"
+            operation: "union"
+            left:
+              # Foro albero
+              type: "cylinder"
               center: [0, -0.004, 0]
               radius: 0.010
               height: 0.040
-
-            # Chiavetta
-            - type: "box"
+            right:
+              # Chiavetta
+              type: "box"
               scale: [0.004, 0.040, 0.016]
               translate: [0.010, 0.014, 0]
 
@@ -1368,20 +1479,23 @@ templates:
     children:
 
       # ── Semiflangia sinistra ───────────────────────────────────────────
+      # (flangia ⊎ mozzo) − foro albero
       - type: "csg"
         operation: "subtraction"
         left:
-          type: "group"
-          children:
-            - type: "cylinder"
-              center: [0, 0, 0]
-              radius: 0.050
-              height: 0.015
+          type: "csg"
+          operation: "union"
+          left:
+            type: "cylinder"
+            center: [0, 0, 0]
+            radius: 0.050
+            height: 0.015
+          right:
             # Mozzo
-            - type: "cylinder"
-              center: [0, 0.015, 0]
-              radius: 0.025
-              height: 0.015
+            type: "cylinder"
+            center: [0, 0.015, 0]
+            radius: 0.025
+            height: 0.015
         right:
           # Foro albero
           type: "cylinder"
@@ -1393,16 +1507,18 @@ templates:
       - type: "csg"
         operation: "subtraction"
         left:
-          type: "group"
-          children:
-            - type: "cylinder"
-              center: [0, 0.030, 0]
-              radius: 0.050
-              height: 0.015
-            - type: "cylinder"
-              center: [0, 0.015, 0]
-              radius: 0.025
-              height: 0.015
+          type: "csg"
+          operation: "union"
+          left:
+            type: "cylinder"
+            center: [0, 0.030, 0]
+            radius: 0.050
+            height: 0.015
+          right:
+            type: "cylinder"
+            center: [0, 0.015, 0]
+            radius: 0.025
+            height: 0.015
         right:
           type: "cylinder"
           center: [0, 0.016, 0]
