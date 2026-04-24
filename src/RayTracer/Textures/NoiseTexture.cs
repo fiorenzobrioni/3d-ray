@@ -22,6 +22,7 @@ namespace RayTracer.Textures;
 ///   type: "noise"
 ///   scale: 5.0
 ///   noise_strength: 0.0    # 0 = smooth (default), >0 = turbulent
+///   colors: [[1,1,1], [0,0,0]]   # optional: light color, dark color
 ///   offset: [0, 0, 0]
 ///   rotation: [0, 0, 0]
 ///   randomize_offset: false
@@ -32,6 +33,8 @@ public class NoiseTexture : ITexture
 {
     private readonly Perlin _noise;
     private readonly float _scale;
+    private readonly Vector3 _color1;
+    private readonly Vector3 _color2;
 
     public Vector3 Offset { get; set; } = Vector3.Zero;
     public Vector3 Rotation { get; set; } = Vector3.Zero;
@@ -48,10 +51,12 @@ public class NoiseTexture : ITexture
     /// </summary>
     public float NoiseStrength { get; set; } = 0f;
 
-    public NoiseTexture(float scale = 1f)
+    public NoiseTexture(float scale = 1f, Vector3? color1 = null, Vector3? color2 = null)
     {
         _noise = new Perlin();
         _scale = scale;
+        _color1 = color1 ?? Vector3.One;
+        _color2 = color2 ?? Vector3.Zero;
     }
 
     public Vector3 Value(float u, float v, Vector3 p, int objectSeed)
@@ -78,6 +83,6 @@ public class NoiseTexture : ITexture
             noiseVal = (noise.Noise(_scale * transformedP) + 1f) * 0.5f;
         }
 
-        return Vector3.One * noiseVal;
+        return Vector3.Lerp(_color2, _color1, noiseVal);
     }
 }
