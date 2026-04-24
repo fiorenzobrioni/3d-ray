@@ -125,7 +125,7 @@ materials:
     type: "lambertian"
     texture:
       type: "checker"
-      scale: 4.0
+      scale: 0.125
       colors: [[0.85, 0.76, 0.58], [0.32, 0.18, 0.10]]
 
   # Marmo bianco venato
@@ -375,26 +375,26 @@ templates:
           - [0.006, 0.039]
           - [0.008, 0.042]   # collarino sotto la mitra
           - [0.007, 0.045]
-          - [0.010, 0.046]   # attacco alla mitra
+          - [0.008, 0.046]   # attacco alla mitra
 
       # ── Mitra (ellissoide allungato con fenditura diagonale, CSG) ──────
       - type: "csg"
         operation: "subtraction"
         left:
           type: "sphere"
-          center: [0, 0.054, 0]
+          translate: [0, 0.058, 0]
           radius: 0.012
           scale: [1.0, 1.40, 1.0]
         right:
           # Fenditura diagonale (box sottile inclinato)
           type: "box"
           scale: [0.030, 0.002, 0.030]
-          translate: [0, 0.062, 0]
+          translate: [0.0066, 0.066, 0]
           rotate: [0, 0, 35]
 
       # Pomo sferico in cima
       - type: "sphere"
-        center: [0, 0.072, 0]
+        center: [0, 0.076, 0]
         radius: 0.004
 
 
@@ -441,47 +441,47 @@ templates:
 
       # ── Collo (ellissoide inclinato in avanti) ─────────────────────────
       - type: "sphere"
-        center: [0, 0.035, -0.004]
+        translate: [0, 0.035, -0.004]
         radius: 0.012
         scale: [0.75, 1.80, 0.90]
         rotate: [10, 0, 0]
 
       # ── Testa (ellissoide allungato in Z, inclinato) ───────────────────
       - type: "sphere"
-        center: [0, 0.052, -0.012]
+        translate: [0, 0.052, -0.012]
         radius: 0.010
         scale: [0.70, 0.65, 1.40]
         rotate: [30, 0, 0]
 
       # ── Muso (sfera schiacciata sporgente) ─────────────────────────────
       - type: "sphere"
-        center: [0, 0.046, -0.024]
+        translate: [0, 0.046, -0.024]
         radius: 0.007
         scale: [0.70, 0.55, 1.10]
 
       # ── Orecchie (2 sfere piccole allungate) ──────────────────────────
       - type: "sphere"
-        center: [-0.004, 0.060, -0.006]
+        translate: [-0.004, 0.060, -0.006]
         radius: 0.003
         scale: [0.60, 1.80, 0.70]
       - type: "sphere"
-        center: [0.004, 0.060, -0.006]
+        translate: [0.004, 0.060, -0.006]
         radius: 0.003
         scale: [0.60, 1.80, 0.70]
 
       # ── Criniera (cresta lungo il collo) ───────────────────────────────
       - type: "sphere"
-        center: [0, 0.048, 0.004]
+        translate: [0, 0.048, 0.004]
         radius: 0.005
         scale: [0.30, 1.60, 0.80]
 
       # ── Occhi (2 sfere minuscole scure) ────────────────────────────────
       - type: "sphere"
-        center: [-0.007, 0.052, -0.016]
+        translate: [-0.007, 0.052, -0.016]
         radius: 0.0015
         material: "chs_ebano"
       - type: "sphere"
-        center: [0.007, 0.052, -0.016]
+        translate: [0.007, 0.052, -0.016]
         radius: 0.0015
         material: "chs_ebano"
 
@@ -629,7 +629,7 @@ templates:
         translate: [0, 0.0125, 0]
 
       # Bordo arrotondato
-      - type: "torus"
+      - type: "-torus"
         center: [0, 0.025, 0]
         major_radius: 0.225
         minor_radius: 0.006
@@ -644,7 +644,7 @@ templates:
         material: "chs_checker_legno"
 
       # Filetto (torus sottile al bordo del piano)
-      - type: "torus"
+      - type: "-torus"
         center: [0, 0.031, 0]
         major_radius: 0.198
         minor_radius: 0.002
@@ -652,19 +652,19 @@ templates:
 
       # Piedini (4 sfere schiacciate)
       - type: "sphere"
-        center: [-0.20, 0, -0.20]
+        translate: [-0.20, 0, -0.20]
         radius: 0.010
         scale: [1.2, 0.4, 1.2]
       - type: "sphere"
-        center: [0.20, 0, -0.20]
+        translate: [0.20, 0, -0.20]
         radius: 0.010
         scale: [1.2, 0.4, 1.2]
       - type: "sphere"
-        center: [-0.20, 0, 0.20]
+        translate: [-0.20, 0, 0.20]
         radius: 0.010
         scale: [1.2, 0.4, 1.2]
       - type: "sphere"
-        center: [0.20, 0, 0.20]
+        translate: [0.20, 0, 0.20]
         radius: 0.010
         scale: [1.2, 0.4, 1.2]
 

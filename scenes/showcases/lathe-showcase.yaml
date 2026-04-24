@@ -5,7 +5,7 @@
 # ============================================================================
 
 camera:
-  position: [0, 3.5, -9]
+  position: [0, 3, -6]
   look_at: [0, 1.2, 0]
   fov: 42
   aperture: 0.0
@@ -24,42 +24,80 @@ world:
 
 materials:
   - id: "pavimento"
-    type: "disney"
-    roughness: 0.85
-    texture:
-      type: "checker"
-      colors: [[0.10, 0.10, 0.11], [0.22, 0.22, 0.23]]
-      scale: 0.7
+    type: "lambertian"
+    texture: { type: "noise", scale: 6.0, noise_strength: 4.0, colors: [[0.45, 0.32, 0.18], [0.32, 0.22, 0.12]], randomize_offset: true }
+
+    #type: "metal"
+    #fuzz: 0.12
+    #texture: { type: "checker", colors: [[0.90, 0.88, 0.85], [0.06, 0.06, 0.07]], scale: 1.5 }
+
+    #type: "lambertian"
+    #texture: { type: "checker", colors: [[0.85, 0.80, 0.70], [0.55, 0.25, 0.15]], scale: 1.5 }
+
+    #type: "disney"
+    #roughness: 0.85
+    #texture:
+    #  type: "checker"
+    #  colors: [[0.10, 0.10, 0.11], [0.22, 0.22, 0.23]]
+    #  scale: 0.7
 
   # ── Ceramic vase (Catmull-Rom) ───────────────────────────────────────────
   - id: "porcellana"
     type: "disney"
-    color: [0.94, 0.92, 0.88]
-    roughness: 0.25
-    specular: 0.6
+    color: [0.95, 0.93, 0.88]
+    roughness: 0.12
+    metallic: 0.0
+    specular: 0.8
+    clearcoat: 0.4
+    coat_roughness: 0.10
+    subsurface: 0.15
+
+    #type: "disney"
+    #color: [0.94, 0.92, 0.88]
+    #roughness: 0.25
+    #specular: 0.6
 
   # ── Faceted column (linear) — the turned-by-hand look ────────────────────
   - id: "marmo"
     type: "disney"
-    color: [0.88, 0.86, 0.82]
-    roughness: 0.35
+    texture:
+      type: "marble"
+      scale: 15.0
+      noise_strength: 12.0
+      colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
+      randomize_offset: true
+    roughness: 0.10
+    clearcoat: 0.90
+    coat_roughness: 0.05
+    specular: 0.72
+    subsurface: 0.08
 
-  # ── Glass chalice (Catmull-Rom, dielectric) ──────────────────────────────
+    #type: "disney"
+    #color: [0.88, 0.86, 0.82]
+    #roughness: 0.35
+
+  # ── Glass chalice (Catmull-Rom) ──────────────────────────────
   - id: "cristallo"
-    type: "dielectric"
-    refraction_index: 1.5
+    type: "disney"
+    color: [0.97, 0.97, 1.0]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.65
+    specular: 0.90
 
-  # ── Emissive bowl (Bezier) — NEE area light ──────────────────────────────
-  - id: "lampada"
-    type: "emissive"
-    color: [1.0, 0.65, 0.35]
-    intensity: 35.0
+    #type: "dielectric"
+    #refraction_index: 1.5
 
 lights:
+  - type: "directional"
+    direction: [0.3, -0.6, 0.5]
+    color: [0.6, 0.65, 0.85]
+    intensity: 0.15
+
   - type: "point"
-    position: [-6, 10, -8]
-    color: [1, 1, 1]
-    intensity: 110
+    position: [-3, 4, -2]
+    color: [0.5, 0.55, 0.80]
+    intensity: 20
 
 entities:
   # ═════════════════════════════════════════════════════════════════════════
@@ -125,14 +163,14 @@ entities:
       - [0.00, 1.75]
 
   # ═════════════════════════════════════════════════════════════════════════
-  # 4. Emissive bowl — explicit Bezier control points.
+  # 4. Bowl.
   #    Two segments: base (r = 0 → 0.55) and bowl wall (0.55 → 0.65 → 0).
   # ═════════════════════════════════════════════════════════════════════════
-  - name: "ciotola_emissiva"
+  - name: "ciotola"
     type: "lathe"
     profile_type: "bezier"
-    material: "lampada"
-    translate: [0.5, 0.05, 3.8]
+    material: "porcellana"
+    translate: [1.5, 0.05, 3.0]
     profile:
       - [0.00, 0.00]
       - [0.55, 0.30]
