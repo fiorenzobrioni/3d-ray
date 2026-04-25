@@ -59,6 +59,12 @@ public class SmoothTriangle : IHittable, ISamplable
     private readonly Vector3 _tangent;
     private readonly Vector3 _bitangent;
 
+    // Precomputed edges + area — immutable across the mesh's lifetime so the
+    // hit-time subtractions and the SampleAt Cross/Length are wasted work.
+    private readonly Vector3 _edge1;
+    private readonly Vector3 _edge2;
+    private readonly float _area;
+
     public SmoothTriangle(
         Vector3 v0, Vector3 v1, Vector3 v2,
         Vector3 n0, Vector3 n1, Vector3 n2,
@@ -72,7 +78,12 @@ public class SmoothTriangle : IHittable, ISamplable
         UV0 = uv0; UV1 = uv1; UV2 = uv2;
         Material = material;
 
-        _faceNormal = Vector3.Normalize(Vector3.Cross(v1 - v0, v2 - v0));
+        _edge1 = v1 - v0;
+        _edge2 = v2 - v0;
+        Vector3 faceCross = Vector3.Cross(_edge1, _edge2);
+        float faceCrossLen = faceCross.Length();
+        _faceNormal = faceCrossLen > 0f ? faceCross / faceCrossLen : Vector3.UnitY;
+        _area = 0.5f * faceCrossLen;
 
         // ── Precompute tangent/bitangent from UV gradients ──────────────
         //
@@ -84,8 +95,8 @@ public class SmoothTriangle : IHittable, ISamplable
         //   E2 = dUV2.x * T + dUV2.y * B
         //
         // Solving: [T, B] = (1/det) * [[dUV2.y, -dUV1.y], [-dUV2.x, dUV1.x]] × [E1, E2]
-        Vector3 edge1 = v1 - v0;
-        Vector3 edge2 = v2 - v0;
+        Vector3 edge1 = _edge1;
+        Vector3 edge2 = _edge2;
         Vector2 dUV1 = uv1 - uv0;
         Vector2 dUV2 = uv2 - uv0;
 
@@ -136,10 +147,8 @@ public class SmoothTriangle : IHittable, ISamplable
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         // ── Möller–Trumbore (identical to flat Triangle) ────────────────
-        Vector3 edge1 = V1 - V0;
-        Vector3 edge2 = V2 - V0;
-        Vector3 h = Vector3.Cross(ray.Direction, edge2);
-        float a = Vector3.Dot(edge1, h);
+        Vector3 h = Vector3.Cross(ray.Direction, _edge2);
+        float a = Vector3.Dot(_edge1, h);
 
         if (MathF.Abs(a) < 1e-7f) return false;
 
@@ -148,11 +157,11 @@ public class SmoothTriangle : IHittable, ISamplable
         float u = f * Vector3.Dot(s, h);
         if (u < 0f || u > 1f) return false;
 
-        Vector3 q = Vector3.Cross(s, edge1);
+        Vector3 q = Vector3.Cross(s, _edge1);
         float v = f * Vector3.Dot(ray.Direction, q);
         if (v < 0f || u + v > 1f) return false;
 
-        float t = f * Vector3.Dot(edge2, q);
+        float t = f * Vector3.Dot(_edge2, q);
         if (t < tMin || t > tMax) return false;
 
         // ── Barycentric weights ─────────────────────────────────────────
@@ -215,8 +224,7 @@ public class SmoothTriangle : IHittable, ISamplable
         // Interpolate per-vertex UVs — matches Hit() exactly so textured
         // emissives get the correct UV at NEE sample points.
         Vector2 uv = w0 * UV0 + w1 * UV1 + w2 * UV2;
-        float area = 0.5f * Vector3.Cross(V1 - V0, V2 - V0).Length();
-        return (point, normal, uv, area);
+        return (point, normal, uv, _area);
     }
 
     public int Seed { get; set; }

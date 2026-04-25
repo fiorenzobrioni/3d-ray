@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using RayTracer.Core;
 using RayTracer.Core.Sampling;
 using RayTracer.Geometry;
@@ -333,6 +334,7 @@ public class Renderer
     /// ACES filmic tone mapping followed by gamma 2.2 correction.
     /// Provides natural highlight rolloff and richer colors compared to simple sqrt gamma.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector3 AcesToneMap(Vector3 color)
     {
         color = Vector3.Max(color, Vector3.Zero);
@@ -354,6 +356,7 @@ public class Renderer
     /// Also replaces NaN/Inf values with black to prevent corruption
     /// from propagating into the pixel accumulator.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private Vector3 ClampRadiance(Vector3 color)
     {
         // NaN / Inf guard — any non-finite component becomes zero.
@@ -429,10 +432,16 @@ public class Renderer
             }
         }
 
+        // viewDir is shared between NEE direct-lighting and the indirect
+        // bounce's material.Sample() — compute it once and pass it down.
+        // Previously each surface hit Normalized -ray.Direction twice
+        // (once in ComputeDirectLighting, once below at the Sample call).
+        Vector3 viewDir = Vector3.Normalize(-ray.Direction);
+
         // ── Direct lighting (Next Event Estimation, MIS-weighted) ───────────
         bool needsLightSampling = material?.NeedsDirectLighting ?? true;
         Vector3 directLight = needsLightSampling
-            ? ComputeDirectLighting(rec, ray, material)
+            ? ComputeDirectLighting(rec, viewDir, material)
             : Vector3.Zero;
 
         if (material == null)
@@ -443,7 +452,6 @@ public class Renderer
         // us a well-defined BSDF PDF for MIS at the next bounce. Fall back to
         // Scatter() for legacy materials (Lambert, Metal, Dielectric, Mix)
         // which still use the IsDeltaScatter-encoded suppression convention.
-        Vector3 viewDir = Vector3.Normalize(-ray.Direction);
         BsdfSample? mis = material.Sample(viewDir, rec);
         if (mis.HasValue)
         {
@@ -713,11 +721,9 @@ public class Renderer
     /// by TraceRay via the scatter attenuation, keeping direct and indirect paths
     /// energetically consistent.
     /// </summary>
-    private Vector3 ComputeDirectLighting(HitRecord rec, Ray incomingRay, IMaterial? material)
+    private Vector3 ComputeDirectLighting(HitRecord rec, Vector3 viewDir, IMaterial? material)
     {
         Vector3 result = _ambientLight;
-
-        Vector3 viewDir = Vector3.Normalize(-incomingRay.Direction);
 
         foreach (var light in _lights)
         {
