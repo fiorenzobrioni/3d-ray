@@ -23,6 +23,7 @@ public class Renderer
     private readonly Dictionary<Emissive, ILight> _emitterToLight;
     private readonly EnvironmentLight? _envLight;
     private readonly IMedium? _globalMedium;
+    private readonly bool _verbose;
 
     // ── Russian Roulette configuration ──────────────────────────────────────
     //
@@ -102,7 +103,8 @@ public class Renderer
         int samplesPerPixel,
         int maxDepth,
         IMedium? globalMedium = null,
-        float? maxSampleRadiance = null)
+        float? maxSampleRadiance = null,
+        bool verbose = false)
     {
         _world = world;
         _camera = camera;
@@ -113,6 +115,7 @@ public class Renderer
         _maxDepth = maxDepth;
         _globalMedium = globalMedium;
         _maxSampleRadiance = maxSampleRadiance ?? DefaultMaxSampleRadiance;
+        _verbose = verbose;
 
         // ── Scene analysis: detect indirect-dominant lighting ────────────
         // Sum each light's approximate radiant flux [Rec.709 luminance] and
@@ -162,11 +165,13 @@ public class Renderer
         
         if (isIndirectDominant)
         {
-            Console.WriteLine($"  Scene analysis: indirect-dominant lighting detected " +
-                              $"(mean irradiance {meanIrradiance:F3}, " +
-                              $"flux {totalFlux:F1}, scene R {sceneRadius:F1}). " +
-                              $"Using conservative RR (minBounces={_rrMinBounces}, " +
-                              $"minSurvival={_rrMinSurvival:F2}).");
+            Console.WriteLine($"  Lighting:    indirect-dominant (conservative RR)");
+            if (_verbose)
+            {
+                Console.WriteLine($"  RR detail:   irradiance={meanIrradiance:F3}, " +
+                                  $"flux={totalFlux:F1}, R={sceneRadius:F1}, " +
+                                  $"minBounces={_rrMinBounces}, minSurvival={_rrMinSurvival:F2}");
+            }
         }
     }
 
@@ -322,7 +327,7 @@ public class Renderer
             if (done % 20 == 0 || done == totalRows)
             {
                 float pct = 100f * done / totalRows;
-                Console.Write($"\rRendering: {pct:F1}% ({done}/{totalRows} scanlines)   ");
+                Console.Write($"\r  Rendering: {pct:F1}% ({done}/{totalRows} scanlines)   ");
             }
         });
 

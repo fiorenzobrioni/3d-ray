@@ -225,6 +225,7 @@ dotnet run --project src/Tools/ChessGen/ChessGen.csproj
 | `--camera` | `-c` | *(prima camera)* | Seleziona la camera per nome o indice (0-based). |
 | `--sampler` | — | `sobol` | Campionatore per-pixel: `sobol` (Owen-scrambled, default) o `prng` (legacy thread-local). Nessuna differenza di interfaccia scena: cambia solo la sequenza dei numeri casuali. |
 | `--list-cameras` | — | — | Elenca le camere disponibili nella scena ed esce. |
+| `--verbose` | `-v` | — | Mostra informazioni dettagliate durante il caricamento e l'analisi della scena (import, template, σ del medium, tuning Russian Roulette). Utile per debug e sviluppo scene. |
 | `--help` | `-h` | — | Mostra il messaggio di aiuto ed esce. |
 
 > **Nota:** `-H` è maiuscola perché `-h` è riservato a `--help`. Le maiuscole sono usate per gli "override avanzati": `-S` (`--shadow-samples`) e `-C` (`--clamp`); `-s` minuscola per `--samples`, `-c` minuscola per `--camera`.

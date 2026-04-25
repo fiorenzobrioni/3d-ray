@@ -81,6 +81,10 @@ class Program
         }
         Sampler.SetKind(samplerKind);
 
+        // Verbose mode
+        bool verbose = HasFlag(args, "--verbose", "-v");
+        SceneLoader.SetVerbose(verbose);
+
         // Required argument check
         if (string.IsNullOrEmpty(inputPath))
         {
@@ -110,19 +114,19 @@ class Program
         if (!sParsed || samples <= 0) samples = 16;
         if (!dParsed || depth  <= 0) depth   = 8;
 
-        Console.WriteLine("╔══════════════════════════════════════════╗");
-        Console.WriteLine("║       RayTracer .NET 10 Engine           ║");
-        Console.WriteLine("╚══════════════════════════════════════════╝");
+        Console.WriteLine("╔═══════════════════════════════════════════╗");
+        Console.WriteLine("║         RayTracer .NET 10 Engine          ║");
+        Console.WriteLine("╚═══════════════════════════════════════════╝");
         Console.WriteLine();
         Console.WriteLine($"  Scene:       {inputPath}");
         Console.WriteLine($"  Output:      {outputPath}");
-        Console.WriteLine($"  Resolution:  {width} x {height}");
+        Console.WriteLine($"  Resolution:  {width} \u00d7 {height}");
         Console.WriteLine($"  Samples/px:  {samples}");
         Console.WriteLine($"  Max depth:   {depth}");
         if (shadowSamplesOverride.HasValue)
-            Console.WriteLine($"  Shadow smp:  {shadowSamplesOverride.Value} (CLI override)");
+            Console.WriteLine($"  Shadow smp:  {shadowSamplesOverride.Value} (override)");
         if (clampOverride.HasValue)
-            Console.WriteLine($"  Clamp:       {clampOverride.Value} (CLI override)");
+            Console.WriteLine($"  Clamp:       {clampOverride.Value} (override)");
         if (cameraSelector != null)
             Console.WriteLine($"  Camera:      {cameraSelector}");
         Console.WriteLine($"  Sampler:     {samplerKind.ToString().ToLowerInvariant()}");
@@ -138,27 +142,25 @@ class Program
 
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
             SceneLoader.FlushMessages();
-            Console.WriteLine($"  Lights: {lights.Count}");
+            Console.WriteLine($"  Lights:      {lights.Count}");
             string skyDesc = sky.Mode switch
             {
                 SkySettings.SkyMode.Hdri     => "HDRI environment map",
                 SkySettings.SkyMode.Gradient => "gradient" + (sky.HasSun ? " + sun disk" : ""),
                 _                            => "flat"
             };
-            Console.WriteLine($"  Sky:    {skyDesc}");
+            Console.WriteLine($"  Sky:         {skyDesc}");
+
+            // Render (constructor may print scene analysis info before the blank line)
+            var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth, globalMedium, clampOverride, verbose);
             Console.WriteLine();
 
-            // Render
-            var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth, globalMedium, clampOverride);
             sw.Restart();
             var pixels = renderer.Render(width, height);
             var elapsed = sw.Elapsed;
-            Console.WriteLine($"Render completed in {elapsed.TotalSeconds:F2}s");
+            Console.WriteLine($"  Render time: {FormatElapsed(elapsed)}");
 
             // Save image
-            Console.Write($"Saving {outputPath}... ");
-
-            // Ensure output directory exists
             string? outputDir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(outputDir))
             {
@@ -166,9 +168,8 @@ class Program
             }
 
             SaveImage(pixels, width, height, outputPath);
-            Console.WriteLine("done!");
             Console.WriteLine();
-            Console.WriteLine($"Output saved to: {Path.GetFullPath(outputPath)}");
+            Console.WriteLine($"  \u2713 Saved: {Path.GetFullPath(outputPath)}");
         }
         catch (Exception ex)
         {
@@ -196,6 +197,7 @@ class Program
         Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
         Console.WriteLine("      --sampler <prng|sobol>   Per-pixel sampler (default: sobol — Burley 2020)");
         Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
+        Console.WriteLine("  -v, --verbose                Show detailed loading and scene analysis info");
         Console.WriteLine("  -h, --help                   Show this help");
         Console.WriteLine();
         Console.WriteLine("Examples:");
@@ -209,6 +211,21 @@ class Program
         Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess.yaml --list-cameras");
         Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess.yaml -c top -o top.png");
         Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess.yaml -c 2 -o cam2.png");
+    }
+
+    /// <summary>
+    /// Formats a TimeSpan as a human-readable string:
+    /// under 60s  → "42.18s"
+    /// under 60m  → "5m 42.18s"
+    /// 60m+       → "1h 05m 42s"
+    /// </summary>
+    static string FormatElapsed(TimeSpan t)
+    {
+        if (t.TotalMinutes < 1)
+            return $"{t.TotalSeconds:F2}s";
+        if (t.TotalHours < 1)
+            return $"{(int)t.TotalMinutes}m {t.Seconds + t.Milliseconds / 1000.0:F2}s";
+        return $"{(int)t.TotalHours}h {t.Minutes:D2}m {t.Seconds}s";
     }
 
     static void SaveImage(Vector3[,] pixels, int width, int height, string path)

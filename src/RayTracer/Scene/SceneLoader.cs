@@ -36,6 +36,21 @@ public class SceneLoader
     // =========================================================================
 
     private static readonly List<string> _deferredMessages = new();
+    private static bool _verbose;
+
+    /// <summary>
+    /// Enables or disables verbose output. When disabled, only warnings and
+    /// essential informational messages are printed; when enabled, detailed
+    /// debug-level messages (imports, templates, σ values, RR tuning) are
+    /// included as well.
+    /// </summary>
+    public static void SetVerbose(bool verbose) => _verbose = verbose;
+
+    /// <summary>
+    /// Returns the current verbose state. Used by <see cref="Renderer"/> to
+    /// decide how much scene-analysis detail to print.
+    /// </summary>
+    public static bool IsVerbose => _verbose;
 
     /// <summary>
     /// Queues a warning message to be printed after the loading phase completes.
@@ -47,10 +62,20 @@ public class SceneLoader
 
     /// <summary>
     /// Queues an informational (non-warning) message to be printed after loading.
+    /// Always visible regardless of verbose mode.
     /// </summary>
     private static void Info(string message)
     {
         _deferredMessages.Add($"  {message}");
+    }
+
+    /// <summary>
+    /// Queues a debug-level message shown only in verbose mode.
+    /// </summary>
+    private static void Verbose(string message)
+    {
+        if (_verbose)
+            _deferredMessages.Add($"  {message}");
     }
 
     /// <summary>
@@ -217,8 +242,8 @@ public class SceneLoader
                 templates[t.Name] = t;
             }
             if (templates.Count > 0)
-                Info($"Templates registered: {templates.Count} " +
-                     $"({string.Join(", ", templates.Keys)})");
+                Verbose($"Templates:   {templates.Count} registered " +
+                        $"({string.Join(", ", templates.Keys)})");
         }
 
         // Built once per template, on first instance request. Subsequent
@@ -266,6 +291,8 @@ public class SceneLoader
                 }
             }
         }
+
+        Info($"Objects:     {objects.Count:N0}");
 
         // Build BVH — separate infinite planes (no finite AABB) from finite objects.
         // BVH is only beneficial above BvhThreshold objects; below that the tree
@@ -416,11 +443,11 @@ public class SceneLoader
                 if (importData.Templates != null)
                     importedTemplates.AddRange(importData.Templates);
  
-                Info($"Imported: '{import.Path}' " +
-                     $"({importData.Materials?.Count ?? 0} materials, " +
-                     $"{importData.Entities?.Count ?? 0} entities, " +
-                     $"{importData.Lights?.Count ?? 0} lights, " +
-                     $"{importData.Templates?.Count ?? 0} templates)");
+                Verbose($"Imported:    {import.Path} " +
+                        $"({importData.Materials?.Count ?? 0} materials, " +
+                        $"{importData.Entities?.Count ?? 0} entities, " +
+                        $"{importData.Lights?.Count ?? 0} lights, " +
+                        $"{importData.Templates?.Count ?? 0} templates)");
             }
             catch (Exception ex)
             {
@@ -858,8 +885,7 @@ public class SceneLoader
         if (material is DisneyBsdf
             && m.SubsurfaceRadius != null && m.SubsurfaceRadius.Count > 0)
         {
-            Info($"Material '{m.Id}': 'subsurface_radius' parsed but not used " +
-                 "(reserved for future random-walk SSS).");
+            Verbose($"Material:    '{m.Id}' — subsurface_radius parsed, not yet used (future SSS)");
         }
 
         return material;
@@ -998,7 +1024,8 @@ public class SceneLoader
             var (pixels, width, height) = HdrLoader.Load(hdrPath);
             var envMap = new EnvironmentMap(pixels, width, height,
                                             skyData.Intensity, skyData.Rotation);
-            Info($"HDRI loaded: {skyData.Path} ({width}x{height}, {sw.ElapsedMilliseconds} ms)");
+            Info($"HDRI:        {skyData.Path} ({width}\u00d7{height})");
+            Verbose($"HDRI load:   {sw.ElapsedMilliseconds} ms");
             return new SkySettings(envMap);
         }
         catch (Exception ex)
@@ -1455,8 +1482,7 @@ public class SceneLoader
         }
  
         // Report mesh stats
-        Info($"Mesh '{e.Name ?? Path.GetFileName(objPath)}': " +
-             $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices");
+        Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 {mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices");
  
         // Seed assignment (same logic as CreateEntity)
         mesh.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
@@ -1488,7 +1514,7 @@ public class SceneLoader
         var group = new Group(childObjects);
         group.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
  
-        Info($"Group '{e.Name ?? "(unnamed)"}': {childObjects.Count} children");
+        Verbose($"Group:       {e.Name ?? "(unnamed)"} \u2014 {childObjects.Count} children");
         return group;
     }
  
@@ -1538,7 +1564,7 @@ public class SceneLoader
             }
             sharedTemplate = built;
             templateCache[e.Template] = sharedTemplate;
-            Info($"Template '{e.Template}' built and cached for instancing.");
+            Verbose($"Template:    '{e.Template}' built and cached");
         }
 
         // Material override is applied only when the YAML instance specifies a
@@ -1957,7 +1983,8 @@ public class SceneLoader
     private static IMedium BuildHomogeneous(MediumData md, IPhaseFunction phase)
     {
         var (sigmaA, sigmaS) = ParseSigmas(md, "Medium 'homogeneous'");
-        Info($"Global medium: homogeneous, σ_a={sigmaA}, σ_s={sigmaS}, phase={md.Phase ?? "isotropic"}");
+        Info($"Medium:      homogeneous ({md.Phase ?? "isotropic"} phase)");
+        Verbose($"Medium det:  \u03c3_a={sigmaA}, \u03c3_s={sigmaS}");
         return new HomogeneousMedium(sigmaA, sigmaS, phase);
     }
 
@@ -1969,7 +1996,8 @@ public class SceneLoader
             Warn($"Medium 'height_fog' has non-positive scale_height={md.ScaleHeight}. Using 1.");
         }
         float H = md.ScaleHeight > 0f ? md.ScaleHeight : 1f;
-        Info($"Global medium: height_fog, σ_a={sigmaA}, σ_s={sigmaS}, y0={md.Y0}, H={H}, phase={md.Phase ?? "isotropic"}");
+        Info($"Medium:      height_fog ({md.Phase ?? "isotropic"} phase)");
+        Verbose($"Medium det:  \u03c3_a={sigmaA}, \u03c3_s={sigmaS}, y0={md.Y0}, H={H}");
         return new HeightFogMedium(sigmaA, sigmaS, md.Y0, H, phase);
     }
 
@@ -1978,8 +2006,8 @@ public class SceneLoader
         var (sigmaA, sigmaS) = ParseSigmas(md, "Medium 'procedural'");
         if (md.Frequency <= 0f) Warn($"Medium 'procedural' has non-positive frequency={md.Frequency}. Using 1.");
         float freq = md.Frequency > 0f ? md.Frequency : 1f;
-        Info($"Global medium: procedural (Perlin fBm), σ_base_a={sigmaA}, σ_base_s={sigmaS}, " +
-             $"freq={freq}, octaves={md.Octaves}, phase={md.Phase ?? "isotropic"}");
+        Info($"Medium:      procedural/fBm ({md.Phase ?? "isotropic"} phase)");
+        Verbose($"Medium det:  \u03c3_base_a={sigmaA}, \u03c3_base_s={sigmaS}, freq={freq}, octaves={md.Octaves}");
         return new HeterogeneousProceduralMedium(
             sigmaA, sigmaS, freq, md.Octaves, md.Lacunarity, md.Gain, md.Seed, phase);
     }
@@ -2011,7 +2039,7 @@ public class SceneLoader
                     ? md.File!
                     : Path.Combine(sceneDir, md.File!);
                 (nx, ny, nz, data) = LoadVolFile(path);
-                Info($"Global medium: grid from '{md.File}', {nx}×{ny}×{nz}");
+                Info($"Medium:      grid {nx}\u00d7{ny}\u00d7{nz} from '{md.File}'");
             }
             catch (Exception ex)
             {
@@ -2032,7 +2060,7 @@ public class SceneLoader
                 return null;
             }
             data = md.Data.ToArray();
-            Info($"Global medium: grid inline, {nx}×{ny}×{nz}");
+            Info($"Medium:      grid {nx}\u00d7{ny}\u00d7{nz} (inline)");
         }
         else
         {
@@ -2066,7 +2094,7 @@ public class SceneLoader
             var medium = new GridMedium(sigmaA, sigmaS,
                                         boundsMin.Value, boundsMax.Value,
                                         nx, ny, nz, data!, phase, interp);
-            Info($"Global medium: grid interpolation = {interp.ToString().ToLowerInvariant()}");
+            Verbose($"Medium det:  interpolation = {interp.ToString().ToLowerInvariant()}");
             return medium;
         }
         catch (Exception ex)
