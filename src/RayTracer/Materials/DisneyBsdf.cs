@@ -299,16 +299,53 @@ public class DisneyBsdf : IMaterial
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Per-thread last-hit cache for ShadingParams.
+    //
+    // Within a single surface hit the renderer typically calls EvaluateDirect
+    // (per shadow sample) → Pdf (per shadow sample, MIS) → Sample (indirect
+    // bounce) — three or more EvalParams invocations on the SAME (this, rec).
+    // Each invocation re-evaluates 20 IFloatTexture.Value() calls, which for a
+    // SolidColor is a property fetch but for a NoiseTexture / ImageTexture /
+    // FloatTextureRef chain costs real cycles.
+    //
+    // We remember the (material, hit-identity) of the last call and return the
+    // cached ShadingParams when the next call lands on the same (material, rec).
+    // The hit identity is the tuple (object seed, U, V, LocalPoint), which is
+    // exactly what EvalParams reads from the HitRecord — by definition the
+    // ShadingParams is a pure function of those inputs (modulo the texture
+    // graph, which is immutable at render time), so the cache is sound.
+    //
+    // ThreadStatic guarantees per-worker isolation; a stale entry can never
+    // leak between Renderer.Parallel.For iterations even when worker threads
+    // are reused by the .NET ThreadPool.
+    [ThreadStatic] private static DisneyBsdf? _spLastInstance;
+    [ThreadStatic] private static int     _spLastSeed;
+    [ThreadStatic] private static float   _spLastU;
+    [ThreadStatic] private static float   _spLastV;
+    [ThreadStatic] private static Vector3 _spLastLocalPoint;
+    [ThreadStatic] private static ShadingParams _spCached;
+
     private ShadingParams EvalParams(HitRecord rec)
     {
         float u = rec.U, v = rec.V;
         Vector3 p = rec.LocalPoint;
         int seed = rec.ObjectSeed;
+
+        if (ReferenceEquals(_spLastInstance, this)
+            && _spLastSeed == seed
+            && _spLastU    == u
+            && _spLastV    == v
+            && _spLastLocalPoint == p)
+        {
+            return _spCached;
+        }
+
         // CoatRoughness == null selects the legacy Disney 2012 gloss path via
         // a negative sentinel, so scenes without an explicit coat_roughness
         // value keep their previous appearance (α derived from ClearcoatGloss).
         float coatRough = CoatRoughness?.Value(u, v, p, seed) ?? -1f;
-        return new ShadingParams(
+        var sp = new ShadingParams(
             Metallic.Value(u, v, p, seed),
             Roughness.Value(u, v, p, seed),
             Subsurface.Value(u, v, p, seed),
@@ -329,6 +366,14 @@ public class DisneyBsdf : IMaterial
             coatRough,
             ThinFilmThickness.Value(u, v, p, seed),
             ThinFilmIor.Value(u, v, p, seed));
+
+        _spLastInstance   = this;
+        _spLastSeed       = seed;
+        _spLastU          = u;
+        _spLastV          = v;
+        _spLastLocalPoint = p;
+        _spCached         = sp;
+        return sp;
     }
 
     // ═════════════════════════════════════════════════════════════════════════

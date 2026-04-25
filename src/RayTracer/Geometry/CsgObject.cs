@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Numerics;
 using RayTracer.Core;
 
@@ -128,6 +129,12 @@ public class CsgObject : IHittable
     ///
     /// For non-convex CSG children, Count can be higher (up to MaxHitsPerChild),
     /// capturing all disjoint solid spans along the ray.
+    ///
+    /// Storage is rented from <see cref="ArrayPool{T}.Shared"/> — every CSG
+    /// ray hit used to allocate two fresh <c>SurfaceHit[MaxHitsPerChild]</c>
+    /// arrays on the GC heap. <c>SurfaceHit</c> contains a managed reference
+    /// (<c>IMaterial</c> in <c>HitRecord</c>) so it cannot be stackalloc'd; the
+    /// pool is the next best thing — rent/return is allocation-free after warm-up.
     /// </summary>
     private struct ChildHits
     {
@@ -151,20 +158,34 @@ public class CsgObject : IHittable
         if (!_boundingBox.Hit(ray, tMin, tMax))
             return false;
 
-        // Collect ALL surface intersections for both children.
-        // Using float.PositiveInfinity as the collection bound ensures we find
-        // exit points that may lie beyond tMax (needed for correct IsInsideSolid
-        // tests on points near tMax).
-        var hitsA = CollectAllHits(Left, ray, tMin);
-        var hitsB = CollectAllHits(Right, ray, tMin);
-
-        return Operation switch
+        // Collect ALL surface intersections for both children. Buffers are
+        // rented from the shared pool so the per-hit allocation drops to zero
+        // after the first warm-up call on each thread. ArrayPool may hand back
+        // an array LARGER than requested — Count is the source of truth, not
+        // Hits.Length, so the rest of the code already does the right thing.
+        var pool = ArrayPool<SurfaceHit>.Shared;
+        SurfaceHit[] bufA = pool.Rent(MaxHitsPerChild);
+        SurfaceHit[] bufB = pool.Rent(MaxHitsPerChild);
+        try
         {
-            CsgOperation.Union        => HitUnion(ray, tMin, tMax, ref rec, in hitsA, in hitsB),
-            CsgOperation.Intersection => HitIntersection(ray, tMin, tMax, ref rec, in hitsA, in hitsB),
-            CsgOperation.Subtraction  => HitSubtraction(ray, tMin, tMax, ref rec, in hitsA, in hitsB),
-            _ => false
-        };
+            ChildHits hitsA = CollectAllHits(Left,  ray, tMin, bufA);
+            ChildHits hitsB = CollectAllHits(Right, ray, tMin, bufB);
+
+            return Operation switch
+            {
+                CsgOperation.Union        => HitUnion(ray, tMin, tMax, ref rec, in hitsA, in hitsB),
+                CsgOperation.Intersection => HitIntersection(ray, tMin, tMax, ref rec, in hitsA, in hitsB),
+                CsgOperation.Subtraction  => HitSubtraction(ray, tMin, tMax, ref rec, in hitsA, in hitsB),
+                _ => false
+            };
+        }
+        finally
+        {
+            // clearArray: false — SurfaceHit is overwritten before reuse by
+            // the next Rent caller, no need to zero it out and pay the wipe.
+            pool.Return(bufA);
+            pool.Return(bufB);
+        }
     }
 
     // =========================================================================
@@ -179,18 +200,22 @@ public class CsgObject : IHittable
     /// primitives the result is identical (2 hits), but for non-convex CSG
     /// children it correctly captures all disjoint solid spans.
     /// </summary>
-    private static ChildHits CollectAllHits(IHittable child, Ray ray, float tMin)
+    private static ChildHits CollectAllHits(IHittable child, Ray ray, float tMin, SurfaceHit[] buffer)
     {
         var result = new ChildHits
         {
-            Hits = new SurfaceHit[MaxHitsPerChild],
+            Hits = buffer,
             Count = 0,
             StartsInside = false
         };
 
         float currentT = tMin;
 
-        while (result.Count < MaxHitsPerChild)
+        // ArrayPool may hand back an array larger than MaxHitsPerChild — cap
+        // collection at the logical limit, not the physical buffer length, so
+        // the algorithm's worst-case complexity stays the same.
+        int cap = Math.Min(buffer.Length, MaxHitsPerChild);
+        while (result.Count < cap)
         {
             var rec = new HitRecord();
             // Search all the way to infinity — we need the full geometry for
