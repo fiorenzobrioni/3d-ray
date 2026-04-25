@@ -133,7 +133,12 @@ public static class MathUtils
     {
         float r0 = (1f - refractionIndex) / (1f + refractionIndex);
         r0 *= r0;
-        return r0 + (1f - r0) * MathF.Pow(1f - cosine, 5f);
+        // (1-c)^5 unrolled — MathF.Pow with a constant exponent isn't constant-
+        // folded by the JIT, and a transcendental call costs ~5-10× the four
+        // multiplies it replaces. Schlick fires on every dielectric/metal hit.
+        float x = 1f - cosine;
+        float x2 = x * x;
+        return r0 + (1f - r0) * x2 * x2 * x;
     }
 
     /// <summary>

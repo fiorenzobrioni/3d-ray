@@ -14,6 +14,23 @@ namespace RayTracer.Textures;
 /// </summary>
 public static class HdrLoader
 {
+    // RGBE → float scale lookup. The exponent byte takes only 256 possible
+    // values, so the per-pixel MathF.Pow(2, e - 136) collapses to a 1 KB
+    // table indexed by `e`. e == 0 is reserved for "all-black pixel" — we
+    // pre-bake that as 0 to keep the decode loop branch-free.
+    private static readonly float[] _rgbeScale = BuildRgbeScale();
+
+    private static float[] BuildRgbeScale()
+    {
+        var t = new float[256];
+        // e == 0 means a black pixel by convention; setting scale to 0 lets
+        // the inner loop multiply unconditionally and still produce 0.
+        t[0] = 0f;
+        for (int e = 1; e < 256; e++)
+            t[e] = MathF.Pow(2f, e - 128 - 8);
+        return t;
+    }
+
     /// <summary>
     /// Loads a Radiance .hdr file and returns the pixel data as a flat float
     /// array in row-major order: [R0, G0, B0, R1, G1, B1, ...].
@@ -48,18 +65,13 @@ public static class HdrLoader
                 byte e = scanline[x * 4 + 3];
 
                 int idx = pixelBase + x * 3;
-                if (e == 0)
-                {
-                    pixels[idx] = pixels[idx + 1] = pixels[idx + 2] = 0f;
-                }
-                else
-                {
-                    // RGBE → float: value = mantissa * 2^(exponent - 128 - 8)
-                    float scale = MathF.Pow(2f, e - 128 - 8);
-                    pixels[idx]     = r * scale;
-                    pixels[idx + 1] = g * scale;
-                    pixels[idx + 2] = b * scale;
-                }
+                // RGBE → float: value = mantissa · 2^(exponent - 136). The
+                // table caches the per-exponent scale and stores 0 for e==0
+                // so the all-black case falls out naturally without a branch.
+                float scale = _rgbeScale[e];
+                pixels[idx]     = r * scale;
+                pixels[idx + 1] = g * scale;
+                pixels[idx + 2] = b * scale;
             }
         }
 

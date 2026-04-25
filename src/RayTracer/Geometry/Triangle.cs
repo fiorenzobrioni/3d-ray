@@ -15,32 +15,54 @@ public class Triangle : IHittable, ISamplable
     public IMaterial Material { get; }
     private readonly Vector3 _normal;
 
+    // Precomputed edges, area and tangent/bitangent. Triangles are immutable so
+    // these never change at hit time. For a mesh with N triangles each ray that
+    // touches the BVH leaf used to recompute V1-V0 / V2-V0 (and a Cross+Length
+    // for the area inside SampleAt) on every probe — now they're constants.
+    private readonly Vector3 _edge1;
+    private readonly Vector3 _edge2;
+    private readonly float _area;
+    private readonly Vector3 _tangent;
+    private readonly Vector3 _bitangent;
+
+    // Möller–Trumbore parallelism cutoff. The determinant scales as
+    // |edge1|·|edge2|·|sin(D, edge2)|·|cos(...)|; with edges ~1e-2 valid hits
+    // already produce |a| ~ 1e-4, so the previous MathUtils.Epsilon (1e-4)
+    // silently dropped intersections on small / scaled mesh triangles. 1e-7 is
+    // the same value used by SmoothTriangle and matches PBRT/Embree practice.
+    private const float ParallelEpsilon = 1e-7f;
+
     public Triangle(Vector3 v0, Vector3 v1, Vector3 v2, IMaterial material)
     {
         V0 = v0; V1 = v1; V2 = v2;
         Material = material;
-        _normal = Vector3.Normalize(Vector3.Cross(v1 - v0, v2 - v0));
+        _edge1 = v1 - v0;
+        _edge2 = v2 - v0;
+        Vector3 cross = Vector3.Cross(_edge1, _edge2);
+        float crossLen = cross.Length();
+        _normal = crossLen > 0f ? cross / crossLen : Vector3.UnitY;
+        _area = 0.5f * crossLen;
+        _tangent = _edge1.LengthSquared() > 0f ? Vector3.Normalize(_edge1) : Vector3.UnitX;
+        _bitangent = _edge2.LengthSquared() > 0f ? Vector3.Normalize(_edge2) : Vector3.UnitZ;
     }
 
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
-        Vector3 edge1 = V1 - V0;
-        Vector3 edge2 = V2 - V0;
-        Vector3 h = Vector3.Cross(ray.Direction, edge2);
-        float a = Vector3.Dot(edge1, h);
+        Vector3 h = Vector3.Cross(ray.Direction, _edge2);
+        float a = Vector3.Dot(_edge1, h);
 
-        if (MathF.Abs(a) < MathUtils.Epsilon) return false;
+        if (MathF.Abs(a) < ParallelEpsilon) return false;
 
         float f = 1f / a;
         Vector3 s = ray.Origin - V0;
         float u = f * Vector3.Dot(s, h);
         if (u < 0f || u > 1f) return false;
 
-        Vector3 q = Vector3.Cross(s, edge1);
+        Vector3 q = Vector3.Cross(s, _edge1);
         float v = f * Vector3.Dot(ray.Direction, q);
         if (v < 0f || u + v > 1f) return false;
 
-        float t = f * Vector3.Dot(edge2, q);
+        float t = f * Vector3.Dot(_edge2, q);
         if (t < tMin || t > tMax) return false;
 
         rec.T = t;
@@ -52,12 +74,8 @@ public class Triangle : IHittable, ISamplable
 
         // Tangent and bitangent are derived from the geometric edges, consistent with the
         // barycentric UV mapping (U along edge V0→V1, V along edge V0→V2).
-        // Limitation: these are NOT per-vertex artist UVs. Normal maps on a triangle tile
-        // along the edge vectors and cannot be oriented independently from the geometry.
-        // For mesh loading (OBJ/GLTF) with custom UV channels, per-vertex UVs and explicit
-        // tangent vectors would be needed here.
-        rec.Tangent = Vector3.Normalize(V1 - V0);
-        rec.Bitangent = Vector3.Normalize(V2 - V0);
+        rec.Tangent = _tangent;
+        rec.Bitangent = _bitangent;
 
         rec.ObjectSeed = Seed;
         rec.Material = Material;
@@ -89,12 +107,11 @@ public class Triangle : IHittable, ISamplable
         float r1 = MathF.Sqrt(xi1);
         float u = 1f - r1;
         float v = xi2 * r1;
-        Vector3 point = V0 + u * (V1 - V0) + v * (V2 - V0);
-        float area = 0.5f * Vector3.Cross(V1 - V0, V2 - V0).Length();
+        Vector3 point = V0 + u * _edge1 + v * _edge2;
         // Triangle's Hit() stores the Möller-Trumbore (u, v) barycentric
         // coordinates directly into rec.U, rec.V — keep the sample UV
         // consistent with that convention.
-        return (point, _normal, new Vector2(u, v), area);
+        return (point, _normal, new Vector2(u, v), _area);
     }
 
     public int Seed { get; set; }

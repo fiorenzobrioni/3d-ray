@@ -39,6 +39,7 @@ public readonly struct AABB
         return tExit > tEnter;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static AABB SurroundingBox(AABB a, AABB b)
     {
         var min = Vector3.Min(a.Min, b.Min);
@@ -53,6 +54,7 @@ public readonly struct AABB
     /// child's surface area over the parent's.
     /// Returns 0 for an empty/degenerate box (any extent negative).
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public float SurfaceArea()
     {
         Vector3 d = Max - Min;
