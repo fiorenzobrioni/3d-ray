@@ -28,17 +28,20 @@ Tutte le luci sono definite nella sezione `lights:`. Se ometti completamente la 
   intensity: 25.0
 ```
 
-| Parametro   | Predefinito | Descrizione                             |
-|-------------|-------------|-----------------------------------------|
-| `position`  | --          | Posizione nello spazio world            |
-| `color`     | --          | Colore della luce `[R, G, B]`           |
-| `intensity` | --          | Moltiplicatore di luminosità            |
+| Parametro     | Predefinito | Descrizione                                                        |
+|---------------|-------------|--------------------------------------------------------------------|
+| `position`    | --          | Posizione nello spazio world                                       |
+| `color`       | --          | Colore della luce `[R, G, B]`                                      |
+| `intensity`   | --          | Moltiplicatore di luminosità                                       |
+| `soft_radius` | `0`         | Opzionale. >0 clampa d² a r² per eliminare i fireflies in nebbia    |
 
 Una luce puntiforme irradia uniformemente in tutte le direzioni da un singolo punto. La sua luminosità diminuisce con l'**inverso del quadrato** della distanza: raddoppiando la distanza, l'intensità diventa un quarto.
 
 Poiché le luci puntiformi sono infinitamente piccole, producono **ombre nette** (hard shadows) con bordi precisi. Questo appare poco realistico per sorgenti luminose grandi e vicine, ma va bene per luci distanti o piccoli accenti.
 
 **Guida all'intensità:** A causa del decadimento con l'inverso del quadrato, le luci puntiformi richiedono valori di intensità più alti di quanto ci si potrebbe aspettare. Per un oggetto a 2 unità di distanza, un'intensità di 15--30 è tipica. Per 5 unità, provare 50--100.
+
+**`soft_radius` per scene con nebbia/medium:** quando è attivo un medium partecipante, gli eventi di scattering possono cadere arbitrariamente vicino a un emettitore puntiforme e il termine 1/d² esplode in pixel-firefly. Impostando `soft_radius` a un valore positivo (es. il raggio fisico del bulbo, `0.05`–`0.20`) il denominatore dell'attenuazione viene clampato a `max(d², r²)` e la singolarità sparisce, senza alterare il look a `d ≥ r`. Default `0` = nessun clamp (comportamento originale).
 
 ---
 
@@ -87,6 +90,7 @@ Disponibile anche come `type: "sun"`.
 | `intensity`   | --          | Moltiplicatore di luminosità                         |
 | `inner_angle` | `15`        | Semiampiezza del cono a piena intensità (gradi)      |
 | `outer_angle` | `30`        | Semiampiezza del cono a intensità zero (gradi)       |
+| `soft_radius` | `0`         | Opzionale. Stesso ruolo della point light — fortemente raccomandato per spot dentro un medium/nebbia |
 
 Una luce spot emette da un punto all'interno di un cono. All'interno del cono interno (inner cone) la luce è alla massima intensità. Tra il cono interno e quello esterno (outer cone) sfuma gradualmente fino a zero (decadimento cosinusoidale). All'esterno del cono esterno non c'è luce.
 

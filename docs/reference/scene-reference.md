@@ -196,6 +196,7 @@ g: 0.6
 - **Usage:** Simulates fog, smoke, atmospheric haze, clouds, underwater effects.
 - **Rendering tip:** `homogeneous` and `height_fog` are analytic and cheap. `procedural` and `grid` use delta tracking and are noisier — raise `-s` to 400/576/1024 and keep `-d 6-8`. For dense-fog scenes consider `-C 25`. See [Rendering Profiles](./rendering-profiles.md) §8 for the full guide.
 - **Effects:** Spot lights → visible god-rays; point lights → halos; directional → aerial perspective (with `height_fog`).
+- **Fireflies with point/spot in fog:** the 1/d² attenuation diverges when scattering events land near a point/spot emitter, producing isolated bright pixels. Set `soft_radius` on those lights (see §8.1, §8.3) to a value approximating the physical bulb size (e.g. `0.15`–`0.30`).
 ---
 ### 4. **CAMERA SECTION**
 #### **Multi-Camera** (recommended):
@@ -805,9 +806,11 @@ entities:
   position: [2, 5, -3]
   color: [1.0, 0.95, 0.85]
   intensity: 20.0                          # Range: 4–30
+  soft_radius: 0.0                         # Optional. >0 floors d² at r² → no 1/d² fireflies
 ```
 - Quadratic falloff with distance
 - Simple but effective for interior lighting
+- `soft_radius` (default `0`): when set, the attenuation denominator is clamped to `max(d², r²)`. Removes the unbounded 1/d² spike that produces persistent fireflies in fog/medium scenes where scattering events can land arbitrarily close to the emitter. Recommended values approximate the physical bulb radius (e.g. `0.05`–`0.20`). At distances `d ≥ r` the lighting is unchanged.
 #### **8.2 Directional Light (Sun)**
 ```yaml
 - type: "directional"  # alias: "sun"
@@ -828,10 +831,12 @@ entities:
   intensity: 40.0
   inner_angle: 15                         # Degrees (full brightness)
   outer_angle: 30                         # Degrees (fade zone)
+  soft_radius: 0.0                        # Optional. >0 = "virtual disc" emitter, no 1/d² fireflies
 ```
 - Quadratic falloff
 - Smooth falloff between inner/outer cones
 - Good for dramatic lighting, accent lights
+- `soft_radius` (default `0`): same role as on point lights — clamps the attenuation denominator to `max(d², r²)`. Strongly recommended for spotlights illuminating a participating medium (fog, mist, smoke), where the 1/d² spike at scattering events near the emitter is the dominant firefly source. Typical values: `0.10`–`0.30` for a streetlamp-sized bulb.
 #### **8.4 Area Light (Soft Shadows)**
 ```yaml
 - type: "area"  # aliases: "area_light", "rect", "rect_light"

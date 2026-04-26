@@ -35,6 +35,7 @@ lights:
     intensity: 150.0
     inner_angle: 20
     outer_angle: 40
+    soft_radius: 0.25
   - type: "spot"
     position: [-3.5, 3.9, -10]
     direction: [0.5, -1, 0]
@@ -42,6 +43,7 @@ lights:
     intensity: 150.0
     inner_angle: 20
     outer_angle: 40
+    soft_radius: 0.25
   - type: "spot"
     position: [-3.5, 3.9, -20]
     direction: [0.5, -1, 0]
@@ -49,6 +51,7 @@ lights:
     intensity: 150.0
     inner_angle: 20
     outer_angle: 65
+    soft_radius: 0.25
   - type: "spot"
     position: [-3.5, 3.9, -30]
     direction: [0.5, -1, 0]
@@ -56,6 +59,7 @@ lights:
     intensity: 150.0
     inner_angle: 20
     outer_angle: 65
+    soft_radius: 0.25
   - type: "spot"
     position: [-3.5, 3.9, -40]
     direction: [0.5, -1, 0]
@@ -63,6 +67,7 @@ lights:
     intensity: 150.0
     inner_angle: 20
     outer_angle: 65
+    soft_radius: 0.25
   - type: "spot"
     position: [-3.5, 3.9, -50]
     direction: [0.5, -1, 0]
@@ -70,6 +75,7 @@ lights:
     intensity: 150.0
     inner_angle: 20
     outer_angle: 65
+    soft_radius: 0.25
 
   # Lato Destro (puntano verso il centro della strada)
   - type: "spot"
@@ -79,6 +85,7 @@ lights:
     intensity: 150.0
     inner_angle: 20
     outer_angle: 40
+    soft_radius: 0.25
   - type: "spot"
     position: [3.5, 3.9, -10]
     direction: [-0.5, -1, 0]
@@ -86,6 +93,7 @@ lights:
     intensity: 150.0
     inner_angle: 20
     outer_angle: 40
+    soft_radius: 0.25
   - type: "spot"
     position: [3.5, 3.9, -20]
     direction: [-0.5, -1, 0]
@@ -93,6 +101,7 @@ lights:
     intensity: 150.0
     inner_angle: 20
     outer_angle: 65
+    soft_radius: 0.25
   - type: "spot"
     position: [3.5, 3.9, -30]
     direction: [-0.5, -1, 0]
@@ -100,6 +109,7 @@ lights:
     intensity: 150.0
     inner_angle: 20
     outer_angle: 65
+    soft_radius: 0.25
   - type: "spot"
     position: [3.5, 3.9, -40]
     direction: [-0.5, -1, 0]
@@ -107,6 +117,7 @@ lights:
     intensity: 150.0
     inner_angle: 20
     outer_angle: 65
+    soft_radius: 0.25
   - type: "spot"
     position: [3.5, 3.9, -50]
     direction: [-0.5, -1, 0]
@@ -114,6 +125,7 @@ lights:
     intensity: 150.0
     inner_angle: 20
     outer_angle: 65
+    soft_radius: 0.25
 
 materials:
   - id: "mat_asphalt"

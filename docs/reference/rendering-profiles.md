@@ -134,6 +134,14 @@ characteristics.
 - **Firefly clamp with dense fog.** Media with high `sigma_s` and `-d 8+`
   occasionally produce rare bright spikes. Lower `-C` to `25` or `15` without
   hesitation: you lose little dynamic range and gain a much cleaner image.
+- **`soft_radius` on point/spot lights inside a medium.** When a participating
+  medium is active, the 1/d² attenuation of a `point`/`spot` light diverges at
+  scattering events near the emitter, producing isolated firefly pixels that
+  more samples cannot smooth out. Set `soft_radius` on those lights to a value
+  approximating the physical bulb size (e.g. `0.10`–`0.25`): the attenuation
+  denominator is clamped to `max(d², r²)`, the spike is removed, and the look
+  at `d ≥ r` is unchanged. Default `0` = unclamped (original behaviour). See
+  `scene-reference.md` §8.
 - **Do not raise `-d` for the fog.** The volumetric path is already handled
   correctly at `-d 6–8`. More bounces in the fog = more cost, not more
   realism (Russian Roulette terminates the walks anyway).

@@ -1716,7 +1716,7 @@ public class SceneLoader
         {
             "point" => new PointLight(
                 ToVector3(l.Position) ?? new Vector3(0, 10, 0),
-                color, l.Intensity),
+                color, l.Intensity, l.SoftRadius),
 
             "directional" or "sun" => new DirectionalLight(
                 ToVector3(l.Direction) ?? new Vector3(-1, -1, -1),
@@ -1725,7 +1725,7 @@ public class SceneLoader
             "spot" or "spotlight" => new SpotLight(
                 ToVector3(l.Position)  ?? new Vector3(0, 10, 0),
                 ToVector3(l.Direction) ?? new Vector3(0, -1, 0),
-                color, l.Intensity, l.InnerAngle, l.OuterAngle),
+                color, l.Intensity, l.InnerAngle, l.OuterAngle, l.SoftRadius),
 
             // ── Area light ───────────────────────────────────────────────────
             // YAML fields:
