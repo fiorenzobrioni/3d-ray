@@ -14,7 +14,7 @@ world:
     sigma_s: [0.08, 0.08, 0.08]
     phase: hg
     # Un valore alto di 'g' crea aloni molto concentrati attorno alle fonti di luce
-    g: 0.85
+    g: 0.60
 
 cameras:
   - name: "main"
