@@ -72,10 +72,17 @@ public class EnvironmentLight : ILight
 
         float distance = MathUtils.Infinity;
 
-        // Discard samples below the surface horizon
-        float nDotL = Vector3.Dot(surfaceNormal, dir);
-        if (nDotL <= 0f)
-            return (true, Vector3.Zero, dir, distance);
+        // For surface hits, discard samples below the geometric horizon.
+        // For volumetric scattering points the caller passes Vector3.Zero as the
+        // normal (no surface exists); in that case all directions are valid and
+        // the phase function handles the directional weight instead.
+        bool hasSurfaceNormal = surfaceNormal.LengthSquared() > 0f;
+        if (hasSurfaceNormal)
+        {
+            float nDotL = Vector3.Dot(surfaceNormal, dir);
+            if (nDotL <= 0f)
+                return (true, Vector3.Zero, dir, distance);
+        }
 
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dir);

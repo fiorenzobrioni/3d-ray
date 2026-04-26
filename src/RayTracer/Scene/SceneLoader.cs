@@ -2068,6 +2068,14 @@ public class SceneLoader
             return null;
         }
 
+        // GridMedium requires at least 2 voxels per axis for trilinear/tricubic
+        // interpolation to be well-defined. Catch this here for a clear message.
+        if (nx < 2 || ny < 2 || nz < 2)
+        {
+            Warn($"Medium 'grid' resolution {nx}×{ny}×{nz} is too small — each axis must be ≥ 2. Ignoring.");
+            return null;
+        }
+
         GridInterpolation interp = GridInterpolation.Trilinear;
         string interpKey = (md.Interpolation ?? "trilinear").Trim().ToLowerInvariant();
         switch (interpKey)
