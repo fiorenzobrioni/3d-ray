@@ -17,11 +17,21 @@ public class SpotLight : ILight
     public float CosInnerAngle { get; }
     public float CosOuterAngle { get; }
 
+    /// <summary>
+    /// Optional "virtual disc" radius used to soften the 1/d² singularity.
+    /// See <see cref="PointLight.SoftRadius"/> for the rationale — same role
+    /// here, particularly important for spotlights illuminating a scattering
+    /// medium where shadow rays from medium events can land near the emitter.
+    /// 0 = unclamped, original behaviour.
+    /// </summary>
+    public float SoftRadius { get; }
+
     /// <inheritdoc/>
     public int ShadowSamples => 1;
 
     public SpotLight(Vector3 position, Vector3 direction, Vector3 color,
-                     float intensity = 1f, float innerAngleDeg = 15f, float outerAngleDeg = 30f)
+                     float intensity = 1f, float innerAngleDeg = 15f, float outerAngleDeg = 30f,
+                     float softRadius = 0f)
     {
         Position = position;
         Direction = Vector3.Normalize(direction);
@@ -29,6 +39,7 @@ public class SpotLight : ILight
         Intensity = intensity;
         CosInnerAngle = MathF.Cos(MathUtils.DegreesToRadians(innerAngleDeg));
         CosOuterAngle = MathF.Cos(MathUtils.DegreesToRadians(outerAngleDeg));
+        SoftRadius = MathF.Max(0f, softRadius);
     }
 
     // Finite cone emitter: Φ = I · Ω_eff where Ω_eff accounts for the smoothstep²
@@ -73,8 +84,13 @@ public class SpotLight : ILight
         if (inShadow)
             return (true, Vector3.Zero, dirToLight, distance);
 
-        // Compute illumination (only if not in shadow — avoids wasted math)
-        float distanceAttenuation = Intensity / (distance * distance);
+        // Compute illumination (only if not in shadow — avoids wasted math).
+        // Soft-radius clamp: floors d² at SoftRadius² so the 1/d² term cannot
+        // diverge when a medium-scattering event sits arbitrarily close to
+        // the emitter. Geometric distance is still returned unchanged.
+        float d2 = distance * distance;
+        if (SoftRadius > 0f) d2 = MathF.Max(d2, SoftRadius * SoftRadius);
+        float distanceAttenuation = Intensity / d2;
 
         float spotAttenuation = Math.Clamp(
             (cosAngle - CosOuterAngle) / (CosInnerAngle - CosOuterAngle),

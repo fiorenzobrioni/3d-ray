@@ -10,14 +10,24 @@ public class PointLight : ILight
     public Vector3 Color { get; }
     public float Intensity { get; }
 
+    /// <summary>
+    /// Optional "virtual disc" radius used to soften the 1/d² singularity.
+    /// When &gt; 0 the attenuation denominator is clamped to max(d², r²),
+    /// which removes the unbounded variance at d → 0 (critical for fog +
+    /// participating-media scenes where scattering events can land
+    /// arbitrarily close to the emitter). 0 = unclamped, original behaviour.
+    /// </summary>
+    public float SoftRadius { get; }
+
     /// <inheritdoc/>
     public int ShadowSamples => 1;
 
-    public PointLight(Vector3 position, Vector3 color, float intensity = 1f)
+    public PointLight(Vector3 position, Vector3 color, float intensity = 1f, float softRadius = 0f)
     {
         Position = position;
         Color = color;
         Intensity = intensity;
+        SoftRadius = MathF.Max(0f, softRadius);
     }
 
     // Isotropic point emitter: Φ = 4π · I · Luminance(Color).
@@ -48,7 +58,13 @@ public class PointLight : ILight
         if (inShadow)
             return (true, Vector3.Zero, dirToLight, distance);
 
-        float attenuation = Intensity / (distance * distance);
+        // Soft-radius clamp: floors d² at SoftRadius² so the 1/d² term cannot
+        // diverge when a shading point (typically a medium-scattering event)
+        // sits arbitrarily close to the emitter. Geometric distance is still
+        // returned unchanged — only the attenuation denominator is clamped.
+        float d2 = distance * distance;
+        if (SoftRadius > 0f) d2 = MathF.Max(d2, SoftRadius * SoftRadius);
+        float attenuation = Intensity / d2;
         return (false, Color * attenuation, dirToLight, distance);
     }
 }

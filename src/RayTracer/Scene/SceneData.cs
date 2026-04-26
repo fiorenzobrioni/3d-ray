@@ -699,6 +699,16 @@ public class LightData
 
     [YamlMember(Alias = "radius")]
     public float Radius { get; set; } = 0.5f;
+
+    /// <summary>
+    /// Optional virtual-disc radius for <c>point</c>/<c>spot</c> lights that
+    /// softens the 1/d² singularity (see <c>PointLight.SoftRadius</c>).
+    /// 0 = unclamped, identical to pre-existing behaviour. Recommended values
+    /// approximate the physical bulb radius (e.g. 0.05–0.2 for a streetlamp).
+    /// Only consumed by point/spot lights — sphere lights ignore it.
+    /// </summary>
+    [YamlMember(Alias = "soft_radius")]
+    public float SoftRadius { get; set; } = 0f;
 }
 
 /// <summary>
