@@ -328,17 +328,19 @@ Il rendering volumetrico è più impegnativo del rendering solo superficiale. Ti
 
 3. **Firefly clamp con nebbia densa.** Mezzi con `sigma_s` alto + `-d 8+` talvolta producono spike luminosi rari. Abbassa `-C` a `25` o `15` senza timore: perdi poco dinamica, guadagni pulizia.
 
-4. **Le luci spot creano i fasci di luce (God Rays).** Una luce spot attraverso la nebbia produce un cono di luce visibile. Effetto spettacolare, specialmente con `procedural` (god-ray irregolari) o `height_fog` (god-ray che si rarefanno salendo).
+4. **`soft_radius` su point/spot light dentro la nebbia.** L'attenuazione 1/d² delle luci point e spot diverge quando un evento di scattering nel mezzo cade vicino all'emettitore, producendo pixel-firefly isolati che nessun aumento di `-s` riesce a livellare. Imposta `soft_radius` su quelle luci a un valore vicino al raggio fisico del bulbo (es. `0.10`–`0.25`): il denominatore viene clampato a `max(d², r²)`, la singolarità sparisce, e a distanze `d ≥ r` il look è invariato. È di gran lunga il singolo cambio più efficace per scene di lampioni nella nebbia.
 
-5. **Le luci puntiformi brillano.** Nella nebbia ogni point light riceve un alone radiale morbido la cui dimensione dipende dalla densità del mezzo.
+5. **Le luci spot creano i fasci di luce (God Rays).** Una luce spot attraverso la nebbia produce un cono di luce visibile. Effetto spettacolare, specialmente con `procedural` (god-ray irregolari) o `height_fog` (god-ray che si rarefanno salendo).
 
-6. **Il mezzo è globale** (tranne `grid`, che è confinato alla AABB). `homogeneous`, `height_fog`, `procedural` riempiono l'intero spazio del mondo e colpiscono ogni raggio compresi quelli d'ombra. `grid` lascia passare senza attenuazione i raggi che non intersecano la sua AABB.
+6. **Le luci puntiformi brillano.** Nella nebbia ogni point light riceve un alone radiale morbido la cui dimensione dipende dalla densità del mezzo.
 
-7. **Inizia da valori sottili, poi aumenta.** È più facile aggiungere nebbia che rimuoverla. Parti con `sigma_s` bassi (0.01–0.03 per homogeneous/height_fog, 0.3–0.5 per procedural/grid) e aumenta fino all'effetto desiderato.
+7. **Il mezzo è globale** (tranne `grid`, che è confinato alla AABB). `homogeneous`, `height_fog`, `procedural` riempiono l'intero spazio del mondo e colpiscono ogni raggio compresi quelli d'ombra. `grid` lascia passare senza attenuazione i raggi che non intersecano la sua AABB.
 
-8. **Phase function con `g` → 1** (es. HG con `g = 0.95`) rende god-ray più stretti e drammatici ma **aumenta la varianza**: se vedi coni rumorosi, abbassa `g` a 0.7-0.85 oppure passa a `double_hg` con pesi più equilibrati.
+8. **Inizia da valori sottili, poi aumenta.** È più facile aggiungere nebbia che rimuoverla. Parti con `sigma_s` bassi (0.01–0.03 per homogeneous/height_fog, 0.3–0.5 per procedural/grid) e aumenta fino all'effetto desiderato.
 
-9. **`lights: []` + global medium → tendenza al nero.** Senza luci esplicite il classifier basato sul flusso considera la scena indirect-dominant e attiva la Russian Roulette conservativa (≥ 8 bounces, sopravvivenza minima 0.5). Con la nebbia che attenua ogni segmento, la luce dal solo gradient sky / HDRI fatica a raggiungere il sensore: il render esce molto scuro. Soluzione: aggiungi almeno una `directional` o `sphere` esplicita che dichiari il sole come ILight separato (l'HDRI/gradient resta come fill); il classifier passa a "direct-dominant" e i fasci di luce nella nebbia diventano visibili. Visto in pratica nella scena `scenes/foggy-hdri.yaml`.
+9. **Phase function con `g` → 1** (es. HG con `g = 0.95`) rende god-ray più stretti e drammatici ma **aumenta la varianza**: se vedi coni rumorosi, abbassa `g` a 0.7-0.85 oppure passa a `double_hg` con pesi più equilibrati.
+
+10. **`lights: []` + global medium → tendenza al nero.** Senza luci esplicite il classifier basato sul flusso considera la scena indirect-dominant e attiva la Russian Roulette conservativa (≥ 8 bounces, sopravvivenza minima 0.5). Con la nebbia che attenua ogni segmento, la luce dal solo gradient sky / HDRI fatica a raggiungere il sensore: il render esce molto scuro. Soluzione: aggiungi almeno una `directional` o `sphere` esplicita che dichiari il sole come ILight separato (l'HDRI/gradient resta come fill); il classifier passa a "direct-dominant" e i fasci di luce nella nebbia diventano visibili. Visto in pratica nella scena `scenes/foggy-hdri.yaml`.
 
 ---
 

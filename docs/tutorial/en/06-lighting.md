@@ -35,11 +35,12 @@ objects or HDRI environment lighting.
   intensity: 25.0
 ```
 
-| Parameter   | Default | Description                             |
-|-------------|---------|-----------------------------------------------|
-| `position`  | --      | Location in world space                        |
-| `color`     | --      | Light color `[R, G, B]`                        |
-| `intensity` | --      | Brightness multiplier                          |
+| Parameter     | Default | Description                                       |
+|---------------|---------|---------------------------------------------------|
+| `position`    | --      | Location in world space                            |
+| `color`       | --      | Light color `[R, G, B]`                            |
+| `intensity`   | --      | Brightness multiplier                              |
+| `soft_radius` | `0`     | Optional. >0 floors d² at r² to suppress fireflies |
 
 A point light radiates equally in all directions from a single point. Its
 brightness falls off with the **inverse square** of the distance: double
@@ -52,6 +53,14 @@ but is fine for distant lights or small accents.
 **Intensity guideline:** Because of inverse-square falloff, point lights
 need higher intensity values than you might expect. For an object 2 units
 away, an intensity of 15--30 is typical. For 5 units, try 50--100.
+
+**`soft_radius` for fog/medium scenes:** when a participating medium is
+active, scattering events can land arbitrarily close to a point emitter
+and the 1/d² term explodes into firefly pixels. Setting `soft_radius` to
+a positive value (e.g. the physical bulb radius, `0.05`–`0.20`) clamps
+the attenuation denominator to `max(d², r²)` and removes the singularity
+without altering the look at `d ≥ r`. Default `0` = unclamped (original
+behaviour).
 
 ---
 
@@ -96,14 +105,15 @@ Also available as `type: "sun"`.
   outer_angle: 30
 ```
 
-| Parameter     | Default | Description                                  |
-|---------------|---------|----------------------------------------------|
-| `position`    | --      | Location in world space                      |
-| `direction`   | --      | Direction the spot is aimed                  |
-| `color`       | --      | Light color                                  |
-| `intensity`   | --      | Brightness multiplier                        |
-| `inner_angle` | `15`    | Half-angle of the full-intensity cone (degrees) |
-| `outer_angle` | `30`    | Half-angle of the zero-intensity cone (degrees) |
+| Parameter     | Default | Description                                       |
+|---------------|---------|---------------------------------------------------|
+| `position`    | --      | Location in world space                           |
+| `direction`   | --      | Direction the spot is aimed                       |
+| `color`       | --      | Light color                                       |
+| `intensity`   | --      | Brightness multiplier                             |
+| `inner_angle` | `15`    | Half-angle of the full-intensity cone (degrees)   |
+| `outer_angle` | `30`    | Half-angle of the zero-intensity cone (degrees)   |
+| `soft_radius` | `0`     | Optional. Same role as on point lights — strongly recommended for spotlights inside a fog/medium |
 
 A spot light emits from a point in a cone. Inside the inner cone the
 light is at full intensity. Between the inner and outer cones it

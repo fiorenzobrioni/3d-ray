@@ -424,30 +424,39 @@ Keep these tips in mind:
    without hesitation: you lose little dynamic range, gain a lot of
    cleanliness.
 
-4. **Spot lights create god rays.** A spot light through fog produces
+4. **`soft_radius` on point/spot lights inside fog.** The 1/d² attenuation
+   of point and spot lights diverges when a scattering event in the medium
+   lands near the emitter, producing isolated firefly pixels that no
+   amount of `-s` will smooth out. Set `soft_radius` on those lights to a
+   value approximating the physical bulb size (e.g. `0.10`–`0.25`): the
+   attenuation denominator is clamped to `max(d², r²)`, the singularity
+   disappears, and the look at `d ≥ r` is unchanged. This is by far the
+   most effective single change for foggy street/lamp scenes.
+
+5. **Spot lights create god rays.** A spot light through fog produces
    a visible cone of light. Dramatic effect, especially with `procedural`
    (irregular god-rays) or `height_fog` (god-rays that thin out with
    altitude).
 
-5. **Point lights glow.** In fog, every point light gets a soft radial
+6. **Point lights glow.** In fog, every point light gets a soft radial
    halo whose size depends on medium density.
 
-6. **The medium is global** (except `grid`, which is confined to its
+7. **The medium is global** (except `grid`, which is confined to its
    AABB). `homogeneous`, `height_fog`, `procedural` fill the whole world
    and affect every ray including shadow rays. `grid` lets rays that
    never intersect its AABB pass through without attenuation.
 
-7. **Start thin, then thicken.** It is easier to add fog than to remove
+8. **Start thin, then thicken.** It is easier to add fog than to remove
    it. Begin with small `sigma_s` values (0.01–0.03 for homogeneous /
    height_fog, 0.3–0.5 for procedural / grid) and increase until you
    get the desired effect.
 
-8. **Phase functions with `g` → 1** (e.g. HG with `g = 0.95`) produce
+9. **Phase functions with `g` → 1** (e.g. HG with `g = 0.95`) produce
    tighter, more dramatic god-rays but **increase variance**: if cones
    look noisy, lower `g` to 0.7-0.85 or switch to `double_hg` with more
    balanced weights.
 
-9. **`lights: []` + global medium → tendency to come out black.** With
+10. **`lights: []` + global medium → tendency to come out black.** With
    no explicit lights, the flux-based classifier flags the scene as
    indirect-dominant and switches Russian Roulette to its conservative
    tuning (≥ 8 bounces, 0.5 minimum survival). When fog attenuates every

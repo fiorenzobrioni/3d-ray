@@ -133,6 +133,14 @@ Il clamp usa **scaling con preservazione della luminanza**, quindi non altera la
 - **Firefly clamp con nebbia densa.** Mezzi con `sigma_s` alto e `-d 8+`
   producono talvolta spike luminosi rari. Abbassa `-C` a `25` o `15` senza
   timore: perdi poco dinamica, guadagni molto pulito.
+- **`soft_radius` su luci point/spot dentro un medium.** Con un medium
+  partecipante attivo, l'attenuazione 1/d² delle luci `point`/`spot` diverge
+  agli eventi di scattering vicini all'emettitore, producendo pixel-firefly
+  isolati che neanche più samples riescono a livellare. Imposta `soft_radius`
+  su quelle luci a un valore vicino al raggio fisico del bulbo (es.
+  `0.10`–`0.25`): il denominatore viene clampato a `max(d², r²)`, lo spike
+  sparisce, e a `d ≥ r` il look è invariato. Default `0` = nessun clamp
+  (comportamento originale). Vedi `riferimento-scene.md` §8.
 - **Non alzare `-d` per la nebbia.** Il path volumetrico è già gestito
   correttamente a `-d 6–8`. Più rimbalzi nella nebbia = più costo, non più
   realismo (la Russian Roulette termina comunque i cammini).

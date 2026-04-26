@@ -204,6 +204,7 @@ g: 0.6
 - **Uso:** Simula nebbia, fumo, foschia atmosferica, nubi, effetti subacquei.
 - **Tip rendering:** `homogeneous` e `height_fog` sono analitici ed economici. `procedural` e `grid` usano delta tracking e sono più rumorosi — alza `-s` a 400/576/1024 e mantieni `-d 6-8`. Per scene con nebbia densa considera `-C 25`. Vedi [Profili di Rendering](./profili-di-rendering.md) §8 per la guida completa.
 - **Effetti:** Luci spot → god-ray visibili; point light → aloni; directional → aerial perspective (con `height_fog`).
+- **Fireflies con point/spot in nebbia:** l'attenuazione 1/d² diverge quando un evento di scattering cade vicino a un emettitore puntiforme/spot, producendo pixel isolati luminosi. Imposta `soft_radius` su quelle luci (vedi §8.1, §8.3) a un valore vicino al raggio fisico del bulbo (es. `0.15`–`0.30`).
 
 ---
 
@@ -847,8 +848,10 @@ entities:
   position: [2, 5, -3]
   color: [1.0, 0.95, 0.85]
   intensity: 20.0                          # Range: 4–30
+  soft_radius: 0.0                         # Opzionale. >0 → niente fireflies da 1/d²
 ```
 - Decadimento quadratico con la distanza
+- `soft_radius` (default `0`): se impostato, il denominatore dell'attenuazione viene clampato a `max(d², r²)`. Elimina la singolarità 1/d² che genera fireflies persistenti nelle scene con nebbia/medium partecipanti, dove gli eventi di scattering possono cadere arbitrariamente vicini all'emettitore. Valori consigliati: simili al raggio fisico del bulbo (es. `0.05`–`0.20`). A distanze `d ≥ r` la luce è invariata.
 
 #### **8.2 Directional Light (Sole)**
 ```yaml
@@ -869,7 +872,9 @@ entities:
   intensity: 40.0
   inner_angle: 15                         # Gradi (piena luminosità)
   outer_angle: 30                         # Gradi (zona di sfumatura)
+  soft_radius: 0.0                        # Opzionale. >0 = "disco virtuale", niente fireflies 1/d²
 ```
+- `soft_radius` (default `0`): stesso ruolo della point light — clampa il denominatore a `max(d², r²)`. Fortemente raccomandato per spot che illuminano un medium partecipante (nebbia, foschia, fumo): in questi casi il picco 1/d² agli eventi di scattering vicino all'emettitore è la principale sorgente di fireflies. Valori tipici: `0.10`–`0.30` per un bulbo da lampione.
 
 #### **8.4 Area Light (Ombre Morbide)**
 ```yaml
