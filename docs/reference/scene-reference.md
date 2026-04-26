@@ -55,7 +55,9 @@ sky:
   horizon_color: [0.65, 0.80, 1.00]      # Horizon
   ground_color:  [0.30, 0.25, 0.20]      # Reflection of ground
   sun:                                     # (optional)
-    direction:  [-0.5, -1.0, -0.3]       # Where sunlight comes FROM
+    direction:  [-0.5, -1.0, -0.3]       # Direction sunlight TRAVELS (sun → scene).
+                                          # Sun position is at -direction; here
+                                          # the sun is high on the right-front.
     color:      [1.0, 0.98, 0.85]
     intensity:  12.0
     size:       2.5                        # Angular size in degrees
@@ -809,7 +811,8 @@ entities:
 #### **8.2 Directional Light (Sun)**
 ```yaml
 - type: "directional"  # alias: "sun"
-  direction: [-0.5, -1.0, -0.3]           # Where light comes FROM
+  direction: [-0.5, -1.0, -0.3]           # Direction light TRAVELS (light → scene).
+                                          # Sun is at -direction.
   color: [1.0, 0.98, 0.92]
   intensity: 0.8                           # Range: 0.05–2.0
 ```

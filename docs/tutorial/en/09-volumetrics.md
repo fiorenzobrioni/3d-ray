@@ -447,6 +447,17 @@ Keep these tips in mind:
    look noisy, lower `g` to 0.7-0.85 or switch to `double_hg` with more
    balanced weights.
 
+9. **`lights: []` + global medium → tendency to come out black.** With
+   no explicit lights, the flux-based classifier flags the scene as
+   indirect-dominant and switches Russian Roulette to its conservative
+   tuning (≥ 8 bounces, 0.5 minimum survival). When fog attenuates every
+   segment, the light from a gradient sky or HDRI alone struggles to
+   reach the sensor and the render comes out very dark. Fix: add at
+   least one explicit `directional` or `sphere` light that declares the
+   sun as a separate `ILight` (HDRI/gradient stays as fill); the
+   classifier flips to "direct-dominant" and god-rays become visible.
+   Seen in practice in `scenes/foggy-hdri.yaml`.
+
 ---
 
 ## 9.7 Complete Example: Cathedral in Fog

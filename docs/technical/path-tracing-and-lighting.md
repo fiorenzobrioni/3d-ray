@@ -49,6 +49,8 @@ Tutti i materiali (Lambertian, Metal, MixMaterial, DisneyBsdf) implementano la t
 
 L'estensione MIS copre anche il **bounce volumetrico**: la phase function espone `Pdf(wo, wi)` e il suo valore viene threadato come `prevBsdfPdf` quando il raggio prosegue dopo un evento di scattering nel medium globale. Combinato con la trasmittanza Beer-Lambert applicata già nelle shadow ray, questo dà MIS pieno fra phase-sampling e light-sampling per l'in-scattering.
 
+> Per i contratti fra `IMaterial` / `ILight` / `IPhaseFunction` e il `Renderer`, le formule complete delle heuristiche, e la trattazione dei casi limite (lobi delta, mixture estimator, Metal NDF vs VNDF) vedi il documento dedicato [Multiple Importance Sampling](./multiple-importance-sampling.md).
+
 ### 2.3 Conservazione dell'Area per Emissivi Trasformati (Jacobian)
 
 Quando un oggetto emissivo viene avvolto in un `Transform` (scale, rotate, translate), il sistema di NEE deve campionare punti sulla superficie in **world space**. Il problema: `Sample()` della primitiva interna restituisce un punto e una normale in **object space**, con un'area calcolata in object space. Usare quell'area direttamente produrrebbe un'illuminazione energeticamente errata — ad esempio, scalare una sfera emissiva di 2× in tutte le direzioni dovrebbe quadruplicare l'area esposta e quindi la luce emessa, ma senza correzione il renderer userebbe l'area originale della sfera unitaria.

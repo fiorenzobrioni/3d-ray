@@ -61,7 +61,9 @@ sky:
   horizon_color: [0.65, 0.80, 1.00]      # Orizzonte
   ground_color:  [0.30, 0.25, 0.20]      # Riflesso del terreno
   sun:                                     # (opzionale)
-    direction:  [-0.5, -1.0, -0.3]       # Direzione da cui PROVIENE la luce solare
+    direction:  [-0.5, -1.0, -0.3]       # Direzione di PROPAGAZIONE della luce (sole → scena).
+                                          # La posizione del sole è -direction: con [-0.5,-1,-0.3]
+                                          # il sole è in alto a destra-davanti.
     color:      [1.0, 0.98, 0.85]
     intensity:  12.0
     size:       2.5                        # Dimensione angolare in gradi
@@ -851,7 +853,8 @@ entities:
 #### **8.2 Directional Light (Sole)**
 ```yaml
 - type: "directional"  # alias: "sun"
-  direction: [-0.5, -1.0, -0.3]           # Da dove PROVIENE la luce
+  direction: [-0.5, -1.0, -0.3]           # Direzione di propagazione (luce → scena).
+                                          # Sole posizionato in -direction.
   color: [1.0, 0.98, 0.92]
   intensity: 0.8                           # Range: 0.05–2.0
 ```

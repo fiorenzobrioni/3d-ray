@@ -338,6 +338,8 @@ Il rendering volumetrico è più impegnativo del rendering solo superficiale. Ti
 
 8. **Phase function con `g` → 1** (es. HG con `g = 0.95`) rende god-ray più stretti e drammatici ma **aumenta la varianza**: se vedi coni rumorosi, abbassa `g` a 0.7-0.85 oppure passa a `double_hg` con pesi più equilibrati.
 
+9. **`lights: []` + global medium → tendenza al nero.** Senza luci esplicite il classifier basato sul flusso considera la scena indirect-dominant e attiva la Russian Roulette conservativa (≥ 8 bounces, sopravvivenza minima 0.5). Con la nebbia che attenua ogni segmento, la luce dal solo gradient sky / HDRI fatica a raggiungere il sensore: il render esce molto scuro. Soluzione: aggiungi almeno una `directional` o `sphere` esplicita che dichiari il sole come ILight separato (l'HDRI/gradient resta come fill); il classifier passa a "direct-dominant" e i fasci di luce nella nebbia diventano visibili. Visto in pratica nella scena `scenes/foggy-hdri.yaml`.
+
 ---
 
 ## 9.7 Esempio Completo: Cattedrale nella Nebbia
