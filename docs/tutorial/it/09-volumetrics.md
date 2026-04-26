@@ -127,6 +127,12 @@ Approssimazione razionale di HG senza `sqrt`: `p(θ) = (1 - k²) / (4π · (1 + 
 - Path tracer con milioni di valutazioni di phase → `schlick` (velocità).
 - Fumo denso, scena sottomarina torbida → `isotropic`.
 
+### MIS sulla phase function
+
+Quando un raggio scattera in un punto del medium, il motore calcola l'in-scattering combinando due strategie: **NEE** (shadow ray verso ogni luce, con phase function come BRDF) e **phase sampling** (rimbalzo importance-sampled secondo la phase). Le due densità — la `light.PdfSolidAngle` e la `phase.Pdf` — vengono pesate con la stessa balance/power heuristic usata sulle superfici.
+
+L'effetto pratico è una **riduzione visibile dei fireflies** nelle scene con luce direzionale forte attraverso fog (god ray): ogni rimbalzo phase-sampled che colpisce direttamente la luce viene pesato con MIS invece di essere semplicemente azzerato. Switchare con `--mis power` può aiutare ulteriormente quando il sole è piccolo (puntiforme rispetto al volume) e la phase è larga.
+
 ---
 
 ## 9.4 Oltre l'omogeneo: tipi di mezzo eterogenei

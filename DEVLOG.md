@@ -128,7 +128,7 @@ La roadmap è divisa in due parti: **Fase 0** copre le fondamenta del motore (gi
 
 **12. Importance Sampling ✅** — GGX importance sampling in `Metal` e `DisneyBsdf` (specular, clearcoat, transmission). Environment map importance sampling via CDF 2D. Il diffuse usa cosine-weighted sampling by construction.
 
-**13. Multi-Importance Sampling ✅** — Balance heuristic (Veach) tra NEE (sampling della luce) e BSDF sampling (sampling del materiale). `IMaterial` espone ora la tripla simmetrica `Evaluate(V, L)` / `Pdf(V, L)` / `Sample(V)` implementata dal `DisneyBsdf`; il Renderer propaga la `prevBsdfPdf` + `prevIsDelta` lungo il path, pesa l'emissione al prossimo hit con la balance heuristic e combina NEE con il BSDF PDF dentro `ComputeDirectLighting`. Le luci espongono `IsDelta` e `PdfSolidAngle` per chiudere il cerchio. I materiali "legacy" (Lambert/Metal/Dielectric/Mix) continuano a usare solo `Scatter` ma con semantica di delta / non-delta pulita (`IsDeltaScatter`) al posto dei vecchi campi Blinn-Phong.
+**13. Multi-Importance Sampling ✅** — Copertura MIS completa su superfici, environment e volumetrica. La tripla simmetrica `Evaluate(V,L)` / `Pdf(V,L)` / `Sample(V)` su `IMaterial` è ora implementata da **tutti** i materiali rilevanti: `DisneyBsdf`, `Lambertian`, `Metal` (Cook-Torrance GGX, fuzz=0 → delta sample), `MixMaterial` (Pdf/Evaluate come blend lineare dei figli, Sample con one-sample mixture estimator). `Dielectric` resta intenzionalmente delta (entrambi i lobi sono Dirac) e segnala `IsDeltaScatter=true`. La phase function partecipa al MIS per i bounce volumetrici: `IPhaseFunction.Pdf(wo,wi)` è esposto e treadato come `prevBsdfPdf` nel ramo medium di `TraceRay`; `ComputeDirectLightingMedium` pesa l'in-scattering NEE contro la phase Pdf con la stessa heuristica. Il Renderer espone l'enum `MisHeuristic { Balance, Power }` e il flag CLI `--mis <balance|power>` (default balance); l'helper `MisWeight(p,q)` centralizza la formula e sostituisce le precedenti formule inline per emission-weight, sky-weight e NEE. Test MIS in `MisMaterialsTests`: PDF integrate-to-1 per Lambertian e per le 5 phase function, Sample/Pdf/Evaluate consistency per Lambertian/Metal, linearità di Pdf/Evaluate per MixMaterial, delta-mirror invariants per Metal con fuzz=0.
 
 **Sampler Sobol + Owen Scrambling ✅** — Sequenza quasi-Monte Carlo a bassa discrepanza (tabelle Joe-Kuo, scrambling hash-based di Burley 2020) selezionabile con `--sampler sobol` (default: `prng` per retro-compatibilità). Riduce varianza nel campionamento di pixel, lens, AA e dei primi bounce rispetto al PRNG; senza `--sampler sobol` il renderer è bit-identico al comportamento precedente.
 
@@ -268,6 +268,53 @@ Riepilogo delle feature atterrate in questo ciclo (branch
   prossimo hit). Lambert/Metal/Dielectric/Mix aggiornati coerentemente.
 - **Suite di test `DisneyBsdfTests`** — correttezza dei lobi riflessivi,
   reciprocity, copertura delle nuove feature (sheen Charlie, anisotropic VNDF).
+
+---
+
+## 🗓️ Ciclo di Completamento MIS (Apr 2026)
+
+Branch: `claude/complete-mis-implementation-q98Tb`. Estende la copertura
+MIS da DisneyBsdf a tutti i materiali rilevanti, alla phase function
+volumetrica e alla scelta della heuristica.
+
+- **Materiali superficiali** — `Lambertian`, `Metal` (Cook-Torrance GGX,
+  fuzz=0 → delta) e `MixMaterial` ora implementano la tripla
+  `Sample`/`Pdf`/`Evaluate`. `Dielectric` resta intenzionalmente delta.
+- **Phase function MIS** — `IPhaseFunction.Pdf(wo,wi)` esposto (default
+  uguale a `Evaluate` per Isotropic / HG / dHG / Rayleigh / Schlick) e
+  threadato come `prevBsdfPdf` nel ramo medium di `TraceRay`.
+  `ComputeDirectLightingMedium` pesa l'in-scattering NEE con MIS.
+- **Heuristic selezionabile** — `MisHeuristic { Balance, Power }` enum
+  esposto al `Renderer`; flag CLI `--mis <balance|power>` (default
+  `balance`). Helper `MisWeight(p,q)` centralizzato e usato da
+  `WeightEmission`, `SampleSky`, `ComputeDirectLighting` e
+  `ComputeDirectLightingMedium`.
+- **Test** — `MisMaterialsTests` aggiunge: PDF integrate-to-1 per
+  Lambertian e per le 5 phase function (entro 5%); Sample↔Pdf↔Evaluate
+  consistency per Lambertian/Metal; linearità di Pdf/Evaluate per
+  MixMaterial; delta-mirror invariants per Metal con fuzz=0. 140/140
+  test totali passano.
+- **Scene introdotte e committate**
+  - `scenes/furnace-{lambert,metal,mix}.yaml` — banco diagnostico
+    energetico per Sample/Pdf/Evaluate.
+  - `scenes/test-env-fog.yaml` — regressione: shadow ray verso
+    EnvironmentLight attraverso `global_medium` (verifica Beer-Lambert).
+  - `scenes/foggy-hdri.yaml` — scena cinematografica HDRI + fog per
+    showcase del phase MIS.
+  - `scenes/showcases/showcase-mix-metal-rust.yaml` — gradient di mix
+    cromo→ruggine sotto area light (caso d'uso peggiore pre-MIS).
+- **Verifica visiva** — confronti before/after sulle tre scene
+  rappresentative (`renders/mis-comparison/<scene>-{before,after}.png`,
+  non committati): meno fireflies sulle pareti adiacenti alla luce
+  (Cornell-like), highlight più puliti sui mix metal/diffuse, shaft
+  atmosferici più rapidi a convergere su HDRI + fog. Render time
+  invariato — il ramo MIS è una moltiplicazione in più per shadow
+  sample, irrilevante rispetto al costo di shadow + BSDF eval.
+
+Documentazione aggiornata: `docs/technical/path-tracing-and-lighting.md`
+§2.2 (sezione MIS estesa), `docs/reference/rendering-profiles.md` +
+versione IT (flag `--mis`), tutorial 06 e 09 in EN+IT (paragrafi MIS),
+`README.md` (voce NEE+MIS).
 
 ---
 

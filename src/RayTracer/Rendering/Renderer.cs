@@ -11,6 +11,21 @@ using RayTracer.Volumetrics;
 
 namespace RayTracer.Rendering;
 
+/// <summary>
+/// MIS combination strategy used by the renderer. <see cref="Balance"/> is
+/// the unbiased one-sample estimator from Veach 1997 §9.2.2: w(p) = p/(p+q).
+/// <see cref="Power"/> uses the β=2 power heuristic (§9.2.4) which
+/// suppresses the contribution of the worse-matched sampler more
+/// aggressively — typically reduces variance for highly asymmetric pairings
+/// (small specular light + rough diffuse material, or vice-versa) at no
+/// extra cost.
+/// </summary>
+public enum MisHeuristic
+{
+    Balance,
+    Power
+}
+
 public class Renderer
 {
     private readonly IHittable _world;
@@ -24,6 +39,7 @@ public class Renderer
     private readonly EnvironmentLight? _envLight;
     private readonly IMedium? _globalMedium;
     private readonly bool _verbose;
+    private readonly MisHeuristic _misHeuristic;
 
     // ── Russian Roulette configuration ──────────────────────────────────────
     //
@@ -104,7 +120,8 @@ public class Renderer
         int maxDepth,
         IMedium? globalMedium = null,
         float? maxSampleRadiance = null,
-        bool verbose = false)
+        bool verbose = false,
+        MisHeuristic misHeuristic = MisHeuristic.Balance)
     {
         _world = world;
         _camera = camera;
@@ -116,6 +133,7 @@ public class Renderer
         _globalMedium = globalMedium;
         _maxSampleRadiance = maxSampleRadiance ?? DefaultMaxSampleRadiance;
         _verbose = verbose;
+        _misHeuristic = misHeuristic;
 
         // ── Scene analysis: detect indirect-dominant lighting ────────────
         // Sum each light's approximate radiant flux [Rec.709 luminance] and
@@ -553,8 +571,25 @@ public class Renderer
     }
 
     /// <summary>
-    /// Applies the balance-heuristic MIS weight to surface emission at the
-    /// current hit — the "BSDF-sample hit a light" half of Veach's estimator.
+    /// Computes the MIS weight w(p, q) under the configured heuristic
+    /// (balance or power, see <see cref="MisHeuristic"/>). The denominator
+    /// epsilon prevents 0/0 when both samplers report zero density.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private float MisWeight(float p, float q)
+    {
+        if (_misHeuristic == MisHeuristic.Power)
+        {
+            float p2 = p * p;
+            float q2 = q * q;
+            return p2 / (p2 + q2 + 1e-30f);
+        }
+        return p / (p + q + 1e-30f);
+    }
+
+    /// <summary>
+    /// Applies the MIS weight to surface emission at the current hit — the
+    /// "BSDF-sample hit a light" half of Veach's estimator.
     /// </summary>
     private Vector3 WeightEmission(Vector3 rawEmission, IMaterial material, Ray ray,
                                     float prevBsdfPdf, bool prevIsDelta)
@@ -565,11 +600,9 @@ public class Renderer
         if (material is Emissive em && _emitterToLight.TryGetValue(em, out var light))
         {
             float pLight = light.PdfSolidAngle(ray.Origin, ray.Direction);
-            float denom = prevBsdfPdf + pLight;
-            if (denom <= 1e-20f)
+            if (prevBsdfPdf + pLight <= 1e-20f)
                 return Vector3.Zero;
-            float wBsdf = prevBsdfPdf / denom;
-            return rawEmission * wBsdf;
+            return rawEmission * MisWeight(prevBsdfPdf, pLight);
         }
 
         // Unregistered emitter (no NEE sampler could reach it) — full weight.
@@ -638,17 +671,16 @@ public class Renderer
 
             if (!killIndirect)
             {
-                // Indirect: importance-sample the phase function. Phase-MIS is
-                // not implemented yet — the recursive call uses legacy "NEE
-                // replaced emission" semantics (prevBsdfPdf=0, prevIsDelta=false)
-                // so the next hit's registered emission is suppressed to avoid
-                // double-counting with ComputeDirectLightingMedium above.
+                // Indirect: importance-sample the phase function. The sampled
+                // phase PDF is threaded forward as prevBsdfPdf so that the
+                // next hit's emission / sky miss is MIS-weighted against the
+                // NEE light PDF, mirroring the surface-side MIS.
                 var (wi, phasePdf) = _globalMedium.Phase.Sample(ray.Direction);
                 float phaseVal = _globalMedium.Phase.Evaluate(ray.Direction, wi);
                 float phaseWeight = phasePdf > 1e-20f ? phaseVal / phasePdf : 0f;
                 Lind = phaseWeight * indirectScale
                      * TraceRay(new Ray(p, wi), depth - 1,
-                                 prevBsdfPdf: 0f, prevIsDelta: false,
+                                 prevBsdfPdf: phasePdf, prevIsDelta: false,
                                  currentAbsorption: currentAbsorption);
             }
 
@@ -694,11 +726,9 @@ public class Renderer
             return sky;
 
         float pLight = _envLight.PdfSolidAngle(ray.Origin, ray.Direction);
-        float denom = prevBsdfPdf + pLight;
-        if (denom <= 1e-20f)
+        if (prevBsdfPdf + pLight <= 1e-20f)
             return Vector3.Zero;
-        float wBsdf = prevBsdfPdf / denom;
-        return sky * wBsdf;
+        return sky * MisWeight(prevBsdfPdf, pLight);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -776,10 +806,10 @@ public class Renderer
                     Tr = _globalMedium.Transmittance(shadowRay, shadowDist);
                 }
 
-                // ── MIS balance-heuristic weight ────────────────────────────
+                // ── MIS weight (balance or power, configured per-renderer) ──
                 // Delta lights: always weight 1 (no BSDF sampler can hit them).
                 // Non-delta lights: if the material exposes Pdf() > 0, the
-                // weight reduces variance via Veach's balance heuristic.
+                // weight reduces variance via Veach's combined estimator.
                 float wNee = 1f;
                 if (!light.IsDelta && material != null)
                 {
@@ -787,8 +817,7 @@ public class Renderer
                     if (pBsdf > 0f)
                     {
                         float pLight = light.PdfSolidAngle(rec.Point, dirToLight);
-                        float denom = pLight + pBsdf;
-                        wNee = denom > 0f ? pLight / denom : 1f;
+                        wNee = pLight + pBsdf > 0f ? MisWeight(pLight, pBsdf) : 1f;
                     }
                 }
 
@@ -869,7 +898,23 @@ public class Renderer
                 float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
                 Vector3 Tr = _globalMedium.Transmittance(new Ray(p, dirToLight), shadowDist);
 
-                lightAccum += lightColor * phaseVal * Tr;
+                // ── MIS weight (phase-function vs light sampler) ────────────
+                // Delta lights cannot be reached by phase sampling; emit at
+                // full weight. Otherwise pair the analytic phase PDF against
+                // the light PDF using the configured heuristic.
+                float wNee = 1f;
+                if (!light.IsDelta)
+                {
+                    float phasePdf = _globalMedium.Phase.Pdf(wo, dirToLight);
+                    if (phasePdf > 0f)
+                    {
+                        float pLight = light.PdfSolidAngle(p, dirToLight);
+                        if (pLight + phasePdf > 0f)
+                            wNee = MisWeight(pLight, phasePdf);
+                    }
+                }
+
+                lightAccum += wNee * lightColor * phaseVal * Tr;
             }
 
             result += lightAccum;

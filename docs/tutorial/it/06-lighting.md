@@ -207,6 +207,14 @@ Usare le luci geometriche quando la sorgente luminosa deve essere **vista** (ins
 
 Il motore supporta le luci geometriche su qualsiasi primitiva campionabile: sfere, quad, dischi, box, cilindri, coni, tori, capsule, annuli e mesh.
 
+### Multiple Importance Sampling — perché vale per tutti i materiali
+
+L'illuminazione diretta su una luce non delta (area, sphere, geometric, environment) è calcolata combinando due strategie indipendenti: la **NEE** campiona un punto sulla luce, il **BSDF sampling** campiona la direzione di rimbalzo dal materiale. Pesare i due contributi con la **balance heuristic** (default) o la **power heuristic** (`--mis power`) riduce la varianza rispetto a usare una sola strategia.
+
+Tutti i materiali supportati — `lambertian`, `metal`, `mix`, `disney` — espongono la tripla `Sample`/`Pdf`/`Evaluate` necessaria al MIS. Non c'è nessuna configurazione: il motore applica automaticamente i pesi corretti in base al tipo di materiale e di luce. Le luci delta puro (point, directional, spot) e i lobi delta dei materiali (specchio perfetto, vetro ideale) sono trattati come casi speciali e ricevono peso 1 — non possono essere campionati dall'altra strategia.
+
+Per scene con nebbia o fumo (`global_medium`), anche la phase function partecipa al MIS: il motore pesa l'in-scattering NEE contro il phase-sampled bounce, riducendo i fireflies tipici dei "shaft" di luce attraverso il volume.
+
 ---
 
 ## 6.8 Lo Schema di Illuminazione a Tre Punti

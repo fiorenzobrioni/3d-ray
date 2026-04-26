@@ -1,0 +1,77 @@
+# =============================================================================
+#  TEST — Environment + Global Medium (regressione MIS volumetrica)
+#
+#  Verifica che le shadow ray verso l'EnvironmentLight ricevano correttamente
+#  l'attenuazione Beer-Lambert del global_medium. La scena è composta da:
+#
+#    - Pavimento Lambertian
+#    - Sfere diffuse di tonalità diverse, sparse su scale crescenti di
+#      distanza dalla camera (più una sfera è lontana, più nebbia attraversa
+#      la luce ambiente per illuminarla)
+#    - Sky a gradiente con sun disk
+#    - Global medium omogeneo a scattering moderato
+#
+#  CRITERIO VISIVO
+#    Se la trasmittanza è applicata correttamente, le sfere lontane appaiono
+#    progressivamente desaturate (dominanza atmosferica) e il sole illumina
+#    in modo "morbido" attraverso lo strato di nebbia.
+#
+#  COMANDO TIPO
+#    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#      -i scenes/test-env-fog.yaml -w 800 -H 450 -s 128 -d 6 -S 4
+# =============================================================================
+
+world:
+  ambient_light: [0.02, 0.02, 0.03]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.20, 0.32, 0.55]
+    horizon_color: [0.85, 0.88, 0.92]
+    ground_color:  [0.30, 0.27, 0.24]
+    sun:
+      direction: [-0.3, -0.55, -0.6]
+      color:     [1.0, 0.95, 0.85]
+      intensity: 6.0
+      size:      2.0
+      falloff:   25.0
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+  medium:
+    type: "homogeneous"
+    sigma_a: [0.012, 0.014, 0.018]
+    sigma_s: [0.040, 0.045, 0.050]
+    phase: "hg"
+    g: 0.50
+
+camera:
+  position: [0, 1.6, -8]
+  look_at:  [0, 1.0, 6]
+  fov: 50
+
+materials:
+  - id: "pavimento"
+    type: "lambertian"
+    color: [0.55, 0.50, 0.45]
+  - id: "rosso"
+    type: "lambertian"
+    color: [0.85, 0.20, 0.18]
+  - id: "verde"
+    type: "lambertian"
+    color: [0.20, 0.65, 0.30]
+  - id: "azzurro"
+    type: "lambertian"
+    color: [0.25, 0.55, 0.85]
+  - id: "ambra"
+    type: "lambertian"
+    color: [0.85, 0.62, 0.20]
+
+entities:
+  # Sfere disposte in profondità — ognuna attraversa più nebbia della precedente
+  - { name: "near",  type: "sphere", center: [-2.0, 0.9, -2], radius: 0.9, material: "rosso"   }
+  - { name: "mid1",  type: "sphere", center: [ 0.0, 0.9,  2], radius: 0.9, material: "verde"   }
+  - { name: "mid2",  type: "sphere", center: [ 2.5, 0.9,  6], radius: 0.9, material: "azzurro" }
+  - { name: "far",   type: "sphere", center: [-2.5, 0.9, 14], radius: 0.9, material: "ambra"   }
+
+lights: []

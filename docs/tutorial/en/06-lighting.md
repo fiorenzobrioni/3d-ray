@@ -249,6 +249,28 @@ The engine supports geometry lights on any samplable primitive: spheres,
 quads, disks, boxes, cylinders, cones, tori, capsules, annuli, and
 meshes.
 
+### Multiple Importance Sampling — why every material participates
+
+Direct illumination from a non-delta light (area, sphere, geometric,
+environment) is computed by combining two independent strategies: **NEE**
+samples a point on the light, **BSDF sampling** samples the bounce
+direction from the material. Weighting the two with the **balance
+heuristic** (default) or the **power heuristic** (`--mis power`)
+reduces variance compared to using either strategy alone.
+
+Every supported material — `lambertian`, `metal`, `mix`, `disney` —
+exposes the `Sample`/`Pdf`/`Evaluate` triple the MIS estimator needs. No
+configuration is required: the renderer picks the correct weight
+automatically based on the material and light types involved. Pure
+delta lights (point, directional, spot) and delta material lobes
+(perfect mirror, ideal glass) are special-cased to weight 1 — no other
+sampler can reach them.
+
+For scenes with fog or smoke (`global_medium`), the phase function joins
+the MIS pool: the renderer weighs NEE in-scattering against the
+phase-sampled bounce, suppressing the fireflies that typically appear in
+"god ray" volumes lit by a distant light.
+
 ---
 
 ## 6.8 The Three-Point Lighting Setup

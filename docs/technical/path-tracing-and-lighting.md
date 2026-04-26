@@ -33,10 +33,21 @@ Ad ogni "hit" del raggio sulla superficie, invece di aspettare che un rimbalzo c
 3.  Calcola il contributo BRDF della superficie per quella specifica direzione della luce.
 4.  Se la luce è visibile dal punto di hit, aggiunge il contributo (radiance × BRDF) all'accumulatore.
 
-### 2.2 Separazione tra Luce Diretta e Indiretta
-Per evitare di contare due volte l'energia emessa (Double Counting):
-- Se un rimbalzo indiretto colpisce un oggetto emissivo (che partecipa già alla NEE), la sua emissione viene soppressa se il rimbalzo precedente è di tipo diffuso.
-- Se il raggio colpisce una luce partendo direttamente dalla camera o dopo un rimbalzo speculare (dove la NEE non è attiva), l'emissione viene accumulata normalmente.
+### 2.2 Separazione tra Luce Diretta e Indiretta — Multiple Importance Sampling
+Per evitare di contare due volte l'energia emessa (Double Counting) e per ridurre la varianza, il motore implementa il **Multiple Importance Sampling** di Veach (1997). Due strategie campionano lo stesso integrando dell'illuminazione diretta:
+
+1. **Light sampling (NEE)** — campiona un punto sulla luce con densità $p_L(\omega)$.
+2. **BSDF sampling** — campiona la direzione del rimbalzo dalla distribuzione di importance del materiale, con densità $p_B(\omega)$.
+
+I due contributi vengono pesati con la **balance heuristic** (default) o la **power heuristic** β=2 (selezionabile via `--mis power`):
+
+$$w_\text{balance}(p, q) = \frac{p}{p + q}, \qquad w_\text{power}(p, q) = \frac{p^2}{p^2 + q^2}.$$
+
+La power heuristic riduce la varianza per coppie molto asimmetriche (es. luce piccola + materiale ruvido) sopprimendo più aggressivamente lo sampler peggio adattato.
+
+Tutti i materiali (Lambertian, Metal, MixMaterial, DisneyBsdf) implementano la tripla simmetrica `Sample` / `Pdf` / `Evaluate` su cui poggia la combinazione MIS; il `Renderer` propaga `prevBsdfPdf` e `prevIsDelta` lungo il path e li usa per pesare l'emissione al successivo hit (`WeightEmission`) e il sky miss (`SampleSky`). Lobi delta puri (specchio perfetto, rifrazione ideale, point/directional/spot light) sono riconosciuti dai flag `IsDeltaScatter` / `IsDelta` e ricevono peso 1 — non possono essere campionati dall'altra strategia.
+
+L'estensione MIS copre anche il **bounce volumetrico**: la phase function espone `Pdf(wo, wi)` e il suo valore viene threadato come `prevBsdfPdf` quando il raggio prosegue dopo un evento di scattering nel medium globale. Combinato con la trasmittanza Beer-Lambert applicata già nelle shadow ray, questo dà MIS pieno fra phase-sampling e light-sampling per l'in-scattering.
 
 ### 2.3 Conservazione dell'Area per Emissivi Trasformati (Jacobian)
 
