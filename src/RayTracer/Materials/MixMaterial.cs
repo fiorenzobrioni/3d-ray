@@ -171,6 +171,44 @@ public class MixMaterial : IMaterial
     }
 
     // ═════════════════════════════════════════════════════════════════════════
+    // Symmetric BSDF API (Evaluate / Pdf / Sample) — enables full MIS.
+    //
+    // Evaluate / Pdf are deterministic linear blends of the children — same
+    // logic as EvaluateDirect, applied to the cosine-free BRDF / solid-angle
+    // PDF the MIS estimator wants. Sample uses PBRT's one-sample mixture
+    // estimator: pick child A or B with probability (1-t) / t, return its
+    // BsdfSample as-is. The marginal density over Wo is exactly the mixture
+    // PDF, so f_selected · cosθ / pdf_selected integrates to the mixture
+    // BRDF without any explicit re-weighting.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    /// <inheritdoc/>
+    public Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec)
+    {
+        float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        Vector3 fA = MaterialA.Evaluate(V, L, rec);
+        Vector3 fB = MaterialB.Evaluate(V, L, rec);
+        return Vector3.Lerp(fA, fB, t);
+    }
+
+    /// <inheritdoc/>
+    public float Pdf(Vector3 V, Vector3 L, HitRecord rec)
+    {
+        float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        float pA = MaterialA.Pdf(V, L, rec);
+        float pB = MaterialB.Pdf(V, L, rec);
+        return (1f - t) * pA + t * pB;
+    }
+
+    /// <inheritdoc/>
+    public BsdfSample? Sample(Vector3 V, HitRecord rec)
+    {
+        float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        IMaterial selected = MathUtils.RandomFloat() < t ? MaterialB : MaterialA;
+        return selected.Sample(V, rec);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
     // Blend factor evaluation
     // ═════════════════════════════════════════════════════════════════════════
 

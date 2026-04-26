@@ -158,6 +158,21 @@ nearly indistinguishable from HG for `|g| < 0.9`.
 - Path tracer with millions of phase evaluations → `schlick` (speed).
 - Dense smoke, turbid underwater → `isotropic`.
 
+### MIS on the phase function
+
+When a ray scatters at a medium point, the renderer computes the
+in-scattered radiance by combining two strategies: **NEE** (a shadow ray
+toward every light, with the phase function in place of the BRDF) and
+**phase sampling** (an importance-sampled bounce). The two densities —
+`light.PdfSolidAngle` and `phase.Pdf` — are combined under the same
+balance/power heuristic used on surfaces.
+
+In practice this gives a **visible reduction of fireflies** in scenes
+with a strong directional light through fog (god rays): a phase-sampled
+bounce that lands directly on a light is now MIS-weighted instead of
+being suppressed. Switching to `--mis power` can help further when the
+sun is small (near-pinpoint) relative to the phase lobe.
+
 ---
 
 ## 9.4 Beyond Homogeneous: Heterogeneous Medium Types
@@ -431,6 +446,17 @@ Keep these tips in mind:
    tighter, more dramatic god-rays but **increase variance**: if cones
    look noisy, lower `g` to 0.7-0.85 or switch to `double_hg` with more
    balanced weights.
+
+9. **`lights: []` + global medium → tendency to come out black.** With
+   no explicit lights, the flux-based classifier flags the scene as
+   indirect-dominant and switches Russian Roulette to its conservative
+   tuning (≥ 8 bounces, 0.5 minimum survival). When fog attenuates every
+   segment, the light from a gradient sky or HDRI alone struggles to
+   reach the sensor and the render comes out very dark. Fix: add at
+   least one explicit `directional` or `sphere` light that declares the
+   sun as a separate `ILight` (HDRI/gradient stays as fill); the
+   classifier flips to "direct-dominant" and god-rays become visible.
+   Seen in practice in `scenes/foggy-hdri.yaml`.
 
 ---
 

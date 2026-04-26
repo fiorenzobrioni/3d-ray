@@ -81,6 +81,21 @@ class Program
         }
         Sampler.SetKind(samplerKind);
 
+        // MIS combination heuristic (balance / power). See Veach 1997 §9.2.
+        MisHeuristic misHeuristic = MisHeuristic.Balance;
+        string? misArg = GetArg(args, "--mis", null);
+        if (misArg != null)
+        {
+            switch (misArg.ToLowerInvariant())
+            {
+                case "balance": misHeuristic = MisHeuristic.Balance; break;
+                case "power":   misHeuristic = MisHeuristic.Power;   break;
+                default:
+                    Console.WriteLine($"Error: Unknown --mis '{misArg}'. Valid: balance, power.");
+                    return;
+            }
+        }
+
         // Verbose mode
         bool verbose = HasFlag(args, "--verbose", "-v");
         SceneLoader.SetVerbose(verbose);
@@ -130,6 +145,7 @@ class Program
         if (cameraSelector != null)
             Console.WriteLine($"  Camera:      {cameraSelector}");
         Console.WriteLine($"  Sampler:     {samplerKind.ToString().ToLowerInvariant()}");
+        Console.WriteLine($"  MIS:         {misHeuristic.ToString().ToLowerInvariant()} heuristic");
         Console.WriteLine();
 
         // Load scene
@@ -152,7 +168,7 @@ class Program
             Console.WriteLine($"  Sky:         {skyDesc}");
 
             // Render (constructor may print scene analysis info before the blank line)
-            var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth, globalMedium, clampOverride, verbose);
+            var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth, globalMedium, clampOverride, verbose, misHeuristic);
             Console.WriteLine();
 
             sw.Restart();
@@ -196,6 +212,7 @@ class Program
         Console.WriteLine("  -C, --clamp <n>              Max per-sample radiance / firefly clamp (default: 100)");
         Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
         Console.WriteLine("      --sampler <prng|sobol>   Per-pixel sampler (default: sobol — Burley 2020)");
+        Console.WriteLine("      --mis <balance|power>    MIS combination heuristic (default: balance)");
         Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
         Console.WriteLine("  -v, --verbose                Show detailed loading and scene analysis info");
         Console.WriteLine("  -h, --help                   Show this help");

@@ -1,0 +1,116 @@
+# =============================================================================
+#  FOGGY HDRI — Scena cinematografica per phase-function MIS
+#
+#  L'idea è esercitare contemporaneamente:
+#    - environment con sun-disk (importance-sampleable per NEE)
+#    - global_medium con phase HG forward-scattering (g 0.6)
+#    - oggetti diffusi e metallici per godrays e riflessi atmosferici
+#
+#  Prima dell'estensione MIS volumetrica:
+#    Il bounce phase-sampled passava prevBsdfPdf=0 al renderer, costringendo
+#    "NEE replaced emission" sull'in-scattering — funzionava ma sprecava
+#    varianza sulle situazioni con luce direzionale forte attraverso fog.
+#
+#  Dopo l'estensione:
+#    La phase function espone Pdf, che viene threaded forward come
+#    prevBsdfPdf, abilitando MIS pieno fra phase-sampling e NEE per
+#    l'in-scattering. I "raggi di sole" attraverso la nebbia convergono
+#    più velocemente.
+#
+#  VARIANTE HDRI — vedere il blocco commentato qui sotto. Richiede un file
+#  HDR equirettangolare con luminanza media >= 0.5 (Newman_cafeteria è
+#  troppo scuro per dimostrare l'effetto in modo pulito; vanno bene
+#  paesaggi outdoor o studi luminosi da polyhaven.com).
+#
+#  COMANDO TIPO
+#    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#      -i scenes/foggy-hdri.yaml -w 1280 -H 720 -s 256 -d 8 -S 4
+# =============================================================================
+
+world:
+  ambient_light: [0.0, 0.0, 0.0]
+  sky:
+    type: "gradient"
+    zenith_color:  [0.30, 0.45, 0.70]
+    horizon_color: [0.95, 0.90, 0.80]
+    ground_color:  [0.35, 0.32, 0.28]
+  # ── VARIANTE HDRI (richiede un .hdr luminoso) ────────────────────────────
+  # sky:
+  #   type: "hdri"
+  #   path: "showcases/hdri/<your-bright-hdri>.hdr"
+  #   intensity: 1.5
+  #   rotation: 30
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+  medium:
+    type: "homogeneous"
+    sigma_a: [0.0015, 0.0015, 0.002]
+    sigma_s: [0.008, 0.009, 0.012]
+    phase: "hg"
+    g: 0.60
+
+camera:
+  position: [0, 1.6, -7]
+  look_at:  [0, 1.0, 0]
+  fov: 45
+  aperture: 0.04
+  focal_dist: 7.5
+
+materials:
+  - id: "pavimento"
+    type: "lambertian"
+    color: [0.45, 0.42, 0.38]
+
+  - id: "cromo"
+    type: "metal"
+    color: [0.90, 0.92, 0.95]
+    fuzz: 0.02
+
+  - id: "ottone"
+    type: "metal"
+    color: [0.85, 0.65, 0.30]
+    fuzz: 0.20
+
+  - id: "diffuso_caldo"
+    type: "lambertian"
+    color: [0.78, 0.55, 0.40]
+
+  - id: "diffuso_freddo"
+    type: "lambertian"
+    color: [0.40, 0.55, 0.78]
+
+  - id: "vetro"
+    type: "dielectric"
+    refraction_index: 1.52
+
+entities:
+  # Centro: sfera di vetro che fa caustic visibili nella nebbia
+  - { name: "vetro_centro", type: "sphere", center: [ 0.0, 1.0,  0.0], radius: 1.0, material: "vetro" }
+
+  # Cromata a destra: rifletterà l'HDRI attraverso la nebbia
+  - { name: "cromo_dx",     type: "sphere", center: [ 2.5, 0.9,  0.5], radius: 0.9, material: "cromo" }
+
+  # Ottone in primo piano sinistra: metallo medio-rough = lobo MIS-pesabile
+  - { name: "ottone_sx",    type: "sphere", center: [-2.5, 0.7, -1.5], radius: 0.7, material: "ottone" }
+
+  # Coppia diffusa sullo sfondo: caratterizzazione del color bleed atmosferico
+  - { name: "diff_caldo",   type: "sphere", center: [-1.2, 0.8,  3.5], radius: 0.8, material: "diffuso_caldo"  }
+  - { name: "diff_freddo",  type: "sphere", center: [ 1.8, 0.8,  4.5], radius: 0.8, material: "diffuso_freddo" }
+
+# Sun-disk forte come direzionale esplicita (per garantire NEE) + fill da
+# environment via gradient sky.
+lights:
+  - type: "directional"
+    direction: [-0.30, -0.55, 0.40]
+    color:     [1.0, 0.95, 0.85]
+    intensity: 8.0
+
+  # Fill caldo morbido per riempire le ombre profonde nella nebbia
+  - type: "sphere"
+    position:  [-6.0, 5.0, -3.0]
+    radius:    1.5
+    color:     [0.95, 0.85, 0.65]
+    intensity: 6.0
+    shadow_samples: 9

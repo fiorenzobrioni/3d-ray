@@ -37,8 +37,11 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 | `-S` / `--shadow-samples` | non impostato → valore YAML per-luce | `Program.cs` |
 | `-C` / `--clamp` | `100` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
 | `--sampler` | `sobol` (Owen scramble) | `Program.cs` / `Sampler.SetKind` |
+| `--mis` | `balance` (balance heuristic Veach) | `Program.cs` / `MisHeuristic` |
 
 > Il sampler default `sobol` (Burley 2020, Owen scrambling hash-based sulla tabella Joe-Kuo) converge più rapidamente del PRNG thread-local su pixel jitter, lens sampling e primi bounce. Passa `--sampler prng` per tornare al vecchio comportamento — utile quando confronti con render storici o debugghi regressioni stocastiche.
+
+> **`--mis balance` vs `--mis power`** — entrambi sono pesi Multiple Importance Sampling unbiased (Veach 1997 §9.2). Il default `balance` (`w = p/(p+q)`) è la balance heuristic, il peso a varianza minima per qualunque coppia di sampler. L'opzione `power` (`w = p²/(p²+q²)`) usa la power heuristic con β=2 e riduce ulteriormente la varianza quando le due PDF differiscono molto — tipicamente luci speculari piccole su materiali ruvidi, o luci puntiformi attraverso fog. Il costo computazionale è identico; puoi cambiare in qualunque momento senza rifare preprocessing.
 
 I default sono pensati per **iterazione rapida**, non per qualità finale. Considera il profilo Preview come il minimo per un render "presentabile"; usa Standard o Final quando devi pubblicare.
 

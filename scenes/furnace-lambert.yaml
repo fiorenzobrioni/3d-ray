@@ -1,0 +1,48 @@
+# =============================================================================
+#  FURNACE TEST — Lambertian
+#
+#  Banco diagnostico per la conservazione di energia del materiale Lambertian
+#  via il nuovo path MIS (Sample/Pdf/Evaluate). La sfera è immersa in un
+#  ambiente di luminanza costante 1.0 e ha albedo unitario: il path tracer
+#  deve restituire un'immagine in cui la sfera è indistinguibile dallo
+#  sfondo (radianza media ≈ 1.0).
+#
+#  Con il vecchio path Scatter() il risultato era già corretto a meno di
+#  rumore; con la nuova API Sample() il MIS pesa anche l'emissione vista
+#  da un raggio BSDF, quindi questo test verifica che la transizione non
+#  abbia introdotto bias né perdita di energia.
+#
+#  COMANDO TIPO
+#    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#      -i scenes/furnace-lambert.yaml -w 256 -H 256 -s 64 -d 6
+#
+#  CRITERIO DI ACCETTAZIONE
+#    Pixel medio del crop centrale ≈ (1.0, 1.0, 1.0) ± rumore.
+# =============================================================================
+
+world:
+  ambient_light: [0.0, 0.0, 0.0]
+  sky:
+    type: "gradient"
+    zenith_color:  [1.0, 1.0, 1.0]
+    horizon_color: [1.0, 1.0, 1.0]
+    ground_color:  [1.0, 1.0, 1.0]
+
+camera:
+  position: [0, 0, -3]
+  look_at:  [0, 0, 0]
+  fov: 40
+
+materials:
+  - id: "white"
+    type: "lambertian"
+    color: [1.0, 1.0, 1.0]
+
+entities:
+  - name: "test_sphere"
+    type: "sphere"
+    center: [0, 0, 0]
+    radius: 1.0
+    material: "white"
+
+lights: []

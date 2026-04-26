@@ -1,0 +1,45 @@
+# =============================================================================
+#  FURNACE TEST — MixMaterial
+#
+#  Mix 50/50 di Lambertian (albedo bianco) e Metal (fuzz 0.3, albedo bianco)
+#  in un ambiente di luminanza costante 1.0. Verifica che la combinazione
+#  lineare di Pdf e Evaluate del MixMaterial restituisca, sotto MIS, una
+#  sfera la cui radianza media coincide con quella delle furnace separate
+#  per i singoli componenti.
+#
+#  Crepuscolo dei due lobi: il Lambertian conserva energia (~1.0), il Metal
+#  con fuzz 0.3 perde un poco (vedi furnace-metal.yaml). Il mix risultante
+#  deve cadere a metà fra i due — un buon controllo che la blending non
+#  introduca bias.
+#
+#  COMANDO TIPO
+#    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#      -i scenes/furnace-mix.yaml -w 256 -H 256 -s 128 -d 6
+# =============================================================================
+
+world:
+  ambient_light: [0.0, 0.0, 0.0]
+  sky:
+    type: "gradient"
+    zenith_color:  [1.0, 1.0, 1.0]
+    horizon_color: [1.0, 1.0, 1.0]
+    ground_color:  [1.0, 1.0, 1.0]
+
+camera:
+  position: [0, 0, -3]
+  look_at:  [0, 0, 0]
+  fov: 40
+
+materials:
+  - { id: "white_lamb",  type: "lambertian", color: [1.0, 1.0, 1.0] }
+  - { id: "white_metal", type: "metal",      color: [1.0, 1.0, 1.0], fuzz: 0.3 }
+  - id: "mix50"
+    type: "mix"
+    material_a: "white_lamb"
+    material_b: "white_metal"
+    blend: 0.5
+
+entities:
+  - { name: "test_sphere", type: "sphere", center: [0, 0, 0], radius: 1.0, material: "mix50" }
+
+lights: []

@@ -1,0 +1,122 @@
+# =============================================================================
+#  Showcase — MixMaterial sotto area light (chiaro miglioramento MIS)
+#
+#  Cinque sfere allineate, ciascuna con un mix tra metallo cromato e ruggine
+#  Lambertian, in proporzioni crescenti (0% / 25% / 50% / 75% / 100% di
+#  ruggine). Sopra le sfere, una grande area light rettangolare illumina la
+#  scena: questa è la situazione canonica in cui il MIS sui materiali legacy
+#  fa la differenza più visibile.
+#
+#  Prima dell'integrazione MIS sui materiali legacy:
+#    Lambert/Metal/MixMaterial usavano "NEE replaced emission" — quando un
+#    raggio BSDF colpiva l'area light, l'emissione veniva azzerata. Questo
+#    riduce il rumore in NEE-puro ma perde varianza recuperabile.
+#
+#  Dopo l'integrazione (claude/complete-mis-implementation-q98Tb):
+#    Tutti i materiali espongono Sample/Pdf/Evaluate; il renderer applica la
+#    balance heuristic completa anche su Mix → più segnale, meno fireflies
+#    (specie sui pixel adiacenti al riflesso brillante dell'area light).
+#
+#  COMANDO TIPO
+#    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#      -i scenes/showcases/showcase-mix-metal-rust.yaml \
+#      -w 1024 -H 576 -s 256 -d 8 -S 4
+# =============================================================================
+
+world:
+  ambient_light: [0.0, 0.0, 0.0]
+  background:    [0.0, 0.0, 0.0]
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+
+camera:
+  position: [0, 2.0, -6]
+  look_at:  [0, 0.6, 0]
+  fov: 42
+
+materials:
+  # ── Pavimento opaco ──────────────────────────────────────────────────────
+  - id: "pavimento"
+    type: "lambertian"
+    color: [0.30, 0.28, 0.26]
+
+  # ── Componenti del mix ───────────────────────────────────────────────────
+  - id: "cromo"
+    type: "metal"
+    color: [0.92, 0.92, 0.95]
+    fuzz: 0.05
+
+  - id: "ruggine"
+    type: "lambertian"
+    color: [0.55, 0.22, 0.10]
+
+  # ── 0% ruggine = cromo puro ──────────────────────────────────────────────
+  - id: "mix_000"
+    type: "mix"
+    material_a: "cromo"
+    material_b: "ruggine"
+    blend: 0.00
+
+  # ── 25% / 50% / 75% — gradient di ossidazione ────────────────────────────
+  - id: "mix_025"
+    type: "mix"
+    material_a: "cromo"
+    material_b: "ruggine"
+    blend: 0.25
+
+  - id: "mix_050"
+    type: "mix"
+    material_a: "cromo"
+    material_b: "ruggine"
+    blend: 0.50
+
+  - id: "mix_075"
+    type: "mix"
+    material_a: "cromo"
+    material_b: "ruggine"
+    blend: 0.75
+
+  # ── 100% = ruggine pura (Lambertian) ─────────────────────────────────────
+  - id: "mix_100"
+    type: "mix"
+    material_a: "cromo"
+    material_b: "ruggine"
+    blend: 1.00
+
+  # ── Materiale dell'area light ────────────────────────────────────────────
+  - id: "luce_panel"
+    type: "emissive"
+    color: [1.0, 0.96, 0.88]
+    intensity: 5.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  LIGHTS
+#  Una sola area light rettangolare (60% di copertura zenitale): è il caso
+#  d'uso peggiore per un path tracer pre-MIS sui materiali legacy.
+# ─────────────────────────────────────────────────────────────────────────────
+lights:
+  - type: "area"
+    corner: [-3.0, 4.0, -2.0]
+    u:      [ 6.0, 0.0,  0.0]
+    v:      [ 0.0, 0.0,  4.0]
+    color:  [1.0, 0.96, 0.88]
+    intensity: 5.0
+    shadow_samples: 9
+
+entities:
+  # ── Area light visibile (geometria emissiva) ─────────────────────────────
+  - name: "panel"
+    type: "quad"
+    q: [-3.0, 4.0, -2.0]
+    u: [ 6.0, 0.0,  0.0]
+    v: [ 0.0, 0.0,  4.0]
+    material: "luce_panel"
+
+  # ── 5 sfere con mix crescente di ossidazione ─────────────────────────────
+  - { name: "s00", type: "sphere", center: [-3.6, 0.6, 0], radius: 0.6, material: "mix_000" }
+  - { name: "s25", type: "sphere", center: [-1.8, 0.6, 0], radius: 0.6, material: "mix_025" }
+  - { name: "s50", type: "sphere", center: [ 0.0, 0.6, 0], radius: 0.6, material: "mix_050" }
+  - { name: "s75", type: "sphere", center: [ 1.8, 0.6, 0], radius: 0.6, material: "mix_075" }
+  - { name: "s99", type: "sphere", center: [ 3.6, 0.6, 0], radius: 0.6, material: "mix_100" }

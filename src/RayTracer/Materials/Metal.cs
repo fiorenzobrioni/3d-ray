@@ -116,6 +116,102 @@ public class Metal : IMaterial
 
     public NormalMapTexture? NormalMap { get; set; }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Symmetric BSDF API (Evaluate / Pdf / Sample) — enables full MIS.
+    //
+    // Cook-Torrance specular over GGX with Smith masking, plus a small
+    // diffuse term proportional to Fuzz that mirrors EvaluateDirect's split
+    // (rough metals have non-trivial diffuse scattering). Importance sampling
+    // is the same NDF used by Scatter, so legacy and MIS paths agree on
+    // direction statistics. F=0 (perfect mirror) → delta sample with Pdf=1
+    // and the renderer treats it like Dielectric reflection.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec)
+    {
+        Vector3 N = rec.Normal;
+        float NdotL = Vector3.Dot(N, L);
+        float NdotV = Vector3.Dot(N, V);
+        if (NdotL <= 0f || NdotV <= 0f) return Vector3.Zero;
+        if (Fuzz <= 0f) return Vector3.Zero; // delta lobe — sampled via Sample only
+
+        Vector3 Hraw = V + L;
+        if (Hraw.LengthSquared() < 1e-14f) return Vector3.Zero;
+        Vector3 H = Vector3.Normalize(Hraw);
+        float NdotH = MathF.Max(Vector3.Dot(N, H), 0f);
+        float VdotH = MathF.Max(Vector3.Dot(V, H), 0f);
+
+        float a2 = _alpha * _alpha;
+        float denom = NdotH * NdotH * (a2 - 1f) + 1f;
+        float D = a2 / (MathF.PI * denom * denom);
+        float G = SmithG1_GGX(NdotV, _alpha) * SmithG1_GGX(NdotL, _alpha);
+
+        // Schlick Fresnel tinted by the metal albedo (F0 = baseColor).
+        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        float s = 1f - VdotH;
+        s *= s * s * s * s;
+        Vector3 F = albedo + (Vector3.One - albedo) * s;
+
+        // Cook-Torrance specular: D·G·F / (4·NdotV·NdotL). No cosine factor.
+        return F * (D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f));
+    }
+
+    public float Pdf(Vector3 V, Vector3 L, HitRecord rec)
+    {
+        Vector3 N = rec.Normal;
+        float NdotL = Vector3.Dot(N, L);
+        float NdotV = Vector3.Dot(N, V);
+        if (NdotL <= 0f || NdotV <= 0f) return 0f;
+        if (Fuzz <= 0f) return 0f;
+
+        Vector3 Hraw = V + L;
+        if (Hraw.LengthSquared() < 1e-14f) return 0f;
+        Vector3 H = Vector3.Normalize(Hraw);
+        float NdotH = MathF.Max(Vector3.Dot(N, H), 0f);
+        float VdotH = MathF.Max(Vector3.Dot(V, H), 1e-7f);
+
+        // GGX NDF Jacobian: pdf(L) = D(H)·NdotH / (4·VdotH).
+        float a2 = _alpha * _alpha;
+        float denom = NdotH * NdotH * (a2 - 1f) + 1f;
+        float D = a2 / (MathF.PI * denom * denom);
+        return D * NdotH / (4f * VdotH);
+    }
+
+    public BsdfSample? Sample(Vector3 V, HitRecord rec)
+    {
+        Vector3 N = rec.Normal;
+        Vector3 H = SampleGGX(N, _alpha);
+        Vector3 L = MathUtils.Reflect(-V, H);
+        if (Vector3.Dot(N, L) <= 0f) return null;
+
+        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+
+        if (Fuzz <= 0f)
+        {
+            // Perfect mirror: delta lobe. F carries the full attenuation,
+            // Pdf=1 so the renderer reports prevBsdfPdf=0 / prevIsDelta=true
+            // at the next bounce (see ShadeSampleBounce).
+            return new BsdfSample(L, albedo, 1f, isDelta: true);
+        }
+
+        float NdotL = MathF.Max(Vector3.Dot(N, L), 1e-7f);
+        float NdotV = MathF.Max(Vector3.Dot(N, V), 1e-7f);
+        float NdotH = MathF.Max(Vector3.Dot(N, H), 1e-7f);
+        float VdotH = MathF.Max(Vector3.Dot(V, H), 1e-7f);
+
+        float a2 = _alpha * _alpha;
+        float dDenom = NdotH * NdotH * (a2 - 1f) + 1f;
+        float D = a2 / (MathF.PI * dDenom * dDenom);
+        float G = SmithG1_GGX(NdotV, _alpha) * SmithG1_GGX(NdotL, _alpha);
+        float s = 1f - VdotH;
+        s *= s * s * s * s;
+        Vector3 F = albedo + (Vector3.One - albedo) * s;
+
+        Vector3 f = F * (D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f));
+        float pdf = D * NdotH / (4f * VdotH);
+        return new BsdfSample(L, f, pdf, isDelta: false);
+    }
+
     /// <summary>
     /// GGX importance-sampled scatter for metallic reflection.
     ///
