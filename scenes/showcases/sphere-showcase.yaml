@@ -53,7 +53,7 @@ cameras:
   # ── Hero: vista 3/4 classica, DOF sulle sfere centrali ────────────────
   - name:       hero
     position:   [2.0, 3.8, -6.0]
-    look_at:    [-0.4, 0.8, 0.0]
+    look_at:    [-0.4, 0.7, 0.0]
     fov:        36
     aperture:   0.0 # 0.2
     focal_dist: 6.5
@@ -115,13 +115,13 @@ lights:
   - type: "point"
     position: [-4.0, 4.5, -4.0]
     color: [1.0, 0.95, 0.88]
-    intensity: 45
+    intensity: 80
 
   # Fill Light — luce fredda leggera dal lato opposto
   - type: "point"
     position: [5.0, 3.0, -2.0]
     color: [0.85, 0.88, 1.0]
-    intensity: 20
+    intensity: 40
 
   # ─────────────────────────────────────────────────────────────────────────
   #  SET ALTERNATIVO 1: Solo Area Light (ombre ultra-morbide, minimalista)
