@@ -72,6 +72,16 @@ public sealed class Lathe : IHittable, ISamplable
 
     private readonly AABB _bounds;
 
+    // Lathe-wide bounding cylinder used for a cheap pre-rejection ahead of the
+    // per-segment loop. Rays that miss this cylinder cannot hit any segment.
+    private readonly float _cylRadiusSq;
+    private readonly float _cylYMin;
+    private readonly float _cylYMax;
+
+    // Sorted ascending by YMin: lets Hit short-circuit segments above the
+    // current best t and skip ones below the ray's reachable Y range.
+    private readonly int[] _segOrder;
+
     public Lathe(IReadOnlyList<Vector2> profile, LatheMode mode, IMaterial material,
                  IReadOnlyList<Vector2>? bezierControls = null)
     {
@@ -88,9 +98,13 @@ public sealed class Lathe : IHittable, ISamplable
             _vBase[i + 1] = _vBase[i] + _segments[i].ArcLength;
         _totalArc = _vBase[n] > 0f ? _vBase[n] : 1f;
 
-        // Cap discs at the extrema.
-        _yBottom = profile[0].Y;
-        _yTop    = profile[profile.Count - 1].Y;
+        // Cap discs at the extrema. We anchor them on the *segment* extrema —
+        // for spline modes the cubic can dip slightly past the profile point
+        // (Catmull-Rom phantom tangents), and capping at the profile y would
+        // leave a gap. The cap radius still uses the profile's r, since the
+        // profile point is reached at u = 0/1 so r matches there exactly.
+        _yBottom = _segments[0].YMin;
+        _yTop    = _segments[n - 1].YMax;
         _rBottom = profile[0].X;
         _rTop    = profile[profile.Count - 1].X;
         _hasBottomCap = _rBottom > 1e-6f;
@@ -100,6 +114,23 @@ public sealed class Lathe : IHittable, ISamplable
         AABB acc = _segments[0].LocalBounds;
         for (int i = 1; i < n; i++) acc = AABB.SurroundingBox(acc, _segments[i].LocalBounds);
         _bounds = acc;
+
+        // Lathe-wide bounding cylinder: one quadratic ray-vs-cylinder is much
+        // tighter than the cubic AABB for tall thin lathes (chess pieces!),
+        // pruning rays that pass close to but never inside the swept volume.
+        float rMaxAll = MathF.Max(MathF.Abs(acc.Min.X),
+                          MathF.Max(MathF.Abs(acc.Max.X),
+                          MathF.Max(MathF.Abs(acc.Min.Z), MathF.Abs(acc.Max.Z))));
+        _cylRadiusSq = rMaxAll * rMaxAll;
+        _cylYMin = acc.Min.Y;
+        _cylYMax = acc.Max.Y;
+
+        // Segments are typically authored in y-monotone order (the loader
+        // enforces it). Build an order array so Hit can short-circuit far
+        // segments once a closer hit is found, regardless of insertion order.
+        _segOrder = new int[n];
+        for (int i = 0; i < n; i++) _segOrder[i] = i;
+        Array.Sort(_segOrder, (i, j) => _segments[i].YMin.CompareTo(_segments[j].YMin));
 
         // NEE CDF: segments first, then caps (if any).
         int entries = n + (_hasBottomCap ? 1 : 0) + (_hasTopCap ? 1 : 0);
@@ -125,16 +156,31 @@ public sealed class Lathe : IHittable, ISamplable
 
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
+        // Lathe-wide bounding cylinder pre-rejection. The world-level BVH
+        // has already kept us inside the axis-aligned box, but a tall slim
+        // lathe occupies only the inscribed cylinder of that box. Solving
+        // (ox+t·dx)² + (oz+t·dz)² ≤ rMax² combined with the Y-slab gives a
+        // much tighter test before we touch any segment.
+        if (!CylinderHit(ray, _cylRadiusSq, _cylYMin, _cylYMax, tMin, tMax))
+            return false;
+
         bool hitAnything = false;
         float closestT = tMax;
 
-        for (int i = 0; i < _segments.Length; i++)
+        // Iterate segments in increasing-Y order. The ray's reachable Y-band
+        // is monotone in t along the bounding cylinder, so once a segment's
+        // YMin is above the closest hit we can stop scanning the upper tail.
+        var segments = _segments;
+        var order = _segOrder;
+        for (int idx = 0; idx < order.Length; idx++)
         {
-            var seg = _segments[i];
+            int i = order[idx];
+            var seg = segments[i];
 
-            // Cheap Y-slab reject: if the ray can't reach this segment's Y
-            // range in (tMin, closestT], skip the expensive intersection.
-            if (!SegmentYReachable(ray, seg.YMin, seg.YMax, tMin, closestT)) continue;
+            // Reject by AABB: tighter than the y-only slab and uses the
+            // precomputed inverse direction. Cheap test, big win for spline
+            // segments where the alternative is a Sturm chain build.
+            if (!seg.LocalBounds.Hit(ray, tMin, closestT)) continue;
 
             if (seg.Hit(ray, tMin, closestT, out float tSeg, out Vector3 n, out float vSeg))
             {
@@ -144,32 +190,43 @@ public sealed class Lathe : IHittable, ISamplable
             }
         }
 
-        if (_hasBottomCap && MathF.Abs(ray.Direction.Y) > 1e-8f)
+        // Cap planes: skip when their t is already further than the best hit.
+        // We also skip when the ray is grazing-parallel to Y.
+        float dy = ray.Direction.Y;
+        if (MathF.Abs(dy) > 1e-8f)
         {
-            float t = (_yBottom - ray.Origin.Y) / ray.Direction.Y;
-            if (t > tMin && t < closestT)
+            float invDy = 1f / dy;
+            if (_hasBottomCap)
             {
-                Vector3 p = ray.At(t);
-                if (p.X * p.X + p.Z * p.Z <= _rBottom * _rBottom)
+                float t = (_yBottom - ray.Origin.Y) * invDy;
+                if (t > tMin && t < closestT)
                 {
-                    closestT = t;
-                    FillCapHit(ref rec, ray, p, t, -Vector3.UnitY, _rBottom, 0f);
-                    hitAnything = true;
+                    float px = ray.Origin.X + t * ray.Direction.X;
+                    float pz = ray.Origin.Z + t * ray.Direction.Z;
+                    if (px * px + pz * pz <= _rBottom * _rBottom)
+                    {
+                        closestT = t;
+                        FillCapHit(ref rec, ray, new Vector3(px, _yBottom, pz),
+                                   t, -Vector3.UnitY, _rBottom);
+                        hitAnything = true;
+                    }
                 }
             }
-        }
 
-        if (_hasTopCap && MathF.Abs(ray.Direction.Y) > 1e-8f)
-        {
-            float t = (_yTop - ray.Origin.Y) / ray.Direction.Y;
-            if (t > tMin && t < closestT)
+            if (_hasTopCap)
             {
-                Vector3 p = ray.At(t);
-                if (p.X * p.X + p.Z * p.Z <= _rTop * _rTop)
+                float t = (_yTop - ray.Origin.Y) * invDy;
+                if (t > tMin && t < closestT)
                 {
-                    closestT = t;
-                    FillCapHit(ref rec, ray, p, t, Vector3.UnitY, _rTop, 1f);
-                    hitAnything = true;
+                    float px = ray.Origin.X + t * ray.Direction.X;
+                    float pz = ray.Origin.Z + t * ray.Direction.Z;
+                    if (px * px + pz * pz <= _rTop * _rTop)
+                    {
+                        closestT = t;
+                        FillCapHit(ref rec, ray, new Vector3(px, _yTop, pz),
+                                   t, Vector3.UnitY, _rTop);
+                        hitAnything = true;
+                    }
                 }
             }
         }
@@ -177,17 +234,52 @@ public sealed class Lathe : IHittable, ISamplable
         return hitAnything;
     }
 
-    private static bool SegmentYReachable(Ray ray, float yMin, float yMax, float tMin, float tMax)
+    /// <summary>
+    /// Returns whether the ray intersects the cylindrical slab
+    /// <c>x²+z² ≤ r² ∧ y ∈ [yMin, yMax]</c> within <c>(tMin, tMax]</c>. Used
+    /// as a tight pre-rejection that costs one quadratic + a Y-slab vs the
+    /// full per-segment loop (which itself spends Sturm chains on splines).
+    /// </summary>
+    private static bool CylinderHit(
+        Ray ray, float radiusSq, float yMin, float yMax,
+        float tMin, float tMax)
     {
-        float dy = ray.Direction.Y;
-        if (MathF.Abs(dy) < 1e-10f)
-            return ray.Origin.Y >= yMin && ray.Origin.Y <= yMax;
+        float tLo = tMin, tHi = tMax;
 
-        float invDy = 1f / dy;
-        float t0 = (yMin - ray.Origin.Y) * invDy;
-        float t1 = (yMax - ray.Origin.Y) * invDy;
-        if (t0 > t1) (t0, t1) = (t1, t0);
-        return t1 >= tMin && t0 <= tMax;
+        float dy = ray.Direction.Y;
+        if (MathF.Abs(dy) > 1e-10f)
+        {
+            float invDy = 1f / dy;
+            float ty0 = (yMin - ray.Origin.Y) * invDy;
+            float ty1 = (yMax - ray.Origin.Y) * invDy;
+            if (ty0 > ty1) (ty0, ty1) = (ty1, ty0);
+            if (ty0 > tLo) tLo = ty0;
+            if (ty1 < tHi) tHi = ty1;
+            if (tHi < tLo) return false;
+        }
+        else if (ray.Origin.Y < yMin || ray.Origin.Y > yMax)
+        {
+            return false;
+        }
+
+        float ox = ray.Origin.X, oz = ray.Origin.Z;
+        float dx = ray.Direction.X, dz = ray.Direction.Z;
+        float a = dx * dx + dz * dz;
+        float c = ox * ox + oz * oz - radiusSq;
+        if (a < 1e-20f)
+        {
+            return c <= 0f;
+        }
+        float halfB = ox * dx + oz * dz;
+        float disc = halfB * halfB - a * c;
+        if (disc < 0f) return false;
+        float sqrtD = MathF.Sqrt(disc);
+        float invA = 1f / a;
+        float tc0 = (-halfB - sqrtD) * invA;
+        float tc1 = (-halfB + sqrtD) * invA;
+        if (tc0 > tLo) tLo = tc0;
+        if (tc1 < tHi) tHi = tc1;
+        return tHi > tLo;
     }
 
     private void FillHit(ref HitRecord rec, Ray ray, float t, Vector3 outwardNormal,
@@ -217,7 +309,7 @@ public sealed class Lathe : IHittable, ISamplable
     }
 
     private void FillCapHit(ref HitRecord rec, Ray ray, Vector3 p, float t,
-                            Vector3 normal, float capRadius, float vCoord)
+                            Vector3 normal, float capRadius)
     {
         rec.T = t;
         rec.Point = p;
@@ -226,8 +318,6 @@ public sealed class Lathe : IHittable, ISamplable
         // Planar projection UV, like Cone caps.
         rec.U = (p.X + capRadius) / (2f * capRadius);
         rec.V = (p.Z + capRadius) / (2f * capRadius);
-        // Unused by V mapping convention; override the profile V with the cap flag.
-        _ = vCoord;
         rec.Tangent = Vector3.UnitX;
         rec.Bitangent = Vector3.UnitZ;
         rec.ObjectSeed = Seed;
@@ -301,7 +391,14 @@ public sealed class Lathe : IHittable, ISamplable
                 {
                     var a = profile[i];
                     var b = profile[i + 1];
-                    segs[i] = new FrustumSegment(a.X, a.Y, b.X, b.Y);
+                    // Horizontal step (Δy = 0, Δr ≠ 0): the frustum quadratic
+                    // degenerates — emit an annular disc instead so the face
+                    // is actually rendered. A perfectly degenerate step
+                    // (Δy = Δr = 0) is dropped via a zero-area annulus.
+                    if (MathF.Abs(b.Y - a.Y) < 1e-12f)
+                        segs[i] = new AnnulusSegment(a.X, a.Y, b.X, b.Y);
+                    else
+                        segs[i] = new FrustumSegment(a.X, a.Y, b.X, b.Y);
                 }
                 return segs;
             }

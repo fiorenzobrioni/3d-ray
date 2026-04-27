@@ -42,6 +42,104 @@ internal interface ILatheSegment
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// Annular disc segment — horizontal profile step (yBase == yTop, rBase != rTop)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// Horizontal step in the meridian profile (Δy = 0, Δr ≠ 0) revolved around
+/// the Y axis. The result is a flat annular disc on the plane
+/// <c>y = yPlane</c> bounded by the inner and outer radii of the step.
+///
+/// The frustum quadratic degenerates when Δy = 0 (slope is undefined) so a
+/// dedicated planar test is used instead — same algebra as
+/// <see cref="Annulus"/> for the local Y-aligned plane.
+/// </summary>
+internal sealed class AnnulusSegment : ILatheSegment
+{
+    private readonly float _yPlane;
+    private readonly float _rInner;
+    private readonly float _rOuter;
+    private readonly float _rInnerSq;
+    private readonly float _rOuterSq;
+
+    public AnnulusSegment(float rA, float yA, float rB, float yB)
+    {
+        // The two endpoints share a Y but the meridian travels from rA to rB
+        // (in either direction). Internally we store sorted radii so the
+        // hit test is symmetric, while v-parameter retains the (rA → rB) sense.
+        _yPlane = 0.5f * (yA + yB);
+        _rInner = MathF.Min(rA, rB);
+        _rOuter = MathF.Max(rA, rB);
+        _rInnerSq = _rInner * _rInner;
+        _rOuterSq = _rOuter * _rOuter;
+
+        // A zero-thickness AABB on Y would make AABB.Hit return tExit == tEnter
+        // and never strictly exceed it — Lathe's per-segment AABB.Hit gate
+        // would silently reject every ray. Same fix as Annulus (pad = 1e-4).
+        const float pad = 1e-4f;
+        LocalBounds = new AABB(
+            new Vector3(-_rOuter, _yPlane - pad, -_rOuter),
+            new Vector3( _rOuter, _yPlane + pad,  _rOuter));
+
+        // Meridian arc length is just |Δr|; lateral area is π(R² − r²).
+        ArcLength = _rOuter - _rInner;
+        LateralArea = MathF.PI * (_rOuterSq - _rInnerSq);
+        // The "outward" normal sense follows the meridian winding: a step that
+        // goes from a wider base to a narrower top (rA > rB) implies the disc
+        // faces upward, while a widening step faces downward.
+        _normalY = (rA > rB) ? +1f : -1f;
+    }
+
+    private readonly float _normalY;
+
+    public AABB LocalBounds { get; }
+    public float YMin => _yPlane;
+    public float YMax => _yPlane;
+    public float ArcLength { get; }
+    public float LateralArea { get; }
+
+    public bool Hit(Ray ray, float tMin, float tMax,
+                    out float tHit, out Vector3 outwardNormal, out float vSegment)
+    {
+        tHit = 0f;
+        outwardNormal = default;
+        vSegment = 0f;
+
+        float dy = ray.Direction.Y;
+        if (MathF.Abs(dy) < 1e-8f) return false;
+        float t = (_yPlane - ray.Origin.Y) / dy;
+        if (t <= tMin || t >= tMax) return false;
+
+        float px = ray.Origin.X + t * ray.Direction.X;
+        float pz = ray.Origin.Z + t * ray.Direction.Z;
+        float distSq = px * px + pz * pz;
+        if (distSq < _rInnerSq || distSq > _rOuterSq) return false;
+
+        tHit = t;
+        outwardNormal = new Vector3(0f, _normalY, 0f);
+        // V is the radial fraction across the annulus (inner = 0, outer = 1).
+        float r = MathF.Sqrt(distSq);
+        float dR = _rOuter - _rInner;
+        vSegment = dR > 1e-12f ? (r - _rInner) / dR : 0f;
+        return true;
+    }
+
+    public (Vector3 Point, Vector3 Normal, float VSegment, float Theta) Sample(float xiV, float xiTheta)
+    {
+        // Uniform-area sampling: r = sqrt(lerp(rInner², rOuter², xiV)).
+        float r = MathF.Sqrt(_rInnerSq + xiV * (_rOuterSq - _rInnerSq));
+        float theta = xiTheta * 2f * MathF.PI;
+        float cosT = MathF.Cos(theta);
+        float sinT = MathF.Sin(theta);
+        var point = new Vector3(r * cosT, _yPlane, r * sinT);
+        var normal = new Vector3(0f, _normalY, 0f);
+        float dR = _rOuter - _rInner;
+        float v = dR > 1e-12f ? (r - _rInner) / dR : 0f;
+        return (point, normal, v, theta);
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // Linear frustum segment — analytic quadratic (same math as Cone)
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -198,8 +296,19 @@ internal sealed class SplineSegment : ILatheSegment
     private readonly double _y0, _y1, _y2, _y3;
     private readonly double _r0, _r1, _r2, _r3;
 
+    // Pre-squared profile polynomials in power basis. Y² and R² are degree 6
+    // and depend only on the segment, so squaring them once at construction
+    // saves ~30 multiplies per ray-segment hit (the polynomial that Sturm
+    // attacks is built from these via simple linear combinations of the ray's
+    // (dx, dy, dz, ox, oy, oz)).
+    private readonly double[] _ySq = new double[7];
+    private readonly double[] _rSq = new double[7];
+
     private readonly float _arcLength;
     private readonly float _lateralArea;
+    // Cylindrical bound: tighter pre-rejection than LocalBounds for rays
+    // grazing past the segment's swept volume.
+    private readonly float _rMaxSq;
 
     private const int TableSize = 64;
     // Cumulative meridian arc length at u = i / TableSize.
@@ -231,13 +340,30 @@ internal sealed class SplineSegment : ILatheSegment
         (float yMin, float yMax) = ExtremaOnUnit((float)_y0, (float)_y1, (float)_y2, (float)_y3);
         (float rMin, float rMax) = ExtremaOnUnit((float)_r0, (float)_r1, (float)_r2, (float)_r3);
         rMax = MathF.Max(rMax, 0f);
+        _ = rMin;
         YMin = yMin;
         YMax = yMax;
         LocalBounds = new AABB(
             new Vector3(-rMax, yMin, -rMax),
             new Vector3( rMax, yMax,  rMax));
+        _rMaxSq = rMax * rMax;
+
+        // Pre-square Y(u) and R(u) once. (P · P)_k = Σ_{i+j=k} p_i · p_j.
+        SquareCubic(_y0, _y1, _y2, _y3, _ySq);
+        SquareCubic(_r0, _r1, _r2, _r3, _rSq);
 
         BuildArcLengthAndAreaTables(out _arcLength, out _lateralArea);
+    }
+
+    private static void SquareCubic(double c0, double c1, double c2, double c3, double[] dst)
+    {
+        dst[0] = c0 * c0;
+        dst[1] = 2.0 * c0 * c1;
+        dst[2] = 2.0 * c0 * c2 + c1 * c1;
+        dst[3] = 2.0 * c0 * c3 + 2.0 * c1 * c2;
+        dst[4] = 2.0 * c1 * c3 + c2 * c2;
+        dst[5] = 2.0 * c2 * c3;
+        dst[6] = c3 * c3;
     }
 
     public AABB LocalBounds { get; }
@@ -262,6 +388,12 @@ internal sealed class SplineSegment : ILatheSegment
         outwardNormal = default;
         vSegment = 0f;
 
+        // Cheap cylindrical reject before building the degree-6 polynomial.
+        // The segment lives inside x²+z² ≤ rMax² ∧ y ∈ [yMin, yMax]; if the
+        // ray fails to enter this volume in (tMin, tMax] we cannot possibly
+        // intersect the surface of revolution.
+        if (!CylinderReject(ray, tMin, tMax)) return false;
+
         double ox = ray.Origin.X;
         double oy = ray.Origin.Y;
         double oz = ray.Origin.Z;
@@ -285,6 +417,45 @@ internal sealed class SplineSegment : ILatheSegment
     }
 
     /// <summary>
+    /// Tight cylindrical pre-reject: the segment is inscribed in the cylinder
+    /// <c>x²+z² ≤ rMax²</c> intersected with the slab <c>[yMin, yMax]</c>. A
+    /// quadratic in t plus the y-slab is much cheaper than the degree-6
+    /// polynomial assembly + Sturm chain that would otherwise follow.
+    /// </summary>
+    private bool CylinderReject(Ray ray, float tMin, float tMax)
+    {
+        float dy = ray.Direction.Y;
+        float tLo = tMin, tHi = tMax;
+        if (MathF.Abs(dy) > 1e-10f)
+        {
+            float invDy = 1f / dy;
+            float t0 = (YMin - ray.Origin.Y) * invDy;
+            float t1 = (YMax - ray.Origin.Y) * invDy;
+            if (t0 > t1) (t0, t1) = (t1, t0);
+            if (t0 > tLo) tLo = t0;
+            if (t1 < tHi) tHi = t1;
+            if (tHi <= tLo) return false;
+        }
+        else if (ray.Origin.Y < YMin || ray.Origin.Y > YMax) return false;
+
+        float ox = ray.Origin.X, oz = ray.Origin.Z;
+        float dx = ray.Direction.X, dz = ray.Direction.Z;
+        float a = dx * dx + dz * dz;
+        float c = ox * ox + oz * oz - _rMaxSq;
+        if (a < 1e-20f) return c <= 0f;
+        float halfB = ox * dx + oz * dz;
+        float disc = halfB * halfB - a * c;
+        if (disc < 0f) return false;
+        float sqrtD = MathF.Sqrt(disc);
+        float invA = 1f / a;
+        float tc0 = (-halfB - sqrtD) * invA;
+        float tc1 = (-halfB + sqrtD) * invA;
+        if (tc0 > tLo) tLo = tc0;
+        if (tc1 < tHi) tHi = tc1;
+        return tHi > tLo && tHi > tMin && tLo < tMax;
+    }
+
+    /// <summary>
     /// Main intersection path: build the degree-6 polynomial F(u), isolate
     /// real roots in (0, 1] with Sturm, then pick the one whose corresponding
     /// t lies in (tMin, tMax] and is smallest.
@@ -297,38 +468,40 @@ internal sealed class SplineSegment : ILatheSegment
         outwardNormal = default;
         vSegment = 0f;
 
-        // Power-basis coefficients of U(u) = ox·dy + dx·(Y(u) − oy):
-        //   U = (ox·dy − dx·oy) + dx·y_0 + dx·y_1·u + dx·y_2·u² + dx·y_3·u³
-        double aU = ox * dy - dx * oy;
-        Span<double> u = stackalloc double[4];
-        u[0] = aU + dx * _y0;
-        u[1] =      dx * _y1;
-        u[2] =      dx * _y2;
-        u[3] =      dx * _y3;
+        // Build F(u) = U(u)² + V(u)² − dy²·R(u)²  with
+        //   U(u) = α + dx·Y(u),  α = ox·dy − dx·oy
+        //   V(u) = β + dz·Y(u),  β = oz·dy − dz·oy
+        // ⇒ F = (dx²+dz²)·Y²(u) + 2·(dx·α + dz·β)·Y(u) − dy²·R²(u) + (α²+β²)
+        // Y² and R² are precomputed in the constructor (each degree 6, 7 coeffs).
+        double alpha = ox * dy - dx * oy;
+        double beta  = oz * dy - dz * oy;
+        double yQuad = dx * dx + dz * dz;          // multiplier of Y²
+        double yLin  = 2.0 * (dx * alpha + dz * beta); // multiplier of Y
+        double rQuad = -dy * dy;                   // multiplier of R²
+        double cConst = alpha * alpha + beta * beta;
 
-        double aV = oz * dy - dz * oy;
-        Span<double> v = stackalloc double[4];
-        v[0] = aV + dz * _y0;
-        v[1] =      dz * _y1;
-        v[2] =      dz * _y2;
-        v[3] =      dz * _y3;
-
-        // dy · R(u), cubic in u.
-        Span<double> dyR = stackalloc double[4];
-        dyR[0] = dy * _r0;
-        dyR[1] = dy * _r1;
-        dyR[2] = dy * _r2;
-        dyR[3] = dy * _r3;
-
-        // F(u) = U(u)² + V(u)² − (dy·R(u))²
         Span<double> coeffs = stackalloc double[7];
-        for (int i = 0; i < 7; i++) coeffs[i] = 0.0;
-        AccumulateSquare(coeffs, u, +1.0);
-        AccumulateSquare(coeffs, v, +1.0);
-        AccumulateSquare(coeffs, dyR, -1.0);
+        coeffs[0] = yQuad * _ySq[0] + rQuad * _rSq[0] + yLin * _y0 + cConst;
+        coeffs[1] = yQuad * _ySq[1] + rQuad * _rSq[1] + yLin * _y1;
+        coeffs[2] = yQuad * _ySq[2] + rQuad * _rSq[2] + yLin * _y2;
+        coeffs[3] = yQuad * _ySq[3] + rQuad * _rSq[3] + yLin * _y3;
+        coeffs[4] = yQuad * _ySq[4] + rQuad * _rSq[4];
+        coeffs[5] = yQuad * _ySq[5] + rQuad * _rSq[5];
+        coeffs[6] = yQuad * _ySq[6] + rQuad * _rSq[6];
+
+        // Quick reject: if F has the same sign at u ∈ {0, 0.2, 0.4, 0.6, 0.8, 1}
+        // and is far from zero relative to its natural roundoff floor, almost
+        // certainly there are no real roots in (0, 1] worth investigating —
+        // skip the Sturm chain. Gracefully accepts double-roots / tangents:
+        // if any sample value is "small" we fall through to Sturm.
+        if (NoSignChangeQuick(coeffs)) return false;
 
         Span<double> roots = stackalloc double[6];
-        int count = SturmSolver.FindRoots(coeffs, 0.0, 1.0, roots);
+        // Looser tolerance than the default 1e-9: u is in [0, 1] and the
+        // residual guard further down catches anything misclassified by Sturm,
+        // so 1e-7 keeps the same effective precision while letting Newton
+        // bail one or two iterations earlier on grazing rays.
+        int count = SturmSolver.FindRoots(coeffs, 0.0, 1.0, roots, 1e-7);
         if (count == 0) return false;
 
         float invDy = (float)(1.0 / dy);
@@ -356,7 +529,7 @@ internal sealed class SplineSegment : ILatheSegment
 
             tHit = t;
             tBest = t;
-            vSegment = (float)uParam;
+            vSegment = ArcFractionAt(uParam);
 
             // Meridian tangent (R'(u), Y'(u)); outward normal rotates it 90°
             // clockwise in the meridian plane (positive-r side), then revolves
@@ -373,6 +546,25 @@ internal sealed class SplineSegment : ILatheSegment
         }
 
         return found;
+    }
+
+    /// <summary>
+    /// Looks up the arc-length fraction at parameter u in the precomputed arc
+    /// table, with linear interpolation between samples. Replaces the
+    /// previous "vSegment = u" mapping which produced non-uniform texture V
+    /// stretches along the spline.
+    /// </summary>
+    private float ArcFractionAt(double u)
+    {
+        if (_arcLength <= 1e-12f) return 0f;
+        double s = System.Math.Clamp(u, 0.0, 1.0) * TableSize;
+        int lo = (int)System.Math.Floor(s);
+        if (lo >= TableSize) lo = TableSize - 1;
+        if (lo < 0) lo = 0;
+        float frac = (float)(s - lo);
+        float a = _arcTable[lo];
+        float b = _arcTable[lo + 1];
+        return (a + frac * (b - a)) / _arcLength;
     }
 
     /// <summary>
@@ -421,7 +613,7 @@ internal sealed class SplineSegment : ILatheSegment
                 float pz = (float)(oz + t * dz);
                 tHit = (float)t;
                 tBest = (float)t;
-                vSegment = (float)uParam;
+                vSegment = ArcFractionAt(uParam);
 
                 double rp = Rp(uParam);
                 double yp = Yp(uParam);
@@ -466,21 +658,55 @@ internal sealed class SplineSegment : ILatheSegment
         double rp = Rp(u);
         double yp = Yp(u);
         var normal = Vector3.Normalize(new Vector3((float)yp * cosT, (float)(-rp), (float)yp * sinT));
-        return (point, normal, (float)u, theta);
+        return (point, normal, ArcFractionAt(u), theta);
     }
 
     // ── Setup helpers ────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Accumulates (sign × P²) into <paramref name="coeffs"/> where P is a
-    /// cubic polynomial given in power-basis <paramref name="p"/>. The result
-    /// is a polynomial of degree 6 stored constant-first.
+    /// Bernstein-basis quick reject for the degree-6 polynomial F. The
+    /// number of real roots of F in (0, 1) is bounded above by — and has
+    /// the same parity as — the number of sign changes in its Bernstein
+    /// coefficients (Descartes' rule of signs in Bernstein form). Therefore
+    /// when all 7 Bernstein coefficients carry the same strict sign, F has
+    /// no roots in the unit interval and Sturm can be skipped entirely.
+    ///
+    /// Conversion power → Bernstein for degree d = 6 uses
+    ///   b_i = Σ_{k=0..i} a_k · C(i,k) / C(d,k)
+    /// We hardcode the rational coefficients to avoid runtime factorials.
+    /// Falls through to Sturm when any |b_i| is below the natural roundoff
+    /// floor of F so tangential / double-root configurations stay handled.
     /// </summary>
-    private static void AccumulateSquare(Span<double> coeffs, Span<double> p, double sign)
+    private static bool NoSignChangeQuick(ReadOnlySpan<double> a)
     {
-        for (int i = 0; i <= 3; i++)
-            for (int j = 0; j <= 3; j++)
-                coeffs[i + j] += sign * p[i] * p[j];
+        // Power-basis sum of |a_k| acts as a roundoff floor proxy.
+        double mag = 0.0;
+        for (int k = 0; k < 7; k++) mag += System.Math.Abs(a[k]);
+        double tol = 1e-12 * (mag + 1.0);
+
+        // b_i = Σ a_k · C(i,k)/C(6,k), constant first.
+        // Precomputed rational weights for d = 6:
+        //   row i, col k → C(i,k)/C(6,k), zero when k > i.
+        Span<double> b = stackalloc double[7];
+        b[0] = a[0];
+        b[1] = a[0] + a[1] * (1.0 / 6.0);
+        b[2] = a[0] + a[1] * (2.0 / 6.0) + a[2] * (1.0 / 15.0);
+        b[3] = a[0] + a[1] * (3.0 / 6.0) + a[2] * (3.0 / 15.0) + a[3] * (1.0 / 20.0);
+        b[4] = a[0] + a[1] * (4.0 / 6.0) + a[2] * (6.0 / 15.0) + a[3] * (4.0 / 20.0)
+                    + a[4] * (1.0 / 15.0);
+        b[5] = a[0] + a[1] * (5.0 / 6.0) + a[2] * (10.0 / 15.0) + a[3] * (10.0 / 20.0)
+                    + a[4] * (5.0 / 15.0) + a[5] * (1.0 / 6.0);
+        b[6] = a[0] + a[1] + a[2] + a[3] + a[4] + a[5] + a[6];
+
+        int prevSign = 0;
+        for (int i = 0; i < 7; i++)
+        {
+            if (System.Math.Abs(b[i]) <= tol) return false; // ambiguous — defer to Sturm
+            int sign = b[i] > 0.0 ? 1 : -1;
+            if (prevSign != 0 && sign != prevSign) return false;
+            prevSign = sign;
+        }
+        return true;
     }
 
     /// <summary>

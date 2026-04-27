@@ -256,6 +256,61 @@ public class LatheTests
             new Lathe(new[] { new Vector2(1f, 0f) }, LatheMode.Linear, Mat()));
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Horizontal Linear segment — must produce an annular disc, not a hole
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Linear_HorizontalSegment_RendersAsAnnularDisc()
+    {
+        // A profile that starts with a horizontal step (Δy = 0, Δr ≠ 0) used
+        // to be silently swallowed by the frustum quadratic. The fix routes
+        // such steps through an AnnulusSegment so the disc face actually
+        // shows up. Validate by aiming straight-down rays at the disc plane:
+        // every ray with x²+z² ∈ [0, R²] must hit at y = 0.
+        const float R = 0.55f;
+        var profile = new[]
+        {
+            new Vector2(0f, 0f),
+            new Vector2(R,  0f),  // horizontal step — the disc
+            new Vector2(R,  1f),  // vertical wall, frustum
+        };
+        var lathe = new Lathe(profile, LatheMode.Linear, Mat());
+
+        var rng = new Random(505);
+        int discHits = 0;
+        const int total = 200;
+        for (int i = 0; i < total; i++)
+        {
+            // Origin above the disc, looking straight down.
+            float r = (float)rng.NextDouble() * R * 0.95f;
+            float th = (float)(rng.NextDouble() * 2 * System.Math.PI);
+            var origin = new Vector3(r * MathF.Cos(th), 1.5f, r * MathF.Sin(th));
+            var ray = new Ray(origin, new Vector3(0, -1, 0));
+            var rec = new HitRecord();
+            if (!lathe.Hit(ray, 0.001f, 1e30f, ref rec)) continue;
+            // First hit on a downward ray must be the top of the wall (y = 1)
+            // — that's the closer surface. So instead aim from below.
+        }
+
+        // Aim from below the disc upward so the disc itself is the closest hit.
+        for (int i = 0; i < total; i++)
+        {
+            float r = (float)rng.NextDouble() * R * 0.95f;
+            float th = (float)(rng.NextDouble() * 2 * System.Math.PI);
+            var origin = new Vector3(r * MathF.Cos(th), -1.5f, r * MathF.Sin(th));
+            var ray = new Ray(origin, new Vector3(0, 1, 0));
+            var rec = new HitRecord();
+            if (lathe.Hit(ray, 0.001f, 1e30f, ref rec) && MathF.Abs(rec.Point.Y) < 1e-3f)
+                discHits++;
+        }
+
+        // Without the fix, this used to be ~0. With it, almost every ray
+        // hits the disc plane.
+        Assert.True(discHits >= (int)(total * 0.95),
+            $"Horizontal segment failed: only {discHits}/{total} disc rays hit y = 0.");
+    }
+
     [Fact]
     public void Lathe_Constructor_BezierWithWrongControlCount_Throws()
     {
