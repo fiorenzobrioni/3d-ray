@@ -299,19 +299,24 @@ public class Torus : IHittable, ISamplable
     // ISamplable — NEE support for emissive tori
     //
     // Total surface area = 4π²Rr
-    // Uniform sampling: pick φ and θ uniformly in [0, 2π), compute point
-    // and normal from toroidal coordinates.
+    //
+    // Area element: dA = r(R + r·cosθ) dφ dθ
+    // φ is uniform in [0, 2π) — the integrand is symmetric in φ.
+    // θ is sampled from the marginal PDF p(θ) = (R + r·cosθ) / (2πR),
+    // which is proportional to the area element and eliminates the NEE bias
+    // that caused the outer ring (θ≈0) to appear brighter than the inner ring.
+    //
+    // CDF inversion for θ: F(θ) = (R·θ + r·sinθ) / (2πR) = u
+    //   solved numerically via Newton-Raphson (see SampleTheta).
     // ═════════════════════════════════════════════════════════════════════════
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
         => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
 
     /// <summary>
-    /// Stratified version: jitters (φ, θ) on a <c>sqrtSamples × sqrtSamples</c>
-    /// grid. This is an area-weighted approximation — the true area element
-    /// of a torus is not uniform in (φ, θ) — but it is consistent with the
-    /// existing uniform-in-(φ, θ) <see cref="Sample"/>, which the rest of
-    /// the codebase treats as "uniform enough".
+    /// Stratified version: jitters (φ, u_θ) on a sqrtSamples×sqrtSamples grid.
+    /// φ is uniform; u_θ is fed into the CDF inversion to produce
+    /// area-proportional poloidal angles.
     /// </summary>
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
     {
@@ -323,13 +328,41 @@ public class Torus : IHittable, ISamplable
         return SampleAt(xi1, xi2);
     }
 
+    /// <summary>
+    /// Inverts the CDF F(θ) = (R·θ + r·sinθ) / (2πR) = u via Newton-Raphson.
+    ///
+    /// The derivative f'(θ) = R + r·cosθ is always ≥ R − r. For a ring torus
+    /// (R > r) this is strictly positive everywhere, so the function is strictly
+    /// monotone and Newton-Raphson converges quadratically from any starting
+    /// point. Initial guess θ₀ = 2π·u is exact when r = 0 and close for r ≪ R.
+    ///
+    /// For a horn torus (R = r), f'(π) = 0 — the inner cusp is a degenerate
+    /// double root. The derivative guard prevents division by zero; convergence
+    /// is linear there but still reaches 1e-6 in ≤6 steps.
+    /// </summary>
+    private float SampleTheta(float u)
+    {
+        float target = u * 2f * MathF.PI * MajorRadius;  // 2πR·u
+        float theta  = u * 2f * MathF.PI;                 // exact when r = 0
+        for (int i = 0; i < 6; i++)
+        {
+            float f  = MajorRadius * theta + MinorRadius * MathF.Sin(theta) - target;
+            float fp = MajorRadius + MinorRadius * MathF.Cos(theta);
+            if (MathF.Abs(fp) < 1e-7f) break;  // horn/spindle cusp — stop
+            float step = f / fp;
+            theta -= step;
+            if (MathF.Abs(step) < 1e-6f) break;
+        }
+        return theta;
+    }
+
     private (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleAt(float xi1, float xi2)
     {
-        float phi = xi1 * 2f * MathF.PI;
-        float theta = xi2 * 2f * MathF.PI;
+        float phi   = xi1 * 2f * MathF.PI;
+        float theta = SampleTheta(xi2);   // importance-sampled from p(θ) ∝ R + r·cosθ
 
-        float cosPhi = MathF.Cos(phi);
-        float sinPhi = MathF.Sin(phi);
+        float cosPhi   = MathF.Cos(phi);
+        float sinPhi   = MathF.Sin(phi);
         float cosTheta = MathF.Cos(theta);
         float sinTheta = MathF.Sin(theta);
 

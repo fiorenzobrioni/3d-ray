@@ -40,6 +40,13 @@ public class Annulus : IHittable, ISamplable
     private readonly float _outerRadiusSq;
     private readonly float _innerRadiusSq;
 
+    // Precomputed UV basis (function of Normal only — immutable after construction)
+    private readonly Vector3 _uAxis;
+    private readonly Vector3 _vAxis;
+
+    // Precomputed tight AABB half-extents (see BoundingBox for derivation)
+    private readonly AABB _boundingBox;
+
     public Annulus(Vector3 center, Vector3 normal, float outerRadius, float innerRadius, IMaterial material)
     {
         Center = center;
@@ -49,6 +56,24 @@ public class Annulus : IHittable, ISamplable
         Material = material;
         _outerRadiusSq = outerRadius * outerRadius;
         _innerRadiusSq = InnerRadius * InnerRadius;
+
+        // UV basis — same convention as Hit() previously computed inline
+        _uAxis = MathF.Abs(Normal.Y) < 0.999f
+            ? Vector3.Normalize(Vector3.Cross(Normal, Vector3.UnitY))
+            : Vector3.UnitX;
+        _vAxis = Vector3.Cross(Normal, _uAxis);
+
+        // Tight AABB: for a disk with unit normal N, the extent on world-axis i is
+        //   R × √(1 − Nᵢ²)
+        // Derivation: P = C + R(cosθ·u + sinθ·v); max|Pᵢ−Cᵢ| = R√(uᵢ²+vᵢ²) = R√(1−Nᵢ²)
+        // (identity: uᵢ²+vᵢ²+Nᵢ² = 1 for any orthonormal basis).
+        // A padding floor of 1e-4 prevents zero-extent AABBs on axis-aligned annuli,
+        // which would make AABB.Hit return tExit==tEnter (never strictly greater).
+        const float pad = 1e-4f;
+        float ex = MathF.Max(pad, OuterRadius * MathF.Sqrt(MathF.Max(0f, 1f - Normal.X * Normal.X)));
+        float ey = MathF.Max(pad, OuterRadius * MathF.Sqrt(MathF.Max(0f, 1f - Normal.Y * Normal.Y)));
+        float ez = MathF.Max(pad, OuterRadius * MathF.Sqrt(MathF.Max(0f, 1f - Normal.Z * Normal.Z)));
+        _boundingBox = new AABB(Center - new Vector3(ex, ey, ez), Center + new Vector3(ex, ey, ez));
     }
 
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
@@ -77,18 +102,13 @@ public class Annulus : IHittable, ISamplable
         rec.ObjectSeed = Seed;
 
         // UV mapping — same planar projection as Disk
-        Vector3 uAxis = MathF.Abs(Normal.Y) < 0.999f
-            ? Vector3.Normalize(Vector3.Cross(Normal, Vector3.UnitY))
-            : Vector3.UnitX;
-        Vector3 vAxis = Vector3.Cross(Normal, uAxis);
-
-        float x = Vector3.Dot(v, uAxis) / OuterRadius;
-        float y = Vector3.Dot(v, vAxis) / OuterRadius;
+        float x = Vector3.Dot(v, _uAxis) / OuterRadius;
+        float y = Vector3.Dot(v, _vAxis) / OuterRadius;
         rec.U = (x + 1f) / 2f;
         rec.V = (y + 1f) / 2f;
 
-        rec.Tangent = uAxis;
-        rec.Bitangent = vAxis;
+        rec.Tangent = _uAxis;
+        rec.Bitangent = _vAxis;
 
         return true;
     }
@@ -129,21 +149,11 @@ public class Annulus : IHittable, ISamplable
         float r = MathF.Sqrt(_innerRadiusSq + u1 * (_outerRadiusSq - _innerRadiusSq));
         float theta = u2 * 2f * MathF.PI;
 
-        Vector3 uAxis = MathF.Abs(Normal.Y) < 0.999f
-            ? Vector3.Normalize(Vector3.Cross(Normal, Vector3.UnitY))
-            : Vector3.UnitX;
-        Vector3 vAxis = Vector3.Cross(Normal, uAxis);
-
-        Vector3 point = Center + r * MathF.Cos(theta) * uAxis + r * MathF.Sin(theta) * vAxis;
+        Vector3 point = Center + r * MathF.Cos(theta) * _uAxis + r * MathF.Sin(theta) * _vAxis;
         return (point, Normal, new Vector2(u1, u2), area);
     }
 
     public int Seed { get; set; }
 
-    public AABB BoundingBox()
-    {
-        // Same as Disk — loose AABB based on outer radius
-        Vector3 r = new Vector3(OuterRadius);
-        return new AABB(Center - r, Center + r);
-    }
+    public AABB BoundingBox() => _boundingBox;
 }

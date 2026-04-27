@@ -77,6 +77,10 @@ public class CsgObject : IHittable
     }
 
     private readonly AABB _boundingBox;
+    // True when the computed AABB is AABB.Empty (non-overlapping Intersection).
+    // AABB.Hit() returns true for AABB.Empty (slab test is always satisfied by the
+    // inverted min/max sentinels), so we need an explicit flag for early-out.
+    private readonly bool _isEmpty;
 
     public CsgObject(CsgOperation operation, IHittable left, IHittable right)
     {
@@ -84,6 +88,7 @@ public class CsgObject : IHittable
         Left = left;
         Right = right;
         _boundingBox = ComputeBoundingBox();
+        _isEmpty = _boundingBox.Min.X > _boundingBox.Max.X;
     }
 
     // =========================================================================
@@ -99,12 +104,17 @@ public class CsgObject : IHittable
     private const int MaxHitsPerChild = 16;
 
     /// <summary>
-    /// Epsilon used to advance past each collected hit to find the next one.
-    /// Must be small enough to not swallow thin geometry (sub-millimetre),
-    /// but large enough to avoid re-hitting the same surface due to float
-    /// imprecision. 1e-6 is safe for t values in the range [0.001, 10000].
+    /// Absolute floor for the per-hit advance step in CollectAllHits.
+    /// The actual step is max(StepEpsAbs, t × StepEpsRel) so the advance
+    /// always exceeds one float ULP regardless of the t magnitude.
+    ///
+    /// Float ULP(t) = t × 2⁻²³ ≈ t × 1.19e-7. At t = 100 the ULP is ~1.2e-5,
+    /// so a constant 1e-6 would be a no-op — the loop would stall, collecting
+    /// MaxHitsPerChild identical entries whose even count corrupts the parity
+    /// counter in IsInsideSolid and inverts the entire CSG result.
     /// </summary>
-    private const float StepEps = 1e-6f;
+    private const float StepEpsAbs = 1e-5f;
+    private const float StepEpsRel = 1e-5f;
 
     /// <summary>
     /// A single surface intersection on a child solid, with the full HitRecord
@@ -154,8 +164,11 @@ public class CsgObject : IHittable
 
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
-        // Early AABB rejection — avoids expensive child intersection tests
-        if (!_boundingBox.Hit(ray, tMin, tMax))
+        // Early AABB rejection — avoids expensive child intersection tests.
+        // _isEmpty must be checked first: AABB.Hit() incorrectly returns true
+        // for AABB.Empty because the inverted sentinel values satisfy the slab
+        // test for any ray direction.
+        if (_isEmpty || !_boundingBox.Hit(ray, tMin, tMax))
             return false;
 
         // Collect ALL surface intersections for both children. Buffers are
@@ -228,7 +241,7 @@ public class CsgObject : IHittable
                 result.StartsInside = true;
 
             result.Hits[result.Count++] = new SurfaceHit { T = rec.T, Rec = rec };
-            currentT = rec.T + StepEps;
+            currentT = rec.T + MathF.Max(StepEpsAbs, rec.T * StepEpsRel);
         }
 
         return result;
