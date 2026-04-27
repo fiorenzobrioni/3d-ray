@@ -387,22 +387,33 @@ public class DisneyBsdf : IMaterial
     // ═════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Disney BSDF direct lighting using analytic GGX — matching the indirect
-    /// scatter lobes for energetic consistency.
+    /// Disney BSDF direct lighting (NEE integrand) — full multi-lobe BRDF
+    /// times the cosine factor, including all per-lobe colour terms.
     ///
-    /// FIX #3: Replaced the previous Blinn-Phong approximation with the full
-    /// Cook-Torrance microfacet model (GGX NDF + Smith geometry + Schlick Fresnel).
-    /// The old BP had a fundamentally different lobe shape (short tails vs GGX's
-    /// characteristic long tails), causing a systematic energy mismatch between
-    /// direct and indirect lighting that required high sample counts to average out.
+    /// Convention: returns <c>f(V, L) · max(N·L, 0) · visibility-of-L</c>, the
+    /// rendering-equation integrand at one shadow-ray direction. Production
+    /// renderers (Arnold, RenderMan, PBRT, Mitsuba) use this convention so
+    /// the direct-lighting estimator is unbiased independently of the indirect
+    /// importance sample. The renderer adds this contribution to the result
+    /// directly: <c>L = Le + L_direct + scatter_attenuation × L_indirect</c>.
     ///
-    /// Includes: Disney diffuse with Fresnel retro-reflection, GGX specular lobe,
-    /// and clearcoat GGX lobe. The material albedo/color is NOT included — it is
-    /// applied by TraceRay via the scatter attenuation.
+    /// Lobe handling:
+    ///   • Disney diffuse with Fresnel retro-reflection (Burley 2012) and
+    ///     the optional HK-flat / subsurface_color blend (Burley 2015).
+    ///   • Anisotropic GGX specular with Schlick or thin-film Fresnel.
+    ///   • Clearcoat GGX (isotropic, dedicated coat normal frame).
+    ///   • Estevez-Kulla 2017 Charlie sheen.
+    ///   • Kulla-Conty 2017 multi-scatter compensation.
     ///
-    /// BaseColor is sampled at the hit point's UV coordinates from the HitRecord,
-    /// giving correct Fresnel F0 for textured Disney materials (e.g. a metallic
-    /// texture map with varying colors).
+    /// Delta-lobe guard:
+    ///   GGX lobes with α ≤ <see cref="DeltaAlphaThreshold"/> are skipped —
+    ///   they are reachable only by mirror-sampling the BSDF, never by an
+    ///   arbitrary shadow-ray direction. Evaluating the analytical
+    ///   D·G/(4·NdotV·NdotL) form for those configurations spikes at
+    ///   grazing NdotV (the "pennarello bianco" rim halo on smooth
+    ///   glass/mirror surfaces); routing the lobe through the delta branch
+    ///   in <see cref="Sample"/> with full-weight emission is the correct
+    ///   MIS treatment.
     /// </summary>
     public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
     {
@@ -414,35 +425,45 @@ public class DisneyBsdf : IMaterial
         Vector3 H = Vector3.Normalize(toLight + toEye);
         float NdotH = MathF.Max(Vector3.Dot(normal, H), 0f);
         float VdotH = MathF.Max(Vector3.Dot(toEye, H), 0f);
+        float LdotH = MathF.Max(Vector3.Dot(toLight, H), 0f);
 
+        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         ShadingParams sp = EvalParams(rec);
 
         // ── Disney diffuse lobe (forward hemisphere, post diff_trans split) ─
+        // Full BRDF including baseColor: lambert (baseCol·fd) blended with the
+        // HK flat shape (ssCol·ss) by the Subsurface and Flatness sliders.
+        // This matches Evaluate() exactly; the cosine NdotL is applied below.
         float diffuseW = (1f - sp.Metallic) * (1f - sp.SpecTrans) * (1f - sp.DiffTrans);
         Vector3 diffuse = Vector3.Zero;
         if (diffuseW > 0f)
         {
-            float fd90 = 0.5f + 2f * sp.Roughness * VdotH * VdotH;
+            float fd90 = 0.5f + 2f * sp.Roughness * LdotH * LdotH;
             float fI = SchlickWeight(NdotV);
             float fO = SchlickWeight(NdotL);
             float fd = (1f + (fd90 - 1f) * fI) * (1f + (fd90 - 1f) * fO);
-            // Divide by π for energy conservation (cosine-weighted hemisphere)
-            diffuse = new Vector3(diffuseW * fd * NdotL / MathF.PI);
+
+            // HK "flat" shape (Burley 2015) — clamped at grazing to keep the
+            // evaluation finite (matches ScatterDiffuse's clamp).
+            float fss90 = sp.Roughness * LdotH * LdotH;
+            float fssI = 1f + (fss90 - 1f) * fI;
+            float fssO = 1f + (fss90 - 1f) * fO;
+            float ssRaw = 1.25f * (fssI * fssO *
+                                   (1f / (NdotV + NdotL + 0.001f) - 0.5f) + 0.5f);
+            float ss = Math.Clamp(ssRaw, 0f, 2f);
+
+            Vector3 ssCol   = ResolveSubsurfaceColor(rec, baseCol);
+            Vector3 lambert = baseCol * fd;
+            Vector3 flat    = ssCol   * ss;
+            Vector3 mixed   = Vector3.Lerp(lambert, flat, sp.Subsurface);
+            Vector3 shaped  = Vector3.Lerp(mixed,   flat, sp.Flatness);
+            diffuse = shaped * (diffuseW * NdotL / MathF.PI);
         }
 
-        // ── Anisotropic GGX specular lobe ───────────────────────────────
+        // ── Anisotropic GGX specular lobe (delta-guarded) ───────────────────
         // Evaluated in tangent space so αx (along T) and αy (along B) apply
-        // directly to the NDF and Smith Lambda. Reduces to the isotropic
-        // form exactly when anisotropic = 0 (αx = αy = α).
-        //
-        // When α sits at the floor (roughness ≈ 0) the lobe is a pure
-        // mirror delta — it cannot be reached by an arbitrary shadow-ray
-        // direction, so its NEE contribution is zero by construction.
-        // Evaluating the analytical form anyway produces a D · G / (4 NdotV)
-        // spike at grazing NdotV that manifests as the "pennarello bianco"
-        // rim halo on glass/mirror spheres. Sample() routes the matching
-        // path through the delta branch so MIS stays energy-consistent.
-        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        // directly to the NDF and Smith Λ. Reduces to the isotropic form
+        // exactly when anisotropic = 0 (αx = αy = α).
         Vector3 F0 = ComputeF0(baseCol, sp);
         Vector3 specular = Vector3.Zero;
         if (sp.Alpha > DeltaAlphaThreshold)
@@ -460,15 +481,18 @@ public class DisneyBsdf : IMaterial
             // Belcour-Barla 2017 thin-film Fresnel when ThinFilmThicknessNm > 0.
             Vector3 F = EvalFresnel(VdotH, F0, sp);
 
-            // Cook-Torrance: D × G × F / (4 × NdotV × NdotL), then × NdotL
+            // Cook-Torrance integrand: D · G · F / (4 · NdotV · NdotL) · NdotL
+            // = D · G · F / (4 · NdotV). The N·L cancels analytically; we keep
+            // the explicit form for numerical stability across grazing angles.
             specular = D * G * F / MathF.Max(4f * NdotV, 1e-6f);
         }
 
-        // ── Clearcoat GGX lobe (isotropic — Disney convention) ──────────
-        // Evaluated on its own shading normal (CoatNormal) so a scene with a
-        // distinct coat bump map renders the coat highlight shape
-        // independently of the substrate. CoatNormal == null inherits the
-        // shaded surface normal — classic Disney behaviour.
+        // ── Clearcoat GGX lobe (isotropic, on the coat normal) ──────────────
+        // The coat sits in its own shading frame so a dedicated coat_normal
+        // map perturbs the highlight without disturbing the base lobes. When
+        // the coat normal differs from the base normal, the coat's NdotL can
+        // flip sign — in that case the coat lobe contributes nothing while
+        // the rest of the BSDF still does.
         Vector3 clearcoat = Vector3.Zero;
         if (sp.Clearcoat > 0f && sp.ClearcoatAlpha > DeltaAlphaThreshold)
         {
@@ -487,21 +511,18 @@ public class DisneyBsdf : IMaterial
 
                 float cF = sp.ClearcoatF0 + (1f - sp.ClearcoatF0) * SchlickWeight(ccVdotH);
 
-                // Returned shape is f · cos θᵢ, consistent with the specular
-                // lobe above: the D·G/(4·ccNdotV·ccNdotL) BRDF is multiplied
-                // by ccNdotL, which cancels the cosine in the denominator.
+                // Cook-Torrance integrand for the coat layer: same NdotL
+                // cancellation as the base specular (D·G·F/(4·NdotV)).
                 clearcoat = new Vector3(sp.Clearcoat * 0.25f * cD * cG * cF
                             / MathF.Max(4f * ccNdotV, 1e-6f));
             }
         }
 
-        // ── Sheen (Estevez-Kulla Charlie BRDF) ─────────────────────────────
-        // Direct lighting was previously missing the sheen lobe entirely —
-        // NEE on a velvet/fabric material would only see diffuse + specular,
-        // killing the grazing-angle highlight that defines the look. The
-        // Charlie BRDF is symmetric in V/L and was already wired through
-        // Evaluate; mirroring it here closes the energy gap between direct
-        // and indirect estimators.
+        // ── Sheen (Estevez-Kulla Charlie BRDF) ──────────────────────────────
+        // Cook-Torrance over the Charlie inverted-Gaussian NDF and Smith Λ
+        // polynomial fit, tinted by the artist sheen colour (sheenTint blends
+        // baseCol's hue at unit luminance). Multiplied by NdotL to convert
+        // the cosine-free BRDF to the rendering-equation integrand.
         Vector3 sheen = Vector3.Zero;
         if (sp.Sheen > 0f && diffuseW > 0f)
         {
@@ -512,17 +533,16 @@ public class DisneyBsdf : IMaterial
             sheen = sp.Sheen * sheenBrdf * sheenCol * NdotL;
         }
 
-        // ── Multi-scatter compensation (Kulla-Conty) ───────────────────────
-        // Returned shape is f · N·L (same convention as the rest of
-        // EvaluateDirect). Shares the same LUT lookup used by Evaluate so
-        // direct and indirect lighting stay energetically consistent.
+        // ── Multi-scatter compensation (Kulla-Conty) ────────────────────────
+        // Includes baseCol via F̄ (Schlick-averaged Fresnel from F0) so
+        // coloured metals retain hue at high roughness without the classic
+        // "rough gold turns brown" artefact.
         Vector3 multiscatter = EvaluateMultiscatter(F0, sp, NdotV, NdotL) * NdotL;
 
-        // The global firefly clamp lives in the renderer (`--clamp`/`-C`) and
-        // is the right place to cap the per-sample radiance if a scene still
-        // produces outliers. The old 10.0 bias on the BRDF itself is gone
-        // now that the indirect lobes use VNDF sampling and no longer
-        // systematically overshoot the direct-light contribution.
+        // The per-sample firefly clamp lives in the renderer (`--clamp`/`-C`).
+        // No biased clamp on the BRDF itself: the analytical lobes are
+        // numerically well-behaved with the delta-α guards above plus VNDF
+        // sampling on the indirect path.
         return diffuse + sheen + specular + multiscatter + clearcoat;
     }
 
@@ -783,9 +803,21 @@ public class DisneyBsdf : IMaterial
     /// <see cref="Scatter"/> internally and re-evaluates F and Pdf via the
     /// symmetric methods so the returned sample is consumable by MIS.
     ///
-    /// Returns null when Scatter fails (below-surface reflection etc.) or
-    /// when the sampled direction is in the transmission hemisphere (which
-    /// is not yet covered by Evaluate/Pdf — use Scatter directly for glass).
+    /// Sample classification:
+    ///   • Specular refraction (Lobe.Transmission, NdotWo &lt; 0) → delta sample.
+    ///     F carries the per-hit tint × geometry weight; non-thin-walled
+    ///     refractions emit a medium-switch signal so the renderer can apply
+    ///     Beer-Lambert absorption along the next interior segment.
+    ///   • Diffuse transmission (Lobe.DiffTrans, NdotWo &lt; 0) → non-delta
+    ///     Lambertian back-scatter (foliage, paper, fabric). F = Evaluate(V, Wo)
+    ///     and Pdf = Pdf(V, Wo) cover the back-hemisphere lobe analytically.
+    ///     No medium switch — diffTrans is a thin translucent layer, not a
+    ///     glass volume entry.
+    ///   • Near-delta reflection (smooth specular or smooth clearcoat,
+    ///     α ≤ DeltaAlphaThreshold) → delta sample. The analytical f/pdf
+    ///     ratio collapses to a mirror direction; treating it as delta avoids
+    ///     dividing a near-zero by a near-zero at grazing angles.
+    ///   • All other lobes → non-delta sample with F = Evaluate, Pdf = Pdf.
     /// </summary>
     public BsdfSample? Sample(Vector3 V, HitRecord rec)
     {
@@ -797,59 +829,68 @@ public class DisneyBsdf : IMaterial
 
         Vector3 wo = scattered.Direction;
         float NdotWo = Vector3.Dot(rec.Normal, wo);
-        // Transmission lobe → treat as a delta sample. F carries Scatter's
-        // attenuation directly (it already contains the Fresnel × per-hit
-        // tint); delta samples in BsdfSample are interpreted by the renderer
-        // as "attenuation = F" with no cos / pdf factor. The sample also
-        // carries the medium-switch signal so the renderer can apply
-        // Beer-Lambert absorption along the next interior segment (entering
-        // glass → σ_a; exiting → vacuum).
-        if (NdotWo <= 0f)
+
+        // ── Diffuse transmission (Disney 2015 diff_trans) ───────────────────
+        // Lambertian-shaped back-hemisphere lobe modelling translucent thin
+        // surfaces (foliage, paper, fabric). Non-delta — the analytical
+        // Evaluate/Pdf cover it and the renderer applies the standard
+        // f · |cos θ| / pdf weight via ShadeSampleBounce. No medium switch:
+        // diff_trans is a thin layer, not entry into a glass volume.
+        if (lobe == Lobe.DiffTrans)
         {
-            Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
-            // Thin-walled surfaces never switch the interior medium (by
-            // definition they have no interior bulk). Emit null so the
-            // renderer preserves its current absorption state.
-            Vector3? next;
-            if (ThinWalled)
+            Vector3 fBack   = Evaluate(V, wo, rec);
+            float   pdfBack = Pdf(V, wo, rec);
+            if (pdfBack <= 0f)
+                return new BsdfSample(wo, scatterAttn, 1f, isDelta: true);
+            return new BsdfSample(wo, fBack, pdfBack, isDelta: false);
+        }
+
+        // ── Specular transmission lobe (Fresnel reflection + refraction) ────
+        // Always routed through the delta path. ScatterTransmission samples
+        // the microfacet half-vector via VNDF and performs the stochastic
+        // Fresnel split internally, so its scatterAttn already carries the
+        // correct importance weight (f · |cos θ| / pdf for either branch
+        // of the Fresnel coin flip). Disney's Evaluate/Pdf cover only the
+        // reflective base lobes; re-deriving them here for a transmission
+        // sample would zero out the lobe entirely.
+        //
+        // Refraction samples (NdotWo < 0) emit a medium-switch signal so
+        // the renderer can apply Beer-Lambert absorption along the next
+        // interior segment. Reflection samples (NdotWo > 0) and thin-walled
+        // refraction samples never trigger a medium change.
+        if (lobe == Lobe.Transmission)
+        {
+            Vector3? next = null;
+            if (NdotWo < 0f && !ThinWalled)
             {
-                next = null;
-            }
-            else
-            {
+                Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
                 (_, Vector3 sigma) = ResolveTransmission(rec, baseCol);
-                // Non-null only when the segment actually crosses into a new
-                // medium; emitting null lets the renderer keep whatever interior
-                // state it was already tracking (harmless for vacuum↔vacuum).
                 bool hasSigma = sigma.X > 0f || sigma.Y > 0f || sigma.Z > 0f;
                 if (rec.FrontFace && hasSigma) next = sigma;
                 else if (!rec.FrontFace) next = Vector3.Zero; // exiting → restore vacuum
-                else next = null;
             }
             return new BsdfSample(wo, scatterAttn, 1f, isDelta: true,
                                   nextSegmentAbsorption: next);
         }
 
-        // Near-delta reflection (roughness → 0 specular, or gloss → 1
-        // clearcoat) takes the same delta path as transmission: the lobe's
-        // VNDF collapses to a mirror direction, the analytical Pdf for any
-        // other outgoing direction is zero, and attempting to evaluate
-        // f · cos / pdf would divide a near-zero by a near-zero at grazing
-        // angles — that is exactly the "rim halo" + firefly combination
-        // the showcase was producing on the glass spheres. scatterAttn
-        // already carries F (Fresnel × tint, divided by the 1/probability
-        // lobe selection factor), so passing it through unchanged is the
-        // right delta-sample contract.
-        // A smooth Transmission sample that came back in the upper
-        // hemisphere is a Fresnel *reflection* off the glass surface —
-        // that lobe is a delta just like the Specular lobe, but Scatter
-        // tagged it Lobe.Transmission because the dielectric pair lives
-        // in ScatterTransmission for medium-tracking reasons. Treat it
-        // the same as Specular here, otherwise smooth glass keeps
-        // emitting non-delta reflection samples with near-zero pdf.
+        // ── Defensive guard for any other back-hemisphere sample ────────────
+        // ScatterInternal only produces NdotWo ≤ 0 for the two transmission
+        // lobes handled above (Lobe.Transmission and Lobe.DiffTrans). Any
+        // remaining back-hemisphere result is a numerical degeneracy in a
+        // reflection lobe (e.g. a near-grazing VNDF mirror dropping below
+        // the macro-surface) — return null so the renderer doesn't try to
+        // weight it through the analytical Evaluate/Pdf path.
+        if (NdotWo <= 0f) return null;
+
+        // ── Near-delta reflection (smooth specular or smooth clearcoat) ─────
+        // The lobe's VNDF collapses to a mirror direction, the analytical
+        // Pdf for any other outgoing direction is zero, and f · cos / pdf
+        // would divide a near-zero by a near-zero at grazing angles — the
+        // "rim halo" + firefly combination on glass/mirror surfaces.
+        // scatterAttn carries the correct Fresnel × geometry weight; the
+        // delta-sample contract preserves it unmodified.
         ShadingParams sp = EvalParams(rec);
-        bool nearDeltaSpec = (lobe == Lobe.Specular || lobe == Lobe.Transmission)
-                             && sp.Alpha <= DeltaAlphaThreshold;
+        bool nearDeltaSpec = lobe == Lobe.Specular  && sp.Alpha          <= DeltaAlphaThreshold;
         bool nearDeltaCoat = lobe == Lobe.Clearcoat && sp.ClearcoatAlpha <= DeltaAlphaThreshold;
         if (nearDeltaSpec || nearDeltaCoat)
             return new BsdfSample(wo, scatterAttn, 1f, isDelta: true);
@@ -1390,12 +1431,17 @@ public class DisneyBsdf : IMaterial
         // there is no "inside" for the ray to be trapped in.
         bool cannotRefract = !ThinWalled && eta * sinTheta > 1f;
         Vector3 direction;
+        bool isReflection;
 
         float fr = cannotRefract ? 1f : MathUtils.FresnelDielectric(cosTheta, eta);
         if (fr > MathUtils.RandomFloat())
         {
-            // Total internal reflection or Fresnel reflection
+            // Total internal reflection or stochastic Fresnel reflection.
+            // The reflected ray bounces off the glass surface and never
+            // traverses the interior medium — its colour must stay neutral
+            // (it carries no transmission tint and no Beer-Lambert absorption).
             direction = MathUtils.Reflect(unitDir, Ht);
+            isReflection = true;
         }
         else if (ThinWalled)
         {
@@ -1403,38 +1449,63 @@ public class DisneyBsdf : IMaterial
             // Matches Disney 2015's thin_walled_glass treatment and is also
             // what USDPreviewSurface produces when thinWalled = true.
             direction = unitDir;
+            isReflection = false;
         }
         else
         {
             direction = MathUtils.Refract(unitDir, Ht, eta);
+            isReflection = false;
         }
 
         // Guard: if refraction produced a degenerate direction, fall back
+        // to a reflection — the ray no longer crosses the glass interior.
         if (MathUtils.NearZero(direction))
+        {
             direction = MathUtils.Reflect(unitDir, N);
+            isReflection = true;
+        }
 
         scattered = new Ray(rec.Point, Vector3.Normalize(direction));
 
-        // Per-hit transmission tint. In Beer-Lambert mode (depth > 0) this is
-        // white and the colour comes entirely from the interior-segment
-        // absorption; in thin-glass mode (depth == 0) this carries the tint.
-        (Vector3 tint, _) = ResolveTransmission(rec, baseCol);
-        attenuation = tint;
+        // Per-hit attenuation:
+        //   • Reflection branch — neutral white. The reflected ray never
+        //     enters the medium; tinting it with the transmission colour
+        //     would dye specular highlights on coloured glass (the classic
+        //     "amber reflections on amber bottle" artefact). Production
+        //     engines (Arnold, RenderMan, Cycles) apply the transmission
+        //     colour only to the transmitted lobe.
+        //   • Transmission branch — tint from ResolveTransmission. In
+        //     Beer-Lambert mode (depth > 0) this is white and the colour
+        //     comes from the interior-segment absorption; in thin-glass
+        //     mode (depth == 0) this carries the per-hit tint.
+        Vector3 attenColor;
+        if (isReflection)
+        {
+            attenColor = Vector3.One;
+        }
+        else
+        {
+            (Vector3 tint, _) = ResolveTransmission(rec, baseCol);
+            attenColor = tint;
+        }
 
-        // ── VNDF geometry weight for rough transmission ────────────────────
-        // Same F · G1(L) simplification as reflection: with VNDF sampling
-        // the transmission BSDF/pdf ratio collapses to G1(L) (and the
-        // Fresnel factor is applied separately by the caller via the
-        // branch probability). For smooth glass (isRough = false), Ht = N
-        // so G1(L) = G1(NdotL) = 1 within rounding and the weight is
-        // effectively unity — we skip the computation.
+        attenuation = attenColor;
+
+        // ── VNDF geometry weight for rough microfacet glass ────────────────
+        // Same F · G1(L) simplification as ScatterSpecular: with VNDF
+        // sampling the BSDF/pdf ratio collapses to G1(L) for both reflection
+        // and refraction lobes (the Fresnel split is already absorbed by
+        // the stochastic branch probability). For smooth glass
+        // (isRough = false), Ht = N so G1(L) = 1 within rounding.
+        //
+        // Smith Λ/G1 has even dependence on wz (it depends on tan²θ), so we
+        // take |cosθ| to keep the lookup well-defined for transmission
+        // samples that land in the lower hemisphere. For reflection samples
+        // (already in the upper hemisphere) the abs is a no-op.
         if (isRough)
         {
             Vector3 L = scattered.Direction;
             Vector3 Lloc = frame.ToLocal(L);
-            // Smith Λ/G1 is parametrised by |cosθ| (the direction's sign is
-            // absorbed by Λ's even dependence on wz); flipping Lloc.Z for the
-            // transmission hemisphere keeps the lookup well-defined.
             Lloc.Z = MathF.Abs(Lloc.Z);
             float g1L = Microfacet.G1GgxAniso(Lloc, sp.AlphaX, sp.AlphaY);
             attenuation *= g1L;

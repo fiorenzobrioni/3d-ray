@@ -21,13 +21,21 @@ public class Lambertian : IMaterial
     public NormalMapTexture? NormalMap { get; set; }
 
     /// <summary>
-    /// Lambertian direct lighting: flat N·L cosine. The 1/π normalisation
-    /// is absorbed by <see cref="Scatter"/>, which uses a cosine-weighted
-    /// hemisphere sampler whose BRDF/pdf ratio equals the albedo — so keeping
-    /// EvaluateDirect at plain N·L matches the indirect path's energy budget.
+    /// Lambertian direct lighting (NEE integrand): full BRDF · cosθ.
+    ///   f(V, L) = albedo / π    (Lambertian BRDF)
+    ///   integrand = f · max(N·L, 0) = albedo · max(N·L, 0) / π
+    ///
+    /// Conforms to the PBRT/Arnold convention: the renderer adds this
+    /// contribution to the radiance estimator without multiplying by the
+    /// indirect scatter attenuation (which would over-count the albedo).
     /// </summary>
     public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
-        => new(MathF.Max(Vector3.Dot(normal, toLight), 0f));
+    {
+        float NdotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
+        if (NdotL <= 0f) return Vector3.Zero;
+        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        return albedo * (NdotL / MathF.PI);
+    }
 
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {

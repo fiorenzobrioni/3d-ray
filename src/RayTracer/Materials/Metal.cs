@@ -59,23 +59,33 @@ public class Metal : IMaterial
     public bool IsDeltaScatter => Fuzz <= 0f;
 
     /// <summary>
-    /// Metal direct lighting using analytic Cook-Torrance GGX.
+    /// Metal direct lighting (NEE integrand): full Cook-Torrance GGX BRDF
+    /// times the cosine, with the metallic colour tint baked in via
+    /// <c>F = albedo + (1 − albedo) · (1 − V·H)⁵</c> — matching <see cref="Evaluate"/>.
     ///
-    /// Replaces the previous Blinn-Phong approximation to match the GGX
-    /// distribution used by Scatter. This eliminates the energy mismatch
-    /// between direct and indirect paths that caused metals with medium fuzz
-    /// (0.2–0.5) to appear inconsistently lit under direct vs indirect light.
+    /// PBRT/Arnold convention: the returned vector is <c>f(V, L) · max(N·L, 0)</c>,
+    /// the rendering-equation integrand at the shadow-ray direction. The
+    /// renderer adds this to the radiance estimator as a standalone term,
+    /// independent of the indirect scatter attenuation.
     ///
-    /// The BRDF is achromatic (scalar) — the metallic color tint comes from
-    /// TraceRay's attenuation (= Albedo), keeping both paths consistent.
+    /// Delta guard: a perfect mirror (Fuzz = 0) returns zero — its analytical
+    /// D·G/(4·NdotV·NdotL) form spikes at grazing NdotV and the lobe is
+    /// reachable only by mirror-sampling the BSDF in <see cref="Sample"/>.
     /// </summary>
     public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
     {
         float NdotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
         if (NdotL <= 0f) return Vector3.Zero;
+        if (Fuzz <= 0f) return Vector3.Zero;     // delta lobe — handled by Sample()
 
-        // Diffuse term: scales with fuzz (rough metals have some diffuse scattering)
-        float diffuse = NdotL * Fuzz;
+        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+
+        // Soft Lambertian fill scaled by fuzz — rough metals have some
+        // diffuse-like scattering from secondary bounces between facets.
+        // Energy-conserving: contributes at most albedo·fuzz/π·NdotL, which
+        // is bounded by the multiscatter mass dropped by the single-scatter
+        // Smith G factor at high roughness.
+        Vector3 diffuse = albedo * (Fuzz * NdotL / MathF.PI);
 
         float NdotV = MathF.Max(Vector3.Dot(normal, toEye), 0.001f);
 
@@ -91,27 +101,17 @@ public class Metal : IMaterial
         // G: Smith separable masking/shadowing
         float G = SmithG1_GGX(NdotV, _alpha) * SmithG1_GGX(NdotL, _alpha);
 
-        // F: Schlick Fresnel — scalar, F0 ≈ 1 for polished metal and drops with fuzz
-        // to model the softer highlight of rough microfacets. Colour tinting comes
-        // from attenuation in TraceRay, not here.
-        float f0 = 1f - Fuzz * 0.5f;
+        // F: Schlick Fresnel tinted by albedo — F0 = albedo for metals, the
+        // standard gold/chrome/copper Fresnel response.
         float s = 1f - VdotH;
         s *= s * s * s * s; // (1 - V·H)^5
-        float fresnel = f0 + (1f - f0) * s;
+        Vector3 fresnel = albedo + (Vector3.One - albedo) * s;
 
-        // Cook-Torrance: D × G × F / (4 × NdotV × NdotL), then × NdotL
-        // The NdotL in numerator and denominator cancel, leaving / (4 × NdotV).
-        float specular = D * G * fresnel / MathF.Max(4f * NdotV, 1e-6f);
+        // Cook-Torrance integrand: D · G · F · NdotL / (4 · NdotV · NdotL)
+        // = D · G · F / (4 · NdotV). The N·L cancels analytically.
+        Vector3 specular = fresnel * (D * G / MathF.Max(4f * NdotV, 1e-6f));
 
-        // FIREFLY GUARD: The GGX NDF diverges for low alpha (polished metals).
-        // D×G×F/(4×NdotV) can reach 50–500 for fuzz < 0.05 when NdotH ≈ 1.
-        // Clamp to 10.0 — consistent with DisneyBsdf.EvaluateDirect — to
-        // preserve physically correct highlights for smooth metals while still
-        // catching the GGX singularity. The old 1.0 clamp systematically
-        // underestimated specular direct lighting, making polished metals
-        // (gold, chrome) appear too dull under direct light.
-        float total = diffuse + MathF.Min(specular, 10f);
-        return new Vector3(total);
+        return diffuse + specular;
     }
 
     public NormalMapTexture? NormalMap { get; set; }
