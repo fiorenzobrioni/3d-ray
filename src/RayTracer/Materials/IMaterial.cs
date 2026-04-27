@@ -37,21 +37,33 @@ public interface IMaterial
     bool IsDeltaScatter => false;
 
     /// <summary>
-    /// Evaluates the BRDF "shape" for direct lighting (NEE).
-    /// Called once per unshadowed light sample in ComputeDirectLighting.
+    /// Evaluates the rendering-equation integrand at one shadow-ray direction
+    /// for direct lighting (NEE). Called once per unshadowed light sample in
+    /// <c>ComputeDirectLighting</c>.
     ///
-    /// Returns a combined diffuse + specular response WITHOUT material albedo/color —
-    /// that factor is already present in the scatter attenuation applied by TraceRay.
-    /// The light color is multiplied by the caller (ComputeDirectLighting).
+    /// PBRT/Arnold convention — the returned value is the FULL integrand
+    /// <c>f(V, L) · max(N·L, 0)</c>, with every material colour factor
+    /// (baseColor/albedo, metallic Fresnel, sheen tint, subsurface tint,
+    /// thin-film iridescence) already baked in. The caller multiplies by the
+    /// light radiance and adds the result directly to the radiance estimator:
+    /// <c>L = Le + L_direct + scatter_attn · L_indirect</c>. The scatter
+    /// attenuation never multiplies the direct term — that would couple the
+    /// indirect importance sample to the shadow estimator and bias the
+    /// direct contribution for any direction-dependent BSDF.
+    ///
+    /// Delta lobes (Dirac mirror / refraction / near-delta GGX) return zero
+    /// here: their f/pdf collapses to a mirror direction, no shadow ray can
+    /// reach them, and the delta path in <see cref="Sample"/> handles
+    /// emission with full weight via the prevIsDelta flag.
     ///
     /// <paramref name="rec"/> provides UV coordinates, local point, and object seed
     /// so that textured materials (e.g. DisneyBsdf with a BaseColor texture) can
     /// evaluate the correct surface properties at the hit point rather than using
     /// a fixed (0.5, 0.5) approximation.
     ///
-    /// Default: zero — delta BSDFs (Dielectric mirror/refraction, Emissive) do
-    /// not receive direct lighting. Lambertian, Metal, MixMaterial and DisneyBsdf
-    /// override this with their full analytic response.
+    /// Default: zero — pure delta BSDFs (Dielectric mirror/refraction, Emissive)
+    /// do not receive direct lighting. Lambertian, Metal, MixMaterial and
+    /// DisneyBsdf override this with their full analytic response.
     /// </summary>
     /// <param name="toLight">Unit vector from hit point toward the light.</param>
     /// <param name="toEye">Unit vector from hit point toward the camera.</param>

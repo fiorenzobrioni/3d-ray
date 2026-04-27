@@ -490,12 +490,12 @@ public class Renderer
                 float survivalProb = MathF.Max(MathUtils.Luminance(attenuation), _rrMinSurvival);
                 survivalProb = MathF.Min(survivalProb, 0.95f);
                 if (MathUtils.RandomFloat() > survivalProb)
-                    return emitted + attenuation * directLight;
+                    return emitted + directLight;
                 attenuation /= survivalProb;
             }
 
             if (attenuation.LengthSquared() < 0.001f)
-                return emitted + directLight * attenuation;
+                return emitted + directLight;
 
             // IsDeltaScatter materials (mirror/refraction) emit a delta bounce,
             // so emission passes through at full weight at the next hit. Non-
@@ -509,7 +509,19 @@ public class Renderer
             Vector3 indirect = TraceRay(scattered, depth - 1,
                                          prevBsdfPdf: 0f, prevIsDelta: nextIsDelta,
                                          currentAbsorption: currentAbsorption);
-            return emitted + attenuation * (directLight + indirect);
+            // PBRT/Arnold convention: direct lighting is the standalone
+            // rendering-equation integrand at the shadow-ray direction
+            // (computed by ComputeDirectLighting above), and the scatter
+            // attenuation weights ONLY the indirect path. Multiplying
+            // direct lighting by the BSDF importance weight from a
+            // randomly-sampled bounce direction couples two independent
+            // estimators and biases the direct contribution for any
+            // direction-dependent BSDF (Disney diffuse retro-reflection,
+            // GGX specular, Charlie sheen). The legacy multiplied form
+            // happened to be correct only for Lambertian (constant
+            // attenuation == albedo); the new form is unbiased for every
+            // material whose EvaluateDirect returns the full BRDF·cosθ.
+            return emitted + directLight + attenuation * indirect;
         }
 
         return emitted + directLight;
@@ -534,14 +546,21 @@ public class Renderer
         }
         else
         {
+            // Non-delta sample. |NdotWo| handles both reflection (upper
+            // hemisphere) and diffuse-transmission samples (lower hemisphere
+            // for Disney's diff_trans lobe — Lambertian back-side scattering
+            // through foliage / paper / fabric). The BSDF importance weight
+            // is f · |cosθ| / pdf in both cases; the sign of NdotWo is
+            // already captured by the BRDF / Pdf branch on hemisphere.
             float NdotWo = Vector3.Dot(rec.Normal, s.Wo);
-            if (NdotWo <= 0f || s.Pdf <= 0f)
+            float absNdotWo = MathF.Abs(NdotWo);
+            if (absNdotWo <= 0f || s.Pdf <= 0f)
                 return emitted + directLight;
-            attenuation = s.F * NdotWo / s.Pdf;
+            attenuation = s.F * absNdotWo / s.Pdf;
         }
 
         if (attenuation.LengthSquared() < 0.001f)
-            return emitted + directLight * attenuation;
+            return emitted + directLight;
 
         int bouncesUsed = _maxDepth - depth;
         if (bouncesUsed >= _rrMinBounces)
@@ -549,7 +568,7 @@ public class Renderer
             float survivalProb = MathF.Max(MathUtils.Luminance(attenuation), _rrMinSurvival);
             survivalProb = MathF.Min(survivalProb, 0.95f);
             if (MathUtils.RandomFloat() > survivalProb)
-                return emitted + attenuation * directLight;
+                return emitted + directLight;
             attenuation /= survivalProb;
         }
 
@@ -567,7 +586,8 @@ public class Renderer
         Vector3 nextAbsorption = s.NextSegmentAbsorption ?? currentAbsorption;
         Vector3 indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
                                      currentAbsorption: nextAbsorption);
-        return emitted + attenuation * (directLight + indirect);
+        // PBRT/Arnold convention — see ShadeSurface above.
+        return emitted + directLight + attenuation * indirect;
     }
 
     /// <summary>
@@ -752,9 +772,15 @@ public class Renderer
     /// unbiased when paired with those materials' Scatter() legacy emission
     /// suppression.
     ///
-    /// The material albedo/color is NOT included in EvaluateDirect — it is applied
-    /// by TraceRay via the scatter attenuation, keeping direct and indirect paths
-    /// energetically consistent.
+    /// PBRT/Arnold direct-lighting convention:
+    /// EvaluateDirect returns the FULL rendering-equation integrand at the
+    /// shadow-ray direction — <c>f(V, L) · max(N·L, 0) · visibility</c> — with
+    /// every material colour factor (baseColor, metallic Fresnel, sheen tint,
+    /// subsurface tint) baked in. The caller adds this contribution directly
+    /// to the radiance estimator: <c>L = Le + L_direct + scatter_attn × L_indirect</c>.
+    /// The scatter attenuation never multiplies the direct term — that would
+    /// couple the indirect importance sample to the shadow estimator and
+    /// bias the result for any direction-dependent BSDF.
     /// </summary>
     private Vector3 ComputeDirectLighting(HitRecord rec, Vector3 viewDir, IMaterial? material)
     {
@@ -795,8 +821,12 @@ public class Renderer
 
                 if (inShadow) continue;
 
+                // PBRT/Arnold convention: brdf is the full integrand
+                // f(V, L) · max(N·L, 0). The null-material fallback models a
+                // unit-albedo Lambertian (1/π · cosθ) so direct lighting on a
+                // hit with no material assigned matches the indirect default.
                 Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
-                               ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f));
+                               ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
 
                 Vector3 Tr = Vector3.One;
                 if (_globalMedium != null)
