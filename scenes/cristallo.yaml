@@ -44,11 +44,11 @@ cameras:
   # Camera a Y=2.9 → guarda leggermente dall'alto nel bicchiere,
   # vede il vino e le rifrazioni attraverso il cristallo
   - name:       top
-    position:   [1.8, 2.9, -3.0]
-    look_at:    [0.0, 1.3, 0.0]
+    position:   [1.8, 2.6, -3.6]
+    look_at:    [0.8, 1.2, 0.0]
     fov:        45
     aperture:   0.06
-    focal_dist: 3.1 #3.4
+    focal_dist: 3.8
 
   # Vista 3/4 ravvicinata, all'altezza del rim
   # Camera a Y=2.1 → guarda leggermente verso il basso nel bicchiere,
@@ -75,12 +75,14 @@ cameras:
 lights:
   # Key light: spot dall'alto-sinistra, cono stretto → pool sul tavolo
   - type: "spot"
-    position:  [-2.5, 3.5, -2.5]
-    direction: [0.5, -0.8, 0.5]
+    position:  [-1.8, 2.5, -2.5]
+    direction: [0.35, -0.12, 0.5]
+    #position:  [-2, 3.5, -2]
+    #direction: [1.5, -1.0, 1.5]   # → [0.479, -0.747, 0.479] normalizzato
     color:     [1.0, 0.93, 0.82]
     intensity: 140
     inner_angle: 12
-    outer_angle: 12 #48
+    outer_angle: 48
 
   # Fill light: punto tenue freddo dal lato opposto
   - type: "point"
@@ -141,6 +143,8 @@ materials:
     spec_trans: 1.0
     ior: 1.65
     specular: 0.90
+#    clearcoat: 0.15
+#    coat_roughness: 0.1
 
   # ── Vino rosso ─────────────────────────────────────────────────────────
   #    Disney con IOR 1.345 (acqua + alcol) e tint rosso scuro.
@@ -153,24 +157,6 @@ materials:
     spec_trans: 1.0
     ior: 1.345
     specular: 0.70
-
-  - id: "test"
-    type: "disney"
-    color: [0.94, 0.90, 0.80]
-    roughness: 0.14
-    metallic: 0.0
-    specular: 0.7
-    clearcoat: 0.35
-    coat_roughness: 0.12
-    subsurface: 0.18
-
-  - id: "test2"
-    type: "disney"
-    color: [0.97, 0.97, 1.0]
-    roughness: 0.0
-    spec_trans: 1.0
-    ior: 1.65
-    specular: 0.90
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES
@@ -210,7 +196,7 @@ entities:
     center:   [0.0, 0.76, 0.0]
     radius:   0.58
     height:   0.05
-    material: "test2"
+    material: "cristallo"
 
   # Stelo sottile
   - name: "stelo"
@@ -257,7 +243,7 @@ entities:
     right:
       type: "box"
       scale: [4, 2.60, 4]
-      translate: [0.0, 3.65, 0.0]
+      translate: [0.0, 4, 0.0]
 
   # ─────────────────────────────────────────────────────────────────────────
   #  VINO ROSSO — CSG: Sfera_vino \ Box_livello
