@@ -82,6 +82,9 @@ public class Triangle : IHittable, ISamplable
         return true;
     }
 
+    /// <inheritdoc/>
+    public float SurfaceArea => _area;
+
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
         => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
 

@@ -80,6 +80,9 @@ public class Mesh : IHittable, ISamplable
         return _bvh.Hit(ray, tMin, tMax, ref rec);
     }
 
+    /// <inheritdoc/>
+    public float SurfaceArea => _totalArea;
+
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         if (_triangles.Count == 0)

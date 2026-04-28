@@ -161,6 +161,32 @@ public class Transform : IHittable, ISamplable
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Deterministic approximation: uses the average of the three axis-aligned
+    /// normal scalings as a representative value for <c>|M⁻ᵀ · n̂|</c>.
+    /// For a uniform scale <c>S</c> this is exact (= <c>1/S</c>), giving
+    /// <c>worldArea = objArea × S³ × 1/S = objArea × S²</c>.
+    /// For non-uniform scaling it is an approximation used only by the
+    /// power-weighted light-importance-sampling heuristic, where accuracy is
+    /// not critical.
+    /// </remarks>
+    public float SurfaceArea
+    {
+        get
+        {
+            if (_object is not ISamplable inner) return 0f;
+            float innerArea = inner.SurfaceArea;
+            // Average |M⁻ᵀ · n̂| over the three canonical axis normals as
+            // a representative of the surface-element Jacobian.
+            float nx = Vector3.TransformNormal(Vector3.UnitX, _normalMatrix).Length();
+            float ny = Vector3.TransformNormal(Vector3.UnitY, _normalMatrix).Length();
+            float nz = Vector3.TransformNormal(Vector3.UnitZ, _normalMatrix).Length();
+            float avgNormalLen = (nx + ny + nz) / 3f;
+            return innerArea * _absDetM * avgNormalLen;
+        }
+    }
+
+    /// <inheritdoc/>
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         if (_object is not ISamplable inner)

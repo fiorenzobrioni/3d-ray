@@ -96,6 +96,31 @@ class Program
             }
         }
 
+        // Light selection strategy. See LightSamplingStrategy.
+        LightSamplingStrategy lightSampling = LightSamplingStrategy.All;
+        string? lightSamplingArg = GetArg(args, "--light-sampling", null);
+        if (lightSamplingArg != null)
+        {
+            switch (lightSamplingArg.ToLowerInvariant())
+            {
+                case "all":     lightSampling = LightSamplingStrategy.All;     break;
+                case "power":   lightSampling = LightSamplingStrategy.Power;   break;
+                case "uniform": lightSampling = LightSamplingStrategy.Uniform; break;
+                default:
+                    Console.WriteLine($"Error: Unknown --light-sampling '{lightSamplingArg}'. Valid: all, power, uniform.");
+                    return;
+            }
+        }
+
+        // Indirect bounce clamp factor (Cycles/Arnold style depth-aware suppression).
+        // Default 1.0 = no extra suppression (backward compat).
+        float indirectClampFactor = Renderer.DefaultIndirectClampFactor;
+        if (float.TryParse(GetArg(args, "--indirect-clamp-factor", null),
+                           System.Globalization.NumberStyles.Float,
+                           System.Globalization.CultureInfo.InvariantCulture,
+                           out var icf) && icf >= 0f)
+            indirectClampFactor = icf;
+
         // Verbose mode
         bool verbose = HasFlag(args, "--verbose", "-v");
         SceneLoader.SetVerbose(verbose);
@@ -142,10 +167,14 @@ class Program
             Console.WriteLine($"  Shadow smp:  {shadowSamplesOverride.Value} (override)");
         if (clampOverride.HasValue)
             Console.WriteLine($"  Clamp:       {clampOverride.Value} (override)");
+        if (indirectClampFactor != Renderer.DefaultIndirectClampFactor)
+            Console.WriteLine($"  Indir.clamp: ×{indirectClampFactor:F2} ({clampOverride ?? Renderer.DefaultMaxSampleRadiance * indirectClampFactor:F1} effective)");
         if (cameraSelector != null)
             Console.WriteLine($"  Camera:      {cameraSelector}");
         Console.WriteLine($"  Sampler:     {samplerKind.ToString().ToLowerInvariant()}");
         Console.WriteLine($"  MIS:         {misHeuristic.ToString().ToLowerInvariant()} heuristic");
+        if (lightSampling != LightSamplingStrategy.All)
+            Console.WriteLine($"  Light pick:  {lightSampling.ToString().ToLowerInvariant()}");
         Console.WriteLine();
 
         // Load scene
@@ -168,7 +197,7 @@ class Program
             Console.WriteLine($"  Sky:         {skyDesc}");
 
             // Render (constructor may print scene analysis info before the blank line)
-            var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth, globalMedium, clampOverride, verbose, misHeuristic);
+            var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth, globalMedium, clampOverride, verbose, misHeuristic, lightSampling, indirectClampFactor);
             Console.WriteLine();
 
             sw.Restart();
@@ -210,9 +239,11 @@ class Program
         Console.WriteLine("  -d, --depth <n>              Max ray depth (default: 8, raise to 16+ for stacked glass)");
         Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override (perfect squares)");
         Console.WriteLine("  -C, --clamp <n>              Max per-sample radiance / firefly clamp (default: 100)");
+        Console.WriteLine("      --indirect-clamp-factor  Clamp factor for indirect bounces (default: 1.0 = off; try 0.25)");
         Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
         Console.WriteLine("      --sampler <prng|sobol>   Per-pixel sampler (default: sobol — Burley 2020)");
         Console.WriteLine("      --mis <balance|power>    MIS combination heuristic (default: balance)");
+        Console.WriteLine("      --light-sampling <all|power|uniform>  NEE light strategy (default: all)");
         Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
         Console.WriteLine("  -v, --verbose                Show detailed loading and scene analysis info");
         Console.WriteLine("  -h, --help                   Show this help");

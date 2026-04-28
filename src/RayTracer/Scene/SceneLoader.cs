@@ -1720,12 +1720,14 @@ public class SceneLoader
 
             "directional" or "sun" => new DirectionalLight(
                 ToVector3(l.Direction) ?? new Vector3(-1, -1, -1),
-                color, l.Intensity),
+                color, l.Intensity, l.AngularRadius,
+                shadowSamplesOverride ?? 0),   // 0 → auto (1 if delta, 16 if disc)
 
             "spot" or "spotlight" => new SpotLight(
                 ToVector3(l.Position)  ?? new Vector3(0, 10, 0),
                 ToVector3(l.Direction) ?? new Vector3(0, -1, 0),
-                color, l.Intensity, l.InnerAngle, l.OuterAngle, l.SoftRadius),
+                color, l.Intensity, l.InnerAngle, l.OuterAngle, l.SoftRadius,
+                shadowSamplesOverride ?? l.ShadowSamples),
 
             // ── Area light ───────────────────────────────────────────────────
             // YAML fields:
@@ -1734,6 +1736,7 @@ public class SceneLoader
             //   v:      [x, y, z]        # second edge vector (e.g. [0,0,2])
             //   intensity: 40.0          # brightness scalar
             //   shadow_samples: 16       # per-light default (overridable via CLI -S)
+            //   soft_radius: 0.0         # optional 1/d² singularity floor
             "area" or "area_light" or "rect" or "rect_light"
                 => CreateAreaLight(l, color, shadowSamplesOverride),
 
@@ -1743,6 +1746,7 @@ public class SceneLoader
             //   radius:   0.5            # sphere radius (> 0)
             //   intensity: 30.0          # brightness scalar
             //   shadow_samples: 16       # per-light default (overridable via CLI -S)
+            //   soft_radius: 0.0         # optional (used only in inside-sphere fallback)
             "sphere" or "sphere_light" or "ball" or "ball_light"
                 => CreateSphereLight(l, color, shadowSamplesOverride),
 
@@ -1766,7 +1770,7 @@ public class SceneLoader
         int effectiveShadowSamples = shadowSamplesOverride ?? l.ShadowSamples;
 
         return new AreaLight(corner.Value, u.Value, v.Value, color,
-                             l.Intensity, effectiveShadowSamples);
+                             l.Intensity, effectiveShadowSamples, l.SoftRadius);
     }
 
     private static SphereLight? CreateSphereLight(LightData l, Vector3 color,
@@ -1790,7 +1794,7 @@ public class SceneLoader
         int effectiveShadowSamples = shadowSamplesOverride ?? l.ShadowSamples;
  
         return new SphereLight(position.Value, l.Radius, color,
-                               l.Intensity, effectiveShadowSamples);
+                               l.Intensity, effectiveShadowSamples, l.SoftRadius);
     }
 
     // =========================================================================

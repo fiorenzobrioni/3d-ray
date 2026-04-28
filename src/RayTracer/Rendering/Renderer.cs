@@ -26,6 +26,27 @@ public enum MisHeuristic
     Power
 }
 
+/// <summary>
+/// NEE light selection strategy.
+///
+/// <list type="bullet">
+///   <item><description><b>All</b> — iterate over every light and sum contributions
+///   (original behaviour, default for backward compatibility). O(N·S) per shading point.</description></item>
+///   <item><description><b>Power</b> — sample one light per NEE event with probability
+///   proportional to its <see cref="ILight.ApproximatePower"/>. Reduces variance
+///   significantly in scenes with many lights of mixed brightnesses (PBRT §16.3.2).
+///   O(S) per shading point after O(N) construction.</description></item>
+///   <item><description><b>Uniform</b> — sample one light uniformly at random. Useful
+///   as a baseline/debug comparison against <c>Power</c>.</description></item>
+/// </list>
+/// </summary>
+public enum LightSamplingStrategy
+{
+    All,
+    Power,
+    Uniform
+}
+
 public class Renderer
 {
     private readonly IHittable _world;
@@ -40,6 +61,8 @@ public class Renderer
     private readonly IMedium? _globalMedium;
     private readonly bool _verbose;
     private readonly MisHeuristic _misHeuristic;
+    private readonly LightSamplingStrategy _lightSamplingStrategy;
+    private readonly LightDistribution? _lightDist; // non-null when strategy ≠ All
 
     // ── Russian Roulette configuration ──────────────────────────────────────
     //
@@ -77,6 +100,19 @@ public class Renderer
     // Can be overridden via the constructor (CLI flag --clamp/-C).
     public const float DefaultMaxSampleRadiance = 100f;
     private readonly float _maxSampleRadiance;
+
+    // ── Depth-aware indirect firefly clamp ──────────────────────────────────
+    // A second (typically tighter) clamp is applied to the indirect (bounce ≥ 1)
+    // contribution inside ShadeSurface/ShadeSampleBounce, mirroring the
+    // Cycles/Arnold "indirect clamp" feature. Default factor = 1.0 means the
+    // indirect clamp equals the primary clamp (no extra suppression, backward
+    // compatible). Values < 1 reduce variance from caustics / specular chains
+    // at the cost of slightly darkening deep indirect paths.
+    //
+    // CLI: --indirect-clamp-factor <f>   (e.g. 0.25 = 25 when primary clamp = 100)
+    // Default 1.0 → _indirectMaxSampleRadiance == _maxSampleRadiance → no change.
+    public const float DefaultIndirectClampFactor = 1.0f;
+    private readonly float _indirectMaxSampleRadiance;
 
     // Threshold below which the scene is considered indirect-dominant.
     // Expressed as the scene-averaged irradiance [Rec.709 luminance]:
@@ -121,7 +157,9 @@ public class Renderer
         IMedium? globalMedium = null,
         float? maxSampleRadiance = null,
         bool verbose = false,
-        MisHeuristic misHeuristic = MisHeuristic.Balance)
+        MisHeuristic misHeuristic = MisHeuristic.Balance,
+        LightSamplingStrategy lightSamplingStrategy = LightSamplingStrategy.All,
+        float indirectClampFactor = DefaultIndirectClampFactor)
     {
         _world = world;
         _camera = camera;
@@ -132,8 +170,10 @@ public class Renderer
         _maxDepth = maxDepth;
         _globalMedium = globalMedium;
         _maxSampleRadiance = maxSampleRadiance ?? DefaultMaxSampleRadiance;
+        _indirectMaxSampleRadiance = _maxSampleRadiance * MathF.Max(0f, indirectClampFactor);
         _verbose = verbose;
         _misHeuristic = misHeuristic;
+        _lightSamplingStrategy = lightSamplingStrategy;
 
         // ── Scene analysis: detect indirect-dominant lighting ────────────
         // Sum each light's approximate radiant flux [Rec.709 luminance] and
@@ -173,6 +213,14 @@ public class Renderer
             _emitterToLight[gl.Material] = gl;
         }
         _envLight = lights.OfType<EnvironmentLight>().FirstOrDefault();
+
+        // Light importance sampling: build CDF for power/uniform strategies.
+        // The 'all' strategy skips this — it sums every light directly.
+        if (lightSamplingStrategy != LightSamplingStrategy.All && lights.Count > 0)
+        {
+            bool forceUniform = lightSamplingStrategy == LightSamplingStrategy.Uniform;
+            _lightDist = new LightDistribution(lights, sceneBounds, forceUniform);
+        }
 
         // Pre-warm the Kulla-Conty energy-compensation LUT on the construction
         // thread. Without this, the table is built lazily on first access,
@@ -398,6 +446,28 @@ public class Renderer
         return Vector3.Max(color, Vector3.Zero);
     }
 
+    /// <summary>
+    /// Clamps the indirect bounce radiance using the depth-aware secondary
+    /// clamp threshold (<c>_indirectMaxSampleRadiance</c>). When the
+    /// <c>--indirect-clamp-factor</c> is 1.0 (default) this is identical to
+    /// <see cref="ClampRadiance"/> and has no observable effect. Setting the
+    /// factor below 1 suppresses caustics / deep-specular fireflies that
+    /// survive the primary pixel-level clamp.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private Vector3 ClampRadianceIndirect(Vector3 color)
+    {
+        if (float.IsNaN(color.X) || float.IsInfinity(color.X)) color.X = 0f;
+        if (float.IsNaN(color.Y) || float.IsInfinity(color.Y)) color.Y = 0f;
+        if (float.IsNaN(color.Z) || float.IsInfinity(color.Z)) color.Z = 0f;
+
+        float lum = MathUtils.Luminance(color);
+        if (lum > _indirectMaxSampleRadiance && lum > 0f)
+            color *= _indirectMaxSampleRadiance / lum;
+
+        return Vector3.Max(color, Vector3.Zero);
+    }
+
     // ═════════════════════════════════════════════════════════════════════════
     // CORE PATH TRACER
     // ═════════════════════════════════════════════════════════════════════════
@@ -509,6 +579,10 @@ public class Renderer
             Vector3 indirect = TraceRay(scattered, depth - 1,
                                          prevBsdfPdf: 0f, prevIsDelta: nextIsDelta,
                                          currentAbsorption: currentAbsorption);
+            // Depth-aware indirect clamp: suppresses deep-specular fireflies that
+            // survive the primary pixel-level ClampRadiance. When the factor is
+            // 1.0 (default) ClampRadianceIndirect == ClampRadiance — no change.
+            indirect = ClampRadianceIndirect(indirect);
             // PBRT/Arnold convention: direct lighting is the standalone
             // rendering-equation integrand at the shadow-ray direction
             // (computed by ComputeDirectLighting above), and the scatter
@@ -586,6 +660,8 @@ public class Renderer
         Vector3 nextAbsorption = s.NextSegmentAbsorption ?? currentAbsorption;
         Vector3 indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
                                      currentAbsorption: nextAbsorption);
+        // Depth-aware indirect clamp — see ShadeSurface's Scatter path above.
+        indirect = ClampRadianceIndirect(indirect);
         // PBRT/Arnold convention — see ShadeSurface above.
         return emitted + directLight + attenuation * indirect;
     }
@@ -786,45 +862,27 @@ public class Renderer
     {
         Vector3 result = _ambientLight;
 
-        foreach (var light in _lights)
+        if (_lightDist != null)
         {
+            // ── Single-light picking (power or uniform) ──────────────────────
+            // Unbiased single-sample estimator (PBRT §16.3.2):
+            //   contribution = lightAccum / pPick
+            // MIS uses pdf_combined = pPick × pLightSample for non-delta lights.
+            if (_lights.Count == 0) return result;
+            float xi = MathUtils.RandomFloat();
+            var (lightIdx, pPick) = _lightDist.Sample(xi);
+            ILight light = _lights[lightIdx];
+
             int samples = light.ShadowSamples;
             Vector3 lightAccum = Vector3.Zero;
 
             for (int s = 0; s < samples; s++)
             {
-                bool inShadow;
-                Vector3 lightColor;
-                Vector3 dirToLight;
-                float distance;
-
-                if (light is AreaLight areaLight)
-                {
-                    (inShadow, lightColor, dirToLight, distance) =
-                        areaLight.IlluminateAndTestStratified(rec.Point, rec.Normal, _world, s);
-                }
-                else if (light is SphereLight sphereLight)
-                {
-                    (inShadow, lightColor, dirToLight, distance) =
-                        sphereLight.IlluminateAndTestStratified(rec.Point, rec.Normal, _world, s);
-                }
-                else if (light is GeometryLight geometryLight)
-                {
-                    (inShadow, lightColor, dirToLight, distance) =
-                        geometryLight.IlluminateAndTestStratified(rec.Point, rec.Normal, _world, s);
-                }
-                else
-                {
-                    (inShadow, lightColor, dirToLight, distance) =
-                        light.IlluminateAndTest(rec.Point, rec.Normal, _world);
-                }
+                var (inShadow, lightColor, dirToLight, distance) =
+                    SampleLight(light, rec.Point, rec.Normal, s);
 
                 if (inShadow) continue;
 
-                // PBRT/Arnold convention: brdf is the full integrand
-                // f(V, L) · max(N·L, 0). The null-material fallback models a
-                // unit-albedo Lambertian (1/π · cosθ) so direct lighting on a
-                // hit with no material assigned matches the indirect default.
                 Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
                                ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
 
@@ -832,32 +890,99 @@ public class Renderer
                 if (_globalMedium != null)
                 {
                     float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                    var shadowRay = new Ray(rec.Point, dirToLight);
-                    Tr = _globalMedium.Transmittance(shadowRay, shadowDist);
+                    Tr = _globalMedium.Transmittance(new Ray(rec.Point, dirToLight), shadowDist);
                 }
 
-                // ── MIS weight (balance or power, configured per-renderer) ──
-                // Delta lights: always weight 1 (no BSDF sampler can hit them).
-                // Non-delta lights: if the material exposes Pdf() > 0, the
-                // weight reduces variance via Veach's combined estimator.
+                // MIS: combined NEE pdf = pPick × pLightSample
                 float wNee = 1f;
                 if (!light.IsDelta && material != null)
                 {
                     float pBsdf = material.Pdf(viewDir, dirToLight, rec);
                     if (pBsdf > 0f)
                     {
-                        float pLight = light.PdfSolidAngle(rec.Point, dirToLight);
-                        wNee = pLight + pBsdf > 0f ? MisWeight(pLight, pBsdf) : 1f;
+                        float pLightSample = light.PdfSolidAngle(rec.Point, dirToLight);
+                        float pNee = pPick * pLightSample; // combined pdf for this direction
+                        wNee = pNee + pBsdf > 0f ? MisWeight(pNee, pBsdf) : 1f;
                     }
                 }
 
                 lightAccum += wNee * lightColor * brdf * Tr;
             }
 
-            result += lightAccum;
+            // Divide by pPick to get the unbiased estimator (1 light sampled, not all).
+            if (pPick > 0f)
+                result += lightAccum / pPick;
+        }
+        else
+        {
+            // ── Sum over all lights (original behaviour) ─────────────────────
+            foreach (var light in _lights)
+            {
+                int samples = light.ShadowSamples;
+                Vector3 lightAccum = Vector3.Zero;
+
+                for (int s = 0; s < samples; s++)
+                {
+                    var (inShadow, lightColor, dirToLight, distance) =
+                        SampleLight(light, rec.Point, rec.Normal, s);
+
+                    if (inShadow) continue;
+
+                    Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
+                                   ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
+
+                    Vector3 Tr = Vector3.One;
+                    if (_globalMedium != null)
+                    {
+                        float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
+                        var shadowRay = new Ray(rec.Point, dirToLight);
+                        Tr = _globalMedium.Transmittance(shadowRay, shadowDist);
+                    }
+
+                    // ── MIS weight (balance or power, configured per-renderer) ──
+                    // Delta lights: always weight 1 (no BSDF sampler can hit them).
+                    // Non-delta lights: if the material exposes Pdf() > 0, the
+                    // weight reduces variance via Veach's combined estimator.
+                    float wNee = 1f;
+                    if (!light.IsDelta && material != null)
+                    {
+                        float pBsdf = material.Pdf(viewDir, dirToLight, rec);
+                        if (pBsdf > 0f)
+                        {
+                            float pLight = light.PdfSolidAngle(rec.Point, dirToLight);
+                            wNee = pLight + pBsdf > 0f ? MisWeight(pLight, pBsdf) : 1f;
+                        }
+                    }
+
+                    lightAccum += wNee * lightColor * brdf * Tr;
+                }
+
+                result += lightAccum;
+            }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Unified light-sample dispatcher: calls the stratified variant for
+    /// area/sphere/geometry/sun-disc/multi-sample-spot lights and falls back
+    /// to the base <see cref="ILight.IlluminateAndTest"/> for all other lights.
+    /// </summary>
+    private (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
+        SampleLight(ILight light, Vector3 point, Vector3 normal, int sampleIndex)
+    {
+        return light switch
+        {
+            AreaLight al      => al.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
+            SphereLight sl    => sl.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
+            GeometryLight gl  => gl.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
+            DirectionalLight dl when dl.AngularRadiusDeg > 0f
+                              => dl.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
+            SpotLight sp when sp.ShadowSamples > 1
+                              => sp.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
+            _                 => light.IlluminateAndTest(point, normal, _world)
+        };
     }
 
     /// <summary>
@@ -881,73 +1006,95 @@ public class Renderer
         // Passing Zero ensures OffsetOrigin returns the point unchanged.
         Vector3 dummyNormal = Vector3.Zero;
 
-        foreach (var light in _lights)
+        if (_lightDist != null)
         {
+            // ── Single-light picking in volumetric path ──────────────────────
+            if (_lights.Count == 0) return result;
+            float xi = MathUtils.RandomFloat();
+            var (lightIdx, pPick) = _lightDist.Sample(xi);
+            ILight light = _lights[lightIdx];
+
             int samples = light.ShadowSamples;
             Vector3 lightAccum = Vector3.Zero;
 
             for (int s = 0; s < samples; s++)
             {
-                // Mirror the dispatch used by ComputeDirectLighting so that
-                // AreaLight and SphereLight keep their stratified samples in
-                // the volumetric path too — this is where low-discrepancy
-                // shadow sampling matters most (large area lights seen through
-                // dense fog are the worst-case variance scenario).
-                bool inShadow;
-                Vector3 lightColor;
-                Vector3 dirToLight;
-                float distance;
-
-                if (light is AreaLight areaLight)
-                {
-                    (inShadow, lightColor, dirToLight, distance) =
-                        areaLight.IlluminateAndTestStratified(p, dummyNormal, _world, s);
-                }
-                else if (light is SphereLight sphereLight)
-                {
-                    (inShadow, lightColor, dirToLight, distance) =
-                        sphereLight.IlluminateAndTestStratified(p, dummyNormal, _world, s);
-                }
-                else if (light is GeometryLight geometryLight)
-                {
-                    (inShadow, lightColor, dirToLight, distance) =
-                        geometryLight.IlluminateAndTestStratified(p, dummyNormal, _world, s);
-                }
-                else
-                {
-                    (inShadow, lightColor, dirToLight, distance) =
-                        light.IlluminateAndTest(p, dummyNormal, _world);
-                }
+                var (inShadow, lightColor, dirToLight, distance) =
+                    SampleLight(light, p, dummyNormal, s);
 
                 if (inShadow) continue;
 
-                // Phase function value for this in-scattering direction.
                 float phaseVal = _globalMedium.Phase.Evaluate(wo, dirToLight);
-
-                // Beer-Lambert attenuation along the shadow ray.
                 float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
                 Vector3 Tr = _globalMedium.Transmittance(new Ray(p, dirToLight), shadowDist);
 
-                // ── MIS weight (phase-function vs light sampler) ────────────
-                // Delta lights cannot be reached by phase sampling; emit at
-                // full weight. Otherwise pair the analytic phase PDF against
-                // the light PDF using the configured heuristic.
                 float wNee = 1f;
                 if (!light.IsDelta)
                 {
                     float phasePdf = _globalMedium.Phase.Pdf(wo, dirToLight);
                     if (phasePdf > 0f)
                     {
-                        float pLight = light.PdfSolidAngle(p, dirToLight);
-                        if (pLight + phasePdf > 0f)
-                            wNee = MisWeight(pLight, phasePdf);
+                        float pLightSample = light.PdfSolidAngle(p, dirToLight);
+                        float pNee = pPick * pLightSample;
+                        if (pNee + phasePdf > 0f)
+                            wNee = MisWeight(pNee, phasePdf);
                     }
                 }
 
                 lightAccum += wNee * lightColor * phaseVal * Tr;
             }
 
-            result += lightAccum;
+            if (pPick > 0f)
+                result += lightAccum / pPick;
+        }
+        else
+        {
+            // ── Sum over all lights ──────────────────────────────────────────
+            foreach (var light in _lights)
+            {
+                int samples = light.ShadowSamples;
+                Vector3 lightAccum = Vector3.Zero;
+
+                for (int s = 0; s < samples; s++)
+                {
+                    // Mirror the dispatch used by ComputeDirectLighting so that
+                    // AreaLight and SphereLight keep their stratified samples in
+                    // the volumetric path too — this is where low-discrepancy
+                    // shadow sampling matters most (large area lights seen through
+                    // dense fog are the worst-case variance scenario).
+                    var (inShadow, lightColor, dirToLight, distance) =
+                        SampleLight(light, p, dummyNormal, s);
+
+                    if (inShadow) continue;
+
+                    // Phase function value for this in-scattering direction.
+                    float phaseVal = _globalMedium.Phase.Evaluate(wo, dirToLight);
+
+                    // Beer-Lambert attenuation along the shadow ray.
+                    float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
+                    Vector3 Tr = _globalMedium.Transmittance(new Ray(p, dirToLight), shadowDist);
+
+                    // ── MIS weight (phase-function vs light sampler) ────────────
+                    // Delta lights cannot be reached by phase sampling; emit at
+                    // full weight. Otherwise pair the analytic phase PDF against
+                    // the light PDF using the configured heuristic.
+                    float wNee = 1f;
+                    if (!light.IsDelta)
+                    {
+                        float phasePdf = _globalMedium.Phase.Pdf(wo, dirToLight);
+                        if (phasePdf > 0f)
+                        {
+                            float pLight = light.PdfSolidAngle(p, dirToLight);
+                            if (pLight + phasePdf > 0f)
+                                wNee = MisWeight(pLight, phasePdf);
+                        }
+                    }
+
+                    lightAccum += wNee * lightColor * phaseVal * Tr;
+                }
+
+                result += lightAccum;
+            }
         }
 
         return result;

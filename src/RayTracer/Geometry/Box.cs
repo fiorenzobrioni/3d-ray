@@ -178,6 +178,11 @@ public class Box : IHittable, ISamplable
     // The Transform wrapper handles non-uniform scaling via the Jacobian.
     // ═════════════════════════════════════════════════════════════════════════
 
+    /// <inheritdoc/>
+    // Unit cube: 6 faces × (1×1) = 6. Non-uniform scaling is handled by the
+    // Transform wrapper's Jacobian — see Transform.SurfaceArea.
+    public float SurfaceArea => 6f;
+
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         int face = (int)(MathUtils.RandomFloat() * 6f);
