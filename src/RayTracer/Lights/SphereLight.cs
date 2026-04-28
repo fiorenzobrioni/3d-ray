@@ -53,6 +53,22 @@ public class SphereLight : ILight
     public Vector3 Color { get; }
     public float Intensity { get; }
 
+    /// <summary>
+    /// Optional "virtual disc" radius used to soften the 1/d² singularity in
+    /// the fallback uniform-sphere path that activates when the shading point
+    /// is inside the sphere (<c>cosThetaMax = -1</c>). In that degenerate case
+    /// the estimator uses an area-measure pdf_A that can diverge at small d.
+    /// <para>
+    /// The solid-angle cone-sampling path (the normal case, shading point
+    /// outside the sphere) does NOT need a soft-radius guard because the
+    /// <c>L = Intensity × Ω / N</c> estimator is pdf_ω–based and the solid
+    /// angle Ω = 2π(1 − cos θ_max) is bounded above by 4π even at d → R⁺.
+    /// </para>
+    /// 0 = unclamped, identical to pre-existing behaviour.
+    /// See <see cref="PointLight.SoftRadius"/> for the original pattern.
+    /// </summary>
+    public float SoftRadius { get; }
+
     /// <inheritdoc/>
     public int ShadowSamples { get; }
 
@@ -61,13 +77,14 @@ public class SphereLight : ILight
     private readonly float _invSqrtSamples;
 
     public SphereLight(Vector3 center, float radius, Vector3 color,
-                       float intensity = 20f, int shadowSamples = 16)
+                       float intensity = 20f, int shadowSamples = 16, float softRadius = 0f)
     {
         Center = center;
         Radius = MathF.Max(radius, MathUtils.Epsilon);
         Color = color;
         Intensity = intensity;
         ShadowSamples = Math.Max(1, shadowSamples);
+        SoftRadius = MathF.Max(0f, softRadius);
 
         _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
         _invSqrtSamples = 1f / _sqrtSamples;

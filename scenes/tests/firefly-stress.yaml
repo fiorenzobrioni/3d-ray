@@ -1,0 +1,48 @@
+# Firefly stress test scene
+#
+# This minimal scene is designed to stress-test the renderer's firefly
+# suppression mechanisms. It places a bright sphere light very close to a
+# diffuse floor, surrounded by a dense homogeneous scattering medium
+# (sigma_s = 2.0). The combination of:
+#   - Small source distance → potential 1/d² singularity
+#   - Dense medium scattering events → cosLight/d² spikes near the emitter
+#   - Depth ≥ 8 → higher-order bounces amplified by Russian Roulette
+#
+# Expected: with the default clamp (-C 100) the bright-pixel count stays
+# well below the xUnit regression threshold. See FireflyRegressionTests.cs.
+#
+# NOTE: Do not use this scene for production renders — it is calibrated for
+# the regression test at 128×128 / 16 SPP / depth 8.
+
+camera:
+  position: [0, 1.5, 5]
+  look_at: [0, 0.2, 0]
+  up: [0, 1, 0]
+  vfov: 50
+
+world:
+  background: [0, 0, 0]
+  medium:
+    type: homogeneous
+    sigma_a: [0.1, 0.1, 0.1]
+    sigma_s: [2.0, 2.0, 2.0]
+    phase:
+      type: hg
+      g: 0.3
+  entities:
+    # Floor plane (diffuse white)
+    - type: infinite_plane
+      normal: [0, 1, 0]
+      d: 0
+      material:
+        type: lambertian
+        color: [0.8, 0.8, 0.8]
+
+lights:
+  # Bright sphere light sitting 0.4 units above the floor
+  - type: sphere
+    position: [0, 0.4, 0]
+    radius: 0.1
+    color: [1.0, 0.95, 0.9]
+    intensity: 30.0
+    shadow_samples: 16

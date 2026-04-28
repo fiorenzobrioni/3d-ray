@@ -59,6 +59,9 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
         return true;
     }
 
+    /// <inheritdoc/>
+    public float SurfaceArea => 4f * MathF.PI * Radius * Radius;
+
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         Vector3 p = MathUtils.RandomUnitVector();

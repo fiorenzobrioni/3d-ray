@@ -701,14 +701,22 @@ public class LightData
     public float Radius { get; set; } = 0.5f;
 
     /// <summary>
-    /// Optional virtual-disc radius for <c>point</c>/<c>spot</c> lights that
-    /// softens the 1/d² singularity (see <c>PointLight.SoftRadius</c>).
+    /// Optional virtual-disc radius for <c>point</c>/<c>spot</c>/<c>area</c>/
+    /// <c>sphere</c> lights that softens the 1/d² (or cosLight/d²) singularity.
     /// 0 = unclamped, identical to pre-existing behaviour. Recommended values
-    /// approximate the physical bulb radius (e.g. 0.05–0.2 for a streetlamp).
-    /// Only consumed by point/spot lights — sphere lights ignore it.
+    /// approximate the physical emitter size (e.g. 0.05–0.2 for a streetlamp,
+    /// 0.5–1.0 for a large area panel in dense fog).
     /// </summary>
     [YamlMember(Alias = "soft_radius")]
     public float SoftRadius { get; set; } = 0f;
+
+    /// <summary>
+    /// Optional angular radius in degrees for <c>directional</c>/<c>sun</c>
+    /// lights. Produces a soft penumbra. 0 = hard shadows (default).
+    /// The real Sun subtends ~0.27°.
+    /// </summary>
+    [YamlMember(Alias = "angular_radius")]
+    public float AngularRadius { get; set; } = 0f;
 }
 
 /// <summary>

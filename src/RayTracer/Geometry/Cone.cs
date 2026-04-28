@@ -244,6 +244,20 @@ public class Cone : IHittable, ISamplable
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
         => SampleImpl(MathUtils.RandomFloat(), MathUtils.RandomFloat(), MathUtils.RandomFloat());
 
+    /// <inheritdoc/>
+    // Frustum (or cone): lateral π(R+r)·slant + bottom πR² + top πr²
+    public float SurfaceArea
+    {
+        get
+        {
+            float slantHeight = MathF.Sqrt(Height * Height + (Radius - TopRadius) * (Radius - TopRadius));
+            float lateralArea = MathF.PI * (Radius + TopRadius) * slantHeight;
+            float bottomArea  = MathF.PI * Radius * Radius;
+            float topArea     = TopRadius > 1e-6f ? MathF.PI * TopRadius * TopRadius : 0f;
+            return lateralArea + bottomArea + topArea;
+        }
+    }
+
     /// <summary>
     /// Stratified version: jitters (v, θ) on a <c>sqrtSamples × sqrtSamples</c>
     /// grid. The part selection (lateral / bottom / top) stays uniform so that

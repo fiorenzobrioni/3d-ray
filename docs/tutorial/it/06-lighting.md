@@ -63,19 +63,31 @@ Poiché le luci puntiformi sono infinitamente piccole, producono **ombre nette**
   direction: [-0.5, -1, 0.3]
   color: [1, 0.98, 0.92]
   intensity: 3.0
+  angular_radius: 0.0            # Opzionale. 0.27 = disco solare reale (ombre morbide)
 ```
 
-| Parametro   | Predefinito | Descrizione                                     |
-|-------------|-------------|-------------------------------------------------|
-| `direction` | --          | Direzione *verso* la scena (dalla luce)         |
-| `color`     | --          | Colore della luce                               |
-| `intensity` | --          | Moltiplicatore di luminosità                    |
+| Parametro        | Predefinito | Descrizione                                     |
+|------------------|-------------|-------------------------------------------------|
+| `direction`      | --          | Direzione *verso* la scena (dalla luce)         |
+| `color`          | --          | Colore della luce                               |
+| `intensity`      | --          | Moltiplicatore di luminosità                    |
+| `angular_radius` | `0`         | Opzionale. Raggio angolare del disco (gradi). 0 = ombre nette |
 
 Una luce direzionale invia raggi paralleli -- tutti viaggiano nella stessa direzione. Non ha posizione (pensa ad essa come se fosse infinitamente lontana) e non ha decadimento con la distanza. È il modo standard per simulare la luce solare.
 
 Il vettore `direction` punta **dalla luce verso la scena**, non dalla scena verso la luce. `[-0.5, -1, 0.3]` significa che la luce proviene da in alto a sinistra, leggermente dietro la fotocamera.
 
-Come le luci puntiformi, le luci direzionali producono **ombre nette**.
+Come le luci puntiformi, le luci direzionali producono **ombre nette** per default.
+
+**Disco solare (`angular_radius`):** quando > 0, il renderer perturba ogni raggio d'ombra all'interno di un cono dell'ampiezza specificata, producendo una penombra morbida realistica. Il valore `shadow_samples` viene portato automaticamente a 16 quando il disco è attivo. Il Sole reale sottende circa 0.27°.
+
+```yaml
+- type: "sun"
+  direction: [-0.5, -1, 0.3]
+  color: [1.0, 0.95, 0.80]
+  intensity: 2.0
+  angular_radius: 0.27    # Disco solare reale — penombra morbida
+```
 
 Disponibile anche come `type: "sun"`.
 
@@ -91,21 +103,25 @@ Disponibile anche come `type: "sun"`.
   intensity: 50.0
   inner_angle: 15
   outer_angle: 30
+  shadow_samples: 1              # >1 + soft_radius > 0 → sorgente jitterata
 ```
 
-| Parametro     | Predefinito | Descrizione                                          |
-|---------------|-------------|------------------------------------------------------|
-| `position`    | --          | Posizione nello spazio world                         |
-| `direction`   | --          | Direzione verso cui è puntato lo spot                |
-| `color`       | --          | Colore della luce                                    |
-| `intensity`   | --          | Moltiplicatore di luminosità                         |
-| `inner_angle` | `15`        | Semiampiezza del cono a piena intensità (gradi)      |
-| `outer_angle` | `30`        | Semiampiezza del cono a intensità zero (gradi)       |
-| `soft_radius` | `0`         | Opzionale. Stesso ruolo della point light — fortemente raccomandato per spot dentro un medium/nebbia |
+| Parametro        | Predefinito | Descrizione                                          |
+|------------------|-------------|------------------------------------------------------|
+| `position`       | --          | Posizione nello spazio world                         |
+| `direction`      | --          | Direzione verso cui è puntato lo spot                |
+| `color`          | --          | Colore della luce                                    |
+| `intensity`      | --          | Moltiplicatore di luminosità                         |
+| `inner_angle`    | `15`        | Semiampiezza del cono a piena intensità (gradi)      |
+| `outer_angle`    | `30`        | Semiampiezza del cono a intensità zero (gradi)       |
+| `soft_radius`    | `0`         | Opzionale. Stesso ruolo della point light — fortemente raccomandato per spot dentro un medium/nebbia |
+| `shadow_samples` | `1`         | >1 + `soft_radius > 0` → sorgente jitterata per penombra morbida in nebbia |
 
 Una luce spot emette da un punto all'interno di un cono. All'interno del cono interno (inner cone) la luce è alla massima intensità. Tra il cono interno e quello esterno (outer cone) sfuma gradualmente fino a zero (decadimento cosinusoidale). All'esterno del cono esterno non c'è luce.
 
 Le luci spot sono ideali per effetti teatrali, esposizioni museali e torce. Producono anch'esse ombre nette.
+
+**Multi-sample spot + soft radius:** con `shadow_samples: 16` e `soft_radius: 0.15` il motore campiona un disco di raggio 0.15 m per ogni raggio d'ombra, creando una penombra morbida ed eliminando i fireflies 1/d² in nebbia. Se `soft_radius == 0`, campioni aggiuntivi non hanno effetto — tenere a 1 per efficienza.
 
 Disponibile anche come `type: "spotlight"`.
 
@@ -130,11 +146,14 @@ Disponibile anche come `type: "spotlight"`.
 | `v`              | --          | Secondo vettore lato (dall'angolo)                   |
 | `color`          | --          | Colore della luce                                    |
 | `intensity`      | --          | Moltiplicatore di luminosità                         |
-| `shadow_samples` | --          | Numero di campioni d'ombra (più alto = più morbida)  |
+| `shadow_samples` | `16`        | Numero di campioni d'ombra (più alto = più morbida)  |
+| `soft_radius`    | `0`         | Opzionale. Clampa `distSq` nel termine cosLight/d²  |
 
 Una luce area è un rettangolo piatto che emette luce da tutta la sua superficie. Poiché ha una dimensione fisica, produce **ombre morbide** con una penombra realistica (la transizione graduale dall'ombra alla luce).
 
 Il rettangolo è definito da `corner` e due vettori lato `u` e `v`, proprio come un quad. I quattro vertici sono `corner`, `corner+u`, `corner+u+v` e `corner+v`.
+
+**`soft_radius` per scene con nebbia/medium:** in media partecipanti densi, un campione stratificato sull'area light può cadere quasi tangente al ricevitore, rendendo il termine `cosLight / d²` illimitato. Impostare `soft_radius` a un valore piccolo (es. `0.5`–`2.0`) clampa il denominatore a `max(distSq, r²)`, eliminando questi rari spike. La distanza geometrica non è alterata — solo il denominatore dell'attenuazione.
 
 ### Campioni d'ombra (Shadow Samples)
 
@@ -169,6 +188,7 @@ Le luci area illuminano la scena ma **non sono visibili** come oggetti. Un raggi
   color: [1, 0.95, 0.85]
   intensity: 30.0
   shadow_samples: 12
+  soft_radius: 0.0               # Opzionale. Si applica solo al path dentro-la-sfera.
 ```
 
 | Parametro        | Predefinito | Descrizione                             |
@@ -177,11 +197,12 @@ Le luci area illuminano la scena ma **non sono visibili** come oggetti. Un raggi
 | `radius`         | --          | Raggio della sfera luminosa             |
 | `color`          | --          | Colore della luce                       |
 | `intensity`      | --          | Moltiplicatore di luminosità            |
-| `shadow_samples` | --          | Numero di campioni d'ombra              |
+| `shadow_samples` | `16`        | Numero di campioni d'ombra              |
+| `soft_radius`    | `0`         | Opzionale (solo fallback dentro-la-sfera)|
 
 Una luce sferica è come una luce area, ma di forma sferica. Produce ombre morbide con una penombra circolare e crea riflessi perfettamente rotondi (catchlights) nelle superfici riflettenti.
 
-Le luci sferiche utilizzano il **campionamento dell'angolo solido**, che è da 2 a 10 volte più efficiente rispetto a una sfera emissiva equivalente per luci piccole o distanti. Preferisci le luci sferiche alle sfere emissive quando la sorgente luminosa è l'illuminazione principale della scena.
+Le luci sferiche utilizzano il **campionamento dell'angolo solido**, che è da 2 a 10 volte più efficiente rispetto a una sfera emissiva equivalente per luci piccole o distanti. Preferisci le luci sferiche alle sfere emissive quando la sorgente luminosa è l'illuminazione principale della scena. Il path di campionamento a cono (caso normale, osservatore fuori dalla sfera) sussume tutti i fattori geometrici nel pdf — non ha bisogno di `soft_radius`.
 
 Come le luci area, le luci sferiche sono **invisibili** per la fotocamera.
 
@@ -493,13 +514,17 @@ Questa scena pone cinque sfere identiche in fila. Ognuna è illuminata principal
 ## Cosa si è imparato
 
 - Le luci **Point** irradiano da un punto (decadimento con l'inverso del quadrato, ombre nette).
-- Le luci **Directional** inviano raggi paralleli (nessun decadimento, ombre nette).
-- Le luci **Spot** emettono un cono con controllo degli angoli interno ed esterno.
-- Le luci **Area** sono rettangoli che producono ombre morbide; la qualità è controllata da `shadow_samples`.
+- Le luci **Directional** inviano raggi paralleli (nessun decadimento, ombre nette per default). Usa `angular_radius: 0.27` per un disco solare realistico.
+- Le luci **Spot** emettono un cono con controllo degli angoli interno ed esterno. Usa `soft_radius` + `shadow_samples > 1` per penombra morbida in nebbia.
+- Le luci **Area** sono rettangoli che producono ombre morbide; la qualità è controllata da `shadow_samples`. Usa `soft_radius` per prevenire spike in media densi.
 - Le luci **Sphere** producono ombre morbide con riflessi circolari.
 - Le **entità emissive** diventano automaticamente luci geometriche -- visibili e campionate per l'illuminazione diretta.
 - Il flag CLI `-S` sovrascrive globalmente i campioni d'ombra per prove veloci.
 - Lo **schema a tre punti** (chiave, riempimento, contorno) è un punto di partenza affidabile per ogni scena.
+- **Controlli firefly:**
+  - `soft_radius` su qualsiasi tipo di luce → clampa il denominatore dell'attenuazione
+  - `--indirect-clamp-factor 0.25` → clamp più stretto sui bounce ≥ 1
+  - `--light-sampling power` → sceglie una luce per evento NEE ∝ `ApproximatePower` (convergenza più rapida in scene multi-luce)
 
 ---
 

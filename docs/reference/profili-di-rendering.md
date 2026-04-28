@@ -36,6 +36,8 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 | `-d` / `--depth` | `8` | `Program.cs` |
 | `-S` / `--shadow-samples` | non impostato → valore YAML per-luce | `Program.cs` |
 | `-C` / `--clamp` | `100` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
+| `--indirect-clamp-factor` | `1.0` (nessuna soppressione aggiuntiva) | `Renderer.DefaultIndirectClampFactor` |
+| `--light-sampling` | `all` (somma su tutte le luci) | `LightSamplingStrategy.All` |
 | `--sampler` | `sobol` (Owen scramble) | `Program.cs` / `Sampler.SetKind` |
 | `--mis` | `balance` (balance heuristic Veach) | `Program.cs` / `MisHeuristic` |
 
@@ -103,6 +105,36 @@ I campioni pixel (`-s`) e i campioni d'ombra (`-S`) riducono entrambi il rumore 
 
 Il clamp usa **scaling con preservazione della luminanza**, quindi non altera la tinta sui highlight luminosi — solo la luminosità.
 
+#### **6a. Clamp indiretto depth-aware (`--indirect-clamp-factor`)**
+
+Un secondo clamp opzionale riduce la soppressione specificamente sui **bounce indiretti** (depth ≥ 1), replicando la feature "indirect clamp" di Cycles e Arnold.
+
+```
+--indirect-clamp-factor 0.25
+```
+
+Questo moltiplica la soglia `-C` per tutti i contributi indiretti. Con il default `1.0` il clamp indiretto è uguale al clamp primario — nessuna differenza. Con `0.25` e `-C 100` il clamp indiretto è 25: la radianza dei bounce profondi è limitata a 25, quella primaria a 100.
+
+**Quando usarlo:** catene caustic/speculare che sopravvivono al `-C` primario perché ogni singolo bounce è sotto 100, ma il prodotto sale. Prova `0.25` come prima mossa; scendi fino a `0.1` per scene molto volumetriche con vetro.
+
+**Default `1.0`** mantiene la backward compatibility — le scene esistenti non vengono modificate senza opt-in.
+
+#### **6b. Light importance sampling (`--light-sampling`)**
+
+```
+--light-sampling power
+```
+
+Seleziona come il renderer sceglie quale luce interrogare per ogni evento NEE:
+
+| Valore | Comportamento | Quando usarlo |
+|---|---|---|
+| `all` | Somma su tutte le luci (originale) | **Default** — sicuro, backward compat |
+| `power` | Campiona una luce ∝ `ApproximatePower` | Scene con molte luci di luminosità mista |
+| `uniform` | Campiona una luce uniformemente | Debug / baseline di confronto con `power` |
+
+Con `all` il renderer lancia `ShadowSamples` raggi d'ombra per luce per shading point — O(N·S). Con `power` o `uniform` li lancia per una sola luce e divide per la probabilità di campionamento per restare unbiased — O(S). In una scena con 1 area light intensa + 20 point light deboli, `power` converge notevolmente più in fretta.
+
 ---
 
 ### 7. **TIP PRATICI**
@@ -141,6 +173,10 @@ Il clamp usa **scaling con preservazione della luminanza**, quindi non altera la
   `0.10`–`0.25`): il denominatore viene clampato a `max(d², r²)`, lo spike
   sparisce, e a `d ≥ r` il look è invariato. Default `0` = nessun clamp
   (comportamento originale). Vedi `riferimento-scene.md` §8.
+- **`soft_radius` su luci area/sphere dentro un medium.** Il termine `cosLight/d²`
+  dello stimatore area può divergere ad angoli radenti in media densi. Imposta
+  `soft_radius` anche su area e sphere light (es. `0.5`–`2.0`). Combinato con
+  `--indirect-clamp-factor 0.25`, copre tutti i principali percorsi firefly.
 - **Non alzare `-d` per la nebbia.** Il path volumetrico è già gestito
   correttamente a `-d 6–8`. Più rimbalzi nella nebbia = più costo, non più
   realismo (la Russian Roulette termina comunque i cammini).

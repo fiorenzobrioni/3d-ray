@@ -205,6 +205,9 @@ g: 0.6
 - **Tip rendering:** `homogeneous` e `height_fog` sono analitici ed economici. `procedural` e `grid` usano delta tracking e sono più rumorosi — alza `-s` a 400/576/1024 e mantieni `-d 6-8`. Per scene con nebbia densa considera `-C 25`. Vedi [Profili di Rendering](./profili-di-rendering.md) §8 per la guida completa.
 - **Effetti:** Luci spot → god-ray visibili; point light → aloni; directional → aerial perspective (con `height_fog`).
 - **Fireflies con point/spot in nebbia:** l'attenuazione 1/d² diverge quando un evento di scattering cade vicino a un emettitore puntiforme/spot, producendo pixel isolati luminosi. Imposta `soft_radius` su quelle luci (vedi §8.1, §8.3) a un valore vicino al raggio fisico del bulbo (es. `0.15`–`0.30`).
+- **Fireflies con area/sphere in nebbia:** il termine `cosLight/d²` nel stimatore area può divergere ad angoli radenti in media densi. Imposta `soft_radius` su area e sphere light (vedi §8.4, §8.5). Considera anche `--indirect-clamp-factor 0.25` (CLI) per sopprimere aggressivamente gli spike nei bounce profondi.
+- **Controllo avanzato firefly:** `--indirect-clamp-factor <f>` (default `1.0` = disabilitato) moltiplica la soglia `--clamp` per tutti i bounce indiretti. Es. `--clamp 100 --indirect-clamp-factor 0.25` usa clamp=25 a depth ≥ 1 — stile Cycles/Arnold "indirect clamp".
+- **Light importance sampling:** `--light-sampling power` (default `all`) campiona una sola luce per evento NEE con probabilità ∝ `ApproximatePower`. Riduce drasticamente la varianza in scene con molte luci di luminosità mista. Usa `uniform` come baseline di confronto.
 
 ---
 
@@ -861,8 +864,12 @@ entities:
                                           # Sole posizionato in -direction.
   color: [1.0, 0.98, 0.92]
   intensity: 0.8                           # Range: 0.05–2.0
+  angular_radius: 0.0                      # Opzionale. >0 = disco solare (ombre morbide).
+                                          #   0.27 = disco solare reale. Default: 0.
 ```
 - Nessuna attenuazione con la distanza
+- Allineare con la direzione `sun.direction` del cielo a gradiente per coerenza visiva
+- `angular_radius` (default `0`): quando > 0, modella un disco di dimensione angolare finita. Ogni raggio d'ombra viene perturbato uniformemente all'interno del cono subteso, producendo una penombra morbida. Il sole reale sottende circa 0.27°. Quando attivo, `shadow_samples` default diventa 16 e `IsDelta` diventa `false`, abilitando il pesaggio MIS completo.
 
 #### **8.3 Spot Light (Cono)**
 ```yaml
@@ -874,8 +881,10 @@ entities:
   inner_angle: 15                         # Gradi (piena luminosità)
   outer_angle: 30                         # Gradi (zona di sfumatura)
   soft_radius: 0.0                        # Opzionale. >0 = "disco virtuale", niente fireflies 1/d²
+  shadow_samples: 1                       # Default 1. >1 + soft_radius > 0 → sorgente jitterata
 ```
 - `soft_radius` (default `0`): stesso ruolo della point light — clampa il denominatore a `max(d², r²)`. Fortemente raccomandato per spot che illuminano un medium partecipante (nebbia, foschia, fumo): in questi casi il picco 1/d² agli eventi di scattering vicino all'emettitore è la principale sorgente di fireflies. Valori tipici: `0.10`–`0.30` per un bulbo da lampione.
+- `shadow_samples` (default `1`): quando > 1 E `soft_radius > 0`, ogni raggio d'ombra jitterizza la posizione della sorgente su un disco di raggio `soft_radius` perpendicolare a `direction`, modellando l'estensione fisica del bulbo. Se `soft_radius == 0`, campioni aggiuntivi non hanno effetto (nessun jitter di posizione) — tenerlo a 1 per efficienza.
 
 #### **8.4 Area Light (Ombre Morbide)**
 ```yaml
@@ -886,8 +895,11 @@ entities:
   color: [1.0, 0.97, 0.9]
   intensity: 35.0                          # Range: 15–60
   shadow_samples: 16                       # Campioni per punto
+  soft_radius: 0.0                         # Opzionale. >0 = floor distSq in cosLight/d²
 ```
 - Ombre morbide Monte Carlo con penombra
+- `shadow_samples` sovrascrivibile via CLI: `-S 32`
+- `soft_radius` (default `0`): quando > 0, il denominatore dell'attenuazione viene clampato a `max(distSq, r²)`, impedendo al termine `cosLight/d²` di divergere quando un campione stratificato cade quasi tangente al ricevitore nei media volumetrici densi. La distanza geometrica restituita è invariata. Consigliato per area light che illuminano media partecipanti densi (es. pannello a soffitto in nebbia).
 
 #### **8.5 Sphere Light (Ombre Morbide Isotropiche)**
 ```yaml
@@ -897,7 +909,11 @@ entities:
   color: [1.0, 0.95, 0.85]
   intensity: 30.0
   shadow_samples: 16
+  soft_radius: 0.0                         # Opzionale. Applicato solo al fallback dentro-la-sfera.
 ```
+- Campionamento ad angolo solido (efficiente, nessun campione sprecato)
+- Penombra circolare isotropica
+- `soft_radius` (default `0`): il path di campionamento a cono (caso normale, osservatore fuori dalla sfera) sussume tutti i fattori geometrici nel pdf — non ha bisogno di soft-radius. Il campo è accettato per coerenza API e si applica solo al path degenere dentro-la-sfera.
 
 #### **Riferimento Calibrazione Luci:**
 | Tipo | Range | Note |

@@ -331,6 +331,9 @@ public sealed class Lathe : IHittable, ISamplable
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
         => SampleImpl(MathUtils.RandomFloat(), MathUtils.RandomFloat(), MathUtils.RandomFloat());
 
+    /// <inheritdoc/>
+    public float SurfaceArea => _totalArea;
+
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
     {
         float inv = 1f / sqrtSamples;

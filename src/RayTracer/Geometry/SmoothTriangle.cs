@@ -199,6 +199,9 @@ public class SmoothTriangle : IHittable, ISamplable
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
         => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
 
+    /// <inheritdoc/>
+    public float SurfaceArea => _area;
+
     /// <summary>
     /// Stratified version — uses the same unit-square-to-triangle warp as
     /// <see cref="Triangle.SampleStratified"/>.

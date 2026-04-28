@@ -313,6 +313,10 @@ public class Torus : IHittable, ISamplable
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
         => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
 
+    /// <inheritdoc/>
+    // Surface area of a torus: 4π²Rr  (MajorRadius = R, MinorRadius = r)
+    public float SurfaceArea => 4f * MathF.PI * MathF.PI * MajorRadius * MinorRadius;
+
     /// <summary>
     /// Stratified version: jitters (φ, u_θ) on a sqrtSamples×sqrtSamples grid.
     /// φ is uniform; u_θ is fed into the CDF inversion to produce

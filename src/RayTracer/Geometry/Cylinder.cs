@@ -150,6 +150,10 @@ public class Cylinder : IHittable, ISamplable
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
         => SampleImpl(MathUtils.RandomFloat(), MathUtils.RandomFloat(), MathUtils.RandomFloat());
 
+    /// <inheritdoc/>
+    // Lateral surface (2πRH) + two circular caps (2 × πR²)
+    public float SurfaceArea => 2f * MathF.PI * Radius * Height + 2f * MathF.PI * Radius * Radius;
+
     /// <summary>
     /// Stratified version: three random numbers are taken from a jittered
     /// <c>sqrtSamples × sqrtSamples</c> grid in (θ, h) or (r², θ) space

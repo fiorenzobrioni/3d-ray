@@ -29,6 +29,11 @@ public class Transform : IHittable, ISamplable
     // Used in Sample() to convert object-space area to world-space area.
     private readonly float _absDetM;
 
+    // Cached average |M⁻ᵀ · n̂| over the three canonical axis normals.
+    // Used by SurfaceArea as a fast representative for the surface-element Jacobian.
+    // Since _normalMatrix is constant after construction, we precompute this once.
+    private readonly float _avgNormalLen;
+
     // Cached world-space AABB. Computed once at construction since both the
     // wrapped object's bbox and the matrix are immutable. Avoids the 8-corner
     // re-projection on every BVH build/sort comparison (called O(N log N) times
@@ -68,6 +73,11 @@ public class Transform : IHittable, ISamplable
             matrix.M12 * (matrix.M21 * matrix.M33 - matrix.M23 * matrix.M31) +
             matrix.M13 * (matrix.M21 * matrix.M32 - matrix.M22 * matrix.M31);
         _absDetM = MathF.Abs(det3x3);
+
+        float nx = Vector3.TransformNormal(Vector3.UnitX, _normalMatrix).Length();
+        float ny = Vector3.TransformNormal(Vector3.UnitY, _normalMatrix).Length();
+        float nz = Vector3.TransformNormal(Vector3.UnitZ, _normalMatrix).Length();
+        _avgNormalLen = (nx + ny + nz) / 3f;
 
         _worldBox = ComputeWorldBox(_object.BoundingBox(), _transform);
     }
@@ -159,6 +169,29 @@ public class Transform : IHittable, ISamplable
     // implement ISamplable. SceneLoader never registers such a Transform as a
     // GeometryLight, so this path should never be reached in practice.
     // ─────────────────────────────────────────────────────────────────────────
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Deterministic approximation: uses the average of the three axis-aligned
+    /// normal scalings as a representative value for <c>|M⁻ᵀ · n̂|</c>.
+    /// For a uniform scale <c>S</c> this is exact (= <c>1/S</c>), giving
+    /// <c>worldArea = objArea × S³ × 1/S = objArea × S²</c>.
+    /// For non-uniform scaling it is an approximation used only by the
+    /// power-weighted light-importance-sampling heuristic, where accuracy is
+    /// not critical.
+    /// </remarks>
+    public float SurfaceArea
+    {
+        get
+        {
+            if (_object is not ISamplable inner) return 0f;
+            float innerArea = inner.SurfaceArea;
+            // _avgNormalLen is the precomputed average |M⁻ᵀ · n̂| over the three
+            // canonical axis normals — a representative of the surface-element
+            // Jacobian. Computed once at construction since _normalMatrix is immutable.
+            return innerArea * _absDetM * _avgNormalLen;
+        }
+    }
 
     /// <inheritdoc/>
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()

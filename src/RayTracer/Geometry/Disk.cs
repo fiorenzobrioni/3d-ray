@@ -67,6 +67,9 @@ public class Disk : IHittable, ISamplable
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
         => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
 
+    /// <inheritdoc/>
+    public float SurfaceArea => MathF.PI * Radius * Radius;
+
     /// <summary>
     /// Stratified version: jitters (r², θ) independently on a
     /// <c>sqrtSamples × sqrtSamples</c> grid. Using r² rather than r

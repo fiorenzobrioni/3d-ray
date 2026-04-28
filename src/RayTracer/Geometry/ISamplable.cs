@@ -39,4 +39,17 @@ public interface ISamplable
     /// <param name="sqrtSamples">Side length of the stratification grid.</param>
     (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
         => Sample();
+
+    /// <summary>
+    /// Total surface area of the geometry, computed deterministically without
+    /// consuming the PRNG. Used by <see cref="RayTracer.Lights.GeometryLight"/>
+    /// during scene construction so that repeated scene loads with the same
+    /// input always yield an identical per-pixel random sequence.
+    ///
+    /// The default implementation returns the <c>Area</c> field from a
+    /// <see cref="Sample"/> call. Implementations should override this with a
+    /// closed-form formula (e.g. 4πR² for a sphere) to make it truly
+    /// PRNG-free.
+    /// </summary>
+    float SurfaceArea => Sample().Area;
 }

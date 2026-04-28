@@ -68,6 +68,9 @@ public class Quad : IHittable, ISamplable
         return true;
     }
 
+    /// <inheritdoc/>
+    public float SurfaceArea => Vector3.Cross(U, V).Length();
+
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         float u = MathUtils.RandomFloat();

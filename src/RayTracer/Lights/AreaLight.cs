@@ -36,6 +36,17 @@ public class AreaLight : ILight
     public Vector3 Color { get; }
     public float Intensity { get; }
 
+    /// <summary>
+    /// Optional "virtual disc" radius used to soften the cosLight/d² singularity
+    /// in the area-sampling estimator. When &gt; 0 the attenuation denominator
+    /// is clamped: <c>distSq = max(distSq, softRadius²)</c>. This prevents
+    /// unbounded variance when a stratified sample on the emitter falls nearly
+    /// tangent to the receiver (common in dense volumetric media).
+    /// 0 = unclamped, identical to pre-existing behaviour.
+    /// See <see cref="PointLight.SoftRadius"/> for the same pattern on delta lights.
+    /// </summary>
+    public float SoftRadius { get; }
+
     /// <inheritdoc/>
     public int ShadowSamples { get; }
 
@@ -50,7 +61,7 @@ public class AreaLight : ILight
     private readonly float _invSqrtSamples;
 
     public AreaLight(Vector3 corner, Vector3 u, Vector3 v, Vector3 color,
-                     float intensity = 20f, int shadowSamples = 16)
+                     float intensity = 20f, int shadowSamples = 16, float softRadius = 0f)
     {
         Corner = corner;
         U = u;
@@ -58,6 +69,7 @@ public class AreaLight : ILight
         Color = color;
         Intensity = intensity;
         ShadowSamples = Math.Max(1, shadowSamples);
+        SoftRadius = MathF.Max(0f, softRadius);
 
         Vector3 cross = Vector3.Cross(U, V);
         _area = cross.Length();
@@ -141,9 +153,17 @@ public class AreaLight : ILight
         // Cosine at the light surface (Lambert emitter — backlit faces emit nothing)
         float cosLight = MathF.Max(0f, Vector3.Dot(-dirToLight, _normal));
 
+        // Soft-radius clamp: floors distSq at SoftRadius² so the cosLight/d²
+        // term cannot diverge when a stratified sample falls nearly tangent to
+        // the receiver (common in dense volumetric media near the emitter).
+        // Geometric distance is returned unchanged — only the attenuation
+        // denominator is clamped. Same pattern as PointLight.SoftRadius.
+        float attenuationDistSq = distSq;
+        if (SoftRadius > 0f) attenuationDistSq = MathF.Max(attenuationDistSq, SoftRadius * SoftRadius);
+
         // Solid-angle based attenuation: Intensity * area * cos(θ) / r²
         // Divided by ShadowSamples so the final summed result has correct energy.
-        float attenuation = Intensity * _area * cosLight / (distSq * ShadowSamples);
+        float attenuation = Intensity * _area * cosLight / (attenuationDistSq * ShadowSamples);
 
         return (false, Color * attenuation, dirToLight, distance);
     }

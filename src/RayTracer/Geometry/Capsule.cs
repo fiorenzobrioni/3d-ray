@@ -209,6 +209,10 @@ public class Capsule : IHittable, ISamplable
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
         => SampleImpl(MathUtils.RandomFloat(), MathUtils.RandomFloat(), MathUtils.RandomFloat());
 
+    /// <inheritdoc/>
+    // Cylinder lateral (2πRH) + full sphere (4πR²)
+    public float SurfaceArea => 2f * MathF.PI * Radius * Height + 4f * MathF.PI * Radius * Radius;
+
     /// <summary>
     /// Stratified version: jitters (θ, h) or (θ, cosφ) on a
     /// <c>sqrtSamples × sqrtSamples</c> grid. The body/hemisphere selection

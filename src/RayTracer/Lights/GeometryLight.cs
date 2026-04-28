@@ -37,8 +37,9 @@ namespace RayTracer.Lights;
 ///   - cosLight guard added to Illuminate() (was only in IlluminateAndTest).
 ///   - EmissionAt() used with the real sample UV and world point (removes the
 ///     former center-texel approximation bias for textured emissives).
-///   - Deterministic Illuminate(): uses an AABB-based centre estimator instead
-///     of a PRNG-driven surface sample, making renderer scene analysis reproducible.
+///   - Deterministic area: uses ISamplable.SurfaceArea (closed-form) instead of
+///     a PRNG-driven Sample() call at construction time, making scene-load
+///     fully reproducible regardless of PRNG state.
 ///   - Stratified sampling: when ShadowSamples > 1, the surface is divided into a
 ///     √N × √N grid (matching AreaLight/SphereLight strategy) for lower noise.
 ///   - Solid-angle cone sampling dispatch for ISolidAngleSamplable geometry.
@@ -50,6 +51,19 @@ public class GeometryLight : ILight
 
     /// <inheritdoc/>
     public int ShadowSamples { get; }
+
+    /// <summary>
+    /// Optional "virtual disc" radius that softens the <c>area·cosLight/d²</c>
+    /// singularity in the area-sampling estimator (<see cref="ComputeAreaSample"/>).
+    /// When &gt; 0, the attenuation denominator is clamped:
+    /// <c>distSq = max(distSq, softRadius²)</c>, preventing unbounded variance
+    /// when a stratified sample nearly grazes the receiver in dense media.
+    /// 0 = unclamped, identical to pre-existing behaviour.
+    /// The solid-angle cone-sampling path (<see cref="ComputeSolidAngleSample"/>)
+    /// does NOT apply this clamp — its pdf_ω estimator subsumes all geometric
+    /// factors and is bounded by construction.
+    /// </summary>
+    public float SoftRadius { get; }
 
     // ── Stratified sampling grid ────────────────────────────────────────────
     private readonly int _sqrtSamples;
@@ -68,21 +82,21 @@ public class GeometryLight : ILight
     // comparable soft-shadow quality without extra YAML tuning.
     public const int DefaultShadowSamples = 16;
 
-    public GeometryLight(ISamplable geometry, Emissive material, int shadowSamples = DefaultShadowSamples)
+    public GeometryLight(ISamplable geometry, Emissive material, int shadowSamples = DefaultShadowSamples, float softRadius = 0f)
     {
         Geometry = geometry;
         Material = material;
         ShadowSamples = Math.Max(1, shadowSamples);
+        SoftRadius = MathF.Max(0f, softRadius);
         _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
 
         // Opt-in to solid-angle cone sampling if the shape supports it.
         _solidAngleSampler = geometry as ISolidAngleSamplable;
 
         // Representative point = AABB centre (if the geometry is an IHittable).
-        // Area = best deterministic estimate we have — one Sample() call at
-        // construction time. This still consumes randomness exactly once per
-        // light during scene construction (not during rendering), which is
-        // stable across frames and tied to scene setup, not shading order.
+        // Area = deterministic closed-form surface area via ISamplable.SurfaceArea.
+        // This replaces the former Sample() call which consumed the PRNG during
+        // scene construction (non-deterministic across runs).
         if (geometry is IHittable hittable)
         {
             var bbox = hittable.BoundingBox();
@@ -93,8 +107,7 @@ public class GeometryLight : ILight
             _representativePoint = Vector3.Zero;
         }
 
-        var (_, _, _, area) = geometry.Sample();
-        _representativeArea = area;
+        _representativeArea = geometry.SurfaceArea;
     }
 
     // Lambertian emissive surface: Φ = π · L · A.
@@ -166,7 +179,13 @@ public class GeometryLight : ILight
             return (true, Vector3.Zero, dirToLight, distance);
 
         Vector3 emissiveColor = Material.EmissionAt(uv.X, uv.Y, samplePoint);
-        float attenuation = area * cosLight / (distSq * ShadowSamples);
+        // Soft-radius clamp: floors distSq at SoftRadius² to prevent the
+        // area·cosLight/d² estimator from diverging when a sample grazes the
+        // receiver (particularly in dense volumetric media). The geometric
+        // distance is returned unchanged — only the attenuation denominator.
+        float attenuationDistSq = distSq;
+        if (SoftRadius > 0f) attenuationDistSq = MathF.Max(attenuationDistSq, SoftRadius * SoftRadius);
+        float attenuation = area * cosLight / (attenuationDistSq * ShadowSamples);
         return (false, emissiveColor * attenuation, dirToLight, distance);
     }
 
