@@ -1,6 +1,7 @@
 using System.Numerics;
 using RayTracer.Core;
 using RayTracer.Geometry;
+using RayTracer.Materials;
 
 namespace RayTracer.Lights;
 
@@ -92,4 +93,17 @@ public interface ILight
     /// directions outside the light's sampling support.
     /// </summary>
     float PdfSolidAngle(Vector3 hitPoint, Vector3 wi) => 0f;
+
+    /// <summary>
+    /// When non-null, the renderer will treat a BSDF-hit emission from this
+    /// material as having been sampled by this light, applying the MIS weight
+    /// <c>p_bsdf / (p_bsdf + p_light)</c> via <see cref="PdfSolidAngle"/>.
+    ///
+    /// Sphere and area lights set this so a smooth specular surface (low-α
+    /// glass, polished metal) does not produce a "dark hole where the light
+    /// should reflect" — the BSDF sample reaches the proxy primitive in the
+    /// world and contributes the same radiance the NEE estimator would,
+    /// closing Veach's MIS estimator. Default = null (no visible proxy).
+    /// </summary>
+    Emissive? ProxyMaterial => null;
 }

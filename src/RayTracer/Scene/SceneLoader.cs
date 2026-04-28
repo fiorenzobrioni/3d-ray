@@ -292,6 +292,20 @@ public class SceneLoader
             }
         }
 
+        // Lights — created BEFORE the BVH so sphere/area lights can append a
+        // visible emissive proxy primitive to `objects`. The proxy makes the
+        // light hittable by BSDF sampling rays (closing Veach's MIS estimator
+        // on smooth-specular materials — see ILight.ProxyMaterial).
+        var lights = new List<ILight>();
+        if (data.Lights != null)
+        {
+            foreach (var l in data.Lights)
+            {
+                var light = CreateLight(l, shadowSamplesOverride, objects);
+                if (light != null) lights.Add(light);
+            }
+        }
+
         Info($"Objects:     {objects.Count:N0}");
 
         // Build BVH — separate infinite planes (no finite AABB) from finite objects.
@@ -332,20 +346,12 @@ public class SceneLoader
             camData.Fov, aspect,
             camData.Aperture, camData.FocalDist);
 
-        // Lights
-        var lights = new List<ILight>();
-        if (data.Lights != null)
-        {
-            foreach (var l in data.Lights)
-            {
-                var light = CreateLight(l, shadowSamplesOverride);
-                if (light != null) lights.Add(light);
-            }
-        }
-
         // Add Emissive Objects as Geometry Lights. The default for geometry
         // lights is aligned with AreaLight/SphereLight (16), so emissive
         // primitives get comparable soft-shadow quality without extra YAML.
+        // Proxy emissives created above are skipped inside
+        // TryGetSamplableEmissive (their parent SphereLight/AreaLight is
+        // already the NEE source).
         ExtractGeometryLights(objects, lights, shadowSamplesOverride ?? GeometryLight.DefaultShadowSamples);
 
         // Add Environment Light if applicable
@@ -714,6 +720,13 @@ public class SceneLoader
 
         switch (mat)
         {
+            // Proxy emissives back a sphere/area light's visible primitive —
+            // they're already registered as the parent ILight in the renderer's
+            // emitter map, so registering them again as a GeometryLight would
+            // double-count NEE on those surfaces.
+            case Emissive { IsLightProxy: true }:
+                return false;
+
             case Emissive em:
                 samplable = s;
                 material = em;
@@ -1708,7 +1721,8 @@ public class SceneLoader
         }
     }
 
-    private static ILight? CreateLight(LightData l, int? shadowSamplesOverride)
+    private static ILight? CreateLight(LightData l, int? shadowSamplesOverride,
+                                        List<IHittable> objects)
     {
         var color = ToVector3(l.Color) ?? Vector3.One;
 
@@ -1734,27 +1748,30 @@ public class SceneLoader
             //   corner: [x, y, z]        # one corner of the rectangle
             //   u:      [x, y, z]        # first edge vector  (e.g. [2,0,0])
             //   v:      [x, y, z]        # second edge vector (e.g. [0,0,2])
-            //   intensity: 40.0          # brightness scalar
+            //   intensity: 40.0          # brightness scalar (radiance, W/m²/sr)
             //   shadow_samples: 16       # per-light default (overridable via CLI -S)
-            //   soft_radius: 0.0         # optional 1/d² singularity floor
+            //   soft_radius: 0.0         # optional 1/d² singularity floor (volumetric only)
             "area" or "area_light" or "rect" or "rect_light"
-                => CreateAreaLight(l, color, shadowSamplesOverride),
+                => CreateAreaLight(l, color, shadowSamplesOverride, objects),
 
             // ── Sphere light ─────────────────────────────────────────────────
             // YAML fields:
             //   position: [x, y, z]      # center of the sphere
-            //   radius:   0.5            # sphere radius (> 0)
-            //   intensity: 30.0          # brightness scalar
+            //   radius:   0.5            # sphere radius (> 0); also defines proxy size
+            //   intensity: 30.0          # brightness scalar (radiance, W/m²/sr)
             //   shadow_samples: 16       # per-light default (overridable via CLI -S)
-            //   soft_radius: 0.0         # optional (used only in inside-sphere fallback)
+            // (soft_radius is intentionally not consumed for sphere lights —
+            //  the solid-angle estimator is bounded by construction.)
             "sphere" or "sphere_light" or "ball" or "ball_light"
-                => CreateSphereLight(l, color, shadowSamplesOverride),
+                => CreateSphereLight(l, color, shadowSamplesOverride, objects),
 
             _ => null
         };
     }
 
-    private static AreaLight? CreateAreaLight(LightData l, Vector3 color, int? shadowSamplesOverride)
+    private static AreaLight? CreateAreaLight(LightData l, Vector3 color,
+                                               int? shadowSamplesOverride,
+                                               List<IHittable> objects)
     {
         var corner = ToVector3(l.Corner);
         var u      = ToVector3(l.U);
@@ -1769,32 +1786,55 @@ public class SceneLoader
         // CLI override takes precedence over per-light YAML value
         int effectiveShadowSamples = shadowSamplesOverride ?? l.ShadowSamples;
 
+        // Visible emissive proxy — Quad with the light's emission as Lambertian
+        // radiance. The proxy's radiance equals the light's `intensity * color`
+        // because the existing area-light estimator
+        //   L_sample = Intensity × area × cosLight / (d² × N)
+        // is the Lambertian-radiance integrand: NEE and the BSDF-sampled hit on
+        // the proxy produce the same total energy, closing Veach's MIS estimator.
+        var proxyMat = new Emissive(color, l.Intensity) { IsLightProxy = true };
+        objects.Add(new Quad(corner.Value, u.Value, v.Value, proxyMat));
+
         return new AreaLight(corner.Value, u.Value, v.Value, color,
-                             l.Intensity, effectiveShadowSamples, l.SoftRadius);
+                             l.Intensity, effectiveShadowSamples, l.SoftRadius,
+                             proxyMat);
     }
 
     private static SphereLight? CreateSphereLight(LightData l, Vector3 color,
-                                                   int? shadowSamplesOverride)
+                                                   int? shadowSamplesOverride,
+                                                   List<IHittable> objects)
     {
         var position = ToVector3(l.Position);
- 
+
         if (position == null)
         {
             Warn("Sphere light requires 'position'. Using default [0, 10, 0].");
             position = new Vector3(0, 10, 0);
         }
- 
+
         if (l.Radius <= 0f)
         {
             Warn($"Sphere light radius must be positive (got {l.Radius:F3}). Using 0.5.");
             l.Radius = 0.5f;
         }
- 
+
         // CLI override takes precedence over per-light YAML value
         int effectiveShadowSamples = shadowSamplesOverride ?? l.ShadowSamples;
- 
+
+        // Visible emissive proxy — Sphere with the light's emission as
+        // Lambertian radiance. The existing solid-angle estimator
+        //   L_sample = Intensity × Ω / N
+        // already treats `intensity` as surface radiance (W/m²/sr) at
+        // convergence: `Intensity × Ω` matches the irradiance at the receiver
+        // from a uniform sphere of that radiance. Setting the proxy's
+        // emission to `color × intensity` therefore gives BSDF-sampled hits
+        // the same energy as NEE — required for MIS to be unbiased.
+        var proxyMat = new Emissive(color, l.Intensity) { IsLightProxy = true };
+        objects.Add(new Sphere(position.Value, l.Radius, proxyMat));
+
         return new SphereLight(position.Value, l.Radius, color,
-                               l.Intensity, effectiveShadowSamples, l.SoftRadius);
+                               l.Intensity, effectiveShadowSamples,
+                               proxyMat);
     }
 
     // =========================================================================

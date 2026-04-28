@@ -205,7 +205,7 @@ g: 0.6
 - **Tip rendering:** `homogeneous` e `height_fog` sono analitici ed economici. `procedural` e `grid` usano delta tracking e sono più rumorosi — alza `-s` a 400/576/1024 e mantieni `-d 6-8`. Per scene con nebbia densa considera `-C 25`. Vedi [Profili di Rendering](./profili-di-rendering.md) §8 per la guida completa.
 - **Effetti:** Luci spot → god-ray visibili; point light → aloni; directional → aerial perspective (con `height_fog`).
 - **Fireflies con point/spot in nebbia:** l'attenuazione 1/d² diverge quando un evento di scattering cade vicino a un emettitore puntiforme/spot, producendo pixel isolati luminosi. Imposta `soft_radius` su quelle luci (vedi §8.1, §8.3) a un valore vicino al raggio fisico del bulbo (es. `0.15`–`0.30`).
-- **Fireflies con area/sphere in nebbia:** il termine `cosLight/d²` nel stimatore area può divergere ad angoli radenti in media densi. Imposta `soft_radius` su area e sphere light (vedi §8.4, §8.5). Considera anche `--indirect-clamp-factor 0.25` (CLI) per sopprimere aggressivamente gli spike nei bounce profondi.
+- **Fireflies con area light in nebbia:** il termine `cosLight/d²` nel stimatore area può divergere ad angoli radenti in media densi. Imposta `soft_radius` sulle area light (vedi §8.4). Le sphere light usano uno stimatore ad angolo solido limitato per costruzione — non serve `soft_radius`. Considera anche `--indirect-clamp-factor 0.25` (CLI) per sopprimere aggressivamente gli spike nei bounce profondi.
 - **Controllo avanzato firefly:** `--indirect-clamp-factor <f>` (default `1.0` = disabilitato) moltiplica la soglia `--clamp` per tutti i bounce indiretti. Es. `--clamp 100 --indirect-clamp-factor 0.25` usa clamp=25 a depth ≥ 1 — stile Cycles/Arnold "indirect clamp".
 - **Light importance sampling:** `--light-sampling power` (default `all`) campiona una sola luce per evento NEE con probabilità ∝ `ApproximatePower`. Riduce drasticamente la varianza in scene con molte luci di luminosità mista. Usa `uniform` come baseline di confronto.
 
@@ -899,21 +899,22 @@ entities:
 ```
 - Ombre morbide Monte Carlo con penombra
 - `shadow_samples` sovrascrivibile via CLI: `-S 32`
+- Visibile alla camera e ai raggi specular tramite un quad emissivo proxy posizionato a `corner`/`u`/`v` — chiude lo stimatore MIS di Veach sui materiali specular smooth. Stesso approccio di Arnold/Cycles/Renderman per le quad light analitiche.
 - `soft_radius` (default `0`): quando > 0, il denominatore dell'attenuazione viene clampato a `max(distSq, r²)`, impedendo al termine `cosLight/d²` di divergere quando un campione stratificato cade quasi tangente al ricevitore nei media volumetrici densi. La distanza geometrica restituita è invariata. Consigliato per area light che illuminano media partecipanti densi (es. pannello a soffitto in nebbia).
 
 #### **8.5 Sphere Light (Ombre Morbide Isotropiche)**
 ```yaml
 - type: "sphere"  # alias: "sphere_light", "ball", "ball_light"
   position: [0, 5, 0]
-  radius: 0.5                              # Più grande = ombre più morbide
+  radius: 0.5                              # Più grande = ombre più morbide; definisce anche la dimensione del proxy
   color: [1.0, 0.95, 0.85]
   intensity: 30.0
   shadow_samples: 16
-  soft_radius: 0.0                         # Opzionale. Applicato solo al fallback dentro-la-sfera.
 ```
 - Campionamento ad angolo solido (efficiente, nessun campione sprecato)
 - Penombra circolare isotropica
-- `soft_radius` (default `0`): il path di campionamento a cono (caso normale, osservatore fuori dalla sfera) sussume tutti i fattori geometrici nel pdf — non ha bisogno di soft-radius. Il campo è accettato per coerenza API e si applica solo al path degenere dentro-la-sfera.
+- Visibile alla camera e ai raggi specular tramite una sfera emissiva proxy gestita internamente, alla stessa posizione/raggio — chiude lo stimatore MIS di Veach sui materiali specular smooth (niente "buco nero" dove la luce dovrebbe riflettersi su vetri/specchi). Stesso approccio di Arnold/Cycles/Renderman per le sphere light analitiche.
+- `soft_radius` è deliberatamente **non** consumato: lo stimatore ad angolo solido `L = Intensity × Ω / N` è limitato superiormente da `4π · Intensity` anche quando il ricevitore è dentro la sfera, quindi il floor 1/d² usato da point/spot/area è qui inutile.
 
 #### **Riferimento Calibrazione Luci:**
 | Tipo | Range | Note |

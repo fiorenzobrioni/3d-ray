@@ -173,9 +173,18 @@ RayTracer -i scena.yaml -s 16 -S 4      # Prova veloce con bassa qualità d'ombr
 RayTracer -i scena.yaml -s 256 -S 16    # Rendering finale con ombre morbide
 ```
 
-### Importante: Le luci Area sono invisibili
+### Nota: Le luci Area sono visibili (proxy gestito internamente)
 
-Le luci area illuminano la scena ma **non sono visibili** come oggetti. Un raggio che colpisce il rettangolo della luce non vede una superficie luminosa -- attraversa. Se si vuole un pannello luminoso visibile, usare un quad emissivo (vedi Sezione 6.7).
+Le luci area sono visibili alla camera e ai raggi specular: il loader
+costruisce un quad emissivo proxy alla stessa `corner`/`u`/`v` e lo
+collega all'area light, così i sample BSDF che colpiscono il rettangolo
+contribuiscono la stessa radianza che NEE assegnerebbe — chiudendo lo
+stimatore MIS di Veach sui materiali specular smooth. Stesso approccio
+di Arnold, Cycles e Renderman per le quad light analitiche.
+
+Puoi comunque aggiungere un quad emissivo separato se vuoi un pannello
+di forma personalizzata (vedi Sezione 6.7); si somma al proxy interno
+senza conflitti.
 
 ---
 
@@ -188,23 +197,23 @@ Le luci area illuminano la scena ma **non sono visibili** come oggetti. Un raggi
   color: [1, 0.95, 0.85]
   intensity: 30.0
   shadow_samples: 12
-  soft_radius: 0.0               # Opzionale. Si applica solo al path dentro-la-sfera.
 ```
 
 | Parametro        | Predefinito | Descrizione                             |
 |------------------|-------------|-----------------------------------------|
 | `position`       | --          | Centro della sfera                      |
-| `radius`         | --          | Raggio della sfera luminosa             |
+| `radius`         | --          | Raggio della sfera luminosa; definisce anche la dimensione del proxy |
 | `color`          | --          | Colore della luce                       |
 | `intensity`      | --          | Moltiplicatore di luminosità            |
 | `shadow_samples` | `16`        | Numero di campioni d'ombra              |
-| `soft_radius`    | `0`         | Opzionale (solo fallback dentro-la-sfera)|
 
 Una luce sferica è come una luce area, ma di forma sferica. Produce ombre morbide con una penombra circolare e crea riflessi perfettamente rotondi (catchlights) nelle superfici riflettenti.
 
-Le luci sferiche utilizzano il **campionamento dell'angolo solido**, che è da 2 a 10 volte più efficiente rispetto a una sfera emissiva equivalente per luci piccole o distanti. Preferisci le luci sferiche alle sfere emissive quando la sorgente luminosa è l'illuminazione principale della scena. Il path di campionamento a cono (caso normale, osservatore fuori dalla sfera) sussume tutti i fattori geometrici nel pdf — non ha bisogno di `soft_radius`.
+Le luci sferiche utilizzano il **campionamento dell'angolo solido**, che è da 2 a 10 volte più efficiente rispetto a una sfera emissiva equivalente per luci piccole o distanti. Preferisci le luci sferiche alle sfere emissive quando la sorgente luminosa è l'illuminazione principale della scena.
 
-Come le luci area, le luci sferiche sono **invisibili** per la fotocamera.
+Le luci sferiche sono **visibili** alla camera e ai raggi specular: una sfera emissiva proxy gestita internamente, alla stessa posizione/raggio, supporta la luce analitica e chiude lo stimatore MIS di Veach. I vetri lisci e i metalli lucidati nella scena riflettono ora la luce correttamente (invece di mostrare un buco scuro nella direzione di mirror). Stesso approccio di Arnold/Cycles/Renderman per le sphere light analitiche.
+
+Le luci sferiche ignorano deliberatamente `soft_radius`: lo stimatore ad angolo solido `L = Intensity × Ω / N` è limitato superiormente da `4π · Intensity` anche quando il ricevitore è dentro la sfera, quindi il floor 1/d² usato dalle point/spot/area è qui inutile.
 
 ---
 
@@ -233,13 +242,13 @@ entities:
 
 | Caratteristica                | Luce Geometrica      | Luce Esplicita (area/sphere) |
 |-------------------------------|----------------------|------------------------------|
-| Visibile in camera            | Sì                   | No                           |
-| Visibile nei riflessi         | Sì                   | No                           |
+| Visibile in camera            | Sì                   | Sì (tramite proxy interno)   |
+| Visibile nei riflessi         | Sì                   | Sì (tramite proxy interno)   |
 | Illuminazione diretta (NEE)   | Sì (automatico)      | Sì                           |
 | Ombre morbide                 | Sì                   | Sì                           |
-| Efficienza                    | Buona                | Leggermente migliore         |
+| Efficienza di campionamento   | Buona                | Leggermente migliore (analitica) |
 
-Usare le luci geometriche quando la sorgente luminosa deve essere **vista** (insegne al neon, flussi di lava, sfere incandescenti, lampadine). Usare le luci esplicite quando si vuole una sorgente luminosa invisibile (softbox fuori campo, luci di riempimento).
+Usare le luci geometriche quando la sorgente deve essere un emettitore di **forma personalizzata** (insegne al neon, flussi di lava, tubi luminosi, mesh irregolari). Usare le luci `area`/`sphere` esplicite per emettitori canonici rettangolari/sferici — campionano in modo più efficiente e si vedono comunque in camera e nei riflessi specular.
 
 Il motore supporta le luci geometriche su qualsiasi primitiva campionabile: sfere, quad, dischi, box, cilindri, coni, tori, capsule, annuli e mesh.
 
@@ -517,12 +526,13 @@ Questa scena pone cinque sfere identiche in fila. Ognuna è illuminata principal
 - Le luci **Directional** inviano raggi paralleli (nessun decadimento, ombre nette per default). Usa `angular_radius: 0.27` per un disco solare realistico.
 - Le luci **Spot** emettono un cono con controllo degli angoli interno ed esterno. Usa `soft_radius` + `shadow_samples > 1` per penombra morbida in nebbia.
 - Le luci **Area** sono rettangoli che producono ombre morbide; la qualità è controllata da `shadow_samples`. Usa `soft_radius` per prevenire spike in media densi.
-- Le luci **Sphere** producono ombre morbide con riflessi circolari.
+- Le luci **Sphere** producono ombre morbide con riflessi circolari e usano lo stimatore ad angolo solido limitato (non serve `soft_radius`).
 - Le **entità emissive** diventano automaticamente luci geometriche -- visibili e campionate per l'illuminazione diretta.
+- Le luci `area` e `sphere` sono inoltre visibili alla camera e ai raggi specular tramite un proxy emissivo gestito internamente — parità Veach-MIS con Arnold/Cycles.
 - Il flag CLI `-S` sovrascrive globalmente i campioni d'ombra per prove veloci.
 - Lo **schema a tre punti** (chiave, riempimento, contorno) è un punto di partenza affidabile per ogni scena.
 - **Controlli firefly:**
-  - `soft_radius` su qualsiasi tipo di luce → clampa il denominatore dell'attenuazione
+  - `soft_radius` su luci point/spot/area → clampa il denominatore dell'attenuazione
   - `--indirect-clamp-factor 0.25` → clamp più stretto sui bounce ≥ 1
   - `--light-sampling power` → sceglie una luce per evento NEE ∝ `ApproximatePower` (convergenza più rapida in scene multi-luce)
 

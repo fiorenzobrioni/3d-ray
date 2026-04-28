@@ -174,10 +174,12 @@ characteristics.
   denominator is clamped to `max(d², r²)`, the spike is removed, and the look
   at `d ≥ r` is unchanged. Default `0` = unclamped (original behaviour). See
   `scene-reference.md` §8.
-- **`soft_radius` on area/sphere lights inside a medium.** The `cosLight/d²`
-  area estimator can diverge at grazing angles in dense media. Set `soft_radius`
-  on area and sphere lights too (e.g. `0.5`–`2.0`). Combined with
-  `--indirect-clamp-factor 0.25`, this covers all major firefly paths.
+- **`soft_radius` on area lights inside a medium.** The `cosLight/d²`
+  area estimator can diverge at grazing angles in dense media. Set
+  `soft_radius` on area lights (e.g. `0.5`–`2.0`). Sphere lights use a
+  solid-angle estimator that is bounded by construction and do not
+  consume `soft_radius`. Combined with `--indirect-clamp-factor 0.25`,
+  this covers all major firefly paths.
 - **Do not raise `-d` for the fog.** The volumetric path is already handled
   correctly at `-d 6–8`. More bounces in the fog = more cost, not more
   realism (Russian Roulette terminates the walks anyway).

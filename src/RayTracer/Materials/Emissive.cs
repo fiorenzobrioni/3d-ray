@@ -26,6 +26,19 @@ public class Emissive : IMaterial
     public ITexture Albedo { get; }
     public float Intensity { get; }
 
+    /// <summary>
+    /// True when this material backs a visible proxy primitive that exists
+    /// solely to make a non-geometric <see cref="Lights.ILight"/>
+    /// (sphere/area light) hittable by BSDF sampling rays — see
+    /// <see cref="Lights.ILight.ProxyMaterial"/>. The scene loader skips
+    /// proxy emissives in <c>ExtractGeometryLights</c> so the underlying
+    /// <c>ILight</c> stays the single NEE source for that emitter (no
+    /// double-counting); the renderer instead binds the proxy material to
+    /// its parent light via <c>_emitterToLight</c> so MIS can weight a
+    /// BSDF-hit emission against the light's own <c>PdfSolidAngle</c>.
+    /// </summary>
+    public bool IsLightProxy { get; init; }
+
     public Emissive(Vector3 color, float intensity = 1f)
     {
         Albedo = new SolidColor(color);

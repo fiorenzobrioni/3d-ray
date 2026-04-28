@@ -161,10 +161,14 @@ engine and registered as a **geometry light** for Next Event Estimation
 (NEE). This means the engine actively samples these surfaces when
 computing direct illumination -- just like explicit light sources.
 
-The difference from explicit lights (area, sphere, point) is that
-emissive entities are **visible** in the scene: they appear in
-reflections, refractions, and behind glass. An explicit area light is
-invisible -- it illuminates the scene but has no visible form.
+Explicit `area` and `sphere` lights are now also visible via an
+internally-managed emissive proxy (Arnold/Cycles parity), so the choice
+between free emissives and explicit lights is mostly about shape: use
+an explicit light when the emitter is a canonical rectangle or sphere
+(it samples more efficiently); use a free emissive material when you
+want a custom shape or texture-driven emission. `point`/`spot`/
+`directional` lights remain delta — they have no visible geometry by
+construction.
 
 Use emissive materials for light panels, glowing orbs, neon signs, lava,
 fire, and anything that should both emit light and be seen.

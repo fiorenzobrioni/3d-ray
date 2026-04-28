@@ -1,6 +1,7 @@
 using System.Numerics;
 using RayTracer.Core;
 using RayTracer.Geometry;
+using RayTracer.Materials;
 
 namespace RayTracer.Lights;
 
@@ -50,6 +51,9 @@ public class AreaLight : ILight
     /// <inheritdoc/>
     public int ShadowSamples { get; }
 
+    /// <inheritdoc/>
+    public Emissive? ProxyMaterial { get; }
+
     private readonly Vector3 _normal;
     private readonly float _area;
 
@@ -61,7 +65,8 @@ public class AreaLight : ILight
     private readonly float _invSqrtSamples;
 
     public AreaLight(Vector3 corner, Vector3 u, Vector3 v, Vector3 color,
-                     float intensity = 20f, int shadowSamples = 16, float softRadius = 0f)
+                     float intensity = 20f, int shadowSamples = 16, float softRadius = 0f,
+                     Emissive? proxyMaterial = null)
     {
         Corner = corner;
         U = u;
@@ -70,6 +75,7 @@ public class AreaLight : ILight
         Intensity = intensity;
         ShadowSamples = Math.Max(1, shadowSamples);
         SoftRadius = MathF.Max(0f, softRadius);
+        ProxyMaterial = proxyMaterial;
 
         Vector3 cross = Vector3.Cross(U, V);
         _area = cross.Length();
@@ -135,6 +141,14 @@ public class AreaLight : ILight
         float distance = MathF.Sqrt(distSq);
         Vector3 dirToLight = toLight / distance;
 
+        // Cosine at the light surface (Lambert emitter — backlit faces emit
+        // nothing). Cheap test, run BEFORE the shadow BVH walk so a receiver
+        // sitting under the rect's plane doesn't fire ShadowSamples wasted
+        // rays per shading point.
+        float cosLight = MathF.Max(0f, Vector3.Dot(-dirToLight, _normal));
+        if (cosLight <= 0f)
+            return (false, Vector3.Zero, dirToLight, distance);
+
         // Shadow test with normal-based origin.
         // tMax is computed from shadowOrigin (not hitPoint) so the OffsetOrigin
         // shift does not cancel the Epsilon margin when dirToLight aligns with
@@ -148,10 +162,6 @@ public class AreaLight : ILight
 
         if (inShadow)
             return (true, Vector3.Zero, dirToLight, distance);
-
-        // Compute illumination from this sample point
-        // Cosine at the light surface (Lambert emitter — backlit faces emit nothing)
-        float cosLight = MathF.Max(0f, Vector3.Dot(-dirToLight, _normal));
 
         // Soft-radius clamp: floors distSq at SoftRadius² so the cosLight/d²
         // term cannot diverge when a stratified sample falls nearly tangent to

@@ -232,12 +232,18 @@ RayTracer -i scene.yaml -s 16 -S 4      # Fast draft with low shadow quality
 RayTracer -i scene.yaml -s 256 -S 16    # Final render with smooth shadows
 ```
 
-### Important: Area Lights Are Invisible
+### Note: Area Lights Are Visible (Internally-Managed Proxy)
 
-Area lights illuminate the scene but are **not visible** as objects. A
-ray that hits the light rectangle does not see a glowing surface -- it
-passes through. If you want a visible light panel, use an emissive quad
-(see Section 6.7).
+Area lights are now visible to the camera and to specular rays: the
+loader builds an emissive quad proxy at the same `corner`/`u`/`v` and
+binds it to the area light so BSDF samples that hit the rectangle
+contribute the same radiance NEE would assign — closing Veach's MIS
+estimator on smooth-specular materials. This matches how Arnold,
+Cycles and Renderman handle analytic quad lights.
+
+You can still drop a separate emissive quad of your own if you want a
+custom-shaped panel (see Section 6.7); it stacks on top of the
+internal proxy without conflict.
 
 ---
 
@@ -250,17 +256,15 @@ passes through. If you want a visible light panel, use an emissive quad
   color: [1, 0.95, 0.85]
   intensity: 30.0
   shadow_samples: 12
-  soft_radius: 0.0               # Optional. Applies only in inside-sphere fallback.
 ```
 
 | Parameter        | Default | Description                             |
 |------------------|---------|-----------------------------------------|
 | `position`       | --      | Center of the sphere                    |
-| `radius`         | --      | Radius of the light sphere              |
+| `radius`         | --      | Radius of the light sphere; also defines proxy size |
 | `color`          | --      | Light color                             |
 | `intensity`      | --      | Brightness multiplier                   |
 | `shadow_samples` | `16`    | Number of shadow samples                |
-| `soft_radius`    | `0`     | Optional (inside-sphere fallback only)  |
 
 A sphere light is like an area light, but spherical. It produces soft
 shadows with a circular penumbra and creates perfectly round highlights
@@ -271,12 +275,17 @@ efficient than the equivalent emissive sphere for small or distant
 lights. Prefer sphere lights over emissive spheres when the light source
 is the main illumination in the scene.
 
-The solid-angle cone-sampling path (the normal case, observer outside
-the sphere) subsumes the geometric distance factors in the pdf — it does
-not need a soft-radius guard. `soft_radius` is accepted for API
-consistency and applied only in the degenerate inside-sphere case.
+Sphere lights are **visible** to the camera and to specular rays: an
+internally-managed emissive sphere proxy at the same position/radius
+backs the analytic light, closing Veach's MIS estimator so smooth glass
+or polished metal balls in the scene reflect the light correctly
+(rather than showing a dark hole at the mirror direction). Same pattern
+as Arnold/Cycles/Renderman analytic sphere lights.
 
-Like area lights, sphere lights are **invisible** to the camera.
+Sphere lights deliberately ignore `soft_radius`: the solid-angle
+estimator `L = Intensity × Ω / N` is bounded by `4π · Intensity` even
+when the receiver is inside the sphere, so the 1/d² floor used by
+point/spot/area lights is unnecessary here.
 
 ---
 
@@ -307,15 +316,17 @@ entities:
 
 | Feature                       | Geometry Light       | Explicit Light (area/sphere) |
 |-------------------------------|----------------------|------------------------------|
-| Visible in camera             | Yes                  | No                           |
-| Visible in reflections        | Yes                  | No                           |
+| Visible in camera             | Yes                  | Yes (via internal proxy)     |
+| Visible in reflections        | Yes                  | Yes (via internal proxy)     |
 | Direct illumination (NEE)     | Yes (automatic)      | Yes                          |
 | Soft shadows                  | Yes                  | Yes                          |
-| Efficiency                    | Good                 | Slightly better              |
+| Sampling efficiency           | Good                 | Slightly better (analytic)   |
 
-Use geometry lights when the light source should be **seen** (neon
-signs, lava flows, glowing orbs, light bulbs). Use explicit lights when
-you want an invisible light source (off-screen softboxes, fill lights).
+Use geometry lights when the light source must be a **custom-shaped**
+emitter (neon signs, lava flows, light tubes, irregular meshes). Use
+explicit `area`/`sphere` lights for canonical rectangular/spherical
+emitters — they sample more efficiently while still showing up in
+camera and specular reflections.
 
 The engine supports geometry lights on any samplable primitive: spheres,
 quads, disks, boxes, cylinders, cones, tori, capsules, annuli, and
@@ -627,14 +638,18 @@ quality, highlight shape, and falloff behavior side by side.
 - **Area** lights are rectangles that produce soft shadows; quality
   controlled by `shadow_samples`. Use `soft_radius` to prevent spikes in
   dense media.
-- **Sphere** lights produce soft shadows with circular highlights.
+- **Sphere** lights produce soft shadows with circular highlights and
+  use the bounded solid-angle estimator (no `soft_radius` needed).
 - **Emissive entities** automatically become geometry lights -- visible
   and sampled for direct illumination.
+- `area` and `sphere` lights are also visible to camera and specular
+  rays via an internally-managed emissive proxy primitive — Veach-MIS
+  parity with Arnold/Cycles.
 - The `-S` CLI flag overrides shadow samples globally for fast drafts.
 - The **three-point setup** (key, fill, rim) is a reliable starting
   point for any scene.
 - **Firefly controls:**
-  - `soft_radius` on any light type → floors the attenuation denominator
+  - `soft_radius` on point/spot/area lights → floors the attenuation denominator
   - `--indirect-clamp-factor 0.25` → tighter clamp on bounce ≥ 1
   - `--light-sampling power` → pick one light ∝ `ApproximatePower` (faster convergence in multi-light scenes)
 

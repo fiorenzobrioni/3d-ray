@@ -126,11 +126,17 @@ public class SpotLight : ILight
         if (cosAngle < CosOuterAngle)
             return (true, Vector3.Zero, dirToLight, distance);
 
-        // Shadow test with normal-based origin
+        // Shadow test with normal-based origin. tMax is computed from
+        // shadowOrigin (not hitPoint) so the OffsetOrigin shift does not
+        // cancel the Epsilon margin when dirToLight aligns with the surface
+        // normal — same pattern as AreaLight/SphereLight/GeometryLight, kept
+        // in sync so future visible proxies (point/spot bulbs) don't
+        // self-intersect.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight);
         var rec = new HitRecord();
-        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon, ref rec);
+        float shadowTMax = (sourcePos - shadowOrigin).Length() - MathUtils.Epsilon;
+        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, shadowTMax, ref rec);
 
         if (inShadow)
             return (true, Vector3.Zero, dirToLight, distance);

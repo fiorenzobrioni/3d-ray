@@ -701,11 +701,15 @@ public class LightData
     public float Radius { get; set; } = 0.5f;
 
     /// <summary>
-    /// Optional virtual-disc radius for <c>point</c>/<c>spot</c>/<c>area</c>/
-    /// <c>sphere</c> lights that softens the 1/d² (or cosLight/d²) singularity.
-    /// 0 = unclamped, identical to pre-existing behaviour. Recommended values
+    /// Optional virtual-disc radius for <c>point</c>/<c>spot</c>/<c>area</c>
+    /// lights that softens the 1/d² (or cosLight/d²) singularity. 0 =
+    /// unclamped, identical to pre-existing behaviour. Recommended values
     /// approximate the physical emitter size (e.g. 0.05–0.2 for a streetlamp,
     /// 0.5–1.0 for a large area panel in dense fog).
+    /// <para>
+    /// Sphere lights deliberately ignore this knob: their solid-angle
+    /// estimator is bounded by construction and needs no floor.
+    /// </para>
     /// </summary>
     [YamlMember(Alias = "soft_radius")]
     public float SoftRadius { get; set; } = 0f;

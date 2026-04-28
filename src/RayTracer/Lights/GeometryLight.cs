@@ -219,10 +219,12 @@ public class GeometryLight : ILight
         Vector3 dirToLight = toLight / distance;
 
         // Cone sampling should produce only front-facing hits by construction,
-        // but keep a guard for the interior-observer fallback (full-sphere uniform).
-        float cosLight = Vector3.Dot(-dirToLight, lightNormal);
+        // but the interior-observer fallback can land on the back hemisphere.
+        // Aligned with AreaLight pattern: report zero contribution rather than
+        // occlusion so MIS sees a consistent estimator across light types.
+        float cosLight = MathF.Max(0f, Vector3.Dot(-dirToLight, lightNormal));
         if (cosLight <= 0f)
-            return (true, Vector3.Zero, dirToLight, distance);
+            return (false, Vector3.Zero, dirToLight, distance);
 
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight);
