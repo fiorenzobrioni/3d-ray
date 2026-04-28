@@ -6,7 +6,7 @@ Un moderno motore di ray tracing ad alte prestazioni sviluppato in C# e .NET 10,
 
 > **English Description:** *A modern, parallelized ray-tracing engine built with C# and .NET 10, featuring YAML scene configuration and advanced physically-based rendering capabilities.*
 
-![Sphere Showcase](renders/sphere-showcase.png)
+![Chess](renders/chess.png)
 
 ---
 
