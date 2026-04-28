@@ -36,6 +36,8 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 | `-d` / `--depth` | `8` | `Program.cs` |
 | `-S` / `--shadow-samples` | unset → per-light YAML value | `Program.cs` |
 | `-C` / `--clamp` | `100` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
+| `--indirect-clamp-factor` | `1.0` (no extra suppression) | `Renderer.DefaultIndirectClampFactor` |
+| `--light-sampling` | `all` (sum over every light) | `LightSamplingStrategy.All` |
 | `--sampler` | `sobol` (Owen-scrambled) | `Program.cs` / `Sampler.SetKind` |
 | `--mis` | `balance` (Veach balance heuristic) | `Program.cs` / `MisHeuristic` |
 
@@ -103,6 +105,36 @@ Pixel samples (`-s`) and shadow samples (`-S`) both reduce shadow noise. Prefer 
 
 The clamp uses **luminance-preserving scaling**, so it does not shift hue on bright highlights — only brightness.
 
+#### **6a. Depth-aware indirect clamp (`--indirect-clamp-factor`)**
+
+A second, optional clamp tightens suppression specifically on **indirect bounces** (depth ≥ 1), mirroring the "indirect clamp" feature in Cycles and Arnold.
+
+```
+--indirect-clamp-factor 0.25
+```
+
+This multiplies the primary `-C` threshold for all indirect contributions. With the default `1.0` the indirect clamp equals the primary clamp — no change. With `0.25` and `-C 100` the indirect clamp is 25: deep bounce radiance is capped at 25, primary radiance at 100.
+
+**When to use it:** caustic/specular chains that survive the primary `-C` because individual bounces are below 100 but compound. Try `0.25` first; go as low as `0.1` for heavily volumetric scenes with glass.
+
+**Default `1.0`** preserves backward compatibility — existing scenes are unaffected unless you opt in.
+
+#### **6b. Light importance sampling (`--light-sampling`)**
+
+```
+--light-sampling power
+```
+
+Selects how the renderer chooses which light to query per NEE event:
+
+| Value | Behaviour | When to use |
+|---|---|---|
+| `all` | Sum over every light (original) | **Default** — always safe, backward compat |
+| `power` | Sample one light ∝ `ApproximatePower` | Scenes with many lights of mixed brightness |
+| `uniform` | Sample one light uniformly | Debug / baseline comparison against `power` |
+
+With `all` the renderer fires `ShadowSamples` shadow rays per light per shading point — O(N·S). With `power` or `uniform` it fires shadow rays for one light, then divides by the sampling probability to remain unbiased — O(S). In a scene with 1 bright area light + 20 dim point lights, `power` converges substantially faster.
+
 ---
 
 ### 7. **PRACTICAL TIPS**
@@ -142,6 +174,10 @@ characteristics.
   denominator is clamped to `max(d², r²)`, the spike is removed, and the look
   at `d ≥ r` is unchanged. Default `0` = unclamped (original behaviour). See
   `scene-reference.md` §8.
+- **`soft_radius` on area/sphere lights inside a medium.** The `cosLight/d²`
+  area estimator can diverge at grazing angles in dense media. Set `soft_radius`
+  on area and sphere lights too (e.g. `0.5`–`2.0`). Combined with
+  `--indirect-clamp-factor 0.25`, this covers all major firefly paths.
 - **Do not raise `-d` for the fog.** The volumetric path is already handled
   correctly at `-d 6–8`. More bounces in the fog = more cost, not more
   realism (Russian Roulette terminates the walks anyway).

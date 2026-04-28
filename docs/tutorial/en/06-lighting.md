@@ -94,13 +94,15 @@ behaviour).
   direction: [-0.5, -1, 0.3]
   color: [1, 0.98, 0.92]
   intensity: 3.0
+  angular_radius: 0.0            # Optional. 0.27 = real Sun disc (soft shadows)
 ```
 
-| Parameter   | Default | Description                              |
-|-------------|---------|------------------------------------------|
-| `direction` | --      | Direction *toward* the scene (from light)|
-| `color`     | --      | Light color                              |
-| `intensity` | --      | Brightness multiplier                    |
+| Parameter        | Default | Description                              |
+|------------------|---------|------------------------------------------|
+| `direction`      | --      | Direction *toward* the scene (from light)|
+| `color`          | --      | Light color                              |
+| `intensity`      | --      | Brightness multiplier                    |
+| `angular_radius` | `0`     | Optional angular disc radius (degrees). 0 = hard shadows |
 
 A directional light sends parallel rays -- all traveling in the same
 direction. It has no position (think of it as infinitely far away) and
@@ -110,7 +112,20 @@ The `direction` vector points **from the light toward the scene**, not
 from the scene toward the light. `[-0.5, -1, 0.3]` means light comes
 from the upper-left, slightly behind the camera.
 
-Like point lights, directional lights produce **hard shadows**.
+Like point lights, directional lights produce **hard shadows** by default.
+
+**Sun disc (`angular_radius`):** when set > 0, the renderer perturbs each shadow
+ray within a cone of the given half-angle, producing a realistic soft penumbra. The
+default `shadow_samples` is automatically raised to 16 when the disc is active.
+The real Sun subtends approximately 0.27°.
+
+```yaml
+- type: "sun"
+  direction: [-0.5, -1, 0.3]
+  color: [1.0, 0.95, 0.80]
+  intensity: 2.0
+  angular_radius: 0.27    # Realistic solar disc — soft penumbra
+```
 
 Also available as `type: "sun"`.
 
@@ -126,17 +141,19 @@ Also available as `type: "sun"`.
   intensity: 50.0
   inner_angle: 15
   outer_angle: 30
+  shadow_samples: 1              # >1 + soft_radius > 0 → jittered source
 ```
 
-| Parameter     | Default | Description                                       |
-|---------------|---------|---------------------------------------------------|
-| `position`    | --      | Location in world space                           |
-| `direction`   | --      | Direction the spot is aimed                       |
-| `color`       | --      | Light color                                       |
-| `intensity`   | --      | Brightness multiplier                             |
-| `inner_angle` | `15`    | Half-angle of the full-intensity cone (degrees)   |
-| `outer_angle` | `30`    | Half-angle of the zero-intensity cone (degrees)   |
-| `soft_radius` | `0`     | Optional. Same role as on point lights — strongly recommended for spotlights inside a fog/medium |
+| Parameter        | Default | Description                                       |
+|------------------|---------|---------------------------------------------------|
+| `position`       | --      | Location in world space                           |
+| `direction`      | --      | Direction the spot is aimed                       |
+| `color`          | --      | Light color                                       |
+| `intensity`      | --      | Brightness multiplier                             |
+| `inner_angle`    | `15`    | Half-angle of the full-intensity cone (degrees)   |
+| `outer_angle`    | `30`    | Half-angle of the zero-intensity cone (degrees)   |
+| `soft_radius`    | `0`     | Optional. Same role as on point lights — strongly recommended for spotlights inside a fog/medium |
+| `shadow_samples` | `1`     | >1 + `soft_radius > 0` → jittered source for soft penumbra in fog |
 
 A spot light emits from a point in a cone. Inside the inner cone the
 light is at full intensity. Between the inner and outer cones it
@@ -145,6 +162,12 @@ no light.
 
 Spot lights are ideal for theatrical effects, museum displays, and
 flashlights. They also produce hard shadows.
+
+**Multi-sample spot + soft radius:** setting `shadow_samples: 16` and
+`soft_radius: 0.15` models a small bulb of radius 0.15 m and samples its
+disc for each shadow query, creating a soft penumbra and eliminating
+1/d² fireflies in fog. If `soft_radius == 0`, extra shadow samples have
+no effect — leave it at 1 for efficiency.
 
 Also available as `type: "spotlight"`.
 
@@ -160,6 +183,7 @@ Also available as `type: "spotlight"`.
   color: [1, 0.97, 0.93]
   intensity: 35.0
   shadow_samples: 16
+  soft_radius: 0.0               # Optional. >0 = floor distSq in cosLight/d²
 ```
 
 | Parameter        | Default | Description                                |
@@ -169,7 +193,8 @@ Also available as `type: "spotlight"`.
 | `v`              | --      | Second edge vector (from corner)           |
 | `color`          | --      | Light color                                |
 | `intensity`      | --      | Brightness multiplier                      |
-| `shadow_samples` | --      | Number of shadow samples (higher = softer) |
+| `shadow_samples` | `16`    | Number of shadow samples (higher = softer) |
+| `soft_radius`    | `0`     | Optional. Clamps `distSq` in the cosLight/d² estimator |
 
 An area light is a flat rectangle that emits light from its entire
 surface. Because it has physical size, it produces **soft shadows** with
@@ -178,6 +203,13 @@ realistic penumbra (the gradual transition from shadow to light).
 The rectangle is defined by `corner` and two edge vectors `u` and `v`,
 just like a quad. The four vertices are `corner`, `corner+u`,
 `corner+u+v`, and `corner+v`.
+
+**`soft_radius` for fog/medium scenes:** in dense participating media, a
+stratified sample on the area light can land nearly tangent to the receiver,
+making the `cosLight / d²` attenuation unbounded. Setting `soft_radius` to
+a small value (e.g. `0.5`–`2.0`) clamps the denominator at `max(distSq, r²)`,
+eliminating these rare spikes. The geometric distance is not changed — only
+the attenuation denominator. At distances `d ≥ r` the result is identical.
 
 ### Shadow Samples
 
@@ -218,6 +250,7 @@ passes through. If you want a visible light panel, use an emissive quad
   color: [1, 0.95, 0.85]
   intensity: 30.0
   shadow_samples: 12
+  soft_radius: 0.0               # Optional. Applies only in inside-sphere fallback.
 ```
 
 | Parameter        | Default | Description                             |
@@ -226,7 +259,8 @@ passes through. If you want a visible light panel, use an emissive quad
 | `radius`         | --      | Radius of the light sphere              |
 | `color`          | --      | Light color                             |
 | `intensity`      | --      | Brightness multiplier                   |
-| `shadow_samples` | --      | Number of shadow samples                |
+| `shadow_samples` | `16`    | Number of shadow samples                |
+| `soft_radius`    | `0`     | Optional (inside-sphere fallback only)  |
 
 A sphere light is like an area light, but spherical. It produces soft
 shadows with a circular penumbra and creates perfectly round highlights
@@ -236,6 +270,11 @@ Sphere lights use **solid-angle sampling**, which is 2--10 times more
 efficient than the equivalent emissive sphere for small or distant
 lights. Prefer sphere lights over emissive spheres when the light source
 is the main illumination in the scene.
+
+The solid-angle cone-sampling path (the normal case, observer outside
+the sphere) subsumes the geometric distance factors in the pdf — it does
+not need a soft-radius guard. `soft_radius` is accepted for API
+consistency and applied only in the degenerate inside-sphere case.
 
 Like area lights, sphere lights are **invisible** to the camera.
 
@@ -580,16 +619,24 @@ quality, highlight shape, and falloff behavior side by side.
 
 - **Point** lights radiate from a point (inverse-square falloff, hard
   shadows).
-- **Directional** lights send parallel rays (no falloff, hard shadows).
-- **Spot** lights emit a cone with inner/outer angle control.
+- **Directional** lights send parallel rays (no falloff, hard shadows by
+  default). Use `angular_radius: 0.27` for a realistic solar disc with soft
+  shadows.
+- **Spot** lights emit a cone with inner/outer angle control. Use
+  `soft_radius` + `shadow_samples > 1` for soft penumbra in fog.
 - **Area** lights are rectangles that produce soft shadows; quality
-  controlled by `shadow_samples`.
+  controlled by `shadow_samples`. Use `soft_radius` to prevent spikes in
+  dense media.
 - **Sphere** lights produce soft shadows with circular highlights.
 - **Emissive entities** automatically become geometry lights -- visible
   and sampled for direct illumination.
 - The `-S` CLI flag overrides shadow samples globally for fast drafts.
 - The **three-point setup** (key, fill, rim) is a reliable starting
   point for any scene.
+- **Firefly controls:**
+  - `soft_radius` on any light type → floors the attenuation denominator
+  - `--indirect-clamp-factor 0.25` → tighter clamp on bounce ≥ 1
+  - `--light-sampling power` → pick one light ∝ `ApproximatePower` (faster convergence in multi-light scenes)
 
 ---
 

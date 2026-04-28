@@ -71,6 +71,15 @@ Parallel over pixels; per pixel does `√N × √N` stratified samples. `TraceRa
 ### Lights and NEE
 `ILight` has point/directional/spot/area/sphere implementations under `Lights/`. Additionally, any geometry with an `Emissive` material becomes a `GeometryLight` and joins the NEE pool automatically; the environment (gradient sky or HDRI) also participates in NEE as a directional sampler.
 
+**Light Hardening (see DEVLOG §Ciclo Light Hardening):**
+- `SoftRadius` on all light types: floors the attenuation denominator `max(distSq, r²)` to prevent 1/d² divergence in volumetric media.
+- `DirectionalLight.AngularRadiusDeg`: sun disc with cone-sampling shadow rays (0.27° = real Sun). `IsDelta = false` when active; `ShadowSamples` defaults to 16.
+- `SpotLight.ShadowSamples + SoftRadius`: disc-jittered shadow rays model bulb size in fog.
+- `AreaLight.SoftRadius` / `GeometryLight.SoftRadius`: floor the `cosLight/d²` area estimator denominator.
+- `LightDistribution`: power-weighted CDF for NEE single-light picking. Built once in `Renderer` constructor. CLI: `--light-sampling power|uniform|all`.
+- Indirect firefly clamp: `_indirectMaxSampleRadiance = _maxSampleRadiance × indirectClampFactor`. Applied in `ShadeSurface` and `ShadeSampleBounce`. CLI: `--indirect-clamp-factor` (default 1.0 = no extra suppression).
+- `ISamplable.SurfaceArea`: deterministic closed-form area property on all 12 geometry classes. Replaces the PRNG-consuming `Sample()` call in `GeometryLight` constructor.
+
 ### Geometry, CSG, Groups
 `Geometry/IHittable.cs` is the core interface. `CsgObject` implements Union/Intersection/Subtraction via interval classification (see `docs/technical/csg-boolean-operations.md`) and is nestable. `Group` is a scene-graph node that inherits transforms down to children and builds its own internal BVH above 4 children. `Transform` wraps any `IHittable` with scale→rotate→translate and caches its world-space AABB.
 
@@ -83,7 +92,7 @@ The test suite asserts **algorithmic equivalence against a reference implementat
 ## Conventions
 
 - YAML keys use `underscore_case` (YamlDotNet `UnderscoredNamingConvention`).
-- CLI: lowercase short flags are the common overrides (`-s`, `-d`, `-c`, `-w`, `-o`, `-i`); uppercase are "advanced overrides" (`-H` height because `-h` is help, `-S` shadow samples, `-C` clamp).
+- CLI: lowercase short flags are the common overrides (`-s`, `-d`, `-c`, `-w`, `-o`, `-i`); uppercase are "advanced overrides" (`-H` height because `-h` is help, `-S` shadow samples, `-C` clamp). New long-only flags: `--indirect-clamp-factor`, `--light-sampling`.
 - Default output path when `-o` is omitted: `renders/render-<scene-stem>.png`.
 - Output image format is picked from the `-o` extension (`.png`/`.jpg`/`.jpeg`/`.bmp`); unknown → PNG.
 

@@ -394,6 +394,77 @@ Questo RNG è usato ovunque nel renderer per decisioni stocastiche: direzioni BS
 
 ---
 
+## 💡 Ciclo Light Hardening
+
+**Data:** 2026-04
+
+### Motivazione
+Review completa del sistema di sorgenti luminose in `src/RayTracer/Lights/` con focus sull'eliminazione dei firefly. Tutti i 7 punti identificati dalla review sono stati implementati in un singolo ciclo.
+
+### Modifiche effettuate
+
+**1. SoftRadius su AreaLight / SphereLight / GeometryLight**
+- Aggiunto parametro `softRadius` (default `0f` = backward compat) ai costruttori di `AreaLight`, `SphereLight`, `GeometryLight`.
+- `AreaLight`: applica `distSq = max(distSq, r²)` nel denominatore `cosLight / d²`.
+- `GeometryLight`: stesso clamp nel path area-sampling (`ComputeAreaSample`).
+- `SphereLight`: accetta il parametro per coerenza API; il solid-angle path (normale) non ne ha bisogno, subsuming già il termine 1/d² nel pdf cone.
+- YAML: `soft_radius` su tutti e tre i tipi.
+
+**2. Depth-aware indirect firefly clamp**
+- Nuovo campo `_indirectMaxSampleRadiance = _maxSampleRadiance × indirectClampFactor`.
+- `ClampRadianceIndirect()`: versione di `ClampRadiance` con soglia più bassa per i bounce indiretti.
+- Applicato in `ShadeSurface` (path Scatter legacy) e `ShadeSampleBounce` (path Sample MIS).
+- CLI: `--indirect-clamp-factor <f>` (default `1.0` = no extra clamp, backward compat).
+- Stile Cycles/Arnold: `--clamp 100 --indirect-clamp-factor 0.25` → clamp=25 su depth ≥ 1.
+
+**3. Light Importance Sampling (power-based picking)**
+- Nuovo `Lights/LightDistribution.cs`: CDF su `ILight.ApproximatePower(sceneBounds)`. Fallback a distribuzione uniforme se `totalPower == 0`.
+- `LightSamplingStrategy` enum: `All` (default) / `Power` / `Uniform`.
+- Renderer: costruisce `LightDistribution` una sola volta (O(N) setup). Loop NEE aggiornato con estimatore single-light `contribution / pPick` e MIS con `pNee = pPick × pLightSample`.
+- CLI: `--light-sampling <all|power|uniform>`.
+
+**4. Sun disc su DirectionalLight**
+- Parametro `angularRadiusDeg` (default `0f` = hard shadows, backward compat).
+- Uniform cone sampling (PBRT §6.2.3) con base ONB Frisvad (stesso di SphereLight).
+- `IsDelta = false` quando attivo; `PdfSolidAngle = 1/Ω` per direzioni nel cono.
+- `ShadowSamples` default auto: 1 se delta, 16 se disco attivo.
+- YAML: `angular_radius` (gradi) su `directional`/`sun`.
+- Valore reale Sole: `angular_radius: 0.27`.
+
+**5. ShadowSamples configurabile su SpotLight**
+- Parametro `shadowSamples` (default `1` = backward compat).
+- Nuovo `IlluminateAndTestStratified`: jitter del punto sorgente entro un disco di raggio `softRadius` quando `softRadius > 0 && shadowSamples > 1`.
+- Se `softRadius == 0`, campioni aggiuntivi non hanno effetto (degenera al caso singolo).
+- YAML: `shadow_samples` su `spot`.
+
+**6. Eliminato PRNG dal costruttore di GeometryLight**
+- Aggiunto `float SurfaceArea { get; }` a `ISamplable` (default: `Sample().Area` per backward compat).
+- Implementato con formule chiuse su tutte le geometrie: Sphere (4πR²), Triangle (½|cross|), SmoothTriangle, Quad (|U×V|), Mesh (_totalArea), Disk (πR²), Cylinder (2πRH+2πR²), Cone (π(R+r)·slant+caps), Torus (4π²Rr), Capsule, Box (6), Lathe (_totalArea), Transform (approssimazione con avgNormalLen).
+- `GeometryLight` usa `geometry.SurfaceArea` invece di `geometry.Sample()`.
+- Risultato: scene-load 100% deterministico, sequenza PRNG per-pixel riproducibile.
+
+**7. Test di regressione firefly**
+- Nuova scena `scenes/tests/firefly-stress.yaml`: sphere light vicina al piano, medium omogeneo denso (σ_s=2), depth=8.
+- `FireflyRegressionTests.cs` (xUnit): 5 nuovi test.
+  - `FireflyStress_SpikePixelCount_WithinThreshold`: render 64×64/16SPP, conta pixel near-saturati.
+  - `AreaLight_SoftRadius_ZeroIsIdentical`: backward compat.
+  - `ISamplable_SurfaceArea_IsDeterministic`: 100 chiamate identiche, no PRNG.
+  - `LightDistribution_Power_SumsToOne`: sum pdf = 1, ordinamento per potenza.
+  - `DirectionalLight_DiscMode_IsNotDelta`: IsDelta=false, PdfSolidAngle > 0 on-axis.
+
+### Backward compatibility
+Tutti i nuovi parametri hanno default che preservano il comportamento precedente:
+- `softRadius: 0` → nessun clamp.
+- `angularRadiusDeg: 0` → ombre nette.
+- `shadowSamples: 1` su SpotLight → singolo sample.
+- `indirectClampFactor: 1.0` → clamp indiretto = clamp primario.
+- `lightSampling: All` → somma su tutte le luci.
+
+### Test suite
+Prima: 141 test. Dopo: 146 test (5 nuovi). Tutti verdi.
+
+---
+
 ## 🧪 Checklist Verifiche (Testing)
 
 Procedure da eseguire prima di ogni commit importante.

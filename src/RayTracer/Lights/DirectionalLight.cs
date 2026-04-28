@@ -168,7 +168,7 @@ public class DirectionalLight : ILight
     public float PdfSolidAngle(Vector3 hitPoint, Vector3 wi)
     {
         if (AngularRadiusDeg <= 0f) return 0f;  // delta — no pdf
-        if (_solidAngle < MathUtils.Epsilon)     return 0f;
+        if (_solidAngle <= 0f)     return 0f;
 
         float wiLen = wi.Length();
         if (wiLen < MathUtils.Epsilon) return 0f;

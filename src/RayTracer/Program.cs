@@ -168,7 +168,10 @@ class Program
         if (clampOverride.HasValue)
             Console.WriteLine($"  Clamp:       {clampOverride.Value} (override)");
         if (indirectClampFactor != Renderer.DefaultIndirectClampFactor)
-            Console.WriteLine($"  Indir.clamp: ×{indirectClampFactor:F2} ({clampOverride ?? Renderer.DefaultMaxSampleRadiance * indirectClampFactor:F1} effective)");
+        {
+            float baseClamp = clampOverride ?? Renderer.DefaultMaxSampleRadiance;
+            Console.WriteLine($"  Indir.clamp: ×{indirectClampFactor:F2} ({baseClamp * indirectClampFactor:F1} effective)");
+        }
         if (cameraSelector != null)
             Console.WriteLine($"  Camera:      {cameraSelector}");
         Console.WriteLine($"  Sampler:     {samplerKind.ToString().ToLowerInvariant()}");

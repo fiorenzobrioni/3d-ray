@@ -197,6 +197,9 @@ g: 0.6
 - **Rendering tip:** `homogeneous` and `height_fog` are analytic and cheap. `procedural` and `grid` use delta tracking and are noisier — raise `-s` to 400/576/1024 and keep `-d 6-8`. For dense-fog scenes consider `-C 25`. See [Rendering Profiles](./rendering-profiles.md) §8 for the full guide.
 - **Effects:** Spot lights → visible god-rays; point lights → halos; directional → aerial perspective (with `height_fog`).
 - **Fireflies with point/spot in fog:** the 1/d² attenuation diverges when scattering events land near a point/spot emitter, producing isolated bright pixels. Set `soft_radius` on those lights (see §8.1, §8.3) to a value approximating the physical bulb size (e.g. `0.15`–`0.30`).
+- **Fireflies with area/sphere lights in fog:** the `cosLight/d²` term in the area estimator can diverge at grazing angles in dense media. Set `soft_radius` on area and sphere lights (see §8.4, §8.5). Also consider `--indirect-clamp-factor 0.25` (CLI) to aggressively suppress deep-bounce spikes.
+- **Advanced firefly control:** `--indirect-clamp-factor <f>` (default `1.0` = off) multiplies the primary `--clamp` threshold for all indirect bounces. E.g. `--clamp 100 --indirect-clamp-factor 0.25` uses clamp=25 on bounce depth ≥ 1 — same as Cycles/Arnold "indirect clamp".
+- **Light importance sampling:** `--light-sampling power` (default `all`) samples one light per NEE event with probability ∝ `ApproximatePower`. Dramatically reduces variance in scenes with many lights of mixed brightness (e.g. 1 area + 10 dim point lights). Use `uniform` as a reference baseline.
 ---
 ### 4. **CAMERA SECTION**
 #### **Multi-Camera** (recommended):
@@ -819,10 +822,13 @@ entities:
                                           # Sun is at -direction.
   color: [1.0, 0.98, 0.92]
   intensity: 0.8                           # Range: 0.05–2.0
+  angular_radius: 0.0                      # Optional. >0 = sun disc (soft shadows).
+                                          #   0.27 = real solar disc. Default: 0.
 ```
 - No distance attenuation
 - Align with gradient sky `sun.direction` for visual coherence
 - Good for outdoor key light
+- `angular_radius` (default `0`): when > 0 the light models a disc of finite angular size. Each shadow ray is perturbed uniformly within the subtended cone, producing a soft penumbra. The real Sun is approximately 0.27°. When active, `shadow_samples` defaults to 16 and `IsDelta` becomes `false`, enabling full MIS weighting. Hard-shadow backward compatibility is preserved at the default 0.
 #### **8.3 Spot Light (Cone)**
 ```yaml
 - type: "spot"  # alias: "spotlight"
@@ -833,11 +839,13 @@ entities:
   inner_angle: 15                         # Degrees (full brightness)
   outer_angle: 30                         # Degrees (fade zone)
   soft_radius: 0.0                        # Optional. >0 = "virtual disc" emitter, no 1/d² fireflies
+  shadow_samples: 1                       # Default 1. >1 enables jittered source for soft shadows.
 ```
 - Quadratic falloff
 - Smooth falloff between inner/outer cones
 - Good for dramatic lighting, accent lights
 - `soft_radius` (default `0`): same role as on point lights — clamps the attenuation denominator to `max(d², r²)`. Strongly recommended for spotlights illuminating a participating medium (fog, mist, smoke), where the 1/d² spike at scattering events near the emitter is the dominant firefly source. Typical values: `0.10`–`0.30` for a streetlamp-sized bulb.
+- `shadow_samples` (default `1`): when > 1 AND `soft_radius > 0`, each shadow sample jitters the source within a disc of radius `soft_radius` perpendicular to `direction`, modelling the physical bulb extent. Produces soft penumbra in fog. If `soft_radius == 0`, extra samples are redundant (no position jitter) — keep at 1 for efficiency.
 #### **8.4 Area Light (Soft Shadows)**
 ```yaml
 - type: "area"  # aliases: "area_light", "rect", "rect_light"
@@ -847,11 +855,13 @@ entities:
   color: [1.0, 0.97, 0.9]
   intensity: 35.0                          # Range: 15–60
   shadow_samples: 16                       # Samples per point
+  soft_radius: 0.0                         # Optional. >0 = floor distSq in cosLight/d²
 ```
 - Monte Carlo soft shadows with penumbra
 - `shadow_samples` overridable via CLI: `-S 32`
 - Defines a physical rectangle in space
 - Great for ceiling panels, windows
+- `soft_radius` (default `0`): when > 0, the attenuation denominator is clamped to `max(distSq, r²)`, preventing the `cosLight/d²` term from diverging when a stratified sample falls nearly tangent to the receiver in dense volumetric media. The returned geometric distance is unchanged. Recommended for area lights illuminating a dense participating medium (e.g. a ceiling panel in fog).
 #### **8.5 Sphere Light (Isotropic Soft Shadows)**
 ```yaml
 - type: "sphere"  # aliases: "sphere_light", "ball", "ball_light"
@@ -860,11 +870,13 @@ entities:
   color: [1.0, 0.95, 0.85]
   intensity: 30.0
   shadow_samples: 16
+  soft_radius: 0.0                         # Optional. Used only in inside-sphere fallback.
 ```
 - Solid-angle sampling (efficient, no wasted samples)
 - Isotropic penumbra (circular shadows)
 - Better than emissive sphere for sampling efficiency
 - Small sphere + emissive sphere co-located = best of both worlds
+- `soft_radius` (default `0`): the solid-angle cone path (normal case, observer outside sphere) subsumes all geometric factors and does not need a soft-radius guard. The field is accepted for API consistency and applies only to the degenerate inside-sphere fallback path.
 #### **Light Calibration Reference:**
 | Type | Range | Notes |
 |------|-------|-------|
