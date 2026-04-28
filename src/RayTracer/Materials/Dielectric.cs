@@ -56,7 +56,14 @@ public class Dielectric : IMaterial
         else
             direction = MathUtils.Refract(unitDirection, normal, ri);
 
-        scattered = new Ray(rec.Point, direction);
+        // Offset the ray origin onto the side of the surface that matches the
+        // chosen direction — reflection sits on the outgoing-normal side,
+        // refraction on the opposite. Without the offset, raw rec.Point can
+        // self-intersect at grazing angles, producing black firefly speckle on
+        // high-IOR classic dielectrics. Mirrors the same pattern the renderer
+        // uses for non-delta BSDF samples in ShadeSampleBounce.
+        Vector3 offsetDir = Vector3.Dot(direction, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
+        scattered = new Ray(MathUtils.OffsetOrigin(rec.Point, offsetDir), direction);
         return true;
     }
 }

@@ -51,9 +51,17 @@ public class EnvironmentLight : ILight
         if (!_sky.CanSampleDirectly)
             return 0f;
 
+        // Cauchy's formula: the average projected area of a convex body is
+        // (surface area) / 4. For an axis-aligned box of extent (x, y, z) the
+        // surface area is 2(xy + yz + xz), so the directionally-averaged
+        // cross-section is (xy + yz + xz) / 2. This replaces the previous
+        // bounding-sphere upper bound (πR² with R = ½‖extent‖) which over-
+        // estimated elongated scenes by up to 8× and skewed the power-weighted
+        // light picking toward the environment in mixed lighting setups.
         Vector3 extent = sceneBounds.Max - sceneBounds.Min;
-        float radius = 0.5f * extent.Length();
-        float crossSection = MathF.PI * radius * radius;
+        float crossSection = 0.5f * (extent.X * extent.Y +
+                                      extent.Y * extent.Z +
+                                      extent.X * extent.Z);
 
         float irradiance = MathF.PI * _sky.EstimatedAverageLuminance;
         return irradiance * crossSection;

@@ -212,6 +212,16 @@ public class Renderer
             // geometry lights — that's degenerate and not expected in practice.
             _emitterToLight[gl.Material] = gl;
         }
+        // Sphere/area lights register a visible emissive proxy so BSDF rays
+        // can hit them (closing Veach's MIS estimator on smooth-specular
+        // surfaces — see ILight.ProxyMaterial). The proxy material is bound
+        // to its parent light here so WeightEmission can pull the light's own
+        // PdfSolidAngle for the MIS weight at the next-bounce emission.
+        foreach (var light in lights)
+        {
+            if (light.ProxyMaterial is { } proxy)
+                _emitterToLight[proxy] = light;
+        }
         _envLight = lights.OfType<EnvironmentLight>().FirstOrDefault();
 
         // Light importance sampling: build CDF for power/uniform strategies.
@@ -902,7 +912,7 @@ public class Renderer
                     {
                         float pLightSample = light.PdfSolidAngle(rec.Point, dirToLight);
                         float pNee = pPick * pLightSample; // combined pdf for this direction
-                        wNee = pNee + pBsdf > 0f ? MisWeight(pNee, pBsdf) : 1f;
+                        wNee = (pNee + pBsdf > 0f) ? MisWeight(pNee, pBsdf) : 1f;
                     }
                 }
 
@@ -950,7 +960,7 @@ public class Renderer
                         if (pBsdf > 0f)
                         {
                             float pLight = light.PdfSolidAngle(rec.Point, dirToLight);
-                            wNee = pLight + pBsdf > 0f ? MisWeight(pLight, pBsdf) : 1f;
+                            wNee = (pLight + pBsdf > 0f) ? MisWeight(pLight, pBsdf) : 1f;
                         }
                     }
 

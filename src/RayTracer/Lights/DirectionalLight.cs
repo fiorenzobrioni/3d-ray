@@ -37,7 +37,7 @@ public class DirectionalLight : ILight
     public float AngularRadiusDeg { get; }
 
     private readonly float _cosAngularRadius; // cos(angularRadius) — cone half-angle cosine
-    private readonly float _solidAngle;       // 2π(1 − cos) — precomputed for energy + PDF
+    private readonly float _solidAngle;       // 2π(1 − cos) — used by PdfSolidAngle for MIS
 
     // Stratified grid for shadow samples in disc mode
     private readonly int _sqrtSamples;
@@ -147,13 +147,15 @@ public class DirectionalLight : ILight
         if (inShadow)
             return (true, Vector3.Zero, toLight, MathUtils.Infinity);
 
-        // Disc mode: energy per sample = Intensity × Ω / ShadowSamples so that
-        // summing all shadow samples gives Intensity × Ω total contribution —
-        // analogous to the SphereLight solid-angle estimator.
-        // Delta mode: full Intensity per (single) shadow sample.
-        float energyPerSample = AngularRadiusDeg > 0f
-            ? Intensity * _solidAngle / ShadowSamples
-            : Intensity;
+        // The YAML-supplied `intensity` is irradiance (W/m²) — the contribution
+        // a perpendicular surface would receive if unoccluded. In hard mode a
+        // single delta sample carries the full irradiance. In disc mode we
+        // average N stratified cone samples whose pdf is 1/Ω, so per-sample
+        // contribution is Intensity / N (NOT × Ω — that factor is already
+        // implicit in the cone sampling; the previous formula multiplied it in
+        // and dimmed a real-Sun setup by ≈14 000×). Summing N samples gives
+        // back the full Intensity, matching hard mode within Monte-Carlo noise.
+        float energyPerSample = Intensity / ShadowSamples;
 
         return (false, Color * energyPerSample, toLight, MathUtils.Infinity);
     }

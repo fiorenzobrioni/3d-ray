@@ -1,6 +1,7 @@
 using System.Numerics;
 using RayTracer.Core;
 using RayTracer.Geometry;
+using RayTracer.Materials;
 
 namespace RayTracer.Lights;
 
@@ -53,38 +54,31 @@ public class SphereLight : ILight
     public Vector3 Color { get; }
     public float Intensity { get; }
 
-    /// <summary>
-    /// Optional "virtual disc" radius used to soften the 1/d² singularity in
-    /// the fallback uniform-sphere path that activates when the shading point
-    /// is inside the sphere (<c>cosThetaMax = -1</c>). In that degenerate case
-    /// the estimator uses an area-measure pdf_A that can diverge at small d.
-    /// <para>
-    /// The solid-angle cone-sampling path (the normal case, shading point
-    /// outside the sphere) does NOT need a soft-radius guard because the
-    /// <c>L = Intensity × Ω / N</c> estimator is pdf_ω–based and the solid
-    /// angle Ω = 2π(1 − cos θ_max) is bounded above by 4π even at d → R⁺.
-    /// </para>
-    /// 0 = unclamped, identical to pre-existing behaviour.
-    /// See <see cref="PointLight.SoftRadius"/> for the original pattern.
-    /// </summary>
-    public float SoftRadius { get; }
-
     /// <inheritdoc/>
     public int ShadowSamples { get; }
+
+    /// <inheritdoc/>
+    public Emissive? ProxyMaterial { get; }
 
     // ── Stratified sampling grid ────────────────────────────────────────────
     private readonly int _sqrtSamples;
     private readonly float _invSqrtSamples;
 
+    // Note: this light deliberately exposes no `SoftRadius` knob. Solid-angle
+    // cone sampling produces an `L = Intensity × Ω / N` estimator that is
+    // bounded above by `4π · Intensity` even when the receiver is inside the
+    // emitter, so the 1/d² (or cosLight/d²) floor that PointLight/SpotLight/
+    // AreaLight use to tame variance in dense media is unnecessary here.
     public SphereLight(Vector3 center, float radius, Vector3 color,
-                       float intensity = 20f, int shadowSamples = 16, float softRadius = 0f)
+                       float intensity = 20f, int shadowSamples = 16,
+                       Emissive? proxyMaterial = null)
     {
         Center = center;
         Radius = MathF.Max(radius, MathUtils.Epsilon);
         Color = color;
         Intensity = intensity;
         ShadowSamples = Math.Max(1, shadowSamples);
-        SoftRadius = MathF.Max(0f, softRadius);
+        ProxyMaterial = proxyMaterial;
 
         _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
         _invSqrtSamples = 1f / _sqrtSamples;
@@ -201,13 +195,17 @@ public class SphereLight : ILight
         float sampleDist = t;
         Vector3 dirToLight = sampleDirWorld;
 
-        // Light-surface normal at the sample point
+        // Light-surface normal at the sample point. By construction the cone
+        // sampler only produces front-facing intersections; this check guards
+        // against numerical drift at grazing angles and the inside-sphere
+        // fallback (cosThetaMax = -1, full uniform sphere). Aligned with
+        // AreaLight: a back-face direction is treated as zero contribution
+        // rather than as occlusion, so MIS sees a consistent estimator across
+        // light types.
         Vector3 lightNormal = (samplePoint - Center) / Radius;
-
-        // Back-face check: ensure we hit the front of the sphere
-        float cosLight = Vector3.Dot(-dirToLight, lightNormal);
+        float cosLight = MathF.Max(0f, Vector3.Dot(-dirToLight, lightNormal));
         if (cosLight <= 0f)
-            return (true, Vector3.Zero, dirToLight, sampleDist);
+            return (false, Vector3.Zero, dirToLight, sampleDist);
 
         // ── Shadow test ─────────────────────────────────────────────────────
         // tMax is computed in shadow-ray-parameter space (relative to

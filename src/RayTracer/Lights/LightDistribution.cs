@@ -79,7 +79,19 @@ public class LightDistribution
         }
         else
         {
-            // Fallback: uniform distribution
+            // Fallback: uniform distribution. Likeliest cause is a sky-only or
+            // HDRI-without-sampler scene (EnvironmentLight returns power 0
+            // when CanSampleDirectly is false). Log it so users diagnosing
+            // noisy NEE on environment-dominated scenes know to enable HDRI
+            // sampling tables instead of guessing why power picking is silent.
+            if (!forceUniform && n > 0)
+            {
+                Console.WriteLine(
+                    $"  Lights:      {n} light(s) all reported zero ApproximatePower — " +
+                    $"falling back to uniform light picking. Check that any HDRI is " +
+                    $"flagged as direct-samplable, or pass --light-sampling uniform " +
+                    $"to suppress this notice.");
+            }
             float uniform = 1f / n;
             float cumulative = 0f;
             for (int i = 0; i < n; i++)
