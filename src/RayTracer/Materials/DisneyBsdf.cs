@@ -593,8 +593,13 @@ public class DisneyBsdf : IMaterial
         }
 
         Vector3 Hraw = V + L;
-        if (Hraw.LengthSquared() < 1e-14f) return Vector3.Zero;
-        Vector3 H = Vector3.Normalize(Hraw);
+        // Vector3.Normalize internally recomputes Length() = sqrt(LengthSquared()),
+        // duplicating the LengthSquared we already need for the degeneracy guard.
+        // Manual divide-by-sqrt skips that second LengthSquared on every Evaluate
+        // call (NEE shadow + MIS combined with Pdf below = 2× per shading point).
+        float hLenSq = Hraw.LengthSquared();
+        if (hLenSq < 1e-14f) return Vector3.Zero;
+        Vector3 H = Hraw / MathF.Sqrt(hLenSq);
         float NdotH = MathF.Max(Vector3.Dot(N, H), 0f);
         float VdotH = MathF.Max(Vector3.Dot(V, H), 0f);
         float LdotH = MathF.Max(Vector3.Dot(L, H), 0f);
@@ -750,9 +755,13 @@ public class DisneyBsdf : IMaterial
         float specPdf = 0f;
         float ccPdf   = 0f;
         Vector3 Hraw = V + L;
-        if (Hraw.LengthSquared() >= 1e-14f)
+        float hLenSq = Hraw.LengthSquared();
+        if (hLenSq >= 1e-14f)
         {
-            Vector3 H = Vector3.Normalize(Hraw);
+            // Manual divide-by-sqrt — see Evaluate for the rationale (one
+            // LengthSquared instead of two). Pdf is the inner loop of MIS,
+            // so this fires twice per shading point alongside Evaluate.
+            Vector3 H = Hraw / MathF.Sqrt(hLenSq);
             float NdotH = Vector3.Dot(N, H);
             // VNDF support requires H_z > 0; for back-hemisphere L far from
             // V the half-vector H = normalise(V+L) can dip below the macro
