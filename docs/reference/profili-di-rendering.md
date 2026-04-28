@@ -51,7 +51,7 @@ I default sono pensati per **iterazione rapida**, non per qualità finale. Consi
 
 Il motore esegue **stratified sampling** su una griglia √N × √N per pixel. Passare `-s 16` produce una griglia 4×4 (16 campioni); `-s 256` una griglia 16×16 (256 campioni). Ogni cella produce un campione jittered.
 
-**I quadrati perfetti sono "gratis".** Se passi un valore non quadrato il motore arrotonda √N per eccesso, quindi `-s 100` diventa 10×10 = 100 (esatto), ma `-s 15` diventa silenziosamente 4×4 = 16. Per controllare il costo con precisione, preferisci: `1, 4, 9, 16, 25, 36, 49, 64, 100, 144, 196, 256, 400, 576, 784, 1024, 1600`.
+**Il sampler Sobol (predefinito) usa il conteggio esatto.** Il sampler `sobol` predefinito esegue esattamente il numero di campioni richiesto — nessun arrotondamento. **Solo per `--sampler prng`:** il motore ha bisogno di una griglia √N × √N, quindi arrotonda √N per eccesso: `-s 15` diventa silenziosamente 4×4 = 16. Per controllare il costo con precisione con PRNG, preferisci quadrati perfetti: `1, 4, 9, 16, 25, 36, 49, 64, 100, 144, 196, 256, 400, 576, 784, 1024, 1600`.
 
 **Costo:** approssimativamente lineare — raddoppiando `-s` raddoppi all'incirca il tempo di render.
 

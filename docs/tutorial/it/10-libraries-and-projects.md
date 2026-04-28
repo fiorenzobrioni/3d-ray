@@ -329,7 +329,7 @@ L'insieme completo dei parametri della riga di comando:
 | `-o` | `--output`          | `renders/render-<scena>.png`  | Percorso dell'immagine di output (PNG, JPG o BMP)            |
 | `-w` | `--width`           | `1200`                        | Larghezza dell'immagine in pixel                             |
 | `-H` | `--height`          | `800`                         | Altezza dell'immagine in pixel                               |
-| `-s` | `--samples`         | `16`                          | Campioni per pixel (arrotondati al quadrato perfetto)        |
+| `-s` | `--samples`         | `16`                          | Campioni per pixel (Sobol: conteggio esatto; PRNG: arrotondato al quadrato perfetto superiore) |
 | `-d` | `--depth`           | `8`                           | Numero massimo di rimbalzi dei raggi (alza a 16+ solo per vetri impilati) |
 | `-S` | `--shadow-samples`  | *(per luce)*                  | Sovrascrive i campioni d'ombra per tutte le luci area/sphere (quadrati perfetti) |
 | `-C` | `--clamp`           | `100`                         | Firefly clamp: radianza massima per-campione prima del tone mapping |
@@ -346,17 +346,20 @@ Il formato è determinato dall'estensione del file:
 
 ### Arrotondamento dei campioni
 
-Il numero di campioni viene sempre arrotondato per eccesso al quadrato perfetto più vicino:
+L'arrotondamento dipende dal sampler attivo (`--sampler`, default `sobol`):
 
-| Richiesti | Effettivi | Griglia  |
-|-----------|-----------|----------|
-| 1         | 1         | 1x1      |
-| 10        | 16        | 4x4      |
-| 20        | 25        | 5x5      |
-| 50        | 64        | 8x8      |
-| 100       | 100       | 10x10    |
-| 200       | 225       | 15x15    |
-| 256       | 256       | 16x16    |
+- **Sobol (predefinito):** viene usato il conteggio esatto richiesto — `-s 15` esegue esattamente 15 campioni per pixel.
+- **PRNG (`--sampler prng`):** il conteggio viene arrotondato per eccesso al quadrato perfetto superiore. La tabella mostra come PRNG arrotonda:
+
+| Richiesti | Effettivi (PRNG) | Griglia  |
+|-----------|-----------------|----------|
+| 1         | 1               | 1x1      |
+| 10        | 16              | 4x4      |
+| 20        | 25              | 5x5      |
+| 50        | 64              | 8x8      |
+| 100       | 100             | 10x10    |
+| 200       | 225             | 15x15    |
+| 256       | 256             | 16x16    |
 
 ---
 
@@ -441,18 +444,28 @@ manopola `-C`/`--clamp` del firefly clamp, consulta
 
 ### Immagine nera
 - **Nessuna luce.** Aggiungere luci nella sezione `lights:` o usare oggetti emissivi / cielo HDRI.
+- **Tutte le luci hanno intensità zero.** Verificare che `intensity` sia positivo.
 - **Fotocamera all'interno di un oggetto.** Spostare la `position` della fotocamera fuori da ogni geometria.
 - **Fotocamera rivolta nella direzione sbagliata.** Controllare il punto `look_at`.
+- **`ambient_light: [0,0,0]` senza luci.** Una scena necessita di almeno una sorgente luminosa o uno sfondo non nullo. Aggiungere `ambient_light: [0.02, 0.02, 0.02]` aiuta a localizzare la geometria anche senza luci esplicite.
+
+### Scena piatta o sbiadita
+- **`ambient_light` troppo alto.** Valori superiori a 0.1 comprimono il contrasto delle ombre e fanno sembrare ogni superficie illuminata uniformemente. Abbassarlo a 0.01–0.05, o impostarlo a zero per le scene HDRI.
+- **Nessuna luce direzionale dominante.** Una scena illuminata solo da luce ambientale e fill light non ha una direzione d'ombra chiara; aggiungere una key light con intensità maggiore per stabilire il contrasto.
+- **Tutte le luci hanno lo stesso colore.** Gli ambienti reali mescolano luce calda e fredda. Provare una key light calda (`[1.0, 0.9, 0.75]`) abbinata a una fill light fredda (`[0.7, 0.8, 1.0]`).
 
 ### Troppo rumore
 - Aumentare i campioni: `-s 64` o `-s 256`.
 - Aumentare i campioni d'ombra: `-S 16`.
 - I materiali Disney densi (subsurface, sheen) necessitano di più campioni rispetto ai tipi classici.
+- **La profondità di campo è attiva.** Un `aperture` non zero richiede molti più campioni per eliminare il rumore del bokeh. Usare almeno `-s 256` per render DOF puliti.
+- **Materiale emissivo dentro un nodo CSG.** Il motore avvisa di questo problema; la superficie emissiva non può partecipare alla Next Event Estimation e causa alta varianza. Spostare la primitiva emissiva fuori dall'albero CSG.
 
 ### Rendering molto lento
 - Ridurre la risoluzione e i campioni durante i test.
 - Usare il flusso di lavoro anteprima/bozza/finale.
 - Sostituire i materiali Disney con equivalenti classici per le superfici di sfondo.
+- **Troppi campioni d'ombra.** Il costo di `-S` è moltiplicativo: `-S 9` con due area light e `-s 256` a 6 rimbalzi equivale a oltre 27.000 raggi ombra per pixel. Usare `-S 1` o `-S 4` a meno che non si necessiti specificamente di ombre morbide più nitide.
 
 ### Materiale mancante (l'oggetto appare grigio predefinito)
 - Controllare eventuali errori di battitura nell'ID del materiale.
@@ -461,6 +474,13 @@ manopola `-C`/`--clamp` del firefly clamp, consulta
 
 ### Colori sbagliati
 - I colori sono `[R, G, B]` nell'intervallo **0.0--1.0**, non 0--255. `[255, 0, 0]` non è rosso -- è un bianco estremamente luminoso.
+
+### Oggetto nel posto sbagliato o invisibile
+- Controllare il sistema di coordinate: **Y è in alto**, il pavimento è a Y = 0.
+  Gli oggetti posizionati a Y negativo sono sotto il suolo.
+- Un `translate` di `[0, 0, 5]` sposta l'oggetto **nella scena** (Z positivo),
+  non verso la fotocamera. Per avvicinarsi alla fotocamera predefinita, usare Z negativo.
+- Usare `--verbose` per stampare il bounding box della scena e localizzare gli oggetti persi.
 
 ### Il vetro appare strano (troppo scuro o solido)
 - Aumentare la profondità dei raggi: `-d 16` o superiore (il vetro consuma 2 rimbalzi per superficie, quindi vetri impilati o annidati esauriscono rapidamente il default `-d 8`).

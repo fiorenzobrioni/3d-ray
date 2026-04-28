@@ -36,13 +36,23 @@ section.
 > child be a *solid primitive* with a well-defined interior/exterior
 > (so the all-hits classifier can determine whether a point is inside
 > or outside the solid). Supported: any of the solid primitives listed
-> above, plus another `csg` node. **Not supported and silently skipped
-> with a warning** (`CSG entity '…': failed to create one or both
-> children. Skipping.`): `type: "group"`, `type: "mesh"` / `type: "obj"`,
+> above, plus another `csg` node. **Not supported and skipped with a
+> warning** (`CSG entity '…': failed to create one or both children.
+> Skipping.`): `type: "group"`, `type: "mesh"` / `type: "obj"`,
 > `type: "instance"`, `type: "plane"` / `type: "infinite_plane"`. If you
 > need to subtract the union of two boxes from a cylinder, write the
 > union explicitly as a nested `csg: union` rather than wrapping the
 > two boxes in a `type: "group"`.
+
+> **⚠️ Emissive materials inside CSG.** Assigning an `emissive` material
+> to a CSG child is valid syntax, but the resulting surface **will not
+> contribute to Next Event Estimation** (direct light sampling). The
+> engine prints a one-time warning when this is detected. The emissive
+> geometry will still illuminate the scene through indirect bounces, but
+> with noticeably higher variance (more noise at the same sample count).
+> If you need the glowing surface to also act as a direct light source,
+> place a matching sphere light, area light, or plain emissive primitive
+> at the same position *outside* the CSG tree.
 
 ---
 

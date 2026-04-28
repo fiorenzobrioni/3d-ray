@@ -50,6 +50,31 @@ Si dovrebbe vedere una sfera bianca che galleggia su uno sfondo scuro. Si analiz
 
 ---
 
+## 2.1b Il sistema di coordinate
+
+Prima di posizionare gli oggetti è fondamentale sapere come 3D-Ray orienta il proprio spazio:
+
+- **Y è verso l'alto.** Il pavimento è convenzionalmente a Y = 0. Gli oggetti si trovano sopra (Y positivo) e il cielo è in alto.
+- **Sistema destrorso.** Guardando lungo l'asse Z negativo (la direzione predefinita "nello schermo"), X punta a destra e Y punta in alto.
+- **Le unità sono metri** per convenzione. Il motore è agnostico rispetto alle unità, ma tutte le scene e le librerie incluse usano 1 unità = 1 metro. Una sfera con `radius: 0.5` è grande circa come un pompelmo; `radius: 10` riempie una stanza.
+
+Riferimento pratico:
+
+| Direzione              | Asse       | Esempio                         |
+|------------------------|------------|---------------------------------|
+| Destra                 | `+X`       | `translate: [2, 0, 0]`          |
+| Sinistra               | `-X`       | `translate: [-2, 0, 0]`         |
+| Su                     | `+Y`       | `translate: [0, 1, 0]`          |
+| Giù                    | `-Y`       | `translate: [0, -1, 0]`         |
+| Dentro la scena        | `+Z`       | `translate: [0, 0, 3]`          |
+| Verso la camera        | `-Z`       | `translate: [0, 0, -3]`         |
+
+La camera nella scena sopra si trova a `[0, 1, -5]` — 1 m sopra il pavimento e 5 m davanti alla scena — puntando verso `[0, 0.5, 0]`, il centro della sfera.
+
+> **Suggerimento:** se un oggetto scompare dalla vista, verificare che non si trovi dietro la camera (Z negativo) o sotto il pavimento (Y negativo). Il flag `--verbose` stampa il bounding box della scena per aiutare a localizzare la geometria perduta.
+
+---
+
 ## 2.2 La sezione world
 
 ```yaml

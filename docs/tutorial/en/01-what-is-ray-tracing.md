@@ -83,9 +83,10 @@ approaches photographic quality.
 > pixel is divided into a grid of sub-cells (for example, 4x4 = 16 cells
 > for 16 samples). One ray is sent through a random point inside each
 > cell. This produces a more even distribution than purely random sampling
-> and converges faster. The engine always rounds the requested sample
-> count up to the nearest perfect square (e.g. requesting 20 samples
-> gives you 25, which is 5x5).
+> and converges faster. With the default **Sobol** sampler the engine
+> uses the exact sample count you request. With the legacy `--sampler
+> prng`, it rounds up to the nearest perfect square (e.g. requesting 20
+> gives you 25 = 5×5). See [Rendering Profiles §3](../../reference/rendering-profiles.md).
 
 ---
 
@@ -146,9 +147,13 @@ production render. Instead, use a three-stage workflow:
 
 | Stage       | Resolution | Samples | Depth | Shadow Samples | Purpose                        |
 |-------------|------------|---------|-------|----------------|--------------------------------|
-| **Preview** | 400x225    | 1       | 5     | 1              | Check composition and framing  |
-| **Draft**   | 800x450    | 16      | 20    | 4              | Check materials and lighting   |
-| **Final**   | 1920x1080  | 256     | 50    | 16             | Production-quality output      |
+| **Preview** | 400x225    | 1       | 4     | 1              | Check composition and framing  |
+| **Draft**   | 800x450    | 16      | 6     | 1              | Check materials and lighting   |
+| **Final**   | 1920x1080  | 256     | 8     | 4              | Production-quality output      |
+
+> The depth and shadow-samples values above match the canonical profiles
+> in [Rendering Profiles](../../reference/rendering-profiles.md), which
+> also lists the recommended sample counts for each stage.
 
 A preview render takes seconds and tells you immediately if the camera is
 pointed in the right direction and the objects are roughly where you want

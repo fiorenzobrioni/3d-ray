@@ -24,6 +24,29 @@ directional and one point). If you include an empty `lights: []`, the
 scene has no explicit lights -- useful when relying entirely on emissive
 objects or HDRI environment lighting.
 
+### `ambient_light` and explicit lights
+
+`ambient_light` (defined in `world:`, introduced in Chapter 2) is
+**additive** with every other light source — it is not an override or a
+replacement. A scene with three area lights *and*
+`ambient_light: [0.2, 0.2, 0.2]` adds 0.2 RGB on top of whatever the
+explicit lights already contribute.
+
+Practical rules:
+
+- **Keep it very low (0.01–0.05 per channel).** It fills the deepest
+  shadows just enough to prevent pitch black without visibly affecting lit
+  surfaces.
+- **High `ambient_light` washes out shadows** and makes the scene look
+  flat: the contrast between lit and unlit faces collapses, and no amount
+  of adding more lights will restore it. If your scene looks like a
+  diffuse white smear, `ambient_light` is usually the culprit.
+- **HDRI sky scenes: set `ambient_light` to zero.** The environment map
+  handles all indirect illumination through NEE; adding ambient on top
+  brightens everything uniformly and defeats the purpose of IBL.
+- **Indoor scenes with only explicit lights:** `[0.015, 0.015, 0.02]`
+  (a very faint cool-white) is a good starting point.
+
 ---
 
 ## 6.2 Point Light

@@ -188,11 +188,39 @@ areas of the map, which speeds up convergence dramatically.
 - Free HDRIs are available from sites like Poly Haven (CC0 license).
 - Use `intensity` to brighten or darken the environment without
   changing the file. Values of 0.5--2.0 are typical.
-- Use `rotation` to turn the environment so the sun is where you want
-  it relative to your scene.
 - HDRI lighting provides soft, natural illumination with complex
   color gradients. It is often the only light source you need for
   outdoor scenes.
+- For indoor scenes using HDRI as environment, set `ambient_light`
+  to `[0, 0, 0]` — the environment map supplies all indirect light.
+
+### Finding the right `rotation`
+
+`rotation` turns the environment sphere around the Y axis in degrees,
+effectively choosing which direction the sun (or brightest spot) faces.
+Here is a practical workflow:
+
+1. **Quick preview pass.** Render a low-resolution preview (`-s 16 -w 400`).
+   Note where the shadows fall on your objects — that is where the
+   dominant light is coming from.
+2. **Visualize the HDRI.** Open the `.hdr` file in a viewer (e.g., the
+   free [hdrview](https://github.com/wkjarosz/hdrview), or any photo
+   editor that supports HDR). Locate the sun or brightest hotspot. Note
+   roughly how far from the center-left it sits in the equirectangular
+   panorama.
+3. **Map panorama position to degrees.** The full width of the
+   equirectangular image represents 360°. If the sun is at 25% from the
+   left edge, it is at 90°. If it is at 75%, it is at 270°. A `rotation`
+   of X° rotates the environment so that the 0° meridian of the HDRI
+   faces the `+Z` direction of your scene plus X°.
+4. **Iterate.** Start with `rotation: 0` and adjust in 45° steps until
+   shadows fall where you want them, then fine-tune by 10–15° increments.
+
+> **Tip:** If the sun direction matters for a specific shot (e.g., the
+> sun should be at camera-left to create a rim light on your subject),
+> work backwards: decide the desired shadow angle in world space, then
+> pick a `rotation` that places the HDRI's bright spot at that angle
+> from the `+Z` axis.
 
 ---
 

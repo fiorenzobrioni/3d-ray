@@ -148,7 +148,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 ├── docs/                    # Documentazione del progetto
 │   ├── reference/           # Riferimento YAML completo (EN/IT)
 │   ├── technical/           # Approfondimenti tecnici interni
-│   └── tutorial/            # Tutorial in 10 capitoli (EN/IT)
+│   └── tutorial/            # Tutorial in 11 capitoli (EN/IT)
 │       ├── en/              # Tutorial in English
 │       └── it/              # Tutorial in italiano
 ├── src/
@@ -218,7 +218,7 @@ dotnet run --project src/Tools/ChessGen/ChessGen.csproj
 | `--output` | `-o` | `renders/render-<scena>.png` | File di output. Se omesso, generato dal nome della scena. |
 | `--width` | `-w` | `1200` | Larghezza in pixel. |
 | `--height` | `-H` | `800` | Altezza in pixel. |
-| `--samples` | `-s` | `16` | Campioni per pixel. Il numero effettivo viene arrotondato al quadrato perfetto superiore (`√N × √N`). |
+| `--samples` | `-s` | `16` | Campioni per pixel. Con il sampler Sobol (default) viene usato il conteggio esatto; con `--sampler prng` viene arrotondato al quadrato perfetto superiore (`√N × √N`). |
 | `--depth` | `-d` | `8` | Massimo numero di rimbalzi ricorsivi per raggio. Alza a `16+` solo per dielettrici impilati (vetri annidati, liquidi nei bicchieri). |
 | `--shadow-samples` | `-S` | *(da YAML)* | Override globale dei shadow samples per tutte le area light. Usa quadrati perfetti (`1, 4, 9, 16`). |
 | `--clamp` | `-C` | `100` | Firefly clamp: massima radianza per-campione prima del tone mapping. Abbassa (es. `25`) per scene problematiche con vetri/nebbia, alza per highlight molto intensi. |

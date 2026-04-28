@@ -51,6 +51,40 @@ walk through every section.
 
 ---
 
+## 2.1b The Coordinate System
+
+Before placing objects, it is essential to know how 3D-Ray orients its
+world:
+
+- **Y is up.** The floor is conventionally at Y = 0. Objects sit above
+  it (positive Y) and the sky is overhead.
+- **Right-handed system.** Looking along the negative Z axis (the default
+  "into the screen" direction), X points right and Y points up.
+- **Units are metres** by convention. The engine is unit-agnostic, but
+  all bundled scenes and libraries use 1 unit = 1 metre. A sphere with
+  `radius: 0.5` is roughly grapefruit-sized; `radius: 10` fills a room.
+
+Practical reference:
+
+| Direction           | Axis       | Example                         |
+|---------------------|------------|---------------------------------|
+| Right               | `+X`       | `translate: [2, 0, 0]`          |
+| Left                | `-X`       | `translate: [-2, 0, 0]`         |
+| Up                  | `+Y`       | `translate: [0, 1, 0]`          |
+| Down                | `-Y`       | `translate: [0, -1, 0]`         |
+| Into the scene      | `+Z`       | `translate: [0, 0, 3]`          |
+| Toward the camera   | `-Z`       | `translate: [0, 0, -3]`         |
+
+The camera in the scene above sits at `[0, 1, -5]` — 1 m above the
+floor and 5 m in front of the scene — looking at `[0, 0.5, 0]`, the
+centre of the sphere.
+
+> **Tip:** if an object disappears from view, check whether it is behind
+> the camera (negative Z) or below the floor (negative Y). The `--verbose`
+> flag prints the scene bounding box to help locate lost geometry.
+
+---
+
 ## 2.2 The World Section
 
 ```yaml

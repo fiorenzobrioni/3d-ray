@@ -78,9 +78,11 @@ alla qualità fotografica.
 > pixel è diviso in una griglia di sotto-celle (ad esempio, 4x4 = 16 celle per 16
 > campioni). Un raggio viene inviato attraverso un punto casuale all'interno di
 > ciascuna cella. Questo produce una distribuzione più uniforme rispetto al
-> campionamento puramente casuale e converge più velocemente. Il motore arrotonda
-> sempre il numero di campioni richiesto al quadrato perfetto più vicino (es.
-> richiedere 20 campioni fornisce 25, ovvero 5x5).
+> campionamento puramente casuale e converge più velocemente. Con il sampler
+> **Sobol** predefinito il motore usa il conteggio esatto richiesto. Con il
+> sampler legacy `--sampler prng`, arrotonda per eccesso al quadrato perfetto
+> più vicino (es. richiedere 20 campioni fornisce 25 = 5×5). Vedi
+> [Profili di Rendering §3](../../reference/profili-di-rendering.md).
 
 ---
 
@@ -141,9 +143,13 @@ direttamente a un render di produzione. Si usa invece un flusso di lavoro in tre
 
 | Fase         | Risoluzione | Campioni | Profondità | Campioni ombra | Scopo                              |
 |--------------|-------------|----------|------------|----------------|------------------------------------|
-| **Anteprima**| 400x225     | 1        | 5          | 1              | Verificare composizione e inquadratura |
-| **Bozza**    | 800x450     | 16       | 20         | 4              | Verificare materiali e illuminazione |
-| **Finale**   | 1920x1080   | 256      | 50         | 16             | Output di qualità di produzione    |
+| **Anteprima**| 400x225     | 1        | 4          | 1              | Verificare composizione e inquadratura |
+| **Bozza**    | 800x450     | 16       | 6          | 1              | Verificare materiali e illuminazione |
+| **Finale**   | 1920x1080   | 256      | 8          | 4              | Output di qualità di produzione    |
+
+> I valori di profondità e campioni-ombra corrispondono ai profili canonici in
+> [Profili di Rendering](../../reference/profili-di-rendering.md), che riporta
+> anche i conteggi campioni raccomandati per ciascuna fase.
 
 Un render di anteprima richiede pochi secondi e dice immediatamente se la fotocamera
 è puntata nella direzione giusta e se gli oggetti sono più o meno dove si vogliono.
