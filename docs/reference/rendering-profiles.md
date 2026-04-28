@@ -51,7 +51,7 @@ The defaults target **fast iteration**, not final quality. Use the Preview profi
 
 The engine performs **stratified sampling** on a √N × √N grid per pixel. Passing `-s 16` gives you a 4×4 grid (16 samples); `-s 256` gives you a 16×16 grid (256 samples). Each cell produces one jittered sample.
 
-**Perfect squares are free.** If you pass a non-square value the engine rounds √N up, so `-s 100` becomes 10×10 = 100 (exact), but `-s 15` silently becomes 4×4 = 16. To control cost exactly, prefer: `1, 4, 9, 16, 25, 36, 49, 64, 100, 144, 196, 256, 400, 576, 784, 1024, 1600`.
+**Sobol (default) uses the exact count.** The default `sobol` sampler fires exactly the number of samples you request — no rounding occurs. **For `--sampler prng` only:** the engine needs a √N × √N jitter grid, so it rounds √N up: `-s 15` silently becomes 4×4 = 16. To control cost precisely with PRNG, prefer perfect squares: `1, 4, 9, 16, 25, 36, 49, 64, 100, 144, 196, 256, 400, 576, 784, 1024, 1600`.
 
 **Cost:** approximately linear — doubling `-s` roughly doubles render time.
 

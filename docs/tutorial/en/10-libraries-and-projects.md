@@ -342,7 +342,7 @@ The complete set of command-line parameters:
 | `-o` | `--output`         | `renders/render-<scene>.png`  | Output image path (PNG, JPG, or BMP)                     |
 | `-w` | `--width`          | `1200`                        | Image width in pixels                                    |
 | `-H` | `--height`         | `800`                         | Image height in pixels                                   |
-| `-s` | `--samples`        | `16`                          | Samples per pixel (rounded up to nearest perfect square) |
+| `-s` | `--samples`        | `16`                          | Samples per pixel (Sobol: exact count; PRNG: rounded up to nearest perfect square) |
 | `-d` | `--depth`          | `8`                           | Maximum ray bounces (raise to 16+ only for stacked glass) |
 | `-S` | `--shadow-samples` | *(per light)*                 | Override shadow samples for all area/sphere lights (perfect squares) |
 | `-C` | `--clamp`          | `100`                         | Firefly clamp: max per-sample radiance before tone mapping |
@@ -359,17 +359,20 @@ The format is determined by the file extension:
 
 ### Samples Rounding
 
-The sample count is always rounded up to the nearest perfect square:
+Sample rounding depends on the active sampler (`--sampler`, default `sobol`):
 
-| Requested | Actual | Grid     |
-|-----------|--------|----------|
-| 1         | 1      | 1x1      |
-| 10        | 16     | 4x4      |
-| 20        | 25     | 5x5      |
-| 50        | 64     | 8x8      |
-| 100       | 100    | 10x10    |
-| 200       | 225    | 15x15    |
-| 256       | 256    | 16x16    |
+- **Sobol (default):** the exact requested count is used — `-s 15` fires exactly 15 samples per pixel.
+- **PRNG (`--sampler prng`):** the count is rounded up to the nearest perfect square. The table below shows how PRNG rounds:
+
+| Requested | Actual (PRNG) | Grid     |
+|-----------|---------------|----------|
+| 1         | 1             | 1x1      |
+| 10        | 16            | 4x4      |
+| 20        | 25            | 5x5      |
+| 50        | 64            | 8x8      |
+| 100       | 100           | 10x10    |
+| 200       | 225           | 15x15    |
+| 256       | 256           | 16x16    |
 
 ---
 

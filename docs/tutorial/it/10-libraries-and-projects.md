@@ -329,7 +329,7 @@ L'insieme completo dei parametri della riga di comando:
 | `-o` | `--output`          | `renders/render-<scena>.png`  | Percorso dell'immagine di output (PNG, JPG o BMP)            |
 | `-w` | `--width`           | `1200`                        | Larghezza dell'immagine in pixel                             |
 | `-H` | `--height`          | `800`                         | Altezza dell'immagine in pixel                               |
-| `-s` | `--samples`         | `16`                          | Campioni per pixel (arrotondati al quadrato perfetto)        |
+| `-s` | `--samples`         | `16`                          | Campioni per pixel (Sobol: conteggio esatto; PRNG: arrotondato al quadrato perfetto superiore) |
 | `-d` | `--depth`           | `8`                           | Numero massimo di rimbalzi dei raggi (alza a 16+ solo per vetri impilati) |
 | `-S` | `--shadow-samples`  | *(per luce)*                  | Sovrascrive i campioni d'ombra per tutte le luci area/sphere (quadrati perfetti) |
 | `-C` | `--clamp`           | `100`                         | Firefly clamp: radianza massima per-campione prima del tone mapping |
@@ -346,17 +346,20 @@ Il formato è determinato dall'estensione del file:
 
 ### Arrotondamento dei campioni
 
-Il numero di campioni viene sempre arrotondato per eccesso al quadrato perfetto più vicino:
+L'arrotondamento dipende dal sampler attivo (`--sampler`, default `sobol`):
 
-| Richiesti | Effettivi | Griglia  |
-|-----------|-----------|----------|
-| 1         | 1         | 1x1      |
-| 10        | 16        | 4x4      |
-| 20        | 25        | 5x5      |
-| 50        | 64        | 8x8      |
-| 100       | 100       | 10x10    |
-| 200       | 225       | 15x15    |
-| 256       | 256       | 16x16    |
+- **Sobol (predefinito):** viene usato il conteggio esatto richiesto — `-s 15` esegue esattamente 15 campioni per pixel.
+- **PRNG (`--sampler prng`):** il conteggio viene arrotondato per eccesso al quadrato perfetto superiore. La tabella mostra come PRNG arrotonda:
+
+| Richiesti | Effettivi (PRNG) | Griglia  |
+|-----------|-----------------|----------|
+| 1         | 1               | 1x1      |
+| 10        | 16              | 4x4      |
+| 20        | 25              | 5x5      |
+| 50        | 64              | 8x8      |
+| 100       | 100             | 10x10    |
+| 200       | 225             | 15x15    |
+| 256       | 256             | 16x16    |
 
 ---
 
