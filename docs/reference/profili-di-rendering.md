@@ -173,9 +173,11 @@ Con `all` il renderer lancia `ShadowSamples` raggi d'ombra per luce per shading 
   `0.10`–`0.25`): il denominatore viene clampato a `max(d², r²)`, lo spike
   sparisce, e a `d ≥ r` il look è invariato. Default `0` = nessun clamp
   (comportamento originale). Vedi `riferimento-scene.md` §8.
-- **`soft_radius` su luci area/sphere dentro un medium.** Il termine `cosLight/d²`
-  dello stimatore area può divergere ad angoli radenti in media densi. Imposta
-  `soft_radius` anche su area e sphere light (es. `0.5`–`2.0`). Combinato con
+- **`soft_radius` su luci area dentro un medium.** Il termine `cosLight/d²`
+  dello stimatore area può divergere ad angoli radenti in media densi.
+  Imposta `soft_radius` sulle area light (es. `0.5`–`2.0`). Le sphere
+  light usano uno stimatore ad angolo solido limitato per costruzione e
+  non consumano `soft_radius`. Combinato con
   `--indirect-clamp-factor 0.25`, copre tutti i principali percorsi firefly.
 - **Non alzare `-d` per la nebbia.** Il path volumetrico è già gestito
   correttamente a `-d 6–8`. Più rimbalzi nella nebbia = più costo, non più

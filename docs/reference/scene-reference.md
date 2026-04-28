@@ -197,7 +197,7 @@ g: 0.6
 - **Rendering tip:** `homogeneous` and `height_fog` are analytic and cheap. `procedural` and `grid` use delta tracking and are noisier — raise `-s` to 400/576/1024 and keep `-d 6-8`. For dense-fog scenes consider `-C 25`. See [Rendering Profiles](./rendering-profiles.md) §8 for the full guide.
 - **Effects:** Spot lights → visible god-rays; point lights → halos; directional → aerial perspective (with `height_fog`).
 - **Fireflies with point/spot in fog:** the 1/d² attenuation diverges when scattering events land near a point/spot emitter, producing isolated bright pixels. Set `soft_radius` on those lights (see §8.1, §8.3) to a value approximating the physical bulb size (e.g. `0.15`–`0.30`).
-- **Fireflies with area/sphere lights in fog:** the `cosLight/d²` term in the area estimator can diverge at grazing angles in dense media. Set `soft_radius` on area and sphere lights (see §8.4, §8.5). Also consider `--indirect-clamp-factor 0.25` (CLI) to aggressively suppress deep-bounce spikes.
+- **Fireflies with area lights in fog:** the `cosLight/d²` term in the area estimator can diverge at grazing angles in dense media. Set `soft_radius` on area lights (see §8.4). Sphere lights use a solid-angle estimator that is bounded by construction — no `soft_radius` needed. Also consider `--indirect-clamp-factor 0.25` (CLI) to aggressively suppress deep-bounce spikes.
 - **Advanced firefly control:** `--indirect-clamp-factor <f>` (default `1.0` = off) multiplies the primary `--clamp` threshold for all indirect bounces. E.g. `--clamp 100 --indirect-clamp-factor 0.25` uses clamp=25 on bounce depth ≥ 1 — same as Cycles/Arnold "indirect clamp".
 - **Light importance sampling:** `--light-sampling power` (default `all`) samples one light per NEE event with probability ∝ `ApproximatePower`. Dramatically reduces variance in scenes with many lights of mixed brightness (e.g. 1 area + 10 dim point lights). Use `uniform` as a reference baseline.
 ---
@@ -861,22 +861,21 @@ entities:
 - `shadow_samples` overridable via CLI: `-S 32`
 - Defines a physical rectangle in space
 - Great for ceiling panels, windows
+- Visible to camera & specular rays via an internally-managed emissive quad proxy at the same `corner`/`u`/`v` — closes Veach's MIS estimator on smooth-specular materials. Same approach as Arnold/Cycles/Renderman analytic quad lights.
 - `soft_radius` (default `0`): when > 0, the attenuation denominator is clamped to `max(distSq, r²)`, preventing the `cosLight/d²` term from diverging when a stratified sample falls nearly tangent to the receiver in dense volumetric media. The returned geometric distance is unchanged. Recommended for area lights illuminating a dense participating medium (e.g. a ceiling panel in fog).
 #### **8.5 Sphere Light (Isotropic Soft Shadows)**
 ```yaml
 - type: "sphere"  # aliases: "sphere_light", "ball", "ball_light"
   position: [0, 5, 0]
-  radius: 0.5                              # Larger = softer shadows
+  radius: 0.5                              # Larger = softer shadows; also defines proxy size
   color: [1.0, 0.95, 0.85]
   intensity: 30.0
   shadow_samples: 16
-  soft_radius: 0.0                         # Optional. Used only in inside-sphere fallback.
 ```
 - Solid-angle sampling (efficient, no wasted samples)
 - Isotropic penumbra (circular shadows)
-- Better than emissive sphere for sampling efficiency
-- Small sphere + emissive sphere co-located = best of both worlds
-- `soft_radius` (default `0`): the solid-angle cone path (normal case, observer outside sphere) subsumes all geometric factors and does not need a soft-radius guard. The field is accepted for API consistency and applies only to the degenerate inside-sphere fallback path.
+- Visible to camera & specular rays via an internally-managed emissive proxy primitive at the same position/radius — closes Veach's MIS estimator on smooth-specular materials (no "dark hole" highlight on glass/mirror balls). Same approach as Arnold/Cycles/Renderman analytic sphere lights.
+- `soft_radius` is intentionally **not** consumed: the solid-angle estimator `L = Intensity × Ω / N` is bounded by `4π · Intensity` even when the receiver is inside the sphere, so the 1/d² floor used by point/spot/area lights is unnecessary here.
 #### **Light Calibration Reference:**
 | Type | Range | Notes |
 |------|-------|-------|

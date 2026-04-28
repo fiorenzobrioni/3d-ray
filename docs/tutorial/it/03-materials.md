@@ -141,7 +141,7 @@ La radianza effettivamente emessa è `color * intensity`. Un'intensità di 1.0 �
 
 Qualsiasi entità con un materiale emissivo viene rilevata automaticamente dal motore e registrata come **luce geometrica** per la Next Event Estimation (NEE). Ciò significa che il motore campiona attivamente queste superfici quando calcola l'illuminazione diretta -- proprio come le sorgenti luminose esplicite.
 
-La differenza rispetto alle luci esplicite (area, sphere, point) è che le entità emissive sono **visibili** nella scena: appaiono nelle riflessioni, nelle rifrazioni e dietro il vetro. Una luce area esplicita è invisibile -- illumina la scena ma non ha una forma visibile.
+Le luci esplicite `area` e `sphere` sono ora visibili anche loro tramite un proxy emissivo gestito internamente (parità Arnold/Cycles), quindi la scelta tra emissivi liberi e luci esplicite è principalmente di forma: usa una luce esplicita quando l'emettitore è un rettangolo o una sfera canonica (campiona meglio); usa un materiale emissivo libero quando vuoi una forma personalizzata o controllare l'emissione tramite texture. Le luci `point`/`spot`/`directional` rimangono delta — non hanno geometria visibile per costruzione.
 
 Usa i materiali emissivi per pannelli luminosi, sfere incandescenti, insegne al neon, lava, fuoco e tutto ciò che dovrebbe sia emettere luce che essere visto.
 
