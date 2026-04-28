@@ -66,26 +66,44 @@ public class Renderer
 
     // ── Russian Roulette configuration ──────────────────────────────────────
     //
-    // RR is scene-adaptive: the renderer detects at construction whether the
-    // scene relies primarily on indirect/emissive light (no or dim explicit
-    // lights) and adjusts the RR aggressiveness accordingly.
+    // RR is scene-adaptive AND path-throughput based (PBRT §13.7.1, Veach §10.4):
+    // the survival probability uses the cumulative path throughput β tracked
+    // from the camera, NOT the local single-bounce attenuation. β decays
+    // multiplicatively through every bounce, so paths through dim/dark
+    // surfaces or many lossy bounces get killed aggressively, while paths
+    // that have stayed close to unit throughput are preserved. The local-
+    // attenuation form (used in the previous implementation) could not see
+    // the long-bounce decay — a 50%-grey surface chained four times has
+    // β = 0.0625 yet each local attenuation is still 0.5, so the old test
+    // kept paths alive far longer than they were contributing to the image.
+    //
+    // The renderer also detects whether the scene relies primarily on
+    // indirect/emissive light and tightens both knobs to give those paths
+    // more time to find the (rare) emissive geometry before being culled.
     //
     // Normal scenes (bright explicit lights):
-    //   MinBounces = 4, MinSurvival = 0.15 → max boost 7×
+    //   MinBounces = 3, MinSurvival = 0.10 → max boost 10×
     //   Direct lighting (NEE) carries most energy, indirect is correction.
     //   Aggressive RR is fine — killed paths lose only the small indirect term.
     //
     // Indirect-dominant scenes (emissive-only or very dim lights):
-    //   MinBounces = 8, MinSurvival = 0.5 → max boost 2×
+    //   MinBounces = 6, MinSurvival = 0.40 → max boost 2.5×
     //   ALL energy comes from indirect bounces hitting emissive surfaces.
     //   Aggressive RR kills paths BEFORE they find the emissive → dark spots.
     //   Conservative RR lets more paths survive to find the light source.
     //
-    private const int RR_MinBounces_Normal   = 4;
-    private const float RR_MinSurvival_Normal = 0.15f;
+    private const int   RR_MinBounces_Normal  = 3;
+    private const float RR_MinSurvival_Normal = 0.10f;
 
-    private const int RR_MinBounces_Indirect   = 8;
-    private const float RR_MinSurvival_Indirect = 0.5f;
+    private const int   RR_MinBounces_Indirect  = 6;
+    private const float RR_MinSurvival_Indirect = 0.40f;
+
+    // Below this max-channel throughput the path is numerically dead — its
+    // contribution to the final pixel is below the post-clamp / post-tone-map
+    // noise floor. Skipping the recursive TraceRay (and the BVH traversal
+    // that goes with it) is a pure win, because the radiance the call would
+    // have returned is multiplied back by β at the caller anyway.
+    private const float DeadPathThroughputEpsilon = 1e-4f;
 
     // Effective values, computed at construction based on scene analysis
     private readonly int _rrMinBounces;
@@ -365,7 +383,8 @@ public class Renderer
                         float v = (height - j - 1 + jitterV) / height;
 
                         var ray = _camera.GetRay(u, v);
-                        Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true);
+                        Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true,
+                                                   pathThroughput: Vector3.One);
 
                         Sampler.EndPixelSample();
 
@@ -387,7 +406,8 @@ public class Renderer
                             float v = (height - j - 1 + jitterV) / height;
 
                             var ray = _camera.GetRay(u, v);
-                            Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true);
+                            Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true,
+                                                       pathThroughput: Vector3.One);
 
                             sample = ClampRadiance(sample);
                             cumulativeColor += sample;
@@ -514,7 +534,8 @@ public class Renderer
 
     private Vector3 ShadeSurface(Ray ray, HitRecord rec, int depth,
                                   float prevBsdfPdf, bool prevIsDelta,
-                                  Vector3 currentAbsorption)
+                                  Vector3 currentAbsorption,
+                                  Vector3 pathThroughput)
     {
         IMaterial? material = rec.Material;
 
@@ -559,19 +580,29 @@ public class Renderer
         if (mis.HasValue)
         {
             return ShadeSampleBounce(material, rec, mis.Value, depth, emitted, directLight,
-                                     currentAbsorption);
+                                     currentAbsorption, pathThroughput);
         }
 
         if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
         {
+            // Path-throughput-based RR (PBRT §13.7.1). Survival probability is
+            // driven by the cumulative β projected into this bounce, not the
+            // local single-bounce attenuation. This kills paths whose total
+            // contribution to the image has decayed through repeated dim
+            // bounces, even when the current attenuation is moderate.
+            Vector3 nextThroughput = pathThroughput * attenuation;
             int bouncesUsed = _maxDepth - depth;
             if (bouncesUsed >= _rrMinBounces)
             {
-                float survivalProb = MathF.Max(MathUtils.Luminance(attenuation), _rrMinSurvival);
+                float survivalProb = MathF.Max(nextThroughput.X,
+                                       MathF.Max(nextThroughput.Y, nextThroughput.Z));
+                survivalProb = MathF.Max(survivalProb, _rrMinSurvival);
                 survivalProb = MathF.Min(survivalProb, 0.95f);
                 if (MathUtils.RandomFloat() > survivalProb)
                     return emitted + directLight;
-                attenuation /= survivalProb;
+                float invSurvival = 1f / survivalProb;
+                attenuation *= invSurvival;
+                nextThroughput *= invSurvival;
             }
 
             if (attenuation.LengthSquared() < 0.001f)
@@ -588,7 +619,8 @@ public class Renderer
             // absorbs along the continued ray segment.
             Vector3 indirect = TraceRay(scattered, depth - 1,
                                          prevBsdfPdf: 0f, prevIsDelta: nextIsDelta,
-                                         currentAbsorption: currentAbsorption);
+                                         currentAbsorption: currentAbsorption,
+                                         pathThroughput: nextThroughput);
             // Depth-aware indirect clamp: suppresses deep-specular fireflies that
             // survive the primary pixel-level ClampRadiance. When the factor is
             // 1.0 (default) ClampRadianceIndirect == ClampRadiance — no change.
@@ -619,7 +651,8 @@ public class Renderer
     private Vector3 ShadeSampleBounce(IMaterial material, HitRecord rec,
                                        BsdfSample s, int depth,
                                        Vector3 emitted, Vector3 directLight,
-                                       Vector3 currentAbsorption)
+                                       Vector3 currentAbsorption,
+                                       Vector3 pathThroughput)
     {
         Vector3 attenuation;
         if (s.IsDelta)
@@ -646,14 +679,21 @@ public class Renderer
         if (attenuation.LengthSquared() < 0.001f)
             return emitted + directLight;
 
+        // Path-throughput-based RR (PBRT §13.7.1). See ShadeSurface above for
+        // the full rationale.
+        Vector3 nextThroughput = pathThroughput * attenuation;
         int bouncesUsed = _maxDepth - depth;
         if (bouncesUsed >= _rrMinBounces)
         {
-            float survivalProb = MathF.Max(MathUtils.Luminance(attenuation), _rrMinSurvival);
+            float survivalProb = MathF.Max(nextThroughput.X,
+                                   MathF.Max(nextThroughput.Y, nextThroughput.Z));
+            survivalProb = MathF.Max(survivalProb, _rrMinSurvival);
             survivalProb = MathF.Min(survivalProb, 0.95f);
             if (MathUtils.RandomFloat() > survivalProb)
                 return emitted + directLight;
-            attenuation /= survivalProb;
+            float invSurvival = 1f / survivalProb;
+            attenuation *= invSurvival;
+            nextThroughput *= invSurvival;
         }
 
         // Offset ray origin on the side of the normal that matches the outgoing
@@ -669,7 +709,8 @@ public class Renderer
         // the caller's currentAbsorption untouched.
         Vector3 nextAbsorption = s.NextSegmentAbsorption ?? currentAbsorption;
         Vector3 indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
-                                     currentAbsorption: nextAbsorption);
+                                     currentAbsorption: nextAbsorption,
+                                     pathThroughput: nextThroughput);
         // Depth-aware indirect clamp — see ShadeSurface's Scatter path above.
         indirect = ClampRadianceIndirect(indirect);
         // PBRT/Arnold convention — see ShadeSurface above.
@@ -730,9 +771,24 @@ public class Renderer
     /// independent media and are accumulated in series.
     /// </summary>
     private Vector3 TraceRay(Ray ray, int depth, float prevBsdfPdf, bool prevIsDelta,
-                             Vector3 currentAbsorption = default)
+                             Vector3 currentAbsorption = default,
+                             Vector3 pathThroughput = default)
     {
         if (depth <= 0) return Vector3.Zero;
+
+        // Dead-path early-out. Once the cumulative β has decayed below the
+        // post-tone-map noise floor on every channel, the radiance this call
+        // would return is multiplied back by β at the caller anyway, so the
+        // BVH traversal + shading are pure waste. Cheap test, large win on
+        // long bounce paths through dim/coloured surfaces.
+        //
+        // All call sites (camera rays in Render, every recursive Shade* /
+        // volumetric branch) pass an explicit pathThroughput, so default
+        // (zero) here genuinely means "no throughput" and short-circuits.
+        float betaMax = MathF.Max(pathThroughput.X,
+                          MathF.Max(pathThroughput.Y, pathThroughput.Z));
+        if (betaMax < DeadPathThroughputEpsilon)
+            return Vector3.Zero;
 
         var rec = new HitRecord();
         bool hit = _world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
@@ -742,7 +798,8 @@ public class Renderer
         {
             Vector3 result = !hit
                 ? SampleSky(ray, prevBsdfPdf, prevIsDelta)
-                : ShadeSurface(ray, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption);
+                : ShadeSurface(ray, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
+                               pathThroughput);
             // Beer-Lambert along the segment just traversed. Sky miss with
             // non-zero σ_a means the ray escaped the bounded medium — the
             // exp(-σ_a · ∞) is zero for any absorbing channel, so we collapse
@@ -763,13 +820,20 @@ public class Renderer
             Vector3 Lnee = ComputeDirectLightingMedium(p, ray.Direction);
 
             // ── Russian Roulette on the indirect (phase-sampled) bounce ─────
+            // Throughput-based: β_after = pathThroughput · medium-β. Same
+            // motivation as the surface RR — a path that has already lost
+            // most of its energy on the way to this scattering event should
+            // be killed before spending another phase-sampled bounce.
             Vector3 Lind = Vector3.Zero;
+            Vector3 medThroughput = pathThroughput * beta;
             int bouncesUsedS = _maxDepth - depth;
             float indirectScale = 1f;
             bool killIndirect = false;
             if (bouncesUsedS >= _rrMinBounces)
             {
-                float survivalProb = MathF.Max(MathUtils.Luminance(beta), _rrMinSurvival);
+                float survivalProb = MathF.Max(medThroughput.X,
+                                       MathF.Max(medThroughput.Y, medThroughput.Z));
+                survivalProb = MathF.Max(survivalProb, _rrMinSurvival);
                 survivalProb = MathF.Min(survivalProb, 0.95f);
                 if (MathUtils.RandomFloat() > survivalProb) killIndirect = true;
                 else indirectScale = 1f / survivalProb;
@@ -784,10 +848,12 @@ public class Renderer
                 var (wi, phasePdf) = _globalMedium.Phase.Sample(ray.Direction);
                 float phaseVal = _globalMedium.Phase.Evaluate(ray.Direction, wi);
                 float phaseWeight = phasePdf > 1e-20f ? phaseVal / phasePdf : 0f;
+                Vector3 nextThroughput = medThroughput * (phaseWeight * indirectScale);
                 Lind = phaseWeight * indirectScale
                      * TraceRay(new Ray(p, wi), depth - 1,
                                  prevBsdfPdf: phasePdf, prevIsDelta: false,
-                                 currentAbsorption: currentAbsorption);
+                                 currentAbsorption: currentAbsorption,
+                                 pathThroughput: nextThroughput);
             }
 
             return ApplyBeerLambert(beta * (Lnee + Lind), currentAbsorption, tMed);
@@ -797,7 +863,8 @@ public class Renderer
         // attenuated by the medium throughput beta = Tr / pdf.
         Vector3 surfaceOrSky = !hit
             ? beta * SampleSky(ray, prevBsdfPdf, prevIsDelta)
-            : beta * ShadeSurface(ray, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption);
+            : beta * ShadeSurface(ray, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
+                                   pathThroughput * beta);
         return ApplyBeerLambert(surfaceOrSky, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
     }
 
