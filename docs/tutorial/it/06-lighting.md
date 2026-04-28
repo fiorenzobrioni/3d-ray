@@ -17,6 +17,17 @@ L'illuminazione definisce l'atmosfera, la profondità e il realismo di una scena
 
 Tutte le luci sono definite nella sezione `lights:`. Se ometti completamente la sezione `lights:`, il motore aggiunge delle luci predefinite (una direzionale e una puntiforme). Se includi una sezione `lights: []` vuota, la scena non avrà luci esplicite -- utile quando ci si affida interamente a oggetti emissivi o all'illuminazione ambientale HDRI.
 
+### `ambient_light` e luci esplicite
+
+`ambient_light` (definita nella sezione `world:`, introdotta nel Capitolo 2) è **additiva** rispetto a ogni altra sorgente di luce — non è un override né una sostituzione. Una scena con tre area light *e* `ambient_light: [0.2, 0.2, 0.2]` aggiunge 0.2 RGB sopra a tutto ciò che le luci esplicite già contribuiscono.
+
+Regole pratiche:
+
+- **Tenerla molto bassa (0.01–0.05 per canale).** Riempie le ombre più profonde quel tanto che basta per evitare il nero assoluto, senza influenzare visibilmente le superfici illuminate.
+- **`ambient_light` alta sbiadisce le ombre** e rende la scena piatta: il contrasto tra facce illuminate e non illuminate collassa, e aggiungere altre luci non lo ripristina. Se la scena sembra una sfumatura bianco-diffusa, `ambient_light` è quasi sempre il colpevole.
+- **Scene con cielo HDRI: impostare `ambient_light` a zero.** L'environment map gestisce tutta l'illuminazione indiretta tramite NEE; aggiungere ambient uniform in cima vanifica lo scopo dell'IBL.
+- **Scene d'interni con sole luci esplicite:** `[0.015, 0.015, 0.02]` (un bianco freddo molto tenue) è un buon punto di partenza.
+
 ---
 
 ## 6.2 Point Light (Luce Puntiforme)

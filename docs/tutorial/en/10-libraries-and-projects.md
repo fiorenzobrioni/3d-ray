@@ -458,21 +458,47 @@ knob, see **[Rendering Profiles Reference](../../reference/rendering-profiles.md
 ### Black Image
 - **No lights.** Add lights to the `lights:` section or use emissive
   objects / HDRI sky.
+- **All lights have zero intensity.** Check that `intensity` is positive.
 - **Camera inside an object.** Move the camera `position` outside all
   geometry.
 - **Camera facing the wrong way.** Check `look_at`.
+- **`ambient_light: [0,0,0]` with no lights.** A scene needs at least
+  one light source or a non-zero background. Adding
+  `ambient_light: [0.02, 0.02, 0.02]` will help you locate geometry
+  even with no explicit lights.
+
+### Scene Looks Flat or Washed Out
+- **`ambient_light` is too high.** Values above 0.1 compress the shadow
+  contrast and make every surface look uniformly lit. Lower it to
+  0.01–0.05, or set it to zero for HDRI scenes.
+- **No dominant directional light.** A scene lit only by ambient and
+  fill lights has no clear shadow direction; add a key light with higher
+  intensity to establish contrast.
+- **All lights are the same color.** Real environments mix warm and cool
+  light. Try a warm key light (`[1.0, 0.9, 0.75]`) paired with a cool
+  fill light (`[0.7, 0.8, 1.0]`).
 
 ### Too Much Noise
 - Increase samples: `-s 64` or `-s 256`.
 - Increase shadow samples: `-S 16`.
 - Dense Disney materials (subsurface, sheen) need more samples than
   classic types.
+- **Depth of Field is enabled.** A non-zero `aperture` requires many
+  more samples to clear bokeh noise. Use at least `-s 256` for clean
+  DOF renders.
+- **Emissive material inside a CSG node.** The engine warns about this;
+  the emissive surface cannot participate in Next Event Estimation and
+  causes high variance. Move the emissive primitive outside the CSG tree.
 
 ### Very Slow Render
 - Reduce resolution and samples during testing.
 - Use the preview/draft/final workflow.
 - Replace Disney materials with classic equivalents for background
   surfaces.
+- **Too many shadow samples.** `-S` cost is multiplicative: `-S 9` with
+  two area lights and `-s 256` at 6 bounces is over 27,000 shadow rays
+  per pixel. Use `-S 1` or `-S 4` unless you specifically need sharper
+  soft shadows.
 
 ### Missing Material (Object Appears Default Grey)
 - Check for typos in the material `id`.
@@ -482,6 +508,14 @@ knob, see **[Rendering Profiles Reference](../../reference/rendering-profiles.md
 ### Wrong Colors
 - Colors are `[R, G, B]` in the range **0.0--1.0**, not 0--255.
   `[255, 0, 0]` is not red -- it is an extremely bright white.
+
+### Object Is in the Wrong Place or Invisible
+- Check the coordinate system: **Y is up**, the floor is at Y = 0.
+  Objects placed at negative Y are below the ground.
+- A `translate` of `[0, 0, 5]` moves the object **into the scene**
+  (positive Z), not toward the camera. To move toward the default
+  camera, use negative Z.
+- Use `--verbose` to print the scene bounding box and locate lost objects.
 
 ### Glass Looks Wrong (Too Dark or Solid)
 - Increase ray depth: `-d 16` or higher (glass consumes 2 bounces per

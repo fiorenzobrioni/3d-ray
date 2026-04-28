@@ -167,8 +167,19 @@ La mappa HDRI avvolge l'intera scena come una sfera. Il motore utilizza l'**impo
 - I file HDRI sono tipicamente nel formato `.hdr` (Radiance) o `.exr` (OpenEXR).
 - HDRIs gratuiti sono disponibili su siti come Poly Haven (licenza CC0).
 - Usare `intensity` per schiarire o scurire l'ambiente senza modificare il file. Valori di 0.5--2.0 sono tipici.
-- Usare `rotation` per ruotare l'ambiente in modo che il sole si trovi dove si desidera.
 - L'illuminazione HDRI fornisce un'illuminazione morbida e naturale con gradienti di colore complessi. Spesso è l'unica sorgente luminosa necessaria per scene all'aperto.
+- Per scene d'interni che usano l'HDRI come ambiente, impostare `ambient_light` a `[0, 0, 0]` — l'environment map fornisce già tutta la luce indiretta.
+
+### Trovare la `rotation` giusta
+
+`rotation` ruota la sfera dell'ambiente attorno all'asse Y in gradi, scegliendo di fatto quale direzione fronteggia il sole (o il punto più luminoso). Ecco un workflow pratico:
+
+1. **Anteprima rapida.** Renderizzare un'anteprima a bassa risoluzione (`-s 16 -w 400`). Osservare dove cadono le ombre sugli oggetti — lì si trova la sorgente luminosa dominante.
+2. **Visualizzare l'HDRI.** Aprire il file `.hdr` in un visualizzatore (es. il gratuito [hdrview](https://github.com/wkjarosz/hdrview), o qualsiasi editor fotografico che supporti HDR). Individuare il sole o il punto più luminoso. Notare approssimativamente quanto dista dal bordo sinistro dell'immagine equirettangolare.
+3. **Convertire la posizione in gradi.** L'intera larghezza dell'immagine equirettangolare rappresenta 360°. Se il sole è al 25% dal bordo sinistro, si trova a 90°; al 75% si trova a 270°. Un valore `rotation` di X° ruota l'ambiente in modo che il meridiano 0° dell'HDRI affronti la direzione `+Z` della scena più X°.
+4. **Iterare.** Iniziare con `rotation: 0` e regolare a passi di 45° finché le ombre non cadono dove si desidera, poi affinare con incrementi di 10–15°.
+
+> **Suggerimento:** se la direzione del sole è importante per una ripresa specifica (es. il sole deve essere a sinistra della camera per creare un rim light sul soggetto), procedere al contrario: decidere l'angolo dell'ombra desiderato nello spazio world, poi scegliere una `rotation` che posizioni il punto luminoso dell'HDRI a quell'angolo dall'asse `+Z`.
 
 ---
 
