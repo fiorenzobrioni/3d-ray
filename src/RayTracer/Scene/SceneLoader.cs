@@ -1792,8 +1792,12 @@ public class SceneLoader
         //   L_sample = Intensity × area × cosLight / (d² × N)
         // is the Lambertian-radiance integrand: NEE and the BSDF-sampled hit on
         // the proxy produce the same total energy, closing Veach's MIS estimator.
+        // Wrap in BackFaceCulledHittable so the camera and specular rays see
+        // through the dark (back) side of the panel — same pattern Arnold and
+        // Cycles use for analytic single-sided quad lights.
         var proxyMat = new Emissive(color, l.Intensity) { IsLightProxy = true };
-        objects.Add(new Quad(corner.Value, u.Value, v.Value, proxyMat));
+        objects.Add(new BackFaceCulledHittable(
+            new Quad(corner.Value, u.Value, v.Value, proxyMat)));
 
         return new AreaLight(corner.Value, u.Value, v.Value, color,
                              l.Intensity, effectiveShadowSamples, l.SoftRadius,
