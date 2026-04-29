@@ -21,7 +21,7 @@ namespace RayTracer.Materials;
 /// The emitted radiance is color * intensity.  Intensity > 1 creates bloom-like
 /// over-bright surfaces that illuminate nearby objects via indirect bounces.
 /// </summary>
-public class Emissive : IMaterial
+public sealed class Emissive : IMaterial
 {
     public ITexture Albedo { get; }
     public float Intensity { get; }

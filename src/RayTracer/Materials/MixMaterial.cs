@@ -53,7 +53,7 @@ namespace RayTracer.Materials;
 ///       type: "image"
 ///       path: "textures/wear_mask.png"
 /// </summary>
-public class MixMaterial : IMaterial
+public sealed class MixMaterial : IMaterial
 {
     /// <summary>Child material selected when blend factor is low (t → 0).</summary>
     public IMaterial MaterialA { get; }

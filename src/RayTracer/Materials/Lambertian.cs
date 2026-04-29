@@ -4,7 +4,7 @@ using RayTracer.Textures;
 
 namespace RayTracer.Materials;
 
-public class Lambertian : IMaterial
+public sealed class Lambertian : IMaterial
 {
     public ITexture Albedo { get; }
 
