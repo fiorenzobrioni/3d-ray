@@ -3,30 +3,44 @@
 # --- CONFIGURAZIONI WORLD E LIGHTS (Scommenta quella desiderata) ---
 # 1. Studio notturno con cielo scuro, luna tenue
 world:
-  ambient_light: [0.02, 0.02, 0.02]
+  ambient_light: [0.01, 0.01, 0.015]
   sky:
     type: "gradient"
-    zenith_color:  [0.01, 0.01, 0.04]
-    horizon_color: [0.04, 0.04, 0.08]
-    ground_color:  [0.02, 0.02, 0.03]
+    zenith_color:  [0.02, 0.04, 0.12]
+    horizon_color: [0.06, 0.08, 0.12]
+    ground_color:  [0.02, 0.02, 0.02]
   ground: { type: "infinite_plane", material: "floor_checker", y: 0.0 }
 
 lights:
-  - type: "spot"
-    position: [0, 10, 0]
-    direction: [0, -1, 0]
-    color: [1.0, 0.95, 0.9]
-    intensity: 150
-    inner_angle: 20
-    outer_angle: 45
-  - type: "point"
-    position: [-5, 5, -5]
-    color: [0.5, 0.8, 1.0]
-    intensity: 40
-  - type: "point"
-    position: [5, 2, -2]
-    color: [1.0, 0.5, 0.2]
-    intensity: 30
+  # ── Sfera piccola (quasi-puntiforme, ombre nette con penumbra sottile) ──
+  - type: "sphere"
+    position: [-6.0, 6.5, -3]
+    radius: 0.5
+    color: [1.0, 0.95, 0.88]
+    intensity: 120.0
+    shadow_samples: 16
+
+  # ── Sfera media (lampadina classica, penumbra moderata) ─────────────────
+  - type: "sphere"
+    position: [0, 6.5, -3]
+    radius: 0.5
+    color: [1.0, 0.95, 0.88]
+    intensity: 120.0
+    shadow_samples: 16
+
+  # ── Sfera grande (lanterna/globo, ombre molto morbide) ──────────────────
+  - type: "sphere"
+    position: [6.0, 6.5, -3]
+    radius: 0.5
+    color: [1.0, 0.93, 0.80]
+    intensity: 120.0
+    shadow_samples: 16
+
+  # ── Fill tenue dal retro-alto (evita nero assoluto nei recessi) ─────────
+  - type: "-point"
+    position: [0, 7, -8]
+    color: [0.55, 0.60, 0.75]
+    intensity: 2.0
 
 # 2. Natural Daylight (Esterno chiaro)
 #world:
@@ -82,10 +96,10 @@ lights:
 
 cameras:
   - name:       frontale        # Vista principale frontale per tutti i materiali
-    position:   [0, 3, -8]
-    look_at:    [0, 1.5, 0]
+    position:   [0, 3.9, -8]
+    look_at:    [0, 2, 0]
     fov:        50
-    aperture:   0.05
+    aperture:   0 #.05
     focal_dist: 8.0
 
   - name:       birds_eye       # Vista dall'alto (Bird's eye view) sui riflessi
@@ -115,10 +129,23 @@ materials:
     type: "metal"
     color: [0.9, 0.7, 0.1]
     fuzz: 0.2
-  - id: "glass_clear"
+  - id: "kglass_clear"
     type: "dielectric"
     refraction_index: 1.5
     color: [1.0, 1.0, 1.0]
+
+  - id: "glass_clear"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
+    ior: 1.8
+    roughness: 0.0
+    specular: 1.0
+    transmission_color: [0.97, 0.97, 1.0]
+    transmission_depth: 1.0
+
+
+
   - id: "glass_red"
     type: "dielectric"
     refraction_index: 1.5
@@ -142,7 +169,7 @@ entities:
   # Parete posteriore (cattura ombre)
   - name: "back_wall"
     type: "quad"
-    q: [-10, 0, 10]
+    q: [-10, 0, 9.5]
     u: [20, 0, 0]
     v: [0, 7, 0]
     material: "wall"
@@ -171,7 +198,7 @@ entities:
   # Piccola sfera VETRO ROSSO in primo piano
   - name: "floating_red_glass"
     type: "sphere"
-    center: [-1.2, 3.2, -2.0]
+    center: [-2.2, 4.2, -2.0]
     radius: 0.4
     material: "glass_red"
 
@@ -189,7 +216,7 @@ entities:
     #center: [4.6, 0, -1.0]
     center: [4.2, 0, 3.5]
     radius: 0.5
-    height: 4.0
+    height: 4.5
     material: "blue_marble"
 
   # Sfera VETRO TRASPARENTE a destra
