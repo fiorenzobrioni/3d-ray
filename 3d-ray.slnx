@@ -8,4 +8,7 @@
     <Project Path="src/Tools/TextureGen/TextureGen.csproj" />
     <Project Path="src/Tools/NormalMapGen/NormalMapGen.csproj" />
   </Folder>
+  <Folder Name="/RayForge/">
+    <Project Path="src/RayForge/RayForge.csproj" />
+  </Folder>
 </Solution>
