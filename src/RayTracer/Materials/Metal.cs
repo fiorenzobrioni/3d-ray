@@ -32,7 +32,7 @@ namespace RayTracer.Materials;
 ///     color: [0.58, 0.57, 0.55]
 ///     fuzz: 0.30
 /// </summary>
-public class Metal : IMaterial
+public sealed class Metal : IMaterial
 {
     public ITexture Albedo { get; }
     public float Fuzz { get; }

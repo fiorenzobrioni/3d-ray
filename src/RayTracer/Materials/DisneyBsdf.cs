@@ -45,7 +45,7 @@ namespace RayTracer.Materials;
 ///     clearcoat: 1.0
 ///     clearcoat_gloss: 0.9
 /// </summary>
-public class DisneyBsdf : IMaterial
+public sealed class DisneyBsdf : IMaterial
 {
     // ── Core parameters ─────────────────────────────────────────────────────
     // All scalar Disney parameters are stored as FloatTexture, enabling

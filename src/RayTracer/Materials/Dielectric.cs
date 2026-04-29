@@ -4,7 +4,7 @@ using RayTracer.Textures;
 
 namespace RayTracer.Materials;
 
-public class Dielectric : IMaterial
+public sealed class Dielectric : IMaterial
 {
     public float RefractionIndex { get; }
     public ITexture Albedo { get; }

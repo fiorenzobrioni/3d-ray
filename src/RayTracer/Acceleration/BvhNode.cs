@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using RayTracer.Core;
 using RayTracer.Geometry;
 
@@ -181,12 +182,11 @@ public class BvhNode : IHittable
         // a positive ray component on that axis means _left is closer to the
         // ray origin. Visiting the near child first gives a tighter tMax for
         // the far child and maximises early-reject pruning.
-        float dirOnAxis = _splitAxis switch
-        {
-            0 => ray.Direction.X,
-            1 => ray.Direction.Y,
-            _ => ray.Direction.Z
-        };
+        // Index Vector3 directly via Unsafe.Add to avoid the switch's branch
+        // table on every internal-node visit; the JIT sees this as a single
+        // movss/movq from a known offset.
+        Vector3 dir = ray.Direction;
+        float dirOnAxis = Unsafe.Add(ref Unsafe.As<Vector3, float>(ref dir), _splitAxis);
 
         BvhNode near, far;
         if (dirOnAxis >= 0f)
