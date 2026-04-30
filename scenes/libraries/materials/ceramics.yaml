@@ -806,3 +806,95 @@ materials:
     type: "metal"
     color: [0.78, 0.58, 0.30]
     fuzz: 0.48
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SATIN — finitura semilucida tra opaco e smaltato
+  # ═══════════════════════════════════════════════════════════════════════════
+  #
+  #  Ceramiche con finitura satin (a cera, satin matte, biscotto-vitrified):
+  #  superficie con riflessi morbidi, niente clearcoat netto, roughness medio.
+  #  Ideale per stoviglie moderne, vasi minimal, oggetti d'arredo nordico.
+  #
+
+  # ── Disney ─────────────────────────────────────────────────────────────
+
+  # Porcellana satin bianca — finitura cera, niente lucido vitrificato
+  - id: "dis_satin_porcellana"
+    type: "disney"
+    color: [0.93, 0.92, 0.89]
+    roughness: 0.45
+    metallic: 0.0
+    specular: 0.35
+
+  # Porcellana satin avorio — tono caldo da stoviglie giapponesi moderne
+  - id: "dis_satin_avorio"
+    type: "disney"
+    color: [0.92, 0.86, 0.74]
+    roughness: 0.48
+    metallic: 0.0
+    specular: 0.32
+
+  # Satin grigio pietra — vasi minimal scandinavi
+  - id: "dis_satin_grigio"
+    type: "disney"
+    color: [0.62, 0.62, 0.60]
+    roughness: 0.50
+    metallic: 0.0
+    specular: 0.30
+
+  # Satin nero antracite — stoviglie da chef, vasi industriali
+  - id: "dis_satin_nero"
+    type: "disney"
+    color: [0.10, 0.10, 0.11]
+    roughness: 0.42
+    metallic: 0.0
+    specular: 0.38
+
+  # Satin sabbia — terra cruda lucidata, ceramiche desert palette
+  - id: "dis_satin_sabbia"
+    type: "disney"
+    color: [0.78, 0.66, 0.48]
+    roughness: 0.52
+    metallic: 0.0
+    specular: 0.28
+
+  # Satin verde salvia — vasi pastello scandi, ceramica organica
+  - id: "dis_satin_salvia"
+    type: "disney"
+    color: [0.62, 0.70, 0.55]
+    roughness: 0.50
+    metallic: 0.0
+    specular: 0.30
+
+  # Satin terracotta — vasi mediterranei moderni
+  - id: "dis_satin_terracotta"
+    type: "disney"
+    color: [0.72, 0.40, 0.28]
+    roughness: 0.55
+    metallic: 0.0
+    specular: 0.28
+
+  # ── Classic ────────────────────────────────────────────────────────────
+  # Note: il satin sui classici è approssimato con metal+fuzz alto: niente
+  # specular tinted ma il risultato visivo è simile per scene grandi/sfondo.
+
+  - id: "cls_satin_porcellana"
+    type: "metal"
+    color: [0.93, 0.92, 0.89]
+    fuzz: 0.55
+
+  - id: "cls_satin_nero"
+    type: "metal"
+    color: [0.10, 0.10, 0.11]
+    fuzz: 0.50
+
+  - id: "cls_satin_grigio"
+    type: "metal"
+    color: [0.62, 0.62, 0.60]
+    fuzz: 0.55
+
+  - id: "cls_satin_terracotta"
+    type: "metal"
+    color: [0.72, 0.40, 0.28]
+    fuzz: 0.62

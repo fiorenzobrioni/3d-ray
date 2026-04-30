@@ -95,6 +95,8 @@ lights:
     intensity: 65.0
     inner_angle: 6
     outer_angle: 14
+    soft_radius: 0.08
+    shadow_samples: 4
 
   # ── GROUND BOUNCE ─────────────────────────────────────────────────────────
   #  Point dal basso, simula il rimbalzo della luce dal piano dello studio.
@@ -106,3 +108,4 @@ lights:
     position: [0.0, -2.0, -0.5]
     color: [1.0, 0.94, 0.82]
     intensity: 8.0
+    soft_radius: 0.05

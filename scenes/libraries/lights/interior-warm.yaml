@@ -69,6 +69,7 @@ lights:
     position: [-2.5, 1.2, -1.0]
     color: [1.0, 0.68, 0.30]
     intensity: 12.0
+    soft_radius: 0.10      # diametro lampadina: 1/d² floored → niente firefly
 
   # ── LUCE FINESTRA NOTTURNA (CONTRASTO FREDDO) ─────────────────────────────
   #  Directional che simula la luce lunare o del cielo notturno che filtra
@@ -91,3 +92,4 @@ lights:
     position: [0.0, -0.5, 0.0]
     color: [1.0, 0.72, 0.38]
     intensity: 4.0
+    soft_radius: 0.08

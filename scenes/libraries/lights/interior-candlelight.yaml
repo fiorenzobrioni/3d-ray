@@ -57,6 +57,7 @@ lights:
     position: [-1.2, 1.4, -0.8]
     color: [1.0, 0.48, 0.08]
     intensity: 8.0
+    soft_radius: 0.06      # corpo della fiamma: ~6 mm → 1/d² floored
 
   # ── CANDELA SECONDARIA (DESTRA) ───────────────────────────────────────────
   #  Seconda candela asimmetrica: leggermente più lontana e meno intensa
@@ -68,6 +69,7 @@ lights:
     position: [1.5, 1.2, -0.5]
     color: [1.0, 0.42, 0.06]
     intensity: 5.5
+    soft_radius: 0.05
 
   # ── CANDELA SFONDO (CENTRO-RETRO — OPZIONALE) ─────────────────────────────
   #  Terza candela in profondità, simula un candelabro o un lumino lontano.
@@ -79,6 +81,7 @@ lights:
     position: [0.3, 1.6, 2.8]
     color: [1.0, 0.52, 0.10]
     intensity: 6.0
+    soft_radius: 0.06
 
   # ── EMBER GLOW (BRACE / LUCE DAL BASSO) ──────────────────────────────────
   #  Directional molto bassa con direzione quasi orizzontale verso l'alto,

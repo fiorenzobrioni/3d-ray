@@ -1,6 +1,6 @@
 # 📦 Libreria Oggetti — Template Riutilizzabili
 
-Raccolta di **160 template** e **~230 materiali** dedicati, organizzati in 12 librerie tematiche. Ogni file contiene oggetti composti professionali costruiti con primitive, **lathe (superficie di rivoluzione)**, CSG, torus, sfere scalate (ellissoidi) e gruppi annidati. Oltre 26 template sfruttano la primitiva `lathe` per corpi torniti di livello professionale — vedi la sezione [Profili di rivoluzione (lathe)](#profili-di-rivoluzione-lathe) più avanti.
+Raccolta di **~150 template** e **~220 materiali** dedicati, organizzati in 11 librerie tematiche. Ogni file contiene oggetti composti professionali costruiti con primitive, **lathe (superficie di rivoluzione)**, CSG, torus, sfere scalate (ellissoidi) e gruppi annidati. Oltre 20 template sfruttano la primitiva `lathe` per corpi torniti di livello professionale — vedi la sezione [Profili di rivoluzione (lathe)](#profili-di-rivoluzione-lathe) più avanti.
 
 ---
 
@@ -18,7 +18,6 @@ scenes/libraries/objects/
 ├── laboratory.yaml           14 template — Attrezzatura da laboratorio
 ├── musical.yaml              14 template — Strumenti musicali
 ├── outdoor.yaml              15 template — Arredo esterno e giardino
-├── chess.yaml                11 template — Set di scacchi Staunton
 └── nature.yaml               15 template — Piante, fiori e natura
 ```
 
@@ -79,6 +78,37 @@ Scale, rotazione e traslazione si applicano normalmente:
 ```
 
 Scale asimmetrico funziona: `scale: [1.0, 0.8, 1.0]` schiaccia in altezza.
+
+> **⚠️ Best practice trasformazioni su primitive**
+>
+> Su primitive che hanno un parametro `center:` (sphere, cylinder, cone,
+> capsule, torus), **non combinare `center:` con `rotate:` o `scale:`**.
+> Lo scale e la rotate vengono sempre applicati attorno all'**origine
+> globale**, non attorno al `center:` della primitiva. Combinandoli si
+> ottiene un riposizionamento inatteso del primitivo.
+>
+> Pattern corretto: lascia `center` a default `[0, 0, 0]` (omettilo) e usa
+> `translate:` per il posizionamento finale. ComputeTransformMatrix applica
+> sempre l'ordine `scale → rotate → translate`, quindi posizionare via
+> `translate` dopo `rotate` produce sempre il risultato atteso.
+>
+> ```yaml
+> # ❌ Sbagliato — il rotate ruota la sfera attorno all'origine globale
+> - type: "sphere"
+>   center: [0, 1.5, 0]
+>   radius: 0.3
+>   rotate: [0, 0, 90]
+>
+> # ✅ Corretto — la sfera è in (0,0,0), si scala/ruota localmente, poi posiziona
+> - type: "sphere"
+>   radius: 0.3
+>   rotate: [0, 0, 90]
+>   translate: [0, 1.5, 0]
+> ```
+>
+> `box` e `mesh` non hanno parametro `center:` e usano nativamente `translate:`,
+> quindi non sono soggetti a questo problema. Anche le istanze di `template`
+> usano direttamente `translate:`/`rotate:`/`scale:` ed è il pattern corretto.
 
 ### 5. Combinare più librerie
 
@@ -333,23 +363,12 @@ Prefisso materiali: `mus_`
 
 Prefisso materiali: `out_`
 
-### ♟️ chess.yaml — Set di Scacchi
-
-| Template | Descrizione | Dimensioni |
-|----------|-------------|------------|
-| `pedone_staunton` *(lathe)* | Pedone intero in un singolo lathe (base + stelo + testa) | Ø 0.028 × 0.050 m |
-| `torre_staunton` *(lathe)* | Torre — corpo lathe + merlatura CSG (4 tacche) | Ø 0.030 × 0.063 m |
-| `alfiere_staunton` *(lathe)* | Alfiere — corpo lathe + mitra fessa CSG | Ø 0.030 × 0.076 m |
-| `cavallo_staunton` | Cavallo stilizzato (sfere scalate multiple) | 0.032 × 0.062 × 0.028 m |
-| `regina_staunton` *(lathe)* | Regina — corpo lathe fino al collarino + coronet 8 sfere | Ø 0.032 × 0.082 m |
-| `re_staunton` *(lathe)* | Re — corpo lathe fino al cuscino + croce pattée CSG | Ø 0.036 × 0.095 m |
-| `scacchiera_legno` | Scacchiera classica in mogano (checker 8×8) | 0.46 × 0.035 × 0.46 m |
-| `scacchiera_marmo` | Scacchiera in marmo bianco e nero venato | 0.48 × 0.030 × 0.48 m |
-| `scacchiera_moderna` | Scacchiera in vetro fumé e alluminio | 0.44 × 0.020 × 0.44 m |
-| `scatola_scacchi` | Cofanetto in mogano con cerniere in ottone | 0.30 × 0.10 × 0.22 m |
-| `scatola_scacchi_lusso` | Cofanetto in pelle con angolari dorati | 0.34 × 0.12 × 0.24 m |
-
-Prefisso materiali: `chs_` — Usare `material:` override per bianchi/neri.
+> **♟️ Chess set rimosso.** La libreria `chess.yaml` (set Staunton + 3
+> scacchiere + 2 scatole porta-pezzi) e lo starter `starter-chess-set.yaml`
+> sono stati rimossi in attesa di una rifattorizzazione futura più curata
+> (cavallo, dettagli ornamentali). Il pattern di costruzione lathe +
+> CSG resta documentato in `decorative-objects.yaml` (vasi, anfore) e
+> `tableware.yaml` (calici, bottiglie).
 
 ### 🌿 nature.yaml — Piante, Fiori e Natura
 
@@ -401,7 +420,6 @@ Ogni libreria usa un prefisso unico per evitare collisioni:
 | `lab_` | laboratory |
 | `mus_` | musical |
 | `out_` | outdoor |
-| `chs_` | chess |
 | `nat_` | nature |
 
 ### Override Materiali
@@ -416,7 +434,7 @@ I materiali con `randomize_offset: true` (cortecce, pietre, marmi) generano auto
 
 ## Profili di Rivoluzione (lathe)
 
-Oltre 26 template di queste librerie sfruttano la primitiva `lathe` (superficie di rivoluzione) — marcati con *(lathe)* nelle tabelle sopra. Il motivo: i corpi assi-simmetrici (calici, bottiglie, vasi, colonne tornite, balaustri, vetreria da laboratorio, pezzi Staunton, campane, paralumi) sono intrinsecamente generati per rivoluzione di un profilo 2D attorno all'asse Y. Una singola primitiva `lathe` con profilo Catmull-Rom produce:
+Oltre 20 template di queste librerie sfruttano la primitiva `lathe` (superficie di rivoluzione) — marcati con *(lathe)* nelle tabelle sopra. Il motivo: i corpi assi-simmetrici (calici, bottiglie, vasi, colonne tornite, balaustri, vetreria da laboratorio, campane, paralumi) sono intrinsecamente generati per rivoluzione di un profilo 2D attorno all'asse Y. Una singola primitiva `lathe` con profilo Catmull-Rom produce:
 
 - **silhouette C¹ continua** — nessuna discontinuità di normale al raccordo fra segmenti, impossibile da ottenere impilando sfere/coni/torus;
 - **meno primitive** — un balaustro classico passa da 9 primitive (cylinder/sphere/cone/torus/box) a **un solo** lathe;
@@ -427,7 +445,7 @@ Oltre 26 template di queste librerie sfruttano la primitiva `lathe` (superficie 
 
 1. **Lathe solido per vetro trasparente.** Calici, bottiglie e vetreria da laboratorio (Pyrex IOR 1.47, cristallo IOR 1.62) sono un singolo `lathe` pieno: la rifrazione del materiale crea naturalmente l'effetto ottico della parete sottile, senza bisogno di CSG cavo. Esempi: `bicchiere_vino`, `bottiglia_vino`, `decanter`, `beuta_erlenmeyer`, `pallone_distillazione`, `imbuto`.
 
-2. **Lathe solido per opachi non cavi.** Pezzi torniti in legno, pietra, bronzo o porcellana dove non serve vedere una cavità interna: il lathe solido sostituisce una catena di primitive. Esempi: `balaustro`, `colonna_liscia`, `pinnacolo`, `sfera_piedistallo`, `vaso_ming`, `anfora_greca` (corpo), `campana`, `timpano` (caldaia), tutto il set Staunton (`pedone_staunton`, `torre_staunton`, `alfiere_staunton`, `regina_staunton`, `re_staunton`), stelo di `candelabro`, `candelabro_tornito`.
+2. **Lathe solido per opachi non cavi.** Pezzi torniti in legno, pietra, bronzo o porcellana dove non serve vedere una cavità interna: il lathe solido sostituisce una catena di primitive. Esempi: `balaustro`, `colonna_liscia`, `pinnacolo`, `sfera_piedistallo`, `vaso_ming`, `anfora_greca` (corpo), `campana`, `timpano` (caldaia), stelo di `candelabro`, `candelabro_tornito`.
 
 3. **CSG di due lathe per gusci a parete sottile opachi.** Quando il materiale è opaco (terracotta, tessuto) e la cavità interna deve essere visibile, due lathe in `csg: subtraction` generano un guscio di spessore costante. Esempi: `fioriera`, `vaso_giardino_classico`, `paralume_svasato`.
 

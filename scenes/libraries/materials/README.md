@@ -4,7 +4,13 @@ Raccolta completa di materiali PBR per il motore di ray tracing 3D-Ray.
 12 file YAML tematici con oltre **1080 materiali** pronti all'uso, organizzati
 per categoria e con doppia variante Disney/Classic. Ogni materiale Disney
 usa le chiavi moderne del BSDF (`coat_roughness` + `coat_ior` al posto del
-legacy `clearcoat_gloss`, `sheen_roughness` dove appropriato).
+legacy `clearcoat_gloss`, `sheen_roughness` dove appropriato, `subsurface_color`
+per il subsurface, `transmission_color` + `transmission_depth` per i vetri
+colorati anziché il colore Beer-Lambert legacy).
+
+La libreria è allineata alla versione corrente del motore (Disney 2015 +
+estensioni Arnold + thin-film). Nessun materiale usa `subsurface_radius`
+(parsato ma inutilizzato — vedi `docs/reference/scene-reference.md` §5).
 
 ---
 
@@ -75,9 +81,12 @@ Porcellana (bianca, avorio, blu cobalto, nera, rosa, craquelé, crepuscolo), bon
 maiolica (azzurra, gialla, verde, arancio), terracotta (naturale, invetriata,
 smaltata verde), grès/stoneware (tenmoku, shino, celadon), raku (rame,
 nero, iridescente), celadon (classico, chiaro, scuro), biscotto/bisque,
-ceramica smaltata (8 colori), terra sigillata (rossa, nera, ocra).
+ceramica smaltata (8 colori), terra sigillata (rossa, nera, ocra),
+**satin** ✨ (porcellana, avorio, grigio pietra, antracite, sabbia, salvia,
+terracotta — finitura cera tra opaco e smaltato, ideale per stoviglie
+moderne e vasi minimal scandinavi).
 
-**88 materiali** · 9 categorie
+**~99 materiali** · 10 categorie
 
 ### Legni — `woods.yaml`
 Latifoglie chiare (acero, betulla, frassino, faggio), medie (quercia,
@@ -93,14 +102,18 @@ finiture: grezzo, olio, cera, verniciato, laccato.
 Vetri industriali (soda-lime, borosilicato, float, temperato), ottici
 (crown, flint, dense flint), cristallo (piombo, Swarovski, fumé, rosa),
 colorati (rosso, blu cobalto, verde bottiglia, ambra, viola Murano,
-turchese, giallo, smeraldo), smerigliati (satinato, sabbiato, acidato,
-opalino), gemme preziose (diamante, rubino, zaffiro, smeraldo),
-semipreziose (ametista, citrino, acquamarina, topazio, tormalina,
-granato, peridoto, opale), ghiaccio (chiaro, torbido, blu, brina, neve),
-liquidi (acqua, vino, birra, miele, olio, latte, glicerina), resine e
-sintetici (PMMA, policarbonato, epossidica, silicone, nylon).
+turchese, giallo, smeraldo), gemme preziose (diamante, rubino, zaffiro,
+smeraldo), semipreziose (ametista, citrino, acquamarina, topazio,
+tormalina, granato, peridoto, opale), ghiaccio (chiaro, torbido, blu,
+brina, neve), liquidi (acqua, vino, birra, miele, olio, latte,
+glicerina), resine e sintetici (PMMA, policarbonato, epossidica,
+silicone, nylon), **smerigliati / frosted** ✨ (vetro smerigliato
+neutro, acidato fine, sabbiato verde, sabbiato ambra, acidato fumé,
+inciso, plexi satin — tutti Disney `spec_trans` + roughness medio per
+vera diffusione fisica in trasmissione, vs. il classico dielectric
+liscio).
 
-**96 materiali** · 10 categorie
+**~104 materiali** · 11 categorie
 
 ### Pietre e minerali — `stones.yaml`
 Marmi bianchi (Carrara, Calacatta, Statuario, Thassos), scuri (Nero

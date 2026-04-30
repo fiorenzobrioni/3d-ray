@@ -1,6 +1,6 @@
 # Capitolo 10: Librerie di asset e scene complete
 
-3D-Ray viene fornito con un ricco ecosistema di asset predefiniti: oltre 800 materiali, 154 template di oggetti, 14 preset di illuminazione e 18 scene starter-kit complete. Questo capitolo mostra come utilizzarli, fornisce il riferimento completo della CLI e guida nella costruzione di un vero progetto.
+3D-Ray viene fornito con un ricco ecosistema di asset predefiniti: oltre 1100 materiali, ~150 template di oggetti, 14 preset di illuminazione e 17 scene starter-kit complete. Questo capitolo mostra come utilizzarli, fornisce il riferimento completo della CLI e guida nella costruzione di un vero progetto.
 
 ---
 
@@ -10,10 +10,10 @@ Tutte le librerie si trovano nella directory `scenes/libraries/`:
 
 ```
 scenes/libraries/
-  materials/      12 file YAML, oltre 800 materiali
-  objects/        12 file YAML, oltre 154 template
+  materials/      12 file YAML, oltre 1100 materiali
+  objects/        11 file YAML, ~150 template
   lights/         14 file YAML, preset di illuminazione
-  starter-kits/   18 file YAML, scene complete
+  starter-kits/   17 file YAML, scene complete
   textures/       20 file immagine PNG (albedo + normal map)
 ```
 
@@ -93,7 +93,7 @@ materials:
 
 ## 10.3 Librerie degli Oggetti
 
-Dodici file a tema con template predefiniti che utilizzano primitive,
+Undici file a tema con template predefiniti che utilizzano primitive,
 gruppi, CSG e la **primitiva `lathe` (superficie di rivoluzione)** per
 corpi torniti di livello professionale:
 
@@ -109,15 +109,13 @@ corpi torniti di livello professionale:
 | `objects/laboratory.yaml`        | 14       | Beute (lathe), palloni (lathe), imbuti (lathe), microscopio |
 | `objects/musical.yaml`           | 14       | Violino, chitarra, campane in bronzo (lathe), timpani (lathe) |
 | `objects/outdoor.yaml`           | 15       | Panchine, fontane, fioriere (lathe), vasi giardino (lathe) |
-| `objects/chess.yaml`             | 11       | Set Staunton completo tornito (lathe) + scacchiere |
 | `objects/nature.yaml`            | 15       | Alberi, fiori, funghi, cristalli     |
 
 ### Template basati su lathe
 
 Oltre **26 template** distribuiti su 9 librerie sfruttano la primitiva
 `lathe` per i corpi assi-simmetrici: calici da vino, bottiglie, colonne
-tornite, balaustri, vasi Ming, vetreria da laboratorio, pezzi Staunton,
-campane, paralumi. Un singolo profilo Catmull-Rom genera una silhouette
+tornite, balaustri, vasi Ming, vetreria da laboratorio, campane, paralumi. Un singolo profilo Catmull-Rom genera una silhouette
 C¹ continua impossibile da ottenere impilando sfere/coni/torus e
 sostituisce tipicamente 5–15 primitive con una sola. Per il vetro
 trasparente (Pyrex, cristallo) il lathe è mantenuto solido — la
@@ -144,7 +142,6 @@ Ogni libreria utilizza un prefisso unico per i suoi materiali incorporati per ev
 | laboratory          | `lab_`  |
 | musical             | `mus_`  |
 | outdoor             | `out_`  |
-| chess               | `chs_`  |
 | nature              | `nat_`  |
 
 ### Convenzioni
@@ -177,6 +174,33 @@ entities:
 ```
 
 La sovrascrittura del materiale su un'istanza sostituisce il materiale predefinito del template. I figli con un proprio materiale esplicito (come una lampadina emissiva all'interno di una lampada) mantengono il loro materiale originale.
+
+### ⚠️ `center:` vs `translate:` su primitive con asse
+
+Le primitive che espongono un parametro `center:` (sphere, cylinder, cone,
+capsule, torus) non vanno combinate con `rotate:` o `scale:`. Le
+trasformazioni `scale → rotate → translate` vengono sempre applicate
+attorno all'**origine globale**, non attorno al `center:` della primitiva.
+Combinandoli si ottiene un riposizionamento inatteso (la primitiva viene
+"scagliata" dall'origine).
+
+```yaml
+# ❌ Sbagliato — il rotate ruota la sfera attorno all'origine, non al suo centro
+- type: "sphere"
+  center: [0, 1.5, 0]
+  radius: 0.3
+  rotate: [0, 0, 90]
+
+# ✅ Corretto — la sfera è in (0,0,0), si scala/ruota localmente, poi posiziona
+- type: "sphere"
+  radius: 0.3
+  rotate: [0, 0, 90]
+  translate: [0, 1.5, 0]
+```
+
+`box` e `mesh` non hanno parametro `center:` e usano nativamente `translate:`,
+quindi sono immuni dal problema. Anche le `instance` di template usano
+direttamente `translate:`/`rotate:`/`scale:` ed è il pattern corretto.
 
 ---
 
@@ -225,6 +249,41 @@ world:
   background: [0.0, 0.0, 0.0]
 ```
 
+### 🛡️ Light hardening: ridurre i firefly senza alzare gli spp
+
+Tutti i preset della libreria sono calibrati con i parametri di *light
+hardening* introdotti dal motore (vedi DEVLOG §Ciclo Light Hardening
+e `docs/reference/scene-reference.md` §8). Le tre manopole chiave:
+
+- **`soft_radius`** (point, spot, area) — modella il diametro fisico della
+  sorgente. Il termine `1/d²` (e `cosLight/d²` per le area) viene chiuso
+  sotto a `max(d², r²)`, eliminando i firefly persistenti che compaiono
+  quando un raggio (o un evento di scattering nella foschia) atterra
+  vicinissimo all'emettitore. Valori tipici: 0.05–0.20 per lampadine,
+  0.10–0.30 per neon o riflettori, 0.20 per softbox in foschia.
+- **`angular_radius`** (directional) — diametro angolare in gradi del
+  disco solare/lunare. `0.27` = sole reale, `0.5` = luna piena. Quando
+  attivo produce penombre fisiche (cone-sampling, `shadow_samples` interno
+  16) anziché ombre dure infinitamente nette. Le scene outdoor della
+  libreria lo usano già su tutti i sole/luna.
+- **`shadow_samples`** (spot, area, sphere) — campioni jitterati per la
+  visibilità. Su `spot` ha effetto solo se anche `soft_radius > 0`.
+
+Per le scene volumetriche pesanti (mezzi `procedural`/`grid`, oppure
+`height_fog` denso) considera anche da CLI:
+
+```
+--indirect-clamp-factor 0.25   # clamp dei rimbalzi indiretti a 1/4 di -C
+--light-sampling power         # campiona una luce per evento NEE in
+                               # proporzione alla potenza (riduce varianza
+                               # con molte luci di brillanza mista)
+```
+
+In sintesi: prima di alzare `-s` per togliere il rumore, controlla se
+i firefly arrivano da `1/d²` non clampato (visibili come pixel
+isolati molto luminosi vicini alle sorgenti). In quel caso `soft_radius`
+è la cura giusta — gratis e fisicamente coerente.
+
 ---
 
 ## 10.5 Starter Kit: Scene Complete
@@ -237,23 +296,37 @@ Diciotto scene renderizzabili che combinano materiali, oggetti, illuminazione e 
 - `starter-zen-garden.yaml` -- Giardino giapponese con lanterna e ponte
 - `starter-ancient-ruins.yaml` -- Rovine di un tempio greco
 - `starter-floating-islands.yaml` -- Isole fluttuanti fantasy
-- `starter-golden-hour.yaml` -- Paesaggio al tramonto
-- `starter-sunset.yaml` -- Orizzonte drammatico
+- `starter-mountain-peak.yaml` ✨ -- Vette innevate al tramonto, mezzo `procedural` per nuvole basse
+- `starter-foliage-canopy.yaml` ✨ -- Sottobosco con foglie translucide (`diff_trans` + `thin_walled`) e dappled light
 
-### Interni (7)
+### Interni (8)
 - `starter-photography-studio.yaml` -- Ciclorama con illuminazione softbox
 - `starter-cornell-box-extended.yaml` -- Benchmark classico GI
 - `starter-museum-gallery.yaml` -- Sculture su piedistalli
 - `starter-kitchen-counter.yaml` -- Piano in marmo con stoviglie
+- `starter-still-life-fruit.yaml` ✨ -- Natura morta fiamminga, bicchiere di vino con `transmission_color/depth`, ceramica satin
 - `starter-wine-cellar.yaml` -- Botti e bottiglie a lume di candela
 - `starter-dining-room.yaml` -- Tavolo, sedie, lampada a sospensione
 - `starter-infinite-mirror-room.yaml` -- Specchi paralleli, sfere emissive
 
-### Showcase (Esposizione) (4)
+### Showcase (Esposizione) (3)
 - `starter-material-showroom.yaml` -- 16 materiali su piedistalli
-- `starter-chess-set.yaml` -- Set Staunton completo
+- `starter-jewelry-closeup.yaml` ✨ -- Anello con diamante (IOR 2.42), smeraldi e opale `thin_film`
 - `starter-pool-table.yaml` -- Tavolo da biliardo con palle
 - `starter-underwater.yaml` -- Barriera corallina con bioluminescenza
+
+> ✨ I 4 starter kit nuovi (Mountain Peak, Foliage Canopy, Still Life with
+> Fruit, Jewelry Close-Up) sono entrati nella collezione per dimostrare
+> feature del motore non coperte prima: mezzi partecipanti procedurali e
+> di altezza, foglie translucide con il pattern Disney 2015
+> (`diff_trans` + `thin_walled`), gemme con IOR alti e iridescenza
+> `thin_film`, ceramica satin / vetro smerigliato delle nuove famiglie
+> nei materials. Il vecchio `starter-chess-set.yaml` (con `objects/chess.yaml`)
+> è stato rimosso in attesa di rifattorizzazione futura; gli starter
+> "lean" `starter-golden-hour.yaml` e `starter-sunset.yaml` sono stati
+> rimossi perché contenevano solo l'header world+sole — la stessa
+> illuminazione è disponibile come libreria di luci importabile in
+> `lights/outdoor-golden-hour.yaml` e `lights/outdoor-sunset.yaml`.
 
 ### Renderizzare uno Starter Kit
 
@@ -603,6 +676,8 @@ entities:
 
 lights:
   # Luci spot individuali per ogni piedistallo
+  # `soft_radius` modella il bulbo fisico (8 cm) e azzera i firefly 1/d² su
+  # materiali speculari close-up. `shadow_samples` produce penombre morbide.
   - type: "spot"
     position: [-2, 4, -1]
     direction: [0, -1, 0.2]
@@ -610,6 +685,8 @@ lights:
     intensity: 60.0
     inner_angle: 10
     outer_angle: 22
+    soft_radius: 0.08
+    shadow_samples: 4
 
   - type: "spot"
     position: [0, 4, -1]
@@ -618,6 +695,8 @@ lights:
     intensity: 60.0
     inner_angle: 10
     outer_angle: 22
+    soft_radius: 0.08
+    shadow_samples: 4
 
   - type: "spot"
     position: [2, 4, -1]
@@ -626,6 +705,8 @@ lights:
     intensity: 60.0
     inner_angle: 10
     outer_angle: 22
+    soft_radius: 0.08
+    shadow_samples: 4
 
   # Lieve riempimento ambientale
   - type: "area"
@@ -652,7 +733,7 @@ RayTracer -i exhibition-hall.yaml -c detail -w 1200 -H 800 -s 1024 -d 8 -S 4
 
 ## Cosa si è imparato
 
-- L'ecosistema delle librerie fornisce 800+ materiali, 154+ template, 14 preset di illuminazione e 18 scene starter-kit.
+- L'ecosistema delle librerie fornisce 1100+ materiali, ~150 template, 14 preset di illuminazione e 17 scene starter-kit.
 - I materiali utilizzano i prefissi `dis_` (Disney PBR) e `cls_` (Classic).
 - I template degli oggetti seguono convenzioni coerenti (base a Y=0, scala 1:1 metro).
 - Le librerie vengono caricate tramite `imports:` -- le definizioni locali sovrascrivono quelle importate.

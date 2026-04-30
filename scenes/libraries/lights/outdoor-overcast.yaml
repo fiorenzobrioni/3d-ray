@@ -63,6 +63,7 @@ lights:
     color: [0.92, 0.93, 0.95]
     intensity: 18.0
     shadow_samples: 16
+    soft_radius: 0.20      # cupola nuvolosa: floor cosLight/d² in mezzo umido
 
   # ── HORIZON FILL (LUCE BASSA) ─────────────────────────────────────────────
   #  Directional che simula la luce che filtra dall'orizzonte sotto lo strato

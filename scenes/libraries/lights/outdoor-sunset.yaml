@@ -63,6 +63,7 @@ lights:
     direction: [-1.0, -0.08, -0.15]
     color: [1.0, 0.38, 0.04]
     intensity: 0.08
+    angular_radius: 0.27   # disco solare reale → ombre con penombra
 
   # ── FILL CIELO CREPUSCOLARE (DUSK SKY) ───────────────────────────────────
   #  Il cielo allo zenit al tramonto è già quasi buio, viola-indaco.
@@ -85,3 +86,4 @@ lights:
     position: [0.0, 0.8, 5.5]
     color: [1.0, 0.42, 0.08]
     intensity: 12.0
+    soft_radius: 0.10      # evita firefly se il punto cade vicino a media (foschia)

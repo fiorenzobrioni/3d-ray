@@ -56,6 +56,8 @@ lights:
     intensity: 120.0
     inner_angle: 10
     outer_angle: 22
+    soft_radius: 0.15      # bulbo del riflettore: floor del 1/d² spike
+    shadow_samples: 8      # con soft_radius>0 → penombra fisica jitterata
 
   # ── HAIR LIGHT (RIM) ──────────────────────────────────────────────────────
   #  Point dal retro-alto. Crea un alone luminoso sottile lungo il profilo
@@ -67,6 +69,7 @@ lights:
     position: [1.5, 6.0, 4.0]
     color: [1.0, 0.88, 0.68]
     intensity: 28.0
+    soft_radius: 0.10
 
   # ── FILL GHOST ────────────────────────────────────────────────────────────
   #  Point quasi impercettibile dal lato opposto alla key. Intensità

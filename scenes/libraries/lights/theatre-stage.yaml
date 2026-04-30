@@ -60,6 +60,8 @@ lights:
     intensity: 95.0
     inner_angle: 20
     outer_angle: 40
+    soft_radius: 0.20      # bulbo fresnel ~20 cm
+    shadow_samples: 8
 
   # ── BLUE WASH (LUCE DI SCENA LATERALE) ────────────────────────────────────
   #  Spot con gel azzurro dal lato destro del graticcio (lato pubblico).
@@ -74,6 +76,8 @@ lights:
     intensity: 50.0
     inner_angle: 25
     outer_angle: 50
+    soft_radius: 0.20
+    shadow_samples: 6
 
   # ── RIM FRESNEL (BACKLIGHT DAL GRATICCIO) ─────────────────────────────────
   #  Faretto dal retro del graticcio che illumina il profilo superiore del
@@ -88,6 +92,8 @@ lights:
     intensity: 60.0
     inner_angle: 15
     outer_angle: 30
+    soft_radius: 0.18
+    shadow_samples: 8
 
   # ── FOOTLIGHT (RIBALTA — UPLIGHT) ─────────────────────────────────────────
   #  La ribalta è il bordo del palcoscenico verso il pubblico. I footlight
@@ -112,3 +118,4 @@ lights:
     position: [0.0, 4.0, 12.0]
     color: [0.55, 0.20, 0.90]
     intensity: 45.0
+    soft_radius: 0.25      # backdrop wash: alone morbido sul ciclorama

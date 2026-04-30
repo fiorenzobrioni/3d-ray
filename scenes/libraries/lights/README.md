@@ -89,15 +89,38 @@ Tutti i setup usano esclusivamente i tipi di luce nativi del motore:
 
 | Tipo YAML | Parametri chiave | Quando usare |
 |-----------|-----------------|--------------|
-| `point` | `position`, `color`, `intensity` | Lampadine, accenti, fill, bounce simulati |
-| `directional` | `direction`, `color`, `intensity` | Sole, luna, cielo diffuso, luce da lontano |
-| `spot` | `position`, `direction`, `color`, `intensity`, `inner_angle`, `outer_angle` | Faretti, riflettori, neon direzionali |
-| `area` | `corner`, `u`, `v`, `color`, `intensity`, `shadow_samples` | Softbox, soffitti, finestre, luci diffuse |
+| `point` | `position`, `color`, `intensity`, `soft_radius` | Lampadine, accenti, fill, bounce simulati |
+| `directional` | `direction`, `color`, `intensity`, `angular_radius` | Sole, luna, cielo diffuso, luce da lontano |
+| `spot` | `position`, `direction`, `color`, `intensity`, `inner_angle`, `outer_angle`, `soft_radius`, `shadow_samples` | Faretti, riflettori, neon direzionali |
+| `area` | `corner`, `u`, `v`, `color`, `intensity`, `shadow_samples`, `soft_radius` | Softbox, soffitti, finestre, luci diffuse |
 | `sphere` | `position`, `radius`, `color`, `intensity`, `shadow_samples` | Lampadine a globo, lanterne, catchlight |
 
 > **Sphere vs Area:** la sphere light usa il solid-angle sampling (2–10×
 > più efficiente dell'area per sorgenti piccole/lontane) e produce catchlight
 > circolari — essenziale per gioielleria e prodotti lucidi.
+
+### 🛡️ Light Hardening — Anti-firefly
+
+I setup di questa libreria sono ora calibrati con i parametri di
+*light hardening* del motore (vedi `docs/reference/scene-reference.md`
+§8 e DEVLOG §Ciclo Light Hardening) per ridurre rumore e firefly:
+
+- **`soft_radius`** (point/spot/area): clamp del termine `1/d²` a
+  `max(d², r²)`. Modella il diametro fisico della sorgente (lampadina,
+  bulbo neon, fronte di candela). I valori usati sono 0.05–0.25 a seconda
+  del corpo simulato. **Indispensabile** per scene con foschia/medium o
+  con materiali speculari close-up.
+- **`angular_radius`** (directional): diametro angolare della sorgente
+  in gradi. `0.27` = sole reale; `0.5` = luna piena. Quando attivo,
+  produce penombre fisiche (cone-sampling con `shadow_samples` interno
+  16) anziché ombre dure infinitamente nette.
+- **`shadow_samples`** (spot/area/sphere): campioni jitterati per la
+  visibilità. Su spot `>1` ha effetto solo se `soft_radius > 0`.
+
+I setup *outdoor* hanno `angular_radius: 0.27` sul sole; *interior*
+e *studio* hanno `soft_radius` su tutte le point e spot. Nelle scene
+volumetriche puoi anche aggiungere `--indirect-clamp-factor 0.25`
+da CLI per attenuare i rimbalzi indiretti.
 
 ---
 
