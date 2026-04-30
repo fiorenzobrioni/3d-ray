@@ -178,11 +178,11 @@ La sovrascrittura del materiale su un'istanza sostituisce il materiale predefini
 ### ⚠️ `center:` vs `translate:` su primitive con asse
 
 Le primitive che espongono un parametro `center:` (sphere, cylinder, cone,
-capsule, torus) non vanno combinate con `rotate:` o `scale:`. Le
-trasformazioni `scale → rotate → translate` vengono sempre applicate
-attorno all'**origine globale**, non attorno al `center:` della primitiva.
-Combinandoli si ottiene un riposizionamento inatteso (la primitiva viene
-"scagliata" dall'origine).
+capsule, torus, disk, annulus, lathe) non vanno combinate con `rotate:` o
+`scale:`. Le trasformazioni `scale → rotate → translate` vengono sempre
+applicate attorno all'**origine globale**, non attorno al `center:` della
+primitiva. Combinandoli si ottiene un riposizionamento inatteso (la
+primitiva viene "scagliata" dall'origine).
 
 ```yaml
 # ❌ Sbagliato — il rotate ruota la sfera attorno all'origine, non al suo centro
@@ -201,6 +201,12 @@ Combinandoli si ottiene un riposizionamento inatteso (la primitiva viene
 `box` e `mesh` non hanno parametro `center:` e usano nativamente `translate:`,
 quindi sono immuni dal problema. Anche le `instance` di template usano
 direttamente `translate:`/`rotate:`/`scale:` ed è il pattern corretto.
+
+**Quando `center:` è sicuro:** quando non sono presenti `rotate:` né
+`scale:` (è equivalente a `translate:`); dentro i figli CSG (`left`/`right`),
+che non hanno trasformazione esterna; e dentro i `group` quando il figlio
+non ha rotazione propria — la `translate`/`rotate` del group si compone
+correttamente sopra il `center:` del figlio.
 
 ---
 
