@@ -1,6 +1,6 @@
 # 🎬 Starter Kit — Scene Pronte all'Uso
 
-Questa raccolta contiene **18 scene YAML complete**, pensate come punto di partenza per creare nuove scene. Ogni file è autonomo, dettagliato e renderizzabile immediatamente.
+Questa raccolta contiene **17 scene YAML complete**, pensate come punto di partenza per creare nuove scene. Ogni file è autonomo, dettagliato e renderizzabile immediatamente.
 
 ## Come Usare uno Starter Kit
 
@@ -41,8 +41,8 @@ Per cambiare atmosfera basta commentare il world/lights attivo e decommentare un
 | `starter-zen-garden.yaml` | **Zen Garden** | Giardino giapponese contemplativo. Rocce asimmetriche (ellissoidi), lanterna tōrō (template con emissivo), tsukubai ciotola d'acqua (CSG sfera cava), ponticello in legno rosso, bambù con nodi (tori). |
 | `starter-ancient-ruins.yaml` | **Ancient Ruins** | Rovine di tempio classico. Colonne doriche (template intere e spezzate), architrave, arco in pietra (CSG subtraction), piedistalli con sfere di bronzo, macerie sparse, edera stilizzata. |
 | `starter-floating-islands.yaml` | **Floating Islands** | Isole sospese nel vuoto in cielo fantasy. Basi rocciose, alberi a palloncino (template), cascata dielectric, ponticello di corda, cristalli magici emissivi. Cielo: viola-arancio / pastello / notte stellata. |
-| `starter-golden-hour.yaml` | **Golden Hour** | Cielo procedurale a gradiente con disco solare basso sull'orizzonte, luce direzionale calda radente. Suolo intercambiabile: prato (3 varianti), oceano metallico o terreno a scacchi. |
-| `starter-sunset.yaml` | **Tramonto Drammatico** | Orizzonte aperto con sfondo monocromatico arancio e luce direzionale calda monocromatica. Suolo metallico riflettente di default; varianti prato e terreno incluse. Luce singola ad alta intensità. |
+| `starter-mountain-peak.yaml` ✨ | **Mountain Peak** | Catena di vette innevate al tramonto. Mezzo `procedural` Perlin fBm + phase `double_hg` per nuvole basse e foschia atmosferica, sole con `angular_radius: 0.27`. Mostra mezzi partecipanti volumetrici. |
+| `starter-foliage-canopy.yaml` ✨ | **Foliage Canopy** | Sottobosco con dappled light. Foglie traslucide con Disney `diff_trans` + `thin_walled: true` + `subsurface_color`, `height_fog` per i god-rays attraverso la chioma. |
 
 ### Indoor
 
@@ -52,6 +52,7 @@ Per cambiare atmosfera basta commentare il world/lights attivo e decommentare un
 | `starter-cornell-box-extended.yaml` | **Cornell Box Extended** | La classica Cornell Box arricchita. Pavimento a scacchi, pareti rosso/verde, pannello emissivo, sfera di vetro, toro d'oro Disney BSDF, box in legno noce. Il benchmark per eccellenza. |
 | `starter-museum-gallery.yaml` | **Museum Gallery** | Galleria d'arte con 5 piedistalli espositivi. Sculture: sfera di vetro, CSG sfera-cubo in titanio, toro di bronzo, capsule intrecciate in acciaio corten, ceramica organica. Spot museali individuali. |
 | `starter-kitchen-counter.yaml` | **Kitchen Counter** | Still life su piano cucina in marmo di Carrara. Bicchiere d'acqua (CSG), ciotola con frutta (CSG + sfere), bottiglia di vino (template), tazza con manico (toro), tagliere in legno. Luce da finestra. |
+| `starter-still-life-fruit.yaml` ✨ | **Still Life with Fruit** | Natura morta in stile fiammingo: tavolo in noce, drappo in lino, ciotola in ceramica satin con mele/arance/uva/pera, bicchiere di vino rosso (`spec_trans` + `transmission_color`/`depth`), bottiglia smerigliata ambra. Luce singola da finestra. |
 | `starter-wine-cellar.yaml` | **Wine Cellar** | Cantina con botti (template: cilindro + tori in ferro), scaffali con bottiglie coricati, tavolo d'assaggio con bicchiere di vino, candele emissive. Atmosfera calda e intima da chiaroscuro. |
 | `starter-dining-room.yaml` | **Dining Room** | Sala da pranzo classica con tavolo rettangolare, 4 sedie dettagliate (template: seduta, cuscino, schienale, gambe, traverse), vaso con fiori, lampada a sospensione. Parquet, battiscopa, pareti. |
 | `starter-infinite-mirror-room.yaml` | **Infinite Mirror Room** | Installazione artistica: due specchi paralleli con sfere emissive multicolore sospese. Effetto tunnel infinito. Pavimento riflettente, sfera di vetro e sfera cromata. Usa `-d 32` per apprezzare i riflessi profondi. |
@@ -61,9 +62,16 @@ Per cambiare atmosfera basta commentare il world/lights attivo e decommentare un
 | File | Scena | Descrizione |
 |------|-------|-------------|
 | `starter-material-showroom.yaml` | **Material Showroom** | Griglia 4×4 di piedistalli cilindrici con sfere in 16 materiali diversi: oro, cromo, rame, acciaio, cristallo, ambra, rubino, vetro smerigliato, marmo, legno, cera, gomma, plastica, ceramica. Catalogo materiali perfetto. |
-| `starter-chess-set.yaml` | **Chess Set** | Scacchiera completa con 6 tipi di pezzi (template: pedone, torre, cavallo, alfiere, regina, re). 32 pezzi istanziati in marmo bianco e ebano lucido. Showcase per template/istanze. |
+| `starter-jewelry-closeup.yaml` ✨ | **Jewelry Close-Up** | Macro di un anello in oro 18k con diamante centrale (IOR 2.42), due cabochon di smeraldo (IOR 1.57) e un anello opale con `thin_film_thickness: 480` per l'iridescenza. Piedistallo in velluto bordeaux con `sheen` Charlie. |
 | `starter-pool-table.yaml` | **Pool Table** | Tavolo da biliardo con panno verde, sponde legno/gomma, 11 bilie colorate lucidissime, lampada a sospensione con sphere light, stecca appoggiata. Classica da ray tracer. |
 | `starter-underwater.yaml` | **Underwater** | Fondale marino con rocce, coralli ramificati (template), coralli cervello, alghe ondulanti (template capsule), bolle dielectric, stelle marine, bioluminescenza emissiva. Gradiente blu profondo. |
+
+> ✨ I 4 starter kit nuovi (Mountain Peak, Foliage Canopy, Still Life with Fruit,
+> Jewelry Close-Up) sono progettati per dimostrare feature del motore che
+> mancavano nella collezione precedente: mezzi partecipanti procedurali,
+> `diff_trans` + `thin_walled` per fogliame translucido, gemme con IOR alto e
+> `thin_film` iridescente, materiali satin/smerigliati appena aggiunti alle
+> librerie ceramics/glasses.
 
 ---
 
@@ -108,22 +116,27 @@ I profili canonici allineati a [Profili di Rendering](../../../docs/reference/pr
 
 | Feature | Scene che la usano |
 |---------|-------------------|
-| **CSG** (subtraction, intersection, union) | Zen Garden, Ancient Ruins, Museum Gallery, Kitchen Counter, Cornell Box, Wine Cellar, Dining Room |
-| **Template / Istanze** | Desert Highway, Snowy Clearing, Zen Garden, Ancient Ruins, Floating Islands, Photography Studio, Museum Gallery, Kitchen Counter, Wine Cellar, Dining Room, Chess Set, Pool Table, Underwater |
-| **Sfere ellissoidali** (scale differenziale) | Desert Highway, Snowy Clearing, Zen Garden, Ancient Ruins, Floating Islands, Underwater |
+| **CSG** (subtraction, intersection, union) | Zen Garden, Ancient Ruins, Museum Gallery, Kitchen Counter, Cornell Box, Wine Cellar, Dining Room, Mountain Peak, Still Life, Jewelry |
+| **Template / Istanze** | Desert Highway, Snowy Clearing, Zen Garden, Ancient Ruins, Floating Islands, Photography Studio, Museum Gallery, Kitchen Counter, Wine Cellar, Dining Room, Pool Table, Underwater, Mountain Peak, Foliage Canopy, Still Life, Jewelry |
+| **Lathe** (superficie di rivoluzione) | Wine Cellar, Kitchen Counter, Still Life, Foliage Canopy |
+| **Sfere ellissoidali** (scale differenziale) | Desert Highway, Snowy Clearing, Zen Garden, Ancient Ruins, Floating Islands, Underwater, Still Life |
 | **Disney BSDF** (metallic, roughness, clearcoat, spec_trans, subsurface, sheen) | Tutti |
-| **Dielectric** (vetro, acqua, ghiaccio) | Snowy Clearing, Zen Garden, Floating Islands, Cornell Box, Kitchen Counter, Wine Cellar, Infinite Mirror Room, Material Showroom, Pool Table, Underwater |
+| **`diff_trans` + `thin_walled`** (fogliame, carta) | Foliage Canopy |
+| **`thin_film_thickness`** (iridescenza opale, bolle di sapone) | Jewelry Close-Up |
+| **Mezzo `procedural`** (Perlin fBm + double_hg, nuvole) | Mountain Peak |
+| **Mezzo `height_fog`** (god-rays, foschia) | Foliage Canopy |
+| **Dielectric** (vetro, acqua, ghiaccio) | Snowy Clearing, Zen Garden, Floating Islands, Cornell Box, Kitchen Counter, Wine Cellar, Infinite Mirror Room, Material Showroom, Pool Table, Underwater, Still Life, Jewelry |
 | **Emissive** | Zen Garden, Floating Islands, Cornell Box, Wine Cellar, Infinite Mirror Room, Underwater |
-| **Texture procedurali** (noise, marble, wood, checker) | Desert Highway, Snowy Clearing, Ancient Ruins, Kitchen Counter, Wine Cellar, Dining Room, Material Showroom, Chess Set, Pool Table |
-| **Torus** | Zen Garden, Cornell Box, Museum Gallery, Wine Cellar, Kitchen Counter, Chess Set |
+| **Texture procedurali** (noise, marble, wood, checker) | Desert Highway, Snowy Clearing, Ancient Ruins, Kitchen Counter, Wine Cellar, Dining Room, Material Showroom, Pool Table, Mountain Peak, Foliage Canopy |
+| **Torus** | Zen Garden, Cornell Box, Museum Gallery, Wine Cellar, Kitchen Counter, Jewelry |
 | **Capsule** | Desert Highway, Museum Gallery, Underwater |
 | **Disk / Annulus** | Snowy Clearing, Zen Garden, Kitchen Counter, Underwater |
-| **Cone** | Snowy Clearing, Floating Islands, Photography Studio, Pool Table, Underwater |
-| **Multi-camera** | Desert Highway, Snowy Clearing, Zen Garden, Ancient Ruins, Floating Islands, Photography Studio, Cornell Box, Museum Gallery, Kitchen Counter, Wine Cellar, Dining Room, Infinite Mirror Room, Material Showroom, Chess Set, Pool Table, Underwater (Golden Hour e Tramonto hanno camera singola) |
-| **Gradient Sky** (con sun disk) | Desert Highway, Snowy Clearing, Zen Garden, Ancient Ruins, Floating Islands, Underwater, Golden Hour |
-| **Area Light** | Photography Studio, Museum Gallery, Kitchen Counter, Dining Room, Material Showroom, Infinite Mirror Room |
-| **Sphere Light** | Wine Cellar, Pool Table, Dining Room |
-| **Spot Light** | Museum Gallery, Ancient Ruins, Photography Studio, Cornell Box, Underwater |
+| **Cone** | Snowy Clearing, Floating Islands, Photography Studio, Pool Table, Underwater, Jewelry |
+| **Multi-camera** | tutte (almeno 3 camere ciascuna nei 17 starter kit) |
+| **Gradient Sky** (con sun disk) | Desert Highway, Snowy Clearing, Zen Garden, Ancient Ruins, Floating Islands, Underwater, Mountain Peak, Foliage Canopy |
+| **Area Light** | Photography Studio, Museum Gallery, Kitchen Counter, Dining Room, Material Showroom, Infinite Mirror Room, Still Life |
+| **Sphere Light** | Wine Cellar, Pool Table, Dining Room, Jewelry |
+| **Spot Light** | Museum Gallery, Ancient Ruins, Photography Studio, Cornell Box, Underwater, Jewelry (via import studio-product) |
 
 ---
 

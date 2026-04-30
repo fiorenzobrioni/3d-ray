@@ -1,0 +1,207 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  STARTER KIT — Mountain Peak
+#
+#  Vista panoramica di una catena di vette innevate al tramonto. Tre creste
+#  triangolari su scale digradanti (CSG di box ruotati per profilo a 45°) e
+#  un foreground roccioso. Il cielo gradient combinato con un mezzo procedurale
+#  fBm Perlin produce nuvole basse e foschia atmosferica visibile come god-rays
+#  attraverso le creste.
+#
+#  AMBIENTAZIONE : Outdoor — paesaggio alpino, vasto orizzonte
+#  STILE         : Cinematografico, prospettiva atmosferica, alpino-romantico
+#
+#  FEATURES MOSTRATE:
+#    • Mezzo `procedural` (Perlin fBm + delta tracking) → nuvole basse
+#    • Phase `double_hg` per nuvole realistiche (Nubis: g1=0.85, g2=-0.3, w=0.7)
+#    • Directional sun con `angular_radius: 0.27` → penombre fisiche
+#    • Vetta scena: 3 picchi CSG con maschera di neve (mix material)
+#
+#  RENDER:
+#    Draft   : -w 400  -H 225  -s 64   -d 4  -S 1
+#    Standard: -w 800  -H 450  -s 256  -d 6
+#    Final   : -w 1920 -H 1080 -s 1024 -d 8 -S 4 --indirect-clamp-factor 0.25
+#  Per il mezzo procedurale: -s 400 minimo nel Standard, -s 1024+ nel Final.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+imports:
+  - path: "libraries/materials/stones.yaml"
+  - path: "libraries/materials/grounds.yaml"
+  - path: "libraries/lights/outdoor-sunset.yaml"
+
+world:
+  ambient_light: [0.04, 0.05, 0.08]
+
+  # Cielo a gradiente con disco solare basso e caldo. Il sole è a destra-fronte
+  # (direzione: verso lo scenario, lievemente verso il basso).
+  sky:
+    type: "gradient"
+    zenith_color:  [0.10, 0.18, 0.45]
+    horizon_color: [0.95, 0.55, 0.25]
+    ground_color:  [0.20, 0.18, 0.15]
+    sun:
+      direction: [-0.85, -0.18, -0.40]
+      color: [1.0, 0.62, 0.28]
+      intensity: 18.0
+      size: 4.0
+      falloff: 28.0
+
+  # Mezzo procedurale per le nuvole basse + foschia tra le creste.
+  # Lo `sigma_s` modesto evita una scena troppo lattiginosa; le ottave
+  # alte producono il dettaglio cumulonembo. Phase double-HG = nuvole.
+  medium:
+    type: "procedural"
+    sigma_a: [0.001, 0.001, 0.001]
+    sigma_s: [0.025, 0.025, 0.030]
+    frequency: 0.06
+    octaves: 5
+    lacunarity: 2.2
+    gain: 0.55
+    seed: 1729
+    phase: "double_hg"
+    g1: 0.85
+    g2: -0.30
+    w: 0.7
+
+cameras:
+  # Vista principale — leggermente sotto la cresta, verso le vette
+  - name: "panorama"
+    position: [0, 4.5, -22]
+    look_at:  [0, 5.5, 0]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 22
+
+  # Bird's eye sull'intera catena
+  - name: "aerea"
+    position: [0, 18, -12]
+    look_at:  [0, 5.0, 0]
+    fov: 55
+    aperture: 0.0
+    focal_dist: 22
+
+  # Foreground roccioso vicino, vette in profondità
+  - name: "roccia"
+    position: [-2.0, 1.6, -8]
+    look_at:  [0.5, 4.0, 0]
+    fov: 50
+    aperture: 0.10
+    focal_dist: 8
+
+# I light setup arrivano da `outdoor-sunset.yaml` (sole + dusk fill + silhouette
+# point). Niente override locale — già calibrati con angular_radius e soft_radius.
+
+materials:
+  # Neve sulle vette: bianco molto chiaro con leggero subsurface (cristalli
+  # di ghiaccio diffondono la luce sulla superficie). roughness alto evita
+  # un riflesso eccessivo. specular basso.
+  - id: "neve_alpina"
+    type: "disney"
+    color: [0.95, 0.97, 1.0]
+    roughness: 0.78
+    metallic: 0.0
+    specular: 0.30
+    subsurface: 0.25
+    subsurface_color: [0.85, 0.92, 1.0]
+
+  # Roccia di alta quota (granito grigio scuro)
+  - id: "roccia_alpina"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.7
+      colors: [[0.32, 0.30, 0.28], [0.18, 0.17, 0.18]]
+      randomize_offset: true
+    roughness: 0.85
+    metallic: 0.0
+    specular: 0.20
+
+  # Mix neve+roccia (transizione realistica): noise medio per le creste
+  - id: "vetta_mista"
+    type: "mix"
+    material_a: "roccia_alpina"
+    material_b: "neve_alpina"
+    mask:
+      type: "noise"
+      scale: 1.2
+      noise_strength: 4.0
+
+  # Erba alpina rada per il foreground
+  - id: "erba_alpina"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      scale: 3.5
+      noise_strength: 0.6
+      colors: [[0.32, 0.40, 0.20], [0.22, 0.30, 0.14]]
+
+templates:
+  # Una vetta = piramide a 4 facce ottenuta da intersezione di 2 box ruotati 45°.
+  # Per evitare il problema CSG-non-NEE-samplable, niente emissive qui.
+  # Centriamo nelle istanze tramite `translate` in entities.
+  - name: "vetta"
+    material: "vetta_mista"
+    children:
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "box"
+          scale: [4.0, 8.0, 4.0]
+          rotate: [0, 0, 45]
+          translate: [0, 4.0, 0]
+        right:
+          type: "box"
+          scale: [4.0, 8.0, 4.0]
+          rotate: [0, 0, -45]
+          translate: [0, 4.0, 0]
+
+  # Cresta più piccola per le vette dietro
+  - name: "cresta"
+    material: "vetta_mista"
+    children:
+      - type: "csg"
+        operation: "intersection"
+        left:
+          type: "box"
+          scale: [2.5, 5.0, 2.5]
+          rotate: [0, 0, 45]
+          translate: [0, 2.5, 0]
+        right:
+          type: "box"
+          scale: [2.5, 5.0, 2.5]
+          rotate: [0, 0, -45]
+          translate: [0, 2.5, 0]
+
+  # Roccia frangibile per il foreground — sfera scalata con noise rough alto
+  - name: "masso"
+    material: "roccia_alpina"
+    children:
+      - { type: "sphere", radius: 0.6, scale: [1.4, 0.7, 1.0], translate: [0, 0.4, 0] }
+
+entities:
+  # ── Pavimento (terreno) ───────────────────────────────────────────────────
+  - name: "altopiano"
+    type: "infinite_plane"
+    point: [0, 0, 0]
+    normal: [0, 1, 0]
+    material: "erba_alpina"
+
+  # ── Catena principale (3 vette, scale crescente verso il centro) ──────────
+  - { type: "instance", template: "vetta",   translate: [-9, 0, 5],  scale: [1.0, 1.1, 1.0] }
+  - { type: "instance", template: "vetta",   translate: [0, 0, 8],   scale: [1.2, 1.4, 1.2] }
+  - { type: "instance", template: "vetta",   translate: [9, 0, 6],   scale: [0.95, 1.0, 0.95] }
+
+  # ── Creste secondarie (in profondità, più sfocate dalla foschia) ──────────
+  - { type: "instance", template: "cresta",  translate: [-15, 0, 14], scale: [1.0, 0.8, 1.0] }
+  - { type: "instance", template: "cresta",  translate: [-5, 0, 17],  scale: [1.1, 0.9, 1.1] }
+  - { type: "instance", template: "cresta",  translate: [6, 0, 18],   scale: [1.0, 0.85, 1.0] }
+  - { type: "instance", template: "cresta",  translate: [15, 0, 14],  scale: [0.95, 0.8, 0.95] }
+
+  # ── Foreground rocce ──────────────────────────────────────────────────────
+  - { type: "instance", template: "masso", translate: [-2.5, 0, -8.5], rotate: [0, 25, 0] }
+  - { type: "instance", template: "masso", translate: [2.0, 0, -7.0],  rotate: [0, -50, 0],
+      scale: [0.85, 0.9, 0.85] }
+  - { type: "instance", template: "masso", translate: [4.5, 0, -10.0], rotate: [0, 15, 0],
+      scale: [1.2, 0.6, 1.0] }
+  - { type: "instance", template: "masso", translate: [-5.5, 0, -11.5], rotate: [0, 80, 0],
+      scale: [0.9, 0.7, 1.1] }

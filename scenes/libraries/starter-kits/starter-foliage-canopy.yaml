@@ -1,0 +1,253 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  STARTER KIT — Foliage Canopy (sottobosco)
+#
+#  Sottobosco di una foresta di latifoglie viste dal basso: il sole alto attraversa
+#  il fogliame producendo dappled light (chiaroscuro maculato sul terreno) e
+#  retroilluminazione delle foglie. Le foglie usano il pattern Disney 2015
+#  `diff_trans` + `thin_walled: true` per simulare la diffusione fisica della luce
+#  attraverso il limbo fogliare — il classico effetto translucido che rende il
+#  verde-giallo brillante delle foglie controluce.
+#
+#  AMBIENTAZIONE : Outdoor — sottobosco, sotto la chioma di un faggio
+#  STILE         : Naturalistico, dappled light, controluce caldo
+#
+#  FEATURES MOSTRATE:
+#    • `diff_trans: 0.6` + `thin_walled: true` su tutte le foglie
+#    • `subsurface_color` per il sotto-foglia traslucido (verde-giallo chiaro)
+#    • Tronchi con texture wood Catmull-Rom + sheen (corteccia umida)
+#    • Sole `angular_radius: 0.27` + `height_fog` leggero per i raggi tra le foglie
+#    • Foglie disposte come quad doppi (uno per faccia) con seed casuali
+#
+#  RENDER:
+#    Draft   : -w 400  -H 225  -s 64   -d 4  -S 1
+#    Standard: -w 800  -H 450  -s 256  -d 6
+#    Final   : -w 1920 -H 1080 -s 1024 -d 8 -S 4 --indirect-clamp-factor 0.25
+#  Per i raggi nella foschia: -s 400 minimo, -C 25 per i firefly da
+#  scattering vicino al sole.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+imports:
+  - path: "libraries/materials/woods.yaml"
+  - path: "libraries/materials/grounds.yaml"
+
+world:
+  ambient_light: [0.03, 0.04, 0.025]
+
+  # Cielo a gradiente: blu zenitale, leggero verde all'orizzonte (riflesso
+  # del fogliame). Il sole è alto e a destra-fronte: produrrà dappled
+  # light sul terreno e retroilluminazione delle foglie.
+  sky:
+    type: "gradient"
+    zenith_color:  [0.30, 0.55, 0.95]
+    horizon_color: [0.62, 0.78, 0.62]
+    ground_color:  [0.18, 0.22, 0.10]
+    sun:
+      direction: [-0.40, -0.85, -0.35]
+      color: [1.0, 0.96, 0.85]
+      intensity: 24.0
+      size: 1.5
+      falloff: 50.0
+
+  # Foschia leggera (height fog): rivela i raggi che attraversano il fogliame
+  # come god-rays naturali. sigma_s contenuto per non saturare la scena.
+  medium:
+    type: "height_fog"
+    sigma_a: [0.001, 0.001, 0.001]
+    sigma_s: [0.012, 0.014, 0.012]
+    y0: 0.0
+    scale_height: 6.0
+    phase: "hg"
+    g: 0.55
+
+cameras:
+  # Vista bassa che guarda verso l'alto (il classico shot di una passeggiata
+  # nel bosco)
+  - name: "sottobosco"
+    position: [0.0, 1.0, -3.5]
+    look_at:  [0.5, 5.0, 1.0]
+    fov: 60
+    aperture: 0.0
+    focal_dist: 6.0
+
+  # Vista frontale orizzontale al livello dei tronchi
+  - name: "tronchi"
+    position: [-2.5, 1.5, -1.0]
+    look_at:  [2.0, 1.5, 2.0]
+    fov: 50
+    aperture: 0.10
+    focal_dist: 4.5
+
+  # Macro su una foglia singola controluce
+  - name: "foglia"
+    position: [0.7, 2.05, -0.50]
+    look_at:  [1.0, 2.10, 0.0]
+    fov: 28
+    aperture: 0.02
+    focal_dist: 0.55
+
+lights:
+  # Sole come directional principale (allineato al sun disk del cielo)
+  - type: "directional"
+    direction: [-0.40, -0.85, -0.35]
+    color: [1.0, 0.96, 0.85]
+    intensity: 1.4
+    angular_radius: 0.27   # disco solare reale → ombre con penombra fisica
+
+  # Skylight diffuso (cielo blu) — debole, da fronte-alto
+  - type: "directional"
+    direction: [0.20, -0.95, 0.15]
+    color: [0.55, 0.72, 1.0]
+    intensity: 0.18
+
+  # Bounce caldo dal terreno (sotto-foglia ricevono questa luce dal basso)
+  - type: "directional"
+    direction: [0.0, 1.0, 0.0]
+    color: [0.85, 0.78, 0.55]
+    intensity: 0.06
+
+materials:
+  # ── Foglia di latifoglia (verde estate) ──────────────────────────────────
+  # Pattern Disney 2015 per fogliame: thin_walled disabilita la rifrazione,
+  # diff_trans permette alla luce di attraversare il limbo, subsurface_color
+  # tinge la luce trasmessa di verde-giallo brillante (controluce realistico).
+  - id: "foglia_estate"
+    type: "disney"
+    color: [0.18, 0.45, 0.12]
+    roughness: 0.55
+    metallic: 0.0
+    diff_trans: 0.55
+    subsurface_color: [0.55, 0.80, 0.32]
+    thin_walled: true
+    sheen: 0.10
+    sheen_tint: 0.30
+
+  # Foglia variante più gialla (chiazze di sole più mature)
+  - id: "foglia_gialla"
+    type: "disney"
+    color: [0.42, 0.52, 0.10]
+    roughness: 0.55
+    metallic: 0.0
+    diff_trans: 0.55
+    subsurface_color: [0.85, 0.78, 0.30]
+    thin_walled: true
+
+  # Corteccia umida (faggio): texture wood Catmull-Rom su Disney
+  - id: "corteccia"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 8.0
+      noise_strength: 4.0
+      colors: [[0.32, 0.24, 0.16], [0.18, 0.13, 0.08]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.85
+    metallic: 0.0
+    sheen: 0.20
+    sheen_tint: 0.20
+    specular: 0.25
+
+  # Terreno / lettiera del sottobosco — texture noise marrone con un
+  # tocco di muschio verde
+  - id: "lettiera"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 4.5
+      noise_strength: 0.6
+      colors: [[0.32, 0.26, 0.16], [0.20, 0.20, 0.10]]
+      randomize_offset: true
+    roughness: 0.92
+    metallic: 0.0
+    sheen: 0.10
+
+templates:
+  # ── Foglia singola: 2 quad accoppiati (1 per faccia) ─────────────────────
+  # Il motore non supporta quad double-sided per default, ma con
+  # `thin_walled: true` la luce passa comunque. Un singolo quad con
+  # diff_trans basta per simulare una foglia controluce. Per più solidità
+  # usiamo 2 quad sovrapposti leggermente sfalsati.
+  - name: "foglia"
+    material: "foglia_estate"
+    children:
+      - type: "quad"
+        q: [-0.060, 0, -0.040]
+        u: [0.120, 0.0, 0.0]
+        v: [0.0, 0.0, 0.080]
+
+  # ── Cluster di foglie (gruppo manuale di 8 quad ruotati attorno a un punto)
+  # Disposte a ventaglio attorno a un ramo. seed deterministica per
+  # randomize delle texture procedurali.
+  - name: "foglie_cluster"
+    material: "foglia_estate"
+    children:
+      - { type: "quad", q: [-0.06, 0, -0.04], u: [0.12, 0.0, 0.0], v: [0.0, 0.0, 0.08],
+          rotate: [10, 0, 0], translate: [0.10, 0.0, 0.0] }
+      - { type: "quad", q: [-0.06, 0, -0.04], u: [0.12, 0.0, 0.0], v: [0.0, 0.0, 0.08],
+          rotate: [-15, 30, 0], translate: [0.0, 0.05, 0.10] }
+      - { type: "quad", q: [-0.06, 0, -0.04], u: [0.12, 0.0, 0.0], v: [0.0, 0.0, 0.08],
+          rotate: [25, -45, 5], translate: [-0.10, 0.02, 0.05], material: "foglia_gialla" }
+      - { type: "quad", q: [-0.06, 0, -0.04], u: [0.12, 0.0, 0.0], v: [0.0, 0.0, 0.08],
+          rotate: [5, 80, 0], translate: [0.05, -0.04, -0.05] }
+      - { type: "quad", q: [-0.06, 0, -0.04], u: [0.12, 0.0, 0.0], v: [0.0, 0.0, 0.08],
+          rotate: [-25, 110, 10], translate: [-0.08, 0.06, -0.10] }
+      - { type: "quad", q: [-0.06, 0, -0.04], u: [0.12, 0.0, 0.0], v: [0.0, 0.0, 0.08],
+          rotate: [40, -20, -8], translate: [0.12, 0.08, 0.08], material: "foglia_gialla" }
+
+  # ── Tronco di faggio (cilindro alto, leggermente affusolato in cima) ─────
+  - name: "tronco_faggio"
+    material: "corteccia"
+    children:
+      - type: "lathe"
+        profile_type: "linear"
+        profile:
+          - [0.18, 0.0]
+          - [0.16, 1.0]
+          - [0.14, 3.0]
+          - [0.12, 5.0]
+          - [0.10, 7.0]
+
+entities:
+  # Pavimento (lettiera del bosco)
+  - name: "terreno"
+    type: "infinite_plane"
+    point: [0, 0, 0]
+    normal: [0, 1, 0]
+    material: "lettiera"
+
+  # ── Tronchi (4 alberi distribuiti sullo schermo) ─────────────────────────
+  - { type: "instance", template: "tronco_faggio", translate: [-2.5, 0, 1.5] }
+  - { type: "instance", template: "tronco_faggio", translate: [2.0, 0, 0.5],
+      scale: [0.92, 1.0, 0.92] }
+  - { type: "instance", template: "tronco_faggio", translate: [-0.8, 0, 4.5],
+      scale: [1.05, 1.05, 1.05] }
+  - { type: "instance", template: "tronco_faggio", translate: [3.5, 0, 5.5],
+      scale: [0.88, 0.95, 0.88] }
+
+  # ── Chioma: 12 cluster di foglie distribuiti sopra
+  # Ogni cluster contiene 6 quad → 72 foglie totali. Sufficienti per
+  # produrre dappled light convincente.
+  - { type: "instance", template: "foglie_cluster", translate: [-2.5, 5.0, 1.5] }
+  - { type: "instance", template: "foglie_cluster", translate: [-1.8, 4.5, 2.2],
+      rotate: [0, 25, 0] }
+  - { type: "instance", template: "foglie_cluster", translate: [-2.0, 6.0, 0.8],
+      rotate: [0, -40, 0] }
+
+  - { type: "instance", template: "foglie_cluster", translate: [2.0, 5.5, 0.5],
+      rotate: [0, 60, 0] }
+  - { type: "instance", template: "foglie_cluster", translate: [1.5, 4.8, 1.5],
+      rotate: [0, 100, 0] }
+  - { type: "instance", template: "foglie_cluster", translate: [2.6, 6.2, -0.5],
+      rotate: [0, -20, 0] }
+
+  - { type: "instance", template: "foglie_cluster", translate: [-0.8, 6.5, 4.5] }
+  - { type: "instance", template: "foglie_cluster", translate: [0.3, 7.0, 4.0],
+      rotate: [0, 50, 0] }
+
+  - { type: "instance", template: "foglie_cluster", translate: [3.5, 6.8, 5.5] }
+  - { type: "instance", template: "foglie_cluster", translate: [4.2, 6.0, 5.0],
+      rotate: [0, 75, 0] }
+
+  # Foglia hero in primo piano (vicino alla camera macro "foglia")
+  - { type: "instance", template: "foglia", translate: [1.0, 2.10, -0.10],
+      rotate: [25, 30, 5] }

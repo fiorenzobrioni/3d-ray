@@ -1,7 +1,7 @@
 # Chapter 10: Asset Libraries and Complete Scenes
 
-3D-Ray ships with a rich ecosystem of pre-built assets: over 800
-materials, 154 object templates, 14 lighting presets, and 18 complete
+3D-Ray ships with a rich ecosystem of pre-built assets: over 1100
+materials, ~150 object templates, 14 lighting presets, and 17 complete
 starter-kit scenes. This chapter shows you how to use them, gives you the
 full CLI reference, and walks through building a real project.
 
@@ -13,10 +13,10 @@ All libraries live in the `scenes/libraries/` directory:
 
 ```
 scenes/libraries/
-  materials/      12 YAML files, 800+ materials
-  objects/        12 YAML files, 154+ templates
+  materials/      12 YAML files, 1100+ materials
+  objects/        11 YAML files, ~150 templates
   lights/         14 YAML files, lighting presets
-  starter-kits/   18 YAML files, complete scenes
+  starter-kits/   17 YAML files, complete scenes
   textures/       20 PNG image files (albedo + normal maps)
 ```
 
@@ -100,7 +100,7 @@ materials:
 
 ## 10.3 Object Libraries
 
-Twelve themed files with pre-built templates using primitives, groups,
+Eleven themed files with pre-built templates using primitives, groups,
 CSG, and the **`lathe` (surface of revolution) primitive** for
 professionally-turned rotationally-symmetric bodies:
 
@@ -116,15 +116,14 @@ professionally-turned rotationally-symmetric bodies:
 | `objects/laboratory.yaml`      | 14        | Erlenmeyer flasks (lathe), round-bottom flasks (lathe), funnels (lathe) |
 | `objects/musical.yaml`         | 14        | Violin, guitar, bronze bells (lathe), timpani kettles (lathe) |
 | `objects/outdoor.yaml`         | 15        | Benches, fountains, planters (lathe), garden vases (lathe) |
-| `objects/chess.yaml`           | 11        | Full turned Staunton set (lathe) + boards |
 | `objects/nature.yaml`          | 15        | Trees, flowers, mushrooms, crystals|
 
 ### Lathe-based templates
 
-Over **26 templates** across 9 of the libraries use the `lathe`
+Over **20 templates** across the libraries use the `lathe`
 primitive for their rotationally-symmetric bodies — wine glasses,
 bottles, turned columns, balusters, Ming vases, laboratory glassware,
-Staunton chess pieces, bells, and lampshades. A single Catmull-Rom
+bells, and lampshades. A single Catmull-Rom
 profile generates a C¹-continuous silhouette impossible to achieve by
 stacking spheres/cones/torus, and typically collapses 5–15 primitives
 into one. For transparent glass (Pyrex, crystal) the lathe is kept
@@ -151,7 +150,6 @@ collisions:
 | laboratory          | `lab_`  |
 | musical             | `mus_`  |
 | outdoor             | `out_`  |
-| chess               | `chs_`  |
 | nature              | `nat_`  |
 
 ### Conventions
@@ -301,7 +299,7 @@ physically consistent.
 
 ## 10.5 Starter Kits: Complete Scenes
 
-Eighteen renderable scenes that combine materials, objects, lighting, and
+Seventeen renderable scenes that combine materials, objects, lighting, and
 cameras. Use them as starting points for your own creations -- copy one,
 rename it, and modify it.
 
@@ -311,23 +309,38 @@ rename it, and modify it.
 - `starter-zen-garden.yaml` -- Japanese garden with lantern and bridge
 - `starter-ancient-ruins.yaml` -- Greek temple ruins
 - `starter-floating-islands.yaml` -- Fantasy floating islands
-- `starter-golden-hour.yaml` -- Sunset landscape
-- `starter-sunset.yaml` -- Dramatic horizon
+- `starter-mountain-peak.yaml` ✨ -- Snowy mountain range at sunset, `procedural` medium for low clouds
+- `starter-foliage-canopy.yaml` ✨ -- Forest understory with translucent leaves (`diff_trans` + `thin_walled`) and dappled light
 
-### Indoor (7)
+### Indoor (8)
 - `starter-photography-studio.yaml` -- Cyclorama with softbox lighting
 - `starter-cornell-box-extended.yaml` -- Classic GI benchmark
 - `starter-museum-gallery.yaml` -- Sculptures on pedestals
 - `starter-kitchen-counter.yaml` -- Marble counter with tableware
+- `starter-still-life-fruit.yaml` ✨ -- Flemish still life, wine glass with `transmission_color/depth`, satin ceramics
 - `starter-wine-cellar.yaml` -- Barrels and bottles by candlelight
 - `starter-dining-room.yaml` -- Table, chairs, pendant lamp
 - `starter-infinite-mirror-room.yaml` -- Parallel mirrors, emissive spheres
 
-### Showcase (4)
+### Showcase (3)
 - `starter-material-showroom.yaml` -- 16 materials on pedestals
-- `starter-chess-set.yaml` -- Complete Staunton set
+- `starter-jewelry-closeup.yaml` ✨ -- Ring with diamond (IOR 2.42), emeralds, and `thin_film` opal
 - `starter-pool-table.yaml` -- Billiard table with balls
 - `starter-underwater.yaml` -- Coral reef with bioluminescence
+
+> ✨ The 4 new starter kits (Mountain Peak, Foliage Canopy, Still Life
+> with Fruit, Jewelry Close-Up) joined the collection to demonstrate
+> engine features previously unrepresented: procedural and height-fog
+> participating media, translucent leaves with the Disney 2015 pattern
+> (`diff_trans` + `thin_walled`), high-IOR gems and `thin_film`
+> iridescence, and the satin ceramics / frosted glass material families
+> recently added under `materials/`. The old `starter-chess-set.yaml`
+> (and the underlying `objects/chess.yaml`) was removed pending a
+> future re-author with better detail. The "lean" `starter-golden-hour.yaml`
+> and `starter-sunset.yaml` were removed because they only carried a
+> world+sun header — the same lighting is available as importable
+> light libraries `lights/outdoor-golden-hour.yaml` and
+> `lights/outdoor-sunset.yaml`.
 
 ### Rendering a Starter Kit
 
@@ -761,7 +774,7 @@ RayTracer -i exhibition-hall.yaml -c detail -w 1200 -H 800 -s 1024 -d 8 -S 4
 
 ## What You Have Learned
 
-- The library ecosystem provides 800+ materials, 154+ templates, 14
+- The library ecosystem provides 1100+ materials, ~150 templates, 14
   lighting presets, and 18 starter-kit scenes.
 - Materials use `dis_` (Disney PBR) and `cls_` (Classic) prefixes.
 - Object templates follow consistent conventions (base at Y=0, 1:1

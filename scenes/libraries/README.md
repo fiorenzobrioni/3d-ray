@@ -52,7 +52,7 @@ entities:
 
 ### 🎨 Materiali — `materials/`
 
-**12 file · 1085 materiali PBR**
+**12 file · ~1100 materiali PBR**
 
 Raccolta completa di materiali fisicamente corretti con varianti Disney BSDF
 (`dis_`) e Classic (`cls_`). Ogni categoria è un file separato importabile
@@ -63,10 +63,10 @@ individualmente. Tutti i materiali Disney usano le chiavi moderne del BSDF
 | File | Contenuto |
 |------|-----------|
 | `metals.yaml` | Oro, argento, rame, bronzo, acciaio, alluminio, titanio, cromo, platino, nichel, zinco, peltro, corten... (128 mat.) |
-| `ceramics.yaml` | Porcellana, bone china, maiolica, terracotta, grès, raku, celadon, smaltate, sigillate... (88 mat.) |
+| `ceramics.yaml` | Porcellana, bone china, maiolica, terracotta, grès, raku, celadon, smaltate, sigillate, **satin** (porcellana satin, sabbia, salvia, antracite)... (~99 mat.) |
 | `woods.yaml` | Latifoglie chiare/medie/scure, ebano, esotici, trattati (shou sugi ban, barnwood), tinti... (72 mat.) |
 | `stones.yaml` | Marmi bianchi/scuri/colorati, graniti, travertino, ardesia, onice, alabastro, basalto, mattoni... (87 mat.) |
-| `glasses.yaml` | Vetri industriali/ottici, cristalli, gemme preziose e semipreziose, ghiaccio, liquidi, resine... (96 mat.) |
+| `glasses.yaml` | Vetri industriali/ottici, cristalli, gemme preziose e semipreziose, ghiaccio, liquidi, resine, **smerigliato/frosted** (acidato, sabbiato, plexi satin)... (~104 mat.) |
 | `plastics.yaml` | ABS, policarbonato, acrilico, PVC, nylon, PLA, teflon, bachelite, gomma, silicone, EVA, vinile... (95 mat.) |
 | `fabrics.yaml` | Velluto, seta, raso, cotone, lino, lana, denim, tweed, feltro, pelle, scamosciata, cuoio... (100 mat.) |
 | `paints.yaml` | Vernice auto metallizzata/pastello/perlata, lacche, smalti, chalk paint, pittura murale, spray... (98 mat.) |
@@ -86,7 +86,7 @@ individualmente. Tutti i materiali Disney usano le chiavi moderne del BSDF
 
 ### 📦 Oggetti — `objects/`
 
-**12 file · 160 template · ~230 materiali dedicati**
+**11 file · ~150 template · ~220 materiali dedicati**
 
 Template di oggetti composti pronti all'istanziazione. Ogni file contiene
 oggetti costruiti con primitive, CSG, torus, **lathe (superficie di
@@ -110,7 +110,6 @@ scena.
 | `laboratory.yaml` | 14 | Beute (lathe), palloni (lathe), imbuti (lathe), microscopi |
 | `musical.yaml` | 14 | Violino, chitarra, tromba, campane (lathe), timpani (lathe) |
 | `outdoor.yaml` | 15 | Fontane, panchine, fioriere (lathe), vasi giardino (lathe) |
-| `chess.yaml` | 11 | Set Staunton completo tornito (lathe) — re, regina, alfiere, torre, pedone |
 | `nature.yaml` | 15 | Alberi, cespugli, fiori, funghi, cristalli, bonsai |
 
 **Uso base:**
@@ -163,7 +162,7 @@ di ogni sorgente e il world abbinato consigliato.
 
 ### 🎬 Starter Kit — `starter-kits/`
 
-**18 scene YAML complete e renderizzabili immediatamente**
+**17 scene YAML complete e renderizzabili immediatamente**
 
 Scene già pronte con world, camere multiple, materiali, template, luci e
 oggetti. Pensate come punto di partenza: copiare, rinominare e modificare.
@@ -175,19 +174,25 @@ oggetti. Pensate come punto di partenza: copiare, rinominare e modificare.
 | **Outdoor** | `starter-zen-garden.yaml` | Giardino giapponese con lanterna tōrō e tsukubai |
 | **Outdoor** | `starter-ancient-ruins.yaml` | Rovine di tempio greco con colonne e archi CSG |
 | **Outdoor** | `starter-floating-islands.yaml` | Isole fantasy sospese in cielo viola-arancio |
-| **Outdoor** | `starter-golden-hour.yaml` | Cielo a gradiente procedurale con sole basso, luce calda radente |
-| **Outdoor** | `starter-sunset.yaml` | Orizzonte aperto con sfondo arancio e suolo metallico riflettente |
+| **Outdoor** | `starter-mountain-peak.yaml` ✨ | Catena di vette innevate al tramonto + nuvole procedurali |
+| **Outdoor** | `starter-foliage-canopy.yaml` ✨ | Sottobosco con dappled light e foglie translucide (`diff_trans`) |
 | **Indoor** | `starter-photography-studio.yaml` | Studio fotografico con cyclorama e softbox |
 | **Indoor** | `starter-cornell-box-extended.yaml` | Cornell Box arricchita — benchmark classico |
 | **Indoor** | `starter-museum-gallery.yaml` | Galleria d'arte con 5 piedistalli e sculture |
 | **Indoor** | `starter-kitchen-counter.yaml` | Still life su piano cucina in marmo di Carrara |
+| **Indoor** | `starter-still-life-fruit.yaml` ✨ | Natura morta fiamminga (frutta, vino, ceramica satin) |
 | **Indoor** | `starter-wine-cellar.yaml` | Cantina con botti, scaffali e candele emissive |
 | **Indoor** | `starter-dining-room.yaml` | Sala da pranzo con tavolo, sedie e lampada |
 | **Indoor** | `starter-infinite-mirror-room.yaml` | Installazione con specchi paralleli e sfere emissive |
 | **Showcase** | `starter-material-showroom.yaml` | Griglia 4×4 di 16 materiali su piedistalli |
-| **Showcase** | `starter-chess-set.yaml` | Scacchiera completa — 32 pezzi Staunton |
+| **Showcase** | `starter-jewelry-closeup.yaml` ✨ | Macro anello con diamante, smeraldi e opale iridescente |
 | **Showcase** | `starter-pool-table.yaml` | Tavolo da biliardo con bilie e sphere light |
 | **Showcase** | `starter-underwater.yaml` | Fondale marino con coralli e bioluminescenza |
+
+> ✨ Nuovi starter kit: dimostrano feature che mancavano nella collezione
+> precedente (mezzi procedurali, `diff_trans`, gemme con IOR alto/thin-film,
+> ceramica satin / vetro smerigliato). Tutti sfruttano i parametri di
+> light hardening del motore.
 
 **Uso:** copia il file in `scenes/`, rinominalo e renderizza subito.
 

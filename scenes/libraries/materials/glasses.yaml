@@ -895,3 +895,112 @@ materials:
     type: "dielectric"
     refraction_index: 1.55
     color: [0.15, 0.72, 0.78]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  SMERIGLIATO / FROSTED — vetri con superficie diffondente
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Vetri smerigliati (sandblasted, etched, frosted): la superficie è
+#  micro-rugosa e diffonde la luce in trasmissione, dando l'aspetto
+#  bianco-lattiginoso tipico delle docce, dei diffusori per lampadine
+#  e dei vasi smerigliati. Implementati con Disney `spec_trans` + roughness
+#  medio-alto: la combinazione produce sia una rifrazione "blurry" sia
+#  una luce trasmessa diffusa, equivalente fisico del vetro acidato.
+#
+#  Per evitare firefly sulle scene con questi materiali:
+#   - usa shadow_samples >= 9 sulle aree retroilluminanti;
+#   - tieni roughness >= 0.20 (sotto, le caustiche generano fireflies);
+#   - aggiungi `--indirect-clamp-factor 0.25` da CLI per scene con luci
+#     dietro al vetro smerigliato.
+#
+
+  # ── Disney — vetri smerigliati / acidati ──────────────────────────────────
+
+  # Vetro smerigliato neutro — docce, separatori bagno, plafoniere
+  - id: "dis_vetro_smerigliato"
+    type: "disney"
+    color: [0.96, 0.97, 0.98]
+    roughness: 0.32
+    metallic: 0.0
+    spec_trans: 1.0
+    ior: 1.52
+    transmission_color: [0.98, 0.98, 0.98]
+    specular: 0.5
+
+  # Vetro acidato fine — diffusore per LED, lampadario opale
+  - id: "dis_vetro_acidato"
+    type: "disney"
+    color: [0.98, 0.97, 0.95]
+    roughness: 0.45
+    metallic: 0.0
+    spec_trans: 0.95
+    ior: 1.50
+    transmission_color: [0.96, 0.96, 0.94]
+    specular: 0.4
+
+  # Vetro sabbiato verde bottiglia — bottiglie deluxe, vasi
+  - id: "dis_vetro_sabbiato_verde"
+    type: "disney"
+    color: [0.55, 0.78, 0.62]
+    roughness: 0.30
+    metallic: 0.0
+    spec_trans: 0.92
+    ior: 1.52
+    transmission_color: [0.55, 0.78, 0.62]
+    transmission_depth: 6.0
+
+  # Vetro sabbiato ambra — bottiglie whisky / birra opacizzate
+  - id: "dis_vetro_sabbiato_ambra"
+    type: "disney"
+    color: [0.78, 0.50, 0.20]
+    roughness: 0.32
+    metallic: 0.0
+    spec_trans: 0.90
+    ior: 1.52
+    transmission_color: [0.85, 0.55, 0.22]
+    transmission_depth: 5.0
+
+  # Vetro acidato fumé — separatori arredo design
+  - id: "dis_vetro_acidato_fume"
+    type: "disney"
+    color: [0.30, 0.30, 0.32]
+    roughness: 0.40
+    metallic: 0.0
+    spec_trans: 0.92
+    ior: 1.52
+    transmission_color: [0.45, 0.45, 0.48]
+    transmission_depth: 4.0
+
+  # Vetro inciso a motivi (decoro inciso ma struttura limpida) — per
+  # caraffe e calici con incisione: roughness più basso, sottile diffusione
+  - id: "dis_vetro_inciso"
+    type: "disney"
+    color: [0.97, 0.98, 0.99]
+    roughness: 0.18
+    metallic: 0.0
+    spec_trans: 0.98
+    ior: 1.55
+    transmission_color: [0.98, 0.98, 0.99]
+    specular: 0.55
+
+  # Plexiglass satin — pannelli illuminanti, insegne moderne
+  - id: "dis_plexi_satin"
+    type: "disney"
+    color: [0.96, 0.96, 0.97]
+    roughness: 0.38
+    metallic: 0.0
+    spec_trans: 0.85
+    ior: 1.49
+    transmission_color: [0.95, 0.95, 0.95]
+    specular: 0.40
+
+  # ── Classic — fallback ─────────────────────────────────────────────────────
+  # Note: dielectric classico non supporta roughness né diffusione in
+  # trasmissione → approssimato con un dielettrico chiaro. Per il vero
+  # smerigliato usa la variante Disney sopra.
+
+  - id: "cls_vetro_smerigliato"
+    type: "dielectric"
+    refraction_index: 1.52
+    color: [0.94, 0.94, 0.94]
