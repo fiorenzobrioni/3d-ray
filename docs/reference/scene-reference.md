@@ -802,6 +802,46 @@ entities:
   approach used by PovRay's `lathe` and PBRT's `Curve`. Expect ~10× the
   per-ray cost of a Cone hit on spline segments — prefer `linear` when
   faceting is acceptable.
+#### **7.17 Transform Order and `center:` Anti-Pattern**
+
+Entity transforms apply in a fixed `scale → rotate → translate` order around the **global origin (0, 0, 0)**:
+
+```
+world_pos = translate( rotate( scale( local_pos ) ) )
+```
+
+Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, torus, disk, annulus, lathe** — position their geometry *before* the outer transform is evaluated. Combining `center:` with `rotate:` or `scale:` therefore rotates and scales around the origin, not around the primitive's own center, producing unexpected results.
+
+**Anti-pattern** — do not combine `center:` with `rotate:` or `scale:`:
+```yaml
+# ❌ WRONG: center moves the cylinder to [0, 0.5, 0], then rotate: [0, 0, 90]
+# pivots around the global origin, flinging the cylinder to [-0.5, 0, 0].
+- name: "arm"
+  type: "cylinder"
+  center: [0, 0.5, 0]   # ← do not use with rotate/scale
+  rotate: [0, 0, 90]
+  radius: 0.05
+  height: 1.0
+  material: "iron"
+```
+
+**Correct pattern** — omit `center:` (defaults to `[0, 0, 0]`) and use `translate:` for final placement:
+```yaml
+# ✅ CORRECT: primitive sits at origin, rotated around origin, then translated.
+- name: "arm"
+  type: "cylinder"
+  rotate: [0, 0, 90]       # ① rotate around global origin
+  translate: [0, 0.5, 0]   # ② move into final position
+  radius: 0.05
+  height: 1.0
+  material: "iron"
+```
+
+**When `center:` is safe:**
+- When no `rotate:` or `scale:` is present — `center:` is equivalent to `translate:`.
+- Inside **CSG children** (`left`/`right`) — CSG children have no outer transform, so `center:` positions them correctly.
+- Inside **groups** when the child itself has no rotation — the group's own `translate`/`rotate` composes correctly on top.
+
 ---
 ### 8. **LIGHTS SECTION** — Five Types
 #### **8.1 Point Light (Omnidirectional)**
