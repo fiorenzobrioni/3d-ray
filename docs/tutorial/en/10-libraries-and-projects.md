@@ -190,10 +190,10 @@ light bulb inside a lamp) keep their original material.
 ### ⚠️ `center:` vs `translate:` on axial primitives
 
 Primitives that expose a `center:` parameter (sphere, cylinder, cone,
-capsule, torus) should not be combined with `rotate:` or `scale:`. The
-`scale → rotate → translate` transform chain is always applied around the
-**global origin**, not around the primitive's `center:`. Combining them
-flings the primitive away from where you expected.
+capsule, torus, disk, annulus, lathe) should not be combined with `rotate:`
+or `scale:`. The `scale → rotate → translate` transform chain is always
+applied around the **global origin**, not around the primitive's `center:`.
+Combining them flings the primitive away from where you expected.
 
 ```yaml
 # ❌ Wrong — rotate spins the sphere around the global origin, not its center
@@ -212,6 +212,12 @@ flings the primitive away from where you expected.
 `box` and `mesh` have no `center:` parameter and natively use `translate:`,
 so they're immune to this. Template `instance` entries also use
 `translate:`/`rotate:`/`scale:` directly — that's the correct pattern.
+
+**When `center:` is safe:** when no `rotate:` or `scale:` is present (it's
+equivalent to `translate:`); inside CSG children (`left`/`right`), which
+have no outer transform; and inside `group`s when the child has no rotation
+of its own — the group's own `translate`/`rotate` composes correctly on top
+of the child's `center:`.
 
 ---
 
