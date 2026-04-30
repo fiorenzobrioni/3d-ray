@@ -19,7 +19,7 @@
 #  WORLD — Golden Hour (ora d'oro, sole basso)
 # ═══════════════════════════════════════════════════════════════════════════
 world:
-  ambient_light: [0.04, 0.03, 0.02]
+  ambient_light: [0.02, 0.015, 0.01]
   sky:
     type: "gradient"
     zenith_color:  [0.15, 0.25, 0.55]  # Blu profondo in alto

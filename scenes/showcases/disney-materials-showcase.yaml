@@ -66,7 +66,6 @@ lights:
     v:         [ 0.0, 0.0, -2.0]
     color:     [1.00, 0.92, 0.78]
     intensity: 32
-    shadow_samples: 16
 
   # Fill: area light fredda dall'alto-sinistra, più grande e tenue
   - type: "area"
@@ -75,7 +74,6 @@ lights:
     v:         [ 0.0, 0.0, -1.6]
     color:     [0.72, 0.82, 1.00]
     intensity: 14
-    shadow_samples: 16
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  MATERIALS

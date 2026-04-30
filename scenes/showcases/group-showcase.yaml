@@ -30,8 +30,6 @@ cameras:
     position: [6, 4, -8]
     look_at: [1.1, 1.2, 0.5]
     fov: 42
-    aperture: 0.0
-    focal_dist: 10.5
 
   # ── DoF morbido: test deformazioni con focal_dist medio ──────────────
   - name: "dof_soft"

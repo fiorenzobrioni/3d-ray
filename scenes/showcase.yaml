@@ -252,7 +252,6 @@ lights:
     radius: 0.4
     color: [0.45, 0.68, 1.0]
     intensity: 28.0
-    shadow_samples: 8
 
   # Accent warm — piccolo faretto caldo fuori dal frame destro,
   # enfatizza l'highlight anisotropico dell'oro.
@@ -261,7 +260,6 @@ lights:
     radius: 0.2
     color: [1.0, 0.72, 0.35]
     intensity: 22.0
-    shadow_samples: 8
 
 # ─── Entities ───────────────────────────────────────────────────────────────
 entities:

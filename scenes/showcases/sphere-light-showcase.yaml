@@ -131,7 +131,6 @@ lights:
     radius: 0.15
     color: [1.0, 0.95, 0.88]
     intensity: 12.0
-    shadow_samples: 16
 
   # ── Sfera media (lampadina classica, penumbra moderata) ─────────────────
   - type: "sphere"
@@ -139,7 +138,6 @@ lights:
     radius: 0.5
     color: [1.0, 0.95, 0.88]
     intensity: 12.0
-    shadow_samples: 16
 
   # ── Sfera grande (lanterna/globo, ombre molto morbide) ──────────────────
   - type: "sphere"
@@ -147,7 +145,6 @@ lights:
     radius: 1.2
     color: [1.0, 0.93, 0.80]
     intensity: 12.0
-    shadow_samples: 16
 
   # ── Fill tenue dal retro-alto (evita nero assoluto nei recessi) ─────────
   - type: "point"

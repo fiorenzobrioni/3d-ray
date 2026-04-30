@@ -32,8 +32,11 @@ world:
 
   # Opzione HDRI: rimuovi il commento per riflessi ambientali complessi
   # (Richiede un file .hdr nella cartella textures/)
-  # background_hdri: "textures/studio_small_01_2k.hdr"
-  # background_hdri_intensity: 0.8
+  #sky:
+  #  type: "hdri"
+  #  path: "showcases/hdri/newman_cafeteria_4k.hdr"
+  #  intensity: 1.0
+  #  rotation: 0
 
   ground:
     type:     "infinite_plane"
@@ -46,7 +49,7 @@ world:
 cameras:
   - name:       principale      # Vista classica — tutta la struttura del pendolo
     position:   [-0.42,  0.38, -0.58]
-    look_at:    [ 0.00,  0.14,  0.00]
+    look_at:    [ 0.00,  0.12,  0.00]
     vup:        [0, 1, 0]
     fov:        32
     aperture:   0.005           # bokeh leggermente pronunciato
@@ -192,20 +195,20 @@ lights:
     u: [0.60, 0.00, 0.00]
     v: [0.00, 0.20, 0.40]
     color: [1.00, 0.95, 0.88]
-    intensity: 6.5
+    intensity: 12.0
 
   # FILL — Point a destra, fredda
   - type: "point"
     position:  [0.80, 0.60, -0.30]
     color:     [0.65, 0.78, 1.00]
-    intensity: 0.8
+    intensity: 4.0
 
   # RIM — Spot dal retro-alto
   - type: "spot"
     position:    [0.10, 1.00, 0.80]
     direction:   [-0.10, -0.70, -0.80]
     color:       [0.88, 0.92, 1.00]
-    intensity:   4.5
+    intensity:   14.0
     inner_angle: 15
     outer_angle: 35
 
@@ -214,7 +217,7 @@ lights:
     position:    [-0.45, 0.75, -0.45]
     direction:   [0.25, -0.55, 0.45]
     color:       [1.00, 0.98, 0.92]
-    intensity:   4.0
+    intensity:   14.0
     inner_angle: 6
     outer_angle: 16
 
@@ -222,7 +225,7 @@ lights:
   - type: "point"
     position:    [0.00, 0.02, 0.00]
     color:       [0.85, 0.60, 0.35]
-    intensity:   0.10
+    intensity:   1.0
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  LUCI ALTERNATIVE (Rimuovere uno dei commenti per attivare)

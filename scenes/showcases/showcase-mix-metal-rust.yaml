@@ -103,7 +103,6 @@ lights:
     v:      [ 0.0, 0.0,  4.0]
     color:  [1.0, 0.96, 0.88]
     intensity: 5.0
-    shadow_samples: 9
 
 entities:
   # ── Area light visibile (geometria emissiva) ─────────────────────────────

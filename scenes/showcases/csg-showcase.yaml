@@ -15,7 +15,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:
-  ambient_light: [0.06, 0.06, 0.08]
+  ambient_light: [0.03, 0.03, 0.04]
   sky:
     type: "gradient"
     zenith_color:  [0.10, 0.30, 0.80]
@@ -32,7 +32,7 @@ cameras:
     position:   [0, 6.5, -10]
     look_at:    [0, 1.8, 0]
     fov:        42
-    aperture:   0.04
+    aperture:   0.4
     focal_dist: 11.0
 
   # ── Close-up sul dado forato (subtraction) ─────────────────────────────
@@ -292,7 +292,6 @@ lights:
   #   v: [0, 0, 6]
   #   color: [1.0, 0.98, 0.94]
   #   intensity: 2.5
-  #   shadow_samples: 16
 
   # ── Fill light laterale fredda ─────────────────────────────────────────
   # - type: "point"

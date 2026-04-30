@@ -10,7 +10,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:
-  ambient_light: [0.04, 0.04, 0.05]
+  ambient_light: [0.02, 0.02, 0.025]
   sky:
     type: "gradient"
     zenith_color:  [0.10, 0.15, 0.30]
@@ -24,7 +24,7 @@ world:
 camera:
   position: [0, 5, -10]
   look_at: [0, 1.0, 1.5]
-  fov: 48
+  fov: 45
 
 lights:
   - type: "point"
@@ -55,7 +55,7 @@ materials:
     color: [0.08, 0.08, 0.08]
 
   # ═════════════════════════════════════════════════════════════════════════
-  #  FILA 1 — VETRO (Z = 4)  ← dove FIX #8a dovrebbe aiutare di più
+  #  FILA 1 — VETRO (Z = 4)
   # ═════════════════════════════════════════════════════════════════════════
   - id: "cl_vetro_bianco"
     type: "dielectric"
@@ -94,7 +94,7 @@ materials:
     ior: 1.52
 
   # ═════════════════════════════════════════════════════════════════════════
-  #  FILA 2 — PLASTICA OPACA (Z = 2)  ← rumore strutturale Disney
+  #  FILA 2 — PLASTICA OPACA (Z = 2)
   # ═════════════════════════════════════════════════════════════════════════
   - id: "cl_plastica_rossa"
     type: "lambertian"
@@ -127,7 +127,7 @@ materials:
     specular: 0.5
 
   # ═════════════════════════════════════════════════════════════════════════
-  #  FILA 3 — METALLI (Z = 0)  ← Disney ≈ classico (1 lobo dominante)
+  #  FILA 3 — METALLI (Z = 0)
   # ═════════════════════════════════════════════════════════════════════════
   - id: "cl_oro"
     type: "metal"
