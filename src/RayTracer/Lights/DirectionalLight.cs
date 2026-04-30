@@ -17,7 +17,7 @@ namespace RayTracer.Lights;
 /// uniformly within the subtended cone using the same cone-sampling formula
 /// as <see cref="SphereLight"/> (PBRT §6.2.3):
 /// <c>cosθ = 1 − ξ₁(1 − cos(angularRadius))</c>, <c>φ = 2πξ₂</c>. The
-/// <c>ShadowSamples</c> default is raised to 16 when disc mode is active so
+/// <c>ShadowSamples</c> default is raised to 4 when disc mode is active so
 /// the penumbra is captured at the same quality as area lights. <c>IsDelta</c>
 /// becomes <c>false</c> and <c>PdfSolidAngle</c> returns 1/Ω for directions
 /// inside the cone.</para>
@@ -65,8 +65,8 @@ public class DirectionalLight : ILight
         _cosAngularRadius = hasDisc ? MathF.Cos(radians) : 1f;
         _solidAngle = hasDisc ? 2f * MathF.PI * (1f - _cosAngularRadius) : 0f;
 
-        // shadowSamples = 0 → use sensible defaults: 1 for delta, 16 for disc
-        ShadowSamples = shadowSamples > 0 ? shadowSamples : (hasDisc ? 16 : 1);
+        // shadowSamples = 0 → use sensible defaults: 1 for delta, 4 for disc
+        ShadowSamples = shadowSamples > 0 ? shadowSamples : (hasDisc ? 4 : 1);
 
         _sqrtSamples = (int)MathF.Ceiling(MathF.Sqrt(ShadowSamples));
         _invSqrtSamples = 1f / _sqrtSamples;

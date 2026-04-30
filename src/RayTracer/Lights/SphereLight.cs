@@ -44,7 +44,7 @@ namespace RayTracer.Lights;
 ///   radius: 0.5
 ///   color: [1.0, 0.95, 0.9]
 ///   intensity: 30.0
-///   shadow_samples: 16
+///   shadow_samples: 4
 /// </code>
 /// </summary>
 public class SphereLight : ILight
@@ -70,7 +70,7 @@ public class SphereLight : ILight
     // emitter, so the 1/d² (or cosLight/d²) floor that PointLight/SpotLight/
     // AreaLight use to tame variance in dense media is unnecessary here.
     public SphereLight(Vector3 center, float radius, Vector3 color,
-                       float intensity = 20f, int shadowSamples = 16,
+                       float intensity = 20f, int shadowSamples = 4,
                        Emissive? proxyMaterial = null)
     {
         Center = center;

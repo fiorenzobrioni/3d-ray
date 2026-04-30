@@ -78,9 +78,9 @@ public class GeometryLight : ILight
     private readonly Vector3 _representativePoint;
     private readonly float   _representativeArea;
 
-    // Default unified with AreaLight/SphereLight (16) so emissive geometry gets
+    // Default unified with AreaLight/SphereLight (4) so emissive geometry gets
     // comparable soft-shadow quality without extra YAML tuning.
-    public const int DefaultShadowSamples = 16;
+    public const int DefaultShadowSamples = 4;
 
     public GeometryLight(ISamplable geometry, Emissive material, int shadowSamples = DefaultShadowSamples, float softRadius = 0f)
     {

@@ -34,7 +34,7 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 |---|---|---|
 | `-s` / `--samples` | `16` (griglia 4×4) | `Program.cs` |
 | `-d` / `--depth` | `8` | `Program.cs` |
-| `-S` / `--shadow-samples` | non impostato → valore YAML per-luce | `Program.cs` |
+| `-S` / `--shadow-samples` | non impostato → valore YAML per-luce (default: 4) | `Program.cs` |
 | `-C` / `--clamp` | `10` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
 | `--indirect-clamp-factor` | `0.25` (clamp indiretto = `2.5`) | `Renderer.DefaultIndirectClampFactor` |
 | `--light-sampling` | `all` (somma su tutte le luci) | `LightSamplingStrategy.All` |

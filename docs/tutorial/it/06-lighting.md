@@ -79,7 +79,7 @@ Il vettore `direction` punta **dalla luce verso la scena**, non dalla scena vers
 
 Come le luci puntiformi, le luci direzionali producono **ombre nette** per default.
 
-**Disco solare (`angular_radius`):** quando > 0, il renderer perturba ogni raggio d'ombra all'interno di un cono dell'ampiezza specificata, producendo una penombra morbida realistica. Il valore `shadow_samples` viene portato automaticamente a 16 quando il disco è attivo. Il Sole reale sottende circa 0.27°.
+**Disco solare (`angular_radius`):** quando > 0, il renderer perturba ogni raggio d'ombra all'interno di un cono dell'ampiezza specificata, producendo una penombra morbida realistica. Il valore `shadow_samples` viene portato automaticamente a 4 quando il disco è attivo. Il Sole reale sottende circa 0.27°.
 
 ```yaml
 - type: "sun"
@@ -121,7 +121,7 @@ Una luce spot emette da un punto all'interno di un cono. All'interno del cono in
 
 Le luci spot sono ideali per effetti teatrali, esposizioni museali e torce. Producono anch'esse ombre nette.
 
-**Multi-sample spot + soft radius:** con `shadow_samples: 16` e `soft_radius: 0.15` il motore campiona un disco di raggio 0.15 m per ogni raggio d'ombra, creando una penombra morbida ed eliminando i fireflies 1/d² in nebbia. Se `soft_radius == 0`, campioni aggiuntivi non hanno effetto — tenere a 1 per efficienza.
+**Multi-sample spot + soft radius:** con `shadow_samples: 4` e `soft_radius: 0.15` il motore campiona un disco di raggio 0.15 m per ogni raggio d'ombra, creando una penombra morbida ed eliminando i fireflies 1/d² in nebbia. Se `soft_radius == 0`, campioni aggiuntivi non hanno effetto — tenere a 1 per efficienza.
 
 Disponibile anche come `type: "spotlight"`.
 
@@ -136,7 +136,6 @@ Disponibile anche come `type: "spotlight"`.
   v: [0, 0, 2]
   color: [1, 0.97, 0.93]
   intensity: 35.0
-  shadow_samples: 16
 ```
 
 | Parametro        | Predefinito | Descrizione                                          |
@@ -146,7 +145,7 @@ Disponibile anche come `type: "spotlight"`.
 | `v`              | --          | Secondo vettore lato (dall'angolo)                   |
 | `color`          | --          | Colore della luce                                    |
 | `intensity`      | --          | Moltiplicatore di luminosità                         |
-| `shadow_samples` | `16`        | Numero di campioni d'ombra (più alto = più morbida)  |
+| `shadow_samples` | `4`         | Numero di campioni d'ombra (più alto = più morbida)  |
 | `soft_radius`    | `0`         | Opzionale. Clampa `distSq` nel termine cosLight/d²  |
 
 Una luce area è un rettangolo piatto che emette luce da tutta la sua superficie. Poiché ha una dimensione fisica, produce **ombre morbide** con una penombra realistica (la transizione graduale dall'ombra alla luce).
@@ -205,7 +204,7 @@ senza conflitti.
 | `radius`         | --          | Raggio della sfera luminosa; definisce anche la dimensione del proxy |
 | `color`          | --          | Colore della luce                       |
 | `intensity`      | --          | Moltiplicatore di luminosità            |
-| `shadow_samples` | `16`        | Numero di campioni d'ombra              |
+| `shadow_samples` | `4`         | Numero di campioni d'ombra              |
 
 Una luce sferica è come una luce area, ma di forma sferica. Produce ombre morbide con una penombra circolare e crea riflessi perfettamente rotondi (catchlights) nelle superfici riflettenti.
 
@@ -287,7 +286,6 @@ La sorgente luminosa principale. Definisce la direzione dell'ombra dominante e m
   v: [0, 0, 2]
   color: [1.0, 0.96, 0.90]
   intensity: 45.0
-  shadow_samples: 16
 ```
 
 ### Fill Light (Luce di Riempimento)
@@ -333,7 +331,6 @@ lights:
     v: [0, 0, 6]
     color: [1, 1, 1]
     intensity: 50.0
-    shadow_samples: 16
 
   - type: "point"
     position: [0, 1, -4]
@@ -428,7 +425,6 @@ lights:
     v: [0, 0, 2]
     color: [1, 0.97, 0.93]
     intensity: 30.0
-    shadow_samples: 16
 
 materials:
   - id: "floor"

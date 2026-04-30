@@ -116,7 +116,7 @@ Like point lights, directional lights produce **hard shadows** by default.
 
 **Sun disc (`angular_radius`):** when set > 0, the renderer perturbs each shadow
 ray within a cone of the given half-angle, producing a realistic soft penumbra. The
-default `shadow_samples` is automatically raised to 16 when the disc is active.
+default `shadow_samples` is automatically raised to 4 when the disc is active.
 The real Sun subtends approximately 0.27°.
 
 ```yaml
@@ -163,7 +163,7 @@ no light.
 Spot lights are ideal for theatrical effects, museum displays, and
 flashlights. They also produce hard shadows.
 
-**Multi-sample spot + soft radius:** setting `shadow_samples: 16` and
+**Multi-sample spot + soft radius:** setting `shadow_samples: 4` and
 `soft_radius: 0.15` models a small bulb of radius 0.15 m and samples its
 disc for each shadow query, creating a soft penumbra and eliminating
 1/d² fireflies in fog. If `soft_radius == 0`, extra shadow samples have
@@ -182,7 +182,6 @@ Also available as `type: "spotlight"`.
   v: [0, 0, 2]
   color: [1, 0.97, 0.93]
   intensity: 35.0
-  shadow_samples: 16
   soft_radius: 0.0               # Optional. >0 = floor distSq in cosLight/d²
 ```
 
@@ -193,7 +192,7 @@ Also available as `type: "spotlight"`.
 | `v`              | --      | Second edge vector (from corner)           |
 | `color`          | --      | Light color                                |
 | `intensity`      | --      | Brightness multiplier                      |
-| `shadow_samples` | `16`    | Number of shadow samples (higher = softer) |
+| `shadow_samples` | `4`     | Number of shadow samples (higher = softer) |
 | `soft_radius`    | `0`     | Optional. Clamps `distSq` in the cosLight/d² estimator |
 
 An area light is a flat rectangle that emits light from its entire
@@ -264,7 +263,7 @@ internal proxy without conflict.
 | `radius`         | --      | Radius of the light sphere; also defines proxy size |
 | `color`          | --      | Light color                             |
 | `intensity`      | --      | Brightness multiplier                   |
-| `shadow_samples` | `16`    | Number of shadow samples                |
+| `shadow_samples` | `4`     | Number of shadow samples                |
 
 A sphere light is like an area light, but spherical. It produces soft
 shadows with a circular penumbra and creates perfectly round highlights
@@ -384,7 +383,6 @@ above and to one side.
   v: [0, 0, 2]
   color: [1.0, 0.96, 0.90]
   intensity: 45.0
-  shadow_samples: 16
 ```
 
 ### Fill Light
@@ -436,7 +434,6 @@ lights:
     v: [0, 0, 6]
     color: [1, 1, 1]
     intensity: 50.0
-    shadow_samples: 16
 
   - type: "point"
     position: [0, 1, -4]
@@ -532,7 +529,6 @@ lights:
     v: [0, 0, 2]
     color: [1, 0.97, 0.93]
     intensity: 30.0
-    shadow_samples: 16
 
 materials:
   - id: "floor"

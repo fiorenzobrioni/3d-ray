@@ -868,7 +868,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 - No distance attenuation
 - Align with gradient sky `sun.direction` for visual coherence
 - Good for outdoor key light
-- `angular_radius` (default `0`): when > 0 the light models a disc of finite angular size. Each shadow ray is perturbed uniformly within the subtended cone, producing a soft penumbra. The real Sun is approximately 0.27°. When active, `shadow_samples` defaults to 16 and `IsDelta` becomes `false`, enabling full MIS weighting. Hard-shadow backward compatibility is preserved at the default 0.
+- `angular_radius` (default `0`): when > 0 the light models a disc of finite angular size. Each shadow ray is perturbed uniformly within the subtended cone, producing a soft penumbra. The real Sun is approximately 0.27°. When active, `shadow_samples` defaults to 4 and `IsDelta` becomes `false`, enabling full MIS weighting. Hard-shadow backward compatibility is preserved at the default 0.
 #### **8.3 Spot Light (Cone)**
 ```yaml
 - type: "spot"  # alias: "spotlight"
@@ -894,7 +894,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
   v: [0.0, 0.0, 3.0]                      # Second edge
   color: [1.0, 0.97, 0.9]
   intensity: 35.0                          # Range: 15–60
-  shadow_samples: 16                       # Samples per point
+  shadow_samples: 4                        # Samples per point (default)
   soft_radius: 0.0                         # Optional. >0 = floor distSq in cosLight/d²
 ```
 - Monte Carlo soft shadows with penumbra
@@ -910,7 +910,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
   radius: 0.5                              # Larger = softer shadows; also defines proxy size
   color: [1.0, 0.95, 0.85]
   intensity: 30.0
-  shadow_samples: 16
+  shadow_samples: 4
 ```
 - Solid-angle sampling (efficient, no wasted samples)
 - Isotropic penumbra (circular shadows)

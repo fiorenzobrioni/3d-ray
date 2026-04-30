@@ -245,7 +245,6 @@ lights:
     v: [0.0, 0.0, 2.0]
     color: [1.0, 0.96, 0.88]
     intensity: 32.0
-    shadow_samples: 16
 
   # Rim light — sphere azzurra posteriore, stacca i soggetti dal fondo.
   - type: "sphere"

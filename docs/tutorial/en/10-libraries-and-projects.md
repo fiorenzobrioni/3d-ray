@@ -281,7 +281,7 @@ hardening* knobs (see DEVLOG §Light Hardening Cycle and
 - **`angular_radius`** (directional) — angular diameter in degrees of the
   sun/moon disc. `0.27` = real Sun, `0.5` = full Moon. When set, it
   produces physical penumbras (cone sampling, internal `shadow_samples`
-  16) instead of infinitely sharp shadows. The outdoor presets in the
+  4) instead of infinitely sharp shadows. The outdoor presets in the
   library already use it on every sun/moon.
 - **`shadow_samples`** (spot, area, sphere) — jittered visibility samples.
   On `spot`, this only matters when `soft_radius > 0`.

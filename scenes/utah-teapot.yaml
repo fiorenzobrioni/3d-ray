@@ -86,7 +86,6 @@ lights:
     v: [0, 1, 0]
     color: [1.0, 0.92, 0.8]
     intensity: 30
-    shadow_samples: 16
 
   # Fill — fredda da sinistra
   - type: "point"

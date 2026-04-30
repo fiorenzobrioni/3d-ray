@@ -205,7 +205,6 @@ namespace ChessGen
             sb.AppendLine("    v: [0.0, 0.0, 3.5]");
             sb.AppendLine("    color: [1.0, 0.95, 0.85]");
             sb.AppendLine("    intensity: 5.0");
-            sb.AppendLine("    shadow_samples: 16");
             sb.AppendLine();
             sb.AppendLine("  # FILL: cool sphere light from camera-right, softens key-side shadows.");
             sb.AppendLine("  - type: \"sphere\"");
