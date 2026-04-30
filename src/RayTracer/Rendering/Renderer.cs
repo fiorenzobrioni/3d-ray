@@ -110,26 +110,26 @@ public class Renderer
     private readonly float _rrMinSurvival;
 
     // ── Firefly suppression ─────────────────────────────────────────────────
-    // Maximum per-sample radiance (before tone mapping). Sits just above the
-    // safety net that catches any remaining outliers from RR boost, Disney
-    // lobe compensation, specular caustics, or NaN/Inf from edge cases.
-    // Increased from 15f to 100f to prevent catastrophic energy loss on
-    // highly emissive elements, while still removing true numerical spikes.
-    // Can be overridden via the constructor (CLI flag --clamp/-C).
-    public const float DefaultMaxSampleRadiance = 100f;
+    // Maximum per-sample radiance (before tone mapping). Catches outliers from
+    // RR boost, Disney lobe compensation, specular caustics, and NaN/Inf edge
+    // cases. After ACES tone mapping any luminance ≳ 5 already saturates to
+    // white, so a default of 10 leaves all legitimate highlights untouched
+    // while killing the rare bright spikes that produce visible firefly noise.
+    // Aligns with the Cycles `clamp_indirect = 10` and Arnold `AA_clamp ≈ 10`
+    // industry defaults. Override via the constructor (CLI flag --clamp/-C).
+    public const float DefaultMaxSampleRadiance = 10f;
     private readonly float _maxSampleRadiance;
 
     // ── Depth-aware indirect firefly clamp ──────────────────────────────────
     // A second (typically tighter) clamp is applied to the indirect (bounce ≥ 1)
     // contribution inside ShadeSurface/ShadeSampleBounce, mirroring the
-    // Cycles/Arnold "indirect clamp" feature. Default factor = 1.0 means the
-    // indirect clamp equals the primary clamp (no extra suppression, backward
-    // compatible). Values < 1 reduce variance from caustics / specular chains
-    // at the cost of slightly darkening deep indirect paths.
+    // Cycles/Arnold "indirect clamp" feature. Default 0.25 → indirect clamp =
+    // 0.25 × primary clamp = 2.5 with the default --clamp 10, which targets
+    // caustic / specular-chain fireflies that survive the primary clamp.
+    // Set to 1.0 to disable the extra suppression.
     //
-    // CLI: --indirect-clamp-factor <f>   (e.g. 0.25 = 25 when primary clamp = 100)
-    // Default 1.0 → _indirectMaxSampleRadiance == _maxSampleRadiance → no change.
-    public const float DefaultIndirectClampFactor = 1.0f;
+    // CLI: --indirect-clamp-factor <f>   (e.g. 1.0 = same as primary clamp)
+    public const float DefaultIndirectClampFactor = 0.25f;
     private readonly float _indirectMaxSampleRadiance;
 
     // Threshold below which the scene is considered indirect-dominant.

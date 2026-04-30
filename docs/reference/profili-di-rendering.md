@@ -35,8 +35,8 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 | `-s` / `--samples` | `16` (griglia 4×4) | `Program.cs` |
 | `-d` / `--depth` | `8` | `Program.cs` |
 | `-S` / `--shadow-samples` | non impostato → valore YAML per-luce | `Program.cs` |
-| `-C` / `--clamp` | `100` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
-| `--indirect-clamp-factor` | `1.0` (nessuna soppressione aggiuntiva) | `Renderer.DefaultIndirectClampFactor` |
+| `-C` / `--clamp` | `10` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
+| `--indirect-clamp-factor` | `0.25` (clamp indiretto = `2.5`) | `Renderer.DefaultIndirectClampFactor` |
 | `--light-sampling` | `all` (somma su tutte le luci) | `LightSamplingStrategy.All` |
 | `--sampler` | `sobol` (Owen scramble) | `Program.cs` / `Sampler.SetKind` |
 | `--mis` | `balance` (balance heuristic Veach) | `Program.cs` / `MisHeuristic` |
@@ -92,16 +92,17 @@ I campioni pixel (`-s`) e i campioni d'ombra (`-S`) riducono entrambi il rumore 
 
 `MaxSampleRadiance` (esposto come `-C`) è il limite massimo per la radianza per-campione **prima del tone mapping**. Cattura gli outlier rari prodotti da caustiche speculari, compensazione delle Disney lobe e boost della Russian Roulette — i pixel che altrimenti apparirebbero come puntini bianchi luminosi ("fireflies") nel render.
 
-**Default:** `100`. Sufficientemente alto da preservare i highlight degli emissive, sufficientemente basso da uccidere gli spike numerici.
-
-**Quando abbassare `-C`:**
-- Nebbia densa / mezzi omogenei spessi + `-d` forzato alto.
-- Scene con molti piccoli emissive luminosi visti attraverso il vetro.
-- Prova `-C 25` (aggressivo) o `-C 15` (pesante). Perdi un po' di gamma dinamica HDR sui highlight più caldi ma guadagni ombre più pulite e penombre più morbide ai rimbalzi estremi.
+**Default:** `10`. Dopo il tone mapping ACES qualunque luminanza ≳ 5 satura già al bianco, quindi `10` lascia intatti tutti i highlight visibili pur uccidendo gli spike rari. Allineato con il `clamp_indirect = 10` di Cycles e l'`AA_clamp ≈ 10` tipico di Arnold.
 
 **Quando alzare `-C`:**
 - HDRI con sole molto intenso dove il disco solare appare meno luminoso del previsto.
-- Prova `-C 500` o disattiva il clamp di fatto con un valore molto alto. Il rischio sono i fireflies.
+- Scene molto emissive in cui hai verificato che è la sorgente luminosa stessa (non le sue caustiche) ad essere soppressa. Prova `-C 25–100`.
+- Disattiva il clamp di fatto con un valore molto alto. Il rischio sono fireflies in caustiche e catene speculari profonde.
+
+**Quando abbassare ulteriormente `-C`:**
+- Nebbia densa / mezzi omogenei spessi + `-d` alto.
+- Scene con molti piccoli emissive luminosi visti attraverso il vetro.
+- Prova `-C 5` o `-C 3`. Perdi un po' di gamma dinamica HDR sui highlight più caldi ma guadagni ombre più pulite e penombre più morbide ai rimbalzi estremi.
 
 Il clamp usa **scaling con preservazione della luminanza**, quindi non altera la tinta sui highlight luminosi — solo la luminosità.
 
@@ -113,11 +114,11 @@ Un secondo clamp opzionale riduce la soppressione specificamente sui **bounce in
 --indirect-clamp-factor 0.25
 ```
 
-Questo moltiplica la soglia `-C` per tutti i contributi indiretti. Con il default `1.0` il clamp indiretto è uguale al clamp primario — nessuna differenza. Con `0.25` e `-C 100` il clamp indiretto è 25: la radianza dei bounce profondi è limitata a 25, quella primaria a 100.
+Questo moltiplica la soglia `-C` per tutti i contributi indiretti. Con il default `0.25` e `-C 10` il clamp indiretto è `2.5`: la radianza dei bounce profondi è limitata a 2.5, quella primaria a 10. Imposta `1.0` per disattivare la soppressione aggiuntiva e avere clamp indiretto uguale a quello primario.
 
-**Quando usarlo:** catene caustic/speculare che sopravvivono al `-C` primario perché ogni singolo bounce è sotto 100, ma il prodotto sale. Prova `0.25` come prima mossa; scendi fino a `0.1` per scene molto volumetriche con vetro.
+**Quando abbassare ulteriormente:** catene caustic/speculare che producono ancora fireflies al default. Scendi fino a `0.1` per scene molto volumetriche con vetro.
 
-**Default `1.0`** mantiene la backward compatibility — le scene esistenti non vengono modificate senza opt-in.
+**Quando alzare verso `1.0`:** scene in cui i highlight indiretti appaiono inaspettatamente smorzati — tipicamente Cornell box puramente emissive o HDRI in cui l'unico segnale luminoso legittimo arriva da bounce indiretti.
 
 #### **6b. Light importance sampling (`--light-sampling`)**
 
@@ -163,8 +164,9 @@ Con `all` il renderer lancia `ShadowSamples` raggi d'ombra per luce per shading 
   - Per immagini pubblicabili punta a `-s 576` (24×24) o `-s 1024`.
   - Se vedi rumore concentrato nel cono luminoso, aumenta `-s` (non `-S`).
 - **Firefly clamp con nebbia densa.** Mezzi con `sigma_s` alto e `-d 8+`
-  producono talvolta spike luminosi rari. Abbassa `-C` a `25` o `15` senza
-  timore: perdi poco dinamica, guadagni molto pulito.
+  producono talvolta spike luminosi rari che sopravvivono al `-C 10` di
+  default. Abbassa a `-C 5` o `-C 3` senza timore: perdi poco dinamica,
+  guadagni molto pulito.
 - **`soft_radius` su luci point/spot dentro un medium.** Con un medium
   partecipante attivo, l'attenuazione 1/d² delle luci `point`/`spot` diverge
   agli eventi di scattering vicini all'emettitore, producendo pixel-firefly
@@ -201,7 +203,7 @@ RayTracer -i scene.yaml -w 400 -H 225 -s 64 -d 4 -S 1
 RayTracer -i scene.yaml -w 800 -H 450 -s 400 -d 6 -S 1
 
 # Final volumetric (pulizia pubblicabile)
-RayTracer -i scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4 -C 50
+RayTracer -i scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4 -C 5
 ```
 
 ---

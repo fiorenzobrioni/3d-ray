@@ -35,8 +35,8 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 | `-s` / `--samples` | `16` (4×4 grid) | `Program.cs` |
 | `-d` / `--depth` | `8` | `Program.cs` |
 | `-S` / `--shadow-samples` | unset → per-light YAML value | `Program.cs` |
-| `-C` / `--clamp` | `100` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
-| `--indirect-clamp-factor` | `1.0` (no extra suppression) | `Renderer.DefaultIndirectClampFactor` |
+| `-C` / `--clamp` | `10` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
+| `--indirect-clamp-factor` | `0.25` (indirect clamp = `2.5`) | `Renderer.DefaultIndirectClampFactor` |
 | `--light-sampling` | `all` (sum over every light) | `LightSamplingStrategy.All` |
 | `--sampler` | `sobol` (Owen-scrambled) | `Program.cs` / `Sampler.SetKind` |
 | `--mis` | `balance` (Veach balance heuristic) | `Program.cs` / `MisHeuristic` |
@@ -92,16 +92,17 @@ Pixel samples (`-s`) and shadow samples (`-S`) both reduce shadow noise. Prefer 
 
 `MaxSampleRadiance` (exposed as `-C`) is the hard ceiling on per-sample radiance **before tone mapping**. It catches the rare outliers produced by specular caustics, Disney lobe compensation, and Russian Roulette boost — the pixels that would otherwise appear as bright white dots ("fireflies") in your render.
 
-**Default:** `100`. High enough to preserve highlights on emissive elements; low enough to kill numerical spikes.
-
-**When to lower `-C`:**
-- Dense fog / thick homogeneous media + forced high `-d`.
-- Scenes with many small bright emissives seen through glass.
-- Try `-C 25` (aggressive) or `-C 15` (heavy). You lose some HDR dynamic range in the hottest highlights but gain cleaner shadows and softer penumbras at extreme bounces.
+**Default:** `10`. After ACES tone mapping any luminance ≳ 5 already saturates to white, so `10` leaves all visible highlights untouched while killing rare bright spikes. Aligns with Cycles `clamp_indirect = 10` and Arnold `AA_clamp ≈ 10`.
 
 **When to raise `-C`:**
 - Strongly sun-lit HDRIs where the sun disk is showing up dimmer than expected.
-- Try `-C 500` or disable clamping effectively with a very high value. The tradeoff is potential fireflies.
+- Highly emissive scenes where you can verify that the bright source itself (not its caustics) is being suppressed. Try `-C 25–100`.
+- Disable effectively with a very high value. The tradeoff is potential fireflies in caustics and deep specular chains.
+
+**When to lower `-C` further:**
+- Dense fog / thick homogeneous media + high `-d`.
+- Scenes with many small bright emissives seen through glass.
+- Try `-C 5` or `-C 3`. You lose some HDR dynamic range in the hottest highlights but gain cleaner shadows and softer penumbras at extreme bounces.
 
 The clamp uses **luminance-preserving scaling**, so it does not shift hue on bright highlights — only brightness.
 
@@ -113,11 +114,11 @@ A second, optional clamp tightens suppression specifically on **indirect bounces
 --indirect-clamp-factor 0.25
 ```
 
-This multiplies the primary `-C` threshold for all indirect contributions. With the default `1.0` the indirect clamp equals the primary clamp — no change. With `0.25` and `-C 100` the indirect clamp is 25: deep bounce radiance is capped at 25, primary radiance at 100.
+This multiplies the primary `-C` threshold for all indirect contributions. With the default `0.25` and `-C 10` the indirect clamp is `2.5`: deep-bounce radiance is capped at 2.5, primary radiance at 10. Set to `1.0` to disable the extra suppression and have the indirect clamp equal the primary clamp.
 
-**When to use it:** caustic/specular chains that survive the primary `-C` because individual bounces are below 100 but compound. Try `0.25` first; go as low as `0.1` for heavily volumetric scenes with glass.
+**When to lower further:** caustic/specular chains that still produce fireflies at the default. Try `0.1` for heavily volumetric scenes with glass.
 
-**Default `1.0`** preserves backward compatibility — existing scenes are unaffected unless you opt in.
+**When to raise toward `1.0`:** scenes where indirect highlights look unexpectedly dim — typically pure-emissive Cornell-style setups or HDRIs where the only legitimate bright signal comes from indirect bounces.
 
 #### **6b. Light importance sampling (`--light-sampling`)**
 
@@ -164,8 +165,9 @@ characteristics.
   - For publication-ready images aim for `-s 576` (24×24) or `-s 1024`.
   - If noise concentrates in the light cone, raise `-s` (not `-S`).
 - **Firefly clamp with dense fog.** Media with high `sigma_s` and `-d 8+`
-  occasionally produce rare bright spikes. Lower `-C` to `25` or `15` without
-  hesitation: you lose little dynamic range and gain a much cleaner image.
+  occasionally produce rare bright spikes that survive the default `-C 10`.
+  Lower to `-C 5` or `-C 3` without hesitation: you lose little dynamic
+  range and gain a much cleaner image.
 - **`soft_radius` on point/spot lights inside a medium.** When a participating
   medium is active, the 1/d² attenuation of a `point`/`spot` light diverges at
   scattering events near the emitter, producing isolated firefly pixels that
@@ -202,7 +204,7 @@ RayTracer -i scene.yaml -w 400 -H 225 -s 64 -d 4 -S 1
 RayTracer -i scene.yaml -w 800 -H 450 -s 400 -d 6 -S 1
 
 # Volumetric Final (publication-ready cleanliness)
-RayTracer -i scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4 -C 50
+RayTracer -i scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4 -C 5
 ```
 
 ---

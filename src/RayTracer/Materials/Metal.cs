@@ -180,19 +180,23 @@ public sealed class Metal : IMaterial
     public BsdfSample? Sample(Vector3 V, HitRecord rec)
     {
         Vector3 N = rec.Normal;
-        Vector3 H = SampleGGX(N, _alpha);
-        Vector3 L = MathUtils.Reflect(-V, H);
-        if (Vector3.Dot(N, L) <= 0f) return null;
-
         Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
 
         if (Fuzz <= 0f)
         {
-            // Perfect mirror: delta lobe. F carries the full attenuation,
-            // Pdf=1 so the renderer reports prevBsdfPdf=0 / prevIsDelta=true
-            // at the next bounce (see ShadeSampleBounce).
-            return new BsdfSample(L, albedo, 1f, isDelta: true);
+            // Perfect mirror: pure specular reflection with no GGX jitter.
+            // F carries the full attenuation, Pdf=1 so the renderer reports
+            // prevBsdfPdf=0 / prevIsDelta=true at the next bounce.
+            // Sampling a microfacet here (even with tiny α) leaves residual
+            // noise on highly polished surfaces that no spp budget can clear.
+            Vector3 Lmirror = MathUtils.Reflect(-V, N);
+            if (Vector3.Dot(N, Lmirror) <= 0f) return null;
+            return new BsdfSample(Lmirror, albedo, 1f, isDelta: true);
         }
+
+        Vector3 H = SampleGGX(N, _alpha);
+        Vector3 L = MathUtils.Reflect(-V, H);
+        if (Vector3.Dot(N, L) <= 0f) return null;
 
         float NdotL = MathF.Max(Vector3.Dot(N, L), 1e-7f);
         float NdotV = MathF.Max(Vector3.Dot(N, V), 1e-7f);
@@ -250,7 +254,7 @@ public sealed class Metal : IMaterial
             return false;
         }
 
-        scattered = new Ray(rec.Point, L);
+        scattered = new Ray(MathUtils.OffsetOrigin(rec.Point, N), L);
 
         // Attenuation = albedo × G-term weight
         // For metals, F0 ≈ albedo — the Fresnel is baked into the color.
@@ -266,13 +270,7 @@ public sealed class Metal : IMaterial
         float VdotH = MathF.Max(Vector3.Dot(V, H), 0.001f);
 
         float G = SmithG1_GGX(NdotV, _alpha) * SmithG1_GGX(NdotL, _alpha);
-
-        // FIREFLY GUARD: The raw GGX weight G×VdotH/(NdotV×NdotH) can spike
-        // at grazing angles where NdotV or NdotH approach their floor values.
-        // For well-behaved GGX with proper Smith masking, the weight stays
-        // near 1.0. Values above 1.0 are grazing-angle noise. Clamping to 1.0
-        // eliminates all remaining fireflies with no perceptible quality loss.
-        float ggxWeight = MathF.Min(G * VdotH / (NdotV * NdotH), 1f);
+        float ggxWeight = G * VdotH / (NdotV * NdotH);
 
         attenuation = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed) * ggxWeight;
 
