@@ -350,10 +350,12 @@ entities:
 
   # Scultura 5: Ceramica bianca liscia — forma organica (fondo-destra)
   - { type: "instance", template: "piedistallo", translate: [4.5, 0, 4] }
+  # Nota: niente `center:` con `scale:` — il rotate/scale si applica all'origine.
+  # Sphere creata in (0,0,0), scalata a ellissoide, poi traslata.
   - name: "ceramica_organica"
     type: "sphere"
-    center: [4.5, 1.45, 4]
     radius: 0.38
     scale: [1.0, 1.5, 0.8]
+    translate: [4.5, 1.45, 4]
     material: "ceramica_bianca"
 

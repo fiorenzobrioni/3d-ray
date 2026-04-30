@@ -189,6 +189,32 @@ Material override on an instance replaces the template's default
 material. Children with their own explicit material (like an emissive
 light bulb inside a lamp) keep their original material.
 
+### ⚠️ `center:` vs `translate:` on axial primitives
+
+Primitives that expose a `center:` parameter (sphere, cylinder, cone,
+capsule, torus) should not be combined with `rotate:` or `scale:`. The
+`scale → rotate → translate` transform chain is always applied around the
+**global origin**, not around the primitive's `center:`. Combining them
+flings the primitive away from where you expected.
+
+```yaml
+# ❌ Wrong — rotate spins the sphere around the global origin, not its center
+- type: "sphere"
+  center: [0, 1.5, 0]
+  radius: 0.3
+  rotate: [0, 0, 90]
+
+# ✅ Right — sphere starts at (0,0,0), scale/rotate happen locally, then place
+- type: "sphere"
+  radius: 0.3
+  rotate: [0, 0, 90]
+  translate: [0, 1.5, 0]
+```
+
+`box` and `mesh` have no `center:` parameter and natively use `translate:`,
+so they're immune to this. Template `instance` entries also use
+`translate:`/`rotate:`/`scale:` directly — that's the correct pattern.
+
 ---
 
 ## 10.4 Lighting Libraries
@@ -235,6 +261,41 @@ world:
   ambient_light: [0.02, 0.02, 0.03]
   background: [0.0, 0.0, 0.0]
 ```
+
+### 🛡️ Light hardening: cut fireflies without raising spp
+
+Every preset in the library is now calibrated with the engine's *light
+hardening* knobs (see DEVLOG §Light Hardening Cycle and
+`docs/reference/scene-reference.md` §8). Three key parameters:
+
+- **`soft_radius`** (point, spot, area) — models the source's physical
+  diameter. The `1/d²` term (and `cosLight/d²` on area lights) is floored
+  at `max(d², r²)`, removing the persistent fireflies that appear when a
+  ray (or a scattering event in fog) lands very close to the emitter.
+  Typical values: 0.05–0.20 for bulbs, 0.10–0.30 for neon or reflectors,
+  0.20 for a softbox in fog.
+- **`angular_radius`** (directional) — angular diameter in degrees of the
+  sun/moon disc. `0.27` = real Sun, `0.5` = full Moon. When set, it
+  produces physical penumbras (cone sampling, internal `shadow_samples`
+  16) instead of infinitely sharp shadows. The outdoor presets in the
+  library already use it on every sun/moon.
+- **`shadow_samples`** (spot, area, sphere) — jittered visibility samples.
+  On `spot`, this only matters when `soft_radius > 0`.
+
+For heavy volumetric scenes (procedural/grid media, dense `height_fog`)
+also consider these CLI flags:
+
+```
+--indirect-clamp-factor 0.25   # clamp indirect bounces to 1/4 of -C
+--light-sampling power         # power-weighted single-light NEE
+                               # (variance reduction with mixed-brightness
+                               # lights, e.g. 1 area + 10 dim points)
+```
+
+In short: before raising `-s` to chase noise, check whether fireflies
+come from an unclamped `1/d²` (they show as isolated very bright pixels
+near the source). If so, `soft_radius` is the right cure — free and
+physically consistent.
 
 ---
 
@@ -642,7 +703,9 @@ entities:
     material: "dis_diamante"
 
 lights:
-  # Individual spot lights for each pedestal
+  # Individual spot lights for each pedestal. `soft_radius` models the bulb
+  # (8 cm) and kills 1/d² fireflies on close-up specular materials;
+  # `shadow_samples` produces a soft penumbra when the bulb size is > 0.
   - type: "spot"
     position: [-2, 4, -1]
     direction: [0, -1, 0.2]
@@ -650,6 +713,8 @@ lights:
     intensity: 60.0
     inner_angle: 10
     outer_angle: 22
+    soft_radius: 0.08
+    shadow_samples: 4
 
   - type: "spot"
     position: [0, 4, -1]
@@ -658,6 +723,8 @@ lights:
     intensity: 60.0
     inner_angle: 10
     outer_angle: 22
+    soft_radius: 0.08
+    shadow_samples: 4
 
   - type: "spot"
     position: [2, 4, -1]
@@ -666,6 +733,8 @@ lights:
     intensity: 60.0
     inner_angle: 10
     outer_angle: 22
+    soft_radius: 0.08
+    shadow_samples: 4
 
   # Subtle ambient fill
   - type: "area"

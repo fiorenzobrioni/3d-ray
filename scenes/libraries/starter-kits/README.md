@@ -124,3 +124,24 @@ I profili canonici allineati a [Profili di Rendering](../../../docs/reference/pr
 | **Area Light** | Photography Studio, Museum Gallery, Kitchen Counter, Dining Room, Material Showroom, Infinite Mirror Room |
 | **Sphere Light** | Wine Cellar, Pool Table, Dining Room |
 | **Spot Light** | Museum Gallery, Ancient Ruins, Photography Studio, Cornell Box, Underwater |
+
+---
+
+## 🛡️ Anti-firefly e Light Hardening
+
+I file di `libraries/lights/` importati dagli starter kit sono già calibrati
+con i parametri di *light hardening* del motore (vedi
+[`lights/README.md`](../lights/README.md#-light-hardening--anti-firefly)):
+
+- Tutte le sorgenti sole/luna usano `angular_radius` per ombre con penombra
+  fisica (sole 0.27°, luna 0.5°).
+- Tutte le `point` e `spot` indoor hanno `soft_radius` per il diametro
+  fisico della lampadina/bulbo: floored 1/d² → niente firefly persistenti
+  vicino alla sorgente.
+- Le `area` in scene con foschia usano `soft_radius` per evitare le code
+  divergenti del termine `cosLight/d²` a incidenze radenti.
+
+Per scene volumetriche pesanti (Underwater con caustiche, Wine Cellar
+con candele e foschia, Floating Islands) considera anche
+`--indirect-clamp-factor 0.25` da CLI (vedi
+[`docs/reference/scene-reference.md`](../../../docs/reference/scene-reference.md#3-world-section--environment-configuration) §3.medium).

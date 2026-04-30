@@ -592,22 +592,26 @@ templates:
           - [0.000, 0.090]   # chiusura sull'asse (apice cuscino)
 
       # ── Croce pattée ──────────────────────────────────────────────────
-      # Stelo verticale
+      # Stelo verticale (cilindro asse Y, base a y=0.085)
       - type: "cylinder"
-        center: [0, 0.085, 0]
         radius: 0.002
         height: 0.012
+        translate: [0, 0.085, 0]
 
-      # Braccio orizzontale
+      # Braccio orizzontale: cilindro creato in origine attorno a +Y, ruotato
+      # di 90° su Z (asse → +X) e poi traslato. Il rotate avviene sempre
+      # attorno all'origine, quindi serve `center: [0,0,0]` (qui omesso).
+      # `height: 0.010` con base sull'asse → estremità a x=0.005; il translate
+      # sposta il centro del braccio sopra il pomo.
       - type: "cylinder"
-        center: [0, 0.093, 0]
         radius: 0.002
         height: 0.010
         rotate: [0, 0, 90]
+        translate: [-0.005, 0.094, 0]
 
       # Sfera al centro della croce
       - type: "sphere"
-        center: [0, 0.093, 0]
+        translate: [0, 0.094, 0]
         radius: 0.003
 
 
@@ -628,12 +632,11 @@ templates:
         scale: [0.46, 0.025, 0.46]
         translate: [0, 0.0125, 0]
 
-      # Bordo arrotondato
-      - type: "-torus"
-        center: [0, 0.025, 0]
+      # Bordo arrotondato (toro orizzontale, raggio coerente con la cornice)
+      - type: "torus"
         major_radius: 0.225
         minor_radius: 0.006
-        scale: [1.02, 1.0, 1.02]
+        translate: [0, 0.025, 0]
 
       # ── Piano di gioco (checker) ───────────────────────────────────────
       # Box 0.40 × 0.40, centrato, con checker scale=4.0
@@ -644,11 +647,10 @@ templates:
         material: "chs_checker_legno"
 
       # Filetto (torus sottile al bordo del piano)
-      - type: "-torus"
-        center: [0, 0.031, 0]
+      - type: "torus"
         major_radius: 0.198
         minor_radius: 0.002
-        scale: [1.01, 1.0, 1.01]
+        translate: [0, 0.031, 0]
 
       # Piedini (4 sfere schiacciate)
       - type: "sphere"
@@ -813,17 +815,20 @@ templates:
         material: "chs_velluto"
 
       # ── Cerniere (2 cilindri in ottone) ────────────────────────────────
+      # Cilindro creato lungo +Y, rotate su Z porta l'asse lungo +X, poi
+      # translate al centro della cerniera (compensando lo spostamento di
+      # height/2 lungo X dovuto al `center: [0,0,0]`).
       - type: "cylinder"
-        center: [-0.08, 0.06, 0.10]
         radius: 0.004
         height: 0.025
         rotate: [0, 0, 90]
+        translate: [-0.0925, 0.06, 0.10]
         material: "chs_ottone"
       - type: "cylinder"
-        center: [0.08, 0.06, 0.10]
         radius: 0.004
         height: 0.025
         rotate: [0, 0, 90]
+        translate: [0.0675, 0.06, 0.10]
         material: "chs_ottone"
 
       # ── Chiusura frontale ──────────────────────────────────────────────
@@ -957,16 +962,16 @@ templates:
 
       # ── Cerniere dorate ────────────────────────────────────────────────
       - type: "cylinder"
-        center: [-0.10, 0.07, 0.11]
         radius: 0.005
         height: 0.030
         rotate: [0, 0, 90]
+        translate: [-0.115, 0.07, 0.11]
         material: "chs_ottone"
       - type: "cylinder"
-        center: [0.10, 0.07, 0.11]
         radius: 0.005
         height: 0.030
         rotate: [0, 0, 90]
+        translate: [0.085, 0.07, 0.11]
         material: "chs_ottone"
 
       # ── Chiusura a scatto dorata ───────────────────────────────────────
@@ -980,11 +985,13 @@ templates:
         material: "chs_ottone"
 
       # Monogramma decorativo (torus piccolo sul coperchio)
+      # Niente `center:` quando si ruota: il rotate avviene attorno all'origine,
+      # quindi va prima orientato il torus poi traslato sul coperchio.
       - type: "torus"
-        center: [0, 0.088, 0.003]
         major_radius: 0.020
         minor_radius: 0.002
         rotate: [-22, 0, 0]
+        translate: [0, 0.088, 0.003]
         material: "chs_ottone"
 
       # Piedini dorati

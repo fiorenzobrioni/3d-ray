@@ -70,10 +70,13 @@ lights:
   #  luminoso ("rim") lungo il profilo del soggetto, separandolo dal fondo
   #  scuro e aggiungendo profondità tridimensionale.
   #  Colore caldo-neutro: si fonde con la key evitando un look artificioso.
+  #  `soft_radius` modella il diametro fisico della lampadina e azzera i
+  #  firefly da 1/d² quando il raggio sample atterra vicino alla sorgente.
   - type: "point"
     position: [1.0, 4.5, 4.5]
     color: [1.0, 0.97, 0.88]
     intensity: 55.0
+    soft_radius: 0.12
 
 
   # =============================================================================

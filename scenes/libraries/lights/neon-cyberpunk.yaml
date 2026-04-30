@@ -57,6 +57,7 @@ lights:
     position: [-4.5, 2.5, -1.5]
     color: [1.0, 0.08, 0.55]
     intensity: 72.0
+    soft_radius: 0.18      # tubo neon: floor 1/d² → niente firefly su chrome
 
   # ── NEON CIANO (KEY DESTRA) ───────────────────────────────────────────────
   #  Point light ciano dal lato opposto. Il ciano è il complementare del
@@ -68,6 +69,7 @@ lights:
     position: [4.5, 2.0, -2.0]
     color: [0.05, 0.80, 1.0]
     intensity: 65.0
+    soft_radius: 0.18
 
   # ── NEON VIOLA (RIM DALL'ALTO-RETRO) ─────────────────────────────────────
   #  Spot viola dal retro-alto che crea un bordo luminoso colorato sul
@@ -82,6 +84,8 @@ lights:
     intensity: 55.0
     inner_angle: 12
     outer_angle: 28
+    soft_radius: 0.10
+    shadow_samples: 4
 
   # ── FLOOR STRIP LED (UPLIGHT DAL BASSO) ──────────────────────────────────
   #  Point lilla/viola dal basso che simula un strip LED sotto il soggetto
@@ -94,3 +98,4 @@ lights:
     position: [0.0, -0.8, 0.0]
     color: [0.65, 0.10, 1.0]
     intensity: 18.0
+    soft_radius: 0.12

@@ -59,6 +59,8 @@ lights:
     intensity: 85.0
     inner_angle: 8
     outer_angle: 18
+    soft_radius: 0.08
+    shadow_samples: 6
 
   # ── SPOT EXHIBIT 2 (CENTRO) ───────────────────────────────────────────────
   #  Faretto per l'exhibit centrale — di solito l'opera principale della sala.
@@ -73,6 +75,8 @@ lights:
     intensity: 95.0
     inner_angle: 10
     outer_angle: 22
+    soft_radius: 0.08
+    shadow_samples: 8
 
   # ── SPOT EXHIBIT 3 (DESTRA) ───────────────────────────────────────────────
   #  Faretto per l'exhibit di destra. Simmetrico all'exhibit 1 nella
@@ -86,6 +90,8 @@ lights:
     intensity: 82.0
     inner_angle: 8
     outer_angle: 18
+    soft_radius: 0.08
+    shadow_samples: 6
 
   # ── CEILING WASH (FILL AMBIENTALE) ────────────────────────────────────────
   #  Area light grande e debolissima sul soffitto che simula la luce diffusa
@@ -114,3 +120,5 @@ lights:
     intensity: 30.0
     inner_angle: 5
     outer_angle: 12
+    soft_radius: 0.05
+    shadow_samples: 4

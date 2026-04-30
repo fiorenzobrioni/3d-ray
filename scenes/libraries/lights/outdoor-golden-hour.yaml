@@ -64,6 +64,7 @@ lights:
     direction: [-0.80, -0.25, -0.55]
     color: [1.0, 0.82, 0.42]
     intensity: 0.12
+    angular_radius: 0.27   # disco solare reale → bordi ombre con penombra
 
   # ── FILL CIELO AZZURRO (SKY FILL) ────────────────────────────────────────
   #  Il cielo all'ora d'oro è ancora azzurro nello zenit, e quella luce

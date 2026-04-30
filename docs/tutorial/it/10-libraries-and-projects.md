@@ -178,6 +178,33 @@ entities:
 
 La sovrascrittura del materiale su un'istanza sostituisce il materiale predefinito del template. I figli con un proprio materiale esplicito (come una lampadina emissiva all'interno di una lampada) mantengono il loro materiale originale.
 
+### ⚠️ `center:` vs `translate:` su primitive con asse
+
+Le primitive che espongono un parametro `center:` (sphere, cylinder, cone,
+capsule, torus) non vanno combinate con `rotate:` o `scale:`. Le
+trasformazioni `scale → rotate → translate` vengono sempre applicate
+attorno all'**origine globale**, non attorno al `center:` della primitiva.
+Combinandoli si ottiene un riposizionamento inatteso (la primitiva viene
+"scagliata" dall'origine).
+
+```yaml
+# ❌ Sbagliato — il rotate ruota la sfera attorno all'origine, non al suo centro
+- type: "sphere"
+  center: [0, 1.5, 0]
+  radius: 0.3
+  rotate: [0, 0, 90]
+
+# ✅ Corretto — la sfera è in (0,0,0), si scala/ruota localmente, poi posiziona
+- type: "sphere"
+  radius: 0.3
+  rotate: [0, 0, 90]
+  translate: [0, 1.5, 0]
+```
+
+`box` e `mesh` non hanno parametro `center:` e usano nativamente `translate:`,
+quindi sono immuni dal problema. Anche le `instance` di template usano
+direttamente `translate:`/`rotate:`/`scale:` ed è il pattern corretto.
+
 ---
 
 ## 10.4 Librerie di Illuminazione
@@ -224,6 +251,41 @@ world:
   ambient_light: [0.02, 0.02, 0.03]
   background: [0.0, 0.0, 0.0]
 ```
+
+### 🛡️ Light hardening: ridurre i firefly senza alzare gli spp
+
+Tutti i preset della libreria sono calibrati con i parametri di *light
+hardening* introdotti dal motore (vedi DEVLOG §Ciclo Light Hardening
+e `docs/reference/scene-reference.md` §8). Le tre manopole chiave:
+
+- **`soft_radius`** (point, spot, area) — modella il diametro fisico della
+  sorgente. Il termine `1/d²` (e `cosLight/d²` per le area) viene chiuso
+  sotto a `max(d², r²)`, eliminando i firefly persistenti che compaiono
+  quando un raggio (o un evento di scattering nella foschia) atterra
+  vicinissimo all'emettitore. Valori tipici: 0.05–0.20 per lampadine,
+  0.10–0.30 per neon o riflettori, 0.20 per softbox in foschia.
+- **`angular_radius`** (directional) — diametro angolare in gradi del
+  disco solare/lunare. `0.27` = sole reale, `0.5` = luna piena. Quando
+  attivo produce penombre fisiche (cone-sampling, `shadow_samples` interno
+  16) anziché ombre dure infinitamente nette. Le scene outdoor della
+  libreria lo usano già su tutti i sole/luna.
+- **`shadow_samples`** (spot, area, sphere) — campioni jitterati per la
+  visibilità. Su `spot` ha effetto solo se anche `soft_radius > 0`.
+
+Per le scene volumetriche pesanti (mezzi `procedural`/`grid`, oppure
+`height_fog` denso) considera anche da CLI:
+
+```
+--indirect-clamp-factor 0.25   # clamp dei rimbalzi indiretti a 1/4 di -C
+--light-sampling power         # campiona una luce per evento NEE in
+                               # proporzione alla potenza (riduce varianza
+                               # con molte luci di brillanza mista)
+```
+
+In sintesi: prima di alzare `-s` per togliere il rumore, controlla se
+i firefly arrivano da `1/d²` non clampato (visibili come pixel
+isolati molto luminosi vicini alle sorgenti). In quel caso `soft_radius`
+è la cura giusta — gratis e fisicamente coerente.
 
 ---
 
@@ -603,6 +665,8 @@ entities:
 
 lights:
   # Luci spot individuali per ogni piedistallo
+  # `soft_radius` modella il bulbo fisico (8 cm) e azzera i firefly 1/d² su
+  # materiali speculari close-up. `shadow_samples` produce penombre morbide.
   - type: "spot"
     position: [-2, 4, -1]
     direction: [0, -1, 0.2]
@@ -610,6 +674,8 @@ lights:
     intensity: 60.0
     inner_angle: 10
     outer_angle: 22
+    soft_radius: 0.08
+    shadow_samples: 4
 
   - type: "spot"
     position: [0, 4, -1]
@@ -618,6 +684,8 @@ lights:
     intensity: 60.0
     inner_angle: 10
     outer_angle: 22
+    soft_radius: 0.08
+    shadow_samples: 4
 
   - type: "spot"
     position: [2, 4, -1]
@@ -626,6 +694,8 @@ lights:
     intensity: 60.0
     inner_angle: 10
     outer_angle: 22
+    soft_radius: 0.08
+    shadow_samples: 4
 
   # Lieve riempimento ambientale
   - type: "area"

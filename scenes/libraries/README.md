@@ -209,6 +209,34 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
 
 ---
 
+## ⚠️ Best practice — trasformazioni su primitive
+
+Le primitive con parametro `center:` (sphere, cylinder, cone, capsule, torus)
+**non vanno combinate con `rotate:` o `scale:`**: le trasformazioni
+`scale → rotate → translate` vengono sempre applicate attorno all'**origine
+globale** del sistema di coordinate, non attorno al `center:` della
+primitiva. Combinandoli si ottiene un riposizionamento inatteso (la primitiva
+viene "scagliata" dall'origine).
+
+```yaml
+# ❌ Sbagliato — il rotate ruota la sfera attorno all'origine, non al suo centro
+- type: "sphere"
+  center: [0, 1.5, 0]
+  radius: 0.3
+  rotate: [0, 0, 90]
+
+# ✅ Corretto — la sfera è in (0,0,0), si scala/ruota localmente, poi posiziona
+- type: "sphere"
+  radius: 0.3
+  rotate: [0, 0, 90]
+  translate: [0, 1.5, 0]
+```
+
+`box` e `mesh` non hanno `center:` e usano nativamente `translate:`, quindi
+sono immuni dal problema. Vedi `objects/README.md` per dettagli.
+
+---
+
 ## Combinare le Librerie
 
 Le quattro librerie sono progettate per lavorare insieme. Alcuni pattern tipici:

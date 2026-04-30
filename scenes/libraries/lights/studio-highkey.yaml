@@ -63,6 +63,7 @@ lights:
     position: [-5.0, 2.5, -1.5]
     color: [0.90, 0.93, 1.0]
     intensity: 22.0
+    soft_radius: 0.10      # firefly control su scena chiara
 
   # ── FILL DESTRO ───────────────────────────────────────────────────────────
   #  Simmetrico al fill sinistro ma leggermente più basso per seguire
@@ -73,6 +74,7 @@ lights:
     position: [5.0, 2.0, -1.5]
     color: [0.90, 0.93, 1.0]
     intensity: 18.0
+    soft_radius: 0.10
 
   # ── BOUNCE (GROUND FILL) ──────────────────────────────────────────────────
   #  Point light dal basso, simula la luce rimbalzata dal pavimento bianco
@@ -84,3 +86,4 @@ lights:
     position: [0.0, -1.5, -1.0]
     color: [0.95, 0.95, 0.98]
     intensity: 10.0
+    soft_radius: 0.08

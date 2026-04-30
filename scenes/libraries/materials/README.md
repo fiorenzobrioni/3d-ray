@@ -4,7 +4,13 @@ Raccolta completa di materiali PBR per il motore di ray tracing 3D-Ray.
 12 file YAML tematici con oltre **1080 materiali** pronti all'uso, organizzati
 per categoria e con doppia variante Disney/Classic. Ogni materiale Disney
 usa le chiavi moderne del BSDF (`coat_roughness` + `coat_ior` al posto del
-legacy `clearcoat_gloss`, `sheen_roughness` dove appropriato).
+legacy `clearcoat_gloss`, `sheen_roughness` dove appropriato, `subsurface_color`
+per il subsurface, `transmission_color` + `transmission_depth` per i vetri
+colorati anziché il colore Beer-Lambert legacy).
+
+La libreria è allineata alla versione corrente del motore (Disney 2015 +
+estensioni Arnold + thin-film). Nessun materiale usa `subsurface_radius`
+(parsato ma inutilizzato — vedi `docs/reference/scene-reference.md` §5).
 
 ---
 

@@ -66,6 +66,7 @@ lights:
     direction: [0.35, -0.70, 0.60]
     color: [0.68, 0.75, 1.0]
     intensity: 0.032
+    angular_radius: 0.5    # luna ~0.5° di diametro: penombre più morbide del sole
 
   # ── LUCE STELLARE (STARLIGHT FILL) ───────────────────────────────────────
   #  Le stelle e il bagliore della Via Lattea contribuiscono con una luce
@@ -90,3 +91,4 @@ lights:
     position: [-8.0, 3.0, -6.0]
     color: [1.0, 0.58, 0.12]
     intensity: 15.0
+    soft_radius: 0.15      # corpo della lanterna; impedisce firefly in foschia

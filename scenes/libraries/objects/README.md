@@ -80,6 +80,37 @@ Scale, rotazione e traslazione si applicano normalmente:
 
 Scale asimmetrico funziona: `scale: [1.0, 0.8, 1.0]` schiaccia in altezza.
 
+> **⚠️ Best practice trasformazioni su primitive**
+>
+> Su primitive che hanno un parametro `center:` (sphere, cylinder, cone,
+> capsule, torus), **non combinare `center:` con `rotate:` o `scale:`**.
+> Lo scale e la rotate vengono sempre applicati attorno all'**origine
+> globale**, non attorno al `center:` della primitiva. Combinandoli si
+> ottiene un riposizionamento inatteso del primitivo.
+>
+> Pattern corretto: lascia `center` a default `[0, 0, 0]` (omettilo) e usa
+> `translate:` per il posizionamento finale. ComputeTransformMatrix applica
+> sempre l'ordine `scale → rotate → translate`, quindi posizionare via
+> `translate` dopo `rotate` produce sempre il risultato atteso.
+>
+> ```yaml
+> # ❌ Sbagliato — il rotate ruota la sfera attorno all'origine globale
+> - type: "sphere"
+>   center: [0, 1.5, 0]
+>   radius: 0.3
+>   rotate: [0, 0, 90]
+>
+> # ✅ Corretto — la sfera è in (0,0,0), si scala/ruota localmente, poi posiziona
+> - type: "sphere"
+>   radius: 0.3
+>   rotate: [0, 0, 90]
+>   translate: [0, 1.5, 0]
+> ```
+>
+> `box` e `mesh` non hanno parametro `center:` e usano nativamente `translate:`,
+> quindi non sono soggetti a questo problema. Anche le istanze di `template`
+> usano direttamente `translate:`/`rotate:`/`scale:` ed è il pattern corretto.
+
 ### 5. Combinare più librerie
 
 Import multipli si fondono automaticamente. I materiali e template locali della scena sovrascrivono quelli importati con lo stesso `id`/`name`:
@@ -350,6 +381,12 @@ Prefisso materiali: `out_`
 | `scatola_scacchi_lusso` | Cofanetto in pelle con angolari dorati | 0.34 × 0.12 × 0.24 m |
 
 Prefisso materiali: `chs_` — Usare `material:` override per bianchi/neri.
+
+> **Note di costruzione:** la scacchiera in legno usa due `torus`
+> (modanatura perimetrale + filetto del piano), non un toro segmentato;
+> la croce del re, le cerniere delle scatole e il monogramma del cofanetto
+> di lusso sono cilindri/torus orientati con `rotate:` + `translate:`
+> (mai `center:` insieme a `rotate:`, vedi nota best-practice in cima).
 
 ### 🌿 nature.yaml — Piante, Fiori e Natura
 
