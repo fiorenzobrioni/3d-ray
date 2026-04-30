@@ -842,6 +842,45 @@ entities:
   stesso approccio della `lathe` di PovRay e della `Curve` di PBRT.
   Aspettati ~10× il costo per-raggio di un hit su Cone sui segmenti
   spline — preferisci `linear` quando lo sfaccettato è accettabile.
+#### **7.17 Ordine delle trasformazioni e anti-pattern `center:`**
+
+Le trasformazioni delle entità seguono un ordine fisso `scale → rotate → translate` attorno all'**origine globale (0, 0, 0)**:
+
+```
+pos_mondo = translate( rotate( scale( pos_locale ) ) )
+```
+
+Le primitive che espongono la chiave `center:` — **sphere, cylinder, cone, capsule, torus, disk, annulus, lathe** — posizionano la propria geometria *prima* che la matrice di trasformazione esterna venga valutata. Combinare `center:` con `rotate:` o `scale:` fa sì che rotazione e scala vengano applicate attorno all'origine, non attorno al centro della primitiva, producendo posizioni inaspettate.
+
+**Anti-pattern** — non combinare `center:` con `rotate:` o `scale:`:
+```yaml
+# ❌ SBAGLIATO: center sposta il cilindro a [0, 0.5, 0], poi rotate: [0, 0, 90]
+# ruota attorno all'origine globale, spostando il cilindro a [-0.5, 0, 0].
+- name: "braccio"
+  type: "cylinder"
+  center: [0, 0.5, 0]   # ← non usare insieme a rotate/scale
+  rotate: [0, 0, 90]
+  radius: 0.05
+  height: 1.0
+  material: "ferro"
+```
+
+**Pattern corretto** — omettere `center:` (default `[0, 0, 0]`) e usare `translate:` per il posizionamento finale:
+```yaml
+# ✅ CORRETTO: la primitiva è all'origine, ruotata attorno all'origine, poi traslata.
+- name: "braccio"
+  type: "cylinder"
+  rotate: [0, 0, 90]       # ① ruota attorno all'origine globale
+  translate: [0, 0.5, 0]   # ② poi sposta nella posizione finale
+  radius: 0.05
+  height: 1.0
+  material: "ferro"
+```
+
+**Quando `center:` è sicuro:**
+- Quando non sono presenti `rotate:` né `scale:` — `center:` è equivalente a `translate:`.
+- Dentro i **figli CSG** (`left`/`right`) — i figli CSG non hanno una trasformazione esterna, quindi `center:` li posiziona correttamente.
+- Dentro i **group** quando il figlio non ha una propria rotazione — la `translate`/`rotate` del group si compone correttamente sopra.
 
 ---
 
