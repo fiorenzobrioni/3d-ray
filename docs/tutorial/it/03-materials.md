@@ -618,7 +618,6 @@ lights:
     v: [0, 0, 6]
     color: [1.0, 0.97, 0.92]
     intensity: 30.0
-    shadow_samples: 16
 
   # Luce di riempimento in basso a destra
   - type: "point"

@@ -322,7 +322,6 @@ lights:
     v: [0, 0, 0.8]
     color: [1.0, 0.92, 0.78]
     intensity: 40.0
-    shadow_samples: 16
 
   # Riempimento freddo dal lato
   - type: "point"

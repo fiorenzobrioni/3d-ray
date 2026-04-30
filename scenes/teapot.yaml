@@ -100,7 +100,6 @@ lights:
     v:              [0.0, 0.0,  4.0]    # Profondità 4 unità in Z
     color:          [1.0, 0.90, 0.75]
     intensity:      26.0
-    shadow_samples: 16
 
   # Fill light — point freddo-neutro da destra e leggermente in basso
   - type: "point"

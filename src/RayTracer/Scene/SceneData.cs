@@ -695,7 +695,7 @@ public class LightData
     public List<float>? V { get; set; }
 
     [YamlMember(Alias = "shadow_samples")]
-    public int ShadowSamples { get; set; } = 16;
+    public int ShadowSamples { get; set; } = 4;
 
     [YamlMember(Alias = "radius")]
     public float Radius { get; set; } = 0.5f;

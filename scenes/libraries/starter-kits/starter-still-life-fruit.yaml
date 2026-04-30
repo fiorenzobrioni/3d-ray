@@ -76,7 +76,6 @@ lights:
     v: [0.0, 0.9, 0.0]
     color: [1.0, 0.94, 0.86]
     intensity: 18.0
-    shadow_samples: 16
     soft_radius: 0.10
 
   # ── Bounce caldo del muro destro (fill discreto) ─────────────────────────

@@ -270,7 +270,7 @@ e `docs/reference/scene-reference.md` §8). Le tre manopole chiave:
 - **`angular_radius`** (directional) — diametro angolare in gradi del
   disco solare/lunare. `0.27` = sole reale, `0.5` = luna piena. Quando
   attivo produce penombre fisiche (cone-sampling, `shadow_samples` interno
-  16) anziché ombre dure infinitamente nette. Le scene outdoor della
+  4) anziché ombre dure infinitamente nette. Le scene outdoor della
   libreria lo usano già su tutti i sole/luna.
 - **`shadow_samples`** (spot, area, sphere) — campioni jitterati per la
   visibilità. Su `spot` ha effetto solo se anche `soft_radius > 0`.

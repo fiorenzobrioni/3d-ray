@@ -49,7 +49,6 @@ lights:
     v: [0.0, 0.0, 2.0]
     color: [1.0, 0.96, 0.90]
     intensity: 45.0
-    shadow_samples: 16
 
   # ── FILL LIGHT ────────────────────────────────────────────────────────────
   #  Area più piccola (1.2×1.2) dall'alto-destra, a quota inferiore alla key.

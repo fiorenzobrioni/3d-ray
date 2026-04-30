@@ -80,7 +80,6 @@ lights:
     radius: 0.10
     color: [1.0, 0.98, 0.96]
     intensity: 80.0
-    shadow_samples: 16
 
 materials:
   # Velluto rosso bordeaux per il piedistallo (sheen high)

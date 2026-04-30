@@ -56,7 +56,6 @@ lights:
     radius: 0.15
     color: [1.0, 0.78, 0.42]
     intensity: 28.0
-    shadow_samples: 16
 
   # ── LAMPADA DA TAVOLO (ACCENT LATERALE) ──────────────────────────────────
   #  Point light che simula una lampada da comodino o tavolo con paralume.

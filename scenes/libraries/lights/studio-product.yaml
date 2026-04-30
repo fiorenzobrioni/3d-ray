@@ -55,7 +55,6 @@ lights:
     radius: 0.8
     color: [1.0, 0.97, 0.93]
     intensity: 32.0
-    shadow_samples: 16
 
   # ── SIDE AREA SINISTRA ────────────────────────────────────────────────────
   #  Area rettangolare (1.5×2 u) sul lato sinistro, inclinata verso il centro.

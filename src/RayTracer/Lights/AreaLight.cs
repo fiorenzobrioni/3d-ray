@@ -26,7 +26,7 @@ namespace RayTracer.Lights;
 ///   v: [0.0, 0.0, 2.0]
 ///   color: [1.0, 0.95, 0.9]
 ///   intensity: 40.0
-///   shadow_samples: 16
+///   shadow_samples: 4
 /// </code>
 /// </summary>
 public class AreaLight : ILight
@@ -65,7 +65,7 @@ public class AreaLight : ILight
     private readonly float _invSqrtSamples;
 
     public AreaLight(Vector3 corner, Vector3 u, Vector3 v, Vector3 color,
-                     float intensity = 20f, int shadowSamples = 16, float softRadius = 0f,
+                     float intensity = 20f, int shadowSamples = 4, float softRadius = 0f,
                      Emissive? proxyMaterial = null)
     {
         Corner = corner;

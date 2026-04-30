@@ -439,7 +439,6 @@ lights:
     v: [0, 0, 8]
     color: [1, 0.97, 0.93]
     intensity: 25.0
-    shadow_samples: 16
 
   - type: "point"
     position: [5, 4, -6]

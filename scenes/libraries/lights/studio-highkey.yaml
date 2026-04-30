@@ -51,7 +51,6 @@ lights:
     v: [0.0, 0.0, 3.0]
     color: [1.0, 0.98, 0.95]
     intensity: 38.0
-    shadow_samples: 16
 
   # ── FILL SINISTRO ─────────────────────────────────────────────────────────
   #  Point light da sinistra a media distanza. Simula un pannello riflettente

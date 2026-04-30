@@ -1749,7 +1749,7 @@ public class SceneLoader
             //   u:      [x, y, z]        # first edge vector  (e.g. [2,0,0])
             //   v:      [x, y, z]        # second edge vector (e.g. [0,0,2])
             //   intensity: 40.0          # brightness scalar (radiance, W/m²/sr)
-            //   shadow_samples: 16       # per-light default (overridable via CLI -S)
+            //   shadow_samples: 4        # per-light default (overridable via CLI -S)
             //   soft_radius: 0.0         # optional 1/d² singularity floor (volumetric only)
             "area" or "area_light" or "rect" or "rect_light"
                 => CreateAreaLight(l, color, shadowSamplesOverride, objects),
@@ -1759,7 +1759,7 @@ public class SceneLoader
             //   position: [x, y, z]      # center of the sphere
             //   radius:   0.5            # sphere radius (> 0); also defines proxy size
             //   intensity: 30.0          # brightness scalar (radiance, W/m²/sr)
-            //   shadow_samples: 16       # per-light default (overridable via CLI -S)
+            //   shadow_samples: 4        # per-light default (overridable via CLI -S)
             // (soft_radius is intentionally not consumed for sphere lights —
             //  the solid-angle estimator is bounded by construction.)
             "sphere" or "sphere_light" or "ball" or "ball_light"

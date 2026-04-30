@@ -68,7 +68,6 @@ lights:
     v: [0, 0, 6]
     color: [1.0, 0.98, 0.95]
     intensity: 25.0
-    shadow_samples: 16
 
   - type: "directional"
     direction: [0.5, -0.5, 0.3]

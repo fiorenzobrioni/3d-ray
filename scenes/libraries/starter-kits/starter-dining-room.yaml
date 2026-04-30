@@ -95,7 +95,6 @@ lights:
     v: [0, 1.5, 0]
     color: [1.0, 0.96, 0.88]
     intensity: 30.0
-    shadow_samples: 16
 
   # Lampada a sospensione (sphere light calda)
   - type: "sphere"

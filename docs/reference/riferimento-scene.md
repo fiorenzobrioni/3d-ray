@@ -908,7 +908,7 @@ Le primitive che espongono la chiave `center:` — **sphere, cylinder, cone, cap
 ```
 - Nessuna attenuazione con la distanza
 - Allineare con la direzione `sun.direction` del cielo a gradiente per coerenza visiva
-- `angular_radius` (default `0`): quando > 0, modella un disco di dimensione angolare finita. Ogni raggio d'ombra viene perturbato uniformemente all'interno del cono subteso, producendo una penombra morbida. Il sole reale sottende circa 0.27°. Quando attivo, `shadow_samples` default diventa 16 e `IsDelta` diventa `false`, abilitando il pesaggio MIS completo.
+- `angular_radius` (default `0`): quando > 0, modella un disco di dimensione angolare finita. Ogni raggio d'ombra viene perturbato uniformemente all'interno del cono subteso, producendo una penombra morbida. Il sole reale sottende circa 0.27°. Quando attivo, `shadow_samples` default diventa 4 e `IsDelta` diventa `false`, abilitando il pesaggio MIS completo.
 
 #### **8.3 Spot Light (Cono)**
 ```yaml
@@ -933,7 +933,7 @@ Le primitive che espongono la chiave `center:` — **sphere, cylinder, cone, cap
   v: [0.0, 0.0, 3.0]                      # Secondo bordo
   color: [1.0, 0.97, 0.9]
   intensity: 35.0                          # Range: 15–60
-  shadow_samples: 16                       # Campioni per punto
+  shadow_samples: 4                        # Campioni per punto (default)
   soft_radius: 0.0                         # Opzionale. >0 = floor distSq in cosLight/d²
 ```
 - Ombre morbide Monte Carlo con penombra
@@ -948,7 +948,7 @@ Le primitive che espongono la chiave `center:` — **sphere, cylinder, cone, cap
   radius: 0.5                              # Più grande = ombre più morbide; definisce anche la dimensione del proxy
   color: [1.0, 0.95, 0.85]
   intensity: 30.0
-  shadow_samples: 16
+  shadow_samples: 4
 ```
 - Campionamento ad angolo solido (efficiente, nessun campione sprecato)
 - Penombra circolare isotropica
