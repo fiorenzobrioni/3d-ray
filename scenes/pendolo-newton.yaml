@@ -49,7 +49,7 @@ world:
 cameras:
   - name:       principale      # Vista classica — tutta la struttura del pendolo
     position:   [-0.42,  0.38, -0.58]
-    look_at:    [ 0.00,  0.12,  0.00]
+    look_at:    [ 0.00,  0.13,  0.00]
     vup:        [0, 1, 0]
     fov:        32
     aperture:   0.005           # bokeh leggermente pronunciato
@@ -60,7 +60,12 @@ cameras:
     look_at:    [-0.14,  0.14,  0.00]
     fov:        22
     aperture:   0.012
-    focal_dist: 0.35
+    focal_dist: 0.275
+
+    #center:   [-0.174, 0.140, 0.000]
+    #radius:   0.016
+
+
 
   - name:       zenitale        # Prospettiva zenitale — planimetria
     position:   [ 0.00,  0.85,  0.00]
@@ -83,6 +88,13 @@ cameras:
     fov:        28
     aperture:   0.008
     focal_dist: 0.25
+
+  - name:       ball         # "Point of Contact" — basso raggio vicino al punto d'impatto
+    position:   [-0.032, 0.135, 0.000]
+    look_at:    [-0.174, 0.145, 0.000]
+    fov:        20
+    aperture:   0.01
+    focal_dist: 0.134
 
 # =============================================================================
 #  MATERIALS
@@ -110,42 +122,36 @@ materials:
     type: "metal"                      # Simulazione lacca lucida
     color: [0.25, 0.10, 0.05]
     fuzz: 0.06
-    seed: 5001
 
   # ── Bordo base: filetto dorato ────────────────────────────────────────────
   - id: "filetto_oro"
     type: "metal"
     color: [0.85, 0.70, 0.25]
     fuzz: 0.04
-    seed: 5002
 
   # ── Frame: cromo lucido tubolare ──────────────────────────────────────────
   - id: "cromo_frame"
     type: "metal"
     color: [0.90, 0.90, 0.92]
     fuzz: 0.008                        # Minimal fuzz per realismo
-    seed: 5003
 
   # ── Sfere: acciaio cromato specchio perfetto ─────────────────────────────
   - id: "cromo_sfera"
     type: "metal"
     color: [0.92, 0.92, 0.94]
     fuzz: 0.0
-    seed: 5004
 
   # ── Fili sospensione: acciaio chirurgico scuro ───────────────────────────
   - id: "filo_acciaio"
     type: "metal"
     color: [0.35, 0.35, 0.38]
     fuzz: 0.2                          # Opacizzato
-    seed: 5005
 
   # ── Ganci: cromo satinato ─────────────────────────────────────────────────
   - id: "gancio_cromo"
     type: "metal"
     color: [0.80, 0.80, 0.82]
     fuzz: 0.05
-    seed: 5006
 
   # ── Piedini gomma antiscivolo ─────────────────────────────────────────────
   - id: "gomma_nera"
@@ -157,12 +163,10 @@ materials:
     type: "metal"
     color: [0.04, 0.04, 0.05]
     fuzz: 0.02
-    seed: 5007
   - id: "penna_oro"
     type: "metal"
     color: [0.92, 0.78, 0.22]
     fuzz: 0.05
-    seed: 5008
 
   # ── Fermacarte cristallo ──────────────────────────────────────────────────
   - id: "cristallo"
@@ -182,7 +186,6 @@ materials:
     type: "metal"
     color: [0.70, 0.55, 0.20]
     fuzz: 0.08
-    seed: 5009
 
 # =============================================================================
 #  LIGHTS
@@ -392,31 +395,26 @@ entities:
     type: "sphere"
     center:   [-0.174, 0.140, 0.000]
     radius:   0.016
-    seed:     2001
     material: "cromo_sfera"
   - name: "sfera_1"
     type: "sphere"
     center:   [-0.032, 0.095, 0.000]
     radius:   0.016
-    seed:     2002
     material: "cromo_sfera"
   - name: "sfera_2"
     type: "sphere"
     center:   [0.000, 0.095, 0.000]
     radius:   0.016
-    seed:     2003
     material: "cromo_sfera"
   - name: "sfera_3"
     type: "sphere"
     center:   [0.032, 0.095, 0.000]
     radius:   0.016
-    seed:     2004
     material: "cromo_sfera"
   - name: "sfera_4"
     type: "sphere"
     center:   [0.064, 0.095, 0.000]
     radius:   0.016
-    seed:     2005
     material: "cromo_sfera"
 
   # ── Fili (V-Shape) ────────────────────────────────────────────────────────

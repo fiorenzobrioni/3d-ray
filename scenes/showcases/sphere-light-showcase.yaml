@@ -127,24 +127,24 @@ lights:
 
   # ── Sfera piccola (quasi-puntiforme, ombre nette con penumbra sottile) ──
   - type: "sphere"
-    position: [-4.5, 4.5, 0.5]
+    position: [-4.5, 6.0, 0.5]
     radius: 0.15
     color: [1.0, 0.95, 0.88]
-    intensity: 12.0
+    intensity: 20.0
 
   # ── Sfera media (lampadina classica, penumbra moderata) ─────────────────
   - type: "sphere"
-    position: [0, 4.5, 0.5]
+    position: [0, 6.0, 0.5]
     radius: 0.5
     color: [1.0, 0.95, 0.88]
-    intensity: 12.0
+    intensity: 20.0
 
   # ── Sfera grande (lanterna/globo, ombre molto morbide) ──────────────────
   - type: "sphere"
-    position: [4.5, 4.5, 0.5]
+    position: [4.5, 6.5, 0.5]
     radius: 1.2
     color: [1.0, 0.93, 0.80]
-    intensity: 12.0
+    intensity: 20.0
 
   # ── Fill tenue dal retro-alto (evita nero assoluto nei recessi) ─────────
   - type: "point"

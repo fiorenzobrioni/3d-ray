@@ -34,11 +34,9 @@
 #  WORLD
 # =============================================================================
 world:
-  # Ambient leggermente alzato per compensare l'assenza del gradient sky
-  ambient_light: [0.025, 0.025, 0.03]
-  # Sfondo quasi nero — stanza chiusa, nessun cielo visibile
-  background: [0.003, 0.003, 0.008]
-
+  # Ambiente e sfondo nero — stanza chiusa, nessun cielo visibile
+  ambient_light: [0.0, 0.0, 0.0]
+  background: [0.0, 0.0, 0.0]
   ground:
     type: "infinite_plane"
     material: "floor_stone"
@@ -115,13 +113,13 @@ lights:
   - type: "point"
     position: [-4.0, 4.5, -4.0]
     color: [1.0, 0.95, 0.88]
-    intensity: 80
+    intensity: 120
 
   # Fill Light — luce fredda leggera dal lato opposto
   - type: "point"
     position: [5.0, 3.0, -2.0]
     color: [0.85, 0.88, 1.0]
-    intensity: 40
+    intensity: 60
 
   # ─────────────────────────────────────────────────────────────────────────
   #  SET ALTERNATIVO 1: Solo Area Light (ombre ultra-morbide, minimalista)
