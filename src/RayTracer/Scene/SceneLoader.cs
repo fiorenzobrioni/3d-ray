@@ -1191,6 +1191,8 @@ public class SceneLoader
                        => CreateTorusEntity(e, mat),
             "lathe" or "revolution" or "surface_of_revolution"
                        => CreateLatheEntity(e, mat),
+            "extrusion" or "prism" or "linear_extrude"
+                       => CreateExtrusionEntity(e, mat),
             "capsule" or "pill" or "sphylinder"
                        => new Capsule(ToVector3(e.Center) ?? Vector3.Zero, e.Radius, e.Height, mat),
             "annulus" or "ring_disk" or "washer"
@@ -1340,6 +1342,128 @@ public class SceneLoader
 
         return lathe;
     }
+
+    /// <summary>
+    /// Creates an <see cref="Extrusion"/> from the YAML <c>profile</c>
+    /// (closed XZ polygon), <c>height</c>, optional <c>profile_type</c>
+    /// (linear / catmull_rom / bezier) plus <c>profile_bezier_controls</c>
+    /// for the Bezier mode, and the optional <c>caps</c> / <c>twist_degrees</c>
+    /// / <c>taper</c> / <c>curve_samples</c> modifiers. Validates the profile
+    /// and routes bad inputs to a deferred warning rather than crashing the
+    /// load.
+    /// </summary>
+    private static IHittable? CreateExtrusionEntity(EntityData e, IMaterial mat)
+    {
+        if (e.Profile == null || e.Profile.Count < 3)
+        {
+            Warn($"Extrusion entity '{e.Name ?? "(unnamed)"}' requires a 'profile' of at least 3 [x, z] points (closed loop). Skipping.");
+            return null;
+        }
+        if (!(e.Height > 0f))
+        {
+            Warn($"Extrusion entity '{e.Name ?? "(unnamed)"}': 'height' must be positive (got {e.Height}). Skipping.");
+            return null;
+        }
+        if (!(e.Taper > 0f))
+        {
+            Warn($"Extrusion entity '{e.Name ?? "(unnamed)"}': 'taper' must be positive (got {e.Taper}). Skipping.");
+            return null;
+        }
+
+        // Parse the closed profile and drop accidental duplicate consecutive
+        // vertices — they make ear clipping unstable for no visible gain.
+        var pts = new List<Vector2>(e.Profile.Count);
+        foreach (var p in e.Profile)
+        {
+            if (p == null || p.Count < 2)
+            {
+                Warn($"Extrusion entity '{e.Name ?? "(unnamed)"}': each profile point must be [x, z]. Skipping entity.");
+                return null;
+            }
+            var v = new Vector2(p[0], p[1]);
+            if (pts.Count == 0 || (pts[^1] - v).LengthSquared() > 1e-12f)
+                pts.Add(v);
+        }
+        if (pts.Count >= 2 && (pts[^1] - pts[0]).LengthSquared() <= 1e-12f)
+            pts.RemoveAt(pts.Count - 1); // YAML authors sometimes close the loop manually
+        if (pts.Count < 3)
+        {
+            Warn($"Extrusion entity '{e.Name ?? "(unnamed)"}': profile collapsed to fewer than 3 distinct points. Skipping.");
+            return null;
+        }
+
+        string rawMode = (e.ProfileType ?? "linear").Trim().ToLowerInvariant();
+        ExtrusionMode mode = rawMode switch
+        {
+            "linear" or ""            => ExtrusionMode.Linear,
+            "catmull_rom" or "catmull" or "smooth"
+                                      => ExtrusionMode.CatmullRom,
+            "bezier" or "bézier"      => ExtrusionMode.Bezier,
+            _ => ExtrusionMode.Linear,
+        };
+        if (mode == ExtrusionMode.Linear && !string.IsNullOrEmpty(rawMode) && rawMode != "linear")
+            Warn($"Extrusion entity '{e.Name ?? "(unnamed)"}': unknown profile_type '{e.ProfileType}'. Falling back to 'linear'.");
+
+        if (mode == ExtrusionMode.CatmullRom && pts.Count < 3)
+        {
+            Warn($"Extrusion entity '{e.Name ?? "(unnamed)"}': Catmull-Rom needs at least 3 points, got {pts.Count}. Falling back to 'linear'.");
+            mode = ExtrusionMode.Linear;
+        }
+
+        List<Vector2>? controls = null;
+        if (mode == ExtrusionMode.Bezier)
+        {
+            int expected = 4 * pts.Count;
+            if (e.ProfileBezierControls == null || e.ProfileBezierControls.Count != expected)
+            {
+                Warn($"Extrusion entity '{e.Name ?? "(unnamed)"}': profile_bezier_controls requires exactly " +
+                     $"{expected} entries (one cubic per profile segment in a closed loop), got " +
+                     $"{e.ProfileBezierControls?.Count ?? 0}. Skipping entity.");
+                return null;
+            }
+            controls = new List<Vector2>(expected);
+            foreach (var c in e.ProfileBezierControls)
+            {
+                if (c == null || c.Count < 2)
+                {
+                    Warn($"Extrusion entity '{e.Name ?? "(unnamed)"}': each bezier control must be [x, z]. Skipping entity.");
+                    return null;
+                }
+                controls.Add(new Vector2(c[0], c[1]));
+            }
+        }
+
+        ExtrusionCaps caps = (e.Caps ?? "both").Trim().ToLowerInvariant() switch
+        {
+            "both" or ""    => ExtrusionCaps.Both,
+            "start" or "bottom" => ExtrusionCaps.Start,
+            "end" or "top"  => ExtrusionCaps.End,
+            "none" or "off" => ExtrusionCaps.None,
+            _ => ExtrusionCaps.Both,
+        };
+
+        IHittable extrusion;
+        try
+        {
+            extrusion = new Extrusion(pts, mode, e.Height, caps, mat,
+                bezierControls: controls,
+                twistDegrees: e.TwistDegrees,
+                taper: e.Taper,
+                curveSamples: Math.Max(2, e.CurveSamples));
+        }
+        catch (ArgumentException ex)
+        {
+            Warn($"Extrusion entity '{e.Name ?? "(unnamed)"}': {ex.Message}. Skipping.");
+            return null;
+        }
+
+        var center = ToVector3(e.Center);
+        if (center.HasValue && center.Value != Vector3.Zero)
+            extrusion = new Transform(extrusion, Matrix4x4.CreateTranslation(center.Value));
+
+        return extrusion;
+    }
+
     /// <summary>
     /// Creates a CSG (Constructive Solid Geometry) entity from nested left/right
     /// children and a Boolean operation.

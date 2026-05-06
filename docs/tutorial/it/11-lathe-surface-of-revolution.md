@@ -531,4 +531,4 @@ usare la qualità Preview mentre si itera sulla composizione.
 
 ---
 
-[Precedente: Librerie di asset e scene complete](./10-libraries-and-projects.md) | [Indice del Tutorial](./README.md)
+[Precedente: Librerie di asset e scene complete](./10-libraries-and-projects.md) | [Indice del Tutorial](./README.md) | [Successivo: Profili 2D estrusi (Extrusion)](./12-extrusion-2d-profiles.md)

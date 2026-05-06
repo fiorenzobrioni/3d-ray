@@ -1,0 +1,241 @@
+# ============================================================================
+# Scene: Extrusion Showcase
+# Tests: Extrusion primitive — three hero subjects exercising all three profile
+#        modes plus twist + taper + concave caps:
+#          (1) golden 5-pointed star          — linear concave
+#          (2) marble scalloped column        — catmull_rom + twist + taper
+#          (3) emerald rounded shield         — bezier closed-loop
+#        Studio lighting (sun disc + warm key + cool rim) on a marble checker
+#        floor with a gradient sky for atmosphere.
+# ============================================================================
+
+camera:
+  position: [0, 2.0, -5.6]
+  look_at: [0, 1.4, 0]
+  fov: 42
+  aperture: 0.025
+  focus_distance: 5.6
+
+world:
+  ambient_light: [0.025, 0.028, 0.035]
+  sky:
+    type: "gradient"
+    zenith_color: [0.06, 0.08, 0.14]
+    horizon_color: [0.20, 0.18, 0.22]
+    ground_color: [0.04, 0.04, 0.05]
+  ground:
+    type: "plane"
+    material: "pavimento"
+    y: 0
+
+materials:
+  - id: "pavimento"
+    type: "disney"
+    texture:
+      type: "checker"
+      colors: [[0.92, 0.90, 0.85], [0.10, 0.10, 0.12]]
+      scale: 1.5
+    roughness: 0.18
+    clearcoat: 0.4
+    coat_roughness: 0.08
+    specular: 0.6
+
+  # ── Hero 1: gold (linear star) ───────────────────────────────────────────
+  - id: "oro"
+    type: "disney"
+    color: [1.00, 0.78, 0.34]
+    metallic: 1.0
+    roughness: 0.22
+    specular: 0.95
+    clearcoat: 0.0
+
+  # ── Hero 2: white marble (twisted column) ────────────────────────────────
+  - id: "marmo"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 10.0
+      colors: [[0.96, 0.95, 0.93], [0.50, 0.52, 0.58]]
+      randomize_offset: true
+    roughness: 0.12
+    clearcoat: 0.85
+    coat_roughness: 0.06
+    specular: 0.72
+
+  # ── Hero 3: emerald glass (bezier shield) ────────────────────────────────
+  - id: "smeraldo"
+    type: "disney"
+    color: [0.22, 0.78, 0.42]
+    roughness: 0.05
+    spec_trans: 1.0
+    ior: 1.55
+    specular: 0.9
+
+  # ── Pedestals (dark stone) ───────────────────────────────────────────────
+  - id: "piedistallo"
+    type: "disney"
+    color: [0.10, 0.10, 0.12]
+    roughness: 0.55
+    specular: 0.45
+
+lights:
+  # Sun-like key light with a real-Sun angular radius for soft penumbrae.
+  - type: "directional"
+    direction: [0.45, -0.7, 0.55]
+    color: [1.00, 0.92, 0.78]
+    intensity: 2.6
+    angular_radius_deg: 0.55
+    shadow_samples: 16
+
+  # Warm fill from camera-left.
+  - type: "point"
+    position: [-4.5, 3.5, -3.0]
+    color: [1.00, 0.74, 0.50]
+    intensity: 22
+    soft_radius: 0.25
+
+  # Cool rim from behind for silhouette separation.
+  - type: "point"
+    position: [3.8, 4.2, 4.0]
+    color: [0.45, 0.62, 1.00]
+    intensity: 18
+    soft_radius: 0.25
+
+entities:
+  # ═════════════════════════════════════════════════════════════════════════
+  # Pedestals — three dark stone cubes spaced along X
+  # ═════════════════════════════════════════════════════════════════════════
+  - name: "ped_left"
+    type: "box"
+    material: "piedistallo"
+    scale: [1.4, 0.6, 1.4]
+    translate: [-3.2, 0.3, 0]
+
+  - name: "ped_center"
+    type: "box"
+    material: "piedistallo"
+    scale: [1.4, 0.4, 1.4]
+    translate: [0, 0.2, 0]
+
+  - name: "ped_right"
+    type: "box"
+    material: "piedistallo"
+    scale: [1.4, 0.6, 1.4]
+    translate: [3.2, 0.3, 0]
+
+  # ═════════════════════════════════════════════════════════════════════════
+  # 1. Heraldic gold star — linear concave profile, ear-clipped caps
+  # ═════════════════════════════════════════════════════════════════════════
+  # 5-pointed star: 10 vertices alternating outer R = 0.55 and inner r = 0.22.
+  # Authored CCW as seen from above (+Y looking down).
+  # Stand the star upright like a heraldic emblem (extruded along Y, then
+  # rotated to face the camera).
+  - name: "stella"
+    type: "extrusion"
+    profile_type: "linear"
+    height: 0.18
+    caps: "both"
+    material: "oro"
+    scale: [1.7, 1.0, 1.7]
+    rotate: [90, 0, 0]        # axis was +Y, rotate to face -Z (camera side)
+    translate: [-2.6, 1.55, 0]
+    profile:
+      - [ 0.5500,  0.0000]
+      - [ 0.1781,  0.1294]
+      - [ 0.1700,  0.5232]
+      - [-0.0680,  0.2095]
+      - [-0.4449,  0.3236]
+      - [-0.2200,  0.0000]
+      - [-0.4449, -0.3236]
+      - [-0.0680, -0.2095]
+      - [ 0.1700, -0.5232]
+      - [ 0.1781, -0.1294]
+
+  # ═════════════════════════════════════════════════════════════════════════
+  # 2. Scalloped marble column — Catmull-Rom + twist + taper
+  # ═════════════════════════════════════════════════════════════════════════
+  # 16-point alternating r profile gives 8 visible flutes once tessellated.
+  - name: "colonna"
+    type: "extrusion"
+    profile_type: "catmull_rom"
+    height: 3.4
+    twist_degrees: 60
+    taper: 0.88
+    curve_samples: 24
+    caps: "both"
+    material: "marmo"
+    translate: [0, 0.4, 0]
+    profile:
+      - [ 0.55,  0.000]
+      - [ 0.43,  0.180]
+      - [ 0.39,  0.390]
+      - [ 0.30,  0.300]
+      - [ 0.000, 0.55]
+      - [-0.300, 0.300]
+      - [-0.39,  0.390]
+      - [-0.43,  0.180]
+      - [-0.55,  0.000]
+      - [-0.43, -0.180]
+      - [-0.39, -0.390]
+      - [-0.300,-0.300]
+      - [ 0.000,-0.55]
+      - [ 0.300,-0.300]
+      - [ 0.39, -0.390]
+      - [ 0.43, -0.180]
+
+  # Capital and base for the column, accenting the silhouette
+  - name: "capitello"
+    type: "cylinder"
+    material: "marmo"
+    center: [0, 3.85, 0]
+    radius: 0.62
+    height: 0.18
+
+  - name: "base_colonna"
+    type: "cylinder"
+    material: "marmo"
+    center: [0, 0.40, 0]
+    radius: 0.62
+    height: 0.10
+
+  # ═════════════════════════════════════════════════════════════════════════
+  # 3. Emerald glass shield — Bezier closed-loop
+  # ═════════════════════════════════════════════════════════════════════════
+  # Four cubic-Bezier segments form a smooth rounded "shield" (super-ellipse).
+  # Each segment endpoint is the next segment's start (loop closure).
+  - name: "scudo"
+    type: "extrusion"
+    profile_type: "bezier"
+    height: 0.25
+    caps: "both"
+    material: "smeraldo"
+    scale: [1.6, 1.0, 1.6]
+    rotate: [90, 0, 0]        # axis was +Y, rotate to face camera (-Z side)
+    translate: [2.6, 1.55, 0]
+    profile:
+      - [ 0.6,  0.0]
+      - [ 0.0,  0.7]
+      - [-0.6,  0.0]
+      - [ 0.0, -0.5]
+    profile_bezier_controls:
+      # Segment 1: right → top
+      - [ 0.60,  0.00]
+      - [ 0.60,  0.42]
+      - [ 0.36,  0.70]
+      - [ 0.00,  0.70]
+      # Segment 2: top → left
+      - [ 0.00,  0.70]
+      - [-0.36,  0.70]
+      - [-0.60,  0.42]
+      - [-0.60,  0.00]
+      # Segment 3: left → bottom
+      - [-0.60,  0.00]
+      - [-0.60, -0.30]
+      - [-0.32, -0.50]
+      - [ 0.00, -0.50]
+      # Segment 4: bottom → right
+      - [ 0.00, -0.50]
+      - [ 0.32, -0.50]
+      - [ 0.60, -0.30]
+      - [ 0.60,  0.00]

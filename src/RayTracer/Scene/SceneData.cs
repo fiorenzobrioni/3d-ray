@@ -645,11 +645,45 @@ public class EntityData
     /// <summary>
     /// Explicit cubic-Bezier control points for <c>profile_type: bezier</c>.
     /// Layout: four <c>[r, y]</c> entries per segment, concatenated for every
-    /// segment of the profile (length must equal <c>4 · (profile.Count − 1)</c>).
+    /// segment of the profile (length must equal <c>4 · (profile.Count − 1)</c>
+    /// for a lathe, or <c>4 · profile.Count</c> for a closed extrusion).
     /// Ignored for the linear and Catmull-Rom modes.
     /// </summary>
     [YamlMember(Alias = "profile_bezier_controls")]
     public List<List<float>>? ProfileBezierControls { get; set; }
+
+    // ── Extrusion (Linear extrusion of a 2D profile) ────────────────────────
+
+    /// <summary>
+    /// Which ends of an <c>extrusion</c> are closed by a triangulated cap.
+    /// One of <c>both</c> (default), <c>start</c>, <c>end</c> or <c>none</c>.
+    /// </summary>
+    [YamlMember(Alias = "caps")]
+    public string? Caps { get; set; }
+
+    /// <summary>
+    /// Total rotation of the top profile around the Y axis for an
+    /// <c>extrusion</c>, in degrees. Default 0 (straight prism).
+    /// </summary>
+    [YamlMember(Alias = "twist_degrees")]
+    public float TwistDegrees { get; set; } = 0f;
+
+    /// <summary>
+    /// Uniform XZ scale of the top profile relative to the bottom for an
+    /// <c>extrusion</c>. 1 = straight prism, &lt; 1 narrows toward the top
+    /// (pyramid-like), &gt; 1 flares outward. Must be &gt; 0.
+    /// </summary>
+    [YamlMember(Alias = "taper")]
+    public float Taper { get; set; } = 1f;
+
+    /// <summary>
+    /// For curved <c>extrusion</c> profile types (catmull_rom, bezier), how
+    /// many polyline samples to emit per input segment. Higher values produce
+    /// smoother silhouettes at the cost of more triangles in the internal
+    /// BVH. Default 16.
+    /// </summary>
+    [YamlMember(Alias = "curve_samples")]
+    public int CurveSamples { get; set; } = 16;
 
     // Transformations
     [YamlMember(Alias = "translate")]
