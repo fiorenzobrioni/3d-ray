@@ -9,20 +9,22 @@
 #        floor with a gradient sky for atmosphere.
 # ============================================================================
 
-camera:
-  position: [0, 2.0, -5.6]
-  look_at: [0, 1.4, 0]
-  fov: 42
-  aperture: 0.025
-  focus_distance: 5.6
+cameras:
+  # ── Vista principale — tutti e 3 gli oggetti visibili ──────────────────
+  - name:       principale
+    position:   [0, 2.0, -5.6]
+    look_at:    [0, 2.0,  0.0]
+    fov:        50
+    aperture:   0.25
+    focal_dist: 5.6
 
 world:
   ambient_light: [0.025, 0.028, 0.035]
   sky:
     type: "gradient"
-    zenith_color: [0.06, 0.08, 0.14]
+    zenith_color:  [0.06, 0.08, 0.14]
     horizon_color: [0.20, 0.18, 0.22]
-    ground_color: [0.04, 0.04, 0.05]
+    ground_color:  [0.04, 0.04, 0.05]
   ground:
     type: "plane"
     material: "pavimento"
@@ -139,7 +141,7 @@ entities:
     material: "oro"
     scale: [1.7, 1.0, 1.7]
     rotate: [90, 0, 0]        # axis was +Y, rotate to face -Z (camera side)
-    translate: [-2.6, 1.55, 0]
+    translate: [-3.0, 1.4, -0.09]
     profile:
       - [ 0.5500,  0.0000]
       - [ 0.1781,  0.1294]
@@ -212,7 +214,7 @@ entities:
     material: "smeraldo"
     scale: [1.6, 1.0, 1.6]
     rotate: [90, 0, 0]        # axis was +Y, rotate to face camera (-Z side)
-    translate: [2.6, 1.55, 0]
+    translate: [2.6, 1.55, -0.125]
     profile:
       - [ 0.6,  0.0]
       - [ 0.0,  0.7]
