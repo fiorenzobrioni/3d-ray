@@ -465,6 +465,57 @@ Prima: 141 test. Dopo: 146 test (5 nuovi). Tutti verdi.
 
 ---
 
+## 🪚 Ciclo Extrusion Primitive
+
+**Data:** 2026-05
+
+### Motivazione
+Il motore aveva la `Lathe` (superficie di rivoluzione) ma mancava il duale naturale: una primitiva che estrude un profilo 2D chiuso lungo un asse. Questa è la capacità di modellazione di base che POV-Ray chiama `prism`, Blender / Houdini / Maya / OpenSCAD chiamano "extrude" / `polyextrude` / `linear_extrude`. In Arnold / RenderMan / Cycles l'estrusione passa sempre da mesh — averla nativamente nel motore è un valore aggiunto concreto: niente OBJ esterno per stelle, ingranaggi, lettere, profilati architettonici, sezioni a L/U/T/H, washer, basi di lampade, cornici, pezzi araldici.
+
+### Modifiche effettuate
+
+**1. Nuova primitiva `Extrusion` (`src/RayTracer/Geometry/Extrusion.cs`)**
+- `Extrusion : IHittable, ISamplable`. Triangola le pareti laterali e i cap, costruisce internamente una `BvhNode` (stesso pattern di `Mesh`).
+- Tre modi di profilo speculari al Lathe: `linear` (polilinea, `Triangle` flat per ridge sharp), `catmull_rom` (centripetale chiuso, `SmoothTriangle` con normali medie sui bordi adiacenti), `bezier` (4 control point per segmento, loop chiuso).
+- Twist (`twist_degrees`) e taper (`taper`) opzionali per colonne/raccordi industriali.
+- `caps: both | start | end | none` per gusci aperti o tray-shape.
+- UV: U = arc length normalizzata sul perimetro del profilo, V = altezza ∈ [0, 1]. Niente seam-stretch su texture wrapping.
+- `SurfaceArea` deterministico = somma chiusa delle aree dei triangoli; supporta NEE area-weighted automatico per Extrusion emissive (insegne al neon a forma di stella, ecc.).
+
+**2. Utility 2D (`src/RayTracer/Geometry/Polygon2D.cs`)**
+- `SignedArea` (shoelace) per orientamento auto.
+- `EarClip` O(n²) per triangolare profili concavi semplici (stelle, gear, lettere, L/U/T/H) — fallback robusto su poligoni numericamente degenerati.
+- `TessellateClosedCatmullRom` (centripetale α=½, formula Barry-Goldman per knot non uniformi).
+- `TessellateClosedBezier` per cubic Bezier in loop chiuso.
+
+**3. SceneLoader registration**
+- `type: "extrusion"` con alias `"prism"`, `"linear_extrude"` (mirror di `lathe` / `revolution` / `surface_of_revolution`).
+- Nuovi campi YAML in `SceneData`: `caps`, `twist_degrees`, `taper`, `curve_samples` (riusa `profile`, `profile_type`, `profile_bezier_controls`, `height` esistenti).
+- Validazione completa: rifiuto profili < 3 punti, height/taper non positivi, control Bezier count errato; auto-rimozione duplicati consecutivi e chiusura ridondante; downgrade trasparente CR → linear con warning quando troppi pochi punti.
+- CSG: `extrusion` accettato come figlio CSG via il dispatch standard di `CreateEntity` — nessuna modifica a `BuildCsgChild` necessaria.
+
+**4. Test (`src/RayTracer.Tests/ExtrusionTests.cs` — 9 nuovi)**
+- `Square_Profile_MatchesBox`: 500 raggi random, equivalenza con `Box`.
+- `DenseNgon_MatchesCylinder`: 64-gon vs `Cylinder`, tolleranza 8e-3 (silhouette discretization).
+- `ConcaveStar_HitsLieInsideAabb`: stella a 5 punte, AABB containment + nessun foro spurio.
+- `Square_SurfaceArea_MatchesBox`, `NoCaps_OmitsTopAndBottom`, `LShape_Concave_SurfaceAreaMatchesClosedForm`: closed-form su area.
+- Constructor validation: `TooFewPoints_Throws`, `NonPositiveHeight_Throws`, `BezierWithWrongControlCount_Throws`.
+
+**5. Showcase**
+- `scenes/showcases/extrusion-showcase.yaml`: tre soggetti hero — stella araldica dorata (linear concavo), colonna scanalata twistata (catmull_rom + twist + taper), ingranaggio meccanico (linear con 24 denti). Illuminazione cinematografica 3-point + sun disc.
+
+**6. Documentazione**
+- `docs/reference/scene-reference.md` §7.17 (EN) e `riferimento-scene.md` §7.17 (IT): full schema YAML, esempi linear/catmull_rom/bezier, nota su caps/concavità/twist/taper/curve_samples.
+- Lista figli CSG aggiornata in entrambe le lingue.
+
+### Backward compatibility
+Tutti i nuovi alias / campi sono nuovi — nessuna scena esistente è toccata.
+
+### Test suite
+Prima: 146 test. Dopo: 155 test (9 nuovi). Tutti verdi.
+
+---
+
 ## 🧪 Checklist Verifiche (Testing)
 
 Procedure da eseguire prima di ogni commit importante.

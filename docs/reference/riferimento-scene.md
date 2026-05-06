@@ -721,7 +721,7 @@ entities:
 - Operazioni: `union` (A∪B), `intersection` (A∩B), `subtraction` (A\B); `subtract` e `difference` sono alias accettati di `subtraction`
 - Le chiavi dei figli sono `left` e `right` (operandi del nodo booleano)
 - Supporta alberi CSG nidificati ricorsivamente (un `left` o `right` può essere a sua volta un nodo `csg`)
-- **Tipi ammessi come figli CSG.** Ogni figlio deve essere una primitiva solida con interno/esterno ben definiti. Supportati: `sphere`, `box`, `cylinder`, `cone`, `torus`, `capsule`, `quad`, `disk`, `annulus`, `triangle`, `lathe` (alias `revolution` / `surface_of_revolution`), oppure un `csg` annidato. **Non supportati e scartati con un avviso** (il loader emette `CSG entity '…': failed to create one or both children. Skipping.` e il nodo viene rimosso): `group`, `mesh` / `obj`, `instance`, `plane` / `infinite_plane`. Per unire due primitive come operando CSG, usa un `csg: union` esplicito invece di avvolgerle in un `group`.
+- **Tipi ammessi come figli CSG.** Ogni figlio deve essere una primitiva solida con interno/esterno ben definiti. Supportati: `sphere`, `box`, `cylinder`, `cone`, `torus`, `capsule`, `quad`, `disk`, `annulus`, `triangle`, `lathe` (alias `revolution` / `surface_of_revolution`), `extrusion` (alias `prism` / `linear_extrude`), oppure un `csg` annidato. **Non supportati e scartati con un avviso** (il loader emette `CSG entity '…': failed to create one or both children. Skipping.` e il nodo viene rimosso): `group`, `mesh` / `obj`, `instance`, `plane` / `infinite_plane`. Per unire due primitive come operando CSG, usa un `csg: union` esplicito invece di avvolgerle in un `group`.
 - **Materiali emissivi dentro i figli CSG.** Sono geometricamente validi, ma i nodi CSG non sono campionabili, quindi **non parteciperanno alla NEE** (Next Event Estimation). Il loader stampa un avviso una-tantum: `Warning: CSG object contains an Emissive leaf. CSG objects are not sampleable, so their emitters will NOT participate in Next Event Estimation. The emissive surface will still glow via indirect bounces (high variance). Consider wrapping the emissive primitive outside the CSG if direct lighting is needed.` Soluzione alternativa: posizionare la primitiva emissiva accanto al CSG a livello di scena, non al suo interno.
 
 #### **7.14 Group (Composizione Gerarchica)**
@@ -842,7 +842,114 @@ entities:
   stesso approccio della `lathe` di PovRay e della `Curve` di PBRT.
   Aspettati ~10× il costo per-raggio di un hit su Cone sui segmenti
   spline — preferisci `linear` quando lo sfaccettato è accettabile.
-#### **7.17 Ordine delle trasformazioni e anti-pattern `center:`**
+
+#### **7.17 Extrusion (Estrusione lineare di un profilo 2D)**
+```yaml
+# Profilo lineare concavo — una stella a 5 punte estrusa in un prisma
+- name: "pilastro_stella"
+  type: "extrusion"                       # alias: "prism", "linear_extrude"
+  profile_type: "linear"                  # default — può essere omesso
+  height: 1.5
+  caps: "both"                            # both | start | end | none (default: both)
+  material: "oro"
+  profile:                                # loop chiuso di [x, z] (CCW preferito)
+    - [ 1.000,  0.000]
+    - [ 0.234,  0.339]
+    - [ 0.309,  0.951]
+    - [-0.089,  0.405]
+    - [-0.809,  0.588]
+    - [-0.378,  0.000]
+    - [-0.809, -0.588]
+    - [-0.089, -0.405]
+    - [ 0.309, -0.951]
+    - [ 0.234, -0.339]
+
+# Profilo Catmull-Rom + twist + taper (colonna architettonica)
+- name: "colonna_attorcigliata"
+  type: "extrusion"
+  profile_type: "catmull_rom"             # alias: "catmull", "smooth"
+  height: 4.0
+  twist_degrees: 90                       # rotazione del profilo superiore attorno a Y
+  taper: 0.85                             # scala XZ uniforme dell'estremità superiore
+  curve_samples: 24                       # campioni polilinea per segmento di profilo
+  caps: "both"
+  material: "marmo"
+  profile:                                # sezione 8-lobi
+    - [ 1.00,  0.00]
+    - [ 0.40,  0.40]
+    - [ 0.00,  1.00]
+    - [-0.40,  0.40]
+    - [-1.00,  0.00]
+    - [-0.40, -0.40]
+    - [ 0.00, -1.00]
+    - [ 0.40, -0.40]
+
+# Profilo Bezier — 4 control points cubici per segmento, in loop chiuso
+- name: "medaglione_arrotondato"
+  type: "extrusion"
+  profile_type: "bezier"
+  height: 0.3
+  material: "ottone"
+  profile:                                # endpoint dei segmenti — N segmenti chiusi
+    - [ 1.0,  0.0]
+    - [ 0.0,  1.0]
+    - [-1.0,  0.0]
+    - [ 0.0, -1.0]
+  profile_bezier_controls:                # 4 × N control points concatenati
+    - [ 1.0,  0.0]
+    - [ 1.0,  0.55]
+    - [ 0.55, 1.0]
+    - [ 0.0,  1.0]
+    - [ 0.0,  1.0]
+    - [-0.55, 1.0]
+    - [-1.0,  0.55]
+    - [-1.0,  0.0]
+    - [-1.0,  0.0]
+    - [-1.0, -0.55]
+    - [-0.55,-1.0]
+    - [ 0.0, -1.0]
+    - [ 0.0, -1.0]
+    - [ 0.55,-1.0]
+    - [ 1.0, -0.55]
+    - [ 1.0,  0.0]
+```
+- Estrude un profilo 2D chiuso nel piano XZ lungo l'asse Y locale,
+  producendo un prisma da `y = 0` a `y = height`. Il posizionamento
+  passa per `center` / `translate` / `rotate` come ogni altra primitiva.
+- Tre modalità di interpolazione speculari al lathe: `linear` mantiene
+  la polilinea per ridge taglienti; `catmull_rom` (centripetale) dà una
+  silhouette liscia che passa per ogni punto; `bezier` consente di
+  controllare ogni cubica. `profile_bezier_controls` deve contenere
+  esattamente `4 × N` punti — una cubica per segmento del profilo, con
+  l'ultimo segmento che chiude il loop sul primo vertice.
+- **I profili concavi funzionano**: i cap vengono triangolati con
+  ear-clipping, quindi stelle, ingranaggi, lettere, sezioni a L / T / U
+  / H e profili architettonici si renderizzano correttamente senza
+  decomposizione manuale.
+- L'orientamento del profilo è auto-corretto: input orari (CW) vengono
+  invertiti al caricamento perché le normali esterne delle pareti
+  puntino sempre fuori.
+- `caps: "both"` (default) chiude entrambe le estremità; `"start"` /
+  `"end"` ne chiudono solo una (utile per vasche/scodelle); `"none"`
+  produce un guscio aperto.
+- `twist_degrees` ruota il profilo superiore attorno all'asse Y —
+  combinato con `taper` ottieni l'intera gamma di colonne architettoniche
+  e raccordi industriali prodotti dal `polyextrude` di Houdini o dal
+  modificatore "Extrude with twist" di Blender.
+- `curve_samples` controlla la qualità della silhouette per
+  `catmull_rom` / `bezier`: ogni segmento di input diventa quel numero
+  di campioni di polilinea (default 16, 24-32 per primi piani da hero).
+- Internamente ogni extrusion costruisce la propria BVH sopra triangoli
+  di pareti + cap, quindi la BVH globale vede una sola foglia per
+  extrusion indipendentemente dalla complessità del profilo. Le
+  normali smooth-shaded vengono emesse sulle pareti per `catmull_rom` /
+  `bezier`; `linear` mantiene normali piane per il look sfaccettato.
+- Le Extrusion emissive partecipano al NEE automaticamente: `Sample()`
+  sceglie un triangolo proporzionalmente alla sua area, quindi la luce
+  da un'insegna al neon a forma di stella è pesata correttamente fra
+  pareti e cap.
+
+#### **7.18 Ordine delle trasformazioni e anti-pattern `center:`**
 
 Le trasformazioni delle entità seguono un ordine fisso `scale → rotate → translate` attorno all'**origine globale (0, 0, 0)**:
 
