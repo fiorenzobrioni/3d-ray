@@ -61,6 +61,14 @@ analytic surface of revolution. Three interpolation modes (linear,
 centripetal Catmull-Rom, explicit Bezier), automatic end caps, NEE for
 emissive lathes, and the Sturm-chain solver behind the scenes.
 
+### [12 -- Extruded Profiles (Extrusion)](./12-extrusion-2d-profiles.md)
+The `extrusion` primitive: stretch a closed 2D profile along the Y
+axis to get a prism with arbitrary cross-section. Concave shapes
+(stars, gears, letters, L-channels) work out of the box thanks to
+ear-clipped caps. Same three profile modes as the lathe, plus
+optional `twist` and `taper` modifiers for sculpted columns and
+helical drill bits.
+
 ---
 
 > Each chapter builds on the previous one. If you are new to ray tracing,

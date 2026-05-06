@@ -62,6 +62,14 @@ interpolazione (linear, Catmull-Rom centripeta, Bezier esplicita), cap
 automatici, NEE per i lathe emissivi e il solver Sturm-chain dietro le
 quinte.
 
+### [12 -- Profili 2D estrusi (Extrusion)](./12-extrusion-2d-profiles.md)
+La primitiva `extrusion`: estrudi un profilo 2D chiuso lungo l'asse Y
+per ottenere un prisma con sezione arbitraria. Le forme concave
+(stelle, ingranaggi, lettere, profilati a L) funzionano out-of-the-box
+grazie ai tappi ear-clipped. Le stesse tre modalità di profilo del
+lathe, più i modificatori opzionali `twist` e `taper` per colonne
+scolpite e punte da trapano elicoidali.
+
 ---
 
 > Ogni capitolo si basa sul precedente. Chi è alle prime armi con il ray tracing
