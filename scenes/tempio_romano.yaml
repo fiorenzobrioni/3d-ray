@@ -1,0 +1,402 @@
+# =========================================================================
+# SCENA: Tempio Romano Classico (Dimensionamento Dinamico)
+# GENERATO TRAMITE: C# .NET 10 Procedural Generator
+# =========================================================================
+
+world:
+  ambient_light: [0.08, 0.09, 0.15]
+  ground:
+    type: "infinite_plane"
+    point: [0, 0, 0]
+    normal: [0, 1, 0]
+    material: "ground_stone"
+  sky:
+    type: "gradient"
+    zenith_color: [0.15, 0.25, 0.60]
+    horizon_color: [0.85, 0.45, 0.20]
+    ground_color: [0.20, 0.15, 0.12]
+    sun:
+      direction: [-0.8, -0.4, 0.5]
+      color: [1.0, 0.85, 0.70]
+      intensity: 8.0
+      size: 2.0
+      falloff: 32.0
+
+cameras:
+  - name: "front_dramatic"
+    position: [0, 2.5, -30]
+    look_at: [0, 8, 0]
+    fov: 55
+    aperture: 0.05
+    focal_dist: 28
+  - name: "side_perspective"
+    position: [-30, 12, -31]
+    look_at: [0, 5.5, -5]
+    fov: 44
+    aperture: 0.02
+    focal_dist: 40
+  - name: "interior"
+    position: [0, 4, -8]
+    look_at: [0, 4, 10]
+    fov: 60
+    aperture: 0.0
+    focal_dist: 10
+  - name: "top_isometric"
+    position: [-35, 45, -35]
+    look_at: [0, 0, 0]
+    fov: 35
+    aperture: 0.0
+    focal_dist: 60
+
+lights:
+  - type: "point"
+    position: [-3, 3.5, 2]
+    color: [1.0, 0.5, 0.1]
+    intensity: 15.0
+    soft_radius: 0.2
+  - type: "point"
+    position: [3, 3.5, 2]
+    color: [1.0, 0.5, 0.1]
+    intensity: 15.0
+    soft_radius: 0.2
+
+materials:
+  - id: "white_marble"
+    type: "disney"
+    color: [0.9, 0.88, 0.85]
+    roughness: 0.2
+    subsurface: 0.3
+    subsurface_color: [0.95, 0.9, 0.8]
+  - id: "dark_marble"
+    type: "disney"
+    color: [0.2, 0.2, 0.22]
+    roughness: 0.3
+  - id: "gold"
+    type: "metal"
+    color: [1.0, 0.85, 0.3]
+    fuzz: 0.1
+  - id: "roof_tiles"
+    type: "lambertian"
+    color: [0.6, 0.25, 0.15]
+  - id: "ground_stone"
+    type: "lambertian"
+    color: [0.4, 0.38, 0.35]
+  - id: "fire"
+    type: "emissive"
+    color: [1.0, 0.6, 0.1]
+    intensity: 8.0
+
+templates:
+  - name: "roman_column"
+    material: "white_marble"
+    children:
+      - type: "box"
+        scale: [2.2, 0.4, 2.2]
+        translate: [0, 0.2, 0]
+      - type: "cylinder"
+        center: [0, 0.4, 0]
+        radius: 1.0
+        height: 0.3
+      - type: "cylinder"
+        center: [0, 0.7, 0]
+        radius: 0.9
+        height: 0.2
+      - type: "extrusion"
+        profile_type: "catmull_rom"
+        height: 7.5
+        taper: 0.85
+        curve_samples: 24
+        translate: [0, 0.9, 0]
+        caps: "both"
+        profile:
+          - [0.800, 0.000]
+          - [0.638, 0.127]
+          - [0.739, 0.306]
+          - [0.540, 0.361]
+          - [0.566, 0.566]
+          - [0.361, 0.540]
+          - [0.306, 0.739]
+          - [0.127, 0.638]
+          - [0.000, 0.800]
+          - [-0.127, 0.638]
+          - [-0.306, 0.739]
+          - [-0.361, 0.540]
+          - [-0.566, 0.566]
+          - [-0.540, 0.361]
+          - [-0.739, 0.306]
+          - [-0.638, 0.127]
+          - [-0.800, 0.000]
+          - [-0.638, -0.127]
+          - [-0.739, -0.306]
+          - [-0.540, -0.361]
+          - [-0.566, -0.566]
+          - [-0.361, -0.540]
+          - [-0.306, -0.739]
+          - [-0.127, -0.638]
+          - [-0.000, -0.800]
+          - [0.127, -0.638]
+          - [0.306, -0.739]
+          - [0.361, -0.540]
+          - [0.566, -0.566]
+          - [0.540, -0.361]
+          - [0.739, -0.306]
+          - [0.638, -0.127]
+      - type: "cylinder"
+        center: [0, 8.4, 0]
+        radius: 0.85
+        height: 0.3
+      - type: "box"
+        scale: [2.2, 0.4, 2.2]
+        translate: [0, 8.7, 0]
+  
+  - name: "brazier"
+    children:
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.3
+        height: 1.0
+        material: "dark_marble"
+      - type: "cone"
+        center: [0, 1.0, 0]
+        radius: 0.1
+        top_radius: 0.6
+        height: 0.5
+        material: "gold"
+      - type: "sphere"
+        center: [0, 1.7, 0]
+        radius: 0.4
+        material: "fire"
+
+entities:
+  - name: "step_0"
+    type: "box"
+    scale: [21.60, 0.50, 44.00]
+    translate: [0, 0.25, 0]
+    material: "white_marble"
+  - name: "step_1"
+    type: "box"
+    scale: [20.00, 0.50, 42.40]
+    translate: [0, 0.75, 0]
+    material: "white_marble"
+  - name: "step_2"
+    type: "box"
+    scale: [18.40, 0.50, 40.80]
+    translate: [0, 1.25, 0]
+    material: "white_marble"
+  - name: "col_0_0"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, -19.20]
+  - name: "col_0_1"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, -16.00]
+  - name: "col_0_2"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, -12.80]
+  - name: "col_0_3"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, -9.60]
+  - name: "col_0_4"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, -6.40]
+  - name: "col_0_5"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, -3.20]
+  - name: "col_0_6"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, 0.00]
+  - name: "col_0_7"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, 3.20]
+  - name: "col_0_8"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, 6.40]
+  - name: "col_0_9"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, 9.60]
+  - name: "col_0_10"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, 12.80]
+  - name: "col_0_11"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, 16.00]
+  - name: "col_0_12"
+    type: "instance"
+    template: "roman_column"
+    translate: [-8.00, 1.50, 19.20]
+  - name: "col_1_0"
+    type: "instance"
+    template: "roman_column"
+    translate: [-4.80, 1.50, -19.20]
+  - name: "col_1_12"
+    type: "instance"
+    template: "roman_column"
+    translate: [-4.80, 1.50, 19.20]
+  - name: "col_2_0"
+    type: "instance"
+    template: "roman_column"
+    translate: [-1.60, 1.50, -19.20]
+  - name: "col_2_12"
+    type: "instance"
+    template: "roman_column"
+    translate: [-1.60, 1.50, 19.20]
+  - name: "col_3_0"
+    type: "instance"
+    template: "roman_column"
+    translate: [1.60, 1.50, -19.20]
+  - name: "col_3_12"
+    type: "instance"
+    template: "roman_column"
+    translate: [1.60, 1.50, 19.20]
+  - name: "col_4_0"
+    type: "instance"
+    template: "roman_column"
+    translate: [4.80, 1.50, -19.20]
+  - name: "col_4_12"
+    type: "instance"
+    template: "roman_column"
+    translate: [4.80, 1.50, 19.20]
+  - name: "col_5_0"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, -19.20]
+  - name: "col_5_1"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, -16.00]
+  - name: "col_5_2"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, -12.80]
+  - name: "col_5_3"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, -9.60]
+  - name: "col_5_4"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, -6.40]
+  - name: "col_5_5"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, -3.20]
+  - name: "col_5_6"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, 0.00]
+  - name: "col_5_7"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, 3.20]
+  - name: "col_5_8"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, 6.40]
+  - name: "col_5_9"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, 9.60]
+  - name: "col_5_10"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, 12.80]
+  - name: "col_5_11"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, 16.00]
+  - name: "col_5_12"
+    type: "instance"
+    template: "roman_column"
+    translate: [8.00, 1.50, 19.20]
+  - name: "architrave"
+    type: "box"
+    scale: [18.00, 1.20, 40.40]
+    translate: [0, 11.00, 0]
+    material: "white_marble"
+  - name: "frieze"
+    type: "box"
+    scale: [17.60, 1.00, 40.00]
+    translate: [0, 12.10, 0]
+    material: "gold"
+  - name: "cornice"
+    type: "box"
+    scale: [19.20, 0.50, 41.60]
+    translate: [0, 12.85, 0]
+    material: "white_marble"
+  - name: "front_pediment"
+    type: "extrusion"
+    profile_type: "linear"
+    height: 2.00
+    translate: [0, 13.10, -18.80]
+    rotate: [90, 0, 0]
+    material: "white_marble"
+    caps: "both"
+    profile:
+      - [-9.60, 0.0]
+      - [9.60, 0.0]
+      - [0.0, -4.20] # Negativo su Y-profilo compensa la rotazione
+      
+  - name: "back_pediment"
+    type: "extrusion"
+    profile_type: "linear"
+    height: 2.00
+    translate: [0, 13.10, 20.80]
+    rotate: [90, 0, 0]
+    material: "white_marble"
+    caps: "both"
+    profile:
+      - [-9.60, 0.0]
+      - [9.60, 0.0]
+      - [0.0, -4.20]
+  - name: "roof_right"
+    type: "box"
+    scale: [11.28, 0.40, 42.20]
+    translate: [4.88, 15.38, 0]
+    rotate: [0, 0, -23.63]
+    material: "roof_tiles"
+    
+  - name: "roof_left"
+    type: "box"
+    scale: [11.28, 0.40, 42.20]
+    translate: [-4.88, 15.38, 0]
+    rotate: [0, 0, 23.63]
+    material: "roof_tiles"
+  - name: "cella_walls"
+    type: "csg"
+    operation: "subtraction"
+    material: "white_marble"
+    left:
+      type: "box"
+      scale: [8.00, 8.90, 26.00]
+      translate: [0, 5.95, 2.00]
+    right:
+      type: "csg"
+      operation: "union"
+      left:
+        type: "box"
+        scale: [6.40, 9.10, 24.40] # +0.2 per sfondare tetto/pavimento
+        translate: [0, 5.95, 2.00]
+      right:
+        type: "box"
+        scale: [3.60, 6.50, 4.0] # Spessore passante
+        translate: [0, 4.75, -11.00]
+  - name: "brazier_left"
+    type: "instance"
+    template: "brazier"
+    translate: [-2.5, 1.5, 2]
+    
+  - name: "brazier_right"
+    type: "instance"
+    template: "brazier"
+    translate: [2.5, 1.5, 2]
