@@ -7,5 +7,6 @@
   <Folder Name="/Tools/">
     <Project Path="src/Tools/TextureGen/TextureGen.csproj" />
     <Project Path="src/Tools/NormalMapGen/NormalMapGen.csproj" />
+    <Project Path="src/Tools/TerrainGen/TerrainGen.csproj" />
   </Folder>
 </Solution>
