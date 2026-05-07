@@ -1096,15 +1096,19 @@ entities:
 ---
 ### 11. **KEY FILES IN PROJECT**
 **Documentation:**
-- `/docs/tutorial/02-tutorial-scene/` — Complete tutorial sections:
-  - `01-struttura-file.md` — File structure overview
-  - `02-world.md` — World/environment config
-  - `03-camera.md` — Camera setup
-  - `04-materials.md` — Material types
-  - `05-textures.md` — Texture details
-  - `06-entities.md` — All geometry types
-  - `07-lights.md` — All light types
-  - `11-groups-and-imports.md` — Hierarchies and modularity
+- `/docs/tutorial/en/` — Complete tutorial (12 chapters):
+  - `01-what-is-ray-tracing.md` — Introduction to ray tracing
+  - `02-first-scene.md` — First scene and file structure
+  - `03-materials.md` — All material types
+  - `04-geometric-primitives.md` — All geometry types
+  - `05-transforms-and-groups.md` — Transforms, groups and hierarchies
+  - `06-lighting.md` — All light types
+  - `07-sky-environment-camera.md` — Sky, environment and camera
+  - `08-csg.md` — CSG boolean operations
+  - `09-volumetrics.md` — Participating media and volumetrics
+  - `10-libraries-and-projects.md` — Imports, libraries and modularity
+  - `11-lathe-surface-of-revolution.md` — Lathe / surface of revolution
+  - `12-extrusion-2d-profiles.md` — Linear extrusion of 2D profiles
 **Source Code (Scene Parsing):**
 - `/src/RayTracer/Scene/SceneLoader.cs` — YAML parsing and scene construction
 - `/src/RayTracer/Materials/` — Material implementations

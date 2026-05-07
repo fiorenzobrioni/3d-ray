@@ -1142,33 +1142,62 @@ entities:
 
 ### 11. **FILE CHIAVE NEL PROGETTO**
 **Documentazione:**
-- `/docs/tutorial/02-tutorial-scene/` — Tutorial completi divisi per sezione.
+- `/docs/tutorial/it/` — Tutorial completo (12 capitoli):
+  - `01-what-is-ray-tracing.md` — Introduzione al ray tracing
+  - `02-first-scene.md` — Prima scena e struttura del file
+  - `03-materials.md` — Tutti i tipi di materiale
+  - `04-geometric-primitives.md` — Tutti i tipi di geometria
+  - `05-transforms-and-groups.md` — Trasformazioni, gruppi e gerarchie
+  - `06-lighting.md` — Tutti i tipi di luce
+  - `07-sky-environment-camera.md` — Cielo, ambiente e camera
+  - `08-csg.md` — Operazioni booleane CSG
+  - `09-volumetrics.md` — Mezzi partecipanti e volumetria
+  - `10-libraries-and-projects.md` — Import, librerie e modularità
+  - `11-lathe-surface-of-revolution.md` — Lathe / superficie di rivoluzione
+  - `12-extrusion-2d-profiles.md` — Estrusione lineare di profili 2D
 **Codice Sorgente (Parsing Scene):**
 - `/src/RayTracer/Scene/SceneLoader.cs` — Parsing YAML e costruzione scena
+- `/src/RayTracer/Materials/` — Implementazioni dei materiali
+- `/src/RayTracer/Geometry/` — Implementazioni di tutte le primitive
+- `/src/RayTracer/Lights/` — Implementazioni delle sorgenti luminose
 **Scene di Esempio:**
 - `/scenes/sample.yaml` — Scena di riferimento semplice
-- `/scenes/cornell-box.yaml` — Classica Cornell Box
-- `/scenes/libraries/` — Materiali, luci e oggetti riutilizzabili
+- `/scenes/cornell-box.yaml` — Classica Cornell Box con varianti
+- `/scenes/pendolo-newton.yaml` — Scena complessa (pendolo di Newton)
+- `/scenes/showcases/` — Dimostrazioni per funzionalità specifiche
+- `/scenes/libraries/` — Materiali, luci, oggetti e template riutilizzabili
 
 ---
 
 ### 12. **BEST PRACTICES PER SCENE DI ALTA QUALITÀ**
 1. **Strategia Materiali:**
-   - Usa `lambertian` per grandi superfici di sfondo.
-   - Usa `disney` o `metal` solo per gli oggetti protagonisti.
-   - Usa il materiale `mix` per effetti realistici di usura.
+   - Usa `lambertian` per grandi superfici di sfondo (nessun campione extra necessario)
+   - Usa `disney` o `metal` solo per gli oggetti protagonisti
+   - Usa il materiale `mix` per effetti realistici di usura e invecchiamento
 2. **Configurazione Luci:**
-   - Inizia con una luce direzionale + gradient sky per scene outdoor.
-   - Aggiungi alcune luci point o area per riempimento/accento.
-   - Usa sphere lights per ombre morbide ed isotropiche.
+   - Inizia con una luce direzionale + gradient sky per scene outdoor
+   - Aggiungi alcune luci point o area per riempimento/accento
+   - Usa sphere lights per ombre morbide ed isotropiche
+   - Sovrascrivi `--shadow-samples` dalla CLI invece di modificare lo YAML
 3. **Camera e Composizione:**
-   - Usa la lista `cameras: []` per gestire più inquadrature.
-   - Imposta `focal_dist` sulla distanza reale dal soggetto.
-   - Testa con il profilo Preview (`-w 400 -H 267 -s 64 -d 4 -S 1`) — vedi [Profili di Rendering](./profili-di-rendering.md).
+   - Usa la lista `cameras: []` per gestire più inquadrature
+   - Imposta `focal_dist` sulla distanza effettiva dal soggetto principale
+   - Usa aperture=0.0 per i pass di bozza, aggiungi apertura per i render finali
+   - Testa con bassa risoluzione + profilo Preview (`-w 400 -H 267 -s 64 -d 4 -S 1`)
 4. **Ottimizzazione Performance:**
-   - Usa template + istanze per oggetti ripetuti.
-   - Importa materiali/luci condivisi dalle librerie.
-   - Raggruppa geometrie simili in gruppi per gerarchie più pulite.
+   - Usa template + istanze per oggetti ripetuti
+   - Importa materiali/luci condivisi dalle librerie
+   - Raggruppa geometrie simili in gruppi per gerarchie più pulite
+   - La BVH viene costruita automaticamente per scene complesse
+5. **Fonti Texture:**
+   - Polyhaven.com — HDRI e texture PBR gratuite (CC0)
+   - AmbientCG.com — Set completi di texture PBR
+   - Procedurali (noise, marble, wood) per controllo artistico
+6. **Parametri di Rendering:** (vedi [Profili di Rendering](./profili-di-rendering.md) per tabelle complete e consigli)
+   - Preview: `-s 64 -d 4 -S 1 -w 400`
+   - Standard: `-s 256 -d 6 -w 800`
+   - Final: `-s 1024 -d 8 -S 4 -w 1920`
+   - Ultra: `-s 1600 -d 8 -S 4 -w 3840`
 
 ---
 
