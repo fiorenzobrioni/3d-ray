@@ -44,7 +44,9 @@ dotnet run -c Release --project src/RayTracer.Benchmarks -- --filter '*Bvh*' --j
 dotnet run --project src/Tools/TextureGen/TextureGen.csproj
 dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
 dotnet run --project src/Tools/ChessGen/ChessGen.csproj
+dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- --name <stem> [--type pianura|collina|montagna] [--season ...] [--include fiumi,laghi,mare,isole] [--style realistic|minecraft|lowpoly] [--with-cameras]
 ```
+`TerrainGen` writes a reusable terrain template to `scenes/libraries/terrain/<name>.yaml` (plus per-stratum `.obj` meshes). `--with-cameras` additionally emits a complete `scenes/<name>-preview.yaml` ready to render. See `src/Tools/TerrainGen/Program.cs` and `--help` for full flags.
 
 ### CI
 `.github/workflows/dotnet.yml` builds Release and runs a 320×213 smoke render of `scenes/chess.yaml`. `.github/workflows/render-scenes.yml` is a `workflow_dispatch` matrix render at 1920×1080 — enable scenes by uncommenting entries in its `matrix.scene:` list.
