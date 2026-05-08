@@ -162,6 +162,8 @@ world:
 
 **Tip:** se la camera è bassa e guarda quasi orizzontalmente lungo raggi che attraversano molta nebbia, alza `-s` almeno a 256.
 
+> 💡 **È il tipo giusto per le scene outdoor illuminate solo da sky + sun o HDRI.** A differenza di `homogeneous`, la profondità ottica verso lo zenit è limitata dallo `scale_height`, quindi la luce solare arriva alla scena attenuata ma non azzerata — esattamente il comportamento "aerial perspective" usato da Arnold, V-Ray e Unreal. Vedi §9.4.4 sotto.
+
 ### 9.4.2 `procedural` — Perlin fBm
 
 Densità guidata da **noise Perlin con fractal brownian motion** (fBm). Il free-path sampling usa **delta tracking (Woodcock)** e la trasmittanza è stimata via **ratio tracking**. Analogo ad Arnold `standard_volume` con input noise o RenderMan `PxrVolume` in modalità procedurale.
@@ -242,6 +244,19 @@ Il formato `.vol` (VOL1) è: magic `"VOL1"` (4 byte) + `nx`, `ny`, `nz` (3 × in
 - **`tricubic`** (64 taps, C¹, cardinal spline Catmull-Rom con τ = 0.5). ~8× il costo per sample, ma il campo di densità è derivabile con continuità → niente kink anche su griglie minuscole. Il risultato viene clampato in `[0,1]` per preservare l'invariante del majorant del delta tracking. Alias accettati: `cubic`, `catmull-rom`, `smooth`. Corrisponde al filtro "cubic"/"smooth" offerto da Arnold, Houdini e RenderMan su VDB.
 
 **Tip:** fuori dalla AABB il medium è vuoto → i raggi che non la intersecano sono gratis. Dimensiona bene i bounds per massimizzare le performance. Se usi `tricubic`, aspettati render ~5–10% più lenti sui raggi che attraversano la AABB.
+
+### 9.4.4 Quale tipo scegliere?
+
+Matrice di decisione rapida:
+
+| Tipo | Densità | Costo | Quando sceglierlo |
+|---|---|---|---|
+| `homogeneous` | Costante ovunque | Analitico, economico | La nebbia è **delimitata dalla geometria** (una stanza chiusa, una cantina, un interno sommerso, una colonna di fumo dentro un camino). La densità costante presuppone implicitamente "il medium è quello che riempie questo spazio chiuso". |
+| `height_fog` | Decadimento esponenziale con l'altitudine | Analitico, economico | La scena è **outdoor e illuminata da sky / sun / HDRI** (montagne, strade, porti, città). Il profilo esponenziale in altezza è il modello atmosferico standard — la luce solare arriva alla scena, gli oggetti distanti si desaturano, il sole guadagna un alone soffice. |
+| `procedural` | Noise Perlin fBm | Delta tracking, +30–100% di tempo | La nebbia deve apparire **a chiazze o irregolare**: scene horror, god-ray non uniformi attraverso gli alberi, foschia di palude, polvere che si frantuma. |
+| `grid` | Cotta su griglia 3D | Delta tracking + filtro voxel | Hai un **asset hero localizzato**: una singola nuvola, una sim di fumo cachata da Houdini/Blender, un'esplosione. Il medium è confinato alla AABB — il resto della scena non è influenzato. |
+
+> ⚠️ **La trappola `homogeneous` + sky/sun.** Siccome `homogeneous` ha densità costante estesa **all'infinito**, l'attenuazione Beer–Lambert lungo lo shadow ray verso il sole è `exp(-σ_t · ∞) ≈ 0` — il sole non raggiunge mai la scena e il render esce completamente nero. Lo stesso vale per ogni direzione di environment (HDRI, gradient sky). Le luci spot/point/area/sphere funzionano correttamente perché hanno distanza finita. **Per scene outdoor illuminate solo da sky + sun o HDRI usa sempre `height_fog`** — la sua profondità ottica verso lo zenit è limitata dallo `scale_height` e il sole arriva attenuato ma visibile. Non è un bug: le atmosfere reali non sono lastre omogenee infinite, e `homogeneous` è pensato solo per volumi chiusi. Gli stessi valori di densità che useresti in `homogeneous` di solito funzionano in `height_fog` con `scale_height: 5`–`15`.
 
 ---
 
@@ -334,7 +349,7 @@ Il rendering volumetrico è più impegnativo del rendering solo superficiale. Ti
 
 6. **Le luci puntiformi brillano.** Nella nebbia ogni point light riceve un alone radiale morbido la cui dimensione dipende dalla densità del mezzo.
 
-7. **Il mezzo è globale** (tranne `grid`, che è confinato alla AABB). `homogeneous`, `height_fog`, `procedural` riempiono l'intero spazio del mondo e colpiscono ogni raggio compresi quelli d'ombra. `grid` lascia passare senza attenuazione i raggi che non intersecano la sua AABB.
+7. **Il mezzo è globale** (tranne `grid`, che è confinato alla AABB). `homogeneous`, `height_fog`, `procedural` riempiono l'intero spazio del mondo e colpiscono ogni raggio compresi quelli d'ombra. `grid` lascia passare senza attenuazione i raggi che non intersecano la sua AABB. **Conseguenza pratica:** gli shadow ray di `homogeneous` verso sole / sky / HDRI viaggiano fino all'infinito → `exp(-σ_t · ∞) = 0` → il direct lighting ambientale collassa a nero. Per scene outdoor illuminate da `sky`/`sun`/HDRI usa `height_fog` (vedi §9.4.4).
 
 8. **Inizia da valori sottili, poi aumenta.** È più facile aggiungere nebbia che rimuoverla. Parti con `sigma_s` bassi (0.01–0.03 per homogeneous/height_fog, 0.3–0.5 per procedural/grid) e aumenta fino all'effetto desiderato.
 

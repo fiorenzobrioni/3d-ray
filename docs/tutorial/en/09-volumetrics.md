@@ -213,6 +213,12 @@ without the heaviness of uniform fog.
 **Tip:** if the camera is low and looks almost horizontally through a lot
 of fog, raise `-s` to at least 256.
 
+> 💡 **This is the right type for outdoor scenes lit by sky + sun or
+> HDRI.** Unlike `homogeneous`, the optical depth toward the zenith is
+> bounded by `scale_height`, so direct sunlight reaches the scene
+> attenuated but not obliterated — exactly the "aerial perspective"
+> behaviour used by Arnold, V-Ray and Unreal. See §9.4.4 below.
+
 ### 9.4.2 `procedural` — Perlin fBm
 
 Density driven by **Perlin noise with fractal brownian motion** (fBm).
@@ -323,6 +329,31 @@ voxels, 3D-Ray interpolates density in one of two ways:
 free. Size the bounds carefully to maximize performance. With
 `tricubic`, expect renders to be ~5–10% slower on rays that cross the
 AABB.
+
+### 9.4.4 Which Type Should I Use?
+
+Quick decision matrix:
+
+| Type | Density | Cost | Choose when… |
+|---|---|---|---|
+| `homogeneous` | Constant everywhere | Analytic, cheap | The fog is **bounded by geometry** (an indoor room, a closed cellar, a submerged interior, a smoke column inside a chimney). Constant density implicitly assumes "the medium is what fills this enclosed space." |
+| `height_fog` | Decays with altitude | Analytic, cheap | The scene is **outdoor and illuminated by sky / sun / HDRI** (mountains, roads, harbours, cities). The exponential altitude profile is the standard atmospheric model — direct sunlight reaches the scene, distant objects desaturate, the sun gets a soft halo. |
+| `procedural` | Perlin fBm noise | Delta tracking, +30–100% time | The fog must look **patchy or irregular**: horror scenes, uneven god-rays through trees, swamp mist, dust that breaks up. |
+| `grid` | Baked on a 3D grid | Delta tracking + voxel filter | You have a **localized hero asset**: a single cloud, a smoke sim cached from Houdini/Blender, an explosion. The medium is confined to its AABB — the rest of the scene is unaffected. |
+
+> ⚠️ **The `homogeneous` + sky/sun trap.** Because `homogeneous` has
+> constant density extending to **infinity**, the Beer–Lambert
+> attenuation along a shadow ray toward the sun is
+> `exp(-σ_t · ∞) ≈ 0` — the sun never reaches the scene and the render
+> comes out completely black. The same happens for any environment
+> direction (HDRI, gradient sky). Spot/point/area/sphere lights are
+> fine because they have finite distance. **For outdoor scenes lit by
+> sky + sun or HDRI, always use `height_fog`** — its optical depth
+> toward the zenith is bounded by `scale_height` and the sun shines
+> through correctly. This is not a bug: real atmospheres are not
+> infinite homogeneous slabs, and `homogeneous` is meant for bounded
+> volumes only. The same fog density values you'd use in `homogeneous`
+> usually work in `height_fog` with `scale_height: 5`–`15`.
 
 ---
 
@@ -444,7 +475,11 @@ Keep these tips in mind:
 7. **The medium is global** (except `grid`, which is confined to its
    AABB). `homogeneous`, `height_fog`, `procedural` fill the whole world
    and affect every ray including shadow rays. `grid` lets rays that
-   never intersect its AABB pass through without attenuation.
+   never intersect its AABB pass through without attenuation. **Practical
+   consequence:** `homogeneous` shadow rays toward the sun / sky / HDRI
+   travel to infinity → `exp(-σ_t · ∞) = 0` → environment lighting goes
+   to black. For outdoor scenes lit by `sky`/`sun`/HDRI, use
+   `height_fog` (see §9.4.4).
 
 8. **Start thin, then thicken.** It is easier to add fog than to remove
    it. Begin with small `sigma_s` values (0.01–0.03 for homogeneous /
