@@ -17,16 +17,17 @@ L'illuminazione definisce l'atmosfera, la profondità e il realismo di una scena
 
 Tutte le luci sono definite nella sezione `lights:`. Se ometti completamente la sezione `lights:`, il motore aggiunge delle luci predefinite (una direzionale e una puntiforme). Se includi una sezione `lights: []` vuota, la scena non avrà luci esplicite -- utile quando ci si affida interamente a oggetti emissivi o all'illuminazione ambientale HDRI.
 
-### `ambient_light` e luci esplicite
+### Da dove viene la luce ambientale
 
-`ambient_light` (definita nella sezione `world:`, introdotta nel Capitolo 2) è **additiva** rispetto a ogni altra sorgente di luce — non è un override né una sostituzione. Una scena con tre area light *e* `ambient_light: [0.2, 0.2, 0.2]` aggiunge 0.2 RGB sopra a tutto ciò che le luci esplicite già contribuiscono.
+3D-Ray non ha un campo `ambient_light`. Non esiste alcuna costante stile-Phong sommata ad ogni superficie — quel termine desaturava i colori e schiariva le ombre scavalcando BRDF, coseno e albedo del materiale. I renderer di produzione (Arnold, Cycles, RenderMan) lavorano allo stesso modo: l'illuminazione ambientale nasce esclusivamente dalla GI path-traced.
 
-Regole pratiche:
+Se vuoi un fill light morbido, hai tre opzioni fisicamente corrette, tutte configurabili sotto `world: > sky:` (vedi Capitolo 7):
 
-- **Tenerla molto bassa (0.01–0.05 per canale).** Riempie le ombre più profonde quel tanto che basta per evitare il nero assoluto, senza influenzare visibilmente le superfici illuminate.
-- **`ambient_light` alta sbiadisce le ombre** e rende la scena piatta: il contrasto tra facce illuminate e non illuminate collassa, e aggiungere altre luci non lo ripristina. Se la scena sembra una sfumatura bianco-diffusa, `ambient_light` è quasi sempre il colpevole.
-- **Scene con cielo HDRI: impostare `ambient_light` a zero.** L'environment map gestisce tutta l'illuminazione indiretta tramite NEE; aggiungere ambient uniform in cima vanifica lo scopo dell'IBL.
-- **Scene d'interni con sole luci esplicite:** `[0.015, 0.015, 0.02]` (un bianco freddo molto tenue) è un buon punto di partenza.
+- **Cielo flat**: `sky.type: flat` con un `color` basso (es. `[0.02, 0.02, 0.025]`). Emette uniformemente in ogni direzione e partecipa a NEE tramite uniform sphere sampling — esattamente quello che fanno Cycles/Arnold per i uniform world backgrounds.
+- **Cielo gradient**: `sky.type: gradient` con valori bassi di zenith/horizon (e opzionalmente un disco solare). Il corpo del gradiente fornisce il fill ambient via path-traced bounces; il disco solare fornisce illuminazione direzionale netta.
+- **Cielo HDRI**: `sky.type: hdri` per l'illuminazione image-based completa. La CDF importance-sampled garantisce convergenza efficiente anche per environment molto luminosi.
+
+Le scene d'interni di solito stanno meglio con un cielo flat basso (oppure un cielo nero più pannelli emissivi e area light). Le scene all'aperto usano gradient o HDRI come sorgente luminosa dominante.
 
 ---
 
@@ -387,8 +388,9 @@ Un'unica sfera e un piedistallo illuminati da diversi tipi di luce.
 # Render con: RayTracer -i lighting-comparison.yaml -w 1600 -H 500 -s 64
 
 world:
-  ambient_light: [0.01, 0.01, 0.015]
-  background: [0.02, 0.02, 0.03]
+  sky:
+    type: "flat"
+    color: [0.02, 0.02, 0.03]
 
 cameras:
   - name: "main"

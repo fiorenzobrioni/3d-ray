@@ -98,9 +98,9 @@ Il risultato finale del Path Tracer è un'immagine HDR (High Dynamic Range), che
 
 ---
 
-## 5. Campionamento dell'Ambiente (HDRI e Gradient Sky)
+## 5. Campionamento dell'Ambiente (Flat, HDRI e Gradient Sky)
 
-Quando un raggio sfugge alla scena senza colpire alcuna geometria, campiona il cielo. Se il cielo è un gradiente procedurale o un'HDRI, può anche fungere da sorgente di luce per la NEE tramite `EnvironmentLight`. Questa sezione descrive come funziona il campionamento diretto dell'ambiente.
+Quando un raggio sfugge alla scena senza colpire alcuna geometria, campiona il cielo. Tutti e tre i tipi di cielo (`flat`, `gradient` con sun disk, `hdri`) possono fungere da sorgente di luce per la NEE tramite `EnvironmentLight` quando hanno radianza non-nulla. Questa sezione descrive come funziona il campionamento diretto dell'ambiente.
 
 ### 5.1 Il Problema del Campionamento Uniforme
 
@@ -159,6 +159,12 @@ Per il cielo procedurale con sun disk, il campionamento diretto è più semplice
 
 Il sole viene trattato come una luce direzionale con area finita: può proiettare ombre morbide se `size` è grande (sole basso e diffuso), oppure ombre nette con `size` piccolo (sole allo zenit in cielo sereno).
 
+Il corpo del gradiente (zenith / horizon / ground) **non** è campionato direttamente: è una sorgente diffusa a bassa frequenza per cui il BSDF importance sampling sul percorso di miss è già ottimale, e una CDF analitica avrebbe varianza simile al BSDF puro.
+
+### 5.6 Campionamento del Flat Sky
+
+Quando il cielo è di tipo `flat` con luminanza > 0, viene campionato uniformemente sulla sfera unitaria: PDF costante `1/(4π)` per tutte le direzioni. Il caller (`EnvironmentLight.IlluminateAndTest`) scarta automaticamente le direzioni nell'emisfero inferiore della normale (rifiuto via `n·l ≤ 0`), quindi metà dei sample sono "sprecati" su superfici planari ma il bias resta zero. Questa strategia rispecchia il comportamento dei "uniform world backgrounds" di Cycles e Arnold: piccola riduzione di varianza per ogni bounce diffuso, irrilevante per riflessioni speculari (dove il BSDF è già focalizzato).
+
 ### 5.6 Stima Deterministica della Luminanza (per la Russian Roulette)
 
 Il costruttore del renderer, prima di avviare `Parallel.For`, effettua un'analisi della scena per decidere i parametri della Russian Roulette (scene in luce diretta vs. indiretta). Questa analisi chiama `EnvironmentLight.ApproximatePower(sceneBounds)`, che deve essere **completamente deterministica** — senza chiamate a `RandomFloat()`.
@@ -167,7 +173,13 @@ Per l'HDRI, la luminanza stimata viene calcolata iterando una sola volta il buff
 
 $$L_\text{avg} = \frac{\sum_{i=0}^{W \cdot H - 1} \text{Luminance}(\text{pixel}_i)}{W \cdot H} \cdot \text{intensity}$$
 
-Questo valore viene calcolato con lazy evaluation (la prima volta che viene richiesto) e poi cached. Per il gradient sky, la stima è una media pesata analitica di `ZenithColor`, `HorizonColor` e `GroundColor`, con il contributo del sole scalato per il suo angolo solido normalizzato.
+Questo valore viene calcolato con lazy evaluation (la prima volta che viene richiesto) e poi cached. Per il gradient sky, la stima è una media pesata analitica di `ZenithColor`, `HorizonColor` e `GroundColor`, con il contributo del sole scalato per il suo angolo solido normalizzato. Per il flat sky, la stima è semplicemente `Luminance(FlatColor)`.
+
+### 5.7 Rimozione del termine `ambient_light` (storico)
+
+Le versioni precedenti supportavano un campo `world.ambient_light` che veniva sommato come radianza grezza ad ogni hit di superficie, fuori dalla BRDF, dal coseno di Lambert e dall'albedo del materiale. Questa è una hack stile-Phong incompatibile con il path tracing fisico: scuriva i materiali neri sopra zero, desaturava i materiali colorati e schiariva le ombre indipendentemente dalla geometria.
+
+Il termine è stato rimosso in v2 per allinearsi alle convenzioni di produzione (Arnold, Cycles, RenderMan). L'illuminazione ambientale nasce esclusivamente dalla path-traced GI: è il cielo (qualsiasi tipo) ad agire come emettitore globale, e i rimbalzi indiretti propagano la luce alle superfici occluse. Per riprodurre il vecchio comportamento "fill light" basta usare un `sky.type: flat` con un colore basso (es. `[0.05, 0.05, 0.06]`).
 
 ---
 

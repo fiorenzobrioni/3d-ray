@@ -476,8 +476,9 @@ Keep these tips in mind:
 # Stone pillars in fog with a spot light creating a visible beam.
 
 world:
-  ambient_light: [0.005, 0.005, 0.008]
-  background: [0.01, 0.01, 0.02]
+  sky:
+    type: "flat"
+    color: [0.01, 0.01, 0.02]
   medium:
     type: "homogeneous"
     sigma_a: [0.008, 0.008, 0.008]

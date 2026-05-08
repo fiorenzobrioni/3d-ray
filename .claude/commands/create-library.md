@@ -105,8 +105,9 @@ materials:
 #
 #  WORLD ABBINATO:
 #    world:
-#      ambient_light: [R, G, B]
-#      background: [R, G, B]
+#      sky:
+#        type: "flat"        # oppure "gradient" / "hdri"
+#        color: [R, G, B]
 #
 #  RENDER CONSIGLIATO:
 #    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1

@@ -601,8 +601,9 @@ Una scena che mostra otto diversi materiali uno accanto all'altro.
 # Otto sfere su piedistalli, ognuna con un materiale diverso.
 
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background: [0.02, 0.02, 0.03]
+  sky:
+    type: "flat"
+    color: [0.02, 0.02, 0.03]
 
 cameras:
   - name: "main"

@@ -167,7 +167,25 @@ public class SkySettings
     //  Direct Sampling (Next Event Estimation)
     // ─────────────────────────────────────────────────────────────────────────
 
-    public bool CanSampleDirectly => IsHdri || HasSun;
+    /// <summary>
+    /// Threshold below which a flat sky's luminance is treated as "off" for NEE.
+    /// Avoids registering a fully-black flat sky as a light and wasting shadow rays.
+    /// </summary>
+    private const float FlatSkyNeeLuminanceThreshold = 1e-6f;
+
+    /// <summary>
+    /// True when the sky can be importance-sampled as a direct light source via NEE:
+    ///   - HDRI: importance-sampled by the environment map's CDF.
+    ///   - Gradient with sun disk: cone-sampled inside the sun.
+    ///   - Flat: uniform sphere sampling (matches Cycles/Arnold uniform world background).
+    /// A pure gradient without a sun disk is intentionally excluded — its body has no
+    /// concentrated radiance peaks, so BSDF importance sampling on the miss path is
+    /// already optimal.
+    /// </summary>
+    public bool CanSampleDirectly =>
+        IsHdri ||
+        HasSun ||
+        (Mode == SkyMode.Flat && MathUtils.Luminance(FlatColor) > FlatSkyNeeLuminanceThreshold);
 
     /// <summary>
     /// Deterministic estimate of average sky radiance, used by
@@ -213,9 +231,18 @@ public class SkySettings
     }
 
     /// <summary>
-    /// Samples a random direction towards a bright part of the sky (HDRI or Sun).
+    /// Inverse of the unit sphere's solid angle (4π sr). Used as the PDF for
+    /// uniform sphere sampling on a flat sky.
     /// </summary>
-    /// <returns>The sampled direction, the unbounded radiance of that direction (Color/Intensity), and the PDF.</returns>
+    private const float UniformSpherePdf = 1f / (4f * MathF.PI);
+
+    /// <summary>
+    /// Samples a direction over the sky for NEE.
+    ///   - HDRI: importance-sampled by the environment map's CDF.
+    ///   - Gradient with sun disk: cone-sampled inside the sun cap.
+    ///   - Flat: uniform on the unit sphere (pdf = 1/(4π)).
+    /// </summary>
+    /// <returns>The sampled direction, the radiance at that direction, and the solid-angle PDF.</returns>
     public (Vector3 Direction, Vector3 Color, float Pdf) SampleDirectly()
     {
         if (IsHdri && _envMap != null)
@@ -223,35 +250,37 @@ public class SkySettings
             var (dir, pdf) = _envMap.SampleDirection();
             return (dir, _envMap.Sample(dir), pdf);
         }
-        else if (HasSun)
+
+        if (HasSun)
         {
-            // Sample uniformly within the sun's cone
+            // Sample uniformly within the sun's cone.
             float z = 1f - MathUtils.RandomFloat() * (1f - SunCosAngle);
             float sinTheta = MathF.Sqrt(1f - z * z);
             float phi = 2f * MathF.PI * MathUtils.RandomFloat();
             float x = MathF.Cos(phi) * sinTheta;
             float y = MathF.Sin(phi) * sinTheta;
 
-            // Local basis around SunDirection (points FROM scene TO sun)
-            Vector3 w = SunDirection; // Already a normalized vector pointing to the sun
+            // Local basis around SunDirection (points FROM scene TO sun).
+            Vector3 w = SunDirection;
             Vector3 u = Vector3.Normalize(Vector3.Cross(MathF.Abs(w.X) > 0.1f ? Vector3.UnitY : Vector3.UnitX, w));
             Vector3 v = Vector3.Cross(w, u);
-            
+
             Vector3 dir = Vector3.Normalize(x * u + y * v + z * w);
 
             float solidAngle = 2f * MathF.PI * (1f - SunCosAngle);
             float pdf = solidAngle > 0f ? 1f / solidAngle : 1f;
 
-            // Wait, we also need to account for atmospheric scattering / gradient color at that direction
-            // but for a small sun, SunColor * SunIntensity is 99% of the radiance.
-            // Let's just evaluate the full sky at that direction!
+            // Evaluate the full sky (gradient + sun) at the sampled direction so
+            // the NEE estimator captures both the sun's peak and the gradient
+            // body inside the cone.
             return (dir, SampleGradient(new Ray(Vector3.Zero, dir)), pdf);
         }
 
-        // Fallback (Uniform sampling of hemisphere) - actually unused if CanSampleDirectly is checked
+        // Flat sky: uniform on the unit sphere. Pairs with PdfSolidAngle below.
+        // The shadow-test caller (EnvironmentLight) rejects directions in the
+        // surface's lower hemisphere, so wasted samples cost only one Random pair.
         Vector3 randomDir = MathUtils.RandomUnitVector();
-        if (randomDir.Y < 0) randomDir.Y = -randomDir.Y;
-        return (randomDir, FlatColor, 1f / (2f * MathF.PI));
+        return (randomDir, FlatColor, UniformSpherePdf);
     }
 
     /// <summary>
@@ -278,6 +307,7 @@ public class SkySettings
             return solidAngle > 0f ? 1f / solidAngle : 0f;
         }
 
-        return 0f;
+        // Flat sky: uniform on the unit sphere — same constant for any direction.
+        return UniformSpherePdf;
     }
 }

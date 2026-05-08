@@ -185,7 +185,7 @@ class Program
         var sw = Stopwatch.StartNew();
         try
         {
-            var (world, camera, lights, ambientLight, sky, globalMedium) =
+            var (world, camera, lights, sky, globalMedium) =
                 SceneLoader.Load(inputPath, width, height, shadowSamplesOverride, cameraSelector);
 
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
@@ -200,7 +200,7 @@ class Program
             Console.WriteLine($"  Sky:         {skyDesc}");
 
             // Render (constructor may print scene analysis info before the blank line)
-            var renderer = new Renderer(world, camera, lights, ambientLight, sky, samples, depth, globalMedium, clampOverride, verbose, misHeuristic, lightSampling, indirectClampFactor);
+            var renderer = new Renderer(world, camera, lights, sky, samples, depth, globalMedium, clampOverride, verbose, misHeuristic, lightSampling, indirectClampFactor);
             Console.WriteLine();
 
             sw.Restart();

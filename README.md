@@ -98,9 +98,11 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🟧 **Area Light** — emettitore rettangolare con soft shadows fisicamente corretti via campionamento Monte Carlo
 - 🟡 **Sphere Light** — Luce sferica con solid-angle sampling: penumbra circolare uniforme, zero campioni sprecati, efficienza 2–10× superiore alla sfera emissiva equivalente per sfere piccole/distanti. Ideale per lampadine, lanterne e globi luminosi.
 - ✨ **Emissive Objects** — qualsiasi geometria con materiale `emissive` diventa sorgente di luce visibile con illuminazione indiretta naturale
-- 🌐 **Environment Light** — gradient sky e HDRI partecipano alla NEE come sorgenti di luce direzionali campionabili
+- 🌐 **Environment Light** — flat / gradient / HDRI sky partecipano tutti alla NEE: il flat sky come uniform sphere sampler, il gradient con sun-disk via cone sampling, l'HDRI via CDF di luminanza importance-sampled
+- 🪞 **Path-traced GI puro** — nessun termine `ambient_light` non-fisico (rimosso in v2): la luce ambientale nasce dai rimbalzi indiretti, esattamente come in Arnold, Cycles e RenderMan
 
 ### Ambiente
+- ☁️ **Flat Sky** — cielo a colore uniforme. Default `[0.5, 0.7, 1.0]` quando `world.sky` è omesso; partecipa a NEE quando luminanza > 0.
 - 🌅 **Gradient Sky** — cielo procedurale con gradiente verticale a 3 bande (zenith, orizzonte, terreno) e sun disk con glow halo. Configurabile via YAML con preset per mezzogiorno, golden hour, tramonto e notte.
 - 🌍 **IBL / HDRI** — Image-Based Lighting da file Radiance `.hdr`: illuminazione globale fotorealistica catturata da fotografie HDR a 360° con importance sampling per convergenza rapida. Compatibile con [Poly Haven](https://polyhaven.com/hdris) (CC0).
 

@@ -75,8 +75,7 @@ Struttura del file:
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:
-  ambient_light: [...]
-  sky: { ... }          # gradient neutro (default) oppure background scuro per emissivi
+  sky: { ... }          # flat scuro per emissivi, gradient neutro per outdoor, hdri per realismo
   ground:
     type: "infinite_plane"
     material: "pavimento"
@@ -100,8 +99,10 @@ entities:
 ### 4. Regole specifiche showcase
 
 **Ambiente neutro:**
-- Outdoor: sky gradient con colori desaturati, `ground` checker grigio o pietra
-- Indoor/emissivi: `background` quasi nero, `ambient_light` minima
+- Outdoor: `sky.type: gradient` con colori desaturati, `ground` checker grigio o pietra.
+- Indoor / emissivi: `sky.type: flat` con `color: [0.0, 0.0, 0.0]` — gli emissivi e le luci esplicite forniscono tutta l'illuminazione.
+- Studio fill morbido: `sky.type: flat` con un grigio basso neutro (es. `[0.04, 0.04, 0.05]`) — partecipa a NEE come uniform sphere.
+- IMPORTANTE: i campi `ambient_light` e `background` sono stati rimossi in v2 — non usarli mai.
 
 **Camere:**
 - `principale`: vista d'insieme, tutti gli oggetti nel frame, FOV 38–48

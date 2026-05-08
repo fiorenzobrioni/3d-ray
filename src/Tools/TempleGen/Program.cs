@@ -50,7 +50,6 @@ class Program
         # =========================================================================
 
         world:
-          ambient_light: [0.08, 0.09, 0.15]
           ground:
             type: "infinite_plane"
             point: [0, 0, 0]

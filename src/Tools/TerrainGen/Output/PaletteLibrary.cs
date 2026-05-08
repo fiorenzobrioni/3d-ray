@@ -118,7 +118,6 @@ public static class PaletteLibrary
     }
 
     public sealed record SkyPalette(
-        Vector3 Ambient,
         Vector3 Zenith,
         Vector3 Horizon,
         Vector3 Ground,
@@ -132,7 +131,6 @@ public static class PaletteLibrary
         return season switch
         {
             Season.Primavera => new(
-                Ambient:  new(0.06f, 0.08f, 0.10f),
                 Zenith:   new(0.30f, 0.55f, 0.85f),
                 Horizon:  new(0.92f, 0.94f, 0.96f),
                 Ground:   new(0.30f, 0.36f, 0.20f),
@@ -141,7 +139,6 @@ public static class PaletteLibrary
                 SunIntensity: 14f, SunSize: 2.5f),
 
             Season.Estate => new(
-                Ambient:  new(0.07f, 0.08f, 0.10f),
                 Zenith:   new(0.18f, 0.38f, 0.78f),
                 Horizon:  new(0.85f, 0.90f, 0.96f),
                 Ground:   new(0.36f, 0.34f, 0.20f),
@@ -150,7 +147,6 @@ public static class PaletteLibrary
                 SunIntensity: 18f, SunSize: 2.0f),
 
             Season.Autunno => new(
-                Ambient:  new(0.05f, 0.05f, 0.07f),
                 Zenith:   new(0.10f, 0.20f, 0.45f),
                 Horizon:  new(0.92f, 0.55f, 0.30f),
                 Ground:   new(0.30f, 0.20f, 0.10f),
@@ -159,7 +155,6 @@ public static class PaletteLibrary
                 SunIntensity: 12f, SunSize: 3.0f),
 
             Season.Inverno => new(
-                Ambient:  new(0.06f, 0.07f, 0.10f),
                 Zenith:   new(0.25f, 0.32f, 0.45f),
                 Horizon:  new(0.78f, 0.82f, 0.88f),
                 Ground:   new(0.55f, 0.55f, 0.60f),

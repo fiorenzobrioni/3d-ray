@@ -63,8 +63,9 @@ imports:
   - path: "libraries/lights/..."
 
 world:
-  ambient_light: [R, G, B]
-  background: [R, G, B]       # oppure sky: con gradient
+  sky:                          # unico emettitore d'ambiente (flat / gradient / hdri)
+    type: "flat"
+    color: [R, G, B]            # oppure type: "gradient" con zenith/horizon/ground/sun
 
 cameras:
   - name: "principale"
@@ -100,9 +101,12 @@ entities: []                  # oggetti della scena
 - `aperture: 0.0` per nitidezza totale, `> 0` per bokeh
 
 **Luci e ambiente:**
-- Interni notturni: `ambient_light` e `background` quasi neri
-- Esterni diurni: usare `sky:` con gradient e `sun:`
-- Non mescolare luce importata e luci duplicate dello stesso tipo
+- Interni notturni / studio: `sky.type: flat` con `color` quasi nero (es. `[0.0, 0.0, 0.0]`); l'illuminazione viene da luci esplicite o oggetti emissivi.
+- Studio con fill morbido: `sky.type: flat` con un colore basso neutro (es. `[0.05, 0.05, 0.06]`) — il flat sky partecipa a NEE come uniform sphere.
+- Esterni diurni: `sky.type: gradient` con zenith/horizon/ground e disco `sun:` (può essere l'unica sorgente luminosa).
+- HDRI: `sky.type: hdri` con `path:`; nessun fill aggiuntivo necessario.
+- IMPORTANTE: NON usare mai i campi rimossi `ambient_light` o `background` — sono stati eliminati in v2 (erano un termine ambient non-fisico stile-Phong).
+- Non mescolare luce importata e luci duplicate dello stesso tipo.
 
 **Campioni render:**
 - Profondità `-d`: 4 (preview) / 6 (standard) / 8+ (finale) / 16-20 (scene con vetro/rifrazione)

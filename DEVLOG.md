@@ -240,6 +240,99 @@ Richiedono modifiche a `IMedium` / `HitRecord` / `Renderer.TraceRay` e perciò s
 
 ---
 
+## 🗓️ Ciclo World/Sky — Rimozione `ambient_light` non-fisico (May 2026)
+
+Branch `claude/review-ambient-light-sky-vX2YO`. Allineamento del modello
+d'ambiente alle convenzioni dei renderer di produzione (Arnold, Cycles,
+RenderMan): un singolo emettitore globale `world.sky`, niente termine
+ambient stile-Phong.
+
+### Bug fix
+- `Renderer.ComputeDirectLighting` sommava `_ambientLight` come radianza
+  grezza ad ogni hit di superficie, fuori da BRDF / coseno / albedo del
+  materiale. Sintomi: superfici nere illuminate sopra zero, colori saturi
+  desaturati, ombre schiarite indipendentemente dalla geometria. Default
+  `[0.1, 0.1, 0.1]` aggravava il problema su tutte le scene che non lo
+  sovrascrivevano. **Rimosso interamente.**
+
+### Breaking changes (YAML)
+- Rimossa la chiave `world.ambient_light`. Il termine non esiste in
+  path tracer di produzione: l'illuminazione ambientale nasce dai
+  rimbalzi indiretti del path-tracing.
+- Rimossa la chiave `world.background`. Sostituita da `world.sky.type:
+  flat` con campo `color`.
+- Default flat sky: `[0.5, 0.7, 1.0]` (preservato dal vecchio
+  `background` default — nessuna deriva visiva sulle scene che si
+  affidavano al default).
+- Aggiunto il `type: flat` esplicito nel parser di `world.sky` con
+  campo `color`.
+- YamlDotNet ignora silenziosamente le chiavi vecchie: scene legacy
+  caricano senza errori, ma il loro vecchio "fill" sparisce. Migrazione
+  manuale richiesta.
+
+### Enhancement — flat sky NEE
+- Quando `Luminance(FlatColor) > 1e-6`, `SkySettings.CanSampleDirectly`
+  ora ritorna `true` anche per il flat sky, che partecipa a NEE via
+  uniform sphere sampling (`pdf = 1/(4π)`). Allineamento con i "uniform
+  world backgrounds" di Cycles/Arnold. Strict variance reduction, no
+  bias. La MIS in `Renderer.SampleSky` e il rifiuto `n·l ≤ 0` in
+  `EnvironmentLight.IlluminateAndTest` gestiscono il caso senza modifiche.
+
+### Test
+- `AmbientLightRemovalTests.BlackLambertianFloor_RendersBlack_WithBlackSky`
+  — guard-rail unit-test: una superficie Lambertian con albedo
+  `Vector3.Zero` sotto una directional + flat-sky nero produce pixel
+  esattamente zero. Cattura immediatamente regressioni che reintroducano
+  un termine ambient non modulato.
+- `FireflyRegressionTests` aggiornato alla nuova signature del
+  costruttore Renderer (drop di `ambientLight:`).
+
+### File toccati (codice)
+- `src/RayTracer/Scene/SceneData.cs` — drop `WorldData.AmbientLight` /
+  `WorldData.Background`; aggiunto `SkyData.Color`.
+- `src/RayTracer/Scene/SceneLoader.cs` — drop parsing ambient/background;
+  `BuildSkySettings` accetta `type: flat` con `color`; default sky
+  `[0.5, 0.7, 1.0]`; signature `Load()` aggiornata.
+- `src/RayTracer/Rendering/Renderer.cs` — rimosso campo `_ambientLight`,
+  parametro costruttore, e `result = _ambientLight` in
+  `ComputeDirectLighting` (ora `Vector3.Zero`).
+- `src/RayTracer/Rendering/SkySettings.cs` — flat-sky NEE
+  (`SampleDirectly` / `PdfSolidAngle` / `CanSampleDirectly`).
+- `src/RayTracer/Program.cs`, `src/RayTracer.Benchmarks/RenderBenchmarks.cs`,
+  `src/RayTracer.Tests/FireflyRegressionTests.cs` — adattati alla
+  nuova signature.
+- `src/Tools/{TerrainGen,ChessGen,TempleGen}` — rimossi i template
+  YAML che emettevano `ambient_light:`.
+- `scenes/chess.yaml` — fixture CI smoke: rimosso `ambient_light` per
+  mantenere il workflow verde dopo il merge.
+
+### File toccati (docs)
+- `docs/reference/{scene-reference.md,riferimento-scene.md}` —
+  riscrittura della sezione WORLD; aggiunto blocco `flat`; nota di
+  breaking change in cima.
+- `docs/technical/{rendering-pipeline.md,path-tracing-and-lighting.md}`
+  — aggiornati flusso di `Load()`, `BuildSkySettings`, descrizione
+  dell'`EnvironmentLight`; aggiunta sezione "Campionamento del Flat Sky"
+  e nota storica sulla rimozione di `ambient_light`.
+- Tutti i 12 capitoli del tutorial in EN e IT — rimosso ogni esempio
+  YAML con `ambient_light` / `background`; riscritti i Capitoli 02 e 06
+  (sezione su "ambient and explicit lights"); aggiornato il Capitolo 07
+  (sky modes) con il `flat` esplicito e la nota di rimozione.
+- `.claude/commands/{create-scene,create-showcase,create-library,
+  add-light,scene-review}.md` — aggiornati i template e le check-list
+  per non emettere mai più i campi rimossi.
+- `scenes/libraries/README.md`, `README.md` (root) — esempi e highlights
+  aggiornati.
+
+### Migrazione delle scene utente
+Le 79 scene rimanenti del repo che contengono ancora
+`ambient_light:` / `background:` caricano regolarmente: YamlDotNet
+ignora le chiavi sconosciute. Effetto pratico: spariscono il fill
+non-fisico e (se assente `sky:`) compare il flat blu daylight di default.
+La migrazione manuale è prevista a carico dell'utente.
+
+---
+
 ## 🗓️ Ciclo di Review — Disney BSDF & Sampling (Apr 2026)
 
 Branch `claude/review-disney-materials-QO2mO`. Snapshot delle feature

@@ -6,9 +6,8 @@
 
 world:
   # --- Configurazione Corrente: Giardino Pomeridiano per Metalli ---
-  # Lo sky gradient fornisce ai metalli un cielo credibile da riflettere.
-  # L'ambient fill schiarisce le ombre senza appiattire i contrasti.
-  ambient_light: [0.0, 0.0, 0.0]
+  # Lo sky gradient fornisce ai metalli un cielo credibile da riflettere
+  # ed e' la sola sorgente di illuminazione ambientale (path-traced GI).
   sky:
     type: "gradient"
     zenith_color:  [0.02, 0.03, 0.06]

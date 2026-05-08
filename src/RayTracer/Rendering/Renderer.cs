@@ -52,7 +52,6 @@ public class Renderer
     private readonly IHittable _world;
     private readonly Camera.Camera _camera;
     private readonly List<ILight> _lights;
-    private readonly Vector3 _ambientLight;
     private readonly SkySettings _sky;
     private readonly int _maxDepth;
     private readonly int _samplesPerPixel;
@@ -168,7 +167,6 @@ public class Renderer
         IHittable world,
         Camera.Camera camera,
         List<ILight> lights,
-        Vector3 ambientLight,
         SkySettings sky,
         int samplesPerPixel,
         int maxDepth,
@@ -182,7 +180,6 @@ public class Renderer
         _world = world;
         _camera = camera;
         _lights = lights;
-        _ambientLight = ambientLight;
         _sky = sky;
         _samplesPerPixel = samplesPerPixel;
         _maxDepth = maxDepth;
@@ -937,7 +934,7 @@ public class Renderer
     /// </summary>
     private Vector3 ComputeDirectLighting(HitRecord rec, Vector3 viewDir, IMaterial? material)
     {
-        Vector3 result = _ambientLight;
+        Vector3 result = Vector3.Zero;
 
         if (_lightDist != null)
         {

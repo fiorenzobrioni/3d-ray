@@ -24,28 +24,33 @@ directional and one point). If you include an empty `lights: []`, the
 scene has no explicit lights -- useful when relying entirely on emissive
 objects or HDRI environment lighting.
 
-### `ambient_light` and explicit lights
+### Where ambient lighting comes from
 
-`ambient_light` (defined in `world:`, introduced in Chapter 2) is
-**additive** with every other light source — it is not an override or a
-replacement. A scene with three area lights *and*
-`ambient_light: [0.2, 0.2, 0.2]` adds 0.2 RGB on top of whatever the
-explicit lights already contribute.
+3D-Ray has no `ambient_light` field. There is no Phong-style additive
+constant added to every surface — that hack desaturates colours and
+washes out shadows by bypassing the BRDF, the cosine factor and the
+material albedo. Industry-standard renderers (Arnold, Cycles, RenderMan)
+work the same way: ambient illumination arises from path-traced GI
+alone.
 
-Practical rules:
+If you want soft fill light in your scene, you have three physically
+correct options, all configured under `world: > sky:` (see Chapter 7):
 
-- **Keep it very low (0.01–0.05 per channel).** It fills the deepest
-  shadows just enough to prevent pitch black without visibly affecting lit
-  surfaces.
-- **High `ambient_light` washes out shadows** and makes the scene look
-  flat: the contrast between lit and unlit faces collapses, and no amount
-  of adding more lights will restore it. If your scene looks like a
-  diffuse white smear, `ambient_light` is usually the culprit.
-- **HDRI sky scenes: set `ambient_light` to zero.** The environment map
-  handles all indirect illumination through NEE; adding ambient on top
-  brightens everything uniformly and defeats the purpose of IBL.
-- **Indoor scenes with only explicit lights:** `[0.015, 0.015, 0.02]`
-  (a very faint cool-white) is a good starting point.
+- **Flat sky**: `sky.type: flat` with a low `color` (e.g. `[0.02, 0.02, 0.025]`).
+  This emits uniformly in every direction and participates in NEE via
+  uniform sphere sampling — exactly what Cycles/Arnold do for uniform
+  world backgrounds.
+- **Gradient sky**: `sky.type: gradient` with low zenith/horizon values
+  (and optionally a sun disk). The body of the gradient drives ambient
+  fill via path-traced bounces; the sun disk drives sharp directional
+  illumination.
+- **HDRI sky**: `sky.type: hdri` for fully image-based lighting.
+  Importance-sampled CDF guarantees efficient convergence even for very
+  bright environments.
+
+Indoor scenes typically do best with a low flat sky (or a black sky
+plus emissive panels and area lights). Outdoor scenes use gradient or
+HDRI as their dominant light source.
 
 ---
 
@@ -491,8 +496,9 @@ A single sphere and pedestal lit by different light types.
 # Render with: RayTracer -i lighting-comparison.yaml -w 1600 -H 500 -s 64
 
 world:
-  ambient_light: [0.01, 0.01, 0.015]
-  background: [0.02, 0.02, 0.03]
+  sky:
+    type: "flat"
+    color: [0.02, 0.02, 0.03]
 
 cameras:
   - name: "main"

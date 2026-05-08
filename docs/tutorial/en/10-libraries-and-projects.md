@@ -262,8 +262,9 @@ imports:
 
 # Each light library suggests a matching world config in its header comments.
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background: [0.0, 0.0, 0.0]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
 ```
 
 ### 🛡️ Light hardening: cut fireflies without raising spp
@@ -469,8 +470,9 @@ create a new empty file.
 
 ```yaml
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background: [0.0, 0.0, 0.0]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
 
 cameras:
   - name: "main"
@@ -542,21 +544,23 @@ knob, see **[Rendering Profiles Reference](../../reference/rendering-profiles.md
 - **Camera inside an object.** Move the camera `position` outside all
   geometry.
 - **Camera facing the wrong way.** Check `look_at`.
-- **`ambient_light: [0,0,0]` with no lights.** A scene needs at least
-  one light source or a non-zero background. Adding
-  `ambient_light: [0.02, 0.02, 0.02]` will help you locate geometry
-  even with no explicit lights.
+- **`sky.color: [0,0,0]` with no lights.** A scene needs at least one
+  light source or a non-zero sky. Setting `sky.type: flat` with
+  `color: [0.02, 0.02, 0.02]` gives you a faint global emitter to
+  locate geometry even with no explicit lights.
 
 ### Scene Looks Flat or Washed Out
-- **`ambient_light` is too high.** Values above 0.1 compress the shadow
-  contrast and make every surface look uniformly lit. Lower it to
-  0.01–0.05, or set it to zero for HDRI scenes.
-- **No dominant directional light.** A scene lit only by ambient and
-  fill lights has no clear shadow direction; add a key light with higher
-  intensity to establish contrast.
+- **Sky is too bright relative to your key light.** A flat sky with a
+  high `color` (e.g. `[0.5, 0.5, 0.5]`) bounces a lot of fill onto every
+  surface; if it dominates your key light you lose shadow contrast.
+  Lower the sky colour or raise the key light's `intensity`.
+- **No dominant directional light.** A scene lit only by a sky has no
+  clear shadow direction; add a key light (directional, area, or sun
+  disk inside a gradient sky) with higher intensity to establish
+  contrast.
 - **All lights are the same color.** Real environments mix warm and cool
   light. Try a warm key light (`[1.0, 0.9, 0.75]`) paired with a cool
-  fill light (`[0.7, 0.8, 1.0]`).
+  flat sky (`[0.05, 0.07, 0.1]`).
 
 ### Too Much Noise
 - Increase samples: `-s 64` or `-s 256`.
@@ -631,8 +635,9 @@ imports:
   - path: "libraries/objects/decorative-objects.yaml"
 
 world:
-  ambient_light: [0.015, 0.015, 0.02]
-  background: [0.0, 0.0, 0.0]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
 
 cameras:
   - name: "overview"
