@@ -220,6 +220,17 @@ phase: "schlick"
 g: 0.6
 ```
 
+**Quale tipo di medium scegliere:**
+
+| Tipo | Profilo di densità | Costo | Quando usarlo |
+|---|---|---|---|
+| `homogeneous` | Costante ovunque | Analitico, economico | Scene indoor, interni delimitati, ambienti subacquei chiusi, colonne di fumo confinate da geometria. **Da evitare quando l'illuminazione è solo `sky` + `sun` o HDRI** (vedi avviso sotto). |
+| `height_fog` | Decadimento esponenziale con l'altitudine (`exp(-(y-y0)/H)`) | Analitico, economico | Scene outdoor illuminate da sky / sun / HDRI: aerial perspective, montagne all'alba, orizzonte sul mare, smog. **Scelta di default per ogni scena outdoor con illuminazione direzionale / ambientale.** |
+| `procedural` | Perlin fBm (delta tracking) | Più rumoroso (+30–100% di tempo) | Nebbia a chiazze / irregolare, horror, god-ray non uniformi, foreste nebbiose, superfici d'acqua con foschia a macchie. |
+| `grid` | Densità campionata su griglia 3D (inline o `.vol`) | Delta tracking + filtro voxel | Nubi localizzate, fumo da cache di simulazione, esplosioni, asset VFX hero. Il medium esiste solo dentro la sua AABB — fuori è vuoto e il resto della scena non è influenzato. |
+
+> ⚠️ **Sky + sun + `homogeneous` = render nero.** Un medium globale `homogeneous` ha densità *costante* estesa all'infinito, quindi lo shadow ray Beer–Lambert verso il sole (o verso qualsiasi direzione del cielo) attraversa `exp(-σ_t · ∞) ≈ 0` e il direct lighting ambientale collassa a zero. Le luci spot/point/area/sphere hanno distanza finita e si comportano correttamente, ma se gli *unici* emettitori sono `sky` + `sun` (o HDRI) il render esce nero. Usa `height_fog` al posto suo — la sua profondità ottica verso lo zenit è limitata dallo `scale_height`, che è esattamente il modello "aerial perspective" usato da Arnold, V-Ray e Unreal. È il comportamento fisicamente corretto di `homogeneous` (le atmosfere reali non sono infinite), non un bug del renderer.
+
 - **Uso:** Simula nebbia, fumo, foschia atmosferica, nubi, effetti subacquei.
 - **Tip rendering:** `homogeneous` e `height_fog` sono analitici ed economici. `procedural` e `grid` usano delta tracking e sono più rumorosi — alza `-s` a 400/576/1024 e mantieni `-d 6-8`. Per scene con nebbia densa considera `-C 25`. Vedi [Profili di Rendering](./profili-di-rendering.md) §8 per la guida completa.
 - **Effetti:** Luci spot → god-ray visibili; point light → aloni; directional → aerial perspective (con `height_fog`).
