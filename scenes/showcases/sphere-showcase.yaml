@@ -2,18 +2,6 @@
 #  SPHERE SHOWCASE DISNEY — Espositore 6×6 Sfere di Materiali PBR Moderni
 # =============================================================================
 #
-#  Versione ENHANCED v3: allineata alle estensioni Disney BSDF recenti —
-#  sheen Charlie con sheen_roughness esplicito, Arnold-style coat
-#  (coat_roughness sostituisce clearcoat_gloss legacy), anisotropic +
-#  anisotropic_rotation sui metalli spazzolati (copper/bronze/gunmetal).
-#  table_top convertito da metal+fuzz a disney opaco per eliminare il
-#  rumore dell'ombra proiettata dal case sul piano del tavolo. glass_diamond
-#  senza clearcoat (evita il conflitto delta↔delta tra transmission e coat
-#  che generava fireflies sulla sfera). Multi-camera, setup luci
-#  cinematografico (solo point/spot/directional, zero area light, zero
-#  emissive), ambientazione curata con muri in stucco.
-#  Nessun gradient sky (stanza chiusa) — render molto più veloce.
-#
 #  Camere disponibili (--camera <nome>):
 #    hero          Vista 3/4 classica con DOF (default)
 #    frontale      Simmetrica centrata, stile catalogo
@@ -34,10 +22,9 @@
 #  WORLD
 # =============================================================================
 world:
-  # Ambiente e sfondo nero — stanza chiusa, nessun cielo visibile
   sky:
     type: "flat"
-    color: [0.0, 0.0, 0.0]
+    color: [0.1, 0.1, 0.15]
   ground:
     type: "infinite_plane"
     material: "floor_stone"

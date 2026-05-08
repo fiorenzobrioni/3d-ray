@@ -38,9 +38,11 @@ world:
     material: "pavimento"
     y: 0
   medium:
-    type: homogeneous
+    type: height_fog
     sigma_a: [0.012, 0.014, 0.018]
     sigma_s: [0.040, 0.045, 0.050]
+    y0: 0
+    scale_height: 8
     phase: "hg"
     g: 0.50
 
@@ -48,16 +50,6 @@ camera:
   position: [0, 1.6, -8]
   look_at:  [-0.5, 1.0, 6]
   fov: 50
-
-lights:
-#  - type: "spot"
-#    position: [-2, 2.6, -8]
-#    direction: [0, -0.2, 1]
-#    color: [1.0, 1.0, 1.0]
-#    intensity: 150.0
-#    inner_angle: 20
-#    outer_angle: 40
-#    soft_radius: 0.25
 
 materials:
   - id: "pavimento"
