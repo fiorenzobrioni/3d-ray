@@ -106,9 +106,17 @@ public class Transform : IHittable, ISamplable
         // Transform the hit point back to world space
         rec.Point = Vector3.Transform(rec.Point, _transform);
 
-        // Transform the normal using the normal matrix (handles non-uniform scale)
-        Vector3 worldNormal = Vector3.Normalize(Vector3.TransformNormal(rec.Normal, _normalMatrix));
-        rec.SetFaceNormal(ray, worldNormal);
+        // Transform the normal using the normal matrix (handles non-uniform scale).
+        // We must NOT call SetFaceNormal again here: rec.Normal is already a shading
+        // normal (against ray) and rec.FrontFace was set by the inner Hit(). Calling
+        // SetFaceNormal a second time treats the shading normal as if it were the
+        // geometric outward and recomputes FrontFace from scratch, which inverts the
+        // flag on every back-face hit and on every CSG-flipped surface (where CSG
+        // intentionally flips the normal so it stays co-directional with the ray).
+        // Both operations preserve dot-product sign for any invertible transform —
+        // (M⁻ᵀN)·(MD) = N·D — so FrontFace remains valid in world space without
+        // recomputation.
+        rec.Normal = Vector3.Normalize(Vector3.TransformNormal(rec.Normal, _normalMatrix));
 
         // Tangent and bitangent are direction vectors, they transform with the forward matrix
         rec.Tangent   = Vector3.Normalize(Vector3.TransformNormal(rec.Tangent,   _transform));
