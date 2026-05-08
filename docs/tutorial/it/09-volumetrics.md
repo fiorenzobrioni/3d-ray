@@ -351,8 +351,9 @@ Il rendering volumetrico è più impegnativo del rendering solo superficiale. Ti
 # Pilastri di pietra nella nebbia con una luce spot che crea un raggio visibile.
 
 world:
-  ambient_light: [0.005, 0.005, 0.008]
-  background: [0.01, 0.01, 0.02]
+  sky:
+    type: "flat"
+    color: [0.01, 0.01, 0.02]
   medium:
     type: "homogeneous"
     sigma_a: [0.008, 0.008, 0.008]

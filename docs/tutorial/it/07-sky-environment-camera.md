@@ -6,15 +6,17 @@ Il cielo è la più grande sorgente luminosa in qualsiasi scena all'aperto. Un a
 
 ## 7.1 Modalità Cielo (Sky Modes)
 
-Il cielo determina il colore che riceve un raggio quando non colpisce alcun oggetto e fugge all'infinito. 3D-Ray supporta tre modalità di cielo, configurabili sotto `world: > sky:`.
+Il cielo è l'unico emettitore globale per l'illuminazione ambientale in 3D-Ray. Determina il colore che riceve un raggio quando non colpisce alcun oggetto e fugge all'infinito, e partecipa alla Next Event Estimation (NEE) come sorgente luminosa quando la sua radianza è non-zero. Sono supportate tre modalità, configurabili sotto `world: > sky:`.
 
-| Modalità   | Descrizione                                          |
-|------------|------------------------------------------------------|
-| `flat`     | Colore singolo a tinta unita (usa `background`)      |
-| `gradient` | Gradiente verticale a tre bande con sole opzionale   |
-| `hdri`     | Immagine HDR equirettangolare (image-based lighting) |
+| Modalità   | Descrizione                                                |
+|------------|------------------------------------------------------------|
+| `flat`     | Colore uniforme su tutta la sfera (default)                |
+| `gradient` | Gradiente verticale a tre bande con disco solare opzionale |
+| `hdri`     | Immagine HDR equirettangolare (image-based lighting)       |
 
-Quando non è presente il blocco `sky:`, il motore utilizza un cielo piatto con il colore di `background:`.
+Quando non è presente il blocco `sky:`, il motore utilizza un cielo piatto con il colore daylight blu di default `[0.5, 0.7, 1.0]`.
+
+> **Rimossi in v2:** `world.ambient_light` e `world.background` non esistono più. Il vecchio termine ambient veniva sommato come radianza grezza ad ogni hit di superficie, scavalcando BRDF/coseno/albedo e desaturando i colori. I renderer di produzione (Arnold, Cycles, RenderMan) non hanno un termine analogo: la luce ambientale e indiretta nasce dalla GI path-traced. Per riprodurre un effetto "fill light", usa `sky.type: flat` con un colore basso, o un gradient con zenith fioco.
 
 ---
 
@@ -22,20 +24,12 @@ Quando non è presente il blocco `sky:`, il motore utilizza un cielo piatto con 
 
 ```yaml
 world:
-  background: [0.5, 0.65, 0.9]
-```
-
-Senza una sezione `sky:`, i raggi che escono dalla scena restituiscono il colore di `background`. Questo è perfettamente adeguato per scene da studio con illuminazione controllata (dove lo sfondo è solitamente nero) o semplici bozze all'aperto.
-
-Si può anche essere espliciti:
-
-```yaml
-world:
   sky:
     type: "flat"
+    color: [0.5, 0.65, 0.9]
 ```
 
-Questo si comporta in modo identico all'uso del colore `background:`.
+Un cielo flat restituisce il suo `color` per ogni raggio in fuga. Partecipa anche a NEE tramite campionamento uniforme della sfera (pdf = 1/(4π)) quando la luminanza è positiva — stesso approccio usato da Cycles e Arnold per i "uniform world backgrounds". Imposta `color: [0, 0, 0]` per scene black-void stile Cornell-box; il loader esclude automaticamente da NEE un cielo flat con luminanza zero.
 
 ---
 
@@ -125,7 +119,6 @@ world:
 
 ```yaml
 world:
-  ambient_light: [0.005, 0.005, 0.01]
   sky:
     type: "gradient"
     zenith_color: [0.01, 0.01, 0.04]
@@ -168,7 +161,7 @@ La mappa HDRI avvolge l'intera scena come una sfera. Il motore utilizza l'**impo
 - HDRIs gratuiti sono disponibili su siti come Poly Haven (licenza CC0).
 - Usare `intensity` per schiarire o scurire l'ambiente senza modificare il file. Valori di 0.5--2.0 sono tipici.
 - L'illuminazione HDRI fornisce un'illuminazione morbida e naturale con gradienti di colore complessi. Spesso è l'unica sorgente luminosa necessaria per scene all'aperto.
-- Per scene d'interni che usano l'HDRI come ambiente, impostare `ambient_light` a `[0, 0, 0]` — l'environment map fornisce già tutta la luce indiretta.
+- L'HDRI è il solo emettitore d'ambiente — non esiste un termine ambient separato. La luce indiretta viene dai rimbalzi path-traced, esattamente come in Cycles o Arnold.
 
 ### Trovare la `rotation` giusta
 
@@ -285,7 +278,6 @@ Quando esistono più fotocamere e non viene fornito il flag `--camera`, il motor
 # Una scena all'aperto con cielo gradiente, disco solare, DOF e fotocamere multiple.
 
 world:
-  ambient_light: [0.02, 0.015, 0.01]
   sky:
     type: "gradient"
     zenith_color: [0.15, 0.25, 0.55]
@@ -408,9 +400,10 @@ La fotocamera "macro" ha la DOF abilitata -- la sfera d'oro sarà nitida mentre 
 
 ## Cosa si è imparato
 
-- Il cielo **flat** utilizza il colore di background ed è ideale per scene in studio.
+- Il cielo **flat** restituisce un colore uniforme e partecipa a NEE tramite uniform sphere sampling; ideale per studio e scene d'interno.
 - Il cielo **gradient** fornisce una sfumatura verticale a tre bande; l'aggiunta di un disco `sun:` lo trasforma in una sorgente luminosa completa per esterni.
 - Le mappe **HDRI** forniscono un'illuminazione ambientale fotorealistica con importance sampling.
+- Non esiste un campo `ambient_light` o `background` — il cielo è l'unico emettitore d'ambiente, e l'illuminazione indiretta/ambient nasce dalla GI path-traced.
 - La **profondità di campo** (DOF) è controllata da `aperture` (dimensione dell'obiettivo) e `focal_dist` (distanza di messa a fuoco). Apertura più grande = più sfocatura.
 - Le **fotocamere multiple** consentono di definire diversi punti di vista e passare dall'uno all'altro con `--camera nome` sulla riga di comando.
 

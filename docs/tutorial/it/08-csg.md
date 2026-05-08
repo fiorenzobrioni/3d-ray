@@ -320,8 +320,9 @@ Questo crea un cubo solido con tre tunnel cilindrici scavati lungo ciascun asse.
 # Diversi oggetti CSG che mostrano unione, intersezione e sottrazione.
 
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background: [0.04, 0.04, 0.06]
+  sky:
+    type: "flat"
+    color: [0.04, 0.04, 0.06]
 
 cameras:
   - name: "main"

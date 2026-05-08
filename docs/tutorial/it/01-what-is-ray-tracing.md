@@ -179,7 +179,7 @@ Ogni scena è descritta in un singolo file YAML (o un file principale che ne imp
 altri). Al livello superiore contiene fino a sette sezioni:
 
 ```
-world:        Impostazioni globali -- luce ambientale, sfondo, cielo, nebbia
+world:        Impostazioni globali -- cielo (flat / gradient / hdri), terreno, nebbia
 cameras:      Una o più definizioni di fotocamera
 materials:    Definizioni dei materiali con nome
 entities:     Gli oggetti nella scena

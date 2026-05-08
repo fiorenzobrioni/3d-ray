@@ -251,8 +251,9 @@ imports:
 
 # Ogni libreria di luci suggerisce una configurazione world corrispondente nei commenti dell'intestazione.
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background: [0.0, 0.0, 0.0]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
 ```
 
 ### 🛡️ Light hardening: ridurre i firefly senza alzare gli spp
@@ -454,8 +455,9 @@ Si sceglie uno starter kit vicino a ciò che si desidera, lo si copia e lo si ri
 
 ```yaml
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background: [0.0, 0.0, 0.0]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
 
 cameras:
   - name: "main"
@@ -526,12 +528,12 @@ manopola `-C`/`--clamp` del firefly clamp, consulta
 - **Tutte le luci hanno intensità zero.** Verificare che `intensity` sia positivo.
 - **Fotocamera all'interno di un oggetto.** Spostare la `position` della fotocamera fuori da ogni geometria.
 - **Fotocamera rivolta nella direzione sbagliata.** Controllare il punto `look_at`.
-- **`ambient_light: [0,0,0]` senza luci.** Una scena necessita di almeno una sorgente luminosa o uno sfondo non nullo. Aggiungere `ambient_light: [0.02, 0.02, 0.02]` aiuta a localizzare la geometria anche senza luci esplicite.
+- **`sky.color: [0,0,0]` senza luci.** Una scena necessita di almeno una sorgente luminosa o un cielo non nullo. Impostare `sky.type: flat` con `color: [0.02, 0.02, 0.02]` fornisce un emettitore globale fioco che aiuta a localizzare la geometria anche senza luci esplicite.
 
 ### Scena piatta o sbiadita
-- **`ambient_light` troppo alto.** Valori superiori a 0.1 comprimono il contrasto delle ombre e fanno sembrare ogni superficie illuminata uniformemente. Abbassarlo a 0.01–0.05, o impostarlo a zero per le scene HDRI.
-- **Nessuna luce direzionale dominante.** Una scena illuminata solo da luce ambientale e fill light non ha una direzione d'ombra chiara; aggiungere una key light con intensità maggiore per stabilire il contrasto.
-- **Tutte le luci hanno lo stesso colore.** Gli ambienti reali mescolano luce calda e fredda. Provare una key light calda (`[1.0, 0.9, 0.75]`) abbinata a una fill light fredda (`[0.7, 0.8, 1.0]`).
+- **Cielo troppo luminoso rispetto alla key light.** Un cielo flat con `color` alto (es. `[0.5, 0.5, 0.5]`) inietta molto fill su ogni superficie; se domina la key light si perde il contrasto delle ombre. Abbassare il colore del cielo o aumentare l'`intensity` della key light.
+- **Nessuna luce direzionale dominante.** Una scena illuminata solo dal cielo non ha una direzione d'ombra chiara; aggiungere una key light (directional, area o sun disk in un gradient sky) con intensità maggiore per stabilire il contrasto.
+- **Tutte le luci hanno lo stesso colore.** Gli ambienti reali mescolano luce calda e fredda. Provare una key light calda (`[1.0, 0.9, 0.75]`) abbinata a un cielo flat freddo (`[0.05, 0.07, 0.1]`).
 
 ### Troppo rumore
 - Aumentare i campioni: `-s 64` o `-s 256`.
@@ -590,8 +592,9 @@ imports:
   - path: "libraries/objects/decorative-objects.yaml"
 
 world:
-  ambient_light: [0.015, 0.015, 0.02]
-  background: [0.0, 0.0, 0.0]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
 
 cameras:
   - name: "overview"

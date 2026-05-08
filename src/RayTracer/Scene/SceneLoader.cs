@@ -109,7 +109,7 @@ public class SceneLoader
     /// name (case-insensitive) or zero-based index. Ignored when the scene uses
     /// the legacy single <c>camera:</c> syntax.
     /// </param>
-    public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, Vector3 AmbientLight, SkySettings Sky, IMedium? GlobalMedium)
+    public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, SkySettings Sky, IMedium? GlobalMedium)
         Load(string yamlPath, int imageWidth, int imageHeight,
              int? shadowSamplesOverride = null, string? cameraSelector = null)
     {
@@ -199,9 +199,7 @@ public class SceneLoader
             }
         }
 
-        var ambientLight = ToVector3(data.World?.AmbientLight) ?? new Vector3(0.1f);
-        var background   = ToVector3(data.World?.Background)   ?? new Vector3(0.5f, 0.7f, 1.0f);
-        var sky          = BuildSkySettings(data.World?.Sky, background, sceneDir);
+        var sky = BuildSkySettings(data.World?.Sky, sceneDir);
 
         // ── Global participating medium (opt-in) ─────────────────────────────────
         // Default null = surface-only path, bit-identical to pre-volumetric output.
@@ -369,7 +367,7 @@ public class SceneLoader
             lights.Add(new PointLight(new Vector3(0, 10, -5), Vector3.One, 100f));
         }
 
-        return (world, camera, lights, ambientLight, sky, globalMedium);
+        return (world, camera, lights, sky, globalMedium);
     }
 
     // =========================================================================
@@ -970,22 +968,41 @@ public class SceneLoader
     }
 
     /// <summary>
-    /// Builds a <see cref="SkySettings"/> from the YAML sky section.
-    /// Supports three modes: flat (background color), gradient, and HDRI.
+    /// Default flat sky color when no <c>world.sky</c> is specified.
+    /// Daylight blue, matching the historical default of the now-removed
+    /// <c>world.background</c> field.
     /// </summary>
-    private static SkySettings BuildSkySettings(SkyData? skyData, Vector3 background, string sceneDir)
+    private static readonly Vector3 DefaultSkyColor = new(0.5f, 0.7f, 1.0f);
+
+    /// <summary>
+    /// Builds a <see cref="SkySettings"/> from the YAML sky section.
+    /// Supports three modes: <c>flat</c> (uniform color), <c>gradient</c>
+    /// (zenith/horizon/ground with optional sun disk), and <c>hdri</c>
+    /// (equirectangular environment map). When the <c>world.sky</c> block is
+    /// missing or its <c>type</c> is unrecognised, falls back to a flat sky
+    /// using <see cref="DefaultSkyColor"/>.
+    /// </summary>
+    private static SkySettings BuildSkySettings(SkyData? skyData, string sceneDir)
     {
         if (skyData == null)
-            return new SkySettings(background);
+            return new SkySettings(DefaultSkyColor);
 
         string skyType = skyData.Type?.ToLowerInvariant() ?? "";
 
         return skyType switch
         {
-            "hdri"     => BuildHdriSky(skyData, sceneDir),
+            "flat"     => new SkySettings(ToVector3(skyData.Color) ?? DefaultSkyColor),
             "gradient" => BuildGradientSky(skyData),
-            _          => new SkySettings(background)
+            "hdri"     => BuildHdriSky(skyData, sceneDir),
+            ""         => new SkySettings(ToVector3(skyData.Color) ?? DefaultSkyColor),
+            _          => WarnUnknownSkyType(skyType)
         };
+    }
+
+    private static SkySettings WarnUnknownSkyType(string skyType)
+    {
+        Warn($"Unknown sky type '{skyType}'. Falling back to flat default.");
+        return new SkySettings(DefaultSkyColor);
     }
 
     private static SkySettings BuildGradientSky(SkyData skyData)

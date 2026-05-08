@@ -70,8 +70,7 @@ namespace ChessGen
         {
             sb.AppendLine("world:");
             sb.AppendLine("  # Daytime studio: sky gradient with a warm sun disk that aligns with the");
-            sb.AppendLine("  # area key light below. Moderate ambient fills shadows without flattening.");
-            sb.AppendLine("  ambient_light: [0.10, 0.10, 0.11]");
+            sb.AppendLine("  # area key light below. Indirect bounces from the gradient sky fill shadows.");
             sb.AppendLine("  sky:");
             sb.AppendLine("    type: \"gradient\"");
             sb.AppendLine("    zenith_color:  [0.22, 0.38, 0.70]");

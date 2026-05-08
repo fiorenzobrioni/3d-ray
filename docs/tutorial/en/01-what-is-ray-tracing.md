@@ -183,7 +183,7 @@ Every scene is described in a single YAML file (or a main file that
 imports others). At the top level it contains up to seven sections:
 
 ```
-world:        Global settings -- ambient light, background, sky, fog
+world:        Global settings -- sky (flat / gradient / hdri), ground, fog
 cameras:      One or more camera definitions
 materials:    Named material definitions
 entities:     The objects in the scene

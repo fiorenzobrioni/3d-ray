@@ -59,7 +59,6 @@ public class RenderBenchmarks
             world:           loaded.World,
             camera:          loaded.Camera,
             lights:          loaded.Lights,
-            ambientLight:    loaded.AmbientLight,
             sky:             loaded.Sky,
             samplesPerPixel: Spp,
             maxDepth:        Depth,

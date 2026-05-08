@@ -107,12 +107,6 @@ public class ImportData
 
 public class WorldData
 {
-    [YamlMember(Alias = "ambient_light")]
-    public List<float>? AmbientLight { get; set; }
-
-    [YamlMember(Alias = "background")]
-    public List<float>? Background { get; set; }
-
     [YamlMember(Alias = "ground")]
     public GroundData? Ground { get; set; }
 
@@ -148,6 +142,9 @@ public class SkyData
 
     [YamlMember(Alias = "rotation")]
     public float Rotation { get; set; } = 0f;
+
+    [YamlMember(Alias = "color")]
+    public List<float>? Color { get; set; }
 
     [YamlMember(Alias = "zenith_color")]
     public List<float>? ZenithColor { get; set; }

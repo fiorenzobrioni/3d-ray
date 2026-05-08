@@ -12,8 +12,9 @@ Create a file called `hello.yaml` and type the following:
 
 ```yaml
 world:
-  ambient_light: [0.03, 0.03, 0.04]
-  background: [0.05, 0.05, 0.08]
+  sky:
+    type: "flat"
+    color: [0.05, 0.05, 0.08]
 
 cameras:
   - name: "main"
@@ -89,21 +90,28 @@ centre of the sphere.
 
 ```yaml
 world:
-  ambient_light: [0.03, 0.03, 0.04]
-  background: [0.05, 0.05, 0.08]
+  sky:
+    type: "flat"
+    color: [0.05, 0.05, 0.08]
 ```
 
-**`ambient_light`** is a constant amount of light that reaches every
-surface in the scene regardless of whether a light source can see it.
-Think of it as a very faint fill light that prevents pitch-black shadows.
-Keep it low (0.01--0.05 per channel) or your scene will look washed out.
+**`sky`** is the global environmental emitter. Three types are supported:
 
-**`background`** is the color returned by rays that miss every object and
-escape into empty space. In a studio scene you typically set this to black
-or near-black. In an outdoor scene it represents the sky (though for
-richer skies you will use the `sky:` block in Chapter 7).
+- **`flat`** — uniform colour over the full sphere; the simplest mode
+  and the one used here. The flat sky also acts as a soft fill light:
+  it participates in NEE so its colour bounces onto every surface.
+- **`gradient`** — three-band vertical blend with optional sun disk.
+- **`hdri`** — equirectangular HDR image for full image-based lighting.
 
-Both values are `[R, G, B]` in the 0.0--1.0 range.
+If you omit `sky:` entirely, the engine uses a daylight-blue flat sky
+(`[0.5, 0.7, 1.0]`). Chapter 7 covers gradient and HDRI in depth.
+
+> **Note:** earlier versions had `ambient_light` and `background`
+> fields. They were removed because the ambient term was non-physical:
+> it was added on top of every surface bypassing the BRDF, the cosine
+> factor, and the material albedo, which desaturated colours and
+> washed out shadows. Production renderers (Arnold, Cycles, RenderMan)
+> have no such field — `sky:` is the single emitter.
 
 The `world:` section also supports a **ground shorthand**:
 
@@ -327,8 +335,9 @@ Here is the full scene file that puts everything together:
 # A matte red sphere, a gold sphere, and a mirror sphere on a grey floor.
 
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background: [0.05, 0.05, 0.08]
+  sky:
+    type: "flat"
+    color: [0.05, 0.05, 0.08]
 
 cameras:
   - name: "main"

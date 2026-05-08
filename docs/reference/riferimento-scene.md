@@ -21,7 +21,7 @@ Ogni file YAML di scena ha **5 sezioni principali** (ordine consigliato):
 ```yaml
 imports:    # (opzionale) File YAML esterni da caricare
 templates:  # (opzionale) Blueprint di oggetti riutilizzabili
-world:      # Ambiente (cielo, luce ambientale, sfondo, terreno)
+world:      # Ambiente (cielo, terreno, mezzo globale)
 cameras:    # Lista camere (o camera: per la forma legacy a camera singola)
 lights:     # Sorgenti luminose esplicite
 materials:  # Definizioni dei materiali
@@ -37,21 +37,43 @@ entities:   # Oggetti 3D (primitive, gruppi, istanze, CSG, mesh)
 ---
 
 ### 3. **SEZIONE WORLD** — Configurazione dell'Ambiente
+
+> **Breaking change (v2):** `world.ambient_light` e `world.background` sono stati
+> rimossi. Il termine ambient stile-Phong era non-fisico: sommava radianza grezza
+> ad ogni hit di superficie scavalcando la BRDF, il coseno e l'albedo del materiale,
+> con il risultato di "scolorire" tutta l'immagine. Nei renderer di produzione
+> (Arnold, Cycles, RenderMan) non esiste un termine analogo: la luce ambientale e
+> indiretta nasce dalla GI path-traced. Usa `world.sky` (con `type: flat`,
+> `gradient` o `hdri`) come unico emettitore globale dell'ambiente. Le vecchie
+> chiavi vengono ignorate silenziosamente nelle scene legacy.
+
 ```yaml
 world:
-  ambient_light: [0.05, 0.05, 0.08]      # Luce di riempimento omnidirezionale
-  background: [0.5, 0.7, 1.0]            # Colore del cielo (se non c'è un oggetto sky)
+  sky:                                     # (opzionale) Emettitore globale dell'ambiente
+    type: "flat"  # oppure "gradient" / "hdri"
+    # ... vedi dettagli sotto
   ground:                                  # (opzionale) Pavimento autogenerato
     type: "infinite_plane"
     material: "floor_name"
     y: 0.0
-  sky:                                     # (opzionale) Sostituisce lo sfondo
-    type: "gradient"  # o "hdri"
-    # ... vedi dettagli sotto
   medium:                                  # (opzionale) Mezzo partecipante globale
     type: "homogeneous"
     # ... vedi dettagli sotto
 ```
+
+Quando `world.sky` è omesso, viene usato un cielo flat azzurro-diurno `[0.5, 0.7, 1.0]`.
+
+#### **Flat Sky** (colore uniforme, default):
+```yaml
+sky:
+  type: "flat"
+  color: [0.5, 0.7, 1.0]                  # Radianza uniforme su tutta la sfera
+```
+Un cielo flat partecipa a NEE (campionamento uniforme della sfera, pdf = 1/(4π))
+quando la sua luminanza è > 0, allineato al comportamento dei "uniform world
+backgrounds" di Cycles/Arnold. Imposta `color: [0, 0, 0]` per scene black-void
+stile Cornell-box — in questo caso il loader esclude automaticamente il cielo
+da NEE.
 
 #### **Gradient Sky** (raccomandato per scene all'aperto):
 ```yaml
@@ -69,6 +91,9 @@ sky:
     size:       2.5                        # Dimensione angolare in gradi
     falloff:    48.0                       # Esponente bagliore (più alto = più nitido)
 ```
+Il corpo del gradiente è campionato dal BSDF importance sampling sul percorso di
+miss; solo il disco solare opzionale partecipa a NEE (cone-sampling all'interno
+della sua dimensione angolare).
 
 #### **HDRI/IBL** (per il massimo realismo):
 ```yaml
@@ -78,13 +103,16 @@ sky:
   intensity: 1.0                           # Moltiplicatore esposizione
   rotation: 90                             # Rotazione asse Y in gradi
 ```
+Le HDRI sono importance-sampled tramite una CDF di luminanza sulla mappa
+equirettangolare.
 
 **Configurazioni Sky Predefinite:**
-- **Noon** (cielo pulito, sole luminoso)
+- **Noon** (gradiente pulito, sole luminoso)
 - **Golden Hour** (sole basso e caldo, orizzonte saturato)
 - **Sunset** (orizzonte arancione drammatico)
-- **Night** (valori minimi per zenith/orizzonte, disco solare fioco)
-- **Overcast** (luce ambientale alta, cielo uniforme)
+- **Night** (zenith/orizzonte molto fiochi, disco solare debole)
+- **Overcast** (orizzonte uniforme, niente disco solare; oppure `flat` con grigio basso)
+- **Studio** (`flat` con un colore neutro fioco per riempire il bounce indiretto)
 
 #### **Volumetria (Mezzi Partecipanti)**:
 
@@ -1092,8 +1120,9 @@ Ecco una scena minimale completa:
 ```yaml
 # Scena Semplice
 world:
-  ambient_light: [0.05, 0.05, 0.08]
-  background: [0.3, 0.6, 1.0]
+  sky:
+    type: "flat"
+    color: [0.3, 0.6, 1.0]
   ground:
     type: "infinite_plane"
     material: "grass"

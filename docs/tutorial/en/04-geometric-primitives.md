@@ -423,8 +423,9 @@ A scene that renders one of each primitive in a row.
 # Every geometric primitive in a single scene.
 
 world:
-  ambient_light: [0.03, 0.03, 0.04]
-  background: [0.06, 0.06, 0.09]
+  sky:
+    type: "flat"
+    color: [0.06, 0.06, 0.09]
 
 cameras:
   - name: "main"

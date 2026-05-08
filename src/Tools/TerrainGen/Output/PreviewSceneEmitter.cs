@@ -51,7 +51,6 @@ public static class PreviewSceneEmitter
     private static void EmitWorld(StringBuilder sb, GenerationConfig cfg, PaletteLibrary.SkyPalette sky)
     {
         sb.AppendLine("world:");
-        sb.AppendLine($"  ambient_light: {YamlEmitter.Vec3(sky.Ambient)}");
         sb.AppendLine("  sky:");
         sb.AppendLine("    type: \"gradient\"");
         sb.AppendLine($"    zenith_color:  {YamlEmitter.Vec3(sky.Zenith)}");

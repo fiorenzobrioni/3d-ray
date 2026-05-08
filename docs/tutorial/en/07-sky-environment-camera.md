@@ -9,18 +9,28 @@ setups.
 
 ## 7.1 Sky Modes
 
-The sky determines what color a ray receives when it misses all objects
-and escapes to infinity. 3D-Ray supports three sky modes, configured
-under `world: > sky:`.
+The sky is the only global emitter for environmental lighting in
+3D-Ray. It determines what colour a ray receives when it misses all
+objects and escapes to infinity, and it participates in Next Event
+Estimation (NEE) as a light source whenever its radiance is non-zero.
+Three modes are supported, configured under `world: > sky:`.
 
-| Mode       | Description                                      |
-|------------|--------------------------------------------------|
-| `flat`     | Single solid color (uses `background`)           |
-| `gradient` | Vertical three-band gradient with optional sun   |
-| `hdri`     | Equirectangular HDR image (image-based lighting) |
+| Mode       | Description                                            |
+|------------|--------------------------------------------------------|
+| `flat`     | Uniform colour over the full sphere (default)          |
+| `gradient` | Vertical three-band gradient with optional sun disk    |
+| `hdri`     | Equirectangular HDR image (image-based lighting)       |
 
 When there is no `sky:` block, the engine uses a flat sky with the
-`background:` color.
+default daylight blue `[0.5, 0.7, 1.0]`.
+
+> **Removed in v2:** `world.ambient_light` and `world.background` no
+> longer exist. The old ambient term was added as raw radiance per
+> surface hit, bypassing the BRDF/cosine/albedo and washing out colour
+> saturation. Industry-standard renderers (Arnold, Cycles, RenderMan)
+> have no such term — indirect/ambient illumination arises from
+> path-traced GI alone. To reproduce a "fill light" feel, use a
+> `sky.type: flat` with a low colour, or a low-zenith gradient.
 
 ---
 
@@ -28,23 +38,17 @@ When there is no `sky:` block, the engine uses a flat sky with the
 
 ```yaml
 world:
-  background: [0.5, 0.65, 0.9]
-```
-
-Without a `sky:` section, rays that escape the scene return the
-`background` color. This is perfectly adequate for studio scenes with
-controlled lighting (where the background is usually black) or simple
-outdoor sketches.
-
-You can also be explicit:
-
-```yaml
-world:
   sky:
     type: "flat"
+    color: [0.5, 0.65, 0.9]
 ```
 
-This behaves identically to using the `background:` color.
+A flat sky returns its `color` for every escaping ray. It also
+participates in NEE via uniform sphere sampling (pdf = 1/(4π)) when
+luminance is positive — same approach Cycles and Arnold use for
+uniform world backgrounds. Set `color: [0, 0, 0]` for fully black void
+scenes (Cornell-box style); the loader automatically excludes a
+zero-luminance flat sky from NEE.
 
 ---
 
@@ -141,7 +145,6 @@ world:
 
 ```yaml
 world:
-  ambient_light: [0.005, 0.005, 0.01]
   sky:
     type: "gradient"
     zenith_color: [0.01, 0.01, 0.04]
@@ -191,8 +194,9 @@ areas of the map, which speeds up convergence dramatically.
 - HDRI lighting provides soft, natural illumination with complex
   color gradients. It is often the only light source you need for
   outdoor scenes.
-- For indoor scenes using HDRI as environment, set `ambient_light`
-  to `[0, 0, 0]` — the environment map supplies all indirect light.
+- The HDRI is the sole environmental emitter — there is no separate
+  ambient term. Indirect illumination comes from path-traced bounces,
+  exactly as in Cycles or Arnold.
 
 ### Finding the right `rotation`
 
@@ -341,7 +345,6 @@ engine uses the **first camera** in the list and prints a warning.
 # An outdoor scene with gradient sky, sun disk, DOF, and multiple cameras.
 
 world:
-  ambient_light: [0.02, 0.015, 0.01]
   sky:
     type: "gradient"
     zenith_color: [0.15, 0.25, 0.55]
@@ -465,11 +468,15 @@ the background softly blurs.
 
 ## What You Have Learned
 
-- The **flat** sky uses the background color and is best for studios.
+- The **flat** sky returns a uniform colour and participates in NEE
+  via uniform sphere sampling; ideal for studios and indoor scenes.
 - The **gradient** sky provides a three-band vertical blend; adding a
   `sun:` disk turns it into a full outdoor light source.
 - **HDRI** maps provide photorealistic environment lighting with
   importance sampling.
+- There is no `ambient_light` or `background` field — the sky is the
+  only environmental emitter, and indirect/ambient lighting comes from
+  path-traced GI alone.
 - **Depth of field** is controlled by `aperture` (lens size) and
   `focal_dist` (focus distance). Larger aperture = more blur.
 - **Multiple cameras** let you define several viewpoints and switch

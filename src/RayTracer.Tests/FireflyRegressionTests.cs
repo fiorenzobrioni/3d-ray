@@ -91,7 +91,6 @@ public class FireflyRegressionTests
             world:              world,
             camera:             camera,
             lights:             lights,
-            ambientLight:       Vector3.Zero,
             sky:                new SkySettings(Vector3.Zero),
             samplesPerPixel:    Spp,
             maxDepth:           Depth,

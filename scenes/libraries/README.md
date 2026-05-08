@@ -21,8 +21,9 @@ imports:
   - path: "libraries/lights/studio-3point.yaml"
 
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background: [0.0, 0.0, 0.0]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
 
 cameras:
   - name: "main"

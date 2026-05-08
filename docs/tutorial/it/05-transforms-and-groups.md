@@ -305,8 +305,9 @@ Una scena che utilizza template, gruppi, istanze e import contemporaneamente.
 # gruppi, istanze e sovrascrittura di materiali.
 
 world:
-  ambient_light: [0.02, 0.015, 0.01]
-  background: [0.01, 0.01, 0.02]
+  sky:
+    type: "flat"
+    color: [0.01, 0.01, 0.02]
 
 cameras:
   - name: "main"

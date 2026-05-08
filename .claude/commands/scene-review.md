@@ -75,10 +75,12 @@ Consulta le convenzioni del progetto:
 
 ### 6. World e ambiente
 
-- [ ] `ambient_light`: valori 0.0–1.0, non tutti zero in scene interne (suggerire minimo 0.01 per evitare nero puro)
-- [ ] `ground.material`: referenzia un materiale definito
-- [ ] Se `sky.type: gradient`: `zenith_color`, `horizon_color`, `ground_color` presenti
-- [ ] Se `medium` presente: `type` valido, `sigma_a`/`sigma_s` > 0, `phase` valida, `g` in (-1, 1) per HG
+- [ ] `sky` presente o omesso (default = flat azzurro). I campi rimossi `ambient_light` / `background` NON devono comparire — segnalare come errore se presenti.
+- [ ] Se `sky.type: flat`: `color` con valori 0.0–1.0; `[0,0,0]` ammesso per black-void.
+- [ ] Se `sky.type: gradient`: `zenith_color`, `horizon_color`, `ground_color` presenti; eventualmente `sun:` con `direction`/`color`/`intensity`/`size`/`falloff`.
+- [ ] Se `sky.type: hdri`: `path:` esiste sotto la directory di scena; `intensity` ragionevole (0.5–3.0); `rotation` in gradi.
+- [ ] `ground.material`: referenzia un materiale definito.
+- [ ] Se `medium` presente: `type` valido, `sigma_a`/`sigma_s` > 0, `phase` valida, `g` in (-1, 1) per HG.
 
 ### 7. Import
 

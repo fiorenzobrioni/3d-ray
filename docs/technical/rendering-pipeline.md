@@ -24,7 +24,7 @@ Questo documento descrive il flusso architetturale completo del motore 3D-Ray, d
 ┌─────────────┐
 │ SceneLoader  │  Parse YAML → materiali, geometrie, luci, camera, sky
 └──────┬──────┘
-       │  (world, camera, lights, ambientLight, sky)
+       │  (world, camera, lights, sky, globalMedium)
        ▼
 ┌─────────────┐
 │  Renderer   │  Costruttore: scene analysis + configurazione RR
@@ -118,7 +118,7 @@ Le luci esplicite dal YAML vengono create tramite `CreateLight()`. Poi due passa
    - **Transform wrapping Group**: compone e propaga la matrice del Transform esterno su ogni figlio emissivo per garantirne il posizionamento in world space.
    - **Tutto il resto**: delega a `ResolveEmissiveSamplable()`. I singoli `Transform` sono gestiti come `ISamplable` (delegano a `Sample()` sulla primitiva interna correggendo l'area con il Jacobian e convertendo in world space).
 
-2. **`EnvironmentLight`** — se il cielo supporta il campionamento diretto (`CanSampleDirectly` = true per HDRI e gradient sky con sun disk), viene creato un `EnvironmentLight` e aggiunto alla lista.
+2. **`EnvironmentLight`** — se il cielo supporta il campionamento diretto (`CanSampleDirectly` = true per HDRI, gradient sky con sun disk, e flat sky con luminanza > 0), viene creato un `EnvironmentLight` e aggiunto alla lista.
 
 Se non ci sono luci e il YAML non ha una sezione `lights:` esplicita, viene aggiunto un lighting di default (una directional + una point).
 
@@ -126,15 +126,17 @@ Se non ci sono luci e il YAML non ha una sezione `lights:` esplicita, viene aggi
 
 ### 1.7 Costruzione del Cielo
 
-`BuildSkySettings()` crea un oggetto `SkySettings` in base al tipo:
+`BuildSkySettings()` crea un oggetto `SkySettings` in base al tipo dichiarato in `world.sky.type`:
 
-- **`flat`** (default) — colore uniforme dal campo `background`.
-- **`gradient`** — zenith/horizon/ground con interpolazione, più sun disk opzionale.
+- **`flat`** (default quando `world.sky` è omesso) — colore uniforme dal campo `color` (default daylight blu `[0.5, 0.7, 1.0]`). Partecipa a NEE come uniform sphere sampler quando la luminanza è > 0.
+- **`gradient`** — zenith/horizon/ground con interpolazione, più sun disk opzionale. Solo il sun disk partecipa a NEE.
 - **`hdri`** — carica il file `.hdr` tramite `HdrLoader`, costruisce l'`EnvironmentMap` con CDF per importance sampling.
+
+> **Storico:** le chiavi `world.ambient_light` e `world.background` sono state rimosse in v2 — il termine ambient stile-Phong era non-fisico (sommato fuori da BRDF/coseno/albedo) e washed-out generale. La GI ambientale nasce ora unicamente dal path-tracing del cielo e dei rimbalzi indiretti.
 
 ### 1.8 Output
 
-`Load()` restituisce una tupla `(IHittable world, Camera camera, List<ILight> lights, Vector3 ambientLight, SkySettings sky)` pronta per il Renderer.
+`Load()` restituisce una tupla `(IHittable world, Camera camera, List<ILight> lights, SkySettings sky, IMedium? globalMedium)` pronta per il Renderer.
 
 ---
 
@@ -436,7 +438,7 @@ radiance = emitted + attenuation × (directLight + indirect)
 Dove:
 - `emitted` = auto-illuminazione della superficie (zero per materiali non emissivi)
 - `attenuation` = colore/albedo × fattori energetici del materiale
-- `directLight` = contributo NEE (ambient + tutte le luci)
+- `directLight` = contributo NEE (somma dei contributi BRDF·cos·visibility per ogni luce)
 - `indirect` = radiance ricorsiva dal bounce successivo
 
 Se il materiale non fa scatter (es. `Emissive`, che assorbe tutto):
@@ -564,7 +566,7 @@ TraceRay(ray, depth, prevBsdfPdf, prevIsDelta, currentAbsorption)
 │       │
 │       ├── Compute directLight:
 │       │   ├── material.NeedsDirectLighting? → ComputeDirectLighting(...) con MIS balance
-│       │   └── altrimenti (Emissive) → ambientLight
+│       │   └── altrimenti (Emissive) → Vector3.Zero
 │       │
 │       ├── material.Sample(V, rec)?  // percorso MIS preferito
 │       │   └── YES (BsdfSample { Wo, F, Pdf, IsDelta, NextSegmentAbsorption })

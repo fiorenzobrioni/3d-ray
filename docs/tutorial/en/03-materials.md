@@ -675,8 +675,9 @@ A scene that showcases eight different materials side by side.
 # Eight spheres on pedestals, each with a different material.
 
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background: [0.02, 0.02, 0.03]
+  sky:
+    type: "flat"
+    color: [0.02, 0.02, 0.03]
 
 cameras:
   - name: "main"

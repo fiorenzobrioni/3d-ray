@@ -390,8 +390,9 @@ Una scena che renderizza una di ogni primitiva in fila.
 # Ogni primitiva geometrica in una singola scena.
 
 world:
-  ambient_light: [0.03, 0.03, 0.04]
-  background: [0.06, 0.06, 0.09]
+  sky:
+    type: "flat"
+    color: [0.06, 0.06, 0.09]
 
 cameras:
   - name: "main"

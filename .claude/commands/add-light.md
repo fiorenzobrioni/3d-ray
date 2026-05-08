@@ -30,7 +30,7 @@ Leggi il file YAML e identifica:
 - **Soggetto principale**: centro della composizione
 - **Mood**: interno/esterno, giorno/notte, caldo/freddo
 - **Setup mancante**: quale ruolo non è coperto (key? fill? rim? accent? practical?)
-- **Ambiente**: HDRI, sky gradient, background — già fornisce luce ambientale?
+- **Ambiente**: il blocco `world.sky` (flat / gradient / hdri) — già fornisce luce ambientale?
 
 ### 2. Scelta del tipo
 
@@ -53,10 +53,10 @@ Se l'utente chiede un ruolo generico (es. "fill", "rim", "practical"), applica q
 |-------|-------|------------------|--------------------|---------|
 | **Key** | Definisce la forma dominante | 30–45° laterale rispetto alla camera, sopra il soggetto | 1.0 (riferimento) | Caldo per interni, neutro per outdoor noon |
 | **Fill** | Ammorbidisce le ombre | Opposta alla key, altezza simile | 0.2–0.5 × key | Spesso complementare (se key calda, fill fredda) |
-| **Rim / back** | Separa dal background | Dietro il soggetto, leggermente laterale | 0.5–1.5 × key | Contrastante con la key |
+| **Rim / back** | Separa dallo sfondo | Dietro il soggetto, leggermente laterale | 0.5–1.5 × key | Contrastante con la key |
 | **Accent** | Evidenzia un dettaglio | Puntata su un oggetto specifico | 0.3–1.0 × key | A discrezione |
 | **Practical** | Sorgente visibile in scena | Dentro a un oggetto (lampada, candela) | 0.5–3.0 (locale, non per illuminare tutta la scena) | Colore dell'oggetto (candela calda, schermo freddo) |
-| **Ambient** | Illuminazione omogenea | N/A — via `ambient_light` o sky | valori 0.01–0.1 | Colore del cielo/ambiente |
+| **Ambient** | Illuminazione omogenea | N/A — via `world.sky` (flat/gradient/hdri); l'illuminazione ambient è path-traced | colore del cielo basso (es. `[0.02, 0.02, 0.025]`) | Colore del cielo/ambiente |
 
 ### 4. Temperature colore
 

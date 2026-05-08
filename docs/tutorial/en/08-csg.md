@@ -378,8 +378,9 @@ it along each axis. The approach is:
 # Several CSG objects demonstrating union, intersection, and subtraction.
 
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background: [0.04, 0.04, 0.06]
+  sky:
+    type: "flat"
+    color: [0.04, 0.04, 0.06]
 
 cameras:
   - name: "main"

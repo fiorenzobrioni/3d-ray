@@ -350,8 +350,9 @@ A scene that uses templates, groups, instances, and imports together.
 # groups, instances, and material override.
 
 world:
-  ambient_light: [0.02, 0.015, 0.01]
-  background: [0.01, 0.01, 0.02]
+  sky:
+    type: "flat"
+    color: [0.01, 0.01, 0.02]
 
 cameras:
   - name: "main"

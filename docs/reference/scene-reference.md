@@ -19,7 +19,7 @@ Every scene YAML file has **5 main sections** (recommended order):
 ```yaml
 imports:    # (optional) External YAML files to load
 templates:  # (optional) Reusable object blueprints
-world:      # Environment (sky, ambient light, background, ground)
+world:      # Environment (sky, ground, global medium)
 cameras:    # Camera list (or camera: for legacy single-camera)
 lights:     # Explicit light sources
 materials:  # Material definitions
@@ -32,21 +32,42 @@ entities:   # 3D objects (primitives, groups, instances, CSG, meshes)
 - **Colors** = `[R, G, B]` with values 0.0–1.0
 ---
 ### 3. **WORLD SECTION** — Environment Configuration
+
+> **Breaking change (v2):** `world.ambient_light` and `world.background` have been
+> removed. The non-physical Phong-style ambient term washed out colours by
+> bypassing the BRDF, the cosine factor and the material albedo. Industry-standard
+> path tracers (Arnold, Cycles, RenderMan) have no such term — indirect/ambient
+> illumination arises from path-traced GI alone. Use `world.sky` (with `type: flat`,
+> `gradient`, or `hdri`) as the single global emitter. Old keys are silently
+> ignored when present in legacy scenes.
+
 ```yaml
 world:
-  ambient_light: [0.05, 0.05, 0.08]      # Omnidirectional fill light
-  background: [0.5, 0.7, 1.0]            # Sky color (if no sky object)
+  sky:                                     # (optional) Global environment emitter
+    type: "flat"  # or "gradient" / "hdri"
+    # ... see details below
   ground:                                  # (optional) Auto-generated floor
     type: "infinite_plane"
     material: "floor_name"
     y: 0.0
-  sky:                                     # (optional) Replaces background
-    type: "gradient"  # or "hdri"
-    # ... see details below
   medium:                                  # (optional) Global participating medium
     type: "homogeneous"
     # ... see details below
 ```
+
+When `world.sky` is omitted, a flat daylight-blue sky `[0.5, 0.7, 1.0]` is used.
+
+#### **Flat Sky** (uniform colour, default):
+```yaml
+sky:
+  type: "flat"
+  color: [0.5, 0.7, 1.0]                  # Uniform radiance over the full sphere
+```
+A flat sky participates in NEE (uniform sphere sampling, pdf = 1/(4π)) whenever
+its luminance is above zero, matching the behaviour of Cycles/Arnold uniform
+world backgrounds. Set `color: [0, 0, 0]` for fully black void scenes (Cornell-box
+style) — the loader will skip the sky from NEE in that case.
+
 #### **Gradient Sky** (recommended for outdoor scenes):
 ```yaml
 sky:
@@ -63,6 +84,9 @@ sky:
     size:       2.5                        # Angular size in degrees
     falloff:    48.0                       # Glow exponent (higher = sharper)
 ```
+The gradient body is sampled via BSDF importance sampling on the miss path; only
+the optional sun disk participates in NEE (cone-sampled inside its angular radius).
+
 #### **HDRI/IBL** (for maximum realism):
 ```yaml
 sky:
@@ -71,12 +95,15 @@ sky:
   intensity: 1.0                           # Exposure multiplier
   rotation: 90                             # Y-axis rotation in degrees
 ```
+HDRIs are importance-sampled via a luminance CDF over the equirectangular map.
+
 **Preset Sky Configurations:**
-- **Noon** (clean sky, bright sun)
+- **Noon** (clean gradient, bright sun)
 - **Golden Hour** (low warm sun, saturated horizon)
 - **Sunset** (dramatic orange horizon)
-- **Night** (minimal zenith/horizon values, dim sun disk)
-- **Overcast** (high ambient, uniform sky)
+- **Night** (very dim zenith/horizon, faint sun disk)
+- **Overcast** (uniform horizon, no sun disk; or `flat` with a low gray)
+- **Studio** (`flat` with a dim neutral colour to fill bounce light)
 
 #### **Volumetrics (Participating Media)**:
 
@@ -1048,8 +1075,9 @@ Here's a complete minimal scene:
 ```yaml
 # Simple Scene
 world:
-  ambient_light: [0.05, 0.05, 0.08]
-  background: [0.3, 0.6, 1.0]
+  sky:
+    type: "flat"
+    color: [0.3, 0.6, 1.0]
   ground:
     type: "infinite_plane"
     material: "grass"

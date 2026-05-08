@@ -12,8 +12,9 @@ Creare un file chiamato `hello.yaml` e scrivere il seguente contenuto:
 
 ```yaml
 world:
-  ambient_light: [0.03, 0.03, 0.04]
-  background: [0.05, 0.05, 0.08]
+  sky:
+    type: "flat"
+    color: [0.05, 0.05, 0.08]
 
 cameras:
   - name: "main"
@@ -79,21 +80,20 @@ La camera nella scena sopra si trova a `[0, 1, -5]` — 1 m sopra il pavimento e
 
 ```yaml
 world:
-  ambient_light: [0.03, 0.03, 0.04]
-  background: [0.05, 0.05, 0.08]
+  sky:
+    type: "flat"
+    color: [0.05, 0.05, 0.08]
 ```
 
-**`ambient_light`** è una quantità costante di luce che raggiunge ogni superficie
-della scena indipendentemente dal fatto che una sorgente luminosa la possa vedere.
-La si può pensare come una luce di riempimento molto fioca che evita ombre completamente nere.
-Tenerla bassa (0.01-0.05 per canale) o la scena sembrerà slavata.
+**`sky`** è l'emettitore globale dell'ambiente. Sono supportati tre tipi:
 
-**`background`** è il colore restituito dai raggi che mancano tutti gli oggetti e
-fuggono nel vuoto. In una scena da studio si imposta tipicamente a nero o quasi-nero.
-In una scena all'aperto rappresenta il cielo (anche se per cieli più ricchi si userà
-il blocco `sky:` nel Capitolo 7).
+- **`flat`** — colore uniforme su tutta la sfera; la modalità più semplice e quella usata qui. Il cielo flat agisce anche come fill light morbido: partecipa a NEE e il suo colore rimbalza su ogni superficie.
+- **`gradient`** — sfumatura verticale a tre bande con disco solare opzionale.
+- **`hdri`** — immagine HDR equirettangolare per illuminazione image-based completa.
 
-Entrambi i valori sono `[R, G, B]` nell'intervallo 0.0-1.0.
+Se ometti `sky:`, il motore usa un cielo flat azzurro-diurno (`[0.5, 0.7, 1.0]`). Il Capitolo 7 tratta in dettaglio gradient e HDRI.
+
+> **Nota:** le versioni precedenti avevano i campi `ambient_light` e `background`. Sono stati rimossi perché il termine ambient era non-fisico: veniva sommato sopra ogni superficie scavalcando BRDF, coseno e albedo del materiale, desaturando i colori e schiarendo le ombre. I renderer di produzione (Arnold, Cycles, RenderMan) non hanno un campo analogo — `sky:` è l'unico emettitore.
 
 La sezione `world:` supporta anche una **scorciatoia per il terreno**:
 
@@ -312,8 +312,9 @@ Ecco il file di scena completo che mette tutto insieme:
 # Una sfera rossa opaca, una sfera dorata e una sfera specchio su un pavimento grigio.
 
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background: [0.05, 0.05, 0.08]
+  sky:
+    type: "flat"
+    color: [0.05, 0.05, 0.08]
 
 cameras:
   - name: "main"
