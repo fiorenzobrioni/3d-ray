@@ -32,65 +32,65 @@ lights:
   - type: "sphere"
     position: [-3.5, 3.75, 0]
     color: [1.0, 0.6, 0.2]
-    radius: 0.15
-    intensity: 150.0
+    radius: 0.25
+    intensity: 55.0
   - type: "sphere"
     position: [-3.5, 3.75, -10]
     color: [1.0, 0.6, 0.2]
-    radius: 0.15
-    intensity: 150.0
+    radius: 0.25
+    intensity: 55.0
   - type: "sphere"
     position: [-3.5, 3.75, -20]
     color: [1.0, 0.6, 0.2]
-    radius: 0.15
-    intensity: 150.0
+    radius: 0.25
+    intensity: 55.0
   - type: "sphere"
     position: [-3.5, 3.75, -30]
     color: [1.0, 0.6, 0.2]
-    radius: 0.15
-    intensity: 150.0
+    radius: 0.25
+    intensity: 55.0
   - type: "sphere"
     position: [-3.5, 3.75, -40]
     color: [1.0, 0.6, 0.2]
-    radius: 0.15
-    intensity: 150.0
+    radius: 0.25
+    intensity: 55.0
   - type: "sphere"
     position: [-3.5, 3.75, -50]
     color: [1.0, 0.6, 0.2]
-    radius: 0.15
-    intensity: 150.0
+    radius: 0.25
+    intensity: 55.0
 
   # Lato Destro (puntano verso il centro della strada)
   - type: "sphere"
     position: [3.5, 3.75, 0]
     color: [1.0, 0.6, 0.2]
-    radius: 0.15
-    intensity: 150.0
+    radius: 0.25
+    intensity: 55.0
   - type: "sphere"
     position: [3.5, 3.75, -10]
     color: [1.0, 0.6, 0.2]
-    radius: 0.15
-    intensity: 150.0
+    radius: 0.25
+    intensity: 55.0
   - type: "sphere"
     position: [3.5, 3.75, -20]
     color: [1.0, 0.6, 0.2]
-    radius: 0.15
-    intensity: 150.0
+    radius: 0.25
+    intensity: 55.0
   - type: "sphere"
     position: [3.5, 3.75, -30]
     color: [1.0, 0.6, 0.2]
-    radius: 0.15
-    intensity: 150.0
+    radius: 0.25
+    intensity: 55.0
   - type: "sphere"
     position: [3.5, 3.75, -40]
     color: [1.0, 0.6, 0.2]
-    radius: 0.15
-    intensity: 150.0
+    radius: 0.25
+    intensity: 55.0
   - type: "sphere"
     position: [3.5, 3.75, -50]
     color: [1.0, 0.6, 0.2]
-    radius: 0.15
-    intensity: 150.0
+    radius: 0.25
+    intensity: 55.0
 
 materials:
   - id: "mat_asphalt"
