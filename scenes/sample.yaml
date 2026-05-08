@@ -3,7 +3,6 @@
 
 # Mezzogiorno (test veloce, cielo pulito)
 # world:
-#   ambient_light: [0.04, 0.04, 0.06]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.10, 0.30, 0.80]
@@ -31,7 +30,6 @@
 
 # Golden Hour
 # world:
-#   ambient_light: [0.03, 0.03, 0.02]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.15, 0.25, 0.55]
@@ -57,7 +55,6 @@
 
 # Tramonto drammatico
 # world:
-#   ambient_light: [0.03, 0.01, 0.01]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.06, 0.04, 0.18]
@@ -83,7 +80,6 @@
 
 # Cielo nuvoloso
 # world:
-#   ambient_light: [0.05, 0.05, 0.06]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.52, 0.55, 0.60]
@@ -100,7 +96,6 @@
 
 # Notte con luna
 world:
-  ambient_light: [0.005, 0.005, 0.01]
   sky:
     type: "gradient"
     zenith_color:  [0.01, 0.01, 0.05]

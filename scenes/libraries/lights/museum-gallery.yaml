@@ -23,8 +23,9 @@
 #
 #  WORLD ABBINATO (galleria, pareti bianche, ambiente controllato):
 #    world:
-#      ambient_light: [0.025, 0.025, 0.028]
-#      background: [0.0, 0.0, 0.0]
+#      sky:
+#        type: "flat"
+#        color: [0.025, 0.025, 0.028]
 #
 #  RENDER CONSIGLIATO:
 #    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1

@@ -33,9 +33,10 @@ imports:
   - path: "libraries/materials/fabrics.yaml"
 
 world:
-  ambient_light: [0.012, 0.012, 0.014]
-  background: [0.0, 0.0, 0.0]
-
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
+    
 cameras:
   - name: "tavola"
     position: [0.0, 0.95, -1.5]

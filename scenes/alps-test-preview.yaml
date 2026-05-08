@@ -12,7 +12,6 @@ imports:
   - path: "libraries/terrain/alps-test.yaml"
 
 world:
-  ambient_light: [0.050, 0.050, 0.070]
   sky:
     type: "gradient"
     zenith_color:  [0.100, 0.200, 0.450]

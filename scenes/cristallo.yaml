@@ -24,7 +24,6 @@
 #  WORLD — Ambiente scuro da galleria, cielo muto per riflessi nel vetro
 # ═══════════════════════════════════════════════════════════════════════════
 world:
-  ambient_light: [0.015, 0.013, 0.02]
   sky:
     type: "gradient"
     zenith_color:  [0.02, 0.02, 0.06]

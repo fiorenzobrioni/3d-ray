@@ -17,20 +17,11 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-# ─── WORLD ATTIVO ★ Stanza chiusa — luce da finestra ────────────────────────
+# ─── WORLD Stanza chiusa — luce da finestra ────────────────────────
 world:
-  ambient_light: [0.04, 0.04, 0.04]
-  background: [0.0, 0.0, 0.0]
-
-# ─── WORLD ALT-1: Più luminosa — luce pomeridiana ───────────────────────────
-# world:
-#   ambient_light: [0.08, 0.08, 0.07]
-#   background: [0.0, 0.0, 0.0]
-
-# ─── WORLD ALT-2: Sera — luce artificiale calda ─────────────────────────────
-# world:
-#   ambient_light: [0.015, 0.012, 0.008]
-#   background: [0.0, 0.0, 0.0]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

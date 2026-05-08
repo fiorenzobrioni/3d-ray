@@ -20,7 +20,6 @@
 #
 #  WORLD ABBINATO (cielo diurno procedurale):
 #    world:
-#      ambient_light: [0.06, 0.08, 0.12]
 #      sky:
 #        type: "gradient"
 #        zenith_color:  [0.10, 0.30, 0.80]

@@ -24,11 +24,8 @@ Three modes are supported, configured under `world: > sky:`.
 When there is no `sky:` block, the engine uses a flat sky with the
 default daylight blue `[0.5, 0.7, 1.0]`.
 
-> **Removed in v2:** `world.ambient_light` and `world.background` no
-> longer exist. The old ambient term was added as raw radiance per
-> surface hit, bypassing the BRDF/cosine/albedo and washing out colour
-> saturation. Industry-standard renderers (Arnold, Cycles, RenderMan)
-> have no such term — indirect/ambient illumination arises from
+
+> Indirect/ambient illumination arises from
 > path-traced GI alone. To reproduce a "fill light" feel, use a
 > `sky.type: flat` with a low colour, or a low-zenith gradient.
 
@@ -474,8 +471,7 @@ the background softly blurs.
   `sun:` disk turns it into a full outdoor light source.
 - **HDRI** maps provide photorealistic environment lighting with
   importance sampling.
-- There is no `ambient_light` or `background` field — the sky is the
-  only environmental emitter, and indirect/ambient lighting comes from
+- The sky is the only environmental emitter, and indirect/ambient lighting comes from
   path-traced GI alone.
 - **Depth of field** is controlled by `aperture` (lens size) and
   `focal_dist` (focus distance). Larger aperture = more blur.

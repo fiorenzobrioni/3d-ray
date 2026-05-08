@@ -38,15 +38,6 @@ entities:   # Oggetti 3D (primitive, gruppi, istanze, CSG, mesh)
 
 ### 3. **SEZIONE WORLD** — Configurazione dell'Ambiente
 
-> **Breaking change (v2):** `world.ambient_light` e `world.background` sono stati
-> rimossi. Il termine ambient stile-Phong era non-fisico: sommava radianza grezza
-> ad ogni hit di superficie scavalcando la BRDF, il coseno e l'albedo del materiale,
-> con il risultato di "scolorire" tutta l'immagine. Nei renderer di produzione
-> (Arnold, Cycles, RenderMan) non esiste un termine analogo: la luce ambientale e
-> indiretta nasce dalla GI path-traced. Usa `world.sky` (con `type: flat`,
-> `gradient` o `hdri`) come unico emettitore globale dell'ambiente. Le vecchie
-> chiavi vengono ignorate silenziosamente nelle scene legacy.
-
 ```yaml
 world:
   sky:                                     # (opzionale) Emettitore globale dell'ambiente

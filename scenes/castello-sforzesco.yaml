@@ -24,7 +24,6 @@
 #  WORLD — Pomeriggio estivo milanese (cielo azzurro con sole alto-laterale)
 # ─────────────────────────────────────────────────────────────────────────────
 world:
-  ambient_light: [0.10, 0.09, 0.08]   # lievemente alzata: GI subtile sulle zone d'ombra
   sky:
     type: "gradient"
     zenith_color:  [0.12, 0.32, 0.78]  # blu profondo in alto
@@ -39,7 +38,6 @@ world:
 
   # ── ALT-1: Golden Hour (tramonto a sinistra) ──────────────────────────────
   # world:
-  #   ambient_light: [0.07, 0.05, 0.04]
   #   sky:
   #     type: "gradient"
   #     zenith_color:  [0.08, 0.12, 0.38]
@@ -54,7 +52,6 @@ world:
 
   # ── ALT-2: Cielo coperto / overcast (luce piatta, no sole) ───────────────
   # world:
-  #   ambient_light: [0.14, 0.14, 0.15]
   #   sky:
   #     type: "gradient"
   #     zenith_color:  [0.55, 0.57, 0.62]

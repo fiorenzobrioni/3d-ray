@@ -175,12 +175,6 @@ $$L_\text{avg} = \frac{\sum_{i=0}^{W \cdot H - 1} \text{Luminance}(\text{pixel}_
 
 Questo valore viene calcolato con lazy evaluation (la prima volta che viene richiesto) e poi cached. Per il gradient sky, la stima è una media pesata analitica di `ZenithColor`, `HorizonColor` e `GroundColor`, con il contributo del sole scalato per il suo angolo solido normalizzato. Per il flat sky, la stima è semplicemente `Luminance(FlatColor)`.
 
-### 5.7 Rimozione del termine `ambient_light` (storico)
-
-Le versioni precedenti supportavano un campo `world.ambient_light` che veniva sommato come radianza grezza ad ogni hit di superficie, fuori dalla BRDF, dal coseno di Lambert e dall'albedo del materiale. Questa è una hack stile-Phong incompatibile con il path tracing fisico: scuriva i materiali neri sopra zero, desaturava i materiali colorati e schiariva le ombre indipendentemente dalla geometria.
-
-Il termine è stato rimosso in v2 per allinearsi alle convenzioni di produzione (Arnold, Cycles, RenderMan). L'illuminazione ambientale nasce esclusivamente dalla path-traced GI: è il cielo (qualsiasi tipo) ad agire come emettitore globale, e i rimbalzi indiretti propagano la luce alle superfici occluse. Per riprodurre il vecchio comportamento "fill light" basta usare un `sky.type: flat` con un colore basso (es. `[0.05, 0.05, 0.06]`).
-
 ---
 
 ## 6. Sphere Light — Solid-Angle Sampling

@@ -93,8 +93,6 @@ world:
 
 Se ometti `sky:`, il motore usa un cielo flat azzurro-diurno (`[0.5, 0.7, 1.0]`). Il Capitolo 7 tratta in dettaglio gradient e HDRI.
 
-> **Nota:** le versioni precedenti avevano i campi `ambient_light` e `background`. Sono stati rimossi perché il termine ambient era non-fisico: veniva sommato sopra ogni superficie scavalcando BRDF, coseno e albedo del materiale, desaturando i colori e schiarendo le ombre. I renderer di produzione (Arnold, Cycles, RenderMan) non hanno un campo analogo — `sky:` è l'unico emettitore.
-
 La sezione `world:` supporta anche una **scorciatoia per il terreno**:
 
 ```yaml

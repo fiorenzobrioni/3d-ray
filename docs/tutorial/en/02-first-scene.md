@@ -106,13 +106,6 @@ world:
 If you omit `sky:` entirely, the engine uses a daylight-blue flat sky
 (`[0.5, 0.7, 1.0]`). Chapter 7 covers gradient and HDRI in depth.
 
-> **Note:** earlier versions had `ambient_light` and `background`
-> fields. They were removed because the ambient term was non-physical:
-> it was added on top of every surface bypassing the BRDF, the cosine
-> factor, and the material albedo, which desaturated colours and
-> washed out shadows. Production renderers (Arnold, Cycles, RenderMan)
-> have no such field — `sky:` is the single emitter.
-
 The `world:` section also supports a **ground shorthand**:
 
 ```yaml

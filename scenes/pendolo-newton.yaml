@@ -27,9 +27,10 @@
 # =============================================================================
 world:
   # Studio scurissimo: luce d'ambiente minima per ombre profonde
-  ambient_light: [0.012, 0.012, 0.015]
-  background:    [0.015, 0.015, 0.022]
-
+  sky:
+    type: "flat"
+    color: [0.012, 0.012, 0.015]
+  
   # Opzione HDRI: rimuovi il commento per riflessi ambientali complessi
   # (Richiede un file .hdr nella cartella textures/)
   #sky:

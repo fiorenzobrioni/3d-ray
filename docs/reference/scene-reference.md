@@ -33,14 +33,6 @@ entities:   # 3D objects (primitives, groups, instances, CSG, meshes)
 ---
 ### 3. **WORLD SECTION** — Environment Configuration
 
-> **Breaking change (v2):** `world.ambient_light` and `world.background` have been
-> removed. The non-physical Phong-style ambient term washed out colours by
-> bypassing the BRDF, the cosine factor and the material albedo. Industry-standard
-> path tracers (Arnold, Cycles, RenderMan) have no such term — indirect/ambient
-> illumination arises from path-traced GI alone. Use `world.sky` (with `type: flat`,
-> `gradient`, or `hdri`) as the single global emitter. Old keys are silently
-> ignored when present in legacy scenes.
-
 ```yaml
 world:
   sky:                                     # (optional) Global environment emitter

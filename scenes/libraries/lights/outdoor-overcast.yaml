@@ -22,7 +22,6 @@
 #
 #  WORLD ABBINATO (cielo nuvoloso bianco-grigio):
 #    world:
-#      ambient_light: [0.08, 0.09, 0.10]
 #      sky:
 #        type: "gradient"
 #        zenith_color:  [0.50, 0.53, 0.58]
@@ -39,7 +38,7 @@
 #      il disco solare non è visibile. Niente sun disk = coerenza visiva.
 #    - L'area light enorme (10×10 u) simula la volta celeste come emettitore
 #      uniforme. Più è grande, più le ombre (già quasi assenti) sono morbide.
-#    - ambient_light alto compensa l'assenza di bounce tra oggetti ravvicinati.
+#    - Luce ambiente alta compensa l'assenza di bounce tra oggetti ravvicinati.
 #    - Per visualizzazione architettonica abbinare a materiali con roughness
 #      alta (cemento, pietra, intonaco): la luce diffusa ne esalta le texture.
 #    - La directional orizzonte introduce un minimo di direzionalità per

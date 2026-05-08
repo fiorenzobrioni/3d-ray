@@ -12,22 +12,38 @@ imports:
   - path: "libraries/terrain/minecraft-test.yaml"
 
 world:
-  ambient_light: [0.060, 0.070, 0.100]
   sky:
     type: "gradient"
-    zenith_color:  [0.250, 0.320, 0.450]
-    horizon_color: [0.780, 0.820, 0.880]
-    ground_color:  [0.550, 0.550, 0.600]
+    zenith_color:  [0.15, 0.25, 0.55]  # Blu profondo in alto
+    horizon_color: [0.85, 0.55, 0.25]  # Arancio caldo all'orizzonte
+    ground_color:  [0.20, 0.15, 0.10]  # Marrone scuro sotto l'orizzonte
     sun:
-      direction: [-0.474, -0.652, -0.592]
-      color: [0.950, 0.950, 1.000]
-      intensity: 10.000
-      size: 3.000
-      falloff: 32.0
+      direction: [-0.8, -0.25, -0.5]   # Sole basso a sinistra
+      color: [1.0, 0.85, 0.5]
+      intensity: 2.0
+      size: 3.0                         # Disco solare leggermente grande
+      falloff: 32.0                     # Glow ampio e caldo
+#  ground:
+#    type: "infinite_plane"
+#    material: "terreno"
+#    y: 0
+
+#world:
+#  sky:
+#    type: "gradient"
+#    zenith_color:  [0.250, 0.320, 0.450]
+#    horizon_color: [0.780, 0.820, 0.880]
+#    ground_color:  [0.550, 0.550, 0.600]
+#    sun:
+#      direction: [-0.474, -0.652, -0.592]
+#      color: [0.950, 0.950, 1.000]
+#      intensity: 10.000
+#      size: 3.000
+#      falloff: 32.0
 
 lights:
   - type: "directional"
-    direction: [0.574, -0.395, 0.717]
+    direction: [0.574, -0.300, 0.717]
     color: [0.780, 0.820, 0.880]
     intensity: 1.000
 

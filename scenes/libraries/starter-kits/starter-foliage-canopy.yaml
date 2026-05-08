@@ -31,8 +31,6 @@ imports:
   - path: "libraries/materials/grounds.yaml"
 
 world:
-  ambient_light: [0.03, 0.04, 0.025]
-
   # Cielo a gradiente: blu zenitale, leggero verde all'orizzonte (riflesso
   # del fogliame). Il sole è alto e a destra-fronte: produrrà dappled
   # light sul terreno e retroilluminazione delle foglie.

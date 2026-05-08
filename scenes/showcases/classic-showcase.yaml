@@ -3,7 +3,6 @@
 # --- CONFIGURAZIONI WORLD E LIGHTS (Scommenta quella desiderata) ---
 # 1. Studio notturno con cielo scuro, luna tenue
 world:
-  ambient_light: [0.01, 0.01, 0.015]
   sky:
     type: "gradient"
     zenith_color:  [0.02, 0.04, 0.12]
@@ -41,7 +40,6 @@ lights:
 
 # 2. Natural Daylight (Esterno chiaro)
 #world:
-#  ambient_light: [0.06, 0.06, 0.08]
 #  sky:
 #    type: "gradient"
 #    zenith_color:  [0.10, 0.30, 0.80]
@@ -67,7 +65,6 @@ lights:
 
 # 3. Tramonto
 #world:
-#  ambient_light: [0.04, 0.02, 0.01]
 #  sky:
 #    type: "gradient"
 #    zenith_color:  [0.08, 0.05, 0.20]

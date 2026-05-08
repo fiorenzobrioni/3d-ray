@@ -21,7 +21,6 @@
 #
 #  WORLD ABBINATO (tramonto rosso fuoco):
 #    world:
-#      ambient_light: [0.04, 0.02, 0.01]
 #      sky:
 #        type: "gradient"
 #        zenith_color:  [0.07, 0.04, 0.18]

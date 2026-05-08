@@ -18,7 +18,6 @@
 
 # ─── WORLD ATTIVO ★ Tramonto drammatico ──────────────────────────────────────
 world:
-  ambient_light: [0.04, 0.03, 0.03]
   sky:
     type: "gradient"
     zenith_color:  [0.08, 0.06, 0.22]
@@ -37,7 +36,6 @@ world:
 
 # ─── WORLD ALT-1: Mezzogiorno mediterraneo ──────────────────────────────────
 # world:
-#   ambient_light: [0.06, 0.06, 0.05]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.15, 0.32, 0.78]
@@ -56,7 +54,6 @@ world:
 
 # ─── WORLD ALT-2: Notte di luna — atmosfera mistica ─────────────────────────
 # world:
-#   ambient_light: [0.005, 0.006, 0.012]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.008, 0.008, 0.035]

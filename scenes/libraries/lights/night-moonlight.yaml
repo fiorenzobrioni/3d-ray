@@ -22,7 +22,6 @@
 #
 #  WORLD ABBINATO (notte serena):
 #    world:
-#      ambient_light: [0.005, 0.005, 0.012]
 #      sky:
 #        type: "gradient"
 #        zenith_color:  [0.010, 0.010, 0.040]
@@ -41,7 +40,7 @@
 #    Final  : -w 1920 -H 1080 -s 1024 -d 8  -S 4
 #
 #  NOTE:
-#    - ambient_light quasi zero è fondamentale: in una notte reale non c'è
+#    - Luce ambiente quasi zero è fondamentale: in una notte reale non c'è
 #      luce ambiente. Aumentarlo solo per scopi di leggibilità.
 #    - La lantern hint (point arancio) è progettata per situazioni con
 #      una fonte di calore nella scena (fuoco, lanterna, finestra illuminata).

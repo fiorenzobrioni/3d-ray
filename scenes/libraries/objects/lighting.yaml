@@ -20,7 +20,7 @@
 # ── Note sull'illuminazione ──────────────────────────────────────────────
 #
 #   I materiali emissivi (lit_*) sono calibrati per scene con
-#   ambient_light basso o nullo. Ogni fixture emette luce reale:
+#   ambient light basso o nullo. Ogni fixture emette luce reale:
 #   le sfere emissive partecipano alla NEE. Per scene con HDRI o
 #   sole forte, abbassare l'intensity ridefinendo il materiale
 #   localmente.

@@ -35,8 +35,9 @@
 # =============================================================================
 world:
   # Ambiente e sfondo nero — stanza chiusa, nessun cielo visibile
-  ambient_light: [0.0, 0.0, 0.0]
-  background: [0.0, 0.0, 0.0]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
   ground:
     type: "infinite_plane"
     material: "floor_stone"

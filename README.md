@@ -99,7 +99,6 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🟡 **Sphere Light** — Luce sferica con solid-angle sampling: penumbra circolare uniforme, zero campioni sprecati, efficienza 2–10× superiore alla sfera emissiva equivalente per sfere piccole/distanti. Ideale per lampadine, lanterne e globi luminosi.
 - ✨ **Emissive Objects** — qualsiasi geometria con materiale `emissive` diventa sorgente di luce visibile con illuminazione indiretta naturale
 - 🌐 **Environment Light** — flat / gradient / HDRI sky partecipano tutti alla NEE: il flat sky come uniform sphere sampler, il gradient con sun-disk via cone sampling, l'HDRI via CDF di luminanza importance-sampled
-- 🪞 **Path-traced GI puro** — nessun termine `ambient_light` non-fisico (rimosso in v2): la luce ambientale nasce dai rimbalzi indiretti, esattamente come in Arnold, Cycles e RenderMan
 
 ### Ambiente
 - ☁️ **Flat Sky** — cielo a colore uniforme. Default `[0.5, 0.7, 1.0]` quando `world.sky` è omesso; partecipa a NEE quando luminanza > 0.

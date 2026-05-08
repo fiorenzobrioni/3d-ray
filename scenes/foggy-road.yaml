@@ -5,7 +5,9 @@
 
 world:
   # Un cielo serale profondo, essenziale per far risaltare il bagliore dei lampioni
-  background: [0.02, 0.03, 0.06]
+  sky:
+    type: "flat"
+    color: [0.02, 0.03, 0.06]
   medium:
     type: homogeneous
     # L'assorbimento scurisce la luce sulla distanza (nebbia scura/fuliggine)

@@ -1,5 +1,4 @@
 world:
-  ambient_light: [0.04, 0.03, 0.02]
   sky:
     type: "gradient"
     zenith_color:  [0.15, 0.25, 0.55]  # Blu profondo in alto

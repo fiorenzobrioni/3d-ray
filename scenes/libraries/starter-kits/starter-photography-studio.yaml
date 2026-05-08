@@ -16,20 +16,11 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-# ─── WORLD ATTIVO ★ Studio nero — sfondo scuro controllato ──────────────────
+# ─── WORLD Studio nero — sfondo scuro controllato ──────────────────
 world:
-  ambient_light: [0.02, 0.02, 0.02]
-  background: [0.03, 0.03, 0.03]
-
-# ─── WORLD ALT-1: Studio bianco — high key ──────────────────────────────────
-# world:
-#   ambient_light: [0.12, 0.12, 0.12]
-#   background: [0.90, 0.90, 0.90]
-
-# ─── WORLD ALT-2: Studio grigio neutro ──────────────────────────────────────
-# world:
-#   ambient_light: [0.05, 0.05, 0.05]
-#   background: [0.35, 0.35, 0.35]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

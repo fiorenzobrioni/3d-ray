@@ -19,7 +19,7 @@ Tutte le luci sono definite nella sezione `lights:`. Se ometti completamente la 
 
 ### Da dove viene la luce ambientale
 
-3D-Ray non ha un campo `ambient_light`. Non esiste alcuna costante stile-Phong sommata ad ogni superficie — quel termine desaturava i colori e schiariva le ombre scavalcando BRDF, coseno e albedo del materiale. I renderer di produzione (Arnold, Cycles, RenderMan) lavorano allo stesso modo: l'illuminazione ambientale nasce esclusivamente dalla GI path-traced.
+L'illuminazione ambientale nasce esclusivamente dalla GI path-traced.
 
 Se vuoi un fill light morbido, hai tre opzioni fisicamente corrette, tutte configurabili sotto `world: > sky:` (vedi Capitolo 7):
 

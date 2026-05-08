@@ -38,7 +38,6 @@
 #  WORLD
 # ═══════════════════════════════════════════════════════════════════════════
 world:
-  ambient_light: [0.02, 0.02, 0.03]
   sky:
     type: "gradient"
     zenith_color:  [0.04, 0.06, 0.20]    # Blu notte profondo

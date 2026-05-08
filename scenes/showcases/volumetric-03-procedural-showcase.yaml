@@ -53,8 +53,9 @@
 # =============================================================================
 
 world:
-  ambient_light: [0.005, 0.005, 0.008]
-  background:   [0.0, 0.0, 0.0]
+  sky:
+    type: "flat"
+    color: [0.005, 0.005, 0.008]
   ground: { y: 0, material: floor }
   medium:
     type: procedural

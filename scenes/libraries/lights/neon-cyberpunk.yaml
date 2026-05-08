@@ -23,8 +23,9 @@
 #
 #  WORLD ABBINATO (interno buio, sfondo nero):
 #    world:
-#      ambient_light: [0.01, 0.0, 0.02]
-#      background: [0.0, 0.0, 0.0]
+#      sky:
+#        type: "flat"
+#        color: [0.01, 0.0, 0.02]
 #
 #  RENDER CONSIGLIATO:
 #    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1
@@ -32,7 +33,7 @@
 #    Final  : -w 1920 -H 1080 -s 1024 -d 8  -S 4
 #
 #  NOTE:
-#    - L'ambient_light con tinta viola [0.01, 0.0, 0.02] tinge l'aria
+#    - La luce ambiente con tinta viola [0.01, 0.0, 0.02] tinge l'aria
 #      della scena — evita il nero assoluto mantenendo l'atmosfera notturna.
 #    - Le intensità sono alte (60–90): le luci neon reali sono sorgenti
 #      molto luminose in ambienti molto scuri. Il contrasto è estremo.

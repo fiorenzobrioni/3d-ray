@@ -21,8 +21,9 @@
 #
 #  WORLD ABBINATO (studio nero assoluto — nessuna luce ambiente):
 #    world:
-#      ambient_light: [0.0, 0.0, 0.0]
-#      background: [0.0, 0.0, 0.0]
+#      sky:
+#        type: "flat"
+#        color: [0.0, 0.0, 0.0]
 #
 #  RENDER CONSIGLIATO:
 #    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1
@@ -30,9 +31,9 @@
 #    Final  : -w 1920 -H 1080 -s 1024 -d 8  -S 4
 #
 #  NOTE:
-#    - Con ambient_light [0,0,0] le zone non illuminate sono nero assoluto.
+#    - Con luce ambiente [0,0,0] le zone non illuminate sono nero assoluto.
 #      Se preferisci un nero "cinematografico" (non digitale), usa
-#      ambient_light [0.005, 0.005, 0.005].
+#      luce ambiente [0.005, 0.005, 0.005].
 #    - Il fill ghost è facoltativo: commentarlo per il chiaroscuro più puro.
 #    - Aumenta inner_angle / outer_angle per ammorbidire la transizione
 #      luce/ombra sulla key spot.

@@ -10,7 +10,6 @@ camera:
   aperture: 0.0
 
 world:
-  ambient_light: [0.02, 0.02, 0.02]
   sky:
     type: "gradient"
     zenith_color: [0.05, 0.05, 0.15]

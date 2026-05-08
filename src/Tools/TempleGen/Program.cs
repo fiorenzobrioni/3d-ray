@@ -432,6 +432,6 @@ class Program
             dir = dir.Parent;
         if (dir == null)
             throw new DirectoryNotFoundException("Could not locate repo root (no 'scenes/' directory found above the binary).");
-        return Path.Combine(dir.FullName, "scenes", "tempio_romano.yaml");
+        return Path.Combine(dir.FullName, "scenes", "tempio-romano.yaml");
     }
 }

@@ -20,8 +20,9 @@
 
 
 world:
-  ambient_light: [0.05, 0.05, 0.06]
-  background: [0.15, 0.15, 0.18]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
   ground:
     type: "infinite_plane"
     material: "pavimento"

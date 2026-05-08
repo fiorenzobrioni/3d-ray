@@ -5,7 +5,6 @@
 # square. Edit ChessGen/Program.cs to regenerate this file.
 
 world:
-  # --- Configurazione Corrente: Giardino Pomeridiano per Metalli ---
   # Lo sky gradient fornisce ai metalli un cielo credibile da riflettere
   # ed e' la sola sorgente di illuminazione ambientale (path-traced GI).
   sky:

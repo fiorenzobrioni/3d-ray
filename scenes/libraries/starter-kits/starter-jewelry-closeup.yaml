@@ -32,9 +32,10 @@ imports:
   - path: "libraries/lights/studio-product.yaml"
 
 world:
-  ambient_light: [0.005, 0.005, 0.008]
-  background: [0.0, 0.0, 0.0]
-
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
+    
 cameras:
   # Macro frontale leggermente angolata (3/4)
   - name: "macro"

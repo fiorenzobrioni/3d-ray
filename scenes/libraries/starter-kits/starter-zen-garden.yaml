@@ -22,7 +22,6 @@
 
 # ─── WORLD ATTIVO ★ Golden hour — luce dorata morbida ────────────────────────
 world:
-  ambient_light: [0.06, 0.05, 0.04]
   sky:
     type: "gradient"
     zenith_color:  [0.18, 0.30, 0.62]
@@ -41,7 +40,6 @@ world:
 
 # ─── WORLD ALT-1: Mattina nebbiosa — luce diffusa morbida ───────────────────
 # world:
-#   ambient_light: [0.10, 0.10, 0.11]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.50, 0.55, 0.62]
@@ -54,7 +52,6 @@ world:
 
 # ─── WORLD ALT-2: Tramonto autunnale — caldo e drammatico ───────────────────
 # world:
-#   ambient_light: [0.04, 0.03, 0.02]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.10, 0.08, 0.25]

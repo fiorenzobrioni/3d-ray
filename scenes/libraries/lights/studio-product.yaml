@@ -23,8 +23,9 @@
 #
 #  WORLD ABBINATO (studio neutro, fondo grigio scuro):
 #    world:
-#      ambient_light: [0.04, 0.04, 0.05]
-#      background: [0.06, 0.06, 0.08]
+#      sky:
+#        type: "flat"
+#        color: [0.04, 0.04, 0.05]
 #
 #  RENDER CONSIGLIATO:
 #    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1

@@ -29,8 +29,6 @@ imports:
   - path: "libraries/lights/outdoor-sunset.yaml"
 
 world:
-  ambient_light: [0.04, 0.05, 0.08]
-
   # Cielo a gradiente con disco solare basso e caldo. Il sole è a destra-fronte
   # (direzione: verso lo scenario, lievemente verso il basso).
   sky:

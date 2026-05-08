@@ -12,7 +12,6 @@ imports:
   - path: "libraries/terrain/pianura-spring.yaml"
 
 world:
-  ambient_light: [0.060, 0.080, 0.100]
   sky:
     type: "gradient"
     zenith_color:  [0.300, 0.550, 0.850]

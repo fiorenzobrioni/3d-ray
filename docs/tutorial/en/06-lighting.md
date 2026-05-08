@@ -26,12 +26,7 @@ objects or HDRI environment lighting.
 
 ### Where ambient lighting comes from
 
-3D-Ray has no `ambient_light` field. There is no Phong-style additive
-constant added to every surface — that hack desaturates colours and
-washes out shadows by bypassing the BRDF, the cosine factor and the
-material albedo. Industry-standard renderers (Arnold, Cycles, RenderMan)
-work the same way: ambient illumination arises from path-traced GI
-alone.
+Ambient illumination arises from path-traced GI alone.
 
 If you want soft fill light in your scene, you have three physically
 correct options, all configured under `world: > sky:` (see Chapter 7):

@@ -23,8 +23,9 @@
 #
 #  WORLD ABBINATO (stanza buia, nessuna luce ambiente):
 #    world:
-#      ambient_light: [0.004, 0.002, 0.001]
-#      background: [0.0, 0.0, 0.0]
+#      sky:
+#        type: "flat"
+#        color: [0.004, 0.002, 0.001]
 #
 #  RENDER CONSIGLIATO:
 #    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1
@@ -35,8 +36,8 @@
 #    - Le candele sono molto vicine al soggetto (1–3 u): l'attenuazione
 #      quadratica della point light crea il tipico decadimento rapido della
 #      luce di candela — brillante vicino, buio poco dopo.
-#    - Con ambient_light quasi zero le zone non raggiunte dalle candele
-#      sono nere: questo è l'effetto cercato. Non alzare l'ambient.
+#    - Con luce ambiente quasi zero le zone non raggiunte dalle candele
+#      sono nere: questo è l'effetto cercato. Non alzare l'ambiente.
 #    - Per un effetto "flickering" nella scena finale: usa più render
 #      con posizioni leggermente diverse e componi un'animazione.
 #    - Per aggiungere la sfera emissiva fiamma visibile: abbina una sfera

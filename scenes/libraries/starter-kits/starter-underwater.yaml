@@ -18,7 +18,6 @@
 
 # ─── WORLD ATTIVO ★ Acqua profonda — gradiente blu scuro ────────────────────
 world:
-  ambient_light: [0.02, 0.04, 0.06]
   sky:
     type: "gradient"
     zenith_color:  [0.01, 0.05, 0.12]
@@ -31,7 +30,6 @@ world:
 
 # ─── WORLD ALT-1: Acque poco profonde — più luminose e verdi ────────────────
 # world:
-#   ambient_light: [0.04, 0.08, 0.06]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.05, 0.15, 0.20]
@@ -44,7 +42,6 @@ world:
 
 # ─── WORLD ALT-2: Abisso — molto scuro, bioluminescenza ─────────────────────
 # world:
-#   ambient_light: [0.003, 0.005, 0.010]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.002, 0.003, 0.008]

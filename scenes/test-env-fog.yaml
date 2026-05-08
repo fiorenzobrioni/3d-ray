@@ -22,33 +22,41 @@
 # =============================================================================
 
 world:
-  ambient_light: [0.02, 0.02, 0.03]
   sky:
     type: "gradient"
     zenith_color:  [0.20, 0.32, 0.55]
     horizon_color: [0.85, 0.88, 0.92]
     ground_color:  [0.30, 0.27, 0.24]
-    sun:
-      direction: [-0.3, -0.55, -0.6]
-      color:     [1.0, 0.95, 0.85]
-      intensity: 6.0
-      size:      2.0
-      falloff:   25.0
   ground:
     type: "infinite_plane"
     material: "pavimento"
     y: 0
   medium:
-    type: "homogeneous"
+    type: homogeneous
     sigma_a: [0.012, 0.014, 0.018]
     sigma_s: [0.040, 0.045, 0.050]
     phase: "hg"
     g: 0.50
+    #type: homogeneous
+    #sigma_a: [0.015, 0.015, 0.015]
+    #sigma_s: [0.08, 0.08, 0.08]
+    #phase: hg
+    #g: 0.60
 
 camera:
   position: [0, 1.6, -8]
-  look_at:  [0, 1.0, 6]
+  look_at:  [-0.5, 1.0, 6]
   fov: 50
+
+lights:
+  - type: "spot"
+    position: [-2, 2.6, -8]
+    direction: [0, -0.2, 1]
+    color: [1.0, 1.0, 1.0]
+    intensity: 150.0
+    inner_angle: 20
+    outer_angle: 40
+    soft_radius: 0.25
 
 materials:
   - id: "pavimento"
@@ -73,5 +81,3 @@ entities:
   - { name: "mid1",  type: "sphere", center: [ 0.0, 0.9,  2], radius: 0.9, material: "verde"   }
   - { name: "mid2",  type: "sphere", center: [ 2.5, 0.9,  6], radius: 0.9, material: "azzurro" }
   - { name: "far",   type: "sphere", center: [-2.5, 0.9, 14], radius: 0.9, material: "ambra"   }
-
-lights: []

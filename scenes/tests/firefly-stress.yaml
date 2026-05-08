@@ -17,26 +17,21 @@
 camera:
   position: [0, 1.5, 5]
   look_at: [0, 0.2, 0]
-  up: [0, 1, 0]
-  vfov: 50
 
 world:
-  background: [0, 0, 0]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
   medium:
     type: homogeneous
     sigma_a: [0.1, 0.1, 0.1]
     sigma_s: [2.0, 2.0, 2.0]
-    phase:
-      type: hg
-      g: 0.3
-  entities:
-    # Floor plane (diffuse white)
-    - type: infinite_plane
-      normal: [0, 1, 0]
-      d: 0
-      material:
-        type: lambertian
-        color: [0.8, 0.8, 0.8]
+    phase: hg
+    g: 0.3
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
 
 lights:
   # Bright sphere light sitting 0.4 units above the floor
@@ -46,3 +41,8 @@ lights:
     color: [1.0, 0.95, 0.9]
     intensity: 30.0
     shadow_samples: 16
+
+materials:
+  - id: "pavimento"
+    type: "lambertian"
+    color: [0.8, 0.8, 0.8]

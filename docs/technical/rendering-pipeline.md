@@ -132,8 +132,6 @@ Se non ci sono luci e il YAML non ha una sezione `lights:` esplicita, viene aggi
 - **`gradient`** — zenith/horizon/ground con interpolazione, più sun disk opzionale. Solo il sun disk partecipa a NEE.
 - **`hdri`** — carica il file `.hdr` tramite `HdrLoader`, costruisce l'`EnvironmentMap` con CDF per importance sampling.
 
-> **Storico:** le chiavi `world.ambient_light` e `world.background` sono state rimosse in v2 — il termine ambient stile-Phong era non-fisico (sommato fuori da BRDF/coseno/albedo) e washed-out generale. La GI ambientale nasce ora unicamente dal path-tracing del cielo e dei rimbalzi indiretti.
-
 ### 1.8 Output
 
 `Load()` restituisce una tupla `(IHittable world, Camera camera, List<ILight> lights, SkySettings sky, IMedium? globalMedium)` pronta per il Renderer.

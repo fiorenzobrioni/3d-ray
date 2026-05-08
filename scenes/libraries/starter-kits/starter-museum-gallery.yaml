@@ -15,15 +15,11 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-# ─── WORLD ATTIVO ★ Interno museo — chiuso, luce controllata ────────────────
+# ─── WORLD Interno museo — chiuso, luce controllata ────────────────
 world:
-  ambient_light: [0.04, 0.04, 0.05]
-  background: [0.0, 0.0, 0.0]
-
-# ─── WORLD ALT-1: Galleria con luce naturale da lucernario ──────────────────
-# world:
-#   ambient_light: [0.08, 0.08, 0.09]
-#   background: [0.15, 0.15, 0.18]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

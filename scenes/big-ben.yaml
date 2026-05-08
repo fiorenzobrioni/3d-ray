@@ -25,7 +25,6 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:
-  ambient_light: [0.10, 0.10, 0.13]
   ground:
     type: infinite_plane
     material: pavement

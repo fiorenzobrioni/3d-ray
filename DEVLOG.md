@@ -324,13 +324,6 @@ ambient stile-Phong.
 - `scenes/libraries/README.md`, `README.md` (root) — esempi e highlights
   aggiornati.
 
-### Migrazione delle scene utente
-Le 79 scene rimanenti del repo che contengono ancora
-`ambient_light:` / `background:` caricano regolarmente: YamlDotNet
-ignora le chiavi sconosciute. Effetto pratico: spariscono il fill
-non-fisico e (se assente `sky:`) compare il flat blu daylight di default.
-La migrazione manuale è prevista a carico dell'utente.
-
 ---
 
 ## 🗓️ Ciclo di Review — Disney BSDF & Sampling (Apr 2026)

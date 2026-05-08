@@ -19,7 +19,6 @@
 
 # ─── WORLD ATTIVO ★ Cielo fantasy — gradiente viola/arancio ──────────────────
 world:
-  ambient_light: [0.08, 0.06, 0.10]
   sky:
     type: "gradient"
     zenith_color:  [0.12, 0.05, 0.35]
@@ -34,7 +33,6 @@ world:
 
 # ─── WORLD ALT-1: Alba pastello — rosa e azzurro ────────────────────────────
 # world:
-#   ambient_light: [0.08, 0.07, 0.09]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.25, 0.35, 0.70]
@@ -49,7 +47,6 @@ world:
 
 # ─── WORLD ALT-2: Notte stellata magica — scuro con accenti ─────────────────
 # world:
-#   ambient_light: [0.01, 0.01, 0.03]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.01, 0.005, 0.05]

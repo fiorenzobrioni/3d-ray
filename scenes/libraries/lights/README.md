@@ -16,8 +16,9 @@ imports:
   - path: "libraries/lights/studio-3point.yaml"
 
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background: [0.0, 0.0, 0.0]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
 
 cameras:
   - name: "main"
@@ -129,19 +130,19 @@ da CLI per attenuare i rimbalzi indiretti.
 Ogni file di libreria ha nell'intestazione YAML il world consigliato.
 Riferimento rapido:
 
-| Setup | `ambient_light` | Sky |
-|-------|----------------|-----|
-| Studio (tutti) | `[0.00–0.02, 0.00–0.02, 0.00–0.03]` | Nessuno — `background: [0,0,0]` |
-| Mezzogiorno | `[0.06, 0.08, 0.12]` | `gradient` cielo azzurro diurno |
-| Ora d'Oro | `[0.05, 0.04, 0.02]` | `gradient` orizzonte ambrato |
-| Tramonto | `[0.04, 0.02, 0.01]` | `gradient` orizzonte rosso fuoco |
-| Cielo Coperto | `[0.08, 0.09, 0.10]` | `gradient` grigio uniforme |
-| Notte Luna | `[0.005, 0.005, 0.012]` | `gradient` notte con luna |
-| Interni Caldi | `[0.02, 0.015, 0.008]` | Nessuno — `background: [0.01,0.01,0.02]` |
-| Candele | `[0.004, 0.002, 0.001]` | Nessuno — `background: [0,0,0]` |
-| Neon | `[0.01, 0.00, 0.02]` | Nessuno — `background: [0,0,0]` |
-| Teatro | `[0.00, 0.00, 0.00]` | Nessuno — `background: [0,0,0]` |
-| Galleria | `[0.025, 0.025, 0.028]` | Nessuno — `background: [0,0,0]` |
+| Setup | Sky color |
+|-------|--------|
+| Studio (tutti) | `[0.00–0.02, 0.00–0.02, 0.00–0.03]` |
+| Mezzogiorno | `[0.06, 0.08, 0.12]` |
+| Ora d'Oro | `[0.05, 0.04, 0.02]` |
+| Tramonto | `[0.04, 0.02, 0.01]` |
+| Cielo Coperto | `[0.08, 0.09, 0.10]` |
+| Notte Luna | `[0.005, 0.005, 0.012]` |
+| Interni Caldi | `[0.02, 0.015, 0.008]` |
+| Candele | `[0.004, 0.002, 0.001]` |
+| Neon | `[0.01, 0.00, 0.02]` |
+| Teatro | `[0.00, 0.00, 0.00]` |
+| Galleria | `[0.025, 0.025, 0.028]` |
 
 ---
 

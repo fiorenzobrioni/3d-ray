@@ -105,7 +105,6 @@ entities: []                  # oggetti della scena
 - Studio con fill morbido: `sky.type: flat` con un colore basso neutro (es. `[0.05, 0.05, 0.06]`) — il flat sky partecipa a NEE come uniform sphere.
 - Esterni diurni: `sky.type: gradient` con zenith/horizon/ground e disco `sun:` (può essere l'unica sorgente luminosa).
 - HDRI: `sky.type: hdri` con `path:`; nessun fill aggiuntivo necessario.
-- IMPORTANTE: NON usare mai i campi rimossi `ambient_light` o `background` — sono stati eliminati in v2 (erano un termine ambient non-fisico stile-Phong).
 - Non mescolare luce importata e luci duplicate dello stesso tipo.
 
 **Campioni render:**

@@ -16,7 +16,7 @@ Il cielo è l'unico emettitore globale per l'illuminazione ambientale in 3D-Ray.
 
 Quando non è presente il blocco `sky:`, il motore utilizza un cielo piatto con il colore daylight blu di default `[0.5, 0.7, 1.0]`.
 
-> **Rimossi in v2:** `world.ambient_light` e `world.background` non esistono più. Il vecchio termine ambient veniva sommato come radianza grezza ad ogni hit di superficie, scavalcando BRDF/coseno/albedo e desaturando i colori. I renderer di produzione (Arnold, Cycles, RenderMan) non hanno un termine analogo: la luce ambientale e indiretta nasce dalla GI path-traced. Per riprodurre un effetto "fill light", usa `sky.type: flat` con un colore basso, o un gradient con zenith fioco.
+> Per riprodurre un effetto "fill light", usa `sky.type: flat` con un colore basso, o un gradient con zenith fioco.
 
 ---
 
@@ -403,7 +403,7 @@ La fotocamera "macro" ha la DOF abilitata -- la sfera d'oro sarà nitida mentre 
 - Il cielo **flat** restituisce un colore uniforme e partecipa a NEE tramite uniform sphere sampling; ideale per studio e scene d'interno.
 - Il cielo **gradient** fornisce una sfumatura verticale a tre bande; l'aggiunta di un disco `sun:` lo trasforma in una sorgente luminosa completa per esterni.
 - Le mappe **HDRI** forniscono un'illuminazione ambientale fotorealistica con importance sampling.
-- Non esiste un campo `ambient_light` o `background` — il cielo è l'unico emettitore d'ambiente, e l'illuminazione indiretta/ambient nasce dalla GI path-traced.
+- Il cielo è l'unico emettitore d'ambiente, e l'illuminazione indiretta/ambient nasce dalla GI path-traced.
 - La **profondità di campo** (DOF) è controllata da `aperture` (dimensione dell'obiettivo) e `focal_dist` (distanza di messa a fuoco). Apertura più grande = più sfocatura.
 - Le **fotocamere multiple** consentono di definire diversi punti di vista e passare dall'uno all'altro con `--camera nome` sulla riga di comando.
 

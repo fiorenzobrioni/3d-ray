@@ -24,7 +24,6 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:
-  ambient_light: [0.0, 0.0, 0.0]       # Zero — tutta la luce viene dall'HDRI
   sky:
     type: "hdri"
     path: "hdri/newman_cafeteria_4k.hdr" # Percorso relativo al file YAML
@@ -40,7 +39,6 @@ world:
 #  VARIANTE: HDRI più luminoso (ambienti scuri)
 # ─────────────────────────────────────────────────────────────────────────
 # world:
-#   ambient_light: [0.0, 0.0, 0.0]
 #   sky:
 #     type: "hdri"
 #     path: "hdri/newman_cafeteria_4k.hdr"

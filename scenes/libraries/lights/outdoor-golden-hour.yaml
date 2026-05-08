@@ -22,7 +22,6 @@
 #
 #  WORLD ABBINATO (golden hour gradient sky):
 #    world:
-#      ambient_light: [0.05, 0.04, 0.02]
 #      sky:
 #        type: "gradient"
 #        zenith_color:  [0.14, 0.22, 0.55]

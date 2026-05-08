@@ -21,8 +21,9 @@
 #
 #  WORLD ABBINATO (studio nero — sfondo assente):
 #    world:
-#      ambient_light: [0.02, 0.02, 0.03]
-#      background: [0.0, 0.0, 0.0]
+#      sky:
+#        type: "flat"
+#        color: [0.02, 0.02, 0.03]
 #
 #  RENDER CONSIGLIATO:
 #    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1

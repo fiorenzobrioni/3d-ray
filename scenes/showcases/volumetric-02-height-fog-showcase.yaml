@@ -47,8 +47,9 @@
 # =============================================================================
 
 world:
-  ambient_light: [0.02, 0.02, 0.03]
-  background:   [0.35, 0.45, 0.6]
+  sky:
+    type: "flat"
+    color: [0.02, 0.02, 0.03]
   ground: { y: 0, material: floor }
   medium:
     type: height_fog

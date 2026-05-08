@@ -19,7 +19,6 @@
 #  WORLD — Golden Hour (ora d'oro, sole basso)
 # ═══════════════════════════════════════════════════════════════════════════
 world:
-  ambient_light: [0.02, 0.015, 0.01]
   sky:
     type: "gradient"
     zenith_color:  [0.15, 0.25, 0.55]  # Blu profondo in alto
@@ -41,7 +40,6 @@ world:
 #  WORLD ALT-1 — Mezzogiorno (cielo pulito, sole alto)
 # ─────────────────────────────────────────────────────────────────────────
 # world:
-#   ambient_light: [0.06, 0.06, 0.08]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.10, 0.30, 0.80]
@@ -62,7 +60,6 @@ world:
 #  WORLD ALT-2 — Tramonto drammatico (rosso fuoco)
 # ─────────────────────────────────────────────────────────────────────────
 # world:
-#   ambient_light: [0.03, 0.01, 0.01]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.08, 0.05, 0.20]  # Viola scuro
@@ -83,7 +80,6 @@ world:
 #  WORLD ALT-3 — Notte serena (senza sole, solo gradiente)
 # ─────────────────────────────────────────────────────────────────────────
 # world:
-#   ambient_light: [0.005, 0.005, 0.01]
 #   sky:
 #     type: "gradient"
 #     zenith_color:  [0.01, 0.01, 0.04]

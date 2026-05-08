@@ -75,7 +75,7 @@ Consulta le convenzioni del progetto:
 
 ### 6. World e ambiente
 
-- [ ] `sky` presente o omesso (default = flat azzurro). I campi rimossi `ambient_light` / `background` NON devono comparire — segnalare come errore se presenti.
+- [ ] `sky` presente o omesso (default = flat azzurro).
 - [ ] Se `sky.type: flat`: `color` con valori 0.0–1.0; `[0,0,0]` ammesso per black-void.
 - [ ] Se `sky.type: gradient`: `zenith_color`, `horizon_color`, `ground_color` presenti; eventualmente `sun:` con `direction`/`color`/`intensity`/`size`/`falloff`.
 - [ ] Se `sky.type: hdri`: `path:` esiste sotto la directory di scena; `intensity` ragionevole (0.5–3.0); `rotation` in gradi.

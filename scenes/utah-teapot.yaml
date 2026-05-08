@@ -30,7 +30,6 @@ cameras:
     focal_dist: 4.0
 
 world:
-  ambient_light: [0.005, 0.005, 0.008]
   sky:
     type: "gradient"
     zenith_color: [0.02, 0.02, 0.06]

@@ -21,15 +21,11 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-# ─── WORLD ATTIVO ★ Chiuso — nessuna luce esterna ───────────────────────────
+# ─── WORLD Chiuso — nessuna luce esterna ───────────────────────────
 world:
-  ambient_light: [0.0, 0.0, 0.0]
-  background: [0.0, 0.0, 0.0]
-
-# ─── WORLD ALT-1: Fill minima per draft veloci ──────────────────────────────
-# world:
-#   ambient_light: [0.015, 0.015, 0.02]
-#   background: [0.0, 0.0, 0.0]
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

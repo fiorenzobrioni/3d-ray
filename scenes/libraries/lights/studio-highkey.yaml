@@ -22,8 +22,9 @@
 #
 #  WORLD ABBINATO (studio bianco — sfondo luminoso):
 #    world:
-#      ambient_light: [0.18, 0.18, 0.20]
-#      background: [0.95, 0.95, 0.97]
+#      sky:
+#        type: "flat"
+#        color: [0.18, 0.18, 0.20]
 #
 #  RENDER CONSIGLIATO:
 #    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1
@@ -31,9 +32,9 @@
 #    Final  : -w 1920 -H 1080 -s 1024 -d 8  -S 4
 #
 #  NOTE:
-#    - Con ambient_light alto e background chiaro le ombre scompaiono quasi
+#    - Con luce ambiente alta le ombre scompaiono quasi
 #      del tutto: è l'effetto cercato in questo setup.
-#    - Se vuoi reintrodurre una piccola ombra, abbassa ambient a [0.08,0.08,0.10]
+#    - Se vuoi reintrodurre una piccola ombra, abbassa la luce ambiente
 #      e ridimensiona la main softbox del 30%.
 #    - Ideale abbinato a materiali con roughness 0.3–0.7 (plastic, ceramic).
 # =============================================================================
