@@ -232,6 +232,21 @@ public sealed class Extrusion : IHittable, ISamplable
 
         // 7) Emit triangles. Pre-size the list to its exact final length to
         //    avoid List<T> growth re-allocations during construction.
+        //
+        // Winding note: a 2D-CCW loop lifted with (X, Y_2D) → (X, 0, Z_3D)
+        // has natural cross-product face normal pointing toward −Y when
+        // triangulated in CCW order. To get an outward face normal on the
+        // side wall (e.g. +X for the +X side of the polygon) and on the
+        // caps (−Y for bottom, +Y for top) we therefore use:
+        //   • side walls:   (b0, t1, b1)  and  (b0, t0, t1)
+        //   • bottom cap:   (a, b, c)      [keep ear-clip CCW]
+        //   • top cap:      (c, b, a)      [reverse]
+        // SmoothTriangle relies on the geometric face normal for FrontFace
+        // classification and would silently render back-face hits with a
+        // flipped shading normal — i.e. solid black — if the winding gave
+        // an inward face. Triangle (used for the linear flat path) is
+        // immune via SetFaceNormal, but we keep the same winding for
+        // consistency.
         int sideTriCount = 2 * n;
         int capTriCount = (capTris?.Count ?? 0) * (caps == ExtrusionCaps.Both ? 2 : 1);
         _triangles = new List<IHittable>(sideTriCount + capTriCount);
@@ -251,44 +266,47 @@ public sealed class Extrusion : IHittable, ISamplable
                 Vector3 nT0 = topNormals3D[i],    nT1 = topNormals3D[j];
 
                 _triangles.Add(new SmoothTriangle(
-                    b0, b1, t1, nB0, nB1, nT1,
-                    new Vector2(u0, 0f), new Vector2(u1, 0f), new Vector2(u1, 1f), material));
+                    b0, t1, b1, nB0, nT1, nB1,
+                    new Vector2(u0, 0f), new Vector2(u1, 1f), new Vector2(u1, 0f), material));
                 _triangles.Add(new SmoothTriangle(
-                    b0, t1, t0, nB0, nT1, nT0,
-                    new Vector2(u0, 0f), new Vector2(u1, 1f), new Vector2(u0, 1f), material));
+                    b0, t0, t1, nB0, nT0, nT1,
+                    new Vector2(u0, 0f), new Vector2(u0, 1f), new Vector2(u1, 1f), material));
             }
             else
             {
-                _triangles.Add(new Triangle(b0, b1, t1, material));
-                _triangles.Add(new Triangle(b0, t1, t0, material));
+                _triangles.Add(new Triangle(b0, t1, b1, material));
+                _triangles.Add(new Triangle(b0, t0, t1, material));
             }
         }
 
         // 8) Caps as smooth triangles with planar UVs anchored to the
         //    bottom-loop AABB. Both caps share the same UV layout so a
         //    stamped texture (logo, gear teeth) registers identically on
-        //    both ends regardless of taper or twist. The bottom cap winds
-        //    CW so its outward normal points −Y; the top cap stays CCW for
-        //    +Y.
+        //    both ends regardless of taper or twist.
         if (capTris != null && capUV != null)
         {
             Vector3 nDown = -Vector3.UnitY;
             Vector3 nUp   =  Vector3.UnitY;
             if (caps == ExtrusionCaps.Start || caps == ExtrusionCaps.Both)
             {
+                // Keep ear-clip CCW: 2D-CCW lifted to y = 0 has cross-product
+                // face normal −Y, which is the outward direction for the
+                // bottom cap.
                 foreach (var (a, b, c) in capTris)
                     _triangles.Add(new SmoothTriangle(
-                        bottom[c], bottom[b], bottom[a],
+                        bottom[a], bottom[b], bottom[c],
                         nDown, nDown, nDown,
-                        capUV[c], capUV[b], capUV[a], material));
+                        capUV[a], capUV[b], capUV[c], material));
             }
             if (caps == ExtrusionCaps.End || caps == ExtrusionCaps.Both)
             {
+                // Reverse the ear-clip CCW so the top cap face normal points
+                // +Y (outward).
                 foreach (var (a, b, c) in capTris)
                     _triangles.Add(new SmoothTriangle(
-                        top[a], top[b], top[c],
+                        top[c], top[b], top[a],
                         nUp, nUp, nUp,
-                        capUV[a], capUV[b], capUV[c], material));
+                        capUV[c], capUV[b], capUV[a], material));
             }
         }
 
