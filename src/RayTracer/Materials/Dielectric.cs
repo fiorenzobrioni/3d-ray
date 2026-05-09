@@ -33,17 +33,7 @@ public sealed class Dielectric : IMaterial
         float ri = rec.FrontFace ? (1f / RefractionIndex) : RefractionIndex;
 
         Vector3 unitDirection = Vector3.Normalize(rayIn.Direction);
-
-        // Ensure the shading normal faces against the incoming ray.
-        // Normally SetFaceNormal guarantees this, but CSG subtraction flips
-        // the normal on carved (B) surfaces to orient it toward the cavity.
-        // That flip is correct for the solid's topology (and FrontFace for
-        // IOR selection is also correct), but leaves the normal co-directional
-        // with the ray — which breaks cosTheta, Schlick, and Refract.
-        // Disney's ScatterTransmission already has this guard; Dielectric needs it too.
         Vector3 normal = rec.Normal;
-        if (Vector3.Dot(normal, unitDirection) > 0f)
-            normal = -normal;
 
         float cosTheta = MathF.Min(Vector3.Dot(-unitDirection, normal), 1f);
         float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
