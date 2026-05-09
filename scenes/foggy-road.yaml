@@ -8,7 +8,7 @@ world:
   sky:
     type: "flat"
     color: [0.02, 0.03, 0.06]
-  mmedium:
+  medium:
     type: height_fog
     sigma_a: [0.012, 0.014, 0.018]
     sigma_s: [0.040, 0.045, 0.050]
@@ -20,84 +20,86 @@ world:
 cameras:
   - name: "main"
     position: [0, 1.7, 8]      # Altezza occhi umani
-    look_at: [0, 1.5, -50]     # Sguardo perso verso il fondo della strada
-    fov: 45                    # FOV leggermente stretto per comprimere la prospettiva
+    look_at: [0, 2.5, -50]     # Sguardo perso verso il fondo della strada
+    fov: 38                    # FOV leggermente stretto per comprimere la prospettiva
 
 lights:
   # ============================================================================
-  # LUCI SPOT (Una per ogni istanza del lampione)
-  # Illuminate con un angolo caldo per penetrare la nebbia verso la strada
+  # LUCI (Una per ogni istanza del lampione)
+  # Utilizzo di Point Light per simulare le vecchie lampadine a incandescenza
+  # Colore caldo tendente all'arancione per richiamare le vecchie lampadine
+  # Lascio radius: 0.15 nel caso si voglia cambiare tipo di luce "sphere" al posto di "point"
   # ============================================================================
-  # Lato Sinistro (puntano verso il centro della strada)
-  - type: "sphere"
+  # Lato Destro
+  - type: "point"
     position: [-3.5, 3.75, 0]
+    radius: 0.15
     color: [1.0, 0.6, 0.2]
-    radius: 0.25
-    intensity: 55.0
-  - type: "sphere"
+    intensity: 20.0
+  - type: "point"
     position: [-3.5, 3.75, -10]
+    radius: 0.15
     color: [1.0, 0.6, 0.2]
-    radius: 0.25
-    intensity: 55.0
-  - type: "sphere"
+    intensity: 20.0
+  - type: "point"
     position: [-3.5, 3.75, -20]
+    radius: 0.15
     color: [1.0, 0.6, 0.2]
-    radius: 0.25
-    intensity: 55.0
-  - type: "sphere"
+    intensity: 20.0
+  - type: "point"
     position: [-3.5, 3.75, -30]
+    radius: 0.15
     color: [1.0, 0.6, 0.2]
-    radius: 0.25
-    intensity: 55.0
-  - type: "sphere"
+    intensity: 20.0
+  - type: "point"
     position: [-3.5, 3.75, -40]
+    radius: 0.15
     color: [1.0, 0.6, 0.2]
-    radius: 0.25
-    intensity: 55.0
-  - type: "sphere"
+    intensity: 20.0
+  - type: "point"
     position: [-3.5, 3.75, -50]
+    radius: 0.15
     color: [1.0, 0.6, 0.2]
-    radius: 0.25
-    intensity: 55.0
+    intensity: 20.0
 
-  # Lato Destro (puntano verso il centro della strada)
-  - type: "sphere"
+  # Lato Sinistro
+  - type: "point"
     position: [3.5, 3.75, 0]
+    radius: 0.15
     color: [1.0, 0.6, 0.2]
-    radius: 0.25
-    intensity: 55.0
-  - type: "sphere"
+    intensity: 20.0
+  - type: "point"
     position: [3.5, 3.75, -10]
+    radius: 0.15
     color: [1.0, 0.6, 0.2]
-    radius: 0.25
-    intensity: 55.0
-  - type: "sphere"
+    intensity: 20.0
+  - type: "point"
     position: [3.5, 3.75, -20]
+    radius: 0.15
     color: [1.0, 0.6, 0.2]
-    radius: 0.25
-    intensity: 55.0
-  - type: "sphere"
+    intensity: 20.0
+  - type: "point"
     position: [3.5, 3.75, -30]
+    radius: 0.15
     color: [1.0, 0.6, 0.2]
-    radius: 0.25
-    intensity: 55.0
-  - type: "sphere"
+    intensity: 20.0
+  - type: "point"
     position: [3.5, 3.75, -40]
+    radius: 0.15
     color: [1.0, 0.6, 0.2]
-    radius: 0.25
-    intensity: 55.0
-  - type: "sphere"
+    intensity: 20.0
+  - type: "point"
     position: [3.5, 3.75, -50]
+    radius: 0.15
     color: [1.0, 0.6, 0.2]
-    radius: 0.25
-    intensity: 55.0
+    intensity: 20.0
 
 materials:
   - id: "mat_asphalt"
     type: "disney"
     color: [0.15, 0.15, 0.16]
     roughness: 0.35            # Abbastanza liscio da simulare umidità
-    specular: 0.2 #0.6              # Rifletterà splendidamente i lampioni
+    specular: 0.2              # Rifletterà splendidamente i lampioni
 
   - id: "mat_wet_grass"
     type: "disney"
@@ -107,15 +109,10 @@ materials:
 
   - id: "mat_cast_iron"
     type: "disney"
-    color: [0.02, 0.02, 0.02]
-    metallic: 0.8
-    roughness: 0.6
-    clearcoat: 0.2             # Vernice nera protettiva della ghisa
-
-  - id: "mat_glass_bulb"
-    type: "dielectric"
-    ior: 1.5
-    color: [1, 1, 1]
+    color: [0.30, 0.28, 0.26]
+    metallic: 0.85
+    roughness: 0.62
+    specular: 0.35
 
   - id: "mat_sidewalk"
     type: "disney"
@@ -125,15 +122,13 @@ materials:
 
   - id: "mat_dark_cloth"
     type: "disney"
-    #color: [0.04, 0.04, 0.04]  # Stoffa nera/grigio molto scura
-    #roughness: 0.9             # Molto opaco per non riflettere luce diretta
-    #specular: 0.0
-    color: [0.02, 0.02, 0.02]
-    roughness: 0.90
+    color: [0.04, 0.04, 0.04]  # Stoffa nera/grigio molto scura
+    roughness: 0.9             # Molto opaco per non riflettere luce diretta
     sheen: 0.85
     sheen_tint: 0.3
     sheen_roughness: 0.40
     specular: 0.10
+
 
 templates:
   # ============================================================================
@@ -141,39 +136,22 @@ templates:
   # Paralume in ghisa direzionale verso il basso senza sfere che blocchino la luce
   # ============================================================================
   - name: "london_lamp_spot"
+    material: "mat_cast_iron"
     type: "group"
     children:
-      # BASE, PALO E BARRA TRASVERSALE (Ereditati dallo stile precedente)
-      - type: "csg"
-        operation: "subtraction"
-        material: "mat_cast_iron"
-        left:
-          type: "cylinder"
-          center: [0, 0, 0]
-          radius: 0.3
-          height: 0.6
-        right:
-          type: "cylinder"
-          center: [0, 0.6, 0]
-          radius: 0.4
-          height: 0.3
-          rotate: [90, 0, 0]
+      # BASE, PALO E BARRA TRASVERSALE
       - type: "cylinder"
         center: [0, 0, 0]
-        radius: 0.08
+        radius: 0.22
+        height: 0.5
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.06
         height: 3.5
-        material: "mat_cast_iron"
-      - type: "-cylinder"
-        center: [0, 2.5, 0]
-        radius: 0.02
-        height: 0.6
-        rotate: [0, 0, 90]
-        material: "mat_cast_iron"
 
       # CAPPELLO / PARALUME (Scavato con CSG per non bloccare la luce)
       - type: "csg"
         operation: "subtraction"
-        material: "mat_cast_iron"
         left:
           type: "cone"
           center: [0, 3.8, 0]       
@@ -186,14 +164,43 @@ templates:
           radius: 0.33              # Leggermente più stretto per creare il bordo
           top_radius: 0.04
           height: 0.32              # Più alto per bucare fino in fondo
-        
+
+      # AGGANCI SUPERIORI PARALUME
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.01
+        height: 0.52
+        rotate: [43, 45, 0]
+        translate: [0.0, 3.42, 0.0]
+
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.01
+        height: 0.52
+        rotate: [43, 135, 0]
+        translate: [0.0, 3.42, 0.0]
+
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.01
+        height: 0.52
+        rotate: [43, 225, 0]
+        translate: [0.0, 3.42, 0.0]
+
+      - type: "cylinder"
+        center: [0, 0, 0]
+        radius: 0.01
+        height: 0.52
+        rotate: [43, 315, 0]
+        translate: [0.0, 3.42, 0.0]
+
       # PUNTA DECORATIVA SUPERIORE
       - type: "sphere"
-        center: [0, 4.15, 0]
+        center: [0, 4.14, 0]
         radius: 0.05
-        material: "mat_cast_iron"
 
 entities:
+
   # 1. IL SUOLO (Prato)
   - name: "grass_plane"
     type: "box"

@@ -1,0 +1,8 @@
+# ============================================================================
+# Libreria Oggetti — Font 3D (Alfabeto e Numeri)
+# ============================================================================
+#
+# Ogni carattere è un template centrato nell'origine in XZ, estruso lungo Y.
+# Altezza default: 0.15. Materiale di default da sovrascrivere nella scena.
+#
+templates:
