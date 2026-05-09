@@ -315,13 +315,20 @@ public class CsgObject : IHittable
 
         if (flipNormal)
         {
-            // Flip normal — interior surface of B becomes exterior surface of (A \ B).
-            // Also flip FrontFace to maintain consistency with the shading pipeline
-            // (Dielectric and Disney BSDF use FrontFace for IOR direction).
-            bestHit.Normal = -bestHit.Normal;
+            // Subtraction reuses B's hit as a boundary of (A \ B), but the
+            // geometric outward of (A \ B) is opposite to B's geometric outward
+            // (B's interior becomes (A \ B)'s exterior). For the shading pipeline
+            // only FrontFace must flip — rec.Normal is the SHADING normal, which
+            // is by convention always oriented against the incoming ray. That
+            // orientation is independent of the geometric outward and is
+            // unchanged by the role swap, so flipping rec.Normal here would push
+            // it co-directional with the ray and zero out NdotL on Lambertian /
+            // Disney reflection lobes (the carved interior renders black).
+            // FrontFace, on the other hand, encodes "is the ray entering the
+            // shaded solid?" — which DOES flip when B's surface becomes part of
+            // (A \ B): a B back-face hit (ray exiting B from inside the cavity
+            // back into A material) is an entry of (A \ B), and vice versa.
             bestHit.FrontFace = !bestHit.FrontFace;
-            // Negative normal inverts tangent space chirality. Negate Bitangent to keep TBN right-handed.
-            bestHit.Bitangent = -bestHit.Bitangent;
         }
 
         found = true;

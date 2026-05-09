@@ -181,18 +181,25 @@ entities:
   #     biconvessa. Con il materiale dielectric (vetro), la lente
   #     rifrange la luce in modo fisicamente corretto, visibile
   #     come distorsione dell'ambiente dietro la lente.
+  #
+  #     Geometria: sfere di raggio 1.7 con centri offset di ±1.5 lungo Z
+  #     → spessore assiale ≈ 0.4, raggio equatoriale ≈ 0.8 (rapporto 1:4
+  #     tipico di una lente di ingrandimento). Una sovrapposizione minore
+  #     darebbe una lente più sottile ma con cuspide più marcata; maggiore
+  #     darebbe una lente quasi-sferica, dominata da TIR al bordo, dove
+  #     la forma da convex-lens si perde.
   # ─────────────────────────────────────────────────────────────────────────
   - name: "lente_biconvessa"
     type: "csg"
     operation: "intersection"
     left:
       type: "sphere"
-      center: [0, 0, -0.35]
-      radius: 1.0
+      center: [0, 0, -1.5]
+      radius: 1.7
     right:
       type: "sphere"
-      center: [0, 0, 0.35]
-      radius: 1.0
+      center: [0, 0, 1.5]
+      radius: 1.7
     translate: [-1.5, 1.7, 0]
     rotate: [0, 20, 10]
     material: "vetro_lente"
@@ -284,13 +291,16 @@ lights:
     color: [1.0, 0.95, 0.85]
     intensity: 0.8
 
-  # ── Area light da soffitto — ombre morbide ─────────────────────────────
-  # - type: "area"
-  #   corner: [-6, 6, -3]
-  #   u: [12, 0, 0]
-  #   v: [0, 0, 6]
-  #   color: [1.0, 0.98, 0.94]
-  #   intensity: 2.5
+  # ── Area light da soffitto — ombre morbide e fill su back-face ─────────
+  # Necessaria per illuminare le facce non orientate verso il sole: senza,
+  # ad esempio la faccia +X del dado_forato resta al buio e appare quasi
+  # nera nel riflesso di Fresnel della lente_biconvessa.
+  - type: "area"
+    corner: [-6, 6, -3]
+    u: [12, 0, 0]
+    v: [0, 0, 6]
+    color: [1.0, 0.98, 0.94]
+    intensity: 2.5
 
   # ── Fill light laterale fredda ─────────────────────────────────────────
   # - type: "point"
