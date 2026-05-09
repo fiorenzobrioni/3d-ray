@@ -262,4 +262,399 @@ public class ExtrusionTests
         const float expected = 8f * h + 2f * 3f; // perimeter·h + 2·area
         Assert.InRange(ext.SurfaceArea, expected - 1e-3f, expected + 1e-3f);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Curved profile modes
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void CatmullRom_CoarseCircle_ApproximatesCylinder()
+    {
+        // Catmull-Rom densifies an N-gon back into a smooth circle. With N=8
+        // control points and curve_samples=8 we get a 64-vertex silhouette
+        // that should match a cylinder within the discretisation error of
+        // ~R(1−cos(π/64)) ≈ 1.2e-3.
+        const float R = 1.0f, H = 2.0f;
+        const int N = 8;
+        var profile = new Vector2[N];
+        for (int i = 0; i < N; i++)
+        {
+            float a = 2f * MathF.PI * i / N;
+            profile[i] = new Vector2(R * MathF.Cos(a), R * MathF.Sin(a));
+        }
+
+        var cylinder = new Cylinder(new Vector3(0, 0, 0), R, H, Mat());
+        var ext = new Extrusion(profile, ExtrusionMode.CatmullRom, H,
+            ExtrusionCaps.Both, Mat(), curveSamples: 8);
+
+        var rng = new Random(401);
+        int agreed = 0, total = 400;
+        const float Tolerance = 8e-3f;
+        for (int i = 0; i < total; i++)
+        {
+            var ray = RandomRayToBox(rng, cylinder.BoundingBox());
+            var (hA, tA) = HitOnce(cylinder, ray);
+            var (hB, tB) = HitOnce(ext, ray);
+            if (hA == hB && (!hA || System.Math.Abs(tA - tB) < Tolerance)) agreed++;
+        }
+        Assert.True(agreed >= (int)(total * 0.85),
+            $"Catmull-Rom dense circle vs Cylinder: only {agreed}/{total} agreed.");
+    }
+
+    [Fact]
+    public void Bezier_ClosedCircle_ApproximatesCylinder()
+    {
+        // Standard 4-segment cubic Bezier circle (Stanislaw 1972 approximation):
+        // control offset k = 4·(√2 − 1)/3 ≈ 0.5522847 from each axis endpoint.
+        const float R = 1.0f, H = 2.0f;
+        float k = 4f * (MathF.Sqrt(2f) - 1f) / 3f;
+        var profile = new[]
+        {
+            new Vector2(R, 0), new Vector2(0, R),
+            new Vector2(-R, 0), new Vector2(0, -R),
+        };
+        var controls = new[]
+        {
+            // Q1: (R,0) → (0,R)
+            new Vector2(R, 0),    new Vector2(R, k*R),  new Vector2(k*R, R),  new Vector2(0, R),
+            // Q2: (0,R) → (-R,0)
+            new Vector2(0, R),    new Vector2(-k*R, R), new Vector2(-R, k*R), new Vector2(-R, 0),
+            // Q3: (-R,0) → (0,-R)
+            new Vector2(-R, 0),   new Vector2(-R, -k*R),new Vector2(-k*R, -R),new Vector2(0, -R),
+            // Q4: (0,-R) → (R,0)
+            new Vector2(0, -R),   new Vector2(k*R, -R), new Vector2(R, -k*R), new Vector2(R, 0),
+        };
+
+        var cylinder = new Cylinder(new Vector3(0, 0, 0), R, H, Mat());
+        var ext = new Extrusion(profile, ExtrusionMode.Bezier, H,
+            ExtrusionCaps.Both, Mat(), bezierControls: controls, curveSamples: 16);
+
+        var rng = new Random(402);
+        int agreed = 0, total = 400;
+        // Bezier-circle approximation error peaks at 0.027% on the radius;
+        // we use the same tolerance bracket as the dense polygon test.
+        const float Tolerance = 8e-3f;
+        for (int i = 0; i < total; i++)
+        {
+            var ray = RandomRayToBox(rng, cylinder.BoundingBox());
+            var (hA, tA) = HitOnce(cylinder, ray);
+            var (hB, tB) = HitOnce(ext, ray);
+            if (hA == hB && (!hA || System.Math.Abs(tA - tB) < Tolerance)) agreed++;
+        }
+        Assert.True(agreed >= (int)(total * 0.9),
+            $"Bezier circle vs Cylinder: only {agreed}/{total} agreed.");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Taper — frustum equivalence with Cone
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Taper_Frustum_ApproximatesCone()
+    {
+        // A circular extrusion with taper = topR / bottomR is a frustum, which
+        // is exactly what Cone(bottomR, topR, height) describes. With N=64
+        // facets the silhouette matches the cone within the polygon error
+        // budget AND — critically — the side normals must point outward and
+        // tilted along Y, which the pre-fix Extrusion did not produce.
+        const float Rb = 1.0f, Rt = 0.4f, H = 2.0f;
+        const int N = 64;
+        float scale = 1f / MathF.Cos(MathF.PI / N);
+        var profile = new Vector2[N];
+        for (int i = 0; i < N; i++)
+        {
+            float a = 2f * MathF.PI * i / N;
+            profile[i] = new Vector2(Rb * scale * MathF.Cos(a), Rb * scale * MathF.Sin(a));
+        }
+
+        var cone = new Cone(new Vector3(0, 0, 0), Rb, Rt, H, Mat());
+        var ext = new Extrusion(profile, ExtrusionMode.Linear, H,
+            ExtrusionCaps.Both, Mat(), taper: Rt / Rb);
+
+        var rng = new Random(403);
+        int agreed = 0, total = 400;
+        const float Tolerance = 8e-3f;
+        for (int i = 0; i < total; i++)
+        {
+            var ray = RandomRayToBox(rng, cone.BoundingBox());
+            var (hA, tA) = HitOnce(cone, ray);
+            var (hB, tB) = HitOnce(ext, ray);
+            if (hA == hB && (!hA || System.Math.Abs(tA - tB) < Tolerance)) agreed++;
+        }
+        Assert.True(agreed >= (int)(total * 0.9),
+            $"Tapered N-gon vs Cone: only {agreed}/{total} agreed.");
+    }
+
+    [Fact]
+    public void Taper_SmoothCircle_NormalTiltsAlongY()
+    {
+        // Smoke test for the taper-aware smooth normal fix. With curved-mode
+        // (CatmullRom) and taper ≠ 1, every side hit must have a non-zero
+        // Y component on its shading normal — the pre-fix code lifted the
+        // 2D edge normal into XZ untouched, leaving Ny exactly 0.
+        const float Rb = 1.0f, H = 2.0f;
+        const int N = 16;
+        var profile = new Vector2[N];
+        for (int i = 0; i < N; i++)
+        {
+            float a = 2f * MathF.PI * i / N;
+            profile[i] = new Vector2(Rb * MathF.Cos(a), Rb * MathF.Sin(a));
+        }
+        var ext = new Extrusion(profile, ExtrusionMode.CatmullRom, H,
+            ExtrusionCaps.None, Mat(), taper: 0.4f, curveSamples: 8);
+
+        // Aim a ray from outside straight at the side wall mid-height.
+        int sideHits = 0, sideHitsWithYTilt = 0;
+        var rng = new Random(404);
+        for (int i = 0; i < 80; i++)
+        {
+            float angle = (float)(rng.NextDouble() * 2 * System.Math.PI);
+            var origin = new Vector3(3f * MathF.Cos(angle), 1f, 3f * MathF.Sin(angle));
+            var dir = Vector3.Normalize(new Vector3(0, 1f, 0) - origin);
+            var rec = new HitRecord();
+            if (ext.Hit(new Ray(origin, dir), 0.001f, 1e30f, ref rec))
+            {
+                sideHits++;
+                if (System.MathF.Abs(rec.Normal.Y) > 0.05f) sideHitsWithYTilt++;
+            }
+        }
+        Assert.True(sideHits > 20, $"Expected side hits, got {sideHits}.");
+        Assert.True(sideHitsWithYTilt > sideHits / 2,
+            $"Tapered smooth side normals must tilt along Y: only " +
+            $"{sideHitsWithYTilt}/{sideHits} hits had |Ny| > 0.05.");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Caps — independent verification per side
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void CapsNone_VerticalRayPassesThrough()
+    {
+        // Square prism y ∈ [0, 1] with no caps. A ray going straight up from
+        // (0, -1, 0) must miss entirely (it would enter the bottom and exit
+        // the top through holes).
+        var profile = new[]
+        {
+            new Vector2(-0.5f, -0.5f), new Vector2(0.5f, -0.5f),
+            new Vector2( 0.5f,  0.5f), new Vector2(-0.5f, 0.5f),
+        };
+        var ext = new Extrusion(profile, ExtrusionMode.Linear, 1f,
+            ExtrusionCaps.None, Mat());
+        var rec = new HitRecord();
+        var ray = new Ray(new Vector3(0, -1, 0), Vector3.UnitY);
+        Assert.False(ext.Hit(ray, 0.001f, 1e30f, ref rec),
+            "caps=None must let a centred vertical ray pass through.");
+    }
+
+    [Fact]
+    public void CapsStart_HitsBottomNotTop()
+    {
+        var profile = new[]
+        {
+            new Vector2(-0.5f, -0.5f), new Vector2(0.5f, -0.5f),
+            new Vector2( 0.5f,  0.5f), new Vector2(-0.5f, 0.5f),
+        };
+        var ext = new Extrusion(profile, ExtrusionMode.Linear, 1f,
+            ExtrusionCaps.Start, Mat());
+        // Up from below: must hit bottom cap.
+        {
+            var rec = new HitRecord();
+            var ray = new Ray(new Vector3(0, -1, 0), Vector3.UnitY);
+            Assert.True(ext.Hit(ray, 0.001f, 1e30f, ref rec),
+                "caps=Start: upward ray must hit the bottom cap.");
+            Assert.InRange(rec.Point.Y, -1e-3f, 1e-3f);
+        }
+        // Down from above: top is open, must hit something only after passing
+        // through the open top — the closest hit will be the bottom cap from
+        // the inside.
+        {
+            var rec = new HitRecord();
+            var ray = new Ray(new Vector3(0, 2, 0), -Vector3.UnitY);
+            Assert.True(ext.Hit(ray, 0.001f, 1e30f, ref rec));
+            Assert.InRange(rec.Point.Y, -1e-3f, 1e-3f);
+        }
+    }
+
+    [Fact]
+    public void CapsEnd_HitsTopNotBottom()
+    {
+        var profile = new[]
+        {
+            new Vector2(-0.5f, -0.5f), new Vector2(0.5f, -0.5f),
+            new Vector2( 0.5f,  0.5f), new Vector2(-0.5f, 0.5f),
+        };
+        var ext = new Extrusion(profile, ExtrusionMode.Linear, 1f,
+            ExtrusionCaps.End, Mat());
+        // Down from above: must hit top cap at y = 1.
+        var rec = new HitRecord();
+        var ray = new Ray(new Vector3(0, 2, 0), -Vector3.UnitY);
+        Assert.True(ext.Hit(ray, 0.001f, 1e30f, ref rec),
+            "caps=End: downward ray must hit the top cap.");
+        Assert.InRange(rec.Point.Y, 1f - 1e-3f, 1f + 1e-3f);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CW vs CCW input orientation
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void CwInput_ProducesSameAreaAndAabbAsCcw()
+    {
+        var ccw = new[]
+        {
+            new Vector2(-0.5f, -0.5f), new Vector2(0.5f, -0.5f),
+            new Vector2( 0.5f,  0.5f), new Vector2(-0.5f, 0.5f),
+        };
+        var cw = new[]
+        {
+            new Vector2(-0.5f, -0.5f), new Vector2(-0.5f, 0.5f),
+            new Vector2( 0.5f,  0.5f), new Vector2( 0.5f, -0.5f),
+        };
+        var a = new Extrusion(ccw, ExtrusionMode.Linear, 1f, ExtrusionCaps.Both, Mat());
+        var b = new Extrusion(cw,  ExtrusionMode.Linear, 1f, ExtrusionCaps.Both, Mat());
+        Assert.InRange(b.SurfaceArea, a.SurfaceArea - 1e-3f, a.SurfaceArea + 1e-3f);
+        var ba = a.BoundingBox();
+        var bb = b.BoundingBox();
+        Assert.InRange((bb.Min - ba.Min).Length(), 0f, 1e-4f);
+        Assert.InRange((bb.Max - ba.Max).Length(), 0f, 1e-4f);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Twist — geometric sanity
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Twist_IncreasesSideArea()
+    {
+        // A twisted prism has skew quads on its sides — each ruled patch is
+        // longer than its straight-prism counterpart, so the lateral area must
+        // grow strictly with |twist|. This validates that twist actually
+        // bends the side geometry and that the surface area sums all of it.
+        var profile = new[]
+        {
+            new Vector2(-0.5f, -0.5f), new Vector2(0.5f, -0.5f),
+            new Vector2( 0.5f,  0.5f), new Vector2(-0.5f, 0.5f),
+        };
+        var straight = new Extrusion(profile, ExtrusionMode.Linear, 1f,
+            ExtrusionCaps.Both, Mat());
+        var twisted = new Extrusion(profile, ExtrusionMode.Linear, 1f,
+            ExtrusionCaps.Both, Mat(), twistDegrees: 90f);
+
+        Assert.True(twisted.SurfaceArea > straight.SurfaceArea + 1e-3f,
+            $"Twisted side area must exceed the straight prism's: " +
+            $"twisted={twisted.SurfaceArea}, straight={straight.SurfaceArea}.");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Concave star — cap interior membership
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void ConcaveStar_TopCapRespectsPolygonInterior()
+    {
+        // 5-pointed star. Shoot rays straight down at the top cap from points
+        // we know to be inside (origin) and outside (between two star points
+        // at radius > Router) the polygon: hits must agree with point-in-
+        // polygon membership. This is the actual test that ear-clipping
+        // produced a hole-free triangulation of the concave shape.
+        const int Points = 5;
+        const float Router = 1.0f, Rinner = 0.4f;
+        var profile = new Vector2[Points * 2];
+        for (int i = 0; i < Points * 2; i++)
+        {
+            float a = MathF.PI / 2f - 2f * MathF.PI * i / (Points * 2);
+            float r = (i % 2 == 0) ? Router : Rinner;
+            profile[i] = new Vector2(r * MathF.Cos(a), r * MathF.Sin(a));
+        }
+        var ext = new Extrusion(profile, ExtrusionMode.Linear, 0.5f,
+            ExtrusionCaps.Both, Mat());
+
+        // (0, 0) is inside.
+        {
+            var rec = new HitRecord();
+            var ray = new Ray(new Vector3(0, 2, 0), -Vector3.UnitY);
+            Assert.True(ext.Hit(ray, 0.001f, 1e30f, ref rec),
+                "Star centre must hit the top cap.");
+            Assert.InRange(rec.Point.Y, 0.5f - 1e-3f, 0.5f + 1e-3f);
+        }
+        // A point well outside the polygon (radius 1.2 between two outer
+        // tips, where the star concavity is closest in) must miss the cap
+        // and instead hit a side wall further down — the down-ray must NOT
+        // hit at the cap plane.
+        {
+            float a = MathF.PI / 2f - MathF.PI / Points; // angle of an inner notch
+            var probe = new Vector3(1.2f * MathF.Cos(a), 2, 1.2f * MathF.Sin(a));
+            var rec = new HitRecord();
+            var ray = new Ray(probe, -Vector3.UnitY);
+            // Either misses entirely or hits a side wall (not the top cap
+            // plane). The cap plane is at y = 0.5; if the ray hits, the y
+            // coordinate must be strictly below the cap.
+            if (ext.Hit(ray, 0.001f, 1e30f, ref rec))
+                Assert.True(rec.Point.Y < 0.5f - 1e-3f,
+                    $"Outside-star down-ray hit the top cap at y={rec.Point.Y}; " +
+                    $"ear-clipping leaked a triangle outside the polygon.");
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Validation of malformed inputs — must surface as ArgumentException
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void DegenerateProfile_CollinearPoints_Throws()
+    {
+        // Four collinear points: every candidate ear has zero cross product,
+        // ear-clipping bails with zero triangles. The constructor must
+        // surface this as an ArgumentException rather than silently emitting
+        // a holed mesh. (n = 3 is a special case: the algorithm skips the
+        // ear loop entirely and emits a degenerate zero-area triangle —
+        // numerically silly but topologically valid, so we test n ≥ 4 to
+        // hit the genuine partial-triangulation branch.)
+        var collinear = new[]
+        {
+            new Vector2(0, 0), new Vector2(1, 0),
+            new Vector2(2, 0), new Vector2(3, 0),
+        };
+        Assert.Throws<ArgumentException>(() =>
+            new Extrusion(collinear, ExtrusionMode.Linear, 1f,
+                ExtrusionCaps.Both, Mat()));
+    }
+
+    [Fact]
+    public void BezierC0Break_Throws()
+    {
+        // Closed Bezier loop where segment 0's last control does not match
+        // segment 1's first control — the resulting polyline has a visible
+        // gap. Must surface as an ArgumentException at construction time.
+        var profile = new[]
+        {
+            new Vector2(1, 0), new Vector2(0, 1),
+            new Vector2(-1, 0), new Vector2(0, -1),
+        };
+        var bad = new[]
+        {
+            // Q1 endpoint (0,1) — but Q2 starts at (0.5, 1) instead of (0,1)
+            new Vector2(1, 0),    new Vector2(1, 0.5f),  new Vector2(0.5f, 1), new Vector2(0, 1),
+            new Vector2(0.5f, 1), new Vector2(-0.5f, 1), new Vector2(-1, 0.5f),new Vector2(-1, 0),
+            new Vector2(-1, 0),   new Vector2(-1, -0.5f),new Vector2(-0.5f, -1),new Vector2(0, -1),
+            new Vector2(0, -1),   new Vector2(0.5f, -1), new Vector2(1, -0.5f),new Vector2(1, 0),
+        };
+        Assert.Throws<ArgumentException>(() =>
+            new Extrusion(profile, ExtrusionMode.Bezier, 1f,
+                ExtrusionCaps.Both, Mat(), bezierControls: bad));
+    }
+
+    [Fact]
+    public void NegativeTaper_Throws()
+    {
+        var square = new[]
+        {
+            new Vector2(0, 0), new Vector2(1, 0),
+            new Vector2(1, 1), new Vector2(0, 1),
+        };
+        Assert.Throws<ArgumentException>(() =>
+            new Extrusion(square, ExtrusionMode.Linear, 1f,
+                ExtrusionCaps.Both, Mat(), taper: -0.5f));
+    }
 }

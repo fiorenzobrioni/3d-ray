@@ -1368,6 +1368,18 @@ public class SceneLoader
     /// / <c>taper</c> / <c>curve_samples</c> modifiers. Validates the profile
     /// and routes bad inputs to a deferred warning rather than crashing the
     /// load.
+    ///
+    /// <b>Local frame:</b> the resulting <c>Extrusion</c> sits at
+    /// <c>y ∈ [0, height]</c> in its local frame; <c>center</c> is applied as
+    /// a pure translation, <em>not</em> a recentre. Authors who want a
+    /// centred prism should set <c>center: [cx, cy − height/2, cz]</c> or wrap
+    /// the entity in a parent transform.
+    ///
+    /// <b>Caps and CSG / volumetrics:</b> only <c>caps: both</c> produces a
+    /// closed manifold; the open variants (<c>start</c>, <c>end</c>,
+    /// <c>none</c>) are intended for purely visual surfaces and will misbehave
+    /// inside CSG operations and as participating-media boundaries (rays may
+    /// "leak" through the missing face).
     /// </summary>
     private static IHittable? CreateExtrusionEntity(EntityData e, IMaterial mat)
     {
