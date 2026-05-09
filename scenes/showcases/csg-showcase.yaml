@@ -181,18 +181,25 @@ entities:
   #     biconvessa. Con il materiale dielectric (vetro), la lente
   #     rifrange la luce in modo fisicamente corretto, visibile
   #     come distorsione dell'ambiente dietro la lente.
+  #
+  #     Geometria: sfere di raggio 1.7 con centri offset di ±1.5 lungo Z
+  #     → spessore assiale ≈ 0.4, raggio equatoriale ≈ 0.8 (rapporto 1:4
+  #     tipico di una lente di ingrandimento). Una sovrapposizione minore
+  #     darebbe una lente più sottile ma con cuspide più marcata; maggiore
+  #     darebbe una lente quasi-sferica, dominata da TIR al bordo, dove
+  #     la forma da convex-lens si perde.
   # ─────────────────────────────────────────────────────────────────────────
   - name: "lente_biconvessa"
     type: "csg"
     operation: "intersection"
     left:
       type: "sphere"
-      center: [0, 0, -0.35]
-      radius: 1.0
+      center: [0, 0, -1.5]
+      radius: 1.7
     right:
       type: "sphere"
-      center: [0, 0, 0.35]
-      radius: 1.0
+      center: [0, 0, 1.5]
+      radius: 1.7
     translate: [-1.5, 1.7, 0]
     rotate: [0, 20, 10]
     material: "vetro_lente"
