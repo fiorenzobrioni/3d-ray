@@ -49,6 +49,15 @@ public enum ExtrusionCaps
 /// Houdini's <c>polyextrude</c>, OpenSCAD's <c>linear_extrude</c>, POV-Ray's
 /// <c>prism</c>).
 ///
+/// <b>Local frame:</b> the bottom cap sits at <c>y = 0</c> and the top at
+/// <c>y = height</c> (origin <em>not</em> centred — apply a downward
+/// translation if you want a centred extrusion).
+///
+/// <b>Capping:</b> caps are required to make the extrusion a closed manifold.
+/// Use <see cref="ExtrusionCaps.None"/> only for purely decorative geometry —
+/// CSG operations and participating-media boundaries assume a closed surface
+/// and will misbehave on an open extrusion.
+///
 /// Internally the profile is tessellated into a fine 2D polyline, the side
 /// walls are emitted as a strip of triangles between bottom and top loops
 /// (smooth-shaded for curved profiles, flat for linear), and the caps are
@@ -56,6 +65,15 @@ public enum ExtrusionCaps
 /// (gears, stars, letters) without manual decomposition. Every triangle goes
 /// into a single internal <see cref="BvhNode"/>, exactly as <see cref="Mesh"/>
 /// does, so a complex extrusion costs the outer scene BVH one leaf.
+///
+/// <b>Smooth normals:</b> for curved profile modes the per-vertex normal is
+/// the analytic outward normal of the ruled surface
+/// <c>P(u,v) = (1−v)·B(u) + v·T(u)</c>, computed as
+/// <c>n = normalize((T(u) − B(u)) × ∂P/∂u)</c>. This formula correctly
+/// accounts for non-uniform <c>taper</c> (frustum slant — normals tilt up or
+/// down) and non-zero <c>twist</c> (the ruling line is no longer parallel to
+/// Y). Lifting the 2D outward normal into XZ unchanged would silently produce
+/// the wrong specular highlight on tapered or twisted surfaces.
 ///
 /// Implements <see cref="ISamplable"/> with an area-weighted CDF over its
 /// triangles so an emissive <c>Extrusion</c> automatically becomes a
@@ -113,22 +131,17 @@ public sealed class Extrusion : IHittable, ISamplable
 
         _material = material;
 
-        // 1) Tessellate the profile into a fine closed polyline (CCW).
+        // 1) Tessellate the profile into a fine closed polyline.
         var loop = BuildLoop(profile, mode, bezierControls, curveSamples);
 
         // 2) Ensure CCW orientation so wall outward normals point away from the
         //    interior. If the input is CW, reverse it in place.
         if (Polygon2D.SignedArea(loop) < 0f) loop.Reverse();
 
-        // 3) Compute per-vertex 2D edge normals (smoothed for curved modes,
-        //    sharp/face-only for linear). Used to give the side walls smooth
-        //    shading along the profile direction (the v direction is always
-        //    flat — sides are ruled along Y).
         bool smoothSides = mode != ExtrusionMode.Linear;
-        var sideNormals2D = ComputeVertexNormals2D(loop, smoothSides);
-
-        // 4) Build the bottom and top vertex rings with twist + taper.
         int n = loop.Count;
+
+        // 3) Build the bottom and top vertex rings with twist + taper.
         var bottom = new Vector3[n];
         var top    = new Vector3[n];
         float twistRad = twistDegrees * MathF.PI / 180f;
@@ -146,23 +159,47 @@ public sealed class Extrusion : IHittable, ISamplable
             top[i] = new Vector3(rx, height, rz);
         }
 
-        // 5) Compute per-vertex 3D side normals: rotate the 2D edge normal at
-        //    bottom level (no rotation applied) and at top level (apply twist),
-        //    project onto the plane perpendicular to the local wall direction
-        //    so smooth normals match the actual ruled surface.
-        var bottomNormals3D = new Vector3[n];
-        var topNormals3D    = new Vector3[n];
-        for (int i = 0; i < n; i++)
+        // 4) Per-vertex ruled-surface normals (only consumed when smoothSides).
+        //    n = normalize(R × t) where R = top[i] − bottom[i] is the ruling
+        //    line and t is the along-profile tangent. The cross product gives
+        //    the geometric normal of the ruled patch at that corner — correct
+        //    for any combination of taper and twist (which would otherwise
+        //    leave the simple lift-2D-into-XZ shortcut visibly wrong).
+        var bottomNormals3D = smoothSides ? new Vector3[n] : Array.Empty<Vector3>();
+        var topNormals3D    = smoothSides ? new Vector3[n] : Array.Empty<Vector3>();
+        if (smoothSides)
         {
-            Vector2 nrm = sideNormals2D[i];
-            bottomNormals3D[i] = Vector3.Normalize(new Vector3(nrm.X, 0f, nrm.Y));
-            float nx = cosT * nrm.X - sinT * nrm.Y;
-            float nz = sinT * nrm.X + cosT * nrm.Y;
-            topNormals3D[i] = Vector3.Normalize(new Vector3(nx, 0f, nz));
+            // Fallback 2D outward normals for vertices whose ruled normal
+            // collapses (e.g. R parallel to the local tangent at near-zero
+            // taper combined with grazing geometry).
+            var fallback2D = ComputeOutwardEdgeNormals2D(loop);
+            for (int i = 0; i < n; i++)
+            {
+                int prev = (i - 1 + n) % n;
+                int next = (i + 1) % n;
+
+                // Smooth tangent: (next − prev) is length-weighted (longer
+                // adjacent edges contribute proportionally) and matches the
+                // C¹ tangent of the underlying spline at the control point.
+                Vector3 tB = bottom[next] - bottom[prev];
+                Vector3 tT = top[next]    - top[prev];
+
+                Vector3 R = top[i] - bottom[i];
+
+                Vector3 nB = Vector3.Cross(R, tB);
+                Vector3 nT = Vector3.Cross(R, tT);
+
+                bottomNormals3D[i] = SafeNormalize(nB, fallback2D[i]);
+                topNormals3D[i]    = SafeNormalize(nT, fallback2D[i]);
+            }
         }
 
-        // 6) Compute UV V-coordinates as cumulative arc length (perimeter
-        //    fraction) so a wrapping texture has no seam-stretch.
+        // 5) Side-wall U coordinate as cumulative bottom-loop arc length so a
+        //    wrapping texture has no seam-stretch in the linear case. With
+        //    taper ≠ 1 the top edges have a different absolute length but
+        //    share the same logical U so the texture stretches uniformly
+        //    (matches Blender's "preserve texture" behaviour on tapered
+        //    extrudes).
         var uArc = new float[n + 1];
         uArc[0] = 0f;
         for (int i = 0; i < n; i++)
@@ -173,8 +210,32 @@ public sealed class Extrusion : IHittable, ISamplable
         }
         float perim = uArc[n] > 0f ? uArc[n] : 1f;
 
-        // 7) Emit triangles.
-        _triangles = new List<IHittable>((n * 2) + Math.Max(0, 2 * (n - 2)));
+        // 6) Pre-compute cap triangulation once (it depends only on the
+        //    densified 2D loop and is identical for both caps). We detect
+        //    partial triangulation now and surface it as an ArgumentException
+        //    so the SceneLoader can warn the user — silently emitting a
+        //    holed cap was the previous behaviour.
+        bool needsCaps = caps != ExtrusionCaps.None;
+        List<(int A, int B, int C)>? capTris = null;
+        Vector2[]? capUV = null;
+        if (needsCaps)
+        {
+            capTris = Polygon2D.EarClip(loop, out bool fullyTriangulated);
+            if (!fullyTriangulated)
+                throw new ArgumentException(
+                    "cap triangulation failed — the profile is degenerate " +
+                    "(self-intersecting, collinear, or zero-area). " +
+                    $"ear-clip produced {capTris.Count}/{n - 2} triangles.",
+                    nameof(profile));
+            capUV = ComputePlanarCapUVs(loop);
+        }
+
+        // 7) Emit triangles. Pre-size the list to its exact final length to
+        //    avoid List<T> growth re-allocations during construction.
+        int sideTriCount = 2 * n;
+        int capTriCount = (capTris?.Count ?? 0) * (caps == ExtrusionCaps.Both ? 2 : 1);
+        _triangles = new List<IHittable>(sideTriCount + capTriCount);
+
         for (int i = 0; i < n; i++)
         {
             int j = (i + 1) % n;
@@ -203,19 +264,32 @@ public sealed class Extrusion : IHittable, ISamplable
             }
         }
 
-        // 8) Caps via ear-clipping. Bottom cap winds CW so its outward normal
-        //    points -Y; top cap keeps CCW for +Y.
-        if (caps == ExtrusionCaps.Start || caps == ExtrusionCaps.Both)
+        // 8) Caps as smooth triangles with planar UVs anchored to the
+        //    bottom-loop AABB. Both caps share the same UV layout so a
+        //    stamped texture (logo, gear teeth) registers identically on
+        //    both ends regardless of taper or twist. The bottom cap winds
+        //    CW so its outward normal points −Y; the top cap stays CCW for
+        //    +Y.
+        if (capTris != null && capUV != null)
         {
-            var tris = Polygon2D.EarClip(loop);
-            foreach (var (a, b, c) in tris)
-                _triangles.Add(new Triangle(bottom[c], bottom[b], bottom[a], material));
-        }
-        if (caps == ExtrusionCaps.End || caps == ExtrusionCaps.Both)
-        {
-            var tris = Polygon2D.EarClip(loop);
-            foreach (var (a, b, c) in tris)
-                _triangles.Add(new Triangle(top[a], top[b], top[c], material));
+            Vector3 nDown = -Vector3.UnitY;
+            Vector3 nUp   =  Vector3.UnitY;
+            if (caps == ExtrusionCaps.Start || caps == ExtrusionCaps.Both)
+            {
+                foreach (var (a, b, c) in capTris)
+                    _triangles.Add(new SmoothTriangle(
+                        bottom[c], bottom[b], bottom[a],
+                        nDown, nDown, nDown,
+                        capUV[c], capUV[b], capUV[a], material));
+            }
+            if (caps == ExtrusionCaps.End || caps == ExtrusionCaps.Both)
+            {
+                foreach (var (a, b, c) in capTris)
+                    _triangles.Add(new SmoothTriangle(
+                        top[a], top[b], top[c],
+                        nUp, nUp, nUp,
+                        capUV[a], capUV[b], capUV[c], material));
+            }
         }
 
         // 9) Internal BVH (same threshold as Mesh).
@@ -314,50 +388,63 @@ public sealed class Extrusion : IHittable, ISamplable
     }
 
     /// <summary>
-    /// Per-vertex 2D normals on a CCW closed polygon. When
-    /// <paramref name="smooth"/> is true, each vertex normal is the
-    /// length-weighted mean of its two adjacent edge normals (Phong-style
-    /// across the silhouette); otherwise we duplicate the next-edge normal
-    /// so adjacent triangles in the side wall keep the same flat face
-    /// normal — the strip then renders with hard ridges, mirroring the
-    /// faceted look of the linear lathe.
+    /// Per-edge outward 2D normals on a CCW closed polygon. Used only as a
+    /// fallback when the ruled-surface cross product collapses at a vertex
+    /// (degenerate adjacent edges or ruling parallel to the tangent).
     /// </summary>
-    private static Vector2[] ComputeVertexNormals2D(IReadOnlyList<Vector2> loop, bool smooth)
+    private static Vector2[] ComputeOutwardEdgeNormals2D(IReadOnlyList<Vector2> loop)
     {
         int n = loop.Count;
         var edgeN = new Vector2[n];
-        var edgeLen = new float[n];
         for (int i = 0; i < n; i++)
         {
             Vector2 a = loop[i];
             Vector2 b = loop[(i + 1) % n];
             Vector2 e = b - a;
             float len = e.Length();
-            edgeLen[i] = len;
-            // CCW polygon → outward normal is edge rotated -90° in XZ plane
-            // (i.e. (e.y, -e.x), giving a right-handed outward direction when
-            // mapped to (x, 0, z) so the wall faces away from the interior).
+            // CCW polygon → outward 2D normal is the right-hand rotation of
+            // the edge: (e.y, −e.x) before normalisation.
             edgeN[i] = len > 1e-12f ? new Vector2(e.Y, -e.X) / len : Vector2.UnitX;
         }
+        return edgeN;
+    }
 
-        var result = new Vector2[n];
-        if (smooth)
+    /// <summary>
+    /// Per-vertex planar UVs anchored to the bottom-loop 2D AABB. Both caps
+    /// reuse the same array so a stamped texture lands identically on top
+    /// and bottom regardless of taper / twist (the top vertex order is
+    /// preserved through the loop reversal stage, so capUV[i] consistently
+    /// maps to the i-th cap vertex on either end).
+    /// </summary>
+    private static Vector2[] ComputePlanarCapUVs(IReadOnlyList<Vector2> loop)
+    {
+        int n = loop.Count;
+        float minX = float.PositiveInfinity, maxX = float.NegativeInfinity;
+        float minZ = float.PositiveInfinity, maxZ = float.NegativeInfinity;
+        for (int i = 0; i < n; i++)
         {
-            for (int i = 0; i < n; i++)
-            {
-                int prev = (i - 1 + n) % n;
-                Vector2 sum = edgeN[prev] * edgeLen[prev] + edgeN[i] * edgeLen[i];
-                float len = sum.Length();
-                result[i] = len > 1e-12f ? sum / len : edgeN[i];
-            }
+            Vector2 p = loop[i];
+            if (p.X < minX) minX = p.X;
+            if (p.X > maxX) maxX = p.X;
+            if (p.Y < minZ) minZ = p.Y;
+            if (p.Y > maxZ) maxZ = p.Y;
         }
-        else
+        float rangeX = MathF.Max(maxX - minX, 1e-12f);
+        float rangeZ = MathF.Max(maxZ - minZ, 1e-12f);
+        var uvs = new Vector2[n];
+        for (int i = 0; i < n; i++)
         {
-            // Sharp shading: vertex i sits between edge i-1 and edge i, but a
-            // wall triangle for edge i uses (loop[i], loop[i+1]) — give both
-            // endpoints edge i's normal so the triangle has a uniform normal.
-            for (int i = 0; i < n; i++) result[i] = edgeN[i];
+            Vector2 p = loop[i];
+            uvs[i] = new Vector2((p.X - minX) / rangeX, (p.Y - minZ) / rangeZ);
         }
-        return result;
+        return uvs;
+    }
+
+    private static Vector3 SafeNormalize(Vector3 v, Vector2 fallback2D)
+    {
+        float len = v.Length();
+        if (len > 1e-8f) return v / len;
+        // Lift the 2D fallback into XZ — already unit length by construction.
+        return new Vector3(fallback2D.X, 0f, fallback2D.Y);
     }
 }

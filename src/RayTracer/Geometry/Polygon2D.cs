@@ -41,14 +41,18 @@ internal static class Polygon2D
     /// Triangulates a simple (non self-intersecting) polygon using the
     /// classical O(n²) ear-clipping algorithm. Returns triangle index triples
     /// into the input list, with counter-clockwise winding when the polygon
-    /// is CCW. Concave vertices and acute notches are handled correctly; the
-    /// algorithm fails (returns an empty list) only on degenerate polygons
-    /// (self-intersecting, collinear, near-zero area).
+    /// is CCW. A well-formed simple polygon yields exactly <c>n − 2</c>
+    /// triangles. The algorithm degrades on numerically degenerate inputs
+    /// (self-intersecting, collinear, near-zero area): in that case the
+    /// returned list contains fewer than <c>n − 2</c> triangles and the
+    /// caller can detect partial success via <paramref name="fullyTriangulated"/>.
     /// </summary>
-    public static List<(int A, int B, int C)> EarClip(IReadOnlyList<Vector2> poly)
+    public static List<(int A, int B, int C)> EarClip(
+        IReadOnlyList<Vector2> poly, out bool fullyTriangulated)
     {
         var result = new List<(int, int, int)>();
         int n = poly.Count;
+        fullyTriangulated = false;
         if (n < 3) return result;
 
         // Work on a CCW copy so the ear test can use a single sign.
@@ -100,8 +104,17 @@ internal static class Polygon2D
         if (indices.Count == 3)
             result.Add((indices[0], indices[1], indices[2]));
 
+        fullyTriangulated = result.Count == n - 2;
         return result;
     }
+
+    /// <summary>
+    /// Convenience overload that discards the partial-triangulation indicator.
+    /// Callers that care about diagnostics should prefer the <c>out</c>
+    /// overload instead.
+    /// </summary>
+    public static List<(int A, int B, int C)> EarClip(IReadOnlyList<Vector2> poly)
+        => EarClip(poly, out _);
 
     private static float Cross(Vector2 a, Vector2 b) => a.X * b.Y - a.Y * b.X;
 
@@ -165,14 +178,47 @@ internal static class Polygon2D
     /// the <c>first</c> of segment <c>i+1</c> (loop closure with C⁰
     /// continuity); this matches the layout used by the lathe's Bezier mode.
     /// </summary>
+    /// <exception cref="ArgumentException">Thrown when the control list size
+    /// is not a positive multiple of four, or when consecutive segments do
+    /// not share endpoints (C⁰ break — would produce visible gaps in the
+    /// extrusion silhouette).</exception>
     public static List<Vector2> TessellateClosedBezier(
         IReadOnlyList<Vector2> bezierControls, int samplesPerSegment)
     {
-        var dense = new List<Vector2>();
-        if (bezierControls.Count < 4 || bezierControls.Count % 4 != 0) return dense;
+        if (bezierControls.Count < 4 || bezierControls.Count % 4 != 0)
+            throw new ArgumentException(
+                $"Closed Bezier loop requires a positive multiple of 4 control points, " +
+                $"got {bezierControls.Count}.", nameof(bezierControls));
+
         int segCount = bezierControls.Count / 4;
         if (samplesPerSegment < 1) samplesPerSegment = 1;
 
+        // Tolerance scaled to the polygon extents — absolute 1e-6 fails on
+        // very large or very small profiles. We use the largest absolute
+        // coordinate as a proxy for the natural scale.
+        float scale = 0f;
+        for (int i = 0; i < bezierControls.Count; i++)
+        {
+            scale = MathF.Max(scale, MathF.Abs(bezierControls[i].X));
+            scale = MathF.Max(scale, MathF.Abs(bezierControls[i].Y));
+        }
+        float closureTol = MathF.Max(1e-5f, scale * 1e-5f);
+        float closureTolSq = closureTol * closureTol;
+
+        for (int s = 0; s < segCount; s++)
+        {
+            int k = s * 4;
+            int kNext = ((s + 1) % segCount) * 4;
+            Vector2 segEnd = bezierControls[k + 3];
+            Vector2 nextStart = bezierControls[kNext];
+            if ((segEnd - nextStart).LengthSquared() > closureTolSq)
+                throw new ArgumentException(
+                    $"Closed Bezier loop is not C⁰-continuous between segment {s} and {(s + 1) % segCount}: " +
+                    $"end={segEnd} ≠ next start={nextStart} (Δ={(segEnd - nextStart).Length():G6}).",
+                    nameof(bezierControls));
+        }
+
+        var dense = new List<Vector2>(segCount * samplesPerSegment);
         for (int s = 0; s < segCount; s++)
         {
             int k = s * 4;
