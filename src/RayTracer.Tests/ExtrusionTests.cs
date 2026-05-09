@@ -388,10 +388,14 @@ public class ExtrusionTests
     [Fact]
     public void Taper_SmoothCircle_NormalTiltsAlongY()
     {
-        // Smoke test for the taper-aware smooth normal fix. With curved-mode
-        // (CatmullRom) and taper ≠ 1, every side hit must have a non-zero
-        // Y component on its shading normal — the pre-fix code lifted the
-        // 2D edge normal into XZ untouched, leaving Ny exactly 0.
+        // Validates the taper-aware smooth normal fix together with the
+        // outward-facing winding. With curved mode (CatmullRom) and taper ≠ 1
+        // the side normals must (a) point against the incoming ray (outward
+        // hemisphere — caught back-face winding regressions that produced a
+        // solid-black render in the showcase) and (b) carry a non-trivial +Y
+        // component because the surface tilts inward as it narrows. The
+        // pre-fix code lifted the 2D edge normal into XZ untouched and left
+        // Ny exactly 0.
         const float Rb = 1.0f, H = 2.0f;
         const int N = 16;
         var profile = new Vector2[N];
@@ -403,7 +407,6 @@ public class ExtrusionTests
         var ext = new Extrusion(profile, ExtrusionMode.CatmullRom, H,
             ExtrusionCaps.None, Mat(), taper: 0.4f, curveSamples: 8);
 
-        // Aim a ray from outside straight at the side wall mid-height.
         int sideHits = 0, sideHitsWithYTilt = 0;
         var rng = new Random(404);
         for (int i = 0; i < 80; i++)
@@ -415,13 +418,60 @@ public class ExtrusionTests
             if (ext.Hit(new Ray(origin, dir), 0.001f, 1e30f, ref rec))
             {
                 sideHits++;
-                if (System.MathF.Abs(rec.Normal.Y) > 0.05f) sideHitsWithYTilt++;
+                Assert.True(Vector3.Dot(rec.Normal, dir) < 0f,
+                    $"Side hit at {rec.Point}: rec.Normal {rec.Normal} must oppose " +
+                    $"the incoming ray {dir}. Got dot = {Vector3.Dot(rec.Normal, dir)}.");
+                // Tapered cylinder narrows toward the top → outward normal
+                // must tilt UP (positive Y) to face away from the slanted
+                // side; the pre-fix horizontal-normal bug had Ny ≈ 0.
+                if (rec.Normal.Y > 0.05f) sideHitsWithYTilt++;
             }
         }
         Assert.True(sideHits > 20, $"Expected side hits, got {sideHits}.");
         Assert.True(sideHitsWithYTilt > sideHits / 2,
-            $"Tapered smooth side normals must tilt along Y: only " +
-            $"{sideHitsWithYTilt}/{sideHits} hits had |Ny| > 0.05.");
+            $"Tapered smooth side normals must tilt up along Y: only " +
+            $"{sideHitsWithYTilt}/{sideHits} hits had Ny > 0.05.");
+    }
+
+    [Fact]
+    public void StraightPrism_HitNormalsOpposeRay()
+    {
+        // End-to-end winding regression: a Disney-shaded straight prism
+        // rendered black in the showcase because SmoothTriangle's face
+        // normal (used for FrontFace classification) pointed inward, so
+        // the renderer flipped the shading normal and the BSDF cosine
+        // collapsed to zero. Test all four cardinal sides + top/bottom
+        // caps and assert rec.Normal · ray.Direction < 0 for every hit
+        // arriving from outside the prism.
+        var profile = new[]
+        {
+            new Vector2(-0.5f, -0.5f), new Vector2(0.5f, -0.5f),
+            new Vector2( 0.5f,  0.5f), new Vector2(-0.5f, 0.5f),
+        };
+        // Curved mode forces SmoothTriangle on the side walls so we exercise
+        // the path that previously rendered black.
+        var ext = new Extrusion(profile, ExtrusionMode.CatmullRom, 1f,
+            ExtrusionCaps.Both, Mat(), curveSamples: 6);
+
+        var probes = new (Vector3 origin, Vector3 dir, string label)[]
+        {
+            (new Vector3( 2f, 0.5f, 0f), -Vector3.UnitX,  "+X side from outside"),
+            (new Vector3(-2f, 0.5f, 0f),  Vector3.UnitX,  "-X side from outside"),
+            (new Vector3(0f, 0.5f,  2f), -Vector3.UnitZ,  "+Z side from outside"),
+            (new Vector3(0f, 0.5f, -2f),  Vector3.UnitZ,  "-Z side from outside"),
+            (new Vector3(0f,  2f, 0f),   -Vector3.UnitY,  "top cap from above"),
+            (new Vector3(0f, -1f, 0f),    Vector3.UnitY,  "bottom cap from below"),
+        };
+        foreach (var (origin, dir, label) in probes)
+        {
+            var rec = new HitRecord();
+            Assert.True(ext.Hit(new Ray(origin, dir), 0.001f, 1e30f, ref rec),
+                $"{label}: ray missed the prism.");
+            float d = Vector3.Dot(rec.Normal, dir);
+            Assert.True(d < -0.5f,
+                $"{label}: rec.Normal {rec.Normal} must oppose ray.Direction {dir} " +
+                $"(dot must be ≪ 0). Got dot = {d:G6} — winding regression.");
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
