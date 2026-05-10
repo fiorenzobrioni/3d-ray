@@ -594,6 +594,22 @@ public sealed class DisneyBsdf : IMaterial
     }
 
     /// <summary>
+    /// Beer-Lambert absorption coefficient inside the glass volume. Non-zero
+    /// only when <c>transmission_color</c> and <c>transmission_depth &gt; 0</c>
+    /// are both set: returns <c>−ln(transmission_color) / transmission_depth</c>
+    /// from <see cref="ResolveTransmission"/>. The shadow walker integrates
+    /// <c>exp(−σ_a · d)</c> over the interior segment between paired front/back
+    /// face hits to colour the shadow of a glass tinted by volumetric absorption
+    /// (rubies, emeralds, amber, sapphires in the showcase).
+    /// </summary>
+    public Vector3 ShadowAbsorption(HitRecord rec)
+    {
+        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        var (_, sigma) = ResolveTransmission(rec, baseCol);
+        return sigma;
+    }
+
+    /// <summary>
     /// Evaluates the multi-lobe Disney BSDF f(V, L) at the hit point, without
     /// the N·L cosine. Covers all reflection lobes and — for diff_trans > 0 —
     /// the back-hemisphere Lambertian diffuse-transmission lobe. Specular

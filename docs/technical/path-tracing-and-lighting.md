@@ -65,20 +65,23 @@ Lo shadow ray del NEE non è un semplice test booleano di occlusione: attraversa
 
 **Modelli di trasmittanza per materiale**
 
-- **`Dielectric`**: $T = (1 - F_\text{dielectric}(\cos\theta, \eta)) \cdot \text{albedo}$, dove $F$ è la formula di Fresnel completa (`MathUtils.FresnelDielectric`). Una sfera di vetro accumula due fattori (entrata + uscita), riproducendo il rim più scuro a grazing angles per riflessione totale interna.
-- **`DisneyBsdf`** (solo se `spec_trans > 0`): $T = \text{specTrans} \cdot (1 - F) \cdot \text{tint}$, con `tint` proveniente da `ResolveTransmission` (sqrt(baseColor) legacy, oppure `transmission_color` esplicito). Beer-Lambert tramite `transmission_depth` non è applicato sugli shadow ray (richiederebbe la lunghezza del segmento interno, non tracciata dal walker).
-- **`MixMaterial`**: blend lineare di `ShadowTransmittance` dei due child con il fattore di mix pesato.
-- Default per tutti gli altri materiali: `Vector3.Zero` (opaco).
+- **`Dielectric`**: $T = (1 - F_\text{dielectric}(\cos\theta, \eta)) \cdot \text{albedo}$, dove $F$ è la formula di Fresnel completa (`MathUtils.FresnelDielectric`). Una sfera di vetro accumula due fattori (entrata + uscita), riproducendo il rim più scuro a grazing angles. Nessun assorbimento volumetrico.
+- **`DisneyBsdf`** (solo se `spec_trans > 0`):
+  - Per-interfaccia: $T = \text{specTrans} \cdot (1 - F) \cdot \text{tint}$, con `tint` da `ResolveTransmission` (legacy `sqrt(baseColor)` se `transmission_color` non è impostato, oppure `transmission_color` puro per `transmission_depth = 0`, oppure $\mathbf{1}$ in modalità Beer-Lambert).
+  - Volumetrico Beer-Lambert: $\sigma_a = -\ln(\text{transmission\_color}) / \text{transmission\_depth}$ esposto via `IMaterial.ShadowAbsorption`. Il walker integra $\exp(-\sigma_a \cdot d)$ sul segmento interno fra il front-face hit (entrata) e il successivo back-face hit (uscita). Risultato: l'ombra di un rubino, smeraldo, ambra o zaffiro è correttamente colorata, in coerenza con la trasmissione del lobo BSDF che già usa lo stesso $\sigma_a$ via medium-switch.
+- **`MixMaterial`**: blend lineare di `ShadowTransmittance` e `ShadowAbsorption` dei due child.
+- Default per tutti gli altri materiali: `Vector3.Zero` per entrambi (opaco).
 
-**Limiti dell'approssimazione (importante)**
+**Limiti dell'approssimazione**
 
-Il raggio non viene rifratto: viaggia in linea retta. Questo significa:
-- ✅ Le ombre del vetro sono correttamente ammorbidite dalla trasmissione Fresnel.
-- ✅ Il color bleeding diffuso attraverso uno specchio o un vetro tinto funziona.
-- ❌ Le caustiche focalizzate (la "lente" di una sfera di vetro che concentra la luce in uno spot luminoso sul pavimento) NON emergono dalla NEE: continuano a venire solo dal path tracing forward indiretto, con la consueta varianza alta.
-- ❌ Beer-Lambert su shadow ray non è modellato — il vetro tinto produce una tinta "per interfaccia" anziché "per spessore".
+Il raggio non viene rifratto né perturbato: viaggia in linea retta. Questo significa:
+- ✅ Ombre del vetro ammorbidite dalla trasmissione Fresnel.
+- ✅ Vetri colorati con `transmission_depth` proiettano ombra tinta via Beer-Lambert.
+- ✅ Color bleeding diffuso attraverso uno specchio o un vetro tinto.
+- ❌ Caustiche focalizzate (la "lente" di una sfera di vetro che concentra la luce in uno spot luminoso) NON emergono dalla NEE: continuano a venire solo dal path tracing forward indiretto, con la consueta varianza alta.
+- ❌ Vetro frosted/rough (Disney `roughness > 0` con `spec_trans > 0`): lo shadow ray va dritto come fosse vetro liscio. Una soft-transmission GGX sullo shadow ray richiederebbe sampling speculare con MIS, fuori scope per Strada 1.
 
-Per caustiche unbiased servono Manifold Next Event Estimation (MNEE) o photon mapping / VCM. Vedi la sezione *Roadmap* del `DEVLOG.md` per il piano evolutivo.
+Per caustiche e roughness corretti su shadow ray servono Manifold Next Event Estimation (MNEE) o photon mapping / VCM. Vedi la sezione *Roadmap caustiche* del `DEVLOG.md`.
 
 ### 2.4 Conservazione dell'Area per Emissivi Trasformati (Jacobian)
 

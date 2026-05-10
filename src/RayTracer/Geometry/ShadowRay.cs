@@ -23,6 +23,14 @@ namespace RayTracer.Geometry;
 /// but focused refractive caustics are NOT reproduced (those need MNEE or
 /// photon mapping — see DEVLOG roadmap).</para>
 ///
+/// <para><b>Beer-Lambert.</b> When the walker enters a surface that exposes a
+/// non-zero <see cref="IMaterial.ShadowAbsorption"/> (Disney glass with
+/// <c>transmission_color</c> + <c>transmission_depth &gt; 0</c>), the segment
+/// inside the medium is attenuated by <c>exp(−σ_a · d)</c> until the next
+/// surface hit (the back-face exit). This makes the shadow of a ruby /
+/// emerald / amber sphere appear coloured, matching the volumetric
+/// absorption that already tints the BSDF transmission lobe.</para>
+///
 /// <para><c>maxBounces</c> caps the number of transparent interfaces crossed.
 /// A clear glass shell crosses 2 (entry + exit); nested glass-in-glass crosses
 /// 4. Reaching the cap with non-trivial residual is treated as opaque to stay
@@ -37,6 +45,17 @@ public static class ShadowRay
         Vector3 dir = ray.Direction;
         float remaining = tMax;
 
+        // Beer-Lambert state across consecutive interfaces. When a front-face
+        // hit reports a non-zero absorption, we record the entry point and
+        // the per-channel σ_a; on the next hit we apply exp(−σ_a · d) over
+        // the interior segment before processing that hit's tint. Single-
+        // medium tracking — nested glass-in-glass uses the latest medium and
+        // overlapping volumes are not stacked, the same simplification the
+        // surface BSDF medium-switch uses elsewhere.
+        Vector3 currentSigma = Vector3.Zero;
+        Vector3 entryPoint = default;
+        bool inMedium = false;
+
         for (int i = 0; i < maxBounces; i++)
         {
             var rec = new HitRecord();
@@ -47,6 +66,19 @@ public static class ShadowRay
             if (rec.Material == null)
                 return Vector3.Zero;
 
+            // Beer-Lambert over the segment we just traversed inside a medium.
+            if (inMedium)
+            {
+                float d = (rec.Point - entryPoint).Length();
+                throughput = new Vector3(
+                    throughput.X * MathF.Exp(-currentSigma.X * d),
+                    throughput.Y * MathF.Exp(-currentSigma.Y * d),
+                    throughput.Z * MathF.Exp(-currentSigma.Z * d));
+                inMedium = false;
+                if (MathUtils.NearZero(throughput))
+                    return Vector3.Zero;
+            }
+
             Vector3 t = rec.Material.ShadowTransmittance(dir, rec);
             if (MathUtils.NearZero(t))
                 return Vector3.Zero;
@@ -54,6 +86,18 @@ public static class ShadowRay
             throughput *= t;
             if (MathUtils.NearZero(throughput))
                 return Vector3.Zero;
+
+            // Entering a Beer-Lambert medium on this front-face hit?
+            if (rec.FrontFace)
+            {
+                Vector3 sigma = rec.Material.ShadowAbsorption(rec);
+                if (!MathUtils.NearZero(sigma))
+                {
+                    inMedium = true;
+                    entryPoint = rec.Point;
+                    currentSigma = sigma;
+                }
+            }
 
             // Advance the origin just past the hit, offset along the geometric
             // normal on the outgoing side. OffsetOrigin shifts perpendicular
