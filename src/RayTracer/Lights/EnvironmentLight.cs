@@ -94,15 +94,14 @@ public class EnvironmentLight : ILight
 
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dir);
-        var rec = new HitRecord();
 
-        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
-        if (inShadow)
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, MathUtils.Infinity);
+        if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dir, distance);
 
         // L / (pdf × ShadowSamples): each sample contributes 1/ShadowSamples of total energy.
         // The N·L factor is applied by ComputeDirectLighting in Renderer (via EvaluateDirect).
-        Vector3 attenuation = color / (pdf * ShadowSamples);
+        Vector3 attenuation = color * trans / (pdf * ShadowSamples);
         return (false, attenuation, dir, distance);
     }
 

@@ -72,6 +72,25 @@ public interface IMaterial
     Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
         => Vector3.Zero;
 
+    /// <summary>
+    /// Per-channel transmission factor for a "transparent shadow ray" travelling
+    /// in direction <paramref name="wi"/> across this surface. Returned by
+    /// dielectric/transmissive materials so that NEE can soften the otherwise
+    /// binary occlusion test: glass casts a Fresnel-tinted shadow instead of a
+    /// fully black one. Default is <see cref="Vector3.Zero"/> (opaque).
+    ///
+    /// The shadow ray is NOT refracted — it continues in a straight line and
+    /// the returned factor is multiplied into the throughput. This is the
+    /// standard "transparent shadow rays" approximation used by Arnold and
+    /// Cycles: it correctly handles the loss of direct light at the
+    /// caster/receiver pair (no more hard shadow under glass) but does NOT
+    /// reproduce focused refractive caustics, which would require manifold
+    /// next-event estimation or photon mapping (see DEVLOG roadmap).
+    /// </summary>
+    /// <param name="wi">Unit shadow-ray direction at the hit (surface → light).</param>
+    /// <param name="rec">Hit record at the shadow-ray intersection.</param>
+    Vector3 ShadowTransmittance(Vector3 wi, HitRecord rec) => Vector3.Zero;
+
     // ─────────────────────────────────────────────────────────────────────────
     // Symmetric BSDF interface (BRDF value, PDF, sampling).
     //

@@ -141,10 +141,9 @@ public class DirectionalLight : ILight
 
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, toLight);
-        var rec = new HitRecord();
-        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, MathUtils.Infinity);
 
-        if (inShadow)
+        if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, toLight, MathUtils.Infinity);
 
         // The YAML-supplied `intensity` is irradiance (W/m²) — the contribution
@@ -157,7 +156,7 @@ public class DirectionalLight : ILight
         // back the full Intensity, matching hard mode within Monte-Carlo noise.
         float energyPerSample = Intensity / ShadowSamples;
 
-        return (false, Color * energyPerSample, toLight, MathUtils.Infinity);
+        return (false, Color * energyPerSample * trans, toLight, MathUtils.Infinity);
     }
 
     // ── MIS ─────────────────────────────────────────────────────────────────
