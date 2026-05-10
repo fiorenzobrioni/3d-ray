@@ -104,8 +104,8 @@ Strategia incrementale per le caustiche, in ordine di costo crescente. Strada 1 
 | 2. MNEE (Manifold Next Event Estimation) | Caustiche focalizzate single-bounce attraverso una specular (lenti, bicchieri d'acqua, finestre). Cycles 3.2 "Shadow Caustics" | 2-3 settimane | ⬜ |
 | 3. SPPM / VCM (photon mapping) | Caustiche multi-bounce, dispersive, indipendenti da differenziabilità della geometria. RenderMan PxrVCM | 6-10 settimane (SPPM) / 3-5 mesi (VCM) | ⬜ |
 
-**Strada 1 — Transparent shadow rays ✅** Implementata. Lo shadow ray attraversa superfici trasmissive accumulando `(1 − Fresnel) · tint` per canale; helper `Geometry/ShadowRay.Transmittance` con cap di 8 traversate, override `IMaterial.ShadowTransmittance` su `Dielectric` / `DisneyBsdf` (solo se `spec_trans > 0`) / `MixMaterial`. La luce diretta passa attraverso il vetro con perdite Fresnel correnti; le caustiche focalizzate continuano a venire dal path tracing forward indiretto.
-**Limiti**: nessuna rifrazione dello shadow ray (no caustiche di lente in NEE); Beer-Lambert da `transmission_depth` ignorato sugli shadow ray (richiederebbe tracking del segmento interno).
+**Strada 1 — Transparent shadow rays ✅** Implementata. Lo shadow ray attraversa superfici trasmissive accumulando `(1 − Fresnel) · tint` per canale + Beer-Lambert `exp(−σ_a · d)` sul segmento interno fra entrata e uscita. Helper `Geometry/ShadowRay.Transmittance` con cap di 8 traversate; override `IMaterial.ShadowTransmittance` + `IMaterial.ShadowAbsorption` su `Dielectric` (no σ_a) / `DisneyBsdf` (entrambi quando `spec_trans > 0`) / `MixMaterial` (blend di entrambi).
+**Limiti residui**: nessuna rifrazione dello shadow ray (no caustiche di lente in NEE); `roughness > 0` con `spec_trans > 0` (frosted glass) ignorata — lo shadow ray va dritto come vetro liscio. Per entrambi servono MNEE (Strada 2) o SPPM/VCM (Strada 3).
 
 **Strada 2 — MNEE ⬜** Walker Newton-Raphson sulla manifold della superficie speculare; cerca un cammino `x → y_spec → light` che soddisfi Snell. Single-vertex robusto (Hanika/Droske/Manzi 2015, riferimento Cycles/Mitsuba).
 **Pro**: unbiased, niente seconda passata, zero memoria extra, MIS-friendly, 10-100× più veloce del PT puro per caustiche.
@@ -162,7 +162,7 @@ Strategia incrementale per le caustiche, in ordine di costo crescente. Strada 1 
 
 Sintesi cronologica dei cicli grossi. Per i dettagli matematici e i riferimenti vedi i doc tecnici puntati.
 
-- **2026-05 — Transparent shadow rays.** Branch `claude/fix-transparent-shadows-4n8Ph`. Strada 1 della roadmap caustiche. Lo shadow ray attraversa superfici trasmissive con `(1 − F) · tint` per canale; nuovo `Geometry/ShadowRay.Transmittance`, override `IMaterial.ShadowTransmittance` su `Dielectric` / `DisneyBsdf` (`spec_trans > 0`) / `MixMaterial`; tutti gli 8 light dispatcher aggiornati. Doc: `docs/technical/path-tracing-and-lighting.md` §2.3.
+- **2026-05 — Transparent shadow rays.** Branch `claude/fix-transparent-shadows-4n8Ph` (PR #50). Strada 1 della roadmap caustiche. Lo shadow ray attraversa superfici trasmissive con `(1 − F) · tint` per interfaccia + `exp(−σ_a · d)` Beer-Lambert sul segmento interno; nuovo `Geometry/ShadowRay.Transmittance`, override `IMaterial.{ShadowTransmittance, ShadowAbsorption}` su `Dielectric` / `DisneyBsdf` (entrambi quando `spec_trans > 0`) / `MixMaterial`; tutti gli 8 light dispatcher aggiornati. Vetri colorati con `transmission_depth > 0` (rubino, smeraldo, ambra, zaffiro) ora proiettano ombra tinta. Doc: `docs/technical/path-tracing-and-lighting.md` §2.3.
 
 - **2026-05 — Extrusion primitive.** Nuovo `Extrusion : IHittable, ISamplable` (linear / catmull_rom / bezier, twist + taper, caps configurabili, BVH interno) + utility 2D `Polygon2D` (signed area, ear clipping, tessellation chiusa). Doc: scene-reference §7.17. 9 test nuovi (155 totali).
 

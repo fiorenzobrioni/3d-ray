@@ -91,6 +91,21 @@ public interface IMaterial
     /// <param name="rec">Hit record at the shadow-ray intersection.</param>
     Vector3 ShadowTransmittance(Vector3 wi, HitRecord rec) => Vector3.Zero;
 
+    /// <summary>
+    /// Per-channel volumetric absorption coefficient σ_a (Beer-Lambert) of the
+    /// medium bounded by this surface, used by the transparent shadow walker
+    /// to attenuate <c>exp(−σ_a · d)</c> along the interior segment between a
+    /// front-face hit (entry) and the next back-face hit (exit). Default
+    /// <see cref="Vector3.Zero"/> means no volumetric absorption — the surface
+    /// is either opaque or thin-glass (only per-hit
+    /// <see cref="ShadowTransmittance"/> applies).
+    ///
+    /// For Disney's <c>transmission_color</c> + <c>transmission_depth</c>
+    /// parameterisation, this returns <c>−ln(transmission_color) /
+    /// transmission_depth</c> per channel.
+    /// </summary>
+    Vector3 ShadowAbsorption(HitRecord rec) => Vector3.Zero;
+
     // ─────────────────────────────────────────────────────────────────────────
     // Symmetric BSDF interface (BRDF value, PDF, sampling).
     //
