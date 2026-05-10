@@ -8,7 +8,7 @@
 // dotnet run --project src\Tools\FontGen\FontGen.csproj -c Release -- --font "Cascadia Code" --chars "ABC123"
 // dotnet run --project src\Tools\FontGen\FontGen.csproj -c Release -- --font "Impact" --flatness 1.5
 //
-// Genereranno rispettivamente font-times_new_roman.yaml, font-segoe_ui.yaml, font-cascadia_code.yaml, font-impact.yaml in scenes\libraries\objects\
+// Genereranno rispettivamente font-times_new_roman.yaml, font-segoe_ui.yaml, font-cascadia_code.yaml, font-impact.yaml in scenes\libraries\fonts\
 //
 // Suggerimenti pratici:
 // - Per estrusione 3D, i serif (Times/Cambria/Georgia) e i display pesanti (Impact, Bahnschrift Bold) rendono meglio: i sans-serif sottili (Calibri Light) generano profili meno cinematografici.
@@ -39,7 +39,7 @@ namespace FontGen;
 
 internal static class Program
 {
-    private const string DefaultRelativeOutputDir = "scenes/libraries/objects";
+    private const string DefaultRelativeOutputDir = "scenes/libraries/fonts";
     private const string DefaultChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
     public static int Main(string[] args)
@@ -181,11 +181,11 @@ internal static class Program
             }
             else if (sb.Length > 0 && !prevUnderscore)
             {
-                sb.Append('_');
+                sb.Append('-');
                 prevUnderscore = true;
             }
         }
-        var slug = sb.ToString().TrimEnd('_');
+        var slug = sb.ToString().TrimEnd('-');
         return slug.Length == 0 ? "font" : slug;
     }
 
