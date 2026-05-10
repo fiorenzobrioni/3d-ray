@@ -55,6 +55,20 @@ world:
     zenith_color:  [0.010, 0.015, 0.040]
     horizon_color: [0.050, 0.070, 0.120]
     ground_color:  [0.020, 0.020, 0.025]
+
+# world:
+#   sky:
+#     type: "gradient"
+#     zenith_color:  [0.04, 0.06, 0.13]  # Blu profondo in alto
+#     horizon_color: [0.21, 0.13, 0.06]  # Arancio caldo all'orizzonte
+#     ground_color:  [0.05, 0.03, 0.02]  # Marrone scuro sotto l'orizzonte
+#    sun:
+#      direction: [-0.8, -1.25, -0.5]   # Sole basso a sinistra
+#      color: [1.0, 0.85, 0.5]
+#      intensity: 20.0
+#      size: 4.0                         # Disco solare leggermente grande
+#      falloff: 24.0                     # Glow ampio e caldo
+
   ground:
     type: "infinite_plane"
     material: "mat_pavimento"
@@ -63,24 +77,24 @@ world:
   # Height fog leggero: aggiunge profondità e raggi sottili dalle luci.
   # Per un look "studio pulito" (e render più veloci), commentare l'intero
   # blocco `medium:` qui sotto.
-  medium:
-    type: "height_fog"
-    sigma_t: 0.04
-    height: 2.5
-    falloff: 1.6
-    color: [0.60, 0.70, 0.85]
+  # medium:
+  #  type: "height_fog"
+  #  sigma_t: 0.04
+  #  height: 2.5
+  #  falloff: 1.6
+  #  color: [0.60, 0.70, 0.85]
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  CAMERAS
 # ═════════════════════════════════════════════════════════════════════════════
 cameras:
   - name: "hero"
-    position:    [0.0, 1.6, 8.5]
+    position:    [0.0, 2.4, 6.5]
     look_at:     [0.0, 0.95, 0.0]
     vup:         [0.0, 1.0, 0.0]
-    fov: 34
-    aperture: 0.05
-    focal_dist: 8.5
+    fov: 45
+    #aperture: 0.05
+    #focal_dist: 6.5
 
   - name: "three_quarter"
     position:    [-5.5, 2.0, 6.5]
@@ -101,42 +115,17 @@ cameras:
 # ═════════════════════════════════════════════════════════════════════════════
 lights:
 
-  # Key area light calda — alto, lato +X (immagine a sinistra)
-  - type: "area"
-    corner:    [ 2.5, 5.5,  4.0]
-    u:         [ 2.4, 0.0,  0.0]
-    v:         [ 0.0, 0.0, -2.0]
-    color:     [1.00, 0.92, 0.78]
-    intensity: 28
-    shadow_samples: 16
-
-  # Fill area light fredda — alto, lato -X (immagine a destra), più tenue
-  - type: "area"
-    corner:    [-5.5, 4.0,  3.0]
-    u:         [ 2.4, 0.0,  0.0]
-    v:         [ 0.0, 0.0, -1.6]
-    color:     [0.72, 0.82, 1.00]
-    intensity: 12
-    shadow_samples: 16
-
-  # Rim sphere light ambrata dietro le lettere — il proxy emissivo è
-  # visibile contro il cielo gradient come "sole basso" che separa i
-  # profili delle lettere dallo sfondo.
   - type: "sphere"
-    position:  [0.0, 2.2, -1.6]
-    radius:    0.35
-    color:     [1.00, 0.55, 0.25]
-    intensity: 40
-    soft_radius: 0.5
-
-  # Accento verde sulla Y di giada: piccolo point per esaltare il SSS.
-  # Se si commuta la Y al materiale emissivo, è consigliabile abbassare
-  # questa intensity (es. 1.5) o commentarla del tutto.
-  - type: "point"
-    position:  [-3.95, 1.8, 1.5]
+    position:  [4.0, 3.8, 4.5]
+    radius:    0.5
     color:     [0.70, 1.00, 0.85]
-    intensity: 4
-    soft_radius: 0.3
+    intensity: 180
+
+  - type: "sphere"
+    position:  [-4.0, 3.8, 4.5]
+    radius:    0.5
+    color:     [0.70, 1.00, 0.85]
+    intensity: 180
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -150,11 +139,16 @@ materials:
 
   # Pavimento: cemento lucido scuro, riflette le lettere.
   - id: "mat_pavimento"
-    type: "disney"
-    color: [0.06, 0.065, 0.080]
-    metallic: 0.0
-    roughness: 0.18
-    specular: 0.6
+    type: "lambertian"
+    texture:
+      type: "checker"
+      colors: [[0.06, 0.06, 0.06], [0.12, 0.1, 0.08]]
+      scale: 1.5
+    #type: "disney"
+    #color: [0.06, 0.065, 0.080]
+    #metallic: 0.0
+    #roughness: 0.18
+    #specular: 0.6
 
   # ─── 3 ─ ORO LUCIDO (metallic + Kulla-Conty multi-scatter) ──────────────
   - id: "mat_3_oro"
@@ -167,13 +161,13 @@ materials:
   # ─── D ─ VETRO TINTO AZZURRO (spec_trans + Beer-Lambert) ────────────────
   - id: "mat_d_vetro"
     type: "disney"
-    color: [1.0, 1.0, 1.0]
-    metallic: 0.0
+    color: [0.98, 0.99, 1.0]
     roughness: 0.0
     spec_trans: 1.0
     ior: 1.52
-    transmission_color: [0.85, 0.95, 1.00]
-    transmission_depth: 0.6
+    specular: 0.8
+    #transmission_color: [0.85, 0.95, 1.00]
+    #transmission_depth: 0.6
 
   # ─── R ─ VERNICE ROSSA CLEARCOAT (coat_ior + coat_roughness, stile Arnold)
   - id: "mat_r_carpaint"
@@ -250,7 +244,7 @@ entities:
     template: "numero_3_eras_bold_itc"
     material: "mat_3_oro"
     rotate:    [-90, 180, 0]
-    translate: [3.50, 0.75, 0.0]
+    translate: [3.90, 0.75, 0.0]
     scale: 1.5
 
   # ── "D" ─ Vetro tinto ──────────────────────────────────────────────────
@@ -259,7 +253,7 @@ entities:
     template: "lettera_d_maiusc_eras_bold_itc"
     material: "mat_d_vetro"
     rotate:    [-90, 180, 0]
-    translate: [1.85, 0.75, 0.0]
+    translate: [2.30, 0.75, 0.0]
     scale: 1.5
 
   # ── "R" ─ Vernice rossa con clearcoat ──────────────────────────────────
@@ -268,7 +262,7 @@ entities:
     template: "lettera_r_maiusc_eras_bold_itc"
     material: "mat_r_carpaint"
     rotate:    [-90, 180, 0]
-    translate: [-0.65, 0.75, 0.0]
+    translate: [-0.50, 0.75, 0.0]
     scale: 1.5
 
   # ── "A" ─ Acciaio brushed anisotropico ─────────────────────────────────
@@ -277,7 +271,7 @@ entities:
     template: "lettera_a_maiusc_eras_bold_itc"
     material: "mat_a_acciaio_brushed"
     rotate:    [-90, 180, 0]
-    translate: [-2.30, 0.75, 0.0]
+    translate: [-2.15, 0.75, 0.0]
     scale: 1.5
 
   # ── "Y" ─ DEFAULT: giada con SSS ───────────────────────────────────────
@@ -286,7 +280,7 @@ entities:
     template: "lettera_y_maiusc_eras_bold_itc"
     material: "mat_y_giada"
     rotate:    [-90, 180, 0]
-    translate: [-3.95, 0.75, 0.0]
+    translate: [-3.70, 0.75, 0.0]
     scale: 1.5
 
   # ── "Y" ─ VARIANTE EMISSIVA ─────────────────────────────────────────────
@@ -311,8 +305,8 @@ entities:
   - name: "chrome_back_sphere"
     type: "sphere"
     material: "mat_chrome_sphere"
-    center: [1.20, 0.85, -1.10]
-    radius: 0.55
+    center: [1.9, 1.8, -4.0]
+    radius: 1.8
 
   # ── Sfera di cristallo IN PRIMO PIANO davanti ad A/Y ───────────────────
   # Lente perfetta (spec_trans=1, IOR 1.55, roughness 0): rifrazione
@@ -322,5 +316,5 @@ entities:
   - name: "crystal_front_sphere"
     type: "sphere"
     material: "mat_crystal_sphere"
-    center: [-3.10, 0.65, 3.0]
-    radius: 0.65
+    center: [-1.45, 0.55, 2.5]
+    radius: 0.55

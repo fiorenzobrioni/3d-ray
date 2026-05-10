@@ -70,7 +70,7 @@ class Program
         cameras:
           - name: "front_dramatic"
             position: [0, 2.5, -30]
-            look_at: [0, 8, 0]
+            look_at: [0, 8.4, 0]
             fov: 55
             aperture: 0.05
             focal_dist: 28
