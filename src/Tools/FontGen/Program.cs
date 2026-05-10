@@ -1,3 +1,31 @@
+//
+// Generate font templates for 3d-ray from system fonts.
+//
+// Esempi di utilizzo:
+//
+// dotnet run --project src\Tools\FontGen\FontGen.csproj -c Release -- --font "Times New Roman"
+// dotnet run --project src\Tools\FontGen\FontGen.csproj -c Release -- --font "Segoe UI" --height 0.2
+// dotnet run --project src\Tools\FontGen\FontGen.csproj -c Release -- --font "Cascadia Code" --chars "ABC123"
+// dotnet run --project src\Tools\FontGen\FontGen.csproj -c Release -- --font "Impact" --flatness 1.5
+//
+// Genereranno rispettivamente font-times_new_roman.yaml, font-segoe_ui.yaml, font-cascadia_code.yaml, font-impact.yaml in scenes\libraries\objects\
+//
+// Suggerimenti pratici:
+// - Per estrusione 3D, i serif (Times/Cambria/Georgia) e i display pesanti (Impact, Bahnschrift Bold) rendono meglio: i sans-serif sottili (Calibri Light) generano profili meno cinematografici.
+// - Se passi un nome non installato il tool stampa l'elenco delle prime 25 famiglie di sistema — utile per scoprire cosa è disponibile sulla macchina.
+// - Puoi anche puntare a un file: --font "C:\Windows\Fonts\impact.ttf".
+// - Per verificare l'elenco completo, o solo una tipologia, di font installati prima di lanciare:
+//   dotnet run --project src\Tools\FontGen\FontGen.csproj -c Release -- --list-fonts
+//   dotnet run --project src\Tools\FontGen\FontGen.csproj -c Release -- --list-fonts "Segoe"
+//
+// Su Windows 11 puoi passare al flag --font qualunque famiglia installata di sistema. Le più comuni preinstallate (nessuna licenza extra):
+//
+// Serif: "Times New Roman", "Cambria", "Georgia", "Constantia", "Palatino Linotype", "Book Antiqua"
+// Sans-serif: "Arial", "Calibri", "Segoe UI", "Verdana", "Tahoma", "Trebuchet MS"
+// Monospace: "Consolas", "Courier New", "Cascadia Code" / "Cascadia Mono" (terminale di Win 11), "Lucida Console"
+// Display / decorativi: "Impact", "Comic Sans MS", "Bahnschrift", "Ink Free"
+//
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -27,7 +55,10 @@ internal static class Program
             PrintHelp(Console.Error);
             return 1;
         }
-        if (opts.ShowHelp) { PrintHelp(Console.Out); return 0; }
+
+        if (opts.ListFonts) { ListAvailableFonts(Console.Out, true, opts.ListFontsFilter); return 0; }
+
+        if (opts.ShowHelp || String.IsNullOrEmpty(opts.FontName)) { PrintHelp(Console.Out); return 0; }
 
         if (!TryLoadFontFamily(opts.FontName, out var family, out var loadError))
         {
@@ -103,10 +134,16 @@ internal static class Program
         return false;
     }
 
-    private static void ListAvailableFonts(TextWriter w)
+    private static void ListAvailableFonts(TextWriter w, bool showAll = false, string filter = "")
     {
-        w.WriteLine("hint: available system fonts include:");
-        foreach (var f in SystemFonts.Collection.Families.Take(25))
+        var fonts = SystemFonts.Collection.Families;
+        if (!string.IsNullOrEmpty(filter))
+            fonts = fonts.Where(f => f.Name.Contains(filter, StringComparison.OrdinalIgnoreCase));
+        else if (!showAll)
+            fonts = fonts.Take(25);
+        
+        w.WriteLine("available system fonts include:");
+        foreach (var f in fonts)
             w.WriteLine($"  - {f.Name}");
     }
 
@@ -300,12 +337,13 @@ internal static class Program
         w.WriteLine("  dotnet run --project src/Tools/FontGen/FontGen.csproj -- [options]");
         w.WriteLine();
         w.WriteLine("Options:");
-        w.WriteLine("  -f, --font <name|path>    Font family name or .ttf/.otf path (default: \"Liberation Serif\").");
+        w.WriteLine("  -f, --font <name|path>    Font family name or .ttf/.otf path.");
         w.WriteLine("  -c, --chars <string>      Characters to emit (default: A-Z a-z 0-9).");
         w.WriteLine("  -o, --out <path>          Output yaml path (default: scenes/libraries/objects/font-<slug>.yaml).");
         w.WriteLine("      --height <float>      Extrusion height along Y (default: 0.15).");
         w.WriteLine("      --font-size <float>   Internal rasterisation size in pt (default: 100).");
         w.WriteLine("      --flatness <float>    Bezier flattening tolerance in font units (default: 1.0).");
+        w.WriteLine("  -l, --list-fonts <string> List available system fonts (default: empty string show all fonts).");
         w.WriteLine("  -h, --help                Show this help.");
         w.WriteLine();
         w.WriteLine("Notes:");
@@ -322,12 +360,14 @@ internal sealed record GlyphLoops(List<List<Vector2>> Outers, List<List<Vector2>
 
 internal sealed class CliOptions
 {
-    public string FontName = "Liberation Serif";
+    public string FontName = "";
     public string Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     public string? OutputPath;
     public float Height = 0.15f;
     public float FontSize = 100f;
     public float Flatness = 1.0f;
+    public bool ListFonts;
+    public string ListFontsFilter = "";
     public bool ShowHelp;
 
     public static CliOptions Parse(string[] args)
@@ -341,6 +381,15 @@ internal sealed class CliOptions
                 case "-h":
                 case "--help":
                     o.ShowHelp = true;
+                    break;
+                case "-l":
+                case "--list-fonts":
+                    o.ListFonts = true;
+                    if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+                    {
+                        i++;
+                        o.ListFontsFilter = args[i];
+                    }
                     break;
                 case "-f":
                 case "--font":

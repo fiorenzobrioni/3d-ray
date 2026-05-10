@@ -98,30 +98,30 @@ lights:
   # ─────────────────────────────────────────────────────────────────────────
 
   # Key Light — punto luce caldo dall'alto-sinistra
-  - type: "point"
-    position: [-4.0, 4.5, -4.0]
-    color: [1.0, 0.95, 0.88]
-    intensity: 120
+  # - type: "point"
+  #   position: [-4.0, 4.5, -4.0]
+  #   color: [1.0, 0.95, 0.88]
+  #   intensity: 120
 
   # Fill Light — luce fredda leggera dal lato opposto
-  - type: "point"
-    position: [5.0, 3.0, -2.0]
-    color: [0.85, 0.88, 1.0]
-    intensity: 60
+  # - type: "point"
+  #   position: [5.0, 3.0, -2.0]
+  #   color: [0.85, 0.88, 1.0]
+  #   intensity: 60
 
   # ─────────────────────────────────────────────────────────────────────────
   #  SET ALTERNATIVO 1: Solo Area Light (ombre ultra-morbide, minimalista)
   # ─────────────────────────────────────────────────────────────────────────
-  # - type: "area"
-  #   corner: [-3.5, 4.8, -3.5]
-  #   u: [7.0, 0.0, 0.0]
-  #   v: [0.0, 0.0, 7.0]
-  #   color: [1.0, 0.97, 0.92]
-  #   intensity: 55.0
-  # - type: "point"
-  #   position: [-5.0, 2.0, -3.0]
-  #   color: [0.8, 0.85, 1.0]
-  #   intensity: 8
+  - type: "area"
+    corner: [-2.5, 4.8, -2.5]
+    u: [5.0, 0.0, 0.0]
+    v: [0.0, 0.0, 5.0]
+    color: [1.0, 0.97, 0.92]
+    intensity: 5.0
+  - type: "point"
+    position: [-5.0, 2.0, -3.0]
+    color: [0.8, 0.85, 1.0]
+    intensity: 6
 
   # ─────────────────────────────────────────────────────────────────────────
   #  SET ALTERNATIVO 2: Three-Point Classico (ombre nette, veloce)
