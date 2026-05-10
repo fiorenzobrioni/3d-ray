@@ -564,6 +564,36 @@ public sealed class DisneyBsdf : IMaterial
     // ═════════════════════════════════════════════════════════════════════════
 
     /// <summary>
+    /// Per-hit straight-through transmission for transparent shadow rays.
+    /// Active only when <c>spec_trans &gt; 0</c>: returns
+    /// <c>spec_trans · (1 − F_dielectric) · transmissionTint</c>, the same
+    /// approximation Arnold/Cycles use by default. The shadow ray is not
+    /// refracted, so focused caustics are not modelled here (would need MNEE
+    /// or photon mapping — see DEVLOG roadmap). Beer-Lambert absorption from
+    /// <c>transmission_depth</c> is also ignored: it requires an interior
+    /// segment length the straight-through walker doesn't track.
+    /// </summary>
+    public Vector3 ShadowTransmittance(Vector3 wi, HitRecord rec)
+    {
+        float u = rec.U, v = rec.V;
+        Vector3 p = rec.LocalPoint;
+        int seed = rec.ObjectSeed;
+
+        float specTrans = SpecTrans.Value(u, v, p, seed);
+        if (specTrans <= 0f) return Vector3.Zero;
+
+        float ior = MathF.Max(Ior.Value(u, v, p, seed), 1.0001f);
+        float eta = rec.FrontFace ? (1f / ior) : ior;
+        float cosTheta = MathF.Min(MathF.Abs(Vector3.Dot(wi, rec.Normal)), 1f);
+        float fr = MathUtils.FresnelDielectric(cosTheta, eta);
+
+        Vector3 baseCol = BaseColor.Value(u, v, p, seed);
+        var (tint, _) = ResolveTransmission(rec, baseCol);
+
+        return specTrans * (1f - fr) * tint;
+    }
+
+    /// <summary>
     /// Evaluates the multi-lobe Disney BSDF f(V, L) at the hit point, without
     /// the N·L cosine. Covers all reflection lobes and — for diff_trans > 0 —
     /// the back-hemisphere Lambertian diffuse-transmission lobe. Specular

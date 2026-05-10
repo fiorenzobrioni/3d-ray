@@ -27,6 +27,22 @@ public sealed class Dielectric : IMaterial
     public bool IsDeltaScatter => true;
     public NormalMapTexture? NormalMap { get; set; }
 
+    // Transparent shadow rays: report (1 - Fresnel) · albedo as the per-hit
+    // straight-through transmission. The shadow ray is not refracted — Snell-
+    // bent light contributes to caustics through the indirect Scatter path
+    // (and would need MNEE/photon mapping to NEE-sample directly). Each
+    // dielectric interface attenuates by 1−F; a glass sphere crosses two
+    // interfaces, so the receiver still sees the proper Fresnel-squared
+    // shadowing at grazing angles.
+    public Vector3 ShadowTransmittance(Vector3 wi, HitRecord rec)
+    {
+        float cosTheta = MathF.Min(MathF.Abs(Vector3.Dot(wi, rec.Normal)), 1f);
+        float eta = rec.FrontFace ? (1f / RefractionIndex) : RefractionIndex;
+        float fr = MathUtils.FresnelDielectric(cosTheta, eta);
+        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        return (1f - fr) * albedo;
+    }
+
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
         attenuation = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);

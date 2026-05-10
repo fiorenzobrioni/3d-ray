@@ -168,14 +168,14 @@ public class GeometryLight : ILight
 
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight);
-        var rec = new HitRecord();
         // Compute tMax in shadow-ray parameter space (relative to shadowOrigin,
         // not hitPoint). Using `distance - Epsilon` as tMax would cancel the
         // OffsetOrigin shift whenever `dirToLight ≈ normal`, producing systematic
         // self-intersection with the light's own surface and a black hole
         // directly underneath small / close emitters.
         float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
-        if (world.Hit(shadowRay, MathUtils.Epsilon, shadowTMax, ref rec))
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
+        if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 
         Vector3 emissiveColor = Material.EmissionAt(uv.X, uv.Y, samplePoint);
@@ -186,7 +186,7 @@ public class GeometryLight : ILight
         float attenuationDistSq = distSq;
         if (SoftRadius > 0f) attenuationDistSq = MathF.Max(attenuationDistSq, SoftRadius * SoftRadius);
         float attenuation = area * cosLight / (attenuationDistSq * ShadowSamples);
-        return (false, emissiveColor * attenuation, dirToLight, distance);
+        return (false, emissiveColor * attenuation * trans, dirToLight, distance);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -228,18 +228,18 @@ public class GeometryLight : ILight
 
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight);
-        var rec = new HitRecord();
         // See ComputeAreaSample for the derivation of this tMax — this bug bites
         // the cone-sampling path systematically: every sample of a floor point
         // directly under a floating sphere has dirToLight ≈ normal, so every
         // sample self-intersects the emitter under the naive `distance - Epsilon`.
         float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
-        if (world.Hit(shadowRay, MathUtils.Epsilon, shadowTMax, ref rec))
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
+        if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 
         Vector3 emissiveColor = Material.EmissionAt(uv.X, uv.Y, samplePoint);
         float attenuation = 1f / (pdf * ShadowSamples);
-        return (false, emissiveColor * attenuation, dirToLight, distance);
+        return (false, emissiveColor * attenuation * trans, dirToLight, distance);
     }
 
     // ── MIS ─────────────────────────────────────────────────────────────────

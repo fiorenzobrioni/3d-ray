@@ -217,11 +217,10 @@ public class SphereLight : ILight
         // black disc directly under the light.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight);
-        var rec = new HitRecord();
         float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
-        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, shadowTMax, ref rec);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
 
-        if (inShadow)
+        if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, sampleDist);
 
         // ── Energy computation ──────────────────────────────────────────────
@@ -235,7 +234,7 @@ public class SphereLight : ILight
         float solidAngle = 2f * MathF.PI * (1f - cosThetaMax);
         float attenuation = Intensity * solidAngle / ShadowSamples;
 
-        return (false, Color * attenuation, dirToLight, sampleDist);
+        return (false, Color * attenuation * trans, dirToLight, sampleDist);
     }
 
     // ── MIS ─────────────────────────────────────────────────────────────────

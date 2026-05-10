@@ -51,7 +51,36 @@ L'estensione MIS copre anche il **bounce volumetrico**: la phase function espone
 
 > Per i contratti fra `IMaterial` / `ILight` / `IPhaseFunction` e il `Renderer`, le formule complete delle heuristiche, e la trattazione dei casi limite (lobi delta, mixture estimator, Metal NDF vs VNDF) vedi il documento dedicato [Multiple Importance Sampling](./multiple-importance-sampling.md).
 
-### 2.3 Conservazione dell'Area per Emissivi Trasformati (Jacobian)
+### 2.3 Transparent Shadow Rays
+
+Lo shadow ray del NEE non è un semplice test booleano di occlusione: attraversa le superfici trasmissive (vetro `dielectric`, Disney con `spec_trans > 0`, mix di entrambi) accumulando un fattore di trasmissione per canale, esattamente come fanno Arnold e Cycles per default. Senza questo passaggio, una lente o una bottiglia di vetro proietterebbe un'ombra dura identica a un occluder opaco — visivamente sbagliato.
+
+**Algoritmo** (`Geometry/ShadowRay.Transmittance`)
+
+1. Si parte da throughput = (1, 1, 1) lungo lo shadow ray.
+2. Si esegue `world.Hit` sul segmento corrente; se non c'è hit, la luce è raggiunta — return throughput.
+3. Al primo hit si interroga `IMaterial.ShadowTransmittance(wi, rec)`; se è zero (opaco) si termina con `Vector3.Zero`.
+4. Altrimenti `throughput *= ShadowTransmittance`, l'origine avanza appena oltre l'hit (offset lungo la normale geometrica), e si itera.
+5. Cap di sicurezza a 8 traversate (≥ 4 interfacce per geometrie a guscio annidato).
+
+**Modelli di trasmittanza per materiale**
+
+- **`Dielectric`**: $T = (1 - F_\text{dielectric}(\cos\theta, \eta)) \cdot \text{albedo}$, dove $F$ è la formula di Fresnel completa (`MathUtils.FresnelDielectric`). Una sfera di vetro accumula due fattori (entrata + uscita), riproducendo il rim più scuro a grazing angles per riflessione totale interna.
+- **`DisneyBsdf`** (solo se `spec_trans > 0`): $T = \text{specTrans} \cdot (1 - F) \cdot \text{tint}$, con `tint` proveniente da `ResolveTransmission` (sqrt(baseColor) legacy, oppure `transmission_color` esplicito). Beer-Lambert tramite `transmission_depth` non è applicato sugli shadow ray (richiederebbe la lunghezza del segmento interno, non tracciata dal walker).
+- **`MixMaterial`**: blend lineare di `ShadowTransmittance` dei due child con il fattore di mix pesato.
+- Default per tutti gli altri materiali: `Vector3.Zero` (opaco).
+
+**Limiti dell'approssimazione (importante)**
+
+Il raggio non viene rifratto: viaggia in linea retta. Questo significa:
+- ✅ Le ombre del vetro sono correttamente ammorbidite dalla trasmissione Fresnel.
+- ✅ Il color bleeding diffuso attraverso uno specchio o un vetro tinto funziona.
+- ❌ Le caustiche focalizzate (la "lente" di una sfera di vetro che concentra la luce in uno spot luminoso sul pavimento) NON emergono dalla NEE: continuano a venire solo dal path tracing forward indiretto, con la consueta varianza alta.
+- ❌ Beer-Lambert su shadow ray non è modellato — il vetro tinto produce una tinta "per interfaccia" anziché "per spessore".
+
+Per caustiche unbiased servono Manifold Next Event Estimation (MNEE) o photon mapping / VCM. Vedi la sezione *Roadmap* del `DEVLOG.md` per il piano evolutivo.
+
+### 2.4 Conservazione dell'Area per Emissivi Trasformati (Jacobian)
 
 Quando un oggetto emissivo viene avvolto in un `Transform` (scale, rotate, translate), il sistema di NEE deve campionare punti sulla superficie in **world space**. Il problema: `Sample()` della primitiva interna restituisce un punto e una normale in **object space**, con un'area calcolata in object space. Usare quell'area direttamente produrrebbe un'illuminazione energeticamente errata — ad esempio, scalare una sfera emissiva di 2× in tutte le direzioni dovrebbe quadruplicare l'area esposta e quindi la luce emessa, ma senza correzione il renderer userebbe l'area originale della sfera unitaria.
 

@@ -134,11 +134,10 @@ public class SpotLight : ILight
         // self-intersect.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight);
-        var rec = new HitRecord();
         float shadowTMax = (sourcePos - shadowOrigin).Length() - MathUtils.Epsilon;
-        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, shadowTMax, ref rec);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
 
-        if (inShadow)
+        if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 
         // Compute illumination (only if not in shadow — avoids wasted math).
@@ -154,6 +153,6 @@ public class SpotLight : ILight
             0f, 1f);
         spotAttenuation *= spotAttenuation;
 
-        return (false, Color * distanceAttenuation * spotAttenuation, dirToLight, distance);
+        return (false, Color * distanceAttenuation * spotAttenuation * trans, dirToLight, distance);
     }
 }

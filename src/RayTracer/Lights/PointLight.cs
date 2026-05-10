@@ -52,10 +52,9 @@ public class PointLight : ILight
         // (offset along ray direction) could fail.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight);
-        var rec = new HitRecord();
-        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon, ref rec);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon);
 
-        if (inShadow)
+        if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 
         // Soft-radius clamp: floors d² at SoftRadius² so the 1/d² term cannot
@@ -65,6 +64,6 @@ public class PointLight : ILight
         float d2 = distance * distance;
         if (SoftRadius > 0f) d2 = MathF.Max(d2, SoftRadius * SoftRadius);
         float attenuation = Intensity / d2;
-        return (false, Color * attenuation, dirToLight, distance);
+        return (false, Color * attenuation * trans, dirToLight, distance);
     }
 }

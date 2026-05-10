@@ -1,0 +1,139 @@
+# =============================================================================
+#  CORNELL BOX — Tre Sfere (opaca, vetro, cromata)
+#
+#  Scena di riferimento per il sistema di ombre trasparenti (NEE Strada 1).
+#  Replica la VARIANTE E della cornell-box.yaml in forma autonoma e
+#  facilmente renderizzabile, con la sola differenza che il blocco corto e
+#  alto sono rimossi e sostituiti dalle tre sfere disposte sul pavimento.
+#
+#  La sfera centrale di vetro è quella che mostra l'effetto del cambio di
+#  modello d'ombra:
+#    - prima: ombra dura come fosse cemento (binary occlusion test);
+#    - dopo:  alone Fresnel-tinted, hard-shadow rim solo nel disco di TIR
+#             (limite per riflessione totale interna). La caustica focalizzata
+#             continua a venire dal path tracing forward indiretto.
+#
+#  Render consigliato (1024x768, ~ 1 min):
+#    dotnet run -c Release --project src/RayTracer/RayTracer.csproj -- \
+#      -i scenes/cornell-box-spheres.yaml -o renders/cornell-box-sphere.png \
+#      -w 1024 -H 768 -s 256 -d 16 -S 4
+# =============================================================================
+
+world:
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
+
+cameras:
+  - name:       canonica
+    position:   [ 0.00,  1.00, -4.00]
+    look_at:    [ 0.00,  1.00,  1.00]
+    vup:        [0, 1, 0]
+    fov:        39
+    aperture:   0.0
+    focal_dist: 5.00
+
+materials:
+  - id: "bianco_cornell"
+    type: "lambertian"
+    color: [0.73, 0.73, 0.73]
+
+  - id: "rosso_cornell"
+    type: "lambertian"
+    color: [0.65, 0.05, 0.05]
+
+  - id: "verde_cornell"
+    type: "lambertian"
+    color: [0.12, 0.45, 0.15]
+
+  - id: "luce_cornell"
+    type: "emissive"
+    color: [1.00, 0.98, 0.94]
+    intensity: 12.0
+
+  - id: "dis_bianco_opaco"
+    type: "disney"
+    color: [0.90, 0.90, 0.88]
+    roughness: 0.55
+    specular: 0.4
+
+  - id: "dis_cromo_specchio"
+    type: "disney"
+    color: [0.95, 0.93, 0.88]
+    metallic: 1.0
+    roughness: 0.01
+    specular: 1.0
+
+  - id: "dis_cristallo"
+    type: "disney"
+    color: [0.99, 0.99, 1.0]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.5
+    specular: 0.95
+
+entities:
+  # ── Pareti ───────────────────────────────────────────────────────────────
+  - name: "pavimento"
+    type: "quad"
+    q: [-1.0, 0.0,  0.0]
+    u: [ 2.0, 0.0,  0.0]
+    v: [ 0.0, 0.0,  2.0]
+    material: "bianco_cornell"
+
+  - name: "soffitto"
+    type: "quad"
+    q: [-1.0, 2.0,  0.0]
+    u: [ 2.0, 0.0,  0.0]
+    v: [ 0.0, 0.0,  2.0]
+    material: "bianco_cornell"
+
+  - name: "parete_fondo"
+    type: "quad"
+    q: [-1.0, 0.0,  2.0]
+    u: [ 2.0, 0.0,  0.0]
+    v: [ 0.0, 2.0,  0.0]
+    material: "bianco_cornell"
+
+  - name: "parete_sinistra_rossa"
+    type: "quad"
+    q: [-1.0, 0.0,  0.0]
+    u: [ 0.0, 0.0,  2.0]
+    v: [ 0.0, 2.0,  0.0]
+    material: "rosso_cornell"
+
+  - name: "parete_destra_verde"
+    type: "quad"
+    q: [ 1.0, 0.0,  0.0]
+    u: [ 0.0, 0.0,  2.0]
+    v: [ 0.0, 2.0,  0.0]
+    material: "verde_cornell"
+
+  # ── Pannello luminoso a soffitto ─────────────────────────────────────────
+  - name: "pannello_luce"
+    type: "quad"
+    q: [-0.33, 1.99,  0.67]
+    u: [ 0.66, 0.00,  0.00]
+    v: [ 0.00, 0.00,  0.66]
+    material: "luce_cornell"
+
+  # ── Tre sfere (opaca | cristallo | cromo) ────────────────────────────────
+  - name: "sphere_left"
+    type: "sphere"
+    material: "dis_bianco_opaco"
+    center: [-0.52, 0.32, 1.2]
+    radius: 0.32
+
+  - name: "sphere_center_front"
+    type: "sphere"
+    material: "dis_cristallo"
+    center: [0.0, 0.32, 0.4]
+    radius: 0.32
+
+  - name: "sphere_right"
+    type: "sphere"
+    material: "dis_cromo_specchio"
+    center: [0.52, 0.32, 1.2]
+    radius: 0.32
+
+lights: []

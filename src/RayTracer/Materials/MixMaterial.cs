@@ -151,6 +151,15 @@ public sealed class MixMaterial : IMaterial
         return Vector3.Lerp(brdfA, brdfB, t);
     }
 
+    /// <inheritdoc/>
+    public Vector3 ShadowTransmittance(Vector3 wi, HitRecord rec)
+    {
+        float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        Vector3 tA = MaterialA.ShadowTransmittance(wi, rec);
+        Vector3 tB = MaterialB.ShadowTransmittance(wi, rec);
+        return Vector3.Lerp(tA, tB, t);
+    }
+
     // ═════════════════════════════════════════════════════════════════════════
     // Emission
     // ═════════════════════════════════════════════════════════════════════════

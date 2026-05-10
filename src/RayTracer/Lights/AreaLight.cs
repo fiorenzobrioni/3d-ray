@@ -156,11 +156,10 @@ public class AreaLight : ILight
         // as a self-intersection and produce a black halo under/around the emitter.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight);
-        var rec = new HitRecord();
         float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
-        bool inShadow = world.Hit(shadowRay, MathUtils.Epsilon, shadowTMax, ref rec);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
 
-        if (inShadow)
+        if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 
         // Soft-radius clamp: floors distSq at SoftRadius² so the cosLight/d²
@@ -175,7 +174,7 @@ public class AreaLight : ILight
         // Divided by ShadowSamples so the final summed result has correct energy.
         float attenuation = Intensity * _area * cosLight / (attenuationDistSq * ShadowSamples);
 
-        return (false, Color * attenuation, dirToLight, distance);
+        return (false, Color * attenuation * trans, dirToLight, distance);
     }
 
     // ── MIS ─────────────────────────────────────────────────────────────────
