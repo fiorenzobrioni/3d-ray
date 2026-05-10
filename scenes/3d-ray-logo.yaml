@@ -1,0 +1,311 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  3d-ray-logo.yaml — Hero scene: la scritta "3D RAY" come biglietto da
+#                     visita del motore.
+#
+#  Cinque lettere estruse dal font Eras Bold ITC, ognuna con un materiale
+#  Disney BSDF diverso, mostrano in un colpo d'occhio il ventaglio di
+#  feature shading del motore. Una sfera cromata in primo piano restituisce
+#  l'iconica riflessione speculare del ray tracing classico.
+#
+#    3 — Oro lucido           : metallic + Kulla-Conty multi-scatter
+#    D — Vetro tinto          : spec_trans + Beer-Lambert (transmission_color)
+#    R — Vernice clearcoat    : metallic + coat_ior + coat_roughness
+#    A — Acciaio brushed      : anisotropic + anisotropic_rotation (GGX aniso)
+#    Y — Giada                : subsurface + subsurface_color (default)
+#        (variante emissiva pronta da scommentare → NEE da GeometryLight)
+#
+#  Sfera cromata in foreground: Disney metal lucido a roughness 0.02 →
+#  riflette nitidamente la scritta "3D RAY" e il pavimento.
+#
+#  Atmosfera: height fog leggero (commentabile per look "studio pulito").
+#  Illuminazione 3-point (key calda alto-destra, fill fredda alto-sinistra,
+#  rim ambrato dietro), più un accento verde tenue sulla Y per spingere
+#  l'effetto sub-surface della giada.
+#
+#  Camere disponibili (--list-cameras):
+#    hero          — frontale cinematografica, DoF leggero (default)
+#    three_quarter — angolo 3/4, rivela lo spessore delle lettere
+#    closeup_y     — close-up sulla Y (showcase SSS / glow se emissiva)
+#
+#  Convenzione assi: vup=+Y, look_at -Z → +X proietta a SINISTRA in
+#  immagine. Le lettere "3 D R A Y" sono ordinate con X DECRESCENTE per
+#  leggersi da sinistra a destra nell'output renderizzato.
+#
+#  Render consigliati:
+#    Preview:  -s 64   -d 6  -w 480  -H 270  -S 1
+#    Standard: -s 256  -d 8  -w 1280 -H 720  -C 50
+#    Final:    -s 1024 -d 10 -w 1920 -H 1080 -S 4 -C 50 --sampler sobol
+#
+#  -C 50 è consigliato per attenuare i firefly che vetro + height fog
+#  possono produrre (transmission attraverso medium ha varianza alta).
+# ═══════════════════════════════════════════════════════════════════════════
+
+imports:
+  - path: "libraries/fonts/font-eras-bold-itc.yaml"
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  WORLD — sky scuro museale + pavimento lucido + height fog opzionale
+# ═════════════════════════════════════════════════════════════════════════════
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.010, 0.015, 0.040]
+    horizon_color: [0.050, 0.070, 0.120]
+    ground_color:  [0.020, 0.020, 0.025]
+  ground:
+    type: "infinite_plane"
+    material: "mat_pavimento"
+    y: 0.0
+
+  # Height fog leggero: aggiunge profondità e raggi sottili dalle luci.
+  # Per un look "studio pulito" (e render più veloci), commentare l'intero
+  # blocco `medium:` qui sotto.
+  medium:
+    type: "height_fog"
+    sigma_t: 0.04
+    height: 2.5
+    falloff: 1.6
+    color: [0.60, 0.70, 0.85]
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═════════════════════════════════════════════════════════════════════════════
+cameras:
+  - name: "hero"
+    position:    [0.0, 1.6, 8.5]
+    look_at:     [0.0, 0.95, 0.0]
+    vup:         [0.0, 1.0, 0.0]
+    fov: 34
+    aperture: 0.05
+    focal_dist: 8.5
+
+  - name: "three_quarter"
+    position:    [-5.5, 2.0, 6.5]
+    look_at:     [0.0, 0.9, 0.0]
+    vup:         [0.0, 1.0, 0.0]
+    fov: 38
+
+  - name: "closeup_y"
+    position:    [-3.95, 1.0, 2.2]
+    look_at:     [-3.95, 0.9, 0.0]
+    vup:         [0.0, 1.0, 0.0]
+    fov: 42
+    aperture: 0.08
+    focal_dist: 2.2
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  LIGHTS — 3-point + accento verde per la giada
+# ═════════════════════════════════════════════════════════════════════════════
+lights:
+
+  # Key area light calda — alto, lato +X (immagine a sinistra)
+  - type: "area"
+    corner:    [ 2.5, 5.5,  4.0]
+    u:         [ 2.4, 0.0,  0.0]
+    v:         [ 0.0, 0.0, -2.0]
+    color:     [1.00, 0.92, 0.78]
+    intensity: 28
+    shadow_samples: 16
+
+  # Fill area light fredda — alto, lato -X (immagine a destra), più tenue
+  - type: "area"
+    corner:    [-5.5, 4.0,  3.0]
+    u:         [ 2.4, 0.0,  0.0]
+    v:         [ 0.0, 0.0, -1.6]
+    color:     [0.72, 0.82, 1.00]
+    intensity: 12
+    shadow_samples: 16
+
+  # Rim sphere light ambrata dietro le lettere — separa i profili dal backdrop
+  - type: "sphere"
+    position:  [0.0, 2.2, -1.6]
+    radius:    0.35
+    color:     [1.00, 0.55, 0.25]
+    intensity: 40
+    soft_radius: 0.5
+
+  # Accento verde sulla Y di giada: piccolo point per esaltare il SSS.
+  # Se si commuta la Y al materiale emissivo, è consigliabile abbassare
+  # questa intensity (es. 1.5) o commentarla del tutto.
+  - type: "point"
+    position:  [-3.95, 1.8, 1.5]
+    color:     [0.70, 1.00, 0.85]
+    intensity: 4
+    soft_radius: 0.3
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═════════════════════════════════════════════════════════════════════════════
+materials:
+
+  # Fallback per i template del font (se un'instance scordasse l'override).
+  - id: "font_material"
+    type: "lambertian"
+    color: [0.60, 0.60, 0.62]
+
+  # Pavimento: cemento lucido scuro, riflette le lettere.
+  - id: "mat_pavimento"
+    type: "disney"
+    color: [0.06, 0.065, 0.080]
+    metallic: 0.0
+    roughness: 0.18
+    specular: 0.6
+
+  # Backdrop: basalto opaco molto scuro per chiudere la scena.
+  - id: "mat_backdrop"
+    type: "lambertian"
+    color: [0.05, 0.05, 0.07]
+
+  # ─── 3 ─ ORO LUCIDO (metallic + Kulla-Conty multi-scatter) ──────────────
+  - id: "mat_3_oro"
+    type: "disney"
+    color: [1.00, 0.78, 0.34]
+    metallic: 1.0
+    roughness: 0.05
+    specular: 0.6
+
+  # ─── D ─ VETRO TINTO AZZURRO (spec_trans + Beer-Lambert) ────────────────
+  - id: "mat_d_vetro"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    metallic: 0.0
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.52
+    transmission_color: [0.85, 0.95, 1.00]
+    transmission_depth: 0.6
+
+  # ─── R ─ VERNICE ROSSA CLEARCOAT (coat_ior + coat_roughness, stile Arnold)
+  - id: "mat_r_carpaint"
+    type: "disney"
+    color: [0.78, 0.05, 0.06]
+    metallic: 0.4
+    roughness: 0.35
+    specular: 0.6
+    clearcoat: 1.0
+    coat_ior: 1.55
+    coat_roughness: 0.04
+
+  # ─── A ─ ACCIAIO BRUSHED (anisotropic GGX) ──────────────────────────────
+  - id: "mat_a_acciaio_brushed"
+    type: "disney"
+    color: [0.78, 0.79, 0.82]
+    metallic: 1.0
+    roughness: 0.32
+    anisotropic: 0.85
+    anisotropic_rotation: 0.0
+
+  # ─── Y ─ GIADA con SUBSURFACE SCATTERING (default) ──────────────────────
+  - id: "mat_y_giada"
+    type: "disney"
+    color: [0.15, 0.55, 0.32]
+    metallic: 0.0
+    roughness: 0.18
+    specular: 0.55
+    subsurface: 0.6
+    subsurface_color: [0.45, 0.85, 0.55]
+
+  # ─── Y ─ VARIANTE EMISSIVA (per scommentare l'instance qui sotto) ──────
+  # Showcase NEE da geometria emissiva: la lettera diventa una luce.
+  # Quando in uso, considerare `-C 25` e abbassare il point verde sopra.
+  - id: "mat_y_emissivo"
+    type: "emissive"
+    color: [0.35, 0.85, 1.00]
+    intensity: 8
+
+  # ─── Sfera cromata in foreground ────────────────────────────────────────
+  - id: "mat_chrome_sphere"
+    type: "disney"
+    color: [0.95, 0.96, 0.97]
+    metallic: 1.0
+    roughness: 0.02
+    specular: 1.0
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═════════════════════════════════════════════════════════════════════════════
+#
+#  Layout della scritta — 5 lettere a scala 1.5, rotate -90° su X così
+#  l'estrusione (lungo +Y nel template) diventa lo spessore frontale e
+#  la faccia della lettera guarda la camera (a +Z). Y=0.75 = semialtezza,
+#  le lettere appoggiano sul pavimento. X DECRESCENTE per leggere
+#  "3 D R A Y" da sinistra a destra in immagine (convenzione +X = image
+#  left con camera a +Z e vup=+Y).
+#
+# ═════════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ── Backdrop: pannello sottile dietro le lettere, taglia il cielo ──────
+  - type: "box"
+    material: "mat_backdrop"
+    min: [-9.0, 0.0, -2.20]
+    max: [ 9.0, 5.0, -2.00]
+
+  # ── "3" ─ Oro lucido ────────────────────────────────────────────────────
+  - name: "letter_3"
+    type: "instance"
+    template: "numero_3_eras_bold_itc"
+    material: "mat_3_oro"
+    rotate:    [-90, 180, 0]
+    translate: [3.50, 0.75, 0.0]
+    scale: 1.5
+
+  # ── "D" ─ Vetro tinto ──────────────────────────────────────────────────
+  - name: "letter_D"
+    type: "instance"
+    template: "lettera_d_maiusc_eras_bold_itc"
+    material: "mat_d_vetro"
+    rotate:    [-90, 180, 0]
+    translate: [1.85, 0.75, 0.0]
+    scale: 1.5
+
+  # ── "R" ─ Vernice rossa con clearcoat ──────────────────────────────────
+  - name: "letter_R"
+    type: "instance"
+    template: "lettera_r_maiusc_eras_bold_itc"
+    material: "mat_r_carpaint"
+    rotate:    [-90, 180, 0]
+    translate: [-0.65, 0.75, 0.0]
+    scale: 1.5
+
+  # ── "A" ─ Acciaio brushed anisotropico ─────────────────────────────────
+  - name: "letter_A"
+    type: "instance"
+    template: "lettera_a_maiusc_eras_bold_itc"
+    material: "mat_a_acciaio_brushed"
+    rotate:    [-90, 180, 0]
+    translate: [-2.30, 0.75, 0.0]
+    scale: 1.5
+
+  # ── "Y" ─ DEFAULT: giada con SSS ───────────────────────────────────────
+  - name: "letter_Y"
+    type: "instance"
+    template: "lettera_y_maiusc_eras_bold_itc"
+    material: "mat_y_giada"
+    rotate:    [-90, 180, 0]
+    translate: [-3.95, 0.75, 0.0]
+    scale: 1.5
+
+  # ── "Y" ─ VARIANTE EMISSIVA ─────────────────────────────────────────────
+  # Per swappare la Y al materiale emissivo (showcase NEE da GeometryLight):
+  # commentare il blocco `letter_Y` qui sopra e scommentare quello qui sotto.
+  # Suggerito: rendering con `-C 25` e abbassare il point verde a intensity 1.5
+  # (oppure commentare interamente quel light).
+  #
+  # - name: "letter_Y"
+  #   type: "instance"
+  #   template: "lettera_y_maiusc_eras_bold_itc"
+  #   material: "mat_y_emissivo"
+  #   rotate:    [90, 0, 0]
+  #   translate: [-3.95, 0.75, 0.0]
+  #   scale: 1.5
+
+  # ── Sfera cromata in foreground — riflette la scritta intera ───────────
+  # Posizionata in basso a destra dell'inquadratura (lato -X = image right),
+  # in primo piano (z=4.0) ma fuori dall'asse delle lettere così non occlude
+  # il testo. Raggio 0.55 per riflettere riconoscibilmente i 5 caratteri.
+  - name: "chrome_hero_sphere"
+    type: "sphere"
+    material: "mat_chrome_sphere"
+    center: [-1.80, 0.55, 4.0]
+    radius: 0.55
