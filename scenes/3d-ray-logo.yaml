@@ -4,8 +4,9 @@
 #
 #  Cinque lettere estruse dal font Eras Bold ITC, ognuna con un materiale
 #  Disney BSDF diverso, mostrano in un colpo d'occhio il ventaglio di
-#  feature shading del motore. Una sfera cromata in primo piano restituisce
-#  l'iconica riflessione speculare del ray tracing classico.
+#  feature shading del motore. Due sfere — una cromata dietro la D e una
+#  di cristallo davanti ad A/Y — chiudono il quadro con l'iconica
+#  combo riflessione + rifrazione del ray tracing classico.
 #
 #    3 — Oro lucido           : metallic + Kulla-Conty multi-scatter
 #    D — Vetro tinto          : spec_trans + Beer-Lambert (transmission_color)
@@ -14,8 +15,10 @@
 #    Y — Giada                : subsurface + subsurface_color (default)
 #        (variante emissiva pronta da scommentare → NEE da GeometryLight)
 #
-#  Sfera cromata in foreground: Disney metal lucido a roughness 0.02 →
-#  riflette nitidamente la scritta "3D RAY" e il pavimento.
+#  Sfera cromata dietro la D: vista attraverso il vetro tinto della D
+#  (rifrazione + Beer-Lambert) e a sua volta riflette il retro della scritta.
+#  Sfera di cristallo davanti ad A/Y: lente perfetta, rifrazione capovolta
+#  delle lettere all'interno della sfera (showcase IOR + spec_trans pure).
 #
 #  Atmosfera: height fog leggero (commentabile per look "studio pulito").
 #  Illuminazione 3-point (key calda alto-destra, fill fredda alto-sinistra,
@@ -116,7 +119,9 @@ lights:
     intensity: 12
     shadow_samples: 16
 
-  # Rim sphere light ambrata dietro le lettere — separa i profili dal backdrop
+  # Rim sphere light ambrata dietro le lettere — il proxy emissivo è
+  # visibile contro il cielo gradient come "sole basso" che separa i
+  # profili delle lettere dallo sfondo.
   - type: "sphere"
     position:  [0.0, 2.2, -1.6]
     radius:    0.35
@@ -150,11 +155,6 @@ materials:
     metallic: 0.0
     roughness: 0.18
     specular: 0.6
-
-  # Backdrop: basalto opaco molto scuro per chiudere la scena.
-  - id: "mat_backdrop"
-    type: "lambertian"
-    color: [0.05, 0.05, 0.07]
 
   # ─── 3 ─ ORO LUCIDO (metallic + Kulla-Conty multi-scatter) ──────────────
   - id: "mat_3_oro"
@@ -213,13 +213,22 @@ materials:
     color: [0.35, 0.85, 1.00]
     intensity: 8
 
-  # ─── Sfera cromata in foreground ────────────────────────────────────────
+  # ─── Sfera cromata dietro la D (chrome reflector) ───────────────────────
   - id: "mat_chrome_sphere"
     type: "disney"
     color: [0.95, 0.96, 0.97]
     metallic: 1.0
     roughness: 0.02
     specular: 1.0
+
+  # ─── Sfera di cristallo trasparente in primo piano (vetro neutro) ───────
+  - id: "mat_crystal_sphere"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    metallic: 0.0
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.55
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  ENTITIES
@@ -234,12 +243,6 @@ materials:
 #
 # ═════════════════════════════════════════════════════════════════════════════
 entities:
-
-  # ── Backdrop: pannello sottile dietro le lettere, taglia il cielo ──────
-  - type: "box"
-    material: "mat_backdrop"
-    min: [-9.0, 0.0, -2.20]
-    max: [ 9.0, 5.0, -2.00]
 
   # ── "3" ─ Oro lucido ────────────────────────────────────────────────────
   - name: "letter_3"
@@ -300,12 +303,24 @@ entities:
   #   translate: [-3.95, 0.75, 0.0]
   #   scale: 1.5
 
-  # ── Sfera cromata in foreground — riflette la scritta intera ───────────
-  # Posizionata in basso a destra dell'inquadratura (lato -X = image right),
-  # in primo piano (z=4.0) ma fuori dall'asse delle lettere così non occlude
-  # il testo. Raggio 0.55 per riflettere riconoscibilmente i 5 caratteri.
-  - name: "chrome_hero_sphere"
+  # ── Sfera cromata DIETRO la D ──────────────────────────────────────────
+  # Posizionata dietro alle lettere (z negativo) in linea con l'occhiello
+  # della D ma leggermente verso il centro: la D di vetro la mostra rifratta,
+  # e nella sfera si specchia il retro della scritta + il pavimento. Y=0.85
+  # cade nell'altezza dell'occhiello della D (semialtezza letter ≈ 0.75).
+  - name: "chrome_back_sphere"
     type: "sphere"
     material: "mat_chrome_sphere"
-    center: [-1.80, 0.55, 4.0]
+    center: [1.20, 0.85, -1.10]
     radius: 0.55
+
+  # ── Sfera di cristallo IN PRIMO PIANO davanti ad A/Y ───────────────────
+  # Lente perfetta (spec_trans=1, IOR 1.55, roughness 0): rifrazione
+  # capovolta della A e della Y all'interno della sfera. Posizionata fra
+  # A (x=-2.30) e Y (x=-3.95) in primo piano (z=3.0), raggio 0.65 per dare
+  # più "corpo" al lensing senza occludere troppo le lettere.
+  - name: "crystal_front_sphere"
+    type: "sphere"
+    material: "mat_crystal_sphere"
+    center: [-3.10, 0.65, 3.0]
+    radius: 0.65
