@@ -166,10 +166,6 @@ materials:
     spec_trans: 1.0
     ior: 1.52
     specular: 0.8
-    # Soften the silhouette shadow ring on the floor: smooth glass would
-    # refract its grazing light into a caustic the unbiased NEE path can't
-    # reach, so we let shadow rays through the Fresnel attenuation cleanly.
-    transparent_shadow: true
     #transmission_color: [0.85, 0.95, 1.00]
     #transmission_depth: 0.6
 
@@ -227,13 +223,6 @@ materials:
     roughness: 0.0
     spec_trans: 1.0
     ior: 1.55
-    # Drops the Fresnel attenuation on shadow rays — without it a smooth
-    # IOR-1.55 sphere stamps a hard dark annulus on the floor (Fresnel → 1
-    # at the grazing silhouette) that the unbiased path tracer cannot fill
-    # in with a refracted caustic. With transparent_shadow on, the shadow
-    # softens to a thin Beer-Lambert tint, which matches the way Cycles /
-    # Arnold render clean crystal by default.
-    transparent_shadow: true
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  ENTITIES

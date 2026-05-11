@@ -824,7 +824,7 @@ public class SceneLoader
         {
             "lambertian" => new Lambertian(albedo),
             "metal"      => new Metal(albedo, m.Fuzz),
-            "dielectric" => new Dielectric(m.RefractionIndex, albedo) { TransparentShadow = m.TransparentShadow },
+            "dielectric" => new Dielectric(m.RefractionIndex, albedo),
             "emissive"   => new Emissive(albedo, m.Intensity),
             "disney" or "disney_bsdf" or "pbr"
                          => new DisneyBsdf(
@@ -858,8 +858,7 @@ public class SceneLoader
                                                         ? DisneyParam(MathF.Max(m.CoatRoughness, 0f), m.CoatRoughnessTexture, sceneDir)
                                                         : null,
                                 thinFilmThickness:   DisneyParam(m.ThinFilmThickness,   m.ThinFilmThicknessTexture, sceneDir),
-                                thinFilmIor:         DisneyParam(m.ThinFilmIor,         m.ThinFilmIorTexture,       sceneDir),
-                                transparentShadow:   m.TransparentShadow),
+                                thinFilmIor:         DisneyParam(m.ThinFilmIor,         m.ThinFilmIorTexture,       sceneDir)),
             _            => new Lambertian(albedo)
         };
 

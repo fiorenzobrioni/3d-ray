@@ -291,18 +291,6 @@ public class MaterialData
     [YamlMember(Alias = "transmission_depth")]
     public float TransmissionDepth { get; set; } = 0f;
 
-    /// <summary>
-    /// Disney / dielectric only. When true, shadow rays through the surface
-    /// drop the Fresnel attenuation and pass the raw tint, eliminating the
-    /// hard "Fresnel ring" silhouette a smooth glass object otherwise
-    /// stamps on its receiver. Recommended for clean spheres / lenses /
-    /// crystal balls in scenes where caustics would dominate the lit
-    /// pattern. See <c>DisneyBsdf.TransparentShadow</c> for the
-    /// energy-conservation rationale.
-    /// </summary>
-    [YamlMember(Alias = "transparent_shadow")]
-    public bool TransparentShadow { get; set; } = false;
-
     // ── Disney 2015: subsurface / leaf-like thin-walled extensions ──────────
     // subsurface_color: tints the approximate subsurface lobe (used in place
     //   of base_color inside the Hanrahan-Krueger blend). Defaults to null,
