@@ -942,6 +942,28 @@ entities:
     - [ 0.55,-1.0]
     - [ 1.0, -0.55]
     - [ 1.0,  0.0]
+
+# Linear + crease_angle — poligono a 12 lati letto come cilindro, non come prisma sfaccettato
+- name: "colonna_tonda"
+  type: "extrusion"
+  profile_type: "linear"
+  height: 2.0
+  crease_angle: 40            # blend normali sugli edge il cui diedro è inferiore a 40°
+  caps: "both"
+  material: "intonaco"
+  profile:
+    - [ 1.000,  0.000]
+    - [ 0.866,  0.500]
+    - [ 0.500,  0.866]
+    - [ 0.000,  1.000]
+    - [-0.500,  0.866]
+    - [-0.866,  0.500]
+    - [-1.000,  0.000]
+    - [-0.866, -0.500]
+    - [-0.500, -0.866]
+    - [ 0.000, -1.000]
+    - [ 0.500, -0.866]
+    - [ 0.866, -0.500]
 ```
 - Estrude un profilo 2D chiuso nel piano XZ lungo l'asse Y locale,
   producendo un prisma da `y = 0` a `y = height`. Il posizionamento
@@ -969,11 +991,23 @@ entities:
 - `curve_samples` controlla la qualità della silhouette per
   `catmull_rom` / `bezier`: ogni segmento di input diventa quel numero
   di campioni di polilinea (default 16, 24-32 per primi piani da hero).
+- `crease_angle` (default `0`, solo modalità `linear`): soglia diedra in gradi
+  per il blending delle normali ai vertici sulle pareti laterali lineari. Coppie
+  di pareti adiacenti le cui normali di faccia differiscono meno di questo
+  valore condividono una normale blended (shading liscio, l'edge scompare nei
+  riflessi speculari); coppie che differiscono di più mantengono le proprie
+  normali piane (spigolo netto). `0` produce geometria completamente sfaccettata
+  — comportamento storico. 30° ammorbidisce le curve approssimate con polilinea
+  mantenendo nitidi gli angoli retti su lettere, ingranaggi e sezioni
+  ingegneristiche. Ignorato per `catmull_rom` e `bezier`, che producono sempre
+  pareti smooth-shaded.
 - Internamente ogni extrusion costruisce la propria BVH sopra triangoli
   di pareti + cap, quindi la BVH globale vede una sola foglia per
-  extrusion indipendentemente dalla complessità del profilo. Le
-  normali smooth-shaded vengono emesse sulle pareti per `catmull_rom` /
-  `bezier`; `linear` mantiene normali piane per il look sfaccettato.
+  extrusion indipendentemente dalla complessità del profilo. Le normali
+  smooth-shaded vengono emesse sulle pareti per `catmull_rom` / `bezier`;
+  `linear` usa di default normali piane — imposta `crease_angle > 0` per
+  blend delle normali sugli edge sotto la soglia e ammorbidire le curve
+  approssimate con polilinea senza cambiare modalità di profilo.
 - Le Extrusion emissive partecipano al NEE automaticamente: `Sample()`
   sceglie un triangolo proporzionalmente alla sua area, quindi la luce
   da un'insegna al neon a forma di stella è pesata correttamente fra

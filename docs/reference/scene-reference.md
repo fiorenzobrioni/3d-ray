@@ -902,6 +902,28 @@ entities:
     - [ 0.55,-1.0]
     - [ 1.0, -0.55]
     - [ 1.0,  0.0]
+
+# Linear + crease_angle — 12-sided polygon smoothed to read as a cylinder, not a faceted prism
+- name: "round_column"
+  type: "extrusion"
+  profile_type: "linear"
+  height: 2.0
+  crease_angle: 40            # blend normals on edges whose dihedral is below 40°
+  caps: "both"
+  material: "plaster"
+  profile:
+    - [ 1.000,  0.000]
+    - [ 0.866,  0.500]
+    - [ 0.500,  0.866]
+    - [ 0.000,  1.000]
+    - [-0.500,  0.866]
+    - [-0.866,  0.500]
+    - [-1.000,  0.000]
+    - [-0.866, -0.500]
+    - [-0.500, -0.866]
+    - [ 0.000, -1.000]
+    - [ 0.500, -0.866]
+    - [ 0.866, -0.500]
 ```
 - Sweeps a closed 2D profile in the XZ plane along the local +Y axis,
   producing a prism that goes from `y = 0` to `y = height`. Positioning
@@ -927,11 +949,22 @@ entities:
 - `curve_samples` controls the silhouette quality of `catmull_rom` /
   `bezier` profiles: each input segment becomes that many polyline
   samples (default 16, raise to 24-32 for hero close-ups).
+- `crease_angle` (default `0`, `linear` mode only): dihedral threshold in
+  degrees for per-vertex normal blending on linear side walls. Adjacent wall
+  faces whose normals differ by less than this angle share a blended vertex
+  normal (smooth shading, edge disappears in highlights); faces that differ by
+  more keep their own flat face normals (hard edge). `0` gives fully faceted
+  geometry — the historical default. 30° smooths polyline-approximated curves
+  while preserving right-angle corners on letters, gears, and engineered
+  sections. Ignored for `catmull_rom` and `bezier`, which always produce
+  smooth side walls.
 - Internally each extrusion builds its own BVH over the wall + cap
   triangles, so the outer scene BVH sees a single leaf per extrusion
   regardless of profile complexity. Smooth-shaded normals are emitted on
-  the side walls for `catmull_rom` / `bezier`; `linear` keeps flat per-face
-  normals for the faceted look.
+  the side walls for `catmull_rom` / `bezier`; `linear` defaults to flat
+  per-face normals — set `crease_angle > 0` to blend normals across edges
+  below the threshold and soften polyline-approximated curves without
+  switching profile mode.
 - Emissive Extrusions participate in NEE automatically: `Sample()` picks
   a triangle proportional to its area, so light from a star-shaped neon
   sign is correctly weighted across walls and caps.

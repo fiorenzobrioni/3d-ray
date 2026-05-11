@@ -113,6 +113,7 @@ of an aluminium extrusion or a CNC-cut acrylic shape.
 | `twist_degrees`  | `0`      | Total rotation of the top profile around Y, in degrees     |
 | `taper`          | `1`      | Uniform XZ scale at the top (1 = straight, < 1 narrows)    |
 | `curve_samples`  | `16`     | Polyline resolution for curved modes (ignored by `linear`) |
+| `crease_angle`   | `0`      | Normal-blend threshold for `linear` walls, degrees (0 = flat) |
 | `material`       | --       | Applied uniformly to walls and caps                        |
 | `center` / `translate` / `rotate` / `scale` | -- | Standard primitive transforms     |
 
@@ -131,8 +132,67 @@ of an aluminium extrusion or a CNC-cut acrylic shape.
 **What it looks like**
 
 Hard ridges at every profile vertex, identical to what a CNC mill or a
-cookie cutter produces. If you want a smooth silhouette, use one of
-the spline modes below.
+cookie cutter produces. If you want a smooth silhouette but need to keep
+the polygon as-is, use `crease_angle` below. If you want the engine to
+produce the smooth outline from fewer control points, use one of the
+spline modes below.
+
+### Smoothing Linear Profiles with `crease_angle`
+
+A `linear` profile defaults to fully flat-shaded normals — ideal for
+machined parts, but a 12-sided polygon approximating a circle will show
+12 visible facets in highlights. `crease_angle` solves this without
+switching profile mode:
+
+```yaml
+- name: "round_column"
+  type: "extrusion"
+  profile_type: "linear"
+  height: 2.0
+  crease_angle: 40            # blend normals on edges below 40°
+  caps: "both"
+  material: "plaster"
+  profile:
+    - [ 1.000,  0.000]
+    - [ 0.866,  0.500]
+    - [ 0.500,  0.866]
+    - [ 0.000,  1.000]
+    - [-0.500,  0.866]
+    - [-0.866,  0.500]
+    - [-1.000,  0.000]
+    - [-0.866, -0.500]
+    - [-0.500, -0.866]
+    - [ 0.000, -1.000]
+    - [ 0.500, -0.866]
+    - [ 0.866, -0.500]
+```
+
+**How it works**: at every profile vertex the engine measures the
+dihedral angle between the two adjacent wall faces. If the angle is
+*below* `crease_angle`, the vertex gets a blended normal (smooth
+shading — the edge vanishes in specular highlights). If the angle is
+*above* `crease_angle`, each face keeps its own flat normal (hard edge
+— the ridge stays crisp).
+
+**Choosing a threshold**:
+
+| `crease_angle` | Effect |
+|----------------|--------|
+| `0` (default)  | Fully faceted — every edge is a hard ridge. |
+| `30°`          | Smooths curves approximated by polylines; preserves 90° corners (letters, gears, channels). |
+| `45°`          | Same as 30° but also softens 45° chamfers. |
+| `90°`          | Smooth everywhere except right-angle corners — typical DCC default. |
+| `180°`         | Fully smooth regardless of corner angle. |
+
+30° (Blender's and Maya's classic default) is the best starting point for
+any polyline-approximated rounded shape: a 12-sided circle, an 8-lobed
+column cross-section, a rounded hexagon.
+
+**`crease_angle` vs `catmull_rom`**: use `crease_angle` when the polygon
+already has the right shape (exported from CAD, traced from an SVG, or
+authored with a known number of sides) and you only want to fix the
+shading. Use `catmull_rom` when you want the engine to produce a smooth
+silhouette from fewer authoring points.
 
 ---
 
@@ -568,8 +628,9 @@ When you create an extrusion, the loader:
    curved profiles the engine emits **smooth-shaded** triangles, so
    adjacent triangles share averaged normals at their common edge
    and the silhouette reads as a continuous curve at any zoom level.
-   For `linear`, the engine emits **flat-shaded** triangles to keep
-   ridges crisp.
+   For `linear`, the engine emits **flat-shaded** triangles by default
+   to keep ridges crisp; setting `crease_angle > 0` enables per-vertex
+   normal blending at edges whose dihedral angle is below the threshold.
 4. **Triangulates the caps** with the classical **ear-clipping**
    algorithm. Every `n`-vertex cap becomes `n - 2` triangles.
    Concave-but-simple polygons are handled correctly without
@@ -613,6 +674,7 @@ it to 24-32 for primary subjects.
 | Cookie-cutter / stencil shapes                                    | `linear`, `caps: "none"`             |
 | Helical drill bit                                                 | `linear`, `twist_degrees: 360+`      |
 | Pyramids, obelisks, finials                                       | any mode, `taper: 0.0`–`0.3`         |
+| Polyline polygon smoothed to read as a curved surface             | `linear` + `crease_angle: 30`        |
 
 Two rules of thumb when in doubt:
 
@@ -633,6 +695,12 @@ The ear-clipping triangulator can handle any concave polygon as long
 as its edges do not cross. If a mid-loop edge crosses the cap will
 have spurious holes. Visualise the profile in 2D first — a tool like
 GeoGebra or even a quick `matplotlib` plot makes the problem obvious.
+
+**My linear profile looks faceted even though it approximates a smooth curve.**
+Add `crease_angle: 30` to blend normals across the adjacent flat walls. This
+makes polyline-approximated circles, rounded hexagons, and similar shapes look
+smooth without switching to `catmull_rom`. Raise the value if ridges are still
+visible; lower it if sharp corners you want to keep have started to soften.
 
 **The silhouette is jagged but I used `catmull_rom`.**
 Bump `curve_samples` from the default 16 to 24 or 32. The
@@ -691,6 +759,11 @@ discussion of transform order.)
 - `twist_degrees` and `taper` turn straight prisms into sculpted
   columns, helical drill bits, finials, and pyramids — without
   needing a modifier stack or a CSG chain.
+- `crease_angle` (linear only, default 0) blends vertex normals across
+  adjacent wall pairs whose dihedral angle is below the threshold, smoothing
+  polyline-approximated curves while keeping wider-angle corners hard. 30° is
+  a safe starting point that preserves right-angle corners on letters, gears,
+  and engineered sections.
 - UV is `(arc length, height)`, perfect for wraparound textures
   that run along the extrusion axis with stripe density tied to
   the local profile width.
