@@ -44,7 +44,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 imports:
-  - path: "libraries/fonts/font-eras-bold-itc.yaml"
+  - path: "libraries/fonts/font-open-sans.yaml"
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  WORLD — sky scuro museale + pavimento lucido + height fog opzionale
@@ -241,7 +241,7 @@ entities:
   # ── "3" ─ Oro lucido ────────────────────────────────────────────────────
   - name: "letter_3"
     type: "instance"
-    template: "numero_3_eras_bold_itc"
+    template: "numero_3_open-sans"
     material: "mat_3_oro"
     rotate:    [-90, 180, 0]
     translate: [3.90, 0.75, 0.0]
@@ -250,7 +250,7 @@ entities:
   # ── "D" ─ Vetro tinto ──────────────────────────────────────────────────
   - name: "letter_D"
     type: "instance"
-    template: "lettera_d_maiusc_eras_bold_itc"
+    template: "lettera_d_maiusc_open-sans"
     material: "mat_d_vetro"
     rotate:    [-90, 180, 0]
     translate: [2.30, 0.75, 0.0]
@@ -259,7 +259,7 @@ entities:
   # ── "R" ─ Vernice rossa con clearcoat ──────────────────────────────────
   - name: "letter_R"
     type: "instance"
-    template: "lettera_r_maiusc_eras_bold_itc"
+    template: "lettera_r_maiusc_open-sans"
     material: "mat_r_carpaint"
     rotate:    [-90, 180, 0]
     translate: [-0.50, 0.75, 0.0]
@@ -268,7 +268,7 @@ entities:
   # ── "A" ─ Acciaio brushed anisotropico ─────────────────────────────────
   - name: "letter_A"
     type: "instance"
-    template: "lettera_a_maiusc_eras_bold_itc"
+    template: "lettera_a_maiusc_open-sans"
     material: "mat_a_acciaio_brushed"
     rotate:    [-90, 180, 0]
     translate: [-2.15, 0.75, 0.0]
@@ -277,7 +277,7 @@ entities:
   # ── "Y" ─ DEFAULT: giada con SSS ───────────────────────────────────────
   - name: "letter_Y"
     type: "instance"
-    template: "lettera_y_maiusc_eras_bold_itc"
+    template: "lettera_y_maiusc_open-sans"
     material: "mat_y_giada"
     rotate:    [-90, 180, 0]
     translate: [-3.70, 0.75, 0.0]
@@ -291,7 +291,7 @@ entities:
   #
   # - name: "letter_Y"
   #   type: "instance"
-  #   template: "lettera_y_maiusc_eras_bold_itc"
+  #   template: "lettera_y_maiusc_open-sans"
   #   material: "mat_y_emissivo"
   #   rotate:    [90, 0, 0]
   #   translate: [-3.95, 0.75, 0.0]
