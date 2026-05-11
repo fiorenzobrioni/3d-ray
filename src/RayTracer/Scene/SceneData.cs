@@ -682,6 +682,19 @@ public class EntityData
     [YamlMember(Alias = "curve_samples")]
     public int CurveSamples { get; set; } = 16;
 
+    /// <summary>
+    /// For <c>profile_type: linear</c> only: dihedral threshold (degrees)
+    /// for auto-smoothing across adjacent profile segments. Pairs of side
+    /// walls whose face normals make an angle below this value share a
+    /// blended vertex normal (smooth shading) while pairs above it stay
+    /// hard. Set to 0 to disable smoothing entirely (faceted look — the
+    /// historical default for polyline profiles). 30° is a sensible
+    /// default that softens polyline-approximated curves while preserving
+    /// 90° corners on letters, gears and engineered profiles.
+    /// </summary>
+    [YamlMember(Alias = "crease_angle")]
+    public float CreaseAngle { get; set; } = 0f;
+
     // Transformations
     [YamlMember(Alias = "translate")]
     public List<float>? Translate { get; set; }

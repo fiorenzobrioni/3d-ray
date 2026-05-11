@@ -1478,7 +1478,8 @@ public class SceneLoader
                 bezierControls: controls,
                 twistDegrees: e.TwistDegrees,
                 taper: e.Taper,
-                curveSamples: Math.Max(2, e.CurveSamples));
+                curveSamples: Math.Max(2, e.CurveSamples),
+                creaseAngleDeg: e.CreaseAngle);
         }
         catch (ArgumentException ex)
         {

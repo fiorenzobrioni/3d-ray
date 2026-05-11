@@ -16,6 +16,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -46,6 +47,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -67,6 +69,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -116,6 +119,7 @@ templates:
           left:
             type: "extrusion"
             profile_type: "linear"
+            crease_angle: 30
             height: 0.17
             translate: [0, -0.01, 0]
             caps: "both"
@@ -136,6 +140,7 @@ templates:
           right:
             type: "extrusion"
             profile_type: "linear"
+            crease_angle: 30
             height: 0.17
             translate: [0, -0.01, 0]
             caps: "both"
@@ -158,6 +163,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -215,6 +221,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -250,6 +257,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -275,6 +283,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -331,6 +340,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -378,6 +388,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -438,6 +449,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -483,6 +495,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -508,6 +521,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -544,6 +558,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -570,6 +585,7 @@ templates:
           - [ -0.064,  -0.137]
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -595,6 +611,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -623,6 +640,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -693,6 +711,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -741,6 +760,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -778,6 +798,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -812,6 +833,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -874,6 +896,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -918,6 +941,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -952,6 +976,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1013,6 +1038,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1073,6 +1099,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1106,6 +1133,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1161,6 +1189,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1199,6 +1228,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1253,6 +1283,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1301,6 +1332,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1342,6 +1374,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1388,6 +1421,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1455,6 +1489,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -1494,6 +1529,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -1518,6 +1554,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1567,6 +1604,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -1604,6 +1642,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -1631,6 +1670,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -1672,6 +1712,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -1692,6 +1733,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1738,6 +1780,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -1791,6 +1834,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -1816,6 +1860,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1870,6 +1915,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1897,6 +1943,7 @@ templates:
           - [ -0.079,  -0.499]
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1916,6 +1963,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1948,6 +1996,7 @@ templates:
           - [  0.101,   0.302]
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1965,6 +2014,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -1987,6 +2037,7 @@ templates:
           - [ -0.282,  -0.499]
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2016,6 +2067,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2036,6 +2088,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2110,6 +2163,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2160,6 +2214,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -2193,6 +2248,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -2219,6 +2275,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -2255,6 +2312,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -2282,6 +2340,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -2317,6 +2376,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -2342,6 +2402,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2376,6 +2437,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2428,6 +2490,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2473,6 +2536,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2522,6 +2586,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2550,6 +2615,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2595,6 +2661,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2636,6 +2703,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2686,6 +2754,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2733,6 +2802,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -2769,6 +2839,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -2796,6 +2867,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2832,6 +2904,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2881,6 +2954,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -2946,6 +3020,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -2985,6 +3060,7 @@ templates:
         right:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.17
           translate: [0, -0.01, 0]
           caps: "both"
@@ -3002,6 +3078,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -3058,6 +3135,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -3113,6 +3191,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
@@ -3144,6 +3223,7 @@ templates:
         left:
           type: "extrusion"
           profile_type: "linear"
+          crease_angle: 30
           height: 0.15
           caps: "both"
           material: "font_material"
@@ -3198,6 +3278,7 @@ templates:
           left:
             type: "extrusion"
             profile_type: "linear"
+            crease_angle: 30
             height: 0.17
             translate: [0, -0.01, 0]
             caps: "both"
@@ -3220,6 +3301,7 @@ templates:
           right:
             type: "extrusion"
             profile_type: "linear"
+            crease_angle: 30
             height: 0.17
             translate: [0, -0.01, 0]
             caps: "both"
@@ -3245,6 +3327,7 @@ templates:
     children:
       - type: "extrusion"
         profile_type: "linear"
+        crease_angle: 30
         height: 0.15
         caps: "both"
         material: "font_material"
