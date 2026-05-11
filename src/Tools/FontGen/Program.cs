@@ -310,6 +310,11 @@ internal static class Program
     private static void WriteExtrusionBody(StringWriter w, List<Vector2> profile, string ind, bool isHole, float height)
     {
         w.WriteLine($"{ind}profile_type: \"linear\"");
+        // Linear profile that came out of an outline-tracer of a font glyph
+        // is a fine polyline approximating curved letterforms. A crease
+        // angle of 30° lets the renderer smooth across those tiny segments
+        // while keeping genuine corners (sharp counters, serifs) hard.
+        w.WriteLine($"{ind}crease_angle: 30");
         if (isHole)
         {
             float h = height + 0.02f;

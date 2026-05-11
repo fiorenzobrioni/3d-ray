@@ -111,6 +111,14 @@ public sealed class Extrusion : IHittable, ISamplable
     /// the bottom (1 = straight prism, &lt;1 narrowing, &gt;1 flaring).</param>
     /// <param name="curveSamples">For curved modes, how many polyline samples
     /// per input segment. Higher = smoother silhouette, more triangles.</param>
+    /// <param name="creaseAngleDeg">For Linear mode only: dihedral threshold
+    /// for auto-smoothing across adjacent profile segments. Pairs of side
+    /// walls whose face normals make an angle below this value share a
+    /// blended vertex normal (smooth shading); pairs above it keep their
+    /// own face normals (hard edge). 0 disables smoothing entirely
+    /// (every segment is flat). 30° is a common default that flattens
+    /// polyline-approximated curves while preserving 90° corners on
+    /// letters and engineered profiles.</param>
     public Extrusion(
         IReadOnlyList<Vector2> profile,
         ExtrusionMode mode,
@@ -120,7 +128,8 @@ public sealed class Extrusion : IHittable, ISamplable
         IReadOnlyList<Vector2>? bezierControls = null,
         float twistDegrees = 0f,
         float taper = 1f,
-        int curveSamples = 16)
+        int curveSamples = 16,
+        float creaseAngleDeg = 0f)
     {
         if (profile == null || profile.Count < 3)
             throw new ArgumentException("Extrusion requires a profile of at least 3 points.", nameof(profile));
@@ -138,7 +147,8 @@ public sealed class Extrusion : IHittable, ISamplable
         //    interior. If the input is CW, reverse it in place.
         if (Polygon2D.SignedArea(loop) < 0f) loop.Reverse();
 
-        bool smoothSides = mode != ExtrusionMode.Linear;
+        bool linearSmooth = mode == ExtrusionMode.Linear && creaseAngleDeg > 0f;
+        bool smoothSides = mode != ExtrusionMode.Linear || linearSmooth;
         int n = loop.Count;
 
         // 3) Build the bottom and top vertex rings with twist + taper.
@@ -159,38 +169,134 @@ public sealed class Extrusion : IHittable, ISamplable
             top[i] = new Vector3(rx, height, rz);
         }
 
-        // 4) Per-vertex ruled-surface normals (only consumed when smoothSides).
-        //    n = normalize(R × t) where R = top[i] − bottom[i] is the ruling
-        //    line and t is the along-profile tangent. The cross product gives
-        //    the geometric normal of the ruled patch at that corner — correct
-        //    for any combination of taper and twist (which would otherwise
-        //    leave the simple lift-2D-into-XZ shortcut visibly wrong).
-        var bottomNormals3D = smoothSides ? new Vector3[n] : Array.Empty<Vector3>();
-        var topNormals3D    = smoothSides ? new Vector3[n] : Array.Empty<Vector3>();
+        // 4) Per-quad-corner side normals (only consumed when smoothSides).
+        //    Two code paths share the same emission stage at step 7:
+        //
+        //    a) Linear with creaseAngleDeg > 0 (linearSmooth): per-edge face
+        //       normals, then blended at each vertex only when the dihedral
+        //       angle with the adjacent edge stays below the crease
+        //       threshold. Above the threshold the vertex keeps the
+        //       current edge's own face normal — so right-angled corners
+        //       in letters / gears / brackets stay crisp while gentle
+        //       curves approximated by many short segments shade as
+        //       smooth surfaces. Bottom and top normals differ when
+        //       taper or twist warps the wall into a ruled (non-planar)
+        //       quad.
+        //
+        //    b) CatmullRom / Bezier (always smooth): per-vertex
+        //       ruled-surface normal n = normalize(R × t) where
+        //       R = top[i] − bottom[i] is the ruling line and t is the
+        //       along-profile tangent — correct for any combination of
+        //       taper and twist (lifting the 2D outward normal into XZ
+        //       unchanged would produce the wrong specular highlight on
+        //       tapered or twisted surfaces). The same normal serves
+        //       both adjacent quads at that vertex (no creases).
+        //
+        // Index layout for the per-quad arrays: entry [i] is the corner of
+        // quad i sitting at profile vertex i (the "left" / start side); the
+        // corner of quad i at vertex i+1 (the "right" / end side) is stored
+        // in entry [i] of the right-side arrays. With this layout the two
+        // sides of a smooth (non-crease) vertex i contain the same blended
+        // normal in leftBottomN[i] and rightBottomN[(i − 1 + n) % n].
+        var leftBottomN  = smoothSides ? new Vector3[n] : Array.Empty<Vector3>();
+        var leftTopN     = smoothSides ? new Vector3[n] : Array.Empty<Vector3>();
+        var rightBottomN = smoothSides ? new Vector3[n] : Array.Empty<Vector3>();
+        var rightTopN    = smoothSides ? new Vector3[n] : Array.Empty<Vector3>();
         if (smoothSides)
         {
             // Fallback 2D outward normals for vertices whose ruled normal
             // collapses (e.g. R parallel to the local tangent at near-zero
             // taper combined with grazing geometry).
             var fallback2D = ComputeOutwardEdgeNormals2D(loop);
-            for (int i = 0; i < n; i++)
+
+            if (linearSmooth)
             {
-                int prev = (i - 1 + n) % n;
-                int next = (i + 1) % n;
+                float cosCrease = MathF.Cos(MathF.Min(MathF.Max(creaseAngleDeg, 0f), 180f)
+                                            * MathF.PI / 180f);
 
-                // Smooth tangent: (next − prev) is length-weighted (longer
-                // adjacent edges contribute proportionally) and matches the
-                // C¹ tangent of the underlying spline at the control point.
-                Vector3 tB = bottom[next] - bottom[prev];
-                Vector3 tT = top[next]    - top[prev];
+                // Per-edge face normals at both ends of the ruling. With
+                // taper or twist the side quad is a ruled (warped) surface
+                // and the outward normal varies along Y; we sample it at
+                // the bottom and the top so SmoothTriangle interpolates
+                // a faithful shading normal across the wall.
+                var edgeNB = new Vector3[n];
+                var edgeNT = new Vector3[n];
+                for (int i = 0; i < n; i++)
+                {
+                    int j = (i + 1) % n;
+                    Vector3 b0 = bottom[i], b1 = bottom[j];
+                    Vector3 t0 = top[i],    t1 = top[j];
+                    // Outward face normal at the bottom of the quad: same
+                    // winding as triangle (b0, t0, b1), which matches the
+                    // CCW lifted-2D-CCW orientation comment at step 7.
+                    Vector3 nBot = Vector3.Cross(t0 - b0, b1 - b0);
+                    // Outward face normal at the top of the quad: triangle
+                    // (t0, t1, b1) seen from the same outward side.
+                    Vector3 nTop = Vector3.Cross(t1 - t0, b1 - t0);
+                    edgeNB[i] = SafeNormalize(nBot, fallback2D[i]);
+                    edgeNT[i] = SafeNormalize(nTop, fallback2D[i]);
+                }
 
-                Vector3 R = top[i] - bottom[i];
+                for (int i = 0; i < n; i++)
+                {
+                    int prev = (i - 1 + n) % n;
+                    int next = (i + 1) % n;
 
-                Vector3 nB = Vector3.Cross(R, tB);
-                Vector3 nT = Vector3.Cross(R, tT);
+                    // Left corner of quad i (profile vertex i): blend with
+                    // the previous edge when the bottom-face dihedral is
+                    // below the crease threshold.
+                    if (Vector3.Dot(edgeNB[prev], edgeNB[i]) >= cosCrease)
+                    {
+                        leftBottomN[i] = SafeNormalize(edgeNB[prev] + edgeNB[i], fallback2D[i]);
+                        leftTopN[i]    = SafeNormalize(edgeNT[prev] + edgeNT[i], fallback2D[i]);
+                    }
+                    else
+                    {
+                        leftBottomN[i] = edgeNB[i];
+                        leftTopN[i]    = edgeNT[i];
+                    }
 
-                bottomNormals3D[i] = SafeNormalize(nB, fallback2D[i]);
-                topNormals3D[i]    = SafeNormalize(nT, fallback2D[i]);
+                    // Right corner of quad i (profile vertex i+1).
+                    if (Vector3.Dot(edgeNB[i], edgeNB[next]) >= cosCrease)
+                    {
+                        rightBottomN[i] = SafeNormalize(edgeNB[i] + edgeNB[next], fallback2D[next]);
+                        rightTopN[i]    = SafeNormalize(edgeNT[i] + edgeNT[next], fallback2D[next]);
+                    }
+                    else
+                    {
+                        rightBottomN[i] = edgeNB[i];
+                        rightTopN[i]    = edgeNT[i];
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    int prev = (i - 1 + n) % n;
+                    int next = (i + 1) % n;
+
+                    // Smooth tangent: (next − prev) is length-weighted (longer
+                    // adjacent edges contribute proportionally) and matches the
+                    // C¹ tangent of the underlying spline at the control point.
+                    Vector3 tB = bottom[next] - bottom[prev];
+                    Vector3 tT = top[next]    - top[prev];
+
+                    Vector3 R = top[i] - bottom[i];
+
+                    Vector3 nB = Vector3.Cross(R, tB);
+                    Vector3 nT = Vector3.Cross(R, tT);
+
+                    Vector3 vertexBotN = SafeNormalize(nB, fallback2D[i]);
+                    Vector3 vertexTopN = SafeNormalize(nT, fallback2D[i]);
+
+                    // Vertex i is the left corner of quad i AND the right
+                    // corner of quad (i − 1).
+                    leftBottomN[i]     = vertexBotN;
+                    leftTopN[i]        = vertexTopN;
+                    rightBottomN[prev] = vertexBotN;
+                    rightTopN[prev]    = vertexTopN;
+                }
             }
         }
 
@@ -262,8 +368,8 @@ public sealed class Extrusion : IHittable, ISamplable
 
             if (smoothSides)
             {
-                Vector3 nB0 = bottomNormals3D[i], nB1 = bottomNormals3D[j];
-                Vector3 nT0 = topNormals3D[i],    nT1 = topNormals3D[j];
+                Vector3 nB0 = leftBottomN[i],  nB1 = rightBottomN[i];
+                Vector3 nT0 = leftTopN[i],     nT1 = rightTopN[i];
 
                 _triangles.Add(new SmoothTriangle(
                     b0, t1, b1, nB0, nT1, nB1,

@@ -824,7 +824,7 @@ public class SceneLoader
         {
             "lambertian" => new Lambertian(albedo),
             "metal"      => new Metal(albedo, m.Fuzz),
-            "dielectric" => new Dielectric(m.RefractionIndex, albedo),
+            "dielectric" => new Dielectric(m.RefractionIndex, albedo) { TransparentShadow = m.TransparentShadow },
             "emissive"   => new Emissive(albedo, m.Intensity),
             "disney" or "disney_bsdf" or "pbr"
                          => new DisneyBsdf(
@@ -858,7 +858,8 @@ public class SceneLoader
                                                         ? DisneyParam(MathF.Max(m.CoatRoughness, 0f), m.CoatRoughnessTexture, sceneDir)
                                                         : null,
                                 thinFilmThickness:   DisneyParam(m.ThinFilmThickness,   m.ThinFilmThicknessTexture, sceneDir),
-                                thinFilmIor:         DisneyParam(m.ThinFilmIor,         m.ThinFilmIorTexture,       sceneDir)),
+                                thinFilmIor:         DisneyParam(m.ThinFilmIor,         m.ThinFilmIorTexture,       sceneDir),
+                                transparentShadow:   m.TransparentShadow),
             _            => new Lambertian(albedo)
         };
 
@@ -1478,7 +1479,8 @@ public class SceneLoader
                 bezierControls: controls,
                 twistDegrees: e.TwistDegrees,
                 taper: e.Taper,
-                curveSamples: Math.Max(2, e.CurveSamples));
+                curveSamples: Math.Max(2, e.CurveSamples),
+                creaseAngleDeg: e.CreaseAngle);
         }
         catch (ArgumentException ex)
         {

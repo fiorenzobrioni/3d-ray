@@ -9,6 +9,15 @@ public sealed class Dielectric : IMaterial
     public float RefractionIndex { get; }
     public ITexture Albedo { get; }
 
+    /// <summary>
+    /// When true, shadow rays drop the Fresnel attenuation and report the
+    /// raw albedo through the surface — eliminating the hard "Fresnel ring"
+    /// silhouette a smooth glass sphere otherwise stamps on its receiver.
+    /// See <see cref="DisneyBsdf.TransparentShadow"/> for the
+    /// energy-conservation rationale.
+    /// </summary>
+    public bool TransparentShadow { get; set; }
+
     public Dielectric(float refractionIndex)
     {
         RefractionIndex = refractionIndex;
@@ -36,10 +45,11 @@ public sealed class Dielectric : IMaterial
     // shadowing at grazing angles.
     public Vector3 ShadowTransmittance(Vector3 wi, HitRecord rec)
     {
+        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        if (TransparentShadow) return albedo;
         float cosTheta = MathF.Min(MathF.Abs(Vector3.Dot(wi, rec.Normal)), 1f);
         float eta = rec.FrontFace ? (1f / RefractionIndex) : RefractionIndex;
         float fr = MathUtils.FresnelDielectric(cosTheta, eta);
-        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         return (1f - fr) * albedo;
     }
 

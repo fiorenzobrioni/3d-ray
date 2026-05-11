@@ -291,6 +291,18 @@ public class MaterialData
     [YamlMember(Alias = "transmission_depth")]
     public float TransmissionDepth { get; set; } = 0f;
 
+    /// <summary>
+    /// Disney / dielectric only. When true, shadow rays through the surface
+    /// drop the Fresnel attenuation and pass the raw tint, eliminating the
+    /// hard "Fresnel ring" silhouette a smooth glass object otherwise
+    /// stamps on its receiver. Recommended for clean spheres / lenses /
+    /// crystal balls in scenes where caustics would dominate the lit
+    /// pattern. See <c>DisneyBsdf.TransparentShadow</c> for the
+    /// energy-conservation rationale.
+    /// </summary>
+    [YamlMember(Alias = "transparent_shadow")]
+    public bool TransparentShadow { get; set; } = false;
+
     // ── Disney 2015: subsurface / leaf-like thin-walled extensions ──────────
     // subsurface_color: tints the approximate subsurface lobe (used in place
     //   of base_color inside the Hanrahan-Krueger blend). Defaults to null,
@@ -681,6 +693,19 @@ public class EntityData
     /// </summary>
     [YamlMember(Alias = "curve_samples")]
     public int CurveSamples { get; set; } = 16;
+
+    /// <summary>
+    /// For <c>profile_type: linear</c> only: dihedral threshold (degrees)
+    /// for auto-smoothing across adjacent profile segments. Pairs of side
+    /// walls whose face normals make an angle below this value share a
+    /// blended vertex normal (smooth shading) while pairs above it stay
+    /// hard. Set to 0 to disable smoothing entirely (faceted look — the
+    /// historical default for polyline profiles). 30° is a sensible
+    /// default that softens polyline-approximated curves while preserving
+    /// 90° corners on letters, gears and engineered profiles.
+    /// </summary>
+    [YamlMember(Alias = "crease_angle")]
+    public float CreaseAngle { get; set; } = 0f;
 
     // Transformations
     [YamlMember(Alias = "translate")]

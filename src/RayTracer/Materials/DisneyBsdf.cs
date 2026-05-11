@@ -150,6 +150,23 @@ public sealed class DisneyBsdf : IMaterial
     // ── Normal map support ──────────────────────────────────────────────────
     public NormalMapTexture? NormalMap { get; set; }
 
+    // ── Shadow-ray transmission mode ────────────────────────────────────────
+    // When TransparentShadow is true, the per-hit ShadowTransmittance drops
+    // the Fresnel attenuation and returns specTrans · tint regardless of the
+    // grazing angle. This eliminates the hard "Fresnel ring" silhouette that
+    // a smooth glass sphere otherwise stamps onto its receiver — in reality
+    // the missing light is refracted to form a caustic just inside that
+    // silhouette, and since the unbiased path tracer cannot reach it through
+    // shadow rays (no MNEE / photon mapping — see DEVLOG roadmap) the
+    // straight-through (1 − F) approximation systematically over-darkens
+    // smooth dielectrics. Setting TransparentShadow softens that bias at the
+    // cost of slightly over-bright shadow centres until indirect bounces
+    // converge. Matches Cycles' "Transparent Shadows" toggle and Arnold's
+    // "transmission cast caustics = off" default. Beer-Lambert volumetric
+    // absorption (ShadowAbsorption) is unaffected so tinted glass keeps its
+    // coloured shadow on the centre area.
+    public bool TransparentShadow { get; }
+
     public DisneyBsdf(
         ITexture baseColor,
         FloatTexture? metallic            = null,
@@ -175,7 +192,8 @@ public sealed class DisneyBsdf : IMaterial
         FloatTexture? coatIor             = null,
         FloatTexture? coatRoughness       = null,
         FloatTexture? thinFilmThickness   = null,
-        FloatTexture? thinFilmIor         = null)
+        FloatTexture? thinFilmIor         = null,
+        bool          transparentShadow   = false)
     {
         BaseColor           = baseColor;
         Metallic            = metallic            ?? new FloatTexture(0f);
@@ -202,6 +220,7 @@ public sealed class DisneyBsdf : IMaterial
         CoatRoughness       = coatRoughness;
         ThinFilmThickness   = thinFilmThickness   ?? new FloatTexture(0f);
         ThinFilmIor         = thinFilmIor         ?? new FloatTexture(1.5f);
+        TransparentShadow   = transparentShadow;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -582,13 +601,20 @@ public sealed class DisneyBsdf : IMaterial
         float specTrans = SpecTrans.Value(u, v, p, seed);
         if (specTrans <= 0f) return Vector3.Zero;
 
+        Vector3 baseCol = BaseColor.Value(u, v, p, seed);
+        var (tint, _) = ResolveTransmission(rec, baseCol);
+
+        // Transparent-shadow mode: drop the Fresnel factor so the grazing
+        // silhouette of a smooth glass surface does not stamp a hard dark
+        // ring into the receiver. See the property doc on TransparentShadow
+        // for the energy-conservation trade-off.
+        if (TransparentShadow)
+            return specTrans * tint;
+
         float ior = MathF.Max(Ior.Value(u, v, p, seed), 1.0001f);
         float eta = rec.FrontFace ? (1f / ior) : ior;
         float cosTheta = MathF.Min(MathF.Abs(Vector3.Dot(wi, rec.Normal)), 1f);
         float fr = MathUtils.FresnelDielectric(cosTheta, eta);
-
-        Vector3 baseCol = BaseColor.Value(u, v, p, seed);
-        var (tint, _) = ResolveTransmission(rec, baseCol);
 
         return specTrans * (1f - fr) * tint;
     }
