@@ -117,6 +117,7 @@ tagliata a CNC.
 | `twist_degrees`  | `0`      | Rotazione totale del profilo superiore attorno a Y, in gradi         |
 | `taper`          | `1`      | Scala XZ uniforme del profilo superiore (1 = dritto, < 1 si stringe) |
 | `curve_samples`  | `16`     | Risoluzione della polilinea per i modi curvi (ignorato da `linear`)  |
+| `crease_angle`   | `0`      | Soglia blend normali per le pareti `linear`, gradi (0 = piatto)      |
 | `material`       | --       | Applicato uniformemente a pareti e tappi                             |
 | `center` / `translate` / `rotate` / `scale` | -- | Trasformazioni standard delle primitive             |
 
@@ -136,8 +137,68 @@ tagliata a CNC.
 **Che aspetto ha**
 
 Spigoli netti a ogni vertice del profilo, identico a ciò che produce
-una fresa CNC o un tagliabiscotti. Se vuoi una silhouette liscia, usa
-una delle modalità spline qui sotto.
+una fresa CNC o un tagliabiscotti. Se vuoi una silhouette liscia
+mantenendo il poligono così com'è, usa `crease_angle` qui sotto. Se
+invece vuoi che il motore produca il contorno liscio partendo da meno
+punti di controllo, usa una delle modalità spline qui sotto.
+
+### Ammorbidire i Profili Lineari con `crease_angle`
+
+Un profilo `linear` usa di default normali completamente piatte — ideale
+per pezzi lavorati a macchina, ma un poligono a 12 lati che approssima
+un cerchio mostrerà 12 sfaccettature visibili nei riflessi. `crease_angle`
+risolve il problema senza cambiare modalità:
+
+```yaml
+- name: "colonna_tonda"
+  type: "extrusion"
+  profile_type: "linear"
+  height: 2.0
+  crease_angle: 40            # blend normali sugli edge con diedro inferiore a 40°
+  caps: "both"
+  material: "intonaco"
+  profile:
+    - [ 1.000,  0.000]
+    - [ 0.866,  0.500]
+    - [ 0.500,  0.866]
+    - [ 0.000,  1.000]
+    - [-0.500,  0.866]
+    - [-0.866,  0.500]
+    - [-1.000,  0.000]
+    - [-0.866, -0.500]
+    - [-0.500, -0.866]
+    - [ 0.000, -1.000]
+    - [ 0.500, -0.866]
+    - [ 0.866, -0.500]
+```
+
+**Come funziona**: a ogni vertice del profilo il motore misura l'angolo
+diedro tra le due pareti adiacenti. Se l'angolo è *inferiore* a
+`crease_angle`, il vertice riceve una normale blended (shading liscio —
+l'edge scompare nei riflessi speculari). Se l'angolo è *superiore*,
+ogni faccia mantiene la propria normale piatta (spigolo netto — il
+ridge rimane nitido nei riflessi).
+
+**Scegliere la soglia**:
+
+| `crease_angle` | Effetto |
+|----------------|---------|
+| `0` (default)  | Completamente sfaccettato — ogni edge è uno spigolo netto. |
+| `30°`          | Ammorbidisce le curve approssimate da polilinee; preserva gli angoli retti (lettere, ingranaggi, canali). |
+| `45°`          | Come 30° ma ammorbidisce anche gli smussi a 45°. |
+| `90°`          | Liscio ovunque tranne negli angoli retti — default DCC tipico. |
+| `180°`         | Completamente liscio indipendentemente dall'angolo. |
+
+30° (il default classico di Blender e Maya) è il punto di partenza
+migliore per qualsiasi forma poliedrica che approssima una curva: un
+cerchio a 12 lati, la sezione di una colonna a 8 lobi, un esagono
+arrotondato.
+
+**`crease_angle` vs `catmull_rom`**: usa `crease_angle` quando il
+poligono ha già la forma giusta (esportato da CAD, tracciato da un SVG
+o scritto con un numero noto di lati) e vuoi solo correggere lo shading.
+Usa `catmull_rom` quando vuoi che il motore produca una silhouette
+liscia a partire da meno punti di editing.
 
 ---
 
@@ -585,7 +646,9 @@ Quando crei una extrusion, il loader:
    **smooth-shaded**, in modo che triangoli adiacenti condividano
    normali medie sull'edge comune e la silhouette appaia come una
    curva continua a qualsiasi zoom. Per `linear` emette triangoli
-   **flat-shaded** per tenere i ridge netti.
+   **flat-shaded** di default per tenere i ridge netti; impostare
+   `crease_angle > 0` abilita il blending delle normali ai vertici sugli
+   edge il cui angolo diedro è inferiore alla soglia.
 4. **Triangola i tappi** con il classico algoritmo
    **ear-clipping**. Ogni tappo da `n` vertici diventa `n - 2`
    triangoli. I poligoni concavi-ma-semplici sono gestiti
@@ -630,6 +693,7 @@ alzalo a 24-32 per i soggetti principali.
 | Forme da tagliabiscotti / stencil                                  | `linear`, `caps: "none"`             |
 | Punta da trapano elicoidale                                        | `linear`, `twist_degrees: 360+`      |
 | Piramidi, obelischi, finiali                                       | qualsiasi modo, `taper: 0.0`–`0.3`   |
+| Poligono polilinea letto come superficie curva (shading liscio)    | `linear` + `crease_angle: 30`        |
 
 Due regole pratiche nel dubbio:
 
@@ -652,6 +716,13 @@ poligono concavo finché i suoi edge non si incrociano. Se un edge a
 metà loop ne attraversa un altro, il tappo avrà buchi spuri.
 Visualizza prima il profilo in 2D — uno strumento come GeoGebra o
 anche un veloce plot in `matplotlib` rende il problema evidente.
+
+**Il mio profilo lineare appare sfaccettato anche se approssima una curva.**
+Aggiungi `crease_angle: 30` per fare il blend delle normali tra le pareti piatte
+adiacenti. Questo rende lisci cerchi approssimati da polilinee, esagoni
+arrotondati e forme simili senza dover passare a `catmull_rom`. Alza il valore
+se i ridge sono ancora visibili; abbassalo se angoli che vuoi mantenere netti
+hanno cominciato ad ammorbidirsi.
 
 **La silhouette è seghettata anche se ho usato `catmull_rom`.**
 Alza `curve_samples` dal default 16 a 24 o 32. Il default produce
@@ -716,6 +787,11 @@ trasformazioni.)
 - `twist_degrees` e `taper` trasformano prismi dritti in colonne
   scolpite, punte da trapano elicoidali, finiali e piramidi —
   senza bisogno di stack di modificatori o catene CSG.
+- `crease_angle` (solo `linear`, default 0) fa il blend delle normali ai
+  vertici tra coppie di pareti il cui angolo diedro è inferiore alla soglia,
+  ammorbidendo le curve approssimate da polilinee e mantenendo netti gli
+  angoli più ampi. 30° è un buon punto di partenza che preserva gli angoli
+  retti su lettere, ingranaggi e sezioni ingegneristiche.
 - Le UV sono `(arc length, height)`, perfette per texture
   wraparound che corrono lungo l'asse di estrusione con densità di
   strisce legata alla larghezza locale del profilo.
