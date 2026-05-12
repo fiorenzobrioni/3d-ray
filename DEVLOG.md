@@ -123,11 +123,11 @@ Strategia incrementale per le caustiche, in ordine di costo crescente. Strada 1 
 
 ## ✅ TODO
 
+- [ ] Valutare se corretto: aggiungere la possibilita tramite una nuova proprieta per le luci visibili nella scena (tipo ad es. le luci `sphere`) per renderle visibili o meno dal punto di vista della camera, oltre che per l'illuminazione.
+- [ ] Valutare se coerente: aggiungere proprietà `focal_pos: [x, y, z]` (alternativa a `focal_dist`) per la `camera` per indicare la posizione del fuoco al posto della distanza. Per semplicita' in certe situazioni potrebbe essere comodo indicare direttamente la posizione del fuoco.
 - [ ] Refactoring: spostare `Seed` da `IHittable` a un'interfaccia dedicata (es. `ISeeded`); nodi strutturali (BvhNode, Transform) non hanno bisogno di seed.
-- [ ] Librerie di template: `scenes/libraries/chess-pieces.yaml`, `scenes/libraries/furniture.yaml`.
 - [ ] Review completa dei tutorial (`tutorial/`): correttezza vs codice, omissioni, grammatica, esempi, indici.
 - [ ] Spezzare `SceneLoader.cs`.
-- [ ] Aggiornare la checklist di testing con le scene di riferimento corrette.
 
 ---
 
