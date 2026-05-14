@@ -787,15 +787,38 @@ public class Renderer
         if (betaMax < DeadPathThroughputEpsilon)
             return Vector3.Zero;
 
+        // ── Camera-visibility filter (Arnold "camera" / Cycles "Ray
+        //    Visibility → Camera") ──────────────────────────────────────────
+        // On the primary camera ray only, advance past any hit flagged with
+        // rec.CameraInvisible (set by CameraInvisibleHittable wrapping an
+        // entity or light proxy with `visible_to_camera: false`). The light's
+        // own proxy stays in the BVH for non-primary rays — mirror/glass
+        // reflections, NEE shadow tests and BSDF-MIS closure continue to see
+        // it unchanged. depth == _maxDepth uniquely identifies the primary
+        // ray because every recursive TraceRay call decrements depth.
+        const int MaxCameraInvisibleSkips = 8;
+        bool isPrimaryRay = depth == _maxDepth;
+        Ray currentRay = ray;
         var rec = new HitRecord();
-        bool hit = _world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
+        bool hit;
+        int skipCount = 0;
+        while (true)
+        {
+            rec = new HitRecord();
+            hit = _world.Hit(currentRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
+            if (!hit || !isPrimaryRay || !rec.CameraInvisible) break;
+            currentRay = new Ray(
+                MathUtils.OffsetOrigin(rec.Point, currentRay.Direction),
+                currentRay.Direction);
+            if (++skipCount >= MaxCameraInvisibleSkips) break;
+        }
 
         // ── Surface-only fast path (no medium) ──────────────────────────────
         if (_globalMedium == null)
         {
             Vector3 result = !hit
-                ? SampleSky(ray, prevBsdfPdf, prevIsDelta)
-                : ShadeSurface(ray, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
+                ? SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
+                : ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
                                pathThroughput);
             // Beer-Lambert along the segment just traversed. Sky miss with
             // non-zero σ_a means the ray escaped the bounded medium — the
@@ -806,15 +829,15 @@ public class Renderer
 
         // ── Volumetric path ─────────────────────────────────────────────────
         float tMax = hit ? rec.T : 1e30f;
-        bool didScatter = _globalMedium.Sample(ray, tMax, out float tMed, out Vector3 beta, out _);
+        bool didScatter = _globalMedium.Sample(currentRay, tMax, out float tMed, out Vector3 beta, out _);
 
         if (didScatter)
         {
             // Medium scattering event at p = ray(tMed).
-            Vector3 p = ray.Origin + ray.Direction * tMed;
+            Vector3 p = currentRay.Origin + currentRay.Direction * tMed;
 
             // NEE in-scattering: shadow ray to each light, weighted by phase × Tr.
-            Vector3 Lnee = ComputeDirectLightingMedium(p, ray.Direction);
+            Vector3 Lnee = ComputeDirectLightingMedium(p, currentRay.Direction);
 
             // ── Russian Roulette on the indirect (phase-sampled) bounce ─────
             // Throughput-based: β_after = pathThroughput · medium-β. Same
@@ -842,8 +865,8 @@ public class Renderer
                 // phase PDF is threaded forward as prevBsdfPdf so that the
                 // next hit's emission / sky miss is MIS-weighted against the
                 // NEE light PDF, mirroring the surface-side MIS.
-                var (wi, phasePdf) = _globalMedium.Phase.Sample(ray.Direction);
-                float phaseVal = _globalMedium.Phase.Evaluate(ray.Direction, wi);
+                var (wi, phasePdf) = _globalMedium.Phase.Sample(currentRay.Direction);
+                float phaseVal = _globalMedium.Phase.Evaluate(currentRay.Direction, wi);
                 float phaseWeight = phasePdf > 1e-20f ? phaseVal / phasePdf : 0f;
                 Vector3 nextThroughput = medThroughput * (phaseWeight * indirectScale);
                 Lind = phaseWeight * indirectScale
@@ -859,8 +882,8 @@ public class Renderer
         // No medium event before tMax → continue with surface (or sky) shading,
         // attenuated by the medium throughput beta = Tr / pdf.
         Vector3 surfaceOrSky = !hit
-            ? beta * SampleSky(ray, prevBsdfPdf, prevIsDelta)
-            : beta * ShadeSurface(ray, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
+            ? beta * SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
+            : beta * ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
                                    pathThroughput * beta);
         return ApplyBeerLambert(surfaceOrSky, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
     }

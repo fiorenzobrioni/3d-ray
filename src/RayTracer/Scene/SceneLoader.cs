@@ -285,6 +285,12 @@ public class SceneLoader
                     var transform = ComputeTransformMatrix(e);
                     if (transform != Matrix4x4.Identity)
                         hittable = new Transform(hittable, transform);
+                    // Per-entity Arnold/Cycles "camera" visibility flag. Wrap
+                    // after Transform so the BVH still partitions by the
+                    // entity's world-space AABB; the flag only annotates the
+                    // resulting HitRecord (see CameraInvisibleHittable).
+                    if (!e.VisibleToCamera)
+                        hittable = new CameraInvisibleHittable(hittable);
                     objects.Add(hittable);
                 }
             }
@@ -1823,14 +1829,22 @@ public class SceneLoader
             }
  
             if (hittable == null) continue;
- 
+
             var childTransform = ComputeTransformMatrix(child);
             if (childTransform != Matrix4x4.Identity)
                 hittable = new Transform(hittable, childTransform);
- 
+
+            // Symmetric with the top-level entity loop: per-child
+            // visible_to_camera flag works inside groups too. The group's own
+            // outer wrap (if set) still applies; this lets a child carry an
+            // independent flag that composes as OR (parent OR child invisible
+            // ⇒ child is invisible to primary rays).
+            if (!child.VisibleToCamera)
+                hittable = new CameraInvisibleHittable(hittable);
+
             result.Add(hittable);
         }
- 
+
         return result;
     }
 
@@ -1950,8 +1964,15 @@ public class SceneLoader
         // through the dark (back) side of the panel — same pattern Arnold and
         // Cycles use for analytic single-sided quad lights.
         var proxyMat = new Emissive(color, l.Intensity) { IsLightProxy = true };
-        objects.Add(new BackFaceCulledHittable(
-            new Quad(corner.Value, u.Value, v.Value, proxyMat)));
+        IHittable proxy = new BackFaceCulledHittable(
+            new Quad(corner.Value, u.Value, v.Value, proxyMat));
+        // visible_to_camera: false → wrap so primary rays skip past the proxy
+        // (mirror reflections, refractions and NEE continue to see it; see
+        // Renderer.TraceRay for the skip-loop). Default true is a no-op so
+        // existing scenes produce bit-identical BVH content.
+        if (!l.VisibleToCamera)
+            proxy = new CameraInvisibleHittable(proxy);
+        objects.Add(proxy);
 
         return new AreaLight(corner.Value, u.Value, v.Value, color,
                              l.Intensity, effectiveShadowSamples, l.SoftRadius,
@@ -1988,7 +2009,14 @@ public class SceneLoader
         // emission to `color × intensity` therefore gives BSDF-sampled hits
         // the same energy as NEE — required for MIS to be unbiased.
         var proxyMat = new Emissive(color, l.Intensity) { IsLightProxy = true };
-        objects.Add(new Sphere(position.Value, l.Radius, proxyMat));
+        IHittable proxy = new Sphere(position.Value, l.Radius, proxyMat);
+        // visible_to_camera: false → wrap so primary rays skip past the proxy
+        // (mirror reflections, refractions and NEE continue to see it; see
+        // Renderer.TraceRay for the skip-loop). Default true is a no-op so
+        // existing scenes produce bit-identical BVH content.
+        if (!l.VisibleToCamera)
+            proxy = new CameraInvisibleHittable(proxy);
+        objects.Add(proxy);
 
         return new SphereLight(position.Value, l.Radius, color,
                                l.Intensity, effectiveShadowSamples,

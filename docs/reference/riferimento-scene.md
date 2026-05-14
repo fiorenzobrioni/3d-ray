@@ -564,6 +564,17 @@ entities:
 ---
 
 ### 7. **SEZIONE ENTITIES** — Oggetti 3D
+
+**Campi comuni per ogni entità** (validi per tutti i tipi sotto: primitive, csg, mesh, group, instance):
+
+| Campo | Default | Note |
+|-------|---------|------|
+| `name` | — | Etichetta opzionale per log / debug |
+| `material` | ereditato | ID materiale, risolto dal blocco `materials` |
+| `seed` | auto | Intero stabile che pilota la variazione delle texture procedurali; auto-derivato da name+type+index quando omesso |
+| `visible_to_camera` | `true` | Nasconde l'entità solo dai raggi primari della camera. Replica il flag `camera` di Arnold e "Ray Visibility → Camera" di Cycles: l'entità rimane visibile in riflessioni/rifrazioni speculari, continua a ricevere e proiettare illuminazione indiretta, e (se emissiva) contribuisce ancora alla luce diretta via NEE. Utile per nascondere pannelli luminosi off-frame che fanno da fill, o pratici visibili solo nelle riflessioni. Impostato su un `group` propaga a tutti i figli. |
+| `scale`, `rotate`, `translate` | identità | Trasformazione locale opzionale (ordine scale → rotate → translate) |
+
 #### **7.1 Sphere**
 ```yaml
 - name: "ball"
@@ -1106,11 +1117,13 @@ Le primitive che espongono la chiave `center:` — **sphere, cylinder, cone, cap
   intensity: 35.0                          # Range: 15–60
   shadow_samples: 4                        # Campioni per punto (default)
   soft_radius: 0.0                         # Opzionale. >0 = floor distSq in cosLight/d²
+  visible_to_camera: true                  # Opzionale. false = nasconde il proxy dai raggi primari
 ```
 - Ombre morbide Monte Carlo con penombra
 - `shadow_samples` sovrascrivibile via CLI: `-S 32`
 - Visibile alla camera e ai raggi specular tramite un quad emissivo proxy posizionato a `corner`/`u`/`v` — chiude lo stimatore MIS di Veach sui materiali specular smooth. Stesso approccio di Arnold/Cycles/Renderman per le quad light analitiche.
 - `soft_radius` (default `0`): quando > 0, il denominatore dell'attenuazione viene clampato a `max(distSq, r²)`, impedendo al termine `cosLight/d²` di divergere quando un campione stratificato cade quasi tangente al ricevitore nei media volumetrici densi. La distanza geometrica restituita è invariata. Consigliato per area light che illuminano media partecipanti densi (es. pannello a soffitto in nebbia).
+- `visible_to_camera` (default `true`): impostato a `false` nasconde il quad proxy ai raggi primari della camera. La NEE continua a illuminare la scena a piena intensità; le riflessioni speculari e le rifrazioni continuano a vedere il pannello; i rimbalzi indiretti sono invariati. Replica il flag `camera` di Arnold e "Ray Visibility → Camera" di Cycles.
 
 #### **8.5 Sphere Light (Ombre Morbide Isotropiche)**
 ```yaml
@@ -1120,11 +1133,13 @@ Le primitive che espongono la chiave `center:` — **sphere, cylinder, cone, cap
   color: [1.0, 0.95, 0.85]
   intensity: 30.0
   shadow_samples: 4
+  visible_to_camera: true                  # Opzionale. false = nasconde il proxy dai raggi primari
 ```
 - Campionamento ad angolo solido (efficiente, nessun campione sprecato)
 - Penombra circolare isotropica
 - Visibile alla camera e ai raggi specular tramite una sfera emissiva proxy gestita internamente, alla stessa posizione/raggio — chiude lo stimatore MIS di Veach sui materiali specular smooth (niente "buco nero" dove la luce dovrebbe riflettersi su vetri/specchi). Stesso approccio di Arnold/Cycles/Renderman per le sphere light analitiche.
 - `soft_radius` è deliberatamente **non** consumato: lo stimatore ad angolo solido `L = Intensity × Ω / N` è limitato superiormente da `4π · Intensity` anche quando il ricevitore è dentro la sfera, quindi il floor 1/d² usato da point/spot/area è qui inutile.
+- `visible_to_camera` (default `true`): impostato a `false` nasconde la sfera proxy ai raggi primari della camera. La NEE continua a illuminare la scena a piena intensità; la sfera resta visibile nelle riflessioni a specchio e attraverso il vetro. Replica il flag `camera` di Arnold e "Ray Visibility → Camera" di Cycles. Nessun effetto su `point`/`spot`/`directional` (luci delta) che non hanno proxy.
 
 #### **Riferimento Calibrazione Luci:**
 | Tipo | Range | Note |

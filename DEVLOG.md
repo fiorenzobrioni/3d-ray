@@ -123,7 +123,7 @@ Strategia incrementale per le caustiche, in ordine di costo crescente. Strada 1 
 
 ## ✅ TODO
 
-- [ ] Valutare se coerente: aggiungere la possibilita tramite una nuova proprieta per le luci visibili nella scena (tipo ad es. le luci `sphere`) per renderle visibili o meno dal punto di vista della camera, oltre che per l'illuminazione.
+- [x] ~~Valutare se coerente: aggiungere la possibilita tramite una nuova proprieta per le luci visibili nella scena (tipo ad es. le luci `sphere`) per renderle visibili o meno dal punto di vista della camera, oltre che per l'illuminazione.~~ Fatto: `visible_to_camera` (Arnold/Cycles "camera" / Cycles "Ray Visibility → Camera") su `lights:` (sphere/area) e `entities:` (qualunque oggetto, utile per emissive panels). Vedi voce 2026-05 nello storico.
 - [ ] Valutare se coerente: aggiungere proprietà `focal_pos: [x, y, z]` (alternativa a `focal_dist`) per la `camera` per indicare la posizione del fuoco al posto della distanza. Per semplicita' in certe situazioni potrebbe essere comodo indicare direttamente la posizione del fuoco.
 - [ ] Texture più realistiche di quelle attuali per legno marmo e altri materiali (soprattutto per il legno che ora è poco realistico). Devono essere come nei ray tracer professionali tipo Arnold, Cycles, Renderman, ecc.
 - [ ] Refactoring: spostare `Seed` da `IHittable` a un'interfaccia dedicata (es. `ISeeded`); nodi strutturali (BvhNode, Transform) non hanno bisogno di seed.
@@ -162,6 +162,8 @@ Strategia incrementale per le caustiche, in ordine di costo crescente. Strada 1 
 ## 🗓️ Storico cicli
 
 Sintesi cronologica dei cicli grossi. Per i dettagli matematici e i riferimenti vedi i doc tecnici puntati.
+
+- **2026-05 — `visible_to_camera` (camera visibility flag).** Branch `claude/implement-renderer-integration-QsPuK`. Allineamento ad Arnold (`camera` visibility) e Cycles ("Ray Visibility → Camera"): proxy di `sphere`/`area` light e qualunque entity (utile su emissive panels) possono essere nascosti dai raggi primari mantenendo NEE, riflessioni speculari, rifrazioni e indirect attivi. Implementazione: nuovo `Geometry/CameraInvisibleHittable` (modello `BackFaceCulledHittable`), nuovo flag `HitRecord.CameraInvisible`, skip-loop in `Renderer.TraceRay` con cap di 8 attivo solo su `depth == _maxDepth` (chiusura MIS di Veach preservata: proxy resta nel BVH per i non-primari). YAML `visible_to_camera: bool = true` su `LightData` ed `EntityData`. Showcase `scenes/showcases/visible-to-camera-showcase.yaml`, regression `CameraVisibilityTests` (4 test). Doc: scene-reference §7 (campi comuni entity), §8.4/§8.5.
 
 - **2026-05 — Transparent shadow rays.** Branch `claude/fix-transparent-shadows-4n8Ph` (PR #50). Strada 1 della roadmap caustiche. Lo shadow ray attraversa superfici trasmissive con `(1 − F) · tint` per interfaccia + `exp(−σ_a · d)` Beer-Lambert sul segmento interno; nuovo `Geometry/ShadowRay.Transmittance`, override `IMaterial.{ShadowTransmittance, ShadowAbsorption}` su `Dielectric` / `DisneyBsdf` (entrambi quando `spec_trans > 0`) / `MixMaterial`; tutti gli 8 light dispatcher aggiornati. Vetri colorati con `transmission_depth > 0` (rubino, smeraldo, ambra, zaffiro) ora proiettano ombra tinta. Doc: `docs/technical/path-tracing-and-lighting.md` §2.3.
 
