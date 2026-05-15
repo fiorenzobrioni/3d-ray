@@ -478,8 +478,13 @@ message at scene load when the key is present — omit it from new scenes.
 - Mix-of-mix nesting supported
 ---
 ### 6. **TEXTURES** — Embedded in Materials
-Textures are defined **within** material definitions:
+Textures are defined **within** material definitions. All procedural textures
+are pro-grade, with the same controls exposed by Arnold (`noise`, `cell_noise`),
+Cycles (Noise / Voronoi / Brick / Gradient nodes) and RenderMan (`PxrFractal`,
+`PxrVoronoise`, `PxrMarble`, `PxrTile`).
+
 #### **Procedural Textures:**
+
 **Checker:**
 ```yaml
 texture:
@@ -487,30 +492,123 @@ texture:
   scale: 4.0
   colors: [[0.9, 0.9, 0.9], [0.1, 0.1, 0.1]]
 ```
-**Noise (Perlin):**
+
+**Noise:**
 ```yaml
 texture:
   type: "noise"
+  noise_type: "fbm"            # perlin | fbm | turbulence | ridged | billow
   scale: 5.0
-  noise_strength: 3.0                     # 0=smooth, >0=turbulent
-  colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]  # optional: default is black→white
+  octaves: 5                   # 1..16 — fBm/ridged/billow octave count
+  lacunarity: 2.0              # frequency multiplier between octaves
+  gain: 0.5                    # amplitude decay between octaves
+  distortion: 0.0              # domain-warp amplitude (organic shapes)
+  noise_strength: 0.0          # legacy: 0=smooth Perlin, >0=turbulent (overridden by noise_type)
+  colors: [[0, 0, 0], [1, 1, 1]]
 ```
+The five noise families map onto the standard pro-renderer modes:
+- `perlin` — single-octave smooth gradient noise.
+- `fbm` — Σ noise/2^i, the canonical "fractal noise" of Arnold/Cycles/RenderMan.
+- `turbulence` — Σ|noise|/2^i with absolute-value sharpening.
+- `ridged` — Musgrave ridged multifractal, sharp ridges (rocks, lightning).
+- `billow` — Σ|noise| octaves, puffy / cloud-like.
+
+`distortion` warps the input position with a secondary Perlin sample
+(Inigo Quilez technique); 0.3–0.8 is usually enough.
+
 **Marble:**
 ```yaml
 texture:
   type: "marble"
-  scale: 10.0
-  noise_strength: 8.0
-  colors: [[0.95, 0.95, 0.95], [0.4, 0.4, 0.4]]
+  scale: 4.0
+  noise_strength: 10.0
+  vein_axis: [1, 0, 0.3]       # vein propagation direction (default Z)
+  vein_frequency: 1.0          # multiplier on the sine term
+  vein_sharpness: 4.0          # 1=soft (legacy), 4-8=Carrara-thin veins
+  noise_type: "turbulence"     # turbulence | fbm | ridged
+  octaves: 7                   # fractal octaves
+  lacunarity: 2.0
+  gain: 0.5
+  distortion: 0.0
+  colors: [[0.95, 0.95, 0.95], [0.10, 0.10, 0.15]]
 ```
+The vein axis controls the direction along which veins propagate; pick a
+non-axis-aligned vector for natural slabs. `vein_sharpness` exponentiates the
+sine wave, narrowing the dark band into a real veining line.
+
 **Wood:**
 ```yaml
 texture:
   type: "wood"
-  scale: 3.0
+  scale: 4.0
   noise_strength: 2.0
-  colors: [[0.85, 0.65, 0.4], [0.6, 0.4, 0.2]]
+  ring_axis: [0, 1, 0]         # trunk axis; rings ⊥ axis (default Y)
+  ring_sharpness: 3.0          # 1=soft (legacy), 3-6=defined latewood
+  axial_grain: 0.3             # long-wave noise along the trunk axis
+  octaves: 4                   # fBm octaves on the grain (1 = legacy Perlin)
+  lacunarity: 2.0
+  gain: 0.5
+  distortion: 0.0              # 0=clean rings, ~0.5=knots/waves
+  colors: [[0.85, 0.65, 0.40], [0.60, 0.40, 0.20]]
 ```
+
+**Voronoi / Worley (cellular):**
+```yaml
+texture:
+  type: "voronoi"
+  scale: 5.0
+  metric: "euclidean"          # euclidean | euclidean_squared | manhattan | chebyshev
+  output: "f1"                 # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
+  randomness: 1.0              # 0 = grid, 1 = full random scatter
+  distortion: 0.0              # Perlin warp before lookup
+  colors: [[0, 0, 0], [1, 1, 1]]   # ignored for output: "cell"
+```
+Mirrors Cycles' Voronoi Texture: `f1` gives stone/pebble blobs,
+`f2_minus_f1` gives sharp "crackle" ridges (cracked-mud, snake-skin),
+`cell` gives per-cell flat colours. The Chebyshev metric reproduces
+hex/square tiling.
+
+> **Note on `f2_minus_f1`.** Mathematically, `F2-F1` is **zero on the cell
+> boundary** (perpendicular bisector between two feature points) and grows
+> to its maximum at the cell centre. The lerp uses `t = sqrt(F2-F1 / norm)`
+> — sqrt compression matches Cycles' "Distance to Edge" response — so
+> `t = 0` → `colors[0]` is the **edge colour** and `t = 1` → `colors[1]`
+> is the **cell-interior colour**. For the classic crackle look (bright
+> thin lines on dark background) put the **bright** colour FIRST and the
+> **dark** colour SECOND.
+
+**Brick:**
+```yaml
+texture:
+  type: "brick"
+  brick_width: 0.4
+  brick_height: 0.18
+  mortar_size: 0.025
+  row_offset: 0.5              # 0=stack-bond, 0.5=running-bond
+  color_variation: 0.6         # 0=all bricks same colour, 1=full A/B contrast
+  noise_scale: 0.15            # weathering noise per-brick (0=off)
+  colors:
+    - [0.72, 0.32, 0.22]       # brick colour A
+    - [0.52, 0.18, 0.12]       # brick colour B
+    - [0.86, 0.83, 0.78]       # mortar colour
+```
+Defaults to running-bond brickwork laid on the XY plane; use `rotation` to
+remount the pattern on walls oriented differently.
+
+**Gradient:**
+```yaml
+texture:
+  type: "gradient"
+  mode: "linear"               # linear | quadratic | easing | spherical | radial
+  axis: [1, 0, 0]              # gradient direction (linear/quadratic/easing/radial)
+  length: 1.0                  # world-space span over which the gradient runs
+  colors: [[0, 0, 0], [1, 1, 1]]
+```
+- `linear` — `t = (p · axis) / length`.
+- `quadratic` / `easing` — same `t` then squared or smoothstepped.
+- `spherical` — distance from origin / `length`.
+- `radial` — distance from the `axis` line / `length` (cylindrical falloff).
+
 **All procedurals support:**
 ```yaml
 offset: [5.0, 0.0, 3.0]                  # Translation

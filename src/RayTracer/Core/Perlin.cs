@@ -106,6 +106,98 @@ public class Perlin
         return MathF.Abs(accum);
     }
 
+    /// <summary>
+    /// Fractional Brownian motion (fBm): sum of octaves of Perlin noise with
+    /// configurable lacunarity (frequency multiplier) and gain (amplitude decay).
+    /// Returns a signed value roughly in [-1, 1] when <paramref name="signed"/>
+    /// is true; otherwise remapped to [0, 1].
+    ///
+    /// <para>
+    /// Pro-grade defaults match the de-facto industry standard used by Arnold's
+    /// <c>noise</c>, RenderMan's <c>PxrFractal</c> and Cycles' Noise Texture in
+    /// fBm mode (lacunarity 2.0, gain 0.5).
+    /// </para>
+    /// </summary>
+    public float Fbm(Vector3 p, int octaves, float lacunarity, float gain, bool signed = false)
+    {
+        float accum = 0f;
+        float amplitude = 1f;
+        float maxAmp = 0f;
+        Vector3 tempP = p;
+
+        for (int i = 0; i < octaves; i++)
+        {
+            accum += amplitude * Noise(tempP);
+            maxAmp += amplitude;
+            amplitude *= gain;
+            tempP *= lacunarity;
+        }
+
+        // Normalise into roughly [-1, 1] regardless of octave count
+        float result = maxAmp > 0f ? accum / maxAmp : 0f;
+        return signed ? result : (result + 1f) * 0.5f;
+    }
+
+    /// <summary>
+    /// Ridged multifractal noise (Musgrave 1998). Produces sharp ridges by
+    /// inverting and squaring |Noise| at each octave. Widely used in pro
+    /// renderers for rocks, mountains, marble veins.
+    /// Output is clamped to [0, 1].
+    /// </summary>
+    public float Ridged(Vector3 p, int octaves, float lacunarity, float gain)
+    {
+        float accum = 0f;
+        float amplitude = 1f;
+        float maxAmp = 0f;
+        Vector3 tempP = p;
+
+        for (int i = 0; i < octaves; i++)
+        {
+            float n = 1f - MathF.Abs(Noise(tempP));
+            n *= n; // sharpen ridges
+            accum += amplitude * n;
+            maxAmp += amplitude;
+            amplitude *= gain;
+            tempP *= lacunarity;
+        }
+
+        return maxAmp > 0f ? Math.Clamp(accum / maxAmp, 0f, 1f) : 0f;
+    }
+
+    /// <summary>
+    /// Billowed noise: sum of |Noise| octaves. Produces puffy cloud-like
+    /// shapes. Output remapped to [0, 1].
+    /// </summary>
+    public float Billow(Vector3 p, int octaves, float lacunarity, float gain)
+    {
+        float accum = 0f;
+        float amplitude = 1f;
+        float maxAmp = 0f;
+        Vector3 tempP = p;
+
+        for (int i = 0; i < octaves; i++)
+        {
+            accum += amplitude * MathF.Abs(Noise(tempP));
+            maxAmp += amplitude;
+            amplitude *= gain;
+            tempP *= lacunarity;
+        }
+
+        return maxAmp > 0f ? Math.Clamp(accum / maxAmp, 0f, 1f) : 0f;
+    }
+
+    /// <summary>
+    /// Returns a 3-D Perlin vector sampled at <paramref name="p"/> and shifted
+    /// offsets. Used to warp the input of other noise functions (domain
+    /// warping / distortion), a technique pioneered by Ken Perlin and made
+    /// famous by Inigo Quilez. Each component samples a different region of
+    /// the noise field so the warp is decorrelated.
+    /// </summary>
+    public Vector3 NoiseVector(Vector3 p) => new(
+        Noise(p),
+        Noise(p + new Vector3(31.416f, 0f, 0f)),
+        Noise(p + new Vector3(0f, 47.853f, 0f)));
+
     private static int[] GeneratePerm(Random rng)
     {
         var p = new int[PointCount];

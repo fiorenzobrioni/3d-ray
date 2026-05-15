@@ -475,45 +475,174 @@ texture:
 
 Un pattern a scacchiera 3D che alterna due colori. Il parametro `scale` controlla la dimensione di ogni quadrato (scala minore = quadrati più grandi).
 
-### Noise (Perlin)
+### Noise
 
 ```yaml
 texture:
   type: "noise"
+  noise_type: "fbm"          # perlin | fbm | turbulence | ridged | billow
   scale: 4.0
-  noise_strength: 1.0
+  octaves: 5
+  lacunarity: 2.0
+  gain: 0.5
+  distortion: 0.3
+  colors: [[0, 0, 0], [1, 1, 1]]
 ```
 
-Variazione organica, simile a nuvole, basata sul rumore di Perlin. L'output del colore è guidato dalla funzione di rumore e dal `color` di base del materiale.
+3D-Ray include uno stack di rumore frattale completo e di livello
+professionale — la stessa famiglia di modalità presente in Arnold
+(`noise`), Cycles (Noise Texture) e RenderMan (`PxrFractal`):
+
+| `noise_type`  | Aspetto                                            | Utile per                       |
+|---------------|----------------------------------------------------|---------------------------------|
+| `perlin`      | Gradient noise liscio (singola ottava)             | Variazione morbida a bassa freq.|
+| `fbm`         | Somma di ottave (fractal noise canonico)           | Pietra, sporco, terreno, carta  |
+| `turbulence`  | Σ\|noise\| (variante absolute-value nitida)         | Nuvole, fumo, sporco fino       |
+| `ridged`      | Ridged multifractal di Musgrave                    | Roccia, fulmini, venature marmo |
+| `billow`      | Σ\|noise\| sulle ottave, normalizzato               | Nuvole gonfie, schiuma, ruggine |
 
 | Parametro        | Predefinito | Descrizione                                       |
 |------------------|-------------|---------------------------------------------------|
-| `scale`          | `1.0`       | Frequenza del pattern di rumore                   |
-| `noise_strength` | --          | Turbolenza (0 = liscio, più alto = più frastagliato) |
+| `noise_type`     | auto        | Famiglia di rumore (vedi tabella)                  |
+| `scale`          | `1.0`       | Frequenza del pattern di rumore                    |
+| `octaves`        | `5`         | Numero di ottave fBm/ridged/billow (1..16)         |
+| `lacunarity`     | `2.0`       | Moltiplicatore di frequenza fra ottave successive  |
+| `gain`           | `0.5`       | Decadimento di ampiezza fra ottave successive      |
+| `distortion`     | `0`         | Domain warp (rende il pattern organico/non assiale)|
+| `noise_strength` | --          | Legacy: 0 = Perlin liscio, >0 = turbolento         |
+
+Se `noise_type` viene omesso, la texture ricade sul comportamento legacy
+guidato da `noise_strength` — quindi le scene esistenti renderizzano
+identiche.
 
 ### Marble (Marmo)
 
 ```yaml
 texture:
   type: "marble"
-  scale: 8.0
-  noise_strength: 5.0
-  colors: [[0.93, 0.90, 0.87], [0.55, 0.53, 0.50]]
+  scale: 4.0
+  noise_strength: 10.0
+  vein_axis: [1, 0, 0.3]
+  vein_sharpness: 5.0
+  octaves: 7
+  distortion: 0.25
+  colors: [[0.92, 0.91, 0.88], [0.18, 0.18, 0.22]]
 ```
 
-Simula le venature del marmo. `colors` definisce due colori: la pietra di base e il colore della venatura. `noise_strength` controlla quanto sono pronunciate le venature. Valori più alti creano venature più selvagge e turbolente.
+Il vero marmo di Carrara ha venature sottili, ad alto contrasto e non
+allineate agli assi. I nuovi controlli permettono di riprodurre quel
+look:
+
+| Parametro        | Predefinito  | Descrizione                                        |
+|------------------|--------------|----------------------------------------------------|
+| `vein_axis`      | `[0,0,1]`    | Direzione di propagazione delle venature           |
+| `vein_frequency` | `1.0`        | Moltiplicatore sulla frequenza della sinusoide     |
+| `vein_sharpness` | `1.0`        | 1 = morbido (legacy), 4–8 = venature Carrara       |
+| `noise_type`     | `turbulence` | Modulatore `turbulence` / `fbm` / `ridged`         |
+| `octaves`        | `7`          | Numero di ottave del modulatore                    |
+| `distortion`     | `0`          | Domain warp sulla posizione di input               |
 
 ### Wood (Legno)
 
 ```yaml
 texture:
   type: "wood"
-  scale: 6.0
-  noise_strength: 1.5
-  colors: [[0.55, 0.35, 0.18], [0.35, 0.20, 0.10]]
+  scale: 5.0
+  noise_strength: 1.2
+  ring_axis: [0, 1, 0]
+  ring_sharpness: 3.5
+  axial_grain: 0.4
+  octaves: 4
+  distortion: 0.18
+  colors: [[0.78, 0.55, 0.30], [0.42, 0.24, 0.12]]
 ```
 
-Simula le venature del legno con anelli concentrici. `colors` definisce il legno primaverile (anelli più chiari) e quello autunnale (anelli più scuri). `noise_strength` controlla l'irregolarità degli anelli -- valori più alti creano nodi e figure.
+Gli anelli si formano perpendicolari a `ring_axis`: usa `[0, 1, 0]` per
+un tronco in sezione, `[0, 0, 1]` per un'asse, o un vettore leggermente
+inclinato per un look più organico. `ring_sharpness` eleva a potenza
+un'onda triangolare attorno al bordo di ogni anello, producendo le
+linee scure del legno tardivo tipiche di rovere e noce.
+`axial_grain` aggiunge una variazione a lunga lunghezza d'onda lungo
+l'asse del tronco (ottimo per le assi).
+
+| Parametro        | Predefinito | Descrizione                                          |
+|------------------|-------------|------------------------------------------------------|
+| `ring_axis`      | `[0,1,0]`   | Asse tronco/log (gli anelli sono sul piano ⊥)        |
+| `ring_sharpness` | `1.0`       | 1 = morbido (legacy), 3–6 = legno tardivo definito   |
+| `axial_grain`    | `0.0`       | Variazione a lunga lunghezza d'onda lungo l'asse     |
+| `octaves`        | `1`         | Ottave fBm sulla venatura (1 = Perlin legacy)        |
+| `distortion`     | `0`         | Domain warp — 0 = anelli puliti, ~0.5 = nodi/onde    |
+
+### Voronoi / Worley (cellulare)
+
+```yaml
+texture:
+  type: "voronoi"
+  scale: 5.0
+  metric: "euclidean"        # euclidean | manhattan | chebyshev | euclidean_squared
+  output: "f2_minus_f1"      # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
+  randomness: 0.9
+  colors: [[0.05, 0.05, 0.05], [0.95, 0.90, 0.70]]
+```
+
+Il rumore cellulare di Worley è il cavallo di battaglia per ciottoli,
+sassi, schiuma, terra screpolata, pelle di rettile e pattern a tessere
+astratte. La modalità di output seleziona il look:
+
+- `f1` — distanza dal punto-feature più vicino → ciottoli / blob.
+- `f2` — distanza dal secondo più vicino.
+- `f2_minus_f1` — ridge nette fra le celle (il famoso "crackle").
+- `cell` — ogni cella riceve un colore casuale stabile (mosaico).
+
+`metric: "chebyshev"` produce piastrelle quadrate/esagonali.
+`randomness: 0` collassa i feature su una griglia regolare; `1` è
+sparpagliamento totale.
+
+> **Ordine dei colori per `f2_minus_f1`.** `F2 - F1` vale **zero sul
+> bordo cella** e raggiunge il **massimo al centro cella**. Il lerp
+> applica una risposta sqrt (riproducendo la "Distance to Edge" di
+> Cycles), quindi `colors[0]` è ciò che vedi SUI bordi e `colors[1]`
+> è ciò che vedi DENTRO le celle. Per il classico look crackle — linee
+> chiare sottili su sfondo scuro — scrivi `colors: [[chiaro], [scuro]]`.
+> L'esempio qui sopra fa esattamente questo.
+
+### Brick (Mattoni)
+
+```yaml
+texture:
+  type: "brick"
+  brick_width: 0.4
+  brick_height: 0.18
+  mortar_size: 0.025
+  row_offset: 0.5
+  color_variation: 0.6
+  noise_scale: 0.15
+  colors:
+    - [0.72, 0.32, 0.22]    # mattone A
+    - [0.52, 0.18, 0.12]    # mattone B
+    - [0.86, 0.83, 0.78]    # malta
+```
+
+Muratura a corsi sfalsati (running-bond) sul piano XY con tre colori
+(mattone A, mattone B, malta). `row_offset: 0` passa a stack-bond.
+Imposta `noise_scale > 0` per aggiungere variazione "stagionata" per
+ciascun mattone.
+
+### Gradient (Gradiente)
+
+```yaml
+texture:
+  type: "gradient"
+  mode: "spherical"          # linear | quadratic | easing | spherical | radial
+  axis: [0, 1, 0]
+  length: 1.0
+  colors: [[1.0, 0.85, 0.30], [0.10, 0.05, 0.30]]
+```
+
+Utile per direzione artistica (cieli dentro i materiali, cupole
+atmosferiche, rampe di roughness messe a punto a mano). `linear`
+proietta su `axis`; `spherical` usa la distanza dall'origine; `radial`
+usa la distanza dalla retta `axis` (decadimento cilindrico).
 
 ### Trasformazione e Randomizzazione Texture
 

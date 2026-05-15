@@ -532,51 +532,169 @@ texture:
 A 3D checkerboard pattern that alternates between two colors. The `scale`
 controls the size of each square (smaller scale = larger squares).
 
-### Noise (Perlin)
+### Noise
 
 ```yaml
 texture:
   type: "noise"
+  noise_type: "fbm"          # perlin | fbm | turbulence | ridged | billow
   scale: 4.0
-  noise_strength: 1.0
+  octaves: 5
+  lacunarity: 2.0
+  gain: 0.5
+  distortion: 0.3
+  colors: [[0, 0, 0], [1, 1, 1]]
 ```
 
-Organic, cloud-like variation based on Perlin noise. The color output is
-driven by the noise function and the material's base `color`.
+3D-Ray ships a full pro-grade fractal noise stack — the same family of
+modes you find in Arnold's `noise`, Cycles' Noise Texture and RenderMan's
+`PxrFractal`:
 
-| Parameter        | Default | Description                            |
-|------------------|---------|----------------------------------------|
-| `scale`          | `1.0`   | Frequency of the noise pattern         |
-| `noise_strength` | --      | Turbulence (0 = smooth, higher = choppier) |
+| `noise_type`  | Look                                              | Use for                        |
+|---------------|---------------------------------------------------|--------------------------------|
+| `perlin`      | Smooth gradient noise (single octave)             | Soft variation, low-frequency  |
+| `fbm`         | Sum of octaves (the canonical fractal noise)      | Stone, dirt, terrain, paper    |
+| `turbulence`  | Σ\|noise\| (sharpened absolute-value variant)     | Clouds, smoke, dirt detail     |
+| `ridged`      | Musgrave ridged multifractal                      | Rock, lightning, marble veins  |
+| `billow`      | Σ\|noise\| octaves, normalised                    | Puffy clouds, foam, rust       |
+
+| Parameter        | Default | Description                                       |
+|------------------|---------|---------------------------------------------------|
+| `noise_type`     | auto    | Noise family (see table)                           |
+| `scale`          | `1.0`   | Frequency of the noise pattern                     |
+| `octaves`        | `5`     | fBm/ridged/billow octave count (1..16)             |
+| `lacunarity`     | `2.0`   | Frequency multiplier between successive octaves    |
+| `gain`           | `0.5`   | Amplitude decay between successive octaves         |
+| `distortion`     | `0`     | Domain-warp amplitude (organic / non-axis-aligned) |
+| `noise_strength` | --      | Legacy: 0 = smooth Perlin, >0 = turbulent          |
+
+When `noise_type` is omitted, the texture falls back to legacy behaviour
+driven by `noise_strength` — so existing scenes render unchanged.
 
 ### Marble
 
 ```yaml
 texture:
   type: "marble"
-  scale: 8.0
-  noise_strength: 5.0
-  colors: [[0.93, 0.90, 0.87], [0.55, 0.53, 0.50]]
+  scale: 4.0
+  noise_strength: 10.0
+  vein_axis: [1, 0, 0.3]
+  vein_sharpness: 5.0
+  octaves: 7
+  distortion: 0.25
+  colors: [[0.92, 0.91, 0.88], [0.18, 0.18, 0.22]]
 ```
 
-Simulates marble veining. `colors` defines two colors: the base stone
-and the vein color. `noise_strength` controls how pronounced the veins
-are. Higher values create wilder, more turbulent veining.
+Real Carrara marble has thin, high-contrast, off-axis veins. The new
+controls let you reproduce that look:
+
+| Parameter        | Default     | Description                                        |
+|------------------|-------------|----------------------------------------------------|
+| `vein_axis`      | `[0,0,1]`   | Vein propagation direction                          |
+| `vein_frequency` | `1.0`       | Multiplier on the sine term frequency               |
+| `vein_sharpness` | `1.0`       | 1 = soft (legacy), 4–8 = thin Carrara-style veins   |
+| `noise_type`     | `turbulence`| `turbulence` / `fbm` / `ridged` modulator           |
+| `octaves`        | `7`         | Octave count for the modulator                      |
+| `distortion`     | `0`         | Domain warp on the input position                   |
 
 ### Wood
 
 ```yaml
 texture:
   type: "wood"
-  scale: 6.0
-  noise_strength: 1.5
-  colors: [[0.55, 0.35, 0.18], [0.35, 0.20, 0.10]]
+  scale: 5.0
+  noise_strength: 1.2
+  ring_axis: [0, 1, 0]
+  ring_sharpness: 3.5
+  axial_grain: 0.4
+  octaves: 4
+  distortion: 0.18
+  colors: [[0.78, 0.55, 0.30], [0.42, 0.24, 0.12]]
 ```
 
-Simulates wood grain with concentric rings. `colors` defines the early
-wood (lighter rings) and late wood (darker rings). `noise_strength`
-controls the irregularity of the rings -- higher values create knots and
-figure.
+Rings form perpendicular to `ring_axis`: use `[0, 1, 0]` for a tree
+trunk seen on cross-cut, `[0, 0, 1]` for a plank, or a slightly tilted
+vector for a more organic look. `ring_sharpness` exponentiates a
+triangular wave around each ring boundary, producing the dark
+latewood lines you see in oak or walnut. `axial_grain` adds long-
+wavelength variation along the trunk axis (great for planks).
+
+| Parameter        | Default   | Description                                       |
+|------------------|-----------|---------------------------------------------------|
+| `ring_axis`      | `[0,1,0]` | Trunk / log axis (rings live in the ⊥ plane)      |
+| `ring_sharpness` | `1.0`     | 1 = soft (legacy), 3–6 = defined latewood         |
+| `axial_grain`    | `0.0`     | Long-wave variation along the trunk axis           |
+| `octaves`        | `1`       | fBm octaves on the grain (1 = legacy single Perlin)|
+| `distortion`     | `0`       | Domain warp — 0 = clean rings, ~0.5 = knots/waves |
+
+### Voronoi / Worley (cellular)
+
+```yaml
+texture:
+  type: "voronoi"
+  scale: 5.0
+  metric: "euclidean"        # euclidean | manhattan | chebyshev | euclidean_squared
+  output: "f2_minus_f1"      # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
+  randomness: 0.9
+  colors: [[0.05, 0.05, 0.05], [0.95, 0.90, 0.70]]
+```
+
+Worley cellular noise is the workhorse for pebbles, stones, foam,
+cracked mud, reptile skin and abstract tile patterns. The output mode
+selects the visual:
+
+- `f1` — distance to the nearest feature → stone / pebble blobs.
+- `f2` — second-nearest distance.
+- `f2_minus_f1` — sharp ridges between cells (the famous "crackle").
+- `cell` — each cell gets a stable random colour (mosaic).
+
+`metric: "chebyshev"` produces square / hex tiling. `randomness: 0`
+collapses features onto a regular grid; `1` is full random scatter.
+
+> **Colour order for `f2_minus_f1`.** `F2 - F1` is **zero on the cell
+> boundary** and reaches its **maximum at the cell centre**. The lerp
+> applies a sqrt response (mirroring Cycles' "Distance to Edge"), so
+> `colors[0]` is what you see ON the edges and `colors[1]` is what you
+> see in the cell interiors. For the classic crackle look — bright thin
+> lines on dark background — write `colors: [[bright], [dark]]`. The
+> example above intentionally does this.
+
+### Brick
+
+```yaml
+texture:
+  type: "brick"
+  brick_width: 0.4
+  brick_height: 0.18
+  mortar_size: 0.025
+  row_offset: 0.5
+  color_variation: 0.6
+  noise_scale: 0.15
+  colors:
+    - [0.72, 0.32, 0.22]    # brick A
+    - [0.52, 0.18, 0.12]    # brick B
+    - [0.86, 0.83, 0.78]    # mortar
+```
+
+Running-bond brickwork on the XY plane with three colours (brick A,
+brick B, mortar). `row_offset: 0` switches to stack-bond. Set
+`noise_scale > 0` to add weathered per-brick variation.
+
+### Gradient
+
+```yaml
+texture:
+  type: "gradient"
+  mode: "spherical"          # linear | quadratic | easing | spherical | radial
+  axis: [0, 1, 0]
+  length: 1.0
+  colors: [[1.0, 0.85, 0.30], [0.10, 0.05, 0.30]]
+```
+
+Useful for art direction (skies inside materials, atmosphere domes,
+hand-tuned roughness ramps). `linear` projects onto `axis`; `spherical`
+uses distance from the origin; `radial` uses distance from the `axis`
+line (cylindrical falloff).
 
 ### Texture Transform and Randomization
 

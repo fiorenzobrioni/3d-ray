@@ -510,6 +510,80 @@ public class TextureData
 
     [YamlMember(Alias = "randomize_rotation")]
     public bool RandomizeRotation { get; set; }
+
+    // --- Pro-grade procedural parameters (opt-in; back-compat preserved when unset) ---
+
+    [YamlMember(Alias = "noise_type")]
+    public string? NoiseTypeName { get; set; }
+
+    [YamlMember(Alias = "octaves")]
+    public int? Octaves { get; set; }
+
+    [YamlMember(Alias = "lacunarity")]
+    public float? Lacunarity { get; set; }
+
+    [YamlMember(Alias = "gain")]
+    public float? Gain { get; set; }
+
+    [YamlMember(Alias = "distortion")]
+    public float? Distortion { get; set; }
+
+    [YamlMember(Alias = "vein_axis")]
+    public List<float>? VeinAxis { get; set; }
+
+    [YamlMember(Alias = "vein_frequency")]
+    public float? VeinFrequency { get; set; }
+
+    [YamlMember(Alias = "vein_sharpness")]
+    public float? VeinSharpness { get; set; }
+
+    [YamlMember(Alias = "ring_axis")]
+    public List<float>? RingAxis { get; set; }
+
+    [YamlMember(Alias = "ring_sharpness")]
+    public float? RingSharpness { get; set; }
+
+    [YamlMember(Alias = "axial_grain")]
+    public float? AxialGrain { get; set; }
+
+    // Voronoi
+    [YamlMember(Alias = "metric")]
+    public string? Metric { get; set; }
+
+    [YamlMember(Alias = "output")]
+    public string? Output { get; set; }
+
+    [YamlMember(Alias = "randomness")]
+    public float? Randomness { get; set; }
+
+    // Brick
+    [YamlMember(Alias = "brick_width")]
+    public float? BrickWidth { get; set; }
+
+    [YamlMember(Alias = "brick_height")]
+    public float? BrickHeight { get; set; }
+
+    [YamlMember(Alias = "mortar_size")]
+    public float? MortarSize { get; set; }
+
+    [YamlMember(Alias = "row_offset")]
+    public float? RowOffset { get; set; }
+
+    [YamlMember(Alias = "color_variation")]
+    public float? ColorVariation { get; set; }
+
+    [YamlMember(Alias = "noise_scale")]
+    public float? NoiseScale { get; set; }
+
+    // Gradient
+    [YamlMember(Alias = "mode")]
+    public string? Mode { get; set; }
+
+    [YamlMember(Alias = "axis")]
+    public List<float>? Axis { get; set; }
+
+    [YamlMember(Alias = "length")]
+    public float? Length { get; set; }
 }
 
 public class EntityData
