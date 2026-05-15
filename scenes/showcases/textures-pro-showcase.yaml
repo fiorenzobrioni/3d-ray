@@ -1,0 +1,174 @@
+# Pro-grade procedural textures showcase
+# Demonstrates the upgraded noise / marble / wood algorithms and the new
+# voronoi, brick and gradient textures — feature parity with Arnold's "noise"
+# / "cell_noise", Cycles' Voronoi / Brick / Gradient / Wave nodes and
+# RenderMan's PxrFractal / PxrVoronoise / PxrTile.
+#
+# Layout: a 3×3 grid of spheres on a marble floor, each sphere advertising
+# one texture flavour. Camera framed to keep all nine samples in frame.
+#
+# Suggested render:
+#   dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#     -i scenes/showcases/textures-pro-showcase.yaml \
+#     -o renders/textures-pro-showcase.png \
+#     -w 1920 -H 1080 -s 256 -d 6
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.30, 0.45, 0.70]
+    horizon_color: [0.85, 0.78, 0.65]
+    ground_color:  [0.15, 0.12, 0.10]
+    sun:
+      direction: [-0.4, -0.8, -0.3]
+      color:     [1.0, 0.92, 0.78]
+      intensity: 12
+      size:      4
+  ground:
+    type: "infinite_plane"
+    material: "marble_floor"
+    y: 0.0
+
+camera:
+  position:   [0, 3.5, 9]
+  look_at:    [0, 1.0, 0]
+  fov:        38
+  aperture:   0.03
+  focal_pos:  [0, 1.0, 0]
+
+materials:
+  # ----- Floor: pro marble with thin sharp veins (Carrara-like) -----
+  - id: "marble_floor"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 1.5
+      noise_strength: 4.5
+      noise_type: "fbm"
+      octaves: 6
+      lacunarity: 2.1
+      gain: 0.55
+      vein_axis: [1, 0, 0.3]
+      vein_frequency: 1.0
+      vein_sharpness: 5.0
+      distortion: 0.25
+      colors: [[0.92, 0.91, 0.88], [0.18, 0.18, 0.22]]
+
+  # ----- Row 1: noise family (Perlin, fBm, Ridged) -----
+  - id: "tex_perlin"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      noise_type: "perlin"
+      scale: 4.0
+      colors: [[0.20, 0.45, 0.70], [0.95, 0.95, 0.98]]
+
+  - id: "tex_fbm"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 3.0
+      octaves: 7
+      lacunarity: 2.0
+      gain: 0.55
+      distortion: 0.4
+      colors: [[0.10, 0.30, 0.20], [0.85, 0.80, 0.55]]
+
+  - id: "tex_ridged"
+    type: "lambertian"
+    texture:
+      type: "noise"
+      noise_type: "ridged"
+      scale: 3.5
+      octaves: 6
+      lacunarity: 2.3
+      gain: 0.5
+      colors: [[0.10, 0.10, 0.12], [0.95, 0.55, 0.20]]
+
+  # ----- Row 2: cellular / Voronoi family -----
+  - id: "tex_voronoi_f1"
+    type: "lambertian"
+    texture:
+      type: "voronoi"
+      scale: 4.5
+      metric: "euclidean"
+      output: "f1"
+      randomness: 1.0
+      colors: [[0.95, 0.92, 0.88], [0.20, 0.18, 0.16]]
+
+  - id: "tex_voronoi_crackle"
+    type: "lambertian"
+    texture:
+      type: "voronoi"
+      scale: 5.0
+      metric: "euclidean"
+      output: "f2_minus_f1"
+      randomness: 0.9
+      colors: [[0.05, 0.05, 0.05], [0.95, 0.90, 0.70]]
+
+  - id: "tex_voronoi_chebyshev"
+    type: "lambertian"
+    texture:
+      type: "voronoi"
+      scale: 4.0
+      metric: "chebyshev"
+      output: "cell"
+      randomness: 0.4
+
+  # ----- Row 3: classic stone / wood / pattern -----
+  - id: "tex_brick"
+    type: "lambertian"
+    texture:
+      type: "brick"
+      brick_width:    0.4
+      brick_height:   0.18
+      mortar_size:    0.025
+      row_offset:     0.5
+      color_variation: 0.6
+      noise_scale:    0.15
+      colors:
+        - [0.72, 0.32, 0.22]    # warm brick
+        - [0.52, 0.18, 0.12]    # darker brick
+        - [0.86, 0.83, 0.78]    # mortar
+
+  - id: "tex_wood"
+    type: "disney"
+    roughness: 0.35
+    specular: 0.5
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 1.2
+      ring_axis: [0, 1, 0.15]
+      ring_sharpness: 3.5
+      axial_grain: 0.4
+      octaves: 4
+      lacunarity: 2.0
+      gain: 0.5
+      distortion: 0.18
+      colors: [[0.78, 0.55, 0.30], [0.42, 0.24, 0.12]]
+
+  - id: "tex_gradient"
+    type: "lambertian"
+    texture:
+      type: "gradient"
+      mode: "spherical"
+      length: 0.95
+      colors: [[1.0, 0.85, 0.30], [0.10, 0.05, 0.30]]
+
+entities:
+  # ----- Row 1 (back row, z = -2.2) -----
+  - { type: "sphere", center: [-2.4, 1.0, -2.2], radius: 1.0, material: "tex_perlin" }
+  - { type: "sphere", center: [ 0.0, 1.0, -2.2], radius: 1.0, material: "tex_fbm" }
+  - { type: "sphere", center: [ 2.4, 1.0, -2.2], radius: 1.0, material: "tex_ridged" }
+
+  # ----- Row 2 (middle row, z = 0) -----
+  - { type: "sphere", center: [-2.4, 1.0,  0.0], radius: 1.0, material: "tex_voronoi_f1" }
+  - { type: "sphere", center: [ 0.0, 1.0,  0.0], radius: 1.0, material: "tex_voronoi_crackle" }
+  - { type: "sphere", center: [ 2.4, 1.0,  0.0], radius: 1.0, material: "tex_voronoi_chebyshev" }
+
+  # ----- Row 3 (front row, z = 2.2) -----
+  - { type: "sphere", center: [-2.4, 1.0,  2.2], radius: 1.0, material: "tex_brick" }
+  - { type: "sphere", center: [ 0.0, 1.0,  2.2], radius: 1.0, material: "tex_wood" }
+  - { type: "sphere", center: [ 2.4, 1.0,  2.2], radius: 1.0, material: "tex_gradient" }

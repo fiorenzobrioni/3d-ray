@@ -502,9 +502,14 @@ nelle nuove scene.
 ---
 
 ### 6. **TEXTURES** — Integrate nei Materiali
-Le texture sono definite **all'interno** delle definizioni dei materiali:
+Le texture sono definite **all'interno** delle definizioni dei materiali.
+Tutte le texture procedurali sono di livello professionale e replicano i
+controlli esposti da Arnold (`noise`, `cell_noise`), Cycles (nodi Noise /
+Voronoi / Brick / Gradient) e RenderMan (`PxrFractal`, `PxrVoronoise`,
+`PxrMarble`, `PxrTile`).
 
 #### **Texture Procedurali:**
+
 **Checker:**
 ```yaml
 texture:
@@ -512,30 +517,114 @@ texture:
   scale: 4.0
   colors: [[0.9, 0.9, 0.9], [0.1, 0.1, 0.1]]
 ```
-**Noise (Perlin):**
+
+**Noise:**
 ```yaml
 texture:
   type: "noise"
+  noise_type: "fbm"            # perlin | fbm | turbulence | ridged | billow
   scale: 5.0
-  noise_strength: 3.0                     # 0=liscio, >0=turbolento
-  colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]  # opzionale: default nero→bianco
+  octaves: 5                   # 1..16 — ottave per fBm/ridged/billow
+  lacunarity: 2.0              # moltiplicatore di frequenza fra ottave
+  gain: 0.5                    # decadimento di ampiezza fra ottave
+  distortion: 0.0              # domain warp (deforma il dominio per organicità)
+  noise_strength: 0.0          # legacy: 0=Perlin liscio, >0=turbolento (sovrascritto da noise_type)
+  colors: [[0, 0, 0], [1, 1, 1]]
 ```
+Le cinque famiglie corrispondono alle modalità standard dei renderer professionali:
+- `perlin` — gradient noise liscio a singola ottava.
+- `fbm` — Σ noise/2^i, il "fractal noise" canonico di Arnold/Cycles/RenderMan.
+- `turbulence` — Σ|noise|/2^i con valore assoluto per nitidezza.
+- `ridged` — ridged multifractal di Musgrave, ridge nette (roccia, fulmini).
+- `billow` — Σ|noise| sulle ottave, gonfio/cumuliforme.
+
+`distortion` deforma la posizione di input con un campione Perlin secondario
+(tecnica di Inigo Quilez); 0.3–0.8 è di solito sufficiente.
+
 **Marble:**
 ```yaml
 texture:
   type: "marble"
-  scale: 10.0
-  noise_strength: 8.0
-  colors: [[0.95, 0.95, 0.95], [0.4, 0.4, 0.4]]
+  scale: 4.0
+  noise_strength: 10.0
+  vein_axis: [1, 0, 0.3]       # direzione di propagazione delle venature (default Z)
+  vein_frequency: 1.0          # moltiplicatore sul termine sinusoidale
+  vein_sharpness: 4.0          # 1=morbido (legacy), 4-8=venature sottili Carrara
+  noise_type: "turbulence"     # turbulence | fbm | ridged
+  octaves: 7                   # ottave del termine frattale
+  lacunarity: 2.0
+  gain: 0.5
+  distortion: 0.0
+  colors: [[0.95, 0.95, 0.95], [0.10, 0.10, 0.15]]
 ```
+L'asse delle venature controlla la direzione di propagazione; un vettore non
+allineato agli assi produce lastre naturali. `vein_sharpness` eleva la
+sinusoide a potenza, restringendo la banda scura in una vera vena.
+
 **Wood:**
 ```yaml
 texture:
   type: "wood"
-  scale: 3.0
+  scale: 4.0
   noise_strength: 2.0
-  colors: [[0.85, 0.65, 0.4], [0.6, 0.4, 0.2]]
+  ring_axis: [0, 1, 0]         # asse del tronco; anelli ⊥ asse (default Y)
+  ring_sharpness: 3.0          # 1=morbido (legacy), 3-6=legno tardivo definito
+  axial_grain: 0.3             # noise a lunga lunghezza d'onda lungo l'asse
+  octaves: 4                   # ottave fBm della venatura (1 = Perlin legacy)
+  lacunarity: 2.0
+  gain: 0.5
+  distortion: 0.0              # 0=anelli puliti, ~0.5=nodi/onde
+  colors: [[0.85, 0.65, 0.40], [0.60, 0.40, 0.20]]
 ```
+
+**Voronoi / Worley (cellulare):**
+```yaml
+texture:
+  type: "voronoi"
+  scale: 5.0
+  metric: "euclidean"          # euclidean | euclidean_squared | manhattan | chebyshev
+  output: "f1"                 # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
+  randomness: 1.0              # 0 = griglia, 1 = sparpagliamento casuale
+  distortion: 0.0              # warp Perlin prima del lookup
+  colors: [[0, 0, 0], [1, 1, 1]]   # ignorato per output: "cell"
+```
+Replica il nodo Voronoi di Cycles: `f1` produce ciottoli/blob, `f2_minus_f1`
+crea "crackle" netti (terra screpolata, pelle di rettile), `cell` assegna a
+ciascuna cella un colore piatto. La metrica Chebyshev produce pattern a
+tessere quadrate/esagonali.
+
+**Brick:**
+```yaml
+texture:
+  type: "brick"
+  brick_width: 0.4
+  brick_height: 0.18
+  mortar_size: 0.025
+  row_offset: 0.5              # 0=stack-bond, 0.5=running-bond
+  color_variation: 0.6         # 0=mattoni uniformi, 1=contrasto totale A/B
+  noise_scale: 0.15            # noise di "stagionatura" per ogni mattone (0=off)
+  colors:
+    - [0.72, 0.32, 0.22]       # colore mattone A
+    - [0.52, 0.18, 0.12]       # colore mattone B
+    - [0.86, 0.83, 0.78]       # malta
+```
+Di default genera un muro a corsi sfalsati sul piano XY; usa `rotation`
+per riproiettare il pattern su pareti orientate diversamente.
+
+**Gradient:**
+```yaml
+texture:
+  type: "gradient"
+  mode: "linear"               # linear | quadratic | easing | spherical | radial
+  axis: [1, 0, 0]              # direzione del gradiente (linear/quadratic/easing/radial)
+  length: 1.0                  # span in world-space del gradiente
+  colors: [[0, 0, 0], [1, 1, 1]]
+```
+- `linear` — `t = (p · axis) / length`.
+- `quadratic` / `easing` — stesso `t` poi elevato al quadrato o smoothstepped.
+- `spherical` — distanza dall'origine / `length`.
+- `radial` — distanza dalla retta `axis` / `length` (decadimento cilindrico).
+
 **Tutte le procedurali supportano:**
 ```yaml
 offset: [5.0, 0.0, 3.0]                  # Traslazione

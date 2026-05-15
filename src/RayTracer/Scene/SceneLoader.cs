@@ -1119,6 +1119,22 @@ public class SceneLoader
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.85f, 0.65f, 0.40f) : new Vector3(0.85f, 0.65f, 0.40f),
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.60f, 0.40f, 0.20f) : new Vector3(0.60f, 0.40f, 0.20f)),
 
+            "voronoi" or "worley" or "cell" or "cellular"
+                => new VoronoiTexture(t.Scale,
+                    t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.Zero : Vector3.Zero,
+                    t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? Vector3.One  : Vector3.One),
+
+            "brick" or "bricks" or "tile"
+                => new BrickTexture(
+                    t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.65f, 0.27f, 0.20f) : new Vector3(0.65f, 0.27f, 0.20f),
+                    t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.55f, 0.20f, 0.15f) : new Vector3(0.55f, 0.20f, 0.15f),
+                    t.Colors is { Count: > 2 } ? ToVector3(t.Colors[2]) ?? new Vector3(0.85f, 0.83f, 0.78f) : new Vector3(0.85f, 0.83f, 0.78f)),
+
+            "gradient" or "ramp"
+                => new GradientTexture(
+                    t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.Zero : Vector3.Zero,
+                    t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? Vector3.One  : Vector3.One),
+
             "image" => CreateImageTexture(t, sceneDir),
 
             _ => new SolidColor(t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One : Vector3.One)
@@ -1180,9 +1196,12 @@ public class SceneLoader
             if (t.Rotation != null) nt.Rotation = ToVector3(t.Rotation) ?? Vector3.Zero;
             nt.RandomizeOffset   = t.RandomizeOffset;
             nt.RandomizeRotation = t.RandomizeRotation;
-            // FIX (ISSUE #2): noise_strength was previously ignored for type "noise".
-            // It now sets the turbulence weight: 0 = smooth Perlin, >0 = turbulent.
             if (t.NoiseStrength.HasValue) nt.NoiseStrength = t.NoiseStrength.Value;
+            if (t.NoiseTypeName != null) nt.NoiseType = ParseNoiseKind(t.NoiseTypeName);
+            if (t.Octaves.HasValue)      nt.Octaves    = Math.Clamp(t.Octaves.Value, 1, 16);
+            if (t.Lacunarity.HasValue)   nt.Lacunarity = t.Lacunarity.Value;
+            if (t.Gain.HasValue)         nt.Gain       = t.Gain.Value;
+            if (t.Distortion.HasValue)   nt.Distortion = t.Distortion.Value;
         }
         else if (tex is MarbleTexture mt)
         {
@@ -1191,6 +1210,14 @@ public class SceneLoader
             mt.RandomizeOffset   = t.RandomizeOffset;
             mt.RandomizeRotation = t.RandomizeRotation;
             if (t.NoiseStrength.HasValue) mt.NoiseStrength = t.NoiseStrength.Value;
+            if (t.VeinAxis != null)       mt.VeinAxis      = ToVector3(t.VeinAxis) ?? Vector3.UnitZ;
+            if (t.VeinFrequency.HasValue) mt.VeinFrequency = t.VeinFrequency.Value;
+            if (t.VeinSharpness.HasValue) mt.VeinSharpness = t.VeinSharpness.Value;
+            if (t.Octaves.HasValue)       mt.Octaves       = Math.Clamp(t.Octaves.Value, 1, 16);
+            if (t.Lacunarity.HasValue)    mt.Lacunarity    = t.Lacunarity.Value;
+            if (t.Gain.HasValue)          mt.Gain          = t.Gain.Value;
+            if (t.Distortion.HasValue)    mt.Distortion    = t.Distortion.Value;
+            if (t.NoiseTypeName != null)  mt.NoiseType     = ParseMarbleFractalKind(t.NoiseTypeName);
         }
         else if (tex is WoodTexture wt)
         {
@@ -1199,8 +1226,98 @@ public class SceneLoader
             wt.RandomizeOffset   = t.RandomizeOffset;
             wt.RandomizeRotation = t.RandomizeRotation;
             if (t.NoiseStrength.HasValue) wt.NoiseStrength = t.NoiseStrength.Value;
+            if (t.RingAxis != null)       wt.RingAxis      = ToVector3(t.RingAxis) ?? Vector3.UnitY;
+            if (t.RingSharpness.HasValue) wt.RingSharpness = t.RingSharpness.Value;
+            if (t.AxialGrain.HasValue)    wt.AxialGrain    = t.AxialGrain.Value;
+            if (t.Octaves.HasValue)       wt.Octaves       = Math.Clamp(t.Octaves.Value, 1, 16);
+            if (t.Lacunarity.HasValue)    wt.Lacunarity    = t.Lacunarity.Value;
+            if (t.Gain.HasValue)          wt.Gain          = t.Gain.Value;
+            if (t.Distortion.HasValue)    wt.Distortion    = t.Distortion.Value;
+        }
+        else if (tex is VoronoiTexture vt)
+        {
+            if (t.Offset   != null) vt.Offset   = ToVector3(t.Offset)   ?? Vector3.Zero;
+            if (t.Rotation != null) vt.Rotation = ToVector3(t.Rotation) ?? Vector3.Zero;
+            vt.RandomizeOffset   = t.RandomizeOffset;
+            vt.RandomizeRotation = t.RandomizeRotation;
+            if (t.Metric != null)      vt.Metric     = ParseVoronoiMetric(t.Metric);
+            if (t.Output != null)      vt.Output     = ParseVoronoiOutput(t.Output);
+            if (t.Randomness.HasValue) vt.Randomness = Math.Clamp(t.Randomness.Value, 0f, 1f);
+            if (t.Distortion.HasValue) vt.Distortion = t.Distortion.Value;
+        }
+        else if (tex is BrickTexture bt)
+        {
+            if (t.Offset   != null) bt.Offset   = ToVector3(t.Offset)   ?? Vector3.Zero;
+            if (t.Rotation != null) bt.Rotation = ToVector3(t.Rotation) ?? Vector3.Zero;
+            bt.RandomizeOffset   = t.RandomizeOffset;
+            bt.RandomizeRotation = t.RandomizeRotation;
+            if (t.BrickWidth.HasValue)     bt.BrickWidth     = t.BrickWidth.Value;
+            if (t.BrickHeight.HasValue)    bt.BrickHeight    = t.BrickHeight.Value;
+            if (t.MortarSize.HasValue)     bt.MortarSize     = t.MortarSize.Value;
+            if (t.RowOffset.HasValue)      bt.RowOffset      = t.RowOffset.Value;
+            if (t.ColorVariation.HasValue) bt.ColorVariation = Math.Clamp(t.ColorVariation.Value, 0f, 1f);
+            if (t.NoiseScale.HasValue)     bt.NoiseScale     = t.NoiseScale.Value;
+        }
+        else if (tex is GradientTexture gt)
+        {
+            if (t.Offset   != null) gt.Offset   = ToVector3(t.Offset)   ?? Vector3.Zero;
+            if (t.Rotation != null) gt.Rotation = ToVector3(t.Rotation) ?? Vector3.Zero;
+            gt.RandomizeOffset   = t.RandomizeOffset;
+            gt.RandomizeRotation = t.RandomizeRotation;
+            if (t.Mode != null)   gt.Mode   = ParseGradientMode(t.Mode);
+            if (t.Axis != null)   gt.Axis   = ToVector3(t.Axis) ?? Vector3.UnitX;
+            if (t.Length.HasValue) gt.Length = t.Length.Value;
         }
     }
+
+    private static NoiseTexture.NoiseKind ParseNoiseKind(string s) =>
+        s.Trim().ToLowerInvariant() switch
+        {
+            "perlin"               => NoiseTexture.NoiseKind.Perlin,
+            "fbm" or "fractal"     => NoiseTexture.NoiseKind.Fbm,
+            "turbulence" or "turb" => NoiseTexture.NoiseKind.Turbulence,
+            "ridged" or "ridge"    => NoiseTexture.NoiseKind.Ridged,
+            "billow" or "billowed" => NoiseTexture.NoiseKind.Billow,
+            _                      => NoiseTexture.NoiseKind.Auto,
+        };
+
+    private static MarbleTexture.FractalKind ParseMarbleFractalKind(string s) =>
+        s.Trim().ToLowerInvariant() switch
+        {
+            "fbm" or "fractal"  => MarbleTexture.FractalKind.Fbm,
+            "ridged" or "ridge" => MarbleTexture.FractalKind.Ridged,
+            _                   => MarbleTexture.FractalKind.Turbulence,
+        };
+
+    private static WorleyNoise.Metric ParseVoronoiMetric(string s) =>
+        s.Trim().ToLowerInvariant() switch
+        {
+            "manhattan" or "l1" => WorleyNoise.Metric.Manhattan,
+            "chebyshev" or "linf" or "chess" => WorleyNoise.Metric.Chebyshev,
+            "euclidean_squared" or "euclidean2" or "sq" => WorleyNoise.Metric.EuclideanSquared,
+            _ => WorleyNoise.Metric.Euclidean,
+        };
+
+    private static VoronoiTexture.OutputMode ParseVoronoiOutput(string s) =>
+        s.Trim().ToLowerInvariant() switch
+        {
+            "f1"            => VoronoiTexture.OutputMode.F1,
+            "f2"            => VoronoiTexture.OutputMode.F2,
+            "f2_minus_f1" or "f2-f1" or "crackle" => VoronoiTexture.OutputMode.F2MinusF1,
+            "f1_plus_f2" or "f1+f2"               => VoronoiTexture.OutputMode.F1PlusF2,
+            "cell" or "color" or "id"             => VoronoiTexture.OutputMode.Cell,
+            _ => VoronoiTexture.OutputMode.F1,
+        };
+
+    private static GradientTexture.GradientMode ParseGradientMode(string s) =>
+        s.Trim().ToLowerInvariant() switch
+        {
+            "quadratic" or "quad"               => GradientTexture.GradientMode.Quadratic,
+            "easing" or "ease" or "smoothstep"  => GradientTexture.GradientMode.Easing,
+            "spherical" or "sphere"             => GradientTexture.GradientMode.Spherical,
+            "radial" or "cylinder" or "cylindrical" => GradientTexture.GradientMode.Radial,
+            _                                   => GradientTexture.GradientMode.Linear,
+        };
 
     private static IHittable? CreateEntity(EntityData e, IMaterial mat, int entityIndex = 0)
     {
