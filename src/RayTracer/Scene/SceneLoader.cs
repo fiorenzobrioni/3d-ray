@@ -1893,12 +1893,16 @@ public class SceneLoader
                  $"to fully enclose the displaced silhouette.");
         }
 
+        string dispTag = displacement.Mode == DisplacementMode.Vector
+            ? $"vector-{displacement.Space.ToString().ToLowerInvariant()}"
+            : "scalar";
+
         if (appliedIterations > 0 && displacement.IsActive)
         {
             Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
                  $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices " +
                  $"(subdivision: {appliedScheme} \u00d7 {appliedIterations}, " +
-                 $"displacement: max={maxDisplacement:F4})");
+                 $"displacement: {dispTag}, max={maxDisplacement:F4})");
         }
         else if (appliedIterations > 0)
         {
@@ -1910,7 +1914,7 @@ public class SceneLoader
         {
             Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
                  $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices " +
-                 $"(displacement: max={maxDisplacement:F4})");
+                 $"(displacement: {dispTag}, max={maxDisplacement:F4})");
         }
         else
         {
@@ -1951,6 +1955,51 @@ public class SceneLoader
             return DisplacementOptions.Disabled;
         }
 
+        // \u2500\u2500 Parse mode (scalar | vector) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+        var mode = DisplacementMode.Scalar;
+        if (!string.IsNullOrWhiteSpace(disp.Mode))
+        {
+            string m = disp.Mode.Trim().ToLowerInvariant();
+            mode = m switch
+            {
+                "scalar" or "height" or ""  => DisplacementMode.Scalar,
+                "vector" or "vec"           => DisplacementMode.Vector,
+                _ => DisplacementMode.Scalar,
+            };
+            if (mode == DisplacementMode.Scalar &&
+                !(m == "scalar" || m == "height"))
+            {
+                Warn($"Mesh '{e.Name ?? "(unnamed)"}': unknown displacement " +
+                     $"mode '{disp.Mode}'. Expected 'scalar' or 'vector'. " +
+                     $"Falling back to scalar.");
+            }
+        }
+
+        // \u2500\u2500 Parse space (tangent | object), vector mode only \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+        var space = DisplacementSpace.Tangent;
+        if (!string.IsNullOrWhiteSpace(disp.Space))
+        {
+            string s = disp.Space.Trim().ToLowerInvariant();
+            space = s switch
+            {
+                "tangent" or "" => DisplacementSpace.Tangent,
+                "object" or "local" => DisplacementSpace.Object,
+                _ => DisplacementSpace.Tangent,
+            };
+            if (space == DisplacementSpace.Tangent &&
+                !(s == "tangent" || s == ""))
+            {
+                Warn($"Mesh '{e.Name ?? "(unnamed)"}': unknown displacement " +
+                     $"space '{disp.Space}'. Expected 'tangent' or 'object'. " +
+                     $"Falling back to tangent.");
+            }
+            if (mode == DisplacementMode.Scalar)
+            {
+                Warn($"Mesh '{e.Name ?? "(unnamed)"}': 'space' is only used " +
+                     $"in vector mode; ignored on a scalar displacement.");
+            }
+        }
+
         ITexture inner;
         try
         {
@@ -1963,16 +2012,25 @@ public class SceneLoader
             return DisplacementOptions.Disabled;
         }
 
-        // displacement_bound defaults to |scale| when unset: a sensible
-        // upper bound for a luminance-in-[0,1] height field with midlevel=0
-        // or midlevel=0.5. Authors with custom midlevels or out-of-range
-        // textures can override.
+        // displacement_bound default: in scalar mode the maximum offset is
+        // bounded by |scale\u00b7(h_max\u2212midlevel)| \u2264 |scale| for a luminance
+        // texture in [0,1]; in vector mode the L2 length of an offset whose
+        // components each lie in [-|scale|, +|scale|] is bounded by
+        // |scale|\u00b7sqrt(3). The post-displacement warning fires whenever the
+        // observed maximum exceeds the bound, so authors using out-of-range
+        // textures (e.g. an HDR-EXR vector map storing values > 1) will be
+        // told the exact bound they should set.
+        float defaultBound = mode == DisplacementMode.Vector
+            ? MathF.Abs(disp.Scale) * 1.732051f
+            : MathF.Abs(disp.Scale);
         float bound = e.DisplacementBound > 0f
             ? e.DisplacementBound
-            : MathF.Abs(disp.Scale);
+            : defaultBound;
 
         return new DisplacementOptions
         {
+            Mode     = mode,
+            Space    = space,
             Texture  = inner,
             Scale    = disp.Scale,
             Midlevel = disp.Midlevel,

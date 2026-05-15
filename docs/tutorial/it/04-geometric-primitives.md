@@ -451,6 +451,62 @@ mette quattro pannelli (riferimento piatto, fBm noise, crepe voronoi e
 un asteroide ridged-fBm) fianco a fianco per confrontare le silhouette
 direttamente.
 
+### 4.12.3 Vector Displacement (overhang e crinkles)
+
+Il displacement scalare può solo spingere i vertici lungo la normale —
+niente overhang, niente dettagli che si piegano su se stessi. Il
+**vector displacement** estende la stessa pipeline leggendo il triplet
+RGB completo della texture come offset 3D, esattamente come Mudbox /
+Maya / ZBrush bakano sculpt hi-res su una cage low-poly:
+
+```yaml
+- type: "mesh"
+  path: "models/plane.obj"
+  material: "stone"
+  subdivision_scheme: "catmull_clark"
+  subdivision_iterations: 6
+  displacement:
+    mode: "vector"                            # default "scalar"
+    space: "tangent"                          # oppure "object"
+    texture:
+      type: "image"
+      path: "textures/sculpt_vector_disp.exr"
+    scale: 0.5
+    midlevel: 0.5                             # 0.5 per unsigned, 0 per EXR signed
+  displacement_bound: 0.9
+```
+
+L'aggiornamento è `v' = v + scale · (rgb − midlevel) · basis`. In
+**tangent space** (convenzione standard di sculpt-bake) `R → T`,
+`G → B`, `B → N`: i canali della texture corrispondono al frame
+tangente / bitangente / normale per-vertex derivato dal gradiente UV.
+In **object space** il triplet RGB è sommato direttamente alla posizione
+in coordinate locali della mesh, senza rotazione TBN. Tangent richiede
+un canale UV; senza UV il loader passa silenziosamente a object space
+(stesso comportamento di Arnold).
+
+| Campo                  | Default     | Note |
+|------------------------|-------------|------|
+| `displacement.mode`    | `"scalar"`  | `"scalar"` (height-field, §4.12.2) o `"vector"` (RGB → XYZ). |
+| `displacement.space`   | `"tangent"` | `"tangent"` o `"object"`. Solo in vector. |
+| `displacement.scale`   | `0.1`       | Ampiezza in unità di mondo per canale. |
+| `displacement.midlevel`| `0`         | Sottratto da ogni canale. `0.5` per storage 8-bit unsigned. |
+| `displacement_bound`   | `\|scale\|·√3` (vector) / `\|scale\|` (scalar) | Padding AABB foglia BVH. |
+
+**Convenzione.** Le mappe tangent-space vector-displacement bakate da
+Mudbox / Maya / ZBrush si aspettano `R → T`, `G → B`, `B → N`; l'engine
+deriva il TBN per-vertex dal gradiente UV (tangenti faccia stile
+Lengyel, accumulazione pesata per angolo, ortonormalizzazione
+Gram-Schmidt, preservazione handedness stile MikkTSpace) così una
+mappa bakata in uno qualunque di questi pacchetti viene caricata
+direttamente.
+
+**Showcase.** `scenes/showcases/vector-displacement-showcase.yaml`
+mette un pannello scalar reference accanto a un tangent-space e un
+object-space vector-displacement guidati dallo stesso noise, più un
+cubo CC×4 con ridged-fBm vector displacement che dimostra il
+comportamento overhang-producing.
+
 ---
 
 ## 4.13 Riepilogo Alias dei Tipi

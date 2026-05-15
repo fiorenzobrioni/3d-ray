@@ -495,34 +495,58 @@ public class BumpMapData
 }
 
 /// <summary>
-/// YAML block for the scalar surface displacement on a mesh entity
-/// (Arnold/RenderMan/Cycles parity — DEVLOG step 3/5).
+/// YAML block for the surface displacement on a mesh entity
+/// (Arnold/RenderMan/Cycles parity — DEVLOG steps 3/5 scalar, 4/5 vector).
 ///
-/// <para>The vertex displacement formula applied per limit-surface vertex is
-/// <c>v' = v + scale · (h − midlevel) · n_smooth</c>, where <c>h</c> is the
-/// Rec.709 luminance of <c>texture</c> sampled at the vertex's UV and 3D
-/// position.</para>
+/// <para>Scalar mode: <c>v' = v + scale · (luminance(texture) − midlevel) · n_smooth</c>.
+/// Vector mode: <c>v' = v + scale · (rgb − midlevel) · basis</c>, where
+/// <c>basis</c> is the per-vertex TBN frame (tangent space) or the identity
+/// (object space).</para>
 /// </summary>
 public class DisplacementData
 {
     /// <summary>
-    /// Inner height-field texture. Any <see cref="TextureData"/> works
-    /// (procedurals or images) — luminance is read at sample time.
+    /// <c>"scalar"</c> (default) or <c>"vector"</c>. Scalar reads the
+    /// texture's Rec.709 luminance and offsets along the smooth normal;
+    /// vector reads the full RGB triplet as a 3D offset (overhangs and
+    /// crinkles a height map cannot represent).
+    /// </summary>
+    [YamlMember(Alias = "mode")]
+    public string? Mode { get; set; }
+
+    /// <summary>
+    /// Vector-mode only: <c>"tangent"</c> (default) interprets RGB as a
+    /// TBN-frame offset, <c>"object"</c> interprets it as a local-space
+    /// <c>(x, y, z)</c> offset. Ignored when <see cref="Mode"/> is
+    /// <c>"scalar"</c>.
+    /// </summary>
+    [YamlMember(Alias = "space")]
+    public string? Space { get; set; }
+
+    /// <summary>
+    /// Inner displacement texture. Any <see cref="TextureData"/> works
+    /// (procedurals or images) — luminance is read in scalar mode, the
+    /// full RGB in vector mode.
     /// </summary>
     [YamlMember(Alias = "texture")]
     public TextureData? Texture { get; set; }
 
     /// <summary>
-    /// Signed amplitude in world units. The applied offset along the smooth
-    /// normal is <c>scale · (h − midlevel)</c>. 0 disables the displacement.
+    /// Signed amplitude in world units. The applied offset is
+    /// <c>scale · (h − midlevel)</c> in scalar mode and
+    /// <c>scale · (rgb − midlevel)</c> in vector mode. 0 disables the
+    /// displacement.
     /// </summary>
     [YamlMember(Alias = "scale")]
     public float Scale { get; set; } = 0.1f;
 
     /// <summary>
-    /// Reference luminance treated as "no displacement". Defaults to 0
-    /// (matches RenderMan's <c>dispMidpoint</c>). Use 0.5 for 8-bit greyscale
-    /// height maps where 128 means "flat".
+    /// Reference texture value treated as "no displacement". Defaults to 0
+    /// (matches RenderMan's <c>dispMidpoint</c> and Arnold's
+    /// <c>vector_zero_value</c>). Use 0.5 for 8-bit storage where the
+    /// midpoint of <c>[0, 1]</c> means "flat" (both for greyscale height
+    /// maps and for vector-displacement EXRs/PNGs baked from Mudbox/
+    /// ZBrush with the standard unsigned remap).
     /// </summary>
     [YamlMember(Alias = "midlevel")]
     public float Midlevel { get; set; } = 0f;

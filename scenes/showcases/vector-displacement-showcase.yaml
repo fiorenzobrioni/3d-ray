@@ -1,0 +1,237 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Vector Displacement Showcase — Surface Displacement Stack, Step 4/5
+#
+#  Dimostra il canale `displacement` in modalità `mode: vector` (Arnold
+#  `vector_displacement`, Cycles "vector displacement", RenderMan
+#  `PxrDispVectorLayer`): la mesh subdivisa riceve un offset RGB-as-XYZ
+#  invece di una semplice altezza scalare. A differenza dello step 3
+#  (scalar displacement, lineare lungo la normale) i vertici possono
+#  spostarsi anche TANGENZIALMENTE al piano locale — questo è ciò che
+#  permette overhang e crinkles che un height field puro non può
+#  rappresentare.
+#
+#  Pipeline:
+#     OBJ low-poly  →  Catmull-Clark subdivision  →
+#     v += scale·(rgb − midlevel) ·  [T, B, N]   →  triangulazione  →  BVH
+#
+#  Convenzione tangent space (Mudbox / Maya / ZBrush / Cycles tangent bake):
+#     R → tangente T (asse U della parametrizzazione)
+#     G → bitangente B (asse V)
+#     B → normale N (analogo allo scalar displacement)
+#
+#  LAYOUT
+#  ──────
+#  Tre lastre verticali fianco a fianco (plane subdivise CC×6) ruotate per
+#  fronteggiare la camera, stesso noise procedurale tridimensionale ma
+#  modalità di displacement diverse:
+#
+#     A (sinistra) — SCALAR REFERENCE
+#         Solo height-field lungo la normale: bulges/cavità simmetriche
+#         attorno alla superficie originale, nessun overhang possibile.
+#
+#     B (centro)   — VECTOR TANGENT-SPACE
+#         RGB del noise mappato a (T, B, N). Le componenti R e G spingono
+#         i vertici lungo il piano locale → produce ondulazioni laterali
+#         e crinkles che il bump non potrebbe simulare e che lo scalar
+#         displacement non potrebbe spostare nella direzione corretta.
+#
+#     C (destra)   — VECTOR OBJECT-SPACE
+#         Stesso RGB ma interpretato direttamente come (x, y, z) locali.
+#         Indipendente dalla parametrizzazione UV; utile per sculpt
+#         "global" condivisi tra mesh con UV diversi (asset library).
+#
+#  Sopra al centro: un asteroide (cubo CC×4 + ridged-fBm vector tangent
+#  displacement) che mostra come il vettore sposti i vertici in 3D
+#  generando overhang reali — confronta la silhouette con l'asteroide di
+#  `scalar-displacement-showcase.yaml` per vedere la differenza chiave.
+#
+#  Luce key direzionale radente da sinistra + fill point da destra. La key
+#  radente esalta gli overhang in B e C (in A la silhouette resta liscia).
+#
+#  Render consigliato:
+#     Preview:  -w 640  -H 360  -s 32   -d 4  -S 1
+#     Standard: -w 1280 -H 720  -s 256  -d 6  -S 2
+#     Final:    -w 1920 -H 1080 -s 1024 -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+camera:
+  position: [0, 1.6, -4.5]
+  look_at:  [0, 1.2,  0]
+  fov: 52
+  aperture: 0.0
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.04, 0.06, 0.11]
+    horizon_color: [0.28, 0.26, 0.32]
+    ground_color:  [0.02, 0.02, 0.03]
+
+materials:
+
+  - id: "porcellana"
+    type: "disney"
+    color: [0.92, 0.88, 0.82]
+    roughness: 0.42
+    specular: 0.55
+
+  - id: "rame_corroso"
+    type: "disney"
+    color: [0.85, 0.55, 0.32]
+    roughness: 0.55
+    metallic: 1.0
+
+  - id: "pavimento"
+    type: "disney"
+    color: [0.14, 0.14, 0.17]
+    roughness: 0.85
+
+lights:
+
+  # Key direzionale radente da sinistra in basso — esalta gli overhang.
+  - type: "directional"
+    direction: [1.0, -0.25, 0.3]
+    color: [1.0, 0.97, 0.92]
+    intensity: 2.5
+    angular_radius: 0.5
+
+  # Fill point caldo sulla destra in alto.
+  - type: "point"
+    position: [5, 4.5, -1.5]
+    color: [1.0, 0.92, 0.80]
+    intensity: 80
+
+entities:
+
+  # ── Pavimento ──────────────────────────────────────────────────────────
+  - name: "pavimento"
+    type: "quad"
+    q: [-12, 0, -3]
+    u: [24, 0, 0]
+    v: [0, 0, 10]
+    material: "pavimento"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # LASTRA A — SCALAR REFERENCE (height-field lungo la normale)
+  # Stesso noise procedurale delle altre due, ma in modalità scalar.
+  # I vertici si muovono ESCLUSIVAMENTE lungo +Y / -Y del piano locale.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "A_scalar"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana"
+    scale: [0.9, 1.0, 1.1]
+    translate: [-2.2, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 6
+    displacement:
+      mode: "scalar"                          # height-field
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 3.5
+        octaves: 5
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0, 0, 0], [1, 1, 1]]        # greyscale → solo luminanza
+      scale: 0.30
+      midlevel: 0.5
+    displacement_bound: 0.30
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # LASTRA B — VECTOR TANGENT-SPACE
+  # RGB del noise → (T, B, N). Colori scelti per dare offset bilanciato
+  # tra le tre direzioni: R e G variano in [0.2, 0.8] (≈ ±0.3 da midlevel
+  # 0.5) → spostamento laterale netto sul piano locale; B varia in [0.3,
+  # 0.7] → spostamento normale ridotto rispetto alla lastra A. Il risultato
+  # visivo: ondulazioni che "scivolano" sul piano + bumps verticali — la
+  # vera tipologia di displacement che un sculpt da ZBrush/Mudbox produce.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "B_vector_tangent"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana"
+    scale: [0.9, 1.0, 1.1]
+    translate: [0.0, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 6
+    displacement:
+      mode: "vector"
+      space: "tangent"
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 3.5
+        octaves: 5
+        lacunarity: 2.0
+        gain: 0.5
+        # R, G, B variano in modi diversi → offset 3D non-collineare
+        # (R: forte ampiezza in T, G: media in B, B: ridotta in N).
+        colors: [[0.2, 0.3, 0.35], [0.8, 0.7, 0.65]]
+      scale: 0.40
+      midlevel: 0.5
+    displacement_bound: 0.45
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # LASTRA C — VECTOR OBJECT-SPACE
+  # Stesso campo RGB ma interpretato come offset locale (x, y, z) prima
+  # del transform dell'entity. Poiché la lastra è ruotata -90° su X, gli
+  # offset Y locali (G) diventano offset Z mondo (verso/lontano dalla
+  # camera). Confronto: B muove i vertici sul piano TANGENTE alla mesh
+  # (sempre coerente con la parametrizzazione), C muove nell'asset frame.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "C_vector_object"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana"
+    scale: [0.9, 1.0, 1.1]
+    translate: [2.2, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 6
+    displacement:
+      mode: "vector"
+      space: "object"
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 3.5
+        octaves: 5
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0.2, 0.3, 0.35], [0.8, 0.7, 0.65]]
+      scale: 0.40
+      midlevel: 0.5
+    displacement_bound: 0.45
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # ASTEROIDE — cubo CC×4 + vector-tangent ridged-fBm.
+  # Le componenti R/G del noise spostano i vertici lungo le tangenti
+  # locali (cioè lungo la superficie) → overhang/concavità impossibili
+  # con un height-field puro. Confronta con l'asteroide di
+  # scalar-displacement-showcase.yaml.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "asteroid"
+    type: "mesh"
+    path: "../models/subdivision-cube.obj"
+    material: "rame_corroso"
+    scale: [0.4, 0.4, 0.4]
+    translate: [0, 2.6, 1.8]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 4
+    displacement:
+      mode: "vector"
+      space: "tangent"
+      texture:
+        type: "noise"
+        noise_type: "ridged"
+        scale: 3.0
+        octaves: 4
+        lacunarity: 2.2
+        gain: 0.55
+        colors: [[0.3, 0.3, 0.30], [0.7, 0.7, 0.70]]
+      scale: 0.20
+      midlevel: 0.5
+    displacement_bound: 0.25

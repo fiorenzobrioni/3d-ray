@@ -935,6 +935,76 @@ macro silhouette (vertex positions, BVH) and the bump handles sub-pixel
 detail on top of the displaced shading normal. This mirrors Arnold's
 "autobump" workflow.
 
+##### **Vector displacement (RGB → XYZ offset)**
+
+A scalar height field can only push micro-vertices outward (or inward)
+along the smooth normal — a useful constraint that nevertheless rules
+out **overhangs**, **crinkles**, and any feature that bends back over
+itself. **Vector displacement** lifts that restriction by interpreting
+the texture's RGB triplet as a full 3D offset:
+
+```yaml
+- name: "sculpt_panel"
+  type: "mesh"
+  path: "models/plane.obj"
+  material: "stone"
+  subdivision_scheme: "catmull_clark"
+  subdivision_iterations: 6
+  displacement:
+    mode: "vector"                            # default is "scalar"
+    space: "tangent"                          # or "object"
+    texture:
+      type: "image"
+      path: "textures/sculpt_vector_disp.exr" # any RGB ITexture
+    scale: 0.5
+    midlevel: 0.5                             # 0.5 for unsigned 8-bit storage; 0 for signed-float EXR
+  displacement_bound: 0.9
+```
+
+The vertex update is `v' = v + scale · (rgb − midlevel) · basis`. The
+basis is:
+
+| Space        | R → axis | G → axis | B → axis | Notes |
+|--------------|----------|----------|----------|-------|
+| `tangent`    | T        | B (bitangent) | N (normal) | Mudbox / Maya / ZBrush / Cycles tangent-bake convention. Requires a UV channel; if absent the loader silently falls back to `object`. |
+| `object`     | +X       | +Y       | +Z       | RGB is added directly to the mesh-local position. Independent of UV parametrisation — useful for sculpts shared across assets with different UVs. |
+
+| Field                 | Default     | Notes |
+|-----------------------|-------------|-------|
+| `displacement.mode`   | `"scalar"`  | `"scalar"` reads luminance and offsets along the normal; `"vector"` reads the full RGB as a 3D offset. |
+| `displacement.space`  | `"tangent"` | `"tangent"` or `"object"`. Vector mode only; ignored on scalar. Tangent mode requires a UV channel. |
+| `displacement.scale`  | `0.1`       | World-unit amplitude. In vector mode the full RGB triplet is multiplied component-wise. |
+| `displacement.midlevel` | `0`       | Subtracted from every channel. `0.5` for 8-bit signed-stored maps where 128 means flat (Mudbox/ZBrush default); `0` for signed-float EXRs. |
+| `displacement.uv_scale` | `1.0`     | Uniform UV multiplier. |
+| `displacement_bound`  | `\|scale\|·√3` (vector), `\|scale\|` (scalar) | Per-leaf BVH AABB padding. The vector default accounts for the L2 length of an offset whose three components can each reach `\|scale\|`. The loader warns when the actually-applied displacement exceeds the bound and prints the value to use. |
+
+**Tangent-space convention.** The engine derives per-vertex tangents
+from the UV gradient (Lengyel 2001 face-tangent formula), accumulates
+them angle-weighted across incident triangles, orthonormalises the
+result against the smooth normal via Gram-Schmidt, and preserves
+handedness from the accumulated bitangent (MikkTSpace's rule). This is
+the same convention every consumer of "tangent-space displacement
+maps" baked from Mudbox / Maya / ZBrush expects.
+
+**Pipeline order.** Identical to scalar: `subdivide → displace → triangulate
+→ BVH`. The displacement engine dispatches on `mode` and applies the
+corresponding offset; subdivision and BVH construction are unaware of
+which mode ran.
+
+**Bump + vector displacement.** The composition rule is the same as for
+scalar: the vector displacement handles the macro silhouette (including
+overhangs), and a material-level `bump_map` adds sub-pixel detail on
+top of the displaced shading normal. The recomputed normals after a
+vector displacement pass already reflect the new silhouette, including
+the parts that bend back on themselves, so the bump perturbation
+inherits the correct orientation automatically.
+
+The showcase scene `scenes/showcases/vector-displacement-showcase.yaml`
+puts three panels (scalar reference, vector tangent-space, vector
+object-space) side by side so the silhouette differences are visible
+at a glance, plus a CC×4 cube driven by ridged-fBm vector displacement
+that demonstrates the overhang-producing behaviour.
+
 #### **7.13 CSG (Boolean Operations)**
 ```yaml
 # Union (A ∪ B) — fuses two solids into one (e.g. snowman body + head)
