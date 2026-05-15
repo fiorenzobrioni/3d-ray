@@ -698,6 +698,42 @@ public class EntityData
     [YamlMember(Alias = "path")]
     public string? Path { get; set; }
 
+    // ── Mesh subdivision (Loop / Catmull-Clark) ─────────────────────────────
+
+    /// <summary>
+    /// Subdivision algorithm to apply to the loaded OBJ mesh before BVH
+    /// construction. One of <c>none</c> (default), <c>loop</c>,
+    /// <c>catmull_clark</c> (or <c>catmull-clark</c> / <c>cc</c>),
+    /// <c>auto</c>. <c>auto</c> picks Catmull-Clark for all-quad input,
+    /// Loop for all-triangle input, Catmull-Clark for mixed.
+    /// </summary>
+    [YamlMember(Alias = "subdivision_scheme")]
+    public string? SubdivisionScheme { get; set; }
+
+    /// <summary>
+    /// Number of uniform subdivision iterations. Each iteration multiplies
+    /// face count by 4 and roughly halves edge length. Clamped to
+    /// <c>[0, subdivision_max_iterations]</c>. Default 0 (no subdivision).
+    /// </summary>
+    [YamlMember(Alias = "subdivision_iterations")]
+    public int SubdivisionIterations { get; set; } = 0;
+
+    /// <summary>
+    /// Adaptive screen-space target: the loader picks the iteration count
+    /// that brings the mesh's longest projected edge below this many pixels.
+    /// Combined with the static <see cref="SubdivisionIterations"/> by
+    /// taking the max. 0 = disabled. Default 0.
+    /// </summary>
+    [YamlMember(Alias = "subdivision_pixel_error")]
+    public float SubdivisionPixelError { get; set; } = 0f;
+
+    /// <summary>
+    /// Upper bound for the iteration count, including the adaptive
+    /// estimate. Default 6 (4 096× face explosion ceiling).
+    /// </summary>
+    [YamlMember(Alias = "subdivision_max_iterations")]
+    public int SubdivisionMaxIterations { get; set; } = 6;
+
     // Plane
     [YamlMember(Alias = "normal")]
     public List<float>? Normal { get; set; }

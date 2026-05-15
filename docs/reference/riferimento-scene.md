@@ -874,6 +874,42 @@ entities:
 - Supporta il formato Wavefront OBJ
 - Costruisce automaticamente un BVH interno per intersezioni veloci
 
+##### **Superfici di suddivisione (Loop / Catmull-Clark)**
+
+Il loader può raffinare la mesh OBJ prima della costruzione del BVH
+usando gli stessi due algoritmi production-grade disponibili in Arnold,
+RenderMan, Cycles e nell'OpenSubdiv di Pixar:
+
+```yaml
+- name: "cubo_smussato"
+  type: "mesh"
+  path: "models/cube.obj"
+  material: "ceramica"
+  subdivision_scheme: "catmull_clark"     # loop | catmull_clark | auto | none
+  subdivision_iterations: 3               # passi di raffinamento uniforme
+```
+
+| Campo                       | Tipo   | Default | Note |
+|-----------------------------|--------|---------|------|
+| `subdivision_scheme`        | string | `none`  | `loop` (mesh triangolari), `catmull_clark` (mesh quad — accetta anche tri e n-gon alla prima iterazione), `auto` (sceglie CC per input quad puro, Loop per triangoli puri, CC negli altri casi), `none`. |
+| `subdivision_iterations`    | int    | `0`     | Numero di iterazioni uniformi. Ogni passo moltiplica il numero di facce per ≈ 4. |
+| `subdivision_pixel_error`   | float  | `0`     | Target screen-space adattivo. Il loader sceglie il numero di iterazioni che porta l'edge proiettato più lungo sotto questa soglia in pixel (usa la camera risolta della scena). Si combina con `subdivision_iterations` via `max(statico, adattivo)`. |
+| `subdivision_max_iterations`| int    | `6`     | Tetto rigido anche per la stima adattiva (limita l'esplosione 4^N delle facce). |
+
+- **Loop** (Charles Loop, 1987) — maschere di bordo come in Hoppe et al.
+  1994. Solo triangoli; gli n-gon in input vengono pre-triangolati a ventaglio.
+- **Catmull-Clark** (Catmull & Clark, 1978) — maschere di bordo
+  Hoppe / DeRose. L'input misto è gestito alla prima iterazione, dopo la
+  quale la mesh è tutta a quadrati.
+- Le normali per-vertice sono **ricalcolate dalla topologia limite** con
+  la media pesata sugli angoli (Max 1999 — default di Blender e Maya).
+  Le normali del file OBJ vengono propagate ma sostituite alla
+  triangolazione finale perché la superficie limite è più liscia
+  dell'input.
+- I canali UV passano attraverso la subdivision con maschere lineari
+  sul midpoint dell'edge (interpolazione vertex-varying come in OpenSubdiv).
+  Le cuciture UV che condividono la posizione ma non l'UV sono preservate.
+
 #### **7.13 CSG (Operazioni Booleane)**
 ```yaml
 # Union (A ∪ B) — fonde due solidi in uno solo (es. corpo + testa di un pupazzo di neve)

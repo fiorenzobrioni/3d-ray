@@ -354,6 +354,41 @@ Alias del tipo: `mesh`, `obj`.
 
 Tutti i campi di trasformazione standard (`translate`, `rotate`, `scale`) funzionano sulle mesh. I modelli OBJ vengono spesso esportati a scale molto diverse, quindi lo `scale` è frequentemente necessario.
 
+### 4.12.1 Superfici di Suddivisione (Loop / Catmull-Clark)
+
+Quando l'OBJ è low-poly, il renderer può raffinarlo al caricamento usando gli stessi due algoritmi production-grade disponibili in Arnold, RenderMan, Cycles e nell'OpenSubdiv di Pixar. Il risultato è la superficie limite verso cui convergono le regole di subdivision: la silhouette diventa completamente liscia dopo poche iterazioni.
+
+```yaml
+# Mesh quad → Catmull-Clark
+- type: "mesh"
+  path: "models/cube.obj"
+  material: "porcellana"
+  subdivision_scheme: "catmull_clark"
+  subdivision_iterations: 3
+
+# Mesh triangolare → Loop
+- type: "mesh"
+  path: "models/icosa.obj"
+  material: "rame"
+  subdivision_scheme: "loop"
+  subdivision_iterations: 4
+```
+
+| Campo                       | Default | Note |
+|-----------------------------|---------|------|
+| `subdivision_scheme`        | `none`  | `loop`, `catmull_clark`, `auto`, `none`. `auto` sceglie CC per input quad puro, Loop per triangoli puri, CC negli altri casi. |
+| `subdivision_iterations`    | `0`     | Numero di iterazioni uniformi. Il numero di facce cresce di ~4× ad ogni passo. |
+| `subdivision_pixel_error`   | `0`     | Target adattivo — il loader sceglie il numero di iterazioni che porta l'edge proiettato più lungo sotto questa soglia in pixel. |
+| `subdivision_max_iterations`| `6`     | Tetto rigido per evitare esplosioni di memoria. |
+
+Il loader stampa lo scheme e il numero di iterazioni effettivamente applicati:
+
+```
+Mesh: cubo_smussato — 768 faces, 8 vertices (subdivision: CatmullClark × 3)
+```
+
+Dietro le quinte il motore costruisce la topologia limite, ricalcola le normali per-vertice come media pesata sugli angoli delle facce incidenti (default di Blender/Maya) e poi emette i triangoli risultanti nel BVH interno della mesh. Le normali dell'OBJ vengono propagate attraverso le iterazioni di subdivision ma sostituite al momento della triangolazione finale perché la superficie limite è più liscia dell'input.
+
 ---
 
 ## 4.13 Riepilogo Alias dei Tipi
