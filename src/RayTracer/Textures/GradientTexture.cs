@@ -35,6 +35,14 @@ public class GradientTexture : ITexture
     public Vector3 Axis { get; set; } = Vector3.UnitX;
     public float Length { get; set; } = 1f;
 
+    /// <summary>
+    /// Optional multi-stop colour ramp. When set, the gradient parameter
+    /// <c>t ∈ [0, 1]</c> is looked up on the ramp instead of being linearly
+    /// blended between the two constructor colours — enables artist-friendly
+    /// sunsets, toon shading bands, heat maps, etc.
+    /// </summary>
+    public ColorRamp? ColorRamp { get; set; }
+
     public GradientTexture(Vector3 colorA, Vector3 colorB)
     {
         _colorA = colorA;
@@ -79,6 +87,6 @@ public class GradientTexture : ITexture
             _                      => t,
         };
 
-        return Vector3.Lerp(_colorA, _colorB, t);
+        return ColorRamp is { } ramp ? ramp.Sample(t) : Vector3.Lerp(_colorA, _colorB, t);
     }
 }

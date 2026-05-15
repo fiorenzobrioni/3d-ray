@@ -61,6 +61,14 @@ public class MarbleTexture : ITexture
     public float Distortion { get; set; } = 0f;
     public FractalKind NoiseType { get; set; } = FractalKind.Turbulence;
 
+    /// <summary>
+    /// Optional multi-stop colour ramp. When set, the sine-wave vein parameter
+    /// <c>t ∈ [0, 1]</c> is looked up on the ramp instead of being linearly
+    /// blended between vein and base colours — unlocks Statuario / Calacatta
+    /// looks with 3+ tonal layers (vein → mid → base → undertone).
+    /// </summary>
+    public ColorRamp? ColorRamp { get; set; }
+
     public MarbleTexture(float scale = 4f)
         : this(scale, new Vector3(0.9f), new Vector3(0.1f)) { }
 
@@ -101,6 +109,14 @@ public class MarbleTexture : ITexture
             // sharpening: t^k pulls the gradient toward the vein color, producing
             // thin high-contrast veins as k grows (k = 4 ≈ Carrara marble).
             t = MathF.Pow(t, VeinSharpness);
+        }
+
+        if (ColorRamp is { } ramp)
+        {
+            // Ramp drives the colour directly: t = 0 → first stop (typically
+            // the vein), t = 1 → last stop (typically the base). The two
+            // constructor colours are ignored when a ramp is present.
+            return ramp.Sample(t);
         }
 
         Vector3 cBase = _baseColor.Value(u, v, transformedP, objectSeed);

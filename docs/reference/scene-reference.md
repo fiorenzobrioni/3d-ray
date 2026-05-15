@@ -617,6 +617,44 @@ rotation: [0.0, 45.0, 0.0]               # Rotation (degrees)
 randomize_offset: true                    # Per-object variation
 randomize_rotation: true
 ```
+
+**Multi-stop color ramp (`color_ramp:`)** — optional override of the
+implicit two-colour lerp on `noise`, `marble`, `wood`, `voronoi` and
+`gradient`. Mirrors Cycles' ColorRamp node, Arnold's `ramp_rgb` and
+RenderMan's `PxrRamp`:
+```yaml
+texture:
+  type: "marble"
+  vein_sharpness: 4.0
+  color_ramp:
+    - { position: 0.00, color: [0.05, 0.05, 0.07], interp: "smoothstep" }
+    - { position: 0.45, color: [0.55, 0.45, 0.32], interp: "linear"     }
+    - { position: 0.55, color: [0.95, 0.93, 0.88], interp: "linear"     }
+    - { position: 1.00, color: [0.05, 0.05, 0.07], interp: "linear"     }
+```
+- `position` ∈ [0, 1] — clamped if outside; stops auto-sort by position.
+- `color: [r, g, b]` — linear-space RGB.
+- `interp` (per stop, controls the *outgoing* segment toward the next stop):
+  - `linear` — straight lerp (default).
+  - `smoothstep` — Hermite cubic `3t² − 2t³` (C¹ continuity, the smooth
+    transition Cycles uses for "Ease").
+  - `ease` — Perlin smootherstep `6t⁵ − 15t⁴ + 10t³` (C² continuity, the
+    quintic curve with zero first and second derivative at both endpoints
+    — broad photo-real shoulders).
+  - `constant` — hold the colour until the next stop (step function).
+- Below the first position the first colour holds; above the last
+  position the last colour holds.
+- Coincident stops (same `position`) produce a hard break — artist trick
+  for sharp transitions.
+- The two-colour `colors:` shorthand still works as a 2-stop linear
+  ramp; supplying `color_ramp:` overrides it (`colors:` is ignored when
+  both are present). Existing scenes that never set `color_ramp:` render
+  byte-identical to before.
+
+Unlocks: Statuario / Calacatta marble (vein → mid → base → undertone),
+sapwood / heartwood / knot wood, photo-real sunset gradients, toon-shade
+bands, heat-map false-colours, custom voronoi-driven palettes.
+
 #### **Image Texture:**
 ```yaml
 texture:
@@ -628,6 +666,11 @@ texture:
 - Automatically converted from sRGB to linear
 - Bilinear filtering for smoothness
 - Wrapping for seamless tiling
+- Analytic anti-aliasing (mipmap + EWA anisotropic) when ray differentials
+  are available — enabled by default; toggle from the CLI with
+  `--texture-filtering <auto|on|off>` (see [rendering-profiles.md §6c](./rendering-profiles.md)).
+  The same flag also drives the analytic octave clamp on procedural
+  noise/fBm/marble/wood/voronoi.
 #### **Normal Map:**
 ```yaml
 normal_map:

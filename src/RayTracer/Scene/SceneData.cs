@@ -701,6 +701,25 @@ public class TextureData
 
     [YamlMember(Alias = "length")]
     public float? Length { get; set; }
+
+    // Multi-stop colour ramp. When set, overrides the two-colour lerp built
+    // from `colors:` on every procedural texture (noise/marble/wood/voronoi/
+    // gradient). Each stop carries the interpolation kind used on its
+    // outgoing segment (toward the next stop), matching Blender's convention.
+    [YamlMember(Alias = "color_ramp")]
+    public List<ColorRampStopData>? ColorRamp { get; set; }
+}
+
+public class ColorRampStopData
+{
+    [YamlMember(Alias = "position")]
+    public float Position { get; set; }
+
+    [YamlMember(Alias = "color")]
+    public List<float>? Color { get; set; }
+
+    [YamlMember(Alias = "interp")]
+    public string? Interp { get; set; }
 }
 
 public class EntityData

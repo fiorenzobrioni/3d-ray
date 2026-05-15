@@ -52,6 +52,15 @@ public class VoronoiTexture : ITexture
     public float Randomness { get; set; } = 1f;
     public float Distortion { get; set; } = 0f;
 
+    /// <summary>
+    /// Optional multi-stop colour ramp. When set, the normalised distance
+    /// value <c>t ∈ [0, 1]</c> is looked up on the ramp instead of being
+    /// linearly blended between the two constructor colours. Ignored when
+    /// <see cref="Output"/> is <see cref="OutputMode.Cell"/>, which already
+    /// uses per-cell hashed colour and bypasses the lerp.
+    /// </summary>
+    public ColorRamp? ColorRamp { get; set; }
+
     public VoronoiTexture(float scale)
         : this(scale, Vector3.Zero, Vector3.One) { }
 
@@ -170,6 +179,6 @@ public class VoronoiTexture : ITexture
         };
         t = Math.Clamp(t, 0f, 1f);
 
-        return Vector3.Lerp(_colorA, _colorB, t);
+        return ColorRamp is { } ramp ? ramp.Sample(t) : Vector3.Lerp(_colorA, _colorB, t);
     }
 }

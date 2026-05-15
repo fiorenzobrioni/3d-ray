@@ -1283,6 +1283,7 @@ public class SceneLoader
             if (t.Lacunarity.HasValue)   nt.Lacunarity = t.Lacunarity.Value;
             if (t.Gain.HasValue)         nt.Gain       = t.Gain.Value;
             if (t.Distortion.HasValue)   nt.Distortion = t.Distortion.Value;
+            nt.ColorRamp = BuildColorRamp(t.ColorRamp, "noise");
         }
         else if (tex is MarbleTexture mt)
         {
@@ -1299,6 +1300,7 @@ public class SceneLoader
             if (t.Gain.HasValue)          mt.Gain          = t.Gain.Value;
             if (t.Distortion.HasValue)    mt.Distortion    = t.Distortion.Value;
             if (t.NoiseTypeName != null)  mt.NoiseType     = ParseMarbleFractalKind(t.NoiseTypeName);
+            mt.ColorRamp = BuildColorRamp(t.ColorRamp, "marble");
         }
         else if (tex is WoodTexture wt)
         {
@@ -1314,6 +1316,7 @@ public class SceneLoader
             if (t.Lacunarity.HasValue)    wt.Lacunarity    = t.Lacunarity.Value;
             if (t.Gain.HasValue)          wt.Gain          = t.Gain.Value;
             if (t.Distortion.HasValue)    wt.Distortion    = t.Distortion.Value;
+            wt.ColorRamp = BuildColorRamp(t.ColorRamp, "wood");
         }
         else if (tex is VoronoiTexture vt)
         {
@@ -1325,6 +1328,7 @@ public class SceneLoader
             if (t.Output != null)      vt.Output     = ParseVoronoiOutput(t.Output);
             if (t.Randomness.HasValue) vt.Randomness = Math.Clamp(t.Randomness.Value, 0f, 1f);
             if (t.Distortion.HasValue) vt.Distortion = t.Distortion.Value;
+            vt.ColorRamp = BuildColorRamp(t.ColorRamp, "voronoi");
         }
         else if (tex is BrickTexture bt)
         {
@@ -1348,6 +1352,7 @@ public class SceneLoader
             if (t.Mode != null)   gt.Mode   = ParseGradientMode(t.Mode);
             if (t.Axis != null)   gt.Axis   = ToVector3(t.Axis) ?? Vector3.UnitX;
             if (t.Length.HasValue) gt.Length = t.Length.Value;
+            gt.ColorRamp = BuildColorRamp(t.ColorRamp, "gradient");
         }
     }
 
@@ -1399,6 +1404,45 @@ public class SceneLoader
             "radial" or "cylinder" or "cylindrical" => GradientTexture.GradientMode.Radial,
             _                                   => GradientTexture.GradientMode.Linear,
         };
+
+    private static ColorRamp.Interp ParseRampInterp(string? s) =>
+        s?.Trim().ToLowerInvariant() switch
+        {
+            "smoothstep" or "smooth"         => ColorRamp.Interp.Smoothstep,
+            "constant" or "step" or "hold"   => ColorRamp.Interp.Constant,
+            "ease" or "easing" or "smoother" => ColorRamp.Interp.Ease,
+            _                                => ColorRamp.Interp.Linear,
+        };
+
+    /// <summary>
+    /// Builds a <see cref="ColorRamp"/> from the YAML <c>color_ramp:</c>
+    /// list. Returns <c>null</c> when the list is null/empty so the caller
+    /// can fall back to the legacy two-colour lerp. Invalid stops (missing
+    /// or short colour triplet) are skipped with a deferred warning; if no
+    /// valid stops survive, the result is null.
+    /// </summary>
+    private static ColorRamp? BuildColorRamp(List<ColorRampStopData>? stops, string textureLabel)
+    {
+        if (stops is null || stops.Count == 0) return null;
+
+        var built = new List<ColorRamp.Stop>(stops.Count);
+        foreach (var s in stops)
+        {
+            Vector3? col = ToVector3(s.Color);
+            if (!col.HasValue)
+            {
+                Warn($"color_ramp stop on '{textureLabel}' missing 3-component color, skipped.");
+                continue;
+            }
+            built.Add(new ColorRamp.Stop(s.Position, col.Value, ParseRampInterp(s.Interp)));
+        }
+        if (built.Count == 0)
+        {
+            Warn($"color_ramp on '{textureLabel}' has no valid stops, falling back to colors:.");
+            return null;
+        }
+        return new ColorRamp(built);
+    }
 
     private static IHittable? CreateEntity(EntityData e, IMaterial mat, int entityIndex = 0)
     {
