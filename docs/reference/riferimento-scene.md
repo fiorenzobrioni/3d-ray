@@ -973,6 +973,76 @@ gestisce la macro-silhouette (posizioni dei vertici, BVH) e il bump
 aggiunge il dettaglio sub-pixel sulla normale di shading già modificata.
 Replica il workflow "autobump" di Arnold.
 
+##### **Vector displacement (RGB → offset XYZ)**
+
+Un height field scalare può solo spingere i micro-vertici verso fuori
+(o verso l'interno) lungo la normale di shading — un vincolo che
+esclude **overhang**, **crinkles** e qualunque feature che si pieghi
+su se stessa. Il **vector displacement** rimuove questo vincolo
+interpretando il triplet RGB della texture come offset 3D completo:
+
+```yaml
+- name: "sculpt_panel"
+  type: "mesh"
+  path: "models/plane.obj"
+  material: "stone"
+  subdivision_scheme: "catmull_clark"
+  subdivision_iterations: 6
+  displacement:
+    mode: "vector"                            # default è "scalar"
+    space: "tangent"                          # oppure "object"
+    texture:
+      type: "image"
+      path: "textures/sculpt_vector_disp.exr" # qualunque ITexture RGB
+    scale: 0.5
+    midlevel: 0.5                             # 0.5 per storage 8-bit unsigned; 0 per EXR float signed
+  displacement_bound: 0.9
+```
+
+L'aggiornamento dei vertici è `v' = v + scale · (rgb − midlevel) · basis`.
+Il basis dipende dallo `space`:
+
+| Space        | R → asse | G → asse | B → asse | Note |
+|--------------|----------|----------|----------|------|
+| `tangent`    | T        | B (bitangente) | N (normale) | Convenzione Mudbox / Maya / ZBrush / Cycles tangent-bake. Richiede UV; se mancano il loader passa silenziosamente a `object`. |
+| `object`     | +X       | +Y       | +Z       | RGB sommato direttamente alla posizione locale della mesh. Indipendente dalla parametrizzazione UV — utile per sculpt condivisi tra asset con UV diversi. |
+
+| Campo                 | Default     | Note |
+|-----------------------|-------------|------|
+| `displacement.mode`   | `"scalar"`  | `"scalar"` legge la luminanza e sposta lungo la normale; `"vector"` legge l'RGB completo come offset 3D. |
+| `displacement.space`  | `"tangent"` | `"tangent"` o `"object"`. Solo in vector mode; ignorato in scalar. Tangent richiede UV. |
+| `displacement.scale`  | `0.1`       | Ampiezza in unità di mondo. In vector mode moltiplica componente per componente l'intero RGB. |
+| `displacement.midlevel` | `0`       | Sottratto da ogni canale. `0.5` per mappe 8-bit signed-stored dove 128 significa piatto (default Mudbox/ZBrush); `0` per EXR signed-float. |
+| `displacement.uv_scale` | `1.0`     | Moltiplicatore UV uniforme. |
+| `displacement_bound`  | `\|scale\|·√3` (vector), `\|scale\|` (scalar) | Padding AABB foglia BVH. Il default vector copre la lunghezza L2 di un offset le cui tre componenti possono ciascuna arrivare a `\|scale\|`. Il loader emette un warning quando il displacement applicato supera il bound, indicando il valore corretto. |
+
+**Convenzione tangent-space.** L'engine deriva le tangenti per-vertex
+dal gradiente UV (formula di Lengyel 2001), le accumula pesate per
+angolo sui triangoli incidenti, le ortonormalizza contro la normale
+smooth via Gram-Schmidt e preserva l'handedness dalla bitangente
+accumulata (regola di MikkTSpace). È la stessa convenzione che ogni
+consumer di "tangent-space displacement maps" bakate da Mudbox / Maya /
+ZBrush si aspetta.
+
+**Ordine pipeline.** Identico allo scalar: `subdivide → displace →
+triangulate → BVH`. L'engine dispatcha sul `mode` e applica l'offset
+corrispondente; subdivision e costruzione BVH non sanno quale modalità
+è girata.
+
+**Bump + vector displacement.** La regola di composizione è la stessa
+dello scalar: il vector displacement gestisce la macro-silhouette
+(incluse parti con overhang) e un `bump_map` a livello materiale aggiunge
+il dettaglio sub-pixel sopra alla normale già modificata. Le normali
+ricalcolate dopo il vector pass riflettono già la nuova silhouette,
+incluse le parti che si piegano su se stesse, così la perturbazione bump
+eredita automaticamente l'orientamento corretto.
+
+La scena showcase `scenes/showcases/vector-displacement-showcase.yaml`
+affianca tre pannelli (riferimento scalar, vector tangent-space, vector
+object-space) per vedere le differenze di silhouette a colpo d'occhio,
+più un cubo CC×4 con ridged-fBm vector displacement che dimostra il
+comportamento overhang-producing.
+
 #### **7.13 CSG (Operazioni Booleane)**
 ```yaml
 # Union (A ∪ B) — fonde due solidi in uno solo (es. corpo + testa di un pupazzo di neve)

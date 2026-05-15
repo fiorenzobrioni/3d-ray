@@ -376,4 +376,274 @@ public class DisplacementTests
         }
         return m;
     }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Step 4 — vector displacement (RGB → XYZ offset)
+    //
+    // Validates:
+    //   • Tangent-space mode maps R→T, G→B, B→N exactly on a flat quad
+    //     with the canonical UV winding (T=+X, B=+Z, N=+Y).
+    //   • Object-space mode treats RGB as a raw local-space offset.
+    //   • Midlevel offsets a vector channel by the same constant value.
+    //   • Tangent-space requested without a UV channel falls back to
+    //     object-space silently (Arnold's "no UVs" behaviour).
+    //   • maxDisplacement reports the Euclidean length, not the per-axis
+    //     amplitude (so the bound covers the actual sphere of motion).
+    //   • Pure-N tangent-space vector displacement reproduces the scalar
+    //     height-field result exactly.
+    // ═════════════════════════════════════════════════════════════════════
+
+    /// <summary>Uniform RGB texture: returns the same color everywhere.</summary>
+    private sealed class ConstRgb : ITexture
+    {
+        private readonly Vector3 _c;
+        public ConstRgb(Vector3 c) { _c = c; }
+        public Vector3 Value(float u, float v, Vector3 p, int seed) => _c;
+    }
+
+    [Fact]
+    public void Vector_Tangent_ChannelMapping_MatchesTBN()
+    {
+        // Flat unit quad: positions at (0,0,0)→(0,0,1)→(1,0,1)→(1,0,0) with
+        // UVs (0,0)→(0,1)→(1,1)→(1,0). The UV gradient implies T = +X
+        // (d(p)/d(u) = +X), B = +Z (d(p)/d(v) = +Z), N = +Y. Apply a
+        // uniform RGB = (0.4, 0.7, 0.1) with midlevel 0 and scale 1; the
+        // expected per-vertex offset is (0.4, 0.1, 0.7).
+        var m = BuildFlatQuad();
+        var opts = new DisplacementOptions
+        {
+            Mode = DisplacementMode.Vector,
+            Space = DisplacementSpace.Tangent,
+            Texture = new ConstRgb(new Vector3(0.4f, 0.7f, 0.1f)),
+            Scale = 1f, Midlevel = 0f, Bound = 1f, UvScale = 1f,
+        };
+
+        DisplacementEngine.Apply(m, opts, 0);
+
+        foreach (var p in m.Positions)
+        {
+            // Position[0] starts at (0,0,0); compare its delta from the
+            // pre-displacement quad. All four vertices receive the same
+            // uniform offset since the texture is constant.
+            // Vertex 0 expected at (0+0.4, 0+0.1, 0+0.7) = (0.4, 0.1, 0.7).
+            // Vertex 1 expected at (0+0.4, 0+0.1, 1+0.7) = (0.4, 0.1, 1.7).
+            // Vertex 2 expected at (1+0.4, 0+0.1, 1+0.7) = (1.4, 0.1, 1.7).
+            // Vertex 3 expected at (1+0.4, 0+0.1, 0+0.7) = (1.4, 0.1, 0.7).
+        }
+        Assert.Equal(0.4f, m.Positions[0].X, 4);
+        Assert.Equal(0.1f, m.Positions[0].Y, 4);
+        Assert.Equal(0.7f, m.Positions[0].Z, 4);
+
+        Assert.Equal(0.4f, m.Positions[1].X, 4);
+        Assert.Equal(0.1f, m.Positions[1].Y, 4);
+        Assert.Equal(1.7f, m.Positions[1].Z, 4);
+
+        Assert.Equal(1.4f, m.Positions[2].X, 4);
+        Assert.Equal(0.1f, m.Positions[2].Y, 4);
+        Assert.Equal(1.7f, m.Positions[2].Z, 4);
+
+        Assert.Equal(1.4f, m.Positions[3].X, 4);
+        Assert.Equal(0.1f, m.Positions[3].Y, 4);
+        Assert.Equal(0.7f, m.Positions[3].Z, 4);
+    }
+
+    [Fact]
+    public void Vector_Object_TreatsRgbAsRawXyz()
+    {
+        // Same flat quad. Object-space mode bypasses the TBN: RGB =
+        // (0.3, 0.6, 0.9) is the offset directly. Every vertex moves by
+        // (0.3·scale, 0.6·scale, 0.9·scale).
+        var m = BuildFlatQuad();
+        var opts = new DisplacementOptions
+        {
+            Mode = DisplacementMode.Vector,
+            Space = DisplacementSpace.Object,
+            Texture = new ConstRgb(new Vector3(0.3f, 0.6f, 0.9f)),
+            Scale = 0.5f, Midlevel = 0f, Bound = 1f, UvScale = 1f,
+        };
+
+        DisplacementEngine.Apply(m, opts, 0);
+
+        // Vertex 0 starts at (0,0,0) → (0.15, 0.30, 0.45).
+        Assert.Equal(0.15f, m.Positions[0].X, 4);
+        Assert.Equal(0.30f, m.Positions[0].Y, 4);
+        Assert.Equal(0.45f, m.Positions[0].Z, 4);
+
+        // Vertex 2 starts at (1,0,1) → (1.15, 0.30, 1.45).
+        Assert.Equal(1.15f, m.Positions[2].X, 4);
+        Assert.Equal(0.30f, m.Positions[2].Y, 4);
+        Assert.Equal(1.45f, m.Positions[2].Z, 4);
+    }
+
+    [Fact]
+    public void Vector_Midlevel_RemapsRgbAroundZero()
+    {
+        // RGB = (0.5, 0.5, 0.5) with midlevel 0.5 → all channels (0,0,0) →
+        // no displacement. Same RGB with midlevel 0 → offset = scale·(0.5,
+        // 0.5, 0.5).
+        var m = BuildFlatQuad();
+        var before = m.Positions.ToArray();
+
+        var optsCentered = new DisplacementOptions
+        {
+            Mode = DisplacementMode.Vector,
+            Space = DisplacementSpace.Object,
+            Texture = new ConstRgb(new Vector3(0.5f, 0.5f, 0.5f)),
+            Scale = 1f, Midlevel = 0.5f, Bound = 1f, UvScale = 1f,
+        };
+        DisplacementEngine.Apply(m, optsCentered, 0);
+
+        for (int i = 0; i < before.Length; i++)
+        {
+            Assert.Equal(before[i].X, m.Positions[i].X, 5);
+            Assert.Equal(before[i].Y, m.Positions[i].Y, 5);
+            Assert.Equal(before[i].Z, m.Positions[i].Z, 5);
+        }
+    }
+
+    [Fact]
+    public void Vector_NoUv_FallsBackToObjectSpace()
+    {
+        // Flat triangle pair, no UV channel, tangent-space mode requested.
+        // The engine silently demotes to object space (the safe production
+        // behaviour) so the offset is applied directly.
+        var m = BuildFlatSquareTris();
+        var opts = new DisplacementOptions
+        {
+            Mode = DisplacementMode.Vector,
+            Space = DisplacementSpace.Tangent, // requested...
+            Texture = new ConstRgb(new Vector3(0.2f, 0.4f, 0.6f)),
+            Scale = 1f, Midlevel = 0f, Bound = 1f, UvScale = 1f,
+        };
+
+        DisplacementEngine.Apply(m, opts, 0);
+
+        // Vertex 0 was at (0,0,0): expected at (0.2, 0.4, 0.6).
+        Assert.Equal(0.2f, m.Positions[0].X, 5);
+        Assert.Equal(0.4f, m.Positions[0].Y, 5);
+        Assert.Equal(0.6f, m.Positions[0].Z, 5);
+    }
+
+    [Fact]
+    public void Vector_MaxDisplacementReport_IsEuclideanLength()
+    {
+        // Tangent-space mode on the flat quad, RGB = (0.3, 0.4, 0.0).
+        // Per-vertex offset = (0.3, 0.0, 0.4) in world (since R→T=+X,
+        // G→B=+Z, B→N=+Y; here R goes to +X, G goes to +Z, B=0 → Y=0).
+        // Wait — convention is R→T, G→B (bitangent), B→N (normal). With
+        // T=+X, B=+Z, N=+Y: offset = (R, B, G) in world = (0.3, 0.0, 0.4).
+        // Euclidean length = sqrt(0.09 + 0 + 0.16) = sqrt(0.25) = 0.5.
+        var m = BuildFlatQuad();
+        var opts = new DisplacementOptions
+        {
+            Mode = DisplacementMode.Vector,
+            Space = DisplacementSpace.Tangent,
+            Texture = new ConstRgb(new Vector3(0.3f, 0.4f, 0.0f)),
+            Scale = 1f, Midlevel = 0f, Bound = 1f, UvScale = 1f,
+        };
+        float maxDisp = DisplacementEngine.Apply(m, opts, 0);
+        Assert.Equal(0.5f, maxDisp, 4);
+    }
+
+    [Fact]
+    public void Vector_PureNormalChannel_MatchesScalarHeightField()
+    {
+        // Vector tangent-space displacement with RGB = (0, 0, 1) and scale
+        // 0.3 produces the same result as scalar displacement with luminance
+        // 1 and scale 0.3: every vertex moves +Y by 0.3 on the flat quad.
+        var mScalar = BuildFlatQuad();
+        var mVector = BuildFlatQuad();
+
+        var scalarOpts = new DisplacementOptions
+        {
+            Mode = DisplacementMode.Scalar,
+            Texture = new ConstLevel(1f),
+            Scale = 0.3f, Midlevel = 0f, Bound = 0.3f, UvScale = 1f,
+        };
+        var vectorOpts = new DisplacementOptions
+        {
+            Mode = DisplacementMode.Vector,
+            Space = DisplacementSpace.Tangent,
+            Texture = new ConstRgb(new Vector3(0f, 0f, 1f)),
+            Scale = 0.3f, Midlevel = 0f, Bound = 0.3f, UvScale = 1f,
+        };
+
+        DisplacementEngine.Apply(mScalar, scalarOpts, 0);
+        DisplacementEngine.Apply(mVector, vectorOpts, 0);
+
+        for (int i = 0; i < mScalar.Positions.Count; i++)
+        {
+            Assert.Equal(mScalar.Positions[i].X, mVector.Positions[i].X, 5);
+            Assert.Equal(mScalar.Positions[i].Y, mVector.Positions[i].Y, 5);
+            Assert.Equal(mScalar.Positions[i].Z, mVector.Positions[i].Z, 5);
+        }
+    }
+
+    [Fact]
+    public void Vector_Disabled_LeavesPositionsUntouched()
+    {
+        var m = BuildFlatQuad();
+        var before = m.Positions.ToArray();
+        var opts = new DisplacementOptions
+        {
+            Mode = DisplacementMode.Vector,
+            Space = DisplacementSpace.Tangent,
+            Texture = new ConstRgb(new Vector3(1, 1, 1)),
+            Scale = 0f, Midlevel = 0f, Bound = 0f, UvScale = 1f,
+        };
+        Assert.False(opts.IsActive);
+        float maxDisp = DisplacementEngine.Apply(m, opts, 0);
+        Assert.Equal(0f, maxDisp);
+        for (int i = 0; i < before.Length; i++)
+            Assert.Equal(before[i], m.Positions[i]);
+    }
+
+    [Fact]
+    public void Vector_DisplacedSphereSurface_AABBGrowsOnAllSides()
+    {
+        // Catmull-Clark cube → quasi-sphere with vertex-varying UVs only on
+        // the original quad seams (none for an interior PolyMesh). Object-
+        // space vector displacement with constant offset (0.1, 0.1, 0.1)
+        // translates every vertex by that constant; the AABB shifts but
+        // doesn't grow. To make it actually grow, sign-vary the offset by
+        // luminance of position — a custom test texture below.
+        var m = BuildUnitCubeQuads();
+        CatmullClarkSubdivider.Subdivide(m, 2);
+        var (preMin, preMax) = m.BoundingBox();
+
+        // Apply object-space displacement that pushes every vertex outward
+        // along its own position direction (proxy for "all directions").
+        var opts = new DisplacementOptions
+        {
+            Mode = DisplacementMode.Vector,
+            Space = DisplacementSpace.Object,
+            Texture = new RadialOutward(0.15f),
+            Scale = 1f, Midlevel = 0f, Bound = 0.3f, UvScale = 1f,
+        };
+        DisplacementEngine.Apply(m, opts, 0);
+
+        var (postMin, postMax) = m.BoundingBox();
+        Assert.True(postMax.X > preMax.X);
+        Assert.True(postMax.Y > preMax.Y);
+        Assert.True(postMax.Z > preMax.Z);
+        Assert.True(postMin.X < preMin.X);
+        Assert.True(postMin.Y < preMin.Y);
+        Assert.True(postMin.Z < preMin.Z);
+    }
+
+    /// <summary>
+    /// Test texture: returns <c>amount * normalize(p)</c> as RGB, so vector
+    /// displacement pushes each vertex radially outward from the origin.
+    /// </summary>
+    private sealed class RadialOutward : ITexture
+    {
+        private readonly float _amount;
+        public RadialOutward(float amount) { _amount = amount; }
+        public Vector3 Value(float u, float v, Vector3 p, int seed)
+        {
+            float len = p.Length();
+            if (len < 1e-6f) return Vector3.Zero;
+            return p * (_amount / len);
+        }
+    }
 }

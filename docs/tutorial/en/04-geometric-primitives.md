@@ -491,6 +491,61 @@ puts four panels (flat reference, fBm noise, Voronoi cracks, and a
 ridged-fBm asteroid) side by side so you can compare silhouettes
 directly.
 
+### 4.12.3 Vector Displacement (overhangs and crinkles)
+
+Scalar displacement can only push vertices along the normal — no
+overhang, no detail that bends back on itself. **Vector displacement**
+extends the same pipeline by reading the full RGB triplet of the
+texture as a 3D offset, exactly the way Mudbox / Maya / ZBrush bake
+hi-res sculpts onto a low-poly cage:
+
+```yaml
+- type: "mesh"
+  path: "models/plane.obj"
+  material: "stone"
+  subdivision_scheme: "catmull_clark"
+  subdivision_iterations: 6
+  displacement:
+    mode: "vector"                            # default "scalar"
+    space: "tangent"                          # or "object"
+    texture:
+      type: "image"
+      path: "textures/sculpt_vector_disp.exr"
+    scale: 0.5
+    midlevel: 0.5                             # 0.5 for unsigned, 0 for signed EXR
+  displacement_bound: 0.9
+```
+
+The vertex update is `v' = v + scale · (rgb − midlevel) · basis`. In
+**tangent space** (the standard sculpt-bake convention) `R → T`,
+`G → B`, `B → N`: the channels of the texture map to the per-vertex
+tangent / bitangent / normal frame derived from the UV gradient. In
+**object space** the RGB triplet is added directly to the local-space
+position, no TBN rotation. Tangent-space mode requires a UV channel;
+without one the loader silently falls back to object space (same
+behaviour Arnold has).
+
+| Field                  | Default     | Notes |
+|------------------------|-------------|-------|
+| `displacement.mode`    | `"scalar"`  | `"scalar"` (height-field, step 4.12.2) or `"vector"` (RGB → XYZ). |
+| `displacement.space`   | `"tangent"` | `"tangent"` or `"object"`. Vector mode only. |
+| `displacement.scale`   | `0.1`       | World-unit amplitude per channel. |
+| `displacement.midlevel`| `0`         | Subtracted from every channel. Use `0.5` for unsigned 8-bit storage. |
+| `displacement_bound`   | `\|scale\|·√3` (vector) / `\|scale\|` (scalar) | Per-leaf BVH AABB padding. |
+
+**Convention.** Tangent-space vector-displacement maps baked from
+Mudbox / Maya / ZBrush expect `R → T`, `G → B`, `B → N`; the engine
+derives the per-vertex TBN from the UV gradient (Lengyel-style face
+tangents, angle-weighted accumulation, Gram-Schmidt orthonormalisation,
+MikkTSpace-style handedness preservation) so a map baked in any of
+those packages drops in directly.
+
+**Showcase.** `scenes/showcases/vector-displacement-showcase.yaml`
+puts a scalar reference panel next to a tangent-space and an
+object-space vector-displacement panel driven by the same noise, plus
+a CC×4 cube with ridged-fBm vector displacement that demonstrates the
+overhang-producing behaviour.
+
 ---
 
 ## 4.13 Type Alias Summary
