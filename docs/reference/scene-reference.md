@@ -247,6 +247,12 @@ cameras:
     fov: 35
     aperture: 0.0
     focal_dist: 12
+  - name: "subject"
+    position: [0, 2, -8]
+    look_at: [0, 0, 0]
+    fov: 45
+    aperture: 0.1
+    focal_pos: [0.5, 0.6, 1.0]            # focus on this point — see below
 ```
 #### **Single Camera** (legacy):
 ```yaml
@@ -256,7 +262,8 @@ camera:
   vup: [0, 1, 0]                          # "Up" vector (for roll)
   fov: 60                                  # Vertical field of view (degrees)
   aperture: 0.1                            # Lens diameter (0 = pinhole)
-  focal_dist: 8.0                          # Distance to focus plane
+  focal_dist: 8.0                          # Distance to focus plane (scalar)
+  # focal_pos: [0.5, 0.6, 1.0]            # Alternative: focus on a 3D point
 ```
 **Usage from CLI:**
 ```bash
@@ -264,7 +271,17 @@ dotnet run ... -- -i scene.yaml --list-cameras      # List available
 dotnet run ... -- -i scene.yaml -c top -o top.png   # By name
 dotnet run ... -- -i scene.yaml -c 1 -o cam1.png    # By index (0-based)
 ```
-**⚠️ Depth of Field:** When `aperture > 0`, set `focal_dist` to the actual distance from camera to your main subject (measure in world units). Default `focal_dist: 1.0` will create unintended extreme blur.
+**⚠️ Depth of Field:** When `aperture > 0`, set `focal_dist` (or `focal_pos`) to the actual distance / world-space point of your main subject. Default `focal_dist: 1.0` will create unintended extreme blur.
+
+#### **`focal_pos` — focus on a point (Arnold/Cycles "Focus Object")**
+`focal_pos: [x, y, z]` is an alternative to the scalar `focal_dist`. The loader computes the focus distance as the **projection** of the camera→focal-point vector onto the optical axis:
+```
+forward    = normalize(look_at − position)
+focusDist  = dot(focal_pos − position, forward)
+```
+The focus plane is perpendicular to the view direction passing through `focal_pos`, so the value is a **projection, not a Euclidean distance**. A focal point off-axis at `(3, 4, -5)` with the camera at the origin looking along `−Z` yields focus distance `5`, not `√50 ≈ 7.07`. This matches Arnold ("Focus Object"), Cycles ("Focal Object/Distance") and RenderMan.
+
+When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info message is logged). `focal_pos` is ignored with a warning when it falls behind the camera, coincides with it, or the camera is degenerate (`look_at == position`); the scalar `focal_dist` is used as fallback.
 ---
 ### 5. **MATERIALS SECTION** — Six Types
 #### **5.1 Lambertian (Diffuse/Matte)**
@@ -537,6 +554,18 @@ entities:
 ```
 ---
 ### 7. **ENTITIES SECTION** — 3D Objects
+
+**Common per-entity fields** (apply to every type below: primitive, csg, mesh,
+group, instance):
+
+| Field | Default | Notes |
+|-------|---------|-------|
+| `name` | — | Optional label for logging / debugging |
+| `material` | inherited | Material ID, resolved from the `materials` block |
+| `seed` | auto | Stable integer that drives procedural texture variation; auto-derived from name+type+index when omitted |
+| `visible_to_camera` | `true` | Hide from primary camera rays only. Mirrors Arnold's `camera` visibility flag and Cycles' "Ray Visibility → Camera": the entity still appears in specular reflections/refractions, still receives and casts indirect illumination, and (if emissive) still contributes to direct lighting via NEE. Typical use: emissive panel that acts as a fill light but should not show up as a bright rectangle in the frame, off-screen practicals visible only via reflections. Set on a `group` to propagate to every child. |
+| `scale`, `rotate`, `translate` | identity | Optional local transform (applied scale → rotate → translate) |
+
 #### **7.1 Sphere**
 ```yaml
 - name: "ball"
@@ -1063,6 +1092,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
   intensity: 35.0                          # Range: 15–60
   shadow_samples: 4                        # Samples per point (default)
   soft_radius: 0.0                         # Optional. >0 = floor distSq in cosLight/d²
+  visible_to_camera: true                  # Optional. false = hide proxy from primary rays
 ```
 - Monte Carlo soft shadows with penumbra
 - `shadow_samples` overridable via CLI: `-S 32`
@@ -1070,6 +1100,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 - Great for ceiling panels, windows
 - Visible to camera & specular rays via an internally-managed emissive quad proxy at the same `corner`/`u`/`v` — closes Veach's MIS estimator on smooth-specular materials. Same approach as Arnold/Cycles/Renderman analytic quad lights.
 - `soft_radius` (default `0`): when > 0, the attenuation denominator is clamped to `max(distSq, r²)`, preventing the `cosLight/d²` term from diverging when a stratified sample falls nearly tangent to the receiver in dense volumetric media. The returned geometric distance is unchanged. Recommended for area lights illuminating a dense participating medium (e.g. a ceiling panel in fog).
+- `visible_to_camera` (default `true`): set to `false` to hide the quad proxy from primary camera rays. NEE keeps illuminating the scene at full intensity; specular reflections / refractions still see the panel; indirect bounces are unaffected. Matches Arnold's `camera` visibility flag and Cycles' "Ray Visibility → Camera".
 #### **8.5 Sphere Light (Isotropic Soft Shadows)**
 ```yaml
 - type: "sphere"  # aliases: "sphere_light", "ball", "ball_light"
@@ -1078,11 +1109,13 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
   color: [1.0, 0.95, 0.85]
   intensity: 30.0
   shadow_samples: 4
+  visible_to_camera: true                  # Optional. false = hide proxy from primary rays
 ```
 - Solid-angle sampling (efficient, no wasted samples)
 - Isotropic penumbra (circular shadows)
 - Visible to camera & specular rays via an internally-managed emissive proxy primitive at the same position/radius — closes Veach's MIS estimator on smooth-specular materials (no "dark hole" highlight on glass/mirror balls). Same approach as Arnold/Cycles/Renderman analytic sphere lights.
 - `soft_radius` is intentionally **not** consumed: the solid-angle estimator `L = Intensity × Ω / N` is bounded by `4π · Intensity` even when the receiver is inside the sphere, so the 1/d² floor used by point/spot/area lights is unnecessary here.
+- `visible_to_camera` (default `true`): set to `false` to hide the spherical proxy from primary camera rays. NEE keeps illuminating the scene at full intensity; the sphere still appears in mirror reflections and through glass. Matches Arnold's `camera` visibility flag and Cycles' "Ray Visibility → Camera". Has no effect on `point`/`spot`/`directional` (delta) lights which carry no proxy.
 #### **Light Calibration Reference:**
 | Type | Range | Notes |
 |------|-------|-------|

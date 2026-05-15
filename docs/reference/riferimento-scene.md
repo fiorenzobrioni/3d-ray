@@ -257,6 +257,12 @@ cameras:
     fov: 35
     aperture: 0.0
     focal_dist: 12
+  - name: "subject"
+    position: [0, 2, -8]
+    look_at: [0, 0, 0]
+    fov: 45
+    aperture: 0.1
+    focal_pos: [0.5, 0.6, 1.0]            # fuoco su questo punto — vedi sotto
 ```
 
 #### **Camera Singola** (legacy):
@@ -267,7 +273,8 @@ camera:
   vup: [0, 1, 0]                          # Vettore "su" (per il rollio)
   fov: 60                                  # Campo visivo verticale (gradi)
   aperture: 0.1                            # Diametro lente (0 = pinhole)
-  focal_dist: 8.0                          # Distanza dal piano di fuoco
+  focal_dist: 8.0                          # Distanza dal piano di fuoco (scalare)
+  # focal_pos: [0.5, 0.6, 1.0]            # Alternativa: fuoco su un punto 3D
 ```
 
 **Uso dalla CLI:**
@@ -277,7 +284,17 @@ dotnet run ... -- -i scene.yaml -c top -o top.png   # Per nome
 dotnet run ... -- -i scene.yaml -c 1 -o cam1.png    # Per indice (base 0)
 ```
 
-**⚠️ Profondità di Campo:** Quando `aperture > 0`, imposta `focal_dist` con la distanza effettiva tra la camera e il soggetto principale. Il default `focal_dist: 1.0` creerà un sfocatura estrema non voluta.
+**⚠️ Profondità di Campo:** Quando `aperture > 0`, imposta `focal_dist` (o `focal_pos`) con la distanza / il punto effettivo del soggetto principale. Il default `focal_dist: 1.0` creerà una sfocatura estrema non voluta.
+
+#### **`focal_pos` — fuoco su un punto (Arnold/Cycles "Focus Object")**
+`focal_pos: [x, y, z]` è un'alternativa allo scalare `focal_dist`. Il loader calcola la distanza di fuoco come **proiezione** del vettore camera→focal-point sull'asse ottico:
+```
+forward    = normalize(look_at − position)
+focusDist  = dot(focal_pos − position, forward)
+```
+Il piano focale è perpendicolare alla direzione di vista e passa per `focal_pos`, quindi il valore è una **proiezione, non una distanza euclidea**. Un focal point off-axis a `(3, 4, -5)` con camera all'origine e look lungo `−Z` produce focus distance `5`, non `√50 ≈ 7.07`. Stesso comportamento di Arnold ("Focus Object"), Cycles ("Focal Object/Distance") e RenderMan.
+
+Quando entrambi `focal_pos` e `focal_dist` sono specificati, `focal_pos` vince (viene loggato un info message). `focal_pos` viene ignorato con un warning quando cade alle spalle della camera, coincide con essa o la camera è degenerata (`look_at == position`); in quel caso si usa lo scalare `focal_dist` come fallback.
 
 ---
 
@@ -564,6 +581,17 @@ entities:
 ---
 
 ### 7. **SEZIONE ENTITIES** — Oggetti 3D
+
+**Campi comuni per ogni entità** (validi per tutti i tipi sotto: primitive, csg, mesh, group, instance):
+
+| Campo | Default | Note |
+|-------|---------|------|
+| `name` | — | Etichetta opzionale per log / debug |
+| `material` | ereditato | ID materiale, risolto dal blocco `materials` |
+| `seed` | auto | Intero stabile che pilota la variazione delle texture procedurali; auto-derivato da name+type+index quando omesso |
+| `visible_to_camera` | `true` | Nasconde l'entità solo dai raggi primari della camera. Replica il flag `camera` di Arnold e "Ray Visibility → Camera" di Cycles: l'entità rimane visibile in riflessioni/rifrazioni speculari, continua a ricevere e proiettare illuminazione indiretta, e (se emissiva) contribuisce ancora alla luce diretta via NEE. Utile per nascondere pannelli luminosi off-frame che fanno da fill, o pratici visibili solo nelle riflessioni. Impostato su un `group` propaga a tutti i figli. |
+| `scale`, `rotate`, `translate` | identità | Trasformazione locale opzionale (ordine scale → rotate → translate) |
+
 #### **7.1 Sphere**
 ```yaml
 - name: "ball"
@@ -1106,11 +1134,13 @@ Le primitive che espongono la chiave `center:` — **sphere, cylinder, cone, cap
   intensity: 35.0                          # Range: 15–60
   shadow_samples: 4                        # Campioni per punto (default)
   soft_radius: 0.0                         # Opzionale. >0 = floor distSq in cosLight/d²
+  visible_to_camera: true                  # Opzionale. false = nasconde il proxy dai raggi primari
 ```
 - Ombre morbide Monte Carlo con penombra
 - `shadow_samples` sovrascrivibile via CLI: `-S 32`
 - Visibile alla camera e ai raggi specular tramite un quad emissivo proxy posizionato a `corner`/`u`/`v` — chiude lo stimatore MIS di Veach sui materiali specular smooth. Stesso approccio di Arnold/Cycles/Renderman per le quad light analitiche.
 - `soft_radius` (default `0`): quando > 0, il denominatore dell'attenuazione viene clampato a `max(distSq, r²)`, impedendo al termine `cosLight/d²` di divergere quando un campione stratificato cade quasi tangente al ricevitore nei media volumetrici densi. La distanza geometrica restituita è invariata. Consigliato per area light che illuminano media partecipanti densi (es. pannello a soffitto in nebbia).
+- `visible_to_camera` (default `true`): impostato a `false` nasconde il quad proxy ai raggi primari della camera. La NEE continua a illuminare la scena a piena intensità; le riflessioni speculari e le rifrazioni continuano a vedere il pannello; i rimbalzi indiretti sono invariati. Replica il flag `camera` di Arnold e "Ray Visibility → Camera" di Cycles.
 
 #### **8.5 Sphere Light (Ombre Morbide Isotropiche)**
 ```yaml
@@ -1120,11 +1150,13 @@ Le primitive che espongono la chiave `center:` — **sphere, cylinder, cone, cap
   color: [1.0, 0.95, 0.85]
   intensity: 30.0
   shadow_samples: 4
+  visible_to_camera: true                  # Opzionale. false = nasconde il proxy dai raggi primari
 ```
 - Campionamento ad angolo solido (efficiente, nessun campione sprecato)
 - Penombra circolare isotropica
 - Visibile alla camera e ai raggi specular tramite una sfera emissiva proxy gestita internamente, alla stessa posizione/raggio — chiude lo stimatore MIS di Veach sui materiali specular smooth (niente "buco nero" dove la luce dovrebbe riflettersi su vetri/specchi). Stesso approccio di Arnold/Cycles/Renderman per le sphere light analitiche.
 - `soft_radius` è deliberatamente **non** consumato: lo stimatore ad angolo solido `L = Intensity × Ω / N` è limitato superiormente da `4π · Intensity` anche quando il ricevitore è dentro la sfera, quindi il floor 1/d² usato da point/spot/area è qui inutile.
+- `visible_to_camera` (default `true`): impostato a `false` nasconde la sfera proxy ai raggi primari della camera. La NEE continua a illuminare la scena a piena intensità; la sfera resta visibile nelle riflessioni a specchio e attraverso il vetro. Replica il flag `camera` di Arnold e "Ray Visibility → Camera" di Cycles. Nessun effetto su `point`/`spot`/`directional` (luci delta) che non hanno proxy.
 
 #### **Riferimento Calibrazione Luci:**
 | Tipo | Range | Note |

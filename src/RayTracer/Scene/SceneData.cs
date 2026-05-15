@@ -199,6 +199,20 @@ public class CameraData
 
     [YamlMember(Alias = "focal_dist")]
     public float FocalDist { get; set; } = 1f;
+
+    /// <summary>
+    /// World-space focal point: alternative to <see cref="FocalDist"/>. When
+    /// set, the loader computes the focus distance as the projection of
+    /// <c>focal_pos − position</c> onto the optical axis
+    /// <c>normalize(look_at − position)</c> — the standard "Focus Object/
+    /// Point" workflow of Arnold, Cycles and RenderMan: the focus plane is
+    /// perpendicular to the view direction passing through this point, so
+    /// the value is a projection, not the Euclidean distance. When both
+    /// <c>focal_pos</c> and <c>focal_dist</c> are specified, <c>focal_pos</c>
+    /// wins and an info message is logged for transparency.
+    /// </summary>
+    [YamlMember(Alias = "focal_pos")]
+    public List<float>? FocalPos { get; set; }
 }
 
 public class MaterialData
@@ -512,6 +526,19 @@ public class EntityData
     [YamlMember(Alias = "material")]
     public string? Material { get; set; }
 
+    /// <summary>
+    /// When <c>false</c>, this entity is invisible to primary camera rays
+    /// while still receiving and casting indirect light, appearing in
+    /// specular reflections/refractions and contributing to direct lighting
+    /// (if emissive) through NEE. Mirrors Arnold's <c>camera</c> visibility
+    /// flag and Cycles' "Ray Visibility → Camera". Default <c>true</c>.
+    /// Applies uniformly to all entity types (primitive, csg, mesh, group,
+    /// instance); on a group the flag propagates to every child via the
+    /// outer wrapper.
+    /// </summary>
+    [YamlMember(Alias = "visible_to_camera")]
+    public bool VisibleToCamera { get; set; } = true;
+
     // Sphere & Cylinder
     [YamlMember(Alias = "center")]
     public List<float>? Center { get; set; }
@@ -765,6 +792,21 @@ public class LightData
     /// </summary>
     [YamlMember(Alias = "angular_radius")]
     public float AngularRadius { get; set; } = 0f;
+
+    /// <summary>
+    /// When <c>false</c>, the light's visible proxy (the <c>Sphere</c> for
+    /// <c>type: sphere</c>, the <c>Quad</c> for <c>type: area</c>) is hidden
+    /// from primary camera rays — the light still illuminates the scene via
+    /// NEE and remains visible in specular reflections/refractions and to
+    /// indirect bounces. Mirrors Arnold's <c>camera</c> visibility flag and
+    /// Cycles' "Ray Visibility → Camera". Default <c>true</c>.
+    /// <para>
+    /// Has no observable effect on delta lights (<c>point</c>,
+    /// <c>directional</c>, <c>spot</c>) which carry no proxy geometry.
+    /// </para>
+    /// </summary>
+    [YamlMember(Alias = "visible_to_camera")]
+    public bool VisibleToCamera { get; set; } = true;
 }
 
 /// <summary>

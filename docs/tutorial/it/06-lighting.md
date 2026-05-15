@@ -139,15 +139,16 @@ Disponibile anche come `type: "spotlight"`.
   intensity: 35.0
 ```
 
-| Parametro        | Predefinito | Descrizione                                          |
-|------------------|-------------|------------------------------------------------------|
-| `corner`         | --          | Un angolo del rettangolo                             |
-| `u`              | --          | Primo vettore lato (dall'angolo)                     |
-| `v`              | --          | Secondo vettore lato (dall'angolo)                   |
-| `color`          | --          | Colore della luce                                    |
-| `intensity`      | --          | Moltiplicatore di luminosità                         |
-| `shadow_samples` | `4`         | Numero di campioni d'ombra (più alto = più morbida)  |
-| `soft_radius`    | `0`         | Opzionale. Clampa `distSq` nel termine cosLight/d²  |
+| Parametro           | Predefinito | Descrizione                                          |
+|---------------------|-------------|------------------------------------------------------|
+| `corner`            | --          | Un angolo del rettangolo                             |
+| `u`                 | --          | Primo vettore lato (dall'angolo)                     |
+| `v`                 | --          | Secondo vettore lato (dall'angolo)                   |
+| `color`             | --          | Colore della luce                                    |
+| `intensity`         | --          | Moltiplicatore di luminosità                         |
+| `shadow_samples`    | `4`         | Numero di campioni d'ombra (più alto = più morbida)  |
+| `soft_radius`       | `0`         | Opzionale. Clampa `distSq` nel termine cosLight/d²   |
+| `visible_to_camera` | `true`      | Se `false`, nasconde il pannello solo dai raggi primari — NEE, riflessioni speculari e indirect restano invariati. Vedi Sezione 6.8. |
 
 Una luce area è un rettangolo piatto che emette luce da tutta la sua superficie. Poiché ha una dimensione fisica, produce **ombre morbide** con una penombra realistica (la transizione graduale dall'ombra alla luce).
 
@@ -199,13 +200,14 @@ senza conflitti.
   shadow_samples: 12
 ```
 
-| Parametro        | Predefinito | Descrizione                             |
-|------------------|-------------|-----------------------------------------|
-| `position`       | --          | Centro della sfera                      |
-| `radius`         | --          | Raggio della sfera luminosa; definisce anche la dimensione del proxy |
-| `color`          | --          | Colore della luce                       |
-| `intensity`      | --          | Moltiplicatore di luminosità            |
-| `shadow_samples` | `4`         | Numero di campioni d'ombra              |
+| Parametro           | Predefinito | Descrizione                             |
+|---------------------|-------------|-----------------------------------------|
+| `position`          | --          | Centro della sfera                      |
+| `radius`            | --          | Raggio della sfera luminosa; definisce anche la dimensione del proxy |
+| `color`             | --          | Colore della luce                       |
+| `intensity`         | --          | Moltiplicatore di luminosità            |
+| `shadow_samples`    | `4`         | Numero di campioni d'ombra              |
+| `visible_to_camera` | `true`      | Se `false`, nasconde la sfera proxy solo dai raggi primari — NEE, riflessioni speculari e indirect restano invariati. Vedi Sezione 6.8. |
 
 Una luce sferica è come una luce area, ma di forma sferica. Produce ombre morbide con una penombra circolare e crea riflessi perfettamente rotondi (catchlights) nelle superfici riflettenti.
 
@@ -242,11 +244,15 @@ entities:
 
 | Caratteristica                | Luce Geometrica      | Luce Esplicita (area/sphere) |
 |-------------------------------|----------------------|------------------------------|
-| Visibile in camera            | Sì                   | Sì (tramite proxy interno)   |
+| Visibile in camera            | Sì (toggle sull'entity) | Sì (toggle sulla luce)    |
 | Visibile nei riflessi         | Sì                   | Sì (tramite proxy interno)   |
 | Illuminazione diretta (NEE)   | Sì (automatico)      | Sì                           |
 | Ombre morbide                 | Sì                   | Sì                           |
 | Efficienza di campionamento   | Buona                | Leggermente migliore (analitica) |
+
+Entrambe le tipologie di luce supportano un flag `visible_to_camera` (default
+`true`) — vedi la prossima sezione per il toggle di camera-visibility stile
+Arnold/Cycles.
 
 Usare le luci geometriche quando la sorgente deve essere un emettitore di **forma personalizzata** (insegne al neon, flussi di lava, tubi luminosi, mesh irregolari). Usare le luci `area`/`sphere` esplicite per emettitori canonici rettangolari/sferici — campionano in modo più efficiente e si vedono comunque in camera e nei riflessi specular.
 
@@ -262,7 +268,114 @@ Per scene con nebbia o fumo (`global_medium`), anche la phase function partecipa
 
 ---
 
-## 6.8 Lo Schema di Illuminazione a Tre Punti
+## 6.8 Visibilità dalla camera (`visible_to_camera`)
+
+I renderer di produzione permettono di disaccoppiare **come una luce
+contribuisce all'immagine** da **se la luce è essa stessa visibile nel
+frame**. In Arnold questo è il flag `camera`, in Cycles è "Ray Visibility
+→ Camera". 3D-Ray espone lo stesso controllo con la chiave underscore_case
+`visible_to_camera`.
+
+Quando impostato a `false`:
+
+- La luce continua a illuminare la scena a piena intensità tramite NEE
+  (illuminazione diretta).
+- La luce appare comunque nelle **riflessioni a specchio, nelle
+  rifrazioni del vetro e nei rimbalzi indiretti** — esattamente come in
+  Arnold/Cycles.
+- Il proxy della luce (o la geometria dell'entity) è **invisibile solo
+  ai raggi primari della camera**, che il renderer rileva tramite
+  `depth == maxDepth`.
+
+### Quando usarlo
+
+| Caso d'uso | Setup |
+|------------|-------|
+| Luce fill off-frame che non deve apparire come una forma luminosa nel cielo | `visible_to_camera: false` su una luce `sphere`/`area` posizionata fuori dall'inquadratura |
+| Lampada pratica visibile solo in uno specchio nella stanza | `visible_to_camera: false` sull'entity emissiva |
+| Pannello area soft per product photography — cielo pulito, pannello visibile solo via riflessione sul prodotto | `visible_to_camera: false` sulla luce `area` |
+| Light card appena fuori dal FOV che altrimenti taglierebbe il bordo del frame | idem |
+
+### Su luci esplicite
+
+```yaml
+lights:
+  # KEY: visibile ovunque (default)
+  - type: "sphere"
+    position: [ 3.5, 3.8, 1.5]
+    radius: 0.35
+    color: [1.0, 0.96, 0.88]
+    intensity: 45.0
+
+  # FILL: invisibile alla camera, ma riflessa in specchi/vetri e illumina la scena
+  - type: "sphere"
+    position: [-3.5, 3.8, 1.5]
+    radius: 0.35
+    color: [0.65, 0.78, 1.0]
+    intensity: 45.0
+    visible_to_camera: false
+```
+
+### Su entity emissive
+
+`visible_to_camera` è anche un campo comune a tutte le entity, quindi
+qualsiasi entity — non solo i proxy delle luci esplicite — può essere
+nascosta dai raggi primari. L'uso naturale è un pannello emissivo di
+forma personalizzata che deve illuminare la scena senza apparire nel
+frame:
+
+```yaml
+materials:
+  - id: "panel_glow"
+    type: "emissive"
+    color: [1.0, 0.92, 0.80]
+    intensity: 2.5
+
+entities:
+  - name: "ceiling_panel"
+    type: "box"
+    material: "panel_glow"
+    scale: [4.0, 0.05, 2.5]
+    translate: [0, 4.0, 0]
+    visible_to_camera: false       # soffitto pulito, ma la stanza è illuminata
+```
+
+Su un `group` il flag propaga a tutti i figli (il wrapper è applicato
+fuori dalla BVH interna del gruppo); un figlio può portarsi anche un
+proprio flag, che si compone in OR (parent OR figlio invisibile ⇒
+invisibile).
+
+### Limiti
+
+- `visible_to_camera` non ha effetto osservabile su luci `point`/
+  `directional`/`spot` (delta) — non hanno una geometria proxy da
+  nascondere.
+- Un raggio camera che colpisce un proxy invisibile viene semplicemente
+  fatto avanzare oltre (con un cap di sicurezza di 8 skip successivi),
+  quindi uno stack illimitato di emettitori invisibili sovrapposti
+  davanti alla camera satura il cap. Caso non realistico ma utile da
+  sapere.
+
+### Esempio pratico: `visible-to-camera-showcase.yaml`
+
+La scena `scenes/showcases/visible-to-camera-showcase.yaml` raccoglie
+tutte le idee di sopra: una sphere light KEY calda visibile in cielo e
+nelle riflessioni di due sfere chrome; una sphere light FILL fredda
+nascosta dalla camera ma chiaramente visibile in quelle stesse
+riflessioni; un pannello emissivo a soffitto nascosto dalla vista ma che
+continua a illuminare il pavimento via NEE. Render preview con
+
+```
+RayTracer -i scenes/showcases/visible-to-camera-showcase.yaml \
+          -o renders/vtc.png -w 480 -H 270 -s 64 -d 6
+```
+
+e confronta le riflessioni nelle chrome — quello è il test che il flag
+sta facendo la cosa giusta.
+
+---
+
+## 6.9 Lo Schema di Illuminazione a Tre Punti
 
 La tecnica di illuminazione più utile in fotografia e grafica 3D è lo schema a tre punti:
 
@@ -318,7 +431,7 @@ Il contrasto caldo/freddo (chiave calda, riempimento freddo, contorno caldo) è 
 
 ---
 
-## 6.9 Ricette di Illuminazione
+## 6.10 Ricette di Illuminazione
 
 ### Fotografia Still Life da Studio
 
@@ -378,7 +491,7 @@ lights:
 
 ---
 
-## 6.10 Esempio Completo: Confronto Luci
+## 6.11 Esempio Completo: Confronto Luci
 
 Un'unica sfera e un piedistallo illuminati da diversi tipi di luce.
 
@@ -527,6 +640,7 @@ Questa scena pone cinque sfere identiche in fila. Ognuna è illuminata principal
 - Le luci **Sphere** producono ombre morbide con riflessi circolari e usano lo stimatore ad angolo solido limitato (non serve `soft_radius`).
 - Le **entità emissive** diventano automaticamente luci geometriche -- visibili e campionate per l'illuminazione diretta.
 - Le luci `area` e `sphere` sono inoltre visibili alla camera e ai raggi specular tramite un proxy emissivo gestito internamente — parità Veach-MIS con Arnold/Cycles.
+- Per-luce e per-entity **`visible_to_camera: false`** nasconde il proxy/la geometria solo dai raggi primari della camera; NEE, specchi, vetro e rimbalzi indiretti continuano a vederla — semantica Arnold `camera` / Cycles "Ray Visibility → Camera".
 - Il flag CLI `-S` sovrascrive globalmente i campioni d'ombra per prove veloci.
 - Lo **schema a tre punti** (chiave, riempimento, contorno) è un punto di partenza affidabile per ogni scena.
 - **Controlli firefly:**

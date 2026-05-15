@@ -15,6 +15,18 @@ public struct HitRecord
     public bool FrontFace;
     public IMaterial? Material;
 
+    /// <summary>
+    /// True when this hit lies on a primitive whose owning entity (or owning
+    /// light proxy) is flagged as not visible to primary camera rays (Arnold
+    /// <c>camera</c> visibility, Cycles "Ray Visibility → Camera"). Set by
+    /// <see cref="Geometry.CameraInvisibleHittable"/>; consumed by
+    /// <see cref="Rendering.Renderer.TraceRay"/> which, on the primary ray
+    /// only, advances past such hits and re-traces — leaving the underlying
+    /// emitter still visible via mirror/glass paths and still illuminating
+    /// the scene through NEE.
+    /// </summary>
+    public bool CameraInvisible;
+
     // ── TBN basis for normal mapping ────────────────────────────────────────
     // Tangent is aligned with the +U direction of the UV mapping.
     // Bitangent is aligned with the +V direction.

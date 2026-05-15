@@ -285,6 +285,12 @@ public class SceneLoader
                     var transform = ComputeTransformMatrix(e);
                     if (transform != Matrix4x4.Identity)
                         hittable = new Transform(hittable, transform);
+                    // Per-entity Arnold/Cycles "camera" visibility flag. Wrap
+                    // after Transform so the BVH still partitions by the
+                    // entity's world-space AABB; the flag only annotates the
+                    // resulting HitRecord (see CameraInvisibleHittable).
+                    if (!e.VisibleToCamera)
+                        hittable = new CameraInvisibleHittable(hittable);
                     objects.Add(hittable);
                 }
             }
@@ -339,10 +345,17 @@ public class SceneLoader
         var camPos    = ToVector3(camData.Position) ?? new Vector3(0, 1, -5);
         var camLookAt = ToVector3(camData.LookAt)   ?? Vector3.Zero;
         var camVup    = ToVector3(camData.Vup)       ?? Vector3.UnitY;
+        // Resolve focus distance: focal_pos (a 3D point) wins over the
+        // scalar focal_dist when set, mirroring Arnold/Cycles/RenderMan
+        // "Focus Object" workflow. ComputeFocusDistance projects the point
+        // onto the optical axis and emits Warn/Info on anomalies.
+        float focusDist = ComputeFocusDistance(
+            camPos, camLookAt,
+            camData.FocalPos, camData.FocalDist);
         var camera    = new Camera.Camera(
             camPos, camLookAt, camVup,
             camData.Fov, aspect,
-            camData.Aperture, camData.FocalDist);
+            camData.Aperture, focusDist);
 
         // Add Emissive Objects as Geometry Lights. The default for geometry
         // lights is aligned with AreaLight/SphereLight (16), so emissive
@@ -1823,14 +1836,22 @@ public class SceneLoader
             }
  
             if (hittable == null) continue;
- 
+
             var childTransform = ComputeTransformMatrix(child);
             if (childTransform != Matrix4x4.Identity)
                 hittable = new Transform(hittable, childTransform);
- 
+
+            // Symmetric with the top-level entity loop: per-child
+            // visible_to_camera flag works inside groups too. The group's own
+            // outer wrap (if set) still applies; this lets a child carry an
+            // independent flag that composes as OR (parent OR child invisible
+            // ⇒ child is invisible to primary rays).
+            if (!child.VisibleToCamera)
+                hittable = new CameraInvisibleHittable(hittable);
+
             result.Add(hittable);
         }
- 
+
         return result;
     }
 
@@ -1950,8 +1971,15 @@ public class SceneLoader
         // through the dark (back) side of the panel — same pattern Arnold and
         // Cycles use for analytic single-sided quad lights.
         var proxyMat = new Emissive(color, l.Intensity) { IsLightProxy = true };
-        objects.Add(new BackFaceCulledHittable(
-            new Quad(corner.Value, u.Value, v.Value, proxyMat)));
+        IHittable proxy = new BackFaceCulledHittable(
+            new Quad(corner.Value, u.Value, v.Value, proxyMat));
+        // visible_to_camera: false → wrap so primary rays skip past the proxy
+        // (mirror reflections, refractions and NEE continue to see it; see
+        // Renderer.TraceRay for the skip-loop). Default true is a no-op so
+        // existing scenes produce bit-identical BVH content.
+        if (!l.VisibleToCamera)
+            proxy = new CameraInvisibleHittable(proxy);
+        objects.Add(proxy);
 
         return new AreaLight(corner.Value, u.Value, v.Value, color,
                              l.Intensity, effectiveShadowSamples, l.SoftRadius,
@@ -1988,7 +2016,14 @@ public class SceneLoader
         // emission to `color × intensity` therefore gives BSDF-sampled hits
         // the same energy as NEE — required for MIS to be unbiased.
         var proxyMat = new Emissive(color, l.Intensity) { IsLightProxy = true };
-        objects.Add(new Sphere(position.Value, l.Radius, proxyMat));
+        IHittable proxy = new Sphere(position.Value, l.Radius, proxyMat);
+        // visible_to_camera: false → wrap so primary rays skip past the proxy
+        // (mirror reflections, refractions and NEE continue to see it; see
+        // Renderer.TraceRay for the skip-loop). Default true is a no-op so
+        // existing scenes produce bit-identical BVH content.
+        if (!l.VisibleToCamera)
+            proxy = new CameraInvisibleHittable(proxy);
+        objects.Add(proxy);
 
         return new SphereLight(position.Value, l.Radius, color,
                                l.Intensity, effectiveShadowSamples,
@@ -2075,6 +2110,72 @@ public class SceneLoader
     {
         if (v == null || v.Count < 2) return null;
         return new System.Numerics.Vector2(v[0], v[1]);
+    }
+
+    /// <summary>
+    /// Resolves the camera focus distance from either a YAML
+    /// <c>focal_pos: [x, y, z]</c> (Arnold/Cycles "Focus Point" workflow)
+    /// or the scalar <c>focal_dist</c> fallback.
+    ///
+    /// <para><b>Math.</b> When <paramref name="focalPos"/> is set, the
+    /// focus distance is the projection of the camera→focal-point vector
+    /// onto the optical axis <c>forward = normalize(lookAt − camPos)</c>:
+    /// <c>focusDist = (F − camPos) · forward</c>. The focus plane is
+    /// perpendicular to the view direction passing through the focal
+    /// point — so a focal point off-axis at <c>(3, 4, −5)</c> with the
+    /// camera at the origin looking along <c>−Z</c> yields focus distance
+    /// <c>5</c>, not the Euclidean <c>√50</c>. This matches every
+    /// production renderer (Arnold, Cycles, RenderMan).</para>
+    ///
+    /// <para><b>Anomaly handling.</b> Falls back to
+    /// <paramref name="fallbackFocalDist"/> with a <see cref="Warn"/> when
+    /// the focal point is malformed, behind the camera, coincident with
+    /// it, or when the camera itself is degenerate (lookAt == camPos).
+    /// Emits <see cref="Info"/> when both fields are set so the user knows
+    /// which one took effect.</para>
+    /// </summary>
+    public static float ComputeFocusDistance(
+        Vector3 camPos, Vector3 lookAt,
+        List<float>? focalPos, float fallbackFocalDist)
+    {
+        if (focalPos == null) return fallbackFocalDist;
+
+        if (focalPos.Count < 3)
+        {
+            Warn("Camera 'focal_pos' requires 3 components [x, y, z]. " +
+                 "Falling back to 'focal_dist'.");
+            return fallbackFocalDist;
+        }
+
+        var forward = lookAt - camPos;
+        float forwardLen = forward.Length();
+        if (forwardLen < 1e-6f)
+        {
+            Warn("Camera 'focal_pos' ignored: 'position' and 'look_at' " +
+                 "coincide (degenerate camera). Falling back to 'focal_dist'.");
+            return fallbackFocalDist;
+        }
+        forward /= forwardLen;
+
+        var F = new Vector3(focalPos[0], focalPos[1], focalPos[2]);
+        float projected = Vector3.Dot(F - camPos, forward);
+        if (projected <= 1e-4f)
+        {
+            Warn($"Camera 'focal_pos' projects behind or onto the camera " +
+                 $"(distance = {projected:F4}). Falling back to 'focal_dist'.");
+            return fallbackFocalDist;
+        }
+
+        // FocalDist defaults to 1f when omitted from YAML, so we can't
+        // distinguish "explicitly 1" from "not set" without a custom
+        // YamlDotNet converter. Treat any non-default value as user intent
+        // for the override-info message.
+        if (MathF.Abs(fallbackFocalDist - 1f) > 1e-6f)
+            Info($"Camera 'focal_pos' overrides 'focal_dist' " +
+                 $"(computed focus distance = {projected:F3}, " +
+                 $"YAML focal_dist = {fallbackFocalDist:F3}).");
+
+        return projected;
     }
 
     private static Matrix4x4 ComputeTransformMatrix(EntityData e)

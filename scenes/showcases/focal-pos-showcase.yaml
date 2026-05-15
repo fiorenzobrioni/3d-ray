@@ -1,0 +1,125 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  focal-pos-showcase.yaml — `focal_pos` (Arnold/Cycles "Focus Object")
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Tre sfere allineate lungo l'asse Z a distanze 4, 8 e 12 unità dalla
+#  camera + 4 inquadrature che dimostrano `focal_pos`:
+#
+#    -c near    → focal_pos sulla sfera vicina  (sphere a z=-4)
+#    -c middle  → focal_pos sulla sfera centrale (sphere a z=-8)
+#    -c far     → focal_pos sulla sfera lontana (sphere a z=-12)
+#    -c equiv   → stesso piano focale di "middle" ma via focal_dist scalare
+#                 (sanity check: il render deve essere identico a "middle")
+#
+#  Stessa apertura su tutte le camere → l'unica variabile è il piano focale.
+#  La A/B "middle" vs "equiv" prova che la proiezione in focal_pos coincide
+#  con il valore scalare equivalente.
+#
+#  Render consigliati:
+#    Preview:  -s 64   -d 4 -w 480  -H 270  -S 1
+#    Standard: -s 256  -d 6 -w 960  -H 540
+#    Final:    -s 1024 -d 8 -w 1920 -H 1080 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.05, 0.07, 0.12]
+    horizon_color: [0.18, 0.16, 0.12]
+    ground_color:  [0.04, 0.04, 0.04]
+
+cameras:
+  # ── Fuoco sulla sfera vicina (rossa, sinistra, z ≈ -4) ────────────────
+  - name: "near"
+    position: [0, 1.6, 0]
+    look_at:  [0, 0.7, -8]
+    fov: 45
+    aperture: 0.30
+    focal_pos: [-3.0, 0.7, -4]
+
+  # ── Fuoco sulla sfera centrale (verde, centro, z ≈ -8) ────────────────
+  - name: "middle"
+    position: [0, 1.6, 0]
+    look_at:  [0, 0.7, -8]
+    fov: 45
+    aperture: 0.30
+    focal_pos: [0.0, 0.7, -8]
+
+  # ── Fuoco sulla sfera lontana (blu, destra, z ≈ -12) ──────────────────
+  - name: "far"
+    position: [0, 1.6, 0]
+    look_at:  [0, 0.7, -8]
+    fov: 45
+    aperture: 0.30
+    focal_pos: [3.0, 0.7, -12]
+
+  # ── Sanity A/B: stesso piano focale di "middle" ma via focal_dist ─────
+  # Camera (0, 1.6, 0) → look_at (0, 0.7, -8). Forward normalizzato:
+  #   raw = (0, -0.9, -8), |raw| = 8.0504, forward ≈ (0, -0.1118, -0.9937).
+  # Focal point "middle" = (0, 0.7, -8); (F − cam) = (0, -0.9, -8).
+  # Proiezione lungo forward = 0 + (-0.9)·(-0.1118) + (-8)·(-0.9937)
+  #                          = 0.1006 + 7.9499 ≈ 8.050. focal_dist scalare
+  # equivalente al middle.
+  - name: "equiv"
+    position: [0, 1.6, 0]
+    look_at:  [0, 0.7, -8]
+    fov: 45
+    aperture: 0.30
+    focal_dist: 8.050
+
+materials:
+
+  - id: "floor"
+    type: "disney"
+    color: [0.55, 0.52, 0.48]
+    roughness: 0.55
+    metallic: 0.0
+    specular: 0.30
+
+  - id: "red"
+    type: "disney"
+    color: [0.85, 0.20, 0.18]
+    roughness: 0.30
+    metallic: 0.0
+    specular: 0.50
+
+  - id: "green"
+    type: "disney"
+    color: [0.18, 0.70, 0.30]
+    roughness: 0.30
+    metallic: 0.0
+    specular: 0.50
+
+  - id: "blue"
+    type: "disney"
+    color: [0.18, 0.30, 0.85]
+    roughness: 0.30
+    metallic: 0.0
+    specular: 0.50
+
+entities:
+
+  - { name: "floor",  type: "box",    material: "floor", scale: [40, 0.2, 40], translate: [0, -0.1, 0] }
+
+  # Tre sfere staggered (sinistra-vicina, centro, destra-lontana) per
+  # rimanere visibili tutte e tre senza occlusione, stessa altezza.
+  - { name: "near_sphere",   type: "sphere", center: [-3.0, 0.7,  -4], radius: 0.7, material: "red"   }
+  - { name: "middle_sphere", type: "sphere", center: [ 0.0, 0.7,  -8], radius: 0.7, material: "green" }
+  - { name: "far_sphere",    type: "sphere", center: [ 3.0, 0.7, -12], radius: 0.7, material: "blue"  }
+
+lights:
+
+  # Luce key area dall'alto-destra
+  - type: "area"
+    corner: [-2, 6.0, -10]
+    u: [4, 0, 0]
+    v: [0, 0, 4]
+    color: [1.0, 0.96, 0.90]
+    intensity: 30.0
+    shadow_samples: 4
+
+  # Fill direzionale tenue
+  - type: "directional"
+    direction: [-0.3, -1.0, 0.4]
+    color: [0.65, 0.72, 0.85]
+    intensity: 0.4

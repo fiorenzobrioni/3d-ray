@@ -194,6 +194,7 @@ cameras:
 |--------------|-------------|------------------------------------------------------|
 | `aperture`   | `0.0`       | Diametro dell'obiettivo (0 = tutto a fuoco)          |
 | `focal_dist` | `1.0`       | Distanza dalla fotocamera alla quale gli oggetti sono nitidi |
+| `focal_pos`  | _nessuno_   | Alternativa a `focal_dist`: fuoco su un punto 3D. Vedi "Fuoco su un punto" sotto. |
 
 ### Come funziona
 
@@ -220,6 +221,44 @@ cameras:
 ```
 
 Gli oggetti più vicini e più lontani dalla fotocamera rispetto a 6 unità appariranno sfocati, con una sfocatura crescente man mano che si allontanano dal piano focale.
+
+### Fuoco su un punto — `focal_pos` (Arnold/Cycles "Focus Object")
+
+Misurare a mano la distanza dal soggetto ogni volta che si riposiziona la
+camera è scomodo. I renderer di produzione permettono di specificare
+direttamente il **punto di fuoco** — "Focus Object" in Arnold, "Focal
+Object" in Cycles, `focusDistance` di RenderMan pilotato da un target
+tracciato — e 3D-Ray espone lo stesso controllo via `focal_pos: [x, y, z]`:
+
+```yaml
+cameras:
+  - name: "main"
+    position: [0, 1.5, -6]
+    look_at: [0, 0.5, 0]
+    fov: 45
+    aperture: 0.12
+    focal_pos: [0.0, 0.5, 0.0]    # coordinate world-space esatte del soggetto
+```
+
+Il loader proietta il vettore camera→focal-point sull'asse ottico:
+`focusDist = (focal_pos − position) · normalize(look_at − position)`. Il
+piano focale è perpendicolare alla direzione di vista e passa per
+`focal_pos`, quindi questo è una **proiezione, non una distanza
+euclidea** — un focal point off-axis a `(3, 4, -5)` con camera all'origine
+e look lungo `−Z` produce focus distance `5`, non `√50`. Stesso
+comportamento di tutti i renderer professionali.
+
+**Quando usarlo.** Una volta posizionato il soggetto nella scena ne
+conosci esattamente le coordinate world-space. Le copi in `focal_pos` e
+il piano focale "si aggancia" al soggetto qualunque sia l'inquadratura
+— niente più ricalcolo della distanza ad ogni cambio di camera.
+
+**Precedenza.** Quando entrambi `focal_pos` e `focal_dist` sono
+specificati, `focal_pos` vince (viene loggato un info message).
+`focal_pos` viene ignorato con un warning quando cade alle spalle della
+camera, coincide con essa o la camera è degenerata
+(`look_at == position`); in quel caso si usa lo scalare `focal_dist`
+come fallback.
 
 ---
 
@@ -405,6 +444,7 @@ La fotocamera "macro" ha la DOF abilitata -- la sfera d'oro sarà nitida mentre 
 - Le mappe **HDRI** forniscono un'illuminazione ambientale fotorealistica con importance sampling.
 - Il cielo è l'unico emettitore d'ambiente, e l'illuminazione indiretta/ambient nasce dalla GI path-traced.
 - La **profondità di campo** (DOF) è controllata da `aperture` (dimensione dell'obiettivo) e `focal_dist` (distanza di messa a fuoco). Apertura più grande = più sfocatura.
+- `focal_pos: [x, y, z]` è un'alternativa a `focal_dist` — fuoco su un punto 3D (workflow Arnold/Cycles "Focus Object"). Il loader proietta il punto sull'asse ottico, quindi il valore è una proiezione assiale, non una distanza euclidea.
 - Le **fotocamere multiple** consentono di definire diversi punti di vista e passare dall'uno all'altro con `--camera nome` sulla riga di comando.
 
 ---

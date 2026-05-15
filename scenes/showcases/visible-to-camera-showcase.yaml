@@ -1,0 +1,115 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  visible-to-camera-showcase.yaml — `visible_to_camera` (Arnold/Cycles)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  Dimostra il flag `visible_to_camera` su luci ed entità emissive: una luce
+#  resa "primary-invisible" continua a illuminare la scena via NEE e
+#  ricompare nelle riflessioni speculari (specchio, vetro), ma scompare dal
+#  raggio diretto camera.
+#
+#  Layout (camera frontale):
+#    • Pavimento diffuso grigio chiaro.
+#    • Due sfere a specchio (chrome) a sinistra e a destra: vedono entrambe
+#      le luci nelle proprie riflessioni — l'inquadratura è studiata perché
+#      la luce "fill" si rifletta nettamente al loro interno.
+#    • Una sfera di vetro al centro: rifrazione + riflessione speculare.
+#
+#  Lights:
+#    • KEY sphere light (alto-destra)        → visible_to_camera: true
+#      Appare in cielo come disco luminoso E nelle riflessioni delle sfere.
+#    • FILL sphere light (alto-sinistra)     → visible_to_camera: false
+#      NON appare nei raggi primari, ma:
+#        - illumina (NEE) il pavimento dal lato sinistro;
+#        - si vede nella sfera mirror destra e nella vetro centrale
+#          (riflessione/rifrazione = raggi non primari).
+#    • Pannello emissivo a soffitto          → entity con
+#      visible_to_camera: false sul `box` emissivo → soffitto pulito ma la
+#      luce indiretta diffusa rimane.
+#
+#  Render consigliati:
+#    Preview:  -s 64   -d 6 -w 480  -H 270  -S 1
+#    Standard: -s 256  -d 8 -w 960  -H 540
+#    Final:    -s 1024 -d 8 -w 1920 -H 1080 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "flat"
+    color: [0.015, 0.018, 0.025]   # quasi-nero: differenza pannello luminoso vs. assente è palese
+
+camera:
+  position: [0, 2.6, 9]
+  look_at:  [0, 1.2, 0]
+  vup:      [0, 1, 0]
+  fov: 38
+  aperture: 0.0
+  focal_dist: 9
+
+materials:
+
+  - id: "floor"
+    type: "disney"
+    color: [0.72, 0.70, 0.66]
+    roughness: 0.55
+    metallic: 0.0
+    specular: 0.25
+
+  - id: "chrome"
+    type: "disney"
+    color: [0.95, 0.93, 0.90]
+    roughness: 0.02
+    metallic: 1.0
+
+  - id: "glass"
+    type: "dielectric"
+    color: [0.97, 0.98, 1.0]
+    refraction_index: 1.52
+
+  - id: "ceiling_emissive"
+    type: "emissive"
+    color: [1.0, 0.92, 0.80]
+    intensity: 2.0
+
+entities:
+
+  # Pavimento
+  - name: "floor"
+    type: "box"
+    material: "floor"
+    scale: [16, 0.2, 10]
+    translate: [0, -0.1, 0]
+
+  # Due sfere mirror (le luci off-frame si vedono in riflessione)
+  - { name: "mirror_L", type: "sphere", center: [-2.6, 1.0, 0], radius: 1.0, material: "chrome" }
+  - { name: "mirror_R", type: "sphere", center: [ 2.6, 1.0, 0], radius: 1.0, material: "chrome" }
+
+  # Vetro centrale (mostra rifrazione + riflessione delle luci)
+  - { name: "glass_C", type: "sphere", center: [0, 0.9, 1.6], radius: 0.55, material: "glass" }
+
+  # Pannello emissivo a soffitto: si comporta come una GeometryLight ma è
+  # nascosto dai raggi primari (visible_to_camera: false). Il soffitto resta
+  # scuro, ma il pavimento riceve light bounce diffuso.
+  - name: "ceiling_panel"
+    type: "box"
+    material: "ceiling_emissive"
+    scale: [4.0, 0.05, 2.5]
+    translate: [0, 4.0, 0]
+    visible_to_camera: false
+
+lights:
+
+  # ── KEY: visibile in tutto (raggi primari + riflessioni) ────────────────
+  - type: "sphere"
+    position: [ 3.5, 3.8, 1.5]
+    radius: 0.35
+    color: [1.0, 0.96, 0.88]
+    intensity: 45.0
+    # visible_to_camera default true
+
+  # ── FILL: nascosto dai raggi primari, ma visibile in mirror/glass ───────
+  - type: "sphere"
+    position: [-3.5, 3.8, 1.5]
+    radius: 0.35
+    color: [0.65, 0.78, 1.0]
+    intensity: 45.0
+    visible_to_camera: false

@@ -185,15 +185,16 @@ Also available as `type: "spotlight"`.
   soft_radius: 0.0               # Optional. >0 = floor distSq in cosLight/d²
 ```
 
-| Parameter        | Default | Description                                |
-|------------------|---------|--------------------------------------------|
-| `corner`         | --      | One corner of the rectangle                |
-| `u`              | --      | First edge vector (from corner)            |
-| `v`              | --      | Second edge vector (from corner)           |
-| `color`          | --      | Light color                                |
-| `intensity`      | --      | Brightness multiplier                      |
-| `shadow_samples` | `4`     | Number of shadow samples (higher = softer) |
-| `soft_radius`    | `0`     | Optional. Clamps `distSq` in the cosLight/d² estimator |
+| Parameter           | Default | Description                                |
+|---------------------|---------|--------------------------------------------|
+| `corner`            | --      | One corner of the rectangle                |
+| `u`                 | --      | First edge vector (from corner)            |
+| `v`                 | --      | Second edge vector (from corner)           |
+| `color`             | --      | Light color                                |
+| `intensity`         | --      | Brightness multiplier                      |
+| `shadow_samples`    | `4`     | Number of shadow samples (higher = softer) |
+| `soft_radius`       | `0`     | Optional. Clamps `distSq` in the cosLight/d² estimator |
+| `visible_to_camera` | `true`  | When `false`, hides the panel from primary camera rays only — NEE, mirror reflections and indirect bounces still see it. See Section 6.8. |
 
 An area light is a flat rectangle that emits light from its entire
 surface. Because it has physical size, it produces **soft shadows** with
@@ -257,13 +258,14 @@ internal proxy without conflict.
   shadow_samples: 12
 ```
 
-| Parameter        | Default | Description                             |
-|------------------|---------|-----------------------------------------|
-| `position`       | --      | Center of the sphere                    |
-| `radius`         | --      | Radius of the light sphere; also defines proxy size |
-| `color`          | --      | Light color                             |
-| `intensity`      | --      | Brightness multiplier                   |
-| `shadow_samples` | `4`     | Number of shadow samples                |
+| Parameter           | Default | Description                             |
+|---------------------|---------|-----------------------------------------|
+| `position`          | --      | Center of the sphere                    |
+| `radius`            | --      | Radius of the light sphere; also defines proxy size |
+| `color`             | --      | Light color                             |
+| `intensity`         | --      | Brightness multiplier                   |
+| `shadow_samples`    | `4`     | Number of shadow samples                |
+| `visible_to_camera` | `true`  | When `false`, hides the sphere proxy from primary camera rays only — NEE, mirror reflections and indirect bounces still see it. See Section 6.8. |
 
 A sphere light is like an area light, but spherical. It produces soft
 shadows with a circular penumbra and creates perfectly round highlights
@@ -315,11 +317,14 @@ entities:
 
 | Feature                       | Geometry Light       | Explicit Light (area/sphere) |
 |-------------------------------|----------------------|------------------------------|
-| Visible in camera             | Yes                  | Yes (via internal proxy)     |
+| Visible in camera             | Yes (toggle on entity) | Yes (toggle on light)      |
 | Visible in reflections        | Yes                  | Yes (via internal proxy)     |
 | Direct illumination (NEE)     | Yes (automatic)      | Yes                          |
 | Soft shadows                  | Yes                  | Yes                          |
 | Sampling efficiency           | Good                 | Slightly better (analytic)   |
+
+Both kinds of light support a `visible_to_camera` flag (default `true`) — see
+the next section for the Arnold/Cycles-style camera-visibility toggle.
 
 Use geometry lights when the light source must be a **custom-shaped**
 emitter (neon signs, lava flows, light tubes, irregular meshes). Use
@@ -355,7 +360,109 @@ phase-sampled bounce, suppressing the fireflies that typically appear in
 
 ---
 
-## 6.8 The Three-Point Lighting Setup
+## 6.8 Camera Visibility (`visible_to_camera`)
+
+Production renderers let you decouple **how a light contributes to the
+image** from **whether the light is itself visible in the frame**. In
+Arnold this is the `camera` visibility flag, in Cycles it's "Ray
+Visibility → Camera". 3D-Ray exposes the same control under the
+underscore_case key `visible_to_camera`.
+
+When set to `false`:
+
+- The light still illuminates the scene at full intensity via NEE
+  (direct lighting).
+- The light still appears in **mirror reflections, glass refractions and
+  indirect bounces** — exactly like in Arnold/Cycles.
+- The light's proxy (or the entity's geometry) is **invisible to primary
+  camera rays only**, which the renderer detects via `depth == maxDepth`.
+
+### When to use it
+
+| Use case | Setup |
+|----------|-------|
+| Off-frame fill light that should not appear as a bright shape in the sky | `visible_to_camera: false` on a `sphere`/`area` light placed outside the framing |
+| Practical lamp visible only in a mirror in the room | `visible_to_camera: false` on the emissive entity |
+| Soft area panel for product photography — clean sky, panel only visible via reflections on the product | `visible_to_camera: false` on the `area` light |
+| Light card just outside the FOV that would otherwise clip the edge of the frame | same |
+
+### On explicit lights
+
+```yaml
+lights:
+  # KEY: visible everywhere (default)
+  - type: "sphere"
+    position: [ 3.5, 3.8, 1.5]
+    radius: 0.35
+    color: [1.0, 0.96, 0.88]
+    intensity: 45.0
+
+  # FILL: invisible to camera, but reflects in mirrors/glass and lights the scene
+  - type: "sphere"
+    position: [-3.5, 3.8, 1.5]
+    radius: 0.35
+    color: [0.65, 0.78, 1.0]
+    intensity: 45.0
+    visible_to_camera: false
+```
+
+### On emissive entities
+
+`visible_to_camera` is also a common per-entity field, so any entity —
+not only proxies of explicit lights — can be hidden from primary camera
+rays. The natural use is a custom-shaped emissive panel that you want
+the surface to illuminate the scene without showing up in the frame:
+
+```yaml
+materials:
+  - id: "panel_glow"
+    type: "emissive"
+    color: [1.0, 0.92, 0.80]
+    intensity: 2.5
+
+entities:
+  - name: "ceiling_panel"
+    type: "box"
+    material: "panel_glow"
+    scale: [4.0, 0.05, 2.5]
+    translate: [0, 4.0, 0]
+    visible_to_camera: false       # clean ceiling, but room is lit
+```
+
+On a `group` the flag propagates to every child (the wrapper is applied
+outside the group's internal BVH); a child can also carry its own flag,
+which composes by OR (parent OR child invisible ⇒ invisible).
+
+### Limitations
+
+- `visible_to_camera` has no observable effect on `point`/`directional`/
+  `spot` (delta) lights — they have no proxy geometry to hide in the
+  first place.
+- A camera ray that hits an invisible proxy is simply advanced past it
+  (with a safety cap of 8 successive skips), so an unbounded stack of
+  overlapping invisible emitters in front of the camera will eventually
+  saturate the cap. Not a realistic scenario, but worth knowing.
+
+### Worked example: `visible-to-camera-showcase.yaml`
+
+The scene `scenes/showcases/visible-to-camera-showcase.yaml` packages
+all the above ideas: a warm KEY sphere light visible in the sky and in
+the reflections of two chrome balls; a cool FILL sphere light hidden
+from the camera but clearly visible in those same reflections; an
+emissive ceiling panel hidden from view but still lighting the floor by
+NEE. Render it at preview quality with
+
+```
+RayTracer -i scenes/showcases/visible-to-camera-showcase.yaml \
+          -o renders/vtc.png -w 480 -H 270 -s 64 -d 6
+```
+
+and compare the chrome reflections side by side — that's the test that
+the flag is doing the right thing.
+
+---
+
+## 6.9 The Three-Point Lighting Setup
 
 The single most useful lighting technique in photography and 3D graphics
 is the three-point setup:
@@ -419,7 +526,7 @@ formula that works for almost any subject.
 
 ---
 
-## 6.9 Lighting Recipes
+## 6.10 Lighting Recipes
 
 ### Studio Product Photography
 
@@ -481,7 +588,7 @@ lights:
 
 ---
 
-## 6.10 Complete Example: Lighting Comparison
+## 6.11 Complete Example: Lighting Comparison
 
 A single sphere and pedestal lit by different light types.
 
@@ -642,6 +749,10 @@ quality, highlight shape, and falloff behavior side by side.
 - `area` and `sphere` lights are also visible to camera and specular
   rays via an internally-managed emissive proxy primitive — Veach-MIS
   parity with Arnold/Cycles.
+- Per-light and per-entity **`visible_to_camera: false`** hides the
+  proxy/geometry from primary camera rays only; NEE, mirrors, glass and
+  indirect bounces still see it — Arnold `camera` / Cycles "Ray
+  Visibility → Camera" semantics.
 - The `-S` CLI flag overrides shadow samples globally for fast drafts.
 - The **three-point setup** (key, fill, rim) is a reliable starting
   point for any scene.
