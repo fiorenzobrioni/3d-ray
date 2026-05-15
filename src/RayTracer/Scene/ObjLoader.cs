@@ -46,7 +46,8 @@ public static class ObjLoader
     /// <param name="warnings">Optional list to collect non-fatal parse warnings.</param>
     /// <returns>A Mesh containing all parsed triangles, or null if the file is empty/invalid.</returns>
     public static Mesh? Load(string path, IMaterial material, List<string>? warnings = null)
-        => Load(path, material, SubdivisionOptions.Disabled, warnings);
+        => Load(path, material, SubdivisionOptions.Disabled,
+                DisplacementOptions.Disabled, 0, warnings, out _, out _, out _);
 
     /// <summary>
     /// Loads an OBJ file and returns a <see cref="Mesh"/>, optionally running
@@ -66,9 +67,40 @@ public static class ObjLoader
     public static Mesh? Load(string path, IMaterial material,
         SubdivisionOptions subdivision, List<string>? warnings,
         out SubdivisionScheme appliedScheme, out int appliedIterations)
+        => Load(path, material, subdivision, DisplacementOptions.Disabled, 0,
+                warnings, out appliedScheme, out appliedIterations, out _);
+
+    /// <summary>
+    /// Loads an OBJ file with subdivision and scalar displacement support.
+    /// Step 3 of the surface-displacement stack (Arnold/RenderMan/Cycles
+    /// parity): subdivision builds the micro-mesh, displacement pushes its
+    /// vertices along the limit-surface smooth normal, then the renderer's
+    /// BVH is built on the displaced triangles.
+    /// </summary>
+    /// <param name="path">Path to the .obj file.</param>
+    /// <param name="material">Material to apply to all faces.</param>
+    /// <param name="subdivision">Subdivision parameters.</param>
+    /// <param name="displacement">Scalar displacement parameters; when
+    /// <see cref="DisplacementOptions.IsActive"/> is false the legacy
+    /// (no-displacement) path runs.</param>
+    /// <param name="objectSeed">Entity seed forwarded to texture lookups —
+    /// procedural displacement textures use it to break repetition across
+    /// instances.</param>
+    /// <param name="warnings">Optional list of non-fatal parse warnings.</param>
+    /// <param name="appliedScheme">Receives the actually applied scheme.</param>
+    /// <param name="appliedIterations">Receives the iteration count run.</param>
+    /// <param name="maxDisplacement">Receives the maximum |scale·(h−midlevel)|
+    /// across all displaced vertices. Callers compare against
+    /// <see cref="DisplacementOptions.Bound"/> to detect under-bounded scenes.</param>
+    public static Mesh? Load(string path, IMaterial material,
+        SubdivisionOptions subdivision, DisplacementOptions displacement,
+        int objectSeed, List<string>? warnings,
+        out SubdivisionScheme appliedScheme, out int appliedIterations,
+        out float maxDisplacement)
     {
         appliedScheme = SubdivisionScheme.None;
         appliedIterations = 0;
+        maxDisplacement = 0f;
 
         if (!File.Exists(path))
         {
@@ -187,12 +219,27 @@ public static class ObjLoader
             appliedIterations = iters;
         }
 
+        // ── Optional scalar displacement pass ────────────────────────────
+        // Runs after subdivision and before triangulation so the micro-mesh
+        // built by Loop / Catmull-Clark is what gets displaced (the silhouette
+        // resolution scales with subdivision_iterations, exactly as in
+        // Arnold/RenderMan). Without prior subdivision a low-poly OBJ
+        // displaces too coarsely to be visually useful — we still allow it
+        // (matches the "displace without subdivide" sanity path used by tests
+        // and minimal scenes) but expect authors to combine the two.
+        if (displacement.IsActive)
+        {
+            maxDisplacement = DisplacementEngine.Apply(poly, displacement, objectSeed);
+        }
+
         // ── Build SmoothTriangle list ────────────────────────────────────
         List<IHittable> triangles;
-        if (appliedIterations > 0)
+        if (appliedIterations > 0 || displacement.IsActive)
         {
-            // The subdivision engine has reconstructed smooth normals from
-            // the limit topology and either kept or rebuilt UV indices.
+            // After subdivision or displacement the per-vertex normals must
+            // come from the (possibly displaced) limit topology — the
+            // triangulator handles the angle-weighted recompute on its own,
+            // so we always route through it once either pass has run.
             triangles = SubdivisionEngine.Triangulate(poly, material);
         }
         else
@@ -209,7 +256,13 @@ public static class ObjLoader
             return null;
         }
 
-        return new Mesh(triangles, material, vertexCount);
+        // displacement_bound: pad each BVH leaf AABB by the artist-supplied
+        // safety margin. The displaced positions are already baked into the
+        // triangles, so the padding is a defensive measure — it absorbs
+        // shading-time bump perturbation and matches the contract surfaced
+        // by Arnold's disp_padding / RenderMan's dispBound.
+        float bound = displacement.IsActive ? MathF.Max(0f, displacement.Bound) : 0f;
+        return new Mesh(triangles, material, vertexCount, bound);
     }
 
     /// <summary>Backwards-compatible 4-arg overload (no subdivision).</summary>

@@ -1,0 +1,185 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Scalar Displacement Showcase — Surface Displacement Stack, Step 3/5
+#
+#  Dimostra il canale `displacement` (Arnold `displacementShader`,
+#  RenderMan `PxrDisplace`, Cycles "True Displacement"): la mesh subdivisa
+#  viene letteralmente spinta lungo la normale di shading da un campo
+#  scalare. A differenza del `bump_map` (step 1) la SILHOUETTE cambia — il
+#  contorno della mesh contro lo sfondo riflette la deformazione reale.
+#
+#  Pipeline:
+#     OBJ low-poly  →  Catmull-Clark / Loop subdivision  →
+#     displacement v += scale·(h − midlevel)·n_smooth   →  BVH
+#
+#  Vincolo di design (matches Arnold / Cycles): il displacement vero è
+#  riservato alle mesh; sphere/torus/cylinder/ecc. supportano solo `bump_map`.
+#
+#  LAYOUT
+#  ──────
+#  Tre lastre verticali fianco a fianco (plane subdivise CC×6 = 16 384 quad)
+#  ruotate per fronteggiare la camera. Materiale comune porcellana opaca
+#  chiara, displacement diversi:
+#
+#     A (sinistra) — riferimento piatto (no displacement, stessa subdivision)
+#     B (centro)   — Perlin fBm  → terreno collinare / pelle di pietra
+#     C (destra)   — Voronoi F2-F1  → crepe e tessere irregolari
+#
+#  Sopra al centro: una sfera asteroidale (cubo CC×4 + ridged-fBm displacement
+#  + Beckman roughness) che mostra come il displacement vero produca silhouette
+#  irregolari reali, non un effetto di shading. Confronta la silhouette
+#  della sfera con la sfera-bump di `bump-map-showcase.yaml` per vedere la
+#  differenza chiave: il bump perturba solo la normale, il displacement
+#  sposta i vertici.
+#
+#  Luce key direzionale radente da sinistra + fill point da destra. La key
+#  radente esalta le ombre nei solchi delle creste displaced.
+#
+#  Render consigliato:
+#     Preview:  -w 640  -H 360  -s 32   -d 4  -S 1
+#     Standard: -w 1280 -H 720  -s 256  -d 6  -S 2
+#     Final:    -w 1920 -H 1080 -s 1024 -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+camera:
+  position: [0, 1.6, -4.5]
+  look_at:  [0, 1.2,  0]
+  fov: 52
+  aperture: 0.0
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.04, 0.06, 0.11]
+    horizon_color: [0.28, 0.26, 0.32]
+    ground_color:  [0.02, 0.02, 0.03]
+
+materials:
+
+  - id: "porcellana"
+    type: "disney"
+    color: [0.92, 0.88, 0.82]
+    roughness: 0.42
+    specular: 0.55
+
+  - id: "rame_corroso"
+    type: "disney"
+    color: [0.85, 0.55, 0.32]
+    roughness: 0.55
+    metallic: 1.0
+
+  - id: "pavimento"
+    type: "disney"
+    color: [0.14, 0.14, 0.17]
+    roughness: 0.85
+
+lights:
+
+  # Key direzionale radente da sinistra in basso — esalta i solchi.
+  - type: "directional"
+    direction: [1.0, -0.25, 0.3]
+    color: [1.0, 0.97, 0.92]
+    intensity: 2.5
+    angular_radius: 0.5
+
+  # Fill point caldo sulla destra in alto.
+  - type: "point"
+    position: [5, 4.5, -1.5]
+    color: [1.0, 0.92, 0.80]
+    intensity: 80
+
+entities:
+
+  # ── Pavimento ──────────────────────────────────────────────────────────
+  - name: "pavimento"
+    type: "quad"
+    q: [-12, 0, -3]
+    u: [24, 0, 0]
+    v: [0, 0, 10]
+    material: "pavimento"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # LASTRA A — flat reference (subdivision senza displacement)
+  # plane originale in XZ, ruotato -90° su X → vertical, normale verso camera.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "A_flat"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana"
+    scale: [0.9, 1.0, 1.1]
+    translate: [-2.2, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 4
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # LASTRA B — Perlin fBm (terreno organico)
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "B_perlin"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana"
+    scale: [0.9, 1.0, 1.1]
+    translate: [0.0, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 6
+    displacement:
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 3.5
+        octaves: 5
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.40
+      midlevel: 0.5
+    displacement_bound: 0.30
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # LASTRA C — Voronoi F2-F1 (crepe / tessere)
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "C_voronoi"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana"
+    scale: [0.9, 1.0, 1.1]
+    translate: [2.2, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 6
+    displacement:
+      texture:
+        type: "voronoi"
+        scale: 4.0
+        metric: "euclidean"
+        output: "f2_minus_f1"
+        randomness: 1.0
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.30
+      midlevel: 0.0
+    displacement_bound: 0.30
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # ASTEROIDE — cubo CC×4 + ridged-fBm → silhouette irregolare reale.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "asteroid"
+    type: "mesh"
+    path: "../models/subdivision-cube.obj"
+    material: "rame_corroso"
+    scale: [0.4, 0.4, 0.4]
+    translate: [0, 2.6, 1.8]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 4
+    displacement:
+      texture:
+        type: "noise"
+        noise_type: "ridged"
+        scale: 3.0
+        octaves: 4
+        lacunarity: 2.2
+        gain: 0.55
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.15
+      midlevel: 0.35
+    displacement_bound: 0.18

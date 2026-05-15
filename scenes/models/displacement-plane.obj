@@ -1,0 +1,18 @@
+# Unit plane (xz, +Y up) as a single quad with explicit UV corners.
+# Winding order is CCW viewed from +Y so the angle-weighted smooth normal
+# at every vertex of the subdivided plane points outward (+Y) and the
+# scalar displacement pushes the surface above y=0 by default.
+#
+# Source for the scalar-displacement showcase (step 3/5 of the surface
+# displacement stack). The quad is intentionally a single 4-corner face so
+# Catmull-Clark / Loop subdivision can refine it uniformly without the
+# triangulation seam a triangulated quad would introduce.
+v -1.0  0.0 -1.0
+v -1.0  0.0  1.0
+v  1.0  0.0  1.0
+v  1.0  0.0 -1.0
+vt 0.0 0.0
+vt 0.0 1.0
+vt 1.0 1.0
+vt 1.0 0.0
+f 1/1 2/2 3/3 4/4

@@ -875,6 +875,66 @@ Pixar's OpenSubdiv:
   interpolation in OpenSubdiv terms). UV seams that share a position but
   not a UV are preserved.
 
+##### **Scalar displacement (true silhouette deformation)**
+
+The mesh loader can apply a scalar height-field displacement to the
+(sub)divided mesh **before BVH construction**. Unlike `bump_map`, which
+perturbs only the shading normal, scalar displacement physically moves
+the vertices along the limit-surface smooth normal:
+
+```yaml
+- name: "stone_panel"
+  type: "mesh"
+  path: "models/plane.obj"
+  material: "stone"
+  subdivision_scheme: "catmull_clark"
+  subdivision_iterations: 6
+  displacement:
+    texture:                                # any ITexture (procedural or image)
+      type: "noise"
+      noise_type: "fbm"
+      scale: 3.5
+      octaves: 5
+      colors: [[0, 0, 0], [1, 1, 1]]
+    scale: 0.30                             # world-unit amplitude
+    midlevel: 0.5                           # luminance treated as "flat" (0.5 for 8-bit greys)
+    uv_scale: 1.0                           # uniform UV multiplier (default 1.0)
+  displacement_bound: 0.30                  # max expected displacement (BVH leaf AABB padding)
+```
+
+The vertex update is `v' = v + scale · (h − midlevel) · n_smooth`, where
+`h = luminance(texture.Value(u, v, p))` and `n_smooth` is the angle-weighted
+average of incident face normals on the limit topology (Max 1999 — the
+Blender/Maya/OpenSubdiv default). After displacement the per-vertex shading
+normals are recomputed from the displaced topology so the BSDF sees the
+new silhouette's actual normal field, not the pre-displacement one.
+
+| Field                  | Type        | Default | Notes |
+|------------------------|-------------|---------|-------|
+| `displacement.texture` | TextureData | —       | Inner height field. Any procedural (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) or `image`. Sampled as Rec.709 luminance, same convention as `bump_map`. |
+| `displacement.scale`   | float       | `0.1`   | Signed amplitude in world units. Negative pushes inward. `0` disables. |
+| `displacement.midlevel`| float       | `0`     | Luminance treated as "no displacement". `0.5` for 8-bit greys where 128 means flat (matches RenderMan's `dispMidpoint`). |
+| `displacement.uv_scale`| float > 0   | `1.0`   | Uniform UV multiplier stacked on top of the inner texture's own `uv_scale`. |
+| `displacement_bound`   | float ≥ 0   | `\|scale\|` | Maximum expected displacement amplitude. Pads every BVH leaf AABB by this much (Arnold's `disp_padding`, RenderMan's `dispBound`). Auto-derived from `scale` when omitted. The loader warns when the actually-applied displacement exceeds the bound so the value can be raised. |
+
+**Pipeline order.** The pipeline runs `subdivide → displace → triangulate
+→ BVH`. Displacement on an un-subdivided low-poly mesh moves the original
+vertices and is rarely visually useful; combine it with
+`subdivision_iterations ≥ 4` (or an adaptive `subdivision_pixel_error`)
+to expose enough micro-vertices for a smooth deformation.
+
+**Mesh-only by design.** Scalar displacement is restricted to `type: mesh`
+entities. Built-in primitives (`sphere`, `cylinder`, `torus`, …) use
+`bump_map` for sub-pixel detail — the same architectural choice made by
+Arnold (`displacement` only on `polymesh`) and Cycles (True Displacement
+only on subdiv-capable nodes).
+
+**Bump + displacement composition.** When a material declares a `bump_map`
+and the entity declares a `displacement`, the displacement handles the
+macro silhouette (vertex positions, BVH) and the bump handles sub-pixel
+detail on top of the displaced shading normal. This mirrors Arnold's
+"autobump" workflow.
+
 #### **7.13 CSG (Boolean Operations)**
 ```yaml
 # Union (A ∪ B) — fuses two solids into one (e.g. snowman body + head)

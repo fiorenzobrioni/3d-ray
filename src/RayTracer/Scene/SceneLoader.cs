@@ -1856,9 +1856,17 @@ public class SceneLoader
         // translate/rotate/scale, not the unit-cube-local coordinates.
         var subdivision = BuildSubdivisionOptions(e, screen);
 
+        // Build the displacement request. The seed assigned below is used
+        // for procedural-texture sampling, so we precompute it here and
+        // forward it to the loader.
+        int seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
+        var displacement = BuildDisplacementOptions(e, sceneDir);
+
         var warnings = new List<string>();
-        var mesh = ObjLoader.Load(objPath, mat, subdivision, warnings,
-            out var appliedScheme, out var appliedIterations);
+        var mesh = ObjLoader.Load(objPath, mat, subdivision, displacement, seed,
+            warnings,
+            out var appliedScheme, out var appliedIterations,
+            out var maxDisplacement);
 
         foreach (var w in warnings)
             Warn($"Mesh '{e.Name ?? Path.GetFileName(objPath)}': {w}");
@@ -1869,11 +1877,40 @@ public class SceneLoader
             return null;
         }
 
-        if (appliedIterations > 0)
+        // Detect under-bounded displacement: if the user provided an
+        // explicit displacement_bound but the texture pushed vertices past
+        // it, warn so they can either raise the bound or clamp their
+        // texture. The eager-displaced AABBs are already correct, so this
+        // is purely a forward-compat hint for future lazy-displacement
+        // modes that would actually rely on the bound for correctness.
+        if (displacement.IsActive && e.DisplacementBound > 0f
+            && maxDisplacement > e.DisplacementBound * 1.0001f)
+        {
+            Warn($"Mesh '{e.Name ?? Path.GetFileName(objPath)}': " +
+                 $"displacement_bound={e.DisplacementBound:F4} is smaller than " +
+                 $"the maximum applied displacement {maxDisplacement:F4}. " +
+                 $"Raise displacement_bound to {maxDisplacement:F4} or higher " +
+                 $"to fully enclose the displaced silhouette.");
+        }
+
+        if (appliedIterations > 0 && displacement.IsActive)
+        {
+            Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
+                 $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices " +
+                 $"(subdivision: {appliedScheme} \u00d7 {appliedIterations}, " +
+                 $"displacement: max={maxDisplacement:F4})");
+        }
+        else if (appliedIterations > 0)
         {
             Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
                  $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices " +
                  $"(subdivision: {appliedScheme} \u00d7 {appliedIterations})");
+        }
+        else if (displacement.IsActive)
+        {
+            Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
+                 $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices " +
+                 $"(displacement: max={maxDisplacement:F4})");
         }
         else
         {
@@ -1882,9 +1919,66 @@ public class SceneLoader
         }
 
         // Seed assignment (same logic as CreateEntity)
-        mesh.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
+        mesh.Seed = seed;
 
         return mesh;
+    }
+
+    /// <summary>
+    /// Translates the <see cref="EntityData"/> displacement block into an
+    /// engine-level <see cref="DisplacementOptions"/> struct, resolving the
+    /// inner height-field texture through the shared <see cref="CreateTexture"/>
+    /// dispatcher. Returns <see cref="DisplacementOptions.Disabled"/> when the
+    /// block is absent or malformed.
+    /// </summary>
+    private static DisplacementOptions BuildDisplacementOptions(
+        EntityData e, string sceneDir)
+    {
+        var disp = e.Displacement;
+        if (disp == null) return DisplacementOptions.Disabled;
+
+        if (disp.Texture == null)
+        {
+            Warn($"Mesh '{e.Name ?? "(unnamed)"}': displacement requires a " +
+                 $"'texture' block. Ignoring.");
+            return DisplacementOptions.Disabled;
+        }
+
+        if (disp.Scale == 0f)
+        {
+            // Silent: scale=0 means "wire up the texture but don't displace"
+            // \u2014 a valid authoring state.
+            return DisplacementOptions.Disabled;
+        }
+
+        ITexture inner;
+        try
+        {
+            inner = CreateTexture(disp.Texture, sceneDir);
+        }
+        catch (Exception ex)
+        {
+            Warn($"Mesh '{e.Name ?? "(unnamed)"}': failed to build " +
+                 $"displacement texture: {ex.Message}. Ignoring.");
+            return DisplacementOptions.Disabled;
+        }
+
+        // displacement_bound defaults to |scale| when unset: a sensible
+        // upper bound for a luminance-in-[0,1] height field with midlevel=0
+        // or midlevel=0.5. Authors with custom midlevels or out-of-range
+        // textures can override.
+        float bound = e.DisplacementBound > 0f
+            ? e.DisplacementBound
+            : MathF.Abs(disp.Scale);
+
+        return new DisplacementOptions
+        {
+            Texture  = inner,
+            Scale    = disp.Scale,
+            Midlevel = disp.Midlevel,
+            Bound    = bound,
+            UvScale  = disp.UvScale > 0f ? disp.UvScale : 1f,
+        };
     }
 
     /// <summary>

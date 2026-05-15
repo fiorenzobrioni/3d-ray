@@ -389,6 +389,68 @@ Mesh: cubo_smussato — 768 faces, 8 vertices (subdivision: CatmullClark × 3)
 
 Dietro le quinte il motore costruisce la topologia limite, ricalcola le normali per-vertice come media pesata sugli angoli delle facce incidenti (default di Blender/Maya) e poi emette i triangoli risultanti nel BVH interno della mesh. Le normali dell'OBJ vengono propagate attraverso le iterazioni di subdivision ma sostituite al momento della triangolazione finale perché la superficie limite è più liscia dell'input.
 
+### 4.12.2 Displacement Scalare (deformazione vera della silhouette)
+
+La subdivision ti dà una micro-mesh fitta e liscia. **Lo scalar
+displacement** fa il passo successivo: spinge ogni micro-vertice lungo
+la sua normale liscia di una quantità letta da una texture, producendo
+un cambiamento reale di silhouette — non un trucco di shading. È il
+displacement "height-field" canonico di Arnold (`displacementShader`),
+RenderMan (`PxrDisplace`) e Cycles ("True Displacement").
+
+```yaml
+- type: "mesh"
+  path: "models/plane.obj"
+  material: "pietra"
+  subdivision_scheme: "catmull_clark"
+  subdivision_iterations: 6                # ~16k quad per displacement fine
+  displacement:
+    texture:                                # qualunque texture procedurale o image
+      type: "noise"
+      noise_type: "fbm"
+      scale: 3.5
+      octaves: 5
+      colors: [[0, 0, 0], [1, 1, 1]]
+    scale: 0.3                              # ampiezza in unità di mondo
+    midlevel: 0.5                           # luminanza trattata come "piatto"
+  displacement_bound: 0.3                   # displacement massimo atteso
+```
+
+L'aggiornamento del vertice è `v' = v + scale · (h − midlevel) · n_smooth`,
+dove `h` è la luminanza Rec.709 della texture campionata al vertice e
+`n_smooth` è la normale liscia (media pesata sugli angoli) sulla
+topologia limite. Dopo il displacement il motore ricalcola le normali di
+shading dalle posizioni spostate, così il BSDF riflette la nuova
+silhouette.
+
+| Campo                  | Default     | Note |
+|------------------------|-------------|------|
+| `displacement.texture` | —           | Height field interno. Qualunque procedurale (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) o `image`. |
+| `displacement.scale`   | `0.1`       | Ampiezza con segno in unità di mondo. Negativo spinge verso l'interno. `0` disabilita. |
+| `displacement.midlevel`| `0`         | Luminanza trattata come "piatto". `0.5` per heightmap 8-bit. |
+| `displacement.uv_scale`| `1.0`       | Moltiplicatore UV uniforme che si stacca sopra al `uv_scale` interno della texture. |
+| `displacement_bound`   | `\|scale\|` | Padding AABB foglia del BVH (`disp_padding` di Arnold, `dispBound` di RenderMan). Il loader emette un warning quando il displacement effettivo supera il bound. |
+
+**Ordine della pipeline.** `subdivide → displace → triangulate → BVH`.
+Il displacement su una mesh low-poly non subdivisa sposta solo i vertici
+originali ed è raramente utile — combinalo con almeno 4–6 iterazioni
+(o un `subdivision_pixel_error` adattivo) per esporre abbastanza
+micro-vertici da produrre una deformazione fluida.
+
+**Solo mesh.** Lo scalar displacement è ristretto alle entity `type: mesh`.
+Le primitive built-in (`sphere`, `cylinder`, …) usano `bump_map` per il
+dettaglio sub-pixel — stessa scelta architetturale di Arnold e Cycles.
+
+**Bump + displacement.** Quando entrambi sono presenti, il displacement
+gestisce la macro-silhouette e il `bump_map` aggiunge il dettaglio
+sub-pixel sulla normale di shading già modificata — il workflow
+"autobump" reso popolare da Arnold.
+
+La scena showcase `scenes/showcases/scalar-displacement-showcase.yaml`
+mette quattro pannelli (riferimento piatto, fBm noise, crepe voronoi e
+un asteroide ridged-fBm) fianco a fianco per confrontare le silhouette
+direttamente.
+
 ---
 
 ## 4.13 Riepilogo Alias dei Tipi
