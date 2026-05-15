@@ -99,6 +99,52 @@ public class NoiseTexture : ITexture
     }
 
     public Vector3 Value(float u, float v, Vector3 p, int objectSeed)
+        => ValueCore(u, v, p, objectSeed, octaveOverride: -1);
+
+    public Vector3 Value(float u, float v, Vector3 p, int objectSeed, in FilterFootprint footprint)
+    {
+        if (!footprint.HasFootprint) return ValueCore(u, v, p, objectSeed, octaveOverride: -1);
+
+        // ── Analytic octave clamp (Heidrich-Slusallek 1998 §4) ──────────────
+        // Perlin noise at frequency f aliases when the footprint exceeds the
+        // Nyquist period 1/(2f). After the texture's _scale and per-octave
+        // lacunarity, octave i has frequency f_i = scale × lacunarity^i, so
+        // its period in the same units as the footprint is 1/f_i. Drop any
+        // octave whose period is below 2 × footprint extent — its energy
+        // would alias into the visible image instead of contributing detail.
+        //
+        // The footprint is in the same space as p (object/LocalPoint after
+        // Transform inverse-mapped the aux rays, or world for transform-free
+        // primitives). The renderer's _scale multiplies p into "noise units"
+        // identically to the noise sampler below.
+        float footprintExtent = footprint.MaxWorldAxis();
+        int octClamped = ComputeMaxOctaves(footprintExtent);
+
+        return ValueCore(u, v, p, objectSeed, octaveOverride: octClamped);
+    }
+
+    /// <summary>
+    /// Per-frequency Nyquist criterion: the smallest octave index whose
+    /// period <c>1/(scale·lacunarity^i)</c> falls below twice the footprint
+    /// extent is the first to alias and must be dropped.
+    /// </summary>
+    private int ComputeMaxOctaves(float footprintExtent)
+    {
+        if (footprintExtent <= 0f) return Octaves;
+        float lac = Lacunarity > 1f ? Lacunarity : 2f;
+        // Period of octave 0 in noise space (after _scale):
+        //   T_0 = 1 / _scale   (footprint is in p-space, so multiply by _scale to compare)
+        // Octave i aliases when:
+        //   T_i = 1 / (_scale · lac^i) < 2 · footprintExtent
+        //   ⟹ i > log_lac (1 / (2 · _scale · footprintExtent))
+        float denom = 2f * MathF.Max(_scale, 1e-12f) * footprintExtent;
+        if (denom <= 0f || float.IsInfinity(denom)) return 1;
+        float maxOct = MathF.Log(1f / denom) / MathF.Log(lac);
+        int oct = (int)MathF.Floor(maxOct) + 1; // include the last sub-Nyquist octave
+        return Math.Clamp(oct, 1, Octaves);
+    }
+
+    private Vector3 ValueCore(float u, float v, Vector3 p, int objectSeed, int octaveOverride)
     {
         Vector3 transformedP = TextureTransform.Apply(
             p, Offset, Rotation, objectSeed, RandomizeOffset, RandomizeRotation);
@@ -117,16 +163,21 @@ public class NoiseTexture : ITexture
             kind = NoiseStrength > 0f ? NoiseKind.Turbulence : NoiseKind.Perlin;
         }
 
+        int effOct = octaveOverride > 0 ? octaveOverride : Octaves;
+        int legacyTurbulenceOct = octaveOverride > 0
+            ? octaveOverride
+            : (NoiseType == NoiseKind.Auto ? 7 : Octaves);
+
         float n = kind switch
         {
             NoiseKind.Perlin     => (noise.Noise(q) + 1f) * 0.5f,
-            NoiseKind.Fbm        => noise.Fbm(q, Octaves, Lacunarity, Gain),
-            NoiseKind.Ridged     => noise.Ridged(q, Octaves, Lacunarity, Gain),
-            NoiseKind.Billow     => noise.Billow(q, Octaves, Lacunarity, Gain),
+            NoiseKind.Fbm        => noise.Fbm(q, effOct, Lacunarity, Gain),
+            NoiseKind.Ridged     => noise.Ridged(q, effOct, Lacunarity, Gain),
+            NoiseKind.Billow     => noise.Billow(q, effOct, Lacunarity, Gain),
             // Legacy turbulence keeps its historical 7-octave default when the
             // user hasn't explicitly overridden `octaves`, matching the old
             // visual output exactly.
-            NoiseKind.Turbulence => noise.Turbulence(q, NoiseType == NoiseKind.Auto ? 7 : Octaves),
+            NoiseKind.Turbulence => noise.Turbulence(q, legacyTurbulenceOct),
             _                    => (noise.Noise(q) + 1f) * 0.5f,
         };
 

@@ -54,6 +54,32 @@ public struct HitRecord
     public Vector3 Tangent;
     public Vector3 Bitangent;
 
+    // ── Parametric partials ∂P/∂u, ∂P/∂v (world or object space) ────────────
+    // Used by texture-filtering to convert a screen-space surface footprint
+    // (∂P/∂x, ∂P/∂y) into UV partials (∂u/∂x, ∂v/∂x, ∂u/∂y, ∂v/∂y) so image
+    // textures can pick a mipmap LOD and procedural 2D textures (checker,
+    // brick, gradient) can downsample analytically.
+    //
+    // Their magnitudes encode "world distance per UV unit" at the hit and
+    // must be primitive-specific — Sphere of radius R has |∂P/∂u| = 2π·R·sinθ,
+    // a quad of size W,H has |∂P/∂u| = W. When a primitive's Hit() leaves
+    // these zero, the footprint code falls back to the unit-tangent /
+    // unit-bitangent vectors, which is a conservative under-estimate (slight
+    // residual aliasing at tight UV scales but no over-blurring).
+    public Vector3 DpDu;
+    public Vector3 DpDv;
+
+    /// <summary>
+    /// Analytic filter footprint at this shading point (PBRT §10.1).
+    /// Populated by <see cref="Rendering.Renderer"/> after the world Hit()
+    /// returns for primary rays that carry ray differentials; left
+    /// default-zero (<see cref="FilterFootprint.HasFootprint"/> == false)
+    /// for shadow / NEE / BSDF-bounce rays. Textures consume it through the
+    /// footprint-aware <c>ITexture.Value</c> overload and fall back to point
+    /// sampling when it's not present.
+    /// </summary>
+    public FilterFootprint Footprint;
+
     public void SetFaceNormal(Ray ray, Vector3 outwardNormal)
     {
         FrontFace = Vector3.Dot(ray.Direction, outwardNormal) < 0;

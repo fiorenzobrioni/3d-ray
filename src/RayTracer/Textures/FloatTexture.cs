@@ -1,4 +1,5 @@
 using System.Numerics;
+using RayTracer.Core;
 
 namespace RayTracer.Textures;
 
@@ -40,6 +41,18 @@ public sealed class FloatTexture
     {
         if (_texture == null) return _scalar;
         Vector3 rgb = _texture.Value(u, v, p, objectSeed);
+        return (rgb.X + rgb.Y + rgb.Z) * (1f / 3f);
+    }
+
+    /// <summary>
+    /// Footprint-aware sample. Forwards the analytic filter footprint to the
+    /// underlying texture so filtered impls (mipmap LOD, octave clamp,
+    /// supersampling) can anti-alias on a per-shading-point basis.
+    /// </summary>
+    public float Value(float u, float v, Vector3 p, int objectSeed, in FilterFootprint footprint)
+    {
+        if (_texture == null) return _scalar;
+        Vector3 rgb = _texture.Value(u, v, p, objectSeed, footprint);
         return (rgb.X + rgb.Y + rgb.Z) * (1f / 3f);
     }
 

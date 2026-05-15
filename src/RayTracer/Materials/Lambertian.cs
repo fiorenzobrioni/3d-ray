@@ -34,7 +34,7 @@ public sealed class Lambertian : IMaterial
     {
         float NdotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
         if (NdotL <= 0f) return Vector3.Zero;
-        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
         return albedo * (NdotL / MathF.PI);
     }
 
@@ -45,7 +45,7 @@ public sealed class Lambertian : IMaterial
             scatterDirection = rec.Normal;
 
         scattered = new Ray(rec.Point, scatterDirection);
-        attenuation = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        attenuation = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
         return true;
     }
 
@@ -65,7 +65,7 @@ public sealed class Lambertian : IMaterial
     public Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec)
     {
         if (Vector3.Dot(rec.Normal, L) <= 0f) return Vector3.Zero;
-        return Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed) * (1f / MathF.PI);
+        return Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint) * (1f / MathF.PI);
     }
 
     public float Pdf(Vector3 V, Vector3 L, HitRecord rec)
@@ -85,7 +85,7 @@ public sealed class Lambertian : IMaterial
         float NdotWo = Vector3.Dot(N, wo);
         if (NdotWo <= 0f) return null;
 
-        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
         Vector3 f = albedo * (1f / MathF.PI);
         float pdf = NdotWo * (1f / MathF.PI);
         return new BsdfSample(wo, f, pdf, isDelta: false);

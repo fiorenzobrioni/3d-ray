@@ -121,6 +121,26 @@ class Program
                            out var icf) && icf >= 0f)
             indirectClampFactor = icf;
 
+        // Texture filtering — ray differentials drive analytic anti-aliasing
+        // in filtered textures (Perlin/fBm octave clamp, Worley supersampling,
+        // ImageTexture mipmap). Default 'auto' = on; 'off' disables differential
+        // emission entirely for benchmark comparison against the point-sampled
+        // baseline; 'on' is identical to auto and reserved for future heuristics.
+        Renderer.TextureFilteringMode textureFiltering = Renderer.TextureFilteringMode.Auto;
+        string? textureFilteringArg = GetArg(args, "--texture-filtering", null);
+        if (textureFilteringArg != null)
+        {
+            switch (textureFilteringArg.ToLowerInvariant())
+            {
+                case "auto": textureFiltering = Renderer.TextureFilteringMode.Auto; break;
+                case "on":   textureFiltering = Renderer.TextureFilteringMode.On;   break;
+                case "off":  textureFiltering = Renderer.TextureFilteringMode.Off;  break;
+                default:
+                    Console.WriteLine($"Error: Unknown --texture-filtering '{textureFilteringArg}'. Valid: auto, on, off.");
+                    return;
+            }
+        }
+
         // Verbose mode
         bool verbose = HasFlag(args, "--verbose", "-v");
         SceneLoader.SetVerbose(verbose);
@@ -200,7 +220,7 @@ class Program
             Console.WriteLine($"  Sky:         {skyDesc}");
 
             // Render (constructor may print scene analysis info before the blank line)
-            var renderer = new Renderer(world, camera, lights, sky, samples, depth, globalMedium, clampOverride, verbose, misHeuristic, lightSampling, indirectClampFactor);
+            var renderer = new Renderer(world, camera, lights, sky, samples, depth, globalMedium, clampOverride, verbose, misHeuristic, lightSampling, indirectClampFactor, textureFiltering);
             Console.WriteLine();
 
             sw.Restart();
@@ -247,6 +267,7 @@ class Program
         Console.WriteLine("      --sampler <prng|sobol>   Per-pixel sampler (default: sobol — Burley 2020)");
         Console.WriteLine("      --mis <balance|power>    MIS combination heuristic (default: balance)");
         Console.WriteLine("      --light-sampling <all|power|uniform>  NEE light strategy (default: all)");
+        Console.WriteLine("      --texture-filtering <auto|on|off>     Analytic anti-aliasing via ray differentials (default: auto)");
         Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
         Console.WriteLine("  -v, --verbose                Show detailed loading and scene analysis info");
         Console.WriteLine("  -h, --help                   Show this help");

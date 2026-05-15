@@ -78,7 +78,7 @@ public sealed class Metal : IMaterial
         if (NdotL <= 0f) return Vector3.Zero;
         if (Fuzz <= 0f) return Vector3.Zero;     // delta lobe — handled by Sample()
 
-        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
 
         // Soft Lambertian fill scaled by fuzz — rough metals have some
         // diffuse-like scattering from secondary bounces between facets.
@@ -148,7 +148,7 @@ public sealed class Metal : IMaterial
         float G = SmithG1_GGX(NdotV, _alpha) * SmithG1_GGX(NdotL, _alpha);
 
         // Schlick Fresnel tinted by the metal albedo (F0 = baseColor).
-        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
         float s = 1f - VdotH;
         s *= s * s * s * s;
         Vector3 F = albedo + (Vector3.One - albedo) * s;
@@ -181,7 +181,7 @@ public sealed class Metal : IMaterial
     public BsdfSample? Sample(Vector3 V, HitRecord rec)
     {
         Vector3 N = rec.Normal;
-        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
 
         if (Fuzz <= 0f)
         {
@@ -273,7 +273,7 @@ public sealed class Metal : IMaterial
         float G = SmithG1_GGX(NdotV, _alpha) * SmithG1_GGX(NdotL, _alpha);
         float ggxWeight = G * VdotH / (NdotV * NdotH);
 
-        attenuation = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed) * ggxWeight;
+        attenuation = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint) * ggxWeight;
 
         return true;
     }

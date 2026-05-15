@@ -76,6 +76,12 @@ public class Triangle : IHittable, ISamplable
         // barycentric UV mapping (U along edge V0→V1, V along edge V0→V2).
         rec.Tangent = _tangent;
         rec.Bitangent = _bitangent;
+        // ∂P/∂u, ∂P/∂v match the Möller-Trumbore barycentric parametrization
+        // used to populate rec.U, rec.V: along (V0→V1) and (V0→V2) respectively,
+        // with full edge magnitude. Texture filtering uses these to map screen
+        // partials to texel partials at the correct rate for triangle UVs.
+        rec.DpDu = _edge1;
+        rec.DpDv = _edge2;
 
         rec.ObjectSeed = Seed;
         rec.Material = Material;
