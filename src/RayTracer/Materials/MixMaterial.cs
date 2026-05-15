@@ -99,6 +99,9 @@ public sealed class MixMaterial : IMaterial
     /// <inheritdoc/>
     public NormalMapTexture? NormalMap { get; set; }
 
+    /// <inheritdoc/>
+    public BumpMapTexture? BumpMap { get; set; }
+
     // ═════════════════════════════════════════════════════════════════════════
     // Scatter (indirect lighting — stochastic lobe selection)
     // ═════════════════════════════════════════════════════════════════════════

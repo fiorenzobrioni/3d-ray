@@ -542,6 +542,12 @@ public class Renderer
             ApplyNormalMap(ref rec, material.NormalMap);
         }
 
+        // ── Bump map perturbation (after normal map, Arnold/Cycles order) ──
+        if (material?.BumpMap != null && rec.Tangent.LengthSquared() > 0.5f)
+        {
+            ApplyBumpMap(ref rec, material.BumpMap);
+        }
+
         // ── Emission (MIS-weighted) ─────────────────────────────────────────
         Vector3 emitted = Vector3.Zero;
         if (material != null)
@@ -1254,7 +1260,53 @@ public class Renderer
         Vector3 perturbedNormal = Vector3.Normalize(
             T * tsNormal.X + B * tsNormal.Y + N * tsNormal.Z
         );
- 
+
+        rec.Normal = perturbedNormal;
+    }
+
+    /// <summary>
+    /// Bump-map perturbation. Mirrors <see cref="ApplyNormalMap"/> but the
+    /// tangent-space normal comes from finite-difference gradients of a
+    /// luminance height field rather than an RGB-encoded normal texture.
+    ///
+    /// Runs AFTER <see cref="ApplyNormalMap"/> when both are present:
+    /// the TBN is re-orthogonalised against the already-perturbed
+    /// <c>rec.Normal</c> so bump details sit on top of the normal-map
+    /// medium-frequency relief (Arnold/Cycles composition order).
+    /// </summary>
+    private static void ApplyBumpMap(ref HitRecord rec, BumpMapTexture bump)
+    {
+        Vector3 T = rec.Tangent;
+        Vector3 B = rec.Bitangent;
+        Vector3 N = rec.Normal;
+
+        // Gram-Schmidt re-orthogonalisation against the (possibly normal-
+        // mapped) shading normal. Identical to ApplyNormalMap.
+        Vector3 tOrt = T - Vector3.Dot(T, N) * N;
+        if (tOrt.LengthSquared() > 1e-8f)
+            T = Vector3.Normalize(tOrt);
+
+        Vector3 bOrt = B - Vector3.Dot(B, N) * N - Vector3.Dot(B, T) * T;
+        if (bOrt.LengthSquared() > 1e-8f)
+            B = Vector3.Normalize(bOrt);
+
+        // Preserve tangent-space handedness on backfaces.
+        if (!rec.FrontFace)
+        {
+            T = -T;
+            B = -B;
+        }
+
+        // Sample with the unit T/B so the bump texture can perturb both UV
+        // and 3D position consistently (3D procedurals like noise/marble
+        // sample on p; image textures sample on u,v).
+        Vector3 tsNormal = bump.SampleTangentNormal(
+            rec.U, rec.V, rec.LocalPoint, T, B, rec.ObjectSeed);
+
+        Vector3 perturbedNormal = Vector3.Normalize(
+            T * tsNormal.X + B * tsNormal.Y + N * tsNormal.Z
+        );
+
         rec.Normal = perturbedNormal;
     }
 }

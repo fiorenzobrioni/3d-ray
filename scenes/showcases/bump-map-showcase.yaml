@@ -1,0 +1,165 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Bump Map Showcase — Surface Displacement Stack, Step 1/5
+#
+#  Dimostra il canale `bump_map` (Arnold/RenderMan/Cycles `bump`): perturbazione
+#  della normale di shading da una qualunque `ITexture` — procedurali o image.
+#
+#  Killer feature: il bump deriva da texture procedurali (noise, marble, wood,
+#  voronoi, brick, gradient, image). A differenza del `normal_map` non serve
+#  un asset RGB pre-baked: il rilievo nasce dal valore di luminanza del campo
+#  scalare campionato al volo. Funziona su QUALUNQUE primitiva (TBN già
+#  popolata da tutte le primitive built-in).
+#
+#  Composizione: se sono presenti sia `normal_map` che `bump_map`, il bump
+#  si applica DOPO la normal map (convenzione Arnold/Cycles: il bump è lo
+#  strato più derivato). Il `coat_normal_map` Disney resta indipendente.
+#
+#  LAYOUT
+#  ──────
+#  4 pannelli quad verticali fianco a fianco, stesso materiale base Disney
+#  bianco-grigio chiaro, ognuno con un `bump_map` diverso:
+#     A (sx)  — nessun bump (riferimento piatto)
+#     B       — bump da `noise` procedurale fBm
+#     C       — bump da `marble` (venature direzionali)
+#     D (dx)  — bump da `image` (concrete) — equivalente moderno del
+#               normal map, ma usando una texture greyscale qualunque
+#               (sblocca il riuso delle texture esistenti come bump source).
+#
+#  Luce point RADENTE da sinistra (mirror del normal-map-showcase) per
+#  esaltare il rilievo: con luce radente i bump producono ombre nelle
+#  depressioni e highlight sulle creste; la metà piatta resta uniforme.
+#
+#  Render consigliato:
+#    Draft:  -w 640  -H 360  -s 32   -d 4  -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "flat"
+    color: [0.01, 0.01, 0.015]
+
+camera:
+  position: [0, 1.5, -5]
+  look_at: [0, 1.5, 0]
+  fov: 56
+
+materials:
+
+  # ── A: nessun bump (riferimento piatto Disney chiaro) ──────────────────
+  - id: "panel_flat"
+    type: "disney"
+    color: [0.55, 0.55, 0.58]
+    roughness: 0.40
+
+  # ── B: bump da Perlin/fBm procedurale ──────────────────────────────────
+  - id: "panel_noise_bump"
+    type: "disney"
+    color: [0.55, 0.55, 0.58]
+    roughness: 0.40
+    bump_map:
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 6.0
+        octaves: 4
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      strength: 3.5
+      scale: 1.0
+
+  # ── C: bump da marble (venature pseudo-rocciose direzionali) ───────────
+  - id: "panel_marble_bump"
+    type: "disney"
+    color: [0.55, 0.55, 0.58]
+    roughness: 0.40
+    bump_map:
+      texture:
+        type: "marble"
+        scale: 5.0
+        vein_axis: [0, 1, 0]
+        vein_frequency: 3.0
+        vein_sharpness: 2.0
+        distortion: 0.6
+        colors: [[0, 0, 0], [1, 1, 1]]
+      strength: 4.0
+      scale: 1.0
+
+  # ── D: bump da image (concrete greyscale) ──────────────────────────────
+  - id: "panel_image_bump"
+    type: "disney"
+    color: [0.55, 0.55, 0.58]
+    roughness: 0.40
+    bump_map:
+      texture:
+        type: "image"
+        path: "../libraries/textures/concrete.png"
+        uv_scale: [2, 2]
+      strength: 1.0
+      scale: 1.0
+
+  # ── Pavimento neutro ───────────────────────────────────────────────────
+  - id: "floor"
+    type: "lambertian"
+    color: [0.45, 0.45, 0.46]
+
+entities:
+
+  # ── Pavimento ──────────────────────────────────────────────────────────
+  - name: "pavimento"
+    type: "quad"
+    q: [-8, 0, -3]
+    u: [16, 0, 0]
+    v: [0, 0, 8]
+    material: "floor"
+
+  # ── 4 pannelli verticali fianco a fianco (asse X, larghezza 1.9 ciascuno)
+  # ── A: flat reference (x ∈ [-4.0, -2.0])
+  - name: "panel_A_flat"
+    type: "quad"
+    q: [-4.0, 0, 2.5]
+    u: [1.9, 0, 0]
+    v: [0, 3, 0]
+    material: "panel_flat"
+
+  # ── B: noise bump (x ∈ [-2.0,  0.0])
+  - name: "panel_B_noise"
+    type: "quad"
+    q: [-2.0, 0, 2.5]
+    u: [1.9, 0, 0]
+    v: [0, 3, 0]
+    material: "panel_noise_bump"
+
+  # ── C: marble bump (x ∈ [ 0.0,  2.0])
+  - name: "panel_C_marble"
+    type: "quad"
+    q: [0.05, 0, 2.5]
+    u: [1.9, 0, 0]
+    v: [0, 3, 0]
+    material: "panel_marble_bump"
+
+  # ── D: image bump (x ∈ [ 2.0,  4.0])
+  - name: "panel_D_image"
+    type: "quad"
+    q: [2.1, 0, 2.5]
+    u: [1.9, 0, 0]
+    v: [0, 3, 0]
+    material: "panel_image_bump"
+
+lights:
+
+  # ── Luce RADENTE da sinistra (angolo basso) — esalta il rilievo ────────
+  # Posizionata in basso a sinistra, quasi parallela ai pannelli: i bump
+  # generano ombre nelle depressioni e highlight sulle creste. Il pannello
+  # A (flat) resta uniformemente illuminato per fornire il riferimento.
+  - type: "point"
+    position: [-12, 1.2, 0]
+    color: [1.0, 0.95, 0.88]
+    intensity: 240
+
+  # ── Fill dall'alto debole (riempie le zone in ombra senza appiattire) ──
+  - type: "point"
+    position: [0, 6, -3]
+    color: [0.6, 0.7, 0.9]
+    intensity: 40

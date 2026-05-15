@@ -241,6 +241,9 @@ public class MaterialData
     [YamlMember(Alias = "normal_map")]
     public NormalMapData? NormalMap { get; set; }
 
+    [YamlMember(Alias = "bump_map")]
+    public BumpMapData? BumpMap { get; set; }
+
     // ── Disney BSDF parameters ──────────────────────────────────────────────
     [YamlMember(Alias = "metallic")]
     public float Metallic { get; set; } = 0f;
@@ -477,6 +480,18 @@ public class NormalMapData
 
     [YamlMember(Alias = "flip_y")]
     public bool FlipY { get; set; } = false;
+}
+
+public class BumpMapData
+{
+    [YamlMember(Alias = "texture")]
+    public TextureData? Texture { get; set; }
+
+    [YamlMember(Alias = "strength")]
+    public float Strength { get; set; } = 1f;
+
+    [YamlMember(Alias = "scale")]
+    public float Scale { get; set; } = 1f;
 }
 
 public class TextureData

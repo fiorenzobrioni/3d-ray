@@ -26,6 +26,7 @@ public sealed class Dielectric : IMaterial
     // the renderer must preserve emission weight across the bounce.
     public bool IsDeltaScatter => true;
     public NormalMapTexture? NormalMap { get; set; }
+    public BumpMapTexture? BumpMap { get; set; }
 
     // Transparent shadow rays: report (1 - Fresnel) · albedo as the per-hit
     // straight-through transmission. The shadow ray is not refracted — Snell-

@@ -412,7 +412,8 @@ renderer (the loader emits an `Info` line when it sees one).
 | `thin_film_thickness` | float | 0.0 | ≥ 0 (nm) | Thin-film | Belcour-Barla 2017; 100–800 nm = iridescence |
 | `thin_film_ior` | float | 1.5 | ≥ 1 | Thin-film | Film η₂ (water = 1.33, soap = 1.40) |
 | `texture` | block | — | — | Texturing | Procedural or image, replaces `color` |
-| `normal_map` | block | — | — | Texturing | Surface perturbation |
+| `normal_map` | block | — | — | Texturing | Surface perturbation (image-only) |
+| `bump_map` | block | — | — | Texturing | Scalar bump from any procedural/image texture |
 
 > Every scalar parameter accepts a matching `*_texture` variant (e.g.
 > `roughness_texture`) and the three colour inputs (`color`,
@@ -640,6 +641,49 @@ normal_map:
 - Neutral color: RGB(128, 128, 255) = no perturbation
 - Applies to any material type (lambertian, metal, dielectric, disney, emissive, mix)
 - Free sources: ambientcg.com, polyhaven.com, 3dtextures.me
+
+#### **Bump Map:**
+```yaml
+bump_map:
+  texture:                                 # ANY ITexture: procedural or image
+    type: "noise"                          # noise/marble/wood/voronoi/brick/gradient/image/...
+    noise_type: "fbm"
+    scale: 6
+    octaves: 4
+    colors: [[0, 0, 0], [1, 1, 1]]
+  strength: 3.0                            # Perturbation amplitude (0–10, clamped)
+  scale: 1.0                               # Uniform UV multiplier (default 1)
+```
+
+Like `normal_map` but driven by a **scalar height field** sampled from any
+procedural or image texture (Rec.709 luminance). The shading normal is
+perturbed via central differences in tangent space (Blinn 1978). Aligns
+with Arnold's `bump2d`, RenderMan's `PxrBump`, Cycles' "Bump" node.
+
+| Field      | Type                | Default | Description                                                                 |
+|------------|---------------------|---------|-----------------------------------------------------------------------------|
+| `texture`  | TextureData         | —       | Inner height field. Any procedural (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) or `image`. |
+| `strength` | float ∈ [0, 10]     | `1.0`   | Amplitude of the perturbation. Above ~5 the bump looks rocky; ~0.5–1.0 reads as fine detail. |
+| `scale`    | float > 0           | `1.0`   | Uniform UV multiplier stacked on top of the inner texture's own `uv_scale` / `scale`. |
+
+**Composition order** when both `normal_map` and `bump_map` are present
+(Arnold/Cycles convention):
+
+1. `normal_map` runs first, replacing the geometric normal.
+2. `bump_map` runs second, perturbing the **already-perturbed** normal
+   (TBN re-orthogonalised against it).
+3. Disney's `coat_normal_map` is **independent** — coat keeps its own
+   surface frame and does not see the bump.
+
+Applies to every material type (lambertian, metal, dielectric, disney,
+emissive, mix). Works on every primitive that populates the TBN basis —
+the engine populates TBN on Sphere, Box, Cylinder, Cone, Quad, Disk,
+Annulus, Torus, Capsule, Lathe, Triangle, SmoothTriangle, and
+InfinitePlane (i.e. all of them).
+
+The killer advantage over `normal_map` is **procedural input**: infinite
+resolution, no asset to ship, full reuse of the existing texture library
+(noise/marble/wood/voronoi/brick/gradient).
 #### **Per-Entity Seed:**
 ```yaml
 entities:
