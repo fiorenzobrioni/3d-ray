@@ -494,6 +494,46 @@ public class BumpMapData
     public float Scale { get; set; } = 1f;
 }
 
+/// <summary>
+/// YAML block for the scalar surface displacement on a mesh entity
+/// (Arnold/RenderMan/Cycles parity — DEVLOG step 3/5).
+///
+/// <para>The vertex displacement formula applied per limit-surface vertex is
+/// <c>v' = v + scale · (h − midlevel) · n_smooth</c>, where <c>h</c> is the
+/// Rec.709 luminance of <c>texture</c> sampled at the vertex's UV and 3D
+/// position.</para>
+/// </summary>
+public class DisplacementData
+{
+    /// <summary>
+    /// Inner height-field texture. Any <see cref="TextureData"/> works
+    /// (procedurals or images) — luminance is read at sample time.
+    /// </summary>
+    [YamlMember(Alias = "texture")]
+    public TextureData? Texture { get; set; }
+
+    /// <summary>
+    /// Signed amplitude in world units. The applied offset along the smooth
+    /// normal is <c>scale · (h − midlevel)</c>. 0 disables the displacement.
+    /// </summary>
+    [YamlMember(Alias = "scale")]
+    public float Scale { get; set; } = 0.1f;
+
+    /// <summary>
+    /// Reference luminance treated as "no displacement". Defaults to 0
+    /// (matches RenderMan's <c>dispMidpoint</c>). Use 0.5 for 8-bit greyscale
+    /// height maps where 128 means "flat".
+    /// </summary>
+    [YamlMember(Alias = "midlevel")]
+    public float Midlevel { get; set; } = 0f;
+
+    /// <summary>
+    /// Uniform UV multiplier stacked on top of any per-texture <c>uv_scale</c>.
+    /// </summary>
+    [YamlMember(Alias = "uv_scale")]
+    public float UvScale { get; set; } = 1f;
+}
+
 public class TextureData
 {
     [YamlMember(Alias = "type")]
@@ -733,6 +773,30 @@ public class EntityData
     /// </summary>
     [YamlMember(Alias = "subdivision_max_iterations")]
     public int SubdivisionMaxIterations { get; set; } = 6;
+
+    // ── Scalar displacement (Arnold/RenderMan/Cycles parity) ───────────────
+
+    /// <summary>
+    /// Scalar height-field displacement applied to the (sub)divided mesh
+    /// after the subdivision pass and before BVH construction. Vertices are
+    /// moved along their limit-surface smooth normal by
+    /// <c>scale · (luminance(texture) − midlevel)</c>, producing real
+    /// silhouettes — not just shading perturbation. Mesh-only by design
+    /// (matches Arnold/Cycles: spheres/torus/etc. use <see cref="BumpMap"/>
+    /// instead).
+    /// </summary>
+    [YamlMember(Alias = "displacement")]
+    public DisplacementData? Displacement { get; set; }
+
+    /// <summary>
+    /// Maximum expected displacement amplitude in world units. Used to pad
+    /// every BVH leaf AABB by this much so shading-time bump perturbation
+    /// stays inside the boxes the BVH was built with. Mirrors Arnold's
+    /// <c>disp_padding</c> and RenderMan's <c>dispBound</c>. When 0
+    /// (default) the loader auto-derives it from <c>displacement.scale</c>.
+    /// </summary>
+    [YamlMember(Alias = "displacement_bound")]
+    public float DisplacementBound { get; set; } = 0f;
 
     // Plane
     [YamlMember(Alias = "normal")]

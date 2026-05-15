@@ -51,17 +51,30 @@ public class Mesh : IHittable, ISamplable
     /// <param name="triangles">The triangles (SmoothTriangle or Triangle) forming the mesh.</param>
     /// <param name="material">Shared material for the entire mesh.</param>
     /// <param name="vertexCount">Number of unique vertices (for stats reporting).</param>
-    public Mesh(List<IHittable> triangles, IMaterial material, int vertexCount = 0)
+    /// <param name="leafBoundsInflation">
+    ///   Optional positive padding added to every BVH leaf AABB at build time.
+    ///   Used by the scalar-displacement pipeline (<c>displacement_bound</c>)
+    ///   to mirror Arnold/RenderMan's <c>disp_padding</c>/<c>dispBound</c>
+    ///   safety margin. 0 (default) is the legacy no-padding path.
+    /// </param>
+    public Mesh(List<IHittable> triangles, IMaterial material, int vertexCount = 0,
+                float leafBoundsInflation = 0f)
     {
         _triangles = triangles;
         Material = material;
         FaceCount = triangles.Count;
         VertexCount = vertexCount;
 
-        // Build internal BVH
+        // Build internal BVH. When the caller asks for leaf-AABB inflation
+        // (scalar displacement's safety margin) we wrap each triangle in a
+        // BoundsInflatedHittable so the BVH builder sees the padded box.
+        var bvhInput = leafBoundsInflation > 0f
+            ? WrapInflated(triangles, leafBoundsInflation)
+            : new List<IHittable>(triangles);
+
         _bvh = triangles.Count > 2
-            ? new BvhNode(new List<IHittable>(triangles))
-            : new HittableList(triangles);
+            ? new BvhNode(bvhInput)
+            : new HittableList(bvhInput);
 
         // Precompute cumulative area distribution for ISamplable
         _cumulativeAreas = new float[triangles.Count];
@@ -165,5 +178,13 @@ public class Mesh : IHittable, ISamplable
             Triangle t => 0.5f * Vector3.Cross(t.V1 - t.V0, t.V2 - t.V0).Length(),
             _ => 1f // Fallback
         };
+    }
+
+    private static List<IHittable> WrapInflated(List<IHittable> triangles, float padding)
+    {
+        var output = new List<IHittable>(triangles.Count);
+        foreach (var t in triangles)
+            output.Add(new BoundsInflatedHittable(t, padding));
+        return output;
     }
 }

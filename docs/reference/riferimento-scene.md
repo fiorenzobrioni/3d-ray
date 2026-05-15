@@ -910,6 +910,69 @@ RenderMan, Cycles e nell'OpenSubdiv di Pixar:
   sul midpoint dell'edge (interpolazione vertex-varying come in OpenSubdiv).
   Le cuciture UV che condividono la posizione ma non l'UV sono preservate.
 
+##### **Displacement scalare (deformazione di silhouette vera)**
+
+Il loader mesh può applicare un displacement scalare (height-field) alla
+mesh (sub)divisa **prima della costruzione del BVH**. A differenza di
+`bump_map`, che perturba solo la normale di shading, il displacement
+sposta fisicamente i vertici lungo la normale liscia della superficie
+limite:
+
+```yaml
+- name: "pannello_pietra"
+  type: "mesh"
+  path: "models/plane.obj"
+  material: "pietra"
+  subdivision_scheme: "catmull_clark"
+  subdivision_iterations: 6
+  displacement:
+    texture:                                # qualunque ITexture (procedurale o image)
+      type: "noise"
+      noise_type: "fbm"
+      scale: 3.5
+      octaves: 5
+      colors: [[0, 0, 0], [1, 1, 1]]
+    scale: 0.30                             # ampiezza in unità di mondo
+    midlevel: 0.5                           # luminanza trattata come "piatto" (0.5 per heightmap 8-bit)
+    uv_scale: 1.0                           # moltiplicatore UV uniforme (default 1.0)
+  displacement_bound: 0.30                  # max displacement atteso (padding AABB foglia BVH)
+```
+
+L'update del vertice è `v' = v + scale · (h − midlevel) · n_smooth`, dove
+`h = luminance(texture.Value(u, v, p))` e `n_smooth` è la media pesata
+sugli angoli delle normali di faccia incidenti sulla topologia limite
+(Max 1999 — default di Blender/Maya/OpenSubdiv). Dopo il displacement le
+normali di shading per-vertice vengono ricalcolate dalla topologia
+spostata, così il BSDF vede il campo di normali reale della nuova
+silhouette, non quello pre-displacement.
+
+| Campo                  | Tipo        | Default | Note |
+|------------------------|-------------|---------|------|
+| `displacement.texture` | TextureData | —       | Height field interno. Qualunque procedurale (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) o `image`. Campionato come luminanza Rec.709, stessa convenzione di `bump_map`. |
+| `displacement.scale`   | float       | `0.1`   | Ampiezza con segno in unità di mondo. Negativo spinge verso l'interno. `0` disabilita. |
+| `displacement.midlevel`| float       | `0`     | Luminanza trattata come "nessun displacement". `0.5` per heightmap 8-bit dove 128 significa piatto (matches `dispMidpoint` di RenderMan). |
+| `displacement.uv_scale`| float > 0   | `1.0`   | Moltiplicatore UV uniforme che si stacca sopra al `uv_scale` interno della texture. |
+| `displacement_bound`   | float ≥ 0   | `\|scale\|` | Massima ampiezza attesa del displacement. Gonfia ogni AABB foglia del BVH di questo valore (`disp_padding` di Arnold, `dispBound` di RenderMan). Auto-derivato da `scale` se omesso. Il loader emette un warning quando il displacement effettivamente applicato supera il bound, così l'utente sa di doverlo alzare. |
+
+**Ordine della pipeline.** Il flusso è `subdivide → displace → triangulate
+→ BVH`. Il displacement su una mesh low-poly non subdivisa sposta i
+vertici originali ed è raramente utile; combinalo con
+`subdivision_iterations ≥ 4` (o con un `subdivision_pixel_error`
+adattivo) per esporre abbastanza micro-vertici da produrre una
+deformazione fluida.
+
+**Solo mesh, per design.** Il displacement scalare è ristretto alle
+entity `type: mesh`. Le primitive built-in (`sphere`, `cylinder`,
+`torus`, …) usano `bump_map` per il dettaglio sub-pixel — stessa scelta
+architetturale di Arnold (`displacement` solo su `polymesh`) e Cycles
+(True Displacement solo su nodi subdiv-capable).
+
+**Composizione bump + displacement.** Quando un materiale dichiara un
+`bump_map` e l'entity dichiara un `displacement`, il displacement
+gestisce la macro-silhouette (posizioni dei vertici, BVH) e il bump
+aggiunge il dettaglio sub-pixel sulla normale di shading già modificata.
+Replica il workflow "autobump" di Arnold.
+
 #### **7.13 CSG (Operazioni Booleane)**
 ```yaml
 # Union (A ∪ B) — fonde due solidi in uno solo (es. corpo + testa di un pupazzo di neve)

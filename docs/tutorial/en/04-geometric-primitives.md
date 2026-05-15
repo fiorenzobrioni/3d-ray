@@ -431,6 +431,66 @@ the mesh's internal BVH. Source OBJ normals are propagated through the
 subdivision steps but overridden at the final triangulation because the
 limit surface is smoother than the input.
 
+### 4.12.2 Scalar Displacement (true silhouette deformation)
+
+Subdivision gives you a smooth, dense micro-mesh. **Scalar displacement**
+takes the next step: it pushes each micro-vertex along its smooth normal
+by an amount read from a texture, producing a real silhouette change —
+not just a shading trick. This is the canonical "height-field
+displacement" of Arnold (`displacementShader`), RenderMan (`PxrDisplace`)
+and Cycles ("True Displacement").
+
+```yaml
+- type: "mesh"
+  path: "models/plane.obj"
+  material: "stone"
+  subdivision_scheme: "catmull_clark"
+  subdivision_iterations: 6                # ~16k quads for fine displacement
+  displacement:
+    texture:                                # any procedural or image texture
+      type: "noise"
+      noise_type: "fbm"
+      scale: 3.5
+      octaves: 5
+      colors: [[0, 0, 0], [1, 1, 1]]
+    scale: 0.3                              # world-unit amplitude
+    midlevel: 0.5                           # luminance treated as "flat"
+  displacement_bound: 0.3                   # max expected displacement
+```
+
+The vertex update is `v' = v + scale · (h − midlevel) · n_smooth`, where
+`h` is the Rec.709 luminance of the texture sampled at the vertex and
+`n_smooth` is the angle-weighted smooth normal on the limit topology.
+After displacement, the engine recomputes the shading normals from the
+displaced positions so the BSDF reflects the new silhouette.
+
+| Field                  | Default     | Notes |
+|------------------------|-------------|-------|
+| `displacement.texture` | —           | Inner height field. Any procedural (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) or `image`. |
+| `displacement.scale`   | `0.1`       | Signed amplitude in world units. Negative pushes inward. `0` disables. |
+| `displacement.midlevel`| `0`         | Luminance treated as "flat". `0.5` for 8-bit greyscale heightmaps. |
+| `displacement.uv_scale`| `1.0`       | Uniform UV multiplier stacked on top of the texture's own `uv_scale`. |
+| `displacement_bound`   | `\|scale\|` | Per-leaf BVH AABB padding (Arnold's `disp_padding`, RenderMan's `dispBound`). The loader warns when actual displacement exceeds the bound. |
+
+**Pipeline order.** `subdivide → displace → triangulate → BVH`.
+Displacement on an un-subdivided low-poly mesh moves only the original
+vertices and is rarely visually useful — combine it with at least 4–6
+iterations (or an adaptive `subdivision_pixel_error`) to expose enough
+micro-vertices for a smooth deformation.
+
+**Mesh-only.** Scalar displacement is restricted to `type: mesh`. Built-in
+primitives (`sphere`, `cylinder`, …) use `bump_map` for sub-pixel detail —
+the same architectural choice as Arnold and Cycles.
+
+**Bump + displacement.** When both are present, the displacement handles
+the macro silhouette and the `bump_map` handles sub-pixel detail on the
+displaced shading normal — the "autobump" workflow Arnold popularised.
+
+The showcase scene `scenes/showcases/scalar-displacement-showcase.yaml`
+puts four panels (flat reference, fBm noise, Voronoi cracks, and a
+ridged-fBm asteroid) side by side so you can compare silhouettes
+directly.
+
 ---
 
 ## 4.13 Type Alias Summary
