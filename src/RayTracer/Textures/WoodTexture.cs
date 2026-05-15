@@ -62,6 +62,14 @@ public class WoodTexture : ITexture
     public float Gain { get; set; } = 0.5f;
     public float Distortion { get; set; } = 0f;
 
+    /// <summary>
+    /// Optional multi-stop colour ramp. When set, the ring parameter
+    /// <c>t ∈ [0, 1]</c> is looked up on the ramp instead of being linearly
+    /// blended between the dark and light wood colours — unlocks sapwood /
+    /// heartwood / knot tri-tone authoring.
+    /// </summary>
+    public ColorRamp? ColorRamp { get; set; }
+
     public WoodTexture(float scale = 4f, float turbulenceStrength = 2f)
         : this(scale, turbulenceStrength,
                new Vector3(0.85f, 0.65f, 0.40f),
@@ -115,6 +123,14 @@ public class WoodTexture : ITexture
             float tri = 1f - MathF.Abs(t * 2f - 1f);
             tri = MathF.Pow(tri, RingSharpness);
             t = tri;
+        }
+
+        if (ColorRamp is { } ramp)
+        {
+            // Ramp drives the colour directly: t = 0 → first stop (typically
+            // the darkest latewood), t = 1 → last stop (typically the
+            // brightest earlywood).
+            return ramp.Sample(t);
         }
 
         Vector3 cLight = _lightWoodColor.Value(u, v, transformedP, objectSeed);

@@ -696,6 +696,40 @@ hand-tuned roughness ramps). `linear` projects onto `axis`; `spherical`
 uses distance from the origin; `radial` uses distance from the `axis`
 line (cylindrical falloff).
 
+### Multi-Stop Color Ramp
+
+Every procedural texture except `brick` accepts an optional `color_ramp:`
+block that overrides the implicit two-colour lerp baked into the texture.
+This matches Cycles' ColorRamp node, Arnold's `ramp_rgb` and RenderMan's
+`PxrRamp` and unlocks looks that the two-colour `colors: [A, B]` shortcut
+cannot express — Statuario marble with golden mid-tone, sapwood/heartwood
+wood, photo-real sunset gradients, toon bands, voronoi heat maps.
+
+```yaml
+texture:
+  type: "marble"
+  vein_sharpness: 4.0
+  color_ramp:
+    - { position: 0.00, color: [0.05, 0.05, 0.07], interp: "smoothstep" }
+    - { position: 0.45, color: [0.55, 0.45, 0.32], interp: "linear"     }
+    - { position: 0.55, color: [0.95, 0.93, 0.88], interp: "linear"     }
+    - { position: 1.00, color: [0.05, 0.05, 0.07], interp: "linear"     }
+```
+
+- `position` ∈ [0, 1] — clamped to range; stops auto-sort ascending.
+- `color: [r, g, b]` — linear-space RGB.
+- `interp` describes the *outgoing* segment of each stop:
+  - `linear` — straight lerp (default).
+  - `smoothstep` — `3t² − 2t³` Hermite cubic (C¹).
+  - `ease` — `6t⁵ − 15t⁴ + 10t³` Perlin smootherstep (C²).
+  - `constant` — hold the colour until the next stop.
+- Out-of-range parameter clamps to the nearest stop's colour.
+- Coincident stops (same `position`) produce a hard break.
+- When both `colors:` and `color_ramp:` are supplied, `color_ramp:` wins.
+- Omitting `color_ramp:` keeps the legacy two-colour behaviour
+  byte-identical to before — scenes that don't use the feature don't
+  change.
+
 ### Texture Transform and Randomization
 
 All procedural textures support these additional parameters:

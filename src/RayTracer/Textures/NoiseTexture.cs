@@ -87,6 +87,13 @@ public class NoiseTexture : ITexture
     /// </summary>
     public float Distortion { get; set; } = 0f;
 
+    /// <summary>
+    /// Optional multi-stop colour ramp. When set, the final scalar value
+    /// <c>n ∈ [0, 1]</c> is looked up on the ramp instead of being linearly
+    /// blended between the two constructor colours.
+    /// </summary>
+    public ColorRamp? ColorRamp { get; set; }
+
     public NoiseTexture(float scale = 1f)
         : this(scale, Vector3.Zero, Vector3.One) { }
 
@@ -193,6 +200,6 @@ public class NoiseTexture : ITexture
             n = Math.Clamp(n, 0f, 1f);
         }
 
-        return Vector3.Lerp(_colorA, _colorB, n);
+        return ColorRamp is { } ramp ? ramp.Sample(n) : Vector3.Lerp(_colorA, _colorB, n);
     }
 }

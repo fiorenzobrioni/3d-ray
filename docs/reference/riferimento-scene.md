@@ -643,6 +643,45 @@ randomize_offset: true                    # Variazione per ogni oggetto
 randomize_rotation: true
 ```
 
+**Color ramp multi-stop (`color_ramp:`)** — override opzionale del lerp a
+due colori implicito su `noise`, `marble`, `wood`, `voronoi` e
+`gradient`. Equivalente al nodo ColorRamp di Cycles, `ramp_rgb` di Arnold
+e `PxrRamp` di RenderMan:
+```yaml
+texture:
+  type: "marble"
+  vein_sharpness: 4.0
+  color_ramp:
+    - { position: 0.00, color: [0.05, 0.05, 0.07], interp: "smoothstep" }
+    - { position: 0.45, color: [0.55, 0.45, 0.32], interp: "linear"     }
+    - { position: 0.55, color: [0.95, 0.93, 0.88], interp: "linear"     }
+    - { position: 1.00, color: [0.05, 0.05, 0.07], interp: "linear"     }
+```
+- `position` ∈ [0, 1] — viene clampato fuori range; gli stop sono
+  riordinati automaticamente per `position` crescente.
+- `color: [r, g, b]` — RGB linear-space.
+- `interp` (per-stop, descrive il segmento *in uscita* dallo stop verso
+  quello successivo):
+  - `linear` — lerp standard (default).
+  - `smoothstep` — Hermite cubico `3t² − 2t³` (continuità C¹, il "Ease"
+    di Cycles).
+  - `ease` — smootherstep di Perlin `6t⁵ − 15t⁴ + 10t³` (C², zero
+    derivata prima e seconda agli estremi — spalle fotorealistiche).
+  - `constant` — mantiene il colore dello stop fino al successivo
+    (funzione a gradini).
+- Sotto il primo `position` vince il primo colore; sopra l'ultimo
+  `position` vince l'ultimo colore.
+- Stop coincidenti (stesso `position`) producono una transizione netta —
+  trucco da artista per bordi duri.
+- Lo shorthand a due colori `colors:` continua a funzionare come ramp a
+  2 stop lineare; specificare `color_ramp:` sovrascrive (in tal caso
+  `colors:` viene ignorato). Le scene esistenti che non usano
+  `color_ramp:` rendono byte-identiche al pre-cambio.
+
+Sblocca: marmo Statuario / Calacatta (vena → mid → base → sotto-tinta),
+legno sapwood / heartwood / nodo, gradienti tramonto fotorealistici,
+bande toon-shading, false-color heat-map, palette voronoi-driven.
+
 #### **Image Texture:**
 ```yaml
 texture:

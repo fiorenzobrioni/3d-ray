@@ -644,6 +644,43 @@ atmosferiche, rampe di roughness messe a punto a mano). `linear`
 proietta su `axis`; `spherical` usa la distanza dall'origine; `radial`
 usa la distanza dalla retta `axis` (decadimento cilindrico).
 
+### Color Ramp Multi-Stop
+
+Ogni texture procedurale eccetto `brick` accetta un blocco opzionale
+`color_ramp:` che sovrascrive il lerp implicito a due colori della
+texture. Equivalente al nodo ColorRamp di Cycles, `ramp_rgb` di Arnold e
+`PxrRamp` di RenderMan — sblocca look irraggiungibili con la shortcut
+`colors: [A, B]`: marmo Statuario con vena dorata, legno
+sapwood/heartwood, gradienti tramonto fotorealistici, bande toon, heat
+map su voronoi.
+
+```yaml
+texture:
+  type: "marble"
+  vein_sharpness: 4.0
+  color_ramp:
+    - { position: 0.00, color: [0.05, 0.05, 0.07], interp: "smoothstep" }
+    - { position: 0.45, color: [0.55, 0.45, 0.32], interp: "linear"     }
+    - { position: 0.55, color: [0.95, 0.93, 0.88], interp: "linear"     }
+    - { position: 1.00, color: [0.05, 0.05, 0.07], interp: "linear"     }
+```
+
+- `position` ∈ [0, 1] — viene clampato fuori range; gli stop sono
+  riordinati per `position` crescente.
+- `color: [r, g, b]` — RGB linear-space.
+- `interp` descrive il segmento *in uscita* da ogni stop:
+  - `linear` — lerp standard (default).
+  - `smoothstep` — Hermite cubico `3t² − 2t³` (C¹).
+  - `ease` — smootherstep di Perlin `6t⁵ − 15t⁴ + 10t³` (C²).
+  - `constant` — mantiene il colore fino al prossimo stop.
+- Sotto il primo `position` vince il primo colore; sopra l'ultimo vince
+  l'ultimo.
+- Stop coincidenti (stessa `position`) producono una transizione netta.
+- Quando sono presenti sia `colors:` sia `color_ramp:`, vince
+  `color_ramp:`.
+- Omettendo `color_ramp:` il comportamento legacy a due colori resta
+  byte-identico — le scene che non usano la feature non cambiano.
+
 ### Trasformazione e Randomizzazione Texture
 
 Tutte le texture procedurali supportano questi parametri aggiuntivi:
