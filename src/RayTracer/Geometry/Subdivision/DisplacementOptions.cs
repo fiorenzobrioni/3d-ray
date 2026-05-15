@@ -152,8 +152,45 @@ public readonly struct DisplacementOptions
     /// </summary>
     public float UvScale { get; init; }
 
+    /// <summary>
+    /// "Autobump" — when <c>true</c>, the loader builds a
+    /// <see cref="BumpMapTexture"/> from <see cref="Texture"/> and attaches
+    /// it to the resulting <see cref="Geometry.Mesh"/>. The renderer then
+    /// applies that bump on top of any material-level <c>bump_map</c> at
+    /// shading time, recovering sub-pixel detail finer than what the
+    /// subdivision grid resolved geometrically. Mirrors Arnold's
+    /// <c>autobump_visibility</c> on <c>polymesh</c> nodes. Disabled by
+    /// default — step-3 / step-4 scenes are byte-identical when this stays
+    /// off.
+    /// </summary>
+    public bool Autobump { get; init; }
+
+    /// <summary>
+    /// Bump-strength multiplier for the autobump-derived
+    /// <see cref="BumpMapTexture"/>. Final strength passed to the bump
+    /// constructor is <c>AutobumpStrength · |Scale|</c> — the displacement
+    /// amplitude is the natural unit (Arnold ties the two together), and
+    /// authors that want a different ratio dial this multiplier without
+    /// touching the macro displacement. Ignored when
+    /// <see cref="Autobump"/> is <c>false</c>.
+    /// </summary>
+    public float AutobumpStrength { get; init; }
+
+    /// <summary>
+    /// UV-frequency multiplier for the autobump's
+    /// <see cref="BumpMapTexture"/>. Composes multiplicatively with
+    /// <see cref="UvScale"/> so authors can sample the bump at finer
+    /// frequency than the displacement (the typical "macro displacement +
+    /// micro autobump" workflow). Ignored when <see cref="Autobump"/> is
+    /// <c>false</c>.
+    /// </summary>
+    public float AutobumpScale { get; init; }
+
     /// <summary>True when both <see cref="Texture"/> is set and the scale is non-zero.</summary>
     public bool IsActive => Texture != null && Scale != 0f;
+
+    /// <summary>True when an autobump should be generated for this mesh.</summary>
+    public bool IsAutobumpActive => Autobump && Texture != null && AutobumpStrength > 0f;
 
     public static DisplacementOptions Disabled => new()
     {
@@ -164,5 +201,8 @@ public readonly struct DisplacementOptions
         Midlevel = 0f,
         Bound = 0f,
         UvScale = 1f,
+        Autobump = false,
+        AutobumpStrength = 1f,
+        AutobumpScale = 1f,
     };
 }

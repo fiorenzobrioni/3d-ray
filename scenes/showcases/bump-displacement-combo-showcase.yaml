@@ -1,0 +1,274 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Bump + Displacement Combination Showcase — Stack, Step 5/5
+#
+#  Quinto e ultimo step della roadmap "Stack completo surface displacement
+#  livello Arnold/RenderMan/Cycles". Mostra il workflow "autobump" di
+#  Arnold (autobump_visibility) e la priorità di composizione coerente con
+#  il Disney BSDF:
+#
+#     1) la subdivision genera la micro-mesh
+#     2) il displacement sposta i vertici (macro-silhouette)
+#     3) `autobump: true` deriva una BumpMapTexture dalla stessa texture
+#        di displacement e la attacca alla mesh
+#     4) un eventuale `bump_map` a livello materiale aggiunge un dettaglio
+#        ortogonale (es. graffi, micro-crepe, micro-grana)
+#     5) lo shading compone:
+#           normal_map → material.bump_map → mesh.autobump
+#        sopra alla geometria displaced; `coat_normal_map` del clearcoat
+#        Disney resta indipendente per design (parità con Arnold/Cycles).
+#
+#  PERCHÉ AUTOBUMP
+#  ───────────────
+#  Subdivision e displacement risolvono la silhouette fino al passo di
+#  campionamento della texture; sotto a quel passo i dettagli alti-frequenza
+#  della stessa texture vengono ammorbiditi (lievemente in CC×6, molto
+#  evidentemente in CC×3). L'autobump deriva un campo gradiente dalla stessa
+#  texture e lo applica come perturbazione di shading: il risultato è
+#  identico a un sculpt fittissimo, a costo trascurabile (la subdivision
+#  resta moderata).
+#
+#  LAYOUT
+#  ──────
+#  Quattro lastre verticali fianco a fianco (plane CC×4 = 1024 quad,
+#  intenzionalmente NON ultra-fitto per esaltare la differenza autobump):
+#
+#     A (estrema sx)  — riferimento piatto, nessun displacement / bump
+#     B               — solo displacement scalare (macro-silhouette ok,
+#                       ma il dettaglio sub-griglia è ammorbidito)
+#     C               — displacement scalare + autobump (la stessa texture
+#                       sub-griglia viene recuperata come bump residuo,
+#                       silhouette identica a B ma rilievo molto più definito)
+#     D (estrema dx)  — displacement scalare + autobump + bump materiale
+#                       (graffi indipendenti sovrapposti — workflow tipico
+#                       "macro displacement + micro autobump + scratch detail")
+#
+#  Sopra al centro un piccolo "scoglio" (cubo CC×4 + vector-displacement
+#  in tangent space) con autobump attivo: la silhouette è asimmetrica/ondulata
+#  grazie al vettore, e il rilievo cromatico micro-scala è fornito dall'autobump
+#  derivato dalla stessa noise. La differenza tra "scoglio C/D" e "scoglio B"
+#  evidenzia perché in produzione (Arnold, RenderMan) il bump derivato dal
+#  displacement è la scelta default su qualunque sculpt fine.
+#
+#  Luce key direzionale radente da sinistra → mette in evidenza i micro-
+#  rilievi recuperati dall'autobump. Fill point caldo da destra.
+#
+#  Render consigliato:
+#     Preview:  -w 640  -H 360  -s 32   -d 4  -S 1
+#     Standard: -w 1280 -H 720  -s 256  -d 6  -S 2
+#     Final:    -w 1920 -H 1080 -s 1024 -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+camera:
+  position: [0, 1.6, -5.0]
+  look_at:  [0, 1.2,  0]
+  fov: 52
+  aperture: 0.0
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.04, 0.06, 0.11]
+    horizon_color: [0.28, 0.26, 0.32]
+    ground_color:  [0.02, 0.02, 0.03]
+
+materials:
+
+  # Porcellana opaca chiara — il dielettrico ideale per esaltare i micro-
+  # rilievi dell'autobump, senza riflessi speculari che distraggano.
+  - id: "porcellana"
+    type: "disney"
+    color: [0.92, 0.88, 0.82]
+    roughness: 0.55
+    specular: 0.45
+
+  # Variante con un `bump_map` materiale aggiuntivo: graffi sottili orientati
+  # diagonalmente (noise ridged), compongono con l'autobump senza sostituirlo.
+  - id: "porcellana_graffiata"
+    type: "disney"
+    color: [0.92, 0.88, 0.82]
+    roughness: 0.55
+    specular: 0.45
+    bump_map:
+      texture:
+        type: "noise"
+        noise_type: "ridged"
+        scale: 28.0
+        octaves: 2
+        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
+      strength: 1.2
+      scale: 1.0
+
+  - id: "scoglio"
+    type: "disney"
+    color: [0.42, 0.38, 0.34]
+    roughness: 0.78
+    specular: 0.35
+
+  - id: "pavimento"
+    type: "disney"
+    color: [0.14, 0.14, 0.17]
+    roughness: 0.85
+
+lights:
+
+  # Key direzionale radente da sinistra in basso — esalta sia la macro-
+  # silhouette del displacement sia i micro-rilievi dell'autobump.
+  - type: "directional"
+    direction: [1.0, -0.25, 0.3]
+    color: [1.0, 0.97, 0.92]
+    intensity: 2.5
+    angular_radius: 0.5
+
+  # Fill point caldo sulla destra in alto.
+  - type: "point"
+    position: [5, 4.5, -1.5]
+    color: [1.0, 0.92, 0.80]
+    intensity: 80
+
+entities:
+
+  # ── Pavimento ──────────────────────────────────────────────────────────
+  - name: "pavimento"
+    type: "quad"
+    q: [-12, 0, -3]
+    u: [24, 0, 0]
+    v: [0, 0, 10]
+    material: "pavimento"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # LASTRA A — RIFERIMENTO PIATTO (nessun displacement, nessun autobump)
+  # Stessa subdivision delle altre per parità di tassellatura visibile —
+  # solo per fornire la baseline di confronto.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "A_flat_reference"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana"
+    scale: [0.85, 1.0, 1.1]
+    translate: [-3.0, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 4
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # LASTRA B — SOLO DISPLACEMENT (no autobump)
+  # La macro-silhouette si forma correttamente, ma i dettagli sub-griglia
+  # della stessa texture vengono attenuati dalla risoluzione di CC×4.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "B_displacement_only"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana"
+    scale: [0.85, 1.0, 1.1]
+    translate: [-1.0, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 4
+    displacement:
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 4.5
+        octaves: 6
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.18
+      midlevel: 0.5
+      # autobump omesso → default false
+    displacement_bound: 0.20
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # LASTRA C — DISPLACEMENT + AUTOBUMP (stesso noise, dettaglio recuperato)
+  # Confronta direttamente con B: stessa macro-silhouette, ma il rilievo
+  # sub-griglia è recuperato dal gradiente luminanza della stessa texture,
+  # alla frequenza nativa del displacement.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "C_displacement_autobump"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana"
+    scale: [0.85, 1.0, 1.1]
+    translate: [1.0, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 4
+    displacement:
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 4.5
+        octaves: 6
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.18
+      midlevel: 0.5
+      autobump: true              # ←── recupera il dettaglio sub-griglia
+      autobump_strength: 1.5      #     enfatizzato per il confronto visivo
+      autobump_scale: 1.0
+    displacement_bound: 0.20
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # LASTRA D — DISPLACEMENT + AUTOBUMP + BUMP MATERIALE
+  # Tre canali ortogonali combinati: macro displacement (geometria), autobump
+  # (sub-griglia da stessa texture), bump materiale (graffi indipendenti
+  # ridged-noise). È il workflow "production" tipico di un asset finito.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "D_displacement_autobump_bump"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana_graffiata"     # ←── bump_map già nel materiale
+    scale: [0.85, 1.0, 1.1]
+    translate: [3.0, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 4
+    displacement:
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 4.5
+        octaves: 6
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.18
+      midlevel: 0.5
+      autobump: true
+      autobump_strength: 1.5
+      autobump_scale: 1.0
+    displacement_bound: 0.20
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SCOGLIO — vector-displacement tangent + autobump
+  # Il vettore produce la silhouette asimmetrica (overhang/concavità),
+  # l'autobump riempie il dettaglio cromatico fine recuperando le frequenze
+  # alte del noise ridged. È il caso d'uso tipico di un sculpt di pietra
+  # bakato in Mudbox: cage CC×4 + vector displacement + autobump.
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "asteroide"
+    type: "mesh"
+    path: "../models/subdivision-cube.obj"
+    material: "scoglio"
+    scale: [0.42, 0.42, 0.42]
+    translate: [0, 2.7, 1.8]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 4
+    displacement:
+      mode: "vector"
+      space: "tangent"
+      texture:
+        type: "noise"
+        noise_type: "ridged"
+        scale: 3.0
+        octaves: 4
+        lacunarity: 2.2
+        gain: 0.55
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      scale: 0.20
+      midlevel: 0.5
+      autobump: true
+      autobump_strength: 1.0
+      autobump_scale: 1.5         # ←── bump più fine del displacement
+    displacement_bound: 0.40

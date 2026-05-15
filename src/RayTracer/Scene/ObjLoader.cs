@@ -4,6 +4,7 @@ using RayTracer.Core;
 using RayTracer.Geometry;
 using RayTracer.Geometry.Subdivision;
 using RayTracer.Materials;
+using RayTracer.Textures;
 
 namespace RayTracer.Scene;
 
@@ -262,7 +263,23 @@ public static class ObjLoader
         // shading-time bump perturbation and matches the contract surfaced
         // by Arnold's disp_padding / RenderMan's dispBound.
         float bound = displacement.IsActive ? MathF.Max(0f, displacement.Bound) : 0f;
-        return new Mesh(triangles, material, vertexCount, bound);
+        var mesh = new Mesh(triangles, material, vertexCount, bound);
+
+        // Step 5 of the surface-displacement stack: optional "autobump"
+        // residual bump map derived from the same displacement texture.
+        // We compose it onto the mesh — not the material — so two meshes
+        // sharing the same material can independently opt in. The strength
+        // is tied to the displacement amplitude (Arnold's autobump magnitude
+        // convention); authors dial AutobumpStrength to override the ratio.
+        if (displacement.IsAutobumpActive)
+        {
+            float strength = displacement.AutobumpStrength * MathF.Abs(displacement.Scale);
+            float uvScale  = MathF.Max(1e-6f,
+                displacement.UvScale * displacement.AutobumpScale);
+            mesh.AutoBump = new BumpMapTexture(displacement.Texture!, strength, uvScale);
+        }
+
+        return mesh;
     }
 
     /// <summary>Backwards-compatible 4-arg overload (no subdivision).</summary>

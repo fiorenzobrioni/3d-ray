@@ -546,6 +546,67 @@ object-space vector-displacement panel driven by the same noise, plus
 a CC×4 cube with ridged-fBm vector displacement that demonstrates the
 overhang-producing behaviour.
 
+### 4.12.4 Autobump (residual bump from the displacement texture)
+
+Subdivision + displacement resolve the silhouette down to the sampling
+rate of the displacement texture; detail finer than the subdivision grid
+gets smoothed out geometrically. Arnold introduced the
+`autobump_visibility` flag on `polymesh` for exactly this case: the
+engine derives a residual bump map from the same displacement texture
+and applies it during shading, so the high-frequency tail of the same
+noise is recovered as a normal perturbation at zero geometric cost.
+
+```yaml
+- type: "mesh"
+  path: "models/stone.obj"
+  material: "porcelain"
+  subdivision_scheme: "catmull_clark"
+  subdivision_iterations: 4               # moderate — autobump recovers the rest
+  displacement:
+    texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 4.5
+      octaves: 6
+    scale: 0.18
+    midlevel: 0.5
+    autobump: true                        # ← step 5: residual bump from same texture
+    autobump_strength: 1.5                # bump amplitude = autobump_strength · |scale|
+    autobump_scale: 1.0                   # 1 = match displacement frequency; >1 = finer
+  displacement_bound: 0.20
+```
+
+| Field                            | Default | Notes |
+|----------------------------------|---------|-------|
+| `displacement.autobump`          | `false` | When `true`, the displacement texture is reused as a residual bump map (Arnold's `autobump_visibility`). Off by default — pre-step-5 scenes render byte-identically. |
+| `displacement.autobump_strength` | `1.0`   | Bump-strength multiplier; the final amplitude is `autobump_strength · \|displacement.scale\|`. Setting it to 0 disables the autobump silently. |
+| `displacement.autobump_scale`    | `1.0`   | UV-frequency multiplier on top of `displacement.uv_scale`. `>1` tiles the bump finer than the displacement. |
+
+**Composition order.** The engine layers the four perturbation channels
+in the canonical Arnold/Cycles order:
+
+```
+geometry normal (post-displacement)
+  → material.normal_map
+    → material.bump_map
+      → mesh.autobump                 (← derived from displacement.texture)
+```
+
+The clearcoat normal map (`coat_normal_map` on a Disney material) is
+deliberately **independent** — it perturbs only the clearcoat lobe and
+is not affected by the base bump stack (parity with Arnold's standard
+surface and Cycles' Principled BSDF).
+
+**Mesh-only.** Autobump shares the displacement's mesh-only constraint
+— built-in primitives keep using a stand-alone `bump_map` for sub-pixel
+detail (same architectural choice Arnold and Cycles made).
+
+**Showcase.** `scenes/showcases/bump-displacement-combo-showcase.yaml`
+puts four panels side by side (flat reference, displacement only,
+displacement + autobump, displacement + autobump + material bump) at a
+deliberately moderate `subdivision_iterations: 4` so the autobump's
+sub-grid detail recovery is immediately visible.
+
 ---
 
 ## 4.13 Type Alias Summary

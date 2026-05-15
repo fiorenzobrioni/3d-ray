@@ -1896,6 +1896,8 @@ public class SceneLoader
         string dispTag = displacement.Mode == DisplacementMode.Vector
             ? $"vector-{displacement.Space.ToString().ToLowerInvariant()}"
             : "scalar";
+        if (displacement.IsAutobumpActive)
+            dispTag += "+autobump";
 
         if (appliedIterations > 0 && displacement.IsActive)
         {
@@ -2027,15 +2029,37 @@ public class SceneLoader
             ? e.DisplacementBound
             : defaultBound;
 
+        // ── Autobump (step 5 of the surface-displacement stack) ────────────
+        // Optional "autobump" that derives a residual BumpMapTexture from
+        // the same displacement texture. Mirrors Arnold's autobump_visibility
+        // flag on polymesh nodes: subdivision/displacement build the macro
+        // silhouette, the autobump recovers sub-pixel detail finer than the
+        // subdivision grid. Defaults are byte-identical to pre-step-5
+        // (autobump: false; strength/scale ignored when off).
+        bool autobump = disp.Autobump;
+        float autobumpStrength = disp.AutobumpStrength;
+        float autobumpScale = disp.AutobumpScale > 0f ? disp.AutobumpScale : 1f;
+
+        if (autobump && autobumpStrength <= 0f)
+        {
+            Warn($"Mesh '{e.Name ?? "(unnamed)"}': 'autobump' is enabled but " +
+                 $"'autobump_strength' is {autobumpStrength} (≤ 0). The autobump " +
+                 $"would be a no-op; disabling it.");
+            autobump = false;
+        }
+
         return new DisplacementOptions
         {
-            Mode     = mode,
-            Space    = space,
-            Texture  = inner,
-            Scale    = disp.Scale,
-            Midlevel = disp.Midlevel,
-            Bound    = bound,
-            UvScale  = disp.UvScale > 0f ? disp.UvScale : 1f,
+            Mode             = mode,
+            Space            = space,
+            Texture          = inner,
+            Scale            = disp.Scale,
+            Midlevel         = disp.Midlevel,
+            Bound            = bound,
+            UvScale          = disp.UvScale > 0f ? disp.UvScale : 1f,
+            Autobump         = autobump,
+            AutobumpStrength = autobumpStrength,
+            AutobumpScale    = autobumpScale,
         };
     }
 
