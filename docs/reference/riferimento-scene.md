@@ -1043,6 +1043,77 @@ object-space) per vedere le differenze di silhouette a colpo d'occhio,
 più un cubo CC×4 con ridged-fBm vector displacement che dimostra il
 comportamento overhang-producing.
 
+##### **Autobump (bump derivato dalla texture di displacement)**
+
+Subdivision + displacement costruiscono la macro-silhouette fino al
+passo di campionamento della texture di displacement. I dettagli più
+fini della griglia di subdivision (la coda alta-frequenza di un fBm,
+il bordo di una cella Voronoi, il graffio inciso su uno sculpt)
+vengono ammorbiditi dalla geometria — esattamente l'artefatto che il
+flag `autobump_visibility` di Arnold su un `polymesh` è stato pensato
+per recuperare. Impostando `autobump: true` sul blocco `displacement`,
+l'engine costruisce una bump map residua dalla stessa texture e la
+attacca alla mesh; al tempo dello shading il renderer la applica sopra
+ad un eventuale `bump_map` a livello materiale.
+
+```yaml
+- name: "pietra_scolpita"
+  type: "mesh"
+  path: "models/stone.obj"
+  material: "porcellana"
+  subdivision_scheme: "catmull_clark"
+  subdivision_iterations: 4               # subdivision moderata — l'autobump completa il resto
+  displacement:
+    texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 4.5
+      octaves: 6
+    scale: 0.18
+    midlevel: 0.5
+    autobump: true                        # ← step 5: bump residuo dalla stessa texture
+    autobump_strength: 1.5                # ampiezza bump = autobump_strength · |scale|
+    autobump_scale: 1.0                   # moltiplicatore frequenza UV (1 = stessa del displacement)
+  displacement_bound: 0.20
+```
+
+| Campo                            | Default | Note |
+|----------------------------------|---------|------|
+| `displacement.autobump`          | `false` | Quando `true`, la texture di displacement è riutilizzata come bump map residua (`autobump_visibility` di Arnold). Disattivato per default — le scene pre-step-5 rendono byte-identiche. |
+| `displacement.autobump_strength` | `1.0`   | Moltiplicatore di forza del bump; l'ampiezza finale passata al `BumpMapTexture` interno è `autobump_strength · \|displacement.scale\|`. Impostandolo a 0 disattiva silenziosamente l'autobump (il loader emette warning). |
+| `displacement.autobump_scale`    | `1.0`   | Moltiplicatore di frequenza UV stackato su `displacement.uv_scale`. `>1` campiona il bump più fine del displacement (workflow tipico "macro displacement + micro autobump"); `=1` fa match con la frequenza del displacement. |
+
+**Ordine di composizione.** L'engine combina i quattro canali di
+perturbazione nello stesso ordine di Arnold/Cycles:
+
+```
+normale geometrica (post-displacement)
+  → material.normal_map
+    → material.bump_map
+      → mesh.autobump                 (← derivato da displacement.texture)
+```
+
+Il `coat_normal_map` del BSDF Disney è **indipendente** — perturba
+solo il lobo di clearcoat ed è invariante rispetto allo stack del bump
+di base (parità con la standard surface di Arnold e il Principled BSDF
+di Cycles). Il vector displacement funziona allo stesso modo:
+l'autobump campiona la luminanza della stessa texture di
+vector-displacement, recuperando la componente alta-frequenza lungo la
+normale di shading già modificata.
+
+**Solo mesh.** L'autobump condivide il vincolo mesh-only del
+displacement — è attivo solo su entity `type: mesh`. Le primitive
+built-in continuano a usare un `bump_map` autonomo per il dettaglio
+sub-pixel.
+
+La scena showcase `scenes/showcases/bump-displacement-combo-showcase.yaml`
+affianca quattro pannelli (riferimento piatto, solo displacement,
+displacement + autobump, displacement + autobump + bump materiale) a
+una `subdivision_iterations: 4` volutamente moderata, così il
+dettaglio sub-griglia recuperato dall'autobump è subito visibile. Lo
+scoglio vector-displaced sopra al centro dimostra lo stesso recupero
+su una mesh non planare.
+
 #### **7.13 CSG (Operazioni Booleane)**
 ```yaml
 # Union (A ∪ B) — fonde due solidi in uno solo (es. corpo + testa di un pupazzo di neve)

@@ -2,6 +2,7 @@ using System.Numerics;
 using RayTracer.Acceleration;
 using RayTracer.Core;
 using RayTracer.Materials;
+using RayTracer.Textures;
 
 namespace RayTracer.Geometry;
 
@@ -44,6 +45,20 @@ public class Mesh : IHittable, ISamplable
     public int VertexCount { get; }
 
     public IMaterial Material { get; }
+
+    /// <summary>
+    /// Optional residual bump map derived from the mesh's
+    /// <c>displacement.texture</c> when the entity opted in via
+    /// <c>displacement.autobump: true</c> (DEVLOG surface-displacement
+    /// step 5). Pushed into <see cref="HitRecord.AutoBump"/> on every
+    /// successful primary hit so the renderer can perturb the shading
+    /// normal independently of (and on top of) the material-level
+    /// <see cref="IMaterial.BumpMap"/>. Living on the mesh — not the
+    /// material — preserves material sharing across entities: only the
+    /// meshes that asked for an autobump get one. Mirrors Arnold's
+    /// <c>autobump_visibility</c> flag on <c>polymesh</c>.
+    /// </summary>
+    public BumpMapTexture? AutoBump { get; set; }
 
     /// <summary>
     /// Constructs a Mesh from a list of triangles and builds the internal BVH.
@@ -90,7 +105,10 @@ public class Mesh : IHittable, ISamplable
 
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
-        return _bvh.Hit(ray, tMin, tMax, ref rec);
+        bool hit = _bvh.Hit(ray, tMin, tMax, ref rec);
+        if (hit && AutoBump != null)
+            rec.AutoBump = AutoBump;
+        return hit;
     }
 
     /// <inheritdoc/>

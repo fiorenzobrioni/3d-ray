@@ -1,5 +1,6 @@
 using System.Numerics;
 using RayTracer.Materials;
+using RayTracer.Textures;
 
 namespace RayTracer.Core;
 
@@ -26,6 +27,20 @@ public struct HitRecord
     /// the scene through NEE.
     /// </summary>
     public bool CameraInvisible;
+
+    /// <summary>
+    /// Mesh-level "autobump" residual bump map (DEVLOG surface-displacement
+    /// step 5 — Arnold's <c>autobump_visibility</c> equivalent). Populated
+    /// by <see cref="Geometry.Mesh.Hit"/> when the mesh was loaded with
+    /// <c>displacement.autobump: true</c>. The renderer consumes it in
+    /// <c>ShadeSurface</c> after the material-level <c>BumpMap</c>, so the
+    /// final shading normal composes
+    /// <c>normal_map → material.bump_map → mesh.autobump</c> on top of the
+    /// already-displaced geometry. Independent of the material — sharing
+    /// the material across multiple meshes is therefore still safe even
+    /// when only some of them carry an autobump.
+    /// </summary>
+    public BumpMapTexture? AutoBump;
 
     // ── TBN basis for normal mapping ────────────────────────────────────────
     // Tangent is aligned with the +U direction of the UV mapping.

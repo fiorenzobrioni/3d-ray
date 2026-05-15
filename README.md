@@ -80,13 +80,27 @@ Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il
 
 ### Texture
 - ♟ **Checker** — scacchiera 3D procedurale
-- 🌀 **Noise** — rumore Perlin (liscio o turbolento)
-- 🏔 **Marble** — marmo procedurale
-- 🪵 **Wood** — legno procedurale
+- 🌀 **Noise** — rumore Perlin (liscio o turbolento) con `noise_type`, `octaves`, `lacunarity`, `gain`, `distortion`; modalità `perlin` / `fbm` / `turbulence` / `ridged` / `billow`
+- 🏔 **Marble** — marmo procedurale con `vein_axis`, `vein_frequency`, `vein_sharpness` (look Carrara/Statuario)
+- 🪵 **Wood** — legno procedurale con `ring_axis`, `ring_sharpness`, `axial_grain`, fBm multi-ottava
+- 🔷 **Voronoi / Worley** — pattern cellulari (cells, F1, F2, F2−F1, F1+F2) con metriche euclidean/manhattan/chebyshev
+- 🧱 **Brick** — pattern mattoni running-bond con variazione per-mattone e weathering
+- 🌈 **Gradient** — sfumature lineari, quadratiche, easing, sferiche e radiali
 - 🖼 **Image Texture** — texture da file (PNG, JPEG, BMP, GIF, TIFF, WebP) con bilinear filtering e tiling configurabile
 - 🗺 **Normal Map** — dettaglio geometrico superficiale senza triangoli aggiuntivi; compatibile OpenGL e DirectX-style (`flip_y`)
 
 Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzazione per-oggetto** tramite seed deterministico.
+
+### Surface Displacement Stack (parità Arnold / RenderMan / Cycles)
+Cinque canali compongono la silhouette e il rilievo della superficie nello stesso ordine usato dai render pro:
+
+- 🟢 **Bump map** (canale `bump_map` su qualunque materiale) — perturbazione di shading da una qualunque `ITexture` (procedurale o image) via differenze finite di luminanza in tangent space. Funziona su tutte le primitive (`sphere`, `cylinder`, `torus`, mesh…); composizione Gram-Schmidt con eventuale `normal_map` (Blinn 1978).
+- 🔺 **Mesh subdivision** (`subdivision_scheme: loop|catmull_clark|auto`) — raffinamento Loop (Charles Loop 1987, mesh triangolari) o Catmull-Clark (1978, mesh quad/mixed) sul loader OBJ con maschere di bordo Hoppe et al. 1994. Modalità uniforme (`subdivision_iterations`) oppure adattiva screen-space (`subdivision_pixel_error`) con cap (`subdivision_max_iterations`). Normali e UV vertex-varying carried-through; normali finali ricalcolate angle-weighted (Max 1999).
+- 🏔️ **Scalar displacement** (`displacement: { texture, scale, midlevel, uv_scale }`) — deformazione vera della mesh subdivisa lungo la normale smooth: `v' = v + scale · (luminance(texture) − midlevel) · n_smooth`. Padding AABB per BVH (`displacement_bound`, Arnold `disp_padding` / RenderMan `dispBound`); silhouette modificata, non solo lo shading.
+- 🗿 **Vector displacement** (`displacement: { mode: vector, space: tangent|object, … }`) — RGB della texture come offset 3D: `v' = v + scale · (rgb − midlevel) · basis`. Tangent space (R→T, G→B, B→N, convenzione Mudbox/Maya/ZBrush/Cycles) per sculpt bakati; object space per sculpt condivisi tra asset con UV diversi. Sblocca overhang, crinkles e dettagli che si piegano su se stessi.
+- ✨ **Autobump** (`displacement: { autobump: true, autobump_strength, autobump_scale }`) — bump residuo derivato dalla stessa texture di displacement, recupera la coda alta-frequenza sotto la risoluzione della griglia di subdivision. Equivalente di `autobump_visibility` di Arnold; lo shading compone `normal_map → material.bump_map → mesh.autobump` sopra alla geometria già displaced. `coat_normal_map` Disney resta indipendente per design.
+
+Showcase: [`bump-map-showcase.yaml`](./scenes/showcases/bump-map-showcase.yaml), [`mesh-subdivision-showcase.yaml`](./scenes/showcases/mesh-subdivision-showcase.yaml), [`scalar-displacement-showcase.yaml`](./scenes/showcases/scalar-displacement-showcase.yaml), [`vector-displacement-showcase.yaml`](./scenes/showcases/vector-displacement-showcase.yaml), [`bump-displacement-combo-showcase.yaml`](./scenes/showcases/bump-displacement-combo-showcase.yaml).
 
 ### Sistema di Trasformazione
 - 🔄 **Transform** — scala, rotazione e traslazione applicabili a qualsiasi primitiva, inclusi i nodi CSG.

@@ -556,6 +556,44 @@ public class DisplacementData
     /// </summary>
     [YamlMember(Alias = "uv_scale")]
     public float UvScale { get; set; } = 1f;
+
+    /// <summary>
+    /// "Autobump" toggle — when <c>true</c> the engine derives a residual
+    /// bump map from the same displacement texture and attaches it to the
+    /// mesh, so sub-pixel detail finer than the subdivision grid still
+    /// shows up in the shading normal. Combines with any explicit
+    /// <c>bump_map</c> on the material (Arnold composes them additively;
+    /// our pipeline applies the material bump first, then the autobump).
+    /// Disabled by default — when omitted the step-3/step-4 displacement
+    /// behaviour is byte-identical to before. Mirrors Arnold's
+    /// <c>autobump_visibility</c> flag on <c>polymesh</c> nodes (the
+    /// engine-level equivalent of "use the high-frequency detail of the
+    /// displacement texture as a bump").
+    /// </summary>
+    [YamlMember(Alias = "autobump")]
+    public bool Autobump { get; set; } = false;
+
+    /// <summary>
+    /// Bump-strength multiplier passed to the derived
+    /// <see cref="Textures.BumpMapTexture"/>. Defaults to the displacement
+    /// scale so the autobump amplitude is in lockstep with the macro
+    /// displacement (an authoring shortcut — same physical interpretation
+    /// as Arnold's <c>autobump</c> auto-magnitude). Set explicitly to
+    /// override.
+    /// </summary>
+    [YamlMember(Alias = "autobump_strength")]
+    public float AutobumpStrength { get; set; } = 1f;
+
+    /// <summary>
+    /// UV-frequency multiplier for the autobump. Defaults to <c>1.0</c>
+    /// (sample at the displacement's native frequency); raise it to tile
+    /// the bump finer than the displacement and capture sub-grid detail
+    /// (Arnold's <c>autobump</c> defaults to the same frequency; the
+    /// extra dial mirrors the manual workflow of stacking a finer-tiled
+    /// bump on top of the displacement texture).
+    /// </summary>
+    [YamlMember(Alias = "autobump_scale")]
+    public float AutobumpScale { get; set; } = 1f;
 }
 
 public class TextureData

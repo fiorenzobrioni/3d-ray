@@ -548,6 +548,18 @@ public class Renderer
             ApplyBumpMap(ref rec, material.BumpMap);
         }
 
+        // ── Autobump (mesh-level, step 5 of the surface-displacement stack) ──
+        // Applied AFTER the material's bump map so the composition order is
+        //     normal_map → material.bump_map → mesh.autobump
+        // on top of the already-displaced geometry. This is the
+        // "macro silhouette via displacement, sub-pixel detail via autobump"
+        // workflow Arnold pioneered with autobump_visibility — and it keeps
+        // a clearcoat normal map (Disney) independent, by design.
+        if (rec.AutoBump != null && rec.Tangent.LengthSquared() > 0.5f)
+        {
+            ApplyBumpMap(ref rec, rec.AutoBump);
+        }
+
         // ── Emission (MIS-weighted) ─────────────────────────────────────────
         Vector3 emitted = Vector3.Zero;
         if (material != null)
