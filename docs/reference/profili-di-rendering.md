@@ -38,6 +38,7 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 | `-C` / `--clamp` | `10` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
 | `--indirect-clamp-factor` | `0.25` (clamp indiretto = `2.5`) | `Renderer.DefaultIndirectClampFactor` |
 | `--light-sampling` | `all` (somma su tutte le luci) | `LightSamplingStrategy.All` |
+| `--texture-filtering` | `auto` (filtering attivo) | `Renderer.TextureFilteringMode.Auto` |
 | `--sampler` | `sobol` (Owen scramble) | `Program.cs` / `Sampler.SetKind` |
 | `--mis` | `balance` (balance heuristic Veach) | `Program.cs` / `MisHeuristic` |
 
@@ -135,6 +136,32 @@ Seleziona come il renderer sceglie quale luce interrogare per ogni evento NEE:
 | `uniform` | Campiona una luce uniformemente | Debug / baseline di confronto con `power` |
 
 Con `all` il renderer lancia `ShadowSamples` raggi d'ombra per luce per shading point — O(N·S). Con `power` o `uniform` li lancia per una sola luce e divide per la probabilità di campionamento per restare unbiased — O(S). In una scena con 1 area light intensa + 20 point light deboli, `power` converge notevolmente più in fretta.
+
+#### **6c. Texture filtering (`--texture-filtering`)**
+
+```
+--texture-filtering <auto|on|off>
+```
+
+Controlla l'anti-aliasing analitico di texture procedurali e image via
+ray differentials. La camera emette raggi ausiliari attraverso i vicini
+`+x`/`+y` del pixel; la dimensione del footprint a ogni hit di superficie
+pilota una lookup pre-filtrata della texture — Perlin/fBm clampano le
+ottave sopra Nyquist, Voronoi fa supersampling adattivo, le texture image
+usano mipmap + filtering anisotropico EWA.
+
+| Valore | Comportamento | Quando usarlo |
+|---|---|---|
+| `auto` | Filtering attivo (la camera emette differentials) | **Default** — sempre sicuro |
+| `on`   | Identico ad `auto`, riservato a euristiche future | Equivalente ad `auto` |
+| `off`  | Nessun differential, ogni texture campionata point-only | Confronto baseline, benchmark, verifica che un eventuale aliasing arrivi dal pipeline texture e non dal sampling della camera |
+
+Il default `auto` rimuove moiré, shimmer e grana ad alta frequenza su
+superfici lontane o ad angoli radenti — tipicamente permette di
+dimezzare `-s` di 4× su scene outdoor con terreno procedurale o
+movimenti di camera grandangolari senza perdere qualità. Disattivare
+con `off` ha senso solo per debug o A/B comparison; il costo del
+filtering è minimo (pochi punti percentuali nelle scene tipiche).
 
 ---
 

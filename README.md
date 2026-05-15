@@ -91,16 +91,12 @@ Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il
 
 Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzazione per-oggetto** tramite seed deterministico.
 
-### Surface Displacement Stack (parità Arnold / RenderMan / Cycles)
-Cinque canali compongono la silhouette e il rilievo della superficie nello stesso ordine usato dai render pro:
-
-- 🟢 **Bump map** (canale `bump_map` su qualunque materiale) — perturbazione di shading da una qualunque `ITexture` (procedurale o image) via differenze finite di luminanza in tangent space. Funziona su tutte le primitive (`sphere`, `cylinder`, `torus`, mesh…); composizione Gram-Schmidt con eventuale `normal_map` (Blinn 1978).
-- 🔺 **Mesh subdivision** (`subdivision_scheme: loop|catmull_clark|auto`) — raffinamento Loop (Charles Loop 1987, mesh triangolari) o Catmull-Clark (1978, mesh quad/mixed) sul loader OBJ con maschere di bordo Hoppe et al. 1994. Modalità uniforme (`subdivision_iterations`) oppure adattiva screen-space (`subdivision_pixel_error`) con cap (`subdivision_max_iterations`). Normali e UV vertex-varying carried-through; normali finali ricalcolate angle-weighted (Max 1999).
-- 🏔️ **Scalar displacement** (`displacement: { texture, scale, midlevel, uv_scale }`) — deformazione vera della mesh subdivisa lungo la normale smooth: `v' = v + scale · (luminance(texture) − midlevel) · n_smooth`. Padding AABB per BVH (`displacement_bound`, Arnold `disp_padding` / RenderMan `dispBound`); silhouette modificata, non solo lo shading.
-- 🗿 **Vector displacement** (`displacement: { mode: vector, space: tangent|object, … }`) — RGB della texture come offset 3D: `v' = v + scale · (rgb − midlevel) · basis`. Tangent space (R→T, G→B, B→N, convenzione Mudbox/Maya/ZBrush/Cycles) per sculpt bakati; object space per sculpt condivisi tra asset con UV diversi. Sblocca overhang, crinkles e dettagli che si piegano su se stessi.
-- ✨ **Autobump** (`displacement: { autobump: true, autobump_strength, autobump_scale }`) — bump residuo derivato dalla stessa texture di displacement, recupera la coda alta-frequenza sotto la risoluzione della griglia di subdivision. Equivalente di `autobump_visibility` di Arnold; lo shading compone `normal_map → material.bump_map → mesh.autobump` sopra alla geometria già displaced. `coat_normal_map` Disney resta indipendente per design.
-
-Showcase: [`bump-map-showcase.yaml`](./scenes/showcases/bump-map-showcase.yaml), [`mesh-subdivision-showcase.yaml`](./scenes/showcases/mesh-subdivision-showcase.yaml), [`scalar-displacement-showcase.yaml`](./scenes/showcases/scalar-displacement-showcase.yaml), [`vector-displacement-showcase.yaml`](./scenes/showcases/vector-displacement-showcase.yaml), [`bump-displacement-combo-showcase.yaml`](./scenes/showcases/bump-displacement-combo-showcase.yaml).
+### Surface Displacement Stack
+- 🟢 **Bump map** — dettaglio di superficie ottenuto perturbando la normale di shading da una texture qualunque (procedurale o image), senza aggiungere geometria. Disponibile su ogni materiale e su tutte le primitive.
+- 🔺 **Mesh subdivision** — raffinamento delle mesh OBJ con gli algoritmi Loop (mesh triangolari) e Catmull-Clark (mesh quad/miste), in modalità uniforme o adattiva screen-space.
+- 🏔️ **Scalar displacement** — deformazione reale della mesh subdivisa lungo la normale: cambia la silhouette dell'oggetto, non solo lo shading.
+- 🗿 **Vector displacement** — offset 3D dei vertici letto dal triplet RGB della texture, in tangent space o object space. Permette overhang, pieghe e dettagli che si ripiegano su sé stessi.
+- ✨ **Autobump** — bump residuo derivato automaticamente dalla stessa texture di displacement, recupera la frequenza alta che la griglia di subdivision non riesce a rappresentare.
 
 ### Sistema di Trasformazione
 - 🔄 **Transform** — scala, rotazione e traslazione applicabili a qualsiasi primitiva, inclusi i nodi CSG.
@@ -243,6 +239,7 @@ dotnet run --project src/Tools/ChessGen/ChessGen.csproj
 | `--sampler` | — | `sobol` | Campionatore per-pixel: `sobol` (Owen-scrambled, default) o `prng` (legacy thread-local). Nessuna differenza di interfaccia scena: cambia solo la sequenza dei numeri casuali. |
 | `--mis` | — | `balance` | Heuristica MIS che combina Light Sampling (NEE) e BSDF/Phase Sampling: `balance` (Veach 1997 §9.2.2) o `power` (β=2, §9.2.4). Stesso costo computazionale; `power` riduce ulteriormente la varianza quando le PDF disagree (luce piccola + materiale ruvido, sole nella nebbia). |
 | `--light-sampling` | — | `all` | Strategia NEE: `all` = somma tutte le luci (default, backward compat); `power` = campiona una luce ∝ `ApproximatePower` (varianza minore in scene multi-luce); `uniform` = campionamento uniforme (debug). |
+| `--texture-filtering` | — | `auto` | Anti-aliasing analitico delle texture procedurali e image via ray differentials: `auto`/`on` = filtering attivo (Perlin/fBm octave clamp, Voronoi supersampling adattivo, image mipmap + EWA anisotropico); `off` = point-sampled puro (utile come baseline per benchmark/AB). |
 | `--list-cameras` | — | — | Elenca le camere disponibili nella scena ed esce. |
 | `--verbose` | `-v` | — | Mostra informazioni dettagliate durante il caricamento e l'analisi della scena (import, template, σ del medium, tuning Russian Roulette). Utile per debug e sviluppo scene. |
 | `--help` | `-h` | — | Mostra il messaggio di aiuto ed esce. |

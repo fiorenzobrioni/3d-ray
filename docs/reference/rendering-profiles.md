@@ -38,6 +38,7 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 | `-C` / `--clamp` | `10` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
 | `--indirect-clamp-factor` | `0.25` (indirect clamp = `2.5`) | `Renderer.DefaultIndirectClampFactor` |
 | `--light-sampling` | `all` (sum over every light) | `LightSamplingStrategy.All` |
+| `--texture-filtering` | `auto` (filtering on) | `Renderer.TextureFilteringMode.Auto` |
 | `--sampler` | `sobol` (Owen-scrambled) | `Program.cs` / `Sampler.SetKind` |
 | `--mis` | `balance` (Veach balance heuristic) | `Program.cs` / `MisHeuristic` |
 
@@ -135,6 +136,31 @@ Selects how the renderer chooses which light to query per NEE event:
 | `uniform` | Sample one light uniformly | Debug / baseline comparison against `power` |
 
 With `all` the renderer fires `ShadowSamples` shadow rays per light per shading point — O(N·S). With `power` or `uniform` it fires shadow rays for one light, then divides by the sampling probability to remain unbiased — O(S). In a scene with 1 bright area light + 20 dim point lights, `power` converges substantially faster.
+
+#### **6c. Texture filtering (`--texture-filtering`)**
+
+```
+--texture-filtering <auto|on|off>
+```
+
+Controls analytic anti-aliasing of procedural and image textures via ray
+differentials. The camera fires auxiliary rays through the pixel `+x`/`+y`
+neighbours; their footprint at each surface hit drives a pre-filtered
+texture lookup — Perlin/fBm clamps octaves above Nyquist, Voronoi adaptive
+supersamples, image textures use mipmap + EWA anisotropic filtering.
+
+| Value | Behaviour | When to use |
+|---|---|---|
+| `auto` | Filtering on (camera emits differentials) | **Default** — always safe |
+| `on`   | Same as `auto`, reserved for future heuristics | Identical to `auto` |
+| `off`  | No differentials, every texture sampled point-only | Baseline comparison, benchmarks, verifying that aliasing in a render comes from the texture pipeline rather than from camera sampling |
+
+The default `auto` removes moiré, shimmer and high-frequency grain on
+distant or grazing-angle surfaces — typically lets you drop `-s` by 4×
+on outdoor scenes with procedural ground or wide-angle camera moves
+without losing image quality. Disabling with `off` is only useful for
+debugging or A/B comparison; the cost of filtering is small (a few
+percent at most on typical scenes).
 
 ---
 

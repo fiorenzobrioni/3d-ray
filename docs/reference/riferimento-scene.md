@@ -692,6 +692,12 @@ texture:
 - Supporta: PNG, JPEG, BMP, GIF, TIFF, WebP
 - Convertito automaticamente da sRGB a lineare
 - Filtro bilineare per la morbidezza
+- Anti-aliasing analitico (mipmap + EWA anisotropico) quando sono
+  disponibili i ray differentials — attivo di default; toggle da CLI
+  con `--texture-filtering <auto|on|off>` (vedi
+  [profili-di-rendering.md §6c](./profili-di-rendering.md)). Lo stesso
+  flag controlla anche l'octave clamp analitico delle texture
+  procedurali noise/fBm/marble/wood/voronoi.
 
 #### **Normal Map:**
 ```yaml

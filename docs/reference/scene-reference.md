@@ -666,6 +666,11 @@ texture:
 - Automatically converted from sRGB to linear
 - Bilinear filtering for smoothness
 - Wrapping for seamless tiling
+- Analytic anti-aliasing (mipmap + EWA anisotropic) when ray differentials
+  are available — enabled by default; toggle from the CLI with
+  `--texture-filtering <auto|on|off>` (see [rendering-profiles.md §6c](./rendering-profiles.md)).
+  The same flag also drives the analytic octave clamp on procedural
+  noise/fBm/marble/wood/voronoi.
 #### **Normal Map:**
 ```yaml
 normal_map:
