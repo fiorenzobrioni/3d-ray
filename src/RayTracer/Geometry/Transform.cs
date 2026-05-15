@@ -94,7 +94,24 @@ public class Transform : IHittable, ISamplable
         var localOrigin = Vector3.Transform(ray.Origin, _inverse);
         var localDir = Vector3.TransformNormal(ray.Direction, _inverse);
 
-        var localRay = new Ray(localOrigin, localDir);
+        // Differential propagation through an affine transform: the Jacobian
+        // of (origin, direction) w.r.t. (x, y) is the inverse matrix itself
+        // when going world → object, so each auxiliary ray gets the same
+        // inverse-transform treatment as the primary (PBRT §6.2.3 / §10.1.1).
+        Ray localRay;
+        if (ray.HasDifferentials)
+        {
+            var d = ray.Differentials;
+            var lox = Vector3.Transform(d.OriginX, _inverse);
+            var ldx = Vector3.TransformNormal(d.DirectionX, _inverse);
+            var loy = Vector3.Transform(d.OriginY, _inverse);
+            var ldy = Vector3.TransformNormal(d.DirectionY, _inverse);
+            localRay = new Ray(localOrigin, localDir, new RayDifferential(lox, ldx, loy, ldy));
+        }
+        else
+        {
+            localRay = new Ray(localOrigin, localDir);
+        }
 
         if (!_object.Hit(localRay, tMin, tMax, ref rec))
             return false;
@@ -121,6 +138,20 @@ public class Transform : IHittable, ISamplable
         // Tangent and bitangent are direction vectors, they transform with the forward matrix
         rec.Tangent   = Vector3.Normalize(Vector3.TransformNormal(rec.Tangent,   _transform));
         rec.Bitangent = Vector3.Normalize(Vector3.TransformNormal(rec.Bitangent, _transform));
+
+        // Parametric partials transform as ordinary direction vectors (they
+        // span the surface tangent plane). UV partials are unaffected — the
+        // primitive's parameter space is invariant to spatial transforms.
+        if (rec.DpDu.LengthSquared() > 0f)
+            rec.DpDu = Vector3.TransformNormal(rec.DpDu, _transform);
+        if (rec.DpDv.LengthSquared() > 0f)
+            rec.DpDv = Vector3.TransformNormal(rec.DpDv, _transform);
+
+        // Footprint dPdx/dPdy were computed in object space (LocalPoint-aligned)
+        // by the inner primitive's Hit path. Procedural textures consume them
+        // at LocalPoint, so we deliberately keep them in object space — image
+        // textures use the UV partials which are space-independent. We do NOT
+        // transform here.
 
         return true;
     }

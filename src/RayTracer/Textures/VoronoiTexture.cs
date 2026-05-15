@@ -65,6 +65,63 @@ public class VoronoiTexture : ITexture
     }
 
     public Vector3 Value(float u, float v, Vector3 p, int objectSeed)
+        => SampleAtP(p, objectSeed);
+
+    public Vector3 Value(float u, float v, Vector3 p, int objectSeed, in FilterFootprint footprint)
+    {
+        if (!footprint.HasFootprint) return SampleAtP(p, objectSeed);
+
+        // ── Adaptive supersampling over the footprint ──────────────────────
+        // Voronoi has hard discontinuities at cell boundaries (F1 in particular)
+        // so analytic frequency clamping doesn't apply — Worley's spectrum has
+        // energy at every scale up to the cell density. Instead, supersample
+        // within the surface footprint: cheap and matches what PxrVoronoise
+        // does (Pixar's "voronoise" doc § "Anti-aliasing"). Sample count
+        // scales with how many cells the footprint straddles — small footprint
+        // = 1 sample (point-sampled, fast); large footprint = up to 16
+        // jittered samples averaged.
+        float fpExtent = footprint.MaxWorldAxis();
+        float cellSpan = fpExtent * _scale;
+        int samples = cellSpan switch
+        {
+            < 0.25f => 1,
+            < 0.75f => 4,
+            < 1.5f  => 9,
+            _       => 16,
+        };
+        if (samples == 1) return SampleAtP(p, objectSeed);
+
+        // Jittered stratified grid inside the (dPdx, dPdy) parallelogram.
+        // Hash on (objectSeed, p) so neighbouring footprints stay decorrelated
+        // — uncorrelated noise produces clean random-dither instead of
+        // moiré bands on a uniform surface.
+        int side = (int)MathF.Sqrt(samples);
+        float invSide = 1f / side;
+        Vector3 accum = Vector3.Zero;
+        uint h = (uint)objectSeed * 2654435761u
+               ^ (uint)BitConverter.SingleToInt32Bits(p.X) * 374761393u
+               ^ (uint)BitConverter.SingleToInt32Bits(p.Y) * 668265263u
+               ^ (uint)BitConverter.SingleToInt32Bits(p.Z) * 1274126177u;
+        for (int j = 0; j < side; j++)
+        {
+            for (int i = 0; i < side; i++)
+            {
+                // Cheap hash-jitter — fully deterministic for a given pixel/footprint.
+                h = h * 1103515245u + 12345u;
+                float jx = ((h >> 8) & 0xFFFFFF) * (1f / 16777216f);
+                h = h * 1103515245u + 12345u;
+                float jy = ((h >> 8) & 0xFFFFFF) * (1f / 16777216f);
+                // Offsets in [-0.5, 0.5] across the footprint parallelogram.
+                float a = (i + jx) * invSide - 0.5f;
+                float b = (j + jy) * invSide - 0.5f;
+                Vector3 pSample = p + a * footprint.DPdx + b * footprint.DPdy;
+                accum += SampleAtP(pSample, objectSeed);
+            }
+        }
+        return accum / (side * side);
+    }
+
+    private Vector3 SampleAtP(Vector3 p, int objectSeed)
     {
         Vector3 transformedP = TextureTransform.Apply(
             p, Offset, Rotation, objectSeed, RandomizeOffset, RandomizeRotation);

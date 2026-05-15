@@ -53,6 +53,15 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
         // Bitangent points in direction of increasing V (theta, downwards)
         rec.Bitangent = Vector3.Normalize(Vector3.Cross(outwardNormal, rec.Tangent));
 
+        // ∂P/∂u, ∂P/∂v for the sphere parametrization phi = 2πu, theta = πv.
+        // |∂P/∂u| = 2πR·sinθ collapses to zero at the poles; |∂P/∂v| = πR
+        // is constant. The renderer's footprint solver handles the polar
+        // degeneracy by falling back to the unit Tangent when the magnitudes
+        // become singular.
+        float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - outwardNormal.Y * outwardNormal.Y));
+        rec.DpDu = rec.Tangent * (2f * MathF.PI * Radius * sinTheta);
+        rec.DpDv = rec.Bitangent * (MathF.PI * Radius);
+
         rec.ObjectSeed = Seed;
 
         rec.Material = Material;

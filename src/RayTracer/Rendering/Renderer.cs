@@ -163,6 +163,16 @@ public class Renderer
     // architectural exteriors hundreds of units across.
     private const float SceneBoundsClamp = 1.0e3f;
 
+    /// <summary>
+    /// Texture filtering modes — picks whether the renderer emits ray
+    /// differentials on primary camera rays so analytic-filtering textures
+    /// (Perlin/fBm octave clamp, Worley supersampling, ImageTexture mipmap)
+    /// can pre-integrate over their footprint.
+    /// </summary>
+    public enum TextureFilteringMode { Auto, On, Off }
+
+    private readonly bool _emitRayDifferentials;
+
     public Renderer(
         IHittable world,
         Camera.Camera camera,
@@ -175,7 +185,8 @@ public class Renderer
         bool verbose = false,
         MisHeuristic misHeuristic = MisHeuristic.Balance,
         LightSamplingStrategy lightSamplingStrategy = LightSamplingStrategy.All,
-        float indirectClampFactor = DefaultIndirectClampFactor)
+        float indirectClampFactor = DefaultIndirectClampFactor,
+        TextureFilteringMode textureFiltering = TextureFilteringMode.Auto)
     {
         _world = world;
         _camera = camera;
@@ -189,6 +200,16 @@ public class Renderer
         _verbose = verbose;
         _misHeuristic = misHeuristic;
         _lightSamplingStrategy = lightSamplingStrategy;
+
+        // Texture-filtering / ray-differential toggle. Auto = on (the analytic
+        // filter is back-compat with every texture that doesn't override the
+        // footprint-aware ITexture.Value overload, so there's no reason to
+        // ship "auto" as anything other than on by default).
+        _emitRayDifferentials = textureFiltering switch
+        {
+            TextureFilteringMode.Off => false,
+            _                        => true,
+        };
 
         // ── Scene analysis: detect indirect-dominant lighting ────────────
         // Sum each light's approximate radiant flux [Rec.709 luminance] and
@@ -363,6 +384,15 @@ public class Renderer
                 // to fix.
                 uint pixelSeed = (uint)(i * 73856093) ^ (uint)(j * 19349663);
 
+                // Pixel-size deltas used to build the differential rays.
+                // Scaled by sqrt(spp) so that as samples per pixel rise, the
+                // analytic filter shrinks proportionally — matching what a
+                // mathematically-correct mip pyramid would do under N×
+                // supersampling (PBRT §10.1.5).
+                float diffShrink = 1f / sqrtSpp;
+                float dsdx = diffShrink / width;
+                float dtdy = diffShrink / height;
+
                 if (useSobol)
                 {
                     for (int s = 0; s < actualSamples; s++)
@@ -379,7 +409,9 @@ public class Renderer
                         float u = (i + jitterU) / width;
                         float v = (height - j - 1 + jitterV) / height;
 
-                        var ray = _camera.GetRay(u, v);
+                        var ray = _emitRayDifferentials
+                            ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy)
+                            : _camera.GetRay(u, v);
                         Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true,
                                                    pathThroughput: Vector3.One);
 
@@ -402,7 +434,9 @@ public class Renderer
                             float u = (i + jitterU) / width;
                             float v = (height - j - 1 + jitterV) / height;
 
-                            var ray = _camera.GetRay(u, v);
+                            var ray = _emitRayDifferentials
+                                ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy)
+                                : _camera.GetRay(u, v);
                             Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true,
                                                        pathThroughput: Vector3.One);
 
@@ -825,10 +859,32 @@ public class Renderer
             rec = new HitRecord();
             hit = _world.Hit(currentRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
             if (!hit || !isPrimaryRay || !rec.CameraInvisible) break;
-            currentRay = new Ray(
-                MathUtils.OffsetOrigin(rec.Point, currentRay.Direction),
-                currentRay.Direction);
+            // Camera-invisible advance: keep the same differentials so the
+            // texture footprint on the underlying emitter still tracks the
+            // pixel area, not the (zero) area of the proxy surface.
+            currentRay = currentRay.HasDifferentials
+                ? new Ray(
+                    MathUtils.OffsetOrigin(rec.Point, currentRay.Direction),
+                    currentRay.Direction,
+                    currentRay.Differentials)
+                : new Ray(
+                    MathUtils.OffsetOrigin(rec.Point, currentRay.Direction),
+                    currentRay.Direction);
             if (++skipCount >= MaxCameraInvisibleSkips) break;
+        }
+
+        // ── Compute analytic filter footprint at the hit ────────────────────
+        // Once per hit, project the auxiliary rays onto the tangent plane and
+        // solve for the UV partials (PBRT §10.1.1). Textures consume the
+        // result through rec.Footprint in their footprint-aware Value overload.
+        // Skipped when the ray carries no differentials — shadow / NEE / BSDF
+        // bounces stay point-sampled (correct: their anti-aliasing is
+        // stochastic, not analytic).
+        if (hit && currentRay.HasDifferentials)
+        {
+            Vector3 dpdu = rec.DpDu.LengthSquared() > 0f ? rec.DpDu : rec.Tangent;
+            Vector3 dpdv = rec.DpDv.LengthSquared() > 0f ? rec.DpDv : rec.Bitangent;
+            rec.Footprint = FootprintMath.Compute(currentRay, rec.Point, rec.Normal, dpdu, dpdv);
         }
 
         // ── Surface-only fast path (no medium) ──────────────────────────────

@@ -40,13 +40,13 @@ public sealed class Dielectric : IMaterial
         float cosTheta = MathF.Min(MathF.Abs(Vector3.Dot(wi, rec.Normal)), 1f);
         float eta = rec.FrontFace ? (1f / RefractionIndex) : RefractionIndex;
         float fr = MathUtils.FresnelDielectric(cosTheta, eta);
-        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        Vector3 albedo = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
         return (1f - fr) * albedo;
     }
 
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
-        attenuation = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        attenuation = Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
         float ri = rec.FrontFace ? (1f / RefractionIndex) : RefractionIndex;
 
         Vector3 unitDirection = Vector3.Normalize(rayIn.Direction);

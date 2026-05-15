@@ -61,6 +61,11 @@ public class Quad : IHittable, ISamplable
         
         rec.Tangent = Vector3.Normalize(U);
         rec.Bitangent = Vector3.Normalize(V);
+        // ∂P/∂u = U, ∂P/∂v = V (the quad's parametric vectors map [0,1]²
+        // onto the quad itself). Filtering uses these to convert the
+        // screen-space footprint into UV partials at the correct magnitude.
+        rec.DpDu = U;
+        rec.DpDv = V;
 
         rec.Material = Material;
         rec.ObjectSeed = Seed;

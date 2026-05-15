@@ -37,7 +37,7 @@ public class Camera
             vUp = MathF.Abs(_w.X) < 0.9f ? Vector3.UnitX : Vector3.UnitZ;
 
         _u = Vector3.Normalize(Vector3.Cross(_w, vUp));
-        _v = Vector3.Cross(_u, _w);        
+        _v = Vector3.Cross(_u, _w);
 
         _origin = lookFrom;
         _horizontal = focusDist * viewportWidth * _u;
@@ -66,5 +66,47 @@ public class Camera
         return new Ray(
             _origin + offset,
             _lowerLeftCorner + s * _horizontal + t * _vertical - _origin - offset);
+    }
+
+    /// <summary>
+    /// Builds a primary ray carrying ray differentials through the +x and +y
+    /// neighbour pixels (PBRT §6.2.3). <paramref name="dsdx"/> and
+    /// <paramref name="dtdy"/> are the screen-space deltas for one pixel
+    /// (typically <c>1/width</c> and <c>1/height</c>). Used by the renderer
+    /// to drive analytic anti-aliasing in filtered textures.
+    ///
+    /// <para>
+    /// For a pinhole camera the differential origin equals the primary origin
+    /// and only the direction varies — that's the "thin-lens at lens radius=0"
+    /// limit. For a finite-aperture (depth-of-field) camera the auxiliary
+    /// rays share the same lens-sample offset as the primary so the
+    /// differential captures pixel-area, not aperture-area; texture filtering
+    /// then stays stable as DoF blur grows (the latter is handled by spp).
+    /// </para>
+    /// </summary>
+    public Ray GetRayWithDifferentials(float s, float t, float dsdx, float dtdy)
+    {
+        Vector3 pixelTarget = _lowerLeftCorner + s * _horizontal + t * _vertical;
+        Vector3 pixelTargetX = _lowerLeftCorner + (s + dsdx) * _horizontal + t * _vertical;
+        Vector3 pixelTargetY = _lowerLeftCorner + s * _horizontal + (t - dtdy) * _vertical;
+
+        if (_lensRadius == 0f)
+        {
+            var dir  = pixelTarget  - _origin;
+            var dirX = pixelTargetX - _origin;
+            var dirY = pixelTargetY - _origin;
+            var diff = new RayDifferential(_origin, dirX, _origin, dirY);
+            return new Ray(_origin, dir, diff);
+        }
+
+        Vector3 rd = _lensRadius * MathUtils.RandomInUnitDisk();
+        Vector3 offset = _u * rd.X + _v * rd.Y;
+        Vector3 lensOrigin = _origin + offset;
+
+        var dirMain  = pixelTarget  - lensOrigin;
+        var dirXa = pixelTargetX - lensOrigin;
+        var dirYa = pixelTargetY - lensOrigin;
+        var diffA = new RayDifferential(lensOrigin, dirXa, lensOrigin, dirYa);
+        return new Ray(lensOrigin, dirMain, diffA);
     }
 }
