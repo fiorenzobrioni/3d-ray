@@ -721,7 +721,62 @@ Le normal map possono essere aggiunte a qualsiasi tipo di materiale che le suppo
 
 ---
 
-## 3.11 Esempio Completo: Galleria dei Materiali
+## 3.11 Bump Maps
+
+I bump map sono il cugino concettuale delle normal map ma con una
+differenza cruciale: l'input è un **campo scalare di altezza** campionato
+da una qualunque texture procedurale o image, non un asset RGB già
+sbakato. La normale di shading viene perturbata con differenze centrate
+in tangent space sulla luminanza (Blinn 1978). Parità con il `bump2d` di
+Arnold, il `PxrBump` di RenderMan e il nodo "Bump" di Cycles.
+
+```yaml
+- id: "marble_with_bump"
+  type: "disney"
+  color: [0.78, 0.78, 0.80]
+  roughness: 0.4
+  bump_map:
+    texture:                   # QUALSIASI ITexture: noise, marble, wood,
+      type: "marble"           # voronoi, brick, gradient, image, ...
+      scale: 5.0
+      vein_axis: [0, 1, 0]
+      vein_frequency: 3.0
+      vein_sharpness: 2.0
+      colors: [[0, 0, 0], [1, 1, 1]]
+    strength: 3.0              # 0–10, clamp
+    scale: 1.0                 # moltiplicatore UV uniforme (default 1)
+```
+
+| Parametro  | Tipo           | Predefinito | Descrizione                                                       |
+|------------|----------------|-------------|-------------------------------------------------------------------|
+| `texture`  | TextureData    | —           | Campo di altezza interno. Procedurale o image.                    |
+| `strength` | float ∈ [0,10] | `1.0`       | Ampiezza della perturbazione. Oltre ~5 il bump appare roccioso.   |
+| `scale`    | float > 0      | `1.0`       | Moltiplicatore UV uniforme sopra l'eventuale scala interna.       |
+
+**Perché i bump map quando esistono già le normal map?**
+
+- **Input procedurale**. La sorgente del bump può essere `noise`,
+  `marble`, `wood`, `voronoi`, `brick`, `gradient` o `checker` — niente
+  asset pre-bakato, risoluzione infinita a qualunque zoom.
+- **Riuso delle texture**. Qualsiasi texture image già usata come
+  albedo può essere riusata come campo di altezza: la luminanza diventa
+  l'altezza, la direzione del gradiente diventa l'asse di perturbazione.
+- **Si compone con le normal map**. Se entrambe sono presenti, prima
+  agisce `normal_map` (rilievo a media frequenza) poi `bump_map` aggiunge
+  il dettaglio fine sopra. Convenzione Arnold/Cycles.
+
+Il lobo clearcoat dei materiali `disney` mantiene il proprio
+`coat_normal_map` indipendente e **non** vede la perturbazione del bump:
+il coat sta su un substrato stabile, così graffi e orange-peel
+rimangono coerenti.
+
+Vedi `scenes/showcases/bump-map-showcase.yaml` per un confronto
+fianco a fianco di bump derivati da `noise`, `marble` e da una texture
+image (concrete) contro un pannello piatto di riferimento.
+
+---
+
+## 3.12 Esempio Completo: Galleria dei Materiali
 
 Una scena che mostra otto diversi materiali uno accanto all'altro.
 

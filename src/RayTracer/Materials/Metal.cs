@@ -115,6 +115,7 @@ public sealed class Metal : IMaterial
     }
 
     public NormalMapTexture? NormalMap { get; set; }
+    public BumpMapTexture? BumpMap { get; set; }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Symmetric BSDF API (Evaluate / Pdf / Sample) — enables full MIS.

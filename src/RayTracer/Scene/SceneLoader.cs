@@ -894,6 +894,24 @@ public class SceneLoader
             }
         }
 
+        // ── Bump map (optional, applied after normal_map at shade time) ─────
+        if (m.BumpMap != null)
+        {
+            var bumpMap = LoadBumpMap(m.BumpMap, sceneDir);
+            if (bumpMap != null)
+            {
+                switch (material)
+                {
+                    case Lambertian  lam: lam.BumpMap = bumpMap; break;
+                    case Metal       met: met.BumpMap = bumpMap; break;
+                    case Dielectric  die: die.BumpMap = bumpMap; break;
+                    case Emissive    emi: emi.BumpMap = bumpMap; break;
+                    case DisneyBsdf  dis: dis.BumpMap = bumpMap; break;
+                    case MixMaterial mix: mix.BumpMap = bumpMap; break;
+                }
+            }
+        }
+
         // ── Coat normal map (Disney only — exclusive to the clearcoat lobe) ─
         if (m.CoatNormalMap != null && material is DisneyBsdf disneyMat)
         {
@@ -942,7 +960,17 @@ public class SceneLoader
                 ((MixMaterial)material).NormalMap = normalMap;
             }
         }
- 
+
+        // ── Bump map (optional) ──────────────────────────────────────────
+        if (m.BumpMap != null)
+        {
+            var bumpMap = LoadBumpMap(m.BumpMap, sceneDir);
+            if (bumpMap != null)
+            {
+                ((MixMaterial)material).BumpMap = bumpMap;
+            }
+        }
+
         return material;
     }
 
@@ -976,6 +1004,30 @@ public class SceneLoader
         catch (Exception ex)
         {
             Warn($"Failed to load normal map '{mapPath}': {ex.Message}. Skipping.");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Builds a <see cref="BumpMapTexture"/> from the YAML block. The inner
+    /// height field is any <see cref="ITexture"/> resolved through the same
+    /// dispatcher used by materials (procedural or image).
+    /// </summary>
+    private static BumpMapTexture? LoadBumpMap(BumpMapData bm, string sceneDir)
+    {
+        if (bm.Texture == null)
+        {
+            Warn("Bump map requires a 'texture' block. Skipping.");
+            return null;
+        }
+        try
+        {
+            ITexture inner = CreateTexture(bm.Texture, sceneDir);
+            return new BumpMapTexture(inner, bm.Strength, bm.Scale);
+        }
+        catch (Exception ex)
+        {
+            Warn($"Failed to build bump map: {ex.Message}. Skipping.");
             return null;
         }
     }

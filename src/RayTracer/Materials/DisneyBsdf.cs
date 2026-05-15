@@ -150,6 +150,11 @@ public sealed class DisneyBsdf : IMaterial
     // ── Normal map support ──────────────────────────────────────────────────
     public NormalMapTexture? NormalMap { get; set; }
 
+    // ── Bump map support ────────────────────────────────────────────────────
+    // Composes on top of NormalMap on the base lobes (diffuse + spec + trans
+    // + sheen). The clearcoat lobe keeps its independent CoatNormal frame.
+    public BumpMapTexture? BumpMap { get; set; }
+
     public DisneyBsdf(
         ITexture baseColor,
         FloatTexture? metallic            = null,

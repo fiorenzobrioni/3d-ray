@@ -784,7 +784,61 @@ computations.
 
 ---
 
-## 3.11 Complete Example: Material Gallery
+## 3.11 Bump Maps
+
+Bump maps are the conceptual cousin of normal maps but with one crucial
+difference: the input is a **scalar height field** sampled from any
+procedural or image texture, not a baked RGB normal asset. The shading
+normal is perturbed via tangent-space finite differences of the
+luminance (Blinn 1978), aligning with Arnold's `bump2d`, RenderMan's
+`PxrBump`, and Cycles' "Bump" node.
+
+```yaml
+- id: "marble_with_bump"
+  type: "disney"
+  color: [0.78, 0.78, 0.80]
+  roughness: 0.4
+  bump_map:
+    texture:                   # ANY ITexture: noise, marble, wood,
+      type: "marble"           # voronoi, brick, gradient, image, ...
+      scale: 5.0
+      vein_axis: [0, 1, 0]
+      vein_frequency: 3.0
+      vein_sharpness: 2.0
+      colors: [[0, 0, 0], [1, 1, 1]]
+    strength: 3.0              # 0–10, clamped
+    scale: 1.0                 # uniform UV multiplier (default 1)
+```
+
+| Parameter  | Type           | Default | Description                                                  |
+|------------|----------------|---------|--------------------------------------------------------------|
+| `texture`  | TextureData    | —       | Inner height-field texture. Procedural or image.            |
+| `strength` | float ∈ [0,10] | `1.0`   | Amplitude of the perturbation. Above ~5 the bump looks rocky. |
+| `scale`    | float > 0      | `1.0`   | Uniform UV multiplier on top of the inner texture's own scaling. |
+
+**Why bump maps when we already have normal maps?**
+
+- **Procedural input**. The bump source can be a `noise`, `marble`,
+  `wood`, `voronoi`, `brick`, `gradient`, or `checker` texture — no
+  pre-baked asset required, infinite resolution at any zoom level.
+- **Texture reuse**. Any image texture already used for albedo can be
+  fed straight into `bump_map` as a height field — the luminance becomes
+  the height, gradient direction becomes the perturbation axis.
+- **Composes with normal maps**. If both are present, `normal_map`
+  applies first (medium-frequency relief), then `bump_map` layers
+  high-frequency detail on top. This is the Arnold/Cycles convention.
+
+The clearcoat lobe of `disney` materials keeps its independent
+`coat_normal_map` and does **not** see the bump perturbation — the coat
+sits on a stable substrate so scratches and orange-peel look correct.
+
+See `scenes/showcases/bump-map-showcase.yaml` for a side-by-side
+comparison of bumps derived from `noise`, `marble`, and a concrete image
+texture against a flat reference panel.
+
+---
+
+## 3.12 Complete Example: Material Gallery
 
 A scene that showcases eight different materials side by side.
 

@@ -183,4 +183,21 @@ public interface IMaterial
     /// (bumps, grooves, relief) without additional geometry.
     /// </summary>
     NormalMapTexture? NormalMap => null;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Bump Mapping.
+    //
+    // Scalar height field derived from any ITexture (procedural or image).
+    // Applied AFTER NormalMap when both are present (Arnold/Cycles
+    // convention: bump composes on top of the normal map). The renderer
+    // re-orthogonalises the TBN against the already-perturbed N before
+    // applying the bump perturbation.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Optional bump map (scalar height field). Sampled via Rec.709 luminance
+    /// of the inner texture; perturbs the shading normal via finite-difference
+    /// gradients in tangent space. Composes on top of <see cref="NormalMap"/>.
+    /// </summary>
+    BumpMapTexture? BumpMap => null;
 }
