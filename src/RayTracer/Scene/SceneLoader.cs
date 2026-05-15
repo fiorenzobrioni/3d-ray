@@ -4,6 +4,7 @@ using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using RayTracer.Core;
 using RayTracer.Geometry;
+using RayTracer.Geometry.Subdivision;
 using RayTracer.Materials;
 using RayTracer.Lights;
 using RayTracer.Acceleration;
@@ -21,6 +22,14 @@ public class SceneLoader
     /// lower overhead. Above it, O(log N) BVH traversal wins.
     /// </summary>
     private const int BvhThreshold = 4;
+
+    /// <summary>
+    /// Per-Load camera context used by the adaptive subdivision heuristic.
+    /// Set once at the top of <see cref="Load"/>; read by
+    /// <see cref="CreateMeshEntity"/> regardless of nesting depth (groups,
+    /// templates, instances). Cleared by the next Load.
+    /// </summary>
+    private static SubdivisionScreenContext _currentScreenContext;
 
     // =========================================================================
     // Deferred warning / info messages
@@ -249,6 +258,26 @@ public class SceneLoader
         // turning N instances of a heavy mesh from O(N) memory to O(1).
         var templateCache = new Dictionary<string, IHittable>(StringComparer.OrdinalIgnoreCase);
 
+        // ── Pre-resolve camera for adaptive subdivision ───────────────────
+        // The screen-space pixel-error heuristic needs the resolved camera
+        // origin / forward axis / FOV before the mesh loader runs. We
+        // resolve those now and build the actual Camera.Camera object below
+        // after all entities are created.
+        var camDataEarly   = ResolveCamera(data, cameraSelector);
+        var camPosEarly    = ToVector3(camDataEarly.Position) ?? new Vector3(0, 1, -5);
+        var camLookAtEarly = ToVector3(camDataEarly.LookAt)   ?? Vector3.Zero;
+        var camForwardEarly = camLookAtEarly - camPosEarly;
+        if (camForwardEarly.LengthSquared() < 1e-8f) camForwardEarly = -Vector3.UnitZ;
+        camForwardEarly = Vector3.Normalize(camForwardEarly);
+        float camFovEarlyRad = MathUtils.DegreesToRadians(camDataEarly.Fov);
+        _currentScreenContext = new SubdivisionScreenContext
+        {
+            CameraOrigin       = camPosEarly,
+            CameraForward      = camForwardEarly,
+            VerticalFovRadians = camFovEarlyRad,
+            ImageHeight        = imageHeight,
+        };
+
         // Entities
         if (data.Entities != null)
         {
@@ -256,7 +285,7 @@ public class SceneLoader
             {
                 var e   = data.Entities[idx];
                 var mat = GetMaterial(materials, e.Material);
- 
+
                 IHittable? hittable;
                 if (string.Equals(e.Type, "csg", StringComparison.OrdinalIgnoreCase))
                 {
@@ -339,12 +368,12 @@ public class SceneLoader
             world = new HittableList(objects);
         }
 
-        // Camera
+        // Camera (re-uses the pre-resolved descriptor; see camDataEarly)
         float aspect  = (float)imageWidth / imageHeight;
-        var camData   = ResolveCamera(data, cameraSelector);
-        var camPos    = ToVector3(camData.Position) ?? new Vector3(0, 1, -5);
-        var camLookAt = ToVector3(camData.LookAt)   ?? Vector3.Zero;
-        var camVup    = ToVector3(camData.Vup)       ?? Vector3.UnitY;
+        var camData   = camDataEarly;
+        var camPos    = camPosEarly;
+        var camLookAt = camLookAtEarly;
+        var camVup    = ToVector3(camData.Vup) ?? Vector3.UnitY;
         // Resolve focus distance: focal_pos (a 3D point) wins over the
         // scalar focal_dist when set, mirroring Arnold/Cycles/RenderMan
         // "Focus Object" workflow. ComputeFocusDistance projects the point
@@ -1795,48 +1824,139 @@ public class SceneLoader
     }
 
     /// <summary>
-    /// Creates a Mesh entity by loading an OBJ file.
-    /// The OBJ path is resolved relative to the scene YAML directory.
+    /// Creates a Mesh entity by loading an OBJ file. Resolves the path
+    /// relative to the scene YAML directory and forwards subdivision
+    /// options (Loop / Catmull-Clark, iterations, screen-space pixel error)
+    /// to <see cref="ObjLoader"/>.
     /// </summary>
-    private static IHittable? CreateMeshEntity(EntityData e, IMaterial mat, string sceneDir, int entityIndex)
+    private static IHittable? CreateMeshEntity(EntityData e, IMaterial mat, string sceneDir,
+        int entityIndex)
     {
+        var screen = _currentScreenContext;
         if (string.IsNullOrWhiteSpace(e.Path))
         {
             Warn($"Mesh entity '{e.Name ?? "(unnamed)"}' requires a 'path' to an OBJ file. Skipping.");
             return null;
         }
- 
+
         // Resolve the OBJ path relative to the YAML scene directory
         string objPath = Path.IsPathRooted(e.Path)
             ? e.Path
             : Path.Combine(sceneDir, e.Path);
- 
+
         if (!File.Exists(objPath))
         {
             Warn($"Mesh entity '{e.Name ?? "(unnamed)"}': OBJ file not found at '{objPath}'. Skipping.");
             return null;
         }
- 
+
+        // Build the subdivision request. The entity transform is folded
+        // into the screen-space context so the adaptive heuristic measures
+        // the *world-space* projected edge length of the mesh after
+        // translate/rotate/scale, not the unit-cube-local coordinates.
+        var subdivision = BuildSubdivisionOptions(e, screen);
+
         var warnings = new List<string>();
-        var mesh = ObjLoader.Load(objPath, mat, warnings);
- 
-        // Report OBJ warnings
+        var mesh = ObjLoader.Load(objPath, mat, subdivision, warnings,
+            out var appliedScheme, out var appliedIterations);
+
         foreach (var w in warnings)
             Warn($"Mesh '{e.Name ?? Path.GetFileName(objPath)}': {w}");
- 
+
         if (mesh == null)
         {
             Warn($"Mesh entity '{e.Name ?? "(unnamed)"}': failed to load '{objPath}'. Skipping.");
             return null;
         }
- 
-        // Report mesh stats
-        Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 {mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices");
- 
+
+        if (appliedIterations > 0)
+        {
+            Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
+                 $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices " +
+                 $"(subdivision: {appliedScheme} \u00d7 {appliedIterations})");
+        }
+        else
+        {
+            Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
+                 $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices");
+        }
+
         // Seed assignment (same logic as CreateEntity)
         mesh.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
- 
+
         return mesh;
+    }
+
+    /// <summary>
+    /// Translates the <see cref="EntityData"/> subdivision fields into
+    /// an engine-level <see cref="SubdivisionOptions"/> struct. Unknown
+    /// scheme strings produce a warning and disable subdivision; the
+    /// entity's translate/rotate/scale matrix is composed with the
+    /// camera context so the pixel-error heuristic is measured in
+    /// world-space.
+    /// </summary>
+    private static SubdivisionOptions BuildSubdivisionOptions(
+        EntityData e, SubdivisionScreenContext screen)
+    {
+        if (e.SubdivisionIterations <= 0 && e.SubdivisionPixelError <= 0f
+            && string.IsNullOrWhiteSpace(e.SubdivisionScheme))
+        {
+            return SubdivisionOptions.Disabled;
+        }
+
+        SubdivisionScheme scheme = SubdivisionScheme.Auto;
+        if (!string.IsNullOrWhiteSpace(e.SubdivisionScheme))
+        {
+            scheme = e.SubdivisionScheme.Trim().ToLowerInvariant() switch
+            {
+                "none"                            => SubdivisionScheme.None,
+                "loop"                            => SubdivisionScheme.Loop,
+                "catmull_clark" or "catmull-clark"
+                    or "cc" or "catmullclark"     => SubdivisionScheme.CatmullClark,
+                "auto"                            => SubdivisionScheme.Auto,
+                _ => Warned(e.SubdivisionScheme, e.Name)
+            };
+        }
+
+        var entityToWorld = ComputeTransformMatrix(e);
+        var ctx = new ScreenSpaceContext
+        {
+            CameraOrigin       = screen.CameraOrigin,
+            CameraForward      = screen.CameraForward,
+            ImageHeight        = screen.ImageHeight,
+            VerticalFovRadians = screen.VerticalFovRadians,
+            EntityToWorld      = entityToWorld,
+        };
+
+        return new SubdivisionOptions
+        {
+            Scheme        = scheme,
+            Iterations    = Math.Max(0, e.SubdivisionIterations),
+            PixelError    = Math.Max(0f, e.SubdivisionPixelError),
+            MaxIterations = Math.Max(1, e.SubdivisionMaxIterations),
+            Screen        = ctx,
+        };
+
+        static SubdivisionScheme Warned(string s, string? name)
+        {
+            Warn($"Mesh '{name ?? "(unnamed)"}': unknown subdivision_scheme " +
+                 $"'{s}'. Expected one of none|loop|catmull_clark|auto. " +
+                 $"Falling back to auto.");
+            return SubdivisionScheme.Auto;
+        }
+    }
+
+    /// <summary>
+    /// Camera context handed to <see cref="CreateMeshEntity"/> so the
+    /// adaptive pixel-error heuristic can project mesh edges to screen
+    /// space without needing the final <see cref="Camera.Camera"/> object.
+    /// </summary>
+    internal readonly struct SubdivisionScreenContext
+    {
+        public Vector3 CameraOrigin       { get; init; }
+        public Vector3 CameraForward      { get; init; }
+        public int      ImageHeight       { get; init; }
+        public float    VerticalFovRadians { get; init; }
     }
 
     /// <summary>

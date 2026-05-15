@@ -839,6 +839,42 @@ group, instance):
 - Auto-builds internal BVH for fast intersection
 - Smooth shading with artist UV mapping
 - Supports `translate`, `rotate`, `scale`
+
+##### **Subdivision surfaces (Loop / Catmull-Clark)**
+
+The mesh loader can refine the OBJ before BVH construction using the same
+two production-grade algorithms shipped by Arnold, RenderMan, Cycles and
+Pixar's OpenSubdiv:
+
+```yaml
+- name: "smooth_cube"
+  type: "mesh"
+  path: "models/cube.obj"
+  material: "ceramic"
+  subdivision_scheme: "catmull_clark"     # loop | catmull_clark | auto | none
+  subdivision_iterations: 3               # uniform refinement steps
+```
+
+| Field                       | Type   | Default | Notes |
+|-----------------------------|--------|---------|-------|
+| `subdivision_scheme`        | string | `none`  | `loop` (triangle meshes), `catmull_clark` (quad meshes — also accepts triangles and n-gons in the first iteration), `auto` (picks CC for all-quad input, Loop for all-triangle, CC otherwise), `none`. |
+| `subdivision_iterations`    | int    | `0`     | Uniform iteration count. Each iteration multiplies face count by ≈ 4. |
+| `subdivision_pixel_error`   | float  | `0`     | Adaptive screen-space target. The loader picks the iteration count that brings the longest projected edge below this many pixels (using the scene's resolved camera). Combined with `subdivision_iterations` by `max(static, adaptive)`. |
+| `subdivision_max_iterations`| int    | `6`     | Hard ceiling regardless of the adaptive estimate (caps the 4^N face explosion). |
+
+- **Loop subdivision** (Charles Loop, 1987) — boundary mask per Hoppe et
+  al. 1994. Triangles only; n-gons in the source are fan-triangulated first.
+- **Catmull-Clark** (Catmull & Clark, 1978) — boundary mask per
+  Hoppe / DeRose. Mixed-arity input is handled in the first iteration,
+  after which the mesh is all-quads.
+- Per-vertex normals are **recomputed from the limit topology** using
+  Max 1999's angle-weighted average (the Blender / Maya default). Source
+  OBJ normals are propagated through subdivision but overridden at
+  triangulation time because the limit surface is smoother than the input.
+- UV channels carry through with linear mid-edge masks (vertex-varying
+  interpolation in OpenSubdiv terms). UV seams that share a position but
+  not a UV are preserved.
+
 #### **7.13 CSG (Boolean Operations)**
 ```yaml
 # Union (A ∪ B) — fuses two solids into one (e.g. snowman body + head)

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Numerics;
 using RayTracer.Core;
 using RayTracer.Geometry;
+using RayTracer.Geometry.Subdivision;
 using RayTracer.Materials;
 
 namespace RayTracer.Scene;
@@ -45,22 +46,54 @@ public static class ObjLoader
     /// <param name="warnings">Optional list to collect non-fatal parse warnings.</param>
     /// <returns>A Mesh containing all parsed triangles, or null if the file is empty/invalid.</returns>
     public static Mesh? Load(string path, IMaterial material, List<string>? warnings = null)
+        => Load(path, material, SubdivisionOptions.Disabled, warnings);
+
+    /// <summary>
+    /// Loads an OBJ file and returns a <see cref="Mesh"/>, optionally running
+    /// a subdivision pass (Loop / Catmull-Clark) before building the BVH.
+    /// </summary>
+    /// <param name="path">Path to the .obj file.</param>
+    /// <param name="material">Material to apply to all faces.</param>
+    /// <param name="subdivision">Subdivision parameters; when
+    /// <see cref="SubdivisionOptions.IsActive"/> is false the legacy path
+    /// (direct fan-triangulation) runs.</param>
+    /// <param name="warnings">Optional list to collect non-fatal parse warnings.</param>
+    /// <param name="appliedScheme">Receives the actually applied scheme after
+    /// <see cref="SubdivisionScheme.Auto"/> resolution (or
+    /// <see cref="SubdivisionScheme.None"/> when no subdivision ran).</param>
+    /// <param name="appliedIterations">Receives the number of subdivision
+    /// iterations actually performed.</param>
+    public static Mesh? Load(string path, IMaterial material,
+        SubdivisionOptions subdivision, List<string>? warnings,
+        out SubdivisionScheme appliedScheme, out int appliedIterations)
     {
+        appliedScheme = SubdivisionScheme.None;
+        appliedIterations = 0;
+
         if (!File.Exists(path))
         {
             warnings?.Add($"OBJ file not found: {path}");
             return null;
         }
 
-        var positions = new List<Vector3>(4096);
-        var normals   = new List<Vector3>(4096);
-        var texCoords = new List<Vector2>(4096);
-        var triangles = new List<IHittable>(8192);
+        // ── Parse OBJ into a PolyMesh (preserves face arity & attribute
+        // indices). Even the legacy non-subdivision path runs through here
+        // — we just skip the SubdivisionEngine.Apply call.
+        // ─────────────────────────────────────────────────────────────────
+        var poly = new PolyMesh
+        {
+            Normals    = new List<Vector3>(4096),
+            UVs        = new List<Vector2>(4096),
+            FaceNormals = new List<int[]>(8192),
+            FaceUVs     = new List<int[]>(8192),
+        };
 
-        // Temp buffer for face vertex indices (reused per face)
         var faceVerts = new List<FaceVertex>(8);
 
         int lineNum = 0;
+        bool anyNormalsInFile = false;
+        bool anyUvsInFile     = false;
+
         foreach (var rawLine in File.ReadLines(path))
         {
             lineNum++;
@@ -70,21 +103,21 @@ public static class ObjLoader
             if (line.StartsWith("v ", StringComparison.Ordinal))
             {
                 if (TryParseVec3(line, 2, out var v))
-                    positions.Add(v);
+                    poly.Positions.Add(v);
                 else
                     warnings?.Add($"OBJ line {lineNum}: malformed vertex position");
             }
             else if (line.StartsWith("vn ", StringComparison.Ordinal))
             {
                 if (TryParseVec3(line, 3, out var n))
-                    normals.Add(n);
+                    poly.Normals!.Add(n);
                 else
                     warnings?.Add($"OBJ line {lineNum}: malformed vertex normal");
             }
             else if (line.StartsWith("vt ", StringComparison.Ordinal))
             {
                 if (TryParseVec2(line, 3, out var uv))
-                    texCoords.Add(uv);
+                    poly.UVs!.Add(uv);
                 else
                     warnings?.Add($"OBJ line {lineNum}: malformed texture coordinate");
             }
@@ -95,7 +128,8 @@ public static class ObjLoader
 
                 foreach (var token in tokens)
                 {
-                    if (TryParseFaceVertex(token.AsSpan(), positions.Count, normals.Count, texCoords.Count, out var fv))
+                    if (TryParseFaceVertex(token.AsSpan(),
+                            poly.Positions.Count, poly.Normals!.Count, poly.UVs!.Count, out var fv))
                         faceVerts.Add(fv);
                     else
                         warnings?.Add($"OBJ line {lineNum}: malformed face vertex '{token}'");
@@ -107,17 +141,66 @@ public static class ObjLoader
                     continue;
                 }
 
-                // Fan triangulation: (0,1,2), (0,2,3), (0,3,4), ...
-                for (int i = 1; i < faceVerts.Count - 1; i++)
+                bool faceHasNormals = true;
+                bool faceHasUvs = true;
+                int[] fp = new int[faceVerts.Count];
+                int[] fn = new int[faceVerts.Count];
+                int[] fu = new int[faceVerts.Count];
+                for (int i = 0; i < faceVerts.Count; i++)
                 {
-                    var tri = BuildTriangle(
-                        faceVerts[0], faceVerts[i], faceVerts[i + 1],
-                        positions, normals, texCoords, material);
-                    if (tri != null)
-                        triangles.Add(tri);
+                    var v = faceVerts[i];
+                    fp[i] = v.V;
+                    fn[i] = v.VN;
+                    fu[i] = v.VT;
+                    if (v.VN < 0) faceHasNormals = false;
+                    if (v.VT < 0) faceHasUvs    = false;
                 }
+                poly.FacePositions.Add(fp);
+                if (faceHasNormals) { poly.FaceNormals!.Add(fn); anyNormalsInFile = true; }
+                else                  poly.FaceNormals!.Add(Array.Empty<int>());
+                if (faceHasUvs)     { poly.FaceUVs!    .Add(fu); anyUvsInFile     = true; }
+                else                  poly.FaceUVs!    .Add(Array.Empty<int>());
             }
             // Silently ignore: o, g, s, usemtl, mtllib, and other directives
+        }
+
+        // Drop side-channel attributes the file didn't define on *every*
+        // face — the subdivision engine wants a consistent channel or none.
+        if (!anyNormalsInFile || HasPartialChannel(poly.FaceNormals!))
+            { poly.Normals = null; poly.FaceNormals = null; }
+        if (!anyUvsInFile || HasPartialChannel(poly.FaceUVs!))
+            { poly.UVs = null; poly.FaceUVs = null; }
+
+        if (poly.FaceCount == 0)
+        {
+            warnings?.Add("OBJ file produced zero faces.");
+            return null;
+        }
+
+        int vertexCount = poly.Positions.Count;
+
+        // ── Optional subdivision pass ────────────────────────────────────
+        if (subdivision.IsActive)
+        {
+            var (iters, scheme) = SubdivisionEngine.Apply(poly, subdivision);
+            appliedScheme = scheme;
+            appliedIterations = iters;
+        }
+
+        // ── Build SmoothTriangle list ────────────────────────────────────
+        List<IHittable> triangles;
+        if (appliedIterations > 0)
+        {
+            // The subdivision engine has reconstructed smooth normals from
+            // the limit topology and either kept or rebuilt UV indices.
+            triangles = SubdivisionEngine.Triangulate(poly, material);
+        }
+        else
+        {
+            // Legacy direct path: triangulate using the face/normal/uv
+            // indices straight from the OBJ. This preserves the historical
+            // behaviour byte-for-byte when no subdivision is requested.
+            triangles = BuildTrianglesDirect(poly, material);
         }
 
         if (triangles.Count == 0)
@@ -126,7 +209,74 @@ public static class ObjLoader
             return null;
         }
 
-        return new Mesh(triangles, material, positions.Count);
+        return new Mesh(triangles, material, vertexCount);
+    }
+
+    /// <summary>Backwards-compatible 4-arg overload (no subdivision).</summary>
+    public static Mesh? Load(string path, IMaterial material,
+        SubdivisionOptions subdivision, List<string>? warnings = null)
+        => Load(path, material, subdivision, warnings, out _, out _);
+
+    /// <summary>
+    /// Direct fan-triangulation of a <see cref="PolyMesh"/> using the
+    /// per-face attribute indices captured during parsing. Reproduces the
+    /// historical OBJ loader output bit-for-bit when subdivision is off.
+    /// </summary>
+    private static List<IHittable> BuildTrianglesDirect(PolyMesh poly, IMaterial material)
+    {
+        var output = new List<IHittable>(poly.FaceCount * 2);
+        for (int fi = 0; fi < poly.FaceCount; fi++)
+        {
+            int[] f  = poly.FacePositions[fi];
+            int[]? fn = poly.FaceNormals != null ? poly.FaceNormals[fi] : null;
+            int[]? fu = poly.FaceUVs     != null ? poly.FaceUVs[fi]     : null;
+
+            bool hasN = fn is { Length: > 0 };
+            bool hasU = fu is { Length: > 0 };
+
+            for (int k = 1; k < f.Length - 1; k++)
+            {
+                Vector3 v0 = poly.Positions[f[0]];
+                Vector3 v1 = poly.Positions[f[k]];
+                Vector3 v2 = poly.Positions[f[k + 1]];
+
+                Vector3 cross = Vector3.Cross(v1 - v0, v2 - v0);
+                if (cross.LengthSquared() < 1e-12f) continue;
+
+                if (hasN && hasU)
+                {
+                    output.Add(new SmoothTriangle(
+                        v0, v1, v2,
+                        poly.Normals![fn![0]], poly.Normals[fn[k]], poly.Normals[fn[k + 1]],
+                        poly.UVs![fu![0]],     poly.UVs[fu[k]],     poly.UVs[fu[k + 1]],
+                        material));
+                }
+                else if (hasN)
+                {
+                    output.Add(new SmoothTriangle(
+                        v0, v1, v2,
+                        poly.Normals![fn![0]], poly.Normals[fn[k]], poly.Normals[fn[k + 1]],
+                        material));
+                }
+                else
+                {
+                    output.Add(new Triangle(v0, v1, v2, material));
+                }
+            }
+        }
+        return output;
+    }
+
+    private static bool HasPartialChannel(List<int[]> faceChannel)
+    {
+        bool sawFull = false, sawEmpty = false;
+        foreach (var f in faceChannel)
+        {
+            if (f.Length == 0) sawEmpty = true;
+            else               sawFull  = true;
+            if (sawFull && sawEmpty) return true;
+        }
+        return false;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -186,53 +336,6 @@ public static class ObjLoader
         else
             return false;            // 0 is invalid in OBJ
         return index >= 0 && index < listSize;
-    }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // Triangle construction
-    // ═════════════════════════════════════════════════════════════════════════
-
-    private static IHittable? BuildTriangle(
-        FaceVertex fv0, FaceVertex fv1, FaceVertex fv2,
-        List<Vector3> positions, List<Vector3> normals, List<Vector2> texCoords,
-        IMaterial material)
-    {
-        if (fv0.V < 0 || fv1.V < 0 || fv2.V < 0) return null;
-
-        Vector3 v0 = positions[fv0.V];
-        Vector3 v1 = positions[fv1.V];
-        Vector3 v2 = positions[fv2.V];
-
-        // Degenerate triangle check
-        Vector3 cross = Vector3.Cross(v1 - v0, v2 - v0);
-        if (cross.LengthSquared() < 1e-12f) return null;
-
-        bool hasNormals = fv0.VN >= 0 && fv1.VN >= 0 && fv2.VN >= 0;
-        bool hasUVs = fv0.VT >= 0 && fv1.VT >= 0 && fv2.VT >= 0;
-
-        if (hasNormals)
-        {
-            Vector3 n0 = normals[fv0.VN];
-            Vector3 n1 = normals[fv1.VN];
-            Vector3 n2 = normals[fv2.VN];
-
-            if (hasUVs)
-            {
-                return new SmoothTriangle(v0, v1, v2, n0, n1, n2,
-                    texCoords[fv0.VT], texCoords[fv1.VT], texCoords[fv2.VT],
-                    material);
-            }
-            else
-            {
-                return new SmoothTriangle(v0, v1, v2, n0, n1, n2, material);
-            }
-        }
-        else
-        {
-            // No vertex normals → use flat Triangle
-            // (which auto-computes face normal from the cross product)
-            return new Triangle(v0, v1, v2, material);
-        }
     }
 
     // ═════════════════════════════════════════════════════════════════════════

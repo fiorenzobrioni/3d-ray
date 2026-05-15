@@ -387,6 +387,50 @@ All standard transform fields (`translate`, `rotate`, `scale`) work on
 meshes. OBJ models are often exported at vastly different scales, so
 `scale` is frequently needed.
 
+### 4.12.1 Subdivision Surfaces (Loop / Catmull-Clark)
+
+When an OBJ is low-poly the renderer can refine it on load using the same
+two algorithms shipped by Arnold, RenderMan, Cycles and Pixar's
+OpenSubdiv. The result is bound by the limit surface — the smoother
+"continuous" geometry the subdivision rules converge to — and the silhouette
+becomes fully smooth after a handful of iterations.
+
+```yaml
+# Quad mesh → Catmull-Clark
+- type: "mesh"
+  path: "models/cube.obj"
+  material: "porcelain"
+  subdivision_scheme: "catmull_clark"
+  subdivision_iterations: 3
+
+# Triangle mesh → Loop
+- type: "mesh"
+  path: "models/icosa.obj"
+  material: "copper"
+  subdivision_scheme: "loop"
+  subdivision_iterations: 4
+```
+
+| Field                       | Default | Notes |
+|-----------------------------|---------|-------|
+| `subdivision_scheme`        | `none`  | `loop`, `catmull_clark`, `auto`, `none`. `auto` picks CC for all-quad input, Loop for all-triangle, CC otherwise. |
+| `subdivision_iterations`    | `0`     | Uniform iteration count. Face count roughly ×4 per iteration. |
+| `subdivision_pixel_error`   | `0`     | Adaptive target — the loader picks the iteration count that brings the longest projected edge below this many pixels. |
+| `subdivision_max_iterations`| `6`     | Hard cap to prevent runaway memory use. |
+
+The loader prints the actual scheme and iteration count it applied:
+
+```
+Mesh: smooth_cube — 768 faces, 8 vertices (subdivision: CatmullClark × 3)
+```
+
+Behind the scenes the engine builds the limit topology, recomputes
+per-vertex normals as the angle-weighted average of incident face normals
+(the Blender/Maya default), and then emits the resulting triangles into
+the mesh's internal BVH. Source OBJ normals are propagated through the
+subdivision steps but overridden at the final triangulation because the
+limit surface is smoother than the input.
+
 ---
 
 ## 4.13 Type Alias Summary
