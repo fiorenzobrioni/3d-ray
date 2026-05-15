@@ -247,6 +247,12 @@ cameras:
     fov: 35
     aperture: 0.0
     focal_dist: 12
+  - name: "subject"
+    position: [0, 2, -8]
+    look_at: [0, 0, 0]
+    fov: 45
+    aperture: 0.1
+    focal_pos: [0.5, 0.6, 1.0]            # focus on this point — see below
 ```
 #### **Single Camera** (legacy):
 ```yaml
@@ -256,7 +262,8 @@ camera:
   vup: [0, 1, 0]                          # "Up" vector (for roll)
   fov: 60                                  # Vertical field of view (degrees)
   aperture: 0.1                            # Lens diameter (0 = pinhole)
-  focal_dist: 8.0                          # Distance to focus plane
+  focal_dist: 8.0                          # Distance to focus plane (scalar)
+  # focal_pos: [0.5, 0.6, 1.0]            # Alternative: focus on a 3D point
 ```
 **Usage from CLI:**
 ```bash
@@ -264,7 +271,17 @@ dotnet run ... -- -i scene.yaml --list-cameras      # List available
 dotnet run ... -- -i scene.yaml -c top -o top.png   # By name
 dotnet run ... -- -i scene.yaml -c 1 -o cam1.png    # By index (0-based)
 ```
-**⚠️ Depth of Field:** When `aperture > 0`, set `focal_dist` to the actual distance from camera to your main subject (measure in world units). Default `focal_dist: 1.0` will create unintended extreme blur.
+**⚠️ Depth of Field:** When `aperture > 0`, set `focal_dist` (or `focal_pos`) to the actual distance / world-space point of your main subject. Default `focal_dist: 1.0` will create unintended extreme blur.
+
+#### **`focal_pos` — focus on a point (Arnold/Cycles "Focus Object")**
+`focal_pos: [x, y, z]` is an alternative to the scalar `focal_dist`. The loader computes the focus distance as the **projection** of the camera→focal-point vector onto the optical axis:
+```
+forward    = normalize(look_at − position)
+focusDist  = dot(focal_pos − position, forward)
+```
+The focus plane is perpendicular to the view direction passing through `focal_pos`, so the value is a **projection, not a Euclidean distance**. A focal point off-axis at `(3, 4, -5)` with the camera at the origin looking along `−Z` yields focus distance `5`, not `√50 ≈ 7.07`. This matches Arnold ("Focus Object"), Cycles ("Focal Object/Distance") and RenderMan.
+
+When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info message is logged). `focal_pos` is ignored with a warning when it falls behind the camera, coincides with it, or the camera is degenerate (`look_at == position`); the scalar `focal_dist` is used as fallback.
 ---
 ### 5. **MATERIALS SECTION** — Six Types
 #### **5.1 Lambertian (Diffuse/Matte)**

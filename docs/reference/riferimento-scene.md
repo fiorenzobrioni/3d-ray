@@ -257,6 +257,12 @@ cameras:
     fov: 35
     aperture: 0.0
     focal_dist: 12
+  - name: "subject"
+    position: [0, 2, -8]
+    look_at: [0, 0, 0]
+    fov: 45
+    aperture: 0.1
+    focal_pos: [0.5, 0.6, 1.0]            # fuoco su questo punto — vedi sotto
 ```
 
 #### **Camera Singola** (legacy):
@@ -267,7 +273,8 @@ camera:
   vup: [0, 1, 0]                          # Vettore "su" (per il rollio)
   fov: 60                                  # Campo visivo verticale (gradi)
   aperture: 0.1                            # Diametro lente (0 = pinhole)
-  focal_dist: 8.0                          # Distanza dal piano di fuoco
+  focal_dist: 8.0                          # Distanza dal piano di fuoco (scalare)
+  # focal_pos: [0.5, 0.6, 1.0]            # Alternativa: fuoco su un punto 3D
 ```
 
 **Uso dalla CLI:**
@@ -277,7 +284,17 @@ dotnet run ... -- -i scene.yaml -c top -o top.png   # Per nome
 dotnet run ... -- -i scene.yaml -c 1 -o cam1.png    # Per indice (base 0)
 ```
 
-**⚠️ Profondità di Campo:** Quando `aperture > 0`, imposta `focal_dist` con la distanza effettiva tra la camera e il soggetto principale. Il default `focal_dist: 1.0` creerà un sfocatura estrema non voluta.
+**⚠️ Profondità di Campo:** Quando `aperture > 0`, imposta `focal_dist` (o `focal_pos`) con la distanza / il punto effettivo del soggetto principale. Il default `focal_dist: 1.0` creerà una sfocatura estrema non voluta.
+
+#### **`focal_pos` — fuoco su un punto (Arnold/Cycles "Focus Object")**
+`focal_pos: [x, y, z]` è un'alternativa allo scalare `focal_dist`. Il loader calcola la distanza di fuoco come **proiezione** del vettore camera→focal-point sull'asse ottico:
+```
+forward    = normalize(look_at − position)
+focusDist  = dot(focal_pos − position, forward)
+```
+Il piano focale è perpendicolare alla direzione di vista e passa per `focal_pos`, quindi il valore è una **proiezione, non una distanza euclidea**. Un focal point off-axis a `(3, 4, -5)` con camera all'origine e look lungo `−Z` produce focus distance `5`, non `√50 ≈ 7.07`. Stesso comportamento di Arnold ("Focus Object"), Cycles ("Focal Object/Distance") e RenderMan.
+
+Quando entrambi `focal_pos` e `focal_dist` sono specificati, `focal_pos` vince (viene loggato un info message). `focal_pos` viene ignorato con un warning quando cade alle spalle della camera, coincide con essa o la camera è degenerata (`look_at == position`); in quel caso si usa lo scalare `focal_dist` come fallback.
 
 ---
 

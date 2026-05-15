@@ -245,6 +245,7 @@ cameras:
 |--------------|---------|----------------------------------------------|
 | `aperture`   | `0.0`  | Lens diameter (0 = everything in focus)       |
 | `focal_dist` | `1.0`  | Distance from camera at which objects are sharp |
+| `focal_pos`  | _none_ | Alternative to `focal_dist`: focus on a 3D point. See "Focus on a point" below. |
 
 ### How It Works
 
@@ -278,6 +279,43 @@ cameras:
 
 Objects closer to and farther from the camera than 6 units will appear
 blurred, with increasing blur the farther they are from the focal plane.
+
+### Focus on a point — `focal_pos` (Arnold/Cycles "Focus Object")
+
+Measuring the distance to your subject every time you reposition the
+camera is tedious. Production renderers let you specify the **focal
+point** directly — Arnold's "Focus Object", Cycles' "Focal Object",
+RenderMan's `focusDistance` driven by a Studio-tracked target — and
+3D-Ray exposes the same control via `focal_pos: [x, y, z]`:
+
+```yaml
+cameras:
+  - name: "main"
+    position: [0, 1.5, -6]
+    look_at: [0, 0.5, 0]
+    fov: 45
+    aperture: 0.12
+    focal_pos: [0.0, 0.5, 0.0]    # exact world-space subject coordinate
+```
+
+The loader projects the camera→focal-point vector onto the optical
+axis: `focusDist = (focal_pos − position) · normalize(look_at −
+position)`. The focus plane is perpendicular to the view direction
+passing through `focal_pos`, so this is a **projection, not a Euclidean
+distance** — a focal point off-axis at `(3, 4, -5)` with a camera at
+the origin looking along `−Z` yields focus distance `5`, not `√50`.
+That matches every production renderer.
+
+**Why use it.** Once you've placed your subject in the scene you know
+its world coordinates exactly. Drop them into `focal_pos` and the
+focus plane snaps to the subject regardless of how you reframe the
+camera — no recomputing distances by hand.
+
+**Precedence.** When both `focal_pos` and `focal_dist` are present,
+`focal_pos` wins (an info message is logged). `focal_pos` is ignored
+with a warning when it falls behind the camera, coincides with it, or
+the camera is degenerate (`look_at == position`); the scalar
+`focal_dist` is then used as fallback.
 
 ---
 
@@ -475,6 +513,10 @@ the background softly blurs.
   path-traced GI alone.
 - **Depth of field** is controlled by `aperture` (lens size) and
   `focal_dist` (focus distance). Larger aperture = more blur.
+- `focal_pos: [x, y, z]` is an alternative to `focal_dist` — focus on
+  a 3D point (Arnold/Cycles "Focus Object" workflow). The loader
+  projects the point onto the optical axis, so the value is an axial
+  projection, not a Euclidean distance.
 - **Multiple cameras** let you define several viewpoints and switch
   between them with `--camera name` on the CLI.
 
