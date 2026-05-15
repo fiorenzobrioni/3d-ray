@@ -563,9 +563,19 @@ texture:
   distortion: 0.0              # Perlin warp before lookup
   colors: [[0, 0, 0], [1, 1, 1]]   # ignored for output: "cell"
 ```
-Mirrors Cycles' Voronoi Texture: `f1` gives stone/pebble blobs, `f2_minus_f1`
-gives sharp "crackle" ridges (cracked-mud, snake-skin), `cell` gives
-per-cell flat colours. The Chebyshev metric reproduces hex/square tiling.
+Mirrors Cycles' Voronoi Texture: `f1` gives stone/pebble blobs,
+`f2_minus_f1` gives sharp "crackle" ridges (cracked-mud, snake-skin),
+`cell` gives per-cell flat colours. The Chebyshev metric reproduces
+hex/square tiling.
+
+> **Note on `f2_minus_f1`.** Mathematically, `F2-F1` is **zero on the cell
+> boundary** (perpendicular bisector between two feature points) and grows
+> to its maximum at the cell centre. The lerp uses `t = sqrt(F2-F1 / norm)`
+> — sqrt compression matches Cycles' "Distance to Edge" response — so
+> `t = 0` → `colors[0]` is the **edge colour** and `t = 1` → `colors[1]`
+> is the **cell-interior colour**. For the classic crackle look (bright
+> thin lines on dark background) put the **bright** colour FIRST and the
+> **dark** colour SECOND.
 
 **Brick:**
 ```yaml

@@ -588,10 +588,19 @@ texture:
   distortion: 0.0              # warp Perlin prima del lookup
   colors: [[0, 0, 0], [1, 1, 1]]   # ignorato per output: "cell"
 ```
-Replica il nodo Voronoi di Cycles: `f1` produce ciottoli/blob, `f2_minus_f1`
-crea "crackle" netti (terra screpolata, pelle di rettile), `cell` assegna a
-ciascuna cella un colore piatto. La metrica Chebyshev produce pattern a
-tessere quadrate/esagonali.
+Replica il nodo Voronoi di Cycles: `f1` produce ciottoli/blob,
+`f2_minus_f1` crea "crackle" netti (terra screpolata, pelle di rettile),
+`cell` assegna a ciascuna cella un colore piatto. La metrica Chebyshev
+produce pattern a tessere quadrate/esagonali.
+
+> **Nota su `f2_minus_f1`.** Matematicamente, `F2-F1` è **zero sul bordo
+> della cella** (bisettrice fra due punti-feature) e cresce fino al massimo
+> al centro della cella. Il lerp usa `t = sqrt(F2-F1 / norm)` — la
+> compressione sqrt riproduce la risposta "Distance to Edge" di Cycles —
+> quindi `t = 0` → `colors[0]` è il **colore del bordo** e `t = 1` →
+> `colors[1]` è il **colore dell'interno cella**. Per il classico look
+> crackle (linee chiare sottili su sfondo scuro) metti il colore **chiaro**
+> al PRIMO posto e quello **scuro** al SECONDO.
 
 **Brick:**
 ```yaml

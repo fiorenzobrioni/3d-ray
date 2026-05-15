@@ -651,6 +651,14 @@ selects the visual:
 `metric: "chebyshev"` produces square / hex tiling. `randomness: 0`
 collapses features onto a regular grid; `1` is full random scatter.
 
+> **Colour order for `f2_minus_f1`.** `F2 - F1` is **zero on the cell
+> boundary** and reaches its **maximum at the cell centre**. The lerp
+> applies a sqrt response (mirroring Cycles' "Distance to Edge"), so
+> `colors[0]` is what you see ON the edges and `colors[1]` is what you
+> see in the cell interiors. For the classic crackle look — bright thin
+> lines on dark background — write `colors: [[bright], [dark]]`. The
+> example above intentionally does this.
+
 ### Brick
 
 ```yaml

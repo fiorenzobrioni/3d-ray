@@ -598,6 +598,14 @@ astratte. La modalità di output seleziona il look:
 `randomness: 0` collassa i feature su una griglia regolare; `1` è
 sparpagliamento totale.
 
+> **Ordine dei colori per `f2_minus_f1`.** `F2 - F1` vale **zero sul
+> bordo cella** e raggiunge il **massimo al centro cella**. Il lerp
+> applica una risposta sqrt (riproducendo la "Distance to Edge" di
+> Cycles), quindi `colors[0]` è ciò che vedi SUI bordi e `colors[1]`
+> è ciò che vedi DENTRO le celle. Per il classico look crackle — linee
+> chiare sottili su sfondo scuro — scrivi `colors: [[chiaro], [scuro]]`.
+> L'esempio qui sopra fa esattamente questo.
+
 ### Brick (Mattoni)
 
 ```yaml

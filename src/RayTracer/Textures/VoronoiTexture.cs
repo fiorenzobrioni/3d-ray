@@ -85,9 +85,19 @@ public class VoronoiTexture : ITexture
             return WorleyNoise.CellColor(cellId);
         }
 
-        // Normalise distances: max possible nearest-feature distance with
-        // randomness=1 is bounded by the cell diagonal; clamp to keep output
-        // in [0, 1] across all three metrics.
+        // Normalisation strategy mirrors what Cycles / Arnold expose so that
+        // each output mode lands naturally in [0, 1] across the full sphere
+        // of a unit cell:
+        //   - F1, F2:     divide by the metric-specific worst-case distance.
+        //   - F2-F1:      divide by half the worst-case (the absolute max of
+        //                 |F2-F1| inside a single cell is bounded by ½ × the
+        //                 worst-case nearest-feature distance) AND apply a
+        //                 sqrt response curve, which is the same compression
+        //                 Cycles' "Distance to Edge" output performs. Without
+        //                 the sqrt, F2-F1 stays packed near 0 and the classic
+        //                 "crackle" look is unreachable from colour endpoints
+        //                 alone — users would need an external Color Ramp.
+        //   - F1+F2:      divide by metric worst-case (no compression).
         float maxD = Metric == WorleyNoise.Metric.Manhattan ? 3f
                    : Metric == WorleyNoise.Metric.Chebyshev ? 1f
                    : Metric == WorleyNoise.Metric.EuclideanSquared ? 3f
@@ -97,7 +107,7 @@ public class VoronoiTexture : ITexture
         {
             OutputMode.F1         => f1 / maxD,
             OutputMode.F2         => f2 / maxD,
-            OutputMode.F2MinusF1  => (f2 - f1) / maxD,
+            OutputMode.F2MinusF1  => MathF.Sqrt(Math.Clamp((f2 - f1) / (0.5f * maxD), 0f, 1f)),
             OutputMode.F1PlusF2   => (f1 + f2) / (2f * maxD),
             _                     => f1 / maxD,
         };

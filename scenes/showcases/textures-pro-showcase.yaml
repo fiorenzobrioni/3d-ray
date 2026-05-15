@@ -37,22 +37,38 @@ camera:
   focal_pos:  [0, 1.0, 0]
 
 materials:
-  # ----- Floor: pro marble with thin sharp veins (Carrara-like) -----
+  # ----- Floor: pro Carrara-style marble -----
+  # Tuning notes (Arnold / RenderMan / Cycles production playbook for marble
+  # viewed at low grazing angle, like this 30-wu wide floor):
+  #   - scale moderate (≈3): the underlying sinusoid runs at a vein-friendly
+  #     frequency, giving 5-10 veins across the visible slab — denser than
+  #     the camera resolves up close, sparse enough to read as figured stone.
+  #   - noise_strength ≫ π so the noise term wraps the sine phase multiple
+  #     times per world unit, fully scrambling any axial alignment.
+  #   - distortion 1.2 pre-warps the input position with a 3-D Perlin vector
+  #     sample (Inigo Quilez technique). At ≥1 the warp rotates the dominant
+  #     direction completely, killing the residual "stripe" look that pure
+  #     marble inevitably has at low scale.
+  #   - vein_axis kept slightly off-axial (X dominant, gentle Z tilt) so that
+  #     when the warp happens to be small, the residual direction still
+  #     reads as natural slab-cut rather than wall-paneling.
+  #   - vein_sharpness 6 narrows the veins into the thin high-contrast lines
+  #     of real Carrara; >8 starts to alias.
   - id: "marble_floor"
     type: "lambertian"
     texture:
       type: "marble"
-      scale: 1.5
-      noise_strength: 4.5
-      noise_type: "fbm"
-      octaves: 6
-      lacunarity: 2.1
-      gain: 0.55
-      vein_axis: [1, 0, 0.3]
+      scale: 1.0
+      noise_strength: 32.0
+      noise_type: "turbulence"
+      octaves: 8
+      lacunarity: 2.0
+      gain: 0.5
+      vein_axis: [1.0, 0.0, 0.55]
       vein_frequency: 1.0
       vein_sharpness: 5.0
-      distortion: 0.25
-      colors: [[0.92, 0.91, 0.88], [0.18, 0.18, 0.22]]
+      distortion: 0.6
+      colors: [[0.94, 0.92, 0.88], [0.10, 0.10, 0.13]]
 
   # ----- Row 1: noise family (Perlin, fBm, Ridged) -----
   - id: "tex_perlin"
@@ -97,15 +113,22 @@ materials:
       randomness: 1.0
       colors: [[0.95, 0.92, 0.88], [0.20, 0.18, 0.16]]
 
+  # f2_minus_f1 is ZERO on the cell boundary (perpendicular bisector between
+  # two feature points) and grows to its MAX at the cell centre. Since the
+  # lerp uses t = (F2-F1)/maxD, t=0 → colors[0] is the EDGE colour and
+  # t=1 → colors[1] is the CELL-INTERIOR colour. For the classic "crackle"
+  # look (bright thin lines on a dark background) put the bright edge colour
+  # FIRST and the dark interior colour SECOND.
   - id: "tex_voronoi_crackle"
     type: "lambertian"
     texture:
       type: "voronoi"
-      scale: 5.0
+      scale: 5.5
       metric: "euclidean"
       output: "f2_minus_f1"
-      randomness: 0.9
-      colors: [[0.05, 0.05, 0.05], [0.95, 0.90, 0.70]]
+      randomness: 0.95
+      distortion: 0.35
+      colors: [[0.95, 0.92, 0.75], [0.04, 0.04, 0.05]]   # bright EDGES, dark interior
 
   - id: "tex_voronoi_chebyshev"
     type: "lambertian"
