@@ -80,16 +80,26 @@ Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il
 
 ### Texture
 - ♟ **Checker** — scacchiera 3D procedurale
-- 🌀 **Noise** — rumore Perlin (liscio o turbolento) con `noise_type`, `octaves`, `lacunarity`, `gain`, `distortion`; modalità `perlin` / `fbm` / `turbulence` / `ridged` / `billow`
-- 🏔 **Marble** — marmo procedurale con `vein_axis`, `vein_frequency`, `vein_sharpness` (look Carrara/Statuario)
-- 🪵 **Wood** — legno procedurale con `ring_axis`, `ring_sharpness`, `axial_grain`, fBm multi-ottava
-- 🔷 **Voronoi / Worley** — pattern cellulari (cells, F1, F2, F2−F1, F1+F2) con metriche euclidean/manhattan/chebyshev
+- 🌀 **Noise** — rumore Perlin (liscio o turbolento) con `noise_type`, `octaves`, `lacunarity`, `gain`, `distortion`; modalità `perlin` / `fbm` / `turbulence` / `ridged` / `billow` più i due multifrattali **Musgrave** `hetero_terrain` e `hybrid_multifractal` per terreni erosi e roccia stratificata
+- 🏔 **Marble** — marmo procedurale con `vein_axis`, `vein_frequency`, `vein_sharpness` (look Carrara/Statuario) e `secondary_wave` opzionale per cross-veining su due assi (marmi Calacatta, Arabescato, Statuario)
+- 🪵 **Wood** — legno procedurale con `ring_axis`, `ring_sharpness`, `axial_grain`, fBm multi-ottava, più i knob "studio-quality" `figure_strength` / `figure_scale` (curly maple, bird's-eye, flame mahogany), `radial_anisotropy` (rovere quartato vs piano-sawn) e `knot_density` (nodi con anelli concentrici e cuore scuro)
+- 🔷 **Voronoi / Worley** — pattern cellulari con sei canali di output (F1, F2, F3, F4, F2−F1, F3−F1, F1+F2, Cell, Position) e metriche euclidean/manhattan/chebyshev. `smoothness` opzionale (Inigo Quilez "Smooth Voronoi") sostituisce il `min()` hard con un soft-min log-sum-exp per cuoio levigato e ciottoli arrotondati
 - 🧱 **Brick** — pattern mattoni running-bond con variazione per-mattone e weathering
 - 🌈 **Gradient** — sfumature lineari, quadratiche, easing, sferiche e radiali
-- 🖼 **Image Texture** — texture da file (PNG, JPEG, BMP, GIF, TIFF, WebP) con bilinear filtering e tiling configurabile
+- 🖼 **Image Texture** — texture da file (PNG, JPEG, BMP, GIF, TIFF, WebP) con bilinear filtering, tiling configurabile e **mipmap pyramid + EWA anisotropic filtering** per niente moiré né shimmer a basso angolo o a 4K
 - 🗺 **Normal Map** — dettaglio geometrico superficiale senza triangoli aggiuntivi; compatibile OpenGL e DirectX-style (`flip_y`)
+- 🎨 **Color Ramp multi-stop** — blocco `color_ramp:` opzionale che sostituisce il lerp implicito a due colori su noise/marble/wood/voronoi/gradient. Stop multipli a posizione libera con quattro modi di interpolazione (linear, smoothstep, ease, constant), come il nodo ColorRamp di Cycles o `PxrRamp` di RenderMan: marmi a 3+ toni, sapwood/heartwood, gradienti sunset, toon bands, heat-map
+- 🧭 **Coordinate** — ritorna le coordinate del punto di shading come RGB nei quattro spazi canonici (`object`, `uv`, `generated`, `world`), equivalente al nodo "Texture Coordinate" di Cycles e a `Pref`/`Pworld`/`uvCoord` di RenderMan. Due usi: overlay di debug visivo (UV unwrap, allineamento object/world space) e driver XYZ deterministico per pilotare un'altra texture via mix material
 
 Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzazione per-oggetto** tramite seed deterministico.
+
+### Texture Filtering (Anti-Aliasing Analitico)
+- 🔬 **Ray differentials + filter footprint** — ogni raggio porta le derivate screen-space `(∂P/∂x, ∂P/∂y)` propagate analiticamente attraverso le primitive e le `Transform`. Le procedurali pre-integrano il loro contributo invece di point-sampleare:
+  - **Perlin / fBm / Musgrave** — clamp ottave sopra Nyquist (Heidrich-Slusallek 1998)
+  - **Voronoi** — supersampling adattivo 1/4/9/16 sample sul footprint (Pixar `PxrVoronoise`)
+  - **Image** — mipmap pyramid + EWA filtering anisotropico (Heckbert 1989, stile GPU)
+  
+  Risultato: niente shimmer/moiré a distanza, niente alias a basso angolo, nessun trucco di supersampling globale. Attivabile/disattivabile via `--texture-filtering auto|on|off`.
 
 ### Surface Displacement Stack
 - 🟢 **Bump map** — dettaglio di superficie ottenuto perturbando la normale di shading da una texture qualunque (procedurale o image), senza aggiungere geometria. Disponibile su ogni materiale e su tutte le primitive.
