@@ -661,6 +661,10 @@ public class TextureData
     [YamlMember(Alias = "vein_sharpness")]
     public float? VeinSharpness { get; set; }
 
+    // Marble — studio-quality secondary wave (step 5/7 VFX textures).
+    [YamlMember(Alias = "secondary_wave")]
+    public SecondaryWaveData? SecondaryWave { get; set; }
+
     [YamlMember(Alias = "ring_axis")]
     public List<float>? RingAxis { get; set; }
 
@@ -669,6 +673,26 @@ public class TextureData
 
     [YamlMember(Alias = "axial_grain")]
     public float? AxialGrain { get; set; }
+
+    // Wood — studio-quality controls (step 5/7 VFX textures).
+    // `grain_strength` is a forward-compat alias for `noise_strength`.
+    [YamlMember(Alias = "grain_strength")]
+    public float? GrainStrength { get; set; }
+
+    [YamlMember(Alias = "grain_scale")]
+    public float? GrainScale { get; set; }
+
+    [YamlMember(Alias = "figure_scale")]
+    public float? FigureScale { get; set; }
+
+    [YamlMember(Alias = "figure_strength")]
+    public float? FigureStrength { get; set; }
+
+    [YamlMember(Alias = "radial_anisotropy")]
+    public float? RadialAnisotropy { get; set; }
+
+    [YamlMember(Alias = "knot_density")]
+    public float? KnotDensity { get; set; }
 
     // Voronoi
     [YamlMember(Alias = "metric")]
@@ -731,6 +755,25 @@ public class ColorRampStopData
 
     [YamlMember(Alias = "interp")]
     public string? Interp { get; set; }
+}
+
+/// <summary>
+/// Optional secondary vein wave on <see cref="MarbleTexture"/>. When
+/// <see cref="Strength"/> is omitted (or set to 0) the texture stays
+/// single-axis legacy. Setting just <c>strength</c> with default axis/
+/// frequency already produces visible cross-veining because the loader
+/// orthogonalises the secondary axis against the primary at sample time.
+/// </summary>
+public class SecondaryWaveData
+{
+    [YamlMember(Alias = "axis")]
+    public List<float>? Axis { get; set; }
+
+    [YamlMember(Alias = "frequency")]
+    public float? Frequency { get; set; }
+
+    [YamlMember(Alias = "strength")]
+    public float? Strength { get; set; }
 }
 
 public class EntityData

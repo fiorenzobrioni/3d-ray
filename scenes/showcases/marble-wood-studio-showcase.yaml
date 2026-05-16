@@ -1,0 +1,230 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Marble + Wood "Studio Quality" Showcase — VFX Production-Grade, Step 5/7
+#
+#  Dimostra gli upgrade studio-quality di MarbleTexture e WoodTexture:
+#
+#  • Marble — `secondary_wave`: stratifica una seconda sinusoide ortogonale
+#    alla primaria. La somma `sin(w1) + strength · sin(w2)` rompe la
+#    direzionalità rigida di una sola venatura, producendo le venature
+#    incrociate tipiche di Statuario, Calacatta e Arabescato.
+#
+#  • Wood — quattro nuove leve, tutte opt-in (back-compat byte-identica
+#    quando lasciate ai default):
+#     – `grain_scale`/`figure_scale` + `figure_strength`: due bande
+#       indipendenti di noise. Grain (alta freq) = dettaglio fibra dentro
+#       l'anello. Figure (bassa freq) = ondulazione di tutta la tavola,
+#       look "curly maple" / "flame mahogany" / "bird's-eye".
+#     – `radial_anisotropy`: stretcha il noise lungo la direzione radiale
+#       locale ⇒ rovere quartato (anisotropia alta) vs piano-sawn (bassa).
+#     – `knot_density`: spawn casuale di nodi via Voronoi a piccola scala.
+#       Dentro un nodo gli anelli si concentrano attorno al feature point
+#       e c'è un cuore scuro.
+#
+#  Allineamento puntuale:
+#     • Arnold `marble2` cross-veining e `knots` map
+#     • RenderMan PxrMarble / PxrWoodKnot
+#     • Cycles Wood/Marble + color_ramp 3-stop sapwood/heartwood/knot
+#
+#  LAYOUT
+#  ──────
+#  6 sfere su pavimento neutro, divise in due file:
+#    Riga A (z = -1):   marmi
+#      A1 Carrara legacy (single-axis)         x=-3.5
+#      A2 Calacatta (cross-vein + ramp 3-stop) x= 0
+#      A3 Arabescato (forte secondary)         x=+3.5
+#    Riga B (z = +1):   legni
+#      B1 Oak quartersawn (anisotropia + ramp) x=-3.5
+#      B2 Curly maple (figure band)            x= 0
+#      B3 Knotty pine (knots + figure + ramp)  x=+3.5
+#
+#  Render consigliato:
+#    Draft:  -w 640  -H 360  -s 32  -d 4  -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 8 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    top_color:    [0.40, 0.50, 0.65]
+    bottom_color: [0.06, 0.06, 0.08]
+
+camera:
+  position: [0, 2.0, -8.0]
+  look_at:  [0, 0.8, 0]
+  fov: 38
+
+materials:
+
+  # ── A1: Carrara — single-axis legacy (back-compat reference) ───────────
+  - id: "marble_carrara"
+    type: "disney"
+    color: [0.95, 0.94, 0.92]
+    roughness: 0.20
+    specular: 0.5
+    texture:
+      type: "marble"
+      scale: 5.0
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 4.0
+      noise_strength: 8.0
+      octaves: 8
+      colors: [[0.95, 0.93, 0.90], [0.18, 0.16, 0.18]]
+
+  # ── A2: Calacatta — secondary wave + color ramp 4-stop ─────────────────
+  # Vena scura → mid-tone caldo (oro) → base avorio → undertone bluastro.
+  - id: "marble_calacatta"
+    type: "disney"
+    color: [0.95, 0.94, 0.92]
+    roughness: 0.18
+    specular: 0.5
+    texture:
+      type: "marble"
+      scale: 4.5
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 5.0
+      noise_strength: 7.0
+      octaves: 8
+      secondary_wave:
+        axis: [1, 0, 0]            # perpendicolare alla primaria
+        frequency: 0.65
+        strength: 0.45
+      color_ramp:
+        - { position: 0.00, color: [0.20, 0.16, 0.18], interp: "smoothstep" }  # vena scura
+        - { position: 0.25, color: [0.78, 0.62, 0.30], interp: "smoothstep" }  # caldo aureo
+        - { position: 0.60, color: [0.96, 0.94, 0.90], interp: "smoothstep" }  # base avorio
+        - { position: 1.00, color: [0.90, 0.92, 0.96], interp: "linear"     }  # undertone freddo
+
+  # ── A3: Arabescato — secondary forte + venature meno nitide ────────────
+  - id: "marble_arabescato"
+    type: "disney"
+    color: [0.92, 0.90, 0.88]
+    roughness: 0.22
+    specular: 0.5
+    texture:
+      type: "marble"
+      scale: 4.0
+      vein_axis: [0, 0, 1]
+      vein_frequency: 0.8
+      vein_sharpness: 3.0
+      noise_strength: 9.0
+      octaves: 8
+      distortion: 0.35
+      secondary_wave:
+        axis: [1, 0.3, 0]
+        frequency: 1.2
+        strength: 0.7
+      color_ramp:
+        - { position: 0.00, color: [0.16, 0.16, 0.20], interp: "smoothstep" }
+        - { position: 0.45, color: [0.60, 0.55, 0.52], interp: "smoothstep" }
+        - { position: 0.95, color: [0.92, 0.90, 0.86], interp: "linear"     }
+
+  # ── B1: Oak quartersawn — radial_anisotropy + ramp 3-stop ──────────────
+  # Rovere quartato: gli anelli vengono tagliati radialmente, quindi le
+  # fibre del grain appaiono "stretched" lungo la direzione radiale.
+  - id: "wood_oak_quarter"
+    type: "disney"
+    color: [0.80, 0.62, 0.42]
+    roughness: 0.50
+    texture:
+      type: "wood"
+      scale: 3.5
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 3.5
+      noise_strength: 1.8
+      octaves: 5
+      radial_anisotropy: 2.5       # ← quartato
+      color_ramp:
+        - { position: 0.00, color: [0.40, 0.26, 0.14], interp: "smoothstep" }  # latewood
+        - { position: 0.60, color: [0.82, 0.62, 0.40], interp: "smoothstep" }  # earlywood
+        - { position: 1.00, color: [0.95, 0.85, 0.70], interp: "linear"     }  # sapwood chiaro
+
+  # ── B2: Curly maple — figure band attiva ───────────────────────────────
+  # Acero curly: la "figure" è una serie di ondulazioni perpendicolari al
+  # grain. Si ottiene con `figure_strength > 0` e `figure_scale` bassa.
+  - id: "wood_curly_maple"
+    type: "disney"
+    color: [0.88, 0.78, 0.60]
+    roughness: 0.40
+    texture:
+      type: "wood"
+      scale: 3.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 2.5
+      noise_strength: 1.0
+      octaves: 5
+      grain_scale: 1.2
+      figure_scale: 0.18           # ← bassa freq → onde larghe
+      figure_strength: 1.6         # ← peso elevato → curly evidente
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.40, 0.22], interp: "smoothstep" }
+        - { position: 0.55, color: [0.92, 0.78, 0.55], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.90, 0.75], interp: "linear"     }
+
+  # ── B3: Knotty pine — knots + figure + ramp 3-stop ─────────────────────
+  - id: "wood_knotty_pine"
+    type: "disney"
+    color: [0.85, 0.70, 0.45]
+    roughness: 0.55
+    texture:
+      type: "wood"
+      scale: 3.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 3.0
+      noise_strength: 1.5
+      octaves: 5
+      figure_scale: 0.22
+      figure_strength: 0.6
+      knot_density: 0.7            # ← molti nodi
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.10, 0.06], interp: "smoothstep" }  # cuore nodo
+        - { position: 0.20, color: [0.55, 0.32, 0.16], interp: "smoothstep" }  # latewood
+        - { position: 0.65, color: [0.90, 0.72, 0.45], interp: "smoothstep" }  # earlywood
+        - { position: 1.00, color: [0.96, 0.86, 0.65], interp: "linear"     }  # sapwood
+
+  # ── Pavimento neutro ───────────────────────────────────────────────────
+  - id: "floor"
+    type: "disney"
+    color: [0.28, 0.28, 0.30]
+    roughness: 0.80
+
+entities:
+
+  - name: "floor"
+    type: "quad"
+    q: [-10, 0, -4]
+    u: [20, 0, 0]
+    v: [0, 0, 10]
+    material: "floor"
+
+  # ── Riga A: marmi (z = -1) ─────────────────────────────────────────────
+  - { name: "carrara",    type: "sphere", center: [-3.5, 0.85, -1], radius: 0.85, material: "marble_carrara"    }
+  - { name: "calacatta",  type: "sphere", center: [ 0.0, 0.85, -1], radius: 0.85, material: "marble_calacatta"  }
+  - { name: "arabescato", type: "sphere", center: [ 3.5, 0.85, -1], radius: 0.85, material: "marble_arabescato" }
+
+  # ── Riga B: legni (z = +1) ─────────────────────────────────────────────
+  - { name: "oak_quarter",    type: "sphere", center: [-3.5, 0.85,  1], radius: 0.85, material: "wood_oak_quarter"    }
+  - { name: "curly_maple",    type: "sphere", center: [ 0.0, 0.85,  1], radius: 0.85, material: "wood_curly_maple"    }
+  - { name: "knotty_pine",    type: "sphere", center: [ 3.5, 0.85,  1], radius: 0.85, material: "wood_knotty_pine"    }
+
+lights:
+
+  # ── Key direzionale principale, leggermente alta ───────────────────────
+  - type: "directional"
+    direction: [-0.3, -0.7, 0.6]
+    color: [1.0, 0.96, 0.88]
+    intensity: 3.6
+    angular_radius: 0.5
+
+  # ── Fill morbido dall'alto-sinistra ────────────────────────────────────
+  - type: "point"
+    position: [-6, 5, -4]
+    color: [0.70, 0.78, 0.95]
+    intensity: 80
+
+  # ── Rim caldo dal retro ────────────────────────────────────────────────
+  - type: "point"
+    position: [0, 3, 6]
+    color: [1.0, 0.85, 0.65]
+    intensity: 50

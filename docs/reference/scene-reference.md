@@ -540,7 +540,7 @@ texture:
   type: "marble"
   scale: 4.0
   noise_strength: 10.0
-  vein_axis: [1, 0, 0.3]       # vein propagation direction (default Z)
+  vein_axis: [1, 0, 0.3]       # primary vein propagation direction (default Z)
   vein_frequency: 1.0          # multiplier on the sine term
   vein_sharpness: 4.0          # 1=soft (legacy), 4-8=Carrara-thin veins
   noise_type: "turbulence"     # turbulence | fbm | ridged
@@ -549,17 +549,31 @@ texture:
   gain: 0.5
   distortion: 0.0
   colors: [[0.95, 0.95, 0.95], [0.10, 0.10, 0.15]]
+  secondary_wave:              # optional — Statuario / Calacatta cross-veins
+    axis: [1, 0, 0]            # second vein direction (auto-orthogonalised)
+    frequency: 0.7             # independent of primary frequency
+    strength: 0.5              # 0 = disabled (back-compat), ~0.3-0.7 typical
 ```
 The vein axis controls the direction along which veins propagate; pick a
 non-axis-aligned vector for natural slabs. `vein_sharpness` exponentiates the
 sine wave, narrowing the dark band into a real veining line.
+
+> **Studio-quality `secondary_wave`.** Setting `strength > 0` adds a second
+> sinusoid along `secondary_wave.axis` to the primary vein term:
+> `sin(wave1) + strength · sin(wave2)`, renormalised so the combined output
+> stays in [-1, 1]. The secondary axis is auto-orthogonalised against the
+> primary at sample time, so even picking a collinear axis still produces
+> visible cross-veining — the Statuario / Calacatta / Arabescato look that
+> single-axis marble cannot reach. Combine with a 3+ stop `color_ramp:` for
+> vein → mid-tone → base → undertone authoring. `strength = 0` (default)
+> is bit-identical to the legacy implementation.
 
 **Wood:**
 ```yaml
 texture:
   type: "wood"
   scale: 4.0
-  noise_strength: 2.0
+  noise_strength: 2.0          # alias: grain_strength (high-freq grain amplitude)
   ring_axis: [0, 1, 0]         # trunk axis; rings ⊥ axis (default Y)
   ring_sharpness: 3.0          # 1=soft (legacy), 3-6=defined latewood
   axial_grain: 0.3             # long-wave noise along the trunk axis
@@ -568,7 +582,31 @@ texture:
   gain: 0.5
   distortion: 0.0              # 0=clean rings, ~0.5=knots/waves
   colors: [[0.85, 0.65, 0.40], [0.60, 0.40, 0.20]]
+  # ── Studio-quality knobs (opt-in, all default to no-op back-compat) ──
+  grain_scale: 1.0             # multiplier on the high-freq noise sample point
+  figure_scale: 0.25           # multiplier on the low-freq "figure" sample point
+  figure_strength: 0.0         # 0 = disabled, ~0.5-1.5 = curly maple / flame mahogany
+  radial_anisotropy: 0.0       # 0 = isotropic (plain-sawn), >0 = quartersawn
+  knot_density: 0.0            # 0 = no knots, ~0.5 = sparse, ~1 = packed
 ```
+
+> **Studio-quality wood controls.**
+> * **Two-band perturbation.** `grain_scale` + `noise_strength` (a.k.a.
+>   `grain_strength`) drive the high-frequency fibre detail inside each
+>   ring; `figure_scale` + `figure_strength` add an independent low-frequency
+>   plank-wide undulation — the curly maple stripes, flame mahogany ripples
+>   or bird's-eye blooms that pure grain noise cannot reach because its
+>   spectrum is too high-frequency. Each band has its own scale and weight.
+> * **`radial_anisotropy`.** Stretches the noise sample along the local
+>   radial direction (perpendicular to `ring_axis`, pointing away from the
+>   trunk). High values (~2–5) compress the radial sample coordinate so
+>   noise varies slowly along that axis ⇒ the quartersawn-oak look. 0
+>   (default) is isotropic and bit-identical to the legacy texture.
+> * **`knot_density`.** Sparse small-scale Voronoi spawns branch knots that
+>   locally pull the ring centre toward the knot feature and add a dark
+>   heart on top — same kind of behaviour as Arnold's `knots` map and
+>   RenderMan's `PxrWoodKnot`. Combine with a 3+ stop `color_ramp:` for
+>   sapwood / heartwood / knot tri-tone authoring.
 
 **Voronoi / Worley (cellular):**
 ```yaml

@@ -1302,6 +1302,12 @@ public class SceneLoader
             if (t.Gain.HasValue)          mt.Gain          = t.Gain.Value;
             if (t.Distortion.HasValue)    mt.Distortion    = t.Distortion.Value;
             if (t.NoiseTypeName != null)  mt.NoiseType     = ParseMarbleFractalKind(t.NoiseTypeName);
+            if (t.SecondaryWave is { } sw)
+            {
+                if (sw.Axis != null)       mt.SecondaryAxis      = ToVector3(sw.Axis) ?? Vector3.UnitX;
+                if (sw.Frequency.HasValue) mt.SecondaryFrequency = sw.Frequency.Value;
+                if (sw.Strength.HasValue)  mt.SecondaryStrength  = Math.Max(sw.Strength.Value, 0f);
+            }
             mt.ColorRamp = BuildColorRamp(t.ColorRamp, "marble");
         }
         else if (tex is WoodTexture wt)
@@ -1310,14 +1316,23 @@ public class SceneLoader
             if (t.Rotation != null) wt.Rotation = ToVector3(t.Rotation) ?? Vector3.Zero;
             wt.RandomizeOffset   = t.RandomizeOffset;
             wt.RandomizeRotation = t.RandomizeRotation;
-            if (t.NoiseStrength.HasValue) wt.NoiseStrength = t.NoiseStrength.Value;
-            if (t.RingAxis != null)       wt.RingAxis      = ToVector3(t.RingAxis) ?? Vector3.UnitY;
-            if (t.RingSharpness.HasValue) wt.RingSharpness = t.RingSharpness.Value;
-            if (t.AxialGrain.HasValue)    wt.AxialGrain    = t.AxialGrain.Value;
-            if (t.Octaves.HasValue)       wt.Octaves       = Math.Clamp(t.Octaves.Value, 1, 16);
-            if (t.Lacunarity.HasValue)    wt.Lacunarity    = t.Lacunarity.Value;
-            if (t.Gain.HasValue)          wt.Gain          = t.Gain.Value;
-            if (t.Distortion.HasValue)    wt.Distortion    = t.Distortion.Value;
+            // `grain_strength` is the preferred new alias for `noise_strength`
+            // — last-write-wins if both are present so artists can override
+            // a library default by spelling it the newer way.
+            if (t.NoiseStrength.HasValue)    wt.NoiseStrength    = t.NoiseStrength.Value;
+            if (t.GrainStrength.HasValue)    wt.NoiseStrength    = t.GrainStrength.Value;
+            if (t.RingAxis != null)          wt.RingAxis         = ToVector3(t.RingAxis) ?? Vector3.UnitY;
+            if (t.RingSharpness.HasValue)    wt.RingSharpness    = t.RingSharpness.Value;
+            if (t.AxialGrain.HasValue)       wt.AxialGrain       = t.AxialGrain.Value;
+            if (t.Octaves.HasValue)          wt.Octaves          = Math.Clamp(t.Octaves.Value, 1, 16);
+            if (t.Lacunarity.HasValue)       wt.Lacunarity       = t.Lacunarity.Value;
+            if (t.Gain.HasValue)             wt.Gain             = t.Gain.Value;
+            if (t.Distortion.HasValue)       wt.Distortion       = t.Distortion.Value;
+            if (t.GrainScale.HasValue)       wt.GrainScale       = MathF.Max(t.GrainScale.Value, 0f);
+            if (t.FigureScale.HasValue)      wt.FigureScale      = MathF.Max(t.FigureScale.Value, 0f);
+            if (t.FigureStrength.HasValue)   wt.FigureStrength   = MathF.Max(t.FigureStrength.Value, 0f);
+            if (t.RadialAnisotropy.HasValue) wt.RadialAnisotropy = MathF.Max(t.RadialAnisotropy.Value, 0f);
+            if (t.KnotDensity.HasValue)      wt.KnotDensity      = Math.Clamp(t.KnotDensity.Value, 0f, 1f);
             wt.ColorRamp = BuildColorRamp(t.ColorRamp, "wood");
         }
         else if (tex is VoronoiTexture vt)

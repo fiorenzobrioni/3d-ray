@@ -565,7 +565,7 @@ texture:
   type: "marble"
   scale: 4.0
   noise_strength: 10.0
-  vein_axis: [1, 0, 0.3]       # direzione di propagazione delle venature (default Z)
+  vein_axis: [1, 0, 0.3]       # direzione primaria di propagazione delle venature (default Z)
   vein_frequency: 1.0          # moltiplicatore sul termine sinusoidale
   vein_sharpness: 4.0          # 1=morbido (legacy), 4-8=venature sottili Carrara
   noise_type: "turbulence"     # turbulence | fbm | ridged
@@ -574,17 +574,31 @@ texture:
   gain: 0.5
   distortion: 0.0
   colors: [[0.95, 0.95, 0.95], [0.10, 0.10, 0.15]]
+  secondary_wave:              # opzionale — venature incrociate Statuario / Calacatta
+    axis: [1, 0, 0]            # seconda direzione di vena (auto-ortogonalizzata)
+    frequency: 0.7             # indipendente dalla frequenza primaria
+    strength: 0.5              # 0 = disattivato (back-compat), ~0.3-0.7 tipico
 ```
 L'asse delle venature controlla la direzione di propagazione; un vettore non
 allineato agli assi produce lastre naturali. `vein_sharpness` eleva la
 sinusoide a potenza, restringendo la banda scura in una vera vena.
+
+> **`secondary_wave` studio-quality.** Con `strength > 0` aggiunge una
+> seconda sinusoide lungo `secondary_wave.axis` al termine principale:
+> `sin(wave1) + strength · sin(wave2)`, rinormalizzato in [-1, 1]. L'asse
+> secondario viene auto-ortogonalizzato contro il primario al sample-time,
+> quindi anche scegliendolo collineare si ottengono comunque venature
+> incrociate visibili — è il look Statuario / Calacatta / Arabescato
+> irraggiungibile con una sola direzione. Combinabile con un `color_ramp:`
+> a 3+ stop per autorialità vena → mid-tone → base → undertone.
+> `strength = 0` (default) è bit-identico al comportamento legacy.
 
 **Wood:**
 ```yaml
 texture:
   type: "wood"
   scale: 4.0
-  noise_strength: 2.0
+  noise_strength: 2.0          # alias: grain_strength (ampiezza grain alta-freq)
   ring_axis: [0, 1, 0]         # asse del tronco; anelli ⊥ asse (default Y)
   ring_sharpness: 3.0          # 1=morbido (legacy), 3-6=legno tardivo definito
   axial_grain: 0.3             # noise a lunga lunghezza d'onda lungo l'asse
@@ -593,7 +607,31 @@ texture:
   gain: 0.5
   distortion: 0.0              # 0=anelli puliti, ~0.5=nodi/onde
   colors: [[0.85, 0.65, 0.40], [0.60, 0.40, 0.20]]
+  # ── Studio-quality (opt-in, tutti i default sono no-op back-compat) ──
+  grain_scale: 1.0             # moltiplicatore sul sample-point del grain (alta freq)
+  figure_scale: 0.25           # moltiplicatore sul sample-point della "figure" (bassa freq)
+  figure_strength: 0.0         # 0 = disattivata, ~0.5-1.5 = curly maple / flame mahogany
+  radial_anisotropy: 0.0       # 0 = isotropo (piano-sawn), >0 = quartato
+  knot_density: 0.0            # 0 = nessun nodo, ~0.5 = sparsi, ~1 = pieno
 ```
+
+> **Controlli studio-quality.**
+> * **Bande grain + figure.** `grain_scale` + `noise_strength` (alias
+>   `grain_strength`) pilotano il dettaglio fibra ad alta frequenza dentro
+>   gli anelli; `figure_scale` + `figure_strength` aggiungono un'ondulazione
+>   indipendente a bassa frequenza — le strisce di acero curly, le
+>   ripple di mogano flame, i fiori del bird's-eye, irraggiungibili con il
+>   solo grain perché il suo spettro è troppo alto.
+> * **`radial_anisotropy`.** Stira il punto di campionamento del noise lungo
+>   la direzione radiale locale (perpendicolare a `ring_axis`, uscente dal
+>   tronco). Valori alti (~2–5) comprimono la coordinata radiale del
+>   sample-point quindi il noise varia poco lungo quell'asse ⇒ look rovere
+>   quartato. 0 (default) è isotropo e bit-identico al legacy.
+> * **`knot_density`.** Voronoi a piccola scala genera nodi sparsi: il
+>   centro dell'anello viene tirato verso il feature point del nodo e si
+>   aggiunge un cuore scuro — stesso comportamento di Arnold `knots` e
+>   RenderMan `PxrWoodKnot`. Combinabile con un `color_ramp:` a 3+ stop
+>   per autorialità sapwood / heartwood / nodo.
 
 **Voronoi / Worley (cellulare):**
 ```yaml

@@ -608,12 +608,42 @@ controls let you reproduce that look:
 
 | Parameter        | Default     | Description                                        |
 |------------------|-------------|----------------------------------------------------|
-| `vein_axis`      | `[0,0,1]`   | Vein propagation direction                          |
+| `vein_axis`      | `[0,0,1]`   | Primary vein propagation direction                  |
 | `vein_frequency` | `1.0`       | Multiplier on the sine term frequency               |
 | `vein_sharpness` | `1.0`       | 1 = soft (legacy), 4–8 = thin Carrara-style veins   |
 | `noise_type`     | `turbulence`| `turbulence` / `fbm` / `ridged` modulator           |
 | `octaves`        | `7`         | Octave count for the modulator                      |
 | `distortion`     | `0`         | Domain warp on the input position                   |
+| `secondary_wave` | --          | Optional cross-vein wave (Statuario / Calacatta)    |
+
+**Studio-quality cross-veining (`secondary_wave`).** Real Statuario,
+Calacatta, and Arabescato marbles run their veins along two non-parallel
+directions. Setting `secondary_wave.strength > 0` adds a second sinusoid
+along `secondary_wave.axis` to the primary vein term — the combined
+sine `sin(wave1) + strength · sin(wave2)` is renormalised so the
+output range stays well-defined. The secondary axis is auto-orthogonalised
+against the primary at sample time, so even picking a collinear axis
+produces visible cross-veining. `strength = 0` (default) is bit-identical
+to the single-axis legacy output. Pair with a 3+ stop `color_ramp:` for
+vein → mid-tone → base → undertone authoring.
+
+```yaml
+texture:
+  type: "marble"
+  vein_axis: [0, 0, 1]
+  secondary_wave:
+    axis: [1, 0, 0]
+    frequency: 0.7
+    strength: 0.5
+  color_ramp:
+    - { position: 0.0, color: [0.20, 0.16, 0.18], interp: "smoothstep" }  # dark vein
+    - { position: 0.3, color: [0.78, 0.62, 0.30], interp: "smoothstep" }  # warm gold
+    - { position: 0.7, color: [0.96, 0.94, 0.90], interp: "smoothstep" }  # ivory base
+    - { position: 1.0, color: [0.90, 0.92, 0.96], interp: "linear"     }  # cool undertone
+```
+
+See `scenes/showcases/marble-wood-studio-showcase.yaml` for the
+Carrara / Calacatta / Arabescato comparison.
 
 ### Wood
 
@@ -637,13 +667,61 @@ triangular wave around each ring boundary, producing the dark
 latewood lines you see in oak or walnut. `axial_grain` adds long-
 wavelength variation along the trunk axis (great for planks).
 
-| Parameter        | Default   | Description                                       |
-|------------------|-----------|---------------------------------------------------|
-| `ring_axis`      | `[0,1,0]` | Trunk / log axis (rings live in the ⊥ plane)      |
-| `ring_sharpness` | `1.0`     | 1 = soft (legacy), 3–6 = defined latewood         |
-| `axial_grain`    | `0.0`     | Long-wave variation along the trunk axis           |
-| `octaves`        | `1`       | fBm octaves on the grain (1 = legacy single Perlin)|
-| `distortion`     | `0`       | Domain warp — 0 = clean rings, ~0.5 = knots/waves |
+| Parameter            | Default   | Description                                              |
+|----------------------|-----------|----------------------------------------------------------|
+| `ring_axis`          | `[0,1,0]` | Trunk / log axis (rings live in the ⊥ plane)             |
+| `ring_sharpness`     | `1.0`     | 1 = soft (legacy), 3–6 = defined latewood                |
+| `axial_grain`        | `0.0`     | Long-wave variation along the trunk axis                  |
+| `octaves`            | `1`       | fBm octaves on the grain (1 = legacy single Perlin)       |
+| `distortion`         | `0`       | Domain warp — 0 = clean rings, ~0.5 = knots/waves         |
+| `grain_scale`        | `1.0`     | Multiplier on the high-freq grain sample point            |
+| `figure_scale`       | `0.25`    | Multiplier on the low-freq figure sample point             |
+| `figure_strength`    | `0.0`     | 0 = disabled, ~0.5–1.5 = curly maple / flame mahogany     |
+| `radial_anisotropy`  | `0.0`     | 0 = plain-sawn (isotropic), >0 = quartersawn-stretched    |
+| `knot_density`       | `0.0`     | 0 = no knots, ~0.5 = sparse knots, ~1 = packed knots      |
+
+**Studio-quality wood.** Four new opt-in knobs upgrade the wood texture
+to the Arnold / RenderMan / Cycles parity tier:
+
+- **Two-band perturbation** — `grain_scale` + `noise_strength` (alias
+  `grain_strength`) drive the high-frequency fibre detail inside each
+  ring; `figure_scale` + `figure_strength` add the independent low-frequency
+  plank-wide undulation that gives **curly maple** its stripes, **flame
+  mahogany** its ripples, and **bird's-eye** its blooms. The figure band
+  is sampled at a decorrelated noise offset so the two bands don't lock
+  step.
+- **`radial_anisotropy`** — compresses the noise sample's radial
+  component, so noise varies slowly along the radial direction. This is
+  the visual difference between **plain-sawn** (default 0, isotropic
+  features) and **quartersawn** boards (high anisotropy, fibres extend
+  radially). The implementation is safe on the trunk axis itself
+  (`radial.Length() == 0`) — the path falls back silently.
+- **`knot_density`** — sparse small-scale Voronoi spawns branch knots
+  that locally pull the ring centre toward the knot feature point and
+  add a dark heart on top. Same trick as Arnold's `knots` and
+  RenderMan's `PxrWoodKnot`. Combine with a 3-stop `color_ramp:` for
+  sapwood / heartwood / knot tri-tone authoring.
+
+```yaml
+texture:
+  type: "wood"
+  scale: 3.0
+  noise_strength: 1.5
+  ring_axis: [0, 1, 0]
+  ring_sharpness: 3.0
+  figure_scale: 0.22
+  figure_strength: 0.6
+  knot_density: 0.7
+  color_ramp:
+    - { position: 0.00, color: [0.18, 0.10, 0.06], interp: "smoothstep" }  # knot heart
+    - { position: 0.20, color: [0.55, 0.32, 0.16], interp: "smoothstep" }  # latewood
+    - { position: 0.65, color: [0.90, 0.72, 0.45], interp: "smoothstep" }  # earlywood
+    - { position: 1.00, color: [0.96, 0.86, 0.65], interp: "linear"     }  # sapwood
+```
+
+See `scenes/showcases/marble-wood-studio-showcase.yaml` for the
+six-sphere comparison: Carrara / Calacatta / Arabescato marbles + oak
+quartersawn / curly maple / knotty pine.
 
 ### Voronoi / Worley (cellular)
 
