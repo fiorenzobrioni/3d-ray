@@ -798,16 +798,34 @@ texture:
   type: "voronoi"
   scale: 5.0
   metric: "euclidean"          # euclidean | euclidean_squared | manhattan | chebyshev
-  output: "f1"                 # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
+  output: "f1"                 # f1 | f2 | f3 | f4 |
+                               # f2_minus_f1 | f3_minus_f1 |
+                               # f1_plus_f2 | cell | position
   randomness: 1.0              # 0 = griglia, 1 = sparpagliamento casuale
   distortion: 0.0              # warp Perlin prima del lookup
   smoothness: 0.0              # 0 = hard min (classico); ∈ (0,1] abilita Smooth Voronoi (IQ)
-  colors: [[0, 0, 0], [1, 1, 1]]   # ignorato per output: "cell"
+  colors: [[0, 0, 0], [1, 1, 1]]   # ignorato per output: "cell" / "position"
 ```
 Replica il nodo Voronoi di Cycles: `f1` produce ciottoli/blob,
 `f2_minus_f1` crea "crackle" netti (terra screpolata, pelle di rettile),
 `cell` assegna a ciascuna cella un colore piatto. La metrica Chebyshev
 produce pattern a tessere quadrate/esagonali.
+
+> **Canali estesi (`f3`, `f4`, `f3_minus_f1`, `position`).** F3 e F4 sono
+> le distanze al 3° e 4° feature più vicino nella finestra 3×3×3 di celle
+> — stesso costo O(27) di F1/F2 dato che le 27 celle sono già scansionate.
+> Si usano per shading cellulare gerarchico (cuoio multi-scala, mosaici
+> cell-in-cell, voronoi-on-voronoi). `f3_minus_f1` produce una banda
+> border più larga e a frequenza più bassa di `f2_minus_f1` — rim morbidi,
+> gradienti tipo mortar. `position` ritorna l'XYZ cell-local del feature
+> point F1 come RGB — un "colore random per cella" deterministico, usabile
+> come ID stocastico per pilotare un'altra procedurale (output Position di
+> Cycles, position di RenderMan PxrVoronoise, attributo `P_` di Houdini
+> Voronoi). I canali estesi usano sempre il hard min — `smoothness` viene
+> intenzionalmente ignorato (stessa convenzione di Cycles per l'output
+> Cell: i descrittori di topologia discreta non vengono smussati).
+> `position` bypassa anche `color_ramp:` perché è un output identity
+> vettoriale, non scalare.
 
 > **Nota su `f2_minus_f1`.** Matematicamente, `F2-F1` è **zero sul bordo
 > della cella** (bisettrice fra due punti-feature) e cresce fino al massimo

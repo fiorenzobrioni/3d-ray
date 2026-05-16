@@ -970,7 +970,9 @@ texture:
   type: "voronoi"
   scale: 5.0
   metric: "euclidean"        # euclidean | manhattan | chebyshev | euclidean_squared
-  output: "f2_minus_f1"      # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
+  output: "f2_minus_f1"      # f1 | f2 | f3 | f4 |
+                             # f2_minus_f1 | f3_minus_f1 |
+                             # f1_plus_f2 | cell | position
   randomness: 0.9
   smoothness: 0.0            # 0 = hard min (classic); ∈ (0,1] enables Smooth Voronoi
   colors: [[0.05, 0.05, 0.05], [0.95, 0.90, 0.70]]
@@ -982,8 +984,15 @@ selects the visual:
 
 - `f1` — distance to the nearest feature → stone / pebble blobs.
 - `f2` — second-nearest distance.
+- `f3`, `f4` — 3rd and 4th nearest distances (hierarchical cellular
+  shading, voronoi-on-voronoi, multi-scale leather).
 - `f2_minus_f1` — sharp ridges between cells (the famous "crackle").
+- `f3_minus_f1` — wider, lower-frequency border band (soft rims,
+  mortar gradients).
 - `cell` — each cell gets a stable random colour (mosaic).
+- `position` — cell-local XYZ of the F1 feature point as RGB; a
+  deterministic random-per-cell ID to drive another procedural
+  (Cycles Position output, RenderMan PxrVoronoise position).
 
 `metric: "chebyshev"` produces square / hex tiling. `randomness: 0`
 collapses features onto a regular grid; `1` is full random scatter.
@@ -1007,6 +1016,16 @@ collapses features onto a regular grid; `1` is full random scatter.
 > the `cell` output is intentionally unaffected (cell-ID is discrete).
 > See `scenes/showcases/smooth-voronoi-showcase.yaml` for the three-sphere
 > hard / 0.3 / 0.7 comparison and parity check with Cycles' Smooth F1.
+
+> **Extended outputs (`f3`, `f4`, `f3_minus_f1`, `position`).** These four
+> channels expose the 3rd / 4th nearest feature distance, a wider crackle
+> band, and the cell-local XYZ of the F1 feature point. Same O(27) cost as
+> F1/F2 — the 27 neighbouring cells are already scanned. They always use
+> the hard min (smoothness is intentionally ignored, same convention
+> Cycles uses for its discrete-topology channels) and `position` also
+> bypasses `color_ramp:` because it is a vector identity output, not a
+> scalar. See `scenes/showcases/voronoi-extended-outputs-showcase.yaml`
+> for the 6-sphere side-by-side comparison.
 
 ### Brick
 

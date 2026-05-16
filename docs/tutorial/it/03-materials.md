@@ -918,7 +918,9 @@ texture:
   type: "voronoi"
   scale: 5.0
   metric: "euclidean"        # euclidean | manhattan | chebyshev | euclidean_squared
-  output: "f2_minus_f1"      # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
+  output: "f2_minus_f1"      # f1 | f2 | f3 | f4 |
+                             # f2_minus_f1 | f3_minus_f1 |
+                             # f1_plus_f2 | cell | position
   randomness: 0.9
   smoothness: 0.0            # 0 = hard min (classico); ∈ (0,1] abilita Smooth Voronoi
   colors: [[0.05, 0.05, 0.05], [0.95, 0.90, 0.70]]
@@ -930,8 +932,15 @@ astratte. La modalità di output seleziona il look:
 
 - `f1` — distanza dal punto-feature più vicino → ciottoli / blob.
 - `f2` — distanza dal secondo più vicino.
+- `f3`, `f4` — distanza al 3° e 4° feature (cellulare gerarchico,
+  voronoi-on-voronoi, cuoio multi-scala).
 - `f2_minus_f1` — ridge nette fra le celle (il famoso "crackle").
+- `f3_minus_f1` — banda border più larga e a frequenza più bassa
+  (rim morbidi, gradienti tipo mortar).
 - `cell` — ogni cella riceve un colore casuale stabile (mosaico).
+- `position` — XYZ cell-local del feature point F1 come RGB; ID
+  stocastico deterministico per cella, da iniettare in un'altra
+  procedurale (output Position di Cycles, position di PxrVoronoise).
 
 `metric: "chebyshev"` produce piastrelle quadrate/esagonali.
 `randomness: 0` collassa i feature su una griglia regolare; `1` è
@@ -956,6 +965,16 @@ sparpagliamento totale.
 > legacy; l'output `cell` è volutamente immune (cell-ID è discreto).
 > Vedi `scenes/showcases/smooth-voronoi-showcase.yaml` per il confronto
 > a tre sfere hard / 0.3 / 0.7 e la parità con Cycles "Smooth F1".
+
+> **Output estesi (`f3`, `f4`, `f3_minus_f1`, `position`).** Questi quattro
+> canali espongono la distanza al 3°/4° feature, una banda crackle più
+> larga e l'XYZ cell-local del feature point F1. Stesso costo O(27) di
+> F1/F2 — le 27 celle vicine sono già scansionate. Usano sempre il hard
+> min (smoothness viene intenzionalmente ignorato, stessa convenzione di
+> Cycles per i canali di topologia discreta) e `position` bypassa anche
+> `color_ramp:` perché è un output identity vettoriale, non scalare. Vedi
+> `scenes/showcases/voronoi-extended-outputs-showcase.yaml` per il
+> confronto a 6 sfere fianco a fianco.
 
 ### Brick (Mattoni)
 
