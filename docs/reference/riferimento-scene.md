@@ -587,6 +587,7 @@ texture:
   output: "f1"                 # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
   randomness: 1.0              # 0 = griglia, 1 = sparpagliamento casuale
   distortion: 0.0              # warp Perlin prima del lookup
+  smoothness: 0.0              # 0 = hard min (classico); ∈ (0,1] abilita Smooth Voronoi (IQ)
   colors: [[0, 0, 0], [1, 1, 1]]   # ignorato per output: "cell"
 ```
 Replica il nodo Voronoi di Cycles: `f1` produce ciottoli/blob,
@@ -602,6 +603,22 @@ produce pattern a tessere quadrate/esagonali.
 > `colors[1]` è il **colore dell'interno cella**. Per il classico look
 > crackle (linee chiare sottili su sfondo scuro) metti il colore **chiaro**
 > al PRIMO posto e quello **scuro** al SECONDO.
+
+> **Smooth Voronoi (`smoothness`).** Con `smoothness > 0` il `min()` hard
+> sulle 3×3×3 celle vicine viene sostituito dal soft-min log-sum-exp di
+> Inigo Quilez `-log(Σ exp(-k·d_i)) / k` con `k = 20/smoothness`. F1
+> diventa C∞ attraverso i bordi cella; F2 viene calcolato dalla stessa
+> accumulazione escludendo il peso dominante (quello della cella più
+> vicina), così `f2_minus_f1` perde il ridge a V — bordi morbidi, niente
+> alias a step lungo le creste. Utile per cuoio levigato, ciottoli
+> arrotondati dall'acqua, pelle di rettile, marmo poro-chiuso.
+> `smoothness = 0` (default) è bit-identica al hard min legacy. La
+> modalità Cell è volutamente immune al parametro (cell-ID è discreto,
+> come in Cycles). Contratto numerico: l'accumulatore lavora in doppia
+> precisione e la somma è ri-ancorata alla distanza hard più vicina, così
+> nessun argomento di `exp()` supera mai `0`; con `smoothness → 0`
+> (i.e. `k → ∞`) il risultato converge al hard `Evaluate` classico entro
+> la precisione float32.
 
 **Brick:**
 ```yaml

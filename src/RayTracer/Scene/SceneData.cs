@@ -673,6 +673,10 @@ public class TextureData
     [YamlMember(Alias = "randomness")]
     public float? Randomness { get; set; }
 
+    // Smooth Voronoi (IQ): 0 = hard min (back-compat), ∈ (0,1] enables soft-min.
+    [YamlMember(Alias = "smoothness")]
+    public float? Smoothness { get; set; }
+
     // Brick
     [YamlMember(Alias = "brick_width")]
     public float? BrickWidth { get; set; }

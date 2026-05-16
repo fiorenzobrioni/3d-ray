@@ -562,6 +562,7 @@ texture:
   output: "f1"                 # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
   randomness: 1.0              # 0 = grid, 1 = full random scatter
   distortion: 0.0              # Perlin warp before lookup
+  smoothness: 0.0              # 0 = hard min (classic); ∈ (0,1] enables IQ Smooth Voronoi
   colors: [[0, 0, 0], [1, 1, 1]]   # ignored for output: "cell"
 ```
 Mirrors Cycles' Voronoi Texture: `f1` gives stone/pebble blobs,
@@ -577,6 +578,21 @@ hex/square tiling.
 > is the **cell-interior colour**. For the classic crackle look (bright
 > thin lines on dark background) put the **bright** colour FIRST and the
 > **dark** colour SECOND.
+
+> **Smooth Voronoi (`smoothness`).** When `smoothness > 0` the hard `min()`
+> over the 3×3×3 neighbouring cells is replaced by Inigo Quilez' log-sum-exp
+> soft-min `-log(Σ exp(-k·d_i)) / k` with `k = 20/smoothness`. F1 becomes
+> C∞-continuous across cell boundaries; F2 is built from the same
+> accumulation with the dominant (closest-cell) weight excluded, so
+> `f2_minus_f1` loses its V-shaped ridge — bordi morbidi, no step alias on
+> the crease lines. Use it for polished leather, water-smoothed pebbles,
+> supple reptile skin, closed-pore marble. `smoothness = 0` (default) is
+> bit-identical to the legacy hard min. The Cell output is intentionally
+> unaffected (cell-ID lookup is discrete, matching Cycles' behaviour).
+> Numerical contract: the accumulator runs in double precision and the
+> sum is rebased on the hard nearest so no `exp()` argument ever exceeds
+> `0`; with `smoothness → 0` (i.e. `k → ∞`) the result converges to the
+> classic hard `Evaluate` to within float32 precision.
 
 **Brick:**
 ```yaml

@@ -117,6 +117,135 @@ public sealed class WorleyNoise
         cellId = bestId;
     }
 
+    /// <summary>
+    /// Smooth-Voronoi variant of <see cref="Evaluate"/>. When
+    /// <paramref name="smoothness"/> is &gt; 0 the hard <c>min()</c> over the
+    /// neighbouring cells is replaced by Inigo Quilez' "Smooth Voronoi"
+    /// soft-min <c>-log(Σ exp(-k·d_i)) / k</c> with <c>k = 20/smoothness</c>
+    /// (k→∞ at smoothness→0 recovers the hard <see cref="Evaluate"/> result
+    /// exactly).
+    ///
+    /// <para>
+    /// The F2 channel is produced by the same log-sum-exp accumulator with
+    /// the dominant (closest-cell) contribution subtracted before the log —
+    /// continuous across 2-cell boundaries by symmetry, giving the
+    /// "smooth crackle" look that hard F2−F1 cannot reach: bordi morbidi,
+    /// niente alias a step lungo le creste.
+    /// </para>
+    ///
+    /// <para>
+    /// Numerical stability: every exponent is rebased on the hard nearest
+    /// distance so all <c>exp()</c> arguments stay in <c>(-∞, 0]</c> and the
+    /// largest weight is exactly <c>1</c>. Without rebasing, <c>k</c> values
+    /// of order 20 over distances of order 1 would push <c>exp()</c> well
+    /// outside single-precision range at high smoothness.
+    /// </para>
+    /// </summary>
+    public void EvaluateSmooth(
+        Vector3 p, Metric metric, float randomness, float smoothness,
+        out float f1, out float f2, out int cellId)
+    {
+        if (smoothness <= 0f)
+        {
+            Evaluate(p, metric, randomness, out f1, out f2, out cellId);
+            return;
+        }
+
+        randomness = Math.Clamp(randomness, 0f, 1f);
+        smoothness = Math.Clamp(smoothness, 0f, 1f);
+        // IQ "Smooth Voronoi" — k controls the softness of the min().
+        // k = 20/smoothness so smoothness=1 gives k=20 (visibly soft) and
+        // smoothness→0 gives k→∞ (pure hard min).
+        double k = 20.0 / smoothness;
+
+        int ix = (int)MathF.Floor(p.X);
+        int iy = (int)MathF.Floor(p.Y);
+        int iz = (int)MathF.Floor(p.Z);
+
+        // First pass: hard nearest, so we can rebase the log-sum-exp on it.
+        Span<float> dists = stackalloc float[27];
+        float hardF1 = float.MaxValue;
+        int hardCellId = 0;
+        int hardIdx = 0;
+        int n = 0;
+        for (int dz = -1; dz <= 1; dz++)
+        for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            int cx = ix + dx;
+            int cy = iy + dy;
+            int cz = iz + dz;
+
+            int hash = HashCell(cx, cy, cz);
+            Vector3 jitter = _jitter[hash];
+            Vector3 feature = new(
+                cx + 0.5f + (jitter.X - 0.5f) * randomness,
+                cy + 0.5f + (jitter.Y - 0.5f) * randomness,
+                cz + 0.5f + (jitter.Z - 0.5f) * randomness);
+
+            float d = Distance(p, feature, metric);
+            dists[n] = d;
+            if (d < hardF1)
+            {
+                hardF1 = d;
+                hardCellId = HashCellId(cx, cy, cz);
+                hardIdx = n;
+            }
+            n++;
+        }
+
+        // sumAll  = Σ exp(-k · (d_i − hardF1))         (closest contributes 1)
+        // sumRest = Σ_{i ≠ hardIdx} exp(-k · (d_i − hardF1))
+        //
+        // Accumulating sumRest directly (instead of sumAll − 1) avoids the
+        // catastrophic cancellation that would otherwise eat the second-nearest
+        // weight in single precision once it drops below float32 epsilon
+        // against 1.0. Production renderers (PxrVoronoise, Cycles "Smooth F1")
+        // do the same: track the dominant weight by index, not by subtraction.
+        // The accumulator runs in double precision so the per-cell exponentials
+        // (which can decay 13+ decades for moderate smoothness) compose without
+        // loss of significance even after dozens of MADD operations.
+        double sumAll  = 1.0;
+        double sumRest = 0.0;
+        for (int i = 0; i < 27; i++)
+        {
+            if (i == hardIdx) continue;
+            double w = Math.Exp(-k * (dists[i] - hardF1));
+            sumAll  += w;
+            sumRest += w;
+        }
+
+        float softF1 = (float)(hardF1 - Math.Log(sumAll) / k);
+
+        // Hard second-nearest, computed once for the two roles below:
+        //   (a) upper-bound clamp on softF2 (it must never exceed the true
+        //       second distance; bounded above by Jensen on the convex −log);
+        //   (b) underflow fallback when every non-dominant weight collapses
+        //       beneath the double-precision floor (≈ 1e-308). That happens
+        //       once k·(hardF2 − hardF1) ≫ 700, i.e. at extremely small
+        //       smoothness or extremely well-separated features — both of
+        //       which are the "hard regime" by definition, so the limit
+        //       softF2 → hardF2 is the right answer there.
+        float hardF2 = float.MaxValue;
+        for (int i = 0; i < 27; i++)
+            if (i != hardIdx && dists[i] < hardF2) hardF2 = dists[i];
+
+        float softF2;
+        if (sumRest < 1e-300)
+        {
+            softF2 = hardF2;
+        }
+        else
+        {
+            softF2 = (float)(hardF1 - Math.Log(sumRest) / k);
+            if (softF2 > hardF2) softF2 = hardF2;
+        }
+
+        f1 = softF1;
+        f2 = softF2;
+        cellId = hardCellId;
+    }
+
     private static float Distance(Vector3 a, Vector3 b, Metric metric)
     {
         Vector3 d = a - b;

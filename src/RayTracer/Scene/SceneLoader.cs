@@ -1328,6 +1328,7 @@ public class SceneLoader
             if (t.Output != null)      vt.Output     = ParseVoronoiOutput(t.Output);
             if (t.Randomness.HasValue) vt.Randomness = Math.Clamp(t.Randomness.Value, 0f, 1f);
             if (t.Distortion.HasValue) vt.Distortion = t.Distortion.Value;
+            if (t.Smoothness.HasValue) vt.Smoothness = Math.Clamp(t.Smoothness.Value, 0f, 1f);
             vt.ColorRamp = BuildColorRamp(t.ColorRamp, "voronoi");
         }
         else if (tex is BrickTexture bt)

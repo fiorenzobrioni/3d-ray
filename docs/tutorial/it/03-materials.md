@@ -582,6 +582,7 @@ texture:
   metric: "euclidean"        # euclidean | manhattan | chebyshev | euclidean_squared
   output: "f2_minus_f1"      # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
   randomness: 0.9
+  smoothness: 0.0            # 0 = hard min (classico); ∈ (0,1] abilita Smooth Voronoi
   colors: [[0.05, 0.05, 0.05], [0.95, 0.90, 0.70]]
 ```
 
@@ -605,6 +606,18 @@ sparpagliamento totale.
 > è ciò che vedi DENTRO le celle. Per il classico look crackle — linee
 > chiare sottili su sfondo scuro — scrivi `colors: [[chiaro], [scuro]]`.
 > L'esempio qui sopra fa esattamente questo.
+
+> **Smooth Voronoi (`smoothness`).** Con `smoothness > 0` il `min()` hard
+> sulle 27 celle vicine viene sostituito dal soft-min log-sum-exp di
+> Inigo Quilez `-log(Σ exp(-k·d_i)) / k` con `k = 20/smoothness`. F1
+> diventa C∞ ovunque; F2 viene costruito dalla stessa accumulazione
+> escludendo il peso dominante, così `f2_minus_f1` perde il ridge a V —
+> bordi morbidi, niente alias a step lungo le creste. Utile per cuoio
+> levigato, ciottoli arrotondati dall'acqua, pelle di rettile, marmo
+> poro-chiuso. `smoothness = 0` (default) è bit-identica al comportamento
+> legacy; l'output `cell` è volutamente immune (cell-ID è discreto).
+> Vedi `scenes/showcases/smooth-voronoi-showcase.yaml` per il confronto
+> a tre sfere hard / 0.3 / 0.7 e la parità con Cycles "Smooth F1".
 
 ### Brick (Mattoni)
 

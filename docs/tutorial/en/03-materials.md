@@ -636,6 +636,7 @@ texture:
   metric: "euclidean"        # euclidean | manhattan | chebyshev | euclidean_squared
   output: "f2_minus_f1"      # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
   randomness: 0.9
+  smoothness: 0.0            # 0 = hard min (classic); ∈ (0,1] enables Smooth Voronoi
   colors: [[0.05, 0.05, 0.05], [0.95, 0.90, 0.70]]
 ```
 
@@ -658,6 +659,18 @@ collapses features onto a regular grid; `1` is full random scatter.
 > see in the cell interiors. For the classic crackle look — bright thin
 > lines on dark background — write `colors: [[bright], [dark]]`. The
 > example above intentionally does this.
+
+> **Smooth Voronoi (`smoothness`).** Setting `smoothness > 0` swaps the
+> hard `min()` over the 27-cell neighbourhood for Inigo Quilez' log-sum-exp
+> soft-min `-log(Σ exp(-k·d_i)) / k` with `k = 20/smoothness`. F1 becomes
+> C∞-continuous everywhere; F2 is built from the same accumulator with
+> the dominant weight excluded so `f2_minus_f1` loses its sharp V-ridge —
+> bordi morbidi, no step alias along the cracks. Use it for polished
+> leather, water-rounded pebbles, supple reptile skin, closed-pore marble.
+> `smoothness = 0` (default) is bit-identical to the legacy behaviour;
+> the `cell` output is intentionally unaffected (cell-ID is discrete).
+> See `scenes/showcases/smooth-voronoi-showcase.yaml` for the three-sphere
+> hard / 0.3 / 0.7 comparison and parity check with Cycles' Smooth F1.
 
 ### Brick
 
