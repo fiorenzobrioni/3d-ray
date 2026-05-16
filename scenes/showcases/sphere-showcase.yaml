@@ -584,7 +584,10 @@ materials:
         - { position: 1.00, color: [0.16, 0.10, 0.06], interp: "linear"     }
 
   # Pino con nodi — knot_density 1.0 (showcase del nodo Voronoi-based).
-  # ring_sharpness ridotto e distortion aggiunta per ammorbidire le strisce.
+  # Distortion alta (0.40) + noise_strength 0.9 per spezzare la regolarità
+  # degli anelli; color_ramp compressa su una banda ambra→crema realistica
+  # (nessun nero puro, nessun bianco puro: il pino vero ha latewood color
+  # caramello e earlywood color avorio).
   - id: "wood_knotty_pine"
     type: "disney"
     color: [0.85, 0.70, 0.45]
@@ -592,21 +595,21 @@ materials:
     specular: 0.30
     texture:
       type: "wood"
-      scale: 4.5
+      scale: 3.8
       ring_axis: [0, 1, 0]
-      ring_sharpness: 3.0
-      noise_strength: 0.5
-      distortion: 0.18
+      ring_sharpness: 2.5
+      noise_strength: 0.9
+      distortion: 0.40
       figure_scale: 0.25
-      figure_strength: 0.3
+      figure_strength: 0.4
       knot_density: 1.0
       randomize_rotation: true
       randomize_offset: true
       color_ramp:
-        - { position: 0.00, color: [0.05, 0.03, 0.02], interp: "smoothstep" }
-        - { position: 0.18, color: [0.35, 0.18, 0.08], interp: "smoothstep" }
-        - { position: 0.65, color: [0.90, 0.68, 0.40], interp: "smoothstep" }
-        - { position: 1.00, color: [0.97, 0.86, 0.60], interp: "linear"     }
+        - { position: 0.00, color: [0.22, 0.12, 0.05], interp: "smoothstep" }   # cuore nodo (bruno scuro, non nero)
+        - { position: 0.25, color: [0.50, 0.32, 0.16], interp: "smoothstep" }   # latewood caramello
+        - { position: 0.65, color: [0.78, 0.60, 0.38], interp: "smoothstep" }   # earlywood
+        - { position: 1.00, color: [0.90, 0.78, 0.55], interp: "linear"     }   # earlywood chiaro (avorio, non bianco)
 
   # ─────────────────────────────────────────────────────────────────────────
   #  FILA 3 — MARMO STUDIO QUALITY
