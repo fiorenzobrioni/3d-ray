@@ -96,7 +96,7 @@ public class Annulus : IHittable, ISamplable
 
         rec.T = t;
         rec.Point = p;
-        rec.LocalPoint = p;
+        rec.LocalPoint = p - Center;
         rec.SetFaceNormal(ray, Normal);
         rec.Material = Material;
         rec.ObjectSeed = Seed;

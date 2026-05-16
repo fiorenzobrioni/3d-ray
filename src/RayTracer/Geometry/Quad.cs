@@ -56,7 +56,11 @@ public class Quad : IHittable, ISamplable
         rec.V = beta;
         rec.T = t;
         rec.Point = intersection;
-        rec.LocalPoint = rec.Point;
+        // Object-local frame: origin at the quad's anchor corner Q, axes
+        // world-aligned (NOT the parametric (U,V) plane — that's already
+        // available in rec.U/rec.V). Keeps procedural texture tiling
+        // per-quad, consistent with the rest of the primitive set.
+        rec.LocalPoint = rec.Point - Q;
         rec.SetFaceNormal(ray, _normal);
         
         rec.Tangent = Vector3.Normalize(U);

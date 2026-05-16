@@ -509,6 +509,32 @@ controlli esposti da Arnold (`noise`, `cell_noise`), Cycles (nodi Noise /
 Voronoi / Brick / Gradient) e RenderMan (`PxrFractal`, `PxrVoronoise`,
 `PxrMarble`, `PxrTile`).
 
+#### **Spazio di campionamento (object-local).**
+Tutte le procedurali campionano su `rec.LocalPoint`, che le primitive built-in
+espongono nel **frame object-local** della primitiva stessa: Sphere / Cylinder /
+Cone / Capsule / Disk / Annulus sottraggono `Center` dal punto di hit world-
+space, Quad sottrae `Q`, InfinitePlane sottrae `Point`; Box / Torus / Lathe
+sono già all'origine e sempre incapsulati in un `Transform`. È la stessa
+convenzione di Arnold con `space: object`, di Cycles con "Texture Coordinate
+→ Object" e di RenderMan con `Pref` — la texture tila **per-entità**
+indipendentemente da dove la primitiva è piazzata nel mondo.
+
+Conseguenza pratica sui valori consigliati di `scale`:
+
+| Dimensione primitiva (raggio / semi-extent oggetto) | `scale` consigliato per ~3–8 cicli visibili |
+|-----------------------------------------------------|----------------------------------------------|
+| ~0.3 wu (sfera piccola, gemma)                      | `6 – 12`                                     |
+| ~1 wu (riferimento canonico)                        | `3 – 6`                                      |
+| ~3 wu (sfera hero grande, slab)                     | `1 – 2`                                      |
+| ~10 wu (quad pavimento, parete stanza)              | `0.3 – 0.6`                                  |
+
+I valori di default mostrati sotto presuppongono la **primitiva canonica
+raggio 1 wu**. Per ottenere lo stesso numero di feature visibili su una
+primitiva più piccola, moltiplica la scale per il rapporto canonical-to-actual.
+Se ti serve il comportamento *legacy* world-locked (es. un pattern marble che
+continua senza soluzione di continuità tra molti box affiancati), pilota il
+materiale da un nodo `texture` con sopra un `coordinate` in `mode: "world"`.
+
 #### **Texture Procedurali:**
 
 **Checker:**
@@ -876,7 +902,7 @@ texture:
   type: "gradient"
   mode: "linear"               # linear | quadratic | easing | spherical | radial
   axis: [1, 0, 0]              # direzione del gradiente (linear/quadratic/easing/radial)
-  length: 1.0                  # span in world-space del gradiente
+  length: 1.0                  # span del gradiente (in unità object-local)
   colors: [[0, 0, 0], [1, 1, 1]]
 ```
 - `linear` — `t = (p · axis) / length`.
@@ -937,11 +963,21 @@ I parametri standard `offset` / `rotation` agiscono PRIMA del wrap
 
 **Tutte le procedurali supportano:**
 ```yaml
-offset: [5.0, 0.0, 3.0]                  # Traslazione
+offset: [5.0, 0.0, 3.0]                  # Traslazione (unità object-local)
 rotation: [0.0, 45.0, 0.0]               # Rotazione (gradi)
-randomize_offset: true                    # Variazione per ogni oggetto
-randomize_rotation: true
+randomize_offset: true                    # Decorrelamento per-oggetto
+randomize_rotation: true                  # Orientamento per-oggetto
 ```
+`randomize_offset` somma al sample point un offset hash-of-`seed` di magnitudine
+**±10 wu** (era ±1000 wu nei cicli precedenti: il valore alto faceva collassare
+in righe parallele le procedurali radiali come `wood`, spingendo il sample
+troppo lontano dall'asse degli anelli — vedi nota Sampling space sopra). Con il
+nuovo campionamento object-local, due istanze dello stesso materiale a
+posizioni diverse leggono già regioni di texture diverse; `randomize_offset` è
+oggi un knob *aggiuntivo* di decorrelamento, non più necessario per la
+variazione per-entità. Tieni `randomize_rotation: true` sulle procedurali
+condivise così identici material ID non si leggono come cloni su una griglia
+in stile tavole di legno affiancate.
 
 **Color ramp multi-stop (`color_ramp:`)** — override opzionale del lerp a
 due colori implicito su `noise`, `marble`, `wood`, `voronoi` e

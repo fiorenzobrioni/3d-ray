@@ -38,7 +38,13 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
 
         rec.T = root;
         rec.Point = ray.At(rec.T);
-        rec.LocalPoint = rec.Point;
+        // Object-local frame: origin at sphere centre, axes world-aligned (the
+        // canonical wood/marble/noise sampling space, parity with Arnold's
+        // `space: object`, Cycles' "Texture Coordinate → Object", RenderMan
+        // Pref). Lets every procedural that depends on radial distance / axis
+        // (wood, marble, gradient, coordinate) tile per-entity instead of
+        // collapsing into the world-axis pattern.
+        rec.LocalPoint = rec.Point - Center;
         Vector3 outwardNormal = (rec.Point - Center) / Radius;
         rec.SetFaceNormal(ray, outwardNormal);
         

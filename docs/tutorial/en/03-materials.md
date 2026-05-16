@@ -520,6 +520,19 @@ block. When present, the texture generates color values procedurally
 based on the 3D position of each surface point, replacing the flat
 `color`.
 
+**Sampling space — important.** Every procedural samples in **object-local
+space**: the origin of the sample coordinates sits on the primitive's own
+`Center` / `Q` / `Point` anchor, and the axes are world-aligned. Same
+convention as Arnold's `space: object`, Cycles' "Texture Coordinate → Object",
+RenderMan's `Pref`. The practical consequence is that `scale` is in
+*cycles per object-local unit*, so a sphere of radius `r` sees approximately
+`scale × 2r` cycles across its diameter. The examples below are tuned for a
+**radius-~1 reference sphere**; on a tiny gem (`r ≈ 0.3`) double or triple the
+`scale` value, on a large hero slab (`r ≈ 3`) halve it. If you need the
+*world-locked* legacy behavior (e.g. a marble pattern continuing seamlessly
+across many tiled boxes), drive your material from a `coordinate` texture node
+with `mode: "world"`.
+
 ### Checker
 
 ```yaml
@@ -917,21 +930,28 @@ Two rules:
 
 #### Step 9 — Randomization for instancing
 
-If you place multiple wooden / marble objects in a scene and they all
-use the same material, they'll all show the **identical** pattern. The
-randomization knob:
+Procedural textures sample in object-local space, so **two instances of the
+same material placed at different world positions already read the same
+texture region** (each primitive's local origin coincides with its own
+center). Without an extra knob, a row of identical wooden spheres would
+therefore show the **identical** pattern. The randomization knob breaks that:
 
 ```yaml
 texture:
   type: "wood"
-  randomize_offset: true     # different texture origin per object
-  randomize_rotation: true   # different texture orientation per object
+  randomize_offset: true     # decorrelate sample point (±10 wu hash-of-seed)
+  randomize_rotation: true   # different ring-axis orientation per object
 ```
 
-Each entity gets a different `objectSeed` (from `seed:` on the entity,
-or auto-incremented otherwise), and the `Apply()` in `TextureTransform`
-generates a per-seed offset+rotation. **Always enable this for shared
-materials.**
+Each entity gets a different `objectSeed` (from `seed:` on the entity, or
+auto-incremented otherwise), and `TextureTransform.Apply()` adds a per-seed
+offset and rotation before the procedural samples. The offset magnitude is
+**±10 wu** — large enough to decorrelate fBm / voronoi / marble (≫ one
+feature period at typical `scale` values) but small enough that radial
+procedurals like `wood` keep their concentric-ring curvature.
+**`randomize_rotation` is the primary tool** for shared wood/marble materials
+because it gives the most natural look; `randomize_offset` is an additional
+decorrelation knob, useful but no longer required.
 
 #### Step 10 — The pre-baked catalogue
 

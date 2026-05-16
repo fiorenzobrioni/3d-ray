@@ -144,7 +144,7 @@ public class Cone : IHittable, ISamplable
                 {
                     rec.T = t;
                     rec.Point = point;
-                    rec.LocalPoint = point;
+                    rec.LocalPoint = point - Center;
                     rec.SetFaceNormal(ray, outwardNormal);
 
                     // UV mapping: same convention as Cylinder
@@ -223,7 +223,7 @@ public class Cone : IHittable, ISamplable
     {
         rec.T = t;
         rec.Point = p;
-        rec.LocalPoint = p;
+        rec.LocalPoint = p - Center;
         rec.SetFaceNormal(ray, normal);
 
         // Cap UV: planar projection (same as Cylinder caps)

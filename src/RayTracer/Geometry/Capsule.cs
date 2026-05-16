@@ -89,7 +89,7 @@ public class Capsule : IHittable, ISamplable
 
                         rec.T = t;
                         rec.Point = point;
-                        rec.LocalPoint = point;
+                        rec.LocalPoint = point - Center;
                         rec.SetFaceNormal(ray, outwardNormal);
 
                         // UV: body occupies V ∈ [0.25, 0.75]
@@ -153,7 +153,7 @@ public class Capsule : IHittable, ISamplable
 
                 rec.T = t;
                 rec.Point = point;
-                rec.LocalPoint = point;
+                rec.LocalPoint = point - Center;
                 rec.SetFaceNormal(ray, outwardNormal);
 
                 // UV: hemispheres use spherical coordinates mapped to the
