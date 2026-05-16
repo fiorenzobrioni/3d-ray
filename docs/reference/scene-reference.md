@@ -484,6 +484,31 @@ are pro-grade, with the same controls exposed by Arnold (`noise`, `cell_noise`),
 Cycles (Noise / Voronoi / Brick / Gradient nodes) and RenderMan (`PxrFractal`,
 `PxrVoronoise`, `PxrMarble`, `PxrTile`).
 
+#### **Sampling space (object-local).**
+Every procedural samples on `rec.LocalPoint`, which the built-in primitives
+expose in their **own object-local frame**: Sphere/Cylinder/Cone/Capsule/Disk/
+Annulus subtract `Center` from the world hit, Quad subtracts `Q`, InfinitePlane
+subtracts `Point`, Box/Torus/Lathe are already at the origin and always wrapped
+in a `Transform`. This matches Arnold's `space: object`, Cycles' "Texture
+Coordinate → Object" and RenderMan's `Pref` — the texture tiles **per-entity**
+regardless of where the primitive is placed in the world.
+
+Practical consequence on `scale` recommendations:
+
+| Primitive size (object radius / half-extent) | Useful `scale` range for ~3–8 visible cycles |
+|----------------------------------------------|----------------------------------------------|
+| ~0.3 wu (small sphere, gemstone)             | `6 – 12`                                     |
+| ~1 wu (canonical reference)                  | `3 – 6`                                      |
+| ~3 wu (large hero sphere, slab)              | `1 – 2`                                      |
+| ~10 wu (floor quad, room wall)               | `0.3 – 0.6`                                  |
+
+The defaults shown below assume the **canonical 1 wu reference primitive**. To
+get the same number of visible features on a smaller primitive, multiply the
+scale by the ratio of canonical-to-actual size. If you want the *legacy* world-
+locked behavior (e.g. a marble pattern that continues seamlessly across many
+tiled boxes), drive your material from a `texture` node and stack a
+`coordinate` texture with `mode: "world"` on top.
+
 #### **Procedural Textures:**
 
 **Checker:**
@@ -847,7 +872,7 @@ texture:
   type: "gradient"
   mode: "linear"               # linear | quadratic | easing | spherical | radial
   axis: [1, 0, 0]              # gradient direction (linear/quadratic/easing/radial)
-  length: 1.0                  # world-space span over which the gradient runs
+  length: 1.0                  # span (in object-local units) over which the gradient runs
   colors: [[0, 0, 0], [1, 1, 1]]
 ```
 - `linear` — `t = (p · axis) / length`.
@@ -907,11 +932,20 @@ is a vector identity output, not a scalar mappable to a 1-D ramp.
 
 **All procedurals support:**
 ```yaml
-offset: [5.0, 0.0, 3.0]                  # Translation
+offset: [5.0, 0.0, 3.0]                  # Translation (object-local units)
 rotation: [0.0, 45.0, 0.0]               # Rotation (degrees)
-randomize_offset: true                    # Per-object variation
-randomize_rotation: true
+randomize_offset: true                    # Per-object decorrelation
+randomize_rotation: true                  # Per-object orientation
 ```
+`randomize_offset` adds a hash-of-`seed`-driven offset of magnitude **±10 wu**
+to the sample point (was ±1000 wu in earlier cycles; the larger value collapsed
+radial procedurals like `wood` into parallel stripes by pushing the sample far
+from the ring axis — see Sampling space note above). With the new object-local
+sampling, two instances of the same material at different positions already
+read different texture regions; `randomize_offset` is now an *additional*
+decorrelation knob, no longer required for per-entity variation. Keep
+`randomize_rotation: true` for shared procedurals so identical material IDs
+don't read like clones on a wood plank-style grid.
 
 **Multi-stop color ramp (`color_ramp:`)** — optional override of the
 implicit two-colour lerp on `noise`, `marble`, `wood`, `voronoi` and

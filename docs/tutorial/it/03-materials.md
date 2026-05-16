@@ -464,6 +464,8 @@ I materiali Mix possono essere annidati: puoi creare un mix di un mix per effett
 
 Qualsiasi materiale che accetta un campo `color` può anche accettare un blocco `texture:`. Quando presente, la texture genera valori di colore proceduralmente basati sulla posizione 3D di ogni punto della superficie, sostituendo il `color` piatto.
 
+**Spazio di campionamento — importante.** Ogni procedurale campiona in **spazio object-local**: l'origine delle coordinate di sample sta sull'ancora propria della primitiva (`Center` / `Q` / `Point`) e gli assi sono allineati al mondo. È la stessa convenzione di Arnold con `space: object`, di Cycles con "Texture Coordinate → Object" e di RenderMan con `Pref`. Conseguenza pratica: `scale` è in *cicli per unità object-local*, quindi una sfera di raggio `r` vede circa `scale × 2r` cicli sul proprio diametro. Gli esempi sotto sono tarati per una **sfera di riferimento raggio ~1**; su una gemma piccola (`r ≈ 0.3`) raddoppia o triplica il valore di `scale`, su uno slab hero grande (`r ≈ 3`) dimezzalo. Se ti serve il comportamento *world-locked* legacy (es. un pattern marble che continua senza soluzione di continuità tra box affiancati), pilota il materiale da un nodo `coordinate` con `mode: "world"`.
+
 ### Checker
 
 ```yaml
@@ -867,19 +869,29 @@ branca incastonata nel legno del tronco. Due regole:
 
 #### Step 9 — Randomizzazione per instancing
 
-Se metti più oggetti di legno / marmo nella scena e usano tutti lo
-stesso materiale, mostreranno tutti lo **stesso** pattern. Il knob:
+Le procedurali campionano in spazio object-local, quindi **due istanze dello
+stesso materiale piazzate a posizioni mondiali diverse leggono comunque la
+stessa regione di texture** (l'origine locale di ogni primitiva coincide con
+il proprio centro). Senza un knob aggiuntivo, una fila di sfere di legno
+identiche mostrerebbe quindi lo **stesso** pattern. La randomizzazione lo
+rompe:
 
 ```yaml
 texture:
   type: "wood"
-  randomize_offset: true     # origine texture diversa per oggetto
-  randomize_rotation: true   # orientamento texture diverso per oggetto
+  randomize_offset: true     # decorrela sample point (±10 wu hash-of-seed)
+  randomize_rotation: true   # orientamento ring-axis diverso per oggetto
 ```
 
 Ogni entità riceve un `objectSeed` diverso (da `seed:` sull'entità, o
-auto-incrementato), e l'`Apply()` di `TextureTransform` genera un
-offset+rotazione per-seed. **Abilitalo sempre per materiali condivisi.**
+auto-incrementato), e `TextureTransform.Apply()` somma un offset e una
+rotazione per-seed prima che la procedurale campioni. La magnitudine
+dell'offset è **±10 wu** — abbastanza per decorrelare fBm / voronoi / marble
+(≫ un periodo di feature ai valori tipici di `scale`) ma abbastanza piccola
+da preservare la curvatura concentrica delle procedurali radiali come `wood`.
+**`randomize_rotation` è lo strumento principale** per materiali wood/marble
+condivisi perché dà il look più naturale; `randomize_offset` è un knob
+aggiuntivo di decorrelamento, utile ma non più obbligatorio.
 
 #### Step 10 — Il catalogo pre-cotto
 
