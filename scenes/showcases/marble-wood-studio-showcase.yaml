@@ -27,15 +27,20 @@
 #
 #  LAYOUT
 #  ──────
-#  6 sfere su pavimento neutro, divise in due file:
-#    Riga A (z = -1):   marmi
-#      A1 Carrara legacy (single-axis)         x=-3.5
-#      A2 Calacatta (cross-vein + ramp 3-stop) x= 0
-#      A3 Arabescato (forte secondary)         x=+3.5
-#    Riga B (z = +1):   legni
-#      B1 Oak quartersawn (anisotropia + ramp) x=-3.5
-#      B2 Curly maple (figure band)            x= 0
-#      B3 Knotty pine (knots + figure + ramp)  x=+3.5
+#  6 sfere su un'unica fila orizzontale, alternando marmi e legni così che
+#  ognuna sia completamente visibile (la versione precedente a 2 file
+#  occludeva la riga di legno dietro a quella di marmo davanti). Ordine
+#  scelto per leggibilità del confronto:
+#    x=-5.0  Carrara legacy (single-axis, reference)
+#    x=-3.0  Calacatta (cross-vein + ramp 4-stop)
+#    x=-1.0  Arabescato (forte secondary + distortion)
+#    x=+1.0  Oak quartersawn (radial_anisotropy + ramp 3-stop)
+#    x=+3.0  Curly maple (figure band)
+#    x=+5.0  Knotty pine (knots + figure + ramp 4-stop)
+#
+#  Camera arretrata e FOV ampia per inquadrare tutte e sei le sfere senza
+#  distorsione percettiva eccessiva. Seed unici per entità così le texture
+#  procedurali producono pattern visibilmente distinti.
 #
 #  Render consigliato:
 #    Draft:  -w 640  -H 360  -s 32  -d 4  -S 1
@@ -44,22 +49,32 @@
 
 world:
   sky:
-    type: "gradient"
-    top_color:    [0.40, 0.50, 0.65]
-    bottom_color: [0.06, 0.06, 0.08]
+    # Studio cyclorama nero piatto: niente riflessioni speculari ambientali
+    # che lavino via la texture dei marmi lucidi. La luce è tutta diretta.
+    # NB: 0.0 esatto è raro nei render pro perché elimina il contributo NEE
+    # dello sky; lasciamo un epsilon così la pipeline NEE resta esercitata
+    # ma il contributo è impercettibile.
+    type: "flat"
+    color: [0.001, 0.001, 0.0012]
 
 camera:
-  position: [0, 2.0, -8.0]
-  look_at:  [0, 0.8, 0]
-  fov: 38
+  position: [0, 1.6, -10.5]
+  look_at:  [0, 0.85, 0]
+  fov: 56
 
 materials:
 
-  # ── A1: Carrara — single-axis legacy (back-compat reference) ───────────
+  # ── A1: Carrara — single-axis (vena sottile su base bianca) ───────────
+  # Roughness 0.32: marmo lucido ma non a specchio (a 0.18 la riflessione
+  # ambientale lavava via la trama). Con il fix di sharpening del marble
+  # (`t = 1 − (1−t)^k` invece di `t^k`), la BASE chiara è dominante e le
+  # venature scure restano sottili come nel Carrara reale.
+  # Convenzione `colors:` post-fix: primo = BASE chiara (dominante), secondo
+  # = VENA scura (sottile, stretta dalla sharpening).
   - id: "marble_carrara"
     type: "disney"
     color: [0.95, 0.94, 0.92]
-    roughness: 0.20
+    roughness: 0.32
     specular: 0.5
     texture:
       type: "marble"
@@ -69,46 +84,50 @@ materials:
       vein_sharpness: 4.0
       noise_strength: 8.0
       octaves: 8
-      colors: [[0.95, 0.93, 0.90], [0.18, 0.16, 0.18]]
+      colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]   # base bianca, vena nera
 
   # ── A2: Calacatta — secondary wave + color ramp 4-stop ─────────────────
-  # Vena scura → mid-tone caldo (oro) → base avorio → undertone bluastro.
+  # Convenzione ramp post-fix: position 0 = vena (rara, t→0), position 1 =
+  # base (dominante, t→1). Sharpness 3.0 stringe la vena ma lascia spazio
+  # al gold transition mid-tone tipico del Calacatta.
   - id: "marble_calacatta"
     type: "disney"
     color: [0.95, 0.94, 0.92]
-    roughness: 0.18
+    roughness: 0.30
     specular: 0.5
     texture:
       type: "marble"
-      scale: 4.5
+      scale: 4.0
       vein_axis: [0, 0, 1]
       vein_frequency: 1.0
-      vein_sharpness: 5.0
-      noise_strength: 7.0
+      vein_sharpness: 3.0
+      noise_strength: 6.0
       octaves: 8
       secondary_wave:
         axis: [1, 0, 0]            # perpendicolare alla primaria
         frequency: 0.65
         strength: 0.45
       color_ramp:
-        - { position: 0.00, color: [0.20, 0.16, 0.18], interp: "smoothstep" }  # vena scura
-        - { position: 0.25, color: [0.78, 0.62, 0.30], interp: "smoothstep" }  # caldo aureo
-        - { position: 0.60, color: [0.96, 0.94, 0.90], interp: "smoothstep" }  # base avorio
-        - { position: 1.00, color: [0.90, 0.92, 0.96], interp: "linear"     }  # undertone freddo
+        - { position: 0.00, color: [0.10, 0.08, 0.08], interp: "smoothstep" }  # vena scura (rara)
+        - { position: 0.35, color: [0.85, 0.65, 0.30], interp: "smoothstep" }  # transizione aurea
+        - { position: 0.70, color: [0.92, 0.85, 0.72], interp: "smoothstep" }  # cream
+        - { position: 1.00, color: [0.97, 0.95, 0.90], interp: "linear"     }  # base avorio (dominante)
 
   # ── A3: Arabescato — secondary forte + venature meno nitide ────────────
+  # Sharpness 2.0 = vena meno stretta, ramp più mediativo per il look
+  # caotico tipico dell'Arabescato (blocchi grigi alternati a base chiara).
   - id: "marble_arabescato"
     type: "disney"
     color: [0.92, 0.90, 0.88]
-    roughness: 0.22
+    roughness: 0.34
     specular: 0.5
     texture:
       type: "marble"
-      scale: 4.0
+      scale: 3.5
       vein_axis: [0, 0, 1]
-      vein_frequency: 0.8
-      vein_sharpness: 3.0
-      noise_strength: 9.0
+      vein_frequency: 0.9
+      vein_sharpness: 2.0
+      noise_strength: 8.0
       octaves: 8
       distortion: 0.35
       secondary_wave:
@@ -116,72 +135,78 @@ materials:
         frequency: 1.2
         strength: 0.7
       color_ramp:
-        - { position: 0.00, color: [0.16, 0.16, 0.20], interp: "smoothstep" }
-        - { position: 0.45, color: [0.60, 0.55, 0.52], interp: "smoothstep" }
-        - { position: 0.95, color: [0.92, 0.90, 0.86], interp: "linear"     }
+        - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "smoothstep" }  # vena nera (rara)
+        - { position: 0.50, color: [0.55, 0.50, 0.48], interp: "smoothstep" }  # grigio caldo
+        - { position: 1.00, color: [0.94, 0.92, 0.88], interp: "linear"     }  # base ivory (dominante)
 
   # ── B1: Oak quartersawn — radial_anisotropy + ramp 3-stop ──────────────
   # Rovere quartato: gli anelli vengono tagliati radialmente, quindi le
   # fibre del grain appaiono "stretched" lungo la direzione radiale.
+  # noise_strength alto evidenzia la fibra perturbata dal grain.
   - id: "wood_oak_quarter"
     type: "disney"
     color: [0.80, 0.62, 0.42]
-    roughness: 0.50
+    roughness: 0.55
     texture:
       type: "wood"
-      scale: 3.5
+      scale: 4.5
       ring_axis: [0, 1, 0]
-      ring_sharpness: 3.5
-      noise_strength: 1.8
+      ring_sharpness: 4.0
+      noise_strength: 2.2          # ← grain pronunciato per look fibroso
       octaves: 5
-      radial_anisotropy: 2.5       # ← quartato
+      radial_anisotropy: 3.0       # ← quartato marcato
       color_ramp:
-        - { position: 0.00, color: [0.40, 0.26, 0.14], interp: "smoothstep" }  # latewood
-        - { position: 0.60, color: [0.82, 0.62, 0.40], interp: "smoothstep" }  # earlywood
-        - { position: 1.00, color: [0.95, 0.85, 0.70], interp: "linear"     }  # sapwood chiaro
+        - { position: 0.00, color: [0.30, 0.18, 0.08], interp: "smoothstep" }  # latewood (sottile)
+        - { position: 0.55, color: [0.82, 0.62, 0.38], interp: "smoothstep" }  # earlywood (medio)
+        - { position: 1.00, color: [0.95, 0.82, 0.62], interp: "linear"     }  # earlywood chiaro
 
   # ── B2: Curly maple — figure band attiva ───────────────────────────────
-  # Acero curly: la "figure" è una serie di ondulazioni perpendicolari al
-  # grain. Si ottiene con `figure_strength > 0` e `figure_scale` bassa.
+  # Acero curly: ondulazioni a bassa freq sopra il grain ad alta freq. Il
+  # figure_strength alto produce ripple visibili distinti dalle bande
+  # naturali degli anelli (rovere ha rings → curly è "banded all over").
+  # noise_strength basso lascia il figure dominare la perturbazione.
   - id: "wood_curly_maple"
     type: "disney"
     color: [0.88, 0.78, 0.60]
-    roughness: 0.40
+    roughness: 0.42
     texture:
       type: "wood"
-      scale: 3.0
+      scale: 5.0
       ring_axis: [0, 1, 0]
-      ring_sharpness: 2.5
-      noise_strength: 1.0
-      octaves: 5
-      grain_scale: 1.2
-      figure_scale: 0.18           # ← bassa freq → onde larghe
-      figure_strength: 1.6         # ← peso elevato → curly evidente
+      ring_sharpness: 5.0           # bande molto strette → look "curly"
+      noise_strength: 0.25          # ← grain quasi-spento
+      octaves: 4
+      grain_scale: 1.8
+      figure_scale: 0.10            # ← onde larghissime
+      figure_strength: 1.8          # ← curly molto evidente
       color_ramp:
-        - { position: 0.00, color: [0.55, 0.40, 0.22], interp: "smoothstep" }
-        - { position: 0.55, color: [0.92, 0.78, 0.55], interp: "smoothstep" }
-        - { position: 1.00, color: [0.98, 0.90, 0.75], interp: "linear"     }
+        - { position: 0.00, color: [0.55, 0.38, 0.20], interp: "smoothstep" }  # band scura
+        - { position: 0.45, color: [0.85, 0.72, 0.48], interp: "smoothstep" }  # mid
+        - { position: 1.00, color: [0.98, 0.92, 0.76], interp: "linear"     }  # crema chiara
 
-  # ── B3: Knotty pine — knots + figure + ramp 3-stop ─────────────────────
+  # ── B3: Knotty pine — knots + figure + ramp 4-stop ─────────────────────
+  # Scale alto (6) così i nodi (raggio ≈ 0.5/knotFreq nel piano-⊥-asse)
+  # contengono visibilmente 2-3 anelli concentrici — cross-section di branca
+  # come nel pino reale. knot_density 1.0 = max numero di nodi.
   - id: "wood_knotty_pine"
     type: "disney"
     color: [0.85, 0.70, 0.45]
     roughness: 0.55
     texture:
       type: "wood"
-      scale: 3.0
+      scale: 6.0
       ring_axis: [0, 1, 0]
-      ring_sharpness: 3.0
-      noise_strength: 1.5
+      ring_sharpness: 4.0
+      noise_strength: 0.6
       octaves: 5
-      figure_scale: 0.22
-      figure_strength: 0.6
-      knot_density: 0.7            # ← molti nodi
+      figure_scale: 0.25
+      figure_strength: 0.3
+      knot_density: 1.0            # ← massimo numero di nodi
       color_ramp:
-        - { position: 0.00, color: [0.18, 0.10, 0.06], interp: "smoothstep" }  # cuore nodo
-        - { position: 0.20, color: [0.55, 0.32, 0.16], interp: "smoothstep" }  # latewood
-        - { position: 0.65, color: [0.90, 0.72, 0.45], interp: "smoothstep" }  # earlywood
-        - { position: 1.00, color: [0.96, 0.86, 0.65], interp: "linear"     }  # sapwood
+        - { position: 0.00, color: [0.05, 0.03, 0.02], interp: "smoothstep" }  # cuore nodo (nero)
+        - { position: 0.18, color: [0.35, 0.18, 0.08], interp: "smoothstep" }  # latewood scuro
+        - { position: 0.65, color: [0.90, 0.68, 0.40], interp: "smoothstep" }  # earlywood caldo
+        - { position: 1.00, color: [0.97, 0.86, 0.60], interp: "linear"     }  # sapwood chiaro
 
   # ── Pavimento neutro ───────────────────────────────────────────────────
   - id: "floor"
@@ -193,38 +218,42 @@ entities:
 
   - name: "floor"
     type: "quad"
-    q: [-10, 0, -4]
-    u: [20, 0, 0]
+    q: [-12, 0, -4]
+    u: [24, 0, 0]
     v: [0, 0, 10]
     material: "floor"
 
-  # ── Riga A: marmi (z = -1) ─────────────────────────────────────────────
-  - { name: "carrara",    type: "sphere", center: [-3.5, 0.85, -1], radius: 0.85, material: "marble_carrara"    }
-  - { name: "calacatta",  type: "sphere", center: [ 0.0, 0.85, -1], radius: 0.85, material: "marble_calacatta"  }
-  - { name: "arabescato", type: "sphere", center: [ 3.5, 0.85, -1], radius: 0.85, material: "marble_arabescato" }
-
-  # ── Riga B: legni (z = +1) ─────────────────────────────────────────────
-  - { name: "oak_quarter",    type: "sphere", center: [-3.5, 0.85,  1], radius: 0.85, material: "wood_oak_quarter"    }
-  - { name: "curly_maple",    type: "sphere", center: [ 0.0, 0.85,  1], radius: 0.85, material: "wood_curly_maple"    }
-  - { name: "knotty_pine",    type: "sphere", center: [ 3.5, 0.85,  1], radius: 0.85, material: "wood_knotty_pine"    }
+  # ── Fila unica di 6 sfere — alternanza marmi/legni per confronto diretto.
+  # Seed unici così le procedurali producono pattern visibilmente distinti.
+  - { name: "carrara",     type: "sphere", center: [-5.0, 0.85, 0], radius: 0.85, seed:  1, material: "marble_carrara"    }
+  - { name: "calacatta",   type: "sphere", center: [-3.0, 0.85, 0], radius: 0.85, seed:  7, material: "marble_calacatta"  }
+  - { name: "arabescato",  type: "sphere", center: [-1.0, 0.85, 0], radius: 0.85, seed: 13, material: "marble_arabescato" }
+  - { name: "oak_quarter", type: "sphere", center: [ 1.0, 0.85, 0], radius: 0.85, seed: 23, material: "wood_oak_quarter"  }
+  - { name: "curly_maple", type: "sphere", center: [ 3.0, 0.85, 0], radius: 0.85, seed: 31, material: "wood_curly_maple"  }
+  - { name: "knotty_pine", type: "sphere", center: [ 5.0, 0.85, 0], radius: 0.85, seed: 41, material: "wood_knotty_pine"  }
 
 lights:
 
-  # ── Key direzionale principale, leggermente alta ───────────────────────
+  # ── Key direzionale principale (sole studio quasi neutro). Intensity
+  # alta per dominare sulla riflessione speculare dei marmi lucidi e far
+  # leggere il colore diffuso della texture.
   - type: "directional"
-    direction: [-0.3, -0.7, 0.6]
-    color: [1.0, 0.96, 0.88]
-    intensity: 3.6
-    angular_radius: 0.5
+    direction: [-0.4, -0.8, 0.45]
+    color: [1.0, 0.98, 0.94]
+    intensity: 6.5
+    angular_radius: 0.6
 
-  # ── Fill morbido dall'alto-sinistra ────────────────────────────────────
+  # ── Fill leggermente freddo dall'alto-sinistra. Tint contenuta per non
+  # virare il bianco del marmo, intensity media per dare volumetria senza
+  # appiattire i blacks.
   - type: "point"
-    position: [-6, 5, -4]
-    color: [0.70, 0.78, 0.95]
-    intensity: 80
+    position: [-7, 6, -4]
+    color: [0.90, 0.93, 1.00]
+    intensity: 55
 
-  # ── Rim caldo dal retro ────────────────────────────────────────────────
+  # ── Rim caldo dal retro per staccare le sfere dal fondo nero. Intensity
+  # bassa così il rim resta un accento, non un secondo key.
   - type: "point"
-    position: [0, 3, 6]
-    color: [1.0, 0.85, 0.65]
-    intensity: 50
+    position: [0, 3.5, 5]
+    color: [1.0, 0.82, 0.62]
+    intensity: 45

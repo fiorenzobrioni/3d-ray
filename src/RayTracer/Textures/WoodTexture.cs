@@ -238,9 +238,13 @@ public class WoodTexture : ITexture
                             randomness: 1f, out float kF1, out _, out _);
 
             // Threshold below which we consider the sample inside a knot.
-            // At low density the threshold shrinks aggressively so most
-            // cells get no knot at all (sparse).
-            float knotThreshold = 0.18f * KnotDensity;
+            // Calibrated so that even modest densities produce knots large
+            // enough to host visible concentric rings inside them — matches
+            // how Arnold's `knots` map and RenderMan's PxrWoodKnot expose the
+            // feature (a knot covering 30–45% of the local cell, not a pixel
+            // dot). At density 1 the threshold is 0.45 so cells stay mostly
+            // partitioned (no global "everything is knot" degenerate case).
+            float knotThreshold = 0.45f * KnotDensity;
             if (kF1 < knotThreshold)
             {
                 float t01 = kF1 / knotThreshold;          // 0 = centre, 1 = edge

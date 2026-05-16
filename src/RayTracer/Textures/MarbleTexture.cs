@@ -179,9 +179,22 @@ public class MarbleTexture : ITexture
 
         if (VeinSharpness != 1f && VeinSharpness > 0f)
         {
-            // sharpening: t^k pulls the gradient toward the vein color, producing
-            // thin high-contrast veins as k grows (k = 4 ≈ Carrara marble).
-            t = MathF.Pow(t, VeinSharpness);
+            // Sharpening on the *vein region* — the troughs of the sine wave
+            // (t ≈ 0). With t' = 1 − (1 − t)^k the BASE color (t = 1) widens
+            // its area and the vein narrows, which is what real Carrara /
+            // Calacatta look like and what Cycles' "Width", Arnold marble2's
+            // `vein_width` and RenderMan PxrMarble's `veinFalloff` all do.
+            //
+            // Earlier the code did `t = t^k`, which inverted the result —
+            // raising k pushed the average sample toward 0 (vein) so the
+            // surface read as mostly dark with thin bright bands instead of
+            // mostly light with thin dark bands. That was a long-standing
+            // semantic bug fixed in step 5/7 of the VFX texture roadmap;
+            // sharpness = 1 (default) stays bit-identical to the legacy
+            // implementation, so only scenes that explicitly set
+            // `vein_sharpness > 1` see a change — the change is from "wrong"
+            // to "right" so we accept the visual diff.
+            t = 1f - MathF.Pow(1f - t, VeinSharpness);
         }
 
         if (ColorRamp is { } ramp)

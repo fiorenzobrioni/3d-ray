@@ -93,6 +93,81 @@ public class MarbleWoodStudioTests
     }
 
     [Fact]
+    public void Marble_HighSharpness_BaseColorDominates_VeinIsThin()
+    {
+        // Step 5/7 fix: production renderers (Cycles, Arnold marble2, RM
+        // PxrMarble) all interpret "sharpness/width" so that increasing it
+        // narrows the vein and widens the BASE — i.e. real Carrara is
+        // mostly white with thin dark veins. The previous `t = t^k` did the
+        // opposite (most surface = vein color, thin highlights = base);
+        // the corrected `t = 1 − (1 − t)^k` matches industry behaviour.
+        // We verify by sampling many points and checking that the average
+        // colour leans much closer to `colors[0]` (base) than `colors[1]`
+        // (vein) when sharpness is high.
+        Vector3 baseCol = new(0.95f, 0.93f, 0.90f);
+        Vector3 veinCol = new(0.05f, 0.05f, 0.05f);
+        var tex = new MarbleTexture(4f, baseCol, veinCol)
+        {
+            VeinSharpness = 4f,
+        };
+
+        Vector3 sum = Vector3.Zero;
+        int count = 0;
+        for (int i = 0; i < 64; i++)
+        for (int j = 0; j < 64; j++)
+        {
+            var p = new Vector3(i * 0.05f, 0.13f, j * 0.05f);
+            sum += tex.Value(0.5f, 0.5f, p, 0);
+            count++;
+        }
+        Vector3 avg = sum / count;
+
+        // Distance to base should be much smaller than distance to vein.
+        float distToBase = (avg - baseCol).Length();
+        float distToVein = (avg - veinCol).Length();
+        Assert.True(distToBase < distToVein,
+            $"Avg colour should lean toward base, not vein. avg={avg} base={baseCol} vein={veinCol}");
+        // And sharpening k=4 should give a very strong bias (avg luminance
+        // about (k+1−1)/(k+1) = 0.8 of the way from vein to base).
+        Assert.True(avg.X > 0.6f,
+            $"With sharpness 4, average red should be ≥ 0.6 (close to base); got {avg.X}");
+    }
+
+    [Fact]
+    public void Marble_HigherSharpness_NarrowsTheVein()
+    {
+        // Strict monotonicity check: increasing VeinSharpness from 1 to N
+        // must move the average sample CLOSER to the base colour (vein
+        // shrinks). This is the per-axis statement of the production-renderer
+        // contract and the test that would have caught the inverted code.
+        Vector3 baseCol = new(1f, 1f, 1f);
+        Vector3 veinCol = new(0f, 0f, 0f);
+
+        float MeanLuminance(float k)
+        {
+            var tex = new MarbleTexture(4f, baseCol, veinCol) { VeinSharpness = k };
+            float sum = 0;
+            int count = 0;
+            for (int i = 0; i < 32; i++)
+            for (int j = 0; j < 32; j++)
+            {
+                var p = new Vector3(i * 0.07f, 0.13f, j * 0.07f);
+                var v = tex.Value(0.5f, 0.5f, p, 0);
+                sum += v.X;  // greyscale, X == Y == Z
+                count++;
+            }
+            return sum / count;
+        }
+
+        float l1 = MeanLuminance(1f);   // no sharpening: mean ~ 0.5
+        float l4 = MeanLuminance(4f);   // sharper: closer to white (base)
+        float l8 = MeanLuminance(8f);   // even sharper: even closer to white
+
+        Assert.True(l4 > l1, $"sharpness 4 should be brighter than 1: l1={l1}, l4={l4}");
+        Assert.True(l8 > l4, $"sharpness 8 should be brighter than 4: l4={l4}, l8={l8}");
+    }
+
+    [Fact]
     public void Marble_SecondaryWave_PreservesOutputRange01()
     {
         // The (sin + strength·sin)/(1 + strength) renormalisation must keep
