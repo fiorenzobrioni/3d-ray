@@ -465,14 +465,14 @@ materials:
     specular: 0.30
     texture:
       type: "wood"
-      scale: 3.2
+      scale: 7.0
       ring_axis: [0, 1, 0]
       ring_sharpness: 2.5
       noise_strength: 1.1
       octaves: 5
       distortion: 0.20
       radial_anisotropy: 1.4
-      knot_density: 0.30
+      knot_density: 0.80
       randomize_rotation: true
       # randomize_offset OMESSO sui legni: l'offset ±1000 wu collassa i
       # cerchi degli anelli in righe parallele (curvatura 1/dist → 0 a 1000
@@ -495,14 +495,14 @@ materials:
     coat_roughness: 0.30
     texture:
       type: "wood"
-      scale: 3.0
+      scale: 6.5
       ring_axis: [0, 1, 0]
       ring_sharpness: 2.5
       noise_strength: 0.9
       distortion: 0.20
-      figure_scale: 0.18
+      figure_scale: 0.35
       figure_strength: 0.50
-      knot_density: 0.25
+      knot_density: 0.65
       randomize_rotation: true
       color_ramp:
         - { position: 0.00, color: [0.08, 0.05, 0.02], interp: "smoothstep" }   # cuore nodo
@@ -521,14 +521,14 @@ materials:
     coat_roughness: 0.10
     texture:
       type: "wood"
-      scale: 3.2
+      scale: 7.0
       ring_axis: [0, 1, 0]
       ring_sharpness: 3.0
       noise_strength: 0.9
       distortion: 0.18
-      figure_scale: 0.20
+      figure_scale: 0.40
       figure_strength: 0.30
-      knot_density: 0.15
+      knot_density: 0.45
       randomize_rotation: true
       color_ramp:
         - { position: 0.00, color: [0.18, 0.05, 0.02], interp: "smoothstep" }
@@ -548,13 +548,13 @@ materials:
     coat_roughness: 0.20
     texture:
       type: "wood"
-      scale: 4.0
+      scale: 8.0
       ring_axis: [0, 1, 0]
       ring_sharpness: 3.5
       noise_strength: 0.25
       distortion: 0.12
       grain_scale: 1.8
-      figure_scale: 0.10
+      figure_scale: 0.20
       figure_strength: 1.6
       randomize_rotation: true
       color_ramp:
@@ -574,7 +574,7 @@ materials:
     coat_roughness: 0.05
     texture:
       type: "wood"
-      scale: 4.0
+      scale: 8.5
       ring_sharpness: 2.5
       noise_strength: 0.7
       distortion: 0.12
@@ -595,12 +595,12 @@ materials:
     specular: 0.30
     texture:
       type: "wood"
-      scale: 3.8
+      scale: 7.5
       ring_axis: [0, 1, 0]
       ring_sharpness: 2.5
       noise_strength: 0.9
       distortion: 0.40
-      figure_scale: 0.25
+      figure_scale: 0.45
       figure_strength: 0.4
       knot_density: 1.0
       randomize_rotation: true
