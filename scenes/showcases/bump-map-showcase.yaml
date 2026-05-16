@@ -42,7 +42,7 @@ world:
 camera:
   position: [0, 1.5, -5]
   look_at: [0, 1.5, 0]
-  fov: 56
+  fov: 50
 
 materials:
 

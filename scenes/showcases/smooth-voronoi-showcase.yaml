@@ -37,13 +37,14 @@
 world:
   sky:
     type: "gradient"
-    top_color:    [0.30, 0.40, 0.55]
-    bottom_color: [0.05, 0.05, 0.07]
+    zenith_color:  [0.02, 0.04, 0.12]
+    horizon_color: [0.06, 0.08, 0.12]
+    ground_color:  [0.02, 0.02, 0.02]
 
 camera:
   position: [0, 1.4, -5.5]
   look_at:  [0, 1.0, 0]
-  fov: 38
+  fov: 40
 
 materials:
 
@@ -143,8 +144,8 @@ entities:
 lights:
 
   # ── Key directional 3/4-front (sole basso, accenti laterali) ───────────
-  - type: "directional"
-    direction: [-0.4, -0.7, 0.6]
+  - type: "-directional"
+    direction: [0.4, -0.7, 0.6]
     color: [1.0, 0.96, 0.88]
     intensity: 3.6
     angular_radius: 0.6

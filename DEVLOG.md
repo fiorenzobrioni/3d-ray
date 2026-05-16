@@ -8,13 +8,6 @@ Roadmap, lavori in corso, bug noti, storico cicli.
 
 ## 📌 Note rapide
 
-- Aggiornare reference e tutorial quando si aggiunge una primitiva o una feature.
-- Creare 2 starter-kit con effetti volumetrici/nebbia; aggiornare i README di `starter-kits` e `libraries`.
-- ChessGen: riallineare al formato YAML attuale e generare `template + instance` per pedina.
-- Valutare un flag CLI `--quiet` o `--verbose` per ridurre il log di default (children counts, mesh stats fuori da default).
-- Spezzare `SceneLoader.cs` (file troppo grande).
-- Idea scena: macro orologio meccanico (Annulus + Cylinder) con DOF spinta.
-
 ---
 
 ## 🗺️ Roadmap
@@ -156,8 +149,10 @@ Strategia incrementale per le caustiche, in ordine di costo crescente. Strada 1 
 
   (7) **Coordinate texture node.** Nuova `CoordinateTexture` che ritorna `(p.x, p.y, p.z)` o `(u, v, 0)` come RGB, con `mode: "world" | "object" | "uv" | "generated"` e trasformazione (offset/rotation/scale) standard. Analogo al "Texture Coordinate" node di Cycles. Utile per debug visivo dei UV/coord-spaces e per pilotare altre texture (texture-driven mix masks già supportato ma quello è specifico per il mix material; questo è generico). Bassa priorità — QoL per artisti.
 
+  Per ogni step controlla attentamente il render della scena di prova e se vedi che non è corretto/realistico, correggi subito.
   Per ogni step: aggiornare `docs/reference/scene-reference.md` + `riferimento-scene.md` + `docs/tutorial/{en,it}/03-materials.md`, aggiungere showcase dedicato o sezione in `textures-pro-showcase.yaml`, regression test dove ha senso (es. `RayDifferentialTests` per (1) — proiezione di footprint noto attraverso transform e verifica numerica; `ColorRampTests` per (2) — interpolazioni su stop noti; `SmoothVoronoiTests` per (3) — continuità verificata su griglia). Validazione finale: rendering `textures-pro-showcase.yaml` a 1920×1080 e 4K con 64 spp, confronto con baseline pre-cambio sulla stessa scena (`renders/textures-pro-showcase.png` attuale è il punto di partenza). Voce DEVLOG storica a fine ciclo che elenca tutti gli step completati e i file toccati. Vincoli architetturali: back-compat totale (le scene YAML esistenti devono renderizzare identiche se non usano le nuove feature); tutti i 187+ test esistenti devono continuare a passare; nessun degrado di performance > 5% sui benchmark esistenti (`dotnet run -c Release --project src/RayTracer.Benchmarks -- --filter '*'`).
-- [ ] Aggiornare README.md in root con le nuove feature aggiunte qui sopra negli step "surface displacement" e "texturing "VFX production-grade"
+- [ ] Fai una review dei materiali in libraries/materials e aggiorna quelli che possono giovare, per diventare più realistici, delle features "surface displacement". Poi aggiungi anche altre librerie professionali di materiali basate su "surface displacement": ad esempio pelli, cementi, sassi, marmi e altri di tipo poroso. Guarda i materiali (di tipo poroso o che comunque beneficiano di "surface displacement") che hanno altri renderer pro (Arnlod, Cycles, Renderman, ecc) e crea tu delle nuove categorie estremamente professionali.
+- [ ] Aggiornare README.md in root con le nuove feature aggiunte qui sopra negli step "surface displacement" e "texturing "VFX production-grade" che non sono ancora presenti.
 - [ ] Refactoring: spostare `Seed` da `IHittable` a un'interfaccia dedicata (es. `ISeeded`); nodi strutturali (BvhNode, Transform) non hanno bisogno di seed.
 - [ ] Review completa dei tutorial (`tutorial/`): correttezza vs codice, omissioni, grammatica, esempi, indici.
 - [ ] Spezzare `SceneLoader.cs`.

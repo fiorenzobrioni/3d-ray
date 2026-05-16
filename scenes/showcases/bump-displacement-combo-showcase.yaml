@@ -61,7 +61,7 @@
 camera:
   position: [0, 1.6, -5.0]
   look_at:  [0, 1.2,  0]
-  fov: 52
+  fov: 48
   aperture: 0.0
 
 world:
