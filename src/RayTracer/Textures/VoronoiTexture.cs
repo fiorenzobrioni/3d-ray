@@ -27,10 +27,20 @@ namespace RayTracer.Textures;
 ///   output: "f1"               # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
 ///   randomness: 1.0            # 0 = grid, 1 = full random scatter
 ///   distortion: 0.0            # domain-warp amplitude (Perlin warp before lookup)
+///   smoothness: 0.0            # 0 = hard min (classic); ∈ (0,1] enables IQ Smooth Voronoi
 ///   colors: [[0,0,0], [1,1,1]] # endpoints for distance modes (ignored for "cell")
 ///   offset: [0,0,0]
 ///   rotation: [0,0,0]
 /// </code>
+///
+/// <para>
+/// <b>Smooth Voronoi.</b> When <see cref="Smoothness"/> &gt; 0 the inner
+/// <c>min()</c> over the 3×3×3 cell neighbourhood is replaced by Inigo
+/// Quilez' log-sum-exp soft-min <c>-log(Σ exp(-k·d_i))/k</c> with
+/// <c>k = 20/smoothness</c>. F1 becomes C∞ across cell boundaries, and the
+/// F2−F1 "crackle" loses its hard-V ridge — bordi morbidi, no step alias.
+/// Useful for polished leather, rounded pebbles, supple reptile skin.
+/// </para>
 /// </summary>
 public class VoronoiTexture : ITexture
 {
@@ -51,6 +61,15 @@ public class VoronoiTexture : ITexture
     public OutputMode Output { get; set; } = OutputMode.F1;
     public float Randomness { get; set; } = 1f;
     public float Distortion { get; set; } = 0f;
+
+    /// <summary>
+    /// IQ "Smooth Voronoi" coefficient in [0, 1]. <c>0</c> = classic hard min
+    /// (bit-identical to legacy behaviour); &gt; 0 enables a log-sum-exp
+    /// soft-min over the 27-cell neighbourhood with <c>k = 20/smoothness</c>.
+    /// Cycles' Smooth F1 mode, Houdini Voronoi Smoothness, RenderMan
+    /// PxrVoronoise's blend factor.
+    /// </summary>
+    public float Smoothness { get; set; } = 0f;
 
     /// <summary>
     /// Optional multi-stop colour ramp. When set, the normalised distance
@@ -144,10 +163,25 @@ public class VoronoiTexture : ITexture
             q += Distortion * warp.NoiseVector(q + new Vector3(17.3f, 5.1f, 11.7f));
         }
 
-        worley.Evaluate(q, Metric, Randomness, out float f1, out float f2, out int cellId);
+        float f1, f2;
+        int cellId;
+        if (Smoothness > 0f)
+        {
+            // Smooth-min variant — IQ "Smooth Voronoi". Falls back to the hard
+            // path internally when Smoothness ≤ 0 so the back-compat result is
+            // bit-identical for legacy scenes that never set the property.
+            worley.EvaluateSmooth(q, Metric, Randomness, Smoothness, out f1, out f2, out cellId);
+        }
+        else
+        {
+            worley.Evaluate(q, Metric, Randomness, out f1, out f2, out cellId);
+        }
 
         if (Output == OutputMode.Cell)
         {
+            // Cell-ID lookup is discrete by nature: no smoothing applied
+            // even with Smoothness > 0 — matches Cycles' behaviour where
+            // smoothness affects distance outputs only.
             return WorleyNoise.CellColor(cellId);
         }
 

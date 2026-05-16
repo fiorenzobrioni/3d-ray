@@ -37,6 +37,17 @@
 #     scale          Frequenza venature: basso = ampie, alto = fitte.
 #     noise_strength Intensità: basso = appena visibili, alto = drammatiche.
 #     colors         [colore_base, colore_venatura].
+#     vein_axis      Direzione di propagazione (default Z). Vettori non
+#                    allineati agli assi → lastre più naturali.
+#     vein_sharpness Stretta la vena man mano che k cresce (1 = legacy
+#                    soft, 3-5 = Carrara con vena sottile e base larga).
+#     secondary_wave Opzionale, blocco `{axis, frequency, strength}`:
+#                    aggiunge una seconda sinusoide auto-ortogonalizzata
+#                    contro la primaria per il look "cross-vein" tipico
+#                    di Calacatta / Statuario / Arabescato.
+#     color_ramp     Lista di stop per gradienti multi-tonali (vena → mid
+#                    → base → undertone). Vince su `colors:` quando
+#                    presente.
 #
 #   Texture "noise":
 #     scale          Frequenza grana: basso = macchie grandi, alto = fine.
@@ -83,6 +94,12 @@
 #
 #   MATTONI E LATERIZI  Terracotta strutturale. Toni rossi e ocra,
 #                       superfici rugose.
+#
+#   STUDIO QUALITY      Variants di marmo con `vein_sharpness`,
+#                       `secondary_wave` e `color_ramp` per look VFX
+#                       production-grade: Carrara con vena sottile vera,
+#                       Calacatta con vena dorata cross-direzionale,
+#                       Arabescato chaos, ecc.
 #
 # ============================================================================
 
@@ -438,6 +455,303 @@ materials:
       noise_strength: 15.0
       colors: [[0.45, 0.44, 0.42], [0.92, 0.90, 0.88]]
       randomize_offset: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  MARMI STUDIO-QUALITY — VFX production-grade (step 5/7 textures roadmap)
+  #
+  #  Marmi che sfruttano i nuovi controlli `vein_sharpness`, `secondary_wave`
+  #  e `color_ramp` per pareggiare il look dei renderer pro (Arnold marble2
+  #  con vein_width, RenderMan PxrMarble veinFalloff, Cycles Marble Width).
+  #  Tutti hanno il suffisso `_studio` per distinguerli dai legacy.
+  #
+  #  Linee guida di tuning (testate sul showcase marble-wood-studio):
+  #   - `vein_sharpness` 3-5: vena sottile su base ampia (vero look Carrara).
+  #     Valori più alti = vena ancora più sottile. `vein_sharpness = 1` =
+  #     comportamento legacy senza sharpening.
+  #   - `secondary_wave` con `strength` 0.4-0.7: cross-veining tipico dei
+  #     marmi pregiati. L'asse secondario è auto-ortogonalizzato vs il
+  #     primario, quindi anche scegliere axis collineare produce risultato
+  #     diverso.
+  #   - Roughness 0.30-0.34 + clearcoat 0.0: marmo lucido senza riflessione
+  #     "specchio" che lava la trama. Per finitura "lucido a vita" usare
+  #     clearcoat 0.7+ con coat_roughness < 0.1.
+  #   - Convenzione `color_ramp`: position 0 = colore vena (raro, t→0),
+  #     posizioni alte = colore base (dominante, t→1).
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── CARRARA STUDIO — base bianca con vena scura sottile ────────────────
+  # Sharpness 4 + colori scuro/chiaro stretti producono il look canonico
+  # del Carrara moderno: superficie bianco-crema dominante con vene scure
+  # filiformi che ricordano il marmo Bianco P di Apuane.
+
+  - id: "dis_carrara_studio"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 5.0
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 4.0
+      noise_strength: 8.0
+      octaves: 8
+      randomize_offset: true
+      colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
+    roughness: 0.32
+    specular: 0.50
+    subsurface: 0.06
+
+  - id: "dis_carrara_studio_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 5.0
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 4.0
+      noise_strength: 8.0
+      octaves: 8
+      randomize_offset: true
+      colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
+    roughness: 0.10
+    clearcoat: 0.90
+    coat_roughness: 0.05
+    specular: 0.72
+    subsurface: 0.06
+
+  - id: "cls_carrara_studio"
+    type: "lambertian"
+    texture:
+      type: "marble"
+      scale: 5.0
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 4.0
+      noise_strength: 8.0
+      octaves: 8
+      randomize_offset: true
+      colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
+
+  # ── CALACATTA STUDIO — vena dorata cross-direzionale + ramp 4-stop ─────
+  # Il Calacatta autentico ha venature dorate/grigie che corrono in due
+  # direzioni. `secondary_wave` + ramp 4-stop (vena → oro → cream → avorio)
+  # produce il caratteristico look "Calacatta Gold" delle cave Apuane.
+
+  - id: "dis_calacatta_studio"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 4.0
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 3.0
+      noise_strength: 6.0
+      octaves: 8
+      randomize_offset: true
+      secondary_wave:
+        axis: [1, 0, 0]
+        frequency: 0.65
+        strength: 0.45
+      color_ramp:
+        - { position: 0.00, color: [0.10, 0.08, 0.08], interp: "smoothstep" }   # vena scura
+        - { position: 0.35, color: [0.85, 0.65, 0.30], interp: "smoothstep" }   # transizione aurea
+        - { position: 0.70, color: [0.92, 0.85, 0.72], interp: "smoothstep" }   # cream
+        - { position: 1.00, color: [0.97, 0.95, 0.90], interp: "linear"     }   # base avorio
+    roughness: 0.30
+    specular: 0.50
+    subsurface: 0.06
+
+  - id: "dis_calacatta_studio_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 4.0
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 3.0
+      noise_strength: 6.0
+      octaves: 8
+      randomize_offset: true
+      secondary_wave:
+        axis: [1, 0, 0]
+        frequency: 0.65
+        strength: 0.45
+      color_ramp:
+        - { position: 0.00, color: [0.10, 0.08, 0.08], interp: "smoothstep" }
+        - { position: 0.35, color: [0.85, 0.65, 0.30], interp: "smoothstep" }
+        - { position: 0.70, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
+        - { position: 1.00, color: [0.97, 0.95, 0.90], interp: "linear"     }
+    roughness: 0.08
+    clearcoat: 0.92
+    coat_roughness: 0.05
+    specular: 0.75
+    subsurface: 0.06
+
+  # ── STATUARIO STUDIO — vena drammatica grigia su bianco puro ───────────
+  # Statuario è il marmo più pregiato delle Apuane (usato da Michelangelo
+  # per il David). Bianco purissimo con venature grigie audaci e a tratti
+  # nere. Sharpness 3.5 + secondary_wave moderato.
+
+  - id: "dis_statuario_studio"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 3.8
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 3.5
+      noise_strength: 7.0
+      octaves: 8
+      distortion: 0.15
+      randomize_offset: true
+      secondary_wave:
+        axis: [1, 0, 0]
+        frequency: 0.85
+        strength: 0.35
+      color_ramp:
+        - { position: 0.00, color: [0.08, 0.08, 0.09], interp: "smoothstep" }   # vena nera
+        - { position: 0.35, color: [0.50, 0.50, 0.52], interp: "smoothstep" }   # grigio medio
+        - { position: 1.00, color: [0.98, 0.98, 0.96], interp: "linear"     }   # bianco puro
+    roughness: 0.32
+    specular: 0.55
+    subsurface: 0.08
+
+  - id: "dis_statuario_studio_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 3.8
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 3.5
+      noise_strength: 7.0
+      octaves: 8
+      distortion: 0.15
+      randomize_offset: true
+      secondary_wave:
+        axis: [1, 0, 0]
+        frequency: 0.85
+        strength: 0.35
+      color_ramp:
+        - { position: 0.00, color: [0.08, 0.08, 0.09], interp: "smoothstep" }
+        - { position: 0.35, color: [0.50, 0.50, 0.52], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.98, 0.96], interp: "linear"     }
+    roughness: 0.10
+    clearcoat: 0.88
+    coat_roughness: 0.06
+    specular: 0.70
+    subsurface: 0.08
+
+  # ── ARABESCATO STUDIO — caos drammatico con cross-veining forte ────────
+  # Arabescato Cervaiole/Vagli: blocchi grigi alternati a base chiara con
+  # venature audaci che si intersecano. `secondary_wave` con `strength` 0.7
+  # + `distortion` 0.35 producono il caos caratteristico.
+
+  - id: "dis_arabescato_studio"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 3.5
+      vein_axis: [0, 0, 1]
+      vein_frequency: 0.9
+      vein_sharpness: 2.0
+      noise_strength: 8.0
+      octaves: 8
+      distortion: 0.35
+      randomize_offset: true
+      secondary_wave:
+        axis: [1, 0.3, 0]
+        frequency: 1.2
+        strength: 0.7
+      color_ramp:
+        - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "smoothstep" }   # vena nera
+        - { position: 0.50, color: [0.55, 0.50, 0.48], interp: "smoothstep" }   # grigio caldo
+        - { position: 1.00, color: [0.94, 0.92, 0.88], interp: "linear"     }   # base ivory
+    roughness: 0.34
+    specular: 0.50
+    subsurface: 0.06
+
+  - id: "dis_arabescato_studio_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 3.5
+      vein_axis: [0, 0, 1]
+      vein_frequency: 0.9
+      vein_sharpness: 2.0
+      noise_strength: 8.0
+      octaves: 8
+      distortion: 0.35
+      randomize_offset: true
+      secondary_wave:
+        axis: [1, 0.3, 0]
+        frequency: 1.2
+        strength: 0.7
+      color_ramp:
+        - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "smoothstep" }
+        - { position: 0.50, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.94, 0.92, 0.88], interp: "linear"     }
+    roughness: 0.10
+    clearcoat: 0.82
+    coat_roughness: 0.08
+    specular: 0.68
+
+  # ── PORT LAURENT STUDIO — nero con vena dorata cross-direzionale ──────
+  # Marmo nero belga con caratteristiche venature dorate. secondary_wave
+  # accentua la natura biforcata del pattern.
+
+  - id: "dis_port_laurent_studio_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 4.5
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 3.0
+      noise_strength: 7.0
+      octaves: 8
+      randomize_offset: true
+      secondary_wave:
+        axis: [1, 0, 0]
+        frequency: 0.8
+        strength: 0.4
+      color_ramp:
+        - { position: 0.00, color: [0.72, 0.55, 0.18], interp: "smoothstep" }   # vena dorata
+        - { position: 0.55, color: [0.20, 0.12, 0.05], interp: "smoothstep" }   # marrone scuro
+        - { position: 1.00, color: [0.05, 0.04, 0.03], interp: "linear"     }   # nero base
+    roughness: 0.08
+    clearcoat: 0.95
+    coat_roughness: 0.05
+    specular: 0.80
+
+  # ── ROSSO LEVANTO STUDIO — rosso intenso con vene bianche calcaree ────
+  # Marmo rosso ligure tipico delle cave del Levanto. Sharpness 4 stringe
+  # le vene bianche → effetto "graffito" su fondo rosso scuro.
+
+  - id: "dis_rosso_levanto_studio_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 5.0
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 4.0
+      noise_strength: 9.0
+      octaves: 8
+      randomize_offset: true
+      secondary_wave:
+        axis: [1, 0, 0]
+        frequency: 0.95
+        strength: 0.4
+      color_ramp:
+        - { position: 0.00, color: [0.95, 0.92, 0.85], interp: "smoothstep" }   # vena calcite bianca
+        - { position: 0.45, color: [0.55, 0.18, 0.10], interp: "smoothstep" }   # rosso brillante
+        - { position: 1.00, color: [0.40, 0.08, 0.04], interp: "linear"     }   # rosso scuro
+    roughness: 0.14
+    clearcoat: 0.70
+    coat_roughness: 0.15
+    specular: 0.58
+    specular_tint: 0.2
 
 
   # ═══════════════════════════════════════════════════════════════════════════

@@ -645,6 +645,13 @@ public class TextureData
     [YamlMember(Alias = "distortion")]
     public float? Distortion { get; set; }
 
+    // Musgrave multifractal — only used by noise_type: hetero_terrain | hybrid_multifractal.
+    [YamlMember(Alias = "fractal_increment")]
+    public float? FractalIncrement { get; set; }
+
+    [YamlMember(Alias = "fractal_offset")]
+    public float? FractalOffset { get; set; }
+
     [YamlMember(Alias = "vein_axis")]
     public List<float>? VeinAxis { get; set; }
 
@@ -653,6 +660,10 @@ public class TextureData
 
     [YamlMember(Alias = "vein_sharpness")]
     public float? VeinSharpness { get; set; }
+
+    // Marble — studio-quality secondary wave (step 5/7 VFX textures).
+    [YamlMember(Alias = "secondary_wave")]
+    public SecondaryWaveData? SecondaryWave { get; set; }
 
     [YamlMember(Alias = "ring_axis")]
     public List<float>? RingAxis { get; set; }
@@ -663,6 +674,26 @@ public class TextureData
     [YamlMember(Alias = "axial_grain")]
     public float? AxialGrain { get; set; }
 
+    // Wood — studio-quality controls (step 5/7 VFX textures).
+    // `grain_strength` is a forward-compat alias for `noise_strength`.
+    [YamlMember(Alias = "grain_strength")]
+    public float? GrainStrength { get; set; }
+
+    [YamlMember(Alias = "grain_scale")]
+    public float? GrainScale { get; set; }
+
+    [YamlMember(Alias = "figure_scale")]
+    public float? FigureScale { get; set; }
+
+    [YamlMember(Alias = "figure_strength")]
+    public float? FigureStrength { get; set; }
+
+    [YamlMember(Alias = "radial_anisotropy")]
+    public float? RadialAnisotropy { get; set; }
+
+    [YamlMember(Alias = "knot_density")]
+    public float? KnotDensity { get; set; }
+
     // Voronoi
     [YamlMember(Alias = "metric")]
     public string? Metric { get; set; }
@@ -672,6 +703,10 @@ public class TextureData
 
     [YamlMember(Alias = "randomness")]
     public float? Randomness { get; set; }
+
+    // Smooth Voronoi (IQ): 0 = hard min (back-compat), ∈ (0,1] enables soft-min.
+    [YamlMember(Alias = "smoothness")]
+    public float? Smoothness { get; set; }
 
     // Brick
     [YamlMember(Alias = "brick_width")]
@@ -720,6 +755,25 @@ public class ColorRampStopData
 
     [YamlMember(Alias = "interp")]
     public string? Interp { get; set; }
+}
+
+/// <summary>
+/// Optional secondary vein wave on <see cref="MarbleTexture"/>. When
+/// <see cref="Strength"/> is omitted (or set to 0) the texture stays
+/// single-axis legacy. Setting just <c>strength</c> with default axis/
+/// frequency already produces visible cross-veining because the loader
+/// orthogonalises the secondary axis against the primary at sample time.
+/// </summary>
+public class SecondaryWaveData
+{
+    [YamlMember(Alias = "axis")]
+    public List<float>? Axis { get; set; }
+
+    [YamlMember(Alias = "frequency")]
+    public float? Frequency { get; set; }
+
+    [YamlMember(Alias = "strength")]
+    public float? Strength { get; set; }
 }
 
 public class EntityData

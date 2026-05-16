@@ -537,39 +537,57 @@ controls the size of each square (smaller scale = larger squares).
 ```yaml
 texture:
   type: "noise"
-  noise_type: "fbm"          # perlin | fbm | turbulence | ridged | billow
+  noise_type: "fbm"          # perlin | fbm | turbulence | ridged | billow | hetero_terrain | hybrid_multifractal
   scale: 4.0
   octaves: 5
   lacunarity: 2.0
   gain: 0.5
+  fractal_increment: 1.0     # Musgrave H — only hetero_terrain / hybrid_multifractal
+  fractal_offset: 0.7        # Musgrave offset / "sea level" — only hetero_terrain / hybrid_multifractal
   distortion: 0.3
   colors: [[0, 0, 0], [1, 1, 1]]
 ```
 
 3D-Ray ships a full pro-grade fractal noise stack — the same family of
-modes you find in Arnold's `noise`, Cycles' Noise Texture and RenderMan's
-`PxrFractal`:
+modes you find in Arnold's `noise`, Cycles' Noise/Musgrave Texture and
+RenderMan's `PxrFractal`:
 
-| `noise_type`  | Look                                              | Use for                        |
-|---------------|---------------------------------------------------|--------------------------------|
-| `perlin`      | Smooth gradient noise (single octave)             | Soft variation, low-frequency  |
-| `fbm`         | Sum of octaves (the canonical fractal noise)      | Stone, dirt, terrain, paper    |
-| `turbulence`  | Σ\|noise\| (sharpened absolute-value variant)     | Clouds, smoke, dirt detail     |
-| `ridged`      | Musgrave ridged multifractal                      | Rock, lightning, marble veins  |
-| `billow`      | Σ\|noise\| octaves, normalised                    | Puffy clouds, foam, rust       |
+| `noise_type`           | Look                                                  | Use for                              |
+|------------------------|-------------------------------------------------------|--------------------------------------|
+| `perlin`               | Smooth gradient noise (single octave)                 | Soft variation, low-frequency        |
+| `fbm`                  | Sum of octaves (the canonical fractal noise)          | Stone, dirt, terrain, paper          |
+| `turbulence`           | Σ\|noise\| (sharpened absolute-value variant)         | Clouds, smoke, dirt detail           |
+| `ridged`               | Musgrave ridged multifractal                          | Rock, lightning, marble veins        |
+| `billow`               | Σ\|noise\| octaves, normalised                        | Puffy clouds, foam, rust             |
+| `hetero_terrain`       | Musgrave §16.3.3 — peaks rough, valleys smooth        | Eroded terrain, mountains, coastline |
+| `hybrid_multifractal`  | Musgrave §16.3.4 — stratified layers + sharp peaks    | Asteroids, alien rock, marble strata |
 
-| Parameter        | Default | Description                                       |
-|------------------|---------|---------------------------------------------------|
-| `noise_type`     | auto    | Noise family (see table)                           |
-| `scale`          | `1.0`   | Frequency of the noise pattern                     |
-| `octaves`        | `5`     | fBm/ridged/billow octave count (1..16)             |
-| `lacunarity`     | `2.0`   | Frequency multiplier between successive octaves    |
-| `gain`           | `0.5`   | Amplitude decay between successive octaves         |
-| `distortion`     | `0`     | Domain-warp amplitude (organic / non-axis-aligned) |
-| `noise_strength` | --      | Legacy: 0 = smooth Perlin, >0 = turbulent          |
+| Parameter           | Default | Description                                                            |
+|---------------------|---------|------------------------------------------------------------------------|
+| `noise_type`        | auto    | Noise family (see table)                                               |
+| `scale`             | `1.0`   | Frequency of the noise pattern                                         |
+| `octaves`           | `5`     | fBm/ridged/billow/musgrave octave count (1..16)                        |
+| `lacunarity`        | `2.0`   | Frequency multiplier between successive octaves                        |
+| `gain`              | `0.5`   | Amplitude decay between successive octaves (fbm/ridged/billow)         |
+| `fractal_increment` | `1.0`   | Musgrave H — only hetero_terrain / hybrid_multifractal                 |
+| `fractal_offset`    | `0.7`   | Musgrave offset / "sea level" — only hetero_terrain / hybrid_multifractal |
+| `distortion`        | `0`     | Domain-warp amplitude (organic / non-axis-aligned)                     |
+| `noise_strength`    | --      | Legacy: 0 = smooth Perlin, >0 = turbulent                              |
 
 When `noise_type` is omitted, the texture falls back to legacy behaviour
 driven by `noise_strength` — so existing scenes render unchanged.
+
+**Musgrave multifractals.** `hetero_terrain` and `hybrid_multifractal`
+are the two "true terrain" fractals from Ebert/Musgrave/Peachey/Perlin
+*Texturing &amp; Modeling, 3rd ed.* §16.3. Unlike fBm — whose statistics
+are identical at every altitude — they multiply each octave's contribution
+by the running accumulated value (heterogeneous) or by a running weight
+(hybrid), so high ground picks up more roughness and valleys stay smooth.
+`H` (the fractal increment, default 1.0) controls how fast the high
+frequencies decay; H ≈ 0.25 gives rough mountains, H ≥ 1 gives smooth
+hills. `offset` (default 0.7) is the per-octave additive bias, the
+"sea level" knob. See `scenes/showcases/musgrave-multifractal-showcase.yaml`
+for the four-panel comparison fBm / hetero / hybrid / low-offset alpine.
 
 ### Marble
 
@@ -590,12 +608,42 @@ controls let you reproduce that look:
 
 | Parameter        | Default     | Description                                        |
 |------------------|-------------|----------------------------------------------------|
-| `vein_axis`      | `[0,0,1]`   | Vein propagation direction                          |
+| `vein_axis`      | `[0,0,1]`   | Primary vein propagation direction                  |
 | `vein_frequency` | `1.0`       | Multiplier on the sine term frequency               |
 | `vein_sharpness` | `1.0`       | 1 = soft (legacy), 4–8 = thin Carrara-style veins   |
 | `noise_type`     | `turbulence`| `turbulence` / `fbm` / `ridged` modulator           |
 | `octaves`        | `7`         | Octave count for the modulator                      |
 | `distortion`     | `0`         | Domain warp on the input position                   |
+| `secondary_wave` | --          | Optional cross-vein wave (Statuario / Calacatta)    |
+
+**Studio-quality cross-veining (`secondary_wave`).** Real Statuario,
+Calacatta, and Arabescato marbles run their veins along two non-parallel
+directions. Setting `secondary_wave.strength > 0` adds a second sinusoid
+along `secondary_wave.axis` to the primary vein term — the combined
+sine `sin(wave1) + strength · sin(wave2)` is renormalised so the
+output range stays well-defined. The secondary axis is auto-orthogonalised
+against the primary at sample time, so even picking a collinear axis
+produces visible cross-veining. `strength = 0` (default) is bit-identical
+to the single-axis legacy output. Pair with a 3+ stop `color_ramp:` for
+vein → mid-tone → base → undertone authoring.
+
+```yaml
+texture:
+  type: "marble"
+  vein_axis: [0, 0, 1]
+  secondary_wave:
+    axis: [1, 0, 0]
+    frequency: 0.7
+    strength: 0.5
+  color_ramp:
+    - { position: 0.0, color: [0.20, 0.16, 0.18], interp: "smoothstep" }  # dark vein
+    - { position: 0.3, color: [0.78, 0.62, 0.30], interp: "smoothstep" }  # warm gold
+    - { position: 0.7, color: [0.96, 0.94, 0.90], interp: "smoothstep" }  # ivory base
+    - { position: 1.0, color: [0.90, 0.92, 0.96], interp: "linear"     }  # cool undertone
+```
+
+See `scenes/showcases/marble-wood-studio-showcase.yaml` for the
+Carrara / Calacatta / Arabescato comparison.
 
 ### Wood
 
@@ -619,13 +667,301 @@ triangular wave around each ring boundary, producing the dark
 latewood lines you see in oak or walnut. `axial_grain` adds long-
 wavelength variation along the trunk axis (great for planks).
 
-| Parameter        | Default   | Description                                       |
-|------------------|-----------|---------------------------------------------------|
-| `ring_axis`      | `[0,1,0]` | Trunk / log axis (rings live in the ⊥ plane)      |
-| `ring_sharpness` | `1.0`     | 1 = soft (legacy), 3–6 = defined latewood         |
-| `axial_grain`    | `0.0`     | Long-wave variation along the trunk axis           |
-| `octaves`        | `1`       | fBm octaves on the grain (1 = legacy single Perlin)|
-| `distortion`     | `0`       | Domain warp — 0 = clean rings, ~0.5 = knots/waves |
+| Parameter            | Default   | Description                                              |
+|----------------------|-----------|----------------------------------------------------------|
+| `ring_axis`          | `[0,1,0]` | Trunk / log axis (rings live in the ⊥ plane)             |
+| `ring_sharpness`     | `1.0`     | 1 = soft (legacy), 3–6 = defined latewood                |
+| `axial_grain`        | `0.0`     | Long-wave variation along the trunk axis                  |
+| `octaves`            | `1`       | fBm octaves on the grain (1 = legacy single Perlin)       |
+| `distortion`         | `0`       | Domain warp — 0 = clean rings, ~0.5 = knots/waves         |
+| `grain_scale`        | `1.0`     | Multiplier on the high-freq grain sample point            |
+| `figure_scale`       | `0.25`    | Multiplier on the low-freq figure sample point             |
+| `figure_strength`    | `0.0`     | 0 = disabled, ~0.5–1.5 = curly maple / flame mahogany     |
+| `radial_anisotropy`  | `0.0`     | 0 = plain-sawn (isotropic), >0 = quartersawn-stretched    |
+| `knot_density`       | `0.0`     | 0 = no knots, ~0.5 = sparse knots, ~1 = packed knots      |
+
+**Studio-quality wood.** Four new opt-in knobs upgrade the wood texture
+to the Arnold / RenderMan / Cycles parity tier:
+
+- **Two-band perturbation** — `grain_scale` + `noise_strength` (alias
+  `grain_strength`) drive the high-frequency fibre detail inside each
+  ring; `figure_scale` + `figure_strength` add the independent low-frequency
+  plank-wide undulation that gives **curly maple** its stripes, **flame
+  mahogany** its ripples, and **bird's-eye** its blooms. The figure band
+  is sampled at a decorrelated noise offset so the two bands don't lock
+  step.
+- **`radial_anisotropy`** — compresses the noise sample's radial
+  component, so noise varies slowly along the radial direction. This is
+  the visual difference between **plain-sawn** (default 0, isotropic
+  features) and **quartersawn** boards (high anisotropy, fibres extend
+  radially). The implementation is safe on the trunk axis itself
+  (`radial.Length() == 0`) — the path falls back silently.
+- **`knot_density`** — sparse small-scale Voronoi spawns branch knots
+  that locally pull the ring centre toward the knot feature point and
+  add a dark heart on top. Same trick as Arnold's `knots` and
+  RenderMan's `PxrWoodKnot`. Combine with a 3-stop `color_ramp:` for
+  sapwood / heartwood / knot tri-tone authoring.
+
+```yaml
+texture:
+  type: "wood"
+  scale: 3.0
+  noise_strength: 1.5
+  ring_axis: [0, 1, 0]
+  ring_sharpness: 3.0
+  figure_scale: 0.22
+  figure_strength: 0.6
+  knot_density: 0.7
+  color_ramp:
+    - { position: 0.00, color: [0.18, 0.10, 0.06], interp: "smoothstep" }  # knot heart
+    - { position: 0.20, color: [0.55, 0.32, 0.16], interp: "smoothstep" }  # latewood
+    - { position: 0.65, color: [0.90, 0.72, 0.45], interp: "smoothstep" }  # earlywood
+    - { position: 1.00, color: [0.96, 0.86, 0.65], interp: "linear"     }  # sapwood
+```
+
+See `scenes/showcases/marble-wood-studio-showcase.yaml` for the
+six-sphere comparison: Carrara / Calacatta / Arabescato marbles + oak
+quartersawn / curly maple / knotty pine.
+
+---
+
+### 3.8.1 Marble & Wood Studio Lookdev — A Practical Walkthrough
+
+This sub-chapter is the longest in the materials tutorial because nailing
+photo-real stone and wood is one of the hardest things in any procedural
+renderer. The Arnold and RenderMan default marble shaders ship with
+**dozens** of knobs precisely because the look-and-feel depends on so
+many interlocking choices: lighting, BSDF parameters, vein geometry,
+sharpening response, ramp authoring, randomization. We'll walk through
+all of them, with copy-paste recipes from the reference showcase.
+
+#### Step 1 — Fix the lighting before you tune the texture
+
+A common trap: you write a "perfect" Carrara material, render, and the
+spheres come out bluish-grey. The texture is correct — the lighting
+isn't. **Polished marble at `roughness < 0.2` is essentially a mirror**,
+and on a textureless sky-gradient environment it picks up the sky colour
+instead of letting the diffuse texture read.
+
+The studio backdrop used by `marble-wood-studio-showcase.yaml`:
+
+```yaml
+world:
+  sky:
+    type: "flat"
+    color: [0.001, 0.001, 0.0012]   # near-black: no environment reflection
+
+lights:
+  # Strong direct key — dominates over the specular reflection,
+  # the diffuse texture becomes visible.
+  - type: "directional"
+    direction: [-0.4, -0.8, 0.45]
+    color: [1.0, 0.98, 0.94]
+    intensity: 6.5
+    angular_radius: 0.6          # soft shadow edges
+  - type: "point"
+    position: [-7, 6, -4]
+    color: [0.90, 0.93, 1.00]    # cool fill
+    intensity: 55
+  - type: "point"
+    position: [0, 3.5, 5]
+    color: [1.0, 0.82, 0.62]     # warm rim from behind for silhouette
+    intensity: 45
+```
+
+For an interior render with a textured environment (HDRI, kitchen
+windows, etc.) you can keep a brighter sky — the HDRI content will
+reflect interestingly off the marble. For a clean lookdev sphere, near-
+black is the safe default.
+
+#### Step 2 — Choose the marble personality
+
+| Marble       | Sharpness   | Secondary wave | Distortion | Ramp                                  |
+|--------------|-------------|----------------|------------|----------------------------------------|
+| Carrara      | 4.0         | none           | none       | 2-color (white base, near-black vein)  |
+| Calacatta    | 3.0         | strength 0.45  | none       | 4-stop (vein → gold → cream → ivory)   |
+| Statuario    | 3.5         | strength 0.35  | 0.15       | 3-stop (vein → grey → white)           |
+| Arabescato   | 2.0         | strength 0.7   | 0.35       | 3-stop (black vein → grey → ivory)     |
+| Port Laurent | 3.0         | strength 0.4   | none       | 3-stop (gold vein → brown → black)     |
+| Rosso Levanto| 4.0         | strength 0.4   | none       | 3-stop (white calcite → red → dark)    |
+
+The four-axis table reads top-to-bottom as "more chaotic, more nuanced":
+Carrara is geometric, Arabescato is geological.
+
+#### Step 3 — Sharpness convention (don't get this wrong)
+
+`vein_sharpness` controls how wide the vein region is relative to the
+base. The relationship is `t' = 1 − (1−t)^k` where `t = (sin(...) + 1)/2`
+is the underlying sine wave, so:
+
+- **`vein_sharpness = 1`** — no sharpening, soft 50/50 blend. Looks like
+  pre-step-5 "legacy" output. Veins are wide and blurry.
+- **`vein_sharpness = 3`** — average sample lands ~75% of the way from
+  vein to base. Bold veins ~25% of surface area. **Calacatta-grade.**
+- **`vein_sharpness = 5`** — average ~83%. Thin filigree veins. Real
+  Carrara look.
+- **`vein_sharpness = 8`** — average ~89%. Hairline veins, ramp must
+  have a high-frequency stop or the vein vanishes visually.
+
+Because the dominant area is *base*, when you author a `color_ramp`:
+
+```yaml
+color_ramp:
+  - { position: 0.00, color: <VEIN COLOUR> }   # rare, t→0
+  - ...                                        # transitions, mid-stops
+  - { position: 1.00, color: <BASE COLOUR> }   # dominant, t→1
+```
+
+If you reverse this (base at position 0, vein at position 1) the
+material renders mostly vein-coloured — that's how you'd accidentally
+get a "black marble with white veins" look from a Carrara YAML.
+
+#### Step 4 — Secondary wave for cross-veining
+
+Real Calacatta has *two* vein directions: large diagonal veins crossed
+by smaller transverse veins. We model this by adding a second sinusoid
+along an axis that's automatically orthogonalised against the primary at
+sample time (so even a collinear `axis: [0, 0, 1]` still produces
+visible cross-veining):
+
+```yaml
+secondary_wave:
+  axis: [1, 0, 0]                  # secondary direction hint
+  frequency: 0.65                  # non-integer ratio → no moiré
+  strength: 0.45                   # ≤1 typical; 0 = single-axis (back-compat)
+```
+
+The combined signal `sin(w1) + strength·sin(w2)` is renormalised by
+`(1 + strength)` so the output range stays in [-1, 1] and the sharpening
+curve still works.
+
+**Frequency tip:** if you pick `secondary_wave.frequency` as a non-trivial
+ratio of `vein_frequency` (e.g. 0.65, 0.85, 1.2) the cross-pattern is
+aperiodic and moiré-free. Equal frequencies produce a regular grid
+pattern that looks artificial.
+
+#### Step 5 — Roughness, clearcoat, and the "polished marble" trick
+
+For a kitchen-counter-grade polished marble you want **two specular
+layers**:
+
+```yaml
+roughness: 0.32       # base layer — diffuse texture still reads
+specular: 0.5
+clearcoat: 0.9        # polished varnish on top
+coat_roughness: 0.05  # near-mirror clearcoat
+```
+
+The `clearcoat` is a second specular layer over the base. The base layer
+is rough enough that the marble pattern survives, the coat adds the
+glass-like sheen on top. For a "satinato" / honed finish, drop the
+clearcoat entirely and raise `roughness` to 0.4–0.5.
+
+#### Step 6 — Wood: pick the cut and the figure
+
+Wood has three orthogonal cuts: plain-sawn, quartersawn, and rift. Plus
+optional figure (curly, flame, bird's-eye, burl) and optional knots.
+
+| Wood look       | `noise_strength` | `figure_strength` | `radial_anisotropy` | `knot_density` |
+|-----------------|------------------|-------------------|---------------------|----------------|
+| Plain-sawn oak  | 2.2              | 0.0               | 0.0                 | 0.0            |
+| Quartersawn oak | 2.2              | 0.0               | 2.5–3.5             | 0.0            |
+| Curly maple     | 0.25             | 1.5–1.8           | 0.0                 | 0.0            |
+| Bird's-eye      | 0.15             | 1.0–1.4 + scale 0.45 | 0.0              | 0.0            |
+| Flame mahogany  | 0.4              | 1.3–1.5           | 0.0                 | 0.0            |
+| Knotty pine     | 0.6              | 0.3 (subtle)      | 0.0                 | 0.7–1.0        |
+| Walnut burl    | 0.5              | 1.4               | 0.0                 | 0.6            |
+
+The pattern: **figure dominates the grain** — to get a clean figure look
+you must lower the grain (`noise_strength` ≤ 0.6) so the high-frequency
+fibres don't drown the slow undulations. The other way around for plain
+oak: figure off, grain dialled up to 2.0+ for clear fibrous lines.
+
+#### Step 7 — Ring sharpness vs. scale
+
+`ring_sharpness` controls the latewood band width (the dark line at the
+end of each year's growth). Combined with `scale`:
+
+- `scale = 3`, `ring_sharpness = 1` — soft, wide bands. Oak from a young
+  fast-growing tree (legacy default).
+- `scale = 4.5`, `ring_sharpness = 4` — clear latewood band ~10% of the
+  ring width. Classic oak / walnut look.
+- `scale = 6`, `ring_sharpness = 5` — tight rings, hairline latewood.
+  Old-growth fir, slow-growth pine.
+- `scale = 6`, `ring_sharpness = 8` — very tight rings, almost grating-
+  like. Aliases on small spheres, only use on close-ups.
+
+#### Step 8 — Authoring knot rings
+
+When `knot_density > 0` the texture spawns small-scale Voronoi knots in
+the plane perpendicular to `ring_axis`. Inside a knot the ring centre
+is pulled toward the knot feature, producing concentric rings around the
+knot — exactly like a branch cross-section embedded in the trunk wood.
+Two rules:
+
+1. **High `scale`** (≥ 5): so the knot can host visible internal rings.
+   A small `scale` makes knots look like dark spots, not knots.
+2. **4-stop ramp** that reserves position 0 for the knot heart:
+   ```yaml
+   color_ramp:
+     - { position: 0.00, color: [0.05, 0.03, 0.02] }   # KNOT HEART (very dark)
+     - { position: 0.18, color: [0.35, 0.18, 0.08] }   # latewood
+     - { position: 0.65, color: [0.90, 0.68, 0.40] }   # earlywood
+     - { position: 1.00, color: [0.97, 0.86, 0.60] }   # sapwood
+   ```
+   The `t *= (1 − knotDarken)` step inside the texture pushes `t → 0`
+   at knot centres regardless of which ring band the sample fell into,
+   so position 0 always shows. Without that dedicated knot stop, the
+   knot would just darken the local ring colour — visible but less
+   recognisable as a knot.
+
+#### Step 9 — Randomization for instancing
+
+If you place multiple wooden / marble objects in a scene and they all
+use the same material, they'll all show the **identical** pattern. The
+randomization knob:
+
+```yaml
+texture:
+  type: "wood"
+  randomize_offset: true     # different texture origin per object
+  randomize_rotation: true   # different texture orientation per object
+```
+
+Each entity gets a different `objectSeed` (from `seed:` on the entity,
+or auto-incremented otherwise), and the `Apply()` in `TextureTransform`
+generates a per-seed offset+rotation. **Always enable this for shared
+materials.**
+
+#### Step 10 — The pre-baked catalogue
+
+The library bundles 14 studio-quality materials ready to import:
+
+```yaml
+imports:
+  - { path: "scenes/libraries/materials/stones.yaml" }
+  - { path: "scenes/libraries/materials/woods.yaml" }
+
+entities:
+  - { type: "sphere", center: [0, 1, 0], radius: 1, material: "dis_calacatta_studio_lucido" }
+```
+
+Catalogue (`_studio` suffix throughout):
+- **Marbles:** `dis_carrara_studio`, `dis_carrara_studio_lucido`,
+  `dis_calacatta_studio`, `dis_calacatta_studio_lucido`,
+  `dis_statuario_studio`, `dis_statuario_studio_lucido`,
+  `dis_arabescato_studio`, `dis_arabescato_studio_lucido`,
+  `dis_port_laurent_studio_lucido`, `dis_rosso_levanto_studio_lucido`
+  + Classic Lambertian variants.
+- **Woods:** `dis_acero_curly_studio`, `dis_acero_birdseye_studio`,
+  `dis_acero_sapwood_studio`, `dis_mogano_flame_studio`,
+  `dis_quercia_quartato_studio`, `dis_frassino_quartato_studio`,
+  `dis_pino_nodoso_studio`, `dis_abete_nodoso_studio`,
+  `dis_noce_burl_studio` + Classic variants.
+
+Each is tuned with the recipes above. Start from a `_studio` entry,
+swap colour ramp stops to match your reference photo, and you have a
+production-ready material.
 
 ### Voronoi / Worley (cellular)
 
@@ -636,6 +972,7 @@ texture:
   metric: "euclidean"        # euclidean | manhattan | chebyshev | euclidean_squared
   output: "f2_minus_f1"      # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
   randomness: 0.9
+  smoothness: 0.0            # 0 = hard min (classic); ∈ (0,1] enables Smooth Voronoi
   colors: [[0.05, 0.05, 0.05], [0.95, 0.90, 0.70]]
 ```
 
@@ -658,6 +995,18 @@ collapses features onto a regular grid; `1` is full random scatter.
 > see in the cell interiors. For the classic crackle look — bright thin
 > lines on dark background — write `colors: [[bright], [dark]]`. The
 > example above intentionally does this.
+
+> **Smooth Voronoi (`smoothness`).** Setting `smoothness > 0` swaps the
+> hard `min()` over the 27-cell neighbourhood for Inigo Quilez' log-sum-exp
+> soft-min `-log(Σ exp(-k·d_i)) / k` with `k = 20/smoothness`. F1 becomes
+> C∞-continuous everywhere; F2 is built from the same accumulator with
+> the dominant weight excluded so `f2_minus_f1` loses its sharp V-ridge —
+> bordi morbidi, no step alias along the cracks. Use it for polished
+> leather, water-rounded pebbles, supple reptile skin, closed-pore marble.
+> `smoothness = 0` (default) is bit-identical to the legacy behaviour;
+> the `cell` output is intentionally unaffected (cell-ID is discrete).
+> See `scenes/showcases/smooth-voronoi-showcase.yaml` for the three-sphere
+> hard / 0.3 / 0.7 comparison and parity check with Cycles' Smooth F1.
 
 ### Brick
 

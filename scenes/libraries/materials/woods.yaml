@@ -39,13 +39,48 @@
 #
 #   scale          Frequenza degli anelli: basso = anelli larghi (legno
 #                  vecchio), alto = anelli stretti (crescita rapida).
-#   noise_strength Irregolarità della venatura: basso = anelli regolari
-#                  (essenze coltivate), alto = nodi e figure.
+#   noise_strength Irregolarità della venatura (= alias `grain_strength`):
+#                  basso = anelli regolari (essenze coltivate), alto = nodi e figure.
 #   colors         [colore_chiaro, colore_scuro]: il legno precoce e
 #                  tardivo che forma gli anelli. Il contrasto tra i due
 #                  definisce la "personalità" dell'essenza.
 #   randomize_offset/rotation  Sempre true per evitare pattern ripetitivi
 #                  quando la stessa essenza è usata su più oggetti.
+#
+# ── Parametri "studio quality" (opt-in, step 5/7 VFX textures) ──────────
+#
+#   Il motore supporta cinque controlli aggiuntivi per produzioni VFX —
+#   tutti hanno default no-op e non rompono le scene legacy:
+#
+#   ring_sharpness    Esponente del triangle-wave sugli anelli. 1 = legacy
+#                     soft, 3-6 = legno tardivo (latewood) sottile e netto
+#                     come in rovere/noce reali.
+#
+#   grain_scale       Moltiplicatore freq. sul grain (alta freq, fibra
+#                     interna agli anelli). Default 1.0.
+#
+#   figure_scale      Moltiplicatore freq. sulla "figure" (bassa freq,
+#                     ondulazione plank-wide). Default 0.25.
+#   figure_strength   Peso della figure. 0 = disattivata (default). Tra
+#                     0.4-1.8 produce il look "curly maple" / "flame
+#                     mahogany" / "bird's-eye".
+#
+#   radial_anisotropy Comprime la coordinata radiale del noise sample
+#                     point. 0 = piano-sawn isotropo (default). Tra 2-4
+#                     produce il look quartersawn-oak con fibre stirate
+#                     lungo la direzione radiale.
+#
+#   knot_density      Probabilità di spawn di nodi via Voronoi piccolo-
+#                     scala. 0 = nessun nodo (default). Tra 0.5-1.0
+#                     produce pino/abete nodoso con dark heart al centro
+#                     del nodo. Combinabile con `color_ramp` 4-stop dove
+#                     position 0 = cuore nodo nero, 0.2 = latewood, 0.65 =
+#                     earlywood, 1.0 = sapwood.
+#
+#   color_ramp        Lista di stop multi-colore al posto del `colors:`
+#                     a 2 colori. Sblocca gradienti sapwood/heartwood/
+#                     knot a 3+ stop, con interp `linear` / `smoothstep`
+#                     / `constant` / `ease` per segmento.
 #
 # ── Categorie ────────────────────────────────────────────────────────────
 #
@@ -69,6 +104,11 @@
 #
 #   LEGNI TRATTATI        Legno sbiancato, carbonizzato (Shou Sugi Ban),
 #                         invecchiato (barnwood), tinto.
+#
+#   STUDIO QUALITY        Variants con `figure_strength`, `radial_anisotropy`,
+#                         `knot_density` e `color_ramp` per look VFX
+#                         production-grade: curly maple, oak quartersawn,
+#                         knotty pine, ecc.
 #
 # ============================================================================
 
@@ -1066,3 +1106,315 @@ materials:
       colors: [[0.52, 0.50, 0.48], [0.38, 0.36, 0.35]]
       randomize_offset: true
       randomize_rotation: true
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  STUDIO-QUALITY — VFX production-grade (step 5/7 textures roadmap)
+  #
+  #  Materiali che sfruttano i nuovi controlli `figure_strength`,
+  #  `radial_anisotropy`, `knot_density`, `ring_sharpness` e `color_ramp` per
+  #  pareggiare il look dei renderer pro (Arnold knots, RenderMan PxrWoodKnot,
+  #  Cycles Wood node con figure). Tutti hanno il prefisso `_studio` per
+  #  distinguerli dai materiali legacy con stesso nome.
+  #
+  #  Linee guida di tuning (testate sul showcase marble-wood-studio):
+  #   - `ring_sharpness` 3.5-5.0 dà bande crisp (latewood sottile).
+  #   - `figure_strength` 0.8-1.8 con `figure_scale` 0.10-0.20 produce
+  #     ondulazioni larghe ben visibili. Lower `noise_strength` (0.3-0.8)
+  #     per dare risalto alla figure rispetto al grain.
+  #   - `radial_anisotropy` 2-4 stretcha le fibre lungo il radiale.
+  #   - `knot_density` 0.7-1.0 con `scale` ≥ 5 fa nodi grandi con anelli
+  #     concentrici visibili al loro interno. Combinare con `color_ramp` a
+  #     4 stop dove position 0 = cuore nodo (nero/marrone scuro).
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── ACERO CURLY — figure band ondulata (curly maple, fiddleback) ───────
+  # Caratteristica: strisce ondulate trasversali ben visibili sopra il grain
+  # naturale dell'acero. La banda figure a bassa frequenza domina la
+  # perturbazione, mentre il grain è quasi-spento.
+
+  - id: "dis_acero_curly_studio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 5.0
+      noise_strength: 0.25
+      octaves: 4
+      grain_scale: 1.8
+      figure_scale: 0.10
+      figure_strength: 1.8
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.38, 0.20], interp: "smoothstep" }
+        - { position: 0.45, color: [0.85, 0.72, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.92, 0.76], interp: "linear"     }
+    roughness: 0.42
+    specular: 0.45
+    sheen: 0.08
+    sheen_tint: 0.6
+
+  - id: "cls_acero_curly_studio"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 5.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 5.0
+      noise_strength: 0.25
+      octaves: 4
+      grain_scale: 1.8
+      figure_scale: 0.10
+      figure_strength: 1.8
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.38, 0.20], interp: "smoothstep" }
+        - { position: 0.45, color: [0.85, 0.72, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.92, 0.76], interp: "linear"     }
+
+  # ── MOGANO FLAME — figure intensa su mogano (flame mahogany) ──────────
+  # Ondulazioni larghe rosso scuro: classica figure del mogano "ribbon" o
+  # "flame", uno dei pattern più pregiati nel mondo del legno.
+
+  - id: "dis_mogano_flame_studio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.5
+      noise_strength: 0.4
+      octaves: 5
+      figure_scale: 0.13
+      figure_strength: 1.5
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.06, 0.03], interp: "smoothstep" }   # scuro intenso
+        - { position: 0.50, color: [0.48, 0.18, 0.08], interp: "smoothstep" }   # mogano caldo
+        - { position: 1.00, color: [0.72, 0.36, 0.20], interp: "linear"     }   # highlight aranciato
+    roughness: 0.30
+    specular: 0.50
+    clearcoat: 0.75
+    coat_roughness: 0.10
+
+  # ── ROVERE QUARTATO — radial_anisotropy (quartersawn oak) ──────────────
+  # Tagliato perpendicolare agli anelli: le fibre del grain appaiono
+  # stretched lungo la direzione radiale. Pattern apprezzato in falegnameria
+  # di pregio (Stickley, mission style, mobili Arts & Crafts).
+
+  - id: "dis_quercia_quartato_studio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.0
+      noise_strength: 2.2
+      octaves: 5
+      radial_anisotropy: 3.0
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.30, 0.18, 0.08], interp: "smoothstep" }   # latewood sottile
+        - { position: 0.55, color: [0.82, 0.62, 0.38], interp: "smoothstep" }   # earlywood
+        - { position: 1.00, color: [0.95, 0.82, 0.62], interp: "linear"     }   # earlywood chiaro
+    roughness: 0.55
+    specular: 0.28
+    sheen: 0.12
+    sheen_tint: 0.7
+
+  - id: "cls_quercia_quartato_studio"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.5
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.0
+      noise_strength: 2.2
+      octaves: 5
+      radial_anisotropy: 3.0
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.30, 0.18, 0.08], interp: "smoothstep" }
+        - { position: 0.55, color: [0.82, 0.62, 0.38], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.82, 0.62], interp: "linear"     }
+
+  # ── FRASSINO QUARTATO — radial_anisotropy alto, anelli stretti ────────
+  - id: "dis_frassino_quartato_studio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.5
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.5
+      noise_strength: 1.8
+      octaves: 5
+      radial_anisotropy: 2.5
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.42, 0.30, 0.16], interp: "smoothstep" }
+        - { position: 0.55, color: [0.85, 0.72, 0.52], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.88, 0.72], interp: "linear"     }
+    roughness: 0.55
+    specular: 0.28
+    sheen: 0.10
+    sheen_tint: 0.7
+
+  # ── PINO NODOSO — knot_density max (knotty pine) ──────────────────────
+  # Pino con nodi grandi e numerosi, dark heart al centro di ogni nodo.
+  # scale=6 così ogni nodo contiene anelli concentrici visibili (cross-
+  # section di branca embedded nel tronco).
+
+  - id: "dis_pino_nodoso_studio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 6.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.0
+      noise_strength: 0.6
+      octaves: 5
+      figure_scale: 0.25
+      figure_strength: 0.3
+      knot_density: 1.0
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.03, 0.02], interp: "smoothstep" }   # cuore nodo nero
+        - { position: 0.18, color: [0.35, 0.18, 0.08], interp: "smoothstep" }   # latewood scuro
+        - { position: 0.65, color: [0.90, 0.68, 0.40], interp: "smoothstep" }   # earlywood caldo
+        - { position: 1.00, color: [0.97, 0.86, 0.60], interp: "linear"     }   # sapwood chiaro
+    roughness: 0.55
+    specular: 0.22
+    sheen: 0.10
+    sheen_tint: 0.7
+
+  - id: "cls_pino_nodoso_studio"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 6.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.0
+      noise_strength: 0.6
+      octaves: 5
+      figure_scale: 0.25
+      figure_strength: 0.3
+      knot_density: 1.0
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.03, 0.02], interp: "smoothstep" }
+        - { position: 0.18, color: [0.35, 0.18, 0.08], interp: "smoothstep" }
+        - { position: 0.65, color: [0.90, 0.68, 0.40], interp: "smoothstep" }
+        - { position: 1.00, color: [0.97, 0.86, 0.60], interp: "linear"     }
+
+  # ── ABETE NODOSO — knot_density medio, anelli più larghi ───────────────
+  - id: "dis_abete_nodoso_studio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 3.5
+      noise_strength: 0.8
+      octaves: 5
+      knot_density: 0.7
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.06, 0.04, 0.03], interp: "smoothstep" }
+        - { position: 0.20, color: [0.50, 0.32, 0.18], interp: "smoothstep" }
+        - { position: 0.70, color: [0.92, 0.80, 0.58], interp: "smoothstep" }
+        - { position: 1.00, color: [0.97, 0.92, 0.78], interp: "linear"     }
+    roughness: 0.65
+    specular: 0.20
+    sheen: 0.12
+    sheen_tint: 0.7
+
+  # ── BIRDS-EYE MAPLE — figure puntiforme, classico mobili design ────────
+  # Bird's-eye è un pattern raro che produce piccoli "occhi" — ottenuto qui
+  # con figure_scale alta (frequenza maggiore della bassa-freq classica) e
+  # noise_strength molto basso così solo la figure è visibile.
+
+  - id: "dis_acero_birdseye_studio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.5
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 6.0
+      noise_strength: 0.15
+      octaves: 4
+      figure_scale: 0.45
+      figure_strength: 1.2
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.48, 0.32, 0.18], interp: "smoothstep" }   # "occhio"
+        - { position: 0.50, color: [0.90, 0.78, 0.55], interp: "smoothstep" }   # base
+        - { position: 1.00, color: [0.97, 0.92, 0.78], interp: "linear"     }   # highlight
+    roughness: 0.35
+    specular: 0.50
+    clearcoat: 0.6
+    coat_roughness: 0.10
+
+  # ── CARRARA SAPWOOD/HEARTWOOD ACERO — ramp 3-stop ──────────────────────
+  # Acero artigianale con netta separazione tra alburno e durame, ottenuta
+  # tramite ramp 3-stop dove i due colori del legno coesistono distintamente.
+
+  - id: "dis_acero_sapwood_studio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 3.5
+      noise_strength: 1.8
+      octaves: 5
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.40, 0.22], interp: "smoothstep" }   # heartwood scuro
+        - { position: 0.35, color: [0.78, 0.62, 0.38], interp: "smoothstep" }   # transizione
+        - { position: 0.65, color: [0.94, 0.86, 0.62], interp: "smoothstep" }   # sapwood
+        - { position: 1.00, color: [0.98, 0.92, 0.78], interp: "linear"     }   # sapwood chiaro
+    roughness: 0.60
+    specular: 0.30
+    sheen: 0.12
+    sheen_tint: 0.7
+
+  # ── NOCE BURL — figure intensa + knot, look "burr walnut" ─────────────
+  # Burl è il legno irregolare delle escrescenze del tronco: figure massima
+  # + knots produce il pattern caratteristico usato in cruscotti di lusso
+  # (Rolls-Royce, Bentley) e calci di fucili pregiati.
+
+  - id: "dis_noce_burl_studio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.5
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.0
+      noise_strength: 0.5
+      octaves: 5
+      figure_scale: 0.20
+      figure_strength: 1.4
+      knot_density: 0.6
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.10, 0.05, 0.02], interp: "smoothstep" }   # cuore nodo
+        - { position: 0.30, color: [0.30, 0.18, 0.10], interp: "smoothstep" }   # noce scuro
+        - { position: 0.70, color: [0.55, 0.32, 0.16], interp: "smoothstep" }   # noce caldo
+        - { position: 1.00, color: [0.75, 0.55, 0.30], interp: "linear"     }   # highlight ambrato
+    roughness: 0.18
+    specular: 0.55
+    clearcoat: 0.90
+    coat_roughness: 0.05

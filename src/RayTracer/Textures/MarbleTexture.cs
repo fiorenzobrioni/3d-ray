@@ -15,9 +15,21 @@ namespace RayTracer.Textures;
 /// </para>
 ///
 /// <para>
+/// <b>Studio-quality secondary wave.</b> When <see cref="SecondaryStrength"/>
+/// &gt; 0 a second sinusoid along <see cref="SecondaryAxis"/> is added to the
+/// vein term: <c>sin(wave1) + strength · sin(wave2)</c>, renormalised. This
+/// breaks the rigid unidirectionality of single-axis marble and produces
+/// the cross-veining of Statuario, Calacatta and Arabescato — slabs where
+/// veins run along two non-parallel directions. Default secondary axis is
+/// orthogonalised against the primary axis so artists can set just the
+/// strength and get a sane visual immediately.
+/// </para>
+///
+/// <para>
 /// Backward-compat default: <c>vein_axis = Z</c>, <c>vein_frequency = 1</c>,
 /// <c>vein_sharpness = 1</c>, <c>octaves = 7</c> with classic
-/// <c>turbulence</c> reproduces the legacy implementation exactly.
+/// <c>turbulence</c> and <c>secondary_strength = 0</c> reproduces the
+/// legacy implementation exactly.
 /// </para>
 ///
 /// In YAML:
@@ -27,7 +39,7 @@ namespace RayTracer.Textures;
 ///   scale: 4.0
 ///   noise_strength: 10.0
 ///   colors: [[0.9,0.9,0.9], [0.1,0.1,0.1]]
-///   vein_axis: [0, 0, 1]      # vein propagation direction
+///   vein_axis: [0, 0, 1]      # primary vein propagation direction
 ///   vein_frequency: 1.0        # multiplier on the sine term frequency
 ///   vein_sharpness: 1.0        # 1=soft (default), 2-8=thin sharp veins
 ///   octaves: 7                 # fBm octaves used by the turbulence term
@@ -35,6 +47,10 @@ namespace RayTracer.Textures;
 ///   gain: 0.5
 ///   distortion: 0.0            # domain warp amplitude
 ///   noise_type: "turbulence"   # turbulence | fbm | ridged
+///   secondary_wave:            # optional — Statuario / Calacatta cross-veins
+///     axis: [1, 0, 0]          # second vein direction (auto-orthogonalised)
+///     frequency: 0.7           # independent of primary frequency
+///     strength: 0.5            # 0 = disabled (back-compat), ≤1 typical
 /// </code>
 /// </summary>
 public class MarbleTexture : ITexture
@@ -60,6 +76,35 @@ public class MarbleTexture : ITexture
     public float Gain { get; set; } = 0.5f;
     public float Distortion { get; set; } = 0f;
     public FractalKind NoiseType { get; set; } = FractalKind.Turbulence;
+
+    /// <summary>
+    /// Optional second vein direction. When <see cref="SecondaryStrength"/>
+    /// is 0 (default) the secondary wave is disabled and the texture is
+    /// byte-identical to the single-axis legacy output. When &gt; 0 the
+    /// secondary sine is added to the primary sine before sharpening,
+    /// unlocking Statuario / Calacatta / Arabescato cross-veining looks.
+    /// The axis is internally projected against the primary axis so the
+    /// effective second direction is always at least partly perpendicular
+    /// — picking an axis collinear with the primary still yields a useful
+    /// off-axis component.
+    /// </summary>
+    public Vector3 SecondaryAxis { get; set; } = Vector3.UnitX;
+
+    /// <summary>
+    /// Frequency multiplier on the secondary sine term — independent from
+    /// <see cref="VeinFrequency"/>. Setting it to a non-integer ratio of the
+    /// primary frequency (e.g. 0.7, 1.3) produces aperiodic moiré-free
+    /// secondary veining; setting them equal gives a regular cross hatch.
+    /// </summary>
+    public float SecondaryFrequency { get; set; } = 1f;
+
+    /// <summary>
+    /// Amplitude weight of the secondary sine in the combined vein term.
+    /// 0 (default) ⇒ disabled. Typical values are 0.3–0.7; the combined
+    /// signal is renormalised by <c>(1 + strength)</c> so the sine output
+    /// stays in [-1, 1] and the sharpening curve is unaffected.
+    /// </summary>
+    public float SecondaryStrength { get; set; } = 0f;
 
     /// <summary>
     /// Optional multi-stop colour ramp. When set, the sine-wave vein parameter
@@ -101,14 +146,55 @@ public class MarbleTexture : ITexture
         // Vein term: sine of (axis-projection × scale × vein_freq) + strength·fBm
         Vector3 axis = VeinAxis.LengthSquared() > 1e-12f ? Vector3.Normalize(VeinAxis) : Vector3.UnitZ;
         float along = Vector3.Dot(q, axis);
-        float sinVal = MathF.Sin(_scale * VeinFrequency * along + NoiseStrength * fractal);
+        float wave1 = MathF.Sin(_scale * VeinFrequency * along + NoiseStrength * fractal);
+
+        float sinVal;
+        if (SecondaryStrength > 0f)
+        {
+            // Studio-quality cross-veining: a second sine along an axis
+            // orthogonalised against the primary, so even if the user sets a
+            // collinear axis they still get a perpendicular component (matches
+            // how Arnold's `marble2` and RM PxrMarble blend layered slabs).
+            Vector3 secAxisRaw = SecondaryAxis.LengthSquared() > 1e-12f
+                ? Vector3.Normalize(SecondaryAxis) : Vector3.UnitX;
+            Vector3 secAxisOrtho = secAxisRaw - Vector3.Dot(secAxisRaw, axis) * axis;
+            // Fallback when the user picked an axis perfectly parallel to the
+            // primary one — pick any vector in the perpendicular plane.
+            if (secAxisOrtho.LengthSquared() < 1e-8f)
+            {
+                Vector3 helper = MathF.Abs(axis.X) < 0.9f ? Vector3.UnitX : Vector3.UnitY;
+                secAxisOrtho = helper - Vector3.Dot(helper, axis) * axis;
+            }
+            secAxisOrtho = Vector3.Normalize(secAxisOrtho);
+            float along2 = Vector3.Dot(q, secAxisOrtho);
+            float wave2 = MathF.Sin(_scale * SecondaryFrequency * along2 + NoiseStrength * fractal);
+            // Renormalise (1 + strength) so the combined signal stays in [-1, 1].
+            sinVal = (wave1 + SecondaryStrength * wave2) / (1f + SecondaryStrength);
+        }
+        else
+        {
+            sinVal = wave1;
+        }
         float t = (sinVal + 1f) * 0.5f;
 
         if (VeinSharpness != 1f && VeinSharpness > 0f)
         {
-            // sharpening: t^k pulls the gradient toward the vein color, producing
-            // thin high-contrast veins as k grows (k = 4 ≈ Carrara marble).
-            t = MathF.Pow(t, VeinSharpness);
+            // Sharpening on the *vein region* — the troughs of the sine wave
+            // (t ≈ 0). With t' = 1 − (1 − t)^k the BASE color (t = 1) widens
+            // its area and the vein narrows, which is what real Carrara /
+            // Calacatta look like and what Cycles' "Width", Arnold marble2's
+            // `vein_width` and RenderMan PxrMarble's `veinFalloff` all do.
+            //
+            // Earlier the code did `t = t^k`, which inverted the result —
+            // raising k pushed the average sample toward 0 (vein) so the
+            // surface read as mostly dark with thin bright bands instead of
+            // mostly light with thin dark bands. That was a long-standing
+            // semantic bug fixed in step 5/7 of the VFX texture roadmap;
+            // sharpness = 1 (default) stays bit-identical to the legacy
+            // implementation, so only scenes that explicitly set
+            // `vein_sharpness > 1` see a change — the change is from "wrong"
+            // to "right" so we accept the visual diff.
+            t = 1f - MathF.Pow(1f - t, VeinSharpness);
         }
 
         if (ColorRamp is { } ramp)

@@ -523,24 +523,41 @@ texture:
 ```yaml
 texture:
   type: "noise"
-  noise_type: "fbm"            # perlin | fbm | turbulence | ridged | billow
+  noise_type: "fbm"            # perlin | fbm | turbulence | ridged | billow | hetero_terrain | hybrid_multifractal
   scale: 5.0
-  octaves: 5                   # 1..16 — ottave per fBm/ridged/billow
+  octaves: 5                   # 1..16 — ottave per fBm/ridged/billow/musgrave
   lacunarity: 2.0              # moltiplicatore di frequenza fra ottave
-  gain: 0.5                    # decadimento di ampiezza fra ottave
+  gain: 0.5                    # decadimento di ampiezza fra ottave (fbm/ridged/billow)
+  fractal_increment: 1.0       # Musgrave H — solo per hetero_terrain / hybrid_multifractal
+  fractal_offset: 0.7          # Musgrave offset / "sea level" — solo per hetero_terrain / hybrid_multifractal
   distortion: 0.0              # domain warp (deforma il dominio per organicità)
   noise_strength: 0.0          # legacy: 0=Perlin liscio, >0=turbolento (sovrascritto da noise_type)
   colors: [[0, 0, 0], [1, 1, 1]]
 ```
-Le cinque famiglie corrispondono alle modalità standard dei renderer professionali:
+Le sette famiglie corrispondono alle modalità standard dei renderer professionali:
 - `perlin` — gradient noise liscio a singola ottava.
 - `fbm` — Σ noise/2^i, il "fractal noise" canonico di Arnold/Cycles/RenderMan.
 - `turbulence` — Σ|noise|/2^i con valore assoluto per nitidezza.
 - `ridged` — ridged multifractal di Musgrave, ridge nette (roccia, fulmini).
 - `billow` — Σ|noise| sulle ottave, gonfio/cumuliforme.
+- `hetero_terrain` — terreno eterogeneo di Musgrave (Ebert et al. §16.3.3):
+  l'ampiezza di ogni ottava viene moltiplicata per il valore accumulato
+  corrente, così le quote alte diventano rugose e le valli restano lisce.
+  Il look canonico del terreno eroso, irraggiungibile con fBm puro.
+- `hybrid_multifractal` — multifrattale ibrido di Musgrave (§16.3.4):
+  il segnale di ogni ottava viene moltiplicato per un `weight` corrente
+  (clampato a 1), producendo strati rocciosi stratificati e picchi netti.
+  Usato per asteroidi, rocce aliene, marmi stratigrafici.
 
 `distortion` deforma la posizione di input con un campione Perlin secondario
-(tecnica di Inigo Quilez); 0.3–0.8 è di solito sufficiente.
+(tecnica di Inigo Quilez); 0.3–0.8 è di solito sufficiente. `fractal_increment`
+(la H di Musgrave, default 1.0) controlla la velocità di decadimento delle
+ottave alta-frequenza — H ≈ 0.25 produce terreno rugoso, H ≥ 1 produce campi
+lisci dominati dalla bassa frequenza. `fractal_offset` (default 0.7) è il
+bias di "sea level" aggiunto a ogni ottava; valori alti appiattiscono le
+valli, valori bassi trasformano tutto in montagne. Questi due parametri
+sono usati solo dalle modalità `hetero_terrain` / `hybrid_multifractal`
+— gli altri tipi di noise li ignorano.
 
 **Marble:**
 ```yaml
@@ -548,7 +565,7 @@ texture:
   type: "marble"
   scale: 4.0
   noise_strength: 10.0
-  vein_axis: [1, 0, 0.3]       # direzione di propagazione delle venature (default Z)
+  vein_axis: [1, 0, 0.3]       # direzione primaria di propagazione delle venature (default Z)
   vein_frequency: 1.0          # moltiplicatore sul termine sinusoidale
   vein_sharpness: 4.0          # 1=morbido (legacy), 4-8=venature sottili Carrara
   noise_type: "turbulence"     # turbulence | fbm | ridged
@@ -557,17 +574,31 @@ texture:
   gain: 0.5
   distortion: 0.0
   colors: [[0.95, 0.95, 0.95], [0.10, 0.10, 0.15]]
+  secondary_wave:              # opzionale — venature incrociate Statuario / Calacatta
+    axis: [1, 0, 0]            # seconda direzione di vena (auto-ortogonalizzata)
+    frequency: 0.7             # indipendente dalla frequenza primaria
+    strength: 0.5              # 0 = disattivato (back-compat), ~0.3-0.7 tipico
 ```
 L'asse delle venature controlla la direzione di propagazione; un vettore non
 allineato agli assi produce lastre naturali. `vein_sharpness` eleva la
 sinusoide a potenza, restringendo la banda scura in una vera vena.
+
+> **`secondary_wave` studio-quality.** Con `strength > 0` aggiunge una
+> seconda sinusoide lungo `secondary_wave.axis` al termine principale:
+> `sin(wave1) + strength · sin(wave2)`, rinormalizzato in [-1, 1]. L'asse
+> secondario viene auto-ortogonalizzato contro il primario al sample-time,
+> quindi anche scegliendolo collineare si ottengono comunque venature
+> incrociate visibili — è il look Statuario / Calacatta / Arabescato
+> irraggiungibile con una sola direzione. Combinabile con un `color_ramp:`
+> a 3+ stop per autorialità vena → mid-tone → base → undertone.
+> `strength = 0` (default) è bit-identico al comportamento legacy.
 
 **Wood:**
 ```yaml
 texture:
   type: "wood"
   scale: 4.0
-  noise_strength: 2.0
+  noise_strength: 2.0          # alias: grain_strength (ampiezza grain alta-freq)
   ring_axis: [0, 1, 0]         # asse del tronco; anelli ⊥ asse (default Y)
   ring_sharpness: 3.0          # 1=morbido (legacy), 3-6=legno tardivo definito
   axial_grain: 0.3             # noise a lunga lunghezza d'onda lungo l'asse
@@ -576,7 +607,190 @@ texture:
   gain: 0.5
   distortion: 0.0              # 0=anelli puliti, ~0.5=nodi/onde
   colors: [[0.85, 0.65, 0.40], [0.60, 0.40, 0.20]]
+  # ── Studio-quality (opt-in, tutti i default sono no-op back-compat) ──
+  grain_scale: 1.0             # moltiplicatore sul sample-point del grain (alta freq)
+  figure_scale: 0.25           # moltiplicatore sul sample-point della "figure" (bassa freq)
+  figure_strength: 0.0         # 0 = disattivata, ~0.5-1.5 = curly maple / flame mahogany
+  radial_anisotropy: 0.0       # 0 = isotropo (piano-sawn), >0 = quartato
+  knot_density: 0.0            # 0 = nessun nodo, ~0.5 = sparsi, ~1 = pieno
 ```
+
+> **Controlli studio-quality.**
+> * **Bande grain + figure.** `grain_scale` + `noise_strength` (alias
+>   `grain_strength`) pilotano il dettaglio fibra ad alta frequenza dentro
+>   gli anelli; `figure_scale` + `figure_strength` aggiungono un'ondulazione
+>   indipendente a bassa frequenza — le strisce di acero curly, le
+>   ripple di mogano flame, i fiori del bird's-eye, irraggiungibili con il
+>   solo grain perché il suo spettro è troppo alto.
+> * **`radial_anisotropy`.** Stira il punto di campionamento del noise lungo
+>   la direzione radiale locale (perpendicolare a `ring_axis`, uscente dal
+>   tronco). Valori alti (~2–5) comprimono la coordinata radiale del
+>   sample-point quindi il noise varia poco lungo quell'asse ⇒ look rovere
+>   quartato. 0 (default) è isotropo e bit-identico al legacy.
+> * **`knot_density`.** Voronoi a piccola scala genera nodi sparsi: il
+>   centro dell'anello viene tirato verso il feature point del nodo e si
+>   aggiunge un cuore scuro — stesso comportamento di Arnold `knots` e
+>   RenderMan `PxrWoodKnot`. Combinabile con un `color_ramp:` a 3+ stop
+>   per autorialità sapwood / heartwood / nodo.
+
+#### **Marmi e legni production-quality — ricettario**
+
+I knob studio-quality interagiscono in modo non banale con il BSDF e
+l'illuminazione. Le ricette seguenti derivano dalla scena di riferimento
+`marble-wood-studio-showcase.yaml`; copia lo snippet e modifica il color
+ramp per ottenere un materiale credibile in pochi minuti.
+
+> **Checklist illuminazione prima di tunare un marmo.** Un marmo lucido
+> a `roughness < 0.2` diventa quasi uno specchio e riflette l'ambiente
+> verbatim — se il cielo è chiaro e senza dettaglio, il marmo si legge
+> come "gradiente azzurro" invece che come marmo. Tre regole:
+>
+> 1. **Cielo scuro o quasi nero per i lookdev shot** (`type: "flat"`,
+>    `color: [0.001, 0.001, 0.0012]`). La trama del marmo porta tutto
+>    il peso visivo, non l'ambiente.
+> 2. **Roughness 0.30–0.34 per il "lucido"** dove la texture deve
+>    leggersi; alza clearcoat (0.85+) per lo strato superiore tipo
+>    vernice lucida. Roughness più bassa solo quando serve un vero
+>    riflesso a specchio — in quel caso conviene avere un HDRI con
+>    contenuto da riflettere.
+> 3. **L'illuminazione diretta deve dominare.** Direzionale key a
+>    intensity 5–7 più una point fill fredda e una rim point calda
+>    illuminano la componente diffusa sopra il riflesso speculare.
+>    Senza questa tripletta l'integratore BSDF non riesce a separare
+>    texture e ambiente.
+
+**Carrara — base bianca con vena scura sottile.**
+```yaml
+- id: "carrara"
+  type: "disney"
+  roughness: 0.32
+  specular: 0.5
+  texture:
+    type: "marble"
+    scale: 5.0
+    vein_axis: [0, 0, 1]
+    vein_frequency: 1.0
+    vein_sharpness: 4.0           # → base ampia, vena stretta
+    noise_strength: 8.0
+    octaves: 8
+    colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
+```
+Con `vein_sharpness ≥ 3` la media campionaria si avvicina a `colors[0]`
+(base), quindi la BASE è il colore dominante e la vena si restringe in
+sottili linee — esattamente il look Carrara reale.
+
+**Calacatta — venature incrociate con transizioni dorate.**
+```yaml
+- id: "calacatta"
+  type: "disney"
+  roughness: 0.30
+  texture:
+    type: "marble"
+    scale: 4.0
+    vein_axis: [0, 0, 1]
+    vein_sharpness: 3.0           # vene più larghe del Carrara (Calacatta è più audace)
+    noise_strength: 6.0
+    octaves: 8
+    secondary_wave:
+      axis: [1, 0, 0]             # auto-ortogonalizzato vs primaria
+      frequency: 0.65             # rapporto non intero → no moiré
+      strength: 0.45
+    color_ramp:
+      - { position: 0.00, color: [0.10, 0.08, 0.08], interp: "smoothstep" }
+      - { position: 0.35, color: [0.85, 0.65, 0.30], interp: "smoothstep" }
+      - { position: 0.70, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
+      - { position: 1.00, color: [0.97, 0.95, 0.90], interp: "linear"     }
+```
+Convenzione con sharpening corretto: ramp **position 0 = vena** (rara,
+`t→0`), **position 1 = base** (dominante, `t→1`); gli stop intermedi
+dipingono la transizione.
+
+**Arabescato — cross-veining forte + distorsione caotica.**
+```yaml
+- id: "arabescato"
+  type: "disney"
+  roughness: 0.34
+  texture:
+    type: "marble"
+    scale: 3.5
+    vein_sharpness: 2.0
+    noise_strength: 8.0
+    distortion: 0.35              # warp Perlin extra
+    secondary_wave: { axis: [1, 0.3, 0], frequency: 1.2, strength: 0.7 }
+    color_ramp:
+      - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "smoothstep" }
+      - { position: 0.50, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
+      - { position: 1.00, color: [0.94, 0.92, 0.88], interp: "linear"     }
+```
+
+**Rovere quartato — venatura radiale fibrosa.**
+```yaml
+- id: "rovere_quartato"
+  type: "disney"
+  roughness: 0.55
+  texture:
+    type: "wood"
+    scale: 4.5
+    ring_axis: [0, 1, 0]
+    ring_sharpness: 4.0           # latewood netto e sottile
+    noise_strength: 2.2
+    octaves: 5
+    radial_anisotropy: 3.0        # stretch quartato
+    color_ramp:
+      - { position: 0.00, color: [0.30, 0.18, 0.08], interp: "smoothstep" }
+      - { position: 0.55, color: [0.82, 0.62, 0.38], interp: "smoothstep" }
+      - { position: 1.00, color: [0.95, 0.82, 0.62], interp: "linear"     }
+```
+Il grain "si stira" lungo la direzione radiale locale. Combina con
+ramp a 3 stop per autorialità sapwood / heartwood / earlywood.
+
+**Curly maple — figure a onda larga.**
+```yaml
+- id: "curly_maple"
+  type: "disney"
+  roughness: 0.42
+  texture:
+    type: "wood"
+    scale: 5.0
+    ring_sharpness: 5.0           # bande strette → look "curly"
+    noise_strength: 0.25          # quasi-spegne il grain così domina la figure
+    figure_scale: 0.10            # bassa freq → ripple larghe
+    figure_strength: 1.8
+    color_ramp:
+      - { position: 0.00, color: [0.55, 0.38, 0.20], interp: "smoothstep" }
+      - { position: 0.45, color: [0.85, 0.72, 0.48], interp: "smoothstep" }
+      - { position: 1.00, color: [0.98, 0.92, 0.76], interp: "linear"     }
+```
+
+**Pino nodoso — nodi di branca con cuore scuro.**
+```yaml
+- id: "pino_nodoso"
+  type: "disney"
+  roughness: 0.55
+  texture:
+    type: "wood"
+    scale: 6.0                    # scale alta così i nodi ospitano anelli interni visibili
+    ring_sharpness: 4.0
+    noise_strength: 0.6
+    figure_scale: 0.25
+    figure_strength: 0.3
+    knot_density: 1.0             # massimo numero di nodi
+    color_ramp:
+      - { position: 0.00, color: [0.05, 0.03, 0.02], interp: "smoothstep" }  # cuore nodo
+      - { position: 0.18, color: [0.35, 0.18, 0.08], interp: "smoothstep" }  # latewood
+      - { position: 0.65, color: [0.90, 0.68, 0.40], interp: "smoothstep" }  # earlywood
+      - { position: 1.00, color: [0.97, 0.86, 0.60], interp: "linear"     }  # sapwood
+```
+Usa un **ramp a 4 stop** quando `knot_density > 0`: la position 0
+riserva il tono più scuro al cuore del nodo, le 0.18–0.65 tengono la
+gradazione normale degli anelli, la 1 è il sapwood più chiaro.
+
+Un catalogo pre-cotto di queste ricette — Carrara, Calacatta, Statuario,
+Arabescato, Port Laurent, Rosso Levanto + rovere quartato, curly maple,
+flame mahogany, pino nodoso, bird's-eye maple, walnut burl, frassino
+quartato, abete nodoso — è disponibile in
+`scenes/libraries/materials/stones.yaml` e `woods.yaml` sotto il suffisso
+`_studio`. Importa una volta e referenzia per id.
 
 **Voronoi / Worley (cellulare):**
 ```yaml
@@ -587,6 +801,7 @@ texture:
   output: "f1"                 # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
   randomness: 1.0              # 0 = griglia, 1 = sparpagliamento casuale
   distortion: 0.0              # warp Perlin prima del lookup
+  smoothness: 0.0              # 0 = hard min (classico); ∈ (0,1] abilita Smooth Voronoi (IQ)
   colors: [[0, 0, 0], [1, 1, 1]]   # ignorato per output: "cell"
 ```
 Replica il nodo Voronoi di Cycles: `f1` produce ciottoli/blob,
@@ -602,6 +817,22 @@ produce pattern a tessere quadrate/esagonali.
 > `colors[1]` è il **colore dell'interno cella**. Per il classico look
 > crackle (linee chiare sottili su sfondo scuro) metti il colore **chiaro**
 > al PRIMO posto e quello **scuro** al SECONDO.
+
+> **Smooth Voronoi (`smoothness`).** Con `smoothness > 0` il `min()` hard
+> sulle 3×3×3 celle vicine viene sostituito dal soft-min log-sum-exp di
+> Inigo Quilez `-log(Σ exp(-k·d_i)) / k` con `k = 20/smoothness`. F1
+> diventa C∞ attraverso i bordi cella; F2 viene calcolato dalla stessa
+> accumulazione escludendo il peso dominante (quello della cella più
+> vicina), così `f2_minus_f1` perde il ridge a V — bordi morbidi, niente
+> alias a step lungo le creste. Utile per cuoio levigato, ciottoli
+> arrotondati dall'acqua, pelle di rettile, marmo poro-chiuso.
+> `smoothness = 0` (default) è bit-identica al hard min legacy. La
+> modalità Cell è volutamente immune al parametro (cell-ID è discreto,
+> come in Cycles). Contratto numerico: l'accumulatore lavora in doppia
+> precisione e la somma è ri-ancorata alla distanza hard più vicina, così
+> nessun argomento di `exp()` supera mai `0`; con `smoothness → 0`
+> (i.e. `k → ∞`) il risultato converge al hard `Evaluate` classico entro
+> la precisione float32.
 
 **Brick:**
 ```yaml

@@ -7,13 +7,17 @@ namespace RayTracer.Textures;
 /// Procedural noise texture with pro-grade controls.
 ///
 /// <para>
-/// Three noise families are exposed through <see cref="NoiseType"/>:
+/// Seven noise families are exposed through <see cref="NoiseType"/>:
 /// <list type="bullet">
 ///   <item><description><b>perlin</b> — smooth gradient noise, signed remap to [0,1].</description></item>
 ///   <item><description><b>fbm</b> — fractional Brownian motion (Arnold/Cycles/RenderMan style).</description></item>
 ///   <item><description><b>turbulence</b> — classic |Σ noise/2^i|, sharp & cloud-like.</description></item>
 ///   <item><description><b>ridged</b> — Musgrave ridged multifractal, sharp ridges (rocks, veins).</description></item>
 ///   <item><description><b>billow</b> — Σ|noise| octaves, puffy / clumpy.</description></item>
+///   <item><description><b>hetero_terrain</b> — Musgrave heterogeneous terrain
+///     (§16.3.3) — rough peaks + smooth valleys, the canonical eroded-terrain look.</description></item>
+///   <item><description><b>hybrid_multifractal</b> — Musgrave hybrid multifractal
+///     (§16.3.4) — stratified rock layers + sharp crests.</description></item>
 /// </list>
 /// </para>
 ///
@@ -21,20 +25,23 @@ namespace RayTracer.Textures;
 /// <see cref="Octaves"/>, <see cref="Lacunarity"/> and <see cref="Gain"/>
 /// configure the fractal sum. <see cref="Distortion"/> domain-warps the input
 /// position with a secondary Perlin sample (Inigo Quilez style) for organic
-/// shapes that real Perlin can't produce on its own. Backward-compat default:
-/// when no new parameters are set and <c>noise_strength == 0</c>, output is
-/// identical to the legacy implementation.
+/// shapes that real Perlin can't produce on its own. <see cref="FractalIncrement"/>
+/// (H) and <see cref="FractalOffset"/> drive the two Musgrave multifractal
+/// variants. Backward-compat default: when no new parameters are set and
+/// <c>noise_strength == 0</c>, output is identical to the legacy implementation.
 /// </para>
 ///
 /// In YAML:
 /// <code>
 /// texture:
 ///   type: "noise"
-///   noise_type: "fbm"        # perlin | fbm | turbulence | ridged | billow
+///   noise_type: "fbm"        # perlin | fbm | turbulence | ridged | billow | hetero_terrain | hybrid_multifractal
 ///   scale: 5.0
 ///   octaves: 5               # 1..16 (default 5 for fbm/ridged/billow, 7 for legacy turbulence)
 ///   lacunarity: 2.0          # frequency multiplier between octaves
-///   gain: 0.5                # amplitude decay between octaves
+///   gain: 0.5                # amplitude decay between octaves (fbm/ridged/billow)
+///   fractal_increment: 1.0   # Musgrave H — only used by hetero_terrain / hybrid_multifractal
+///   fractal_offset: 0.7      # Musgrave offset / "sea level" — only used by hetero_terrain / hybrid_multifractal
 ///   distortion: 0.0          # 0 = no warp, ~1 = strong organic warp
 ///   noise_strength: 0.0      # legacy: 0=smooth perlin, >0=turbulent (overridden by noise_type if set)
 ///   colors: [[0,0,0], [1,1,1]]
@@ -55,6 +62,10 @@ public class NoiseTexture : ITexture
         Turbulence,
         Ridged,
         Billow,
+        /// <summary>Musgrave heterogeneous terrain (§16.3.3 of "Texturing &amp; Modeling").</summary>
+        HeteroTerrain,
+        /// <summary>Musgrave hybrid multifractal (§16.3.4).</summary>
+        HybridMultifractal,
     }
 
     private readonly Perlin _noise;
@@ -86,6 +97,25 @@ public class NoiseTexture : ITexture
     /// patterns (the Inigo Quilez technique used by Cycles' Noise Distortion).
     /// </summary>
     public float Distortion { get; set; } = 0f;
+
+    /// <summary>
+    /// Musgrave <b>fractal increment</b> H (Ebert/Musgrave/Peachey/Perlin
+    /// §16.3.3). Only used by <see cref="NoiseKind.HeteroTerrain"/> and
+    /// <see cref="NoiseKind.HybridMultifractal"/>. Spectral weight of octave i
+    /// is <c>lacunarity^(-i·H)</c>: H = 1 ⇒ statistical self-similarity,
+    /// H → 0 ⇒ white-noise-ish, H ≫ 1 ⇒ smooth, low-frequency dominated.
+    /// Typical terrain values land in <c>[0.1, 1.5]</c>.
+    /// </summary>
+    public float FractalIncrement { get; set; } = 1f;
+
+    /// <summary>
+    /// Musgrave <b>offset</b> (a.k.a. "sea level"). Only used by
+    /// <see cref="NoiseKind.HeteroTerrain"/> and <see cref="NoiseKind.HybridMultifractal"/>.
+    /// Additive bias inside each octave: values around 0.7 produce the canonical
+    /// terrain look; raising it sinks more area below the multiplier
+    /// threshold (more flat plains), lowering it raises mountains everywhere.
+    /// </summary>
+    public float FractalOffset { get; set; } = 0.7f;
 
     /// <summary>
     /// Optional multi-stop colour ramp. When set, the final scalar value
@@ -177,15 +207,23 @@ public class NoiseTexture : ITexture
 
         float n = kind switch
         {
-            NoiseKind.Perlin     => (noise.Noise(q) + 1f) * 0.5f,
-            NoiseKind.Fbm        => noise.Fbm(q, effOct, Lacunarity, Gain),
-            NoiseKind.Ridged     => noise.Ridged(q, effOct, Lacunarity, Gain),
-            NoiseKind.Billow     => noise.Billow(q, effOct, Lacunarity, Gain),
+            NoiseKind.Perlin              => (noise.Noise(q) + 1f) * 0.5f,
+            NoiseKind.Fbm                 => noise.Fbm(q, effOct, Lacunarity, Gain),
+            NoiseKind.Ridged              => noise.Ridged(q, effOct, Lacunarity, Gain),
+            NoiseKind.Billow              => noise.Billow(q, effOct, Lacunarity, Gain),
             // Legacy turbulence keeps its historical 7-octave default when the
             // user hasn't explicitly overridden `octaves`, matching the old
             // visual output exactly.
-            NoiseKind.Turbulence => noise.Turbulence(q, legacyTurbulenceOct),
-            _                    => (noise.Noise(q) + 1f) * 0.5f,
+            NoiseKind.Turbulence          => noise.Turbulence(q, legacyTurbulenceOct),
+            // Musgrave multifractals return raw signed values whose range
+            // depends on H, offset and octaves. We map them into [0, 1] by
+            // clamping the post-DC-offset signal — same convention Cycles uses
+            // on its Musgrave node when the output drives a colour lerp without
+            // an explicit Color Ramp. For full visual control on the high end,
+            // users can attach a `color_ramp:` with custom stop positions.
+            NoiseKind.HeteroTerrain       => noise.HeteroTerrain(q, effOct, Lacunarity, FractalIncrement, FractalOffset),
+            NoiseKind.HybridMultifractal  => noise.HybridMultifractal(q, effOct, Lacunarity, FractalIncrement, FractalOffset),
+            _                             => (noise.Noise(q) + 1f) * 0.5f,
         };
 
         // Apply legacy noise_strength as an amplitude multiplier for Auto-Turbulence,

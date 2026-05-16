@@ -1,0 +1,162 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Smooth Voronoi Showcase — VFX Production-Grade Textures, Step 3/7
+#
+#  Dimostra il nuovo parametro `smoothness` su `VoronoiTexture`: quando > 0
+#  il classico `min()` su F1 viene sostituito da Inigo Quilez' soft-min
+#  log-sum-exp `-log(Σ exp(-k·d_i)) / k` con `k = 20/smoothness`. F2 viene
+#  calcolato sulla stessa accumulazione escludendo il termine dominante
+#  (continuità garantita anche sui boundary 2-cella), così che il classico
+#  "crackle" (F2−F1) perde il ridge a V — bordi morbidi, no step alias.
+#
+#  Allineamento puntuale:
+#    Cycles "Smooth F1" / Houdini Voronoi Smoothness / RenderMan PxrVoronoise.
+#
+#  LAYOUT
+#  ──────
+#  Tre sfere identiche (stessa scale Voronoi, stesso metric Euclidean, stesso
+#  output mode F1+F2−F1 — vedi sotto, sfruttiamo il color ramp per esaltare
+#  le creste) fianco a fianco, varia solo `smoothness`:
+#     A (sx, x=−2.4):  smoothness: 0.0  — hard min canonica (Worley 1996).
+#     B (centro, x= 0): smoothness: 0.3 — soft-min moderato; creste smussate.
+#     C (dx, x= 2.4):  smoothness: 0.7  — soft-min ampio; pelle di rettile
+#                                         levigata, ciottoli rotondi.
+#
+#  Per rendere il differenziale visivo evidente, ogni sfera usa la modalità
+#  `crackle` (F2−F1) con un color ramp che enfatizza i bordi. La sfera A
+#  mostra le creste affilate originali; la sfera B le ammorbidisce; la
+#  sfera C produce un campo quasi-continuo da cellulare a soft-blob.
+#
+#  Use case: cuoio levigato, pelle di rettile, ciottoli levigati dall'acqua,
+#  marmo poro-chiuso, plastica craquelée artistica.
+#
+#  Render consigliato:
+#    Draft:  -w 640  -H 360  -s 32   -d 4  -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    top_color:    [0.30, 0.40, 0.55]
+    bottom_color: [0.05, 0.05, 0.07]
+
+camera:
+  position: [0, 1.4, -5.5]
+  look_at:  [0, 1.0, 0]
+  fov: 38
+
+materials:
+
+  # ── A: classic hard Voronoi (smoothness = 0, back-compat byte-identica) ─
+  - id: "voronoi_hard"
+    type: "disney"
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.42
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      metric: "euclidean"
+      output: "f2_minus_f1"
+      randomness: 1.0
+      smoothness: 0.0           # ← hard min canonica
+      color_ramp:
+        - { position: 0.00, color: [0.04, 0.04, 0.06], interp: "linear"     }
+        - { position: 0.18, color: [0.78, 0.74, 0.70], interp: "smoothstep" }
+        - { position: 0.55, color: [0.94, 0.92, 0.88], interp: "linear"     }
+        - { position: 1.00, color: [1.00, 0.98, 0.92], interp: "linear"     }
+
+  # ── B: smoothness moderata (0.3) — creste smussate, niente step alias ──
+  - id: "voronoi_smooth_low"
+    type: "disney"
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.42
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      metric: "euclidean"
+      output: "f2_minus_f1"
+      randomness: 1.0
+      smoothness: 0.3           # ← k = 20/0.3 ≈ 66.7
+      color_ramp:
+        - { position: 0.00, color: [0.04, 0.04, 0.06], interp: "linear"     }
+        - { position: 0.18, color: [0.78, 0.74, 0.70], interp: "smoothstep" }
+        - { position: 0.55, color: [0.94, 0.92, 0.88], interp: "linear"     }
+        - { position: 1.00, color: [1.00, 0.98, 0.92], interp: "linear"     }
+
+  # ── C: smoothness alta (0.7) — soft-blob, pelle di rettile levigata ────
+  - id: "voronoi_smooth_high"
+    type: "disney"
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.42
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      metric: "euclidean"
+      output: "f2_minus_f1"
+      randomness: 1.0
+      smoothness: 0.7           # ← k = 20/0.7 ≈ 28.6
+      color_ramp:
+        - { position: 0.00, color: [0.04, 0.04, 0.06], interp: "linear"     }
+        - { position: 0.18, color: [0.78, 0.74, 0.70], interp: "smoothstep" }
+        - { position: 0.55, color: [0.94, 0.92, 0.88], interp: "linear"     }
+        - { position: 1.00, color: [1.00, 0.98, 0.92], interp: "linear"     }
+
+  # ── Pavimento neutro per ricevere ombre soft ───────────────────────────
+  - id: "floor"
+    type: "disney"
+    color: [0.32, 0.32, 0.34]
+    roughness: 0.85
+
+entities:
+
+  # ── Pavimento ──────────────────────────────────────────────────────────
+  - name: "floor"
+    type: "quad"
+    q: [-6, 0, -2.5]
+    u: [12, 0, 0]
+    v: [0, 0, 6]
+    material: "floor"
+
+  # ── 3 sfere fianco a fianco — stesso seed così la struttura Voronoi
+  # coincide su tutte e tre: il differenziale visivo è solo `smoothness`.
+  - name: "sphere_hard"
+    type: "sphere"
+    center: [-2.4, 1.0, 0]
+    radius: 0.9
+    seed: 1
+    material: "voronoi_hard"
+
+  - name: "sphere_smooth_low"
+    type: "sphere"
+    center: [0, 1.0, 0]
+    radius: 0.9
+    seed: 1
+    material: "voronoi_smooth_low"
+
+  - name: "sphere_smooth_high"
+    type: "sphere"
+    center: [2.4, 1.0, 0]
+    radius: 0.9
+    seed: 1
+    material: "voronoi_smooth_high"
+
+lights:
+
+  # ── Key directional 3/4-front (sole basso, accenti laterali) ───────────
+  - type: "directional"
+    direction: [-0.4, -0.7, 0.6]
+    color: [1.0, 0.96, 0.88]
+    intensity: 3.6
+    angular_radius: 0.6
+
+  # ── Fill morbido dall'alto-sinistra ────────────────────────────────────
+  - type: "point"
+    position: [-4, 4, -3]
+    color: [0.70, 0.78, 0.95]
+    intensity: 60
+
+  # ── Rim leggero dal retro per staccare le sfere dal fondo ──────────────
+  - type: "point"
+    position: [0, 2.5, 4.5]
+    color: [1.0, 0.85, 0.70]
+    intensity: 35
