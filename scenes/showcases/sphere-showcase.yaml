@@ -633,11 +633,16 @@ materials:
       scale: 5.0
       vein_axis: [0, 0, 1]
       vein_frequency: 1.0
-      vein_sharpness: 4.0
+      vein_sharpness: 3.0
       noise_strength: 8.0
       octaves: 8
       randomize_offset: true
-      colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.12, 0.12, 0.14], interp: "smoothstep" }   # vena scura (rara)
+        - { position: 0.40, color: [0.55, 0.55, 0.56], interp: "smoothstep" }   # smoky gray (cloudy mid)
+        - { position: 0.75, color: [0.82, 0.81, 0.80], interp: "smoothstep" }   # light gray
+        - { position: 1.00, color: [0.96, 0.94, 0.92], interp: "linear"     }   # ivory dominante
 
   # Calacatta — secondary_wave 0.45 + ramp 4-stop gold transition
   - id: "marble_calacatta"
@@ -657,6 +662,7 @@ materials:
       noise_strength: 6.0
       octaves: 8
       randomize_offset: true
+      randomize_rotation: true
       secondary_wave:
         axis: [1, 0, 0]
         frequency: 0.65
@@ -685,6 +691,7 @@ materials:
       octaves: 8
       distortion: 0.35
       randomize_offset: true
+      randomize_rotation: true
       secondary_wave:
         axis: [1, 0.3, 0]
         frequency: 1.2
@@ -711,6 +718,7 @@ materials:
       noise_strength: 7.0
       octaves: 8
       randomize_offset: true
+      randomize_rotation: true
       secondary_wave:
         axis: [1, 0.15, 0]
         frequency: 0.55
@@ -738,6 +746,7 @@ materials:
       octaves: 8
       distortion: 0.25
       randomize_offset: true
+      randomize_rotation: true
       secondary_wave:
         axis: [1, 0, 0]
         frequency: 0.9
@@ -765,6 +774,7 @@ materials:
       noise_strength: 6.5
       octaves: 7
       randomize_offset: true
+      randomize_rotation: true
       secondary_wave:
         axis: [1, 0, 0]
         frequency: 0.75
