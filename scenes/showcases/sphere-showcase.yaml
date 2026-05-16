@@ -1,6 +1,46 @@
 # =============================================================================
-#  SPHERE SHOWCASE DISNEY — Espositore 6×6 Sfere di Materiali PBR Moderni
+#  SPHERE SHOWCASE — Espositore 6×6 con stack completo
+#                    Surface Displacement + Texturing VFX production-grade
 # =============================================================================
+#
+#  Erede di `sphere-showcase-legacy.yaml`. Stessa identità visiva (cornice
+#  in noce su base velluto, tavolo lucido, sei file di sei elementi), ma
+#  ogni materiale ridisegnato per esercitare le feature più recenti del
+#  motore — parità di workflow con Arnold / RenderMan / Cycles:
+#
+#    • Stack Surface Displacement (riga "ROCCE", subdivision-icosphere)
+#        – mesh subdivision (Catmull-Clark)
+#        – bump map procedurale
+#        – scalar displacement vero (silhouette modificata)
+#        – vector displacement (overhang reali, object-space)
+#        – bump + displacement + autobump combinati (full stack)
+#
+#    • Texturing VFX (5 righe procedurali sulle sfere primitive)
+#        – Color ramp multi-stop (4-stop su marmi, legni, voronoi, musgrave)
+#        – Smooth Voronoi (IQ soft-min) su silicone/cuoio
+#        – Musgrave hetero_terrain / hybrid_multifractal (pianeti, atmosfere)
+#        – Marble "studio" (secondary_wave: Calacatta / Arabescato cross-veining)
+#        – Wood "studio" (figure_strength, knot_density, radial_anisotropy)
+#        – F1 / F2−F1 / F3 / F4 / position Voronoi extended outputs (riga vetri
+#          come "minerali grezzi" colorati, accanto alle gemme polite)
+#        – Coordinate texture node (object/uv/generated/world) come "minerale
+#          debug" in vetrina
+#
+#    • Anti-aliasing analitico texture (ray differentials / EWA mipmap +
+#      octave clamp procedurale) → attivo di default, CLI:
+#        --texture-filtering on  (auto = procedurali sì, image sì → consigliato)
+#
+#  LAYOUT (Z cresce verso lo sfondo)
+#  ──────────────────────────────────
+#    Fila 6 (Z = +2.25)  PIANETI / TERRAIN MUSGRAVE  — sfere con color_ramp
+#                       multi-stop su hetero_terrain / hybrid_multifractal.
+#    Fila 5 (Z = +1.35)  ROCCE / DISPLACEMENT STACK  — 6 subdivision icospheres
+#                       (Catmull-Clark) con bump/scalar/vector/autobump.
+#    Fila 4 (Z = +0.45)  LEGNI STUDIO                — figure, knot, anisotropy.
+#    Fila 3 (Z = −0.45)  MARMI STUDIO                — secondary_wave, ramp 4-stop.
+#    Fila 2 (Z = −1.35)  METALLI ANISO + BUMP        — hammered, brushed, etched.
+#    Fila 1 (Z = −2.25)  GEMME / MINERALI            — vetri Beer-Lambert,
+#                       smooth-voronoi gem grezza, coordinate-texture node.
 #
 #  Camere disponibili (--camera <nome>):
 #    hero          Vista 3/4 classica con DOF (default)
@@ -8,7 +48,7 @@
 #    closeup       Primo piano estremo sulle gemme
 #    zenitale      Dall'alto, pianta dell'espositore
 #    drammatica    Angolo basso eye-level con le sfere
-#    macro_metalli Macro sulla fila metalli con bokeh
+#    macro_rocce   Macro sulla fila displacement con bokeh
 #
 #  Render consigliati:
 #    Preview:    -w 400  -H 225  -s 64   -d 4  -S 1
@@ -36,15 +76,13 @@ world:
 # =============================================================================
 cameras:
 
-  # ── Hero: vista 3/4 classica, DOF sulle sfere centrali ────────────────
   - name:       hero
     position:   [2.0, 3.8, -6.0]
     look_at:    [-0.4, 0.7, 0.0]
     fov:        36
-    aperture:   0.0 # 0.2
+    aperture:   0.0
     focal_dist: 6.5
 
-  # ── Frontale: simmetrica centrata, stile catalogo ─────────────────────
   - name:       frontale
     position:   [0.0, 3.5, -6.5]
     look_at:    [0.0, 1.15, 0.0]
@@ -52,7 +90,6 @@ cameras:
     aperture:   0.04
     focal_dist: 7.0
 
-  # ── Closeup: primo piano sulle gemme (prima fila) ────────────────────
   - name:       closeup
     position:   [0.5, 1.8, -4.0]
     look_at:    [0.0, 1.22, -2.0]
@@ -60,7 +97,6 @@ cameras:
     aperture:   0.12
     focal_dist: 2.5
 
-  # ── Zenitale: vista dall'alto per pianta dell'espositore ──────────────
   - name:       zenitale
     position:   [0.0, 7.0, 0.01]
     look_at:    [0.0, 1.0, 0.0]
@@ -69,7 +105,6 @@ cameras:
     aperture:   0.0
     focal_dist: 6.0
 
-  # ── Drammatica: angolo basso eye-level con le sfere ───────────────────
   - name:       drammatica
     position:   [3.5, 1.3, -5.0]
     look_at:    [0.0, 1.22, 0.0]
@@ -77,187 +112,129 @@ cameras:
     aperture:   0.08
     focal_dist: 6.0
 
-  # ── Macro metalli: bokeh estremo sulla fila metalli ───────────────────
-  - name:       macro_metalli
-    position:   [1.0, 1.5, -3.8]
-    look_at:    [0.0, 1.22, -1.35]
-    fov:        25
-    aperture:   0.20
-    focal_dist: 3.0
+  # Macro sulla fila "rocce/displacement": angolazione 3/4 con bokeh marcato
+  # per esaltare i micro-rilievi di autobump e la silhouette displacement.
+  - name:       macro_rocce
+    position:   [1.4, 1.6, -3.0]
+    look_at:    [-0.3, 1.30, 1.35]
+    fov:        28
+    aperture:   0.18
+    focal_dist: 4.5
+
 
 # =============================================================================
-#  LIGHTS
+#  LIGHTS — Studio Area + accent point
 # =============================================================================
 lights:
 
-  # ─────────────────────────────────────────────────────────────────────────
-  #  SET CORRENTE: Studio Professionale con Point Light
-  #
-  #  Due point light laterali aggiungono dimensione e separano i materiali.
-  #  Un punto luce posteriore separa il tavolo dallo sfondo scuro.
-  # ─────────────────────────────────────────────────────────────────────────
-
-  # Key Light — punto luce caldo dall'alto-sinistra
-  # - type: "point"
-  #   position: [-4.0, 4.5, -4.0]
-  #   color: [1.0, 0.95, 0.88]
-  #   intensity: 120
-
-  # Fill Light — luce fredda leggera dal lato opposto
-  # - type: "point"
-  #   position: [5.0, 3.0, -2.0]
-  #   color: [0.85, 0.88, 1.0]
-  #   intensity: 60
-
-  # ─────────────────────────────────────────────────────────────────────────
-  #  SET ALTERNATIVO 1: Solo Area Light (ombre ultra-morbide, minimalista)
-  # ─────────────────────────────────────────────────────────────────────────
+  # Key softbox dall'alto (area large = ombre morbide, luce avvolgente
+  # necessaria per leggere il rilievo dei bump senza speckles).
   - type: "area"
     corner: [-2.5, 4.8, -2.5]
     u: [5.0, 0.0, 0.0]
     v: [0.0, 0.0, 5.0]
     color: [1.0, 0.97, 0.92]
     intensity: 5.0
+
+  # Fill freddo da sinistra-fondo per separare i materiali scuri dal nero
+  # del velluto.
   - type: "point"
     position: [-5.0, 2.0, -3.0]
     color: [0.8, 0.85, 1.0]
     intensity: 6
 
-  # ─────────────────────────────────────────────────────────────────────────
-  #  SET ALTERNATIVO 2: Three-Point Classico (ombre nette, veloce)
-  # ─────────────────────────────────────────────────────────────────────────
-  # - type: "point"
-  #   position: [-5, 6, -5]
-  #   color: [1.0, 0.95, 0.9]
-  #   intensity: 100
-  # - type: "point"
-  #   position: [5, 3, -2]
-  #   color: [0.85, 0.85, 1.0]
-  #   intensity: 35
-  # - type: "point"
-  #   position: [0, 6, 5]
-  #   color: [1.0, 0.95, 0.85]
-  #   intensity: 50
+  # Rim caldo basso da destra: radente sulla fila rocce per esaltare i
+  # micro-rilievi (autobump) e le silhouette del vector displacement.
+  - type: "point"
+    position: [5.0, 1.3, 1.0]
+    color: [1.0, 0.88, 0.70]
+    intensity: 18
 
-  # ─────────────────────────────────────────────────────────────────────────
-  #  SET ALTERNATIVO 3: Warm & Cool Contrast (atmosferico)
-  # ─────────────────────────────────────────────────────────────────────────
-  # - type: "point"
-  #   position: [-5, 4, -3]
-  #   color: [1.0, 0.5, 0.15]
-  #   intensity: 90
-  # - type: "point"
-  #   position: [5, 4, -3]
-  #   color: [0.15, 0.4, 1.0]
-  #   intensity: 90
-  # - type: "point"
-  #   position: [0, 5, 0]
-  #   color: [1.0, 1.0, 1.0]
-  #   intensity: 20
-
-  # ─────────────────────────────────────────────────────────────────────────
-  #  SET ALTERNATIVO 4: Dramatic Spot (museo, luce concentrata)
-  # ─────────────────────────────────────────────────────────────────────────
-  # - type: "spot"
-  #   position: [0, 4.8, -2]
-  #   direction: [0, -0.9, 0.2]
-  #   color: [1.0, 0.98, 0.92]
-  #   intensity: 250
-  #   inner_angle: 15
-  #   outer_angle: 30
-  # - type: "point"
-  #   position: [-6, 2, 0]
-  #   color: [0.7, 0.7, 0.8]
-  #   intensity: 10
-
-  # ─────────────────────────────────────────────────────────────────────────
-  #  SET ALTERNATIVO 5: Neon Cyber (creativo, magenta + ciano)
-  # ─────────────────────────────────────────────────────────────────────────
-  # - type: "point"
-  #   position: [-5, 3, 0]
-  #   color: [1.0, 0.0, 0.8]
-  #   intensity: 120
-  # - type: "point"
-  #   position: [5, 3, 0]
-  #   color: [0.0, 0.8, 1.0]
-  #   intensity: 120
-  # - type: "point"
-  #   position: [0, 4.5, -2]
-  #   color: [1.0, 1.0, 1.0]
-  #   intensity: 15
 
 # =============================================================================
-#  MATERIALS (Disney BSDF — Enhanced)
+#  MATERIALS
 # =============================================================================
 materials:
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  AMBIENTE: Pavimento e Stanza  [OTTIMIZZATO → lambertian]
+  #  AMBIENTE — pavimento / muri / soffitto (invariati vs legacy)
   # ─────────────────────────────────────────────────────────────────────────
- 
-  # Pavimento in pietra levigata scura — checker discreto
+
   - id: "floor_stone"
     type: "lambertian"
     texture:
       type: "checker"
       scale: 3.0
       colors: [[0.15, 0.13, 0.12], [0.20, 0.18, 0.16]]
- 
-  # Muro in stucco veneziano
+
   - id: "wall_stucco"
     type: "lambertian"
     color: [0.22, 0.20, 0.19]
- 
-  # Soffitto — superficie di rimbalzo luce
+
   - id: "ceiling_paint"
     type: "lambertian"
     color: [0.32, 0.30, 0.28]
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  TAVOLO  [OTTIMIZZATO → lambertian/metal]
+  #  TAVOLO — piano lucido (wood studio: figure leggera + ring sharp)
   # ─────────────────────────────────────────────────────────────────────────
- 
-  # Piano del tavolo in legno scuro — finitura ad olio opaca
+
   - id: "table_top"
     type: "disney"
     metallic: 0.0
-    roughness: 0.70
-    specular: 0.25
-    sheen: 0.15
-    sheen_tint: 0.8
-    sheen_roughness: 0.6
+    roughness: 0.55
+    specular: 0.4
+    clearcoat: 0.4
+    coat_roughness: 0.25
     texture:
       type: "wood"
       scale: 2.5
-      noise_strength: 2.5
-      colors: [[0.35, 0.2, 0.1], [0.2, 0.1, 0.04]]
-      rotation: [0, 30, 0]
- 
-  # Corpo tavolo — legno scuro opaco (non visibile nelle viste principali)
+      ring_axis: [0, 1, 0.12]
+      ring_sharpness: 4.5
+      noise_strength: 1.6
+      octaves: 6
+      grain_scale: 1.5
+      figure_scale: 0.12
+      figure_strength: 0.4
+      color_ramp:
+        - { position: 0.00, color: [0.20, 0.10, 0.04], interp: "smoothstep" }
+        - { position: 0.55, color: [0.42, 0.24, 0.12], interp: "smoothstep" }
+        - { position: 1.00, color: [0.58, 0.36, 0.20], interp: "linear"     }
+
   - id: "table_body"
     type: "lambertian"
     color: [0.15, 0.09, 0.04]
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  ESPOSITORE  [OTTIMIZZATO → lambertian/metal]
+  #  ESPOSITORE — cornice noce / velluto / divisori / bordino metallico
   # ─────────────────────────────────────────────────────────────────────────
- 
-  # Cornice in noce — texture legno preservata
+
   - id: "case_wood"
-    type: "lambertian"
+    type: "disney"
+    roughness: 0.55
+    specular: 0.30
+    clearcoat: 0.25
+    coat_roughness: 0.30
     texture:
       type: "wood"
       scale: 4.0
-      noise_strength: 3.0
-      colors: [[0.42, 0.26, 0.13], [0.28, 0.16, 0.07]]
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.0
+      noise_strength: 2.2
+      octaves: 5
+      figure_scale: 0.18
+      figure_strength: 0.5
+      knot_density: 0.15
       randomize_rotation: true
- 
-  # Base in velluto scuro
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.03, 0.02], interp: "smoothstep" }   # cuore nodo
+        - { position: 0.20, color: [0.22, 0.13, 0.06], interp: "smoothstep" }   # latewood
+        - { position: 1.00, color: [0.55, 0.34, 0.17], interp: "linear"     }   # earlywood
+
   - id: "case_felt"
     type: "lambertian"
     color: [0.04, 0.04, 0.06]
- 
-  # Divisori — listelli sottili tra le file
+
   - id: "case_divider"
     type: "lambertian"
     texture:
@@ -265,393 +242,593 @@ materials:
       scale: 6.0
       noise_strength: 2.0
       colors: [[0.38, 0.23, 0.12], [0.25, 0.14, 0.06]]
- 
-  # Bordino metallico dell'espositore — acciaio satinato
+
   - id: "case_trim"
     type: "metal"
     color: [0.60, 0.58, 0.55]
     fuzz: 0.35
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  FILA 6 — PLASTICHE MORBIDE / ORGANICHE
+  #  FILA 6 — PIANETI / TERRAIN MUSGRAVE
   #
-  #  Ogni sfera simula un materiale morbido diverso: silicone, schiuma,
-  #  pelle sintetica, cera d'api, marshmallow, sapone artigianale.
+  #  Sei sfere con texture color_ramp multi-stop guidate da noise di nuova
+  #  generazione. Mostrano la differenza visiva tra fBm omogeneo,
+  #  hetero_terrain (creste alte / valli lisce), hybrid_multifractal
+  #  (strati rocciosi), ridged (asteroide), e billow (gassoso).
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Rosa cipria — silicone morbido con leggero sheen di superficie
-  - id: "soft_pink"
+  # Terra-like — hetero_terrain con ramp acqua→spiaggia→erba→roccia→neve
+  - id: "planet_earth"
     type: "disney"
-    color: [0.92, 0.55, 0.58]
-    roughness: 0.95
-    subsurface: 0.45
-    specular: 0.2
-    sheen: 0.4
-    sheen_tint: 0.6
-    sheen_roughness: 0.55
-
-  # Azzurro cielo — gomma schiumosa opaca, quasi zero riflesso
-  - id: "soft_sky"
-    type: "disney"
-    color: [0.50, 0.65, 0.92]
-    roughness: 1.0
-    subsurface: 0.35
-    specular: 0.1
-    sheen: 0.2
-    sheen_tint: 0.4
-    sheen_roughness: 0.65
-
-  # Menta — pelle sintetica con subsurface pronunciato
-  - id: "soft_mint"
-    type: "disney"
-    color: [0.48, 0.85, 0.58]
-    roughness: 0.85
-    subsurface: 0.55
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.55
     specular: 0.3
-    sheen: 0.15
-    sheen_tint: 0.5
-    sheen_roughness: 0.50
+    texture:
+      type: "noise"
+      noise_type: "hetero_terrain"
+      scale: 4.0
+      octaves: 8
+      lacunarity: 2.0
+      fractal_increment: 0.30
+      fractal_offset:    0.7
+      color_ramp:
+        - { position: 0.00, color: [0.04, 0.10, 0.28], interp: "linear"     }   # ocean deep
+        - { position: 0.45, color: [0.10, 0.32, 0.55], interp: "smoothstep" }   # shallow
+        - { position: 0.50, color: [0.78, 0.72, 0.50], interp: "smoothstep" }   # beach
+        - { position: 0.60, color: [0.18, 0.40, 0.18], interp: "smoothstep" }   # grass
+        - { position: 0.78, color: [0.42, 0.36, 0.28], interp: "smoothstep" }   # rock
+        - { position: 0.92, color: [0.92, 0.93, 0.95], interp: "linear"     }   # snow
 
-  # Limone — cera d'api, subsurface forte e specular basso
-  - id: "soft_lemon"
+  # Marte alpino — hetero_terrain con offset basso (montagne ovunque)
+  - id: "planet_mars"
     type: "disney"
-    color: [0.95, 0.88, 0.42]
-    roughness: 0.75
-    subsurface: 0.7
-    specular: 0.35
-    sheen: 0.05
-    sheen_roughness: 0.45
-
-  # Lavanda — marshmallow, subsurface altissimo per traslucenza
-  - id: "soft_lavender"
-    type: "disney"
-    color: [0.70, 0.55, 0.88]
-    roughness: 0.92
-    subsurface: 0.65
-    specular: 0.15
-    sheen: 0.3
-    sheen_tint: 0.7
-    sheen_roughness: 0.60
-
-  # Pesca — sapone artigianale, sheen pronunciato al radente
-  - id: "soft_peach"
-    type: "disney"
-    color: [0.95, 0.68, 0.48]
-    roughness: 0.88
-    subsurface: 0.4
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.65
     specular: 0.25
-    sheen: 0.6
-    sheen_tint: 0.8
-    sheen_roughness: 0.70
+    texture:
+      type: "noise"
+      noise_type: "hetero_terrain"
+      scale: 4.5
+      octaves: 7
+      lacunarity: 2.1
+      fractal_increment: 0.22
+      fractal_offset:    0.25                # ← niente sea-level, terreno alpino
+      color_ramp:
+        - { position: 0.00, color: [0.30, 0.12, 0.05], interp: "linear"     }
+        - { position: 0.45, color: [0.62, 0.25, 0.10], interp: "smoothstep" }
+        - { position: 0.85, color: [0.85, 0.52, 0.25], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.92, 0.85], interp: "linear"     }   # polo
+
+  # Pianeta rocce stratificate — hybrid_multifractal (terreni a strati)
+  - id: "planet_strata"
+    type: "disney"
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.6
+    specular: 0.28
+    texture:
+      type: "noise"
+      noise_type: "hybrid_multifractal"
+      scale: 3.5
+      octaves: 8
+      lacunarity: 2.0
+      fractal_increment: 0.28
+      fractal_offset:    0.65
+      color_ramp:
+        - { position: 0.00, color: [0.10, 0.07, 0.05], interp: "linear"     }
+        - { position: 0.35, color: [0.50, 0.32, 0.20], interp: "smoothstep" }
+        - { position: 0.65, color: [0.82, 0.65, 0.40], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.85, 0.60], interp: "linear"     }
+
+  # Gigante gassoso — billow + domain warp (bande nuvolose torte)
+  - id: "planet_gas"
+    type: "disney"
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.80
+    specular: 0.15
+    subsurface: 0.25
+    texture:
+      type: "noise"
+      noise_type: "billow"
+      scale: 6.0
+      octaves: 6
+      lacunarity: 2.2
+      distortion: 0.6
+      color_ramp:
+        - { position: 0.00, color: [0.92, 0.85, 0.68], interp: "linear"     }
+        - { position: 0.40, color: [0.88, 0.60, 0.35], interp: "smoothstep" }
+        - { position: 0.75, color: [0.55, 0.25, 0.12], interp: "smoothstep" }
+        - { position: 1.00, color: [0.30, 0.12, 0.06], interp: "linear"     }
+
+  # Asteroide / luna craterizzata — ridged + distortion alta
+  - id: "planet_asteroid"
+    type: "disney"
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.75
+    specular: 0.20
+    texture:
+      type: "noise"
+      noise_type: "ridged"
+      scale: 7.0
+      octaves: 7
+      lacunarity: 2.3
+      gain: 0.55
+      distortion: 0.3
+      color_ramp:
+        - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "linear"     }
+        - { position: 0.55, color: [0.42, 0.42, 0.46], interp: "smoothstep" }
+        - { position: 1.00, color: [0.88, 0.88, 0.90], interp: "linear"     }
+
+  # Pianeta lava — turbulence + ramp dal nero della crosta al giallo magma.
+  # Nota: Disney non ha campo `emission`; il look "bagliore" arriva dal
+  # color_ramp (highlight in cima al gradiente) e dal `specular` alto.
+  # Per un vero glow autonomo si userebbe mix(disney, emissive).
+  - id: "planet_lava"
+    type: "disney"
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.60
+    specular: 0.45
+    texture:
+      type: "noise"
+      noise_type: "turbulence"
+      scale: 5.5
+      octaves: 7
+      lacunarity: 2.0
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.02, 0.01], interp: "linear"     }
+        - { position: 0.45, color: [0.30, 0.05, 0.02], interp: "smoothstep" }
+        - { position: 0.75, color: [0.95, 0.30, 0.05], interp: "smoothstep" }
+        - { position: 1.00, color: [1.00, 0.85, 0.30], interp: "linear"     }
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  FILA 5 — PLASTICHE DURE / FINITURE INDUSTRIALI
+  #  FILA 5 — DISPLACEMENT STACK (rocce sculpted)
   #
-  #  Vernice auto, lacca pianoforte, ceramica smaltata, ABS, bakelite,
-  #  porcellana. Clearcoat e clearcoat_gloss differenziati.
+  #  Sei "sfere" sono in realtà icosahedra subdivisi (Catmull-Clark ×3).
+  #  Materiali base condivisi, displacement diversi per dimostrare l'intero
+  #  stack: mesh subdivision → bump_map → scalar displacement → vector
+  #  displacement → autobump → bump combinato.
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Rosso ciliegia — vernice auto con clearcoat alto e glossy
-  - id: "hard_cherry"
+  # Pietra arenaria — base porcellanata calda (riusata su 3 rocce)
+  - id: "rock_sandstone"
     type: "disney"
-    color: [0.78, 0.04, 0.04]
-    roughness: 0.28
-    clearcoat: 1.0
-    coat_roughness: 0.08
-    specular: 0.6
-    metallic: 0.0
+    color: [0.82, 0.66, 0.42]
+    roughness: 0.78
+    specular: 0.30
 
-  # Blu royal — lacca profonda tipo pianoforte
-  - id: "hard_royal"
+  - id: "rock_basalt"
     type: "disney"
-    color: [0.04, 0.06, 0.72]
-    roughness: 0.05
-    clearcoat: 1.0
-    coat_roughness: 0.05
-    specular: 0.8
-    metallic: 0.0
+    color: [0.18, 0.16, 0.18]
+    roughness: 0.72
+    specular: 0.40
 
-  # Verde bosco — ceramica smaltata, clearcoat satinato
-  - id: "hard_forest"
+  - id: "rock_obsidian"
     type: "disney"
-    color: [0.06, 0.48, 0.10]
-    roughness: 0.20
-    clearcoat: 0.7
-    coat_roughness: 0.25
-    specular: 0.5
-    specular_tint: 0.3
-
-  # Giallo girasole — ABS lucido tipo LEGO, riflesso netto
-  - id: "hard_sunflower"
-    type: "disney"
-    color: [0.90, 0.80, 0.05]
-    roughness: 0.12
+    color: [0.05, 0.05, 0.07]
+    roughness: 0.25
+    specular: 0.80
     clearcoat: 0.6
-    coat_roughness: 0.12
-    specular: 0.7
-    metallic: 0.0
+    coat_roughness: 0.15
 
-  # Ossidiana — bakelite scurissima, sheen al radente
-  - id: "hard_obsidian"
+  # Variante arenaria con bump materiale aggiuntivo (graffi diagonali ridged)
+  # — usata sulla roccia "full stack" per dimostrare la composizione finale
+  # subdivision → displacement → autobump → bump materiale.
+  - id: "rock_sandstone_scratched"
     type: "disney"
-    color: [0.03, 0.03, 0.04]
-    roughness: 0.08
-    clearcoat: 1.0
-    coat_roughness: 0.05
-    specular: 0.9
-    sheen: 0.25
-    sheen_tint: 0.2
+    color: [0.82, 0.66, 0.42]
+    roughness: 0.78
+    specular: 0.30
+    bump_map:
+      texture:
+        type: "noise"
+        noise_type: "ridged"
+        scale: 28.0
+        octaves: 2
+        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
+      strength: 1.2
 
-  # Avorio — porcellana fredda, subsurface leggero + clearcoat satinato
-  - id: "hard_ivory"
+  # Granito — bump-only (riferimento del bump puro vs vero displacement)
+  - id: "rock_granite_bumponly"
     type: "disney"
-    color: [0.94, 0.92, 0.85]
-    roughness: 0.18
-    clearcoat: 0.5
-    coat_roughness: 0.20
-    specular: 0.6
-    subsurface: 0.2
-    specular_tint: 0.1
+    color: [0.55, 0.50, 0.48]
+    roughness: 0.70
+    specular: 0.40
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 12.0
+        metric: "euclidean"
+        output: "f2_minus_f1"
+        smoothness: 0.25
+        colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
+      strength: 2.5
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  FILA 4 — LEGNO (essenze con finiture differenziate)
+  #  FILA 4 — LEGNO STUDIO QUALITY
+  #
+  #  Sei essenze con i nuovi controlli wood pro: figure_strength (curly /
+  #  flame), knot_density (nodi voronoi), radial_anisotropy (quartersawn),
+  #  ramp 3-4 stop sapwood/latewood/heartwood/knot.
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Quercia — finitura ad olio, sheen leggero per il poro aperto
+  # Quercia quartersawn — radial_anisotropy alto, grain pronunciato
   - id: "wood_oak"
     type: "disney"
+    color: [0.80, 0.62, 0.42]
+    roughness: 0.55
+    specular: 0.30
     texture:
       type: "wood"
       scale: 5.0
-      noise_strength: 2.5
-      colors: [[0.75, 0.55, 0.30], [0.55, 0.35, 0.15]]
-      randomize_offset: true
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.0
+      noise_strength: 2.2
+      octaves: 5
+      radial_anisotropy: 3.0
       randomize_rotation: true
-    roughness: 0.75
-    specular: 0.25
-    sheen: 0.15
-    sheen_tint: 0.8
-    sheen_roughness: 0.40
+      color_ramp:
+        - { position: 0.00, color: [0.30, 0.18, 0.08], interp: "smoothstep" }
+        - { position: 0.55, color: [0.82, 0.62, 0.38], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.82, 0.62], interp: "linear"     }
 
-  # Noce — finitura a cera, satinato
+  # Noce — figure leggera + clearcoat satinato
   - id: "wood_walnut"
     type: "disney"
+    color: [0.42, 0.26, 0.13]
+    roughness: 0.50
+    specular: 0.40
+    clearcoat: 0.30
+    coat_roughness: 0.30
     texture:
       type: "wood"
       scale: 4.0
-      noise_strength: 2.0
-      colors: [[0.45, 0.28, 0.15], [0.30, 0.18, 0.08]]
-      randomize_offset: true
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 3.5
+      noise_strength: 1.5
+      figure_scale: 0.18
+      figure_strength: 0.55
       randomize_rotation: true
-    roughness: 0.65
-    specular: 0.35
-    clearcoat: 0.2
-    coat_roughness: 0.35
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.10, 0.05], interp: "smoothstep" }
+        - { position: 0.55, color: [0.42, 0.26, 0.13], interp: "smoothstep" }
+        - { position: 1.00, color: [0.62, 0.42, 0.24], interp: "linear"     }
 
   # Ciliegio — verniciato lucido, clearcoat pieno
   - id: "wood_cherry"
     type: "disney"
+    color: [0.62, 0.22, 0.10]
+    roughness: 0.30
+    specular: 0.55
+    clearcoat: 0.85
+    coat_roughness: 0.10
     texture:
       type: "wood"
       scale: 4.5
-      noise_strength: 3.0
-      colors: [[0.62, 0.22, 0.10], [0.42, 0.13, 0.04]]
-      randomize_offset: true
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.5
+      noise_strength: 1.4
+      figure_scale: 0.20
+      figure_strength: 0.30
       randomize_rotation: true
-    roughness: 0.35
-    clearcoat: 0.8
-    coat_roughness: 0.12
-    specular: 0.5
+      color_ramp:
+        - { position: 0.00, color: [0.32, 0.10, 0.04], interp: "smoothstep" }
+        - { position: 0.55, color: [0.62, 0.22, 0.10], interp: "smoothstep" }
+        - { position: 1.00, color: [0.85, 0.45, 0.22], interp: "linear"     }
 
-  # Acero — legno grezzo, alta rugosità, niente finitura
-  - id: "wood_maple"
+  # Acero curly — figure_strength alto, grain quasi-spento
+  - id: "wood_curly_maple"
     type: "disney"
+    color: [0.88, 0.78, 0.60]
+    roughness: 0.42
+    specular: 0.40
+    clearcoat: 0.4
+    coat_roughness: 0.20
     texture:
       type: "wood"
-      scale: 3.5
-      noise_strength: 1.5
-      colors: [[0.85, 0.7, 0.5], [0.70, 0.55, 0.35]]
-      randomize_offset: true
+      scale: 5.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 5.0
+      noise_strength: 0.25
+      grain_scale: 1.8
+      figure_scale: 0.10
+      figure_strength: 1.7
       randomize_rotation: true
-    roughness: 0.92
-    specular: 0.15
-    sheen: 0.25
-    sheen_tint: 0.9
-    sheen_roughness: 0.35
-    subsurface: 0.1
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.38, 0.20], interp: "smoothstep" }
+        - { position: 0.45, color: [0.85, 0.72, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.92, 0.76], interp: "linear"     }
 
-  # Ebano — finitura laccata a specchio, legno prezioso
+  # Ebano laccato — finitura a specchio
   - id: "wood_ebony"
     type: "disney"
+    color: [0.10, 0.07, 0.04]
+    roughness: 0.12
+    specular: 0.70
+    clearcoat: 1.0
+    coat_roughness: 0.05
     texture:
       type: "wood"
       scale: 6.0
+      ring_sharpness: 4.0
       noise_strength: 1.0
-      colors: [[0.12, 0.08, 0.05], [0.06, 0.04, 0.02]]
-      randomize_offset: true
       randomize_rotation: true
-    roughness: 0.12
-    clearcoat: 1.0
-    coat_roughness: 0.05
-    specular: 0.7
+      color_ramp:
+        - { position: 0.00, color: [0.02, 0.01, 0.01], interp: "smoothstep" }
+        - { position: 1.00, color: [0.16, 0.10, 0.06], interp: "linear"     }
 
-  # Betulla — finitura naturale opaca con velatura chiara
-  - id: "wood_birch"
+  # Pino con nodi — knot_density 1.0 (showcase del nodo Voronoi-based)
+  - id: "wood_knotty_pine"
     type: "disney"
+    color: [0.85, 0.70, 0.45]
+    roughness: 0.55
+    specular: 0.30
     texture:
       type: "wood"
-      scale: 3.0
-      noise_strength: 1.8
-      colors: [[0.90, 0.80, 0.65], [0.75, 0.65, 0.50]]
-      randomize_offset: true
+      scale: 6.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.0
+      noise_strength: 0.6
+      figure_scale: 0.25
+      figure_strength: 0.3
+      knot_density: 1.0
       randomize_rotation: true
-    roughness: 0.85
-    specular: 0.2
-    subsurface: 0.15
-    sheen: 0.1
-    sheen_tint: 0.7
-    sheen_roughness: 0.45
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.03, 0.02], interp: "smoothstep" }
+        - { position: 0.18, color: [0.35, 0.18, 0.08], interp: "smoothstep" }
+        - { position: 0.65, color: [0.90, 0.68, 0.40], interp: "smoothstep" }
+        - { position: 1.00, color: [0.97, 0.86, 0.60], interp: "linear"     }
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  FILA 3 — MARMO (pietre pregiate con lucidatura differenziata)
+  #  FILA 3 — MARMO STUDIO QUALITY
+  #
+  #  Sei marmi con secondary_wave (cross-veining Statuario/Calacatta) e
+  #  ramp 4-stop. Convenzione ramp: position 0 = vena rara/scura, position
+  #  1 = base dominante.
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Carrara — bianco classico, levigatissimo, quasi a specchio
+  # Carrara — single-axis, vena sottile su base bianca (reference legacy
+  # ma con sharpening del marble fix)
   - id: "marble_carrara"
     type: "disney"
+    color: [0.95, 0.94, 0.92]
+    roughness: 0.18
+    clearcoat: 0.7
+    coat_roughness: 0.10
+    specular: 0.60
+    subsurface: 0.08
     texture:
       type: "marble"
-      scale: 15.0
-      noise_strength: 12.0
-      colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
+      scale: 5.0
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 4.0
+      noise_strength: 8.0
+      octaves: 8
       randomize_offset: true
-    roughness: 0.12
-    clearcoat: 0.9
-    coat_roughness: 0.08
-    specular: 0.7
-    subsurface: 0.08
+      colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
 
-  # Nero Marquinia — specchio scuro con venature dorate
+  # Calacatta — secondary_wave 0.45 + ramp 4-stop gold transition
+  - id: "marble_calacatta"
+    type: "disney"
+    color: [0.95, 0.94, 0.92]
+    roughness: 0.16
+    clearcoat: 0.8
+    coat_roughness: 0.08
+    specular: 0.65
+    subsurface: 0.06
+    texture:
+      type: "marble"
+      scale: 4.0
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 3.0
+      noise_strength: 6.0
+      octaves: 8
+      randomize_offset: true
+      secondary_wave:
+        axis: [1, 0, 0]
+        frequency: 0.65
+        strength: 0.45
+      color_ramp:
+        - { position: 0.00, color: [0.10, 0.08, 0.08], interp: "smoothstep" }   # vena (rara)
+        - { position: 0.35, color: [0.85, 0.65, 0.30], interp: "smoothstep" }   # gold transition
+        - { position: 0.70, color: [0.92, 0.85, 0.72], interp: "smoothstep" }   # cream
+        - { position: 1.00, color: [0.97, 0.95, 0.90], interp: "linear"     }   # ivory (dominante)
+
+  # Arabescato — secondary_wave forte + distortion (look caotico)
+  - id: "marble_arabescato"
+    type: "disney"
+    color: [0.92, 0.90, 0.88]
+    roughness: 0.20
+    clearcoat: 0.65
+    coat_roughness: 0.15
+    specular: 0.55
+    texture:
+      type: "marble"
+      scale: 3.5
+      vein_axis: [0, 0, 1]
+      vein_frequency: 0.9
+      vein_sharpness: 2.0
+      noise_strength: 8.0
+      octaves: 8
+      distortion: 0.35
+      randomize_offset: true
+      secondary_wave:
+        axis: [1, 0.3, 0]
+        frequency: 1.2
+        strength: 0.7
+      color_ramp:
+        - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "smoothstep" }
+        - { position: 0.50, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.94, 0.92, 0.88], interp: "linear"     }
+
+  # Nero Marquinia — vena dorata su fondo nero a specchio
   - id: "marble_nero"
     type: "disney"
-    texture:
-      type: "marble"
-      scale: 12.0
-      noise_strength: 10.0
-      colors: [[0.04, 0.04, 0.05], [0.60, 0.58, 0.52]]
-      randomize_offset: true
+    color: [0.05, 0.05, 0.06]
     roughness: 0.08
     clearcoat: 1.0
     coat_roughness: 0.05
     specular: 0.85
-
-  # Verde Guatemala — lucidatura media, profondità della pietra
-  - id: "marble_verde"
-    type: "disney"
     texture:
       type: "marble"
-      scale: 14.0
-      noise_strength: 11.0
-      colors: [[0.10, 0.30, 0.16], [0.03, 0.12, 0.06]]
+      scale: 4.5
+      vein_axis: [0, 0, 1]
+      vein_frequency: 0.85
+      vein_sharpness: 2.5
+      noise_strength: 7.0
+      octaves: 8
       randomize_offset: true
+      secondary_wave:
+        axis: [1, 0.15, 0]
+        frequency: 0.55
+        strength: 0.35
+      color_ramp:
+        - { position: 0.00, color: [0.95, 0.78, 0.32], interp: "smoothstep" }   # vena oro (rara)
+        - { position: 0.40, color: [0.30, 0.25, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [0.04, 0.04, 0.05], interp: "linear"     }   # nero base
+
+  # Verde Guatemala — vena verde-bianca su base scura
+  - id: "marble_verde"
+    type: "disney"
+    color: [0.10, 0.28, 0.16]
     roughness: 0.22
     clearcoat: 0.7
     coat_roughness: 0.18
-    specular: 0.6
-    subsurface: 0.05
-
-  # Rosso Levanto — finitura semi-lucida, caldo
-  - id: "marble_rosso"
-    type: "disney"
+    specular: 0.55
     texture:
       type: "marble"
-      scale: 13.0
-      noise_strength: 10.0
-      colors: [[0.65, 0.12, 0.08], [0.30, 0.06, 0.03]]
+      scale: 4.0
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.1
+      vein_sharpness: 3.0
+      noise_strength: 9.0
+      octaves: 8
+      distortion: 0.25
       randomize_offset: true
-    roughness: 0.28
-    clearcoat: 0.65
-    coat_roughness: 0.22
-    specular: 0.55
-    specular_tint: 0.2
+      secondary_wave:
+        axis: [1, 0, 0]
+        frequency: 0.9
+        strength: 0.50
+      color_ramp:
+        - { position: 0.00, color: [0.92, 0.92, 0.88], interp: "smoothstep" }   # vena chiara
+        - { position: 0.40, color: [0.18, 0.42, 0.22], interp: "smoothstep" }
+        - { position: 1.00, color: [0.06, 0.18, 0.10], interp: "linear"     }   # verde scuro base
 
-  # Rosa Portogallo — satinato, finitura più soft
+  # Rosa Portogallo — satinato, secondary leggero
   - id: "marble_rosa"
     type: "disney"
-    texture:
-      type: "marble"
-      scale: 16.0
-      noise_strength: 9.0
-      colors: [[0.88, 0.66, 0.60], [0.65, 0.40, 0.36]]
-      randomize_offset: true
-    roughness: 0.38
+    color: [0.88, 0.66, 0.60]
+    roughness: 0.32
     clearcoat: 0.45
-    coat_roughness: 0.32
-    specular: 0.4
-    subsurface: 0.1
-
-  # Blu Sodalite — lucidatura profonda, quasi gioiello
-  - id: "marble_blu"
-    type: "disney"
+    coat_roughness: 0.28
+    specular: 0.40
+    subsurface: 0.10
     texture:
       type: "marble"
-      scale: 11.0
-      noise_strength: 12.0
-      colors: [[0.12, 0.12, 0.45], [0.05, 0.05, 0.20]]
+      scale: 5.0
+      vein_axis: [0, 0, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 2.5
+      noise_strength: 6.5
+      octaves: 7
       randomize_offset: true
-    roughness: 0.10
-    clearcoat: 0.85
-    coat_roughness: 0.08
-    specular: 0.75
+      secondary_wave:
+        axis: [1, 0, 0]
+        frequency: 0.75
+        strength: 0.30
+      color_ramp:
+        - { position: 0.00, color: [0.45, 0.20, 0.20], interp: "smoothstep" }
+        - { position: 0.55, color: [0.78, 0.50, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.94, 0.78, 0.72], interp: "linear"     }
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  FILA 2 — METALLO (leghe con carattere)
+  #  FILA 2 — METALLI con anisotropia e bump
+  #
+  #  Sei leghe con la coppia anisotropic + bump_map per simulare lavorazioni
+  #  industriali (hammered, brushed, etched, hairlined).
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Oro 24K — caldo, leggermente satinato, riflessi ricchi
-  - id: "metal_gold"
+  # Oro martellato — voronoi F1 bump (concavità sferiche del martello)
+  - id: "metal_gold_hammered"
     type: "disney"
     color: [1.0, 0.71, 0.29]
     metallic: 1.0
-    roughness: 0.12
+    roughness: 0.18
     specular: 0.8
     specular_tint: 0.4
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 9.0
+        metric: "euclidean"
+        output: "f1"
+        smoothness: 0.4
+        randomness: 1.0
+        colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
+      strength: 3.0
 
-  # Argento sterling — freddo, quasi a specchio
-  - id: "metal_silver"
+  # Argento brushed — bump da noise allungato + aniso direzionale
+  - id: "metal_silver_brushed"
     type: "disney"
     color: [0.97, 0.96, 0.92]
     metallic: 1.0
-    roughness: 0.06
+    roughness: 0.18
     specular: 0.9
+    anisotropic: 0.7
+    anisotropic_rotation: 0.0
+    bump_map:
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 40.0
+        octaves: 3
+        uv_scale: [1.0, 30.0]              # ← striature direzionali
+        colors: [[0.3, 0.3, 0.3], [0.7, 0.7, 0.7]]
+      strength: 0.8
 
-  # Rame antico — ossidazione leggera, patina calda, lieve spazzolatura
-  - id: "metal_copper"
+  # Rame ossidato — voronoi crackle bump (patina graffiata) + aniso
+  - id: "metal_copper_patina"
     type: "disney"
-    color: [0.88, 0.55, 0.42]
+    color: [0.78, 0.48, 0.32]
     metallic: 1.0
-    roughness: 0.28
+    roughness: 0.32
     specular: 0.6
     specular_tint: 0.5
-    clearcoat: 0.15
-    coat_roughness: 0.45
-    anisotropic: 0.55
+    clearcoat: 0.10
+    coat_roughness: 0.50
+    anisotropic: 0.45
     anisotropic_rotation: 0.15
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 18.0
+        output: "f2_minus_f1"
+        smoothness: 0.3
+        colors: [[0.85, 0.85, 0.85], [0.0, 0.0, 0.0]]
+      strength: 1.5
 
-  # Bronzo rinascimentale — patina verde-scuro, roughness alto, brushed
-  - id: "metal_bronze"
+  # Bronzo etched — bump da marble (venature inciso acido)
+  - id: "metal_bronze_etched"
     type: "disney"
     color: [0.60, 0.42, 0.20]
-    metallic: 0.85
-    roughness: 0.38
+    metallic: 0.92
+    roughness: 0.40
     specular: 0.45
     specular_tint: 0.6
-    sheen: 0.1
-    sheen_tint: 0.4
-    anisotropic: 0.65
+    anisotropic: 0.50
     anisotropic_rotation: 0.40
+    bump_map:
+      texture:
+        type: "marble"
+        scale: 6.0
+        vein_axis: [1, 0, 0]
+        vein_frequency: 4.0
+        vein_sharpness: 3.0
+        distortion: 0.4
+        colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
+      strength: 2.0
 
-  # Cromo liquido — specchio perfetto
+  # Cromo polished — specchio quasi perfetto, niente bump
   - id: "metal_chrome"
     type: "disney"
     color: [0.96, 0.96, 0.98]
@@ -659,49 +836,38 @@ materials:
     roughness: 0.01
     specular: 1.0
 
-  # Gunmetal anodizzato — scuro con clearcoat industriale, anisotropia verticale
-  - id: "metal_gunmetal"
+  # Gunmetal hairlined — bump direzionale fittissimo + clearcoat anodizzato
+  - id: "metal_gunmetal_hairlined"
     type: "disney"
     color: [0.18, 0.18, 0.24]
     metallic: 0.92
-    roughness: 0.22
+    roughness: 0.28
     specular: 0.7
     clearcoat: 0.35
     coat_roughness: 0.15
-    anisotropic: 0.40
+    anisotropic: 0.65
     anisotropic_rotation: 0.70
+    bump_map:
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 80.0
+        octaves: 2
+        uv_scale: [60.0, 1.0]              # ← capelli orizzontali
+        colors: [[0.4, 0.4, 0.4], [0.6, 0.6, 0.6]]
+      strength: 0.5
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  FILA 1 — VETRO (gemme preziose)
+  #  FILA 1 — GEMME / MINERALI
   #
-  #  Ogni gemma usa il path Beer-Lambert del Disney BSDF: il colore della
-  #  pietra nasce dall'assorbimento accumulato lungo il cammino interno
-  #  del raggio (transmission_color come riferimento, transmission_depth
-  #  come distanza-scala). baseColor resta neutro perché la diffuse pool
-  #  su vetro puro (spec_trans=1) ha peso zero — il colore non deve essere
-  #  veicolato da quel canale o si ottiene una sfera "opaca colorata"
-  #  invece di un vetro tinto. Stesso motivo per cui subsurface e
-  #  specular_tint sono assenti: il primo richiede un volume diffondente
-  #  che il vetro non ha, il secondo colorerebbe il riflesso Fresnel
-  #  esterno (look "dichroic" che non è quello di una gemma vera).
+  #  Quattro vetri Beer-Lambert + un "minerale grezzo" con smooth-voronoi
+  #  (gemma scolpita non polita) + un debug "coordinate-texture" come
+  #  oggetto educativo. Nota: i vetri usano colore neutro nel baseColor
+  #  e il colore arriva solo da transmission_color (vedi nota tecnica
+  #  nello showcase legacy).
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Cristallo puro — vetro ottico perfetto, IOR alto stile flint
-  - id: "glass_clear"
-    type: "disney"
-    color: [1.0, 1.0, 1.0]
-    spec_trans: 1.0
-    ior: 1.8
-    roughness: 0.0
-    specular: 1.0
-    transmission_color: [0.97, 0.97, 1.0]
-    transmission_depth: 1.0
-
-  # Diamante — IOR 2.42, riflessi luminosi (il F0 Fresnel ~0.172 a IOR 2.42
-  # produce già la brillantezza caratteristica; niente clearcoat per evitare
-  # il conflitto delta↔delta quando transmission e coat sono entrambi a
-  # specchio — causa documentata di fireflies sulle gemme di vetro).
-  - id: "glass_diamond"
+  - id: "gem_diamond"
     type: "disney"
     color: [1.0, 1.0, 1.0]
     spec_trans: 1.0
@@ -711,8 +877,7 @@ materials:
     transmission_color: [0.99, 0.99, 1.0]
     transmission_depth: 1.0
 
-  # Rubino — rosso profondo, assorbimento progressivo nel canale verde/blu
-  - id: "glass_ruby"
+  - id: "gem_ruby"
     type: "disney"
     color: [1.0, 1.0, 1.0]
     spec_trans: 1.0
@@ -722,8 +887,7 @@ materials:
     transmission_color: [0.88, 0.10, 0.12]
     transmission_depth: 0.4
 
-  # Smeraldo — verde intenso saturo via Beer-Lambert
-  - id: "glass_emerald"
+  - id: "gem_emerald"
     type: "disney"
     color: [1.0, 1.0, 1.0]
     spec_trans: 1.0
@@ -733,19 +897,7 @@ materials:
     transmission_color: [0.18, 0.82, 0.38]
     transmission_depth: 0.4
 
-  # Ambra — resina fossile calda, assorbimento giallo-arancio
-  - id: "glass_amber"
-    type: "disney"
-    color: [1.0, 1.0, 1.0]
-    spec_trans: 1.0
-    ior: 1.55
-    roughness: 0.025
-    specular: 0.6
-    transmission_color: [0.92, 0.55, 0.15]
-    transmission_depth: 0.5
-
-  # Zaffiro — blu profondissimo, pulizia ottica estrema
-  - id: "glass_sapphire"
+  - id: "gem_sapphire"
     type: "disney"
     color: [1.0, 1.0, 1.0]
     spec_trans: 1.0
@@ -755,6 +907,40 @@ materials:
     transmission_color: [0.10, 0.18, 0.85]
     transmission_depth: 0.35
 
+  # "Quarzo grezzo" — smooth-voronoi su cuoio levigato bianco-azzurro,
+  # mostra il soft-min IQ (smoothness 0.55) + color ramp.
+  - id: "mineral_rough_quartz"
+    type: "disney"
+    color: [0.92, 0.95, 1.0]
+    roughness: 0.30
+    specular: 0.55
+    clearcoat: 0.30
+    coat_roughness: 0.25
+    subsurface: 0.25
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      metric: "euclidean"
+      output: "f2_minus_f1"
+      smoothness: 0.55                  # ← IQ log-sum-exp soft-min
+      randomness: 1.0
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.65, 0.85], interp: "smoothstep" }   # crepa
+        - { position: 0.30, color: [0.82, 0.90, 0.98], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.97, 1.00], interp: "linear"     }   # base ghiaccio
+
+  # Coordinate texture debug — modalità "object" (bande tilable R=X G=Y B=Z
+  # in local space, equivalente al "Texture Coordinate → Object" di Cycles).
+  # Più leggibile in vetrina rispetto a "generated", che da angolazione 3/4
+  # mostra solo un quadrante. Scale 6 → ~4 celle visibili sul diametro.
+  - id: "mineral_coordinate_debug"
+    type: "lambertian"
+    color: [1, 1, 1]
+    texture:
+      type: "coordinate"
+      mode: "object"
+      scale: 6.0
+
 
 # =============================================================================
 #  ENTITIES
@@ -762,7 +948,7 @@ materials:
 entities:
 
   # ═══════════════════════════════════════════════════════════════════════════
-  #  STANZA — Muri in stucco scuro + soffitto chiaro per rimbalzo
+  #  STANZA — Muri + soffitto
   # ═══════════════════════════════════════════════════════════════════════════
   - name: "back_wall"
     type: "quad"
@@ -793,7 +979,7 @@ entities:
     material: "ceiling_paint"
 
   # ═══════════════════════════════════════════════════════════════════════════
-  #  TAVOLO — Piano lucido + corpo scuro massiccio
+  #  TAVOLO
   # ═══════════════════════════════════════════════════════════════════════════
   - name: "table_surface"
     type: "box"
@@ -808,17 +994,14 @@ entities:
     material: "table_body"
 
   # ═══════════════════════════════════════════════════════════════════════════
-  #  ESPOSITORE — Vetrina in noce con bordino metallico
+  #  ESPOSITORE
   # ═══════════════════════════════════════════════════════════════════════════
-
-  # Base in velluto
   - name: "case_base"
     type: "box"
     scale: [5.50, 0.12, 5.50]
     translate: [0.0, 0.81, 0.0]
     material: "case_felt"
 
-  # Pareti della cornice
   - name: "case_wall_back"
     type: "box"
     scale: [5.74, 0.50, 0.12]
@@ -843,7 +1026,6 @@ entities:
     translate: [0.0, 0.96, -2.81]
     material: "case_wood"
 
-  # Bordino metallico superiore — trim sottile che cattura la luce
   - name: "case_trim_front"
     type: "box"
     scale: [5.78, 0.025, 0.14]
@@ -856,7 +1038,6 @@ entities:
     translate: [0.0, 1.375, 2.81]
     material: "case_trim"
 
-  # Divisori tra file
   - name: "divider_1"
     type: "box"
     scale: [5.30, 0.06, 0.05]
@@ -888,53 +1069,189 @@ entities:
     material: "case_divider"
 
   # ═══════════════════════════════════════════════════════════════════════════
-  #  SFERE — 6 file × 6 colonne
+  #  ELEMENTI ESPOSTI — 6 file × 6 colonne
   # ═══════════════════════════════════════════════════════════════════════════
 
-  # ── Fila 6 (Z=2.25): Plastiche morbide / Organiche ────────────────────
-  - { name: "soft_1", type: "sphere", center: [-2.25, 1.22, 2.25], radius: 0.35, seed: 6001, material: "soft_pink" }
-  - { name: "soft_2", type: "sphere", center: [-1.35, 1.22, 2.25], radius: 0.35, seed: 6002, material: "soft_sky" }
-  - { name: "soft_3", type: "sphere", center: [-0.45, 1.22, 2.25], radius: 0.35, seed: 6003, material: "soft_mint" }
-  - { name: "soft_4", type: "sphere", center: [ 0.45, 1.22, 2.25], radius: 0.35, seed: 6004, material: "soft_lemon" }
-  - { name: "soft_5", type: "sphere", center: [ 1.35, 1.22, 2.25], radius: 0.35, seed: 6005, material: "soft_lavender" }
-  - { name: "soft_6", type: "sphere", center: [ 2.25, 1.22, 2.25], radius: 0.35, seed: 6006, material: "soft_peach" }
+  # ── Fila 6 (Z=+2.25) PIANETI / TERRAIN MUSGRAVE ───────────────────────
+  - { name: "planet_1", type: "sphere", center: [-2.25, 1.22, 2.25], radius: 0.35, seed: 6001, material: "planet_earth" }
+  - { name: "planet_2", type: "sphere", center: [-1.35, 1.22, 2.25], radius: 0.35, seed: 6002, material: "planet_mars" }
+  - { name: "planet_3", type: "sphere", center: [-0.45, 1.22, 2.25], radius: 0.35, seed: 6003, material: "planet_strata" }
+  - { name: "planet_4", type: "sphere", center: [ 0.45, 1.22, 2.25], radius: 0.35, seed: 6004, material: "planet_gas" }
+  - { name: "planet_5", type: "sphere", center: [ 1.35, 1.22, 2.25], radius: 0.35, seed: 6005, material: "planet_asteroid" }
+  - { name: "planet_6", type: "sphere", center: [ 2.25, 1.22, 2.25], radius: 0.35, seed: 6006, material: "planet_lava" }
 
-  # ── Fila 5 (Z=1.35): Plastiche dure / Finiture industriali ────────────
-  - { name: "hard_1", type: "sphere", center: [-2.25, 1.22, 1.35], radius: 0.35, seed: 5001, material: "hard_cherry" }
-  - { name: "hard_2", type: "sphere", center: [-1.35, 1.22, 1.35], radius: 0.35, seed: 5002, material: "hard_royal" }
-  - { name: "hard_3", type: "sphere", center: [-0.45, 1.22, 1.35], radius: 0.35, seed: 5003, material: "hard_forest" }
-  - { name: "hard_4", type: "sphere", center: [ 0.45, 1.22, 1.35], radius: 0.35, seed: 5004, material: "hard_sunflower" }
-  - { name: "hard_5", type: "sphere", center: [ 1.35, 1.22, 1.35], radius: 0.35, seed: 5005, material: "hard_obsidian" }
-  - { name: "hard_6", type: "sphere", center: [ 2.25, 1.22, 1.35], radius: 0.35, seed: 5006, material: "hard_ivory" }
+  # ── Fila 5 (Z=+1.35) ROCCE / DISPLACEMENT STACK ────────────────────────
+  #
+  #  Tutte le entità sono icosahedra (12 vertici, 20 facce) subdivisi
+  #  Catmull-Clark ×3 = 1280 quad ⇒ ~2560 triangoli per roccia, abbastanza
+  #  per leggere la silhouette displaced senza esplodere i tempi.
+  #  Scale 0.42 ≈ raggio 0.35 (l'icosahedron è inscritto nella sfera
+  #  unitaria, vertici a distanza 1 dall'origine).
 
-  # ── Fila 4 (Z=0.45): Legno ────────────────────────────────────────────
+  # R1 ── bump-only su sfera "perfetta": riferimento, no displacement vero.
+  #       La silhouette resta liscia, il rilievo è solo perturbazione di
+  #       normale. Confronta con R3 (stesso noise come displacement vero).
+  - name: "rock_1_bumponly"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    material: "rock_granite_bumponly"
+    scale: [0.40, 0.40, 0.40]
+    translate: [-2.25, 1.27, 1.35]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 3
+
+  # R2 ── scalar displacement Voronoi F2−F1: silhouette a tessere.
+  - name: "rock_2_voronoi_disp"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    material: "rock_basalt"
+    scale: [0.40, 0.40, 0.40]
+    translate: [-1.35, 1.27, 1.35]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 3
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 4.0
+        metric: "euclidean"
+        output: "f2_minus_f1"
+        smoothness: 0.2
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.10
+      midlevel: 0.0
+    displacement_bound: 0.14
+
+  # R3 ── scalar displacement Musgrave hetero_terrain: pianeta in miniatura
+  #       con creste alte e valli lisce. La silhouette è ondulata.
+  - name: "rock_3_terrain_disp"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    material: "rock_sandstone"
+    scale: [0.40, 0.40, 0.40]
+    translate: [-0.45, 1.27, 1.35]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 3
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        noise_type: "hetero_terrain"
+        scale: 3.5
+        octaves: 6
+        fractal_increment: 0.30
+        fractal_offset: 0.7
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.16
+      midlevel: 0.45
+    displacement_bound: 0.22
+
+  # R4 ── vector displacement OBJECT-space (icosphere non ha UV, tangent
+  #       non disponibile): noise RGB letto come (x, y, z) locali; overhang
+  #       indipendenti dalla parametrizzazione.
+  - name: "rock_4_vector_disp"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    material: "rock_basalt"
+    scale: [0.40, 0.40, 0.40]
+    translate: [ 0.45, 1.27, 1.35]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 3
+    displacement:
+      mode: "vector"
+      space: "object"
+      texture:
+        type: "noise"
+        noise_type: "ridged"
+        scale: 3.2
+        octaves: 5
+        lacunarity: 2.2
+        gain: 0.55
+        colors: [[0.20, 0.20, 0.20], [0.80, 0.80, 0.80]]
+      scale: 0.14
+      midlevel: 0.5
+    displacement_bound: 0.26
+
+  # R5 ── FULL STACK: subdivision + scalar displacement + autobump + bump
+  #       materiale. La silhouette è dettata dal displacement, il
+  #       sub-griglia recuperato dall'autobump, i graffi sopra dal
+  #       bump_map del materiale `rock_sandstone_scratched`.
+  - name: "rock_5_full_stack"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    material: "rock_sandstone_scratched"
+    scale: [0.40, 0.40, 0.40]
+    translate: [ 1.35, 1.27, 1.35]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 3
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 5.0
+        octaves: 6
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.14
+      midlevel: 0.5
+      autobump: true                       # ← recupera sub-griglia
+      autobump_strength: 1.5
+      autobump_scale: 1.4
+    displacement_bound: 0.20
+
+  # R6 ── obsidiana scolpita: vector displacement object-space su mesh
+  #       Catmull-Clark = ossidiana semi-frantumata con clearcoat lucido.
+  - name: "rock_6_obsidian_sculpted"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    material: "rock_obsidian"
+    scale: [0.40, 0.40, 0.40]
+    translate: [ 2.25, 1.27, 1.35]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 3
+    displacement:
+      mode: "vector"
+      space: "object"
+      texture:
+        type: "voronoi"
+        scale: 5.0
+        output: "position"                  # ← XYZ feature come offset XYZ
+        randomness: 1.0
+        colors: [[0.20, 0.20, 0.20], [0.80, 0.80, 0.80]]
+      scale: 0.10
+      midlevel: 0.5
+    displacement_bound: 0.20
+
+  # ── Fila 4 (Z=+0.45) LEGNI STUDIO QUALITY ─────────────────────────────
   - { name: "wood_1", type: "sphere", center: [-2.25, 1.22, 0.45], radius: 0.35, seed: 4001, material: "wood_oak" }
   - { name: "wood_2", type: "sphere", center: [-1.35, 1.22, 0.45], radius: 0.35, seed: 4002, material: "wood_walnut" }
   - { name: "wood_3", type: "sphere", center: [-0.45, 1.22, 0.45], radius: 0.35, seed: 4003, material: "wood_cherry" }
-  - { name: "wood_4", type: "sphere", center: [ 0.45, 1.22, 0.45], radius: 0.35, seed: 4004, material: "wood_maple" }
+  - { name: "wood_4", type: "sphere", center: [ 0.45, 1.22, 0.45], radius: 0.35, seed: 4004, material: "wood_curly_maple" }
   - { name: "wood_5", type: "sphere", center: [ 1.35, 1.22, 0.45], radius: 0.35, seed: 4005, material: "wood_ebony" }
-  - { name: "wood_6", type: "sphere", center: [ 2.25, 1.22, 0.45], radius: 0.35, seed: 4006, material: "wood_birch" }
+  - { name: "wood_6", type: "sphere", center: [ 2.25, 1.22, 0.45], radius: 0.35, seed: 4006, material: "wood_knotty_pine" }
 
-  # ── Fila 3 (Z=-0.45): Marmo ───────────────────────────────────────────
+  # ── Fila 3 (Z=-0.45) MARMI STUDIO QUALITY ─────────────────────────────
   - { name: "marble_1", type: "sphere", center: [-2.25, 1.22, -0.45], radius: 0.35, seed: 3001, material: "marble_carrara" }
-  - { name: "marble_2", type: "sphere", center: [-1.35, 1.22, -0.45], radius: 0.35, seed: 3002, material: "marble_nero" }
-  - { name: "marble_3", type: "sphere", center: [-0.45, 1.22, -0.45], radius: 0.35, seed: 3003, material: "marble_verde" }
-  - { name: "marble_4", type: "sphere", center: [ 0.45, 1.22, -0.45], radius: 0.35, seed: 3004, material: "marble_rosso" }
-  - { name: "marble_5", type: "sphere", center: [ 1.35, 1.22, -0.45], radius: 0.35, seed: 3005, material: "marble_rosa" }
-  - { name: "marble_6", type: "sphere", center: [ 2.25, 1.22, -0.45], radius: 0.35, seed: 3006, material: "marble_blu" }
+  - { name: "marble_2", type: "sphere", center: [-1.35, 1.22, -0.45], radius: 0.35, seed: 3002, material: "marble_calacatta" }
+  - { name: "marble_3", type: "sphere", center: [-0.45, 1.22, -0.45], radius: 0.35, seed: 3003, material: "marble_arabescato" }
+  - { name: "marble_4", type: "sphere", center: [ 0.45, 1.22, -0.45], radius: 0.35, seed: 3004, material: "marble_nero" }
+  - { name: "marble_5", type: "sphere", center: [ 1.35, 1.22, -0.45], radius: 0.35, seed: 3005, material: "marble_verde" }
+  - { name: "marble_6", type: "sphere", center: [ 2.25, 1.22, -0.45], radius: 0.35, seed: 3006, material: "marble_rosa" }
 
-  # ── Fila 2 (Z=-1.35): Metallo ─────────────────────────────────────────
-  - { name: "metal_1", type: "sphere", center: [-2.25, 1.22, -1.35], radius: 0.35, seed: 2001, material: "metal_gold" }
-  - { name: "metal_2", type: "sphere", center: [-1.35, 1.22, -1.35], radius: 0.35, seed: 2002, material: "metal_silver" }
-  - { name: "metal_3", type: "sphere", center: [-0.45, 1.22, -1.35], radius: 0.35, seed: 2003, material: "metal_copper" }
-  - { name: "metal_4", type: "sphere", center: [ 0.45, 1.22, -1.35], radius: 0.35, seed: 2004, material: "metal_bronze" }
+  # ── Fila 2 (Z=-1.35) METALLI con anisotropia e bump ───────────────────
+  - { name: "metal_1", type: "sphere", center: [-2.25, 1.22, -1.35], radius: 0.35, seed: 2001, material: "metal_gold_hammered" }
+  - { name: "metal_2", type: "sphere", center: [-1.35, 1.22, -1.35], radius: 0.35, seed: 2002, material: "metal_silver_brushed" }
+  - { name: "metal_3", type: "sphere", center: [-0.45, 1.22, -1.35], radius: 0.35, seed: 2003, material: "metal_copper_patina" }
+  - { name: "metal_4", type: "sphere", center: [ 0.45, 1.22, -1.35], radius: 0.35, seed: 2004, material: "metal_bronze_etched" }
   - { name: "metal_5", type: "sphere", center: [ 1.35, 1.22, -1.35], radius: 0.35, seed: 2005, material: "metal_chrome" }
-  - { name: "metal_6", type: "sphere", center: [ 2.25, 1.22, -1.35], radius: 0.35, seed: 2006, material: "metal_gunmetal" }
+  - { name: "metal_6", type: "sphere", center: [ 2.25, 1.22, -1.35], radius: 0.35, seed: 2006, material: "metal_gunmetal_hairlined" }
 
-  # ── Fila 1 (Z=-2.25): Vetro / Gemme ───────────────────────────────────
-  - { name: "glass_1", type: "sphere", center: [-2.25, 1.22, -2.25], radius: 0.35, seed: 1001, material: "glass_clear" }
-  - { name: "glass_2", type: "sphere", center: [-1.35, 1.22, -2.25], radius: 0.35, seed: 1002, material: "glass_diamond" }
-  - { name: "glass_3", type: "sphere", center: [-0.45, 1.22, -2.25], radius: 0.35, seed: 1003, material: "glass_ruby" }
-  - { name: "glass_4", type: "sphere", center: [ 0.45, 1.22, -2.25], radius: 0.35, seed: 1004, material: "glass_emerald" }
-  - { name: "glass_5", type: "sphere", center: [ 1.35, 1.22, -2.25], radius: 0.35, seed: 1005, material: "glass_amber" }
-  - { name: "glass_6", type: "sphere", center: [ 2.25, 1.22, -2.25], radius: 0.35, seed: 1006, material: "glass_sapphire" }
+  # ── Fila 1 (Z=-2.25) GEMME / MINERALI ─────────────────────────────────
+  - { name: "gem_1", type: "sphere", center: [-2.25, 1.22, -2.25], radius: 0.35, seed: 1001, material: "gem_diamond" }
+  - { name: "gem_2", type: "sphere", center: [-1.35, 1.22, -2.25], radius: 0.35, seed: 1002, material: "gem_ruby" }
+  - { name: "gem_3", type: "sphere", center: [-0.45, 1.22, -2.25], radius: 0.35, seed: 1003, material: "gem_emerald" }
+  - { name: "gem_4", type: "sphere", center: [ 0.45, 1.22, -2.25], radius: 0.35, seed: 1004, material: "gem_sapphire" }
+  - { name: "gem_5", type: "sphere", center: [ 1.35, 1.22, -2.25], radius: 0.35, seed: 1005, material: "mineral_rough_quartz" }
+  - { name: "gem_6", type: "sphere", center: [ 2.25, 1.22, -2.25], radius: 0.35, seed: 1006, material: "mineral_coordinate_debug" }

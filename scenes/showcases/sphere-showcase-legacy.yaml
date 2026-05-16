@@ -1,0 +1,948 @@
+# =============================================================================
+#  SPHERE SHOWCASE DISNEY — Espositore 6×6 Sfere di Materiali PBR Moderni
+#  ┌─────────────────────────────────────────────────────────────────────┐
+#  │  LEGACY — versione storica conservata per riferimento.              │
+#  │  La nuova versione `sphere-showcase.yaml` integra l'intero stack    │
+#  │  displacement (bump / subdivision / scalar / vector / autobump) e   │
+#  │  le feature di texturing VFX (color ramp multi-stop, smooth         │
+#  │  voronoi, Musgrave multifractal, marble/wood studio, F3/F4 voronoi  │
+#  │  outputs, coordinate texture).                                       │
+#  └─────────────────────────────────────────────────────────────────────┘
+# =============================================================================
+#
+#  Camere disponibili (--camera <nome>):
+#    hero          Vista 3/4 classica con DOF (default)
+#    frontale      Simmetrica centrata, stile catalogo
+#    closeup       Primo piano estremo sulle gemme
+#    zenitale      Dall'alto, pianta dell'espositore
+#    drammatica    Angolo basso eye-level con le sfere
+#    macro_metalli Macro sulla fila metalli con bokeh
+#
+#  Render consigliati:
+#    Preview:    -w 400  -H 225  -s 64   -d 4  -S 1
+#    Draft:      -w 800  -H 450  -s 256  -d 6
+#    Produzione: -w 1920 -H 1080 -s 1024 -d 8  -S 4
+#
+# =============================================================================
+
+
+# =============================================================================
+#  WORLD
+# =============================================================================
+world:
+  sky:
+    type: "flat"
+    color: [0.1, 0.1, 0.15]
+  ground:
+    type: "infinite_plane"
+    material: "floor_stone"
+    y: 0.0
+
+
+# =============================================================================
+#  CAMERAS
+# =============================================================================
+cameras:
+
+  # ── Hero: vista 3/4 classica, DOF sulle sfere centrali ────────────────
+  - name:       hero
+    position:   [2.0, 3.8, -6.0]
+    look_at:    [-0.4, 0.7, 0.0]
+    fov:        36
+    aperture:   0.0 # 0.2
+    focal_dist: 6.5
+
+  # ── Frontale: simmetrica centrata, stile catalogo ─────────────────────
+  - name:       frontale
+    position:   [0.0, 3.5, -6.5]
+    look_at:    [0.0, 1.15, 0.0]
+    fov:        38
+    aperture:   0.04
+    focal_dist: 7.0
+
+  # ── Closeup: primo piano sulle gemme (prima fila) ────────────────────
+  - name:       closeup
+    position:   [0.5, 1.8, -4.0]
+    look_at:    [0.0, 1.22, -2.0]
+    fov:        30
+    aperture:   0.12
+    focal_dist: 2.5
+
+  # ── Zenitale: vista dall'alto per pianta dell'espositore ──────────────
+  - name:       zenitale
+    position:   [0.0, 7.0, 0.01]
+    look_at:    [0.0, 1.0, 0.0]
+    vup:        [0, 0, 1]
+    fov:        42
+    aperture:   0.0
+    focal_dist: 6.0
+
+  # ── Drammatica: angolo basso eye-level con le sfere ───────────────────
+  - name:       drammatica
+    position:   [3.5, 1.3, -5.0]
+    look_at:    [0.0, 1.22, 0.0]
+    fov:        50
+    aperture:   0.08
+    focal_dist: 6.0
+
+  # ── Macro metalli: bokeh estremo sulla fila metalli ───────────────────
+  - name:       macro_metalli
+    position:   [1.0, 1.5, -3.8]
+    look_at:    [0.0, 1.22, -1.35]
+    fov:        25
+    aperture:   0.20
+    focal_dist: 3.0
+
+# =============================================================================
+#  LIGHTS
+# =============================================================================
+lights:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET CORRENTE: Studio Professionale con Point Light
+  #
+  #  Due point light laterali aggiungono dimensione e separano i materiali.
+  #  Un punto luce posteriore separa il tavolo dallo sfondo scuro.
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Key Light — punto luce caldo dall'alto-sinistra
+  # - type: "point"
+  #   position: [-4.0, 4.5, -4.0]
+  #   color: [1.0, 0.95, 0.88]
+  #   intensity: 120
+
+  # Fill Light — luce fredda leggera dal lato opposto
+  # - type: "point"
+  #   position: [5.0, 3.0, -2.0]
+  #   color: [0.85, 0.88, 1.0]
+  #   intensity: 60
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 1: Solo Area Light (ombre ultra-morbide, minimalista)
+  # ─────────────────────────────────────────────────────────────────────────
+  - type: "area"
+    corner: [-2.5, 4.8, -2.5]
+    u: [5.0, 0.0, 0.0]
+    v: [0.0, 0.0, 5.0]
+    color: [1.0, 0.97, 0.92]
+    intensity: 5.0
+  - type: "point"
+    position: [-5.0, 2.0, -3.0]
+    color: [0.8, 0.85, 1.0]
+    intensity: 6
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 2: Three-Point Classico (ombre nette, veloce)
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "point"
+  #   position: [-5, 6, -5]
+  #   color: [1.0, 0.95, 0.9]
+  #   intensity: 100
+  # - type: "point"
+  #   position: [5, 3, -2]
+  #   color: [0.85, 0.85, 1.0]
+  #   intensity: 35
+  # - type: "point"
+  #   position: [0, 6, 5]
+  #   color: [1.0, 0.95, 0.85]
+  #   intensity: 50
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 3: Warm & Cool Contrast (atmosferico)
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "point"
+  #   position: [-5, 4, -3]
+  #   color: [1.0, 0.5, 0.15]
+  #   intensity: 90
+  # - type: "point"
+  #   position: [5, 4, -3]
+  #   color: [0.15, 0.4, 1.0]
+  #   intensity: 90
+  # - type: "point"
+  #   position: [0, 5, 0]
+  #   color: [1.0, 1.0, 1.0]
+  #   intensity: 20
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 4: Dramatic Spot (museo, luce concentrata)
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "spot"
+  #   position: [0, 4.8, -2]
+  #   direction: [0, -0.9, 0.2]
+  #   color: [1.0, 0.98, 0.92]
+  #   intensity: 250
+  #   inner_angle: 15
+  #   outer_angle: 30
+  # - type: "point"
+  #   position: [-6, 2, 0]
+  #   color: [0.7, 0.7, 0.8]
+  #   intensity: 10
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 5: Neon Cyber (creativo, magenta + ciano)
+  # ─────────────────────────────────────────────────────────────────────────
+  # - type: "point"
+  #   position: [-5, 3, 0]
+  #   color: [1.0, 0.0, 0.8]
+  #   intensity: 120
+  # - type: "point"
+  #   position: [5, 3, 0]
+  #   color: [0.0, 0.8, 1.0]
+  #   intensity: 120
+  # - type: "point"
+  #   position: [0, 4.5, -2]
+  #   color: [1.0, 1.0, 1.0]
+  #   intensity: 15
+
+# =============================================================================
+#  MATERIALS (Disney BSDF — Enhanced)
+# =============================================================================
+materials:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  AMBIENTE: Pavimento e Stanza  [OTTIMIZZATO → lambertian]
+  # ─────────────────────────────────────────────────────────────────────────
+ 
+  # Pavimento in pietra levigata scura — checker discreto
+  - id: "floor_stone"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 3.0
+      colors: [[0.15, 0.13, 0.12], [0.20, 0.18, 0.16]]
+ 
+  # Muro in stucco veneziano
+  - id: "wall_stucco"
+    type: "lambertian"
+    color: [0.22, 0.20, 0.19]
+ 
+  # Soffitto — superficie di rimbalzo luce
+  - id: "ceiling_paint"
+    type: "lambertian"
+    color: [0.32, 0.30, 0.28]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  TAVOLO  [OTTIMIZZATO → lambertian/metal]
+  # ─────────────────────────────────────────────────────────────────────────
+ 
+  # Piano del tavolo in legno scuro — finitura ad olio opaca
+  - id: "table_top"
+    type: "disney"
+    metallic: 0.0
+    roughness: 0.70
+    specular: 0.25
+    sheen: 0.15
+    sheen_tint: 0.8
+    sheen_roughness: 0.6
+    texture:
+      type: "wood"
+      scale: 2.5
+      noise_strength: 2.5
+      colors: [[0.35, 0.2, 0.1], [0.2, 0.1, 0.04]]
+      rotation: [0, 30, 0]
+ 
+  # Corpo tavolo — legno scuro opaco (non visibile nelle viste principali)
+  - id: "table_body"
+    type: "lambertian"
+    color: [0.15, 0.09, 0.04]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  ESPOSITORE  [OTTIMIZZATO → lambertian/metal]
+  # ─────────────────────────────────────────────────────────────────────────
+ 
+  # Cornice in noce — texture legno preservata
+  - id: "case_wood"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 3.0
+      colors: [[0.42, 0.26, 0.13], [0.28, 0.16, 0.07]]
+      randomize_rotation: true
+ 
+  # Base in velluto scuro
+  - id: "case_felt"
+    type: "lambertian"
+    color: [0.04, 0.04, 0.06]
+ 
+  # Divisori — listelli sottili tra le file
+  - id: "case_divider"
+    type: "lambertian"
+    texture:
+      type: "wood"
+      scale: 6.0
+      noise_strength: 2.0
+      colors: [[0.38, 0.23, 0.12], [0.25, 0.14, 0.06]]
+ 
+  # Bordino metallico dell'espositore — acciaio satinato
+  - id: "case_trim"
+    type: "metal"
+    color: [0.60, 0.58, 0.55]
+    fuzz: 0.35
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 6 — PLASTICHE MORBIDE / ORGANICHE
+  #
+  #  Ogni sfera simula un materiale morbido diverso: silicone, schiuma,
+  #  pelle sintetica, cera d'api, marshmallow, sapone artigianale.
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Rosa cipria — silicone morbido con leggero sheen di superficie
+  - id: "soft_pink"
+    type: "disney"
+    color: [0.92, 0.55, 0.58]
+    roughness: 0.95
+    subsurface: 0.45
+    specular: 0.2
+    sheen: 0.4
+    sheen_tint: 0.6
+    sheen_roughness: 0.55
+
+  # Azzurro cielo — gomma schiumosa opaca, quasi zero riflesso
+  - id: "soft_sky"
+    type: "disney"
+    color: [0.50, 0.65, 0.92]
+    roughness: 1.0
+    subsurface: 0.35
+    specular: 0.1
+    sheen: 0.2
+    sheen_tint: 0.4
+    sheen_roughness: 0.65
+
+  # Menta — pelle sintetica con subsurface pronunciato
+  - id: "soft_mint"
+    type: "disney"
+    color: [0.48, 0.85, 0.58]
+    roughness: 0.85
+    subsurface: 0.55
+    specular: 0.3
+    sheen: 0.15
+    sheen_tint: 0.5
+    sheen_roughness: 0.50
+
+  # Limone — cera d'api, subsurface forte e specular basso
+  - id: "soft_lemon"
+    type: "disney"
+    color: [0.95, 0.88, 0.42]
+    roughness: 0.75
+    subsurface: 0.7
+    specular: 0.35
+    sheen: 0.05
+    sheen_roughness: 0.45
+
+  # Lavanda — marshmallow, subsurface altissimo per traslucenza
+  - id: "soft_lavender"
+    type: "disney"
+    color: [0.70, 0.55, 0.88]
+    roughness: 0.92
+    subsurface: 0.65
+    specular: 0.15
+    sheen: 0.3
+    sheen_tint: 0.7
+    sheen_roughness: 0.60
+
+  # Pesca — sapone artigianale, sheen pronunciato al radente
+  - id: "soft_peach"
+    type: "disney"
+    color: [0.95, 0.68, 0.48]
+    roughness: 0.88
+    subsurface: 0.4
+    specular: 0.25
+    sheen: 0.6
+    sheen_tint: 0.8
+    sheen_roughness: 0.70
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 5 — PLASTICHE DURE / FINITURE INDUSTRIALI
+  #
+  #  Vernice auto, lacca pianoforte, ceramica smaltata, ABS, bakelite,
+  #  porcellana. Clearcoat e clearcoat_gloss differenziati.
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Rosso ciliegia — vernice auto con clearcoat alto e glossy
+  - id: "hard_cherry"
+    type: "disney"
+    color: [0.78, 0.04, 0.04]
+    roughness: 0.28
+    clearcoat: 1.0
+    coat_roughness: 0.08
+    specular: 0.6
+    metallic: 0.0
+
+  # Blu royal — lacca profonda tipo pianoforte
+  - id: "hard_royal"
+    type: "disney"
+    color: [0.04, 0.06, 0.72]
+    roughness: 0.05
+    clearcoat: 1.0
+    coat_roughness: 0.05
+    specular: 0.8
+    metallic: 0.0
+
+  # Verde bosco — ceramica smaltata, clearcoat satinato
+  - id: "hard_forest"
+    type: "disney"
+    color: [0.06, 0.48, 0.10]
+    roughness: 0.20
+    clearcoat: 0.7
+    coat_roughness: 0.25
+    specular: 0.5
+    specular_tint: 0.3
+
+  # Giallo girasole — ABS lucido tipo LEGO, riflesso netto
+  - id: "hard_sunflower"
+    type: "disney"
+    color: [0.90, 0.80, 0.05]
+    roughness: 0.12
+    clearcoat: 0.6
+    coat_roughness: 0.12
+    specular: 0.7
+    metallic: 0.0
+
+  # Ossidiana — bakelite scurissima, sheen al radente
+  - id: "hard_obsidian"
+    type: "disney"
+    color: [0.03, 0.03, 0.04]
+    roughness: 0.08
+    clearcoat: 1.0
+    coat_roughness: 0.05
+    specular: 0.9
+    sheen: 0.25
+    sheen_tint: 0.2
+
+  # Avorio — porcellana fredda, subsurface leggero + clearcoat satinato
+  - id: "hard_ivory"
+    type: "disney"
+    color: [0.94, 0.92, 0.85]
+    roughness: 0.18
+    clearcoat: 0.5
+    coat_roughness: 0.20
+    specular: 0.6
+    subsurface: 0.2
+    specular_tint: 0.1
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 4 — LEGNO (essenze con finiture differenziate)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Quercia — finitura ad olio, sheen leggero per il poro aperto
+  - id: "wood_oak"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.75, 0.55, 0.30], [0.55, 0.35, 0.15]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.75
+    specular: 0.25
+    sheen: 0.15
+    sheen_tint: 0.8
+    sheen_roughness: 0.40
+
+  # Noce — finitura a cera, satinato
+  - id: "wood_walnut"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      noise_strength: 2.0
+      colors: [[0.45, 0.28, 0.15], [0.30, 0.18, 0.08]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.65
+    specular: 0.35
+    clearcoat: 0.2
+    coat_roughness: 0.35
+
+  # Ciliegio — verniciato lucido, clearcoat pieno
+  - id: "wood_cherry"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      noise_strength: 3.0
+      colors: [[0.62, 0.22, 0.10], [0.42, 0.13, 0.04]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.35
+    clearcoat: 0.8
+    coat_roughness: 0.12
+    specular: 0.5
+
+  # Acero — legno grezzo, alta rugosità, niente finitura
+  - id: "wood_maple"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.5
+      noise_strength: 1.5
+      colors: [[0.85, 0.7, 0.5], [0.70, 0.55, 0.35]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.92
+    specular: 0.15
+    sheen: 0.25
+    sheen_tint: 0.9
+    sheen_roughness: 0.35
+    subsurface: 0.1
+
+  # Ebano — finitura laccata a specchio, legno prezioso
+  - id: "wood_ebony"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 6.0
+      noise_strength: 1.0
+      colors: [[0.12, 0.08, 0.05], [0.06, 0.04, 0.02]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.12
+    clearcoat: 1.0
+    coat_roughness: 0.05
+    specular: 0.7
+
+  # Betulla — finitura naturale opaca con velatura chiara
+  - id: "wood_birch"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 3.0
+      noise_strength: 1.8
+      colors: [[0.90, 0.80, 0.65], [0.75, 0.65, 0.50]]
+      randomize_offset: true
+      randomize_rotation: true
+    roughness: 0.85
+    specular: 0.2
+    subsurface: 0.15
+    sheen: 0.1
+    sheen_tint: 0.7
+    sheen_roughness: 0.45
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 3 — MARMO (pietre pregiate con lucidatura differenziata)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Carrara — bianco classico, levigatissimo, quasi a specchio
+  - id: "marble_carrara"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 15.0
+      noise_strength: 12.0
+      colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
+      randomize_offset: true
+    roughness: 0.12
+    clearcoat: 0.9
+    coat_roughness: 0.08
+    specular: 0.7
+    subsurface: 0.08
+
+  # Nero Marquinia — specchio scuro con venature dorate
+  - id: "marble_nero"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 12.0
+      noise_strength: 10.0
+      colors: [[0.04, 0.04, 0.05], [0.60, 0.58, 0.52]]
+      randomize_offset: true
+    roughness: 0.08
+    clearcoat: 1.0
+    coat_roughness: 0.05
+    specular: 0.85
+
+  # Verde Guatemala — lucidatura media, profondità della pietra
+  - id: "marble_verde"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 14.0
+      noise_strength: 11.0
+      colors: [[0.10, 0.30, 0.16], [0.03, 0.12, 0.06]]
+      randomize_offset: true
+    roughness: 0.22
+    clearcoat: 0.7
+    coat_roughness: 0.18
+    specular: 0.6
+    subsurface: 0.05
+
+  # Rosso Levanto — finitura semi-lucida, caldo
+  - id: "marble_rosso"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 13.0
+      noise_strength: 10.0
+      colors: [[0.65, 0.12, 0.08], [0.30, 0.06, 0.03]]
+      randomize_offset: true
+    roughness: 0.28
+    clearcoat: 0.65
+    coat_roughness: 0.22
+    specular: 0.55
+    specular_tint: 0.2
+
+  # Rosa Portogallo — satinato, finitura più soft
+  - id: "marble_rosa"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 16.0
+      noise_strength: 9.0
+      colors: [[0.88, 0.66, 0.60], [0.65, 0.40, 0.36]]
+      randomize_offset: true
+    roughness: 0.38
+    clearcoat: 0.45
+    coat_roughness: 0.32
+    specular: 0.4
+    subsurface: 0.1
+
+  # Blu Sodalite — lucidatura profonda, quasi gioiello
+  - id: "marble_blu"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 11.0
+      noise_strength: 12.0
+      colors: [[0.12, 0.12, 0.45], [0.05, 0.05, 0.20]]
+      randomize_offset: true
+    roughness: 0.10
+    clearcoat: 0.85
+    coat_roughness: 0.08
+    specular: 0.75
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 2 — METALLO (leghe con carattere)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Oro 24K — caldo, leggermente satinato, riflessi ricchi
+  - id: "metal_gold"
+    type: "disney"
+    color: [1.0, 0.71, 0.29]
+    metallic: 1.0
+    roughness: 0.12
+    specular: 0.8
+    specular_tint: 0.4
+
+  # Argento sterling — freddo, quasi a specchio
+  - id: "metal_silver"
+    type: "disney"
+    color: [0.97, 0.96, 0.92]
+    metallic: 1.0
+    roughness: 0.06
+    specular: 0.9
+
+  # Rame antico — ossidazione leggera, patina calda, lieve spazzolatura
+  - id: "metal_copper"
+    type: "disney"
+    color: [0.88, 0.55, 0.42]
+    metallic: 1.0
+    roughness: 0.28
+    specular: 0.6
+    specular_tint: 0.5
+    clearcoat: 0.15
+    coat_roughness: 0.45
+    anisotropic: 0.55
+    anisotropic_rotation: 0.15
+
+  # Bronzo rinascimentale — patina verde-scuro, roughness alto, brushed
+  - id: "metal_bronze"
+    type: "disney"
+    color: [0.60, 0.42, 0.20]
+    metallic: 0.85
+    roughness: 0.38
+    specular: 0.45
+    specular_tint: 0.6
+    sheen: 0.1
+    sheen_tint: 0.4
+    anisotropic: 0.65
+    anisotropic_rotation: 0.40
+
+  # Cromo liquido — specchio perfetto
+  - id: "metal_chrome"
+    type: "disney"
+    color: [0.96, 0.96, 0.98]
+    metallic: 1.0
+    roughness: 0.01
+    specular: 1.0
+
+  # Gunmetal anodizzato — scuro con clearcoat industriale, anisotropia verticale
+  - id: "metal_gunmetal"
+    type: "disney"
+    color: [0.18, 0.18, 0.24]
+    metallic: 0.92
+    roughness: 0.22
+    specular: 0.7
+    clearcoat: 0.35
+    coat_roughness: 0.15
+    anisotropic: 0.40
+    anisotropic_rotation: 0.70
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  FILA 1 — VETRO (gemme preziose)
+  #
+  #  Ogni gemma usa il path Beer-Lambert del Disney BSDF: il colore della
+  #  pietra nasce dall'assorbimento accumulato lungo il cammino interno
+  #  del raggio (transmission_color come riferimento, transmission_depth
+  #  come distanza-scala). baseColor resta neutro perché la diffuse pool
+  #  su vetro puro (spec_trans=1) ha peso zero — il colore non deve essere
+  #  veicolato da quel canale o si ottiene una sfera "opaca colorata"
+  #  invece di un vetro tinto. Stesso motivo per cui subsurface e
+  #  specular_tint sono assenti: il primo richiede un volume diffondente
+  #  che il vetro non ha, il secondo colorerebbe il riflesso Fresnel
+  #  esterno (look "dichroic" che non è quello di una gemma vera).
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Cristallo puro — vetro ottico perfetto, IOR alto stile flint
+  - id: "glass_clear"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
+    ior: 1.8
+    roughness: 0.0
+    specular: 1.0
+    transmission_color: [0.97, 0.97, 1.0]
+    transmission_depth: 1.0
+
+  # Diamante — IOR 2.42, riflessi luminosi (il F0 Fresnel ~0.172 a IOR 2.42
+  # produce già la brillantezza caratteristica; niente clearcoat per evitare
+  # il conflitto delta↔delta quando transmission e coat sono entrambi a
+  # specchio — causa documentata di fireflies sulle gemme di vetro).
+  - id: "glass_diamond"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
+    ior: 2.42
+    roughness: 0.003
+    specular: 1.0
+    transmission_color: [0.99, 0.99, 1.0]
+    transmission_depth: 1.0
+
+  # Rubino — rosso profondo, assorbimento progressivo nel canale verde/blu
+  - id: "glass_ruby"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
+    ior: 1.77
+    roughness: 0.015
+    specular: 0.9
+    transmission_color: [0.88, 0.10, 0.12]
+    transmission_depth: 0.4
+
+  # Smeraldo — verde intenso saturo via Beer-Lambert
+  - id: "glass_emerald"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
+    ior: 1.57
+    roughness: 0.04
+    specular: 0.75
+    transmission_color: [0.18, 0.82, 0.38]
+    transmission_depth: 0.4
+
+  # Ambra — resina fossile calda, assorbimento giallo-arancio
+  - id: "glass_amber"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
+    ior: 1.55
+    roughness: 0.025
+    specular: 0.6
+    transmission_color: [0.92, 0.55, 0.15]
+    transmission_depth: 0.5
+
+  # Zaffiro — blu profondissimo, pulizia ottica estrema
+  - id: "glass_sapphire"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
+    ior: 1.77
+    roughness: 0.01
+    specular: 0.95
+    transmission_color: [0.10, 0.18, 0.85]
+    transmission_depth: 0.35
+
+
+# =============================================================================
+#  ENTITIES
+# =============================================================================
+entities:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  STANZA — Muri in stucco scuro + soffitto chiaro per rimbalzo
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: "back_wall"
+    type: "quad"
+    q: [-8.0, 0.0, 8.0]
+    u: [16.0, 0.0, 0.0]
+    v: [0.0, 8.0, 0.0]
+    material: "wall_stucco"
+
+  - name: "left_wall"
+    type: "quad"
+    q: [-8.0, 0.0, -6.0]
+    u: [0.0, 0.0, 14.0]
+    v: [0.0, 8.0, 0.0]
+    material: "wall_stucco"
+
+  - name: "right_wall"
+    type: "quad"
+    q: [8.0, 0.0, -6.0]
+    u: [0.0, 0.0, 14.0]
+    v: [0.0, 8.0, 0.0]
+    material: "wall_stucco"
+
+  - name: "ceiling"
+    type: "quad"
+    q: [-8.0, 5.0, -6.0]
+    u: [16.0, 0.0, 0.0]
+    v: [0.0, 0.0, 14.0]
+    material: "ceiling_paint"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  TAVOLO — Piano lucido + corpo scuro massiccio
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: "table_surface"
+    type: "box"
+    scale: [8.0, 0.10, 5.5]
+    translate: [0.0, 0.70, 0.2]
+    material: "table_top"
+
+  - name: "table_body"
+    type: "box"
+    scale: [7.6, 0.65, 5.1]
+    translate: [0.0, 0.325, 0.2]
+    material: "table_body"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  ESPOSITORE — Vetrina in noce con bordino metallico
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # Base in velluto
+  - name: "case_base"
+    type: "box"
+    scale: [5.50, 0.12, 5.50]
+    translate: [0.0, 0.81, 0.0]
+    material: "case_felt"
+
+  # Pareti della cornice
+  - name: "case_wall_back"
+    type: "box"
+    scale: [5.74, 0.50, 0.12]
+    translate: [0.0, 1.12, 2.81]
+    material: "case_wood"
+
+  - name: "case_wall_left"
+    type: "box"
+    scale: [0.12, 0.50, 5.74]
+    translate: [-2.81, 1.12, 0.0]
+    material: "case_wood"
+
+  - name: "case_wall_right"
+    type: "box"
+    scale: [0.12, 0.50, 5.74]
+    translate: [2.81, 1.12, 0.0]
+    material: "case_wood"
+
+  - name: "case_wall_front"
+    type: "box"
+    scale: [5.74, 0.18, 0.12]
+    translate: [0.0, 0.96, -2.81]
+    material: "case_wood"
+
+  # Bordino metallico superiore — trim sottile che cattura la luce
+  - name: "case_trim_front"
+    type: "box"
+    scale: [5.78, 0.025, 0.14]
+    translate: [0.0, 1.375, -2.81]
+    material: "case_trim"
+
+  - name: "case_trim_back"
+    type: "box"
+    scale: [5.78, 0.025, 0.14]
+    translate: [0.0, 1.375, 2.81]
+    material: "case_trim"
+
+  # Divisori tra file
+  - name: "divider_1"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, 1.80]
+    material: "case_divider"
+
+  - name: "divider_2"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, 0.90]
+    material: "case_divider"
+
+  - name: "divider_3"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, 0.0]
+    material: "case_divider"
+
+  - name: "divider_4"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, -0.90]
+    material: "case_divider"
+
+  - name: "divider_5"
+    type: "box"
+    scale: [5.30, 0.06, 0.05]
+    translate: [0.0, 0.90, -1.80]
+    material: "case_divider"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  #  SFERE — 6 file × 6 colonne
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Fila 6 (Z=2.25): Plastiche morbide / Organiche ────────────────────
+  - { name: "soft_1", type: "sphere", center: [-2.25, 1.22, 2.25], radius: 0.35, seed: 6001, material: "soft_pink" }
+  - { name: "soft_2", type: "sphere", center: [-1.35, 1.22, 2.25], radius: 0.35, seed: 6002, material: "soft_sky" }
+  - { name: "soft_3", type: "sphere", center: [-0.45, 1.22, 2.25], radius: 0.35, seed: 6003, material: "soft_mint" }
+  - { name: "soft_4", type: "sphere", center: [ 0.45, 1.22, 2.25], radius: 0.35, seed: 6004, material: "soft_lemon" }
+  - { name: "soft_5", type: "sphere", center: [ 1.35, 1.22, 2.25], radius: 0.35, seed: 6005, material: "soft_lavender" }
+  - { name: "soft_6", type: "sphere", center: [ 2.25, 1.22, 2.25], radius: 0.35, seed: 6006, material: "soft_peach" }
+
+  # ── Fila 5 (Z=1.35): Plastiche dure / Finiture industriali ────────────
+  - { name: "hard_1", type: "sphere", center: [-2.25, 1.22, 1.35], radius: 0.35, seed: 5001, material: "hard_cherry" }
+  - { name: "hard_2", type: "sphere", center: [-1.35, 1.22, 1.35], radius: 0.35, seed: 5002, material: "hard_royal" }
+  - { name: "hard_3", type: "sphere", center: [-0.45, 1.22, 1.35], radius: 0.35, seed: 5003, material: "hard_forest" }
+  - { name: "hard_4", type: "sphere", center: [ 0.45, 1.22, 1.35], radius: 0.35, seed: 5004, material: "hard_sunflower" }
+  - { name: "hard_5", type: "sphere", center: [ 1.35, 1.22, 1.35], radius: 0.35, seed: 5005, material: "hard_obsidian" }
+  - { name: "hard_6", type: "sphere", center: [ 2.25, 1.22, 1.35], radius: 0.35, seed: 5006, material: "hard_ivory" }
+
+  # ── Fila 4 (Z=0.45): Legno ────────────────────────────────────────────
+  - { name: "wood_1", type: "sphere", center: [-2.25, 1.22, 0.45], radius: 0.35, seed: 4001, material: "wood_oak" }
+  - { name: "wood_2", type: "sphere", center: [-1.35, 1.22, 0.45], radius: 0.35, seed: 4002, material: "wood_walnut" }
+  - { name: "wood_3", type: "sphere", center: [-0.45, 1.22, 0.45], radius: 0.35, seed: 4003, material: "wood_cherry" }
+  - { name: "wood_4", type: "sphere", center: [ 0.45, 1.22, 0.45], radius: 0.35, seed: 4004, material: "wood_maple" }
+  - { name: "wood_5", type: "sphere", center: [ 1.35, 1.22, 0.45], radius: 0.35, seed: 4005, material: "wood_ebony" }
+  - { name: "wood_6", type: "sphere", center: [ 2.25, 1.22, 0.45], radius: 0.35, seed: 4006, material: "wood_birch" }
+
+  # ── Fila 3 (Z=-0.45): Marmo ───────────────────────────────────────────
+  - { name: "marble_1", type: "sphere", center: [-2.25, 1.22, -0.45], radius: 0.35, seed: 3001, material: "marble_carrara" }
+  - { name: "marble_2", type: "sphere", center: [-1.35, 1.22, -0.45], radius: 0.35, seed: 3002, material: "marble_nero" }
+  - { name: "marble_3", type: "sphere", center: [-0.45, 1.22, -0.45], radius: 0.35, seed: 3003, material: "marble_verde" }
+  - { name: "marble_4", type: "sphere", center: [ 0.45, 1.22, -0.45], radius: 0.35, seed: 3004, material: "marble_rosso" }
+  - { name: "marble_5", type: "sphere", center: [ 1.35, 1.22, -0.45], radius: 0.35, seed: 3005, material: "marble_rosa" }
+  - { name: "marble_6", type: "sphere", center: [ 2.25, 1.22, -0.45], radius: 0.35, seed: 3006, material: "marble_blu" }
+
+  # ── Fila 2 (Z=-1.35): Metallo ─────────────────────────────────────────
+  - { name: "metal_1", type: "sphere", center: [-2.25, 1.22, -1.35], radius: 0.35, seed: 2001, material: "metal_gold" }
+  - { name: "metal_2", type: "sphere", center: [-1.35, 1.22, -1.35], radius: 0.35, seed: 2002, material: "metal_silver" }
+  - { name: "metal_3", type: "sphere", center: [-0.45, 1.22, -1.35], radius: 0.35, seed: 2003, material: "metal_copper" }
+  - { name: "metal_4", type: "sphere", center: [ 0.45, 1.22, -1.35], radius: 0.35, seed: 2004, material: "metal_bronze" }
+  - { name: "metal_5", type: "sphere", center: [ 1.35, 1.22, -1.35], radius: 0.35, seed: 2005, material: "metal_chrome" }
+  - { name: "metal_6", type: "sphere", center: [ 2.25, 1.22, -1.35], radius: 0.35, seed: 2006, material: "metal_gunmetal" }
+
+  # ── Fila 1 (Z=-2.25): Vetro / Gemme ───────────────────────────────────
+  - { name: "glass_1", type: "sphere", center: [-2.25, 1.22, -2.25], radius: 0.35, seed: 1001, material: "glass_clear" }
+  - { name: "glass_2", type: "sphere", center: [-1.35, 1.22, -2.25], radius: 0.35, seed: 1002, material: "glass_diamond" }
+  - { name: "glass_3", type: "sphere", center: [-0.45, 1.22, -2.25], radius: 0.35, seed: 1003, material: "glass_ruby" }
+  - { name: "glass_4", type: "sphere", center: [ 0.45, 1.22, -2.25], radius: 0.35, seed: 1004, material: "glass_emerald" }
+  - { name: "glass_5", type: "sphere", center: [ 1.35, 1.22, -2.25], radius: 0.35, seed: 1005, material: "glass_amber" }
+  - { name: "glass_6", type: "sphere", center: [ 2.25, 1.22, -2.25], radius: 0.35, seed: 1006, material: "glass_sapphire" }
