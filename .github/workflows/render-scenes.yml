@@ -58,13 +58,13 @@ jobs:
           #- cornell-box-sphere
           #- cristallo
           #- csg-showcase
-          - gradient-sky-showcase
-          - mix-material-showcase
+          #- gradient-sky-showcase
+          #- mix-material-showcase
           #- pendolo-newton
           #- primitive-showcase
           #- showcases/group-showcase
           #- showcases/sphere-light-showcase
-          #- showcases/sphere-showcase
+          - showcases/sphere-showcase
           #- sphere-showcase-disney
           #- utah-teapot
 
