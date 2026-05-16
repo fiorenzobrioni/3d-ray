@@ -32,7 +32,11 @@ public class InfinitePlane : IHittable
 
         rec.T = t;
         rec.Point = ray.At(t);
-        rec.LocalPoint = rec.Point;
+        // Object-local frame: origin at the plane anchor `Point`. For the
+        // ubiquitous y=0 ground plane (Point = Vector3.Zero) this is a no-op,
+        // preserving the look of every existing floor/wall scene. For
+        // displaced anchors it correctly recenters per-plane.
+        rec.LocalPoint = rec.Point - Point;
         rec.SetFaceNormal(ray, Normal);
         
         // Robust UV mapping using local orthonormal basis

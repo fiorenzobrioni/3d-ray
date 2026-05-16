@@ -11,6 +11,13 @@ namespace RayTracer.Geometry;
 /// textures (marble, wood, noise, checker) tile consistently regardless of how
 /// the object is placed in the world. World-space position is in rec.Point.
 ///
+/// All built-in primitives now set rec.LocalPoint in the entity's own frame
+/// (centered on the primitive's Center / anchor — Sphere/Cylinder/Cone/Disk/
+/// Annulus/Capsule subtract Center, Quad subtracts Q, InfinitePlane subtracts
+/// Point, Box/Torus/Lathe are already at origin). This gives parity with
+/// Arnold's `space: object`, Cycles' "Texture Coordinate → Object" and
+/// RenderMan's Pref workflow: procedural texture tiles per-entity by default.
+///
 /// Implements ISamplable when the wrapped object is itself ISamplable, enabling
 /// GeometryLight (NEE) to work correctly on transformed emissive primitives.
 /// The Sample() method transforms both point and normal to world space and

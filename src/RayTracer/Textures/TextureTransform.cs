@@ -11,12 +11,21 @@ public static class TextureTransform
         // 1. Randomizzazione basata su seed dell'oggetto
         if (objectSeed != 0)
         {
-            // Usiamo il seed per generare spostamenti pseudo-casuali deterministici
+            // Spostamenti pseudo-casuali deterministici. L'ampiezza era 1000 wu:
+            // sufficiente a decorrelare noise/voronoi/marble (aperiodici o
+            // dominati da fBm), ma catastrofica per WoodTexture e per qualunque
+            // altro pattern che dipende dalla distanza radiale dall'asse —
+            // a 1000 unità dall'asse la curvatura è 1/1000 ≈ 0 e i cerchi
+            // concentrici degeneravano in righe parallele su entità piccole.
+            // Magnitudine 10 wu decorrela ≫ del periodo tipico (scale ≈ 5
+            // ⇒ frequenza 5 cicli/unità ⇒ shift di 50 cicli) senza appiattire
+            // significativamente la curvatura locale (per una sfera r=0.35
+            // a distanza 10 dall'asse: arco ~2°, ancora curvatura percepibile).
             if (randomizeOffset)
             {
-                float ox = Hash(objectSeed, 12.34f) * 1000f;
-                float oy = Hash(objectSeed, 56.78f) * 1000f;
-                float oz = Hash(objectSeed, 90.12f) * 1000f;
+                float ox = Hash(objectSeed, 12.34f) * 10f;
+                float oy = Hash(objectSeed, 56.78f) * 10f;
+                float oz = Hash(objectSeed, 90.12f) * 10f;
                 finalP += new Vector3(ox, oy, oz);
             }
 

@@ -65,7 +65,7 @@ public class Cylinder : IHittable, ISamplable
                 {
                     rec.T = t;
                     rec.Point = point;
-                    rec.LocalPoint = point;
+                    rec.LocalPoint = point - Center;
                     rec.SetFaceNormal(ray, outwardNormal);
 
                     // Cylindrical UV: U = theta / 2π, V = height fraction
@@ -115,7 +115,7 @@ public class Cylinder : IHittable, ISamplable
                 {
                     rec.T = t;
                     rec.Point = p;
-                    rec.LocalPoint = p;
+                    rec.LocalPoint = p - Center;
                     rec.SetFaceNormal(ray, normal);
 
                     // Cap UV: planar projection
