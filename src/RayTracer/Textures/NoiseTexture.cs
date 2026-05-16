@@ -183,8 +183,14 @@ public class NoiseTexture : ITexture
 
     private Vector3 ValueCore(float u, float v, Vector3 p, int objectSeed, int octaveOverride)
     {
-        Vector3 transformedP = TextureTransform.Apply(
-            p, Offset, Rotation, objectSeed, RandomizeOffset, RandomizeRotation);
+        // Pure-noise texture: every read of `transformedP` feeds Perlin /
+        // turbulence / fBm, so the seed offset is safe to apply here on the
+        // full point. The 1000-wu magnitude becomes `_scale × 1000` once the
+        // line below multiplies by scale, giving thousands of noise periods
+        // of decorrelation between instances.
+        Vector3 transformedP = TextureTransform.ApplyManual(p, Offset, Rotation);
+        transformedP = TextureTransform.ApplyRandomRotation(transformedP, objectSeed, RandomizeRotation);
+        transformedP += TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
 
         Perlin noise = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
 

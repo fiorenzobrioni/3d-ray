@@ -165,8 +165,12 @@ public class VoronoiTexture : ITexture
 
     private Vector3 SampleAtP(Vector3 p, int objectSeed)
     {
-        Vector3 transformedP = TextureTransform.Apply(
-            p, Offset, Rotation, objectSeed, RandomizeOffset, RandomizeRotation);
+        // Worley is locally aperiodic and shift-decorrelated — every read of
+        // `transformedP` indexes the cell grid, so adding the per-instance
+        // seed offset on the full point is safe.
+        Vector3 transformedP = TextureTransform.ApplyManual(p, Offset, Rotation);
+        transformedP = TextureTransform.ApplyRandomRotation(transformedP, objectSeed, RandomizeRotation);
+        transformedP += TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
 
         WorleyNoise worley = objectSeed != 0 ? WorleyNoise.GetOrCreate(objectSeed) : _worley;
 
