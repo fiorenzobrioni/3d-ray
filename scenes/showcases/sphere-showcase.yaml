@@ -209,39 +209,44 @@ materials:
   #  ESPOSITORE — cornice noce / velluto / divisori / bordino metallico
   # ─────────────────────────────────────────────────────────────────────────
 
+  # Essenza chiara (frassino sbiancato / acero leggero): grana morbida,
+  # nessun nodo, niente clearcoat → cornice "silenziosa" che fa risaltare
+  # le sfere senza competere visivamente.
   - id: "case_wood"
     type: "disney"
-    roughness: 0.55
-    specular: 0.30
-    clearcoat: 0.25
-    coat_roughness: 0.30
+    roughness: 0.70
+    specular: 0.20
     texture:
       type: "wood"
-      scale: 4.0
+      scale: 2.5
       ring_axis: [0, 1, 0]
-      ring_sharpness: 4.0
-      noise_strength: 2.2
-      octaves: 5
+      ring_sharpness: 2.0          # rings morbidi
+      noise_strength: 0.8          # poca perturbazione → look uniforme
+      octaves: 4
+      distortion: 0.15             # leggera organicità
       figure_scale: 0.18
-      figure_strength: 0.5
-      knot_density: 0.15
+      figure_strength: 0.20
       randomize_rotation: true
       color_ramp:
-        - { position: 0.00, color: [0.05, 0.03, 0.02], interp: "smoothstep" }   # cuore nodo
-        - { position: 0.20, color: [0.22, 0.13, 0.06], interp: "smoothstep" }   # latewood
-        - { position: 1.00, color: [0.55, 0.34, 0.17], interp: "linear"     }   # earlywood
+        - { position: 0.00, color: [0.72, 0.58, 0.38], interp: "smoothstep" }   # latewood tenue
+        - { position: 0.55, color: [0.90, 0.80, 0.60], interp: "smoothstep" }   # earlywood
+        - { position: 1.00, color: [0.96, 0.88, 0.70], interp: "linear"     }   # base crema
 
   - id: "case_felt"
     type: "lambertian"
     color: [0.04, 0.04, 0.06]
 
+  # Divisori coerenti con la cornice chiara (stesso frassino, scala più fine
+  # perché i listelli sono sottili).
   - id: "case_divider"
     type: "lambertian"
     texture:
       type: "wood"
-      scale: 6.0
-      noise_strength: 2.0
-      colors: [[0.38, 0.23, 0.12], [0.25, 0.14, 0.06]]
+      scale: 5.0
+      ring_sharpness: 2.0
+      noise_strength: 0.8
+      distortion: 0.15
+      colors: [[0.75, 0.60, 0.40], [0.95, 0.85, 0.65]]
 
   - id: "case_trim"
     type: "metal"
@@ -450,7 +455,9 @@ materials:
   #  ramp 3-4 stop sapwood/latewood/heartwood/knot.
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Quercia quartersawn — radial_anisotropy alto, grain pronunciato
+  # Quercia quartersawn — radial_anisotropy moderato (3.0 era estremo su
+  # sfera di r=0.35 e creava strisce stirate). Distortion + knot_density
+  # piccolo introducono l'irregolarità tipica del rovere.
   - id: "wood_oak"
     type: "disney"
     color: [0.80, 0.62, 0.42]
@@ -458,19 +465,23 @@ materials:
     specular: 0.30
     texture:
       type: "wood"
-      scale: 5.0
+      scale: 3.2
       ring_axis: [0, 1, 0]
-      ring_sharpness: 4.0
-      noise_strength: 2.2
+      ring_sharpness: 2.5
+      noise_strength: 1.1
       octaves: 5
-      radial_anisotropy: 3.0
+      distortion: 0.20
+      radial_anisotropy: 1.4
+      knot_density: 0.30
       randomize_rotation: true
+      randomize_offset: true
       color_ramp:
-        - { position: 0.00, color: [0.30, 0.18, 0.08], interp: "smoothstep" }
-        - { position: 0.55, color: [0.82, 0.62, 0.38], interp: "smoothstep" }
-        - { position: 1.00, color: [0.95, 0.82, 0.62], interp: "linear"     }
+        - { position: 0.00, color: [0.18, 0.10, 0.05], interp: "smoothstep" }   # cuore nodo
+        - { position: 0.20, color: [0.30, 0.18, 0.08], interp: "smoothstep" }   # latewood
+        - { position: 0.55, color: [0.82, 0.62, 0.38], interp: "smoothstep" }   # earlywood
+        - { position: 1.00, color: [0.95, 0.82, 0.62], interp: "linear"     }   # earlywood chiaro
 
-  # Noce — figure leggera + clearcoat satinato
+  # Noce — figure leggera + clearcoat satinato, qualche nodo sporadico.
   - id: "wood_walnut"
     type: "disney"
     color: [0.42, 0.26, 0.13]
@@ -480,19 +491,24 @@ materials:
     coat_roughness: 0.30
     texture:
       type: "wood"
-      scale: 4.0
+      scale: 3.0
       ring_axis: [0, 1, 0]
-      ring_sharpness: 3.5
-      noise_strength: 1.5
+      ring_sharpness: 2.5
+      noise_strength: 0.9
+      distortion: 0.20
       figure_scale: 0.18
-      figure_strength: 0.55
+      figure_strength: 0.50
+      knot_density: 0.25
       randomize_rotation: true
+      randomize_offset: true
       color_ramp:
-        - { position: 0.00, color: [0.18, 0.10, 0.05], interp: "smoothstep" }
+        - { position: 0.00, color: [0.08, 0.05, 0.02], interp: "smoothstep" }   # cuore nodo
+        - { position: 0.20, color: [0.18, 0.10, 0.05], interp: "smoothstep" }   # latewood
         - { position: 0.55, color: [0.42, 0.26, 0.13], interp: "smoothstep" }
         - { position: 1.00, color: [0.62, 0.42, 0.24], interp: "linear"     }
 
-  # Ciliegio — verniciato lucido, clearcoat pieno
+  # Ciliegio — verniciato lucido, clearcoat pieno. Ciliegio ha pochi nodi
+  # (knot_density 0.15) e grain più fitta di noce/rovere.
   - id: "wood_cherry"
     type: "disney"
     color: [0.62, 0.22, 0.10]
@@ -502,19 +518,25 @@ materials:
     coat_roughness: 0.10
     texture:
       type: "wood"
-      scale: 4.5
+      scale: 3.2
       ring_axis: [0, 1, 0]
-      ring_sharpness: 4.5
-      noise_strength: 1.4
+      ring_sharpness: 3.0
+      noise_strength: 0.9
+      distortion: 0.18
       figure_scale: 0.20
       figure_strength: 0.30
+      knot_density: 0.15
       randomize_rotation: true
+      randomize_offset: true
       color_ramp:
-        - { position: 0.00, color: [0.32, 0.10, 0.04], interp: "smoothstep" }
+        - { position: 0.00, color: [0.18, 0.05, 0.02], interp: "smoothstep" }
+        - { position: 0.20, color: [0.32, 0.10, 0.04], interp: "smoothstep" }
         - { position: 0.55, color: [0.62, 0.22, 0.10], interp: "smoothstep" }
         - { position: 1.00, color: [0.85, 0.45, 0.22], interp: "linear"     }
 
-  # Acero curly — figure_strength alto, grain quasi-spento
+  # Acero curly — l'acero curly è prezioso proprio perché privo di nodi
+  # (knot_density 0), la firma è il ripple del figure. ring_sharpness
+  # ridotto da 5 a 3.5 per evitare il look "calza a righe" su sfera piccola.
   - id: "wood_curly_maple"
     type: "disney"
     color: [0.88, 0.78, 0.60]
@@ -524,20 +546,24 @@ materials:
     coat_roughness: 0.20
     texture:
       type: "wood"
-      scale: 5.0
+      scale: 4.0
       ring_axis: [0, 1, 0]
-      ring_sharpness: 5.0
+      ring_sharpness: 3.5
       noise_strength: 0.25
+      distortion: 0.12
       grain_scale: 1.8
       figure_scale: 0.10
-      figure_strength: 1.7
+      figure_strength: 1.6
       randomize_rotation: true
+      randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.55, 0.38, 0.20], interp: "smoothstep" }
         - { position: 0.45, color: [0.85, 0.72, 0.48], interp: "smoothstep" }
         - { position: 1.00, color: [0.98, 0.92, 0.76], interp: "linear"     }
 
-  # Ebano laccato — finitura a specchio
+  # Ebano laccato — finitura a specchio. Ebano vero non ha nodi visibili,
+  # solo grain finissima; ring_sharpness moderato e distortion bassa
+  # mantengono la lettura uniforme che caratterizza il legno.
   - id: "wood_ebony"
     type: "disney"
     color: [0.10, 0.07, 0.04]
@@ -547,15 +573,18 @@ materials:
     coat_roughness: 0.05
     texture:
       type: "wood"
-      scale: 6.0
-      ring_sharpness: 4.0
-      noise_strength: 1.0
+      scale: 4.0
+      ring_sharpness: 2.5
+      noise_strength: 0.7
+      distortion: 0.12
       randomize_rotation: true
+      randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.02, 0.01, 0.01], interp: "smoothstep" }
         - { position: 1.00, color: [0.16, 0.10, 0.06], interp: "linear"     }
 
-  # Pino con nodi — knot_density 1.0 (showcase del nodo Voronoi-based)
+  # Pino con nodi — knot_density 1.0 (showcase del nodo Voronoi-based).
+  # ring_sharpness ridotto e distortion aggiunta per ammorbidire le strisce.
   - id: "wood_knotty_pine"
     type: "disney"
     color: [0.85, 0.70, 0.45]
@@ -563,14 +592,16 @@ materials:
     specular: 0.30
     texture:
       type: "wood"
-      scale: 6.0
+      scale: 4.5
       ring_axis: [0, 1, 0]
-      ring_sharpness: 4.0
-      noise_strength: 0.6
+      ring_sharpness: 3.0
+      noise_strength: 0.5
+      distortion: 0.18
       figure_scale: 0.25
       figure_strength: 0.3
       knot_density: 1.0
       randomize_rotation: true
+      randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.05, 0.03, 0.02], interp: "smoothstep" }
         - { position: 0.18, color: [0.35, 0.18, 0.08], interp: "smoothstep" }
