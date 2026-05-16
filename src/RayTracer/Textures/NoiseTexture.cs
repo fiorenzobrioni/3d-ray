@@ -215,14 +215,25 @@ public class NoiseTexture : ITexture
             // user hasn't explicitly overridden `octaves`, matching the old
             // visual output exactly.
             NoiseKind.Turbulence          => noise.Turbulence(q, legacyTurbulenceOct),
-            // Musgrave multifractals return raw signed values whose range
-            // depends on H, offset and octaves. We map them into [0, 1] by
-            // clamping the post-DC-offset signal — same convention Cycles uses
-            // on its Musgrave node when the output drives a colour lerp without
-            // an explicit Color Ramp. For full visual control on the high end,
-            // users can attach a `color_ramp:` with custom stop positions.
-            NoiseKind.HeteroTerrain       => noise.HeteroTerrain(q, effOct, Lacunarity, FractalIncrement, FractalOffset),
-            NoiseKind.HybridMultifractal  => noise.HybridMultifractal(q, effOct, Lacunarity, FractalIncrement, FractalOffset),
+            // Musgrave multifractals — the raw algorithm in Perlin.cs follows
+            // the textbook recurrence (Ebert/Musgrave §16.3.3-§16.3.4) and
+            // returns unbounded signed values whose magnitude diverges
+            // exponentially with octave count when the running multiplier
+            // exceeds 1 (canonical offset ≈ 0.7 with low H = 0.25 hits this
+            // routinely — a single bounce above 1 cascades into a value of
+            // ~30+, which a [0,1] clamp would flatten into pure white).
+            //
+            // The texture layer is responsible for mapping that unbounded
+            // signal into a color-rampable [0,1] range. We do that with a
+            // bounded-and-normalized variant that mirrors fBm's
+            // `accum / maxAmp` rescaling: track the per-octave analytic
+            // upper bound (Noise=+1 with the running multiplier saturated
+            // at 1, matching the HybridMultifractal weight clamp) alongside
+            // the actual value and divide at the end. The clamp prevents
+            // exponential blow-up and the division puts typical samples
+            // squarely in the [0,1] color-ramp domain.
+            NoiseKind.HeteroTerrain       => HeteroTerrainNormalized(noise, q, effOct, Lacunarity, FractalIncrement, FractalOffset),
+            NoiseKind.HybridMultifractal  => HybridMultifractalNormalized(noise, q, effOct, Lacunarity, FractalIncrement, FractalOffset),
             _                             => (noise.Noise(q) + 1f) * 0.5f,
         };
 
@@ -239,5 +250,96 @@ public class NoiseTexture : ITexture
         }
 
         return ColorRamp is { } ramp ? ramp.Sample(n) : Vector3.Lerp(_colorA, _colorB, n);
+    }
+
+    /// <summary>
+    /// Bounded + DC-centered HeteroTerrain. Same recurrence as
+    /// <see cref="Perlin.HeteroTerrain"/> but with the running multiplier
+    /// clamped to [0, 1] (matching the weight invariant in Musgrave's
+    /// HybridMultifractal — prevents exponential divergence when the
+    /// running value exceeds 1) and the output recentered on its DC
+    /// component (parallel Noise=0 path).
+    ///
+    /// <para>
+    /// The DC component absorbs the per-octave <c>offset</c> bias that
+    /// would otherwise push the field far above 1; subtracting it puts
+    /// the variance band symmetric around 0. We then scale by the sum
+    /// of per-octave Noise amplitudes (each octave contributes a signed
+    /// term in <c>[-fw·bounded, +fw·bounded]</c>) and remap to [0, 1].
+    /// Output is the same for both <c>offset=0.7</c> (canonical terrain)
+    /// and <c>offset=0.2</c> (alpine) up to a vertical reshuffling — the
+    /// distinction the showcase wants to highlight.
+    /// </para>
+    /// </summary>
+    private static float HeteroTerrainNormalized(Perlin noise, Vector3 p, int octaves, float lacunarity, float h, float offset)
+    {
+        float value = offset + noise.Noise(p);
+        float dc = offset;                    // Noise=0 path (per-octave DC)
+        float ampSumSq = 1f;                  // Σ (fw[i] · bounded_dc[i])² — variance accumulator
+        p *= lacunarity;
+
+        float frequencyWeight = 1f;
+        float weightDecay = MathF.Pow(lacunarity, -h);
+        for (int i = 1; i < octaves; i++)
+        {
+            frequencyWeight *= weightDecay;
+            float bounded   = Math.Clamp(value, 0f, 1f);
+            float boundedDc = Math.Clamp(dc,    0f, 1f);
+            value += (noise.Noise(p) + offset) * frequencyWeight * bounded;
+            dc    += offset                    * frequencyWeight * boundedDc;
+            float amp = frequencyWeight * boundedDc;
+            ampSumSq += amp * amp;
+            p *= lacunarity;
+        }
+
+        // Center on DC, rescale by ~1.5σ. Each octave's Noise contribution
+        // is independent (gradient noise decorrelates after lacunarity-scaled
+        // domain shifts), so Var[value − dc] = σ²_Perlin · ampSumSq.
+        // Mapping ±1.5σ → ±0.5 covers ~87% of the distribution inside [0,1]
+        // and clamps only the extreme peaks (snow caps) and troughs (deep
+        // water) — exactly what the terrain ramp wants to emphasize.
+        float sigma = MathF.Sqrt(ampSumSq);
+        return sigma > 0f ? Math.Clamp(0.5f + 0.5f * (value - dc) / (1.5f * sigma), 0f, 1f) : 0.5f;
+    }
+
+    /// <summary>
+    /// Bounded + DC-centered HybridMultifractal. The weight clamp is already
+    /// present in <see cref="Perlin.HybridMultifractal"/>; here we additionally
+    /// track the DC path (Noise=0) and the per-octave Noise amplitude sum
+    /// so the output is recentered and rescaled into [0, 1].
+    /// </summary>
+    private static float HybridMultifractalNormalized(Perlin noise, Vector3 p, int octaves, float lacunarity, float h, float offset)
+    {
+        float frequencyWeight = 1f;
+        float weightDecay = MathF.Pow(lacunarity, -h);
+
+        float result   = (noise.Noise(p) + offset) * frequencyWeight;
+        float dc       = offset * frequencyWeight;        // Noise=0 path
+        float ampSumSq = frequencyWeight * frequencyWeight;  // first-octave Noise variance
+        float weight   = result;
+        float weightDc = dc;
+        p *= lacunarity;
+
+        for (int i = 1; i < octaves; i++)
+        {
+            if (weight   > 1f) weight   = 1f;
+            if (weightDc > 1f) weightDc = 1f;
+
+            frequencyWeight *= weightDecay;
+            float signal   = (noise.Noise(p) + offset) * frequencyWeight;
+            float signalDc = offset                    * frequencyWeight;
+
+            result += weight   * signal;
+            dc     += weightDc * signalDc;
+            float amp = weightDc * frequencyWeight;
+            ampSumSq += amp * amp;
+
+            weight   *= signal;
+            weightDc *= signalDc;
+            p *= lacunarity;
+        }
+
+        float sigma = MathF.Sqrt(ampSumSq);
+        return sigma > 0f ? Math.Clamp(0.5f + 0.5f * (result - dc) / (1.5f * sigma), 0f, 1f) : 0.5f;
     }
 }

@@ -259,6 +259,62 @@ public class MusgraveMultifractalTests
         Assert.True(diffFromHt , "hybrid_multifractal must differ from hetero_terrain");
     }
 
+    [Theory]
+    [InlineData(NoiseTexture.NoiseKind.HeteroTerrain,      0.7f)]
+    [InlineData(NoiseTexture.NoiseKind.HeteroTerrain,      0.2f)]
+    [InlineData(NoiseTexture.NoiseKind.HybridMultifractal, 0.7f)]
+    [InlineData(NoiseTexture.NoiseKind.HybridMultifractal, 0.2f)]
+    public void NoiseTexture_MusgraveOutput_StaysInsideColorRampDomain(
+        NoiseTexture.NoiseKind kind, float offset)
+    {
+        // Regression for the "musgrave-multifractal-showcase saturates to
+        // white" bug: at canonical offset = 0.7 with low H = 0.25 the raw
+        // Musgrave value diverges to ~30+ and a naive [0,1] clamp paints
+        // every panel pure white. The NoiseTexture layer normalises into
+        // [0,1] with non-trivial spread, so a color_ramp keyed at canonical
+        // terrain positions (water/grass/rock/snow) actually exercises all
+        // of its stops. The black colour at ramp 0 and white at ramp 1
+        // bracket the legal output range; anything outside means the
+        // normalisation broke (saturation back to either extreme).
+        var ramp = new ColorRamp(new[]
+        {
+            new ColorRamp.Stop(0f, Vector3.Zero, ColorRamp.Interp.Linear),
+            new ColorRamp.Stop(1f, Vector3.One,  ColorRamp.Interp.Linear),
+        });
+        var tex = new NoiseTexture(scale: 3.2f)
+        {
+            NoiseType = kind,
+            Octaves = 8,
+            Lacunarity = 2f,
+            FractalIncrement = 0.25f,
+            FractalOffset = offset,
+            ColorRamp = ramp,
+        };
+
+        int saturatedHigh = 0;
+        int saturatedLow  = 0;
+        int total = 0;
+        var rng = new Random(0xC0FFEE);
+        for (int i = 0; i < 4000; i++)
+        {
+            var p = new Vector3(
+                ((float)rng.NextDouble() - 0.5f) * 12f,
+                ((float)rng.NextDouble() - 0.5f) * 12f,
+                ((float)rng.NextDouble() - 0.5f) * 12f);
+            float g = tex.Value(0.5f, 0.5f, p, 0).X;
+            Assert.InRange(g, 0f, 1f);
+            if (g > 0.995f) saturatedHigh++;
+            if (g < 0.005f) saturatedLow ++;
+            total++;
+        }
+
+        // Less than ~40% of samples should hit either rail. A failing
+        // bound means the field collapses into a constant (loss of detail)
+        // — exactly the visible bug in the original showcase.
+        Assert.True(saturatedHigh < total * 0.40, $"{kind} offset={offset}: {saturatedHigh}/{total} saturated high (loss of detail at peaks)");
+        Assert.True(saturatedLow  < total * 0.40, $"{kind} offset={offset}: {saturatedLow}/{total} saturated low (loss of detail in valleys)");
+    }
+
     [Fact]
     public void NoiseTexture_BackCompat_LegacyScenesUnchanged()
     {
