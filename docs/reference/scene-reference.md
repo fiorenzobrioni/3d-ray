@@ -608,6 +608,163 @@ texture:
 >   RenderMan's `PxrWoodKnot`. Combine with a 3+ stop `color_ramp:` for
 >   sapwood / heartwood / knot tri-tone authoring.
 
+#### **Production-quality marble & wood — recipe book**
+
+The studio-quality knobs interact non-trivially with the BSDF and the
+lighting setup. The recipes below come from the
+`marble-wood-studio-showcase.yaml` reference scene; copy the matching
+snippet and tweak the colour ramp to ship a credible material in minutes.
+
+> **Lighting checklist before tuning a marble.** A polished marble at
+> `roughness < 0.2` becomes a near-mirror that reflects the environment
+> verbatim — if the sky is bright and untextured the marble reads as
+> "blue gradient" instead of marble. Three rules:
+>
+> 1. **Use a dark or near-black sky for lookdev shots** (`type: "flat"`,
+>    `color: [0.001, 0.001, 0.0012]`). The marble pattern then carries
+>    the visual, not the environment.
+> 2. **Roughness 0.30–0.34 for "lucido"** marble where the texture must
+>    read; raise clearcoat (0.85+) for the polished glass-like top layer.
+>    Lower roughness only when you want a true mirror finish — for
+>    that, you typically *do* want some HDRI reflections.
+> 3. **Direct lighting must dominate.** A directional key at intensity
+>    5–7 plus a cool fill and a warm rim point lights light up the
+>    diffuse component above the specular reflection. Without this
+>    triad the BSDF integrator can't separate texture from environment.
+
+**Carrara — white base with thin dark veins.**
+```yaml
+- id: "carrara"
+  type: "disney"
+  roughness: 0.32
+  specular: 0.5
+  texture:
+    type: "marble"
+    scale: 5.0
+    vein_axis: [0, 0, 1]
+    vein_frequency: 1.0
+    vein_sharpness: 4.0           # → wide base, narrow vein
+    noise_strength: 8.0
+    octaves: 8
+    colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
+```
+With `vein_sharpness ≥ 3` the average sample lands close to `colors[0]`
+(base), so the BASE colour is the dominant area and the vein colour
+narrows to thin lines — exactly the real Carrara look.
+
+**Calacatta — cross-veining with gold transitions.**
+```yaml
+- id: "calacatta"
+  type: "disney"
+  roughness: 0.30
+  texture:
+    type: "marble"
+    scale: 4.0
+    vein_axis: [0, 0, 1]
+    vein_sharpness: 3.0           # wider veins than Carrara (Calacatta is bolder)
+    noise_strength: 6.0
+    octaves: 8
+    secondary_wave:
+      axis: [1, 0, 0]             # auto-orthogonalised against primary
+      frequency: 0.65             # non-integer ratio prevents moiré
+      strength: 0.45
+    color_ramp:
+      - { position: 0.00, color: [0.10, 0.08, 0.08], interp: "smoothstep" }
+      - { position: 0.35, color: [0.85, 0.65, 0.30], interp: "smoothstep" }
+      - { position: 0.70, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
+      - { position: 1.00, color: [0.97, 0.95, 0.90], interp: "linear"     }
+```
+Convention with the corrected sharpening: ramp **position 0 = vein**
+(rare, `t→0`), **position 1 = base** (dominant, `t→1`); intermediate
+stops paint the transition.
+
+**Arabescato — strong cross-veining + chaotic distortion.**
+```yaml
+- id: "arabescato"
+  type: "disney"
+  roughness: 0.34
+  texture:
+    type: "marble"
+    scale: 3.5
+    vein_sharpness: 2.0
+    noise_strength: 8.0
+    distortion: 0.35              # extra Perlin domain warp
+    secondary_wave: { axis: [1, 0.3, 0], frequency: 1.2, strength: 0.7 }
+    color_ramp:
+      - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "smoothstep" }
+      - { position: 0.50, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
+      - { position: 1.00, color: [0.94, 0.92, 0.88], interp: "linear"     }
+```
+
+**Oak quartersawn — fibrous radial grain.**
+```yaml
+- id: "oak_quartersawn"
+  type: "disney"
+  roughness: 0.55
+  texture:
+    type: "wood"
+    scale: 4.5
+    ring_axis: [0, 1, 0]
+    ring_sharpness: 4.0           # crisp latewood band
+    noise_strength: 2.2
+    octaves: 5
+    radial_anisotropy: 3.0        # quartersawn stretch
+    color_ramp:
+      - { position: 0.00, color: [0.30, 0.18, 0.08], interp: "smoothstep" }
+      - { position: 0.55, color: [0.82, 0.62, 0.38], interp: "smoothstep" }
+      - { position: 1.00, color: [0.95, 0.82, 0.62], interp: "linear"     }
+```
+The grain "stretches" along the local radial direction. Combine with a
+3-stop ramp for sapwood / heartwood / earlywood authoring.
+
+**Curly maple — wide rippled figure.**
+```yaml
+- id: "curly_maple"
+  type: "disney"
+  roughness: 0.42
+  texture:
+    type: "wood"
+    scale: 5.0
+    ring_sharpness: 5.0           # tight bands → "curly" look
+    noise_strength: 0.25          # near-mute the grain so figure dominates
+    figure_scale: 0.10            # low freq → wide ripples
+    figure_strength: 1.8
+    color_ramp:
+      - { position: 0.00, color: [0.55, 0.38, 0.20], interp: "smoothstep" }
+      - { position: 0.45, color: [0.85, 0.72, 0.48], interp: "smoothstep" }
+      - { position: 1.00, color: [0.98, 0.92, 0.76], interp: "linear"     }
+```
+
+**Knotty pine — branch knots with dark hearts.**
+```yaml
+- id: "knotty_pine"
+  type: "disney"
+  roughness: 0.55
+  texture:
+    type: "wood"
+    scale: 6.0                    # high scale so knots hold visible inner rings
+    ring_sharpness: 4.0
+    noise_strength: 0.6
+    figure_scale: 0.25
+    figure_strength: 0.3
+    knot_density: 1.0             # max number of knots
+    color_ramp:
+      - { position: 0.00, color: [0.05, 0.03, 0.02], interp: "smoothstep" }  # knot heart
+      - { position: 0.18, color: [0.35, 0.18, 0.08], interp: "smoothstep" }  # latewood
+      - { position: 0.65, color: [0.90, 0.68, 0.40], interp: "smoothstep" }  # earlywood
+      - { position: 1.00, color: [0.97, 0.86, 0.60], interp: "linear"     }  # sapwood
+```
+Use a **4-stop ramp** when `knot_density > 0`: position 0 reserves the
+darkest tone for the knot heart, positions 0.18–0.65 hold the normal
+ring band gradient, position 1 is the brightest sapwood.
+
+A pre-baked catalogue of these recipes — Carrara, Calacatta, Statuario,
+Arabescato, Port Laurent, Rosso Levanto + oak quartersawn, curly maple,
+flame mahogany, knotty pine, bird's-eye maple, walnut burl, frassino
+quartersawn, fir knotty — ships in
+`scenes/libraries/materials/stones.yaml` and `woods.yaml` under the
+`_studio` suffix. Import once and reference by id.
+
 **Voronoi / Worley (cellular):**
 ```yaml
 texture:

@@ -723,6 +723,246 @@ See `scenes/showcases/marble-wood-studio-showcase.yaml` for the
 six-sphere comparison: Carrara / Calacatta / Arabescato marbles + oak
 quartersawn / curly maple / knotty pine.
 
+---
+
+### 3.8.1 Marble & Wood Studio Lookdev — A Practical Walkthrough
+
+This sub-chapter is the longest in the materials tutorial because nailing
+photo-real stone and wood is one of the hardest things in any procedural
+renderer. The Arnold and RenderMan default marble shaders ship with
+**dozens** of knobs precisely because the look-and-feel depends on so
+many interlocking choices: lighting, BSDF parameters, vein geometry,
+sharpening response, ramp authoring, randomization. We'll walk through
+all of them, with copy-paste recipes from the reference showcase.
+
+#### Step 1 — Fix the lighting before you tune the texture
+
+A common trap: you write a "perfect" Carrara material, render, and the
+spheres come out bluish-grey. The texture is correct — the lighting
+isn't. **Polished marble at `roughness < 0.2` is essentially a mirror**,
+and on a textureless sky-gradient environment it picks up the sky colour
+instead of letting the diffuse texture read.
+
+The studio backdrop used by `marble-wood-studio-showcase.yaml`:
+
+```yaml
+world:
+  sky:
+    type: "flat"
+    color: [0.001, 0.001, 0.0012]   # near-black: no environment reflection
+
+lights:
+  # Strong direct key — dominates over the specular reflection,
+  # the diffuse texture becomes visible.
+  - type: "directional"
+    direction: [-0.4, -0.8, 0.45]
+    color: [1.0, 0.98, 0.94]
+    intensity: 6.5
+    angular_radius: 0.6          # soft shadow edges
+  - type: "point"
+    position: [-7, 6, -4]
+    color: [0.90, 0.93, 1.00]    # cool fill
+    intensity: 55
+  - type: "point"
+    position: [0, 3.5, 5]
+    color: [1.0, 0.82, 0.62]     # warm rim from behind for silhouette
+    intensity: 45
+```
+
+For an interior render with a textured environment (HDRI, kitchen
+windows, etc.) you can keep a brighter sky — the HDRI content will
+reflect interestingly off the marble. For a clean lookdev sphere, near-
+black is the safe default.
+
+#### Step 2 — Choose the marble personality
+
+| Marble       | Sharpness   | Secondary wave | Distortion | Ramp                                  |
+|--------------|-------------|----------------|------------|----------------------------------------|
+| Carrara      | 4.0         | none           | none       | 2-color (white base, near-black vein)  |
+| Calacatta    | 3.0         | strength 0.45  | none       | 4-stop (vein → gold → cream → ivory)   |
+| Statuario    | 3.5         | strength 0.35  | 0.15       | 3-stop (vein → grey → white)           |
+| Arabescato   | 2.0         | strength 0.7   | 0.35       | 3-stop (black vein → grey → ivory)     |
+| Port Laurent | 3.0         | strength 0.4   | none       | 3-stop (gold vein → brown → black)     |
+| Rosso Levanto| 4.0         | strength 0.4   | none       | 3-stop (white calcite → red → dark)    |
+
+The four-axis table reads top-to-bottom as "more chaotic, more nuanced":
+Carrara is geometric, Arabescato is geological.
+
+#### Step 3 — Sharpness convention (don't get this wrong)
+
+`vein_sharpness` controls how wide the vein region is relative to the
+base. The relationship is `t' = 1 − (1−t)^k` where `t = (sin(...) + 1)/2`
+is the underlying sine wave, so:
+
+- **`vein_sharpness = 1`** — no sharpening, soft 50/50 blend. Looks like
+  pre-step-5 "legacy" output. Veins are wide and blurry.
+- **`vein_sharpness = 3`** — average sample lands ~75% of the way from
+  vein to base. Bold veins ~25% of surface area. **Calacatta-grade.**
+- **`vein_sharpness = 5`** — average ~83%. Thin filigree veins. Real
+  Carrara look.
+- **`vein_sharpness = 8`** — average ~89%. Hairline veins, ramp must
+  have a high-frequency stop or the vein vanishes visually.
+
+Because the dominant area is *base*, when you author a `color_ramp`:
+
+```yaml
+color_ramp:
+  - { position: 0.00, color: <VEIN COLOUR> }   # rare, t→0
+  - ...                                        # transitions, mid-stops
+  - { position: 1.00, color: <BASE COLOUR> }   # dominant, t→1
+```
+
+If you reverse this (base at position 0, vein at position 1) the
+material renders mostly vein-coloured — that's how you'd accidentally
+get a "black marble with white veins" look from a Carrara YAML.
+
+#### Step 4 — Secondary wave for cross-veining
+
+Real Calacatta has *two* vein directions: large diagonal veins crossed
+by smaller transverse veins. We model this by adding a second sinusoid
+along an axis that's automatically orthogonalised against the primary at
+sample time (so even a collinear `axis: [0, 0, 1]` still produces
+visible cross-veining):
+
+```yaml
+secondary_wave:
+  axis: [1, 0, 0]                  # secondary direction hint
+  frequency: 0.65                  # non-integer ratio → no moiré
+  strength: 0.45                   # ≤1 typical; 0 = single-axis (back-compat)
+```
+
+The combined signal `sin(w1) + strength·sin(w2)` is renormalised by
+`(1 + strength)` so the output range stays in [-1, 1] and the sharpening
+curve still works.
+
+**Frequency tip:** if you pick `secondary_wave.frequency` as a non-trivial
+ratio of `vein_frequency` (e.g. 0.65, 0.85, 1.2) the cross-pattern is
+aperiodic and moiré-free. Equal frequencies produce a regular grid
+pattern that looks artificial.
+
+#### Step 5 — Roughness, clearcoat, and the "polished marble" trick
+
+For a kitchen-counter-grade polished marble you want **two specular
+layers**:
+
+```yaml
+roughness: 0.32       # base layer — diffuse texture still reads
+specular: 0.5
+clearcoat: 0.9        # polished varnish on top
+coat_roughness: 0.05  # near-mirror clearcoat
+```
+
+The `clearcoat` is a second specular layer over the base. The base layer
+is rough enough that the marble pattern survives, the coat adds the
+glass-like sheen on top. For a "satinato" / honed finish, drop the
+clearcoat entirely and raise `roughness` to 0.4–0.5.
+
+#### Step 6 — Wood: pick the cut and the figure
+
+Wood has three orthogonal cuts: plain-sawn, quartersawn, and rift. Plus
+optional figure (curly, flame, bird's-eye, burl) and optional knots.
+
+| Wood look       | `noise_strength` | `figure_strength` | `radial_anisotropy` | `knot_density` |
+|-----------------|------------------|-------------------|---------------------|----------------|
+| Plain-sawn oak  | 2.2              | 0.0               | 0.0                 | 0.0            |
+| Quartersawn oak | 2.2              | 0.0               | 2.5–3.5             | 0.0            |
+| Curly maple     | 0.25             | 1.5–1.8           | 0.0                 | 0.0            |
+| Bird's-eye      | 0.15             | 1.0–1.4 + scale 0.45 | 0.0              | 0.0            |
+| Flame mahogany  | 0.4              | 1.3–1.5           | 0.0                 | 0.0            |
+| Knotty pine     | 0.6              | 0.3 (subtle)      | 0.0                 | 0.7–1.0        |
+| Walnut burl    | 0.5              | 1.4               | 0.0                 | 0.6            |
+
+The pattern: **figure dominates the grain** — to get a clean figure look
+you must lower the grain (`noise_strength` ≤ 0.6) so the high-frequency
+fibres don't drown the slow undulations. The other way around for plain
+oak: figure off, grain dialled up to 2.0+ for clear fibrous lines.
+
+#### Step 7 — Ring sharpness vs. scale
+
+`ring_sharpness` controls the latewood band width (the dark line at the
+end of each year's growth). Combined with `scale`:
+
+- `scale = 3`, `ring_sharpness = 1` — soft, wide bands. Oak from a young
+  fast-growing tree (legacy default).
+- `scale = 4.5`, `ring_sharpness = 4` — clear latewood band ~10% of the
+  ring width. Classic oak / walnut look.
+- `scale = 6`, `ring_sharpness = 5` — tight rings, hairline latewood.
+  Old-growth fir, slow-growth pine.
+- `scale = 6`, `ring_sharpness = 8` — very tight rings, almost grating-
+  like. Aliases on small spheres, only use on close-ups.
+
+#### Step 8 — Authoring knot rings
+
+When `knot_density > 0` the texture spawns small-scale Voronoi knots in
+the plane perpendicular to `ring_axis`. Inside a knot the ring centre
+is pulled toward the knot feature, producing concentric rings around the
+knot — exactly like a branch cross-section embedded in the trunk wood.
+Two rules:
+
+1. **High `scale`** (≥ 5): so the knot can host visible internal rings.
+   A small `scale` makes knots look like dark spots, not knots.
+2. **4-stop ramp** that reserves position 0 for the knot heart:
+   ```yaml
+   color_ramp:
+     - { position: 0.00, color: [0.05, 0.03, 0.02] }   # KNOT HEART (very dark)
+     - { position: 0.18, color: [0.35, 0.18, 0.08] }   # latewood
+     - { position: 0.65, color: [0.90, 0.68, 0.40] }   # earlywood
+     - { position: 1.00, color: [0.97, 0.86, 0.60] }   # sapwood
+   ```
+   The `t *= (1 − knotDarken)` step inside the texture pushes `t → 0`
+   at knot centres regardless of which ring band the sample fell into,
+   so position 0 always shows. Without that dedicated knot stop, the
+   knot would just darken the local ring colour — visible but less
+   recognisable as a knot.
+
+#### Step 9 — Randomization for instancing
+
+If you place multiple wooden / marble objects in a scene and they all
+use the same material, they'll all show the **identical** pattern. The
+randomization knob:
+
+```yaml
+texture:
+  type: "wood"
+  randomize_offset: true     # different texture origin per object
+  randomize_rotation: true   # different texture orientation per object
+```
+
+Each entity gets a different `objectSeed` (from `seed:` on the entity,
+or auto-incremented otherwise), and the `Apply()` in `TextureTransform`
+generates a per-seed offset+rotation. **Always enable this for shared
+materials.**
+
+#### Step 10 — The pre-baked catalogue
+
+The library bundles 14 studio-quality materials ready to import:
+
+```yaml
+imports:
+  - { path: "scenes/libraries/materials/stones.yaml" }
+  - { path: "scenes/libraries/materials/woods.yaml" }
+
+entities:
+  - { type: "sphere", center: [0, 1, 0], radius: 1, material: "dis_calacatta_studio_lucido" }
+```
+
+Catalogue (`_studio` suffix throughout):
+- **Marbles:** `dis_carrara_studio`, `dis_carrara_studio_lucido`,
+  `dis_calacatta_studio`, `dis_calacatta_studio_lucido`,
+  `dis_statuario_studio`, `dis_statuario_studio_lucido`,
+  `dis_arabescato_studio`, `dis_arabescato_studio_lucido`,
+  `dis_port_laurent_studio_lucido`, `dis_rosso_levanto_studio_lucido`
+  + Classic Lambertian variants.
+- **Woods:** `dis_acero_curly_studio`, `dis_acero_birdseye_studio`,
+  `dis_acero_sapwood_studio`, `dis_mogano_flame_studio`,
+  `dis_quercia_quartato_studio`, `dis_frassino_quartato_studio`,
+  `dis_pino_nodoso_studio`, `dis_abete_nodoso_studio`,
+  `dis_noce_burl_studio` + Classic variants.
+
+Each is tuned with the recipes above. Start from a `_studio` entry,
+swap colour ramp stops to match your reference photo, and you have a
+production-ready material.
+
 ### Voronoi / Worley (cellular)
 
 ```yaml
