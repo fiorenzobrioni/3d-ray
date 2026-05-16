@@ -474,7 +474,11 @@ materials:
       radial_anisotropy: 1.4
       knot_density: 0.30
       randomize_rotation: true
-      randomize_offset: true
+      # randomize_offset OMESSO sui legni: l'offset ±1000 wu collassa i
+      # cerchi degli anelli in righe parallele (curvatura 1/dist → 0 a 1000
+      # unità dall'asse). La rotazione casuale già fornisce variazione
+      # per-sfera, e il fatto che ogni sfera stia a un X diverso porta
+      # automaticamente a campioni di noise differenti.
       color_ramp:
         - { position: 0.00, color: [0.18, 0.10, 0.05], interp: "smoothstep" }   # cuore nodo
         - { position: 0.20, color: [0.30, 0.18, 0.08], interp: "smoothstep" }   # latewood
@@ -500,7 +504,6 @@ materials:
       figure_strength: 0.50
       knot_density: 0.25
       randomize_rotation: true
-      randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.08, 0.05, 0.02], interp: "smoothstep" }   # cuore nodo
         - { position: 0.20, color: [0.18, 0.10, 0.05], interp: "smoothstep" }   # latewood
@@ -527,7 +530,6 @@ materials:
       figure_strength: 0.30
       knot_density: 0.15
       randomize_rotation: true
-      randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.18, 0.05, 0.02], interp: "smoothstep" }
         - { position: 0.20, color: [0.32, 0.10, 0.04], interp: "smoothstep" }
@@ -555,7 +557,6 @@ materials:
       figure_scale: 0.10
       figure_strength: 1.6
       randomize_rotation: true
-      randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.55, 0.38, 0.20], interp: "smoothstep" }
         - { position: 0.45, color: [0.85, 0.72, 0.48], interp: "smoothstep" }
@@ -578,7 +579,6 @@ materials:
       noise_strength: 0.7
       distortion: 0.12
       randomize_rotation: true
-      randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.02, 0.01, 0.01], interp: "smoothstep" }
         - { position: 1.00, color: [0.16, 0.10, 0.06], interp: "linear"     }
@@ -604,7 +604,6 @@ materials:
       figure_strength: 0.4
       knot_density: 1.0
       randomize_rotation: true
-      randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.22, 0.12, 0.05], interp: "smoothstep" }   # cuore nodo (bruno scuro, non nero)
         - { position: 0.25, color: [0.50, 0.32, 0.16], interp: "smoothstep" }   # latewood caramello
