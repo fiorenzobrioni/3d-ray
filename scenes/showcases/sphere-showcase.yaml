@@ -623,156 +623,161 @@ materials:
   - id: "marble_carrara"
     type: "disney"
     color: [0.95, 0.94, 0.92]
-    roughness: 0.18
-    clearcoat: 0.7
-    coat_roughness: 0.10
-    specular: 0.60
+    roughness: 0.22
+    clearcoat: 0.45
+    coat_roughness: 0.18
+    specular: 0.55
     subsurface: 0.08
     texture:
       type: "marble"
-      scale: 5.0
-      vein_axis: [0, 0, 1]
+      scale: 14.0
+      vein_axis: [0.2, 0.1, 1.0]
       vein_frequency: 1.0
-      vein_sharpness: 4.0
-      noise_strength: 8.0
-      octaves: 8
+      vein_sharpness: 3.5
+      noise_strength: 3.5
+      octaves: 7
+      distortion: 0.15
       randomize_offset: true
-      colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
+      colors: [[0.96, 0.94, 0.91], [0.18, 0.16, 0.18]]
 
   # Calacatta — secondary_wave 0.45 + ramp 4-stop gold transition
   - id: "marble_calacatta"
     type: "disney"
     color: [0.95, 0.94, 0.92]
-    roughness: 0.16
-    clearcoat: 0.8
-    coat_roughness: 0.08
-    specular: 0.65
+    roughness: 0.20
+    clearcoat: 0.50
+    coat_roughness: 0.15
+    specular: 0.60
     subsurface: 0.06
     texture:
       type: "marble"
-      scale: 4.0
-      vein_axis: [0, 0, 1]
+      scale: 12.0
+      vein_axis: [0.15, 0, 1]
       vein_frequency: 1.0
       vein_sharpness: 3.0
-      noise_strength: 6.0
-      octaves: 8
+      noise_strength: 3.0
+      octaves: 7
+      distortion: 0.18
       randomize_offset: true
       secondary_wave:
         axis: [1, 0, 0]
-        frequency: 0.65
-        strength: 0.45
+        frequency: 0.55
+        strength: 0.55
       color_ramp:
-        - { position: 0.00, color: [0.10, 0.08, 0.08], interp: "smoothstep" }   # vena (rara)
-        - { position: 0.35, color: [0.85, 0.65, 0.30], interp: "smoothstep" }   # gold transition
-        - { position: 0.70, color: [0.92, 0.85, 0.72], interp: "smoothstep" }   # cream
+        - { position: 0.00, color: [0.15, 0.12, 0.12], interp: "smoothstep" }   # vena scura (rara)
+        - { position: 0.30, color: [0.78, 0.58, 0.28], interp: "smoothstep" }   # gold transition
+        - { position: 0.65, color: [0.90, 0.82, 0.68], interp: "smoothstep" }   # cream
         - { position: 1.00, color: [0.97, 0.95, 0.90], interp: "linear"     }   # ivory (dominante)
 
   # Arabescato — secondary_wave forte + distortion (look caotico)
   - id: "marble_arabescato"
     type: "disney"
     color: [0.92, 0.90, 0.88]
-    roughness: 0.20
-    clearcoat: 0.65
-    coat_roughness: 0.15
-    specular: 0.55
+    roughness: 0.24
+    clearcoat: 0.40
+    coat_roughness: 0.22
+    specular: 0.50
     texture:
       type: "marble"
-      scale: 3.5
-      vein_axis: [0, 0, 1]
+      scale: 10.0
+      vein_axis: [0.2, 0.1, 1]
       vein_frequency: 0.9
-      vein_sharpness: 2.0
-      noise_strength: 8.0
-      octaves: 8
-      distortion: 0.35
+      vein_sharpness: 2.5
+      noise_strength: 4.0
+      octaves: 7
+      distortion: 0.45
       randomize_offset: true
       secondary_wave:
         axis: [1, 0.3, 0]
-        frequency: 1.2
-        strength: 0.7
+        frequency: 1.1
+        strength: 0.75
       color_ramp:
-        - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "smoothstep" }
-        - { position: 0.50, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
+        - { position: 0.00, color: [0.12, 0.12, 0.14], interp: "smoothstep" }
+        - { position: 0.45, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
         - { position: 1.00, color: [0.94, 0.92, 0.88], interp: "linear"     }
 
   # Nero Marquinia — vena dorata su fondo nero a specchio
   - id: "marble_nero"
     type: "disney"
     color: [0.05, 0.05, 0.06]
-    roughness: 0.08
-    clearcoat: 1.0
-    coat_roughness: 0.05
-    specular: 0.85
+    roughness: 0.15
+    clearcoat: 0.55
+    coat_roughness: 0.18
+    specular: 0.65
     texture:
       type: "marble"
-      scale: 4.5
-      vein_axis: [0, 0, 1]
-      vein_frequency: 0.85
-      vein_sharpness: 2.5
-      noise_strength: 7.0
-      octaves: 8
+      scale: 11.0
+      vein_axis: [0.1, 0.05, 1]
+      vein_frequency: 0.9
+      vein_sharpness: 2.2
+      noise_strength: 3.2
+      octaves: 7
+      distortion: 0.20
       randomize_offset: true
       secondary_wave:
-        axis: [1, 0.15, 0]
-        frequency: 0.55
-        strength: 0.35
+        axis: [1, 0.2, 0]
+        frequency: 0.6
+        strength: 0.45
       color_ramp:
-        - { position: 0.00, color: [0.95, 0.78, 0.32], interp: "smoothstep" }   # vena oro (rara)
-        - { position: 0.40, color: [0.30, 0.25, 0.18], interp: "smoothstep" }
+        - { position: 0.00, color: [1.00, 0.85, 0.42], interp: "smoothstep" }   # vena oro (rara)
+        - { position: 0.30, color: [0.55, 0.45, 0.25], interp: "smoothstep" }   # bordo dorato
+        - { position: 0.65, color: [0.18, 0.15, 0.12], interp: "smoothstep" }   # grigio scuro
         - { position: 1.00, color: [0.04, 0.04, 0.05], interp: "linear"     }   # nero base
 
   # Verde Guatemala — vena verde-bianca su base scura
   - id: "marble_verde"
     type: "disney"
     color: [0.10, 0.28, 0.16]
-    roughness: 0.22
-    clearcoat: 0.7
-    coat_roughness: 0.18
-    specular: 0.55
+    roughness: 0.26
+    clearcoat: 0.40
+    coat_roughness: 0.25
+    specular: 0.50
     texture:
       type: "marble"
-      scale: 4.0
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.1
-      vein_sharpness: 3.0
-      noise_strength: 9.0
-      octaves: 8
-      distortion: 0.25
+      scale: 11.0
+      vein_axis: [0.2, 0.1, 1]
+      vein_frequency: 1.0
+      vein_sharpness: 2.8
+      noise_strength: 3.8
+      octaves: 7
+      distortion: 0.35
       randomize_offset: true
       secondary_wave:
-        axis: [1, 0, 0]
-        frequency: 0.9
-        strength: 0.50
+        axis: [1, 0.2, 0]
+        frequency: 0.85
+        strength: 0.6
       color_ramp:
         - { position: 0.00, color: [0.92, 0.92, 0.88], interp: "smoothstep" }   # vena chiara
-        - { position: 0.40, color: [0.18, 0.42, 0.22], interp: "smoothstep" }
+        - { position: 0.35, color: [0.38, 0.55, 0.32], interp: "smoothstep" }   # transizione
         - { position: 1.00, color: [0.06, 0.18, 0.10], interp: "linear"     }   # verde scuro base
 
   # Rosa Portogallo — satinato, secondary leggero
   - id: "marble_rosa"
     type: "disney"
     color: [0.88, 0.66, 0.60]
-    roughness: 0.32
-    clearcoat: 0.45
-    coat_roughness: 0.28
+    roughness: 0.34
+    clearcoat: 0.30
+    coat_roughness: 0.32
     specular: 0.40
     subsurface: 0.10
     texture:
       type: "marble"
-      scale: 5.0
-      vein_axis: [0, 0, 1]
+      scale: 13.0
+      vein_axis: [0.15, 0.1, 1]
       vein_frequency: 1.0
-      vein_sharpness: 2.5
-      noise_strength: 6.5
+      vein_sharpness: 2.8
+      noise_strength: 3.0
       octaves: 7
+      distortion: 0.20
       randomize_offset: true
       secondary_wave:
-        axis: [1, 0, 0]
-        frequency: 0.75
-        strength: 0.30
+        axis: [1, 0.15, 0]
+        frequency: 0.7
+        strength: 0.45
       color_ramp:
-        - { position: 0.00, color: [0.45, 0.20, 0.20], interp: "smoothstep" }
-        - { position: 0.55, color: [0.78, 0.50, 0.48], interp: "smoothstep" }
-        - { position: 1.00, color: [0.94, 0.78, 0.72], interp: "linear"     }
+        - { position: 0.00, color: [0.38, 0.16, 0.18], interp: "smoothstep" }   # vena bordeaux
+        - { position: 0.45, color: [0.72, 0.42, 0.42], interp: "smoothstep" }
+        - { position: 1.00, color: [0.94, 0.78, 0.72], interp: "linear"     }   # rosa base
 
   # ─────────────────────────────────────────────────────────────────────────
   #  FILA 2 — METALLI con anisotropia e bump
