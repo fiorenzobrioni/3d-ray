@@ -1,0 +1,163 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  CoordinateTexture Showcase — VFX Production-Grade Textures, Step 7/7 (FINAL)
+#
+#  Dimostra il nuovo nodo procedurale `coordinate`: ritorna le coordinate del
+#  shading point come RGB, equivalente al "Texture Coordinate" node di Cycles,
+#  ai nodi Pref/Pworld/uvCoord di RenderMan, e al node `utility` di Arnold.
+#
+#  CHIUDE la roadmap "Texturing VFX production-grade: parità completa con
+#  Arnold/RenderMan/Cycles oltre la matematica core" (step 1-7 completi):
+#     1. Anti-aliasing analitico con filter footprint (ray differentials)
+#     2. Color ramp multi-stop
+#     3. Smooth Voronoi (IQ log-sum-exp soft-min)
+#     4. Musgrave HeteroTerrain + HybridMultifractal
+#     5. Marble + Wood studio-quality (secondary wave, anisotropy, knots)
+#     6. F3/F4 + Position output Voronoi
+#  →  7. CoordinateTexture node                                          ← QUI
+#
+#  LAYOUT
+#  ──────
+#  Quattro sfere identiche su pavimento neutro, una per modalità. Tutte le
+#  sfere sono UNIT-RADIUS (raggio 1, posizionate a y=1.0 ⇒ LocalPoint ∈ [-1,1])
+#  così le coordinate object/generated leggono naturalmente l'intera gamma:
+#
+#     A (x=-3.6, sfera "object"):     mode: object
+#                                     Output = fract(LocalPoint).
+#                                     Bande tilable, R=X G=Y B=Z dell'object-
+#                                     space. Cube color-debug standard.
+#
+#     B (x=-1.2, sfera "uv"):         mode: uv
+#                                     Output = (u, v, 0). U lungo asse
+#                                     azimutale, V lungo polar — visualizza
+#                                     l'unwrap sferico (seam visibile).
+#
+#     C (x= 1.2, sfera "generated"):  mode: generated, bounds: [-1, 1]
+#                                     Output = (LocalPoint + 1) / 2.
+#                                     Liscio, no fract — corner -X−Y−Z = nero,
+#                                     corner +X+Y+Z = bianco (workflow Pref).
+#
+#     D (x= 3.6, sfera "world"):      mode: world
+#                                     Output = fract(rec.Point).
+#                                     World-locked: la grid colorata NON segue
+#                                     l'oggetto, è fissata sul mondo. Vedi le
+#                                     bande tagliare la sfera dove cadono gli
+#                                     interi del world-space.
+#
+#  Tutte le sfere usano Lambertian per non lavare via la trama coordinata
+#  dietro speculare/dielectric (debug puro, no PBR).
+#
+#  Render consigliato:
+#    Draft:   -w 640  -H 360  -s 16   -d 4  -S 1
+#    Final:   -w 1920 -H 1080 -s 256  -d 6  -S 2
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.03, 0.05, 0.10]
+    horizon_color: [0.08, 0.10, 0.14]
+    ground_color:  [0.02, 0.02, 0.02]
+
+camera:
+  position: [0, 1.4, -7.0]
+  look_at:  [0, 0.9, 0]
+  fov: 50
+
+materials:
+
+  # ── A: Object space — fract(LocalPoint) ─────────────────────────────────
+  - id: "coord_object"
+    type: "lambertian"
+    color: [1, 1, 1]            # placeholder; coordinate texture overrides
+    texture:
+      type: "coordinate"
+      mode: "object"
+      scale: 1.0                # 1 unit of LocalPoint = 1 full color cube
+
+  # ── B: UV — (u, v, 0) ──────────────────────────────────────────────────
+  - id: "coord_uv"
+    type: "lambertian"
+    color: [1, 1, 1]
+    texture:
+      type: "coordinate"
+      mode: "uv"
+      scale: 1.0                # u, v stay in [0, 1]
+
+  # ── C: Generated — reference-space normalised to [0, 1]³ ───────────────
+  - id: "coord_generated"
+    type: "lambertian"
+    color: [1, 1, 1]
+    texture:
+      type: "coordinate"
+      mode: "generated"
+      bounds_min: [-1, -1, -1]  # matches the unit sphere object-space AABB
+      bounds_max: [ 1,  1,  1]
+
+  # ── D: World — fract(rec.Point), world-locked grid ─────────────────────
+  - id: "coord_world"
+    type: "lambertian"
+    color: [1, 1, 1]
+    texture:
+      type: "coordinate"
+      mode: "world"
+      scale: 1.0
+
+  # ── Pavimento neutro per ricevere ombre soft ───────────────────────────
+  - id: "floor"
+    type: "disney"
+    color: [0.32, 0.32, 0.34]
+    roughness: 0.85
+
+entities:
+
+  - name: "floor"
+    type: "quad"
+    q: [-8, 0, -2.5]
+    u: [16, 0, 0]
+    v: [0, 0, 6]
+    material: "floor"
+
+  - name: "A_object"
+    type: "sphere"
+    center: [-3.6, 1.0, 0]
+    radius: 1.0
+    material: "coord_object"
+
+  - name: "B_uv"
+    type: "sphere"
+    center: [-1.2, 1.0, 0]
+    radius: 1.0
+    material: "coord_uv"
+
+  - name: "C_generated"
+    type: "sphere"
+    center: [ 1.2, 1.0, 0]
+    radius: 1.0
+    material: "coord_generated"
+
+  - name: "D_world"
+    type: "sphere"
+    center: [ 3.6, 1.0, 0]
+    radius: 1.0
+    material: "coord_world"
+
+lights:
+
+  # ── Key directional 3/4-front ─────────────────────────────────────────
+  - type: "-directional"
+    direction: [0.4, -0.7, 0.6]
+    color: [1.0, 0.96, 0.88]
+    intensity: 3.4
+    angular_radius: 0.6
+
+  # ── Fill morbido dall'alto-sinistra ────────────────────────────────────
+  - type: "point"
+    position: [-5, 5, -3]
+    color: [0.70, 0.78, 0.95]
+    intensity: 70
+
+  # ── Rim leggero dal retro ──────────────────────────────────────────────
+  - type: "point"
+    position: [0, 2.5, 4.5]
+    color: [1.0, 0.85, 0.70]
+    intensity: 40

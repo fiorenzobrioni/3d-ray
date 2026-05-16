@@ -24,11 +24,12 @@ namespace RayTracer.Textures;
 ///   type: "voronoi"
 ///   scale: 5.0
 ///   metric: "euclidean"        # euclidean | manhattan | chebyshev | euclidean_squared
-///   output: "f1"               # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
+///   output: "f1"               # f1 | f2 | f3 | f4 | f2_minus_f1 | f3_minus_f1 |
+///                              # f1_plus_f2 | cell | position
 ///   randomness: 1.0            # 0 = grid, 1 = full random scatter
 ///   distortion: 0.0            # domain-warp amplitude (Perlin warp before lookup)
 ///   smoothness: 0.0            # 0 = hard min (classic); ∈ (0,1] enables IQ Smooth Voronoi
-///   colors: [[0,0,0], [1,1,1]] # endpoints for distance modes (ignored for "cell")
+///   colors: [[0,0,0], [1,1,1]] # endpoints for distance modes (ignored for "cell"/"position")
 ///   offset: [0,0,0]
 ///   rotation: [0,0,0]
 /// </code>
@@ -41,10 +42,23 @@ namespace RayTracer.Textures;
 /// F2−F1 "crackle" loses its hard-V ridge — bordi morbidi, no step alias.
 /// Useful for polished leather, rounded pebbles, supple reptile skin.
 /// </para>
+///
+/// <para>
+/// <b>Extended outputs.</b> <see cref="OutputMode.F3"/>, <see cref="OutputMode.F4"/>
+/// and <see cref="OutputMode.F3MinusF1"/> expose the 3rd and 4th nearest
+/// feature distances for hierarchical cellular shading (multi-scale leather,
+/// large-band crackle networks, voronoi-on-voronoi). <see cref="OutputMode.Position"/>
+/// returns the cell-local XYZ of the F1 feature point as RGB — a deterministic
+/// "random colour per cell" usable as a stochastic ID to drive another
+/// procedural. Same channels Cycles, RenderMan PxrVoronoise and Houdini
+/// Voronoi expose. The extended modes always use the hard min (they ignore
+/// <see cref="Smoothness"/>) for the same reason as <see cref="OutputMode.Cell"/>:
+/// they describe discrete topology, not a smoothable scalar field.
+/// </para>
 /// </summary>
 public class VoronoiTexture : ITexture
 {
-    public enum OutputMode { F1, F2, F2MinusF1, F1PlusF2, Cell }
+    public enum OutputMode { F1, F2, F2MinusF1, F1PlusF2, Cell, F3, F4, F3MinusF1, Position }
 
     private readonly WorleyNoise _worley;
     private readonly Perlin _warpNoise;
@@ -163,18 +177,42 @@ public class VoronoiTexture : ITexture
             q += Distortion * warp.NoiseVector(q + new Vector3(17.3f, 5.1f, 11.7f));
         }
 
-        float f1, f2;
+        // Dispatch: F3/F4/F3-F1/Position need the extended 4-slot evaluator;
+        // Cell stays on the cheaper 2-slot path. Smoothness applies to F1/F2
+        // and the derived F2-F1/F1+F2 channels only — extended outputs are
+        // discrete-topology descriptors (closest-N indexing, feature-point
+        // identity) and follow the same "no soft-min" convention Cycles uses
+        // for its Cell output.
+        float f1, f2, f3, f4;
         int cellId;
-        if (Smoothness > 0f)
+        Vector3 featurePos;
+
+        bool needsExtended =
+            Output == OutputMode.F3 ||
+            Output == OutputMode.F4 ||
+            Output == OutputMode.F3MinusF1 ||
+            Output == OutputMode.Position;
+
+        if (needsExtended)
+        {
+            worley.EvaluateExtended(q, Metric, Randomness,
+                out f1, out f2, out f3, out f4,
+                out cellId, out featurePos);
+        }
+        else if (Smoothness > 0f)
         {
             // Smooth-min variant — IQ "Smooth Voronoi". Falls back to the hard
             // path internally when Smoothness ≤ 0 so the back-compat result is
             // bit-identical for legacy scenes that never set the property.
             worley.EvaluateSmooth(q, Metric, Randomness, Smoothness, out f1, out f2, out cellId);
+            f3 = f4 = 0f;
+            featurePos = Vector3.Zero;
         }
         else
         {
             worley.Evaluate(q, Metric, Randomness, out f1, out f2, out cellId);
+            f3 = f4 = 0f;
+            featurePos = Vector3.Zero;
         }
 
         if (Output == OutputMode.Cell)
@@ -185,19 +223,38 @@ public class VoronoiTexture : ITexture
             return WorleyNoise.CellColor(cellId);
         }
 
+        if (Output == OutputMode.Position)
+        {
+            // Cell-local feature point as RGB — the per-cell deterministic
+            // [0, 1]³ jitter coordinate. Matches Cycles' "Position" output
+            // wrapped into the owning cell so the result lives in colour
+            // range without an extra Mapping node. Bypasses ColorRamp for
+            // the same reason as Cell: it's an XYZ identity vector, not a
+            // scalar mappable to a 1-D ramp.
+            Vector3 cellLocal = new(
+                featurePos.X - MathF.Floor(featurePos.X),
+                featurePos.Y - MathF.Floor(featurePos.Y),
+                featurePos.Z - MathF.Floor(featurePos.Z));
+            return cellLocal;
+        }
+
         // Normalisation strategy mirrors what Cycles / Arnold expose so that
         // each output mode lands naturally in [0, 1] across the full sphere
         // of a unit cell:
-        //   - F1, F2:     divide by the metric-specific worst-case distance.
-        //   - F2-F1:      divide by half the worst-case (the absolute max of
-        //                 |F2-F1| inside a single cell is bounded by ½ × the
-        //                 worst-case nearest-feature distance) AND apply a
-        //                 sqrt response curve, which is the same compression
-        //                 Cycles' "Distance to Edge" output performs. Without
-        //                 the sqrt, F2-F1 stays packed near 0 and the classic
-        //                 "crackle" look is unreachable from colour endpoints
-        //                 alone — users would need an external Color Ramp.
-        //   - F1+F2:      divide by metric worst-case (no compression).
+        //   - F1, F2, F3, F4:  divide by the metric-specific worst-case
+        //                      distance. F3/F4 can occasionally exceed maxD
+        //                      (the 3rd/4th nearest in the 3×3×3 window can
+        //                      sit outside the central cell's bounding ball)
+        //                      so the result is clamped to [0, 1] — same
+        //                      response shape as Cycles' F3/F4 channels.
+        //   - F2-F1, F3-F1:    divide by half the worst-case AND apply a
+        //                      sqrt response curve, mirroring Cycles'
+        //                      "Distance to Edge" compression. Without the
+        //                      sqrt the difference stays packed near 0 and
+        //                      the classic crackle look is unreachable from
+        //                      colour endpoints alone. F3-F1 produces a
+        //                      wider, lower-frequency border band than F2-F1.
+        //   - F1+F2:           divide by 2× metric worst-case (no compression).
         float maxD = Metric == WorleyNoise.Metric.Manhattan ? 3f
                    : Metric == WorleyNoise.Metric.Chebyshev ? 1f
                    : Metric == WorleyNoise.Metric.EuclideanSquared ? 3f
@@ -207,7 +264,10 @@ public class VoronoiTexture : ITexture
         {
             OutputMode.F1         => f1 / maxD,
             OutputMode.F2         => f2 / maxD,
+            OutputMode.F3         => f3 / maxD,
+            OutputMode.F4         => f4 / maxD,
             OutputMode.F2MinusF1  => MathF.Sqrt(Math.Clamp((f2 - f1) / (0.5f * maxD), 0f, 1f)),
+            OutputMode.F3MinusF1  => MathF.Sqrt(Math.Clamp((f3 - f1) / (0.5f * maxD), 0f, 1f)),
             OutputMode.F1PlusF2   => (f1 + f2) / (2f * maxD),
             _                     => f1 / maxD,
         };

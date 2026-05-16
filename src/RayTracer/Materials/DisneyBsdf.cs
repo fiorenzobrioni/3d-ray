@@ -432,7 +432,7 @@ public sealed class DisneyBsdf : IMaterial
         float VdotH = MathF.Max(Vector3.Dot(toEye, H), 0f);
         float LdotH = MathF.Max(Vector3.Dot(toLight, H), 0f);
 
-        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
+        Vector3 baseCol = BaseColor.Value(in rec);
         ShadingParams sp = EvalParams(rec);
 
         // ── Disney diffuse lobe (forward hemisphere, post diff_trans split) ─
@@ -609,7 +609,7 @@ public sealed class DisneyBsdf : IMaterial
     /// </summary>
     public Vector3 ShadowAbsorption(HitRecord rec)
     {
-        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
+        Vector3 baseCol = BaseColor.Value(in rec);
         var (_, sigma) = ResolveTransmission(rec, baseCol);
         return sigma;
     }
@@ -628,7 +628,7 @@ public sealed class DisneyBsdf : IMaterial
         float NdotV = Vector3.Dot(N, V);
         if (NdotV <= 0f) return Vector3.Zero;
 
-        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
+        Vector3 baseCol = BaseColor.Value(in rec);
         ShadingParams sp = EvalParams(rec);
 
         // ── Back-hemisphere: diff_trans lobe only ──────────────────────────
@@ -776,7 +776,7 @@ public sealed class DisneyBsdf : IMaterial
         float NdotV = Vector3.Dot(N, V);
         if (NdotV <= 0f) return 0f;
 
-        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
+        Vector3 baseCol = BaseColor.Value(in rec);
         ShadingParams sp = EvalParams(rec);
         LobeWeights w = ComputeLobeWeights(baseCol, sp);
 
@@ -923,7 +923,7 @@ public sealed class DisneyBsdf : IMaterial
             Vector3? next = null;
             if (NdotWo < 0f && !ThinWalled)
             {
-                Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
+                Vector3 baseCol = BaseColor.Value(in rec);
                 (_, Vector3 sigma) = ResolveTransmission(rec, baseCol);
                 bool hasSigma = sigma.X > 0f || sigma.Y > 0f || sigma.Z > 0f;
                 if (rec.FrontFace && hasSigma) next = sigma;
@@ -1119,7 +1119,7 @@ public sealed class DisneyBsdf : IMaterial
 
     private bool ScatterInternal(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered, out Lobe lobe)
     {
-        Vector3 baseCol = BaseColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
+        Vector3 baseCol = BaseColor.Value(in rec);
         ShadingParams sp = EvalParams(rec);
         Vector3 N = rec.Normal;
         Vector3 V = Vector3.Normalize(-rayIn.Direction);
@@ -1280,7 +1280,7 @@ public sealed class DisneyBsdf : IMaterial
     private Vector3 ResolveSubsurfaceColor(HitRecord rec, Vector3 baseCol)
         => SubsurfaceColor == null
             ? baseCol
-            : SubsurfaceColor.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.Footprint);
+            : SubsurfaceColor.Value(in rec);
 
     /// <summary>
     /// Disney 2015 diffuse transmission (diff_trans) lobe. Cosine-weighted

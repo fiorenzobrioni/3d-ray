@@ -771,16 +771,33 @@ texture:
   type: "voronoi"
   scale: 5.0
   metric: "euclidean"          # euclidean | euclidean_squared | manhattan | chebyshev
-  output: "f1"                 # f1 | f2 | f2_minus_f1 | f1_plus_f2 | cell
+  output: "f1"                 # f1 | f2 | f3 | f4 |
+                               # f2_minus_f1 | f3_minus_f1 |
+                               # f1_plus_f2 | cell | position
   randomness: 1.0              # 0 = grid, 1 = full random scatter
   distortion: 0.0              # Perlin warp before lookup
   smoothness: 0.0              # 0 = hard min (classic); ∈ (0,1] enables IQ Smooth Voronoi
-  colors: [[0, 0, 0], [1, 1, 1]]   # ignored for output: "cell"
+  colors: [[0, 0, 0], [1, 1, 1]]   # ignored for output: "cell" / "position"
 ```
 Mirrors Cycles' Voronoi Texture: `f1` gives stone/pebble blobs,
 `f2_minus_f1` gives sharp "crackle" ridges (cracked-mud, snake-skin),
 `cell` gives per-cell flat colours. The Chebyshev metric reproduces
 hex/square tiling.
+
+> **Extended channels (`f3`, `f4`, `f3_minus_f1`, `position`).** F3 and F4
+> are the 3rd and 4th nearest feature distances inside the 3×3×3 cell
+> window — same O(27) cost as F1/F2 since every cell is already scanned.
+> Use them for hierarchical cellular shading (multi-scale leather, cell-in-
+> cell mosaics, voronoi-on-voronoi). `f3_minus_f1` gives a wider, lower-
+> frequency border band than `f2_minus_f1` — softer rims, mortar-style
+> gradients. `position` returns the cell-local XYZ of the F1 feature point
+> as RGB — a deterministic "random colour per cell" usable as a stochastic
+> ID to drive another procedural (Cycles' Position output, RenderMan
+> PxrVoronoise position, Houdini Voronoi `P_` attribute). The extended
+> channels always use the hard min — `smoothness` is intentionally ignored
+> for them (same convention Cycles uses for its Cell output: discrete-
+> topology descriptors aren't softened). `position` also bypasses
+> `color_ramp:` because it is a vector identity output, not a scalar.
 
 > **Note on `f2_minus_f1`.** Mathematically, `F2-F1` is **zero on the cell
 > boundary** (perpendicular bisector between two feature points) and grows
@@ -837,6 +854,56 @@ texture:
 - `quadratic` / `easing` — same `t` then squared or smoothstepped.
 - `spherical` — distance from origin / `length`.
 - `radial` — distance from the `axis` line / `length` (cylindrical falloff).
+
+**Coordinate (debug / coord-space driver):**
+```yaml
+texture:
+  type: "coordinate"             # aliases: coord | coords | texture_coord | tex_coord | st
+  mode: "object"                 # object | uv | generated | world
+  scale: 1.0                     # multiplier on the coords before fract() / generated clamp
+  bounds_min: [-1, -1, -1]       # only used by mode: "generated" — reference-box lower corner
+  bounds_max: [1, 1, 1]          # only used by mode: "generated" — reference-box upper corner
+  offset: [0, 0, 0]
+  rotation: [0, 0, 0]
+```
+Returns the shading point's coordinates as RGB. Equivalent to Cycles'
+"Texture Coordinate" node, RenderMan `Pref` / `Pworld` / `uvCoord` and
+Arnold's `utility` node. Two principal uses: (1) **debug overlay** to
+verify UV unwraps and object/world space alignment at a glance, and
+(2) **deterministic XYZ driver** to feed another texture (via mix
+material) with a chosen coordinate system instead of the implicit
+object-local sample point every procedural uses by default.
+
+- `object` — `fract(rec.LocalPoint · scale)`. Same space every other
+  procedural (Noise/Marble/Wood/Voronoi) samples in.
+- `uv` — `(u, v, 0)` raw (no fract). Shows the primitive's UV
+  parameterisation directly; the seam line of spherical UVs is visible.
+- `generated` — `clamp((LocalPoint − bounds_min) / (bounds_max − bounds_min), 0, 1)`.
+  The "reference-space" workflow popularised by RenderMan `Pref`:
+  artists declare the canonical AABB of the object (typically the
+  rest-pose box) and every downstream node sees a tidy `[0, 1]³`
+  parameter regardless of how the surface is transformed or displaced
+  at render time. Defaults to the unit cube `[-1, 1]³`, matching the
+  object-space AABB of a unit sphere / cube / cylinder. Smooth, no
+  fract — corners map exactly to the colour-cube extremes.
+- `world` — `fract(rec.Point · scale)`. World-locked grid that does
+  NOT follow the object when it moves; ideal for laser-grids,
+  world-aligned dust shells and "you-are-here" debug spheres.
+
+The standard `offset` / `rotation` transform applies BEFORE the
+`fract` wrap (Object / World) or BEFORE the bounds normalisation
+(Generated). `color_ramp:` is intentionally not supported — Coordinate
+is a vector identity output, not a scalar mappable to a 1-D ramp.
+
+> **Back-compat for the `Value(in HitRecord rec)` overload.** Adding
+> Coordinate required exposing `rec.Point` to textures, so this cycle
+> introduces an `ITexture.Value(in HitRecord rec)` overload with a
+> default that forwards `(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed,
+> rec.Footprint)`. Every existing texture (Noise, Marble, Wood,
+> Voronoi, Brick, Gradient, Checker, Image, SolidColor) inherits the
+> default forwarding and therefore behaves bit-identically to the
+> pre-cycle code on every input. Only Coordinate overrides the
+> overload to read `rec.Point` and `rec.LocalPoint` separately.
 
 **All procedurals support:**
 ```yaml

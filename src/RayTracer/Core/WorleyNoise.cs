@@ -118,6 +118,98 @@ public sealed class WorleyNoise
     }
 
     /// <summary>
+    /// Extended cellular evaluation — returns the four closest feature
+    /// distances <c>F1 ≤ F2 ≤ F3 ≤ F4</c>, the cell ID of the F1 cell, and the
+    /// absolute feature-point position of the F1 cell.
+    ///
+    /// <para>
+    /// F3 and F4 are exposed for hierarchical cellular shading (cell-in-cell
+    /// patterns, multi-scale leather, large-band border masks): the wider
+    /// <c>F3 − F1</c> band has lower spectral frequency than <c>F2 − F1</c>
+    /// and so produces softer, larger crackle networks. The feature position
+    /// is the per-cell deterministic XYZ jitter point — used as a "random per
+    /// cell" stochastic ID to drive another texture (Cycles' <c>Position</c>
+    /// output, Houdini Voronoi <c>P_</c> attribute, RenderMan
+    /// <c>PxrVoronoise</c>'s position output).
+    /// </para>
+    ///
+    /// <para>
+    /// Same O(27) cost as <see cref="Evaluate"/>: every neighbouring cell is
+    /// already scanned and the extra book-keeping is three additional float
+    /// comparisons per cell. For the F1/F2 channels this method is
+    /// bit-identical to <see cref="Evaluate"/> by construction (the
+    /// insertion ladder reproduces the same two-slot update on the top of the
+    /// list).
+    /// </para>
+    /// </summary>
+    public void EvaluateExtended(
+        Vector3 p, Metric metric, float randomness,
+        out float f1, out float f2, out float f3, out float f4,
+        out int cellId, out Vector3 featurePosition)
+    {
+        randomness = Math.Clamp(randomness, 0f, 1f);
+
+        int ix = (int)MathF.Floor(p.X);
+        int iy = (int)MathF.Floor(p.Y);
+        int iz = (int)MathF.Floor(p.Z);
+
+        float b1 = float.MaxValue;
+        float b2 = float.MaxValue;
+        float b3 = float.MaxValue;
+        float b4 = float.MaxValue;
+        int bestId = 0;
+        Vector3 bestFeature = Vector3.Zero;
+
+        for (int dz = -1; dz <= 1; dz++)
+        for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            int cx = ix + dx;
+            int cy = iy + dy;
+            int cz = iz + dz;
+
+            int hash = HashCell(cx, cy, cz);
+            Vector3 jitter = _jitter[hash];
+            Vector3 feature = new(
+                cx + 0.5f + (jitter.X - 0.5f) * randomness,
+                cy + 0.5f + (jitter.Y - 0.5f) * randomness,
+                cz + 0.5f + (jitter.Z - 0.5f) * randomness);
+
+            float d = Distance(p, feature, metric);
+
+            // 4-slot insertion sort. Reproduces the F1/F2 update of
+            // Evaluate() exactly on the first two slots (same compare order,
+            // same swap semantics), so the F1/F2/cellId fields are
+            // bit-identical to the 2-slot version on every input.
+            if (d < b1)
+            {
+                b4 = b3; b3 = b2; b2 = b1; b1 = d;
+                bestId = HashCellId(cx, cy, cz);
+                bestFeature = feature;
+            }
+            else if (d < b2)
+            {
+                b4 = b3; b3 = b2; b2 = d;
+            }
+            else if (d < b3)
+            {
+                b4 = b3; b3 = d;
+            }
+            else if (d < b4)
+            {
+                b4 = d;
+            }
+        }
+
+        f1 = b1;
+        f2 = b2;
+        f3 = b3;
+        f4 = b4;
+        cellId = bestId;
+        featurePosition = bestFeature;
+    }
+
+    /// <summary>
     /// Smooth-Voronoi variant of <see cref="Evaluate"/>. When
     /// <paramref name="smoothness"/> is &gt; 0 the hard <c>min()</c> over the
     /// neighbouring cells is replaced by Inigo Quilez' "Smooth Voronoi"

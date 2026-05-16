@@ -743,6 +743,14 @@ public class TextureData
     // outgoing segment (toward the next stop), matching Blender's convention.
     [YamlMember(Alias = "color_ramp")]
     public List<ColorRampStopData>? ColorRamp { get; set; }
+
+    // CoordinateTexture (DEVLOG VFX step 7): reference-space bounds used by
+    // `mode: "generated"`. Default unit cube `[-1, 1]³` if omitted.
+    [YamlMember(Alias = "bounds_min")]
+    public List<float>? BoundsMin { get; set; }
+
+    [YamlMember(Alias = "bounds_max")]
+    public List<float>? BoundsMax { get; set; }
 }
 
 public class ColorRampStopData

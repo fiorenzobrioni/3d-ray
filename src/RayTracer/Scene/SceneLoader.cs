@@ -1216,6 +1216,9 @@ public class SceneLoader
                     t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.Zero : Vector3.Zero,
                     t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? Vector3.One  : Vector3.One),
 
+            "coordinate" or "coord" or "coords" or "texture_coord" or "tex_coord" or "st"
+                => new CoordinateTexture(),
+
             "image" => CreateImageTexture(t, sceneDir),
 
             _ => new SolidColor(t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One : Vector3.One)
@@ -1372,6 +1375,19 @@ public class SceneLoader
             if (t.Length.HasValue) gt.Length = t.Length.Value;
             gt.ColorRamp = BuildColorRamp(t.ColorRamp, "gradient");
         }
+        else if (tex is CoordinateTexture ct)
+        {
+            // CoordinateTexture: per-mode knobs. Defaults are already set on
+            // the texture instance; only override when YAML supplies a value.
+            if (t.Mode != null)         ct.Mode      = ParseCoordinateMode(t.Mode);
+            // `scale` is the inherited TextureData.Scale field (defaults to
+            // 1f in TextureData, matching CoordinateTexture's own default).
+            ct.Scale = t.Scale;
+            if (t.Offset   != null)     ct.Offset    = ToVector3(t.Offset)   ?? Vector3.Zero;
+            if (t.Rotation != null)     ct.Rotation  = ToVector3(t.Rotation) ?? Vector3.Zero;
+            if (t.BoundsMin != null)    ct.BoundsMin = ToVector3(t.BoundsMin) ?? new Vector3(-1f);
+            if (t.BoundsMax != null)    ct.BoundsMax = ToVector3(t.BoundsMax) ?? new Vector3( 1f);
+        }
     }
 
     private static NoiseTexture.NoiseKind ParseNoiseKind(string s) =>
@@ -1411,9 +1427,13 @@ public class SceneLoader
         {
             "f1"            => VoronoiTexture.OutputMode.F1,
             "f2"            => VoronoiTexture.OutputMode.F2,
+            "f3"            => VoronoiTexture.OutputMode.F3,
+            "f4"            => VoronoiTexture.OutputMode.F4,
             "f2_minus_f1" or "f2-f1" or "crackle" => VoronoiTexture.OutputMode.F2MinusF1,
+            "f3_minus_f1" or "f3-f1" or "wide_crackle" or "border" => VoronoiTexture.OutputMode.F3MinusF1,
             "f1_plus_f2" or "f1+f2"               => VoronoiTexture.OutputMode.F1PlusF2,
             "cell" or "color" or "id"             => VoronoiTexture.OutputMode.Cell,
+            "position" or "feature_position" or "feature" or "p" => VoronoiTexture.OutputMode.Position,
             _ => VoronoiTexture.OutputMode.F1,
         };
 
@@ -1425,6 +1445,15 @@ public class SceneLoader
             "spherical" or "sphere"             => GradientTexture.GradientMode.Spherical,
             "radial" or "cylinder" or "cylindrical" => GradientTexture.GradientMode.Radial,
             _                                   => GradientTexture.GradientMode.Linear,
+        };
+
+    private static CoordinateTexture.CoordMode ParseCoordinateMode(string s) =>
+        s.Trim().ToLowerInvariant() switch
+        {
+            "uv" or "st" or "parametric"                => CoordinateTexture.CoordMode.UV,
+            "generated" or "gen" or "ref" or "pref"     => CoordinateTexture.CoordMode.Generated,
+            "world" or "pworld" or "world_space"        => CoordinateTexture.CoordMode.World,
+            _                                           => CoordinateTexture.CoordMode.Object,
         };
 
     private static ColorRamp.Interp ParseRampInterp(string? s) =>
