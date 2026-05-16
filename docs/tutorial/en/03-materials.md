@@ -1064,6 +1064,45 @@ hand-tuned roughness ramps). `linear` projects onto `axis`; `spherical`
 uses distance from the origin; `radial` uses distance from the `axis`
 line (cylindrical falloff).
 
+### Coordinate (Texture Coordinate node)
+
+```yaml
+texture:
+  type: "coordinate"
+  mode: "object"             # object | uv | generated | world
+  scale: 1.0
+  bounds_min: [-1, -1, -1]   # only used in mode: "generated"
+  bounds_max: [1, 1, 1]
+```
+
+Returns the shading point's coordinates as RGB. Equivalent to Cycles'
+"Texture Coordinate" node, RenderMan `Pref` / `Pworld` / `uvCoord` and
+Arnold's `utility` node. Two principal uses:
+
+1. **Debug overlay** to verify UV unwraps and object/world space
+   alignment at a glance. Pop a `mode: "uv"` texture on a sphere and
+   you see the spherical UV seam line immediately; `mode: "world"`
+   shows whether the BVH has correctly placed the geometry in world
+   space.
+2. **Deterministic XYZ driver** to feed another texture (via mix
+   material) with an explicit coordinate system instead of the
+   implicit object-local sample point every procedural uses by
+   default.
+
+- `object` — `fract(LocalPoint · scale)`. Same space every other
+  procedural samples in.
+- `uv` — `(u, v, 0)` raw. Smooth gradient, no fract.
+- `generated` — bounds-normalised reference-space. The RenderMan
+  `Pref` workflow: declare the canonical AABB and every node
+  downstream sees a tidy `[0, 1]³` parameter regardless of
+  transforms / displacement.
+- `world` — `fract(rec.Point · scale)`. World-locked grid that does
+  NOT follow the object — useful for laser-grids, world-aligned dust,
+  "you-are-here" debug spheres.
+
+See `scenes/showcases/coordinate-texture-showcase.yaml` for the
+4-sphere side-by-side comparison (one per mode).
+
 ### Multi-Stop Color Ramp
 
 Every procedural texture except `brick` accepts an optional `color_ramp:`

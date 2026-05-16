@@ -855,6 +855,56 @@ texture:
 - `spherical` — distance from origin / `length`.
 - `radial` — distance from the `axis` line / `length` (cylindrical falloff).
 
+**Coordinate (debug / coord-space driver):**
+```yaml
+texture:
+  type: "coordinate"             # aliases: coord | coords | texture_coord | tex_coord | st
+  mode: "object"                 # object | uv | generated | world
+  scale: 1.0                     # multiplier on the coords before fract() / generated clamp
+  bounds_min: [-1, -1, -1]       # only used by mode: "generated" — reference-box lower corner
+  bounds_max: [1, 1, 1]          # only used by mode: "generated" — reference-box upper corner
+  offset: [0, 0, 0]
+  rotation: [0, 0, 0]
+```
+Returns the shading point's coordinates as RGB. Equivalent to Cycles'
+"Texture Coordinate" node, RenderMan `Pref` / `Pworld` / `uvCoord` and
+Arnold's `utility` node. Two principal uses: (1) **debug overlay** to
+verify UV unwraps and object/world space alignment at a glance, and
+(2) **deterministic XYZ driver** to feed another texture (via mix
+material) with a chosen coordinate system instead of the implicit
+object-local sample point every procedural uses by default.
+
+- `object` — `fract(rec.LocalPoint · scale)`. Same space every other
+  procedural (Noise/Marble/Wood/Voronoi) samples in.
+- `uv` — `(u, v, 0)` raw (no fract). Shows the primitive's UV
+  parameterisation directly; the seam line of spherical UVs is visible.
+- `generated` — `clamp((LocalPoint − bounds_min) / (bounds_max − bounds_min), 0, 1)`.
+  The "reference-space" workflow popularised by RenderMan `Pref`:
+  artists declare the canonical AABB of the object (typically the
+  rest-pose box) and every downstream node sees a tidy `[0, 1]³`
+  parameter regardless of how the surface is transformed or displaced
+  at render time. Defaults to the unit cube `[-1, 1]³`, matching the
+  object-space AABB of a unit sphere / cube / cylinder. Smooth, no
+  fract — corners map exactly to the colour-cube extremes.
+- `world` — `fract(rec.Point · scale)`. World-locked grid that does
+  NOT follow the object when it moves; ideal for laser-grids,
+  world-aligned dust shells and "you-are-here" debug spheres.
+
+The standard `offset` / `rotation` transform applies BEFORE the
+`fract` wrap (Object / World) or BEFORE the bounds normalisation
+(Generated). `color_ramp:` is intentionally not supported — Coordinate
+is a vector identity output, not a scalar mappable to a 1-D ramp.
+
+> **Back-compat for the `Value(in HitRecord rec)` overload.** Adding
+> Coordinate required exposing `rec.Point` to textures, so this cycle
+> introduces an `ITexture.Value(in HitRecord rec)` overload with a
+> default that forwards `(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed,
+> rec.Footprint)`. Every existing texture (Noise, Marble, Wood,
+> Voronoi, Brick, Gradient, Checker, Image, SolidColor) inherits the
+> default forwarding and therefore behaves bit-identically to the
+> pre-cycle code on every input. Only Coordinate overrides the
+> overload to read `rec.Point` and `rec.LocalPoint` separately.
+
 **All procedurals support:**
 ```yaml
 offset: [5.0, 0.0, 3.0]                  # Translation
