@@ -187,6 +187,99 @@ public class Perlin
     }
 
     /// <summary>
+    /// Heterogeneous Terrain — Musgrave fractal (Ebert/Musgrave/Peachey/Perlin
+    /// "Texturing &amp; Modeling: A Procedural Approach", 3rd ed. §16.3.3).
+    /// Same family used by Cycles' Musgrave Texture node "Hetero Terrain",
+    /// Houdini's <c>turbulence</c> with heterogeneous mode, and the classic
+    /// MojoWorld / RenderMan terrain shaders.
+    ///
+    /// <para>
+    /// Each octave's contribution is multiplied by the current running value,
+    /// so the surface picks up more high-frequency roughness where elevation
+    /// (i.e. accumulated signal) is already high, and stays smooth at "sea
+    /// level". This is the hallmark of natural eroded terrain — sharp ridges
+    /// up top, gentle valleys below — that pure fBm cannot reproduce (fBm has
+    /// identical statistics at every altitude).
+    /// </para>
+    ///
+    /// <para>
+    /// Parameters mirror Musgrave's original signature:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item><description><b>H</b> (<paramref name="h"/>, "fractal increment"):
+    ///     controls how fast amplitude decays vs frequency. Spectral weight
+    ///     of octave i is <c>lacunarity^(-i·H)</c>. H = 1 ⇒ statistical
+    ///     self-similarity (rough at every scale); H → 0 ⇒ white-noise-ish;
+    ///     H ≫ 1 ⇒ smooth, low-frequency dominated. Typical terrain: 0.25.</description></item>
+    ///   <item><description><b>offset</b> (<paramref name="offset"/>, "sea level"):
+    ///     additive bias inside each octave. Values around 0.7 produce the
+    ///     classic terrain look; raising it sinks more area below the multiplier
+    ///     threshold (more "flat plains"), lowering it raises mountains everywhere.</description></item>
+    /// </list>
+    /// </summary>
+    public float HeteroTerrain(Vector3 p, int octaves, float lacunarity, float h, float offset)
+    {
+        // First unscaled octave — sets the baseline elevation field.
+        float value = offset + Noise(p);
+        p *= lacunarity;
+
+        // Spectral construction. The exponent_array of Musgrave's original
+        // implementation is computed inline as `lacunarity^(-i·H)`: cheap, no
+        // allocation, and remains numerically identical to the pre-baked
+        // version since lacunarity^(-H) is constant across the loop.
+        float frequencyWeight = 1f;          // lacunarity^(-0·H) = 1 at i = 0
+        float weightDecay = MathF.Pow(lacunarity, -h);
+        for (int i = 1; i < octaves; i++)
+        {
+            frequencyWeight *= weightDecay;
+            float increment = (Noise(p) + offset) * frequencyWeight * value;
+            value += increment;
+            p *= lacunarity;
+        }
+        return value;
+    }
+
+    /// <summary>
+    /// Hybrid Multifractal — Musgrave fractal (Ebert/Musgrave/Peachey/Perlin
+    /// "Texturing &amp; Modeling", 3rd ed. §16.3.4). The other half of the
+    /// Cycles "Musgrave" / RenderMan terrain pair.
+    ///
+    /// <para>
+    /// Compared to <see cref="HeteroTerrain"/>, the per-octave amplitude is
+    /// multiplied by a running <i>weight</i> (clamped to 1) instead of the raw
+    /// running value. This produces stratified rock layers and crisp peaks
+    /// that <i>only</i> hybrid multifractal can reach — useful for high-altitude
+    /// rocks, alien planet surfaces, weathered stratified marble where each
+    /// "stratum" has its own intra-frequency statistics.
+    /// </para>
+    /// </summary>
+    public float HybridMultifractal(Vector3 p, int octaves, float lacunarity, float h, float offset)
+    {
+        float frequencyWeight = 1f;
+        float weightDecay = MathF.Pow(lacunarity, -h);
+
+        // First octave — `weight` is initialised to the raw signal so the
+        // recursion below decays naturally when the field is locally low.
+        float result = (Noise(p) + offset) * frequencyWeight;
+        float weight = result;
+        p *= lacunarity;
+
+        for (int i = 1; i < octaves; i++)
+        {
+            // Prevent divergence — weight ≥ 1 would let high-frequency
+            // octaves dominate and blow the field up exponentially.
+            if (weight > 1f) weight = 1f;
+
+            frequencyWeight *= weightDecay;
+            float signal = (Noise(p) + offset) * frequencyWeight;
+            result += weight * signal;
+            weight *= signal;
+            p *= lacunarity;
+        }
+        return result;
+    }
+
+    /// <summary>
     /// Returns a 3-D Perlin vector sampled at <paramref name="p"/> and shifted
     /// offsets. Used to warp the input of other noise functions (domain
     /// warping / distortion), a technique pioneered by Ken Perlin and made

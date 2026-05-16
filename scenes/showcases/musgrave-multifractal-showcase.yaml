@@ -1,0 +1,216 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Musgrave Multifractal Showcase — VFX Production-Grade Textures, Step 4/7
+#
+#  Dimostra le due nuove modalità Musgrave (Ebert/Musgrave/Peachey/Perlin,
+#  "Texturing & Modeling: A Procedural Approach", 3rd ed. §16.3) introdotte
+#  in `NoiseTexture`:
+#
+#     • `noise_type: "hetero_terrain"`     — terreno eroso con creste rugose
+#       e valli lisce. Sblocca il look "altezza-correlata": dove il segnale
+#       accumulato è alto le ottave seguenti contribuiscono molto (creste
+#       affilate); dove è basso (valli, sea-level) il contributo svanisce
+#       (superfici lisce). Pattern irraggiungibile con fBm puro, che ha
+#       statistica identica a ogni quota.
+#
+#     • `noise_type: "hybrid_multifractal"` — multifrattale ibrido con
+#       weight·signal cascade. Produce strati rocciosi stratificati con
+#       picchi netti — utile per asteroidi, rocce alterate, marmi a venatura
+#       stratigrafica, superfici di pianeti alieni.
+#
+#  Parametri nuovi:
+#     `fractal_increment` (H): controlla il decadimento spettrale per ottava
+#         (peso = lacunarity^(-i·H)). Tipici terreni: H ≈ 0.25 ÷ 0.5.
+#     `fractal_offset`         : "sea-level"/bias additivo per ottava.
+#         Tipico ≈ 0.7. Innalzare appiattisce le valli; abbassare alza le
+#         montagne ovunque.
+#
+#  Allineamento puntuale:
+#     Cycles "Musgrave Texture" (Hetero Terrain / Hybrid Multifractal)
+#     · RenderMan terrain shaders · MojoWorld · Houdini turbulence.
+#
+#  LAYOUT
+#  ──────
+#  Quattro pannelli quad verticali fianco a fianco, stesso materiale base
+#  Disney bianco-grigio chiaro, ognuno con un noise diverso come `color_map`
+#  con color ramp a 4 stop terrain-style (acqua → erba → roccia → neve):
+#     A (sx)  — fBm reference (statistica omogenea a ogni quota)
+#     B       — hetero_terrain (creste alte, valli lisce)
+#     C       — hybrid_multifractal (strati rocciosi)
+#     D (dx)  — hetero_terrain con `fractal_offset` basso (montagne ovunque)
+#
+#  Render consigliato:
+#    Draft:  -w 640  -H 360  -s 32   -d 4  -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    top_color:    [0.35, 0.45, 0.60]
+    bottom_color: [0.05, 0.05, 0.08]
+
+camera:
+  position: [0, 1.6, -6.2]
+  look_at:  [0, 1.4, 0]
+  fov: 52
+
+materials:
+
+  # ── A: fBm reference (statistica omogenea a ogni quota) ────────────────
+  - id: "panel_fbm"
+    type: "disney"
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.55
+    texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 3.2
+      octaves: 8
+      lacunarity: 2.0
+      gain: 0.5
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.12, 0.30], interp: "linear"     }   # acqua profonda
+        - { position: 0.42, color: [0.18, 0.40, 0.62], interp: "smoothstep" }   # acqua bassa
+        - { position: 0.50, color: [0.78, 0.72, 0.50], interp: "smoothstep" }   # spiaggia
+        - { position: 0.60, color: [0.20, 0.45, 0.20], interp: "smoothstep" }   # erba
+        - { position: 0.75, color: [0.45, 0.40, 0.32], interp: "smoothstep" }   # roccia
+        - { position: 0.92, color: [0.95, 0.95, 0.96], interp: "linear"     }   # neve
+        - { position: 1.00, color: [1.00, 1.00, 1.00], interp: "linear"     }
+
+  # ── B: hetero_terrain — creste rugose dove l'accumulo è alto ───────────
+  - id: "panel_hetero"
+    type: "disney"
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.55
+    texture:
+      type: "noise"
+      noise_type: "hetero_terrain"
+      scale: 3.2
+      octaves: 8
+      lacunarity: 2.0
+      fractal_increment: 0.25       # H — terreno rugoso, ricco di alta frequenza
+      fractal_offset:    0.7        # sea-level canonico Musgrave
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.12, 0.30], interp: "linear"     }
+        - { position: 0.42, color: [0.18, 0.40, 0.62], interp: "smoothstep" }
+        - { position: 0.50, color: [0.78, 0.72, 0.50], interp: "smoothstep" }
+        - { position: 0.60, color: [0.20, 0.45, 0.20], interp: "smoothstep" }
+        - { position: 0.75, color: [0.45, 0.40, 0.32], interp: "smoothstep" }
+        - { position: 0.92, color: [0.95, 0.95, 0.96], interp: "linear"     }
+        - { position: 1.00, color: [1.00, 1.00, 1.00], interp: "linear"     }
+
+  # ── C: hybrid_multifractal — strati rocciosi stratificati ──────────────
+  - id: "panel_hybrid"
+    type: "disney"
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.55
+    texture:
+      type: "noise"
+      noise_type: "hybrid_multifractal"
+      scale: 3.2
+      octaves: 8
+      lacunarity: 2.0
+      fractal_increment: 0.25
+      fractal_offset:    0.7
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.12, 0.30], interp: "linear"     }
+        - { position: 0.42, color: [0.18, 0.40, 0.62], interp: "smoothstep" }
+        - { position: 0.50, color: [0.78, 0.72, 0.50], interp: "smoothstep" }
+        - { position: 0.60, color: [0.20, 0.45, 0.20], interp: "smoothstep" }
+        - { position: 0.75, color: [0.45, 0.40, 0.32], interp: "smoothstep" }
+        - { position: 0.92, color: [0.95, 0.95, 0.96], interp: "linear"     }
+        - { position: 1.00, color: [1.00, 1.00, 1.00], interp: "linear"     }
+
+  # ── D: hetero_terrain con offset basso (catena montuosa ovunque) ───────
+  # Demo del parametro `fractal_offset`: abbassarlo a 0.2 quasi annulla le
+  # valli — il running value cresce lentamente quasi ovunque, quindi le
+  # ottave alte contribuiscono dovunque (look "high-altitude alpine").
+  - id: "panel_hetero_alpine"
+    type: "disney"
+    color: [0.85, 0.85, 0.86]
+    roughness: 0.55
+    texture:
+      type: "noise"
+      noise_type: "hetero_terrain"
+      scale: 3.2
+      octaves: 8
+      lacunarity: 2.0
+      fractal_increment: 0.25
+      fractal_offset:    0.2        # ← montagne ovunque, niente sea-level
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.12, 0.30], interp: "linear"     }
+        - { position: 0.42, color: [0.18, 0.40, 0.62], interp: "smoothstep" }
+        - { position: 0.50, color: [0.78, 0.72, 0.50], interp: "smoothstep" }
+        - { position: 0.60, color: [0.20, 0.45, 0.20], interp: "smoothstep" }
+        - { position: 0.75, color: [0.45, 0.40, 0.32], interp: "smoothstep" }
+        - { position: 0.92, color: [0.95, 0.95, 0.96], interp: "linear"     }
+        - { position: 1.00, color: [1.00, 1.00, 1.00], interp: "linear"     }
+
+  # ── Pavimento neutro ───────────────────────────────────────────────────
+  - id: "floor"
+    type: "lambertian"
+    color: [0.32, 0.32, 0.34]
+
+entities:
+
+  # ── Pavimento ──────────────────────────────────────────────────────────
+  - name: "floor"
+    type: "quad"
+    q: [-8, 0, -3]
+    u: [16, 0, 0]
+    v: [0, 0, 8]
+    material: "floor"
+
+  # ── 4 pannelli verticali fianco a fianco (asse X, larghezza 1.9 ciascuno) ─
+  # ── A: fBm reference (x ∈ [-4.0, -2.0])
+  - name: "panel_A_fbm"
+    type: "quad"
+    q: [-4.0, 0, 2.5]
+    u: [1.9, 0, 0]
+    v: [0, 2.8, 0]
+    material: "panel_fbm"
+
+  # ── B: hetero_terrain (x ∈ [-2.0, 0.0])
+  - name: "panel_B_hetero"
+    type: "quad"
+    q: [-2.0, 0, 2.5]
+    u: [1.9, 0, 0]
+    v: [0, 2.8, 0]
+    material: "panel_hetero"
+
+  # ── C: hybrid_multifractal (x ∈ [0.0, 2.0])
+  - name: "panel_C_hybrid"
+    type: "quad"
+    q: [0.05, 0, 2.5]
+    u: [1.9, 0, 0]
+    v: [0, 2.8, 0]
+    material: "panel_hybrid"
+
+  # ── D: hetero_terrain alpine (offset basso) (x ∈ [2.0, 4.0])
+  - name: "panel_D_hetero_alpine"
+    type: "quad"
+    q: [2.1, 0, 2.5]
+    u: [1.9, 0, 0]
+    v: [0, 2.8, 0]
+    material: "panel_hetero_alpine"
+
+lights:
+
+  # ── Key direzionale alta — illumina i pannelli frontalmente ────────────
+  - type: "directional"
+    direction: [-0.3, -0.6, 0.7]
+    color: [1.0, 0.95, 0.86]
+    intensity: 3.4
+    angular_radius: 0.5
+
+  # ── Fill morbido dall'alto-sinistra (riempie le ombre) ─────────────────
+  - type: "point"
+    position: [-6, 5, -3]
+    color: [0.7, 0.78, 0.95]
+    intensity: 60
+
+  # ── Rim debole dal retro ───────────────────────────────────────────────
+  - type: "point"
+    position: [0, 3, 5]
+    color: [1.0, 0.85, 0.70]
+    intensity: 30

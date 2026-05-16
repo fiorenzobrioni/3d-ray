@@ -1283,6 +1283,8 @@ public class SceneLoader
             if (t.Lacunarity.HasValue)   nt.Lacunarity = t.Lacunarity.Value;
             if (t.Gain.HasValue)         nt.Gain       = t.Gain.Value;
             if (t.Distortion.HasValue)   nt.Distortion = t.Distortion.Value;
+            if (t.FractalIncrement.HasValue) nt.FractalIncrement = t.FractalIncrement.Value;
+            if (t.FractalOffset.HasValue)    nt.FractalOffset    = t.FractalOffset.Value;
             nt.ColorRamp = BuildColorRamp(t.ColorRamp, "noise");
         }
         else if (tex is MarbleTexture mt)
@@ -1365,6 +1367,10 @@ public class SceneLoader
             "turbulence" or "turb" => NoiseTexture.NoiseKind.Turbulence,
             "ridged" or "ridge"    => NoiseTexture.NoiseKind.Ridged,
             "billow" or "billowed" => NoiseTexture.NoiseKind.Billow,
+            "hetero_terrain" or "heteroterrain" or "hetero" or "heterogeneous"
+                                   => NoiseTexture.NoiseKind.HeteroTerrain,
+            "hybrid_multifractal" or "hybridmultifractal" or "hybrid" or "multifractal"
+                                   => NoiseTexture.NoiseKind.HybridMultifractal,
             _                      => NoiseTexture.NoiseKind.Auto,
         };
 

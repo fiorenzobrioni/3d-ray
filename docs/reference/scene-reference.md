@@ -498,24 +498,41 @@ texture:
 ```yaml
 texture:
   type: "noise"
-  noise_type: "fbm"            # perlin | fbm | turbulence | ridged | billow
+  noise_type: "fbm"            # perlin | fbm | turbulence | ridged | billow | hetero_terrain | hybrid_multifractal
   scale: 5.0
-  octaves: 5                   # 1..16 — fBm/ridged/billow octave count
+  octaves: 5                   # 1..16 — fBm/ridged/billow/musgrave octave count
   lacunarity: 2.0              # frequency multiplier between octaves
-  gain: 0.5                    # amplitude decay between octaves
+  gain: 0.5                    # amplitude decay between octaves (fbm/ridged/billow)
+  fractal_increment: 1.0       # Musgrave H — only used by hetero_terrain / hybrid_multifractal
+  fractal_offset: 0.7          # Musgrave offset / "sea level" — only used by hetero_terrain / hybrid_multifractal
   distortion: 0.0              # domain-warp amplitude (organic shapes)
   noise_strength: 0.0          # legacy: 0=smooth Perlin, >0=turbulent (overridden by noise_type)
   colors: [[0, 0, 0], [1, 1, 1]]
 ```
-The five noise families map onto the standard pro-renderer modes:
+The seven noise families map onto the standard pro-renderer modes:
 - `perlin` — single-octave smooth gradient noise.
 - `fbm` — Σ noise/2^i, the canonical "fractal noise" of Arnold/Cycles/RenderMan.
 - `turbulence` — Σ|noise|/2^i with absolute-value sharpening.
 - `ridged` — Musgrave ridged multifractal, sharp ridges (rocks, lightning).
 - `billow` — Σ|noise| octaves, puffy / cloud-like.
+- `hetero_terrain` — Musgrave heterogeneous terrain (Ebert et al. §16.3.3):
+  per-octave amplitude scaled by the running accumulated value, so high
+  ground gets rougher and valleys stay smooth. The canonical eroded-terrain
+  look that pure fBm cannot reach.
+- `hybrid_multifractal` — Musgrave hybrid multifractal (§16.3.4): per-octave
+  signal multiplied by a running `weight` (clamped to 1), producing
+  stratified rock layers and sharp peaks. Used for asteroids, alien rock,
+  stratigraphic marble.
 
 `distortion` warps the input position with a secondary Perlin sample
-(Inigo Quilez technique); 0.3–0.8 is usually enough.
+(Inigo Quilez technique); 0.3–0.8 is usually enough. `fractal_increment`
+(Musgrave's H, default 1.0) controls how fast high-frequency octaves decay
+— H ≈ 0.25 yields rough terrain, H ≥ 1 produces smooth, low-frequency
+dominated fields. `fractal_offset` (default 0.7) is the "sea level" bias
+added to each octave; higher values flatten valleys, lower values turn
+everything into mountains. These two parameters are only used by the
+`hetero_terrain` / `hybrid_multifractal` modes — the other noise kinds
+ignore them.
 
 **Marble:**
 ```yaml

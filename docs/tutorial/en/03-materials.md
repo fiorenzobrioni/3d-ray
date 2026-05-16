@@ -537,39 +537,57 @@ controls the size of each square (smaller scale = larger squares).
 ```yaml
 texture:
   type: "noise"
-  noise_type: "fbm"          # perlin | fbm | turbulence | ridged | billow
+  noise_type: "fbm"          # perlin | fbm | turbulence | ridged | billow | hetero_terrain | hybrid_multifractal
   scale: 4.0
   octaves: 5
   lacunarity: 2.0
   gain: 0.5
+  fractal_increment: 1.0     # Musgrave H — only hetero_terrain / hybrid_multifractal
+  fractal_offset: 0.7        # Musgrave offset / "sea level" — only hetero_terrain / hybrid_multifractal
   distortion: 0.3
   colors: [[0, 0, 0], [1, 1, 1]]
 ```
 
 3D-Ray ships a full pro-grade fractal noise stack — the same family of
-modes you find in Arnold's `noise`, Cycles' Noise Texture and RenderMan's
-`PxrFractal`:
+modes you find in Arnold's `noise`, Cycles' Noise/Musgrave Texture and
+RenderMan's `PxrFractal`:
 
-| `noise_type`  | Look                                              | Use for                        |
-|---------------|---------------------------------------------------|--------------------------------|
-| `perlin`      | Smooth gradient noise (single octave)             | Soft variation, low-frequency  |
-| `fbm`         | Sum of octaves (the canonical fractal noise)      | Stone, dirt, terrain, paper    |
-| `turbulence`  | Σ\|noise\| (sharpened absolute-value variant)     | Clouds, smoke, dirt detail     |
-| `ridged`      | Musgrave ridged multifractal                      | Rock, lightning, marble veins  |
-| `billow`      | Σ\|noise\| octaves, normalised                    | Puffy clouds, foam, rust       |
+| `noise_type`           | Look                                                  | Use for                              |
+|------------------------|-------------------------------------------------------|--------------------------------------|
+| `perlin`               | Smooth gradient noise (single octave)                 | Soft variation, low-frequency        |
+| `fbm`                  | Sum of octaves (the canonical fractal noise)          | Stone, dirt, terrain, paper          |
+| `turbulence`           | Σ\|noise\| (sharpened absolute-value variant)         | Clouds, smoke, dirt detail           |
+| `ridged`               | Musgrave ridged multifractal                          | Rock, lightning, marble veins        |
+| `billow`               | Σ\|noise\| octaves, normalised                        | Puffy clouds, foam, rust             |
+| `hetero_terrain`       | Musgrave §16.3.3 — peaks rough, valleys smooth        | Eroded terrain, mountains, coastline |
+| `hybrid_multifractal`  | Musgrave §16.3.4 — stratified layers + sharp peaks    | Asteroids, alien rock, marble strata |
 
-| Parameter        | Default | Description                                       |
-|------------------|---------|---------------------------------------------------|
-| `noise_type`     | auto    | Noise family (see table)                           |
-| `scale`          | `1.0`   | Frequency of the noise pattern                     |
-| `octaves`        | `5`     | fBm/ridged/billow octave count (1..16)             |
-| `lacunarity`     | `2.0`   | Frequency multiplier between successive octaves    |
-| `gain`           | `0.5`   | Amplitude decay between successive octaves         |
-| `distortion`     | `0`     | Domain-warp amplitude (organic / non-axis-aligned) |
-| `noise_strength` | --      | Legacy: 0 = smooth Perlin, >0 = turbulent          |
+| Parameter           | Default | Description                                                            |
+|---------------------|---------|------------------------------------------------------------------------|
+| `noise_type`        | auto    | Noise family (see table)                                               |
+| `scale`             | `1.0`   | Frequency of the noise pattern                                         |
+| `octaves`           | `5`     | fBm/ridged/billow/musgrave octave count (1..16)                        |
+| `lacunarity`        | `2.0`   | Frequency multiplier between successive octaves                        |
+| `gain`              | `0.5`   | Amplitude decay between successive octaves (fbm/ridged/billow)         |
+| `fractal_increment` | `1.0`   | Musgrave H — only hetero_terrain / hybrid_multifractal                 |
+| `fractal_offset`    | `0.7`   | Musgrave offset / "sea level" — only hetero_terrain / hybrid_multifractal |
+| `distortion`        | `0`     | Domain-warp amplitude (organic / non-axis-aligned)                     |
+| `noise_strength`    | --      | Legacy: 0 = smooth Perlin, >0 = turbulent                              |
 
 When `noise_type` is omitted, the texture falls back to legacy behaviour
 driven by `noise_strength` — so existing scenes render unchanged.
+
+**Musgrave multifractals.** `hetero_terrain` and `hybrid_multifractal`
+are the two "true terrain" fractals from Ebert/Musgrave/Peachey/Perlin
+*Texturing &amp; Modeling, 3rd ed.* §16.3. Unlike fBm — whose statistics
+are identical at every altitude — they multiply each octave's contribution
+by the running accumulated value (heterogeneous) or by a running weight
+(hybrid), so high ground picks up more roughness and valleys stay smooth.
+`H` (the fractal increment, default 1.0) controls how fast the high
+frequencies decay; H ≈ 0.25 gives rough mountains, H ≥ 1 gives smooth
+hills. `offset` (default 0.7) is the per-octave additive bias, the
+"sea level" knob. See `scenes/showcases/musgrave-multifractal-showcase.yaml`
+for the four-panel comparison fBm / hetero / hybrid / low-offset alpine.
 
 ### Marble
 

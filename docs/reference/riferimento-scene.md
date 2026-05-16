@@ -523,24 +523,41 @@ texture:
 ```yaml
 texture:
   type: "noise"
-  noise_type: "fbm"            # perlin | fbm | turbulence | ridged | billow
+  noise_type: "fbm"            # perlin | fbm | turbulence | ridged | billow | hetero_terrain | hybrid_multifractal
   scale: 5.0
-  octaves: 5                   # 1..16 — ottave per fBm/ridged/billow
+  octaves: 5                   # 1..16 — ottave per fBm/ridged/billow/musgrave
   lacunarity: 2.0              # moltiplicatore di frequenza fra ottave
-  gain: 0.5                    # decadimento di ampiezza fra ottave
+  gain: 0.5                    # decadimento di ampiezza fra ottave (fbm/ridged/billow)
+  fractal_increment: 1.0       # Musgrave H — solo per hetero_terrain / hybrid_multifractal
+  fractal_offset: 0.7          # Musgrave offset / "sea level" — solo per hetero_terrain / hybrid_multifractal
   distortion: 0.0              # domain warp (deforma il dominio per organicità)
   noise_strength: 0.0          # legacy: 0=Perlin liscio, >0=turbolento (sovrascritto da noise_type)
   colors: [[0, 0, 0], [1, 1, 1]]
 ```
-Le cinque famiglie corrispondono alle modalità standard dei renderer professionali:
+Le sette famiglie corrispondono alle modalità standard dei renderer professionali:
 - `perlin` — gradient noise liscio a singola ottava.
 - `fbm` — Σ noise/2^i, il "fractal noise" canonico di Arnold/Cycles/RenderMan.
 - `turbulence` — Σ|noise|/2^i con valore assoluto per nitidezza.
 - `ridged` — ridged multifractal di Musgrave, ridge nette (roccia, fulmini).
 - `billow` — Σ|noise| sulle ottave, gonfio/cumuliforme.
+- `hetero_terrain` — terreno eterogeneo di Musgrave (Ebert et al. §16.3.3):
+  l'ampiezza di ogni ottava viene moltiplicata per il valore accumulato
+  corrente, così le quote alte diventano rugose e le valli restano lisce.
+  Il look canonico del terreno eroso, irraggiungibile con fBm puro.
+- `hybrid_multifractal` — multifrattale ibrido di Musgrave (§16.3.4):
+  il segnale di ogni ottava viene moltiplicato per un `weight` corrente
+  (clampato a 1), producendo strati rocciosi stratificati e picchi netti.
+  Usato per asteroidi, rocce aliene, marmi stratigrafici.
 
 `distortion` deforma la posizione di input con un campione Perlin secondario
-(tecnica di Inigo Quilez); 0.3–0.8 è di solito sufficiente.
+(tecnica di Inigo Quilez); 0.3–0.8 è di solito sufficiente. `fractal_increment`
+(la H di Musgrave, default 1.0) controlla la velocità di decadimento delle
+ottave alta-frequenza — H ≈ 0.25 produce terreno rugoso, H ≥ 1 produce campi
+lisci dominati dalla bassa frequenza. `fractal_offset` (default 0.7) è il
+bias di "sea level" aggiunto a ogni ottava; valori alti appiattiscono le
+valli, valori bassi trasformano tutto in montagne. Questi due parametri
+sono usati solo dalle modalità `hetero_terrain` / `hybrid_multifractal`
+— gli altri tipi di noise li ignorano.
 
 **Marble:**
 ```yaml

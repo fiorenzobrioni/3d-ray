@@ -645,6 +645,13 @@ public class TextureData
     [YamlMember(Alias = "distortion")]
     public float? Distortion { get; set; }
 
+    // Musgrave multifractal — only used by noise_type: hetero_terrain | hybrid_multifractal.
+    [YamlMember(Alias = "fractal_increment")]
+    public float? FractalIncrement { get; set; }
+
+    [YamlMember(Alias = "fractal_offset")]
+    public float? FractalOffset { get; set; }
+
     [YamlMember(Alias = "vein_axis")]
     public List<float>? VeinAxis { get; set; }
 
