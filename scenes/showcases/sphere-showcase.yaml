@@ -618,45 +618,46 @@ materials:
   #  1 = base dominante.
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Carrara — bianco caldo dominante, vena scura sottile ad alto contrasto.
-  # 2 colori puri + sharpness 3.5: la formula `t = 1−(1−t)^k` spinge la media
-  # campionaria a ≈k/(k+1) ⇒ 0.78 della superficie sul colore base, il resto
-  # disteso verso la vena → look reale Carrara con macchie/vene scure rare.
+  # Carrara — sharpness 1.2 + vena "grigio fumo" (non nero pece): la curva
+  # `t = 1−(1−t)^k` con k=1.2 è quasi-lineare → uniform-ish distribution di t,
+  # quindi VISIBILE chiaroscuro su tutta la superficie. La vena grigia [0.40]
+  # invece di nera [0.12] mantiene la lettura "marmo chiaro" (media sample
+  # ≈ blend(0.65 vena, 0.96 base) ≈ 0.85 = chiaro) ma con sfumature reali.
   - id: "marble_carrara"
     type: "disney"
-    color: [0.94, 0.93, 0.90]
-    roughness: 0.20
-    clearcoat: 0.55
-    coat_roughness: 0.12
-    specular: 0.55
+    color: [0.92, 0.91, 0.88]
+    roughness: 0.22
+    clearcoat: 0.30
+    coat_roughness: 0.18
+    specular: 0.50
     texture:
       type: "marble"
       scale: 5.5
       vein_axis: [0, 0, 1]
       vein_frequency: 1.0
-      vein_sharpness: 3.5
+      vein_sharpness: 1.2
       noise_strength: 8.0
       octaves: 8
       randomize_offset: true
       randomize_rotation: true
-      colors: [[0.96, 0.95, 0.92], [0.12, 0.12, 0.14]]
+      colors: [[0.95, 0.94, 0.91], [0.42, 0.42, 0.44]]
 
-  # Calacatta Oro — bianco caldo con macchie gold/brown. Secondary wave per
-  # cross-veining. Ramp 3-stop: vena scura → gold transition → ivory base.
-  # Sharpness 3.0 mantiene la base dominante ma lascia visibile l'oro nei mid.
+  # Calacatta Oro — base ivory caldo, vena oro-ambra (NON nero) per restare
+  # leggibile "marmo dorato" anche con sharpness 1.2 (chiaroscuro visibile).
+  # La sfumatura va da ivory caldo (base) a oro ambrato (vena).
   - id: "marble_calacatta"
     type: "disney"
-    color: [0.93, 0.91, 0.84]
-    roughness: 0.18
-    clearcoat: 0.60
-    coat_roughness: 0.10
-    specular: 0.60
+    color: [0.92, 0.85, 0.65]
+    roughness: 0.22
+    clearcoat: 0.30
+    coat_roughness: 0.18
+    specular: 0.50
     texture:
       type: "marble"
       scale: 4.5
       vein_axis: [0, 0, 1]
       vein_frequency: 1.0
-      vein_sharpness: 3.0
+      vein_sharpness: 1.2
       noise_strength: 7.0
       octaves: 8
       randomize_offset: true
@@ -665,27 +666,24 @@ materials:
         axis: [1, 0, 0]
         frequency: 0.6
         strength: 0.5
-      color_ramp:
-        - { position: 0.00, color: [0.08, 0.06, 0.05], interp: "smoothstep" }   # vena nera profonda
-        - { position: 0.50, color: [0.78, 0.55, 0.20], interp: "smoothstep" }   # gold ambra (mid)
-        - { position: 1.00, color: [0.95, 0.92, 0.84], interp: "linear"     }   # ivory caldo base
+      colors: [[0.95, 0.90, 0.78], [0.60, 0.38, 0.12]]
 
-  # Arabescato — alto contrasto, look caotico. Sharpness più bassa (2.2) per
-  # dare più area alle vene scure, distortion alta + secondary wave forte
-  # per il pattern non-direzionale tipico del bresciano.
+  # Arabescato — alto contrasto bianco-grigio scuro. Sharpness 1.0 (lineare),
+  # distortion + secondary wave forte → pattern caotico bresciano con TANTA
+  # area scura visibile (vena nera più scura per dramatic contrast).
   - id: "marble_arabescato"
     type: "disney"
-    color: [0.92, 0.90, 0.85]
-    roughness: 0.22
-    clearcoat: 0.50
-    coat_roughness: 0.14
-    specular: 0.55
+    color: [0.88, 0.86, 0.82]
+    roughness: 0.24
+    clearcoat: 0.30
+    coat_roughness: 0.20
+    specular: 0.50
     texture:
       type: "marble"
       scale: 4.0
       vein_axis: [0, 0, 1]
       vein_frequency: 0.9
-      vein_sharpness: 2.2
+      vein_sharpness: 1.0
       noise_strength: 9.0
       octaves: 8
       distortion: 0.45
@@ -695,24 +693,23 @@ materials:
         axis: [1, 0.3, 0]
         frequency: 1.1
         strength: 0.8
-      colors: [[0.94, 0.92, 0.87], [0.10, 0.10, 0.12]]
+      colors: [[0.92, 0.90, 0.85], [0.20, 0.20, 0.22]]
 
-  # Nero Marquinia — nero pece dominante con vene gold drammatiche e rade.
-  # 2 colori puri: il fondo nero deve essere SOLIDO, le vene oro sottili e
-  # brillanti. Sharpness 3.5 = 78% nero + 22% sparse gold streaks.
+  # Nero Marquinia — base nero scuro, vena oro/bronzo. Sharpness 1.8 lascia
+  # vedere meglio le venature oro (vs 3.5 che le rendeva troppo rare).
   - id: "marble_nero"
     type: "disney"
-    color: [0.04, 0.04, 0.05]
-    roughness: 0.12
-    clearcoat: 0.80
-    coat_roughness: 0.08
-    specular: 0.75
+    color: [0.06, 0.06, 0.07]
+    roughness: 0.16
+    clearcoat: 0.50
+    coat_roughness: 0.14
+    specular: 0.65
     texture:
       type: "marble"
       scale: 5.0
       vein_axis: [0, 0, 1]
       vein_frequency: 0.85
-      vein_sharpness: 3.5
+      vein_sharpness: 1.8
       noise_strength: 7.0
       octaves: 8
       randomize_offset: true
@@ -721,25 +718,26 @@ materials:
         axis: [1, 0.2, 0]
         frequency: 0.55
         strength: 0.5
-      # NB: ramp INVERSA — vena (t→0) = oro, base (t→1) = nero.
-      # Con sharpness 3.5 → 78% base (nero) + 22% disteso verso oro.
-      colors: [[1.00, 0.82, 0.36], [0.03, 0.03, 0.04]]
+      # Ramp INVERSA — vena (stop 0) = oro brillante, base (stop 1) = nero
+      # scuro. Sharpness 1.8 → ~64% nero + 36% disteso verso oro visibile.
+      colors: [[0.95, 0.75, 0.30], [0.05, 0.05, 0.06]]
 
-  # Verde Alpi — fondo verde profondo dominante con vene cream/bianche rade.
-  # Distortion media per dare flow organico alle vene chiare.
+  # Verde Alpi — base verde smeraldo medio (chiaramente verde, non quasi-nero),
+  # vena cream chiara. Sharpness 1.2 → distribuzione quasi-lineare → visibile
+  # variazione cream/verde su tutta la superficie.
   - id: "marble_verde"
     type: "disney"
-    color: [0.06, 0.22, 0.13]
-    roughness: 0.22
-    clearcoat: 0.55
-    coat_roughness: 0.16
-    specular: 0.55
+    color: [0.20, 0.48, 0.28]
+    roughness: 0.24
+    clearcoat: 0.30
+    coat_roughness: 0.20
+    specular: 0.50
     texture:
       type: "marble"
       scale: 4.5
       vein_axis: [0, 0, 1]
       vein_frequency: 1.0
-      vein_sharpness: 3.0
+      vein_sharpness: 1.2
       noise_strength: 8.0
       octaves: 8
       distortion: 0.30
@@ -749,25 +747,24 @@ materials:
         axis: [1, 0, 0]
         frequency: 0.85
         strength: 0.6
-      # Ramp INVERSA — vena = cream chiaro, base = verde scuro.
-      colors: [[0.92, 0.90, 0.82], [0.05, 0.18, 0.10]]
+      # Ramp INVERSA — vena = cream chiaro (stop 0), base = verde (stop 1).
+      colors: [[0.88, 0.86, 0.78], [0.18, 0.45, 0.25]]
 
-  # Rosa Portogallo / Breccia Pernice — rosa pesca dominante con macchie
-  # bordeaux scure (mineralizzazioni di ferro). Secondary leggero per
-  # microvariazioni di flow.
+  # Rosa Portogallo — rosa saturo dominante, vena bordeaux profondo. Sharpness
+  # 1.2 lascia variazione cromatica visibile su tutta la superficie.
   - id: "marble_rosa"
     type: "disney"
-    color: [0.86, 0.62, 0.55]
+    color: [0.92, 0.58, 0.52]
     roughness: 0.28
-    clearcoat: 0.40
-    coat_roughness: 0.22
+    clearcoat: 0.25
+    coat_roughness: 0.25
     specular: 0.45
     texture:
       type: "marble"
       scale: 5.0
       vein_axis: [0, 0, 1]
       vein_frequency: 1.0
-      vein_sharpness: 3.0
+      vein_sharpness: 1.2
       noise_strength: 7.0
       octaves: 7
       randomize_offset: true
@@ -776,7 +773,7 @@ materials:
         axis: [1, 0, 0]
         frequency: 0.7
         strength: 0.35
-      colors: [[0.92, 0.72, 0.66], [0.28, 0.08, 0.10]]
+      colors: [[0.94, 0.60, 0.54], [0.42, 0.14, 0.18]]
 
   # ─────────────────────────────────────────────────────────────────────────
   #  FILA 2 — METALLI con anisotropia e bump
