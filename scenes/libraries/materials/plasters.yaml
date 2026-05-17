@@ -1,0 +1,703 @@
+# ============================================================================
+# Libreria Materiali — Intonaci e Stucchi
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/materials/plasters.yaml" }]
+#
+# Intonaci murali decorativi e finiture a calce/gesso. Sfrutta:
+#
+#   • Marble texture in modalità "veneziano": vein_sharpness alto +
+#     secondary_wave + color_ramp 3-4 stop per il classico look mosso.
+#   • Color ramp multi-stop per stucco antico con patine.
+#   • Subsurface per finiture a calce (sottile traslucenza pigmentaria).
+#   • Bump_map procedurale per microstruttura granulometrica fine.
+#   • Displacement scalare leggero per graffiati e raschiati.
+#   • Voronoi smooth per finiture spatolate irregolari.
+#
+# ── Naming ───────────────────────────────────────────────────────────────
+#
+#   dis_  Disney BSDF. Pareti protagoniste, dettaglio ravvicinato, finiture
+#         decorative pregiate (veneziano, marmorino, tadelakt).
+#
+#   cls_  Classic. Lambertian per pareti di sfondo. Bump map opzionale.
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   RASATO CIVILE       Intonaco base liscio, finitura piatta uniforme.
+#                       Pareti interne standard.
+#
+#   GRAFFIATO           Effetto "scratch" con texture rigata. Esterni
+#                       residenziali italiani. Displacement scalare.
+#
+#   VENEZIANO           Stucco lucidato a specchio con venature. Marble
+#                       studio: vein_sharpness 5+, secondary_wave attivo.
+#
+#   MARMORINO           Cugino opaco del veneziano, look più materico.
+#                       Marble con clearcoat off, roughness alta.
+#
+#   TADELAKT            Stucco marocchino lucido a sapone nero. Subsurface
+#                       leggero, clearcoat satinato.
+#
+#   STUCCO ANTICO       Pareti vissute di palazzi storici. Color ramp
+#                       gradiente patina, fbm a bassa frequenza.
+#
+#   CALCE               Imbiancatura tradizionale a calce viva. Bianco
+#                       caldo opaco, subsurface alto.
+#
+#   GESSO               Finitura interna ultraliscia per cartongesso.
+#                       Bianco quasi puro, mat.
+#
+#   COLORATI MODERNI    Intonaci pigmentati saturi: terre, ocra, pastelli.
+#
+# ── Note d'uso ───────────────────────────────────────────────────────────
+#
+# Veneziano e marmorino sono direzionali: imposta `vein_axis` parallelo
+# alla parete (es. [1, 0, 0] per parete sull'asse X) per il pattern
+# tipico orizzontale dello spatolato.
+#
+# Per intonaci VECCHI con muffe, distacchi: mix con `over_moss_sparse` o
+# `over_paint_flake` da weathering.yaml.
+#
+# Render hint:
+#   Draft:  -s 64  -d 5  -S 1
+#   Final:  -s 1024 -d 8 -S 4
+# ============================================================================
+
+materials:
+
+  # ══════════════════════════════════════════════════════════════════════
+  # RASATO CIVILE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Rasato bianco: parete interna standard, finitura piatta uniforme.
+  # Roughness alta uniforme, leggera variazione di tono per evitare flat.
+  - id: "dis_rasato_bianco"
+    type: "disney"
+    color: [0.92, 0.91, 0.88]
+    roughness: 0.88
+    specular: 0.25
+    subsurface: 0.08
+    subsurface_color: [0.95, 0.93, 0.88]
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.08
+      colors: [[0.90, 0.89, 0.86], [0.94, 0.93, 0.90]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 80.0
+        colors: [[0.48, 0.48, 0.48], [0.52, 0.52, 0.52]]
+      strength: 0.2
+
+  # Rasato avorio: tono caldo, classico delle case mediterranee.
+  - id: "dis_rasato_avorio"
+    type: "disney"
+    color: [0.92, 0.86, 0.74]
+    roughness: 0.88
+    specular: 0.26
+    subsurface: 0.1
+    subsurface_color: [0.95, 0.88, 0.75]
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.10
+      colors: [[0.88, 0.82, 0.70], [0.95, 0.90, 0.78]]
+      randomize_offset: true
+
+  # Rasato grigio chiaro: pareti contemporanee minimaliste.
+  - id: "dis_rasato_grigio_chiaro"
+    type: "disney"
+    color: [0.78, 0.78, 0.76]
+    roughness: 0.86
+    specular: 0.28
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.08
+      colors: [[0.74, 0.74, 0.72], [0.82, 0.82, 0.80]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # GRAFFIATO (esterni residenziali)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Graffiato classico esterno: superficie scalfita meccanicamente,
+  # microsolchi orientati. Displacement scalare leggero + bump ridged.
+  - id: "dis_graffiato_esterno"
+    type: "disney"
+    color: [0.82, 0.78, 0.70]
+    roughness: 0.92
+    specular: 0.24
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_strength: 0.20
+      colors: [[0.74, 0.70, 0.62], [0.88, 0.84, 0.76]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 12.0
+        noise_type: "ridged"
+        octaves: 3
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.5
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        scale: 10.0
+        noise_type: "ridged"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.004
+      midlevel: 0.5
+      bound: 0.008
+      autobump: true
+      autobump_strength: 1.5
+      displacement_method: "bump_only"
+
+  # Graffiato fine: graffi più sottili, look elegante.
+  - id: "dis_graffiato_fine"
+    type: "disney"
+    color: [0.85, 0.82, 0.76]
+    roughness: 0.88
+    specular: 0.28
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_strength: 0.12
+      colors: [[0.80, 0.77, 0.70], [0.90, 0.87, 0.80]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 20.0
+        noise_type: "ridged"
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.9
+
+  # ══════════════════════════════════════════════════════════════════════
+  # VENEZIANO (stucco lucidato a marmo)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Veneziano avorio: il classico, base crema con venature dorate sottili.
+  # Marble studio: vein_sharpness 5 + secondary_wave per il tipico effetto
+  # "marezzato" che simula il marmo. Clearcoat alto per il lucido a cera.
+  - id: "dis_veneziano_avorio"
+    type: "disney"
+    color: [0.92, 0.86, 0.74]
+    roughness: 0.18
+    specular: 0.45
+    clearcoat: 0.85
+    coat_roughness: 0.08
+    texture:
+      type: "marble"
+      scale: 3.0
+      vein_axis: [1, 0, 0]
+      vein_frequency: 1.2
+      vein_sharpness: 5.0
+      noise_strength: 6.0
+      octaves: 7
+      distortion: 0.25
+      secondary_wave:
+        axis: [0, 0, 1]
+        frequency: 0.8
+        strength: 0.35
+      color_ramp:
+        - { position: 0.00, color: [0.60, 0.45, 0.22], interp: "smoothstep" }
+        - { position: 0.45, color: [0.85, 0.75, 0.55], interp: "smoothstep" }
+        - { position: 1.00, color: [0.96, 0.92, 0.84], interp: "linear" }
+
+  # Veneziano blu profondo: tono saturo per ambienti eleganti moderni.
+  - id: "dis_veneziano_blu"
+    type: "disney"
+    color: [0.18, 0.28, 0.45]
+    roughness: 0.18
+    specular: 0.48
+    clearcoat: 0.85
+    coat_roughness: 0.08
+    texture:
+      type: "marble"
+      scale: 3.5
+      vein_axis: [1, 0, 0]
+      vein_frequency: 1.2
+      vein_sharpness: 4.5
+      noise_strength: 5.5
+      octaves: 7
+      distortion: 0.2
+      secondary_wave:
+        axis: [0, 0, 1]
+        frequency: 0.8
+        strength: 0.4
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.10, 0.20], interp: "smoothstep" }
+        - { position: 0.45, color: [0.15, 0.25, 0.42], interp: "smoothstep" }
+        - { position: 1.00, color: [0.30, 0.42, 0.62], interp: "linear" }
+
+  # Veneziano rosso pompeiano: storico romano, terre rosse.
+  - id: "dis_veneziano_pompeiano"
+    type: "disney"
+    color: [0.55, 0.20, 0.16]
+    roughness: 0.20
+    specular: 0.45
+    clearcoat: 0.80
+    coat_roughness: 0.10
+    texture:
+      type: "marble"
+      scale: 3.0
+      vein_axis: [1, 0, 0]
+      vein_frequency: 1.0
+      vein_sharpness: 5.0
+      noise_strength: 6.0
+      octaves: 7
+      distortion: 0.25
+      secondary_wave:
+        axis: [0, 0, 1]
+        frequency: 0.75
+        strength: 0.4
+      color_ramp:
+        - { position: 0.00, color: [0.20, 0.06, 0.04], interp: "smoothstep" }
+        - { position: 0.50, color: [0.50, 0.18, 0.14], interp: "smoothstep" }
+        - { position: 1.00, color: [0.70, 0.35, 0.28], interp: "linear" }
+
+  # Veneziano verde salvia: sage chic contemporaneo.
+  - id: "dis_veneziano_salvia"
+    type: "disney"
+    color: [0.55, 0.62, 0.50]
+    roughness: 0.18
+    specular: 0.45
+    clearcoat: 0.85
+    coat_roughness: 0.08
+    texture:
+      type: "marble"
+      scale: 3.2
+      vein_axis: [1, 0, 0]
+      vein_frequency: 1.1
+      vein_sharpness: 5.0
+      noise_strength: 5.0
+      octaves: 7
+      secondary_wave:
+        axis: [0, 0, 1]
+        frequency: 0.85
+        strength: 0.35
+      color_ramp:
+        - { position: 0.00, color: [0.30, 0.38, 0.25], interp: "smoothstep" }
+        - { position: 0.50, color: [0.55, 0.62, 0.50], interp: "smoothstep" }
+        - { position: 1.00, color: [0.75, 0.80, 0.70], interp: "linear" }
+
+  # Veneziano antracite: lucentezza scura drammatica.
+  - id: "dis_veneziano_antracite"
+    type: "disney"
+    color: [0.16, 0.16, 0.18]
+    roughness: 0.16
+    specular: 0.50
+    clearcoat: 0.90
+    coat_roughness: 0.06
+    texture:
+      type: "marble"
+      scale: 3.0
+      vein_axis: [1, 0, 0]
+      vein_frequency: 1.2
+      vein_sharpness: 5.0
+      noise_strength: 5.5
+      octaves: 7
+      secondary_wave:
+        axis: [0, 0, 1]
+        frequency: 0.85
+        strength: 0.4
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.05, 0.07], interp: "smoothstep" }
+        - { position: 0.50, color: [0.16, 0.16, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [0.32, 0.32, 0.34], interp: "linear" }
+
+  # ══════════════════════════════════════════════════════════════════════
+  # MARMORINO (opaco)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Marmorino bianco: cugino opaco del veneziano. Stessa marezzatura ma
+  # senza clearcoat, roughness alta. Look più "intonaco-vero".
+  - id: "dis_marmorino_bianco"
+    type: "disney"
+    color: [0.92, 0.90, 0.86]
+    roughness: 0.65
+    specular: 0.35
+    texture:
+      type: "marble"
+      scale: 3.5
+      vein_axis: [1, 0, 0]
+      vein_frequency: 1.0
+      vein_sharpness: 4.0
+      noise_strength: 5.0
+      octaves: 7
+      distortion: 0.2
+      secondary_wave:
+        axis: [0, 0, 1]
+        frequency: 0.85
+        strength: 0.3
+      color_ramp:
+        - { position: 0.00, color: [0.70, 0.65, 0.55], interp: "smoothstep" }
+        - { position: 0.50, color: [0.86, 0.83, 0.76], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.93, 0.88], interp: "linear" }
+
+  # Marmorino blu polvere: tinte pastello tipiche delle abitazioni
+  # mediterranee.
+  - id: "dis_marmorino_blu_polvere"
+    type: "disney"
+    color: [0.62, 0.72, 0.78]
+    roughness: 0.65
+    specular: 0.35
+    texture:
+      type: "marble"
+      scale: 3.5
+      vein_axis: [1, 0, 0]
+      vein_frequency: 1.0
+      vein_sharpness: 4.0
+      noise_strength: 4.5
+      octaves: 7
+      secondary_wave:
+        axis: [0, 0, 1]
+        frequency: 0.8
+        strength: 0.3
+      color_ramp:
+        - { position: 0.00, color: [0.40, 0.50, 0.58], interp: "smoothstep" }
+        - { position: 0.50, color: [0.62, 0.72, 0.78], interp: "smoothstep" }
+        - { position: 1.00, color: [0.80, 0.88, 0.92], interp: "linear" }
+
+  # Marmorino terracotta: tonalità calde mediterranee.
+  - id: "dis_marmorino_terracotta"
+    type: "disney"
+    color: [0.72, 0.45, 0.32]
+    roughness: 0.68
+    specular: 0.34
+    texture:
+      type: "marble"
+      scale: 3.5
+      vein_axis: [1, 0, 0]
+      vein_sharpness: 4.0
+      noise_strength: 5.0
+      octaves: 7
+      secondary_wave:
+        axis: [0, 0, 1]
+        frequency: 0.85
+        strength: 0.3
+      color_ramp:
+        - { position: 0.00, color: [0.40, 0.22, 0.16], interp: "smoothstep" }
+        - { position: 0.50, color: [0.72, 0.45, 0.32], interp: "smoothstep" }
+        - { position: 1.00, color: [0.86, 0.62, 0.48], interp: "linear" }
+
+  # ══════════════════════════════════════════════════════════════════════
+  # TADELAKT (marocchino lucido a sapone)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Tadelakt rosa: tonalità tipica marocchina. Lucido satinato dal sapone
+  # nero, sottile traslucenza per la calce viva sottostante.
+  - id: "dis_tadelakt_rosa"
+    type: "disney"
+    color: [0.88, 0.66, 0.58]
+    roughness: 0.28
+    specular: 0.42
+    clearcoat: 0.45
+    coat_roughness: 0.18
+    subsurface: 0.15
+    subsurface_color: [0.92, 0.70, 0.60]
+    texture:
+      type: "noise"
+      scale: 2.2
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.18
+      colors: [[0.82, 0.60, 0.52], [0.92, 0.72, 0.64]]
+      randomize_offset: true
+
+  # Tadelakt ocra: classico Marrakech.
+  - id: "dis_tadelakt_ocra"
+    type: "disney"
+    color: [0.80, 0.55, 0.30]
+    roughness: 0.28
+    specular: 0.42
+    clearcoat: 0.45
+    coat_roughness: 0.18
+    subsurface: 0.12
+    subsurface_color: [0.85, 0.60, 0.35]
+    texture:
+      type: "noise"
+      scale: 2.2
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.20
+      colors: [[0.72, 0.46, 0.22], [0.86, 0.62, 0.38]]
+      randomize_offset: true
+
+  # Tadelakt verde menta: bagni hammam.
+  - id: "dis_tadelakt_menta"
+    type: "disney"
+    color: [0.62, 0.82, 0.72]
+    roughness: 0.28
+    specular: 0.42
+    clearcoat: 0.45
+    coat_roughness: 0.18
+    subsurface: 0.12
+    subsurface_color: [0.65, 0.85, 0.75]
+    texture:
+      type: "noise"
+      scale: 2.2
+      noise_strength: 0.15
+      colors: [[0.55, 0.76, 0.66], [0.68, 0.86, 0.78]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # STUCCO ANTICO
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Stucco antico crepato: pareti di palazzi storici, patine multiple
+  # accumulate. Color ramp 4-stop con macchie umidità + base + alone.
+  - id: "dis_stucco_antico_crepato"
+    type: "disney"
+    color: [0.82, 0.76, 0.62]
+    roughness: 0.92
+    specular: 0.22
+    texture:
+      type: "noise"
+      scale: 1.2
+      noise_type: "fbm"
+      octaves: 6
+      noise_strength: 1.5
+      distortion: 0.3
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.42, 0.36, 0.26], interp: "smoothstep" }
+        - { position: 0.30, color: [0.62, 0.54, 0.42], interp: "smoothstep" }
+        - { position: 0.65, color: [0.78, 0.72, 0.58], interp: "smoothstep" }
+        - { position: 1.00, color: [0.92, 0.86, 0.72], interp: "linear" }
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 4.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 0.8
+
+  # Stucco antico patina umidità: aloni dalle infiltrazioni.
+  - id: "dis_stucco_antico_umido"
+    type: "disney"
+    color: [0.75, 0.72, 0.66]
+    roughness: 0.92
+    specular: 0.22
+    texture:
+      type: "noise"
+      scale: 0.8
+      noise_type: "fbm"
+      octaves: 6
+      noise_strength: 1.8
+      distortion: 0.4
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.35, 0.35, 0.32], interp: "smoothstep" }
+        - { position: 0.40, color: [0.58, 0.55, 0.50], interp: "smoothstep" }
+        - { position: 0.80, color: [0.78, 0.74, 0.68], interp: "smoothstep" }
+        - { position: 1.00, color: [0.88, 0.84, 0.78], interp: "linear" }
+
+  # Stucco antico patina rosa: tipico dei palazzi veneziani.
+  - id: "dis_stucco_antico_rosa"
+    type: "disney"
+    color: [0.85, 0.68, 0.60]
+    roughness: 0.92
+    specular: 0.22
+    texture:
+      type: "noise"
+      scale: 1.0
+      noise_type: "fbm"
+      octaves: 6
+      noise_strength: 1.4
+      distortion: 0.3
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.35, 0.32], interp: "smoothstep" }
+        - { position: 0.40, color: [0.72, 0.55, 0.50], interp: "smoothstep" }
+        - { position: 1.00, color: [0.92, 0.80, 0.72], interp: "linear" }
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CALCE (imbiancatura tradizionale)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Calce bianca tradizionale: imbiancatura a calce viva, bianco caldo
+  # con leggera traslucenza. Subsurface alto per il look "polveroso"
+  # tipico della calce.
+  - id: "dis_calce_bianca"
+    type: "disney"
+    color: [0.94, 0.92, 0.86]
+    roughness: 0.95
+    specular: 0.20
+    subsurface: 0.22
+    subsurface_color: [0.96, 0.94, 0.88]
+    flatness: 0.4
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.10
+      colors: [[0.90, 0.88, 0.82], [0.96, 0.94, 0.90]]
+      randomize_offset: true
+
+  # Calce avorio caldo: pareti rustiche di case di campagna.
+  - id: "dis_calce_avorio"
+    type: "disney"
+    color: [0.92, 0.86, 0.72]
+    roughness: 0.95
+    specular: 0.20
+    subsurface: 0.22
+    subsurface_color: [0.94, 0.88, 0.74]
+    flatness: 0.4
+    texture:
+      type: "noise"
+      scale: 1.8
+      noise_strength: 0.15
+      colors: [[0.86, 0.80, 0.66], [0.95, 0.90, 0.78]]
+      randomize_offset: true
+
+  # Calce azzurra mediterranea: tipica delle case greche (Santorini blue).
+  - id: "dis_calce_azzurra"
+    type: "disney"
+    color: [0.62, 0.78, 0.86]
+    roughness: 0.95
+    specular: 0.20
+    subsurface: 0.20
+    subsurface_color: [0.65, 0.80, 0.88]
+    flatness: 0.4
+    texture:
+      type: "noise"
+      scale: 1.8
+      noise_strength: 0.12
+      colors: [[0.55, 0.72, 0.82], [0.68, 0.82, 0.90]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # GESSO (finitura interna ultraliscia)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Gesso ultraliscio: cartongesso finito a stucco, bianco puro,
+  # superficie quasi perfetta. Per pareti new build.
+  - id: "dis_gesso_liscio"
+    type: "disney"
+    color: [0.96, 0.95, 0.94]
+    roughness: 0.78
+    specular: 0.28
+    subsurface: 0.05
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_strength: 0.05
+      colors: [[0.94, 0.93, 0.92], [0.97, 0.96, 0.95]]
+      randomize_offset: true
+
+  # Gesso satinato: finitura semi-lucida, riflette appena.
+  - id: "dis_gesso_satinato"
+    type: "disney"
+    color: [0.94, 0.93, 0.92]
+    roughness: 0.45
+    specular: 0.35
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_strength: 0.04
+      colors: [[0.92, 0.91, 0.90], [0.96, 0.95, 0.94]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # COLORATI MODERNI
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: "dis_intonaco_terra_siena"
+    type: "disney"
+    color: [0.68, 0.42, 0.28]
+    roughness: 0.85
+    specular: 0.26
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.20
+      colors: [[0.60, 0.36, 0.22], [0.74, 0.48, 0.34]]
+      randomize_offset: true
+
+  - id: "dis_intonaco_terra_ombra"
+    type: "disney"
+    color: [0.38, 0.30, 0.22]
+    roughness: 0.85
+    specular: 0.24
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.20
+      colors: [[0.32, 0.25, 0.18], [0.45, 0.36, 0.28]]
+      randomize_offset: true
+
+  - id: "dis_intonaco_ocra_giallo"
+    type: "disney"
+    color: [0.82, 0.68, 0.36]
+    roughness: 0.85
+    specular: 0.26
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.18
+      colors: [[0.76, 0.60, 0.30], [0.88, 0.74, 0.42]]
+      randomize_offset: true
+
+  - id: "dis_intonaco_grigio_perla"
+    type: "disney"
+    color: [0.72, 0.72, 0.70]
+    roughness: 0.85
+    specular: 0.28
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.12
+      colors: [[0.68, 0.68, 0.66], [0.76, 0.76, 0.74]]
+      randomize_offset: true
+
+  - id: "dis_intonaco_verde_oliva"
+    type: "disney"
+    color: [0.55, 0.58, 0.40]
+    roughness: 0.85
+    specular: 0.26
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.18
+      colors: [[0.48, 0.52, 0.34], [0.62, 0.65, 0.46]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CLASSIC — Sfondi e pareti di servizio
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: "cls_intonaco_bianco"
+    type: "lambertian"
+    color: [0.88, 0.87, 0.84]
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.12
+      colors: [[0.84, 0.83, 0.80], [0.92, 0.91, 0.88]]
+      randomize_offset: true
+
+  - id: "cls_intonaco_avorio"
+    type: "lambertian"
+    color: [0.88, 0.82, 0.70]
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.14
+      colors: [[0.82, 0.76, 0.64], [0.92, 0.86, 0.74]]
+      randomize_offset: true
+
+  - id: "cls_intonaco_grigio"
+    type: "lambertian"
+    color: [0.72, 0.72, 0.70]
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.10
+      colors: [[0.68, 0.68, 0.66], [0.76, 0.76, 0.74]]
+      randomize_offset: true

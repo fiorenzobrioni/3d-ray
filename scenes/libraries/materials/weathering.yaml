@@ -1,0 +1,658 @@
+# ============================================================================
+# Libreria Materiali — Weathering Overlay (Sporco, Patine, Invecchiamento)
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/materials/weathering.yaml" }]
+#
+# Overlay procedurali progettati per essere applicati ad ALTRI materiali
+# tramite `type: mix`. Ogni overlay è composto da:
+#
+#   • Un materiale Disney di destinazione (ruggine, muschio, polvere, ecc.)
+#   • Una maschera procedurale pre-impostata che decide DOVE applicarlo
+#     (concentrandolo su bordi, fessure, zone di accumulo)
+#
+# Pattern d'uso tipico:
+#
+#     materials:
+#       - id: "ferro_arrugginito"
+#         type: "mix"
+#         material_a: "dis_acciaio_lucido"       # base pulita
+#         material_b: "over_rust_medium"          # overlay
+#         mask:
+#           type: "noise"
+#           scale: 3.0
+#           noise_type: "fbm"
+#           octaves: 6
+#           noise_strength: 1.2
+#           color_ramp:
+#             - { position: 0.45, color: [0,0,0], interp: constant }
+#             - { position: 0.55, color: [1,1,1], interp: linear }
+#
+# La maschera "remappa" la maschera di default dell'overlay (definita
+# nel suo `texture:` interno per la modulazione cromatica) con una
+# distribuzione propria della scena.
+#
+# ── Naming ───────────────────────────────────────────────────────────────
+#
+#   over_  Tutti gli overlay usano il prefisso `over_` (no `dis_`/`cls_`),
+#          per distinguerli chiaramente dai materiali base. Sono SEMPRE
+#          Disney BSDF (subsurface, sheen, displacement disponibili).
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   RUGGINE             Ossidazione del ferro: light/medium/heavy/flowing.
+#                       Musgrave ridged per cristallizzazione fierra.
+#
+#   MUSCHIO             Crescita biologica verde: sparse/dense/wet.
+#                       Smooth voronoi + sheen alto (vegetale fuzzy).
+#
+#   POLVERE             Strato fine: light/heavy/colorata (gesso, terra).
+#                       Roughness alta, specular bassissimo.
+#
+#   COLATURE SPORCO     Dirt streaks dall'alto verso il basso. Drip
+#                       lentamente lavato dalla pioggia.
+#
+#   CALCARE             Limescale bianco: macchie circolari su superfici
+#                       umide ricorrenti (rubinetti, docce).
+#
+#   GRASSO              Unto da officina o cucina, marrone scuro lucido.
+#
+#   NEVE SOTTILE        Polverina su superfici orizzontali, fonde a chiazze.
+#
+#   VERNICE SCROSTATA   Voronoi crackle f2_minus_f1 per il pattern di
+#                       scrostatura, color ramp per bordi consumati.
+#
+#   FOGLIE / DETRITI    Accumulo organico stagionale.
+#
+#   SALE MARINO         Aloni bianchi cristallini su superfici esposte.
+#
+#   ACQUA               Film d'acqua / macchie d'acqua secca / aloni.
+#
+# ── Note d'uso ───────────────────────────────────────────────────────────
+#
+# La MASCHERA è fondamentale. Per ottenere ruggine sui bordi:
+#   1. Usa una mask procedurale (noise_type: ridged, alta freq) → ruggine
+#      "sparsa irregolare".
+#   2. Per concentrarla davvero sui bordi/concavità servirebbe una mappa
+#      di ambient occlusion. In assenza, usa un noise voronoi crackle
+#      con scale alta che simula la concentrazione su giunzioni.
+#
+# Per scrostature di vernice REALI: combina mask voronoi crackle con
+# color_ramp che ha uno step constant per "tutto o niente" (no gradiente
+# soft sul bordo della scaglia).
+#
+# Per accumulo SPORCO che segue gravità: la mask deve essere un gradient
+# verticale + noise; questo richiede setup a livello scena (UV planar
+# proiettata sull'asse Y).
+#
+# Render hint:
+#   Draft:  -s 64  -d 5  -S 1
+#   Final:  -s 1024 -d 8 -S 4
+# ============================================================================
+
+materials:
+
+  # ══════════════════════════════════════════════════════════════════════
+  # RUGGINE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Ruggine leggera: prime macchie di ossidazione, color medio
+  # arancio-marrone. Roughness alta, niente clearcoat. Maschera interna
+  # con noise fbm per look diffuso.
+  - id: "over_rust_light"
+    type: "disney"
+    color: [0.55, 0.32, 0.18]
+    roughness: 0.85
+    specular: 0.25
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.6
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.32, 0.18, 0.10], interp: "smoothstep" }
+        - { position: 0.50, color: [0.55, 0.32, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [0.72, 0.46, 0.26], interp: "linear" }
+
+  # Ruggine media: ossidazione avanzata, crateri visibili. Musgrave
+  # ridged dà la cristallizzazione tipica.
+  - id: "over_rust_medium"
+    type: "disney"
+    color: [0.42, 0.22, 0.12]
+    roughness: 0.92
+    specular: 0.20
+    texture:
+      type: "noise"
+      scale: 3.5
+      noise_type: "ridged"
+      octaves: 5
+      lacunarity: 2.0
+      gain: 0.5
+      noise_strength: 1.0
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.22, 0.10, 0.05], interp: "smoothstep" }
+        - { position: 0.35, color: [0.42, 0.22, 0.12], interp: "smoothstep" }
+        - { position: 0.75, color: [0.62, 0.36, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [0.80, 0.50, 0.26], interp: "linear" }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 18.0
+        noise_type: "ridged"
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.4
+
+  # Ruggine pesante: disgregazione metallica completa, croste di
+  # ossidazione spesse. Displacement scalare leggero.
+  - id: "over_rust_heavy"
+    type: "disney"
+    color: [0.30, 0.16, 0.08]
+    roughness: 0.95
+    specular: 0.18
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "ridged"
+      octaves: 6
+      lacunarity: 2.0
+      gain: 0.5
+      noise_strength: 1.5
+      distortion: 0.3
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.16, 0.06, 0.02], interp: "smoothstep" }
+        - { position: 0.30, color: [0.32, 0.16, 0.08], interp: "smoothstep" }
+        - { position: 0.70, color: [0.55, 0.28, 0.14], interp: "smoothstep" }
+        - { position: 1.00, color: [0.78, 0.46, 0.22], interp: "linear" }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 12.0
+        noise_type: "ridged"
+        octaves: 3
+        colors: [[0.25, 0.25, 0.25], [0.75, 0.75, 0.75]]
+      strength: 2.0
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        scale: 8.0
+        noise_type: "ridged"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.008
+      midlevel: 0.5
+      bound: 0.014
+      autobump: true
+      autobump_strength: 1.6
+      displacement_method: "bump_only"
+
+  # Ruggine colante: ruggine "drip" che cola lungo le pareti verticali.
+  # Stesso colore di rust_light ma con un noise distorto verticalmente
+  # (l'effetto colata richiede UV anisotropico a livello scena).
+  - id: "over_rust_streak"
+    type: "disney"
+    color: [0.48, 0.26, 0.14]
+    roughness: 0.78
+    specular: 0.28
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.8
+      distortion: 0.4
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.28, 0.14, 0.06], interp: "smoothstep" }
+        - { position: 0.50, color: [0.48, 0.26, 0.14], interp: "smoothstep" }
+        - { position: 1.00, color: [0.68, 0.40, 0.20], interp: "linear" }
+
+  # ══════════════════════════════════════════════════════════════════════
+  # MUSCHIO (crescita biologica)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Muschio sparso: prime colonie verdi tra le fughe. Sheen alto per il
+  # look "fuzzy backlit" della vegetazione cresciuta.
+  - id: "over_moss_sparse"
+    type: "disney"
+    color: [0.18, 0.32, 0.12]
+    roughness: 0.92
+    specular: 0.18
+    sheen: 0.65
+    sheen_roughness: 0.85
+    sheen_tint: 0.4
+    subsurface: 0.18
+    subsurface_color: [0.28, 0.42, 0.18]
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      output: "cell"
+      smoothness: 0.4
+      randomness: 1.0
+      colors: [[0.12, 0.22, 0.08], [0.32, 0.48, 0.18]]
+
+  # Muschio denso: tappeto verde fitto. Bump map più aggressivo per il
+  # rilievo dei ciuffi.
+  - id: "over_moss_dense"
+    type: "disney"
+    color: [0.16, 0.30, 0.10]
+    roughness: 0.95
+    specular: 0.16
+    sheen: 0.80
+    sheen_roughness: 0.9
+    sheen_tint: 0.4
+    subsurface: 0.22
+    subsurface_color: [0.22, 0.38, 0.14]
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "cell"
+      smoothness: 0.3
+      colors: [[0.08, 0.16, 0.04], [0.32, 0.50, 0.18]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 14.0
+        output: "f1"
+        smoothness: 0.2
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.4
+
+  # Muschio bagnato: post-pioggia, brillante e satinato. Clearcoat
+  # leggero per la lucentezza dell'acqua trattenuta.
+  - id: "over_moss_wet"
+    type: "disney"
+    color: [0.14, 0.26, 0.08]
+    roughness: 0.50
+    specular: 0.40
+    clearcoat: 0.35
+    coat_roughness: 0.20
+    sheen: 0.45
+    sheen_roughness: 0.8
+    subsurface: 0.20
+    subsurface_color: [0.22, 0.38, 0.14]
+    texture:
+      type: "voronoi"
+      scale: 7.0
+      output: "cell"
+      smoothness: 0.3
+      colors: [[0.08, 0.16, 0.04], [0.28, 0.42, 0.14]]
+
+  # ══════════════════════════════════════════════════════════════════════
+  # POLVERE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Polvere leggera grigia: strato sottile su superfici orizzontali.
+  # Quasi traslucida — la maschera deve essere debole.
+  - id: "over_dust_light"
+    type: "disney"
+    color: [0.68, 0.66, 0.62]
+    roughness: 0.95
+    specular: 0.16
+    texture:
+      type: "noise"
+      scale: 3.0
+      noise_strength: 0.25
+      colors: [[0.62, 0.60, 0.56], [0.74, 0.72, 0.68]]
+      randomize_offset: true
+
+  # Polvere pesante: accumulo settimanale, opacizza qualsiasi superficie.
+  - id: "over_dust_heavy"
+    type: "disney"
+    color: [0.58, 0.55, 0.50]
+    roughness: 0.98
+    specular: 0.12
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.4
+      colors: [[0.48, 0.46, 0.42], [0.68, 0.64, 0.58]]
+      randomize_offset: true
+
+  # Polvere di gesso/calce bianca: cantieri, ristrutturazioni.
+  - id: "over_dust_gesso"
+    type: "disney"
+    color: [0.90, 0.88, 0.85]
+    roughness: 0.98
+    specular: 0.10
+    flatness: 0.5
+    texture:
+      type: "noise"
+      scale: 3.0
+      noise_strength: 0.15
+      colors: [[0.85, 0.83, 0.80], [0.95, 0.92, 0.88]]
+      randomize_offset: true
+
+  # Polvere di terra: dopo passaggio in zone secche.
+  - id: "over_dust_terra"
+    type: "disney"
+    color: [0.65, 0.48, 0.30]
+    roughness: 0.98
+    specular: 0.12
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_strength: 0.35
+      colors: [[0.55, 0.40, 0.22], [0.72, 0.55, 0.38]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # COLATURE SPORCO (dirt streaks)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Colatura verticale scura: sporco accumulato lavato dalla pioggia.
+  # Per look verticale realistico la MASK a livello scena deve avere
+  # noise direzionale verticale.
+  - id: "over_dirt_streak"
+    type: "disney"
+    color: [0.18, 0.14, 0.10]
+    roughness: 0.92
+    specular: 0.18
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.6
+      distortion: 0.5
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.06, 0.05, 0.03], interp: "smoothstep" }
+        - { position: 0.50, color: [0.18, 0.14, 0.10], interp: "smoothstep" }
+        - { position: 1.00, color: [0.32, 0.26, 0.20], interp: "linear" }
+
+  # Dirt drip: gocciolature appiccicose marroni.
+  - id: "over_dirt_drip"
+    type: "disney"
+    color: [0.22, 0.16, 0.10]
+    roughness: 0.75
+    specular: 0.25
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.5
+      distortion: 0.4
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CALCARE (limescale)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Calcare bianco lucido: depositi su rubinetti e docce. Sottile
+  # subsurface per il look cristallino translucente.
+  - id: "over_limescale"
+    type: "disney"
+    color: [0.92, 0.92, 0.90]
+    roughness: 0.45
+    specular: 0.35
+    subsurface: 0.18
+    subsurface_color: [0.95, 0.95, 0.92]
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.4
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.78, 0.78, 0.74], interp: "smoothstep" }
+        - { position: 0.55, color: [0.88, 0.88, 0.84], interp: "smoothstep" }
+        - { position: 1.00, color: [0.96, 0.96, 0.92], interp: "linear" }
+
+  # Calcare giallastro: zone con acqua molto dura, accumulo lungo.
+  - id: "over_limescale_giallo"
+    type: "disney"
+    color: [0.88, 0.82, 0.66]
+    roughness: 0.50
+    specular: 0.32
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_strength: 0.4
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.72, 0.66, 0.50], interp: "smoothstep" }
+        - { position: 0.55, color: [0.84, 0.78, 0.62], interp: "smoothstep" }
+        - { position: 1.00, color: [0.94, 0.88, 0.72], interp: "linear" }
+
+  # ══════════════════════════════════════════════════════════════════════
+  # GRASSO (unto)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Grasso officina nero: olio motore vecchio, lucido scuro.
+  - id: "over_grease_dark"
+    type: "disney"
+    color: [0.08, 0.06, 0.04]
+    roughness: 0.18
+    specular: 0.45
+    clearcoat: 0.5
+    coat_roughness: 0.18
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.10
+      colors: [[0.05, 0.04, 0.03], [0.12, 0.09, 0.06]]
+      randomize_offset: true
+
+  # Grasso giallo (cucina, alimentare): unto delle fritture, semi-opaco.
+  - id: "over_grease_light"
+    type: "disney"
+    color: [0.40, 0.32, 0.20]
+    roughness: 0.32
+    specular: 0.35
+    clearcoat: 0.3
+    coat_roughness: 0.25
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.25
+      colors: [[0.32, 0.25, 0.14], [0.48, 0.38, 0.26]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # NEVE SOTTILE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Neve polverosa sottile: strato fresco di pochi mm. Sheen leggero per
+  # i bordi di cristalli.
+  - id: "over_snow_powder"
+    type: "disney"
+    color: [0.96, 0.97, 0.99]
+    roughness: 0.80
+    specular: 0.30
+    subsurface: 0.40
+    subsurface_color: [0.96, 0.98, 1.00]
+    sheen: 0.25
+    sheen_roughness: 0.7
+    flatness: 0.4
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 0.06
+      colors: [[0.94, 0.95, 0.97], [0.98, 0.99, 1.00]]
+      randomize_offset: true
+
+  # Neve che si scioglie: brillante, bagnata, già parzialmente liquida.
+  - id: "over_snow_melting"
+    type: "disney"
+    color: [0.92, 0.94, 0.98]
+    roughness: 0.35
+    specular: 0.40
+    clearcoat: 0.4
+    coat_roughness: 0.15
+    subsurface: 0.30
+    subsurface_color: [0.92, 0.95, 1.00]
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 0.10
+      colors: [[0.88, 0.91, 0.96], [0.96, 0.97, 1.00]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # VERNICE SCROSTATA (paint flake)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Vernice scrostata bianca: pattern crackle pre-applicato. Voronoi
+  # crackle dà i bordi taglienti delle scaglie.
+  - id: "over_paint_flake_bianca"
+    type: "disney"
+    color: [0.85, 0.83, 0.78]
+    roughness: 0.65
+    specular: 0.32
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "f2_minus_f1"
+      randomness: 1.0
+      colors: [[0.55, 0.50, 0.42], [0.92, 0.90, 0.85]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 8.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.6
+
+  # Vernice scrostata verde militare: tipica di mezzi vintage.
+  - id: "over_paint_flake_verde_militare"
+    type: "disney"
+    color: [0.32, 0.38, 0.22]
+    roughness: 0.60
+    specular: 0.32
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "f2_minus_f1"
+      colors: [[0.18, 0.22, 0.12], [0.42, 0.48, 0.30]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 8.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.6
+
+  # ══════════════════════════════════════════════════════════════════════
+  # FOGLIE / DETRITI
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Foglie morte autunnali accumulate: marrone-arancio variabile.
+  - id: "over_foglie_morte"
+    type: "disney"
+    color: [0.42, 0.26, 0.14]
+    roughness: 0.78
+    specular: 0.28
+    subsurface: 0.18
+    subsurface_color: [0.55, 0.34, 0.18]
+    diff_trans: 0.15
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "cell"
+      randomness: 1.0
+      colors: [[0.22, 0.12, 0.06], [0.62, 0.42, 0.20]]
+
+  # ══════════════════════════════════════════════════════════════════════
+  # SALE MARINO
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Sale marino cristallizzato: aloni bianchi su metalli e vetri esposti
+  # alla brezza marina.
+  - id: "over_sale_marino"
+    type: "disney"
+    color: [0.92, 0.92, 0.90]
+    roughness: 0.78
+    specular: 0.30
+    subsurface: 0.20
+    subsurface_color: [0.95, 0.95, 0.92]
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.5
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.75, 0.76, 0.74], interp: "smoothstep" }
+        - { position: 0.55, color: [0.88, 0.88, 0.86], interp: "smoothstep" }
+        - { position: 1.00, color: [0.96, 0.96, 0.94], interp: "linear" }
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 30.0
+        smoothness: 0.2
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.6
+
+  # ══════════════════════════════════════════════════════════════════════
+  # ACQUA (film/macchie)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Film d'acqua: superficie bagnata, transmission_color quasi neutro
+  # e clearcoat fortissimo. Da NON usare come materiale standalone — è
+  # un overlay per cambiare la finitura speculare di un base.
+  - id: "over_water_film"
+    type: "disney"
+    color: [0.92, 0.94, 0.96]
+    roughness: 0.05
+    specular: 0.50
+    clearcoat: 1.0
+    coat_roughness: 0.03
+    spec_trans: 0.3
+    ior: 1.33
+    transmission_color: [0.95, 0.96, 0.98]
+    transmission_depth: 0.05
+
+  # Macchie d'acqua secca: aloni di evaporazione su superfici scure.
+  - id: "over_water_stains"
+    type: "disney"
+    color: [0.65, 0.65, 0.62]
+    roughness: 0.80
+    specular: 0.28
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.4
+      distortion: 0.3
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.48, 0.48, 0.46], interp: "smoothstep" }
+        - { position: 0.55, color: [0.66, 0.66, 0.63], interp: "smoothstep" }
+        - { position: 1.00, color: [0.82, 0.82, 0.78], interp: "linear" }
+
+  # ══════════════════════════════════════════════════════════════════════
+  # VERDERAME (patina rame)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Verderame: ossidazione del rame, verde-azzurro pastoso tipico delle
+  # statue all'aperto. Sheen leggero per microstruttura cristallina.
+  - id: "over_verderame"
+    type: "disney"
+    color: [0.32, 0.58, 0.48]
+    roughness: 0.85
+    specular: 0.22
+    sheen: 0.20
+    sheen_roughness: 0.7
+    texture:
+      type: "noise"
+      scale: 3.5
+      noise_type: "fbm"
+      octaves: 6
+      noise_strength: 0.7
+      distortion: 0.25
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.10, 0.22, 0.18], interp: "smoothstep" }
+        - { position: 0.35, color: [0.22, 0.42, 0.36], interp: "smoothstep" }
+        - { position: 0.75, color: [0.40, 0.65, 0.55], interp: "smoothstep" }
+        - { position: 1.00, color: [0.58, 0.82, 0.72], interp: "linear" }
