@@ -791,3 +791,173 @@ materials:
   - id: "cls_bambu_carbonizzato"
     type: "lambertian"
     color: [0.38, 0.28, 0.15]
+
+  # ════════════════════════════════════════════════════════════════════════
+  # EXTENDED VFX MATERIALS (v2)
+  # ════════════════════════════════════════════════════════════════════════
+  #
+  # Estensione con feature avanzate:
+  #   • Thin_film 300-500nm per madreperla / abalone (iridescenza vera).
+  #   • Color_ramp 4-stop per avorio antico con gradiente patina.
+  #   • Marble texture su tartaruga (pattern carapace).
+  #   • Voronoi cell per coralli a polipi.
+  #   • Bump_map procedurale per sughero microstruttura.
+  # ════════════════════════════════════════════════════════════════════════
+
+  # Madreperla studio v2: thin_film 380nm per iridescenza intensa,
+  # subsurface alto per il glow caratteristico.
+  - id: "dis_madreperla_studio"
+    type: "disney"
+    color: [0.92, 0.88, 0.85]
+    roughness: 0.12
+    specular: 0.55
+    subsurface: 0.40
+    subsurface_color: [0.85, 0.92, 1.00]
+    clearcoat: 0.85
+    coat_roughness: 0.05
+    thin_film_thickness: 380
+    thin_film_ior: 1.55
+
+  # Abalone (paua): madreperla scura iridescente.
+  - id: "dis_abalone"
+    type: "disney"
+    color: [0.18, 0.28, 0.32]
+    roughness: 0.12
+    specular: 0.55
+    subsurface: 0.30
+    clearcoat: 0.85
+    coat_roughness: 0.05
+    thin_film_thickness: 480
+    thin_film_ior: 1.55
+
+  # Avorio antico patinato: color_ramp 4-stop ingiallimento + crepe.
+  - id: "dis_avorio_antico_patinato"
+    type: "disney"
+    color: [0.92, 0.85, 0.62]
+    roughness: 0.35
+    specular: 0.42
+    subsurface: 0.35
+    subsurface_color: [0.95, 0.78, 0.55]
+    clearcoat: 0.40
+    coat_roughness: 0.18
+    texture:
+      type: "noise"
+      scale: 1.5
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.5
+      distortion: 0.2
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.42, 0.22], interp: "smoothstep" }
+        - { position: 0.35, color: [0.78, 0.65, 0.42], interp: "smoothstep" }
+        - { position: 0.70, color: [0.90, 0.82, 0.58], interp: "smoothstep" }
+        - { position: 1.00, color: [0.96, 0.92, 0.78], interp: "linear" }
+
+  # Tartaruga (carapace): pattern marble per le bande scure caratteristiche.
+  - id: "dis_tartaruga_studio"
+    type: "disney"
+    color: [0.55, 0.32, 0.10]
+    roughness: 0.25
+    specular: 0.45
+    clearcoat: 0.85
+    coat_roughness: 0.05
+    texture:
+      type: "marble"
+      scale: 3.5
+      vein_axis: [0, 0, 1]
+      vein_frequency: 0.8
+      vein_sharpness: 3.0
+      noise_strength: 5.0
+      octaves: 7
+      distortion: 0.3
+      color_ramp:
+        - { position: 0.00, color: [0.04, 0.02, 0.01], interp: "smoothstep" }
+        - { position: 0.40, color: [0.32, 0.18, 0.06], interp: "smoothstep" }
+        - { position: 0.75, color: [0.62, 0.40, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [0.88, 0.72, 0.42], interp: "linear" }
+
+  # Corallo rosso: voronoi cell per i polipi della struttura.
+  - id: "dis_corallo_rosso_v2"
+    type: "disney"
+    color: [0.78, 0.18, 0.18]
+    roughness: 0.55
+    specular: 0.42
+    subsurface: 0.30
+    subsurface_color: [0.92, 0.22, 0.20]
+    texture:
+      type: "voronoi"
+      scale: 35.0
+      output: "cell"
+      smoothness: 0.2
+      colors: [[0.55, 0.10, 0.12], [0.92, 0.32, 0.30]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 35.0
+        output: "f2_minus_f1"
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.4
+
+  # Corallo bianco fossile: variante decolorata.
+  - id: "dis_corallo_bianco_fossile"
+    type: "disney"
+    color: [0.92, 0.90, 0.85]
+    roughness: 0.75
+    specular: 0.28
+    subsurface: 0.30
+    subsurface_color: [0.95, 0.92, 0.88]
+    texture:
+      type: "voronoi"
+      scale: 35.0
+      output: "cell"
+      smoothness: 0.2
+      colors: [[0.78, 0.75, 0.70], [0.96, 0.94, 0.90]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 35.0
+        output: "f2_minus_f1"
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.4
+
+  # Sughero naturale: voronoi smooth per pattern celle visibili.
+  - id: "dis_sughero_v2"
+    type: "disney"
+    color: [0.72, 0.55, 0.32]
+    roughness: 0.92
+    specular: 0.18
+    subsurface: 0.18
+    texture:
+      type: "voronoi"
+      scale: 22.0
+      output: "cell"
+      smoothness: 0.4
+      colors: [[0.55, 0.40, 0.22], [0.85, 0.68, 0.42]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 28.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.2
+
+  # Carta riciclata: noise fbm con piccole inclusioni colorate (carta-paglia).
+  - id: "dis_carta_riciclata"
+    type: "disney"
+    color: [0.88, 0.82, 0.70]
+    roughness: 0.92
+    specular: 0.18
+    subsurface: 0.32
+    flatness: 0.4
+    texture:
+      type: "noise"
+      scale: 3.0
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.25
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.42, 0.32, 0.18], interp: "smoothstep" }
+        - { position: 0.40, color: [0.75, 0.65, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.92, 0.86, 0.72], interp: "linear" }

@@ -848,3 +848,191 @@ materials:
   - id: "cls_carne_cotta"
     type: "lambertian"
     color: [0.35, 0.18, 0.10]
+
+  # ════════════════════════════════════════════════════════════════════════
+  # EXTENDED VFX MATERIALS (v2)
+  # ════════════════════════════════════════════════════════════════════════
+  #
+  # Estensione con texturing VFX:
+  #   • Subsurface alto + subsurface_color modulato per frutta succosa.
+  #   • Transmission_color/depth per gelatine e marmellate.
+  #   • Voronoi per crosta di pane (output: f2_minus_f1 per le crepe della
+  #     crosta).
+  #   • Wood studio applicato al parmigiano (anelli stagionatura).
+  #   • Musgrave hetero_terrain per superficie di marmellata densa.
+  #   • Bump_map procedurale per buccia frutta.
+  # ════════════════════════════════════════════════════════════════════════
+
+  # Pesca matura: subsurface alto giallo-arancio + bump peluria.
+  - id: "dis_pesca_matura"
+    type: "disney"
+    color: [0.95, 0.65, 0.42]
+    roughness: 0.85
+    specular: 0.32
+    subsurface: 0.55
+    subsurface_color: [0.95, 0.32, 0.18]
+    sheen: 0.42
+    sheen_roughness: 0.85
+    texture:
+      type: "noise"
+      scale: 3.0
+      noise_strength: 0.30
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.78, 0.32, 0.22], interp: "smoothstep" }
+        - { position: 0.50, color: [0.92, 0.55, 0.35], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.78, 0.58], interp: "linear" }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 200.0
+        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
+      strength: 0.3
+
+  # Uva nera: subsurface profondo violaceo, clearcoat per la bloom.
+  - id: "dis_uva_nera"
+    type: "disney"
+    color: [0.18, 0.06, 0.18]
+    roughness: 0.25
+    specular: 0.50
+    subsurface: 0.45
+    subsurface_color: [0.32, 0.08, 0.32]
+    clearcoat: 0.5
+    coat_roughness: 0.18
+
+  # Fragola: subsurface SSS rosso + bump achenes (semini).
+  - id: "dis_fragola_v2"
+    type: "disney"
+    color: [0.92, 0.18, 0.20]
+    roughness: 0.32
+    specular: 0.42
+    subsurface: 0.55
+    subsurface_color: [0.95, 0.10, 0.18]
+    clearcoat: 0.45
+    coat_roughness: 0.15
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 25.0
+        output: "f1"
+        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
+      strength: 0.7
+
+  # Marmellata d'arancia: transmission_color saturo, hetero_terrain superficie.
+  - id: "dis_marmellata_arancia"
+    type: "disney"
+    color: [0.92, 0.55, 0.10]
+    roughness: 0.18
+    specular: 0.45
+    spec_trans: 0.65
+    ior: 1.45
+    transmission_color: [0.88, 0.42, 0.05]
+    transmission_depth: 0.3
+    subsurface: 0.30
+    texture:
+      type: "noise"
+      scale: 3.5
+      noise_type: "hetero_terrain"
+      octaves: 5
+      fractal_increment: 0.7
+      fractal_offset: 0.7
+      noise_strength: 0.4
+
+  # Marmellata di mirtilli: viola scuro saturo.
+  - id: "dis_marmellata_mirtilli"
+    type: "disney"
+    color: [0.32, 0.08, 0.32]
+    roughness: 0.18
+    specular: 0.45
+    spec_trans: 0.55
+    ior: 1.45
+    transmission_color: [0.22, 0.04, 0.22]
+    transmission_depth: 0.15
+    subsurface: 0.32
+
+  # Crosta di pane rustico: voronoi crackle per le crepe della cottura.
+  - id: "dis_crosta_pane_rustico"
+    type: "disney"
+    color: [0.62, 0.40, 0.22]
+    roughness: 0.85
+    specular: 0.28
+    texture:
+      type: "voronoi"
+      scale: 5.0
+      output: "f2_minus_f1"
+      randomness: 1.0
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.10, 0.04], interp: "smoothstep" }
+        - { position: 0.15, color: [0.45, 0.28, 0.14], interp: "smoothstep" }
+        - { position: 0.60, color: [0.68, 0.45, 0.25], interp: "smoothstep" }
+        - { position: 1.00, color: [0.92, 0.72, 0.42], interp: "linear" }
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 8.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.6
+
+  # Crosta pizza margherita: meno scura, leggermente bruciacchiata.
+  - id: "dis_crosta_pizza"
+    type: "disney"
+    color: [0.85, 0.65, 0.32]
+    roughness: 0.78
+    specular: 0.32
+    texture:
+      type: "voronoi"
+      scale: 7.0
+      output: "f1"
+      smoothness: 0.2
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.06, 0.02], interp: "smoothstep" }
+        - { position: 0.35, color: [0.55, 0.35, 0.12], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.78, 0.45], interp: "linear" }
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 12.0
+        output: "f1"
+        smoothness: 0.3
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.9
+
+  # Parmigiano stagionato: wood texture per gli anelli di stagionatura
+  # (sfrutta ring_axis e color_ramp per le tonalità progressive).
+  - id: "dis_parmigiano_stagionato"
+    type: "disney"
+    color: [0.92, 0.82, 0.55]
+    roughness: 0.78
+    specular: 0.32
+    subsurface: 0.18
+    texture:
+      type: "wood"
+      scale: 4.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 3.0
+      noise_strength: 1.0
+      octaves: 4
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.62, 0.45, 0.18], interp: "smoothstep" }
+        - { position: 0.50, color: [0.85, 0.72, 0.42], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.88, 0.65], interp: "linear" }
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 18.0
+        smoothness: 0.4
+        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
+      strength: 0.6
+
+  # Cioccolato fondente lucido: smooth ramp con highlight ambrato.
+  - id: "dis_cioccolato_fondente_v2"
+    type: "disney"
+    color: [0.18, 0.08, 0.04]
+    roughness: 0.18
+    specular: 0.50
+    subsurface: 0.25
+    subsurface_color: [0.32, 0.12, 0.06]
+    clearcoat: 0.75
+    coat_roughness: 0.10
