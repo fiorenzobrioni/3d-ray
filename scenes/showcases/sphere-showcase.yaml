@@ -127,28 +127,33 @@ cameras:
 # =============================================================================
 lights:
 
-  # Key softbox dall'alto (area large = ombre morbide, luce avvolgente
-  # necessaria per leggere il rilievo dei bump senza speckles).
+  # ─────────────────────────────────────────────────────────────────────────
+  # Studio 3-point bilanciato in "EV neutrale" — irradianza target ~0.6 sulla
+  # marble row, dentro la sweet-spot lineare di ACES (0.4-0.7) dove il
+  # tonemap NON schiaccia la differenza tra base color e vena. Il vecchio
+  # setup (5.0 + 6 + 18) produceva ~2.9 di irradianza → ACES comprimeva
+  # qualsiasi marmo a contrasto 1.2:1, indistinguibile dal bianco.
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # Key softbox dall'alto-fronte
   - type: "area"
     corner: [-2.5, 4.8, -2.5]
     u: [5.0, 0.0, 0.0]
     v: [0.0, 0.0, 5.0]
     color: [1.0, 0.97, 0.92]
-    intensity: 5.0
+    intensity: 1.6
 
-  # Fill freddo da sinistra-fondo per separare i materiali scuri dal nero
-  # del velluto.
+  # Fill freddo da sinistra-fondo per separare i materiali scuri
   - type: "point"
     position: [-5.0, 2.0, -3.0]
     color: [0.8, 0.85, 1.0]
-    intensity: 6
+    intensity: 1.5
 
-  # Rim caldo basso da destra: radente sulla fila rocce per esaltare i
-  # micro-rilievi (autobump) e le silhouette del vector displacement.
+  # Rim caldo basso da destra per silhouette displacement
   - type: "point"
     position: [5.0, 1.3, 1.0]
     color: [1.0, 0.88, 0.70]
-    intensity: 18
+    intensity: 5
 
 
 # =============================================================================

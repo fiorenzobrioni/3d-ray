@@ -173,6 +173,22 @@ public class Renderer
 
     private readonly bool _emitRayDifferentials;
 
+    // ── Exposure (photographic stops, EV) ──────────────────────────────────
+    // Linear multiplier applied to each pixel BEFORE the ACES tonemap. Matches
+    // the "Exposure" / "Camera exposure" knob found in Arnold (`exposure`
+    // attribute), Cycles ("Film → Exposure") and RenderMan (`exposure` on the
+    // display filter). Without this control, scenes lit above ~1.0 irradiance
+    // get squashed by ACES into a 1.2:1 contrast band where procedural
+    // textures look uniformly bright; with it, the artist dials the linear
+    // gain into the ACES sweet spot (0.4-0.7 linear) where textural variation
+    // reads properly.
+    //
+    // EV semantics: factor = 2^EV. EV = 0 (default) is identity; negative EV
+    // darkens, positive brightens. Typical studio compensation for an
+    // over-exposed setup is EV = -1 to -2.
+    public const float DefaultExposureEv = 0f;
+    private readonly float _exposureScale;
+
     public Renderer(
         IHittable world,
         Camera.Camera camera,
@@ -186,7 +202,8 @@ public class Renderer
         MisHeuristic misHeuristic = MisHeuristic.Balance,
         LightSamplingStrategy lightSamplingStrategy = LightSamplingStrategy.All,
         float indirectClampFactor = DefaultIndirectClampFactor,
-        TextureFilteringMode textureFiltering = TextureFilteringMode.Auto)
+        TextureFilteringMode textureFiltering = TextureFilteringMode.Auto,
+        float exposureEv = DefaultExposureEv)
     {
         _world = world;
         _camera = camera;
@@ -197,6 +214,7 @@ public class Renderer
         _globalMedium = globalMedium;
         _maxSampleRadiance = maxSampleRadiance ?? DefaultMaxSampleRadiance;
         _indirectMaxSampleRadiance = _maxSampleRadiance * MathF.Max(0f, indirectClampFactor);
+        _exposureScale = MathF.Pow(2f, exposureEv);
         _verbose = verbose;
         _misHeuristic = misHeuristic;
         _lightSamplingStrategy = lightSamplingStrategy;
@@ -447,7 +465,13 @@ public class Renderer
                 }
 
                 Vector3 linearColor = cumulativeColor / actualSamples;
-                pixels[j, i] = AcesToneMap(linearColor);
+                // Apply the photographic exposure (linear gain = 2^EV) BEFORE
+                // ACES. Doing it pre-tonemap means the artist's EV slides the
+                // scene into the linear sweet-spot of the ACES curve where
+                // 0.18 grey maps to ≈ 0.18 grey and procedural textures keep
+                // their full contrast, instead of being squashed into the
+                // 0.85-0.99 plateau when scene irradiance lands above 1.0.
+                pixels[j, i] = AcesToneMap(linearColor * _exposureScale);
             }
 
             int done = Interlocked.Increment(ref completedRows);

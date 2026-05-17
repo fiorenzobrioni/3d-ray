@@ -121,6 +121,20 @@ class Program
                            out var icf) && icf >= 0f)
             indirectClampFactor = icf;
 
+        // Photographic exposure compensation, in stops (EV). Default 0 EV =
+        // identity. Negative EV darkens (good for over-bright lighting setups
+        // that ACES would otherwise squash into a near-saturated plateau);
+        // positive EV brightens. The linear gain `2^EV` is applied to each
+        // pixel BEFORE the ACES tonemap so the artist slides the scene into
+        // the curve's linear sweet-spot. Mirrors Arnold `exposure`,
+        // Cycles "Film → Exposure", RenderMan display-filter `exposure`.
+        float exposureEv = Renderer.DefaultExposureEv;
+        if (float.TryParse(GetArg(args, "--exposure", null),
+                           System.Globalization.NumberStyles.Float,
+                           System.Globalization.CultureInfo.InvariantCulture,
+                           out var ev))
+            exposureEv = ev;
+
         // Texture filtering — ray differentials drive analytic anti-aliasing
         // in filtered textures (Perlin/fBm octave clamp, Worley supersampling,
         // ImageTexture mipmap). Default 'auto' = on; 'off' disables differential
@@ -192,6 +206,8 @@ class Program
             float baseClamp = clampOverride ?? Renderer.DefaultMaxSampleRadiance;
             Console.WriteLine($"  Indir.clamp: ×{indirectClampFactor:F2} ({baseClamp * indirectClampFactor:F1} effective)");
         }
+        if (exposureEv != Renderer.DefaultExposureEv)
+            Console.WriteLine($"  Exposure:    {exposureEv:+0.0;-0.0;0.0} EV (×{MathF.Pow(2f, exposureEv):F2})");
         if (cameraSelector != null)
             Console.WriteLine($"  Camera:      {cameraSelector}");
         Console.WriteLine($"  Sampler:     {samplerKind.ToString().ToLowerInvariant()}");
@@ -220,7 +236,7 @@ class Program
             Console.WriteLine($"  Sky:         {skyDesc}");
 
             // Render (constructor may print scene analysis info before the blank line)
-            var renderer = new Renderer(world, camera, lights, sky, samples, depth, globalMedium, clampOverride, verbose, misHeuristic, lightSampling, indirectClampFactor, textureFiltering);
+            var renderer = new Renderer(world, camera, lights, sky, samples, depth, globalMedium, clampOverride, verbose, misHeuristic, lightSampling, indirectClampFactor, textureFiltering, exposureEv);
             Console.WriteLine();
 
             sw.Restart();
@@ -263,6 +279,8 @@ class Program
         Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override (default 4; perfect squares work best)");
         Console.WriteLine("  -C, --clamp <n>              Max per-sample radiance / firefly clamp (default: 100)");
         Console.WriteLine("      --indirect-clamp-factor  Clamp factor for indirect bounces (default: 1.0 = off; try 0.25)");
+        Console.WriteLine("      --exposure <EV>          Photographic exposure compensation in stops applied pre-ACES");
+        Console.WriteLine("                                (default: 0 = identity; -1 darkens 2×, +1 brightens 2×)");
         Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
         Console.WriteLine("      --sampler <prng|sobol>   Per-pixel sampler (default: sobol — Burley 2020)");
         Console.WriteLine("      --mis <balance|power>    MIS combination heuristic (default: balance)");
