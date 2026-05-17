@@ -1,0 +1,666 @@
+# ============================================================================
+# Libreria Materiali — Cementi e Asfalti
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/materials/concretes.yaml" }]
+#
+# Raccolta di cementi architettonici e pavimentazioni stradali. Sfrutta a
+# fondo lo stack di surface displacement (subdivision + scalar/vector
+# displacement + autobump + bump_map) e le procedurali VFX:
+#
+#   • Musgrave hetero_terrain / hybrid_multifractal per asfalti e cemento
+#     esposto (grana stratificata + crateri irregolari).
+#   • Voronoi smooth (smoothness > 0) per inclusi di pietrisco e ciottoli.
+#   • Voronoi output: f2_minus_f1 (crackle) per crepe e fessurazioni
+#     superficiali.
+#   • Color ramp multi-stop per gradiente di invecchiamento e patine.
+#   • Autobump automatico dal displacement per micro-rugosità sotto-pixel.
+#
+# ── Naming ───────────────────────────────────────────────────────────────
+#
+#   dis_  Disney BSDF. Cemento protagonista in inquadrature ravvicinate.
+#         Clearcoat off (cemento puro non è laccato). Subsurface zero.
+#         Specular basso (0.3-0.4): cemento riflette poco fuori dal
+#         bagnato.
+#
+#   cls_  Classic. Lambertian con texture procedurale. Per pavimentazioni
+#         estese, sfondi, draft. Niente displacement: usa solo bump_map
+#         dove serve micro-rilievo.
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   CEMENTO LISCIO      Autolivellante, gettato a casseforme metalliche,
+#                       cemento industriale per pavimenti commerciali.
+#
+#   CEMENTO ESPOSTO     Tadao Ando béton brut, cemento architettonico con
+#                       segni di stampo, brutalist con fugature.
+#
+#   CEMENTO LAVORATO    Sabbiato, martellato, bocciardato, graffiato.
+#                       Finiture meccaniche aggressive.
+#
+#   CEMENTO LAVATO      Ghiaietto a vista (washed concrete), aggregati
+#                       esposti in superficie. Voronoi smooth per inclusi.
+#
+#   CEMENTO ARMATO      Strutturale, con segni cassero in legno, possibili
+#                       ferri (vanno aggiunti via mix con weathering).
+#
+#   CEMENTO COLORATO    Pavimenti decorativi pigmentati (ocra, antracite,
+#                       terra di Siena, blu industriale).
+#
+#   ASFALTO             Fresco appena posato, consumato (3 livelli), bagnato.
+#                       Musgrave per grana e crateri.
+#
+#   BITUME              Catrame, asfalto da rappezzo, manto antiusura nero.
+#
+# ── Note d'uso ───────────────────────────────────────────────────────────
+#
+# Per superfici BAGNATE: usa il materiale base + mix con `over_water_film`
+# da weathering.yaml. Lo strato d'acqua fa esplodere lo specular.
+#
+# Per CREPE pesanti: usa il materiale base + mix con `over_crackle` da
+# weathering.yaml, oppure aggiungi a livello scena un `displacement` mode
+# vector con texture voronoi output: f2_minus_f1.
+#
+# Per FERRI A VISTA su cemento armato: mix con `over_rust_heavy`.
+#
+# Render hint:
+#   Draft:  -s 64  -d 5  -S 1
+#   Final:  -s 1024 -d 8 -S 4
+# ============================================================================
+
+materials:
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CEMENTO LISCIO
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Autolivellante grigio medio: pavimento industriale pulito, leggera
+  # variazione di tono per evitare il flat-look. Specular basso, niente
+  # clearcoat. Bump map di micro-pori per non risultare plasticoso.
+  - id: "dis_cemento_autolivellante"
+    type: "disney"
+    color: [0.62, 0.62, 0.60]
+    roughness: 0.78
+    specular: 0.32
+    texture:
+      type: "noise"
+      scale: 1.8
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.25
+      colors: [[0.55, 0.55, 0.53], [0.68, 0.68, 0.66]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 35.0
+        noise_type: "fbm"
+        octaves: 3
+        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
+      strength: 0.4
+
+  # Cemento casseforme metalliche: tono freddo, superficie piatta con
+  # leggera marezzatura. Tipico dei muri continui prefabbricati.
+  - id: "dis_cemento_casseforme_metallo"
+    type: "disney"
+    color: [0.66, 0.67, 0.69]
+    roughness: 0.62
+    specular: 0.38
+    texture:
+      type: "noise"
+      scale: 0.9
+      noise_type: "fbm"
+      octaves: 3
+      noise_strength: 0.15
+      colors: [[0.62, 0.63, 0.65], [0.70, 0.71, 0.73]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 60.0
+        noise_type: "fbm"
+        octaves: 2
+        colors: [[0.48, 0.48, 0.48], [0.52, 0.52, 0.52]]
+      strength: 0.25
+
+  # Cemento industriale stagionato: pavimento di magazzino con macchie
+  # diffuse di umidità e polvere. Color ramp 4-stop per gradiente
+  # realistico.
+  - id: "dis_cemento_industriale"
+    type: "disney"
+    color: [0.58, 0.58, 0.56]
+    roughness: 0.82
+    specular: 0.30
+    texture:
+      type: "noise"
+      scale: 1.2
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.5
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.40, 0.39, 0.37], interp: "smoothstep" }
+        - { position: 0.35, color: [0.55, 0.54, 0.52], interp: "smoothstep" }
+        - { position: 0.70, color: [0.65, 0.64, 0.62], interp: "smoothstep" }
+        - { position: 1.00, color: [0.72, 0.71, 0.68], interp: "linear" }
+
+  - id: "cls_cemento_autolivellante"
+    type: "lambertian"
+    color: [0.60, 0.60, 0.58]
+    texture:
+      type: "noise"
+      scale: 1.8
+      noise_strength: 0.25
+      colors: [[0.55, 0.55, 0.53], [0.66, 0.66, 0.64]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CEMENTO ESPOSTO (architettonico)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Tadao Ando béton brut: cemento lucido architettonico, riflessi morbidi,
+  # patina uniforme. Punti di ancoraggio dei casseri (tirelli) sono
+  # tipicamente aggiunti come decals nella scena, non nel materiale.
+  - id: "dis_cemento_tadao_ando"
+    type: "disney"
+    color: [0.72, 0.71, 0.68]
+    roughness: 0.58
+    specular: 0.40
+    texture:
+      type: "noise"
+      scale: 1.5
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.18
+      colors: [[0.68, 0.67, 0.64], [0.76, 0.75, 0.72]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 25.0
+        noise_type: "fbm"
+        octaves: 3
+        colors: [[0.46, 0.46, 0.46], [0.54, 0.54, 0.54]]
+      strength: 0.35
+
+  # Cemento brutalist con segni di cassero in legno: il displacement
+  # scalare riproduce le fughe verticali tra le tavole; la texture base
+  # ha grana longitudinale (axial_grain alto sul noise).
+  - id: "dis_cemento_brutalist_cassero_legno"
+    type: "disney"
+    color: [0.64, 0.62, 0.58]
+    roughness: 0.72
+    specular: 0.34
+    texture:
+      type: "noise"
+      scale: 0.6
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.6
+      distortion: 0.3
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.48, 0.46, 0.42], interp: "smoothstep" }
+        - { position: 0.50, color: [0.62, 0.60, 0.55], interp: "smoothstep" }
+        - { position: 1.00, color: [0.72, 0.70, 0.65], interp: "linear" }
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        scale: 8.0
+        noise_type: "ridged"
+        octaves: 3
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.008
+      midlevel: 0.5
+      bound: 0.012
+      autobump: true
+      autobump_strength: 1.2
+      displacement_method: "bump_only"
+
+  # Cemento fugato: pannelli regolari separati da scanalature. Adatto a
+  # facciate moderne. Lo schema 2D delle fughe va impostato a livello
+  # scena (UV mapping o decals); qui forniamo tono e micro-bump base.
+  - id: "dis_cemento_fugato"
+    type: "disney"
+    color: [0.70, 0.69, 0.66]
+    roughness: 0.55
+    specular: 0.38
+    texture:
+      type: "noise"
+      scale: 1.6
+      noise_strength: 0.20
+      colors: [[0.66, 0.65, 0.62], [0.74, 0.73, 0.70]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 40.0
+        noise_type: "fbm"
+        colors: [[0.47, 0.47, 0.47], [0.53, 0.53, 0.53]]
+      strength: 0.30
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CEMENTO LAVORATO (finiture meccaniche)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Sabbiato: rimozione dello strato superficiale con sabbia in pressione.
+  # Grana uniforme media, aggregati appena visibili. Voronoi smooth per
+  # piccoli punti chiari diffusi (granuli emersi).
+  - id: "dis_cemento_sabbiato"
+    type: "disney"
+    color: [0.66, 0.65, 0.62]
+    roughness: 0.85
+    specular: 0.28
+    texture:
+      type: "voronoi"
+      scale: 12.0
+      metric: "euclidean"
+      output: "f1"
+      randomness: 1.0
+      smoothness: 0.4
+      colors: [[0.55, 0.54, 0.51], [0.74, 0.73, 0.70]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 18.0
+        smoothness: 0.2
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.7
+
+  # Bocciardato: martellatura a punte ravvicinate. Rugosità più aggressiva
+  # del sabbiato. Displacement scalare leggero per il rilievo dei picchi.
+  - id: "dis_cemento_bocciardato"
+    type: "disney"
+    color: [0.60, 0.59, 0.56]
+    roughness: 0.90
+    specular: 0.26
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "f2_minus_f1"
+      randomness: 1.0
+      colors: [[0.45, 0.44, 0.42], [0.70, 0.69, 0.66]]
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 16.0
+        output: "f1"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.006
+      midlevel: 0.5
+      bound: 0.010
+      autobump: true
+      autobump_strength: 1.5
+
+  # Graffiato (combed concrete): righe parallele superficiali. Bump map
+  # con noise_type "ridged" e scale anisotropo (axial_grain alto).
+  - id: "dis_cemento_graffiato"
+    type: "disney"
+    color: [0.68, 0.66, 0.62]
+    roughness: 0.80
+    specular: 0.32
+    texture:
+      type: "noise"
+      scale: 1.2
+      noise_strength: 0.25
+      colors: [[0.62, 0.60, 0.57], [0.74, 0.72, 0.68]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 8.0
+        noise_type: "ridged"
+        octaves: 2
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.2
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CEMENTO LAVATO (aggregati esposti)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Ghiaietto a vista chiaro: matrice cementizia chiara con sassolini
+  # tondi. Voronoi cell genera variazioni di colore per ogni cella
+  # (sasso), color ramp differenzia matrice da inclusi.
+  - id: "dis_cemento_lavato_chiaro"
+    type: "disney"
+    color: [0.75, 0.73, 0.68]
+    roughness: 0.82
+    specular: 0.30
+    texture:
+      type: "voronoi"
+      scale: 5.5
+      output: "cell"
+      randomness: 1.0
+      smoothness: 0.15
+      colors: [[0.55, 0.50, 0.42], [0.85, 0.82, 0.74]]
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 5.5
+        output: "f1"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.012
+      midlevel: 0.5
+      bound: 0.020
+      autobump: true
+      autobump_strength: 1.4
+      displacement_method: "bump_only"
+
+  # Ghiaietto scuro a vista: matrice grigio scuro con ciottoli neri e
+  # marroni. Tipico delle pavimentazioni esterne moderne.
+  - id: "dis_cemento_lavato_scuro"
+    type: "disney"
+    color: [0.45, 0.43, 0.40]
+    roughness: 0.85
+    specular: 0.28
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      output: "cell"
+      randomness: 1.0
+      smoothness: 0.1
+      colors: [[0.20, 0.18, 0.15], [0.55, 0.52, 0.48]]
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CEMENTO ARMATO STRUTTURALE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Cemento armato grezzo: tono caldo grigio-beige, presenza visibile di
+  # macchie minerali. Da combinare con `over_rust_streak` per ferri
+  # affioranti (mix material a livello scena).
+  - id: "dis_cemento_armato_grezzo"
+    type: "disney"
+    color: [0.58, 0.56, 0.52]
+    roughness: 0.88
+    specular: 0.28
+    texture:
+      type: "noise"
+      scale: 1.8
+      noise_type: "fbm"
+      octaves: 6
+      noise_strength: 0.9
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.38, 0.36, 0.32], interp: "smoothstep" }
+        - { position: 0.35, color: [0.55, 0.52, 0.48], interp: "smoothstep" }
+        - { position: 0.75, color: [0.66, 0.63, 0.58], interp: "smoothstep" }
+        - { position: 1.00, color: [0.74, 0.71, 0.65], interp: "linear" }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 22.0
+        noise_type: "fbm"
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.5
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CEMENTO COLORATO (pavimenti decorativi)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Cemento pigmentato ocra: pavimenti esterni a tono caldo. Color ramp
+  # gioca su variazioni di intensità del pigmento.
+  - id: "dis_cemento_ocra"
+    type: "disney"
+    color: [0.72, 0.55, 0.30]
+    roughness: 0.80
+    specular: 0.32
+    texture:
+      type: "noise"
+      scale: 1.4
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.6
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.40, 0.20], interp: "smoothstep" }
+        - { position: 0.50, color: [0.72, 0.55, 0.30], interp: "smoothstep" }
+        - { position: 1.00, color: [0.82, 0.66, 0.42], interp: "linear" }
+
+  # Antracite: cemento scuro per pavimenti contemporanei minimalisti.
+  - id: "dis_cemento_antracite"
+    type: "disney"
+    color: [0.22, 0.22, 0.24]
+    roughness: 0.62
+    specular: 0.36
+    texture:
+      type: "noise"
+      scale: 1.2
+      noise_strength: 0.18
+      colors: [[0.18, 0.18, 0.20], [0.28, 0.28, 0.30]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 30.0
+        colors: [[0.47, 0.47, 0.47], [0.53, 0.53, 0.53]]
+      strength: 0.35
+
+  # Terra di Siena: pigmentazione rossastra calda. Pavimenti tipici di
+  # cortili mediterranei moderni.
+  - id: "dis_cemento_terra_siena"
+    type: "disney"
+    color: [0.62, 0.42, 0.32]
+    roughness: 0.78
+    specular: 0.32
+    texture:
+      type: "noise"
+      scale: 1.5
+      noise_strength: 0.5
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.48, 0.30, 0.22], interp: "smoothstep" }
+        - { position: 0.50, color: [0.62, 0.42, 0.32], interp: "smoothstep" }
+        - { position: 1.00, color: [0.74, 0.55, 0.42], interp: "linear" }
+
+  # Blu industriale: pigmentazione fredda per pavimenti commerciali e
+  # workshop.
+  - id: "dis_cemento_blu_industriale"
+    type: "disney"
+    color: [0.28, 0.36, 0.45]
+    roughness: 0.78
+    specular: 0.34
+    texture:
+      type: "noise"
+      scale: 1.4
+      noise_strength: 0.4
+      colors: [[0.22, 0.30, 0.38], [0.34, 0.42, 0.52]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # ASFALTO
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Asfalto fresco appena posato: nero profondo, brillante per l'olio
+  # legante non ancora asciutto. Roughness più bassa del normale per
+  # asfalto.
+  - id: "dis_asfalto_fresco"
+    type: "disney"
+    color: [0.08, 0.08, 0.09]
+    roughness: 0.55
+    specular: 0.45
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.15
+      colors: [[0.06, 0.06, 0.07], [0.10, 0.10, 0.11]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 25.0
+        smoothness: 0.2
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 0.8
+
+  # Asfalto consumato leggero: aggregati visibili in superficie. Musgrave
+  # hetero_terrain riproduce la distribuzione naturale dei granuli emersi.
+  - id: "dis_asfalto_consumato_light"
+    type: "disney"
+    color: [0.18, 0.18, 0.18]
+    roughness: 0.85
+    specular: 0.30
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_type: "hetero_terrain"
+      octaves: 5
+      lacunarity: 2.0
+      gain: 0.5
+      fractal_increment: 0.7
+      fractal_offset: 0.7
+      noise_strength: 0.8
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.10, 0.10, 0.10], interp: "smoothstep" }
+        - { position: 0.45, color: [0.18, 0.18, 0.18], interp: "smoothstep" }
+        - { position: 0.85, color: [0.32, 0.30, 0.28], interp: "smoothstep" }
+        - { position: 1.00, color: [0.50, 0.46, 0.42], interp: "linear" }
+
+  # Asfalto consumato medio: granuli più esposti, primi segni di
+  # disgregazione. Combinabile con `over_water_film` per look "pioggia
+  # appena finita".
+  - id: "dis_asfalto_consumato_medium"
+    type: "disney"
+    color: [0.22, 0.22, 0.22]
+    roughness: 0.92
+    specular: 0.26
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "cell"
+      smoothness: 0.1
+      randomness: 1.0
+      colors: [[0.10, 0.10, 0.10], [0.42, 0.40, 0.38]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 12.0
+        output: "f1"
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.0
+
+  # Asfalto consumato heavy: presenza di crateri, crepe, zone scollate.
+  # Vector displacement tangent-space per asimmetria delle buche.
+  - id: "dis_asfalto_consumato_heavy"
+    type: "disney"
+    color: [0.25, 0.24, 0.23]
+    roughness: 0.95
+    specular: 0.24
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      output: "cell"
+      smoothness: 0.05
+      colors: [[0.12, 0.11, 0.10], [0.48, 0.45, 0.42]]
+    displacement:
+      mode: "vector"
+      space: "tangent"
+      texture:
+        type: "noise"
+        scale: 4.0
+        noise_type: "ridged"
+        octaves: 5
+        colors: [[0.3, 0.4, 0.35], [0.7, 0.6, 0.65]]
+      scale: 0.015
+      midlevel: 0.5
+      bound: 0.025
+      autobump: true
+      autobump_strength: 1.6
+
+  # Asfalto bagnato: brillante per il film d'acqua, riflessi diretti
+  # quasi a specchio. Usare con NEE light intensity moderata.
+  - id: "dis_asfalto_bagnato"
+    type: "disney"
+    color: [0.05, 0.05, 0.06]
+    roughness: 0.22
+    specular: 0.55
+    clearcoat: 0.6
+    coat_roughness: 0.12
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_strength: 0.08
+      colors: [[0.04, 0.04, 0.05], [0.08, 0.08, 0.09]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # BITUME
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Catrame fresco: nero profondo, semi-lucido, viscoso. Usato per
+  # impermeabilizzazioni e rappezzi stradali.
+  - id: "dis_bitume_catrame"
+    type: "disney"
+    color: [0.04, 0.04, 0.05]
+    roughness: 0.35
+    specular: 0.50
+    clearcoat: 0.4
+    coat_roughness: 0.18
+    texture:
+      type: "noise"
+      scale: 3.0
+      noise_strength: 0.05
+      colors: [[0.03, 0.03, 0.04], [0.06, 0.06, 0.07]]
+      randomize_offset: true
+
+  # Manto antiusura nero: cemento bituminoso ad alta resistenza,
+  # superficie compatta e ruvida.
+  - id: "dis_bitume_antiusura"
+    type: "disney"
+    color: [0.10, 0.10, 0.11]
+    roughness: 0.78
+    specular: 0.32
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.18
+      colors: [[0.08, 0.08, 0.09], [0.13, 0.13, 0.14]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 20.0
+        smoothness: 0.15
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.6
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CLASSIC — Pavimentazioni di sfondo
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: "cls_cemento_grezzo"
+    type: "lambertian"
+    color: [0.62, 0.61, 0.58]
+    texture:
+      type: "noise"
+      scale: 1.8
+      noise_strength: 0.4
+      colors: [[0.52, 0.51, 0.48], [0.72, 0.71, 0.68]]
+      randomize_offset: true
+
+  - id: "cls_asfalto_strada"
+    type: "lambertian"
+    color: [0.16, 0.16, 0.17]
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 0.3
+      colors: [[0.10, 0.10, 0.11], [0.22, 0.22, 0.23]]
+      randomize_offset: true
+
+  - id: "cls_cemento_scuro"
+    type: "lambertian"
+    color: [0.32, 0.32, 0.33]
+    texture:
+      type: "noise"
+      scale: 1.5
+      noise_strength: 0.25
+      colors: [[0.26, 0.26, 0.27], [0.38, 0.38, 0.39]]
+      randomize_offset: true

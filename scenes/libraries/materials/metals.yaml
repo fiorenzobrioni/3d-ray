@@ -1087,3 +1087,186 @@ materials:
     color: [0.91, 0.91, 0.92]
     metallic: 1.0
     roughness: 0.05
+
+  # ════════════════════════════════════════════════════════════════════════
+  # EXTENDED VFX MATERIALS (v2)
+  # ════════════════════════════════════════════════════════════════════════
+  #
+  # Aggiunte che sfruttano feature texturing avanzate:
+  #   • anisotropic + anisotropic_rotation per acciai spazzolati
+  #   • thin_film 200-700nm per titanio/niobio anodizzato
+  #   • voronoi extended (f3_minus_f1, cell) per damasco e martellato
+  #   • displacement scalare per metalli battuti a mano
+  #   • color_ramp 4-stop per ottoni patinati e rame verde
+  #   • smooth voronoi smoothness 1.0 per goccia mercurio
+  # ════════════════════════════════════════════════════════════════════════
+
+  # Acciaio spazzolato circolare: piatti hi-fi, dischi compressore.
+  - id: "dis_acciaio_spazzolato_circolare"
+    type: "disney"
+    metallic: 1.0
+    color: [0.92, 0.92, 0.94]
+    roughness: 0.32
+    specular: 0.55
+    anisotropic: 0.92
+    anisotropic_rotation: 0.0
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 300.0
+        noise_type: "ridged"
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.25
+
+  # Titanio anodizzato blu: thin_film 540nm.
+  - id: "dis_titanio_anodizzato_blu"
+    type: "disney"
+    metallic: 1.0
+    color: [0.78, 0.80, 0.82]
+    roughness: 0.18
+    specular: 0.55
+    anisotropic: 0.40
+    thin_film_thickness: 540
+    thin_film_ior: 1.55
+
+  # Titanio anodizzato viola: thin_film 420nm.
+  - id: "dis_titanio_anodizzato_viola"
+    type: "disney"
+    metallic: 1.0
+    color: [0.78, 0.80, 0.82]
+    roughness: 0.18
+    specular: 0.55
+    anisotropic: 0.40
+    thin_film_thickness: 420
+    thin_film_ior: 1.55
+
+  # Damasco "wootz": voronoi f3_minus_f1 produce il pattern stratificato.
+  - id: "dis_acciaio_damasco"
+    type: "disney"
+    metallic: 0.95
+    color: [0.55, 0.55, 0.55]
+    roughness: 0.22
+    specular: 0.55
+    anisotropic: 0.55
+    texture:
+      type: "voronoi"
+      scale: 5.0
+      output: "f3_minus_f1"
+      randomness: 1.0
+      colors: [[0.32, 0.32, 0.32], [0.85, 0.85, 0.85]]
+
+  # Ferro martellato a mano: voronoi cell + displacement scalare.
+  - id: "dis_ferro_martellato_mano"
+    type: "disney"
+    metallic: 0.92
+    color: [0.42, 0.42, 0.42]
+    roughness: 0.55
+    specular: 0.50
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "cell"
+      smoothness: 0.2
+      colors: [[0.32, 0.32, 0.32], [0.58, 0.58, 0.58]]
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 12.0
+        output: "f1"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.006
+      midlevel: 0.5
+      bound: 0.010
+      autobump: true
+      autobump_strength: 1.5
+      displacement_method: "bump_only"
+
+  # Ottone patinato all'aria con verderame: color_ramp 4-stop.
+  - id: "dis_ottone_patinato"
+    type: "disney"
+    metallic: 0.85
+    color: [0.72, 0.62, 0.32]
+    roughness: 0.42
+    specular: 0.50
+    texture:
+      type: "noise"
+      scale: 3.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.6
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.28, 0.42, 0.30], interp: "smoothstep" }
+        - { position: 0.35, color: [0.52, 0.55, 0.32], interp: "smoothstep" }
+        - { position: 0.70, color: [0.78, 0.65, 0.32], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.85, 0.45], interp: "linear" }
+
+  # Rame patinato heritage: tetti verde-arancio invecchiati.
+  - id: "dis_rame_patinato"
+    type: "disney"
+    metallic: 0.65
+    color: [0.55, 0.62, 0.42]
+    roughness: 0.62
+    specular: 0.42
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "fbm"
+      octaves: 6
+      noise_strength: 0.8
+      distortion: 0.25
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.10, 0.32, 0.22], interp: "smoothstep" }
+        - { position: 0.35, color: [0.32, 0.55, 0.42], interp: "smoothstep" }
+        - { position: 0.70, color: [0.72, 0.45, 0.22], interp: "smoothstep" }
+        - { position: 1.00, color: [0.92, 0.55, 0.28], interp: "linear" }
+
+  # Mercurio liquido: smooth voronoi smoothness 1.0 per goccioline.
+  - id: "dis_mercurio_liquido"
+    type: "disney"
+    metallic: 1.0
+    color: [0.85, 0.85, 0.88]
+    roughness: 0.04
+    specular: 0.60
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      output: "f1"
+      smoothness: 1.0
+      colors: [[0.75, 0.75, 0.78], [0.92, 0.92, 0.95]]
+
+  # Niobio anodizzato olografico: color shift completo via thin_film.
+  - id: "dis_niobio_olografico"
+    type: "disney"
+    metallic: 1.0
+    color: [0.78, 0.78, 0.80]
+    roughness: 0.18
+    specular: 0.55
+    anisotropic: 0.30
+    thin_film_thickness: 580
+    thin_film_ior: 1.55
+
+  # Stagno colato grezzo: bump+texture per look "rough cast metal".
+  - id: "dis_stagno_colato"
+    type: "disney"
+    metallic: 0.85
+    color: [0.72, 0.72, 0.74]
+    roughness: 0.55
+    specular: 0.45
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.4
+      colors: [[0.62, 0.62, 0.65], [0.82, 0.82, 0.85]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 18.0
+        smoothness: 0.3
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.8

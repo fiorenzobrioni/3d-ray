@@ -1,0 +1,618 @@
+# ============================================================================
+# Libreria Materiali — Sintetici Tecnici Avanzati
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/materials/synthetics.yaml" }]
+#
+# Compositi tecnici, materiali high-tech, polimeri avanzati. Distinta da
+# `plastics.yaml` (plastiche da iniezione comuni: ABS, PVC, PP, PE).
+# Qui ci sono i materiali "speciali" che sfruttano:
+#
+#   • Anisotropic + anisotropic_rotation per pattern weave (carbonio twill,
+#     kevlar plain). Roughness anisotropico simula la direzionalità.
+#   • Bump_map procedurale con scale alto direzionale per pattern di
+#     tessitura tecnica.
+#   • Thin_film 200-700nm per vinile auto olografico (color shift).
+#   • Subsurface alto per silicone medicale traslucido.
+#   • Clearcoat saturo per vinile auto wrap gloss.
+#
+# ── Naming ───────────────────────────────────────────────────────────────
+#
+#   dis_  Disney BSDF con anisotropic + anisotropic_rotation per pattern.
+#   cls_  Lambertian (solo per draft/sfondo, raro).
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   FIBRA DI CARBONIO   Twill 2/2, plain weave, satin. Pattern anisotropici
+#                       a 45° per twill, 0° per plain. Sotto resina (clearcoat).
+#
+#   KEVLAR              Giallo aramidico, plain weave. Hybrid carbon+kevlar.
+#
+#   FIBRA DI VETRO      Pannelli sandwich, gel coat. Bianco/grigio opaco.
+#
+#   NEOPRENE            Mute da sub, guanti. Liscio o foderato.
+#
+#   PTFE / TEFLON       Pentole, supporti scivolosi. Bianco opaco.
+#
+#   GOMMA EPDM          Guarnizioni, isolanti elettrici. Nero opaco.
+#
+#   SILICONE MEDICALE   Traslucido bio-compatibile. Subsurface alto.
+#
+#   POLIURETANO         Schiuma rigida (isolante), schiuma flessibile.
+#
+#   VINILE AUTO WRAP    Matte, gloss, satin, chrome, olografico.
+#                       Settori automotive customization.
+#
+#   TESSUTI TECNICI     Ripstop nylon, cordura, gore-tex laminato.
+#
+#   AEROGEL             "Frozen smoke", il solido più leggero. Esotico.
+#
+# ── Note d'uso ───────────────────────────────────────────────────────────
+#
+# I pattern di tessitura (twill, plain, satin) sono direzionali. Il
+# parametro `anisotropic_rotation` ruota la direzione di anisotropia:
+#   - twill 2/2:        anisotropic_rotation: 0.125 (45°/360°)
+#   - plain weave:      anisotropic_rotation: 0.0 o 0.25
+#   - satin:            anisotropic_rotation: 0.0625 (22.5°)
+#
+# Per pattern weave VISIBILE (non solo riflesso anisotropico), serve un
+# bump_map con voronoi o noise direzionale.
+#
+# Render hint:
+#   Draft:  -s 64 -d 5 -S 1
+#   Final:  -s 1024 -d 8 -S 4
+# ============================================================================
+
+materials:
+
+  # ══════════════════════════════════════════════════════════════════════
+  # FIBRA DI CARBONIO
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Carbonio twill 2/2 sotto resina: il classico look "F1". Pattern a 45°,
+  # clearcoat lucido per la resina, anisotropia per la direzionalità del
+  # fascio.
+  - id: "dis_carbonio_twill"
+    type: "disney"
+    color: [0.04, 0.04, 0.05]
+    roughness: 0.20
+    specular: 0.50
+    anisotropic: 0.85
+    anisotropic_rotation: 0.125
+    clearcoat: 0.95
+    coat_roughness: 0.05
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 60.0
+        output: "cell"
+        smoothness: 0.05
+        randomness: 0.4
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 0.6
+
+  # Carbonio plain weave: pattern a quadrettino regolare, 0° o 90°.
+  - id: "dis_carbonio_plain"
+    type: "disney"
+    color: [0.04, 0.04, 0.05]
+    roughness: 0.20
+    specular: 0.50
+    anisotropic: 0.85
+    anisotropic_rotation: 0.0
+    clearcoat: 0.95
+    coat_roughness: 0.05
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 50.0
+        output: "cell"
+        randomness: 0.3
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 0.65
+
+  # Carbonio satin: tessitura satin con riflessi morbidi.
+  - id: "dis_carbonio_satin"
+    type: "disney"
+    color: [0.05, 0.05, 0.06]
+    roughness: 0.30
+    specular: 0.42
+    anisotropic: 0.70
+    anisotropic_rotation: 0.0625
+    clearcoat: 0.40
+    coat_roughness: 0.20
+
+  # Carbonio 3D: tessitura tridimensionale per applicazioni strutturali.
+  - id: "dis_carbonio_3d"
+    type: "disney"
+    color: [0.04, 0.04, 0.05]
+    roughness: 0.25
+    specular: 0.50
+    anisotropic: 0.55
+    clearcoat: 0.95
+    coat_roughness: 0.05
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 35.0
+        output: "f2_minus_f1"
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 0.9
+
+  # Carbonio esposto (matte): senza resina lucida. Tessuti sportivi.
+  - id: "dis_carbonio_matte"
+    type: "disney"
+    color: [0.05, 0.05, 0.06]
+    roughness: 0.55
+    specular: 0.30
+    anisotropic: 0.85
+    anisotropic_rotation: 0.125
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 55.0
+        output: "cell"
+        randomness: 0.4
+        colors: [[0.32, 0.32, 0.32], [0.68, 0.68, 0.68]]
+      strength: 0.8
+
+  # Carbonio rosso (tinto): variante decorativa con resina pigmentata.
+  - id: "dis_carbonio_rosso"
+    type: "disney"
+    color: [0.32, 0.04, 0.04]
+    roughness: 0.20
+    specular: 0.50
+    anisotropic: 0.80
+    anisotropic_rotation: 0.125
+    clearcoat: 0.95
+    coat_roughness: 0.05
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 60.0
+        output: "cell"
+        randomness: 0.4
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 0.6
+
+  # ══════════════════════════════════════════════════════════════════════
+  # KEVLAR
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Kevlar giallo aramidico: plain weave. Anisotropia moderata, no clearcoat
+  # (è tessuto, non composito).
+  - id: "dis_kevlar_giallo"
+    type: "disney"
+    color: [0.95, 0.78, 0.18]
+    roughness: 0.65
+    specular: 0.32
+    anisotropic: 0.60
+    anisotropic_rotation: 0.0
+    sheen: 0.30
+    sheen_roughness: 0.6
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 60.0
+        output: "cell"
+        randomness: 0.3
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.6
+
+  # Kevlar nero (tinto): meno comune ma usato in giubbotti tattici.
+  - id: "dis_kevlar_nero"
+    type: "disney"
+    color: [0.05, 0.05, 0.05]
+    roughness: 0.65
+    specular: 0.32
+    anisotropic: 0.60
+    anisotropic_rotation: 0.0
+    sheen: 0.30
+    sheen_roughness: 0.6
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 60.0
+        output: "cell"
+        randomness: 0.3
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.6
+
+  # Hybrid carbonio + kevlar: tessitura mista nero/giallo. Color ramp
+  # 2-stop per alternanza.
+  - id: "dis_kevlar_carbon_hybrid"
+    type: "disney"
+    color: [0.20, 0.15, 0.05]
+    roughness: 0.28
+    specular: 0.45
+    anisotropic: 0.75
+    anisotropic_rotation: 0.125
+    clearcoat: 0.85
+    coat_roughness: 0.08
+    texture:
+      type: "voronoi"
+      scale: 30.0
+      output: "cell"
+      smoothness: 0.05
+      colors: [[0.05, 0.05, 0.05], [0.85, 0.65, 0.15]]
+
+  # ══════════════════════════════════════════════════════════════════════
+  # FIBRA DI VETRO (GFK)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Vetroresina bianca gel coat: scafi nautici, carrozzerie.
+  - id: "dis_vetroresina_gelcoat"
+    type: "disney"
+    color: [0.92, 0.92, 0.90]
+    roughness: 0.18
+    specular: 0.50
+    clearcoat: 0.65
+    coat_roughness: 0.12
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.04
+      colors: [[0.88, 0.88, 0.86], [0.95, 0.95, 0.93]]
+      randomize_offset: true
+
+  # Vetroresina grezza: fibre visibili senza gel coat finale.
+  - id: "dis_vetroresina_grezza"
+    type: "disney"
+    color: [0.78, 0.76, 0.70]
+    roughness: 0.45
+    specular: 0.38
+    anisotropic: 0.40
+    anisotropic_rotation: 0.0
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 40.0
+        output: "cell"
+        smoothness: 0.1
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 1.0
+
+  # Vetroresina trasparente: pannelli per serre, lucernari.
+  - id: "dis_vetroresina_trasparente"
+    type: "disney"
+    color: [0.98, 0.98, 0.96]
+    roughness: 0.20
+    specular: 0.40
+    spec_trans: 0.80
+    ior: 1.55
+    transmission_color: [0.96, 0.96, 0.94]
+    transmission_depth: 0.8
+
+  # ══════════════════════════════════════════════════════════════════════
+  # NEOPRENE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Neoprene nero liscio: mute da sub, copertura motori. Gomma sintetica
+  # con superficie satinata.
+  - id: "dis_neoprene_nero"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.55
+    specular: 0.32
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 0.04
+      colors: [[0.03, 0.03, 0.03], [0.05, 0.05, 0.05]]
+      randomize_offset: true
+
+  # Neoprene blu: muta sportiva. Spesso ha back foderato in nylon.
+  - id: "dis_neoprene_blu"
+    type: "disney"
+    color: [0.06, 0.18, 0.42]
+    roughness: 0.55
+    specular: 0.32
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 0.05
+      colors: [[0.04, 0.14, 0.34], [0.08, 0.22, 0.50]]
+      randomize_offset: true
+
+  # Neoprene foderato nylon: con pattern di tessitura visibile.
+  - id: "dis_neoprene_foderato"
+    type: "disney"
+    color: [0.06, 0.06, 0.06]
+    roughness: 0.78
+    specular: 0.22
+    sheen: 0.40
+    sheen_roughness: 0.7
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 90.0
+        output: "cell"
+        smoothness: 0.2
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.5
+
+  # ══════════════════════════════════════════════════════════════════════
+  # PTFE / TEFLON
+  # ══════════════════════════════════════════════════════════════════════
+
+  # PTFE bianco: rivestimento pentole, supporti scivolosi industriali.
+  # Bianco opaco quasi puro.
+  - id: "dis_ptfe_bianco"
+    type: "disney"
+    color: [0.95, 0.94, 0.92]
+    roughness: 0.32
+    specular: 0.42
+    subsurface: 0.10
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 0.04
+      colors: [[0.92, 0.91, 0.89], [0.97, 0.96, 0.94]]
+      randomize_offset: true
+
+  # PTFE nero (con grafite caricata): tappi e guarnizioni.
+  - id: "dis_ptfe_nero"
+    type: "disney"
+    color: [0.10, 0.10, 0.10]
+    roughness: 0.35
+    specular: 0.40
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 0.06
+      colors: [[0.08, 0.08, 0.08], [0.12, 0.12, 0.12]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # GOMMA EPDM (industriale)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # EPDM nero opaco: guarnizioni, copertine. Roughness alta, no clearcoat.
+  - id: "dis_epdm_nero"
+    type: "disney"
+    color: [0.06, 0.06, 0.06]
+    roughness: 0.78
+    specular: 0.28
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 0.04
+      colors: [[0.04, 0.04, 0.04], [0.08, 0.08, 0.08]]
+      randomize_offset: true
+
+  # EPDM con texture goffrata: pavimenti per palestre.
+  - id: "dis_epdm_goffrato"
+    type: "disney"
+    color: [0.08, 0.08, 0.08]
+    roughness: 0.85
+    specular: 0.24
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 25.0
+        output: "f1"
+        smoothness: 0.2
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.4
+
+  # ══════════════════════════════════════════════════════════════════════
+  # SILICONE MEDICALE (subsurface alto)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Silicone medicale traslucido bianco: protesi, dispositivi medicali.
+  # Subsurface molto alto per la traslucenza tipica.
+  - id: "dis_silicone_medicale"
+    type: "disney"
+    color: [0.94, 0.92, 0.90]
+    roughness: 0.25
+    specular: 0.45
+    subsurface: 0.55
+    subsurface_color: [0.95, 0.92, 0.88]
+    spec_trans: 0.25
+    ior: 1.41
+    transmission_color: [0.95, 0.92, 0.88]
+    transmission_depth: 0.5
+
+  # Silicone rosa carnagione: protesi cosmetiche.
+  - id: "dis_silicone_carne"
+    type: "disney"
+    color: [0.92, 0.78, 0.70]
+    roughness: 0.30
+    specular: 0.42
+    subsurface: 0.60
+    subsurface_color: [0.95, 0.62, 0.55]
+    spec_trans: 0.18
+    ior: 1.41
+
+  # Silicone blu chirurgico: guarnizioni medicali, accessori sterili.
+  - id: "dis_silicone_blu"
+    type: "disney"
+    color: [0.55, 0.78, 0.92]
+    roughness: 0.30
+    specular: 0.45
+    subsurface: 0.50
+    subsurface_color: [0.50, 0.78, 0.95]
+    spec_trans: 0.22
+    ior: 1.41
+
+  # ══════════════════════════════════════════════════════════════════════
+  # POLIURETANO
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Schiuma poliuretanica rigida (isolante giallo). Voronoi cell per
+  # struttura cellulare visibile.
+  - id: "dis_poliuretano_isolante"
+    type: "disney"
+    color: [0.95, 0.82, 0.55]
+    roughness: 0.95
+    specular: 0.18
+    subsurface: 0.25
+    texture:
+      type: "voronoi"
+      scale: 18.0
+      output: "cell"
+      smoothness: 0.4
+      colors: [[0.78, 0.65, 0.40], [0.98, 0.85, 0.62]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 22.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.5
+
+  # Schiuma flessibile arancione: imbottiture, espansi tecnici.
+  - id: "dis_poliuretano_flessibile"
+    type: "disney"
+    color: [0.92, 0.55, 0.20]
+    roughness: 0.95
+    specular: 0.16
+    subsurface: 0.30
+    texture:
+      type: "voronoi"
+      scale: 22.0
+      output: "cell"
+      smoothness: 0.5
+      colors: [[0.72, 0.40, 0.15], [0.95, 0.62, 0.28]]
+
+  # ══════════════════════════════════════════════════════════════════════
+  # VINILE AUTO WRAP
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Vinile matte black: car wrap matte tipico modificazioni automobilistiche.
+  - id: "dis_vinile_matte_nero"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.65
+    specular: 0.30
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 0.03
+      colors: [[0.03, 0.03, 0.03], [0.05, 0.05, 0.05]]
+      randomize_offset: true
+
+  # Vinile gloss white: wrap lucido bianco.
+  - id: "dis_vinile_gloss_bianco"
+    type: "disney"
+    color: [0.94, 0.94, 0.94]
+    roughness: 0.08
+    specular: 0.55
+    clearcoat: 1.0
+    coat_roughness: 0.04
+
+  # Vinile satin grey: finitura intermedia tra matte e gloss.
+  - id: "dis_vinile_satin_grigio"
+    type: "disney"
+    color: [0.32, 0.32, 0.33]
+    roughness: 0.30
+    specular: 0.42
+    clearcoat: 0.55
+    coat_roughness: 0.18
+
+  # Vinile chrome: cromato a specchio.
+  - id: "dis_vinile_chrome"
+    type: "disney"
+    metallic: 1.0
+    color: [0.95, 0.95, 0.98]
+    roughness: 0.03
+    specular: 0.6
+    clearcoat: 0.9
+    coat_roughness: 0.04
+
+  # Vinile chrome rosa: chrome colorato di tendenza.
+  - id: "dis_vinile_chrome_rosa"
+    type: "disney"
+    metallic: 1.0
+    color: [0.95, 0.62, 0.78]
+    roughness: 0.05
+    specular: 0.6
+    clearcoat: 0.9
+    coat_roughness: 0.04
+
+  # Vinile olografico: cambia colore con l'angolo. Thin_film 400-800nm
+  # range completo per shift cromatico drastico.
+  - id: "dis_vinile_olografico"
+    type: "disney"
+    metallic: 0.55
+    color: [0.55, 0.55, 0.58]
+    roughness: 0.10
+    specular: 0.55
+    clearcoat: 1.0
+    coat_roughness: 0.04
+    thin_film_thickness: 580
+    thin_film_ior: 1.45
+
+  # ══════════════════════════════════════════════════════════════════════
+  # TESSUTI TECNICI
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Ripstop nylon arancio (safety): pattern a maglia rinforzata
+  # incrociata. Bump map voronoi per pattern weave.
+  - id: "dis_ripstop_arancio"
+    type: "disney"
+    color: [0.95, 0.50, 0.08]
+    roughness: 0.55
+    specular: 0.38
+    sheen: 0.55
+    sheen_roughness: 0.7
+    anisotropic: 0.40
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 80.0
+        output: "f2_minus_f1"
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.6
+
+  # Cordura nera (zaini militari): tessuto resistente intrecciato fitto.
+  - id: "dis_cordura_nera"
+    type: "disney"
+    color: [0.05, 0.05, 0.05]
+    roughness: 0.70
+    specular: 0.30
+    sheen: 0.40
+    sheen_roughness: 0.7
+    anisotropic: 0.35
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 110.0
+        output: "cell"
+        randomness: 0.3
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.55
+
+  # Gore-Tex laminato bianco: tessuto traspirante impermeabile.
+  - id: "dis_goretex_bianco"
+    type: "disney"
+    color: [0.92, 0.92, 0.90]
+    roughness: 0.60
+    specular: 0.32
+    sheen: 0.45
+    sheen_roughness: 0.7
+    subsurface: 0.18
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 50.0
+        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
+      strength: 0.4
+
+  # ══════════════════════════════════════════════════════════════════════
+  # AEROGEL (esotico)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Aerogel silicico ("frozen smoke"): il solido più leggero, traslucido
+  # azzurrino per Rayleigh scattering volumetrico. Approssimato come
+  # forte subsurface + leggero spec_trans + tinte azzurra.
+  - id: "dis_aerogel"
+    type: "disney"
+    color: [0.78, 0.88, 0.96]
+    roughness: 0.05
+    specular: 0.40
+    subsurface: 0.85
+    subsurface_color: [0.42, 0.62, 0.92]
+    spec_trans: 0.55
+    ior: 1.02
+    transmission_color: [0.55, 0.72, 0.95]
+    transmission_depth: 0.3

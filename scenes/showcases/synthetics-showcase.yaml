@@ -1,0 +1,69 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Synthetics Showcase — Materiali Tecnici Avanzati
+#
+#  Dimostra 5 materiali della libreria `synthetics.yaml`:
+#
+#    x=-4.8  Fibra di carbonio twill    → anisotropic 0.85 + clearcoat 0.95
+#    x=-2.4  Kevlar giallo               → anisotropic + sheen weave
+#    x=  0   Silicone medicale           → subsurface 0.55 + spec_trans
+#    x=+2.4  Vinile chrome rosa          → metallic 1.0 + clearcoat
+#    x=+4.8  Neoprene foderato           → sheen alto + bump weave
+#
+#  Render consigliato:
+#    Draft:  -w 640  -H 360  -s 32   -d 4  -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+imports:
+  - { path: "../libraries/materials/synthetics.yaml" }
+
+world:
+  sky:
+    type: "flat"
+    color: [0.03, 0.03, 0.04]
+
+camera:
+  position: [0, 1.8, -11.0]
+  look_at:  [0, 0.9, 0]
+  fov: 50
+
+materials:
+
+  - id: "floor"
+    type: "disney"
+    color: [0.16, 0.16, 0.17]
+    roughness: 0.65
+
+  - id: "backdrop"
+    type: "disney"
+    color: [0.06, 0.06, 0.07]
+    roughness: 0.92
+
+entities:
+
+  - { name: "floor", type: "quad", q: [-14, 0, -3], u: [28, 0, 0], v: [0, 0, 10], material: "floor" }
+  - { name: "wall",  type: "quad", q: [-14, 0,  6], u: [28, 0, 0], v: [0, 8, 0],  material: "backdrop" }
+
+  - { name: "carbon",    type: "sphere", center: [-4.8, 0.9, 0], radius: 0.9, seed:  3, material: "dis_carbonio_twill"    }
+  - { name: "kevlar",    type: "sphere", center: [-2.4, 0.9, 0], radius: 0.9, seed: 11, material: "dis_kevlar_giallo"     }
+  - { name: "silicone",  type: "sphere", center: [ 0.0, 0.9, 0], radius: 0.9, seed: 19, material: "dis_silicone_medicale" }
+  - { name: "chrome",    type: "sphere", center: [ 2.4, 0.9, 0], radius: 0.9, seed: 29, material: "dis_vinile_chrome_rosa"}
+  - { name: "neoprene",  type: "sphere", center: [ 4.8, 0.9, 0], radius: 0.9, seed: 37, material: "dis_neoprene_foderato" }
+
+lights:
+
+  - type: "directional"
+    direction: [-0.45, -0.75, 0.4]
+    color: [1.0, 0.98, 0.95]
+    intensity: 5.5
+    angular_radius: 0.5
+
+  - type: "point"
+    position: [-6, 7, -3]
+    color: [0.85, 0.92, 1.00]
+    intensity: 60
+
+  - type: "point"
+    position: [0, 3.5, 5]
+    color: [1.0, 0.85, 0.62]
+    intensity: 50

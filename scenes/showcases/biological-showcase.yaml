@@ -1,0 +1,73 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Biological Showcase — Tessuti Biologici Viventi
+#
+#  Dimostra 5 materiali della libreria `biological.yaml`:
+#
+#    x=-4.8  Pelle umana mediterranea   → subsurface + ramp + sheen + coat
+#    x=-2.4  Iride blu                   → voronoi f2_minus_f1 raggi iride
+#    x=  0   Scaglie salmone             → thin_film + voronoi cell + metallic
+#    x=+2.4  Piuma di pavone             → thin_film 480nm + anisotropic
+#    x=+4.8  Lingua bovina               → voronoi papille + clearcoat umido
+#
+#  Render consigliato:
+#    Draft:  -w 640  -H 360  -s 64   -d 8  -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 12 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+imports:
+  - { path: "../libraries/materials/biological.yaml" }
+
+world:
+  sky:
+    type: "flat"
+    color: [0.05, 0.05, 0.06]
+
+camera:
+  position: [0, 1.8, -11.0]
+  look_at:  [0, 0.9, 0]
+  fov: 50
+
+materials:
+
+  - id: "floor"
+    type: "disney"
+    color: [0.20, 0.18, 0.16]
+    roughness: 0.55
+
+  - id: "backdrop"
+    type: "disney"
+    color: [0.10, 0.09, 0.08]
+    roughness: 0.92
+
+entities:
+
+  - { name: "floor", type: "quad", q: [-14, 0, -3], u: [28, 0, 0], v: [0, 0, 10], material: "floor" }
+  - { name: "wall",  type: "quad", q: [-14, 0,  6], u: [28, 0, 0], v: [0, 8, 0],  material: "backdrop" }
+
+  - { name: "skin",    type: "sphere", center: [-4.8, 0.9, 0], radius: 0.9, seed:  3, material: "dis_skin_mediterranea"  }
+  - { name: "iride",   type: "sphere", center: [-2.4, 0.9, 0], radius: 0.9, seed: 11, material: "dis_iride_blu"          }
+  - { name: "scaglie", type: "sphere", center: [ 0.0, 0.9, 0], radius: 0.9, seed: 19, material: "dis_scaglie_salmone"    }
+  - { name: "piuma",   type: "sphere", center: [ 2.4, 0.9, 0], radius: 0.9, seed: 29, material: "dis_piuma_pavone"       }
+  - { name: "lingua",  type: "sphere", center: [ 4.8, 0.9, 0], radius: 0.9, seed: 37, material: "dis_lingua_bovina"      }
+
+lights:
+
+  # Key calda da sinistra: ambient naturale.
+  - type: "directional"
+    direction: [-0.5, -0.75, 0.35]
+    color: [1.00, 0.95, 0.88]
+    intensity: 5.0
+    angular_radius: 0.6
+
+  # Sphere fill bianco caldo per la pelle (SSS legge bene area light).
+  - type: "sphere"
+    position: [-3, 4, -4]
+    radius: 0.7
+    color: [1.0, 0.95, 0.88]
+    intensity: 12
+
+  # Rim freddo dietro per separare dal backdrop.
+  - type: "point"
+    position: [0, 3, 5]
+    color: [0.78, 0.85, 1.00]
+    intensity: 50

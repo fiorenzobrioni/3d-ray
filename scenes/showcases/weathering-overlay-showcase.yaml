@@ -1,0 +1,170 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Weathering Overlay Showcase — Mix Material per invecchiamento
+#
+#  Dimostra come gli overlay della libreria `weathering.yaml` si combinano
+#  via `type: mix` a materiali base per produrre superfici invecchiate
+#  realistiche. Ogni sfera mostra base + overlay con maschera procedurale
+#  diversa.
+#
+#    x=-4.8  Cromo + ruggine media       → cromo lucido base, ruggine concentrata
+#    x=-2.4  Cemento + muschio denso     → cemento + voronoi mask (zone umide)
+#    x=  0   Vernice scrostata bianca    → metallo + crackle voronoi
+#    x=+2.4  Legno + calcare             → legno chiaro + macchie umidità
+#    x=+4.8  Ferro + sale marino         → ferro patinato + aloni cristallini
+#
+#  Ogni mix usa una `mask` procedurale specifica per simulare DOVE
+#  l'overlay si concentra. La maschera è il cuore del mix e va modulata
+#  per ogni effetto realistico.
+#
+#  Render consigliato:
+#    Draft:  -w 640  -H 360  -s 32  -d 4  -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 10 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+imports:
+  - { path: "../libraries/materials/weathering.yaml" }
+  - { path: "../libraries/materials/metals.yaml" }
+  - { path: "../libraries/materials/concretes.yaml" }
+  - { path: "../libraries/materials/woods.yaml" }
+
+world:
+  sky:
+    type: "flat"
+    color: [0.03, 0.03, 0.04]
+
+camera:
+  position: [0, 1.8, -11.0]
+  look_at:  [0, 0.9, 0]
+  fov: 50
+
+materials:
+
+  # ── BASE: metallo bianco generico per la sfera "vernice scrostata" ──
+  # Sotto la vernice scrostata si intravede il primer chiaro (look classico
+  # di pareti industriali invecchiate).
+  - id: "primer_chiaro"
+    type: "disney"
+    color: [0.60, 0.58, 0.55]
+    roughness: 0.70
+    specular: 0.35
+
+  # ── MIX 1: Cromo + ruggine media ───────────────────────────────────
+  # Maschera con noise ridged: la ruggine appare in macchie irregolari
+  # concentrate (alta lacunarity = pattern frastagliato).
+  - id: "mix_cromo_ruggine"
+    type: "mix"
+    material_a: "dis_cromo_specchio"      # da metals.yaml
+    material_b: "over_rust_medium"
+    mask:
+      type: "noise"
+      scale: 2.5
+      noise_type: "ridged"
+      octaves: 6
+      lacunarity: 2.0
+      gain: 0.55
+      noise_strength: 1.2
+      randomize_offset: true
+
+  # ── MIX 2: Cemento + muschio denso ─────────────────────────────────
+  # Voronoi cell come maschera: il muschio si concentra in "isole"
+  # cellulari sparse, come crescite reali in zone umide localizzate.
+  - id: "mix_cemento_muschio"
+    type: "mix"
+    material_a: "dis_cemento_industriale"
+    material_b: "over_moss_dense"
+    mask:
+      type: "voronoi"
+      scale: 3.5
+      output: "f1"
+      smoothness: 0.3
+      randomness: 1.0
+      colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
+
+  # ── MIX 3: Primer + vernice scrostata ───────────────────────────────
+  # Crackle voronoi come maschera: pattern di scaglie nettamente delimitate
+  # con bordi taglienti tipici della vernice "blistered".
+  - id: "mix_vernice_scrostata"
+    type: "mix"
+    material_a: "primer_chiaro"
+    material_b: "over_paint_flake_bianca"
+    mask:
+      type: "voronoi"
+      scale: 5.0
+      output: "f2_minus_f1"
+      randomness: 1.0
+      colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
+
+  # ── MIX 4: Legno chiaro + calcare ──────────────────────────────────
+  # FBM noise con distortion: macchie di calcare distribuite con
+  # variazione organica, come depositi su superfici esposte all'acqua.
+  - id: "mix_legno_calcare"
+    type: "mix"
+    material_a: "dis_quercia_olio"         # da woods.yaml (quercia ≈ rovere)
+    material_b: "over_limescale"
+    mask:
+      type: "noise"
+      scale: 3.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.0
+      distortion: 0.3
+      randomize_offset: true
+
+  # ── MIX 5: Ferro + sale marino ─────────────────────────────────────
+  # Mask combinato: ridged ad alta freq per macchie diffuse + aloni.
+  # Per il look completo "rust+salt" servirebbe un mix triplo (base + rust
+  # + salt); qui mostriamo solo salt sopra ferro pulito.
+  - id: "mix_ferro_sale"
+    type: "mix"
+    material_a: "dis_ferro_battuto"        # da metals.yaml
+    material_b: "over_sale_marino"
+    mask:
+      type: "noise"
+      scale: 4.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.4
+      distortion: 0.4
+      randomize_offset: true
+
+  - id: "floor"
+    type: "disney"
+    color: [0.15, 0.15, 0.16]
+    roughness: 0.85
+
+  - id: "backdrop"
+    type: "disney"
+    color: [0.08, 0.08, 0.09]
+    roughness: 0.92
+
+entities:
+
+  - { name: "floor",   type: "quad", q: [-14, 0, -3], u: [28, 0, 0], v: [0, 0, 10], material: "floor" }
+  - { name: "wall",    type: "quad", q: [-14, 0,  6], u: [28, 0, 0], v: [0, 8, 0],  material: "backdrop" }
+
+  - { name: "cromo_rust",    type: "sphere", center: [-4.8, 0.9, 0], radius: 0.9, seed:  3, material: "mix_cromo_ruggine"      }
+  - { name: "cemento_moss",  type: "sphere", center: [-2.4, 0.9, 0], radius: 0.9, seed: 11, material: "mix_cemento_muschio"    }
+  - { name: "vernice_flake", type: "sphere", center: [ 0.0, 0.9, 0], radius: 0.9, seed: 19, material: "mix_vernice_scrostata"  }
+  - { name: "legno_lime",    type: "sphere", center: [ 2.4, 0.9, 0], radius: 0.9, seed: 29, material: "mix_legno_calcare"      }
+  - { name: "ferro_salt",    type: "sphere", center: [ 4.8, 0.9, 0], radius: 0.9, seed: 37, material: "mix_ferro_sale"         }
+
+lights:
+
+  # Sole basso da sinistra: setup outdoor lazy afternoon. Ambra calda.
+  - type: "directional"
+    direction: [-0.55, -0.65, 0.45]
+    color: [1.00, 0.93, 0.80]
+    intensity: 5.5
+    angular_radius: 0.7
+
+  # Fill freddo: simula riflessioni dal cielo blu.
+  - type: "point"
+    position: [0, 8, -3]
+    color: [0.80, 0.88, 1.00]
+    intensity: 55
+
+  # Rim caldo basso da dietro: enfatizza bordi e dettagli weathering.
+  - type: "point"
+    position: [0, 2, 5]
+    color: [1.0, 0.78, 0.55]
+    intensity: 40

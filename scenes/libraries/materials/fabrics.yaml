@@ -1004,3 +1004,138 @@ materials:
     subsurface: 0.22
     spec_trans: 0.35
     ior: 1.50
+
+  # ════════════════════════════════════════════════════════════════════════
+  # EXTENDED VFX MATERIALS (v2)
+  # ════════════════════════════════════════════════════════════════════════
+  #
+  # Estensione con feature di texturing avanzate:
+  #   • Anisotropic + anisotropic_rotation per raso/twill (rotazione del
+  #     riflesso lungo l'orientazione del filo).
+  #   • Voronoi cell per pattern weave (jacquard, denim).
+  #   • Color_ramp 4-stop per tessuti sfumati (tweed, melange).
+  #   • Diff_trans per tessuti sottili (organza, voile, garza).
+  #   • Sheen + sheen_roughness elevati per velluti / velour deep-pile.
+  # ════════════════════════════════════════════════════════════════════════
+
+  # Raso seta anisotropico classico: riflesso direzionale lungo il twist.
+  - id: "dis_raso_seta_anisotropic"
+    type: "disney"
+    color: [0.92, 0.85, 0.55]
+    roughness: 0.18
+    specular: 0.55
+    anisotropic: 0.85
+    anisotropic_rotation: 0.0625
+    sheen: 0.50
+    sheen_roughness: 0.4
+    sheen_tint: 0.4
+
+  # Velluto deep-pile rosso bordeaux: Charlie sheen massimo.
+  - id: "dis_velluto_deep_bordeaux"
+    type: "disney"
+    color: [0.32, 0.05, 0.08]
+    roughness: 0.95
+    specular: 0.15
+    sheen: 0.95
+    sheen_roughness: 0.95
+    sheen_tint: 0.3
+    subsurface: 0.18
+    subsurface_color: [0.45, 0.06, 0.10]
+
+  # Velluto deep-pile blu notte.
+  - id: "dis_velluto_deep_blu_notte"
+    type: "disney"
+    color: [0.05, 0.08, 0.22]
+    roughness: 0.95
+    specular: 0.15
+    sheen: 0.95
+    sheen_roughness: 0.95
+    sheen_tint: 0.3
+    subsurface: 0.18
+    subsurface_color: [0.06, 0.10, 0.30]
+
+  # Tweed melange grigio: color_ramp 4-stop per filati misti.
+  - id: "dis_tweed_melange_v2"
+    type: "disney"
+    color: [0.42, 0.42, 0.40]
+    roughness: 0.85
+    specular: 0.25
+    sheen: 0.55
+    sheen_roughness: 0.7
+    texture:
+      type: "noise"
+      scale: 30.0
+      noise_type: "fbm"
+      octaves: 3
+      noise_strength: 0.5
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.05, 0.05], interp: "smoothstep" }
+        - { position: 0.35, color: [0.32, 0.32, 0.30], interp: "smoothstep" }
+        - { position: 0.70, color: [0.55, 0.55, 0.52], interp: "smoothstep" }
+        - { position: 1.00, color: [0.78, 0.76, 0.72], interp: "linear" }
+
+  # Tweed melange caldo (oatmeal): tonalità beige-marrone.
+  - id: "dis_tweed_oatmeal"
+    type: "disney"
+    color: [0.62, 0.52, 0.40]
+    roughness: 0.85
+    specular: 0.25
+    sheen: 0.55
+    sheen_roughness: 0.7
+    texture:
+      type: "noise"
+      scale: 30.0
+      noise_strength: 0.5
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.25, 0.18, 0.10], interp: "smoothstep" }
+        - { position: 0.35, color: [0.48, 0.38, 0.25], interp: "smoothstep" }
+        - { position: 0.70, color: [0.72, 0.60, 0.45], interp: "smoothstep" }
+        - { position: 1.00, color: [0.92, 0.82, 0.65], interp: "linear" }
+
+  # Denim selvedge: pattern voronoi cell per intreccio twill 3/1.
+  - id: "dis_denim_selvedge"
+    type: "disney"
+    color: [0.16, 0.28, 0.48]
+    roughness: 0.85
+    specular: 0.25
+    sheen: 0.45
+    sheen_roughness: 0.7
+    anisotropic: 0.55
+    anisotropic_rotation: 0.125
+    texture:
+      type: "voronoi"
+      scale: 50.0
+      output: "cell"
+      smoothness: 0.1
+      colors: [[0.10, 0.20, 0.35], [0.22, 0.36, 0.55]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 60.0
+        output: "f2_minus_f1"
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.5
+
+  # Organza bianca: tessuto sottilissimo trasparente, diff_trans alto.
+  - id: "dis_organza_bianca"
+    type: "disney"
+    color: [0.95, 0.94, 0.92]
+    roughness: 0.35
+    specular: 0.32
+    thin_walled: true
+    diff_trans: 0.75
+    sheen: 0.32
+    sheen_roughness: 0.5
+
+  # Garza sottile: medicale o decorativa.
+  - id: "dis_garza"
+    type: "disney"
+    color: [0.94, 0.92, 0.88]
+    roughness: 0.55
+    specular: 0.28
+    thin_walled: true
+    diff_trans: 0.80
+    sheen: 0.30
+    sheen_roughness: 0.6

@@ -898,3 +898,138 @@ materials:
     type: "metal"
     color: [0.22, 0.22, 0.23]
     fuzz: 0.30
+
+  # ════════════════════════════════════════════════════════════════════════
+  # EXTENDED VFX MATERIALS (v2)
+  # ════════════════════════════════════════════════════════════════════════
+  #
+  # Estensione con feature avanzate:
+  #   • Thin_film 400-800nm per vernici perlate auto e cangianti.
+  #   • Coat_normal_map procedurale per "orange peel" (microbump sotto coat).
+  #   • Color_ramp per chalk paint sfumato e patine murali.
+  #   • Displacement scalare leggero per pittura murale ruvida.
+  # ════════════════════════════════════════════════════════════════════════
+
+  # Vernice perlata bianca: thin_film 450nm per riflesso perla naturale.
+  - id: "dis_vernice_perlata_bianca"
+    type: "disney"
+    metallic: 0.30
+    color: [0.92, 0.92, 0.94]
+    roughness: 0.20
+    specular: 0.55
+    clearcoat: 1.0
+    coat_roughness: 0.05
+    thin_film_thickness: 450
+    thin_film_ior: 1.45
+
+  # Vernice perlata blu cangiante: thin_film 580nm.
+  - id: "dis_vernice_perlata_blu_cangiante"
+    type: "disney"
+    metallic: 0.55
+    color: [0.18, 0.32, 0.55]
+    roughness: 0.22
+    specular: 0.60
+    clearcoat: 1.0
+    coat_roughness: 0.05
+    thin_film_thickness: 580
+    thin_film_ior: 1.45
+
+  # Vernice perlata rosa flip-flop: cambia da rosa a verde con l'angolo.
+  - id: "dis_vernice_perlata_flipflop"
+    type: "disney"
+    metallic: 0.60
+    color: [0.62, 0.45, 0.55]
+    roughness: 0.18
+    specular: 0.60
+    clearcoat: 1.0
+    coat_roughness: 0.04
+    thin_film_thickness: 620
+    thin_film_ior: 1.50
+
+  # Vernice spray auto con orange peel: coat_roughness più alto + bump
+  # sotto il clearcoat per la classica trama "buccia d'arancia".
+  - id: "dis_vernice_spray_orange_peel"
+    type: "disney"
+    color: [0.62, 0.62, 0.62]
+    roughness: 0.20
+    specular: 0.55
+    clearcoat: 0.85
+    coat_roughness: 0.18
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 50.0
+        smoothness: 0.5
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.7
+
+  # Chalk paint sfumato celeste: color_ramp 3-stop per look "shabby chic".
+  - id: "dis_chalk_paint_celeste"
+    type: "disney"
+    color: [0.72, 0.82, 0.85]
+    roughness: 0.92
+    specular: 0.18
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.35
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.45, 0.55, 0.62], interp: "smoothstep" }
+        - { position: 0.55, color: [0.68, 0.78, 0.82], interp: "smoothstep" }
+        - { position: 1.00, color: [0.88, 0.94, 0.96], interp: "linear" }
+
+  # Chalk paint salvia: tonalità tendenza interior 2020+.
+  - id: "dis_chalk_paint_salvia"
+    type: "disney"
+    color: [0.62, 0.72, 0.55]
+    roughness: 0.92
+    specular: 0.18
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.30
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.35, 0.45, 0.30], interp: "smoothstep" }
+        - { position: 0.55, color: [0.58, 0.68, 0.50], interp: "smoothstep" }
+        - { position: 1.00, color: [0.82, 0.90, 0.78], interp: "linear" }
+
+  # Pittura murale lavabile bianca con displacement leggero (ruvidità).
+  - id: "dis_pittura_murale_lavabile"
+    type: "disney"
+    color: [0.92, 0.92, 0.90]
+    roughness: 0.55
+    specular: 0.32
+    subsurface: 0.10
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_strength: 0.08
+      colors: [[0.90, 0.90, 0.88], [0.94, 0.94, 0.92]]
+      randomize_offset: true
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        scale: 40.0
+        noise_type: "fbm"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.0015
+      midlevel: 0.5
+      bound: 0.003
+      autobump: true
+      displacement_method: "bump_only"
+
+  # Lacca giapponese (urushi): nero profondo iridescente con thin_film.
+  - id: "dis_lacca_giapponese"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.05
+    specular: 0.55
+    clearcoat: 1.0
+    coat_roughness: 0.03
+    thin_film_thickness: 380
+    thin_film_ior: 1.50

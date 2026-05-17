@@ -1004,3 +1004,172 @@ materials:
     type: "dielectric"
     refraction_index: 1.52
     color: [0.94, 0.94, 0.94]
+
+  # ════════════════════════════════════════════════════════════════════════
+  # EXTENDED VFX MATERIALS (v2)
+  # ════════════════════════════════════════════════════════════════════════
+  #
+  # Estensione con feature avanzate:
+  #   • Thin_film 200-700nm per vetri iridescenti e bolle di sapone.
+  #   • Smooth voronoi (f1_plus_f2) per ghiaccio fratturato.
+  #   • Bump_map procedurale per frosted variations.
+  #   • Displacement scalare per vetro soffiato a mano.
+  #   • Color_ramp per gemme con zonazione cromatica.
+  # ════════════════════════════════════════════════════════════════════════
+
+  # Vetro iridescente: thin_film 480nm.
+  - id: "dis_vetro_iridescente"
+    type: "disney"
+    color: [0.95, 0.95, 0.97]
+    roughness: 0.05
+    specular: 0.55
+    spec_trans: 0.92
+    ior: 1.52
+    transmission_color: [0.95, 0.95, 0.97]
+    transmission_depth: 1.5
+    thin_film_thickness: 480
+    thin_film_ior: 1.45
+
+  # Vetro Tiffany favrile: thin_film 580nm, riflessi colorati intensi.
+  - id: "dis_vetro_favrile"
+    type: "disney"
+    color: [0.45, 0.62, 0.78]
+    roughness: 0.05
+    specular: 0.55
+    spec_trans: 0.85
+    ior: 1.52
+    transmission_color: [0.32, 0.55, 0.72]
+    transmission_depth: 0.8
+    thin_film_thickness: 580
+    thin_film_ior: 1.45
+
+  # Ghiaccio fratturato: smooth voronoi f1_plus_f2.
+  - id: "dis_ghiaccio_fratturato"
+    type: "disney"
+    color: [0.88, 0.92, 0.98]
+    roughness: 0.18
+    specular: 0.50
+    spec_trans: 0.78
+    ior: 1.31
+    transmission_color: [0.85, 0.92, 0.98]
+    transmission_depth: 1.2
+    subsurface: 0.25
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      output: "f1_plus_f2"
+      smoothness: 0.3
+      colors: [[0.72, 0.82, 0.92], [0.95, 0.97, 1.00]]
+
+  # Vetro frosted v2: bump procedurale per sabbiatura reale.
+  - id: "dis_vetro_frosted_v2"
+    type: "disney"
+    color: [0.92, 0.92, 0.92]
+    roughness: 0.42
+    specular: 0.45
+    spec_trans: 0.65
+    ior: 1.52
+    transmission_color: [0.92, 0.92, 0.92]
+    transmission_depth: 0.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 80.0
+        smoothness: 0.6
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.5
+
+  # Vetro soffiato a mano: displacement scalare per imperfezioni.
+  - id: "dis_vetro_soffiato"
+    type: "disney"
+    color: [0.92, 0.94, 0.95]
+    roughness: 0.04
+    specular: 0.55
+    spec_trans: 0.95
+    ior: 1.52
+    transmission_color: [0.92, 0.94, 0.95]
+    transmission_depth: 2.0
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        scale: 3.0
+        noise_type: "fbm"
+        octaves: 3
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.003
+      midlevel: 0.5
+      bound: 0.006
+      autobump: true
+      displacement_method: "bump_only"
+
+  # Bolla di sapone: thin_film 320nm + thin_walled.
+  - id: "dis_bolla_sapone_v2"
+    type: "disney"
+    color: [0.95, 0.95, 0.97]
+    roughness: 0.02
+    specular: 0.55
+    spec_trans: 0.95
+    ior: 1.41
+    thin_walled: true
+    thin_film_thickness: 320
+    thin_film_ior: 1.36
+
+  # Smeraldo: color_ramp 3-stop verde con zonazione naturale.
+  - id: "dis_smeraldo_v2"
+    type: "disney"
+    color: [0.18, 0.62, 0.32]
+    roughness: 0.05
+    specular: 0.60
+    spec_trans: 0.92
+    ior: 1.580
+    transmission_color: [0.08, 0.55, 0.22]
+    transmission_depth: 0.4
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "fbm"
+      octaves: 3
+      noise_strength: 0.25
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.35, 0.15], interp: "smoothstep" }
+        - { position: 0.55, color: [0.22, 0.62, 0.32], interp: "smoothstep" }
+        - { position: 1.00, color: [0.45, 0.85, 0.55], interp: "linear" }
+
+  # Rubino sintetico tagliato: thin_film 280nm per sub-flash.
+  - id: "dis_rubino_v2"
+    type: "disney"
+    color: [0.78, 0.06, 0.10]
+    roughness: 0.04
+    specular: 0.60
+    spec_trans: 0.92
+    ior: 1.770
+    transmission_color: [0.62, 0.04, 0.06]
+    transmission_depth: 0.3
+    thin_film_thickness: 280
+    thin_film_ior: 1.55
+
+  # Zaffiro blu: thin_film 540nm per "sleep silk".
+  - id: "dis_zaffiro_v2"
+    type: "disney"
+    color: [0.10, 0.22, 0.62]
+    roughness: 0.04
+    specular: 0.60
+    spec_trans: 0.92
+    ior: 1.770
+    transmission_color: [0.05, 0.15, 0.55]
+    transmission_depth: 0.3
+    thin_film_thickness: 540
+    thin_film_ior: 1.55
+
+  # Diamante taglio brilliant: ior 2.418.
+  - id: "dis_diamante_brilliant"
+    type: "disney"
+    color: [0.98, 0.98, 0.98]
+    roughness: 0.02
+    specular: 0.65
+    spec_trans: 1.0
+    ior: 2.418
+    transmission_color: [0.98, 0.98, 0.98]
+    transmission_depth: 2.5

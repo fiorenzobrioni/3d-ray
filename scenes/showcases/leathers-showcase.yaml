@@ -1,0 +1,81 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Leathers Showcase — Pelli
+#
+#  Dimostra 5 pelli della libreria `leathers.yaml`, ciascuna scelta per
+#  esibire una feature differente del Disney BSDF:
+#
+#    x=-4.8  Nappa rossa                → subsurface_color + sheen
+#    x=-2.4  Suede tabacco              → sheen 0.85 + sheen_roughness 0.85
+#    x=  0   Pelle pitone naturale      → voronoi cell + f2_minus_f1 bump
+#    x=+2.4  Pelle vintage marrone      → color_ramp 4-stop + bump grana
+#    x=+4.8  Coccodrillo nero           → voronoi + displacement scalare
+#
+#  Layout su sfere per esibire la grana procedurale senza ambiguità di UV
+#  (sfere hanno parametrizzazione naturale).
+#
+#  Render consigliato:
+#    Draft:  -w 640  -H 360  -s 32  -d 4  -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 10 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+imports:
+  - { path: "../libraries/materials/leathers.yaml" }
+
+world:
+  sky:
+    type: "flat"
+    color: [0.025, 0.025, 0.03]
+
+camera:
+  position: [0, 1.8, -11.0]
+  look_at:  [0, 0.9, 0]
+  fov: 50
+
+materials:
+
+  - id: "floor"
+    type: "disney"
+    color: [0.16, 0.14, 0.12]
+    roughness: 0.55
+    specular: 0.40
+
+  - id: "backdrop"
+    type: "disney"
+    color: [0.08, 0.07, 0.06]
+    roughness: 0.92
+
+entities:
+
+  - { name: "floor",   type: "quad", q: [-14, 0, -3], u: [28, 0, 0], v: [0, 0, 10], material: "floor" }
+  - { name: "wall",    type: "quad", q: [-14, 0,  6], u: [28, 0, 0], v: [0, 8, 0],  material: "backdrop" }
+
+  - { name: "nappa",    type: "sphere", center: [-4.8, 0.9, 0], radius: 0.9, seed:  3, material: "dis_nappa_rossa"             }
+  - { name: "suede",    type: "sphere", center: [-2.4, 0.9, 0], radius: 0.9, seed: 11, material: "dis_suede_tabacco"           }
+  - { name: "pitone",   type: "sphere", center: [ 0.0, 0.9, 0], radius: 0.9, seed: 19, material: "dis_pelle_pitone_naturale"   }
+  - { name: "vintage",  type: "sphere", center: [ 2.4, 0.9, 0], radius: 0.9, seed: 29, material: "dis_pelle_vintage_marrone"   }
+  - { name: "coccod",   type: "sphere", center: [ 4.8, 0.9, 0], radius: 0.9, seed: 37, material: "dis_pelle_coccodrillo_nero"  }
+
+lights:
+
+  # Key warm tinted: ambiente boutique caldo. Le pelli vintage devono
+  # respirare in un tono di luce ambra.
+  - type: "directional"
+    direction: [-0.4, -0.8, 0.4]
+    color: [1.00, 0.92, 0.78]
+    intensity: 4.5
+    angular_radius: 0.5
+
+  # Fill freddo dall'alto sinistra per separare i tonifici scuri
+  # dall'ambient nero del backdrop.
+  - type: "point"
+    position: [-6, 7, -3]
+    color: [0.85, 0.90, 1.00]
+    intensity: 50
+
+  # Sphere light rim caldo dal retro: enfatizza il sheen del suede
+  # (backlit fuzz halo) e i bordi scaglie del pitone.
+  - type: "sphere"
+    position: [0, 3.5, 4.5]
+    radius: 0.6
+    color: [1.0, 0.78, 0.55]
+    intensity: 12

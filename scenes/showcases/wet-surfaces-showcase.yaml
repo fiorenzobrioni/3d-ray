@@ -1,0 +1,107 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Wet Surfaces Showcase — Superfici Bagnate (Cross-Library Mix)
+#
+#  Combina materiali di liquids + ceramics + plasters + concretes via mix
+#  material per simulare superfici DOPO PIOGGIA. Mostra come l'overlay
+#  `over_water_film` da `weathering.yaml` trasforma ogni base.
+#
+#    x=-4.8  Piastrella bagnata     → ceramica + film acqua
+#    x=-2.4  Marmo bagnato           → marmo Carrara + film acqua
+#    x=  0   Cemento bagnato         → cemento + acqua piscina semi
+#    x=+2.4  Intonaco bagnato        → veneziano + film acqua
+#    x=+4.8  Asfalto bagnato puro    → da concretes.yaml (no mix)
+#
+#  Render consigliato:
+#    Draft:  -w 640  -H 360  -s 64   -d 8  -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 12 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+imports:
+  - { path: "../libraries/materials/concretes.yaml" }
+  - { path: "../libraries/materials/plasters.yaml" }
+  - { path: "../libraries/materials/stones.yaml" }
+  - { path: "../libraries/materials/weathering.yaml" }
+  - { path: "../libraries/materials/ceramics.yaml" }
+
+world:
+  sky:
+    type: "flat"
+    color: [0.10, 0.12, 0.16]
+
+camera:
+  position: [0, 1.8, -11.0]
+  look_at:  [0, 0.9, 0]
+  fov: 50
+
+materials:
+
+  # ── MIX 1: Ceramica + film d'acqua ──────────────────────────────────
+  - id: "mix_ceramica_bagnata"
+    type: "mix"
+    material_a: "dis_porcellana_bianca"   # base ceramica esistente
+    material_b: "over_water_film"
+    blend: 0.45
+
+  # ── MIX 2: Marmo Carrara + film d'acqua ─────────────────────────────
+  - id: "mix_marmo_bagnato"
+    type: "mix"
+    material_a: "dis_carrara_lucido"
+    material_b: "over_water_film"
+    blend: 0.40
+
+  # ── MIX 3: Cemento bocciardato + acqua ──────────────────────────────
+  - id: "mix_cemento_bagnato"
+    type: "mix"
+    material_a: "dis_cemento_bocciardato"
+    material_b: "over_water_film"
+    blend: 0.55
+
+  # ── MIX 4: Veneziano + film d'acqua ─────────────────────────────────
+  - id: "mix_intonaco_bagnato"
+    type: "mix"
+    material_a: "dis_veneziano_blu"
+    material_b: "over_water_film"
+    blend: 0.35
+
+  - id: "floor"
+    type: "disney"
+    color: [0.10, 0.12, 0.14]
+    roughness: 0.18
+    specular: 0.50
+    clearcoat: 0.5
+    coat_roughness: 0.10
+
+  - id: "backdrop"
+    type: "disney"
+    color: [0.10, 0.10, 0.12]
+    roughness: 0.90
+
+entities:
+
+  - { name: "floor", type: "quad", q: [-14, 0, -3], u: [28, 0, 0], v: [0, 0, 10], material: "floor" }
+  - { name: "wall",  type: "quad", q: [-14, 0,  6], u: [28, 0, 0], v: [0, 8, 0],  material: "backdrop" }
+
+  - { name: "ceramica_wet",   type: "sphere", center: [-4.8, 0.9, 0], radius: 0.9, seed:  3, material: "mix_ceramica_bagnata"  }
+  - { name: "marmo_wet",      type: "sphere", center: [-2.4, 0.9, 0], radius: 0.9, seed: 11, material: "mix_marmo_bagnato"     }
+  - { name: "cemento_wet",    type: "sphere", center: [ 0.0, 0.9, 0], radius: 0.9, seed: 19, material: "mix_cemento_bagnato"   }
+  - { name: "intonaco_wet",   type: "sphere", center: [ 2.4, 0.9, 0], radius: 0.9, seed: 29, material: "mix_intonaco_bagnato"  }
+  - { name: "asfalto_wet",    type: "sphere", center: [ 4.8, 0.9, 0], radius: 0.9, seed: 37, material: "dis_asfalto_bagnato"   }
+
+lights:
+
+  # Setup "after rain": cielo overcast, riflessione dei lampioni.
+  - type: "directional"
+    direction: [-0.3, -0.65, 0.7]
+    color: [0.78, 0.85, 1.00]
+    intensity: 4.0
+    angular_radius: 1.0
+
+  - type: "point"
+    position: [0, 5, -4]
+    color: [0.95, 0.92, 0.85]
+    intensity: 70
+
+  - type: "point"
+    position: [0, 2.5, 5]
+    color: [1.0, 0.85, 0.62]
+    intensity: 45

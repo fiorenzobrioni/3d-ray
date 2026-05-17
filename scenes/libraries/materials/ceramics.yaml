@@ -898,3 +898,171 @@ materials:
     type: "metal"
     color: [0.72, 0.40, 0.28]
     fuzz: 0.62
+
+  # ════════════════════════════════════════════════════════════════════════
+  # EXTENDED VFX MATERIALS (v2)
+  # ════════════════════════════════════════════════════════════════════════
+  #
+  # Aggiunte che esercitano:
+  #   • Voronoi f2_minus_f1 (crackle) per glaze crepato kintsugi-style
+  #   • Color ramp multi-stop per celadon e raku
+  #   • Bump_map voronoi smooth per finitura raku ruvida
+  #   • Displacement scalare sub-mm per terracotta non smaltata
+  # ════════════════════════════════════════════════════════════════════════
+
+  # Crackle glaze bianco: pattern di crepe nella smaltatura tipo celadon
+  # invecchiato. Voronoi f2_minus_f1 dà le linee fini delle crepe.
+  - id: "dis_crackle_glaze_bianco"
+    type: "disney"
+    color: [0.92, 0.90, 0.86]
+    roughness: 0.12
+    specular: 0.55
+    clearcoat: 0.85
+    coat_roughness: 0.05
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      output: "f2_minus_f1"
+      randomness: 1.0
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.10, 0.06], interp: "smoothstep" }
+        - { position: 0.05, color: [0.92, 0.90, 0.86], interp: "constant" }
+        - { position: 1.00, color: [0.96, 0.94, 0.90], interp: "linear" }
+
+  # Crackle glaze celadon (verde-azzurro): cinese tradizionale.
+  - id: "dis_crackle_celadon_verde"
+    type: "disney"
+    color: [0.62, 0.78, 0.65]
+    roughness: 0.12
+    specular: 0.55
+    subsurface: 0.18
+    subsurface_color: [0.55, 0.82, 0.72]
+    clearcoat: 0.85
+    coat_roughness: 0.05
+    texture:
+      type: "voronoi"
+      scale: 7.0
+      output: "f2_minus_f1"
+      color_ramp:
+        - { position: 0.00, color: [0.12, 0.22, 0.18], interp: "smoothstep" }
+        - { position: 0.05, color: [0.62, 0.78, 0.65], interp: "constant" }
+        - { position: 1.00, color: [0.72, 0.85, 0.72], interp: "linear" }
+
+  # Celadon studio: color_ramp 4-stop per gradiente naturale dalle zone
+  # sottili (più chiare) alle zone spesse (più sature).
+  - id: "dis_celadon_studio"
+    type: "disney"
+    color: [0.62, 0.82, 0.72]
+    roughness: 0.10
+    specular: 0.55
+    subsurface: 0.25
+    subsurface_color: [0.55, 0.88, 0.78]
+    clearcoat: 0.85
+    coat_roughness: 0.05
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.3
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.32, 0.55, 0.45], interp: "smoothstep" }
+        - { position: 0.40, color: [0.50, 0.72, 0.62], interp: "smoothstep" }
+        - { position: 0.75, color: [0.65, 0.85, 0.72], interp: "smoothstep" }
+        - { position: 1.00, color: [0.82, 0.95, 0.85], interp: "linear" }
+
+  # Raku nero (cottura ridotta giapponese): voronoi smooth + bump per
+  # finitura caratteristica ruvida con riflessi metallici.
+  - id: "dis_raku_nero"
+    type: "disney"
+    color: [0.06, 0.06, 0.08]
+    roughness: 0.42
+    specular: 0.45
+    clearcoat: 0.3
+    coat_roughness: 0.25
+    texture:
+      type: "voronoi"
+      scale: 4.5
+      output: "cell"
+      smoothness: 0.4
+      colors: [[0.02, 0.02, 0.04], [0.18, 0.18, 0.22]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 18.0
+        smoothness: 0.3
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.9
+
+  # Raku iridescente: thin_film 400-500nm per riflessi cangianti.
+  - id: "dis_raku_iridescente"
+    type: "disney"
+    color: [0.18, 0.16, 0.18]
+    roughness: 0.32
+    specular: 0.55
+    clearcoat: 0.55
+    coat_roughness: 0.10
+    thin_film_thickness: 420
+    thin_film_ior: 1.55
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 18.0
+        smoothness: 0.4
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.7
+
+  # Terracotta grezza con micro-rilievo: displacement scalare sub-mm.
+  - id: "dis_terracotta_grezza_v2"
+    type: "disney"
+    color: [0.72, 0.42, 0.28]
+    roughness: 0.92
+    specular: 0.22
+    subsurface: 0.15
+    subsurface_color: [0.85, 0.45, 0.30]
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.25
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.42, 0.22, 0.12], interp: "smoothstep" }
+        - { position: 0.55, color: [0.72, 0.42, 0.28], interp: "smoothstep" }
+        - { position: 1.00, color: [0.88, 0.62, 0.42], interp: "linear" }
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        scale: 30.0
+        noise_type: "fbm"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.002
+      midlevel: 0.5
+      bound: 0.004
+      autobump: true
+      autobump_strength: 1.4
+      displacement_method: "bump_only"
+
+  # Maiolica antica patinata: color_ramp 4-stop per usura zone d'angolo.
+  - id: "dis_maiolica_antica_patinata"
+    type: "disney"
+    color: [0.92, 0.88, 0.78]
+    roughness: 0.22
+    specular: 0.55
+    clearcoat: 0.45
+    coat_roughness: 0.15
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.4
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.65, 0.55, 0.42], interp: "smoothstep" }
+        - { position: 0.35, color: [0.82, 0.72, 0.55], interp: "smoothstep" }
+        - { position: 0.70, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
+        - { position: 1.00, color: [0.96, 0.93, 0.85], interp: "linear" }

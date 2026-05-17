@@ -454,3 +454,194 @@ materials:
     spec_trans: 0.85
     ior: 1.333
     specular: 0.72
+
+  # ════════════════════════════════════════════════════════════════════════
+  # EXTENDED VFX MATERIALS (v2)
+  # ════════════════════════════════════════════════════════════════════════
+  #
+  # Estensione con feature avanzate per pavimentazioni e suoli:
+  #   • Musgrave hetero_terrain per sabbia (granulometria stratificata).
+  #   • Voronoi cell per ghiaia (variazione colore per sasso).
+  #   • Smooth voronoi per neve compatta.
+  #   • Color_ramp 4-stop per parquet con invecchiamento.
+  #   • Displacement scalare per piastrelle sconnesse.
+  # ════════════════════════════════════════════════════════════════════════
+
+  # Sabbia desertica musgrave: granulometria con dune e ripples.
+  - id: "dis_sabbia_desertica_v2"
+    type: "disney"
+    color: [0.92, 0.75, 0.45]
+    roughness: 0.92
+    specular: 0.18
+    subsurface: 0.18
+    texture:
+      type: "noise"
+      scale: 1.5
+      noise_type: "hetero_terrain"
+      octaves: 6
+      lacunarity: 2.0
+      gain: 0.5
+      fractal_increment: 0.6
+      fractal_offset: 0.7
+      noise_strength: 1.0
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.35, 0.12], interp: "smoothstep" }
+        - { position: 0.45, color: [0.82, 0.62, 0.28], interp: "smoothstep" }
+        - { position: 0.80, color: [0.92, 0.78, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.88, 0.62], interp: "linear" }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 20.0
+        noise_type: "fbm"
+        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
+      strength: 0.5
+
+  # Ghiaia mista: voronoi cell con color_ramp constant per sassi distinti.
+  - id: "dis_ghiaia_mista"
+    type: "disney"
+    color: [0.55, 0.50, 0.42]
+    roughness: 0.88
+    specular: 0.25
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "cell"
+      smoothness: 0.05
+      randomness: 1.0
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.14, 0.10], interp: "constant" }
+        - { position: 0.25, color: [0.42, 0.36, 0.28], interp: "constant" }
+        - { position: 0.50, color: [0.62, 0.55, 0.45], interp: "constant" }
+        - { position: 0.80, color: [0.82, 0.72, 0.55], interp: "constant" }
+        - { position: 1.00, color: [0.94, 0.88, 0.72], interp: "linear" }
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 8.0
+        output: "f1"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.008
+      midlevel: 0.5
+      bound: 0.014
+      autobump: true
+      autobump_strength: 1.5
+      displacement_method: "bump_only"
+
+  # Neve compatta: smooth voronoi smoothness 0.5 per superficie liscia ma
+  # con leggere variazioni del manto.
+  - id: "dis_neve_compatta"
+    type: "disney"
+    color: [0.96, 0.97, 0.99]
+    roughness: 0.72
+    specular: 0.32
+    subsurface: 0.45
+    subsurface_color: [0.96, 0.98, 1.00]
+    flatness: 0.3
+    texture:
+      type: "voronoi"
+      scale: 10.0
+      output: "f1"
+      smoothness: 0.5
+      colors: [[0.88, 0.90, 0.94], [0.98, 0.99, 1.00]]
+    sheen: 0.30
+    sheen_roughness: 0.6
+
+  # Neve fresca polverosa: subsurface alto + sheen per i cristalli emergenti.
+  - id: "dis_neve_fresca_v2"
+    type: "disney"
+    color: [0.97, 0.98, 1.00]
+    roughness: 0.85
+    specular: 0.28
+    subsurface: 0.55
+    subsurface_color: [0.96, 0.98, 1.00]
+    sheen: 0.45
+    sheen_roughness: 0.7
+    flatness: 0.4
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 30.0
+        colors: [[0.46, 0.46, 0.46], [0.54, 0.54, 0.54]]
+      strength: 0.3
+
+  # Parquet rovere invecchiato: wood + color_ramp 4-stop.
+  - id: "dis_parquet_invecchiato"
+    type: "disney"
+    color: [0.62, 0.45, 0.22]
+    roughness: 0.45
+    specular: 0.40
+    clearcoat: 0.30
+    coat_roughness: 0.18
+    texture:
+      type: "wood"
+      scale: 5.5
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.0
+      noise_strength: 1.5
+      octaves: 5
+      grain_scale: 1.5
+      figure_scale: 0.20
+      figure_strength: 0.4
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.10, 0.04], interp: "smoothstep" }
+        - { position: 0.30, color: [0.42, 0.25, 0.10], interp: "smoothstep" }
+        - { position: 0.65, color: [0.72, 0.52, 0.28], interp: "smoothstep" }
+        - { position: 1.00, color: [0.92, 0.78, 0.55], interp: "linear" }
+
+  # Piastrelle sconnesse: superficie con micro-displacement (giunti).
+  - id: "dis_piastrelle_sconnesse"
+    type: "disney"
+    color: [0.78, 0.72, 0.62]
+    roughness: 0.32
+    specular: 0.45
+    clearcoat: 0.40
+    coat_roughness: 0.18
+    texture:
+      type: "voronoi"
+      scale: 4.0
+      output: "cell"
+      smoothness: 0.05
+      randomness: 0.5
+      colors: [[0.55, 0.48, 0.32], [0.92, 0.85, 0.72]]
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 4.0
+        output: "f2_minus_f1"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.005
+      midlevel: 0.5
+      bound: 0.010
+      autobump: true
+      displacement_method: "bump_only"
+
+  # Terra battuta argillosa: musgrave per crepe naturali.
+  - id: "dis_terra_battuta"
+    type: "disney"
+    color: [0.62, 0.42, 0.25]
+    roughness: 0.92
+    specular: 0.18
+    texture:
+      type: "noise"
+      scale: 1.8
+      noise_type: "ridged"
+      octaves: 6
+      noise_strength: 0.8
+      distortion: 0.25
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.32, 0.18, 0.08], interp: "smoothstep" }
+        - { position: 0.50, color: [0.55, 0.36, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [0.82, 0.62, 0.40], interp: "linear" }
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 8.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.6

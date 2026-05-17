@@ -1,0 +1,63 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Woods Studio v2 Showcase — Sezione EXTENDED di woods.yaml
+#
+#  Dimostra 6 legni dell'estensione VFX v2 in `woods.yaml`:
+#
+#    x=-5.0  Rovere quartato medullary  → radial_anisotropy 4.5 + figure 0.6
+#    x=-3.0  Acero curly max            → figure_strength 2.4
+#    x=-1.0  Pino nodoso heavy          → knot_density 1.0 + ramp 5-stop
+#    x=+1.0  Acero bird's eye           → knot scale alta + ramp 4-stop
+#    x=+3.0  Mogano flame studio        → figure verticale 1.8
+#    x=+5.0  Cedro shou-sugi-ban        → vector displacement carbonizzato
+#
+#  Render consigliato:
+#    Draft:  -w 640  -H 360  -s 64   -d 6  -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 10 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+imports:
+  - { path: "../libraries/materials/woods.yaml" }
+
+world:
+  sky:
+    type: "flat"
+    color: [0.001, 0.001, 0.0012]
+
+camera:
+  position: [0, 1.6, -10.5]
+  look_at:  [0, 0.85, 0]
+  fov: 56
+
+materials:
+  - id: "floor"
+    type: "disney"
+    color: [0.28, 0.28, 0.30]
+    roughness: 0.80
+
+entities:
+
+  - { name: "floor", type: "quad", q: [-12, 0, -4], u: [24, 0, 0], v: [0, 0, 10], material: "floor" }
+
+  - { name: "quartato",  type: "sphere", center: [-5.0, 0.85, 0], radius: 0.85, seed:  1, material: "dis_rovere_quartato_medullary" }
+  - { name: "curly_max", type: "sphere", center: [-3.0, 0.85, 0], radius: 0.85, seed:  7, material: "dis_acero_curly_max"           }
+  - { name: "pino_hvy",  type: "sphere", center: [-1.0, 0.85, 0], radius: 0.85, seed: 13, material: "dis_pino_nodoso_heavy"         }
+  - { name: "birdseye",  type: "sphere", center: [ 1.0, 0.85, 0], radius: 0.85, seed: 23, material: "dis_acero_birdseye"            }
+  - { name: "mogano",    type: "sphere", center: [ 3.0, 0.85, 0], radius: 0.85, seed: 31, material: "dis_mogano_flame_studio"       }
+  - { name: "shou_sugi", type: "sphere", center: [ 5.0, 0.85, 0], radius: 0.85, seed: 41, material: "dis_cedro_shousugiban"         }
+
+lights:
+  - type: "directional"
+    direction: [-0.4, -0.8, 0.45]
+    color: [1.0, 0.98, 0.94]
+    intensity: 6.5
+    angular_radius: 0.6
+
+  - type: "point"
+    position: [-7, 6, -4]
+    color: [0.90, 0.93, 1.00]
+    intensity: 55
+
+  - type: "point"
+    position: [0, 3.5, 5]
+    color: [1.0, 0.82, 0.62]
+    intensity: 45
