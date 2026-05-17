@@ -1366,7 +1366,7 @@ public class Renderer
     /// <c>rec.Normal</c> so bump details sit on top of the normal-map
     /// medium-frequency relief (Arnold/Cycles composition order).
     /// </summary>
-    private static void ApplyBumpMap(ref HitRecord rec, BumpMapTexture bump)
+    private static void ApplyBumpMap(ref HitRecord rec, IBumpMap bump)
     {
         Vector3 T = rec.Tangent;
         Vector3 B = rec.Bitangent;

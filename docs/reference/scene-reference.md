@@ -1057,6 +1057,123 @@ InfinitePlane (i.e. all of them).
 The killer advantage over `normal_map` is **procedural input**: infinite
 resolution, no asset to ship, full reuse of the existing texture library
 (noise/marble/wood/voronoi/brick/gradient).
+
+#### **Surface Displacement (Material-Level — Cycles/RenderMan parity)**
+
+True geometric displacement of subdivided polygonal meshes. Unlike
+`bump_map` (which perturbs only the shading normal) the displacement
+physically moves the vertices, so the **silhouette changes** — outlines
+against the sky reflect the deformation. The displacement is part of the
+material (Cycles' "Material Output → Displacement" socket, RenderMan's
+`PxrDisplace` in the BXDF network): one displaced material drives every
+mesh that uses it, with no per-entity duplication.
+
+```yaml
+materials:
+  - id: "stone_displaced"
+    type: "disney"
+    color: [0.82, 0.66, 0.42]
+    roughness: 0.78
+    displacement:
+      mode: "scalar"                  # scalar | vector
+      space: "tangent"                # vector mode only: tangent | object
+      texture:                        # any ITexture (procedural or image)
+        type: "noise"
+        noise_type: "fbm"
+        scale: 3.5
+        octaves: 5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.30                     # signed world-unit amplitude
+      midlevel: 0.5                   # texture value treated as "flat" (0.5 for 8-bit)
+      uv_scale: 1.0
+      bound: 0.30                     # BVH leaf AABB padding; auto-derived when omitted
+      displacement_method: "both"     # both | displacement | bump_only
+      autobump: true                  # Arnold autobump_visibility equivalent
+      autobump_strength: 1.5
+      autobump_scale: 1.0
+```
+
+The vertex update for scalar mode is `v' = v + scale · (h − midlevel) ·
+n_smooth` with `h = Rec.709 luminance(texture.Value(u, v, p))`. Vector
+mode reads the full RGB triplet and offsets along the per-vertex TBN
+basis (`tangent` space — R→T, G→B, B→N, the Mudbox/Maya/ZBrush/Cycles
+bake convention) or directly as a local `(x, y, z)` offset (`object`
+space). The post-displacement smooth normals are recomputed from the
+displaced topology so the BSDF sees the new silhouette's actual normal
+field, not the pre-displacement one.
+
+| Field                             | Type        | Default | Notes |
+|-----------------------------------|-------------|---------|-------|
+| `displacement.mode`               | string      | `"scalar"` | `"scalar"` reads luminance and offsets along the normal; `"vector"` reads the full RGB as a 3D offset. |
+| `displacement.space`              | string      | `"tangent"` | Vector mode only. `"tangent"` requires a UV channel; the loader silently falls back to `"object"` when absent. |
+| `displacement.texture`            | TextureData | —       | Inner height field. Any procedural (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) or `image`. |
+| `displacement.scale`              | float       | `0.1`   | Signed amplitude in world units. Negative pushes inward. `0` disables. |
+| `displacement.midlevel`           | float       | `0`     | Reference texture value = "no displacement". `0.5` for 8-bit greys / unsigned-RGB EXRs. |
+| `displacement.uv_scale`           | float > 0   | `1.0`   | Uniform UV multiplier stacked on top of the inner texture's own `uv_scale`. |
+| `displacement.bound`              | float ≥ 0   | `\|scale\|` (scalar) / `\|scale\|·√3` (vector) | Maximum expected displacement amplitude. Pads BVH leaf AABBs (Arnold's `disp_padding`, RenderMan's `dispBound`). |
+| `displacement.displacement_method`| string      | `"both"` | Cycles tri-state. `"both"` runs geometric displacement + autobump (if requested); `"displacement"` runs only the geometric pass and forces autobump off; `"bump_only"` skips the geometric pass and turns the texture into a pure bump map. |
+| `displacement.autobump`           | bool        | `false` | Derive a residual `bump_map` from the displacement texture and attach it to the mesh — recovers sub-pixel detail finer than the subdivision grid (Arnold's `autobump_visibility`). |
+| `displacement.autobump_strength`  | float ≥ 0   | `1.0`   | Bump amplitude multiplier; the final amplitude is `autobump_strength · \|scale\|`. |
+| `displacement.autobump_scale`     | float > 0   | `1.0`   | UV-frequency multiplier for the autobump's inner texture. `>1` samples finer than the displacement (macro displacement + micro bump workflow). |
+
+**Mesh-only by design.** Material-level displacement is applied only by
+the `type: mesh` entity branch (same architectural choice as Arnold's
+`polymesh` and Cycles' True Displacement). Non-mesh entities that
+reference a displaced material emit a load-time warning and use the
+material's surface shading without the geometric displacement.
+
+**Composition order.** When all three perturbations are present the
+engine combines them in the order Arnold/Cycles use:
+
+```
+geometry normal (post-displacement)
+  → material.normal_map
+    → material.bump_map
+      → mesh.autobump                 (← derived from displacement.texture)
+```
+
+`coat_normal_map` on the Disney BSDF perturbs only the clearcoat lobe
+and is unaffected by this stack (parity with Arnold's standard surface
+and Cycles' Principled BSDF).
+
+**Pipeline.** `subdivide → displace → triangulate → BVH`. Displacement
+on an un-subdivided low-poly mesh moves the original vertices and is
+rarely visually useful; combine it with `subdivision_iterations ≥ 4`
+(or an adaptive `subdivision_pixel_error`) to expose enough
+micro-vertices for a smooth deformation.
+
+**Per-entity suppression.** Add `displacement_enabled: false` on a mesh
+entity to disable the resolved material's displacement for that single
+instance (the material is still shared with other meshes that DO get
+displaced). Useful for low-detail proxies or LOD copies.
+
+**Mix material displacement (Cycles "Mix Shader → Displacement").** A
+`type: mix` material with `displacement: { blend_with_mask: true }`
+vector-blends the per-vertex displacement offsets of its two child
+materials by the SAME mask/blend factor the BSDF mix uses. The result
+is C0-continuous across material seams; both children must declare
+their own displacement (the loader warns and skips the mix-displacement
+otherwise). The autobump composes as a `MixBumpMapTexture` on the same
+factor.
+
+```yaml
+- id: "weathered_rock"
+  type: "mix"
+  material_a: "rock_clean"               # both children carry their own displacement
+  material_b: "rock_moss"
+  mask:
+    type: "noise"
+    scale: 3.0
+  displacement:
+    blend_with_mask: true                # vector-blend children's displacement
+```
+
+The showcase scenes
+`scenes/showcases/scalar-displacement-showcase.yaml`,
+`vector-displacement-showcase.yaml`,
+`bump-displacement-combo-showcase.yaml`, and
+`material-displacement-mix-showcase.yaml` cover every authoring path.
+
 #### **Per-Entity Seed:**
 ```yaml
 entities:
@@ -1248,203 +1365,41 @@ Pixar's OpenSubdiv:
   interpolation in OpenSubdiv terms). UV seams that share a position but
   not a UV are preserved.
 
-##### **Scalar displacement (true silhouette deformation)**
+##### **Surface displacement (material-level)**
 
-The mesh loader can apply a scalar height-field displacement to the
-(sub)divided mesh **before BVH construction**. Unlike `bump_map`, which
-perturbs only the shading normal, scalar displacement physically moves
-the vertices along the limit-surface smooth normal:
-
-```yaml
-- name: "stone_panel"
-  type: "mesh"
-  path: "models/plane.obj"
-  material: "stone"
-  subdivision_scheme: "catmull_clark"
-  subdivision_iterations: 6
-  displacement:
-    texture:                                # any ITexture (procedural or image)
-      type: "noise"
-      noise_type: "fbm"
-      scale: 3.5
-      octaves: 5
-      colors: [[0, 0, 0], [1, 1, 1]]
-    scale: 0.30                             # world-unit amplitude
-    midlevel: 0.5                           # luminance treated as "flat" (0.5 for 8-bit greys)
-    uv_scale: 1.0                           # uniform UV multiplier (default 1.0)
-  displacement_bound: 0.30                  # max expected displacement (BVH leaf AABB padding)
-```
-
-The vertex update is `v' = v + scale · (h − midlevel) · n_smooth`, where
-`h = luminance(texture.Value(u, v, p))` and `n_smooth` is the angle-weighted
-average of incident face normals on the limit topology (Max 1999 — the
-Blender/Maya/OpenSubdiv default). After displacement the per-vertex shading
-normals are recomputed from the displaced topology so the BSDF sees the
-new silhouette's actual normal field, not the pre-displacement one.
-
-| Field                  | Type        | Default | Notes |
-|------------------------|-------------|---------|-------|
-| `displacement.texture` | TextureData | —       | Inner height field. Any procedural (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) or `image`. Sampled as Rec.709 luminance, same convention as `bump_map`. |
-| `displacement.scale`   | float       | `0.1`   | Signed amplitude in world units. Negative pushes inward. `0` disables. |
-| `displacement.midlevel`| float       | `0`     | Luminance treated as "no displacement". `0.5` for 8-bit greys where 128 means flat (matches RenderMan's `dispMidpoint`). |
-| `displacement.uv_scale`| float > 0   | `1.0`   | Uniform UV multiplier stacked on top of the inner texture's own `uv_scale`. |
-| `displacement_bound`   | float ≥ 0   | `\|scale\|` | Maximum expected displacement amplitude. Pads every BVH leaf AABB by this much (Arnold's `disp_padding`, RenderMan's `dispBound`). Auto-derived from `scale` when omitted. The loader warns when the actually-applied displacement exceeds the bound so the value can be raised. |
-
-**Pipeline order.** The pipeline runs `subdivide → displace → triangulate
-→ BVH`. Displacement on an un-subdivided low-poly mesh moves the original
-vertices and is rarely visually useful; combine it with
-`subdivision_iterations ≥ 4` (or an adaptive `subdivision_pixel_error`)
-to expose enough micro-vertices for a smooth deformation.
-
-**Mesh-only by design.** Scalar displacement is restricted to `type: mesh`
-entities. Built-in primitives (`sphere`, `cylinder`, `torus`, …) use
-`bump_map` for sub-pixel detail — the same architectural choice made by
-Arnold (`displacement` only on `polymesh`) and Cycles (True Displacement
-only on subdiv-capable nodes).
-
-**Bump + displacement composition.** When a material declares a `bump_map`
-and the entity declares a `displacement`, the displacement handles the
-macro silhouette (vertex positions, BVH) and the bump handles sub-pixel
-detail on top of the displaced shading normal. This mirrors Arnold's
-"autobump" workflow.
-
-##### **Vector displacement (RGB → XYZ offset)**
-
-A scalar height field can only push micro-vertices outward (or inward)
-along the smooth normal — a useful constraint that nevertheless rules
-out **overhangs**, **crinkles**, and any feature that bends back over
-itself. **Vector displacement** lifts that restriction by interpreting
-the texture's RGB triplet as a full 3D offset:
+> **Migration note (since `2026-05`).** Displacement is now declared on
+> the material under `materials:`, not on the entity. See the
+> **Surface Displacement** subsection of §5 ("Materials") for the full
+> schema (scalar/vector mode, autobump, `displacement_method`, Mix-blend).
+> Mesh entities can suppress an inherited displacement per-instance via
+> `displacement_enabled: false`.
 
 ```yaml
-- name: "sculpt_panel"
-  type: "mesh"
-  path: "models/plane.obj"
-  material: "stone"
-  subdivision_scheme: "catmull_clark"
-  subdivision_iterations: 6
-  displacement:
-    mode: "vector"                            # default is "scalar"
-    space: "tangent"                          # or "object"
-    texture:
-      type: "image"
-      path: "textures/sculpt_vector_disp.exr" # any RGB ITexture
-    scale: 0.5
-    midlevel: 0.5                             # 0.5 for unsigned 8-bit storage; 0 for signed-float EXR
-  displacement_bound: 0.9
+materials:
+  - id: "stone_displaced"
+    type: "disney"
+    color: [0.82, 0.66, 0.42]
+    roughness: 0.78
+    displacement:
+      texture: { type: "noise", noise_type: "fbm", scale: 3.5, octaves: 5 }
+      scale: 0.30
+      midlevel: 0.5
+      bound: 0.30
+
+entities:
+  - name: "stone_panel"
+    type: "mesh"
+    path: "models/plane.obj"
+    material: "stone_displaced"
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 6
+    # displacement_enabled: false   # optional per-entity bypass
 ```
 
-The vertex update is `v' = v + scale · (rgb − midlevel) · basis`. The
-basis is:
-
-| Space        | R → axis | G → axis | B → axis | Notes |
-|--------------|----------|----------|----------|-------|
-| `tangent`    | T        | B (bitangent) | N (normal) | Mudbox / Maya / ZBrush / Cycles tangent-bake convention. Requires a UV channel; if absent the loader silently falls back to `object`. |
-| `object`     | +X       | +Y       | +Z       | RGB is added directly to the mesh-local position. Independent of UV parametrisation — useful for sculpts shared across assets with different UVs. |
-
-| Field                 | Default     | Notes |
-|-----------------------|-------------|-------|
-| `displacement.mode`   | `"scalar"`  | `"scalar"` reads luminance and offsets along the normal; `"vector"` reads the full RGB as a 3D offset. |
-| `displacement.space`  | `"tangent"` | `"tangent"` or `"object"`. Vector mode only; ignored on scalar. Tangent mode requires a UV channel. |
-| `displacement.scale`  | `0.1`       | World-unit amplitude. In vector mode the full RGB triplet is multiplied component-wise. |
-| `displacement.midlevel` | `0`       | Subtracted from every channel. `0.5` for 8-bit signed-stored maps where 128 means flat (Mudbox/ZBrush default); `0` for signed-float EXRs. |
-| `displacement.uv_scale` | `1.0`     | Uniform UV multiplier. |
-| `displacement_bound`  | `\|scale\|·√3` (vector), `\|scale\|` (scalar) | Per-leaf BVH AABB padding. The vector default accounts for the L2 length of an offset whose three components can each reach `\|scale\|`. The loader warns when the actually-applied displacement exceeds the bound and prints the value to use. |
-
-**Tangent-space convention.** The engine derives per-vertex tangents
-from the UV gradient (Lengyel 2001 face-tangent formula), accumulates
-them angle-weighted across incident triangles, orthonormalises the
-result against the smooth normal via Gram-Schmidt, and preserves
-handedness from the accumulated bitangent (MikkTSpace's rule). This is
-the same convention every consumer of "tangent-space displacement
-maps" baked from Mudbox / Maya / ZBrush expects.
-
-**Pipeline order.** Identical to scalar: `subdivide → displace → triangulate
-→ BVH`. The displacement engine dispatches on `mode` and applies the
-corresponding offset; subdivision and BVH construction are unaware of
-which mode ran.
-
-**Bump + vector displacement.** The composition rule is the same as for
-scalar: the vector displacement handles the macro silhouette (including
-overhangs), and a material-level `bump_map` adds sub-pixel detail on
-top of the displaced shading normal. The recomputed normals after a
-vector displacement pass already reflect the new silhouette, including
-the parts that bend back on themselves, so the bump perturbation
-inherits the correct orientation automatically.
-
-The showcase scene `scenes/showcases/vector-displacement-showcase.yaml`
-puts three panels (scalar reference, vector tangent-space, vector
-object-space) side by side so the silhouette differences are visible
-at a glance, plus a CC×4 cube driven by ridged-fBm vector displacement
-that demonstrates the overhang-producing behaviour.
-
-##### **Autobump (bump derived from the displacement texture)**
-
-Subdivision + displacement build the macro silhouette down to the
-sampling rate of the displacement texture. Detail finer than the
-subdivision grid (the high-frequency tail of an fBm, the rim of a
-Voronoi cell, the engraved scratch on a sculpt) is geometrically
-smoothed out — exactly the artefact Arnold's `autobump_visibility` flag
-on a `polymesh` was designed to recover. Setting `autobump: true` on
-the displacement block tells the engine to build a residual
-`bump_map` from the same texture and attach it to the mesh; the
-renderer applies it on top of any material-level `bump_map` at shading
-time.
-
-```yaml
-- name: "carved_stone"
-  type: "mesh"
-  path: "models/stone.obj"
-  material: "porcelain"
-  subdivision_scheme: "catmull_clark"
-  subdivision_iterations: 4               # moderate subdivision — autobump fills the rest
-  displacement:
-    texture:
-      type: "noise"
-      noise_type: "fbm"
-      scale: 4.5
-      octaves: 6
-    scale: 0.18
-    midlevel: 0.5
-    autobump: true                        # ← step 5: residual bump from same texture
-    autobump_strength: 1.5                # bump amplitude = autobump_strength · |scale|
-    autobump_scale: 1.0                   # UV-frequency multiplier (1 = match displacement)
-  displacement_bound: 0.20
-```
-
-| Field                          | Default | Notes |
-|--------------------------------|---------|-------|
-| `displacement.autobump`        | `false` | When `true`, the displacement texture is reused as a residual bump map (Arnold's `autobump_visibility`). Off by default — pre-step-5 scenes render byte-identically. |
-| `displacement.autobump_strength` | `1.0` | Bump strength multiplier; the final amplitude passed to the internal `BumpMapTexture` is `autobump_strength · \|displacement.scale\|`. Setting it to 0 disables the autobump silently (loader warns). |
-| `displacement.autobump_scale`  | `1.0`   | UV-frequency multiplier stacked on top of `displacement.uv_scale`. `>1` samples the bump finer than the displacement (the typical "macro displacement + micro autobump" workflow); `=1` matches the displacement frequency. |
-
-**Composition order.** The engine combines the four perturbation
-channels in the same order Arnold/Cycles use:
-
-```
-geometry normal (post-displacement)
-  → material.normal_map
-    → material.bump_map
-      → mesh.autobump                 (← derived from displacement.texture)
-```
-
-`coat_normal_map` on the Disney BSDF is **independent** — it perturbs
-only the clearcoat lobe and is unaffected by the base bump stack
-(parity with Arnold's standard surface and Cycles' Principled BSDF).
-Vector displacement works the same way: the autobump samples the
-luminance of the same vector-displacement texture, recovering the
-high-frequency component along the displaced shading normal.
-
-**Mesh-only.** Autobump shares the displacement's mesh-only constraint
-— it is only active on `type: mesh` entities. Built-in primitives keep
-using a stand-alone `bump_map` for sub-pixel detail.
-
-The showcase scene `scenes/showcases/bump-displacement-combo-showcase.yaml`
-puts four panels (flat reference, displacement only, displacement +
-autobump, and displacement + autobump + material bump) side by side at
-a deliberately moderate `subdivision_iterations: 4` so the recovered
-sub-grid detail is immediately visible. The vector-displaced rock
-overhead demonstrates the same recovery on a non-planar mesh.
+All vector/scalar/autobump fields and the Cycles tri-state
+`displacement_method` are documented in the material section. The mesh
+entity itself accepts only `displacement_enabled: bool` (default `true`)
+to suppress an inherited displacement per-instance.
 
 #### **7.13 CSG (Boolean Operations)**
 ```yaml

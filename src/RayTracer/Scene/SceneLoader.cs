@@ -284,7 +284,32 @@ public class SceneLoader
             for (int idx = 0; idx < data.Entities.Count; idx++)
             {
                 var e   = data.Entities[idx];
+
+                // Hard error on legacy entity-level displacement YAML. The
+                // model has moved to material-level (Cycles/RenderMan parity)
+                // and silent acceptance would let stale scenes render with no
+                // displacement at all. Fail fast and point the author at the
+                // migration.
+                CheckLegacyEntityDisplacement(e);
+
                 var mat = GetMaterial(materials, e.Material);
+
+                // Warn (don't fail) when a non-mesh entity uses a material
+                // that carries a displacement: the loader has no subdivided
+                // limit topology to displace and silently ignores it. CSG
+                // children are checked recursively inside CreateCsgEntity.
+                if (mat.Displacement != null
+                    && !string.Equals(e.Type, "mesh", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(e.Type, "obj",  StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(e.Type, "group", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(e.Type, "instance", StringComparison.OrdinalIgnoreCase))
+                {
+                    Warn($"Entity '{e.Name ?? e.Type ?? "(unnamed)"}' (type='{e.Type}') " +
+                         $"uses material '{e.Material}' which has a displacement, " +
+                         $"but displacement only applies to polygonal mesh entities. " +
+                         $"Use a 'mesh' entity with subdivision, or attach 'bump_map' " +
+                         $"to the material instead.");
+                }
 
                 IHittable? hittable;
                 if (string.Equals(e.Type, "csg", StringComparison.OrdinalIgnoreCase))
@@ -959,6 +984,24 @@ public class SceneLoader
             Verbose($"Material:    '{m.Id}' — subsurface_radius parsed, not yet used (future SSS)");
         }
 
+        // ── Material-level surface displacement (Cycles/RenderMan parity) ───
+        // When the YAML carries a 'displacement:' block under the material,
+        // build a LeafDisplacement and attach it to the concrete material.
+        // Every mesh entity that resolves this material then inherits the
+        // displacement automatically.
+        var leafDisp = BuildLeafDisplacement(m, sceneDir);
+        if (leafDisp != null)
+        {
+            switch (material)
+            {
+                case Lambertian lam: lam.Displacement = leafDisp; break;
+                case Metal      met: met.Displacement = leafDisp; break;
+                case Dielectric die: die.Displacement = leafDisp; break;
+                case Emissive   emi: emi.Displacement = leafDisp; break;
+                case DisneyBsdf dis: dis.Displacement = leafDisp; break;
+            }
+        }
+
         return material;
     }
 
@@ -997,6 +1040,34 @@ public class SceneLoader
             if (bumpMap != null)
             {
                 ((MixMaterial)material).BumpMap = bumpMap;
+            }
+        }
+
+        // ── Mix-level displacement (Cycles "Mix Shader → Displacement") ──
+        // The Mix material can opt in to vector-blend its children's per-
+        // vertex displacement offsets via the same mask/blend factor that
+        // drives the BSDF mix. When the YAML 'displacement: blend_with_mask:
+        // true' is set we wrap the two children's displacement in a
+        // MixDisplacement; otherwise the Mix carries no displacement of its
+        // own even if the children would.
+        if (m.Displacement != null && m.Displacement.BlendWithMask)
+        {
+            var mixMat = (MixMaterial)material;
+            var dispA = mixMat.MaterialA.Displacement;
+            var dispB = mixMat.MaterialB.Displacement;
+            if (dispA == null || dispB == null)
+            {
+                Warn($"Mix material '{m.Id}': blend_with_mask=true requires " +
+                     $"both child materials to have their own displacement. " +
+                     $"material_a='{m.MaterialA}' has " +
+                     $"{(dispA == null ? "no" : "a")} displacement; " +
+                     $"material_b='{m.MaterialB}' has " +
+                     $"{(dispB == null ? "no" : "a")} displacement. " +
+                     $"Mix-level displacement disabled.");
+            }
+            else
+            {
+                mixMat.Displacement = new MixDisplacement(mixMat, dispA, dispB);
             }
         }
 
@@ -1951,14 +2022,14 @@ public class SceneLoader
         // translate/rotate/scale, not the unit-cube-local coordinates.
         var subdivision = BuildSubdivisionOptions(e, screen);
 
-        // Build the displacement request. The seed assigned below is used
-        // for procedural-texture sampling, so we precompute it here and
-        // forward it to the loader.
+        // Resolve the displacement off the material (material-level model \u2014
+        // Cycles/RenderMan parity). The entity can suppress it for this
+        // single instance via 'displacement_enabled: false'.
         int seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
-        var displacement = BuildDisplacementOptions(e, sceneDir);
+        var matDisp = e.DisplacementEnabled ? mat.Displacement : null;
 
         var warnings = new List<string>();
-        var mesh = ObjLoader.Load(objPath, mat, subdivision, displacement, seed,
+        var mesh = ObjLoader.Load(objPath, mat, subdivision, matDisp, seed,
             warnings,
             out var appliedScheme, out var appliedIterations,
             out var maxDisplacement);
@@ -1972,29 +2043,27 @@ public class SceneLoader
             return null;
         }
 
-        // Detect under-bounded displacement: if the user provided an
-        // explicit displacement_bound but the texture pushed vertices past
-        // it, warn so they can either raise the bound or clamp their
+        // Detect under-bounded displacement: if the material provided an
+        // explicit displacement bound but the texture pushed vertices past
+        // it, warn so the author can either raise the bound or clamp their
         // texture. The eager-displaced AABBs are already correct, so this
         // is purely a forward-compat hint for future lazy-displacement
         // modes that would actually rely on the bound for correctness.
-        if (displacement.IsActive && e.DisplacementBound > 0f
-            && maxDisplacement > e.DisplacementBound * 1.0001f)
+        float effectiveBound = matDisp?.Bound ?? 0f;
+        if (matDisp != null && matDisp.RequestsGeometricDisplacement
+            && effectiveBound > 0f
+            && maxDisplacement > effectiveBound * 1.0001f)
         {
             Warn($"Mesh '{e.Name ?? Path.GetFileName(objPath)}': " +
-                 $"displacement_bound={e.DisplacementBound:F4} is smaller than " +
-                 $"the maximum applied displacement {maxDisplacement:F4}. " +
-                 $"Raise displacement_bound to {maxDisplacement:F4} or higher " +
+                 $"material's displacement.bound={effectiveBound:F4} is smaller " +
+                 $"than the maximum applied displacement {maxDisplacement:F4}. " +
+                 $"Raise displacement.bound to {maxDisplacement:F4} or higher " +
                  $"to fully enclose the displaced silhouette.");
         }
 
-        string dispTag = displacement.Mode == DisplacementMode.Vector
-            ? $"vector-{displacement.Space.ToString().ToLowerInvariant()}"
-            : "scalar";
-        if (displacement.IsAutobumpActive)
-            dispTag += "+autobump";
+        string dispTag = DescribeDisplacement(matDisp);
 
-        if (appliedIterations > 0 && displacement.IsActive)
+        if (appliedIterations > 0 && matDisp != null && matDisp.RequestsGeometricDisplacement)
         {
             Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
                  $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices " +
@@ -2007,7 +2076,7 @@ public class SceneLoader
                  $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices " +
                  $"(subdivision: {appliedScheme} \u00d7 {appliedIterations})");
         }
-        else if (displacement.IsActive)
+        else if (matDisp != null && matDisp.RequestsGeometricDisplacement)
         {
             Info($"Mesh:        {e.Name ?? Path.GetFileName(objPath)} \u2014 " +
                  $"{mesh.FaceCount:N0} faces, {mesh.VertexCount:N0} vertices " +
@@ -2026,47 +2095,100 @@ public class SceneLoader
     }
 
     /// <summary>
-    /// Translates the <see cref="EntityData"/> displacement block into an
-    /// engine-level <see cref="DisplacementOptions"/> struct, resolving the
-    /// inner height-field texture through the shared <see cref="CreateTexture"/>
-    /// dispatcher. Returns <see cref="DisplacementOptions.Disabled"/> when the
-    /// block is absent or malformed.
+    /// Throws when the YAML still uses the pre-migration entity-level
+    /// displacement syntax. The model moved to material-level for Cycles/
+    /// RenderMan parity (one displaced material drives many meshes). The
+    /// error message points at the new layout so authors can migrate.
     /// </summary>
-    private static DisplacementOptions BuildDisplacementOptions(
-        EntityData e, string sceneDir)
+    private static void CheckLegacyEntityDisplacement(EntityData e)
     {
-        var disp = e.Displacement;
-        if (disp == null) return DisplacementOptions.Disabled;
+        if (e.LegacyEntityDisplacement == null && e.LegacyEntityDisplacementBound == 0f)
+            return;
+
+        string name = e.Name ?? e.Type ?? "(unnamed)";
+        string field = e.LegacyEntityDisplacement != null
+            ? "'displacement'"
+            : "'displacement_bound'";
+        throw new InvalidOperationException(
+            $"Entity '{name}' uses the legacy entity-level {field} field, " +
+            $"which has been moved to the material-level " +
+            $"'displacement:' block (Cycles/RenderMan parity). " +
+            $"Move the block from the entity to its material under " +
+            $"'materials:' so it can be shared across instances, and add " +
+            $"'displacement_enabled: false' on the entity if you want to " +
+            $"suppress the material's displacement for this single instance. " +
+            $"See docs/reference/scene-reference.md (section 'Material-level " +
+            $"displacement').");
+    }
+
+    /// <summary>
+    /// Short tag describing the displacement requested by a material, for
+    /// load-time info logging.
+    /// </summary>
+    private static string DescribeDisplacement(MaterialDisplacement? d)
+    {
+        if (d == null) return "none";
+        if (d is MixDisplacement mix)
+            return $"mix({DescribeDisplacement(mix.A)},{DescribeDisplacement(mix.B)})";
+        if (d is LeafDisplacement leaf)
+        {
+            string tag = leaf.Method == DisplacementMethod.BumpOnly
+                ? "bump_only"
+                : leaf.Options.Mode == DisplacementMode.Vector
+                    ? $"vector-{leaf.Options.Space.ToString().ToLowerInvariant()}"
+                    : "scalar";
+            if (leaf.RequestsAutobump && leaf.Method != DisplacementMethod.BumpOnly)
+                tag += "+autobump";
+            return tag;
+        }
+        return "unknown";
+    }
+
+    /// <summary>
+    /// Translates the <see cref="MaterialData"/> displacement block into a
+    /// <see cref="LeafDisplacement"/> wrapping the engine-level
+    /// <see cref="DisplacementOptions"/> struct. Material-level (Cycles/
+    /// RenderMan parity): one displaced material drives every mesh that uses
+    /// it, no per-entity duplication. Returns <c>null</c> when the block is
+    /// absent, malformed, or has a zero scale.
+    /// </summary>
+    private static LeafDisplacement? BuildLeafDisplacement(
+        MaterialData m, string sceneDir)
+    {
+        var disp = m.Displacement;
+        if (disp == null) return null;
+
+        string ownerTag = m.Id ?? "(unnamed material)";
 
         if (disp.Texture == null)
         {
-            Warn($"Mesh '{e.Name ?? "(unnamed)"}': displacement requires a " +
+            Warn($"Material '{ownerTag}': displacement requires a " +
                  $"'texture' block. Ignoring.");
-            return DisplacementOptions.Disabled;
+            return null;
         }
 
         if (disp.Scale == 0f)
         {
             // Silent: scale=0 means "wire up the texture but don't displace"
             // \u2014 a valid authoring state.
-            return DisplacementOptions.Disabled;
+            return null;
         }
 
         // \u2500\u2500 Parse mode (scalar | vector) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
         var mode = DisplacementMode.Scalar;
         if (!string.IsNullOrWhiteSpace(disp.Mode))
         {
-            string m = disp.Mode.Trim().ToLowerInvariant();
-            mode = m switch
+            string mm = disp.Mode.Trim().ToLowerInvariant();
+            mode = mm switch
             {
                 "scalar" or "height" or ""  => DisplacementMode.Scalar,
                 "vector" or "vec"           => DisplacementMode.Vector,
                 _ => DisplacementMode.Scalar,
             };
             if (mode == DisplacementMode.Scalar &&
-                !(m == "scalar" || m == "height"))
+                !(mm == "scalar" || mm == "height"))
             {
-                Warn($"Mesh '{e.Name ?? "(unnamed)"}': unknown displacement " +
+                Warn($"Material '{ownerTag}': unknown displacement " +
                      $"mode '{disp.Mode}'. Expected 'scalar' or 'vector'. " +
                      $"Falling back to scalar.");
             }
@@ -2086,14 +2208,35 @@ public class SceneLoader
             if (space == DisplacementSpace.Tangent &&
                 !(s == "tangent" || s == ""))
             {
-                Warn($"Mesh '{e.Name ?? "(unnamed)"}': unknown displacement " +
+                Warn($"Material '{ownerTag}': unknown displacement " +
                      $"space '{disp.Space}'. Expected 'tangent' or 'object'. " +
                      $"Falling back to tangent.");
             }
             if (mode == DisplacementMode.Scalar)
             {
-                Warn($"Mesh '{e.Name ?? "(unnamed)"}': 'space' is only used " +
+                Warn($"Material '{ownerTag}': 'space' is only used " +
                      $"in vector mode; ignored on a scalar displacement.");
+            }
+        }
+
+        // ── Parse displacement_method (Cycles tri-state) ─────────────────
+        var method = DisplacementMethod.Both;
+        if (!string.IsNullOrWhiteSpace(disp.Method))
+        {
+            string mt = disp.Method.Trim().ToLowerInvariant();
+            method = mt switch
+            {
+                "both" or "displacement_and_bump" or "" => DisplacementMethod.Both,
+                "displacement" or "displacement_only"   => DisplacementMethod.Displacement,
+                "bump" or "bump_only"                   => DisplacementMethod.BumpOnly,
+                _ => DisplacementMethod.Both,
+            };
+            if (method == DisplacementMethod.Both &&
+                !(mt == "both" || mt == "displacement_and_bump"))
+            {
+                Warn($"Material '{ownerTag}': unknown displacement_method " +
+                     $"'{disp.Method}'. Expected 'both', 'displacement' or " +
+                     $"'bump_only'. Falling back to 'both'.");
             }
         }
 
@@ -2104,9 +2247,9 @@ public class SceneLoader
         }
         catch (Exception ex)
         {
-            Warn($"Mesh '{e.Name ?? "(unnamed)"}': failed to build " +
+            Warn($"Material '{ownerTag}': failed to build " +
                  $"displacement texture: {ex.Message}. Ignoring.");
-            return DisplacementOptions.Disabled;
+            return null;
         }
 
         // displacement_bound default: in scalar mode the maximum offset is
@@ -2120,8 +2263,8 @@ public class SceneLoader
         float defaultBound = mode == DisplacementMode.Vector
             ? MathF.Abs(disp.Scale) * 1.732051f
             : MathF.Abs(disp.Scale);
-        float bound = e.DisplacementBound > 0f
-            ? e.DisplacementBound
+        float bound = disp.Bound > 0f
+            ? disp.Bound
             : defaultBound;
 
         // ── Autobump (step 5 of the surface-displacement stack) ────────────
@@ -2137,13 +2280,21 @@ public class SceneLoader
 
         if (autobump && autobumpStrength <= 0f)
         {
-            Warn($"Mesh '{e.Name ?? "(unnamed)"}': 'autobump' is enabled but " +
+            Warn($"Material '{ownerTag}': 'autobump' is enabled but " +
                  $"'autobump_strength' is {autobumpStrength} (≤ 0). The autobump " +
                  $"would be a no-op; disabling it.");
             autobump = false;
         }
 
-        return new DisplacementOptions
+        // The Cycles tri-state forces autobump on/off independently of the
+        // YAML 'autobump:' toggle: bump_only means the texture IS the bump
+        // (autobump always on); displacement_only means no bump at all.
+        if (method == DisplacementMethod.BumpOnly)
+            autobump = true;
+        if (method == DisplacementMethod.Displacement)
+            autobump = false;
+
+        var opts = new DisplacementOptions
         {
             Mode             = mode,
             Space            = space,
@@ -2156,6 +2307,8 @@ public class SceneLoader
             AutobumpStrength = autobumpStrength,
             AutobumpScale    = autobumpScale,
         };
+
+        return new LeafDisplacement(opts, method);
     }
 
     /// <summary>

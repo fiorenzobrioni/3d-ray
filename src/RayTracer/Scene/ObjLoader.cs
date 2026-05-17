@@ -48,7 +48,7 @@ public static class ObjLoader
     /// <returns>A Mesh containing all parsed triangles, or null if the file is empty/invalid.</returns>
     public static Mesh? Load(string path, IMaterial material, List<string>? warnings = null)
         => Load(path, material, SubdivisionOptions.Disabled,
-                DisplacementOptions.Disabled, 0, warnings, out _, out _, out _);
+                null, 0, warnings, out _, out _, out _);
 
     /// <summary>
     /// Loads an OBJ file and returns a <see cref="Mesh"/>, optionally running
@@ -68,33 +68,36 @@ public static class ObjLoader
     public static Mesh? Load(string path, IMaterial material,
         SubdivisionOptions subdivision, List<string>? warnings,
         out SubdivisionScheme appliedScheme, out int appliedIterations)
-        => Load(path, material, subdivision, DisplacementOptions.Disabled, 0,
+        => Load(path, material, subdivision, null, 0,
                 warnings, out appliedScheme, out appliedIterations, out _);
 
     /// <summary>
-    /// Loads an OBJ file with subdivision and scalar displacement support.
-    /// Step 3 of the surface-displacement stack (Arnold/RenderMan/Cycles
-    /// parity): subdivision builds the micro-mesh, displacement pushes its
-    /// vertices along the limit-surface smooth normal, then the renderer's
-    /// BVH is built on the displaced triangles.
+    /// Loads an OBJ file with subdivision and surface-displacement support
+    /// (Arnold/RenderMan/Cycles parity): subdivision builds the micro-mesh,
+    /// displacement pushes its vertices, then the renderer's BVH is built on
+    /// the displaced triangles. The displacement descriptor lives on the
+    /// material (<see cref="IMaterial.Displacement"/>) so a single displaced
+    /// material drives every mesh that uses it; the caller passes it in here
+    /// to let callers route the per-entity <c>displacement_enabled</c>
+    /// override.
     /// </summary>
     /// <param name="path">Path to the .obj file.</param>
     /// <param name="material">Material to apply to all faces.</param>
     /// <param name="subdivision">Subdivision parameters.</param>
-    /// <param name="displacement">Scalar displacement parameters; when
-    /// <see cref="DisplacementOptions.IsActive"/> is false the legacy
-    /// (no-displacement) path runs.</param>
+    /// <param name="displacement">Material-level displacement descriptor.
+    /// <c>null</c> disables both the geometric displacement pass and the
+    /// autobump derivation.</param>
     /// <param name="objectSeed">Entity seed forwarded to texture lookups —
     /// procedural displacement textures use it to break repetition across
     /// instances.</param>
     /// <param name="warnings">Optional list of non-fatal parse warnings.</param>
     /// <param name="appliedScheme">Receives the actually applied scheme.</param>
     /// <param name="appliedIterations">Receives the iteration count run.</param>
-    /// <param name="maxDisplacement">Receives the maximum |scale·(h−midlevel)|
-    /// across all displaced vertices. Callers compare against
-    /// <see cref="DisplacementOptions.Bound"/> to detect under-bounded scenes.</param>
+    /// <param name="maxDisplacement">Receives the maximum displacement
+    /// amplitude observed across all vertices. Callers compare against
+    /// <see cref="MaterialDisplacement.Bound"/> to detect under-bounded scenes.</param>
     public static Mesh? Load(string path, IMaterial material,
-        SubdivisionOptions subdivision, DisplacementOptions displacement,
+        SubdivisionOptions subdivision, MaterialDisplacement? displacement,
         int objectSeed, List<string>? warnings,
         out SubdivisionScheme appliedScheme, out int appliedIterations,
         out float maxDisplacement)
@@ -220,22 +223,28 @@ public static class ObjLoader
             appliedIterations = iters;
         }
 
-        // ── Optional scalar displacement pass ────────────────────────────
+        // ── Optional surface-displacement pass ───────────────────────────
         // Runs after subdivision and before triangulation so the micro-mesh
         // built by Loop / Catmull-Clark is what gets displaced (the silhouette
         // resolution scales with subdivision_iterations, exactly as in
-        // Arnold/RenderMan). Without prior subdivision a low-poly OBJ
-        // displaces too coarsely to be visually useful — we still allow it
-        // (matches the "displace without subdivide" sanity path used by tests
-        // and minimal scenes) but expect authors to combine the two.
-        if (displacement.IsActive)
+        // Arnold/RenderMan). The descriptor is material-level (Cycles/
+        // RenderMan parity); LeafDisplacement is the single-texture path,
+        // MixDisplacement vector-blends two children via the parent Mix's
+        // mask at the vertex.
+        bool wantsGeometricDisplace = displacement?.RequestsGeometricDisplacement == true;
+        if (wantsGeometricDisplace)
         {
-            maxDisplacement = DisplacementEngine.Apply(poly, displacement, objectSeed);
+            maxDisplacement = displacement switch
+            {
+                LeafDisplacement leaf => DisplacementEngine.Apply(poly, leaf.Options, objectSeed),
+                MixDisplacement  mix  => DisplacementEngine.ApplyMix(poly, mix, objectSeed),
+                _ => 0f,
+            };
         }
 
         // ── Build SmoothTriangle list ────────────────────────────────────
         List<IHittable> triangles;
-        if (appliedIterations > 0 || displacement.IsActive)
+        if (appliedIterations > 0 || wantsGeometricDisplace)
         {
             // After subdivision or displacement the per-vertex normals must
             // come from the (possibly displaced) limit topology — the
@@ -262,24 +271,77 @@ public static class ObjLoader
         // triangles, so the padding is a defensive measure — it absorbs
         // shading-time bump perturbation and matches the contract surfaced
         // by Arnold's disp_padding / RenderMan's dispBound.
-        float bound = displacement.IsActive ? MathF.Max(0f, displacement.Bound) : 0f;
+        float bound = wantsGeometricDisplace
+            ? MathF.Max(0f, displacement!.Bound)
+            : 0f;
         var mesh = new Mesh(triangles, material, vertexCount, bound);
 
-        // Step 5 of the surface-displacement stack: optional "autobump"
-        // residual bump map derived from the same displacement texture.
-        // We compose it onto the mesh — not the material — so two meshes
-        // sharing the same material can independently opt in. The strength
-        // is tied to the displacement amplitude (Arnold's autobump magnitude
-        // convention); authors dial AutobumpStrength to override the ratio.
-        if (displacement.IsAutobumpActive)
+        // Optional "autobump" residual bump map derived from the displacement
+        // descriptor. We compose it onto the mesh — not the material — so
+        // two meshes sharing the same material can independently keep or
+        // suppress their autobump (e.g. via 'displacement_enabled: false'
+        // on the entity). For LeafDisplacement we build a single
+        // BumpMapTexture; for MixDisplacement we wrap the two children's
+        // autobumps in a MixBumpMapTexture that blends tangent-space normals
+        // via the same mask the BSDF mix uses.
+        if (displacement != null && displacement.RequestsAutobump)
         {
-            float strength = displacement.AutobumpStrength * MathF.Abs(displacement.Scale);
-            float uvScale  = MathF.Max(1e-6f,
-                displacement.UvScale * displacement.AutobumpScale);
-            mesh.AutoBump = new BumpMapTexture(displacement.Texture!, strength, uvScale);
+            mesh.AutoBump = BuildAutobump(displacement);
         }
 
         return mesh;
+    }
+
+    /// <summary>
+    /// Recursively builds the <see cref="IBumpMap"/> used by
+    /// <see cref="Mesh.AutoBump"/> from a material-level displacement
+    /// descriptor. Returns <c>null</c> when no child contributes an autobump
+    /// (the caller checks <see cref="MaterialDisplacement.RequestsAutobump"/>
+    /// first so this is normally non-null).
+    /// </summary>
+    private static IBumpMap? BuildAutobump(MaterialDisplacement disp)
+    {
+        if (disp is LeafDisplacement leaf)
+        {
+            if (!leaf.RequestsAutobump || leaf.Options.Texture == null)
+                return null;
+            // Bump amplitude is tied to the displacement amplitude (Arnold's
+            // autobump magnitude convention) so the bump scale tracks the
+            // macro relief without manual re-balancing.
+            float strength = leaf.Options.AutobumpStrength
+                             * MathF.Abs(leaf.Options.Scale);
+            float uvScale  = MathF.Max(1e-6f,
+                leaf.Options.UvScale * leaf.Options.AutobumpScale);
+            return new BumpMapTexture(leaf.Options.Texture!, strength, uvScale);
+        }
+        if (disp is MixDisplacement mix)
+        {
+            var a = BuildAutobump(mix.A);
+            var b = BuildAutobump(mix.B);
+            if (a == null && b == null) return null;
+            // When one side has no autobump we fall back to a flat "identity"
+            // bump on that side so the mix still produces the active side's
+            // perturbation, attenuated by the blend factor — matching Cycles'
+            // behaviour when one shader's Displacement socket is unconnected.
+            a ??= IdentityBump.Instance;
+            b ??= IdentityBump.Instance;
+            return new MixBumpMapTexture(a, b, mix.Parent.Mask, mix.Parent.Blend);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// "No perturbation" bump: returns the +Z tangent-space normal at every
+    /// sample. Used as the neutral element of the Mix blend when only one
+    /// child of a <see cref="MixDisplacement"/> contributes an autobump.
+    /// </summary>
+    private sealed class IdentityBump : IBumpMap
+    {
+        public static readonly IdentityBump Instance = new();
+        public System.Numerics.Vector3 SampleTangentNormal(float u, float v,
+            System.Numerics.Vector3 p,
+            System.Numerics.Vector3 tangent, System.Numerics.Vector3 bitangent,
+            int seed) => System.Numerics.Vector3.UnitZ;
     }
 
     /// <summary>Backwards-compatible 4-arg overload (no subdivision).</summary>

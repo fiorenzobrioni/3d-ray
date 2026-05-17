@@ -40,7 +40,7 @@ public struct HitRecord
     /// the material across multiple meshes is therefore still safe even
     /// when only some of them carry an autobump.
     /// </summary>
-    public BumpMapTexture? AutoBump;
+    public IBumpMap? AutoBump;
 
     // ── TBN basis for normal mapping ────────────────────────────────────────
     // Tangent is aligned with the +U direction of the UV mapping.

@@ -1,0 +1,167 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Material-Level Displacement Showcase — Cycles/RenderMan parity
+#
+#  Dimostra il modello di displacement legato al material (non più
+#  all'entità). Un singolo material displaced guida più mesh che lo
+#  referenziano senza duplicazione; un'eventuale variante può essere
+#  ottenuta sotto-classando il material o usando un MixMaterial.
+#
+#  LAYOUT
+#  ──────
+#  Quattro lastre verticali. Le prime due usano lo STESSO material
+#  "porcellana_disp" (stesso displacement, geometria identica → prova che il
+#  material guida da solo il displacement). La terza ha
+#  'displacement_enabled: false' per dimostrare il bypass per-istanza. La
+#  quarta usa un MixMaterial "porcellana_mix" che vector-blenda due
+#  child material con displacement diversi via la stessa mask del Mix
+#  (Cycles' "Mix Shader → Displacement" socket).
+#
+#  Render consigliato:
+#     Preview:  -w 640  -H 360  -s 32   -d 4  -S 1
+#     Standard: -w 1280 -H 720  -s 256  -d 6  -S 2
+#     Final:    -w 1920 -H 1080 -s 1024 -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+camera:
+  position: [0, 1.6, -5.0]
+  look_at:  [0, 1.2,  0]
+  fov: 48
+  aperture: 0.0
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.04, 0.06, 0.11]
+    horizon_color: [0.28, 0.26, 0.32]
+    ground_color:  [0.02, 0.02, 0.03]
+
+materials:
+
+  # Porcellana base con displacement scalar Perlin: una sola definizione,
+  # condivisa tra due entity per dimostrare il riuso.
+  - id: "porcellana_disp"
+    type: "disney"
+    color: [0.92, 0.88, 0.82]
+    roughness: 0.55
+    specular: 0.45
+    displacement:
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 4.5
+        octaves: 6
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.18
+      midlevel: 0.5
+      bound: 0.20
+      autobump: true
+      autobump_strength: 1.2
+
+  # Variante voronoi per il blend del Mix.
+  - id: "porcellana_disp_voronoi"
+    type: "disney"
+    color: [0.92, 0.88, 0.82]
+    roughness: 0.55
+    specular: 0.45
+    displacement:
+      texture:
+        type: "voronoi"
+        scale: 6.0
+        metric: "euclidean"
+        output: "f2_minus_f1"
+        smoothness: 0.2
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.20
+      midlevel: 0.0
+      bound: 0.22
+
+  # Mix material con displacement vector-blend (Cycles "Mix Shader →
+  # Displacement"). La mask noise pilota sia il BSDF mix sia il displacement
+  # mix: dove la mask è nera vince il Perlin, dove è bianca vince il
+  # Voronoi, intermedio = blend lineare per-vertex.
+  - id: "porcellana_mix"
+    type: "mix"
+    material_a: "porcellana_disp"
+    material_b: "porcellana_disp_voronoi"
+    mask:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 1.5
+      octaves: 3
+      colors: [[0, 0, 0], [1, 1, 1]]
+    displacement:
+      blend_with_mask: true
+
+  - id: "pavimento"
+    type: "disney"
+    color: [0.14, 0.14, 0.17]
+    roughness: 0.85
+
+lights:
+
+  - type: "directional"
+    direction: [1.0, -0.25, 0.3]
+    color: [1.0, 0.97, 0.92]
+    intensity: 2.5
+    angular_radius: 0.5
+
+  - type: "point"
+    position: [5, 4.5, -1.5]
+    color: [1.0, 0.92, 0.80]
+    intensity: 80
+
+entities:
+
+  - name: "pavimento"
+    type: "quad"
+    q: [-12, 0, -3]
+    u: [24, 0, 0]
+    v: [0, 0, 10]
+    material: "pavimento"
+
+  # ── A — primo riuso del material displaced ──────────────────────────────
+  - name: "A_shared_disp"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana_disp"
+    scale: [0.85, 1.0, 1.1]
+    translate: [-3.0, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 5
+
+  # ── B — secondo riuso STESSO material: geometria displaced identica ─────
+  - name: "B_shared_disp"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana_disp"
+    scale: [0.85, 1.0, 1.1]
+    translate: [-1.0, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 5
+
+  # ── C — STESSO material ma displacement disabilitato per questa istanza ─
+  - name: "C_disp_disabled"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana_disp"
+    scale: [0.85, 1.0, 1.1]
+    translate: [1.0, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 5
+    displacement_enabled: false
+
+  # ── D — Mix-displacement: due children vector-blendati dalla mask noise ─
+  - name: "D_mix_displacement"
+    type: "mesh"
+    path: "../models/displacement-plane.obj"
+    material: "porcellana_mix"
+    scale: [0.85, 1.0, 1.1]
+    translate: [3.0, 1.2, 0.5]
+    rotate: [-90, 0, 0]
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 5

@@ -56,6 +56,7 @@ public sealed class Emissive : IMaterial
     public bool NeedsDirectLighting => false;
     public NormalMapTexture? NormalMap { get; set; }
     public BumpMapTexture? BumpMap { get; set; }
+    public MaterialDisplacement? Displacement { get; set; }
 
     /// <summary>
     /// Emissive materials do not scatter incoming rays.

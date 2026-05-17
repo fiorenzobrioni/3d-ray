@@ -1,5 +1,6 @@
 using System.Numerics;
 using RayTracer.Core;
+using RayTracer.Materials;
 
 namespace RayTracer.Geometry.Subdivision;
 
@@ -80,6 +81,121 @@ internal static class DisplacementEngine
         }
 
         return maxDisp;
+    }
+
+    /// <summary>
+    /// Mix-displacement path. Vector-blends the per-vertex offsets of two
+    /// child <see cref="LeafDisplacement"/>s by the parent
+    /// <see cref="MixMaterial"/>'s mask/blend factor evaluated AT the vertex.
+    /// Matches Cycles' "Mix Shader → Displacement" socket: the same factor
+    /// drives both the BSDF mix and the geometric displacement, producing a
+    /// C0-continuous surface across material seams.
+    ///
+    /// <para>Pure-leaf children are required; nested MixDisplacement is
+    /// rejected with a load-time warning at construction time so we don't
+    /// have to handle recursion here. The blend math:
+    /// <c>v' = v + (1−t)·offset_A(v) + t·offset_B(v)</c>, where each
+    /// <c>offset_*(v)</c> is computed in that child's own basis (tangent /
+    /// object / smooth-normal) and accumulated in object space.</para>
+    /// </summary>
+    public static float ApplyMix(PolyMesh mesh, MixDisplacement mix, int objectSeed)
+    {
+        if (mesh.FaceCount == 0) return 0f;
+
+        var leafA = mix.A as LeafDisplacement;
+        var leafB = mix.B as LeafDisplacement;
+        if (leafA == null || leafB == null)
+            return 0f; // nested mixes are rejected at load time
+
+        var optsA = leafA.Options;
+        var optsB = leafB.Options;
+        var triFaces = TriangulateForNormals(mesh);
+        var smoothNormals = ComputeAngleWeightedNormals(mesh, triFaces);
+
+        // Vertex-varying UV lookup, shared between the two children.
+        bool hasUv = mesh.HasUVs;
+        var vertexUv = hasUv ? BuildVertexUvLookup(mesh, mesh.Positions.Count) : null;
+
+        // Tangent-space children may need a TBN basis on the same topology.
+        bool needsTangents =
+            (leafA.RequestsGeometricDisplacement && optsA.Mode == DisplacementMode.Vector
+                && optsA.Space == DisplacementSpace.Tangent && hasUv)
+            ||
+            (leafB.RequestsGeometricDisplacement && optsB.Mode == DisplacementMode.Vector
+                && optsB.Space == DisplacementSpace.Tangent && hasUv);
+
+        Vector3[]? tangents = null;
+        Vector3[]? bitangents = null;
+        if (needsTangents)
+            (tangents, bitangents) = ComputeVertexTangents(
+                mesh, triFaces, smoothNormals, vertexUv!);
+
+        var positions = mesh.Positions;
+        int vertexCount = positions.Count;
+        var parent = mix.Parent;
+        float maxLenSq = 0f;
+
+        for (int i = 0; i < vertexCount; i++)
+        {
+            Vector3 p = positions[i];
+            Vector2 uv = vertexUv != null ? vertexUv[i] : new Vector2(0f, 0f);
+
+            Vector3 N = smoothNormals[i];
+            Vector3 T = tangents     != null ? tangents[i]   : Vector3.Zero;
+            Vector3 B = bitangents   != null ? bitangents[i] : Vector3.Zero;
+
+            // Per-vertex blend factor — same evaluator the BSDF mix uses.
+            float t = parent.EvaluateBlendFactor(uv.X, uv.Y, p, objectSeed);
+
+            Vector3 offsetA = leafA.RequestsGeometricDisplacement
+                ? ComputeOffset(optsA, p, uv, N, T, B, objectSeed)
+                : Vector3.Zero;
+            Vector3 offsetB = leafB.RequestsGeometricDisplacement
+                ? ComputeOffset(optsB, p, uv, N, T, B, objectSeed)
+                : Vector3.Zero;
+
+            Vector3 offset = (1f - t) * offsetA + t * offsetB;
+            float lenSq = offset.LengthSquared();
+            if (lenSq > maxLenSq) maxLenSq = lenSq;
+
+            positions[i] = p + offset;
+        }
+
+        if (mesh.Normals != null && mesh.FaceNormals != null)
+            RecomputeVertexNormalsInPlace(mesh, triFaces);
+
+        return MathF.Sqrt(maxLenSq);
+    }
+
+    /// <summary>
+    /// Per-vertex displacement offset for a single <see cref="LeafDisplacement"/>.
+    /// Identical math to the scalar / vector paths above, extracted so the
+    /// Mix path can reuse it without duplicating the basis logic. Tangent /
+    /// bitangent are read only in vector-tangent mode; the caller passes
+    /// <see cref="Vector3.Zero"/> otherwise.
+    /// </summary>
+    private static Vector3 ComputeOffset(DisplacementOptions options,
+        Vector3 p, Vector2 uv, Vector3 N, Vector3 T, Vector3 B, int objectSeed)
+    {
+        float uvScale = options.UvScale > 0f ? options.UvScale : 1f;
+        float scale   = options.Scale;
+        float midlevel = options.Midlevel;
+        var texture   = options.Texture!;
+
+        if (options.Mode == DisplacementMode.Scalar)
+        {
+            float h = MathUtils.Luminance(
+                texture.Value(uv.X * uvScale, uv.Y * uvScale, p, objectSeed));
+            return N * (scale * (h - midlevel));
+        }
+
+        Vector3 rgb = texture.Value(uv.X * uvScale, uv.Y * uvScale, p, objectSeed);
+        Vector3 raw = new(rgb.X - midlevel, rgb.Y - midlevel, rgb.Z - midlevel);
+        bool tangentSpace = options.Space == DisplacementSpace.Tangent
+                            && T != Vector3.Zero;
+        return tangentSpace
+            ? scale * (T * raw.X + B * raw.Y + N * raw.Z)
+            : scale * raw;
     }
 
     /// <summary>

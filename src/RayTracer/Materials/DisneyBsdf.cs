@@ -155,6 +155,13 @@ public sealed class DisneyBsdf : IMaterial
     // + sheen). The clearcoat lobe keeps its independent CoatNormal frame.
     public BumpMapTexture? BumpMap { get; set; }
 
+    // ── Surface displacement ─────────────────────────────────────────────────
+    // Material-level (Cycles/RenderMan parity). When set, mesh entities using
+    // this material get their (sub)divided limit topology deformed before BVH
+    // construction. Non-mesh entities (analytic primitives, CSG) ignore it
+    // with a load-time warning.
+    public MaterialDisplacement? Displacement { get; set; }
+
     public DisneyBsdf(
         ITexture baseColor,
         FloatTexture? metallic            = null,

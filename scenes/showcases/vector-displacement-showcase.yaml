@@ -69,17 +69,88 @@ world:
 
 materials:
 
-  - id: "porcellana"
+  # Lastra A: SCALAR REFERENCE — solo height-field lungo la normale.
+  - id: "porcellana_scalar"
     type: "disney"
     color: [0.92, 0.88, 0.82]
     roughness: 0.42
     specular: 0.55
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 3.5
+        octaves: 5
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.30
+      midlevel: 0.5
+      bound: 0.30
 
+  # Lastra B: VECTOR TANGENT-SPACE — offset RGB sul piano TBN locale.
+  - id: "porcellana_vector_tangent"
+    type: "disney"
+    color: [0.92, 0.88, 0.82]
+    roughness: 0.42
+    specular: 0.55
+    displacement:
+      mode: "vector"
+      space: "tangent"
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 3.5
+        octaves: 5
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0.2, 0.3, 0.35], [0.8, 0.7, 0.65]]
+      scale: 0.40
+      midlevel: 0.5
+      bound: 0.45
+
+  # Lastra C: VECTOR OBJECT-SPACE — stesso campo come (x,y,z) locali.
+  - id: "porcellana_vector_object"
+    type: "disney"
+    color: [0.92, 0.88, 0.82]
+    roughness: 0.42
+    specular: 0.55
+    displacement:
+      mode: "vector"
+      space: "object"
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 3.5
+        octaves: 5
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0.2, 0.3, 0.35], [0.8, 0.7, 0.65]]
+      scale: 0.40
+      midlevel: 0.5
+      bound: 0.45
+
+  # Asteroide: vector-tangent ridged-fBm su rame corroso.
   - id: "rame_corroso"
     type: "disney"
     color: [0.85, 0.55, 0.32]
     roughness: 0.55
     metallic: 1.0
+    displacement:
+      mode: "vector"
+      space: "tangent"
+      texture:
+        type: "noise"
+        noise_type: "ridged"
+        scale: 3.0
+        octaves: 4
+        lacunarity: 2.2
+        gain: 0.55
+        colors: [[0.3, 0.3, 0.30], [0.7, 0.7, 0.70]]
+      scale: 0.20
+      midlevel: 0.5
+      bound: 0.25
 
   - id: "pavimento"
     type: "disney"
@@ -119,25 +190,12 @@ entities:
   - name: "A_scalar"
     type: "mesh"
     path: "../models/displacement-plane.obj"
-    material: "porcellana"
+    material: "porcellana_scalar"
     scale: [0.9, 1.0, 1.1]
     translate: [-2.2, 1.2, 0.5]
     rotate: [-90, 0, 0]
     subdivision_scheme: "catmull_clark"
     subdivision_iterations: 6
-    displacement:
-      mode: "scalar"                          # height-field
-      texture:
-        type: "noise"
-        noise_type: "fbm"
-        scale: 3.5
-        octaves: 5
-        lacunarity: 2.0
-        gain: 0.5
-        colors: [[0, 0, 0], [1, 1, 1]]        # greyscale → solo luminanza
-      scale: 0.30
-      midlevel: 0.5
-    displacement_bound: 0.30
 
   # ─────────────────────────────────────────────────────────────────────────
   # LASTRA B — VECTOR TANGENT-SPACE
@@ -151,28 +209,12 @@ entities:
   - name: "B_vector_tangent"
     type: "mesh"
     path: "../models/displacement-plane.obj"
-    material: "porcellana"
+    material: "porcellana_vector_tangent"
     scale: [0.9, 1.0, 1.1]
     translate: [0.0, 1.2, 0.5]
     rotate: [-90, 0, 0]
     subdivision_scheme: "catmull_clark"
     subdivision_iterations: 6
-    displacement:
-      mode: "vector"
-      space: "tangent"
-      texture:
-        type: "noise"
-        noise_type: "fbm"
-        scale: 3.5
-        octaves: 5
-        lacunarity: 2.0
-        gain: 0.5
-        # R, G, B variano in modi diversi → offset 3D non-collineare
-        # (R: forte ampiezza in T, G: media in B, B: ridotta in N).
-        colors: [[0.2, 0.3, 0.35], [0.8, 0.7, 0.65]]
-      scale: 0.40
-      midlevel: 0.5
-    displacement_bound: 0.45
 
   # ─────────────────────────────────────────────────────────────────────────
   # LASTRA C — VECTOR OBJECT-SPACE
@@ -185,26 +227,12 @@ entities:
   - name: "C_vector_object"
     type: "mesh"
     path: "../models/displacement-plane.obj"
-    material: "porcellana"
+    material: "porcellana_vector_object"
     scale: [0.9, 1.0, 1.1]
     translate: [2.2, 1.2, 0.5]
     rotate: [-90, 0, 0]
     subdivision_scheme: "catmull_clark"
     subdivision_iterations: 6
-    displacement:
-      mode: "vector"
-      space: "object"
-      texture:
-        type: "noise"
-        noise_type: "fbm"
-        scale: 3.5
-        octaves: 5
-        lacunarity: 2.0
-        gain: 0.5
-        colors: [[0.2, 0.3, 0.35], [0.8, 0.7, 0.65]]
-      scale: 0.40
-      midlevel: 0.5
-    displacement_bound: 0.45
 
   # ─────────────────────────────────────────────────────────────────────────
   # ASTEROIDE — cubo CC×4 + vector-tangent ridged-fBm.
@@ -221,17 +249,3 @@ entities:
     translate: [0, 2.6, 1.8]
     subdivision_scheme: "catmull_clark"
     subdivision_iterations: 4
-    displacement:
-      mode: "vector"
-      space: "tangent"
-      texture:
-        type: "noise"
-        noise_type: "ridged"
-        scale: 3.0
-        octaves: 4
-        lacunarity: 2.2
-        gain: 0.55
-        colors: [[0.3, 0.3, 0.30], [0.7, 0.7, 0.70]]
-      scale: 0.20
-      midlevel: 0.5
-    displacement_bound: 0.25

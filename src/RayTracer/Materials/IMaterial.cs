@@ -200,4 +200,23 @@ public interface IMaterial
     /// gradients in tangent space. Composes on top of <see cref="NormalMap"/>.
     /// </summary>
     BumpMapTexture? BumpMap => null;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Surface Displacement.
+    //
+    // Material-level (Cycles/RenderMan parity): the same material can drive
+    // displacement across multiple mesh entities without per-entity
+    // duplication. Eager application — the mesh loader reads this property
+    // off the resolved entity material and hands it to DisplacementEngine
+    // before BVH construction. Non-mesh entities (analytic primitives, CSG,
+    // groups) ignore it with a load-time warning.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Optional surface-displacement descriptor. When non-null and the entity
+    /// is a polygonal mesh, the loader deforms the (sub)divided limit topology
+    /// before BVH construction. See <see cref="MaterialDisplacement"/> for the
+    /// leaf / mix variants.
+    /// </summary>
+    MaterialDisplacement? Displacement => null;
 }
