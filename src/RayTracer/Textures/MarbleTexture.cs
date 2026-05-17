@@ -127,20 +127,31 @@ public class MarbleTexture : ITexture
 
     public Vector3 Value(float u, float v, Vector3 p, int objectSeed)
     {
-        Vector3 transformedP = TextureTransform.Apply(p, Offset, Rotation, objectSeed, RandomizeOffset, RandomizeRotation);
+        // Geometric q: drives the sine-vein direction and the (optional)
+        // domain warp. Per-instance seed offset is NOT added here — keeping
+        // the sine phase rooted on the object centre preserves the directional
+        // vein layout across instances of the same material.
+        Vector3 qGeom = TextureTransform.ApplyRandomRotation(
+            TextureTransform.ApplyManual(p, Offset, Rotation),
+            objectSeed, RandomizeRotation);
         Perlin noise = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
 
-        Vector3 q = transformedP;
+        Vector3 q = qGeom;
         if (Distortion > 0f)
         {
+            // Domain warp is part of the vein geometry — keep it on qGeom.
             q += Distortion * noise.NoiseVector(q + new Vector3(5.2f, 1.3f, 8.7f));
         }
 
+        // Noise sampling input: gets the full per-instance seed offset so two
+        // adjacent marble instances see uncorrelated turbulence fields.
+        Vector3 qNoise = q + TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
+
         float fractal = NoiseType switch
         {
-            FractalKind.Fbm    => noise.Fbm(q, Octaves, Lacunarity, Gain, signed: true),
-            FractalKind.Ridged => noise.Ridged(q, Octaves, Lacunarity, Gain),
-            _                  => noise.Turbulence(q, Octaves),
+            FractalKind.Fbm    => noise.Fbm(qNoise, Octaves, Lacunarity, Gain, signed: true),
+            FractalKind.Ridged => noise.Ridged(qNoise, Octaves, Lacunarity, Gain),
+            _                  => noise.Turbulence(qNoise, Octaves),
         };
 
         // Vein term: sine of (axis-projection × scale × vein_freq) + strength·fBm
@@ -205,8 +216,8 @@ public class MarbleTexture : ITexture
             return ramp.Sample(t);
         }
 
-        Vector3 cBase = _baseColor.Value(u, v, transformedP, objectSeed);
-        Vector3 cVein = _veinColor.Value(u, v, transformedP, objectSeed);
+        Vector3 cBase = _baseColor.Value(u, v, qGeom, objectSeed);
+        Vector3 cVein = _veinColor.Value(u, v, qGeom, objectSeed);
         return Vector3.Lerp(cVein, cBase, t);
     }
 }

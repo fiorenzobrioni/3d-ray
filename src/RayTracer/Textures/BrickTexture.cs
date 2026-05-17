@@ -69,19 +69,25 @@ public class BrickTexture : ITexture
 
     public Vector3 Value(float u, float v, Vector3 p, int objectSeed)
     {
-        Vector3 transformedP = TextureTransform.Apply(
-            p, Offset, Rotation, objectSeed, RandomizeOffset, RandomizeRotation);
+        // Brick layout is a deterministic grid (`floor(p/bw)`, `floor(p/bh)`):
+        // applying the per-instance seed offset on the same point would
+        // teleport the grid randomly per instance. Only the weathering noise
+        // below gets the seed offset — bricks side-by-side share the grid but
+        // have decorrelated weathering patterns.
+        Vector3 qGeom = TextureTransform.ApplyRandomRotation(
+            TextureTransform.ApplyManual(p, Offset, Rotation),
+            objectSeed, RandomizeRotation);
 
         float bw = MathF.Max(BrickWidth, 1e-6f);
         float bh = MathF.Max(BrickHeight, 1e-6f);
 
         // Row index drives the horizontal offset (running bond pattern).
-        float yRow = transformedP.Y / bh;
+        float yRow = qGeom.Y / bh;
         int rowIdx = (int)MathF.Floor(yRow);
         float yFrac = yRow - rowIdx;
 
         float xShift = (rowIdx & 1) == 0 ? 0f : RowOffset;
-        float xCol = (transformedP.X / bw) - xShift;
+        float xCol = (qGeom.X / bw) - xShift;
         int colIdx = (int)MathF.Floor(xCol);
         float xFrac = xCol - colIdx;
 
@@ -105,7 +111,8 @@ public class BrickTexture : ITexture
         if (NoiseScale > 0f)
         {
             Perlin n = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
-            float weather = (n.Noise(transformedP * (1f / MathF.Max(NoiseScale, 1e-3f))) + 1f) * 0.5f;
+            Vector3 qNoise = qGeom + TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
+            float weather = (n.Noise(qNoise * (1f / MathF.Max(NoiseScale, 1e-3f))) + 1f) * 0.5f;
             // Weathering darkens or lightens the brick by up to 30% based on noise.
             float k = 1f + (weather - 0.5f) * 0.6f;
             brick *= k;

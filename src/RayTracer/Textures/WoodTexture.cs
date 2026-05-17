@@ -148,12 +148,20 @@ public class WoodTexture : ITexture
 
     public Vector3 Value(float u, float v, Vector3 p, int objectSeed)
     {
-        Vector3 transformedP = TextureTransform.Apply(p, Offset, Rotation, objectSeed, RandomizeOffset, RandomizeRotation);
+        // Geometric q: drives the radial distance from the ring axis. Must
+        // stay rooted at the object origin so rings are concentric — this
+        // means NO per-instance seed offset on this path.
+        Vector3 qGeom = TextureTransform.ApplyRandomRotation(
+            TextureTransform.ApplyManual(p, Offset, Rotation),
+            objectSeed, RandomizeRotation);
         Perlin noise = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
 
-        Vector3 q = transformedP;
+        Vector3 q = qGeom;
         if (Distortion > 0f)
         {
+            // Domain warp is a geometric perturbation of the ring shape (waves,
+            // knots): use qGeom-space noise so the warp is consistent with the
+            // rings' centre.
             q += Distortion * noise.NoiseVector(q + new Vector3(3.1f, 7.7f, 1.9f));
         }
 
@@ -162,6 +170,12 @@ public class WoodTexture : ITexture
         float along = Vector3.Dot(q, axis);
         Vector3 radial = q - along * axis;
         float dist = radial.Length();
+
+        // ── Per-instance noise decorrelation ──────────────────────────────
+        // Added ONLY to the grain/figure sampling input (qNoise) — never to
+        // qGeom — so concentric rings stay rooted on the object axis while
+        // adjacent instances see uncorrelated fibre patterns.
+        Vector3 noiseShift = TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
 
         // ── Radial anisotropy ──────────────────────────────────────────────
         // Stretch the noise sampling along the local radial direction by
@@ -180,6 +194,7 @@ public class WoodTexture : ITexture
             float rComp = Vector3.Dot(q, rHat);
             qNoise = q - rComp * rHat + (rComp * anisoFactor) * rHat;
         }
+        qNoise += noiseShift;
 
         // ── Two-band grain + figure perturbation ──────────────────────────
         // High-frequency band ("grain"): fibre detail inside each ring. The
@@ -291,8 +306,8 @@ public class WoodTexture : ITexture
             return ramp.Sample(t);
         }
 
-        Vector3 cLight = _lightWoodColor.Value(u, v, transformedP, objectSeed);
-        Vector3 cDark = _darkWoodColor.Value(u, v, transformedP, objectSeed);
+        Vector3 cLight = _lightWoodColor.Value(u, v, qGeom, objectSeed);
+        Vector3 cDark = _darkWoodColor.Value(u, v, qGeom, objectSeed);
         return Vector3.Lerp(cDark, cLight, t);
     }
 }

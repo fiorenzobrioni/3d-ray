@@ -37,6 +37,7 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 | `-S` / `--shadow-samples` | unset → per-light YAML value (default: 4) | `Program.cs` |
 | `-C` / `--clamp` | `10` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
 | `--indirect-clamp-factor` | `0.25` (indirect clamp = `2.5`) | `Renderer.DefaultIndirectClampFactor` |
+| `--exposure` | `0` EV (identity) | `Renderer.DefaultExposureEv` |
 | `--light-sampling` | `all` (sum over every light) | `LightSamplingStrategy.All` |
 | `--texture-filtering` | `auto` (filtering on) | `Renderer.TextureFilteringMode.Auto` |
 | `--sampler` | `sobol` (Owen-scrambled) | `Program.cs` / `Sampler.SetKind` |
@@ -161,6 +162,37 @@ on outdoor scenes with procedural ground or wide-angle camera moves
 without losing image quality. Disabling with `off` is only useful for
 debugging or A/B comparison; the cost of filtering is small (a few
 percent at most on typical scenes).
+
+#### **6d. Photographic exposure (`--exposure`)**
+
+```
+--exposure <EV>
+```
+
+Linear gain `2^EV` applied to every pixel **before** the ACES tone map.
+Mirrors the `exposure` knob on Arnold, "Film → Exposure" on Cycles, and
+the display-filter `exposure` on RenderMan. `EV = 0` (default) is
+identity; negative values darken (1 EV = factor 2×), positive brighten.
+
+**Why it matters:** ACES filmic is a non-linear curve whose contrast is
+preserved only inside its linear sweet-spot at roughly `[0.18, 1.0]` of
+incoming radiance. Above ~2.0 the curve flattens onto a 0.95-0.99
+plateau where everything looks white regardless of underlying base
+colour — procedural textures, marble veining and material identity all
+collapse into uniform brightness. Below ~0.05 the rolloff fades to
+black. `--exposure` lets you slide the whole scene into the sweet-spot
+without re-balancing every light by hand.
+
+| Situation | Suggested `--exposure` |
+|---|---|
+| Scene is reading washed-out, bright spots saturate first | `-1` to `-2` |
+| Scene is too dark, mid-tones fall in the noise floor      | `+1` to `+2` |
+| You've already tuned lights to land near `0.5` linear     | `0` (skip the flag) |
+
+Combine with the lighting setup, not as a substitute: re-balancing
+light intensities is preferable for shareable scenes (other artists
+shouldn't need to remember a flag), but `--exposure` is the fastest
+artist-time iteration knob when you don't want to commit a light tweak.
 
 ---
 

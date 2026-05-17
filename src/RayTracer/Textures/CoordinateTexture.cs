@@ -152,9 +152,8 @@ public sealed class CoordinateTexture : ITexture
             case CoordMode.World:
             {
                 Vector3 world = rec.Point * Scale;
-                world = TextureTransform.Apply(
-                    world, Offset, Rotation, rec.ObjectSeed,
-                    randomizeOffset: false, randomizeRotation: false);
+                // Debug coordinate display: explicitly never seeded.
+                world = TextureTransform.ApplyManual(world, Offset, Rotation);
                 return Fract(world);
             }
 
@@ -170,11 +169,8 @@ public sealed class CoordinateTexture : ITexture
     private Vector3 TransformedLocal(Vector3 p)
     {
         Vector3 q = p * Scale;
-        // Reuse the standard texture transform so behaviour matches every
-        // other procedural (`offset/rotation` semantics are identical).
-        return TextureTransform.Apply(
-            q, Offset, Rotation, objectSeed: 0,
-            randomizeOffset: false, randomizeRotation: false);
+        // Debug coordinate display: only manual offset/rotation; never seeded.
+        return TextureTransform.ApplyManual(q, Offset, Rotation);
     }
 
     private static Vector3 Fract(Vector3 p)

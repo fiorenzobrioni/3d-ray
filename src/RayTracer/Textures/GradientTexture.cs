@@ -51,8 +51,14 @@ public class GradientTexture : ITexture
 
     public Vector3 Value(float u, float v, Vector3 p, int objectSeed)
     {
-        Vector3 transformedP = TextureTransform.Apply(
-            p, Offset, Rotation, objectSeed, RandomizeOffset, RandomizeRotation);
+        // Gradient is a purely geometric pattern (linear / radial / spherical
+        // position along an axis). The per-instance seed offset is intentionally
+        // not applied here: it would shift the gradient band itself off the
+        // object and clamp every sample to one endpoint. RandomizeRotation is
+        // safe — a rotation around the origin preserves the gradient centre.
+        Vector3 transformedP = TextureTransform.ApplyRandomRotation(
+            TextureTransform.ApplyManual(p, Offset, Rotation),
+            objectSeed, RandomizeRotation);
 
         float L = MathF.Max(Length, 1e-6f);
         float t;
