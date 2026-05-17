@@ -1418,3 +1418,242 @@ materials:
     specular: 0.55
     clearcoat: 0.90
     coat_roughness: 0.05
+
+  # ════════════════════════════════════════════════════════════════════════
+  # EXTENDED VFX MATERIALS (v2)
+  # ════════════════════════════════════════════════════════════════════════
+  #
+  # Aggiunte che esercitano lo stack completo: vector displacement
+  # tangent-space per legni grezzi spaccati, color_ramp 4-5 stop per
+  # tonalità complete dal cuore (knot) al sapwood, knot_density variabile,
+  # combinazioni multi-feature per look "production-final".
+  # ════════════════════════════════════════════════════════════════════════
+
+  # Rovere quartato medullary rays: "tiger ray" pattern del quartersawn,
+  # radial_anisotropy molto alta + figure medio.
+  - id: "dis_rovere_quartato_medullary"
+    type: "disney"
+    color: [0.78, 0.58, 0.32]
+    roughness: 0.55
+    specular: 0.40
+    clearcoat: 0.30
+    coat_roughness: 0.18
+    texture:
+      type: "wood"
+      scale: 4.5
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.5
+      noise_strength: 2.0
+      octaves: 5
+      grain_scale: 1.8
+      figure_scale: 0.18
+      figure_strength: 0.6
+      radial_anisotropy: 4.5
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.08, 0.04], interp: "smoothstep" }
+        - { position: 0.30, color: [0.42, 0.25, 0.10], interp: "smoothstep" }
+        - { position: 0.65, color: [0.78, 0.55, 0.30], interp: "smoothstep" }
+        - { position: 1.00, color: [0.96, 0.82, 0.55], interp: "linear" }
+
+  # Acero curly maximum: figure_strength estremo, ondulazioni dominanti.
+  - id: "dis_acero_curly_max"
+    type: "disney"
+    color: [0.92, 0.82, 0.62]
+    roughness: 0.32
+    specular: 0.45
+    clearcoat: 0.65
+    coat_roughness: 0.08
+    texture:
+      type: "wood"
+      scale: 5.5
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 5.5
+      noise_strength: 0.20
+      octaves: 4
+      grain_scale: 2.2
+      figure_scale: 0.08
+      figure_strength: 2.4
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.45, 0.30, 0.15], interp: "smoothstep" }
+        - { position: 0.45, color: [0.78, 0.62, 0.35], interp: "smoothstep" }
+        - { position: 0.80, color: [0.92, 0.80, 0.58], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.92, 0.78], interp: "linear" }
+
+  # Pino nodoso heavy: knot_density max + look "rustic chalet".
+  - id: "dis_pino_nodoso_heavy"
+    type: "disney"
+    color: [0.88, 0.72, 0.45]
+    roughness: 0.55
+    specular: 0.38
+    texture:
+      type: "wood"
+      scale: 6.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 5.5
+      noise_strength: 0.8
+      octaves: 5
+      grain_scale: 1.5
+      figure_scale: 0.30
+      figure_strength: 0.35
+      knot_density: 1.0
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.02, 0.01, 0.01], interp: "smoothstep" }
+        - { position: 0.15, color: [0.20, 0.10, 0.05], interp: "smoothstep" }
+        - { position: 0.45, color: [0.55, 0.38, 0.18], interp: "smoothstep" }
+        - { position: 0.80, color: [0.88, 0.72, 0.42], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.88, 0.62], interp: "linear" }
+
+  # Bird's eye maple: knot_density alta + scale alta = micro-occhi sparsi.
+  - id: "dis_acero_birdseye"
+    type: "disney"
+    color: [0.92, 0.85, 0.65]
+    roughness: 0.28
+    specular: 0.45
+    clearcoat: 0.55
+    coat_roughness: 0.08
+    texture:
+      type: "wood"
+      scale: 8.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 5.0
+      noise_strength: 0.25
+      octaves: 4
+      grain_scale: 1.0
+      knot_density: 1.0
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.10, 0.04], interp: "smoothstep" }
+        - { position: 0.15, color: [0.55, 0.38, 0.18], interp: "smoothstep" }
+        - { position: 0.60, color: [0.88, 0.75, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.92, 0.72], interp: "linear" }
+
+  # Mogano flame: figure verticale a fiamma, classico Cuban mahogany.
+  - id: "dis_mogano_flame_studio"
+    type: "disney"
+    color: [0.52, 0.18, 0.10]
+    roughness: 0.30
+    specular: 0.45
+    clearcoat: 0.55
+    coat_roughness: 0.08
+    texture:
+      type: "wood"
+      scale: 5.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.5
+      noise_strength: 0.35
+      octaves: 4
+      grain_scale: 1.5
+      figure_scale: 0.05
+      figure_strength: 1.8
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.22, 0.06, 0.04], interp: "smoothstep" }
+        - { position: 0.45, color: [0.55, 0.18, 0.10], interp: "smoothstep" }
+        - { position: 0.80, color: [0.78, 0.32, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [0.92, 0.55, 0.32], interp: "linear" }
+
+  # Cedro bruciato shou-sugi-ban (giapponese): carbonizzato in superficie.
+  - id: "dis_cedro_shousugiban"
+    type: "disney"
+    color: [0.06, 0.05, 0.04]
+    roughness: 0.88
+    specular: 0.20
+    texture:
+      type: "wood"
+      scale: 4.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 5.0
+      noise_strength: 0.4
+      octaves: 5
+      grain_scale: 1.5
+      figure_scale: 0.20
+      figure_strength: 0.3
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.01, 0.01, 0.01], interp: "smoothstep" }
+        - { position: 0.50, color: [0.06, 0.05, 0.04], interp: "smoothstep" }
+        - { position: 0.85, color: [0.16, 0.12, 0.08], interp: "smoothstep" }
+        - { position: 1.00, color: [0.32, 0.22, 0.12], interp: "linear" }
+    displacement:
+      mode: "vector"
+      space: "tangent"
+      texture:
+        type: "noise"
+        scale: 8.0
+        noise_type: "ridged"
+        octaves: 4
+        colors: [[0.3, 0.4, 0.35], [0.7, 0.6, 0.65]]
+      scale: 0.010
+      midlevel: 0.5
+      bound: 0.018
+      autobump: true
+      autobump_strength: 1.5
+      displacement_method: "bump_only"
+
+  # Rovere segato grezzo: superficie sega circolare, bump+displacement combo.
+  - id: "dis_rovere_segato_grezzo"
+    type: "disney"
+    color: [0.72, 0.55, 0.32]
+    roughness: 0.88
+    specular: 0.25
+    texture:
+      type: "wood"
+      scale: 5.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.0
+      noise_strength: 1.5
+      octaves: 5
+      grain_scale: 1.4
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.32, 0.18, 0.08], interp: "smoothstep" }
+        - { position: 0.55, color: [0.62, 0.45, 0.22], interp: "smoothstep" }
+        - { position: 1.00, color: [0.88, 0.72, 0.45], interp: "linear" }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 30.0
+        noise_type: "ridged"
+        octaves: 3
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.4
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        scale: 8.0
+        noise_type: "ridged"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.004
+      midlevel: 0.5
+      bound: 0.008
+      autobump: true
+      displacement_method: "bump_only"
+
+  # Betulla riccia: figure stretto + sapwood chiarissimo.
+  - id: "dis_betulla_ricca_studio"
+    type: "disney"
+    color: [0.95, 0.88, 0.72]
+    roughness: 0.32
+    specular: 0.45
+    clearcoat: 0.55
+    coat_roughness: 0.08
+    texture:
+      type: "wood"
+      scale: 6.0
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 5.5
+      noise_strength: 0.20
+      octaves: 4
+      grain_scale: 2.0
+      figure_scale: 0.10
+      figure_strength: 1.6
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.42, 0.22], interp: "smoothstep" }
+        - { position: 0.55, color: [0.88, 0.75, 0.52], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.92, 0.78], interp: "linear" }
