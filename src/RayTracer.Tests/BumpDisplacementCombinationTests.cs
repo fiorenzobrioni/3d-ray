@@ -175,7 +175,7 @@ public class BumpDisplacementCombinationTests
         };
 
         var warnings = new List<string>();
-        var mesh = ObjLoader.Load(objPath, mat, subdivision, disp,
+        var mesh = ObjLoader.Load(objPath, mat, subdivision, new LeafDisplacement(disp),
             objectSeed: 0, warnings,
             out _, out _, out _);
 
@@ -206,7 +206,7 @@ public class BumpDisplacementCombinationTests
             AutobumpScale = 1f,
         };
 
-        var mesh = ObjLoader.Load(objPath, mat, SubdivisionOptions.Disabled, disp,
+        var mesh = ObjLoader.Load(objPath, mat, SubdivisionOptions.Disabled, new LeafDisplacement(disp),
             objectSeed: 0, warnings: null,
             out _, out _, out _);
 
@@ -239,9 +239,9 @@ public class BumpDisplacementCombinationTests
         var lo = baseOpts with { AutobumpStrength = 0.5f };
         var hi = baseOpts with { AutobumpStrength = 1.0f };
 
-        var meshLo = ObjLoader.Load(objPath, mat, SubdivisionOptions.Disabled, lo,
+        var meshLo = ObjLoader.Load(objPath, mat, SubdivisionOptions.Disabled, new LeafDisplacement(lo),
             0, null, out _, out _, out _);
-        var meshHi = ObjLoader.Load(objPath, mat, SubdivisionOptions.Disabled, hi,
+        var meshHi = ObjLoader.Load(objPath, mat, SubdivisionOptions.Disabled, new LeafDisplacement(hi),
             0, null, out _, out _, out _);
 
         Assert.NotNull(meshLo?.AutoBump);
@@ -307,7 +307,7 @@ public class BumpDisplacementCombinationTests
 
         var meshLegacy = ObjLoader.Load(objPath, mat);
         var meshNew    = ObjLoader.Load(objPath, mat, SubdivisionOptions.Disabled,
-            DisplacementOptions.Disabled, 0, null, out _, out _, out _);
+            (MaterialDisplacement?)null, 0, null, out _, out _, out _);
 
         Assert.NotNull(meshLegacy);
         Assert.NotNull(meshNew);

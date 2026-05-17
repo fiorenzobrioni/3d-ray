@@ -20,6 +20,7 @@ public sealed class Lambertian : IMaterial
 
     public NormalMapTexture? NormalMap { get; set; }
     public BumpMapTexture? BumpMap { get; set; }
+    public MaterialDisplacement? Displacement { get; set; }
 
     /// <summary>
     /// Lambertian direct lighting (NEE integrand): full BRDF · cosθ.

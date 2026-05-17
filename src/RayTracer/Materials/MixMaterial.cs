@@ -100,6 +100,9 @@ public sealed class MixMaterial : IMaterial
     public NormalMapTexture? NormalMap { get; set; }
 
     /// <inheritdoc/>
+    public MaterialDisplacement? Displacement { get; set; }
+
+    /// <inheritdoc/>
     public BumpMapTexture? BumpMap { get; set; }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -243,7 +246,10 @@ public sealed class MixMaterial : IMaterial
     ///
     /// The result is clamped to [0, 1] for safety.
     /// </summary>
-    private float EvaluateBlendFactor(float u, float v, Vector3 point, int objectSeed)
+    // Internal so the displacement engine can compute the per-vertex blend
+    // factor for MixDisplacement at mesh-load time, before any HitRecord
+    // exists. The shading path inside this file calls it via the same name.
+    internal float EvaluateBlendFactor(float u, float v, Vector3 point, int objectSeed)
     {
         if (Mask == null)
             return Blend;

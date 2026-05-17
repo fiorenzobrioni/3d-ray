@@ -465,6 +465,21 @@ public class MaterialData
 
     [YamlMember(Alias = "mask")]
     public TextureData? Mask { get; set; }
+
+    // ── Surface displacement (Cycles/RenderMan parity) ───────────────────────
+    // Material-level displacement lets a single displaced material drive
+    // multiple mesh entities without per-entity duplication. On a Mix
+    // material the inner block can also enable `blend_with_mask: true` to
+    // vector-blend the children's displacement at the vertex via the same
+    // mask the BSDF blend uses (Cycles' "Mix Shader → Displacement" path).
+    /// <summary>
+    /// Material-level displacement block. When set and the entity using this
+    /// material is a polygonal mesh, the loader deforms the (sub)divided
+    /// limit topology before BVH construction. Non-mesh entities (analytic
+    /// primitives, CSG, groups) emit a load warning and ignore the block.
+    /// </summary>
+    [YamlMember(Alias = "displacement")]
+    public DisplacementData? Displacement { get; set; }
 }
 
 public class NormalMapData
@@ -594,6 +609,39 @@ public class DisplacementData
     /// </summary>
     [YamlMember(Alias = "autobump_scale")]
     public float AutobumpScale { get; set; } = 1f;
+
+    /// <summary>
+    /// Maximum expected displacement amplitude in world units. Used to pad
+    /// every BVH leaf AABB so shading-time bump perturbation stays inside the
+    /// boxes the BVH was built with. Mirrors Arnold's <c>disp_padding</c> and
+    /// RenderMan's <c>dispBound</c>. When 0 (default) the loader auto-derives
+    /// it from <see cref="Scale"/>: <c>|scale|</c> in scalar mode,
+    /// <c>|scale|·√3</c> in vector mode.
+    /// </summary>
+    [YamlMember(Alias = "bound")]
+    public float Bound { get; set; } = 0f;
+
+    /// <summary>
+    /// On a Mix material's <c>displacement:</c> block: opt-in to vector-blend
+    /// the two children's per-vertex displacement offsets using the Mix's own
+    /// mask/blend factor (Cycles "Mix Shader → Displacement" parity). The
+    /// other displacement fields above are ignored on the Mix; the Mix's
+    /// displacement is purely a blend of the children's. Defaults to false
+    /// (the Mix has no displacement of its own; if the user wants the Mix to
+    /// displace the geometry they must set this to true).
+    /// </summary>
+    [YamlMember(Alias = "blend_with_mask")]
+    public bool BlendWithMask { get; set; } = false;
+
+    /// <summary>
+    /// Tri-state Cycles-style mode: <c>"both"</c> (default) applies both
+    /// geometric displacement and (when <see cref="Autobump"/> is true) a
+    /// residual bump; <c>"displacement"</c> applies only the geometric
+    /// displacement, never the autobump; <c>"bump_only"</c> skips the
+    /// geometric displacement and turns the texture into a pure bump map.
+    /// </summary>
+    [YamlMember(Alias = "displacement_method")]
+    public string? Method { get; set; }
 }
 
 public class TextureData
@@ -917,29 +965,41 @@ public class EntityData
     [YamlMember(Alias = "subdivision_max_iterations")]
     public int SubdivisionMaxIterations { get; set; } = 6;
 
-    // ── Scalar displacement (Arnold/RenderMan/Cycles parity) ───────────────
+    // ── Surface displacement (material-level — Cycles/RenderMan parity) ────
+    //
+    // Displacement is now a property of the material, not the entity. This
+    // mirrors Cycles' "Material Output → Displacement" socket and RenderMan's
+    // bxdf shader network: a single displaced material drives every mesh that
+    // uses it, with no per-entity duplication. The two legacy entity-level
+    // fields (`displacement` and `displacement_bound`) are deserialized into
+    // sentinels below so the loader can raise a clear migration error rather
+    // than silently ignoring them.
 
     /// <summary>
-    /// Scalar height-field displacement applied to the (sub)divided mesh
-    /// after the subdivision pass and before BVH construction. Vertices are
-    /// moved along their limit-surface smooth normal by
-    /// <c>scale · (luminance(texture) − midlevel)</c>, producing real
-    /// silhouettes — not just shading perturbation. Mesh-only by design
-    /// (matches Arnold/Cycles: spheres/torus/etc. use <see cref="BumpMap"/>
-    /// instead).
+    /// When false, suppresses the resolved material's displacement for this
+    /// single entity (the material itself is still shared). Defaults to
+    /// true. Useful for per-instance overrides, e.g. a "low detail" copy of
+    /// a displaced rock that uses the same material but skips the
+    /// subdivision/displacement cost.
+    /// </summary>
+    [YamlMember(Alias = "displacement_enabled")]
+    public bool DisplacementEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Legacy field — the entity-level <c>displacement:</c> block has moved
+    /// to the material. The loader detects a non-null value here and raises
+    /// a hard error pointing at the material-level migration. Do not use.
     /// </summary>
     [YamlMember(Alias = "displacement")]
-    public DisplacementData? Displacement { get; set; }
+    public DisplacementData? LegacyEntityDisplacement { get; set; }
 
     /// <summary>
-    /// Maximum expected displacement amplitude in world units. Used to pad
-    /// every BVH leaf AABB by this much so shading-time bump perturbation
-    /// stays inside the boxes the BVH was built with. Mirrors Arnold's
-    /// <c>disp_padding</c> and RenderMan's <c>dispBound</c>. When 0
-    /// (default) the loader auto-derives it from <c>displacement.scale</c>.
+    /// Legacy field — the entity-level <c>displacement_bound</c> override has
+    /// moved to <c>material.displacement.bound</c>. Detected and reported as
+    /// a load error. Do not use.
     /// </summary>
     [YamlMember(Alias = "displacement_bound")]
-    public float DisplacementBound { get; set; } = 0f;
+    public float LegacyEntityDisplacementBound { get; set; } = 0f;
 
     // Plane
     [YamlMember(Alias = "normal")]

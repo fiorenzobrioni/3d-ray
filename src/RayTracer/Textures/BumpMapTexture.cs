@@ -34,7 +34,7 @@ namespace RayTracer.Textures;
 ///     strength: 1.0
 ///     scale: 1.0
 /// </summary>
-public sealed class BumpMapTexture
+public sealed class BumpMapTexture : IBumpMap
 {
     private readonly ITexture _height;
     private readonly float _strength;

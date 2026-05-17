@@ -55,17 +55,69 @@ world:
 
 materials:
 
+  # Base porcellana: stesso shading, niente displacement (lastra A).
   - id: "porcellana"
     type: "disney"
     color: [0.92, 0.88, 0.82]
     roughness: 0.42
     specular: 0.55
 
+  # Porcellana con scalar displacement Perlin fBm (lastra B). Stesso BSDF
+  # della "porcellana" + il blocco displacement spostato sul material.
+  - id: "porcellana_perlin"
+    type: "disney"
+    color: [0.92, 0.88, 0.82]
+    roughness: 0.42
+    specular: 0.55
+    displacement:
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 3.5
+        octaves: 5
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.40
+      midlevel: 0.5
+      bound: 0.30
+
+  # Porcellana con scalar displacement Voronoi F2−F1 (lastra C).
+  - id: "porcellana_voronoi"
+    type: "disney"
+    color: [0.92, 0.88, 0.82]
+    roughness: 0.42
+    specular: 0.55
+    displacement:
+      texture:
+        type: "voronoi"
+        scale: 4.0
+        metric: "euclidean"
+        output: "f2_minus_f1"
+        randomness: 1.0
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.30
+      midlevel: 0.0
+      bound: 0.30
+
+  # Rame corroso con ridged-fBm displacement (asteroide).
   - id: "rame_corroso"
     type: "disney"
     color: [0.85, 0.55, 0.32]
     roughness: 0.55
     metallic: 1.0
+    displacement:
+      texture:
+        type: "noise"
+        noise_type: "ridged"
+        scale: 3.0
+        octaves: 4
+        lacunarity: 2.2
+        gain: 0.55
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.15
+      midlevel: 0.35
+      bound: 0.18
 
   - id: "pavimento"
     type: "disney"
@@ -112,29 +164,18 @@ entities:
     subdivision_iterations: 4
 
   # ─────────────────────────────────────────────────────────────────────────
-  # LASTRA B — Perlin fBm (terreno organico)
+  # LASTRA B — Perlin fBm (terreno organico). Il displacement vive sul material
+  # "porcellana_perlin" — l'entity referenzia solo il material.
   # ─────────────────────────────────────────────────────────────────────────
   - name: "B_perlin"
     type: "mesh"
     path: "../models/displacement-plane.obj"
-    material: "porcellana"
+    material: "porcellana_perlin"
     scale: [0.9, 1.0, 1.1]
     translate: [0.0, 1.2, 0.5]
     rotate: [-90, 0, 0]
     subdivision_scheme: "catmull_clark"
     subdivision_iterations: 6
-    displacement:
-      texture:
-        type: "noise"
-        noise_type: "fbm"
-        scale: 3.5
-        octaves: 5
-        lacunarity: 2.0
-        gain: 0.5
-        colors: [[0, 0, 0], [1, 1, 1]]
-      scale: 0.40
-      midlevel: 0.5
-    displacement_bound: 0.30
 
   # ─────────────────────────────────────────────────────────────────────────
   # LASTRA C — Voronoi F2-F1 (crepe / tessere)
@@ -142,23 +183,12 @@ entities:
   - name: "C_voronoi"
     type: "mesh"
     path: "../models/displacement-plane.obj"
-    material: "porcellana"
+    material: "porcellana_voronoi"
     scale: [0.9, 1.0, 1.1]
     translate: [2.2, 1.2, 0.5]
     rotate: [-90, 0, 0]
     subdivision_scheme: "catmull_clark"
     subdivision_iterations: 6
-    displacement:
-      texture:
-        type: "voronoi"
-        scale: 4.0
-        metric: "euclidean"
-        output: "f2_minus_f1"
-        randomness: 1.0
-        colors: [[0, 0, 0], [1, 1, 1]]
-      scale: 0.30
-      midlevel: 0.0
-    displacement_bound: 0.30
 
   # ─────────────────────────────────────────────────────────────────────────
   # ASTEROIDE — cubo CC×4 + ridged-fBm → silhouette irregolare reale.
@@ -171,15 +201,3 @@ entities:
     translate: [0, 2.6, 1.8]
     subdivision_scheme: "catmull_clark"
     subdivision_iterations: 4
-    displacement:
-      texture:
-        type: "noise"
-        noise_type: "ridged"
-        scale: 3.0
-        octaves: 4
-        lacunarity: 2.2
-        gain: 0.55
-        colors: [[0, 0, 0], [1, 1, 1]]
-      scale: 0.15
-      midlevel: 0.35
-    displacement_bound: 0.18

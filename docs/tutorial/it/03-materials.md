@@ -1234,6 +1234,144 @@ image (concrete) contro un pannello piatto di riferimento.
 
 ---
 
+## 3.11.5 Surface Displacement (material-level, parità Cycles/RenderMan)
+
+I bump map perturbano solo la normale di shading. Il **surface
+displacement** fa il passo successivo: sposta fisicamente i vertici di
+una mesh subdivisa prima della costruzione del BVH, così che la
+**silhouette** cambi — non solo lo shading. Il displacement vive sul
+material (socket "Material Output → Displacement" di Cycles,
+`PxrDisplace` nella shader network di RenderMan): un material displaced
+guida ogni mesh che lo referenzia, senza duplicazione per-entity.
+
+```yaml
+materials:
+  - id: "pietra_scolpita"
+    type: "disney"
+    color: [0.82, 0.66, 0.42]
+    roughness: 0.78
+    displacement:
+      mode: "scalar"                   # scalar | vector
+      texture:                          # qualunque procedurale o image
+        type: "noise"
+        noise_type: "fbm"
+        scale: 3.5
+        octaves: 5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.30                       # ampiezza con segno (world units)
+      midlevel: 0.5                     # valore texture "piatto"
+      bound: 0.30                       # padding BVH (autoderivato se omesso)
+      displacement_method: "both"       # both | displacement | bump_only
+      autobump: true
+      autobump_strength: 1.5
+
+entities:
+  - type: "mesh"
+    path: "models/stone.obj"
+    material: "pietra_scolpita"         # ← ogni mesh che usa questo material
+    subdivision_scheme: "catmull_clark"  #   viene displaced; niente blocco
+    subdivision_iterations: 5            #   per-entity
+```
+
+### Modalità
+
+**Scalar.** Ogni micro-vertice si sposta lungo la sua normale liscia di
+`scale · (h − midlevel)`, dove `h = luminanza Rec.709 della texture`.
+È il displacement "height-field" canonico di Arnold
+(`displacementShader`), RenderMan (`PxrDisplace`) e Cycles ("True
+Displacement"). Dopo il pass le normali di shading sono ricalcolate
+dalla topologia spostata così il BSDF vede la nuova silhouette.
+
+**Vector.** Ogni micro-vertice si sposta di
+`scale · (rgb − midlevel) · basis`, dove il basis è il TBN per-vertex
+(`space: tangent`, R→T, G→B, B→N — convenzione Mudbox/Maya/ZBrush) o
+l'identità (`space: object`, RGB sommato direttamente alla posizione
+locale). Il vector mode produce **overhang** e **crinkles** che un
+height field non può rappresentare — esattamente come si bakano sculpt
+hi-res su una cage low-poly.
+
+### `displacement_method` (tri-state Cycles)
+
+- `both` (default) — displacement geometrico + autobump (se richiesto).
+- `displacement` — solo geometrico; niente autobump anche se richiesto.
+- `bump_only` — salta il pass geometrico; tratta la texture come pure
+  bump map. Utile per lookdev veloce: stesso material, geometrico
+  on/off senza riscrivere blocchi.
+
+### Autobump
+
+Impostando `autobump: true` l'engine deriva una bump map residua dalla
+stessa texture di displacement e la attacca alla mesh. Il renderer la
+applica sopra all'eventuale `bump_map` materiale al tempo dello
+shading, recuperando il dettaglio sub-pixel più fine della griglia di
+subdivision. È il flag `autobump_visibility` di Arnold. Ampiezza =
+`autobump_strength · |scale|`; `autobump_scale > 1` campiona il bump
+più fine del displacement (workflow macro-displacement + micro-bump).
+
+### Ordine di composizione
+
+```
+normale geometrica (post-displacement)
+  → material.normal_map
+    → material.bump_map
+      → mesh.autobump            (← derivato da displacement.texture)
+```
+
+`coat_normal_map` sui material Disney resta indipendente — perturba
+solo il lobo di clearcoat.
+
+### Override per-istanza
+
+Una mesh entity singola può sopprimere il displacement ereditato con
+`displacement_enabled: false` nel blocco entity. Il material resta
+condiviso; questa istanza è piatta. Utile per LOD/proxy.
+
+### Mix-displacement (Cycles "Mix Shader → Displacement")
+
+Un `MixMaterial` con `displacement: { blend_with_mask: true }`
+vector-blenda le offset per-vertex dei due child usando la STESSA mask
+del BSDF mix, quindi la geometria è C0-continua lungo le cuciture:
+
+```yaml
+- id: "roccia_consumata"
+  type: "mix"
+  material_a: "rock_clean"              # entrambi i child devono avere
+  material_b: "rock_moss"               # un proprio displacement
+  mask:
+    type: "noise"
+    scale: 3.0
+  displacement:
+    blend_with_mask: true
+```
+
+Anche l'autobump risultante è blendato dalla stessa mask
+(`MixBumpMapTexture`), così il dettaglio sub-pixel recuperato segue
+fluidamente il confine fra material.
+
+### Solo mesh
+
+Il displacement material-level è applicato solo dalle entity
+`type: mesh`. Entità sphere/cylinder/box/CSG che referenziano un
+material displaced emettono un warning di load e usano lo shading senza
+il pass geometrico.
+
+### Showcase
+
+- `scenes/showcases/scalar-displacement-showcase.yaml` — pannelli
+  height-field (Perlin fBm, crepe Voronoi) e un asteroide ridged-fBm.
+- `scenes/showcases/vector-displacement-showcase.yaml` — scalar vs
+  tangent-space vs object-space affiancati, più un cubo CC×4 con
+  ridged-fBm vector displacement.
+- `scenes/showcases/bump-displacement-combo-showcase.yaml` — piatto /
+  solo displacement / displacement + autobump / displacement + autobump
+  + bump materiale, a subdivision volutamente moderata.
+- `scenes/showcases/material-displacement-mix-showcase.yaml` — due
+  mesh che condividono un material displaced (riuso), un'istanza con
+  `displacement_enabled: false` (bypass), e un Mix-displacement che
+  vector-blenda Perlin × Voronoi.
+
+---
+
 ## 3.12 Esempio Completo: Galleria dei Materiali
 
 Una scena che mostra otto diversi materiali uno accanto all'altro.

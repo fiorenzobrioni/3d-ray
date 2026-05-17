@@ -440,19 +440,75 @@ materials:
   #  displacement → autobump → bump combinato.
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Pietra arenaria — base porcellanata calda (riusata su 3 rocce)
+  # Arenaria — scalar displacement "hetero_terrain" (pianeta-cresta) sulla R3.
   - id: "rock_sandstone"
     type: "disney"
     color: [0.82, 0.66, 0.42]
     roughness: 0.78
     specular: 0.30
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        noise_type: "hetero_terrain"
+        scale: 3.5
+        octaves: 6
+        fractal_increment: 0.30
+        fractal_offset: 0.7
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.16
+      midlevel: 0.45
+      bound: 0.22
 
+  # Basalto base — niente displacement (proxy material referenziabile).
   - id: "rock_basalt"
     type: "disney"
     color: [0.18, 0.16, 0.18]
     roughness: 0.72
     specular: 0.40
 
+  # Variante basalto: scalar displacement Voronoi F2−F1 (R2: silhouette a
+  # tessere).
+  - id: "rock_basalt_voronoi"
+    type: "disney"
+    color: [0.18, 0.16, 0.18]
+    roughness: 0.72
+    specular: 0.40
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 4.0
+        metric: "euclidean"
+        output: "f2_minus_f1"
+        smoothness: 0.2
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.10
+      midlevel: 0.0
+      bound: 0.14
+
+  # Variante basalto: vector displacement OBJECT-space ridged (R4: overhang).
+  - id: "rock_basalt_vector_ridged"
+    type: "disney"
+    color: [0.18, 0.16, 0.18]
+    roughness: 0.72
+    specular: 0.40
+    displacement:
+      mode: "vector"
+      space: "object"
+      texture:
+        type: "noise"
+        noise_type: "ridged"
+        scale: 3.2
+        octaves: 5
+        lacunarity: 2.2
+        gain: 0.55
+        colors: [[0.20, 0.20, 0.20], [0.80, 0.80, 0.80]]
+      scale: 0.14
+      midlevel: 0.5
+      bound: 0.26
+
+  # Ossidiana base + scolpita via vector-object Voronoi position (R6).
   - id: "rock_obsidian"
     type: "disney"
     color: [0.05, 0.05, 0.07]
@@ -460,10 +516,22 @@ materials:
     specular: 0.80
     clearcoat: 0.6
     coat_roughness: 0.15
+    displacement:
+      mode: "vector"
+      space: "object"
+      texture:
+        type: "voronoi"
+        scale: 5.0
+        output: "position"
+        randomness: 1.0
+        colors: [[0.20, 0.20, 0.20], [0.80, 0.80, 0.80]]
+      scale: 0.10
+      midlevel: 0.5
+      bound: 0.20
 
-  # Variante arenaria con bump materiale aggiuntivo (graffi diagonali ridged)
-  # — usata sulla roccia "full stack" per dimostrare la composizione finale
-  # subdivision → displacement → autobump → bump materiale.
+  # Variante arenaria con bump materiale aggiuntivo (graffi diagonali ridged) +
+  # scalar displacement fBm + autobump (R5: full stack subdivision →
+  # displacement → autobump → bump materiale).
   - id: "rock_sandstone_scratched"
     type: "disney"
     color: [0.82, 0.66, 0.42]
@@ -477,6 +545,22 @@ materials:
         octaves: 2
         colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
       strength: 1.2
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 5.0
+        octaves: 6
+        lacunarity: 2.0
+        gain: 0.5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.14
+      midlevel: 0.5
+      bound: 0.20
+      autobump: true
+      autobump_strength: 1.5
+      autobump_scale: 1.4
 
   # Granito — bump-only (riferimento del bump puro vs vero displacement)
   - id: "rock_granite_bumponly"
@@ -1183,29 +1267,17 @@ entities:
     subdivision_iterations: 3
 
   # R2 ── scalar displacement Voronoi F2−F1: silhouette a tessere.
+  #       Material 'rock_basalt_voronoi' porta il displacement.
   - name: "rock_2_voronoi_disp"
     type: "mesh"
     path: "../models/subdivision-icosahedron.obj"
-    material: "rock_basalt"
+    material: "rock_basalt_voronoi"
     scale: [0.40, 0.40, 0.40]
     translate: [-1.35, 1.27, 1.35]
     subdivision_scheme: "catmull_clark"
     subdivision_iterations: 3
-    displacement:
-      mode: "scalar"
-      texture:
-        type: "voronoi"
-        scale: 4.0
-        metric: "euclidean"
-        output: "f2_minus_f1"
-        smoothness: 0.2
-        colors: [[0, 0, 0], [1, 1, 1]]
-      scale: 0.10
-      midlevel: 0.0
-    displacement_bound: 0.14
 
-  # R3 ── scalar displacement Musgrave hetero_terrain: pianeta in miniatura
-  #       con creste alte e valli lisce. La silhouette è ondulata.
+  # R3 ── scalar displacement hetero_terrain: pianeta in miniatura.
   - name: "rock_3_terrain_disp"
     type: "mesh"
     path: "../models/subdivision-icosahedron.obj"
@@ -1214,50 +1286,18 @@ entities:
     translate: [-0.45, 1.27, 1.35]
     subdivision_scheme: "catmull_clark"
     subdivision_iterations: 3
-    displacement:
-      mode: "scalar"
-      texture:
-        type: "noise"
-        noise_type: "hetero_terrain"
-        scale: 3.5
-        octaves: 6
-        fractal_increment: 0.30
-        fractal_offset: 0.7
-        colors: [[0, 0, 0], [1, 1, 1]]
-      scale: 0.16
-      midlevel: 0.45
-    displacement_bound: 0.22
 
-  # R4 ── vector displacement OBJECT-space (icosphere non ha UV, tangent
-  #       non disponibile): noise RGB letto come (x, y, z) locali; overhang
-  #       indipendenti dalla parametrizzazione.
+  # R4 ── vector displacement OBJECT-space ridged.
   - name: "rock_4_vector_disp"
     type: "mesh"
     path: "../models/subdivision-icosahedron.obj"
-    material: "rock_basalt"
+    material: "rock_basalt_vector_ridged"
     scale: [0.40, 0.40, 0.40]
     translate: [ 0.45, 1.27, 1.35]
     subdivision_scheme: "catmull_clark"
     subdivision_iterations: 3
-    displacement:
-      mode: "vector"
-      space: "object"
-      texture:
-        type: "noise"
-        noise_type: "ridged"
-        scale: 3.2
-        octaves: 5
-        lacunarity: 2.2
-        gain: 0.55
-        colors: [[0.20, 0.20, 0.20], [0.80, 0.80, 0.80]]
-      scale: 0.14
-      midlevel: 0.5
-    displacement_bound: 0.26
 
-  # R5 ── FULL STACK: subdivision + scalar displacement + autobump + bump
-  #       materiale. La silhouette è dettata dal displacement, il
-  #       sub-griglia recuperato dall'autobump, i graffi sopra dal
-  #       bump_map del materiale `rock_sandstone_scratched`.
+  # R5 ── FULL STACK: scalar displacement + autobump + bump materiale.
   - name: "rock_5_full_stack"
     type: "mesh"
     path: "../models/subdivision-icosahedron.obj"
@@ -1266,25 +1306,8 @@ entities:
     translate: [ 1.35, 1.27, 1.35]
     subdivision_scheme: "catmull_clark"
     subdivision_iterations: 3
-    displacement:
-      mode: "scalar"
-      texture:
-        type: "noise"
-        noise_type: "fbm"
-        scale: 5.0
-        octaves: 6
-        lacunarity: 2.0
-        gain: 0.5
-        colors: [[0, 0, 0], [1, 1, 1]]
-      scale: 0.14
-      midlevel: 0.5
-      autobump: true                       # ← recupera sub-griglia
-      autobump_strength: 1.5
-      autobump_scale: 1.4
-    displacement_bound: 0.20
 
-  # R6 ── obsidiana scolpita: vector displacement object-space su mesh
-  #       Catmull-Clark = ossidiana semi-frantumata con clearcoat lucido.
+  # R6 ── obsidiana scolpita: vector displacement object-space Voronoi.
   - name: "rock_6_obsidian_sculpted"
     type: "mesh"
     path: "../models/subdivision-icosahedron.obj"
@@ -1293,18 +1316,6 @@ entities:
     translate: [ 2.25, 1.27, 1.35]
     subdivision_scheme: "catmull_clark"
     subdivision_iterations: 3
-    displacement:
-      mode: "vector"
-      space: "object"
-      texture:
-        type: "voronoi"
-        scale: 5.0
-        output: "position"                  # ← XYZ feature come offset XYZ
-        randomness: 1.0
-        colors: [[0.20, 0.20, 0.20], [0.80, 0.80, 0.80]]
-      scale: 0.10
-      midlevel: 0.5
-    displacement_bound: 0.20
 
   # ── Fila 4 (Z=+0.45) LEGNI STUDIO QUALITY ─────────────────────────────
   - { name: "wood_1", type: "sphere", center: [-2.25, 1.22, 0.45], radius: 0.35, seed: 4001, material: "wood_oak" }

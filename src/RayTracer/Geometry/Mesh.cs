@@ -58,7 +58,7 @@ public class Mesh : IHittable, ISamplable
     /// meshes that asked for an autobump get one. Mirrors Arnold's
     /// <c>autobump_visibility</c> flag on <c>polymesh</c>.
     /// </summary>
-    public BumpMapTexture? AutoBump { get; set; }
+    public IBumpMap? AutoBump { get; set; }
 
     /// <summary>
     /// Constructs a Mesh from a list of triangles and builds the internal BVH.
