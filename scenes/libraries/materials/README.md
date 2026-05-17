@@ -1,16 +1,39 @@
 # Libreria Materiali — 3D-Ray
 
 Raccolta completa di materiali PBR per il motore di ray tracing 3D-Ray.
-12 file YAML tematici con oltre **1080 materiali** pronti all'uso, organizzati
-per categoria e con doppia variante Disney/Classic. Ogni materiale Disney
-usa le chiavi moderne del BSDF (`coat_roughness` + `coat_ior` al posto del
-legacy `clearcoat_gloss`, `sheen_roughness` dove appropriato, `subsurface_color`
-per il subsurface, `transmission_color` + `transmission_depth` per i vetri
-colorati anziché il colore Beer-Lambert legacy).
+**21 file YAML tematici** con oltre **1300 materiali** pronti all'uso,
+organizzati per categoria e con doppia variante Disney/Classic. Ogni
+materiale Disney usa le chiavi moderne del BSDF (`coat_roughness` +
+`coat_ior` al posto del legacy `clearcoat_gloss`, `sheen_roughness` dove
+appropriato, `subsurface_color` per il subsurface, `transmission_color`
++ `transmission_depth` per i vetri colorati anziché il colore
+Beer-Lambert legacy).
 
 La libreria è allineata alla versione corrente del motore (Disney 2015 +
 estensioni Arnold + thin-film). Nessun materiale usa `subsurface_radius`
 (parsato ma inutilizzato — vedi `docs/reference/scene-reference.md` §5).
+
+## Sezioni VFX Extended (v2)
+
+Tutte le 13 librerie originali hanno una sezione **EXTENDED VFX
+MATERIALS (v2)** in coda che sfrutta le feature di texturing più recenti:
+
+- **Surface displacement stack completo**: bump_map procedurale, scalar
+  displacement, vector displacement (tangent/object), autobump, combo
+  bump+displacement, `displacement_method: bump_only` come fallback
+  sicuro per sfere (geometric displacement applica solo a mesh).
+- **VFX texturing avanzato**: smooth voronoi (smoothness 0–1), voronoi
+  extended outputs (f1/f2/f3/f4/f2_minus_f1/f3_minus_f1/cell/position),
+  Musgrave hetero_terrain e hybrid_multifractal, color_ramp multi-stop
+  (linear/smoothstep/ease/constant), marble studio (vein_sharpness,
+  secondary_wave), wood studio (figure_strength, radial_anisotropy,
+  knot_density, grain_scale).
+- **Thin-film interferenza** per anodizzazioni, scaglie iridescenti,
+  bolle di sapone, perle, opali, niobio olografico.
+
+9 librerie NUOVE sono state aggiunte (concretes, plasters, leathers,
+weathering, synthetics, liquids, minerals-gems, biological,
+industrial-coatings) che usano le nuove feature fin dalla nascita.
 
 ---
 
@@ -231,20 +254,126 @@ protagonisti. Questo bilancia qualità visiva e tempo di rendering.
 
 ---
 
+## Nuove librerie (Batch 1-2)
+
+### Cementi e Asfalti — `concretes.yaml`
+Cemento liscio (autolivellante, casseforme, industriale), esposto (Tadao
+Ando, brutalist con casseri legno, fugato), lavorato (sabbiato, bocciardato,
+graffiato), lavato a vista (chiaro/scuro), cemento armato grezzo, colorati
+(ocra, antracite, terra siena, blu industriale), asfalto (fresco, consumato
+light/medium/heavy, bagnato), bitume.
+**~28 materiali** · 7 categorie
+
+### Intonaci e Stucchi — `plasters.yaml`
+Rasato civile (3 finiture), graffiato esterno/fine, veneziano (avorio, blu,
+pompeiano, salvia, antracite — marble studio + clearcoat), marmorino
+(bianco, blu polvere, terracotta — opaco), tadelakt marocchino (rosa, ocra,
+menta), stucco antico (crepato, umido, rosa veneziano), calce mediterranea
+(bianca, avorio, azzurra Santorini), gesso (liscio, satinato), coloratura.
+**~30 materiali** · 9 categorie
+
+### Pelli — `leathers.yaml`
+Pieno fiore (5 conce), nappa morbida (4 colori), suede/scamosciato (5 tipi,
+sheen 0.85), vintage invecchiata (3 patine), patent leather verniciata (3
+colori), esotici (pitone naturale/albino, coccodrillo nero/marrone, struzzo,
+lucertola — voronoi cell scaglie), scarpe (box calf, cordovan, militare),
+sintetici ecoleather/vinile.
+**~38 materiali** · 8 categorie
+
+### Weathering Overlays — `weathering.yaml`
+Overlay `over_*` mix-ready: ruggine (light/medium/heavy/streak), muschio
+(sparse/dense/wet), polvere (light/heavy/gesso/terra), colature sporco,
+calcare/limescale, grasso (dark/light), neve sottile (polverosa/melting),
+vernice scrostata (bianca/militare via voronoi crackle), foglie morte, sale
+marino, film d'acqua, macchie acqua secca, verderame patina rame.
+**~28 overlays** · pensati per `type: mix` con maschera procedurale
+
+### Minerali e Gemme Grezze — `minerals-gems.yaml`
+Quarzi (trasparente/fumè/citrino/rosa/ametista), geodi (base ruvida + interni
+cristallini ametista/agata), druse vector-displaced, cristalli cubici (pirite/
+halite/galena), calcite islandese birifrangente, fluorite multicolore
+(viola/rainbow/verde), malachite radiale, lapislazzuli, pietra di luna +
+pesca (thin_film adularescenza), opali (bianco/nero/fuoco), cristalli rari
+(selenite, kyanite, tormalina watermelon, granato).
+**~28 materiali** · 11 categorie
+
+### Sintetici Tecnici — `synthetics.yaml`
+Fibra di carbonio (twill/plain/satin/3D/matte/rosso — anisotropic+rotation),
+kevlar (giallo/nero/hybrid), vetroresina (gelcoat/grezza/trasparente),
+neoprene (nero/blu/foderato), PTFE/Teflon, gomma EPDM, silicone medicale
+(traslucido alto subsurface), poliuretani (rigido/flessibile), vinile auto
+wrap (matte/gloss/satin/chrome/chrome-rosa/olografico), tessuti tecnici
+(ripstop/cordura/gore-tex), aerogel.
+**~30 materiali** · 11 categorie
+
+### Liquidi — `liquids.yaml`
+Acque (piscina/mare-costiero/profondo/torrente/fontana/tropicale/torbida/
+ghiaccio), latticini (intero/scremato/panna/condensato), sangue (arterioso/
+venoso/secco/coagulato), oli (motore-iridescente/oliva/semi/benzina),
+alcolici (vino RG/B/rose, birra chiara/stout, whisky/vodka/rum), sciroppi
+(miele/acero/caramello/melassa), bevande calde (caffè/tè/matcha/cioccolata),
+succhi, liquidi industriali (refrigeranti/ammoniaca).
+**~40 materiali** · 9 categorie
+
+### Tessuti Biologici Viventi — `biological.yaml`
+Pelle umana 8 varianti (caucasica chiara/scura, mediterranea, asiatica,
+africana, bambino, anziana, abbronzata — subsurface multi-layer), muscolo/
+fegato/lingua bovina, pelle elefante/squalo, scaglie pesce (carpa/salmone/
+koi/trota — thin_film), scaglie rettile (geco/iguana/drago barbuto), piume
+(copertura/piumino/corvo/struzzo/pavone iridescente), occhio (3 iridi + sclera
++ cornea), membrane sottili diff_trans (ala pipistrello/palmo rana), labbra/
+gengiva/lingua umana.
+**~40 materiali** · 9 categorie
+
+### Vernici Industriali — `industrial-coatings.yaml`
+Chassis auto (matte black/grey/cement, gloss black/white/rosso/blu-metallic),
+clearcoat protettivo, matte anti-glare, polveri elettrostatiche RAL
+(9005/9010/3020/5015/1023/6018/7035), anodizzazione alluminio (naturale/oro/
+nero/blu/rosso/viola/verde via thin_film 320-640nm), zincatura (lucida/opaca/
+invecchiata), cromature, smalti a fuoco (bianco/rosso/blu), gel coat marino,
+termocromiche, retroriflettenti, anti-corrosive, fluo safety.
+**~30 materiali** · 11 categorie
+
+---
+
 ## Totale libreria
 
-| File | Materiali |
+| File | Materiali (originali + v2) |
 |------|-----------|
-| metals.yaml | 128 |
-| ceramics.yaml | 88 |
-| woods.yaml | 72 |
-| glasses.yaml | 96 |
-| stones.yaml | 87 |
-| plastics.yaml | 95 |
-| fabrics.yaml | 100 |
-| paints.yaml | 98 |
-| organics.yaml | 81 |
-| foods.yaml | 91 |
-| emissives.yaml | 83 |
-| grounds.yaml | 66 |
-| **Totale** | **1085** |
+| metals.yaml | 128 + 10 v2 |
+| ceramics.yaml | 99 + 8 v2 |
+| woods.yaml | 84 + 8 v2 |
+| glasses.yaml | 104 + 10 v2 |
+| stones.yaml | 98 + 10 v2 |
+| plastics.yaml | 95 + 8 v2 |
+| fabrics.yaml | 100 + 8 v2 |
+| paints.yaml | 98 + 8 v2 |
+| organics.yaml | 81 + 8 v2 |
+| foods.yaml | 91 + 9 v2 |
+| emissives.yaml | 83 + 7 v2 |
+| grounds.yaml | 66 + 8 v2 |
+| concretes.yaml *(new)* | 28 |
+| plasters.yaml *(new)* | 30 |
+| leathers.yaml *(new)* | 38 |
+| weathering.yaml *(new)* | 28 |
+| minerals-gems.yaml *(new)* | 28 |
+| synthetics.yaml *(new)* | 30 |
+| liquids.yaml *(new)* | 40 |
+| biological.yaml *(new)* | 40 |
+| industrial-coatings.yaml *(new)* | 30 |
+| **Totale** | **~1330** |
+
+## Showcases dedicati
+
+In `scenes/showcases/` ci sono showcase mirati per le nuove librerie:
+
+- **Surface displacement**: `concretes-showcase`, `plasters-showcase`,
+  `leathers-showcase`, `weathering-overlay-showcase`
+- **VFX texturing**: `minerals-gems-showcase`, `synthetics-showcase`,
+  `liquids-showcase`, `biological-showcase`, `industrial-coatings-showcase`
+- **Studio v2** (per estensioni VFX delle librerie esistenti):
+  `marbles-studio-v2-showcase`, `woods-studio-v2-showcase`,
+  `glass-features-showcase`
+- **Cross-library thematic**: `wet-surfaces-showcase` (liquidi + ceramiche +
+  intonaci), `weathered-surfaces-showcase` (metalli + cementi + weathering
+  overlays)

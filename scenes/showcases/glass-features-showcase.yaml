@@ -1,0 +1,74 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Glass Features Showcase — Vetri e Gemme Sezione v2
+#
+#  Dimostra 6 vetri/gemme della sezione EXTENDED VFX in `glasses.yaml`:
+#
+#    x=-5.0  Vetro iridescente       → thin_film 480nm
+#    x=-3.0  Ghiaccio fratturato     → smooth voronoi f1_plus_f2
+#    x=-1.0  Vetro soffiato a mano   → displacement scalare imperfezioni
+#    x=+1.0  Smeraldo v2             → color_ramp 3-stop zonazione
+#    x=+3.0  Zaffiro v2              → thin_film 540nm sleep silk
+#    x=+5.0  Diamante brilliant      → ior 2.418
+#
+#  I vetri trasparenti richiedono `-d 14+` per dispersione e riflessioni
+#  multiple interne corrette.
+#
+#  Render consigliato:
+#    Draft:  -w 640  -H 360  -s 128  -d 12 -S 1
+#    Finale: -w 1920 -H 1080 -s 2048 -d 16 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+imports:
+  - { path: "../libraries/materials/glasses.yaml" }
+
+world:
+  sky:
+    type: "flat"
+    color: [0.18, 0.18, 0.22]
+
+camera:
+  position: [0, 1.6, -10.5]
+  look_at:  [0, 0.85, 0]
+  fov: 56
+
+materials:
+  - id: "floor"
+    type: "disney"
+    color: [0.85, 0.85, 0.85]
+    roughness: 0.50
+    specular: 0.35
+
+  - id: "backdrop"
+    type: "disney"
+    color: [0.55, 0.55, 0.58]
+    roughness: 0.80
+
+entities:
+
+  - { name: "floor", type: "quad", q: [-12, 0, -4], u: [24, 0, 0], v: [0, 0, 10], material: "floor" }
+  - { name: "wall",  type: "quad", q: [-12, 0,  6], u: [24, 0, 0], v: [0, 8, 0],  material: "backdrop" }
+
+  - { name: "iride",    type: "sphere", center: [-5.0, 0.85, 0], radius: 0.85, seed:  3, material: "dis_vetro_iridescente"  }
+  - { name: "ice",      type: "sphere", center: [-3.0, 0.85, 0], radius: 0.85, seed: 11, material: "dis_ghiaccio_fratturato"}
+  - { name: "soffiato", type: "sphere", center: [-1.0, 0.85, 0], radius: 0.85, seed: 19, material: "dis_vetro_soffiato"     }
+  - { name: "smeraldo", type: "sphere", center: [ 1.0, 0.85, 0], radius: 0.85, seed: 29, material: "dis_smeraldo_v2"        }
+  - { name: "zaffiro",  type: "sphere", center: [ 3.0, 0.85, 0], radius: 0.85, seed: 37, material: "dis_zaffiro_v2"         }
+  - { name: "diamante", type: "sphere", center: [ 5.0, 0.85, 0], radius: 0.85, seed: 43, material: "dis_diamante_brilliant" }
+
+lights:
+  - type: "directional"
+    direction: [-0.4, -0.6, 0.5]
+    color: [1.0, 0.98, 0.95]
+    intensity: 7.0
+    angular_radius: 0.4
+
+  - type: "sphere"
+    position: [-3, 5, -4]
+    radius: 0.7
+    color: [1.0, 0.98, 0.94]
+    intensity: 18
+
+  - type: "point"
+    position: [0, 3.5, 5]
+    color: [1.0, 0.88, 0.68]
+    intensity: 60

@@ -15,7 +15,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 imports:
-  - { path: "libraries/materials/industrial-coatings.yaml" }
+  - { path: "../libraries/materials/industrial-coatings.yaml" }
 
 world:
   sky:

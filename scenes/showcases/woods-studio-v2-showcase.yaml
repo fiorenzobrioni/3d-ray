@@ -16,7 +16,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 imports:
-  - { path: "libraries/materials/woods.yaml" }
+  - { path: "../libraries/materials/woods.yaml" }
 
 world:
   sky:

@@ -19,7 +19,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 imports:
-  - { path: "libraries/materials/leathers.yaml" }
+  - { path: "../libraries/materials/leathers.yaml" }
 
 world:
   sky:

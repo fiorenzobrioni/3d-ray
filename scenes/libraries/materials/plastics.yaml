@@ -835,3 +835,149 @@ materials:
     type: "metal"
     color: [0.90, 0.89, 0.86]
     fuzz: 0.38
+
+  # ════════════════════════════════════════════════════════════════════════
+  # EXTENDED VFX MATERIALS (v2)
+  # ════════════════════════════════════════════════════════════════════════
+  #
+  # Estensione con feature avanzate:
+  #   • Voronoi smooth per ABS rugoso (texture iniezione fine).
+  #   • Displacement direzionale per layer lines stampa 3D PLA.
+  #   • Thin_film per plastica olografica.
+  #   • Color_ramp per plastica UV-degradata (giallastra).
+  #   • Sheen per vinile soft-touch.
+  # ════════════════════════════════════════════════════════════════════════
+
+  # ABS rugoso iniezione: superficie testurizzata interna stampi.
+  - id: "dis_abs_rugoso"
+    type: "disney"
+    color: [0.18, 0.18, 0.18]
+    roughness: 0.65
+    specular: 0.30
+    texture:
+      type: "voronoi"
+      scale: 60.0
+      output: "cell"
+      smoothness: 0.5
+      colors: [[0.14, 0.14, 0.14], [0.22, 0.22, 0.22]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 70.0
+        smoothness: 0.3
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.5
+
+  # PLA stampa 3D con layer lines: bump direzionale per le righe.
+  - id: "dis_pla_3dprint_layers"
+    type: "disney"
+    color: [0.95, 0.78, 0.32]
+    roughness: 0.32
+    specular: 0.42
+    clearcoat: 0.35
+    coat_roughness: 0.18
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 80.0
+        noise_type: "ridged"
+        octaves: 2
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.5
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        scale: 60.0
+        noise_type: "ridged"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.0008
+      midlevel: 0.5
+      bound: 0.002
+      autobump: true
+      displacement_method: "bump_only"
+
+  # PLA stampa 3D nero opaco: variante più comune.
+  - id: "dis_pla_3dprint_nero"
+    type: "disney"
+    color: [0.06, 0.06, 0.06]
+    roughness: 0.42
+    specular: 0.38
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 80.0
+        noise_type: "ridged"
+        octaves: 2
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.5
+
+  # Plastica olografica/iridescente: glitter card, packaging.
+  - id: "dis_plastica_olografica"
+    type: "disney"
+    metallic: 0.50
+    color: [0.55, 0.55, 0.62]
+    roughness: 0.12
+    specular: 0.55
+    clearcoat: 1.0
+    coat_roughness: 0.05
+    thin_film_thickness: 540
+    thin_film_ior: 1.50
+
+  # Plastica UV-degradata: bianco virato a giallo per ossidazione.
+  - id: "dis_plastica_uv_degradata"
+    type: "disney"
+    color: [0.85, 0.78, 0.55]
+    roughness: 0.55
+    specular: 0.30
+    clearcoat: 0.3
+    coat_roughness: 0.20
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_strength: 0.18
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.62, 0.55, 0.32], interp: "smoothstep" }
+        - { position: 0.55, color: [0.82, 0.75, 0.52], interp: "smoothstep" }
+        - { position: 1.00, color: [0.92, 0.88, 0.72], interp: "linear" }
+
+  # Vinile soft-touch: superficie quasi gommosa, sheen leggero.
+  - id: "dis_vinile_softtouch"
+    type: "disney"
+    color: [0.16, 0.16, 0.18]
+    roughness: 0.62
+    specular: 0.32
+    sheen: 0.35
+    sheen_roughness: 0.7
+    clearcoat: 0.2
+    coat_roughness: 0.30
+
+  # Gomma siliconica colorata (giocattoli): subsurface bias.
+  - id: "dis_gomma_siliconica"
+    type: "disney"
+    color: [0.95, 0.32, 0.42]
+    roughness: 0.42
+    specular: 0.40
+    subsurface: 0.45
+    subsurface_color: [0.98, 0.42, 0.50]
+    clearcoat: 0.4
+    coat_roughness: 0.18
+
+  # Plastica trasparente smerigliata (custodie tech).
+  - id: "dis_plastica_smerigliata"
+    type: "disney"
+    color: [0.92, 0.93, 0.95]
+    roughness: 0.50
+    specular: 0.45
+    spec_trans: 0.55
+    ior: 1.49
+    transmission_color: [0.92, 0.93, 0.95]
+    transmission_depth: 0.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 80.0
+        smoothness: 0.5
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.4

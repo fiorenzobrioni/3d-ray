@@ -19,7 +19,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 imports:
-  - { path: "libraries/materials/minerals-gems.yaml" }
+  - { path: "../libraries/materials/minerals-gems.yaml" }
 
 world:
   sky:

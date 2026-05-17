@@ -15,7 +15,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 imports:
-  - { path: "libraries/materials/synthetics.yaml" }
+  - { path: "../libraries/materials/synthetics.yaml" }
 
 world:
   sky:

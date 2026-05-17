@@ -634,3 +634,121 @@ materials:
     type: "emissive"
     color: [0.20, 0.48, 0.72]
     intensity: 2.0
+
+  # ════════════════════════════════════════════════════════════════════════
+  # EXTENDED VFX MATERIALS (v2)
+  # ════════════════════════════════════════════════════════════════════════
+  #
+  # Estensione con feature avanzate per emissivi:
+  #   • Gradient texture per neon multi-colore e strisce LED RGB.
+  #   • Voronoi cell per matrice LED display.
+  #   • Color_ramp per emissività che variano per posizione.
+  #
+  # NB: Gli emissivi standard di 3D-Ray supportano `color` * `intensity`.
+  # Per emissivi modulati spazialmente serve `texture:` con un emissivo
+  # base + variazione del colore (l'intensity moltiplica uniformemente).
+  # ════════════════════════════════════════════════════════════════════════
+
+  # Neon arcobaleno: gradient color_ramp lungo asse.
+  - id: "neon_arcobaleno"
+    type: "emissive"
+    color: [1.0, 1.0, 1.0]
+    intensity: 5.0
+    texture:
+      type: "gradient"
+      mode: "linear"
+      axis: [1, 0, 0]
+      color_ramp:
+        - { position: 0.00, color: [1.0, 0.10, 0.20], interp: "smoothstep" }
+        - { position: 0.25, color: [1.0, 0.62, 0.10], interp: "smoothstep" }
+        - { position: 0.50, color: [0.95, 1.0, 0.10], interp: "smoothstep" }
+        - { position: 0.75, color: [0.18, 0.85, 0.32], interp: "smoothstep" }
+        - { position: 1.00, color: [0.32, 0.45, 1.0], interp: "linear" }
+
+  # Striscia LED RGB sfumata: rosa-viola-blu.
+  - id: "led_strip_rgb_sfumata"
+    type: "emissive"
+    color: [1.0, 1.0, 1.0]
+    intensity: 4.0
+    texture:
+      type: "gradient"
+      mode: "linear"
+      axis: [1, 0, 0]
+      color_ramp:
+        - { position: 0.00, color: [1.0, 0.32, 0.78], interp: "smoothstep" }
+        - { position: 0.50, color: [0.62, 0.18, 0.92], interp: "smoothstep" }
+        - { position: 1.00, color: [0.20, 0.42, 1.00], interp: "linear" }
+
+  # Matrice LED display: voronoi cell per i singoli LED.
+  - id: "led_matrix"
+    type: "emissive"
+    color: [1.0, 1.0, 1.0]
+    intensity: 3.5
+    texture:
+      type: "voronoi"
+      scale: 40.0
+      output: "cell"
+      smoothness: 0.05
+      randomness: 0.0
+      colors: [[1.0, 0.10, 0.10], [0.10, 1.0, 0.10]]
+
+  # Tube neon retrò ambra: gradient assiale.
+  - id: "neon_retro_ambra"
+    type: "emissive"
+    color: [1.0, 1.0, 1.0]
+    intensity: 4.5
+    texture:
+      type: "gradient"
+      mode: "linear"
+      axis: [0, 1, 0]
+      color_ramp:
+        - { position: 0.00, color: [1.0, 0.42, 0.06], interp: "smoothstep" }
+        - { position: 0.55, color: [1.0, 0.68, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [1.0, 0.82, 0.45], interp: "linear" }
+
+  # Lava colante: gradient con noise per pulsazione termica.
+  - id: "lava_colante"
+    type: "emissive"
+    color: [1.0, 1.0, 1.0]
+    intensity: 6.5
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.8
+      distortion: 0.3
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.42, 0.04, 0.0], interp: "smoothstep" }
+        - { position: 0.40, color: [0.95, 0.32, 0.04], interp: "smoothstep" }
+        - { position: 0.75, color: [1.0, 0.78, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [1.0, 0.95, 0.65], interp: "linear" }
+
+  # Brace ardente: voronoi cell con color_ramp ramps per i tizzoni.
+  - id: "brace_ardente"
+    type: "emissive"
+    color: [1.0, 1.0, 1.0]
+    intensity: 3.5
+    texture:
+      type: "voronoi"
+      scale: 15.0
+      output: "cell"
+      smoothness: 0.3
+      color_ramp:
+        - { position: 0.00, color: [0.32, 0.02, 0.0], interp: "smoothstep" }
+        - { position: 0.45, color: [0.92, 0.28, 0.04], interp: "smoothstep" }
+        - { position: 0.85, color: [1.0, 0.62, 0.12], interp: "smoothstep" }
+        - { position: 1.00, color: [1.0, 0.92, 0.55], interp: "linear" }
+
+  # Plasma elettrico: voronoi smooth per i pattern di scarica.
+  - id: "plasma_elettrico"
+    type: "emissive"
+    color: [1.0, 1.0, 1.0]
+    intensity: 5.0
+    texture:
+      type: "voronoi"
+      scale: 4.0
+      output: "f2_minus_f1"
+      smoothness: 0.6
+      colors: [[0.10, 0.18, 0.45], [0.85, 0.55, 1.0]]

@@ -18,7 +18,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 imports:
-  - { path: "libraries/materials/liquids.yaml" }
+  - { path: "../libraries/materials/liquids.yaml" }
 
 world:
   sky:

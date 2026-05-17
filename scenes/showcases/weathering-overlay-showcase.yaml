@@ -22,10 +22,10 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 imports:
-  - { path: "libraries/materials/weathering.yaml" }
-  - { path: "libraries/materials/metals.yaml" }
-  - { path: "libraries/materials/concretes.yaml" }
-  - { path: "libraries/materials/woods.yaml" }
+  - { path: "../libraries/materials/weathering.yaml" }
+  - { path: "../libraries/materials/metals.yaml" }
+  - { path: "../libraries/materials/concretes.yaml" }
+  - { path: "../libraries/materials/woods.yaml" }
 
 world:
   sky:

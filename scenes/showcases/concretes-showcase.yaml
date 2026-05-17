@@ -20,7 +20,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 imports:
-  - { path: "libraries/materials/concretes.yaml" }
+  - { path: "../libraries/materials/concretes.yaml" }
 
 world:
   sky:

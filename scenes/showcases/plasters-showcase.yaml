@@ -19,7 +19,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 imports:
-  - { path: "libraries/materials/plasters.yaml" }
+  - { path: "../libraries/materials/plasters.yaml" }
 
 world:
   sky:
