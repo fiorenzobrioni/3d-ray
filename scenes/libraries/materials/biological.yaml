@@ -1,0 +1,822 @@
+# ============================================================================
+# Libreria Materiali — Tessuti Biologici Viventi
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/materials/biological.yaml" }]
+#
+# Materiali di tessuto VIVENTE (pelle umana, muscolo, scaglie, piume, occhio).
+# Distinta da `organics.yaml` (materiali biologici INERTI: osso, avorio,
+# cera, sughero, paper) e da `leathers.yaml` (pelle CONCIATA, manufatti).
+#
+# Sfrutta:
+#
+#   • Subsurface 0.4-0.7 + subsurface_color rossastro tipico per la
+#     skin (multi-layer approssimato via single Disney + scattering tint).
+#   • Diff_trans per parti sottili (orecchie, ali pipistrello, palmo mani).
+#   • Color_ramp 4-5 stop per gradienti dermici (sebo, melanina, eritema).
+#   • Voronoi cell + bump per scaglie pesce/rettile.
+#   • Thin_film 400-600nm per scaglie iridescenti di pesce.
+#   • Anisotropic per piume (direzione fibre).
+#   • Displacement scalare per pori e micro-rilievi della pelle.
+#
+# ── Naming ───────────────────────────────────────────────────────────────
+#
+#   dis_  Disney BSDF (sempre). Tessuti viventi richiedono subsurface.
+#         Niente cls_ per questa libreria — i materiali sono inerentemente
+#         multi-lobe.
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   PELLE UMANA         Caucasica chiara/scura, mediterranea, asiatica,
+#                       africana, bambino, anziana, abbronzata.
+#                       Multi-layer skin tone via SSS + ramp.
+#
+#   MUSCOLO / CARNE     Crudo (rosso vivo, fibrato), organi (fegato/cuore),
+#                       lingua bovina (rosa puntinato).
+#
+#   PELLE ANIMALE       Pelle elefante (grigia spessa), pelle squalo
+#                       (denticolati), pelle iguana (squamosa).
+#
+#   SCAGLIE PESCE       Carpa, salmone, trota, scaglie dorate koi.
+#                       Thin_film per iridescenza.
+#
+#   SCAGLIE RETTILE     Geco verde, iguana, drago barbuto, serpente vivo.
+#
+#   PIUME               Copertura (fine), soffice piumino, primaria
+#                       rigida, struzzo decorativa.
+#
+#   OCCHIO              Iride colorata + sclera bianca + cornea trasparente.
+#                       Strato multiplo via mix material a livello scena.
+#
+#   MEMBRANE SOTTILI    Ala pipistrello, palmo rana, foglia carnosa.
+#                       Diff_trans alto + thin_walled.
+#
+#   TESSUTI SOFT        Gengiva rosa, labbra, lingua umana.
+#
+# ── Note d'uso ───────────────────────────────────────────────────────────
+#
+# PELLE UMANA — Multi-layer skin tone:
+#   La nostra approssimazione è single-layer Disney. Per skin "production"
+#   serve compositing a livello scena con:
+#     1) layer profondo: subsurface_color rosso-arancio profondo
+#     2) layer epidermide: base color + leggero subsurface giallastro
+#     3) sebum gloss: clearcoat 0.2 + coat_roughness 0.3
+#   Qui forniamo single-Disney già calibrato per uso diretto.
+#
+# OCCHIO — Composizione consigliata:
+#   - Sfera principale: `dis_eye_sclera` (bianco con vene rosse leggere)
+#   - Sfera interna iride: `dis_iride_*`
+#   - Sfera cornea trasparente: `dis_eye_cornea` (clearcoat puro)
+#
+# Render hint:
+#   Draft:  -s 64 -d 8 -S 1   (SSS richiede d alto)
+#   Final:  -s 1024 -d 12 -S 4
+# ============================================================================
+
+materials:
+
+  # ══════════════════════════════════════════════════════════════════════
+  # PELLE UMANA
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Pelle caucasica chiara: tonalità nordica europea.
+  # Subsurface alto + color_ramp 3-stop per gradiente naturale.
+  - id: "dis_skin_caucasica_chiara"
+    type: "disney"
+    color: [0.95, 0.80, 0.72]
+    roughness: 0.50
+    specular: 0.42
+    subsurface: 0.55
+    subsurface_color: [0.92, 0.42, 0.32]
+    sheen: 0.15
+    sheen_roughness: 0.6
+    clearcoat: 0.18
+    coat_roughness: 0.30
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.12
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.78, 0.55, 0.48], interp: "smoothstep" }
+        - { position: 0.50, color: [0.92, 0.75, 0.66], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.88, 0.80], interp: "linear" }
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 90.0
+        smoothness: 0.5
+        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
+      strength: 0.3
+
+  # Pelle caucasica scura: tonalità mediterranea/sud europea.
+  - id: "dis_skin_caucasica_scura"
+    type: "disney"
+    color: [0.78, 0.58, 0.45]
+    roughness: 0.50
+    specular: 0.42
+    subsurface: 0.50
+    subsurface_color: [0.85, 0.38, 0.28]
+    sheen: 0.15
+    sheen_roughness: 0.6
+    clearcoat: 0.18
+    coat_roughness: 0.30
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.10
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.36, 0.26], interp: "smoothstep" }
+        - { position: 0.50, color: [0.72, 0.52, 0.40], interp: "smoothstep" }
+        - { position: 1.00, color: [0.82, 0.65, 0.52], interp: "linear" }
+
+  # Pelle mediterranea: tono caldo olivastro.
+  - id: "dis_skin_mediterranea"
+    type: "disney"
+    color: [0.85, 0.65, 0.48]
+    roughness: 0.48
+    specular: 0.42
+    subsurface: 0.55
+    subsurface_color: [0.85, 0.35, 0.25]
+    sheen: 0.18
+    sheen_roughness: 0.6
+    clearcoat: 0.22
+    coat_roughness: 0.28
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.10
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.62, 0.42, 0.30], interp: "smoothstep" }
+        - { position: 0.50, color: [0.82, 0.60, 0.45], interp: "smoothstep" }
+        - { position: 1.00, color: [0.92, 0.75, 0.58], interp: "linear" }
+
+  # Pelle asiatica chiara: tonalità beige-giallo.
+  - id: "dis_skin_asiatica"
+    type: "disney"
+    color: [0.92, 0.78, 0.62]
+    roughness: 0.48
+    specular: 0.42
+    subsurface: 0.55
+    subsurface_color: [0.88, 0.45, 0.32]
+    sheen: 0.18
+    sheen_roughness: 0.6
+    clearcoat: 0.20
+    coat_roughness: 0.30
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.08
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.72, 0.55, 0.42], interp: "smoothstep" }
+        - { position: 0.50, color: [0.88, 0.72, 0.55], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.85, 0.70], interp: "linear" }
+
+  # Pelle africana: tonalità scura ricca di melanina. Sebum gloss più alto.
+  - id: "dis_skin_africana"
+    type: "disney"
+    color: [0.35, 0.20, 0.12]
+    roughness: 0.45
+    specular: 0.45
+    subsurface: 0.40
+    subsurface_color: [0.55, 0.18, 0.10]
+    sheen: 0.20
+    sheen_roughness: 0.6
+    clearcoat: 0.30
+    coat_roughness: 0.22
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.08
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.22, 0.12, 0.08], interp: "smoothstep" }
+        - { position: 0.50, color: [0.36, 0.22, 0.14], interp: "smoothstep" }
+        - { position: 1.00, color: [0.50, 0.32, 0.20], interp: "linear" }
+
+  # Pelle bambino: liscia, satinata, traslucida (SSS molto alto).
+  - id: "dis_skin_bambino"
+    type: "disney"
+    color: [0.98, 0.85, 0.78]
+    roughness: 0.38
+    specular: 0.45
+    subsurface: 0.70
+    subsurface_color: [0.95, 0.48, 0.38]
+    sheen: 0.20
+    sheen_roughness: 0.6
+    clearcoat: 0.25
+    coat_roughness: 0.28
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_strength: 0.06
+      colors: [[0.95, 0.82, 0.75], [0.99, 0.88, 0.82]]
+      randomize_offset: true
+
+  # Pelle anziana: rughe profonde, opacizzata, color ramp con macchie.
+  - id: "dis_skin_anziana"
+    type: "disney"
+    color: [0.88, 0.72, 0.62]
+    roughness: 0.68
+    specular: 0.32
+    subsurface: 0.45
+    subsurface_color: [0.85, 0.38, 0.28]
+    sheen: 0.10
+    sheen_roughness: 0.7
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.30
+      distortion: 0.2
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.40, 0.30], interp: "smoothstep" }
+        - { position: 0.35, color: [0.78, 0.62, 0.52], interp: "smoothstep" }
+        - { position: 0.70, color: [0.88, 0.72, 0.62], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.82, 0.72], interp: "linear" }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 18.0
+        noise_type: "ridged"
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.2
+
+  # Pelle abbronzata: ramato dorato.
+  - id: "dis_skin_abbronzata"
+    type: "disney"
+    color: [0.78, 0.52, 0.32]
+    roughness: 0.45
+    specular: 0.45
+    subsurface: 0.50
+    subsurface_color: [0.88, 0.32, 0.18]
+    sheen: 0.18
+    sheen_roughness: 0.6
+    clearcoat: 0.25
+    coat_roughness: 0.28
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.10
+      colors: [[0.72, 0.46, 0.26], [0.82, 0.58, 0.38]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # MUSCOLO / CARNE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Muscolo crudo: rosso vivo, fibre visibili. Anisotropic per orientazione
+  # delle fibre muscolari.
+  - id: "dis_muscolo_crudo"
+    type: "disney"
+    color: [0.55, 0.08, 0.10]
+    roughness: 0.42
+    specular: 0.42
+    subsurface: 0.55
+    subsurface_color: [0.85, 0.10, 0.08]
+    anisotropic: 0.55
+    anisotropic_rotation: 0.0
+    sheen: 0.20
+    sheen_roughness: 0.6
+    texture:
+      type: "noise"
+      scale: 12.0
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.25
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.35, 0.05, 0.06], interp: "smoothstep" }
+        - { position: 0.55, color: [0.55, 0.10, 0.10], interp: "smoothstep" }
+        - { position: 1.00, color: [0.78, 0.20, 0.18], interp: "linear" }
+
+  # Fegato fresco: marrone scuro, traslucido.
+  - id: "dis_fegato_fresco"
+    type: "disney"
+    color: [0.28, 0.08, 0.08]
+    roughness: 0.25
+    specular: 0.45
+    subsurface: 0.50
+    subsurface_color: [0.42, 0.10, 0.06]
+    spec_trans: 0.20
+    ior: 1.40
+    sheen: 0.15
+    sheen_roughness: 0.6
+
+  # Lingua bovina: rosa puntinato, papille fungiformi.
+  - id: "dis_lingua_bovina"
+    type: "disney"
+    color: [0.78, 0.48, 0.42]
+    roughness: 0.55
+    specular: 0.42
+    subsurface: 0.55
+    subsurface_color: [0.85, 0.32, 0.28]
+    sheen: 0.20
+    sheen_roughness: 0.6
+    clearcoat: 0.30
+    coat_roughness: 0.20
+    texture:
+      type: "voronoi"
+      scale: 22.0
+      output: "cell"
+      smoothness: 0.4
+      colors: [[0.65, 0.35, 0.32], [0.88, 0.55, 0.48]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 28.0
+        output: "f1"
+        smoothness: 0.3
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.9
+
+  # ══════════════════════════════════════════════════════════════════════
+  # PELLE ANIMALE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Pelle elefante: grigia spessa, rughe profonde, no subsurface.
+  - id: "dis_pelle_elefante"
+    type: "disney"
+    color: [0.42, 0.40, 0.38]
+    roughness: 0.85
+    specular: 0.28
+    subsurface: 0.15
+    subsurface_color: [0.45, 0.38, 0.30]
+    texture:
+      type: "noise"
+      scale: 2.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.30
+      distortion: 0.25
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.28, 0.26, 0.24], interp: "smoothstep" }
+        - { position: 0.50, color: [0.45, 0.42, 0.38], interp: "smoothstep" }
+        - { position: 1.00, color: [0.62, 0.58, 0.52], interp: "linear" }
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 8.0
+        output: "f2_minus_f1"
+        colors: [[0.20, 0.20, 0.20], [0.80, 0.80, 0.80]]
+      strength: 2.0
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        scale: 4.0
+        noise_type: "ridged"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.015
+      midlevel: 0.5
+      bound: 0.025
+      autobump: true
+      autobump_strength: 1.5
+      displacement_method: "bump_only"
+
+  # Pelle squalo: dentine (denticoli) visibili, abrasiva. Anisotropic per
+  # orientazione direzionale dei denticoli.
+  - id: "dis_pelle_squalo"
+    type: "disney"
+    color: [0.35, 0.42, 0.48]
+    roughness: 0.55
+    specular: 0.38
+    anisotropic: 0.65
+    anisotropic_rotation: 0.0
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 0.20
+      colors: [[0.28, 0.35, 0.42], [0.42, 0.50, 0.55]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 80.0
+        output: "f1"
+        smoothness: 0.1
+        colors: [[0.38, 0.38, 0.38], [0.62, 0.62, 0.62]]
+      strength: 0.9
+
+  # ══════════════════════════════════════════════════════════════════════
+  # SCAGLIE PESCE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Scaglie carpa: argentate con tinge verde, pattern voronoi regolare.
+  - id: "dis_scaglie_carpa"
+    type: "disney"
+    metallic: 0.42
+    color: [0.78, 0.85, 0.80]
+    roughness: 0.18
+    specular: 0.50
+    thin_film_thickness: 480
+    thin_film_ior: 1.45
+    texture:
+      type: "voronoi"
+      scale: 25.0
+      output: "cell"
+      smoothness: 0.05
+      randomness: 1.0
+      colors: [[0.55, 0.65, 0.62], [0.92, 0.95, 0.92]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 25.0
+        output: "f2_minus_f1"
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.4
+
+  # Scaglie salmone: rosa-arancio con sfumature argento.
+  - id: "dis_scaglie_salmone"
+    type: "disney"
+    metallic: 0.32
+    color: [0.92, 0.62, 0.45]
+    roughness: 0.22
+    specular: 0.48
+    thin_film_thickness: 520
+    thin_film_ior: 1.45
+    texture:
+      type: "voronoi"
+      scale: 25.0
+      output: "cell"
+      smoothness: 0.05
+      colors: [[0.75, 0.42, 0.28], [0.98, 0.78, 0.62]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 25.0
+        output: "f2_minus_f1"
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.4
+
+  # Scaglie koi dorate: vibranti, iridescenti, decorative.
+  - id: "dis_scaglie_koi_dorate"
+    type: "disney"
+    metallic: 0.55
+    color: [0.95, 0.72, 0.18]
+    roughness: 0.18
+    specular: 0.50
+    thin_film_thickness: 460
+    thin_film_ior: 1.45
+    texture:
+      type: "voronoi"
+      scale: 22.0
+      output: "cell"
+      smoothness: 0.05
+      colors: [[0.85, 0.52, 0.05], [0.98, 0.92, 0.45]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 22.0
+        output: "f2_minus_f1"
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.4
+
+  # Scaglie trota iridata: pattern variegato puntinato.
+  - id: "dis_scaglie_trota"
+    type: "disney"
+    metallic: 0.32
+    color: [0.62, 0.55, 0.42]
+    roughness: 0.25
+    specular: 0.48
+    thin_film_thickness: 500
+    thin_film_ior: 1.45
+    texture:
+      type: "voronoi"
+      scale: 28.0
+      output: "cell"
+      smoothness: 0.1
+      colors: [[0.32, 0.32, 0.28], [0.85, 0.78, 0.62]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 28.0
+        output: "f2_minus_f1"
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.4
+
+  # ══════════════════════════════════════════════════════════════════════
+  # SCAGLIE RETTILE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Geco verde: scaglie piccole sottili. Sheen alto per iridescenza
+  # vivente, voronoi cell smooth per pattern.
+  - id: "dis_scaglie_geco"
+    type: "disney"
+    color: [0.35, 0.65, 0.32]
+    roughness: 0.30
+    specular: 0.45
+    clearcoat: 0.30
+    coat_roughness: 0.18
+    sheen: 0.25
+    sheen_roughness: 0.6
+    texture:
+      type: "voronoi"
+      scale: 35.0
+      output: "cell"
+      smoothness: 0.15
+      colors: [[0.22, 0.52, 0.20], [0.45, 0.78, 0.42]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 35.0
+        output: "f2_minus_f1"
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 1.0
+
+  # Iguana verde: scaglie grandi rugose con spine sulla schiena.
+  - id: "dis_scaglie_iguana"
+    type: "disney"
+    color: [0.32, 0.55, 0.32]
+    roughness: 0.42
+    specular: 0.42
+    clearcoat: 0.30
+    coat_roughness: 0.20
+    texture:
+      type: "voronoi"
+      scale: 14.0
+      output: "cell"
+      smoothness: 0.05
+      colors: [[0.18, 0.40, 0.20], [0.45, 0.68, 0.42]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 14.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.6
+
+  # Drago barbuto: scaglie e spine, marrone-arancio.
+  - id: "dis_scaglie_drago_barbuto"
+    type: "disney"
+    color: [0.72, 0.45, 0.18]
+    roughness: 0.50
+    specular: 0.40
+    clearcoat: 0.22
+    coat_roughness: 0.25
+    texture:
+      type: "voronoi"
+      scale: 16.0
+      output: "cell"
+      smoothness: 0.05
+      colors: [[0.55, 0.30, 0.10], [0.85, 0.58, 0.28]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 16.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.6
+
+  # ══════════════════════════════════════════════════════════════════════
+  # PIUME
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Piuma copertura grigia: piume secondarie pollame, struttura barbules.
+  - id: "dis_piuma_copertura"
+    type: "disney"
+    color: [0.42, 0.42, 0.42]
+    roughness: 0.45
+    specular: 0.38
+    sheen: 0.65
+    sheen_roughness: 0.7
+    anisotropic: 0.70
+    anisotropic_rotation: 0.0
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 60.0
+        noise_type: "fbm"
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.5
+
+  # Piumino soffice: piume sottoposte cremose.
+  - id: "dis_piumino_soffice"
+    type: "disney"
+    color: [0.95, 0.92, 0.88]
+    roughness: 0.95
+    specular: 0.20
+    sheen: 0.85
+    sheen_roughness: 0.85
+    flatness: 0.5
+    subsurface: 0.30
+
+  # Piuma primaria nera lucida: corvo/cornacchia.
+  - id: "dis_piuma_primaria_corvo"
+    type: "disney"
+    color: [0.06, 0.06, 0.08]
+    roughness: 0.18
+    specular: 0.50
+    anisotropic: 0.75
+    anisotropic_rotation: 0.0
+    clearcoat: 0.40
+    coat_roughness: 0.15
+    thin_film_thickness: 380
+    thin_film_ior: 1.40
+
+  # Piuma struzzo decorativa: morbida, lunga, satinata.
+  - id: "dis_piuma_struzzo"
+    type: "disney"
+    color: [0.88, 0.82, 0.75]
+    roughness: 0.78
+    specular: 0.25
+    sheen: 0.75
+    sheen_roughness: 0.8
+    flatness: 0.4
+    anisotropic: 0.45
+
+  # Piuma pavone iridescente: blu-verde-oro shifting. Thin_film alta
+  # variabilità.
+  - id: "dis_piuma_pavone"
+    type: "disney"
+    color: [0.10, 0.35, 0.42]
+    roughness: 0.15
+    specular: 0.55
+    anisotropic: 0.70
+    clearcoat: 0.85
+    coat_roughness: 0.06
+    thin_film_thickness: 480
+    thin_film_ior: 1.45
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 0.20
+      colors: [[0.08, 0.32, 0.38], [0.18, 0.52, 0.62]]
+      randomize_offset: true
+
+  # ══════════════════════════════════════════════════════════════════════
+  # OCCHIO
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Iride blu: gradiente radiale via noise + color_ramp.
+  - id: "dis_iride_blu"
+    type: "disney"
+    color: [0.18, 0.38, 0.62]
+    roughness: 0.18
+    specular: 0.45
+    subsurface: 0.20
+    subsurface_color: [0.12, 0.42, 0.78]
+    texture:
+      type: "voronoi"
+      scale: 18.0
+      output: "f2_minus_f1"
+      colors: [[0.06, 0.18, 0.42], [0.32, 0.55, 0.85]]
+
+  # Iride marrone: marrone-ocra ricco di melanina.
+  - id: "dis_iride_marrone"
+    type: "disney"
+    color: [0.42, 0.22, 0.10]
+    roughness: 0.18
+    specular: 0.45
+    subsurface: 0.20
+    subsurface_color: [0.55, 0.28, 0.12]
+    texture:
+      type: "voronoi"
+      scale: 18.0
+      output: "f2_minus_f1"
+      colors: [[0.18, 0.08, 0.04], [0.55, 0.32, 0.16]]
+
+  # Iride verde: tonalità nordica.
+  - id: "dis_iride_verde"
+    type: "disney"
+    color: [0.32, 0.55, 0.32]
+    roughness: 0.18
+    specular: 0.45
+    subsurface: 0.20
+    subsurface_color: [0.25, 0.62, 0.30]
+    texture:
+      type: "voronoi"
+      scale: 18.0
+      output: "f2_minus_f1"
+      colors: [[0.15, 0.32, 0.18], [0.42, 0.72, 0.42]]
+
+  # Sclera (bianco dell'occhio): bianco caldo con leggere vene rosa.
+  - id: "dis_sclera"
+    type: "disney"
+    color: [0.96, 0.93, 0.90]
+    roughness: 0.18
+    specular: 0.45
+    subsurface: 0.40
+    subsurface_color: [0.95, 0.78, 0.72]
+    clearcoat: 0.4
+    coat_roughness: 0.18
+    texture:
+      type: "noise"
+      scale: 8.0
+      noise_strength: 0.06
+      colors: [[0.94, 0.88, 0.86], [0.98, 0.95, 0.92]]
+      randomize_offset: true
+
+  # Cornea: trasparente con leggera distorsione, IOR 1.376.
+  - id: "dis_cornea"
+    type: "disney"
+    color: [0.98, 0.98, 0.99]
+    roughness: 0.03
+    specular: 0.55
+    spec_trans: 1.0
+    ior: 1.376
+    transmission_color: [0.98, 0.98, 0.99]
+    transmission_depth: 0.5
+    clearcoat: 1.0
+    coat_roughness: 0.02
+
+  # ══════════════════════════════════════════════════════════════════════
+  # MEMBRANE SOTTILI (diff_trans alto)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Ala pipistrello: pelle sottile traslucida con vene visibili.
+  - id: "dis_ala_pipistrello"
+    type: "disney"
+    color: [0.42, 0.22, 0.20]
+    roughness: 0.55
+    specular: 0.32
+    thin_walled: true
+    diff_trans: 0.65
+    subsurface_color: [0.78, 0.32, 0.28]
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 0.20
+      colors: [[0.32, 0.16, 0.14], [0.55, 0.30, 0.28]]
+      randomize_offset: true
+
+  # Palmo rana: traslucido verde-giallo.
+  - id: "dis_palmo_rana"
+    type: "disney"
+    color: [0.62, 0.78, 0.42]
+    roughness: 0.45
+    specular: 0.40
+    thin_walled: true
+    diff_trans: 0.55
+    subsurface_color: [0.72, 0.85, 0.45]
+
+  # Foglia carnosa (es. succulenta): translucida verde.
+  - id: "dis_foglia_carnosa"
+    type: "disney"
+    color: [0.42, 0.68, 0.32]
+    roughness: 0.42
+    specular: 0.38
+    diff_trans: 0.55
+    subsurface: 0.45
+    subsurface_color: [0.32, 0.78, 0.30]
+
+  # ══════════════════════════════════════════════════════════════════════
+  # TESSUTI SOFT (bocca)
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Gengiva rosa: tessuto interno bocca, lucido umido.
+  - id: "dis_gengiva"
+    type: "disney"
+    color: [0.92, 0.55, 0.52]
+    roughness: 0.18
+    specular: 0.45
+    subsurface: 0.60
+    subsurface_color: [0.95, 0.42, 0.40]
+    clearcoat: 0.45
+    coat_roughness: 0.15
+
+  # Labbra rosse: pelle delicata vermiglia.
+  - id: "dis_labbra_rosse"
+    type: "disney"
+    color: [0.78, 0.28, 0.22]
+    roughness: 0.32
+    specular: 0.45
+    subsurface: 0.50
+    subsurface_color: [0.92, 0.32, 0.25]
+    sheen: 0.20
+    sheen_roughness: 0.6
+    clearcoat: 0.30
+    coat_roughness: 0.22
+
+  # Lingua umana rosa puntinata.
+  - id: "dis_lingua_umana"
+    type: "disney"
+    color: [0.85, 0.42, 0.38]
+    roughness: 0.30
+    specular: 0.45
+    subsurface: 0.55
+    subsurface_color: [0.95, 0.32, 0.28]
+    clearcoat: 0.50
+    coat_roughness: 0.15
+    texture:
+      type: "voronoi"
+      scale: 35.0
+      output: "cell"
+      smoothness: 0.4
+      colors: [[0.72, 0.32, 0.28], [0.92, 0.55, 0.50]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 40.0
+        output: "f1"
+        smoothness: 0.3
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.5

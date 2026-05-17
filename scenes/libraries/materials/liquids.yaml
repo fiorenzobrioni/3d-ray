@@ -1,0 +1,676 @@
+# ============================================================================
+# Libreria Materiali — Liquidi
+# ============================================================================
+#
+# Importa con:  imports: [{ path: "libraries/materials/liquids.yaml" }]
+#
+# Liquidi quotidiani, alimentari, industriali. Tutti i materiali assumono
+# che il rendering avvenga sulla SUPERFICIE del liquido (non sul volume
+# interno). Per render volumetrici realistici (es. raggio in profondità in
+# uno scotch invecchiato) servirebbe combinare questi materiali con un
+# `globalMedium` o un `medium` per-entità.
+#
+# Sfrutta:
+#
+#   • spec_trans 1.0 + ior + transmission_color/depth (Beer-Lambert) per
+#     tutti i liquidi trasparenti.
+#   • Subsurface per latticini e sangue (scattering interno).
+#   • Thin_film 200-500nm per pellicole su superfici oleose (iridescenza
+#     benzina/olio motore sopra acqua).
+#   • Bump map procedurale leggero per onde di superficie.
+#   • Color ramp per gradienti di concentrazione (caffè diluito/concentrato).
+#
+# ── Naming ───────────────────────────────────────────────────────────────
+#
+#   dis_  Disney BSDF con spec_trans + ior. Liquido protagonista in
+#         bicchieri, fontane, primi piani.
+#   cls_  Lambertian colorato. Pavimenti bagnati astratti, draft.
+#
+# ── Categorie ────────────────────────────────────────────────────────────
+#
+#   ACQUA               Piscina, mare costiero, mare profondo, torbida,
+#                       torrente, fontana, oceano tropicale.
+#
+#   LATTE               Intero, scremato, montato, condensato.
+#                       Subsurface alto per il "milky look".
+#
+#   SANGUE              Arterioso (rosso vivo), venoso (scuro), secco
+#                       (marrone), coagulato (gel scuro).
+#
+#   OLI                 Motore (nero iridescente), oliva (giallo verde),
+#                       semi (chiaro), vegetali alimentari.
+#
+#   BEVANDE ALCOLICHE   Vino rosso/bianco/rosé, birra (chiara/scura),
+#                       whisky, vodka, gin, rum.
+#
+#   SCIROPPI            Acero, miele, caramello, melassa.
+#                       Trasmissione satura, profondità medio-alta.
+#
+#   BEVANDE CALDE       Caffè (espresso/americano), tè (nero/verde/matcha),
+#                       cioccolata calda.
+#
+#   SUCCHI              Arancia, pomodoro, frutti rossi, frullati.
+#
+#   LIQUIDI INDUSTRIALI Refrigerante (verde), ammoniaca pulizia,
+#                       benzina/diesel.
+#
+# ── Note d'uso ───────────────────────────────────────────────────────────
+#
+# Per il classico look "olio motore sulla pozzanghera": combina
+# `dis_acqua_piscina` come material_a e `dis_olio_motore` come material_b
+# in un mix con mask noise distortion alto.
+#
+# Per ghiaccio cristallino in bicchieri di liquidi: usa `dis_ghiaccio_*` da
+# `glasses.yaml` (più adatto per cristalli faceted). Qui c'è solo
+# `dis_ghiaccio_acqueo` come superficie d'acqua congelata.
+#
+# I valori di IOR seguono i riferimenti fisici reali:
+#   - Acqua: 1.33
+#   - Latte: 1.35
+#   - Oli: 1.45-1.48
+#   - Alcol etilico: 1.36
+#   - Vetro (per confronto): 1.50
+#
+# Render hint:
+#   Draft:  -s 128 -d 10 -S 1   (caustiche richiedono d alto)
+#   Final:  -s 2048 -d 14 -S 4
+# ============================================================================
+
+materials:
+
+  # ══════════════════════════════════════════════════════════════════════
+  # ACQUA
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Acqua piscina: cristallina con leggero tinge azzurro per il cloro.
+  - id: "dis_acqua_piscina"
+    type: "disney"
+    color: [0.85, 0.95, 1.00]
+    roughness: 0.02
+    specular: 0.50
+    spec_trans: 1.0
+    ior: 1.33
+    transmission_color: [0.78, 0.92, 0.98]
+    transmission_depth: 2.0
+
+  # Acqua mare costiero: blu-verde con sabbia in sospensione, meno
+  # trasparente della piscina.
+  - id: "dis_acqua_mare_costiero"
+    type: "disney"
+    color: [0.45, 0.72, 0.78]
+    roughness: 0.03
+    specular: 0.50
+    spec_trans: 0.95
+    ior: 1.33
+    transmission_color: [0.30, 0.58, 0.62]
+    transmission_depth: 0.8
+
+  # Acqua mare profondo: blu intenso, scarsa visibilità sotto-superficie.
+  - id: "dis_acqua_mare_profondo"
+    type: "disney"
+    color: [0.10, 0.22, 0.42]
+    roughness: 0.04
+    specular: 0.55
+    spec_trans: 0.85
+    ior: 1.33
+    transmission_color: [0.05, 0.15, 0.32]
+    transmission_depth: 0.4
+
+  # Acqua torbida: marrone-verdastra di stagno/canale.
+  - id: "dis_acqua_torbida"
+    type: "disney"
+    color: [0.32, 0.30, 0.22]
+    roughness: 0.08
+    specular: 0.45
+    spec_trans: 0.55
+    ior: 1.33
+    transmission_color: [0.22, 0.20, 0.14]
+    transmission_depth: 0.2
+    subsurface: 0.20
+
+  # Acqua torrente: agitata, bolle d'aria, schiuma localizzata.
+  - id: "dis_acqua_torrente"
+    type: "disney"
+    color: [0.78, 0.88, 0.92]
+    roughness: 0.08
+    specular: 0.50
+    spec_trans: 0.85
+    ior: 1.33
+    transmission_color: [0.72, 0.85, 0.90]
+    transmission_depth: 0.5
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 4.0
+        noise_type: "fbm"
+        octaves: 4
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.8
+
+  # Acqua fontana: caduta, bolle d'aria, schiuma. Quasi opaca.
+  - id: "dis_acqua_fontana"
+    type: "disney"
+    color: [0.92, 0.95, 0.98]
+    roughness: 0.20
+    specular: 0.50
+    spec_trans: 0.55
+    ior: 1.33
+    transmission_color: [0.88, 0.92, 0.96]
+    transmission_depth: 0.3
+    subsurface: 0.35
+
+  # Acqua oceano tropicale: turchese, sabbia bianca riflessa dal fondo.
+  - id: "dis_acqua_tropicale"
+    type: "disney"
+    color: [0.32, 0.78, 0.78]
+    roughness: 0.025
+    specular: 0.50
+    spec_trans: 0.95
+    ior: 1.33
+    transmission_color: [0.22, 0.72, 0.70]
+    transmission_depth: 1.2
+
+  # Ghiaccio acqueo (acqua congelata): superficie irregolare bianca.
+  - id: "dis_ghiaccio_acqueo"
+    type: "disney"
+    color: [0.92, 0.95, 0.98]
+    roughness: 0.20
+    specular: 0.50
+    spec_trans: 0.65
+    ior: 1.31
+    transmission_color: [0.88, 0.92, 0.96]
+    transmission_depth: 1.5
+    subsurface: 0.30
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 20.0
+        smoothness: 0.4
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.8
+
+  # ══════════════════════════════════════════════════════════════════════
+  # LATTE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Latte intero: bianco caldo con subsurface medio (caseina + grassi).
+  - id: "dis_latte_intero"
+    type: "disney"
+    color: [0.97, 0.95, 0.90]
+    roughness: 0.25
+    specular: 0.42
+    subsurface: 0.65
+    subsurface_color: [1.0, 0.98, 0.92]
+    flatness: 0.3
+
+  # Latte scremato: più bluastro per assenza di grassi.
+  - id: "dis_latte_scremato"
+    type: "disney"
+    color: [0.92, 0.94, 0.98]
+    roughness: 0.22
+    specular: 0.42
+    subsurface: 0.55
+    subsurface_color: [0.92, 0.94, 1.00]
+    flatness: 0.3
+
+  # Latte montato (panna): più opaco e denso, struttura aerata.
+  - id: "dis_panna_montata"
+    type: "disney"
+    color: [0.98, 0.97, 0.93]
+    roughness: 0.42
+    specular: 0.38
+    subsurface: 0.75
+    subsurface_color: [1.0, 0.99, 0.95]
+    flatness: 0.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 14.0
+        smoothness: 0.5
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.8
+
+  # Latte condensato dolce: viscoso, giallastro, traslucido.
+  - id: "dis_latte_condensato"
+    type: "disney"
+    color: [0.96, 0.88, 0.62]
+    roughness: 0.18
+    specular: 0.42
+    subsurface: 0.60
+    subsurface_color: [0.98, 0.85, 0.55]
+    spec_trans: 0.18
+    ior: 1.36
+
+  # ══════════════════════════════════════════════════════════════════════
+  # SANGUE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Sangue arterioso: rosso vivo ossigenato.
+  - id: "dis_sangue_arterioso"
+    type: "disney"
+    color: [0.55, 0.04, 0.06]
+    roughness: 0.05
+    specular: 0.55
+    subsurface: 0.45
+    subsurface_color: [0.78, 0.10, 0.10]
+    spec_trans: 0.35
+    ior: 1.38
+    transmission_color: [0.45, 0.02, 0.03]
+    transmission_depth: 0.2
+
+  # Sangue venoso: rosso scuro de-ossigenato.
+  - id: "dis_sangue_venoso"
+    type: "disney"
+    color: [0.32, 0.04, 0.06]
+    roughness: 0.06
+    specular: 0.50
+    subsurface: 0.40
+    subsurface_color: [0.55, 0.06, 0.08]
+    spec_trans: 0.25
+    ior: 1.38
+    transmission_color: [0.22, 0.02, 0.03]
+    transmission_depth: 0.15
+
+  # Sangue secco: marrone scuro, opaco, leggermente lucido.
+  - id: "dis_sangue_secco"
+    type: "disney"
+    color: [0.28, 0.10, 0.08]
+    roughness: 0.50
+    specular: 0.32
+    clearcoat: 0.2
+    coat_roughness: 0.30
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.20
+      colors: [[0.22, 0.07, 0.05], [0.34, 0.13, 0.10]]
+      randomize_offset: true
+
+  # Sangue coagulato: gel rosso-marrone semi-traslucido.
+  - id: "dis_sangue_coagulato"
+    type: "disney"
+    color: [0.38, 0.10, 0.10]
+    roughness: 0.18
+    specular: 0.42
+    subsurface: 0.35
+    subsurface_color: [0.55, 0.12, 0.12]
+    spec_trans: 0.15
+    ior: 1.40
+
+  # ══════════════════════════════════════════════════════════════════════
+  # OLI
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Olio motore: nero con iridescenza superficiale (thin_film).
+  - id: "dis_olio_motore"
+    type: "disney"
+    color: [0.05, 0.04, 0.04]
+    roughness: 0.05
+    specular: 0.55
+    spec_trans: 0.30
+    ior: 1.470
+    transmission_color: [0.02, 0.02, 0.02]
+    transmission_depth: 0.1
+    thin_film_thickness: 380
+    thin_film_ior: 1.40
+    clearcoat: 0.4
+    coat_roughness: 0.05
+
+  # Olio d'oliva extravergine: giallo-verde dorato.
+  - id: "dis_olio_oliva"
+    type: "disney"
+    color: [0.92, 0.85, 0.32]
+    roughness: 0.05
+    specular: 0.45
+    spec_trans: 0.78
+    ior: 1.467
+    transmission_color: [0.78, 0.75, 0.18]
+    transmission_depth: 0.6
+
+  # Olio di semi (girasole): più chiaro e neutro dell'oliva.
+  - id: "dis_olio_semi"
+    type: "disney"
+    color: [0.96, 0.92, 0.65]
+    roughness: 0.05
+    specular: 0.42
+    spec_trans: 0.85
+    ior: 1.470
+    transmission_color: [0.92, 0.85, 0.50]
+    transmission_depth: 0.9
+
+  # Benzina: trasparente con iridescenza superficiale tipica.
+  - id: "dis_benzina"
+    type: "disney"
+    color: [0.95, 0.94, 0.95]
+    roughness: 0.03
+    specular: 0.55
+    spec_trans: 1.0
+    ior: 1.45
+    transmission_color: [0.95, 0.92, 0.88]
+    transmission_depth: 1.0
+    thin_film_thickness: 350
+    thin_film_ior: 1.40
+
+  # ══════════════════════════════════════════════════════════════════════
+  # BEVANDE ALCOLICHE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Vino rosso: trasmissione profonda rosso bordeaux.
+  - id: "dis_vino_rosso"
+    type: "disney"
+    color: [0.45, 0.06, 0.10]
+    roughness: 0.05
+    specular: 0.50
+    spec_trans: 1.0
+    ior: 1.345
+    transmission_color: [0.45, 0.04, 0.06]
+    transmission_depth: 0.4
+
+  # Vino bianco: giallo chiaro paglierino.
+  - id: "dis_vino_bianco"
+    type: "disney"
+    color: [0.92, 0.85, 0.55]
+    roughness: 0.04
+    specular: 0.50
+    spec_trans: 1.0
+    ior: 1.345
+    transmission_color: [0.85, 0.75, 0.32]
+    transmission_depth: 1.0
+
+  # Vino rosé: salmone pastello.
+  - id: "dis_vino_rose"
+    type: "disney"
+    color: [0.95, 0.65, 0.55]
+    roughness: 0.04
+    specular: 0.50
+    spec_trans: 1.0
+    ior: 1.345
+    transmission_color: [0.88, 0.45, 0.42]
+    transmission_depth: 0.8
+
+  # Birra chiara: ambra dorata trasparente.
+  - id: "dis_birra_chiara"
+    type: "disney"
+    color: [0.95, 0.72, 0.18]
+    roughness: 0.04
+    specular: 0.50
+    spec_trans: 1.0
+    ior: 1.350
+    transmission_color: [0.92, 0.55, 0.08]
+    transmission_depth: 0.6
+
+  # Birra scura (stout): marrone-nero quasi opaco.
+  - id: "dis_birra_stout"
+    type: "disney"
+    color: [0.14, 0.06, 0.03]
+    roughness: 0.04
+    specular: 0.50
+    spec_trans: 1.0
+    ior: 1.350
+    transmission_color: [0.08, 0.03, 0.02]
+    transmission_depth: 0.12
+
+  # Whisky: ambra ricco, riserve invecchiate.
+  - id: "dis_whisky"
+    type: "disney"
+    color: [0.78, 0.42, 0.10]
+    roughness: 0.04
+    specular: 0.50
+    spec_trans: 1.0
+    ior: 1.360
+    transmission_color: [0.62, 0.28, 0.05]
+    transmission_depth: 0.5
+
+  # Vodka: trasparente, leggera iridescenza pellicolare.
+  - id: "dis_vodka"
+    type: "disney"
+    color: [0.98, 0.98, 0.98]
+    roughness: 0.03
+    specular: 0.50
+    spec_trans: 1.0
+    ior: 1.36
+    transmission_color: [0.97, 0.97, 0.97]
+    transmission_depth: 2.0
+
+  # Rum scuro Caraibi: marrone medio caldo.
+  - id: "dis_rum_scuro"
+    type: "disney"
+    color: [0.55, 0.22, 0.06]
+    roughness: 0.04
+    specular: 0.50
+    spec_trans: 1.0
+    ior: 1.355
+    transmission_color: [0.42, 0.15, 0.04]
+    transmission_depth: 0.4
+
+  # ══════════════════════════════════════════════════════════════════════
+  # SCIROPPI
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Miele liquido: ambra dorato, viscoso, trasmissione satura.
+  - id: "dis_miele"
+    type: "disney"
+    color: [0.95, 0.68, 0.18]
+    roughness: 0.05
+    specular: 0.50
+    spec_trans: 0.95
+    ior: 1.484
+    transmission_color: [0.88, 0.45, 0.05]
+    transmission_depth: 0.3
+
+  # Sciroppo d'acero: marrone ambrato chiaro, dolce.
+  - id: "dis_sciroppo_acero"
+    type: "disney"
+    color: [0.85, 0.55, 0.18]
+    roughness: 0.05
+    specular: 0.48
+    spec_trans: 0.92
+    ior: 1.45
+    transmission_color: [0.72, 0.35, 0.08]
+    transmission_depth: 0.3
+
+  # Caramello liquido: marrone ricco, semi-trasparente.
+  - id: "dis_caramello"
+    type: "disney"
+    color: [0.62, 0.32, 0.10]
+    roughness: 0.05
+    specular: 0.48
+    spec_trans: 0.85
+    ior: 1.49
+    transmission_color: [0.48, 0.18, 0.04]
+    transmission_depth: 0.25
+
+  # Melassa: quasi nera, viscosa, traslucida solo in strato sottile.
+  - id: "dis_melassa"
+    type: "disney"
+    color: [0.10, 0.04, 0.02]
+    roughness: 0.08
+    specular: 0.45
+    spec_trans: 0.55
+    ior: 1.49
+    transmission_color: [0.06, 0.02, 0.01]
+    transmission_depth: 0.08
+
+  # ══════════════════════════════════════════════════════════════════════
+  # BEVANDE CALDE
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Caffè espresso: marrone scuro intenso, semi-trasparente.
+  - id: "dis_caffe_espresso"
+    type: "disney"
+    color: [0.18, 0.08, 0.04]
+    roughness: 0.05
+    specular: 0.50
+    spec_trans: 0.55
+    ior: 1.345
+    transmission_color: [0.08, 0.03, 0.01]
+    transmission_depth: 0.10
+
+  # Caffè americano: più diluito dell'espresso.
+  - id: "dis_caffe_americano"
+    type: "disney"
+    color: [0.32, 0.18, 0.08]
+    roughness: 0.05
+    specular: 0.50
+    spec_trans: 0.78
+    ior: 1.340
+    transmission_color: [0.22, 0.10, 0.04]
+    transmission_depth: 0.25
+
+  # Tè nero: marrone-rosso traslucido.
+  - id: "dis_te_nero"
+    type: "disney"
+    color: [0.45, 0.22, 0.10]
+    roughness: 0.04
+    specular: 0.50
+    spec_trans: 0.90
+    ior: 1.340
+    transmission_color: [0.38, 0.15, 0.05]
+    transmission_depth: 0.5
+
+  # Tè verde: giallo-verde dorato.
+  - id: "dis_te_verde"
+    type: "disney"
+    color: [0.78, 0.85, 0.42]
+    roughness: 0.04
+    specular: 0.48
+    spec_trans: 0.95
+    ior: 1.340
+    transmission_color: [0.62, 0.75, 0.25]
+    transmission_depth: 0.8
+
+  # Matcha: opaco verde brillante per le particelle in sospensione.
+  - id: "dis_matcha"
+    type: "disney"
+    color: [0.42, 0.62, 0.18]
+    roughness: 0.32
+    specular: 0.40
+    subsurface: 0.55
+    subsurface_color: [0.50, 0.72, 0.22]
+
+  # Cioccolata calda: marrone vellutato, opaco.
+  - id: "dis_cioccolata_calda"
+    type: "disney"
+    color: [0.32, 0.18, 0.10]
+    roughness: 0.18
+    specular: 0.40
+    subsurface: 0.45
+    subsurface_color: [0.40, 0.22, 0.12]
+
+  # ══════════════════════════════════════════════════════════════════════
+  # SUCCHI
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Succo d'arancia: arancio chiaro con polpa in sospensione.
+  - id: "dis_succo_arancia"
+    type: "disney"
+    color: [0.95, 0.55, 0.10]
+    roughness: 0.18
+    specular: 0.42
+    subsurface: 0.40
+    subsurface_color: [0.98, 0.62, 0.18]
+    spec_trans: 0.45
+    ior: 1.345
+    transmission_color: [0.92, 0.42, 0.05]
+    transmission_depth: 0.2
+
+  # Succo di pomodoro: rosso opaco con polpa.
+  - id: "dis_succo_pomodoro"
+    type: "disney"
+    color: [0.78, 0.18, 0.08]
+    roughness: 0.30
+    specular: 0.35
+    subsurface: 0.45
+    subsurface_color: [0.92, 0.22, 0.10]
+
+  # Succo frutti rossi: viola-rosso scuro.
+  - id: "dis_succo_frutti_rossi"
+    type: "disney"
+    color: [0.48, 0.10, 0.22]
+    roughness: 0.05
+    specular: 0.50
+    spec_trans: 0.85
+    ior: 1.345
+    transmission_color: [0.38, 0.05, 0.15]
+    transmission_depth: 0.25
+
+  # ══════════════════════════════════════════════════════════════════════
+  # LIQUIDI INDUSTRIALI
+  # ══════════════════════════════════════════════════════════════════════
+
+  # Refrigerante auto verde fluo: glicole etilenico colorato.
+  - id: "dis_refrigerante_verde"
+    type: "disney"
+    color: [0.35, 0.92, 0.22]
+    roughness: 0.04
+    specular: 0.50
+    spec_trans: 0.95
+    ior: 1.43
+    transmission_color: [0.20, 0.85, 0.10]
+    transmission_depth: 0.5
+
+  # Refrigerante rosso (long life): variante rosa-rossa.
+  - id: "dis_refrigerante_rosso"
+    type: "disney"
+    color: [0.92, 0.22, 0.32]
+    roughness: 0.04
+    specular: 0.50
+    spec_trans: 0.95
+    ior: 1.43
+    transmission_color: [0.85, 0.10, 0.18]
+    transmission_depth: 0.5
+
+  # Ammoniaca pulizia: trasparente con riflessi azzurrini.
+  - id: "dis_ammoniaca"
+    type: "disney"
+    color: [0.92, 0.94, 0.98]
+    roughness: 0.03
+    specular: 0.50
+    spec_trans: 1.0
+    ior: 1.336
+    transmission_color: [0.85, 0.90, 0.96]
+    transmission_depth: 1.5
+
+  # ══════════════════════════════════════════════════════════════════════
+  # ALIAS BACKWARD-COMPAT (ex foods.yaml liquidi)
+  # ══════════════════════════════════════════════════════════════════════
+  # Le scene esistenti che importavano foods.yaml e referenziavano
+  # `dis_caffe`, `dis_vino_rosso_bevanda`, ecc. continuano a funzionare.
+
+  - id: "dis_caffe"
+    type: "disney"
+    color: [0.18, 0.08, 0.04]
+    roughness: 0.05
+    specular: 0.50
+    spec_trans: 0.55
+    ior: 1.345
+    transmission_color: [0.08, 0.03, 0.01]
+    transmission_depth: 0.10
+
+  - id: "dis_latte"
+    type: "disney"
+    color: [0.97, 0.95, 0.90]
+    roughness: 0.25
+    specular: 0.42
+    subsurface: 0.65
+    subsurface_color: [1.0, 0.98, 0.92]
+    flatness: 0.3
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CLASSIC (draft)
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: "cls_acqua"
+    type: "dielectric"
+    color: [0.85, 0.95, 1.00]
+    ior: 1.33
+
+  - id: "cls_vino_rosso"
+    type: "dielectric"
+    color: [0.45, 0.06, 0.10]
+    ior: 1.345
+
+  - id: "cls_olio"
+    type: "dielectric"
+    color: [0.92, 0.85, 0.32]
+    ior: 1.470
