@@ -37,6 +37,7 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 | `-S` / `--shadow-samples` | non impostato → valore YAML per-luce (default: 4) | `Program.cs` |
 | `-C` / `--clamp` | `10` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
 | `--indirect-clamp-factor` | `0.25` (clamp indiretto = `2.5`) | `Renderer.DefaultIndirectClampFactor` |
+| `--exposure` | `0` EV (identità) | `Renderer.DefaultExposureEv` |
 | `--light-sampling` | `all` (somma su tutte le luci) | `LightSamplingStrategy.All` |
 | `--texture-filtering` | `auto` (filtering attivo) | `Renderer.TextureFilteringMode.Auto` |
 | `--sampler` | `sobol` (Owen scramble) | `Program.cs` / `Sampler.SetKind` |
@@ -162,6 +163,38 @@ dimezzare `-s` di 4× su scene outdoor con terreno procedurale o
 movimenti di camera grandangolari senza perdere qualità. Disattivare
 con `off` ha senso solo per debug o A/B comparison; il costo del
 filtering è minimo (pochi punti percentuali nelle scene tipiche).
+
+#### **6d. Esposizione fotografica (`--exposure`)**
+
+```
+--exposure <EV>
+```
+
+Guadagno lineare `2^EV` applicato a ogni pixel **prima** del tone map
+ACES. Replica il knob `exposure` di Arnold, "Film → Exposure" di Cycles
+e il display-filter `exposure` di RenderMan. `EV = 0` (default) è
+identità; valori negativi scuriscono (1 EV = fattore 2×), valori
+positivi schiariscono.
+
+**Perché è importante:** ACES filmic è una curva non-lineare il cui
+contrasto è preservato solo dentro la sweet-spot lineare a circa
+`[0.18, 1.0]` di radianza in ingresso. Sopra ~2.0 la curva si appiattisce
+sul plateau 0.95-0.99 dove tutto appare bianco indipendentemente dal
+base color sottostante — texture procedurali, venature dei marmi e
+identità del materiale collassano tutti in luminosità uniforme. Sotto
+~0.05 il rolloff svanisce nel nero. `--exposure` permette di scivolare
+l'intera scena dentro la sweet-spot senza ribilanciare ogni luce a mano.
+
+| Situazione | `--exposure` suggerito |
+|---|---|
+| La scena appare lavata, i punti luce saturano per primi | `-1` a `-2` |
+| La scena è troppo scura, i mid-tone cadono nel rumore | `+1` a `+2` |
+| Hai già tarato le luci per finire vicino a `0.5` lineare | `0` (omettere il flag) |
+
+Va combinato con il setup delle luci, non sostituito: ribilanciare
+le intensità delle luci è preferibile per scene condivise (gli altri
+artisti non devono ricordare un flag), ma `--exposure` è il knob più
+veloce in iterazione quando non vuoi committare una modifica alla luce.
 
 ---
 

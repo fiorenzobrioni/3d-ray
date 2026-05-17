@@ -631,6 +631,59 @@ Questa scena pone cinque sfere identiche in fila. Ognuna è illuminata principal
 
 ---
 
+## 6.12 Compensazione di esposizione (`--exposure`)
+
+Una volta piazzate le luci, il tone mapper deve tradurre la radianza
+della scena in un range visualizzabile 0-1. 3D-Ray usa la curva **ACES
+filmic**, lo standard industriale condiviso da Arnold, Cycles,
+RenderMan e dalla maggior parte delle pipeline cinematografiche. ACES
+è non-lineare: il contrasto è preservato solo dentro la sua sweet-spot
+lineare, a circa `[0.18, 1.0]` di radianza in ingresso. Sopra ~2.0 la
+curva si appiattisce sul plateau 0.95-0.99 dove tutto appare "quasi
+bianco" — base color, venature dei marmi e identità del materiale
+collassano tutti nella stessa luminosità.
+
+Quel collasso è il motivo più comune per cui una scena ben costruita
+sembra "lavata" o "spenta": le luci sono semplicemente troppo forti e
+ACES non ha più spazio per smorzare gli highlight. Il fix è la
+**compensazione fotografica di esposizione** — un guadagno lineare
+`2^EV` applicato a ogni pixel *prima* del tone mapping:
+
+```bash
+RayTracer -i scene.yaml -o out.png --exposure -1.5
+```
+
+La semantica EV è quella di una macchina fotografica reale: `EV = 0`
+(default) è identità, `EV = -1` scurisce di un fattore 2 (uno stop in
+meno), `EV = +1` schiarisce di un fattore 2 (uno stop in più). Il flag
+replica lo stesso controllo presente in ogni renderer di produzione —
+`exposure` in Arnold, "Film → Exposure" in Cycles, display-filter
+`exposure` in RenderMan.
+
+**Quando usarlo:**
+
+| Sintomo | `--exposure` da provare |
+|---|---|
+| Gli highlight bruciano prima ancora che i mid-tone si leggano | `-1` a `-2` |
+| I bianchi appaiono uniformemente crema, le venature dei marmi invisibili | `-1` a `-1.5` |
+| L'immagine finisce in mid-tone scuri rumorosi | `+1` a `+2` |
+| Le luci sono già tarate per atterrare vicino a `0.5` lineare | `0` (omettere il flag) |
+
+**Quando *non* usarlo.** L'esposizione è un moltiplicatore globale —
+sposta *ogni* pixel della stessa quantità. Se solo una parte della
+scena è lavata (una singola hero light, un oggetto troppo emissivo),
+ribilancia l'intensità di quella luce invece, così la scena è esposta
+correttamente senza bisogno del flag. Riserva `--exposure` per
+iterazione veloce su shot dove non vuoi committare un cambio YAML, e
+per compensare scene HDRI/IBL la cui luminanza assoluta non controlli.
+
+Il pass di esposizione è applicato tra il firefly clamp per-sample
+(`-C` / `--clamp`) e la curva ACES, quindi tutti i clamp standard e
+il post-processing si comportano in modo identico. L'unica cosa che
+cambia è *quale fetta* della curva ACES vede la tua radianza.
+
+---
+
 ## Cosa si è imparato
 
 - Le luci **Point** irradiano da un punto (decadimento con l'inverso del quadrato, ombre nette).

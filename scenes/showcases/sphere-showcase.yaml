@@ -155,6 +155,48 @@ lights:
     color: [1.0, 0.88, 0.70]
     intensity: 5
 
+  # ─────────────────────────────────────────────────────────────────────────
+  # OPTIONAL — Studio "fast lookdev" senza area panels (commentato).
+  #
+  # Da provare quando vuoi un render ~3-4× più rapido (l'area light richiede
+  # NEE multi-sample per ombra; directional + point hanno NEE single-sample
+  # con `soft_radius` per ombreggiare). Stessi rapporti chiaroscurali del
+  # setup default ma con disco solare directional come key — gradiente di
+  # luminosità simile, dettaglio leggermente più netto sui bump.
+  #
+  # Per usare: commenta le 3 luci sopra e scommenta il blocco qui sotto.
+  # Il rendering rimane in ACES sweet-spot a EV 0 (no --exposure necessario).
+  # ─────────────────────────────────────────────────────────────────────────
+  #
+  # # Key — directional come sole, disco angolare 4° per ombre soft penumbra
+  # - type: "directional"
+  #   direction: [-0.35, -1.0, -0.25]
+  #   color: [1.00, 0.97, 0.92]
+  #   intensity: 1.6
+  #   angular_radius_deg: 4.0
+  #   shadow_samples: 4         # 4 sample disc-jitter (sweet-spot quality/speed)
+  #
+  # # Fill freddo da sinistra-fondo — point con soft_radius (no 1/d² divergence)
+  # - type: "point"
+  #   position: [-4.5, 2.8, -2.5]
+  #   color: [0.78, 0.84, 1.00]
+  #   intensity: 16
+  #   soft_radius: 0.6
+  #
+  # # Bounce dal piano frontale — point basso che simula il bounce del pavimento
+  # - type: "point"
+  #   position: [0.0, 0.4, -4.5]
+  #   color: [0.92, 0.88, 0.80]
+  #   intensity: 5
+  #   soft_radius: 0.4
+  #
+  # # Rim caldo radente da destra-fondo, marcato per le silhouette displacement
+  # - type: "point"
+  #   position: [5.5, 1.0, 1.5]
+  #   color: [1.00, 0.85, 0.60]
+  #   intensity: 14
+  #   soft_radius: 0.35
+
 
 # =============================================================================
 #  MATERIALS
@@ -727,12 +769,13 @@ materials:
       # scuro. Sharpness 1.8 → ~64% nero + 36% disteso verso oro visibile.
       colors: [[0.95, 0.75, 0.30], [0.05, 0.05, 0.06]]
 
-  # Verde Alpi — base verde smeraldo medio (chiaramente verde, non quasi-nero),
-  # vena cream chiara. Sharpness 1.2 → distribuzione quasi-lineare → visibile
-  # variazione cream/verde su tutta la superficie.
-  - id: "marble_verde"
+  # Azul Macauba (Bahia, Brasile) — marmo blu cobalto profondo con venature
+  # cristalline bianco-grigie. Stessa ricetta "balanced" degli altri colorati:
+  # sharpness 1.2 + vena chiara (cream) → blu identitario dominante con
+  # variazione cristallina visibile su tutta la superficie.
+  - id: "marble_blu"
     type: "disney"
-    color: [0.20, 0.48, 0.28]
+    color: [0.10, 0.22, 0.58]
     roughness: 0.24
     clearcoat: 0.30
     coat_roughness: 0.20
@@ -752,8 +795,8 @@ materials:
         axis: [1, 0, 0]
         frequency: 0.85
         strength: 0.6
-      # Ramp INVERSA — vena = cream chiaro (stop 0), base = verde (stop 1).
-      colors: [[0.88, 0.86, 0.78], [0.18, 0.45, 0.25]]
+      # Ramp INVERSA — vena cristallina cream (stop 0), base blu cobalto (stop 1).
+      colors: [[0.92, 0.92, 0.86], [0.08, 0.20, 0.55]]
 
   # Rosa Portogallo — rosa saturo dominante, vena bordeaux profondo. Sharpness
   # 1.2 lascia variazione cromatica visibile su tutta la superficie.
@@ -1276,7 +1319,7 @@ entities:
   - { name: "marble_2", type: "sphere", center: [-1.35, 1.22, -0.45], radius: 0.35, seed: 3002, material: "marble_calacatta" }
   - { name: "marble_3", type: "sphere", center: [-0.45, 1.22, -0.45], radius: 0.35, seed: 3003, material: "marble_arabescato" }
   - { name: "marble_4", type: "sphere", center: [ 0.45, 1.22, -0.45], radius: 0.35, seed: 3004, material: "marble_nero" }
-  - { name: "marble_5", type: "sphere", center: [ 1.35, 1.22, -0.45], radius: 0.35, seed: 3005, material: "marble_verde" }
+  - { name: "marble_5", type: "sphere", center: [ 1.35, 1.22, -0.45], radius: 0.35, seed: 3005, material: "marble_blu" }
   - { name: "marble_6", type: "sphere", center: [ 2.25, 1.22, -0.45], radius: 0.35, seed: 3006, material: "marble_rosa" }
 
   # ── Fila 2 (Z=-1.35) METALLI con anisotropia e bump ───────────────────

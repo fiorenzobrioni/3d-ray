@@ -730,6 +730,57 @@ quality, highlight shape, and falloff behavior side by side.
 
 ---
 
+## 6.12 Exposure Compensation (`--exposure`)
+
+Once lights are placed, the tone mapper has to translate scene radiance
+into a 0-1 displayable range. 3D-Ray uses the **ACES filmic** curve,
+the industry-standard tone map shared with Arnold, Cycles, RenderMan
+and most film pipelines. ACES is non-linear: contrast is preserved only
+inside its linear sweet-spot at roughly `[0.18, 1.0]` of incoming
+radiance. Above ~2.0 the curve flattens onto a 0.95-0.99 plateau where
+everything reads "almost white" — base colours, marble veining and
+material identity all collapse into the same brightness.
+
+That collapse is the most common reason a well-designed scene looks
+"washed out" or "lifeless": the lights are simply too strong and ACES
+has nowhere left to roll off the highlights. The fix is **photographic
+exposure compensation** — a linear gain `2^EV` applied to every pixel
+*before* tone mapping:
+
+```bash
+RayTracer -i scene.yaml -o out.png --exposure -1.5
+```
+
+EV semantics match a real camera: `EV = 0` (default) is identity,
+`EV = -1` darkens by a factor of 2 (one stop down), `EV = +1` brightens
+by 2 (one stop up). The flag mirrors the same control on every
+production renderer — `exposure` in Arnold, "Film → Exposure" in
+Cycles, the display-filter `exposure` in RenderMan.
+
+**When to reach for it:**
+
+| Symptom | `--exposure` to try |
+|---|---|
+| Highlights blow out before mid-tones read at all | `-1` to `-2` |
+| Whites look uniformly cream, marble texture invisible | `-1` to `-1.5` |
+| Image lands in noisy near-black mid-tones | `+1` to `+2` |
+| Lights tuned to land near `0.5` linear already | `0` (skip the flag) |
+
+**When *not* to use it.** Exposure is a global multiplier — it shifts
+*every* pixel by the same amount. If only one part of the scene is
+washed out (a single hero light, a too-emissive object), rebalance
+that light's intensity instead so the scene is correctly exposed
+without the flag. Reserve `--exposure` for fast iteration on shots
+where you don't want to commit a YAML change, and for compensating
+HDRI/IBL scenes whose absolute luminance you don't control.
+
+The exposure pass is applied between the per-sample firefly clamp
+(`-C` / `--clamp`) and the ACES curve, so all the standard clamps and
+post-processing still behave identically. The only thing that changes
+is *which slice* of the ACES curve your radiance lands on.
+
+---
+
 ## What You Have Learned
 
 - **Point** lights radiate from a point (inverse-square falloff, hard
