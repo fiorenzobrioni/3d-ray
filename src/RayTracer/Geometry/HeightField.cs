@@ -38,6 +38,15 @@ public sealed class HeightField : IHittable
     private readonly MinMaxMipmap _accel;
     private readonly AABB _aabb;
 
+    // Perlin used to perturb the altitude/slope coordinates of the strata
+    // selector — gives the band transitions an organic, noise-driven
+    // boundary instead of a sharp altitude contour.
+    private readonly Perlin _noise = Perlin.GetOrCreate(0);
+    // Maximum jitter amplitude in normalised-altitude units. Half a typical
+    // blend_width: large enough to dissolve the line, small enough to keep
+    // each band recognisable.
+    private readonly float _stratumJitter = 0.05f;
+
     public float? SeaLevel { get; }
     public IMaterial? SeaMaterial { get; }
     public IReadOnlyList<StratumBand>? Strata { get; }
@@ -251,6 +260,28 @@ public sealed class HeightField : IHittable
         float altSpan = MathF.Max(HeightScale - baseY, 1e-4f);
         float altNorm = Math.Clamp((p.Y - baseY) / altSpan, 0f, 1f);
         float slopeDeg = MathF.Acos(Math.Clamp(normal.Y, -1f, 1f)) * (180f / MathF.PI);
+
+        // ── Noise-perturbed band selection (Frostbite/Unreal terrain trick) ──
+        // The hit point's altitude is jittered by a small Perlin sample
+        // before band weighting so the alt/slope contours stop being
+        // geodesic lines and start tracing organic, biome-like boundaries.
+        // Selection remains winner-takes-all (no BRDF mixing, no per-hit
+        // random) — the perceived blend comes from the boundary curve
+        // following noise contours and from each band material's own
+        // texture noise hiding the residual discontinuity.
+        //
+        // The jitter frequency is tied to the heightfield's footprint so a
+        // bigger terrain gets proportionally larger blobs (same on-screen
+        // scale regardless of bounds).
+        float jitterFreq = 6f / (XMax - XMin);
+        float jitterScale = _stratumJitter
+            * _noise.Noise(new Vector3(p.X * jitterFreq, 0f, p.Z * jitterFreq));
+        altNorm = Math.Clamp(altNorm + jitterScale, 0f, 1f);
+        // Slope gets its own jitter so a cliff face also breaks up the
+        // rock/grass contour, not just the altitude bands.
+        float slopeJitter = (_stratumJitter * 30f)
+            * _noise.Noise(new Vector3(p.Z * jitterFreq, 0f, p.X * jitterFreq));
+        slopeDeg = Math.Clamp(slopeDeg + slopeJitter, 0f, 90f);
 
         IMaterial best = Material;
         float bestScore = 0f;

@@ -60,7 +60,7 @@ jobs:
           #- csg-showcase
           #- gradient-sky-showcase
           #- heightfield-procedural-test
-          #- heightfield-strata-test
+          #- heightfield-strata-test-preview
           #- mix-material-showcase
           #- pendolo-newton
           #- primitive-showcase
