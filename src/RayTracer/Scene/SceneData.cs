@@ -832,6 +832,39 @@ public class SecondaryWaveData
     public float? Strength { get; set; }
 }
 
+/// <summary>
+/// One altitude/slope band of a <c>heightfield</c> primitive. Altitude is
+/// normalised to <c>[0, 1]</c> over the heightfield's world Y extent above
+/// <c>sea_level</c>; slope is in degrees off vertical (0 = flat, 90 = cliff).
+/// </summary>
+public class StratumData
+{
+    [YamlMember(Alias = "min_altitude")]
+    public float MinAltitude { get; set; } = 0f;
+
+    [YamlMember(Alias = "max_altitude")]
+    public float MaxAltitude { get; set; } = 1f;
+
+    [YamlMember(Alias = "min_slope_deg")]
+    public float MinSlopeDeg { get; set; } = 0f;
+
+    [YamlMember(Alias = "max_slope_deg")]
+    public float MaxSlopeDeg { get; set; } = 90f;
+
+    /// <summary>
+    /// Soft-edge width over which the band fades to 0 outside
+    /// <c>[min_altitude, max_altitude]</c>. v1 stratum selection is winner
+    /// takes all, so this currently only affects the band's effective
+    /// dominance radius; future versions will lerp adjacent strata's
+    /// materials over the fade region.
+    /// </summary>
+    [YamlMember(Alias = "blend_width")]
+    public float BlendWidth { get; set; } = 0f;
+
+    [YamlMember(Alias = "material")]
+    public string? Material { get; set; }
+}
+
 public class EntityData
 {
     [YamlMember(Alias = "name")]
@@ -1007,6 +1040,77 @@ public class EntityData
 
     [YamlMember(Alias = "point")]
     public List<float>? Point { get; set; }
+
+    // ── HeightField (Mitsuba-style procedural/baked terrain) ────────────────
+
+    /// <summary>
+    /// XZ extents of the heightfield rectangle as <c>[xMin, zMin, xMax, zMax]</c>.
+    /// </summary>
+    [YamlMember(Alias = "bounds")]
+    public List<float>? Bounds { get; set; }
+
+    /// <summary>
+    /// Maximum world-space height the heightfield may reach. Drives the
+    /// primitive's AABB and is independent of <c>height_scale</c> (the AABB
+    /// remains a safe upper bound even when the actual peak under-shoots).
+    /// </summary>
+    [YamlMember(Alias = "max_height")]
+    public float MaxHeight { get; set; } = 25f;
+
+    /// <summary>
+    /// Multiplicative scale applied to the unit-range height samples before
+    /// they are stored in the primitive (so e.g. a normalised PNG-16 value of
+    /// <c>1.0</c> becomes <c>height_scale</c> world units in Y).
+    /// </summary>
+    [YamlMember(Alias = "height_scale")]
+    public float HeightScale { get; set; } = 1f;
+
+    /// <summary>
+    /// Procedural height definition. Mutually exclusive with
+    /// <see cref="HeightmapPath"/> — when both are set, the path wins and a
+    /// deferred warning is emitted.
+    /// </summary>
+    [YamlMember(Alias = "height_texture")]
+    public TextureData? HeightTexture { get; set; }
+
+    /// <summary>
+    /// Path to a PNG (16-bit preferred) heightmap, resolved relative to the
+    /// scene file. The luminance / red channel is read as the height in
+    /// <c>[0, 1]</c>; values are scaled by <c>height_scale</c>.
+    /// </summary>
+    [YamlMember(Alias = "heightmap_path")]
+    public string? HeightmapPath { get; set; }
+
+    /// <summary>
+    /// For procedural mode: side length of the pre-sampling grid feeding the
+    /// min/max pyramid. Final visual quality is set by the bilinear patch +
+    /// bisection; this only governs the acceleration structure's tightness.
+    /// </summary>
+    [YamlMember(Alias = "resolution")]
+    public int Resolution { get; set; } = 512;
+
+    /// <summary>
+    /// World-space Y of an optional water plane clipped to the heightfield
+    /// footprint. When set, the plane is treated as an extra surface;
+    /// <see cref="SeaMaterial"/> drives its shading.
+    /// </summary>
+    [YamlMember(Alias = "sea_level")]
+    public float? SeaLevel { get; set; }
+
+    /// <summary>
+    /// Material ID for the water surface (see <see cref="SeaLevel"/>). When
+    /// null or empty no water is rendered.
+    /// </summary>
+    [YamlMember(Alias = "sea_material")]
+    public string? SeaMaterial { get; set; }
+
+    /// <summary>
+    /// Altitude/slope-driven material bands layered on top of the fallback
+    /// <see cref="EntityData.Material"/>. Order is insignificant — at each
+    /// shading point the band with the highest combined alt×slope weight wins.
+    /// </summary>
+    [YamlMember(Alias = "strata")]
+    public List<StratumData>? Strata { get; set; }
 
     // CSG (Constructive Solid Geometry)
     [YamlMember(Alias = "operation")]

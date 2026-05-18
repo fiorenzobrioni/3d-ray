@@ -329,6 +329,10 @@ public class SceneLoader
                 {
                     hittable = CreateInstanceEntity(e, materials, templates, templateCache, sceneDir, idx);
                 }
+                else if (IsHeightFieldType(e.Type))
+                {
+                    hittable = CreateHeightFieldEntity(e, mat, materials, sceneDir, idx);
+                }
                 else
                 {
                     hittable = CreateEntity(e, mat, idx);
@@ -1613,6 +1617,119 @@ public class SceneLoader
         return entity;
     }
 
+    private static bool IsHeightFieldType(string? type) => type?.ToLowerInvariant() switch
+    {
+        "heightfield" or "height_field" or "terrain" => true,
+        _ => false,
+    };
+
+    /// <summary>
+    /// Builds a <see cref="HeightField"/> from YAML. Either <c>heightmap_path</c>
+    /// (baked PNG-16) or <c>height_texture</c> (procedural noise) must be
+    /// provided; the path wins when both are set.
+    /// </summary>
+    private static IHittable? CreateHeightFieldEntity(EntityData e, IMaterial fallbackMat,
+        Dictionary<string, IMaterial> materials, string sceneDir, int entityIndex)
+    {
+        if (e.Bounds == null || e.Bounds.Count < 4)
+        {
+            Warn($"HeightField entity '{e.Name ?? "(unnamed)"}' requires 'bounds: [xMin, zMin, xMax, zMax]'. Skipping.");
+            return null;
+        }
+        float xMin = e.Bounds[0], zMin = e.Bounds[1], xMax = e.Bounds[2], zMax = e.Bounds[3];
+        if (xMax <= xMin || zMax <= zMin)
+        {
+            Warn($"HeightField entity '{e.Name ?? "(unnamed)"}': bounds must satisfy xMax>xMin and zMax>zMin. Skipping.");
+            return null;
+        }
+        if (e.HeightScale <= 0f)
+        {
+            Warn($"HeightField entity '{e.Name ?? "(unnamed)"}': height_scale must be > 0. Skipping.");
+            return null;
+        }
+
+        IMaterial? seaMat = null;
+        if (!string.IsNullOrWhiteSpace(e.SeaMaterial))
+            seaMat = GetMaterial(materials, e.SeaMaterial);
+
+        List<HeightField.StratumBand>? strata = null;
+        if (e.Strata != null && e.Strata.Count > 0)
+        {
+            strata = new List<HeightField.StratumBand>(e.Strata.Count);
+            foreach (var s in e.Strata)
+            {
+                if (string.IsNullOrWhiteSpace(s.Material))
+                {
+                    Warn($"HeightField '{e.Name ?? "(unnamed)"}': stratum without 'material' skipped.");
+                    continue;
+                }
+                strata.Add(new HeightField.StratumBand
+                {
+                    MinAltitude = s.MinAltitude,
+                    MaxAltitude = s.MaxAltitude,
+                    MinSlopeDeg = s.MinSlopeDeg,
+                    MaxSlopeDeg = s.MaxSlopeDeg,
+                    BlendWidth  = s.BlendWidth,
+                    Material    = GetMaterial(materials, s.Material),
+                });
+            }
+            if (strata.Count == 0) strata = null;
+        }
+
+        HeightField hf;
+        if (!string.IsNullOrWhiteSpace(e.HeightmapPath))
+        {
+            if (e.HeightTexture != null)
+                Warn($"HeightField '{e.Name ?? "(unnamed)"}' has both 'heightmap_path' and 'height_texture' — using the baked path.");
+
+            string fullPath = Path.IsPathRooted(e.HeightmapPath)
+                ? e.HeightmapPath
+                : Path.Combine(sceneDir, e.HeightmapPath);
+            if (!File.Exists(fullPath))
+            {
+                Warn($"HeightField '{e.Name ?? "(unnamed)"}': heightmap file not found at '{fullPath}'. Skipping.");
+                return null;
+            }
+
+            if (!HeightmapLoader.IsHighPrecision(fullPath))
+                Warn($"HeightField '{e.Name ?? "(unnamed)"}': '{Path.GetFileName(fullPath)}' is not 16-bit — terracing may appear on smooth slopes.");
+
+            float[] samples;
+            int sx, sz;
+            try
+            {
+                samples = HeightmapLoader.Load(fullPath, out sx, out sz);
+            }
+            catch (Exception ex)
+            {
+                Warn($"HeightField '{e.Name ?? "(unnamed)"}': failed to load heightmap '{fullPath}': {ex.Message}. Skipping.");
+                return null;
+            }
+            hf = new HeightField(xMin, zMin, xMax, zMax,
+                                 samples, sx, sz,
+                                 e.HeightScale, fallbackMat,
+                                 e.SeaLevel, seaMat, strata);
+        }
+        else if (e.HeightTexture != null)
+        {
+            ITexture tex = CreateTexture(e.HeightTexture, sceneDir);
+            int res = e.Resolution > 0 ? e.Resolution : 512;
+            hf = HeightField.FromProceduralTexture(
+                xMin, zMin, xMax, zMax,
+                tex, res,
+                e.HeightScale, fallbackMat,
+                e.SeaLevel, seaMat, strata);
+        }
+        else
+        {
+            Warn($"HeightField '{e.Name ?? "(unnamed)"}' needs either 'heightmap_path' or 'height_texture'. Skipping.");
+            return null;
+        }
+
+        hf.Seed = e.Seed ?? StableSeed(entityIndex, e.Type, e.Name);
+        return hf;
+    }
+
     /// <summary>
     /// Creates a Torus centered at the origin, optionally wrapped in a
     /// translation Transform when a <c>center</c> is specified in YAML.
@@ -2543,6 +2660,10 @@ public class SceneLoader
             else if (string.Equals(child.Type, "group", StringComparison.OrdinalIgnoreCase))
             {
                 hittable = CreateGroupEntity(child, mat, materials, sceneDir, childIdx);
+            }
+            else if (IsHeightFieldType(child.Type))
+            {
+                hittable = CreateHeightFieldEntity(child, mat, materials, sceneDir, childIdx);
             }
             else
             {
