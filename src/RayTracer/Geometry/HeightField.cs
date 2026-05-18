@@ -42,10 +42,17 @@ public sealed class HeightField : IHittable
     // selector — gives the band transitions an organic, noise-driven
     // boundary instead of a sharp altitude contour.
     private readonly Perlin _noise = Perlin.GetOrCreate(0);
-    // Maximum jitter amplitude in normalised-altitude units. Half a typical
-    // blend_width: large enough to dissolve the line, small enough to keep
-    // each band recognisable.
-    private readonly float _stratumJitter = 0.05f;
+    // Maximum jitter amplitude in normalised-altitude units. Calibrated
+    // so a band transition on the ~25-unit-tall demo terrain spreads
+    // over roughly 3-4 world units — comparable to a real snowline that
+    // fluctuates ~100 m on a 1 km peak between sunlit and shaded faces.
+    // Larger values fragment bands into interleaved patches; smaller
+    // values keep the contour too geodetic.
+    private const float StratumJitter = 0.12f;
+    // Slope jitter range in degrees. Cliff bands (rock, min_slope_deg ≥
+    // 25) need a meaningful slope perturbation or they keep tracing
+    // exact gradient contours; ±15° is one stratum-width on a 0-90° axis.
+    private const float SlopeJitterDeg = 15f;
 
     public float? SeaLevel { get; }
     public IMaterial? SeaMaterial { get; }
@@ -262,27 +269,41 @@ public sealed class HeightField : IHittable
         float slopeDeg = MathF.Acos(Math.Clamp(normal.Y, -1f, 1f)) * (180f / MathF.PI);
 
         // ── Noise-perturbed band selection (Frostbite/Unreal terrain trick) ──
-        // The hit point's altitude is jittered by a small Perlin sample
-        // before band weighting so the alt/slope contours stop being
-        // geodesic lines and start tracing organic, biome-like boundaries.
-        // Selection remains winner-takes-all (no BRDF mixing, no per-hit
-        // random) — the perceived blend comes from the boundary curve
-        // following noise contours and from each band material's own
+        // The hit point's altitude is jittered by an fBm sample before band
+        // weighting so the alt/slope contours stop being geodesic lines and
+        // start tracing organic, biome-like boundaries with detail at
+        // multiple scales (large lobes + small protrusions, like a real
+        // snow line). Selection remains winner-takes-all (no BRDF mixing,
+        // no per-hit random) — the perceived blend comes from the boundary
+        // curve following noise contours and from each band material's own
         // texture noise hiding the residual discontinuity.
         //
-        // The jitter frequency is tied to the heightfield's footprint so a
-        // bigger terrain gets proportionally larger blobs (same on-screen
-        // scale regardless of bounds).
+        // The base frequency gives ~6 large blobs across the terrain;
+        // two octaves of fBm add finer fragmentation (~3-unit speckle on
+        // the demo 100-unit terrain). Both axes use a different noise
+        // domain so the altitude and slope perturbations are decorrelated.
         float jitterFreq = 6f / (XMax - XMin);
-        float jitterScale = _stratumJitter
-            * _noise.Noise(new Vector3(p.X * jitterFreq, 0f, p.Z * jitterFreq));
-        altNorm = Math.Clamp(altNorm + jitterScale, 0f, 1f);
-        // Slope gets its own jitter so a cliff face also breaks up the
-        // rock/grass contour, not just the altitude bands.
-        float slopeJitter = (_stratumJitter * 30f)
-            * _noise.Noise(new Vector3(p.Z * jitterFreq, 0f, p.X * jitterFreq));
+        float altJitter = StratumJitter * _noise.Fbm(
+            new Vector3(p.X * jitterFreq, 0f, p.Z * jitterFreq),
+            octaves: 2, lacunarity: 2.5f, gain: 0.5f, signed: true);
+        altNorm = Math.Clamp(altNorm + altJitter, 0f, 1f);
+
+        // Slope gets its own decorrelated jitter so cliff faces also
+        // fragment the rock/grass contour, not just the altitude bands.
+        // Offset by a constant 3D vector to decorrelate from the altitude
+        // sample without paying for a second Perlin permutation table.
+        float slopeJitter = SlopeJitterDeg * _noise.Fbm(
+            new Vector3(p.X * jitterFreq + 137f, 0f, p.Z * jitterFreq + 91f),
+            octaves: 2, lacunarity: 2.5f, gain: 0.5f, signed: true);
         slopeDeg = Math.Clamp(slopeDeg + slopeJitter, 0f, 90f);
 
+        // Iteration order matters for ties. The band list is emitted by
+        // TerrainGen in increasing specificity (sand → ground → rock →
+        // snow), so on the snow/rock overlap zone where both bands have
+        // weight 1, we want the *later* (more specialised) band to win.
+        // `>=` makes the last band touch the score replace the previous
+        // tie-winner — natural for the "snow caps the peak even when rock
+        // is technically also valid up there" behaviour.
         IMaterial best = Material;
         float bestScore = 0f;
         foreach (var s in Strata)
@@ -290,7 +311,7 @@ public sealed class HeightField : IHittable
             float wAlt = BandWeight(altNorm, s.MinAltitude, s.MaxAltitude, s.BlendWidth);
             float wSlope = BandWeight(slopeDeg, s.MinSlopeDeg, s.MaxSlopeDeg, MathF.Max(s.BlendWidth * 90f, 5f));
             float w = wAlt * wSlope;
-            if (w > bestScore)
+            if (w > 0f && w >= bestScore)
             {
                 bestScore = w;
                 best = s.Material;
