@@ -325,7 +325,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 22.0
-      output: "cell"
+      output: "random"
       smoothness: 0.4
       colors: [[0.65, 0.35, 0.32], [0.88, 0.55, 0.48]]
     bump_map:
@@ -422,7 +422,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 25.0
-      output: "cell"
+      output: "random"
       smoothness: 0.05
       randomness: 1.0
       colors: [[0.55, 0.65, 0.62], [0.92, 0.95, 0.92]]
@@ -446,7 +446,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 25.0
-      output: "cell"
+      output: "random"
       smoothness: 0.05
       colors: [[0.75, 0.42, 0.28], [0.98, 0.78, 0.62]]
     bump_map:
@@ -469,7 +469,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 22.0
-      output: "cell"
+      output: "random"
       smoothness: 0.05
       colors: [[0.85, 0.52, 0.05], [0.98, 0.92, 0.45]]
     bump_map:
@@ -492,7 +492,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 28.0
-      output: "cell"
+      output: "random"
       smoothness: 0.1
       colors: [[0.32, 0.32, 0.28], [0.85, 0.78, 0.62]]
     bump_map:
@@ -521,7 +521,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 35.0
-      output: "cell"
+      output: "random"
       smoothness: 0.15
       colors: [[0.22, 0.52, 0.20], [0.45, 0.78, 0.42]]
     bump_map:
@@ -543,7 +543,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 14.0
-      output: "cell"
+      output: "random"
       smoothness: 0.05
       colors: [[0.18, 0.40, 0.20], [0.45, 0.68, 0.42]]
     bump_map:
@@ -565,7 +565,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 16.0
-      output: "cell"
+      output: "random"
       smoothness: 0.05
       colors: [[0.55, 0.30, 0.10], [0.85, 0.58, 0.28]]
     bump_map:
@@ -809,7 +809,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 35.0
-      output: "cell"
+      output: "random"
       smoothness: 0.4
       colors: [[0.72, 0.32, 0.28], [0.92, 0.55, 0.50]]
     bump_map:

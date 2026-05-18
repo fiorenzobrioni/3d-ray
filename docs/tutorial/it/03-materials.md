@@ -932,7 +932,7 @@ texture:
   metric: "euclidean"        # euclidean | manhattan | chebyshev | euclidean_squared
   output: "f2_minus_f1"      # f1 | f2 | f3 | f4 |
                              # f2_minus_f1 | f3_minus_f1 |
-                             # f1_plus_f2 | cell | position
+                             # f1_plus_f2 | cell | random | position
   randomness: 0.9
   smoothness: 0.0            # 0 = hard min (classico); ∈ (0,1] abilita Smooth Voronoi
   colors: [[0.05, 0.05, 0.05], [0.95, 0.90, 0.70]]
@@ -949,10 +949,19 @@ astratte. La modalità di output seleziona il look:
 - `f2_minus_f1` — ridge nette fra le celle (il famoso "crackle").
 - `f3_minus_f1` — banda border più larga e a frequenza più bassa
   (rim morbidi, gradienti tipo mortar).
-- `cell` — ogni cella riceve un colore casuale stabile (mosaico).
-- `position` — XYZ cell-local del feature point F1 come RGB; ID
-  stocastico deterministico per cella, da iniettare in un'altra
-  procedurale (output Position di Cycles, position di PxrVoronoise).
+- `cell` — hash RGB grezzo per cella (output "Color" di Cycles).
+  Arcobaleno saturo; **ignora `colors:` / `color_ramp:`**. Da usare
+  come identificatore stocastico RGB non vincolato o come input di
+  un nodo hue/sat / mix-RGB a valle.
+- `random` — scalare in [0, 1) per cella, mappato attraverso
+  `colors:` / `color_ramp:`. Replica l'output "Random" di Cycles
+  3.0+. **È quello che vuoi per quasi tutti i materiali "rocce /
+  scaglie / patch"** — le celle restano dentro la tua palette muted
+  invece di esplodere in arcobaleno.
+- `position` — XYZ cell-local del feature point F1 come RGB. Un
+  ID stocastico 3D deterministico, decorrelato da `cell`; utile per
+  seeding di procedurali a valle (output Position di Cycles, position
+  di RenderMan PxrVoronoise).
 
 `metric: "chebyshev"` produce piastrelle quadrate/esagonali.
 `randomness: 0` collassa i feature su una griglia regolare; `1` è
@@ -974,7 +983,8 @@ sparpagliamento totale.
 > bordi morbidi, niente alias a step lungo le creste. Utile per cuoio
 > levigato, ciottoli arrotondati dall'acqua, pelle di rettile, marmo
 > poro-chiuso. `smoothness = 0` (default) è bit-identica al comportamento
-> legacy; l'output `cell` è volutamente immune (cell-ID è discreto).
+> legacy; gli output `cell` / `random` sono volutamente immuni
+> (lookup per-cella discreto).
 > Vedi `scenes/showcases/smooth-voronoi-showcase.yaml` per il confronto
 > a tre sfere hard / 0.3 / 0.7 e la parità con Cycles "Smooth F1".
 
@@ -987,6 +997,20 @@ sparpagliamento totale.
 > `color_ramp:` perché è un output identity vettoriale, non scalare. Vedi
 > `scenes/showcases/voronoi-extended-outputs-showcase.yaml` per il
 > confronto a 6 sfere fianco a fianco.
+
+> **`cell` vs `random` — scegliere il canale per-cella giusto.** Gli
+> utenti alle prime armi scelgono `cell` istintivamente perché il nome
+> torna — vogliono "un colore per cella". Poi si chiedono perché la
+> palette grigio-cemento esce magenta e lime. **`cell` è l'output Color
+> di Cycles: un hash RGB grezzo che ignora la tua palette**. Il canale
+> che ti serve davvero per colore per-cella vincolato dalla palette —
+> rocce in range marrone, scaglie in range verde, terrazzo in range
+> crema — è `random`. Hasha l'ID cella in uno scalare e lerpa il tuo
+> `colors:` (o campiona il `color_ramp:`) sopra, esattamente come gli
+> output distanza. Regola pratica: se hai scritto `colors:` quasi
+> sicuramente vuoi `random`; usa `cell` solo quando vuoi veramente
+> identificatori RGB stocastici non vincolati (es. come input di un
+> nodo hue/sat a valle).
 
 ### Brick (Mattoni)
 
@@ -1348,12 +1372,91 @@ Anche l'autobump risultante è blendato dalla stessa mask
 (`MixBumpMapTexture`), così il dettaglio sub-pixel recuperato segue
 fluidamente il confine fra material.
 
-### Solo mesh
+### Solo mesh — e come aggirarlo per le sfere
 
 Il displacement material-level è applicato solo dalle entity
 `type: mesh`. Entità sphere/cylinder/box/CSG che referenziano un
 material displaced emettono un warning di load e usano lo shading senza
 il pass geometrico.
+
+È la stessa scelta architetturale di Arnold e Cycles: il displacement
+ha bisogno di una mesh poligonale, di un frame UV/tangent, e di un
+pass di subdivision per esporre vertici sufficienti a permettere la
+deformazione. Una sfera analitica non ha niente di tutto questo. Se
+metti un materiale con `displacement: { scale: 0.02 }` su una
+`type: "sphere"` ottieni lo shading (colore + roughness + bump_map) ma
+non i rilievi sul profilo — esattamente come in Arnold o Cycles.
+
+**La soluzione: sostituisci la primitiva analitica con un proxy mesh
+e lascia che la subdivision adattiva faccia il lavoro.** L'engine
+include proxy poligonali unit-radius in `scenes/models/`:
+
+| File proxy                       | Sostituisce          | Subdivision  |
+|----------------------------------|----------------------|--------------|
+| `subdivision-icosahedron.obj`    | sfera analitica      | `loop`       |
+| `subdivision-cube.obj`           | cubo analitico       | `catmull_clark` |
+
+**Ricetta — sfera analitica ⇒ icosaedro suddiviso.** Prendi una entity
+`type: "sphere"` a `(x, y, z)` con `radius: r`:
+
+```yaml
+# Prima — displacement ignorato in silenzio:
+- name: "rock"
+  type: "sphere"
+  center: [0, 0.9, 0]
+  radius: 0.9
+  material: "dis_cemento_lavato_chiaro"     # ← ha displacement
+
+# Dopo — displacement applicato:
+- name: "rock"
+  type: "mesh"
+  path: "../models/subdivision-icosahedron.obj"
+  subdivision_scheme: "loop"
+  subdivision_pixel_error: 6.0              # adattivo: stop quando il
+  subdivision_max_iterations: 5             #   bordo proiettato < 6 px
+  scale: [0.9, 0.9, 0.9]                    # icosaedro è raggio 1
+  translate: [0, 0.9, 0]                    # ← era center
+  material: "dis_cemento_lavato_chiaro"
+```
+
+**Perché adattivo (`subdivision_pixel_error`) e non iterazioni fisse?**
+La subdivision adattiva tiene il costo proporzionale alla dimensione
+a schermo: una sfera che occupa 30 px nel render finale prende il
+minimo di subdivision (comunque sufficiente per far leggere
+l'ampiezza del displacement); una sfera che ne occupa 800 si raffina
+da sola finché i bordi non scendono sotto la soglia di pixel-error.
+Per un tipico render 1920 × 1080 con FOV medio,
+`subdivision_pixel_error: 6.0` con `subdivision_max_iterations: 5` è
+un buon default — limita l'icosaedro a ≈5120 triangoli, abbastanza
+fine per ogni materiale displaced della libreria.
+
+Usa le iterazioni fisse (`subdivision_iterations: 4`) solo quando ti
+serve un conteggio geometrico deterministico — test di regressione,
+snapshot diff in CI, oppure pre-baking di una mesh da esportare.
+
+**Altre primitive.**
+
+- **Box / cubi**: `subdivision-cube.obj` con `subdivision_scheme:
+  "catmull_clark"` — Catmull-Clark arrotonda naturalmente gli spigoli
+  all'aumentare delle iterazioni, quindi per un box displaced
+  spigoloso limita `subdivision_max_iterations: 2`.
+- **Toro / cilindro / superfici di rivoluzione (lathe)**: non c'è un
+  proxy stock suddiviso. Se ti serve il displacement su quei profili,
+  modella la forma come OBJ una volta (Blender → Export OBJ con quad
+  se vuoi usare Catmull-Clark; triangoli se userai Loop) e caricala
+  come mesh con subdivision.
+- **Operazioni CSG**: il displacement sull'output CSG non è
+  attualmente supportato (la CSG lavora su primitive analitiche;
+  l'intersezione / differenza / unione è calcolata al momento
+  dell'intersezione, dopodiché non c'è più una mesh da spostare). Usa
+  invece un OBJ "boolean-baked".
+
+**Tutti i file `*-showcase.yaml` che dimostrano una libreria materiali
+adottano questo pattern.** Guarda `concretes-showcase.yaml`,
+`leathers-showcase.yaml`, `marbles-studio-v2-showcase.yaml` — la fila
+di cinque sfere demo è costruita con icosaedri suddivisi, così ogni
+materiale displaced della libreria mostra il suo vero profilo
+geometrico fianco a fianco con quelli non-displaced.
 
 ### Showcase
 

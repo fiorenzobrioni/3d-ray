@@ -379,11 +379,11 @@ public sealed class WorleyNoise
     }
 
     /// <summary>
-    /// Maps a 32-bit cell ID to a saturated RGB triple. Kept for callers that
-    /// want raw per-cell hashed colour; <see cref="VoronoiTexture"/> no longer
-    /// uses this for its Cell output (which now feeds a per-cell scalar through
-    /// the user palette / ColorRamp). Raw stochastic-ID RGB is exposed by the
-    /// dedicated <c>Position</c> output channel.
+    /// Maps a 32-bit cell ID to a saturated RGB triple. Backs the Voronoi
+    /// <c>Cell</c> output, mirroring Cycles' Voronoi Texture <i>Color</i>
+    /// channel: each cell receives a random but deterministic colour drawn
+    /// from the full RGB cube. Use <see cref="CellScalar"/> instead when you
+    /// want a palette-aware scalar (the Cycles 3.0+ <i>Random</i> output).
     /// </summary>
     public static Vector3 CellColor(int cellId)
     {

@@ -1107,7 +1107,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 50.0
-      output: "cell"
+      output: "random"
       smoothness: 0.1
       colors: [[0.10, 0.20, 0.35], [0.22, 0.36, 0.55]]
     bump_map:

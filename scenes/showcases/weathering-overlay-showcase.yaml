@@ -142,11 +142,56 @@ entities:
   - { name: "floor",   type: "quad", q: [-14, 0, -3], u: [28, 0, 0], v: [0, 0, 10], material: "floor" }
   - { name: "wall",    type: "quad", q: [-14, 0,  6], u: [28, 0, 0], v: [0, 8, 0],  material: "backdrop" }
 
-  - { name: "cromo_rust",    type: "sphere", center: [-4.8, 0.9, 0], radius: 0.9, seed:  3, material: "mix_cromo_ruggine"      }
-  - { name: "cemento_moss",  type: "sphere", center: [-2.4, 0.9, 0], radius: 0.9, seed: 11, material: "mix_cemento_muschio"    }
-  - { name: "vernice_flake", type: "sphere", center: [ 0.0, 0.9, 0], radius: 0.9, seed: 19, material: "mix_vernice_scrostata"  }
-  - { name: "legno_lime",    type: "sphere", center: [ 2.4, 0.9, 0], radius: 0.9, seed: 29, material: "mix_legno_calcare"      }
-  - { name: "ferro_salt",    type: "sphere", center: [ 4.8, 0.9, 0], radius: 0.9, seed: 37, material: "mix_ferro_sale"         }
+  - name: "cromo_rust"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [-4.8, 0.9, 0]
+    seed: 3
+    material: "mix_cromo_ruggine"
+  - name: "cemento_moss"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [-2.4, 0.9, 0]
+    seed: 11
+    material: "mix_cemento_muschio"
+  - name: "vernice_flake"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [0.0, 0.9, 0]
+    seed: 19
+    material: "mix_vernice_scrostata"
+  - name: "legno_lime"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [2.4, 0.9, 0]
+    seed: 29
+    material: "mix_legno_calcare"
+  - name: "ferro_salt"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [4.8, 0.9, 0]
+    seed: 37
+    material: "mix_ferro_sale"
 
 lights:
 

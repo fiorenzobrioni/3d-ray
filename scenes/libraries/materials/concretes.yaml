@@ -337,7 +337,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 5.5
-      output: "cell"
+      output: "random"
       randomness: 1.0
       smoothness: 0.15
       colors: [[0.55, 0.50, 0.42], [0.85, 0.82, 0.74]]
@@ -365,7 +365,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 6.0
-      output: "cell"
+      output: "random"
       randomness: 1.0
       smoothness: 0.1
       colors: [[0.20, 0.18, 0.15], [0.55, 0.52, 0.48]]
@@ -538,7 +538,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 8.0
-      output: "cell"
+      output: "random"
       smoothness: 0.1
       randomness: 1.0
       colors: [[0.10, 0.10, 0.10], [0.42, 0.40, 0.38]]
@@ -560,7 +560,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 6.0
-      output: "cell"
+      output: "random"
       smoothness: 0.05
       colors: [[0.12, 0.11, 0.10], [0.48, 0.45, 0.42]]
     displacement:

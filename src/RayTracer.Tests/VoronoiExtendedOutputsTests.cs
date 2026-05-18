@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using RayTracer.Core;
 using RayTracer.Textures;
@@ -352,18 +354,43 @@ public class VoronoiExtendedOutputsTests
     }
 
     [Fact]
-    public void VoronoiTexture_Cell_RespectsPaletteEndpoints()
+    public void VoronoiTexture_Cell_IsRawRgbHash_IgnoresPalette()
     {
-        // The Cell output must stay inside the convex hull of the two palette
-        // endpoints (channel-wise min/max of colorA and colorB). Pre-fix it
-        // returned a raw RGB hash and routinely produced saturated rainbow
-        // colours outside any user palette — see concretes-showcase regression.
+        // Contract: OutputMode.Cell is Cycles' 'Color' output — raw RGB hash
+        // of the cell ID, ignores both the constructor palette and any attached
+        // ColorRamp. This guards the bit-identical Cycles compatibility we
+        // promise for the 'color' / 'cell' YAML alias.
+        Vector3 mutedLo = new(0.55f, 0.50f, 0.42f);
+        Vector3 mutedHi = new(0.85f, 0.82f, 0.74f);
+        var palette = new VoronoiTexture(scale: 5.5f, mutedLo, mutedHi)
+        {
+            Output = VoronoiTexture.OutputMode.Cell, Randomness = 1f,
+        };
+        var defaults = new VoronoiTexture(scale: 5.5f, Vector3.Zero, Vector3.One)
+        {
+            Output = VoronoiTexture.OutputMode.Cell, Randomness = 1f,
+        };
+        foreach (var p in SamplePoints())
+        {
+            // Two textures, same cell IDs → identical Cell output regardless
+            // of the palette argument. Also asserts at least one probe falls
+            // OUTSIDE the muted palette hull (full RGB cube coverage).
+            Assert.Equal(palette.Value(0.5f, 0.5f, p, 0),
+                         defaults.Value(0.5f, 0.5f, p, 0));
+        }
+    }
+
+    [Fact]
+    public void VoronoiTexture_Random_RespectsPaletteEndpoints()
+    {
+        // Mirrors Cycles 3.0+ 'Random' output: scalar-per-cell mapped through
+        // the user palette. Every sample must stay inside the convex hull of
+        // [colorA, colorB] (component-wise min/max).
         Vector3 lo = new(0.55f, 0.50f, 0.42f);
         Vector3 hi = new(0.85f, 0.82f, 0.74f);
         var tex = new VoronoiTexture(scale: 5.5f, lo, hi)
         {
-            Output = VoronoiTexture.OutputMode.Cell,
-            Randomness = 1f,
+            Output = VoronoiTexture.OutputMode.Random, Randomness = 1f,
         };
         foreach (var p in SamplePoints())
         {
@@ -375,11 +402,10 @@ public class VoronoiExtendedOutputsTests
     }
 
     [Fact]
-    public void VoronoiTexture_Cell_SamplesColorRampWhenAttached()
+    public void VoronoiTexture_Random_SamplesColorRampWhenAttached()
     {
-        // When a ColorRamp is attached, Cell must funnel the per-cell scalar
-        // through it (so users can build arbitrary palettes for stochastic
-        // per-cell colouring). Verifies the ramp branch is actually taken.
+        // ColorRamp must drive Random (otherwise palette-aware multi-stop
+        // stochastic IDs are unreachable). Verifies the ramp branch is taken.
         var ramp = new ColorRamp(new[]
         {
             new ColorRamp.Stop(0f,   new Vector3(1, 0, 0), ColorRamp.Interp.Linear),
@@ -388,21 +414,57 @@ public class VoronoiExtendedOutputsTests
         });
         var tex = new VoronoiTexture(scale: 4f, Vector3.Zero, Vector3.One)
         {
-            Output = VoronoiTexture.OutputMode.Cell,
+            Output = VoronoiTexture.OutputMode.Random,
             Randomness = 1f,
             ColorRamp = ramp,
         };
         foreach (var p in SamplePoints())
         {
             Vector3 rgb = tex.Value(0.5f, 0.5f, p, 0);
-            // Ramp endpoints span pure red/green/blue → any sample on the ramp
-            // has at most one large channel ≫ the other two for t near each
-            // stop, but every sample sums to ≤ 1 with no negative components.
             Assert.True(rgb.X + rgb.Y + rgb.Z <= 1.5f + 1e-5f,
                 $"ramp-bound violated at {p}: {rgb}");
             Assert.True(rgb.X >= 0f && rgb.Y >= 0f && rgb.Z >= 0f,
                 $"negative ramp output at {p}: {rgb}");
         }
+    }
+
+    [Fact]
+    public void VoronoiTexture_Random_IsPerCellConstant()
+    {
+        // Two probes inside the SAME F1 cell must return identical Random
+        // values (it's a per-cell scalar, not a continuous gradient).
+        var tex = new VoronoiTexture(scale: 1f, Vector3.Zero, Vector3.One)
+        {
+            Output = VoronoiTexture.OutputMode.Random,
+            Randomness = 0f,
+        };
+        Vector3 a = tex.Value(0.5f, 0.5f, new Vector3(0.50f, 0.50f, 0.50f), 0);
+        Vector3 b = tex.Value(0.5f, 0.5f, new Vector3(0.52f, 0.48f, 0.49f), 0);
+        Assert.Equal(a, b);
+    }
+
+    [Fact]
+    public void VoronoiTexture_Random_DecorrelatedFromCell()
+    {
+        // CellScalar is a Murmur3-style finalizer hash, intentionally
+        // decorrelated from CellColor's byte-extraction. Sample many cells
+        // and assert no degenerate mapping (Random can't be a fixed function
+        // of the R channel of Cell, otherwise we'd lose the indipendence we
+        // need when mixing both channels in a node graph).
+        var cell   = new VoronoiTexture(scale: 4f, Vector3.Zero, Vector3.One)
+        { Output = VoronoiTexture.OutputMode.Cell,   Randomness = 1f };
+        var rnd    = new VoronoiTexture(scale: 4f, Vector3.Zero, Vector3.One)
+        { Output = VoronoiTexture.OutputMode.Random, Randomness = 1f };
+        // Count pairs where Random differs even though Cell.R is similar.
+        int decorrelated = 0;
+        foreach (var p in SamplePoints())
+        {
+            Vector3 c = cell.Value(0, 0, p, 0);
+            Vector3 r = rnd.Value(0, 0, p, 0);
+            if (MathF.Abs(c.X - r.X) > 0.05f) decorrelated++;
+        }
+        Assert.True(decorrelated >= SamplePoints().Count() / 2,
+            $"Random and Cell.R should be independent on most probes; got {decorrelated}");
     }
 
     private static IEnumerable<Vector3> SamplePoints()

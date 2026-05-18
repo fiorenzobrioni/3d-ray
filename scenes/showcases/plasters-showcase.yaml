@@ -48,11 +48,56 @@ entities:
   - { name: "floor",   type: "quad", q: [-14, 0, -3], u: [28, 0, 0], v: [0, 0, 10], material: "floor" }
   - { name: "wall",    type: "quad", q: [-14, 0,  6], u: [28, 0, 0], v: [0, 8, 0],  material: "backdrop" }
 
-  - { name: "veneziano", type: "sphere", center: [-4.8, 0.9, 0], radius: 0.9, seed:  3, material: "dis_veneziano_avorio"        }
-  - { name: "marmorino", type: "sphere", center: [-2.4, 0.9, 0], radius: 0.9, seed: 11, material: "dis_marmorino_blu_polvere"   }
-  - { name: "tadelakt",  type: "sphere", center: [ 0.0, 0.9, 0], radius: 0.9, seed: 19, material: "dis_tadelakt_rosa"           }
-  - { name: "stucco",    type: "sphere", center: [ 2.4, 0.9, 0], radius: 0.9, seed: 29, material: "dis_stucco_antico_crepato"   }
-  - { name: "graffiato", type: "sphere", center: [ 4.8, 0.9, 0], radius: 0.9, seed: 37, material: "dis_graffiato_esterno"       }
+  - name: "veneziano"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [-4.8, 0.9, 0]
+    seed: 3
+    material: "dis_veneziano_avorio"
+  - name: "marmorino"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [-2.4, 0.9, 0]
+    seed: 11
+    material: "dis_marmorino_blu_polvere"
+  - name: "tadelakt"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [0.0, 0.9, 0]
+    seed: 19
+    material: "dis_tadelakt_rosa"
+  - name: "stucco"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [2.4, 0.9, 0]
+    seed: 29
+    material: "dis_stucco_antico_crepato"
+  - name: "graffiato"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [4.8, 0.9, 0]
+    seed: 37
+    material: "dis_graffiato_esterno"
 
 lights:
 
