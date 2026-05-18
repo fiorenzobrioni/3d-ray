@@ -85,7 +85,7 @@ materials:
       texture:
         type: "voronoi"
         scale: 60.0
-        output: "cell"
+        output: "random"
         smoothness: 0.05
         randomness: 0.4
         colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
@@ -105,7 +105,7 @@ materials:
       texture:
         type: "voronoi"
         scale: 50.0
-        output: "cell"
+        output: "random"
         randomness: 0.3
         colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
       strength: 0.65
@@ -150,7 +150,7 @@ materials:
       texture:
         type: "voronoi"
         scale: 55.0
-        output: "cell"
+        output: "random"
         randomness: 0.4
         colors: [[0.32, 0.32, 0.32], [0.68, 0.68, 0.68]]
       strength: 0.8
@@ -169,7 +169,7 @@ materials:
       texture:
         type: "voronoi"
         scale: 60.0
-        output: "cell"
+        output: "random"
         randomness: 0.4
         colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
       strength: 0.6
@@ -193,7 +193,7 @@ materials:
       texture:
         type: "voronoi"
         scale: 60.0
-        output: "cell"
+        output: "random"
         randomness: 0.3
         colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
       strength: 0.6
@@ -212,7 +212,7 @@ materials:
       texture:
         type: "voronoi"
         scale: 60.0
-        output: "cell"
+        output: "random"
         randomness: 0.3
         colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
       strength: 0.6
@@ -231,7 +231,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 30.0
-      output: "cell"
+      output: "random"
       smoothness: 0.05
       colors: [[0.05, 0.05, 0.05], [0.85, 0.65, 0.15]]
 
@@ -266,7 +266,7 @@ materials:
       texture:
         type: "voronoi"
         scale: 40.0
-        output: "cell"
+        output: "random"
         smoothness: 0.1
         colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
       strength: 1.0
@@ -325,7 +325,7 @@ materials:
       texture:
         type: "voronoi"
         scale: 90.0
-        output: "cell"
+        output: "random"
         smoothness: 0.2
         colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
       strength: 0.5
@@ -449,7 +449,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 18.0
-      output: "cell"
+      output: "random"
       smoothness: 0.4
       colors: [[0.78, 0.65, 0.40], [0.98, 0.85, 0.62]]
     bump_map:
@@ -470,7 +470,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 22.0
-      output: "cell"
+      output: "random"
       smoothness: 0.5
       colors: [[0.72, 0.40, 0.15], [0.95, 0.62, 0.28]]
 
@@ -577,7 +577,7 @@ materials:
       texture:
         type: "voronoi"
         scale: 110.0
-        output: "cell"
+        output: "random"
         randomness: 0.3
         colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
       strength: 0.55

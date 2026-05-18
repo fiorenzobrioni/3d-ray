@@ -38,12 +38,66 @@ entities:
 
   - { name: "floor", type: "quad", q: [-12, 0, -4], u: [24, 0, 0], v: [0, 0, 10], material: "floor" }
 
-  - { name: "quartato",  type: "sphere", center: [-5.0, 0.85, 0], radius: 0.85, seed:  1, material: "dis_rovere_quartato_medullary" }
-  - { name: "curly_max", type: "sphere", center: [-3.0, 0.85, 0], radius: 0.85, seed:  7, material: "dis_acero_curly_max"           }
-  - { name: "pino_hvy",  type: "sphere", center: [-1.0, 0.85, 0], radius: 0.85, seed: 13, material: "dis_pino_nodoso_heavy"         }
-  - { name: "birdseye",  type: "sphere", center: [ 1.0, 0.85, 0], radius: 0.85, seed: 23, material: "dis_acero_birdseye"            }
-  - { name: "mogano",    type: "sphere", center: [ 3.0, 0.85, 0], radius: 0.85, seed: 31, material: "dis_mogano_flame_studio"       }
-  - { name: "shou_sugi", type: "sphere", center: [ 5.0, 0.85, 0], radius: 0.85, seed: 41, material: "dis_cedro_shousugiban"         }
+  - name: "quartato"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.85, 0.85, 0.85]
+    translate: [-5.0, 0.85, 0]
+    seed: 1
+    material: "dis_rovere_quartato_medullary"
+  - name: "curly_max"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.85, 0.85, 0.85]
+    translate: [-3.0, 0.85, 0]
+    seed: 7
+    material: "dis_acero_curly_max"
+  - name: "pino_hvy"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.85, 0.85, 0.85]
+    translate: [-1.0, 0.85, 0]
+    seed: 13
+    material: "dis_pino_nodoso_heavy"
+  - name: "birdseye"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.85, 0.85, 0.85]
+    translate: [1.0, 0.85, 0]
+    seed: 23
+    material: "dis_acero_birdseye"
+  - name: "mogano"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.85, 0.85, 0.85]
+    translate: [3.0, 0.85, 0]
+    seed: 31
+    material: "dis_mogano_flame_studio"
+  - name: "shou_sugi"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.85, 0.85, 0.85]
+    translate: [5.0, 0.85, 0]
+    seed: 41
+    material: "dis_cedro_shousugiban"
 
 lights:
   - type: "directional"

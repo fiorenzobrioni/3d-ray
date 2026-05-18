@@ -25,11 +25,11 @@ namespace RayTracer.Textures;
 ///   scale: 5.0
 ///   metric: "euclidean"        # euclidean | manhattan | chebyshev | euclidean_squared
 ///   output: "f1"               # f1 | f2 | f3 | f4 | f2_minus_f1 | f3_minus_f1 |
-///                              # f1_plus_f2 | cell | position
+///                              # f1_plus_f2 | cell | random | position
 ///   randomness: 1.0            # 0 = grid, 1 = full random scatter
 ///   distortion: 0.0            # domain-warp amplitude (Perlin warp before lookup)
 ///   smoothness: 0.0            # 0 = hard min (classic); ∈ (0,1] enables IQ Smooth Voronoi
-///   colors: [[0,0,0], [1,1,1]] # endpoints for distance modes (ignored for "cell"/"position")
+///   colors: [[0,0,0], [1,1,1]] # palette endpoints (used by f1/f2/.../random; ignored for "cell" and "position")
 ///   offset: [0,0,0]
 ///   rotation: [0,0,0]
 /// </code>
@@ -55,10 +55,33 @@ namespace RayTracer.Textures;
 /// <see cref="Smoothness"/>) for the same reason as <see cref="OutputMode.Cell"/>:
 /// they describe discrete topology, not a smoothable scalar field.
 /// </para>
+///
+/// <para>
+/// <b>Cell vs Random vs Position.</b> The three per-cell stochastic-ID channels
+/// have distinct, Cycles-compatible roles:
+/// <list type="bullet">
+///   <item><description><see cref="OutputMode.Cell"/> — raw RGB hash of the
+///     cell ID. Same channel as Cycles' Voronoi <i>Color</i> output. Saturated
+///     rainbow per cell, ignores palette / <c>ColorRamp</c>. Use it when you
+///     want an unconstrained random colour identifier or when downstream
+///     nodes mix/hue-shift the raw hash.</description></item>
+///   <item><description><see cref="OutputMode.Random"/> — scalar in [0, 1)
+///     per cell. Cycles 3.0+ added <i>Random</i> output for exactly this. Feeds
+///     the palette / <c>ColorRamp</c> the same way the distance outputs do,
+///     so a user-provided 2-stop <c>colors</c> array or N-stop ramp drives a
+///     palette-aware stochastic per-cell colour. This is what nearly every
+///     "rocks / pebbles / scales / patches" material wants.</description></item>
+///   <item><description><see cref="OutputMode.Position"/> — cell-local XYZ
+///     of the F1 feature point packed as RGB. Deterministic and consistent
+///     across spatial frequencies (decorrelated from Cell). Use it as a
+///     stochastic 3-vector ID, e.g. seed offsets for downstream procedurals
+///     or mapping coordinates for "random-per-island" UV transforms.</description></item>
+/// </list>
+/// </para>
 /// </summary>
 public class VoronoiTexture : ITexture
 {
-    public enum OutputMode { F1, F2, F2MinusF1, F1PlusF2, Cell, F3, F4, F3MinusF1, Position }
+    public enum OutputMode { F1, F2, F2MinusF1, F1PlusF2, Cell, F3, F4, F3MinusF1, Position, Random }
 
     private readonly WorleyNoise _worley;
     private readonly Perlin _warpNoise;
@@ -86,11 +109,14 @@ public class VoronoiTexture : ITexture
     public float Smoothness { get; set; } = 0f;
 
     /// <summary>
-    /// Optional multi-stop colour ramp. When set, the normalised distance
-    /// value <c>t ∈ [0, 1]</c> is looked up on the ramp instead of being
-    /// linearly blended between the two constructor colours. Ignored when
-    /// <see cref="Output"/> is <see cref="OutputMode.Cell"/>, which already
-    /// uses per-cell hashed colour and bypasses the lerp.
+    /// Optional multi-stop colour ramp. When set, the normalised value
+    /// <c>t ∈ [0, 1]</c> is looked up on the ramp instead of being linearly
+    /// blended between the two constructor colours. Drives every scalar
+    /// output — F1/F2/F3/F4, F2−F1, F3−F1, F1+F2 and <see cref="OutputMode.Random"/>.
+    /// Ignored by <see cref="OutputMode.Cell"/> (raw RGB hash, Cycles
+    /// <i>Color</i> semantics) and <see cref="OutputMode.Position"/> (XYZ
+    /// identity vector); use <see cref="OutputMode.Random"/> when you want
+    /// a palette-aware per-cell stochastic colour.
     /// </summary>
     public ColorRamp? ColorRamp { get; set; }
 
@@ -182,11 +208,11 @@ public class VoronoiTexture : ITexture
         }
 
         // Dispatch: F3/F4/F3-F1/Position need the extended 4-slot evaluator;
-        // Cell stays on the cheaper 2-slot path. Smoothness applies to F1/F2
-        // and the derived F2-F1/F1+F2 channels only — extended outputs are
-        // discrete-topology descriptors (closest-N indexing, feature-point
-        // identity) and follow the same "no soft-min" convention Cycles uses
-        // for its Cell output.
+        // Cell/Random stay on the cheaper 2-slot path. Smoothness applies to
+        // F1/F2 and the derived F2-F1/F1+F2 channels only — extended outputs
+        // are discrete-topology descriptors (closest-N indexing, feature-point
+        // identity, per-cell hashes) and follow the same "no soft-min"
+        // convention Cycles uses for its Cell / Random outputs.
         float f1, f2, f3, f4;
         int cellId;
         Vector3 featurePos;
@@ -223,8 +249,25 @@ public class VoronoiTexture : ITexture
         {
             // Cell-ID lookup is discrete by nature: no smoothing applied
             // even with Smoothness > 0 — matches Cycles' behaviour where
-            // smoothness affects distance outputs only.
+            // smoothness affects distance outputs only. This channel is the
+            // raw RGB hash of the cell ID (Cycles 'Color' output style); for
+            // palette-aware per-cell stochastic colour use OutputMode.Random.
             return WorleyNoise.CellColor(cellId);
+        }
+
+        if (Output == OutputMode.Random)
+        {
+            // Cycles 3.0+ 'Random' output: a deterministic scalar in [0, 1)
+            // per cell, then fed through palette / ColorRamp like every other
+            // scalar mode. Decouples per-cell variation from the discrete
+            // RGB-hash, so muted user palettes (rocks, leather scales,
+            // pebbles) are preserved instead of being washed out by the raw
+            // hash. Discrete by nature, ignores Smoothness for the same
+            // reason as Cell.
+            float tCell = WorleyNoise.CellScalar(cellId);
+            return ColorRamp is { } cellRamp
+                ? cellRamp.Sample(tCell)
+                : Vector3.Lerp(_colorA, _colorB, tCell);
         }
 
         if (Output == OutputMode.Position)

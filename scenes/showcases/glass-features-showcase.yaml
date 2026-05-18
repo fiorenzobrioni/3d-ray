@@ -48,12 +48,66 @@ entities:
   - { name: "floor", type: "quad", q: [-12, 0, -4], u: [24, 0, 0], v: [0, 0, 10], material: "floor" }
   - { name: "wall",  type: "quad", q: [-12, 0,  6], u: [24, 0, 0], v: [0, 8, 0],  material: "backdrop" }
 
-  - { name: "iride",    type: "sphere", center: [-5.0, 0.85, 0], radius: 0.85, seed:  3, material: "dis_vetro_iridescente"  }
-  - { name: "ice",      type: "sphere", center: [-3.0, 0.85, 0], radius: 0.85, seed: 11, material: "dis_ghiaccio_fratturato"}
-  - { name: "soffiato", type: "sphere", center: [-1.0, 0.85, 0], radius: 0.85, seed: 19, material: "dis_vetro_soffiato"     }
-  - { name: "smeraldo", type: "sphere", center: [ 1.0, 0.85, 0], radius: 0.85, seed: 29, material: "dis_smeraldo_v2"        }
-  - { name: "zaffiro",  type: "sphere", center: [ 3.0, 0.85, 0], radius: 0.85, seed: 37, material: "dis_zaffiro_v2"         }
-  - { name: "diamante", type: "sphere", center: [ 5.0, 0.85, 0], radius: 0.85, seed: 43, material: "dis_diamante_brilliant" }
+  - name: "iride"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.85, 0.85, 0.85]
+    translate: [-5.0, 0.85, 0]
+    seed: 3
+    material: "dis_vetro_iridescente"
+  - name: "ice"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.85, 0.85, 0.85]
+    translate: [-3.0, 0.85, 0]
+    seed: 11
+    material: "dis_ghiaccio_fratturato"
+  - name: "soffiato"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.85, 0.85, 0.85]
+    translate: [-1.0, 0.85, 0]
+    seed: 19
+    material: "dis_vetro_soffiato"
+  - name: "smeraldo"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.85, 0.85, 0.85]
+    translate: [1.0, 0.85, 0]
+    seed: 29
+    material: "dis_smeraldo_v2"
+  - name: "zaffiro"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.85, 0.85, 0.85]
+    translate: [3.0, 0.85, 0]
+    seed: 37
+    material: "dis_zaffiro_v2"
+  - name: "diamante"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.85, 0.85, 0.85]
+    translate: [5.0, 0.85, 0]
+    seed: 43
+    material: "dis_diamante_brilliant"
 
 lights:
   - type: "directional"

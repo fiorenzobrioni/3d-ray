@@ -992,7 +992,7 @@ texture:
   metric: "euclidean"        # euclidean | manhattan | chebyshev | euclidean_squared
   output: "f2_minus_f1"      # f1 | f2 | f3 | f4 |
                              # f2_minus_f1 | f3_minus_f1 |
-                             # f1_plus_f2 | cell | position
+                             # f1_plus_f2 | cell | random | position
   randomness: 0.9
   smoothness: 0.0            # 0 = hard min (classic); ∈ (0,1] enables Smooth Voronoi
   colors: [[0.05, 0.05, 0.05], [0.95, 0.90, 0.70]]
@@ -1009,10 +1009,19 @@ selects the visual:
 - `f2_minus_f1` — sharp ridges between cells (the famous "crackle").
 - `f3_minus_f1` — wider, lower-frequency border band (soft rims,
   mortar gradients).
-- `cell` — each cell gets a stable random colour (mosaic).
-- `position` — cell-local XYZ of the F1 feature point as RGB; a
-  deterministic random-per-cell ID to drive another procedural
-  (Cycles Position output, RenderMan PxrVoronoise position).
+- `cell` — raw RGB hash per cell (Cycles "Color" output). Bright
+  saturated rainbow; **ignores `colors:` / `color_ramp:`**. Use it as
+  an unconstrained stochastic-RGB identifier or as input to a
+  downstream hue/sat / mix-RGB node.
+- `random` — scalar in [0, 1) per cell, mapped through `colors:` /
+  `color_ramp:`. Matches Cycles 3.0+ "Random" output. **This is what
+  you want for almost every "rocks / scales / patches" material** —
+  the cells stay inside your muted palette instead of producing
+  rainbow.
+- `position` — cell-local XYZ of the F1 feature point as RGB. A
+  deterministic 3D stochastic-ID, decorrelated from `cell`; useful to
+  seed downstream procedurals (Cycles Position output, RenderMan
+  PxrVoronoise position).
 
 `metric: "chebyshev"` produces square / hex tiling. `randomness: 0`
 collapses features onto a regular grid; `1` is full random scatter.
@@ -1033,7 +1042,8 @@ collapses features onto a regular grid; `1` is full random scatter.
 > bordi morbidi, no step alias along the cracks. Use it for polished
 > leather, water-rounded pebbles, supple reptile skin, closed-pore marble.
 > `smoothness = 0` (default) is bit-identical to the legacy behaviour;
-> the `cell` output is intentionally unaffected (cell-ID is discrete).
+> the `cell` / `random` outputs are intentionally unaffected (per-cell
+> lookup is discrete).
 > See `scenes/showcases/smooth-voronoi-showcase.yaml` for the three-sphere
 > hard / 0.3 / 0.7 comparison and parity check with Cycles' Smooth F1.
 
@@ -1046,6 +1056,19 @@ collapses features onto a regular grid; `1` is full random scatter.
 > bypasses `color_ramp:` because it is a vector identity output, not a
 > scalar. See `scenes/showcases/voronoi-extended-outputs-showcase.yaml`
 > for the 6-sphere side-by-side comparison.
+
+> **`cell` vs `random` — picking the right per-cell channel.** Beginners
+> reach for `cell` first because the name fits — they want "one colour per
+> cell". Then they wonder why their muted grey palette comes back as
+> magenta and lime. **`cell` is Cycles' Color output: a raw RGB hash that
+> ignores your palette**. The channel you actually want for palette-aware
+> per-cell colour — rocks within a brown range, scales within a green
+> range, terrazzo tiles within a cream range — is `random`. It hashes the
+> cell ID to a scalar and lerps your `colors:` (or samples your
+> `color_ramp:`) on it, exactly like the distance outputs. Rule of thumb:
+> if you wrote `colors:` you almost certainly want `random`; reach for
+> `cell` only when you genuinely want unconstrained stochastic RGB
+> identifiers (e.g. as input to a downstream hue/sat node).
 
 ### Brick
 
@@ -1414,12 +1437,90 @@ The resulting autobump is also blended via the same mask
 (`MixBumpMapTexture`), so the recovered sub-pixel detail follows the
 material boundary smoothly.
 
-### Mesh-only
+### Mesh-only — and how to fix it on spheres
 
 Material-level displacement is applied only to `type: mesh` entities.
 Sphere/cylinder/box/CSG entities that reference a displaced material
 emit a load-time warning and use the surface shading without the
 geometric pass.
+
+This is the same architectural choice Arnold and Cycles make:
+displacement needs a polygon mesh, a UV/tangent frame, and a
+subdivision pass to expose enough vertices for the deformation. An
+analytical sphere has none of those. If you put a material with
+`displacement: { scale: 0.02 }` on a `type: "sphere"`, you'll get the
+shading (colour + roughness + bump_map) but not the lumps in the
+silhouette — same as in Arnold or Cycles.
+
+**The fix: replace the analytical primitive with a mesh proxy and let
+adaptive subdivision do the work.** The engine ships unit-radius
+polygonal proxies in `scenes/models/`:
+
+| Proxy file                       | Replaces             | Subdivision  |
+|----------------------------------|----------------------|--------------|
+| `subdivision-icosahedron.obj`    | analytical sphere    | `loop`       |
+| `subdivision-cube.obj`           | analytical cube      | `catmull_clark` |
+
+**Recipe — analytical sphere ⇒ subdivided icosahedron.** Take a
+`type: "sphere"` entity at `(x, y, z)` with `radius: r`:
+
+```yaml
+# Before — displacement silently dropped:
+- name: "rock"
+  type: "sphere"
+  center: [0, 0.9, 0]
+  radius: 0.9
+  material: "dis_cemento_lavato_chiaro"     # ← has displacement
+
+# After — displacement applied:
+- name: "rock"
+  type: "mesh"
+  path: "../models/subdivision-icosahedron.obj"
+  subdivision_scheme: "loop"
+  subdivision_pixel_error: 6.0              # adaptive: stop when projected
+  subdivision_max_iterations: 5             #   edges fall below 6 px
+  scale: [0.9, 0.9, 0.9]                    # icosahedron is unit radius
+  translate: [0, 0.9, 0]                    # ← was center
+  material: "dis_cemento_lavato_chiaro"
+```
+
+**Why adaptive (`subdivision_pixel_error`) over fixed iterations?**
+Adaptive subdivision keeps the cost proportional to the on-screen
+size: a sphere that occupies 30 px of the final image gets the
+minimum subdivision (still enough for displacement amplitude to read);
+a sphere filling 800 px refines automatically until edges fall under
+the pixel-error threshold. For a typical 1920 × 1080 render with a
+mid-range FOV, `subdivision_pixel_error: 6.0` and
+`subdivision_max_iterations: 5` is a good default — caps the
+icosahedron at ≈5120 triangles, fine enough for every displaced
+material in the library.
+
+Use fixed iterations (`subdivision_iterations: 4`) only when you need
+deterministic geometry counts — regression tests, CI snapshot diffs,
+or pre-baking a mesh for export.
+
+**Other primitives.**
+
+- **Boxes / cubes**: `subdivision-cube.obj` with `subdivision_scheme:
+  "catmull_clark"` — Catmull-Clark naturally rounds the corners as
+  iterations increase, so for a sharp displaced box clamp
+  `subdivision_max_iterations: 2`.
+- **Torus / cylinder / lathe surfaces**: there's no stock subdivided
+  proxy. If you need displacement on those silhouettes, model the
+  shape as an OBJ once (Blender → Export OBJ with quads if you plan to
+  use Catmull-Clark; triangles if you'll use Loop) and load it as a
+  mesh with subdivision.
+- **CSG operations**: displacement on CSG output is not currently
+  supported (CSG works on analytical primitives; the intersection /
+  difference / union is computed at intersection time, after which
+  there's no mesh to displace). Use a "boolean-baked" OBJ instead.
+
+**All `*-showcase.yaml` files demonstrating a material library use
+this pattern.** Look at `concretes-showcase.yaml`,
+`leathers-showcase.yaml`, `marbles-studio-v2-showcase.yaml` — the row
+of five demo spheres is built with subdivided icosahedra, so every
+displaced material in the library shows its true geometric profile
+side-by-side with the non-displaced ones.
 
 ### Showcases
 

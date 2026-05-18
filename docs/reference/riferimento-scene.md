@@ -827,32 +827,48 @@ texture:
   metric: "euclidean"          # euclidean | euclidean_squared | manhattan | chebyshev
   output: "f1"                 # f1 | f2 | f3 | f4 |
                                # f2_minus_f1 | f3_minus_f1 |
-                               # f1_plus_f2 | cell | position
+                               # f1_plus_f2 | cell | random | position
   randomness: 1.0              # 0 = griglia, 1 = sparpagliamento casuale
   distortion: 0.0              # warp Perlin prima del lookup
   smoothness: 0.0              # 0 = hard min (classico); ∈ (0,1] abilita Smooth Voronoi (IQ)
-  colors: [[0, 0, 0], [1, 1, 1]]   # ignorato per output: "cell" / "position"
+  colors: [[0, 0, 0], [1, 1, 1]]   # endpoint della palette, ignorato per "cell" e "position"
 ```
 Replica il nodo Voronoi di Cycles: `f1` produce ciottoli/blob,
 `f2_minus_f1` crea "crackle" netti (terra screpolata, pelle di rettile),
-`cell` assegna a ciascuna cella un colore piatto. La metrica Chebyshev
-produce pattern a tessere quadrate/esagonali.
+`random` produce colore stocastico per-cella vincolato dalla palette
+(rocce, scaglie, mosaici). La metrica Chebyshev produce pattern a
+tessere quadrate/esagonali.
 
-> **Canali estesi (`f3`, `f4`, `f3_minus_f1`, `position`).** F3 e F4 sono
-> le distanze al 3° e 4° feature più vicino nella finestra 3×3×3 di celle
-> — stesso costo O(27) di F1/F2 dato che le 27 celle sono già scansionate.
-> Si usano per shading cellulare gerarchico (cuoio multi-scala, mosaici
+> **ID stocastico per-cella — `cell` vs `random` vs `position`.** Tre
+> canali per-cella Cycles-compatibili con ruoli distinti:
+> - `cell` — **hash RGB grezzo** dell'ID cella, l'output "Color" letterale
+>   di Cycles. Colori arcobaleno saturi per cella, **ignora `colors:` e
+>   `color_ramp:`**. Da usare quando vuoi un identificatore di colore
+>   casuale non vincolato (es. come input di un nodo hue/sat o mix-RGB a
+>   valle) o quando ti serve parità bit-identica con Cycles.
+> - `random` — **scalare in [0, 1) per cella** mappato attraverso
+>   `colors:` / `color_ramp:`, lo stesso percorso degli output distanza.
+>   Ruolo identico al "Random" output di Cycles 3.0+. È quello che vuoi
+>   per quasi tutti i materiali "rocce / ciottoli / scaglie / patch":
+>   scegli `random` ogni volta che fornisci una palette muted e vuoi che
+>   le celle ci restino dentro.
+> - `position` — **XYZ cell-local del feature point F1 impacchettato in
+>   RGB**. Decorrelato da `cell`, utile come ID stocastico 3D per seeding
+>   di procedurali a valle o per trasformazioni UV random-per-island.
+>   Bypassa `color_ramp:` (è un output identity vettoriale, non scalare).
+>   Output "Position" di Cycles, position di RenderMan PxrVoronoise,
+>   attributo `P_` di Houdini Voronoi.
+
+> **Canali estesi (`f3`, `f4`, `f3_minus_f1`).** F3 e F4 sono le distanze
+> al 3° e 4° feature più vicino nella finestra 3×3×3 di celle — stesso
+> costo O(27) di F1/F2 dato che le 27 celle sono già scansionate. Si
+> usano per shading cellulare gerarchico (cuoio multi-scala, mosaici
 > cell-in-cell, voronoi-on-voronoi). `f3_minus_f1` produce una banda
 > border più larga e a frequenza più bassa di `f2_minus_f1` — rim morbidi,
-> gradienti tipo mortar. `position` ritorna l'XYZ cell-local del feature
-> point F1 come RGB — un "colore random per cella" deterministico, usabile
-> come ID stocastico per pilotare un'altra procedurale (output Position di
-> Cycles, position di RenderMan PxrVoronoise, attributo `P_` di Houdini
-> Voronoi). I canali estesi usano sempre il hard min — `smoothness` viene
-> intenzionalmente ignorato (stessa convenzione di Cycles per l'output
-> Cell: i descrittori di topologia discreta non vengono smussati).
-> `position` bypassa anche `color_ramp:` perché è un output identity
-> vettoriale, non scalare.
+> gradienti tipo mortar. I canali estesi usano sempre il hard min —
+> `smoothness` viene intenzionalmente ignorato (stessa convenzione di
+> Cycles per gli output Cell / Random: i descrittori di topologia
+> discreta non vengono smussati).
 
 > **Nota su `f2_minus_f1`.** Matematicamente, `F2-F1` è **zero sul bordo
 > della cella** (bisettrice fra due punti-feature) e cresce fino al massimo
@@ -871,9 +887,9 @@ produce pattern a tessere quadrate/esagonali.
 > vicina), così `f2_minus_f1` perde il ridge a V — bordi morbidi, niente
 > alias a step lungo le creste. Utile per cuoio levigato, ciottoli
 > arrotondati dall'acqua, pelle di rettile, marmo poro-chiuso.
-> `smoothness = 0` (default) è bit-identica al hard min legacy. La
-> modalità Cell è volutamente immune al parametro (cell-ID è discreto,
-> come in Cycles). Contratto numerico: l'accumulatore lavora in doppia
+> `smoothness = 0` (default) è bit-identica al hard min legacy. Gli
+> output `cell` / `random` sono volutamente immuni al parametro
+> (lookup per-cella discreto, come in Cycles). Contratto numerico: l'accumulatore lavora in doppia
 > precisione e la somma è ri-ancorata alla distanza hard più vicina, così
 > nessun argomento di `exp()` supera mai `0`; con `smoothness → 0`
 > (i.e. `k → ∞`) il risultato converge al hard `Evaluate` classico entro
@@ -1154,6 +1170,34 @@ silhouette nuova.
 Cycles True Displacement). Entità non-mesh che referenziano un material
 displaced producono un warning in load e usano solo lo shading senza
 deformazione geometrica.
+
+> **Sostituisci le primitive analitiche con proxy mesh per il displacement.**
+> Quando ti serve una sfera/cubo/toro displaced, carica un proxy
+> poligonale e lascia che `subdivision_scheme:` lo ri-tessellare sotto
+> controllo screen-space adattivo. I proxy stock sono in `scenes/models/`:
+> - `subdivision-icosahedron.obj` — sfera unitaria (subdivision Loop)
+> - `subdivision-cube.obj` — cubo unitario (Catmull-Clark)
+> - varianti più dense generate via `dotnet run --project src/Tools/...`
+>
+> Esempio: una `type: "sphere"` analitica in `(x, y, z)` con raggio `r`
+> diventa
+> ```yaml
+> - type: "mesh"
+>   path: "../models/subdivision-icosahedron.obj"
+>   subdivision_scheme: "loop"
+>   subdivision_pixel_error: 6.0          # adattivo: stop a ≤6 px per edge
+>   subdivision_max_iterations: 5
+>   scale: [r, r, r]
+>   translate: [x, y, z]
+>   material: "materiale_displaced"
+> ```
+> La subdivision adattiva tiene il costo proporzionale alla dimensione
+> a schermo: le sfere lontane restano grossolane, quelle in primo piano
+> si raffinano da sole. Usa la forma a iterazioni fisse
+> (`subdivision_iterations: N`) solo per render CI / regression
+> deterministici. Tutti gli showcase `*-showcase.yaml` che dimostrano una
+> libreria materiali adottano questo pattern (es. `concretes-showcase.yaml`,
+> `leathers-showcase.yaml`, `stones-…`).
 
 **Ordine di composizione.** L'engine combina le perturbazioni nello
 stesso ordine di Arnold/Cycles:

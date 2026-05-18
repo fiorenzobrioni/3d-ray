@@ -1503,7 +1503,8 @@ public class SceneLoader
             "f2_minus_f1" or "f2-f1" or "crackle" => VoronoiTexture.OutputMode.F2MinusF1,
             "f3_minus_f1" or "f3-f1" or "wide_crackle" or "border" => VoronoiTexture.OutputMode.F3MinusF1,
             "f1_plus_f2" or "f1+f2"               => VoronoiTexture.OutputMode.F1PlusF2,
-            "cell" or "color" or "id"             => VoronoiTexture.OutputMode.Cell,
+            "cell" or "color"                     => VoronoiTexture.OutputMode.Cell,
+            "random" or "rnd" or "id" or "scalar_random" or "per_cell" => VoronoiTexture.OutputMode.Random,
             "position" or "feature_position" or "feature" or "p" => VoronoiTexture.OutputMode.Position,
             _ => VoronoiTexture.OutputMode.F1,
         };

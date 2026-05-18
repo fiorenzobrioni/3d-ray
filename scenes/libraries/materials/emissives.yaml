@@ -687,7 +687,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 40.0
-      output: "cell"
+      output: "random"
       smoothness: 0.05
       randomness: 0.0
       colors: [[1.0, 0.10, 0.10], [0.10, 1.0, 0.10]]
@@ -733,7 +733,7 @@ materials:
     texture:
       type: "voronoi"
       scale: 15.0
-      output: "cell"
+      output: "random"
       smoothness: 0.3
       color_ramp:
         - { position: 0.00, color: [0.32, 0.02, 0.0], interp: "smoothstep" }
