@@ -39,8 +39,9 @@
 #    Fila 4 (Z = +0.45)  LEGNI STUDIO                — figure, knot, anisotropy.
 #    Fila 3 (Z = −0.45)  MARMI STUDIO                — secondary_wave, ramp 4-stop.
 #    Fila 2 (Z = −1.35)  METALLI ANISO + BUMP        — hammered, brushed, etched.
-#    Fila 1 (Z = −2.25)  GEMME / MINERALI            — vetri Beer-Lambert,
-#                       smooth-voronoi gem grezza, coordinate-texture node.
+#    Fila 1 (Z = −2.25)  GEMME / MINERALI            — quattro vetri Beer-Lambert
+#                       (diamante, rubino, smeraldo, zaffiro), quarzo grezzo
+#                       smooth-voronoi, ametista cut Beer-Lambert.
 #
 #  Camere disponibili (--camera <nome>):
 #    hero          Vista 3/4 classica con DOF (default)
@@ -256,49 +257,68 @@ materials:
   #  ESPOSITORE — cornice noce / velluto / divisori / bordino metallico
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Essenza chiara (frassino sbiancato / acero leggero): grana morbida,
-  # nessun nodo, niente clearcoat → cornice "silenziosa" che fa risaltare
-  # le sfere senza competere visivamente.
+  # Noce nazionale (Juglans regia) finitura oil-rubbed satin — il legno
+  # classico delle vetrine da gioielleria e delle scatole di violini.
+  # Tono caldo profondo che contrasta con il velluto nero della base e
+  # fa risaltare i materiali chiari (marmi, gemme bianche) senza che la
+  # cornice scompaia. Clearcoat 0.20 per la lucentezza "ad olio" tipica
+  # del display case da boutique, NON la lucentezza piano-lacquer
+  # dell'ebano (sarebbe troppo formale).
   - id: "case_wood"
     type: "disney"
-    roughness: 0.70
-    specular: 0.20
+    roughness: 0.55
+    specular: 0.35
+    clearcoat: 0.20
+    coat_roughness: 0.35
     texture:
       type: "wood"
-      scale: 2.5
+      scale: 2.2
       ring_axis: [0, 1, 0]
-      ring_sharpness: 2.0          # rings morbidi
-      noise_strength: 0.8          # poca perturbazione → look uniforme
-      octaves: 4
-      distortion: 0.15             # leggera organicità
-      figure_scale: 0.18
-      figure_strength: 0.20
+      ring_sharpness: 2.2
+      noise_strength: 0.9
+      octaves: 5
+      distortion: 0.18
+      figure_scale: 0.25
+      figure_strength: 0.30
       randomize_rotation: true
       color_ramp:
-        - { position: 0.00, color: [0.72, 0.58, 0.38], interp: "smoothstep" }   # latewood tenue
-        - { position: 0.55, color: [0.90, 0.80, 0.60], interp: "smoothstep" }   # earlywood
-        - { position: 1.00, color: [0.96, 0.88, 0.70], interp: "linear"     }   # base crema
+        - { position: 0.00, color: [0.10, 0.06, 0.03], interp: "smoothstep" }   # latewood scuro
+        - { position: 0.45, color: [0.28, 0.16, 0.08], interp: "smoothstep" }   # transizione
+        - { position: 0.80, color: [0.46, 0.28, 0.14], interp: "smoothstep" }   # earlywood
+        - { position: 1.00, color: [0.58, 0.38, 0.20], interp: "linear"     }   # earlywood chiaro
 
+  # Velluto nero "midnight" — il classico tessuto delle scatole gioielli.
+  # NB: non perfettamente nero per evitare clip su [0]; valore in linea
+  # con l'albedo medio di velvet nero illuminato (riflessività ≈ 4–6%).
   - id: "case_felt"
     type: "lambertian"
-    color: [0.04, 0.04, 0.06]
+    color: [0.04, 0.04, 0.05]
 
-  # Divisori coerenti con la cornice chiara (stesso frassino, scala più fine
-  # perché i listelli sono sottili).
+  # Divisori coerenti con la cornice in noce (stesso legno, scala più fine
+  # perché i listelli sono sottili e necessitano grana proporzionata).
   - id: "case_divider"
     type: "lambertian"
     texture:
       type: "wood"
-      scale: 5.0
-      ring_sharpness: 2.0
-      noise_strength: 0.8
-      distortion: 0.15
-      colors: [[0.75, 0.60, 0.40], [0.95, 0.85, 0.65]]
+      scale: 4.5
+      ring_sharpness: 2.2
+      noise_strength: 0.9
+      distortion: 0.18
+      colors: [[0.18, 0.10, 0.05], [0.46, 0.28, 0.14]]
 
+  # Trim ottone spazzolato — la cornice metallica del display case da
+  # boutique. Disney metallic (parità BSDF col resto della scena, vs
+  # legacy `type: "metal"`); roughness 0.28 dà il classico look "satinato"
+  # dell'ottone spazzolato. Tinta calda [0.85, 0.65, 0.42] caratteristica
+  # dell'ottone (≈ Cu 65% + Zn 35%) non del cromo grigio neutro.
   - id: "case_trim"
-    type: "metal"
-    color: [0.60, 0.58, 0.55]
-    fuzz: 0.35
+    type: "disney"
+    color: [0.85, 0.65, 0.42]
+    metallic: 1.0
+    roughness: 0.28
+    specular: 0.7
+    specular_tint: 0.5
+    anisotropic: 0.20
 
   # ─────────────────────────────────────────────────────────────────────────
   #  FILA 6 — PIANETI / TERRAIN MUSGRAVE
@@ -586,14 +606,19 @@ materials:
   #  ramp 3-4 stop sapwood/latewood/heartwood/knot.
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Quercia quartersawn — radial_anisotropy moderato (3.0 era estremo su
-  # sfera di r=0.35 e creava strisce stirate). Distortion + knot_density
-  # piccolo introducono l'irregolarità tipica del rovere.
+  # Quercia europea quartersawn LACCATA SATIN — radial_anisotropy moderato
+  # (3.0 era estremo su sfera di r=0.35 e creava strisce stirate). I campioni
+  # di rovere in vetrina sono sempre lacquerati per protezione → clearcoat
+  # 0.25 con coat_roughness 0.30 (vernice opaca-satin tipica del rovere
+  # europeo, non lucida come ciliegio o ebano). Specular 0.30 corrisponde a
+  # IOR ≈ 1.42 (cellulosa pura, dielettrico legnoso).
   - id: "wood_oak"
     type: "disney"
-    color: [0.80, 0.62, 0.42]
-    roughness: 0.55
+    color: [0.72, 0.55, 0.36]
+    roughness: 0.50
     specular: 0.30
+    clearcoat: 0.25
+    coat_roughness: 0.30
     texture:
       type: "wood"
       scale: 7.0
@@ -667,16 +692,19 @@ materials:
         - { position: 0.55, color: [0.62, 0.22, 0.10], interp: "smoothstep" }
         - { position: 1.00, color: [0.85, 0.45, 0.22], interp: "linear"     }
 
-  # Acero curly — l'acero curly è prezioso proprio perché privo di nodi
-  # (knot_density 0), la firma è il ripple del figure. ring_sharpness
-  # ridotto da 5 a 3.5 per evitare il look "calza a righe" su sfera piccola.
+  # Acero curly French-polish — l'acero curly è prezioso proprio perché
+  # privo di nodi (knot_density 0), la firma è il ripple del figure.
+  # Finitura French polish (gomma-lacca) tipica della liuteria: clearcoat
+  # 0.50, coat_roughness 0.18 — più lucida del rovere/pino, meno
+  # dell'ebano. ring_sharpness ridotto da 5 a 3.5 per evitare il look
+  # "calza a righe" su sfera piccola.
   - id: "wood_curly_maple"
     type: "disney"
-    color: [0.88, 0.78, 0.60]
-    roughness: 0.42
+    color: [0.86, 0.74, 0.55]
+    roughness: 0.40
     specular: 0.40
-    clearcoat: 0.4
-    coat_roughness: 0.20
+    clearcoat: 0.50
+    coat_roughness: 0.18
     texture:
       type: "wood"
       scale: 8.0
@@ -693,16 +721,20 @@ materials:
         - { position: 0.45, color: [0.85, 0.72, 0.48], interp: "smoothstep" }
         - { position: 1.00, color: [0.98, 0.92, 0.76], interp: "linear"     }
 
-  # Ebano laccato — finitura a specchio. Ebano vero non ha nodi visibili,
-  # solo grain finissima; ring_sharpness moderato e distortion bassa
-  # mantengono la lettura uniforme che caratterizza il legno.
+  # Ebano (Diospyros) finitura "piano lacquer" — l'ebano da pianoforte è
+  # il riferimento massimo di lucentezza nel mondo del legno. Roughness
+  # base 0.12 + clearcoat 1.0 con coat_roughness 0.08 (NON 0.05: uno
+  # specchio puro sarebbe irrealistico anche su un Steinway — i micrograffi
+  # del lucido riducono la "perfezione" della riflessione). Ebano vero non
+  # ha nodi visibili, solo grain finissima; ring_sharpness moderato e
+  # distortion bassa mantengono la lettura uniforme.
   - id: "wood_ebony"
     type: "disney"
-    color: [0.10, 0.07, 0.04]
-    roughness: 0.12
-    specular: 0.70
+    color: [0.06, 0.04, 0.03]
+    roughness: 0.14
+    specular: 0.65
     clearcoat: 1.0
-    coat_roughness: 0.05
+    coat_roughness: 0.08
     texture:
       type: "wood"
       scale: 8.5
@@ -714,16 +746,20 @@ materials:
         - { position: 0.00, color: [0.02, 0.01, 0.01], interp: "smoothstep" }
         - { position: 1.00, color: [0.16, 0.10, 0.06], interp: "linear"     }
 
-  # Pino con nodi — knot_density 1.0 (showcase del nodo Voronoi-based).
-  # Distortion alta (0.40) + noise_strength 0.9 per spezzare la regolarità
-  # degli anelli; color_ramp compressa su una banda ambra→crema realistica
-  # (nessun nero puro, nessun bianco puro: il pino vero ha latewood color
-  # caramello e earlywood color avorio).
+  # Pino nodoso LACCATO SATIN — knot_density 1.0 (showcase del nodo
+  # Voronoi-based). Distortion alta (0.40) + noise_strength 0.9 per
+  # spezzare la regolarità degli anelli; color_ramp compressa su una banda
+  # ambra→crema realistica (nessun nero puro, nessun bianco puro: il pino
+  # vero ha latewood color caramello e earlywood color avorio). Stesso
+  # finish del rovere (satin lacquer, NON polish lucido — il pino
+  # high-gloss leggerebbe "plastica") per coerenza di vetrina.
   - id: "wood_knotty_pine"
     type: "disney"
-    color: [0.85, 0.70, 0.45]
-    roughness: 0.55
+    color: [0.82, 0.66, 0.42]
+    roughness: 0.52
     specular: 0.30
+    clearcoat: 0.25
+    coat_roughness: 0.30
     texture:
       type: "wood"
       scale: 7.5
@@ -797,34 +833,41 @@ materials:
         axis: [1, 0, 0]
         frequency: 0.6
         strength: 0.5
-      colors: [[0.95, 0.90, 0.78], [0.60, 0.38, 0.12]]
+      # Ramp: vena oro caldo saturo → base ivory. Il gold è più saturo del
+      # legacy [0.60, 0.38, 0.12] per leggere "Calacatta ORO" anche su sfera
+      # piccola (35 mm proiettati).
+      colors: [[0.95, 0.90, 0.78], [0.72, 0.42, 0.08]]
 
-  # Arabescato — alto contrasto bianco-grigio scuro. Sharpness 1.0 (lineare),
-  # distortion + secondary wave forte → pattern caotico bresciano con TANTA
-  # area scura visibile (vena nera più scura per dramatic contrast).
-  - id: "marble_arabescato"
+  # Verde Alpi (Valle d'Aosta) — marmo serpentinitico verde foresta profondo
+  # con venature bianche cristalline a rete. La base verde è satura
+  # (0.10–0.40 dominante) per essere identificata come MARMO VERDE anche
+  # con sharpness 1.2 (~83% base, 17% vena → la base deve essere
+  # cromaticamente decisa). Secondary wave forte → pattern reticolato
+  # caratteristico delle serpentiniti alpine.
+  - id: "marble_verde_alpi"
     type: "disney"
-    color: [0.88, 0.86, 0.82]
-    roughness: 0.24
-    clearcoat: 0.30
-    coat_roughness: 0.20
-    specular: 0.50
+    color: [0.08, 0.28, 0.18]
+    roughness: 0.22
+    clearcoat: 0.35
+    coat_roughness: 0.18
+    specular: 0.55
     texture:
       type: "marble"
-      scale: 4.0
+      scale: 4.5
       vein_axis: [0, 0, 1]
-      vein_frequency: 0.9
-      vein_sharpness: 1.0
-      noise_strength: 9.0
+      vein_frequency: 1.1
+      vein_sharpness: 1.2
+      noise_strength: 8.0
       octaves: 8
-      distortion: 0.45
+      distortion: 0.35
       randomize_offset: true
       randomize_rotation: true
       secondary_wave:
-        axis: [1, 0.3, 0]
-        frequency: 1.1
-        strength: 0.8
-      colors: [[0.92, 0.90, 0.85], [0.20, 0.20, 0.22]]
+        axis: [1, 0.25, 0]
+        frequency: 1.0
+        strength: 0.7
+      # Ramp: vena cristallina bianca → base verde foresta saturo.
+      colors: [[0.92, 0.94, 0.88], [0.08, 0.32, 0.20]]
 
   # Nero Marquinia — base nero scuro, vena oro/bronzo. Sharpness 1.8 lascia
   # vedere meglio le venature oro (vs 3.5 che le rendeva troppo rare).
@@ -882,30 +925,35 @@ materials:
       # Ramp INVERSA — vena cristallina cream (stop 0), base blu cobalto (stop 1).
       colors: [[0.92, 0.92, 0.86], [0.08, 0.20, 0.55]]
 
-  # Rosa Portogallo — rosa saturo dominante, vena bordeaux profondo. Sharpness
-  # 1.2 lascia variazione cromatica visibile su tutta la superficie.
-  - id: "marble_rosa"
+  # Rosso Levanto (Liguria) — marmo brecciato rosso bordeaux profondo con
+  # venature cream/avorio. È il classico "rosso italiano" usato nelle
+  # chiese seicentesche. Base saturata sul bordeaux scuro per essere
+  # immediatamente riconoscibile come MARMO ROSSO; sharpness 1.2 lascia
+  # passare le venature cream con buon chiaroscuro.
+  - id: "marble_rosso_levanto"
     type: "disney"
-    color: [0.92, 0.58, 0.52]
-    roughness: 0.28
-    clearcoat: 0.25
-    coat_roughness: 0.25
-    specular: 0.45
+    color: [0.45, 0.10, 0.10]
+    roughness: 0.24
+    clearcoat: 0.35
+    coat_roughness: 0.20
+    specular: 0.55
     texture:
       type: "marble"
-      scale: 5.0
+      scale: 4.5
       vein_axis: [0, 0, 1]
       vein_frequency: 1.0
       vein_sharpness: 1.2
-      noise_strength: 7.0
-      octaves: 7
+      noise_strength: 8.0
+      octaves: 8
+      distortion: 0.30
       randomize_offset: true
       randomize_rotation: true
       secondary_wave:
-        axis: [1, 0, 0]
-        frequency: 0.7
-        strength: 0.35
-      colors: [[0.94, 0.60, 0.54], [0.42, 0.14, 0.18]]
+        axis: [1, 0.2, 0]
+        frequency: 0.85
+        strength: 0.55
+      # Ramp: vena cream/avorio → base bordeaux saturo.
+      colors: [[0.94, 0.86, 0.74], [0.42, 0.08, 0.10]]
 
   # ─────────────────────────────────────────────────────────────────────────
   #  FILA 2 — METALLI con anisotropia e bump
@@ -1026,11 +1074,13 @@ materials:
   # ─────────────────────────────────────────────────────────────────────────
   #  FILA 1 — GEMME / MINERALI
   #
-  #  Quattro vetri Beer-Lambert + un "minerale grezzo" con smooth-voronoi
-  #  (gemma scolpita non polita) + un debug "coordinate-texture" come
-  #  oggetto educativo. Nota: i vetri usano colore neutro nel baseColor
-  #  e il colore arriva solo da transmission_color (vedi nota tecnica
-  #  nello showcase legacy).
+  #  Cinque vetri Beer-Lambert (diamante, rubino, smeraldo, zaffiro,
+  #  ametista) + un "minerale grezzo" smooth-voronoi (quarzo non polito,
+  #  coppia naturale con l'ametista cut: stesso SiO₂, due lavorazioni
+  #  gemmologiche). Convenzione tecnica: tutti i vetri usano colore neutro
+  #  [1,1,1] nel baseColor e il colore puro arriva da transmission_color
+  #  (Beer-Lambert) — l'energia non viene riflessa via diffuse, scaffolding
+  #  che mantiene i vetri NON-saturi nei riflessi ma colorati internamente.
   # ─────────────────────────────────────────────────────────────────────────
 
   - id: "gem_diamond"
@@ -1095,17 +1145,21 @@ materials:
         - { position: 0.30, color: [0.82, 0.90, 0.98], interp: "smoothstep" }
         - { position: 1.00, color: [0.95, 0.97, 1.00], interp: "linear"     }   # base ghiaccio
 
-  # Coordinate texture debug — modalità "object" (bande tilable R=X G=Y B=Z
-  # in local space, equivalente al "Texture Coordinate → Object" di Cycles).
-  # Più leggibile in vetrina rispetto a "generated", che da angolazione 3/4
-  # mostra solo un quadrante. Scale 6 → ~4 celle visibili sul diametro.
-  - id: "mineral_coordinate_debug"
-    type: "lambertian"
-    color: [1, 1, 1]
-    texture:
-      type: "coordinate"
-      mode: "object"
-      scale: 6.0
+  # Ametista — quarzo violetto saturo, taglio sfaccettato (qui sferico per
+  # uniformità di vetrina). Stesso IOR 1.55 del quarzo grezzo adiacente,
+  # ma transmission_color violetto profondo (R alto + B molto alto, G basso
+  # = magenta-purple). Forma con il mineral_rough_quartz la coppia
+  # "ametista lavorata + quarzo grezzo" — entrambi SiO₂, due stati di
+  # lavorazione gemmologica.
+  - id: "gem_amethyst"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    spec_trans: 1.0
+    ior: 1.55
+    roughness: 0.012
+    specular: 0.85
+    transmission_color: [0.55, 0.22, 0.85]
+    transmission_depth: 0.45
 
 
 # =============================================================================
@@ -1328,10 +1382,10 @@ entities:
   # ── Fila 3 (Z=-0.45) MARMI STUDIO QUALITY ─────────────────────────────
   - { name: "marble_1", type: "sphere", center: [-2.25, 1.22, -0.45], radius: 0.35, seed: 3001, material: "marble_carrara" }
   - { name: "marble_2", type: "sphere", center: [-1.35, 1.22, -0.45], radius: 0.35, seed: 3002, material: "marble_calacatta" }
-  - { name: "marble_3", type: "sphere", center: [-0.45, 1.22, -0.45], radius: 0.35, seed: 3003, material: "marble_arabescato" }
+  - { name: "marble_3", type: "sphere", center: [-0.45, 1.22, -0.45], radius: 0.35, seed: 3003, material: "marble_verde_alpi" }
   - { name: "marble_4", type: "sphere", center: [ 0.45, 1.22, -0.45], radius: 0.35, seed: 3004, material: "marble_nero" }
   - { name: "marble_5", type: "sphere", center: [ 1.35, 1.22, -0.45], radius: 0.35, seed: 3005, material: "marble_blu" }
-  - { name: "marble_6", type: "sphere", center: [ 2.25, 1.22, -0.45], radius: 0.35, seed: 3006, material: "marble_rosa" }
+  - { name: "marble_6", type: "sphere", center: [ 2.25, 1.22, -0.45], radius: 0.35, seed: 3006, material: "marble_rosso_levanto" }
 
   # ── Fila 2 (Z=-1.35) METALLI con anisotropia e bump ───────────────────
   - { name: "metal_1", type: "sphere", center: [-2.25, 1.22, -1.35], radius: 0.35, seed: 2001, material: "metal_gold_hammered" }
@@ -1347,4 +1401,4 @@ entities:
   - { name: "gem_3", type: "sphere", center: [-0.45, 1.22, -2.25], radius: 0.35, seed: 1003, material: "gem_emerald" }
   - { name: "gem_4", type: "sphere", center: [ 0.45, 1.22, -2.25], radius: 0.35, seed: 1004, material: "gem_sapphire" }
   - { name: "gem_5", type: "sphere", center: [ 1.35, 1.22, -2.25], radius: 0.35, seed: 1005, material: "mineral_rough_quartz" }
-  - { name: "gem_6", type: "sphere", center: [ 2.25, 1.22, -2.25], radius: 0.35, seed: 1006, material: "mineral_coordinate_debug" }
+  - { name: "gem_6", type: "sphere", center: [ 2.25, 1.22, -2.25], radius: 0.35, seed: 1006, material: "gem_amethyst" }
