@@ -9,7 +9,7 @@
 # List them with --list-cameras.
 
 imports:
-  - path: "libraries/terrain/heightfield-strata-test.yaml"
+  - path: "libraries/terrains/heightfield-strata-test.yaml"
 
 world:
   sky:

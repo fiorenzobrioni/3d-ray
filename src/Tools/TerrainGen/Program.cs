@@ -23,7 +23,7 @@ namespace TerrainGen;
 /// </summary>
 internal static class Program
 {
-    private const string DefaultRelativeOutputDir = "scenes/libraries/terrain";
+    private const string DefaultRelativeOutputDir = "scenes/libraries/terrains";
 
     public static int Main(string[] args)
     {
@@ -44,7 +44,7 @@ internal static class Program
     private static int Run(GenerationConfig cfg, string repoRoot)
     {
         Console.WriteLine("╔══════════════════════════════════════════════╗");
-        Console.WriteLine("║      TerrainGen — 3D-Ray heightfield gen    ║");
+        Console.WriteLine("║      TerrainGen — 3D-Ray heightfield gen     ║");
         Console.WriteLine("╚══════════════════════════════════════════════╝");
         Console.WriteLine();
         Console.WriteLine($"  name        : {cfg.Name}");

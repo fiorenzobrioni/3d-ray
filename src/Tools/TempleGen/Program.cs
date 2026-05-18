@@ -46,7 +46,7 @@ class Program
         yaml.AppendLine("""
         # =========================================================================
         # SCENA: Tempio Romano Classico (Dimensionamento Dinamico)
-        # GENERATO TRAMITE: C# .NET 10 Procedural Generator
+        # GENERATO TRAMITE: TempleGen tool
         # =========================================================================
 
         world:

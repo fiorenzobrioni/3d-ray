@@ -195,9 +195,12 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │   ├── RayTracer.Tests/        # Suite xUnit (equivalenza BVH, AABB, ...)
 │   ├── RayTracer.Benchmarks/   # Harness BenchmarkDotNet
 │   └── Tools/
+│       ├── TerrainGen/         # Generatore di Terrain heightfield stratificati
+│       ├── FontGen/            # Generatore di librerie font partendo da font di sistema o file .ttf/.otf
 │       ├── TextureGen/         # Generatore texture procedurali (PNG)
 │       ├── NormalMapGen/       # Generatore flat normal map per test
-│       └── ChessGen/           # Generatore scacchiera con set Staunton
+│       └── ChessGen/           # Generatore scena scacchiera chess.yaml
+│       └── TempleGen/          # Generatore scena tempio-romano.yaml
 ├── scenes/                     # File YAML di scene
 │   ├── libraries/              # Risorse riutilizzabili via import YAML
 │   │   ├── materials/          # Materiali PBR (Disney/Classic)

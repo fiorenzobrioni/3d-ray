@@ -1,0 +1,87 @@
+# ============================================================================
+# Scene: Material Test (Primitives)
+# ============================================================================
+
+cameras:
+  - name: "main"
+    position: [0, 1.5, -3.5]
+    look_at:  [0, 0.5, 0]
+    fov: 40
+
+  - name: "closeup_sphere"
+    position: [-1, 0.8, -1.5]
+    look_at:  [-0.8, 0.5, 0]
+    fov: 35
+
+  - name: "closeup_box"
+    position: [1, 0.8, -1.5]
+    look_at:  [0.8, 0.5, 0]
+    fov: 35
+
+  - name: "top"
+    position: [0, 5, -0.1]
+    look_at:  [0, 0, 0]
+    fov: 40
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.02, 0.02, 0.03]
+    horizon_color: [0.05, 0.05, 0.06]
+    ground_color:  [0.01, 0.01, 0.01]
+
+materials:
+  - id: "pavimento"
+    type: "disney"
+    roughness: 0.8
+    metallic: 0.0
+    texture:
+      type: "checker"
+      colors: [[0.05, 0.05, 0.05], [0.15, 0.15, 0.15]]
+      scale: 2.0
+
+  # Modifica questo materiale per i tuoi test
+  - id: "material_to_test"
+    type: "disney"
+    color: [0.8, 0.2, 0.2]
+    roughness: 0.3
+    metallic: 0.1
+
+lights:
+  # Key light (luce principale calda, per ombre nette)
+  - type: "point"
+    position: [3, 4, -3]
+    color: [1.0, 0.95, 0.9]
+    intensity: 80
+
+  # Fill light (luce di riempimento fredda, opposta, per le zone d'ombra)
+  - type: "point"
+    position: [-4, 2, -1]
+    color: [0.8, 0.9, 1.0]
+    intensity: 30
+
+  # Back/Rim light (luce da dietro per staccare gli oggetti dallo sfondo)
+  - type: "point"
+    position: [0, 3, 4]
+    color: [1.0, 1.0, 1.0]
+    intensity: 40
+
+entities:
+  - name: "suolo"
+    type: "infinite_plane"
+    point: [0, 0, 0]
+    normal: [0, 1, 0]
+    material: "pavimento"
+
+  - name: "test_sphere"
+    type: "sphere"
+    center: [-0.8, 0.6, 0]
+    radius: 0.6
+    material: "material_to_test"
+
+  - name: "test_box"
+    type: "box"
+    scale: [1, 1, 1]
+    translate: [0.8, 0.5, 0]
+    rotate: [0, 75, 0]
+    material: "material_to_test"
