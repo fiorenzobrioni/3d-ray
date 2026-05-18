@@ -454,7 +454,65 @@ per instance.
 
 ---
 
-## 4.13 Type Alias Summary
+## 4.13 HeightField (procedural terrain)
+
+A `heightfield` is a continuous surface `y = h(x, z) · height_scale`
+over an XZ rectangle. The height comes either from a baked PNG-16
+heightmap (e.g. the output of `TerrainGen`, see Chapter 10) or from a
+procedural noise sampled at load time onto an internal grid. The engine
+intersects it via a min/max mipmap (Tevs/Ihrke/Seidel 2008) — no
+tessellation, no mesh BVH, one entity replaces a terrain mesh.
+
+```yaml
+- name: "terrain"
+  type: "heightfield"
+  bounds: [-50, -50, 50, 50]                # [xMin, zMin, xMax, zMax]
+  max_height: 25                            # AABB ceiling (world Y)
+  height_scale: 25                          # multiplier for normalised samples
+  heightmap_path: "libraries/terrain/myterrain-height.png"
+  sea_level: 7.5                            # optional water plane (world Y)
+  sea_material: "water"
+  strata:
+    - { min_altitude: 0.00, max_altitude: 0.18, material: "sand"  }
+    - { min_altitude: 0.14, max_altitude: 0.55, material: "grass" }
+    - { min_altitude: 0.50, max_altitude: 0.85, min_slope_deg: 25, material: "rock" }
+    - { min_altitude: 0.80, max_altitude: 1.00, material: "snow"  }
+  material: "grass"                          # fallback when no band wins
+```
+
+The **procedural variant** swaps `heightmap_path` for a full
+`height_texture` block — any noise type works, but the two Musgrave
+multifractals (`hetero_terrain`, `hybrid_multifractal`) are the
+canonical eroded-terrain look:
+
+```yaml
+- name: "procedural_terrain"
+  type: "heightfield"
+  bounds: [-50, -50, 50, 50]
+  max_height: 25
+  height_scale: 25
+  resolution: 512                           # internal sample grid (procedural only)
+  height_texture:
+    type: "noise"
+    noise_type: "hetero_terrain"
+    scale: 0.012
+    octaves: 5
+    lacunarity: 2.0
+    fractal_offset: 0.65
+  material: "rock"
+```
+
+**Strata** is the runtime equivalent of "one mesh per stratum" — every
+band declares an altitude/slope window mapped to a material; the
+runtime picks the highest-scoring band at each hit. See the **HeightField**
+section of the reference for the full schema; `docs/technical/heightfield.md`
+covers the algorithm.
+
+Type aliases: `heightfield`, `height_field`, `terrain`.
+
+---
+
+## 4.14 Type Alias Summary
 
 Many primitives have multiple accepted type names:
 
@@ -473,13 +531,14 @@ Many primitives have multiple accepted type names:
 | `smooth_triangle`| --                                     |
 | `quad`           | --                                     |
 | `mesh`           | `obj`                                  |
+| `heightfield`    | `height_field`, `terrain`              |
 | `group`          | --                                     |
 | `instance`       | --                                     |
 | `csg`            | --                                     |
 
 ---
 
-## 4.14 Complete Example: Shape Gallery
+## 4.15 Complete Example: Shape Gallery
 
 A scene that renders one of each primitive in a row.
 

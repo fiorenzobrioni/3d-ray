@@ -4,7 +4,6 @@ namespace TerrainGen;
 
 public enum TerrainType { Pianura, Collina, Montagna }
 public enum Season { Primavera, Estate, Autunno, Inverno }
-public enum Style { Realistic, Minecraft, Lowpoly }
 
 [Flags]
 public enum WaterFeatures
@@ -26,7 +25,6 @@ public sealed record GenerationConfig
     public float Size { get; init; } = 100f;
     public int Resolution { get; init; } = 256;
     public int Seed { get; init; } = 0;
-    public Style Style { get; init; } = Style.Realistic;
     public bool ErosionEnabled { get; init; } = true;
     public int ErosionIters { get; init; } = 50_000;
     public float SeaLevel { get; init; } = 0.30f;

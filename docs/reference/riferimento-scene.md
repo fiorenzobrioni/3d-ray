@@ -1484,7 +1484,89 @@ Tutti i campi scalar/vector/autobump e il tri-state Cycles
 mesh accetta solo `displacement_enabled: bool` (default `true`) per
 sopprimere un displacement ereditato per-istanza.
 
-#### **7.13 CSG (Operazioni Booleane)**
+#### **7.13 HeightField (Terreno stile Mitsuba)**
+
+Una superficie continua `y = h(x, z) · height_scale` sul rettangolo XZ
+definito da `bounds: [xMin, zMin, xMax, zMax]`. La funzione altezza
+proviene o da una heightmap PNG-16 grayscale prebakeata, oppure da una
+texture procedurale campionata a tempo di costruzione su una griglia
+interna. L'intersezione è accelerata da una min/max mipmap
+(Tevs/Ihrke/Seidel 2008) — una sola primitiva sostituisce un'intera
+mesh di terreno tassellata.
+
+```yaml
+# Variante baked (il formato che TerrainGen emette)
+- name: "terrain"
+  type: "heightfield"
+  bounds: [-50, -50, 50, 50]
+  max_height: 25
+  height_scale: 25
+  heightmap_path: "libraries/terrain/myterrain-height.png"
+  sea_level: 7.5
+  sea_material: "water"
+  strata:
+    - { min_altitude: 0.00, max_altitude: 0.18, material: "sand",  blend_width: 0.04 }
+    - { min_altitude: 0.14, max_altitude: 0.55, material: "grass", blend_width: 0.08 }
+    - { min_altitude: 0.50, max_altitude: 0.85, min_slope_deg: 25, material: "rock", blend_width: 0.08 }
+    - { min_altitude: 0.80, max_altitude: 1.00, material: "snow",  blend_width: 0.04 }
+  material: "grass"   # fallback se nessuna band vince
+
+# Variante procedurale — heightmap sintetizzata al caricamento da una noise texture
+- name: "procedural_terrain"
+  type: "heightfield"
+  bounds: [-50, -50, 50, 50]
+  max_height: 25
+  height_scale: 25
+  resolution: 512
+  height_texture:
+    type: "noise"
+    noise_type: "hetero_terrain"
+    scale: 0.012
+    octaves: 5
+    lacunarity: 2.0
+    fractal_offset: 0.65
+  material: "rock"
+```
+
+| Campo             | Tipo    | Default | Note |
+|-------------------|---------|---------|------|
+| `bounds`          | `[f]`   | —       | `[xMin, zMin, xMax, zMax]`. L'AABB Y è `[0, max_height]`. |
+| `max_height`      | float   | `25`    | Tetto world-space usato per l'AABB; `max_height` ≥ altezza del picco. |
+| `height_scale`    | float   | `1`     | Moltiplicatore applicato ai valori normalizzati della heightmap (unità PNG-16 = 1). Il picco world-space è `max(heightmap) × height_scale`. |
+| `heightmap_path`  | string  | —       | Path PNG risolto rispetto alla scena master. 16-bit grayscale (`L16`) preferito; 8-bit accettato con un warning di perdita di precisione. Mutuamente esclusivo con `height_texture` (vince il path). |
+| `height_texture`  | object  | —       | Blocco `TextureData` completo — qualsiasi noise procedurale. La luminanza di `Value(u, v, p)` diventa l'altezza. |
+| `resolution`      | int     | `512`   | Solo in modalità procedurale: lato della griglia pre-campionata che alimenta la piramide min/max. La qualità visiva è determinata dalla bisezione per-pixel; questo controlla la tightness dell'accelerazione. |
+| `max_steps`       | int     | `256`   | Riservato per raffinamenti iterativi futuri; la pipeline v1 usa sempre 12 step di bisezione. |
+| `sea_level`       | float?  | nessuno | Y world-space di un piano d'acqua opzionale clippato al footprint della heightfield. Visibile solo dove il terreno sotto sta sotto `sea_level` (niente piani d'acqua fluttuanti). |
+| `sea_material`    | string? | nessuno | ID del materiale applicato al piano d'acqua. Obbligatorio quando `sea_level` è impostato. |
+| `strata`          | lista   | nessuna | Band di materiali pilotate da altitudine/pendenza; vedi sotto. |
+| `material`        | string  | —       | Materiale di fallback usato nei punti di shading dove nessuna band `strata` vince. |
+
+##### **Strata bands**
+
+Ogni voce `strata` definisce una finestra di altitudine e/o pendenza
+mappata a un materiale. Il motore calcola
+`altitude_norm = (hit.Y − sea_level) / (height_scale − sea_level)` e
+`slope_deg = acos(normal.Y)`, poi assegna a ogni band un peso a plateau
+con fade ai bordi; vince la band col punteggio più alto. Le band
+possono sovrapporsi — la zona di sovrapposizione allarga l'alone di
+dominanza della band vincente.
+
+| Campo           | Tipo   | Default | Note |
+|-----------------|--------|---------|------|
+| `min_altitude`  | float  | `0`     | Bordo inferiore normalizzato del plateau di altitudine (0 = livello mare, 1 = picco). |
+| `max_altitude`  | float  | `1`     | Bordo superiore normalizzato. |
+| `min_slope_deg` | float  | `0`     | Bordo inferiore del plateau di pendenza (gradi dalla verticale; 0 = piano). |
+| `max_slope_deg` | float  | `90`    | Bordo superiore. |
+| `blend_width`   | float  | `0`     | Larghezza dell'alone di fade oltre il plateau. In v1 la selezione è winner-takes-all sul peso combinato; il lerp dei materiali tra band adiacenti è un follow-up. |
+| `material`      | string | —       | ID del materiale per questa band. |
+
+Il sistema strata è esattamente quello che TerrainGen emette per dare a
+una singola heightfield la stratificazione sabbia → erba → roccia →
+neve che il vecchio approccio per-mesh produceva con OBJ separati per
+stratum. Vedi `docs/technical/heightfield.md` per l'algoritmo.
+
+#### **7.14 CSG (Operazioni Booleane)**
 ```yaml
 # Union (A ∪ B) — fonde due solidi in uno solo (es. corpo + testa di un pupazzo di neve)
 - name: "pupazzo"
@@ -1535,7 +1617,7 @@ sopprimere un displacement ereditato per-istanza.
 - **Tipi ammessi come figli CSG.** Ogni figlio deve essere una primitiva solida con interno/esterno ben definiti. Supportati: `sphere`, `box`, `cylinder`, `cone`, `torus`, `capsule`, `quad`, `disk`, `annulus`, `triangle`, `lathe` (alias `revolution` / `surface_of_revolution`), `extrusion` (alias `prism` / `linear_extrude`), oppure un `csg` annidato. **Non supportati e scartati con un avviso** (il loader emette `CSG entity '…': failed to create one or both children. Skipping.` e il nodo viene rimosso): `group`, `mesh` / `obj`, `instance`, `plane` / `infinite_plane`. Per unire due primitive come operando CSG, usa un `csg: union` esplicito invece di avvolgerle in un `group`.
 - **Materiali emissivi dentro i figli CSG.** Sono geometricamente validi, ma i nodi CSG non sono campionabili, quindi **non parteciperanno alla NEE** (Next Event Estimation). Il loader stampa un avviso una-tantum: `Warning: CSG object contains an Emissive leaf. CSG objects are not sampleable, so their emitters will NOT participate in Next Event Estimation. The emissive surface will still glow via indirect bounces (high variance). Consider wrapping the emissive primitive outside the CSG if direct lighting is needed.` Soluzione alternativa: posizionare la primitiva emissiva accanto al CSG a livello di scena, non al suo interno.
 
-#### **7.14 Group (Composizione Gerarchica)**
+#### **7.15 Group (Composizione Gerarchica)**
 ```yaml
 - name: "lamppost"
   type: "group"
@@ -1554,7 +1636,7 @@ sopprimere un displacement ereditato per-istanza.
 ```
 - Le trasformazioni si compongono gerarchicamente
 
-#### **7.15 Template + Instance (Oggetti Riutilizzabili)**
+#### **7.16 Template + Instance (Oggetti Riutilizzabili)**
 ```yaml
 templates:
   - name: "chess_pawn"
@@ -1580,7 +1662,7 @@ entities:
     scale: 1.2                             # Override dimensione
 ```
 
-#### **7.16 Lathe (Superficie di Rivoluzione)**
+#### **7.17 Lathe (Superficie di Rivoluzione)**
 ```yaml
 # Profilo Linear — look sfaccettato del tornio reale (spigoli vivi sui vertici)
 - name: "colonna"
@@ -1654,7 +1736,7 @@ entities:
   Aspettati ~10× il costo per-raggio di un hit su Cone sui segmenti
   spline — preferisci `linear` quando lo sfaccettato è accettabile.
 
-#### **7.17 Extrusion (Estrusione lineare di un profilo 2D)**
+#### **7.18 Extrusion (Estrusione lineare di un profilo 2D)**
 ```yaml
 # Profilo lineare concavo — una stella a 5 punte estrusa in un prisma
 - name: "pilastro_stella"
@@ -1794,7 +1876,7 @@ entities:
   da un'insegna al neon a forma di stella è pesata correttamente fra
   pareti e cap.
 
-#### **7.18 Ordine delle trasformazioni e anti-pattern `center:`**
+#### **7.19 Ordine delle trasformazioni e anti-pattern `center:`**
 
 Le trasformazioni delle entità seguono un ordine fisso `scale → rotate → translate` attorno all'**origine globale (0, 0, 0)**:
 

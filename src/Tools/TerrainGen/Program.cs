@@ -12,11 +12,14 @@ using TerrainGen.Splatting;
 namespace TerrainGen;
 
 /// <summary>
-/// Entry point. Generates a 3D-Ray terrain template (YAML + per-stratum OBJ
-/// meshes) following the pipeline:
-///   noise stack -> shape -> thermal erosion -> hydraulic erosion ->
-///   sea + lakes + rivers -> style post -> classify + tessellate ->
-///   write OBJs + YAML (and optional preview scene).
+/// Entry point. Generates a 3D-Ray heightfield template — a 16-bit grayscale
+/// PNG heightmap plus a YAML template that references it as a
+/// <c>type: heightfield</c> entity. Pipeline:
+///   noise stack → thermal erosion → hydraulic erosion → hydrology (sea +
+///   lakes + rivers) → write PNG-16 + YAML (+ optional preview scene).
+///
+/// No mesh tessellation, no OBJ output — the engine's <c>HeightField</c>
+/// primitive intersects the heightmap directly via a min/max mipmap.
 /// </summary>
 internal static class Program
 {
@@ -41,7 +44,7 @@ internal static class Program
     private static int Run(GenerationConfig cfg, string repoRoot)
     {
         Console.WriteLine("╔══════════════════════════════════════════════╗");
-        Console.WriteLine("║      TerrainGen — 3D-Ray terrain builder     ║");
+        Console.WriteLine("║      TerrainGen — 3D-Ray heightfield gen    ║");
         Console.WriteLine("╚══════════════════════════════════════════════╝");
         Console.WriteLine();
         Console.WriteLine($"  name        : {cfg.Name}");
@@ -51,7 +54,6 @@ internal static class Program
         Console.WriteLine($"  size        : {cfg.Size:0.###} units");
         Console.WriteLine($"  resolution  : {cfg.Resolution}");
         Console.WriteLine($"  seed        : {cfg.Seed}");
-        Console.WriteLine($"  style       : {cfg.Style.ToString().ToLowerInvariant()}");
         Console.WriteLine($"  erosion     : {(cfg.ErosionEnabled ? "on (" + cfg.ErosionIters + " drops)" : "off")}");
         Console.WriteLine($"  sea level   : {(cfg.SeaLevel < 0 ? "(no sea)" : cfg.SeaLevel.ToString("0.00"))}");
         Console.WriteLine($"  with cameras: {(cfg.WithCameras ? "yes" : "no")}");
@@ -61,7 +63,7 @@ internal static class Program
         var sw = Stopwatch.StartNew();
 
         // 1. Noise stack -> heightmap
-        Console.Write("  [1/6] shaping heightmap... ");
+        Console.Write("  [1/5] shaping heightmap... ");
         var hm = TerrainShaper.Build(cfg);
         Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
 
@@ -69,27 +71,27 @@ internal static class Program
         long t0 = sw.ElapsedMilliseconds;
         if (cfg.ErosionEnabled)
         {
-            Console.Write("  [2/6] thermal erosion...    ");
+            Console.Write("  [2/5] thermal erosion...    ");
             ThermalErosion.Apply(hm, iterations: 8);
             hm.Normalize01();
             Console.WriteLine($"done ({sw.ElapsedMilliseconds - t0} ms)");
         }
-        else Console.WriteLine("  [2/6] thermal erosion...    skipped");
+        else Console.WriteLine("  [2/5] thermal erosion...    skipped");
 
         // 3. Hydraulic erosion (drops -> canyons + alluvial fans)
         t0 = sw.ElapsedMilliseconds;
         if (cfg.ErosionEnabled && cfg.ErosionIters > 0)
         {
-            Console.Write("  [3/6] hydraulic erosion...  ");
+            Console.Write("  [3/5] hydraulic erosion...  ");
             HydraulicErosion.Apply(hm, cfg.ErosionIters, cfg.Seed);
             hm.Normalize01();
             Console.WriteLine($"done ({sw.ElapsedMilliseconds - t0} ms)");
         }
-        else Console.WriteLine("  [3/6] hydraulic erosion...  skipped");
+        else Console.WriteLine("  [3/5] hydraulic erosion...  skipped");
 
-        // 4. Hydrology: sea + lakes + rivers
+        // 4. Hydrology: sea + lakes + rivers carve the heightmap in place.
         t0 = sw.ElapsedMilliseconds;
-        Console.Write("  [4/6] hydrology...          ");
+        Console.Write("  [4/5] hydrology...          ");
         var mask = new WaterMask(cfg.Resolution, cfg.SeaLevel);
         if (cfg.HasFlag(WaterFeatures.Mare) || cfg.HasFlag(WaterFeatures.Isole))
             SeaLevel.Apply(hm, mask);
@@ -99,20 +101,10 @@ internal static class Program
             LakeFinder.Apply(hm, mask, cfg.Seed);
         Console.WriteLine($"done ({sw.ElapsedMilliseconds - t0} ms)");
 
-        // 5. Style post (passthrough / quantize / decimate) + tessellation
+        // 5. Output: PNG-16 heightmap + YAML template + optional preview scene.
         t0 = sw.ElapsedMilliseconds;
-        Console.Write("  [5/6] tessellation...       ");
-        var (postMap, flatShade) = StylePostprocessor.Apply(hm, cfg.Style);
-        // If style decimated, the WaterMask has the OLD resolution. Resample it.
-        var postMask = postMap.N == mask.N ? mask : ResampleMask(mask, postMap.N);
-        float heightScale = cfg.Size * 0.25f; // map units 0..1 -> 0..size/4 (peaks ~size/4 tall)
-        var bundle = MeshBuilder.Build(cfg, postMap, postMask, flatShade, heightScale);
-        Console.WriteLine($"done ({sw.ElapsedMilliseconds - t0} ms)");
-
-        // 6. Output
-        t0 = sw.ElapsedMilliseconds;
-        Console.Write("  [6/6] writing files...      ");
-        var written = WriteOutputs(cfg, repoRoot, bundle);
+        Console.Write("  [5/5] writing files...      ");
+        var written = WriteOutputs(cfg, repoRoot, hm, mask);
         Console.WriteLine($"done ({sw.ElapsedMilliseconds - t0} ms)");
 
         Console.WriteLine();
@@ -132,73 +124,58 @@ internal static class Program
         return 0;
     }
 
-    private static List<string> WriteOutputs(GenerationConfig cfg, string repoRoot, TerrainMeshBundle bundle)
+    private static List<string> WriteOutputs(GenerationConfig cfg, string repoRoot,
+                                             Heightmap2D hm, WaterMask mask)
     {
         var written = new List<string>();
         Directory.CreateDirectory(cfg.OutputDir);
 
-        // Mesh OBJs go into the output dir.
-        foreach (var (stratum, mesh) in bundle.Land)
-        {
-            if (mesh.Faces.Count == 0) continue;
-            string objName = $"{cfg.Name}-{stratum.Suffix()}.obj";
-            string objPath = Path.Combine(cfg.OutputDir, objName);
-            ObjWriter.Write(objPath, mesh, $"3D-Ray TerrainGen — {stratum} stratum, {mesh.Faces.Count} faces");
-            written.Add(RelToRepo(repoRoot, objPath));
-        }
-        if (bundle.WaterSurface != null && bundle.WaterSurface.Faces.Count > 0)
-        {
-            string objName = $"{cfg.Name}-water.obj";
-            string objPath = Path.Combine(cfg.OutputDir, objName);
-            ObjWriter.Write(objPath, bundle.WaterSurface, $"3D-Ray TerrainGen — water surface, {bundle.WaterSurface.Faces.Count} faces");
-            written.Add(RelToRepo(repoRoot, objPath));
-        }
+        // The world peaks at size×0.25 in Y — same calibration the old mesh
+        // pipeline used, kept so existing preview cameras keep framing.
+        float heightScale = cfg.Size * 0.25f;
+        bool waterPresent = mask.HasAnyWater || cfg.HasFlag(WaterFeatures.Mare);
 
-        // Path of OBJ files relative to scenes/ (= the engine's mesh-resolution root).
-        // Compute it from the actual output dir so a custom --output still works
-        // as long as it lives under scenes/.
-        string objRelDirFromScenes = ComputeRelDirFromScenesRoot(repoRoot, cfg.OutputDir);
+        // PNG-16 heightmap — written to the output dir. The engine resolves
+        // <c>heightmap_path</c> relative to the *master* scene being loaded,
+        // not the imported template; we therefore embed the same scenes/-root
+        // relative directory the legacy mesh pipeline used so a preview
+        // scene living under scenes/ keeps finding it.
+        string pngFileName = $"{cfg.Name}-height.png";
+        string pngPath = Path.Combine(cfg.OutputDir, pngFileName);
+        PngHeightmapWriter.Write(pngPath, hm);
+        written.Add(RelToRepo(repoRoot, pngPath));
 
-        string templateName = SanitiseId(cfg.Name);
-        string materialPrefix = "terrain_" + templateName;
+        string scenesRelDir = ComputeRelDirFromScenesRoot(repoRoot, cfg.OutputDir);
+        string heightmapEmittedPath = string.IsNullOrEmpty(scenesRelDir)
+            ? pngFileName
+            : $"{scenesRelDir}/{pngFileName}";
 
         // Template YAML.
+        string templateName = SanitiseId(cfg.Name);
+        string materialPrefix = "terrain_" + templateName;
+        var bands = StratumClassifier.Build(cfg);
         string yamlPath = Path.Combine(cfg.OutputDir, $"{cfg.Name}.yaml");
-        string yamlText = YamlEmitter.Write(cfg, bundle,
-            writtenObjs: written,
+        string yamlText = YamlEmitter.Write(
+            cfg, bands, waterPresent, heightScale,
             templateName: templateName,
             materialPrefix: materialPrefix,
-            objRelativeDirFromScenesRoot: objRelDirFromScenes);
+            heightmapFileName: heightmapEmittedPath);
         File.WriteAllText(yamlPath, yamlText);
         written.Add(RelToRepo(repoRoot, yamlPath));
 
         if (cfg.WithCameras)
         {
+            var (_, hMaxNorm, hAvgNorm) = hm.Stats();
             string previewPath = Path.Combine(repoRoot, "scenes", $"{cfg.Name}-preview.yaml");
-            string previewText = PreviewSceneEmitter.Write(cfg, bundle, templateName);
+            string previewText = PreviewSceneEmitter.Write(
+                cfg, templateName,
+                hMax: hMaxNorm * heightScale,
+                hAvg: hAvgNorm * heightScale);
             File.WriteAllText(previewPath, previewText);
             written.Add(RelToRepo(repoRoot, previewPath));
         }
 
         return written;
-    }
-
-    private static WaterMask ResampleMask(WaterMask src, int dstN)
-    {
-        var dst = new WaterMask(dstN, src.SeaLevel);
-        float scale = (float)(src.N - 1) / (dstN - 1);
-        for (int z = 0; z < dstN; z++)
-        for (int x = 0; x < dstN; x++)
-        {
-            int sx = (int)System.MathF.Round(x * scale);
-            int sz = (int)System.MathF.Round(z * scale);
-            sx = System.Math.Min(sx, src.N - 1);
-            sz = System.Math.Min(sz, src.N - 1);
-            int si = sz * src.N + sx;
-            if (src.Kind[si] != WaterKind.None)
-                dst.MarkWet(x, z, src.Kind[si], src.WaterLevel[si]);
-        }
-        return dst;
     }
 
     /// <summary>
@@ -217,25 +194,31 @@ internal static class Program
         return dir.FullName;
     }
 
+    private static string RelToRepo(string repoRoot, string absolutePath)
+    {
+        return Path.GetRelativePath(repoRoot, absolutePath).Replace(Path.DirectorySeparatorChar, '/');
+    }
+
+    /// <summary>
+    /// Computes the heightmap PNG's directory relative to <c>scenes/</c> so the
+    /// emitted <c>heightmap_path</c> resolves correctly when the template is
+    /// imported by a master scene that lives in <c>scenes/</c>. Returns an
+    /// empty string when the output directory is outside the scenes/ tree —
+    /// the caller falls back to the bare filename in that case (and the user
+    /// is expected to author paths manually).
+    /// </summary>
     private static string ComputeRelDirFromScenesRoot(string repoRoot, string absoluteOutputDir)
     {
         string scenesRoot = Path.GetFullPath(Path.Combine(repoRoot, "scenes"));
         string outFull = Path.GetFullPath(absoluteOutputDir);
         if (!outFull.StartsWith(scenesRoot, System.StringComparison.Ordinal))
         {
-            // Outside scenes/: the user must add their own --output convention.
-            // Emit the basename only and warn.
             Console.Error.WriteLine($"warning: output dir '{absoluteOutputDir}' is outside the 'scenes/' tree;");
-            Console.Error.WriteLine("         mesh paths in the YAML will be just the file basename.");
+            Console.Error.WriteLine("         heightmap_path in the YAML will be just the file basename.");
             return string.Empty;
         }
         string rel = Path.GetRelativePath(scenesRoot, outFull).Replace(Path.DirectorySeparatorChar, '/');
         return rel == "." ? string.Empty : rel;
-    }
-
-    private static string RelToRepo(string repoRoot, string absolutePath)
-    {
-        return Path.GetRelativePath(repoRoot, absolutePath).Replace(Path.DirectorySeparatorChar, '/');
     }
 
     private static string DescribeFlags(WaterFeatures f)

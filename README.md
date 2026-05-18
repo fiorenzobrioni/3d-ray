@@ -54,6 +54,7 @@ Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il
 - 🔺 **Triangle / SmoothTriangle** — triangolo con shading flat o interpolato per-vertex (Phong)
 - ▬ **Infinite Plane** — piano infinito per pavimenti e sfondi
 - 🏠 **Mesh (OBJ)** — modelli 3D da file Wavefront OBJ con smooth shading, UV mapping dell'artista e BVH interno dedicato
+- 🏔️ **HeightField (terreno stile Mitsuba)** — superficie continua `y = h(x, z) · height_scale` intersecata direttamente da una **min/max mipmap** gerarchica (Tevs/Ihrke/Seidel 2008). Una sola entità sostituisce una mesh terreno tassellata: la heightmap può essere un PNG-16 baked (output di `TerrainGen`) o sintetizzata da una noise procedurale (Musgrave/fBm/ridged) campionata al caricamento. Supporta band di **strata** altitudine/pendenza (sabbia/erba/roccia/neve), un piano d'acqua opzionale clippato al footprint e tutti i materiali del motore.
 - 🔷 **CSG (Constructive Solid Geometry)** — operazioni booleane su solidi: **Union** (A ∪ B), **Intersection** (A ∩ B) e **Subtraction** (A \ B), annidabili ricorsivamente per forme arbitrariamente complesse
 - 🏺 **Lathe (Superficie di Rivoluzione)** — profilo 2D fatto ruotare attorno all'asse Y per ottenere vasi, calici, colonne e lampade senza tassellatura. Tre modalità di profilo: **linear** (segmenti con spigoli netti, look tornito), **Catmull-Rom** (curva liscia che passa per ogni punto) e **Bezier cubico** (control point manuali).
 - 🪚 **Extrusion (Estrusione lineare di un profilo 2D)** — profilo 2D chiuso fatto scorrere lungo l'asse Y per ottenere prismi a sezione qualunque: stelle, ingranaggi, lettere, scudi, profilati architettonici, sezioni a L/U/T/H, washer, medaglioni. **I profili concavi sono supportati** grazie alla triangolazione automatica delle facce di chiusura. Stesse tre modalità del Lathe (**linear**, **Catmull-Rom**, **Bezier**) più due modificatori opzionali: **twist** (rotazione del profilo lungo l'altezza) e **taper** (rastremazione della sezione superiore) per colonne attorcigliate, raccordi industriali e forme che combinerebbero altrimenti più operatori in un editor 3D.
@@ -233,6 +234,23 @@ Genera il file YAML di una scacchiera Staunton completa (board 8×8 +
 ```bash
 dotnet run --project src/Tools/ChessGen/ChessGen.csproj
 ```
+
+### TerrainGen
+Genera un terreno completo: una **heightmap PNG-16** + un **template YAML**
+che la avvolge in un primitivo `type: heightfield`. La pipeline simula
+noise procedurale Musgrave/fBm, erosione termica + idraulica e idrologia
+(mare/laghi/fiumi scavati nella heightmap), poi emette le band di
+strata (sabbia/erba/roccia/neve) coerenti con il tipo di terreno e la
+stagione. Con `--with-cameras` aggiunge anche una scena master pronta
+al render con cinque camere preimpostate.
+```bash
+dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- \
+  --name <stem> --type pianura|collina|montagna \
+  --include fiumi,laghi,mare,isole --season primavera|estate|autunno|inverno \
+  [--seed N] [--size U] [--resolution N] [--with-cameras]
+```
+Output: `scenes/libraries/terrain/<stem>-height.png` (heightmap PNG-16)
++ `scenes/libraries/terrain/<stem>.yaml` (template importabile).
 
 ---
 

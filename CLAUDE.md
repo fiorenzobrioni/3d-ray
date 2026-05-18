@@ -44,9 +44,9 @@ dotnet run -c Release --project src/RayTracer.Benchmarks -- --filter '*Bvh*' --j
 dotnet run --project src/Tools/TextureGen/TextureGen.csproj
 dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
 dotnet run --project src/Tools/ChessGen/ChessGen.csproj
-dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- --name <stem> [--type pianura|collina|montagna] [--season ...] [--include fiumi,laghi,mare,isole] [--style realistic|minecraft|lowpoly] [--with-cameras]
+dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- --name <stem> [--type pianura|collina|montagna] [--season ...] [--include fiumi,laghi,mare,isole] [--with-cameras]
 ```
-`TerrainGen` writes a reusable terrain template to `scenes/libraries/terrain/<name>.yaml` (plus per-stratum `.obj` meshes). `--with-cameras` additionally emits a complete `scenes/<name>-preview.yaml` ready to render. See `src/Tools/TerrainGen/Program.cs` and `--help` for full flags.
+`TerrainGen` writes a reusable terrain template to `scenes/libraries/terrain/<name>.yaml` plus a `<name>-height.png` 16-bit grayscale heightmap — the YAML wraps a single `type: heightfield` entity that the engine intersects directly via min/max mipmap (no mesh tessellation). `--with-cameras` additionally emits a complete `scenes/<name>-preview.yaml` ready to render. See `src/Tools/TerrainGen/Program.cs` and `--help` for full flags.
 
 ### CI
 `.github/workflows/dotnet.yml` builds Release and runs a 320×213 smoke render of `scenes/chess.yaml`. `.github/workflows/render-scenes.yml` is a `workflow_dispatch` matrix render at 1920×1080 — enable scenes by uncommenting entries in its `matrix.scene:` list.
@@ -83,7 +83,7 @@ Parallel over pixels; per pixel does `√N × √N` stratified samples. `TraceRa
 - `ISamplable.SurfaceArea`: deterministic closed-form area property on all 12 geometry classes. Replaces the PRNG-consuming `Sample()` call in `GeometryLight` constructor.
 
 ### Geometry, CSG, Groups
-`Geometry/IHittable.cs` is the core interface. `CsgObject` implements Union/Intersection/Subtraction via interval classification (see `docs/technical/csg-boolean-operations.md`) and is nestable. `Group` is a scene-graph node that inherits transforms down to children and builds its own internal BVH above 4 children. `Transform` wraps any `IHittable` with scale→rotate→translate and caches its world-space AABB.
+`Geometry/IHittable.cs` is the core interface. `CsgObject` implements Union/Intersection/Subtraction via interval classification (see `docs/technical/csg-boolean-operations.md`) and is nestable. `Group` is a scene-graph node that inherits transforms down to children and builds its own internal BVH above 4 children. `Transform` wraps any `IHittable` with scale→rotate→translate and caches its world-space AABB. `HeightField` (Mitsuba-style terrain primitive — see `docs/technical/heightfield.md`) accelerates intersection with a `MinMaxMipmap` quadtree so one primitive can replace a tessellated terrain mesh; the loader routes `type: heightfield` through `SceneLoader.CreateHeightFieldEntity`.
 
 ### Volumetrics (`Volumetrics/`)
 `IMedium` covers Homogeneous, HeightFog, HeterogeneousProceduralMedium (Perlin fBm with delta/ratio tracking), and GridMedium (trilinear default, tricubic Catmull-Rom option). Phase functions are pluggable: Isotropic, HG, double-HG, Rayleigh, Schlick. A `globalMedium` is returned from `SceneLoader.Load` alongside the world.
