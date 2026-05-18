@@ -53,6 +53,12 @@ public sealed class HeightField : IHittable
     // 25) need a meaningful slope perturbation or they keep tracing
     // exact gradient contours; ±15° is one stratum-width on a 0-90° axis.
     private const float SlopeJitterDeg = 15f;
+    // Maximum altitude shift driven by slope aspect (which cardinal
+    // direction the slope faces). Scaled by slope steepness so it
+    // disappears on flat ground. ±10% of altitude axis on a vertical
+    // cliff facing +Z vs -Z — comparable to a 200 m snowline offset
+    // between sunlit and shaded faces of a real 2 km peak.
+    private const float AspectBias = 0.10f;
 
     public float? SeaLevel { get; }
     public IMaterial? SeaMaterial { get; }
@@ -268,24 +274,35 @@ public sealed class HeightField : IHittable
         float altNorm = Math.Clamp((p.Y - baseY) / altSpan, 0f, 1f);
         float slopeDeg = MathF.Acos(Math.Clamp(normal.Y, -1f, 1f)) * (180f / MathF.PI);
 
+        // ── Aspect bias: cool-facing slopes get a snow bonus ───────────
+        // The horizontal projection of the surface normal tells us which
+        // way the slope "faces". By northern-hemisphere convention, slopes
+        // facing +Z (called "north"-facing here) receive less direct sun
+        // and hold snow ~200-500 m lower than south-facing slopes on a
+        // 1 km peak. We capture this by shifting altNorm up on +Z faces
+        // and down on -Z faces, modulated by slope steepness so flat
+        // ground stays unbiased. The +Z = cool convention is fixed for
+        // v1; a per-scene sun-aware aspect is a follow-up (DEVLOG TODO
+        // "layered stack BSDF").
+        float aspectCool = normal.Z;        // +1 faces +Z (cool), -1 faces -Z (warm)
+        float steepness = 1f - normal.Y;    // 0 flat, ~1 cliff
+        altNorm = Math.Clamp(altNorm + AspectBias * aspectCool * steepness, 0f, 1f);
+
         // ── Noise-perturbed band selection (Frostbite/Unreal terrain trick) ──
-        // The hit point's altitude is jittered by an fBm sample before band
-        // weighting so the alt/slope contours stop being geodesic lines and
-        // start tracing organic, biome-like boundaries with detail at
-        // multiple scales (large lobes + small protrusions, like a real
-        // snow line). Selection remains winner-takes-all (no BRDF mixing,
-        // no per-hit random) — the perceived blend comes from the boundary
-        // curve following noise contours and from each band material's own
+        // The hit point's altitude is jittered by a 3-octave fBm sample
+        // before band weighting so the alt/slope contours stop being
+        // geodesic lines and start tracing organic, biome-like boundaries.
+        // The three octaves cover macro-lobes (~16 world units), meso
+        // protrusions (~6 units) and micro-frammentazione (~2.6 units) —
+        // matching how a real snowline fragments at multiple scales.
+        // Selection remains winner-takes-all (no BRDF mixing, no per-hit
+        // random) — the perceived blend comes from the boundary curve
+        // following noise contours and from each band material's own
         // texture noise hiding the residual discontinuity.
-        //
-        // The base frequency gives ~6 large blobs across the terrain;
-        // two octaves of fBm add finer fragmentation (~3-unit speckle on
-        // the demo 100-unit terrain). Both axes use a different noise
-        // domain so the altitude and slope perturbations are decorrelated.
         float jitterFreq = 6f / (XMax - XMin);
         float altJitter = StratumJitter * _noise.Fbm(
             new Vector3(p.X * jitterFreq, 0f, p.Z * jitterFreq),
-            octaves: 2, lacunarity: 2.5f, gain: 0.5f, signed: true);
+            octaves: 3, lacunarity: 2.5f, gain: 0.5f, signed: true);
         altNorm = Math.Clamp(altNorm + altJitter, 0f, 1f);
 
         // Slope gets its own decorrelated jitter so cliff faces also
@@ -294,7 +311,7 @@ public sealed class HeightField : IHittable
         // sample without paying for a second Perlin permutation table.
         float slopeJitter = SlopeJitterDeg * _noise.Fbm(
             new Vector3(p.X * jitterFreq + 137f, 0f, p.Z * jitterFreq + 91f),
-            octaves: 2, lacunarity: 2.5f, gain: 0.5f, signed: true);
+            octaves: 3, lacunarity: 2.5f, gain: 0.5f, signed: true);
         slopeDeg = Math.Clamp(slopeDeg + slopeJitter, 0f, 90f);
 
         // Iteration order matters for ties. The band list is emitted by
