@@ -412,7 +412,66 @@ per disabilitare il displacement per-istanza.
 
 ---
 
-## 4.13 Riepilogo Alias dei Tipi
+## 4.13 HeightField (terreno procedurale)
+
+Un `heightfield` è una superficie continua `y = h(x, z) · height_scale`
+su un rettangolo XZ. L'altezza viene o da una heightmap PNG-16 baked
+(es. l'output di `TerrainGen`, vedi Capitolo 10) o da un noise
+procedurale campionato al caricamento su una griglia interna. Il motore
+la interseca via min/max mipmap (Tevs/Ihrke/Seidel 2008) — niente
+tassellazione, niente BVH di mesh, una sola entità sostituisce una
+mesh di terreno.
+
+```yaml
+- name: "terrain"
+  type: "heightfield"
+  bounds: [-50, -50, 50, 50]                # [xMin, zMin, xMax, zMax]
+  max_height: 25                            # tetto AABB (world Y)
+  height_scale: 25                          # moltiplicatore per i campioni normalizzati
+  heightmap_path: "libraries/terrain/myterrain-height.png"
+  sea_level: 7.5                            # piano d'acqua opzionale (world Y)
+  sea_material: "water"
+  strata:
+    - { min_altitude: 0.00, max_altitude: 0.18, material: "sand"  }
+    - { min_altitude: 0.14, max_altitude: 0.55, material: "grass" }
+    - { min_altitude: 0.50, max_altitude: 0.85, min_slope_deg: 25, material: "rock" }
+    - { min_altitude: 0.80, max_altitude: 1.00, material: "snow"  }
+  material: "grass"                          # fallback quando nessuna band vince
+```
+
+La **variante procedurale** sostituisce `heightmap_path` con un blocco
+`height_texture` completo — qualsiasi noise type funziona, ma i due
+multifrattali di Musgrave (`hetero_terrain`, `hybrid_multifractal`)
+sono il look canonico per terreni erosi:
+
+```yaml
+- name: "procedural_terrain"
+  type: "heightfield"
+  bounds: [-50, -50, 50, 50]
+  max_height: 25
+  height_scale: 25
+  resolution: 512                           # griglia di sampling (solo procedurale)
+  height_texture:
+    type: "noise"
+    noise_type: "hetero_terrain"
+    scale: 0.012
+    octaves: 5
+    lacunarity: 2.0
+    fractal_offset: 0.65
+  material: "rock"
+```
+
+**Strata** è l'equivalente runtime di "una mesh per stratum" — ogni
+band dichiara una finestra altitudine/pendenza mappata a un materiale;
+il runtime sceglie la band col punteggio più alto a ogni hit. Vedi la
+sezione **HeightField** del riferimento per lo schema completo;
+`docs/technical/heightfield.md` copre l'algoritmo.
+
+Alias di tipo: `heightfield`, `height_field`, `terrain`.
+
+---
+
+## 4.14 Riepilogo Alias dei Tipi
 
 Molte primitive accettano più nomi di tipo:
 
@@ -431,13 +490,14 @@ Molte primitive accettano più nomi di tipo:
 | `smooth_triangle`| --                                     |
 | `quad`           | --                                     |
 | `mesh`           | `obj`                                  |
+| `heightfield`    | `height_field`, `terrain`              |
 | `group`          | --                                     |
 | `instance`       | --                                     |
 | `csg`            | --                                     |
 
 ---
 
-## 4.14 Esempio Completo: Galleria delle Forme
+## 4.15 Esempio Completo: Galleria delle Forme
 
 Una scena che renderizza una di ogni primitiva in fila.
 
