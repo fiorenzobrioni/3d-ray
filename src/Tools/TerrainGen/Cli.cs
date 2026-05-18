@@ -24,7 +24,6 @@ internal static class Cli
         float size = 100f;
         int resolution = 256;
         int? seed = null;
-        Style style = Style.Realistic;
         bool erosionEnabled = true;
         int erosionIters = 50_000;
         float? seaLevel = null;
@@ -72,10 +71,6 @@ internal static class Cli
                         return Err("Invalid --seed. Provide an integer.");
                     seed = s;
                     break;
-                case "--style":
-                    if (!TryParseEnum<Style>(Next(args, ref i, a), out style))
-                        return Err("Invalid --style. Use one of: realistic, minecraft, lowpoly.");
-                    break;
                 case "--no-erosion":
                     erosionEnabled = false;
                     break;
@@ -118,7 +113,6 @@ internal static class Cli
                 Size = size,
                 Resolution = resolution,
                 Seed = effectiveSeed,
-                Style = style,
                 ErosionEnabled = erosionEnabled,
                 ErosionIters = erosionIters,
                 SeaLevel = effectiveSeaLevel,
@@ -181,11 +175,10 @@ internal static class Cli
         w.WriteLine("  --type <t>               pianura | collina | montagna           (default: collina)");
         w.WriteLine("  --include <csv>          fiumi,laghi,mare,isole                 (default: none)");
         w.WriteLine("  --season <s>             primavera | estate | autunno | inverno (default: estate)");
-        w.WriteLine("  --style <s>              realistic | minecraft | lowpoly        (default: realistic)");
         w.WriteLine();
         w.WriteLine("GEOMETRY:");
         w.WriteLine("  --size <units>           Side length in world units             (default: 100)");
-        w.WriteLine("  --resolution <N>         Heightmap cells per side, 8..1024      (default: 256)");
+        w.WriteLine("  --resolution <N>         Heightmap PNG cells per side, 8..1024  (default: 256)");
         w.WriteLine("  --seed <int>             Deterministic seed                     (default: random)");
         w.WriteLine();
         w.WriteLine("EROSION & WATER:");
