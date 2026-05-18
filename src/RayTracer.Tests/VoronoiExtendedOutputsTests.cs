@@ -351,6 +351,60 @@ public class VoronoiExtendedOutputsTests
         }
     }
 
+    [Fact]
+    public void VoronoiTexture_Cell_RespectsPaletteEndpoints()
+    {
+        // The Cell output must stay inside the convex hull of the two palette
+        // endpoints (channel-wise min/max of colorA and colorB). Pre-fix it
+        // returned a raw RGB hash and routinely produced saturated rainbow
+        // colours outside any user palette — see concretes-showcase regression.
+        Vector3 lo = new(0.55f, 0.50f, 0.42f);
+        Vector3 hi = new(0.85f, 0.82f, 0.74f);
+        var tex = new VoronoiTexture(scale: 5.5f, lo, hi)
+        {
+            Output = VoronoiTexture.OutputMode.Cell,
+            Randomness = 1f,
+        };
+        foreach (var p in SamplePoints())
+        {
+            Vector3 rgb = tex.Value(0.5f, 0.5f, p, 0);
+            Assert.InRange(rgb.X, lo.X - 1e-5f, hi.X + 1e-5f);
+            Assert.InRange(rgb.Y, lo.Y - 1e-5f, hi.Y + 1e-5f);
+            Assert.InRange(rgb.Z, lo.Z - 1e-5f, hi.Z + 1e-5f);
+        }
+    }
+
+    [Fact]
+    public void VoronoiTexture_Cell_SamplesColorRampWhenAttached()
+    {
+        // When a ColorRamp is attached, Cell must funnel the per-cell scalar
+        // through it (so users can build arbitrary palettes for stochastic
+        // per-cell colouring). Verifies the ramp branch is actually taken.
+        var ramp = new ColorRamp(new[]
+        {
+            new ColorRamp.Stop(0f,   new Vector3(1, 0, 0), ColorRamp.Interp.Linear),
+            new ColorRamp.Stop(0.5f, new Vector3(0, 1, 0), ColorRamp.Interp.Linear),
+            new ColorRamp.Stop(1f,   new Vector3(0, 0, 1), ColorRamp.Interp.Linear),
+        });
+        var tex = new VoronoiTexture(scale: 4f, Vector3.Zero, Vector3.One)
+        {
+            Output = VoronoiTexture.OutputMode.Cell,
+            Randomness = 1f,
+            ColorRamp = ramp,
+        };
+        foreach (var p in SamplePoints())
+        {
+            Vector3 rgb = tex.Value(0.5f, 0.5f, p, 0);
+            // Ramp endpoints span pure red/green/blue → any sample on the ramp
+            // has at most one large channel ≫ the other two for t near each
+            // stop, but every sample sums to ≤ 1 with no negative components.
+            Assert.True(rgb.X + rgb.Y + rgb.Z <= 1.5f + 1e-5f,
+                $"ramp-bound violated at {p}: {rgb}");
+            Assert.True(rgb.X >= 0f && rgb.Y >= 0f && rgb.Z >= 0f,
+                $"negative ramp output at {p}: {rgb}");
+        }
+    }
+
     private static IEnumerable<Vector3> SamplePoints()
     {
         yield return new Vector3(0.5f, 0.5f, 0.5f);

@@ -159,11 +159,14 @@ materials:
   # ══════════════════════════════════════════════════════════════════════
 
   # Tadao Ando béton brut: cemento lucido architettonico, riflessi morbidi,
-  # patina uniforme. Punti di ancoraggio dei casseri (tirelli) sono
+  # patina uniforme. Color ramp a 3 stop per il gradiente di patina (zone
+  # in ombra leggermente più fredde → corpo cemento → highlight caldo dei
+  # riflessi su superficie levigata). Bump_map fine simula i micro-pori
+  # del béton brut. Punti di ancoraggio dei casseri (tirelli) sono
   # tipicamente aggiunti come decals nella scena, non nel materiale.
   - id: "dis_cemento_tadao_ando"
     type: "disney"
-    color: [0.72, 0.71, 0.68]
+    color: [0.55, 0.54, 0.52]
     roughness: 0.58
     specular: 0.40
     texture:
@@ -171,17 +174,20 @@ materials:
       scale: 1.5
       noise_type: "fbm"
       octaves: 4
-      noise_strength: 0.18
-      colors: [[0.68, 0.67, 0.64], [0.76, 0.75, 0.72]]
+      noise_strength: 0.8
       randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.42, 0.42, 0.43], interp: "smoothstep" }
+        - { position: 0.55, color: [0.55, 0.54, 0.52], interp: "smoothstep" }
+        - { position: 1.00, color: [0.66, 0.64, 0.60], interp: "linear" }
     bump_map:
       texture:
         type: "noise"
-        scale: 25.0
+        scale: 55.0
         noise_type: "fbm"
         octaves: 3
-        colors: [[0.46, 0.46, 0.46], [0.54, 0.54, 0.54]]
-      strength: 0.35
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.18
 
   # Cemento brutalist con segni di cassero in legno: il displacement
   # scalare riproduce le fughe verticali tra le tavole; la texture base

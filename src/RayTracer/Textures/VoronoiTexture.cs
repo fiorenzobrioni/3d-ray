@@ -29,7 +29,7 @@ namespace RayTracer.Textures;
 ///   randomness: 1.0            # 0 = grid, 1 = full random scatter
 ///   distortion: 0.0            # domain-warp amplitude (Perlin warp before lookup)
 ///   smoothness: 0.0            # 0 = hard min (classic); ∈ (0,1] enables IQ Smooth Voronoi
-///   colors: [[0,0,0], [1,1,1]] # endpoints for distance modes (ignored for "cell"/"position")
+///   colors: [[0,0,0], [1,1,1]] # palette endpoints (used by f1/f2/.../cell; ignored for "position")
 ///   offset: [0,0,0]
 ///   rotation: [0,0,0]
 /// </code>
@@ -86,11 +86,13 @@ public class VoronoiTexture : ITexture
     public float Smoothness { get; set; } = 0f;
 
     /// <summary>
-    /// Optional multi-stop colour ramp. When set, the normalised distance
-    /// value <c>t ∈ [0, 1]</c> is looked up on the ramp instead of being
-    /// linearly blended between the two constructor colours. Ignored when
-    /// <see cref="Output"/> is <see cref="OutputMode.Cell"/>, which already
-    /// uses per-cell hashed colour and bypasses the lerp.
+    /// Optional multi-stop colour ramp. When set, the normalised value
+    /// <c>t ∈ [0, 1]</c> is looked up on the ramp instead of being linearly
+    /// blended between the two constructor colours. For <see cref="OutputMode.Cell"/>
+    /// the <c>t</c> is the deterministic per-cell scalar from
+    /// <see cref="Core.WorleyNoise.CellScalar"/>, so the ramp turns Cell into a
+    /// palette-aware stochastic-ID output (rather than the raw RGB hash exposed
+    /// by <see cref="OutputMode.Position"/>).
     /// </summary>
     public ColorRamp? ColorRamp { get; set; }
 
@@ -223,8 +225,15 @@ public class VoronoiTexture : ITexture
         {
             // Cell-ID lookup is discrete by nature: no smoothing applied
             // even with Smoothness > 0 — matches Cycles' behaviour where
-            // smoothness affects distance outputs only.
-            return WorleyNoise.CellColor(cellId);
+            // smoothness affects distance outputs only. The cell ID is mapped
+            // to a deterministic scalar in [0, 1) and then funnelled through
+            // the same palette / ColorRamp the distance outputs use, so
+            // muted user palettes are preserved. The raw RGB-hash stochastic
+            // ID is still available via OutputMode.Position.
+            float tCell = WorleyNoise.CellScalar(cellId);
+            return ColorRamp is { } cellRamp
+                ? cellRamp.Sample(tCell)
+                : Vector3.Lerp(_colorA, _colorB, tCell);
         }
 
         if (Output == OutputMode.Position)
