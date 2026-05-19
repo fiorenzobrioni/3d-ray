@@ -151,16 +151,24 @@ materials:
     transmission_depth: 0.05
 
   # ── Vino rosso ─────────────────────────────────────────────────────────
-  #    Disney con IOR 1.345 (acqua + alcol) e tint rosso scuro.
-  #    Il colore scuro assorbe la luce trasmessa, simulando l'opacità
-  #    del vino. Fresnel mantiene la superficie lucida e riflettente.
+  #    Disney con IOR 1.345 (acqua + alcol) e assorbimento volumetrico
+  #    Beer-Lambert. transmission_color è il colore del vino dopo aver
+  #    attraversato transmission_depth scene-units di liquido; il motore
+  #    converte in σ_a = −ln(transmission_color) / transmission_depth e
+  #    applica exp(−σ_a · d) lungo il segmento interno tra ingresso e
+  #    uscita dal vino. Per le ~5 cm di vino al centro della coppa,
+  #    R ≈ exp(−30·0.05) ≈ 0.22, G/B ≈ 0 → rosso profondo cinematografico.
+  #    Vicino al menisco/al bordo (~5 mm di cammino) restano rosa/rossi
+  #    saturi, dando la classica tinta a "vetro pieno di rubino".
   - id: "vino_rosso"
     type: "disney"
-    color: [0.35, 0.01, 0.025]
+    color: [0.55, 0.04, 0.06]
     roughness: 0.0
     spec_trans: 1.0
     ior: 1.345
     specular: 0.70
+    transmission_color: [0.55, 0.04, 0.06]
+    transmission_depth: 0.02
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES
@@ -279,15 +287,15 @@ entities:
   #    Box livello: Box superiore sottratto (scale: [4, 2.6, 4], translate: Y=3.40)
   # ─────────────────────────────────────────────────────────────────────────
 
-  # - name: "vino"
-  #   type: "csg"
-  #   operation: "subtraction"
-  #   material: "vino_rosso"
-  #   left:
-  #     type: "sphere"
-  #     center: [0.0, 2.16, 0.0]
-  #     radius: 0.75
-  #   right:
-  #     type: "box"
-  #     scale: [4, 2.60, 4]
-  #     translate: [0.0, 3.40, 0.0]
+  - name: "vino"
+    type: "csg"
+    operation: "subtraction"
+    material: "vino_rosso"
+    left:
+      type: "sphere"
+      center: [0.0, 2.16, 0.0]
+      radius: 0.75
+    right:
+      type: "box"
+      scale: [4, 2.60, 4]
+      translate: [0.0, 3.40, 0.0]
