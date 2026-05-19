@@ -595,7 +595,15 @@ public sealed class DisneyBsdf : IMaterial
         if (specTrans <= 0f) return Vector3.Zero;
 
         float ior = MathF.Max(Ior.Value(u, v, p, seed), 1.0001f);
-        float eta = rec.FrontFace ? (1f / ior) : ior;
+        // Straight-through shadow rays: the walker does not refract the ray, so
+        // the angle to the normal is the same air-side angle at every crossing.
+        // Always evaluate Fresnel as if entering from air (eta = 1/ior). Using
+        // eta = ior on back-face hits would spuriously trigger TIR for any
+        // shadow ray steeper than the critical angle and block every soft
+        // shadow through a flat glass slab (e.g. a wine-glass base on a
+        // table). Reciprocity guarantees the total over a slab is still
+        // (1−F)² — the same per-hit factor at entry and exit.
+        float eta = 1f / ior;
         float cosTheta = MathF.Min(MathF.Abs(Vector3.Dot(wi, rec.Normal)), 1f);
         float fr = MathUtils.FresnelDielectric(cosTheta, eta);
 
