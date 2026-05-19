@@ -189,18 +189,26 @@ entities:
   #    Coppa: Y = 1.62 → 2.60   (CSG, sovrappone stelo top di 0.04)
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Base: disco piatto in cristallo
+  # Base: disco piatto in cristallo.
+  # NOTA: il fondo del disco è alzato di 0.003 sopra il piano del tavolo
+  # (top a Y=0.76). Senza questo gap il fondo del cilindro e la faccia
+  # superiore del Box sarebbero esattamente complanari: i raggi rifratti
+  # che escono dal disco verso il basso verrebbero filtrati dall'epsilon
+  # di self-intersection su entrambe le superfici, finirebbero dentro il
+  # volume del tavolo e verrebbero ombrati dall'interno del legno — con
+  # la spot light auto-occlusa dal tavolo stesso. Risultato visibile:
+  # base "nera" invece che trasparente.
   - name: "base_bicchiere"
     type: "cylinder"
-    center:   [0.0, 0.76, 0.0]
+    center:   [0.0, 0.763, 0.0]
     radius:   0.58
     height:   0.05
     material: "cristallo"
 
-  # Stelo sottile
+  # Stelo sottile (stessa quota della base per evitare la complanarità col tavolo)
   - name: "stelo"
     type: "cylinder"
-    center:   [0.0, 0.76, 0.0]
+    center:   [0.0, 0.763, 0.0]
     radius:   0.045
     height:   0.64
     material: "cristallo"
