@@ -98,6 +98,13 @@ The test suite asserts **algorithmic equivalence against a reference implementat
 - Default output path when `-o` is omitted: `renders/render-<scene-stem>.png`.
 - Output image format is picked from the `-o` extension (`.png`/`.jpg`/`.jpeg`/`.bmp`); unknown → PNG.
 
+## Documentation updates
+
+When planning a change, include doc updates as explicit final steps so they don't slip. Bilingual files under `docs/` come in EN + IT pairs — update both.
+
+- **YAML schema** (parameters added/changed/removed): `docs/reference/scene-reference.md` + `riferimento-scene.md`, the affected `docs/tutorial/{en,it}/` chapters, and `DEVLOG.md`.
+- **User-facing features** (new/changed/removed CLI flags, rendering behaviour, tools): root `README.md` + `DEVLOG.md`.
+
 ## Further reading
 
 Docs live under `docs/` (bilingual EN/IT):
