@@ -134,28 +134,41 @@ materials:
     coat_roughness: 0.10
 
   # ── Cristallo al piombo ────────────────────────────────────────────────
-  #    Disney con IOR 1.65 (lead crystal: PbO > 24%).
+  #    Disney con IOR 1.70 (lead crystal alto-PbO).
+  #    transmission_color + transmission_depth attivano Beer-Lambert:
+  #    σ_a = −ln(transmission_color) / transmission_depth applicato lungo
+  #    il segmento interno tra hit di front-face e back-face. Dà un velo
+  #    di assorbimento al vetro e definisce un po' di più il bordo
+  #    dell'ombra senza scurire eccessivamente.
   - id: "cristallo"
     type: "disney"
     color: [0.97, 0.97, 1.0]
     roughness: 0.0
     spec_trans: 1.0
-    ior: 1.65
+    ior: 1.70
     specular: 0.90
-#    clearcoat: 0.15
-#    coat_roughness: 0.1
+    transmission_color: [0.98, 0.98, 1.0]
+    transmission_depth: 0.05
 
   # ── Vino rosso ─────────────────────────────────────────────────────────
-  #    Disney con IOR 1.345 (acqua + alcol) e tint rosso scuro.
-  #    Il colore scuro assorbe la luce trasmessa, simulando l'opacità
-  #    del vino. Fresnel mantiene la superficie lucida e riflettente.
+  #    Disney con IOR 1.345 (acqua + alcol) e assorbimento volumetrico
+  #    Beer-Lambert. transmission_color è il colore del vino dopo aver
+  #    attraversato transmission_depth scene-units di liquido; il motore
+  #    converte in σ_a = −ln(transmission_color) / transmission_depth e
+  #    applica exp(−σ_a · d) lungo il segmento interno tra ingresso e
+  #    uscita dal vino. Per le ~5 cm di vino al centro della coppa,
+  #    R ≈ exp(−30·0.05) ≈ 0.22, G/B ≈ 0 → rosso profondo cinematografico.
+  #    Vicino al menisco/al bordo (~5 mm di cammino) restano rosa/rossi
+  #    saturi, dando la classica tinta a "vetro pieno di rubino".
   - id: "vino_rosso"
     type: "disney"
-    color: [0.35, 0.01, 0.025]
+    color: [0.55, 0.04, 0.06]
     roughness: 0.0
     spec_trans: 1.0
     ior: 1.345
     specular: 0.70
+    transmission_color: [0.55, 0.04, 0.06]
+    transmission_depth: 0.02
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES
@@ -189,21 +202,39 @@ entities:
   #    Coppa: Y = 1.62 → 2.60   (CSG, sovrappone stelo top di 0.04)
   # ─────────────────────────────────────────────────────────────────────────
 
-  # Base: disco piatto in cristallo
-  - name: "base_bicchiere"
-    type: "cylinder"
-    center:   [0.0, 0.76, 0.0]
-    radius:   0.58
-    height:   0.05
+  # Base + Stelo come UNIONE CSG di un disco e un cilindro: un singolo
+  # solido di cristallo.
+  #
+  # Due i motivi:
+  #   1. Il fondo del disco è alzato di 0.003 sopra il piano del tavolo
+  #      (top a Y=0.76). Senza questo gap il fondo del cilindro e la faccia
+  #      superiore del Box sarebbero esattamente complanari: i raggi
+  #      rifratti che escono dal disco verso il basso verrebbero filtrati
+  #      dall'epsilon di self-intersection su entrambe le superfici e
+  #      finirebbero dentro il volume del tavolo.
+  #   2. Disco e stelo nella versione originale erano due primitive
+  #      indipendenti che si interpenetravano (entrambe a Y=0.76). Un
+  #      raggio della camera entrato dalla faccia superiore del disco e
+  #      ancora dentro al vetro poteva colpire la parete laterale dello
+  #      stelo e venire rifratto come se attraversasse un'interfaccia
+  #      vetro/aria (Disney calcola eta = rec.FrontFace ? 1/ior : ior, non
+  #      tracking il mezzo) → direzione errata, TIR spurio, perdita di
+  #      energia → centro del disco quasi nero. CSG union elimina le
+  #      superfici interne fantasma.
+  - name: "base_stelo"
+    type: "csg"
+    operation: "union"
     material: "cristallo"
-
-  # Stelo sottile
-  - name: "stelo"
-    type: "cylinder"
-    center:   [0.0, 0.76, 0.0]
-    radius:   0.045
-    height:   0.64
-    material: "cristallo"
+    left:
+      type: "cylinder"
+      center: [0.0, 0.763, 0.0]
+      radius: 0.58
+      height: 0.05
+    right:
+      type: "cylinder"
+      center: [0.0, 0.763, 0.0]
+      radius: 0.045
+      height: 0.64
 
   # ─────────────────────────────────────────────────────────────────────────
   #  COPPA — CSG: (Sfera_esterna \ Sfera_interna) \ Box_clip
