@@ -134,16 +134,21 @@ materials:
     coat_roughness: 0.10
 
   # ── Cristallo al piombo ────────────────────────────────────────────────
-  #    Disney con IOR 1.65 (lead crystal: PbO > 24%).
+  #    Disney con IOR 1.70 (lead crystal alto-PbO).
+  #    transmission_color + transmission_depth attivano Beer-Lambert:
+  #    σ_a = −ln(transmission_color) / transmission_depth applicato lungo
+  #    il segmento interno tra hit di front-face e back-face. Dà un velo
+  #    di assorbimento al vetro e definisce un po' di più il bordo
+  #    dell'ombra senza scurire eccessivamente.
   - id: "cristallo"
     type: "disney"
     color: [0.97, 0.97, 1.0]
     roughness: 0.0
     spec_trans: 1.0
-    ior: 1.65
+    ior: 1.70
     specular: 0.90
-#    clearcoat: 0.15
-#    coat_roughness: 0.1
+    transmission_color: [0.98, 0.98, 1.0]
+    transmission_depth: 0.05
 
   # ── Vino rosso ─────────────────────────────────────────────────────────
   #    Disney con IOR 1.345 (acqua + alcol) e tint rosso scuro.
