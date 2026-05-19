@@ -274,15 +274,15 @@ entities:
   #    Box livello: Box superiore sottratto (scale: [4, 2.6, 4], translate: Y=3.40)
   # ─────────────────────────────────────────────────────────────────────────
 
-  - name: "vino"
-    type: "csg"
-    operation: "subtraction"
-    material: "vino_rosso"
-    left:
-      type: "sphere"
-      center: [0.0, 2.16, 0.0]
-      radius: 0.75
-    right:
-      type: "box"
-      scale: [4, 2.60, 4]
-      translate: [0.0, 3.40, 0.0]
+  # - name: "vino"
+  #   type: "csg"
+  #   operation: "subtraction"
+  #   material: "vino_rosso"
+  #   left:
+  #     type: "sphere"
+  #     center: [0.0, 2.16, 0.0]
+  #     radius: 0.75
+  #   right:
+  #     type: "box"
+  #     scale: [4, 2.60, 4]
+  #     translate: [0.0, 3.40, 0.0]
