@@ -168,11 +168,17 @@ class Program
             return;
         }
 
-        // File existence check
+        // File existence check — accept the path as-is, or append .yaml/.yml
+        // when the user omitted the extension (e.g. `-i scenes/chess`).
         if (!File.Exists(inputPath))
         {
-            Console.WriteLine($"Error: Scene file not found: {inputPath}");
-            return;
+            if (File.Exists(inputPath + ".yaml"))     inputPath += ".yaml";
+            else if (File.Exists(inputPath + ".yml")) inputPath += ".yml";
+            else
+            {
+                Console.WriteLine($"Error: Scene file not found: {inputPath}");
+                return;
+            }
         }
 
         // --list-cameras: print available cameras and exit
@@ -270,7 +276,7 @@ class Program
         Console.WriteLine("  dotnet run --project src/RayTracer/RayTracer.csproj -- [options]");
         Console.WriteLine();
         Console.WriteLine("Options:");
-        Console.WriteLine("  -i, --input <path>           Scene YAML file (required)");
+        Console.WriteLine("  -i, --input <path>           Scene YAML file (required; .yaml/.yml extension is optional)");
         Console.WriteLine("  -o, --output <path>          Output image (default: renders/render-<scene>.png)");
         Console.WriteLine("  -w, --width <px>             Image width  (default: 1200)");
         Console.WriteLine("  -H, --height <px>            Image height (default: 800)");
@@ -291,16 +297,17 @@ class Program
         Console.WriteLine("  -h, --help                   Show this help");
         Console.WriteLine();
         Console.WriteLine("Examples:");
+        Console.WriteLine("  (the .yaml extension on -i is optional: 'scenes/chess' resolves to 'scenes/chess.yaml')");
         Console.WriteLine("  from the root of the project: ");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess.yaml -o render.png -w 1920 -H 1080 -s 128");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess.yaml --list-cameras");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess.yaml -c top -o top.png");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess.yaml -c 2 -o cam2.png");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess -o render.png -w 1920 -H 1080 -s 128");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess --list-cameras");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess -c top -o top.png");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess -c 2 -o cam2.png");
         Console.WriteLine("  from the bin/Debug/net10.0 folder: ");
-        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess.yaml -o render.png -w 1920 -H 1080 -s 128");
-        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess.yaml --list-cameras");
-        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess.yaml -c top -o top.png");
-        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess.yaml -c 2 -o cam2.png");
+        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess -o render.png -w 1920 -H 1080 -s 128");
+        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess --list-cameras");
+        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess -c top -o top.png");
+        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess -c 2 -o cam2.png");
     }
 
     /// <summary>

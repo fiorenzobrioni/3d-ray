@@ -284,6 +284,9 @@ dotnet run ... -- -i scene.yaml --list-cameras      # Elenca le disponibili
 dotnet run ... -- -i scene.yaml -c top -o top.png   # Per nome
 dotnet run ... -- -i scene.yaml -c 1 -o cam1.png    # Per indice (base 0)
 ```
+> L'estensione `.yaml` su `-i` è **opzionale**: se il path indicato non
+> esiste così com'è, il loader prova ad aggiungere `.yaml` e poi `.yml`
+> (per esempio `-i scene` risolve a `scene.yaml`).
 
 **⚠️ Profondità di Campo:** Quando `aperture > 0`, imposta `focal_dist` (o `focal_pos`) con la distanza / il punto effettivo del soggetto principale. Il default `focal_dist: 1.0` creerà una sfocatura estrema non voluta.
 

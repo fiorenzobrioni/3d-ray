@@ -158,13 +158,15 @@ dotnet build src/RayTracer/RayTracer.csproj -c Release
 
 Render di prova (profilo Standard):
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 256 -d 6 -o renders/render-draft.png -w 480 -H 270
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -s 256 -d 6 -o renders/render-draft.png -w 480 -H 270
 ```
 
 Render finale Full HD (profilo Final):
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton.yaml -s 1024 -d 8 -S 4 -o renders/render-final.png -w 1920 -H 1080
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -s 1024 -d 8 -S 4 -o renders/render-final.png -w 1920 -H 1080
 ```
+
+> **Nota — estensione `.yaml` opzionale:** il flag `-i` accetta sia il percorso completo (`scenes/pendolo-newton.yaml`) sia la versione senza estensione (`scenes/pendolo-newton`). Quando l'estensione è omessa, il loader prova ad aggiungere automaticamente `.yaml` e poi `.yml`. Gli esempi in questo README usano la forma compatta senza estensione.
 
 > Per i profili completi (Preview / Standard / Final), i tip su `-d`, `-s`, `-S`, `-C` e la compensazione fotografica `--exposure` consulta la guida [Profili di Rendering](./docs/reference/profili-di-rendering.md) ([English version](./docs/reference/rendering-profiles.md)).
 
@@ -263,7 +265,7 @@ Output: `scenes/libraries/terrain/<stem>-height.png` (heightmap PNG-16)
 
 | Parametro | Alias | Default | Descrizione |
 |-----------|-------|---------|-------------|
-| `--input` | `-i` | — (**obbligatorio**) | Percorso del file YAML della scena. |
+| `--input` | `-i` | — (**obbligatorio**) | Percorso del file YAML della scena. L'estensione `.yaml` (o `.yml`) è **opzionale**: se il path non esiste così com'è, il loader prova ad aggiungerla automaticamente (es. `-i scenes/chess` ⇒ `scenes/chess.yaml`). |
 | `--output` | `-o` | `renders/render-<scena>.png` | File di output. Se omesso, generato dal nome della scena. |
 | `--width` | `-w` | `1200` | Larghezza in pixel. |
 | `--height` | `-H` | `800` | Altezza in pixel. |
@@ -292,31 +294,33 @@ Output: `scenes/libraries/terrain/<stem>-height.png` (heightmap PNG-16)
 
 ### Profilo Preview (composizione, camere, materiali — secondi)
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o preview.png -w 400 -H 267 -s 64 -d 4 -S 1
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -o preview.png -w 400 -H 267 -s 64 -d 4 -S 1
 ```
 
 ### Profilo Standard (CI/CD, review, log — minuti)
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o draft.png -w 800 -H 533 -s 256 -d 6
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -o draft.png -w 800 -H 533 -s 256 -d 6
 ```
 
 ### Profilo Final (portfolio, copertina README — Full HD)
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o final.png -w 1920 -H 1080 -s 1024 -d 8 -S 4
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -o final.png -w 1920 -H 1080 -s 1024 -d 8 -S 4
 ```
 
 ### Output in JPEG
 Il formato viene rilevato automaticamente dall'estensione:
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -o render.jpg -s 32
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -o render.jpg -s 32
 ```
 
 ### Multi-Camera
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml --list-cameras
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -c top -o top.png
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess.yaml -c 2 -o cam2.png
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess --list-cameras
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -c top -o top.png
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -c 2 -o cam2.png
 ```
+
+> **Nota:** in tutti questi esempi `-i scenes/chess` equivale a `-i scenes/chess.yaml` — l'estensione `.yaml` (o `.yml`) è opzionale e viene aggiunta automaticamente dal loader se il file non viene trovato così com'è.
 
 ---
 

@@ -272,6 +272,9 @@ dotnet run ... -- -i scene.yaml --list-cameras      # List available
 dotnet run ... -- -i scene.yaml -c top -o top.png   # By name
 dotnet run ... -- -i scene.yaml -c 1 -o cam1.png    # By index (0-based)
 ```
+> The `.yaml` extension on `-i` is **optional**: when the file is not found
+> as given, the loader retries with `.yaml` then `.yml` appended (e.g.
+> `-i scene` resolves to `scene.yaml`).
 **⚠️ Depth of Field:** When `aperture > 0`, set `focal_dist` (or `focal_pos`) to the actual distance / world-space point of your main subject. Default `focal_dist: 1.0` will create unintended extreme blur.
 
 #### **`focal_pos` — focus on a point (Arnold/Cycles "Focus Object")**

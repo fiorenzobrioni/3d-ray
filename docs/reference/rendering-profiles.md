@@ -26,6 +26,11 @@ RayTracer -i my-scene.yaml -w 800 -H 450 -s 256 -d 6
 RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 ```
 
+> The `.yaml` extension on `-i` is **optional**: if the path does not
+> exist as given, the loader retries with `.yaml` and then `.yml`
+> appended — `RayTracer -i my-scene ...` is equivalent to the commands
+> above.
+
 ---
 
 ### 2. **DEFAULTS**

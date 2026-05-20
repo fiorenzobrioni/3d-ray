@@ -47,6 +47,11 @@ Render it:
 RayTracer -i hello.yaml -w 800 -H 450 -s 16
 ```
 
+> The `.yaml` extension on `-i` is **optional**: `-i hello` is treated
+> the same as `-i hello.yaml`. If the path is not found as given, the
+> loader retries with `.yaml` and then `.yml` appended. Examples in
+> this tutorial keep the explicit extension for clarity.
+
 You should see a white sphere floating against a dark background. Let us
 walk through every section.
 
