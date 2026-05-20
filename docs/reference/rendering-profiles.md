@@ -33,6 +33,54 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 
 ---
 
+### 1a. **THE `--quality` / `-q` PRESETS**
+
+If you don't want to write `-w -H -s -d -S` by hand every time, the
+`--quality` (alias `-q`) flag bundles all five into a single named
+preset. The matrix is **3 quality tiers × 2 resolutions + 1 4K showcase**:
+
+| `-q` value | Resolution | `-s` | grid | `-d` | `-S` | Typical use |
+|---|---|---|---|---|---|---|
+| `draft-small`  | 960×540   | 16   | 4×4   | 4 | 1 | Super-fast composition / camera placement |
+| `draft`        | 1920×1080 | 16   | 4×4   | 4 | 1 | Same speed, Full HD framing |
+| `medium-small` | 960×540   | 128  | ~11×11| 6 | 1 | Material/lighting iteration |
+| `medium`       | 1920×1080 | 128  | ~11×11| 6 | 1 | CI/CD, review render |
+| `final-small`  | 960×540   | 1024 | 32×32 | 8 | 4 | Showcase thumbnail / contact-sheet |
+| `final`        | 1920×1080 | 1024 | 32×32 | 8 | 4 | Portfolio, README cover |
+| `ultra`        | 3840×2160 | 1024 | 32×32 | 8 | 4 | 4K showcase |
+
+The `*-small` variants are **exactly half resolution** on each axis
+(960×540 = ¼ of the pixels of 1920×1080), so they cost roughly ¼ of the
+matching full-HD preset and stay perfectly readable on screen.
+
+**Any explicit flag still wins.** The preset only fills the values you
+didn't pass: `-q final -d 16` runs the final preset but bumps depth to
+16 (e.g. for a stacked-glass scene); `-q medium -w 640 -H 360` shrinks
+the medium preset without touching its sampling settings.
+
+```bash
+# Quick composition check, seconds
+RayTracer -i my-scene -q draft-small
+
+# CI/review render, Full HD
+RayTracer -i my-scene -q medium
+
+# Portfolio render, Full HD
+RayTracer -i my-scene -q final
+
+# 4K showcase
+RayTracer -i my-scene -q ultra
+
+# Final preset + custom override (depth bumped for stacked glass)
+RayTracer -i my-scene -q final -d 16
+```
+
+> The preset names mirror the Preview/Standard/Final ladder used by Arnold,
+> Cycles and RenderMan, with `-small` doing the same job as Arnold's
+> "Region render at half res" or Cycles' viewport preview.
+
+---
+
 ### 2. **DEFAULTS**
 
 | Parameter | Default | Source |

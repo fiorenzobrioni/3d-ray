@@ -40,6 +40,21 @@ class Program
             outputPath = Path.Combine("renders", "render.png");
         }
 
+        // Quality preset (industry-style draft/medium/final × small/full + ultra 4K).
+        // Resolved before the per-flag parsing so individual flags (`-s`, `-d`,
+        // `-w`, `-H`, `-S`) can override any of the preset's values.
+        string? qualityArg = GetArg(args, "--quality", "-q");
+        QualityPreset? quality = null;
+        if (qualityArg != null)
+        {
+            quality = QualityPreset.Parse(qualityArg);
+            if (quality == null)
+            {
+                Console.WriteLine($"Error: Unknown --quality '{qualityArg}'. Valid: {QualityPreset.NamesCsv}.");
+                return;
+            }
+        }
+
         bool wParsed = int.TryParse(GetArg(args, "--width",   "-w"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var width);
         bool hParsed = int.TryParse(GetArg(args, "--height",  "-H"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var height);
         bool sParsed = int.TryParse(GetArg(args, "--samples", "-s"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var samples);
@@ -188,11 +203,14 @@ class Program
             return;
         }
 
-        // Default values and validation
-        if (!wParsed || width  <= 0) width   = 1200;
-        if (!hParsed || height <= 0) height  = 800;
-        if (!sParsed || samples <= 0) samples = 16;
-        if (!dParsed || depth  <= 0) depth   = 8;
+        // Default values and validation. A quality preset (if any) supplies the
+        // baseline for every value the user did NOT override with an explicit flag.
+        if (!wParsed || width  <= 0) width   = quality?.Width   ?? 1200;
+        if (!hParsed || height <= 0) height  = quality?.Height  ?? 800;
+        if (!sParsed || samples <= 0) samples = quality?.Samples ?? 16;
+        if (!dParsed || depth  <= 0) depth   = quality?.Depth   ?? 8;
+        if (!shadowSamplesOverride.HasValue && quality != null)
+            shadowSamplesOverride = quality.ShadowSamples;
 
         Console.WriteLine("╔═══════════════════════════════════════════╗");
         Console.WriteLine("║         RayTracer .NET 10 Engine          ║");
@@ -200,6 +218,8 @@ class Program
         Console.WriteLine();
         Console.WriteLine($"  Scene:       {inputPath}");
         Console.WriteLine($"  Output:      {outputPath}");
+        if (quality != null)
+            Console.WriteLine($"  Quality:     {quality.Name}");
         Console.WriteLine($"  Resolution:  {width} \u00d7 {height}");
         Console.WriteLine($"  Samples/px:  {samples}");
         Console.WriteLine($"  Max depth:   {depth}");
@@ -278,6 +298,10 @@ class Program
         Console.WriteLine("Options:");
         Console.WriteLine("  -i, --input <path>           Scene YAML file (required; .yaml/.yml extension is optional)");
         Console.WriteLine("  -o, --output <path>          Output image (default: renders/render-<scene>.png)");
+        Console.WriteLine("  -q, --quality <preset>       Render-quality preset that fills -w/-H/-s/-d/-S in one shot.");
+        Console.WriteLine("                                Any explicit flag below wins over the preset's value.");
+        Console.WriteLine("                                Presets: draft-small, draft, medium-small, medium,");
+        Console.WriteLine("                                          final-small, final, ultra (4K).");
         Console.WriteLine("  -w, --width <px>             Image width  (default: 1200)");
         Console.WriteLine("  -H, --height <px>            Image height (default: 800)");
         Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16, see rendering profiles)");
@@ -299,15 +323,18 @@ class Program
         Console.WriteLine("Examples:");
         Console.WriteLine("  (the .yaml extension on -i is optional: 'scenes/chess' resolves to 'scenes/chess.yaml')");
         Console.WriteLine("  from the root of the project: ");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess -q draft-small             # super-fast 960×540 composition check");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess -q medium                  # 1920×1080 review");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess -q final -o final.png     # 1920×1080 portfolio");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess -q ultra -o cover-4k.png  # 3840×2160 showcase");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess -q final -d 16            # final preset, but bump depth to 16");
         Console.WriteLine("  dotnet run ... -- -i scenes/chess -o render.png -w 1920 -H 1080 -s 128");
         Console.WriteLine("  dotnet run ... -- -i scenes/chess --list-cameras");
         Console.WriteLine("  dotnet run ... -- -i scenes/chess -c top -o top.png");
-        Console.WriteLine("  dotnet run ... -- -i scenes/chess -c 2 -o cam2.png");
         Console.WriteLine("  from the bin/Debug/net10.0 folder: ");
+        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess -q medium");
         Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess -o render.png -w 1920 -H 1080 -s 128");
         Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess --list-cameras");
-        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess -c top -o top.png");
-        Console.WriteLine("  dotnet RayTracer.dll -i scenes/chess -c 2 -o cam2.png");
     }
 
     /// <summary>
@@ -384,5 +411,52 @@ class Program
                 return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// CLI quality preset (`--quality` / `-q`). Each preset fills the five
+    /// quality knobs <c>-w</c>, <c>-H</c>, <c>-s</c>, <c>-d</c>, <c>-S</c> at
+    /// once; any of those flags passed explicitly on the command line wins.
+    /// Tiers follow the Preview/Standard/Final convention shared by Arnold,
+    /// Cycles and RenderMan, with `-small` variants at half resolution and
+    /// an `ultra` 4K showcase tier. See `docs/reference/rendering-profiles.md`.
+    /// </summary>
+    sealed class QualityPreset
+    {
+        public string Name { get; }
+        public int Width { get; }
+        public int Height { get; }
+        public int Samples { get; }
+        public int Depth { get; }
+        public int ShadowSamples { get; }
+
+        private QualityPreset(string name, int w, int h, int s, int d, int ss)
+        {
+            Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
+        }
+
+        public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 4, 1);
+        public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 4, 1);
+        public static readonly QualityPreset MediumSmall = new("medium-small", 960, 540,   128, 6, 1);
+        public static readonly QualityPreset Medium      = new("medium",      1920, 1080,  128, 6, 1);
+        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 8, 4);
+        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4);
+        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160, 1024, 8, 4);
+
+        public const string NamesCsv =
+            "draft-small, draft, medium-small, medium, final-small, final, ultra";
+
+        public static QualityPreset? Parse(string value) =>
+            value.Trim().ToLowerInvariant() switch
+            {
+                "draft-small"  => DraftSmall,
+                "draft"        => Draft,
+                "medium-small" => MediumSmall,
+                "medium"       => Medium,
+                "final-small"  => FinalSmall,
+                "final"        => Final,
+                "ultra"        => Ultra,
+                _              => null,
+            };
     }
 }

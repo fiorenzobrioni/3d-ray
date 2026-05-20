@@ -156,12 +156,22 @@ dotnet build src/RayTracer/RayTracer.csproj -c Release
 
 ### Esecuzione
 
-Render di prova (profilo Standard):
+Render di prova rapido (preset `draft-small`, 960×540):
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -s 256 -d 6 -o renders/render-draft.png -w 480 -H 270
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -q draft-small -o renders/render-draft.png
 ```
 
-Render finale Full HD (profilo Final):
+Render finale Full HD (preset `final`, 1920×1080, qualità portfolio):
+```bash
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -q final -o renders/render-final.png
+```
+
+Render finale 4K (preset `ultra`, 3840×2160):
+```bash
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -q ultra -o renders/render-4k.png
+```
+
+Render classico con parametri espliciti — il vecchio modo continua a funzionare e ogni flag esplicito vince comunque sul preset (es. `-q final -d 16` per scene con vetri impilati):
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -s 1024 -d 8 -S 4 -o renders/render-final.png -w 1920 -H 1080
 ```
@@ -267,6 +277,7 @@ Output: `scenes/libraries/terrain/<stem>-height.png` (heightmap PNG-16)
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | — (**obbligatorio**) | Percorso del file YAML della scena. L'estensione `.yaml` (o `.yml`) è **opzionale**: se il path non esiste così com'è, il loader prova ad aggiungerla automaticamente (es. `-i scenes/chess` ⇒ `scenes/chess.yaml`). |
 | `--output` | `-o` | `renders/render-<scena>.png` | File di output. Se omesso, generato dal nome della scena. |
+| `--quality` | `-q` | — | Preset di qualità che riempie in un colpo `-w -H -s -d -S`. Valori: `draft-small`, `draft`, `medium-small`, `medium`, `final-small`, `final`, `ultra`. **Qualunque flag esplicito vince sul preset** (es. `-q final -d 16` per scene con vetri impilati). Vedi i [Profili di Rendering](./docs/reference/profili-di-rendering.md). |
 | `--width` | `-w` | `1200` | Larghezza in pixel. |
 | `--height` | `-H` | `800` | Altezza in pixel. |
 | `--samples` | `-s` | `16` | Campioni per pixel. Con il sampler Sobol (default) viene usato il conteggio esatto; con `--sampler prng` viene arrotondato al quadrato perfetto superiore (`√N × √N`). |
@@ -292,32 +303,53 @@ Output: `scenes/libraries/terrain/<stem>-height.png` (heightmap PNG-16)
 
 ## 💡 Esempi Pratici
 
-### Profilo Preview (composizione, camere, materiali — secondi)
+### Preset `draft-small` (composizione, camere, materiali — secondi, 960×540)
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -o preview.png -w 400 -H 267 -s 64 -d 4 -S 1
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q draft-small -o preview.png
 ```
 
-### Profilo Standard (CI/CD, review, log — minuti)
+### Preset `medium` (CI/CD, review, log — minuti, 1920×1080)
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -o draft.png -w 800 -H 533 -s 256 -d 6
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q medium -o draft.png
 ```
 
-### Profilo Final (portfolio, copertina README — Full HD)
+### Preset `final` (portfolio, copertina README — Full HD)
 ```bash
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final -o final.png
+```
+
+### Preset `ultra` (4K showcase)
+```bash
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q ultra -o cover-4k.png
+```
+
+### Preset + override (il flag esplicito vince)
+Lancia il preset `final` ma alza la depth a 16 per una scena con vetri impilati:
+```bash
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final -d 16 -o glass-final.png
+```
+
+### Parametri classici (senza preset)
+Tutti i flag puoi continuare a passarli a mano: utile per profili custom o per regression test che non devono dipendere dai preset.
+```bash
+# Profilo Final ricreato a mano
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -o final.png -w 1920 -H 1080 -s 1024 -d 8 -S 4
+
+# Profilo Standard tile orizzontale 800×533
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -o draft.png -w 800 -H 533 -s 256 -d 6
 ```
 
 ### Output in JPEG
 Il formato viene rilevato automaticamente dall'estensione:
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -o render.jpg -s 32
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q medium -o render.jpg
 ```
 
 ### Multi-Camera
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess --list-cameras
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -c top -o top.png
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -c 2 -o cam2.png
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final -c top -o top.png
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final -c 2 -o cam2.png
 ```
 
 > **Nota:** in tutti questi esempi `-i scenes/chess` equivale a `-i scenes/chess.yaml` — l'estensione `.yaml` (o `.yml`) è opzionale e viene aggiunta automaticamente dal loader se il file non viene trovato così com'è.

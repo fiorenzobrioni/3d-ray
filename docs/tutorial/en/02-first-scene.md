@@ -407,23 +407,26 @@ entities:
 
 ### Rendering
 
-Start with a quick preview to check composition:
+The fastest way is to pick a **quality preset** with `-q`:
 
 ```
-RayTracer -i three-spheres.yaml -w 400 -H 225 -s 64 -d 4 -S 1
+RayTracer -i three-spheres.yaml -q draft-small   # 960×540, composition check
+RayTracer -i three-spheres.yaml -q medium        # 1920×1080, materials and lighting review
+RayTracer -i three-spheres.yaml -q final         # 1920×1080, portfolio quality
 ```
 
-Then a draft to check materials and lighting (Standard profile):
+Each preset fills `-w -H -s -d -S` in one go. Any flag you pass
+explicitly still wins, so `-q final -d 16` is a final-quality render
+with bumped depth (useful e.g. for stacked-glass scenes).
 
-```
-RayTracer -i three-spheres.yaml -w 800 -H 450 -s 256 -d 6
-```
-
-And finally a clean render (Final profile):
+If you prefer to control every knob by hand (the "classic" form),
+this is exactly what the `final` preset expands to:
 
 ```
 RayTracer -i three-spheres.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 ```
+
+See [`docs/reference/rendering-profiles.md`](../../reference/rendering-profiles.md) for the full preset table and per-parameter explanation.
 
 ### What You Should See
 
