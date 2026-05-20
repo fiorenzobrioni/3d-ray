@@ -32,6 +32,57 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 
 ---
 
+### 1a. **PRESET `--quality` / `-q`**
+
+Se non vuoi riscrivere `-w -H -s -d -S` ogni volta, il flag
+`--quality` (alias `-q`) impacchetta tutti e cinque i parametri in un
+preset con nome. La matrice è **3 livelli di qualità × 2 risoluzioni + 1
+preset 4K showcase**:
+
+| `-q` | Risoluzione | `-s` | griglia | `-d` | `-S` | Uso tipico |
+|---|---|---|---|---|---|---|
+| `draft-small`  | 960×540   | 16   | 4×4   | 4 | 1 | Composizione e camere super-veloce |
+| `draft`        | 1920×1080 | 16   | 4×4   | 4 | 1 | Stessa velocità, framing Full HD |
+| `medium-small` | 960×540   | 128  | ~11×11| 6 | 1 | Iterazione materiali e luci |
+| `medium`       | 1920×1080 | 128  | ~11×11| 6 | 1 | CI/CD, render di review |
+| `final-small`  | 960×540   | 1024 | 32×32 | 8 | 4 | Thumbnail showcase / contact-sheet |
+| `final`        | 1920×1080 | 1024 | 32×32 | 8 | 4 | Portfolio, copertina README |
+| `ultra`        | 3840×2160 | 1024 | 32×32 | 8 | 4 | Showcase 4K |
+
+Le varianti `*-small` sono **esattamente metà risoluzione** su ogni
+asse (960×540 = ¼ dei pixel di 1920×1080), quindi costano circa ¼ del
+preset full-HD corrispondente restando leggibili a schermo.
+
+**Qualunque flag esplicito vince.** Il preset compila solo i valori
+che non hai passato manualmente: `-q final -d 16` lancia il preset
+final ma porta la depth a 16 (utile per scene con vetri impilati);
+`-q medium -w 640 -H 360` rimpicciolisce il preset medium senza
+toccarne il sampling.
+
+```bash
+# Controllo composizione veloce, secondi
+RayTracer -i my-scene -q draft-small
+
+# Render di review, Full HD
+RayTracer -i my-scene -q medium
+
+# Portfolio, Full HD
+RayTracer -i my-scene -q final
+
+# Showcase 4K
+RayTracer -i my-scene -q ultra
+
+# Preset final + override custom (depth alzata per vetri impilati)
+RayTracer -i my-scene -q final -d 16
+```
+
+> I nomi dei preset rispecchiano la scala Preview/Standard/Final usata
+> da Arnold, Cycles e RenderMan; le varianti `-small` fanno lo stesso
+> lavoro del "Region render at half res" di Arnold o del viewport
+> preview di Cycles.
+
+---
+
 ### 2. **VALORI DI DEFAULT**
 
 | Parametro | Default | Origine |
