@@ -414,7 +414,7 @@ finials** — all from a single primitive, no modifier stack required.
 ## 12.7 A Complete Scene: Showcase of the Three Modes
 
 The repository ships a reference scene at
-`scenes/showcases/extrusion-showcase.yaml` that puts all three modes
+`scenes/showcases/primitive-extrusion.yaml` that puts all three modes
 on the same stage. Here is a distilled version you can paste into a
 new file:
 
@@ -546,7 +546,7 @@ Render it:
 
 ```
 dotnet run --project src/RayTracer -c Release -- \
-  -i scenes/showcases/extrusion-showcase.yaml -o renders/extrusion.png \
+  -i scenes/showcases/primitive-extrusion.yaml -o renders/extrusion.png \
   -w 1280 -H 720 -s 256 -d 8
 ```
 

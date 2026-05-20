@@ -641,7 +641,7 @@ texture:
 
 The studio-quality knobs interact non-trivially with the BSDF and the
 lighting setup. The recipes below come from the
-`marble-wood-studio-showcase.yaml` reference scene; copy the matching
+`library-marble-wood.yaml` reference scene; copy the matching
 snippet and tweak the colour ramp to ship a credible material in minutes.
 
 > **Lighting checklist before tuning a marble.** A polished marble at
@@ -1162,9 +1162,9 @@ material's surface shading without the geometric displacement.
 > Adaptive subdivision keeps the cost proportional to the on-screen size:
 > background spheres stay coarse, foreground ones refine automatically.
 > Use the fixed-iteration form (`subdivision_iterations: N`) only for
-> deterministic CI / regression renders. All `*-showcase.yaml` files
-> demonstrating a material library use this pattern (see e.g.
-> `concretes-showcase.yaml`, `leathers-showcase.yaml`, `stones-…`).
+> deterministic CI / regression renders. All `scenes/showcases/library-*.yaml`
+> files demonstrating a material library use this pattern (see e.g.
+> `library-concretes.yaml`, `library-leathers.yaml`, `stones-…`).
 
 **Composition order.** When all three perturbations are present the
 engine combines them in the order Arnold/Cycles use:
@@ -1213,10 +1213,10 @@ factor.
 ```
 
 The showcase scenes
-`scenes/showcases/scalar-displacement-showcase.yaml`,
-`vector-displacement-showcase.yaml`,
-`bump-displacement-combo-showcase.yaml`, and
-`material-displacement-mix-showcase.yaml` cover every authoring path.
+`scenes/showcases/texture-displacement-scalar.yaml`,
+`texture-displacement-vector.yaml`,
+`texture-displacement-combo.yaml`, and
+`texture-displacement-material-mix.yaml` cover every authoring path.
 
 #### **Per-Entity Seed:**
 ```yaml

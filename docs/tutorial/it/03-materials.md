@@ -532,7 +532,7 @@ corrente (hybrid), così le quote alte raccolgono più rugosità e le valli
 restano lisce. `H` (fractal increment, default 1.0) controlla la velocità
 di decadimento delle alta-frequenza; H ≈ 0.25 produce montagne rugose,
 H ≥ 1 colline lisce. `offset` (default 0.7) è il bias additivo per ottava,
-il "sea level". Vedi `scenes/showcases/musgrave-multifractal-showcase.yaml`
+il "sea level". Vedi `scenes/showcases/texture-musgrave-multifractal.yaml`
 per il confronto a quattro pannelli fBm / hetero / hybrid / alpine.
 
 ### Marble (Marmo)
@@ -590,7 +590,7 @@ texture:
     - { position: 1.0, color: [0.90, 0.92, 0.96], interp: "linear"     }  # undertone freddo
 ```
 
-Vedi `scenes/showcases/marble-wood-studio-showcase.yaml` per il
+Vedi `scenes/showcases/library-marble-wood.yaml` per il
 confronto Carrara / Calacatta / Arabescato.
 
 ### Wood (Legno)
@@ -668,7 +668,7 @@ texture:
     - { position: 1.00, color: [0.96, 0.86, 0.65], interp: "linear"     }  # sapwood
 ```
 
-Vedi `scenes/showcases/marble-wood-studio-showcase.yaml` per il
+Vedi `scenes/showcases/library-marble-wood.yaml` per il
 confronto a sei sfere: marmi Carrara / Calacatta / Arabescato + legni
 rovere quartato / curly maple / knotty pine.
 
@@ -693,7 +693,7 @@ l'illuminazione che non va. **Un marmo lucido a `roughness < 0.2` è
 sostanzialmente uno specchio**, e su un cielo gradient senza dettaglio
 prende il colore del cielo invece di lasciar leggere la texture diffusa.
 
-Il backdrop studio usato da `marble-wood-studio-showcase.yaml`:
+Il backdrop studio usato da `library-marble-wood.yaml`:
 
 ```yaml
 world:
@@ -985,7 +985,7 @@ sparpagliamento totale.
 > poro-chiuso. `smoothness = 0` (default) è bit-identica al comportamento
 > legacy; gli output `cell` / `random` sono volutamente immuni
 > (lookup per-cella discreto).
-> Vedi `scenes/showcases/smooth-voronoi-showcase.yaml` per il confronto
+> Vedi `scenes/showcases/texture-voronoi-smooth.yaml` per il confronto
 > a tre sfere hard / 0.3 / 0.7 e la parità con Cycles "Smooth F1".
 
 > **Output estesi (`f3`, `f4`, `f3_minus_f1`, `position`).** Questi quattro
@@ -995,7 +995,7 @@ sparpagliamento totale.
 > min (smoothness viene intenzionalmente ignorato, stessa convenzione di
 > Cycles per i canali di topologia discreta) e `position` bypassa anche
 > `color_ramp:` perché è un output identity vettoriale, non scalare. Vedi
-> `scenes/showcases/voronoi-extended-outputs-showcase.yaml` per il
+> `scenes/showcases/texture-voronoi-extended-outputs.yaml` per il
 > confronto a 6 sfere fianco a fianco.
 
 > **`cell` vs `random` — scegliere il canale per-cella giusto.** Gli
@@ -1086,7 +1086,7 @@ RenderMan e al node `utility` di Arnold. Due usi principali:
   segue l'oggetto — utile per laser-grid, polvere world-aligned,
   debug spheres tipo "you-are-here".
 
-Vedi `scenes/showcases/coordinate-texture-showcase.yaml` per il
+Vedi `scenes/showcases/texture-coordinate.yaml` per il
 confronto a 4 sfere fianco a fianco (una per ogni mode).
 
 ### Color Ramp Multi-Stop
@@ -1252,7 +1252,7 @@ Il lobo clearcoat dei materiali `disney` mantiene il proprio
 il coat sta su un substrato stabile, così graffi e orange-peel
 rimangono coerenti.
 
-Vedi `scenes/showcases/bump-map-showcase.yaml` per un confronto
+Vedi `scenes/showcases/texture-bump-map.yaml` per un confronto
 fianco a fianco di bump derivati da `noise`, `marble` e da una texture
 image (concrete) contro un pannello piatto di riferimento.
 
@@ -1451,24 +1451,24 @@ snapshot diff in CI, oppure pre-baking di una mesh da esportare.
   dell'intersezione, dopodiché non c'è più una mesh da spostare). Usa
   invece un OBJ "boolean-baked".
 
-**Tutti i file `*-showcase.yaml` che dimostrano una libreria materiali
-adottano questo pattern.** Guarda `concretes-showcase.yaml`,
-`leathers-showcase.yaml`, `marbles-studio-v2-showcase.yaml` — la fila
+**Tutti i file `scenes/showcases/library-*.yaml` che dimostrano una
+libreria materiali adottano questo pattern.** Guarda `library-concretes.yaml`,
+`library-leathers.yaml`, `library-marbles-v2.yaml` — la fila
 di cinque sfere demo è costruita con icosaedri suddivisi, così ogni
 materiale displaced della libreria mostra il suo vero profilo
 geometrico fianco a fianco con quelli non-displaced.
 
 ### Showcase
 
-- `scenes/showcases/scalar-displacement-showcase.yaml` — pannelli
+- `scenes/showcases/texture-displacement-scalar.yaml` — pannelli
   height-field (Perlin fBm, crepe Voronoi) e un asteroide ridged-fBm.
-- `scenes/showcases/vector-displacement-showcase.yaml` — scalar vs
+- `scenes/showcases/texture-displacement-vector.yaml` — scalar vs
   tangent-space vs object-space affiancati, più un cubo CC×4 con
   ridged-fBm vector displacement.
-- `scenes/showcases/bump-displacement-combo-showcase.yaml` — piatto /
+- `scenes/showcases/texture-displacement-combo.yaml` — piatto /
   solo displacement / displacement + autobump / displacement + autobump
   + bump materiale, a subdivision volutamente moderata.
-- `scenes/showcases/material-displacement-mix-showcase.yaml` — due
+- `scenes/showcases/texture-displacement-material-mix.yaml` — due
   mesh che condividono un material displaced (riuso), un'istanza con
   `displacement_enabled: false` (bypass), e un Mix-displacement che
   vector-blenda Perlin × Voronoi.

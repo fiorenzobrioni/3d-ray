@@ -19,7 +19,7 @@
 #
 #  COMANDO TIPO
 #    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-#      -i scenes/showcases/showcase-mix-metal-rust.yaml \
+#      -i scenes/showcases/material-mix-metal-rust.yaml \
 #      -w 1024 -H 576 -s 256 -d 8 -S 4
 # =============================================================================
 

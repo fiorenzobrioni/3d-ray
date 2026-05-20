@@ -1,0 +1,346 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Weathering Library Showcase — Overlay & Mix Material per invecchiamento
+#
+#  Dimostra la libreria `weathering.yaml` combinata via `type: mix` ad
+#  altre librerie materiali (metalli, cementi, legni). Due file
+#  parallele a quote diverse:
+#
+#    RIGA SUPERIORE  (y=3.3) — invecchiamento PESANTE / industrial decay
+#      x=-4.8  Acciaio + ruggine heavy        → over_rust_heavy
+#      x=-2.4  Cemento + muschio denso        → over_moss_dense
+#      x=  0   Primer + vernice militare      → over_paint_flake_verde_militare
+#      x=+2.4  Ferro + sale marino (heavy)    → over_sale_marino (mask wide)
+#      x=+4.8  Rame + verderame               → over_verderame
+#
+#    RIGA INFERIORE  (y=0.9) — invecchiamento MODERATO / surface aging
+#      x=-4.8  Cromo + ruggine media          → over_rust_medium
+#      x=-2.4  Cemento + muschio              → over_moss_dense (mask sparse)
+#      x=  0   Primer + vernice bianca        → over_paint_flake_bianca
+#      x=+2.4  Quercia + calcare              → over_limescale
+#      x=+4.8  Ferro + sale marino            → over_sale_marino (mask soft)
+#
+#  Ogni mix usa una `mask` procedurale specifica per controllare DOVE
+#  l'overlay si concentra. La maschera è il cuore del mix.
+#
+#  Render consigliato:
+#    Draft:  -w 640  -H 360  -s 64   -d 6  -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 10 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+imports:
+  - { path: "../libraries/materials/weathering.yaml" }
+  - { path: "../libraries/materials/metals.yaml" }
+  - { path: "../libraries/materials/concretes.yaml" }
+  - { path: "../libraries/materials/woods.yaml" }
+
+world:
+  sky:
+    type: "flat"
+    color: [0.04, 0.04, 0.05]
+
+camera:
+  position: [0, 2.4, -12.5]
+  look_at:  [0, 2.0, 0]
+  fov: 52
+
+materials:
+
+  # ── Primer di base condivisi ───────────────────────────────────────
+  - id: "primer_grigio"
+    type: "disney"
+    color: [0.55, 0.53, 0.50]
+    roughness: 0.65
+    specular: 0.35
+
+  - id: "primer_chiaro"
+    type: "disney"
+    color: [0.60, 0.58, 0.55]
+    roughness: 0.70
+    specular: 0.35
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  RIGA SUPERIORE — Heavy industrial decay
+  # ═══════════════════════════════════════════════════════════════════
+
+  # ── Top 1: Acciaio + ruggine heavy ─────────────────────────────────
+  - id: "mix_acciaio_ruggine_heavy"
+    type: "mix"
+    material_a: "dis_acciaio_lucido"
+    material_b: "over_rust_heavy"
+    mask:
+      type: "noise"
+      scale: 2.0
+      noise_type: "ridged"
+      octaves: 6
+      noise_strength: 1.4
+      randomize_offset: true
+
+  # ── Top 2: Cemento + muschio densissimo ────────────────────────────
+  - id: "mix_cemento_muschio_dense"
+    type: "mix"
+    material_a: "dis_cemento_armato_grezzo"
+    material_b: "over_moss_dense"
+    mask:
+      type: "voronoi"
+      scale: 3.5
+      output: "f1"
+      smoothness: 0.3
+      colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
+
+  # ── Top 3: Primer + vernice scrostata militare ─────────────────────
+  - id: "mix_vernice_scrostata_militare"
+    type: "mix"
+    material_a: "primer_grigio"
+    material_b: "over_paint_flake_verde_militare"
+    mask:
+      type: "voronoi"
+      scale: 5.0
+      output: "f2_minus_f1"
+      colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
+
+  # ── Top 4: Ferro + sale marino (heavy) ─────────────────────────────
+  - id: "mix_ferro_sale_marino_heavy"
+    type: "mix"
+    material_a: "dis_ferro_battuto"
+    material_b: "over_sale_marino"
+    mask:
+      type: "noise"
+      scale: 4.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.2
+      distortion: 0.4
+      randomize_offset: true
+
+  # ── Top 5: Rame + verderame ────────────────────────────────────────
+  - id: "mix_rame_verderame"
+    type: "mix"
+    material_a: "dis_rame_lucido"
+    material_b: "over_verderame"
+    mask:
+      type: "noise"
+      scale: 2.5
+      noise_type: "fbm"
+      octaves: 6
+      noise_strength: 1.5
+      distortion: 0.35
+      randomize_offset: true
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  RIGA INFERIORE — Moderate surface aging
+  # ═══════════════════════════════════════════════════════════════════
+
+  # ── Bot 1: Cromo + ruggine media ───────────────────────────────────
+  - id: "mix_cromo_ruggine"
+    type: "mix"
+    material_a: "dis_cromo_specchio"
+    material_b: "over_rust_medium"
+    mask:
+      type: "noise"
+      scale: 2.5
+      noise_type: "ridged"
+      octaves: 6
+      lacunarity: 2.0
+      gain: 0.55
+      noise_strength: 1.2
+      randomize_offset: true
+
+  # ── Bot 2: Cemento + muschio sparso ────────────────────────────────
+  - id: "mix_cemento_muschio"
+    type: "mix"
+    material_a: "dis_cemento_industriale"
+    material_b: "over_moss_dense"
+    mask:
+      type: "voronoi"
+      scale: 3.5
+      output: "f1"
+      smoothness: 0.3
+      randomness: 1.0
+      colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
+
+  # ── Bot 3: Primer + vernice scrostata bianca ───────────────────────
+  - id: "mix_vernice_scrostata"
+    type: "mix"
+    material_a: "primer_chiaro"
+    material_b: "over_paint_flake_bianca"
+    mask:
+      type: "voronoi"
+      scale: 5.0
+      output: "f2_minus_f1"
+      randomness: 1.0
+      colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
+
+  # ── Bot 4: Quercia + calcare ───────────────────────────────────────
+  - id: "mix_legno_calcare"
+    type: "mix"
+    material_a: "dis_quercia_olio"
+    material_b: "over_limescale"
+    mask:
+      type: "noise"
+      scale: 3.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.0
+      distortion: 0.3
+      randomize_offset: true
+
+  # ── Bot 5: Ferro + sale marino (soft) ──────────────────────────────
+  - id: "mix_ferro_sale"
+    type: "mix"
+    material_a: "dis_ferro_battuto"
+    material_b: "over_sale_marino"
+    mask:
+      type: "noise"
+      scale: 4.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.4
+      distortion: 0.4
+      randomize_offset: true
+
+  # ── Ambiente ───────────────────────────────────────────────────────
+  - id: "floor"
+    type: "disney"
+    color: [0.18, 0.16, 0.14]
+    roughness: 0.85
+
+  - id: "backdrop"
+    type: "disney"
+    color: [0.08, 0.07, 0.06]
+    roughness: 0.92
+
+entities:
+
+  - { name: "floor", type: "quad", q: [-14, 0, -3], u: [28, 0, 0], v: [0, 0, 12], material: "floor" }
+  - { name: "wall",  type: "quad", q: [-14, 0,  9], u: [28, 0, 0], v: [0, 9, 0],  material: "backdrop" }
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  RIGA SUPERIORE — y=3.3 (heavy decay)
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: "top_acciaio_rust"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [-4.8, 3.3, 0]
+    seed: 3
+    material: "mix_acciaio_ruggine_heavy"
+  - name: "top_cemento_moss_dense"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [-2.4, 3.3, 0]
+    seed: 11
+    material: "mix_cemento_muschio_dense"
+  - name: "top_vernice_militare"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [0.0, 3.3, 0]
+    seed: 19
+    material: "mix_vernice_scrostata_militare"
+  - name: "top_ferro_sale_heavy"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [2.4, 3.3, 0]
+    seed: 29
+    material: "mix_ferro_sale_marino_heavy"
+  - name: "top_rame_verderame"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [4.8, 3.3, 0]
+    seed: 37
+    material: "mix_rame_verderame"
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  RIGA INFERIORE — y=0.9 (moderate aging)
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: "bot_cromo_rust"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [-4.8, 0.9, 0]
+    seed: 47
+    material: "mix_cromo_ruggine"
+  - name: "bot_cemento_moss"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [-2.4, 0.9, 0]
+    seed: 53
+    material: "mix_cemento_muschio"
+  - name: "bot_vernice_flake"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [0.0, 0.9, 0]
+    seed: 59
+    material: "mix_vernice_scrostata"
+  - name: "bot_legno_lime"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [2.4, 0.9, 0]
+    seed: 67
+    material: "mix_legno_calcare"
+  - name: "bot_ferro_salt"
+    type: "mesh"
+    path: "../models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_pixel_error: 6.0
+    subdivision_max_iterations: 5
+    scale: [0.9, 0.9, 0.9]
+    translate: [4.8, 0.9, 0]
+    seed: 71
+    material: "mix_ferro_sale"
+
+lights:
+
+  # Sole basso caldo da sinistra — outdoor abandoned site.
+  - type: "directional"
+    direction: [-0.55, -0.55, 0.6]
+    color: [1.00, 0.88, 0.68]
+    intensity: 5.5
+    angular_radius: 0.7
+
+  # Fill freddo dall'alto — sky bounce.
+  - type: "point"
+    position: [0, 8, -3]
+    color: [0.82, 0.88, 1.00]
+    intensity: 70
+
+  # Rim caldo basso da dietro — enfatizza i bordi dei due livelli.
+  - type: "point"
+    position: [0, 2, 6]
+    color: [1.0, 0.78, 0.55]
+    intensity: 45

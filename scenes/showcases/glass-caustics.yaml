@@ -1,0 +1,134 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Glass Caustics Showcase — Caustiche e ombre del vetro
+#
+#  Tre oggetti di vetro su un piano avorio, illuminati da un sole basso
+#  con disco angolare stretto: ombre nitide + caustiche concentrate.
+#
+#    x=-2.6  Sfera dielettrica       → "occhio" di caustica focalizzato
+#    x= 0.0  Cubo dielettrico        → striscia di caustica + rifrazione
+#                                       multipla nelle facce
+#    x=+2.6  Coppa cava (CSG)        → caustica anulare interna +
+#                                       proiezione a "anello" sul piano
+#
+#  Sky `flat` molto basso (0.02) per non lavare le caustiche; pavimento
+#  Disney quasi-diffuso ma con un filo di specular per dare brillanza
+#  alle caustiche stesse.
+#
+#  Suggerimenti di rendering:
+#    Preview:  -w 640  -H 360  -s 128 -d 12 -S 2  -C 25
+#    Standard: -w 1280 -H 720  -s 512 -d 14 -S 4  -C 20
+#    Finale:   -w 1920 -H 1080 -s 2048 -d 16 -S 8 -C 20
+#
+#  La `-C 20-25` bassa è essenziale per smorzare le fireflies dei
+#  raggi rifratti che concentrano molta energia su poche superfici.
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "flat"
+    color: [0.02, 0.02, 0.025]
+  ground:
+    type: "infinite_plane"
+    material: "pavimento_avorio"
+    y: 0.0
+
+cameras:
+  # Vista principale: 3/4 dall'alto a vedere le caustiche sul piano
+  - name: "principale"
+    position: [0.0, 2.6, -7.5]
+    look_at:  [0.0, 0.45, 0.0]
+    fov: 38
+
+  # Closeup sulla sfera, per cogliere il "fuoco" della caustica
+  - name: "closeup_sfera"
+    position: [-2.6, 0.9, -3.2]
+    look_at:  [-1.6, 0.15, 0.6]
+    fov: 30
+    aperture: 0.02
+    focal_dist: 3.0
+
+  # Vista laterale rasente: caustiche allungate, ombre nette
+  - name: "laterale"
+    position: [-6.5, 0.55, -1.0]
+    look_at:  [0.0, 0.45, 0.0]
+    fov: 32
+
+materials:
+
+  # Pavimento avorio: lambertian con un filo di specular per esaltare
+  # le caustiche concentrate. Niente checker — distrarrebbe.
+  - id: "pavimento_avorio"
+    type: "disney"
+    color: [0.92, 0.90, 0.84]
+    roughness: 0.55
+    specular: 0.20
+
+  # Vetro classico, IOR 1.5 (vetro comune). Mantenuto neutro per
+  # caustiche bianche pulite.
+  - id: "vetro"
+    type: "dielectric"
+    refraction_index: 1.5
+
+entities:
+
+  # ── Sfera dielettrica ─────────────────────────────────────────────
+  # Focalizza la luce direzionale in un piccolo "occhio" di caustica
+  # appena dietro/sotto la sfera (focale ≈ R · n / (2(n−1)) ≈ R · 1.5).
+  - name: "sfera_vetro"
+    type: "sphere"
+    center: [-2.6, 0.55, 0.0]
+    radius: 0.55
+    material: "vetro"
+
+  # ── Cubo dielettrico ──────────────────────────────────────────────
+  # Le facce piane producono strisce di caustica brillanti dove i
+  # raggi rifratti emergono paralleli, più riflessioni interne sui
+  # bordi.
+  - name: "cubo_vetro"
+    type: "box"
+    scale: [1.0, 1.0, 1.0]
+    rotate: [0, 22, 0]
+    translate: [0.0, 0.5, 0.0]
+    material: "vetro"
+
+  # ── Coppa cava (CSG) ──────────────────────────────────────────────
+  # (Sfera_esterna \ Sfera_interna) \ Box_clip_top → calice aperto in
+  # cima. La parete sottile produce una caustica anulare attorno alla
+  # base e un riflesso brillante sull'interno della coppa.
+  - name: "coppa_vetro"
+    type: "csg"
+    operation: "subtraction"
+    material: "vetro"
+    left:
+      type: "csg"
+      operation: "subtraction"
+      left:
+        type: "sphere"
+        center: [2.6, 0.65, 0.0]
+        radius: 0.65
+      right:
+        type: "sphere"
+        center: [2.6, 0.72, 0.0]
+        radius: 0.60
+    right:
+      type: "box"
+      scale: [2.0, 1.0, 2.0]
+      translate: [2.6, 1.7, 0.0]
+
+lights:
+
+  # Sole basso da sinistra-dietro: disco angolare stretto → ombre
+  # nitide e caustiche concentrate ma non perfettamente puntuali.
+  # angular_radius 0.4° = circa il diametro angolare del sole reale.
+  - type: "directional"
+    direction: [-0.45, -0.55, 0.70]
+    color: [1.00, 0.97, 0.92]
+    intensity: 9.0
+    angular_radius: 0.4
+
+  # Fill freddo molto tenue dall'alto: simula il rimbalzo del cielo,
+  # apre appena le ombre senza diluire le caustiche.
+  - type: "point"
+    position: [0.0, 6.0, -2.0]
+    color: [0.65, 0.75, 1.0]
+    intensity: 8

@@ -667,7 +667,7 @@ texture:
 
 I knob studio-quality interagiscono in modo non banale con il BSDF e
 l'illuminazione. Le ricette seguenti derivano dalla scena di riferimento
-`marble-wood-studio-showcase.yaml`; copia lo snippet e modifica il color
+`library-marble-wood.yaml`; copia lo snippet e modifica il color
 ramp per ottenere un materiale credibile in pochi minuti.
 
 > **Checklist illuminazione prima di tunare un marmo.** Un marmo lucido
@@ -1198,9 +1198,10 @@ deformazione geometrica.
 > a schermo: le sfere lontane restano grossolane, quelle in primo piano
 > si raffinano da sole. Usa la forma a iterazioni fisse
 > (`subdivision_iterations: N`) solo per render CI / regression
-> deterministici. Tutti gli showcase `*-showcase.yaml` che dimostrano una
-> libreria materiali adottano questo pattern (es. `concretes-showcase.yaml`,
-> `leathers-showcase.yaml`, `stones-…`).
+> deterministici. Tutti i file `scenes/showcases/library-*.yaml` che
+> dimostrano una libreria materiali adottano questo pattern
+> (es. `library-concretes.yaml`,
+> `library-leathers.yaml`, `stones-…`).
 
 **Ordine di composizione.** L'engine combina le perturbazioni nello
 stesso ordine di Arnold/Cycles:
@@ -1246,10 +1247,10 @@ child non ha proprio displacement. L'autobump si compone come
 ```
 
 Le scene showcase
-`scenes/showcases/scalar-displacement-showcase.yaml`,
-`vector-displacement-showcase.yaml`,
-`bump-displacement-combo-showcase.yaml` e
-`material-displacement-mix-showcase.yaml` coprono tutti i flussi.
+`scenes/showcases/texture-displacement-scalar.yaml`,
+`texture-displacement-vector.yaml`,
+`texture-displacement-combo.yaml` e
+`texture-displacement-material-mix.yaml` coprono tutti i flussi.
 
 #### **Seed Per-Entity:**
 ```yaml

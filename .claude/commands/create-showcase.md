@@ -141,9 +141,20 @@ entities:
 
 ### 5. Naming e salvataggio
 
-- File: `scenes/showcases/<feature>-showcase.yaml`
-- Se la feature è composta (es. capsule + annulus): `<feat1>-<feat2>-showcase.yaml`
-- Verificare che non esista già un showcase per la stessa feature in `scenes/showcases/`
+- File: `scenes/showcases/<categoria>-<feature>.yaml` (niente suffisso
+  `-showcase`: la cartella già lo indica).
+- Prefissi di categoria usati nel repo:
+  - `material-` — tecniche materiali (Disney, classic, mix, emissive)
+  - `library-` — demo di una libreria materiali (`scenes/libraries/.../*.yaml`)
+  - `texture-` — texture procedurali/immagini, bump, normal, displacement
+  - `primitive-` — primitiva geometrica, mesh, lathe, extrusion, heightfield
+  - `lighting-` — tipi di luce, sky, HDRI
+  - `volumetric-` — mezzi volumetrici (numerati `01–N`)
+  - `glass-` — fenomeni ottici dedicati al vetro
+  - `scene-` — strutture di scena (CSG, group, instancing)
+  - `camera-` — parametri camera (DOF, visibility flags)
+- Se la feature è composta, concatena con `-` (es. `texture-displacement-vector.yaml`).
+- Verificare che non esista già un showcase per la stessa feature in `scenes/showcases/`.
 
 ### 6. Checklist finale
 

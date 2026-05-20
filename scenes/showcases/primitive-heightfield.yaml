@@ -1,0 +1,112 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Primitive Heightfield Showcase — Terreno come primitiva matematica
+#
+#  La primitiva `heightfield` (stile Mitsuba) intercetta i raggi
+#  direttamente contro una griglia altezze, accelerata da un quadtree
+#  min/max mipmap. Sostituisce un terreno mesh con UNA primitiva, senza
+#  tessellazione né BVH-mesh.
+#
+#  La scena mostra DUE varianti fianco a fianco:
+#    LEFT  (x<0)  Terreno PROCEDURALE — Musgrave hetero_terrain.
+#                 La quota viene campionata da una noise texture e
+#                 risolta on-the-fly al primo hit.
+#    RIGHT (x>0)  Terreno HEIGHTMAP  — heightmap PNG 16-bit dalla
+#                 libreria `scenes/libraries/terrains/`, risoluzione
+#                 naturale del PNG.
+#
+#  Riferimenti: `docs/technical/heightfield.md`. Per generare nuovi
+#  template usa `dotnet run --project src/Tools/TerrainGen`.
+#
+#  Suggerimenti di rendering:
+#    Preview:  -w 640  -H 360  -s 64   -d 4  -S 1
+#    Standard: -w 1280 -H 720  -s 256  -d 4  -S 2
+#    Finale:   -w 1920 -H 1080 -s 1024 -d 6  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.22, 0.36, 0.62]
+    horizon_color: [0.82, 0.88, 0.94]
+    ground_color:  [0.18, 0.20, 0.16]
+    sun:
+      direction: [-0.50, -0.75, -0.30]
+      color: [1.00, 0.96, 0.88]
+      intensity: 10.0
+      size: 2.0
+      falloff: 32.0
+
+cameras:
+  - name: "principale"
+    position: [0.0, 38.0, -85.0]
+    look_at:  [0.0, 6.0, 0.0]
+    fov: 52
+
+  - name: "rasente"
+    position: [-55.0, 8.0, -40.0]
+    look_at:  [10.0, 4.0, 5.0]
+    fov: 42
+
+  - name: "zenitale"
+    position: [0.0, 110.0, 0.001]
+    look_at:  [0.0, 0.0, 0.0]
+    fov: 60
+
+lights:
+  - type: "directional"
+    direction: [0.45, -0.70, 0.55]
+    color: [0.95, 0.94, 0.92]
+    intensity: 1.2
+
+materials:
+
+  # Roccia procedurale chiara — per il terreno Musgrave a sinistra.
+  - id: "roccia_chiara"
+    type: "disney"
+    base_color: [0.50, 0.42, 0.34]
+    roughness: 0.92
+
+  # Roccia più scura — terreno heightmap a destra, per leggere meglio
+  # le quote.
+  - id: "roccia_scura"
+    type: "disney"
+    base_color: [0.38, 0.32, 0.26]
+    roughness: 0.92
+
+entities:
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  TERRENO PROCEDURALE (Musgrave hetero_terrain) — lato sinistro
+  # ═══════════════════════════════════════════════════════════════════
+  - name: "terrain_procedural"
+    type: "heightfield"
+    bounds: [-55, -40, -5, 40]
+    max_height: 22
+    height_scale: 22
+    resolution: 512
+    height_texture:
+      type: "noise"
+      noise_type: "hetero_terrain"
+      scale: 0.018
+      octaves: 5
+      lacunarity: 2.0
+      gain: 0.55
+      fractal_increment: 0.35
+      fractal_offset: 0.65
+      distortion: 0.18
+      colors: [[0, 0, 0], [1, 1, 1]]
+    material: "roccia_chiara"
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  TERRENO DA HEIGHTMAP (PNG 16-bit) — lato destro
+  # ═══════════════════════════════════════════════════════════════════
+  - name: "terrain_heightmap"
+    type: "heightfield"
+    bounds: [5, -40, 55, 40]
+    max_height: 18
+    height_scale: 18
+    height_texture:
+      type: "image"
+      path: "../libraries/terrains/heightfield-strata-test-height.png"
+      colors: [[0, 0, 0], [1, 1, 1]]
+    material: "roccia_scura"

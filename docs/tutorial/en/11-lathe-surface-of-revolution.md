@@ -254,7 +254,7 @@ two visible disc faces, the second has none.
 ## 11.6 A Complete Scene: Showcase of the Three Modes
 
 The repository ships a reference scene at
-`scenes/showcases/lathe-showcase.yaml` that puts all three modes on
+`scenes/showcases/primitive-lathe.yaml` that puts all three modes on
 the same stage. Here is a distilled version you can copy into a new
 file:
 
@@ -344,7 +344,7 @@ Render it:
 
 ```
 dotnet run --project src/RayTracer -c Release -- \
-  -i scenes/showcases/lathe-showcase.yaml -o renders/lathe.png \
+  -i scenes/showcases/primitive-lathe.yaml -o renders/lathe.png \
   -w 1280 -H 720 -s 256 -d 8
 ```
 

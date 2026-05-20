@@ -1,0 +1,196 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Primitive Overview Showcase — Le 10 primitive geometriche del motore
+#
+#  Griglia 2×5: tutte le primitive su piedistalli identici con
+#  materiale neutro, così che l'unica variabile sia la FORMA.
+#
+#    Riga anteriore (z=-0.7):
+#      sphere → box → cylinder → cone → torus
+#    Riga posteriore (z=+1.8):
+#      capsule → annulus → disk → quad → triangle
+#
+#  Suggerimenti di rendering:
+#    Preview:  -w 640  -H 360  -s 64   -d 6  -S 1
+#    Standard: -w 1280 -H 720  -s 256  -d 8  -S 2
+#    Finale:   -w 1920 -H 1080 -s 1024 -d 8  -S 4
+#
+#  Per scene con primitive composte (CSG, group, instance), vedi
+#  `scene-csg`, `scene-group`, `scene-instancing`. Per le primitive
+#  costruite da profili 2D vedi `primitive-extrusion` e
+#  `primitive-lathe`. Per mesh esterne vedi `primitive-mesh` e
+#  `primitive-mesh-subdivision`. Per il terreno: `primitive-heightfield`.
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.35, 0.42, 0.55]
+    horizon_color: [0.62, 0.62, 0.65]
+    ground_color:  [0.22, 0.22, 0.22]
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0.0
+
+cameras:
+  - name: "principale"
+    position: [0, 3.0, -10.5]
+    look_at:  [0, 1.0, 0.55]
+    fov: 42
+
+  - name: "zenitale"
+    position: [0, 9.0, 0.55]
+    look_at:  [0, 0, 0.55]
+    fov: 50
+
+  - name: "closeup_front"
+    position: [-1.5, 1.6, -5.0]
+    look_at:  [0, 0.9, -0.7]
+    fov: 32
+    aperture: 0.03
+    focal_dist: 4.6
+
+materials:
+
+  # Pavimento: checker grigio neutro
+  - id: "pavimento"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 0.6
+      colors: [[0.65, 0.65, 0.65], [0.32, 0.32, 0.32]]
+
+  # Piedistalli: marmo bianco neutro
+  - id: "piedistallo"
+    type: "disney"
+    color: [0.86, 0.86, 0.86]
+    roughness: 0.45
+    specular: 0.30
+
+  # Materiale unico per tutte le primitive: ceramica color sabbia.
+  # Roughness alta + leggero specular → la FORMA è leggibile, niente
+  # riflessi che distraggono dalla silhouette.
+  - id: "primitiva"
+    type: "disney"
+    color: [0.78, 0.66, 0.48]
+    roughness: 0.55
+    specular: 0.35
+
+entities:
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  PIEDISTALLI (10, identici)
+  # ═══════════════════════════════════════════════════════════════════
+  - { name: "ped_f1", type: "box", scale: [1.2, 0.4, 1.2], translate: [-5.0, 0.2, -0.7], material: "piedistallo" }
+  - { name: "ped_f2", type: "box", scale: [1.2, 0.4, 1.2], translate: [-2.5, 0.2, -0.7], material: "piedistallo" }
+  - { name: "ped_f3", type: "box", scale: [1.2, 0.4, 1.2], translate: [ 0.0, 0.2, -0.7], material: "piedistallo" }
+  - { name: "ped_f4", type: "box", scale: [1.2, 0.4, 1.2], translate: [ 2.5, 0.2, -0.7], material: "piedistallo" }
+  - { name: "ped_f5", type: "box", scale: [1.2, 0.4, 1.2], translate: [ 5.0, 0.2, -0.7], material: "piedistallo" }
+  - { name: "ped_b1", type: "box", scale: [1.2, 0.4, 1.2], translate: [-5.0, 0.2,  1.8], material: "piedistallo" }
+  - { name: "ped_b2", type: "box", scale: [1.2, 0.4, 1.2], translate: [-2.5, 0.2,  1.8], material: "piedistallo" }
+  - { name: "ped_b3", type: "box", scale: [1.2, 0.4, 1.2], translate: [ 0.0, 0.2,  1.8], material: "piedistallo" }
+  - { name: "ped_b4", type: "box", scale: [1.2, 0.4, 1.2], translate: [ 2.5, 0.2,  1.8], material: "piedistallo" }
+  - { name: "ped_b5", type: "box", scale: [1.2, 0.4, 1.2], translate: [ 5.0, 0.2,  1.8], material: "piedistallo" }
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  RIGA ANTERIORE — sphere · box · cylinder · cone · torus
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: "sphere"
+    type: "sphere"
+    center: [-5.0, 0.95, -0.7]
+    radius: 0.55
+    material: "primitiva"
+
+  - name: "box"
+    type: "box"
+    scale: [0.9, 0.9, 0.9]
+    rotate: [0, 25, 0]
+    translate: [-2.5, 0.85, -0.7]
+    material: "primitiva"
+
+  - name: "cylinder"
+    type: "cylinder"
+    center: [0.0, 0.4, -0.7]
+    radius: 0.45
+    height: 1.0
+    material: "primitiva"
+
+  - name: "cone"
+    type: "cone"
+    base_center: [2.5, 0.4, -0.7]
+    radius: 0.50
+    height: 1.10
+    material: "primitiva"
+
+  - name: "torus"
+    type: "torus"
+    center: [5.0, 0.75, -0.7]
+    major_radius: 0.45
+    minor_radius: 0.16
+    rotate: [70, 0, 0]
+    material: "primitiva"
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  RIGA POSTERIORE — capsule · annulus · disk · quad · triangle
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: "capsule"
+    type: "capsule"
+    point_a: [-5.0, 0.65, 1.8]
+    point_b: [-5.0, 1.55, 1.8]
+    radius: 0.28
+    material: "primitiva"
+
+  - name: "annulus"
+    type: "annulus"
+    center: [-2.5, 0.45, 1.8]
+    normal: [0, 1, 0]
+    inner_radius: 0.22
+    outer_radius: 0.55
+    material: "primitiva"
+
+  - name: "disk"
+    type: "disk"
+    center: [0.0, 0.45, 1.8]
+    normal: [0, 1, 0]
+    radius: 0.55
+    material: "primitiva"
+
+  # Quad orientato in piedi (verticale) per essere leggibile dalla
+  # camera principale — la primitiva è un parallelogramma definito da
+  # un origine e due vettori.
+  - name: "quad"
+    type: "quad"
+    q: [2.0, 0.45, 1.8]
+    u: [1.0, 0.0, 0.0]
+    v: [0.0, 1.0, 0.0]
+    material: "primitiva"
+
+  - name: "triangle"
+    type: "triangle"
+    a: [4.5, 0.45, 1.8]
+    b: [5.5, 0.45, 1.8]
+    c: [5.0, 1.55, 1.8]
+    material: "primitiva"
+
+lights:
+
+  # Key calda 3/4 dall'alto-sinistra
+  - type: "directional"
+    direction: [-0.45, -0.70, 0.40]
+    color: [1.0, 0.95, 0.86]
+    intensity: 4.5
+    angular_radius: 0.5
+
+  # Fill dall'alto-destra fredda
+  - type: "point"
+    position: [4.5, 5.0, -3.0]
+    color: [0.78, 0.85, 1.0]
+    intensity: 80
+
+  # Rim caldo dietro
+  - type: "point"
+    position: [0.0, 2.5, 5.0]
+    color: [1.0, 0.82, 0.55]
+    intensity: 55

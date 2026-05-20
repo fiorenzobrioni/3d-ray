@@ -261,7 +261,7 @@ facce discoidali visibili, il secondo nessuna.
 ## 11.6 Una Scena Completa: Vetrina delle Tre Modalità
 
 La repo include una scena di riferimento in
-`scenes/showcases/lathe-showcase.yaml` che mette le tre modalità
+`scenes/showcases/primitive-lathe.yaml` che mette le tre modalità
 sullo stesso palcoscenico. Ecco una versione distillata da copiare
 in un nuovo file:
 
@@ -351,7 +351,7 @@ Renderizzala con:
 
 ```
 dotnet run --project src/RayTracer -c Release -- \
-  -i scenes/showcases/lathe-showcase.yaml -o renders/lathe.png \
+  -i scenes/showcases/primitive-lathe.yaml -o renders/lathe.png \
   -w 1280 -H 720 -s 256 -d 8
 ```
 
