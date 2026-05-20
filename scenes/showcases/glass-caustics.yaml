@@ -1,11 +1,11 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  Glass Caustics Showcase — Caustiche e ombre del vetro
 #
-#  Tre oggetti di vetro su pavimento a scacchi avorio/grigio, con una
-#  parete di fondo color sabbia che chiude la scena. Sole basso con
-#  disco angolare stretto: ombre nitide + caustiche concentrate. Una
-#  piccola sfera di ceramica opaca scura cattura le caustiche
-#  ridipinte sulla sua superficie.
+#  Tre oggetti di vetro su pavimento a scacchi avorio/grigio sotto un
+#  cielo a gradiente (zenith blu scuro → orizzonte sabbia caldo). Sole
+#  basso con disco angolare stretto: ombre nitide + caustiche
+#  concentrate. Una piccola sfera di ceramica opaca scura cattura le
+#  caustiche ridipinte sulla sua superficie.
 #
 #    x=-2.6  Sfera dielettrica       → "occhio" di caustica focalizzato
 #                                       proiettato in avanti-destra
@@ -20,8 +20,8 @@
 #    proiezione amber sul suo emisfero.
 #
 #  Pavimento checker grande (scale 1.0) per fare da metro alle ombre e
-#  per dare grain ai pixel di caustica; sky `flat` molto basso (0.02)
-#  per non lavare le caustiche.
+#  per dare grain ai pixel di caustica; sky `gradient` tarato dim
+#  (horizon caldo dim, zenith blu notte) per non lavare le caustiche.
 #
 #  Suggerimenti di rendering:
 #    Preview:  -w 640  -H 360  -s 128 -d 12 -S 2  -C 25
@@ -34,8 +34,10 @@
 
 world:
   sky:
-    type: "flat"
-    color: [0.025, 0.025, 0.03]
+    type: "gradient"
+    zenith_color:  [0.10, 0.14, 0.24]
+    horizon_color: [0.55, 0.45, 0.32]
+    ground_color:  [0.06, 0.05, 0.04]
   ground:
     type: "infinite_plane"
     material: "pavimento_scacchi"
@@ -81,12 +83,6 @@ materials:
       scale: 1.0
       colors: [[0.90, 0.88, 0.82], [0.42, 0.40, 0.38]]
 
-  # Parete di fondo: lambertian color sabbia calda. Chiude la scena e
-  # raccoglie qualche raggio rifratto rasente.
-  - id: "parete_sabbia"
-    type: "lambertian"
-    color: [0.74, 0.66, 0.54]
-
   # Vetro classico cristallino: IOR 1.5, per sfera e cubo.
   - id: "vetro"
     type: "dielectric"
@@ -115,15 +111,6 @@ materials:
     specular: 0.25
 
 entities:
-
-  # ── Parete di fondo ───────────────────────────────────────────────
-  # Quad verticale: origine in basso-sinistra, u = larghezza, v = altezza.
-  - name: "parete"
-    type: "quad"
-    q: [-9.0, 0.0, 3.6]
-    u: [18.0, 0.0, 0.0]
-    v: [0.0, 6.0, 0.0]
-    material: "parete_sabbia"
 
   # ── Sfera dielettrica ─────────────────────────────────────────────
   # Focalizza la luce in un piccolo "occhio" di caustica appena dietro
