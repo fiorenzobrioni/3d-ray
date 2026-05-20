@@ -655,9 +655,7 @@ public class SceneLoader
 
         var cameraNames = string.Join(", ",
             list.Select((c, i) => c.Name != null ? $"\"{c.Name}\" (#{i})" : $"#{i}"));
-        Warn($"Scene contains {list.Count} cameras. Using camera 0. " +
-             $"Use --camera <name|index> to select one.");
-        Warn($"Available cameras: {cameraNames}");
+        Info($"Cameras:     {list.Count} - using camera 0 (available cameras: {cameraNames})");
         return list[0];
     }
 

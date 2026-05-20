@@ -49,8 +49,8 @@ world:
 # =============================================================================
 cameras:
   - name:       principale      # Vista classica — tutta la struttura del pendolo
-    position:   [-0.42,  0.38, -0.58]
-    look_at:    [ 0.00,  0.13,  0.00]
+    position:   [-0.42,  0.35, -0.58]
+    look_at:    [ 0.00,  0.10,  0.00]
     vup:        [0, 1, 0]
     fov:        32
     aperture:   0.005           # bokeh leggermente pronunciato

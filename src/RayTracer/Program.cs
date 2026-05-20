@@ -213,7 +213,7 @@ class Program
             shadowSamplesOverride = quality.ShadowSamples;
 
         Console.WriteLine("╔═══════════════════════════════════════════╗");
-        Console.WriteLine("║         RayTracer .NET 10 Engine          ║");
+        Console.WriteLine("║          3D-Ray RayTracer Engine          ║");
         Console.WriteLine("╚═══════════════════════════════════════════╝");
         Console.WriteLine();
         Console.WriteLine($"  Scene:       {inputPath}");
@@ -290,7 +290,7 @@ class Program
 
     static void ShowHelp()
     {
-        Console.WriteLine("RayTracer .NET 10 Engine");
+        Console.WriteLine("3D-Ray RayTracer Engine");
         Console.WriteLine();
         Console.WriteLine("Usage:");
         Console.WriteLine("  dotnet run --project src/RayTracer/RayTracer.csproj -- [options]");

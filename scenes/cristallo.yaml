@@ -26,14 +26,13 @@
 world:
   sky:
     type: "gradient"
-    zenith_color:  [0.02, 0.02, 0.06]
-    horizon_color: [0.07, 0.05, 0.09]
-    ground_color:  [0.03, 0.02, 0.02]
+    zenith_color:  [0.02, 0.02, 0.02]
+    horizon_color: [0.02, 0.02, 0.02]
+    ground_color:  [0.02, 0.02, 0.02]
   ground:
     type: "infinite_plane"
     material: "pavimento_scacchi"
     y: 0.0
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  CAMERAS
@@ -43,11 +42,11 @@ cameras:
   # Camera a Y=2.9 → guarda leggermente dall'alto nel bicchiere,
   # vede il vino e le rifrazioni attraverso il cristallo
   - name:       top
-    position:   [1.8, 2.6, -3.6]
-    look_at:    [0.8, 1.2, 0.0]
+    position:   [0.5, 2.85, -3.6]
+    look_at:    [0.76, 1.1, 0.0]
     fov:        45
-    aperture:   0.06
-    focal_dist: 3.8
+    #aperture:   0.04
+    #focal_pos:  [0, 4, 0]
 
   # Vista 3/4 ravvicinata, all'altezza del rim
   # Camera a Y=2.1 → guarda leggermente verso il basso nel bicchiere,
@@ -74,20 +73,18 @@ cameras:
 lights:
   # Key light: spot dall'alto-sinistra, cono stretto → pool sul tavolo
   - type: "spot"
-    position:  [-1.8, 2.5, -2.5]
-    direction: [0.35, -0.12, 0.5]
-    #position:  [-2, 3.5, -2]
-    #direction: [1.5, -1.0, 1.5]   # → [0.479, -0.747, 0.479] normalizzato
+    position:  [-2.4, 3.5, -2.4]
+    direction: [1.5, -1.0, 1.5]   # → [0.479, -0.747, 0.479] normalizzato
     color:     [1.0, 0.93, 0.82]
     intensity: 140
     inner_angle: 12
     outer_angle: 48
 
   # Fill light: punto tenue freddo dal lato opposto
-  - type: "point"
+  - type: "-point"
     position: [2.5, 2.0, -1.0]
     color:    [0.55, 0.6, 0.85]
-    intensity: 10
+    intensity: 5
 
 
 # ═══════════════════════════════════════════════════════════════════════════
