@@ -47,6 +47,11 @@ Renderizzarlo con:
 RayTracer -i hello.yaml -w 800 -H 450 -s 16
 ```
 
+> L'estensione `.yaml` su `-i` è **opzionale**: `-i hello` viene
+> trattato come `-i hello.yaml`. Se il path non esiste così com'è,
+> il loader prova ad aggiungere `.yaml` e poi `.yml`. Gli esempi di
+> questo tutorial mantengono l'estensione esplicita per chiarezza.
+
 Si dovrebbe vedere una sfera bianca che galleggia su uno sfondo scuro. Si analizza di seguito ogni sezione.
 
 ---
