@@ -48,26 +48,27 @@ jobs:
       matrix:
         scene:
           # --- Elenco disattivato (rimuovi il # per attivare) ---
-          #- showcases/emissive-showcase
+          #- showcases/material-emissive
           #- sample
           #- alchemist-lab
           #- chess
-          #- classic-showcase
-          #- classic-vs-disney-showcase
+          #- showcases/material-classic
+          #- showcases/material-classic-vs-disney
           #- cornell-box
           #- cornell-box-sphere
           #- cristallo
-          #- csg-showcase
-          #- gradient-sky-showcase
+          #- showcases/scene-csg
+          #- showcases/lighting-gradient-sky
           #- heightfield-procedural-test
           #- heightfield-strata-test-preview
-          #- mix-material-showcase
+          #- showcases/material-mix
           #- pendolo-newton
-          #- primitive-showcase
-          #- showcases/group-showcase
-          #- showcases/sphere-light-showcase
-          - showcases/sphere-showcase
-          #- sphere-showcase-disney
+          #- showcases/primitive-overview
+          #- showcases/scene-group
+          #- showcases/lighting-sphere
+          #- showcases/glass-caustics
+          - showcases/material-spheres-pbr
+          #- showcases/material-spheres-classic
           #- utah-teapot
 
     steps:

@@ -9,8 +9,8 @@
 #
 # Suggested render:
 #   dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-#     -i scenes/showcases/textures-pro-showcase.yaml \
-#     -o renders/textures-pro-showcase.png \
+#     -i scenes/showcases/texture-pro.yaml \
+#     -o renders/texture-pro.png \
 #     -w 1920 -H 1080 -s 256 -d 6
 
 world:

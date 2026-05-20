@@ -356,9 +356,9 @@ invisibile).
   davanti alla camera satura il cap. Caso non realistico ma utile da
   sapere.
 
-### Esempio pratico: `visible-to-camera-showcase.yaml`
+### Esempio pratico: `camera-visibility.yaml`
 
-La scena `scenes/showcases/visible-to-camera-showcase.yaml` raccoglie
+La scena `scenes/showcases/camera-visibility.yaml` raccoglie
 tutte le idee di sopra: una sphere light KEY calda visibile in cielo e
 nelle riflessioni di due sfere chrome; una sphere light FILL fredda
 nascosta dalla camera ma chiaramente visibile in quelle stesse
@@ -366,7 +366,7 @@ riflessioni; un pannello emissivo a soffitto nascosto dalla vista ma che
 continua a illuminare il pavimento via NEE. Render preview con
 
 ```
-RayTracer -i scenes/showcases/visible-to-camera-showcase.yaml \
+RayTracer -i scenes/showcases/camera-visibility.yaml \
           -o renders/vtc.png -w 480 -H 270 -s 64 -d 6
 ```
 

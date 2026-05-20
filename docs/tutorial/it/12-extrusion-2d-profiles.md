@@ -424,7 +424,7 @@ una singola primitiva, senza bisogno di stack di modificatori.
 ## 12.7 Una Scena Completa: Showcase delle Tre Modalità
 
 Il repository include una scena di riferimento in
-`scenes/showcases/extrusion-showcase.yaml` che mette tutte e tre le
+`scenes/showcases/primitive-extrusion.yaml` che mette tutte e tre le
 modalità sullo stesso palco. Ecco una versione distillata da
 incollare in un nuovo file:
 
@@ -556,7 +556,7 @@ Renderizza:
 
 ```
 dotnet run --project src/RayTracer -c Release -- \
-  -i scenes/showcases/extrusion-showcase.yaml -o renders/extrusion.png \
+  -i scenes/showcases/primitive-extrusion.yaml -o renders/extrusion.png \
   -w 1280 -H 720 -s 256 -d 8
 ```
 

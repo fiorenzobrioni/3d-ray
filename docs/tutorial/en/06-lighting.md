@@ -443,9 +443,9 @@ which composes by OR (parent OR child invisible ⇒ invisible).
   overlapping invisible emitters in front of the camera will eventually
   saturate the cap. Not a realistic scenario, but worth knowing.
 
-### Worked example: `visible-to-camera-showcase.yaml`
+### Worked example: `camera-visibility.yaml`
 
-The scene `scenes/showcases/visible-to-camera-showcase.yaml` packages
+The scene `scenes/showcases/camera-visibility.yaml` packages
 all the above ideas: a warm KEY sphere light visible in the sky and in
 the reflections of two chrome balls; a cool FILL sphere light hidden
 from the camera but clearly visible in those same reflections; an
@@ -453,7 +453,7 @@ emissive ceiling panel hidden from view but still lighting the floor by
 NEE. Render it at preview quality with
 
 ```
-RayTracer -i scenes/showcases/visible-to-camera-showcase.yaml \
+RayTracer -i scenes/showcases/camera-visibility.yaml \
           -o renders/vtc.png -w 480 -H 270 -s 64 -d 6
 ```
 

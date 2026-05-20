@@ -644,10 +644,10 @@ in `scenes/showcases/`:
 
 | Scene | Medium type | What it shows |
 |---|---|---|
-| `volumetric-01-homogeneous-showcase.yaml` | `homogeneous` | Classic god-ray from a spot light in uniform fog |
-| `volumetric-02-height-fog-showcase.yaml` | `height_fog` | Outdoor aerial perspective with vertical density gradient |
-| `volumetric-03-procedural-showcase.yaml` | `procedural` | Irregular Perlin fog with non-uniform god-rays |
-| `volumetric-04-grid-showcase.yaml` | `grid` | Localized smoke in an inline 4³ grid |
+| `volumetric-01-homogeneous.yaml` | `homogeneous` | Classic god-ray from a spot light in uniform fog |
+| `volumetric-02-height-fog.yaml` | `height_fog` | Outdoor aerial perspective with vertical density gradient |
+| `volumetric-03-procedural.yaml` | `procedural` | Irregular Perlin fog with non-uniform god-rays |
+| `volumetric-04-grid.yaml` | `grid` | Localized smoke in an inline 4³ grid |
 
 Each scene includes a descriptive header and ready-to-paste commands for
 the Preview/Standard/Final profiles.

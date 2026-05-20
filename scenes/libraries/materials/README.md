@@ -367,13 +367,12 @@ termocromiche, retroriflettenti, anti-corrosive, fluo safety.
 
 In `scenes/showcases/` ci sono showcase mirati per le nuove librerie:
 
-- **Surface displacement**: `concretes-showcase`, `plasters-showcase`,
-  `leathers-showcase`, `weathering-overlay-showcase`
-- **VFX texturing**: `minerals-gems-showcase`, `synthetics-showcase`,
-  `liquids-showcase`, `biological-showcase`, `industrial-coatings-showcase`
+- **Surface displacement**: `library-concretes`, `library-plasters`,
+  `library-leathers`, `library-weathering`
+- **VFX texturing**: `library-minerals-gems`, `library-synthetics`,
+  `library-liquids`, `library-biological`, `library-industrial-coatings`
 - **Studio v2** (per estensioni VFX delle librerie esistenti):
-  `marbles-studio-v2-showcase`, `woods-studio-v2-showcase`,
-  `glass-features-showcase`
-- **Cross-library thematic**: `wet-surfaces-showcase` (liquidi + ceramiche +
-  intonaci), `weathered-surfaces-showcase` (metalli + cementi + weathering
-  overlays)
+  `library-marbles-v2`, `library-woods`, `glass-features`
+- **Cross-library thematic**: `library-wet-surfaces` (liquidi + ceramiche +
+  intonaci), `library-weathering` (metalli + cementi + weathering
+  overlays, due righe sopra/sotto)

@@ -496,10 +496,10 @@ Nel repository trovi quattro showcase pronte, una per ogni tipo di mezzo, in `sc
 
 | Scena | Tipo mezzo | Cosa mostra |
 |---|---|---|
-| `volumetric-01-homogeneous-showcase.yaml` | `homogeneous` | God-ray classico di uno spot in nebbia uniforme |
-| `volumetric-02-height-fog-showcase.yaml` | `height_fog` | Aerial perspective outdoor con gradiente verticale |
-| `volumetric-03-procedural-showcase.yaml` | `procedural` | Nebbia irregolare Perlin con god-ray non omogenei |
-| `volumetric-04-grid-showcase.yaml` | `grid` | Fumo localizzato in una griglia 4³ inline |
+| `volumetric-01-homogeneous.yaml` | `homogeneous` | God-ray classico di uno spot in nebbia uniforme |
+| `volumetric-02-height-fog.yaml` | `height_fog` | Aerial perspective outdoor con gradiente verticale |
+| `volumetric-03-procedural.yaml` | `procedural` | Nebbia irregolare Perlin con god-ray non omogenei |
+| `volumetric-04-grid.yaml` | `grid` | Fumo localizzato in una griglia 4³ inline |
 
 Ogni scena include un header descrittivo e i comandi pronti per i profili Preview/Standard/Final.
 
