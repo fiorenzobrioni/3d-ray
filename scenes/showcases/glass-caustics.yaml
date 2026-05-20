@@ -1,18 +1,27 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  Glass Caustics Showcase — Caustiche e ombre del vetro
 #
-#  Tre oggetti di vetro su un piano avorio, illuminati da un sole basso
-#  con disco angolare stretto: ombre nitide + caustiche concentrate.
+#  Tre oggetti di vetro su pavimento a scacchi avorio/grigio, con una
+#  parete di fondo color sabbia che chiude la scena. Sole basso con
+#  disco angolare stretto: ombre nitide + caustiche concentrate. Una
+#  piccola sfera di ceramica opaca scura cattura le caustiche
+#  ridipinte sulla sua superficie.
 #
 #    x=-2.6  Sfera dielettrica       → "occhio" di caustica focalizzato
-#    x= 0.0  Cubo dielettrico        → striscia di caustica + rifrazione
+#                                       proiettato in avanti-destra
+#    x= 0.0  Cubo dielettrico        → strisce di caustica + rifrazione
 #                                       multipla nelle facce
-#    x=+2.6  Coppa cava (CSG)        → caustica anulare interna +
-#                                       proiezione a "anello" sul piano
+#    x=+2.6  Coppa cava tinta ambra  → caustica anulare COLORATA (Beer-
+#                                       Lambert assorbimento amber), più
+#                                       riflesso brillante sull'interno
 #
-#  Sky `flat` molto basso (0.02) per non lavare le caustiche; pavimento
-#  Disney quasi-diffuso ma con un filo di specular per dare brillanza
-#  alle caustiche stesse.
+#    Piccola sfera in ceramica opaca tra cubo e coppa: superficie
+#    diffusa che "afferra" la caustica della coppa e mostra la
+#    proiezione amber sul suo emisfero.
+#
+#  Pavimento checker grande (scale 1.0) per fare da metro alle ombre e
+#  per dare grain ai pixel di caustica; sky `flat` molto basso (0.02)
+#  per non lavare le caustiche.
 #
 #  Suggerimenti di rendering:
 #    Preview:  -w 640  -H 360  -s 128 -d 12 -S 2  -C 25
@@ -26,17 +35,17 @@
 world:
   sky:
     type: "flat"
-    color: [0.02, 0.02, 0.025]
+    color: [0.025, 0.025, 0.03]
   ground:
     type: "infinite_plane"
-    material: "pavimento_avorio"
+    material: "pavimento_scacchi"
     y: 0.0
 
 cameras:
   # Vista principale: 3/4 dall'alto a vedere le caustiche sul piano
   - name: "principale"
     position: [0.0, 2.6, -7.5]
-    look_at:  [0.0, 0.45, 0.0]
+    look_at:  [0.0, 0.45, 0.4]
     fov: 38
 
   # Closeup sulla sfera, per cogliere il "fuoco" della caustica
@@ -47,6 +56,14 @@ cameras:
     aperture: 0.02
     focal_dist: 3.0
 
+  # Closeup sulla coppa: la caustica amber è il soggetto principale
+  - name: "closeup_coppa"
+    position: [2.6, 0.85, -3.0]
+    look_at:  [3.0, 0.30, 0.6]
+    fov: 34
+    aperture: 0.02
+    focal_dist: 3.2
+
   # Vista laterale rasente: caustiche allungate, ombre nette
   - name: "laterale"
     position: [-6.5, 0.55, -1.0]
@@ -55,25 +72,62 @@ cameras:
 
 materials:
 
-  # Pavimento avorio: lambertian con un filo di specular per esaltare
-  # le caustiche concentrate. Niente checker — distrarrebbe.
-  - id: "pavimento_avorio"
-    type: "disney"
-    color: [0.92, 0.90, 0.84]
-    roughness: 0.55
-    specular: 0.20
+  # Pavimento a scacchi avorio/grigio neutro. Scale ampia (1.0) così i
+  # quadrati fanno da metro alle ombre e i bordi non ribollono.
+  - id: "pavimento_scacchi"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 1.0
+      colors: [[0.90, 0.88, 0.82], [0.42, 0.40, 0.38]]
 
-  # Vetro classico, IOR 1.5 (vetro comune). Mantenuto neutro per
-  # caustiche bianche pulite.
+  # Parete di fondo: lambertian color sabbia calda. Chiude la scena e
+  # raccoglie qualche raggio rifratto rasente.
+  - id: "parete_sabbia"
+    type: "lambertian"
+    color: [0.74, 0.66, 0.54]
+
+  # Vetro classico cristallino: IOR 1.5, per sfera e cubo.
   - id: "vetro"
     type: "dielectric"
     refraction_index: 1.5
 
+  # Vetro AMBRA: Disney con spec_trans + transmission_color attiva
+  # Beer-Lambert. Il raggio che attraversa il guscio della coppa viene
+  # assorbito selettivamente sulle bande blu-verdi → caustica color
+  # ambra invece di bianca.
+  - id: "vetro_ambra"
+    type: "disney"
+    color: [0.97, 0.85, 0.55]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.5
+    specular: 0.80
+    transmission_color: [0.97, 0.85, 0.55]
+    transmission_depth: 0.30
+
+  # Ceramica scura opaca: superficie diffusa con un velo di specular,
+  # ideale per "afferrare" e mostrare le caustiche proiettate.
+  - id: "ceramica_scura"
+    type: "disney"
+    color: [0.18, 0.22, 0.28]
+    roughness: 0.65
+    specular: 0.25
+
 entities:
 
+  # ── Parete di fondo ───────────────────────────────────────────────
+  # Quad verticale: origine in basso-sinistra, u = larghezza, v = altezza.
+  - name: "parete"
+    type: "quad"
+    q: [-9.0, 0.0, 3.6]
+    u: [18.0, 0.0, 0.0]
+    v: [0.0, 6.0, 0.0]
+    material: "parete_sabbia"
+
   # ── Sfera dielettrica ─────────────────────────────────────────────
-  # Focalizza la luce direzionale in un piccolo "occhio" di caustica
-  # appena dietro/sotto la sfera (focale ≈ R · n / (2(n−1)) ≈ R · 1.5).
+  # Focalizza la luce in un piccolo "occhio" di caustica appena dietro
+  # la sfera (distanza focale ≈ R · n / (2(n−1)) ≈ R · 1.5).
   - name: "sfera_vetro"
     type: "sphere"
     center: [-2.6, 0.55, 0.0]
@@ -81,9 +135,8 @@ entities:
     material: "vetro"
 
   # ── Cubo dielettrico ──────────────────────────────────────────────
-  # Le facce piane producono strisce di caustica brillanti dove i
-  # raggi rifratti emergono paralleli, più riflessioni interne sui
-  # bordi.
+  # Le facce piane producono strisce di caustica parallele dove i raggi
+  # rifratti emergono in fase + riflessioni interne sui bordi.
   - name: "cubo_vetro"
     type: "box"
     scale: [1.0, 1.0, 1.0]
@@ -91,14 +144,14 @@ entities:
     translate: [0.0, 0.5, 0.0]
     material: "vetro"
 
-  # ── Coppa cava (CSG) ──────────────────────────────────────────────
-  # (Sfera_esterna \ Sfera_interna) \ Box_clip_top → calice aperto in
-  # cima. La parete sottile produce una caustica anulare attorno alla
-  # base e un riflesso brillante sull'interno della coppa.
-  - name: "coppa_vetro"
+  # ── Coppa cava tinta ambra (CSG) ──────────────────────────────────
+  # (Sfera_esterna \ Sfera_interna) \ Box_clip_top → calice aperto.
+  # La parete sottile assorbe le bande blu-verdi → caustica AMBER
+  # anulare attorno alla base + glow caldo all'interno della coppa.
+  - name: "coppa_ambra"
     type: "csg"
     operation: "subtraction"
-    material: "vetro"
+    material: "vetro_ambra"
     left:
       type: "csg"
       operation: "subtraction"
@@ -115,11 +168,21 @@ entities:
       scale: [2.0, 1.0, 2.0]
       translate: [2.6, 1.7, 0.0]
 
+  # ── Ceramica scura — caustic catcher ──────────────────────────────
+  # Sfera matte piccola posta nella zona dove cade la caustica della
+  # coppa: la sua superficie diffusa MOSTRA chiaramente la caustica
+  # amber ridipinta sull'emisfero rivolto alla coppa.
+  - name: "ceramica_catcher"
+    type: "sphere"
+    center: [1.45, 0.28, 1.1]
+    radius: 0.28
+    material: "ceramica_scura"
+
 lights:
 
   # Sole basso da sinistra-dietro: disco angolare stretto → ombre
   # nitide e caustiche concentrate ma non perfettamente puntuali.
-  # angular_radius 0.4° = circa il diametro angolare del sole reale.
+  # angular_radius 0.4° ≈ diametro angolare del sole reale.
   - type: "directional"
     direction: [-0.45, -0.55, 0.70]
     color: [1.00, 0.97, 0.92]
