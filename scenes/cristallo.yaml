@@ -42,8 +42,8 @@ cameras:
   # Camera a Y=2.9 → guarda leggermente dall'alto nel bicchiere,
   # vede il vino e le rifrazioni attraverso il cristallo
   - name:       top
-    position:   [0.5, 2.85, -3.6]
-    look_at:    [0.76, 1.1, 0.0]
+    position:   [0.75, 2.85, -3.6]
+    look_at:    [0.75, 1.2, 0.0]
     fov:        45
     #aperture:   0.04
     #focal_pos:  [0, 4, 0]

@@ -410,6 +410,7 @@ entities:
 The fastest way is to pick a **quality preset** with `-q`:
 
 ```
+RayTracer -i three-spheres.yaml -q draft-tiny    # 480×270, instant sanity check
 RayTracer -i three-spheres.yaml -q draft-small   # 960×540, composition check
 RayTracer -i three-spheres.yaml -q medium        # 1920×1080, materials and lighting review
 RayTracer -i three-spheres.yaml -q final         # 1920×1080, portfolio quality

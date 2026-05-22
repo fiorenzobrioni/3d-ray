@@ -306,8 +306,9 @@ class Program
         Console.WriteLine("  -o, --output <path>          Output image (default: renders/render-<scene>.png)");
         Console.WriteLine("  -q, --quality <preset>       Render-quality preset that fills -w/-H/-s/-d/-S in one shot.");
         Console.WriteLine("                                Any explicit flag below wins over the preset's value.");
-        Console.WriteLine("                                Presets: draft-small, draft, medium-small, medium,");
-        Console.WriteLine("                                          final-small, final, ultra (4K).");
+        Console.WriteLine("                                Presets: draft-tiny, draft-small, draft,");
+        Console.WriteLine("                                          medium-tiny, medium-small, medium,");
+        Console.WriteLine("                                          final-tiny, final-small, final, ultra (4K).");
         Console.WriteLine("  -w, --width <px>             Image width  (default: 1200)");
         Console.WriteLine("  -H, --height <px>            Image height (default: 800)");
         Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16, see rendering profiles)");
@@ -329,6 +330,7 @@ class Program
         Console.WriteLine("Examples:");
         Console.WriteLine("  (the .yaml extension on -i is optional: 'scenes/chess' resolves to 'scenes/chess.yaml')");
         Console.WriteLine("  from the root of the project: ");
+        Console.WriteLine("  dotnet run ... -- -i scenes/chess -q draft-tiny              # instant 480×270 sanity check");
         Console.WriteLine("  dotnet run ... -- -i scenes/chess -q draft-small             # super-fast 960×540 composition check");
         Console.WriteLine("  dotnet run ... -- -i scenes/chess -q medium                  # 1920×1080 review");
         Console.WriteLine("  dotnet run ... -- -i scenes/chess -q final -o final.png     # 1920×1080 portfolio");
@@ -424,7 +426,8 @@ class Program
     /// quality knobs <c>-w</c>, <c>-H</c>, <c>-s</c>, <c>-d</c>, <c>-S</c> at
     /// once; any of those flags passed explicitly on the command line wins.
     /// Tiers follow the Preview/Standard/Final convention shared by Arnold,
-    /// Cycles and RenderMan, with `-small` variants at half resolution and
+    /// Cycles and RenderMan, with `-small` variants at half resolution, `-tiny`
+    /// variants at quarter resolution (half of small) for instant checks, and
     /// an `ultra` 4K showcase tier. See `docs/reference/rendering-profiles.md`.
     /// </summary>
     sealed class QualityPreset
@@ -441,24 +444,30 @@ class Program
             Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
         }
 
+        public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 4, 1);
         public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 4, 1);
         public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 4, 1);
+        public static readonly QualityPreset MediumTiny  = new("medium-tiny",  480, 270,   128, 6, 1);
         public static readonly QualityPreset MediumSmall = new("medium-small", 960, 540,   128, 6, 1);
         public static readonly QualityPreset Medium      = new("medium",      1920, 1080,  128, 6, 1);
+        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 8, 4);
         public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 8, 4);
         public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4);
         public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160, 1024, 8, 4);
 
         public const string NamesCsv =
-            "draft-small, draft, medium-small, medium, final-small, final, ultra";
+            "draft-tiny, draft-small, draft, medium-tiny, medium-small, medium, final-tiny, final-small, final, ultra";
 
         public static QualityPreset? Parse(string value) =>
             value.Trim().ToLowerInvariant() switch
             {
+                "draft-tiny"   => DraftTiny,
                 "draft-small"  => DraftSmall,
                 "draft"        => Draft,
+                "medium-tiny"  => MediumTiny,
                 "medium-small" => MediumSmall,
                 "medium"       => Medium,
+                "final-tiny"   => FinalTiny,
                 "final-small"  => FinalSmall,
                 "final"        => Final,
                 "ultra"        => Ultra,

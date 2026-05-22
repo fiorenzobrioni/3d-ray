@@ -37,17 +37,25 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 
 If you don't want to write `-w -H -s -d -S` by hand every time, the
 `--quality` (alias `-q`) flag bundles all five into a single named
-preset. The matrix is **3 quality tiers × 2 resolutions + 1 4K showcase**:
+preset. The matrix is **3 quality tiers × 3 resolutions + 1 4K showcase**:
 
 | `-q` value | Resolution | `-s` | grid | `-d` | `-S` | Typical use |
 |---|---|---|---|---|---|---|
+| `draft-tiny`   | 480×270   | 16   | 4×4   | 4 | 1 | Instant sanity check / gross errors |
 | `draft-small`  | 960×540   | 16   | 4×4   | 4 | 1 | Super-fast composition / camera placement |
 | `draft`        | 1920×1080 | 16   | 4×4   | 4 | 1 | Same speed, Full HD framing |
+| `medium-tiny`  | 480×270   | 128  | ~11×11| 6 | 1 | Quick material/lighting sanity check |
 | `medium-small` | 960×540   | 128  | ~11×11| 6 | 1 | Material/lighting iteration |
 | `medium`       | 1920×1080 | 128  | ~11×11| 6 | 1 | CI/CD, review render |
+| `final-tiny`   | 480×270   | 1024 | 32×32 | 8 | 4 | Quick full-quality spot check |
 | `final-small`  | 960×540   | 1024 | 32×32 | 8 | 4 | Showcase thumbnail / contact-sheet |
 | `final`        | 1920×1080 | 1024 | 32×32 | 8 | 4 | Portfolio, README cover |
 | `ultra`        | 3840×2160 | 1024 | 32×32 | 8 | 4 | 4K showcase |
+
+The `*-tiny` variants are **quarter resolution** on each axis relative to
+full HD (480×270 = ¹⁄₁₆ of the pixels of 1920×1080, ¹⁄₄ of `*-small`),
+designed for instant scene validation — catching gross composition or
+lighting errors before committing to a longer render.
 
 The `*-small` variants are **exactly half resolution** on each axis
 (960×540 = ¼ of the pixels of 1920×1080), so they cost roughly ¼ of the
@@ -59,6 +67,9 @@ didn't pass: `-q final -d 16` runs the final preset but bumps depth to
 the medium preset without touching its sampling settings.
 
 ```bash
+# Instant sanity check, a few seconds
+RayTracer -i my-scene -q draft-tiny
+
 # Quick composition check, seconds
 RayTracer -i my-scene -q draft-small
 
@@ -77,7 +88,8 @@ RayTracer -i my-scene -q final -d 16
 
 > The preset names mirror the Preview/Standard/Final ladder used by Arnold,
 > Cycles and RenderMan, with `-small` doing the same job as Arnold's
-> "Region render at half res" or Cycles' viewport preview.
+> "Region render at half res" or Cycles' viewport preview, and `-tiny`
+> providing an even faster check at quarter resolution.
 
 ---
 
