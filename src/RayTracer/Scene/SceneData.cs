@@ -131,6 +131,13 @@ public class GroundData
 
 public class SkyData
 {
+    /// <summary>
+    /// Sky model: <c>flat</c> (uniform colour), <c>gradient</c> (zenith/horizon/ground
+    /// vertical lerp + optional analytical sun), <c>hdri</c> (equirect IBL), or
+    /// <c>preetham</c> / <c>hosek_wilkie</c> (analytical physical sky). The
+    /// <c>hosek_wilkie</c> alias currently routes to the Preetham implementation
+    /// — see <c>docs/technical/sky-environment.md</c>.
+    /// </summary>
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
@@ -140,6 +147,7 @@ public class SkyData
     [YamlMember(Alias = "intensity")]
     public float Intensity { get; set; } = 1f;
 
+    /// <summary>Legacy Y-axis rotation in degrees; folded into <see cref="Orientation"/> when both are absent/present.</summary>
     [YamlMember(Alias = "rotation")]
     public float Rotation { get; set; } = 0f;
 
@@ -157,10 +165,33 @@ public class SkyData
 
     [YamlMember(Alias = "sun")]
     public SunDiskData? Sun { get; set; }
+
+    // ── Pro features (added with the sky/environment overhaul) ───────────────
+
+    /// <summary>Atmospheric turbidity for <c>preetham</c> / <c>hosek_wilkie</c>. 1 = pristine, 3 ≈ clear, 5 = haze, 10 = smog. Default 3.</summary>
+    [YamlMember(Alias = "turbidity")]
+    public float Turbidity { get; set; } = 3f;
+
+    /// <summary>RGB ground albedo for the physical sky's ground-bounce term. Default 0.3.</summary>
+    [YamlMember(Alias = "ground_albedo")]
+    public List<float>? GroundAlbedo { get; set; }
+
+    /// <summary>Per-ray-category visibility flags. Optional; all true by default.</summary>
+    [YamlMember(Alias = "visibility")]
+    public SkyVisibilityData? Visibility { get; set; }
+
+    /// <summary>Optional separate background plate shown to camera rays.</summary>
+    [YamlMember(Alias = "background")]
+    public SkyData? Background { get; set; }
+
+    /// <summary>Sky-space orientation. Euler XYZ in degrees, or quaternion XYZW.</summary>
+    [YamlMember(Alias = "orientation")]
+    public OrientationData? Orientation { get; set; }
 }
 
 public class SunDiskData
 {
+    /// <summary>Direction TOWARDS the sun in world space. Note: this is the new convention (the legacy code internally inverted it).</summary>
     [YamlMember(Alias = "direction")]
     public List<float>? Direction { get; set; }
 
@@ -170,11 +201,65 @@ public class SunDiskData
     [YamlMember(Alias = "intensity")]
     public float Intensity { get; set; } = 10f;
 
+    /// <summary>Total angular diameter of the disc in degrees. Default 3°. Real Sun ≈ 0.53° (diameter).</summary>
     [YamlMember(Alias = "size")]
     public float Size { get; set; } = 3f;
 
+    /// <summary>Half-angle in degrees. When set, overrides <see cref="Size"/>. Real Sun ≈ 0.265°.</summary>
+    [YamlMember(Alias = "angular_radius")]
+    public float AngularRadius { get; set; } = 0f;
+
     [YamlMember(Alias = "falloff")]
     public float Falloff { get; set; } = 32f;
+
+    /// <summary>Apply Hestroffer V-band limb darkening to the disc.</summary>
+    [YamlMember(Alias = "limb_darkening")]
+    public bool LimbDarkening { get; set; } = true;
+
+    /// <summary>When <c>type: hdri</c>, attempt automatic sun extraction from the HDRI peak.</summary>
+    [YamlMember(Alias = "extract_from_hdri")]
+    public bool ExtractFromHdri { get; set; } = false;
+
+    /// <summary>Luminance threshold factor for sun extraction (multiple of HDRI mean). Default 50.</summary>
+    [YamlMember(Alias = "extract_threshold")]
+    public float ExtractThreshold { get; set; } = 50f;
+
+    /// <summary>Number of stratified shadow samples for the paired PhysicalSun. Default 4.</summary>
+    [YamlMember(Alias = "shadow_samples")]
+    public int ShadowSamples { get; set; } = 4;
+
+    /// <summary>When false, the sun disc is invisible to primary camera rays (still illuminates the scene).</summary>
+    [YamlMember(Alias = "visible_to_camera")]
+    public bool VisibleToCamera { get; set; } = true;
+}
+
+public class SkyVisibilityData
+{
+    [YamlMember(Alias = "camera")]
+    public bool Camera { get; set; } = true;
+
+    [YamlMember(Alias = "diffuse")]
+    public bool Diffuse { get; set; } = true;
+
+    [YamlMember(Alias = "glossy")]
+    public bool Glossy { get; set; } = true;
+
+    [YamlMember(Alias = "transmission")]
+    public bool Transmission { get; set; } = true;
+
+    [YamlMember(Alias = "shadow")]
+    public bool Shadow { get; set; } = true;
+}
+
+public class OrientationData
+{
+    /// <summary>Euler XYZ angles in degrees, applied in that order (intrinsic).</summary>
+    [YamlMember(Alias = "euler")]
+    public List<float>? Euler { get; set; }
+
+    /// <summary>Quaternion XYZW. Mutually exclusive with <see cref="Euler"/>; if both given, quaternion wins.</summary>
+    [YamlMember(Alias = "quaternion")]
+    public List<float>? Quaternion { get; set; }
 }
 
 public class CameraData

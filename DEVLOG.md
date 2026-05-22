@@ -8,6 +8,60 @@ Roadmap, lavori in corso, bug noti, storico cicli.
 
 ## 📌 Note rapide
 
+### ✅ Sky / Environment — overhaul pro-grade
+
+Riscrittura completa del sistema sky/environment per allinearlo agli standard
+offline (Arnold, Cycles, Renderman, Mitsuba). `SkySettings` resta come nome
+pubblico per non rompere call site, ma internamente è ora un wrapper attorno a
+una nuova interfaccia `ISkyModel` con implementazioni concrete sotto
+`src/RayTracer/Rendering/Sky/`:
+
+- **`FlatSky`** — uniforme su sfera. Importance-sample uniforme se non nero.
+- **`GradientSky`** — gradient verticale zenith/horizon/ground + sole analitico
+  opzionale. Convenzione `direction` corretta: punta TO sun (l'inversione legacy è rimossa).
+- **`PreethamSky`** — Preetham/Shirley/Smits 1999. API compatibile Hosek-Wilkie
+  (`turbidity`, `ground_albedo`, `sun.direction`). YAML accetta `type: hosek_wilkie`
+  o `type: preetham`; oggi sono alias. Coefficienti Y/x/y conversi xyY→CIE XYZ→Rec.709,
+  trasmittanza Rayleigh per il colore del sole. Sostituibile con tabelle HW
+  complete con un solo file. **Aerial perspective Nishita** è ancora TODO.
+- **`HdriSky`** — wrapper IBL su `EnvironmentMap`, ora supporta sun-extracted via
+  `HdriSunExtractor`.
+
+Sopra l'`ISkyModel` ci sono:
+
+- **Orientation** — quaternion (rispetto al precedente `rotation` solo Y);
+  `orientation.euler [x,y,z]` o `orientation.quaternion [x,y,z,w]` in YAML.
+- **Visibility flags** — `camera / diffuse / glossy / transmission / shadow`
+  (parità Cycles "Ray Visibility" / Arnold `visibility.*`).
+- **Background separato** — `background:` block opzionale (sub-sky model)
+  mostrato ai raggi camera mentre `lighting` resta l'illuminazione effettiva.
+- **`SunCamera`** flag — nasconde il disco solare dai raggi camera ma lo lascia
+  attivo come sorgente luminosa (off-camera key light setup).
+
+**Sole disaccoppiato.** Quando un sky model espone `HasAnalyticalSun=true`, il
+`SceneLoader` registra automaticamente un nuovo `PhysicalSun` (`ILight`) accanto
+all'`EnvironmentLight`. Cone sampling stratificato, PDF `1/(2π(1-cosα))`,
+opzionale limb darkening Hestroffer 1997. Il body del sky escude il sole sui
+bounce non-delta (parità Cycles "HDRI sun extraction") per evitare doppio
+conteggio — quindi BSDF specular delta riflette il sole, NEE indiretta lo
+illumina, niente double-count.
+
+**Loader.** Supporto OpenEXR (scanline RGB, ZIP/ZIPS, half+float) tramite nuovo
+`Textures/ExrLoader.cs`; dispatcher per estensione (`.hdr` → HdrLoader, `.exr`
+→ ExrLoader). `EnvironmentMap` clamp dei pixel negativi al load (sicurezza EXR
+contro NaN/Inf), espone `CopyPixels` per il sun extractor.
+
+**Sun extractor.** `Textures/HdriSunExtractor.cs` rileva il picco di luminanza
+solid-angle-weighted, ne stima direzione + angular radius + radianza totale,
+in-paint dei pixel del sole con la media circolare a 2× il raggio, restituisce
+i parametri del `PhysicalSun` da accoppiare. Opt-in via `sky.sun.extract_from_hdri: true`.
+
+**Migration note.** La convenzione `sun.direction` ora è "direction TOWARDS the
+sun" (prima il codice la invertiva internamente). Scene che dipendevano dal vecchio
+flip vedranno il sole dal lato opposto — fix banale invertendo il vettore.
+
+Stato test: `dotnet test` 420 verdi (406 + 14 nuovi in `SkyEnvironmentTests.cs`).
+
 ### ✅ CLI — preset `--quality` / `-q`
 
 Aggiunto un flag CLI che impacchetta in un colpo i cinque knob di qualità (`-w -H -s -d -S`) in preset con nome stile Arnold/Cycles/RenderMan. Sette preset: `draft-small` / `draft` (960×540 e 1920×1080, `-s 16 -d 4 -S 1`), `medium-small` / `medium` (`-s 128 -d 6 -S 1`), `final-small` / `final` (`-s 1024 -d 8 -S 4`), `ultra` (3840×2160, stessi sampling dei final). Qualunque flag esplicito ha la precedenza sul preset, quindi `-q final -d 16` resta possibile per scene con vetri impilati. Implementato come tipo nested `Program.QualityPreset`, parser case-insensitive, errore esplicito su valori sconosciuti. Documentazione: `docs/reference/rendering-profiles.md` + `profili-di-rendering.md` §1a, tutorial cap. 02 (EN/IT), `README.md` Quick Start + tabella CLI + sezione esempi pratici.

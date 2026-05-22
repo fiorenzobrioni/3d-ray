@@ -125,12 +125,16 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🟧 **Area Light** — emettitore rettangolare con soft shadows fisicamente corretti via campionamento Monte Carlo
 - 🟡 **Sphere Light** — Luce sferica con solid-angle sampling: penumbra circolare uniforme, zero campioni sprecati, efficienza 2–10× superiore alla sfera emissiva equivalente per sfere piccole/distanti. Ideale per lampadine, lanterne e globi luminosi.
 - ✨ **Emissive Objects** — qualsiasi geometria con materiale `emissive` diventa sorgente di luce visibile con illuminazione indiretta naturale
-- 🌐 **Environment Light** — flat / gradient / HDRI sky partecipano tutti alla NEE: il flat sky come uniform sphere sampler, il gradient con sun-disk via cone sampling, l'HDRI via CDF di luminanza importance-sampled
+- 🌐 **Environment Light** — flat / gradient / Hosek-Wilkie / HDRI sky partecipano tutti alla NEE; analytical sun di gradient e physical sky è disaccoppiato in un `PhysicalSun` indipendente che si combina con qualunque sky body.
 
 ### Ambiente
 - ☁️ **Flat Sky** — cielo a colore uniforme. Default `[0.5, 0.7, 1.0]` quando `world.sky` è omesso; partecipa a NEE quando luminanza > 0.
-- 🌅 **Gradient Sky** — cielo procedurale con gradiente verticale a 3 bande (zenith, orizzonte, terreno) e sun disk con glow halo. Configurabile via YAML con preset per mezzogiorno, golden hour, tramonto e notte.
-- 🌍 **IBL / HDRI** — Image-Based Lighting da file Radiance `.hdr`: illuminazione globale fotorealistica catturata da fotografie HDR a 360° con importance sampling per convergenza rapida. Compatibile con [Poly Haven](https://polyhaven.com/hdris) (CC0).
+- 🌅 **Gradient Sky** — cielo procedurale con gradiente verticale a 3 bande (zenith, orizzonte, terreno) e sole analitico opzionale agganciato a un `PhysicalSun` con cone sampling stratificato e limb darkening Hestroffer 1997.
+- ☀️ **Physical Sky (Preetham/Hosek-Wilkie)** — daylight analitico parametrizzato da `turbidity` e `ground_albedo`, conversione xyY→CIE XYZ→Rec.709, trasmittanza Rayleigh per il colore del sole alle elevazioni basse. API compatibile Hosek-Wilkie (`type: hosek_wilkie` o `type: preetham`).
+- 🌍 **IBL / HDRI** — Image-Based Lighting da file Radiance `.hdr` o OpenEXR `.exr` (scanline RGB, half+float, ZIP/ZIPS), CDF 2D luminance-weighted, MIS bilancia escape / NEE. **Sun extractor** opzionale (Arnold-style): rileva il picco, in-painta la HDRI, e splitta il sole in un `PhysicalSun` separato per ombre nitide e meno fireflies.
+- 🎛️ **Visibility flags** (parità Cycles / Arnold) — `camera / diffuse / glossy / transmission / shadow` indipendenti, plus `sun.visible_to_camera` per nascondere il disco dalla camera lasciandolo come sorgente luminosa.
+- 🖼️ **Background plate** — `background:` sub-block opzionale: illumina la scena con un'HDRI e mostra alla camera una plate diversa.
+- 🧭 **Orientation** quaternion / Euler XYZ — sostituisce il vecchio `rotation:` solo-Y.
 
 ### Volumetria (Participating Media)
 - 🌫️ **Homogeneous Medium** — mezzo partecipante uniforme globale per nebbia densa, foschia e effetti subacquei. Beer-Lambert analitico, economico, adatto come base di partenza.

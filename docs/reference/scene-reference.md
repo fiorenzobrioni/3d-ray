@@ -56,11 +56,10 @@ sky:
   color: [0.5, 0.7, 1.0]                  # Uniform radiance over the full sphere
 ```
 A flat sky participates in NEE (uniform sphere sampling, pdf = 1/(4π)) whenever
-its luminance is above zero, matching the behaviour of Cycles/Arnold uniform
-world backgrounds. Set `color: [0, 0, 0]` for fully black void scenes (Cornell-box
-style) — the loader will skip the sky from NEE in that case.
+its luminance is above zero. Set `color: [0, 0, 0]` for fully black void scenes
+(Cornell-box style) — the loader will skip the sky from NEE in that case.
 
-#### **Gradient Sky** (recommended for outdoor scenes):
+#### **Gradient Sky** (stylised outdoor / quick previews):
 ```yaml
 sky:
   type: "gradient"
@@ -68,26 +67,103 @@ sky:
   horizon_color: [0.65, 0.80, 1.00]      # Horizon
   ground_color:  [0.30, 0.25, 0.20]      # Reflection of ground
   sun:                                     # (optional)
-    direction:  [-0.5, -1.0, -0.3]       # Direction sunlight TRAVELS (sun → scene).
-                                          # Sun position is at -direction; here
-                                          # the sun is high on the right-front.
-    color:      [1.0, 0.98, 0.85]
-    intensity:  12.0
-    size:       2.5                        # Angular size in degrees
-    falloff:    48.0                       # Glow exponent (higher = sharper)
+    direction:      [0.5, 1.0, 0.3]       # Direction TOWARDS the sun (sky position).
+    color:          [1.0, 0.98, 0.85]
+    intensity:      12.0
+    angular_radius: 0.265                  # Half-angle in degrees (preferred)
+    size:           2.5                    # Full diameter in degrees (alternative)
+    limb_darkening: true                   # Hestroffer (1997) V-band darkening
+    shadow_samples: 4                      # Stratified samples for the paired PhysicalSun
+    visible_to_camera: true                # Hide the disc from camera, keep as light
+    extract_from_hdri: false               # (HDRI only — see below)
 ```
-The gradient body is sampled via BSDF importance sampling on the miss path; only
-the optional sun disk participates in NEE (cone-sampled inside its angular radius).
+**Sun convention change.** `direction` now points TOWARDS the sun. The old code
+inverted the sign internally; old scenes that relied on that flip will now see
+the sun on the opposite side — just invert the vector. The sun cap is auto-
+attached as a separate `PhysicalSun` light with cone sampling and limb darkening.
 
-#### **HDRI/IBL** (for maximum realism):
+#### **Hosek-Wilkie / Preetham** (physical clear-sky daylight):
+```yaml
+sky:
+  type: "hosek_wilkie"                     # alias of "preetham" (analytical model)
+  turbidity:     3.0                       # 1 = pristine, 3 = clear, 5 = haze, 10 = smog
+  ground_albedo: [0.3, 0.3, 0.3]
+  intensity:     1.0
+  sun:
+    direction:       [0.3, 0.8, 0.2]      # direction TOWARDS the sun
+    angular_radius:  0.265                 # default = real solar disc
+    limb_darkening:  true
+    shadow_samples:  4
+```
+Analytical daylight distribution parametrised by atmospheric turbidity and ground
+albedo. The model exposes the sun direction as an analytical light, so a
+`PhysicalSun` is auto-registered alongside the environment — clean cone shadows
+without sampling 1px on a CDF. Air-mass attenuation tints the sun warm at low
+elevations (sunset/sunrise) via Rayleigh transmittance.
+
+#### **HDRI/IBL** (image-based, .hdr + .exr):
 ```yaml
 sky:
   type: "hdri"
-  path: "hdri/studio.hdr"                 # Path relative to YAML file
+  path: "hdri/studio.hdr"                 # .hdr (Radiance) or .exr (OpenEXR)
   intensity: 1.0                           # Exposure multiplier
-  rotation: 90                             # Y-axis rotation in degrees
+  rotation: 90                             # Y-axis rotation in degrees (legacy)
+  sun:                                     # (optional) sun extraction
+    extract_from_hdri: true                # auto-detect the sun and split it out
+    extract_threshold: 50                  # multiple of HDRI mean luminance (def. 50)
+    shadow_samples: 4
 ```
-HDRIs are importance-sampled via a luminance CDF over the equirectangular map.
+HDRIs are importance-sampled via a luminance-weighted 2D CDF over the
+equirectangular map. **OpenEXR** is supported via a built-in scanline-RGB
+loader (No compression / ZIP / ZIPS, half + float). **Sun extraction** detects
+the brightest peak, replaces those pixels with the ring-averaged background, and
+emits a paired `PhysicalSun` for clean shadows — same workflow as Arnold's
+`aiSkyDomeLight` sun extraction. Negative pixel values (some EXR compressions)
+are clamped to 0 at load.
+
+#### **Visibility flags** (per ray type, Cycles / Arnold parity):
+```yaml
+sky:
+  type: "hdri"
+  path: "studio.hdr"
+  visibility:
+    camera:       true     # Camera rays see the sky body
+    diffuse:      true     # Diffuse / sheen / SSS bounces see the sky
+    glossy:       true     # Glossy / clearcoat bounces see the sky
+    transmission: true     # Refractions see the sky
+    shadow:       true     # NEE shadow rays return sky radiance
+  sun:
+    visible_to_camera: false    # Sun disc invisible to camera (still illuminates)
+```
+Each `false` disables the sky's contribution for that ray category. Common setups:
+`camera: false` hides the HDRI from the rendered background while still lighting
+the scene; `glossy: false` removes the HDRI from reflective materials (useful for
+clay-render previews).
+
+#### **Background plate** (camera-visible only):
+```yaml
+sky:
+  type: "hdri"
+  path: "lighting.hdr"        # Primary lighting source
+  background:
+    type: "hdri"
+    path: "background.hdr"    # Different image shown to camera rays
+```
+A separate `background:` sub-block lets you light the scene with one environment
+and show a different one to the camera — standard product / VFX workflow.
+
+#### **Orientation** (full 3D rotation):
+```yaml
+sky:
+  type: "hdri"
+  path: "studio.hdr"
+  orientation:
+    euler:      [10, 45, 0]   # XYZ intrinsic Euler degrees
+    # OR
+    quaternion: [0, 0.38, 0, 0.92]   # XYZW; quaternion wins if both are given
+```
+Replaces the Y-only legacy `rotation:` field. The legacy field is still honoured
+when `orientation:` is absent.
 
 **Preset Sky Configurations:**
 - **Noon** (clean gradient, bright sun)

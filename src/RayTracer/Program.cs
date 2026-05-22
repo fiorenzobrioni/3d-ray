@@ -255,8 +255,9 @@ class Program
             Console.WriteLine($"  Lights:      {lights.Count}");
             string skyDesc = sky.Mode switch
             {
-                SkySettings.SkyMode.Hdri     => "HDRI environment map",
+                SkySettings.SkyMode.Hdri     => "HDRI environment map" + (sky.HasSun ? " + extracted sun" : ""),
                 SkySettings.SkyMode.Gradient => "gradient" + (sky.HasSun ? " + sun disk" : ""),
+                SkySettings.SkyMode.Physical => "physical (preetham)" + (sky.HasSun ? " + sun disk" : ""),
                 _                            => "flat"
             };
             Console.WriteLine($"  Sky:         {skyDesc}");

@@ -47,6 +47,16 @@ public class EnvironmentMap
     public EnvironmentMap(float[] pixels, int width, int height,
                           float intensity = 1f, float rotationDeg = 0f)
     {
+        // EXR safety: clamp negative values that some authoring tools (or DWA
+        // compression rounding) can introduce. Negative HDRI samples explode
+        // into NaN/black after Beer-Lambert and tone mapping; the spec allows
+        // them, but no environment light has negative radiance.
+        // We mutate the supplied buffer in place since it's expected to be
+        // single-owner from the loader.
+        for (int i = 0; i < pixels.Length; i++)
+            if (pixels[i] < 0f || float.IsNaN(pixels[i]) || float.IsInfinity(pixels[i]))
+                pixels[i] = MathF.Max(0f, pixels[i]);
+
         _pixels = pixels;
         _width = width;
         _height = height;
@@ -54,6 +64,35 @@ public class EnvironmentMap
         _rotationRad = rotationDeg * MathF.PI / 180f;
         BuildCdfs();
     }
+
+    /// <summary>
+    /// Number of texels in the wrapped equirect image (W·H).
+    /// </summary>
+    public int PixelCount => _width * _height;
+
+    /// <summary>Image width in pixels.</summary>
+    public int Width => _width;
+
+    /// <summary>Image height in pixels.</summary>
+    public int Height => _height;
+
+    /// <summary>
+    /// Returns a copy of the raw RGB pixel buffer (unscaled by intensity). Used
+    /// by <see cref="HdriSunExtractor"/> to in-paint a brightness peak before
+    /// re-wrapping the map for IBL.
+    /// </summary>
+    public float[] CopyPixels()
+    {
+        var copy = new float[_pixels.Length];
+        Array.Copy(_pixels, copy, _pixels.Length);
+        return copy;
+    }
+
+    /// <summary>Intensity multiplier supplied at construction.</summary>
+    public float Intensity => _intensity;
+
+    /// <summary>Y-axis rotation applied at lookup time, in radians.</summary>
+    public float RotationRad => _rotationRad;
 
     /// <summary>
     /// Average luminance across all HDRI texels, intensity-scaled.

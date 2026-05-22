@@ -1006,10 +1006,20 @@ public class Renderer
     /// <summary>
     /// Evaluates the sky for a missed ray and applies the MIS weight for the
     /// "BSDF-sample escaped into the environment" half of the estimator.
+    ///
+    /// <para>The sky's analytical sun disc (if any) is included only on delta
+    /// bounces and camera rays — for non-delta bounces a paired
+    /// <see cref="Lights.PhysicalSun"/> handles the sun via NEE, so adding
+    /// it here would double-count. This matches Arnold / Cycles HDRI
+    /// sun-extraction behaviour.</para>
     /// </summary>
     private Vector3 SampleSky(Ray ray, float prevBsdfPdf, bool prevIsDelta)
     {
-        Vector3 sky = CalculateSkyColor(ray);
+        // Camera rays + delta-mirror bounces see the full sky (sun included).
+        // Non-delta indirect bounces see the sky body only.
+        bool showSun = prevIsDelta;
+        var cat = prevIsDelta ? RayCategory.Camera : RayCategory.Diffuse;
+        Vector3 sky = _sky.Sample(ray, cat, includeAnalyticalSun: showSun);
 
         // When the sky isn't registered as an NEE light, or this is a delta
         // bounce / camera ray, show it at full weight — nothing else sampled it.

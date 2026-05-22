@@ -66,7 +66,7 @@ backgrounds" di Cycles/Arnold. Imposta `color: [0, 0, 0]` per scene black-void
 stile Cornell-box — in questo caso il loader esclude automaticamente il cielo
 da NEE.
 
-#### **Gradient Sky** (raccomandato per scene all'aperto):
+#### **Gradient Sky** (stilizzato — preview / outdoor):
 ```yaml
 sky:
   type: "gradient"
@@ -74,28 +74,95 @@ sky:
   horizon_color: [0.65, 0.80, 1.00]      # Orizzonte
   ground_color:  [0.30, 0.25, 0.20]      # Riflesso del terreno
   sun:                                     # (opzionale)
-    direction:  [-0.5, -1.0, -0.3]       # Direzione di PROPAGAZIONE della luce (sole → scena).
-                                          # La posizione del sole è -direction: con [-0.5,-1,-0.3]
-                                          # il sole è in alto a destra-davanti.
-    color:      [1.0, 0.98, 0.85]
-    intensity:  12.0
-    size:       2.5                        # Dimensione angolare in gradi
-    falloff:    48.0                       # Esponente bagliore (più alto = più nitido)
+    direction:      [0.5, 1.0, 0.3]      # Direzione VERSO il sole (posizione del disco).
+    color:          [1.0, 0.98, 0.85]
+    intensity:      12.0
+    angular_radius: 0.265                  # Semiangolo in gradi (consigliato)
+    size:           2.5                    # Diametro totale in gradi (alternativa)
+    limb_darkening: true                   # Limb darkening Hestroffer (1997)
+    shadow_samples: 4                      # Campioni stratificati per il PhysicalSun accoppiato
+    visible_to_camera: true                # Nasconde il disco dalla camera, lo tiene come luce
 ```
-Il corpo del gradiente è campionato dal BSDF importance sampling sul percorso di
-miss; solo il disco solare opzionale partecipa a NEE (cone-sampling all'interno
-della sua dimensione angolare).
+**Cambio convenzione `direction`.** Ora punta VERSO il sole. Il vecchio codice
+invertiva il segno internamente; scene legacy basate su quel flip vedranno il
+sole dal lato opposto — basta invertire il vettore. Il disco è agganciato
+automaticamente a un `PhysicalSun` separato con cone sampling e limb darkening.
 
-#### **HDRI/IBL** (per il massimo realismo):
+#### **Hosek-Wilkie / Preetham** (sky fisico clear-sky):
+```yaml
+sky:
+  type: "hosek_wilkie"                     # alias di "preetham" (modello analitico)
+  turbidity:     3.0                       # 1 = aria pulitissima, 3 = clear, 5 = foschia, 10 = smog
+  ground_albedo: [0.3, 0.3, 0.3]
+  intensity:     1.0
+  sun:
+    direction:       [0.3, 0.8, 0.2]      # direzione VERSO il sole
+    angular_radius:  0.265                 # default = disco solare reale
+    limb_darkening:  true
+    shadow_samples:  4
+```
+Distribuzione daylight analitica parametrizzata da torbidità atmosferica e
+albedo del terreno. Il modello espone direttamente la direzione del sole come
+luce analitica: viene auto-registrato un `PhysicalSun` accanto all'environment —
+ombre nitide da cone sampling senza dover campionare 1 px su CDF. La trasmittanza
+Rayleigh tinge il sole di caldo alle elevazioni basse (alba/tramonto).
+
+#### **HDRI/IBL** (image-based, .hdr + .exr):
 ```yaml
 sky:
   type: "hdri"
-  path: "hdri/studio.hdr"                 # Percorso relativo al file YAML
+  path: "hdri/studio.hdr"                 # .hdr (Radiance) oppure .exr (OpenEXR)
   intensity: 1.0                           # Moltiplicatore esposizione
-  rotation: 90                             # Rotazione asse Y in gradi
+  rotation: 90                             # Rotazione asse Y in gradi (legacy)
+  sun:                                     # (opzionale) sun extraction
+    extract_from_hdri: true                # auto-detect del sole e split
+    extract_threshold: 50                  # multiplo della media HDRI (def. 50)
+    shadow_samples: 4
 ```
-Le HDRI sono importance-sampled tramite una CDF di luminanza sulla mappa
-equirettangolare.
+Le HDRI sono importance-sampled tramite CDF 2D pesata per luminanza. **OpenEXR**
+supportato (scanline RGB, no-compression / ZIP / ZIPS, half + float). La **sun
+extraction** rileva il picco più brillante, sostituisce quei pixel con la media
+circolare del background, e emette un `PhysicalSun` accoppiato per ombre nitide
+— stesso workflow di `aiSkyDomeLight` in Arnold. I valori negativi (alcune
+compressioni EXR) sono clampati a 0 al load.
+
+#### **Flag di visibilità** (per tipo di raggio, parità Cycles / Arnold):
+```yaml
+sky:
+  type: "hdri"
+  path: "studio.hdr"
+  visibility:
+    camera:       true     # Raggi camera vedono il body del cielo
+    diffuse:      true     # Bounce diffuse / sheen / SSS vedono il cielo
+    glossy:       true     # Bounce glossy / clearcoat vedono il cielo
+    transmission: true     # Rifrazioni vedono il cielo
+    shadow:       true     # Raggi NEE shadow recuperano la radianza del cielo
+  sun:
+    visible_to_camera: false    # Disco solare invisibile alla camera (continua a illuminare)
+```
+
+#### **Background plate** (solo camera):
+```yaml
+sky:
+  type: "hdri"
+  path: "lighting.hdr"        # Sorgente di illuminazione primaria
+  background:
+    type: "hdri"
+    path: "background.hdr"    # Immagine diversa mostrata ai raggi camera
+```
+
+#### **Orientation** (rotazione 3D completa):
+```yaml
+sky:
+  type: "hdri"
+  path: "studio.hdr"
+  orientation:
+    euler:      [10, 45, 0]   # Euler XYZ intrinseco in gradi
+    # OPPURE
+    quaternion: [0, 0.38, 0, 0.92]   # XYZW; il quaternion vince se entrambi presenti
+```
+Sostituisce il vecchio campo `rotation:` solo-Y. Il campo legacy è ancora
+onorato quando `orientation:` è assente.
 
 **Configurazioni Sky Predefinite:**
 - **Noon** (gradiente pulito, sole luminoso)
