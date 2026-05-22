@@ -1,103 +1,150 @@
 using System.Numerics;
 using RayTracer.Core;
+using RayTracer.Rendering.Sky;
 using RayTracer.Textures;
 
 namespace RayTracer.Rendering;
 
 /// <summary>
-/// Encapsulates sky/environment rendering configuration.
+/// Per-ray category. Controls visibility flags and (when a separate
+/// background is specified) which radiance source the ray sees.
 ///
-/// Three modes:
-///   Flat     — returns a single solid color (for indoor/studio scenes)
-///   Gradient — vertical lerp between horizon and zenith, with optional sun disk
-///   HDRI     — samples an equirectangular HDR environment map for IBL
+/// <list type="bullet">
+///   <item><description><c>Camera</c> — primary camera rays that escape the scene without hitting anything.</description></item>
+///   <item><description><c>Diffuse</c> — indirect bounce off a Lambertian / matte / sheen / subsurface lobe.</description></item>
+///   <item><description><c>Glossy</c> — indirect bounce off a glossy specular / clearcoat lobe.</description></item>
+///   <item><description><c>Transmission</c> — refraction through dielectric / thin-walled transmission.</description></item>
+///   <item><description><c>Shadow</c> — NEE direct-light sample (the radiance NEE pulls from the env).</description></item>
+/// </list>
+/// </summary>
+public enum RayCategory
+{
+    Camera,
+    Diffuse,
+    Glossy,
+    Transmission,
+    Shadow,
+}
+
+/// <summary>
+/// Per-ray-category visibility flags for the sky / environment, matching the
+/// Arnold <c>aiSkyDomeLight.visibility.*</c> and Cycles "Ray Visibility"
+/// switches. A flag of <c>false</c> means the sky contributes 0 radiance to
+/// rays of that category. Sun visibility is governed separately because
+/// hiding the sun from camera while keeping it as a light source is a
+/// common keying setup.
+/// </summary>
+public sealed class SkyVisibility
+{
+    public bool Camera { get; init; } = true;
+    public bool Diffuse { get; init; } = true;
+    public bool Glossy { get; init; } = true;
+    public bool Transmission { get; init; } = true;
+    /// <summary>Always true conceptually — flags here mask the sky body for NEE samples too.</summary>
+    public bool Shadow { get; init; } = true;
+    /// <summary>When false, the analytical sun disc is hidden from camera rays (still lights the scene).</summary>
+    public bool SunCamera { get; init; } = true;
+
+    public bool For(RayCategory cat) => cat switch
+    {
+        RayCategory.Camera => Camera,
+        RayCategory.Diffuse => Diffuse,
+        RayCategory.Glossy => Glossy,
+        RayCategory.Transmission => Transmission,
+        RayCategory.Shadow => Shadow,
+        _ => true,
+    };
+
+    public static readonly SkyVisibility AllOn = new();
+}
+
+/// <summary>
+/// Sky / environment wrapper. Owns a primary <see cref="ISkyModel"/> that
+/// provides illumination and (optionally) a secondary <see cref="ISkyModel"/>
+/// shown to the camera as a background plate. Handles world↔sky orientation
+/// via a <see cref="Quaternion"/>, per-ray-category visibility flags, and
+/// MIS-correct NEE.
 ///
-/// The sky acts as the environment light source: rays that escape the scene
-/// sample this to get their color contribution. A richer sky = richer GI.
+/// <para><b>Sun handling.</b> When the active sky model exposes an analytical
+/// sun via <see cref="ISkyModel.AnalyticalSun"/>, the <see cref="SceneLoader"/>
+/// instantiates a paired <see cref="Lights.PhysicalSun"/> alongside the
+/// <see cref="Lights.EnvironmentLight"/>. The two lights are independent in
+/// the NEE pool, so power-weighted light picking still works, and the sun
+/// gets analytic cone sampling while the sky body uses the model's own
+/// importance sampler (HDRI CDF, or uniform-sphere fallback).</para>
+///
+/// <para><b>Backwards compatibility.</b> The class retains the legacy name
+/// <c>SkySettings</c> and a Flat / Gradient / HDRI-shaped constructor surface
+/// so existing call sites (<see cref="Renderer"/>, <see cref="Lights.EnvironmentLight"/>,
+/// <see cref="SceneLoader"/>) keep compiling. New scenes should use the
+/// richer <see cref="SkyEnvironmentBuilder"/> ctor path.</para>
 /// </summary>
 public class SkySettings
 {
-    // ── Mode ────────────────────────────────────────────────────────────────
-    public enum SkyMode { Flat, Gradient, Hdri }
+    // ── Mode flags (retained for legacy logging / queries) ──────────────────
+    public enum SkyMode { Flat, Gradient, Hdri, Physical }
     public SkyMode Mode { get; }
-
-    // Convenience properties for Program.cs / logging
     public bool IsGradient => Mode == SkyMode.Gradient;
     public bool IsHdri => Mode == SkyMode.Hdri;
+    public bool IsPhysical => Mode == SkyMode.Physical;
 
-    // ── Flat mode ───────────────────────────────────────────────────────────
+    // ── Lighting + (optional) background model ──────────────────────────────
+    private readonly ISkyModel _lighting;
+    private readonly ISkyModel? _background;   // null = same as lighting
+    private readonly SkyVisibility _visibility;
+    private readonly Quaternion _worldToSky;
+    private readonly Quaternion _skyToWorld;
+
+    // ── Legacy gradient / flat exposed properties ──────────────────────────
     public Vector3 FlatColor { get; }
-
-    // ── Gradient mode ───────────────────────────────────────────────────────
     public Vector3 ZenithColor { get; }
     public Vector3 HorizonColor { get; }
     public Vector3 GroundColor { get; }
-
-    // ── Sun disk (used by gradient mode) ────────────────────────────────────
-    public bool HasSun { get; }
-    public Vector3 SunDirection { get; }
-    public Vector3 SunColor { get; }
-    public float SunIntensity { get; }
-    public float SunCosAngle { get; }
-    public float SunFalloff { get; }
-
-    // ── HDRI mode ───────────────────────────────────────────────────────────
-    private readonly EnvironmentMap? _envMap;
+    public bool HasSun => _lighting.HasAnalyticalSun;
+    public Vector3 SunDirection => _lighting.AnalyticalSun.Direction;
+    public Vector3 SunColor => _lighting.AnalyticalSun.Radiance;
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  Constructors
+    //  Constructors — legacy convenience (flat / gradient / hdri)
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Flat sky — single solid color for all directions.
-    /// </summary>
     public SkySettings(Vector3 flatColor)
+        : this(new FlatSky(flatColor),
+               background: null,
+               visibility: SkyVisibility.AllOn,
+               orientation: Quaternion.Identity,
+               mode: SkyMode.Flat)
     {
-        Mode = SkyMode.Flat;
         FlatColor = flatColor;
         ZenithColor = flatColor;
         HorizonColor = flatColor;
         GroundColor = flatColor;
     }
 
-    /// <summary>
-    /// Gradient sky with optional sun disk.
-    /// </summary>
-    public SkySettings(
-        Vector3 zenithColor,
-        Vector3 horizonColor,
-        Vector3 groundColor,
-        Vector3? sunDirection = null,
-        Vector3? sunColor = null,
-        float sunIntensity = 10f,
-        float sunSizeDeg = 3f,
-        float sunFalloff = 32f)
+    public SkySettings(Vector3 zenithColor, Vector3 horizonColor, Vector3 groundColor,
+                       Vector3? sunDirection = null, Vector3? sunColor = null,
+                       float sunIntensity = 10f, float sunSizeDeg = 3f, float sunFalloff = 32f)
+        : this(BuildGradient(zenithColor, horizonColor, groundColor,
+                             sunDirection, sunColor, sunIntensity, sunSizeDeg),
+               background: null,
+               visibility: SkyVisibility.AllOn,
+               orientation: Quaternion.Identity,
+               mode: SkyMode.Gradient)
     {
-        Mode = SkyMode.Gradient;
-        FlatColor = horizonColor;
-
         ZenithColor = zenithColor;
         HorizonColor = horizonColor;
         GroundColor = groundColor;
-
-        if (sunDirection.HasValue)
-        {
-            HasSun = true;
-            SunDirection = Vector3.Normalize(-sunDirection.Value);
-            SunColor = sunColor ?? Vector3.One;
-            SunIntensity = sunIntensity;
-            SunCosAngle = MathF.Cos(MathUtils.DegreesToRadians(sunSizeDeg * 0.5f));
-            SunFalloff = sunFalloff;
-        }
+        FlatColor = horizonColor;
+        _ = sunFalloff; // retained for back-compat signature only
     }
 
-    /// <summary>
-    /// HDRI sky — environment map loaded from an HDR image file.
-    /// </summary>
     public SkySettings(EnvironmentMap envMap)
+        : this(new HdriSky(envMap),
+               background: null,
+               visibility: SkyVisibility.AllOn,
+               orientation: Quaternion.Identity,
+               mode: SkyMode.Hdri)
     {
-        Mode = SkyMode.Hdri;
-        _envMap = envMap;
         FlatColor = new Vector3(0.5f);
         ZenithColor = FlatColor;
         HorizonColor = FlatColor;
@@ -105,209 +152,210 @@ public class SkySettings
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  Core method — called by Renderer.CalculateSkyColor()
+    //  Primary constructor — pro-grade
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Computes the sky radiance for a ray that escaped the scene.
-    /// </summary>
-    public Vector3 Sample(Ray ray)
+    public SkySettings(ISkyModel lighting,
+                       ISkyModel? background = null,
+                       SkyVisibility? visibility = null,
+                       Quaternion? orientation = null,
+                       SkyMode? mode = null)
     {
-        return Mode switch
+        _lighting = lighting;
+        _background = background;
+        _visibility = visibility ?? SkyVisibility.AllOn;
+        _worldToSky = orientation ?? Quaternion.Identity;
+        _skyToWorld = Quaternion.Inverse(_worldToSky);
+
+        Mode = mode ?? (lighting switch
         {
-            SkyMode.Flat     => FlatColor,
-            SkyMode.Gradient => SampleGradient(ray),
-            SkyMode.Hdri     => _envMap!.Sample(ray.Direction),
-            _                => FlatColor
-        };
-    }
+            FlatSky      => SkyMode.Flat,
+            GradientSky  => SkyMode.Gradient,
+            HdriSky      => SkyMode.Hdri,
+            PreethamSky  => SkyMode.Physical,
+            NishitaSky   => SkyMode.Physical,
+            _            => SkyMode.Flat,
+        });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  Gradient sampling
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private Vector3 SampleGradient(Ray ray)
-    {
-        Vector3 dir = Vector3.Normalize(ray.Direction);
-        float y = dir.Y;
-
-        Vector3 skyColor;
-        if (y >= 0f)
+        // Legacy fields used by some callers — default to mid-gray when the
+        // model doesn't expose a flat colour.
+        FlatColor = lighting is FlatSky f ? f.Color : new Vector3(0.5f);
+        if (lighting is GradientSky g)
         {
-            float t = MathF.Sqrt(MathF.Min(y, 1f));
-            skyColor = Vector3.Lerp(HorizonColor, ZenithColor, t);
+            ZenithColor = g.ZenithColor;
+            HorizonColor = g.HorizonColor;
+            GroundColor = g.GroundColor;
         }
         else
         {
-            float t = MathF.Min(-y * 4f, 1f);
-            skyColor = Vector3.Lerp(HorizonColor, GroundColor, t);
+            ZenithColor = FlatColor;
+            HorizonColor = FlatColor;
+            GroundColor = FlatColor;
         }
+    }
 
-        if (HasSun && y > -0.05f)
+    private static GradientSky BuildGradient(Vector3 z, Vector3 h, Vector3 g,
+        Vector3? sunDir, Vector3? sunCol, float sunInt, float sunSizeDeg)
+    {
+        if (sunDir.HasValue)
         {
-            float cosAngle = Vector3.Dot(dir, SunDirection);
-            if (cosAngle > 0f)
-            {
-                if (cosAngle >= SunCosAngle)
-                {
-                    skyColor += SunColor * SunIntensity;
-                }
-                else
-                {
-                    float glow = MathF.Pow(cosAngle, SunFalloff);
-                    skyColor += SunColor * SunIntensity * glow;
-                }
-            }
+            // Legacy convention: YAML `direction` is the direction TOWARDS the sun.
+            // (The historic SkySettings flipped its sign internally; we restore the
+            // straightforward convention here. Scenes that supplied direction
+            // semantics consistent with the old behaviour will now show the sun on
+            // the opposite side — a deliberate beta-period correction.)
+            var dirToSun = Vector3.Normalize(sunDir.Value);
+            var col = sunCol ?? Vector3.One;
+            // Treat sunSizeDeg as full angular diameter — half-angle = size / 2.
+            return new GradientSky(z, h, g, dirToSun, col * sunInt, sunSizeDeg * 0.5f);
         }
-
-        return skyColor;
+        return new GradientSky(z, h, g);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  Direct Sampling (Next Event Estimation)
+    //  Public sampling API
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Threshold below which a flat sky's luminance is treated as "off" for NEE.
-    /// Avoids registering a fully-black flat sky as a light and wasting shadow rays.
-    /// </summary>
-    private const float FlatSkyNeeLuminanceThreshold = 1e-6f;
+    /// <summary>Legacy entry point — equivalent to <see cref="Sample(Ray, RayCategory, bool, float)"/> with <see cref="RayCategory.Camera"/>, sun visible, sharp LOD.</summary>
+    public Vector3 Sample(Ray ray) => Sample(ray, RayCategory.Camera, includeAnalyticalSun: true, mipLod: 0f);
 
     /// <summary>
-    /// True when the sky can be importance-sampled as a direct light source via NEE:
-    ///   - HDRI: importance-sampled by the environment map's CDF.
-    ///   - Gradient with sun disk: cone-sampled inside the sun.
-    ///   - Flat: uniform sphere sampling (matches Cycles/Arnold uniform world background).
-    /// A pure gradient without a sun disk is intentionally excluded — its body has no
-    /// concentrated radiance peaks, so BSDF importance sampling on the miss path is
-    /// already optimal.
+    /// Linear HDR radiance for a ray that escaped the scene.
+    ///
+    /// <para><paramref name="cat"/> drives visibility-flag masking and selects
+    /// between lighting and background models for camera rays.
+    /// <paramref name="includeAnalyticalSun"/> controls whether the sky model's
+    /// analytical sun disc is added — set <c>true</c> for camera and delta
+    /// (mirror/refraction) bounces, <c>false</c> for non-delta indirect rays
+    /// where a paired <see cref="Lights.PhysicalSun"/> handles the sun via
+    /// NEE (preventing double-counting).</para>
+    ///
+    /// <para><paramref name="mipLod"/> selects a prefiltered HDRI mipmap level
+    /// for image-based environments. Pass <c>0</c> (default) for sharp lookup
+    /// — the historical behaviour. Pass a positive value (roughly
+    /// <c>0.5 · log₂(numPixels / (4π · pdf_bsdf))</c>) when a glossy BSDF
+    /// sample escapes the scene: the wider lobe is convolved against the
+    /// prefiltered HDRI via <see cref="Textures.EnvironmentMap.SampleMip"/>,
+    /// removing the firefly spike from undersampled HDRI peaks. Ignored for
+    /// non-HDRI sky models.</para>
+    ///
+    /// <para>When the analytical sun is hidden from camera rays via
+    /// <see cref="SkyVisibility.SunCamera"/>, the disc is forced off even if
+    /// <paramref name="includeAnalyticalSun"/> is true.</para>
     /// </summary>
+    public Vector3 Sample(Ray ray, RayCategory cat, bool includeAnalyticalSun = true, float mipLod = 0f)
+    {
+        if (!_visibility.For(cat)) return Vector3.Zero;
+
+        Vector3 worldDir = Vector3.Normalize(ray.Direction);
+        Vector3 skyDir = Vector3.Transform(worldDir, _worldToSky);
+
+        ISkyModel source = (cat == RayCategory.Camera && _background != null) ? _background : _lighting;
+
+        Vector3 body;
+        if (mipLod > 0f && source is HdriSky hdri)
+        {
+            // Roughness-driven LOD lookup — variance-killer for glossy escapes
+            // onto HDRIs with hot peaks. The mipmap is built on first request
+            // and reused for all subsequent samples.
+            body = hdri.Map.SampleMip(skyDir, mipLod);
+        }
+        else
+        {
+            body = source.EvaluateRadiance(skyDir);
+        }
+
+        if (source.HasAnalyticalSun && includeAnalyticalSun)
+        {
+            // Camera-visible sun gate.
+            bool showSun = cat != RayCategory.Camera || _visibility.SunCamera;
+            if (showSun)
+            {
+                var (sunDir, sunRad, cosHalf, limb) = source.AnalyticalSun;
+                float cosAngle = Vector3.Dot(skyDir, sunDir);
+                if (cosAngle >= cosHalf)
+                {
+                    Vector3 add = sunRad;
+                    if (limb)
+                    {
+                        const float u1 = 0.6f;
+                        add *= MathF.Max(0f, 1f - u1 * (1f - cosAngle));
+                    }
+                    body += add;
+                }
+            }
+        }
+        return body;
+    }
+
+    /// <summary>True when the environment is meaningful as a direct light source.</summary>
     public bool CanSampleDirectly =>
-        IsHdri ||
-        HasSun ||
-        (Mode == SkyMode.Flat && MathUtils.Luminance(FlatColor) > FlatSkyNeeLuminanceThreshold);
+        _lighting.HasImportanceSampling || _lighting.HasAnalyticalSun;
 
     /// <summary>
-    /// Deterministic estimate of average sky radiance, used by
-    /// EnvironmentLight.ApproximatePower() for scene classification in the
-    /// Renderer constructor (indirect-dominant detection).
-    ///
-    /// MUST NOT call MathUtils.RandomFloat() — the constructor runs single-threaded
-    /// and must produce identical results across runs for consistent RR parameters.
-    ///
-    /// Gradient sky: weighted average of zenith/horizon/ground luminance plus the
-    /// sun's contribution scaled by its solid angle.
-    /// HDRI: delegates to EnvironmentMap.EstimatedAverageLuminance.
-    /// Flat: luminance of the flat color (CanSampleDirectly=false, but provided for completeness).
+    /// Deterministic spherical mean radiance, used by
+    /// <see cref="Lights.EnvironmentLight.ApproximatePower"/>. No PRNG.
     /// </summary>
     public float EstimatedAverageLuminance
     {
         get
         {
-            if (IsHdri && _envMap != null)
-                return _envMap.EstimatedAverageLuminance;
- 
-            if (HasSun)
+            float body = _lighting.EstimatedAverageLuminance;
+            if (_lighting.HasAnalyticalSun)
             {
-                // Weighted average over sky hemisphere zones.
-                // Zenith covers ~25% of the upper hemisphere, horizon ~50%, ground ~25%.
-                float zenithLum  = MathUtils.Luminance(ZenithColor);
-                float horizonLum = MathUtils.Luminance(HorizonColor);
-                float groundLum  = MathUtils.Luminance(GroundColor);
-                float skyAvg = (zenithLum + horizonLum * 2f + groundLum) / 4f;
- 
-                // Sun contribution: peak radiance × solid angle of the disk.
-                // 2π(1 − cosAngle) is the solid angle of a spherical cap.
-                float sunSolidAngle = 2f * MathF.PI * (1f - SunCosAngle);
-                float sunLum = MathUtils.Luminance(SunColor) * SunIntensity * sunSolidAngle;
- 
-                return skyAvg + sunLum;
+                var (_, rad, cosHalf, _) = _lighting.AnalyticalSun;
+                float omega = 2f * MathF.PI * (1f - cosHalf);
+                body += MathUtils.Luminance(rad) * omega / (4f * MathF.PI);
             }
- 
-            // Flat mode — CanSampleDirectly is false here, but return a value anyway
-            // so the method is always safe to call.
-            return MathUtils.Luminance(FlatColor);
+            return body;
         }
     }
 
     /// <summary>
-    /// Inverse of the unit sphere's solid angle (4π sr). Used as the PDF for
-    /// uniform sphere sampling on a flat sky.
+    /// Samples a direction for NEE. Returns sky-body samples — the sun is
+    /// handled separately by a paired <see cref="Lights.PhysicalSun"/> in the
+    /// light list, so we do not return cone samples from this routine.
     /// </summary>
-    private const float UniformSpherePdf = 1f / (4f * MathF.PI);
-
-    /// <summary>
-    /// Samples a direction over the sky for NEE.
-    ///   - HDRI: importance-sampled by the environment map's CDF.
-    ///   - Gradient with sun disk: cone-sampled inside the sun cap.
-    ///   - Flat: uniform on the unit sphere (pdf = 1/(4π)).
-    /// </summary>
-    /// <returns>The sampled direction, the radiance at that direction, and the solid-angle PDF.</returns>
     public (Vector3 Direction, Vector3 Color, float Pdf) SampleDirectly()
     {
-        if (IsHdri && _envMap != null)
+        if (_lighting.HasImportanceSampling)
         {
-            var (dir, pdf) = _envMap.SampleDirection();
-            return (dir, _envMap.Sample(dir), pdf);
+            var (skyDir, L, pdf) = _lighting.ImportanceSample();
+            return (Vector3.Transform(skyDir, _skyToWorld), L, pdf);
         }
-
-        if (HasSun)
-        {
-            // Sample uniformly within the sun's cone.
-            float z = 1f - MathUtils.RandomFloat() * (1f - SunCosAngle);
-            float sinTheta = MathF.Sqrt(1f - z * z);
-            float phi = 2f * MathF.PI * MathUtils.RandomFloat();
-            float x = MathF.Cos(phi) * sinTheta;
-            float y = MathF.Sin(phi) * sinTheta;
-
-            // Local basis around SunDirection (points FROM scene TO sun).
-            Vector3 w = SunDirection;
-            Vector3 u = Vector3.Normalize(Vector3.Cross(MathF.Abs(w.X) > 0.1f ? Vector3.UnitY : Vector3.UnitX, w));
-            Vector3 v = Vector3.Cross(w, u);
-
-            Vector3 dir = Vector3.Normalize(x * u + y * v + z * w);
-
-            float solidAngle = 2f * MathF.PI * (1f - SunCosAngle);
-            float pdf = solidAngle > 0f ? 1f / solidAngle : 1f;
-
-            // Evaluate the full sky (gradient + sun) at the sampled direction so
-            // the NEE estimator captures both the sun's peak and the gradient
-            // body inside the cone.
-            return (dir, SampleGradient(new Ray(Vector3.Zero, dir)), pdf);
-        }
-
-        // Flat sky: uniform on the unit sphere. Pairs with PdfSolidAngle below.
-        // The shadow-test caller (EnvironmentLight) rejects directions in the
-        // surface's lower hemisphere, so wasted samples cost only one Random pair.
-        Vector3 randomDir = MathUtils.RandomUnitVector();
-        return (randomDir, FlatColor, UniformSpherePdf);
+        // Fallback — uniform sphere
+        Vector3 rd = MathUtils.RandomUnitVector();
+        var skyDir2 = Vector3.Transform(rd, _worldToSky);
+        return (rd, _lighting.EvaluateRadiance(skyDir2), 1f / (4f * MathF.PI));
     }
+
+    /// <summary>Solid-angle PDF for NEE MIS balance heuristic.</summary>
+    public float PdfSolidAngle(Vector3 worldDir)
+    {
+        if (!_lighting.HasImportanceSampling) return 0f;
+        Vector3 skyDir = Vector3.Transform(Vector3.Normalize(worldDir), _worldToSky);
+        return _lighting.Pdf(skyDir);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Sun handover — consumed by SceneLoader to register PhysicalSun
+    // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Solid-angle PDF of <see cref="SampleDirectly"/> evaluated at the given
-    /// direction. Mirrors the sampling strategy: HDRI uses the environment map's
-    /// learned PDF, gradient-with-sun uses uniform-cone sampling inside the sun
-    /// disk (and 0 elsewhere). Used for MIS balance heuristic when a BSDF-sampled
-    /// ray escapes the scene.
+    /// When the underlying sky model exposes an analytical sun, returns its
+    /// parameters in <b>world space</b> (orientation applied). The
+    /// SceneLoader registers a paired <see cref="Lights.PhysicalSun"/> from
+    /// these values. Returns <c>null</c> when no analytical sun exists.
     /// </summary>
-    public float PdfSolidAngle(Vector3 direction)
+    public (Vector3 DirectionWorld, Vector3 Radiance, float HalfAngleDeg, bool LimbDarkening)? GetAnalyticalSun()
     {
-        if (!CanSampleDirectly)
-            return 0f;
-
-        if (IsHdri && _envMap != null)
-            return _envMap.PdfDirection(direction);
-
-        if (HasSun)
-        {
-            float cosAngle = Vector3.Dot(Vector3.Normalize(direction), SunDirection);
-            if (cosAngle < SunCosAngle)
-                return 0f;
-            float solidAngle = 2f * MathF.PI * (1f - SunCosAngle);
-            return solidAngle > 0f ? 1f / solidAngle : 0f;
-        }
-
-        // Flat sky: uniform on the unit sphere — same constant for any direction.
-        return UniformSpherePdf;
+        if (!_lighting.HasAnalyticalSun) return null;
+        var (skyDir, rad, cosHalf, limb) = _lighting.AnalyticalSun;
+        Vector3 worldDir = Vector3.Transform(skyDir, _skyToWorld);
+        float halfDeg = MathUtils.RadiansToDegrees(MathF.Acos(Math.Clamp(cosHalf, -1f, 1f)));
+        return (Vector3.Normalize(worldDir), rad, halfDeg, limb);
     }
+
+    /// <summary>Exposes the underlying lighting model (read-only).</summary>
+    public ISkyModel LightingModel => _lighting;
 }

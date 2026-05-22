@@ -1,0 +1,106 @@
+# Showcase: PortalLight — interior illuminated through a window.
+#
+# Demonstrates Bitterli/Wyman/Pharr 2015 portal-masked environment sampling:
+# instead of NEE'ing random directions on the HDRI sphere (most of which hit
+# the walls), the portal restricts samples to the rectangle of the window.
+# Typical variance reduction ≈10× for the same shadow_samples on interior scenes.
+#
+# Render: dotnet run -c Release --project src/RayTracer/RayTracer.csproj -- \
+#         -i scenes/showcase-sky-portal.yaml -o renders/portal.png -w 1280 -H 720 -s 256 -d 6
+
+world:
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0
+  sky:
+    # Bright Hosek-Wilkie daylight outside the room.
+    type: "hosek_wilkie"
+    turbidity: 3.0
+    ground_albedo: [0.3, 0.3, 0.28]
+    intensity: 5.0
+    sun:
+      direction: [0.4, 0.7, 0.6]
+      angular_radius: 0.265
+      limb_darkening: true
+      shadow_samples: 4
+
+cameras:
+  - name: "room"
+    position: [0, 1.6, -2.5]
+    look_at: [0, 1.2, 0]
+    vup: [0, 1, 0]
+    fov: 55
+
+materials:
+  - id: "floor"
+    type: "disney"
+    color: [0.55, 0.50, 0.45]
+    roughness: 0.7
+  - id: "wall"
+    type: "disney"
+    color: [0.85, 0.83, 0.78]
+    roughness: 0.85
+  - id: "table"
+    type: "disney"
+    color: [0.30, 0.20, 0.12]
+    roughness: 0.55
+  - id: "vase"
+    type: "disney"
+    color: [0.92, 0.92, 0.95]
+    roughness: 0.10
+    metallic: 0.8
+
+entities:
+  # Back wall (with a hole for the "window" — we use a quad and a portal aligned).
+  - type: "quad"
+    q: [-3.0, 0.0, 2.0]
+    u: [6.0, 0.0, 0.0]
+    v: [0.0, 4.0, 0.0]
+    material: "wall"
+  # Left wall
+  - type: "quad"
+    q: [-3.0, 0.0, -3.0]
+    u: [0.0, 0.0, 5.0]
+    v: [0.0, 4.0, 0.0]
+    material: "wall"
+  # Right wall (with a window opening modelled by leaving it open at top)
+  - type: "quad"
+    q: [3.0, 0.0, -3.0]
+    u: [0.0, 0.0, 5.0]
+    v: [0.0, 1.2, 0.0]            # solid lower 1.2 m of wall
+    material: "wall"
+  - type: "quad"
+    q: [3.0, 2.4, -3.0]
+    u: [0.0, 0.0, 5.0]
+    v: [0.0, 1.6, 0.0]            # solid upper 1.6 m of wall
+    material: "wall"
+  - type: "quad"
+    q: [3.0, 1.2, -3.0]
+    u: [0.0, 0.0, 0.5]
+    v: [0.0, 1.2, 0.0]            # solid left of window
+    material: "wall"
+  - type: "quad"
+    q: [3.0, 1.2, 1.0]
+    u: [0.0, 0.0, 1.0]
+    v: [0.0, 1.2, 0.0]            # solid right of window
+    material: "wall"
+  # Table
+  - type: "box"
+    point: [-0.8, 0.0, -0.5]
+    normal: [0.6, 1.0, 0.4]       # unused for box; placeholder
+    material: "table"
+  # A vase on the table
+  - type: "sphere"
+    center: [0, 1.2, 0]
+    radius: 0.25
+    material: "vase"
+
+lights:
+  # Window portal aligned with the gap in the right wall.
+  # Window opening: x=3.0 (right wall), y∈[1.2,2.4], z∈[-2.5,0]
+  - type: "portal"
+    anchor: [3.0, 1.2, -2.5]
+    u: [0.0, 0.0, 2.5]            # along Z (window width)
+    v: [0.0, 1.2, 0.0]            # along Y (window height)
+    shadow_samples: 8

@@ -24,6 +24,8 @@ public static class MathUtils
 
     public static float DegreesToRadians(float degrees) => degrees * Pi / 180f;
 
+    public static float RadiansToDegrees(float radians) => radians * 180f / Pi;
+
     /// <summary>
     /// Uniform [0, 1) draw routed through the active per-pixel sampler.
     /// When the Sobol sampler is installed and a per-pixel-sample

@@ -2,36 +2,49 @@
 
 The sky is the largest light source in any outdoor scene. A well-
 configured environment can turn a flat render into something truly
-photographic. This chapter also covers depth of field and multi-camera
-setups.
+photographic. 3D-Ray's sky/environment system is on par with offline
+production renderers (Arnold, Cycles, Renderman, Mitsuba): five sky
+models, image-based lighting with sun extraction, portal lights for
+interiors, physical aerial perspective. This chapter also covers depth
+of field and multi-camera setups.
 
 ---
 
-## 7.1 Sky Modes
+## 7.1 Sky Models
 
-The sky is the only global emitter for environmental lighting in
-3D-Ray. It determines what colour a ray receives when it misses all
-objects and escapes to infinity, and it participates in Next Event
-Estimation (NEE) as a light source whenever its radiance is non-zero.
-Three modes are supported, configured under `world: > sky:`.
+The sky is the global environment emitter in 3D-Ray. It determines what
+colour a ray receives when it misses all objects and escapes to infinity,
+and it participates in Next Event Estimation (NEE) as a light source
+whenever it has non-zero radiance. Five models are supported, configured
+under `world: > sky:`.
 
-| Mode       | Description                                            |
-|------------|--------------------------------------------------------|
-| `flat`     | Uniform colour over the full sphere (default)          |
-| `gradient` | Vertical three-band gradient with optional sun disk    |
-| `hdri`     | Equirectangular HDR image (image-based lighting)       |
+| Model            | Description                                                                  | When to use                                |
+|------------------|------------------------------------------------------------------------------|--------------------------------------------|
+| `flat`           | Uniform colour over the full sphere (default)                                | Studio, indoors, Cornell-box, fill-only    |
+| `gradient`       | Vertical three-band gradient with optional sun disc                          | Stylised previews, quick outdoor look      |
+| `preetham`       | Analytical clear-sky daylight (Preetham 1999). YAML alias: `hosek_wilkie`    | Outdoor midday, exposure-stable backgrounds |
+| `nishita`        | Physical Rayleigh+Mie scattering with precomputed LUT                        | Sunrise / sunset, aerial perspective       |
+| `hdri`           | Equirectangular HDR image (`.hdr` or `.exr`)                                 | Photoreal product / VFX / archviz          |
 
-When there is no `sky:` block, the engine uses a flat sky with the
-default daylight blue `[0.5, 0.7, 1.0]`.
+When no `sky:` block is present, the engine uses a flat sky with the
+default daylight blue `[0.5, 0.7, 1.0]`. All models share a common set
+of "global" features (visibility flags, background plate, orientation) —
+see §7.7 below.
 
+> The sky is the **only** ambient term. Indirect/ambient illumination
+> comes from path-traced GI alone — there is no separate ambient
+> coefficient. If you want a "fill light" feel, use a `flat` sky with a
+> low neutral colour, or a `gradient` with a dim zenith.
 
-> Indirect/ambient illumination arises from
-> path-traced GI alone. To reproduce a "fill light" feel, use a
-> `sky.type: flat` with a low colour, or a low-zenith gradient.
+> **Sun convention.** From this version onward, `sun.direction` points
+> **TOWARDS the sun** (consistent across all sky models and the
+> `PhysicalSun` light). Scenes authored under the old convention (where
+> `direction` was the propagation direction) need their sun vectors
+> inverted.
 
 ---
 
-## 7.2 Flat Sky (Default)
+## 7.2 Flat Sky (default)
 
 ```yaml
 world:
@@ -40,192 +53,341 @@ world:
     color: [0.5, 0.65, 0.9]
 ```
 
-A flat sky returns its `color` for every escaping ray. It also
-participates in NEE via uniform sphere sampling (pdf = 1/(4π)) when
-luminance is positive — same approach Cycles and Arnold use for
-uniform world backgrounds. Set `color: [0, 0, 0]` for fully black void
-scenes (Cornell-box style); the loader automatically excludes a
-zero-luminance flat sky from NEE.
+A flat sky returns its `color` for every escaping ray and participates
+in NEE via uniform sphere sampling (pdf = 1/(4π)) when luminance is
+positive — same approach Cycles and Arnold use for uniform world
+backgrounds. Set `color: [0, 0, 0]` for fully black void scenes
+(Cornell-box style); the loader automatically excludes a zero-luminance
+flat sky from NEE.
 
 ---
 
-## 7.3 Gradient Sky with Sun Disk
+## 7.3 Gradient Sky with Sun Disc
 
-A gradient sky creates a realistic vertical blend from zenith (straight
-up) to horizon to ground, and optionally adds a visible sun disk.
-
-```yaml
-world:
-  sky:
-    type: "gradient"
-    zenith_color: [0.25, 0.45, 0.9]
-    horizon_color: [0.7, 0.8, 0.95]
-    ground_color: [0.4, 0.35, 0.3]
-```
-
-| Parameter       | Default | Description                                   |
-|-----------------|---------|-----------------------------------------------|
-| `zenith_color`  | --      | Color directly overhead                        |
-| `horizon_color` | --      | Color at the horizon                           |
-| `ground_color`  | --      | Color below the horizon                        |
-
-The gradient interpolates vertically: rays pointing straight up get the
-zenith color; rays at the horizon get the horizon color; rays pointing
-below the horizon get the ground color.
-
-### Adding a Sun Disk
+A vertical three-band gradient (zenith → horizon → ground) with an
+optional analytical sun. The sun is auto-attached as a separate
+`PhysicalSun` light with cone sampling and (optionally) Hestroffer
+limb darkening — same workflow as Arnold's `aiSkyDomeLight`.
 
 ```yaml
 world:
   sky:
     type: "gradient"
-    zenith_color: [0.2, 0.35, 0.75]
+    zenith_color:  [0.20, 0.35, 0.75]
     horizon_color: [0.85, 0.75, 0.55]
-    ground_color: [0.3, 0.25, 0.2]
+    ground_color:  [0.30, 0.25, 0.20]
     sun:
-      direction: [-0.5, -0.3, 1]
-      color: [1.0, 0.95, 0.8]
-      intensity: 10.0
-      size: 3.0
-      falloff: 32.0
+      direction:      [0.5, 0.8, -0.3]    # direction TOWARDS the sun
+      color:          [1.0, 0.95, 0.80]
+      intensity:      12.0
+      angular_radius: 0.265                # half-angle in degrees (real Sun)
+      limb_darkening: true                 # V-band Hestroffer 1997
+      shadow_samples: 4                    # stratified soft-shadow samples
 ```
 
-| Sun Parameter | Default | Description                                |
-|---------------|---------|--------------------------------------------|
-| `direction`   | --      | Direction *toward* the sun (from scene)    |
-| `color`       | --      | Sun disk color                             |
-| `intensity`   | `10.0`  | Brightness multiplier                      |
-| `size`        | `3.0`   | Angular diameter in degrees                |
-| `falloff`     | `32.0`  | Edge sharpness (higher = crisper edge)     |
+| Sun parameter      | Default  | Description                                        |
+|--------------------|----------|----------------------------------------------------|
+| `direction`        | --       | Direction *TOWARDS* the sun (sky position)         |
+| `color`            | `[1,1,1]`| Disc tint                                          |
+| `intensity`        | `10.0`   | Brightness multiplier                              |
+| `angular_radius`   | `0.265°` | Half-angle in degrees (real Sun)                   |
+| `size`             | `3.0°`   | Full diameter — used only if `angular_radius` ≤ 0  |
+| `limb_darkening`   | `true`   | Apply Hestroffer two-coefficient V-band model      |
+| `shadow_samples`   | `4`      | Stratified samples for the paired `PhysicalSun`    |
+| `visible_to_camera`| `true`   | When `false`, hides the disc from primary rays     |
 
-The sun disk appears as a bright spot in the sky. It participates in
-direct illumination (the engine can sample it for Next Event
-Estimation), which means it produces shadows and highlights like an
-explicit light source. You can use a gradient sky with a sun disk as
-the **sole light source** in an outdoor scene.
-
-### Preset: Golden Hour
+### Quick presets
 
 ```yaml
-world:
-  sky:
-    type: "gradient"
-    zenith_color: [0.15, 0.25, 0.55]
-    horizon_color: [0.95, 0.65, 0.3]
-    ground_color: [0.25, 0.18, 0.12]
-    sun:
-      direction: [-0.8, -0.15, 0.5]
-      color: [1.0, 0.75, 0.4]
-      intensity: 15.0
-      size: 4.0
-      falloff: 24.0
-```
+# Golden hour
+sun:
+  direction:      [0.8, 0.15, -0.5]
+  color:          [1.0, 0.78, 0.42]
+  intensity:      14.0
+  angular_radius: 1.5
 
-### Preset: Noon
+# Noon
+sun:
+  direction:      [-0.1, 1.0, -0.2]
+  color:          [1.0, 0.98, 0.95]
+  intensity:      12.0
+  angular_radius: 0.5
 
-```yaml
-world:
-  sky:
-    type: "gradient"
-    zenith_color: [0.25, 0.45, 0.9]
-    horizon_color: [0.6, 0.75, 0.95]
-    ground_color: [0.35, 0.3, 0.25]
-    sun:
-      direction: [0.1, -1, 0.2]
-      color: [1.0, 0.98, 0.95]
-      intensity: 12.0
-      size: 2.5
-      falloff: 40.0
-```
-
-### Preset: Night with Moon
-
-```yaml
-world:
-  sky:
-    type: "gradient"
-    zenith_color: [0.01, 0.01, 0.04]
-    horizon_color: [0.03, 0.03, 0.06]
-    ground_color: [0.01, 0.01, 0.02]
-    sun:
-      direction: [0.4, -0.6, 0.7]
-      color: [0.7, 0.75, 0.9]
-      intensity: 3.0
-      size: 1.5
-      falloff: 50.0
+# Night with moon
+sun:
+  direction:      [-0.4, 0.6, -0.7]
+  color:          [0.70, 0.75, 0.90]
+  intensity:      3.0
+  angular_radius: 0.8
 ```
 
 ---
 
-## 7.4 HDRI Image-Based Lighting
+## 7.4 Physical Sky — Hosek-Wilkie / Preetham
 
-For maximum realism, use a High Dynamic Range Image (HDRI) as the sky.
-An HDRI captures the full light field of a real environment -- every
-direction has a measured brightness and color.
+The analytical clear-sky daylight model used by Arnold, Cycles, and
+RenderMan. A single `turbidity` knob drives the entire atmospheric look —
+no manually tuned zenith / horizon / ground colours. Sun direction
+controls both the disc position and the sky body's spatial distribution
+(brightening near the sun, blue at the zenith).
+
+```yaml
+world:
+  sky:
+    type: "hosek_wilkie"             # alias of "preetham"
+    turbidity: 3.0                   # 1 = pristine, 3 = clear, 5 = haze, 10 = smog
+    ground_albedo: [0.25, 0.25, 0.22]
+    intensity: 1.0
+    sun:
+      direction:       [-0.35, 0.78, 0.52]
+      angular_radius:  0.265
+      limb_darkening:  true
+      shadow_samples:  4
+```
+
+| Parameter        | Default | Description                                                        |
+|------------------|---------|--------------------------------------------------------------------|
+| `turbidity`      | `3.0`   | Atmospheric clarity (1–10): low = clean, high = hazy               |
+| `ground_albedo`  | `[0.3]` | Hemispheric albedo of the conceptual ground; tints the lower sky   |
+| `intensity`      | `1.0`   | Multiplier on sky + sun radiance                                   |
+
+> **Implementation note.** Both `type: hosek_wilkie` and `type: preetham`
+> currently route to the same Preetham 1999 model. Hosek-Wilkie's
+> advantage over Preetham at very low sun elevations is fully matched
+> (and exceeded) by the `nishita` model — when in doubt for sunsets,
+> switch to Nishita. See `DEVLOG.md` for the design rationale.
+
+---
+
+## 7.5 Nishita Physical Atmosphere
+
+Rayleigh + Mie single-scattering integrated through an Earth-realistic
+atmosphere (6360 km planet, 8 km Rayleigh scale height, 1.2 km Mie scale
+height). Unlike the analytical models above, Nishita derives sunrise /
+sunset chromaticity from first principles — red disc, orange halo, blue
+zenith all emerge from the physics, not from fitted coefficients.
+
+```yaml
+world:
+  sky:
+    type: "nishita"
+    turbidity: 3.0                  # remapped internally to a Mie-dust scalar
+    intensity: 1.0
+    sun:
+      direction:       [-0.85, 0.12, 0.4]   # low on the horizon → sunset palette
+      angular_radius:  0.265
+      limb_darkening:  true
+      shadow_samples:  4
+```
+
+**Performance.** The transmittance LUT (16×64 floats × 3 channels =
+12 KB) is built once in the constructor (~20 ms). Per-direction radiance
+runs a 16-step view-ray integration with two LUT lookups per sample —
+about 3× a Preetham lookup. Negligible at typical render budgets.
+
+**When to choose Nishita over Hosek-Wilkie / Preetham:**
+
+| Scenario                                  | Better choice |
+|-------------------------------------------|---------------|
+| Sun above 20° elevation, midday           | Preetham (faster) |
+| Sunrise, sunset, dawn, dusk               | Nishita       |
+| You want a participating atmosphere too   | Nishita (pair with §7.9 medium) |
+| Mountain views with depth-of-air haze     | Nishita       |
+| Studio lighting / interior render         | `hdri` or `flat` |
+
+---
+
+## 7.6 HDRI Image-Based Lighting
 
 ```yaml
 world:
   sky:
     type: "hdri"
-    path: "textures/venice_sunset_2k.hdr"
+    path: "textures/venice_sunset_2k.hdr"   # .hdr (Radiance) or .exr (OpenEXR)
     intensity: 1.0
-    rotation: 45.0
+    rotation: 45.0                          # legacy Y-axis rotation (degrees)
+    sun:
+      extract_from_hdri:  true              # auto-detect the sun and split it out
+      extract_threshold:  50                # luminance threshold (× HDRI mean). Default 50
+      shadow_samples:     4
 ```
 
 | Parameter   | Default | Description                                 |
 |-------------|---------|---------------------------------------------|
-| `path`      | --      | Path to an equirectangular HDR file         |
-| `intensity` | `1.0`   | Brightness multiplier                       |
-| `rotation`  | `0.0`   | Horizontal rotation in degrees              |
+| `path`      | --      | Path to `.hdr` or `.exr` (resolved relative to the scene YAML) |
+| `intensity` | `1.0`   | Exposure multiplier                         |
+| `rotation`  | `0.0`   | Y-axis rotation in degrees (legacy; prefer `orientation:` — §7.7) |
 
-The HDRI map wraps around the entire scene as a sphere. The engine uses
-**importance sampling** to concentrate shadow rays toward the brightest
-areas of the map, which speeds up convergence dramatically.
+The HDRI map wraps around the entire scene as a sphere. The engine
+builds a 2D luminance-weighted CDF at load time and **importance-samples**
+shadow rays toward the brightest areas. EXR support covers scanline
+RGB (No compression / ZIP / ZIPS, half + float).
 
-### Tips for HDRI Lighting
+### Automatic mipmap prefiltering (no configuration needed)
 
-- HDRI files are typically `.hdr` (Radiance) or `.exr` (OpenEXR) format.
-- Free HDRIs are available from sites like Poly Haven (CC0 license).
-- Use `intensity` to brighten or darken the environment without
-  changing the file. Values of 0.5--2.0 are typical.
-- HDRI lighting provides soft, natural illumination with complex
-  color gradients. It is often the only light source you need for
-  outdoor scenes.
-- The HDRI is the sole environmental emitter — there is no separate
-  ambient term. Indirect illumination comes from path-traced bounces,
-  exactly as in Cycles or Arnold.
+The renderer detects when a glossy BSDF bounce escapes onto an HDRI and
+automatically reads from a prefiltered mipmap level proportional to the
+BSDF lobe width — eliminating the firefly spike from undersampled HDRI
+peaks on rough mirrors. The pyramid is built on first use (sin(θ)-weighted
+2×2 box filter for energy conservation on equirect maps); scenes that
+never need it pay no extra memory.
+
+### Sun extraction
+
+When `extract_from_hdri: true` is set, the loader scans the HDRI for the
+brightest peak, in-paints those pixels with the ring-averaged background,
+and emits a paired `PhysicalSun` light with cone sampling. Benefits:
+
+- **Crisp shadows** — instead of multi-pixel penumbras from a single
+  bright HDRI pixel.
+- **~10× lower NEE variance** for direct sun illumination.
+- **Independent firefly clamp** — clamp the sky body aggressively without
+  dimming the sun.
+
+This is the same workflow as Arnold's `aiSkyDomeLight.aov_indirect`
+"sun extraction" or Cycles' "Sun Lamp + HDRI" pairing recommendation.
 
 ### Finding the right `rotation`
 
-`rotation` turns the environment sphere around the Y axis in degrees,
-effectively choosing which direction the sun (or brightest spot) faces.
-Here is a practical workflow:
-
-1. **Quick preview pass.** Render a low-resolution preview (`-s 16 -w 400`).
-   Note where the shadows fall on your objects — that is where the
-   dominant light is coming from.
-2. **Visualize the HDRI.** Open the `.hdr` file in a viewer (e.g., the
-   free [hdrview](https://github.com/wkjarosz/hdrview), or any photo
-   editor that supports HDR). Locate the sun or brightest hotspot. Note
-   roughly how far from the center-left it sits in the equirectangular
-   panorama.
-3. **Map panorama position to degrees.** The full width of the
-   equirectangular image represents 360°. If the sun is at 25% from the
-   left edge, it is at 90°. If it is at 75%, it is at 270°. A `rotation`
-   of X° rotates the environment so that the 0° meridian of the HDRI
-   faces the `+Z` direction of your scene plus X°.
-4. **Iterate.** Start with `rotation: 0` and adjust in 45° steps until
-   shadows fall where you want them, then fine-tune by 10–15° increments.
-
-> **Tip:** If the sun direction matters for a specific shot (e.g., the
-> sun should be at camera-left to create a rim light on your subject),
-> work backwards: decide the desired shadow angle in world space, then
-> pick a `rotation` that places the HDRI's bright spot at that angle
-> from the `+Z` axis.
+The full equirect width represents 360° — sun at 25% from the left is at
+90°, at 75% is at 270°. Start with `rotation: 0`, adjust in 45° steps,
+then fine-tune. For full 3D orientation (pitch + roll, not just yaw) use
+the `orientation:` block in §7.7 below.
 
 ---
 
-## 7.5 Depth of Field
+## 7.7 Global Sky Features: Visibility, Background, Orientation
+
+These three features apply to every sky model.
+
+### Visibility flags (per-ray-category)
+
+Parity with Cycles "Ray Visibility" / Arnold `aiSkyDomeLight.visibility.*`.
+Each flag can be turned off to hide the sky from one category of rays:
+
+```yaml
+world:
+  sky:
+    type: "hdri"
+    path: "studio.hdr"
+    visibility:
+      camera:       true     # Primary camera rays
+      diffuse:      true     # Diffuse / sheen / SSS bounces
+      glossy:       true     # Glossy / clearcoat bounces
+      transmission: true     # Refractions through glass
+      shadow:       true     # NEE shadow rays return sky radiance
+    sun:
+      visible_to_camera: false   # Hide the sun disc from camera (still lights the scene)
+```
+
+Common setups:
+
+- `camera: false` — hides the HDRI from the rendered background while
+  still lighting the scene (clean alpha for compositing).
+- `glossy: false` — removes the HDRI from reflective materials (clay-render
+  previews of metals).
+- `sun.visible_to_camera: false` — off-camera key-light setup; the sun
+  acts as a hard light source but doesn't blow out the sky in the frame.
+
+### Background plate
+
+A separate `background:` sub-block lets you light the scene with one
+environment and show a different one to the camera — standard product /
+VFX workflow.
+
+```yaml
+world:
+  sky:
+    type: "hdri"
+    path: "lighting.hdr"            # Primary lighting source
+    background:
+      type: "hdri"
+      path: "background.hdr"        # Shown to camera rays
+```
+
+The `background:` block accepts the same fields as the top-level `sky:`
+block, including its own `path`, `intensity`, `rotation`, and any model
+type (`flat`, `gradient`, `preetham`, etc.).
+
+### Orientation (quaternion / Euler XYZ)
+
+Replaces the legacy Y-only `rotation:` field with a full 3D orientation:
+
+```yaml
+world:
+  sky:
+    type: "hdri"
+    path: "studio.hdr"
+    orientation:
+      euler:      [10, 45, 0]              # XYZ intrinsic Euler degrees
+      # OR
+      quaternion: [0, 0.38, 0, 0.92]       # XYZW; quaternion wins if both present
+```
+
+The legacy `rotation:` field is still honoured when `orientation:` is
+absent.
+
+---
+
+## 7.8 Portal Lights — Interior Scenes Through Windows
+
+Interior renders with windows / skylights traditionally suffer from
+massive variance: NEE samples random directions on the sky CDF, but
+≥95% of them hit the walls. **Portal lights** restrict NEE to the
+rectangle of the window — instant ~10× variance reduction at the same
+sample count.
+
+```yaml
+lights:
+  - type: "portal"           # alias: "portal_light"
+    anchor: [3.0, 1.2, -2.5] # one corner of the window rectangle
+    u: [0.0, 0.0, 2.5]       # edge along U (window width)
+    v: [0.0, 1.2, 0.0]       # edge along V (window height)
+    shadow_samples: 8        # default 8
+```
+
+The portal is **intangible**: no geometry, invisible to camera and to
+BSDF-sampled rays. It contributes only via NEE. Orient `u, v` so the
+cross product `u × v` points TOWARDS the sky.
+
+Algorithm: Bitterli, Wyman, Pharr (2015) "Portal-Masked Environment Map
+Sampling". Same approach as Mitsuba `emitters/portal.cpp` and Arnold's
+window-light workflow.
+
+---
+
+## 7.9 Aerial Perspective — Nishita Atmospheric Medium
+
+The depth-of-air look offline renderers achieve via Cycles "Volume
+Scatter" + sky / Arnold `atmosphere_volume` + sun. Distant geometry
+acquires a bluish tint (Rayleigh scattering) and loses luminance
+(extinction). The medium shares physical constants with `NishitaSky`,
+so atmosphere and sky agree:
+
+```yaml
+world:
+  sky:
+    type: "nishita"
+    sun:
+      direction: [-0.45, 0.55, 0.7]
+  medium:
+    type: "atmosphere"           # aliases: "nishita", "aerial_perspective"
+    world_scale: 1000.0          # metres per world unit (1000 = "1 wu : 1 km")
+    sea_level_y: 0.0             # world Y of altitude 0
+    dust_density: 1.2            # Mie density (0 = pristine, 1 = clean, >1 = polluted)
+    air_density: [1, 1, 1]       # Rayleigh density multiplier per channel
+    # phase defaults to Henyey-Greenstein g=0.76 (Mie forward scattering)
+```
+
+`world_scale` is the key mapping knob — choose it based on the scene's
+scale (1000 for "stadium scale" scenes, 200 for "city block" scale, 50
+for "single room" scale). Optical depth has a closed form (sum of two
+exponentials) so there is no extra variance for the transmittance path —
+free-path sampling uses delta tracking with a lower-altitude majorant.
+
+---
+
+## 7.10 Depth of Field
 
 In the real world, a camera lens focuses at a specific distance. Objects
 at that distance are sharp; objects closer or farther away are blurred.
@@ -241,52 +403,15 @@ cameras:
     focal_dist: 5.0
 ```
 
-| Parameter    | Default | Description                                  |
-|--------------|---------|----------------------------------------------|
-| `aperture`   | `0.0`  | Lens diameter (0 = everything in focus)       |
-| `focal_dist` | `1.0`  | Distance from camera at which objects are sharp |
-| `focal_pos`  | _none_ | Alternative to `focal_dist`: focus on a 3D point. See "Focus on a point" below. |
-
-### How It Works
-
-- `aperture: 0` (the default) gives a perfect pinhole camera --
-  everything is in focus regardless of distance.
-- `aperture > 0` simulates a real lens. The larger the aperture, the
-  shallower the depth of field (more blur for out-of-focus objects).
-- `focal_dist` sets the focus distance. Objects at exactly this
-  distance from the camera are perfectly sharp.
-
-### Practical Guidance
-
-1. Set `focal_dist` to the distance between the camera and your subject.
-   The vector from `position` to `look_at` has this length.
-2. Start with a small aperture (0.05--0.1) and increase until you get
-   the desired blur.
-3. DOF requires **more samples** for a clean result. Use at least 64
-   SPP; 256+ is recommended for production.
-
-### Example: Focusing on the Middle Sphere
-
-```yaml
-cameras:
-  - name: "main"
-    position: [0, 1, -6]
-    look_at: [0, 0.5, 0]
-    fov: 45
-    aperture: 0.12
-    focal_dist: 6.0       # Distance to the subject row
-```
-
-Objects closer to and farther from the camera than 6 units will appear
-blurred, with increasing blur the farther they are from the focal plane.
+| Parameter    | Default | Description                                          |
+|--------------|---------|------------------------------------------------------|
+| `aperture`   | `0.0`   | Lens diameter (0 = pinhole, everything in focus)     |
+| `focal_dist` | `1.0`   | Distance from camera at which objects are sharp      |
+| `focal_pos`  | _none_  | Alternative: focus on a 3D world point (see below)   |
 
 ### Focus on a point — `focal_pos` (Arnold/Cycles "Focus Object")
 
-Measuring the distance to your subject every time you reposition the
-camera is tedious. Production renderers let you specify the **focal
-point** directly — Arnold's "Focus Object", Cycles' "Focal Object",
-RenderMan's `focusDistance` driven by a Studio-tracked target — and
-3D-Ray exposes the same control via `focal_pos: [x, y, z]`:
+Production renderers let you specify the **focal point** directly:
 
 ```yaml
 cameras:
@@ -298,31 +423,23 @@ cameras:
     focal_pos: [0.0, 0.5, 0.0]    # exact world-space subject coordinate
 ```
 
-The loader projects the camera→focal-point vector onto the optical
-axis: `focusDist = (focal_pos − position) · normalize(look_at −
-position)`. The focus plane is perpendicular to the view direction
-passing through `focal_pos`, so this is a **projection, not a Euclidean
-distance** — a focal point off-axis at `(3, 4, -5)` with a camera at
-the origin looking along `−Z` yields focus distance `5`, not `√50`.
-That matches every production renderer.
+The loader projects the camera→focal-point vector onto the optical axis,
+so `focal_pos` defines the focus *plane*, not a Euclidean sphere — a
+focal point at `(3, 4, -5)` with a camera at the origin looking along
+`-Z` yields focus distance `5`, not `√50`. This matches every production
+renderer. When both `focal_pos` and `focal_dist` are given, `focal_pos`
+wins (an info message is logged).
 
-**Why use it.** Once you've placed your subject in the scene you know
-its world coordinates exactly. Drop them into `focal_pos` and the
-focus plane snaps to the subject regardless of how you reframe the
-camera — no recomputing distances by hand.
+### Practical guidance
 
-**Precedence.** When both `focal_pos` and `focal_dist` are present,
-`focal_pos` wins (an info message is logged). `focal_pos` is ignored
-with a warning when it falls behind the camera, coincides with it, or
-the camera is degenerate (`look_at == position`); the scalar
-`focal_dist` is then used as fallback.
+- Start with a small aperture (0.05–0.1) and increase until you get the
+  desired blur.
+- DOF requires more samples for a clean result. Use at least 64 SPP;
+  256+ is recommended for production.
 
 ---
 
-## 7.6 Multiple Named Cameras
-
-You can define several cameras in a single scene file and switch between
-them on the command line without editing the YAML.
+## 7.11 Multiple Named Cameras
 
 ```yaml
 cameras:
@@ -337,60 +454,38 @@ cameras:
     fov: 30
     aperture: 0.1
     focal_dist: 3.5
-
-  - name: "topdown"
-    position: [0, 8, 0.01]
-    look_at: [0, 0, 0]
-    fov: 45
 ```
 
-Use the `cameras:` key (plural, list) instead of the singular `camera:`.
-Each camera must have a unique `name:`.
-
-### Selecting a Camera from the CLI
+Use the `cameras:` key (plural, list) instead of singular `camera:`.
+Each camera must have a unique `name:`. Select from the CLI:
 
 ```
 RayTracer -i scene.yaml --camera wide
-RayTracer -i scene.yaml --camera closeup
-RayTracer -i scene.yaml -c 2            # By zero-based index (topdown)
+RayTracer -i scene.yaml -c 1               # zero-based index
+RayTracer -i scene.yaml --list-cameras     # print names + indices, no render
 ```
-
-### Listing Available Cameras
-
-```
-RayTracer -i scene.yaml --list-cameras
-```
-
-This prints the names and indices of all defined cameras without
-rendering.
 
 When multiple cameras exist and no `--camera` flag is provided, the
-engine uses the **first camera** in the list and prints a warning.
-
-> **Note:** The singular `camera:` key (no list) still works for scenes
-> with a single camera. If both `camera:` and `cameras:` are present,
-> `cameras:` takes precedence.
+engine uses the first one and prints a warning.
 
 ---
 
-## 7.7 Complete Example: Golden Hour Landscape
+## 7.12 Complete Example: Golden Hour Landscape
 
 ```yaml
-# golden-hour.yaml
-# An outdoor scene with gradient sky, sun disk, DOF, and multiple cameras.
+# golden-hour.yaml — outdoor scene with Hosek-Wilkie sky, DOF, multi-camera.
 
 world:
   sky:
-    type: "gradient"
-    zenith_color: [0.15, 0.25, 0.55]
-    horizon_color: [0.95, 0.65, 0.3]
-    ground_color: [0.2, 0.15, 0.1]
+    type: "hosek_wilkie"
+    turbidity: 3.5
+    ground_albedo: [0.3, 0.28, 0.22]
+    intensity: 1.0
     sun:
-      direction: [-0.8, -0.2, 0.6]
-      color: [1.0, 0.78, 0.42]
-      intensity: 14.0
-      size: 4.0
-      falloff: 24.0
+      direction:      [0.8, 0.15, -0.5]    # low warm sun, behind-right
+      angular_radius: 1.5                   # slightly enlarged for cinematic glow
+      limb_darkening: true
+      shadow_samples: 4
 
 cameras:
   - name: "landscape"
@@ -403,37 +498,13 @@ cameras:
     look_at: [0.5, 0.6, 0]
     fov: 30
     aperture: 0.15
-    focal_dist: 3.5
-
-  - name: "dramatic"
-    position: [-2, 0.4, -4]
-    look_at: [0, 0.5, 0]
-    fov: 70
-
-lights:
-  # The gradient sky + sun is the primary light source.
-  # Add a subtle fill to lift the deepest shadows.
-  - type: "directional"
-    direction: [0.5, -0.5, -0.3]
-    color: [0.4, 0.5, 0.7]
-    intensity: 0.4
+    focal_pos: [0.0, 0.5, 0.0]
 
 materials:
   - id: "ground"
     type: "disney"
     color: [0.35, 0.28, 0.18]
     roughness: 0.85
-
-  - id: "stone"
-    type: "disney"
-    color: [0.55, 0.52, 0.48]
-    roughness: 0.65
-
-  - id: "grass"
-    type: "disney"
-    color: [0.18, 0.35, 0.08]
-    roughness: 0.8
-    subsurface: 0.15
 
   - id: "gold_sphere"
     type: "disney"
@@ -442,30 +513,18 @@ materials:
     roughness: 0.05
 
   - id: "glass_sphere"
-    type: "dielectric"
-    refraction_index: 1.52
+    type: "disney"
+    color: [0.95, 0.95, 0.95]
+    spec_trans: 1.0
+    ior: 1.52
+    roughness: 0.02
 
 entities:
-  # Ground plane
   - type: "infinite_plane"
     point: [0, 0, 0]
     normal: [0, 1, 0]
     material: "ground"
 
-  # Some stones
-  - type: "sphere"
-    center: [-1.5, 0.25, 1]
-    radius: 0.25
-    material: "stone"
-    scale: [1, 0.6, 1]
-
-  - type: "sphere"
-    center: [2, 0.2, 2]
-    radius: 0.2
-    material: "stone"
-    scale: [1.2, 0.5, 0.9]
-
-  # Hero objects
   - type: "sphere"
     center: [0, 0.5, 0]
     radius: 0.5
@@ -475,50 +534,41 @@ entities:
     center: [1.2, 0.35, -0.5]
     radius: 0.35
     material: "glass_sphere"
-
-  # Grass tufts (small spheres)
-  - type: "sphere"
-    center: [-0.8, 0.08, -0.5]
-    radius: 0.08
-    material: "grass"
-
-  - type: "sphere"
-    center: [0.5, 0.06, 0.8]
-    radius: 0.06
-    material: "grass"
 ```
-
-### Rendering the Three Cameras
 
 ```
 RayTracer -i golden-hour.yaml -c landscape -w 1920 -H 800 -s 256 -d 6
 RayTracer -i golden-hour.yaml -c macro -w 1200 -H 800 -s 1024 -d 8 -S 4
-RayTracer -i golden-hour.yaml -c dramatic -w 1920 -H 800 -s 256 -d 6
 ```
-
-The "macro" camera has DOF enabled -- the gold sphere will be sharp while
-the background softly blurs.
 
 ---
 
 ## What You Have Learned
 
-- The **flat** sky returns a uniform colour and participates in NEE
-  via uniform sphere sampling; ideal for studios and indoor scenes.
-- The **gradient** sky provides a three-band vertical blend; adding a
-  `sun:` disk turns it into a full outdoor light source.
-- **HDRI** maps provide photorealistic environment lighting with
-  importance sampling.
-- The sky is the only environmental emitter, and indirect/ambient lighting comes from
-  path-traced GI alone.
+- **Five sky models** cover every production scenario: `flat` (uniform),
+  `gradient` (stylised), `preetham`/`hosek_wilkie` (analytical clear-sky
+  daylight), `nishita` (physical Rayleigh+Mie for sunsets and aerial
+  perspective), `hdri` (image-based).
+- The **sun is decoupled** as a `PhysicalSun` light with cone sampling
+  and Hestroffer limb darkening. Sun extraction from HDRIs gives clean
+  shadows and lower variance.
+- **Visibility flags** (camera/diffuse/glossy/transmission/shadow),
+  separate **background plate**, and full 3D **orientation** apply to
+  every sky model.
+- **Portal lights** restrict NEE to window rectangles for ~10× variance
+  reduction on interior scenes.
+- **Nishita atmospheric medium** adds physical aerial perspective using
+  the same constants as the sky model.
+- HDRI **mipmap prefiltering** is automatic on glossy bounces — no
+  configuration needed; eliminates firefly spikes.
 - **Depth of field** is controlled by `aperture` (lens size) and
-  `focal_dist` (focus distance). Larger aperture = more blur.
-- `focal_pos: [x, y, z]` is an alternative to `focal_dist` — focus on
-  a 3D point (Arnold/Cycles "Focus Object" workflow). The loader
-  projects the point onto the optical axis, so the value is an axial
-  projection, not a Euclidean distance.
-- **Multiple cameras** let you define several viewpoints and switch
-  between them with `--camera name` on the CLI.
+  `focal_dist` (or `focal_pos: [x, y, z]` for Arnold/Cycles "Focus Object"
+  workflow).
+- **Multiple cameras** in one scene file, selectable via `--camera name`
+  on the CLI.
+
+For a one-page YAML reference plus ready-to-copy sky presets see
+[`scenes/00-sky-presets.md`](../../../scenes/00-sky-presets.md).
 
 ---
 

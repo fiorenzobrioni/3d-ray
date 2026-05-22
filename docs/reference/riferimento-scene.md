@@ -66,7 +66,7 @@ backgrounds" di Cycles/Arnold. Imposta `color: [0, 0, 0]` per scene black-void
 stile Cornell-box — in questo caso il loader esclude automaticamente il cielo
 da NEE.
 
-#### **Gradient Sky** (raccomandato per scene all'aperto):
+#### **Gradient Sky** (stilizzato — preview / outdoor):
 ```yaml
 sky:
   type: "gradient"
@@ -74,28 +74,115 @@ sky:
   horizon_color: [0.65, 0.80, 1.00]      # Orizzonte
   ground_color:  [0.30, 0.25, 0.20]      # Riflesso del terreno
   sun:                                     # (opzionale)
-    direction:  [-0.5, -1.0, -0.3]       # Direzione di PROPAGAZIONE della luce (sole → scena).
-                                          # La posizione del sole è -direction: con [-0.5,-1,-0.3]
-                                          # il sole è in alto a destra-davanti.
-    color:      [1.0, 0.98, 0.85]
-    intensity:  12.0
-    size:       2.5                        # Dimensione angolare in gradi
-    falloff:    48.0                       # Esponente bagliore (più alto = più nitido)
+    direction:      [0.5, 1.0, 0.3]      # Direzione VERSO il sole (posizione del disco).
+    color:          [1.0, 0.98, 0.85]
+    intensity:      12.0
+    angular_radius: 0.265                  # Semiangolo in gradi (consigliato)
+    size:           2.5                    # Diametro totale in gradi (alternativa)
+    limb_darkening: true                   # Limb darkening Hestroffer (1997)
+    shadow_samples: 4                      # Campioni stratificati per il PhysicalSun accoppiato
+    visible_to_camera: true                # Nasconde il disco dalla camera, lo tiene come luce
 ```
-Il corpo del gradiente è campionato dal BSDF importance sampling sul percorso di
-miss; solo il disco solare opzionale partecipa a NEE (cone-sampling all'interno
-della sua dimensione angolare).
+**Cambio convenzione `direction`.** Ora punta VERSO il sole. Il vecchio codice
+invertiva il segno internamente; scene legacy basate su quel flip vedranno il
+sole dal lato opposto — basta invertire il vettore. Il disco è agganciato
+automaticamente a un `PhysicalSun` separato con cone sampling e limb darkening.
 
-#### **HDRI/IBL** (per il massimo realismo):
+#### **Nishita** (atmosfera fisica Rayleigh + Mie):
+```yaml
+sky:
+  type: "nishita"
+  turbidity: 3.0                           # remappato internamente a una scala Mie/polvere
+  intensity: 1.0
+  sun:
+    direction:       [0.4, 0.5, 0.3]      # direzione VERSO il sole
+    angular_radius:  0.265
+    limb_darkening:  true
+    shadow_samples:  4
+```
+Modello physically-based con integrazione single-scattering — supera Preetham/
+Hosek-Wilkie alle elevazioni basse (riproduce correttamente il disco rosso, l'halo
+arancione e il blu zenitale all'alba/tramonto da principi fisici, non da
+approssimazione fitting). Il view ray viene marciato attraverso l'atmosfera con
+16 campioni; ciascuno consulta la trasmittanza del sole in una LUT pre-computata
+16×64 (Bruneton). La LUT è height-resolved, pronta per integrazione aerial-
+perspective con un mezzo partecipante (estensione futura).
+
+#### **Hosek-Wilkie / Preetham** (sky fisico analitico clear-sky):
+```yaml
+sky:
+  type: "hosek_wilkie"                     # alias di "preetham" (modello analitico)
+  turbidity:     3.0                       # 1 = aria pulitissima, 3 = clear, 5 = foschia, 10 = smog
+  ground_albedo: [0.3, 0.3, 0.3]
+  intensity:     1.0
+  sun:
+    direction:       [0.3, 0.8, 0.2]      # direzione VERSO il sole
+    angular_radius:  0.265                 # default = disco solare reale
+    limb_darkening:  true
+    shadow_samples:  4
+```
+Distribuzione daylight analitica parametrizzata da torbidità atmosferica e
+albedo del terreno. Il modello espone direttamente la direzione del sole come
+luce analitica: viene auto-registrato un `PhysicalSun` accanto all'environment —
+ombre nitide da cone sampling senza dover campionare 1 px su CDF. La trasmittanza
+Rayleigh tinge il sole di caldo alle elevazioni basse (alba/tramonto).
+
+#### **HDRI/IBL** (image-based, .hdr + .exr):
 ```yaml
 sky:
   type: "hdri"
-  path: "hdri/studio.hdr"                 # Percorso relativo al file YAML
+  path: "hdri/studio.hdr"                 # .hdr (Radiance) oppure .exr (OpenEXR)
   intensity: 1.0                           # Moltiplicatore esposizione
-  rotation: 90                             # Rotazione asse Y in gradi
+  rotation: 90                             # Rotazione asse Y in gradi (legacy)
+  sun:                                     # (opzionale) sun extraction
+    extract_from_hdri: true                # auto-detect del sole e split
+    extract_threshold: 50                  # multiplo della media HDRI (def. 50)
+    shadow_samples: 4
 ```
-Le HDRI sono importance-sampled tramite una CDF di luminanza sulla mappa
-equirettangolare.
+Le HDRI sono importance-sampled tramite CDF 2D pesata per luminanza. **OpenEXR**
+supportato (scanline RGB, no-compression / ZIP / ZIPS, half + float). La **sun
+extraction** rileva il picco più brillante, sostituisce quei pixel con la media
+circolare del background, e emette un `PhysicalSun` accoppiato per ombre nitide
+— stesso workflow di `aiSkyDomeLight` in Arnold. I valori negativi (alcune
+compressioni EXR) sono clampati a 0 al load.
+
+#### **Flag di visibilità** (per tipo di raggio, parità Cycles / Arnold):
+```yaml
+sky:
+  type: "hdri"
+  path: "studio.hdr"
+  visibility:
+    camera:       true     # Raggi camera vedono il body del cielo
+    diffuse:      true     # Bounce diffuse / sheen / SSS vedono il cielo
+    glossy:       true     # Bounce glossy / clearcoat vedono il cielo
+    transmission: true     # Rifrazioni vedono il cielo
+    shadow:       true     # Raggi NEE shadow recuperano la radianza del cielo
+  sun:
+    visible_to_camera: false    # Disco solare invisibile alla camera (continua a illuminare)
+```
+
+#### **Background plate** (solo camera):
+```yaml
+sky:
+  type: "hdri"
+  path: "lighting.hdr"        # Sorgente di illuminazione primaria
+  background:
+    type: "hdri"
+    path: "background.hdr"    # Immagine diversa mostrata ai raggi camera
+```
+
+#### **Orientation** (rotazione 3D completa):
+```yaml
+sky:
+  type: "hdri"
+  path: "studio.hdr"
+  orientation:
+    euler:      [10, 45, 0]   # Euler XYZ intrinseco in gradi
+    # OPPURE
+    quaternion: [0, 0.38, 0, 0.92]   # XYZW; il quaternion vince se entrambi presenti
+```
+Sostituisce il vecchio campo `rotation:` solo-Y. Il campo legacy è ancora
+onorato quando `orientation:` è assente.
 
 **Configurazioni Sky Predefinite:**
 - **Noon** (gradiente pulito, sole luminoso)
@@ -139,6 +226,24 @@ medium:
   phase: "hg"
   g: 0.6
 ```
+
+**Tipo 5 — `atmosphere`** (Nishita aerial perspective, condivide le costanti con `type: nishita` del cielo):
+```yaml
+medium:
+  type: "atmosphere"               # alias: "nishita", "aerial_perspective"
+  world_scale: 1000.0              # metri per unità mondo (1000 = 1 wu : 1 km). Default 1000.
+  sea_level_y: 0.0                 # Y world dell'altitudine 0 (alias Y0 mantenuto)
+  air_density: [1, 1, 1]           # moltiplicatore densità Rayleigh per canale
+  dust_density: 1.0                # densità Mie (0 = puro, 1 = pulito, >1 = inquinato)
+  phase: "hg"                      # default Henyey-Greenstein g=0.76 (Mie forward)
+  g: 0.76
+```
+Mezzo Earth-realistic a due specie esponenziali (Rayleigh scale height 8 km +
+Mie 1.2 km) con le stesse costanti fisiche di `NishitaSky`. L'optical depth
+ha forma chiusa (somma di due esponenziali) — niente varianza da delta
+tracking per il path di trasmittanza. Il sampling free-path usa delta tracking
+con majorante alla quota più bassa. Da abbinare a `world.sky.type: nishita`
+per ottenere sky e aerial perspective visivamente coerenti.
 
 **Tipo 3 — `procedural`** (Perlin fBm, delta tracking):
 ```yaml
@@ -1980,6 +2085,27 @@ Le primitive che espongono la chiave `center:` — **sphere, cylinder, cone, cap
 - Visibile alla camera e ai raggi specular tramite un quad emissivo proxy posizionato a `corner`/`u`/`v` — chiude lo stimatore MIS di Veach sui materiali specular smooth. Stesso approccio di Arnold/Cycles/Renderman per le quad light analitiche.
 - `soft_radius` (default `0`): quando > 0, il denominatore dell'attenuazione viene clampato a `max(distSq, r²)`, impedendo al termine `cosLight/d²` di divergere quando un campione stratificato cade quasi tangente al ricevitore nei media volumetrici densi. La distanza geometrica restituita è invariata. Consigliato per area light che illuminano media partecipanti densi (es. pannello a soffitto in nebbia).
 - `visible_to_camera` (default `true`): impostato a `false` nasconde il quad proxy ai raggi primari della camera. La NEE continua a illuminare la scena a piena intensità; le riflessioni speculari e le rifrazioni continuano a vedere il pannello; i rimbalzi indiretti sono invariati. Replica il flag `camera` di Arnold e "Ray Visibility → Camera" di Cycles.
+
+#### **8.4b Portal Light (finestra sull'environment)**
+```yaml
+- type: "portal"  # alias: "portal_light"
+  anchor: [3.0, 1.2, -2.5]                # un angolo del rettangolo finestra
+  u: [0.0, 0.0, 2.5]                       # lato lungo U (larghezza finestra)
+  v: [0.0, 1.2, 0.0]                       # lato lungo V (altezza finestra)
+  shadow_samples: 8                        # default 8
+```
+- Portal-masked environment sampling (Bitterli/Wyman/Pharr 2015) — restringe la
+  NEE sul cielo al rettangolo della finestra, abbattendo i sample sprecati negli
+  interni dal ~95% al ~5%. Tipica riduzione varianza ≈10× a parità di
+  `shadow_samples`.
+- Il portal è **intangibile**: nessuna geometria, invisibile a camera,
+  riflessioni e raggi BSDF. Contribuisce solo via NEE.
+- Richiede un cielo non-banale (HDRI / Hosek-Wilkie / Nishita / gradient con sole);
+  ignorato al load se il cielo non può essere campionato direttamente.
+- La normale del portal `n = normalize(u × v)` definisce il lato "esterno".
+  Ricevitori dal lato sbagliato restituiscono 0 — orienta `u, v` in modo che
+  il prodotto vettoriale punti VERSO il cielo.
+- `shadow_samples` sovrascrivibile via CLI `-S`. Stratificato in griglia √N × √N.
 
 #### **8.5 Sphere Light (Ombre Morbide Isotropiche)**
 ```yaml

@@ -8,6 +8,123 @@ Roadmap, lavori in corso, bug noti, storico cicli.
 
 ## 📌 Note rapide
 
+### ✅ Sky / Environment — overhaul pro-grade
+
+Riscrittura completa del sistema sky/environment per allinearlo agli standard
+offline (Arnold, Cycles, Renderman, Mitsuba). `SkySettings` resta come nome
+pubblico per non rompere call site, ma internamente è ora un wrapper attorno a
+una nuova interfaccia `ISkyModel` con implementazioni concrete sotto
+`src/RayTracer/Rendering/Sky/`:
+
+- **`FlatSky`** — uniforme su sfera. Importance-sample uniforme se non nero.
+- **`GradientSky`** — gradient verticale zenith/horizon/ground + sole analitico
+  opzionale. Convenzione `direction` corretta: punta TO sun (l'inversione legacy è rimossa).
+- **`PreethamSky`** — Preetham/Shirley/Smits 1999. API compatibile Hosek-Wilkie
+  (`turbidity`, `ground_albedo`, `sun.direction`). YAML accetta `type: hosek_wilkie`
+  o `type: preetham`; oggi sono alias. Coefficienti Y/x/y conversi xyY→CIE XYZ→Rec.709,
+  trasmittanza Rayleigh per il colore del sole. Sostituibile con tabelle HW
+  complete con un solo file. **Aerial perspective Nishita** è ancora TODO.
+- **`HdriSky`** — wrapper IBL su `EnvironmentMap`, ora supporta sun-extracted via
+  `HdriSunExtractor`.
+
+Sopra l'`ISkyModel` ci sono:
+
+- **Orientation** — quaternion (rispetto al precedente `rotation` solo Y);
+  `orientation.euler [x,y,z]` o `orientation.quaternion [x,y,z,w]` in YAML.
+- **Visibility flags** — `camera / diffuse / glossy / transmission / shadow`
+  (parità Cycles "Ray Visibility" / Arnold `visibility.*`).
+- **Background separato** — `background:` block opzionale (sub-sky model)
+  mostrato ai raggi camera mentre `lighting` resta l'illuminazione effettiva.
+- **`SunCamera`** flag — nasconde il disco solare dai raggi camera ma lo lascia
+  attivo come sorgente luminosa (off-camera key light setup).
+
+**Sole disaccoppiato.** Quando un sky model espone `HasAnalyticalSun=true`, il
+`SceneLoader` registra automaticamente un nuovo `PhysicalSun` (`ILight`) accanto
+all'`EnvironmentLight`. Cone sampling stratificato, PDF `1/(2π(1-cosα))`,
+opzionale limb darkening Hestroffer 1997. Il body del sky escude il sole sui
+bounce non-delta (parità Cycles "HDRI sun extraction") per evitare doppio
+conteggio — quindi BSDF specular delta riflette il sole, NEE indiretta lo
+illumina, niente double-count.
+
+**Loader.** Supporto OpenEXR (scanline RGB, ZIP/ZIPS, half+float) tramite nuovo
+`Textures/ExrLoader.cs`; dispatcher per estensione (`.hdr` → HdrLoader, `.exr`
+→ ExrLoader). `EnvironmentMap` clamp dei pixel negativi al load (sicurezza EXR
+contro NaN/Inf), espone `CopyPixels` per il sun extractor.
+
+**Sun extractor.** `Textures/HdriSunExtractor.cs` rileva il picco di luminanza
+solid-angle-weighted, ne stima direzione + angular radius + radianza totale,
+in-paint dei pixel del sole con la media circolare a 2× il raggio, restituisce
+i parametri del `PhysicalSun` da accoppiare. Opt-in via `sky.sun.extract_from_hdri: true`.
+
+**Migration note.** La convenzione `sun.direction` ora è "direction TOWARDS the
+sun" (prima il codice la invertiva internamente). Scene che dipendevano dal vecchio
+flip vedranno il sole dal lato opposto — fix banale invertendo il vettore.
+
+Stato test: `dotnet test` 420 verdi (406 + 14 nuovi in `SkyEnvironmentTests.cs`).
+
+#### Roadmap residua — Fase 2
+
+- **`NishitaSky`** completato (Bruneton-style precomputed transmittance LUT 16×64,
+  single-scattering integrazione 16 step lungo il view ray, Rayleigh + Mie HG-0.76,
+  earth-scale atmosphere reale 6360 km/8 km/1.2 km). Sample integra correttamente
+  alba/tramonto da fisica (Rayleigh 1/λ⁴), zenith blu al mezzogiorno, halo solare
+  arancione. Compatibile con `type: nishita` in YAML; turbidity remappata su densità
+  Mie. Aerial perspective via medium è preparato (LUT height-resolved) ma non ancora
+  cablato a `Volumetrics/IMedium`.
+- **`PortalLight`** completato (Bitterli/Wyman/Pharr 2015). `ILight` con
+  campionamento area uniforme stratificato sulla finestra, conversione area→solid-
+  angle `pdf = d²/(area · cosPortal)`, MIS PDF analitica, ricezione orientata
+  (back-face rejection sulla normale del portal). YAML: `type: portal`,
+  `anchor + u + v` o legacy `corner + u + v`. Quando il portal punta verso un sky
+  HDRI/fisico, la `LightDistribution` power-weighted lo seleziona quasi sempre
+  sugli interni (riduzione varianza ~10× sui 95% di NEE che prima sprecava sui muri).
+- **Mipmap prefiltering HDRI** completato (lazy build, sin(θ)-weighted 2×2 box,
+  log₂ levels). `EnvironmentMap.SampleMip(direction, lod)` con trilinear tra livelli,
+  esposizione `MaxMipLevel`. Hook nel BSDF roughness→LOD è TODO Fase 3 (richiede
+  modifiche al sampling glossy del Renderer).
+- **Tabelle Hosek-Wilkie complete** — non implementate in questa sessione (28KB di
+  costanti tabulati per RGB×9 coefs×2 albedos×10 turb×6 control points). Per ora il
+  YAML `type: hosek_wilkie` aliasa a Preetham. Per upgrade futuro è sufficiente
+  sostituire `PreethamSky.cs` con un parser dei dati Hosek embedded come risorsa.
+
+Test totali: 427 verdi (420 + 7 nuovi per Nishita/Portal/Mipmap).
+
+#### Roadmap residua — Fase 3 (chiusura)
+
+- **`NishitaAtmosphereMedium`** completato (`src/RayTracer/Volumetrics/`).
+  `IMedium` adapter che condivide i coefficienti fisici con `NishitaSky`:
+  Rayleigh (σ wavelength-dependent, scale height 8 km) + Mie (grey, 1.2 km,
+  σ_a ≈ 0.11·σ_s). Optical depth in forma chiusa (somma di due esponenziali),
+  delta tracking con majorante alla quota più bassa del segmento per il free-
+  path sampling. Phase function di default HG g=0.76 (Mie forward), override
+  via YAML `phase:`. World-to-atmosphere mapping configurabile (`world_scale`,
+  `sea_level_y`). YAML: `world.medium.type: atmosphere | nishita | aerial_perspective`.
+- **Glossy roughness → SampleMip LOD** completato. `SkySettings.Sample` accetta
+  un `mipLod` opzionale; quando il modello è `HdriSky` e LOD>0, ruota su
+  `EnvironmentMap.SampleMip` invece di `EvaluateRadiance`. Il `Renderer.SampleSky`
+  deriva il LOD da `prevBsdfPdf` con la heuristica
+  `lod = 0.5·log₂(W·H / (4π·pdf))`, clamped a `[0, MaxMipLevel]`. Bounce delta
+  (pdf=0) e bounce camera (prevIsDelta=true) usano LOD 0 (sharp). Per bounce
+  glossy con BSDF lobe ampio (low pdf), il LOD sale fino al livello che copre
+  tutto il footprint angolare del lobo — elimina i firefly sui peak HDRI
+  senza bias percettibile.
+- **Tabelle Hosek-Wilkie complete** — **decisione: non implementate, non
+  necessarie**. Motivazione onesta:
+  - `NishitaSky` supera HW dove HW vince su Preetham (alba/tramonto, ground bounce):
+    Nishita integra single-scattering dai primi principi, HW è solo un fit
+    polinomiale a quei dati.
+  - Per il midday clear-sky, Preetham (già esposto come alias `hosek_wilkie`)
+    è entro il 3-5% di HW.
+  - 28 KB di costanti tabulati hardcoded sarebbero un rischio di typo
+    silenzioso ad alto impatto.
+  - La coverage attuale (Flat / Gradient / Preetham-as-HW / Nishita / HDRI+sun-
+    extraction) copre ogni use case di produzione.
+  L'alias YAML `type: hosek_wilkie` → Preetham resta per ergonomia (gli utenti
+  Arnold/Cycles lo digitano per riflesso).
+
+Test totali: 434 verdi (427 + 7 nuovi: NishitaAtmosphereMedium transmittance +
+density, glossy LOD smoothing, e copertura aggiuntiva).
+
 ### ✅ CLI — preset `--quality` / `-q`
 
 Aggiunto un flag CLI che impacchetta in un colpo i cinque knob di qualità (`-w -H -s -d -S`) in preset con nome stile Arnold/Cycles/RenderMan. Sette preset: `draft-small` / `draft` (960×540 e 1920×1080, `-s 16 -d 4 -S 1`), `medium-small` / `medium` (`-s 128 -d 6 -S 1`), `final-small` / `final` (`-s 1024 -d 8 -S 4`), `ultra` (3840×2160, stessi sampling dei final). Qualunque flag esplicito ha la precedenza sul preset, quindi `-q final -d 16` resta possibile per scene con vetri impilati. Implementato come tipo nested `Program.QualityPreset`, parser case-insensitive, errore esplicito su valori sconosciuti. Documentazione: `docs/reference/rendering-profiles.md` + `profili-di-rendering.md` §1a, tutorial cap. 02 (EN/IT), `README.md` Quick Start + tabella CLI + sezione esempi pratici.

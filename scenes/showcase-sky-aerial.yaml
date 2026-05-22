@@ -1,0 +1,73 @@
+# Showcase: Nishita sky + NishitaAtmosphereMedium for aerial perspective.
+#
+# Demonstrates the depth-of-air look offline renderers achieve via Cycles
+# "Volume Scatter" + sky / Arnold "atmosphere_volume" + sun:
+#   - Distant objects acquire a bluish tint (Rayleigh scattering of the sun).
+#   - Bright shapes lose luminance with distance (extinction).
+#   - The Nishita sky in the sky-dome + the Nishita medium in the volume share
+#     the same physical constants, so sky and atmospheric perspective agree.
+#
+# Render: dotnet run -c Release --project src/RayTracer/RayTracer.csproj -- \
+#         -i scenes/showcase-sky-aerial.yaml -o renders/aerial.png -w 1280 -H 720 -s 256 -d 6
+
+world:
+  ground:
+    type: "infinite_plane"
+    material: "ground"
+    y: 0
+  sky:
+    type: "nishita"
+    intensity: 1.0
+    sun:
+      direction: [-0.45, 0.55, 0.7]      # mid-morning sun
+      angular_radius: 0.265
+      limb_darkening: true
+      shadow_samples: 4
+  medium:
+    type: "atmosphere"                     # alias: nishita / aerial_perspective
+    world_scale: 200.0                     # 200 m per world unit → scene at "stadium scale"
+    dust_density: 1.2                      # mild haze
+    air_density: [1, 1, 1]
+    # No explicit phase → defaults to HG g=0.76 (Mie forward scatter)
+
+cameras:
+  - name: "vista"
+    position: [0, 1.6, -25]
+    look_at: [0, 1, 30]
+    vup: [0, 1, 0]
+    fov: 45
+
+materials:
+  - id: "ground"
+    type: "disney"
+    color: [0.55, 0.50, 0.42]
+    roughness: 0.85
+    specular: 0.3
+  - id: "pillar"
+    type: "disney"
+    color: [0.92, 0.90, 0.85]
+    roughness: 0.7
+
+entities:
+  # Row of pillars receding into the distance — each one further away picks
+  # up more atmospheric haze, demonstrating the medium.
+  - type: "box"
+    point: [-1, 0, 0]
+    normal: [2, 4, 1]
+    material: "pillar"
+  - type: "box"
+    point: [-1, 0, 10]
+    normal: [2, 4, 1]
+    material: "pillar"
+  - type: "box"
+    point: [-1, 0, 25]
+    normal: [2, 4, 1]
+    material: "pillar"
+  - type: "box"
+    point: [-1, 0, 50]
+    normal: [2, 4, 1]
+    material: "pillar"
+  - type: "box"
+    point: [-1, 0, 100]
+    normal: [2, 4, 1]
+    material: "pillar"

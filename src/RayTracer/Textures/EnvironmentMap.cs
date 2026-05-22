@@ -36,6 +36,16 @@ public class EnvironmentMap
     private float[] _margCdf = [];
     private float[][] _condCdf = [];
 
+    // ── Mipmap pyramid (lazy) ────────────────────────────────────────────────
+    // Stored as a list of (pixels, width, height) tuples; index 0 = original
+    // resolution. Each successive level is a 2×2 box filter with sin(θ) row
+    // weighting to keep solid-angle-weighted radiance correct (a uniform-area
+    // box filter on equirect HDRIs would over-weight the polar regions). The
+    // pyramid is built once on first call to SampleMip(); HDRIs that never
+    // need it (no roughness lookup) pay no extra memory.
+    private (float[] Pixels, int W, int H)[]? _mipChain;
+    private readonly object _mipLock = new();
+
     /// <summary>
     /// Creates an environment map from pre-loaded HDR pixel data.
     /// </summary>
@@ -47,6 +57,16 @@ public class EnvironmentMap
     public EnvironmentMap(float[] pixels, int width, int height,
                           float intensity = 1f, float rotationDeg = 0f)
     {
+        // EXR safety: clamp negative values that some authoring tools (or DWA
+        // compression rounding) can introduce. Negative HDRI samples explode
+        // into NaN/black after Beer-Lambert and tone mapping; the spec allows
+        // them, but no environment light has negative radiance.
+        // We mutate the supplied buffer in place since it's expected to be
+        // single-owner from the loader.
+        for (int i = 0; i < pixels.Length; i++)
+            if (pixels[i] < 0f || float.IsNaN(pixels[i]) || float.IsInfinity(pixels[i]))
+                pixels[i] = MathF.Max(0f, pixels[i]);
+
         _pixels = pixels;
         _width = width;
         _height = height;
@@ -54,6 +74,35 @@ public class EnvironmentMap
         _rotationRad = rotationDeg * MathF.PI / 180f;
         BuildCdfs();
     }
+
+    /// <summary>
+    /// Number of texels in the wrapped equirect image (W·H).
+    /// </summary>
+    public int PixelCount => _width * _height;
+
+    /// <summary>Image width in pixels.</summary>
+    public int Width => _width;
+
+    /// <summary>Image height in pixels.</summary>
+    public int Height => _height;
+
+    /// <summary>
+    /// Returns a copy of the raw RGB pixel buffer (unscaled by intensity). Used
+    /// by <see cref="HdriSunExtractor"/> to in-paint a brightness peak before
+    /// re-wrapping the map for IBL.
+    /// </summary>
+    public float[] CopyPixels()
+    {
+        var copy = new float[_pixels.Length];
+        Array.Copy(_pixels, copy, _pixels.Length);
+        return copy;
+    }
+
+    /// <summary>Intensity multiplier supplied at construction.</summary>
+    public float Intensity => _intensity;
+
+    /// <summary>Y-axis rotation applied at lookup time, in radians.</summary>
+    public float RotationRad => _rotationRad;
 
     /// <summary>
     /// Average luminance across all HDRI texels, intensity-scaled.
@@ -277,5 +326,134 @@ public class EnvironmentMap
     {
         int idx = (y * _width + x) * 3;
         return new Vector3(_pixels[idx], _pixels[idx + 1], _pixels[idx + 2]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Mipmap pyramid — for glossy roughness-driven HDRI lookups
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Bilinear-filtered lookup at an arbitrary mipmap level. <paramref name="lod"/>
+    /// is in continuous mip units (0 = native resolution; each integer step halves
+    /// the resolution). Trilinear interpolation between the two bracketing levels.
+    ///
+    /// <para>Use case: glossy reflections of the environment with materials whose
+    /// roughness controls the BSDF lobe width. Mapping <c>lod ≈ roughness · maxLod</c>
+    /// turns the prefiltered HDRI into an importance-correct approximation of the
+    /// rough-IBL integral, eliminating fireflies from undersampled high-contrast
+    /// HDRIs (Cycles "Glossy BSDF + HDRI" workflow, Arnold "Indirect Specular
+    /// Roughness Clamp"). The mip chain is built lazily on first call —
+    /// HDRIs that never need it pay no extra memory.</para>
+    /// </summary>
+    public Vector3 SampleMip(Vector3 direction, float lod)
+    {
+        EnsureMipmap();
+        int maxLevel = _mipChain!.Length - 1;
+        float lf = Math.Clamp(lod, 0f, maxLevel);
+        int l0 = (int)lf;
+        int l1 = Math.Min(l0 + 1, maxLevel);
+        float t = lf - l0;
+        Vector3 a = SampleLevel(direction, l0);
+        Vector3 b = SampleLevel(direction, l1);
+        return Vector3.Lerp(a, b, t);
+    }
+
+    /// <summary>Highest mip index available (log2 of the larger dimension, rounded down).</summary>
+    public int MaxMipLevel
+    {
+        get
+        {
+            EnsureMipmap();
+            return _mipChain!.Length - 1;
+        }
+    }
+
+    private void EnsureMipmap()
+    {
+        if (_mipChain != null) return;
+        lock (_mipLock)
+        {
+            if (_mipChain != null) return;
+
+            // Number of levels: stop when either dimension reaches 1.
+            int maxDim = Math.Max(_width, _height);
+            int levels = 1 + (int)MathF.Floor(MathF.Log2(maxDim));
+
+            var chain = new (float[], int, int)[levels];
+            chain[0] = (_pixels, _width, _height);
+
+            for (int L = 1; L < levels; L++)
+            {
+                var (prev, pw, ph) = chain[L - 1];
+                int nw = Math.Max(1, pw / 2);
+                int nh = Math.Max(1, ph / 2);
+                var next = new float[nw * nh * 3];
+
+                for (int y = 0; y < nh; y++)
+                {
+                    int y0 = Math.Min(y * 2, ph - 1);
+                    int y1 = Math.Min(y0 + 1, ph - 1);
+                    // Solid-angle weighting: rows near the poles have less
+                    // physical area, so weighting their contribution by sin(θ)
+                    // keeps energy-correct down-sampling on equirect images.
+                    float thetaA = MathF.PI * (y0 + 0.5f) / ph;
+                    float thetaB = MathF.PI * (y1 + 0.5f) / ph;
+                    float wA = MathF.Sin(thetaA);
+                    float wB = MathF.Sin(thetaB);
+                    float wTotal = wA + wB;
+                    if (wTotal < 1e-8f) wTotal = 1f;
+                    wA /= wTotal;
+                    wB /= wTotal;
+
+                    for (int x = 0; x < nw; x++)
+                    {
+                        int x0 = Math.Min(x * 2, pw - 1);
+                        int x1 = Math.Min(x0 + 1, pw - 1);
+                        int dst = (y * nw + x) * 3;
+                        int i00 = (y0 * pw + x0) * 3;
+                        int i01 = (y0 * pw + x1) * 3;
+                        int i10 = (y1 * pw + x0) * 3;
+                        int i11 = (y1 * pw + x1) * 3;
+                        for (int c = 0; c < 3; c++)
+                        {
+                            float top = 0.5f * (prev[i00 + c] + prev[i01 + c]);
+                            float bot = 0.5f * (prev[i10 + c] + prev[i11 + c]);
+                            next[dst + c] = wA * top + wB * bot;
+                        }
+                    }
+                }
+                chain[L] = (next, nw, nh);
+            }
+            _mipChain = chain;
+        }
+    }
+
+    private Vector3 SampleLevel(Vector3 direction, int level)
+    {
+        var (px, w, h) = _mipChain![level];
+        Vector3 dir = Vector3.Normalize(direction);
+        float phi = MathF.Atan2(dir.X, dir.Z);
+        float theta = MathF.Asin(Math.Clamp(dir.Y, -1f, 1f));
+        phi += _rotationRad;
+        const float invPi = 1f / MathF.PI;
+        const float inv2Pi = 0.5f * invPi;
+        float u = 0.5f + phi * inv2Pi;
+        float v = 0.5f - theta * invPi;
+        u -= MathF.Floor(u);
+        float px_ = u * (w - 1);
+        float py_ = v * (h - 1);
+        int x0 = (int)px_;
+        int y0 = (int)py_;
+        int x1 = (x0 + 1) % w;
+        int y1 = Math.Min(y0 + 1, h - 1);
+        float fx = px_ - x0;
+        float fy = py_ - y0;
+        Vector3 c00 = new(px[(y0 * w + x0) * 3], px[(y0 * w + x0) * 3 + 1], px[(y0 * w + x0) * 3 + 2]);
+        Vector3 c10 = new(px[(y0 * w + x1) * 3], px[(y0 * w + x1) * 3 + 1], px[(y0 * w + x1) * 3 + 2]);
+        Vector3 c01 = new(px[(y1 * w + x0) * 3], px[(y1 * w + x0) * 3 + 1], px[(y1 * w + x0) * 3 + 2]);
+        Vector3 c11 = new(px[(y1 * w + x1) * 3], px[(y1 * w + x1) * 3 + 1], px[(y1 * w + x1) * 3 + 2]);
+        Vector3 top2 = Vector3.Lerp(c00, c10, fx);
+        Vector3 bot2 = Vector3.Lerp(c01, c11, fx);
+        return Vector3.Lerp(top2, bot2, fy) * _intensity;
     }
 }

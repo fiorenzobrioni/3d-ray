@@ -1006,10 +1006,46 @@ public class Renderer
     /// <summary>
     /// Evaluates the sky for a missed ray and applies the MIS weight for the
     /// "BSDF-sample escaped into the environment" half of the estimator.
+    ///
+    /// <para>The sky's analytical sun disc (if any) is included only on delta
+    /// bounces and camera rays — for non-delta bounces a paired
+    /// <see cref="Lights.PhysicalSun"/> handles the sun via NEE, so adding
+    /// it here would double-count. This matches Arnold / Cycles HDRI
+    /// sun-extraction behaviour.</para>
+    ///
+    /// <para>For non-delta BSDF escapes onto HDRI environments, we additionally
+    /// derive a mipmap LOD from the BSDF PDF: a wide lobe (low pdf) reads from
+    /// a smoother HDRI level, killing the firefly spike from undersampled
+    /// pixel peaks. The heuristic is
+    /// <c>lod ≈ 0.5 · log₂(W·H / (4π · pdf_bsdf))</c>, derived from the
+    /// solid-angle-to-texel-count of a uniform cone with the BSDF's effective
+    /// width. Sharp specular (delta) bounces use LOD 0.</para>
     /// </summary>
     private Vector3 SampleSky(Ray ray, float prevBsdfPdf, bool prevIsDelta)
     {
-        Vector3 sky = CalculateSkyColor(ray);
+        // Camera rays + delta-mirror bounces see the full sky (sun included).
+        // Non-delta indirect bounces see the sky body only.
+        bool showSun = prevIsDelta;
+        var cat = prevIsDelta ? RayCategory.Camera : RayCategory.Diffuse;
+
+        // LOD heuristic for glossy HDRI lookups. The sky body handles the
+        // is-HDRI / not check internally — passing a non-zero LOD on a
+        // gradient/Preetham sky is a no-op.
+        float lod = 0f;
+        if (!prevIsDelta && prevBsdfPdf > 1e-6f
+            && _sky.LightingModel is Sky.HdriSky hdriSky)
+        {
+            int W = hdriSky.Map.Width;
+            int H = hdriSky.Map.Height;
+            // Texels per steradian × cone solid angle (1/pdf) = texels covered.
+            // lod = log₂(√texelsCovered) = 0.5 · log₂(texelsCovered).
+            float texelsCovered = W * H / (4f * MathF.PI * prevBsdfPdf);
+            if (texelsCovered > 1f)
+                lod = 0.5f * MathF.Log2(texelsCovered);
+            lod = MathF.Max(0f, MathF.Min(lod, hdriSky.Map.MaxMipLevel));
+        }
+
+        Vector3 sky = _sky.Sample(ray, cat, includeAnalyticalSun: showSun, mipLod: lod);
 
         // When the sky isn't registered as an NEE light, or this is a delta
         // bounce / camera ray, show it at full weight — nothing else sampled it.

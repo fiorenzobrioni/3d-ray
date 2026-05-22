@@ -1,0 +1,67 @@
+# Showcase: Nishita physical atmosphere (Rayleigh + Mie single-scattering).
+#
+# Demonstrates:
+#   - Earth-like atmosphere with precomputed transmittance LUT (16×64).
+#   - Sunset chromaticity: red sun, orange halo, blue zenith — all from physics.
+#   - Decoupled PhysicalSun with sun-direction-derived warm tint.
+#
+# Render: dotnet run -c Release --project src/RayTracer/RayTracer.csproj -- \
+#         -i scenes/showcase-sky-nishita.yaml -o renders/nishita.png -w 1280 -H 720 -s 256 -d 6
+
+world:
+  ground:
+    type: "infinite_plane"
+    material: "ground"
+    y: 0
+  sky:
+    type: "nishita"
+    turbidity: 3.0                          # remapped internally to a Mie-dust scalar
+    intensity: 1.0
+    sun:
+      direction: [-0.85, 0.12, 0.4]         # sun low on the horizon → sunset palette
+      angular_radius: 0.265
+      limb_darkening: true
+      shadow_samples: 4
+
+cameras:
+  - name: "wide"
+    position: [0, 1.4, 5.5]
+    look_at: [0, 0.8, 0]
+    vup: [0, 1, 0]
+    fov: 50
+
+materials:
+  - id: "ground"
+    type: "disney"
+    color: [0.38, 0.34, 0.28]
+    roughness: 0.85
+    specular: 0.3
+  - id: "chrome"
+    type: "disney"
+    color: [0.95, 0.95, 0.95]
+    metallic: 1.0
+    roughness: 0.06
+  - id: "matte"
+    type: "disney"
+    color: [0.85, 0.45, 0.30]
+    roughness: 0.55
+  - id: "glass"
+    type: "disney"
+    color: [0.95, 0.95, 0.95]
+    spec_trans: 1.0
+    ior: 1.5
+    roughness: 0.02
+
+entities:
+  - type: "sphere"
+    center: [-1.6, 0.7, 0]
+    radius: 0.7
+    material: "chrome"
+  - type: "sphere"
+    center: [0, 0.7, 0]
+    radius: 0.7
+    material: "matte"
+  - type: "sphere"
+    center: [1.6, 0.7, 0]
+    radius: 0.7
+    material: "glass"

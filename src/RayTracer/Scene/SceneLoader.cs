@@ -10,6 +10,7 @@ using RayTracer.Lights;
 using RayTracer.Acceleration;
 using RayTracer.Textures;
 using RayTracer.Rendering;
+using RayTracer.Rendering.Sky;
 using RayTracer.Volumetrics;
 
 namespace RayTracer.Scene;
@@ -363,7 +364,7 @@ public class SceneLoader
         {
             foreach (var l in data.Lights)
             {
-                var light = CreateLight(l, shadowSamplesOverride, objects);
+                var light = CreateLight(l, shadowSamplesOverride, objects, sky);
                 if (light != null) lights.Add(light);
             }
         }
@@ -427,6 +428,20 @@ public class SceneLoader
         if (sky.CanSampleDirectly)
         {
             lights.Add(new EnvironmentLight(sky, shadowSamplesOverride ?? 1));
+        }
+
+        // Register a PhysicalSun alongside the env light when the sky model
+        // exposes an analytical sun. Decoupling the sun from the sky body
+        // gives clean cone-sampled shadows and lower variance.
+        var analyticalSun = sky.GetAnalyticalSun();
+        if (analyticalSun != null)
+        {
+            var (sunDir, sunRad, halfDeg, limb) = analyticalSun.Value;
+            int sunSamples = shadowSamplesOverride ?? data.World?.Sky?.Sun?.ShadowSamples ?? 4;
+            lights.Add(new PhysicalSun(sunDir, sunRad, intensity: 1f,
+                                       angularRadiusDeg: halfDeg,
+                                       limbDarkening: limb,
+                                       shadowSamples: sunSamples));
         }
 
         // Default lighting only when lights section is completely absent from YAML.
@@ -1143,11 +1158,10 @@ public class SceneLoader
 
     /// <summary>
     /// Builds a <see cref="SkySettings"/> from the YAML sky section.
-    /// Supports three modes: <c>flat</c> (uniform color), <c>gradient</c>
-    /// (zenith/horizon/ground with optional sun disk), and <c>hdri</c>
-    /// (equirectangular environment map). When the <c>world.sky</c> block is
-    /// missing or its <c>type</c> is unrecognised, falls back to a flat sky
-    /// using <see cref="DefaultSkyColor"/>.
+    /// Supported modes: <c>flat</c>, <c>gradient</c>, <c>hdri</c>,
+    /// <c>preetham</c>/<c>hosek_wilkie</c> (analytical physical sky). When the
+    /// <c>world.sky</c> block is missing or its <c>type</c> is unrecognised,
+    /// falls back to a flat sky using <see cref="DefaultSkyColor"/>.
     /// </summary>
     private static SkySettings BuildSkySettings(SkyData? skyData, string sceneDir)
     {
@@ -1156,53 +1170,137 @@ public class SceneLoader
 
         string skyType = skyData.Type?.ToLowerInvariant() ?? "";
 
+        ISkyModel lightingModel = BuildSkyModel(skyType, skyData, sceneDir);
+        ISkyModel? backgroundModel = null;
+        if (skyData.Background != null)
+        {
+            string bgType = skyData.Background.Type?.ToLowerInvariant() ?? "";
+            backgroundModel = BuildSkyModel(bgType, skyData.Background, sceneDir);
+        }
+
+        var visibility = BuildVisibility(skyData);
+        var orientation = BuildOrientation(skyData);
+
+        var sky = new SkySettings(lightingModel, backgroundModel, visibility, orientation);
+
+        // Track Mode hint for legacy logging \u2014 best-effort.
+        return sky;
+    }
+
+    private static ISkyModel BuildSkyModel(string skyType, SkyData skyData, string sceneDir)
+    {
         return skyType switch
         {
-            "flat"     => new SkySettings(ToVector3(skyData.Color) ?? DefaultSkyColor),
-            "gradient" => BuildGradientSky(skyData),
-            "hdri"     => BuildHdriSky(skyData, sceneDir),
-            ""         => new SkySettings(ToVector3(skyData.Color) ?? DefaultSkyColor),
-            _          => WarnUnknownSkyType(skyType)
+            "flat" or "" => new FlatSky(ToVector3(skyData.Color) ?? DefaultSkyColor),
+            "gradient"   => BuildGradientSkyModel(skyData),
+            "hdri"       => BuildHdriSkyModel(skyData, sceneDir),
+            "preetham" or "hosek_wilkie" or "physical"
+                         => BuildPhysicalSkyModel(skyData),
+            "nishita"    => BuildNishitaSkyModel(skyData),
+            _            => WarnUnknownSkyTypeModel(skyType),
         };
     }
 
-    private static SkySettings WarnUnknownSkyType(string skyType)
+    private static SkyVisibility BuildVisibility(SkyData skyData)
     {
-        Warn($"Unknown sky type '{skyType}'. Falling back to flat default.");
-        return new SkySettings(DefaultSkyColor);
+        var v = skyData.Visibility;
+        bool sunCam = skyData.Sun?.VisibleToCamera ?? true;
+        if (v == null) return new SkyVisibility { SunCamera = sunCam };
+        return new SkyVisibility
+        {
+            Camera = v.Camera,
+            Diffuse = v.Diffuse,
+            Glossy = v.Glossy,
+            Transmission = v.Transmission,
+            Shadow = v.Shadow,
+            SunCamera = sunCam,
+        };
     }
 
-    private static SkySettings BuildGradientSky(SkyData skyData)
+    private static System.Numerics.Quaternion BuildOrientation(SkyData skyData)
+    {
+        // Quaternion takes precedence when both are set.
+        if (skyData.Orientation?.Quaternion is { Count: 4 } q)
+            return new System.Numerics.Quaternion(q[0], q[1], q[2], q[3]);
+        if (skyData.Orientation?.Euler is { Count: 3 } e)
+        {
+            float rx = MathUtils.DegreesToRadians(e[0]);
+            float ry = MathUtils.DegreesToRadians(e[1]);
+            float rz = MathUtils.DegreesToRadians(e[2]);
+            return System.Numerics.Quaternion.CreateFromYawPitchRoll(ry, rx, rz);
+        }
+        // Legacy `rotation` field \u2014 Y-axis only.
+        if (MathF.Abs(skyData.Rotation) > 1e-6f)
+        {
+            return System.Numerics.Quaternion.CreateFromAxisAngle(
+                Vector3.UnitY, MathUtils.DegreesToRadians(skyData.Rotation));
+        }
+        return System.Numerics.Quaternion.Identity;
+    }
+
+    private static ISkyModel WarnUnknownSkyTypeModel(string skyType)
+    {
+        Warn($"Unknown sky type '{skyType}'. Falling back to flat default.");
+        return new FlatSky(DefaultSkyColor);
+    }
+
+    private static GradientSky BuildGradientSkyModel(SkyData skyData)
     {
         var zenith  = ToVector3(skyData.ZenithColor)  ?? new Vector3(0.10f, 0.30f, 0.80f);
         var horizon = ToVector3(skyData.HorizonColor) ?? new Vector3(0.70f, 0.85f, 1.00f);
         var ground  = ToVector3(skyData.GroundColor)  ?? new Vector3(0.30f, 0.25f, 0.20f);
 
-        Vector3? sunDir       = null;
-        Vector3? sunColor     = null;
-        float    sunIntensity = 10f;
-        float    sunSize      = 3f;
-        float    sunFalloff   = 32f;
+        if (skyData.Sun == null)
+            return new GradientSky(zenith, horizon, ground);
 
-        if (skyData.Sun != null)
-        {
-            sunDir       = ToVector3(skyData.Sun.Direction);
-            sunColor     = ToVector3(skyData.Sun.Color);
-            sunIntensity = skyData.Sun.Intensity;
-            sunSize      = skyData.Sun.Size;
-            sunFalloff   = skyData.Sun.Falloff;
-        }
+        var sunDir = ToVector3(skyData.Sun.Direction);
+        if (sunDir == null)
+            return new GradientSky(zenith, horizon, ground);
 
-        return new SkySettings(zenith, horizon, ground,
-                               sunDir, sunColor, sunIntensity, sunSize, sunFalloff);
+        var sunColor = ToVector3(skyData.Sun.Color) ?? Vector3.One;
+        float halfAngle = skyData.Sun.AngularRadius > 0f
+            ? skyData.Sun.AngularRadius
+            : MathF.Max(0.01f, skyData.Sun.Size * 0.5f);
+        return new GradientSky(zenith, horizon, ground,
+            sunDirToSun: sunDir,
+            sunRadiance: sunColor * skyData.Sun.Intensity,
+            sunHalfAngleDeg: halfAngle);
     }
 
-    private static SkySettings BuildHdriSky(SkyData skyData, string sceneDir)
+    private static NishitaSky BuildNishitaSkyModel(SkyData skyData)
+    {
+        Vector3 dirToSun = skyData.Sun?.Direction is { Count: >= 3 }
+            ? Vector3.Normalize(ToVector3(skyData.Sun.Direction) ?? Vector3.UnitY)
+            : Vector3.Normalize(new Vector3(0.2f, 1f, 0.3f));
+        float intensity = skyData.Intensity > 0f ? skyData.Intensity : 1f;
+        // Reuse turbidity as a coarse haze knob: 1 → clean (dust=0.3), 10 → smoggy (dust=2.0).
+        float dust = MathF.Max(0.1f, (skyData.Turbidity - 1f) * 0.2f + 0.5f);
+        return new NishitaSky(dirToSun, airDensity: 1f, dustDensity: dust, intensity: intensity);
+    }
+
+    private static PreethamSky BuildPhysicalSkyModel(SkyData skyData)
+    {
+        Vector3 dirToSun;
+        if (skyData.Sun?.Direction is { Count: >= 3 })
+        {
+            dirToSun = Vector3.Normalize(ToVector3(skyData.Sun.Direction) ?? Vector3.UnitY);
+        }
+        else
+        {
+            // Default: noon-ish sun pointing slightly south of overhead.
+            dirToSun = Vector3.Normalize(new Vector3(0.2f, 1f, 0.3f));
+        }
+        var albedo = ToVector3(skyData.GroundAlbedo) ?? new Vector3(0.3f);
+        float intensity = skyData.Intensity > 0f ? skyData.Intensity : 1f;
+        return new PreethamSky(dirToSun, skyData.Turbidity, albedo, intensity);
+    }
+
+    private static ISkyModel BuildHdriSkyModel(SkyData skyData, string sceneDir)
     {
         if (string.IsNullOrWhiteSpace(skyData.Path))
         {
             Warn("HDRI sky requires a 'path' field. Falling back to flat gray.");
-            return new SkySettings(new Vector3(0.5f));
+            return new FlatSky(new Vector3(0.5f));
         }
 
         string hdrPath = Path.IsPathRooted(skyData.Path)
@@ -1212,23 +1310,58 @@ public class SceneLoader
         if (!File.Exists(hdrPath))
         {
             Warn($"HDRI file not found: {hdrPath}. Falling back to flat magenta.");
-            return new SkySettings(new Vector3(1f, 0f, 1f));
+            return new FlatSky(new Vector3(1f, 0f, 1f));
         }
 
         try
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var (pixels, width, height) = HdrLoader.Load(hdrPath);
-            var envMap = new EnvironmentMap(pixels, width, height,
+            string ext = Path.GetExtension(hdrPath).ToLowerInvariant();
+            (float[] pixels, int width, int height) = ext switch
+            {
+                ".exr" => ExrLoader.Load(hdrPath),
+                _      => HdrLoader.Load(hdrPath),
+            };
+
+            EnvironmentMap envMap;
+            Vector3? extractedSunDir = null;
+            Vector3? extractedSunRad = null;
+            float extractedHalfDeg = 0.265f;
+
+            if (skyData.Sun?.ExtractFromHdri == true)
+            {
+                var probeMap = new EnvironmentMap(pixels, width, height,
+                                                  skyData.Intensity, skyData.Rotation);
+                var ext2 = HdriSunExtractor.Extract(probeMap, skyData.Sun.ExtractThreshold);
+                if (ext2 != null)
+                {
+                    extractedSunDir = ext2.Direction;
+                    extractedSunRad = ext2.Radiance;
+                    extractedHalfDeg = ext2.HalfAngleDeg;
+                    envMap = new EnvironmentMap(ext2.InpaintedPixels, width, height,
+                                                skyData.Intensity, skyData.Rotation);
+                    Info($"HDRI sun extracted: half-angle {extractedHalfDeg:F2}\u00b0");
+                }
+                else
+                {
+                    Info("HDRI sun extraction: no peak above threshold; using HDRI as-is.");
+                    envMap = probeMap;
+                }
+            }
+            else
+            {
+                envMap = new EnvironmentMap(pixels, width, height,
                                             skyData.Intensity, skyData.Rotation);
+            }
+
             Info($"HDRI:        {skyData.Path} ({width}\u00d7{height})");
             Verbose($"HDRI load:   {sw.ElapsedMilliseconds} ms");
-            return new SkySettings(envMap);
+            return new HdriSky(envMap, extractedSunDir, extractedSunRad, extractedHalfDeg);
         }
         catch (Exception ex)
         {
             Warn($"Failed to load HDRI '{hdrPath}': {ex.Message}. Falling back to flat magenta.");
-            return new SkySettings(new Vector3(1f, 0f, 1f));
+            return new FlatSky(new Vector3(1f, 0f, 1f));
         }
     }
 
@@ -2730,7 +2863,7 @@ public class SceneLoader
     }
 
     private static ILight? CreateLight(LightData l, int? shadowSamplesOverride,
-                                        List<IHittable> objects)
+                                        List<IHittable> objects, SkySettings sky)
     {
         var color = ToVector3(l.Color) ?? Vector3.One;
 
@@ -2750,6 +2883,18 @@ public class SceneLoader
                 ToVector3(l.Direction) ?? new Vector3(0, -1, 0),
                 color, l.Intensity, l.InnerAngle, l.OuterAngle, l.SoftRadius,
                 shadowSamplesOverride ?? l.ShadowSamples),
+
+            // ── Portal light ─────────────────────────────────────────────────
+            // Window/skylight onto the environment. Restricts NEE to directions
+            // the env can actually be seen from the receiver, transforming
+            // interior renders from ~30% useful samples to ~95%.
+            // YAML fields:
+            //   anchor (or corner): [x, y, z]   # one corner
+            //   u:      [x, y, z]               # edge along U
+            //   v:      [x, y, z]               # edge along V
+            //   shadow_samples: 8               # per-light default
+            "portal" or "portal_light"
+                => CreatePortalLight(l, shadowSamplesOverride, sky),
 
             // ── Area light ───────────────────────────────────────────────────
             // YAML fields:
@@ -2775,6 +2920,32 @@ public class SceneLoader
 
             _ => null
         };
+    }
+
+    private static PortalLight? CreatePortalLight(LightData l, int? shadowSamplesOverride,
+                                                    SkySettings sky)
+    {
+        var anchor = ToVector3(l.Anchor) ?? ToVector3(l.Corner);
+        var u      = ToVector3(l.U);
+        var v      = ToVector3(l.V);
+
+        if (anchor == null || u == null || v == null)
+        {
+            Warn("Portal light requires 'anchor' (or 'corner'), 'u', and 'v' vectors. Skipping.");
+            return null;
+        }
+        if (Vector3.Cross(u.Value, v.Value).LengthSquared() < 1e-12f)
+        {
+            Warn("Portal light has collinear u/v edges. Skipping.");
+            return null;
+        }
+        if (!sky.CanSampleDirectly)
+        {
+            Warn("Portal light requires a sky that participates in NEE (HDRI / sun-bearing / non-black flat). Skipping.");
+            return null;
+        }
+        int samples = shadowSamplesOverride ?? (l.ShadowSamples > 0 ? l.ShadowSamples : 8);
+        return new PortalLight(sky, anchor.Value, u.Value, v.Value, samples);
     }
 
     private static AreaLight? CreateAreaLight(LightData l, Vector3 color,
@@ -3074,10 +3245,37 @@ public class SceneLoader
                 return BuildProcedural(md, phase);
             case "grid":
                 return BuildGrid(md, phase, sceneDir);
+            case "atmosphere":
+            case "nishita":
+            case "aerial_perspective":
+                return BuildNishitaAtmosphere(md, phase);
             default:
-                Warn($"Unsupported medium type '{type}'. Supported: homogeneous, height_fog, procedural, grid. Ignoring.");
+                Warn($"Unsupported medium type '{type}'. Supported: homogeneous, height_fog, procedural, grid, atmosphere. Ignoring.");
                 return null;
         }
+    }
+
+    private static NishitaAtmosphereMedium BuildNishitaAtmosphere(MediumData md, IPhaseFunction phase)
+    {
+        // The atmosphere medium reuses the Nishita physical constants; the
+        // YAML knobs are limited to the scene-mapping ones (sea level, world
+        // scale) and density multipliers. Default phase is HG g=0.76 (Mie
+        // forward scattering); the user can override via the `phase` key.
+        // When no phase is specified in YAML, BuildPhaseFunction returns
+        // IsotropicPhase by default — for atmosphere we substitute the
+        // Mie-typical HG g=0.76 if isotropic was the implicit choice.
+        IPhaseFunction effectivePhase = string.IsNullOrWhiteSpace(md.Phase)
+            ? new HenyeyGreensteinPhase(0.76f)
+            : phase;
+
+        Vector3 air     = ToVector3(md.AirDensity) ?? Vector3.One;
+        float seaLevel  = md.Y0;
+        Info($"Medium:      atmosphere (Nishita, sea_level={seaLevel}, world_scale={md.WorldScale} m/wu, {(string.IsNullOrWhiteSpace(md.Phase) ? "hg(0.76)" : md.Phase)} phase)");
+        return new NishitaAtmosphereMedium(effectivePhase,
+                                            airDensity: air,
+                                            dustDensity: md.DustDensity,
+                                            seaLevelY: seaLevel,
+                                            worldScale: md.WorldScale);
     }
 
     private static IPhaseFunction BuildPhaseFunction(MediumData md)

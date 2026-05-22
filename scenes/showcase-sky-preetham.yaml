@@ -1,0 +1,68 @@
+# Showcase: physical sky (Preetham / Hosek-Wilkie compatible).
+#
+# Demonstrates:
+#   - Analytical clear-sky daylight model parametrised by turbidity & sun position.
+#   - Decoupled PhysicalSun light auto-registered alongside the sky body.
+#   - Hestroffer limb-darkening on the disc.
+#
+# Render: dotnet run -c Release --project src/RayTracer/RayTracer.csproj -- \
+#         -i scenes/showcase-sky-preetham.yaml -o renders/preetham.png -w 1280 -H 720 -s 256 -d 6
+
+world:
+  ground:
+    type: "infinite_plane"
+    material: "ground"
+    y: 0
+  sky:
+    type: "hosek_wilkie"          # alias of "preetham" — both routes here today
+    turbidity: 3.0                # 1 ≈ pristine, 3 ≈ clear, 5 ≈ haze
+    ground_albedo: [0.25, 0.25, 0.22]
+    intensity: 1.0
+    sun:
+      direction: [-0.35, 0.78, 0.52]   # direction TO the sun (world space)
+      angular_radius: 0.265            # real solar disc half-angle
+      limb_darkening: true
+      shadow_samples: 4
+
+cameras:
+  - name: "studio"
+    position: [0, 1.4, 5.5]
+    look_at: [0, 0.8, 0]
+    vup: [0, 1, 0]
+    fov: 35
+
+materials:
+  - id: "ground"
+    type: "disney"
+    color: [0.42, 0.40, 0.36]
+    roughness: 0.85
+    specular: 0.3
+  - id: "chrome"
+    type: "disney"
+    color: [0.95, 0.95, 0.95]
+    metallic: 1.0
+    roughness: 0.08
+  - id: "matte"
+    type: "disney"
+    color: [0.75, 0.20, 0.20]
+    roughness: 0.55
+  - id: "glass"
+    type: "disney"
+    color: [0.95, 0.95, 0.95]
+    spec_trans: 1.0
+    ior: 1.5
+    roughness: 0.02
+
+entities:
+  - type: "sphere"
+    center: [-1.6, 0.7, 0]
+    radius: 0.7
+    material: "chrome"
+  - type: "sphere"
+    center: [0, 0.7, 0]
+    radius: 0.7
+    material: "matte"
+  - type: "sphere"
+    center: [1.6, 0.7, 0]
+    radius: 0.7
+    material: "glass"
