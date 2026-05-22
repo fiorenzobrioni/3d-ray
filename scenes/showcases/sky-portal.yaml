@@ -18,7 +18,7 @@ world:
     type: "hosek_wilkie"
     turbidity: 3.0
     ground_albedo: [0.3, 0.3, 0.28]
-    intensity: 5.0
+    intensity: 1.0 # 5.0
     sun:
       direction: [0.4, 0.7, 0.6]
       angular_radius: 0.265
