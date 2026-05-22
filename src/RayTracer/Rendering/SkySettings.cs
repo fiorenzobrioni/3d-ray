@@ -173,6 +173,7 @@ public class SkySettings
             GradientSky  => SkyMode.Gradient,
             HdriSky      => SkyMode.Hdri,
             PreethamSky  => SkyMode.Physical,
+            NishitaSky   => SkyMode.Physical,
             _            => SkyMode.Flat,
         });
 

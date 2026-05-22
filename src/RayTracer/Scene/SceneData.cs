@@ -1340,6 +1340,10 @@ public class LightData
     [YamlMember(Alias = "corner")]
     public List<float>? Corner { get; set; }
 
+    /// <summary>Alias for <see cref="Corner"/> used in portal-light YAML.</summary>
+    [YamlMember(Alias = "anchor")]
+    public List<float>? Anchor { get; set; }
+
     [YamlMember(Alias = "u")]
     public List<float>? U { get; set; }
 

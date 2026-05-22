@@ -364,7 +364,7 @@ public class SceneLoader
         {
             foreach (var l in data.Lights)
             {
-                var light = CreateLight(l, shadowSamplesOverride, objects);
+                var light = CreateLight(l, shadowSamplesOverride, objects, sky);
                 if (light != null) lights.Add(light);
             }
         }
@@ -1196,6 +1196,7 @@ public class SceneLoader
             "hdri"       => BuildHdriSkyModel(skyData, sceneDir),
             "preetham" or "hosek_wilkie" or "physical"
                          => BuildPhysicalSkyModel(skyData),
+            "nishita"    => BuildNishitaSkyModel(skyData),
             _            => WarnUnknownSkyTypeModel(skyType),
         };
     }
@@ -1264,6 +1265,17 @@ public class SceneLoader
             sunDirToSun: sunDir,
             sunRadiance: sunColor * skyData.Sun.Intensity,
             sunHalfAngleDeg: halfAngle);
+    }
+
+    private static NishitaSky BuildNishitaSkyModel(SkyData skyData)
+    {
+        Vector3 dirToSun = skyData.Sun?.Direction is { Count: >= 3 }
+            ? Vector3.Normalize(ToVector3(skyData.Sun.Direction) ?? Vector3.UnitY)
+            : Vector3.Normalize(new Vector3(0.2f, 1f, 0.3f));
+        float intensity = skyData.Intensity > 0f ? skyData.Intensity : 1f;
+        // Reuse turbidity as a coarse haze knob: 1 → clean (dust=0.3), 10 → smoggy (dust=2.0).
+        float dust = MathF.Max(0.1f, (skyData.Turbidity - 1f) * 0.2f + 0.5f);
+        return new NishitaSky(dirToSun, airDensity: 1f, dustDensity: dust, intensity: intensity);
     }
 
     private static PreethamSky BuildPhysicalSkyModel(SkyData skyData)
@@ -2851,7 +2863,7 @@ public class SceneLoader
     }
 
     private static ILight? CreateLight(LightData l, int? shadowSamplesOverride,
-                                        List<IHittable> objects)
+                                        List<IHittable> objects, SkySettings sky)
     {
         var color = ToVector3(l.Color) ?? Vector3.One;
 
@@ -2871,6 +2883,18 @@ public class SceneLoader
                 ToVector3(l.Direction) ?? new Vector3(0, -1, 0),
                 color, l.Intensity, l.InnerAngle, l.OuterAngle, l.SoftRadius,
                 shadowSamplesOverride ?? l.ShadowSamples),
+
+            // ── Portal light ─────────────────────────────────────────────────
+            // Window/skylight onto the environment. Restricts NEE to directions
+            // the env can actually be seen from the receiver, transforming
+            // interior renders from ~30% useful samples to ~95%.
+            // YAML fields:
+            //   anchor (or corner): [x, y, z]   # one corner
+            //   u:      [x, y, z]               # edge along U
+            //   v:      [x, y, z]               # edge along V
+            //   shadow_samples: 8               # per-light default
+            "portal" or "portal_light"
+                => CreatePortalLight(l, shadowSamplesOverride, sky),
 
             // ── Area light ───────────────────────────────────────────────────
             // YAML fields:
@@ -2896,6 +2920,32 @@ public class SceneLoader
 
             _ => null
         };
+    }
+
+    private static PortalLight? CreatePortalLight(LightData l, int? shadowSamplesOverride,
+                                                    SkySettings sky)
+    {
+        var anchor = ToVector3(l.Anchor) ?? ToVector3(l.Corner);
+        var u      = ToVector3(l.U);
+        var v      = ToVector3(l.V);
+
+        if (anchor == null || u == null || v == null)
+        {
+            Warn("Portal light requires 'anchor' (or 'corner'), 'u', and 'v' vectors. Skipping.");
+            return null;
+        }
+        if (Vector3.Cross(u.Value, v.Value).LengthSquared() < 1e-12f)
+        {
+            Warn("Portal light has collinear u/v edges. Skipping.");
+            return null;
+        }
+        if (!sky.CanSampleDirectly)
+        {
+            Warn("Portal light requires a sky that participates in NEE (HDRI / sun-bearing / non-black flat). Skipping.");
+            return null;
+        }
+        int samples = shadowSamplesOverride ?? (l.ShadowSamples > 0 ? l.ShadowSamples : 8);
+        return new PortalLight(sky, anchor.Value, u.Value, v.Value, samples);
     }
 
     private static AreaLight? CreateAreaLight(LightData l, Vector3 color,

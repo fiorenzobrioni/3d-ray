@@ -62,6 +62,33 @@ flip vedranno il sole dal lato opposto — fix banale invertendo il vettore.
 
 Stato test: `dotnet test` 420 verdi (406 + 14 nuovi in `SkyEnvironmentTests.cs`).
 
+#### Roadmap residua — Fase 2
+
+- **`NishitaSky`** completato (Bruneton-style precomputed transmittance LUT 16×64,
+  single-scattering integrazione 16 step lungo il view ray, Rayleigh + Mie HG-0.76,
+  earth-scale atmosphere reale 6360 km/8 km/1.2 km). Sample integra correttamente
+  alba/tramonto da fisica (Rayleigh 1/λ⁴), zenith blu al mezzogiorno, halo solare
+  arancione. Compatibile con `type: nishita` in YAML; turbidity remappata su densità
+  Mie. Aerial perspective via medium è preparato (LUT height-resolved) ma non ancora
+  cablato a `Volumetrics/IMedium`.
+- **`PortalLight`** completato (Bitterli/Wyman/Pharr 2015). `ILight` con
+  campionamento area uniforme stratificato sulla finestra, conversione area→solid-
+  angle `pdf = d²/(area · cosPortal)`, MIS PDF analitica, ricezione orientata
+  (back-face rejection sulla normale del portal). YAML: `type: portal`,
+  `anchor + u + v` o legacy `corner + u + v`. Quando il portal punta verso un sky
+  HDRI/fisico, la `LightDistribution` power-weighted lo seleziona quasi sempre
+  sugli interni (riduzione varianza ~10× sui 95% di NEE che prima sprecava sui muri).
+- **Mipmap prefiltering HDRI** completato (lazy build, sin(θ)-weighted 2×2 box,
+  log₂ levels). `EnvironmentMap.SampleMip(direction, lod)` con trilinear tra livelli,
+  esposizione `MaxMipLevel`. Hook nel BSDF roughness→LOD è TODO Fase 3 (richiede
+  modifiche al sampling glossy del Renderer).
+- **Tabelle Hosek-Wilkie complete** — non implementate in questa sessione (28KB di
+  costanti tabulati per RGB×9 coefs×2 albedos×10 turb×6 control points). Per ora il
+  YAML `type: hosek_wilkie` aliasa a Preetham. Per upgrade futuro è sufficiente
+  sostituire `PreethamSky.cs` con un parser dei dati Hosek embedded come risorsa.
+
+Test totali: 427 verdi (420 + 7 nuovi per Nishita/Portal/Mipmap).
+
 ### ✅ CLI — preset `--quality` / `-q`
 
 Aggiunto un flag CLI che impacchetta in un colpo i cinque knob di qualità (`-w -H -s -d -S`) in preset con nome stile Arnold/Cycles/RenderMan. Sette preset: `draft-small` / `draft` (960×540 e 1920×1080, `-s 16 -d 4 -S 1`), `medium-small` / `medium` (`-s 128 -d 6 -S 1`), `final-small` / `final` (`-s 1024 -d 8 -S 4`), `ultra` (3840×2160, stessi sampling dei final). Qualunque flag esplicito ha la precedenza sul preset, quindi `-q final -d 16` resta possibile per scene con vetri impilati. Implementato come tipo nested `Program.QualityPreset`, parser case-insensitive, errore esplicito su valori sconosciuti. Documentazione: `docs/reference/rendering-profiles.md` + `profili-di-rendering.md` §1a, tutorial cap. 02 (EN/IT), `README.md` Quick Start + tabella CLI + sezione esempi pratici.

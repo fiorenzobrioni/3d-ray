@@ -82,7 +82,27 @@ inverted the sign internally; old scenes that relied on that flip will now see
 the sun on the opposite side — just invert the vector. The sun cap is auto-
 attached as a separate `PhysicalSun` light with cone sampling and limb darkening.
 
-#### **Hosek-Wilkie / Preetham** (physical clear-sky daylight):
+#### **Nishita** (physical Rayleigh + Mie atmosphere):
+```yaml
+sky:
+  type: "nishita"
+  turbidity: 3.0                           # remapped internally to a Mie-dust scalar
+  intensity: 1.0
+  sun:
+    direction:       [0.4, 0.5, 0.3]      # direction TOWARDS the sun
+    angular_radius:  0.265
+    limb_darkening:  true
+    shadow_samples:  4
+```
+Integrated single-scattering model — superior to Preetham/Hosek-Wilkie at low
+sun elevations (correct sunrise/sunset red disc and orange halo from physical
+principles, not from a fitted approximation). The view ray is marched through
+the atmosphere with 16 samples; each sample looks up sun transmittance in a
+precomputed 16×64 LUT (Bruneton). The LUT is height-resolved so future
+aerial-perspective integration with a participating medium is a drop-in
+addition.
+
+#### **Hosek-Wilkie / Preetham** (analytical clear-sky daylight):
 ```yaml
 sky:
   type: "hosek_wilkie"                     # alias of "preetham" (analytical model)
@@ -2005,6 +2025,27 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 - Visible to camera & specular rays via an internally-managed emissive quad proxy at the same `corner`/`u`/`v` — closes Veach's MIS estimator on smooth-specular materials. Same approach as Arnold/Cycles/Renderman analytic quad lights.
 - `soft_radius` (default `0`): when > 0, the attenuation denominator is clamped to `max(distSq, r²)`, preventing the `cosLight/d²` term from diverging when a stratified sample falls nearly tangent to the receiver in dense volumetric media. The returned geometric distance is unchanged. Recommended for area lights illuminating a dense participating medium (e.g. a ceiling panel in fog).
 - `visible_to_camera` (default `true`): set to `false` to hide the quad proxy from primary camera rays. NEE keeps illuminating the scene at full intensity; specular reflections / refractions still see the panel; indirect bounces are unaffected. Matches Arnold's `camera` visibility flag and Cycles' "Ray Visibility → Camera".
+#### **8.4b Portal Light (window onto the environment)**
+```yaml
+- type: "portal"  # alias: "portal_light"
+  anchor: [3.0, 1.2, -2.5]                # one corner of the window rectangle
+  u: [0.0, 0.0, 2.5]                       # edge along U (window width)
+  v: [0.0, 1.2, 0.0]                       # edge along V (window height)
+  shadow_samples: 8                        # default 8
+```
+- Bitterli/Wyman/Pharr 2015 portal-masked environment sampling — restricts NEE
+  on the sky to the rectangle of the window, dropping the wasted-sample rate
+  on interior scenes from ~95% to ~5%. Typical variance reduction ≈10× at the
+  same `shadow_samples`.
+- The portal is **intangible**: it carries no geometry, is invisible to camera,
+  reflections, and BSDF-sampled rays. It contributes only via NEE.
+- Requires a non-trivial sky (HDRI / Hosek-Wilkie / Nishita / gradient with sun);
+  is skipped at load time when the sky cannot be sampled directly.
+- The portal normal `n = normalize(u × v)` defines the "outside" direction.
+  Receivers on the wrong side return zero contribution — orient `u, v` so the
+  cross product points TOWARDS the sky.
+- `shadow_samples` overridable via CLI `-S`. Stratified into a √N × √N grid.
+
 #### **8.5 Sphere Light (Isotropic Soft Shadows)**
 ```yaml
 - type: "sphere"  # aliases: "sphere_light", "ball", "ball_light"

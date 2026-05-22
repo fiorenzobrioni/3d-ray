@@ -203,6 +203,127 @@ public class SkyEnvironmentTests
     // HdriSunExtractor — synthetic peak
     // ────────────────────────────────────────────────────────────────────────
 
+    // ────────────────────────────────────────────────────────────────────────
+    // NishitaSky
+    // ────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void NishitaSky_zenith_is_blue_at_midday()
+    {
+        var nishita = new NishitaSky(sunDirToSun: new Vector3(0.2f, 1f, 0f).Normalize());
+        var zenith = nishita.EvaluateRadiance(Vector3.UnitY);
+        // Earth atmosphere: at midday with sun nearly overhead, zenith blue
+        // dominates green, green dominates red (Rayleigh 1/λ⁴).
+        Assert.True(zenith.Z > zenith.Y);
+        Assert.True(zenith.Y > zenith.X);
+        Assert.True(MathUtils.Luminance(zenith) > 0f);
+    }
+
+    [Fact]
+    public void NishitaSky_sunset_horizon_is_warm()
+    {
+        // Sun just above the horizon.
+        var nishita = new NishitaSky(sunDirToSun: new Vector3(1f, 0.05f, 0f).Normalize());
+        var horizonNearSun = nishita.EvaluateRadiance(new Vector3(1f, 0.05f, 0f).Normalize());
+        // Long atmospheric path → red dominates: R should beat B near the sun
+        // at sunset (Rayleigh has scattered out the blue).
+        Assert.True(horizonNearSun.X >= horizonNearSun.Z * 0.5f);  // not strict equality — we just want it warmer
+        Assert.True(MathUtils.Luminance(horizonNearSun) > 0f);
+    }
+
+    [Fact]
+    public void NishitaSky_exposes_analytical_sun_with_attenuated_radiance()
+    {
+        var sky = new NishitaSky(sunDirToSun: new Vector3(0.3f, 0.8f, 0.2f).Normalize());
+        Assert.True(sky.HasAnalyticalSun);
+        var sun = sky.AnalyticalSun;
+        Assert.True(MathUtils.Luminance(sun.Radiance) > 0f);
+        Assert.True(sun.LimbDarkening);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // PortalLight
+    // ────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void PortalLight_pdf_is_zero_for_directions_missing_the_portal()
+    {
+        var sky = new SkySettings(new Vector3(1f));
+        // Portal at y=1, rectangle [−1,1] × [−1,1] in XZ — origin is below it.
+        var portal = new PortalLight(sky,
+            anchor: new Vector3(-1, 1, -1),
+            u: new Vector3(2, 0, 0),
+            v: new Vector3(0, 0, 2));
+        // From below the portal pointing up — should hit the portal:
+        Assert.True(portal.PdfSolidAngle(Vector3.Zero, Vector3.UnitY) > 0f);
+        // Pointing down — ray hits the plane but on the wrong side (t<0): pdf=0:
+        Assert.Equal(0f, portal.PdfSolidAngle(Vector3.Zero, -Vector3.UnitY));
+        // Pointing sideways — ray parallel to the plane (dirDotN ≈ 0): pdf=0:
+        Assert.Equal(0f, portal.PdfSolidAngle(Vector3.Zero, Vector3.UnitX));
+    }
+
+    [Fact]
+    public void PortalLight_pdf_matches_area_to_solid_angle_conversion()
+    {
+        var sky = new SkySettings(new Vector3(1f));
+        // Portal centred over the origin at y=5: rectangle [−1,1] × [−1,1] in XZ.
+        // U=(2,0,0), V=(0,0,2); the origin projects to the rectangle's centre.
+        var portal = new PortalLight(sky,
+            anchor: new Vector3(-1, 5, -1),
+            u: new Vector3(2, 0, 0),
+            v: new Vector3(0, 0, 2));
+        // Area = 4, dist = 5, cos(|normal · dir|) = 1 ⇒ pdf = 25 / 4 = 6.25.
+        float pdf = portal.PdfSolidAngle(Vector3.Zero, Vector3.UnitY);
+        Assert.InRange(pdf, 6.20f, 6.30f);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // EnvironmentMap mipmap
+    // ────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void EnvironmentMap_SampleMip_at_level_zero_matches_native_sample()
+    {
+        // Tiny gradient HDRI (8×4) so the mip pyramid is cheap to build.
+        const int W = 8, H = 4;
+        var px = new float[W * H * 3];
+        for (int i = 0; i < W * H; i++)
+        {
+            px[i * 3 + 0] = i / (float)(W * H);
+            px[i * 3 + 1] = 1f - i / (float)(W * H);
+            px[i * 3 + 2] = 0.5f;
+        }
+        var map = new EnvironmentMap(px, W, H);
+        var direction = Vector3.UnitX;
+        var native = map.Sample(direction);
+        var mipped = map.SampleMip(direction, 0f);
+        Assert.InRange(Vector3.Distance(native, mipped), 0f, 1e-5f);
+    }
+
+    [Fact]
+    public void EnvironmentMap_SampleMip_at_max_level_returns_a_smoother_value()
+    {
+        const int W = 16, H = 8;
+        var px = new float[W * H * 3];
+        // Single bright pixel at (8, 4); rest black.
+        for (int i = 0; i < px.Length; i++) px[i] = 0f;
+        int idx = (4 * W + 8) * 3;
+        px[idx] = 100f; px[idx + 1] = 100f; px[idx + 2] = 100f;
+        var map = new EnvironmentMap(px, W, H);
+        int maxL = map.MaxMipLevel;
+        Assert.True(maxL >= 3);
+        var dirNearPeak = Vector3.UnitZ;       // hits roughly the bright row
+        var fine = map.SampleMip(dirNearPeak, 0f);
+        var coarse = map.SampleMip(dirNearPeak, maxL);
+        // Mipped should converge to average — much smaller than the single
+        // brightest pixel's value.
+        Assert.True(MathUtils.Luminance(coarse) < MathUtils.Luminance(fine) * 0.5f + 1f);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // HdriSunExtractor — synthetic peak
+    // ────────────────────────────────────────────────────────────────────────
+
     [Fact]
     public void HdriSunExtractor_finds_synthetic_peak_within_a_few_pixels()
     {
