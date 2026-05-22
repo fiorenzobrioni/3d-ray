@@ -1513,4 +1513,17 @@ public class MediumData
     /// </summary>
     [YamlMember(Alias = "interpolation")]
     public string Interpolation { get; set; } = "trilinear";
+
+    // ── atmosphere (Nishita aerial perspective) ─────────────────────────────
+    /// <summary>RGB air-density multiplier (grey by default). Tints Rayleigh scattering.</summary>
+    [YamlMember(Alias = "air_density")]
+    public List<float>? AirDensity { get; set; }
+
+    /// <summary>Mie dust density (0 = pristine, 1 = clean, &gt;1 = polluted). Default 1.</summary>
+    [YamlMember(Alias = "dust_density")]
+    public float DustDensity { get; set; } = 1f;
+
+    /// <summary>Metres of real atmosphere per world unit. 1000 = 1 wu : 1 km. Default 1000.</summary>
+    [YamlMember(Alias = "world_scale")]
+    public float WorldScale { get; set; } = 1000f;
 }

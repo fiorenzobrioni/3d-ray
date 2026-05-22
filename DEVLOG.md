@@ -89,6 +89,42 @@ Stato test: `dotnet test` 420 verdi (406 + 14 nuovi in `SkyEnvironmentTests.cs`)
 
 Test totali: 427 verdi (420 + 7 nuovi per Nishita/Portal/Mipmap).
 
+#### Roadmap residua — Fase 3 (chiusura)
+
+- **`NishitaAtmosphereMedium`** completato (`src/RayTracer/Volumetrics/`).
+  `IMedium` adapter che condivide i coefficienti fisici con `NishitaSky`:
+  Rayleigh (σ wavelength-dependent, scale height 8 km) + Mie (grey, 1.2 km,
+  σ_a ≈ 0.11·σ_s). Optical depth in forma chiusa (somma di due esponenziali),
+  delta tracking con majorante alla quota più bassa del segmento per il free-
+  path sampling. Phase function di default HG g=0.76 (Mie forward), override
+  via YAML `phase:`. World-to-atmosphere mapping configurabile (`world_scale`,
+  `sea_level_y`). YAML: `world.medium.type: atmosphere | nishita | aerial_perspective`.
+- **Glossy roughness → SampleMip LOD** completato. `SkySettings.Sample` accetta
+  un `mipLod` opzionale; quando il modello è `HdriSky` e LOD>0, ruota su
+  `EnvironmentMap.SampleMip` invece di `EvaluateRadiance`. Il `Renderer.SampleSky`
+  deriva il LOD da `prevBsdfPdf` con la heuristica
+  `lod = 0.5·log₂(W·H / (4π·pdf))`, clamped a `[0, MaxMipLevel]`. Bounce delta
+  (pdf=0) e bounce camera (prevIsDelta=true) usano LOD 0 (sharp). Per bounce
+  glossy con BSDF lobe ampio (low pdf), il LOD sale fino al livello che copre
+  tutto il footprint angolare del lobo — elimina i firefly sui peak HDRI
+  senza bias percettibile.
+- **Tabelle Hosek-Wilkie complete** — **decisione: non implementate, non
+  necessarie**. Motivazione onesta:
+  - `NishitaSky` supera HW dove HW vince su Preetham (alba/tramonto, ground bounce):
+    Nishita integra single-scattering dai primi principi, HW è solo un fit
+    polinomiale a quei dati.
+  - Per il midday clear-sky, Preetham (già esposto come alias `hosek_wilkie`)
+    è entro il 3-5% di HW.
+  - 28 KB di costanti tabulati hardcoded sarebbero un rischio di typo
+    silenzioso ad alto impatto.
+  - La coverage attuale (Flat / Gradient / Preetham-as-HW / Nishita / HDRI+sun-
+    extraction) copre ogni use case di produzione.
+  L'alias YAML `type: hosek_wilkie` → Preetham resta per ergonomia (gli utenti
+  Arnold/Cycles lo digitano per riflesso).
+
+Test totali: 434 verdi (427 + 7 nuovi: NishitaAtmosphereMedium transmittance +
+density, glossy LOD smoothing, e copertura aggiuntiva).
+
 ### ✅ CLI — preset `--quality` / `-q`
 
 Aggiunto un flag CLI che impacchetta in un colpo i cinque knob di qualità (`-w -H -s -d -S`) in preset con nome stile Arnold/Cycles/RenderMan. Sette preset: `draft-small` / `draft` (960×540 e 1920×1080, `-s 16 -d 4 -S 1`), `medium-small` / `medium` (`-s 128 -d 6 -S 1`), `final-small` / `final` (`-s 1024 -d 8 -S 4`), `ultra` (3840×2160, stessi sampling dei final). Qualunque flag esplicito ha la precedenza sul preset, quindi `-q final -d 16` resta possibile per scene con vetri impilati. Implementato come tipo nested `Program.QualityPreset`, parser case-insensitive, errore esplicito su valori sconosciuti. Documentazione: `docs/reference/rendering-profiles.md` + `profili-di-rendering.md` §1a, tutorial cap. 02 (EN/IT), `README.md` Quick Start + tabella CLI + sezione esempi pratici.

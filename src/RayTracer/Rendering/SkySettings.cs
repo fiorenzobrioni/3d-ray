@@ -216,8 +216,8 @@ public class SkySettings
     //  Public sampling API
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// <summary>Legacy entry point — equivalent to <see cref="Sample(Ray, RayCategory, bool)"/> with <see cref="RayCategory.Camera"/> and sun visible.</summary>
-    public Vector3 Sample(Ray ray) => Sample(ray, RayCategory.Camera, includeAnalyticalSun: true);
+    /// <summary>Legacy entry point — equivalent to <see cref="Sample(Ray, RayCategory, bool, float)"/> with <see cref="RayCategory.Camera"/>, sun visible, sharp LOD.</summary>
+    public Vector3 Sample(Ray ray) => Sample(ray, RayCategory.Camera, includeAnalyticalSun: true, mipLod: 0f);
 
     /// <summary>
     /// Linear HDR radiance for a ray that escaped the scene.
@@ -230,11 +230,20 @@ public class SkySettings
     /// where a paired <see cref="Lights.PhysicalSun"/> handles the sun via
     /// NEE (preventing double-counting).</para>
     ///
+    /// <para><paramref name="mipLod"/> selects a prefiltered HDRI mipmap level
+    /// for image-based environments. Pass <c>0</c> (default) for sharp lookup
+    /// — the historical behaviour. Pass a positive value (roughly
+    /// <c>0.5 · log₂(numPixels / (4π · pdf_bsdf))</c>) when a glossy BSDF
+    /// sample escapes the scene: the wider lobe is convolved against the
+    /// prefiltered HDRI via <see cref="Textures.EnvironmentMap.SampleMip"/>,
+    /// removing the firefly spike from undersampled HDRI peaks. Ignored for
+    /// non-HDRI sky models.</para>
+    ///
     /// <para>When the analytical sun is hidden from camera rays via
     /// <see cref="SkyVisibility.SunCamera"/>, the disc is forced off even if
     /// <paramref name="includeAnalyticalSun"/> is true.</para>
     /// </summary>
-    public Vector3 Sample(Ray ray, RayCategory cat, bool includeAnalyticalSun = true)
+    public Vector3 Sample(Ray ray, RayCategory cat, bool includeAnalyticalSun = true, float mipLod = 0f)
     {
         if (!_visibility.For(cat)) return Vector3.Zero;
 
@@ -243,7 +252,18 @@ public class SkySettings
 
         ISkyModel source = (cat == RayCategory.Camera && _background != null) ? _background : _lighting;
 
-        Vector3 body = source.EvaluateRadiance(skyDir);
+        Vector3 body;
+        if (mipLod > 0f && source is HdriSky hdri)
+        {
+            // Roughness-driven LOD lookup — variance-killer for glossy escapes
+            // onto HDRIs with hot peaks. The mipmap is built on first request
+            // and reused for all subsequent samples.
+            body = hdri.Map.SampleMip(skyDir, mipLod);
+        }
+        else
+        {
+            body = source.EvaluateRadiance(skyDir);
+        }
 
         if (source.HasAnalyticalSun && includeAnalyticalSun)
         {

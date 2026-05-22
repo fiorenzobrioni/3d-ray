@@ -3245,10 +3245,37 @@ public class SceneLoader
                 return BuildProcedural(md, phase);
             case "grid":
                 return BuildGrid(md, phase, sceneDir);
+            case "atmosphere":
+            case "nishita":
+            case "aerial_perspective":
+                return BuildNishitaAtmosphere(md, phase);
             default:
-                Warn($"Unsupported medium type '{type}'. Supported: homogeneous, height_fog, procedural, grid. Ignoring.");
+                Warn($"Unsupported medium type '{type}'. Supported: homogeneous, height_fog, procedural, grid, atmosphere. Ignoring.");
                 return null;
         }
+    }
+
+    private static NishitaAtmosphereMedium BuildNishitaAtmosphere(MediumData md, IPhaseFunction phase)
+    {
+        // The atmosphere medium reuses the Nishita physical constants; the
+        // YAML knobs are limited to the scene-mapping ones (sea level, world
+        // scale) and density multipliers. Default phase is HG g=0.76 (Mie
+        // forward scattering); the user can override via the `phase` key.
+        // When no phase is specified in YAML, BuildPhaseFunction returns
+        // IsotropicPhase by default — for atmosphere we substitute the
+        // Mie-typical HG g=0.76 if isotropic was the implicit choice.
+        IPhaseFunction effectivePhase = string.IsNullOrWhiteSpace(md.Phase)
+            ? new HenyeyGreensteinPhase(0.76f)
+            : phase;
+
+        Vector3 air     = ToVector3(md.AirDensity) ?? Vector3.One;
+        float seaLevel  = md.Y0;
+        Info($"Medium:      atmosphere (Nishita, sea_level={seaLevel}, world_scale={md.WorldScale} m/wu, {(string.IsNullOrWhiteSpace(md.Phase) ? "hg(0.76)" : md.Phase)} phase)");
+        return new NishitaAtmosphereMedium(effectivePhase,
+                                            airDensity: air,
+                                            dustDensity: md.DustDensity,
+                                            seaLevelY: seaLevel,
+                                            worldScale: md.WorldScale);
     }
 
     private static IPhaseFunction BuildPhaseFunction(MediumData md)

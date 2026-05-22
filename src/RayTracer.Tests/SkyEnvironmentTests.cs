@@ -200,10 +200,6 @@ public class SkyEnvironmentTests
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // HdriSunExtractor — synthetic peak
-    // ────────────────────────────────────────────────────────────────────────
-
-    // ────────────────────────────────────────────────────────────────────────
     // NishitaSky
     // ────────────────────────────────────────────────────────────────────────
 
@@ -318,6 +314,93 @@ public class SkyEnvironmentTests
         // Mipped should converge to average — much smaller than the single
         // brightest pixel's value.
         Assert.True(MathUtils.Luminance(coarse) < MathUtils.Luminance(fine) * 0.5f + 1f);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // HdriSunExtractor — synthetic peak
+    // ────────────────────────────────────────────────────────────────────────
+
+    // ────────────────────────────────────────────────────────────────────────
+    // NishitaAtmosphereMedium
+    // ────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void NishitaAtmosphere_transmittance_attenuates_with_distance()
+    {
+        var medium = new RayTracer.Volumetrics.NishitaAtmosphereMedium(
+            new RayTracer.Volumetrics.HenyeyGreensteinPhase(0.76f),
+            dustDensity: 1f, seaLevelY: 0f, worldScale: 1000f);
+        var ray = new Ray(new Vector3(0, 1, 0), Vector3.UnitX);
+        var trShort = medium.Transmittance(ray, 1f);
+        var trLong  = medium.Transmittance(ray, 100f);
+        Assert.True(trLong.X <  trShort.X);
+        Assert.True(trLong.Y <  trShort.Y);
+        Assert.True(trLong.Z <  trShort.Z);
+        // Rayleigh 1/λ⁴: blue attenuates faster than red — receivers see more
+        // red transmitted at long distance, more blue scattered AWAY.
+        // After 100 wu (100 km) through dense atmosphere, B transmittance < R.
+        Assert.True(trLong.Z < trLong.X);
+    }
+
+    [Fact]
+    public void NishitaAtmosphere_density_drops_with_altitude()
+    {
+        var medium = new RayTracer.Volumetrics.NishitaAtmosphereMedium(
+            new RayTracer.Volumetrics.HenyeyGreensteinPhase(0.76f),
+            worldScale: 1000f);
+        // At sea level (y=0): full density.
+        var sigmaSea = medium.SigmaT_AtY(0f);
+        // At Rayleigh scale height (8 wu = 8 km): Rayleigh density ≈ 1/e.
+        var sigmaHigh = medium.SigmaT_AtY(8f);
+        Assert.True(sigmaHigh.X < sigmaSea.X);
+        Assert.True(sigmaHigh.Y < sigmaSea.Y);
+        Assert.True(sigmaHigh.Z < sigmaSea.Z);
+        // Above 60 km — fully zero (clamped).
+        var sigmaSpace = medium.SigmaT_AtY(70f);
+        Assert.Equal(Vector3.Zero, sigmaSpace);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Glossy LOD heuristic (smoke-tested through SkySettings.Sample)
+    // ────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void SkySettings_Sample_with_lod_drives_through_mipmap()
+    {
+        // 16×8 HDRI with a single bright pixel (peak 100) on a black background.
+        // The mip pyramid's coarsest level holds the spatial average ≈ 100/(16·8) ≈ 0.78.
+        // Sampling any direction at max LOD should return roughly this average,
+        // while the same direction at LOD 0 returns either 0 (off the peak) or
+        // 100 (right on it). Either way, max-LOD luminance is far from both
+        // extremes — close to the global average.
+        const int W = 16, H = 8;
+        var px = new float[W * H * 3];
+        int peakIdx = (4 * W + 8) * 3;
+        px[peakIdx] = 100f; px[peakIdx + 1] = 100f; px[peakIdx + 2] = 100f;
+        var map = new EnvironmentMap(px, W, H);
+        var sky = new SkySettings(new HdriSky(map));
+
+        float expectedAvg = map.EstimatedAverageLuminance;     // ≈ 0.78
+        Assert.True(expectedAvg > 0.5f && expectedAvg < 1.2f);
+
+        // Take a few directions, sample at max LOD — all should land near the average.
+        var directions = new[] {
+            Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ,
+            -Vector3.UnitX, Vector3.Normalize(new Vector3(1, 1, 1))
+        };
+        int maxLod = map.MaxMipLevel;
+        Assert.True(maxLod >= 3);
+        foreach (var d in directions)
+        {
+            var smoothed = sky.Sample(new Ray(Vector3.Zero, d),
+                                       RayCategory.Camera,
+                                       includeAnalyticalSun: false,
+                                       mipLod: maxLod);
+            float l = MathUtils.Luminance(smoothed);
+            // Within a factor of 4 of the global average — generous, but the
+            // 2×2 box without proper area weighting drifts a bit on tiny pyramids.
+            Assert.InRange(l, expectedAvg * 0.25f, expectedAvg * 4f);
+        }
     }
 
     // ────────────────────────────────────────────────────────────────────────

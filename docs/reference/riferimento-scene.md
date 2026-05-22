@@ -227,6 +227,24 @@ medium:
   g: 0.6
 ```
 
+**Tipo 5 — `atmosphere`** (Nishita aerial perspective, condivide le costanti con `type: nishita` del cielo):
+```yaml
+medium:
+  type: "atmosphere"               # alias: "nishita", "aerial_perspective"
+  world_scale: 1000.0              # metri per unità mondo (1000 = 1 wu : 1 km). Default 1000.
+  sea_level_y: 0.0                 # Y world dell'altitudine 0 (alias Y0 mantenuto)
+  air_density: [1, 1, 1]           # moltiplicatore densità Rayleigh per canale
+  dust_density: 1.0                # densità Mie (0 = puro, 1 = pulito, >1 = inquinato)
+  phase: "hg"                      # default Henyey-Greenstein g=0.76 (Mie forward)
+  g: 0.76
+```
+Mezzo Earth-realistic a due specie esponenziali (Rayleigh scale height 8 km +
+Mie 1.2 km) con le stesse costanti fisiche di `NishitaSky`. L'optical depth
+ha forma chiusa (somma di due esponenziali) — niente varianza da delta
+tracking per il path di trasmittanza. Il sampling free-path usa delta tracking
+con majorante alla quota più bassa. Da abbinare a `world.sky.type: nishita`
+per ottenere sky e aerial perspective visivamente coerenti.
+
 **Tipo 3 — `procedural`** (Perlin fBm, delta tracking):
 ```yaml
 medium:
