@@ -575,8 +575,9 @@ RayTracer -i golden-hour.yaml -c macro -w 1200 -H 800 -s 1024 -d 8 -S 4
 - **Multiple cameras** in one scene file, selectable via `--camera name`
   on the CLI.
 
-For a one-page YAML reference plus ready-to-copy sky presets see
-[`scenes/00-sky-presets.md`](../../../scenes/00-sky-presets.md).
+For ready-to-copy presets see:
+- [`scenes/00-sky-presets.md`](../../../scenes/00-sky-presets.md) — sky-only presets (10 entries, sky block only).
+- [`scenes/00-world-presets.md`](../../../scenes/00-world-presets.md) — paired sky + ground presets (15 entries, full `world:` block including ground shape, material, UV and visibility flags).
 
 ---
 
