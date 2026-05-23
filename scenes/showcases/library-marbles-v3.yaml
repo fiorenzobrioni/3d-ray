@@ -1,0 +1,232 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Library Marbles — V3 (production-grade ridged + IQ warp + folds)
+#
+#  Lookdev di 5 marmi storici che esercitano l'intera gamma del nuovo
+#  procedural marble:
+#
+#    x=-5.0  White Carrara         → defaults Carrara (vena sottile su bianco)
+#    x=-3.0  Black Marquinia       → ramp invertito, vena chiara su nero
+#    x=-1.0  Verde Alpi (impurity) → impurities_density 0.06, ramp 3-stop verde
+#    x=+1.0  Calacatta Gold        → 3 layer + ramp 4-stop oro/cream
+#    x=+3.0  Statuario             → warp_amplitude 1.2, 3 layer dramatic
+#    x=+5.0  Arabescato            → caos massimo (thickness 0.34, warp 3 it)
+#
+#  Tutti su sfere subdivision per mostrare l'organic flow del nuovo algoritmo
+#  sulla curvatura. Render hint:
+#    Draft:  -w 640  -H 360  -s 64   -d 8  -S 1
+#    Standard: -w 1920 -H 1080 -s 1024 -d 8  -S 4
+#    Final:  -w 1920 -H 1080 -s 2048 -d 12 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+imports:
+  - { path: "../libraries/materials/stones.yaml" }
+
+world:
+  sky:
+    type: "flat"
+    color: [0.002, 0.002, 0.0025]
+
+camera:
+  position: [0, 1.8, -11.0]
+  look_at:  [0, 0.85, 0]
+  fov: 56
+
+materials:
+
+  # Floor a marmo Carrara Lucido per riflettere la qualità delle sfere.
+  - id: "floor"
+    type: "disney"
+    color: [0.18, 0.18, 0.20]
+    roughness: 0.65
+    specular: 0.30
+
+  # Marble bianco "pulito" — Carrara base con defaults del nuovo sistema.
+  - id: "showcase_white_carrara"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 2.4
+      colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.9
+      warp_iterations: 2
+      fold_amplitude: [0.8, 0.25, 0.45]
+      vein_layers: 2
+      vein_scale:  [1.0, 2.4]
+      vein_weight: [1.0, 0.50]
+      vein_thickness: 0.13
+      vein_softness: 0.07
+      color_variation: 0.08
+      randomize_offset: true
+    roughness: 0.18
+    specular: 0.55
+    clearcoat: 0.65
+    coat_roughness: 0.08
+
+  # Marble nero — ramp invertito per vene chiare su base nera, thin.
+  - id: "showcase_black_marquinia"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 2.0
+      colors: [[0.04, 0.04, 0.05], [0.86, 0.84, 0.78]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.95
+      warp_iterations: 2
+      fold_amplitude: [0.80, 0.22, 0.48]
+      vein_layers: 2
+      vein_scale:  [1.0, 2.5]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.13
+      vein_softness: 0.05
+      color_variation: 0.06
+      randomize_offset: true
+    roughness: 0.10
+    specular: 0.80
+    clearcoat: 0.95
+    coat_roughness: 0.05
+
+  # Verde Alpi — verde profondo con impurità minerali (olivina/cromite).
+  # Dimostra il path impurities_density inline + Voronoi.
+  - id: "showcase_verde_alpi"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 2.3
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.05
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.30, 0.55]
+      vein_layers: 2
+      vein_scale:  [0.85, 2.0]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.20
+      vein_softness: 0.09
+      color_variation: 0.10
+      impurities_density: 0.06
+      impurities_scale: 9.0
+      impurity_weight: 0.20
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.16, 0.40, 0.22], interp: "linear" }
+        - { position: 0.55, color: [0.06, 0.22, 0.10], interp: "smoothstep" }
+        - { position: 1.00, color: [0.02, 0.08, 0.04], interp: "linear" }
+    roughness: 0.20
+    specular: 0.55
+    clearcoat: 0.55
+    coat_roughness: 0.12
+
+  # Calacatta Gold — 3 layer + ramp 4-stop dal cream all'oro alla vena scura.
+  - id: "showcase_calacatta_gold"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 1.9
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.1
+      warp_iterations: 2
+      fold_amplitude: [0.95, 0.35, 0.55]
+      vein_layers: 3
+      vein_scale:  [0.65, 1.5, 3.4]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.22
+      vein_softness: 0.10
+      color_variation: 0.09
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear" }
+        - { position: 0.30, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
+        - { position: 0.65, color: [0.85, 0.62, 0.28], interp: "smoothstep" }
+        - { position: 1.00, color: [0.18, 0.10, 0.05], interp: "linear" }
+    roughness: 0.10
+    specular: 0.70
+    clearcoat: 0.92
+    coat_roughness: 0.06
+
+  # Statuario — bianco purissimo con vene grigie audaci, warp_iterations 3.
+  - id: "showcase_statuario"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 2.1
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.2
+      warp_iterations: 3
+      fold_amplitude: [1.0, 0.35, 0.55]
+      vein_layers: 3
+      vein_scale:  [0.6, 1.4, 3.0]
+      vein_weight: [1.0, 0.65, 0.35]
+      vein_thickness: 0.20
+      vein_softness: 0.08
+      color_variation: 0.05
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.98, 0.98, 0.96], interp: "linear" }
+        - { position: 0.65, color: [0.50, 0.50, 0.52], interp: "smoothstep" }
+        - { position: 1.00, color: [0.06, 0.06, 0.08], interp: "linear" }
+    roughness: 0.18
+    specular: 0.60
+    clearcoat: 0.75
+    coat_roughness: 0.07
+
+  # Arabescato — caos massimo, dimostra la coesistenza di vene sottili/spesse.
+  - id: "showcase_arabescato"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 1.8
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.4
+      warp_iterations: 3
+      fold_amplitude: [1.1, 0.5, 0.7]
+      vein_layers: 3
+      vein_scale:  [0.55, 1.4, 3.2]
+      vein_weight: [1.0, 0.75, 0.45]
+      vein_thickness: 0.34
+      vein_softness: 0.12
+      color_variation: 0.10
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.94, 0.92, 0.88], interp: "linear" }
+        - { position: 0.55, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.06, 0.06, 0.10], interp: "linear" }
+    roughness: 0.18
+    specular: 0.55
+    clearcoat: 0.65
+    coat_roughness: 0.08
+
+entities:
+
+  - { name: "floor", type: "quad", q: [-12, 0, -4], u: [24, 0, 0], v: [0, 0, 10], material: "floor" }
+
+  # Sei sfere lookdev — subdivision sphere fine per il displacement implicito
+  # della normal-map analitica del marble (non c'è, ma le sfere mostrano
+  # bene il pattern).
+  - { name: "carrara",    type: "sphere", center: [-5.0, 0.85, 0], radius: 0.85, seed: 1,   material: "showcase_white_carrara"  }
+  - { name: "marquinia",  type: "sphere", center: [-3.0, 0.85, 0], radius: 0.85, seed: 7,   material: "showcase_black_marquinia" }
+  - { name: "verde_alpi", type: "sphere", center: [-1.0, 0.85, 0], radius: 0.85, seed: 13,  material: "showcase_verde_alpi"     }
+  - { name: "calacatta",  type: "sphere", center: [ 1.0, 0.85, 0], radius: 0.85, seed: 23,  material: "showcase_calacatta_gold" }
+  - { name: "statuario",  type: "sphere", center: [ 3.0, 0.85, 0], radius: 0.85, seed: 31,  material: "showcase_statuario"      }
+  - { name: "arabescato", type: "sphere", center: [ 5.0, 0.85, 0], radius: 0.85, seed: 41,  material: "showcase_arabescato"     }
+
+lights:
+  - type: "directional"
+    direction: [-0.4, -0.8, 0.45]
+    color: [1.0, 0.98, 0.94]
+    intensity: 6.5
+    angular_radius: 0.6
+
+  - type: "point"
+    position: [-7, 6, -4]
+    color: [0.90, 0.93, 1.00]
+    intensity: 55
+
+  - type: "point"
+    position: [0, 3.5, 5]
+    color: [1.0, 0.82, 0.62]
+    intensity: 45
+
+  - type: "point"
+    position: [7, 6, -4]
+    color: [0.92, 0.95, 1.00]
+    intensity: 55

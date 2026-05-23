@@ -42,8 +42,8 @@
 #
 #   FLUORITE            Multicolore stratificata. Color ramp 4+ stop.
 #
-#   MALACHITE           Bande verdi concentriche, marble studio
-#                       (vein_axis radiale, secondary_wave).
+#   MALACHITE           Bande verdi concentriche, 3 layer ridged + warp
+#                       aggressivo per il pattern naturale del minerale.
 #
 #   LAPISLAZZULI        Blu profondo con pirite dorata. Mix material.
 #
@@ -210,17 +210,23 @@ materials:
     specular: 0.50
     texture:
       type: "marble"
-      scale: 4.0
+      scale: 2.0
       vein_axis: [0, 1, 0]
-      vein_frequency: 2.5
-      vein_sharpness: 3.0
-      noise_strength: 4.0
-      octaves: 6
+      warp_amplitude: 1.1
+      warp_iterations: 2
+      fold_amplitude: [0.95, 0.30, 0.55]
+      vein_layers: 3
+      vein_scale:  [0.6, 1.5, 3.2]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.35
+      vein_softness: 0.18
+      color_variation: 0.12
+      randomize_offset: true
       color_ramp:
-        - { position: 0.00, color: [0.32, 0.18, 0.08], interp: "smoothstep" }
-        - { position: 0.30, color: [0.62, 0.42, 0.22], interp: "smoothstep" }
-        - { position: 0.65, color: [0.85, 0.70, 0.52], interp: "smoothstep" }
-        - { position: 1.00, color: [0.96, 0.90, 0.78], interp: "linear" }
+        - { position: 0.00, color: [0.96, 0.90, 0.78], interp: "linear" }
+        - { position: 0.35, color: [0.85, 0.70, 0.52], interp: "smoothstep" }
+        - { position: 0.70, color: [0.62, 0.42, 0.22], interp: "smoothstep" }
+        - { position: 1.00, color: [0.32, 0.18, 0.08], interp: "linear" }
 
   # ══════════════════════════════════════════════════════════════════════
   # DRUSE
@@ -426,8 +432,8 @@ materials:
   # MALACHITE
   # ══════════════════════════════════════════════════════════════════════
 
-  # Malachite a bande concentriche: marble studio con vein_axis radiale
-  # e secondary_wave per concentricità.
+  # Malachite a bande concentriche: 3 layer ridged + warp aggressivo
+  # produce le caratteristiche bande verdi alternate del minerale.
   - id: "dis_malachite"
     type: "disney"
     color: [0.18, 0.45, 0.28]
@@ -437,22 +443,23 @@ materials:
     coat_roughness: 0.10
     texture:
       type: "marble"
-      scale: 3.0
+      scale: 1.6
       vein_axis: [0, 1, 0]
-      vein_frequency: 3.0
-      vein_sharpness: 4.0
-      noise_strength: 3.5
-      octaves: 7
-      distortion: 0.18
-      secondary_wave:
-        axis: [1, 0, 0]
-        frequency: 2.2
-        strength: 0.5
+      warp_amplitude: 1.15
+      warp_iterations: 3
+      fold_amplitude: [1.0, 0.45, 0.65]
+      vein_layers: 3
+      vein_scale:  [0.55, 1.4, 3.2]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.38
+      vein_softness: 0.16
+      color_variation: 0.10
+      randomize_offset: true
       color_ramp:
-        - { position: 0.00, color: [0.04, 0.18, 0.08], interp: "smoothstep" }
-        - { position: 0.40, color: [0.18, 0.42, 0.22], interp: "smoothstep" }
-        - { position: 0.70, color: [0.32, 0.62, 0.36], interp: "smoothstep" }
-        - { position: 1.00, color: [0.62, 0.85, 0.50], interp: "linear" }
+        - { position: 0.00, color: [0.62, 0.85, 0.50], interp: "linear" }
+        - { position: 0.35, color: [0.32, 0.62, 0.36], interp: "smoothstep" }
+        - { position: 0.65, color: [0.18, 0.42, 0.22], interp: "smoothstep" }
+        - { position: 1.00, color: [0.04, 0.18, 0.08], interp: "linear" }
 
   # ══════════════════════════════════════════════════════════════════════
   # LAPISLAZZULI
