@@ -12,7 +12,7 @@
 #   ─ A : argento brunito      dis_argento_brunito       (metallic freddo opaco)
 #   ─ Y : porcellana bianca    dis_porcellana_bianca     (ceramica con SSS)
 #
-#  Ground: dis_carrara_studio_v2 (cross-veining Statuario, distortion 0.15)
+#  Ground: mat_ground_marmo (Carrara custom — scale 1.2 + distortion 0.65 + secondary 0.6)
 #
 #  Sfere:
 #   ─ cristallo limpido        front-destra  (Disney spec_trans, ior 1.55)
@@ -54,7 +54,7 @@ world:
   ground:
     type: "quad"                                    # palco finito sotto il logo
     size: 25                                        # 50×50 m sufficienti per riflessi
-    material: "dis_carrara_studio_v2"               # marmo Statuario: cross-veining + distortion + color ramp 5-stop
+    material: "mat_ground_marmo"                    # custom inline calibrato per area grande
     uv_scale: [3, 3]                                # fit del pattern marmo
 
   medium:
@@ -146,6 +146,44 @@ materials:
   - id: "font_material"
     type: "lambertian"
     color: [0.60, 0.60, 0.62]
+
+  # ─── Ground: marmo Carrara custom calibrato per quad 50×50 m ──────────────
+  # `dis_carrara_studio_v2` su un quad di questa scala fa emergere la grid
+  # intrinseca del Perlin noise (vertici a coordinate intere mondo) come
+  # reticolo di celle quadrate. Qui calibriamo:
+  #   • scale 1.2  : vene a passo ~5 m (1 ciclo / quad) anziché 0.25 m
+  #   • distortion 0.65 : domain warp forte → nasconde la grid Perlin
+  #   • secondary_wave strength 0.6 : cross-veining Calacatta organico
+  #   • noise_strength 4 : amplificazione moderata del Perlin (non amplifica la grid)
+  #   • color_ramp 5-stop : gradiente naturale dal nero alla base avorio
+  - id: "mat_ground_marmo"
+    type: "disney"
+    color: [0.95, 0.94, 0.92]
+    roughness: 0.35
+    specular: 0.50
+    clearcoat: 0.40
+    coat_roughness: 0.10
+    texture:
+      type: "marble"
+      scale: 1.2
+      vein_axis: [0.6, 0, 1]                       # diagonale (non camera-aligned)
+      vein_frequency: 1.0
+      vein_sharpness: 5.5
+      noise_strength: 4.0
+      octaves: 6
+      distortion: 0.65                             # CHIAVE: nasconde la grid Perlin
+      noise_type: "fbm"                            # fbm più "morbido" di turbulence
+      randomize_offset: true
+      secondary_wave:
+        axis: [1, 0, -0.4]
+        frequency: 0.7
+        strength: 0.6
+      color_ramp:
+        - { position: 0.00, color: [0.10, 0.09, 0.09], interp: "smoothstep" }
+        - { position: 0.30, color: [0.45, 0.42, 0.40], interp: "smoothstep" }
+        - { position: 0.60, color: [0.80, 0.77, 0.73], interp: "smoothstep" }
+        - { position: 0.88, color: [0.93, 0.92, 0.89], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.97, 0.95], interp: "linear" }
 
   # ─── Sfera cromata DIETRO il logo (riflette le 5 lettere) ─────────────────
   - id: "mat_chrome_sphere"
