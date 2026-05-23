@@ -6,11 +6,13 @@
 #  Preetham golden hour e illuminazione 3-point area-light cinematografica.
 #
 #  Lineup materiali lettere (no vetri):
-#   ─ 3 : oro lucido           dis_oro_lucido        (caldo, hero metallic)
-#   ─ D : marmo bianco         dis_carrara_studio_lucido  (sostituisce vetro)
-#   ─ R : mogano laccato       dis_mogano_laccato    (legno con clearcoat)
-#   ─ A : argento brunito      dis_argento_brunito   (metallic freddo opaco)
-#   ─ Y : porcellana bianca    dis_porcellana_bianca (ceramica con SSS)
+#   ─ 3 : oro lucido           dis_oro_lucido            (caldo, hero metallic)
+#   ─ D : marmo bianco         dis_carrara_studio_lucido (sostituisce vetro)
+#   ─ R : mogano flame studio  dis_mogano_flame_studio   (figure 1.5 + ramp 3-stop)
+#   ─ A : argento brunito      dis_argento_brunito       (metallic freddo opaco)
+#   ─ Y : porcellana bianca    dis_porcellana_bianca     (ceramica con SSS)
+#
+#  Ground: dis_carrara_studio_v2 (cross-veining Statuario, distortion 0.15)
 #
 #  Sfere:
 #   ─ cristallo limpido        front-destra  (Disney spec_trans, ior 1.55)
@@ -52,7 +54,7 @@ world:
   ground:
     type: "quad"                                    # palco finito sotto il logo
     size: 25                                        # 50×50 m sufficienti per riflessi
-    material: "dis_carrara_studio"                  # marmo studio NON lucido (meno riflesso, no washout)
+    material: "dis_carrara_studio_v2"               # marmo Statuario: cross-veining + distortion + color ramp 5-stop
     uv_scale: [3, 3]                                # fit del pattern marmo
 
   medium:
@@ -206,11 +208,11 @@ entities:
     translate: [1.94, 0.75, 0.5]
     scale:     [1.5, 2.5, 1.5]
 
-  # ── "R" — mogano laccato (legno con clearcoat) ────────────────────────────
+  # ── "R" — mogano flame studio (figure 1.5 + color ramp 3-stop) ────────────
   - name: "letter_R"
     type: "instance"
     template: "lettera_r_maiusc_open-sans"
-    material: "dis_mogano_laccato"
+    material: "dis_mogano_flame_studio"
     rotate:    [-90, 180, 0]
     translate: [-0.50, 0.75, 0.5]
     scale:     [1.5, 2.5, 1.5]
