@@ -756,39 +756,76 @@ everything into mountains. These two parameters are only used by the
 `hetero_terrain` / `hybrid_multifractal` modes — the other noise kinds
 ignore them.
 
-**Marble:**
+**Marble** — production-grade ridged multifractal + recursive (Inigo Quilez)
+domain warp + anisotropic geological fold + optional mineral impurities. The
+algorithm matches the quality of Arnold's `marble2`, RenderMan's `PxrMarble`,
+Cycles' Marble in cinematic configuration. No periodic carrier — every visible
+tiling is killed by the recursive warp.
+
 ```yaml
 texture:
   type: "marble"
-  scale: 4.0
-  noise_strength: 10.0
-  vein_axis: [1, 0, 0.3]       # primary vein propagation direction (default Z)
-  vein_frequency: 1.0          # multiplier on the sine term
-  vein_sharpness: 4.0          # 1=soft (legacy), 4-8=Carrara-thin veins
-  noise_type: "turbulence"     # turbulence | fbm | ridged
-  octaves: 7                   # fractal octaves
+  scale: 2.4
+  colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
+  vein_axis: [0, 1, 0]         # orientation of the dominant fold direction
+
+  # Recursive (IQ) domain warp — kills tiling, produces organic flow
+  warp_amplitude: 0.9          # world-unit displacement of the warp field
+  warp_scale: 2.0              # spatial period of the warp field
+  warp_iterations: 2           # 0 = baseline, 2 = canonical, 3 = aggressive
+
+  # Anisotropic geological fold — large-scale tectonic shear
+  fold_amplitude: [0.8, 0.25, 0.45]   # per-axis amplitude (max → vein_axis)
+  fold_scale: 6.0              # period of the fold field
+
+  # Multi-scale ridged vein field — soft-max compositing
+  vein_layers: 2               # 1..3 independent layers
+  vein_scale:  [1.0, 2.4]      # per-layer scale (length = vein_layers)
+  vein_weight: [1.0, 0.50]     # per-layer soft-max weight
+  octaves: 5
   lacunarity: 2.0
   gain: 0.5
-  distortion: 0.0
-  colors: [[0.95, 0.95, 0.95], [0.10, 0.10, 0.15]]
-  secondary_wave:              # optional — Statuario / Calacatta cross-veins
-    axis: [1, 0, 0]            # second vein direction (auto-orthogonalised)
-    frequency: 0.7             # independent of primary frequency
-    strength: 0.5              # 0 = disabled (back-compat), ~0.3-0.7 typical
-```
-The vein axis controls the direction along which veins propagate; pick a
-non-axis-aligned vector for natural slabs. `vein_sharpness` exponentiates the
-sine wave, narrowing the dark band into a real veining line.
+  soft_max_sharpness: 8        # crispness of the layer composite
 
-> **Studio-quality `secondary_wave`.** Setting `strength > 0` adds a second
-> sinusoid along `secondary_wave.axis` to the primary vein term:
-> `sin(wave1) + strength · sin(wave2)`, renormalised so the combined output
-> stays in [-1, 1]. The secondary axis is auto-orthogonalised against the
-> primary at sample time, so even picking a collinear axis still produces
-> visible cross-veining — the Statuario / Calacatta / Arabescato look that
-> single-axis marble cannot reach. Combine with a 3+ stop `color_ramp:` for
-> vein → mid-tone → base → undertone authoring. `strength = 0` (default)
-> is bit-identical to the legacy implementation.
+  # Vein-thickness remap (replaces the broken legacy vein_sharpness)
+  vein_thickness: 0.13         # 0..1 — fraction of surface occupied by veins
+  vein_softness: 0.07          # smoothstep half-width on the threshold
+
+  # Background tonal variation
+  background_scale: 12.0
+  background_octaves: 3
+  color_variation: 0.08        # how much background fBm shifts ramp lookup
+
+  # Mineral impurities (Verde Alpi, Blu Sodalite specks)
+  impurities_density: 0.0      # 0 disables; ~0.05 = Verde Alpi inclusions
+  impurities_scale: 8.0
+  impurity_weight: 0.12
+  # impurities_texture: { type: "voronoi", ... }   # optional external override
+
+  randomize_offset: true
+  # color_ramp: [...]          # optional multi-stop ramp; wins over `colors`
+```
+
+The vein axis no longer drives a sinusoidal carrier — it controls only the
+dominant direction of the anisotropic fold. Real organic flow comes from the
+recursive warp + ridged multifractal pair. Bumping `warp_iterations` from
+2→3 doubles the per-shade Perlin sample cost (~14 → ~17 lattice samples on
+top of the ridged layers) but visibly tames any residual tiling on
+high-resolution slabs.
+
+`vein_thickness` is strictly monotone wrt visible vein area: 0.12-0.18 ≈
+Carrara/Statuario (thin), 0.22-0.30 ≈ Calacatta/Port Laurent (medium),
+0.30-0.40 ≈ Arabescato (chaotic bands), 0.40+ ≈ onyx/alabaster (diffuse
+nebulae rather than veins). `vein_softness` controls how crisp the
+transition is — 0.04-0.08 = razor-sharp edges (Marquina), 0.15-0.25 =
+watery (onyx).
+
+> **Impurity composability.** The default inline `impurities_density` path
+> uses a sparse Voronoi cell hash — cheap and YAML-flat. When the inline
+> path is too restrictive (you want the impurities to follow an image,
+> a custom Voronoi, or any other procedural), set `impurities_texture` to
+> a full nested texture block; its luminance overrides the inline path
+> regardless of `impurities_density`.
 
 **Wood:**
 ```yaml
@@ -854,69 +891,125 @@ snippet and tweak the colour ramp to ship a credible material in minutes.
 >    diffuse component above the specular reflection. Without this
 >    triad the BSDF integrator can't separate texture from environment.
 
-**Carrara — white base with thin dark veins.**
+**Carrara — white base with thin grey-blue veins.**
 ```yaml
 - id: "carrara"
   type: "disney"
-  roughness: 0.32
-  specular: 0.5
+  roughness: 0.18
+  specular: 0.55
+  clearcoat: 0.65
+  coat_roughness: 0.08
   texture:
     type: "marble"
-    scale: 5.0
-    vein_axis: [0, 0, 1]
-    vein_frequency: 1.0
-    vein_sharpness: 4.0           # → wide base, narrow vein
-    noise_strength: 8.0
-    octaves: 8
-    colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
+    scale: 2.4
+    colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
+    vein_axis: [0, 1, 0]
+    warp_amplitude: 0.9
+    fold_amplitude: [0.8, 0.25, 0.45]
+    vein_layers: 2
+    vein_scale:  [1.0, 2.4]
+    vein_weight: [1.0, 0.50]
+    vein_thickness: 0.13
+    vein_softness: 0.07
+    color_variation: 0.08
+    randomize_offset: true
 ```
-With `vein_sharpness ≥ 3` the average sample lands close to `colors[0]`
-(base), so the BASE colour is the dominant area and the vein colour
-narrows to thin lines — exactly the real Carrara look.
+Default vein_thickness 0.13 leaves the surface dominantly white with thin
+ridged cracks. The fold + recursive warp curve the veins organically along
+`vein_axis` — no straight lines no matter the camera angle.
 
-**Calacatta — cross-veining with gold transitions.**
+**Calacatta Gold — 3 layers + ramp 4-stop from cream to gold to dark.**
 ```yaml
-- id: "calacatta"
+- id: "calacatta_gold"
   type: "disney"
-  roughness: 0.30
+  roughness: 0.10
+  clearcoat: 0.92
+  coat_roughness: 0.06
+  specular: 0.70
   texture:
     type: "marble"
-    scale: 4.0
-    vein_axis: [0, 0, 1]
-    vein_sharpness: 3.0           # wider veins than Carrara (Calacatta is bolder)
-    noise_strength: 6.0
-    octaves: 8
-    secondary_wave:
-      axis: [1, 0, 0]             # auto-orthogonalised against primary
-      frequency: 0.65             # non-integer ratio prevents moiré
-      strength: 0.45
+    scale: 1.9
+    vein_axis: [0, 1, 0]
+    warp_amplitude: 1.1
+    warp_iterations: 2
+    fold_amplitude: [0.95, 0.35, 0.55]
+    vein_layers: 3
+    vein_scale:  [0.65, 1.5, 3.4]
+    vein_weight: [1.0, 0.70, 0.40]
+    vein_thickness: 0.22
+    vein_softness: 0.10
+    color_variation: 0.09
+    randomize_offset: true
     color_ramp:
-      - { position: 0.00, color: [0.10, 0.08, 0.08], interp: "smoothstep" }
-      - { position: 0.35, color: [0.85, 0.65, 0.30], interp: "smoothstep" }
-      - { position: 0.70, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
-      - { position: 1.00, color: [0.97, 0.95, 0.90], interp: "linear"     }
+      - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear" }
+      - { position: 0.30, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
+      - { position: 0.65, color: [0.85, 0.62, 0.28], interp: "smoothstep" }
+      - { position: 1.00, color: [0.18, 0.10, 0.05], interp: "linear" }
 ```
-Convention with the corrected sharpening: ramp **position 0 = vein**
-(rare, `t→0`), **position 1 = base** (dominant, `t→1`); intermediate
-stops paint the transition.
+Convention: ramp **position 0 = base** (`t → 0`, dominant area where ridged
+field is low), **position 1 = vein** (`t → 1`, rare peaks of the ridged
+field); intermediate stops paint the gold transition. The 3-layer system
+guarantees thin AND thick veins coexist on the same slab.
 
-**Arabescato — strong cross-veining + chaotic distortion.**
+**Arabescato — chaotic 3-layer + extreme warp.**
 ```yaml
 - id: "arabescato"
   type: "disney"
-  roughness: 0.34
+  roughness: 0.18
+  clearcoat: 0.65
+  coat_roughness: 0.08
   texture:
     type: "marble"
-    scale: 3.5
-    vein_sharpness: 2.0
-    noise_strength: 8.0
-    distortion: 0.35              # extra Perlin domain warp
-    secondary_wave: { axis: [1, 0.3, 0], frequency: 1.2, strength: 0.7 }
+    scale: 1.8
+    vein_axis: [0, 1, 0]
+    warp_amplitude: 1.4
+    warp_iterations: 3            # aggressive flow
+    fold_amplitude: [1.1, 0.5, 0.7]
+    vein_layers: 3
+    vein_scale:  [0.55, 1.4, 3.2]
+    vein_weight: [1.0, 0.75, 0.45]
+    vein_thickness: 0.34          # broad bands (Arabescato is bold)
+    vein_softness: 0.12
+    color_variation: 0.10
+    randomize_offset: true
     color_ramp:
-      - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "smoothstep" }
-      - { position: 0.50, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
-      - { position: 1.00, color: [0.94, 0.92, 0.88], interp: "linear"     }
+      - { position: 0.00, color: [0.94, 0.92, 0.88], interp: "linear" }
+      - { position: 0.55, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
+      - { position: 1.00, color: [0.08, 0.08, 0.10], interp: "linear" }
 ```
+
+**Verde Alpi — green base with mineral impurities (olivine specks).**
+```yaml
+- id: "verde_alpi"
+  type: "disney"
+  roughness: 0.20
+  clearcoat: 0.55
+  coat_roughness: 0.12
+  texture:
+    type: "marble"
+    scale: 2.3
+    vein_axis: [0, 1, 0]
+    warp_amplitude: 1.05
+    fold_amplitude: [0.85, 0.30, 0.55]
+    vein_layers: 2
+    vein_scale:  [0.85, 2.0]
+    vein_weight: [1.0, 0.55]
+    vein_thickness: 0.20
+    vein_softness: 0.09
+    color_variation: 0.10
+    impurities_density: 0.06      # ← inline Voronoi specks
+    impurities_scale: 9.0
+    impurity_weight: 0.20
+    randomize_offset: true
+    color_ramp:
+      - { position: 0.00, color: [0.16, 0.40, 0.22], interp: "linear" }
+      - { position: 0.55, color: [0.06, 0.22, 0.10], interp: "smoothstep" }
+      - { position: 1.00, color: [0.02, 0.08, 0.04], interp: "linear" }
+```
+The inline impurities path uses a sparse Voronoi cell hash with smoothstep
+falloff to produce per-cell dark specks. Replace with `impurities_texture:
+{ ... }` to drive impurities from any other texture (image, custom Voronoi,
+crackle pattern).
 
 **Oak quartersawn — fibrous radial grain.**
 ```yaml
@@ -1165,11 +1258,10 @@ RenderMan's `PxrRamp`:
 ```yaml
 texture:
   type: "marble"
-  vein_sharpness: 4.0
+  vein_thickness: 0.20
   color_ramp:
-    - { position: 0.00, color: [0.05, 0.05, 0.07], interp: "smoothstep" }
-    - { position: 0.45, color: [0.55, 0.45, 0.32], interp: "linear"     }
-    - { position: 0.55, color: [0.95, 0.93, 0.88], interp: "linear"     }
+    - { position: 0.00, color: [0.95, 0.93, 0.88], interp: "linear"     }
+    - { position: 0.45, color: [0.55, 0.45, 0.32], interp: "smoothstep" }
     - { position: 1.00, color: [0.05, 0.05, 0.07], interp: "linear"     }
 ```
 - `position` ∈ [0, 1] — clamped if outside; stops auto-sort by position.

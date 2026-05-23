@@ -8,6 +8,78 @@ Roadmap, lavori in corso, bug noti, storico cicli.
 
 ## 📌 Note rapide
 
+### ✅ Marble texture — riscrittura pro-grade (Arnold/Cycles/Mitsuba parity)
+
+Sostituita la formula sin-carrier classica
+`vein(p) = sin(scale·(p·axis)·freq + str·fBm(p))` con un pipeline
+production-grade allineato ai renderer offline. Il vecchio algoritmo aveva
+due bug strutturali di realismo: la portante sinusoidale garantiva
+periodicità visibile lungo `vein_axis`, e una singola layer fBm non poteva
+rappresentare la coesistenza di vene sottili e spesse.
+
+**Nuovo pipeline (per shade).**
+1. **Texture transform** — invariato.
+2. **Geological fold (anisotropo).** `DomainWarp.Anisotropic` con
+   `fold_amplitude` per asse — la componente max è ruotata in modo da
+   allinearsi a `vein_axis`. Simula lo shear tettonico a grande scala.
+3. **Recursive (IQ) domain warp.** `DomainWarp.Recursive` itera
+   `warp_iterations` volte (0 = no warp, 2 = canonico IQ, 3 = aggressivo).
+   Uccide ogni tiling visibile sul vein field.
+4. **Multi-scale ridged vein field.** `MultiScaleRidgedField.Sample` con
+   1-3 layer ridged indipendenti, compositati via log-sum-exp soft-max
+   numericamente stabile. Layer a scale decouplated → coesistenza
+   thin+thick veins (Calacatta, Arabescato).
+5. **Vein-thickness remap.** Smoothstep su `1 - thickness ± softness/2`.
+   `vein_thickness` è strettamente monotono rispetto all'area visibile.
+   Sostituisce il broken `vein_sharpness` (che faceva la potenza di una
+   sinusoide normalizzata).
+6. **Background variation.** fBm a bassa freq che sposta la ramp lookup.
+7. **Impurità minerali.** Path inline Voronoi sparse + override esterno
+   tramite `impurities_texture` (composabilità con qualsiasi pattern).
+8. **Color ramp** o lerp 2-colori (convenzione INVERTITA vs legacy:
+   stop 0 = base dominante, stop finale = vena rara).
+
+**YAML schema.** Aggiunti `warp_amplitude/warp_scale/warp_iterations`,
+`fold_amplitude/fold_scale`, `vein_layers/vein_scale/vein_weight`,
+`vein_thickness/vein_softness`, `soft_max_sharpness`,
+`background_scale/background_octaves`, `color_variation`,
+`impurities_density/scale/weight/texture`. Rimossi `vein_frequency`,
+`vein_sharpness`, `secondary_wave`, `noise_type` (marble), `distortion`
+(marble) — non più parsati.
+
+**Helper riusabili** in `src/RayTracer/Core/`: `DomainWarp.Recursive` e
+`DomainWarp.Anisotropic` (pure functions su `(Perlin, Vector3, params)`,
+nessuna allocazione), `MultiScaleRidgedField.Sample` (soft-max stabile
+numericamente). Pensati per essere riusati dal futuro rewrite di
+`WoodTexture` (grain flow, knot anisotropy, figure layer).
+
+**Tests** (`MarbleWoodStudioTests.cs`). Eliminati i 6 test legacy
+tied alla semantica sin-carrier; aggiunti 9 test sul nuovo sistema:
+output `[0,1]`, decorrelazione per `objectSeed` (MAD > 0.05), non-
+periodicità del campo lungo `vein_axis` (variance > 0.002 su 32
+samples), monotonia di `vein_thickness`, gate `impurities_density=0`
+(bit-identity vs baseline), override `impurities_texture`, determinismo
+`warp_iterations=0`, effetto di `warp_iterations=3` (MAD > 0.05), no-
+NaN sotto stress con tutti i knob al massimo. 446/446 verdi.
+
+**Sweep librerie.** Migrati i ~60 materiali marble in
+`scenes/libraries/materials/{stones,grounds,organics,plasters,minerals-gems}.yaml`
+ai nuovi parametri, con look pro-grade per ogni classe (Carrara thin,
+Calacatta 3-layer, Arabescato chaos, Verde Alpi inclusions, ecc.).
+Nuovo showcase `scenes/showcases/library-marbles-v3.yaml` con 6 sfere
+lookdev. Le scene esistenti che importavano questi materiali ora
+rendono con il look pro nuovo — back-compat di parser garantita (i
+campi legacy rimossi sono semplicemente ignorati).
+
+**Performance.** ~26 sample Perlin per shade (vs ~7 nel sin-carrier).
+Default `vein_layers: 2` e `warp_iterations: 2` scelti conservativi;
+per recipe "preview" abbassare a `vein_layers: 1` e `warp_iterations:
+1`. Sul rendering totale (BSDF dominante) impatto ~10-20%.
+
+**Docs** aggiornati: `docs/reference/scene-reference.md` + IT,
+`docs/tutorial/{en,it}/03-materials.md` (sezione marble + recipe book +
+walkthrough 3.8.1 Step 2-4). README aggiornato in nota separata.
+
 ### ✅ Ground — overhaul pro-grade (Arnold/Cycles/Mitsuba parity)
 
 Riscrittura della feature `world.ground:` per portarla al livello dei renderer

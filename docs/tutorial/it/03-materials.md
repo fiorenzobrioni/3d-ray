@@ -540,58 +540,78 @@ per il confronto a quattro pannelli fBm / hetero / hybrid / alpine.
 ```yaml
 texture:
   type: "marble"
-  scale: 4.0
-  noise_strength: 10.0
-  vein_axis: [1, 0, 0.3]
-  vein_sharpness: 5.0
-  octaves: 7
-  distortion: 0.25
-  colors: [[0.92, 0.91, 0.88], [0.18, 0.18, 0.22]]
+  scale: 2.4
+  vein_axis: [0, 1, 0]
+  warp_amplitude: 0.9
+  warp_iterations: 2
+  fold_amplitude: [0.8, 0.25, 0.45]
+  vein_layers: 2
+  vein_scale:  [1.0, 2.4]
+  vein_weight: [1.0, 0.50]
+  vein_thickness: 0.13
+  vein_softness: 0.07
+  colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
 ```
 
-Il vero marmo di Carrara ha venature sottili, ad alto contrasto e non
-allineate agli assi. I nuovi controlli permettono di riprodurre quel
-look:
+Il marmo è costruito su quattro blocchi ortogonali: domain warp ricorsivo
+(Inigo Quilez), fold geologico anisotropo, campo vena ridged multi-scala,
+remap thickness con smoothstep. Ogni blocco risolve un fallimento
+specifico del marmo "sin-carrier" classico:
 
-| Parametro        | Predefinito  | Descrizione                                        |
-|------------------|--------------|----------------------------------------------------|
-| `vein_axis`      | `[0,0,1]`    | Direzione primaria di propagazione delle venature  |
-| `vein_frequency` | `1.0`        | Moltiplicatore sulla frequenza della sinusoide     |
-| `vein_sharpness` | `1.0`        | 1 = morbido (legacy), 4–8 = venature Carrara       |
-| `noise_type`     | `turbulence` | Modulatore `turbulence` / `fbm` / `ridged`         |
-| `octaves`        | `7`          | Numero di ottave del modulatore                    |
-| `distortion`     | `0`          | Domain warp sulla posizione di input               |
-| `secondary_wave` | --           | Onda di venatura incrociata (Statuario / Calacatta)|
+| Parametro          | Predefinito          | Cosa controlla                                                       |
+|--------------------|----------------------|----------------------------------------------------------------------|
+| `vein_axis`        | `[0,1,0]`            | Direzione dominante del fold anisotropo                              |
+| `warp_amplitude`   | `0.75`               | Ampiezza del recursive warp IQ — uccide ogni tiling visibile         |
+| `warp_iterations`  | `2`                  | Profondità warp: 0 = niente, 2 = canonico, 3 = aggressivo            |
+| `fold_amplitude`   | `[0.6, 0.2, 0.4]`    | Shear per asse (componente max → `vein_axis`)                        |
+| `vein_layers`      | `2`                  | 1..3 layer ridged indipendenti compositati via soft-max              |
+| `vein_scale`       | `[1.0, 2.6]`         | Scala per layer — il decoupling fa coesistere vene sottili e spesse  |
+| `vein_weight`      | `[1.0, 0.55]`        | Peso soft-max per layer                                              |
+| `vein_thickness`   | `0.15`               | Frazione di superficie occupata dalle vene (monotono)                |
+| `vein_softness`    | `0.08`               | Half-width smoothstep sulla soglia thickness                         |
+| `color_variation`  | `0.08`               | Quanto il fBm di fondo sposta la ramp lookup                         |
+| `impurities_density` | `0.0`              | Specks Voronoi sparse (inclusioni); 0 disabilita l'inline            |
+| `impurities_texture` | `null`             | Texture esterna che sostituisce l'inline                             |
 
-**Venature incrociate studio-quality (`secondary_wave`).** Statuario,
-Calacatta e Arabescato hanno venature che corrono lungo due direzioni
-non parallele. Con `secondary_wave.strength > 0` si aggiunge una
-seconda sinusoide lungo `secondary_wave.axis` al termine primario —
-la somma `sin(wave1) + strength · sin(wave2)` è rinormalizzata in modo
-che l'output resti ben definito. L'asse secondario viene auto-
-ortogonalizzato contro il primario al sample-time, quindi anche
-sceglierlo collineare produce venature incrociate visibili.
-`strength = 0` (default) è bit-identico all'output legacy. Da
-combinare con un `color_ramp:` a 3+ stop per vena → mid-tone → base →
-undertone.
+**Perché batte il marmo sin-carrier.** La formula classica `sin(scale·(p·axis) +
+turb(p))` garantisce periodicità visibile lungo `vein_axis` qualunque sia
+la turbolenza — è il "tell" del CG anni 2000. Qui la portante è un campo
+ridged multifractale (creste affilate naturali, mai sinusoidali), la
+posizione di input viene pre-warpata ricorsivamente (IQ "warp warp warp")
+e l'intera lastra viene sheared anisotropicamente dal fold — tre
+meccanismi indipendenti che uccidono la periodicità a scale diverse.
+
+Il sistema multi-scala sostituisce il vecchio hack "vena primaria +
+secondaria opzionale": invece di due sinusoidi, si fondono 1-3 campi
+ridged indipendenti via un soft-max log-sum-exp numericamente stabile.
+Il soft-max è il `max()` smooth — dove un layer ha una cresta più alta
+vince, e i bordi tra layer dominanti sono C¹ continui e senza aliasing.
+È questo che fa funzionare le lastre stile Calacatta: vene fini e vene
+spesse coesistono perché ciascuna è un layer separato.
 
 ```yaml
+# Calacatta — 3 layer + ramp 4-stop
 texture:
   type: "marble"
-  vein_axis: [0, 0, 1]
-  secondary_wave:
-    axis: [1, 0, 0]
-    frequency: 0.7
-    strength: 0.5
+  scale: 1.9
+  vein_axis: [0, 1, 0]
+  warp_amplitude: 1.1
+  fold_amplitude: [0.95, 0.35, 0.55]
+  vein_layers: 3
+  vein_scale:  [0.65, 1.5, 3.4]
+  vein_weight: [1.0, 0.70, 0.40]
+  vein_thickness: 0.22
+  vein_softness: 0.10
   color_ramp:
-    - { position: 0.0, color: [0.20, 0.16, 0.18], interp: "smoothstep" }  # vena scura
-    - { position: 0.3, color: [0.78, 0.62, 0.30], interp: "smoothstep" }  # caldo aureo
-    - { position: 0.7, color: [0.96, 0.94, 0.90], interp: "smoothstep" }  # base avorio
-    - { position: 1.0, color: [0.90, 0.92, 0.96], interp: "linear"     }  # undertone freddo
+    - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear" }
+    - { position: 0.30, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
+    - { position: 0.65, color: [0.85, 0.62, 0.28], interp: "smoothstep" }
+    - { position: 1.00, color: [0.18, 0.10, 0.05], interp: "linear" }
 ```
 
-Vedi `scenes/showcases/library-marble-wood.yaml` per il
-confronto Carrara / Calacatta / Arabescato.
+Vedi `scenes/showcases/library-marbles-v3.yaml` per il confronto a 6
+sfere (Carrara / Marquinia / Verde Alpi / Calacatta / Statuario /
+Arabescato).
 
 ### Wood (Legno)
 
@@ -726,70 +746,75 @@ default sicuro.
 
 #### Step 2 — Scegli la personalità del marmo
 
-| Marmo        | Sharpness   | Secondary wave | Distortion | Ramp                                       |
-|--------------|-------------|----------------|------------|---------------------------------------------|
-| Carrara      | 4.0         | nessuna        | nessuna    | 2-colori (base bianca, vena quasi nera)     |
-| Calacatta    | 3.0         | strength 0.45  | nessuna    | 4-stop (vena → oro → cream → avorio)        |
-| Statuario    | 3.5         | strength 0.35  | 0.15       | 3-stop (vena → grigio → bianco)             |
-| Arabescato   | 2.0         | strength 0.7   | 0.35       | 3-stop (vena nera → grigio → ivory)         |
-| Port Laurent | 3.0         | strength 0.4   | nessuna    | 3-stop (vena oro → marrone → nero)          |
-| Rosso Levanto| 4.0         | strength 0.4   | nessuna    | 3-stop (calcite bianca → rosso → scuro)     |
+| Marmo         | Layers | Thickness | Softness | Warp iter | Fold amp                | Note                            |
+|---------------|--------|-----------|----------|-----------|-------------------------|---------------------------------|
+| Carrara       | 2      | 0.13      | 0.07     | 2         | `[0.8, 0.25, 0.45]`     | Vene sottili grigio-blu         |
+| Marquinia     | 2      | 0.13      | 0.05     | 2         | `[0.8, 0.20, 0.48]`     | Ramp invertito, vene pallide    |
+| Calacatta     | 3      | 0.22      | 0.10     | 2         | `[0.95, 0.35, 0.55]`    | Cream + oro + vena scura        |
+| Statuario     | 3      | 0.20      | 0.08     | 3         | `[1.0, 0.35, 0.55]`     | Bianco puro + grigio drammatico |
+| Arabescato    | 3      | 0.34      | 0.12     | 3         | `[1.1, 0.5, 0.7]`       | Bande caotiche grigio/bianco    |
+| Port Laurent  | 2      | 0.20      | 0.10     | 2         | `[0.85, 0.30, 0.50]`    | Vene oro su nero                |
+| Verde Alpi    | 2      | 0.20      | 0.09     | 2         | `[0.85, 0.30, 0.55]`    | + `impurities_density: 0.06`    |
 
-La tabella, dall'alto verso il basso, scorre da "geometrico" a
-"geologico": Carrara è ordinato, Arabescato è caotico.
+La tabella scorre dall'alto verso il basso da "ordinato" a "geologico":
+Carrara è composto, Arabescato è caotico. Alzare `warp_iterations` da 2
+a 3 sblocca la flow davvero organica che servono Statuario e Arabescato
+ma aggiunge ~3 lattice sample Perlin per shade — il costo extra è ben
+speso sul marmo protagonista di una scena.
 
-#### Step 3 — Convenzione di sharpness (non sbagliarla)
+#### Step 3 — Convenzione thickness (Carrara è in gran parte bianco)
 
-`vein_sharpness` controlla quanto è larga la regione di vena rispetto
-alla base. La relazione è `t' = 1 − (1−t)^k` dove
-`t = (sin(...) + 1)/2` è la sinusoide di base, quindi:
+`vein_thickness` è la frazione di area lastra mappata alla regione vena.
+Il marmo reale è dominato dal colore base con strutture vena sottili,
+quindi i default puntano basso:
 
-- **`vein_sharpness = 1`** — nessuno sharpening, blend 50/50 morbido.
-  Look "legacy" pre-step-5. Vene larghe e sfocate.
-- **`vein_sharpness = 3`** — campione medio al ~75% verso la base.
-  Vene audaci ~25% di superficie. **Tipico Calacatta.**
-- **`vein_sharpness = 5`** — campione medio ~83%. Vene a filigrana
-  sottile. Look Carrara vero.
-- **`vein_sharpness = 8`** — campione medio ~89%. Vene capillari, la
-  ramp deve avere stop ad alta frequenza altrimenti la vena sparisce
-  visivamente.
+- **`vein_thickness = 0.10`** — vene filiformi. Marquinia / Nero Belgio.
+- **`vein_thickness = 0.13–0.18`** — vene sottili su base dominante.
+  **Grado Carrara / Statuario.**
+- **`vein_thickness = 0.22–0.30`** — vene medie. **Grado Calacatta /
+  Port Laurent.**
+- **`vein_thickness = 0.30–0.40`** — superficie a bande caotiche.
+  **Grado Arabescato.**
+- **`vein_thickness ≥ 0.40`** — nuvole diffuse anziché vene. **Grado
+  onice / alabastro** (abbina con `vein_softness` 0.20-0.30 per le
+  transizioni morbide tipiche).
 
 Siccome l'area dominante è la *base*, quando crei un `color_ramp`:
 
 ```yaml
 color_ramp:
-  - { position: 0.00, color: <COLORE VENA> }   # raro, t→0
+  - { position: 0.00, color: <COLORE BASE> }   # dominante, t → 0
   - ...                                        # transizioni, stop intermedi
-  - { position: 1.00, color: <COLORE BASE> }   # dominante, t→1
+  - { position: 1.00, color: <COLORE VENA> }   # raro, t → 1
 ```
 
-Se inverti (base in posizione 0, vena in posizione 1) il materiale
-viene per lo più colorato di vena — è così che, partendo da un YAML
-"Carrara", ottieni accidentalmente un "marmo nero con vene bianche".
+Questo è l'**opposto** della convenzione sin-carrier legacy. La lettura
+naturale del nuovo campo è "magnitudo della cresta": valori bassi = base,
+valori alti = picchi (vena). Se inverti accidentalmente la ramp, il
+materiale viene per lo più colorato di vena — sanity check rapido prima
+di committare la lastra.
 
-#### Step 4 — Secondary wave per cross-veining
+#### Step 4 — Layer multi-scala vs single-layer
 
-Il Calacatta reale ha *due* direzioni di venatura: grandi diagonali
-attraversate da venature trasversali più piccole. Lo modelliamo
-aggiungendo una seconda sinusoide lungo un asse auto-ortogonalizzato
-contro il primario al sample-time (quindi anche un `axis: [0, 0, 1]`
-collineare produce comunque cross-veining visibile):
+Il Calacatta reale ha *sia* vene sottili che vene spesse audaci sulla
+stessa lastra. Il nuovo sistema lo raggiunge senza hack "secondary wave":
+aggiungi layer ridged indipendenti a scale decouplated e un soft-max
+numericamente stabile sceglie il dominante per pixel.
 
 ```yaml
-secondary_wave:
-  axis: [1, 0, 0]                  # hint direzione secondaria
-  frequency: 0.65                  # rapporto non intero → niente moiré
-  strength: 0.45                   # ≤1 tipico; 0 = single-axis (back-compat)
+vein_layers: 3
+vein_scale:  [0.65, 1.5, 3.4]   # large — medium — fine
+vein_weight: [1.0,  0.70, 0.40] # layer leading domina la silhouette
 ```
 
-Il segnale combinato `sin(w1) + strength·sin(w2)` è rinormalizzato per
-`(1 + strength)` così l'output resta in [-1, 1] e la curva di sharpening
-continua a funzionare.
+Il soft-max è l'equivalente smooth di `max()`: dove la cresta di un
+layer è più alta, quel layer vince; le transizioni tra layer dominanti
+sono C¹ continue (niente aliasing). A `soft_max_sharpness = 8` il
+crossover è netto; abbassa per un blend più morbido.
 
-**Tip frequenza:** se scegli `secondary_wave.frequency` come rapporto
-non banale di `vein_frequency` (es. 0.65, 0.85, 1.2) il cross-pattern
-è aperiodico e moiré-free. Frequenze uguali producono un grid pattern
-regolare che sembra artificiale.
+**Tip:** mantieni `vein_scale[1] / vein_scale[0]` e `vein_scale[2] /
+vein_scale[1]` vicini a ~2.3, NON rapporti interi — così i layer fini
+non battono "udibilmente" contro quello grosso.
 
 #### Step 5 — Roughness, clearcoat, e il trucco "marmo lucido"
 
@@ -1102,11 +1127,10 @@ map su voronoi.
 ```yaml
 texture:
   type: "marble"
-  vein_sharpness: 4.0
+  vein_thickness: 0.20
   color_ramp:
-    - { position: 0.00, color: [0.05, 0.05, 0.07], interp: "smoothstep" }
-    - { position: 0.45, color: [0.55, 0.45, 0.32], interp: "linear"     }
-    - { position: 0.55, color: [0.95, 0.93, 0.88], interp: "linear"     }
+    - { position: 0.00, color: [0.95, 0.93, 0.88], interp: "linear"     }
+    - { position: 0.45, color: [0.55, 0.45, 0.32], interp: "smoothstep" }
     - { position: 1.00, color: [0.05, 0.05, 0.07], interp: "linear"     }
 ```
 
@@ -1220,10 +1244,10 @@ Arnold, il `PxrBump` di RenderMan e il nodo "Bump" di Cycles.
   bump_map:
     texture:                   # QUALSIASI ITexture: noise, marble, wood,
       type: "marble"           # voronoi, brick, gradient, image, ...
-      scale: 5.0
+      scale: 2.0
       vein_axis: [0, 1, 0]
-      vein_frequency: 3.0
-      vein_sharpness: 2.0
+      vein_layers: 2
+      vein_thickness: 0.3
       colors: [[0, 0, 0], [1, 1, 1]]
     strength: 3.0              # 0–10, clamp
     scale: 1.0                 # moltiplicatore UV uniforme (default 1)
