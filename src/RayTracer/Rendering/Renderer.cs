@@ -690,10 +690,12 @@ public class Renderer
             // they don't emit medium-switch signals. Pass through the incoming
             // currentAbsorption so any enclosing Disney-glass interior still
             // absorbs along the continued ray segment.
+            RayCategory nextCat = ClassifyScatteredRay(rec.Normal, scattered.Direction, nextIsDelta);
             Vector3 indirect = TraceRay(scattered, depth - 1,
                                          prevBsdfPdf: 0f, prevIsDelta: nextIsDelta,
                                          currentAbsorption: currentAbsorption,
-                                         pathThroughput: nextThroughput);
+                                         pathThroughput: nextThroughput,
+                                         incomingCategory: nextCat);
             // Depth-aware indirect clamp: suppresses deep-specular fireflies that
             // survive the primary pixel-level ClampRadiance. When the factor is
             // 1.0 (default) ClampRadianceIndirect == ClampRadiance — no change.
@@ -781,13 +783,56 @@ public class Renderer
         // (entering glass → σ_a; exiting → vacuum). Reflection samples keep
         // the caller's currentAbsorption untouched.
         Vector3 nextAbsorption = s.NextSegmentAbsorption ?? currentAbsorption;
+        RayCategory nextCat = ClassifyScatteredRay(rec.Normal, s.Wo, s.IsDelta);
         Vector3 indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
                                      currentAbsorption: nextAbsorption,
-                                     pathThroughput: nextThroughput);
+                                     pathThroughput: nextThroughput,
+                                     incomingCategory: nextCat);
         // Depth-aware indirect clamp — see ShadeSurface's Scatter path above.
         indirect = ClampRadianceIndirect(indirect);
         // PBRT/Arnold convention — see ShadeSurface above.
         return emitted + directLight + attenuation * indirect;
+    }
+
+    /// <summary>
+    /// Maps a <see cref="RayCategory"/> to the matching
+    /// <see cref="HitVisibilityMask"/> bit. Used by the visibility-skip loop
+    /// at the top of <see cref="TraceRay"/> and by
+    /// <see cref="Geometry.ShadowRay.Transmittance"/> to translate "the ray
+    /// the caller is tracing" into "the bit that, if set on a hit, means
+    /// skip this surface".
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static HitVisibilityMask CategoryToMask(RayCategory cat) => cat switch
+    {
+        RayCategory.Camera       => HitVisibilityMask.Camera,
+        RayCategory.Diffuse      => HitVisibilityMask.Diffuse,
+        RayCategory.Glossy       => HitVisibilityMask.Glossy,
+        RayCategory.Transmission => HitVisibilityMask.Transmission,
+        RayCategory.Shadow       => HitVisibilityMask.Shadow,
+        _                        => HitVisibilityMask.None,
+    };
+
+    /// <summary>
+    /// Picks a <see cref="RayCategory"/> for a recursive bounce given the
+    /// direction it scattered into and whether the BSDF lobe was a delta
+    /// (mirror / perfect refraction). Used by the indirect bounce paths to
+    /// label the next <see cref="TraceRay"/> call so the
+    /// <see cref="HitVisibilityMask"/> skip works one bounce later.
+    ///
+    /// <para>Best-effort approximation: non-delta reflection rays are
+    /// labelled <see cref="RayCategory.Diffuse"/> rather than parsing the
+    /// BSDF lobe — Arnold's <c>diffuse</c>/<c>glossy</c> visibility split
+    /// for rough specular would need lobe metadata propagated from the BSDF
+    /// sampler. The 4 distinct rays (camera primary, diffuse bounce, perfect
+    /// mirror reflection, transmission) all resolve correctly.</para>
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static RayCategory ClassifyScatteredRay(Vector3 normal, Vector3 wo, bool isDelta)
+    {
+        bool transmitted = Vector3.Dot(normal, wo) < 0f;
+        if (transmitted) return RayCategory.Transmission;
+        return isDelta ? RayCategory.Glossy : RayCategory.Diffuse;
     }
 
     /// <summary>
@@ -845,7 +890,8 @@ public class Renderer
     /// </summary>
     private Vector3 TraceRay(Ray ray, int depth, float prevBsdfPdf, bool prevIsDelta,
                              Vector3 currentAbsorption = default,
-                             Vector3 pathThroughput = default)
+                             Vector3 pathThroughput = default,
+                             RayCategory incomingCategory = RayCategory.Camera)
     {
         if (depth <= 0) return Vector3.Zero;
 
@@ -863,17 +909,19 @@ public class Renderer
         if (betaMax < DeadPathThroughputEpsilon)
             return Vector3.Zero;
 
-        // ── Camera-visibility filter (Arnold "camera" / Cycles "Ray
-        //    Visibility → Camera") ──────────────────────────────────────────
-        // On the primary camera ray only, advance past any hit flagged with
-        // rec.CameraInvisible (set by CameraInvisibleHittable wrapping an
-        // entity or light proxy with `visible_to_camera: false`). The light's
-        // own proxy stays in the BVH for non-primary rays — mirror/glass
-        // reflections, NEE shadow tests and BSDF-MIS closure continue to see
-        // it unchanged. depth == _maxDepth uniquely identifies the primary
-        // ray because every recursive TraceRay call decrements depth.
-        const int MaxCameraInvisibleSkips = 8;
-        bool isPrimaryRay = depth == _maxDepth;
+        // ── Visibility filter (Arnold <c>visibility.*</c> / Cycles "Ray
+        //    Visibility") ───────────────────────────────────────────────────
+        // Generalised version of the historic camera-invisible skip: walks
+        // past any hit whose <see cref="HitRecord.VisibilityMask"/> hides it
+        // from the current ray category. The legacy camera-only branch is
+        // preserved by the `incomingCategory == Camera` default plus the
+        // bridge that maps <c>CameraInvisible</c> ↔ <c>VisibilityMask.Camera</c>.
+        // The underlying emitter / surface stays in the BVH and other
+        // categories see it unchanged — a ground with <c>visibility.diffuse:
+        // false</c> still bounces specular reflections, NEE shadows still
+        // hit it for `shadow:true`, etc.
+        HitVisibilityMask ignoreMask = CategoryToMask(incomingCategory);
+        const int MaxVisibilitySkips = 8;
         Ray currentRay = ray;
         var rec = new HitRecord();
         bool hit;
@@ -882,8 +930,10 @@ public class Renderer
         {
             rec = new HitRecord();
             hit = _world.Hit(currentRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
-            if (!hit || !isPrimaryRay || !rec.CameraInvisible) break;
-            // Camera-invisible advance: keep the same differentials so the
+            if (!hit || ignoreMask == HitVisibilityMask.None
+                     || (rec.VisibilityMask & ignoreMask) == 0)
+                break;
+            // Visibility-skip advance: keep the same differentials so the
             // texture footprint on the underlying emitter still tracks the
             // pixel area, not the (zero) area of the proxy surface.
             currentRay = currentRay.HasDifferentials
@@ -894,7 +944,7 @@ public class Renderer
                 : new Ray(
                     MathUtils.OffsetOrigin(rec.Point, currentRay.Direction),
                     currentRay.Direction);
-            if (++skipCount >= MaxCameraInvisibleSkips) break;
+            if (++skipCount >= MaxVisibilitySkips) break;
         }
 
         // ── Compute analytic filter footprint at the hit ────────────────────

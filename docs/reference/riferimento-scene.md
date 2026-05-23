@@ -43,8 +43,8 @@ world:
   sky:                                     # (opzionale) Emettitore globale dell'ambiente
     type: "flat"  # oppure "gradient" / "hdri"
     # ... vedi dettagli sotto
-  ground:                                  # (opzionale) Pavimento autogenerato
-    type: "infinite_plane"
+  ground:                                  # (opzionale) Pavimento autogenerato — schema completo sotto
+    type: "infinite_plane"                 # o "plane" / "quad" / "disk" / "heightfield"
     material: "floor_name"
     y: 0.0
   medium:                                  # (opzionale) Mezzo partecipante globale
@@ -191,6 +191,86 @@ onorato quando `orientation:` è assente.
 - **Night** (zenith/orizzonte molto fiochi, disco solare debole)
 - **Overcast** (orizzonte uniforme, niente disco solare; oppure `flat` con grigio basso)
 - **Studio** (`flat` con un colore neutro fioco per riempire il bounce indiretto)
+
+#### **Ground** (pavimento del mondo — dispatcher production-grade):
+
+Il blocco `world.ground:` è uno shorthand first-class per il pavimento della
+scena. Fa dispatch su `type` per una delle quattro shape supportate, accetta
+un materiale anonimo inline, una UV transform completa, flag di visibilità
+per categoria di raggio (parità Arnold / Cycles) e auto-sync dell'albedo
+quando è presente anche un blocco `sky`. Lo shorthand legacy `material:` +
+`y:` continua a funzionare senza modifiche.
+
+```yaml
+world:
+  ground:
+    # ── Dispatch della shape ──────────────────────────────────────────
+    type: "infinite_plane"     # oppure "plane" (alias), "quad", "disk",
+                               # "heightfield" / "terrain"
+    # ── Posizione e orientamento (universali) ─────────────────────────
+    y: 0.0                     # shorthand legacy per point: [0, y, 0]
+    point: [0, 0, 0]           # ancora completa (vince su `y`)
+    normal: [0, 1, 0]          # normale della superficie (default +Y)
+    orientation:               # rotazione opzionale del frame UV
+      euler: [0, 30, 0]        # oppure quaternion: [x, y, z, w]
+    # ── Geometria finita (quad / disk) ────────────────────────────────
+    size: 50                   # semi-estensione (quad) o raggio (disk),
+                               # ignorato da infinite_plane / heightfield
+    # ── Geometria heightfield ─────────────────────────────────────────
+    bounds: [-10, -10, 10, 10] # [xMin, zMin, xMax, zMax] (obbligatorio)
+    height_scale: 3.0
+    heightmap_path: "ground/terrain-height.png"     # PNG a 16 bit
+    height_texture:                                 # OPPURE procedurale
+      type: "noise"
+      scale: 0.1
+    resolution: 512            # risoluzione di campionamento procedurale
+    sea_level: 1.0
+    sea_material: "water"
+    strata:                    # materiali a bande altitudine/pendenza
+      - material: "grass"
+        max_altitude: 0.4
+      - material: "rock"
+        min_slope_deg: 35
+    # ── Materiale ─────────────────────────────────────────────────────
+    material: "floor_id"       # materiale esplicito da `materials:`
+    # OPPURE shorthand inline (Disney BSDF anonimo):
+    color: [0.6, 0.5, 0.4]
+    roughness: 0.7
+    metallic: 0.0
+    # ── UV transform (applicata sopra le UV native della primitiva) ──
+    uv_scale:    [10, 10]      # tile factor per asse
+    uv_offset:   [0, 0]        # pan
+    uv_rotation: 30            # gradi, CCW vista dall'alto
+    # ── Flag di visibilità (parità Arnold / Cycles) ──────────────────
+    visibility:
+      camera:       true       # i raggi camera primari vedono il ground
+      diffuse:      true       # i bounce diffuse indiretti lo colpiscono
+      glossy:       true       # le riflessioni mirror / glossy lo vedono
+      transmission: true       # le rifrazioni lo vedono attraverso il vetro
+      shadow:       true       # i raggi NEE shadow ne sono bloccati
+```
+
+**Priorità nella risoluzione del materiale.** `material:` vince; altrimenti
+lo shorthand inline (`color/roughness/metallic`) costruisce un Disney BSDF
+anonimo; altrimenti il loader cade sul `sky.ground_albedo`/`ground_color`
+quando presente (comportamento `aiSkyDomeLight` di Arnold in preview);
+altrimenti viene usato un Lambertian grigio neutro.
+
+**Partizionamento BVH.** Un ground di tipo `quad` / `disk` / `heightfield`
+è finito — entra nella BVH insieme alle entity normali. Un ground
+`infinite_plane` resta nella lista lineare fuori dalla BVH (la sua AABB
+1e6³ degraderebbe la qualità del BVH). Entrambi i comportamenti sono
+preservati anche con i wrapper di visibilità / UV.
+
+**Semantica di visibilità.** Ogni flag `visibility.*` impostata a `false`
+rende il ground trasparente per i raggi di quella categoria — il raggio
+prosegue oltre la superficie come se non ci fosse. Usa
+`visibility.shadow: false` per mantenere un pavimento visibile che non
+proietta ombra, oppure `visibility.camera: false` per un pavimento
+invisibile stile shadow-catcher che però continua a far rimbalzare la
+luce indiretta (la matte ALPHA / AOV shadow-catcher è una feature
+separata pianificata). Specchia `polymesh.visibility.*` di Arnold e
+"Ray Visibility" di Cycles.
 
 #### **Volumetria (Mezzi Partecipanti)**:
 

@@ -26,6 +26,8 @@ namespace RayTracer.Geometry;
 /// </summary>
 public class CameraInvisibleHittable : IHittable
 {
+    public IHittable Inner => _inner;
+
     private readonly IHittable _inner;
 
     public CameraInvisibleHittable(IHittable inner) => _inner = inner;

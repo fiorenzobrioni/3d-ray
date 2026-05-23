@@ -38,8 +38,8 @@ world:
   sky:                                     # (optional) Global environment emitter
     type: "flat"  # or "gradient" / "hdri"
     # ... see details below
-  ground:                                  # (optional) Auto-generated floor
-    type: "infinite_plane"
+  ground:                                  # (optional) Auto-generated floor — full schema below
+    type: "infinite_plane"                 # or "plane" / "quad" / "disk" / "heightfield"
     material: "floor_name"
     y: 0.0
   medium:                                  # (optional) Global participating medium
@@ -192,6 +192,84 @@ when `orientation:` is absent.
 - **Night** (very dim zenith/horizon, faint sun disk)
 - **Overcast** (uniform horizon, no sun disk; or `flat` with a low gray)
 - **Studio** (`flat` with a dim neutral colour to fill bounce light)
+
+#### **Ground** (world floor — production-grade dispatcher):
+
+The `world.ground:` block is a first-class shorthand for the scene's floor.
+It dispatches on `type` to one of four shapes, supports an inline anonymous
+material, full UV transform, per-ray-category visibility flags (Arnold /
+Cycles parity) and auto-synced albedo when paired with a `sky` block. The
+legacy `material:` + `y:` shorthand keeps working unchanged.
+
+```yaml
+world:
+  ground:
+    # ── Shape dispatch ────────────────────────────────────────────────
+    type: "infinite_plane"     # or "plane" (alias), "quad", "disk",
+                               # "heightfield" / "terrain"
+    # ── Position & orientation (universal) ────────────────────────────
+    y: 0.0                     # legacy shorthand for point: [0, y, 0]
+    point: [0, 0, 0]           # full anchor (wins over `y`)
+    normal: [0, 1, 0]          # surface normal (defaults to +Y)
+    orientation:               # optional UV-frame rotation
+      euler: [0, 30, 0]        # or quaternion: [x, y, z, w]
+    # ── Finite geometry (quad / disk) ─────────────────────────────────
+    size: 50                   # half-extent (quad) or radius (disk),
+                               # ignored by infinite_plane / heightfield
+    # ── Heightfield geometry ──────────────────────────────────────────
+    bounds: [-10, -10, 10, 10] # [xMin, zMin, xMax, zMax] (required)
+    height_scale: 3.0
+    heightmap_path: "ground/terrain-height.png"     # 16-bit PNG
+    height_texture:                                 # OR procedural
+      type: "noise"
+      scale: 0.1
+    resolution: 512            # procedural sampling resolution
+    sea_level: 1.0
+    sea_material: "water"
+    strata:                    # altitude/slope-banded materials
+      - material: "grass"
+        max_altitude: 0.4
+      - material: "rock"
+        min_slope_deg: 35
+    # ── Material ──────────────────────────────────────────────────────
+    material: "floor_id"       # explicit material from `materials:`
+    # OR inline shorthand (anonymous Disney BSDF):
+    color: [0.6, 0.5, 0.4]
+    roughness: 0.7
+    metallic: 0.0
+    # ── UV transform (applied on top of the primitive's UVs) ─────────
+    uv_scale:    [10, 10]      # per-axis tile factor
+    uv_offset:   [0, 0]        # pan
+    uv_rotation: 30            # degrees, CCW from above
+    # ── Visibility flags (Arnold / Cycles parity) ────────────────────
+    visibility:
+      camera:       true       # primary camera rays see the ground
+      diffuse:      true       # indirect diffuse bounces hit it
+      glossy:       true       # mirror / glossy reflections hit it
+      transmission: true       # refractions see it through glass
+      shadow:       true       # NEE shadow rays are blocked by it
+```
+
+**Material resolution priority.** `material:` wins; otherwise the inline
+shorthand (`color/roughness/metallic`) builds an anonymous Disney BSDF;
+otherwise the loader falls back to the sky's `ground_albedo`/`ground_color`
+when present (Arnold `aiSkyDomeLight` preview behaviour); otherwise a
+neutral grey Lambertian is used.
+
+**BVH partitioning.** A `quad` / `disk` / `heightfield` ground is finite —
+it joins the BVH together with regular entities. An `infinite_plane` ground
+is kept in the linear list outside the BVH (its 1e6³ AABB would poison BVH
+quality). Both behaviours are preserved through the visibility / UV
+wrappers.
+
+**Visibility semantics.** Each `visibility.*` flag set to `false` makes the
+ground transparent to rays of that category — the ray advances past the
+surface as if it weren't there. Use `visibility.shadow: false` to keep a
+visible floor that does not cast occlusion, or `visibility.camera: false`
+for a shadow-catcher-style invisible floor that still bounces indirect
+light (the ALPHA matte / shadow-catcher AOV is a separate, planned
+feature). Mirrors Arnold `polymesh.visibility.*` and Cycles "Ray
+Visibility".
 
 #### **Volumetrics (Participating Media)**:
 

@@ -297,6 +297,15 @@ Setup comuni:
 - `sun.visible_to_camera: false` — setup off-camera key-light; il sole
   agisce come luce dura ma non sovraespone il cielo nel frame.
 
+**Parità con il ground.** Le stesse flag `visibility.*` esistono anche
+su `world.ground:` — vedi il
+[reference ground](../../reference/riferimento-scene.md). Un ground con
+`visibility.shadow: false` mantiene il pavimento visibile alla camera
+ma lascia passare i raggi NEE shadow attraverso (lookdev pulito di
+"pavimento infinito senza contact shadow"); `visibility.camera: false`
+produce un pavimento invisibile che però continua a far rimbalzare
+la luce indiretta.
+
 ### Background plate
 
 Un sub-blocco `background:` separato permette di illuminare la scena con

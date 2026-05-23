@@ -289,6 +289,14 @@ Common setups:
 - `sun.visible_to_camera: false` — off-camera key-light setup; the sun
   acts as a hard light source but doesn't blow out the sky in the frame.
 
+**Ground parity.** The exact same `visibility.*` flags exist on
+`world.ground:` — see the
+[ground reference](../../reference/scene-reference.md). A
+`visibility.shadow: false` ground keeps the floor visible to camera while
+letting NEE shadow rays pass through it (clean "infinite floor without
+contact shadow" lookdev), and `visibility.camera: false` produces an
+invisible floor that still bounces indirect light.
+
 ### Background plate
 
 A separate `background:` sub-block lets you light the scene with one

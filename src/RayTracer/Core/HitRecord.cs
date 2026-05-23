@@ -17,16 +17,33 @@ public struct HitRecord
     public IMaterial? Material;
 
     /// <summary>
-    /// True when this hit lies on a primitive whose owning entity (or owning
-    /// light proxy) is flagged as not visible to primary camera rays (Arnold
-    /// <c>camera</c> visibility, Cycles "Ray Visibility → Camera"). Set by
-    /// <see cref="Geometry.CameraInvisibleHittable"/>; consumed by
-    /// <see cref="Rendering.Renderer.TraceRay"/> which, on the primary ray
-    /// only, advances past such hits and re-traces — leaving the underlying
-    /// emitter still visible via mirror/glass paths and still illuminating
-    /// the scene through NEE.
+    /// Per-ray-category visibility bitmask (Arnold <c>visibility.*</c> / Cycles
+    /// "Ray Visibility"). A non-zero bit means the renderer should treat this
+    /// surface as transparent for the corresponding ray category — the ray
+    /// advances past the hit and re-traces, leaving the underlying geometry
+    /// visible via the other categories (a mirror still reflects a
+    /// camera-invisible surface, NEE shadow still notices a shadow-invisible
+    /// one, etc.). Set by <see cref="Geometry.VisibilityFilteredHittable"/> or
+    /// the legacy <see cref="Geometry.CameraInvisibleHittable"/>; consumed by
+    /// <see cref="Rendering.Renderer.TraceRay"/> and
+    /// <see cref="Geometry.ShadowRay"/>.
     /// </summary>
-    public bool CameraInvisible;
+    public HitVisibilityMask VisibilityMask;
+
+    /// <summary>
+    /// Legacy bridge to the <see cref="HitVisibilityMask.Camera"/> bit. Kept so
+    /// existing call sites (Renderer's primary-ray skip loop, light proxies)
+    /// continue to compile unchanged after the bitmask refactor.
+    /// </summary>
+    public bool CameraInvisible
+    {
+        get => (VisibilityMask & HitVisibilityMask.Camera) != 0;
+        set
+        {
+            if (value) VisibilityMask |= HitVisibilityMask.Camera;
+            else       VisibilityMask &= ~HitVisibilityMask.Camera;
+        }
+    }
 
     /// <summary>
     /// Mesh-level "autobump" residual bump map (DEVLOG surface-displacement

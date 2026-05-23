@@ -221,13 +221,12 @@ public class SceneLoader
 
         var objects = new List<IHittable>();
 
-        // Ground plane
+        // Ground plane — see BuildGround for the full type/material/UV/visibility dispatch.
         if (data.World?.Ground != null)
         {
-            var groundMat = GetMaterial(materials, data.World.Ground.Material);
-            float groundY = data.World.Ground.Y;
-            objects.Add(new InfinitePlane(
-                new Vector3(0, groundY, 0), Vector3.UnitY, groundMat));
+            var groundHittable = BuildGround(data.World.Ground, data.World.Sky, materials, sceneDir);
+            if (groundHittable != null)
+                objects.Add(groundHittable);
         }
 
         // Templates
@@ -1155,6 +1154,289 @@ public class SceneLoader
     /// <c>world.background</c> field.
     /// </summary>
     private static readonly Vector3 DefaultSkyColor = new(0.5f, 0.7f, 1.0f);
+
+    // =========================================================================
+    //  Ground dispatcher
+    // =========================================================================
+
+    /// <summary>
+    /// Builds the <c>world.ground</c> primitive from a <see cref="GroundData"/>
+    /// block. Returns <c>null</c> if no usable geometry can be produced (e.g.
+    /// a <c>heightfield</c> ground without bounds/heightmap).
+    ///
+    /// <para>The method dispatches on <see cref="GroundData.Type"/> across the
+    /// four supported shapes (<c>infinite_plane</c>/<c>plane</c>, <c>quad</c>,
+    /// <c>disk</c>, <c>heightfield</c>/<c>terrain</c>), resolves the material
+    /// (either by ID or via the inline <c>color/roughness/metallic</c>
+    /// shortcut, or by syncing with <c>sky.ground_albedo</c>/<c>ground_color</c>
+    /// when both <c>material</c> and <c>color</c> are absent), applies the
+    /// optional UV transform (<c>uv_scale</c>, <c>uv_offset</c>,
+    /// <c>uv_rotation</c>) and the per-ray-category visibility flags, then
+    /// returns the resulting wrapped <see cref="IHittable"/>.</para>
+    /// </summary>
+    private static IHittable? BuildGround(GroundData g, SkyData? sky,
+                                          Dictionary<string, IMaterial> materials,
+                                          string sceneDir)
+    {
+        // ── 1. Resolve material ────────────────────────────────────────────────
+        IMaterial material = ResolveGroundMaterial(g, sky, materials);
+
+        // ── 2. Resolve geometric anchor / normal ──────────────────────────────
+        // `point` (full 3D) takes precedence over the `y` shorthand.
+        Vector3 anchor = ToVector3(g.Point) ?? new Vector3(0f, g.Y, 0f);
+        Vector3 normal = ToVector3(g.Normal) ?? Vector3.UnitY;
+        if (normal.LengthSquared() < 1e-12f)
+        {
+            Warn("Ground 'normal' is the zero vector. Falling back to (0, 1, 0).");
+            normal = Vector3.UnitY;
+        }
+        normal = Vector3.Normalize(normal);
+
+        // ── 3. Dispatch on type ────────────────────────────────────────────────
+        string type = (g.Type ?? "infinite_plane").Trim().ToLowerInvariant();
+        IHittable? hittable = type switch
+        {
+            "infinite_plane" or "plane" or ""
+                => new InfinitePlane(anchor, normal, material),
+            "quad"
+                => BuildQuadGround(anchor, normal, g.Size, material),
+            "disk"
+                => new Disk(anchor, normal, g.Size, material),
+            "heightfield" or "terrain" or "height_field"
+                => BuildHeightFieldGround(g, material, materials, sceneDir),
+            _   => WarnUnknownGroundType(type, anchor, normal, material),
+        };
+
+        if (hittable == null)
+            return null;
+
+        // ── 4. UV transform (scale / offset / rotation) ───────────────────────
+        if (NeedsUvTransform(g))
+        {
+            float su = g.UvScale  is { Count: >= 1 } us ? us[0]                                 : 1f;
+            float sv = g.UvScale  is { Count: >= 2 } vs ? vs[1] : su;
+            float ou = g.UvOffset is { Count: >= 1 } uo ? uo[0]                                 : 0f;
+            float ov = g.UvOffset is { Count: >= 2 } vo ? vo[1] : 0f;
+            hittable = new UvTransformedHittable(hittable, su, sv, ou, ov, g.UvRotation);
+        }
+
+        // ── 5. Per-ray-category visibility flags ──────────────────────────────
+        var visMask = BuildGroundVisibilityMask(g.Visibility);
+        if (visMask != HitVisibilityMask.None)
+            hittable = new VisibilityFilteredHittable(hittable, visMask);
+
+        // ── 6. Stable seed for procedural textures ────────────────────────────
+        hittable.Seed = StableSeed(0, "ground", g.Type);
+
+        return hittable;
+    }
+
+    private static IHittable WarnUnknownGroundType(string type, Vector3 anchor, Vector3 normal, IMaterial material)
+    {
+        Warn($"Unknown ground type '{type}'. Falling back to 'infinite_plane'. " +
+             "Accepted values: 'infinite_plane'/'plane', 'quad', 'disk', 'heightfield'/'terrain'.");
+        return new InfinitePlane(anchor, normal, material);
+    }
+
+    /// <summary>
+    /// Builds a centred <see cref="Quad"/> of half-size <paramref name="size"/>
+    /// lying on the plane defined by <paramref name="anchor"/> and
+    /// <paramref name="normal"/>. The quad's U axis aligns with world +X when
+    /// the normal is close to +Y; otherwise it picks a stable orthonormal
+    /// basis from the normal.
+    /// </summary>
+    private static IHittable BuildQuadGround(Vector3 anchor, Vector3 normal, float size, IMaterial material)
+    {
+        if (size <= 0f) size = 50f;
+        // Build a stable orthonormal basis around the normal. For the standard
+        // Y-up case this matches the world axes (U=+X, V=+Z) so unrotated
+        // textures look the same as on the infinite plane.
+        Vector3 u, v;
+        if (MathF.Abs(normal.Y) > 0.999f)
+        {
+            u = Vector3.UnitX;
+            v = Vector3.UnitZ * MathF.Sign(normal.Y); // preserve face orientation
+        }
+        else
+        {
+            u = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, normal));
+            v = Vector3.Normalize(Vector3.Cross(normal, u));
+        }
+        // Quad's q is the bottom-left corner, U/V span the two sides.
+        Vector3 q = anchor - u * size - v * size;
+        return new Quad(q, u * (2f * size), v * (2f * size), material);
+    }
+
+    /// <summary>
+    /// Builds a heightfield primitive from a <see cref="GroundData"/> block.
+    /// Mirrors <see cref="CreateHeightFieldEntity"/> with the GroundData
+    /// vocabulary and falls back to <c>null</c> with a warning when the
+    /// required fields (<c>bounds</c> + one of <c>heightmap_path</c>/
+    /// <c>height_texture</c>) are missing.
+    /// </summary>
+    private static IHittable? BuildHeightFieldGround(GroundData g, IMaterial material,
+                                                     Dictionary<string, IMaterial> materials,
+                                                     string sceneDir)
+    {
+        if (g.Bounds == null || g.Bounds.Count < 4)
+        {
+            Warn("Ground type='heightfield' requires 'bounds: [xMin, zMin, xMax, zMax]'. Skipping.");
+            return null;
+        }
+        float xMin = g.Bounds[0], zMin = g.Bounds[1], xMax = g.Bounds[2], zMax = g.Bounds[3];
+        if (xMax <= xMin || zMax <= zMin)
+        {
+            Warn("Ground heightfield 'bounds' must satisfy xMax>xMin and zMax>zMin. Skipping.");
+            return null;
+        }
+        if (g.HeightScale <= 0f)
+        {
+            Warn("Ground heightfield 'height_scale' must be > 0. Skipping.");
+            return null;
+        }
+
+        IMaterial? seaMat = null;
+        if (!string.IsNullOrWhiteSpace(g.SeaMaterial))
+            seaMat = GetMaterial(materials, g.SeaMaterial);
+
+        List<HeightField.StratumBand>? strata = null;
+        if (g.Strata != null && g.Strata.Count > 0)
+        {
+            strata = new List<HeightField.StratumBand>(g.Strata.Count);
+            foreach (var s in g.Strata)
+            {
+                if (string.IsNullOrWhiteSpace(s.Material))
+                {
+                    Warn("Ground heightfield: stratum without 'material' skipped.");
+                    continue;
+                }
+                strata.Add(new HeightField.StratumBand
+                {
+                    MinAltitude = s.MinAltitude,
+                    MaxAltitude = s.MaxAltitude,
+                    MinSlopeDeg = s.MinSlopeDeg,
+                    MaxSlopeDeg = s.MaxSlopeDeg,
+                    BlendWidth  = s.BlendWidth,
+                    Material    = GetMaterial(materials, s.Material),
+                });
+            }
+            if (strata.Count == 0) strata = null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(g.HeightmapPath))
+        {
+            if (g.HeightTexture != null)
+                Warn("Ground heightfield has both 'heightmap_path' and 'height_texture' — using the baked path.");
+
+            string fullPath = Path.IsPathRooted(g.HeightmapPath)
+                ? g.HeightmapPath
+                : Path.Combine(sceneDir, g.HeightmapPath);
+            if (!File.Exists(fullPath))
+            {
+                Warn($"Ground heightfield: heightmap file not found at '{fullPath}'. Skipping.");
+                return null;
+            }
+            if (!HeightmapLoader.IsHighPrecision(fullPath))
+                Warn($"Ground heightfield: '{Path.GetFileName(fullPath)}' is not 16-bit — terracing may appear on smooth slopes.");
+
+            float[] samples;
+            int sx, sz;
+            try
+            {
+                samples = HeightmapLoader.Load(fullPath, out sx, out sz);
+            }
+            catch (Exception ex)
+            {
+                Warn($"Ground heightfield: failed to load heightmap '{fullPath}': {ex.Message}. Skipping.");
+                return null;
+            }
+            return new HeightField(xMin, zMin, xMax, zMax,
+                                   samples, sx, sz,
+                                   g.HeightScale, material,
+                                   g.SeaLevel, seaMat, strata);
+        }
+        if (g.HeightTexture != null)
+        {
+            ITexture tex = CreateTexture(g.HeightTexture, sceneDir);
+            int res = g.Resolution > 0 ? g.Resolution : 512;
+            return HeightField.FromProceduralTexture(
+                xMin, zMin, xMax, zMax,
+                tex, res,
+                g.HeightScale, material,
+                g.SeaLevel, seaMat, strata);
+        }
+        Warn("Ground heightfield needs either 'heightmap_path' or 'height_texture'. Skipping.");
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves the surface material for the ground in three priority bands:
+    /// (1) <c>material:</c> ID lookup (legacy), (2) inline shorthand
+    /// <c>color/roughness/metallic</c> → anonymous Disney BSDF,
+    /// (3) automatic albedo sync with <c>sky.ground_albedo</c> /
+    /// <c>sky.ground_color</c> when both are absent — matching how
+    /// <c>aiSkyDomeLight</c> seeds the floor in Arnold preview renders. Final
+    /// fallback is a neutral grey Lambertian.
+    /// </summary>
+    private static IMaterial ResolveGroundMaterial(GroundData g, SkyData? sky,
+                                                   Dictionary<string, IMaterial> materials)
+    {
+        if (!string.IsNullOrWhiteSpace(g.Material))
+        {
+            if (!materials.TryGetValue(g.Material, out var byId))
+            {
+                Warn($"Ground material '{g.Material}' not found. Using default grey Lambertian.");
+                return new Lambertian(new Vector3(0.5f, 0.5f, 0.5f));
+            }
+            return byId;
+        }
+
+        if (g.Color != null || g.Roughness.HasValue || g.Metallic.HasValue)
+        {
+            Vector3 baseColor = ToVector3(g.Color) ?? new Vector3(0.5f, 0.5f, 0.5f);
+            float roughness   = g.Roughness ?? 0.8f;
+            float metallic    = g.Metallic  ?? 0f;
+            // Anonymous Disney BSDF — keeps physical correctness even when the
+            // user only supplied a colour, matching Arnold's <c>standard_surface</c>
+            // floor default.
+            return new DisneyBsdf(
+                baseColor:  new SolidColor(baseColor),
+                metallic:   new FloatTexture(metallic),
+                roughness:  new FloatTexture(roughness));
+        }
+
+        // Auto-sync with sky.ground_albedo / sky.ground_color when nothing
+        // else was specified. Mirrors the Arnold/Mitsuba "physical floor"
+        // preview that uses the sky's ground term as a default albedo, so
+        // pure-sky scenes with no material still get a coherent floor colour.
+        Vector3? skyAlbedo = ToVector3(sky?.GroundAlbedo) ?? ToVector3(sky?.GroundColor);
+        if (skyAlbedo.HasValue)
+        {
+            return new Lambertian(skyAlbedo.Value);
+        }
+
+        return new Lambertian(new Vector3(0.5f, 0.5f, 0.5f));
+    }
+
+    private static bool NeedsUvTransform(GroundData g)
+    {
+        if (g.UvScale  != null && g.UvScale.Count  > 0) return true;
+        if (g.UvOffset != null && g.UvOffset.Count > 0) return true;
+        if (MathF.Abs(g.UvRotation) > 1e-6f) return true;
+        return false;
+    }
+
+    private static HitVisibilityMask BuildGroundVisibilityMask(GroundVisibilityData? v)
+    {
+        if (v == null) return HitVisibilityMask.None;
+        HitVisibilityMask mask = HitVisibilityMask.None;
+        if (!v.Camera)       mask |= HitVisibilityMask.Camera;
+        if (!v.Diffuse)      mask |= HitVisibilityMask.Diffuse;
+        if (!v.Glossy)       mask |= HitVisibilityMask.Glossy;
+        if (!v.Transmission) mask |= HitVisibilityMask.Transmission;
+        if (!v.Shadow)       mask |= HitVisibilityMask.Shadow;
+        return mask;
+    }
 
     /// <summary>
     /// Builds a <see cref="SkySettings"/> from the YAML sky section.
@@ -3041,8 +3323,11 @@ public class SceneLoader
     private static bool IsInfinitePlane(IHittable obj) => obj switch
     {
         InfinitePlane => true,
-        Transform t   => IsInfinitePlane(t.Inner),
-        Group g       => g.Children.Count > 0 && g.Children.All(c => IsInfinitePlane(c)),
+        Transform t                    => IsInfinitePlane(t.Inner),
+        Group g                        => g.Children.Count > 0 && g.Children.All(c => IsInfinitePlane(c)),
+        UvTransformedHittable uv       => IsInfinitePlane(uv.Inner),
+        VisibilityFilteredHittable vis => IsInfinitePlane(vis.Inner),
+        CameraInvisibleHittable ci     => IsInfinitePlane(ci.Inner),
         _             => false
     };
 

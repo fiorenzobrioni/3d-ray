@@ -98,19 +98,37 @@ world:
 
 Se ometti `sky:`, il motore usa un cielo flat azzurro-diurno (`[0.5, 0.7, 1.0]`). Il Capitolo 7 tratta in dettaglio gradient e HDRI.
 
-La sezione `world:` supporta anche una **scorciatoia per il terreno**:
+La sezione `world:` supporta anche una **scorciatoia per il terreno** che
+fa dispatch su una delle quattro shape — piano infinito, quad finito, disk
+o heightfield — con UV transform completa, scorciatoia di materiale inline
+e flag di visibilità per categoria di raggio (parità Arnold / Cycles).
 
 ```yaml
 world:
   ground:
-    type: "plane"
+    type: "plane"               # oppure "quad" / "disk" / "heightfield"
     material: "floor_material"
-    y: 0.0
+    y: 0.0                      # short per point: [0, y, 0]
 ```
 
-Questo posiziona un piano di terreno infinito alla coordinata Y specificata usando
-il materiale indicato, evitando di aggiungere un'entità piano-infinito separata. Si
-può usare questa scorciatoia o un'entità esplicita -- il risultato è identico.
+Per un pavimento finito con materiale inline e tiling:
+
+```yaml
+world:
+  ground:
+    type: "quad"
+    size: 20                    # semi-estensione (pavimento 40 × 40 m)
+    color: [0.6, 0.5, 0.4]      # Disney BSDF anonimo
+    roughness: 0.7
+    uv_scale: [4, 4]            # ripete le texture 4× per asse
+```
+
+Quando ometti `material:` e il blocco `world.sky` espone un `ground_color`
+o `ground_albedo`, il pavimento eredita automaticamente quel colore come
+Lambertian neutro — la stessa comodità lookdev che `aiSkyDomeLight` di
+Arnold offre nelle preview. Lo schema completo (strata heightfield, flag
+di visibilità, orientation) è documentato in
+[`docs/reference/riferimento-scene.md`](../../reference/riferimento-scene.md).
 
 ---
 
