@@ -1823,6 +1823,21 @@ public class SceneLoader
             if (t.ImpuritiesTexture is not null)
                 mt.ImpuritiesTexture = CreateTexture(t.ImpuritiesTexture, sceneDir);
 
+            // Anisotropic space stretch (geological compression)
+            if (t.SpaceStretch != null)
+                mt.SpaceStretch = ToVector3(t.SpaceStretch) ?? Vector3.One;
+
+            // Secondary linear cracks (Worley F2 − F1 overlay)
+            if (t.CracksDensity.HasValue)  mt.CracksDensity  = Math.Clamp(t.CracksDensity.Value, 0f, 1f);
+            if (t.CracksScale.HasValue)    mt.CracksScale    = MathF.Max(t.CracksScale.Value, 1e-4f);
+            if (t.CracksSoftness.HasValue) mt.CracksSoftness = Math.Clamp(t.CracksSoftness.Value, 1e-4f, 1f);
+            if (t.CracksWeight.HasValue)   mt.CracksWeight   = MathF.Max(t.CracksWeight.Value, 0f);
+
+            // Output mode: `color` (default) or `mask` — packs vein scalar t as
+            // (t,t,t) for FloatTexture-driven Disney parameters (roughness,
+            // subsurface, sheen, etc.).
+            if (t.Output != null) mt.Output = ParseMarbleOutput(t.Output);
+
             mt.ColorRamp = BuildColorRamp(t.ColorRamp, "marble");
         }
         else if (tex is WoodTexture wt)
@@ -1941,6 +1956,13 @@ public class SceneLoader
             mt.VeinWeights = ResizeWith(mt.VeinWeights, n, 1f);
         }
     }
+
+    private static MarbleTexture.OutputMode ParseMarbleOutput(string s) =>
+        s.Trim().ToLowerInvariant() switch
+        {
+            "mask" or "scalar" or "vein_mask" or "veinmask" => MarbleTexture.OutputMode.Mask,
+            _                                                => MarbleTexture.OutputMode.Color,
+        };
 
     private static float[] ResizeWith(float[] src, int n, float fill)
     {

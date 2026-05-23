@@ -339,8 +339,8 @@ materials:
 
   - id: "dis_nero_marquinia_lucido"
     type: "disney"
-    # Nero Marquinia — fondo nero profondo con vene chiaro-crema sottili.
-    # Thickness alta + colors invertiti (base scura, vena chiara).
+    # Nero Marquinia — fondo nero profondo con vene chiaro-crema sottili e
+    # cracks Worley per le fratture lineari nette tipiche del marmo belga.
     texture:
       type: "marble"
       scale: 2.0
@@ -353,8 +353,12 @@ materials:
       vein_scale:  [1.0, 2.4]
       vein_weight: [1.0, 0.55]
       vein_thickness: 0.14
-      vein_softness: 0.06
+      vein_softness: 0.05
       color_variation: 0.05
+      cracks_density: 0.30
+      cracks_scale: 2.6
+      cracks_softness: 0.04
+      cracks_weight: 0.80
       randomize_offset: true
     roughness: 0.06
     clearcoat: 1.0
@@ -880,8 +884,12 @@ materials:
       vein_scale:  [0.65, 1.5, 3.4]
       vein_weight: [1.0, 0.70, 0.40]
       vein_thickness: 0.22
-      vein_softness: 0.10
+      vein_softness: 0.09
       color_variation: 0.08
+      cracks_density: 0.25
+      cracks_scale: 3.5
+      cracks_softness: 0.05
+      cracks_weight: 0.75
       randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear"     }   # base avorio
@@ -894,6 +902,11 @@ materials:
 
   - id: "dis_calacatta_studio_lucido"
     type: "disney"
+    # Variante "lucido a vita" del Calacatta studio. La roughness_texture
+    # in modalità mask sposta dinamicamente la roughness: 0.18 sulla base
+    # avorio, 0.06 sulla vena oro/scura → l'oro riflette quasi a specchio
+    # mentre la base resta levigata ma non specchio. È il salto da
+    # "marmo dipinto" a "marmo lavorato" indistinguibile da quello reale.
     texture:
       type: "marble"
       scale: 2.0
@@ -905,15 +918,40 @@ materials:
       vein_scale:  [0.65, 1.5, 3.4]
       vein_weight: [1.0, 0.70, 0.40]
       vein_thickness: 0.22
-      vein_softness: 0.10
+      vein_softness: 0.09
       color_variation: 0.08
+      cracks_density: 0.25
+      cracks_scale: 3.5
+      cracks_softness: 0.05
+      cracks_weight: 0.75
       randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear"     }
         - { position: 0.30, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
         - { position: 0.65, color: [0.85, 0.65, 0.30], interp: "smoothstep" }
         - { position: 1.00, color: [0.10, 0.08, 0.08], interp: "linear"     }
-    roughness: 0.08
+    roughness: 0.18
+    roughness_texture:
+      type: "marble"
+      output: "mask"
+      scale: 2.0
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.1
+      warp_iterations: 2
+      fold_amplitude: [0.95, 0.35, 0.55]
+      vein_layers: 3
+      vein_scale:  [0.65, 1.5, 3.4]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.22
+      vein_softness: 0.09
+      cracks_density: 0.25
+      cracks_scale: 3.5
+      cracks_softness: 0.05
+      cracks_weight: 0.75
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.0, color: [0.28, 0.28, 0.28] }
+        - { position: 1.0, color: [0.06, 0.06, 0.06] }
     clearcoat: 0.92
     coat_roughness: 0.05
     specular: 0.75
@@ -935,11 +973,12 @@ materials:
       warp_amplitude: 1.2
       warp_iterations: 3
       fold_amplitude: [1.0, 0.35, 0.55]
+      space_stretch: [1.0, 0.55, 1.0]
       vein_layers: 3
       vein_scale:  [0.6, 1.4, 3.0]
       vein_weight: [1.0, 0.65, 0.35]
       vein_thickness: 0.20
-      vein_softness: 0.08
+      vein_softness: 0.07
       color_variation: 0.06
       randomize_offset: true
       color_ramp:
@@ -959,11 +998,12 @@ materials:
       warp_amplitude: 1.2
       warp_iterations: 3
       fold_amplitude: [1.0, 0.35, 0.55]
+      space_stretch: [1.0, 0.55, 1.0]
       vein_layers: 3
       vein_scale:  [0.6, 1.4, 3.0]
       vein_weight: [1.0, 0.65, 0.35]
       vein_thickness: 0.20
-      vein_softness: 0.08
+      vein_softness: 0.07
       color_variation: 0.06
       randomize_offset: true
       color_ramp:
@@ -995,9 +1035,13 @@ materials:
       vein_layers: 3
       vein_scale:  [0.55, 1.4, 3.2]
       vein_weight: [1.0, 0.75, 0.45]
-      vein_thickness: 0.34
-      vein_softness: 0.12
+      vein_thickness: 0.32
+      vein_softness: 0.10
       color_variation: 0.10
+      cracks_density: 0.35
+      cracks_scale: 2.8
+      cracks_softness: 0.05
+      cracks_weight: 0.75
       randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.94, 0.92, 0.88], interp: "linear"     }   # base ivory
@@ -1019,9 +1063,13 @@ materials:
       vein_layers: 3
       vein_scale:  [0.55, 1.4, 3.2]
       vein_weight: [1.0, 0.75, 0.45]
-      vein_thickness: 0.34
-      vein_softness: 0.12
+      vein_thickness: 0.32
+      vein_softness: 0.10
       color_variation: 0.10
+      cracks_density: 0.35
+      cracks_scale: 2.8
+      cracks_softness: 0.05
+      cracks_weight: 0.75
       randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.94, 0.92, 0.88], interp: "linear"     }

@@ -80,6 +80,61 @@ per recipe "preview" abbassare a `vein_layers: 1` e `warp_iterations:
 `docs/tutorial/{en,it}/03-materials.md` (sezione marble + recipe book +
 walkthrough 3.8.1 Step 2-4). README aggiornato in nota separata.
 
+### ✅ Marble texture — patch 2: mask output, space stretch, cracks Worley
+
+Tre estensioni del nuovo procedural marble nate dal feedback "manca poco
+al livello AAA" sui primi render:
+
+1. **`output: "color" | "mask"`** — opzione che fa restituire alla texture
+   lo scalare vena `t ∈ [0, 1]` impacchettato come `(t, t, t)`. Pensata per
+   essere appesa sotto `roughness_texture`, `subsurface_texture`,
+   `sheen_texture` ecc. del Disney material: lo stesso pattern che pilota
+   il colore guida adesso anche parametri scalari del BSDF. Sblocca il salto
+   "marmo dipinto → marmo lavorato": vene quasi a specchio sulla base matte,
+   SSS che si attenua sotto le vene calcite scure. Costo: il blocco marble
+   va duplicato (~26 sample Perlin extra/shade) — trascurabile contro il
+   resto del path tracer.
+
+2. **`space_stretch: [x, y, z]`** — pre-multiply lineare sul sample point,
+   applicato PRIMA del fold + warp. Produce compressione direzionale
+   anisotropa: `(0.5, 1.6, 1.0)` per Verde Alpi (bedding orizzontale),
+   `(1.0, 0.5, 1.0)` per Statuario (vene verticali). Default `(1, 1, 1)` =
+   identità, no-op bit-identico.
+
+3. **`cracks_density / cracks_scale / cracks_softness / cracks_weight`** —
+   overlay Worley F2 − F1 layered sopra il campo ridged via soft-max
+   numericamente stabile. Produce le fratture lineari nette tipiche di
+   Marquinia, Calacatta, brecce — il ridged multifractal organico non può
+   raggiungerle perché ha statistiche troppo curve. `cracks_density: 0`
+   (default) salta del tutto la valutazione Worley.
+
+**Update libreria.** Aggiunti `cracks_*` a `dis_nero_marquinia_lucido`,
+`dis_calacatta_studio*`, `dis_arabescato_studio*`. `dis_calacatta_studio_lucido`
+ora esibisce la roughness mask-driven come esempio canonico per gli
+utenti.
+
+**Update showcase.** `library-marbles-v3.yaml` ora dimostra tutte le 6
+sfere con `roughness_texture` mask-driven, una sfera (Calacatta) con anche
+`subsurface_texture` mask, e cracks attivi su Marquinia/Calacatta/Arabescato.
+SpaceStretch attivo su Verde Alpi (orizzontale) e Statuario (verticale).
+
+**Tests.** 6 nuovi test:
+* `Marble_OutputMask_PacksScalarAsGrayscale` — R == G == B == t.
+* `Marble_OutputMask_MatchesColorPathScalar` — mask coerente con il
+  colour-path quando vein/base sono 0/1 (sanity invariant).
+* `Marble_SpaceStretch_ProducesDirectionalCompression` — MAD > 0.02 vs
+  baseline.
+* `Marble_SpaceStretchOne_BitIdenticalToBaseline` — `(1,1,1)` no-op.
+* `Marble_CracksDensityZero_BitIdenticalToBaseline` — `0` skip path.
+* `Marble_CracksDensityPositive_AddsLinearVeinage` — MAD > 0.03 vs
+  baseline.
+Anche il test `AllKnobsCranked` ora attiva space_stretch+cracks al max
+per coprire NaN safety. 452/452 verdi.
+
+**Docs.** `docs/reference/scene-reference.md` + IT estesi con la
+sezione "mask-driven Disney parameters", anisotropic stretch vs fold,
+cracks vs vein layers; recipe Calacatta lucido canonica.
+
 ### ✅ Ground — overhaul pro-grade (Arnold/Cycles/Mitsuba parity)
 
 Riscrittura della feature `world.ground:` per portarla al livello dei renderer

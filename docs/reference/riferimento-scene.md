@@ -820,9 +820,47 @@ texture:
   impurity_weight: 0.12
   # impurities_texture: { type: "voronoi", ... }   # override esterno
 
+  # Pre-stretch anisotropo (compressione geologica)
+  space_stretch: [1.0, 1.0, 1.0]   # (0.4, 1.8, 1.0) = compressione orizzontale
+
+  # Cracks lineari secondari (overlay Worley F2 − F1)
+  cracks_density: 0.0          # 0 disabilita; ~0.30 = Marquinia/Calacatta
+  cracks_scale: 2.0
+  cracks_softness: 0.04        # 0.02 = filiformi netti, 0.10 = soft branching
+  cracks_weight: 0.9           # peso soft-max vs il layer ridged
+
+  # Modalità di output — `color` (default) o `mask`
+  output: "color"              # `mask` per pilotare roughness_texture ecc.
+
   randomize_offset: true
   # color_ramp: [...]          # multi-stop opzionale; vince su `colors`
 ```
+
+> **Parametri Disney pilotati dal mask.** `output: "mask"` su un blocco
+> marble restituisce lo scalare vena `t ∈ [0, 1]` impacchettato come
+> `(t, t, t)`. È il modo canonico per pilotare `roughness_texture`,
+> `subsurface_texture`, `sheen_texture` ecc. dallo stesso pattern usato
+> per il colore: le vene possono essere più lucide della base matte,
+> l'SSS può attenuarsi sotto le vene calcite scure, il sheen può rimanere
+> solo sulla base. Si duplica il blocco marble sotto il `*_texture`
+> appropriato con `output: "mask"` e (opzionalmente) un `color_ramp`
+> a 2-stop che rimappa `[0, 1]` sul range del parametro. La doppia
+> valutazione costa ~26 sample Perlin extra per shade — trascurabile
+> rispetto al BSDF Disney + NEE.
+
+> **Stretch anisotropo vs fold.** `space_stretch` è un pre-multiply
+> lineare sul sample point — compressione uniforme che gira PRIMA del
+> fold e del warp. Si usa per il look "stratificato planare" dei marmi
+> sedimentati (la Y di Statuario, la compressione orizzontale del Verde
+> Alpi). Il fold (`fold_amplitude`) è uno shear noise-driven non-lineare
+> che produce deformazione geologica curva. Si compongono
+> moltiplicativamente nello spazio del sample point.
+
+> **Cracks vs layer vena.** Il campo ridged multi-scala produce creste
+> organiche tipo vena; il Worley overlay produce fratture lunghe lineari
+> nette (ridge F2 − F1 tra le celle). Si compongono via soft-max così le
+> due reti coesistono pulitamente. `cracks_density: 0` salta del tutto la
+> valutazione Worley — costo zero quando disattivato.
 
 `vein_axis` non guida più una portante sinusoidale — controlla solo la
 direzione dominante del fold anisotropo. La flow organica viene dalla
@@ -1000,6 +1038,63 @@ stessa lastra.
       - { position: 0.55, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
       - { position: 1.00, color: [0.08, 0.08, 0.10], interp: "linear" }
 ```
+
+**Calacatta lucido — roughness pilotata da mask per il look "lavorato".**
+La ricetta pro canonica: lo stesso blocco marble pilota sia il colore
+sia la roughness Disney. Le vene diventano quasi specchio (`roughness
+0.06`), la base matte resta a `roughness 0.18` — la lastra si legge
+come una superficie levigata vera dove i materiali della vena si
+comportano diversamente dalla matrice.
+```yaml
+- id: "calacatta_pro"
+  type: "disney"
+  texture:
+    type: "marble"
+    scale: 1.9
+    vein_axis: [0, 1, 0]
+    warp_amplitude: 1.1
+    fold_amplitude: [0.95, 0.35, 0.55]
+    vein_layers: 3
+    vein_scale:  [0.65, 1.5, 3.4]
+    vein_weight: [1.0, 0.70, 0.40]
+    vein_thickness: 0.22
+    vein_softness: 0.09
+    cracks_density: 0.25            # fratture lineari (Worley)
+    cracks_scale: 3.5
+    randomize_offset: true
+    color_ramp:
+      - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear" }
+      - { position: 0.30, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
+      - { position: 0.65, color: [0.85, 0.62, 0.28], interp: "smoothstep" }
+      - { position: 1.00, color: [0.18, 0.10, 0.05], interp: "linear" }
+  roughness: 0.18                   # baseline
+  roughness_texture:
+    type: "marble"
+    output: "mask"                  # ← restituisce lo scalare t come (t,t,t)
+    scale: 1.9
+    vein_axis: [0, 1, 0]
+    warp_amplitude: 1.1
+    fold_amplitude: [0.95, 0.35, 0.55]
+    vein_layers: 3
+    vein_scale:  [0.65, 1.5, 3.4]
+    vein_weight: [1.0, 0.70, 0.40]
+    vein_thickness: 0.22
+    vein_softness: 0.09
+    cracks_density: 0.25
+    cracks_scale: 3.5
+    randomize_offset: true
+    color_ramp:
+      - { position: 0.0, color: [0.28, 0.28, 0.28] }   # base → roughness 0.28
+      - { position: 1.0, color: [0.06, 0.06, 0.06] }   # vena → roughness 0.06
+  clearcoat: 0.92
+  coat_roughness: 0.05
+```
+I due blocchi marble devono usare gli stessi `scale`/`warp_*`/`vein_*`
+così colore e mask sono in fase spazialmente. La ramp a 2-stop sul mask
+mappa `[0, 1]` sul range di roughness desiderato. Lo stesso pattern
+funziona per `subsurface_texture` (SSS si attenua sulle vene calcite
+scure), `sheen_texture` (sheen solo sulla base matte),
+`specular_texture` ecc.
 
 **Verde Alpi — base verde con impurità minerali (specks olivina).**
 ```yaml

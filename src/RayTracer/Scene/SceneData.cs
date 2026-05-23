@@ -967,6 +967,23 @@ public class TextureData
     [YamlMember(Alias = "impurities_texture")]
     public TextureData? ImpuritiesTexture { get; set; }
 
+    // Marble — anisotropic pre-stretch (geological compression).
+    [YamlMember(Alias = "space_stretch")]
+    public List<float>? SpaceStretch { get; set; }
+
+    // Marble — secondary linear cracks (Worley F2 − F1 overlay).
+    [YamlMember(Alias = "cracks_density")]
+    public float? CracksDensity { get; set; }
+
+    [YamlMember(Alias = "cracks_scale")]
+    public float? CracksScale { get; set; }
+
+    [YamlMember(Alias = "cracks_softness")]
+    public float? CracksSoftness { get; set; }
+
+    [YamlMember(Alias = "cracks_weight")]
+    public float? CracksWeight { get; set; }
+
     [YamlMember(Alias = "ring_axis")]
     public List<float>? RingAxis { get; set; }
 

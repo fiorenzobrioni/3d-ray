@@ -233,6 +233,119 @@ public class MarbleWoodStudioTests
     }
 
     [Fact]
+    public void Marble_OutputMask_PacksScalarAsGrayscale()
+    {
+        // Mask output must produce (t, t, t) so FloatTexture's channel-average
+        // recovers exactly t. We sample many points and verify R == G == B and
+        // every channel lies in [0, 1].
+        var tex = new MarbleTexture(4f)
+        {
+            Output = MarbleTexture.OutputMode.Mask,
+            VeinThickness = 0.3f,
+            ImpuritiesDensity = 0.05f,
+        };
+        foreach (var p in MarbleProbePoints())
+        {
+            var v = tex.Value(0f, 0f, p, 0);
+            Assert.InRange(v.X, 0f, 1f);
+            Assert.Equal(v.X, v.Y, 6);
+            Assert.Equal(v.X, v.Z, 6);
+        }
+    }
+
+    [Fact]
+    public void Marble_OutputMask_MatchesColorPathScalar()
+    {
+        // The mask scalar must be derivable from the colour-path output when
+        // a 2-stop ramp is used (lerp from baseColor=black to veinColor=white
+        // recovers the lerp parameter t in any channel). Verifies mask
+        // semantics aren't drifting from the colour pipeline.
+        Vector3 baseCol = new(0f, 0f, 0f);
+        Vector3 veinCol = new(1f, 1f, 1f);
+        var color = new MarbleTexture(4f, baseCol, veinCol) { VeinThickness = 0.3f };
+        var mask  = new MarbleTexture(4f, baseCol, veinCol)
+        {
+            Output = MarbleTexture.OutputMode.Mask,
+            VeinThickness = 0.3f,
+        };
+        foreach (var p in MarbleProbePoints())
+        {
+            float cT = color.Value(0f, 0f, p, 0).X;       // base=0, vein=1 → t directly
+            float mT = mask .Value(0f, 0f, p, 0).X;
+            Assert.True(MathF.Abs(cT - mT) < 1e-5f,
+                $"mask {mT} drifted from color-path t {cT} at p={p}");
+        }
+    }
+
+    [Fact]
+    public void Marble_SpaceStretch_ProducesDirectionalCompression()
+    {
+        // Anisotropic stretch must measurably change the output: at the same
+        // sample point, a stretched marble differs from the isotropic baseline.
+        var iso = new MarbleTexture(4f);
+        var stretched = new MarbleTexture(4f) { SpaceStretch = new Vector3(0.4f, 1.8f, 1.0f) };
+        float mad = 0f;
+        int n = 0;
+        foreach (var p in MarbleProbePoints())
+        {
+            var a = iso.Value(0f, 0f, p, 0);
+            var b = stretched.Value(0f, 0f, p, 0);
+            mad += MathF.Abs(a.X - b.X);
+            n++;
+        }
+        mad /= n;
+        Assert.True(mad > 0.02f, $"space_stretch failed to alter the field (MAD={mad})");
+    }
+
+    [Fact]
+    public void Marble_SpaceStretchOne_BitIdenticalToBaseline()
+    {
+        // Default (1,1,1) must skip the multiply path entirely → bit-identity
+        // with a constructor that hasn't touched SpaceStretch.
+        var baseline = new MarbleTexture(4f);
+        var explicitOne = new MarbleTexture(4f) { SpaceStretch = Vector3.One };
+        foreach (var p in MarbleProbePoints())
+            Assert.True(VecClose(baseline.Value(0f, 0f, p, 0), explicitOne.Value(0f, 0f, p, 0)),
+                $"space_stretch=(1,1,1) must be a no-op at p={p}");
+    }
+
+    [Fact]
+    public void Marble_CracksDensityZero_BitIdenticalToBaseline()
+    {
+        // The crack overlay path must be fully skipped at density = 0 — no
+        // Worley evaluation, no perf cost, no perturbation of the field.
+        var baseline = new MarbleTexture(4f);
+        var noCracks = new MarbleTexture(4f) { CracksDensity = 0f, CracksWeight = 2f };
+        foreach (var p in MarbleProbePoints())
+            Assert.True(VecClose(baseline.Value(0f, 0f, p, 0), noCracks.Value(0f, 0f, p, 0)),
+                $"cracks_density=0 must be a no-op at p={p}");
+    }
+
+    [Fact]
+    public void Marble_CracksDensityPositive_AddsLinearVeinage()
+    {
+        // The Worley overlay must measurably perturb the field at density > 0.
+        var noCracks = new MarbleTexture(4f) { VeinThickness = 0.30f };
+        var withCracks = new MarbleTexture(4f)
+        {
+            VeinThickness = 0.30f,
+            CracksDensity = 0.5f,
+            CracksWeight = 1.0f,
+        };
+        float mad = 0f;
+        int n = 0;
+        foreach (var p in MarbleProbePoints())
+        {
+            var a = noCracks.Value(0f, 0f, p, 0);
+            var b = withCracks.Value(0f, 0f, p, 0);
+            mad += MathF.Abs(a.X - b.X);
+            n++;
+        }
+        mad /= n;
+        Assert.True(mad > 0.03f, $"cracks failed to perturb the field (MAD={mad})");
+    }
+
+    [Fact]
     public void Marble_AllKnobsCranked_NoNaNOrOutOfRange()
     {
         // Worst-case stress: every knob pushed to its extreme. No NaN, no Inf,
@@ -244,6 +357,7 @@ public class MarbleWoodStudioTests
             WarpAmplitude = 1.5f,
             WarpIterations = 3,
             FoldAmplitude = new Vector3(1.2f, 0.8f, 1.0f),
+            SpaceStretch = new Vector3(0.3f, 2.5f, 0.7f),
             VeinLayers = 3,
             VeinScales = new[] { 0.5f, 1.5f, 3.5f },
             VeinWeights = new[] { 1.0f, 0.8f, 0.6f },
@@ -253,6 +367,10 @@ public class MarbleWoodStudioTests
             ColorVariation = 0.4f,
             ImpuritiesDensity = 0.2f,
             ImpurityWeight = 0.4f,
+            CracksDensity = 0.8f,
+            CracksScale = 3.0f,
+            CracksSoftness = 0.02f,
+            CracksWeight = 1.5f,
             Octaves = 8,
         };
         foreach (var p in MarbleProbePoints())

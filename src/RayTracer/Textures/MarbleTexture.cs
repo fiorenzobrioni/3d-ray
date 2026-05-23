@@ -76,11 +76,41 @@ namespace RayTracer.Textures;
 /// </summary>
 public class MarbleTexture : ITexture
 {
+    /// <summary>
+    /// What the texture returns at <see cref="Value(float, float, Vector3, int)"/>.
+    /// <list type="bullet">
+    ///   <item><description><c>Color</c> (default) — RGB after ramp / lerp. The
+    ///     normal authoring path.</description></item>
+    ///   <item><description><c>Mask</c> — the scalar vein-region parameter
+    ///     <c>t ∈ [0, 1]</c> packed as <c>(t, t, t)</c>. Drop this same texture
+    ///     block under a Disney material's <c>roughness_texture</c> /
+    ///     <c>subsurface_texture</c> / etc. to drive scalar BSDF parameters
+    ///     from the vein mask — vein zones can be glossier than the matte base,
+    ///     SSS can attenuate over dark calcite veins, sheen can ride on the
+    ///     base only.</description></item>
+    /// </list>
+    /// </summary>
+    public enum OutputMode { Color, Mask }
+
+    public OutputMode Output { get; set; } = OutputMode.Color;
+
     // ── Geometry seed (kept for radial / directional layout) ───────────────
     public Vector3 Offset { get; set; } = Vector3.Zero;
     public Vector3 Rotation { get; set; } = Vector3.Zero;
     public bool RandomizeOffset { get; set; }
     public bool RandomizeRotation { get; set; }
+
+    /// <summary>
+    /// Per-axis space stretch applied BEFORE the fold / warp / ridged pipeline.
+    /// Real geological slabs are seldom isotropic — compression along the bed
+    /// plane stretches features perpendicular to it. <c>(1, 1, 1)</c> (default)
+    /// is isotropic; <c>(0.4, 1.8, 1.0)</c> compresses X (features grow
+    /// horizontally), stretches Y (features grow vertically): the classic
+    /// "stratified" Carrara plate look. Independent from <see cref="FoldAmplitude"/>:
+    /// stretch is a linear pre-multiply on the sample point, fold is a
+    /// non-linear noise-driven shear — they compose multiplicatively.
+    /// </summary>
+    public Vector3 SpaceStretch { get; set; } = Vector3.One;
 
     /// <summary>
     /// Direction the geological fold preferentially aligns with. The fold's
@@ -209,6 +239,40 @@ public class MarbleTexture : ITexture
     /// </summary>
     public ITexture? ImpuritiesTexture { get; set; }
 
+    // ── Secondary linear cracks (Worley F2 − F1 overlay) ───────────────────
+
+    /// <summary>
+    /// Density of sharp linear cracks layered on top of the organic ridged
+    /// vein field. The pattern is a Worley F2 − F1 crackle (the dual of the
+    /// Voronoi distance field), producing the long, sharp, network-like
+    /// fractures typical of breccia and Calacatta slabs. <c>0</c> (default)
+    /// disables the path entirely — no Worley evaluation, no perf cost.
+    /// Typical values: <c>0.20</c> for restrained Calacatta veining,
+    /// <c>0.45</c> for breccia slabs criss-crossed by fractures.
+    /// </summary>
+    public float CracksDensity { get; set; } = 0f;
+
+    /// <summary>
+    /// Spatial scale of the crack network (Worley cell size).
+    /// Lower = wider plates between cracks.
+    /// </summary>
+    public float CracksScale { get; set; } = 2.0f;
+
+    /// <summary>
+    /// Threshold sharpness on the F2 − F1 ridge — small values (~0.02-0.05)
+    /// produce razor-thin geological cracks, larger (~0.10-0.15) produce
+    /// soft branching veins. Independent from <see cref="VeinSoftness"/>.
+    /// </summary>
+    public float CracksSoftness { get; set; } = 0.04f;
+
+    /// <summary>
+    /// Soft-max weight of the crack layer when composited with the multi-scale
+    /// ridged field. <c>0.6</c> = cracks visible but second to the ridged
+    /// pattern; <c>1.0</c> = cracks compete with the strongest ridged layer;
+    /// <c>1.3</c> = cracks dominate (Marquinia "shattered" look).
+    /// </summary>
+    public float CracksWeight { get; set; } = 0.9f;
+
     // ── Color output ───────────────────────────────────────────────────────
 
     /// <summary>
@@ -245,6 +309,13 @@ public class MarbleTexture : ITexture
 
         Vector3 qNoise = qGeom + TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
 
+        // Anisotropic linear pre-stretch — geological compression along the
+        // bed plane. Composes BEFORE the fold so the fold operates in the
+        // stretched space and the stretch becomes the dominant directional
+        // signature of the slab.
+        if (SpaceStretch != Vector3.One)
+            qNoise *= SpaceStretch;
+
         // ── 2. Geological fold (anisotropic, large-scale shear) ────────────
         Vector3 foldAmp = OrientedFoldAmplitude() * NoiseStrength;
         Vector3 q2 = DomainWarp.Anisotropic(noise, qNoise, foldAmp, FoldScale);
@@ -265,6 +336,31 @@ public class MarbleTexture : ITexture
         float vein = MultiScaleRidgedField.Sample(
             noise, qW, scales[..n], weights[..n],
             Octaves, Lacunarity, Gain, SoftMaxSharpness);
+
+        // ── 4b. Secondary linear cracks (Worley F2 − F1 overlay) ───────────
+        // Sharp network-like fractures that the ridged multifractal alone
+        // cannot reach — its statistics are too organic for the long, linear
+        // breccia / Calacatta crack patterns. Compositing via soft-max keeps
+        // the boundary between the two fields C¹ continuous.
+        if (CracksDensity > 0f && CracksWeight > 0f)
+        {
+            var worley = objectSeed != 0 ? WorleyNoise.GetOrCreate(objectSeed) : WorleyNoise.GetOrCreate(0);
+            worley.Evaluate(qW * CracksScale + new Vector3(53.7f, 11.3f, 79.1f),
+                            WorleyNoise.Metric.Euclidean, 1f,
+                            out float f1, out float f2, out _);
+            float crackle = f2 - f1;
+            float soft = MathF.Max(CracksSoftness, 1e-4f);
+            float threshold = 0.02f + 0.5f * (1f - Math.Clamp(CracksDensity, 0f, 1f));
+            float cracks = 1f - Smoothstep(threshold - soft, threshold + soft, crackle);
+            cracks *= CracksWeight;
+
+            // Soft-max with the existing vein scalar. log-sum-exp rebased on
+            // max keeps the float exp() arguments well-conditioned.
+            float k = SoftMaxSharpness;
+            float hi = MathF.Max(vein, cracks);
+            double s = Math.Exp(k * (vein - hi)) + Math.Exp(k * (cracks - hi));
+            vein = Math.Clamp(hi + (float)(Math.Log(s) / k), 0f, 1f);
+        }
 
         // ── 5. Vein-thickness remap (smoothstep) ───────────────────────────
         float half = MathF.Max(VeinSoftness * 0.5f, 1e-4f);
@@ -296,6 +392,13 @@ public class MarbleTexture : ITexture
 
         // ── 8. Final mapping ───────────────────────────────────────────────
         float t = Math.Clamp(veinT + ColorVariation * bg + ImpurityWeight * impurity, 0f, 1f);
+
+        // Mask output: pack the scalar t as (t, t, t) so downstream
+        // FloatTexture reduction (channel average) recovers exactly t. Used
+        // to drive Disney roughness_texture / subsurface_texture / etc. from
+        // the vein mask.
+        if (Output == OutputMode.Mask)
+            return new Vector3(t);
 
         if (ColorRamp is { } ramp)
             return ramp.Sample(t);
