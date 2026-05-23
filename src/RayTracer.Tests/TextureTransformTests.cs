@@ -310,38 +310,27 @@ public class TextureTransformTests
     }
 
     [Fact]
-    public void Marble_VeinAxisProducesDirectionalPattern_AcrossSeeds()
+    public void Marble_RandomizeOffset_DecorrelatesAcrossSeeds()
     {
-        // Marble's directional vein term `sin(scale · dot(p, axis) + ...)` must
-        // place its peaks at the same `p`-locations regardless of seed: the
-        // sine phase is anchored on the object centre. We sample along the
-        // vein axis at two seeds and verify the SIGN of `dot(p, axis)` →
-        // `t = 0.5 + 0.5 sin(...)` retains an axis-anchored profile (the noise
-        // term modulates the height but cannot move the locations
-        // catastrophically when noise_strength is moderate).
-        var marble = new MarbleTexture(scale: 6f, new Vector3(1f), new Vector3(0f))
+        // The new ridged-multifractal pipeline anchors the vein pattern on the
+        // object centre + a per-instance seed offset (only applied to the noise
+        // sampling input, never to the geometric warp). Two probes per seed
+        // must therefore yield distinct outputs across non-zero seeds — same
+        // contract as the previous sin-carrier marble, expressed in a way that
+        // makes no claim about the (now non-existent) directional carrier.
+        var marble = new MarbleTexture(scale: 4f, new Vector3(1f), new Vector3(0f))
         {
-            VeinAxis = Vector3.UnitZ,
-            VeinFrequency = 1f,
-            VeinSharpness = 1f,
-            NoiseStrength = 0f, // isolate the directional term
-            Octaves = 1,
             RandomizeOffset = true,
         };
-        // Two probes a half-period apart along Z: at scale=6, period =
-        // 2π/6 ≈ 1.047, so half-period ≈ 0.524. With NoiseStrength = 0 these
-        // must have opposite-sign sine outputs and therefore VERY different
-        // colours — and that contrast must hold across seeds.
-        Vector3 peak = new(0f, 0f, MathF.PI / 12f);   // sin(scale·z) ≈ sin(π/2) = 1
-        Vector3 trough = new(0f, 0f, -MathF.PI / 12f); // sin(-π/2) = -1
-        foreach (int seed in new[] { 0, 17, 3001, -99 })
+        Vector3 p = new(0.13f, 0.27f, 0.41f);
+        var atZero = marble.Value(0f, 0f, p, 0);
+        foreach (int seed in new[] { 17, 3001, -99 })
         {
-            var vp = marble.Value(0f, 0f, peak, seed);
-            var vt = marble.Value(0f, 0f, trough, seed);
-            // peak should be brighter than trough (t closer to 1 → base colour
-            // (1,1,1)); trough should be darker (t closer to 0 → vein (0,0,0)).
-            Assert.True(vp.X > vt.X + 0.5f,
-                $"seed={seed}: vein direction collapsed (peak={vp}, trough={vt}).");
+            var atSeed = marble.Value(0f, 0f, p, seed);
+            Assert.True(MathF.Abs(atSeed.X - atZero.X) > 1e-4f
+                     || MathF.Abs(atSeed.Y - atZero.Y) > 1e-4f
+                     || MathF.Abs(atSeed.Z - atZero.Z) > 1e-4f,
+                $"seed={seed}: per-instance offset failed to decorrelate the noise lookup");
         }
     }
 }

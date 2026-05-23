@@ -913,15 +913,59 @@ public class TextureData
     [YamlMember(Alias = "vein_axis")]
     public List<float>? VeinAxis { get; set; }
 
-    [YamlMember(Alias = "vein_frequency")]
-    public float? VeinFrequency { get; set; }
+    // ─── Marble — production-grade ridged + IQ-warp pipeline ────────────────
+    // Replaces the legacy sin-carrier veining. See MarbleTexture.cs.
 
-    [YamlMember(Alias = "vein_sharpness")]
-    public float? VeinSharpness { get; set; }
+    [YamlMember(Alias = "warp_amplitude")]
+    public float? WarpAmplitude { get; set; }
 
-    // Marble — studio-quality secondary wave (step 5/7 VFX textures).
-    [YamlMember(Alias = "secondary_wave")]
-    public SecondaryWaveData? SecondaryWave { get; set; }
+    [YamlMember(Alias = "warp_scale")]
+    public float? WarpScale { get; set; }
+
+    [YamlMember(Alias = "warp_iterations")]
+    public int? WarpIterations { get; set; }
+
+    [YamlMember(Alias = "fold_amplitude")]
+    public List<float>? FoldAmplitude { get; set; }
+
+    [YamlMember(Alias = "fold_scale")]
+    public float? FoldScale { get; set; }
+
+    [YamlMember(Alias = "vein_layers")]
+    public int? VeinLayers { get; set; }
+
+    [YamlMember(Alias = "vein_scale")]
+    public List<float>? VeinScale { get; set; }
+
+    [YamlMember(Alias = "vein_weight")]
+    public List<float>? VeinWeight { get; set; }
+
+    [YamlMember(Alias = "vein_thickness")]
+    public float? VeinThickness { get; set; }
+
+    [YamlMember(Alias = "vein_softness")]
+    public float? VeinSoftness { get; set; }
+
+    [YamlMember(Alias = "soft_max_sharpness")]
+    public float? SoftMaxSharpness { get; set; }
+
+    [YamlMember(Alias = "background_scale")]
+    public float? BackgroundScale { get; set; }
+
+    [YamlMember(Alias = "background_octaves")]
+    public int? BackgroundOctaves { get; set; }
+
+    [YamlMember(Alias = "impurities_density")]
+    public float? ImpuritiesDensity { get; set; }
+
+    [YamlMember(Alias = "impurities_scale")]
+    public float? ImpuritiesScale { get; set; }
+
+    [YamlMember(Alias = "impurity_weight")]
+    public float? ImpurityWeight { get; set; }
+
+    [YamlMember(Alias = "impurities_texture")]
+    public TextureData? ImpuritiesTexture { get; set; }
 
     [YamlMember(Alias = "ring_axis")]
     public List<float>? RingAxis { get; set; }
@@ -1021,25 +1065,6 @@ public class ColorRampStopData
 
     [YamlMember(Alias = "interp")]
     public string? Interp { get; set; }
-}
-
-/// <summary>
-/// Optional secondary vein wave on <see cref="MarbleTexture"/>. When
-/// <see cref="Strength"/> is omitted (or set to 0) the texture stays
-/// single-axis legacy. Setting just <c>strength</c> with default axis/
-/// frequency already produces visible cross-veining because the loader
-/// orthogonalises the secondary axis against the primary at sample time.
-/// </summary>
-public class SecondaryWaveData
-{
-    [YamlMember(Alias = "axis")]
-    public List<float>? Axis { get; set; }
-
-    [YamlMember(Alias = "frequency")]
-    public float? Frequency { get; set; }
-
-    [YamlMember(Alias = "strength")]
-    public float? Strength { get; set; }
 }
 
 /// <summary>
