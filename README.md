@@ -139,6 +139,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🎛️ **Visibility flags** (parità Cycles / Arnold) — `camera / diffuse / glossy / transmission / shadow` indipendenti, plus `sun.visible_to_camera` per nascondere il disco dalla camera lasciandolo come sorgente luminosa.
 - 🖼️ **Background plate** — `background:` sub-block opzionale: illumina la scena con un'HDRI e mostra alla camera una plate diversa.
 - 🧭 **Orientation** quaternion / Euler XYZ — sostituisce il vecchio `rotation:` solo-Y.
+- 🏞️ **Ground production-grade** — `world.ground:` dispatcher con quattro shape (`infinite_plane / plane / quad / disk / heightfield`), `point` e `normal` configurabili, shorthand inline `color/roughness/metallic` per Disney BSDF anonimo, UV transform completa (`uv_scale / uv_offset / uv_rotation`), flag di visibilità per categoria di raggio (`visibility.camera / diffuse / glossy / transmission / shadow`, parità Arnold / Cycles), e auto-sync dell'albedo con `sky.ground_albedo` / `ground_color` quando il materiale è omesso (parità `aiSkyDomeLight` Arnold). Lo shorthand legacy `material + y` continua a funzionare.
 
 ### Volumetria (Participating Media)
 - 🌫️ **Homogeneous Medium** — mezzo partecipante uniforme globale per nebbia densa, foschia e effetti subacquei. Beer-Lambert analitico, economico, adatto come base di partenza.

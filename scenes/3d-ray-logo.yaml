@@ -1,166 +1,191 @@
-# ═══════════════════ #
-#    3D RAY Logo      #
-# ═══════════════════ #
+# ═════════════════════════════════════════════════════════════════════════════
+#  3D-RAY Logo — Hero Showcase v2 (production-grade ground + 3-point pro)
+# ═════════════════════════════════════════════════════════════════════════════
+#  Restyling 2026 — restyling fotorealistico con materiali da library, palco
+#  marmo riflettente, sfera cristallo zaffiro, chrome reposizionato, sky
+#  Preetham golden hour e illuminazione 3-point area-light cinematografica.
+#
+#  Lineup materiali lettere (no vetri):
+#   ─ 3 : oro lucido           dis_oro_lucido            (caldo, hero metallic)
+#   ─ D : marmo bianco         dis_carrara_studio_lucido (sostituisce vetro)
+#   ─ R : mogano flame studio  dis_mogano_flame_studio   (figure 1.5 + ramp 3-stop)
+#   ─ A : argento brunito      dis_argento_brunito       (metallic freddo opaco)
+#   ─ Y : porcellana bianca    dis_porcellana_bianca     (ceramica con SSS)
+#
+#  Ground: mat_ground_marmo (Carrara custom — scale 1.2 + distortion 0.65 + secondary 0.6)
+#
+#  Sfere:
+#   ─ cristallo limpido        front-destra  (Disney spec_trans, ior 1.55)
+#   ─ cristallo zaffiro blu    front-sinistra (transmission_color blu, ior 1.77)
+#   ─ chrome reflector         dietro centrato (radius 2.2, riflette il logo)
+#
+#  Feature `world.ground` esercitate:
+#   ─ type dispatch `quad` con size 30 (palco marmo finito)
+#   ─ material di library risolto per ID
+#   ─ uv_scale per fitting del pattern marmo
+#
+#  Profili rendering (CLI):
+#   ─ Preview  : -w 640  -H 360  -s 96   -d 8  -S 2 -c hero
+#   ─ Standard : -w 1280 -H 720  -s 384  -d 10 -S 4 -c three_quarter -C 25
+#   ─ Final    : -w 1920 -H 1080 -s 1536 -d 12 -S 6 -c hero -C 30 --sampler sobol
+# ═════════════════════════════════════════════════════════════════════════════
 
 imports:
   - path: "libraries/fonts/font-open-sans.yaml"
+  - path: "libraries/materials/metals.yaml"
+  - path: "libraries/materials/stones.yaml"
+  - path: "libraries/materials/woods.yaml"
+  - path: "libraries/materials/ceramics.yaml"
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  WORLD
+#  WORLD — Preetham golden hour + ground marmo + leggera foschia
 # ═════════════════════════════════════════════════════════════════════════════
-
 world:
   sky:
-    type: "nishita"
-    turbidity: 4.0
-    intensity: 0.8
+    type: "nishita"                                 # cinematografico, varianza più alta ma sicuro
+    turbidity: 3.5
+    intensity: 0.85
     sun:
-      direction:      [-0.85, 0.12, 0.4]   # sun just above horizon
-      angular_radius: 0.5                   # slightly enlarged for cinematic glow
+      direction:      [-0.55, 0.45, 0.6]            # golden hour mid-morning (no sunset saturo)
+      angular_radius: 0.4
       limb_darkening: true
-      shadow_samples: 4
+      shadow_samples: 6
+
   ground:
-    type: "infinite_plane"
-    material: "mat_pavimento"
-    y: 0.0
+    type: "quad"                                    # palco finito sotto il logo
+    size: 25                                        # 50×50 m sufficienti per riflessi
+    material: "mat_ground_marmo"                    # custom inline calibrato per area grande
+    uv_scale: [3, 3]                                # fit del pattern marmo
+
   medium:
-    type: height_fog
-    sigma_a: [0.012, 0.014, 0.018]
-    sigma_s: [0.040, 0.045, 0.050]
+    type: "height_fog"
+    sigma_a: [0.003, 0.004, 0.005]
+    sigma_s: [0.006, 0.008, 0.010]
     y0: 0
-    scale_height: 0.8
+    scale_height: 1.5
     phase: "hg"
-    g: 0.50
+    g: 0.5
+
+  # ─── Variante Preetham (commentata, swap-in opzionale per tonalità diverse) ─
+  # sky:
+  #   type: "preetham"
+  #   turbidity: 3.5
+  #   ground_albedo: [0.48, 0.42, 0.36]
+  #   sun: { direction: [-0.55, 0.45, 0.6], angular_radius: 0.4, limb_darkening: true, shadow_samples: 6 }
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  CAMERAS
 # ═════════════════════════════════════════════════════════════════════════════
 cameras:
-  - name: "hero"
-    position:    [0.0, 2.2, 6.5]
-    look_at:     [0.0, 1.5, 0.0]
-    vup:         [0.0, 1.0, 0.0]
-    fov: 45
-    #aperture: 0.05
-    #focal_dist: 6.5
 
-  - name: "three_quarter"
-    position:    [-3.4, 2.2, 6.5]
-    look_at:     [-0.42, 1.1, 0.0]
-    vup:         [0.0, 1.0, 0.0]
-    fov:         38
-    #aperture:    0.10
-    #focal_pos:   [3.4, 1.8, -1.7]
+  - name: "hero"                                    # 3/4 centrale con DOF
+    position: [0.0, 3.0, 12.0]
+    look_at:  [0.0, 1.3, 0.0]
+    vup:      [0.0, 1.0, 0.0]
+    fov: 48
+    aperture:  0.10
+    focal_pos: [0.0, 1.3, 0.5]
 
-  - name: "closeup_y"
-    position:    [-3.95, 1.0, 2.2]
-    look_at:     [-3.95, 0.9, 0.0]
-    vup:         [0.0, 1.0, 0.0]
-    fov: 42
-    aperture: 0.08
-    focal_dist: 2.2
+  - name: "three_quarter"                           # angolo laterale
+    position: [-6.5, 3.0, 10.5]
+    look_at:  [-0.5, 1.1, 0.0]
+    vup:      [0.0, 1.0, 0.0]
+    fov: 44
+    aperture:   0.10
+    focal_dist: 11.0
+
+  - name: "closeup_D"                               # macro sul marmo
+    position: [1.94, 1.0, 3.2]
+    look_at:  [1.94, 0.9, 0.0]
+    vup:      [0.0, 1.0, 0.0]
+    fov: 50
+    aperture:   0.06
+    focal_dist: 3.2
+
+  # ─── Closeup Y (porcellana) — opzione 4 commentata per debug visivo ──────
+  # - name: "closeup_y"
+  #   position: [-3.95, 1.0, 2.8]
+  #   look_at:  [-3.95, 0.9, 0.0]
+  #   vup: [0.0, 1.0, 0.0]
+  #   fov: 50
+  #   aperture: 0.06
+  #   focal_dist: 2.8
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  LIGHTS — 3-point + accento verde per la giada
+#  LIGHTS — 3-point area: key calda + fill fredda + rim posteriore
 # ═════════════════════════════════════════════════════════════════════════════
 lights:
 
-  - type: spot
-    position: [0, 5, 6]
-    direction: [0.0, -0.3, -0.5]
-    color: [1.0, 0.92, 0.78]
-    intensity: 400
-    inner_angle: 20
-    outer_angle: 36
+  # ─── KEY — sphere light calda anteriore-destra (off-camera "softbox") ────
+  # Funge da softbox stretto: stacca le lettere dalla luce diffusa del cielo
+  # e crea highlight specifici su oro/marmo/argento. `visible_to_camera:
+  # false` nasconde il disco luminoso dallo sfondo mantenendolo come
+  # sorgente di illuminazione (parità Arnold `light.camera: false`).
+  - type: "sphere"
+    position: [4.5, 4.0, 3.5]
+    radius:   0.6
+    color:    [1.00, 0.92, 0.78]
+    intensity: 80
+    visible_to_camera: false
+
+  # ─── RIM — sphere light dietro alto-sinistra (separa dall'orizzonte) ─────
+  - type: "sphere"
+    position: [-4.5, 3.5, -2.5]
+    radius:   0.4
+    color:    [1.00, 0.70, 0.40]
+    intensity: 50
+    visible_to_camera: false
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  MATERIALS
+#  MATERIALS — fallback font, sfere cristallo (limpido + zaffiro), chrome
+#  I materiali delle lettere arrivano dagli `imports:` sopra.
 # ═════════════════════════════════════════════════════════════════════════════
 materials:
 
-  # Fallback per i template del font (se un'instance scordasse l'override).
+  # Fallback per i template del font (se un'istanza scordasse l'override).
   - id: "font_material"
     type: "lambertian"
     color: [0.60, 0.60, 0.62]
 
-  # Pavimento: cemento lucido scuro, riflette le lettere.
-  - id: "-mat_pavimento"
-    type: "lambertian"
-    texture:
-      type: "checker"
-      colors: [[0.06, 0.06, 0.06], [0.12, 0.1, 0.08]]
-      scale: 1.5
-    
-  - id: "mat_pavimento"
+  # ─── Ground: marmo Carrara custom calibrato per quad 50×50 m ──────────────
+  # `dis_carrara_studio_v2` su un quad di questa scala fa emergere la grid
+  # intrinseca del Perlin noise (vertici a coordinate intere mondo) come
+  # reticolo di celle quadrate. Qui calibriamo:
+  #   • scale 1.2  : vene a passo ~5 m (1 ciclo / quad) anziché 0.25 m
+  #   • distortion 0.65 : domain warp forte → nasconde la grid Perlin
+  #   • secondary_wave strength 0.6 : cross-veining Calacatta organico
+  #   • noise_strength 4 : amplificazione moderata del Perlin (non amplifica la grid)
+  #   • color_ramp 5-stop : gradiente naturale dal nero alla base avorio
+  - id: "mat_ground_marmo"
     type: "disney"
-    color: [0.06, 0.065, 0.080]
-    metallic: 0.0
-    roughness: 0.1
-    specular: 0.6 # 0.6
-    texture:
-      type: "checker"
-      colors: [[0.06, 0.06, 0.06], [0.12, 0.1, 0.08]]
-      scale: 1.5
-
-  # ─── 3 ─ ORO LUCIDO (metallic + Kulla-Conty multi-scatter) ──────────────
-  - id: "mat_3_oro"
-    type: "disney"
-    color: [1.00, 0.78, 0.34]
-    metallic: 1.0
-    roughness: 0.05
-    specular: 0.6
-
-  # ─── D ─ VETRO TINTO AZZURRO (spec_trans + Beer-Lambert) ────────────────
-  - id: "mat_d_vetro"
-    type: "disney"
-    color: [0.97, 0.97, 1.0]
-    roughness: 0.0
-    spec_trans: 1.0
-    ior: 1.70
-    specular: 0.90
-    transmission_color: [0.85, 0.95, 1.00]
-    transmission_depth: 0.6
-
-  # ─── R ─ VERNICE ROSSA CLEARCOAT (coat_ior + coat_roughness, stile Arnold)
-  - id: "mat_r_carpaint"
-    type: "disney"
-    color: [0.78, 0.05, 0.06]
-    metallic: 0.4
+    color: [0.95, 0.94, 0.92]
     roughness: 0.35
-    specular: 0.6
-    clearcoat: 1.0
-    coat_ior: 1.55
-    coat_roughness: 0.04
+    specular: 0.50
+    clearcoat: 0.40
+    coat_roughness: 0.10
+    texture:
+      type: "marble"
+      scale: 1.2
+      vein_axis: [0.6, 0, 1]                       # diagonale (non camera-aligned)
+      vein_frequency: 1.0
+      vein_sharpness: 5.5
+      noise_strength: 4.0
+      octaves: 6
+      distortion: 0.65                             # CHIAVE: nasconde la grid Perlin
+      noise_type: "fbm"                            # fbm più "morbido" di turbulence
+      randomize_offset: true
+      secondary_wave:
+        axis: [1, 0, -0.4]
+        frequency: 0.7
+        strength: 0.6
+      color_ramp:
+        - { position: 0.00, color: [0.10, 0.09, 0.09], interp: "smoothstep" }
+        - { position: 0.30, color: [0.45, 0.42, 0.40], interp: "smoothstep" }
+        - { position: 0.60, color: [0.80, 0.77, 0.73], interp: "smoothstep" }
+        - { position: 0.88, color: [0.93, 0.92, 0.89], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.97, 0.95], interp: "linear" }
 
-  # ─── A ─ ACCIAIO BRUSHED (anisotropic GGX) ──────────────────────────────
-  - id: "mat_a_acciaio_brushed"
-    type: "disney"
-    color: [0.78, 0.79, 0.82]
-    metallic: 1.0
-    roughness: 0.32
-    anisotropic: 0.85
-    anisotropic_rotation: 0.0
-
-  # ─── Y ─ GIADA con SUBSURFACE SCATTERING (default) ──────────────────────
-  - id: "mat_y_giada"
-    type: "disney"
-    color: [0.15, 0.55, 0.32]
-    metallic: 0.0
-    roughness: 0.18
-    specular: 0.55
-    subsurface: 0.6
-    #subsurface_color: [0.45, 0.85, 0.55]
-    subsurface_color: [0.10, 0.30, 0.14]
-
-  # ─── Y ─ VARIANTE EMISSIVA (per scommentare l'instance qui sotto) ──────
-  # Showcase NEE da geometria emissiva: la lettera diventa una luce.
-  # Quando in uso, considerare `-C 25` e abbassare il point verde sopra.
-  - id: "mat_y_emissivo"
-    type: "emissive"
-    color: [0.0, 0.0, 1.00]
-    intensity: 8
-
-  # ─── Sfera cromata dietro la D (chrome reflector) ───────────────────────
+  # ─── Sfera cromata DIETRO il logo (riflette le 5 lettere) ─────────────────
   - id: "mat_chrome_sphere"
     type: "disney"
     color: [0.95, 0.96, 0.97]
@@ -168,7 +193,7 @@ materials:
     roughness: 0.02
     specular: 1.0
 
-  # ─── Sfera di cristallo trasparente in primo piano (vetro neutro) ───────
+  # ─── Sfera cristallo limpido in primo piano (vetro neutro) ────────────────
   - id: "mat_crystal_sphere"
     type: "disney"
     color: [1.0, 1.0, 1.0]
@@ -177,58 +202,78 @@ materials:
     spec_trans: 1.0
     ior: 1.55
 
+  # ─── Sfera cristallo ZAFFIRO BLU in primo piano (vetro tinto cool) ────────
+  # Beer-Lambert: la luce attraversa il volume e viene tinta dal cammino,
+  # producendo blu profondo nei punti più spessi (cuore della sfera).
+  - id: "mat_crystal_sphere_sapphire"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    metallic: 0.0
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.77
+    transmission_color: [0.10, 0.25, 0.85]
+    transmission_depth: 0.5
+
+  # ─── Y — VARIANTE EMISSIVA (per swap inline su `letter_Y`) ────────────────
+  # Showcase NEE da geometria emissiva: la lettera diventa una sorgente.
+  # Quando in uso, considerare `-C 25` e abbassare la rim light.
+  - id: "mat_y_emissivo"
+    type: "emissive"
+    color: [0.0, 0.0, 1.00]
+    intensity: 8
+
 # ═════════════════════════════════════════════════════════════════════════════
-#  ENTITIES
+#  ENTITIES — 5 lettere "3DRAY" + 2 sfere cristallo davanti + chrome dietro
 # ═════════════════════════════════════════════════════════════════════════════
 entities:
 
-  # ── "3" ─ Oro lucido ────────────────────────────────────────────────────
+  # ── "3" — oro lucido (hero metallic caldo) ────────────────────────────────
   - name: "letter_3"
     type: "instance"
     template: "numero_3_open-sans"
-    material: "mat_3_oro"
+    material: "dis_oro_lucido"
     rotate:    [-90, 180, 0]
     translate: [3.28, 0.75, 0.5]
-    scale: [1.5, 2.5, 1.5]
+    scale:     [1.5, 2.5, 1.5]
 
-  # ── "D" ─ Vetro tinto ──────────────────────────────────────────────────
+  # ── "D" — marmo Carrara lucido (sostituisce il vecchio vetro) ─────────────
   - name: "letter_D"
     type: "instance"
     template: "lettera_d_maiusc_open-sans"
-    material: "mat_d_vetro"
+    material: "dis_carrara_studio_lucido"
     rotate:    [-90, 180, 0]
     translate: [1.94, 0.75, 0.5]
-    scale: [1.5, 2.5, 1.5]
+    scale:     [1.5, 2.5, 1.5]
 
-  # ── "R" ─ Vernice rossa con clearcoat ──────────────────────────────────
+  # ── "R" — mogano flame studio (figure 1.5 + color ramp 3-stop) ────────────
   - name: "letter_R"
     type: "instance"
     template: "lettera_r_maiusc_open-sans"
-    material: "mat_r_carpaint"
+    material: "dis_mogano_flame_studio"
     rotate:    [-90, 180, 0]
     translate: [-0.50, 0.75, 0.5]
-    scale: [1.5, 2.5, 1.5]
+    scale:     [1.5, 2.5, 1.5]
 
-  # ── "A" ─ Acciaio brushed anisotropico ─────────────────────────────────
+  # ── "A" — argento brunito (metallic freddo opaco) ─────────────────────────
   - name: "letter_A"
     type: "instance"
     template: "lettera_a_maiusc_open-sans"
-    material: "mat_a_acciaio_brushed"
+    material: "dis_argento_brunito"
     rotate:    [-90, 180, 0]
     translate: [-1.9, 0.75, 0.5]
-    scale: [1.5, 2.5, 1.5]
+    scale:     [1.5, 2.5, 1.5]
 
-  # ── "Y" ─ DEFAULT: giada ───────────────────────────────────────────────
+  # ── "Y" — porcellana bianca (ceramica matte con SSS) ──────────────────────
   - name: "letter_Y"
     type: "instance"
     template: "lettera_y_maiusc_open-sans"
-    material: "mat_y_giada"
+    material: "dis_porcellana_bianca"
     rotate:    [-90, 180, 0]
     translate: [-3.00, 0.75, 0.5]
     scale:     [1.5, 2.5, 1.5]
 
-  # ── "Y" ─ VARIANTE EMISSIVA ─────────────────────────────────────────────
-  # Per swappare la Y al materiale emissivo
+  # ── Y — VARIANTE EMISSIVA (swap-in opzionale) ─────────────────────────────
   # - name: "letter_Y"
   #   type: "instance"
   #   template: "lettera_y_maiusc_open-sans"
@@ -237,22 +282,25 @@ entities:
   #   translate: [-3.00, 0.75, 0.5]
   #   scale:     [1.5, 2.5, 1.5]
 
-  # ── Sfera cromata DIETRO ────────────────────────────────
+  # ── Chrome reflector dietro a destra (riflette le lettere centrali) ──────
+  # Posizionato a distanza per non monopolizzare la composizione, raggio
+  # ridotto per non oscurare le lettere dietro nel framing camera.
   - name: "chrome_back_sphere"
     type: "sphere"
     material: "mat_chrome_sphere"
-    center: [3.4, 1.8, -3.5]
-    radius: 1.8
+    center: [5.5, 1.6, -3.5]
+    radius: 1.4
 
-  # ── Sfere di cristallo IN PRIMO PIANO ───────────────────
-  - name: "crystal_front_sphere"
+  # ── Cristallo limpido davanti-destra (più grande per essere visibile) ─────
+  - name: "crystal_front_clear"
     type: "sphere"
     material: "mat_crystal_sphere"
-    center: [-1.95, 0.3, 2.0]
-    radius: 0.3
+    center: [-2.4, 0.55, 2.6]
+    radius: 0.55
 
-  - name: "crystal_front_sphere2"
+  # ── Cristallo ZAFFIRO BLU davanti-sinistra (Beer-Lambert) ─────────────────
+  - name: "crystal_front_sapphire"
     type: "sphere"
-    material: "mat_crystal_sphere"
-    center: [-1.15, 0.2, 2.0]
-    radius: 0.2
+    material: "mat_crystal_sphere_sapphire"
+    center: [-1.0, 0.45, 2.6]
+    radius: 0.45

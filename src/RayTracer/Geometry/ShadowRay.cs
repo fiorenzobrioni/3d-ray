@@ -63,6 +63,22 @@ public static class ShadowRay
             if (!world.Hit(stepRay, tMin, remaining, ref rec))
                 return throughput;
 
+            // ── Shadow visibility (Arnold `visibility.shadow` / Cycles
+            //    "Ray Visibility → Shadow") ───────────────────────────────
+            // A surface flagged invisible to shadow rays does not cast or
+            // receive a shadow contribution. Advance the ray past the hit
+            // without touching the throughput so light continues unimpeded
+            // — exactly the behaviour expected from a ground configured
+            // with `visibility.shadow: false`.
+            if ((rec.VisibilityMask & HitVisibilityMask.Shadow) != 0)
+            {
+                Vector3 advanceN = Vector3.Dot(dir, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
+                origin = MathUtils.OffsetOrigin(rec.Point, advanceN);
+                remaining -= rec.T + 2f * MathUtils.Epsilon;
+                if (remaining <= tMin) return throughput;
+                continue;
+            }
+
             if (rec.Material == null)
                 return Vector3.Zero;
 

@@ -8,6 +8,69 @@ Roadmap, lavori in corso, bug noti, storico cicli.
 
 ## 📌 Note rapide
 
+### ✅ Ground — overhaul pro-grade (Arnold/Cycles/Mitsuba parity)
+
+Riscrittura della feature `world.ground:` per portarla al livello dei renderer
+offline. Prima era un blocco minimo (`type` ignorato, `material`, `y` shorthand)
+che produceva sempre e solo un `InfinitePlane` y-up. Ora è un dispatcher pieno
+con quattro shape, materiale anonimo, UV transform e flag di visibilità per
+categoria di raggio. Compat completa: tutte le scene esistenti continuano a
+renderizzare identiche.
+
+**Dispatcher (`SceneLoader.BuildGround`).**
+- `type: infinite_plane | plane | quad | disk | heightfield | terrain`
+- `point` / `normal` configurabili (fix del bug silente di `tempio-romano.yaml`,
+  che già scriveva `point:`+`normal:` ignorati dal parser).
+- `size` per quad/disk; `bounds`/`height_scale`/`heightmap_path`/`height_texture`/
+  `resolution`/`sea_level`/`sea_material`/`strata` per heightfield (stesso set
+  di parametri della entity `heightfield` esistente).
+- `orientation` Euler/quaternion (parità sky).
+- Type sconosciuto → fallback a `infinite_plane` con warning esplicito.
+
+**Material resolution a tre bande.**
+1. `material:` ID — comportamento legacy.
+2. Inline shorthand `color/roughness/metallic` → Disney BSDF anonimo (stesso
+   pattern del `standard_surface` floor di Arnold).
+3. Auto-sync con `sky.ground_albedo` o `sky.ground_color` quando entrambi i
+   precedenti mancano (parità `aiSkyDomeLight` preview).
+4. Fallback grigio Lambertian.
+
+**UV transform (`UvTransformedHittable`).** Wrapper che remappa `(u, v)` su
+ogni hit con scale → offset → rotation attorno a `(0.5, 0.5)`. Aggiorna anche
+`DpDu`/`DpDv` (inverso dello scale, ruotati) e tangent/bitangent per mantenere
+TBN-consistency e footprint texture corretti. Parametri YAML: `uv_scale`,
+`uv_offset`, `uv_rotation`.
+
+**Visibility flags (`HitVisibilityMask` + `VisibilityFilteredHittable`).**
+Le 5 categorie (`camera/diffuse/glossy/transmission/shadow`) sono esposte
+con la stessa grammatica delle visibility flags sky. Implementazione:
+- `HitRecord.VisibilityMask` (bitmask byte) — `CameraInvisible` resta come
+  bridge sul bit `Camera` per compat con `CameraInvisibleHittable`.
+- `TraceRay` ha un parametro `incomingCategory` (default Camera) e il vecchio
+  loop di camera-invisible skip è generalizzato a tutte le categorie. La
+  classificazione del raggio post-scatter è in `ClassifyScatteredRay` (delta
+  + emisfero della direzione scattered).
+- `ShadowRay.Transmittance` skip-pa hits flaggati `Shadow`.
+
+**BVH/wrapper transparency.** `IsInfinitePlane` segue i nuovi wrapper
+(`UvTransformedHittable`, `VisibilityFilteredHittable`, già
+`CameraInvisibleHittable`) tramite property `Inner` pubblica, così un
+infinite-plane wrappato resta fuori dalla BVH (la sua AABB 1e6³ degraderebbe
+la qualità del tree).
+
+**Test** (`GroundTests.cs`, 12 casi).
+Legacy shorthand, type dispatch (`quad`/`disk`/unknown→fallback),
+normal/point configurabili, material shortcut (Disney anonimo), UV transform
+(scale + offset), visibility flags (Camera/Shadow + CameraInvisible bridge),
+auto-albedo sync con sky.
+
+**Migration note.** Zero breaking change. Le scene con il vecchio schema
+(`type`/`material`/`y`) continuano a produrre lo stesso InfinitePlane.
+`tempio-romano.yaml` ora interpreta correttamente i `point:`+`normal:` che
+prima venivano scartati (potrebbe renderizzare leggermente diverso — miglioramento atteso).
+
+---
+
 ### ✅ Sky / Environment — overhaul pro-grade
 
 Riscrittura completa del sistema sky/environment per allinearlo agli standard

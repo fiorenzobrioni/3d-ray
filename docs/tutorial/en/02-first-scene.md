@@ -111,20 +111,37 @@ world:
 If you omit `sky:` entirely, the engine uses a daylight-blue flat sky
 (`[0.5, 0.7, 1.0]`). Chapter 7 covers gradient and HDRI in depth.
 
-The `world:` section also supports a **ground shorthand**:
+The `world:` section also supports a **ground shorthand** that dispatches
+to one of four shapes — infinite plane, finite quad, disk, or heightfield —
+with full UV transform, inline material shortcut, and per-ray-category
+visibility flags (Arnold / Cycles parity).
 
 ```yaml
 world:
   ground:
-    type: "plane"
+    type: "plane"               # or "quad" / "disk" / "heightfield"
     material: "floor_material"
-    y: 0.0
+    y: 0.0                      # short for point: [0, y, 0]
 ```
 
-This places an infinite ground plane at the specified Y coordinate using
-the given material, saving you from adding a separate infinite-plane
-entity. You can use either this shorthand or an explicit entity -- they
-produce the same result.
+For a finite floor with inline material and tiling:
+
+```yaml
+world:
+  ground:
+    type: "quad"
+    size: 20                    # half-extent (40 × 40 m floor)
+    color: [0.6, 0.5, 0.4]      # anonymous Disney BSDF
+    roughness: 0.7
+    uv_scale: [4, 4]            # repeat textures 4× per axis
+```
+
+When you omit `material:` and the `world.sky` block provides a `ground_color`
+or `ground_albedo`, the floor automatically inherits that colour as a neutral
+Lambertian — the same lookdev convenience Arnold's `aiSkyDomeLight` offers
+in preview renders. The full schema (heightfield strata, visibility flags,
+orientation) is documented in
+[`docs/reference/scene-reference.md`](../../reference/scene-reference.md).
 
 ---
 

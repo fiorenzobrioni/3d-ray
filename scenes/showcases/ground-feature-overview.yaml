@@ -1,0 +1,115 @@
+# ═════════════════════════════════════════════════════════════════════════════
+#  GROUND — Feature Overview Showcase
+# ═════════════════════════════════════════════════════════════════════════════
+#  Esercita TUTTE le capacità del dispatcher `world.ground` in un singolo
+#  blocco YAML. È pensato come reference visuale del refactor production-grade
+#  (parità Arnold/Cycles/Mitsuba).
+#
+#  Feature dimostrate:
+#   ─ type dispatch `quad`              (finito, bordo netto)
+#   ─ inline Disney BSDF anonimo        (`color`+`roughness`+`metallic`)
+#   ─ UV transform                      (`uv_scale: [6,6]`+`uv_rotation: 15`)
+#   ─ point/normal default              (Y-up implicito)
+#   ─ visibility flags default          (tutto on)
+#   ─ auto-sync `sky.ground_albedo`     (coerente col color del ground)
+#
+#  Cosa guardare nel render:
+#   • pattern del materiale visibile e ruotato di 15° rispetto agli assi;
+#   • bordo netto del quad finito (size 12 → 24×24 m sotto le sfere);
+#   • chrome sphere che riflette fedelmente il pattern e l'orientamento;
+#   • ruby sphere che capta il bounce caldo del ground attraverso il diffuse.
+#
+#  Profili rendering (CLI):
+#   ─ Preview   : -w 480  -H 270  -s 64   -d 4  -S 1
+#   ─ Standard  : -w 1280 -H 720  -s 256  -d 6  -S 4
+#   ─ Final     : -w 1920 -H 1080 -s 1024 -d 8  -S 4  -C 25
+# ═════════════════════════════════════════════════════════════════════════════
+
+world:
+  # ── Sky: Preetham coerente con l'albedo del ground ────────────────────────
+  # Preetham è scelto sopra Nishita per varianza bassa in preview e per
+  # esercitare l'auto-sync di `ground_albedo` con il ground.color
+  sky:
+    type: "preetham"
+    turbidity: 3.0
+    ground_albedo: [0.55, 0.50, 0.42]      # ⇄ sincronizzato con ground.color
+    sun:
+      direction:      [0.4, 0.7, 0.5]      # ~35° di elevazione
+      angular_radius: 0.265
+      limb_darkening: true
+      shadow_samples: 4
+
+  # ── Ground: tutto il dispatcher condensato qui sotto ──────────────────────
+  ground:
+    type: "quad"                            # dispatch finito (parità a Quad entity)
+    size: 12                                # half-extent → 24×24 m sotto le sfere
+    # Materiale anonimo Disney BSDF: nessuna entry in `materials:` richiesta.
+    color:    [0.55, 0.50, 0.42]            # tan caldo (terra battuta chiara)
+    roughness: 0.85                         # matte fotorealistico
+    metallic:  0.0
+    # UV transform applicata sopra le UV native della quad:
+    uv_scale:    [6, 6]                     # 6× tile per asse → 1 quad = 36 ripetizioni
+    uv_rotation: 15                         # 15° CCW vista dall'alto
+
+  # Variante Nishita per render finali atmosferici (commentata):
+  # sky:
+  #   type: "nishita"
+  #   turbidity: 2.5
+  #   sun: { direction: [0.4, 0.45, 0.6], angular_radius: 0.5, limb_darkening: true, shadow_samples: 4 }
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═════════════════════════════════════════════════════════════════════════════
+cameras:
+  - name: "hero"                            # overview composizione 3/4
+    position: [4, 3, 6]
+    look_at:  [0, 0.7, 0]
+    fov: 45
+
+  - name: "uv_closeup"                      # rasoterra per apprezzare uv_rotation
+    position: [0, 0.4, 3]
+    look_at:  [0, 0.3, 0]
+    fov: 35
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  MATERIALS — solo le probe sfere/box (il ground è anonimo)
+# ═════════════════════════════════════════════════════════════════════════════
+materials:
+
+  # Chrome riflettente — sonda di fedeltà del pattern UV ruotato
+  - id: "chrome"
+    type: "disney"
+    color: [0.85, 0.85, 0.88]
+    metallic: 1.0
+    roughness: 0.08
+
+  # Rubino opaco — sonda del bounce diffuse caldo del ground
+  - id: "ruby"
+    type: "disney"
+    color: [0.85, 0.10, 0.15]
+    roughness: 0.15
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═════════════════════════════════════════════════════════════════════════════
+entities:
+
+  - name: "sphere_chrome"
+    type: "sphere"
+    center: [-1.5, 1.0, 0]
+    radius: 1
+    material: "chrome"
+
+  - name: "sphere_ruby"
+    type: "sphere"
+    center: [ 1.5, 1.0, 0]
+    radius: 1
+    material: "ruby"
+
+  # Box rotato — testa l'ombra dura proiettata sul ground (visibility.shadow=true di default)
+  - name: "box_shadow_probe"
+    type: "box"
+    material: "ruby"
+    translate: [0, 0.4, 1.2]
+    rotate:    [0, 30, 0]
+    scale:     [0.5, 0.8, 0.5]

@@ -117,16 +117,141 @@ public class WorldData
     public MediumData? Medium { get; set; }
 }
 
+/// <summary>
+/// Schema for the <c>world.ground</c> block — a richer shorthand than the legacy
+/// "infinite plane at Y" model, with parity to Arnold's <c>floor</c> patterns,
+/// Cycles' shadow-catcher floor and Mitsuba's <c>shape</c>-as-environment-base.
+/// All fields are optional; sensible defaults reproduce the legacy behaviour.
+///
+/// <para>Dispatch by <see cref="Type"/>:
+/// <c>infinite_plane</c> / <c>plane</c> (default), <c>quad</c>, <c>disk</c>,
+/// <c>heightfield</c> (alias <c>terrain</c>). Geometry parameters that do not
+/// apply to the selected type are ignored with an informational warning.</para>
+/// </summary>
 public class GroundData
 {
+    /// <summary>
+    /// Ground geometry kind. Accepted values: <c>infinite_plane</c> / <c>plane</c>
+    /// (default — infinite Y-up floor), <c>quad</c> (finite rectangular patch
+    /// centred at <see cref="Point"/>), <c>disk</c> (finite circular patch),
+    /// <c>heightfield</c> / <c>terrain</c> (full terrain primitive). Unknown
+    /// values fall back to <c>infinite_plane</c> with a warning.
+    /// </summary>
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
 
+    /// <summary>Material ID from the <c>materials:</c> list. Mutually exclusive with the inline shorthand (<see cref="Color"/>/<see cref="Roughness"/>/<see cref="Metallic"/>). When both are present <c>material</c> wins.</summary>
     [YamlMember(Alias = "material")]
     public string? Material { get; set; }
 
+    // ── Position / orientation (universal) ────────────────────────────────────
+
+    /// <summary>Shorthand for <c>point: [0, y, 0]</c>. Kept for backward compatibility with the legacy schema.</summary>
     [YamlMember(Alias = "y")]
     public float Y { get; set; } = 0f;
+
+    /// <summary>Anchor point. For <c>infinite_plane</c>/<c>plane</c> this is a point lying on the plane (defaults to <c>[0, y, 0]</c>). For <c>quad</c>/<c>disk</c> this is the surface centre.</summary>
+    [YamlMember(Alias = "point")]
+    public List<float>? Point { get; set; }
+
+    /// <summary>Surface normal. Defaults to <c>[0, 1, 0]</c> (Y-up). Lets the ground slope or tilt — useful for stylised setups and ramp geometry.</summary>
+    [YamlMember(Alias = "normal")]
+    public List<float>? Normal { get; set; }
+
+    /// <summary>UV-frame orientation. Composes after <see cref="Normal"/>; affects how textured materials wrap the ground. Mirrors <c>sky.orientation</c>.</summary>
+    [YamlMember(Alias = "orientation")]
+    public OrientationData? Orientation { get; set; }
+
+    // ── Finite-type geometry ──────────────────────────────────────────────────
+
+    /// <summary>Half-extent (XZ) for <c>quad</c>, or radius for <c>disk</c>. Default 50 world units (100×100 m floor). Ignored by <c>infinite_plane</c>.</summary>
+    [YamlMember(Alias = "size")]
+    public float Size { get; set; } = 50f;
+
+    // ── Heightfield-type geometry (mirrors EntityData heightfield fields) ────
+
+    /// <summary><c>[xMin, zMin, xMax, zMax]</c> in world units. Required when <see cref="Type"/> is <c>heightfield</c>.</summary>
+    [YamlMember(Alias = "bounds")]
+    public List<float>? Bounds { get; set; }
+
+    [YamlMember(Alias = "height_scale")]
+    public float HeightScale { get; set; } = 1f;
+
+    [YamlMember(Alias = "heightmap_path")]
+    public string? HeightmapPath { get; set; }
+
+    [YamlMember(Alias = "height_texture")]
+    public TextureData? HeightTexture { get; set; }
+
+    /// <summary>Procedural heightmap resolution when <see cref="HeightTexture"/> is used. Default 512.</summary>
+    [YamlMember(Alias = "resolution")]
+    public int Resolution { get; set; } = 0;
+
+    [YamlMember(Alias = "sea_level")]
+    public float? SeaLevel { get; set; }
+
+    [YamlMember(Alias = "sea_material")]
+    public string? SeaMaterial { get; set; }
+
+    [YamlMember(Alias = "strata")]
+    public List<StratumData>? Strata { get; set; }
+
+    // ── Inline material shorthand (anonymous material) ────────────────────────
+
+    /// <summary>Base colour. When set without <see cref="Material"/>, the loader builds an anonymous Disney BSDF with the supplied colour + <see cref="Roughness"/> + <see cref="Metallic"/>.</summary>
+    [YamlMember(Alias = "color")]
+    public List<float>? Color { get; set; }
+
+    [YamlMember(Alias = "roughness")]
+    public float? Roughness { get; set; }
+
+    [YamlMember(Alias = "metallic")]
+    public float? Metallic { get; set; }
+
+    // ── UV transform (applied on top of the primitive's native UVs) ──────────
+
+    /// <summary>Per-axis tile factor — e.g. <c>[10, 10]</c> repeats a 1×1 texture 10 times across X and Z.</summary>
+    [YamlMember(Alias = "uv_scale")]
+    public List<float>? UvScale { get; set; }
+
+    /// <summary>Per-axis UV offset applied after scale.</summary>
+    [YamlMember(Alias = "uv_offset")]
+    public List<float>? UvOffset { get; set; }
+
+    /// <summary>UV-plane rotation in degrees, applied after offset around <c>(0.5, 0.5)</c>.</summary>
+    [YamlMember(Alias = "uv_rotation")]
+    public float UvRotation { get; set; } = 0f;
+
+    // ── Visibility flags (parity with sky / Arnold / Cycles) ─────────────────
+
+    /// <summary>Per-ray-category visibility flags. <c>null</c> = all categories visible (legacy default).</summary>
+    [YamlMember(Alias = "visibility")]
+    public GroundVisibilityData? Visibility { get; set; }
+}
+
+/// <summary>
+/// Per-ray-category visibility flags for the ground surface, mirroring
+/// <see cref="SkyVisibilityData"/> and Arnold's <c>polymesh.visibility.*</c> /
+/// Cycles' "Ray Visibility" toggles. A <c>false</c> flag makes the ground
+/// invisible to rays of that category — the ray continues past the surface as
+/// if it weren't there.
+/// </summary>
+public class GroundVisibilityData
+{
+    [YamlMember(Alias = "camera")]
+    public bool Camera { get; set; } = true;
+
+    [YamlMember(Alias = "diffuse")]
+    public bool Diffuse { get; set; } = true;
+
+    [YamlMember(Alias = "glossy")]
+    public bool Glossy { get; set; } = true;
+
+    [YamlMember(Alias = "transmission")]
+    public bool Transmission { get; set; } = true;
+
+    [YamlMember(Alias = "shadow")]
+    public bool Shadow { get; set; } = true;
 }
 
 public class SkyData

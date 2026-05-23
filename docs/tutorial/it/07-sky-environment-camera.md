@@ -297,6 +297,15 @@ Setup comuni:
 - `sun.visible_to_camera: false` — setup off-camera key-light; il sole
   agisce come luce dura ma non sovraespone il cielo nel frame.
 
+**Parità con il ground.** Le stesse flag `visibility.*` esistono anche
+su `world.ground:` — vedi il
+[reference ground](../../reference/riferimento-scene.md). Un ground con
+`visibility.shadow: false` mantiene il pavimento visibile alla camera
+ma lascia passare i raggi NEE shadow attraverso (lookdev pulito di
+"pavimento infinito senza contact shadow"); `visibility.camera: false`
+produce un pavimento invisibile che però continua a far rimbalzare
+la luce indiretta.
+
 ### Background plate
 
 Un sub-blocco `background:` separato permette di illuminare la scena con
@@ -578,8 +587,9 @@ RayTracer -i golden-hour.yaml -c macro -w 1200 -H 800 -s 1024 -d 8 -S 4
 - **Camere multiple** in un unico file scena, selezionabili via
   `--camera nome` dalla CLI.
 
-Per un reference YAML a una pagina più preset sky pronti da copiare vedi
-[`scenes/00-sky-presets.md`](../../../scenes/00-sky-presets.md).
+Per preset pronti da copiare vedi:
+- [`scenes/00-sky-presets.md`](../../../scenes/00-sky-presets.md) — preset solo-sky (10 voci, solo blocco sky).
+- [`scenes/00-world-presets.md`](../../../scenes/00-world-presets.md) — preset sky + ground accoppiati (15 voci, blocco `world:` completo con shape del ground, materiale, UV e flag di visibilità).
 
 ---
 

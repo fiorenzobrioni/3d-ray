@@ -1,0 +1,203 @@
+# ═════════════════════════════════════════════════════════════════════════════
+#  GROUND — Alpine Lake (heightfield + strata + sea_level)
+# ═════════════════════════════════════════════════════════════════════════════
+#  Lago alpino all'alba: vetta innevata che si specchia nelle acque calme di un
+#  invaso glaciale, con il cielo Nishita che vira dal viola al dorato.
+#
+#  La scena è interamente generata dal dispatcher `world.ground` nella sua forma
+#  più ricca: heightfield con strata altitudine/pendenza, livello del mare e
+#  materiale dell'acqua direttamente nel ground — senza definire una entity
+#  terreno separata.
+#
+#  Feature del ground dimostrate:
+#   ─ type dispatch `heightfield` (parità entity-level)
+#   ─ heightmap baked PNG-16 a 256² (precision smooth slope)
+#   ─ strata 4 livelli (sand, grass, rock, snow) con blend e slope cutoff
+#   ─ sea_level + sea_material per il lago glaciale
+#   ─ scala mondo grande (100×100 m) compatibile con BVH integration
+#
+#  Profili rendering (CLI):
+#   ─ Preview   : -w 640  -H 360  -s 64   -d 6  -S 2
+#   ─ Standard  : -w 1280 -H 720  -s 256  -d 8  -S 4
+#   ─ Final     : -w 1920 -H 1080 -s 1024 -d 12 -S 6  -C 30  --sampler sobol
+# ═════════════════════════════════════════════════════════════════════════════
+
+imports:
+  - path: "../libraries/objects/decorative-objects.yaml"
+
+world:
+  # ── Sky: Nishita alba di montagna ─────────────────────────────────────────
+  sky:
+    type: "nishita"
+    turbidity: 2.5
+    intensity: 1.0
+    sun:
+      direction:      [-0.7, 0.18, 0.45]   # sole basso, ~10° sull'orizzonte
+      angular_radius: 0.5
+      limb_darkening: true
+      shadow_samples: 4
+
+  # ── Ground: heightfield con strata + lago glaciale ────────────────────────
+  ground:
+    type: "heightfield"
+    bounds:        [-50, -50, 50, 50]                # 100×100 m
+    height_scale:  25                                # picchi fino a 25 m
+    heightmap_path: "../libraries/terrains/heightfield-strata-test-height.png"
+    sea_level:     7.5                               # quota lago glaciale
+    sea_material:  "water_alpine"                    # mat definito sotto
+    material:      "rock_dark"                       # fallback (oltre strata)
+    strata:
+      - { min_altitude: 0.00, max_altitude: 0.36, min_slope_deg:  0, max_slope_deg: 35, blend_width: 0.04, material: "dis_sabbia_desertica_v2" }
+      - { min_altitude: 0.34, max_altitude: 0.75, min_slope_deg:  0, max_slope_deg: 45, blend_width: 0.06, material: "dis_erba_prato" }
+      - { min_altitude: 0.50, max_altitude: 1.00, min_slope_deg:  0, max_slope_deg: 90, blend_width: 0.08, material: "rock_dark" }
+      - { min_altitude: 0.85, max_altitude: 1.00, min_slope_deg:  0, max_slope_deg: 60, blend_width: 0.05, material: "dis_neve_fresca_v2" }
+
+  # ── Medium: foschia mattutina di valle ────────────────────────────────────
+  medium:
+    type: "height_fog"
+    sigma_a: [0.002, 0.002, 0.0025]
+    sigma_s: [0.020, 0.025, 0.030]
+    y0: 0
+    scale_height: 6
+    phase: "hg"
+    g: 0.6
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═════════════════════════════════════════════════════════════════════════════
+cameras:
+  - name: "wide"                         # panorama da poggio rilevato
+    position: [90, 30, 110]
+    look_at:  [0, 8, 0]
+    fov: 55
+
+  - name: "sunrise"                      # con DOF cinematografico
+    position: [60, 14, 80]
+    look_at:  [0, 9, 0]
+    fov: 38
+    aperture:   0.5
+    focal_dist: 80
+
+  - name: "aerial"                       # vista top-down (debug strata)
+    position: [0, 110, 0.001]
+    look_at:  [0, 0, 0]
+    fov: 70
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  MATERIALS — strata + acqua glaciale + protagonisti
+#  I 3 materiali strata (sand / grass / snow) sono ridefiniti inline per
+#  autosufficienza dello showcase. Le versioni "library" equivalenti vivono
+#  in scenes/libraries/materials/grounds.yaml con gli stessi ID.
+# ═════════════════════════════════════════════════════════════════════════════
+
+materials:
+
+  # ─── Sand / grass / snow / rock dei strata ────────────────────────────────
+  # Importo SOLO i 3 ID library necessari (riuso la grounds library minimal).
+  # I file completi sono in scenes/libraries/materials/grounds.yaml — qui
+  # ne ridefinisco l'essenziale inline per autosufficienza dello showcase.
+
+  - id: "dis_sabbia_desertica_v2"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_strength: 0.6
+      colors: [[0.82, 0.72, 0.48], [0.62, 0.50, 0.30]]
+    roughness: 0.92
+
+  - id: "dis_erba_prato"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.5
+      colors: [[0.42, 0.50, 0.20], [0.30, 0.36, 0.14]]
+    roughness: 0.95
+
+  - id: "dis_neve_fresca_v2"
+    type: "disney"
+    color: [0.95, 0.97, 1.00]
+    roughness: 0.78
+    metallic: 0.0
+    specular: 0.30
+    subsurface: 0.25
+    subsurface_color: [0.85, 0.92, 1.00]
+
+  - id: "rock_dark"
+    type: "disney"
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_strength: 0.7
+      colors: [[0.32, 0.30, 0.28], [0.18, 0.17, 0.18]]
+    roughness: 0.85
+    metallic: 0.0
+    specular: 0.20
+
+  # ─── Lago glaciale ────────────────────────────────────────────────────────
+  - id: "water_alpine"
+    type: "disney"
+    color: [0.04, 0.18, 0.28]
+    roughness: 0.02
+    metallic: 0.0
+    spec_trans: 1.0
+    ior: 1.33
+    transmission_color: [0.30, 0.55, 0.65]
+    transmission_depth: 4.0
+
+  # ─── Protagonisti (scala umana) ───────────────────────────────────────────
+  - id: "tent_red"
+    type: "disney"
+    color: [0.78, 0.10, 0.08]
+    roughness: 0.55
+    metallic: 0.0
+    sheen: 0.35
+
+  - id: "obelisk_gold"
+    type: "disney"
+    color: [1.00, 0.78, 0.34]
+    metallic: 1.0
+    roughness: 0.18
+
+  - id: "buoy_orange"
+    type: "disney"
+    color: [0.95, 0.40, 0.10]
+    roughness: 0.35
+    metallic: 0.0
+    clearcoat: 0.7
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═════════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ── Campo base (tenda rossa) ──────────────────────────────────────────────
+  # Cubo scalato lungo la riva nord, sopra il livello lago.
+  - name: "tent"
+    type: "box"
+    material: "tent_red"
+    translate: [-22, 9.5, -8]
+    rotate:    [0, 25, 0]
+    scale:     [2.0, 1.5, 2.5]
+
+  # ── Obelisco dorato (monolite scala umana) ────────────────────────────────
+  - name: "obelisk"
+    type: "instance"
+    template: "obelisco"
+    material: "obelisk_gold"
+    translate: [-26, 10.0, -2]
+    scale: [0.6, 1.2, 0.6]
+
+  # ── Boe galleggianti ──────────────────────────────────────────────────────
+  - name: "buoy_a"
+    type: "sphere"
+    material: "buoy_orange"
+    center: [-4, 7.7, 6]
+    radius: 0.35
+
+  - name: "buoy_b"
+    type: "sphere"
+    material: "buoy_orange"
+    center: [3, 7.7, 4]
+    radius: 0.35
