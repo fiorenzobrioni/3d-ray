@@ -1,18 +1,18 @@
 # ═══════════════════════════════════════════════════════════════════════════
-#  Library Marbles — V3 (full production-grade marble system)
+#  Library Marbles — V3
 #
-#  Lookdev di 6 marmi che esercitano l'INTERA gamma del nuovo procedural:
+#  Showcase pro-grade dei 6 marmi storici. Tutti sfruttano il nuovo procedural
+#  marble (ridged multi-scala + IQ warp + fold + bg variation). Le feature
+#  della patch 2 (mask roughness, space_stretch, cracks Worley) sono usate
+#  con parsimonia — solo dove migliorano il look senza distorcerlo.
 #
-#    x=-5.0  White Carrara         → defaults Carrara, mask-driven roughness
-#    x=-3.0  Black Marquinia       → vene chiare + cracks Worley + mask SSS
-#    x=-1.0  Verde Alpi            → impurities + space_stretch + mask roughness
-#    x=+1.0  Calacatta Gold        → 3 layer + cracks + mask roughness + SSS
-#    x=+3.0  Statuario             → space_stretch verticale + 3 layer
-#    x=+5.0  Arabescato            → caos massimo + cracks + mask roughness
-#
-#  Le sfere protagoniste hanno il MARBLE TEXTURE replicato sotto
-#  `roughness_texture: { output: "mask" }` per ottenere variazione di
-#  roughness sulla vena (vene più lucide della base, look pro AAA).
+#    x=-5.0  White Carrara         → defaults Carrara, vene sottili pulite
+#    x=-3.0  Black Marquinia       → cracks Worley sottili (linee, non spot)
+#    x=-1.0  Verde Alpi            → impurità sparse + space_stretch leggero
+#    x=+1.0  Calacatta Gold        → 3 layer + cracks + mask roughness (ricetta
+#                                    canonica per il look "lavorato a specchio")
+#    x=+3.0  Statuario             → 3 layer + space_stretch verticale leggero
+#    x=+5.0  Arabescato            → 3 layer + warp_iter 3 (caos massimo)
 #
 #  Render hint:
 #    Draft:    -w 640  -H 360  -s 64   -d 8  -S 1
@@ -41,11 +41,7 @@ materials:
     roughness: 0.65
     specular: 0.30
 
-  # ════════════════════════════════════════════════════════════════════════
-  # WHITE CARRARA — defaults pro + mask-driven roughness breakup
-  # Vene più lucide (roughness 0.08) della base matte (roughness 0.22) →
-  # il "lavorato a specchio sulla vena" tipico del Carrara levigato.
-  # ════════════════════════════════════════════════════════════════════════
+  # White Carrara — defaults puliti, niente patch-2 features
   - id: "showcase_white_carrara"
     type: "disney"
     texture:
@@ -60,40 +56,16 @@ materials:
       vein_scale:  [1.0, 2.4]
       vein_weight: [1.0, 0.50]
       vein_thickness: 0.13
-      vein_softness: 0.06
+      vein_softness: 0.07
       color_variation: 0.08
       randomize_offset: true
-    roughness: 0.22
-    roughness_texture:
-      type: "marble"
-      output: "mask"
-      scale: 2.4
-      vein_axis: [0, 1, 0]
-      warp_amplitude: 0.9
-      warp_iterations: 2
-      fold_amplitude: [0.8, 0.25, 0.45]
-      vein_layers: 2
-      vein_scale:  [1.0, 2.4]
-      vein_weight: [1.0, 0.50]
-      vein_thickness: 0.13
-      vein_softness: 0.06
-      randomize_offset: true
-      # mask=0 (base) → roughness 0.22; mask=1 (vena) → roughness 0.08.
-      # Ramp esplicito: il color_ramp è un'interpolazione su uno scalare;
-      # uso 2 stop ramp lineare per mappare il range (0.32 → 0.08 in RGB).
-      color_ramp:
-        - { position: 0.0, color: [0.32, 0.32, 0.32] }
-        - { position: 1.0, color: [0.08, 0.08, 0.08] }
+    roughness: 0.18
     specular: 0.55
     clearcoat: 0.65
     coat_roughness: 0.08
 
-  # ════════════════════════════════════════════════════════════════════════
-  # BLACK MARQUINIA — base nera + cracks Worley + vene calcaree affilate
-  # Cracks_density 0.35 produce le fratture lineari nette tipiche del
-  # marmo belga. Subsurface_texture mask → vene chiare hanno SSS ridotto
-  # (cristallo opaco), base nera mantiene una leggera traslucenza.
-  # ════════════════════════════════════════════════════════════════════════
+  # Black Marquinia — base nera + cracks Worley SOTTILI (linewidth 0.02)
+  # La nuova formula cracks usa CracksSoftness come line-width: 0.02 = filiformi.
   - id: "showcase_black_marquinia"
     type: "disney"
     texture:
@@ -110,44 +82,17 @@ materials:
       vein_thickness: 0.13
       vein_softness: 0.05
       color_variation: 0.06
-      cracks_density: 0.35
-      cracks_scale: 2.6
-      cracks_softness: 0.04
+      cracks_density: 0.45
+      cracks_scale: 2.4
+      cracks_softness: 0.020
       cracks_weight: 0.85
       randomize_offset: true
-    roughness: 0.14
-    roughness_texture:
-      type: "marble"
-      output: "mask"
-      scale: 2.0
-      vein_axis: [0, 1, 0]
-      warp_amplitude: 0.95
-      warp_iterations: 2
-      fold_amplitude: [0.80, 0.22, 0.48]
-      vein_layers: 2
-      vein_scale:  [1.0, 2.5]
-      vein_weight: [1.0, 0.55]
-      vein_thickness: 0.13
-      vein_softness: 0.05
-      cracks_density: 0.35
-      cracks_scale: 2.6
-      cracks_softness: 0.04
-      cracks_weight: 0.85
-      randomize_offset: true
-      color_ramp:
-        - { position: 0.0, color: [0.22, 0.22, 0.22] }
-        - { position: 1.0, color: [0.06, 0.06, 0.06] }
+    roughness: 0.10
     specular: 0.80
-    clearcoat: 0.95
+    clearcoat: 0.92
     coat_roughness: 0.05
 
-  # ════════════════════════════════════════════════════════════════════════
-  # VERDE ALPI — base verde + impurità minerali + space_stretch verticale
-  # Mineral impurities density 0.07 sparge le inclusioni di olivina/cromite.
-  # SpaceStretch (0.5, 1.6, 1.0) comprime orizzontalmente per il bedding
-  # stratificato tipico della serpentinite verde. Mask roughness fa risaltare
-  # le inclusioni più ruvide della base lucida.
-  # ════════════════════════════════════════════════════════════════════════
+  # Verde Alpi — verde profondo, impurità RIDOTTE (0.025) e space_stretch lieve
   - id: "showcase_verde_alpi"
     type: "disney"
     texture:
@@ -157,55 +102,29 @@ materials:
       warp_amplitude: 1.05
       warp_iterations: 2
       fold_amplitude: [0.85, 0.30, 0.55]
-      space_stretch: [0.5, 1.6, 1.0]
+      space_stretch: [0.7, 1.3, 1.0]
       vein_layers: 2
       vein_scale:  [0.85, 2.0]
       vein_weight: [1.0, 0.55]
       vein_thickness: 0.22
       vein_softness: 0.09
       color_variation: 0.10
-      impurities_density: 0.07
-      impurities_scale: 9.0
-      impurity_weight: 0.22
+      impurities_density: 0.025
+      impurities_scale: 12.0
+      impurity_weight: 0.18
       randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.16, 0.40, 0.22], interp: "linear" }
         - { position: 0.55, color: [0.06, 0.22, 0.10], interp: "smoothstep" }
         - { position: 1.00, color: [0.02, 0.08, 0.04], interp: "linear" }
-    roughness: 0.25
-    roughness_texture:
-      type: "marble"
-      output: "mask"
-      scale: 2.3
-      vein_axis: [0, 1, 0]
-      warp_amplitude: 1.05
-      warp_iterations: 2
-      fold_amplitude: [0.85, 0.30, 0.55]
-      space_stretch: [0.5, 1.6, 1.0]
-      vein_layers: 2
-      vein_scale:  [0.85, 2.0]
-      vein_weight: [1.0, 0.55]
-      vein_thickness: 0.22
-      vein_softness: 0.09
-      impurities_density: 0.07
-      impurities_scale: 9.0
-      impurity_weight: 0.22
-      randomize_offset: true
-      color_ramp:
-        - { position: 0.0, color: [0.32, 0.32, 0.32] }   # base più ruvida
-        - { position: 1.0, color: [0.12, 0.12, 0.12] }   # vene + impurità lucide
+    roughness: 0.20
     specular: 0.55
     clearcoat: 0.55
     coat_roughness: 0.12
 
-  # ════════════════════════════════════════════════════════════════════════
-  # CALACATTA GOLD — 3 layer + cracks + mask roughness + SSS mask
-  # Il marmo "AAA": 3 layer ridged producono coesistenza thin/thick veins,
-  # cracks_density 0.25 aggiunge le fratture sottili dorate, mask roughness
-  # rende la vena oro a specchio (0.08) e la base avorio matte (0.20),
-  # SSS mask reduces sotto la vena oro (cristallo denso) e mantiene la
-  # traslucenza calcite sulla base avorio.
-  # ════════════════════════════════════════════════════════════════════════
+  # Calacatta Gold — RICETTA CANONICA della patch 2: mask roughness con range
+  # CONSERVATIVO (0.22 → 0.12), cracks sottili (linewidth 0.04). L'unica
+  # sfera con roughness_texture mask del showcase.
   - id: "showcase_calacatta_gold"
     type: "disney"
     texture:
@@ -220,18 +139,18 @@ materials:
       vein_weight: [1.0, 0.70, 0.40]
       vein_thickness: 0.22
       vein_softness: 0.09
-      color_variation: 0.10
-      cracks_density: 0.25
-      cracks_scale: 3.5
-      cracks_softness: 0.05
-      cracks_weight: 0.75
+      color_variation: 0.09
+      cracks_density: 0.30
+      cracks_scale: 3.2
+      cracks_softness: 0.040
+      cracks_weight: 0.70
       randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear" }
         - { position: 0.30, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
         - { position: 0.65, color: [0.85, 0.62, 0.28], interp: "smoothstep" }
         - { position: 1.00, color: [0.18, 0.10, 0.05], interp: "linear" }
-    roughness: 0.20
+    roughness: 0.22
     roughness_texture:
       type: "marble"
       output: "mask"
@@ -245,42 +164,19 @@ materials:
       vein_weight: [1.0, 0.70, 0.40]
       vein_thickness: 0.22
       vein_softness: 0.09
-      cracks_density: 0.25
-      cracks_scale: 3.5
-      cracks_softness: 0.05
-      cracks_weight: 0.75
+      cracks_density: 0.30
+      cracks_scale: 3.2
+      cracks_softness: 0.040
+      cracks_weight: 0.70
       randomize_offset: true
       color_ramp:
-        - { position: 0.0, color: [0.30, 0.30, 0.30] }
-        - { position: 1.0, color: [0.08, 0.08, 0.08] }
-    subsurface: 0.18
-    subsurface_texture:
-      type: "marble"
-      output: "mask"
-      scale: 1.9
-      vein_axis: [0, 1, 0]
-      warp_amplitude: 1.1
-      warp_iterations: 2
-      fold_amplitude: [0.95, 0.35, 0.55]
-      vein_layers: 3
-      vein_scale:  [0.65, 1.5, 3.4]
-      vein_weight: [1.0, 0.70, 0.40]
-      vein_thickness: 0.22
-      vein_softness: 0.09
-      randomize_offset: true
-      color_ramp:
-        - { position: 0.0, color: [0.28, 0.28, 0.28] }   # SSS alto sulla base avorio
-        - { position: 1.0, color: [0.05, 0.05, 0.05] }   # SSS basso sulla vena oro
-    specular: 0.70
-    clearcoat: 0.92
+        - { position: 0.0, color: [0.22, 0.22, 0.22] }   # base avorio matte
+        - { position: 1.0, color: [0.12, 0.12, 0.12] }   # vena oro/dark glossier
+    specular: 0.65
+    clearcoat: 0.85
     coat_roughness: 0.06
 
-  # ════════════════════════════════════════════════════════════════════════
-  # STATUARIO — bianco purissimo + space_stretch verticale + 3 layer
-  # Space_stretch (1.0, 0.5, 1.0) allunga le vene verticalmente (bedding
-  # verticale) — caratteristica della cava di Statuario di Carrara.
-  # Mask roughness + clearcoat alto fanno lo specchio della vena.
-  # ════════════════════════════════════════════════════════════════════════
+  # Statuario — bianco purissimo + space_stretch verticale LEGGERO
   - id: "showcase_statuario"
     type: "disney"
     texture:
@@ -290,47 +186,24 @@ materials:
       warp_amplitude: 1.2
       warp_iterations: 3
       fold_amplitude: [1.0, 0.35, 0.55]
-      space_stretch: [1.0, 0.5, 1.0]
+      space_stretch: [1.0, 0.7, 1.0]
       vein_layers: 3
       vein_scale:  [0.6, 1.4, 3.0]
       vein_weight: [1.0, 0.65, 0.35]
       vein_thickness: 0.20
-      vein_softness: 0.07
-      color_variation: 0.05
+      vein_softness: 0.08
+      color_variation: 0.06
       randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.98, 0.98, 0.96], interp: "linear" }
         - { position: 0.65, color: [0.50, 0.50, 0.52], interp: "smoothstep" }
         - { position: 1.00, color: [0.06, 0.06, 0.08], interp: "linear" }
-    roughness: 0.22
-    roughness_texture:
-      type: "marble"
-      output: "mask"
-      scale: 2.1
-      vein_axis: [0, 1, 0]
-      warp_amplitude: 1.2
-      warp_iterations: 3
-      fold_amplitude: [1.0, 0.35, 0.55]
-      space_stretch: [1.0, 0.5, 1.0]
-      vein_layers: 3
-      vein_scale:  [0.6, 1.4, 3.0]
-      vein_weight: [1.0, 0.65, 0.35]
-      vein_thickness: 0.20
-      vein_softness: 0.07
-      randomize_offset: true
-      color_ramp:
-        - { position: 0.0, color: [0.30, 0.30, 0.30] }
-        - { position: 1.0, color: [0.07, 0.07, 0.07] }
-    specular: 0.65
-    clearcoat: 0.85
-    coat_roughness: 0.06
+    roughness: 0.18
+    specular: 0.60
+    clearcoat: 0.75
+    coat_roughness: 0.07
 
-  # ════════════════════════════════════════════════════════════════════════
-  # ARABESCATO — caos massimo: 3 layer + cracks density 0.40 + mask everything
-  # Il marmo più drammatico. Cracks_density 0.40 produce un network di
-  # fratture su tutto il pattern. Mask roughness rende le vene capillari
-  # più lucide rispetto alle bande grigie matte.
-  # ════════════════════════════════════════════════════════════════════════
+  # Arabescato — caos massimo, niente cracks/mask (le 3 layer + warp 3 bastano)
   - id: "showcase_arabescato"
     type: "disney"
     texture:
@@ -343,42 +216,17 @@ materials:
       vein_layers: 3
       vein_scale:  [0.55, 1.4, 3.2]
       vein_weight: [1.0, 0.75, 0.45]
-      vein_thickness: 0.32
-      vein_softness: 0.10
+      vein_thickness: 0.34
+      vein_softness: 0.12
       color_variation: 0.10
-      cracks_density: 0.40
-      cracks_scale: 2.8
-      cracks_softness: 0.05
-      cracks_weight: 0.80
       randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.94, 0.92, 0.88], interp: "linear" }
         - { position: 0.55, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
         - { position: 1.00, color: [0.06, 0.06, 0.10], interp: "linear" }
-    roughness: 0.28
-    roughness_texture:
-      type: "marble"
-      output: "mask"
-      scale: 1.8
-      vein_axis: [0, 1, 0]
-      warp_amplitude: 1.4
-      warp_iterations: 3
-      fold_amplitude: [1.1, 0.5, 0.7]
-      vein_layers: 3
-      vein_scale:  [0.55, 1.4, 3.2]
-      vein_weight: [1.0, 0.75, 0.45]
-      vein_thickness: 0.32
-      vein_softness: 0.10
-      cracks_density: 0.40
-      cracks_scale: 2.8
-      cracks_softness: 0.05
-      cracks_weight: 0.80
-      randomize_offset: true
-      color_ramp:
-        - { position: 0.0, color: [0.38, 0.38, 0.38] }
-        - { position: 1.0, color: [0.10, 0.10, 0.10] }
-    specular: 0.60
-    clearcoat: 0.70
+    roughness: 0.18
+    specular: 0.55
+    clearcoat: 0.65
     coat_roughness: 0.08
 
 entities:

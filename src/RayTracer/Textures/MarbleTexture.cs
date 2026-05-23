@@ -242,13 +242,12 @@ public class MarbleTexture : ITexture
     // ── Secondary linear cracks (Worley F2 − F1 overlay) ───────────────────
 
     /// <summary>
-    /// Density of sharp linear cracks layered on top of the organic ridged
-    /// vein field. The pattern is a Worley F2 − F1 crackle (the dual of the
-    /// Voronoi distance field), producing the long, sharp, network-like
-    /// fractures typical of breccia and Calacatta slabs. <c>0</c> (default)
-    /// disables the path entirely — no Worley evaluation, no perf cost.
-    /// Typical values: <c>0.20</c> for restrained Calacatta veining,
-    /// <c>0.45</c> for breccia slabs criss-crossed by fractures.
+    /// Intensity of the sharp linear-crack overlay (Worley F2 − F1 ridge).
+    /// <c>0</c> (default) disables the path entirely — no Worley evaluation,
+    /// no perf cost. <c>0.3</c> = restrained Calacatta cracks, <c>0.6</c> =
+    /// breccia slabs criss-crossed by fractures, <c>1.0</c> = maximum
+    /// intensity (mostly used with low <see cref="CracksWeight"/> for stylised
+    /// shattered looks).
     /// </summary>
     public float CracksDensity { get; set; } = 0f;
 
@@ -259,17 +258,20 @@ public class MarbleTexture : ITexture
     public float CracksScale { get; set; } = 2.0f;
 
     /// <summary>
-    /// Threshold sharpness on the F2 − F1 ridge — small values (~0.02-0.05)
-    /// produce razor-thin geological cracks, larger (~0.10-0.15) produce
-    /// soft branching veins. Independent from <see cref="VeinSoftness"/>.
+    /// Width of the crack lines in normalised <c>F2 − F1</c> ridge units.
+    /// Crack lines appear where the ridge is below this threshold (i.e. near
+    /// Voronoi cell borders). <c>0.01-0.03</c> produces razor-thin geological
+    /// fractures (Marquinia), <c>0.05-0.10</c> produces soft branching veins
+    /// (Calacatta), <c>0.15+</c> wide diffuse cracks. Independent from
+    /// <see cref="VeinSoftness"/>.
     /// </summary>
-    public float CracksSoftness { get; set; } = 0.04f;
+    public float CracksSoftness { get; set; } = 0.05f;
 
     /// <summary>
     /// Soft-max weight of the crack layer when composited with the multi-scale
     /// ridged field. <c>0.6</c> = cracks visible but second to the ridged
     /// pattern; <c>1.0</c> = cracks compete with the strongest ridged layer;
-    /// <c>1.3</c> = cracks dominate (Marquinia "shattered" look).
+    /// <c>1.3</c> = cracks dominate.
     /// </summary>
     public float CracksWeight { get; set; } = 0.9f;
 
@@ -340,19 +342,24 @@ public class MarbleTexture : ITexture
         // ── 4b. Secondary linear cracks (Worley F2 − F1 overlay) ───────────
         // Sharp network-like fractures that the ridged multifractal alone
         // cannot reach — its statistics are too organic for the long, linear
-        // breccia / Calacatta crack patterns. Compositing via soft-max keeps
-        // the boundary between the two fields C¹ continuous.
+        // breccia / Calacatta crack patterns. The Worley F2 − F1 ridge is
+        // SMALL at cell borders (we're equidistant to two cells) and LARGE at
+        // cell centers; so the crack mask is `1 - smoothstep(0, lineWidth, ridge)`
+        // — 1 on the thin band where the ridge is near zero, 0 elsewhere.
+        // <see cref="CracksSoftness"/> directly controls the crack line width;
+        // <see cref="CracksDensity"/> scales overall crack intensity (0..1)
+        // before the soft-max with the vein layer. Compositing via soft-max
+        // keeps the boundary between the two networks C¹ continuous.
         if (CracksDensity > 0f && CracksWeight > 0f)
         {
             var worley = objectSeed != 0 ? WorleyNoise.GetOrCreate(objectSeed) : WorleyNoise.GetOrCreate(0);
             worley.Evaluate(qW * CracksScale + new Vector3(53.7f, 11.3f, 79.1f),
                             WorleyNoise.Metric.Euclidean, 1f,
                             out float f1, out float f2, out _);
-            float crackle = f2 - f1;
-            float soft = MathF.Max(CracksSoftness, 1e-4f);
-            float threshold = 0.02f + 0.5f * (1f - Math.Clamp(CracksDensity, 0f, 1f));
-            float cracks = 1f - Smoothstep(threshold - soft, threshold + soft, crackle);
-            cracks *= CracksWeight;
+            float ridge = f2 - f1;
+            float lineWidth = MathF.Max(CracksSoftness, 5e-3f);
+            float cracks = 1f - Smoothstep(0f, lineWidth, ridge);
+            cracks *= CracksDensity * CracksWeight;
 
             // Soft-max with the existing vein scalar. log-sum-exp rebased on
             // max keeps the float exp() arguments well-conditioned.

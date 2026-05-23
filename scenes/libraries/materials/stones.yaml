@@ -355,10 +355,10 @@ materials:
       vein_thickness: 0.14
       vein_softness: 0.05
       color_variation: 0.05
-      cracks_density: 0.30
+      cracks_density: 0.50
       cracks_scale: 2.6
-      cracks_softness: 0.04
-      cracks_weight: 0.80
+      cracks_softness: 0.022
+      cracks_weight: 0.85
       randomize_offset: true
     roughness: 0.06
     clearcoat: 1.0
@@ -886,10 +886,10 @@ materials:
       vein_thickness: 0.22
       vein_softness: 0.09
       color_variation: 0.08
-      cracks_density: 0.25
+      cracks_density: 0.35
       cracks_scale: 3.5
-      cracks_softness: 0.05
-      cracks_weight: 0.75
+      cracks_softness: 0.040
+      cracks_weight: 0.70
       randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear"     }   # base avorio
@@ -920,17 +920,17 @@ materials:
       vein_thickness: 0.22
       vein_softness: 0.09
       color_variation: 0.08
-      cracks_density: 0.25
+      cracks_density: 0.35
       cracks_scale: 3.5
-      cracks_softness: 0.05
-      cracks_weight: 0.75
+      cracks_softness: 0.040
+      cracks_weight: 0.70
       randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear"     }
         - { position: 0.30, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
         - { position: 0.65, color: [0.85, 0.65, 0.30], interp: "smoothstep" }
         - { position: 1.00, color: [0.10, 0.08, 0.08], interp: "linear"     }
-    roughness: 0.18
+    roughness: 0.22
     roughness_texture:
       type: "marble"
       output: "mask"
@@ -944,14 +944,14 @@ materials:
       vein_weight: [1.0, 0.70, 0.40]
       vein_thickness: 0.22
       vein_softness: 0.09
-      cracks_density: 0.25
+      cracks_density: 0.35
       cracks_scale: 3.5
-      cracks_softness: 0.05
-      cracks_weight: 0.75
+      cracks_softness: 0.040
+      cracks_weight: 0.70
       randomize_offset: true
       color_ramp:
-        - { position: 0.0, color: [0.28, 0.28, 0.28] }
-        - { position: 1.0, color: [0.06, 0.06, 0.06] }
+        - { position: 0.0, color: [0.22, 0.22, 0.22] }   # base: roughness 0.22
+        - { position: 1.0, color: [0.12, 0.12, 0.12] }   # vena: roughness 0.12 (glossier, non specchio)
     clearcoat: 0.92
     coat_roughness: 0.05
     specular: 0.75
@@ -1038,10 +1038,10 @@ materials:
       vein_thickness: 0.32
       vein_softness: 0.10
       color_variation: 0.10
-      cracks_density: 0.35
+      cracks_density: 0.45
       cracks_scale: 2.8
-      cracks_softness: 0.05
-      cracks_weight: 0.75
+      cracks_softness: 0.045
+      cracks_weight: 0.70
       randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.94, 0.92, 0.88], interp: "linear"     }   # base ivory
@@ -1066,10 +1066,10 @@ materials:
       vein_thickness: 0.32
       vein_softness: 0.10
       color_variation: 0.10
-      cracks_density: 0.35
+      cracks_density: 0.45
       cracks_scale: 2.8
-      cracks_softness: 0.05
-      cracks_weight: 0.75
+      cracks_softness: 0.045
+      cracks_weight: 0.70
       randomize_offset: true
       color_ramp:
         - { position: 0.00, color: [0.94, 0.92, 0.88], interp: "linear"     }
