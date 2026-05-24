@@ -329,7 +329,7 @@ una nuova interfaccia `ISkyModel` con implementazioni concrete sotto
   (`turbidity`, `ground_albedo`, `sun.direction`). YAML accetta `type: hosek_wilkie`
   o `type: preetham`; oggi sono alias. Coefficienti Y/x/y conversi xyY→CIE XYZ→Rec.709,
   trasmittanza Rayleigh per il colore del sole. Sostituibile con tabelle HW
-  complete con un solo file. **Aerial perspective Nishita** è ancora TODO.
+  complete con un solo file.
 - **`HdriSky`** — wrapper IBL su `EnvironmentMap`, ora supporta sun-extracted via
   `HdriSunExtractor`.
 
@@ -368,15 +368,14 @@ flip vedranno il sole dal lato opposto — fix banale invertendo il vettore.
 
 Stato test: `dotnet test` 420 verdi (406 + 14 nuovi in `SkyEnvironmentTests.cs`).
 
-#### Roadmap residua — Fase 2
+#### Completamenti ciclo 2 (tutto ✅)
 
 - **`NishitaSky`** completato (Bruneton-style precomputed transmittance LUT 16×64,
   single-scattering integrazione 16 step lungo il view ray, Rayleigh + Mie HG-0.76,
   earth-scale atmosphere reale 6360 km/8 km/1.2 km). Sample integra correttamente
   alba/tramonto da fisica (Rayleigh 1/λ⁴), zenith blu al mezzogiorno, halo solare
   arancione. Compatibile con `type: nishita` in YAML; turbidity remappata su densità
-  Mie. Aerial perspective via medium è preparato (LUT height-resolved) ma non ancora
-  cablato a `Volumetrics/IMedium`.
+  Mie. Aerial perspective via medium completato nel ciclo 3 (`NishitaAtmosphereMedium`).
 - **`PortalLight`** completato (Bitterli/Wyman/Pharr 2015). `ILight` con
   campionamento area uniforme stratificato sulla finestra, conversione area→solid-
   angle `pdf = d²/(area · cosPortal)`, MIS PDF analitica, ricezione orientata
@@ -386,8 +385,7 @@ Stato test: `dotnet test` 420 verdi (406 + 14 nuovi in `SkyEnvironmentTests.cs`)
   sugli interni (riduzione varianza ~10× sui 95% di NEE che prima sprecava sui muri).
 - **Mipmap prefiltering HDRI** completato (lazy build, sin(θ)-weighted 2×2 box,
   log₂ levels). `EnvironmentMap.SampleMip(direction, lod)` con trilinear tra livelli,
-  esposizione `MaxMipLevel`. Hook nel BSDF roughness→LOD è TODO Fase 3 (richiede
-  modifiche al sampling glossy del Renderer).
+  esposizione `MaxMipLevel`. Hook nel BSDF roughness→LOD completato nel ciclo 3 (glossy LOD).
 - **Tabelle Hosek-Wilkie complete** — non implementate in questa sessione (28KB di
   costanti tabulati per RGB×9 coefs×2 albedos×10 turb×6 control points). Per ora il
   YAML `type: hosek_wilkie` aliasa a Preetham. Per upgrade futuro è sufficiente
@@ -395,7 +393,7 @@ Stato test: `dotnet test` 420 verdi (406 + 14 nuovi in `SkyEnvironmentTests.cs`)
 
 Test totali: 427 verdi (420 + 7 nuovi per Nishita/Portal/Mipmap).
 
-#### Roadmap residua — Fase 3 (chiusura)
+#### Completamenti ciclo 3 (tutto ✅)
 
 - **`NishitaAtmosphereMedium`** completato (`src/RayTracer/Volumetrics/`).
   `IMedium` adapter che condivide i coefficienti fisici con `NishitaSky`:
@@ -433,9 +431,7 @@ density, glossy LOD smoothing, e copertura aggiuntiva).
 
 ### ✅ CLI — preset `--quality` / `-q`
 
-Aggiunto un flag CLI che impacchetta in un colpo i cinque knob di qualità (`-w -H -s -d -S`) in preset con nome stile Arnold/Cycles/RenderMan. Sette preset: `draft-small` / `draft` (960×540 e 1920×1080, `-s 16 -d 4 -S 1`), `medium-small` / `medium` (`-s 128 -d 6 -S 1`), `final-small` / `final` (`-s 1024 -d 8 -S 4`), `ultra` (3840×2160, stessi sampling dei final). Qualunque flag esplicito ha la precedenza sul preset, quindi `-q final -d 16` resta possibile per scene con vetri impilati. Implementato come tipo nested `Program.QualityPreset`, parser case-insensitive, errore esplicito su valori sconosciuti. Documentazione: `docs/reference/rendering-profiles.md` + `profili-di-rendering.md` §1a, tutorial cap. 02 (EN/IT), `README.md` Quick Start + tabella CLI + sezione esempi pratici.
-
-
+Aggiunto un flag CLI che impacchetta in un colpo i cinque knob di qualità (`-w -H -s -d -S`) in preset con nome. Dieci preset: `draft-tiny` / `draft-small` / `draft` (480×270 · 960×540 · 1920×1080, `-s 16 -d 4 -S 1`), `medium-tiny` / `medium-small` / `medium` (`-s 128 -d 6 -S 1`), `final-tiny` / `final-small` / `final` (`-s 1024 -d 8 -S 4`), `ultra` (3840×2160, stessi sampling dei final). Qualunque flag esplicito ha la precedenza sul preset, quindi `-q final -d 16` resta possibile per scene con vetri impilati. Implementato come tipo nested `Program.QualityPreset`, parser case-insensitive, errore esplicito su valori sconosciuti. Documentazione: `docs/reference/rendering-profiles.md` + `profili-di-rendering.md` §1a, tutorial cap. 02 (EN/IT), `README.md` Quick Start + tabella CLI + sezione esempi pratici.
 
 ---
 
@@ -494,21 +490,21 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 **Volumetrics Stage 1+1.5**: medium globale opt-in (`world.medium`), output bit-identico se assente. `IMedium`: Homogeneous (Beer-Lambert + free-path), HeightFog (densità esponenziale closed-form), HeterogeneousProcedural (Perlin fBm, delta+ratio tracking), Grid (`.vol` o inline, slab clip + trilinear + delta tracking). `IPhaseFunction`: Isotropic, HG, Rayleigh, Double-HG (Nubis), Schlick (fast-HG). Stage 2 (deferred): EmissiveMedium, MediumInterface per-entity, SSS random-walk, OpenVDB nativo, spectral tracking — tutti richiedono modifiche ad `IMedium` / `HitRecord` / `Renderer.TraceRay`.
 
-### Fase 5 — Frontiera ⬜
+### Fase 5 — Frontiera 🔧
 
-| # | Feature |
-|---|---------|
-| 23 | Bidirectional Path Tracing (dopo #13) |
-| 24 | Spectral Rendering (lunghezze d'onda → dispersione prismatica) |
-| 25 | Displacement Mapping (height map runtime tessellation, dopo #7) |
-| 26 | GPU Acceleration (CUDA/Vulkan, progetto separato) |
+| # | Feature | Stato |
+|---|---------|-------|
+| 23 | Bidirectional Path Tracing (dopo #13) | ⬜ |
+| 24 | Spectral Rendering (lunghezze d'onda → dispersione prismatica) | ⬜ |
+| 25 | Surface Displacement Stack (bump map, mesh subdivision Loop/Catmull-Clark, scalar/vector displacement, autobump) | ✅ |
+| 26 | GPU Acceleration (CUDA/Vulkan, progetto separato) | ⬜ |
 
 ### Dipendenze chiave
 
 ```
 #3 Image Tex ─► #5 Normal Map, #9 Mix Material
 #6 Disney   ─► #20 SSS
-#7 OBJ      ─► #22 Instancing, #25 Displacement
+#7 OBJ      ─► #22 Instancing, #25 Displacement ✅
 #11 Scene G ─► #22 Instancing
 #12 IS      ─► #13 MIS ─► #23 BDPT
 #15 Tiles   ─► #14 Adaptive, #16 Denoiser
@@ -603,26 +599,20 @@ Strategia incrementale per le caustiche, in ordine di costo crescente. Strada 1 
 
 | # | Descrizione | Severità | Stato |
 |---|-------------|----------|-------|
-| 2 | RNG globale seedato da `Environment.TickCount` (`MathUtils.cs:12`): due render della stessa scena producono rumore stocastico diverso. A spp ≥ 64 il rumore si media; a spp basso le differenze sono visibili. Non riguarda i pattern procedurali (bug #1 risolto). Architettura proposta: sampler per-pixel deterministico via hash `(pixelX, pixelY, sampleIndex)`. Da affrontare con #15 Tile-based. | 🟠 Media | ⬜ |
+| 2 | ~~RNG globale seedato da `Environment.TickCount` (`MathUtils.cs:12`): due render della stessa scena producono rumore stocastico diverso.~~ **Risolto** dal sampler Sobol (default): `Sampler.cs` usa `pixelSeed = (uint)(x · 73856093) ^ (uint)(y · 19349663)` — seed deterministico per coordinate pixel. Render identici tra esecuzioni con `--sampler sobol` (default). Con `--sampler prng` il comportamento non deterministico è atteso. | 🟢 Risolto | ✅ |
 
 ---
 
 ## 📚 Riferimenti tecnici
 
-### RNG globale e determinismo (riferimento bug #2)
+### ✅ RNG deterministico — note implementazione (ex bug #2)
 
-`MathUtils.cs:12-17` espone un RNG thread-local seedato da `Environment.TickCount`. Usato per BSDF / NEE / DoF / RR / jitter, quindi ogni esecuzione parte da uno stato diverso → pixel diversi tra render della stessa scena.
+Il bug #2 (RNG seedato da `TickCount`) è risolto dall'introduzione del sampler Sobol con Owen scrambling, ora default. `Sampler.cs` costruisce un seed per-pixel da coordinate `(x, y)` via hash integer, quindi ogni pixel riceve sempre la stessa sequenza quasi-Monte Carlo indipendentemente dal momento di esecuzione. Il `--sampler prng` mantiene il comportamento non deterministico per chi lo preferisce (utile per animazioni con variazione intenzionale).
 
-**Quando dà fastidio**: visual regression testing, A/B di parametri (diff = parametro + rumore), animazioni (flickering temporale tra frame), debug ("perché questo pixel?").
-
-**Architettura proposta**:
-1. `Sampler` per-pixel che incapsula lo stato RNG, seedato da hash deterministico `(pixelX, pixelY, sampleIndex)` (PCG / xoshiro / splittable RNG).
-2. Propagare il `Sampler` lungo `TraceRay` / `Scatter` / `EvaluateDirect` / `SampleLight` come parametro esplicito (rimuove `MathUtils.Rng` singleton).
-3. CLI `--render-seed N` (default 0 → render identici; override per variazione intenzionale tra frame).
-
-**Impatti**: output bit-identico, smoke test verificabile contro baseline (anche hash dell'immagine), rimozione del counter atomico globale, miglior cache locality con #15 Tiles. L'immagine "finale" della scena cambierà rispetto ai render attuali.
-
-**Dipendenza**: meglio dopo (o insieme a) #15 Tile-based, perché il tile è il granulo naturale per il seeding per-pixel.
+**Note architetturali** (per reference futura):
+- Con `--sampler sobol` (default): render bit-identici tra esecuzioni. Smoke test verificabili contro baseline.
+- `MathUtils.Rng` rimane come fallback per operazioni non-critiche fuori dal loop di campionamento.
+- Se si introduce `--render-seed N` in futuro, il seed globale potrebbe agire da offset sulla famiglia di hash pixel.
 
 ---
 
