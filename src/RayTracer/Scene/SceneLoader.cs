@@ -1684,9 +1684,9 @@ public class SceneLoader
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.9f) : new Vector3(0.9f),
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.1f) : new Vector3(0.1f)),
 
-            "wood" => new WoodTexture(t.Scale, t.NoiseStrength ?? 2.0f,
+            "wood" => new WoodTexture(t.Scale, t.GrainStrength ?? t.NoiseStrength ?? 1.5f,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.85f, 0.65f, 0.40f) : new Vector3(0.85f, 0.65f, 0.40f),
-                t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.60f, 0.40f, 0.20f) : new Vector3(0.60f, 0.40f, 0.20f)),
+                t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.45f, 0.28f, 0.14f) : new Vector3(0.45f, 0.28f, 0.14f)),
 
             "voronoi" or "worley" or "cell" or "cellular"
                 => new VoronoiTexture(t.Scale,
@@ -1846,23 +1846,72 @@ public class SceneLoader
             if (t.Rotation != null) wt.Rotation = ToVector3(t.Rotation) ?? Vector3.Zero;
             wt.RandomizeOffset   = t.RandomizeOffset;
             wt.RandomizeRotation = t.RandomizeRotation;
-            // `grain_strength` is the preferred new alias for `noise_strength`
-            // — last-write-wins if both are present so artists can override
-            // a library default by spelling it the newer way.
-            if (t.NoiseStrength.HasValue)    wt.NoiseStrength    = t.NoiseStrength.Value;
-            if (t.GrainStrength.HasValue)    wt.NoiseStrength    = t.GrainStrength.Value;
+
+            // Grain amplitude — `grain_strength` is the canonical name; the
+            // legacy `noise_strength` is still accepted (last-write-wins).
+            if (t.NoiseStrength.HasValue)    wt.GrainStrength    = t.NoiseStrength.Value;
+            if (t.GrainStrength.HasValue)    wt.GrainStrength    = t.GrainStrength.Value;
+
+            // Geometry / ring layout
             if (t.RingAxis != null)          wt.RingAxis         = ToVector3(t.RingAxis) ?? Vector3.UnitY;
-            if (t.RingSharpness.HasValue)    wt.RingSharpness    = t.RingSharpness.Value;
+            if (t.SpaceStretch != null)      wt.SpaceStretch     = ToVector3(t.SpaceStretch) ?? Vector3.One;
+
+            // Asymmetric ring profile
+            if (t.RingSharpness.HasValue)    wt.RingSharpness    = MathF.Max(t.RingSharpness.Value, 0.05f);
+            if (t.LatewoodWidth.HasValue)    wt.LatewoodWidth    = Math.Clamp(t.LatewoodWidth.Value, 0.02f, 0.95f);
+            if (t.EarlywoodTransition.HasValue) wt.EarlywoodTransition = Math.Clamp(t.EarlywoodTransition.Value, 0.005f, 0.5f);
+
+            // Per-ring variation
+            if (t.RingColorVariation.HasValue) wt.RingColorVariation = Math.Clamp(t.RingColorVariation.Value, 0f, 1f);
+            if (t.RingWidthVariation.HasValue) wt.RingWidthVariation = Math.Clamp(t.RingWidthVariation.Value, 0f, 0.5f);
+
+            // Multi-band noise
             if (t.AxialGrain.HasValue)       wt.AxialGrain       = t.AxialGrain.Value;
             if (t.Octaves.HasValue)          wt.Octaves          = Math.Clamp(t.Octaves.Value, 1, 16);
             if (t.Lacunarity.HasValue)       wt.Lacunarity       = t.Lacunarity.Value;
             if (t.Gain.HasValue)             wt.Gain             = t.Gain.Value;
-            if (t.Distortion.HasValue)       wt.Distortion       = t.Distortion.Value;
             if (t.GrainScale.HasValue)       wt.GrainScale       = MathF.Max(t.GrainScale.Value, 0f);
             if (t.FigureScale.HasValue)      wt.FigureScale      = MathF.Max(t.FigureScale.Value, 0f);
             if (t.FigureStrength.HasValue)   wt.FigureStrength   = MathF.Max(t.FigureStrength.Value, 0f);
+            if (t.FigureAspect.HasValue)     wt.FigureAspect     = MathF.Max(t.FigureAspect.Value, 1e-3f);
+
+            // Domain warp (recursive IQ + anisotropic fold). The legacy
+            // `distortion` knob is mapped to `warp_amplitude` so older scenes
+            // that still set it keep getting a non-trivial warp.
+            if (t.Distortion.HasValue)       wt.WarpAmplitude    = MathF.Max(t.Distortion.Value, 0f);
+            if (t.WarpAmplitude.HasValue)    wt.WarpAmplitude    = MathF.Max(t.WarpAmplitude.Value, 0f);
+            if (t.WarpScale.HasValue)        wt.WarpScale        = MathF.Max(t.WarpScale.Value, 1e-4f);
+            if (t.WarpIterations.HasValue)   wt.WarpIterations   = Math.Clamp(t.WarpIterations.Value, 0, 3);
+            if (t.FoldAmplitude != null)     wt.FoldAmplitude    = ToVector3(t.FoldAmplitude) ?? wt.FoldAmplitude;
+            if (t.FoldScale.HasValue)        wt.FoldScale        = MathF.Max(t.FoldScale.Value, 1e-4f);
+
+            // Global drama dial
+            if (t.NoiseStrength.HasValue && t.GrainStrength.HasValue)
+            {
+                // Already consumed above — no-op here, just for clarity.
+            }
+
+            // Radial anisotropy
             if (t.RadialAnisotropy.HasValue) wt.RadialAnisotropy = MathF.Max(t.RadialAnisotropy.Value, 0f);
+
+            // Knots
             if (t.KnotDensity.HasValue)      wt.KnotDensity      = Math.Clamp(t.KnotDensity.Value, 0f, 1f);
+            if (t.KnotScale.HasValue)        wt.KnotScale        = MathF.Max(t.KnotScale.Value, 1e-3f);
+
+            // Open-pore vessels
+            if (t.PoreDensity.HasValue)      wt.PoreDensity      = Math.Clamp(t.PoreDensity.Value, 0f, 1f);
+            if (t.PoreScale.HasValue)        wt.PoreScale        = MathF.Max(t.PoreScale.Value, 1e-4f);
+            if (t.PoreStrength.HasValue)     wt.PoreStrength     = Math.Clamp(t.PoreStrength.Value, 0f, 1f);
+            if (t.PoreAspect.HasValue)       wt.PoreAspect       = MathF.Max(t.PoreAspect.Value, 1e-3f);
+
+            // Sapwood/heartwood gradient
+            if (t.HeartwoodRadius.HasValue)  wt.HeartwoodRadius  = MathF.Max(t.HeartwoodRadius.Value, 0f);
+            if (t.HeartwoodBlend.HasValue)   wt.HeartwoodBlend   = Math.Clamp(t.HeartwoodBlend.Value, -1f, 1f);
+
+            // Output mode — `color` (default) or `mask` for FloatTexture-driven
+            // Disney parameters (roughness, sheen, subsurface, ...).
+            if (t.Output != null) wt.Output = ParseWoodOutput(t.Output);
+
             wt.ColorRamp = BuildColorRamp(t.ColorRamp, "wood");
         }
         else if (tex is VoronoiTexture vt)
@@ -1962,6 +2011,13 @@ public class SceneLoader
         {
             "mask" or "scalar" or "vein_mask" or "veinmask" => MarbleTexture.OutputMode.Mask,
             _                                                => MarbleTexture.OutputMode.Color,
+        };
+
+    private static WoodTexture.OutputMode ParseWoodOutput(string s) =>
+        s.Trim().ToLowerInvariant() switch
+        {
+            "mask" or "scalar" or "latewood_mask" or "ringmask" => WoodTexture.OutputMode.Mask,
+            _                                                    => WoodTexture.OutputMode.Color,
         };
 
     private static float[] ResizeWith(float[] src, int n, float fill)

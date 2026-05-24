@@ -870,40 +870,135 @@ watery (onyx).
 texture:
   type: "wood"
   scale: 4.0
-  noise_strength: 2.0          # alias: grain_strength (high-freq grain amplitude)
+  grain_strength: 1.5          # alias: noise_strength (high-freq grain amplitude)
   ring_axis: [0, 1, 0]         # trunk axis; rings ⊥ axis (default Y)
-  ring_sharpness: 3.0          # 1=soft (legacy), 3-6=defined latewood
-  axial_grain: 0.3             # long-wave noise along the trunk axis
-  octaves: 4                   # fBm octaves on the grain (1 = legacy Perlin)
+
+  # Asymmetric earlywood/latewood ring profile (replaces the legacy
+  # symmetric pow(triangle, sharpness)). Real annual rings have a long
+  # bright earlywood plateau ending in a thin sharp dark latewood band.
+  latewood_width: 0.22         # 0.15-0.20 hardwoods, 0.25-0.30 softwoods
+  ring_sharpness: 3.0          # 1=soft, 3-6=razor latewood edge
+  earlywood_transition: 0.05   # smooth rise from prior latewood (0.005-0.5)
+
+  # Per-ring random variation — the single biggest realism upgrade.
+  # 0 = every ring identical (the "CG wood" look); 0.15 = natural year-
+  # to-year variation. Width offset uses the same per-ring hash.
+  ring_color_variation: 0.15
+  ring_width_variation: 0.10
+
+  # Recursive IQ domain warp (replaces single-iter `distortion`).
+  warp_amplitude: 0.4
+  warp_scale: 2.5
+  warp_iterations: 2           # 0=off, 2=canonical IQ, 3=heavy flow
+
+  # Anisotropic geological fold — large-scale trunk bending.
+  fold_amplitude: [0.3, 0.1, 0.3]
+  fold_scale: 4.0
+
+  # Anisotropic space pre-stretch (non-isotropic plank cuts).
+  space_stretch: [1.0, 1.0, 1.0]
+
+  # Multi-band noise on the radial distance.
+  grain_scale: 1.0             # frequency mult on the grain fBm
+  octaves: 4
   lacunarity: 2.0
   gain: 0.5
-  distortion: 0.0              # 0=clean rings, ~0.5=knots/waves
-  colors: [[0.85, 0.65, 0.40], [0.60, 0.40, 0.20]]
-  # ── Studio-quality knobs (opt-in, all default to no-op back-compat) ──
-  grain_scale: 1.0             # multiplier on the high-freq noise sample point
-  figure_scale: 0.25           # multiplier on the low-freq "figure" sample point
-  figure_strength: 0.0         # 0 = disabled, ~0.5-1.5 = curly maple / flame mahogany
-  radial_anisotropy: 0.0       # 0 = isotropic (plain-sawn), >0 = quartersawn
-  knot_density: 0.0            # 0 = no knots, ~0.5 = sparse, ~1 = packed
+  figure_strength: 0.0         # 0 disables; 0.4-1.5 = curly / flame / ribbon
+  figure_scale: 0.25
+  figure_aspect: 1.0           # axial elongation of figure; 3-5 = perpendicular stripes
+  axial_grain: 0.0             # long-wave noise along the trunk axis
+
+  # Open-pore vessels (oak, ash, walnut). 0 disables.
+  pore_density: 0.0            # 0.30-0.55 for open-pore species
+  pore_scale: 16.0
+  pore_aspect: 4.0             # axial elongation; 4-6 = vessel-like
+  pore_strength: 0.4
+
+  # Sapwood/heartwood radial gradient. 0 disables.
+  heartwood_radius: 0.0
+  heartwood_blend: 0.25        # +ve darkens centre; natural for walnut/cherry
+
+  # Quartersawn vs plain-sawn cut.
+  radial_anisotropy: 0.0       # 0 = isotropic, 2-5 = quartersawn medullary rays
+
+  # Knots (3D-cone projection). 0 disables.
+  knot_density: 0.0            # 0.5-1.0 = pine/spruce/cedar
+  knot_scale: 0.6              # frequency multiplier; higher = more knots
+
+  # Output mode — `color` (default) or `mask`.
+  output: "color"              # set to "mask" to drive Disney roughness_texture &c
+
+  colors: [[0.85, 0.65, 0.40], [0.45, 0.28, 0.14]]
+  # color_ramp: [...]          # optional multi-stop ramp; wins over `colors`
+
+  randomize_offset: true
+  randomize_rotation: true
 ```
 
-> **Studio-quality wood controls.**
-> * **Two-band perturbation.** `grain_scale` + `noise_strength` (a.k.a.
->   `grain_strength`) drive the high-frequency fibre detail inside each
->   ring; `figure_scale` + `figure_strength` add an independent low-frequency
->   plank-wide undulation — the curly maple stripes, flame mahogany ripples
->   or bird's-eye blooms that pure grain noise cannot reach because its
->   spectrum is too high-frequency. Each band has its own scale and weight.
+> **Production-grade wood controls.** The texture was rewritten end-to-end
+> to match the wood node found in Arnold (`wood`/`knots`), Cycles' Wave
+> Texture (Rings mode), RenderMan `PxrWoodKnot` and Substance Designer
+> Wood. All knobs above are active by default with sensible values —
+> the legacy "every ring looks the same" symmetric profile is gone.
+>
+> * **Asymmetric ring profile.** `latewood_width` controls the width of
+>   the dark band at the END of each annual ring (not centred on the
+>   middle as in the legacy symmetric pow-of-triangle). The boundary
+>   between two rings is the visible "dark line" of real wood. Combine
+>   with `ring_sharpness` (1-6) to dial the crispness of that boundary.
+> * **Per-ring colour + width variation.** `ring_color_variation` and
+>   `ring_width_variation` apply a deterministic per-ring hash so adjacent
+>   rings differ in brightness and width — the single feature that makes
+>   wood look real instead of CG. The hash combines the integer ring index
+>   with the object seed, so different instances see different ring
+>   sequences while staying reproducible across renders. Keep both around
+>   0.10-0.25 for natural year-to-year variation; 0 is the legacy "every
+>   ring identical" look (avoid).
+> * **Recursive IQ domain warp.** `warp_amplitude` + `warp_iterations`
+>   replace the single-iteration `distortion` knob. 2 iterations is the
+>   canonical IQ recipe; 3 produces aggressive geological flow. The legacy
+>   `distortion:` YAML key is mapped to `warp_amplitude` for back-compat.
+> * **Anisotropic geological fold.** `fold_amplitude` + `fold_scale` apply
+>   a large-scale anisotropic shear BEFORE the recursive warp — the warp
+>   then operates in the folded space, producing the kind of curved ring
+>   patterns seen near trunk bends.
+> * **Multi-band noise.** `grain_strength` (high-freq fBm, fibre detail)
+>   + `figure_strength` (low-freq, curly maple / flame mahogany ripples)
+>   + `axial_grain` (long-wave along axis). The figure band can be
+>   axially elongated via `figure_aspect` to align its stripes
+>   perpendicular to the grain — the natural orientation of curly maple
+>   and flame mahogany.
+> * **Open-pore vessels.** `pore_density` spawns sparse dark micro-specks
+>   via an axially-anisotropic Worley — the cells are elongated along
+>   the trunk axis by `pore_aspect` so the vessels look like the short
+>   cylindrical channels of real open-pore species (oak 0.45, ash 0.42,
+>   walnut 0.40, mahogany 0.25). 0 = closed-pore (maple, beech, cherry,
+>   ebony) and bypasses the Worley evaluation entirely.
+> * **Sapwood / heartwood gradient.** `heartwood_radius` defines the
+>   radial transition centre; `heartwood_blend > 0` darkens toward the
+>   centre, modelling the heartwood/sapwood demarcation of walnut, cherry,
+>   ipe. Set `heartwood_radius: 0` (default) to disable the path.
 > * **`radial_anisotropy`.** Stretches the noise sample along the local
->   radial direction (perpendicular to `ring_axis`, pointing away from the
->   trunk). High values (~2–5) compress the radial sample coordinate so
->   noise varies slowly along that axis ⇒ the quartersawn-oak look. 0
->   (default) is isotropic and bit-identical to the legacy texture.
-> * **`knot_density`.** Sparse small-scale Voronoi spawns branch knots that
->   locally pull the ring centre toward the knot feature and add a dark
->   heart on top — same kind of behaviour as Arnold's `knots` map and
->   RenderMan's `PxrWoodKnot`. Combine with a 3+ stop `color_ramp:` for
->   sapwood / heartwood / knot tri-tone authoring.
+>   radial direction (perpendicular to `ring_axis`). High values (~3-5)
+>   reproduce the quartersawn-oak medullary "tiger ray" look.
+> * **`knot_density`.** 3-D cone projection — each sparse Worley cell
+>   hosts a knot whose visible cone widens with axial distance from the
+>   cell centre. Inside the cone the ring centre is pulled toward the
+>   knot feature and a dark heart is added on top, matching Arnold's
+>   `knots` and RenderMan's `PxrWoodKnot`. Combine with a 4-5 stop
+>   `color_ramp:` for cuore-nodo / latewood / earlywood / sapwood
+>   tone authoring.
+
+> **Mask-driven Disney parameters.** Set `output: "mask"` on a wood
+> texture block to return the scalar ring parameter `t ∈ [0, 1]` (1 at
+> the bright earlywood plateau, 0 at the dark latewood / pore) packed
+> as `(t, t, t)`. Drop the same block under `roughness_texture` /
+> `sheen_texture` / etc. to drive scalar BSDF parameters from the
+> latewood pattern — latewood can be polished while earlywood stays
+> matte (the cera-su-quercia look), sheen can ride on the open-pore
+> earlywood only, subsurface can attenuate over the dark latewood
+> band. The double evaluation costs ~30 extra Perlin samples per shade
+> on the protagonist material — negligible against Disney BSDF + NEE.
 
 #### **Production-quality marble & wood — recipe book**
 
