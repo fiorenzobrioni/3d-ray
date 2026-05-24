@@ -1,6 +1,8 @@
-# Smoke test — eseguito su ogni push e PR verso main.
-# Compila il progetto in Release e renderizza una scena leggera (chess.yaml,
-# 320×213, 1 sample) per verificare che il binario non crashi.
+# CI — eseguito su ogni push e PR verso main.
+# 1. Compila il progetto in Release.
+# 2. Esegue la suite xUnit (464 test, ~3s).
+# 3. Renderizza una scena leggera (chess.yaml, 320×213) per verificare
+#    che il binario non crashi a runtime.
 # L'immagine prodotta viene caricata come artifact (retention 3 giorni)
 # per un'ispezione visiva rapida in caso di regressioni.
 
@@ -13,7 +15,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-and-render:
+  build-test-render:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,6 +31,9 @@ jobs:
 
     - name: Build
       run: dotnet build src/RayTracer/RayTracer.csproj --no-restore --configuration Release
+
+    - name: Run tests
+      run: dotnet test src/RayTracer.Tests/RayTracer.Tests.csproj --configuration Release
 
     - name: Render smoke test (chess.yaml)
       timeout-minutes: 5
