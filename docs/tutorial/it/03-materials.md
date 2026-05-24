@@ -615,82 +615,158 @@ Arabescato).
 
 ### Wood (Legno)
 
+La texture wood è un modello production-grade degli anelli annuali al
+livello di Arnold `wood`/`knots`, Cycles Wave Texture in modalità Rings,
+RenderMan `PxrWoodKnot` e Substance Designer Wood. Il vecchio carrier
+`sin(dist)^sharpness` simmetrico è stato sostituito con un profilo
+asimmetrico earlywood/latewood, variazione random per anello (larghezza
++ colore), recursive IQ domain warp, multi-banda noise, vasi di poro
+open-pore e proiezione cono 3D per i nodi — tutti gli upgrade qui sotto
+sono attivi di default con valori sensati.
+
 ```yaml
 texture:
   type: "wood"
-  scale: 5.0
-  noise_strength: 1.2
+  scale: 4.5
+  grain_strength: 1.8
   ring_axis: [0, 1, 0]
-  ring_sharpness: 3.5
-  axial_grain: 0.4
-  octaves: 4
-  distortion: 0.18
-  colors: [[0.78, 0.55, 0.30], [0.42, 0.24, 0.12]]
+  latewood_width: 0.24
+  ring_sharpness: 4.0
+  ring_color_variation: 0.22
+  ring_width_variation: 0.18
+  warp_amplitude: 0.55
+  pore_density: 0.45
+  pore_aspect: 6.0
+  color_ramp:
+    - { position: 0.00, color: [0.26, 0.14, 0.05] }
+    - { position: 0.55, color: [0.76, 0.55, 0.28] }
+    - { position: 1.00, color: [0.92, 0.78, 0.50] }
 ```
 
 Gli anelli si formano perpendicolari a `ring_axis`: usa `[0, 1, 0]` per
 un tronco in sezione, `[0, 0, 1]` per un'asse, o un vettore leggermente
-inclinato per un look più organico. `ring_sharpness` eleva a potenza
-un'onda triangolare attorno al bordo di ogni anello, producendo le
-linee scure del legno tardivo tipiche di rovere e noce.
-`axial_grain` aggiunge una variazione a lunga lunghezza d'onda lungo
-l'asse del tronco (ottimo per le assi).
+inclinato per un look più organico.
 
-| Parametro            | Predefinito | Descrizione                                              |
-|----------------------|-------------|----------------------------------------------------------|
-| `ring_axis`          | `[0,1,0]`   | Asse tronco/log (gli anelli sono sul piano ⊥)            |
-| `ring_sharpness`     | `1.0`       | 1 = morbido (legacy), 3–6 = legno tardivo definito       |
-| `axial_grain`        | `0.0`       | Variazione a lunga lunghezza d'onda lungo l'asse         |
-| `octaves`            | `1`         | Ottave fBm sulla venatura (1 = Perlin legacy)            |
-| `distortion`         | `0`         | Domain warp — 0 = anelli puliti, ~0.5 = nodi/onde        |
-| `grain_scale`        | `1.0`       | Moltiplicatore sul sample-point del grain (alta freq)    |
-| `figure_scale`       | `0.25`      | Moltiplicatore sul sample-point della figure (bassa freq)|
-| `figure_strength`    | `0.0`       | 0 = disattivata, ~0.5–1.5 = curly maple / flame mahogany |
-| `radial_anisotropy`  | `0.0`       | 0 = piano-sawn (isotropo), >0 = quartato                 |
-| `knot_density`       | `0.0`       | 0 = nessun nodo, ~0.5 = sparsi, ~1 = pieno               |
+#### Parametri chiave
 
-**Legno studio-quality.** Quattro nuovi knob opt-in portano la texture
-wood al livello Arnold / RenderMan / Cycles:
+| Parametro              | Default      | Descrizione                                              |
+|------------------------|--------------|----------------------------------------------------------|
+| `ring_axis`            | `[0,1,0]`    | Asse tronco/log (anelli sul piano ⊥)                     |
+| `grain_strength`       | `1.5`        | Ampiezza fBm grain ad alta frequenza                     |
+| `latewood_width`       | `0.22`       | Spessore della banda latewood per anello (0.15-0.30)     |
+| `ring_sharpness`       | `3.0`        | Nitidezza della transizione latewood (1-6)               |
+| `earlywood_transition` | `0.05`       | Ascesa morbida dal latewood precedente (0.005-0.5)       |
+| `ring_color_variation` | `0.15`       | Ampiezza shift colore per anello (l'upgrade del realismo)|
+| `ring_width_variation` | `0.10`       | Ampiezza offset larghezza per anello                     |
+| `warp_amplitude`       | `0.4`        | Ampiezza recursive IQ domain warp                        |
+| `warp_iterations`      | `2`          | 0 = senza warp, 2 = ricetta IQ, 3 = flow forte           |
+| `fold_amplitude`       | `[0.3,0.1,0.3]` | Ampiezza per-asse del fold anisotropico               |
+| `space_stretch`        | `[1,1,1]`    | Pre-stretch lineare (tagli non isotropi tavola)          |
+| `grain_scale`          | `1.0`        | Moltiplicatore frequenza grain sample-point              |
+| `figure_strength`      | `0.0`        | 0 = disattivata, 0.4-1.5 = curly maple / flame mahogany  |
+| `figure_scale`         | `0.25`       | Moltiplicatore frequenza figure sample-point             |
+| `figure_aspect`        | `1.0`        | Elongazione assiale figure; 3-5 = strisce perpendicolari |
+| `axial_grain`          | `0.0`        | Noise lunga lunghezza d'onda lungo l'asse                |
+| `pore_density`         | `0.0`        | Vasi open-pore (0.30-0.55 per quercia / frassino / noce) |
+| `pore_scale`           | `16.0`       | Frequenza spaziale dei pori                              |
+| `pore_aspect`          | `4.0`        | Elongazione assiale dei pori (4-6 = vasi)                |
+| `pore_strength`        | `0.4`        | Forza dello scurimento dei pori                          |
+| `radial_anisotropy`    | `0.0`        | 0 = piano-sawn, 3-5 = rovere quartato medullary rays     |
+| `knot_density`         | `0.0`        | Nodi cono 3D (0.5-1.0 per pino / abete / cedro)          |
+| `knot_scale`           | `0.6`        | Moltiplicatore frequenza nodi                            |
+| `heartwood_radius`     | `0.0`        | Raggio transizione sapwood/heartwood (0 = disabilitato)  |
+| `heartwood_blend`      | `0.25`       | +ve scurisce il centro (naturale per noce / ciliegio)    |
+| `output`               | `"color"`    | `"mask"` per pilotare Disney params via FloatTexture      |
 
-- **Bande grain + figure** — `grain_scale` + `noise_strength` (alias
-  `grain_strength`) pilotano il dettaglio fibra ad alta frequenza dentro
-  gli anelli; `figure_scale` + `figure_strength` aggiungono l'ondulazione
-  indipendente a bassa frequenza che dà a **curly maple** le sue strisce,
-  a **flame mahogany** le sue ripple e a **bird's-eye** i suoi fiori. La
-  banda figure viene campionata con offset di noise decorrelato, così le
-  due bande non si bloccano in lock-step.
-- **`radial_anisotropy`** — comprime la componente radiale del sample
-  point del noise, così il noise varia poco lungo la direzione radiale.
-  È la differenza visiva fra **piano-sawn** (default 0, feature isotrope)
-  e tavole **quartato** (anisotropia alta, fibre stirate radialmente).
-  L'implementazione è sicura sull'asse del tronco (`radial.Length() == 0`)
-  — il path silenziosamente fallback.
-- **`knot_density`** — Voronoi a piccola scala genera nodi sparsi che
-  tirano localmente il centro dell'anello verso il feature point del nodo
-  e aggiungono un cuore scuro. Stesso trucco di Arnold `knots` e
-  RenderMan `PxrWoodKnot`. Combinabile con `color_ramp:` a 3 stop per
-  autorialità sapwood / heartwood / nodo.
+#### Perché la riscrittura?
+
+Il carrier legacy `sin(ring · scale) ^ sharpness` produceva anelli
+perfettamente simmetrici — scuri ai due estremi, chiari al centro — e
+tutti gli anelli erano identici. Gli anelli annuali reali sono
+**asimmetrici**: un lungo plateau earlywood chiaro seguito da una
+sottile e netta banda latewood scura che diventa la linea scura
+visibile al bordo con l'anello successivo. Combinato con shift random
+deterministici di larghezza e colore per ogni anello (in natura non
+esistono due anelli identici), questo è il singolo upgrade più grande
+da "look CG" a "look reale".
+
+- **Profilo asimmetrico.** `latewood_width` definisce lo spessore della
+  banda scura ALLA FINE di ogni anello annuale (non al centro come nel
+  legacy). Il bordo tra due anelli è la "linea scura" visibile.
+- **Variazione per anello.** `ring_color_variation` e
+  `ring_width_variation` applicano un hash deterministico per ogni
+  indice intero di anello, così adiacenti differiscono in brillantezza
+  e larghezza — IL feature che separa wood reale da CG. Lascia 0.10-0.25
+  per look naturale; 0 è il look legacy (evitare).
+- **Recursive IQ domain warp.** `warp_amplitude` + `warp_iterations`
+  sostituiscono il `distortion` single-iter. La chiave YAML legacy
+  `distortion:` è mappata su `warp_amplitude` per back-compat.
+- **Multi-banda noise.** `grain_strength` (alta freq, fibra) +
+  `figure_strength` (bassa freq, curly / flame / ribbon) + `axial_grain`.
+  La banda figure può essere allungata assialmente con `figure_aspect`
+  per allineare le sue strisce perpendicolari alla venatura —
+  orientamento naturale di curly maple e flame mahogany.
+- **Vasi open-pore.** `pore_density` genera macchioline scure sparse via
+  Worley anisotropico assialmente — le celle sono allungate lungo l'asse
+  del tronco di un fattore `pore_aspect` per ricordare i corti canali
+  cilindrici delle essenze open-pore reali. 0 = essenze close-pore
+  (acero, faggio, ciliegio, ebano) e bypassa Worley.
+- **Gradiente sapwood / heartwood.** `heartwood_radius` definisce il
+  centro della transizione radiale; `heartwood_blend > 0` scurisce
+  verso il centro, modellando la demarcazione di noce, ciliegio, ipe.
+- **`radial_anisotropy`.** Stira il sample point lungo la direzione
+  radiale. Valori alti (~3-5) riproducono il look "tiger ray" del
+  rovere quartato (medullary rays).
+- **`knot_density`.** Proiezione cono 3D — ogni cella Worley sparsa
+  ospita un nodo il cui cono visibile si allarga con la distanza
+  assiale dal centro. Stessa famiglia di Arnold `knots` e RenderMan
+  `PxrWoodKnot`. Combinabile con `color_ramp:` a 4-5 stop.
+
+#### Parametri Disney pilotati dal mask
+
+Imposta `output: "mask"` su un blocco wood per restituire lo scalare
+`t ∈ [0, 1]` (1 sul plateau chiaro earlywood, 0 nel latewood scuro /
+poro) impacchettato come `(t, t, t)`. Duplica lo stesso blocco sotto
+`roughness_texture` / `sheen_texture` / `subsurface_texture` per
+pilotare parametri Disney scalari dal pattern degli anelli — il
+latewood può essere lucido mentre l'earlywood resta opaco (look
+"cera su quercia"), lo sheen può riguardare solo l'earlywood a poro
+aperto, il subsurface può attenuarsi sul latewood scuro.
 
 ```yaml
 texture:
   type: "wood"
-  scale: 3.0
-  noise_strength: 1.5
-  ring_axis: [0, 1, 0]
-  ring_sharpness: 3.0
-  figure_scale: 0.22
-  figure_strength: 0.6
-  knot_density: 0.7
+  scale: 4.5
+  grain_strength: 1.8
+  latewood_width: 0.24
+  ring_sharpness: 4.0
+  ring_color_variation: 0.22
+  pore_density: 0.48
+  pore_aspect: 6.0
   color_ramp:
-    - { position: 0.00, color: [0.18, 0.10, 0.06], interp: "smoothstep" }  # cuore nodo
-    - { position: 0.20, color: [0.55, 0.32, 0.16], interp: "smoothstep" }  # latewood
-    - { position: 0.65, color: [0.90, 0.72, 0.45], interp: "smoothstep" }  # earlywood
-    - { position: 1.00, color: [0.96, 0.86, 0.65], interp: "linear"     }  # sapwood
+    - { position: 0.00, color: [0.26, 0.14, 0.05] }
+    - { position: 1.00, color: [0.92, 0.78, 0.50] }
+roughness: 0.55
+roughness_texture:
+  type: "wood"
+  scale: 4.5
+  grain_strength: 1.8
+  latewood_width: 0.24
+  ring_sharpness: 4.0
+  ring_color_variation: 0.22
+  pore_density: 0.48
+  pore_aspect: 6.0
+  output: "mask"
+  color_ramp:
+    - { position: 0.0, color: [0.32, 0.32, 0.32] }   # latewood → lucido
+    - { position: 1.0, color: [0.78, 0.78, 0.78] }   # earlywood → opaco
 ```
 
-Vedi `scenes/showcases/library-marble-wood.yaml` per il
-confronto a sei sfere: marmi Carrara / Calacatta / Arabescato + legni
-rovere quartato / curly maple / knotty pine.
+Vedi `scenes/showcases/library-woods-v3.yaml` per il confronto a sei
+sfere (quercia / quartato / curly maple / pino nodoso / mogano flame /
+burr walnut) e il materiale canonico `dis_quercia_pro_mask` in
+`scenes/libraries/materials/woods.yaml` per la ricetta mask applicata a
+un look quercia lucida completo.
 
 ---
 
@@ -837,47 +913,73 @@ togli il clearcoat e alza `roughness` a 0.4–0.5.
 Il legno ha tre tagli ortogonali: piano-sawn, quartato, e rift. Più
 figure opzionale (curly, flame, bird's-eye, burl) e nodi opzionali.
 
-| Look legno         | `noise_strength` | `figure_strength` | `radial_anisotropy` | `knot_density` |
-|--------------------|------------------|-------------------|---------------------|----------------|
-| Rovere piano-sawn  | 2.2              | 0.0               | 0.0                 | 0.0            |
-| Rovere quartato    | 2.2              | 0.0               | 2.5–3.5             | 0.0            |
-| Acero curly        | 0.25             | 1.5–1.8           | 0.0                 | 0.0            |
-| Bird's-eye         | 0.15             | 1.0–1.4 + scale 0.45 | 0.0              | 0.0            |
-| Mogano flame       | 0.4              | 1.3–1.5           | 0.0                 | 0.0            |
-| Pino nodoso        | 0.6              | 0.3 (sottile)     | 0.0                 | 0.7–1.0        |
-| Noce burl          | 0.5              | 1.4               | 0.0                 | 0.6            |
+| Look legno         | `grain_strength` | `figure_strength` | `radial_anisotropy` | `pore_density` | `knot_density` |
+|--------------------|------------------|-------------------|---------------------|----------------|----------------|
+| Rovere piano-sawn  | 1.8              | 0.30              | 0.0                 | 0.45           | 0.0            |
+| Rovere quartato    | 2.0              | 0.55              | 4.5                 | 0.45           | 0.0            |
+| Acero curly        | 0.25             | 1.5–1.8 (asp. 4)  | 0.0                 | 0.0            | 0.0            |
+| Bird's-eye         | 0.25             | 0.4 + scale 0.55  | 0.0                 | 0.0            | 0.3 (asp. 1)   |
+| Mogano flame       | 0.4              | 1.4–1.6 (asp. 6)  | 0.0                 | 0.0            | 0.0            |
+| Pino nodoso        | 0.8              | 0.3 (sottile)     | 0.0                 | 0.0            | 1.0            |
+| Burr walnut        | 0.5              | 1.4               | 0.0                 | 0.0            | 0.5            |
 
 Il pattern: **la figure domina sul grain** — per ottenere un look figure
-pulito devi abbassare il grain (`noise_strength` ≤ 0.6) così le fibre
-ad alta frequenza non sopraffanno le ondulazioni lente. Viceversa per
-il rovere piano: figure off, grain alto a 2.0+ per linee fibrose
-chiare.
+pulito abbassa il grain (`grain_strength` ≤ 0.6) così le fibre ad alta
+frequenza non sopraffanno le ondulazioni lente. Viceversa per il rovere
+piano: figure sottile, grain alto a 1.8+ per linee fibrose chiare, e
+`pore_density` 0.4+ per la moteggiatura dei vasi.
 
-#### Step 7 — Ring sharpness vs. scale
+**Imposta sempre `ring_color_variation` e `ring_width_variation`**
+nel range 0.15-0.25. Sono il singolo upgrade più grande da "look fake"
+a "look reale" — senza shift random per anello, tutti gli anelli sono
+identici e la texture si legge immediatamente come CG.
 
-`ring_sharpness` controlla la larghezza della banda di legno tardivo (la
-linea scura a fine di ogni anno di crescita). Combinato con `scale`:
+#### Step 7 — Ring sharpness vs. latewood width
 
-- `scale = 3`, `ring_sharpness = 1` — bande morbide e larghe. Rovere di
-  un albero giovane a crescita veloce (default legacy).
-- `scale = 4.5`, `ring_sharpness = 4` — latewood netto ~10% della
-  larghezza dell'anello. Classico rovere / noce.
-- `scale = 6`, `ring_sharpness = 5` — anelli stretti, latewood capillare.
-  Abete d'altura, pino a crescita lenta.
-- `scale = 6`, `ring_sharpness = 8` — anelli molto stretti, quasi tipo
-  grattugia. Aliasa su sfere piccole, usare solo in close-up.
+Il nuovo profilo asimmetrico divide il legacy `ring_sharpness` in due
+knob ortogonali:
 
-#### Step 8 — Autorialità anelli dei nodi
+- `latewood_width` — frazione di ogni anello occupata dalla banda
+  latewood scura ALLA FINE. 0.15-0.20 per latifoglie (acero, noce,
+  ciliegio), 0.22-0.30 per conifere (pino, abete, cedro).
+- `ring_sharpness` — nitidezza della transizione latewood. 1.0 =
+  S-curve morbida; 3-6 = linea scura netta da rasoio.
 
-Quando `knot_density > 0` la texture genera nodi Voronoi a piccola scala
-nel piano perpendicolare al `ring_axis`. Dentro un nodo il centro
-dell'anello viene tirato verso il feature point del nodo, producendo
-anelli concentrici attorno al nodo — esattamente come una sezione di
-branca incastonata nel legno del tronco. Due regole:
+Combinato con `scale`:
 
-1. **`scale` alto** (≥ 5): così il nodo può ospitare anelli interni
-   visibili. Un `scale` basso fa apparire i nodi come puntini scuri,
-   non nodi veri.
+- `scale = 3`, `latewood_width = 0.18`, `ring_sharpness = 2.5` — bande
+  morbide e larghe. Look acero o faggio.
+- `scale = 4.5`, `latewood_width = 0.24`, `ring_sharpness = 4.0` —
+  classico rovere / noce con linea latewood netta.
+- `scale = 6`, `latewood_width = 0.28`, `ring_sharpness = 5.0` —
+  anelli stretti con latewood razor. Pino crescita lenta, larice vecchio.
+
+#### Step 8 — Vasi open-pore (quercia, frassino, noce, mogano)
+
+Imposta `pore_density` > 0 per abilitare il pass dei vasi open-pore.
+La texture campiona un campo Worley anisotropico assialmente — le celle
+sono allungate lungo l'asse del tronco da `pore_aspect` per ricordare
+i corti canali cilindrici dei vasi reali. Usa:
+
+- **Quercia / frassino:** `pore_density: 0.42-0.48`, `pore_scale: 16-18`,
+  `pore_aspect: 5-6`, `pore_strength: 0.50`.
+- **Noce:** `pore_density: 0.40`, `pore_aspect: 5.5`.
+- **Mogano:** `pore_density: 0.25`, `pore_aspect: 5.0` (semi-pore).
+- **Finiture cera / verniciato:** abbassa `pore_strength` a 0.40 (la
+  finitura riempie parzialmente i pori).
+- **Essenze close-pore** (acero, faggio, ciliegio, ebano): lascia
+  `pore_density: 0` e Worley viene bypassato interamente.
+
+#### Step 9 — Autorialità anelli dei nodi
+
+Quando `knot_density > 0` la texture proietta nodi cono-formi 3D nella
+direzione dell'asse del tronco. Ogni cella Worley sparsa ospita al
+massimo un nodo; dentro il cono visibile del nodo il centro dell'anello
+viene tirato verso il feature point del nodo e si aggiunge un cuore
+scuro sopra. Due regole:
+
+1. **`scale` ≥ 5** così il nodo può ospitare anelli interni visibili.
+   Un `scale` basso fa apparire i nodi come puntini scuri, non nodi.
 2. **Ramp a 4 stop** che riserva la posizione 0 al cuore del nodo:
    ```yaml
    color_ramp:
@@ -891,6 +993,20 @@ branca incastonata nel legno del tronco. Due regole:
    ricadeva il campione, quindi la posizione 0 viene sempre mostrata.
    Senza quello stop dedicato al nodo, il nodo si limiterebbe a scurire
    il colore d'anello locale — visibile ma meno riconoscibile come nodo.
+
+#### Step 9b — Gradiente sapwood / heartwood
+
+Noce, ciliegio, ipe e altre essenze con demarcazione netta heartwood/
+sapwood usano `heartwood_radius` + `heartwood_blend`:
+
+```yaml
+heartwood_radius: 1.6     # unità pre-scale
+heartwood_blend: 0.22     # +ve scurisce il centro (cuore)
+```
+
+Per assi tagliate dalla parte interna del tronco questo produce il
+classico look "centro più scuro / bordi più chiari" che nessuna
+quantità di tuning del grain può raggiungere.
 
 #### Step 9 — Randomizzazione per instancing
 

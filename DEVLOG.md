@@ -8,6 +8,122 @@ Roadmap, lavori in corso, bug noti, storico cicli.
 
 ## 📌 Note rapide
 
+### ✅ Wood texture — riscrittura pro-grade (Arnold/Cycles/Renderman/Mitsuba parity)
+
+Sostituito il vecchio carrier `sin(ring·scale)^sharpness` (profilo
+simmetrico, ogni anello identico) con un modello production-grade degli
+anelli annuali al livello di Arnold `wood`/`knots`, Cycles Wave Texture
+in modalità Rings, RenderMan `PxrWoodKnot` e Substance Designer Wood.
+Il vecchio algoritmo aveva due bug strutturali di realismo: il profilo
+simmetrico (scuro ai due estremi, chiaro al centro) è l'opposto del
+profilo reale (lungo plateau earlywood chiaro + sottile banda
+latewood scura ALLA FINE dell'anello), e ogni anello era identico al
+successivo, mentre in natura ogni anno di crescita ha la sua larghezza
+e il suo colore unici.
+
+**Nuovo pipeline (per shade).**
+1. **Texture transform + `space_stretch` anisotropo.** Pre-stretch
+   lineare per tagli non isotropi della tavola.
+2. **Geological fold (anisotropo).** `DomainWarp.Anisotropic` con
+   `fold_amplitude` per asse — simula il bending macro del tronco
+   PRIMA del recursive warp, così il warp opera nello spazio piegato.
+3. **Recursive (IQ) domain warp.** `DomainWarp.Recursive` itera
+   `warp_iterations` volte (0 = no warp, 2 = canonico IQ, 3 = flow
+   forte). Uccide il tiling visibile sugli anelli. Sostituisce il
+   `distortion` single-iter (la chiave YAML `distortion:` è mappata
+   su `warp_amplitude` per back-compat).
+4. **Decomposizione radiale/assiale.** `dist = ||p - (p·axis)axis||`
+   sul punto warpato.
+5. **Radial anisotropy.** Comprime la coordinata radiale del sample
+   point per il look quartersawn (medullary rays).
+6. **Multi-banda noise sulla distanza radiale.** Grain fBm (alta freq,
+   fibra) + figure band (bassa freq, con `figure_aspect` per
+   allungamento assiale → strisce perpendicolari al grain — curly
+   maple, flame mahogany) + axial_grain opzionale.
+7. **Knot 3D-cone projection.** Worley anisotropico nello spazio
+   (perp1, perp2, along/aspect) — ogni cella sparsa ospita un nodo
+   il cui cono visibile si allarga con la distanza assiale dal
+   centro. Dentro il cono il centro dell'anello viene tirato verso
+   il feature point del nodo e si aggiunge un cuore scuro.
+8. **Per-ring random variation.** Hash deterministico
+   `(ringIndex, objectSeed) → [-1, 1]` che perturba per ogni anello:
+   - la **larghezza** (`ring_width_variation`) shift della coord
+     radiale costante dentro un anello;
+   - il **colore** (`ring_color_variation`) shift della lookup ramp.
+   È IL feature che separa "wood CG" da "wood reale".
+9. **Asymmetric ring profile.** `rise(frac) * fall(frac)` dove
+   `rise = smoothstep(0, earlywood_transition, frac)` (ascesa veloce
+   dal latewood precedente) e `fall = 1 - smoothstep(1 - latewood_width, 1, frac)`
+   (discesa morbida nel latewood). Sostituisce il legacy
+   `pow(triangle, sharpness)` simmetrico. `ring_sharpness` ora
+   controlla la nitidezza del bordo latewood via `pow(t, 1/sharpness)`.
+10. **Knot dark heart** (applicato dopo il ring profile per
+    leggibilità indipendente dalla banda).
+11. **Open-pore vessels** — Worley anisotropico assialmente
+    (`pore_aspect` allungamento) per i corti canali cilindrici di
+    quercia/frassino/noce/mogano. Gating per-cella (`pore_density`)
+    + falloff smoothstep (`pore_strength`, `pore_scale`). 0 disabilita
+    interamente Worley.
+12. **Sapwood / heartwood radial gradient.** Smoothstep su
+    `heartwood_radius` con `heartwood_blend > 0` che scurisce verso
+    il centro (modello noce, ciliegio, ipe). 0 disabilita.
+13. **Output.** `Color` (default, ramp/lerp) o `Mask` (`(t,t,t)`)
+    per pilotare Disney `roughness_texture` / `sheen_texture` &c.
+
+**YAML schema.** Knob esistenti (`scale`, `grain_strength`,
+`noise_strength`, `ring_axis`, `ring_sharpness`, `axial_grain`,
+`octaves`, `lacunarity`, `gain`, `grain_scale`, `figure_scale`,
+`figure_strength`, `radial_anisotropy`, `knot_density`, `color_ramp`,
+`randomize_offset/rotation`) preservati. Aggiunti:
+`latewood_width`, `earlywood_transition`, `ring_color_variation`,
+`ring_width_variation`, `warp_amplitude`, `warp_scale`,
+`warp_iterations`, `fold_amplitude`, `fold_scale`, `space_stretch`,
+`figure_aspect`, `pore_density`, `pore_scale`, `pore_strength`,
+`pore_aspect`, `heartwood_radius`, `heartwood_blend`, `knot_scale`,
+`output: "mask"`. Il `distortion:` legacy è mappato su
+`warp_amplitude` per scene che ancora lo settano.
+
+**Invariante di concentricità.** Il `noiseShift` per-istanza NON
+viene mai aggiunto al pipeline geometrico (fold/warp/decomposizione
+radiale) — quello deve restare deterministico in object space così
+che gli anelli restino concentrici attorno all'asse del tronco. La
+decorrelazione tra istanze adiacenti si ottiene SIA via `noiseShift`
+sul sample point del noise (grain/figure) SIA via `Perlin.GetOrCreate(objectSeed)`
+che fornisce un'istanza di Perlin diversa per il warp.
+
+**Migrazione libreria.** `scenes/libraries/materials/woods.yaml`
+riscritta interamente: ogni essenza (acero, betulla, frassino, faggio,
+quercia, ciliegio, teak, iroko, noce, mogano, wengé, palissandro,
+ebano, ebano macassar, pino, abete, cedro, larice, zebrano, padouk,
+amaranto, bocote, sbiancato, shou sugi ban, barnwood, tinto nero,
+tinto grigio) usa una `color_ramp` 3-stop calibrata sulle foto reali
++ knob species-appropriate (pore_density 0.42-0.48 per quercia/frassino,
+0 per essenze close-pore come acero/faggio, knot_density 0.55 per pino,
+heartwood_blend 0.18-0.22 per noce/ciliegio, ecc.). Materiali studio
+estesi: `dis_acero_curly_studio`/`max`, `dis_mogano_flame_studio`,
+`dis_quercia_quartato_studio`/`medullary`, `dis_pino_nodoso_studio`/`heavy`,
+`dis_acero_birdseye[_studio]`, `dis_noce_burl_studio`, `dis_cedro_shousugiban`,
+`dis_rovere_segato_grezzo`, `dis_betulla_ricca_studio`,
+`dis_quercia_pro_mask` (esempio canonico mask-roughness).
+
+**Showcase.** Aggiunto `scenes/showcases/library-woods-v3.yaml`
+(6-sfere: quercia / quartato medullary / curly maple max / pino
+nodoso heavy / mogano flame / burr walnut). Lo showcase legacy
+`library-woods.yaml` resta funzionante grazie alla migrazione dei
+materiali.
+
+**Tests.** `MarbleWoodStudioTests` sostituiti i test back-compat
+legacy con 18 test mirati sui nuovi invarianti: range [0,1] sotto
+stress, decorrelazione object seed, no-op per ogni knob a default,
+profilo asimmetrico (latewood al frac > 0.7), variazione anello-su-anello,
+mask packing (t,t,t), heartwood center vs edge, warp 0 vs 3 differs
+materially, all-knobs-cranked NaN/Inf safe. Aggiornato
+`TextureTransformTests.Wood_RingsRemainConcentric_WhenRandomizeOffset`
+per disabilitare esplicitamente il warp+per-ring-variation (default ON
+nel nuovo pipeline).
+
+---
+
 ### ✅ Marble texture — riscrittura pro-grade (Arnold/Cycles/Mitsuba parity)
 
 Sostituita la formula sin-carrier classica

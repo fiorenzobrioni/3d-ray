@@ -1013,6 +1013,46 @@ public class TextureData
     [YamlMember(Alias = "knot_density")]
     public float? KnotDensity { get; set; }
 
+    // Wood — production-grade additions (replaces the legacy `distortion`
+    // single-iter warp and the symmetric pow-of-triangle ring profile).
+    // All have sensible defaults and can be omitted by authors.
+
+    [YamlMember(Alias = "knot_scale")]
+    public float? KnotScale { get; set; }
+
+    [YamlMember(Alias = "figure_aspect")]
+    public float? FigureAspect { get; set; }
+
+    [YamlMember(Alias = "latewood_width")]
+    public float? LatewoodWidth { get; set; }
+
+    [YamlMember(Alias = "earlywood_transition")]
+    public float? EarlywoodTransition { get; set; }
+
+    [YamlMember(Alias = "ring_color_variation")]
+    public float? RingColorVariation { get; set; }
+
+    [YamlMember(Alias = "ring_width_variation")]
+    public float? RingWidthVariation { get; set; }
+
+    [YamlMember(Alias = "pore_density")]
+    public float? PoreDensity { get; set; }
+
+    [YamlMember(Alias = "pore_scale")]
+    public float? PoreScale { get; set; }
+
+    [YamlMember(Alias = "pore_strength")]
+    public float? PoreStrength { get; set; }
+
+    [YamlMember(Alias = "pore_aspect")]
+    public float? PoreAspect { get; set; }
+
+    [YamlMember(Alias = "heartwood_radius")]
+    public float? HeartwoodRadius { get; set; }
+
+    [YamlMember(Alias = "heartwood_blend")]
+    public float? HeartwoodBlend { get; set; }
+
     // Voronoi
     [YamlMember(Alias = "metric")]
     public string? Metric { get; set; }

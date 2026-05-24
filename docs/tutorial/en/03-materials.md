@@ -683,81 +683,160 @@ See `scenes/showcases/library-marbles-v3.yaml` for the 6-sphere comparison
 
 ### Wood
 
+The wood texture is a production-grade annual-ring model on par with
+Arnold's `wood`/`knots`, Cycles' Wave Texture in Rings mode, RenderMan
+`PxrWoodKnot`, and Substance Designer Wood. The legacy symmetric
+`sin(dist)^sharpness` carrier has been replaced with an asymmetric
+earlywood/latewood profile, per-ring random width and colour variation,
+recursive IQ domain warp, multi-band noise, open-pore vessels, and
+3-D cone knot projection — every algorithmic upgrade documented below
+ships ON by default with sensible values.
+
 ```yaml
 texture:
   type: "wood"
-  scale: 5.0
-  noise_strength: 1.2
+  scale: 4.5
+  grain_strength: 1.8
   ring_axis: [0, 1, 0]
-  ring_sharpness: 3.5
-  axial_grain: 0.4
-  octaves: 4
-  distortion: 0.18
-  colors: [[0.78, 0.55, 0.30], [0.42, 0.24, 0.12]]
+  latewood_width: 0.24
+  ring_sharpness: 4.0
+  ring_color_variation: 0.22
+  ring_width_variation: 0.18
+  warp_amplitude: 0.55
+  pore_density: 0.45
+  pore_aspect: 6.0
+  color_ramp:
+    - { position: 0.00, color: [0.26, 0.14, 0.05] }
+    - { position: 0.55, color: [0.76, 0.55, 0.28] }
+    - { position: 1.00, color: [0.92, 0.78, 0.50] }
 ```
 
 Rings form perpendicular to `ring_axis`: use `[0, 1, 0]` for a tree
 trunk seen on cross-cut, `[0, 0, 1]` for a plank, or a slightly tilted
-vector for a more organic look. `ring_sharpness` exponentiates a
-triangular wave around each ring boundary, producing the dark
-latewood lines you see in oak or walnut. `axial_grain` adds long-
-wavelength variation along the trunk axis (great for planks).
+vector for a more organic look.
 
-| Parameter            | Default   | Description                                              |
-|----------------------|-----------|----------------------------------------------------------|
-| `ring_axis`          | `[0,1,0]` | Trunk / log axis (rings live in the ⊥ plane)             |
-| `ring_sharpness`     | `1.0`     | 1 = soft (legacy), 3–6 = defined latewood                |
-| `axial_grain`        | `0.0`     | Long-wave variation along the trunk axis                  |
-| `octaves`            | `1`       | fBm octaves on the grain (1 = legacy single Perlin)       |
-| `distortion`         | `0`       | Domain warp — 0 = clean rings, ~0.5 = knots/waves         |
-| `grain_scale`        | `1.0`     | Multiplier on the high-freq grain sample point            |
-| `figure_scale`       | `0.25`    | Multiplier on the low-freq figure sample point             |
-| `figure_strength`    | `0.0`     | 0 = disabled, ~0.5–1.5 = curly maple / flame mahogany     |
-| `radial_anisotropy`  | `0.0`     | 0 = plain-sawn (isotropic), >0 = quartersawn-stretched    |
-| `knot_density`       | `0.0`     | 0 = no knots, ~0.5 = sparse knots, ~1 = packed knots      |
+#### Key parameters
 
-**Studio-quality wood.** Four new opt-in knobs upgrade the wood texture
-to the Arnold / RenderMan / Cycles parity tier:
+| Parameter              | Default      | Description                                              |
+|------------------------|--------------|----------------------------------------------------------|
+| `ring_axis`            | `[0,1,0]`    | Trunk / log axis (rings live in the ⊥ plane)             |
+| `grain_strength`       | `1.5`        | Amplitude of the high-freq fBm grain band                |
+| `latewood_width`       | `0.22`       | Width of the dark latewood band per ring (0.15-0.30)     |
+| `ring_sharpness`       | `3.0`        | Crispness of the latewood transition (1-6)               |
+| `earlywood_transition` | `0.05`       | Smooth rise out of the prior latewood (0.005-0.5)        |
+| `ring_color_variation` | `0.15`       | Per-ring colour shift amplitude (the realism upgrade)    |
+| `ring_width_variation` | `0.10`       | Per-ring radial-width offset amplitude                   |
+| `warp_amplitude`       | `0.4`        | Recursive IQ domain warp amplitude                       |
+| `warp_iterations`      | `2`          | 0 = no warp, 2 = canonical IQ, 3 = heavy flow            |
+| `fold_amplitude`       | `[0.3,0.1,0.3]` | Per-axis anisotropic fold amplitude                  |
+| `space_stretch`        | `[1,1,1]`    | Linear pre-stretch (non-isotropic plank cuts)            |
+| `grain_scale`          | `1.0`        | Frequency multiplier on the grain sample point           |
+| `figure_strength`      | `0.0`        | 0 = disabled, 0.4-1.5 = curly maple / flame mahogany     |
+| `figure_scale`         | `0.25`       | Frequency multiplier on the figure sample point          |
+| `figure_aspect`        | `1.0`        | Axial elongation of figure; 3-5 = perpendicular stripes  |
+| `axial_grain`          | `0.0`        | Long-wave noise along the trunk axis                     |
+| `pore_density`         | `0.0`        | Open-pore vessels (0.30-0.55 for oak / ash / walnut)     |
+| `pore_scale`           | `16.0`       | Pore spatial frequency                                   |
+| `pore_aspect`          | `4.0`        | Axial elongation of pores (4-6 = vessel-like)            |
+| `pore_strength`        | `0.4`        | Pore darkening strength                                  |
+| `radial_anisotropy`    | `0.0`        | 0 = plain-sawn, 3-5 = quartersawn medullary rays         |
+| `knot_density`         | `0.0`        | 3-D cone knots (0.5-1.0 for pine / spruce / cedar)       |
+| `knot_scale`           | `0.6`        | Knot frequency multiplier                                |
+| `heartwood_radius`     | `0.0`        | Sapwood/heartwood transition radius (0 = disabled)       |
+| `heartwood_blend`      | `0.25`       | +ve darkens centre (natural for walnut / cherry)         |
+| `output`               | `"color"`    | `"mask"` for FloatTexture-driven Disney params            |
 
-- **Two-band perturbation** — `grain_scale` + `noise_strength` (alias
-  `grain_strength`) drive the high-frequency fibre detail inside each
-  ring; `figure_scale` + `figure_strength` add the independent low-frequency
-  plank-wide undulation that gives **curly maple** its stripes, **flame
-  mahogany** its ripples, and **bird's-eye** its blooms. The figure band
-  is sampled at a decorrelated noise offset so the two bands don't lock
-  step.
-- **`radial_anisotropy`** — compresses the noise sample's radial
-  component, so noise varies slowly along the radial direction. This is
-  the visual difference between **plain-sawn** (default 0, isotropic
-  features) and **quartersawn** boards (high anisotropy, fibres extend
-  radially). The implementation is safe on the trunk axis itself
-  (`radial.Length() == 0`) — the path falls back silently.
-- **`knot_density`** — sparse small-scale Voronoi spawns branch knots
-  that locally pull the ring centre toward the knot feature point and
-  add a dark heart on top. Same trick as Arnold's `knots` and
-  RenderMan's `PxrWoodKnot`. Combine with a 3-stop `color_ramp:` for
-  sapwood / heartwood / knot tri-tone authoring.
+#### Why the rewrite?
+
+The legacy `sin(ring · scale) ^ sharpness` carrier produced perfectly
+symmetric rings — dark on both ends, bright in the middle — and every
+ring was identical. Real annual rings are **asymmetric**: a long bright
+earlywood plateau followed by a thin sharp dark latewood band that
+becomes the visible dark line at the boundary with the next year's ring.
+Combined with deterministic per-ring random width and colour shifts (no
+two rings look the same in nature), this is the single biggest "looks
+fake → looks real" upgrade.
+
+- **Asymmetric ring profile.** `latewood_width` controls the width of
+  the dark band at the END of each annual ring (not centred on the
+  middle as in the legacy symmetric profile). The boundary between two
+  rings is the visible "dark line" of real wood.
+- **Per-ring variation.** `ring_color_variation` and `ring_width_variation`
+  apply a deterministic per-ring hash so adjacent rings differ in
+  brightness and width — the single feature that makes wood look real
+  instead of CG. Keep both around 0.10-0.25 for natural year-to-year
+  variation; 0 is the "every ring identical" legacy look (avoid).
+- **Recursive IQ domain warp.** `warp_amplitude` + `warp_iterations`
+  replace the single-iteration `distortion` knob. The legacy
+  `distortion:` YAML key is mapped to `warp_amplitude` for back-compat.
+- **Multi-band noise.** `grain_strength` (high-freq fBm fibre detail)
+  + `figure_strength` (low-freq curly / flame / ribbon undulations) +
+  `axial_grain` (long-wave along axis). The figure band can be axially
+  elongated via `figure_aspect` to align its stripes perpendicular to
+  the grain — natural orientation of curly maple and flame mahogany.
+- **Open-pore vessels.** `pore_density` spawns sparse dark micro-specks
+  via an axially-anisotropic Worley — cells are elongated along the
+  trunk axis by `pore_aspect` to look like the short cylindrical
+  channels of real open-pore species. 0 = closed-pore (maple, beech,
+  cherry, ebony) and bypasses Worley entirely.
+- **Sapwood / heartwood gradient.** `heartwood_radius` defines the
+  radial transition centre; `heartwood_blend > 0` darkens toward the
+  centre, modelling the heartwood/sapwood demarcation of walnut,
+  cherry, ipe.
+- **`radial_anisotropy`.** Stretches the noise sample along the local
+  radial direction. High values (~3-5) reproduce the quartersawn-oak
+  medullary "tiger ray" look.
+- **`knot_density`.** 3-D cone projection — each sparse Worley cell
+  hosts a knot whose visible cone widens with axial distance from the
+  cell centre. Same family as Arnold's `knots` and RenderMan
+  `PxrWoodKnot`. Combine with a 4-5 stop `color_ramp:` for cuore-nodo
+  / latewood / earlywood / sapwood tone authoring.
+
+#### Mask-driven Disney parameters
+
+Set `output: "mask"` on a wood texture block to return the scalar ring
+parameter `t ∈ [0, 1]` (1 at the bright earlywood plateau, 0 at the
+dark latewood / pore) packed as `(t, t, t)`. Drop the same block under
+`roughness_texture` / `sheen_texture` / `subsurface_texture` to drive
+scalar BSDF parameters from the latewood pattern — latewood can be
+polished while earlywood stays matte (the "cera su quercia" look),
+sheen can ride on the open-pore earlywood only, subsurface can
+attenuate over the dark latewood band.
 
 ```yaml
 texture:
   type: "wood"
-  scale: 3.0
-  noise_strength: 1.5
-  ring_axis: [0, 1, 0]
-  ring_sharpness: 3.0
-  figure_scale: 0.22
-  figure_strength: 0.6
-  knot_density: 0.7
+  scale: 4.5
+  grain_strength: 1.8
+  latewood_width: 0.24
+  ring_sharpness: 4.0
+  ring_color_variation: 0.22
+  pore_density: 0.48
+  pore_aspect: 6.0
   color_ramp:
-    - { position: 0.00, color: [0.18, 0.10, 0.06], interp: "smoothstep" }  # knot heart
-    - { position: 0.20, color: [0.55, 0.32, 0.16], interp: "smoothstep" }  # latewood
-    - { position: 0.65, color: [0.90, 0.72, 0.45], interp: "smoothstep" }  # earlywood
-    - { position: 1.00, color: [0.96, 0.86, 0.65], interp: "linear"     }  # sapwood
+    - { position: 0.00, color: [0.26, 0.14, 0.05] }
+    - { position: 1.00, color: [0.92, 0.78, 0.50] }
+roughness: 0.55
+roughness_texture:
+  type: "wood"
+  scale: 4.5
+  grain_strength: 1.8
+  latewood_width: 0.24
+  ring_sharpness: 4.0
+  ring_color_variation: 0.22
+  pore_density: 0.48
+  pore_aspect: 6.0
+  output: "mask"
+  color_ramp:
+    - { position: 0.0, color: [0.32, 0.32, 0.32] }   # latewood → polished
+    - { position: 1.0, color: [0.78, 0.78, 0.78] }   # earlywood → matte
 ```
 
-See `scenes/showcases/library-marble-wood.yaml` for the
-six-sphere comparison: Carrara / Calacatta / Arabescato marbles + oak
-quartersawn / curly maple / knotty pine.
+See `scenes/showcases/library-woods-v3.yaml` for the six-sphere
+comparison (oak / quartersawn / curly maple / knotty pine / flame
+mahogany / burr walnut) and the canonical `dis_quercia_pro_mask`
+material in `scenes/libraries/materials/woods.yaml` for the mask
+recipe applied to a full polished-oak look.
 
 ---
 
@@ -904,45 +983,72 @@ clearcoat entirely and raise `roughness` to 0.4–0.5.
 Wood has three orthogonal cuts: plain-sawn, quartersawn, and rift. Plus
 optional figure (curly, flame, bird's-eye, burl) and optional knots.
 
-| Wood look       | `noise_strength` | `figure_strength` | `radial_anisotropy` | `knot_density` |
-|-----------------|------------------|-------------------|---------------------|----------------|
-| Plain-sawn oak  | 2.2              | 0.0               | 0.0                 | 0.0            |
-| Quartersawn oak | 2.2              | 0.0               | 2.5–3.5             | 0.0            |
-| Curly maple     | 0.25             | 1.5–1.8           | 0.0                 | 0.0            |
-| Bird's-eye      | 0.15             | 1.0–1.4 + scale 0.45 | 0.0              | 0.0            |
-| Flame mahogany  | 0.4              | 1.3–1.5           | 0.0                 | 0.0            |
-| Knotty pine     | 0.6              | 0.3 (subtle)      | 0.0                 | 0.7–1.0        |
-| Walnut burl    | 0.5              | 1.4               | 0.0                 | 0.6            |
+| Wood look       | `grain_strength` | `figure_strength` | `radial_anisotropy` | `pore_density` | `knot_density` |
+|-----------------|------------------|-------------------|---------------------|----------------|----------------|
+| Plain-sawn oak  | 1.8              | 0.30              | 0.0                 | 0.45           | 0.0            |
+| Quartersawn oak | 2.0              | 0.55              | 4.5                 | 0.45           | 0.0            |
+| Curly maple     | 0.25             | 1.5–1.8 (aspect 4)| 0.0                 | 0.0            | 0.0            |
+| Bird's-eye      | 0.25             | 0.4 + scale 0.55  | 0.0                 | 0.0            | 0.3 (aspect 1) |
+| Flame mahogany  | 0.4              | 1.4–1.6 (aspect 6)| 0.0                 | 0.0            | 0.0            |
+| Knotty pine     | 0.8              | 0.3 (subtle)      | 0.0                 | 0.0            | 1.0            |
+| Burr walnut     | 0.5              | 1.4               | 0.0                 | 0.0            | 0.5            |
 
 The pattern: **figure dominates the grain** — to get a clean figure look
-you must lower the grain (`noise_strength` ≤ 0.6) so the high-frequency
-fibres don't drown the slow undulations. The other way around for plain
-oak: figure off, grain dialled up to 2.0+ for clear fibrous lines.
+lower the grain (`grain_strength` ≤ 0.6) so the high-frequency fibres
+don't drown the slow undulations. The other way around for plain oak:
+figure subtle, grain dialled up to 1.8+ for clear fibrous lines, and
+`pore_density` 0.4+ for the vessel speckling.
 
-#### Step 7 — Ring sharpness vs. scale
+**Always set `ring_color_variation` and `ring_width_variation`** in the
+0.15-0.25 range. They are the single biggest "looks fake → looks real"
+upgrade — without per-ring random shifts every ring looks identical and
+the texture immediately reads as CG.
 
-`ring_sharpness` controls the latewood band width (the dark line at the
-end of each year's growth). Combined with `scale`:
+#### Step 7 — Ring sharpness vs. latewood width
 
-- `scale = 3`, `ring_sharpness = 1` — soft, wide bands. Oak from a young
-  fast-growing tree (legacy default).
-- `scale = 4.5`, `ring_sharpness = 4` — clear latewood band ~10% of the
-  ring width. Classic oak / walnut look.
-- `scale = 6`, `ring_sharpness = 5` — tight rings, hairline latewood.
-  Old-growth fir, slow-growth pine.
-- `scale = 6`, `ring_sharpness = 8` — very tight rings, almost grating-
-  like. Aliases on small spheres, only use on close-ups.
+The new asymmetric profile splits the legacy `ring_sharpness` into two
+orthogonal knobs:
 
-#### Step 8 — Authoring knot rings
+- `latewood_width` — fraction of each ring occupied by the dark latewood
+  band at the END. 0.15-0.20 for hardwoods (maple, walnut, cherry),
+  0.22-0.30 for softwoods (pine, spruce, cedar).
+- `ring_sharpness` — crispness of the latewood transition. 1.0 = soft
+  S-curve; 3-6 = razor-sharp dark line.
 
-When `knot_density > 0` the texture spawns small-scale Voronoi knots in
-the plane perpendicular to `ring_axis`. Inside a knot the ring centre
-is pulled toward the knot feature, producing concentric rings around the
-knot — exactly like a branch cross-section embedded in the trunk wood.
-Two rules:
+Combined with `scale`:
 
-1. **High `scale`** (≥ 5): so the knot can host visible internal rings.
-   A small `scale` makes knots look like dark spots, not knots.
+- `scale = 3`, `latewood_width = 0.18`, `ring_sharpness = 2.5` — soft
+  wide bands. Acero or faggio look.
+- `scale = 4.5`, `latewood_width = 0.24`, `ring_sharpness = 4.0` —
+  classic oak / walnut look with crisp latewood line.
+- `scale = 6`, `latewood_width = 0.28`, `ring_sharpness = 5.0` — tight
+  rings with razor latewood. Slow-growth pine, larice vecchio.
+
+#### Step 8 — Open-pore vessels (oak, ash, walnut, mahogany)
+
+Set `pore_density` > 0 to enable the open-pore vessel pass. The texture
+samples an axially-anisotropic Worley field — cells are elongated along
+the trunk axis by `pore_aspect` to look like the short cylindrical
+channels of real vessels. Use:
+
+- **Oak / ash:** `pore_density: 0.42-0.48`, `pore_scale: 16-18`,
+  `pore_aspect: 5-6`, `pore_strength: 0.50`.
+- **Walnut:** `pore_density: 0.40`, `pore_aspect: 5.5`.
+- **Mahogany:** `pore_density: 0.25`, `pore_aspect: 5.0` (semi-pore).
+- **Cera / verniciato finishes:** lower `pore_strength` to 0.40 (the
+  finish partially fills the pores).
+- **Closed-pore species** (maple, beech, cherry, ebony): leave
+  `pore_density: 0` and bypass Worley entirely.
+
+#### Step 9 — Authoring knot rings
+
+When `knot_density > 0` the texture projects 3-D cone-shaped knots in
+the trunk axis direction. Each sparse Worley cell hosts at most one
+knot; inside the knot's visible cone the ring centre is pulled toward
+the knot feature point and a dark heart is added on top. Two rules:
+
+1. **`scale` ≥ 5** so the knot can host visible internal rings. A
+   small `scale` makes knots read as dark spots, not knots.
 2. **4-stop ramp** that reserves position 0 for the knot heart:
    ```yaml
    color_ramp:
@@ -956,6 +1062,20 @@ Two rules:
    so position 0 always shows. Without that dedicated knot stop, the
    knot would just darken the local ring colour — visible but less
    recognisable as a knot.
+
+#### Step 9b — Sapwood / heartwood radial gradient
+
+Walnut, cherry, ipe and other species with strong heart/sapwood
+demarcation use `heartwood_radius` + `heartwood_blend`:
+
+```yaml
+heartwood_radius: 1.6     # in pre-scale units
+heartwood_blend: 0.22     # +ve darkens centre (cuore)
+```
+
+For planks cut from the inner portion of the trunk this produces the
+classic darker centre / lighter edges look that no amount of grain
+tuning can reach.
 
 #### Step 9 — Randomization for instancing
 

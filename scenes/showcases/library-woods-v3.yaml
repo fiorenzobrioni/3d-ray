@@ -1,0 +1,149 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Library Woods — V3
+#
+#  Showcase pro-grade della texture wood riscritta. Sei campioni cubici (1.4 wu
+#  per lato) disposti come in uno SHOWROOM di legno: la faccia superiore
+#  mostra l'end-grain (anelli concentrici, cross-cut del tronco), le facce
+#  laterali mostrano il rift-cut con curve iperboliche.  Camera leggermente
+#  sollevata per mostrare entrambi i tagli contemporaneamente.
+#
+#  Composizione (da sinistra a destra):
+#    Quercia olio          — latifoglia chiara open-pore (pori vasi visibili)
+#    Noce verniciato       — latifoglia scura + clearcoat + heartwood gradient
+#    Mogano flame studio   — figure intensa perpendicolare al grain
+#    Pino nodoso heavy     — conifera nodosa con nodi cono-3D + ramp 5-stop
+#    Acero curly max       — figure massima a banda larga, close-pore
+#    Wengé olio            — nero open-pore (latifoglia africana)
+#
+#  Le sei essenze sono state scelte per coprire:
+#    • Chiaro vs scuro      (acero/quercia ↔ wengé/noce)
+#    • Open vs close pore   (quercia/wengé ↔ acero/mogano)
+#    • Con vs senza figure  (curly/flame ↔ quercia/wengé)
+#    • Con vs senza nodi    (pino nodoso ↔ tutte le altre)
+#    • Grezzo vs lucido     (quercia olio/wengé olio ↔ noce verniciato)
+#    • Latifoglia vs conifera (5 ↔ pino)
+#
+#  Lighting tarato per LEGNO (opaco/satinato), non per il marmo lucido del
+#  showcase precedente: key direzionale ~4.5 + fill freddo ~18 + rim caldo ~12
+#  (~50% delle intensità del marble showcase).  Sky pure black per non
+#  inquinare i riflessi clearcoat del noce verniciato.
+#
+#  Render hint:
+#    Draft:    -w 640  -H 360  -s 128  -d 8  -S 1
+#    Standard: -w 1920 -H 1080 -s 512  -d 8  -S 4
+#    Final:    -w 1920 -H 1080 -s 2048 -d 12 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+imports:
+  - { path: "../libraries/materials/woods.yaml" }
+
+world:
+  sky:
+    type: "flat"
+    color: [0.001, 0.001, 0.0012]
+
+camera:
+  position: [0, 2.9, -7.8]
+  look_at:  [0, 0.55, 0]
+  fov: 50
+
+materials:
+
+  # Pavimento scuro opaco — fa risaltare i campioni senza riflettere
+  # luce ambientale sui clearcoat.
+  - id: "floor"
+    type: "disney"
+    color: [0.06, 0.06, 0.07]
+    roughness: 0.88
+    specular: 0.10
+
+  # Piano di fondo verticale (anche scuro) per dare profondità — chiude
+  # lo sfondo dietro i campioni invece di lasciarli galleggiare nel nero.
+  - id: "backwall"
+    type: "disney"
+    color: [0.10, 0.10, 0.11]
+    roughness: 0.92
+    specular: 0.08
+
+entities:
+
+  # Pavimento
+  - { name: "floor", type: "quad",
+      q: [-11, 0, -2.5], u: [22, 0, 0], v: [0, 0, 6],
+      material: "floor" }
+
+  # Parete di fondo (z = 2.5)
+  - { name: "backwall", type: "quad",
+      q: [-11, 0, 2.5], u: [22, 0, 0], v: [0, 4, 0],
+      material: "backwall" }
+
+  # ── Sei campioni cubici 1.4×1.4×1.4 ────────────────────────────────────
+  # Centro y = 0.7 (cubo poggiato sul pavimento).
+  # Spaziatura x = 2.0 wu, totale 10 wu (centrato a 0).
+
+  - name: "quercia_olio"
+    type: "box"
+    scale: [1.4, 1.4, 1.4]
+    translate: [-5.0, 0.7, 0]
+    seed: 1
+    material: "dis_quercia_olio"
+
+  - name: "noce_verniciato"
+    type: "box"
+    scale: [1.4, 1.4, 1.4]
+    translate: [-3.0, 0.7, 0]
+    seed: 7
+    material: "dis_noce_verniciato"
+
+  - name: "mogano_flame"
+    type: "box"
+    scale: [1.4, 1.4, 1.4]
+    translate: [-1.0, 0.7, 0]
+    seed: 13
+    material: "dis_mogano_flame_studio"
+
+  - name: "pino_nodoso"
+    type: "box"
+    scale: [1.4, 1.4, 1.4]
+    translate: [1.0, 0.7, 0]
+    seed: 23
+    material: "dis_pino_nodoso_heavy"
+
+  - name: "acero_curly"
+    type: "box"
+    scale: [1.4, 1.4, 1.4]
+    translate: [3.0, 0.7, 0]
+    seed: 31
+    material: "dis_acero_curly_max"
+
+  - name: "wenge_olio"
+    type: "box"
+    scale: [1.4, 1.4, 1.4]
+    translate: [5.0, 0.7, 0]
+    seed: 41
+    material: "dis_wenge_olio"
+
+lights:
+
+  # Key direzionale dall'alto-sinistra — dominante, leggermente calda.
+  # Intensità tarata per legno opaco (~50% del marble showcase: il legno
+  # non ha un clearcoat lucido da dominare).
+  - type: "directional"
+    direction: [-0.35, -0.82, 0.45]
+    color: [1.0, 0.97, 0.92]
+    intensity: 3.4
+    angular_radius: 1.2     # bordi ombra morbidi
+
+  # Fill freddo dalla sinistra-bassa — apre le ombre senza schiarire troppo.
+  # Spostato più lontano per inverse-square più dolce.
+  - type: "point"
+    position: [-8.5, 4.5, -5.0]
+    color: [0.80, 0.86, 1.00]
+    intensity: 28
+
+  # Rim caldo dal RETRO-ALTO DESTRA — separa i campioni dallo sfondo
+  # senza colpire la parete (era il bright spot del render precedente).
+  - type: "point"
+    position: [6.5, 5.5, -4.5]
+    color: [1.00, 0.82, 0.62]
+    intensity: 18

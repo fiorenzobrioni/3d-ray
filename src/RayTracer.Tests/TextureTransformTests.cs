@@ -186,12 +186,23 @@ public class TextureTransformTests
         {
             RingAxis = Vector3.UnitY,
             RandomizeOffset = true,
-            // Disable the grain perturbation so we test the radial-geometry
-            // invariant in isolation (NoiseStrength = 0 ⇒ rings are pure
-            // concentric circles).
-            NoiseStrength = 0f,
+            // Disable every non-geometric perturbation so we test the radial-
+            // geometry invariant in isolation. The new wood pipeline ships
+            // warp + figure + per-ring variation ON by default — all sources
+            // of legitimate per-sample variation that would break perfect
+            // rotational symmetry around the trunk axis.
+            GrainStrength = 0f,
+            FigureStrength = 0f,
+            AxialGrain = 0f,
+            WarpAmplitude = 0f,
+            WarpIterations = 0,
+            FoldAmplitude = Vector3.Zero,
+            RingColorVariation = 0f,
+            RingWidthVariation = 0f,
             Octaves = 1,
             RingSharpness = 1f,
+            LatewoodWidth = 0.5f,   // symmetric profile so equal `dist` ⇒ equal `t`
+            EarlywoodTransition = 0.5f,
         };
         const float r = 0.3f;
         Vector3 a = new(r, 0f, 0f);
