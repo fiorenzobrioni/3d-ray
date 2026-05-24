@@ -122,7 +122,7 @@ public class FireflyRegressionTests
         Assert.True(spikeCount <= MaxAllowedSpikePixels,
             $"Firefly spike pixel count {spikeCount} exceeds threshold {MaxAllowedSpikePixels}. " +
             $"The firefly clamp pipeline may be broken. " +
-            $"To update the baseline, render scenes/tests/firefly-stress.yaml, " +
+            $"To update the baseline, render src/RayTracer.Tests/TestScenes/firefly-stress.yaml, " +
             $"measure the count, and update MaxAllowedSpikePixels with 50%% headroom.");
     }
 

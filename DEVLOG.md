@@ -329,7 +329,7 @@ una nuova interfaccia `ISkyModel` con implementazioni concrete sotto
   (`turbidity`, `ground_albedo`, `sun.direction`). YAML accetta `type: hosek_wilkie`
   o `type: preetham`; oggi sono alias. Coefficienti Y/x/y conversi xyY→CIE XYZ→Rec.709,
   trasmittanza Rayleigh per il colore del sole. Sostituibile con tabelle HW
-  complete con un solo file. **Aerial perspective Nishita** è ancora TODO.
+  complete con un solo file.
 - **`HdriSky`** — wrapper IBL su `EnvironmentMap`, ora supporta sun-extracted via
   `HdriSunExtractor`.
 
@@ -368,15 +368,14 @@ flip vedranno il sole dal lato opposto — fix banale invertendo il vettore.
 
 Stato test: `dotnet test` 420 verdi (406 + 14 nuovi in `SkyEnvironmentTests.cs`).
 
-#### Roadmap residua — Fase 2
+#### Completamenti ciclo 2 (tutto ✅)
 
 - **`NishitaSky`** completato (Bruneton-style precomputed transmittance LUT 16×64,
   single-scattering integrazione 16 step lungo il view ray, Rayleigh + Mie HG-0.76,
   earth-scale atmosphere reale 6360 km/8 km/1.2 km). Sample integra correttamente
   alba/tramonto da fisica (Rayleigh 1/λ⁴), zenith blu al mezzogiorno, halo solare
   arancione. Compatibile con `type: nishita` in YAML; turbidity remappata su densità
-  Mie. Aerial perspective via medium è preparato (LUT height-resolved) ma non ancora
-  cablato a `Volumetrics/IMedium`.
+  Mie. Aerial perspective via medium completato nel ciclo 3 (`NishitaAtmosphereMedium`).
 - **`PortalLight`** completato (Bitterli/Wyman/Pharr 2015). `ILight` con
   campionamento area uniforme stratificato sulla finestra, conversione area→solid-
   angle `pdf = d²/(area · cosPortal)`, MIS PDF analitica, ricezione orientata
@@ -386,8 +385,7 @@ Stato test: `dotnet test` 420 verdi (406 + 14 nuovi in `SkyEnvironmentTests.cs`)
   sugli interni (riduzione varianza ~10× sui 95% di NEE che prima sprecava sui muri).
 - **Mipmap prefiltering HDRI** completato (lazy build, sin(θ)-weighted 2×2 box,
   log₂ levels). `EnvironmentMap.SampleMip(direction, lod)` con trilinear tra livelli,
-  esposizione `MaxMipLevel`. Hook nel BSDF roughness→LOD è TODO Fase 3 (richiede
-  modifiche al sampling glossy del Renderer).
+  esposizione `MaxMipLevel`. Hook nel BSDF roughness→LOD completato nel ciclo 3 (glossy LOD).
 - **Tabelle Hosek-Wilkie complete** — non implementate in questa sessione (28KB di
   costanti tabulati per RGB×9 coefs×2 albedos×10 turb×6 control points). Per ora il
   YAML `type: hosek_wilkie` aliasa a Preetham. Per upgrade futuro è sufficiente
@@ -395,7 +393,7 @@ Stato test: `dotnet test` 420 verdi (406 + 14 nuovi in `SkyEnvironmentTests.cs`)
 
 Test totali: 427 verdi (420 + 7 nuovi per Nishita/Portal/Mipmap).
 
-#### Roadmap residua — Fase 3 (chiusura)
+#### Completamenti ciclo 3 (tutto ✅)
 
 - **`NishitaAtmosphereMedium`** completato (`src/RayTracer/Volumetrics/`).
   `IMedium` adapter che condivide i coefficienti fisici con `NishitaSky`:
@@ -433,9 +431,7 @@ density, glossy LOD smoothing, e copertura aggiuntiva).
 
 ### ✅ CLI — preset `--quality` / `-q`
 
-Aggiunto un flag CLI che impacchetta in un colpo i cinque knob di qualità (`-w -H -s -d -S`) in preset con nome stile Arnold/Cycles/RenderMan. Sette preset: `draft-small` / `draft` (960×540 e 1920×1080, `-s 16 -d 4 -S 1`), `medium-small` / `medium` (`-s 128 -d 6 -S 1`), `final-small` / `final` (`-s 1024 -d 8 -S 4`), `ultra` (3840×2160, stessi sampling dei final). Qualunque flag esplicito ha la precedenza sul preset, quindi `-q final -d 16` resta possibile per scene con vetri impilati. Implementato come tipo nested `Program.QualityPreset`, parser case-insensitive, errore esplicito su valori sconosciuti. Documentazione: `docs/reference/rendering-profiles.md` + `profili-di-rendering.md` §1a, tutorial cap. 02 (EN/IT), `README.md` Quick Start + tabella CLI + sezione esempi pratici.
-
-
+Aggiunto un flag CLI che impacchetta in un colpo i cinque knob di qualità (`-w -H -s -d -S`) in preset con nome. Dieci preset: `draft-tiny` / `draft-small` / `draft` (480×270 · 960×540 · 1920×1080, `-s 16 -d 4 -S 1`), `medium-tiny` / `medium-small` / `medium` (`-s 128 -d 6 -S 1`), `final-tiny` / `final-small` / `final` (`-s 1024 -d 8 -S 4`), `ultra` (3840×2160, stessi sampling dei final). Qualunque flag esplicito ha la precedenza sul preset, quindi `-q final -d 16` resta possibile per scene con vetri impilati. Implementato come tipo nested `Program.QualityPreset`, parser case-insensitive, errore esplicito su valori sconosciuti. Documentazione: `docs/reference/rendering-profiles.md` + `profili-di-rendering.md` §1a, tutorial cap. 02 (EN/IT), `README.md` Quick Start + tabella CLI + sezione esempi pratici.
 
 ---
 
@@ -494,21 +490,21 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 **Volumetrics Stage 1+1.5**: medium globale opt-in (`world.medium`), output bit-identico se assente. `IMedium`: Homogeneous (Beer-Lambert + free-path), HeightFog (densità esponenziale closed-form), HeterogeneousProcedural (Perlin fBm, delta+ratio tracking), Grid (`.vol` o inline, slab clip + trilinear + delta tracking). `IPhaseFunction`: Isotropic, HG, Rayleigh, Double-HG (Nubis), Schlick (fast-HG). Stage 2 (deferred): EmissiveMedium, MediumInterface per-entity, SSS random-walk, OpenVDB nativo, spectral tracking — tutti richiedono modifiche ad `IMedium` / `HitRecord` / `Renderer.TraceRay`.
 
-### Fase 5 — Frontiera ⬜
+### Fase 5 — Frontiera 🔧
 
-| # | Feature |
-|---|---------|
-| 23 | Bidirectional Path Tracing (dopo #13) |
-| 24 | Spectral Rendering (lunghezze d'onda → dispersione prismatica) |
-| 25 | Displacement Mapping (height map runtime tessellation, dopo #7) |
-| 26 | GPU Acceleration (CUDA/Vulkan, progetto separato) |
+| # | Feature | Stato |
+|---|---------|-------|
+| 23 | Bidirectional Path Tracing (dopo #13) | ⬜ |
+| 24 | Spectral Rendering (lunghezze d'onda → dispersione prismatica) | ⬜ |
+| 25 | Surface Displacement Stack (bump map, mesh subdivision Loop/Catmull-Clark, scalar/vector displacement, autobump) | ✅ |
+| 26 | GPU Acceleration (CUDA/Vulkan, progetto separato) | ⬜ |
 
 ### Dipendenze chiave
 
 ```
 #3 Image Tex ─► #5 Normal Map, #9 Mix Material
 #6 Disney   ─► #20 SSS
-#7 OBJ      ─► #22 Instancing, #25 Displacement
+#7 OBJ      ─► #22 Instancing, #25 Displacement ✅
 #11 Scene G ─► #22 Instancing
 #12 IS      ─► #13 MIS ─► #23 BDPT
 #15 Tiles   ─► #14 Adaptive, #16 Denoiser
@@ -543,86 +539,23 @@ Strategia incrementale per le caustiche, in ordine di costo crescente. Strada 1 
 
 ---
 
-## ✅ TODO
+## 📋 TODO
 
-- [x] ~~Valutare se coerente: aggiungere la possibilita tramite una nuova proprieta per le luci visibili nella scena (tipo ad es. le luci `sphere`) per renderle visibili o meno dal punto di vista della camera, oltre che per l'illuminazione.~~ Fatto: `visible_to_camera` (Arnold/Cycles "camera" / Cycles "Ray Visibility → Camera") su `lights:` (sphere/area) e `entities:` (qualunque oggetto, utile per emissive panels). Vedi voce 2026-05 nello storico.
-- [x] ~~Valutare se coerente: aggiungere proprietà `focal_pos: [x, y, z]` (alternativa a `focal_dist`) per la `camera` per indicare la posizione del fuoco al posto della distanza. Per semplicita' in certe situazioni potrebbe essere comodo indicare direttamente la posizione del fuoco.~~ Fatto: `focal_pos` su `CameraData`, distanza calcolata come proiezione del vettore camera→punto sull'asse ottico (Arnold "Focus Object"/Cycles "Focal Object"/RenderMan). Vedi voce 2026-05 nello storico.
-- [x] ~~Texture più realistiche (devono essere come quelle dei ray tracer professionali tipo Arnold, Cycles, Renderman, ecc.) di quelle attuali per legno, marmo, noise e tutti le texture gestite finora. Aggiungi eventuali texture ora assenti ma presenti in ray tracer come Arnold, Cycles, Renderman, ecc.. Implementazione pro a livello di Arnold, Cycles, Renderman, ecc.. Senza compromessi. Aggiungi nuova scena showcase e aggiorna anche reference scene IT e EN e i tutorial IT e EN.~~ Fatto: upgrade pro di noise/marble/wood (octaves/lacunarity/gain/distortion + assi/sharpness configurabili) e nuove texture `voronoi`, `brick`, `gradient`. Vedi voce 2026-05 nello storico.
-- [x] ~~**Stack completo "surface displacement" livello Arnold/RenderMan/Cycles** — deformazioni superficiali visibili con parità feature ai render pro. Da sviluppare come unico ciclo a step incrementali, ciascuno utile da solo: (1) **Bump map scalare da `ITexture` qualunque** (procedurali + immagini): nuovo canale `bump_map: { texture: …, strength: …, scale: … }` sui materiali, perturbazione della normale geometrica via differenze finite di luminanza in tangent-space (TBN già esistente da #5 normal mapping); funziona su tutte le primitive senza modifiche al BVH — sblocca subito le texture pro (#27) come dettagli superficiali. (2) **Mesh subdivision** (Loop su tri, Catmull-Clark opzionale su quad) sul loader OBJ con `subdivision_iterations` e/o `subdivision_pixel_error` (adattivo screen-space). (3) **Scalar displacement vero** sulla mesh subdivisa (`v += h(u,v) · n_smooth`), con `displacement_bound` per gonfiare gli AABB del BVH così i micro-poligoni spostati non scappano dal box originale — questo è il #25 della Fase 5 e fornisce le silhouette modificate, non solo lo shading. (4) **Vector displacement** (texture RGB → offset XYZ) per overhangs e crinkles, riusando l'infrastruttura di (3). (5) **Combinazione bump + displacement** (autobump-like di Arnold: il displacement gestisce la macro-silhouette, il bump residuo i dettagli sub-pixel) e priorità di applicazione coerente con Disney BSDF (`coat_normal_map` indipendente già esistente, base normal/bump/displacement compongono il `n_shading` finale). Vincolo architetturale: il displacement vero resta limitato alle mesh — sphere/torus/cylinder/ecc. supportano solo bump (stessa scelta di Arnold/Cycles). Doc + showcase + tutorial EN/IT per ogni step.~~ Fatto: tutti e cinque gli step completati. Step 5 (autobump + composizione canonica `normal_map → bump_map → autobump`) implementato nel ciclo 2026-05; vedi voce dedicata nello storico.
+- [ ] Review dei materiali in `scenes/libraries/materials/`: aggiornare quelli che beneficiano di surface displacement e aggiungere nuove librerie pro (pelli, cementi, sassi, marmi porosi e simili).
+- [ ] **HeightField strata: layered stack BSDF "no-compromise"** — il selettore strata oggi è winner-takes-all con jitter Perlin 3-ottave + aspect bias `±Z`. La versione pro è uno **stack N-ary** con coverage weights normalizzati. Implementazione: nuovo `LayeredStratumMaterial` proxy `IMaterial` che incapsula la lista di `(StratumBand, IMaterial)` + funzione di weight geometrico `(altNorm, slopeDeg, curvature, aspect) → R^N`; `Scatter` campiona via distribuzione 1D pesata (PDF MIS-consistente); `EvaluateDirect` somma pesata. Back-compat via `strata_blending: "winner" | "stochastic" | "weighted"` (default `winner`).
 
-- [x] ~~**Texturing "VFX production-grade": parità completa con Arnold/RenderMan/Cycles oltre la matematica core.**~~ ✅ **ROADMAP COMPLETA** (2026-05). Tutti i 7 step completati: (1) anti-aliasing analitico con ray differentials, (2) color ramp multi-stop, (3) smooth Voronoi (IQ log-sum-exp), (4) Musgrave HeteroTerrain + HybridMultifractal, (5) Marble/Wood studio-quality (secondary wave, anisotropy, knots), (6) F3/F4 + Position output Voronoi, (7) CoordinateTexture node. Vedi voci dedicate nello Storico cicli. **Contesto originale** (preservato per riferimento storico): I primitivi di noise (Perlin, fBm, ridged, billow, Worley, marble, wood, brick, gradient) usano già le equazioni canoniche dei testi di riferimento (Perlin 1985/2002, Ebert-Musgrave-Peachey-Perlin "Texturing & Modeling", Worley 1996, IQ domain warp), e per un singolo sample il risultato è equivalente. Mancano però gli strati di infrastruttura e tooling che separano un raytracer "decente con texture credibili" da uno "pronto per VFX dove le texture devono reggere zoom 4K, movimento camera, e workflow di lookdev". Da sviluppare come unico ciclo a step incrementali ordinati per impatto visivo decrescente, ciascuno utile da solo:
+  Tre estensioni obbligatorie per la parità con i terrain shader pro:
 
-  (1) **Anti-aliasing analitico con filter footprint (ray differentials).** ✅ Completato 2026-05 (branch `claude/analytic-antialiasing-filter-36oaF`, voce in Storico cicli). È il fix più urgente: oggi le procedurali sono **point-sampled**, a distanza producono moiré/shimmer dove Arnold/RM mostrerebbero sfumatura. Estendere `Ray` con ray differentials `(∂P/∂x, ∂P/∂y, ∂D/∂x, ∂D/∂y)` in screen-space come in PBRT §10.1, propagati attraverso `Hit()` di ogni primitiva (`sphere`/`cylinder`/`torus`/`cone`/`quad`/`triangle`/`disk`/`annulus`/`capsule`/`lathe`/`extrusion`/`CSG` — formula chiusa per ciascuna, le derivate sono già implicite nelle parametrizzazioni esistenti) e attraverso `Transform` (Jacobiana = matrice inversa-trasposta). Estendere `ITexture` con overload `Value(u, v, p, seed, FilterFootprint footprint)` con default che fa pass-through alla versione point-sampled corrente (back-compat). Implementazioni filtered: **Perlin/fBm** via clamp ottave a `λ = ⌊log₂(1/maxAxis(footprint))⌋` (Heidrich-Slusallek 1998 "Improved Perlin Noise" §4) — sopra Nyquist le ottave alte vengono droppate analiticamente; **Worley** via supersampling adattivo 4-16 jitter samples in footprint (`PxrVoronoise` fa lo stesso); **ImageTexture** via mipmap pyramid generata in ctor + EWA filtering (Heckbert 1989) per anisotropia corretta a basso angolo. CLI flag `--texture-filtering on|off|auto` (default `auto`). Test: rendering `textures-pro-showcase.yaml` a 4K, 16 spp → confronto rumore vs baseline 256 spp; risultato atteso: stesso aspetto. Bench: `TextureFilteringBench` per costo per-sample.
+  **(a) Curvatura/concavità come weight input.** Laplaciano discreto della heightmap al hit (5-stencil) → `curvature ∈ [-1, +1]`. Concavità bonus a snow/ground; convessità bonus a rock. Costo: 4 sample heightmap extra per hit.
 
-  (2) **Color ramp multi-stop.** ✅ Completato 2026-05 (branch `claude/color-ramp-multi-stop-ZlQ5y`, voce in Storico cicli). Nuova classe `ColorRamp` esposta come blocco YAML opzionale `color_ramp: [...]` al posto del semplice `colors:` su qualunque texture procedurale. Lista di stop `{ position: float ∈ [0,1], color: [r,g,b], interp: "linear" | "smoothstep" | "constant" | "ease" }`. Applicato in `ITexture.Value` dopo il calcolo del valore scalare di noise (sostituisce il `Vector3.Lerp(colorA, colorB, t)` finale di noise/marble/wood/voronoi/gradient — brick ha tre colori specifici e resta indipendente o usa ramp 3-stop). Esempio YAML:
-  ```yaml
-  texture:
-    type: "marble"
-    color_ramp:
-      - { position: 0.00, color: [0.05, 0.05, 0.07], interp: "linear" }
-      - { position: 0.45, color: [0.95, 0.93, 0.88], interp: "smoothstep" }
-      - { position: 0.55, color: [0.95, 0.93, 0.88], interp: "linear" }
-      - { position: 1.00, color: [0.05, 0.05, 0.07], interp: "linear" }
-  ```
-  `colors:` resta come scorciatoia equivalente a un ramp a 2 stop (back-compat totale). Sblocca: marmo Statuario con vena dorata/nera/grigia, wood con sapwood/heartwood/knot 3-color, gradient artistici complessi.
+  **(b) Per-band noise mask configurabile.** Ogni `StratumBand` ottiene `noise_mask: { scale, octaves, amplitude, seed }` opzionale, che sovrascrive il jitter globale per quella band (snow: alta freq, sand: bassa freq, rock: media freq). Senza questo i confini sembrano tutti uguali.
 
-  (3) ~~**Smooth Voronoi.** Aggiungere `smoothness ∈ [0,1]` a `VoronoiTexture`: quando > 0 sostituisce `min()` su F1 con soft-min `-log(Σ exp(-k·d_i)) / k` (k = 20/smoothness, IQ "Smooth Voronoi"); F2-F1 con smoothness > 0 diventa "smooth crackle" (bordi morbidi, niente alias a step). Utile per cuoio levigato, ciottoli arrotondati, pelle di rettile più realistica. Showcase: tre sfere `hard / smooth=0.3 / smooth=0.7`.~~ ✅ Completato 2026-05 (branch `claude/smooth-voronoi-texturing-nqCt1`, voce in Storico cicli).
+  **(c) Sun-aware aspect bias.** L'aspect bias legge `SkyData.SunDir` e calcola `aspectCool = -dot(horizontalNormal, horizontalSunDir)` invece di usare `+Z` hardcoded.
 
-  (4) ~~**Musgrave multifractal completo.** Aggiungere a `Perlin` i metodi `HeteroTerrain(p, octaves, lacunarity, H, offset)` e `HybridMultifractal(p, octaves, lacunarity, H, offset)` da Musgrave "Texturing & Modeling" §16. Parametro `H` (fractal increment, controlla roughness vs altitudine), `offset` (sea-level/threshold). Esposti in `NoiseTexture` come `noise_type: "hetero_terrain"` e `"hybrid_multifractal"` con i parametri YAML `fractal_increment` (H) e `fractal_offset`. Sblocca terreni proceduralmente erosi (terra a quote diverse con roughness diversa) e pattern roccia stratificati irraggiungibili con fBm puro.~~ ✅ Completato 2026-05 (branch `claude/smooth-voronoi-texturing-nqCt1`, voce in Storico cicli).
-
-  (5) ~~**Marble e Wood "studio quality".** Upgrade dei due shader esistenti senza breaking change:
-  - **Marble**: blocco YAML opzionale `secondary_wave: { axis: [...], frequency: ..., strength: ... }` per stratificare una seconda sinusoide ortogonale alla principale → marmi a doppia direzione di venatura (Statuario, Calacatta, Arabescato). La somma `sin(wave1) + 0.5 · sin(wave2)` produce un campo non più rigidamente unidirezionale. Usa il color ramp del punto (2) per vena/base/sotto-tinta a 3+ stop.
-  - **Wood**: separazione di `grain_scale` (alta freq, dettaglio fibra interna agli anelli) e `figure_scale` (bassa freq, ondulazione tavola tipo curly maple), entrambi pesati indipendentemente da `grain_strength` / `figure_strength`. Aggiunta di `radial_anisotropy: float` che stretchera il noise lungo l'asse radiale vs tangenziale (rovere quartato = anisotropia alta, piano-sawn = bassa). Sapwood/heartwood gradient via color ramp 3-stop dal punto (2). Optional `knot_density` per spawn casuale di nodi via Voronoi piccolo-scala mascherato.~~ ✅ Completato 2026-05 (branch `claude/smooth-voronoi-texturing-nqCt1`, voce in Storico cicli).
-
-  (6) ~~**F3/F4 e output Voronoi estesi.** Aggiungere F3, F4 a `WorleyNoise.Evaluate` (mantiene complessità O(27) sulle 27 celle, costo marginale poiché già si scansionano), e nuovi `OutputMode.F3`, `F4`, `F3MinusF1`, `Position` (posizione XYZ del feature più vicino come RGB — utile per shading per-cella o per modulare un'altra texture). Cycles e Houdini espongono F3/F4 di default; in pratica raro ma necessario per cellulare gerarchico e shading custom.~~ ✅ Completato 2026-05 (branch `claude/voronoi-texturing-vfx-gSqWR`, voce in Storico cicli).
-
-  (7) ~~**Coordinate texture node.** Nuova `CoordinateTexture` che ritorna `(p.x, p.y, p.z)` o `(u, v, 0)` come RGB, con `mode: "world" | "object" | "uv" | "generated"` e trasformazione (offset/rotation/scale) standard. Analogo al "Texture Coordinate" node di Cycles. Utile per debug visivo dei UV/coord-spaces e per pilotare altre texture (texture-driven mix masks già supportato ma quello è specifico per il mix material; questo è generico). Bassa priorità — QoL per artisti.~~ ✅ Completato 2026-05 (branch `claude/voronoi-texturing-vfx-gSqWR`, voce in Storico cicli). **🎉 ROADMAP "VFX production-grade textures" CHIUSA — tutti i 7 step completati.**
-
-  Per ogni step controlla attentamente il render della scena di prova e se vedi che non è corretto/realistico, correggi subito.
-  Per ogni step: aggiornare `docs/reference/scene-reference.md` + `riferimento-scene.md` + `docs/tutorial/{en,it}/03-materials.md`, aggiungere showcase dedicato o sezione in `textures-pro-showcase.yaml`, regression test dove ha senso (es. `RayDifferentialTests` per (1) — proiezione di footprint noto attraverso transform e verifica numerica; `ColorRampTests` per (2) — interpolazioni su stop noti; `SmoothVoronoiTests` per (3) — continuità verificata su griglia). Validazione finale: rendering `textures-pro-showcase.yaml` a 1920×1080 e 4K con 64 spp, confronto con baseline pre-cambio sulla stessa scena (`renders/textures-pro-showcase.png` attuale è il punto di partenza). Voce DEVLOG storica a fine ciclo che elenca tutti gli step completati e i file toccati. Vincoli architetturali: back-compat totale (le scene YAML esistenti devono renderizzare identiche se non usano le nuove feature); tutti i 187+ test esistenti devono continuare a passare; nessun degrado di performance > 5% sui benchmark esistenti (`dotnet run -c Release --project src/RayTracer.Benchmarks -- --filter '*'`).
-- [ ] Fai una review dei materiali in libraries/materials e aggiorna quelli che possono giovare, per diventare più realistici, delle features "surface displacement". Poi aggiungi anche altre librerie professionali di materiali basate su "surface displacement": ad esempio pelli, cementi, sassi, marmi e altri di tipo poroso. Guarda i materiali (di tipo poroso o che comunque beneficiano di "surface displacement") che hanno altri renderer pro (Arnlod, Cycles, Renderman, ecc) e crea tu delle nuove categorie estremamente professionali.
-- [x] ~~Aggiornare README.md in root con le nuove feature aggiunte qui sopra negli step "surface displacement" e "texturing "VFX production-grade" che non sono ancora presenti.~~ Fatto 2026-05 (stesso branch `claude/voronoi-texturing-vfx-gSqWR`). Aggiornata la sezione "Texture" con i nuovi knob studio-quality di marble (secondary_wave) e wood (figure/radial_anisotropy/knot_density), i canali estesi Voronoi (F3/F4/F3−F1/Position) + smoothness, le varianti Musgrave (hetero_terrain/hybrid_multifractal) e il mipmap+EWA su `image`. Aggiunte due nuove voci: **Color Ramp multi-stop** e **Coordinate** texture. Aggiunta nuova sotto-sezione **Texture Filtering (Anti-Aliasing Analitico)** con la sintesi delle tre famiglie di filtering (Perlin clamp ottave, Voronoi supersampling adattivo, Image mipmap+EWA) e il flag CLI `--texture-filtering`. La sezione "Surface Displacement Stack" era già completa dal ciclo dedicato (bump, subdivision, scalar/vector displacement, autobump) — nessun aggiornamento necessario lì.
-- [ ] **HeightField strata: layered stack BSDF "no-compromise" (parità Arnold/RenderMan/Cycles/Mitsuba 3)** — il selettore strata oggi è winner-takes-all con jitter Perlin 3-ottave + aspect bias `±Z` (Frostbite/Unreal trick, ciclo 2026-05). Funziona benissimo a vista perché ogni band ha la sua texture noise che maschera lo step, ma sotto la cofana resta una sola lobe per hit. La versione pro è uno **stack di layer N-ary** con coverage weights normalizzati, esattamente quello che fanno: Arnold (`layer_shader` / `mix_shader` + `range`), RenderMan (`PxrLayerSurface`, true N-layer stack con coverage masks), Cycles (Mix Shader tree pilotato da Geometry node — Pointiness, Normal Y), Mitsuba 3 (`BlendBSDF` pair-wise, generalizzabile in chain). Implementazione no-compromise: nuovo `LayeredStratumMaterial` proxy `IMaterial` che incapsula la lista di `(StratumBand, IMaterial)` + la funzione di weight geometrico `(altNorm, slopeDeg, curvature, aspect) → R^N`; al `Scatter` campiona una band via distribuzione 1D pesata coi coverage (PDF MIS-consistente, identico al pattern `MixMaterial.Scatter` esteso a N); al `EvaluateDirect` somma pesata di tutti i contributi diretti delle N band; per `Emit` somma pesata. Il jitter Perlin del ciclo D resta come perturbazione DEL CAMPO di coverage, non come band selector — le ottave di noise modulano `altNorm`/`slopeDeg` che entrano nel calcolo dei pesi, così il jitter rimane un asset gratis sopra il layer stack invece di sparire.
-
-  Tre estensioni che devono entrare in questo ciclo (sono lo stato dell'arte dei terrain shader pro, non opzionali per la parità Arnold/RenderMan/Cycles):
-
-  **(2.a) Curvature/concavity come weight input.** Calcolare il **Laplaciano discreto della heightmap** al hit point come 5-stencil (`∇²h ≈ h_L + h_R + h_D + h_U − 4·h_C`) e aggiungere il signed value `(curvature) ∈ [-1, +1]` allo stato per il weight function. Concavità (`curvature > 0`, gola/canalone) dà bonus a snow e ground (la neve si accumula in conca, l'acqua disegna sedimenti); convessità (`curvature < 0`, cresta/displuvio) dà bonus a rock (il vento spazza la cresta, espone roccia). È esattamente l'`Pointiness` del Geometry node di Cycles, l'`AOV concavity` di Quixel Megascans, il `Curvature output` di World Machine, e l'attributo `concavity` della Mountain SOP di Houdini. Costo: 4 sample heightmap extra per hit, negligible (già esiste l'indice del sample grid nel constructor). Calibrazione: bias da `±0.10` in altNorm units.
-
-  **(2.b) Per-band noise mask configurabile in YAML.** Ogni `StratumBand` guadagna un campo opzionale `noise_mask: { scale, octaves, amplitude, seed }` che sovrascrive il jitter globale per quella band specifica. Snow ha boundary fine (vento + ghiaccio carving) ⇒ `amplitude: 0.06, scale: 12.0, octaves: 4` (alta freq); sand ha boundary grossolano (marea/onde) ⇒ `amplitude: 0.18, scale: 2.0, octaves: 2` (bassa freq, larghi lobi); rock ha boundary irregolare-roccioso ⇒ `amplitude: 0.10, scale: 6.0, octaves: 3`. Questo è il workflow standard di Unreal Landscape Layer Blend (ogni layer ha la sua noise mask con scale/seed indipendenti), Cycles Mix Shader tree (ogni mix con un noise node separato), Arnold `layer_shader` (mask per layer), RenderMan PxrLayerSurface (mask field per layer). Senza questo i quattro confini sembrano "uguali" — un VFX supervisor lo bocca a prima vista.
-
-  **(2.c) Sun-aware aspect bias (orientamento versante reale).** Attualmente l'aspect bias usa una convenzione fissa "+Z = cool" decisa hard-coded. La versione pro legge la direzione del sole dal `SkyData.SunDir` (o da una luce direzionale dominante della scena) e calcola `aspectCool = -dot(horizontalNormal, horizontalSunDir)` (alignment col contro-sole) per modulare automaticamente l'asimmetria snowline. Tutti i renderer pro lo fanno implicitamente perché il loro terrain è uno shader che già "vede" la scena lighting; noi dobbiamo iniettare il vettore sun-anti nello stato del `LayeredStratumMaterial` al load time. Senza questo, ruotare la scena di 90° rispetto al sole produce un terreno visivamente sbagliato (la neve resta sulle facce sbagliate).
-
-  Vincoli: il proxy material deve gestire correttamente il caso normal-map per-band (ogni band può avere la sua perturbazione TBN, lo stack le compone sul `n_shading` finale come fa già il displacement stack); MIS sampling weights coerenti con la rest of the engine (`LightDistribution`, `_indirectMaxSampleRadiance`); back-compat totale via flag YAML opzionale `strata_blending: "winner" | "stochastic" | "weighted"` (default `winner` = comportamento attuale, niente regressioni). Doc + showcase + tutorial IT+EN, regression test con un terreno flat a due band (alt 0..0.5 / 0.5..1) dove le due si sovrappongono in `[0.45, 0.55]` e si verifica numericamente che il colore al confine sia il lerp dei due materiali. Aggiornare `docs/technical/heightfield.md` §5 e §8 (la sezione "Limiti noti v1" rimuove le righe "Strata blending hard" e "convenzione +Z = cool fissa").
+  Vincoli: normal-map per-band composte nel `n_shading` finale; MIS sampling weights coerenti; doc + showcase + tutorial IT+EN; regression test terreno flat a due band con verifica del lerp al confine. Aggiornare `docs/technical/heightfield.md` §5 e §8.
 - [ ] Refactoring: spostare `Seed` da `IHittable` a un'interfaccia dedicata (es. `ISeeded`); nodi strutturali (BvhNode, Transform) non hanno bisogno di seed.
 - [ ] Review completa dei tutorial (`tutorial/`): correttezza vs codice, omissioni, grammatica, esempi, indici.
 - [ ] Spezzare `SceneLoader.cs`.
-
----
-
-## 🐛 Bug noti
-
-| # | Descrizione | Severità | Stato |
-|---|-------------|----------|-------|
-| 2 | RNG globale seedato da `Environment.TickCount` (`MathUtils.cs:12`): due render della stessa scena producono rumore stocastico diverso. A spp ≥ 64 il rumore si media; a spp basso le differenze sono visibili. Non riguarda i pattern procedurali (bug #1 risolto). Architettura proposta: sampler per-pixel deterministico via hash `(pixelX, pixelY, sampleIndex)`. Da affrontare con #15 Tile-based. | 🟠 Media | ⬜ |
-
----
-
-## 📚 Riferimenti tecnici
-
-### RNG globale e determinismo (riferimento bug #2)
-
-`MathUtils.cs:12-17` espone un RNG thread-local seedato da `Environment.TickCount`. Usato per BSDF / NEE / DoF / RR / jitter, quindi ogni esecuzione parte da uno stato diverso → pixel diversi tra render della stessa scena.
-
-**Quando dà fastidio**: visual regression testing, A/B di parametri (diff = parametro + rumore), animazioni (flickering temporale tra frame), debug ("perché questo pixel?").
-
-**Architettura proposta**:
-1. `Sampler` per-pixel che incapsula lo stato RNG, seedato da hash deterministico `(pixelX, pixelY, sampleIndex)` (PCG / xoshiro / splittable RNG).
-2. Propagare il `Sampler` lungo `TraceRay` / `Scatter` / `EvaluateDirect` / `SampleLight` come parametro esplicito (rimuove `MathUtils.Rng` singleton).
-3. CLI `--render-seed N` (default 0 → render identici; override per variazione intenzionale tra frame).
-
-**Impatti**: output bit-identico, smoke test verificabile contro baseline (anche hash dell'immagine), rimozione del counter atomico globale, miglior cache locality con #15 Tiles. L'immagine "finale" della scena cambierà rispetto ai render attuali.
-
-**Dipendenza**: meglio dopo (o insieme a) #15 Tile-based, perché il tile è il granulo naturale per il seeding per-pixel.
 
 ---
 

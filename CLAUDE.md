@@ -20,9 +20,17 @@ dotnet build src/RayTracer/RayTracer.csproj -c Release
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
   -i scenes/<scene>.yaml -o renders/out.png -w 1920 -H 1080 -s 1024 -d 8 -S 4
 ```
-Required: `-i`. See `src/RayTracer/Program.cs` `ShowHelp()` for the full CLI. Canonical quality profiles (Preview/Standard/Final) and the `-s`/`-d`/`-S`/`-C` trade-offs are in `docs/reference/rendering-profiles.md`.
+Required: `-i`. See `src/RayTracer/Program.cs` `ShowHelp()` for the full CLI. Canonical quality profiles and the `-s`/`-d`/`-S`/`-C` trade-offs are in `docs/reference/rendering-profiles.md`.
 
-Useful flags: `--list-cameras` (print cameras and exit), `-c <name|index>` (select camera).
+Key flags:
+- `-q/--quality <preset>` — shorthand for common quality profiles (`draft-tiny`, `draft-small`, `draft`, `medium-tiny`, `medium-small`, `medium`, `final-tiny`, `final-small`, `final`, `ultra`). Overrides `-s`, `-d`, `-S`.
+- `--list-cameras` — print available cameras and exit; `-c <name|index>` selects one.
+- `--sampler sobol|prng` — sampling strategy (default: `sobol`, deterministic Sobol+Owen; `prng` is legacy).
+- `--mis balance|power` — multiple-importance-sampling heuristic (default: `balance`).
+- `--texture-filtering auto|on|off` — trilinear mip-map filtering override.
+- `--exposure <f>` — EV exposure adjustment applied before tone mapping.
+- `--indirect-clamp-factor <f>` — stricter firefly clamp for indirect bounces (default 1.0, i.e. same as `-C`).
+- `-v/--verbose` — print per-tile progress and timing.
 
 ### Tests (xUnit)
 ```
@@ -30,7 +38,7 @@ dotnet test src/RayTracer.Tests/RayTracer.Tests.csproj
 dotnet test src/RayTracer.Tests/RayTracer.Tests.csproj --filter "FullyQualifiedName~BvhEquivalenceTests"
 dotnet test src/RayTracer.Tests/RayTracer.Tests.csproj --filter "FullyQualifiedName=RayTracer.Tests.AabbTests.Hit_AxisAlignedRay_BehaviourMatchesReference"
 ```
-The test project is **not** referenced by `RayTracer.csproj` and is not run by CI; it must be invoked explicitly. See `docs/technical/testing.md`.
+The test project is **not** referenced by `RayTracer.csproj`. Tests are run by CI (see `dotnet.yml`) and can also be invoked explicitly. See `docs/technical/testing.md`.
 
 ### Benchmarks (BenchmarkDotNet)
 BenchmarkDotNet refuses to run outside Release.
@@ -52,12 +60,12 @@ dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- --name <stem> [--
 Standalone scene generators (on disk under `src/Tools/`, not in the solution — run directly with `dotnet run --project ...`): `ChessGen`, `TempleGen`.
 
 ### CI
-`.github/workflows/dotnet.yml` builds Release and runs a 320×213 smoke render of `scenes/chess.yaml`. `.github/workflows/render-scenes.yml` is a `workflow_dispatch` matrix render at 1920×1080 — enable scenes by uncommenting entries in its `matrix.scene:` list.
+`.github/workflows/dotnet.yml` builds Release, runs the full xUnit test suite, and then runs a 320×213 smoke render of `scenes/chess.yaml`. `.github/workflows/render-scenes.yml` is a `workflow_dispatch` matrix render at 1920×1080 — enable scenes by uncommenting entries in its `matrix.scene:` list.
 
 ## Architecture
 
 ### Solution layout
-`3d-ray.slnx` groups three engine projects (`src/RayTracer`, `src/RayTracer.Tests`, `src/RayTracer.Benchmarks`) and four tools (`src/Tools/{TextureGen,NormalMapGen,TerrainGen,FontGen}`). `ChessGen` and `TempleGen` live on disk under `src/Tools/` but are intentionally not in the solution. Only `RayTracer.csproj` is built by CI; tests and benchmarks are opt-in.
+`3d-ray.slnx` groups three engine projects (`src/RayTracer`, `src/RayTracer.Tests`, `src/RayTracer.Benchmarks`) and four tools (`src/Tools/{TextureGen,NormalMapGen,TerrainGen,FontGen}`). `ChessGen` and `TempleGen` live on disk under `src/Tools/` but are intentionally not in the solution. CI builds `RayTracer.csproj` and runs the test suite; benchmarks are opt-in.
 
 ### Rendering pipeline (YAML → pixel)
 `Program.cs` → `SceneLoader.Load()` → `Renderer(..).Render(w,h)` → `SaveImage()`. The detailed contract between stages is in `docs/technical/rendering-pipeline.md`. Key invariants that span multiple files:
@@ -71,7 +79,7 @@ Standalone scene generators (on disk under `src/Tools/`, not in the solution —
 - **Deferred messages.** `SceneLoader` queues warnings/info through `Warn()`/`Info()` during load so they don't mangle the single-line `"Loading scene... done (X ms)"` output. `Program.cs` calls `SceneLoader.FlushMessages()` after the done-line prints.
 
 ### Path tracer (`Rendering/Renderer.cs`)
-Parallel over pixels; per pixel does `√N × √N` stratified samples. `TraceRay` recurses: hit → normal map → emission → NEE (direct light sampling) → BSDF scatter → Russian Roulette. Post-processing is per-pixel: firefly clamp (`-C`, default 100) → ACES filmic tone map → gamma 2.2. `--clamp`/`-C` applies to per-sample radiance before tone mapping — lower it (e.g. 25) when dielectrics or participating media produce fireflies. See `docs/technical/path-tracing-and-lighting.md` and `docs/technical/shading-model.md`.
+Parallel over pixels; per pixel generates N samples using the active sampler. With `--sampler sobol` (default) samples form a (0,2,2)-net via Sobol+Owen scrambling — deterministic per pixel via a hash seed. With `--sampler prng` the legacy `√N × √N` stratified grid is used instead. `TraceRay` recurses: hit → normal map → emission → NEE (direct light sampling) → BSDF scatter → Russian Roulette. Post-processing is per-pixel: firefly clamp (`-C`, default 100) → ACES filmic tone map → gamma 2.2. `--clamp`/`-C` applies to per-sample radiance before tone mapping — lower it (e.g. 25) when dielectrics or participating media produce fireflies. See `docs/technical/path-tracing-and-lighting.md` and `docs/technical/shading-model.md`.
 
 ### Lights and NEE
 `ILight` has point/directional/spot/area/sphere implementations under `Lights/`. Additionally, any geometry with an `Emissive` material becomes a `GeometryLight` and joins the NEE pool automatically; the environment (gradient sky or HDRI) also participates in NEE as a directional sampler.
@@ -81,16 +89,22 @@ Parallel over pixels; per pixel does `√N × √N` stratified samples. `TraceRa
 ### Geometry, CSG, Groups
 `Geometry/IHittable.cs` is the core interface. `CsgObject` implements Union/Intersection/Subtraction via interval classification (see `docs/technical/csg-boolean-operations.md`) and is nestable. `Group` is a scene-graph node that inherits transforms down to children and builds its own internal BVH above 4 children. `Transform` wraps any `IHittable` with scale→rotate→translate and caches its world-space AABB. `HeightField` (Mitsuba-style terrain primitive — see `docs/technical/heightfield.md`) accelerates intersection with a `MinMaxMipmap` quadtree so one primitive can replace a tessellated terrain mesh; the loader routes `type: heightfield` through `SceneLoader.CreateHeightFieldEntity`.
 
+The **Surface Displacement Stack** (`DisplacementEngine`) applies layered surface detail in order: bump map → Loop/Catmull-Clark mesh subdivision → scalar displacement → vector displacement → autobump. Each stage is optional and composes cleanly with the others.
+
 ### Volumetrics (`Volumetrics/`)
-`IMedium` covers Homogeneous, HeightFog, HeterogeneousProceduralMedium (Perlin fBm with delta/ratio tracking), and GridMedium (trilinear default, tricubic Catmull-Rom option). Phase functions are pluggable: Isotropic, HG, double-HG, Rayleigh, Schlick. A `globalMedium` is returned from `SceneLoader.Load` alongside the world.
+`IMedium` covers Homogeneous, HeightFog, NishitaAtmosphereMedium (physically-based sky atmosphere), HeterogeneousProceduralMedium (Perlin fBm with delta/ratio tracking), and GridMedium (trilinear default, tricubic Catmull-Rom option). Phase functions are pluggable: Isotropic, HG, double-HG, Rayleigh, Schlick. A `globalMedium` is returned from `SceneLoader.Load` alongside the world.
 
 ### Tests — equivalence pattern
-The test suite asserts **algorithmic equivalence against a reference implementation**, not absolute numbers. `AabbTests` uses an inline scalar slab-test oracle to validate the `Vector3.Min/Max` SIMD `AABB.Hit`. `BvhEquivalenceTests` runs the same rays through `BvhNode` and `HittableList` and asserts identical hit/miss and `rec.T` within `1e-4`. Seeds are passed via `[InlineData]` so failures replay deterministically. Copy the primitives list before handing it to `BvhNode` — construction mutates in place.
+The suite (~27 test files, 464 tests) covers geometry, BVH, materials, lights, samplers, volumetrics, displacement, and rendering regression. Core patterns:
+
+- **Equivalence**: `AabbTests` uses an inline scalar slab-test oracle to validate the `Vector3.Min/Max` SIMD `AABB.Hit`. `BvhEquivalenceTests` runs the same rays through `BvhNode` and `HittableList` and asserts identical hit/miss and `rec.T` within `1e-4`. Seeds are passed via `[InlineData]` so failures replay deterministically.
+- **Regression**: `FireflyRegressionTests` renders a stress scene (bright sphere light + dense medium + depth 8) and asserts spike-pixel count stays below a calibrated threshold. Scene files live in `src/RayTracer.Tests/TestScenes/`.
+- **Construction note**: copy the primitives list before handing it to `BvhNode` — construction mutates in place.
 
 ## Conventions
 
 - YAML keys use `underscore_case` (YamlDotNet `UnderscoredNamingConvention`).
-- CLI: lowercase short flags are the common overrides (`-s`, `-d`, `-c`, `-w`, `-o`, `-i`); uppercase are "advanced overrides" (`-H` height because `-h` is help, `-S` shadow samples, `-C` clamp). Long-only flags include `--indirect-clamp-factor`, `--light-sampling`, `--list-cameras`.
+- CLI: lowercase short flags are the common overrides (`-s`, `-d`, `-c`, `-w`, `-o`, `-i`, `-v`); uppercase are "advanced overrides" (`-H` height because `-h` is help, `-S` shadow samples, `-C` clamp). Long-only flags include `--indirect-clamp-factor`, `--light-sampling`, `--list-cameras`, `--sampler`, `--mis`, `--texture-filtering`, `--exposure`, `--quality`.
 - Default output path when `-o` is omitted: `renders/render-<scene-stem>.png`.
 - Output image format is picked from the `-o` extension (`.png`/`.jpg`/`.jpeg`/`.bmp`); unknown → PNG.
 
