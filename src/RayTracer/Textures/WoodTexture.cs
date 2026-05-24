@@ -588,15 +588,22 @@ public class WoodTexture : ITexture
         float ew = Math.Clamp(EarlywoodTransition, 0.005f, 0.5f);
         float rise = Smoothstep(0f, ew, frac);
         float fall = 1f - Smoothstep(1f - lw, 1f, frac);
-        float t = rise * fall;
 
-        // Sharpness: pow(t, 1/sharpness) at sharpness > 1 widens the bright
-        // plateau and thins the latewood band — the classic "razor latewood"
-        // of oak/walnut. At sharpness = 1 the profile is the natural product.
-        if (RingSharpness > 1f)
-            t = MathF.Pow(t, 1f / RingSharpness);
-        else if (RingSharpness < 1f && RingSharpness > 0f)
-            t = MathF.Pow(t, 1f / MathF.Max(RingSharpness, 0.05f));
+        // Sharpness sharpens the LATEWOOD DESCENT — pow(fall, sharpness)
+        // with sharpness > 1 makes the descent more aggressive (the plateau
+        // is cut earlier by the darkening), producing the razor-edged dark
+        // latewood line of oak / walnut / mahogany. sharpness < 1 makes the
+        // descent gentler (the soft tropical-hardwood look).
+        //
+        // Applying pow to the FALL (not the whole t) is the correct asymmetric
+        // sharpening: it does NOT brighten the rise side and does NOT widen
+        // the bright plateau by pulling up the mid-tones — the bug of the
+        // earlier `pow(t, 1/sharpness)` formulation, which made `sharpness`
+        // operate backwards (higher sharpness → brighter mean colour because
+        // pow(x, <1) lifts mid-tones).
+        if (RingSharpness != 1f && RingSharpness > 0f)
+            fall = MathF.Pow(fall, RingSharpness);
+        float t = rise * fall;
 
         // ── 11. Per-ring colour variation ─────────────────────────────────
         if (RingColorVariation > 0f)
