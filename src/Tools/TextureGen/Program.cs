@@ -1,45 +1,23 @@
 // ═══════════════════════════════════════════════════════════════════════════
-//  TextureGen — Generatore di texture di test per 3D-Ray
+//  TextureGen — Generatore di texture PRO-GRADE per 3D-Ray
 //
-//  Genera un set di immagini procedurali pronte all'uso con le image textures
-//  del motore di ray tracing. Le texture vengono salvate nella cartella
-//  scenes/textures/ alla root del progetto.
-//
-//  Uso:
-//    cd 3d-ray
-//    dotnet run --project src/Tools/TextureGen/TextureGen.csproj
-//
-//  Oppure con percorso personalizzato:
-//    dotnet run --project src/Tools/TextureGen/TextureGen.csproj -- --output path/to/dir
-//
-//  Texture generate:
-//    brick_wall.png        512×512   Muro di mattoni rossi con malta
-//    brick_wall_white.png  512×512   Mattoni bianchi (stile scandinavo)
-//    wood_floor.png        512×512   Parquet a doghe di legno scuro
-//    wood_planks.png       512×512   Assi di legno chiaro (tavolo/staccionata)
-//    earth.png             1024×512  Mappa terrestre stilizzata (eq. rect.)
-//    checkerboard.png      512×512   Scacchiera B/N ad alta risoluzione
-//    grid_uv.png           512×512   Griglia UV di debug (colori per quadrante)
-//    metal_scratched.png   512×512   Metallo graffiato (per metal+fuzz)
-//    concrete.png          512×512   Cemento grezzo con macchie
-//    logo_3dray.png        512×384   Logo "3D-Ray" con gradiente
+//  Genera texture fotorealistiche 1024x1024 PBR (Albedo, Roughness, AO, Metallic).
 // ═══════════════════════════════════════════════════════════════════════════
 
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using Tools;
 
-// ── Parse CLI ───────────────────────────────────────────────────────────────
 string outputDir = "scenes/libraries/textures";
 for (int i = 0; i < args.Length - 1; i++)
 {
-    if (args[i] is "--output" or "-o")
-        outputDir = args[i + 1];
+    if (args[i] is "--output" or "-o") outputDir = args[i + 1];
 }
 
 Directory.CreateDirectory(outputDir);
 
 Console.WriteLine("╔══════════════════════════════════════════╗");
-Console.WriteLine("║       TextureGen — 3D-Ray Textures       ║");
+Console.WriteLine("║    TextureGen PRO — 3D-Ray Textures      ║");
 Console.WriteLine("╚══════════════════════════════════════════╝");
 Console.WriteLine();
 Console.WriteLine($"  Output: {Path.GetFullPath(outputDir)}/");
@@ -47,690 +25,577 @@ Console.WriteLine();
 
 var sw = System.Diagnostics.Stopwatch.StartNew();
 
-GenerateBrickWall(Path.Combine(outputDir, "brick-wall.png"), false);
-GenerateBrickWall(Path.Combine(outputDir, "brick-wall-white.png"), true);
-GenerateWoodFloor(Path.Combine(outputDir, "wood-floor.png"), dark: true);
-GenerateWoodFloor(Path.Combine(outputDir, "wood-planks.png"), dark: false);
+GenerateBrickWall(outputDir, "brick-wall", false);
+GenerateBrickWall(outputDir, "brick-wall-white", true);
+GenerateWoodFloor(outputDir, "wood-floor", true);
+GenerateWoodFloor(outputDir, "wood-planks", false);
 GenerateEarthMap(Path.Combine(outputDir, "earth.png"));
 GenerateCheckerboard(Path.Combine(outputDir, "checkerboard.png"));
 GenerateUVGrid(Path.Combine(outputDir, "grid-uv.png"));
-GenerateMetalScratched(Path.Combine(outputDir, "metal-scratched.png"));
-GenerateConcrete(Path.Combine(outputDir, "concrete.png"));
+GenerateMetalScratched(outputDir, "metal-scratched");
+GenerateConcrete(outputDir, "concrete");
 GenerateLogo(Path.Combine(outputDir, "logo-3dray.png"));
 
 Console.WriteLine();
-Console.WriteLine($"Done! {sw.ElapsedMilliseconds} ms — 10 textures generated in {Path.GetFullPath(outputDir)}/");
+Console.WriteLine($"Done! {sw.ElapsedMilliseconds} ms — PBR textures generated in {Path.GetFullPath(outputDir)}/");
 
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  GENERATORS
+//  GENERATORS (1024x1024)
 // ═════════════════════════════════════════════════════════════════════════════
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Brick Wall — mattoni con malta, variante rossa o bianca
-// ─────────────────────────────────────────────────────────────────────────────
-static void GenerateBrickWall(string path, bool white)
-{
-    const int w = 512, h = 512;
-    const int brickW = 64, brickH = 32;
-    const int mortarThick = 3;
-
-    using var img = new Image<Rgba32>(w, h);
-
-    var mortarColor = white
-        ? new Rgba32(200, 198, 195)
-        : new Rgba32(180, 175, 165);
-
-    img.ProcessPixelRows(acc =>
-    {
-        for (int y = 0; y < h; y++)
-        {
-            var row = acc.GetRowSpan(y);
-            int brickRow = y / brickH;
-            int offsetX = (brickRow % 2 == 1) ? brickW / 2 : 0;
-
-            for (int x = 0; x < w; x++)
-            {
-                int lx = (x + offsetX) % brickW;
-                int ly = y % brickH;
-
-                if (lx < mortarThick || ly < mortarThick)
-                {
-                    row[x] = mortarColor;
-                }
-                else
-                {
-                    int seed = ((x + offsetX) / brickW) * 31 + brickRow * 17;
-                    int noise = ((x * 31 + y * 17) % 20) - 10;
-
-                    int rv, gv, bv;
-                    if (white)
-                    {
-                        rv = 215 + (seed * 7 % 25) + noise / 2;
-                        gv = 210 + (seed * 13 % 20) + noise / 2;
-                        bv = 205 + (seed * 23 % 20) + noise / 3;
-                    }
-                    else
-                    {
-                        rv = 160 + (seed * 7 % 40) + noise;
-                        gv = 60 + (seed * 13 % 30) + noise / 2;
-                        bv = 40 + (seed * 23 % 20) + noise / 3;
-                    }
-
-                    row[x] = new Rgba32(
-                        (byte)Math.Clamp(rv, 0, 255),
-                        (byte)Math.Clamp(gv, 0, 255),
-                        (byte)Math.Clamp(bv, 0, 255));
-                }
-            }
-        }
-    });
-
-    img.SaveAsPng(path);
-    Console.WriteLine($"  ✓ {Path.GetFileName(path),-28} {w}×{h}");
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Wood Floor — parquet realistico con venature multi-frequenza, nodi,
-//  variazione cromatica per doga, giunture sfalsate e bordi smussati
-// ─────────────────────────────────────────────────────────────────────────────
-static void GenerateWoodFloor(string path, bool dark)
-{
-    const int w = 512, h = 512;
-    const int plankW = 96;       // Larghezza doga (px)
-    const int plankH = 256;      // Lunghezza doga prima della giuntura
-    const int gapW = 2;          // Fughe verticali tra doghe
-    const int gapH = 2;          // Fughe orizzontali (giunture)
-    const int bevel = 3;         // Smussatura bordi (px)
-    const int numPlanksX = (w + plankW - 1) / plankW + 1;
-
-    using var img = new Image<Rgba32>(w, h);
-
-    // ── Per-plank properties (colore base, offset giuntura, seed per nodi) ──
-    var rng = new Random(dark ? 42 : 137);
-
-    // Pre-generate plank data: each column of planks has its own tint and grain offset
-    var plankTints = new (float r, float g, float b)[numPlanksX];
-    var plankGrainPhase = new float[numPlanksX];
-    var plankStagger = new int[numPlanksX]; // Y offset for staggered joints
-
-    for (int i = 0; i < numPlanksX; i++)
-    {
-        // Color variation: ±15% from base tone — each plank is a different piece of wood
-        float tintR = 0.85f + (float)(rng.NextDouble() * 0.30 - 0.15);
-        float tintG = 0.85f + (float)(rng.NextDouble() * 0.30 - 0.15);
-        float tintB = 0.85f + (float)(rng.NextDouble() * 0.25 - 0.12);
-        plankTints[i] = (tintR, tintG, tintB);
-        plankGrainPhase[i] = (float)(rng.NextDouble() * 200.0); // Grain phase offset
-        plankStagger[i] = rng.Next(0, plankH);                  // Staggered joints
-    }
-
-    // Pre-generate knots: position, radius, ring tightness
-    var knots = new List<(int px, int py, float radius, float tightness, float darkness)>();
-    int numKnots = dark ? 6 : 8;
-    for (int i = 0; i < numKnots; i++)
-    {
-        knots.Add((
-            rng.Next(w), rng.Next(h),
-            4f + (float)rng.NextDouble() * 10f,        // radius 4–14 px
-            2f + (float)rng.NextDouble() * 3f,          // ring tightness
-            0.3f + (float)rng.NextDouble() * 0.35f       // darkness factor
-        ));
-    }
-
-    // ── Base palette ────────────────────────────────────────────────────────
-    // Dark: noce/wengé scuro.  Light: rovere/acero chiaro.
-    float baseR, baseG, baseB;      // Color for "light grain"
-    float darkR, darkG, darkB;      // Color for "dark grain"
-    float gapR, gapG, gapB;         // Gap/joint color
-
-    if (dark)
-    {
-        baseR = 0.48f; baseG = 0.30f; baseB = 0.16f;
-        darkR = 0.25f; darkG = 0.14f; darkB = 0.07f;
-        gapR = 0.10f;  gapG = 0.07f;  gapB = 0.04f;
-    }
-    else
-    {
-        baseR = 0.82f; baseG = 0.68f; baseB = 0.48f;
-        darkR = 0.58f; darkG = 0.42f; darkB = 0.26f;
-        gapR = 0.45f;  gapG = 0.35f;  gapB = 0.22f;
-    }
-
-    img.ProcessPixelRows(acc =>
-    {
-        for (int y = 0; y < h; y++)
-        {
-            var row = acc.GetRowSpan(y);
-            for (int x = 0; x < w; x++)
-            {
-                int plankIdx = x / plankW;
-                int lx = x % plankW;                                   // Local X within plank
-                int ly = (y + plankStagger[plankIdx]) % plankH;        // Local Y with stagger
-
-                // ── Gaps (fughe) ────────────────────────────────────
-                bool isGapV = lx < gapW;                               // Vertical gap between planks
-                bool isGapH = ly < gapH;                               // Horizontal joint
-
-                if (isGapV || isGapH)
-                {
-                    row[x] = ToRgba(gapR, gapG, gapB);
-                    continue;
-                }
-
-                // ── Bevel darkening at plank edges ──────────────────
-                float bevelFactor = 1f;
-                int distFromEdgeX = Math.Min(lx - gapW, plankW - 1 - lx);
-                int distFromEdgeY = Math.Min(ly - gapH, plankH - 1 - ly);
-                int distFromEdge = Math.Min(distFromEdgeX, distFromEdgeY);
-                if (distFromEdge < bevel)
-                {
-                    bevelFactor = 0.70f + 0.30f * (distFromEdge / (float)bevel);
-                }
-
-                // ── Multi-frequency grain ───────────────────────────
-                // Main grain runs along Y (length of plank).
-                // Multiple sine waves at different frequencies create realistic variation.
-                float phase = plankGrainPhase[plankIdx];
-                float fy = y + phase;
-                float fx = lx - plankW * 0.5f; // Center-relative X
-
-                // Primary grain: wide bands
-                float grain1 = MathF.Sin(fy * 0.04f + fx * 0.008f) * 0.35f;
-                // Secondary grain: medium variation
-                float grain2 = MathF.Sin(fy * 0.11f - fx * 0.02f + phase * 0.3f) * 0.20f;
-                // Tertiary grain: fine detail
-                float grain3 = MathF.Sin(fy * 0.28f + fx * 0.05f + phase * 0.7f) * 0.10f;
-                // Medullary rays: faint horizontal streaks (characteristic of quarter-sawn wood)
-                float rays = MathF.Sin(fx * 0.6f + fy * 0.01f) * MathF.Sin(fx * 1.2f) * 0.06f;
-
-                float grainTotal = 0.5f + grain1 + grain2 + grain3 + rays;
-
-                // ── Fine noise (pori del legno) ─────────────────────
-                // Cheap hash-based noise for per-pixel variation
-                int hash = ((x * 73856093) ^ (y * 19349663)) & 0xFFF;
-                float fineNoise = (hash / (float)0xFFF - 0.5f) * 0.06f;
-                grainTotal += fineNoise;
-
-                grainTotal = Math.Clamp(grainTotal, 0f, 1f);
-
-                // ── Knot influence ──────────────────────────────────
-                float knotDarken = 0f;
-                foreach (var (kx, ky, kr, kt, kd) in knots)
-                {
-                    float dx = x - kx;
-                    float dy = y - ky;
-                    float dist = MathF.Sqrt(dx * dx + dy * dy);
-
-                    if (dist < kr * 2.5f)
-                    {
-                        if (dist < kr * 0.4f)
-                        {
-                            // Knot center: very dark
-                            knotDarken = MathF.Max(knotDarken, kd * 0.9f);
-                        }
-                        else if (dist < kr)
-                        {
-                            // Knot rings: concentric dark/light bands
-                            float ring = MathF.Sin(dist * kt) * 0.5f + 0.5f;
-                            float falloff = 1f - (dist / kr);
-                            knotDarken = MathF.Max(knotDarken, kd * ring * falloff);
-                        }
-                        else
-                        {
-                            // Grain distortion around knot: wood fibers curve
-                            float influence = 1f - (dist - kr) / (kr * 1.5f);
-                            if (influence > 0)
-                            {
-                                // Warp grain slightly
-                                grainTotal = Math.Clamp(
-                                    grainTotal + MathF.Sin(dist * 0.8f) * influence * 0.15f,
-                                    0f, 1f);
-                            }
-                        }
-                    }
-                }
-
-                // ── Compose final color ─────────────────────────────
-                var (tR, tG, tB) = plankTints[plankIdx];
-                float t = grainTotal;
-
-                float r = (baseR * t + darkR * (1f - t)) * tR;
-                float g = (baseG * t + darkG * (1f - t)) * tG;
-                float b = (baseB * t + darkB * (1f - t)) * tB;
-
-                // Apply knot darkening
-                float kMul = 1f - knotDarken;
-                r *= kMul;
-                g *= kMul;
-                b *= kMul;
-
-                // Apply bevel
-                r *= bevelFactor;
-                g *= bevelFactor;
-                b *= bevelFactor;
-
-                row[x] = ToRgba(r, g, b);
-            }
-        }
-    });
-
-    img.SaveAsPng(path);
-    Console.WriteLine($"  ✓ {Path.GetFileName(path),-28} {w}×{h}");
-}
 
 static Rgba32 ToRgba(float r, float g, float b) => new(
     (byte)Math.Clamp((int)(r * 255), 0, 255),
     (byte)Math.Clamp((int)(g * 255), 0, 255),
     (byte)Math.Clamp((int)(b * 255), 0, 255));
 
+static Rgba32 ToGrayscale(float v) => ToRgba(v, v, v);
+
 // ─────────────────────────────────────────────────────────────────────────────
-//  Earth Map — continenti stilizzati, proiezione equirettangolare
+//  Brick Wall — Mattoni fotorealistici con fBM e Voronoi
+// ─────────────────────────────────────────────────────────────────────────────
+static void GenerateBrickWall(string dir, string name, bool white)
+{
+    const int w = 1024, h = 1024;
+    const int brickW = 128, brickH = 64;
+    const int mortarThick = 6;
+
+    using var imgAlbedo = new Image<Rgba32>(w, h);
+    using var imgRoughness = new Image<Rgba32>(w, h);
+    using var imgAO = new Image<Rgba32>(w, h);
+
+    var mortarColor = white ? new Rgba32(200, 198, 195) : new Rgba32(180, 175, 165);
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            int brickRow = y / brickH;
+            int offsetX = (brickRow % 2 == 1) ? brickW / 2 : 0;
+            int lx = (x + offsetX) % brickW;
+            int ly = y % brickH;
+
+            // Use noise to make mortar lines irregular
+            float noiseMortar = ProNoise.Fbm(x * 0.05f, y * 0.05f, 4) * 4.0f;
+            int effectiveMortarX = mortarThick + (int)(noiseMortar * (MathF.Abs(ly - brickH/2f) < 20 ? 0 : 1));
+            int effectiveMortarY = mortarThick + (int)(noiseMortar * (MathF.Abs(lx - brickW/2f) < 40 ? 0 : 1));
+
+            bool isMortar = lx < effectiveMortarX || ly < effectiveMortarY;
+
+            if (isMortar)
+            {
+                float mNoise = ProNoise.Fbm(x * 0.1f, y * 0.1f, 6);
+                float mVal = 0.8f + mNoise * 0.4f;
+                imgAlbedo[x, y] = ToRgba(mortarColor.R / 255f * mVal, mortarColor.G / 255f * mVal, mortarColor.B / 255f * mVal);
+                
+                // Mortar is very rough
+                imgRoughness[x, y] = ToGrayscale(0.9f + mNoise * 0.1f);
+                
+                // AO deep in mortar
+                imgAO[x, y] = ToGrayscale(0.4f + mNoise * 0.2f);
+            }
+            else
+            {
+                int seedX = (x + offsetX) / brickW;
+                int seedY = brickRow;
+                int seed = seedX * 31 + seedY * 17;
+                
+                // Brick variation
+                float brickVar = ProNoise.Hash(seedX, seedY, 42);
+                float surfaceNoise = ProNoise.Fbm(x * 0.02f, y * 0.02f, 5);
+                float spots = ProNoise.VoronoiCell(x * 0.1f, y * 0.1f);
+
+                float r, g, b;
+                if (white)
+                {
+                    r = 0.85f + brickVar * 0.1f + surfaceNoise * 0.1f;
+                    g = 0.82f + brickVar * 0.1f + surfaceNoise * 0.1f;
+                    b = 0.80f + brickVar * 0.1f + surfaceNoise * 0.1f;
+                }
+                else
+                {
+                    r = 0.6f + brickVar * 0.2f + surfaceNoise * 0.15f;
+                    g = 0.25f + brickVar * 0.1f + surfaceNoise * 0.1f;
+                    b = 0.15f + brickVar * 0.1f + surfaceNoise * 0.1f;
+                }
+                
+                // Add some dark spots (Voronoi)
+                if (spots > 0.8f)
+                {
+                    r *= 0.8f; g *= 0.8f; b *= 0.8f;
+                }
+
+                imgAlbedo[x, y] = ToRgba(r, g, b);
+                
+                // Roughness: bricks are rough, but less than mortar
+                float rough = 0.7f + surfaceNoise * 0.2f;
+                imgRoughness[x, y] = ToGrayscale(rough);
+
+                // Bevel AO
+                int distFromLeft = lx - effectiveMortarX;
+                int distFromRight = brickW - 1 - lx;
+                int distFromTop = ly - effectiveMortarY;
+                int distFromBottom = brickH - 1 - ly;
+                int dist = Math.Min(Math.Min(distFromLeft, distFromRight), Math.Min(distFromTop, distFromBottom));
+                
+                float ao = 1.0f;
+                if (dist < 8) ao = 0.6f + (dist / 8.0f) * 0.4f;
+                imgAO[x, y] = ToGrayscale(ao);
+            }
+        }
+    }
+
+    imgAlbedo.SaveAsPng(Path.Combine(dir, $"{name}.png"));
+    imgRoughness.SaveAsPng(Path.Combine(dir, $"{name}-roughness.png"));
+    imgAO.SaveAsPng(Path.Combine(dir, $"{name}-ao.png"));
+    Console.WriteLine($"  ✓ {name,-28} {w}×{h} (Albedo, Roughness, AO)");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Wood Floor / Planks — Venature con Domain Warping
+// ─────────────────────────────────────────────────────────────────────────────
+static void GenerateWoodFloor(string dir, string name, bool dark)
+{
+    const int w = 1024, h = 1024;
+    int plankW = dark ? 192 : 340; 
+    int plankH = 512;
+    const int gapW = 4, gapH = 4;
+    int bevel = dark ? 6 : 12;
+
+    using var imgAlbedo = new Image<Rgba32>(w, h);
+    using var imgRoughness = new Image<Rgba32>(w, h);
+    using var imgAO = new Image<Rgba32>(w, h);
+
+    var rng = new Random(dark ? 42 : 137);
+
+    int numPlanksX = (w / plankW) + 2;
+    var plankTints = new (float r, float g, float b)[numPlanksX];
+    var plankOffsets = new float[numPlanksX];
+    var plankStagger = new int[numPlanksX];
+
+    for (int i = 0; i < numPlanksX; i++)
+    {
+        float tR = 0.85f + (float)(rng.NextDouble() * 0.3 - 0.15);
+        float tG = 0.85f + (float)(rng.NextDouble() * 0.3 - 0.15);
+        float tB = 0.85f + (float)(rng.NextDouble() * 0.25 - 0.12);
+        plankTints[i] = (tR, tG, tB);
+        plankOffsets[i] = (float)rng.NextDouble() * 1000f;
+        plankStagger[i] = rng.Next(0, plankH);
+    }
+
+    float baseR = dark ? 0.48f : 0.82f;
+    float baseG = dark ? 0.30f : 0.68f;
+    float baseB = dark ? 0.16f : 0.48f;
+    float darkR = dark ? 0.25f : 0.58f;
+    float darkG = dark ? 0.14f : 0.42f;
+    float darkB = dark ? 0.07f : 0.26f;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            int plankIdx = x / plankW;
+            int lx = x % plankW;
+            int ly = (y + plankStagger[plankIdx]) % plankH;
+
+            bool isGapV = lx < gapW;
+            bool isGapH = ly < gapH;
+
+            if (isGapV || isGapH)
+            {
+                float gapShade = 0.1f * ProNoise.Hash(x, y, 1);
+                imgAlbedo[x, y] = ToGrayscale(gapShade);
+                imgRoughness[x, y] = ToGrayscale(0.9f);
+                imgAO[x, y] = ToGrayscale(0.2f);
+                continue;
+            }
+
+            int distFromEdgeX = Math.Min(lx - gapW, plankW - 1 - lx);
+            int distFromEdgeY = Math.Min(ly - gapH, plankH - 1 - ly);
+            int distFromEdge = Math.Min(distFromEdgeX, distFromEdgeY);
+            
+            float bevelFactor = 1f;
+            if (distFromEdge < bevel)
+            {
+                bevelFactor = 0.70f + 0.30f * (distFromEdge / (float)bevel);
+            }
+
+            float px = x * 0.01f;
+            float py = (y + plankOffsets[plankIdx]) * 0.005f;
+
+            // Wood Grain using Domain Warping
+            float warp = ProNoise.Fbm(px, py, 4) * 2.5f;
+            float grain = ProNoise.Fbm(px + warp, py * 4.0f + warp, 6);
+            
+            // Contrast it
+            grain = MathF.Pow(grain * 0.5f + 0.5f, 1.5f);
+
+            // Knots for light wood
+            float knotInfluence = 0f;
+            if (!dark)
+            {
+                ProNoise.Voronoi(px * 0.5f, py * 0.5f, 1.0f, out float d1, out float d2);
+                if (d1 < 0.15f)
+                {
+                    knotInfluence = 1f - (d1 / 0.15f);
+                    grain += MathF.Sin(d1 * 50f) * knotInfluence * 0.5f; // Ring effect
+                }
+            }
+
+            grain = Math.Clamp(grain, 0f, 1f);
+
+            var (tR, tG, tB) = plankTints[plankIdx];
+
+            float r = (baseR * grain + darkR * (1f - grain)) * tR;
+            float g = (baseG * grain + darkG * (1f - grain)) * tG;
+            float b = (baseB * grain + darkB * (1f - grain)) * tB;
+
+            if (knotInfluence > 0)
+            {
+                r *= (1f - knotInfluence * 0.5f);
+                g *= (1f - knotInfluence * 0.5f);
+                b *= (1f - knotInfluence * 0.5f);
+            }
+
+            r *= bevelFactor;
+            g *= bevelFactor;
+            b *= bevelFactor;
+
+            imgAlbedo[x, y] = ToRgba(r, g, b);
+            
+            // Roughness based on grain (darker grain is usually rougher or smoother depending on finish)
+            float rough = dark ? (0.3f + grain * 0.2f) : (0.4f + grain * 0.3f + knotInfluence * 0.2f);
+            imgRoughness[x, y] = ToGrayscale(rough);
+
+            // AO
+            imgAO[x, y] = ToGrayscale(bevelFactor);
+        }
+    }
+
+    imgAlbedo.SaveAsPng(Path.Combine(dir, $"{name}.png"));
+    imgRoughness.SaveAsPng(Path.Combine(dir, $"{name}-roughness.png"));
+    imgAO.SaveAsPng(Path.Combine(dir, $"{name}-ao.png"));
+    Console.WriteLine($"  ✓ {name,-28} {w}×{h} (Albedo, Roughness, AO)");
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Concrete — Cemento organico con Voronoi e fBM
+// ─────────────────────────────────────────────────────────────────────────────
+static void GenerateConcrete(string dir, string name)
+{
+    const int w = 1024, h = 1024;
+    using var imgAlbedo = new Image<Rgba32>(w, h);
+    using var imgRoughness = new Image<Rgba32>(w, h);
+    using var imgAO = new Image<Rgba32>(w, h);
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            float px = x * 0.01f;
+            float py = y * 0.01f;
+
+            // Low frequency color variation
+            float lowF = ProNoise.Fbm(px * 0.2f, py * 0.2f, 4);
+            // High frequency grit
+            float highF = ProNoise.Fbm(px * 5f, py * 5f, 6);
+            
+            // Voronoi for pits / stains
+            ProNoise.Voronoi(px * 0.8f, py * 0.8f, 1.0f, out float d1, out float d2);
+            float pit = MathF.Max(0, 1.0f - d1 * 5f);
+            pit *= pit; // sharp pits
+
+            float val = 0.65f + lowF * 0.15f + highF * 0.05f - pit * 0.3f;
+            val = Math.Clamp(val, 0f, 1f);
+
+            // Slight warm tint
+            imgAlbedo[x, y] = ToRgba(val, val * 0.98f, val * 0.95f);
+            
+            // Very rough surface
+            float rough = 0.7f + highF * 0.2f + pit * 0.1f;
+            imgRoughness[x, y] = ToGrayscale(Math.Clamp(rough, 0f, 1f));
+
+            // AO is lowered in pits
+            float ao = 1.0f - pit * 0.8f;
+            imgAO[x, y] = ToGrayscale(Math.Clamp(ao, 0f, 1f));
+        }
+    }
+
+    imgAlbedo.SaveAsPng(Path.Combine(dir, $"{name}.png"));
+    imgRoughness.SaveAsPng(Path.Combine(dir, $"{name}-roughness.png"));
+    imgAO.SaveAsPng(Path.Combine(dir, $"{name}-ao.png"));
+    Console.WriteLine($"  ✓ {name,-28} {w}×{h} (Albedo, Roughness, AO)");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Metal Scratched — Graffi con matematica procedurale, PBR metallic workflow
+// ─────────────────────────────────────────────────────────────────────────────
+static void GenerateMetalScratched(string dir, string name)
+{
+    const int w = 1024, h = 1024;
+    using var imgAlbedo = new Image<Rgba32>(w, h);
+    using var imgRoughness = new Image<Rgba32>(w, h);
+    using var imgMetallic = new Image<Rgba32>(w, h);
+
+    // Genera graffi lineari matematici ma con fBM path
+    var rng = new Random(42);
+    var scratches = new List<(float x, float y, float dx, float dy, float len, float depth, float w)>();
+    for (int i = 0; i < 200; i++)
+    {
+        float angle = (float)rng.NextDouble() * MathF.PI;
+        float len = 50 + rng.Next(400);
+        float cx = rng.Next(w);
+        float cy = rng.Next(h);
+        float dx = MathF.Cos(angle);
+        float dy = MathF.Sin(angle);
+        float depth = 0.3f + (float)rng.NextDouble() * 0.7f;
+        float width = 1.0f + (float)rng.NextDouble() * 2.5f;
+        scratches.Add((cx, cy, dx, dy, len, depth, width));
+    }
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            float scratchVal = 0;
+            
+            // We use a simplified distance check for performance instead of full segment distance for all 200
+            // but for 1024x1024, an optimized segment distance is fine.
+            foreach (var s in scratches)
+            {
+                float t = ((x - s.x) * s.dx + (y - s.y) * s.dy);
+                if (t > -s.len/2 && t < s.len/2)
+                {
+                    float projX = s.x + t * s.dx;
+                    float projY = s.y + t * s.dy;
+                    float dist = MathF.Sqrt((x - projX)*(x - projX) + (y - projY)*(y - projY));
+                    if (dist < s.w)
+                    {
+                        scratchVal = MathF.Max(scratchVal, s.depth * (1f - dist/s.w));
+                    }
+                }
+            }
+
+            float noise = ProNoise.Fbm(x * 0.1f, y * 0.1f, 3) * 0.05f;
+            float baseAlbedo = 0.7f + noise;
+            
+            // Scratches reveal brighter/different metal and are rougher
+            float albedo = Math.Clamp(baseAlbedo + scratchVal * 0.2f, 0f, 1f);
+            
+            imgAlbedo[x, y] = ToGrayscale(albedo);
+            imgRoughness[x, y] = ToGrayscale(Math.Clamp(0.2f + noise * 2.0f + scratchVal * 0.4f, 0f, 1f));
+            // Metal is fully metallic
+            imgMetallic[x, y] = ToGrayscale(1.0f);
+        }
+    }
+
+    imgAlbedo.SaveAsPng(Path.Combine(dir, $"{name}.png"));
+    imgRoughness.SaveAsPng(Path.Combine(dir, $"{name}-roughness.png"));
+    imgMetallic.SaveAsPng(Path.Combine(dir, $"{name}-metallic.png"));
+    Console.WriteLine($"  ✓ {name,-28} {w}×{h} (Albedo, Roughness, Metallic)");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Earth Map — 2048x1024 (doppia risoluzione originale)
 // ─────────────────────────────────────────────────────────────────────────────
 static void GenerateEarthMap(string path)
 {
-    const int w = 1024, h = 512;
-    using var img = new Image<Rgba32>(w, h);
+    const int w = 2048, h = 1024;
+    using var imgAlbedo = new Image<Rgba32>(w, h);
+    using var imgRoughness = new Image<Rgba32>(w, h);
 
-    img.ProcessPixelRows(acc =>
+    for (int y = 0; y < h; y++)
     {
-        for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
         {
-            var row = acc.GetRowSpan(y);
+            float lon = (x / (float)w) * 2f * MathF.PI;
             float lat = (y / (float)h - 0.5f) * MathF.PI;
 
-            for (int x = 0; x < w; x++)
+            // Pro-grade continent shapes using Ridged fBM on a sphere
+            float nx = MathF.Cos(lat) * MathF.Cos(lon);
+            float ny = MathF.Sin(lat);
+            float nz = MathF.Cos(lat) * MathF.Sin(lon);
+
+            float landNoise = ProNoise.RidgedFbm(nx * 3f, ny * 3f + nz * 3f, 6);
+            float mask = ProNoise.Fbm(nx * 2f, ny * 2f, 4); 
+
+            float land = landNoise * 0.7f + mask * 0.5f;
+
+            bool isPole = MathF.Abs(lat) > 1.3f - ProNoise.Fbm(nx*5f, nz*5f, 3)*0.2f;
+
+            if (isPole)
             {
-                float lon = (x / (float)w) * 2f * MathF.PI;
-
-                float land = MathF.Sin(lon * 2f + 1f) * MathF.Cos(lat * 1.5f)
-                           + MathF.Sin(lon * 3f - 0.5f) * MathF.Sin(lat * 2f + 1f) * 0.5f
-                           + MathF.Cos(lon * 5f + 2f) * MathF.Cos(lat * 3f) * 0.3f;
-
-                bool isPole = MathF.Abs(lat) > 1.2f;
-
-                if (isPole)
-                {
-                    row[x] = new Rgba32(230, 235, 240);
-                }
-                else if (land > 0.15f)
-                {
-                    int g = (int)(80 + land * 80);
-                    int r = (int)(60 + land * 50);
-                    row[x] = new Rgba32(
-                        (byte)Math.Clamp(r, 0, 255),
-                        (byte)Math.Clamp(g, 0, 255), 30);
-                }
-                else
-                {
-                    float depth = Math.Clamp(-land * 2f, 0f, 1f);
-                    int b = (int)(140 + depth * 60);
-                    int g = (int)(80 + depth * 30);
-                    row[x] = new Rgba32(20,
-                        (byte)Math.Clamp(g, 0, 255),
-                        (byte)Math.Clamp(b, 0, 255));
-                }
+                imgAlbedo[x, y] = new Rgba32(230, 235, 240);
+                imgRoughness[x, y] = ToGrayscale(0.4f); // Ice is semi-rough
+            }
+            else if (land > 0.4f)
+            {
+                // Land
+                float veg = ProNoise.Fbm(nx * 10f, ny * 10f, 4); // Vegetation
+                int r = (int)(60 + veg * 50);
+                int g = (int)(100 + veg * 60);
+                int b = 40;
+                imgAlbedo[x, y] = ToRgba(r/255f, g/255f, b/255f);
+                imgRoughness[x, y] = ToGrayscale(0.9f); // Land is rough
+            }
+            else
+            {
+                // Ocean
+                float depth = Math.Clamp(0.4f - land, 0f, 1f);
+                int r = 10;
+                int g = (int)(50 + depth * 50);
+                int b = (int)(120 + depth * 80);
+                imgAlbedo[x, y] = ToRgba(r/255f, g/255f, b/255f);
+                imgRoughness[x, y] = ToGrayscale(0.1f); // Ocean is smooth
             }
         }
-    });
+    }
 
-    img.SaveAsPng(path);
-    Console.WriteLine($"  ✓ {Path.GetFileName(path),-28} {w}×{h}");
+    imgAlbedo.SaveAsPng(path);
+    string dir = Path.GetDirectoryName(path)!;
+    string name = Path.GetFileNameWithoutExtension(path);
+    imgRoughness.SaveAsPng(Path.Combine(dir, $"{name}-roughness.png"));
+    Console.WriteLine($"  ✓ {Path.GetFileName(path),-28} {w}×{h} (Albedo, Roughness)");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Checkerboard — scacchiera B/N ad alta risoluzione, tileable
+//  Checkerboard
 // ─────────────────────────────────────────────────────────────────────────────
 static void GenerateCheckerboard(string path)
 {
-    const int w = 512, h = 512;
-    const int cellSize = 64;
+    const int w = 1024, h = 1024;
+    const int cellSize = 128;
     using var img = new Image<Rgba32>(w, h);
 
-    img.ProcessPixelRows(acc =>
+    for (int y = 0; y < h; y++)
     {
-        for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
         {
-            var row = acc.GetRowSpan(y);
-            for (int x = 0; x < w; x++)
-            {
-                bool isWhite = ((x / cellSize) + (y / cellSize)) % 2 == 0;
-                row[x] = isWhite ? new Rgba32(240, 240, 240) : new Rgba32(25, 25, 25);
-            }
+            bool isWhite = ((x / cellSize) + (y / cellSize)) % 2 == 0;
+            img[x, y] = isWhite ? new Rgba32(240, 240, 240) : new Rgba32(25, 25, 25);
         }
-    });
-
+    }
     img.SaveAsPng(path);
     Console.WriteLine($"  ✓ {Path.GetFileName(path),-28} {w}×{h}");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  UV Grid — griglia di debug con colori per quadrante e coordinate
+//  UV Grid
 // ─────────────────────────────────────────────────────────────────────────────
 static void GenerateUVGrid(string path)
 {
-    const int w = 512, h = 512;
-    const int gridSpacing = 32;
+    const int w = 1024, h = 1024;
+    const int gridSpacing = 64;
     using var img = new Image<Rgba32>(w, h);
 
-    img.ProcessPixelRows(acc =>
+    for (int y = 0; y < h; y++)
     {
-        for (int y = 0; y < h; y++)
+        float fy = y / (float)(h - 1);
+        for (int x = 0; x < w; x++)
         {
-            var row = acc.GetRowSpan(y);
-            float fy = y / (float)(h - 1);
+            float fx = x / (float)(w - 1);
+            byte r = (byte)(fx * 255);
+            byte g = (byte)((1f - fy) * 255);
+            byte b = 40;
 
-            for (int x = 0; x < w; x++)
-            {
-                float fx = x / (float)(w - 1);
+            bool isGridLine = (x % gridSpacing < 2) || (y % gridSpacing < 2);
+            bool isBorder = x < 4 || x >= w - 4 || y < 4 || y >= h - 4;
+            bool isCenterH = Math.Abs(x - w / 2) < 2;
+            bool isCenterV = Math.Abs(y - h / 2) < 2;
 
-                // Quadrant coloring: R = U, G = V, B = low constant
-                byte r = (byte)(fx * 255);
-                byte g = (byte)((1f - fy) * 255); // Flip V for visual convention
-                byte b = 40;
-
-                // Grid lines
-                bool isGridLine = (x % gridSpacing < 2) || (y % gridSpacing < 2);
-                // Border
-                bool isBorder = x < 2 || x >= w - 2 || y < 2 || y >= h - 2;
-                // Center cross
-                bool isCenterH = Math.Abs(x - w / 2) < 1;
-                bool isCenterV = Math.Abs(y - h / 2) < 1;
-
-                if (isBorder)
-                {
-                    row[x] = new Rgba32(255, 255, 255);
-                }
-                else if (isCenterH || isCenterV)
-                {
-                    row[x] = new Rgba32(255, 255, 0);
-                }
-                else if (isGridLine)
-                {
-                    row[x] = new Rgba32(
-                        (byte)Math.Min(r + 60, 255),
-                        (byte)Math.Min(g + 60, 255),
-                        (byte)Math.Min(b + 60, 255));
-                }
-                else
-                {
-                    row[x] = new Rgba32(r, g, b);
-                }
-            }
+            if (isBorder) img[x, y] = new Rgba32(255, 255, 255);
+            else if (isCenterH || isCenterV) img[x, y] = new Rgba32(255, 255, 0);
+            else if (isGridLine) img[x, y] = new Rgba32((byte)Math.Min(r + 60, 255), (byte)Math.Min(g + 60, 255), (byte)Math.Min(b + 60, 255));
+            else img[x, y] = new Rgba32(r, g, b);
         }
-    });
-
-    img.SaveAsPng(path);
-    Console.WriteLine($"  ✓ {Path.GetFileName(path),-28} {w}×{h}");
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Metal Scratched — superficie metallica graffiata (per metal + fuzz basso)
-// ─────────────────────────────────────────────────────────────────────────────
-static void GenerateMetalScratched(string path)
-{
-    const int w = 512, h = 512;
-    using var img = new Image<Rgba32>(w, h);
-
-    // Genera graffi pseudo-random
-    var rng = new Random(42);
-    var scratches = new List<(int x0, int y0, int x1, int y1, int bright)>();
-    for (int i = 0; i < 120; i++)
-    {
-        int x0 = rng.Next(w), y0 = rng.Next(h);
-        int angle = rng.Next(-30, 30); // Mostly horizontal scratches
-        int len = rng.Next(40, 200);
-        float rad = angle * MathF.PI / 180f;
-        int x1 = x0 + (int)(len * MathF.Cos(rad));
-        int y1 = y0 + (int)(len * MathF.Sin(rad));
-        scratches.Add((x0, y0, x1, y1, rng.Next(180, 230)));
     }
-
-    img.ProcessPixelRows(acc =>
-    {
-        for (int y = 0; y < h; y++)
-        {
-            var row = acc.GetRowSpan(y);
-            for (int x = 0; x < w; x++)
-            {
-                // Base metal color with subtle noise
-                int noise = ((x * 73 + y * 137) % 16) - 8;
-                int baseVal = 155 + noise;
-
-                // Check proximity to any scratch
-                int scratchVal = 0;
-                foreach (var (sx0, sy0, sx1, sy1, bright) in scratches)
-                {
-                    float dist = DistToSegment(x, y, sx0, sy0, sx1, sy1);
-                    if (dist < 1.5f)
-                    {
-                        scratchVal = Math.Max(scratchVal, bright - (int)(dist * 30));
-                    }
-                }
-
-                int final = Math.Max(baseVal, scratchVal);
-                row[x] = new Rgba32((byte)Math.Clamp(final, 0, 255),
-                                    (byte)Math.Clamp(final - 2, 0, 255),
-                                    (byte)Math.Clamp(final - 5, 0, 255));
-            }
-        }
-    });
-
-    img.SaveAsPng(path);
-    Console.WriteLine($"  ✓ {Path.GetFileName(path),-28} {w}×{h}");
-}
-
-static float DistToSegment(float px, float py, float x0, float y0, float x1, float y1)
-{
-    float dx = x1 - x0, dy = y1 - y0;
-    float len2 = dx * dx + dy * dy;
-    if (len2 < 0.001f) return MathF.Sqrt((px - x0) * (px - x0) + (py - y0) * (py - y0));
-    float t = Math.Clamp(((px - x0) * dx + (py - y0) * dy) / len2, 0f, 1f);
-    float projX = x0 + t * dx, projY = y0 + t * dy;
-    return MathF.Sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Concrete — cemento grezzo con variazione e macchie scure
-// ─────────────────────────────────────────────────────────────────────────────
-static void GenerateConcrete(string path)
-{
-    const int w = 512, h = 512;
-    using var img = new Image<Rgba32>(w, h);
-
-    var rng = new Random(99);
-    // Pre-generate stain centers
-    var stains = new List<(int cx, int cy, int radius, int darken)>();
-    for (int i = 0; i < 25; i++)
-        stains.Add((rng.Next(w), rng.Next(h), rng.Next(15, 50), rng.Next(10, 35)));
-
-    img.ProcessPixelRows(acc =>
-    {
-        for (int y = 0; y < h; y++)
-        {
-            var row = acc.GetRowSpan(y);
-            for (int x = 0; x < w; x++)
-            {
-                // Base concrete grey with coarse noise
-                int coarse = ((x * 7 + y * 13) % 23) - 11;
-                int fine = ((x * 131 + y * 97) % 11) - 5;
-                int baseVal = 165 + coarse + fine;
-
-                // Stain darkening
-                int stainDark = 0;
-                foreach (var (cx, cy, r, d) in stains)
-                {
-                    float dist = MathF.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
-                    if (dist < r)
-                    {
-                        float t = 1f - dist / r;
-                        stainDark = Math.Max(stainDark, (int)(d * t * t));
-                    }
-                }
-
-                int v = Math.Clamp(baseVal - stainDark, 0, 255);
-                // Slight warm tint (concrete isn't pure grey)
-                row[x] = new Rgba32((byte)v, (byte)Math.Max(v - 3, 0), (byte)Math.Max(v - 7, 0));
-            }
-        }
-    });
-
     img.SaveAsPng(path);
     Console.WriteLine($"  ✓ {Path.GetFileName(path),-28} {w}×{h}");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Logo — "3D-Ray" con gradiente su sfondo scuro
+//  Logo
 // ─────────────────────────────────────────────────────────────────────────────
 static void GenerateLogo(string path)
 {
-    const int w = 512, h = 384;
+    const int w = 1024, h = 768;
     using var img = new Image<Rgba32>(w, h);
 
-    // Simple bitmap font for "3D-RAY" — 6 chars, each 5 wide in a 7-high grid
-    // Each string is a 5×7 bitmask where '#' = pixel on
     string[][] font = [
-        [ // 3
-            ".###.",
-            "....#",
-            "....#",
-            "..##.",
-            "....#",
-            "....#",
-            ".###.",
-        ],
-        [ // D
-            "####.",
-            "#...#",
-            "#...#",
-            "#...#",
-            "#...#",
-            "#...#",
-            "####.",
-        ],
-        [ // -
-            ".....",
-            ".....",
-            ".....",
-            ".###.",
-            ".....",
-            ".....",
-            ".....",
-        ],
-        [ // R
-            "####.",
-            "#...#",
-            "#...#",
-            "####.",
-            "#.#..",
-            "#..#.",
-            "#...#",
-        ],
-        [ // A
-            "..#..",
-            ".#.#.",
-            "#...#",
-            "#####",
-            "#...#",
-            "#...#",
-            "#...#",
-        ],
-        [ // Y
-            "#...#",
-            ".#.#.",
-            "..#..",
-            "..#..",
-            "..#..",
-            "..#..",
-            "..#..",
-        ],
+        [ ".###.", "....#", "....#", "..##.", "....#", "....#", ".###." ], // 3
+        [ "####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####." ], // D
+        [ ".....", ".....", ".....", ".###.", ".....", ".....", "....." ], // -
+        [ "####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#" ], // R
+        [ "..#..", ".#.#.", "#...#", "#####", "#...#", "#...#", "#...#" ], // A
+        [ "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#..", "..#.." ], // Y
     ];
 
-    int charW = 5, charH = 7;
+    int charW = 5, charH = 7, spacing = 2;
     int totalChars = font.Length;
-    int spacing = 2;
     int totalGridW = totalChars * charW + (totalChars - 1) * spacing;
-
-    // Scale and center
     int scale = Math.Min(w / (totalGridW + 4), h / (charH + 6));
     int startX = (w - totalGridW * scale) / 2;
     int startY = (h - charH * scale) / 2;
 
-    img.ProcessPixelRows(acc =>
+    for (int y = 0; y < h; y++)
     {
-        for (int y = 0; y < h; y++)
+        float fy = y / (float)h;
+        for (int x = 0; x < w; x++)
         {
-            var row = acc.GetRowSpan(y);
-            float fy = y / (float)h;
+            float fx = x / (float)w;
+            float cx = fx - 0.5f, cy = fy - 0.5f;
+            float radial = MathF.Sqrt(cx * cx + cy * cy);
+            
+            // Fbm background
+            float bgNoise = ProNoise.Fbm(fx * 5f, fy * 5f, 4) * 0.1f;
+            int bgBase = (int)(18 + (1f - Math.Clamp(radial * 1.5f, 0f, 1f)) * 15 + bgNoise * 50);
+            
+            int bgR = Math.Clamp(bgBase, 0, 255);
+            int bgG = Math.Clamp((int)(bgBase * 0.9f), 0, 255);
+            int bgB = Math.Clamp((int)(bgBase * 1.3f), 0, 255);
 
-            for (int x = 0; x < w; x++)
+            bool inGlyph = false;
+            float glyphProgress = 0f;
+
+            int gx = x - startX, gy = y - startY;
+
+            if (gx >= 0 && gy >= 0 && gy < charH * scale)
             {
-                float fx = x / (float)w;
-
-                // Dark background with radial gradient
-                float cx = fx - 0.5f, cy = fy - 0.5f;
-                float radial = MathF.Sqrt(cx * cx + cy * cy);
-                int bgBase = (int)(18 + (1f - Math.Clamp(radial * 1.5f, 0f, 1f)) * 15);
-                int bgR = bgBase;
-                int bgG = (int)(bgBase * 0.9f);
-                int bgB = (int)(bgBase * 1.3f);
-
-                // Check if pixel is in a font glyph
-                bool inGlyph = false;
-                float glyphProgress = 0f; // 0..1 across all text for gradient
-
-                int gx = x - startX;
-                int gy = y - startY;
-
-                if (gx >= 0 && gy >= 0 && gy < charH * scale)
+                int accumulatedX = 0;
+                for (int c = 0; c < totalChars; c++)
                 {
-                    int charIdx = 0;
-                    int accumulatedX = 0;
-                    for (int c = 0; c < totalChars; c++)
+                    int charStartX = accumulatedX * scale;
+                    int charEndX = (accumulatedX + charW) * scale;
+                    if (gx >= charStartX && gx < charEndX)
                     {
-                        int charStartX = accumulatedX * scale;
-                        int charEndX = (accumulatedX + charW) * scale;
-
-                        if (gx >= charStartX && gx < charEndX)
+                        int localX = (gx - charStartX) / scale;
+                        int localY = gy / scale;
+                        if (localX < charW && localY < charH && font[c][localY][localX] == '#')
                         {
-                            int localX = (gx - charStartX) / scale;
-                            int localY = gy / scale;
-
-                            if (localX < charW && localY < charH && font[c][localY][localX] == '#')
-                            {
-                                inGlyph = true;
-                                glyphProgress = (float)x / w;
-                                charIdx = c;
-                            }
-                            break;
+                            inGlyph = true;
+                            glyphProgress = (float)x / w;
                         }
-                        accumulatedX += charW + spacing;
+                        break;
                     }
-                }
-
-                if (inGlyph)
-                {
-                    // Gradient across text: blue → cyan → green
-                    float t = glyphProgress;
-                    int lr = (int)(30 + (1f - t) * 80);
-                    int lg = (int)(120 + t * 135);
-                    int lb = (int)(220 - t * 120);
-                    row[x] = new Rgba32(
-                        (byte)Math.Clamp(lr, 0, 255),
-                        (byte)Math.Clamp(lg, 0, 255),
-                        (byte)Math.Clamp(lb, 0, 255));
-                }
-                else
-                {
-                    row[x] = new Rgba32(
-                        (byte)Math.Clamp(bgR, 0, 255),
-                        (byte)Math.Clamp(bgG, 0, 255),
-                        (byte)Math.Clamp(bgB, 0, 255));
+                    accumulatedX += charW + spacing;
                 }
             }
-        }
-    });
 
+            if (inGlyph)
+            {
+                float t = glyphProgress;
+                int lr = (int)(30 + (1f - t) * 80);
+                int lg = (int)(120 + t * 135);
+                int lb = (int)(220 - t * 120);
+                img[x, y] = new Rgba32((byte)lr, (byte)lg, (byte)lb);
+            }
+            else
+            {
+                img[x, y] = new Rgba32((byte)bgR, (byte)bgG, (byte)bgB);
+            }
+        }
+    }
     img.SaveAsPng(path);
     Console.WriteLine($"  ✓ {Path.GetFileName(path),-28} {w}×{h}");
 }
