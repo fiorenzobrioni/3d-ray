@@ -774,39 +774,115 @@ valli, valori bassi trasformano tutto in montagne. Questi due parametri
 sono usati solo dalle modalità `hetero_terrain` / `hybrid_multifractal`
 — gli altri tipi di noise li ignorano.
 
-**Marble:**
+**Marble** — production-grade ridged multifractal + recursive (Inigo Quilez)
+domain warp + fold geologico anisotropo + impurità minerali opzionali.
+L'algoritmo eguaglia la qualità di `marble2` Arnold, `PxrMarble` RenderMan,
+Marble Cycles in configurazione cinematic. Niente portante periodica — ogni
+tiling visibile è ucciso dal warp ricorsivo.
+
 ```yaml
 texture:
   type: "marble"
-  scale: 4.0
-  noise_strength: 10.0
-  vein_axis: [1, 0, 0.3]       # direzione primaria di propagazione delle venature (default Z)
-  vein_frequency: 1.0          # moltiplicatore sul termine sinusoidale
-  vein_sharpness: 4.0          # 1=morbido (legacy), 4-8=venature sottili Carrara
-  noise_type: "turbulence"     # turbulence | fbm | ridged
-  octaves: 7                   # ottave del termine frattale
+  scale: 2.4
+  colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
+  vein_axis: [0, 1, 0]         # direzione dominante del fold
+
+  # Domain warp ricorsivo (IQ) — uccide il tiling, produce flow organica
+  warp_amplitude: 0.9          # spostamento (wu) del campo di warp
+  warp_scale: 2.0              # periodo spaziale del warp
+  warp_iterations: 2           # 0 = baseline, 2 = canonico, 3 = aggressivo
+
+  # Fold geologico anisotropo — shear tettonico a grande scala
+  fold_amplitude: [0.8, 0.25, 0.45]   # ampiezza per asse (max → vein_axis)
+  fold_scale: 6.0              # periodo del campo fold
+
+  # Campo vena ridged multi-scala — compositing via soft-max
+  vein_layers: 2               # 1..3 layer indipendenti
+  vein_scale:  [1.0, 2.4]      # scala per layer (length = vein_layers)
+  vein_weight: [1.0, 0.50]     # peso soft-max per layer
+  octaves: 5
   lacunarity: 2.0
   gain: 0.5
-  distortion: 0.0
-  colors: [[0.95, 0.95, 0.95], [0.10, 0.10, 0.15]]
-  secondary_wave:              # opzionale — venature incrociate Statuario / Calacatta
-    axis: [1, 0, 0]            # seconda direzione di vena (auto-ortogonalizzata)
-    frequency: 0.7             # indipendente dalla frequenza primaria
-    strength: 0.5              # 0 = disattivato (back-compat), ~0.3-0.7 tipico
-```
-L'asse delle venature controlla la direzione di propagazione; un vettore non
-allineato agli assi produce lastre naturali. `vein_sharpness` eleva la
-sinusoide a potenza, restringendo la banda scura in una vera vena.
+  soft_max_sharpness: 8        # nitidezza del composito tra layer
 
-> **`secondary_wave` studio-quality.** Con `strength > 0` aggiunge una
-> seconda sinusoide lungo `secondary_wave.axis` al termine principale:
-> `sin(wave1) + strength · sin(wave2)`, rinormalizzato in [-1, 1]. L'asse
-> secondario viene auto-ortogonalizzato contro il primario al sample-time,
-> quindi anche scegliendolo collineare si ottengono comunque venature
-> incrociate visibili — è il look Statuario / Calacatta / Arabescato
-> irraggiungibile con una sola direzione. Combinabile con un `color_ramp:`
-> a 3+ stop per autorialità vena → mid-tone → base → undertone.
-> `strength = 0` (default) è bit-identico al comportamento legacy.
+  # Remap thickness della vena (sostituisce il vecchio vein_sharpness)
+  vein_thickness: 0.13         # 0..1 — frazione della superficie occupata
+  vein_softness: 0.07          # half-width smoothstep dei bordi
+
+  # Variazione tonale di fondo
+  background_scale: 12.0
+  background_octaves: 3
+  color_variation: 0.08        # quanto il fBm di fondo sposta la ramp
+
+  # Impurità minerali (specks Verde Alpi, Blu Sodalite)
+  impurities_density: 0.0      # 0 disabilita; ~0.05 = Verde Alpi
+  impurities_scale: 8.0
+  impurity_weight: 0.12
+  # impurities_texture: { type: "voronoi", ... }   # override esterno
+
+  # Pre-stretch anisotropo (compressione geologica)
+  space_stretch: [1.0, 1.0, 1.0]   # (0.4, 1.8, 1.0) = compressione orizzontale
+
+  # Cracks lineari secondari (overlay Worley F2 − F1)
+  cracks_density: 0.0          # 0 disabilita; ~0.30 = Marquinia/Calacatta
+  cracks_scale: 2.0
+  cracks_softness: 0.04        # 0.02 = filiformi netti, 0.10 = soft branching
+  cracks_weight: 0.9           # peso soft-max vs il layer ridged
+
+  # Modalità di output — `color` (default) o `mask`
+  output: "color"              # `mask` per pilotare roughness_texture ecc.
+
+  randomize_offset: true
+  # color_ramp: [...]          # multi-stop opzionale; vince su `colors`
+```
+
+> **Parametri Disney pilotati dal mask.** `output: "mask"` su un blocco
+> marble restituisce lo scalare vena `t ∈ [0, 1]` impacchettato come
+> `(t, t, t)`. È il modo canonico per pilotare `roughness_texture`,
+> `subsurface_texture`, `sheen_texture` ecc. dallo stesso pattern usato
+> per il colore: le vene possono essere più lucide della base matte,
+> l'SSS può attenuarsi sotto le vene calcite scure, il sheen può rimanere
+> solo sulla base. Si duplica il blocco marble sotto il `*_texture`
+> appropriato con `output: "mask"` e (opzionalmente) un `color_ramp`
+> a 2-stop che rimappa `[0, 1]` sul range del parametro. La doppia
+> valutazione costa ~26 sample Perlin extra per shade — trascurabile
+> rispetto al BSDF Disney + NEE.
+
+> **Stretch anisotropo vs fold.** `space_stretch` è un pre-multiply
+> lineare sul sample point — compressione uniforme che gira PRIMA del
+> fold e del warp. Si usa per il look "stratificato planare" dei marmi
+> sedimentati (la Y di Statuario, la compressione orizzontale del Verde
+> Alpi). Il fold (`fold_amplitude`) è uno shear noise-driven non-lineare
+> che produce deformazione geologica curva. Si compongono
+> moltiplicativamente nello spazio del sample point.
+
+> **Cracks vs layer vena.** Il campo ridged multi-scala produce creste
+> organiche tipo vena; il Worley overlay produce fratture lunghe lineari
+> nette (ridge F2 − F1 tra le celle). Si compongono via soft-max così le
+> due reti coesistono pulitamente. `cracks_density: 0` salta del tutto la
+> valutazione Worley — costo zero quando disattivato.
+
+`vein_axis` non guida più una portante sinusoidale — controlla solo la
+direzione dominante del fold anisotropo. La flow organica viene dalla
+coppia warp ricorsivo + ridged multifractale. Aumentare `warp_iterations`
+da 2 a 3 raddoppia il costo Perlin per sample (~14 → ~17 lattice sample
+oltre ai layer ridged) ma elimina ogni tiling residuo sulle lastre ad
+alta risoluzione.
+
+`vein_thickness` è strettamente monotono rispetto all'area visibile di
+vena: 0.12-0.18 ≈ Carrara/Statuario (sottili), 0.22-0.30 ≈
+Calacatta/Port Laurent (medie), 0.30-0.40 ≈ Arabescato (bande caotiche),
+0.40+ ≈ onice/alabastro (nuvole diffuse anziché vene). `vein_softness`
+gestisce la nitidezza della transizione — 0.04-0.08 = bordi netti
+(Marquinia), 0.15-0.25 = morbidi (onice).
+
+> **Componibilità delle impurità.** Il path inline default
+> `impurities_density` usa un cell hash Voronoi sparso — economico e YAML
+> piatto. Quando l'inline è troppo limitato (impurità che seguono
+> un'immagine, un Voronoi custom, qualsiasi altro pattern), si imposta
+> `impurities_texture` con un blocco texture annidato completo: la sua
+> luminanza sostituisce il path inline indipendentemente da
+> `impurities_density`.
 
 **Wood:**
 ```yaml
@@ -874,69 +950,184 @@ ramp per ottenere un materiale credibile in pochi minuti.
 >    Senza questa tripletta l'integratore BSDF non riesce a separare
 >    texture e ambiente.
 
-**Carrara — base bianca con vena scura sottile.**
+**Carrara — base bianca con vene grigio-blu sottili.**
 ```yaml
 - id: "carrara"
   type: "disney"
-  roughness: 0.32
-  specular: 0.5
+  roughness: 0.18
+  specular: 0.55
+  clearcoat: 0.65
+  coat_roughness: 0.08
   texture:
     type: "marble"
-    scale: 5.0
-    vein_axis: [0, 0, 1]
-    vein_frequency: 1.0
-    vein_sharpness: 4.0           # → base ampia, vena stretta
-    noise_strength: 8.0
-    octaves: 8
-    colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
+    scale: 2.4
+    colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
+    vein_axis: [0, 1, 0]
+    warp_amplitude: 0.9
+    fold_amplitude: [0.8, 0.25, 0.45]
+    vein_layers: 2
+    vein_scale:  [1.0, 2.4]
+    vein_weight: [1.0, 0.50]
+    vein_thickness: 0.13
+    vein_softness: 0.07
+    color_variation: 0.08
+    randomize_offset: true
 ```
-Con `vein_sharpness ≥ 3` la media campionaria si avvicina a `colors[0]`
-(base), quindi la BASE è il colore dominante e la vena si restringe in
-sottili linee — esattamente il look Carrara reale.
+Il default vein_thickness 0.13 lascia la superficie dominantemente bianca
+con cracks ridged sottili. Il fold + warp ricorsivo curvano le vene
+organicamente lungo `vein_axis` — niente linee dritte qualsiasi sia
+l'angolo della camera.
 
-**Calacatta — venature incrociate con transizioni dorate.**
+**Calacatta Gold — 3 layer + ramp 4-stop dal cream all'oro alla vena scura.**
 ```yaml
-- id: "calacatta"
+- id: "calacatta_gold"
   type: "disney"
-  roughness: 0.30
+  roughness: 0.10
+  clearcoat: 0.92
+  coat_roughness: 0.06
+  specular: 0.70
   texture:
     type: "marble"
-    scale: 4.0
-    vein_axis: [0, 0, 1]
-    vein_sharpness: 3.0           # vene più larghe del Carrara (Calacatta è più audace)
-    noise_strength: 6.0
-    octaves: 8
-    secondary_wave:
-      axis: [1, 0, 0]             # auto-ortogonalizzato vs primaria
-      frequency: 0.65             # rapporto non intero → no moiré
-      strength: 0.45
+    scale: 1.9
+    vein_axis: [0, 1, 0]
+    warp_amplitude: 1.1
+    warp_iterations: 2
+    fold_amplitude: [0.95, 0.35, 0.55]
+    vein_layers: 3
+    vein_scale:  [0.65, 1.5, 3.4]
+    vein_weight: [1.0, 0.70, 0.40]
+    vein_thickness: 0.22
+    vein_softness: 0.10
+    color_variation: 0.09
+    randomize_offset: true
     color_ramp:
-      - { position: 0.00, color: [0.10, 0.08, 0.08], interp: "smoothstep" }
-      - { position: 0.35, color: [0.85, 0.65, 0.30], interp: "smoothstep" }
-      - { position: 0.70, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
-      - { position: 1.00, color: [0.97, 0.95, 0.90], interp: "linear"     }
+      - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear" }
+      - { position: 0.30, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
+      - { position: 0.65, color: [0.85, 0.62, 0.28], interp: "smoothstep" }
+      - { position: 1.00, color: [0.18, 0.10, 0.05], interp: "linear" }
 ```
-Convenzione con sharpening corretto: ramp **position 0 = vena** (rara,
-`t→0`), **position 1 = base** (dominante, `t→1`); gli stop intermedi
-dipingono la transizione.
+Convenzione: ramp **position 0 = base** (`t → 0`, area dominante dove il
+campo ridged è basso), **position 1 = vena** (`t → 1`, picchi rari del
+campo ridged); gli stop intermedi dipingono la transizione dorata. Il
+sistema a 3 layer garantisce coesistenza di vene sottili E spesse sulla
+stessa lastra.
 
-**Arabescato — cross-veining forte + distorsione caotica.**
+**Arabescato — 3 layer caotici + warp estremo.**
 ```yaml
 - id: "arabescato"
   type: "disney"
-  roughness: 0.34
+  roughness: 0.18
+  clearcoat: 0.65
+  coat_roughness: 0.08
   texture:
     type: "marble"
-    scale: 3.5
-    vein_sharpness: 2.0
-    noise_strength: 8.0
-    distortion: 0.35              # warp Perlin extra
-    secondary_wave: { axis: [1, 0.3, 0], frequency: 1.2, strength: 0.7 }
+    scale: 1.8
+    vein_axis: [0, 1, 0]
+    warp_amplitude: 1.4
+    warp_iterations: 3            # flow aggressiva
+    fold_amplitude: [1.1, 0.5, 0.7]
+    vein_layers: 3
+    vein_scale:  [0.55, 1.4, 3.2]
+    vein_weight: [1.0, 0.75, 0.45]
+    vein_thickness: 0.34          # bande larghe (Arabescato è audace)
+    vein_softness: 0.12
+    color_variation: 0.10
+    randomize_offset: true
     color_ramp:
-      - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "smoothstep" }
-      - { position: 0.50, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
-      - { position: 1.00, color: [0.94, 0.92, 0.88], interp: "linear"     }
+      - { position: 0.00, color: [0.94, 0.92, 0.88], interp: "linear" }
+      - { position: 0.55, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
+      - { position: 1.00, color: [0.08, 0.08, 0.10], interp: "linear" }
 ```
+
+**Calacatta lucido — roughness pilotata da mask per il look "lavorato".**
+La ricetta pro canonica: lo stesso blocco marble pilota sia il colore
+sia la roughness Disney. Le vene diventano quasi specchio (`roughness
+0.06`), la base matte resta a `roughness 0.18` — la lastra si legge
+come una superficie levigata vera dove i materiali della vena si
+comportano diversamente dalla matrice.
+```yaml
+- id: "calacatta_pro"
+  type: "disney"
+  texture:
+    type: "marble"
+    scale: 1.9
+    vein_axis: [0, 1, 0]
+    warp_amplitude: 1.1
+    fold_amplitude: [0.95, 0.35, 0.55]
+    vein_layers: 3
+    vein_scale:  [0.65, 1.5, 3.4]
+    vein_weight: [1.0, 0.70, 0.40]
+    vein_thickness: 0.22
+    vein_softness: 0.09
+    cracks_density: 0.25            # fratture lineari (Worley)
+    cracks_scale: 3.5
+    randomize_offset: true
+    color_ramp:
+      - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear" }
+      - { position: 0.30, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
+      - { position: 0.65, color: [0.85, 0.62, 0.28], interp: "smoothstep" }
+      - { position: 1.00, color: [0.18, 0.10, 0.05], interp: "linear" }
+  roughness: 0.18                   # baseline
+  roughness_texture:
+    type: "marble"
+    output: "mask"                  # ← restituisce lo scalare t come (t,t,t)
+    scale: 1.9
+    vein_axis: [0, 1, 0]
+    warp_amplitude: 1.1
+    fold_amplitude: [0.95, 0.35, 0.55]
+    vein_layers: 3
+    vein_scale:  [0.65, 1.5, 3.4]
+    vein_weight: [1.0, 0.70, 0.40]
+    vein_thickness: 0.22
+    vein_softness: 0.09
+    cracks_density: 0.25
+    cracks_scale: 3.5
+    randomize_offset: true
+    color_ramp:
+      - { position: 0.0, color: [0.28, 0.28, 0.28] }   # base → roughness 0.28
+      - { position: 1.0, color: [0.06, 0.06, 0.06] }   # vena → roughness 0.06
+  clearcoat: 0.92
+  coat_roughness: 0.05
+```
+I due blocchi marble devono usare gli stessi `scale`/`warp_*`/`vein_*`
+così colore e mask sono in fase spazialmente. La ramp a 2-stop sul mask
+mappa `[0, 1]` sul range di roughness desiderato. Lo stesso pattern
+funziona per `subsurface_texture` (SSS si attenua sulle vene calcite
+scure), `sheen_texture` (sheen solo sulla base matte),
+`specular_texture` ecc.
+
+**Verde Alpi — base verde con impurità minerali (specks olivina).**
+```yaml
+- id: "verde_alpi"
+  type: "disney"
+  roughness: 0.20
+  clearcoat: 0.55
+  coat_roughness: 0.12
+  texture:
+    type: "marble"
+    scale: 2.3
+    vein_axis: [0, 1, 0]
+    warp_amplitude: 1.05
+    fold_amplitude: [0.85, 0.30, 0.55]
+    vein_layers: 2
+    vein_scale:  [0.85, 2.0]
+    vein_weight: [1.0, 0.55]
+    vein_thickness: 0.20
+    vein_softness: 0.09
+    color_variation: 0.10
+    impurities_density: 0.06      # ← specks Voronoi inline
+    impurities_scale: 9.0
+    impurity_weight: 0.20
+    randomize_offset: true
+    color_ramp:
+      - { position: 0.00, color: [0.16, 0.40, 0.22], interp: "linear" }
+      - { position: 0.55, color: [0.06, 0.22, 0.10], interp: "smoothstep" }
+      - { position: 1.00, color: [0.02, 0.08, 0.04], interp: "linear" }
+```
+Il path impurità inline usa un cell hash Voronoi sparso con falloff
+smoothstep per produrre specks scure per cella. Sostituibile con
+`impurities_texture: { ... }` per pilotare le impurità da qualsiasi altra
+texture (immagine, Voronoi custom, crackle).
 
 **Rovere quartato — venatura radiale fibrosa.**
 ```yaml
@@ -1191,11 +1382,10 @@ e `PxrRamp` di RenderMan:
 ```yaml
 texture:
   type: "marble"
-  vein_sharpness: 4.0
+  vein_thickness: 0.20
   color_ramp:
-    - { position: 0.00, color: [0.05, 0.05, 0.07], interp: "smoothstep" }
-    - { position: 0.45, color: [0.55, 0.45, 0.32], interp: "linear"     }
-    - { position: 0.55, color: [0.95, 0.93, 0.88], interp: "linear"     }
+    - { position: 0.00, color: [0.95, 0.93, 0.88], interp: "linear"     }
+    - { position: 0.45, color: [0.55, 0.45, 0.32], interp: "smoothstep" }
     - { position: 1.00, color: [0.05, 0.05, 0.07], interp: "linear"     }
 ```
 - `position` ∈ [0, 1] — viene clampato fuori range; gli stop sono

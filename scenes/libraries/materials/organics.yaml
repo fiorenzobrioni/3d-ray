@@ -864,18 +864,23 @@ materials:
     coat_roughness: 0.05
     texture:
       type: "marble"
-      scale: 3.5
-      vein_axis: [0, 0, 1]
-      vein_frequency: 0.8
-      vein_sharpness: 3.0
-      noise_strength: 5.0
-      octaves: 7
-      distortion: 0.3
+      scale: 1.8
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.30, 0.55]
+      vein_layers: 2
+      vein_scale:  [0.8, 2.0]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.22
+      vein_softness: 0.10
+      color_variation: 0.10
+      randomize_offset: true
       color_ramp:
-        - { position: 0.00, color: [0.04, 0.02, 0.01], interp: "smoothstep" }
-        - { position: 0.40, color: [0.32, 0.18, 0.06], interp: "smoothstep" }
-        - { position: 0.75, color: [0.62, 0.40, 0.18], interp: "smoothstep" }
-        - { position: 1.00, color: [0.88, 0.72, 0.42], interp: "linear" }
+        - { position: 0.00, color: [0.88, 0.72, 0.42], interp: "linear" }
+        - { position: 0.40, color: [0.62, 0.40, 0.18], interp: "smoothstep" }
+        - { position: 0.75, color: [0.32, 0.18, 0.06], interp: "smoothstep" }
+        - { position: 1.00, color: [0.04, 0.02, 0.01], interp: "linear" }
 
   # Corallo rosso: voronoi cell per i polipi della struttura.
   - id: "dis_corallo_rosso_v2"

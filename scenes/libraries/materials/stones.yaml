@@ -33,21 +33,32 @@
 #
 # ── Parametri texture ────────────────────────────────────────────────────
 #
-#   Texture "marble":
-#     scale          Frequenza venature: basso = ampie, alto = fitte.
-#     noise_strength Intensità: basso = appena visibili, alto = drammatiche.
-#     colors         [colore_base, colore_venatura].
-#     vein_axis      Direzione di propagazione (default Z). Vettori non
-#                    allineati agli assi → lastre più naturali.
-#     vein_sharpness Stretta la vena man mano che k cresce (1 = legacy
-#                    soft, 3-5 = Carrara con vena sottile e base larga).
-#     secondary_wave Opzionale, blocco `{axis, frequency, strength}`:
-#                    aggiunge una seconda sinusoide auto-ortogonalizzata
-#                    contro la primaria per il look "cross-vein" tipico
-#                    di Calacatta / Statuario / Arabescato.
-#     color_ramp     Lista di stop per gradienti multi-tonali (vena → mid
-#                    → base → undertone). Vince su `colors:` quando
-#                    presente.
+#   Texture "marble" — production-grade ridged + IQ warp + folds:
+#     scale            Frequenza globale del campo vena (basso = ampio).
+#     colors           [colore_base, colore_venatura]; ignorato se color_ramp
+#                      è presente.
+#     vein_axis        Direzione preferita del fold geologico anisotropo —
+#                      orienta la lastra senza permutare fold_amplitude.
+#     warp_amplitude   Ampiezza del recursive (IQ) domain warp — rompe ogni
+#                      tiling visibile. 0.7-1.4 tipico.
+#     warp_iterations  0 = no warp (debug), 2 = canonico, 3 = flow aggressiva.
+#     fold_amplitude   Per-axis [x,y,z] del fold tettonico (shear anisotropo).
+#                      La componente max si allinea a vein_axis.
+#     vein_layers      1..3 layer ridged compositati via soft-max — coesistenza
+#                      di vene sottili e spesse.
+#     vein_scale       Scale per layer (length = vein_layers).
+#     vein_weight      Pesi per layer (length = vein_layers).
+#     vein_thickness   Frazione [0,1] della superficie occupata da vene.
+#                      0.15 ≈ Carrara, 0.5 ≈ Arabescato.
+#     vein_softness    Half-width della soglia smoothstep sui bordi vena.
+#                      0.04-0.08 = bordi netti, 0.15-0.25 = onice/alabastro.
+#     color_variation  Quanto il fBm a bassa freq sposta la ramp lookup —
+#                      arricchimento tonale sulla base.
+#     impurities_density / scale / weight   Inclusioni minerali sparse
+#                      (Verde Alpi, Blu Sodalite). 0 disabilita il path.
+#     impurities_texture                    Texture esterna che, se presente,
+#                      sostituisce il path Voronoi inline (composabilità).
+#     color_ramp       Multi-stop, vince su `colors`.
 #
 #   Texture "noise":
 #     scale          Frequenza grana: basso = macchie grandi, alto = fine.
@@ -95,11 +106,10 @@
 #   MATTONI E LATERIZI  Terracotta strutturale. Toni rossi e ocra,
 #                       superfici rugose.
 #
-#   STUDIO QUALITY      Variants di marmo con `vein_sharpness`,
-#                       `secondary_wave` e `color_ramp` per look VFX
-#                       production-grade: Carrara con vena sottile vera,
-#                       Calacatta con vena dorata cross-direzionale,
-#                       Arabescato chaos, ecc.
+#   STUDIO QUALITY      Variants di marmo con color_ramp multi-stop, 3 layer
+#                       ridged e warp/fold spinti — look VFX production-grade.
+#                       Carrara studio = ramp 5-stop, Calacatta gold = ramp
+#                       oro-cream, Arabescato = caos massimo con thickness 0.34.
 #
 # ============================================================================
 
@@ -115,11 +125,23 @@ materials:
   # Disney — lucido (pavimenti pregiati, sculture finite)
   - id: "dis_carrara_lucido"
     type: "disney"
+    # Carrara — pietra apuana bianco-crema con vene grigio-blu sottili.
+    # Pochi layer ridged, thickness bassa: superficie dominata dal bianco con
+    # cracks geologici filiformi che si piegano grazie al fold + warp.
     texture:
       type: "marble"
-      scale: 15.0
-      noise_strength: 12.0
-      colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
+      scale: 2.4
+      colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.9
+      warp_iterations: 2
+      fold_amplitude: [0.8, 0.25, 0.45]
+      vein_layers: 2
+      vein_scale:  [1.0, 2.4]
+      vein_weight: [1.0, 0.50]
+      vein_thickness: 0.12
+      vein_softness: 0.07
+      color_variation: 0.08
       randomize_offset: true
     roughness: 0.10
     clearcoat: 0.90
@@ -130,11 +152,23 @@ materials:
   # Disney — levigato (sculture classiche, bagni)
   - id: "dis_carrara_levigato"
     type: "disney"
+    # Carrara — pietra apuana bianco-crema con vene grigio-blu sottili.
+    # Pochi layer ridged, thickness bassa: superficie dominata dal bianco con
+    # cracks geologici filiformi che si piegano grazie al fold + warp.
     texture:
       type: "marble"
-      scale: 15.0
-      noise_strength: 12.0
-      colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
+      scale: 2.4
+      colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.9
+      warp_iterations: 2
+      fold_amplitude: [0.8, 0.25, 0.45]
+      vein_layers: 2
+      vein_scale:  [1.0, 2.4]
+      vein_weight: [1.0, 0.50]
+      vein_thickness: 0.12
+      vein_softness: 0.07
+      color_variation: 0.08
       randomize_offset: true
     roughness: 0.38
     specular: 0.40
@@ -143,33 +177,69 @@ materials:
   # Classic — lambertian
   - id: "cls_carrara"
     type: "lambertian"
+    # Carrara — pietra apuana bianco-crema con vene grigio-blu sottili.
+    # Pochi layer ridged, thickness bassa: superficie dominata dal bianco con
+    # cracks geologici filiformi che si piegano grazie al fold + warp.
     texture:
       type: "marble"
-      scale: 15.0
-      noise_strength: 12.0
-      colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
+      scale: 2.4
+      colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.9
+      warp_iterations: 2
+      fold_amplitude: [0.8, 0.25, 0.45]
+      vein_layers: 2
+      vein_scale:  [1.0, 2.4]
+      vein_weight: [1.0, 0.50]
+      vein_thickness: 0.12
+      vein_softness: 0.07
+      color_variation: 0.08
       randomize_offset: true
 
   # Classic — lucido (metal + fuzz per riflesso)
   - id: "cls_carrara_lucido"
     type: "metal"
     fuzz: 0.10
+    # Carrara — pietra apuana bianco-crema con vene grigio-blu sottili.
+    # Pochi layer ridged, thickness bassa: superficie dominata dal bianco con
+    # cracks geologici filiformi che si piegano grazie al fold + warp.
     texture:
       type: "marble"
-      scale: 15.0
-      noise_strength: 12.0
-      colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
+      scale: 2.4
+      colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.9
+      warp_iterations: 2
+      fold_amplitude: [0.8, 0.25, 0.45]
+      vein_layers: 2
+      vein_scale:  [1.0, 2.4]
+      vein_weight: [1.0, 0.50]
+      vein_thickness: 0.12
+      vein_softness: 0.07
+      color_variation: 0.08
       randomize_offset: true
 
   # ── CALACATTA ──────────────────────────────────────────────────────────
 
   - id: "dis_calacatta_lucido"
     type: "disney"
+    # Calacatta — base avorio con vene caldo-grigio più larghe del Carrara.
+    # Tre layer di vena (fine, media, ampia) compositati via soft-max per
+    # avere coesistenza visibile di vene sottili E spesse.
     texture:
       type: "marble"
-      scale: 10.0
-      noise_strength: 14.0
-      colors: [[0.97, 0.96, 0.93], [0.48, 0.42, 0.32]]
+      scale: 1.8
+      colors: [[0.97, 0.96, 0.93], [0.42, 0.34, 0.24]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.9, 0.30, 0.50]
+      vein_layers: 3
+      vein_scale:  [0.7, 1.6, 3.4]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.18
+      vein_softness: 0.10
+      color_variation: 0.10
       randomize_offset: true
     roughness: 0.08
     clearcoat: 0.92
@@ -179,22 +249,45 @@ materials:
 
   - id: "cls_calacatta"
     type: "lambertian"
+    # Calacatta — base avorio con vene caldo-grigio più larghe del Carrara.
+    # Tre layer di vena (fine, media, ampia) compositati via soft-max per
+    # avere coesistenza visibile di vene sottili E spesse.
     texture:
       type: "marble"
-      scale: 10.0
-      noise_strength: 14.0
-      colors: [[0.97, 0.96, 0.93], [0.48, 0.42, 0.32]]
+      scale: 1.8
+      colors: [[0.97, 0.96, 0.93], [0.42, 0.34, 0.24]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.9, 0.30, 0.50]
+      vein_layers: 3
+      vein_scale:  [0.7, 1.6, 3.4]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.18
+      vein_softness: 0.10
+      color_variation: 0.10
       randomize_offset: true
 
   # ── STATUARIO ──────────────────────────────────────────────────────────
 
   - id: "dis_statuario_lucido"
     type: "disney"
+    # Statuario — il marmo del David. Bianco purissimo con vene grigie
+    # drammatiche, talvolta nere. Warp aggressivo + 3 layer per il look caotico.
     texture:
       type: "marble"
-      scale: 12.0
-      noise_strength: 8.0
-      colors: [[0.97, 0.97, 0.96], [0.55, 0.54, 0.58]]
+      scale: 2.0
+      colors: [[0.97, 0.97, 0.96], [0.20, 0.20, 0.24]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.15
+      warp_iterations: 3
+      fold_amplitude: [1.0, 0.35, 0.55]
+      vein_layers: 3
+      vein_scale:  [0.6, 1.4, 3.0]
+      vein_weight: [1.0, 0.65, 0.35]
+      vein_thickness: 0.20
+      vein_softness: 0.09
+      color_variation: 0.06
       randomize_offset: true
     roughness: 0.10
     clearcoat: 0.88
@@ -204,11 +297,22 @@ materials:
 
   - id: "cls_statuario"
     type: "lambertian"
+    # Statuario — il marmo del David. Bianco purissimo con vene grigie
+    # drammatiche, talvolta nere. Warp aggressivo + 3 layer per il look caotico.
     texture:
       type: "marble"
-      scale: 12.0
-      noise_strength: 8.0
-      colors: [[0.97, 0.97, 0.96], [0.55, 0.54, 0.58]]
+      scale: 2.0
+      colors: [[0.97, 0.97, 0.96], [0.20, 0.20, 0.24]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.15
+      warp_iterations: 3
+      fold_amplitude: [1.0, 0.35, 0.55]
+      vein_layers: 3
+      vein_scale:  [0.6, 1.4, 3.0]
+      vein_weight: [1.0, 0.65, 0.35]
+      vein_thickness: 0.20
+      vein_softness: 0.09
+      color_variation: 0.06
       randomize_offset: true
 
   # ── THASSOS — bianco puro greco, quasi senza venature ──────────────────
@@ -235,11 +339,26 @@ materials:
 
   - id: "dis_nero_marquinia_lucido"
     type: "disney"
+    # Nero Marquinia — fondo nero profondo con vene chiaro-crema sottili e
+    # cracks Worley per le fratture lineari nette tipiche del marmo belga.
     texture:
       type: "marble"
-      scale: 12.0
-      noise_strength: 10.0
-      colors: [[0.04, 0.04, 0.05], [0.60, 0.58, 0.52]]
+      scale: 2.0
+      colors: [[0.04, 0.04, 0.05], [0.78, 0.76, 0.70]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.85
+      warp_iterations: 2
+      fold_amplitude: [0.75, 0.20, 0.45]
+      vein_layers: 2
+      vein_scale:  [1.0, 2.4]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.14
+      vein_softness: 0.05
+      color_variation: 0.05
+      cracks_density: 0.50
+      cracks_scale: 2.6
+      cracks_softness: 0.022
+      cracks_weight: 0.85
       randomize_offset: true
     roughness: 0.06
     clearcoat: 1.0
@@ -248,22 +367,44 @@ materials:
 
   - id: "dis_nero_marquinia_levigato"
     type: "disney"
+    # Nero Marquinia — fondo nero profondo con vene chiaro-crema sottili.
+    # Thickness alta + colors invertiti (base scura, vena chiara).
     texture:
       type: "marble"
-      scale: 12.0
-      noise_strength: 10.0
-      colors: [[0.04, 0.04, 0.05], [0.60, 0.58, 0.52]]
+      scale: 2.0
+      colors: [[0.04, 0.04, 0.05], [0.78, 0.76, 0.70]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.85
+      warp_iterations: 2
+      fold_amplitude: [0.75, 0.20, 0.45]
+      vein_layers: 2
+      vein_scale:  [1.0, 2.4]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.14
+      vein_softness: 0.06
+      color_variation: 0.05
       randomize_offset: true
     roughness: 0.35
     specular: 0.50
 
   - id: "cls_nero_marquinia"
     type: "lambertian"
+    # Nero Marquinia — fondo nero profondo con vene chiaro-crema sottili.
+    # Thickness alta + colors invertiti (base scura, vena chiara).
     texture:
       type: "marble"
-      scale: 12.0
-      noise_strength: 10.0
-      colors: [[0.04, 0.04, 0.05], [0.60, 0.58, 0.52]]
+      scale: 2.0
+      colors: [[0.04, 0.04, 0.05], [0.78, 0.76, 0.70]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.85
+      warp_iterations: 2
+      fold_amplitude: [0.75, 0.20, 0.45]
+      vein_layers: 2
+      vein_scale:  [1.0, 2.4]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.14
+      vein_softness: 0.06
+      color_variation: 0.05
       randomize_offset: true
 
   # ── NERO BELGIO — nero uniforme, quasi senza venature ──────────────────
@@ -284,11 +425,27 @@ materials:
 
   - id: "dis_port_laurent_lucido"
     type: "disney"
+    # Port Laurent — marmo nero belga con vene dorate cross-direzionali.
+    # Color ramp 3 stop per la transizione vena oro → marrone → nero base.
     texture:
       type: "marble"
-      scale: 10.0
-      noise_strength: 11.0
-      colors: [[0.05, 0.04, 0.03], [0.72, 0.58, 0.22]]
+      scale: 2.2
+      colors: [[0.05, 0.04, 0.03], [0.78, 0.62, 0.22]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.95
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.30, 0.55]
+      vein_layers: 2
+      vein_scale:  [0.9, 2.2]
+      vein_weight: [1.0, 0.60]
+      vein_thickness: 0.20
+      vein_softness: 0.10
+      color_variation: 0.08
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.04, 0.03], interp: "smoothstep" }
+        - { position: 0.55, color: [0.30, 0.20, 0.08], interp: "smoothstep" }
+        - { position: 0.85, color: [0.62, 0.42, 0.15], interp: "smoothstep" }
+        - { position: 1.00, color: [0.86, 0.68, 0.26], interp: "linear" }
       randomize_offset: true
     roughness: 0.08
     clearcoat: 0.95
@@ -297,11 +454,27 @@ materials:
 
   - id: "cls_port_laurent"
     type: "lambertian"
+    # Port Laurent — marmo nero belga con vene dorate cross-direzionali.
+    # Color ramp 3 stop per la transizione vena oro → marrone → nero base.
     texture:
       type: "marble"
-      scale: 10.0
-      noise_strength: 11.0
-      colors: [[0.05, 0.04, 0.03], [0.72, 0.58, 0.22]]
+      scale: 2.2
+      colors: [[0.05, 0.04, 0.03], [0.78, 0.62, 0.22]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.95
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.30, 0.55]
+      vein_layers: 2
+      vein_scale:  [0.9, 2.2]
+      vein_weight: [1.0, 0.60]
+      vein_thickness: 0.20
+      vein_softness: 0.10
+      color_variation: 0.08
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.04, 0.03], interp: "smoothstep" }
+        - { position: 0.55, color: [0.30, 0.20, 0.08], interp: "smoothstep" }
+        - { position: 0.85, color: [0.62, 0.42, 0.15], interp: "smoothstep" }
+        - { position: 1.00, color: [0.86, 0.68, 0.26], interp: "linear" }
       randomize_offset: true
 
 
@@ -313,11 +486,25 @@ materials:
 
   - id: "dis_verde_guatemala_lucido"
     type: "disney"
+    # Verde Guatemala — verde profondo con vene nere serpentinose. Impurità
+    # minerali sparse rappresentano i cristalli di olivina.
     texture:
       type: "marble"
-      scale: 14.0
-      noise_strength: 11.0
-      colors: [[0.10, 0.30, 0.16], [0.03, 0.12, 0.06]]
+      scale: 2.3
+      colors: [[0.10, 0.30, 0.16], [0.02, 0.08, 0.04]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.1
+      warp_iterations: 2
+      fold_amplitude: [0.9, 0.25, 0.55]
+      vein_layers: 2
+      vein_scale:  [0.9, 2.0]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.22
+      vein_softness: 0.08
+      color_variation: 0.10
+      impurities_density: 0.04
+      impurities_scale: 9.0
+      impurity_weight: 0.18
       randomize_offset: true
     roughness: 0.12
     clearcoat: 0.75
@@ -327,22 +514,47 @@ materials:
 
   - id: "cls_verde_guatemala"
     type: "lambertian"
+    # Verde Guatemala — verde profondo con vene nere serpentinose. Impurità
+    # minerali sparse rappresentano i cristalli di olivina.
     texture:
       type: "marble"
-      scale: 14.0
-      noise_strength: 11.0
-      colors: [[0.10, 0.30, 0.16], [0.03, 0.12, 0.06]]
+      scale: 2.3
+      colors: [[0.10, 0.30, 0.16], [0.02, 0.08, 0.04]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.1
+      warp_iterations: 2
+      fold_amplitude: [0.9, 0.25, 0.55]
+      vein_layers: 2
+      vein_scale:  [0.9, 2.0]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.22
+      vein_softness: 0.08
+      color_variation: 0.10
+      impurities_density: 0.04
+      impurities_scale: 9.0
+      impurity_weight: 0.18
       randomize_offset: true
 
   # ── ROSSO LEVANTO ──────────────────────────────────────────────────────
 
   - id: "dis_rosso_levanto_lucido"
     type: "disney"
+    # Rosso Levanto — marmo ligure con base rossa intensa e vene calcaree
+    # bianche sottili. Color ramp da rosso scuro a vena bianca.
     texture:
       type: "marble"
-      scale: 13.0
-      noise_strength: 10.0
-      colors: [[0.65, 0.12, 0.08], [0.30, 0.06, 0.03]]
+      scale: 2.2
+      colors: [[0.45, 0.10, 0.06], [0.95, 0.92, 0.85]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.30, 0.50]
+      vein_layers: 2
+      vein_scale:  [1.0, 2.4]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.13
+      vein_softness: 0.06
+      color_variation: 0.09
       randomize_offset: true
     roughness: 0.14
     clearcoat: 0.70
@@ -352,22 +564,44 @@ materials:
 
   - id: "cls_rosso_levanto"
     type: "lambertian"
+    # Rosso Levanto — marmo ligure con base rossa intensa e vene calcaree
+    # bianche sottili. Color ramp da rosso scuro a vena bianca.
     texture:
       type: "marble"
-      scale: 13.0
-      noise_strength: 10.0
-      colors: [[0.65, 0.12, 0.08], [0.30, 0.06, 0.03]]
+      scale: 2.2
+      colors: [[0.45, 0.10, 0.06], [0.95, 0.92, 0.85]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.30, 0.50]
+      vein_layers: 2
+      vein_scale:  [1.0, 2.4]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.13
+      vein_softness: 0.06
+      color_variation: 0.09
       randomize_offset: true
 
   # ── ROSA PORTOGALLO ────────────────────────────────────────────────────
 
   - id: "dis_rosa_portogallo_lucido"
     type: "disney"
+    # Rosa Portogallo — marmo rosa con sfumature più scure, vene morbide
+    # smoothness alta sulle vene per look sfumato.
     texture:
       type: "marble"
-      scale: 16.0
-      noise_strength: 9.0
-      colors: [[0.88, 0.66, 0.60], [0.65, 0.40, 0.36]]
+      scale: 2.6
+      colors: [[0.88, 0.66, 0.60], [0.62, 0.36, 0.32]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.85
+      warp_iterations: 2
+      fold_amplitude: [0.7, 0.35, 0.45]
+      vein_layers: 2
+      vein_scale:  [0.9, 1.9]
+      vein_weight: [1.0, 0.50]
+      vein_thickness: 0.30
+      vein_softness: 0.16
+      color_variation: 0.08
       randomize_offset: true
     roughness: 0.16
     clearcoat: 0.60
@@ -377,22 +611,46 @@ materials:
 
   - id: "cls_rosa_portogallo"
     type: "lambertian"
+    # Rosa Portogallo — marmo rosa con sfumature più scure, vene morbide
+    # smoothness alta sulle vene per look sfumato.
     texture:
       type: "marble"
-      scale: 16.0
-      noise_strength: 9.0
-      colors: [[0.88, 0.66, 0.60], [0.65, 0.40, 0.36]]
+      scale: 2.6
+      colors: [[0.88, 0.66, 0.60], [0.62, 0.36, 0.32]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.85
+      warp_iterations: 2
+      fold_amplitude: [0.7, 0.35, 0.45]
+      vein_layers: 2
+      vein_scale:  [0.9, 1.9]
+      vein_weight: [1.0, 0.50]
+      vein_thickness: 0.30
+      vein_softness: 0.16
+      color_variation: 0.08
       randomize_offset: true
 
   # ── BLU SODALITE ───────────────────────────────────────────────────────
 
   - id: "dis_blu_sodalite_lucido"
     type: "disney"
+    # Blu Sodalite — blu cobalto profondo con vene bianche calcaree.
     texture:
       type: "marble"
-      scale: 11.0
-      noise_strength: 12.0
-      colors: [[0.12, 0.12, 0.45], [0.05, 0.05, 0.20]]
+      scale: 2.1
+      colors: [[0.12, 0.12, 0.45], [0.88, 0.86, 0.82]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.25, 0.50]
+      vein_layers: 2
+      vein_scale:  [0.95, 2.3]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.15
+      vein_softness: 0.07
+      color_variation: 0.07
+      impurities_density: 0.025
+      impurities_scale: 11.0
+      impurity_weight: 0.15
       randomize_offset: true
     roughness: 0.08
     clearcoat: 0.88
@@ -401,22 +659,45 @@ materials:
 
   - id: "cls_blu_sodalite"
     type: "lambertian"
+    # Blu Sodalite — blu cobalto profondo con vene bianche calcaree.
     texture:
       type: "marble"
-      scale: 11.0
-      noise_strength: 12.0
-      colors: [[0.12, 0.12, 0.45], [0.05, 0.05, 0.20]]
+      scale: 2.1
+      colors: [[0.12, 0.12, 0.45], [0.88, 0.86, 0.82]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.25, 0.50]
+      vein_layers: 2
+      vein_scale:  [0.95, 2.3]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.15
+      vein_softness: 0.07
+      color_variation: 0.07
+      impurities_density: 0.025
+      impurities_scale: 11.0
+      impurity_weight: 0.15
       randomize_offset: true
 
   # ── GIALLO SIENA ───────────────────────────────────────────────────────
 
   - id: "dis_giallo_siena_lucido"
     type: "disney"
+    # Giallo Siena — marmo giallo caldo con vene marrone-ocra.
     texture:
       type: "marble"
-      scale: 14.0
-      noise_strength: 10.0
-      colors: [[0.82, 0.68, 0.28], [0.55, 0.38, 0.12]]
+      scale: 2.4
+      colors: [[0.82, 0.68, 0.28], [0.48, 0.30, 0.10]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.9
+      warp_iterations: 2
+      fold_amplitude: [0.8, 0.25, 0.45]
+      vein_layers: 2
+      vein_scale:  [0.9, 2.2]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.18
+      vein_softness: 0.09
+      color_variation: 0.10
       randomize_offset: true
     roughness: 0.14
     clearcoat: 0.68
@@ -425,22 +706,43 @@ materials:
 
   - id: "cls_giallo_siena"
     type: "lambertian"
+    # Giallo Siena — marmo giallo caldo con vene marrone-ocra.
     texture:
       type: "marble"
-      scale: 14.0
-      noise_strength: 10.0
-      colors: [[0.82, 0.68, 0.28], [0.55, 0.38, 0.12]]
+      scale: 2.4
+      colors: [[0.82, 0.68, 0.28], [0.48, 0.30, 0.10]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.9
+      warp_iterations: 2
+      fold_amplitude: [0.8, 0.25, 0.45]
+      vein_layers: 2
+      vein_scale:  [0.9, 2.2]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.18
+      vein_softness: 0.09
+      color_variation: 0.10
       randomize_offset: true
 
   # ── ARABESCATO OROBICO — grigio con venature bianche drammatiche ───────
 
   - id: "dis_arabescato_lucido"
     type: "disney"
+    # Arabescato Orobico — caos drammatico, base grigia con vene bianche
+    # audaci e intersecanti. Warp aggressivo + 3 layer per il look complesso.
     texture:
       type: "marble"
-      scale: 10.0
-      noise_strength: 15.0
-      colors: [[0.45, 0.44, 0.42], [0.92, 0.90, 0.88]]
+      scale: 2.0
+      colors: [[0.45, 0.44, 0.42], [0.96, 0.94, 0.90]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.25
+      warp_iterations: 3
+      fold_amplitude: [1.05, 0.4, 0.6]
+      vein_layers: 3
+      vein_scale:  [0.65, 1.5, 3.2]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.28
+      vein_softness: 0.10
+      color_variation: 0.09
       randomize_offset: true
     roughness: 0.10
     clearcoat: 0.82
@@ -449,35 +751,43 @@ materials:
 
   - id: "cls_arabescato"
     type: "lambertian"
+    # Arabescato Orobico — caos drammatico, base grigia con vene bianche
+    # audaci e intersecanti. Warp aggressivo + 3 layer per il look complesso.
     texture:
       type: "marble"
-      scale: 10.0
-      noise_strength: 15.0
-      colors: [[0.45, 0.44, 0.42], [0.92, 0.90, 0.88]]
+      scale: 2.0
+      colors: [[0.45, 0.44, 0.42], [0.96, 0.94, 0.90]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.25
+      warp_iterations: 3
+      fold_amplitude: [1.05, 0.4, 0.6]
+      vein_layers: 3
+      vein_scale:  [0.65, 1.5, 3.2]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.28
+      vein_softness: 0.10
+      color_variation: 0.09
       randomize_offset: true
 
 
   # ═══════════════════════════════════════════════════════════════════════════
-  #  MARMI STUDIO-QUALITY — VFX production-grade (step 5/7 textures roadmap)
+  #  MARMI STUDIO-QUALITY — VFX production-grade
   #
-  #  Marmi che sfruttano i nuovi controlli `vein_sharpness`, `secondary_wave`
-  #  e `color_ramp` per pareggiare il look dei renderer pro (Arnold marble2
-  #  con vein_width, RenderMan PxrMarble veinFalloff, Cycles Marble Width).
-  #  Tutti hanno il suffisso `_studio` per distinguerli dai legacy.
+  #  Versione "ricca" dei marmi storici: 3 layer ridged invece di 2, warp e
+  #  fold spinti, ramp multi-stop per gradienti realistici. Equivalente del
+  #  look prodotto da Arnold marble2 / RenderMan PxrMarble / Cycles Marble in
+  #  configurazione cinematic.
   #
-  #  Linee guida di tuning (testate sul showcase marble-wood-studio):
-  #   - `vein_sharpness` 3-5: vena sottile su base ampia (vero look Carrara).
-  #     Valori più alti = vena ancora più sottile. `vein_sharpness = 1` =
-  #     comportamento legacy senza sharpening.
-  #   - `secondary_wave` con `strength` 0.4-0.7: cross-veining tipico dei
-  #     marmi pregiati. L'asse secondario è auto-ortogonalizzato vs il
-  #     primario, quindi anche scegliere axis collineare produce risultato
-  #     diverso.
-  #   - Roughness 0.30-0.34 + clearcoat 0.0: marmo lucido senza riflessione
-  #     "specchio" che lava la trama. Per finitura "lucido a vita" usare
-  #     clearcoat 0.7+ con coat_roughness < 0.1.
-  #   - Convenzione `color_ramp`: position 0 = colore vena (raro, t→0),
-  #     posizioni alte = colore base (dominante, t→1).
+  #  Linee guida di tuning:
+  #   - vein_thickness 0.12-0.20: Carrara/Statuario (vene sottili). 0.22-0.30:
+  #     Calacatta/Port Laurent (vene medie). 0.30-0.40: Arabescato (caos).
+  #     0.40+: onice/alabastro (zone diffuse anziché vene).
+  #   - vein_layers 3 + warp_iterations 3: massima organicità ma costa il
+  #     doppio della Carrara base. Usare solo dove le vene sono protagoniste.
+  #   - color_ramp con stop 0 = base, stop finale = vena (smoothstep all'80%
+  #     del range, linear sull'ultimo segmento per scurire la punta).
+  #   - Roughness 0.30-0.34 + clearcoat 0.0 = marmo levigato vivente.
+  #     Roughness 0.08 + clearcoat 0.9 = marmo lucido a specchio.
   # ═══════════════════════════════════════════════════════════════════════════
 
   # ── CARRARA STUDIO — base bianca con vena scura sottile ────────────────
@@ -487,32 +797,46 @@ materials:
 
   - id: "dis_carrara_studio"
     type: "disney"
+    # Carrara studio — versione più drammatica del Carrara base, vene quasi
+    # nere su bianco crema. Color ramp esplicito per la gradazione.
     texture:
       type: "marble"
-      scale: 5.0
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.0
-      vein_sharpness: 4.0
-      noise_strength: 8.0
-      octaves: 8
-      randomize_offset: true
+      scale: 2.5
       colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.28, 0.50]
+      vein_layers: 3
+      vein_scale:  [0.7, 1.6, 3.6]
+      vein_weight: [1.0, 0.65, 0.35]
+      vein_thickness: 0.16
+      vein_softness: 0.07
+      color_variation: 0.07
+      randomize_offset: true
     roughness: 0.32
     specular: 0.50
     subsurface: 0.06
 
   - id: "dis_carrara_studio_lucido"
     type: "disney"
+    # Carrara studio — versione più drammatica del Carrara base, vene quasi
+    # nere su bianco crema. Color ramp esplicito per la gradazione.
     texture:
       type: "marble"
-      scale: 5.0
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.0
-      vein_sharpness: 4.0
-      noise_strength: 8.0
-      octaves: 8
-      randomize_offset: true
+      scale: 2.5
       colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.28, 0.50]
+      vein_layers: 3
+      vein_scale:  [0.7, 1.6, 3.6]
+      vein_weight: [1.0, 0.65, 0.35]
+      vein_thickness: 0.16
+      vein_softness: 0.07
+      color_variation: 0.07
+      randomize_offset: true
     roughness: 0.10
     clearcoat: 0.90
     coat_roughness: 0.05
@@ -521,67 +845,113 @@ materials:
 
   - id: "cls_carrara_studio"
     type: "lambertian"
+    # Carrara studio — versione più drammatica del Carrara base, vene quasi
+    # nere su bianco crema. Color ramp esplicito per la gradazione.
     texture:
       type: "marble"
-      scale: 5.0
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.0
-      vein_sharpness: 4.0
-      noise_strength: 8.0
-      octaves: 8
-      randomize_offset: true
+      scale: 2.5
       colors: [[0.96, 0.94, 0.91], [0.10, 0.08, 0.10]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.28, 0.50]
+      vein_layers: 3
+      vein_scale:  [0.7, 1.6, 3.6]
+      vein_weight: [1.0, 0.65, 0.35]
+      vein_thickness: 0.16
+      vein_softness: 0.07
+      color_variation: 0.07
+      randomize_offset: true
 
   # ── CALACATTA STUDIO — vena dorata cross-direzionale + ramp 4-stop ─────
   # Il Calacatta autentico ha venature dorate/grigie che corrono in due
-  # direzioni. `secondary_wave` + ramp 4-stop (vena → oro → cream → avorio)
+  # direzioni. ramp 4-stop (vena → oro → cream → avorio)
   # produce il caratteristico look "Calacatta Gold" delle cave Apuane.
 
   - id: "dis_calacatta_studio"
     type: "disney"
+    # Calacatta studio — la versione ricca del Calacatta. Ramp 4-stop dalla
+    # vena scura attraverso l'oro fino al cream/avorio. Warp e fold spinti
+    # producono la flow geologica caratteristica del Calacatta Gold.
     texture:
       type: "marble"
-      scale: 4.0
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.0
-      vein_sharpness: 3.0
-      noise_strength: 6.0
-      octaves: 8
+      scale: 2.0
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.1
+      warp_iterations: 2
+      fold_amplitude: [0.95, 0.35, 0.55]
+      vein_layers: 3
+      vein_scale:  [0.65, 1.5, 3.4]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.22
+      vein_softness: 0.09
+      color_variation: 0.08
+      cracks_density: 0.35
+      cracks_scale: 3.5
+      cracks_softness: 0.040
+      cracks_weight: 0.70
       randomize_offset: true
-      secondary_wave:
-        axis: [1, 0, 0]
-        frequency: 0.65
-        strength: 0.45
       color_ramp:
-        - { position: 0.00, color: [0.10, 0.08, 0.08], interp: "smoothstep" }   # vena scura
-        - { position: 0.35, color: [0.85, 0.65, 0.30], interp: "smoothstep" }   # transizione aurea
-        - { position: 0.70, color: [0.92, 0.85, 0.72], interp: "smoothstep" }   # cream
-        - { position: 1.00, color: [0.97, 0.95, 0.90], interp: "linear"     }   # base avorio
+        - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear"     }   # base avorio
+        - { position: 0.30, color: [0.92, 0.85, 0.72], interp: "smoothstep" }   # cream
+        - { position: 0.65, color: [0.85, 0.65, 0.30], interp: "smoothstep" }   # oro
+        - { position: 1.00, color: [0.10, 0.08, 0.08], interp: "linear"     }   # vena scura
     roughness: 0.30
     specular: 0.50
     subsurface: 0.06
 
   - id: "dis_calacatta_studio_lucido"
     type: "disney"
+    # Variante "lucido a vita" del Calacatta studio. La roughness_texture
+    # in modalità mask sposta dinamicamente la roughness: 0.18 sulla base
+    # avorio, 0.06 sulla vena oro/scura → l'oro riflette quasi a specchio
+    # mentre la base resta levigata ma non specchio. È il salto da
+    # "marmo dipinto" a "marmo lavorato" indistinguibile da quello reale.
     texture:
       type: "marble"
-      scale: 4.0
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.0
-      vein_sharpness: 3.0
-      noise_strength: 6.0
-      octaves: 8
+      scale: 2.0
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.1
+      warp_iterations: 2
+      fold_amplitude: [0.95, 0.35, 0.55]
+      vein_layers: 3
+      vein_scale:  [0.65, 1.5, 3.4]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.22
+      vein_softness: 0.09
+      color_variation: 0.08
+      cracks_density: 0.35
+      cracks_scale: 3.5
+      cracks_softness: 0.040
+      cracks_weight: 0.70
       randomize_offset: true
-      secondary_wave:
-        axis: [1, 0, 0]
-        frequency: 0.65
-        strength: 0.45
       color_ramp:
-        - { position: 0.00, color: [0.10, 0.08, 0.08], interp: "smoothstep" }
-        - { position: 0.35, color: [0.85, 0.65, 0.30], interp: "smoothstep" }
-        - { position: 0.70, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
-        - { position: 1.00, color: [0.97, 0.95, 0.90], interp: "linear"     }
-    roughness: 0.08
+        - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear"     }
+        - { position: 0.30, color: [0.92, 0.85, 0.72], interp: "smoothstep" }
+        - { position: 0.65, color: [0.85, 0.65, 0.30], interp: "smoothstep" }
+        - { position: 1.00, color: [0.10, 0.08, 0.08], interp: "linear"     }
+    roughness: 0.22
+    roughness_texture:
+      type: "marble"
+      output: "mask"
+      scale: 2.0
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.1
+      warp_iterations: 2
+      fold_amplitude: [0.95, 0.35, 0.55]
+      vein_layers: 3
+      vein_scale:  [0.65, 1.5, 3.4]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.22
+      vein_softness: 0.09
+      cracks_density: 0.35
+      cracks_scale: 3.5
+      cracks_softness: 0.040
+      cracks_weight: 0.70
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.0, color: [0.22, 0.22, 0.22] }   # base: roughness 0.22
+        - { position: 1.0, color: [0.12, 0.12, 0.12] }   # vena: roughness 0.12 (glossier, non specchio)
     clearcoat: 0.92
     coat_roughness: 0.05
     specular: 0.75
@@ -590,28 +960,31 @@ materials:
   # ── STATUARIO STUDIO — vena drammatica grigia su bianco puro ───────────
   # Statuario è il marmo più pregiato delle Apuane (usato da Michelangelo
   # per il David). Bianco purissimo con venature grigie audaci e a tratti
-  # nere. Sharpness 3.5 + secondary_wave moderato.
+  # nere. Warp e fold drammatici, 3 layer ridged.
 
   - id: "dis_statuario_studio"
     type: "disney"
+    # Statuario studio — bianco purissimo con vene grigio→nere drammatiche.
+    # 3-stop ramp riproduce il caratteristico look del marmo Apuano.
     texture:
       type: "marble"
-      scale: 3.8
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.0
-      vein_sharpness: 3.5
-      noise_strength: 7.0
-      octaves: 8
-      distortion: 0.15
+      scale: 2.1
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.2
+      warp_iterations: 3
+      fold_amplitude: [1.0, 0.35, 0.55]
+      space_stretch: [1.0, 0.55, 1.0]
+      vein_layers: 3
+      vein_scale:  [0.6, 1.4, 3.0]
+      vein_weight: [1.0, 0.65, 0.35]
+      vein_thickness: 0.20
+      vein_softness: 0.07
+      color_variation: 0.06
       randomize_offset: true
-      secondary_wave:
-        axis: [1, 0, 0]
-        frequency: 0.85
-        strength: 0.35
       color_ramp:
-        - { position: 0.00, color: [0.08, 0.08, 0.09], interp: "smoothstep" }   # vena nera
-        - { position: 0.35, color: [0.50, 0.50, 0.52], interp: "smoothstep" }   # grigio medio
-        - { position: 1.00, color: [0.98, 0.98, 0.96], interp: "linear"     }   # bianco puro
+        - { position: 0.00, color: [0.98, 0.98, 0.96], interp: "linear"     }   # bianco puro
+        - { position: 0.65, color: [0.50, 0.50, 0.52], interp: "smoothstep" }   # grigio medio
+        - { position: 1.00, color: [0.08, 0.08, 0.09], interp: "linear"     }   # vena nera
     roughness: 0.32
     specular: 0.55
     subsurface: 0.08
@@ -620,22 +993,23 @@ materials:
     type: "disney"
     texture:
       type: "marble"
-      scale: 3.8
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.0
-      vein_sharpness: 3.5
-      noise_strength: 7.0
-      octaves: 8
-      distortion: 0.15
+      scale: 2.1
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.2
+      warp_iterations: 3
+      fold_amplitude: [1.0, 0.35, 0.55]
+      space_stretch: [1.0, 0.55, 1.0]
+      vein_layers: 3
+      vein_scale:  [0.6, 1.4, 3.0]
+      vein_weight: [1.0, 0.65, 0.35]
+      vein_thickness: 0.20
+      vein_softness: 0.07
+      color_variation: 0.06
       randomize_offset: true
-      secondary_wave:
-        axis: [1, 0, 0]
-        frequency: 0.85
-        strength: 0.35
       color_ramp:
-        - { position: 0.00, color: [0.08, 0.08, 0.09], interp: "smoothstep" }
-        - { position: 0.35, color: [0.50, 0.50, 0.52], interp: "smoothstep" }
-        - { position: 1.00, color: [0.98, 0.98, 0.96], interp: "linear"     }
+        - { position: 0.00, color: [0.98, 0.98, 0.96], interp: "linear"     }
+        - { position: 0.65, color: [0.50, 0.50, 0.52], interp: "smoothstep" }
+        - { position: 1.00, color: [0.08, 0.08, 0.09], interp: "linear"     }
     roughness: 0.10
     clearcoat: 0.88
     coat_roughness: 0.06
@@ -644,29 +1018,35 @@ materials:
 
   # ── ARABESCATO STUDIO — caos drammatico con cross-veining forte ────────
   # Arabescato Cervaiole/Vagli: blocchi grigi alternati a base chiara con
-  # venature audaci che si intersecano. `secondary_wave` con `strength` 0.7
+  # venature audaci che si intersecano. warp_iterations 3, fold_amplitude alto
   # + `distortion` 0.35 producono il caos caratteristico.
 
   - id: "dis_arabescato_studio"
     type: "disney"
+    # Arabescato studio — caos massimo: 3 layer, warp aggressivo, thickness
+    # alta per zone alternate grigio-bianco intersecanti.
     texture:
       type: "marble"
-      scale: 3.5
-      vein_axis: [0, 0, 1]
-      vein_frequency: 0.9
-      vein_sharpness: 2.0
-      noise_strength: 8.0
-      octaves: 8
-      distortion: 0.35
+      scale: 1.8
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.4
+      warp_iterations: 3
+      fold_amplitude: [1.1, 0.5, 0.7]
+      vein_layers: 3
+      vein_scale:  [0.55, 1.4, 3.2]
+      vein_weight: [1.0, 0.75, 0.45]
+      vein_thickness: 0.32
+      vein_softness: 0.10
+      color_variation: 0.10
+      cracks_density: 0.45
+      cracks_scale: 2.8
+      cracks_softness: 0.045
+      cracks_weight: 0.70
       randomize_offset: true
-      secondary_wave:
-        axis: [1, 0.3, 0]
-        frequency: 1.2
-        strength: 0.7
       color_ramp:
-        - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "smoothstep" }   # vena nera
-        - { position: 0.50, color: [0.55, 0.50, 0.48], interp: "smoothstep" }   # grigio caldo
-        - { position: 1.00, color: [0.94, 0.92, 0.88], interp: "linear"     }   # base ivory
+        - { position: 0.00, color: [0.94, 0.92, 0.88], interp: "linear"     }   # base ivory
+        - { position: 0.55, color: [0.55, 0.50, 0.48], interp: "smoothstep" }   # grigio caldo
+        - { position: 1.00, color: [0.08, 0.08, 0.10], interp: "linear"     }   # vena nera
     roughness: 0.34
     specular: 0.50
     subsurface: 0.06
@@ -675,50 +1055,57 @@ materials:
     type: "disney"
     texture:
       type: "marble"
-      scale: 3.5
-      vein_axis: [0, 0, 1]
-      vein_frequency: 0.9
-      vein_sharpness: 2.0
-      noise_strength: 8.0
-      octaves: 8
-      distortion: 0.35
+      scale: 1.8
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.4
+      warp_iterations: 3
+      fold_amplitude: [1.1, 0.5, 0.7]
+      vein_layers: 3
+      vein_scale:  [0.55, 1.4, 3.2]
+      vein_weight: [1.0, 0.75, 0.45]
+      vein_thickness: 0.32
+      vein_softness: 0.10
+      color_variation: 0.10
+      cracks_density: 0.45
+      cracks_scale: 2.8
+      cracks_softness: 0.045
+      cracks_weight: 0.70
       randomize_offset: true
-      secondary_wave:
-        axis: [1, 0.3, 0]
-        frequency: 1.2
-        strength: 0.7
       color_ramp:
-        - { position: 0.00, color: [0.08, 0.08, 0.10], interp: "smoothstep" }
-        - { position: 0.50, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
-        - { position: 1.00, color: [0.94, 0.92, 0.88], interp: "linear"     }
+        - { position: 0.00, color: [0.94, 0.92, 0.88], interp: "linear"     }
+        - { position: 0.55, color: [0.55, 0.50, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.08, 0.08, 0.10], interp: "linear"     }
     roughness: 0.10
     clearcoat: 0.82
     coat_roughness: 0.08
     specular: 0.68
 
   # ── PORT LAURENT STUDIO — nero con vena dorata cross-direzionale ──────
-  # Marmo nero belga con caratteristiche venature dorate. secondary_wave
+  # Marmo nero belga con caratteristiche venature dorate. Color ramp
   # accentua la natura biforcata del pattern.
 
   - id: "dis_port_laurent_studio_lucido"
     type: "disney"
+    # Port Laurent studio — più ricco del Port Laurent base, ramp 3-stop
+    # dalla vena dorata al nero passando dal marrone scuro.
     texture:
       type: "marble"
-      scale: 4.5
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.0
-      vein_sharpness: 3.0
-      noise_strength: 7.0
-      octaves: 8
+      scale: 2.2
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.30, 0.50]
+      vein_layers: 2
+      vein_scale:  [0.9, 2.2]
+      vein_weight: [1.0, 0.60]
+      vein_thickness: 0.20
+      vein_softness: 0.10
+      color_variation: 0.08
       randomize_offset: true
-      secondary_wave:
-        axis: [1, 0, 0]
-        frequency: 0.8
-        strength: 0.4
       color_ramp:
-        - { position: 0.00, color: [0.72, 0.55, 0.18], interp: "smoothstep" }   # vena dorata
+        - { position: 0.00, color: [0.05, 0.04, 0.03], interp: "linear"     }   # nero base
         - { position: 0.55, color: [0.20, 0.12, 0.05], interp: "smoothstep" }   # marrone scuro
-        - { position: 1.00, color: [0.05, 0.04, 0.03], interp: "linear"     }   # nero base
+        - { position: 1.00, color: [0.78, 0.62, 0.22], interp: "linear"     }   # vena dorata
     roughness: 0.08
     clearcoat: 0.95
     coat_roughness: 0.05
@@ -730,23 +1117,25 @@ materials:
 
   - id: "dis_rosso_levanto_studio_lucido"
     type: "disney"
+    # Rosso Levanto studio — vene calcite bianche fini su rosso brillante.
     texture:
       type: "marble"
-      scale: 5.0
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.0
-      vein_sharpness: 4.0
-      noise_strength: 9.0
-      octaves: 8
+      scale: 2.3
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.30, 0.50]
+      vein_layers: 2
+      vein_scale:  [0.95, 2.4]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.14
+      vein_softness: 0.06
+      color_variation: 0.08
       randomize_offset: true
-      secondary_wave:
-        axis: [1, 0, 0]
-        frequency: 0.95
-        strength: 0.4
       color_ramp:
-        - { position: 0.00, color: [0.95, 0.92, 0.85], interp: "smoothstep" }   # vena calcite bianca
-        - { position: 0.45, color: [0.55, 0.18, 0.10], interp: "smoothstep" }   # rosso brillante
-        - { position: 1.00, color: [0.40, 0.08, 0.04], interp: "linear"     }   # rosso scuro
+        - { position: 0.00, color: [0.40, 0.08, 0.04], interp: "linear"     }   # rosso scuro
+        - { position: 0.55, color: [0.55, 0.18, 0.10], interp: "smoothstep" }   # rosso brillante
+        - { position: 1.00, color: [0.95, 0.92, 0.85], interp: "linear"     }   # vena calcite bianca
     roughness: 0.14
     clearcoat: 0.70
     coat_roughness: 0.15
@@ -997,11 +1386,22 @@ materials:
   # Onice bianco — bande crema su fondo bianco, traslucente
   - id: "dis_onice_bianco"
     type: "disney"
+    # Onice bianco — bande crema soffuse su fondo avorio. Vein_softness alta
+    # produce le caratteristiche transizioni morbide dell'onice traslucente.
     texture:
       type: "marble"
-      scale: 8.0
-      noise_strength: 6.0
+      scale: 1.5
       colors: [[0.95, 0.92, 0.85], [0.80, 0.72, 0.58]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.95
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.30, 0.55]
+      vein_layers: 2
+      vein_scale:  [0.7, 1.6]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.40
+      vein_softness: 0.24
+      color_variation: 0.10
       randomize_offset: true
     roughness: 0.08
     clearcoat: 0.80
@@ -1014,11 +1414,21 @@ materials:
   # Onice miele — bande ambra dorate
   - id: "dis_onice_miele"
     type: "disney"
+    # Onice miele — bande ambra dorate, transizioni morbide tipiche dell'onice.
     texture:
       type: "marble"
-      scale: 7.0
-      noise_strength: 7.0
+      scale: 1.4
       colors: [[0.88, 0.68, 0.25], [0.62, 0.42, 0.12]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.05
+      warp_iterations: 2
+      fold_amplitude: [0.90, 0.30, 0.55]
+      vein_layers: 2
+      vein_scale:  [0.65, 1.55]
+      vein_weight: [1.0, 0.60]
+      vein_thickness: 0.42
+      vein_softness: 0.26
+      color_variation: 0.12
       randomize_offset: true
     roughness: 0.08
     clearcoat: 0.78
@@ -1031,11 +1441,21 @@ materials:
   # Onice verde — bande verde giada
   - id: "dis_onice_verde"
     type: "disney"
+    # Onice verde — bande verde giada con transizioni morbide.
     texture:
       type: "marble"
-      scale: 8.0
-      noise_strength: 6.5
+      scale: 1.5
       colors: [[0.25, 0.52, 0.30], [0.10, 0.30, 0.14]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.0
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.30, 0.55]
+      vein_layers: 2
+      vein_scale:  [0.7, 1.6]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.40
+      vein_softness: 0.24
+      color_variation: 0.10
       randomize_offset: true
     roughness: 0.08
     clearcoat: 0.75
@@ -1049,20 +1469,41 @@ materials:
 
   - id: "cls_onice_bianco"
     type: "lambertian"
+    # Onice bianco — bande crema soffuse su fondo avorio. Vein_softness alta
+    # produce le caratteristiche transizioni morbide dell'onice traslucente.
     texture:
       type: "marble"
-      scale: 8.0
-      noise_strength: 6.0
+      scale: 1.5
       colors: [[0.95, 0.92, 0.85], [0.80, 0.72, 0.58]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.95
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.30, 0.55]
+      vein_layers: 2
+      vein_scale:  [0.7, 1.6]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.40
+      vein_softness: 0.24
+      color_variation: 0.10
       randomize_offset: true
 
   - id: "cls_onice_miele"
     type: "lambertian"
+    # Onice miele — bande ambra dorate, transizioni morbide tipiche dell'onice.
     texture:
       type: "marble"
-      scale: 7.0
-      noise_strength: 7.0
+      scale: 1.4
       colors: [[0.88, 0.68, 0.25], [0.62, 0.42, 0.12]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.05
+      warp_iterations: 2
+      fold_amplitude: [0.90, 0.30, 0.55]
+      vein_layers: 2
+      vein_scale:  [0.65, 1.55]
+      vein_weight: [1.0, 0.60]
+      vein_thickness: 0.42
+      vein_softness: 0.26
+      color_variation: 0.12
       randomize_offset: true
 
 
@@ -1075,11 +1516,23 @@ materials:
   # Alabastro bianco — scultura classica, morbido, traslucente
   - id: "dis_alabastro_bianco"
     type: "disney"
+    # Alabastro bianco — variazione cromatica delicata, vene quasi assenti.
+    # Thickness alta + softness molto alta produce le morbide nuvole color
+    # crema tipiche del gesso alabastrino.
     texture:
       type: "marble"
-      scale: 12.0
-      noise_strength: 4.0
+      scale: 1.0
       colors: [[0.94, 0.92, 0.88], [0.85, 0.80, 0.72]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.7
+      warp_iterations: 2
+      fold_amplitude: [0.55, 0.30, 0.45]
+      vein_layers: 1
+      vein_scale:  [1.0]
+      vein_weight: [1.0]
+      vein_thickness: 0.50
+      vein_softness: 0.35
+      color_variation: 0.10
       randomize_offset: true
     roughness: 0.32
     specular: 0.42
@@ -1090,11 +1543,21 @@ materials:
   # Alabastro miele — tono caldo ambrato
   - id: "dis_alabastro_miele"
     type: "disney"
+    # Alabastro miele — gesso traslucente tono ambrato.
     texture:
       type: "marble"
-      scale: 12.0
-      noise_strength: 5.0
+      scale: 1.0
       colors: [[0.88, 0.78, 0.55], [0.72, 0.58, 0.35]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.75
+      warp_iterations: 2
+      fold_amplitude: [0.60, 0.30, 0.45]
+      vein_layers: 1
+      vein_scale:  [1.0]
+      vein_weight: [1.0]
+      vein_thickness: 0.50
+      vein_softness: 0.35
+      color_variation: 0.12
       randomize_offset: true
     roughness: 0.30
     specular: 0.40
@@ -1106,11 +1569,23 @@ materials:
 
   - id: "cls_alabastro_bianco"
     type: "lambertian"
+    # Alabastro bianco — variazione cromatica delicata, vene quasi assenti.
+    # Thickness alta + softness molto alta produce le morbide nuvole color
+    # crema tipiche del gesso alabastrino.
     texture:
       type: "marble"
-      scale: 12.0
-      noise_strength: 4.0
+      scale: 1.0
       colors: [[0.94, 0.92, 0.88], [0.85, 0.80, 0.72]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.7
+      warp_iterations: 2
+      fold_amplitude: [0.55, 0.30, 0.45]
+      vein_layers: 1
+      vein_scale:  [1.0]
+      vein_weight: [1.0]
+      vein_thickness: 0.50
+      vein_softness: 0.35
+      color_variation: 0.10
       randomize_offset: true
 
 
@@ -1446,7 +1921,7 @@ materials:
 
   # ── Marmi bianchi v2 ─────────────────────────────────────────────────
 
-  # Carrara studio v2: secondary_wave + color_ramp 5-stop per gradiente
+  # Carrara studio v2: color_ramp 5-stop per gradiente
   # naturale dalla vena nera alla base avorio passando da grigi caldi.
   - id: "dis_carrara_studio_v2"
     type: "disney"
@@ -1457,25 +1932,26 @@ materials:
     coat_roughness: 0.10
     texture:
       type: "marble"
-      scale: 5.0
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.1
-      vein_sharpness: 5.5
-      noise_strength: 7.5
-      octaves: 8
-      distortion: 0.15
-      secondary_wave:
-        axis: [1, 0, 0]
-        frequency: 0.85
-        strength: 0.30
+      scale: 2.4
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.05
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.28, 0.50]
+      vein_layers: 3
+      vein_scale:  [0.7, 1.7, 3.5]
+      vein_weight: [1.0, 0.65, 0.35]
+      vein_thickness: 0.14
+      vein_softness: 0.06
+      color_variation: 0.08
+      randomize_offset: true
       color_ramp:
-        - { position: 0.00, color: [0.08, 0.07, 0.07], interp: "smoothstep" }
-        - { position: 0.25, color: [0.42, 0.40, 0.38], interp: "smoothstep" }
-        - { position: 0.55, color: [0.78, 0.76, 0.72], interp: "smoothstep" }
-        - { position: 0.85, color: [0.92, 0.91, 0.88], interp: "smoothstep" }
-        - { position: 1.00, color: [0.98, 0.97, 0.95], interp: "linear" }
+        - { position: 0.00, color: [0.98, 0.97, 0.95], interp: "linear" }
+        - { position: 0.40, color: [0.92, 0.91, 0.88], interp: "smoothstep" }
+        - { position: 0.65, color: [0.78, 0.76, 0.72], interp: "smoothstep" }
+        - { position: 0.85, color: [0.42, 0.40, 0.38], interp: "smoothstep" }
+        - { position: 1.00, color: [0.08, 0.07, 0.07], interp: "linear" }
 
-  # Calacatta gold v2: vein dorato dominante, secondary_wave forte.
+  # Calacatta gold v2: vein dorato dominante, 3 layer ridged.
   - id: "dis_calacatta_gold_v2"
     type: "disney"
     color: [0.95, 0.92, 0.85]
@@ -1485,23 +1961,24 @@ materials:
     coat_roughness: 0.08
     texture:
       type: "marble"
-      scale: 3.5
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.0
-      vein_sharpness: 3.5
-      noise_strength: 6.5
-      octaves: 8
-      distortion: 0.20
-      secondary_wave:
-        axis: [1, 0.2, 0]
-        frequency: 0.75
-        strength: 0.55
+      scale: 1.8
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.15
+      warp_iterations: 2
+      fold_amplitude: [0.95, 0.40, 0.55]
+      vein_layers: 3
+      vein_scale:  [0.65, 1.55, 3.4]
+      vein_weight: [1.0, 0.75, 0.45]
+      vein_thickness: 0.24
+      vein_softness: 0.10
+      color_variation: 0.10
+      randomize_offset: true
       color_ramp:
-        - { position: 0.00, color: [0.18, 0.10, 0.05], interp: "smoothstep" }
-        - { position: 0.30, color: [0.72, 0.48, 0.18], interp: "smoothstep" }
+        - { position: 0.00, color: [0.98, 0.95, 0.88], interp: "linear" }
+        - { position: 0.30, color: [0.94, 0.88, 0.72], interp: "smoothstep" }
         - { position: 0.55, color: [0.88, 0.72, 0.42], interp: "smoothstep" }
-        - { position: 0.80, color: [0.94, 0.88, 0.72], interp: "smoothstep" }
-        - { position: 1.00, color: [0.98, 0.95, 0.88], interp: "linear" }
+        - { position: 0.78, color: [0.72, 0.48, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [0.18, 0.10, 0.05], interp: "linear" }
 
   # Statuario stretto v2: venatura sottile e netta su base candida.
   - id: "dis_statuario_studio_v2"
@@ -1513,21 +1990,23 @@ materials:
     coat_roughness: 0.08
     texture:
       type: "marble"
-      scale: 4.5
-      vein_axis: [0, 0, 1]
-      vein_frequency: 1.4
-      vein_sharpness: 6.0
-      noise_strength: 5.5
-      octaves: 8
-      secondary_wave:
-        axis: [1, 0, 0]
-        frequency: 0.8
-        strength: 0.25
+      scale: 2.2
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.2
+      warp_iterations: 3
+      fold_amplitude: [1.0, 0.32, 0.55]
+      vein_layers: 3
+      vein_scale:  [0.55, 1.4, 3.2]
+      vein_weight: [1.0, 0.6, 0.30]
+      vein_thickness: 0.17
+      vein_softness: 0.07
+      color_variation: 0.06
+      randomize_offset: true
       color_ramp:
-        - { position: 0.00, color: [0.05, 0.05, 0.06], interp: "smoothstep" }
-        - { position: 0.50, color: [0.55, 0.55, 0.54], interp: "smoothstep" }
-        - { position: 0.85, color: [0.92, 0.91, 0.89], interp: "smoothstep" }
-        - { position: 1.00, color: [0.98, 0.97, 0.95], interp: "linear" }
+        - { position: 0.00, color: [0.98, 0.97, 0.95], interp: "linear" }
+        - { position: 0.40, color: [0.92, 0.91, 0.89], interp: "smoothstep" }
+        - { position: 0.70, color: [0.55, 0.55, 0.54], interp: "smoothstep" }
+        - { position: 1.00, color: [0.05, 0.05, 0.06], interp: "linear" }
 
   # Arabescato dramatic v2: zone alternate caotiche.
   - id: "dis_arabescato_studio_v2"
@@ -1539,22 +2018,23 @@ materials:
     coat_roughness: 0.10
     texture:
       type: "marble"
-      scale: 3.0
-      vein_axis: [0, 0, 1]
-      vein_frequency: 0.85
-      vein_sharpness: 2.5
-      noise_strength: 8.5
-      octaves: 8
-      distortion: 0.45
-      secondary_wave:
-        axis: [1, 0.4, 0]
-        frequency: 1.3
-        strength: 0.75
+      scale: 1.7
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.5
+      warp_iterations: 3
+      fold_amplitude: [1.15, 0.55, 0.75]
+      vein_layers: 3
+      vein_scale:  [0.55, 1.4, 3.2]
+      vein_weight: [1.0, 0.8, 0.5]
+      vein_thickness: 0.36
+      vein_softness: 0.12
+      color_variation: 0.10
+      randomize_offset: true
       color_ramp:
-        - { position: 0.00, color: [0.10, 0.10, 0.12], interp: "smoothstep" }
-        - { position: 0.40, color: [0.50, 0.45, 0.42], interp: "smoothstep" }
-        - { position: 0.70, color: [0.78, 0.75, 0.70], interp: "smoothstep" }
-        - { position: 1.00, color: [0.95, 0.93, 0.88], interp: "linear" }
+        - { position: 0.00, color: [0.95, 0.93, 0.88], interp: "linear" }
+        - { position: 0.35, color: [0.78, 0.75, 0.70], interp: "smoothstep" }
+        - { position: 0.65, color: [0.50, 0.45, 0.42], interp: "smoothstep" }
+        - { position: 1.00, color: [0.10, 0.10, 0.12], interp: "linear" }
 
   # ── Graniti stratificati (color_ramp 5-stop) ─────────────────────────
 

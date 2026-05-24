@@ -4,220 +4,468 @@ using RayTracer.Core;
 namespace RayTracer.Textures;
 
 /// <summary>
-/// Procedural marble — directional veins modulated by fractal turbulence.
+/// Procedural marble — production-grade ridged-multifractal vein field with
+/// recursive (IQ) domain warping, anisotropic geological folds, multi-scale
+/// vein layers, low-frequency background tonal variation and optional
+/// mineral impurities.
 ///
 /// <para>
-/// Algorithm: <c>vein(p) = sin(scale · (p · axis) · vein_freq + strength · fBm(p))</c>.
-/// The result is sharpened by <see cref="VeinSharpness"/> (raised to that power
-/// after normalisation) to produce thin, high-contrast veins like real Carrara
-/// marble, matching the look of Arnold's <c>marble</c> and RenderMan's
-/// <c>PxrMarble</c>.
+/// <b>Algorithm</b> (per shade):
+/// <list type="number">
+///   <item><description>Texture transform (offset / rotation / random per
+///     instance) applied to the local point.</description></item>
+///   <item><description>Anisotropic geological fold via
+///     <see cref="DomainWarp.Anisotropic"/> — large-scale shear that simulates
+///     tectonic deformation. Per-axis amplitude lets one direction (typically
+///     <see cref="VeinAxis"/>) dominate.</description></item>
+///   <item><description>Recursive IQ warp via <see cref="DomainWarp.Recursive"/>
+///     — kills every visible tiling on the vein field. 2 iterations is the
+///     canonical recipe; 3 produces aggressive flow.</description></item>
+///   <item><description>Multi-scale ridged vein field via
+///     <see cref="MultiScaleRidgedField.Sample"/> — 1..3 independent ridged
+///     layers at decoupled scales, composited via soft-max so thin and thick
+///     veins co-exist and locally dominate (Calacatta / Arabescato look).</description></item>
+///   <item><description>Vein-thickness remap — smoothstep on the ridged value
+///     centred on <see cref="VeinThickness"/> with half-width
+///     <see cref="VeinSoftness"/>. Replaces the broken power-of-sin
+///     <c>vein_sharpness</c> from the legacy implementation.</description></item>
+///   <item><description>Background fBm — signed low-frequency noise that
+///     shifts the color-ramp lookup, eliminating flat base color.</description></item>
+///   <item><description>Mineral impurities — sparse Voronoi specks (inline)
+///     <i>or</i> any user-supplied <see cref="ImpuritiesTexture"/> bias the
+///     ramp lookup toward the impurity stop.</description></item>
+///   <item><description>Final mapping: <see cref="ColorRamp"/> lookup, or
+///     two-colour lerp between <c>VeinColor</c> and <c>BaseColor</c>.</description></item>
+/// </list>
 /// </para>
 ///
 /// <para>
-/// <b>Studio-quality secondary wave.</b> When <see cref="SecondaryStrength"/>
-/// &gt; 0 a second sinusoid along <see cref="SecondaryAxis"/> is added to the
-/// vein term: <c>sin(wave1) + strength · sin(wave2)</c>, renormalised. This
-/// breaks the rigid unidirectionality of single-axis marble and produces
-/// the cross-veining of Statuario, Calacatta and Arabescato — slabs where
-/// veins run along two non-parallel directions. Default secondary axis is
-/// orthogonalised against the primary axis so artists can set just the
-/// strength and get a sane visual immediately.
+/// <b>YAML example — White Carrara (defaults):</b>
 /// </para>
-///
-/// <para>
-/// Backward-compat default: <c>vein_axis = Z</c>, <c>vein_frequency = 1</c>,
-/// <c>vein_sharpness = 1</c>, <c>octaves = 7</c> with classic
-/// <c>turbulence</c> and <c>secondary_strength = 0</c> reproduces the
-/// legacy implementation exactly.
-/// </para>
-///
-/// In YAML:
 /// <code>
 /// texture:
 ///   type: "marble"
 ///   scale: 4.0
-///   noise_strength: 10.0
-///   colors: [[0.9,0.9,0.9], [0.1,0.1,0.1]]
-///   vein_axis: [0, 0, 1]      # primary vein propagation direction
-///   vein_frequency: 1.0        # multiplier on the sine term frequency
-///   vein_sharpness: 1.0        # 1=soft (default), 2-8=thin sharp veins
-///   octaves: 7                 # fBm octaves used by the turbulence term
-///   lacunarity: 2.0
-///   gain: 0.5
-///   distortion: 0.0            # domain warp amplitude
-///   noise_type: "turbulence"   # turbulence | fbm | ridged
-///   secondary_wave:            # optional — Statuario / Calacatta cross-veins
-///     axis: [1, 0, 0]          # second vein direction (auto-orthogonalised)
-///     frequency: 0.7           # independent of primary frequency
-///     strength: 0.5            # 0 = disabled (back-compat), ≤1 typical
+///   colors: [[0.92, 0.92, 0.94], [0.18, 0.18, 0.22]]
+/// </code>
+///
+/// <para>
+/// <b>YAML example — Calacatta with gold veins and impurities:</b>
+/// </para>
+/// <code>
+/// texture:
+///   type: "marble"
+///   scale: 3.5
+///   vein_axis: [0, 1, 0]
+///   warp_amplitude: 0.9
+///   warp_iterations: 2
+///   fold_amplitude: [0.9, 0.2, 0.5]
+///   vein_layers: 3
+///   vein_scale:  [0.7, 1.6, 3.4]
+///   vein_weight: [1.0, 0.7, 0.4]
+///   vein_thickness: 0.55
+///   vein_softness: 0.10
+///   color_variation: 0.10
+///   impurities_density: 0.03
+///   color_ramp:
+///     - { position: 0.00, color: [0.96, 0.96, 0.97] }
+///     - { position: 0.55, color: [0.85, 0.78, 0.55] }
+///     - { position: 0.80, color: [0.55, 0.40, 0.18] }
+///     - { position: 1.00, color: [0.12, 0.10, 0.10] }
 /// </code>
 /// </summary>
 public class MarbleTexture : ITexture
 {
-    public enum FractalKind { Turbulence, Fbm, Ridged }
+    /// <summary>
+    /// What the texture returns at <see cref="Value(float, float, Vector3, int)"/>.
+    /// <list type="bullet">
+    ///   <item><description><c>Color</c> (default) — RGB after ramp / lerp. The
+    ///     normal authoring path.</description></item>
+    ///   <item><description><c>Mask</c> — the scalar vein-region parameter
+    ///     <c>t ∈ [0, 1]</c> packed as <c>(t, t, t)</c>. Drop this same texture
+    ///     block under a Disney material's <c>roughness_texture</c> /
+    ///     <c>subsurface_texture</c> / etc. to drive scalar BSDF parameters
+    ///     from the vein mask — vein zones can be glossier than the matte base,
+    ///     SSS can attenuate over dark calcite veins, sheen can ride on the
+    ///     base only.</description></item>
+    /// </list>
+    /// </summary>
+    public enum OutputMode { Color, Mask }
 
-    private readonly Perlin _noise;
-    private readonly float _scale;
-    private readonly ITexture _baseColor;
-    private readonly ITexture _veinColor;
+    public OutputMode Output { get; set; } = OutputMode.Color;
 
+    // ── Geometry seed (kept for radial / directional layout) ───────────────
     public Vector3 Offset { get; set; } = Vector3.Zero;
     public Vector3 Rotation { get; set; } = Vector3.Zero;
     public bool RandomizeOffset { get; set; }
     public bool RandomizeRotation { get; set; }
-    public float NoiseStrength { get; set; } = 10f;
 
-    public Vector3 VeinAxis { get; set; } = Vector3.UnitZ;
-    public float VeinFrequency { get; set; } = 1f;
-    public float VeinSharpness { get; set; } = 1f;
-    public int Octaves { get; set; } = 7;
-    public float Lacunarity { get; set; } = 2f;
+    /// <summary>
+    /// Per-axis space stretch applied BEFORE the fold / warp / ridged pipeline.
+    /// Real geological slabs are seldom isotropic — compression along the bed
+    /// plane stretches features perpendicular to it. <c>(1, 1, 1)</c> (default)
+    /// is isotropic; <c>(0.4, 1.8, 1.0)</c> compresses X (features grow
+    /// horizontally), stretches Y (features grow vertically): the classic
+    /// "stratified" Carrara plate look. Independent from <see cref="FoldAmplitude"/>:
+    /// stretch is a linear pre-multiply on the sample point, fold is a
+    /// non-linear noise-driven shear — they compose multiplicatively.
+    /// </summary>
+    public Vector3 SpaceStretch { get; set; } = Vector3.One;
+
+    /// <summary>
+    /// Direction the geological fold preferentially aligns with. The fold's
+    /// largest per-axis amplitude is rotated toward this axis at sample time,
+    /// so users can pin the slab's dominant vein orientation without
+    /// micro-managing <see cref="FoldAmplitude"/>.
+    /// </summary>
+    public Vector3 VeinAxis { get; set; } = Vector3.UnitY;
+
+    // ── Global "drama" dial ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Global multiplier on <see cref="WarpAmplitude"/> and
+    /// <see cref="FoldAmplitude"/>. One knob to dial overall chaos — leave at
+    /// 1 to use the per-knob amplitudes as authored.
+    /// </summary>
+    public float NoiseStrength { get; set; } = 1f;
+
+    // ── Recursive IQ domain warp ───────────────────────────────────────────
+
+    public float WarpAmplitude { get; set; } = 0.75f;
+    public float WarpScale { get; set; } = 2.0f;
+    public int WarpIterations { get; set; } = 2;
+
+    // ── Anisotropic geological fold ────────────────────────────────────────
+
+    public Vector3 FoldAmplitude { get; set; } = new(0.6f, 0.2f, 0.4f);
+    public float FoldScale { get; set; } = 6.0f;
+
+    // ── Multi-scale ridged vein field ──────────────────────────────────────
+
+    /// <summary>
+    /// Number of independent ridged layers (1..3). Per-layer arrays
+    /// <see cref="VeinScales"/> and <see cref="VeinWeights"/> must have this
+    /// length; the loader enforces it.
+    /// </summary>
+    public int VeinLayers { get; set; } = 2;
+
+    /// <summary>
+    /// Per-layer spatial scale multiplier. Decoupling the scales is what
+    /// makes thin <i>and</i> thick veins co-exist instead of producing a
+    /// single dominant frequency. Length must match <see cref="VeinLayers"/>.
+    /// </summary>
+    public float[] VeinScales { get; set; } = { 1.0f, 2.6f };
+
+    /// <summary>
+    /// Per-layer soft-max weight. Higher weight = the layer wins more often
+    /// in the soft-max composite. Length must match <see cref="VeinLayers"/>.
+    /// </summary>
+    public float[] VeinWeights { get; set; } = { 1.0f, 0.55f };
+
+    /// <summary>Octaves used inside each ridged layer.</summary>
+    public int Octaves { get; set; } = 5;
+
+    public float Lacunarity { get; set; } = 2.0f;
     public float Gain { get; set; } = 0.5f;
-    public float Distortion { get; set; } = 0f;
-    public FractalKind NoiseType { get; set; } = FractalKind.Turbulence;
 
     /// <summary>
-    /// Optional second vein direction. When <see cref="SecondaryStrength"/>
-    /// is 0 (default) the secondary wave is disabled and the texture is
-    /// byte-identical to the single-axis legacy output. When &gt; 0 the
-    /// secondary sine is added to the primary sine before sharpening,
-    /// unlocking Statuario / Calacatta / Arabescato cross-veining looks.
-    /// The axis is internally projected against the primary axis so the
-    /// effective second direction is always at least partly perpendicular
-    /// — picking an axis collinear with the primary still yields a useful
-    /// off-axis component.
+    /// Sharpness of the soft-max compositing the ridged layers. Higher → the
+    /// dominant layer wins crisper; lower → layers blend gently. 8 is a sane
+    /// default chosen empirically against real marble photographs.
     /// </summary>
-    public Vector3 SecondaryAxis { get; set; } = Vector3.UnitX;
+    public float SoftMaxSharpness { get; set; } = 8f;
+
+    // ── Vein thickness remap ───────────────────────────────────────────────
 
     /// <summary>
-    /// Frequency multiplier on the secondary sine term — independent from
-    /// <see cref="VeinFrequency"/>. Setting it to a non-integer ratio of the
-    /// primary frequency (e.g. 0.7, 1.3) produces aperiodic moiré-free
-    /// secondary veining; setting them equal gives a regular cross hatch.
+    /// Fraction of the slab area occupied by veins. <c>0</c> ≈ no veins,
+    /// <c>1</c> ≈ vein dominates the whole surface. <c>0.15</c> is the
+    /// production Carrara default: mostly white base with thin vein
+    /// structures. Strictly monotone wrt visible vein area.
+    ///
+    /// <para>
+    /// Internally this is a smoothstep threshold on the ridged field at
+    /// <c>1 - thickness</c>, so only the upper tail of the ridge distribution
+    /// (the actual peaks of the multifractal) crosses into the vein region.
+    /// </para>
     /// </summary>
-    public float SecondaryFrequency { get; set; } = 1f;
+    public float VeinThickness { get; set; } = 0.15f;
 
     /// <summary>
-    /// Amplitude weight of the secondary sine in the combined vein term.
-    /// 0 (default) ⇒ disabled. Typical values are 0.3–0.7; the combined
-    /// signal is renormalised by <c>(1 + strength)</c> so the sine output
-    /// stays in [-1, 1] and the sharpening curve is unaffected.
+    /// Smoothstep half-width on the thickness threshold. Very small
+    /// (0.02-0.05) produces razor-sharp vein edges (Marquina); larger
+    /// (0.15-0.25) produces soft watery transitions (Statuario).
     /// </summary>
-    public float SecondaryStrength { get; set; } = 0f;
+    public float VeinSoftness { get; set; } = 0.08f;
+
+    // ── Background tonal variation ─────────────────────────────────────────
+
+    public float BackgroundScale { get; set; } = 12f;
+    public int BackgroundOctaves { get; set; } = 3;
 
     /// <summary>
-    /// Optional multi-stop colour ramp. When set, the sine-wave vein parameter
-    /// <c>t ∈ [0, 1]</c> is looked up on the ramp instead of being linearly
-    /// blended between vein and base colours — unlocks Statuario / Calacatta
-    /// looks with 3+ tonal layers (vein → mid → base → undertone).
+    /// How much the background fBm shifts the ramp lookup. Small values
+    /// (0.05-0.12) produce gentle tonal richness on the matte base; large
+    /// values pull the ramp lookup across multiple stops, which is usually
+    /// unwanted artistically.
+    /// </summary>
+    public float ColorVariation { get; set; } = 0.08f;
+
+    // ── Impurities — inline Voronoi (default) or external texture ──────────
+
+    /// <summary>
+    /// Probability (per Voronoi cell, approximately) that an inline impurity
+    /// speck is rendered. 0 disables the inline path entirely; ~0.05 gives
+    /// Verde Alpi inclusions. Ignored when
+    /// <see cref="ImpuritiesTexture"/> is set.
+    /// </summary>
+    public float ImpuritiesDensity { get; set; } = 0f;
+
+    public float ImpuritiesScale { get; set; } = 8f;
+
+    /// <summary>
+    /// How strongly an impurity shifts the ramp lookup toward the impurity
+    /// stop. Independent from density so artists can tune count and contrast
+    /// separately.
+    /// </summary>
+    public float ImpurityWeight { get; set; } = 0.12f;
+
+    /// <summary>
+    /// Optional external impurity texture — if set, its luminance is used
+    /// instead of the inline Voronoi path. Lets users compose any pattern
+    /// (image, custom Voronoi, noise) as the impurity mask without leaving
+    /// YAML. When set, <see cref="ImpuritiesDensity"/> and
+    /// <see cref="ImpuritiesScale"/> are ignored.
+    /// </summary>
+    public ITexture? ImpuritiesTexture { get; set; }
+
+    // ── Secondary linear cracks (Worley F2 − F1 overlay) ───────────────────
+
+    /// <summary>
+    /// Intensity of the sharp linear-crack overlay (Worley F2 − F1 ridge).
+    /// <c>0</c> (default) disables the path entirely — no Worley evaluation,
+    /// no perf cost. <c>0.3</c> = restrained Calacatta cracks, <c>0.6</c> =
+    /// breccia slabs criss-crossed by fractures, <c>1.0</c> = maximum
+    /// intensity (mostly used with low <see cref="CracksWeight"/> for stylised
+    /// shattered looks).
+    /// </summary>
+    public float CracksDensity { get; set; } = 0f;
+
+    /// <summary>
+    /// Spatial scale of the crack network (Worley cell size).
+    /// Lower = wider plates between cracks.
+    /// </summary>
+    public float CracksScale { get; set; } = 2.0f;
+
+    /// <summary>
+    /// Width of the crack lines in normalised <c>F2 − F1</c> ridge units.
+    /// Crack lines appear where the ridge is below this threshold (i.e. near
+    /// Voronoi cell borders). <c>0.01-0.03</c> produces razor-thin geological
+    /// fractures (Marquinia), <c>0.05-0.10</c> produces soft branching veins
+    /// (Calacatta), <c>0.15+</c> wide diffuse cracks. Independent from
+    /// <see cref="VeinSoftness"/>.
+    /// </summary>
+    public float CracksSoftness { get; set; } = 0.05f;
+
+    /// <summary>
+    /// Soft-max weight of the crack layer when composited with the multi-scale
+    /// ridged field. <c>0.6</c> = cracks visible but second to the ridged
+    /// pattern; <c>1.0</c> = cracks compete with the strongest ridged layer;
+    /// <c>1.3</c> = cracks dominate.
+    /// </summary>
+    public float CracksWeight { get; set; } = 0.9f;
+
+    // ── Color output ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Optional multi-stop colour ramp. When set, the ridged-vein parameter
+    /// (after background variation and impurity bias) is looked up on the
+    /// ramp; <c>BaseColor</c> / <c>VeinColor</c> are ignored.
     /// </summary>
     public ColorRamp? ColorRamp { get; set; }
 
+    private readonly Perlin _noise;
+    private readonly float _scale;
+    private readonly Vector3 _baseColor;
+    private readonly Vector3 _veinColor;
+
     public MarbleTexture(float scale = 4f)
-        : this(scale, new Vector3(0.9f), new Vector3(0.1f)) { }
+        : this(scale, new Vector3(0.92f, 0.92f, 0.94f), new Vector3(0.18f, 0.18f, 0.22f)) { }
 
     public MarbleTexture(float scale, Vector3 baseColor, Vector3 veinColor)
     {
-        _noise = new Perlin();
+        _noise = Perlin.GetOrCreate(0);
         _scale = scale;
-        _baseColor = new SolidColor(baseColor);
-        _veinColor = new SolidColor(veinColor);
+        _baseColor = baseColor;
+        _veinColor = veinColor;
     }
 
     public Vector3 Value(float u, float v, Vector3 p, int objectSeed)
     {
-        // Geometric q: drives the sine-vein direction and the (optional)
-        // domain warp. Per-instance seed offset is NOT added here — keeping
-        // the sine phase rooted on the object centre preserves the directional
-        // vein layout across instances of the same material.
+        // ── 1. Texture transform ───────────────────────────────────────────
         Vector3 qGeom = TextureTransform.ApplyRandomRotation(
             TextureTransform.ApplyManual(p, Offset, Rotation),
             objectSeed, RandomizeRotation);
+        qGeom *= _scale;
         Perlin noise = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
 
-        Vector3 q = qGeom;
-        if (Distortion > 0f)
+        Vector3 qNoise = qGeom + TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
+
+        // Anisotropic linear pre-stretch — geological compression along the
+        // bed plane. Composes BEFORE the fold so the fold operates in the
+        // stretched space and the stretch becomes the dominant directional
+        // signature of the slab.
+        if (SpaceStretch != Vector3.One)
+            qNoise *= SpaceStretch;
+
+        // ── 2. Geological fold (anisotropic, large-scale shear) ────────────
+        Vector3 foldAmp = OrientedFoldAmplitude() * NoiseStrength;
+        Vector3 q2 = DomainWarp.Anisotropic(noise, qNoise, foldAmp, FoldScale);
+
+        // ── 3. Recursive IQ domain warp ────────────────────────────────────
+        Vector3 qW = DomainWarp.Recursive(
+            noise, q2, WarpIterations, WarpAmplitude * NoiseStrength, WarpScale);
+
+        // ── 4. Multi-scale ridged vein field ───────────────────────────────
+        int n = Math.Clamp(VeinLayers, 1, 3);
+        Span<float> scales  = stackalloc float[3];
+        Span<float> weights = stackalloc float[3];
+        for (int i = 0; i < n; i++)
         {
-            // Domain warp is part of the vein geometry — keep it on qGeom.
-            q += Distortion * noise.NoiseVector(q + new Vector3(5.2f, 1.3f, 8.7f));
+            scales[i]  = i < VeinScales.Length  ? VeinScales[i]  : 1f;
+            weights[i] = i < VeinWeights.Length ? VeinWeights[i] : 1f;
+        }
+        float vein = MultiScaleRidgedField.Sample(
+            noise, qW, scales[..n], weights[..n],
+            Octaves, Lacunarity, Gain, SoftMaxSharpness);
+
+        // ── 4b. Secondary linear cracks (Worley F2 − F1 overlay) ───────────
+        // Sharp network-like fractures that the ridged multifractal alone
+        // cannot reach — its statistics are too organic for the long, linear
+        // breccia / Calacatta crack patterns. The Worley F2 − F1 ridge is
+        // SMALL at cell borders (we're equidistant to two cells) and LARGE at
+        // cell centers; so the crack mask is `1 - smoothstep(0, lineWidth, ridge)`
+        // — 1 on the thin band where the ridge is near zero, 0 elsewhere.
+        // <see cref="CracksSoftness"/> directly controls the crack line width;
+        // <see cref="CracksDensity"/> scales overall crack intensity (0..1)
+        // before the soft-max with the vein layer. Compositing via soft-max
+        // keeps the boundary between the two networks C¹ continuous.
+        if (CracksDensity > 0f && CracksWeight > 0f)
+        {
+            var worley = objectSeed != 0 ? WorleyNoise.GetOrCreate(objectSeed) : WorleyNoise.GetOrCreate(0);
+            worley.Evaluate(qW * CracksScale + new Vector3(53.7f, 11.3f, 79.1f),
+                            WorleyNoise.Metric.Euclidean, 1f,
+                            out float f1, out float f2, out _);
+            float ridge = f2 - f1;
+            float lineWidth = MathF.Max(CracksSoftness, 5e-3f);
+            float cracks = 1f - Smoothstep(0f, lineWidth, ridge);
+            cracks *= CracksDensity * CracksWeight;
+
+            // Soft-max with the existing vein scalar. log-sum-exp rebased on
+            // max keeps the float exp() arguments well-conditioned.
+            float k = SoftMaxSharpness;
+            float hi = MathF.Max(vein, cracks);
+            double s = Math.Exp(k * (vein - hi)) + Math.Exp(k * (cracks - hi));
+            vein = Math.Clamp(hi + (float)(Math.Log(s) / k), 0f, 1f);
         }
 
-        // Noise sampling input: gets the full per-instance seed offset so two
-        // adjacent marble instances see uncorrelated turbulence fields.
-        Vector3 qNoise = q + TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
+        // ── 5. Vein-thickness remap (smoothstep) ───────────────────────────
+        float half = MathF.Max(VeinSoftness * 0.5f, 1e-4f);
+        float edge0 = 1f - VeinThickness - half;
+        float edge1 = 1f - VeinThickness + half;
+        float veinT = Smoothstep(edge0, edge1, vein);
 
-        float fractal = NoiseType switch
+        // ── 6. Background tonal variation ──────────────────────────────────
+        float bg = 0f;
+        if (ColorVariation > 0f)
         {
-            FractalKind.Fbm    => noise.Fbm(qNoise, Octaves, Lacunarity, Gain, signed: true),
-            FractalKind.Ridged => noise.Ridged(qNoise, Octaves, Lacunarity, Gain),
-            _                  => noise.Turbulence(qNoise, Octaves),
-        };
-
-        // Vein term: sine of (axis-projection × scale × vein_freq) + strength·fBm
-        Vector3 axis = VeinAxis.LengthSquared() > 1e-12f ? Vector3.Normalize(VeinAxis) : Vector3.UnitZ;
-        float along = Vector3.Dot(q, axis);
-        float wave1 = MathF.Sin(_scale * VeinFrequency * along + NoiseStrength * fractal);
-
-        float sinVal;
-        if (SecondaryStrength > 0f)
-        {
-            // Studio-quality cross-veining: a second sine along an axis
-            // orthogonalised against the primary, so even if the user sets a
-            // collinear axis they still get a perpendicular component (matches
-            // how Arnold's `marble2` and RM PxrMarble blend layered slabs).
-            Vector3 secAxisRaw = SecondaryAxis.LengthSquared() > 1e-12f
-                ? Vector3.Normalize(SecondaryAxis) : Vector3.UnitX;
-            Vector3 secAxisOrtho = secAxisRaw - Vector3.Dot(secAxisRaw, axis) * axis;
-            // Fallback when the user picked an axis perfectly parallel to the
-            // primary one — pick any vector in the perpendicular plane.
-            if (secAxisOrtho.LengthSquared() < 1e-8f)
-            {
-                Vector3 helper = MathF.Abs(axis.X) < 0.9f ? Vector3.UnitX : Vector3.UnitY;
-                secAxisOrtho = helper - Vector3.Dot(helper, axis) * axis;
-            }
-            secAxisOrtho = Vector3.Normalize(secAxisOrtho);
-            float along2 = Vector3.Dot(q, secAxisOrtho);
-            float wave2 = MathF.Sin(_scale * SecondaryFrequency * along2 + NoiseStrength * fractal);
-            // Renormalise (1 + strength) so the combined signal stays in [-1, 1].
-            sinVal = (wave1 + SecondaryStrength * wave2) / (1f + SecondaryStrength);
+            float bgScale = BackgroundScale > 0f ? 1f / BackgroundScale : 1f;
+            bg = noise.Fbm(
+                qNoise * bgScale + new Vector3(101.0f, 53.7f, 217.1f),
+                Math.Max(BackgroundOctaves, 1), Lacunarity, Gain, signed: true);
         }
-        else
-        {
-            sinVal = wave1;
-        }
-        float t = (sinVal + 1f) * 0.5f;
 
-        if (VeinSharpness != 1f && VeinSharpness > 0f)
+        // ── 7. Impurities ──────────────────────────────────────────────────
+        float impurity = 0f;
+        if (ImpuritiesTexture is not null)
         {
-            // Sharpening on the *vein region* — the troughs of the sine wave
-            // (t ≈ 0). With t' = 1 − (1 − t)^k the BASE color (t = 1) widens
-            // its area and the vein narrows, which is what real Carrara /
-            // Calacatta look like and what Cycles' "Width", Arnold marble2's
-            // `vein_width` and RenderMan PxrMarble's `veinFalloff` all do.
-            //
-            // Earlier the code did `t = t^k`, which inverted the result —
-            // raising k pushed the average sample toward 0 (vein) so the
-            // surface read as mostly dark with thin bright bands instead of
-            // mostly light with thin dark bands. That was a long-standing
-            // semantic bug fixed in step 5/7 of the VFX texture roadmap;
-            // sharpness = 1 (default) stays bit-identical to the legacy
-            // implementation, so only scenes that explicitly set
-            // `vein_sharpness > 1` see a change — the change is from "wrong"
-            // to "right" so we accept the visual diff.
-            t = 1f - MathF.Pow(1f - t, VeinSharpness);
+            Vector3 c = ImpuritiesTexture.Value(u, v, qGeom, objectSeed);
+            impurity = 0.2126f * c.X + 0.7152f * c.Y + 0.0722f * c.Z;
         }
+        else if (ImpuritiesDensity > 0f)
+        {
+            impurity = InlineImpurity(noise, qNoise * ImpuritiesScale, objectSeed);
+        }
+
+        // ── 8. Final mapping ───────────────────────────────────────────────
+        float t = Math.Clamp(veinT + ColorVariation * bg + ImpurityWeight * impurity, 0f, 1f);
+
+        // Mask output: pack the scalar t as (t, t, t) so downstream
+        // FloatTexture reduction (channel average) recovers exactly t. Used
+        // to drive Disney roughness_texture / subsurface_texture / etc. from
+        // the vein mask.
+        if (Output == OutputMode.Mask)
+            return new Vector3(t);
 
         if (ColorRamp is { } ramp)
-        {
-            // Ramp drives the colour directly: t = 0 → first stop (typically
-            // the vein), t = 1 → last stop (typically the base). The two
-            // constructor colours are ignored when a ramp is present.
             return ramp.Sample(t);
-        }
 
-        Vector3 cBase = _baseColor.Value(u, v, qGeom, objectSeed);
-        Vector3 cVein = _veinColor.Value(u, v, qGeom, objectSeed);
-        return Vector3.Lerp(cVein, cBase, t);
+        return Vector3.Lerp(_baseColor, _veinColor, t);
+    }
+
+    /// <summary>
+    /// Rotates the per-axis fold amplitudes so the largest component aligns
+    /// with <see cref="VeinAxis"/>. Lets a user pick a slab orientation with
+    /// a single <c>vein_axis</c> vector without re-permuting the amplitude
+    /// list manually.
+    /// </summary>
+    private Vector3 OrientedFoldAmplitude()
+    {
+        Vector3 axis = VeinAxis.LengthSquared() > 1e-12f
+            ? Vector3.Normalize(VeinAxis) : Vector3.UnitY;
+        Vector3 amp = FoldAmplitude;
+        float aX = MathF.Abs(amp.X);
+        float aY = MathF.Abs(amp.Y);
+        float aZ = MathF.Abs(amp.Z);
+        float maxAmp = MathF.Max(aX, MathF.Max(aY, aZ));
+        float midAmp = aX + aY + aZ - maxAmp - MathF.Min(aX, MathF.Min(aY, aZ));
+        float minAmp = MathF.Min(aX, MathF.Min(aY, aZ));
+
+        // Project the sorted amplitudes onto the unit basis built around the
+        // requested axis: dominant component along axis, secondary along the
+        // largest perpendicular, weakest along the third axis.
+        Vector3 perp = MathF.Abs(axis.X) < 0.9f ? Vector3.UnitX : Vector3.UnitZ;
+        Vector3 b1 = Vector3.Normalize(perp - Vector3.Dot(perp, axis) * axis);
+        Vector3 b2 = Vector3.Cross(axis, b1);
+        return Vector3.Abs(axis) * maxAmp + Vector3.Abs(b1) * midAmp + Vector3.Abs(b2) * minAmp;
+    }
+
+    private float InlineImpurity(Perlin noise, Vector3 p, int objectSeed)
+    {
+        // Sparse Voronoi specks: only the brightest cells (whose hash falls
+        // below ImpuritiesDensity) emit an impurity, and the speck shape is
+        // shaped by the F1 distance so the centre is hot and the edge fades.
+        var worley = objectSeed != 0 ? WorleyNoise.GetOrCreate(objectSeed) : WorleyNoise.GetOrCreate(1);
+        worley.Evaluate(p, WorleyNoise.Metric.Euclidean, 1f, out float f1, out _, out int cellId);
+
+        // Per-cell deterministic scalar — only cells under the density gate
+        // produce a speck. Avoids the visible regular Voronoi grid that a
+        // pure F1 threshold would create.
+        float cellGate = WorleyNoise.CellScalar(cellId);
+        if (cellGate > ImpuritiesDensity) return 0f;
+
+        // Speck profile: bright at the feature centre, fading by ~0.35 cell
+        // units. Small radius keeps inclusions tight; soft falloff avoids
+        // visible ring banding under high-roughness shading.
+        float radius = 0.35f;
+        float t = Math.Clamp(1f - f1 / radius, 0f, 1f);
+        return t * t * (3f - 2f * t); // smoothstep profile
+    }
+
+    private static float Smoothstep(float edge0, float edge1, float x)
+    {
+        if (edge1 <= edge0) return x >= edge1 ? 1f : 0f;
+        float t = Math.Clamp((x - edge0) / (edge1 - edge0), 0f, 1f);
+        return t * t * (3f - 2f * t);
     }
 }

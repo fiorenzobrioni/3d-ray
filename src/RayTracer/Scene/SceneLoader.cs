@@ -1712,7 +1712,7 @@ public class SceneLoader
             _ => new SolidColor(t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One : Vector3.One)
         };
 
-        ApplyTextureParams(tex, t);
+        ApplyTextureParams(tex, t, sceneDir);
         return tex;
     }
 
@@ -1760,7 +1760,7 @@ public class SceneLoader
     /// overrides the amplitude already baked into the constructor; for <c>noise</c>
     /// it controls turbulence weight (0 = smooth Perlin, >0 = turbulent output).
     /// </summary>
-    private static void ApplyTextureParams(ITexture tex, TextureData t)
+    private static void ApplyTextureParams(ITexture tex, TextureData t, string sceneDir)
     {
         if (tex is NoiseTexture nt)
         {
@@ -1784,21 +1784,60 @@ public class SceneLoader
             if (t.Rotation != null) mt.Rotation = ToVector3(t.Rotation) ?? Vector3.Zero;
             mt.RandomizeOffset   = t.RandomizeOffset;
             mt.RandomizeRotation = t.RandomizeRotation;
+
             if (t.NoiseStrength.HasValue) mt.NoiseStrength = t.NoiseStrength.Value;
-            if (t.VeinAxis != null)       mt.VeinAxis      = ToVector3(t.VeinAxis) ?? Vector3.UnitZ;
-            if (t.VeinFrequency.HasValue) mt.VeinFrequency = t.VeinFrequency.Value;
-            if (t.VeinSharpness.HasValue) mt.VeinSharpness = t.VeinSharpness.Value;
-            if (t.Octaves.HasValue)       mt.Octaves       = Math.Clamp(t.Octaves.Value, 1, 16);
-            if (t.Lacunarity.HasValue)    mt.Lacunarity    = t.Lacunarity.Value;
-            if (t.Gain.HasValue)          mt.Gain          = t.Gain.Value;
-            if (t.Distortion.HasValue)    mt.Distortion    = t.Distortion.Value;
-            if (t.NoiseTypeName != null)  mt.NoiseType     = ParseMarbleFractalKind(t.NoiseTypeName);
-            if (t.SecondaryWave is { } sw)
-            {
-                if (sw.Axis != null)       mt.SecondaryAxis      = ToVector3(sw.Axis) ?? Vector3.UnitX;
-                if (sw.Frequency.HasValue) mt.SecondaryFrequency = sw.Frequency.Value;
-                if (sw.Strength.HasValue)  mt.SecondaryStrength  = Math.Max(sw.Strength.Value, 0f);
-            }
+            if (t.VeinAxis != null)       mt.VeinAxis      = ToVector3(t.VeinAxis) ?? Vector3.UnitY;
+
+            // Recursive IQ warp
+            if (t.WarpAmplitude.HasValue)  mt.WarpAmplitude  = MathF.Max(t.WarpAmplitude.Value, 0f);
+            if (t.WarpScale.HasValue)      mt.WarpScale      = MathF.Max(t.WarpScale.Value, 1e-4f);
+            if (t.WarpIterations.HasValue) mt.WarpIterations = Math.Clamp(t.WarpIterations.Value, 0, 3);
+
+            // Anisotropic geological fold
+            if (t.FoldAmplitude != null)   mt.FoldAmplitude = ToVector3(t.FoldAmplitude) ?? mt.FoldAmplitude;
+            if (t.FoldScale.HasValue)      mt.FoldScale     = MathF.Max(t.FoldScale.Value, 1e-4f);
+
+            // Multi-scale ridged vein layers
+            if (t.VeinLayers.HasValue)     mt.VeinLayers     = Math.Clamp(t.VeinLayers.Value, 1, 3);
+            if (t.VeinScale  is { } vsc)   mt.VeinScales     = vsc.ToArray();
+            if (t.VeinWeight is { } vwt)   mt.VeinWeights    = vwt.ToArray();
+            ValidateMarbleLayers(mt);
+            if (t.Octaves.HasValue)        mt.Octaves        = Math.Clamp(t.Octaves.Value, 1, 16);
+            if (t.Lacunarity.HasValue)     mt.Lacunarity     = t.Lacunarity.Value;
+            if (t.Gain.HasValue)           mt.Gain           = t.Gain.Value;
+            if (t.SoftMaxSharpness.HasValue) mt.SoftMaxSharpness = MathF.Max(t.SoftMaxSharpness.Value, 0.1f);
+
+            // Vein thickness remap
+            if (t.VeinThickness.HasValue)  mt.VeinThickness  = Math.Clamp(t.VeinThickness.Value, 0f, 1f);
+            if (t.VeinSoftness.HasValue)   mt.VeinSoftness   = Math.Clamp(t.VeinSoftness.Value, 1e-4f, 1f);
+
+            // Background tonal variation
+            if (t.BackgroundScale.HasValue)   mt.BackgroundScale   = MathF.Max(t.BackgroundScale.Value, 1e-4f);
+            if (t.BackgroundOctaves.HasValue) mt.BackgroundOctaves = Math.Clamp(t.BackgroundOctaves.Value, 1, 16);
+            if (t.ColorVariation.HasValue)    mt.ColorVariation    = Math.Clamp(t.ColorVariation.Value, 0f, 1f);
+
+            // Impurities
+            if (t.ImpuritiesDensity.HasValue) mt.ImpuritiesDensity = Math.Clamp(t.ImpuritiesDensity.Value, 0f, 1f);
+            if (t.ImpuritiesScale.HasValue)   mt.ImpuritiesScale   = MathF.Max(t.ImpuritiesScale.Value, 1e-4f);
+            if (t.ImpurityWeight.HasValue)    mt.ImpurityWeight    = t.ImpurityWeight.Value;
+            if (t.ImpuritiesTexture is not null)
+                mt.ImpuritiesTexture = CreateTexture(t.ImpuritiesTexture, sceneDir);
+
+            // Anisotropic space stretch (geological compression)
+            if (t.SpaceStretch != null)
+                mt.SpaceStretch = ToVector3(t.SpaceStretch) ?? Vector3.One;
+
+            // Secondary linear cracks (Worley F2 − F1 overlay)
+            if (t.CracksDensity.HasValue)  mt.CracksDensity  = Math.Clamp(t.CracksDensity.Value, 0f, 1f);
+            if (t.CracksScale.HasValue)    mt.CracksScale    = MathF.Max(t.CracksScale.Value, 1e-4f);
+            if (t.CracksSoftness.HasValue) mt.CracksSoftness = Math.Clamp(t.CracksSoftness.Value, 1e-4f, 1f);
+            if (t.CracksWeight.HasValue)   mt.CracksWeight   = MathF.Max(t.CracksWeight.Value, 0f);
+
+            // Output mode: `color` (default) or `mask` — packs vein scalar t as
+            // (t,t,t) for FloatTexture-driven Disney parameters (roughness,
+            // subsurface, sheen, etc.).
+            if (t.Output != null) mt.Output = ParseMarbleOutput(t.Output);
+
             mt.ColorRamp = BuildColorRamp(t.ColorRamp, "marble");
         }
         else if (tex is WoodTexture wt)
@@ -1893,13 +1932,47 @@ public class SceneLoader
             _                      => NoiseTexture.NoiseKind.Auto,
         };
 
-    private static MarbleTexture.FractalKind ParseMarbleFractalKind(string s) =>
+    /// <summary>
+    /// Validates that <see cref="MarbleTexture.VeinScales"/> and
+    /// <see cref="MarbleTexture.VeinWeights"/> are coherent with
+    /// <see cref="MarbleTexture.VeinLayers"/>. Mismatched lengths are
+    /// reported through the deferred warning channel and the arrays are
+    /// trimmed/extended to <c>VeinLayers</c> with sane defaults so the
+    /// render still produces a valid image.
+    /// </summary>
+    private static void ValidateMarbleLayers(MarbleTexture mt)
+    {
+        int n = mt.VeinLayers;
+        if (mt.VeinScales.Length != n)
+        {
+            if (mt.VeinScales.Length != 0)
+                Warn($"Marble texture: vein_scale has {mt.VeinScales.Length} entries but vein_layers={n}. Padding/trimming with default 1.0.");
+            mt.VeinScales = ResizeWith(mt.VeinScales, n, 1f);
+        }
+        if (mt.VeinWeights.Length != n)
+        {
+            if (mt.VeinWeights.Length != 0)
+                Warn($"Marble texture: vein_weight has {mt.VeinWeights.Length} entries but vein_layers={n}. Padding/trimming with default 1.0.");
+            mt.VeinWeights = ResizeWith(mt.VeinWeights, n, 1f);
+        }
+    }
+
+    private static MarbleTexture.OutputMode ParseMarbleOutput(string s) =>
         s.Trim().ToLowerInvariant() switch
         {
-            "fbm" or "fractal"  => MarbleTexture.FractalKind.Fbm,
-            "ridged" or "ridge" => MarbleTexture.FractalKind.Ridged,
-            _                   => MarbleTexture.FractalKind.Turbulence,
+            "mask" or "scalar" or "vein_mask" or "veinmask" => MarbleTexture.OutputMode.Mask,
+            _                                                => MarbleTexture.OutputMode.Color,
         };
+
+    private static float[] ResizeWith(float[] src, int n, float fill)
+    {
+        if (src.Length == n) return src;
+        var dst = new float[n];
+        int copy = Math.Min(src.Length, n);
+        Array.Copy(src, dst, copy);
+        for (int i = copy; i < n; i++) dst[i] = fill;
+        return dst;
+    }
 
     private static WorleyNoise.Metric ParseVoronoiMetric(string s) =>
         s.Trim().ToLowerInvariant() switch

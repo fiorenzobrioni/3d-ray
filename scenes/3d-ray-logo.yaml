@@ -12,7 +12,8 @@
 #   ─ A : argento brunito      dis_argento_brunito       (metallic freddo opaco)
 #   ─ Y : porcellana bianca    dis_porcellana_bianca     (ceramica con SSS)
 #
-#  Ground: mat_ground_marmo (Carrara custom — scale 1.2 + distortion 0.65 + secondary 0.6)
+#  Ground: mat_ground_marmo (Calacatta Gold custom — 3 layer + cracks Worley
+#          + mask roughness 0.25→0.06: showcase pro della patch 2 marble)
 #
 #  Sfere:
 #   ─ cristallo limpido        front-destra  (Disney spec_trans, ior 1.55)
@@ -147,43 +148,78 @@ materials:
     type: "lambertian"
     color: [0.60, 0.60, 0.62]
 
-  # ─── Ground: marmo Carrara custom calibrato per quad 50×50 m ──────────────
-  # `dis_carrara_studio_v2` su un quad di questa scala fa emergere la grid
-  # intrinseca del Perlin noise (vertici a coordinate intere mondo) come
-  # reticolo di celle quadrate. Qui calibriamo:
-  #   • scale 1.2  : vene a passo ~5 m (1 ciclo / quad) anziché 0.25 m
-  #   • distortion 0.65 : domain warp forte → nasconde la grid Perlin
-  #   • secondary_wave strength 0.6 : cross-veining Calacatta organico
-  #   • noise_strength 4 : amplificazione moderata del Perlin (non amplifica la grid)
-  #   • color_ramp 5-stop : gradiente naturale dal nero alla base avorio
+  # ─── Ground: Calacatta Gold maestoso — vetrina della patch 2 marble ───────
+  # Esercita TUTTE le feature pro nel use case naturale del pavimento lucido:
+  #   • 3 vein layers (thin + medium + thick) — coesistenza vene fine/spesse
+  #   • cracks Worley density 0.30 softness 0.040 — fratture lineari di lastra
+  #   • mask roughness 0.25 → 0.06 — le VENE oro riflettono il logo a specchio
+  #     mentre la BASE avorio dà riflesso più diffuso (come pavimento marmo
+  #     lavorato vero). Qui la patch 2 si legge davvero perché il piano
+  #     riflette le lettere illuminate dalla Nishita golden hour.
+  #   • space_stretch [0.7, 1.0, 1.3] — bedding leggero direzionale
+  #   • color_ramp 4-stop avorio → cream → oro → vena scura
+  #   • warp_iterations 2 + fold anisotropo — uccide il tiling Perlin
+  #     intrinseco che PRIMA emergeva come reticolo di celle quadrate
+  #
+  # Il blocco marble appare due volte (per `texture` e `roughness_texture`)
+  # con parametri IDENTICI così colore e mask sono in fase spaziale.
   - id: "mat_ground_marmo"
     type: "disney"
-    color: [0.95, 0.94, 0.92]
-    roughness: 0.35
-    specular: 0.50
-    clearcoat: 0.40
-    coat_roughness: 0.10
     texture:
       type: "marble"
-      scale: 1.2
+      scale: 1.5
       vein_axis: [0.6, 0, 1]                       # diagonale (non camera-aligned)
-      vein_frequency: 1.0
-      vein_sharpness: 5.5
-      noise_strength: 4.0
-      octaves: 6
-      distortion: 0.65                             # CHIAVE: nasconde la grid Perlin
-      noise_type: "fbm"                            # fbm più "morbido" di turbulence
+      warp_amplitude: 1.15
+      warp_iterations: 2
+      fold_amplitude: [0.95, 0.30, 0.55]
+      space_stretch: [0.7, 1.0, 1.3]
+      vein_layers: 3
+      vein_scale:  [0.6, 1.5, 3.3]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.20
+      vein_softness: 0.08
+      color_variation: 0.08
+      cracks_density: 0.30
+      cracks_scale: 3.0
+      cracks_softness: 0.040
+      cracks_weight: 0.75
       randomize_offset: true
-      secondary_wave:
-        axis: [1, 0, -0.4]
-        frequency: 0.7
-        strength: 0.6
       color_ramp:
-        - { position: 0.00, color: [0.10, 0.09, 0.09], interp: "smoothstep" }
-        - { position: 0.30, color: [0.45, 0.42, 0.40], interp: "smoothstep" }
-        - { position: 0.60, color: [0.80, 0.77, 0.73], interp: "smoothstep" }
-        - { position: 0.88, color: [0.93, 0.92, 0.89], interp: "smoothstep" }
-        - { position: 1.00, color: [0.98, 0.97, 0.95], interp: "linear" }
+        - { position: 0.00, color: [0.97, 0.95, 0.90], interp: "linear"     }   # avorio base
+        - { position: 0.30, color: [0.93, 0.86, 0.72], interp: "smoothstep" }   # cream
+        - { position: 0.65, color: [0.85, 0.62, 0.28], interp: "smoothstep" }   # oro caldo
+        - { position: 1.00, color: [0.18, 0.10, 0.05], interp: "linear"     }   # vena scura
+    # IL VERO USE CASE DELLA PATCH 2: roughness mask-driven sul pavimento
+    # riflettente. Range 0.25 (base matte) → 0.06 (vena lucida a specchio)
+    # produce il riflesso variabile delle lettere sopra al pavimento. La
+    # base avorio appare come marmo levigato, le vene oro/scure come marmo
+    # lavorato a specchio che riflette nitido il logo.
+    roughness: 0.25
+    roughness_texture:
+      type: "marble"
+      output: "mask"
+      scale: 1.5
+      vein_axis: [0.6, 0, 1]
+      warp_amplitude: 1.15
+      warp_iterations: 2
+      fold_amplitude: [0.95, 0.30, 0.55]
+      space_stretch: [0.7, 1.0, 1.3]
+      vein_layers: 3
+      vein_scale:  [0.6, 1.5, 3.3]
+      vein_weight: [1.0, 0.70, 0.40]
+      vein_thickness: 0.20
+      vein_softness: 0.08
+      cracks_density: 0.30
+      cracks_scale: 3.0
+      cracks_softness: 0.040
+      cracks_weight: 0.75
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.0, color: [0.25, 0.25, 0.25] }   # base: roughness 0.25
+        - { position: 1.0, color: [0.06, 0.06, 0.06] }   # vena: roughness 0.06 (specchio)
+    specular: 0.65
+    clearcoat: 0.85
+    coat_roughness: 0.05
 
   # ─── Sfera cromata DIETRO il logo (riflette le 5 lettere) ─────────────────
   - id: "mat_chrome_sphere"
