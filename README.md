@@ -165,6 +165,11 @@ dotnet build src/RayTracer/RayTracer.csproj -c Release
 
 ### Esecuzione
 
+Sanity check istantaneo (preset `draft-tiny`, 480×270 — pochi secondi):
+```bash
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -q draft-tiny -o renders/render-sanity.png
+```
+
 Render di prova rapido (preset `draft-small`, 960×540):
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -q draft-small -o renders/render-draft.png
@@ -286,7 +291,7 @@ Output: `scenes/libraries/terrain/<stem>-height.png` (heightmap PNG-16)
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | — (**obbligatorio**) | Percorso del file YAML della scena. L'estensione `.yaml` (o `.yml`) è **opzionale**: se il path non esiste così com'è, il loader prova ad aggiungerla automaticamente (es. `-i scenes/chess` ⇒ `scenes/chess.yaml`). |
 | `--output` | `-o` | `renders/render-<scena>.png` | File di output. Se omesso, generato dal nome della scena. |
-| `--quality` | `-q` | — | Preset di qualità che riempie in un colpo `-w -H -s -d -S`. Valori: `draft-small`, `draft`, `medium-small`, `medium`, `final-small`, `final`, `ultra`. **Qualunque flag esplicito vince sul preset** (es. `-q final -d 16` per scene con vetri impilati). Vedi i [Profili di Rendering](./docs/reference/profili-di-rendering.md). |
+| `--quality` | `-q` | — | Preset di qualità che riempie in un colpo `-w -H -s -d -S`. Valori: `draft-tiny` (480×270), `draft-small` (960×540), `draft` (1080p) — `medium-tiny`, `medium-small`, `medium` — `final-tiny`, `final-small`, `final` — `ultra` (4K). **Qualunque flag esplicito vince sul preset** (es. `-q final -d 16` per scene con vetri impilati). Vedi i [Profili di Rendering](./docs/reference/profili-di-rendering.md). |
 | `--width` | `-w` | `1200` | Larghezza in pixel. |
 | `--height` | `-H` | `800` | Altezza in pixel. |
 | `--samples` | `-s` | `16` | Campioni per pixel. Con il sampler Sobol (default) viene usato il conteggio esatto; con `--sampler prng` viene arrotondato al quadrato perfetto superiore (`√N × √N`). |
@@ -311,6 +316,11 @@ Output: `scenes/libraries/terrain/<stem>-height.png` (heightmap PNG-16)
 ---
 
 ## 💡 Esempi Pratici
+
+### Preset `draft-tiny` (sanity check istantaneo — 480×270)
+```bash
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q draft-tiny -o sanity.png
+```
 
 ### Preset `draft-small` (composizione, camere, materiali — secondi, 960×540)
 ```bash
