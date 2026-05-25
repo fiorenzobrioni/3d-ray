@@ -1,94 +1,76 @@
-# ============================================================================
-# Libreria Materiali — Vernici e Rivestimenti Industriali
-# ============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+#  3D-Ray Material Library — INDUSTRIAL COATINGS
+# ───────────────────────────────────────────────────────────────────────────
+#  File:     industrial-coatings.yaml
+#  Disney:   43
+#  Classic:  0       (lambertian: 0 · metal: 0 · dielectric: 0)
+#  Total:    43
+#  Updated:  2026-05
+# ───────────────────────────────────────────────────────────────────────────
+#  Contenuto: chassis auto matte/gloss, anti-graffio, polveri elettrostatiche
+#             RAL, anodizzazioni alluminio/titanio (thin_film), zincature,
+#             cromature, smalti a fuoco, gel coat marini, termocromiche,
+#             retroreflettenti, anti-corrosive, fluorescenti safety.
+# ═══════════════════════════════════════════════════════════════════════════
 #
 # Importa con:  imports: [{ path: "libraries/materials/industrial-coatings.yaml" }]
 #
-# Verniciature tecniche e rivestimenti funzionali per applicazioni
-# industriali, automotive e nautiche. Distinta da `paints.yaml` (vernici
-# artistiche, murali, decorative).
+# Convenzione:
+#   dis_*  — Disney BSDF. SOLO Disney: anche i rivestimenti industriali
+#            "matte" hanno componente speculare/clearcoat irrinunciabile,
+#            e le anodizzazioni dipendono da thin_film_thickness — niente
+#            di tutto questo è rappresentabile in Classic.
 #
-# Sfrutta:
+# Distinta da `paints.yaml` (vernici artistiche, murali, decorative).
 #
-#   • Thin_film 200-500nm per anodizzazioni con interferenza colorata reale
-#     (alluminio anodizzato cambia colore con spessore strato).
-#   • Coat_normal_map procedurale per "orange peel" automotive (microbump
-#     sotto il clearcoat tipico delle vernici a spruzzo).
-#   • Color_ramp 4-stop per termocromiche (color shift per temperatura).
-#   • Voronoi smooth per finiture a polvere elettrostatica (granulometria
-#     molto fine).
-#   • Anisotropic per spazzolato cromato/zincato.
-#   • Clearcoat 1.0 + coat_roughness ultra-bassa per gel coat marini.
+# Feature usate:
+#   • thin_film_thickness + thin_film_ior per anodizzazione alluminio/
+#     titanio con interferenza colorata reale.
+#   • clearcoat 1.0 + coat_roughness 0.04 + coat_ior 1.5 per gel coat
+#     marini e chassis auto gloss; bump_map voronoi smooth a scala 80+
+#     per "orange peel" automotive (la pellicola coat trasmette il
+#     micro-rilievo della normale base in shading).
+#   • flake noise (voronoi cell scale alta) per polveri metallizzate.
+#   • color_ramp 4-stop evolutivo (gradient) per termocromiche.
+#   • anisotropic + anisotropic_rotation per cromo satinato spazzolato.
 #
-# ── Naming ───────────────────────────────────────────────────────────────
+# ── Note d'uso ──
+#   Anodizzazione: i colori derivano UNICAMENTE da thin_film_thickness.
+#   Il `color` base è grigio neutro (alluminio nudo); lo spessore in
+#   nanometri determina lo shift cromatico:
+#     - Naturale:  0       (nessun thin_film, alluminio nudo)
+#     - Oro:       350-450 nm
+#     - Rosso:     300-350 nm
+#     - Viola:     400-450 nm
+#     - Blu:       500-600 nm
+#     - Verde:     600-700 nm
 #
-#   dis_  Disney BSDF. Sempre. Anche le verniciature industriali "matte"
-#         hanno componenti speculari significative.
-#
-# ── Categorie ────────────────────────────────────────────────────────────
-#
-#   CHASSIS AUTO OPACO  Matte black, matte grey, matte cement.
-#                       Roughness 0.6-0.8, coat moderato.
-#
-#   CHASSIS AUTO LUCIDO Gloss black, gloss white, premium colors.
-#                       Clearcoat 1.0 + coat_roughness 0.04.
-#
-#   ANTI-GRAFFIO        Clear coat industriale, matte anti-glare.
-#                       Trasparente o pigmentato leggero.
-#
-#   POLVERI ELETTROSTAT. RAL standard: 9005 nero, 9010 bianco, 3020 rosso
-#                       segnaletico, 5015 blu cielo, 1023 giallo traffico,
-#                       6018 verde mela, 7035 grigio luce.
-#
-#   ANODIZZAZIONE       Alluminio anodizzato: oro, nero, blu, rosso, viola,
-#                       naturale. Thin_film per colorazione interferenza.
-#
-#   ZINCATURA           Zinco a caldo: lucida fresca, opaca, invecchiata.
-#
-#   CROMATURA INDUSTR.  Lucida specchio, satinata, nichelata.
-#
-#   SMALTO A FUOCO      Vetrosa cotta sopra metallo. Roughness ultra-bassa.
-#
-#   GEL COAT MARINO     Verniciatura nautica resistente UV/sale.
-#                       Bianco, blu, grigio.
-#
-#   SPECIALI            Termocromiche, retroreflettenti, anti-corrosive,
-#                       fluorescenti safety.
-#
-# ── Note d'uso ───────────────────────────────────────────────────────────
-#
-# Coat_normal_map "orange peel": per il classico difetto di vernice a
-# spruzzo automotive, applica al `coat_normal_map`:
-#   coat_normal_map:
-#     path: "<procedurale-via-bump>"   # in alternativa usa bump_map
-#     strength: 0.4
-# In assenza di mappe orange peel pre-renderizzate, qui forniamo bump_map
-# voronoi smooth con scale 80+ per simulare la microstruttura.
-#
-# Anodizzazione: i colori derivano UNICAMENTE da thin_film_thickness. Il
-# `color` base è grigio neutro (alluminio nudo). Lo spessore in nanometri
-# determina lo shift cromatico:
-#   - Naturale:  0    (nessun thin_film, alluminio nudo)
-#   - Oro:       350-450 nm
-#   - Rosso:     300-350 nm
-#   - Viola:     400-450 nm
-#   - Blu:       500-600 nm
-#   - Verde:     600-700 nm
-#
-# Render hint:
-#   Draft:  -s 64  -d 5  -S 1
-#   Final:  -s 1024 -d 8 -S 4
-# ============================================================================
+# ── Categorie ──
+#   CHASSIS AUTO MATTE     Matte black/grey/cement. Roughness 0.6-0.8.
+#   CHASSIS AUTO GLOSS     Gloss black/white/red + metallizzate. Clearcoat 1.0.
+#   ANTI-GRAFFIO           Clear coat protettivo, matte anti-glare.
+#   POLVERI RAL            9005 nero, 9010 bianco, 3020 rosso, 5015 blu,
+#                          1023 giallo, 6018 verde, 7035 grigio + metallizzate.
+#   ANODIZZAZIONE AL/TI    Alluminio anodizzato (oro/blu/rosso/viola/verde)
+#                          + titanio anodizzato (thin_film).
+#   ZINCATURA              Lucida, opaca, invecchiata.
+#   CROMATURA              Specchio, satinata, nichelatura.
+#   SMALTO A FUOCO         Bianco, rosso, blu cobalto.
+#   GEL COAT MARINO        Bianco, blu marino, antracite.
+#   SPECIALI               Termocromiche, retroreflettenti, anti-corrosive,
+#                          fluorescenti safety.
+
 
 materials:
 
-  # ══════════════════════════════════════════════════════════════════════
-  # CHASSIS AUTO OPACO (matte)
-  # ══════════════════════════════════════════════════════════════════════
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  DISNEY                                                               ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
+
+  # ── CHASSIS AUTO MATTE ───────────────────────────────────────────────────
 
   # Matte black professionale: ruvido ma uniforme. Roughness 0.65 +
-  # clearcoat moderato per quel "satin matte" tipico delle finizioni
-  # nuove.
+  # clearcoat moderato per quel "satin matte" tipico delle finiture nuove.
   - id: "dis_chassis_matte_nero"
     type: "disney"
     color: [0.04, 0.04, 0.04]
@@ -96,6 +78,7 @@ materials:
     specular: 0.32
     clearcoat: 0.20
     coat_roughness: 0.55
+    coat_ior: 1.5
     bump_map:
       texture:
         type: "voronoi"
@@ -112,6 +95,7 @@ materials:
     specular: 0.32
     clearcoat: 0.20
     coat_roughness: 0.55
+    coat_ior: 1.5
     bump_map:
       texture:
         type: "voronoi"
@@ -128,10 +112,12 @@ materials:
     specular: 0.32
     clearcoat: 0.20
     coat_roughness: 0.55
+    coat_ior: 1.5
 
-  # ══════════════════════════════════════════════════════════════════════
-  # CHASSIS AUTO LUCIDO (gloss)
-  # ══════════════════════════════════════════════════════════════════════
+
+  # ── CHASSIS AUTO GLOSS ───────────────────────────────────────────────────
+  # Clearcoat 1.0 + coat_roughness 0.04 + coat_ior 1.5. bump_map voronoi
+  # smooth a scala 80-90 per l'orange peel da vernice a spruzzo.
 
   # Gloss black piano: il più scuro e profondo. Clearcoat perfetto.
   - id: "dis_chassis_gloss_nero"
@@ -141,6 +127,7 @@ materials:
     specular: 0.50
     clearcoat: 1.0
     coat_roughness: 0.04
+    coat_ior: 1.5
     bump_map:
       texture:
         type: "voronoi"
@@ -149,7 +136,7 @@ materials:
         colors: [[0.48, 0.48, 0.48], [0.52, 0.52, 0.52]]
       strength: 0.15
 
-  # Gloss white perlato: bianco brillante quasi puro.
+  # Gloss white: bianco brillante quasi puro.
   - id: "dis_chassis_gloss_bianco"
     type: "disney"
     color: [0.94, 0.94, 0.94]
@@ -157,6 +144,14 @@ materials:
     specular: 0.55
     clearcoat: 1.0
     coat_roughness: 0.04
+    coat_ior: 1.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 90.0
+        smoothness: 0.6
+        colors: [[0.48, 0.48, 0.48], [0.52, 0.52, 0.52]]
+      strength: 0.15
 
   # Gloss rosso Ferrari: rosso saturo intenso.
   - id: "dis_chassis_gloss_rosso"
@@ -166,9 +161,18 @@ materials:
     specular: 0.55
     clearcoat: 1.0
     coat_roughness: 0.04
+    coat_ior: 1.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 90.0
+        smoothness: 0.6
+        colors: [[0.48, 0.48, 0.48], [0.52, 0.52, 0.52]]
+      strength: 0.15
 
-  # Gloss blu metallizzato: con flake metallici. Metallic 0.5 + alta
-  # spec per glitter.
+  # Gloss blu metallizzato con flake: metallic 0.5 + flake noise (voronoi
+  # cell scale alta) per i micro-riflessi glitter, sotto un clearcoat
+  # perfetto.
   - id: "dis_chassis_gloss_blu_metallic"
     type: "disney"
     metallic: 0.5
@@ -177,13 +181,45 @@ materials:
     specular: 0.60
     clearcoat: 1.0
     coat_roughness: 0.04
+    coat_ior: 1.5
+    texture:
+      type: "voronoi"
+      scale: 180.0
+      output: "cell"
+      randomness: 1.0
+      colors: [[0.05, 0.12, 0.35], [0.18, 0.30, 0.62]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 90.0
+        smoothness: 0.6
+        colors: [[0.48, 0.48, 0.48], [0.52, 0.52, 0.52]]
+      strength: 0.18
 
-  # ══════════════════════════════════════════════════════════════════════
-  # ANTI-GRAFFIO
-  # ══════════════════════════════════════════════════════════════════════
+  # Gloss perla bianca: flake bianchi sotto clearcoat, base avorio.
+  - id: "dis_chassis_gloss_perla"
+    type: "disney"
+    metallic: 0.30
+    color: [0.92, 0.90, 0.84]
+    roughness: 0.18
+    specular: 0.60
+    clearcoat: 1.0
+    coat_roughness: 0.04
+    coat_ior: 1.5
+    texture:
+      type: "voronoi"
+      scale: 180.0
+      output: "cell"
+      randomness: 1.0
+      colors: [[0.86, 0.84, 0.78], [0.98, 0.96, 0.90]]
+    thin_film_thickness: 280
+    thin_film_ior: 1.45
 
-  # Clear coat industriale: incolore lucido protettivo. Da sovrapporre
-  # via mix a base color metalliche/decorative.
+
+  # ── ANTI-GRAFFIO ─────────────────────────────────────────────────────────
+
+  # Clear coat industriale: incolore lucido protettivo. spec_trans alto +
+  # ior 1.5: per sovrapporre via mix a base colore metalliche/decorative.
   - id: "dis_clearcoat_protettivo"
     type: "disney"
     color: [0.96, 0.96, 0.96]
@@ -191,6 +227,7 @@ materials:
     specular: 0.55
     clearcoat: 1.0
     coat_roughness: 0.04
+    coat_ior: 1.5
     spec_trans: 0.85
     ior: 1.50
 
@@ -201,11 +238,12 @@ materials:
     roughness: 0.92
     specular: 0.18
 
-  # ══════════════════════════════════════════════════════════════════════
-  # POLVERI ELETTROSTATICHE RAL
-  # ══════════════════════════════════════════════════════════════════════
 
-  # RAL 9005 nero profondo: il nero standard delle infissi.
+  # ── POLVERI ELETTROSTATICHE RAL ──────────────────────────────────────────
+  # Bump map voronoi smoothness 0.5 a scala 100 per la granulometria
+  # caratteristica della polvere a cottura.
+
+  # RAL 9005 nero profondo: lo standard degli infissi.
   - id: "dis_ral9005_nero"
     type: "disney"
     color: [0.04, 0.04, 0.04]
@@ -213,6 +251,7 @@ materials:
     specular: 0.38
     clearcoat: 0.50
     coat_roughness: 0.18
+    coat_ior: 1.5
     bump_map:
       texture:
         type: "voronoi"
@@ -229,6 +268,14 @@ materials:
     specular: 0.38
     clearcoat: 0.50
     coat_roughness: 0.18
+    coat_ior: 1.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 100.0
+        smoothness: 0.5
+        colors: [[0.46, 0.46, 0.46], [0.54, 0.54, 0.54]]
+      strength: 0.25
 
   # RAL 3020 rosso traffico segnaletico.
   - id: "dis_ral3020_rosso_traffico"
@@ -238,6 +285,7 @@ materials:
     specular: 0.40
     clearcoat: 0.50
     coat_roughness: 0.18
+    coat_ior: 1.5
 
   # RAL 5015 blu cielo.
   - id: "dis_ral5015_blu_cielo"
@@ -247,6 +295,7 @@ materials:
     specular: 0.40
     clearcoat: 0.50
     coat_roughness: 0.18
+    coat_ior: 1.5
 
   # RAL 1023 giallo traffico.
   - id: "dis_ral1023_giallo_traffico"
@@ -256,6 +305,7 @@ materials:
     specular: 0.40
     clearcoat: 0.50
     coat_roughness: 0.18
+    coat_ior: 1.5
 
   # RAL 6018 verde mela.
   - id: "dis_ral6018_verde_mela"
@@ -265,6 +315,7 @@ materials:
     specular: 0.40
     clearcoat: 0.50
     coat_roughness: 0.18
+    coat_ior: 1.5
 
   # RAL 7035 grigio luce.
   - id: "dis_ral7035_grigio_luce"
@@ -274,10 +325,29 @@ materials:
     specular: 0.38
     clearcoat: 0.45
     coat_roughness: 0.20
+    coat_ior: 1.5
 
-  # ══════════════════════════════════════════════════════════════════════
-  # ANODIZZAZIONE ALLUMINIO
-  # ══════════════════════════════════════════════════════════════════════
+  # RAL metallizzato argento: polvere con flake metallici visibili.
+  # Voronoi cell ad alta scala per il pulviscolo brillante.
+  - id: "dis_ral_metallic_argento"
+    type: "disney"
+    metallic: 0.55
+    color: [0.78, 0.78, 0.80]
+    roughness: 0.32
+    specular: 0.55
+    clearcoat: 0.60
+    coat_roughness: 0.10
+    coat_ior: 1.5
+    texture:
+      type: "voronoi"
+      scale: 160.0
+      output: "cell"
+      randomness: 1.0
+      colors: [[0.62, 0.62, 0.66], [0.90, 0.90, 0.92]]
+
+
+  # ── ANODIZZAZIONE ALLUMINIO ──────────────────────────────────────────────
+  # I colori derivano UNICAMENTE da thin_film_thickness su alluminio nudo.
 
   # Alluminio anodizzato naturale: nudo, argento.
   - id: "dis_anodizzato_naturale"
@@ -288,7 +358,7 @@ materials:
     specular: 0.55
     anisotropic: 0.40
 
-  # Anodizzato oro: thin_film 380nm dà tinge dorato all'alluminio.
+  # Anodizzato oro: thin_film 380nm.
   - id: "dis_anodizzato_oro"
     type: "disney"
     metallic: 1.0
@@ -299,7 +369,7 @@ materials:
     thin_film_thickness: 380
     thin_film_ior: 1.55
 
-  # Anodizzato nero: stesso processo ma con coloranti organici aggiunti.
+  # Anodizzato nero: coloranti organici aggiunti al bagno anodico.
   - id: "dis_anodizzato_nero"
     type: "disney"
     metallic: 1.0
@@ -352,9 +422,20 @@ materials:
     thin_film_thickness: 640
     thin_film_ior: 1.55
 
-  # ══════════════════════════════════════════════════════════════════════
-  # ZINCATURA
-  # ══════════════════════════════════════════════════════════════════════
+  # Titanio anodizzato cangiante: thin_film 460nm + IOR 1.6, riflessi
+  # blu/viola/oro tipici degli orologi e piercing.
+  - id: "dis_anodizzato_titanio"
+    type: "disney"
+    metallic: 1.0
+    color: [0.62, 0.62, 0.65]
+    roughness: 0.22
+    specular: 0.58
+    anisotropic: 0.30
+    thin_film_thickness: 460
+    thin_film_ior: 1.60
+
+
+  # ── ZINCATURA ────────────────────────────────────────────────────────────
 
   # Zinco a caldo lucido: fresco, riflessi argento opaco con tinte azzurre.
   - id: "dis_zinco_lucido"
@@ -386,9 +467,8 @@ materials:
       colors: [[0.45, 0.45, 0.45], [0.62, 0.62, 0.62]]
       randomize_offset: true
 
-  # ══════════════════════════════════════════════════════════════════════
-  # CROMATURA INDUSTRIALE
-  # ══════════════════════════════════════════════════════════════════════
+
+  # ── CROMATURA ────────────────────────────────────────────────────────────
 
   # Cromo specchio industriale: riflesso perfetto, manopole, cromi auto.
   - id: "dis_cromo_industriale"
@@ -399,8 +479,9 @@ materials:
     specular: 0.60
     clearcoat: 0.9
     coat_roughness: 0.04
+    coat_ior: 1.5
 
-  # Cromo satinato: spazzolato direzionale.
+  # Cromo satinato: spazzolato direzionale (anisotropic alto).
   - id: "dis_cromo_satinato"
     type: "disney"
     metallic: 1.0
@@ -425,9 +506,9 @@ materials:
     roughness: 0.15
     specular: 0.55
 
-  # ══════════════════════════════════════════════════════════════════════
-  # SMALTO A FUOCO (porcellanato)
-  # ══════════════════════════════════════════════════════════════════════
+
+  # ── SMALTO A FUOCO ───────────────────────────────────────────────────────
+  # Vetrosa cotta sopra metallo. Roughness ultra-bassa + clearcoat 1.0.
 
   # Smalto bianco lucido: targhe smaltate, segnaletica vintage.
   - id: "dis_smalto_fuoco_bianco"
@@ -437,6 +518,7 @@ materials:
     specular: 0.55
     clearcoat: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
 
   # Smalto rosso lucido: idranti, cabine telefoniche.
   - id: "dis_smalto_fuoco_rosso"
@@ -446,6 +528,7 @@ materials:
     specular: 0.55
     clearcoat: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
 
   # Smalto blu cobalto: ceramiche industriali.
   - id: "dis_smalto_fuoco_blu"
@@ -455,10 +538,12 @@ materials:
     specular: 0.55
     clearcoat: 1.0
     coat_roughness: 0.03
+    coat_ior: 1.5
 
-  # ══════════════════════════════════════════════════════════════════════
-  # GEL COAT MARINO
-  # ══════════════════════════════════════════════════════════════════════
+
+  # ── GEL COAT MARINO ──────────────────────────────────────────────────────
+  # Clearcoat 0.9 + bump_map voronoi smooth per la microstruttura tipica
+  # della verniciatura a spruzzo nautica.
 
   # Gel coat bianco: scafi imbarcazioni, jet-ski.
   - id: "dis_gelcoat_bianco"
@@ -468,6 +553,14 @@ materials:
     specular: 0.55
     clearcoat: 0.90
     coat_roughness: 0.06
+    coat_ior: 1.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 95.0
+        smoothness: 0.6
+        colors: [[0.48, 0.48, 0.48], [0.52, 0.52, 0.52]]
+      strength: 0.18
 
   # Gel coat blu marino.
   - id: "dis_gelcoat_blu_marino"
@@ -477,6 +570,14 @@ materials:
     specular: 0.55
     clearcoat: 0.90
     coat_roughness: 0.06
+    coat_ior: 1.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 95.0
+        smoothness: 0.6
+        colors: [[0.48, 0.48, 0.48], [0.52, 0.52, 0.52]]
+      strength: 0.18
 
   # Gel coat grigio antracite: yacht moderni.
   - id: "dis_gelcoat_antracite"
@@ -486,13 +587,21 @@ materials:
     specular: 0.55
     clearcoat: 0.90
     coat_roughness: 0.06
+    coat_ior: 1.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 95.0
+        smoothness: 0.6
+        colors: [[0.48, 0.48, 0.48], [0.52, 0.52, 0.52]]
+      strength: 0.18
 
-  # ══════════════════════════════════════════════════════════════════════
-  # SPECIALI
-  # ══════════════════════════════════════════════════════════════════════
 
-  # Termocromica: cambia colore con la temperatura. Color ramp simula
-  # transizione blu→rosa→giallo (riscaldamento progressivo).
+  # ── SPECIALI ─────────────────────────────────────────────────────────────
+
+  # Termocromica: cambia colore con la temperatura. Color ramp 4-stop
+  # evolutivo (gradient lineare verticale) simula la transizione
+  # blu→viola→rosa→giallo (riscaldamento progressivo).
   - id: "dis_termocromica"
     type: "disney"
     color: [0.42, 0.55, 0.72]
@@ -500,18 +609,19 @@ materials:
     specular: 0.42
     clearcoat: 0.55
     coat_roughness: 0.15
+    coat_ior: 1.5
     texture:
       type: "gradient"
       mode: "linear"
       axis: [0, 1, 0]
       color_ramp:
-        - { position: 0.00, color: [0.08, 0.22, 0.55], interp: "smoothstep" }  # cold
+        - { position: 0.00, color: [0.08, 0.22, 0.55], interp: "smoothstep" }
         - { position: 0.40, color: [0.55, 0.32, 0.62], interp: "smoothstep" }
         - { position: 0.65, color: [0.92, 0.42, 0.55], interp: "smoothstep" }
-        - { position: 1.00, color: [0.98, 0.85, 0.18], interp: "linear" }      # hot
+        - { position: 1.00, color: [0.98, 0.85, 0.18], interp: "linear" }
 
   # Vernice retroreflettente: micro-sfere riflettenti per segnaletica.
-  # Approssimata come metallica con clearcoat alto.
+  # Approssimata come metallica con clearcoat alto e bump voronoi.
   - id: "dis_retroreflettente"
     type: "disney"
     metallic: 0.65
@@ -520,6 +630,7 @@ materials:
     specular: 0.55
     clearcoat: 0.85
     coat_roughness: 0.10
+    coat_ior: 1.5
     bump_map:
       texture:
         type: "voronoi"
@@ -542,8 +653,8 @@ materials:
       colors: [[0.48, 0.48, 0.48], [0.62, 0.62, 0.62]]
       randomize_offset: true
 
-  # Fluorescente arancione safety: alta saturazione, look "neon" diurno.
-  # Emissive leggero per simulare la fluorescenza UV-attivata (approssimato).
+  # Fluorescente arancione safety: alta saturazione + emission per
+  # simulare la fluorescenza UV-attivata.
   - id: "dis_fluo_arancio_safety"
     type: "disney"
     color: [0.98, 0.42, 0.10]
@@ -552,6 +663,7 @@ materials:
     emission: [0.18, 0.06, 0.0]
     clearcoat: 0.40
     coat_roughness: 0.18
+    coat_ior: 1.5
 
   # Fluorescente verde lime safety.
   - id: "dis_fluo_verde_safety"
@@ -562,3 +674,4 @@ materials:
     emission: [0.08, 0.18, 0.04]
     clearcoat: 0.40
     coat_roughness: 0.18
+    coat_ior: 1.5
