@@ -1,3 +1,16 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Gundam RX-78-2 — Mobile Suit in posa eroica
+#
+#  Ricostruzione procedurale del Mobile Suit RX-78-2 in scala scenica,
+#  composto interamente da primitive (box, cylinder, sphere) organizzate
+#  in gruppi gerarchici. Occhi e beam saber usano materiali emissivi.
+#
+#  Suggerimenti di rendering:
+#    Preview:  -w 640  -H 360  -s 64   -d 6  -S 2
+#    Standard: -w 1280 -H 720  -s 256  -d 8  -S 4
+#    Finale:   -w 1920 -H 1080 -s 1024 -d 10 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
 world:
   sky:
     type: "gradient"
@@ -66,13 +79,6 @@ materials:
     roughness: 0.4
     metallic: 0.2
     clearcoat: 0.3
-
-  - id: "ground_mat_2"
-    type: "lambertian"
-    texture:
-      type: "checker"
-      scale: 1.5
-      colors: [[0.25, 0.22, 0.18], [0.35, 0.32, 0.26]]
 
   - id: "gundam_white"
     type: "disney"

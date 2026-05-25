@@ -1,14 +1,24 @@
-# =========================================================================
-# SCENA: Tempio Romano Classico (Dimensionamento Dinamico)
-# GENERATO TRAMITE: C# .NET 10 Procedural Generator
-# =========================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+#  Tempio Romano — Architettura classica procedurale
+#
+#  Modello architettonico di un tempio romano in stile periptero: colonne
+#  ioniche a scanalature (Catmull-Rom extrusion + taper 0.85), architrave,
+#  fregio in oro, frontoni triangolari, tetto a doppio spiovente in tegole
+#  terracotta, cella con portale e due bracieri fiammanti all'ingresso.
+#
+#  Generato tramite il generatore C# .NET 10 TempleGen; ogni parametro
+#  dimensionale è derivato dal numero di colonne (6 × 13 peristilio).
+#
+#  Suggerimenti di rendering:
+#    Preview:  -w 640  -H 360  -s 64   -d 4  -S 1
+#    Standard: -w 1280 -H 720  -s 256  -d 6  -S 4
+#    Finale:   -w 1920 -H 1080 -s 1024 -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  WORLD — Tramonto estivo mediterraneo con cielo dorato
+# ═══════════════════════════════════════════════════════════════════════════
 world:
-  ground:
-    type: "infinite_plane"
-    point: [0, 0, 0]
-    normal: [0, 1, 0]
-    material: "ground_stone"
   sky:
     type: "gradient"
     zenith_color: [0.15, 0.25, 0.60]
@@ -20,7 +30,15 @@ world:
       intensity: 8.0
       size: 2.0
       falloff: 32.0
+  ground:
+    type: "infinite_plane"
+    point: [0, 0, 0]
+    normal: [0, 1, 0]
+    material: "ground_stone"
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════
 cameras:
   - name: "front_dramatic"
     position: [0, 2.5, -30]
@@ -47,6 +65,9 @@ cameras:
     aperture: 0.0
     focal_dist: 60
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS — Due bracieri interni + fill ambientale dal gradient sky
+# ═══════════════════════════════════════════════════════════════════════════
 lights:
   - type: "point"
     position: [-3, 3.5, 2]
@@ -59,6 +80,9 @@ lights:
     intensity: 15.0
     soft_radius: 0.2
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
 materials:
   - id: "white_marble"
     type: "disney"
@@ -85,6 +109,9 @@ materials:
     color: [1.0, 0.6, 0.1]
     intensity: 8.0
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  TEMPLATES — Colonna ionica e braciere
+# ═══════════════════════════════════════════════════════════════════════════
 templates:
   - name: "roman_column"
     material: "white_marble"
@@ -166,6 +193,9 @@ templates:
         radius: 0.4
         material: "fire"
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES — Gradini, colonne, architrave, fregio, tetto, cella, bracieri
+# ═══════════════════════════════════════════════════════════════════════════
 entities:
   - name: "step_0"
     type: "box"

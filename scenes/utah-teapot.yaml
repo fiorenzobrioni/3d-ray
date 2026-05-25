@@ -1,19 +1,36 @@
-# ============================================================================
-# Scene: Utah Teapot Showcase
-# ============================================================================
-# The classic ray tracing benchmark scene: a porcelain teapot on a wooden
-# table, with hand-crafted smooth triangles demonstrating the new YAML
-# primitive, and dramatic lighting.
+# ═══════════════════════════════════════════════════════════════════════════
+#  Utah Teapot — Il classico benchmark del ray tracing
 #
-# NOTE: Place utah-teapot.obj in models folder.
-# ============================================================================
+#  Teiera in porcellana smaltata su tavolo di legno, con origami in carta
+#  rossa (gru) costruito manualmente con primitive triangle/smooth_triangle,
+#  sfera cromata e sfera in vetro ambrato come accessori.
+#  Il file models/utah-teapot.obj deve essere presente nella cartella models.
+#
+#  Suggerimenti di rendering:
+#    Preview:  -w 640  -H 360  -s 64   -d 6  -S 2
+#    Standard: -w 1280 -H 720  -s 256  -d 8  -S 4
+#    Finale:   -w 1920 -H 1080 -s 1024 -d 10 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  WORLD — Studio quasi-nero, sfondo scuro per esaltare la teiera
+# ═══════════════════════════════════════════════════════════════════════════
+world:
+  sky:
+    type: "gradient"
+    zenith_color: [0.02, 0.02, 0.06]
+    horizon_color: [0.06, 0.05, 0.08]
+    ground_color: [0.02, 0.02, 0.02]
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════
 cameras:
   - name: "hero"
     position: [5, 4.5, -7]
     look_at: [0.2, 1.0, 0]
     fov: 32
-    aperture: 0 #0.05
+    aperture: 0.0
     focal_dist: 8.5
 
   - name: "top"
@@ -29,13 +46,9 @@ cameras:
     aperture: 0.08
     focal_dist: 4.0
 
-world:
-  sky:
-    type: "gradient"
-    zenith_color: [0.02, 0.02, 0.06]
-    horizon_color: [0.06, 0.05, 0.08]
-    ground_color: [0.02, 0.02, 0.02]
-
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
 materials:
   # ── Teiera — DISNEY (protagonista, clearcoat per smaltatura) ───────────
   - id: "porcellana"
@@ -77,6 +90,9 @@ materials:
     refraction_index: 1.5
     color: [1.0, 0.85, 0.6]
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS — Four-point: area key + fill + directional + spot teatrale
+# ═══════════════════════════════════════════════════════════════════════════
 lights:
   # Key light — area calda da destra
   - type: "area"
@@ -107,19 +123,18 @@ lights:
     inner_angle: 14
     outer_angle: 28
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES — Pavimento, tavolo, teiera (mesh OBJ), origami, sfere deco
+# ═══════════════════════════════════════════════════════════════════════════
 entities:
-  # ═══════════════════════════════════════════════════════════════════════════
-  # PAVIMENTO
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ─── Pavimento ─────────────────────────────────────────────────────────
   - name: "pavimento"
     type: "infinite_plane"
     point: [0, 0, 0]
     normal: [0, 1, 0]
     material: "pavimento"
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # TAVOLO — box con piano spesso
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ─── Tavolo — box con piano spesso e gambe cilindriche ─────────────────
   - name: "piano_tavolo"
     type: "box"
     scale: [6.0, 0.2, 5.0]
@@ -155,9 +170,7 @@ entities:
     height: 0.9
     material: "legno_scuro"
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # UTAH TEAPOT — il protagonista (unico Disney della scena)
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ─── Utah Teapot — il protagonista (unico Disney della scena) ──────────
   - name: "teapot"
     type: "mesh"
     path: "models/utah-teapot.obj"
@@ -166,9 +179,7 @@ entities:
     rotate: [0, -30, 0]
     translate: [0, 1.1, 0.5]
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # SMOOTH TRIANGLES — Origami (gru) accanto alla teiera
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ─── Smooth Triangles — Origami (gru) accanto alla teiera ──────────────
 
   # ─── Corpo: diamante con 4 facce ───────────────────────────────────────
   - name: "gru_corpo_top_fr"
@@ -279,9 +290,7 @@ entities:
     v2: [2.0, 1.1,  0.33]
     material: "carta_rossa"
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # OGGETTI DECORATIVI
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ─── Oggetti decorativi — sfera cromo e sfera ambra ─────────────────────
 
   # Sfera cromo — riflette la teiera
   - name: "sfera_cromo"

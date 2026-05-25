@@ -1,6 +1,6 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# 3D-Ray — Showcase "Atelier"
-# ─────────────────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════
+#  3D-Ray — Showcase "Atelier"
+# ═══════════════════════════════════════════════════════════════════════════
 #
 # This is the flagship / "business card" scene for the 3D-Ray engine.
 # A single cinematic still-life designed to demonstrate, in one glance,
@@ -50,7 +50,7 @@
 # Note: la bolla di sapone e la sfera ambra beneficiano di `-d 12` per evitare
 # zone nere; il firefly clamp `-C 50` tiene a bada i picchi della bolla
 # iridescente combinata con l'area light.
-# ─────────────────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════
 
 world:
   sky:

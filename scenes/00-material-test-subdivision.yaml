@@ -1,6 +1,24 @@
-# ============================================================================
-# Scene: Material Test (Subdivision Meshes for Displacement)
-# ============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+#  Material Test — Subdivision Meshes (Loop + Catmull-Clark)
+#
+#  Scena di test per materiali su mesh suddivise: icosaedro Loop (4 iter)
+#  e cubo Catmull-Clark (0 iter) con `material_to_test` applicato a
+#  entrambi. Ideale per testare displacement procedurale o bump mapping.
+#
+#  Modifica `material_to_test` nelle materials per testare qualunque BSDF.
+#
+#  Suggerimenti di rendering:
+#    Preview:  -w 640  -H 360  -s 64   -d 6  -S 2
+#    Standard: -w 1280 -H 720  -s 256  -d 8  -S 4
+#    Finale:   -w 1920 -H 1080 -s 1024 -d 10 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.02, 0.02, 0.03]
+    horizon_color: [0.05, 0.05, 0.06]
+    ground_color:  [0.01, 0.01, 0.01]
 
 cameras:
   - name: "main"
@@ -23,31 +41,6 @@ cameras:
     look_at:  [0, 0, 0]
     fov: 40
 
-world:
-  sky:
-    type: "gradient"
-    zenith_color:  [0.02, 0.02, 0.03]
-    horizon_color: [0.05, 0.05, 0.06]
-    ground_color:  [0.01, 0.01, 0.01]
-
-materials:
-  - id: "pavimento"
-    type: "disney"
-    roughness: 0.8
-    metallic: 0.0
-    texture:
-      type: "checker"
-      colors: [[0.05, 0.05, 0.05], [0.15, 0.15, 0.15]]
-      scale: 2.0
-
-  # Modifica questo materiale per i tuoi test. Essendo una scena con subdivision meshes,
-  # qui puoi testare il displacement!
-  - id: "material_to_test"
-    type: "disney"
-    color: [0.8, 0.2, 0.2]
-    roughness: 0.3
-    metallic: 0.1
-
 lights:
   # Key light (luce principale calda, per ombre nette)
   - type: "point"
@@ -66,6 +59,24 @@ lights:
     position: [0, 3, 4]
     color: [1.0, 1.0, 1.0]
     intensity: 40
+
+materials:
+  - id: "pavimento"
+    type: "disney"
+    roughness: 0.8
+    metallic: 0.0
+    texture:
+      type: "checker"
+      colors: [[0.05, 0.05, 0.05], [0.15, 0.15, 0.15]]
+      scale: 2.0
+
+  # Modifica questo materiale per i tuoi test. Essendo una scena con subdivision meshes,
+  # qui puoi testare il displacement!
+  - id: "material_to_test"
+    type: "disney"
+    color: [0.8, 0.2, 0.2]
+    roughness: 0.3
+    metallic: 0.1
 
 entities:
   - name: "suolo"

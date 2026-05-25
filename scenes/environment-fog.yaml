@@ -1,25 +1,19 @@
-# =============================================================================
-#  TEST — Environment + Global Medium (regressione MIS volumetrica)
+# ═══════════════════════════════════════════════════════════════════════════
+#  Environment Fog — Nebbia esponenziale con MIS volumetrico
 #
 #  Verifica che le shadow ray verso l'EnvironmentLight ricevano correttamente
-#  l'attenuazione Beer-Lambert del global_medium. La scena è composta da:
+#  l'attenuazione Beer-Lambert del global_medium. Sfere diffuse colorate
+#  disposte a profondità crescenti: le più lontane appaiono progressivamente
+#  desaturate dalla dominanza atmosferica.
 #
-#    - Pavimento Lambertian
-#    - Sfere diffuse di tonalità diverse, sparse su scale crescenti di
-#      distanza dalla camera (più una sfera è lontana, più nebbia attraversa
-#      la luce ambiente per illuminarla)
-#    - Sky a gradiente con sun disk
-#    - Global medium omogeneo a scattering moderato
+#  Criterio visivo: le sfere lontane si "sbiadiscono" nella nebbia mentre
+#  il sole illumina in modo morbido attraverso lo strato di height_fog.
 #
-#  CRITERIO VISIVO
-#    Se la trasmittanza è applicata correttamente, le sfere lontane appaiono
-#    progressivamente desaturate (dominanza atmosferica) e il sole illumina
-#    in modo "morbido" attraverso lo strato di nebbia.
-#
-#  COMANDO TIPO
-#    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-#      -i scenes/test-env-fog.yaml -w 800 -H 450 -s 128 -d 6 -S 4
-# =============================================================================
+#  Suggerimenti di rendering:
+#    Preview:  -w 800  -H 450  -s 64   -d 4  -S 2
+#    Standard: -w 1280 -H 720  -s 256  -d 6  -S 4
+#    Finale:   -w 1920 -H 1080 -s 512  -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
 
 world:
   sky:
@@ -46,10 +40,17 @@ world:
     phase: "hg"
     g: 0.50
 
-camera:
-  position: [0, 1.6, -8]
-  look_at:  [-0.5, 1.0, 6]
-  fov: 50
+cameras:
+  - name: "wide"
+    position: [0, 1.6, -8]
+    look_at:  [-0.5, 1.0, 6]
+    fov: 50
+
+  # Vista laterale per osservare la gradazione della nebbia in profondità
+  - name: "lateral"
+    position: [-8, 2.0, 4]
+    look_at:  [4, 1.0, 4]
+    fov: 50
 
 materials:
   - id: "pavimento"
