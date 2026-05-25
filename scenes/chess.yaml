@@ -136,16 +136,16 @@ materials:
 # ═══════════════════════════════════════════════════════════════════════════
 lights:
   # Key Light — allineata approssimativamente alla direzione del sun disk
-  - type: "point"
-    position: [-3, 10, -4]
-    color: [1.0, 0.95, 0.9]
-    intensity: 80
+  # - type: "point"
+  #   position: [-3, 10, -4]
+  #   color: [1.0, 0.95, 0.9]
+  #   intensity: 80
 
   # Fill Light — luce fredda più debole dall'altro lato, ammorbidisce le ombre
-  - type: "point"
-    position: [5, 6, -3]
-    color: [0.85, 0.85, 1.0]
-    intensity: 30
+  # - type: "point"
+  #   position: [5, 6, -3]
+  #   color: [0.85, 0.85, 1.0]
+  #   intensity: 30
 
   # Back/Rim Light — luce posteriore per distaccare i pezzi dallo sfondo
   - type: "point"
