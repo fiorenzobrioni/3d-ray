@@ -1,95 +1,67 @@
-# ============================================================================
-# Libreria Materiali — Legni (Pro-grade rewrite)
-# ============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+#  3D-Ray Material Library — WOODS
+# ───────────────────────────────────────────────────────────────────────────
+#  File:     woods.yaml
+#  Disney:   60
+#  Classic:  27      (lambertian: 27 · metal: 0 · dielectric: 0)
+#  Total:    87
+#  Updated:  2026-05
+# ───────────────────────────────────────────────────────────────────────────
+#  Contenuto: acero, betulla, frassino, faggio, quercia, ciliegio, teak,
+#             iroko, noce, mogano, wengé, palissandro, ebano, macassar,
+#             pino, abete, cedro, larice, zebrano, padouk, amaranto, bocote,
+#             trattati (sbiancato, shou-sugi-ban, barnwood, tinto), studio
+#             showcases (curly, flame, bird's eye, burl, quartersawn, mask).
+# ═══════════════════════════════════════════════════════════════════════════
 #
 # Importa con:  imports: [{ path: "libraries/materials/woods.yaml" }]
 #
-# Tutti i materiali usano la NUOVA texture procedurale "wood" production-grade:
-# profilo annuale asimmetrico (earlywood + latewood), variazione random per
-# anello (larghezza + colore — la singola feature che separa il "look CG" dal
-# "look reale"), recursive IQ domain warp, fold anisotropico, multi-banda
-# noise (grain + figure orientata perpendicolare alla venatura), vasi di poro
-# (Worley anisotropico per quercia/frassino/noce), gradiente sapwood/heartwood
-# e knot 3D-cone. Stesso livello di Arnold `wood`/`knots`, Cycles Wave
-# Texture in modalità Rings, RenderMan PxrWoodKnot, Substance Wood.
+# Convenzione:
+#   dis_*  — Disney BSDF: texture procedurale "wood" production-grade con
+#            earlywood/latewood asimmetrico, IQ domain warp, pori anisotropi
+#            (open-pore: quercia/frassino/noce/wenge), nodi 3D (conifere),
+#            heartwood/sapwood gradient, figure (curly/flame/burl) e
+#            radial_anisotropy (quartersawn). Clearcoat per verniciati,
+#            sheen per grezzi, subsurface leggero per conifere chiare.
+#   cls_*  — Classic: type `lambertian` con un singolo `color` RGB medio
+#            rappresentativo dell'essenza. La texture wood procedurale,
+#            il clearcoat e gli effetti speculari sono persi — è il prezzo
+#            del Classic. Una sola variante per essenza (il colore medio
+#            non cambia abbastanza tra grezzo/olio/cera per giustificare
+#            duplicati). Per scene di sfondo e render rapidi.
 #
-# ── Convenzioni ─────────────────────────────────────────────────────────
+# ── Finiture Disney ───────────────────────────────────────────────────────
+#   _grezzo      Pori aperti, nessuna finitura. roughness 0.80-0.90, sheen alto.
+#   _olio        Olio penetrante (tung, lino). roughness 0.55-0.70, pori visibili.
+#   _cera        Cera d'api / paste wax. Satinata, clearcoat 0.20-0.30.
+#   _verniciato  Poliuretano satinato. clearcoat 0.55-0.75, roughness 0.26-0.32.
+#   _laccato     Lacca a specchio. clearcoat ≥ 0.90, roughness < 0.15.
 #
-#   dis_  (Disney BSDF) — Per oggetti protagonisti. Supporta clearcoat,
-#         sheen, subsurface. Per finiture lucide (laccato, verniciato)
-#         abbassare roughness e alzare clearcoat. Usare con ≥128 spp.
+# ── Materiali "solo Disney" (nessun cls_) ────────────────────────────────
+#   Tutti gli studio con figure dominante (curly, flame, bird's eye, burl,
+#   medullary rays) e mask-driven roughness: la firma del materiale è nei
+#   lobi avanzati che il lambertian non può replicare.
 #
-#   cls_  (Classic) — Lambertian con texture wood. Per pavimenti, tavoli,
-#         oggetti di sfondo. Zero rumore Disney.
-#
-# ── Finiture ─────────────────────────────────────────────────────────────
-#
-#   _grezzo      Poro aperto, nessuna finitura. Roughness 0.85-0.90,
-#                sheen alto, pore_density max per essenze open-pore.
-#   _olio        Olio penetrante (tung, lino). Esalta venatura, roughness
-#                0.65-0.75, pori ancora visibili.
-#   _cera        Cera d'api / paste wax. Satinata, clearcoat basso (0.20-0.30).
-#   _verniciato  Poliuretano satinato. Clearcoat 0.55-0.70, roughness 0.28-0.34.
-#   _laccato     Lacca a specchio (pianoforte). Clearcoat 0.90+, roughness <0.15,
-#                pori chiusi (PoreDensity 0).
-#
-# ── Parametri texture "wood" — guida pratica ─────────────────────────────
-#
-#   scale                  Frequenza anelli: 3-4 = anelli larghi (legno vecchio),
-#                          5-6 = anelli stretti (crescita rapida).
-#   grain_strength         Ampiezza grain band (alias: noise_strength). 0.8-2.0.
-#   latewood_width         Spessore latewood (0.15-0.30). 0.30 per conifere
-#                          (legno tenero a crescita rapida), 0.15-0.20 per
-#                          latifoglie (legno duro a crescita lenta).
-#   ring_sharpness         Crispness della transizione latewood (1-6). 3-4 per
-#                          quercia/noce/mogano (banda netta); 1.5-2 per acero
-#                          (transizione morbida).
-#   ring_color_variation   Anello-su-anello: 0.10-0.25 è il range naturale.
-#                          0 = legno CG perfetto (NON usare); 0.15 = default
-#                          consigliato; 0.25 = anni climaticamente variabili.
-#   ring_width_variation   Spaziatura non uniforme (0.05-0.20).
-#   warp_amplitude         Curvatura organica anelli (0.3-0.8). 0 = anelli
-#                          perfettamente circolari (innaturale).
-#   warp_iterations        1=warp singolo, 2=ricetta IQ canonica, 3=flow caotico.
-#   fold_amplitude         Bending macro del tronco. Per axis=Y, default
-#                          [0.3, 0.1, 0.3] è bilanciato.
-#   figure_strength        Banda figure bassa frequenza (curly, flame, ribbon).
-#                          0 default; 0.4-1.5 per look pregiati.
-#   figure_aspect          Stira figure perpendicolare alla venatura (1=isotropic,
-#                          3-5 = strisce trasversali nette).
-#   pore_density           Vasi di poro per essenze open-pore (0.30-0.55 per
-#                          quercia/frassino/noce). 0 per essenze close-pore
-#                          (acero, faggio, ciliegio).
-#   pore_aspect            Elongazione assiale dei pori (4-6 = vasi allungati
-#                          lungo la venatura).
-#   knot_density           Probabilità nodi (0-1). 0 default; 0.5-1.0 per pino,
-#                          abete, cedro.
-#   heartwood_radius       Raggio transizione sapwood/heartwood (in unità
-#                          texture). 0 = disabilitato.
-#   heartwood_blend        Shift colore (-1..1). Positivo = scurisce verso il
-#                          centro (cuore). Naturale per noce, ciliegio, ipe.
-#   color_ramp             Sostituisce `colors:` con gradiente multi-stop.
-#                          Convenzione: position 0 = latewood scuro, 1 = earlywood
-#                          chiaro/sapwood.
-#   randomize_offset/rotation  Sempre true per decorrelare istanze adiacenti.
-#
-# ── Mask output per Disney roughness/sheen texture-driven ───────────────
-#
-#   Come per il marble, è possibile usare il MASK del wood (output: "mask")
-#   per pilotare parametri Disney scalari: il latewood scuro = roughness più
-#   bassa (più lucido), o sheen più alto sul earlywood (poro aperto).
-#   Esempio nel "dis_quercia_pro" sotto.
-#
-# ============================================================================
+# ── Categorie ─────────────────────────────────────────────────────────────
+#   LATIFOGLIE CHIARE   Acero, betulla, frassino, faggio.
+#   LATIFOGLIE MEDIE    Quercia, ciliegio, teak, iroko.
+#   LATIFOGLIE SCURE    Noce, mogano, wengé, palissandro.
+#   LEGNI NERI          Ebano, ebano macassar.
+#   CONIFERE            Pino, abete, cedro, larice.
+#   LEGNI ESOTICI       Zebrano, padouk, amaranto/purpleheart, bocote.
+#   LEGNI TRATTATI      Sbiancato, shou-sugi-ban, barnwood, tinto nero/grigio.
+#   STUDIO              Curly, flame, bird's eye, burl, quartersawn, mask.
+
 
 materials:
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  LATIFOGLIE CHIARE — toni bianchi/crema/miele
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  DISNEY                                                               ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
 
-  # ── ACERO (close-pore, no pori visibili, latewood sottile) ─────────────
+  # ── LATIFOGLIE CHIARE ────────────────────────────────────────────────────
 
+  # Acero grezzo — close-pore, latewood sottile, sheen morbido
   - id: "dis_acero_grezzo"
     type: "disney"
     texture:
@@ -119,6 +91,7 @@ materials:
     sheen_tint: 0.8
     subsurface: 0.08
 
+  # Acero oliato — olio penetrante esalta venatura
   - id: "dis_acero_olio"
     type: "disney"
     texture:
@@ -145,6 +118,7 @@ materials:
     sheen: 0.10
     sheen_tint: 0.7
 
+  # Acero verniciato — finitura poliuretano satinato
   - id: "dis_acero_verniciato"
     type: "disney"
     texture:
@@ -171,29 +145,7 @@ materials:
     clearcoat: 0.65
     coat_roughness: 0.12
 
-  - id: "cls_acero"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 3.8
-      grain_strength: 1.2
-      latewood_width: 0.16
-      ring_sharpness: 2.5
-      ring_color_variation: 0.18
-      warp_amplitude: 0.45
-      figure_strength: 0.25
-      figure_scale: 0.18
-      figure_aspect: 3.0
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.62, 0.46, 0.28], interp: "smoothstep" }
-        - { position: 0.55, color: [0.86, 0.74, 0.52], interp: "smoothstep" }
-        - { position: 1.00, color: [0.96, 0.88, 0.70], interp: "linear" }
-
-  # ── BETULLA (close-pore, color chiaro, latewood molto sottile) ──────────
-
+  # Betulla grezza — close-pore color chiaro, latewood molto sottile
   - id: "dis_betulla_grezzo"
     type: "disney"
     texture:
@@ -221,6 +173,7 @@ materials:
     sheen_tint: 0.7
     subsurface: 0.12
 
+  # Betulla oliata — tono più caldo, venatura esaltata
   - id: "dis_betulla_olio"
     type: "disney"
     texture:
@@ -247,28 +200,7 @@ materials:
     sheen: 0.08
     sheen_tint: 0.7
 
-  - id: "cls_betulla"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 3.5
-      grain_strength: 1.5
-      latewood_width: 0.18
-      ring_color_variation: 0.20
-      warp_amplitude: 0.50
-      figure_strength: 0.20
-      figure_scale: 0.20
-      figure_aspect: 2.8
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.62, 0.50, 0.36], interp: "smoothstep" }
-        - { position: 0.55, color: [0.88, 0.78, 0.62], interp: "smoothstep" }
-        - { position: 1.00, color: [0.95, 0.88, 0.74], interp: "linear" }
-
-  # ── FRASSINO (open-pore, vasi visibili, anelli marcati) ─────────────────
-
+  # Frassino grezzo — open-pore, vasi visibili, anelli marcati
   - id: "dis_frassino_grezzo"
     type: "disney"
     texture:
@@ -299,6 +231,7 @@ materials:
     sheen: 0.15
     sheen_tint: 0.8
 
+  # Frassino oliato — pori più scuri, venatura calda
   - id: "dis_frassino_olio"
     type: "disney"
     texture:
@@ -329,30 +262,7 @@ materials:
     sheen: 0.10
     sheen_tint: 0.7
 
-  - id: "cls_frassino"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.2
-      grain_strength: 1.6
-      latewood_width: 0.22
-      ring_sharpness: 4.0
-      ring_color_variation: 0.20
-      warp_amplitude: 0.55
-      pore_density: 0.42
-      pore_scale: 16.0
-      pore_aspect: 5.0
-      pore_strength: 0.50
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.38, 0.26, 0.12], interp: "smoothstep" }
-        - { position: 0.55, color: [0.80, 0.66, 0.42], interp: "smoothstep" }
-        - { position: 1.00, color: [0.92, 0.82, 0.62], interp: "linear" }
-
-  # ── FAGGIO (close-pore, color caldo, latewood discreto) ─────────────────
-
+  # Faggio grezzo — close-pore, color caldo, latewood discreto
   - id: "dis_faggio_grezzo"
     type: "disney"
     texture:
@@ -379,6 +289,7 @@ materials:
     sheen: 0.12
     sheen_tint: 0.7
 
+  # Faggio verniciato — finitura mobili moderni
   - id: "dis_faggio_verniciato"
     type: "disney"
     texture:
@@ -405,32 +316,9 @@ materials:
     clearcoat: 0.55
     coat_roughness: 0.15
 
-  - id: "cls_faggio"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 3.4
-      grain_strength: 1.0
-      latewood_width: 0.18
-      ring_color_variation: 0.16
-      warp_amplitude: 0.40
-      figure_strength: 0.15
-      figure_scale: 0.22
-      figure_aspect: 2.5
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.55, 0.36, 0.20], interp: "smoothstep" }
-        - { position: 0.55, color: [0.80, 0.62, 0.42], interp: "smoothstep" }
-        - { position: 1.00, color: [0.92, 0.76, 0.55], interp: "linear" }
+  # ── LATIFOGLIE MEDIE ─────────────────────────────────────────────────────
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  LATIFOGLIE MEDIE — toni dorati/ambrati
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── QUERCIA (open-pore classico, latewood netto, pori marcati) ──────────
-
+  # Quercia grezza — open-pore classico, latewood netto, pori marcati
   - id: "dis_quercia_grezzo"
     type: "disney"
     texture:
@@ -464,6 +352,7 @@ materials:
     sheen: 0.18
     sheen_tint: 0.8
 
+  # Quercia oliata — PRESERVATO INVARIATO (usato da library-woods-v3.yaml)
   - id: "dis_quercia_olio"
     type: "disney"
     texture:
@@ -495,6 +384,7 @@ materials:
     sheen: 0.10
     sheen_tint: 0.7
 
+  # Quercia cera — paste wax, pori parzialmente chiusi, clearcoat basso
   - id: "dis_quercia_cera"
     type: "disney"
     texture:
@@ -525,30 +415,7 @@ materials:
     clearcoat: 0.25
     coat_roughness: 0.35
 
-  - id: "cls_quercia"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.5
-      grain_strength: 1.8
-      latewood_width: 0.24
-      ring_sharpness: 4.0
-      ring_color_variation: 0.22
-      warp_amplitude: 0.55
-      pore_density: 0.48
-      pore_scale: 18.0
-      pore_aspect: 6.0
-      pore_strength: 0.55
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.26, 0.14, 0.05], interp: "smoothstep" }
-        - { position: 0.55, color: [0.76, 0.55, 0.28], interp: "smoothstep" }
-        - { position: 1.00, color: [0.92, 0.78, 0.50], interp: "linear" }
-
-  # ── CILIEGIO (semi-pore, color rosso, heartwood marcato) ────────────────
-
+  # Ciliegio oliato — semi-pore, color rosso, heartwood marcato
   - id: "dis_ciliegio_olio"
     type: "disney"
     texture:
@@ -581,6 +448,7 @@ materials:
     sheen: 0.08
     sheen_tint: 0.6
 
+  # Ciliegio verniciato — finitura piano-mobile classica
   - id: "dis_ciliegio_verniciato"
     type: "disney"
     texture:
@@ -609,31 +477,7 @@ materials:
     clearcoat: 0.75
     coat_roughness: 0.10
 
-  - id: "cls_ciliegio"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.0
-      grain_strength: 1.4
-      latewood_width: 0.18
-      ring_sharpness: 3.0
-      ring_color_variation: 0.20
-      warp_amplitude: 0.45
-      pore_density: 0.20
-      pore_scale: 20.0
-      pore_strength: 0.30
-      heartwood_radius: 1.4
-      heartwood_blend: 0.18
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.32, 0.10, 0.04], interp: "smoothstep" }
-        - { position: 0.55, color: [0.68, 0.28, 0.14], interp: "smoothstep" }
-        - { position: 1.00, color: [0.82, 0.46, 0.26], interp: "linear" }
-
-  # ── TEAK (semi-pore, fasce scure, oleoso naturale) ──────────────────────
-
+  # Teak grezzo — semi-pore, fasce scure, oleoso naturale
   - id: "dis_teak_grezzo"
     type: "disney"
     texture:
@@ -664,6 +508,7 @@ materials:
     sheen: 0.10
     sheen_tint: 0.7
 
+  # Teak oliato — outdoor furniture, look dorato
   - id: "dis_teak_olio"
     type: "disney"
     texture:
@@ -694,28 +539,7 @@ materials:
     sheen: 0.06
     sheen_tint: 0.6
 
-  - id: "cls_teak"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.0
-      grain_strength: 1.5
-      latewood_width: 0.22
-      ring_color_variation: 0.22
-      warp_amplitude: 0.50
-      pore_density: 0.28
-      pore_scale: 20.0
-      pore_strength: 0.40
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.22, 0.14, 0.05], interp: "smoothstep" }
-        - { position: 0.55, color: [0.62, 0.45, 0.22], interp: "smoothstep" }
-        - { position: 1.00, color: [0.82, 0.66, 0.38], interp: "linear" }
-
-  # ── IROKO (teak africano, simile + pori più larghi) ─────────────────────
-
+  # Iroko oliato — teak africano, pori più larghi
   - id: "dis_iroko_olio"
     type: "disney"
     texture:
@@ -746,32 +570,9 @@ materials:
     sheen: 0.08
     sheen_tint: 0.7
 
-  - id: "cls_iroko"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.5
-      grain_strength: 1.4
-      latewood_width: 0.22
-      ring_color_variation: 0.20
-      warp_amplitude: 0.50
-      pore_density: 0.35
-      pore_scale: 16.0
-      pore_strength: 0.45
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.18, 0.10, 0.04], interp: "smoothstep" }
-        - { position: 0.55, color: [0.55, 0.38, 0.18], interp: "smoothstep" }
-        - { position: 1.00, color: [0.75, 0.58, 0.30], interp: "linear" }
+  # ── LATIFOGLIE SCURE ─────────────────────────────────────────────────────
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  LATIFOGLIE SCURE — toni bruni/cioccolato
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── NOCE (open-pore, heartwood scuro marcato) ───────────────────────────
-
+  # Noce grezzo — open-pore, heartwood scuro marcato
   - id: "dis_noce_grezzo"
     type: "disney"
     texture:
@@ -806,6 +607,7 @@ materials:
     sheen: 0.12
     sheen_tint: 0.7
 
+  # Noce cera — paste wax leggero, pori semi-chiusi
   - id: "dis_noce_cera"
     type: "disney"
     texture:
@@ -839,6 +641,7 @@ materials:
     clearcoat: 0.22
     coat_roughness: 0.32
 
+  # Noce verniciato — PRESERVATO INVARIATO (usato da library-woods-v3.yaml)
   - id: "dis_noce_verniciato"
     type: "disney"
     texture:
@@ -868,54 +671,7 @@ materials:
     clearcoat: 0.72
     coat_roughness: 0.10
 
-  - id: "cls_noce"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.2
-      grain_strength: 1.6
-      latewood_width: 0.20
-      ring_color_variation: 0.22
-      warp_amplitude: 0.55
-      pore_density: 0.40
-      pore_scale: 18.0
-      pore_aspect: 5.5
-      pore_strength: 0.55
-      heartwood_radius: 1.6
-      heartwood_blend: 0.22
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.14, 0.08, 0.04], interp: "smoothstep" }
-        - { position: 0.55, color: [0.42, 0.26, 0.14], interp: "smoothstep" }
-        - { position: 1.00, color: [0.68, 0.46, 0.26], interp: "linear" }
-
-  - id: "cls_noce_verniciato"
-    type: "metal"
-    fuzz: 0.12
-    texture:
-      type: "wood"
-      scale: 4.2
-      grain_strength: 1.6
-      latewood_width: 0.20
-      ring_color_variation: 0.22
-      warp_amplitude: 0.55
-      figure_strength: 0.45
-      figure_scale: 0.16
-      figure_aspect: 4.0
-      heartwood_radius: 1.6
-      heartwood_blend: 0.22
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.10, 0.05, 0.03], interp: "smoothstep" }
-        - { position: 0.55, color: [0.38, 0.22, 0.12], interp: "smoothstep" }
-        - { position: 1.00, color: [0.62, 0.40, 0.22], interp: "linear" }
-
-  # ── MOGANO (semi-pore, color rosso-bruno, figure pregiata) ──────────────
-
+  # Mogano oliato — semi-pore, color rosso-bruno, figure pregiata
   - id: "dis_mogano_olio"
     type: "disney"
     texture:
@@ -948,6 +704,7 @@ materials:
     sheen: 0.06
     sheen_tint: 0.5
 
+  # Mogano laccato — finitura pianoforte, clearcoat estremo
   - id: "dis_mogano_laccato"
     type: "disney"
     texture:
@@ -976,33 +733,7 @@ materials:
     clearcoat: 0.90
     coat_roughness: 0.05
 
-  - id: "cls_mogano"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.8
-      grain_strength: 1.2
-      latewood_width: 0.16
-      ring_color_variation: 0.20
-      warp_amplitude: 0.55
-      figure_strength: 0.45
-      figure_scale: 0.16
-      figure_aspect: 4.5
-      pore_density: 0.25
-      pore_scale: 20.0
-      pore_strength: 0.40
-      heartwood_radius: 1.4
-      heartwood_blend: 0.15
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.18, 0.06, 0.04], interp: "smoothstep" }
-        - { position: 0.55, color: [0.50, 0.18, 0.10], interp: "smoothstep" }
-        - { position: 1.00, color: [0.72, 0.34, 0.20], interp: "linear" }
-
-  # ── WENGÉ (open-pore, color quasi nero con vasi visibili) ───────────────
-
+  # Wengé oliato — PRESERVATO INVARIATO (usato da library-woods-v3.yaml)
   - id: "dis_wenge_olio"
     type: "disney"
     texture:
@@ -1030,29 +761,7 @@ materials:
     sheen: 0.05
     sheen_tint: 0.4
 
-  - id: "cls_wenge"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 5.0
-      grain_strength: 1.8
-      latewood_width: 0.22
-      ring_color_variation: 0.18
-      warp_amplitude: 0.50
-      pore_density: 0.45
-      pore_scale: 20.0
-      pore_aspect: 6.0
-      pore_strength: 0.55
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.06, 0.04, 0.03], interp: "smoothstep" }
-        - { position: 0.55, color: [0.22, 0.14, 0.08], interp: "smoothstep" }
-        - { position: 1.00, color: [0.42, 0.28, 0.18], interp: "linear" }
-
-  # ── PALISSANDRO (heartwood viola/bruno, figure intensa) ─────────────────
-
+  # Palissandro oliato — heartwood viola/bruno, figure intensa
   - id: "dis_palissandro_olio"
     type: "disney"
     texture:
@@ -1087,6 +796,7 @@ materials:
     sheen: 0.05
     sheen_tint: 0.4
 
+  # Palissandro laccato — chitarre custom, mobili Art Déco
   - id: "dis_palissandro_laccato"
     type: "disney"
     texture:
@@ -1115,37 +825,9 @@ materials:
     clearcoat: 0.90
     coat_roughness: 0.05
 
-  - id: "cls_palissandro"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.5
-      grain_strength: 2.2
-      latewood_width: 0.20
-      ring_color_variation: 0.25
-      warp_amplitude: 0.65
-      figure_strength: 0.50
-      figure_scale: 0.15
-      figure_aspect: 4.5
-      pore_density: 0.30
-      pore_scale: 20.0
-      pore_strength: 0.45
-      heartwood_radius: 1.2
-      heartwood_blend: 0.20
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.10, 0.04, 0.04], interp: "smoothstep" }
-        - { position: 0.55, color: [0.36, 0.16, 0.12], interp: "smoothstep" }
-        - { position: 1.00, color: [0.58, 0.30, 0.22], interp: "linear" }
+  # ── LEGNI NERI ───────────────────────────────────────────────────────────
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  LEGNI NERI — toni quasi neri, estrema durezza
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── EBANO (close-pore, color profondo, anelli appena visibili) ──────────
-
+  # Ebano oliato — close-pore, color profondo, anelli appena visibili
   - id: "dis_ebano_olio"
     type: "disney"
     texture:
@@ -1169,6 +851,7 @@ materials:
     sheen: 0.04
     sheen_tint: 0.3
 
+  # Ebano laccato — finitura piano da concerto
   - id: "dis_ebano_laccato"
     type: "disney"
     texture:
@@ -1191,43 +874,7 @@ materials:
     clearcoat: 1.0
     coat_roughness: 0.05
 
-  - id: "cls_ebano"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 5.5
-      grain_strength: 0.7
-      latewood_width: 0.18
-      ring_color_variation: 0.15
-      warp_amplitude: 0.40
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.04, 0.03, 0.02], interp: "smoothstep" }
-        - { position: 0.55, color: [0.10, 0.07, 0.04], interp: "smoothstep" }
-        - { position: 1.00, color: [0.18, 0.12, 0.08], interp: "linear" }
-
-  - id: "cls_ebano_laccato"
-    type: "metal"
-    fuzz: 0.06
-    texture:
-      type: "wood"
-      scale: 5.5
-      grain_strength: 0.7
-      latewood_width: 0.18
-      ring_color_variation: 0.15
-      warp_amplitude: 0.40
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.03, 0.02, 0.02], interp: "smoothstep" }
-        - { position: 0.55, color: [0.08, 0.06, 0.04], interp: "smoothstep" }
-        - { position: 1.00, color: [0.15, 0.10, 0.06], interp: "linear" }
-
-  # ── EBANO MACASSAR (striature chiare su fondo scuro — figure intensa) ───
-
+  # Ebano macassar — striature chiare su fondo scuro, figure intensa
   - id: "dis_ebano_macassar"
     type: "disney"
     texture:
@@ -1256,32 +903,9 @@ materials:
     clearcoat: 0.55
     coat_roughness: 0.12
 
-  - id: "cls_ebano_macassar"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.5
-      grain_strength: 2.8
-      latewood_width: 0.22
-      ring_color_variation: 0.30
-      warp_amplitude: 0.70
-      figure_strength: 0.60
-      figure_scale: 0.14
-      figure_aspect: 5.0
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.04, 0.03, 0.02], interp: "smoothstep" }
-        - { position: 0.55, color: [0.18, 0.10, 0.05], interp: "smoothstep" }
-        - { position: 1.00, color: [0.45, 0.30, 0.16], interp: "linear" }
+  # ── CONIFERE ─────────────────────────────────────────────────────────────
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  CONIFERE — toni chiari/rosati, nodi prominenti, latewood netto
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── PINO (nodoso, latewood largo, grain ricco) ──────────────────────────
-
+  # Pino grezzo — nodoso, latewood largo, grain ricco
   - id: "dis_pino_grezzo"
     type: "disney"
     texture:
@@ -1313,6 +937,7 @@ materials:
     sheen_tint: 0.8
     subsurface: 0.08
 
+  # Pino oliato — tono più caldo, nodi più scuri
   - id: "dis_pino_olio"
     type: "disney"
     texture:
@@ -1342,6 +967,7 @@ materials:
     sheen: 0.10
     sheen_tint: 0.7
 
+  # Pino verniciato — mobili rustici lucidi
   - id: "dis_pino_verniciato"
     type: "disney"
     texture:
@@ -1371,28 +997,7 @@ materials:
     clearcoat: 0.55
     coat_roughness: 0.18
 
-  - id: "cls_pino"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 3.5
-      grain_strength: 1.8
-      latewood_width: 0.28
-      ring_color_variation: 0.24
-      warp_amplitude: 0.50
-      knot_density: 0.55
-      knot_scale: 0.55
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.10, 0.06, 0.03], interp: "smoothstep" }
-        - { position: 0.18, color: [0.42, 0.24, 0.10], interp: "smoothstep" }
-        - { position: 0.65, color: [0.88, 0.68, 0.40], interp: "smoothstep" }
-        - { position: 1.00, color: [0.96, 0.84, 0.60], interp: "linear" }
-
-  # ── ABETE (più chiaro, latewood meno marcato, nodi medi) ────────────────
-
+  # Abete grezzo — più chiaro del pino, latewood meno marcato
   - id: "dis_abete_grezzo"
     type: "disney"
     texture:
@@ -1423,28 +1028,7 @@ materials:
     sheen_tint: 0.8
     subsurface: 0.10
 
-  - id: "cls_abete"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 3.0
-      grain_strength: 1.4
-      latewood_width: 0.25
-      ring_color_variation: 0.20
-      warp_amplitude: 0.45
-      knot_density: 0.40
-      knot_scale: 0.55
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.18, 0.10, 0.05], interp: "smoothstep" }
-        - { position: 0.22, color: [0.55, 0.38, 0.20], interp: "smoothstep" }
-        - { position: 0.65, color: [0.88, 0.78, 0.58], interp: "smoothstep" }
-        - { position: 1.00, color: [0.96, 0.90, 0.74], interp: "linear" }
-
-  # ── CEDRO (rosso-rosato, latewood medio) ────────────────────────────────
-
+  # Cedro grezzo — rosso-rosato, profumato
   - id: "dis_cedro_grezzo"
     type: "disney"
     texture:
@@ -1474,28 +1058,7 @@ materials:
     sheen: 0.12
     sheen_tint: 0.6
 
-  - id: "cls_cedro"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 3.8
-      grain_strength: 1.8
-      latewood_width: 0.26
-      ring_color_variation: 0.22
-      warp_amplitude: 0.50
-      knot_density: 0.45
-      knot_scale: 0.55
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.20, 0.10, 0.05], interp: "smoothstep" }
-        - { position: 0.22, color: [0.52, 0.30, 0.16], interp: "smoothstep" }
-        - { position: 0.65, color: [0.78, 0.52, 0.32], interp: "smoothstep" }
-        - { position: 1.00, color: [0.88, 0.66, 0.46], interp: "linear" }
-
-  # ── LARICE (giallo-ambra, latewood netto, robusto) ──────────────────────
-
+  # Larice oliato — giallo-ambra, latewood netto, robusto
   - id: "dis_larice_olio"
     type: "disney"
     texture:
@@ -1525,32 +1088,9 @@ materials:
     sheen: 0.08
     sheen_tint: 0.6
 
-  - id: "cls_larice"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.2
-      grain_strength: 1.6
-      latewood_width: 0.26
-      ring_color_variation: 0.22
-      warp_amplitude: 0.50
-      knot_density: 0.35
-      knot_scale: 0.55
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.18, 0.10, 0.04], interp: "smoothstep" }
-        - { position: 0.22, color: [0.50, 0.32, 0.16], interp: "smoothstep" }
-        - { position: 0.65, color: [0.78, 0.58, 0.34], interp: "smoothstep" }
-        - { position: 1.00, color: [0.90, 0.74, 0.50], interp: "linear" }
+  # ── LEGNI ESOTICI ────────────────────────────────────────────────────────
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  LEGNI ESOTICI — figure eccezionali, colori vivaci
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── ZEBRANO (striature nere su fondo dorato — figure massima) ──────────
-
+  # Zebrano oliato — striature nere su fondo dorato, figure massima
   - id: "dis_zebrano_olio"
     type: "disney"
     texture:
@@ -1582,28 +1122,7 @@ materials:
     sheen: 0.06
     sheen_tint: 0.5
 
-  - id: "cls_zebrano"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 5.5
-      grain_strength: 3.5
-      latewood_width: 0.30
-      ring_color_variation: 0.30
-      warp_amplitude: 0.65
-      figure_strength: 0.40
-      figure_scale: 0.15
-      figure_aspect: 5.0
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.10, 0.05, 0.02], interp: "smoothstep" }
-        - { position: 0.45, color: [0.32, 0.18, 0.06], interp: "smoothstep" }
-        - { position: 1.00, color: [0.82, 0.62, 0.32], interp: "linear" }
-
-  # ── PADOUK (rosso-arancio vivace) ───────────────────────────────────────
-
+  # Padouk oliato — rosso-arancio vivace africano
   - id: "dis_padouk_olio"
     type: "disney"
     texture:
@@ -1633,28 +1152,7 @@ materials:
     sheen: 0.06
     sheen_tint: 0.5
 
-  - id: "cls_padouk"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.0
-      grain_strength: 1.4
-      latewood_width: 0.20
-      ring_color_variation: 0.18
-      warp_amplitude: 0.50
-      pore_density: 0.30
-      pore_scale: 20.0
-      pore_strength: 0.35
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.34, 0.10, 0.04], interp: "smoothstep" }
-        - { position: 0.55, color: [0.65, 0.20, 0.08], interp: "smoothstep" }
-        - { position: 1.00, color: [0.82, 0.32, 0.14], interp: "linear" }
-
-  # ── AMARANTO / PURPLEHEART (viola intenso) ──────────────────────────────
-
+  # Amaranto/purpleheart oliato — viola intenso
   - id: "dis_amaranto_olio"
     type: "disney"
     texture:
@@ -1684,28 +1182,7 @@ materials:
     sheen: 0.05
     sheen_tint: 0.4
 
-  - id: "cls_amaranto"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.5
-      grain_strength: 1.6
-      latewood_width: 0.22
-      ring_color_variation: 0.20
-      warp_amplitude: 0.55
-      pore_density: 0.30
-      pore_scale: 20.0
-      pore_strength: 0.40
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.12, 0.04, 0.10], interp: "smoothstep" }
-        - { position: 0.55, color: [0.32, 0.10, 0.24], interp: "smoothstep" }
-        - { position: 1.00, color: [0.55, 0.20, 0.42], interp: "linear" }
-
-  # ── BOCOTE (figure elaborate, marrone con striature nere) ───────────────
-
+  # Bocote oliato — figure elaborate, marrone con striature nere
   - id: "dis_bocote_olio"
     type: "disney"
     texture:
@@ -1734,32 +1211,9 @@ materials:
     sheen: 0.04
     sheen_tint: 0.4
 
-  - id: "cls_bocote"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 5.0
-      grain_strength: 3.2
-      latewood_width: 0.28
-      ring_color_variation: 0.32
-      warp_amplitude: 0.70
-      figure_strength: 0.50
-      figure_scale: 0.14
-      figure_aspect: 5.0
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.08, 0.04, 0.02], interp: "smoothstep" }
-        - { position: 0.45, color: [0.34, 0.20, 0.08], interp: "smoothstep" }
-        - { position: 1.00, color: [0.68, 0.48, 0.22], interp: "linear" }
+  # ── LEGNI TRATTATI ───────────────────────────────────────────────────────
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  LEGNI TRATTATI — finiture creative
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── SBIANCATO (decolorato, shabby chic) ─────────────────────────────────
-
+  # Legno sbiancato — decolorato, shabby chic
   - id: "dis_legno_sbiancato"
     type: "disney"
     texture:
@@ -1787,25 +1241,7 @@ materials:
     sheen_tint: 0.5
     subsurface: 0.08
 
-  - id: "cls_legno_sbiancato"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 3.8
-      grain_strength: 1.4
-      latewood_width: 0.22
-      ring_color_variation: 0.18
-      warp_amplitude: 0.45
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.62, 0.58, 0.52], interp: "smoothstep" }
-        - { position: 0.55, color: [0.82, 0.78, 0.72], interp: "smoothstep" }
-        - { position: 1.00, color: [0.94, 0.91, 0.86], interp: "linear" }
-
-  # ── SHOU SUGI BAN (carbonizzato giapponese, nero-carbone) ───────────────
-
+  # Shou-sugi-ban — carbonizzato giapponese, nero-carbone
   - id: "dis_shou_sugi_ban"
     type: "disney"
     texture:
@@ -1833,26 +1269,7 @@ materials:
     sheen: 0.06
     sheen_tint: 0.2
 
-  - id: "cls_shou_sugi_ban"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.5
-      grain_strength: 2.2
-      latewood_width: 0.28
-      ring_color_variation: 0.28
-      warp_amplitude: 0.60
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.01, 0.01, 0.01], interp: "smoothstep" }
-        - { position: 0.45, color: [0.06, 0.05, 0.04], interp: "smoothstep" }
-        - { position: 0.85, color: [0.14, 0.10, 0.06], interp: "smoothstep" }
-        - { position: 1.00, color: [0.28, 0.18, 0.10], interp: "linear" }
-
-  # ── BARNWOOD (legno invecchiato grigio argento) ─────────────────────────
-
+  # Barnwood — legno invecchiato grigio argento
   - id: "dis_barnwood"
     type: "disney"
     texture:
@@ -1885,29 +1302,7 @@ materials:
     sheen: 0.12
     sheen_tint: 0.3
 
-  - id: "cls_barnwood"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.0
-      grain_strength: 2.0
-      latewood_width: 0.25
-      ring_color_variation: 0.26
-      warp_amplitude: 0.55
-      pore_density: 0.30
-      pore_scale: 18.0
-      pore_strength: 0.40
-      knot_density: 0.30
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.12, 0.11, 0.10], interp: "smoothstep" }
-        - { position: 0.40, color: [0.34, 0.32, 0.30], interp: "smoothstep" }
-        - { position: 1.00, color: [0.58, 0.55, 0.50], interp: "linear" }
-
-  # ── TINTO NERO (mordente nero, venatura visibile) ───────────────────────
-
+  # Legno tinto nero — mordente nero, venatura visibile
   - id: "dis_legno_tinto_nero"
     type: "disney"
     texture:
@@ -1934,25 +1329,7 @@ materials:
     clearcoat: 0.35
     coat_roughness: 0.20
 
-  - id: "cls_legno_tinto_nero"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.0
-      grain_strength: 1.4
-      latewood_width: 0.22
-      ring_color_variation: 0.20
-      warp_amplitude: 0.50
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.03, 0.02, 0.02], interp: "smoothstep" }
-        - { position: 0.55, color: [0.10, 0.08, 0.06], interp: "smoothstep" }
-        - { position: 1.00, color: [0.20, 0.16, 0.12], interp: "linear" }
-
-  # ── TINTO GRIGIO (scandinavo moderno) ───────────────────────────────────
-
+  # Legno tinto grigio — finitura scandinava moderna
   - id: "dis_legno_tinto_grigio"
     type: "disney"
     texture:
@@ -1979,36 +1356,9 @@ materials:
     sheen: 0.06
     sheen_tint: 0.3
 
-  - id: "cls_legno_tinto_grigio"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 3.5
-      grain_strength: 1.2
-      latewood_width: 0.20
-      ring_color_variation: 0.16
-      warp_amplitude: 0.45
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.28, 0.26, 0.25], interp: "smoothstep" }
-        - { position: 0.55, color: [0.44, 0.42, 0.40], interp: "smoothstep" }
-        - { position: 1.00, color: [0.62, 0.60, 0.58], interp: "linear" }
+  # ── STUDIO — figure curly/flame/burl/birdseye, medullary rays, mask ─────
 
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  STUDIO — VFX production-grade showcases
-  #
-  #  Materiali che esibiscono le combinazioni più estreme dei nuovi knob:
-  #  curly maple, flame mahogany, quartersawn oak, knotty pine, bird's eye,
-  #  burr walnut, e l'esempio canonico di MASK OUTPUT (latewood = roughness
-  #  più bassa → riflesso più nitido sulle bande scure tipico delle finiture
-  #  a poro chiuso sui legni open-pore).
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── ACERO CURLY — figure bassa freq, perpendicolare alla venatura ──────
-
+  # Acero curly studio — figure perpendicolare alla venatura
   - id: "dis_acero_curly_studio"
     type: "disney"
     texture:
@@ -2035,28 +1385,7 @@ materials:
     sheen: 0.08
     sheen_tint: 0.6
 
-  - id: "cls_acero_curly_studio"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 5.0
-      grain_strength: 0.25
-      latewood_width: 0.16
-      ring_color_variation: 0.10
-      warp_amplitude: 0.40
-      figure_strength: 1.8
-      figure_scale: 0.10
-      figure_aspect: 4.0
-      octaves: 4
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.55, 0.38, 0.20], interp: "smoothstep" }
-        - { position: 0.45, color: [0.85, 0.72, 0.48], interp: "smoothstep" }
-        - { position: 1.00, color: [0.98, 0.92, 0.76], interp: "linear" }
-
-  # ── ACERO CURLY MAX — figure_strength estremo ──────────────────────────
-
+  # Acero curly max — PRESERVATO INVARIATO (usato da library-woods-v3.yaml)
   - id: "dis_acero_curly_max"
     type: "disney"
     texture:
@@ -2082,8 +1411,7 @@ materials:
     clearcoat: 0.65
     coat_roughness: 0.08
 
-  # ── ACERO BIRD'S EYE — figure alta freq + knots minimi ─────────────────
-
+  # Acero bird's eye studio — figure alta freq, "occhi" puntiformi
   - id: "dis_acero_birdseye_studio"
     type: "disney"
     texture:
@@ -2109,6 +1437,7 @@ materials:
     clearcoat: 0.60
     coat_roughness: 0.10
 
+  # Acero bird's eye — variante con knots minimi visibili
   - id: "dis_acero_birdseye"
     type: "disney"
     texture:
@@ -2136,8 +1465,7 @@ materials:
     clearcoat: 0.55
     coat_roughness: 0.08
 
-  # ── MOGANO FLAME — figure intensa verticale ─────────────────────────────
-
+  # Mogano flame studio — PRESERVATO INVARIATO (usato da library-woods-v3.yaml)
   - id: "dis_mogano_flame_studio"
     type: "disney"
     texture:
@@ -2166,8 +1494,7 @@ materials:
     clearcoat: 0.78
     coat_roughness: 0.08
 
-  # ── ROVERE QUARTATO — radial_anisotropy alta (medullary rays) ──────────
-
+  # Quercia quartersawn studio — radial_anisotropy moderato
   - id: "dis_quercia_quartato_studio"
     type: "disney"
     texture:
@@ -2199,30 +1526,7 @@ materials:
     sheen: 0.12
     sheen_tint: 0.7
 
-  - id: "cls_quercia_quartato_studio"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 4.5
-      grain_strength: 2.2
-      latewood_width: 0.22
-      ring_color_variation: 0.20
-      warp_amplitude: 0.45
-      radial_anisotropy: 3.0
-      figure_strength: 0.30
-      figure_scale: 0.18
-      figure_aspect: 4.5
-      pore_density: 0.40
-      pore_scale: 18.0
-      pore_strength: 0.50
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.28, 0.16, 0.06], interp: "smoothstep" }
-        - { position: 0.55, color: [0.78, 0.58, 0.30], interp: "smoothstep" }
-        - { position: 1.00, color: [0.93, 0.80, 0.58], interp: "linear" }
-
+  # Rovere quartersawn medullary — radial_anisotropy estremo, rays visibili
   - id: "dis_rovere_quartato_medullary"
     type: "disney"
     texture:
@@ -2254,8 +1558,7 @@ materials:
     clearcoat: 0.30
     coat_roughness: 0.18
 
-  # ── FRASSINO QUARTATO — radial_anisotropy + ash open-pore ──────────────
-
+  # Frassino quartersawn studio — radial_anisotropy + ash open-pore
   - id: "dis_frassino_quartato_studio"
     type: "disney"
     texture:
@@ -2287,8 +1590,7 @@ materials:
     sheen: 0.10
     sheen_tint: 0.7
 
-  # ── PINO NODOSO STUDIO — knot_density max, look chalet ─────────────────
-
+  # Pino nodoso studio — knot_density max, look chalet
   - id: "dis_pino_nodoso_studio"
     type: "disney"
     texture:
@@ -2318,26 +1620,7 @@ materials:
     sheen: 0.10
     sheen_tint: 0.7
 
-  - id: "cls_pino_nodoso_studio"
-    type: "lambertian"
-    texture:
-      type: "wood"
-      scale: 5.5
-      grain_strength: 0.60
-      latewood_width: 0.28
-      ring_color_variation: 0.22
-      warp_amplitude: 0.50
-      knot_density: 1.0
-      knot_scale: 1.0
-      octaves: 5
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.04, 0.02, 0.01], interp: "smoothstep" }
-        - { position: 0.18, color: [0.32, 0.16, 0.06], interp: "smoothstep" }
-        - { position: 0.65, color: [0.88, 0.66, 0.36], interp: "smoothstep" }
-        - { position: 1.00, color: [0.96, 0.84, 0.58], interp: "linear" }
-
+  # Pino nodoso heavy — PRESERVATO INVARIATO (usato da library-woods-v3.yaml)
   - id: "dis_pino_nodoso_heavy"
     type: "disney"
     texture:
@@ -2367,8 +1650,7 @@ materials:
     roughness: 0.55
     specular: 0.38
 
-  # ── ABETE NODOSO STUDIO ────────────────────────────────────────────────
-
+  # Abete nodoso studio — knot_density alto su abete chiaro
   - id: "dis_abete_nodoso_studio"
     type: "disney"
     texture:
@@ -2395,8 +1677,7 @@ materials:
     sheen: 0.12
     sheen_tint: 0.7
 
-  # ── ACERO SAPWOOD — gradiente sapwood/heartwood 4-stop ─────────────────
-
+  # Acero sapwood studio — gradiente sapwood/heartwood 4-stop
   - id: "dis_acero_sapwood_studio"
     type: "disney"
     texture:
@@ -2426,8 +1707,7 @@ materials:
     sheen: 0.12
     sheen_tint: 0.7
 
-  # ── BURR WALNUT — figure max + knots, look Rolls-Royce ─────────────────
-
+  # Burr walnut studio — figure max + knots, look Rolls-Royce
   - id: "dis_noce_burl_studio"
     type: "disney"
     texture:
@@ -2461,8 +1741,7 @@ materials:
     clearcoat: 0.92
     coat_roughness: 0.05
 
-  # ── CEDRO SHOUSUGIBAN — carbonizzato giapponese con bump ───────────────
-
+  # Cedro shou-sugi-ban — carbonizzato con vector displacement
   - id: "dis_cedro_shousugiban"
     type: "disney"
     texture:
@@ -2502,8 +1781,7 @@ materials:
       autobump_strength: 1.5
       displacement_method: "bump_only"
 
-  # ── ROVERE SEGATO GREZZO — bump + displacement combo ───────────────────
-
+  # Rovere segato grezzo — bump + scalar displacement combo
   - id: "dis_rovere_segato_grezzo"
     type: "disney"
     texture:
@@ -2548,8 +1826,7 @@ materials:
       autobump: true
       displacement_method: "bump_only"
 
-  # ── BETULLA RICCIA STUDIO ──────────────────────────────────────────────
-
+  # Betulla ricciuta studio — curly birch, ribbon figure
   - id: "dis_betulla_ricca_studio"
     type: "disney"
     texture:
@@ -2575,12 +1852,10 @@ materials:
     clearcoat: 0.55
     coat_roughness: 0.08
 
-  # ── PRO MASK SHOWCASE — quercia con roughness pilotata dal mask wood ───
-  # Latewood scuro = pori chiusi dalla cera = roughness più bassa (più
-  # lucido); earlywood chiaro = pori aperti = roughness più alta. Lo stesso
-  # texture block è duplicato sotto `roughness_texture` con `output: "mask"`
-  # e una rampa 2-stop che mappa [0,1] → [0.32, 0.78].
-
+  # Quercia pro mask — roughness pilotata dal mask wood (latewood = lucido)
+  # Convenzione mask: t=1 al picco di earlywood (chiaro), t=0 nel latewood
+  # scuro e nei pori. La cera chiude i pori del latewood e li lucida →
+  # roughness BASSA dove t=0, ALTA sull'earlywood a poro aperto.
   - id: "dis_quercia_pro_mask"
     type: "disney"
     texture:
@@ -2623,13 +1898,142 @@ materials:
       output: "mask"
       randomize_offset: true
       randomize_rotation: true
-      # CONVENZIONE mask wood: t=1 al picco di earlywood (bande chiare in
-      # plateau), t=0 nel latewood scuro a fine anello e nei pori. La cera
-      # chiude i pori del latewood e li lucida → roughness BASSA dove t=0,
-      # ALTA sull'earlywood a poro aperto.
       color_ramp:
         - { position: 0.0, color: [0.32, 0.32, 0.32] }    # t=0 (latewood/poro) → lucido
         - { position: 1.0, color: [0.78, 0.78, 0.78] }    # t=1 (earlywood)     → ruvido
     specular: 0.32
     clearcoat: 0.20
     coat_roughness: 0.30
+
+
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  CLASSIC                                                              ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
+  #
+  # Una sola variante lambertian per essenza, con un color RGB rappresentativo
+  # del tono medio. La texture wood procedurale e tutti i lobi avanzati Disney
+  # (clearcoat, sheen, subsurface, pori, knot) sono persi — è il prezzo del
+  # Classic. Materiali studio con figure dominante (curly, flame, bird's eye,
+  # burl, medullary rays, mask-driven roughness) non hanno equivalente Classic.
+
+  # ── LATIFOGLIE CHIARE ────────────────────────────────────────────────────
+
+  - id: "cls_acero"
+    type: "lambertian"
+    color: [0.86, 0.74, 0.52]
+
+  - id: "cls_betulla"
+    type: "lambertian"
+    color: [0.85, 0.74, 0.58]
+
+  - id: "cls_frassino"
+    type: "lambertian"
+    color: [0.78, 0.64, 0.40]
+
+  - id: "cls_faggio"
+    type: "lambertian"
+    color: [0.78, 0.60, 0.40]
+
+  # ── LATIFOGLIE MEDIE ─────────────────────────────────────────────────────
+
+  - id: "cls_quercia"
+    type: "lambertian"
+    color: [0.74, 0.54, 0.28]
+
+  - id: "cls_ciliegio"
+    type: "lambertian"
+    color: [0.66, 0.30, 0.16]
+
+  - id: "cls_teak"
+    type: "lambertian"
+    color: [0.60, 0.44, 0.22]
+
+  - id: "cls_iroko"
+    type: "lambertian"
+    color: [0.55, 0.40, 0.20]
+
+  # ── LATIFOGLIE SCURE ─────────────────────────────────────────────────────
+
+  - id: "cls_noce"
+    type: "lambertian"
+    color: [0.42, 0.26, 0.14]
+
+  - id: "cls_mogano"
+    type: "lambertian"
+    color: [0.50, 0.20, 0.12]
+
+  - id: "cls_wenge"
+    type: "lambertian"
+    color: [0.22, 0.14, 0.08]
+
+  - id: "cls_palissandro"
+    type: "lambertian"
+    color: [0.36, 0.16, 0.12]
+
+  # ── LEGNI NERI ───────────────────────────────────────────────────────────
+
+  - id: "cls_ebano"
+    type: "lambertian"
+    color: [0.10, 0.07, 0.04]
+
+  - id: "cls_ebano_macassar"
+    type: "lambertian"
+    color: [0.22, 0.14, 0.08]
+
+  # ── CONIFERE ─────────────────────────────────────────────────────────────
+
+  - id: "cls_pino"
+    type: "lambertian"
+    color: [0.86, 0.66, 0.40]
+
+  - id: "cls_abete"
+    type: "lambertian"
+    color: [0.86, 0.76, 0.56]
+
+  - id: "cls_cedro"
+    type: "lambertian"
+    color: [0.74, 0.50, 0.32]
+
+  - id: "cls_larice"
+    type: "lambertian"
+    color: [0.78, 0.58, 0.34]
+
+  # ── LEGNI ESOTICI ────────────────────────────────────────────────────────
+
+  - id: "cls_zebrano"
+    type: "lambertian"
+    color: [0.56, 0.40, 0.20]
+
+  - id: "cls_padouk"
+    type: "lambertian"
+    color: [0.68, 0.22, 0.10]
+
+  - id: "cls_amaranto"
+    type: "lambertian"
+    color: [0.34, 0.12, 0.26]
+
+  - id: "cls_bocote"
+    type: "lambertian"
+    color: [0.40, 0.26, 0.12]
+
+  # ── LEGNI TRATTATI ───────────────────────────────────────────────────────
+
+  - id: "cls_legno_sbiancato"
+    type: "lambertian"
+    color: [0.84, 0.80, 0.74]
+
+  - id: "cls_shou_sugi_ban"
+    type: "lambertian"
+    color: [0.08, 0.06, 0.05]
+
+  - id: "cls_barnwood"
+    type: "lambertian"
+    color: [0.36, 0.34, 0.32]
+
+  - id: "cls_legno_tinto_nero"
+    type: "lambertian"
+    color: [0.10, 0.08, 0.06]
+
+  - id: "cls_legno_tinto_grigio"
+    type: "lambertian"
+    color: [0.46, 0.44, 0.42]

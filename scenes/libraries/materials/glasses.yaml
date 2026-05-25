@@ -1,76 +1,69 @@
-# ============================================================================
-# Libreria Materiali — Vetri e Trasparenti
-# ============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+#  3D-Ray Material Library — GLASSES
+# ───────────────────────────────────────────────────────────────────────────
+#  File:     glasses.yaml
+#  Disney:   74
+#  Classic:  27      (lambertian: 0 · metal: 0 · dielectric: 27)
+#  Total:    101
+#  Updated:  2026-05
+# ───────────────────────────────────────────────────────────────────────────
+#  Contenuto: vetri industriali, ottici, cristallo, vetri colorati, vetri
+#             smerigliati / frosted / iridescenti, gemme preziose e
+#             semipreziose, ghiaccio e neve, liquidi (acqua, vino, birra,
+#             miele, olio, latte), resine e sintetici trasparenti.
+# ═══════════════════════════════════════════════════════════════════════════
 #
-# Importa con:  imports: [{ path: "libraries/glasses.yaml" }]
+# Importa con:  imports: [{ path: "libraries/materials/glasses.yaml" }]
 #
-# Raccolta completa di materiali trasparenti e traslucenti: vetri tecnici,
-# cristalli, gemme, ghiacci, liquidi, resine e plastiche trasparenti.
+# Convenzione:
+#   dis_*  — Disney BSDF: `spec_trans` + `ior` + `transmission_color` +
+#            `transmission_depth` per assorbimento volumetrico Beer-Lambert
+#            reale; `thin_film_thickness` per iridescenze e bolle di sapone;
+#            `subsurface` per ghiaccio sporco / neve / opali / latte.
+#   cls_*  — Versione Classic: type `dielectric` con `refraction_index`
+#            (+ `color` tint dove serve). Disponibile solo per i materiali
+#            "puliti e lisci": vetri industriali e ottici, cristallo lucido,
+#            gemme trasparenti, ghiaccio chiaro, acqua/liquidi leggeri,
+#            plexiglass e policarbonato chiari. Tutto ciò che richiede
+#            roughness in trasmissione, thin_film o assorbimento volumetrico
+#            profondo esiste SOLO in Disney.
 #
-#   dis_  (Disney BSDF) — Usa spec_trans + ior. Supporta roughness
-#         (vetro smerigliato), subsurface (traslucenza), clearcoat
-#         e tinta del colore. Più versatile ma più rumoroso.
+# ── Nota sugli IOR ───────────────────────────────────────────────────────
+#   Aria         1.000     Acqua        1.333     Ghiaccio     1.31
+#   Vetro float  1.52      Borosilicato 1.47      Crown        1.52
+#   Flint        1.62      Cristallo Pb 1.65      Zaffiro      1.77
+#   Diamante     2.42      Rubino       1.77      Smeraldo     1.58
 #
-#   cls_  (Classic Dielectric) — Usa refraction_index + color opzionale.
-#         Rifrazione/riflessione Fresnel analitiche, pulite e veloci.
-#         Ideale per vetri chiari o leggermente tintati. Non supporta
-#         roughness (solo perfettamente liscio) né subsurface.
-#
-# ── Nota sugli IOR (indici di rifrazione) ────────────────────────────────
-#
-#   I valori di IOR sono misurati dalla letteratura ottica. Per i vetri
-#   industriali la variazione è minima; per le gemme è caratteristica
-#   e contribuisce alla "personalità" della pietra (fuoco, brillantezza).
-#
-#     Aria         1.000     Acqua        1.333     Ghiaccio     1.309
-#     Vetro float  1.52      Borosilicato 1.47      Crown        1.52
-#     Flint        1.62      Cristallo Pb 1.65      Zaffiro      1.77
-#     Diamante     2.42      Rubino       1.77      Smeraldo     1.57
+# ── Tip rendering ────────────────────────────────────────────────────────
+#   Vetri/gemme con spec_trans alto possono generare fireflies in scene
+#   retroilluminate: usa `shadow_samples >= 9` + `--indirect-clamp-factor 0.25`.
+#   Per frosted/satinati tieni `roughness >= 0.20`.
 #
 # ── Categorie ────────────────────────────────────────────────────────────
-#
-#   VETRI INDUSTRIALI   Soda-lime (finestre), borosilicato (Pyrex),
-#                       float, temperato. I vetri più comuni.
-#
-#   VETRI OTTICI        Crown e Flint per lenti e prismi.
-#                       IOR calibrati per applicazioni ottiche.
-#
-#   CRISTALLO           Cristallo al piombo (Swarovski, Waterford).
-#                       IOR alto (1.65), dispersione elevata.
-#
-#   VETRI COLORATI      Cattedrale, Murano, bottiglia, farmacia.
-#                       Tinta forte con trasmissione.
-#
-#   VETRI SMERIGLIATI   Satinati, sabbiati, acidati, opalini.
-#                       Solo Disney (roughness > 0 o spec_trans < 1).
-#
-#   GEMME PREZIOSE      Diamante, rubino, smeraldo, zaffiro.
-#                       IOR specifici, colori saturi.
-#
-#   GEMME SEMIPREZIOSE  Ametista, topazio, acquamarina, tormalina,
-#                       granato, citrino, peridoto.
-#
-#   GHIACCIO E NEVE     Ghiaccio chiaro, ghiaccio sporco, brina,
-#                       neve compatta traslucente.
-#
-#   LIQUIDI             Acqua, acqua di mare, miele, olio, vino,
-#                       birra, latte (traslucente), glicerina.
-#
-#   RESINE E SINTETICI  Epossidica, poliestere, plexiglass (PMMA),
-#                       policarbonato, silicone trasparente.
-#
-# ============================================================================
+#   INDUSTRIALI       Soda-lime, float, borosilicato, temperato.
+#   OTTICI            Crown, flint, dense flint per lenti/prismi.
+#   CRISTALLO         Piombo (24% PbO), Swarovski, fumé, rosa.
+#   COLORATI          Cattedrale, Murano, bottiglia, farmacia.
+#   SMERIGLIATI       Satinati, sabbiati, acidati, opalini, frosted.
+#   IRIDESCENTI       Thin-film, favrile, bolla di sapone.
+#   GEMME PREZIOSE    Diamante, rubino, smeraldo, zaffiro.
+#   GEMME SEMIPREZ.   Ametista, citrino, acquamarina, topazio, tormalina,
+#                     granato, peridoto, opale.
+#   GHIACCIO E NEVE   Chiaro, torbido, blu, fratturato, brina, neve.
+#   LIQUIDI           Acqua, mare, vino, birra, miele, olio, latte, glicerina.
+#   RESINE            PMMA (plexiglass), policarbonato, epossidiche, silicone,
+#                     nylon trasparente.
 
 
 materials:
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  VETRI INDUSTRIALI — i più comuni, IOR 1.47–1.52
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  DISNEY                                                               ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
 
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── INDUSTRIALI ──────────────────────────────────────────────────────────
 
-  # Vetro soda-lime — finestre, bicchieri, il vetro più comune
+  # Vetro soda-lime — il vetro più comune (finestre, bicchieri)
   - id: "dis_vetro_sodalime"
     type: "disney"
     color: [0.98, 0.99, 1.0]
@@ -87,6 +80,8 @@ materials:
     spec_trans: 1.0
     ior: 1.52
     specular: 0.8
+    transmission_color: [0.92, 0.97, 0.94]
+    transmission_depth: 8.0
 
   # Borosilicato — Pyrex, provette, alta resistenza termica
   - id: "dis_vetro_borosilicato"
@@ -105,42 +100,45 @@ materials:
     spec_trans: 1.0
     ior: 1.52
     specular: 0.8
+    transmission_color: [0.90, 0.96, 0.92]
+    transmission_depth: 6.0
 
-  # Vetro extra-chiaro — basso contenuto di ferro, incolore
-  - id: "dis_vetro_extrachiaro"
+  # Vetro soffiato a mano — micro-imperfezioni superficiali
+  - id: "dis_vetro_soffiato"
     type: "disney"
-    color: [0.99, 0.99, 1.0]
-    roughness: 0.0
-    spec_trans: 1.0
+    color: [0.92, 0.94, 0.95]
+    roughness: 0.04
+    spec_trans: 0.95
     ior: 1.52
-    specular: 0.85
+    specular: 0.55
+    transmission_color: [0.92, 0.94, 0.95]
+    transmission_depth: 2.0
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        scale: 3.0
+        noise_type: "fbm"
+        octaves: 3
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.003
+      midlevel: 0.5
+      bound: 0.006
+      autobump: true
+      displacement_method: "bump_only"
 
-  # ── Classic ────────────────────────────────────────────────────────────
-
-  - id: "cls_vetro_sodalime"
-    type: "dielectric"
-    refraction_index: 1.52
-
-  - id: "cls_vetro_float"
-    type: "dielectric"
-    refraction_index: 1.52
-    color: [0.92, 0.97, 0.94]
-
-  - id: "cls_vetro_borosilicato"
-    type: "dielectric"
-    refraction_index: 1.47
-
-  - id: "cls_vetro_extrachiaro"
-    type: "dielectric"
-    refraction_index: 1.52
-    color: [0.99, 0.99, 1.0]
+  # Vetro inciso — incisione decorativa con corpo limpido
+  - id: "dis_vetro_inciso"
+    type: "disney"
+    color: [0.97, 0.98, 0.99]
+    roughness: 0.18
+    spec_trans: 0.98
+    ior: 1.55
+    specular: 0.55
+    transmission_color: [0.98, 0.98, 0.99]
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  VETRI OTTICI — lenti, prismi, strumenti scientifici
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── OTTICI ───────────────────────────────────────────────────────────────
 
   # Crown — vetro ottico standard, bassa dispersione
   - id: "dis_vetro_crown"
@@ -169,26 +167,8 @@ materials:
     ior: 1.75
     specular: 0.90
 
-  # ── Classic ────────────────────────────────────────────────────────────
 
-  - id: "cls_vetro_crown"
-    type: "dielectric"
-    refraction_index: 1.52
-
-  - id: "cls_vetro_flint"
-    type: "dielectric"
-    refraction_index: 1.62
-
-  - id: "cls_vetro_dense_flint"
-    type: "dielectric"
-    refraction_index: 1.75
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  CRISTALLO — piombo, Swarovski, Waterford, alta dispersione
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── CRISTALLO ────────────────────────────────────────────────────────────
 
   # Cristallo al piombo — classico (PbO > 24%), IOR 1.65
   - id: "dis_cristallo_piombo"
@@ -199,7 +179,7 @@ materials:
     ior: 1.65
     specular: 0.90
 
-  # Cristallo Swarovski — purezza altissima, riflessi arcobaleno
+  # Cristallo Swarovski — purezza altissima
   - id: "dis_cristallo_swarovski"
     type: "disney"
     color: [0.99, 0.99, 1.0]
@@ -208,7 +188,7 @@ materials:
     ior: 1.68
     specular: 0.95
 
-  # Cristallo fumé — tinta grigia neutra
+  # Cristallo fumé — tinta grigia neutra, Beer-Lambert
   - id: "dis_cristallo_fume"
     type: "disney"
     color: [0.55, 0.52, 0.50]
@@ -216,8 +196,10 @@ materials:
     spec_trans: 1.0
     ior: 1.65
     specular: 0.85
+    transmission_color: [0.45, 0.42, 0.40]
+    transmission_depth: 3.0
 
-  # Cristallo rosa — tinta rosa delicata
+  # Cristallo rosa — tinta rosa delicata, Beer-Lambert sottile
   - id: "dis_cristallo_rosa"
     type: "disney"
     color: [0.92, 0.70, 0.75]
@@ -225,31 +207,16 @@ materials:
     spec_trans: 1.0
     ior: 1.65
     specular: 0.85
-
-  # ── Classic ────────────────────────────────────────────────────────────
-
-  - id: "cls_cristallo_piombo"
-    type: "dielectric"
-    refraction_index: 1.65
-    color: [0.97, 0.97, 1.0]
-
-  - id: "cls_cristallo_swarovski"
-    type: "dielectric"
-    refraction_index: 1.68
-
-  - id: "cls_cristallo_fume"
-    type: "dielectric"
-    refraction_index: 1.65
-    color: [0.55, 0.52, 0.50]
+    transmission_color: [0.88, 0.62, 0.68]
+    transmission_depth: 4.0
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  VETRI COLORATI — cattedrale, Murano, bottiglie, farmacia
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── COLORATI (Beer-Lambert profondo) ────────────────────────────────────
+  # I vetri colorati hanno assorbimento volumetrico marcato: il colore in
+  # trasmissione varia con lo spessore. transmission_color + transmission_depth
+  # producono il comportamento fisico corretto.
 
-  # ── Disney ─────────────────────────────────────────────────────────────
-
-  # Rosso cattedrale — vetrata, saturazione intensa
+  # Rosso cattedrale — vetrata gotica, saturazione intensa
   - id: "dis_vetro_rosso"
     type: "disney"
     color: [0.90, 0.10, 0.08]
@@ -257,6 +224,8 @@ materials:
     spec_trans: 1.0
     ior: 1.52
     specular: 0.8
+    transmission_color: [0.85, 0.05, 0.04]
+    transmission_depth: 1.0
 
   # Blu cobalto — ossido di cobalto, blu profondo
   - id: "dis_vetro_blu_cobalto"
@@ -266,6 +235,8 @@ materials:
     spec_trans: 1.0
     ior: 1.52
     specular: 0.8
+    transmission_color: [0.04, 0.10, 0.78]
+    transmission_depth: 1.0
 
   # Verde bottiglia — classico verde scuro da bottiglia di vino
   - id: "dis_vetro_verde_bottiglia"
@@ -275,6 +246,8 @@ materials:
     spec_trans: 1.0
     ior: 1.52
     specular: 0.75
+    transmission_color: [0.08, 0.45, 0.12]
+    transmission_depth: 1.2
 
   # Ambra farmacia — giallo-arancio per bottiglie medicinali
   - id: "dis_vetro_ambra"
@@ -284,6 +257,8 @@ materials:
     spec_trans: 1.0
     ior: 1.52
     specular: 0.78
+    transmission_color: [0.85, 0.50, 0.06]
+    transmission_depth: 1.5
 
   # Viola Murano — vetro soffiato veneziano
   - id: "dis_vetro_viola_murano"
@@ -293,6 +268,8 @@ materials:
     spec_trans: 1.0
     ior: 1.52
     specular: 0.78
+    transmission_color: [0.45, 0.06, 0.55]
+    transmission_depth: 1.2
 
   # Turchese Murano — acquamarina brillante
   - id: "dis_vetro_turchese_murano"
@@ -302,6 +279,8 @@ materials:
     spec_trans: 1.0
     ior: 1.52
     specular: 0.78
+    transmission_color: [0.08, 0.65, 0.62]
+    transmission_depth: 1.5
 
   # Giallo limone — soda-lime al cadmio
   - id: "dis_vetro_giallo"
@@ -311,8 +290,10 @@ materials:
     spec_trans: 1.0
     ior: 1.52
     specular: 0.78
+    transmission_color: [0.88, 0.78, 0.05]
+    transmission_depth: 1.5
 
-  # Verde smeraldo — ossido di cromo
+  # Verde smeraldo — ossido di cromo, sat. profonda
   - id: "dis_vetro_verde_smeraldo"
     type: "disney"
     color: [0.08, 0.75, 0.28]
@@ -320,41 +301,14 @@ materials:
     spec_trans: 1.0
     ior: 1.52
     specular: 0.80
-
-  # ── Classic ────────────────────────────────────────────────────────────
-
-  - id: "cls_vetro_rosso"
-    type: "dielectric"
-    refraction_index: 1.52
-    color: [0.90, 0.10, 0.08]
-
-  - id: "cls_vetro_blu_cobalto"
-    type: "dielectric"
-    refraction_index: 1.52
-    color: [0.08, 0.15, 0.85]
-
-  - id: "cls_vetro_verde_bottiglia"
-    type: "dielectric"
-    refraction_index: 1.52
-    color: [0.15, 0.50, 0.18]
-
-  - id: "cls_vetro_ambra"
-    type: "dielectric"
-    refraction_index: 1.52
-    color: [0.90, 0.60, 0.12]
-
-  - id: "cls_vetro_viola_murano"
-    type: "dielectric"
-    refraction_index: 1.52
-    color: [0.55, 0.12, 0.65]
+    transmission_color: [0.04, 0.68, 0.20]
+    transmission_depth: 1.0
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  VETRI SMERIGLIATI — satinati, sabbiati, acidati, opalini
-  #  Solo Disney: il classic dielectric non supporta roughness.
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── SMERIGLIATI ──────────────────────────────────────────────────────────
+  # Solo Disney: il dielectric classic non supporta roughness in trasmissione.
 
-  # Vetro satinato — satinatura fine, doccia/porte ufficio
+  # Vetro satinato — satinatura fine, docce, porte ufficio
   - id: "dis_vetro_satinato"
     type: "disney"
     color: [0.96, 0.97, 1.0]
@@ -392,21 +346,118 @@ materials:
     specular: 0.4
     subsurface: 0.20
 
-  # Vetro ghiacciato — pattern irregolare, texture ice-like
-  - id: "dis_vetro_ghiacciato"
+  # Vetro smerigliato neutro — separatori bagno, plafoniere
+  - id: "dis_vetro_smerigliato"
     type: "disney"
-    color: [0.92, 0.95, 1.0]
-    roughness: 0.35
-    spec_trans: 0.80
+    color: [0.96, 0.97, 0.98]
+    roughness: 0.32
+    spec_trans: 1.0
     ior: 1.52
-    specular: 0.6
+    specular: 0.5
+    transmission_color: [0.98, 0.98, 0.98]
+
+  # Vetro frosted — sabbiatura reale con bump procedurale
+  - id: "dis_vetro_frosted"
+    type: "disney"
+    color: [0.92, 0.92, 0.92]
+    roughness: 0.42
+    spec_trans: 0.65
+    ior: 1.52
+    specular: 0.45
+    transmission_color: [0.92, 0.92, 0.92]
+    transmission_depth: 0.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 80.0
+        smoothness: 0.6
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.5
+
+  # Vetro sabbiato verde bottiglia — bottiglie deluxe, vasi
+  - id: "dis_vetro_sabbiato_verde"
+    type: "disney"
+    color: [0.55, 0.78, 0.62]
+    roughness: 0.30
+    spec_trans: 0.92
+    ior: 1.52
+    transmission_color: [0.55, 0.78, 0.62]
+    transmission_depth: 6.0
+
+  # Vetro sabbiato ambra — bottiglie whisky / birra opacizzate
+  - id: "dis_vetro_sabbiato_ambra"
+    type: "disney"
+    color: [0.78, 0.50, 0.20]
+    roughness: 0.32
+    spec_trans: 0.90
+    ior: 1.52
+    transmission_color: [0.85, 0.55, 0.22]
+    transmission_depth: 5.0
+
+  # Vetro acidato fumé — separatori arredo design
+  - id: "dis_vetro_acidato_fume"
+    type: "disney"
+    color: [0.30, 0.30, 0.32]
+    roughness: 0.40
+    spec_trans: 0.92
+    ior: 1.52
+    transmission_color: [0.45, 0.45, 0.48]
+    transmission_depth: 4.0
+
+  # Plexiglass satinato — pannelli diffusori per LED
+  - id: "dis_plexiglass_satinato"
+    type: "disney"
+    color: [0.96, 0.97, 1.0]
+    roughness: 0.30
+    spec_trans: 0.82
+    ior: 1.49
+    specular: 0.60
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  GEMME PREZIOSE — IOR specifici, colori saturi, "le 4 grandi"
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── IRIDESCENTI (thin film) ─────────────────────────────────────────────
+  # Solo Disney: thin_film_thickness + thin_film_ior producono interferenza
+  # ottica reale a film sottile, indipendente da spec_trans.
 
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # Vetro iridescente — thin-film 480nm su vetro chiaro
+  - id: "dis_vetro_iridescente"
+    type: "disney"
+    color: [0.95, 0.95, 0.97]
+    roughness: 0.05
+    specular: 0.55
+    spec_trans: 0.92
+    ior: 1.52
+    transmission_color: [0.95, 0.95, 0.97]
+    transmission_depth: 1.5
+    thin_film_thickness: 480
+    thin_film_ior: 1.45
+
+  # Vetro Tiffany favrile — thin-film 580nm, riflessi colorati intensi
+  - id: "dis_vetro_favrile"
+    type: "disney"
+    color: [0.45, 0.62, 0.78]
+    roughness: 0.05
+    specular: 0.55
+    spec_trans: 0.85
+    ior: 1.52
+    transmission_color: [0.32, 0.55, 0.72]
+    transmission_depth: 0.8
+    thin_film_thickness: 580
+    thin_film_ior: 1.45
+
+  # Bolla di sapone — film sottile single-walled, 320nm
+  - id: "dis_bolla_sapone"
+    type: "disney"
+    color: [0.95, 0.95, 0.97]
+    roughness: 0.02
+    specular: 0.55
+    spec_trans: 0.95
+    ior: 1.41
+    thin_walled: true
+    thin_film_thickness: 320
+    thin_film_ior: 1.36
+
+
+  # ── GEMME PREZIOSE ───────────────────────────────────────────────────────
 
   # Diamante — IOR 2.42, massima dispersione, fuoco interno
   - id: "dis_diamante"
@@ -418,6 +469,18 @@ materials:
     specular: 1.0
     clearcoat: 0.3
     coat_roughness: 0.05
+    coat_ior: 1.5
+
+  # Diamante taglio brilliant — variante ottimizzata per multiscatter
+  - id: "dis_diamante_brilliant"
+    type: "disney"
+    color: [0.98, 0.98, 0.98]
+    roughness: 0.02
+    specular: 0.65
+    spec_trans: 1.0
+    ior: 2.418
+    transmission_color: [0.98, 0.98, 0.98]
+    transmission_depth: 2.5
 
   # Diamante fancy yellow — tonalità calda, rarissimo
   - id: "dis_diamante_giallo"
@@ -427,27 +490,34 @@ materials:
     spec_trans: 1.0
     ior: 2.42
     specular: 1.0
+    transmission_color: [0.92, 0.80, 0.20]
+    transmission_depth: 3.0
 
-  # Rubino — corindone rosso, IOR 1.77
+  # Rubino — corindone rosso, IOR 1.77, thin-film per sub-flash
   - id: "dis_rubino"
     type: "disney"
-    color: [0.85, 0.06, 0.10]
-    roughness: 0.01
+    color: [0.78, 0.06, 0.10]
+    roughness: 0.04
     spec_trans: 0.92
-    ior: 1.77
-    specular: 0.90
-    subsurface: 0.06
-    specular_tint: 0.3
+    ior: 1.770
+    specular: 0.60
+    transmission_color: [0.62, 0.04, 0.06]
+    transmission_depth: 0.3
+    thin_film_thickness: 280
+    thin_film_ior: 1.55
 
-  # Zaffiro blu — corindone blu, stesso IOR del rubino
+  # Zaffiro blu — corindone blu, thin-film 540nm per "sleep silk"
   - id: "dis_zaffiro_blu"
     type: "disney"
-    color: [0.10, 0.12, 0.78]
-    roughness: 0.01
-    spec_trans: 0.90
-    ior: 1.77
-    specular: 0.90
-    subsurface: 0.05
+    color: [0.10, 0.22, 0.62]
+    roughness: 0.04
+    spec_trans: 0.92
+    ior: 1.770
+    specular: 0.60
+    transmission_color: [0.05, 0.15, 0.55]
+    transmission_depth: 0.3
+    thin_film_thickness: 540
+    thin_film_ior: 1.55
 
   # Zaffiro rosa — padparadscha, raro e prezioso
   - id: "dis_zaffiro_rosa"
@@ -457,45 +527,33 @@ materials:
     spec_trans: 0.90
     ior: 1.77
     specular: 0.88
+    transmission_color: [0.82, 0.32, 0.42]
+    transmission_depth: 0.4
 
-  # Smeraldo — berillo verde, inclusioni naturali (roughness leggera)
+  # Smeraldo — berillo verde, color_ramp per zonazione naturale
   - id: "dis_smeraldo"
     type: "disney"
-    color: [0.08, 0.72, 0.22]
-    roughness: 0.03
-    spec_trans: 0.88
-    ior: 1.57
-    specular: 0.78
-    subsurface: 0.08
-    specular_tint: 0.4
-
-  # ── Classic ────────────────────────────────────────────────────────────
-
-  - id: "cls_diamante"
-    type: "dielectric"
-    refraction_index: 2.42
-
-  - id: "cls_rubino"
-    type: "dielectric"
-    refraction_index: 1.77
-    color: [0.85, 0.06, 0.10]
-
-  - id: "cls_zaffiro_blu"
-    type: "dielectric"
-    refraction_index: 1.77
-    color: [0.10, 0.12, 0.78]
-
-  - id: "cls_smeraldo"
-    type: "dielectric"
-    refraction_index: 1.57
-    color: [0.08, 0.72, 0.22]
+    color: [0.18, 0.62, 0.32]
+    roughness: 0.05
+    specular: 0.60
+    spec_trans: 0.92
+    ior: 1.580
+    transmission_color: [0.08, 0.55, 0.22]
+    transmission_depth: 0.4
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "fbm"
+      octaves: 3
+      noise_strength: 0.25
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.05, 0.35, 0.15], interp: "smoothstep" }
+        - { position: 0.55, color: [0.22, 0.62, 0.32], interp: "smoothstep" }
+        - { position: 1.00, color: [0.45, 0.85, 0.55], interp: "linear" }
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  GEMME SEMIPREZIOSE — quarzi, berilli, tormaline
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── GEMME SEMIPREZIOSE ───────────────────────────────────────────────────
 
   # Ametista — quarzo viola, IOR 1.544
   - id: "dis_ametista"
@@ -505,6 +563,8 @@ materials:
     spec_trans: 0.92
     ior: 1.544
     specular: 0.78
+    transmission_color: [0.42, 0.10, 0.60]
+    transmission_depth: 0.5
 
   # Citrino — quarzo giallo-arancio
   - id: "dis_citrino"
@@ -514,6 +574,8 @@ materials:
     spec_trans: 0.94
     ior: 1.544
     specular: 0.78
+    transmission_color: [0.85, 0.58, 0.08]
+    transmission_depth: 0.6
 
   # Acquamarina — berillo azzurro chiaro
   - id: "dis_acquamarina"
@@ -523,6 +585,8 @@ materials:
     spec_trans: 0.94
     ior: 1.57
     specular: 0.80
+    transmission_color: [0.42, 0.75, 0.88]
+    transmission_depth: 1.2
 
   # Topazio blu — allumino-silicato, azzurro intenso
   - id: "dis_topazio_blu"
@@ -532,6 +596,8 @@ materials:
     spec_trans: 0.93
     ior: 1.63
     specular: 0.82
+    transmission_color: [0.12, 0.45, 0.82]
+    transmission_depth: 0.7
 
   # Topazio imperiale — arancio-rosa, il più pregiato
   - id: "dis_topazio_imperiale"
@@ -541,6 +607,8 @@ materials:
     spec_trans: 0.92
     ior: 1.63
     specular: 0.82
+    transmission_color: [0.88, 0.42, 0.12]
+    transmission_depth: 0.6
 
   # Tormalina verde — elbaite, verde vivido
   - id: "dis_tormalina_verde"
@@ -550,6 +618,8 @@ materials:
     spec_trans: 0.90
     ior: 1.64
     specular: 0.80
+    transmission_color: [0.06, 0.65, 0.22]
+    transmission_depth: 0.5
 
   # Tormalina rosa — rubellite
   - id: "dis_tormalina_rosa"
@@ -559,6 +629,8 @@ materials:
     spec_trans: 0.90
     ior: 1.64
     specular: 0.80
+    transmission_color: [0.72, 0.10, 0.35]
+    transmission_depth: 0.5
 
   # Granato — piropo rosso scuro
   - id: "dis_granato"
@@ -568,6 +640,8 @@ materials:
     spec_trans: 0.88
     ior: 1.74
     specular: 0.85
+    transmission_color: [0.45, 0.03, 0.04]
+    transmission_depth: 0.4
 
   # Peridoto — olivina, verde-giallo brillante
   - id: "dis_peridoto"
@@ -577,8 +651,10 @@ materials:
     spec_trans: 0.92
     ior: 1.67
     specular: 0.82
+    transmission_color: [0.42, 0.72, 0.10]
+    transmission_depth: 0.6
 
-  # Opale — gioco di colori, subsurface alto, semi-traslucente
+  # Opale — gioco di colori thin-film + subsurface, semi-traslucente
   - id: "dis_opale"
     type: "disney"
     color: [0.88, 0.85, 0.82]
@@ -587,35 +663,12 @@ materials:
     ior: 1.45
     specular: 0.60
     subsurface: 0.30
-
-  # ── Classic ────────────────────────────────────────────────────────────
-
-  - id: "cls_ametista"
-    type: "dielectric"
-    refraction_index: 1.544
-    color: [0.52, 0.18, 0.68]
-
-  - id: "cls_acquamarina"
-    type: "dielectric"
-    refraction_index: 1.57
-    color: [0.52, 0.82, 0.92]
-
-  - id: "cls_topazio_blu"
-    type: "dielectric"
-    refraction_index: 1.63
-    color: [0.22, 0.55, 0.88]
-
-  - id: "cls_granato"
-    type: "dielectric"
-    refraction_index: 1.74
-    color: [0.58, 0.06, 0.08]
+    subsurface_color: [0.92, 0.88, 0.82]
+    thin_film_thickness: 420
+    thin_film_ior: 1.46
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  GHIACCIO E NEVE — IOR 1.31, traslucenza variabile
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── GHIACCIO E NEVE ──────────────────────────────────────────────────────
 
   # Ghiaccio chiaro — lago ghiacciato, cubetto, trasparente
   - id: "dis_ghiaccio_chiaro"
@@ -625,6 +678,8 @@ materials:
     spec_trans: 0.95
     ior: 1.31
     specular: 0.75
+    subsurface: 0.08
+    subsurface_color: [0.90, 0.95, 1.0]
 
   # Ghiaccio torbido — bolle d'aria intrappolate
   - id: "dis_ghiaccio_torbido"
@@ -634,7 +689,8 @@ materials:
     spec_trans: 0.72
     ior: 1.31
     specular: 0.60
-    subsurface: 0.15
+    subsurface: 0.20
+    subsurface_color: [0.82, 0.90, 0.96]
 
   # Ghiaccio blu — ghiacciaio compresso, blu profondo
   - id: "dis_ghiaccio_blu"
@@ -644,7 +700,28 @@ materials:
     spec_trans: 0.85
     ior: 1.31
     specular: 0.70
-    subsurface: 0.10
+    subsurface: 0.15
+    subsurface_color: [0.45, 0.70, 0.95]
+    transmission_color: [0.40, 0.65, 0.92]
+    transmission_depth: 1.5
+
+  # Ghiaccio fratturato — smooth voronoi f1+f2 per crepe interne
+  - id: "dis_ghiaccio_fratturato"
+    type: "disney"
+    color: [0.88, 0.92, 0.98]
+    roughness: 0.18
+    specular: 0.50
+    spec_trans: 0.78
+    ior: 1.31
+    transmission_color: [0.85, 0.92, 0.98]
+    transmission_depth: 1.2
+    subsurface: 0.25
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      output: "f1_plus_f2"
+      smoothness: 0.3
+      colors: [[0.72, 0.82, 0.92], [0.95, 0.97, 1.00]]
 
   # Brina — cristalli di ghiaccio superficiali, quasi opaca
   - id: "dis_brina"
@@ -667,25 +744,10 @@ materials:
     ior: 1.31
     specular: 0.20
     subsurface: 0.45
-
-  # ── Classic ────────────────────────────────────────────────────────────
-
-  - id: "cls_ghiaccio_chiaro"
-    type: "dielectric"
-    refraction_index: 1.31
-    color: [0.92, 0.96, 1.0]
-
-  - id: "cls_ghiaccio_blu"
-    type: "dielectric"
-    refraction_index: 1.31
-    color: [0.55, 0.75, 0.95]
+    subsurface_color: [0.88, 0.92, 0.98]
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  LIQUIDI — acqua, bevande, oli, miele
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── LIQUIDI ──────────────────────────────────────────────────────────────
 
   # Acqua pura — IOR 1.333, quasi incolore
   - id: "dis_acqua"
@@ -704,8 +766,10 @@ materials:
     spec_trans: 1.0
     ior: 1.34
     specular: 0.72
+    transmission_color: [0.30, 0.62, 0.58]
+    transmission_depth: 3.0
 
-  # Vino rosso — tinta profonda, alta assorbanza
+  # Vino rosso — tinta profonda, alta assorbanza Beer-Lambert
   - id: "dis_vino_rosso"
     type: "disney"
     color: [0.35, 0.01, 0.025]
@@ -713,6 +777,8 @@ materials:
     spec_trans: 1.0
     ior: 1.345
     specular: 0.70
+    transmission_color: [0.25, 0.005, 0.015]
+    transmission_depth: 0.5
 
   # Vino bianco — giallo paglierino tenue
   - id: "dis_vino_bianco"
@@ -722,6 +788,8 @@ materials:
     spec_trans: 1.0
     ior: 1.34
     specular: 0.70
+    transmission_color: [0.82, 0.75, 0.40]
+    transmission_depth: 2.0
 
   # Birra chiara — ambra dorata
   - id: "dis_birra_chiara"
@@ -731,6 +799,8 @@ materials:
     spec_trans: 1.0
     ior: 1.345
     specular: 0.68
+    transmission_color: [0.82, 0.55, 0.08]
+    transmission_depth: 1.2
 
   # Birra scura — stout, marrone profondo
   - id: "dis_birra_scura"
@@ -740,6 +810,8 @@ materials:
     spec_trans: 1.0
     ior: 1.35
     specular: 0.65
+    transmission_color: [0.15, 0.05, 0.02]
+    transmission_depth: 0.4
 
   # Miele — viscoso, arancio-ambra intenso
   - id: "dis_miele"
@@ -750,6 +822,8 @@ materials:
     ior: 1.50
     specular: 0.72
     subsurface: 0.05
+    transmission_color: [0.88, 0.48, 0.04]
+    transmission_depth: 0.5
 
   # Olio d'oliva — giallo-verde, IOR 1.47
   - id: "dis_olio_oliva"
@@ -759,6 +833,8 @@ materials:
     spec_trans: 0.96
     ior: 1.47
     specular: 0.70
+    transmission_color: [0.62, 0.58, 0.10]
+    transmission_depth: 1.0
 
   # Latte — fortemente traslucente, quasi opaco
   - id: "dis_latte"
@@ -769,6 +845,7 @@ materials:
     ior: 1.35
     specular: 0.50
     subsurface: 0.55
+    subsurface_color: [0.96, 0.94, 0.86]
 
   # Glicerina — viscosa, trasparente, IOR alto per liquido
   - id: "dis_glicerina"
@@ -779,29 +856,8 @@ materials:
     ior: 1.473
     specular: 0.78
 
-  # ── Classic ────────────────────────────────────────────────────────────
 
-  - id: "cls_acqua"
-    type: "dielectric"
-    refraction_index: 1.333
-    color: [0.95, 0.97, 1.0]
-
-  - id: "cls_vino_rosso"
-    type: "dielectric"
-    refraction_index: 1.345
-    color: [0.35, 0.01, 0.025]
-
-  - id: "cls_miele"
-    type: "dielectric"
-    refraction_index: 1.50
-    color: [0.92, 0.58, 0.08]
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  RESINE E SINTETICI — PMMA, policarbonato, epossidica, silicone
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── RESINE E SINTETICI ───────────────────────────────────────────────────
 
   # Plexiglass (PMMA) — acrilico trasparente, leggero
   - id: "dis_plexiglass"
@@ -811,15 +867,6 @@ materials:
     spec_trans: 1.0
     ior: 1.49
     specular: 0.78
-
-  # Plexiglass satinato — pannelli diffusori
-  - id: "dis_plexiglass_satinato"
-    type: "disney"
-    color: [0.96, 0.97, 1.0]
-    roughness: 0.30
-    spec_trans: 0.82
-    ior: 1.49
-    specular: 0.60
 
   # Policarbonato — Lexan, schermi protettivi, IOR 1.586
   - id: "dis_policarbonato"
@@ -847,6 +894,8 @@ materials:
     spec_trans: 0.92
     ior: 1.55
     specular: 0.75
+    transmission_color: [0.08, 0.62, 0.72]
+    transmission_depth: 1.0
 
   # Resina epossidica blu notte — ocean table
   - id: "dis_resina_blu_notte"
@@ -856,8 +905,10 @@ materials:
     spec_trans: 0.88
     ior: 1.55
     specular: 0.75
+    transmission_color: [0.02, 0.05, 0.32]
+    transmission_depth: 0.6
 
-  # Silicone trasparente — guarnizioni, stampi
+  # Silicone trasparente — guarnizioni, stampi medicali
   - id: "dis_silicone_trasparente"
     type: "disney"
     color: [0.96, 0.96, 0.98]
@@ -876,7 +927,155 @@ materials:
     ior: 1.53
     specular: 0.65
 
-  # ── Classic ────────────────────────────────────────────────────────────
+
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  CLASSIC                                                              ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
+  #
+  # Solo `dielectric` (refraction_index + color tint opzionale). Disponibile
+  # per i materiali puliti e lisci. NON disponibile per:
+  #   • Smerigliati / frosted / opalini (servono roughness + diffusione).
+  #   • Iridescenti / favrile / bolla (servono thin_film).
+  #   • Vetri colorati con assorbimento profondo (Beer-Lambert).
+  #   • Liquidi scuri (vino rosso, birra scura, miele, olio, latte).
+  #   • Ghiaccio sporco / torbido / brina / neve (subsurface alto).
+  #   • Opale (subsurface + thin_film).
+
+  # ── INDUSTRIALI ──────────────────────────────────────────────────────────
+
+  - id: "cls_vetro_sodalime"
+    type: "dielectric"
+    refraction_index: 1.52
+
+  - id: "cls_vetro_float"
+    type: "dielectric"
+    refraction_index: 1.52
+    color: [0.92, 0.97, 0.94]
+
+  - id: "cls_vetro_borosilicato"
+    type: "dielectric"
+    refraction_index: 1.47
+
+  - id: "cls_vetro_temperato"
+    type: "dielectric"
+    refraction_index: 1.52
+    color: [0.90, 0.96, 0.92]
+
+
+  # ── OTTICI ───────────────────────────────────────────────────────────────
+
+  - id: "cls_vetro_crown"
+    type: "dielectric"
+    refraction_index: 1.52
+
+  - id: "cls_vetro_flint"
+    type: "dielectric"
+    refraction_index: 1.62
+
+  - id: "cls_vetro_dense_flint"
+    type: "dielectric"
+    refraction_index: 1.75
+
+
+  # ── CRISTALLO ────────────────────────────────────────────────────────────
+  # Solo i cristalli incolori sono in Classic: i tintati (fumé, rosa)
+  # richiedono Beer-Lambert per riprodurre l'assorbimento corretto.
+
+  - id: "cls_cristallo_piombo"
+    type: "dielectric"
+    refraction_index: 1.65
+
+  - id: "cls_cristallo_swarovski"
+    type: "dielectric"
+    refraction_index: 1.68
+
+
+  # ── GEMME PREZIOSE ───────────────────────────────────────────────────────
+
+  - id: "cls_diamante"
+    type: "dielectric"
+    refraction_index: 2.42
+
+  - id: "cls_rubino"
+    type: "dielectric"
+    refraction_index: 1.77
+    color: [0.85, 0.06, 0.10]
+
+  - id: "cls_zaffiro_blu"
+    type: "dielectric"
+    refraction_index: 1.77
+    color: [0.10, 0.12, 0.78]
+
+  - id: "cls_smeraldo"
+    type: "dielectric"
+    refraction_index: 1.58
+    color: [0.08, 0.72, 0.22]
+
+
+  # ── GEMME SEMIPREZIOSE ───────────────────────────────────────────────────
+
+  - id: "cls_ametista"
+    type: "dielectric"
+    refraction_index: 1.544
+    color: [0.52, 0.18, 0.68]
+
+  - id: "cls_citrino"
+    type: "dielectric"
+    refraction_index: 1.544
+    color: [0.90, 0.68, 0.15]
+
+  - id: "cls_acquamarina"
+    type: "dielectric"
+    refraction_index: 1.57
+    color: [0.52, 0.82, 0.92]
+
+  - id: "cls_topazio_blu"
+    type: "dielectric"
+    refraction_index: 1.63
+    color: [0.22, 0.55, 0.88]
+
+  - id: "cls_granato"
+    type: "dielectric"
+    refraction_index: 1.74
+    color: [0.58, 0.06, 0.08]
+
+  - id: "cls_peridoto"
+    type: "dielectric"
+    refraction_index: 1.67
+    color: [0.52, 0.78, 0.18]
+
+
+  # ── GHIACCIO ─────────────────────────────────────────────────────────────
+  # Solo ghiaccio chiaro: torbido/blu/fratturato/brina/neve hanno
+  # subsurface alto, non riproducibili in Classic.
+
+  - id: "cls_ghiaccio_chiaro"
+    type: "dielectric"
+    refraction_index: 1.31
+    color: [0.92, 0.96, 1.0]
+
+
+  # ── LIQUIDI ──────────────────────────────────────────────────────────────
+  # Solo i liquidi chiari: scuri (vino rosso, birra scura, miele, olio,
+  # latte) richiedono Beer-Lambert per i toni saturi corretti.
+
+  - id: "cls_acqua"
+    type: "dielectric"
+    refraction_index: 1.333
+    color: [0.95, 0.97, 1.0]
+
+  - id: "cls_vino_bianco"
+    type: "dielectric"
+    refraction_index: 1.34
+    color: [0.88, 0.82, 0.50]
+
+  - id: "cls_glicerina"
+    type: "dielectric"
+    refraction_index: 1.473
+
+
+  # ── RESINE ───────────────────────────────────────────────────────────────
+  # Solo le resine chiare: turchese/blu notte richiedono Beer-Lambert.
 
   - id: "cls_plexiglass"
     type: "dielectric"
@@ -891,285 +1090,6 @@ materials:
     refraction_index: 1.55
     color: [0.96, 0.95, 0.88]
 
-  - id: "cls_resina_turchese"
+  - id: "cls_nylon_trasparente"
     type: "dielectric"
-    refraction_index: 1.55
-    color: [0.15, 0.72, 0.78]
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-#  SMERIGLIATO / FROSTED — vetri con superficie diffondente
-# ═══════════════════════════════════════════════════════════════════════════
-#
-#  Vetri smerigliati (sandblasted, etched, frosted): la superficie è
-#  micro-rugosa e diffonde la luce in trasmissione, dando l'aspetto
-#  bianco-lattiginoso tipico delle docce, dei diffusori per lampadine
-#  e dei vasi smerigliati. Implementati con Disney `spec_trans` + roughness
-#  medio-alto: la combinazione produce sia una rifrazione "blurry" sia
-#  una luce trasmessa diffusa, equivalente fisico del vetro acidato.
-#
-#  Per evitare firefly sulle scene con questi materiali:
-#   - usa shadow_samples >= 9 sulle aree retroilluminanti;
-#   - tieni roughness >= 0.20 (sotto, le caustiche generano fireflies);
-#   - aggiungi `--indirect-clamp-factor 0.25` da CLI per scene con luci
-#     dietro al vetro smerigliato.
-#
-
-  # ── Disney — vetri smerigliati / acidati ──────────────────────────────────
-
-  # Vetro smerigliato neutro — docce, separatori bagno, plafoniere
-  - id: "dis_vetro_smerigliato"
-    type: "disney"
-    color: [0.96, 0.97, 0.98]
-    roughness: 0.32
-    metallic: 0.0
-    spec_trans: 1.0
-    ior: 1.52
-    transmission_color: [0.98, 0.98, 0.98]
-    specular: 0.5
-
-  # Vetro acidato fine — diffusore per LED, lampadario opale
-  - id: "dis_vetro_acidato"
-    type: "disney"
-    color: [0.98, 0.97, 0.95]
-    roughness: 0.45
-    metallic: 0.0
-    spec_trans: 0.95
-    ior: 1.50
-    transmission_color: [0.96, 0.96, 0.94]
-    specular: 0.4
-
-  # Vetro sabbiato verde bottiglia — bottiglie deluxe, vasi
-  - id: "dis_vetro_sabbiato_verde"
-    type: "disney"
-    color: [0.55, 0.78, 0.62]
-    roughness: 0.30
-    metallic: 0.0
-    spec_trans: 0.92
-    ior: 1.52
-    transmission_color: [0.55, 0.78, 0.62]
-    transmission_depth: 6.0
-
-  # Vetro sabbiato ambra — bottiglie whisky / birra opacizzate
-  - id: "dis_vetro_sabbiato_ambra"
-    type: "disney"
-    color: [0.78, 0.50, 0.20]
-    roughness: 0.32
-    metallic: 0.0
-    spec_trans: 0.90
-    ior: 1.52
-    transmission_color: [0.85, 0.55, 0.22]
-    transmission_depth: 5.0
-
-  # Vetro acidato fumé — separatori arredo design
-  - id: "dis_vetro_acidato_fume"
-    type: "disney"
-    color: [0.30, 0.30, 0.32]
-    roughness: 0.40
-    metallic: 0.0
-    spec_trans: 0.92
-    ior: 1.52
-    transmission_color: [0.45, 0.45, 0.48]
-    transmission_depth: 4.0
-
-  # Vetro inciso a motivi (decoro inciso ma struttura limpida) — per
-  # caraffe e calici con incisione: roughness più basso, sottile diffusione
-  - id: "dis_vetro_inciso"
-    type: "disney"
-    color: [0.97, 0.98, 0.99]
-    roughness: 0.18
-    metallic: 0.0
-    spec_trans: 0.98
-    ior: 1.55
-    transmission_color: [0.98, 0.98, 0.99]
-    specular: 0.55
-
-  # Plexiglass satin — pannelli illuminanti, insegne moderne
-  - id: "dis_plexi_satin"
-    type: "disney"
-    color: [0.96, 0.96, 0.97]
-    roughness: 0.38
-    metallic: 0.0
-    spec_trans: 0.85
-    ior: 1.49
-    transmission_color: [0.95, 0.95, 0.95]
-    specular: 0.40
-
-  # ── Classic — fallback ─────────────────────────────────────────────────────
-  # Note: dielectric classico non supporta roughness né diffusione in
-  # trasmissione → approssimato con un dielettrico chiaro. Per il vero
-  # smerigliato usa la variante Disney sopra.
-
-  - id: "cls_vetro_smerigliato"
-    type: "dielectric"
-    refraction_index: 1.52
-    color: [0.94, 0.94, 0.94]
-
-  # ════════════════════════════════════════════════════════════════════════
-  # EXTENDED VFX MATERIALS (v2)
-  # ════════════════════════════════════════════════════════════════════════
-  #
-  # Estensione con feature avanzate:
-  #   • Thin_film 200-700nm per vetri iridescenti e bolle di sapone.
-  #   • Smooth voronoi (f1_plus_f2) per ghiaccio fratturato.
-  #   • Bump_map procedurale per frosted variations.
-  #   • Displacement scalare per vetro soffiato a mano.
-  #   • Color_ramp per gemme con zonazione cromatica.
-  # ════════════════════════════════════════════════════════════════════════
-
-  # Vetro iridescente: thin_film 480nm.
-  - id: "dis_vetro_iridescente"
-    type: "disney"
-    color: [0.95, 0.95, 0.97]
-    roughness: 0.05
-    specular: 0.55
-    spec_trans: 0.92
-    ior: 1.52
-    transmission_color: [0.95, 0.95, 0.97]
-    transmission_depth: 1.5
-    thin_film_thickness: 480
-    thin_film_ior: 1.45
-
-  # Vetro Tiffany favrile: thin_film 580nm, riflessi colorati intensi.
-  - id: "dis_vetro_favrile"
-    type: "disney"
-    color: [0.45, 0.62, 0.78]
-    roughness: 0.05
-    specular: 0.55
-    spec_trans: 0.85
-    ior: 1.52
-    transmission_color: [0.32, 0.55, 0.72]
-    transmission_depth: 0.8
-    thin_film_thickness: 580
-    thin_film_ior: 1.45
-
-  # Ghiaccio fratturato: smooth voronoi f1_plus_f2.
-  - id: "dis_ghiaccio_fratturato"
-    type: "disney"
-    color: [0.88, 0.92, 0.98]
-    roughness: 0.18
-    specular: 0.50
-    spec_trans: 0.78
-    ior: 1.31
-    transmission_color: [0.85, 0.92, 0.98]
-    transmission_depth: 1.2
-    subsurface: 0.25
-    texture:
-      type: "voronoi"
-      scale: 6.0
-      output: "f1_plus_f2"
-      smoothness: 0.3
-      colors: [[0.72, 0.82, 0.92], [0.95, 0.97, 1.00]]
-
-  # Vetro frosted v2: bump procedurale per sabbiatura reale.
-  - id: "dis_vetro_frosted_v2"
-    type: "disney"
-    color: [0.92, 0.92, 0.92]
-    roughness: 0.42
-    specular: 0.45
-    spec_trans: 0.65
-    ior: 1.52
-    transmission_color: [0.92, 0.92, 0.92]
-    transmission_depth: 0.5
-    bump_map:
-      texture:
-        type: "voronoi"
-        scale: 80.0
-        smoothness: 0.6
-        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
-      strength: 0.5
-
-  # Vetro soffiato a mano: displacement scalare per imperfezioni.
-  - id: "dis_vetro_soffiato"
-    type: "disney"
-    color: [0.92, 0.94, 0.95]
-    roughness: 0.04
-    specular: 0.55
-    spec_trans: 0.95
-    ior: 1.52
-    transmission_color: [0.92, 0.94, 0.95]
-    transmission_depth: 2.0
-    displacement:
-      mode: "scalar"
-      texture:
-        type: "noise"
-        scale: 3.0
-        noise_type: "fbm"
-        octaves: 3
-        colors: [[0, 0, 0], [1, 1, 1]]
-      scale: 0.003
-      midlevel: 0.5
-      bound: 0.006
-      autobump: true
-      displacement_method: "bump_only"
-
-  # Bolla di sapone: thin_film 320nm + thin_walled.
-  - id: "dis_bolla_sapone_v2"
-    type: "disney"
-    color: [0.95, 0.95, 0.97]
-    roughness: 0.02
-    specular: 0.55
-    spec_trans: 0.95
-    ior: 1.41
-    thin_walled: true
-    thin_film_thickness: 320
-    thin_film_ior: 1.36
-
-  # Smeraldo: color_ramp 3-stop verde con zonazione naturale.
-  - id: "dis_smeraldo_v2"
-    type: "disney"
-    color: [0.18, 0.62, 0.32]
-    roughness: 0.05
-    specular: 0.60
-    spec_trans: 0.92
-    ior: 1.580
-    transmission_color: [0.08, 0.55, 0.22]
-    transmission_depth: 0.4
-    texture:
-      type: "noise"
-      scale: 2.5
-      noise_type: "fbm"
-      octaves: 3
-      noise_strength: 0.25
-      randomize_offset: true
-      color_ramp:
-        - { position: 0.00, color: [0.05, 0.35, 0.15], interp: "smoothstep" }
-        - { position: 0.55, color: [0.22, 0.62, 0.32], interp: "smoothstep" }
-        - { position: 1.00, color: [0.45, 0.85, 0.55], interp: "linear" }
-
-  # Rubino sintetico tagliato: thin_film 280nm per sub-flash.
-  - id: "dis_rubino_v2"
-    type: "disney"
-    color: [0.78, 0.06, 0.10]
-    roughness: 0.04
-    specular: 0.60
-    spec_trans: 0.92
-    ior: 1.770
-    transmission_color: [0.62, 0.04, 0.06]
-    transmission_depth: 0.3
-    thin_film_thickness: 280
-    thin_film_ior: 1.55
-
-  # Zaffiro blu: thin_film 540nm per "sleep silk".
-  - id: "dis_zaffiro_v2"
-    type: "disney"
-    color: [0.10, 0.22, 0.62]
-    roughness: 0.04
-    specular: 0.60
-    spec_trans: 0.92
-    ior: 1.770
-    transmission_color: [0.05, 0.15, 0.55]
-    transmission_depth: 0.3
-    thin_film_thickness: 540
-    thin_film_ior: 1.55
-
-  # Diamante taglio brilliant: ior 2.418.
-  - id: "dis_diamante_brilliant"
-    type: "disney"
-    color: [0.98, 0.98, 0.98]
-    roughness: 0.02
-    specular: 0.65
-    spec_trans: 1.0
-    ior: 2.418
-    transmission_color: [0.98, 0.98, 0.98]
-    transmission_depth: 2.5
+    refraction_index: 1.53

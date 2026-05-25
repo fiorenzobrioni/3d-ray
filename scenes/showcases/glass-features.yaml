@@ -87,7 +87,7 @@ entities:
     scale: [0.85, 0.85, 0.85]
     translate: [1.0, 0.85, 0]
     seed: 29
-    material: "dis_smeraldo_v2"
+    material: "dis_smeraldo"
   - name: "zaffiro"
     type: "mesh"
     path: "../models/subdivision-icosahedron.obj"
@@ -97,7 +97,7 @@ entities:
     scale: [0.85, 0.85, 0.85]
     translate: [3.0, 0.85, 0]
     seed: 37
-    material: "dis_zaffiro_v2"
+    material: "dis_zaffiro_blu"
   - name: "diamante"
     type: "mesh"
     path: "../models/subdivision-icosahedron.obj"

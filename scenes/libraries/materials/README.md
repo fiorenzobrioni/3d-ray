@@ -1,378 +1,332 @@
 # Libreria Materiali — 3D-Ray
 
-Raccolta completa di materiali PBR per il motore di ray tracing 3D-Ray.
-**21 file YAML tematici** con oltre **1300 materiali** pronti all'uso,
-organizzati per categoria e con doppia variante Disney/Classic. Ogni
-materiale Disney usa le chiavi moderne del BSDF (`coat_roughness` +
-`coat_ior` al posto del legacy `clearcoat_gloss`, `sheen_roughness` dove
-appropriato, `subsurface_color` per il subsurface, `transmission_color`
-+ `transmission_depth` per i vetri colorati anziché il colore
-Beer-Lambert legacy).
+Raccolta completa di materiali per il motore 3D-Ray: **20 file YAML
+tematici** con **1450 materiali** pronti all'uso, organizzati in due
+varianti (Disney BSDF e Classic) e in una collezione di overlay
+weathering + ricette mix preconfezionate.
 
-La libreria è allineata alla versione corrente del motore (Disney 2015 +
-estensioni Arnold + thin-film). Nessun materiale usa `subsurface_radius`
-(parsato ma inutilizzato — vedi `docs/reference/scene-reference.md` §5).
-
-## Sezioni VFX Extended (v2)
-
-Tutte le 13 librerie originali hanno una sezione **EXTENDED VFX
-MATERIALS (v2)** in coda che sfrutta le feature di texturing più recenti:
-
-- **Surface displacement stack completo**: bump_map procedurale, scalar
-  displacement, vector displacement (tangent/object), autobump, combo
-  bump+displacement, `displacement_method: bump_only` come fallback
-  sicuro per sfere (geometric displacement applica solo a mesh).
-- **VFX texturing avanzato**: smooth voronoi (smoothness 0–1), voronoi
-  extended outputs (f1/f2/f3/f4/f2_minus_f1/f3_minus_f1/cell/position),
-  Musgrave hetero_terrain e hybrid_multifractal, color_ramp multi-stop
-  (linear/smoothstep/ease/constant), marble studio (vein_sharpness,
-  secondary_wave), wood studio (figure_strength, radial_anisotropy,
-  knot_density, grain_scale).
-- **Thin-film interferenza** per anodizzazioni, scaglie iridescenti,
-  bolle di sapone, perle, opali, niobio olografico.
-
-9 librerie NUOVE sono state aggiunte (concretes, plasters, leathers,
-weathering, synthetics, liquids, minerals-gems, biological,
-industrial-coatings) che usano le nuove feature fin dalla nascita.
-
----
-
-## Come usare nelle scene
-
-Importa uno o più file nella sezione `imports:` della tua scena YAML.
-I path sono relativi alla directory della scena (tipicamente `scenes/`):
-
-```yaml
-imports:
-  - path: "libraries/materials/metals.yaml"
-  - path: "libraries/materials/woods.yaml"
-  - path: "libraries/materials/emissives.yaml"
-
-entities:
-  - name: "sfera_oro"
-    type: "sphere"
-    center: [0, 1, 0]
-    radius: 1.0
-    material: "dis_oro_lucido"      # ← ID dalla libreria metals
-```
-
-Puoi importare quante librerie vuoi: il loader le unisce automaticamente.
-Se definisci un materiale locale con lo stesso ID, il tuo sovrascrive quello
-importato (last-write-wins).
-
----
+Tutti i materiali sono allineati alla versione corrente del motore:
+Disney BSDF a 33 parametri (sheen Charlie + dual-path clearcoat con
+`coat_ior` esplicito + `spec_trans` con Beer-Lambert `transmission_color`
++ `transmission_depth` + anisotropia + thin-film + `diff_trans` /
+`flatness` / `thin_walled`), texture procedurali production-grade
+(marble multi-vein con IQ warp, wood con latewood asimmetrico + figure
++ pori, voronoi con 11 output, Musgrave hetero/hybrid, noise FBM/ridged,
+color ramp multi-stop), e displacement stack completo (bump → subdivision
+→ scalar → vector → autobump).
 
 ## Convenzione dei nomi
 
-Ogni materiale segue lo schema: **`prefisso_categoria_variante`**
+Ogni materiale segue lo schema **`prefisso_categoria_variante`**, con
+4 prefissi distinti:
 
-### Prefisso tipo (3 lettere)
+| Prefisso | Tipo YAML sottostante | Quando usare |
+|----------|----------------------|--------------|
+| `dis_` | `disney` | Oggetti protagonisti, close-up, effetti PBR avanzati (clearcoat, sheen, subsurface, spec_trans, thin_film). Richiede sample count più alto. |
+| `cls_` | `lambertian` · `metal` · `dielectric` | Superfici grandi / sfondo / render rapidi. Il tipo sotto dipende dal lobo dominante (vedi più sotto), ma il prefisso è unico — chi importa la libreria non deve sapere quale tipo gira sotto. |
+| `over_` | `disney` | Overlay weathering (ruggine, muschio, polvere…) pensati per essere applicati ad altri materiali via `type: mix`. Solo in `weathering.yaml`. |
+| `mix_` | `mix` | Preset compositi pronti all'uso che combinano un `dis_*` base con un `over_*` overlay e una maschera procedurale. Solo in `mix-recipes.yaml`. |
 
-| Prefisso | Tipo YAML | Quando usare |
-|----------|-----------|--------------|
-| `dis_` | `disney` | Oggetti protagonisti, close-up, effetti PBR avanzati (clearcoat, sheen, subsurface, spec_trans). Richiede ≥128 spp. |
-| `cls_` | `lambertian`, `metal`, `dielectric` | Superfici grandi, sfondo, render veloci. Zero rumore da lobi multipli. |
-| *(nessuno)* | `emissive` | Sorgenti luminose. Nessuna distinzione dis/cls — tipo unico. |
+### Regola di scelta del tipo Classic
 
-### Esempi di lettura
+Per ogni `dis_*`, la versione `cls_*` (quando esiste) è scelta in base
+al **lobo Disney dominante**:
 
+| Lobo Disney dominante | Tipo Classic | Esempi |
+|----------------------|--------------|--------|
+| Diffuse / subsurface basso | `lambertian` | Porcellana opaca, calcestruzzo, terra, cotone, carta, frutta opaca, foglia, bisque, cuoio grezzo |
+| Specular con `metallic ≥ 0.5` | `metal` (`color` + `fuzz`) | Oro, argento, rame, bronzo, ottone, acciaio, ferro, alluminio, titanio, cromo, nichel, zinco, smalti specchianti, peltro |
+| Specular con `spec_trans ≥ 0.5` | `dielectric` (`refraction_index` + `color`) | Vetri industriali, ottici, cristalli, acqua/liquidi trasparenti, ghiaccio chiaro, gemme pulite |
+
+Quando TUTTI i lobi Disney non-base portano informazione visiva
+irrinunciabile (anodizzazioni con `thin_film`, opali iridescenti,
+clearcoat ≥ 0.8, sheen Charlie, subsurface significativo, anisotropia
+direzionale, color_ramp evolutivo, voronoi pattern), il Classic
+perderebbe identità del materiale → si omette. Le librerie
+`industrial-coatings`, `synthetics`, `minerals-gems` hanno per questo
+motivo `Classic: 0`.
+
+## Come usare nelle scene
+
+Importa una o più librerie nella sezione `imports:` della scena. I path
+sono relativi alla directory della scena (tipicamente `scenes/`):
+
+```yaml
+imports:
+  - { path: "libraries/materials/metals.yaml" }
+  - { path: "libraries/materials/woods.yaml" }
+  - { path: "libraries/materials/weathering.yaml" }
+  - { path: "libraries/materials/mix-recipes.yaml" }
+
+entities:
+  - name: "anello_oro"
+    type: "sphere"
+    center: [0, 1, 0]
+    radius: 1.0
+    material: "dis_oro_lucido"            # dal Disney section di metals
+  - name: "scrivania"
+    type: "box"
+    min: [-1, 0, -1]
+    max: [1, 0.05, 1]
+    material: "cls_quercia"               # dal Classic section di woods
+  - name: "cancello_arrugginito"
+    type: "box"
+    min: [-2, 0, 0]
+    max: [2, 1, 0.05]
+    material: "mix_acciaio_arrugginito_medio"   # ricetta mix preconfezionata
 ```
-dis_oro_lucido          → Disney, oro, finitura lucida
-cls_carrara_lucido      → Classic, marmo Carrara, lucido (metal+fuzz)
-dis_velluto_bordeaux    → Disney, velluto, colore bordeaux
-cls_checker_bn          → Classic, checker, bianco/nero
-neon_rosa               → Emissivo, neon, colore rosa
-led_caldo               → Emissivo, LED, temperatura calda
-```
 
----
+Il loader unisce automaticamente gli imports. Se definisci un materiale
+locale con lo stesso ID, il tuo sovrascrive l'importato (last-write-wins).
 
 ## I file della libreria
 
-### Metalli — `metals.yaml`
-Leghe nobili e industriali: oro (24K, rosa, bianco, antico), argento,
-rame (lucido, ossidato, martellato), bronzo, ottone, acciaio (inox,
-damasco, arrugginito), ferro (battuto, ghisa), alluminio (anodizzato
-in vari colori), titanio (anodizzato blu, viola, oro), cromo (specchio,
-nero PVD), platino, nichel, zinco, stagno/peltro, corten.
-Include alias di retrocompatibilità con il vecchio `metals.yaml`.
+Ogni file ha header standard con conteggi reali, due macro-sezioni
+(`DISNEY` → `CLASSIC`, dove applicabile) e sottocategorie nello stesso
+ordine in entrambe.
 
-**128 materiali** · 15 categorie
+| File | Disney | Classic (lam · met · die) | Totale |
+|------|-------:|--------------------------:|-------:|
+| `metals.yaml` | 70 | 4 · 57 · 0 | 131 |
+| `ceramics.yaml` | 58 | 22 · 32 · 0 | 112 |
+| `plastics.yaml` | 66 | 39 · 0 · 0 | 105 |
+| `glasses.yaml` | 74 | 0 · 0 · 27 | 101 |
+| `fabrics.yaml` | 73 | 28 · 0 · 0 | 101 |
+| `foods.yaml` | 72 | 24 · 0 · 4 | 100 |
+| `organics.yaml` | 70 | 28 · 0 · 0 | 98 |
+| `paints.yaml` | 68 | 25 · 0 · 0 | 93 |
+| `stones.yaml` | 65 | 23 · 0 · 0 | 88 |
+| `woods.yaml` | 60 | 27 · 0 · 0 | 87 |
+| `grounds.yaml` | 20 | 51 · 2 · 2 | 75 |
+| `liquids.yaml` | 44 | 0 · 0 · 9 | 53 |
+| `plasters.yaml` | 29 | 21 · 0 · 0 | 50 |
+| `leathers.yaml` | 37 | 9 · 0 · 0 | 46 |
+| `industrial-coatings.yaml` | 43 | — | 43 |
+| `concretes.yaml` | 23 | 19 · 0 · 0 | 42 |
+| `synthetics.yaml` | 34 | — | 34 |
+| `minerals-gems.yaml` | 30 | — | 30 |
+| `weathering.yaml` | 26 (over_*) | — | 26 |
+| `mix-recipes.yaml` | — | 35 mix_* | 35 |
+| **Totale** | **936** | **320 · 91 · 42 = 453** | **1450** |
 
-### Ceramiche — `ceramics.yaml`
-Porcellana (bianca, avorio, blu cobalto, nera, rosa, craquelé, crepuscolo), bone china,
-maiolica (azzurra, gialla, verde, arancio), terracotta (naturale, invetriata,
-smaltata verde), grès/stoneware (tenmoku, shino, celadon), raku (rame,
-nero, iridescente), celadon (classico, chiaro, scuro), biscotto/bisque,
-ceramica smaltata (8 colori), terra sigillata (rossa, nera, ocra),
-**satin** ✨ (porcellana, avorio, grigio pietra, antracite, sabbia, salvia,
-terracotta — finitura cera tra opaco e smaltato, ideale per stoviglie
-moderne e vasi minimal scandinavi).
+### `metals.yaml`
+Oro (24K, rosa, bianco, antico), argento (sterling, ossidato, brunito),
+rame (lucido, antico, verderame, martellato, patinato heritage con
+color_ramp 4-stop), bronzo, ottone (incluso patinato verderame), acciaio
+(lucido, satinato, spazzolato con anisotropic, spazzolato circolare,
+carbonioso, damasco wootz via voronoi f3-f1, arrugginito), ferro
+(battuto, forgiato, ghisa, ghisa stagionata, lucido, martellato a mano
+con displacement scalare), alluminio (lucido, satinato, spazzolato,
+anodizzato nero/rosso/blu con clearcoat 1.5), titanio (naturale, lucido,
+anodizzato blu/viola/oro via thin_film 250/420/540nm), cromo (specchio,
+satinato, PVD nero), platino, nichel, zinco, peltro e stagno (incluso
+colato grezzo), corten (fresco/maturo/scuro), mercurio liquido, niobio
+olografico (thin_film 580nm).
 
-**~99 materiali** · 10 categorie
+### `ceramics.yaml`
+Porcellana (bianca, avorio, blu cobalto, nera, rosa, craquelé con
+voronoi f2-f1, crepuscolo), bone china, maiolica (azzurra, gialla,
+verde, arancio, antica patinata 4-stop), terracotta (naturale, rossa,
+chiara, scura, invetriata, smaltata verde, grezza con FBM +
+displacement), grès / stoneware (tenmoku, shino, celadon), raku (rame,
+nero con voronoi + bump, bianco, iridescente con thin_film 420nm),
+celadon (classico, chiaro, scuro, studio con FBM 4-stop, crackle con
+voronoi f2-f1), biscotto/bisque, smaltata (8 colori), terra sigillata
+(rossa, nera, ocra), satin (porcellana, avorio, grigio, nero, sabbia,
+salvia, terracotta).
 
-### Legni — `woods.yaml`
+### `woods.yaml`
 Latifoglie chiare (acero, betulla, frassino, faggio), medie (quercia,
 ciliegio, teak, iroko), scure (noce, mogano, wengé, palissandro), legni
-neri (ebano, ebano Macassar), conifere (pino, abete, cedro, larice),
-esotici (zebrano, padouk, amaranto, bocote), trattati (sbiancato,
-shou sugi ban, barnwood, tinto nero/grigio). Ogni essenza in più
-finiture: grezzo, olio, cera, verniciato, laccato.
+neri (ebano, macassar), conifere (pino, abete, cedro, larice), esotici
+(zebrano, padouk, amaranto, bocote), trattati (sbiancato, shou-sugi-ban,
+barnwood, tinto), studio (curly, flame, bird's eye, burl, quartersawn).
+Texture wood production-grade con latewood asimmetrico, pori (per
+quercia/frassino/noce), nodi (per pino/abete), figure (curly/flame/
+ribbon), color_ramp gradiente sapwood→heartwood.
 
-**72 materiali** · 7 categorie
-
-### Vetri e trasparenti — `glasses.yaml`
+### `glasses.yaml`
 Vetri industriali (soda-lime, borosilicato, float, temperato), ottici
-(crown, flint, dense flint), cristallo (piombo, Swarovski, fumé, rosa),
-colorati (rosso, blu cobalto, verde bottiglia, ambra, viola Murano,
-turchese, giallo, smeraldo), gemme preziose (diamante, rubino, zaffiro,
-smeraldo), semipreziose (ametista, citrino, acquamarina, topazio,
-tormalina, granato, peridoto, opale), ghiaccio (chiaro, torbido, blu,
-brina, neve), liquidi (acqua, vino, birra, miele, olio, latte,
-glicerina), resine e sintetici (PMMA, policarbonato, epossidica,
-silicone, nylon), **smerigliati / frosted** ✨ (vetro smerigliato
-neutro, acidato fine, sabbiato verde, sabbiato ambra, acidato fumé,
-inciso, plexi satin — tutti Disney `spec_trans` + roughness medio per
-vera diffusione fisica in trasmissione, vs. il classico dielectric
-liscio).
+(crown, flint), cristallo (piombo, Swarovski, fumè, rosa), colorati
+(rosso/blu/verde/ambra/viola Murano/turchese/smeraldo con `spec_trans`
++ `transmission_color` + `transmission_depth` Beer-Lambert), gemme
+preziose (diamante, rubino, zaffiro, smeraldo), semipreziose, ghiaccio
+(chiaro, torbido, blu, brina), liquidi trasparenti, resine sintetiche,
+smerigliati / frosted (`spec_trans` + roughness medio per vera
+diffusione in trasmissione, vs. dielectric liscio).
 
-**~104 materiali** · 11 categorie
-
-### Pietre e minerali — `stones.yaml`
+### `stones.yaml`
 Marmi bianchi (Carrara, Calacatta, Statuario, Thassos), scuri (Nero
 Marquinia, Nero Belgio, Port Laurent), colorati (Verde Guatemala,
 Rosso Levanto, Rosa Portogallo, Blu Sodalite, Giallo Siena, Arabescato),
-graniti (grigio, rosa, nero assoluto, bianco, fiammato), travertino,
-ardesia (grigia, nera, verde), onice (bianco, miele, verde — traslucenti),
-alabastro, arenaria (dorata, rossa, grigia), basalto e lava, calcestruzzo
-(grezzo, liscio, microcemento), mattoni (rosso, arancio, giallo, clinker).
+graniti, travertino, ardesia, onice e alabastro (con subsurface),
+arenaria (dorata, rossa, grigia), basalto e lava, calcestruzzo grezzo,
+mattoni (rosso, arancio, giallo, clinker), pietra spaccata.
 
-**87 materiali** · 12 categorie
+### `plastics.yaml`
+ABS lucido/opaco (incluso set LEGO), policarbonato, acrilico/PMMA, PVC,
+nylon, PLA stampa 3D, teflon/PTFE, polietilene HDPE/LDPE,
+polipropilene, bachelite, gomma naturale, silicone medicale
+(con subsurface), EVA/gommapiuma, vinile/ecopelle.
 
-### Plastiche e polimeri — `plastics.yaml`
-ABS (lucido/opaco, 7 colori LEGO), policarbonato, acrilico/PMMA, PVC,
-nylon (naturale, nero, SLS), PLA stampa 3D (7 colori), teflon/PTFE,
-polietilene HDPE/LDPE, polipropilene, bachelite (nera, marrone, rossa),
-gomma naturale (nera, grigia, rossa, bianca, blu), gomma siliconica
-(bianca, rossa, trasparente, medicale), EVA/gommapiuma (5 colori),
-vinile/ecopelle (nero, marrone, bianco, rosso).
+### `fabrics.yaml`
+Velluto e seta (sheen Charlie + anisotropic), raso/satin, cotone, lino,
+lana, denim, tweed, feltro, neoprene, canvas, organza/tulle
+(`diff_trans` + `thin_walled` per controluce).
 
-**95 materiali** · 14 categorie
+### `paints.yaml`
+Auto metallizzata, pastello, perlata cangiante (thin_film), lacca a
+specchio pianoforte (clearcoat 0.9+), urushi, smalti lucido/satinato/
+opaco, primer, chalk paint, pittura murale, spray, epossidiche, vernici
+a polvere, orange-peel automotive (coat con bump voronoi smooth).
 
-### Tessuti e pelli — `fabrics.yaml`
-Velluto (7 colori), seta (6 colori), raso/satin (5 colori), cotone
-(bianco, nero, grezzo, rosso, blu), lino, lana (5 colori), denim (4
-tonalità), tweed, feltro (4 colori), pelle vacchetta (marrone, nera,
-cognac, chiara, invecchiata), scamosciata (4 colori), pelle verniciata
-(nera, rossa, bianca), cuoio (naturale, scuro, grezzo), neoprene,
-canvas/tela (3 colori), organza/tulle (4 varianti semi-trasparenti).
+### `organics.yaml`
+Cera (api, paraffina, soia con subsurface), ambra, avorio, osso, corno,
+guscio d'uovo, corallo, madreperla (thin_film), conchiglia, sughero,
+carta (kraft, riso, giornale, velina, patinata), cartone, pergamena,
+sapone (con SSS), bambù.
 
-**100 materiali** · 16 categorie
+### `foods.yaml`
+Cioccolato (fondente, latte, bianco, fuso con subsurface), frutta
+(mela, arancia, limone, uva, pesca, ciliegia con clearcoat), verdura,
+formaggi (parmigiano, brie, gorgonzola con SSS), pane, pasta, dolci
+(glassa, meringa, caramello), burro e grassi.
 
-### Vernici e finiture — `paints.yaml`
-Auto metallizzata (8 colori), auto pastello (6 colori), auto perlata
-(bianco perla, champagne, blu, rosso), lacca (pianoforte nero/bianco,
-rossa cinese, ciliegia, blu notte), smalto lucido/satinato/opaco,
-primer (grigio, bianco, rosso antiruggine), chalk paint (6 colori),
-pittura murale (6 colori), spray (5 varianti), vernice epossidica,
-vernice a polvere.
+### `grounds.yaml`
+Checker, parquet (rovere, noce, teak, wengé, verniciato con `wood`
+production-grade), piastrelle, marmo pavimento (con `marble`
+production-grade), cemento, asfalto (asciutto/bagnato con clearcoat),
+terra, sabbia (dorata, deserto, vulcanica), ghiaia, erba (prato,
+secca, muschio), neve (fresca, sporca), moquette, acqua piscina /
+pozzanghera.
 
-**98 materiali** · 13 categorie
+### `concretes.yaml`
+Cemento liscio (autolivellante, casseforme, industriale), esposto
+(Tadao Ando, brutalist), lavorato (sabbiato, bocciardato, graffiato),
+lavato a vista (con voronoi cell inclusi), colorati (ocra, antracite,
+terra siena), asfalto, bitume catrame (con clearcoat viscoso).
 
-### Organici e naturali — `organics.yaml`
-Cera (api, paraffina, soia, candele colorate), ambra (chiara, scura,
-rossa, grezza), avorio e osso (lucido, invecchiato, grezzo, levigato),
-corno e tartaruga, guscio d'uovo, corallo (rosso, rosa, bianco, nero),
-madreperla (bianca, rosa, abalone), conchiglia, sughero, carta (bianca,
-kraft, riso, giornale, velina, patinata), cartone, pergamena/vellum,
-sapone (bianco, miele, lavanda, oliva), bambù.
+### `plasters.yaml`
+Rasati civili, graffiati esterni/fini, veneziano (avorio, blu,
+pompeiano, salvia, antracite — con marble production-grade +
+clearcoat 0.85), marmorino (bianco, blu polvere, terracotta — opaco),
+tadelakt marocchino (rosa, ocra, menta — clearcoat + subsurface da
+sapone nero), stucco antico (crepato, umido), calce mediterranea
+(bianca, avorio, azzurra Santorini), gesso, coloratura.
 
-**81 materiali** · 14 categorie
+### `leathers.yaml`
+Pieno fiore, anilina, nappa morbida, suede / scamosciato (sheen
+Charlie 0.85), vintage invecchiata, patent leather (clearcoat alto),
+esotici (pitone, coccodrillo, struzzo, lucertola — voronoi cell per
+scaglie), scarpe (box calf, cordovan, militare), cuoio grezzo,
+ecoleather sintetico.
 
-### Alimenti e bevande — `foods.yaml`
-Cioccolato (fondente, latte, bianco, fuso, cacao), frutta (mela rossa/
-verde, arancia, limone, uva, pesca, ciliegia, banana, fragola), verdura
-(pomodoro, peperoni, melanzana, zucca), formaggi (parmigiano, cheddar,
-brie, gouda, mozzarella, gorgonzola), pane e pasta, dolci (zucchero,
-caramello, marzapane, glassa, meringa), burro e grassi, liquidi (acqua,
-latte, vino, birra, olio, miele, succo, caffè), condimenti, carne e pesce.
+### `synthetics.yaml`
+Fibra di carbonio (twill, plain, satin, 3D — anisotropic + rotation),
+kevlar (giallo, nero, hybrid), vetroresina (gelcoat, grezza,
+trasparente), neoprene, PTFE/Teflon, gomma EPDM, silicone medicale
+(subsurface alto), poliuretani, vinile auto wrap (matte, gloss, satin,
+chrome, chrome rosa, olografico — thin_film), tessuti tecnici
+(ripstop, cordura, gore-tex), aerogel.
 
-**91 materiali** · 10 categorie
+### `liquids.yaml`
+Acque (piscina, mare costiero, profondo, torrente, fontana, tropicale,
+torbida, ghiaccio), latticini (intero, scremato, panna, condensato),
+sangue (arterioso, venoso, secco, coagulato), oli (motore iridescente,
+oliva, semi, benzina), alcolici (vino rosso/bianco/rosé, birra chiara/
+stout con Beer-Lambert profondo, whisky, vodka, rum), sciroppi
+(miele, acero, caramello, melassa), bevande calde, succhi, refrigeranti
+industriali.
 
-### Emissivi e luci — `emissives.yaml`
-Temperatura colore calibrata (1800K–7500K), LED (caldo, neutro, freddo,
-daylight, warm dim, strip), incandescenza (tungsteno 40/60/100W, Edison
-vintage, alogena), fluorescente (warm/cool/daylight/verdastro/rosa),
-neon colorati (11 colori), fiamme (candela, torcia, focolare, falò, gas,
-saldatura), braci e lava (braci, lava, ferro rovente/ciliegia/bianco),
-schermi (monitor, warm, cinema, OLED, gaming), insegne e display,
-effetti speciali (magia, portale, laser, plasma, radioattivo),
-bioluminescenza (lucciola, medusa, plancton, fungo).
+### `minerals-gems.yaml`
+Quarzi (trasparente, fumè, citrino, rosa, ametista), geodi
+(base ruvida + interno cristallino ametista/agata), druse
+vector-displaced, cristalli cubici (pirite, halite, galena), calcite
+islandese birifrangente, fluorite, malachite radiale, lapislazzuli,
+pietra di luna (thin_film adularescenza), opali (bianco, nero, fuoco),
+selenite, kyanite (anisotropic), tormalina, granato.
 
-**83 materiali** · 11 categorie
+### `industrial-coatings.yaml`
+Chassis auto (matte / gloss / perlato con flake noise + thin_film 280nm),
+clearcoat protettivo, matte anti-glare, polveri elettrostatiche RAL,
+anodizzazione alluminio e titanio (thin_film 320-640nm), zincatura,
+cromature, smalti a fuoco, gel coat marino (clearcoat + coat_normal),
+termocromiche (color_ramp 4-stop evolutivo), retroriflettenti,
+anti-corrosive, fluo safety.
 
-### Pavimenti e terreni — `grounds.yaml`
-Checker (7 pattern), parquet (rovere chiaro/scuro, noce, teak, wengé,
-verniciato), piastrelle (gres, cotto), marmo pavimento, cemento e
-asfalto (grezzo, liscio, nuovo, vecchio, bagnato), terra e fango,
-sabbia (dorata, bianca, deserto, bagnata, vulcanica), ghiaia, erba
-(prato, secca, campo, muschio), neve (fresca, compatta, sporca),
-moquette (5 colori), acqua (calma, scura, pozzanghera).
-**Prevalenza classic** — 86% dei materiali sono lambertian/metal.
+### `weathering.yaml`
+26 overlay con prefisso `over_*` pensati per `type: mix`: ruggine
+(light, medium, heavy, streak), muschio (sparse, dense, wet), polvere
+(light, heavy, gesso, terra), colature sporco (streak, drip), calcare
+(bianco, giallo), grasso (dark, light), neve (powder, melting),
+vernice scrostata (bianca, militare via voronoi crackle f2-f1),
+foglie morte, sale marino, film d'acqua, macchie acqua secca,
+verderame patina rame.
 
-**66 materiali** · 12 categorie
-
----
+### `mix-recipes.yaml`
+35 ricette `mix_*` pronte all'uso che combinano un `dis_*` base con un
+`over_*` weathering tramite maschera procedurale calibrata. Categorie:
+metalli invecchiati (acciaio/ferro/rame con ruggine, verderame),
+legni usurati (polvere, foglie autunno, dirt streak, macchie d'acqua,
+muschio), intonaci macchiati (dirt, calcare, umidità), pietre
+colonizzate (muschio, terra, sale marino), vernici scrostate (su
+acciaio, lamiera, legno), generici (neve, grasso officina, pavimento
+bagnato, calcare rubinetto, polvere pesante). L'header del file
+elenca le librerie da importare prima.
 
 ## Disney vs Classic — quando usare cosa
 
 | Scenario | Scelta | Motivazione |
 |----------|--------|-------------|
-| Pavimento, muro, sfondo | `cls_` | Superficie grande → rumore Disney domina l'immagine |
-| Metallo puro (metallic=1.0) | `dis_` o `cls_` | Il Disney metallico ha un solo lobo → stesso rumore del classic |
+| Pavimento, muro, sfondo | `cls_` | Superficie grande → il rumore Disney dominerebbe l'immagine |
+| Metallo puro (`metallic` = 1.0) | `dis_` o `cls_` | Il Disney metallico ha un solo lobo → stesso rumore del classic |
 | Oggetto protagonista in primo piano | `dis_` | Clearcoat, sheen, subsurface fanno la differenza |
-| Render draft / preview | `cls_` | Converge in 32–64 spp |
-| Render finale ≥256 spp | `dis_` dove serve | Il rumore extra è accettabile |
+| Render draft / preview | `cls_` | Converge in 32-64 spp |
+| Render finale | `dis_` dove serve | Il rumore extra è accettabile a sample count alto |
 | Vetro chiaro e semplice | `cls_` (dielectric) | Più pulito e veloce |
-| Vetro smerigliato, colorato, opale | `dis_` | Roughness + spec_trans non disponibili in dielectric |
-| Tessuto (velluto, seta) | `dis_` | Sheen è impossibile da ottenere con classic |
-| Materiale traslucente (cera, pelle) | `dis_` | Subsurface è impossibile con classic |
+| Vetro smerigliato, colorato profondo, opale | `dis_` | `spec_trans` con `transmission_depth` / thin_film non disponibili in `cls_` |
+| Tessuto (velluto, seta) | `dis_` | Lo sheen Charlie è impossibile con `cls_` |
+| Materiale traslucente (cera, pelle, marmi onice) | `dis_` | Il `subsurface` è impossibile con `cls_` |
+| Materiale invecchiato pronto all'uso | `mix_` | Combina base + weathering + maschera, niente boilerplate |
 
-**Regola pratica**: in una scena tipica, usa classic per il 70–80% delle
-superfici (pavimento, muri, tavoli, sfondo) e Disney solo per i 2–3 oggetti
-protagonisti. Questo bilancia qualità visiva e tempo di rendering.
+**Regola pratica**: in una scena tipica, usa Classic per il 70-80% delle
+superfici (pavimento, muri, tavoli, sfondo) e Disney solo per i 2-3
+oggetti protagonisti. Questo bilancia qualità visiva e tempo di
+rendering.
 
----
+## Feature avanzate Disney sfruttate
+
+- **Sheen Charlie** (`sheen` + `sheen_tint` + `sheen_roughness`) per
+  velluto, suede, peluche, microfibra, muschio.
+- **Clearcoat dual-path Arnold** (`coat_roughness` + `coat_ior` esplicito)
+  per vernici auto, lacche, smaltature, plastiche lucide, parquet
+  verniciato, patent leather, veneziano, tadelakt.
+- **`spec_trans` + Beer-Lambert** (`transmission_color` +
+  `transmission_depth` + `ior`) per vetri colorati profondi, gemme,
+  liquidi (vino, birra, miele), ghiaccio, silicone medicale.
+- **`anisotropic` + `anisotropic_rotation`** per metalli spazzolati,
+  carbon fiber, vinile spazzolato, capelli, oro spazzolato.
+- **`thin_film_thickness` + `thin_film_ior`** per anodizzazioni
+  alluminio/titanio, opali, perle, madreperla, vinile olografico,
+  niobio, perlate automotive.
+- **`diff_trans` + `thin_walled`** per foglie, petali, carta velina,
+  tessuti sottili in controluce.
+- **`flatness`** per superfici cerose/saponose senza vera SSS.
+- **Texture procedurali production-grade**: marble multi-vein con
+  IQ warp, wood con asymmetric latewood + pore_density + knot_density,
+  voronoi con 11 metric/output, color ramp multi-stop.
+- **Displacement stack** (bump_map → mesh subdivision → scalar /
+  vector displacement → autobump). Per le sfere usare
+  `displacement_method: bump_only`.
 
 ## Sample count consigliati
 
 | Mix materiali | Preview | Draft | Produzione |
-|---------------|---------|-------|------------|
-| Solo classic | 16 spp | 32 spp | 128 spp |
-| Classic + Disney | 32 spp | 64 spp | 256 spp |
-| Tutto Disney | 64 spp | 128 spp | 512 spp |
+|---------------|--------:|------:|-----------:|
+| Solo Classic | 16 spp | 32 spp | 128 spp |
+| Classic + Disney misti | 32 spp | 64 spp | 256 spp |
+| Tutto Disney + texture | 64 spp | 128 spp | 512 spp |
+| Disney + spec_trans/thin_film/SSS | 128 spp | 256 spp | 1024 spp |
 
----
-
-## Nuove librerie (Batch 1-2)
-
-### Cementi e Asfalti — `concretes.yaml`
-Cemento liscio (autolivellante, casseforme, industriale), esposto (Tadao
-Ando, brutalist con casseri legno, fugato), lavorato (sabbiato, bocciardato,
-graffiato), lavato a vista (chiaro/scuro), cemento armato grezzo, colorati
-(ocra, antracite, terra siena, blu industriale), asfalto (fresco, consumato
-light/medium/heavy, bagnato), bitume.
-**~28 materiali** · 7 categorie
-
-### Intonaci e Stucchi — `plasters.yaml`
-Rasato civile (3 finiture), graffiato esterno/fine, veneziano (avorio, blu,
-pompeiano, salvia, antracite — marble studio + clearcoat), marmorino
-(bianco, blu polvere, terracotta — opaco), tadelakt marocchino (rosa, ocra,
-menta), stucco antico (crepato, umido, rosa veneziano), calce mediterranea
-(bianca, avorio, azzurra Santorini), gesso (liscio, satinato), coloratura.
-**~30 materiali** · 9 categorie
-
-### Pelli — `leathers.yaml`
-Pieno fiore (5 conce), nappa morbida (4 colori), suede/scamosciato (5 tipi,
-sheen 0.85), vintage invecchiata (3 patine), patent leather verniciata (3
-colori), esotici (pitone naturale/albino, coccodrillo nero/marrone, struzzo,
-lucertola — voronoi cell scaglie), scarpe (box calf, cordovan, militare),
-sintetici ecoleather/vinile.
-**~38 materiali** · 8 categorie
-
-### Weathering Overlays — `weathering.yaml`
-Overlay `over_*` mix-ready: ruggine (light/medium/heavy/streak), muschio
-(sparse/dense/wet), polvere (light/heavy/gesso/terra), colature sporco,
-calcare/limescale, grasso (dark/light), neve sottile (polverosa/melting),
-vernice scrostata (bianca/militare via voronoi crackle), foglie morte, sale
-marino, film d'acqua, macchie acqua secca, verderame patina rame.
-**~28 overlays** · pensati per `type: mix` con maschera procedurale
-
-### Minerali e Gemme Grezze — `minerals-gems.yaml`
-Quarzi (trasparente/fumè/citrino/rosa/ametista), geodi (base ruvida + interni
-cristallini ametista/agata), druse vector-displaced, cristalli cubici (pirite/
-halite/galena), calcite islandese birifrangente, fluorite multicolore
-(viola/rainbow/verde), malachite radiale, lapislazzuli, pietra di luna +
-pesca (thin_film adularescenza), opali (bianco/nero/fuoco), cristalli rari
-(selenite, kyanite, tormalina watermelon, granato).
-**~28 materiali** · 11 categorie
-
-### Sintetici Tecnici — `synthetics.yaml`
-Fibra di carbonio (twill/plain/satin/3D/matte/rosso — anisotropic+rotation),
-kevlar (giallo/nero/hybrid), vetroresina (gelcoat/grezza/trasparente),
-neoprene (nero/blu/foderato), PTFE/Teflon, gomma EPDM, silicone medicale
-(traslucido alto subsurface), poliuretani (rigido/flessibile), vinile auto
-wrap (matte/gloss/satin/chrome/chrome-rosa/olografico), tessuti tecnici
-(ripstop/cordura/gore-tex), aerogel.
-**~30 materiali** · 11 categorie
-
-### Liquidi — `liquids.yaml`
-Acque (piscina/mare-costiero/profondo/torrente/fontana/tropicale/torbida/
-ghiaccio), latticini (intero/scremato/panna/condensato), sangue (arterioso/
-venoso/secco/coagulato), oli (motore-iridescente/oliva/semi/benzina),
-alcolici (vino RG/B/rose, birra chiara/stout, whisky/vodka/rum), sciroppi
-(miele/acero/caramello/melassa), bevande calde (caffè/tè/matcha/cioccolata),
-succhi, liquidi industriali (refrigeranti/ammoniaca).
-**~40 materiali** · 9 categorie
-
-### Tessuti Biologici Viventi — `biological.yaml`
-Pelle umana 8 varianti (caucasica chiara/scura, mediterranea, asiatica,
-africana, bambino, anziana, abbronzata — subsurface multi-layer), muscolo/
-fegato/lingua bovina, pelle elefante/squalo, scaglie pesce (carpa/salmone/
-koi/trota — thin_film), scaglie rettile (geco/iguana/drago barbuto), piume
-(copertura/piumino/corvo/struzzo/pavone iridescente), occhio (3 iridi + sclera
-+ cornea), membrane sottili diff_trans (ala pipistrello/palmo rana), labbra/
-gengiva/lingua umana.
-**~40 materiali** · 9 categorie
-
-### Vernici Industriali — `industrial-coatings.yaml`
-Chassis auto (matte black/grey/cement, gloss black/white/rosso/blu-metallic),
-clearcoat protettivo, matte anti-glare, polveri elettrostatiche RAL
-(9005/9010/3020/5015/1023/6018/7035), anodizzazione alluminio (naturale/oro/
-nero/blu/rosso/viola/verde via thin_film 320-640nm), zincatura (lucida/opaca/
-invecchiata), cromature, smalti a fuoco (bianco/rosso/blu), gel coat marino,
-termocromiche, retroriflettenti, anti-corrosive, fluo safety.
-**~30 materiali** · 11 categorie
-
----
-
-## Totale libreria
-
-| File | Materiali (originali + v2) |
-|------|-----------|
-| metals.yaml | 128 + 10 v2 |
-| ceramics.yaml | 99 + 8 v2 |
-| woods.yaml | 84 + 8 v2 |
-| glasses.yaml | 104 + 10 v2 |
-| stones.yaml | 98 + 10 v2 |
-| plastics.yaml | 95 + 8 v2 |
-| fabrics.yaml | 100 + 8 v2 |
-| paints.yaml | 98 + 8 v2 |
-| organics.yaml | 81 + 8 v2 |
-| foods.yaml | 91 + 9 v2 |
-| emissives.yaml | 83 + 7 v2 |
-| grounds.yaml | 66 + 8 v2 |
-| concretes.yaml *(new)* | 28 |
-| plasters.yaml *(new)* | 30 |
-| leathers.yaml *(new)* | 38 |
-| weathering.yaml *(new)* | 28 |
-| minerals-gems.yaml *(new)* | 28 |
-| synthetics.yaml *(new)* | 30 |
-| liquids.yaml *(new)* | 40 |
-| biological.yaml *(new)* | 40 |
-| industrial-coatings.yaml *(new)* | 30 |
-| **Totale** | **~1330** |
-
-## Showcases dedicati
-
-In `scenes/showcases/` ci sono showcase mirati per le nuove librerie:
-
-- **Surface displacement**: `library-concretes`, `library-plasters`,
-  `library-leathers`, `library-weathering`
-- **VFX texturing**: `library-minerals-gems`, `library-synthetics`,
-  `library-liquids`, `library-biological`, `library-industrial-coatings`
-- **Studio v2** (per estensioni VFX delle librerie esistenti):
-  `library-marbles-v2`, `library-woods`, `glass-features`
-- **Cross-library thematic**: `library-wet-surfaces` (liquidi + ceramiche +
-  intonaci), `library-weathering` (metalli + cementi + weathering
-  overlays, due righe sopra/sotto)
+Vedi anche `docs/reference/rendering-profiles.md` per le scorciatoie
+`-q draft-tiny / draft-small / draft / medium / final / ultra`.

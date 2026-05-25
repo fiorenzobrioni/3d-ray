@@ -47,10 +47,10 @@ world:
     sea_material:  "water_alpine"                    # mat definito sotto
     material:      "rock_dark"                       # fallback (oltre strata)
     strata:
-      - { min_altitude: 0.00, max_altitude: 0.36, min_slope_deg:  0, max_slope_deg: 35, blend_width: 0.04, material: "dis_sabbia_desertica_v2" }
+      - { min_altitude: 0.00, max_altitude: 0.36, min_slope_deg:  0, max_slope_deg: 35, blend_width: 0.04, material: "dis_sabbia_desertica" }
       - { min_altitude: 0.34, max_altitude: 0.75, min_slope_deg:  0, max_slope_deg: 45, blend_width: 0.06, material: "dis_erba_prato" }
       - { min_altitude: 0.50, max_altitude: 1.00, min_slope_deg:  0, max_slope_deg: 90, blend_width: 0.08, material: "rock_dark" }
-      - { min_altitude: 0.85, max_altitude: 1.00, min_slope_deg:  0, max_slope_deg: 60, blend_width: 0.05, material: "dis_neve_fresca_v2" }
+      - { min_altitude: 0.85, max_altitude: 1.00, min_slope_deg:  0, max_slope_deg: 60, blend_width: 0.05, material: "dis_neve_fresca" }
 
   # ── Medium: foschia mattutina di valle ────────────────────────────────────
   medium:
@@ -97,7 +97,7 @@ materials:
   # I file completi sono in scenes/libraries/materials/grounds.yaml — qui
   # ne ridefinisco l'essenziale inline per autosufficienza dello showcase.
 
-  - id: "dis_sabbia_desertica_v2"
+  - id: "dis_sabbia_desertica"
     type: "disney"
     texture:
       type: "noise"
@@ -115,7 +115,7 @@ materials:
       colors: [[0.42, 0.50, 0.20], [0.30, 0.36, 0.14]]
     roughness: 0.95
 
-  - id: "dis_neve_fresca_v2"
+  - id: "dis_neve_fresca"
     type: "disney"
     color: [0.95, 0.97, 1.00]
     roughness: 0.78

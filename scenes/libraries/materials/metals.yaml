@@ -1,100 +1,54 @@
-# ============================================================================
-# Libreria Materiali — Metalli
-# ============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+#  3D-Ray Material Library — METALS
+# ───────────────────────────────────────────────────────────────────────────
+#  File:     metals.yaml
+#  Disney:   70
+#  Classic:  61      (lambertian: 4 · metal: 57 · dielectric: 0)
+#  Total:    131
+#  Updated:  2026-05
+# ───────────────────────────────────────────────────────────────────────────
+#  Contenuto: oro, argento, rame, bronzo, ottone, acciaio, ferro, ghisa,
+#             alluminio, titanio, cromo, platino, nichel, zinco, peltro,
+#             corten, mercurio, niobio olografico.
+# ═══════════════════════════════════════════════════════════════════════════
 #
-# Importa con:  imports: [{ path: "libraries/metals.yaml" }]
+# Importa con:  imports: [{ path: "libraries/materials/metals.yaml" }]
 #
-# Raccolta completa di metalli, dalle leghe preziose ai ferrosi industriali.
-# Ogni materiale esiste in due varianti:
+# Convenzione:
+#   dis_*  — Disney BSDF: metallic=1.0 con GGX importance sampling;
+#            specular_tint per Fresnel colorato, anisotropic per spazzolature
+#            direzionali, thin_film per anodizzazioni e iridescenze, voronoi
+#            f3-f1 per damasco, color_ramp per patine evolutive.
+#   cls_*  — Classic: type `metal` con fuzz per quasi tutti (la
+#            metallicità è speculare-dominante). `lambertian` solo per
+#            corten patinato e acciaio arrugginito (lobo metallic <0.5).
+#            Anodizzazioni alluminio/titanio, niobio olografico, ottone
+#            e rame patinati con color_ramp esistono SOLO in Disney.
 #
-#   dis_  (Disney BSDF) — metallic=1.0 con GGX importance sampling.
-#         Un solo lobo attivo → stesso rumore del classic, ma con accesso
-#         a clearcoat (vernice protettiva), specular_tint (tinta Fresnel)
-#         e sheen (patina al radente). Usabile su qualsiasi superficie.
+# ── Mappatura rugosità ──
+#   roughness 0.02 ≈ fuzz 0.02  (specchio)
+#   roughness 0.15 ≈ fuzz 0.12  (satinato)
+#   roughness 0.35 ≈ fuzz 0.30  (spazzolato)
+#   roughness 0.60 ≈ fuzz 0.50  (opaco/battuto)
 #
-#   cls_  (Classic Metal) — type: "metal" con fuzz. Leggero, predicibile,
-#         nessun overhead da lobi multipli. Ideale per superfici grandi
-#         (muri metallici, pavimenti, sfondo) e render draft veloci.
+# ── Colori metallici ──
+#   I valori RGB sono riflettanze spettrali misurate, non albedo diffusi:
+#   tinta della riflessione speculare. Metalli puri (Au, Ag, Cu) hanno
+#   colori ben definiti; leghe (acciaio, bronzo, ottone) variano con la
+#   composizione.
 #
-# ── Nota sulla rugosità ──────────────────────────────────────────────────
-#
-#   Disney roughness e Classic fuzz non sono 1:1 ma approssimano lo stesso
-#   effetto visivo. Questa libreria calibra i valori per risultati simili:
-#     roughness 0.02 ≈ fuzz 0.02  (specchio)
-#     roughness 0.15 ≈ fuzz 0.12  (satinato)
-#     roughness 0.35 ≈ fuzz 0.30  (spazzolato)
-#     roughness 0.60 ≈ fuzz 0.50  (opaco/battuto)
-#
-# ── Colori metallici (valori di riflettanza misurati) ────────────────────
-#
-#   I colori RGB dei metalli corrispondono alla riflettanza spettrale
-#   reale. Non sono albedo diffusi — sono la tinta della riflessione
-#   speculare. Metalli puri (Au, Ag, Cu) hanno colori ben definiti;
-#   leghe (acciaio, bronzo, ottone) variano con la composizione.
-#
-# ── Categorie ────────────────────────────────────────────────────────────
-#
-#   ORO               Metallo prezioso. Riflettanza giallo-calda,
-#                     morbido e duttile. Varianti: 24K puro, rosa,
-#                     bianco, antico (ossidato/patinato).
-#
-#   ARGENTO           Massima riflettanza di tutti i metalli.
-#                     Tono freddo, leggermente bluastro.
-#                     Varianti: sterling, ossidato, brunito.
-#
-#   RAME              Riflettanza rossastra calda, unico metallo
-#                     (con l'oro) ad avere un colore non grigio.
-#                     Varianti: lucido, antico, ossidato (verderame).
-#
-#   BRONZO            Lega Cu-Sn. Tono caldo dorato-bruno.
-#                     Varianti: lucido, rinascimentale, patinato.
-#
-#   OTTONE            Lega Cu-Zn. Tono giallo più chiaro del bronzo.
-#                     Varianti: lucido, satinato, antico.
-#
-#   ACCIAIO           Lega Fe-C. Tono grigio neutro freddo.
-#                     Varianti: inox lucido, spazzolato, satinato,
-#                     carbonioso, damasco.
-#
-#   FERRO             Puro o quasi. Tono grigio scuro, rugosità
-#                     naturale più alta dell'acciaio.
-#                     Varianti: battuto, ghisa, forgiato.
-#
-#   ALLUMINIO         Leggero, riflettanza alta con tono neutro.
-#                     Varianti: lucido, anodizzato (colori), satinato.
-#
-#   TITANIO           Leggero e resistente. Tono grigio con sfumatura
-#                     calda. L'anodizzazione produce colori vivaci.
-#                     Varianti: naturale, anodizzato (blu, viola, oro).
-#
-#   CROMO             Riflettanza altissima, tono blu-freddo.
-#                     Varianti: specchio, satinato, nero (PVD).
-#
-#   PLATINO           Metallo prezioso, tono grigio-bianco caldo.
-#                     Più scuro dell'argento, più caldo del cromo.
-#
-#   NICHEL            Tono grigio-giallastro. Resistente alla corrosione.
-#                     Varianti: lucido, spazzolato, nero galvanico.
-#
-#   ZINCO             Tono grigio-azzurro. Opacizza rapidamente.
-#                     Varianti: lucido, patinato, galvanizzato.
-#
-#   STAGNO / PELTRO   Lega morbida (Sn + Pb/Cu/Sb). Tono grigio
-#                     caldo, superficie satinata naturale.
-#
-#   CORTEN            Acciaio patinabile. La ruggine controllata
-#                     forma una crosta protettiva arancio-bruna.
-#
-# ============================================================================
+# ── Categorie ──
+#   ORO, ARGENTO, RAME, BRONZO, OTTONE, ACCIAIO, FERRO/GHISA, ALLUMINIO,
+#   TITANIO, CROMO, PLATINO, NICHEL, ZINCO, STAGNO/PELTRO, CORTEN, SPECIALI.
 
 
 materials:
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  ORO — riflettanza giallo-calda, il più nobile dei metalli
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  DISNEY                                                               ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
 
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── ORO ──────────────────────────────────────────────────────────────────
 
   # Oro 24K lucido — puro, caldo, quasi a specchio
   - id: "dis_oro_lucido"
@@ -112,13 +66,15 @@ materials:
     roughness: 0.20
     specular: 0.7
 
-  # Oro spazzolato — finitura industriale, riflessi diffusi
+  # Oro spazzolato — finitura industriale, anisotropic direzionale
   - id: "dis_oro_spazzolato"
     type: "disney"
     color: [0.95, 0.67, 0.26]
     metallic: 1.0
     roughness: 0.35
     specular: 0.6
+    anisotropic: 0.7
+    anisotropic_rotation: 0.0
 
   # Oro rosa — lega Au-Cu, tono salmone elegante
   - id: "dis_oro_rosa"
@@ -146,44 +102,8 @@ materials:
     specular: 0.5
     specular_tint: 0.5
 
-  # ── Classic ────────────────────────────────────────────────────────────
 
-  - id: "cls_oro_lucido"
-    type: "metal"
-    color: [1.0, 0.71, 0.29]
-    fuzz: 0.04
-
-  - id: "cls_oro_satinato"
-    type: "metal"
-    color: [0.98, 0.69, 0.28]
-    fuzz: 0.18
-
-  - id: "cls_oro_spazzolato"
-    type: "metal"
-    color: [0.95, 0.67, 0.26]
-    fuzz: 0.30
-
-  - id: "cls_oro_rosa"
-    type: "metal"
-    color: [0.92, 0.58, 0.42]
-    fuzz: 0.08
-
-  - id: "cls_oro_bianco"
-    type: "metal"
-    color: [0.88, 0.86, 0.82]
-    fuzz: 0.06
-
-  - id: "cls_oro_antico"
-    type: "metal"
-    color: [0.72, 0.52, 0.18]
-    fuzz: 0.35
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  ARGENTO — massima riflettanza, tono freddo
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── ARGENTO ──────────────────────────────────────────────────────────────
 
   # Argento sterling lucido — 925, quasi a specchio
   - id: "dis_argento_lucido"
@@ -208,6 +128,8 @@ materials:
     metallic: 1.0
     roughness: 0.32
     specular: 0.65
+    anisotropic: 0.6
+    anisotropic_rotation: 0.0
 
   # Argento ossidato — scurito chimicamente, tono blu-grigio
   - id: "dis_argento_ossidato"
@@ -226,34 +148,8 @@ materials:
     specular: 0.6
     specular_tint: 0.2
 
-  # ── Classic ────────────────────────────────────────────────────────────
 
-  - id: "cls_argento_lucido"
-    type: "metal"
-    color: [0.97, 0.96, 0.92]
-    fuzz: 0.02
-
-  - id: "cls_argento_satinato"
-    type: "metal"
-    color: [0.94, 0.93, 0.90]
-    fuzz: 0.16
-
-  - id: "cls_argento_spazzolato"
-    type: "metal"
-    color: [0.90, 0.89, 0.86]
-    fuzz: 0.28
-
-  - id: "cls_argento_ossidato"
-    type: "metal"
-    color: [0.35, 0.35, 0.40]
-    fuzz: 0.40
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  RAME — riflettanza rossastra calda, unico metallo non-grigio (con Au)
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── RAME ─────────────────────────────────────────────────────────────────
 
   # Rame lucido — appena lucidato, riflesso caldo saturo
   - id: "dis_rame_lucido"
@@ -281,7 +177,7 @@ materials:
     specular: 0.45
     specular_tint: 0.5
 
-  # Rame ossidato / Verderame — patina verde completa
+  # Rame ossidato / verderame — patina verde completa
   - id: "dis_rame_ossidato"
     type: "disney"
     color: [0.35, 0.55, 0.45]
@@ -289,7 +185,7 @@ materials:
     roughness: 0.70
     specular: 0.25
 
-  # Rame martellato — superficie irregolare, artigianale
+  # Rame martellato — superficie irregolare artigianale
   - id: "dis_rame_martellato"
     type: "disney"
     color: [0.85, 0.55, 0.40]
@@ -298,34 +194,29 @@ materials:
     specular: 0.5
     specular_tint: 0.4
 
-  # ── Classic ────────────────────────────────────────────────────────────
+  # Rame patinato heritage — tetti verde-arancio invecchiati, color_ramp 4-stop
+  - id: "dis_rame_patinato"
+    type: "disney"
+    color: [0.55, 0.62, 0.42]
+    metallic: 0.65
+    roughness: 0.62
+    specular: 0.42
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "fbm"
+      octaves: 6
+      noise_strength: 0.8
+      distortion: 0.25
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.10, 0.32, 0.22], interp: "smoothstep" }
+        - { position: 0.35, color: [0.32, 0.55, 0.42], interp: "smoothstep" }
+        - { position: 0.70, color: [0.72, 0.45, 0.22], interp: "smoothstep" }
+        - { position: 1.00, color: [0.92, 0.55, 0.28], interp: "linear" }
 
-  - id: "cls_rame_lucido"
-    type: "metal"
-    color: [0.95, 0.64, 0.54]
-    fuzz: 0.05
 
-  - id: "cls_rame_satinato"
-    type: "metal"
-    color: [0.90, 0.60, 0.50]
-    fuzz: 0.20
-
-  - id: "cls_rame_antico"
-    type: "metal"
-    color: [0.62, 0.38, 0.25]
-    fuzz: 0.38
-
-  - id: "cls_rame_ossidato"
-    type: "metal"
-    color: [0.35, 0.55, 0.45]
-    fuzz: 0.55
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  BRONZO — lega Cu-Sn, tono caldo dorato-bruno
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── BRONZO ───────────────────────────────────────────────────────────────
 
   # Bronzo lucido — appena fuso e lucidato
   - id: "dis_bronzo_lucido"
@@ -361,34 +252,8 @@ materials:
     specular: 0.30
     specular_tint: 0.3
 
-  # ── Classic ────────────────────────────────────────────────────────────
 
-  - id: "cls_bronzo_lucido"
-    type: "metal"
-    color: [0.80, 0.50, 0.20]
-    fuzz: 0.08
-
-  - id: "cls_bronzo_satinato"
-    type: "metal"
-    color: [0.72, 0.45, 0.20]
-    fuzz: 0.25
-
-  - id: "cls_bronzo_rinascimentale"
-    type: "metal"
-    color: [0.42, 0.30, 0.16]
-    fuzz: 0.40
-
-  - id: "cls_bronzo_patinato"
-    type: "metal"
-    color: [0.30, 0.42, 0.32]
-    fuzz: 0.52
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  OTTONE — lega Cu-Zn, tono giallo più chiaro del bronzo
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── OTTONE ───────────────────────────────────────────────────────────────
 
   # Ottone lucido — maniglie, strumenti musicali
   - id: "dis_ottone_lucido"
@@ -415,42 +280,38 @@ materials:
     specular: 0.45
     specular_tint: 0.4
 
-  # Ottone spazzolato — finitura direzionale
+  # Ottone spazzolato — anisotropic direzionale
   - id: "dis_ottone_spazzolato"
     type: "disney"
     color: [0.82, 0.65, 0.18]
     metallic: 1.0
     roughness: 0.35
     specular: 0.55
+    anisotropic: 0.65
+    anisotropic_rotation: 0.0
 
-  # ── Classic ────────────────────────────────────────────────────────────
-
-  - id: "cls_ottone_lucido"
-    type: "metal"
-    color: [0.88, 0.70, 0.22]
-    fuzz: 0.06
-
-  - id: "cls_ottone_satinato"
-    type: "metal"
-    color: [0.85, 0.68, 0.20]
-    fuzz: 0.22
-
-  - id: "cls_ottone_antico"
-    type: "metal"
-    color: [0.58, 0.45, 0.15]
-    fuzz: 0.38
-
-  - id: "cls_ottone_spazzolato"
-    type: "metal"
-    color: [0.82, 0.65, 0.18]
-    fuzz: 0.30
+  # Ottone patinato all'aria con verderame — color_ramp 4-stop
+  - id: "dis_ottone_patinato"
+    type: "disney"
+    color: [0.72, 0.62, 0.32]
+    metallic: 0.85
+    roughness: 0.42
+    specular: 0.50
+    texture:
+      type: "noise"
+      scale: 3.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.6
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.28, 0.42, 0.30], interp: "smoothstep" }
+        - { position: 0.35, color: [0.52, 0.55, 0.32], interp: "smoothstep" }
+        - { position: 0.70, color: [0.78, 0.65, 0.32], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.85, 0.45], interp: "linear" }
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  ACCIAIO — lega Fe-C, tono grigio neutro freddo
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── ACCIAIO ──────────────────────────────────────────────────────────────
 
   # Acciaio inox lucido — specchio chirurgico
   - id: "dis_acciaio_lucido"
@@ -475,6 +336,25 @@ materials:
     metallic: 1.0
     roughness: 0.38
     specular: 0.55
+    anisotropic: 0.85
+    anisotropic_rotation: 0.0
+
+  # Acciaio spazzolato circolare — piatti hi-fi, dischi compressore
+  - id: "dis_acciaio_spazzolato_circolare"
+    type: "disney"
+    color: [0.92, 0.92, 0.94]
+    metallic: 1.0
+    roughness: 0.32
+    specular: 0.55
+    anisotropic: 0.92
+    anisotropic_rotation: 0.0
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 300.0
+        noise_type: "ridged"
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.25
 
   # Acciaio carbonioso — alto carbonio, tono più scuro
   - id: "dis_acciaio_carbonioso"
@@ -484,16 +364,22 @@ materials:
     roughness: 0.30
     specular: 0.60
 
-  # Acciaio damasco — pattern di acidi, lucentezza irregolare
+  # Acciaio damasco "wootz" — voronoi f3-f1 produce il pattern stratificato
   - id: "dis_acciaio_damasco"
     type: "disney"
-    color: [0.45, 0.44, 0.42]
-    metallic: 1.0
-    roughness: 0.15
-    specular: 0.70
-    specular_tint: 0.2
+    color: [0.55, 0.55, 0.55]
+    metallic: 0.95
+    roughness: 0.22
+    specular: 0.55
+    anisotropic: 0.55
+    texture:
+      type: "voronoi"
+      scale: 5.0
+      output: "f3_minus_f1"
+      randomness: 1.0
+      colors: [[0.32, 0.32, 0.32], [0.85, 0.85, 0.85]]
 
-  # Acciaio arrugginito — ossidazione superficiale
+  # Acciaio arrugginito — ossidazione superficiale, metallic basso
   - id: "dis_acciaio_arrugginito"
     type: "disney"
     color: [0.55, 0.28, 0.15]
@@ -501,39 +387,8 @@ materials:
     roughness: 0.85
     specular: 0.15
 
-  # ── Classic ────────────────────────────────────────────────────────────
 
-  - id: "cls_acciaio_lucido"
-    type: "metal"
-    color: [0.58, 0.57, 0.55]
-    fuzz: 0.03
-
-  - id: "cls_acciaio_satinato"
-    type: "metal"
-    color: [0.56, 0.55, 0.53]
-    fuzz: 0.20
-
-  - id: "cls_acciaio_spazzolato"
-    type: "metal"
-    color: [0.54, 0.53, 0.51]
-    fuzz: 0.32
-
-  - id: "cls_acciaio_carbonioso"
-    type: "metal"
-    color: [0.32, 0.31, 0.30]
-    fuzz: 0.26
-
-  - id: "cls_acciaio_damasco"
-    type: "metal"
-    color: [0.45, 0.44, 0.42]
-    fuzz: 0.12
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  FERRO — puro o quasi, tono grigio scuro
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── FERRO / GHISA ────────────────────────────────────────────────────────
 
   # Ferro battuto — forgiato a mano, superficie irregolare
   - id: "dis_ferro_battuto"
@@ -575,34 +430,35 @@ materials:
     roughness: 0.18
     specular: 0.60
 
-  # ── Classic ────────────────────────────────────────────────────────────
+  # Ferro martellato a mano — voronoi cell + displacement scalare
+  - id: "dis_ferro_martellato_mano"
+    type: "disney"
+    color: [0.42, 0.42, 0.42]
+    metallic: 0.92
+    roughness: 0.55
+    specular: 0.50
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "random"
+      smoothness: 0.2
+      colors: [[0.32, 0.32, 0.32], [0.58, 0.58, 0.58]]
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 12.0
+        output: "f1"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.006
+      midlevel: 0.5
+      bound: 0.010
+      autobump: true
+      autobump_strength: 1.5
+      displacement_method: "bump_only"
 
-  - id: "cls_ferro_battuto"
-    type: "metal"
-    color: [0.30, 0.28, 0.26]
-    fuzz: 0.50
 
-  - id: "cls_ferro_forgiato"
-    type: "metal"
-    color: [0.22, 0.20, 0.19]
-    fuzz: 0.58
-
-  - id: "cls_ghisa"
-    type: "metal"
-    color: [0.18, 0.17, 0.16]
-    fuzz: 0.60
-
-  - id: "cls_ferro_lucido"
-    type: "metal"
-    color: [0.38, 0.36, 0.34]
-    fuzz: 0.15
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  ALLUMINIO — leggero, riflettanza alta, tono neutro
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── ALLUMINIO ────────────────────────────────────────────────────────────
 
   # Alluminio lucido — foglio tirato a specchio
   - id: "dis_alluminio_lucido"
@@ -620,15 +476,17 @@ materials:
     roughness: 0.22
     specular: 0.70
 
-  # Alluminio spazzolato — pannelli industriali
+  # Alluminio spazzolato — pannelli industriali, anisotropic
   - id: "dis_alluminio_spazzolato"
     type: "disney"
     color: [0.85, 0.85, 0.87]
     metallic: 1.0
     roughness: 0.35
     specular: 0.58
+    anisotropic: 0.80
+    anisotropic_rotation: 0.0
 
-  # Alluminio anodizzato nero — elettronica, ottiche
+  # Alluminio anodizzato nero — elettronica, ottiche (clearcoat = film d'ossido)
   - id: "dis_alluminio_anodizzato_nero"
     type: "disney"
     color: [0.04, 0.04, 0.05]
@@ -637,6 +495,7 @@ materials:
     specular: 0.65
     clearcoat: 0.25
     coat_roughness: 0.18
+    coat_ior: 1.5
 
   # Alluminio anodizzato rosso — componenti racing, custodie
   - id: "dis_alluminio_anodizzato_rosso"
@@ -647,6 +506,7 @@ materials:
     specular: 0.60
     clearcoat: 0.30
     coat_roughness: 0.15
+    coat_ior: 1.5
 
   # Alluminio anodizzato blu — componentistica, mod
   - id: "dis_alluminio_anodizzato_blu"
@@ -657,30 +517,10 @@ materials:
     specular: 0.60
     clearcoat: 0.30
     coat_roughness: 0.15
-
-  # ── Classic ────────────────────────────────────────────────────────────
-
-  - id: "cls_alluminio_lucido"
-    type: "metal"
-    color: [0.91, 0.91, 0.92]
-    fuzz: 0.04
-
-  - id: "cls_alluminio_satinato"
-    type: "metal"
-    color: [0.88, 0.88, 0.90]
-    fuzz: 0.20
-
-  - id: "cls_alluminio_spazzolato"
-    type: "metal"
-    color: [0.85, 0.85, 0.87]
-    fuzz: 0.30
+    coat_ior: 1.5
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  TITANIO — leggero, resistente, anodizzazione a colori vivaci
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── TITANIO ──────────────────────────────────────────────────────────────
 
   # Titanio naturale — grigio caldo, finitura industriale
   - id: "dis_titanio_naturale"
@@ -698,55 +538,41 @@ materials:
     roughness: 0.08
     specular: 0.78
 
-  # Titanio anodizzato blu — classico blu interferenziale
+  # Titanio anodizzato blu — thin-film 540nm, blu interferenziale
   - id: "dis_titanio_anodizzato_blu"
     type: "disney"
-    color: [0.25, 0.35, 0.65]
+    color: [0.78, 0.80, 0.82]
     metallic: 1.0
-    roughness: 0.15
-    specular: 0.70
-    specular_tint: 0.3
+    roughness: 0.18
+    specular: 0.55
+    anisotropic: 0.40
+    thin_film_thickness: 540
+    thin_film_ior: 1.55
 
-  # Titanio anodizzato viola — strato d'ossido più spesso
+  # Titanio anodizzato viola — thin-film 420nm, strato più sottile
   - id: "dis_titanio_anodizzato_viola"
     type: "disney"
-    color: [0.45, 0.20, 0.55]
+    color: [0.78, 0.80, 0.82]
     metallic: 1.0
-    roughness: 0.15
-    specular: 0.70
-    specular_tint: 0.3
+    roughness: 0.18
+    specular: 0.55
+    anisotropic: 0.40
+    thin_film_thickness: 420
+    thin_film_ior: 1.55
 
-  # Titanio anodizzato oro — strato sottile, tono dorato
+  # Titanio anodizzato oro — strato sottile (~250nm), tono dorato
   - id: "dis_titanio_anodizzato_oro"
     type: "disney"
-    color: [0.78, 0.62, 0.18]
+    color: [0.78, 0.80, 0.82]
     metallic: 1.0
-    roughness: 0.15
-    specular: 0.70
-
-  # ── Classic ────────────────────────────────────────────────────────────
-
-  - id: "cls_titanio_naturale"
-    type: "metal"
-    color: [0.62, 0.60, 0.56]
-    fuzz: 0.22
-
-  - id: "cls_titanio_lucido"
-    type: "metal"
-    color: [0.66, 0.64, 0.60]
-    fuzz: 0.06
-
-  - id: "cls_titanio_anodizzato_blu"
-    type: "metal"
-    color: [0.25, 0.35, 0.65]
-    fuzz: 0.12
+    roughness: 0.18
+    specular: 0.55
+    anisotropic: 0.40
+    thin_film_thickness: 250
+    thin_film_ior: 1.55
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  CROMO — riflettanza altissima, tono freddo blu-argento
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── CROMO ────────────────────────────────────────────────────────────────
 
   # Cromo specchio — rubinetteria, paraurti, riflesso perfetto
   - id: "dis_cromo_specchio"
@@ -772,29 +598,8 @@ materials:
     roughness: 0.12
     specular: 0.80
 
-  # ── Classic ────────────────────────────────────────────────────────────
 
-  - id: "cls_cromo_specchio"
-    type: "metal"
-    color: [0.95, 0.93, 0.88]
-    fuzz: 0.01
-
-  - id: "cls_cromo_satinato"
-    type: "metal"
-    color: [0.90, 0.88, 0.84]
-    fuzz: 0.15
-
-  - id: "cls_cromo_nero"
-    type: "metal"
-    color: [0.12, 0.12, 0.14]
-    fuzz: 0.10
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  PLATINO — prezioso, grigio-bianco caldo, più scuro dell'argento
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── PLATINO ──────────────────────────────────────────────────────────────
 
   # Platino lucido — gioielleria fine
   - id: "dis_platino_lucido"
@@ -812,24 +617,8 @@ materials:
     roughness: 0.20
     specular: 0.70
 
-  # ── Classic ────────────────────────────────────────────────────────────
 
-  - id: "cls_platino_lucido"
-    type: "metal"
-    color: [0.83, 0.81, 0.78]
-    fuzz: 0.04
-
-  - id: "cls_platino_satinato"
-    type: "metal"
-    color: [0.80, 0.78, 0.75]
-    fuzz: 0.18
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  NICHEL — grigio-giallastro, resistente alla corrosione
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── NICHEL ───────────────────────────────────────────────────────────────
 
   # Nichel lucido — placcatura classica, tono caldo
   - id: "dis_nichel_lucido"
@@ -846,6 +635,8 @@ materials:
     metallic: 1.0
     roughness: 0.32
     specular: 0.58
+    anisotropic: 0.60
+    anisotropic_rotation: 0.0
 
   # Nichel nero — galvanizzazione scura, moderno
   - id: "dis_nichel_nero"
@@ -855,29 +646,8 @@ materials:
     roughness: 0.18
     specular: 0.70
 
-  # ── Classic ────────────────────────────────────────────────────────────
 
-  - id: "cls_nichel_lucido"
-    type: "metal"
-    color: [0.72, 0.70, 0.65]
-    fuzz: 0.05
-
-  - id: "cls_nichel_spazzolato"
-    type: "metal"
-    color: [0.68, 0.66, 0.62]
-    fuzz: 0.28
-
-  - id: "cls_nichel_nero"
-    type: "metal"
-    color: [0.15, 0.14, 0.13]
-    fuzz: 0.15
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  ZINCO — grigio-azzurro, opacizza rapidamente
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── ZINCO ────────────────────────────────────────────────────────────────
 
   # Zinco lucido — appena fuso, riflesso bluastro
   - id: "dis_zinco_lucido"
@@ -903,29 +673,8 @@ materials:
     roughness: 0.35
     specular: 0.50
 
-  # ── Classic ────────────────────────────────────────────────────────────
 
-  - id: "cls_zinco_lucido"
-    type: "metal"
-    color: [0.70, 0.72, 0.75]
-    fuzz: 0.08
-
-  - id: "cls_zinco_patinato"
-    type: "metal"
-    color: [0.52, 0.53, 0.55]
-    fuzz: 0.45
-
-  - id: "cls_zinco_galvanizzato"
-    type: "metal"
-    color: [0.65, 0.65, 0.68]
-    fuzz: 0.30
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  STAGNO / PELTRO — lega morbida, tono grigio caldo, satinato naturale
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── STAGNO / PELTRO ──────────────────────────────────────────────────────
 
   # Peltro lucido — posateria inglese, calice
   - id: "dis_peltro_lucido"
@@ -951,29 +700,33 @@ materials:
     roughness: 0.12
     specular: 0.65
 
-  # ── Classic ────────────────────────────────────────────────────────────
+  # Stagno colato grezzo — bump+texture per "rough cast metal"
+  - id: "dis_stagno_colato"
+    type: "disney"
+    color: [0.72, 0.72, 0.74]
+    metallic: 0.85
+    roughness: 0.55
+    specular: 0.45
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.4
+      colors: [[0.62, 0.62, 0.65], [0.82, 0.82, 0.85]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 18.0
+        smoothness: 0.3
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.8
 
-  - id: "cls_peltro_lucido"
-    type: "metal"
-    color: [0.68, 0.66, 0.62]
-    fuzz: 0.12
 
-  - id: "cls_peltro_antico"
-    type: "metal"
-    color: [0.42, 0.40, 0.38]
-    fuzz: 0.40
-
-  - id: "cls_stagno_lucido"
-    type: "metal"
-    color: [0.78, 0.77, 0.74]
-    fuzz: 0.10
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  CORTEN — acciaio patinabile, ruggine protettiva arancio-bruna
-  # ═══════════════════════════════════════════════════════════════════════════
-
-  # ── Disney ─────────────────────────────────────────────────────────────
+  # ── CORTEN ───────────────────────────────────────────────────────────────
+  # Acciaio patinabile: la ruggine forma una crosta protettiva. Metallic
+  # basso → dominio diffusivo, non riflessivo.
 
   # Corten fresco — primo stadio, arancio acceso
   - id: "dis_corten_fresco"
@@ -999,7 +752,380 @@ materials:
     roughness: 0.88
     specular: 0.10
 
-  # ── Classic ────────────────────────────────────────────────────────────
+
+  # ── SPECIALI ─────────────────────────────────────────────────────────────
+
+  # Mercurio liquido — smooth voronoi smoothness 1.0 per goccioline
+  - id: "dis_mercurio_liquido"
+    type: "disney"
+    color: [0.85, 0.85, 0.88]
+    metallic: 1.0
+    roughness: 0.04
+    specular: 0.60
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      output: "f1"
+      smoothness: 1.0
+      colors: [[0.75, 0.75, 0.78], [0.92, 0.92, 0.95]]
+
+  # Niobio anodizzato olografico — thin-film 580nm, color shift completo
+  - id: "dis_niobio_olografico"
+    type: "disney"
+    color: [0.78, 0.78, 0.80]
+    metallic: 1.0
+    roughness: 0.18
+    specular: 0.55
+    anisotropic: 0.30
+    thin_film_thickness: 580
+    thin_film_ior: 1.55
+
+
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  CLASSIC                                                              ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
+  #
+  # Tipo `metal` per quasi tutti — la metallicità è il lobo dominante.
+  # `lambertian` solo per acciaio_arrugginito (metallic 0.35) e corten
+  # (metallic 0.25-0.40, ruggine = diffuse-dominante).
+  # Materiali esclusi (solo Disney, perdita visiva critica): tutti gli
+  # anodizzati alluminio/titanio (richiedono clearcoat o thin_film),
+  # niobio olografico (thin_film), rame patinato e ottone patinato
+  # (color_ramp evolutivo).
+
+  # ── ORO ──────────────────────────────────────────────────────────────────
+
+  - id: "cls_oro_lucido"
+    type: "metal"
+    color: [1.0, 0.71, 0.29]
+    fuzz: 0.04
+
+  - id: "cls_oro_satinato"
+    type: "metal"
+    color: [0.98, 0.69, 0.28]
+    fuzz: 0.18
+
+  - id: "cls_oro_spazzolato"
+    type: "metal"
+    color: [0.95, 0.67, 0.26]
+    fuzz: 0.30
+
+  - id: "cls_oro_rosa"
+    type: "metal"
+    color: [0.92, 0.58, 0.42]
+    fuzz: 0.08
+
+  - id: "cls_oro_bianco"
+    type: "metal"
+    color: [0.88, 0.86, 0.82]
+    fuzz: 0.06
+
+  - id: "cls_oro_antico"
+    type: "metal"
+    color: [0.72, 0.52, 0.18]
+    fuzz: 0.35
+
+
+  # ── ARGENTO ──────────────────────────────────────────────────────────────
+
+  - id: "cls_argento_lucido"
+    type: "metal"
+    color: [0.97, 0.96, 0.92]
+    fuzz: 0.02
+
+  - id: "cls_argento_satinato"
+    type: "metal"
+    color: [0.94, 0.93, 0.90]
+    fuzz: 0.16
+
+  - id: "cls_argento_spazzolato"
+    type: "metal"
+    color: [0.90, 0.89, 0.86]
+    fuzz: 0.28
+
+  - id: "cls_argento_ossidato"
+    type: "metal"
+    color: [0.35, 0.35, 0.40]
+    fuzz: 0.40
+
+  - id: "cls_argento_brunito"
+    type: "metal"
+    color: [0.50, 0.48, 0.46]
+    fuzz: 0.22
+
+
+  # ── RAME ─────────────────────────────────────────────────────────────────
+  # Rame patinato heritage (color_ramp): solo Disney.
+
+  - id: "cls_rame_lucido"
+    type: "metal"
+    color: [0.95, 0.64, 0.54]
+    fuzz: 0.05
+
+  - id: "cls_rame_satinato"
+    type: "metal"
+    color: [0.90, 0.60, 0.50]
+    fuzz: 0.20
+
+  - id: "cls_rame_antico"
+    type: "metal"
+    color: [0.62, 0.38, 0.25]
+    fuzz: 0.38
+
+  - id: "cls_rame_ossidato"
+    type: "metal"
+    color: [0.35, 0.55, 0.45]
+    fuzz: 0.55
+
+  - id: "cls_rame_martellato"
+    type: "metal"
+    color: [0.85, 0.55, 0.40]
+    fuzz: 0.42
+
+
+  # ── BRONZO ───────────────────────────────────────────────────────────────
+
+  - id: "cls_bronzo_lucido"
+    type: "metal"
+    color: [0.80, 0.50, 0.20]
+    fuzz: 0.08
+
+  - id: "cls_bronzo_satinato"
+    type: "metal"
+    color: [0.72, 0.45, 0.20]
+    fuzz: 0.25
+
+  - id: "cls_bronzo_rinascimentale"
+    type: "metal"
+    color: [0.42, 0.30, 0.16]
+    fuzz: 0.40
+
+  - id: "cls_bronzo_patinato"
+    type: "metal"
+    color: [0.30, 0.42, 0.32]
+    fuzz: 0.52
+
+
+  # ── OTTONE ───────────────────────────────────────────────────────────────
+  # Ottone patinato (color_ramp): solo Disney.
+
+  - id: "cls_ottone_lucido"
+    type: "metal"
+    color: [0.88, 0.70, 0.22]
+    fuzz: 0.06
+
+  - id: "cls_ottone_satinato"
+    type: "metal"
+    color: [0.85, 0.68, 0.20]
+    fuzz: 0.22
+
+  - id: "cls_ottone_antico"
+    type: "metal"
+    color: [0.58, 0.45, 0.15]
+    fuzz: 0.38
+
+  - id: "cls_ottone_spazzolato"
+    type: "metal"
+    color: [0.82, 0.65, 0.18]
+    fuzz: 0.30
+
+
+  # ── ACCIAIO ──────────────────────────────────────────────────────────────
+
+  - id: "cls_acciaio_lucido"
+    type: "metal"
+    color: [0.58, 0.57, 0.55]
+    fuzz: 0.03
+
+  - id: "cls_acciaio_satinato"
+    type: "metal"
+    color: [0.56, 0.55, 0.53]
+    fuzz: 0.20
+
+  - id: "cls_acciaio_spazzolato"
+    type: "metal"
+    color: [0.54, 0.53, 0.51]
+    fuzz: 0.32
+
+  - id: "cls_acciaio_spazzolato_circolare"
+    type: "metal"
+    color: [0.92, 0.92, 0.94]
+    fuzz: 0.28
+
+  - id: "cls_acciaio_carbonioso"
+    type: "metal"
+    color: [0.32, 0.31, 0.30]
+    fuzz: 0.26
+
+  - id: "cls_acciaio_damasco"
+    type: "metal"
+    color: [0.45, 0.44, 0.42]
+    fuzz: 0.18
+
+  # Arrugginito: metallic 0.35 → diffuse-dominante, lambertian.
+  - id: "cls_acciaio_arrugginito"
+    type: "lambertian"
+    color: [0.55, 0.28, 0.15]
+
+
+  # ── FERRO / GHISA ────────────────────────────────────────────────────────
+
+  - id: "cls_ferro_battuto"
+    type: "metal"
+    color: [0.30, 0.28, 0.26]
+    fuzz: 0.50
+
+  - id: "cls_ferro_forgiato"
+    type: "metal"
+    color: [0.22, 0.20, 0.19]
+    fuzz: 0.58
+
+  - id: "cls_ghisa"
+    type: "metal"
+    color: [0.18, 0.17, 0.16]
+    fuzz: 0.60
+
+  - id: "cls_ghisa_stagionata"
+    type: "metal"
+    color: [0.12, 0.11, 0.10]
+    fuzz: 0.42
+
+  - id: "cls_ferro_lucido"
+    type: "metal"
+    color: [0.38, 0.36, 0.34]
+    fuzz: 0.15
+
+  - id: "cls_ferro_martellato_mano"
+    type: "metal"
+    color: [0.42, 0.42, 0.42]
+    fuzz: 0.48
+
+
+  # ── ALLUMINIO ────────────────────────────────────────────────────────────
+  # Anodizzati alluminio: solo Disney (clearcoat = film d'ossido).
+
+  - id: "cls_alluminio_lucido"
+    type: "metal"
+    color: [0.91, 0.91, 0.92]
+    fuzz: 0.04
+
+  - id: "cls_alluminio_satinato"
+    type: "metal"
+    color: [0.88, 0.88, 0.90]
+    fuzz: 0.20
+
+  - id: "cls_alluminio_spazzolato"
+    type: "metal"
+    color: [0.85, 0.85, 0.87]
+    fuzz: 0.30
+
+
+  # ── TITANIO ──────────────────────────────────────────────────────────────
+  # Anodizzati titanio: solo Disney (thin_film essenziale).
+
+  - id: "cls_titanio_naturale"
+    type: "metal"
+    color: [0.62, 0.60, 0.56]
+    fuzz: 0.22
+
+  - id: "cls_titanio_lucido"
+    type: "metal"
+    color: [0.66, 0.64, 0.60]
+    fuzz: 0.06
+
+
+  # ── CROMO ────────────────────────────────────────────────────────────────
+
+  - id: "cls_cromo_specchio"
+    type: "metal"
+    color: [0.95, 0.93, 0.88]
+    fuzz: 0.01
+
+  - id: "cls_cromo_satinato"
+    type: "metal"
+    color: [0.90, 0.88, 0.84]
+    fuzz: 0.15
+
+  - id: "cls_cromo_nero"
+    type: "metal"
+    color: [0.12, 0.12, 0.14]
+    fuzz: 0.10
+
+
+  # ── PLATINO ──────────────────────────────────────────────────────────────
+
+  - id: "cls_platino_lucido"
+    type: "metal"
+    color: [0.83, 0.81, 0.78]
+    fuzz: 0.04
+
+  - id: "cls_platino_satinato"
+    type: "metal"
+    color: [0.80, 0.78, 0.75]
+    fuzz: 0.18
+
+
+  # ── NICHEL ───────────────────────────────────────────────────────────────
+
+  - id: "cls_nichel_lucido"
+    type: "metal"
+    color: [0.72, 0.70, 0.65]
+    fuzz: 0.05
+
+  - id: "cls_nichel_spazzolato"
+    type: "metal"
+    color: [0.68, 0.66, 0.62]
+    fuzz: 0.28
+
+  - id: "cls_nichel_nero"
+    type: "metal"
+    color: [0.15, 0.14, 0.13]
+    fuzz: 0.15
+
+
+  # ── ZINCO ────────────────────────────────────────────────────────────────
+
+  - id: "cls_zinco_lucido"
+    type: "metal"
+    color: [0.70, 0.72, 0.75]
+    fuzz: 0.08
+
+  - id: "cls_zinco_patinato"
+    type: "metal"
+    color: [0.52, 0.53, 0.55]
+    fuzz: 0.45
+
+  - id: "cls_zinco_galvanizzato"
+    type: "metal"
+    color: [0.65, 0.65, 0.68]
+    fuzz: 0.30
+
+
+  # ── STAGNO / PELTRO ──────────────────────────────────────────────────────
+
+  - id: "cls_peltro_lucido"
+    type: "metal"
+    color: [0.68, 0.66, 0.62]
+    fuzz: 0.12
+
+  - id: "cls_peltro_antico"
+    type: "metal"
+    color: [0.42, 0.40, 0.38]
+    fuzz: 0.40
+
+  - id: "cls_stagno_lucido"
+    type: "metal"
+    color: [0.78, 0.77, 0.74]
+    fuzz: 0.10
+
+  - id: "cls_stagno_colato"
+    type: "metal"
+    color: [0.72, 0.72, 0.74]
+    fuzz: 0.50
+
+
+  # ── CORTEN ───────────────────────────────────────────────────────────────
+  # Ruggine controllata: lobo diffuse-dominante (metallic ≤ 0.40).
 
   - id: "cls_corten_fresco"
     type: "lambertian"
@@ -1014,259 +1140,10 @@ materials:
     color: [0.30, 0.16, 0.08]
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  COMPATIBILITÀ — alias per retrocompatibilità con il vecchio metals.yaml
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  Questi ID corrispondono ai nomi usati dalla vecchia libreria e da molte
-  #  scene esistenti. Puntano ai materiali Disney equivalenti per non
-  #  rompere le scene che già li importano.
+  # ── SPECIALI ─────────────────────────────────────────────────────────────
+  # Niobio olografico: solo Disney (thin_film essenziale).
 
-  - id: "oro_lucido"
-    type: "disney"
-    color: [1.0, 0.71, 0.29]
-    metallic: 1.0
-    roughness: 0.05
-    specular: 0.8
-
-  - id: "oro_spazzolato"
-    type: "disney"
-    color: [0.95, 0.67, 0.26]
-    metallic: 1.0
-    roughness: 0.35
-
-  - id: "argento_lucido"
-    type: "disney"
-    color: [0.97, 0.96, 0.92]
-    metallic: 1.0
-    roughness: 0.03
-
-  - id: "argento_spazzolato"
-    type: "disney"
-    color: [0.90, 0.89, 0.86]
-    metallic: 1.0
-    roughness: 0.32
-
-  - id: "acciaio_lucido"
-    type: "disney"
-    color: [0.58, 0.57, 0.55]
-    metallic: 1.0
-    roughness: 0.04
-
-  - id: "acciaio_spazzolato"
-    type: "disney"
-    color: [0.54, 0.53, 0.51]
-    metallic: 1.0
-    roughness: 0.38
-
-  - id: "ferro_battuto"
-    type: "disney"
-    color: [0.30, 0.28, 0.26]
-    metallic: 0.85
-    roughness: 0.62
-
-  - id: "rame_lucido"
-    type: "disney"
-    color: [0.95, 0.64, 0.54]
-    metallic: 1.0
-    roughness: 0.06
-
-  - id: "rame_antico"
-    type: "disney"
-    color: [0.62, 0.38, 0.25]
-    metallic: 0.90
-    roughness: 0.42
-
-  - id: "bronzo"
-    type: "disney"
-    color: [0.72, 0.45, 0.20]
-    metallic: 1.0
-    roughness: 0.28
-
-  - id: "alluminio_lucido"
-    type: "disney"
-    color: [0.91, 0.91, 0.92]
-    metallic: 1.0
-    roughness: 0.05
-
-  # ════════════════════════════════════════════════════════════════════════
-  # EXTENDED VFX MATERIALS (v2)
-  # ════════════════════════════════════════════════════════════════════════
-  #
-  # Aggiunte che sfruttano feature texturing avanzate:
-  #   • anisotropic + anisotropic_rotation per acciai spazzolati
-  #   • thin_film 200-700nm per titanio/niobio anodizzato
-  #   • voronoi extended (f3_minus_f1, cell) per damasco e martellato
-  #   • displacement scalare per metalli battuti a mano
-  #   • color_ramp 4-stop per ottoni patinati e rame verde
-  #   • smooth voronoi smoothness 1.0 per goccia mercurio
-  # ════════════════════════════════════════════════════════════════════════
-
-  # Acciaio spazzolato circolare: piatti hi-fi, dischi compressore.
-  - id: "dis_acciaio_spazzolato_circolare"
-    type: "disney"
-    metallic: 1.0
-    color: [0.92, 0.92, 0.94]
-    roughness: 0.32
-    specular: 0.55
-    anisotropic: 0.92
-    anisotropic_rotation: 0.0
-    bump_map:
-      texture:
-        type: "noise"
-        scale: 300.0
-        noise_type: "ridged"
-        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
-      strength: 0.25
-
-  # Titanio anodizzato blu: thin_film 540nm.
-  - id: "dis_titanio_anodizzato_blu"
-    type: "disney"
-    metallic: 1.0
-    color: [0.78, 0.80, 0.82]
-    roughness: 0.18
-    specular: 0.55
-    anisotropic: 0.40
-    thin_film_thickness: 540
-    thin_film_ior: 1.55
-
-  # Titanio anodizzato viola: thin_film 420nm.
-  - id: "dis_titanio_anodizzato_viola"
-    type: "disney"
-    metallic: 1.0
-    color: [0.78, 0.80, 0.82]
-    roughness: 0.18
-    specular: 0.55
-    anisotropic: 0.40
-    thin_film_thickness: 420
-    thin_film_ior: 1.55
-
-  # Damasco "wootz": voronoi f3_minus_f1 produce il pattern stratificato.
-  - id: "dis_acciaio_damasco"
-    type: "disney"
-    metallic: 0.95
-    color: [0.55, 0.55, 0.55]
-    roughness: 0.22
-    specular: 0.55
-    anisotropic: 0.55
-    texture:
-      type: "voronoi"
-      scale: 5.0
-      output: "f3_minus_f1"
-      randomness: 1.0
-      colors: [[0.32, 0.32, 0.32], [0.85, 0.85, 0.85]]
-
-  # Ferro martellato a mano: voronoi cell + displacement scalare.
-  - id: "dis_ferro_martellato_mano"
-    type: "disney"
-    metallic: 0.92
-    color: [0.42, 0.42, 0.42]
-    roughness: 0.55
-    specular: 0.50
-    texture:
-      type: "voronoi"
-      scale: 8.0
-      output: "random"
-      smoothness: 0.2
-      colors: [[0.32, 0.32, 0.32], [0.58, 0.58, 0.58]]
-    displacement:
-      mode: "scalar"
-      texture:
-        type: "voronoi"
-        scale: 12.0
-        output: "f1"
-        colors: [[0, 0, 0], [1, 1, 1]]
-      scale: 0.006
-      midlevel: 0.5
-      bound: 0.010
-      autobump: true
-      autobump_strength: 1.5
-      displacement_method: "bump_only"
-
-  # Ottone patinato all'aria con verderame: color_ramp 4-stop.
-  - id: "dis_ottone_patinato"
-    type: "disney"
-    metallic: 0.85
-    color: [0.72, 0.62, 0.32]
-    roughness: 0.42
-    specular: 0.50
-    texture:
-      type: "noise"
-      scale: 3.0
-      noise_type: "fbm"
-      octaves: 5
-      noise_strength: 0.6
-      randomize_offset: true
-      color_ramp:
-        - { position: 0.00, color: [0.28, 0.42, 0.30], interp: "smoothstep" }
-        - { position: 0.35, color: [0.52, 0.55, 0.32], interp: "smoothstep" }
-        - { position: 0.70, color: [0.78, 0.65, 0.32], interp: "smoothstep" }
-        - { position: 1.00, color: [0.95, 0.85, 0.45], interp: "linear" }
-
-  # Rame patinato heritage: tetti verde-arancio invecchiati.
-  - id: "dis_rame_patinato"
-    type: "disney"
-    metallic: 0.65
-    color: [0.55, 0.62, 0.42]
-    roughness: 0.62
-    specular: 0.42
-    texture:
-      type: "noise"
-      scale: 2.5
-      noise_type: "fbm"
-      octaves: 6
-      noise_strength: 0.8
-      distortion: 0.25
-      randomize_offset: true
-      color_ramp:
-        - { position: 0.00, color: [0.10, 0.32, 0.22], interp: "smoothstep" }
-        - { position: 0.35, color: [0.32, 0.55, 0.42], interp: "smoothstep" }
-        - { position: 0.70, color: [0.72, 0.45, 0.22], interp: "smoothstep" }
-        - { position: 1.00, color: [0.92, 0.55, 0.28], interp: "linear" }
-
-  # Mercurio liquido: smooth voronoi smoothness 1.0 per goccioline.
-  - id: "dis_mercurio_liquido"
-    type: "disney"
-    metallic: 1.0
+  - id: "cls_mercurio_liquido"
+    type: "metal"
     color: [0.85, 0.85, 0.88]
-    roughness: 0.04
-    specular: 0.60
-    texture:
-      type: "voronoi"
-      scale: 6.0
-      output: "f1"
-      smoothness: 1.0
-      colors: [[0.75, 0.75, 0.78], [0.92, 0.92, 0.95]]
-
-  # Niobio anodizzato olografico: color shift completo via thin_film.
-  - id: "dis_niobio_olografico"
-    type: "disney"
-    metallic: 1.0
-    color: [0.78, 0.78, 0.80]
-    roughness: 0.18
-    specular: 0.55
-    anisotropic: 0.30
-    thin_film_thickness: 580
-    thin_film_ior: 1.55
-
-  # Stagno colato grezzo: bump+texture per look "rough cast metal".
-  - id: "dis_stagno_colato"
-    type: "disney"
-    metallic: 0.85
-    color: [0.72, 0.72, 0.74]
-    roughness: 0.55
-    specular: 0.45
-    texture:
-      type: "noise"
-      scale: 4.0
-      noise_type: "fbm"
-      octaves: 5
-      noise_strength: 0.4
-      colors: [[0.62, 0.62, 0.65], [0.82, 0.82, 0.85]]
-      randomize_offset: true
-    bump_map:
-      texture:
-        type: "voronoi"
-        scale: 18.0
-        smoothness: 0.3
-        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
-      strength: 0.8
+    fuzz: 0.03
