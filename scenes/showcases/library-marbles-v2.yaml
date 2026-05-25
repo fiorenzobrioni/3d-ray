@@ -48,7 +48,7 @@ entities:
     scale: [0.85, 0.85, 0.85]
     translate: [-5.0, 0.85, 0]
     seed: 1
-    material: "dis_carrara_studio_v2"
+    material: "dis_carrara_studio"
   - name: "calacatta"
     type: "mesh"
     path: "../models/subdivision-icosahedron.obj"
@@ -58,7 +58,7 @@ entities:
     scale: [0.85, 0.85, 0.85]
     translate: [-3.0, 0.85, 0]
     seed: 7
-    material: "dis_calacatta_gold_v2"
+    material: "dis_calacatta_studio"
   - name: "arabescato"
     type: "mesh"
     path: "../models/subdivision-icosahedron.obj"
@@ -68,7 +68,7 @@ entities:
     scale: [0.85, 0.85, 0.85]
     translate: [-1.0, 0.85, 0]
     seed: 13
-    material: "dis_arabescato_studio_v2"
+    material: "dis_arabescato_studio"
   - name: "breccia"
     type: "mesh"
     path: "../models/subdivision-icosahedron.obj"

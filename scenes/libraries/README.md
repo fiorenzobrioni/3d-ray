@@ -53,33 +53,45 @@ entities:
 
 ### 🎨 Materiali — `materials/`
 
-**12 file · ~1100 materiali PBR**
+**20 file · 1450 materiali**
 
-Raccolta completa di materiali fisicamente corretti con varianti Disney BSDF
-(`dis_`) e Classic (`cls_`). Ogni categoria è un file separato importabile
-individualmente. Tutti i materiali Disney usano le chiavi moderne del BSDF
-(`coat_roughness` + `coat_ior`, `sheen_roughness`, `subsurface_color`,
-`thin_film_*` dove appropriato).
+Raccolta completa di materiali fisicamente corretti con quattro prefissi:
+`dis_` (Disney BSDF), `cls_` (Classic — `lambertian` / `metal` /
+`dielectric` scelto in base al lobo dominante), `over_` (overlay
+weathering per `type: mix`), `mix_` (preset compositi pronti all'uso).
+Tutti i materiali Disney usano le chiavi moderne del BSDF (`coat_roughness`
++ `coat_ior`, `sheen_roughness`, `subsurface_color`, `thin_film_*`,
+`transmission_color` + `transmission_depth` per Beer-Lambert).
 
-| File | Contenuto |
-|------|-----------|
-| `metals.yaml` | Oro, argento, rame, bronzo, acciaio, alluminio, titanio, cromo, platino, nichel, zinco, peltro, corten... (128 mat.) |
-| `ceramics.yaml` | Porcellana, bone china, maiolica, terracotta, grès, raku, celadon, smaltate, sigillate, **satin** (porcellana satin, sabbia, salvia, antracite)... (~99 mat.) |
-| `woods.yaml` | Latifoglie chiare/medie/scure, ebano, esotici, trattati (shou sugi ban, barnwood), tinti... (72 mat.) |
-| `stones.yaml` | Marmi bianchi/scuri/colorati, graniti, travertino, ardesia, onice, alabastro, basalto, mattoni... (87 mat.) |
-| `glasses.yaml` | Vetri industriali/ottici, cristalli, gemme preziose e semipreziose, ghiaccio, liquidi, resine, **smerigliato/frosted** (acidato, sabbiato, plexi satin)... (~104 mat.) |
-| `plastics.yaml` | ABS, policarbonato, acrilico, PVC, nylon, PLA, teflon, bachelite, gomma, silicone, EVA, vinile... (95 mat.) |
-| `fabrics.yaml` | Velluto, seta, raso, cotone, lino, lana, denim, tweed, feltro, pelle, scamosciata, cuoio... (100 mat.) |
-| `paints.yaml` | Vernice auto metallizzata/pastello/perlata, lacche, smalti, chalk paint, pittura murale, spray... (98 mat.) |
-| `organics.yaml` | Cera, ambra, avorio, corno, corallo, madreperla, conchiglia, sughero, carta, sapone, bambù... (81 mat.) |
-| `foods.yaml` | Cioccolato, frutta, verdura, formaggi, dolci, liquidi alimentari, condimenti, carne... (91 mat.) |
-| `emissives.yaml` | Temperatura colore 1800K–7500K, LED, neon, fiamme, lava, schermi, insegne, bioluminescenza... (83 mat.) |
-| `grounds.yaml` | Checker, parquet, piastrelle, marmo pavimento, cemento, asfalto, terra, sabbia, ghiaia, erba, neve... (66 mat.) |
+| File | Contenuto | Materiali |
+|------|-----------|----------:|
+| `metals.yaml` | Oro, argento, rame, bronzo, ottone, acciaio (incluso damasco wootz), ferro, ghisa, alluminio (incl. anodizzati), titanio (anodizzato thin_film), cromo, platino, nichel, zinco, peltro, corten, mercurio, niobio olografico | 131 |
+| `ceramics.yaml` | Porcellana, bone china, maiolica, terracotta, grès, raku (incl. iridescente), celadon (incl. crackle), biscotto, smaltate, sigillate, finiture satin | 112 |
+| `plastics.yaml` | ABS, policarbonato, acrilico, PVC, nylon, PLA, teflon, bachelite, gomma, silicone medicale, EVA, vinile | 105 |
+| `glasses.yaml` | Vetri industriali/ottici, cristalli, gemme preziose e semipreziose, ghiaccio, liquidi, resine, smerigliati frosted | 101 |
+| `fabrics.yaml` | Velluto e seta (sheen Charlie), raso, cotone, lino, lana, denim, tweed, feltro, neoprene, canvas, organza/tulle | 101 |
+| `foods.yaml` | Cioccolato, frutta, verdura, formaggi, pane, pasta, dolci, burro/grassi | 100 |
+| `organics.yaml` | Cera, ambra, avorio, corno, corallo, madreperla (thin_film), conchiglia, sughero, carta, sapone, bambù | 98 |
+| `paints.yaml` | Auto metallizzata/pastello/perlata cangiante (thin_film), lacche (pianoforte, urushi), smalti, chalk paint, pittura murale, spray | 93 |
+| `stones.yaml` | Marmi bianchi/scuri/colorati (con `marble` production-grade), graniti, travertino, ardesia, onice/alabastro (SSS), basalto, mattoni | 88 |
+| `woods.yaml` | Latifoglie chiare/medie/scure, ebano, esotici, trattati (shou sugi ban, barnwood), studio (curly, flame, bird's eye, burl) | 87 |
+| `grounds.yaml` | Checker, parquet, piastrelle, marmo pavimento, cemento, asfalto, terra, sabbia, ghiaia, erba, neve, moquette, acque | 75 |
+| `liquids.yaml` | Acque, latticini, sangue, oli, alcolici (Beer-Lambert profondo), sciroppi, bevande calde, succhi, refrigeranti | 53 |
+| `plasters.yaml` | Rasati, graffiati, veneziano (clearcoat alto), marmorino, tadelakt (subsurface), stucco antico, calce mediterranea, gesso | 50 |
+| `leathers.yaml` | Pieno fiore, anilina, nappa, suede (sheen 0.85), patent (clearcoat), esotici (voronoi cell), box calf, cuoio grezzo, ecoleather | 46 |
+| `industrial-coatings.yaml` | Chassis auto, clearcoat, polveri RAL, anodizzazione Al/Ti (thin_film 320-640nm), zincatura, cromature, smalti a fuoco, gel coat, termocromiche | 43 |
+| `concretes.yaml` | Cemento liscio/esposto/lavorato/lavato a vista, colorati, asfalto (incl. bagnato), bitume catrame | 42 |
+| `synthetics.yaml` | Carbon fiber (anisotropic), kevlar, vetroresina, neoprene, PTFE, silicone medicale, poliuretani, vinile auto wrap (olografico), tessuti tecnici, aerogel | 34 |
+| `minerals-gems.yaml` | Quarzi, geodi, druse, cristalli cubici, calcite islandese birifrangente, fluorite, malachite, lapislazzuli, pietra di luna, opali, kyanite | 30 |
+| `weathering.yaml` | 26 overlay `over_*` per `type: mix`: ruggine, muschio, polvere, calcare, grasso, neve, vernice scrostata, foglie, sale marino, film d'acqua | 26 |
+| `mix-recipes.yaml` | 35 ricette `mix_*` pronte all'uso che combinano `dis_*` + `over_*` + maschera procedurale (metalli arrugginiti, legni usurati, intonaci macchiati, pietre colonizzate, vernici scrostate) | 35 |
 
 **Convenzione dei nomi:** `prefisso_categoria_variante`
 - `dis_` → Disney BSDF (close-up, effetti PBR avanzati)
-- `cls_` → Classic (scene grandi, render veloci)
-- *(nessuno)* → Emissivo
+- `cls_` → Classic (scene grandi, render veloci): `lambertian`,
+  `metal` o `dielectric` scelto sul lobo dominante
+- `over_` → overlay weathering (in `weathering.yaml`)
+- `mix_` → ricetta composita pronta all'uso (in `mix-recipes.yaml`)
 
 📖 **Documentazione completa:** [`materials/README.md`](materials/README.md)
 

@@ -397,7 +397,7 @@ world:
     roughness: 0.78
     metallic:  0.0
     # For subsurface snow add a real material:
-    # material: "dis_neve_fresca_v2"  (from libraries/materials/grounds.yaml)
+    # material: "dis_neve_fresca"  (from libraries/materials/grounds.yaml)
 ```
 
 Diffuse polar palette. Pair with subsurface snow material from the

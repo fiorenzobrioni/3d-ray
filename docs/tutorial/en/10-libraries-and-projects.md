@@ -27,37 +27,53 @@ are relative to your scene file's directory.
 
 ## 10.2 Material Libraries
 
-Twelve themed files covering every surface type you are likely to need:
+Twenty themed files covering every surface type you are likely to need:
 
-| File                      | Contents                                       | Count |
-|---------------------------|-------------------------------------------------|-------|
-| `materials/metals.yaml`   | Gold, silver, copper, bronze, brass, steel, aluminum, titanium, chrome, platinum, nickel, zinc, tin, corten | ~120 |
-| `materials/ceramics.yaml` | Porcelain, majolica, terracotta, stoneware, raku, celadon, glazed | ~67 |
-| `materials/woods.yaml`    | Oak, walnut, maple, teak, ebony, mahogany (raw, oiled, waxed, varnished, lacquered) | ~85 |
-| `materials/stones.yaml`   | Marble, granite, slate, travertine, basalt, sandstone, concrete, brick | ~87 |
-| `materials/glasses.yaml`  | Industrial glass, crystal, colored glass, frosted, gemstones, liquids, resins | ~96 |
-| `materials/plastics.yaml` | ABS, polycarbonate, acrylic, PVC, nylon, rubber, silicone, 3D-print | ~95 |
-| `materials/fabrics.yaml`  | Velvet, silk, cotton, linen, wool, denim, leather, lace | ~100 |
-| `materials/paints.yaml`   | Auto paint, lacquer, enamel, chalk paint, powder coat | ~98 |
-| `materials/organics.yaml` | Wax, amber, ivory, horn, cork, paper, soap, bamboo | ~81 |
-| `materials/foods.yaml`    | Chocolate, fruit, cheese, bread, candy, butter | ~91 |
-| `materials/emissives.yaml`| LED, incandescent, fluorescent, neon, flames, screens, lava | ~83 |
-| `materials/grounds.yaml`  | Checker floors, parquet, tiles, marble floors, earth, sand, grass, carpet | ~66 |
+| File                          | Contents                                       | Count |
+|-------------------------------|------------------------------------------------|-------|
+| `materials/metals.yaml`       | Gold, silver, copper, bronze, brass, steel (incl. damasco wootz), iron, cast iron, aluminum (incl. anodized), titanium (thin_film anodized), chrome, platinum, nickel, zinc, pewter, corten, mercury, holographic niobium | 131 |
+| `materials/ceramics.yaml`     | Porcelain, bone china, majolica, terracotta, stoneware, raku, celadon (incl. crackle), biscuit, glazed, sigillata, satin | 112 |
+| `materials/plastics.yaml`     | ABS, polycarbonate, acrylic, PVC, nylon, PLA, teflon, bakelite, rubber, medical silicone, EVA, vinyl | 105 |
+| `materials/glasses.yaml`      | Industrial/optical glass, crystal, gems (precious + semiprecious), ice, liquids, resins, frosted | 101 |
+| `materials/fabrics.yaml`      | Velvet and silk (Charlie sheen), satin, cotton, linen, wool, denim, tweed, felt, neoprene, canvas, organza/tulle | 101 |
+| `materials/foods.yaml`        | Chocolate, fruit, vegetables, cheeses, bread, pasta, sweets, butter/fats | 100 |
+| `materials/organics.yaml`     | Wax, amber, ivory, horn, coral, mother-of-pearl (thin_film), shell, cork, paper, soap, bamboo | 98 |
+| `materials/paints.yaml`       | Auto metallic/pastel/pearl iridescent, lacquers, enamels, chalk paint, wall paint, spray | 93 |
+| `materials/stones.yaml`       | White/dark/colored marbles (production-grade `marble`), granites, travertine, slate, onyx/alabaster (SSS), basalt, bricks | 88 |
+| `materials/woods.yaml`        | Light/medium/dark hardwoods, ebony, exotics, treated (shou-sugi-ban, barnwood), studio (curly, flame, bird's eye, burl) | 87 |
+| `materials/grounds.yaml`      | Checker, parquet, tiles, marble floors, concrete, asphalt, earth, sand, gravel, grass, snow, carpet, water | 75 |
+| `materials/liquids.yaml`      | Water, dairy, blood, oils, alcoholic drinks (Beer-Lambert), syrups, hot drinks, juices, industrial coolants | 53 |
+| `materials/plasters.yaml`     | Smooth, raked, Venetian (high clearcoat), marmorino, tadelakt (subsurface), antique stucco, Mediterranean lime, gypsum | 50 |
+| `materials/leathers.yaml`     | Full grain, aniline, nappa, suede (sheen), patent (clearcoat), exotics (voronoi cell), box calf, raw leather, ecoleather | 46 |
+| `materials/industrial-coatings.yaml` | Auto chassis, clearcoat, RAL powders, Al/Ti anodizing, galvanizing, plating, fired enamels, gel coat, thermochromic | 43 |
+| `materials/concretes.yaml`    | Smooth/exposed/worked/washed concrete, colored, asphalt (incl. wet), bitumen tar | 42 |
+| `materials/synthetics.yaml`   | Carbon fiber (anisotropic), kevlar, fiberglass, neoprene, PTFE, medical silicone, polyurethanes, auto vinyl wrap (holographic), technical fabrics, aerogel | 34 |
+| `materials/minerals-gems.yaml`| Quartz, geodes, druzy, cubic crystals, Iceland spar birefringent, fluorite, malachite, lapis, moonstone, opals, kyanite | 30 |
+| `materials/weathering.yaml`   | 26 `over_*` overlays for `type: mix`: rust, moss, dust, limescale, grease, snow, paint flake, leaves, sea salt, water film | 26 |
+| `materials/mix-recipes.yaml`  | 35 `mix_*` recipes ready-to-use (rusty metals, worn woods, stained plasters, mossy stones, peeling paint) | 35 |
+
+**Total: 1450 materials.**
 
 ### Naming Convention
 
 Materials follow a prefix system:
 
-- **`dis_`** -- Disney BSDF (full PBR with clearcoat, sheen, subsurface,
-  spec_trans). Best for hero objects and close-ups.
-- **`cls_`** -- Classic type (lambertian, metal, or dielectric). Faster
-  and less noisy; best for large surfaces and backgrounds.
+- **`dis_`** — Disney BSDF (full PBR with clearcoat, sheen, subsurface,
+  spec_trans, thin_film). Best for hero objects and close-ups.
+- **`cls_`** — Classic type (`lambertian`, `metal`, or `dielectric`,
+  selected by the dominant lobe). Faster and less noisy; best for
+  large surfaces and backgrounds.
+- **`over_`** — Weathering overlay (in `weathering.yaml`) to be used
+  via `type: mix`.
+- **`mix_`** — Ready-to-use composite recipe (in `mix-recipes.yaml`)
+  combining a `dis_*` base + `over_*` overlay + procedural mask.
 
 Examples:
-- `dis_oro_lucido` -- Disney polished gold
-- `cls_oro_lucido` -- Classic metal polished gold
-- `dis_vetro_sodalime` -- Disney soda-lime glass
-- `cls_vetro_sodalime` -- Classic dielectric glass
+- `dis_oro_lucido` — Disney polished gold
+- `cls_oro_lucido` — Classic metal polished gold
+- `dis_vetro_sodalime` — Disney soda-lime glass
+- `cls_vetro_sodalime` — Classic dielectric glass
+- `mix_acciaio_arrugginito_medio` — Satinated steel + medium rust with FBM mask
 
 ### Usage
 
