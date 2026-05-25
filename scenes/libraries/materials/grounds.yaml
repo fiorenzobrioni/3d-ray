@@ -1,51 +1,470 @@
-# ============================================================================
-# Libreria Materiali — Pavimenti e Terreni
-# ============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+#  3D-Ray Material Library — GROUNDS
+# ───────────────────────────────────────────────────────────────────────────
+#  File:     grounds.yaml
+#  Disney:   20
+#  Classic:  55      (lambertian: 51 · metal: 2 · dielectric: 2)
+#  Total:    75
+#  Updated:  2026-05
+# ───────────────────────────────────────────────────────────────────────────
+#  Contenuto: checker, parquet, piastrelle/gres, marmi pavimento, cemento,
+#             asfalto, terra/fango, sabbia, ghiaia, erba, neve, moquette,
+#             foglie cadute, acque/pozzanghere.
+# ═══════════════════════════════════════════════════════════════════════════
 #
-# Importa con:  imports: [{ path: "libraries/grounds.yaml" }]
-#
-# Raccolta di materiali per superfici grandi: pavimenti, terreni, strade.
-# Pensata per infinite_plane e ground plane nelle scene.
+# Importa con:  imports: [{ path: "libraries/materials/grounds.yaml" }]
 #
 # ── PREVALENZA CLASSIC ───────────────────────────────────────────────────
 #
-#   Questa libreria privilegia i materiali classici. Le superfici grandi
+#   Questa libreria privilegia i materiali Classic. Pavimenti e terreni
 #   coprono la maggior parte dei pixel: il rumore Disney su queste aree
-#   domina il rumore totale della scena. La regola d'oro:
+#   domina il rumore totale della scena. Regola d'oro:
 #
-#     → Pavimenti e terreni: SEMPRE classic (lambertian o metal+fuzz)
-#     → Usare Disney solo se il pavimento è protagonista della scena
-#       (close-up su marmo lucido) e si hanno almeno 512 spp
+#     → Pavimenti e terreni: SEMPRE Classic (lambertian o metal+fuzz)
+#     → Disney solo se il pavimento è protagonista della scena
+#       (close-up su marmo lucido / parquet laccato / acqua piscina)
+#       e si hanno almeno 512 spp.
 #
-#   cls_  (Classic) — Lambertian con texture checker/noise/marble.
-#         Metal+fuzz per superfici lucide. SCELTA RACCOMANDATA.
-#
-#   dis_  (Disney BSDF) — Solo per close-up. Clearcoat per parquet
-#         laccato, subsurface per neve, sheen per moquette/erba.
+# Convenzione:
+#   dis_*  — Disney BSDF: parquet laccato/invecchiato (clearcoat IOR 1.5
+#            + wood texture), marmi lucidi (marble + clearcoat), gres
+#            lucido, asfalto bagnato, acqua piscina/mossa (spec_trans +
+#            Beer-Lambert leggero), neve fresca/compatta (subsurface +
+#            sheen), moquette (sheen Charlie), erba (sheen + diff_trans).
+#            Quando appropriato usano `displacement_method: bump_only`
+#            (sfere) o displacement scalare per ghiaia/sabbia.
+#   cls_*  — `lambertian` per la stragrande maggioranza: terra, sabbia,
+#            asfalto asciutto, ghiaia, erba, neve sporca, moquette,
+#            foglie cadute, parquet grezzo, marmi opachi, checker, gres
+#            opaco, cotto. `metal` + fuzz per asfalto bagnato e
+#            pozzanghera (riflesso speculare dominante). `dielectric`
+#            per acque pulite (lago/piscina) e ghiaccio.
 #
 # ── Categorie ────────────────────────────────────────────────────────────
-#
 #   CHECKER             Scacchiera bicolore, il pattern iconico.
-#   PARQUET             Legno per interni, texture wood.
+#   PARQUET             Legno per interni, wood texture.
 #   PIASTRELLE          Ceramica, gres, cotto.
-#   MARMO PAVIMENTO     Marmi lucidati per interni.
+#   MARMO PAVIMENTO     Marmi lucidati per interni (marble texture).
 #   CEMENTO E ASFALTO   Industriale, stradale.
-#   TERRA E FANGO       Terreni naturali.
-#   SABBIA              Spiaggia, deserto, dune.
-#   GHIAIA              Vialetti, giardini zen.
-#   ERBA                Prato, campo sportivo.
+#   TERRA E FANGO       Terreni naturali (noise + displacement).
+#   SABBIA              Spiaggia, deserto, dune (musgrave + displacement).
+#   GHIAIA              Vialetti, giardini zen (voronoi + displacement).
+#   ERBA E MUSCHIO      Prato, campo sportivo, sottobosco.
 #   NEVE                Fresca, compatta, sporca.
-#   MOQUETTE            Tessuto a pavimento.
-#   ACQUA               Laghi, pozzanghere.
-#
-# ============================================================================
+#   MOQUETTE            Tessuto a pavimento (sheen Charlie).
+#   FOGLIE CADUTE       Tappeto autunnale.
+#   ACQUA / GHIACCIO    Laghi, pozzanghere, piscine, ghiaccio.
 
 
 materials:
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  CHECKER — il pattern iconico del ray tracing
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  DISNEY                                                               ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
+
+  # ── CHECKER ──────────────────────────────────────────────────────────────
+
+  # Checker marmo lucido — clearcoat IOR 1.5 sopra checker bn
+  - id: "dis_checker_marmo"
+    type: "disney"
+    roughness: 0.10
+    specular: 0.65
+    clearcoat: 0.70
+    coat_roughness: 0.10
+    coat_ior: 1.5
+    texture: { type: "checker", colors: [[0.90, 0.88, 0.85], [0.06, 0.06, 0.07]], scale: 1.5 }
+
+
+  # ── PARQUET ──────────────────────────────────────────────────────────────
+
+  # Parquet laccato — clearcoat lucido protettivo
+  - id: "dis_parquet_laccato"
+    type: "disney"
+    roughness: 0.18
+    specular: 0.48
+    clearcoat: 0.65
+    coat_roughness: 0.12
+    coat_ior: 1.5
+    texture:
+      type: "wood"
+      scale: 5.0
+      noise_strength: 2.5
+      colors: [[0.55, 0.38, 0.18], [0.38, 0.24, 0.10]]
+      randomize_offset: true
+      randomize_rotation: true
+
+  # Parquet rovere invecchiato — wood 4-stop color_ramp + clearcoat tenue
+  - id: "dis_parquet_invecchiato"
+    type: "disney"
+    color: [0.62, 0.45, 0.22]
+    roughness: 0.45
+    specular: 0.40
+    clearcoat: 0.30
+    coat_roughness: 0.18
+    coat_ior: 1.5
+    texture:
+      type: "wood"
+      scale: 5.5
+      ring_axis: [0, 1, 0]
+      ring_sharpness: 4.0
+      noise_strength: 1.5
+      octaves: 5
+      grain_scale: 1.5
+      figure_scale: 0.20
+      figure_strength: 0.4
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.10, 0.04], interp: "smoothstep" }
+        - { position: 0.30, color: [0.42, 0.25, 0.10], interp: "smoothstep" }
+        - { position: 0.65, color: [0.72, 0.52, 0.28], interp: "smoothstep" }
+        - { position: 1.00, color: [0.92, 0.78, 0.55], interp: "linear" }
+
+
+  # ── PIASTRELLE ───────────────────────────────────────────────────────────
+
+  # Gres lucido bianco — clearcoat IOR 1.5
+  - id: "dis_gres_lucido_bianco"
+    type: "disney"
+    color: [0.88, 0.86, 0.82]
+    roughness: 0.10
+    specular: 0.60
+    clearcoat: 0.55
+    coat_roughness: 0.12
+    coat_ior: 1.5
+
+  # Gres lucido antracite — superficie a specchio
+  - id: "dis_gres_lucido_antracite"
+    type: "disney"
+    color: [0.18, 0.17, 0.16]
+    roughness: 0.08
+    specular: 0.68
+    clearcoat: 0.60
+    coat_roughness: 0.10
+    coat_ior: 1.5
+
+  # Piastrelle sconnesse — voronoi + displacement scalare sui giunti
+  - id: "dis_piastrelle_sconnesse"
+    type: "disney"
+    color: [0.78, 0.72, 0.62]
+    roughness: 0.32
+    specular: 0.45
+    clearcoat: 0.40
+    coat_roughness: 0.18
+    coat_ior: 1.5
+    texture:
+      type: "voronoi"
+      scale: 4.0
+      output: "random"
+      smoothness: 0.05
+      randomness: 0.5
+      colors: [[0.55, 0.48, 0.32], [0.92, 0.85, 0.72]]
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 4.0
+        output: "f2_minus_f1"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.005
+      midlevel: 0.5
+      bound: 0.010
+      autobump: true
+      displacement_method: "bump_only"
+
+
+  # ── MARMO PAVIMENTO ──────────────────────────────────────────────────────
+
+  # Carrara lucido — clearcoat IOR 1.5 sopra marble production-grade
+  - id: "dis_pavimento_carrara"
+    type: "disney"
+    roughness: 0.08
+    specular: 0.65
+    clearcoat: 0.75
+    coat_roughness: 0.08
+    coat_ior: 1.5
+    texture:
+      type: "marble"
+      scale: 2.4
+      colors: [[0.94, 0.93, 0.92], [0.32, 0.34, 0.40]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.9
+      fold_amplitude: [0.8, 0.25, 0.45]
+      vein_layers: 2
+      vein_scale: [1.0, 2.4]
+      vein_weight: [1.0, 0.50]
+      vein_thickness: 0.12
+      vein_softness: 0.07
+      color_variation: 0.08
+      randomize_offset: true
+
+  # Pavimento nero venato — marquina lucido
+  - id: "dis_pavimento_nero"
+    type: "disney"
+    roughness: 0.08
+    specular: 0.72
+    clearcoat: 0.78
+    coat_roughness: 0.06
+    coat_ior: 1.5
+    texture:
+      type: "marble"
+      scale: 2.0
+      colors: [[0.05, 0.05, 0.06], [0.78, 0.74, 0.68]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.85
+      fold_amplitude: [0.75, 0.20, 0.45]
+      vein_layers: 2
+      vein_scale: [1.0, 2.4]
+      vein_weight: [1.0, 0.55]
+      vein_thickness: 0.14
+      vein_softness: 0.06
+      color_variation: 0.05
+      randomize_offset: true
+
+
+  # ── CEMENTO E ASFALTO ────────────────────────────────────────────────────
+
+  # Asfalto bagnato — riflesso speculare alto su base scura, bump irregolare
+  - id: "dis_asfalto_bagnato"
+    type: "disney"
+    color: [0.08, 0.08, 0.08]
+    roughness: 0.10
+    specular: 0.80
+    clearcoat: 0.40
+    coat_roughness: 0.12
+    coat_ior: 1.5
+    texture: { type: "noise", scale: 12.0, noise_strength: 2.5, colors: [[0.08, 0.08, 0.08], [0.04, 0.04, 0.04]], randomize_offset: true }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 40.0
+        noise_type: "fbm"
+        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
+      strength: 0.4
+
+
+  # ── TERRA E FANGO ────────────────────────────────────────────────────────
+
+  # Terra battuta argillosa — ridged noise per crepe, displacement scalare
+  - id: "dis_terra_battuta"
+    type: "disney"
+    color: [0.62, 0.42, 0.25]
+    roughness: 0.92
+    specular: 0.18
+    texture:
+      type: "noise"
+      scale: 1.8
+      noise_type: "ridged"
+      octaves: 6
+      noise_strength: 0.8
+      distortion: 0.25
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.32, 0.18, 0.08], interp: "smoothstep" }
+        - { position: 0.50, color: [0.55, 0.36, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [0.82, 0.62, 0.40], interp: "linear" }
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 8.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.6
+
+
+  # ── SABBIA ───────────────────────────────────────────────────────────────
+
+  # Sabbia desertica — musgrave hetero_terrain con dune/ripples + displacement
+  - id: "dis_sabbia_desertica"
+    type: "disney"
+    color: [0.92, 0.75, 0.45]
+    roughness: 0.92
+    specular: 0.18
+    subsurface: 0.18
+    subsurface_color: [0.95, 0.82, 0.55]
+    texture:
+      type: "noise"
+      scale: 1.5
+      noise_type: "hetero_terrain"
+      octaves: 6
+      lacunarity: 2.0
+      gain: 0.5
+      fractal_increment: 0.6
+      fractal_offset: 0.7
+      noise_strength: 1.0
+      color_ramp:
+        - { position: 0.00, color: [0.55, 0.35, 0.12], interp: "smoothstep" }
+        - { position: 0.45, color: [0.82, 0.62, 0.28], interp: "smoothstep" }
+        - { position: 0.80, color: [0.92, 0.78, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.88, 0.62], interp: "linear" }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 20.0
+        noise_type: "fbm"
+        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
+      strength: 0.5
+
+
+  # ── GHIAIA ───────────────────────────────────────────────────────────────
+
+  # Ghiaia mista — voronoi cell con color_ramp constant per sassi distinti
+  - id: "dis_ghiaia_mista"
+    type: "disney"
+    color: [0.55, 0.50, 0.42]
+    roughness: 0.88
+    specular: 0.25
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "random"
+      smoothness: 0.05
+      randomness: 1.0
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.14, 0.10], interp: "constant" }
+        - { position: 0.25, color: [0.42, 0.36, 0.28], interp: "constant" }
+        - { position: 0.50, color: [0.62, 0.55, 0.45], interp: "constant" }
+        - { position: 0.80, color: [0.82, 0.72, 0.55], interp: "constant" }
+        - { position: 1.00, color: [0.94, 0.88, 0.72], interp: "linear" }
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 8.0
+        output: "f1"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.008
+      midlevel: 0.5
+      bound: 0.014
+      autobump: true
+      autobump_strength: 1.5
+      displacement_method: "bump_only"
+
+
+  # ── ERBA E MUSCHIO ───────────────────────────────────────────────────────
+
+  # Erba prato — sheen Charlie + leggera diff_trans per controluce verde
+  - id: "dis_erba_prato"
+    type: "disney"
+    roughness: 0.90
+    specular: 0.10
+    sheen: 0.30
+    sheen_tint: 0.7
+    sheen_roughness: 0.75
+    thin_walled: true
+    diff_trans: 0.25
+    texture: { type: "noise", scale: 10.0, noise_strength: 3.0, colors: [[0.18, 0.38, 0.08], [0.10, 0.25, 0.05]], randomize_offset: true }
+
+  # Muschio bosco — sheen Charlie polveroso, verde scuro
+  - id: "dis_muschio_bosco"
+    type: "disney"
+    color: [0.12, 0.28, 0.08]
+    roughness: 0.95
+    specular: 0.06
+    sheen: 0.55
+    sheen_tint: 0.4
+    sheen_roughness: 0.80
+    flatness: 0.3
+    texture: { type: "noise", scale: 6.0, noise_strength: 4.0, colors: [[0.12, 0.28, 0.08], [0.06, 0.15, 0.04]], randomize_offset: true }
+
+
+  # ── NEVE ─────────────────────────────────────────────────────────────────
+
+  # Neve fresca polverosa — SSS alto + sheen per cristalli emergenti
+  - id: "dis_neve_fresca"
+    type: "disney"
+    color: [0.97, 0.98, 1.00]
+    roughness: 0.85
+    specular: 0.28
+    subsurface: 0.55
+    subsurface_color: [0.96, 0.98, 1.00]
+    sheen: 0.45
+    sheen_tint: 0.2
+    sheen_roughness: 0.7
+    flatness: 0.4
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 30.0
+        colors: [[0.46, 0.46, 0.46], [0.54, 0.54, 0.54]]
+      strength: 0.3
+
+  # Neve compatta — smooth voronoi, superficie liscia con variazioni manto
+  - id: "dis_neve_compatta"
+    type: "disney"
+    color: [0.96, 0.97, 0.99]
+    roughness: 0.72
+    specular: 0.32
+    subsurface: 0.45
+    subsurface_color: [0.96, 0.98, 1.00]
+    flatness: 0.3
+    sheen: 0.30
+    sheen_tint: 0.2
+    sheen_roughness: 0.6
+    texture:
+      type: "voronoi"
+      scale: 10.0
+      output: "f1"
+      smoothness: 0.5
+      colors: [[0.88, 0.90, 0.94], [0.98, 0.99, 1.00]]
+
+
+  # ── MOQUETTE ─────────────────────────────────────────────────────────────
+  # Sheen Charlie irrinunciabile → moquette di pregio solo Disney.
+
+  # Moquette grigia — fibra corta, sheen morbido
+  - id: "dis_moquette_grigia"
+    type: "disney"
+    color: [0.35, 0.34, 0.33]
+    roughness: 0.95
+    specular: 0.05
+    sheen: 0.45
+    sheen_tint: 0.3
+    sheen_roughness: 0.70
+
+  # Moquette rossa — pelo lungo, hospitality
+  - id: "dis_moquette_rossa"
+    type: "disney"
+    color: [0.48, 0.08, 0.06]
+    roughness: 0.95
+    specular: 0.05
+    sheen: 0.50
+    sheen_tint: 0.6
+    sheen_roughness: 0.65
+
+
+  # ── ACQUA E GHIACCIO ─────────────────────────────────────────────────────
+
+  # Acqua mossa — leggera roughness, spec_trans alta + tint azzurro tenue
+  - id: "dis_acqua_mossa"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.08
+    specular: 0.72
+    spec_trans: 0.95
+    ior: 1.333
+    transmission_color: [0.55, 0.78, 0.85]
+    transmission_depth: 1.5
+
+  # Acqua piscina — turchese chiaro, Beer-Lambert in 2-3m
+  - id: "dis_acqua_piscina"
+    type: "disney"
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.05
+    specular: 0.75
+    spec_trans: 1.0
+    ior: 1.333
+    transmission_color: [0.35, 0.78, 0.85]
+    transmission_depth: 2.5
+
+
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  CLASSIC                                                              ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
+  #
+  # Scelta raccomandata per pavimenti e terreni (pixel coverage alta).
+
+  # ── CHECKER ──────────────────────────────────────────────────────────────
 
   - id: "cls_checker_bn"
     type: "lambertian"
@@ -63,11 +482,6 @@ materials:
     type: "lambertian"
     texture: { type: "checker", colors: [[0.82, 0.80, 0.76], [0.05, 0.05, 0.06]], scale: 3.0 }
 
-  - id: "cls_checker_marmo"
-    type: "metal"
-    fuzz: 0.12
-    texture: { type: "checker", colors: [[0.90, 0.88, 0.85], [0.06, 0.06, 0.07]], scale: 1.5 }
-
   - id: "cls_checker_terracotta"
     type: "lambertian"
     texture: { type: "checker", colors: [[0.85, 0.80, 0.70], [0.55, 0.25, 0.15]], scale: 1.5 }
@@ -76,18 +490,8 @@ materials:
     type: "lambertian"
     texture: { type: "checker", colors: [[0.88, 0.88, 0.86], [0.35, 0.55, 0.72]], scale: 1.0 }
 
-  - id: "dis_checker_marmo"
-    type: "disney"
-    roughness: 0.10
-    specular: 0.65
-    clearcoat: 0.70
-    coat_roughness: 0.10
-    texture: { type: "checker", colors: [[0.90, 0.88, 0.85], [0.06, 0.06, 0.07]], scale: 1.5 }
 
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  PARQUET — legno per interni
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── PARQUET ──────────────────────────────────────────────────────────────
 
   - id: "cls_parquet_rovere_chiaro"
     type: "lambertian"
@@ -139,35 +543,8 @@ materials:
       randomize_offset: true
       randomize_rotation: true
 
-  - id: "cls_parquet_verniciato"
-    type: "metal"
-    fuzz: 0.18
-    texture:
-      type: "wood"
-      scale: 5.0
-      noise_strength: 2.5
-      colors: [[0.65, 0.48, 0.28], [0.48, 0.32, 0.15]]
-      randomize_offset: true
-      randomize_rotation: true
 
-  - id: "dis_parquet_laccato"
-    type: "disney"
-    roughness: 0.18
-    specular: 0.48
-    clearcoat: 0.65
-    coat_roughness: 0.12
-    texture:
-      type: "wood"
-      scale: 5.0
-      noise_strength: 2.5
-      colors: [[0.55, 0.38, 0.18], [0.38, 0.24, 0.10]]
-      randomize_offset: true
-      randomize_rotation: true
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  PIASTRELLE — ceramica, gres, cotto
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── PIASTRELLE ───────────────────────────────────────────────────────────
 
   - id: "cls_gres_bianco"
     type: "lambertian"
@@ -189,42 +566,12 @@ materials:
     type: "lambertian"
     color: [0.75, 0.55, 0.38]
 
-  - id: "cls_gres_lucido_bianco"
-    type: "metal"
-    color: [0.88, 0.86, 0.82]
-    fuzz: 0.15
 
-  - id: "dis_gres_lucido_bianco"
-    type: "disney"
-    color: [0.88, 0.86, 0.82]
-    roughness: 0.10
-    specular: 0.60
-    clearcoat: 0.55
-    coat_roughness: 0.12
-
-  - id: "dis_gres_lucido_antracite"
-    type: "disney"
-    color: [0.18, 0.17, 0.16]
-    roughness: 0.08
-    specular: 0.68
-    clearcoat: 0.60
-    coat_roughness: 0.10
-
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  MARMO PAVIMENTO
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── MARMO PAVIMENTO ──────────────────────────────────────────────────────
+  # Marmi pavimento opachi (non lucidati): texture marble su lambertian.
 
   - id: "cls_pavimento_carrara"
     type: "lambertian"
-    texture: { type: "marble", scale: 2.4, colors: [[0.94, 0.93, 0.92], [0.32, 0.34, 0.40]],
-               vein_axis: [0, 1, 0], warp_amplitude: 0.9, fold_amplitude: [0.8, 0.25, 0.45],
-               vein_layers: 2, vein_scale: [1.0, 2.4], vein_weight: [1.0, 0.50],
-               vein_thickness: 0.12, vein_softness: 0.07, color_variation: 0.08, randomize_offset: true }
-
-  - id: "cls_pavimento_carrara_lucido"
-    type: "metal"
-    fuzz: 0.10
     texture: { type: "marble", scale: 2.4, colors: [[0.94, 0.93, 0.92], [0.32, 0.34, 0.40]],
                vein_axis: [0, 1, 0], warp_amplitude: 0.9, fold_amplitude: [0.8, 0.25, 0.45],
                vein_layers: 2, vein_scale: [1.0, 2.4], vein_weight: [1.0, 0.50],
@@ -242,9 +589,7 @@ materials:
     texture: { type: "noise", scale: 8.0, noise_strength: 4.0, colors: [[0.82, 0.75, 0.62], [0.68, 0.60, 0.46]], randomize_offset: true }
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  CEMENTO E ASFALTO
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── CEMENTO E ASFALTO ────────────────────────────────────────────────────
 
   - id: "cls_cemento_grezzo"
     type: "lambertian"
@@ -262,6 +607,7 @@ materials:
     type: "lambertian"
     texture: { type: "noise", scale: 10.0, noise_strength: 3.5, colors: [[0.28, 0.27, 0.26], [0.15, 0.14, 0.14]], randomize_offset: true }
 
+  # Asfalto bagnato — riflesso dominante: metal + fuzz basso
   - id: "cls_asfalto_bagnato"
     type: "metal"
     fuzz: 0.10
@@ -272,9 +618,7 @@ materials:
     texture: { type: "noise", scale: 10.0, noise_strength: 2.0, colors: [[0.52, 0.50, 0.48], [0.40, 0.38, 0.36]], randomize_offset: true }
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  TERRA E FANGO
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── TERRA E FANGO ────────────────────────────────────────────────────────
 
   - id: "cls_terra_battuta"
     type: "lambertian"
@@ -293,14 +637,11 @@ materials:
     texture: { type: "noise", scale: 8.0, noise_strength: 3.0, colors: [[0.58, 0.50, 0.35], [0.45, 0.38, 0.25]], randomize_offset: true }
 
   - id: "cls_fango"
-    type: "metal"
-    fuzz: 0.35
+    type: "lambertian"
     texture: { type: "noise", scale: 5.0, noise_strength: 5.0, colors: [[0.18, 0.14, 0.08], [0.10, 0.08, 0.05]], randomize_offset: true }
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  SABBIA
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── SABBIA ───────────────────────────────────────────────────────────────
 
   - id: "cls_sabbia_dorata"
     type: "lambertian"
@@ -315,8 +656,7 @@ materials:
     texture: { type: "noise", scale: 16.0, noise_strength: 2.5, colors: [[0.82, 0.62, 0.30], [0.70, 0.50, 0.22]], randomize_offset: true }
 
   - id: "cls_sabbia_bagnata"
-    type: "metal"
-    fuzz: 0.22
+    type: "lambertian"
     texture: { type: "noise", scale: 18.0, noise_strength: 2.0, colors: [[0.52, 0.42, 0.28], [0.40, 0.32, 0.20]], randomize_offset: true }
 
   - id: "cls_sabbia_vulcanica"
@@ -324,9 +664,7 @@ materials:
     texture: { type: "noise", scale: 18.0, noise_strength: 2.0, colors: [[0.12, 0.11, 0.10], [0.06, 0.06, 0.05]], randomize_offset: true }
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  GHIAIA E PIETRISCO
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── GHIAIA E PIETRISCO ───────────────────────────────────────────────────
 
   - id: "cls_ghiaia_grigia"
     type: "lambertian"
@@ -341,9 +679,7 @@ materials:
     texture: { type: "noise", scale: 5.0, noise_strength: 6.0, colors: [[0.38, 0.36, 0.34], [0.20, 0.19, 0.18]], randomize_offset: true }
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  ERBA
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── ERBA ─────────────────────────────────────────────────────────────────
 
   - id: "cls_erba_prato"
     type: "lambertian"
@@ -361,18 +697,8 @@ materials:
     type: "lambertian"
     texture: { type: "noise", scale: 6.0, noise_strength: 4.0, colors: [[0.12, 0.28, 0.08], [0.06, 0.15, 0.04]], randomize_offset: true }
 
-  - id: "dis_erba_prato"
-    type: "disney"
-    roughness: 0.90
-    specular: 0.10
-    sheen: 0.15
-    sheen_tint: 0.7
-    texture: { type: "noise", scale: 10.0, noise_strength: 3.0, colors: [[0.18, 0.38, 0.08], [0.10, 0.25, 0.05]], randomize_offset: true }
 
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  NEVE
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── NEVE ─────────────────────────────────────────────────────────────────
 
   - id: "cls_neve_fresca"
     type: "lambertian"
@@ -386,19 +712,8 @@ materials:
     type: "lambertian"
     texture: { type: "noise", scale: 8.0, noise_strength: 4.0, colors: [[0.72, 0.72, 0.70], [0.42, 0.40, 0.35]], randomize_offset: true }
 
-  - id: "dis_neve_fresca"
-    type: "disney"
-    color: [0.90, 0.92, 0.95]
-    roughness: 0.85
-    specular: 0.18
-    subsurface: 0.40
-    sheen: 0.12
-    sheen_tint: 0.2
 
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  MOQUETTE
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── MOQUETTE ─────────────────────────────────────────────────────────────
 
   - id: "cls_moquette_grigia"
     type: "lambertian"
@@ -420,26 +735,21 @@ materials:
     type: "lambertian"
     color: [0.10, 0.30, 0.12]
 
-  - id: "dis_moquette_grigia"
-    type: "disney"
-    color: [0.35, 0.34, 0.33]
-    roughness: 0.95
-    specular: 0.05
-    sheen: 0.18
-    sheen_tint: 0.3
 
-  - id: "dis_moquette_rossa"
-    type: "disney"
-    color: [0.48, 0.08, 0.06]
-    roughness: 0.95
-    specular: 0.05
-    sheen: 0.18
-    sheen_tint: 0.5
+  # ── FOGLIE CADUTE ────────────────────────────────────────────────────────
+
+  - id: "cls_foglie_autunno"
+    type: "lambertian"
+    texture: { type: "noise", scale: 5.0, noise_strength: 5.0, colors: [[0.62, 0.32, 0.10], [0.32, 0.18, 0.06]], randomize_offset: true }
+
+  - id: "cls_foglie_secche"
+    type: "lambertian"
+    texture: { type: "noise", scale: 5.0, noise_strength: 4.5, colors: [[0.55, 0.42, 0.22], [0.32, 0.22, 0.10]], randomize_offset: true }
 
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  ACQUA — superfici piatte
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ── ACQUA E GHIACCIO ─────────────────────────────────────────────────────
+  # Acque pulite trasparenti → dielectric. Pozzanghera (riflesso ambiente)
+  # → metal con fuzz basso.
 
   - id: "cls_acqua_calma"
     type: "dielectric"
@@ -455,202 +765,3 @@ materials:
     type: "metal"
     color: [0.12, 0.15, 0.18]
     fuzz: 0.04
-
-  - id: "dis_acqua_mossa"
-    type: "disney"
-    color: [0.45, 0.58, 0.65]
-    roughness: 0.08
-    spec_trans: 0.85
-    ior: 1.333
-    specular: 0.72
-
-  # ════════════════════════════════════════════════════════════════════════
-  # EXTENDED VFX MATERIALS (v2)
-  # ════════════════════════════════════════════════════════════════════════
-  #
-  # Estensione con feature avanzate per pavimentazioni e suoli:
-  #   • Musgrave hetero_terrain per sabbia (granulometria stratificata).
-  #   • Voronoi cell per ghiaia (variazione colore per sasso).
-  #   • Smooth voronoi per neve compatta.
-  #   • Color_ramp 4-stop per parquet con invecchiamento.
-  #   • Displacement scalare per piastrelle sconnesse.
-  # ════════════════════════════════════════════════════════════════════════
-
-  # Sabbia desertica musgrave: granulometria con dune e ripples.
-  - id: "dis_sabbia_desertica_v2"
-    type: "disney"
-    color: [0.92, 0.75, 0.45]
-    roughness: 0.92
-    specular: 0.18
-    subsurface: 0.18
-    texture:
-      type: "noise"
-      scale: 1.5
-      noise_type: "hetero_terrain"
-      octaves: 6
-      lacunarity: 2.0
-      gain: 0.5
-      fractal_increment: 0.6
-      fractal_offset: 0.7
-      noise_strength: 1.0
-      color_ramp:
-        - { position: 0.00, color: [0.55, 0.35, 0.12], interp: "smoothstep" }
-        - { position: 0.45, color: [0.82, 0.62, 0.28], interp: "smoothstep" }
-        - { position: 0.80, color: [0.92, 0.78, 0.48], interp: "smoothstep" }
-        - { position: 1.00, color: [0.98, 0.88, 0.62], interp: "linear" }
-    bump_map:
-      texture:
-        type: "noise"
-        scale: 20.0
-        noise_type: "fbm"
-        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
-      strength: 0.5
-
-  # Ghiaia mista: voronoi cell con color_ramp constant per sassi distinti.
-  - id: "dis_ghiaia_mista"
-    type: "disney"
-    color: [0.55, 0.50, 0.42]
-    roughness: 0.88
-    specular: 0.25
-    texture:
-      type: "voronoi"
-      scale: 8.0
-      output: "random"
-      smoothness: 0.05
-      randomness: 1.0
-      color_ramp:
-        - { position: 0.00, color: [0.18, 0.14, 0.10], interp: "constant" }
-        - { position: 0.25, color: [0.42, 0.36, 0.28], interp: "constant" }
-        - { position: 0.50, color: [0.62, 0.55, 0.45], interp: "constant" }
-        - { position: 0.80, color: [0.82, 0.72, 0.55], interp: "constant" }
-        - { position: 1.00, color: [0.94, 0.88, 0.72], interp: "linear" }
-    displacement:
-      mode: "scalar"
-      texture:
-        type: "voronoi"
-        scale: 8.0
-        output: "f1"
-        colors: [[0, 0, 0], [1, 1, 1]]
-      scale: 0.008
-      midlevel: 0.5
-      bound: 0.014
-      autobump: true
-      autobump_strength: 1.5
-      displacement_method: "bump_only"
-
-  # Neve compatta: smooth voronoi smoothness 0.5 per superficie liscia ma
-  # con leggere variazioni del manto.
-  - id: "dis_neve_compatta"
-    type: "disney"
-    color: [0.96, 0.97, 0.99]
-    roughness: 0.72
-    specular: 0.32
-    subsurface: 0.45
-    subsurface_color: [0.96, 0.98, 1.00]
-    flatness: 0.3
-    texture:
-      type: "voronoi"
-      scale: 10.0
-      output: "f1"
-      smoothness: 0.5
-      colors: [[0.88, 0.90, 0.94], [0.98, 0.99, 1.00]]
-    sheen: 0.30
-    sheen_roughness: 0.6
-
-  # Neve fresca polverosa: subsurface alto + sheen per i cristalli emergenti.
-  - id: "dis_neve_fresca_v2"
-    type: "disney"
-    color: [0.97, 0.98, 1.00]
-    roughness: 0.85
-    specular: 0.28
-    subsurface: 0.55
-    subsurface_color: [0.96, 0.98, 1.00]
-    sheen: 0.45
-    sheen_roughness: 0.7
-    flatness: 0.4
-    bump_map:
-      texture:
-        type: "noise"
-        scale: 30.0
-        colors: [[0.46, 0.46, 0.46], [0.54, 0.54, 0.54]]
-      strength: 0.3
-
-  # Parquet rovere invecchiato: wood + color_ramp 4-stop.
-  - id: "dis_parquet_invecchiato"
-    type: "disney"
-    color: [0.62, 0.45, 0.22]
-    roughness: 0.45
-    specular: 0.40
-    clearcoat: 0.30
-    coat_roughness: 0.18
-    texture:
-      type: "wood"
-      scale: 5.5
-      ring_axis: [0, 1, 0]
-      ring_sharpness: 4.0
-      noise_strength: 1.5
-      octaves: 5
-      grain_scale: 1.5
-      figure_scale: 0.20
-      figure_strength: 0.4
-      randomize_offset: true
-      randomize_rotation: true
-      color_ramp:
-        - { position: 0.00, color: [0.18, 0.10, 0.04], interp: "smoothstep" }
-        - { position: 0.30, color: [0.42, 0.25, 0.10], interp: "smoothstep" }
-        - { position: 0.65, color: [0.72, 0.52, 0.28], interp: "smoothstep" }
-        - { position: 1.00, color: [0.92, 0.78, 0.55], interp: "linear" }
-
-  # Piastrelle sconnesse: superficie con micro-displacement (giunti).
-  - id: "dis_piastrelle_sconnesse"
-    type: "disney"
-    color: [0.78, 0.72, 0.62]
-    roughness: 0.32
-    specular: 0.45
-    clearcoat: 0.40
-    coat_roughness: 0.18
-    texture:
-      type: "voronoi"
-      scale: 4.0
-      output: "random"
-      smoothness: 0.05
-      randomness: 0.5
-      colors: [[0.55, 0.48, 0.32], [0.92, 0.85, 0.72]]
-    displacement:
-      mode: "scalar"
-      texture:
-        type: "voronoi"
-        scale: 4.0
-        output: "f2_minus_f1"
-        colors: [[0, 0, 0], [1, 1, 1]]
-      scale: 0.005
-      midlevel: 0.5
-      bound: 0.010
-      autobump: true
-      displacement_method: "bump_only"
-
-  # Terra battuta argillosa: musgrave per crepe naturali.
-  - id: "dis_terra_battuta"
-    type: "disney"
-    color: [0.62, 0.42, 0.25]
-    roughness: 0.92
-    specular: 0.18
-    texture:
-      type: "noise"
-      scale: 1.8
-      noise_type: "ridged"
-      octaves: 6
-      noise_strength: 0.8
-      distortion: 0.25
-      randomize_offset: true
-      color_ramp:
-        - { position: 0.00, color: [0.32, 0.18, 0.08], interp: "smoothstep" }
-        - { position: 0.50, color: [0.55, 0.36, 0.18], interp: "smoothstep" }
-        - { position: 1.00, color: [0.82, 0.62, 0.40], interp: "linear" }
-    bump_map:
-      texture:
-        type: "voronoi"
-        scale: 8.0
-        output: "f2_minus_f1"
-        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
-      strength: 1.6
