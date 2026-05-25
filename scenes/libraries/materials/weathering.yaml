@@ -1,6 +1,16 @@
-# ============================================================================
-# Libreria Materiali — Weathering Overlay (Sporco, Patine, Invecchiamento)
-# ============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+#  3D-Ray Material Library — WEATHERING OVERLAYS
+# ───────────────────────────────────────────────────────────────────────────
+#  File:     weathering.yaml
+#  Disney:   26      (tutti `over_*`, da usare via `type: mix`)
+#  Classic:  0       (gli overlay sono compositori Disney, niente cls_)
+#  Total:    26
+#  Updated:  2026-05
+# ───────────────────────────────────────────────────────────────────────────
+#  Contenuto: ruggine, muschio, polvere, colature, calcare, grasso, neve,
+#             vernice scrostata, foglie morte, sale marino, film d'acqua,
+#             verderame.
+# ═══════════════════════════════════════════════════════════════════════════
 #
 # Importa con:  imports: [{ path: "libraries/materials/weathering.yaml" }]
 #

@@ -1,0 +1,539 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  3D-Ray Material Library — MIX RECIPES
+# ───────────────────────────────────────────────────────────────────────────
+#  File:     mix-recipes.yaml
+#  Disney:   0       (sono tutti `type: mix` che compongono altri Disney)
+#  Classic:  0
+#  Mix:      35      (preset compositi `mix_*`)
+#  Total:    35
+#  Updated:  2026-05
+# ───────────────────────────────────────────────────────────────────────────
+#  Contenuto: ricette `type: mix` pronte all'uso che combinano un materiale
+#             base (dis_*) con un overlay weathering (over_*) tramite
+#             maschera procedurale, in 6 categorie:
+#               METALLI INVECCHIATI — ruggine, verderame, patine
+#               LEGNI USURATI — polvere, foglie, scrostatura
+#               INTONACI MACCHIATI — dirt streak, calcare, umido
+#               PIETRE COLONIZZATE — muschio, polvere, foglie
+#               VERNICI SCROSTATE — paint flake su metallo/legno
+#               GENERICI — combinazioni cross-categoria utili
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Importa con:  imports: [{ path: "libraries/materials/mix-recipes.yaml" }]
+#
+# Dipendenze (DEVI importare anche queste prima di usare i mix_*):
+#   - metals.yaml         per dis_acciaio_*, dis_ferro_*, dis_rame_*
+#   - woods.yaml          per dis_quercia_*, dis_pino_*, dis_noce_*
+#   - plasters.yaml       per dis_intonaco_*, dis_marmorino_*
+#   - stones.yaml         per dis_pietra_*, dis_granito_*, dis_mattone_*
+#   - paints.yaml         per dis_vernice_*, dis_chalk_*
+#   - weathering.yaml     per tutti gli over_*
+#
+# Pattern di una ricetta:
+#   - id: "mix_<categoria>_<varianza>"
+#     type: "mix"
+#     material_a: "dis_<base>"        # superficie pulita
+#     material_b: "over_<overlay>"    # patina / sporco
+#     blend: 0.5                       # default; la mask sotto ha la parola finale
+#     mask:
+#       type: "noise"|"voronoi"
+#       scale: …
+#       …
+#
+# Nota: blend e mask interagiscono — la mask modula spazialmente, blend è
+# un floor globale. Per overlay localizzati usa blend basso (0.2-0.4) e
+# affidati alla mask; per coperture diffuse usa blend alto (0.6-0.8).
+
+
+materials:
+
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  METALLI INVECCHIATI                                                  ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
+
+  # Acciaio con ruggine leggera — qualche macchia diffusa
+  - id: "mix_acciaio_arrugginito_leggero"
+    type: "mix"
+    material_a: "dis_acciaio_lucido"
+    material_b: "over_rust_light"
+    blend: 0.35
+    mask:
+      type: "noise"
+      scale: 3.5
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.0
+      color_ramp:
+        - { position: 0.55, color: [0, 0, 0], interp: "constant" }
+        - { position: 0.68, color: [1, 1, 1], interp: "linear" }
+
+  # Acciaio con ruggine media — circa metà superficie coperta
+  - id: "mix_acciaio_arrugginito_medio"
+    type: "mix"
+    material_a: "dis_acciaio_satinato"
+    material_b: "over_rust_medium"
+    blend: 0.55
+    mask:
+      type: "noise"
+      scale: 3.0
+      noise_type: "fbm"
+      octaves: 6
+      noise_strength: 1.2
+      color_ramp:
+        - { position: 0.35, color: [0, 0, 0], interp: "constant" }
+        - { position: 0.55, color: [1, 1, 1], interp: "linear" }
+
+  # Ferro forgiato con ruggine pesante — abbandonato a lungo
+  - id: "mix_ferro_arrugginito_pesante"
+    type: "mix"
+    material_a: "dis_ferro_forgiato"
+    material_b: "over_rust_heavy"
+    blend: 0.75
+    mask:
+      type: "noise"
+      scale: 2.2
+      noise_type: "fbm"
+      octaves: 6
+      noise_strength: 1.4
+      color_ramp:
+        - { position: 0.20, color: [0, 0, 0], interp: "constant" }
+        - { position: 0.45, color: [1, 1, 1], interp: "linear" }
+
+  # Acciaio con colature di ruggine — gocciolata verticale dall'alto
+  - id: "mix_acciaio_rust_streak"
+    type: "mix"
+    material_a: "dis_acciaio_spazzolato"
+    material_b: "over_rust_streak"
+    blend: 0.50
+    mask:
+      type: "noise"
+      scale: 4.0
+      noise_type: "ridged"
+      octaves: 4
+      noise_strength: 1.0
+
+  # Rame con verderame iniziale — patina verde sparsa
+  - id: "mix_rame_verderame_leggero"
+    type: "mix"
+    material_a: "dis_rame_satinato"
+    material_b: "over_verderame"
+    blend: 0.40
+    mask:
+      type: "noise"
+      scale: 3.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.1
+      color_ramp:
+        - { position: 0.50, color: [0, 0, 0], interp: "constant" }
+        - { position: 0.65, color: [1, 1, 1], interp: "linear" }
+
+  # Rame con verderame avanzato — tetti vecchi, statue esposte
+  - id: "mix_rame_verderame_pesante"
+    type: "mix"
+    material_a: "dis_rame_antico"
+    material_b: "over_verderame"
+    blend: 0.70
+    mask:
+      type: "voronoi"
+      scale: 5.0
+      output: "f1"
+      smoothness: 0.4
+
+  # Bronzo con polvere accumulata — statue da museo
+  - id: "mix_bronzo_polvere"
+    type: "mix"
+    material_a: "dis_bronzo_satinato"
+    material_b: "over_dust_light"
+    blend: 0.30
+    mask:
+      type: "noise"
+      scale: 5.0
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.8
+
+
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  LEGNI USURATI                                                        ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
+
+  # Quercia con polvere fine — mobile dimenticato in soffitta
+  - id: "mix_quercia_polverosa"
+    type: "mix"
+    material_a: "dis_quercia_olio"
+    material_b: "over_dust_light"
+    blend: 0.30
+    mask:
+      type: "noise"
+      scale: 6.0
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.9
+
+  # Pino nodoso con foglie morte — pavimento esterno autunnale
+  - id: "mix_pino_foglie_autunno"
+    type: "mix"
+    material_a: "dis_pino_nodoso_heavy"
+    material_b: "over_foglie_morte"
+    blend: 0.40
+    mask:
+      type: "voronoi"
+      scale: 8.0
+      output: "f1"
+      smoothness: 0.6
+
+  # Tavola di noce con dirt streaks — bancone bar mal pulito
+  - id: "mix_noce_dirt_streak"
+    type: "mix"
+    material_a: "dis_noce_verniciato"
+    material_b: "over_dirt_streak"
+    blend: 0.45
+    mask:
+      type: "noise"
+      scale: 4.5
+      noise_type: "ridged"
+      octaves: 5
+      noise_strength: 1.0
+
+  # Parquet con macchie d'acqua — pavimento mal asciugato
+  - id: "mix_parquet_water_stains"
+    type: "mix"
+    material_a: "dis_quercia_olio"
+    material_b: "over_water_stains"
+    blend: 0.35
+    mask:
+      type: "voronoi"
+      scale: 6.0
+      output: "f1"
+      smoothness: 0.5
+
+  # Quercia con muschio — staccionata in bosco umido
+  - id: "mix_quercia_muschio_sparso"
+    type: "mix"
+    material_a: "dis_quercia_olio"
+    material_b: "over_moss_sparse"
+    blend: 0.40
+    mask:
+      type: "voronoi"
+      scale: 7.0
+      output: "f2_minus_f1"
+      smoothness: 0.3
+
+
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  INTONACI MACCHIATI                                                   ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
+
+  # Intonaco con colature di sporco — facciata cittadina ignorata
+  - id: "mix_intonaco_dirt_streak"
+    type: "mix"
+    material_a: "dis_intonaco_grigio_perla"
+    material_b: "over_dirt_streak"
+    blend: 0.40
+    mask:
+      type: "noise"
+      scale: 3.5
+      noise_type: "ridged"
+      octaves: 5
+      noise_strength: 1.1
+
+  # Intonaco con macchie di umidità — angolo sotto pluviale
+  - id: "mix_intonaco_umidita"
+    type: "mix"
+    material_a: "dis_intonaco_grigio_perla"
+    material_b: "over_water_stains"
+    blend: 0.45
+    mask:
+      type: "noise"
+      scale: 2.5
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.0
+      color_ramp:
+        - { position: 0.35, color: [0, 0, 0], interp: "constant" }
+        - { position: 0.55, color: [1, 1, 1], interp: "linear" }
+
+  # Marmorino con calcare — bagno con doccia di acqua dura
+  - id: "mix_marmorino_calcare"
+    type: "mix"
+    material_a: "dis_marmorino_bianco"
+    material_b: "over_limescale"
+    blend: 0.35
+    mask:
+      type: "voronoi"
+      scale: 8.0
+      output: "f1"
+      smoothness: 0.5
+
+  # Tadelakt con macchie giallastre di calcare — vecchio hammam
+  - id: "mix_tadelakt_calcare_vintage"
+    type: "mix"
+    material_a: "dis_tadelakt_ocra"
+    material_b: "over_limescale_giallo"
+    blend: 0.40
+    mask:
+      type: "noise"
+      scale: 4.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.0
+
+
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  PIETRE COLONIZZATE                                                   ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
+
+  # Mattone con muschio sparso — muro vecchio orientato a nord
+  - id: "mix_mattone_muschio"
+    type: "mix"
+    material_a: "dis_mattone_rosso"
+    material_b: "over_moss_sparse"
+    blend: 0.40
+    mask:
+      type: "voronoi"
+      scale: 6.5
+      output: "f2_minus_f1"
+      smoothness: 0.3
+
+  # Pietra a vista con muschio denso — muraglione in ombra
+  - id: "mix_pietra_muschio_denso"
+    type: "mix"
+    material_a: "dis_arenaria_grigia"
+    material_b: "over_moss_dense"
+    blend: 0.55
+    mask:
+      type: "voronoi"
+      scale: 5.0
+      output: "f1"
+      smoothness: 0.4
+
+  # Granito con polvere e terra — pavimentazione esterna trascurata
+  - id: "mix_granito_polvere_terra"
+    type: "mix"
+    material_a: "dis_granito_grigio_fiammato"
+    material_b: "over_dust_terra"
+    blend: 0.40
+    mask:
+      type: "noise"
+      scale: 4.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.0
+
+  # Ardesia con foglie morte — pavimentazione patio autunnale
+  - id: "mix_ardesia_foglie_morte"
+    type: "mix"
+    material_a: "dis_ardesia_grigia"
+    material_b: "over_foglie_morte"
+    blend: 0.45
+    mask:
+      type: "voronoi"
+      scale: 7.5
+      output: "f1"
+      smoothness: 0.5
+
+  # Pietra colonizzata da muschio umido — roccia in cascata
+  - id: "mix_pietra_muschio_bagnato"
+    type: "mix"
+    material_a: "dis_basalto_grezzo"
+    material_b: "over_moss_wet"
+    blend: 0.60
+    mask:
+      type: "voronoi"
+      scale: 4.5
+      output: "f1"
+      smoothness: 0.5
+
+  # Pietra esposta al mare — sale cristallino su muraglione costiero
+  - id: "mix_pietra_sale_marino"
+    type: "mix"
+    material_a: "dis_basalto_grezzo"
+    material_b: "over_sale_marino"
+    blend: 0.50
+    mask:
+      type: "noise"
+      scale: 3.5
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.1
+
+
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  VERNICI SCROSTATE                                                    ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
+
+  # Acciaio con vernice bianca scrostata — porta industriale dismessa
+  - id: "mix_acciaio_vernice_scrostata_bianca"
+    type: "mix"
+    material_a: "dis_acciaio_arrugginito"
+    material_b: "over_paint_flake_bianca"
+    blend: 0.55
+    mask:
+      type: "voronoi"
+      scale: 8.0
+      output: "f2_minus_f1"
+      smoothness: 0.2
+      color_ramp:
+        - { position: 0.00, color: [1, 1, 1], interp: "constant" }
+        - { position: 0.05, color: [0, 0, 0], interp: "constant" }
+
+  # Lamiera con vernice verde militare scrostata — bidone militare
+  - id: "mix_lamiera_vernice_verde_militare"
+    type: "mix"
+    material_a: "dis_ferro_battuto"
+    material_b: "over_paint_flake_verde_militare"
+    blend: 0.50
+    mask:
+      type: "voronoi"
+      scale: 7.0
+      output: "f2_minus_f1"
+      smoothness: 0.2
+
+  # Legno con vernice scrostata — panchina pubblica abbandonata
+  - id: "mix_legno_vernice_scrostata"
+    type: "mix"
+    material_a: "dis_pino_nodoso_heavy"
+    material_b: "over_paint_flake_bianca"
+    blend: 0.45
+    mask:
+      type: "voronoi"
+      scale: 6.0
+      output: "f2_minus_f1"
+      smoothness: 0.25
+
+
+  # ╔═══════════════════════════════════════════════════════════════════════╗
+  # ║  GENERICI / CROSS-CATEGORIA                                           ║
+  # ╚═══════════════════════════════════════════════════════════════════════╝
+
+  # Neve sottile su superfici orizzontali — tetto inizio inverno
+  - id: "mix_tegola_neve_sottile"
+    type: "mix"
+    material_a: "dis_mattone_rosso"
+    material_b: "over_snow_powder"
+    blend: 0.35
+    mask:
+      type: "noise"
+      scale: 5.0
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.8
+
+  # Neve in scioglimento — pavimento esterno tarda mattinata
+  - id: "mix_pietra_neve_sciolta"
+    type: "mix"
+    material_a: "dis_granito_grigio_fiammato"
+    material_b: "over_snow_melting"
+    blend: 0.45
+    mask:
+      type: "voronoi"
+      scale: 4.5
+      output: "f1"
+      smoothness: 0.6
+
+  # Banco officina con grasso scuro — banco da lavoro meccanico
+  - id: "mix_banco_grasso_officina"
+    type: "mix"
+    material_a: "dis_acciaio_satinato"
+    material_b: "over_grease_dark"
+    blend: 0.50
+    mask:
+      type: "noise"
+      scale: 4.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.0
+
+  # Pavimento cucina con grasso — pavimento ristorante mal pulito
+  - id: "mix_piastrella_grasso_cucina"
+    type: "mix"
+    material_a: "dis_smaltata_bianca"
+    material_b: "over_grease_light"
+    blend: 0.40
+    mask:
+      type: "noise"
+      scale: 5.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.0
+
+  # Acqua su pavimento — film d'acqua post-pioggia
+  - id: "mix_pavimento_bagnato"
+    type: "mix"
+    material_a: "dis_asfalto_consumato_medium"
+    material_b: "over_water_film"
+    blend: 0.50
+    mask:
+      type: "noise"
+      scale: 3.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.2
+      color_ramp:
+        - { position: 0.40, color: [0, 0, 0], interp: "constant" }
+        - { position: 0.60, color: [1, 1, 1], interp: "linear" }
+
+  # Statua di gesso con polvere — figura abbandonata in cantina
+  - id: "mix_gesso_polvere_gesso"
+    type: "mix"
+    material_a: "dis_gesso_liscio"
+    material_b: "over_dust_gesso"
+    blend: 0.35
+    mask:
+      type: "noise"
+      scale: 6.0
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.7
+
+  # Mobile in legno con dust heavy — soffitta dimenticata da decenni
+  - id: "mix_legno_polvere_pesante"
+    type: "mix"
+    material_a: "dis_quercia_olio"
+    material_b: "over_dust_heavy"
+    blend: 0.55
+    mask:
+      type: "noise"
+      scale: 3.5
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.0
+
+  # Tubo bagno con calcare avanzato — rubinetto vecchio incrostato
+  - id: "mix_cromo_calcare"
+    type: "mix"
+    material_a: "dis_cromo_satinato"
+    material_b: "over_limescale"
+    blend: 0.40
+    mask:
+      type: "voronoi"
+      scale: 7.5
+      output: "f1"
+      smoothness: 0.5
+
+  # Mattonella esterna con dirt drip — terrazzo trascurato
+  - id: "mix_mattonella_dirt_drip"
+    type: "mix"
+    material_a: "dis_smaltata_bianca"
+    material_b: "over_dirt_drip"
+    blend: 0.45
+    mask:
+      type: "noise"
+      scale: 3.5
+      noise_type: "ridged"
+      octaves: 5
+      noise_strength: 1.1
+
+  # Mattone con polvere terra accumulata — base muro a contatto suolo
+  - id: "mix_mattone_terra_accumulo"
+    type: "mix"
+    material_a: "dis_mattone_rosso"
+    material_b: "over_dust_terra"
+    blend: 0.45
+    mask:
+      type: "noise"
+      scale: 4.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.0
