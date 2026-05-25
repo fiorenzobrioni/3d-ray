@@ -6,6 +6,30 @@ Roadmap, lavori in corso, bug noti, storico cicli.
 
 ---
 
+## Ristrutturazione Librerie scenes/libraries/
+
+**Rimosso:** `objects/` (11 file, ~150 template) e `starter-kits/` (19 scene
+complete) — la libreria objects aveva 3 soli utenti reali (showcase) che ora
+definiscono la geometria inline; i starter-kit erano scene complete autonome
+non corrispondenti al concetto di libreria importabile.
+
+**Aggiunto:** `geometry-lights.yaml` in `lights/` — 12 preset emissivi `emi_*`
+(scala blackbody 2000K→7000K + speciali: fuoco, LED strip, bioluminescenza,
+sole diretto) per trasformare qualsiasi geometria in sorgente NEE senza
+definire luci esplicite. Copre il gap lasciato dalla rimozione di `emissives.yaml`.
+
+**Aggiunto:** `README.md` in `fonts/` e `terrains/` — documentazione mancante
+per le due librerie generate da tool (FontGen, TerrainGen).
+
+**Aggiornato:** `lights/README.md`, `textures/README.md`, `scenes/libraries/README.md`
+— allineamento stilistico a `materials/README.md` (no emoji, formato tabellare
+uniforme).
+
+**Aggiornato:** `docs/tutorial/{en,it}/10-libraries-and-projects.md` — rimosse
+sezioni objects e starter-kits; aggiunte sezioni geometry-lights, fonts, terrains.
+
+---
+
 ## 📌 Note rapide
 
 ### ✅ Wood texture — riscrittura pro-grade (Arnold/Cycles/Renderman/Mitsuba parity)

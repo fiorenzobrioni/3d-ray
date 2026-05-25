@@ -22,9 +22,6 @@
 #   ─ Final     : -w 1920 -H 1080 -s 1024 -d 12 -S 6  -C 30  --sampler sobol
 # ═════════════════════════════════════════════════════════════════════════════
 
-imports:
-  - path: "../libraries/objects/decorative-objects.yaml"
-
 world:
   # ── Sky: Nishita alba di montagna ─────────────────────────────────────────
   sky:
@@ -84,7 +81,7 @@ cameras:
     fov: 70
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  MATERIALS — strata + acqua glaciale + protagonisti
+#  MATERIALS — strata + acqua glaciale
 #  I 3 materiali strata (sand / grass / snow) sono ridefiniti inline per
 #  autosufficienza dello showcase. Le versioni "library" equivalenti vivono
 #  in scenes/libraries/materials/grounds.yaml con gli stessi ID.
@@ -146,19 +143,13 @@ materials:
     transmission_color: [0.30, 0.55, 0.65]
     transmission_depth: 4.0
 
-  # ─── Protagonisti (scala umana) ───────────────────────────────────────────
+  # ─── Tenda e boe ─────────────────────────────────────────────────────────
   - id: "tent_red"
     type: "disney"
     color: [0.78, 0.10, 0.08]
     roughness: 0.55
     metallic: 0.0
     sheen: 0.35
-
-  - id: "obelisk_gold"
-    type: "disney"
-    color: [1.00, 0.78, 0.34]
-    metallic: 1.0
-    roughness: 0.18
 
   - id: "buoy_orange"
     type: "disney"
@@ -180,14 +171,6 @@ entities:
     translate: [-22, 9.5, -8]
     rotate:    [0, 25, 0]
     scale:     [2.0, 1.5, 2.5]
-
-  # ── Obelisco dorato (monolite scala umana) ────────────────────────────────
-  - name: "obelisk"
-    type: "instance"
-    template: "obelisco"
-    material: "obelisk_gold"
-    translate: [-26, 10.0, -2]
-    scale: [0.6, 1.2, 0.6]
 
   # ── Boe galleggianti ──────────────────────────────────────────────────────
   - name: "buoy_a"
