@@ -1,4 +1,4 @@
-# 🖼️ Libreria Texture — Mappe per Materiali
+# Libreria Texture — 3D-Ray
 
 Raccolta di **20 texture PNG** pronte all'uso nei materiali della scena.
 Le texture non si importano con `imports:` — si referenziano direttamente
@@ -7,7 +7,7 @@ con il percorso relativo nel campo appropriato del materiale YAML
 
 ---
 
-## Come Usare
+## Come usare
 
 Le texture **non richiedono alcun import**. Basta indicare il percorso relativo
 nel materiale, risolto rispetto alla directory della scena (tipicamente `scenes/`):
@@ -29,9 +29,9 @@ materials:
     metallic: 0.0
 ```
 
-> **Percorsi relativi:** i path sono risolti relativamente alla directory
-> del file di scena. Se la scena è in `scenes/`, usa
-> `"libraries/textures/nome-file.png"` (senza `scenes/`).
+**Percorsi relativi:** i path sono risolti relativamente alla directory
+del file di scena. Se la scena è in `scenes/`, usa
+`"libraries/textures/nome-file.png"` (senza `scenes/`).
 
 ---
 
@@ -79,9 +79,9 @@ o da usare come layer aggiuntivo:
 
 ---
 
-## Convenzioni Tecniche
+## Convenzioni tecniche
 
-### Formato e Risoluzione
+### Formato e risoluzione
 
 Tutte le texture sono file **PNG a 8 bit per canale**. La risoluzione varia
 da 256×256 (texture procedurali) fino a 2048×2048 (foto ad alta qualità).
@@ -105,7 +105,7 @@ oppure scala l'oggetto in modo inverso.
 
 ---
 
-## Esempi Pratici
+## Esempi pratici
 
 ### Pavimento in legno con normal map
 
@@ -176,7 +176,7 @@ materials:
 
 ---
 
-## Catalogo Completo
+## Catalogo completo
 
 | File | Dimensione | Tipo | Note |
 |------|-----------|------|------|

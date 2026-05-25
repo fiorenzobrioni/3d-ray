@@ -244,7 +244,6 @@ Man mano che le scene crescono, tenere tutto in un unico file diventa complicato
 imports:
   - path: "libraries/materials/metals.yaml"
   - path: "libraries/materials/woods.yaml"
-  - path: "libraries/objects/furniture.yaml"
   - path: "libraries/lights/studio-3point.yaml"
 ```
 

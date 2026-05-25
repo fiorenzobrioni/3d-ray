@@ -51,8 +51,8 @@ Fog, mist, underwater haze, clouds, localized smoke. Four medium types
 functions (isotropic, HG, Rayleigh, double-HG, Schlick).
 
 ### [10 -- Asset Libraries and Complete Scenes](./10-libraries-and-projects.md)
-The bundled library ecosystem: 800+ materials, 154+ object templates,
-14 lighting presets, and 18 starter-kit scenes. CLI reference, project
+The bundled library ecosystem: 800+ materials, 14 lighting setups plus
+emissive geometry-light presets, image textures, font templates, and terrain heightfields. CLI reference, project
 workflow, and a troubleshooting guide.
 
 ### [11 -- Surfaces of Revolution (Lathe)](./11-lathe-surface-of-revolution.md)

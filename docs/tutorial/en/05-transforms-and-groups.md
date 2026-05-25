@@ -275,7 +275,6 @@ templates from external YAML files.
 imports:
   - path: "libraries/materials/metals.yaml"
   - path: "libraries/materials/woods.yaml"
-  - path: "libraries/objects/furniture.yaml"
   - path: "libraries/lights/studio-3point.yaml"
 ```
 

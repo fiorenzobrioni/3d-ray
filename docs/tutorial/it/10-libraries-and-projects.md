@@ -1,6 +1,10 @@
 # Capitolo 10: Librerie di asset e scene complete
 
-3D-Ray viene fornito con un ricco ecosistema di asset predefiniti: oltre 1100 materiali, ~150 template di oggetti, 14 preset di illuminazione e 17 scene starter-kit complete. Questo capitolo mostra come utilizzarli, fornisce il riferimento completo della CLI e guida nella costruzione di un vero progetto.
+3D-Ray viene fornito con un ricco ecosistema di asset predefiniti: 1450
+materiali, 14 configurazioni di illuminazione (più preset emissivi per luci
+geometriche), texture immagine, template di font e heightfield per terreni.
+Questo capitolo mostra come utilizzarli, fornisce il riferimento completo
+della CLI e guida nella costruzione di un vero progetto.
 
 ---
 
@@ -10,20 +14,22 @@ Tutte le librerie si trovano nella directory `scenes/libraries/`:
 
 ```
 scenes/libraries/
-  materials/      12 file YAML, oltre 1100 materiali
-  objects/        11 file YAML, ~150 template
-  lights/         14 file YAML, preset di illuminazione
-  starter-kits/   17 file YAML, scene complete
+  materials/      20 file YAML, 1450 materiali
+  lights/         14 file YAML + geometry-lights.yaml
   textures/       20 file immagine PNG (albedo + normal map)
+  fonts/          Template caratteri 3D (generati da FontGen)
+  terrains/       Template heightfield (generati da TerrainGen)
 ```
 
-Le librerie vengono caricate tramite la sezione `imports:` nel file della scena. I percorsi sono relativi alla directory del file della scena.
+Le librerie vengono caricate tramite la sezione `imports:` nel file della
+scena. I percorsi sono relativi alla directory del file della scena.
 
 ---
 
 ## 10.2 Librerie dei Materiali
 
-Venti file a tema che coprono ogni tipo di superficie di cui si potrebbe aver bisogno:
+Venti file a tema che coprono ogni tipo di superficie di cui si potrebbe
+aver bisogno:
 
 | File                          | Contenuti                                       | Quantità |
 |-------------------------------|-------------------------------------------------|----------|
@@ -54,10 +60,16 @@ Venti file a tema che coprono ogni tipo di superficie di cui si potrebbe aver bi
 
 I materiali seguono un sistema di prefissi:
 
-- **`dis_`** — Disney BSDF (PBR completo con clearcoat, sheen, subsurface, spec_trans, thin_film). Ideale per gli oggetti principali (hero objects) e i primi piani.
-- **`cls_`** — Tipo classico (`lambertian`, `metal` o `dielectric`, scelto in base al lobo dominante). Più veloce e meno rumoroso; ideale per grandi superfici e sfondi.
-- **`over_`** — Overlay weathering (in `weathering.yaml`) da usare via `type: mix`.
-- **`mix_`** — Ricetta composita pronta all'uso (in `mix-recipes.yaml`) che combina `dis_*` base + `over_*` overlay + maschera procedurale.
+- **`dis_`** — Disney BSDF (PBR completo con clearcoat, sheen, subsurface,
+  spec_trans, thin_film). Ideale per gli oggetti principali (hero objects)
+  e i primi piani.
+- **`cls_`** — Tipo classico (`lambertian`, `metal` o `dielectric`, scelto
+  in base al lobo dominante). Più veloce e meno rumoroso; ideale per grandi
+  superfici e sfondi.
+- **`over_`** — Overlay weathering (in `weathering.yaml`) da usare via
+  `type: mix`.
+- **`mix_`** — Ricetta composita pronta all'uso (in `mix-recipes.yaml`) che
+  combina `dis_*` base + `over_*` overlay + maschera procedurale.
 
 Esempi:
 - `dis_oro_lucido` — Oro lucido Disney
@@ -87,7 +99,8 @@ entities:
 
 ### Sovrascrivere un materiale della libreria
 
-Per personalizzare un materiale della libreria, ridefiniscilo con lo stesso ID nel tuo file di scena. Le definizioni locali hanno la precedenza:
+Per personalizzare un materiale della libreria, ridefiniscilo con lo stesso
+ID nel tuo file di scena. Le definizioni locali hanno la precedenza:
 
 ```yaml
 imports:
@@ -104,128 +117,10 @@ materials:
 
 ---
 
-## 10.3 Librerie degli Oggetti
+## 10.3 Librerie di Illuminazione
 
-Undici file a tema con template predefiniti che utilizzano primitive,
-gruppi, CSG e la **primitiva `lathe` (superficie di rivoluzione)** per
-corpi torniti di livello professionale:
-
-| File                             | Template | Esempi di oggetti                    |
-|----------------------------------|----------|--------------------------------------|
-| `objects/furniture.yaml`         | 11       | Tavoli, sedie, lampade, scaffali, candelabri torniti (lathe) |
-| `objects/decorative-objects.yaml`| 12       | Vasi Ming (lathe), anfore greche (lathe), orologi, piedistalli (lathe) |
-| `objects/tableware.yaml`         | 11       | Calici (lathe), bottiglie (lathe), decanter (lathe), teiere |
-| `objects/architecture.yaml`      | 15       | Colonne (lathe), archi, scale, balaustri (lathe), pinnacoli (lathe) |
-| `objects/mechanical.yaml`        | 14       | Ingranaggi, bulloni, pistoni, cuscinetti |
-| `objects/jewelry.yaml`           | 14       | Anelli, collane, gemme, tiara        |
-| `objects/lighting.yaml`          | 15       | Lampadari, plafoniere (lathe), paralumi (lathe), lampioni |
-| `objects/laboratory.yaml`        | 14       | Beute (lathe), palloni (lathe), imbuti (lathe), microscopio |
-| `objects/musical.yaml`           | 14       | Violino, chitarra, campane in bronzo (lathe), timpani (lathe) |
-| `objects/outdoor.yaml`           | 15       | Panchine, fontane, fioriere (lathe), vasi giardino (lathe) |
-| `objects/nature.yaml`            | 15       | Alberi, fiori, funghi, cristalli     |
-
-### Template basati su lathe
-
-Oltre **26 template** distribuiti su 9 librerie sfruttano la primitiva
-`lathe` per i corpi assi-simmetrici: calici da vino, bottiglie, colonne
-tornite, balaustri, vasi Ming, vetreria da laboratorio, campane, paralumi. Un singolo profilo Catmull-Rom genera una silhouette
-C¹ continua impossibile da ottenere impilando sfere/coni/torus e
-sostituisce tipicamente 5–15 primitive con una sola. Per il vetro
-trasparente (Pyrex, cristallo) il lathe è mantenuto solido — la
-rifrazione del materiale produce naturalmente l'effetto ottico della
-parete sottile. Per i gusci sottili opachi (fioriere in terracotta,
-paralumi in tessuto) una sottrazione CSG di due lathe genera una
-parete di spessore costante. Vedi il
-**[Capitolo 11: Superfici di rivoluzione (Lathe)](./11-lathe-surface-of-revolution.md)**
-per lo schema completo, i modi di profilo e il costo di intersezione.
-
-### Prefissi dei materiali per libreria
-
-Ogni libreria utilizza un prefisso unico per i suoi materiali incorporati per evitare collisioni:
-
-| Libreria            | Prefisso|
-|---------------------|---------|
-| furniture           | `frn_`  |
-| decorative-objects  | `dec_`  |
-| tableware           | `tbw_`  |
-| architecture        | `arc_`  |
-| mechanical          | `mec_`  |
-| jewelry             | `jwl_`  |
-| lighting            | `lit_`  |
-| laboratory          | `lab_`  |
-| musical             | `mus_`  |
-| outdoor             | `out_`  |
-| nature              | `nat_`  |
-
-### Convenzioni
-
-Tutti i template seguono regole coerenti:
-
-- **Base a Y=0.** Ogni template poggia a terra quando posizionato con `translate: [x, 0, z]`.
-- **Centrato in XZ.** L'origine è nel centro geometrico.
-- **Scala 1:1 in metri.** Un tavolo è largo ~1.4 m; una sedia è alta ~0.9 m.
-
-### Utilizzo
-
-```yaml
-imports:
-  - path: "libraries/objects/furniture.yaml"
-  - path: "libraries/materials/metals.yaml"
-
-entities:
-  # Posiziona un tavolo all'origine
-  - type: "instance"
-    template: "tavolo_classico"
-    translate: [0, 0, 0]
-
-  # Posiziona una sedia, sovrascrivi il materiale con oro metallico
-  - type: "instance"
-    template: "sedia_classica"
-    translate: [0.7, 0, -0.4]
-    rotate: [0, -30, 0]
-    material: "dis_oro_lucido"
-```
-
-La sovrascrittura del materiale su un'istanza sostituisce il materiale predefinito del template. I figli con un proprio materiale esplicito (come una lampadina emissiva all'interno di una lampada) mantengono il loro materiale originale.
-
-### ⚠️ `center:` vs `translate:` su primitive con asse
-
-Le primitive che espongono un parametro `center:` (sphere, cylinder, cone,
-capsule, torus, disk, annulus, lathe) non vanno combinate con `rotate:` o
-`scale:`. Le trasformazioni `scale → rotate → translate` vengono sempre
-applicate attorno all'**origine globale**, non attorno al `center:` della
-primitiva. Combinandoli si ottiene un riposizionamento inatteso (la
-primitiva viene "scagliata" dall'origine).
-
-```yaml
-# ❌ Sbagliato — il rotate ruota la sfera attorno all'origine, non al suo centro
-- type: "sphere"
-  center: [0, 1.5, 0]
-  radius: 0.3
-  rotate: [0, 0, 90]
-
-# ✅ Corretto — la sfera è in (0,0,0), si scala/ruota localmente, poi posiziona
-- type: "sphere"
-  radius: 0.3
-  rotate: [0, 0, 90]
-  translate: [0, 1.5, 0]
-```
-
-`box` e `mesh` non hanno parametro `center:` e usano nativamente `translate:`,
-quindi sono immuni dal problema. Anche le `instance` di template usano
-direttamente `translate:`/`rotate:`/`scale:` ed è il pattern corretto.
-
-**Quando `center:` è sicuro:** quando non sono presenti `rotate:` né
-`scale:` (è equivalente a `translate:`); dentro i figli CSG (`left`/`right`),
-che non hanno trasformazione esterna; e dentro i `group` quando il figlio
-non ha rotazione propria — la `translate`/`rotate` del group si compone
-correttamente sopra il `center:` del figlio.
-
----
-
-## 10.4 Librerie di Illuminazione
-
-Quattordici configurazioni di illuminazione predefinite organizzate per ambiente:
+Quattordici configurazioni di illuminazione predefinite organizzate per
+ambiente, più un file dedicato ai preset emissivi per luci geometriche.
 
 ### Studio
 
@@ -238,12 +133,12 @@ Quattordici configurazioni di illuminazione predefinite organizzate per ambiente
 
 ### Esterni (Outdoor)
 
-| File                             | Configurazione | Atmosfera                           |
-|----------------------------------|----------------|-------------------------------------|
-| `lights/outdoor-noon.yaml`       | Sole mezzogiorno| Luce dura, ombre corte             |
+| File                             | Configurazione  | Atmosfera                           |
+|----------------------------------|-----------------|-------------------------------------|
+| `lights/outdoor-noon.yaml`       | Sole mezzogiorno| Luce dura, ombre corte              |
 | `lights/outdoor-golden-hour.yaml`| Ora d'oro       | Bagliore cinematografico caldo      |
-| `lights/outdoor-sunset.yaml`     | Tramonto       | Arancione profondo, ombre lunghe    |
-| `lights/outdoor-overcast.yaml`   | Nuvoloso       | Morbida, uniforme, senza ombre nette|
+| `lights/outdoor-sunset.yaml`     | Tramonto        | Arancione profondo, ombre lunghe    |
+| `lights/outdoor-overcast.yaml`   | Nuvoloso        | Morbida, uniforme, senza ombre nette|
 
 ### Notte / Interni / Creativi
 
@@ -269,7 +164,57 @@ world:
     color: [0.0, 0.0, 0.0]
 ```
 
-### 🛡️ Light hardening: ridurre i firefly senza alzare gli spp
+### Preset Luci Geometriche (`geometry-lights.yaml`)
+
+`lights/geometry-lights.yaml` contiene 12 materiali emissivi `emi_*` che
+trasformano qualsiasi geometria in una sorgente luminosa partecipante alla
+NEE — senza aggiungere un'entità luce esplicita. I preset coprono la
+scala blackbody completa e diverse sorgenti speciali:
+
+| Preset               | Temperatura colore | Uso                                |
+|----------------------|--------------------|------------------------------------|
+| `emi_candela`        | 2000 K             | Fiamma di candela, lampada a olio  |
+| `emi_tungsteno`      | 3000 K             | Lampadina a incandescenza          |
+| `emi_alogeno`        | 3200 K             | Faretto alogeno, lampada fotografica|
+| `emi_fluorescente`   | 4000 K             | Tubo fluorescente da ufficio       |
+| `emi_daylight`       | 5500 K             | Fill bilanciato luce del giorno    |
+| `emi_cool_white`     | 7000 K             | LED bianco freddo, fill cielo coperto|
+| `emi_fuoco`          | —                  | Bagliore animato di fuoco (caldo)  |
+| `emi_brace`          | —                  | Braci / carboni incandescenti      |
+| `emi_led_strip_warm` | —                  | Striscia LED calda (architetturale)|
+| `emi_led_strip_cool` | —                  | Striscia LED fredda (task lighting)|
+| `emi_bioluminescenza`| —                  | Bagliore bioluminescente           |
+| `emi_sole_diretto`   | —                  | Disco solare diretto (intensità molto alta)|
+
+Importa il file e applica il materiale a qualsiasi geometria. Il motore
+registra automaticamente la geometria come `GeometryLight` e la include
+nel campionamento NEE:
+
+```yaml
+imports:
+  - path: "libraries/lights/geometry-lights.yaml"
+
+entities:
+  # Una sfera lampada a temperatura tungsteno
+  - type: "sphere"
+    center: [0, 3, 0]
+    radius: 0.15
+    material: "emi_tungsteno"
+
+  # Un cilindro candela a temperatura candela
+  - type: "cylinder"
+    center: [1, 0, 0]
+    radius: 0.03
+    height: 0.2
+    material: "emi_candela"
+```
+
+Suggerimento: le luci geometriche partecipano automaticamente alla NEE
+pesata per potenza. Per scene con molte luci geometriche,
+`--light-sampling power` riduce la varianza quando le intensità delle
+luci differiscono notevolmente.
+
+### Light hardening: ridurre i firefly senza alzare gli spp
 
 Tutti i preset della libreria sono calibrati con i parametri di *light
 hardening* introdotti dal motore (vedi DEVLOG §Ciclo Light Hardening
@@ -306,70 +251,7 @@ isolati molto luminosi vicini alle sorgenti). In quel caso `soft_radius`
 
 ---
 
-## 10.5 Starter Kit: Scene Complete
-
-Diciotto scene renderizzabili che combinano materiali, oggetti, illuminazione e fotocamere. Si possono usare come punti di partenza -- copiarne uno, rinominarlo e modificarlo.
-
-### Esterni (7)
-- `starter-desert-highway.yaml` -- Strada nel deserto con cactus
-- `starter-snowy-clearing.yaml` -- Paesaggio invernale con lago ghiacciato
-- `starter-zen-garden.yaml` -- Giardino giapponese con lanterna e ponte
-- `starter-ancient-ruins.yaml` -- Rovine di un tempio greco
-- `starter-floating-islands.yaml` -- Isole fluttuanti fantasy
-- `starter-mountain-peak.yaml` ✨ -- Vette innevate al tramonto, mezzo `procedural` per nuvole basse
-- `starter-foliage-canopy.yaml` ✨ -- Sottobosco con foglie translucide (`diff_trans` + `thin_walled`) e dappled light
-
-### Interni (8)
-- `starter-photography-studio.yaml` -- Ciclorama con illuminazione softbox
-- `starter-cornell-box-extended.yaml` -- Benchmark classico GI
-- `starter-museum-gallery.yaml` -- Sculture su piedistalli
-- `starter-kitchen-counter.yaml` -- Piano in marmo con stoviglie
-- `starter-still-life-fruit.yaml` ✨ -- Natura morta fiamminga, bicchiere di vino con `transmission_color/depth`, ceramica satin
-- `starter-wine-cellar.yaml` -- Botti e bottiglie a lume di candela
-- `starter-dining-room.yaml` -- Tavolo, sedie, lampada a sospensione
-- `starter-infinite-mirror-room.yaml` -- Specchi paralleli, sfere emissive
-
-### Showcase (Esposizione) (3)
-- `starter-material-showroom.yaml` -- 16 materiali su piedistalli
-- `starter-jewelry-closeup.yaml` ✨ -- Anello con diamante (IOR 2.42), smeraldi e opale `thin_film`
-- `starter-pool-table.yaml` -- Tavolo da biliardo con palle
-- `starter-underwater.yaml` -- Barriera corallina con bioluminescenza
-
-> ✨ I 4 starter kit nuovi (Mountain Peak, Foliage Canopy, Still Life with
-> Fruit, Jewelry Close-Up) sono entrati nella collezione per dimostrare
-> feature del motore non coperte prima: mezzi partecipanti procedurali e
-> di altezza, foglie translucide con il pattern Disney 2015
-> (`diff_trans` + `thin_walled`), gemme con IOR alti e iridescenza
-> `thin_film`, ceramica satin / vetro smerigliato delle nuove famiglie
-> nei materials. Il vecchio `starter-chess-set.yaml` (con `objects/chess.yaml`)
-> è stato rimosso in attesa di rifattorizzazione futura; gli starter
-> "lean" `starter-golden-hour.yaml` e `starter-sunset.yaml` sono stati
-> rimossi perché contenevano solo l'header world+sole — la stessa
-> illuminazione è disponibile come libreria di luci importabile in
-> `lights/outdoor-golden-hour.yaml` e `lights/outdoor-sunset.yaml`.
-
-### Renderizzare uno Starter Kit
-
-```
-# La Cornell box è indirect-dominant: -d è alzato sopra il default del profilo Standard.
-RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -w 800 -H 800 -s 256 -d 20 -S 4
-```
-
-La maggior parte degli starter kit definisce più fotocamere. Elencale con:
-
-```
-RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml --list-cameras
-```
-
-Quindi renderizza una specifica fotocamera:
-
-```
-RayTracer -i scenes/libraries/starter-kits/starter-cornell-box-extended.yaml -c "tre_quarti" -s 256 -d 20
-```
-
----
-
-## 10.6 Libreria delle Texture Immagine
+## 10.4 Libreria delle Texture Immagine
 
 La cartella `scenes/libraries/textures/` contiene 20 file PNG:
 
@@ -409,6 +291,119 @@ materials:
       strength: 1.0
       uv_scale: [2, 2]
 ```
+
+---
+
+## 10.5 Librerie di Font
+
+La directory `scenes/libraries/fonts/` contiene file di template di
+caratteri 3D generati dallo strumento `FontGen`. Ogni file copre una
+famiglia di font e include template per le lettere maiuscole (A–Z),
+le minuscole (a–z) e le cifre (0–9).
+
+File di esempio: `fonts/font-open-sans.yaml` — famiglia Open Sans.
+
+### Utilizzo
+
+Riferisci un template di carattere usando `type: "instance"`:
+
+```yaml
+imports:
+  - path: "libraries/fonts/font-open-sans.yaml"
+
+materials:
+  # Definisci o sovrascrivi il materiale font usato da tutti i caratteri
+  - id: "font_material"
+    type: "disney"
+    color: [0.9, 0.85, 0.7]
+    metallic: 0.0
+    roughness: 0.3
+
+entities:
+  - type: "instance"
+    template: "lettera_A_maiusc_open-sans"
+    translate: [0, 0, 0]
+    scale: [1, 1, 1]
+
+  - type: "instance"
+    template: "lettera_b_minusc_open-sans"
+    translate: [0.7, 0, 0]
+```
+
+Ogni template usa un materiale chiamato `font_material`. Ridefiniscilo
+nella tua scena per applicare la tua superficie a tutti i caratteri
+senza modificare il file del font.
+
+### Generare librerie di font
+
+Usa lo strumento `FontGen` per creare nuovi file font da qualsiasi font
+di sistema o file .ttf/.otf:
+
+```
+dotnet run --project src/Tools/FontGen/FontGen.csproj -- \
+  --font "Open Sans" --height 0.2 --chars "CIAO"
+```
+
+Usa `--list-fonts` per vedere tutti i font di sistema disponibili. I
+template generati vengono scritti in `scenes/libraries/fonts/`.
+
+---
+
+## 10.6 Librerie di Terreni
+
+La directory `scenes/libraries/terrains/` contiene file template per
+heightfield generati dallo strumento `TerrainGen`. Ogni voce consiste
+in un file YAML template e un heightmap PNG in scala di grigi a 16 bit.
+
+Esempio: `terrains/heightfield-strata-test.yaml` +
+`terrains/heightfield-strata-test-height.png`.
+
+Il motore interseca l'heightfield direttamente tramite un quadtree
+min/max mipmap (senza tessellazione mesh). Una sola primitiva sostituisce
+un'intera mesh di terreno.
+
+### Utilizzo come istanza template
+
+```yaml
+imports:
+  - path: "libraries/terrains/heightfield-strata-test.yaml"
+
+entities:
+  - type: "instance"
+    template: "terrain_strata_test"
+    translate: [0, 0, 0]
+    material: "dis_terra_secca"
+```
+
+### Utilizzo come dispatcher di terreno
+
+I template di terreno possono anche essere referenziati in `world.ground`
+per sostituire il piano di terra infinito implicito:
+
+```yaml
+world:
+  ground:
+    type: "heightfield"
+    heightmap: "libraries/terrains/heightfield-strata-test-height.png"
+    width: 100
+    depth: 100
+    max_height: 8.0
+    material: "dis_erba_prato"
+```
+
+### Generare librerie di terreni
+
+Usa lo strumento `TerrainGen` per creare nuovi template heightfield:
+
+```
+dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- \
+  --name mie-colline --type collina --season estate --with-cameras
+```
+
+`--type` accetta `pianura`, `collina` o `montagna`. Lo strumento scrive
+il template YAML in `scenes/libraries/terrain/<name>.yaml` e un
+heightmap `<name>-height.png` abbinato. Con `--with-cameras` genera
+anche un `scenes/<name>-preview.yaml` pronto da renderizzare.
 
 ---
 
@@ -466,11 +461,7 @@ L'arrotondamento dipende dal sampler attivo (`--sampler`, default `sobol`):
 
 Ecco il flusso di lavoro per creare una scena da zero utilizzando le librerie:
 
-### Passo 1: Scegli uno Starter Kit (o inizia da zero)
-
-Si sceglie uno starter kit vicino a ciò che si desidera, lo si copia e lo si rinomina. Oppure si crea un nuovo file vuoto.
-
-### Passo 2: Configura World e Camera
+### Passo 1: Configura World e Camera
 
 ```yaml
 world:
@@ -485,18 +476,16 @@ cameras:
     fov: 45
 ```
 
-### Passo 3: Importa le Librerie
+### Passo 2: Importa le Librerie
 
 ```yaml
 imports:
   - path: "libraries/materials/metals.yaml"
   - path: "libraries/materials/stones.yaml"
-  - path: "libraries/objects/furniture.yaml"
-  - path: "libraries/objects/decorative-objects.yaml"
   - path: "libraries/lights/studio-3point.yaml"
 ```
 
-### Passo 4: Aggiungi le Entità
+### Passo 3: Aggiungi le Entità
 
 ```yaml
 entities:
@@ -506,19 +495,20 @@ entities:
     normal: [0, 1, 0]
     material: "dis_carrara_lucido"
 
-  # Mobili dalla libreria
-  - type: "instance"
-    template: "tavolo_classico"
-    translate: [0, 0, 0]
+  # Una sfera con materiale dalla libreria al centro
+  - type: "sphere"
+    center: [0, 1.0, 0]
+    radius: 0.5
+    material: "dis_oro_lucido"
 
   # Oggetto personalizzato
   - type: "sphere"
-    center: [0, 0.78 , 0]
+    center: [0, 0.78, 0]
     radius: 0.15
-    material: "dis_oro_lucido"
+    material: "dis_diamante"
 ```
 
-### Passo 5: Itera
+### Passo 4: Itera
 
 Usa i tre profili di rendering canonici:
 
@@ -608,7 +598,7 @@ Una scena che combina diverse librerie in un progetto coeso.
 imports:
   - path: "libraries/materials/metals.yaml"
   - path: "libraries/materials/stones.yaml"
-  - path: "libraries/objects/decorative-objects.yaml"
+  - path: "libraries/lights/geometry-lights.yaml"
 
 world:
   sky:
@@ -679,16 +669,17 @@ entities:
     radius: 0.35
     material: "dis_oro_lucido"
 
-  # Piedistallo centrale: vaso decorativo dalla libreria
+  # Piedistallo centrale: sfera emissiva daylight (luce geometrica)
   - type: "cylinder"
     center: [0, 0, 0]
     radius: 0.35
     height: 0.9
     material: "pedestal"
 
-  - type: "instance"
-    template: "vaso_decorativo"
-    translate: [0, 0.9, 0]
+  - type: "sphere"
+    center: [0, 1.25, 0]
+    radius: 0.35
+    material: "emi_daylight"
 
   # Piedistallo destro: sfera di diamante
   - type: "cylinder"
@@ -703,7 +694,7 @@ entities:
     material: "dis_diamante"
 
 lights:
-  # Luci spot individuali per ogni piedistallo
+  # Luci spot individuali per ogni piedistallo.
   # `soft_radius` modella il bulbo fisico (8 cm) e azzera i firefly 1/d² su
   # materiali speculari close-up. `shadow_samples` produce penombre morbide.
   - type: "spot"
@@ -761,12 +752,22 @@ RayTracer -i exhibition-hall.yaml -c detail -w 1200 -H 800 -s 1024 -d 8 -S 4
 
 ## Cosa si è imparato
 
-- L'ecosistema delle librerie fornisce 1100+ materiali, ~150 template, 14 preset di illuminazione e 17 scene starter-kit.
+- L'ecosistema delle librerie fornisce 1450 materiali, 14 configurazioni di
+  illuminazione più preset emissivi `emi_*`, texture immagine, template di
+  font e heightfield per terreni.
 - I materiali utilizzano i prefissi `dis_` (Disney PBR) e `cls_` (Classic).
-- I template degli oggetti seguono convenzioni coerenti (base a Y=0, scala 1:1 metro).
-- Le librerie vengono caricate tramite `imports:` -- le definizioni locali sovrascrivono quelle importate.
-- La CLI offre pieno controllo su risoluzione, qualità, selezione della fotocamera e formato di output.
-- Il flusso di lavoro anteprima/bozza/finale è il modo più efficiente per sviluppare le scene.
+- I materiali emissivi `emi_*` da `geometry-lights.yaml` trasformano qualsiasi
+  geometria in una sorgente NEE partecipante — senza bisogno di un'entità
+  luce esplicita.
+- Le librerie font (`fonts/`) forniscono template di caratteri 3D generati
+  da FontGen; le librerie terreno (`terrains/`) forniscono template heightfield
+  generati da TerrainGen.
+- Le librerie vengono caricate tramite `imports:` -- le definizioni locali
+  sovrascrivono quelle importate.
+- La CLI offre pieno controllo su risoluzione, qualità, selezione della
+  fotocamera e formato di output.
+- Il flusso di lavoro anteprima/bozza/finale è il modo più efficiente per
+  sviluppare le scene.
 
 ---
 

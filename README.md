@@ -63,8 +63,6 @@ Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il
 - 🌳 **Scene Graph (Gruppi)** — Composizione gerarchica di oggetti con trasformazioni ereditate. Gruppi annidabili con primitive, CSG, mesh e altri gruppi.
 - 🏭 **Template / Istanze** — Definisci oggetti composti una volta come template, istanzia N volte con trasformazioni e materiali indipendenti. Librerie di oggetti importabili da file YAML separati.
 - 📦 **Import YAML** — Scomposizione di scene complesse in file separati. Librerie riutilizzabili di materiali, template, oggetti e luci con import annidati e protezione ciclica.
-- 🎁 **Starter Kit** — 18 scene complete pronte all'uso (dining room, photography studio, wine cellar, underwater, zen garden…) da personalizzare come punto di partenza. Vedi [`scenes/libraries/starter-kits/`](./scenes/libraries/starter-kits/).
-
 ### Materiali
 - 🎨 **Lambertian** — diffuso opaco
 - 🪞 **Metal** — riflesso speculare con rugosità (`fuzz`) configurabile
@@ -230,10 +228,10 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 ├── scenes/                     # File YAML di scene
 │   ├── libraries/              # Risorse riutilizzabili via import YAML
 │   │   ├── materials/          # Materiali PBR (Disney/Classic)
-│   │   ├── objects/            # Template di oggetti composti
 │   │   ├── lights/             # Setup di illuminazione pronti all'uso
-│   │   ├── starter-kits/       # Scene complete pronte all'uso, da personalizzare
-│   │   └── textures/           # Texture PNG (albedo e normal map)
+│   │   ├── textures/           # Texture PNG (albedo e normal map)
+│   │   ├── fonts/              # Template caratteri 3D per extrusion (generati da FontGen)
+│   │   └── terrains/           # Heightfield template (generati da TerrainGen)
 │   ├── showcases/              # Scene dimostrative per singola feature
 │   └── *.yaml                  # Scene principali del progetto
 ├── renders/                    # Immagini renderizzate

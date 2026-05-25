@@ -2,9 +2,9 @@
 #  GROUND — Jewel Studio (disk podium, sfondo nero, 3-point lighting)
 # ═════════════════════════════════════════════════════════════════════════════
 #  Vetrina di gioielleria minimal. Un palco circolare lucido emerge dal nero:
-#  sopra, una sfera di oro lucido come hero piece, un vaso Ming in porcellana
-#  bianca e un trio di gemme cristalline (quarzo rosa, ametista, calcite).
-#  Niente cyclorama esplicito — lo sky flat scuro definisce l'infinito.
+#  sopra, una sfera di oro lucido come hero piece e un trio di gemme cristalline
+#  (quarzo rosa, ametista, calcite). Niente cyclorama esplicito — lo sky flat
+#  scuro definisce l'infinito.
 #
 #  La scena dimostra il dispatcher `world.ground` nel suo uso "indoor product":
 #   ─ type dispatch `disk`             (palco circolare finito)
@@ -22,7 +22,6 @@ imports:
   - path: "../libraries/materials/metals.yaml"
   - path: "../libraries/materials/ceramics.yaml"
   - path: "../libraries/materials/minerals-gems.yaml"
-  - path: "../libraries/objects/decorative-objects.yaml"
 
 world:
   # ── Sky: flat presso-nero come "infinito di studio" ───────────────────────
@@ -108,16 +107,6 @@ entities:
     center: [0, 0.9, 0]
     radius: 0.9
 
-  # ─── Vaso Ming sulla sinistra (porcellana bianca, scala piccola) ──────────
-  # Il template definisce un vaso ~Ø 0.22 × 0.42 m con porcellana blu di
-  # default; lo override con porcellana bianca per coerenza chromatic.
-  - name: "vaso"
-    type: "instance"
-    template: "vaso_ming"
-    material: "dis_porcellana_bianca"
-    translate: [-1.9, 0, 0.6]
-    scale:     [1.4, 1.4, 1.4]
-
   # ─── Trio di gemme cristalline davanti (gemme NON vetro puro) ─────────────
   - name: "gem_quartz_pink"
     type: "sphere"
@@ -137,10 +126,3 @@ entities:
     center: [2.2, 0.13, 1.3]
     radius: 0.13
 
-  # ─── Piedistallo argento brunito a destra ─────────────────────────────────
-  - name: "pedestal"
-    type: "instance"
-    template: "colonnina"
-    material: "dis_argento_brunito"
-    translate: [1.6, 0, -1.4]
-    scale:     [0.6, 0.6, 0.6]

@@ -1,0 +1,178 @@
+# =============================================================================
+#  LIBRERIA LUCI — Materiali Emissivi per Geometry Light (NEE)
+#  scenes/libraries/lights/geometry-lights.yaml
+# =============================================================================
+#
+#  Materiali `type: emissive` pronti all'uso: applicali a qualsiasi geometria
+#  (sphere, box, disk, cylinder, lathe…) per trasformarla in una sorgente di
+#  luce che partecipa automaticamente alla NEE (Next Event Estimation).
+#
+#  Differenza rispetto alle luci esplicite (point/area/spot/directional):
+#    ─ La sorgente HA FORMA GEOMETRICA visibile (riflessa, occludente)
+#    ─ Può essere parte di template, gruppi, CSG
+#    ─ Non ha parametri di direzione o angolo: emette uniformemente
+#    ─ Il renderer la aggiunge al pool NEE automaticamente
+#    ─ Per sorgenti di forma irregolare o integrate nell'architettura di scena
+#
+#  PREFISSO:  emi_
+#
+#  SEZIONI:
+#    TEMPERATURE  — scala blackbody 2000 K (candela) → 7000 K (cool white)
+#    SPECIALI     — fuoco, brace, LED strip, bioluminescenza, sole diretto
+#
+#  USO CONSIGLIATO:
+#    imports:
+#      - path: "libraries/lights/geometry-lights.yaml"
+#
+#    entities:
+#      - name: "lampada"
+#        type: "sphere"
+#        center: [0, 2, 0]
+#        radius: 0.15
+#        material: "emi_tungsteno"
+#
+#      - name: "striscia_led"
+#        type: "box"
+#        scale: [1.2, 0.04, 0.04]
+#        translate: [0, 2.5, 0]
+#        material: "emi_led_strip_warm"
+#
+#  WORLD ABBINATO:
+#    Per studio senza ambient, usare sky flat scuro:
+#      world:
+#        sky:
+#          type: "flat"
+#          color: [0.0, 0.0, 0.0]
+#
+#  RENDER CONSIGLIATO:
+#    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1
+#    Preview: -w 800  -H 450 -s 256  -d 6
+#    Final  : -w 1920 -H 1080 -s 1024 -d 8  -S 4
+#
+#  NOTE ANTI-FIREFLY:
+#    I materiali emissivi partecipano alla NEE automaticamente.
+#    Per ridurre rumore nelle scene con sorgenti piccole e intense (fuoco,
+#    brace, bioluminescenza), usare:
+#      --light-sampling power        # bilancia le sorgenti per potenza
+#      --indirect-clamp-factor 0.25  # clamp rimbalzi indiretti
+#    Se l'emissivo è dentro un nodo CSG il renderer emette un avviso:
+#    spostare l'emissivo fuori dall'albero CSG per la NEE ottimale.
+# =============================================================================
+
+materials:
+
+# =============================================================================
+#  SEZIONE I — TEMPERATURE
+#  Scala blackbody da 2000 K (fiamma di candela) a 7000 K (cool white),
+#  colori calibrati secondo il diagramma cromatico di Planck.
+#  Intensity in unità motore (non watt fisici); valori indicativi per una
+#  sorgente sferica di raggio ~0.10–0.20 m. Adattare alla dimensione reale.
+# =============================================================================
+
+  # ── 2000 K — Candela / brace incandescente ──────────────────────────────
+  #  Arancio intenso, luce calda quasi rossastra. Per candele, lanterne,
+  #  torce, camini. Intensità bassa: la sorgente è piccola e vicina.
+  - id: "emi_candela"
+    type: "emissive"
+    color: [1.00, 0.45, 0.04]
+    intensity: 8
+
+  # ── 3000 K — Tungsteno / incandescenza classica ─────────────────────────
+  #  Bianco caldo, la lampadina a filamento per eccellenza. Interni accoglienti,
+  #  lampade da tavolo, applique. Il riferimento universale per luce domestica.
+  - id: "emi_tungsteno"
+    type: "emissive"
+    color: [1.00, 0.68, 0.30]
+    intensity: 12
+
+  # ── 3200 K — Alogeno ────────────────────────────────────────────────────
+  #  Leggermente più fresco del tungsteno. Faretti incasso, proiettori,
+  #  illuminazione architectural anni '90–2010. Buon equilibrio caldo/neutro.
+  - id: "emi_alogeno"
+    type: "emissive"
+    color: [1.00, 0.75, 0.40]
+    intensity: 15
+
+  # ── 4000 K — Fluorescente neutro / LED neutro ───────────────────────────
+  #  Bianco neutro, né caldo né freddo. Uffici, officine, supermercati,
+  #  cucine moderne. Nessuna dominante cromatica percepibile.
+  - id: "emi_fluorescente"
+    type: "emissive"
+    color: [1.00, 0.92, 0.76]
+    intensity: 14
+
+  # ── 5500 K — Daylight / flash fotografico ───────────────────────────────
+  #  Bianco puro calibrato su luce diurna. Studio fotografico, luce di riempimento
+  #  in outdoor. Neutro assoluto: non altera i colori dei soggetti.
+  - id: "emi_daylight"
+    type: "emissive"
+    color: [1.00, 0.97, 0.92]
+    intensity: 18
+
+  # ── 7000 K — Cool white / luce blu-fredda ───────────────────────────────
+  #  Bianco freddo con dominante azzurra. Display, neon bianchi, LED
+  #  ultra-moderni, illuminazione industriale. Atmosfera clinica o futuristica.
+  - id: "emi_cool_white"
+    type: "emissive"
+    color: [0.82, 0.89, 1.00]
+    intensity: 14
+
+
+# =============================================================================
+#  SEZIONE II — SPECIALI
+#  Sorgenti non blackbody: fuoco, LED strip colorato, bioluminescenza, sole.
+# =============================================================================
+
+  # ── Fuoco / Fiamma ────────────────────────────────────────────────────────
+  #  Arancio-rosso intenso, alta variazione cromatica nella realtà.
+  #  Per camini, torce, esplosioni stilizzate. Usare su sfere piccole (r ≈ 0.05)
+  #  o su box piatti per braci. Intensità alta: il fuoco è molto luminoso.
+  - id: "emi_fuoco"
+    type: "emissive"
+    color: [1.00, 0.28, 0.02]
+    intensity: 30
+
+  # ── Brace / Ember ────────────────────────────────────────────────────────
+  #  Rosso scuro, luce fiochissima. Per brace quasi spenta, metallo incandescente
+  #  appena forgiato, resti di fuoco. Combinare con emi_fuoco per effetto camino.
+  - id: "emi_brace"
+    type: "emissive"
+    color: [1.00, 0.10, 0.01]
+    intensity: 5
+
+  # ── LED Strip Warm (3000 K, alta luminosità) ─────────────────────────────
+  #  Striscia LED lineare calda ad alta densità. Box molto piatto (h ≈ 0.02)
+  #  e lungo (l ≈ 1–2 m) per simulare strip sottopensile, strip sottoscala,
+  #  trim lighting architetturale indiretto. Intensità alta per la superficie.
+  - id: "emi_led_strip_warm"
+    type: "emissive"
+    color: [1.00, 0.78, 0.42]
+    intensity: 22
+
+  # ── LED Strip Cool (6500 K) ───────────────────────────────────────────────
+  #  Striscia LED fredda. Illuminazione di display, retroilluminazione monitor,
+  #  gaming setup, architettura futuristica. Forte dominante azzurra-viola.
+  - id: "emi_led_strip_cool"
+    type: "emissive"
+    color: [0.72, 0.86, 1.00]
+    intensity: 22
+
+  # ── Bioluminescenza ───────────────────────────────────────────────────────
+  #  Verde-ciano tenuo, come alghe marine, meduse, funghi notturni.
+  #  Intensità bassissima: la bioluminescenza è appena percepibile in ambienti
+  #  scuri. Usare con sky completamente nero per massimo effetto.
+  - id: "emi_bioluminescenza"
+    type: "emissive"
+    color: [0.08, 0.95, 0.55]
+    intensity: 3
+
+  # ── Sole Diretto (point-like) ─────────────────────────────────────────────
+  #  Sorgente stellare ultraintensa bianco-caldo. Per simulare un disco solare
+  #  fisico nella scena (diverso da DirectionalLight) — utile in scenari
+  #  fantascientifici, spazio, o finestre con disco sole visibile.
+  #  ATTENZIONE: a questa intensità produce firefly — usare con
+  #  --indirect-clamp-factor 0.1 e --light-sampling power.
+  - id: "emi_sole_diretto"
+    type: "emissive"
+    color: [1.00, 0.97, 0.88]
+    intensity: 200
