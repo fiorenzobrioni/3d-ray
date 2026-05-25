@@ -1,5 +1,18 @@
-# Ray-Tracing Scene — Sample Demo
-# Includes glass sphere, metal sphere, diffuse objects, box, and lighting.
+# ═══════════════════════════════════════════════════════════════════════════
+#  Sample — Scena Demo con Materiali Classici
+#
+#  Scena di esempio con sfera di vetro, sfera metallica, oggetti diffusi e
+#  un box. Cinque varianti di illuminazione commentate (mezzogiorno, golden
+#  hour, tramonto drammatico, nuvoloso, notte con luna); la variante attiva
+#  è "Notte con luna".
+#
+#  Utile come punto di partenza per sperimentare materiali e illuminazione.
+#
+#  Suggerimenti di rendering:
+#    Preview:  -w 640  -H 360  -s 64   -d 4  -S 1
+#    Standard: -w 1280 -H 720  -s 256  -d 6  -S 4
+#    Finale:   -w 1920 -H 1080 -s 1024 -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
 
 # Mezzogiorno (test veloce, cielo pulito)
 # world:
@@ -109,12 +122,19 @@ world:
       falloff: 64.0
   ground: { type: "infinite_plane", material: "matte_green", y: -0.5 }
 
-camera:
-  position: [3, 2, -6]
-  look_at: [-0.5, 0.5, 0]
-  fov: 45
-  aperture: 0.05
-  focal_dist: 7.0
+cameras:
+  - name: "principale"
+    position: [3, 2, -6]
+    look_at: [-0.5, 0.5, 0]
+    fov: 45
+    aperture: 0.05
+    focal_dist: 7.0
+
+  # Vista dall'alto per leggere il layout della scena
+  - name: "top"
+    position: [0, 6, -0.1]
+    look_at:  [0, 0, 0]
+    fov: 55
 
 materials:
   - id: "matte_green"

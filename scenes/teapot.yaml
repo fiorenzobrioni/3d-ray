@@ -33,12 +33,21 @@ world:
 #  DOF sottile: fuoco sul corpo centrale, leggero blur sullo sfondo del piano.
 #  focal_dist calibrato sulla distanza camera→centro teiera (~8.6 unità).
 # ─────────────────────────────────────────────────────────────────────────
-camera:
-  position:   [3.2, 2.6, 8.0]
-  look_at:    [-0.1, 0.75, 0.0]
-  fov:        36
-  aperture:   0.05        # DOF sottile — aumenta a 0.12 per bokeh più forte
-  focal_dist: 8.6         # Distanza camera → corpo della teiera
+cameras:
+  # Vista 3/4 leggermente rialzata — valorizza forma e highlights della teiera
+  - name: "principale"
+    position:   [3.2, 2.6, 8.0]
+    look_at:    [-0.1, 0.75, 0.0]
+    fov:        36
+    aperture:   0.05        # DOF sottile — aumenta a 0.12 per bokeh più forte
+    focal_dist: 8.6         # Distanza camera → corpo della teiera
+
+  # Vista zenitale — mostra l'intero pavimento
+  - name: "top"
+    position:   [0, 7, 0.1]
+    look_at:    [0, 0.5, 0]
+    fov:        50
+    aperture:   0.0
 
 # ─────────────────────────────────────────────────────────────────────────
 #  MATERIALS

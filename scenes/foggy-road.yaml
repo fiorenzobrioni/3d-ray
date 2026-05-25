@@ -1,7 +1,16 @@
-# ==============================================================================
-# SCENE: Nebbia Serale Londinese
-# ARCHITETTO: 3D-Ray YAML Expert
-# ==============================================================================
+# ═══════════════════════════════════════════════════════════════════════════
+#  Foggy Road — Nebbia Serale Londinese
+#
+#  Strada urbana inglese di notte avvolta da una nebbia height_fog densa.
+#  Doppia fila di lampioni vittoriani in ghisa (CSG cono cavo) con luce
+#  point calda arancio (incandescenza) che crea god-rays nella nebbia.
+#  Un misterioso passante in silhouette si staglia nella via.
+#
+#  Suggerimenti di rendering:
+#    Preview:  -w 640  -H 360  -s 128  -d 6  -S 2
+#    Standard: -w 1280 -H 720  -s 512  -d 8  -S 4
+#    Finale:   -w 1920 -H 1080 -s 1024 -d 10 -S 4
+# ═══════════════════════════════════════════════════════════════════════════
 
 world:
   # Un cielo serale profondo, essenziale per far risaltare il bagliore dei lampioni
@@ -22,6 +31,12 @@ cameras:
     position: [0, 1.7, 8]      # Altezza occhi umani
     look_at: [0, 2.5, -50]     # Sguardo perso verso il fondo della strada
     fov: 38                    # FOV leggermente stretto per comprimere la prospettiva
+
+  # Vista da sotto il lampione: bagliore arancio in primo piano
+  - name: "sotto_lampione"
+    position: [-3.5, 2.2, -1.0]
+    look_at:  [-1.1, 1.5, -10]
+    fov: 50
 
 lights:
   # ============================================================================
@@ -230,42 +245,54 @@ entities:
     material: "mat_sidewalk"
 
   # 5. I LAMPIONI (Lato Sinistro, X = -3.5)
-  - type: "instance"
+  - name: "lamp_sx_0"
+    type: "instance"
     template: "london_lamp_spot"
     translate: [-3.5, 0, 0]
-  - type: "instance"
+  - name: "lamp_sx_1"
+    type: "instance"
     template: "london_lamp_spot"
     translate: [-3.5, 0, -10]
-  - type: "instance"
+  - name: "lamp_sx_2"
+    type: "instance"
     template: "london_lamp_spot"
     translate: [-3.5, 0, -20]
-  - type: "instance"
+  - name: "lamp_sx_3"
+    type: "instance"
     template: "london_lamp_spot"
     translate: [-3.5, 0, -30]
-  - type: "instance"
+  - name: "lamp_sx_4"
+    type: "instance"
     template: "london_lamp_spot"
     translate: [-3.5, 0, -40]
-  - type: "instance"
+  - name: "lamp_sx_5"
+    type: "instance"
     template: "london_lamp_spot"
     translate: [-3.5, 0, -50]
 
   # 6. I LAMPIONI (Lato Destro, X = 3.5)
-  - type: "instance"
+  - name: "lamp_dx_0"
+    type: "instance"
     template: "london_lamp_spot"
     translate: [3.5, 0, 0]
-  - type: "instance"
+  - name: "lamp_dx_1"
+    type: "instance"
     template: "london_lamp_spot"
     translate: [3.5, 0, -10]
-  - type: "instance"
+  - name: "lamp_dx_2"
+    type: "instance"
     template: "london_lamp_spot"
     translate: [3.5, 0, -20]
-  - type: "instance"
+  - name: "lamp_dx_3"
+    type: "instance"
     template: "london_lamp_spot"
     translate: [3.5, 0, -30]
-  - type: "instance"
+  - name: "lamp_dx_4"
+    type: "instance"
     template: "london_lamp_spot"
     translate: [3.5, 0, -40]
-  - type: "instance"
+  - name: "lamp_dx_5"
+    type: "instance"
     template: "london_lamp_spot"
     translate: [3.5, 0, -50]
 

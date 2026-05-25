@@ -1,7 +1,20 @@
-# Procedural HeightField smoke test — Musgrave hetero_terrain through the
-# new primitive. No baked PNG, no mesh BVH; the surface is bilinearly
-# interpolated from a 512×512 sample grid synthesised from the noise.
+# ═══════════════════════════════════════════════════════════════════════════
+#  HeightField Procedurale — Test terreno Musgrave hetero_terrain
+#
+#  Superfice bilinearmente interpolata da una griglia 512×512 campionata
+#  in-engine da un rumore Musgrave hetero_terrain. Nessuna PNG baked, nessun
+#  mesh BVH: il primitive heightfield interseca direttamente via MinMax
+#  mipmap quadtree.
+#
+#  Suggerimenti di rendering:
+#    Preview:  -w 640  -H 360  -s 64   -d 4  -S 1
+#    Standard: -w 1280 -H 720  -s 256  -d 6  -S 4
+#    Finale:   -w 1920 -H 1080 -s 512  -d 8  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  WORLD
+# ═══════════════════════════════════════════════════════════════════════════
 world:
   sky:
     type: "gradient"
@@ -15,12 +28,18 @@ world:
       size: 2.0
       falloff: 32.0
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════
 lights:
   - type: "directional"
     direction: [0.50, -0.65, 0.55]
     color: [0.96, 0.95, 0.94]
     intensity: 1.20
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════
 cameras:
   - name: "wide"
     position: [80.0, 45.0, 80.0]
@@ -31,12 +50,18 @@ cameras:
     look_at:  [0.0, 0.0, 0.0]
     fov: 55.0
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
 materials:
   - id: "rock"
     type: "disney"
-    base_color: [0.45, 0.38, 0.32]
+    color: [0.45, 0.38, 0.32]
     roughness: 0.92
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════
 entities:
   - name: "ground_plane"
     type: "plane"

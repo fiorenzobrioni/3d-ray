@@ -81,10 +81,10 @@ lights:
     outer_angle: 48
 
   # Fill light: punto tenue freddo dal lato opposto
-  - type: "-point"
-    position: [2.5, 2.0, -1.0]
-    color:    [0.55, 0.6, 0.85]
-    intensity: 5
+  # - type: "point"
+  #   position: [2.5, 2.0, -1.0]
+  #   color:    [0.55, 0.6, 0.85]
+  #   intensity: 5
 
 
 # ═══════════════════════════════════════════════════════════════════════════
