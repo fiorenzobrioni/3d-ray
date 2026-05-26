@@ -340,9 +340,17 @@ public class SssRandomWalkTests
 
         var mat = MakeTransparentDisney();
         var sphere = new Sphere(Vector3.Zero, 0.7f, mat);
+
+        // Strong absorption + scattering: the legacy path (declassed to
+        // σ_s = 0 by ResolvePushedMedium) leaves only Beer-Lambert with
+        // σ_a = 4, attenuating the central chord by exp(-4·1.4) ≈ 0.0037 —
+        // essentially black. The random walk transports scattered light
+        // through the volume, yielding a much brighter center. With this
+        // contrast the difference survives both tonemap compression and
+        // PRNG noise at the test's modest spp count.
         var medium = new HomogeneousMedium(
-            sigmaA: new Vector3(0.5f, 0.5f, 0.5f),
-            sigmaS: new Vector3(2.0f, 2.0f, 2.0f),
+            sigmaA: new Vector3(4f, 4f, 4f),
+            sigmaS: new Vector3(8f, 8f, 8f),
             phase:  new HenyeyGreensteinPhase(0f));
         IHittable bound = new MediumBoundHittable(sphere,
             new MediumInterface(medium, exterior: null));
@@ -391,9 +399,9 @@ public class SssRandomWalkTests
         // The walk transports scattered light through the volume → exit
         // radiance close to the env (≈ 1 in display space). The legacy
         // absorption-only path attenuates exponentially over the chord
-        // length → noticeably dimmer center. The difference must exceed
-        // PRNG-noise level at this spp count.
-        Assert.True(System.Math.Abs(centerSss - centerOff) > 0.02f,
+        // length → near-black center. The difference must exceed
+        // PRNG-noise level at this spp count (~0.05 of display-space lum).
+        Assert.True(System.Math.Abs(centerSss - centerOff) > 0.10f,
             $"SssMode toggle had no effect on the sphere interior — " +
             $"SSS center={centerSss:F4}, Off center={centerOff:F4}. " +
             $"The random walk dispatch may be unconditionally active or unconditionally suppressed.");
