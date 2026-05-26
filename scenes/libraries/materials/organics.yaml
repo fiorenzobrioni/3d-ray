@@ -74,9 +74,6 @@ materials:
     color: [0.88, 0.72, 0.30]
     roughness: 0.58
     specular: 0.25
-    subsurface: 0.50
-    subsurface_color: [0.95, 0.78, 0.32]
-    flatness: 0.4
 
   # Cera paraffina bianca — candele classiche
   - id: "dis_cera_paraffina"
@@ -84,9 +81,6 @@ materials:
     color: [0.92, 0.90, 0.85]
     roughness: 0.55
     specular: 0.28
-    subsurface: 0.55
-    subsurface_color: [0.98, 0.95, 0.90]
-    flatness: 0.4
 
   # Cera di soia — bianca, leggermente traslucente
   - id: "dis_cera_soia"
@@ -94,9 +88,6 @@ materials:
     color: [0.94, 0.92, 0.86]
     roughness: 0.50
     specular: 0.22
-    subsurface: 0.52
-    subsurface_color: [0.98, 0.96, 0.92]
-    flatness: 0.4
 
   # Candela avorio — cera stearica, tono caldo
   - id: "dis_candela_avorio"
@@ -104,9 +95,6 @@ materials:
     color: [0.90, 0.85, 0.68]
     roughness: 0.52
     specular: 0.25
-    subsurface: 0.48
-    subsurface_color: [0.96, 0.88, 0.72]
-    flatness: 0.35
 
   # Candela rossa — cera pigmentata, decorativa
   - id: "dis_candela_rossa"
@@ -114,9 +102,6 @@ materials:
     color: [0.68, 0.10, 0.08]
     roughness: 0.55
     specular: 0.22
-    subsurface: 0.35
-    subsurface_color: [0.85, 0.18, 0.12]
-    flatness: 0.3
 
   # Candela nera — decorativa, gotica
   - id: "dis_candela_nera"
@@ -124,8 +109,6 @@ materials:
     color: [0.06, 0.06, 0.06]
     roughness: 0.55
     specular: 0.28
-    subsurface: 0.15
-    flatness: 0.3
 
 
   # ── AMBRA ────────────────────────────────────────────────────────────────
@@ -136,8 +119,6 @@ materials:
     color: [0.92, 0.65, 0.12]
     roughness: 0.08
     specular: 0.68
-    subsurface: 0.30
-    subsurface_color: [0.96, 0.72, 0.18]
     clearcoat: 0.55
     coat_roughness: 0.10
     coat_ior: 1.5
@@ -152,8 +133,6 @@ materials:
     color: [0.62, 0.35, 0.08]
     roughness: 0.10
     specular: 0.62
-    subsurface: 0.25
-    subsurface_color: [0.72, 0.40, 0.12]
     clearcoat: 0.50
     coat_roughness: 0.12
     coat_ior: 1.5
@@ -168,8 +147,6 @@ materials:
     color: [0.72, 0.18, 0.05]
     roughness: 0.08
     specular: 0.65
-    subsurface: 0.22
-    subsurface_color: [0.85, 0.22, 0.08]
     clearcoat: 0.52
     coat_roughness: 0.10
     coat_ior: 1.5
@@ -184,8 +161,6 @@ materials:
     color: [0.78, 0.52, 0.15]
     roughness: 0.55
     specular: 0.28
-    subsurface: 0.30
-    subsurface_color: [0.88, 0.58, 0.20]
 
 
   # ── AVORIO E OSSO ────────────────────────────────────────────────────────
@@ -196,8 +171,6 @@ materials:
     color: [0.94, 0.90, 0.78]
     roughness: 0.22
     specular: 0.52
-    subsurface: 0.20
-    subsurface_color: [0.96, 0.90, 0.78]
     clearcoat: 0.30
     coat_roughness: 0.22
     coat_ior: 1.5
@@ -208,8 +181,6 @@ materials:
     color: [0.82, 0.75, 0.58]
     roughness: 0.32
     specular: 0.42
-    subsurface: 0.18
-    subsurface_color: [0.85, 0.72, 0.55]
     clearcoat: 0.15
     coat_roughness: 0.35
     coat_ior: 1.5
@@ -221,8 +192,6 @@ materials:
     color: [0.92, 0.85, 0.62]
     roughness: 0.35
     specular: 0.42
-    subsurface: 0.35
-    subsurface_color: [0.95, 0.78, 0.55]
     clearcoat: 0.40
     coat_roughness: 0.18
     coat_ior: 1.5
@@ -246,7 +215,6 @@ materials:
     color: [0.85, 0.80, 0.70]
     roughness: 0.75
     specular: 0.15
-    subsurface: 0.12
 
   # Osso levigato — lavorato, manici, bottoni
   - id: "dis_osso_levigato"
@@ -254,8 +222,6 @@ materials:
     color: [0.88, 0.84, 0.74]
     roughness: 0.45
     specular: 0.35
-    subsurface: 0.15
-    subsurface_color: [0.90, 0.84, 0.74]
 
 
   # ── CORNO E TARTARUGA ────────────────────────────────────────────────────
@@ -266,7 +232,6 @@ materials:
     color: [0.28, 0.18, 0.08]
     roughness: 0.35
     specular: 0.48
-    subsurface: 0.15
     clearcoat: 0.25
     coat_roughness: 0.25
     coat_ior: 1.5
@@ -277,8 +242,6 @@ materials:
     color: [0.72, 0.52, 0.22]
     roughness: 0.30
     specular: 0.50
-    subsurface: 0.22
-    subsurface_color: [0.85, 0.62, 0.28]
     clearcoat: 0.30
     coat_roughness: 0.22
     coat_ior: 1.5
@@ -292,7 +255,6 @@ materials:
     color: [0.55, 0.32, 0.10]
     roughness: 0.25
     specular: 0.45
-    subsurface: 0.18
     clearcoat: 0.85
     coat_roughness: 0.05
     coat_ior: 1.5
@@ -325,7 +287,6 @@ materials:
     color: [0.90, 0.88, 0.82]
     roughness: 0.78
     specular: 0.15
-    subsurface: 0.12
 
   # Guscio marrone — gallina ruspante, più scuro
   - id: "dis_guscio_uovo_marrone"
@@ -333,7 +294,6 @@ materials:
     color: [0.62, 0.45, 0.30]
     roughness: 0.78
     specular: 0.15
-    subsurface: 0.10
 
 
   # ── CORALLO ──────────────────────────────────────────────────────────────
@@ -345,8 +305,6 @@ materials:
     color: [0.78, 0.18, 0.18]
     roughness: 0.55
     specular: 0.42
-    subsurface: 0.30
-    subsurface_color: [0.92, 0.22, 0.20]
     texture:
       type: "voronoi"
       scale: 35.0
@@ -367,8 +325,6 @@ materials:
     color: [0.88, 0.58, 0.52]
     roughness: 0.40
     specular: 0.40
-    subsurface: 0.15
-    subsurface_color: [0.92, 0.62, 0.58]
     clearcoat: 0.22
     coat_roughness: 0.26
     coat_ior: 1.5
@@ -379,7 +335,6 @@ materials:
     color: [0.90, 0.88, 0.84]
     roughness: 0.62
     specular: 0.22
-    subsurface: 0.10
 
   # Corallo bianco fossile — variante decolorata con voronoi polipi
   - id: "dis_corallo_bianco_fossile"
@@ -387,8 +342,6 @@ materials:
     color: [0.92, 0.90, 0.85]
     roughness: 0.75
     specular: 0.28
-    subsurface: 0.30
-    subsurface_color: [0.95, 0.92, 0.88]
     texture:
       type: "voronoi"
       scale: 35.0
@@ -425,8 +378,6 @@ materials:
     roughness: 0.12
     specular: 0.55
     specular_tint: 0.30
-    subsurface: 0.40
-    subsurface_color: [0.85, 0.92, 1.00]
     clearcoat: 0.85
     coat_roughness: 0.05
     coat_ior: 1.5
@@ -440,8 +391,6 @@ materials:
     roughness: 0.10
     specular: 0.72
     specular_tint: 0.35
-    subsurface: 0.20
-    subsurface_color: [0.92, 0.78, 0.78]
     clearcoat: 0.65
     coat_roughness: 0.08
     coat_ior: 1.5
@@ -454,8 +403,6 @@ materials:
     color: [0.18, 0.28, 0.32]
     roughness: 0.12
     specular: 0.55
-    subsurface: 0.30
-    subsurface_color: [0.20, 0.35, 0.40]
     clearcoat: 0.85
     coat_roughness: 0.05
     coat_ior: 1.5
@@ -469,8 +416,6 @@ materials:
     roughness: 0.20
     specular: 0.55
     specular_tint: 0.25
-    subsurface: 0.30
-    subsurface_color: [0.96, 0.93, 0.88]
     clearcoat: 0.70
     coat_roughness: 0.10
     coat_ior: 1.5
@@ -484,8 +429,6 @@ materials:
     roughness: 0.18
     specular: 0.60
     specular_tint: 0.40
-    subsurface: 0.12
-    subsurface_color: [0.18, 0.22, 0.22]
     clearcoat: 0.75
     coat_roughness: 0.08
     coat_ior: 1.5
@@ -502,8 +445,6 @@ materials:
     color: [0.92, 0.90, 0.88]
     roughness: 0.10
     specular: 0.65
-    subsurface: 0.45
-    subsurface_color: [0.95, 0.92, 0.92]
     clearcoat: 0.70
     coat_roughness: 0.06
     coat_ior: 1.5
@@ -516,8 +457,6 @@ materials:
     color: [0.10, 0.10, 0.12]
     roughness: 0.08
     specular: 0.75
-    subsurface: 0.18
-    subsurface_color: [0.20, 0.22, 0.28]
     clearcoat: 0.80
     coat_roughness: 0.05
     coat_ior: 1.5
@@ -530,8 +469,6 @@ materials:
     color: [0.85, 0.45, 0.12]
     roughness: 0.10
     specular: 0.68
-    subsurface: 0.35
-    subsurface_color: [0.92, 0.55, 0.18]
     clearcoat: 0.75
     coat_roughness: 0.06
     coat_ior: 1.5
@@ -547,7 +484,6 @@ materials:
     color: [0.88, 0.82, 0.70]
     roughness: 0.28
     specular: 0.45
-    subsurface: 0.10
     clearcoat: 0.25
     coat_roughness: 0.22
     coat_ior: 1.5
@@ -558,7 +494,6 @@ materials:
     color: [0.85, 0.62, 0.55]
     roughness: 0.35
     specular: 0.38
-    subsurface: 0.08
 
   # Conchiglia spirale — nautilus, superficie esterna rugosa
   - id: "dis_conchiglia_rugosa"
@@ -566,7 +501,6 @@ materials:
     color: [0.65, 0.55, 0.42]
     roughness: 0.68
     specular: 0.18
-    subsurface: 0.06
 
 
   # ── SUGHERO ──────────────────────────────────────────────────────────────
@@ -578,7 +512,6 @@ materials:
     color: [0.72, 0.55, 0.32]
     roughness: 0.92
     specular: 0.18
-    subsurface: 0.18
     sheen: 0.04
     texture:
       type: "voronoi"
@@ -617,7 +550,6 @@ materials:
     color: [0.90, 0.88, 0.85]
     roughness: 0.82
     specular: 0.10
-    subsurface: 0.18
 
   # Carta kraft — sacchetti, imballaggi, buste
   - id: "dis_carta_kraft"
@@ -625,7 +557,6 @@ materials:
     color: [0.62, 0.48, 0.30]
     roughness: 0.88
     specular: 0.08
-    subsurface: 0.12
 
   # Carta di riso — shoji giapponesi, thin_walled + diff_trans per
   # controluce piatto
@@ -634,8 +565,6 @@ materials:
     color: [0.90, 0.87, 0.80]
     roughness: 0.78
     specular: 0.12
-    subsurface: 0.35
-    subsurface_color: [0.95, 0.92, 0.85]
     thin_walled: true
     diff_trans: 0.55
 
@@ -645,7 +574,6 @@ materials:
     color: [0.75, 0.72, 0.68]
     roughness: 0.88
     specular: 0.06
-    subsurface: 0.10
 
   # Carta velina rossa — sottilissima, controluce saturo
   - id: "dis_carta_velina_rossa"
@@ -653,8 +581,6 @@ materials:
     color: [0.78, 0.10, 0.08]
     roughness: 0.75
     specular: 0.10
-    subsurface: 0.42
-    subsurface_color: [0.92, 0.18, 0.10]
     thin_walled: true
     diff_trans: 0.70
 
@@ -664,8 +590,6 @@ materials:
     color: [0.12, 0.28, 0.72]
     roughness: 0.75
     specular: 0.10
-    subsurface: 0.42
-    subsurface_color: [0.18, 0.35, 0.88]
     thin_walled: true
     diff_trans: 0.70
 
@@ -675,7 +599,6 @@ materials:
     color: [0.92, 0.90, 0.88]
     roughness: 0.42
     specular: 0.35
-    subsurface: 0.08
     clearcoat: 0.20
     coat_roughness: 0.30
     coat_ior: 1.5
@@ -686,8 +609,6 @@ materials:
     color: [0.88, 0.82, 0.70]
     roughness: 0.92
     specular: 0.18
-    subsurface: 0.32
-    flatness: 0.4
     texture:
       type: "noise"
       scale: 3.0
@@ -733,8 +654,6 @@ materials:
     color: [0.82, 0.75, 0.58]
     roughness: 0.70
     specular: 0.18
-    subsurface: 0.22
-    subsurface_color: [0.88, 0.78, 0.60]
 
   # Pergamena invecchiata — ingiallita, macchie d'età
   - id: "dis_pergamena_invecchiata"
@@ -742,8 +661,6 @@ materials:
     color: [0.72, 0.62, 0.42]
     roughness: 0.72
     specular: 0.15
-    subsurface: 0.20
-    subsurface_color: [0.78, 0.65, 0.45]
 
   # Vellum — vitello, più fine e bianca, calligrafia
   - id: "dis_vellum"
@@ -751,8 +668,6 @@ materials:
     color: [0.88, 0.84, 0.72]
     roughness: 0.62
     specular: 0.22
-    subsurface: 0.28
-    subsurface_color: [0.92, 0.86, 0.74]
 
 
   # ── SAPONE ───────────────────────────────────────────────────────────────
@@ -764,9 +679,6 @@ materials:
     color: [0.90, 0.88, 0.82]
     roughness: 0.55
     specular: 0.30
-    subsurface: 0.45
-    subsurface_color: [0.96, 0.94, 0.90]
-    flatness: 0.5
 
   # Sapone miele — glicerina, artigianale (lieve spec_trans)
   - id: "dis_sapone_miele"
@@ -774,9 +686,6 @@ materials:
     color: [0.82, 0.62, 0.22]
     roughness: 0.48
     specular: 0.35
-    subsurface: 0.50
-    subsurface_color: [0.92, 0.70, 0.28]
-    flatness: 0.5
     spec_trans: 0.10
     ior: 1.50
 
@@ -786,9 +695,6 @@ materials:
     color: [0.62, 0.48, 0.65]
     roughness: 0.55
     specular: 0.28
-    subsurface: 0.42
-    subsurface_color: [0.78, 0.62, 0.82]
-    flatness: 0.5
 
   # Sapone verde oliva — Aleppo, tradizionale
   - id: "dis_sapone_oliva"
@@ -796,9 +702,6 @@ materials:
     color: [0.42, 0.48, 0.25]
     roughness: 0.58
     specular: 0.25
-    subsurface: 0.38
-    subsurface_color: [0.55, 0.62, 0.32]
-    flatness: 0.45
 
 
   # ── BAMBÙ ────────────────────────────────────────────────────────────────
@@ -842,8 +745,6 @@ materials:
     color: [0.18, 0.42, 0.10]
     roughness: 0.55
     specular: 0.30
-    subsurface: 0.18
-    subsurface_color: [0.32, 0.55, 0.15]
     thin_walled: true
     diff_trans: 0.45
     sheen: 0.08
@@ -855,8 +756,6 @@ materials:
     color: [0.62, 0.18, 0.06]
     roughness: 0.55
     specular: 0.30
-    subsurface: 0.18
-    subsurface_color: [0.78, 0.32, 0.10]
     thin_walled: true
     diff_trans: 0.45
 
@@ -866,8 +765,6 @@ materials:
     color: [0.82, 0.62, 0.10]
     roughness: 0.55
     specular: 0.28
-    subsurface: 0.20
-    subsurface_color: [0.92, 0.72, 0.18]
     thin_walled: true
     diff_trans: 0.45
 
@@ -885,8 +782,6 @@ materials:
     color: [0.92, 0.42, 0.55]
     roughness: 0.50
     specular: 0.32
-    subsurface: 0.28
-    subsurface_color: [0.98, 0.55, 0.68]
     thin_walled: true
     diff_trans: 0.65
     sheen: 0.10
@@ -898,8 +793,6 @@ materials:
     color: [0.96, 0.94, 0.90]
     roughness: 0.45
     specular: 0.35
-    subsurface: 0.30
-    subsurface_color: [0.98, 0.96, 0.92]
     thin_walled: true
     diff_trans: 0.55
     sheen: 0.10
@@ -911,8 +804,6 @@ materials:
     color: [0.72, 0.06, 0.10]
     roughness: 0.55
     specular: 0.30
-    subsurface: 0.22
-    subsurface_color: [0.88, 0.12, 0.18]
     thin_walled: true
     diff_trans: 0.55
     sheen: 0.18
@@ -932,7 +823,6 @@ materials:
     sheen: 0.55
     sheen_tint: 0.4
     sheen_roughness: 0.80
-    flatness: 0.3
 
   # Muschio chiaro — sfagno chiaro, prati alpini
   - id: "dis_muschio_chiaro"
@@ -943,7 +833,6 @@ materials:
     sheen: 0.50
     sheen_tint: 0.4
     sheen_roughness: 0.80
-    flatness: 0.3
 
   # Lichene grigio-verde — incrostante su pietra
   - id: "dis_lichene_grigio"

@@ -639,7 +639,6 @@ materials:
     color: [0.92, 0.92, 0.90]
     roughness: 0.55
     specular: 0.32
-    subsurface: 0.10
     texture:
       type: "noise"
       scale: 2.5

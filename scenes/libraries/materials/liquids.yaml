@@ -115,7 +115,6 @@ materials:
     ior: 1.33
     transmission_color: [0.22, 0.20, 0.14]
     transmission_depth: 0.2
-    subsurface: 0.20
 
   # Acqua torrente — agitata, bolle d'aria, schiuma localizzata
   - id: "dis_acqua_torrente"
@@ -146,7 +145,6 @@ materials:
     ior: 1.33
     transmission_color: [0.88, 0.92, 0.96]
     transmission_depth: 0.3
-    subsurface: 0.35
 
   # Acqua oceano tropicale — turchese, sabbia bianca riflessa dal fondo
   - id: "dis_acqua_tropicale"
@@ -169,7 +167,6 @@ materials:
     ior: 1.31
     transmission_color: [0.88, 0.92, 0.96]
     transmission_depth: 1.5
-    subsurface: 0.30
     bump_map:
       texture:
         type: "voronoi"
@@ -187,9 +184,6 @@ materials:
     color: [0.97, 0.95, 0.90]
     roughness: 0.25
     specular: 0.42
-    subsurface: 0.65
-    subsurface_color: [1.0, 0.98, 0.92]
-    flatness: 0.3
 
   # Latte scremato — più bluastro per assenza di grassi
   - id: "dis_latte_scremato"
@@ -197,9 +191,6 @@ materials:
     color: [0.92, 0.94, 0.98]
     roughness: 0.22
     specular: 0.42
-    subsurface: 0.55
-    subsurface_color: [0.92, 0.94, 1.00]
-    flatness: 0.3
 
   # Panna montata — opaca e densa, struttura aerata
   - id: "dis_panna_montata"
@@ -207,9 +198,6 @@ materials:
     color: [0.98, 0.97, 0.93]
     roughness: 0.42
     specular: 0.38
-    subsurface: 0.75
-    subsurface_color: [1.0, 0.99, 0.95]
-    flatness: 0.5
     bump_map:
       texture:
         type: "voronoi"
@@ -224,8 +212,6 @@ materials:
     color: [0.96, 0.88, 0.62]
     roughness: 0.18
     specular: 0.42
-    subsurface: 0.60
-    subsurface_color: [0.98, 0.85, 0.55]
     spec_trans: 0.18
     ior: 1.36
 
@@ -238,8 +224,6 @@ materials:
     color: [0.55, 0.04, 0.06]
     roughness: 0.05
     specular: 0.55
-    subsurface: 0.45
-    subsurface_color: [0.78, 0.10, 0.10]
     spec_trans: 0.35
     ior: 1.38
     transmission_color: [0.45, 0.02, 0.03]
@@ -251,8 +235,6 @@ materials:
     color: [0.32, 0.04, 0.06]
     roughness: 0.06
     specular: 0.50
-    subsurface: 0.40
-    subsurface_color: [0.55, 0.06, 0.08]
     spec_trans: 0.25
     ior: 1.38
     transmission_color: [0.22, 0.02, 0.03]
@@ -280,8 +262,6 @@ materials:
     color: [0.38, 0.10, 0.10]
     roughness: 0.18
     specular: 0.42
-    subsurface: 0.35
-    subsurface_color: [0.55, 0.12, 0.12]
     spec_trans: 0.15
     ior: 1.40
 
@@ -530,8 +510,6 @@ materials:
     color: [0.42, 0.62, 0.18]
     roughness: 0.32
     specular: 0.40
-    subsurface: 0.55
-    subsurface_color: [0.50, 0.72, 0.22]
 
   # Cioccolata calda — marrone vellutato, opaco
   - id: "dis_cioccolata_calda"
@@ -539,8 +517,6 @@ materials:
     color: [0.32, 0.18, 0.10]
     roughness: 0.18
     specular: 0.40
-    subsurface: 0.45
-    subsurface_color: [0.40, 0.22, 0.12]
 
 
   # ── SUCCHI ───────────────────────────────────────────────────────────────
@@ -551,8 +527,6 @@ materials:
     color: [0.95, 0.55, 0.10]
     roughness: 0.18
     specular: 0.42
-    subsurface: 0.40
-    subsurface_color: [0.98, 0.62, 0.18]
     spec_trans: 0.45
     ior: 1.345
     transmission_color: [0.92, 0.42, 0.05]
@@ -564,8 +538,6 @@ materials:
     color: [0.78, 0.18, 0.08]
     roughness: 0.30
     specular: 0.35
-    subsurface: 0.45
-    subsurface_color: [0.92, 0.22, 0.10]
 
   # Succo frutti rossi — viola-rosso scuro
   - id: "dis_succo_frutti_rossi"

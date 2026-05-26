@@ -67,8 +67,6 @@ materials:
     color: [0.42, 0.22, 0.12]
     roughness: 0.55
     specular: 0.42
-    subsurface: 0.18
-    subsurface_color: [0.55, 0.28, 0.16]
     texture:
       type: "noise"
       scale: 3.0
@@ -93,8 +91,6 @@ materials:
     color: [0.04, 0.04, 0.04]
     roughness: 0.48
     specular: 0.42
-    subsurface: 0.10
-    subsurface_color: [0.10, 0.06, 0.05]
     texture:
       type: "noise"
       scale: 3.0
@@ -115,8 +111,6 @@ materials:
     color: [0.55, 0.32, 0.18]
     roughness: 0.50
     specular: 0.42
-    subsurface: 0.22
-    subsurface_color: [0.62, 0.36, 0.22]
     texture:
       type: "noise"
       scale: 3.0
@@ -137,8 +131,6 @@ materials:
     color: [0.32, 0.08, 0.10]
     roughness: 0.50
     specular: 0.42
-    subsurface: 0.18
-    subsurface_color: [0.38, 0.10, 0.12]
     texture:
       type: "noise"
       scale: 3.0
@@ -159,8 +151,6 @@ materials:
     color: [0.16, 0.26, 0.18]
     roughness: 0.50
     specular: 0.42
-    subsurface: 0.15
-    subsurface_color: [0.18, 0.28, 0.20]
     texture:
       type: "noise"
       scale: 3.0
@@ -181,8 +171,6 @@ materials:
     color: [0.58, 0.40, 0.24]
     roughness: 0.75
     specular: 0.20
-    subsurface: 0.12
-    subsurface_color: [0.68, 0.46, 0.28]
     texture:
       type: "noise"
       scale: 2.5
@@ -230,8 +218,6 @@ materials:
     color: [0.72, 0.62, 0.48]
     roughness: 0.62
     specular: 0.38
-    subsurface: 0.30
-    subsurface_color: [0.85, 0.72, 0.55]
     sheen: 0.25
     sheen_roughness: 0.6
     sheen_tint: 0.4
@@ -255,8 +241,6 @@ materials:
     color: [0.88, 0.82, 0.72]
     roughness: 0.60
     specular: 0.38
-    subsurface: 0.32
-    subsurface_color: [0.95, 0.88, 0.78]
     sheen: 0.30
     sheen_roughness: 0.6
     sheen_tint: 0.4
@@ -273,8 +257,6 @@ materials:
     color: [0.22, 0.14, 0.10]
     roughness: 0.60
     specular: 0.38
-    subsurface: 0.20
-    subsurface_color: [0.28, 0.18, 0.12]
     sheen: 0.20
     sheen_roughness: 0.6
     sheen_tint: 0.4
@@ -291,8 +273,6 @@ materials:
     color: [0.62, 0.10, 0.08]
     roughness: 0.58
     specular: 0.40
-    subsurface: 0.22
-    subsurface_color: [0.75, 0.14, 0.10]
     sheen: 0.25
     sheen_roughness: 0.6
     sheen_tint: 0.3
@@ -400,8 +380,6 @@ materials:
     color: [0.42, 0.26, 0.16]
     roughness: 0.45
     specular: 0.40
-    subsurface: 0.18
-    subsurface_color: [0.52, 0.32, 0.20]
     texture:
       type: "noise"
       scale: 1.8
@@ -442,7 +420,6 @@ materials:
     color: [0.06, 0.05, 0.05]
     roughness: 0.40
     specular: 0.40
-    subsurface: 0.10
     texture:
       type: "noise"
       scale: 1.8
@@ -467,8 +444,6 @@ materials:
     color: [0.55, 0.36, 0.20]
     roughness: 0.50
     specular: 0.40
-    subsurface: 0.20
-    subsurface_color: [0.65, 0.42, 0.25]
     texture:
       type: "noise"
       scale: 1.5
@@ -757,8 +732,6 @@ materials:
     color: [0.32, 0.10, 0.10]
     roughness: 0.22
     specular: 0.52
-    subsurface: 0.20
-    subsurface_color: [0.42, 0.14, 0.14]
     clearcoat: 0.75
     coat_roughness: 0.10
     coat_ior: 1.5

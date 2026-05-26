@@ -234,8 +234,6 @@ materials:
     sheen: 0.65
     sheen_roughness: 0.85
     sheen_tint: 0.4
-    subsurface: 0.18
-    subsurface_color: [0.28, 0.42, 0.18]
     texture:
       type: "voronoi"
       scale: 6.0
@@ -254,8 +252,6 @@ materials:
     sheen: 0.80
     sheen_roughness: 0.9
     sheen_tint: 0.4
-    subsurface: 0.22
-    subsurface_color: [0.22, 0.38, 0.14]
     texture:
       type: "voronoi"
       scale: 8.0
@@ -282,8 +278,6 @@ materials:
     coat_roughness: 0.20
     sheen: 0.45
     sheen_roughness: 0.8
-    subsurface: 0.20
-    subsurface_color: [0.22, 0.38, 0.14]
     texture:
       type: "voronoi"
       scale: 7.0
@@ -330,7 +324,6 @@ materials:
     color: [0.90, 0.88, 0.85]
     roughness: 0.98
     specular: 0.10
-    flatness: 0.5
     texture:
       type: "noise"
       scale: 3.0
@@ -402,8 +395,6 @@ materials:
     color: [0.92, 0.92, 0.90]
     roughness: 0.45
     specular: 0.35
-    subsurface: 0.18
-    subsurface_color: [0.95, 0.95, 0.92]
     texture:
       type: "noise"
       scale: 6.0
@@ -477,11 +468,8 @@ materials:
     color: [0.96, 0.97, 0.99]
     roughness: 0.80
     specular: 0.30
-    subsurface: 0.40
-    subsurface_color: [0.96, 0.98, 1.00]
     sheen: 0.25
     sheen_roughness: 0.7
-    flatness: 0.4
     texture:
       type: "noise"
       scale: 8.0
@@ -497,8 +485,6 @@ materials:
     specular: 0.40
     clearcoat: 0.4
     coat_roughness: 0.15
-    subsurface: 0.30
-    subsurface_color: [0.92, 0.95, 1.00]
     texture:
       type: "noise"
       scale: 6.0
@@ -560,8 +546,6 @@ materials:
     color: [0.42, 0.26, 0.14]
     roughness: 0.78
     specular: 0.28
-    subsurface: 0.18
-    subsurface_color: [0.55, 0.34, 0.18]
     diff_trans: 0.15
     texture:
       type: "voronoi"
@@ -581,8 +565,6 @@ materials:
     color: [0.92, 0.92, 0.90]
     roughness: 0.78
     specular: 0.30
-    subsurface: 0.20
-    subsurface_color: [0.95, 0.95, 0.92]
     texture:
       type: "noise"
       scale: 5.0

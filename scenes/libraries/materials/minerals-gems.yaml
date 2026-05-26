@@ -103,8 +103,6 @@ materials:
     ior: 1.544
     transmission_color: [0.92, 0.70, 0.72]
     transmission_depth: 0.8
-    subsurface: 0.15
-    subsurface_color: [0.98, 0.85, 0.85]
 
   # Ametista grezza — violetto saturo, color ramp 3-stop per zonature
   - id: "dis_ametista_grezza"
@@ -303,7 +301,6 @@ materials:
     ior: 1.544
     transmission_color: [0.92, 0.65, 0.58]
     transmission_depth: 0.6
-    subsurface: 0.15
 
   # Galena cubica — solfuro di piombo, grigio scuro metallico
   - id: "dis_galena_cubica"
@@ -467,8 +464,6 @@ materials:
     ior: 1.522
     transmission_color: [0.92, 0.94, 0.98]
     transmission_depth: 1.0
-    subsurface: 0.40
-    subsurface_color: [0.75, 0.85, 1.00]
     thin_film_thickness: 480
     thin_film_ior: 1.55
 
@@ -480,8 +475,6 @@ materials:
     specular: 0.50
     spec_trans: 0.40
     ior: 1.522
-    subsurface: 0.40
-    subsurface_color: [0.98, 0.72, 0.55]
     thin_film_thickness: 620
     thin_film_ior: 1.55
 
@@ -494,8 +487,6 @@ materials:
     color: [0.94, 0.92, 0.88]
     roughness: 0.12
     specular: 0.50
-    subsurface: 0.32
-    subsurface_color: [0.95, 0.93, 0.90]
     thin_film_thickness: 380
     thin_film_ior: 1.45
     texture:
@@ -512,8 +503,6 @@ materials:
     color: [0.08, 0.08, 0.10]
     roughness: 0.10
     specular: 0.55
-    subsurface: 0.18
-    subsurface_color: [0.10, 0.10, 0.12]
     thin_film_thickness: 420
     thin_film_ior: 1.45
     texture:
@@ -533,8 +522,6 @@ materials:
     ior: 1.450
     transmission_color: [0.85, 0.32, 0.10]
     transmission_depth: 0.6
-    subsurface: 0.30
-    subsurface_color: [0.98, 0.55, 0.22]
     thin_film_thickness: 560
     thin_film_ior: 1.45
 
@@ -551,7 +538,6 @@ materials:
     ior: 1.520
     transmission_color: [0.94, 0.93, 0.90]
     transmission_depth: 1.0
-    subsurface: 0.25
     texture:
       type: "noise"
       scale: 0.8

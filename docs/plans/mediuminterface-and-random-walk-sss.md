@@ -5,7 +5,7 @@
 | Fase | Descrizione                                                | Stato            |
 |------|------------------------------------------------------------|------------------|
 | 1    | MediumInterface plumbing (no SSS yet)                      | ✅ Completata    |
-| 2    | YAML schema + libreria mediums + clean-break Disney        | ⬜ Pending       |
+| 2    | YAML schema + libreria mediums + clean-break Disney        | ✅ Completata    |
 | 3    | Random Walk SSS integrator                                 | ⬜ Pending       |
 | 4    | CLI, quality presets, full MediumInterface use cases       | ⬜ Pending       |
 | 5    | Tests, scenes, docs                                        | ⬜ Pending       |
@@ -22,6 +22,17 @@
 - Back-compat: `currentAbsorption` legacy resta in funzione → scene `cristallo.yaml` e Disney `transmission_color`+`transmission_depth` invariate.
 - Test: 9 nuovi (`MediumStackTests`, `MediumBoundHittableTests`); 464+9 = 473 verdi.
 - Smoke render: `cristallo.yaml`, `volumetric-01-homogeneous.yaml`, scena E2E sintetica con `interior_medium` — tutti OK.
+
+### Fase 2 — log
+
+- **Disney clean break**: rimossi `Subsurface`, `SubsurfaceColor`, `Flatness` (proprietà, ctor params, ShadingParams fields, EvalParams binding). Rimosso `ResolveSubsurfaceColor` helper. Il lobo diffuse Disney è ora Lambert+Burley retro-reflection puro; `diff_trans` continua a esistere ed è tintato da `baseColor` (Cycles-style).
+- I YAML field `subsurface`, `subsurface_color`, `subsurface_radius`, `flatness` (+ `*_texture` variants) restano parsabili in `MaterialData` (compat YAML); il loader emette un `Warn` se non-default e ignora il valore.
+- `SceneLoader` Disney constructor invocation aggiornato (rimossi binding subsurface/subsurfaceColor/flatness; il `Verbose` su `subsurface_radius` diventa un `Warn` consolidato).
+- **Tool migrazione**: nuovo `src/Tools/MigrateFakeSss/` (eseguibile, non in solution). Strip line-based per scalar + block field (`subsurface_texture:` ecc), report dettagliato, `--dry-run` opzionale. Eseguito su `scenes/`: **23 YAML modificati, 491 righe rimosse**.
+- File impattati e ripuliti: librerie `materials/plastics.yaml`, `materials/weathering.yaml`, `materials/leathers.yaml`, `materials/organics.yaml`, `materials/foods.yaml`, `materials/glasses.yaml`, `terrains/heightfield-strata-test.yaml`, e diverse scene applicative (tempio-romano.yaml ecc).
+- **Test cleanup**: rimossi 2 test puntuali su feature eliminata (`Flatness_FullyFlat_MatchesSubsurfaceFullyOn`, `SubsurfaceColor_OverridesBaseColorInFlatLobe`). Aggiornato `DiffTrans_ProducesBackHemisphereSamples_*` per usare `baseColor` come tint. 471 test verdi.
+- Smoke render: `cristallo.yaml` (no legacy field — invariato), `tempio-romano.yaml` (marble migrato — render OK, look Lambert come atteso fino a Fase 3).
+- **Effetto visivo**: scene con materiali "fake SSS" perdono il flat-blend e tornano a Lambert puro. È il comportamento atteso del clean break — il look fisicamente corretto torna in Fase 3 una volta abilitato Random Walk SSS via `interior_medium`.
 
 ## Context
 

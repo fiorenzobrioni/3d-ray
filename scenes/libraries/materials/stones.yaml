@@ -88,7 +88,6 @@ materials:
     coat_roughness: 0.05
     coat_ior: 1.5
     specular: 0.72
-    subsurface: 0.08
 
   # Carrara levigato — sculture classiche, bagni, non specchio
   - id: "dis_carrara_levigato"
@@ -110,7 +109,6 @@ materials:
       randomize_offset: true
     roughness: 0.38
     specular: 0.40
-    subsurface: 0.10
 
   # Carrara studio — versione production-grade: 3 layer ridged + ramp 5-stop
   # dalla vena scura attraverso grigi caldi alla base avorio.
@@ -151,7 +149,6 @@ materials:
     coat_roughness: 0.05
     coat_ior: 1.5
     specular: 0.72
-    subsurface: 0.06
     texture:
       type: "marble"
       scale: 2.4
@@ -197,7 +194,6 @@ materials:
     coat_roughness: 0.05
     coat_ior: 1.5
     specular: 0.75
-    subsurface: 0.06
 
   # Calacatta studio — Calacatta Gold ramp 5-stop dorata, 3 layer.
   - id: "dis_calacatta_studio"
@@ -238,7 +234,6 @@ materials:
     coat_roughness: 0.05
     coat_ior: 1.5
     specular: 0.75
-    subsurface: 0.06
     texture:
       type: "marble"
       scale: 2.0
@@ -307,7 +302,6 @@ materials:
     coat_roughness: 0.06
     coat_ior: 1.5
     specular: 0.70
-    subsurface: 0.08
 
   # Statuario studio — venatura sottile e netta su base candida, ramp 4-stop.
   - id: "dis_statuario_studio"
@@ -347,7 +341,6 @@ materials:
     coat_roughness: 0.06
     coat_ior: 1.5
     specular: 0.70
-    subsurface: 0.08
     texture:
       type: "marble"
       scale: 2.2
@@ -378,7 +371,6 @@ materials:
     coat_roughness: 0.06
     coat_ior: 1.5
     specular: 0.70
-    subsurface: 0.10
 
 
   # ── MARMI SCURI ──────────────────────────────────────────────────────────
@@ -528,7 +520,6 @@ materials:
     coat_roughness: 0.12
     coat_ior: 1.5
     specular: 0.62
-    subsurface: 0.05
 
   # Rosso Levanto — base rossa intensa con vene calcaree bianche sottili.
   - id: "dis_rosso_levanto_lucido"
@@ -606,7 +597,6 @@ materials:
     coat_roughness: 0.18
     coat_ior: 1.5
     specular: 0.48
-    subsurface: 0.08
 
   # Blu Sodalite — blu cobalto profondo con vene bianche calcaree.
   - id: "dis_blu_sodalite_lucido"
@@ -921,7 +911,6 @@ materials:
     coat_roughness: 0.22
     coat_ior: 1.5
     specular: 0.45
-    subsurface: 0.06
 
   # Travertino noce — tono più scuro, elegante
   - id: "dis_travertino_noce_lucido"
@@ -1046,7 +1035,6 @@ materials:
     coat_roughness: 0.08
     coat_ior: 1.5
     specular: 0.68
-    subsurface: 0.25
     spec_trans: 0.15
     ior: 1.49
 
@@ -1073,7 +1061,6 @@ materials:
     coat_roughness: 0.10
     coat_ior: 1.5
     specular: 0.65
-    subsurface: 0.30
     spec_trans: 0.18
     ior: 1.49
 
@@ -1100,7 +1087,6 @@ materials:
     coat_roughness: 0.10
     coat_ior: 1.5
     specular: 0.62
-    subsurface: 0.22
     spec_trans: 0.12
     ior: 1.49
 
@@ -1115,7 +1101,6 @@ materials:
     ior: 1.486
     transmission_color: [0.88, 0.55, 0.18]
     transmission_depth: 0.3
-    subsurface: 0.30
     clearcoat: 0.50
     coat_roughness: 0.08
     coat_ior: 1.5
@@ -1156,7 +1141,6 @@ materials:
       randomize_offset: true
     roughness: 0.32
     specular: 0.42
-    subsurface: 0.40
     spec_trans: 0.08
     ior: 1.52
 
@@ -1180,7 +1164,6 @@ materials:
       randomize_offset: true
     roughness: 0.30
     specular: 0.40
-    subsurface: 0.45
     spec_trans: 0.10
     ior: 1.52
 

@@ -280,8 +280,6 @@ materials:
     color: [0.92, 0.75, 0.45]
     roughness: 0.92
     specular: 0.18
-    subsurface: 0.18
-    subsurface_color: [0.95, 0.82, 0.55]
     texture:
       type: "noise"
       scale: 1.5
@@ -364,7 +362,6 @@ materials:
     sheen: 0.55
     sheen_tint: 0.4
     sheen_roughness: 0.80
-    flatness: 0.3
     texture: { type: "noise", scale: 6.0, noise_strength: 4.0, colors: [[0.12, 0.28, 0.08], [0.06, 0.15, 0.04]], randomize_offset: true }
 
 
@@ -376,12 +373,9 @@ materials:
     color: [0.97, 0.98, 1.00]
     roughness: 0.85
     specular: 0.28
-    subsurface: 0.55
-    subsurface_color: [0.96, 0.98, 1.00]
     sheen: 0.45
     sheen_tint: 0.2
     sheen_roughness: 0.7
-    flatness: 0.4
     bump_map:
       texture:
         type: "noise"
@@ -395,9 +389,6 @@ materials:
     color: [0.96, 0.97, 0.99]
     roughness: 0.72
     specular: 0.32
-    subsurface: 0.45
-    subsurface_color: [0.96, 0.98, 1.00]
-    flatness: 0.3
     sheen: 0.30
     sheen_tint: 0.2
     sheen_roughness: 0.6

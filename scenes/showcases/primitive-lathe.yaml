@@ -49,7 +49,6 @@ materials:
     specular: 0.8
     clearcoat: 0.4
     coat_roughness: 0.10
-    subsurface: 0.15
 
     #type: "disney"
     #color: [0.94, 0.92, 0.88]
@@ -69,7 +68,6 @@ materials:
     clearcoat: 0.90
     coat_roughness: 0.05
     specular: 0.72
-    subsurface: 0.08
 
     #type: "disney"
     #texture:

@@ -89,7 +89,6 @@ materials:
     specular: 0.20
     sheen: 0.18
     sheen_tint: 0.8
-    subsurface: 0.08
 
   # Acero oliato — olio penetrante esalta venatura
   - id: "dis_acero_olio"
@@ -171,7 +170,6 @@ materials:
     specular: 0.18
     sheen: 0.12
     sheen_tint: 0.7
-    subsurface: 0.12
 
   # Betulla oliata — tono più caldo, venatura esaltata
   - id: "dis_betulla_olio"
@@ -935,7 +933,6 @@ materials:
     specular: 0.18
     sheen: 0.18
     sheen_tint: 0.8
-    subsurface: 0.08
 
   # Pino oliato — tono più caldo, nodi più scuri
   - id: "dis_pino_olio"
@@ -1026,7 +1023,6 @@ materials:
     specular: 0.15
     sheen: 0.15
     sheen_tint: 0.8
-    subsurface: 0.10
 
   # Cedro grezzo — rosso-rosato, profumato
   - id: "dis_cedro_grezzo"
@@ -1239,7 +1235,6 @@ materials:
     specular: 0.15
     sheen: 0.10
     sheen_tint: 0.5
-    subsurface: 0.08
 
   # Shou-sugi-ban — carbonizzato giapponese, nero-carbone
   - id: "dis_shou_sugi_ban"

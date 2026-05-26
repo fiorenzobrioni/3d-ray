@@ -292,7 +292,6 @@ materials:
     type: "disney"
     color: [0.92, 0.55, 0.58]
     roughness: 0.95
-    subsurface: 0.45
     specular: 0.2
     sheen: 0.4
     sheen_tint: 0.6
@@ -303,7 +302,6 @@ materials:
     type: "disney"
     color: [0.50, 0.65, 0.92]
     roughness: 1.0
-    subsurface: 0.35
     specular: 0.1
     sheen: 0.2
     sheen_tint: 0.4
@@ -314,7 +312,6 @@ materials:
     type: "disney"
     color: [0.48, 0.85, 0.58]
     roughness: 0.85
-    subsurface: 0.55
     specular: 0.3
     sheen: 0.15
     sheen_tint: 0.5
@@ -325,7 +322,6 @@ materials:
     type: "disney"
     color: [0.95, 0.88, 0.42]
     roughness: 0.75
-    subsurface: 0.7
     specular: 0.35
     sheen: 0.05
     sheen_roughness: 0.45
@@ -335,7 +331,6 @@ materials:
     type: "disney"
     color: [0.70, 0.55, 0.88]
     roughness: 0.92
-    subsurface: 0.65
     specular: 0.15
     sheen: 0.3
     sheen_tint: 0.7
@@ -346,7 +341,6 @@ materials:
     type: "disney"
     color: [0.95, 0.68, 0.48]
     roughness: 0.88
-    subsurface: 0.4
     specular: 0.25
     sheen: 0.6
     sheen_tint: 0.8
@@ -418,7 +412,6 @@ materials:
     clearcoat: 0.5
     coat_roughness: 0.20
     specular: 0.6
-    subsurface: 0.2
     specular_tint: 0.1
 
   # ─────────────────────────────────────────────────────────────────────────
@@ -486,7 +479,6 @@ materials:
     sheen: 0.25
     sheen_tint: 0.9
     sheen_roughness: 0.35
-    subsurface: 0.1
 
   # Ebano — finitura laccata a specchio, legno prezioso
   - id: "wood_ebony"
@@ -515,7 +507,6 @@ materials:
       randomize_rotation: true
     roughness: 0.85
     specular: 0.2
-    subsurface: 0.15
     sheen: 0.1
     sheen_tint: 0.7
     sheen_roughness: 0.45
@@ -537,7 +528,6 @@ materials:
     clearcoat: 0.9
     coat_roughness: 0.08
     specular: 0.7
-    subsurface: 0.08
 
   # Nero Marquinia — specchio scuro con venature dorate
   - id: "marble_nero"
@@ -566,7 +556,6 @@ materials:
     clearcoat: 0.7
     coat_roughness: 0.18
     specular: 0.6
-    subsurface: 0.05
 
   # Rosso Levanto — finitura semi-lucida, caldo
   - id: "marble_rosso"
@@ -596,7 +585,6 @@ materials:
     clearcoat: 0.45
     coat_roughness: 0.32
     specular: 0.4
-    subsurface: 0.1
 
   # Blu Sodalite — lucidatura profonda, quasi gioiello
   - id: "marble_blu"

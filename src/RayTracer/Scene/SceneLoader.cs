@@ -947,7 +947,6 @@ public class SceneLoader
                                 albedo,
                                 metallic:            DisneyParam(m.Metallic,            m.MetallicTexture,            sceneDir),
                                 roughness:           DisneyParam(m.Roughness,           m.RoughnessTexture,           sceneDir),
-                                subsurface:          DisneyParam(m.Subsurface,          m.SubsurfaceTexture,          sceneDir),
                                 specular:            DisneyParam(m.Specular,            m.SpecularTexture,            sceneDir),
                                 specularTint:        DisneyParam(m.SpecularTint,        m.SpecularTintTexture,        sceneDir),
                                 sheen:               DisneyParam(m.Sheen,               m.SheenTexture,               sceneDir),
@@ -961,9 +960,7 @@ public class SceneLoader
                                 anisotropicRotation: DisneyParam(m.AnisotropicRotation, m.AnisotropicRotationTexture, sceneDir),
                                 transmissionColor:   DisneyColorParam(m.TransmissionColor, m.TransmissionColorTexture, sceneDir),
                                 transmissionDepth:   DisneyParam(m.TransmissionDepth,   m.TransmissionDepthTexture,   sceneDir),
-                                subsurfaceColor:     DisneyColorParam(m.SubsurfaceColor, m.SubsurfaceColorTexture,    sceneDir),
                                 diffTrans:           DisneyParam(m.DiffTrans,           m.DiffTransTexture,           sceneDir),
-                                flatness:            DisneyParam(m.Flatness,            m.FlatnessTexture,            sceneDir),
                                 thinWalled:          m.ThinWalled,
                                 coatIor:             DisneyParam(m.CoatIor,             m.CoatIorTexture,             sceneDir),
                                 // coat_roughness: only forwarded when the user
@@ -1023,14 +1020,27 @@ public class SceneLoader
                 disneyMat.CoatNormal = coatNormal;
         }
 
-        // subsurface_radius is parsed for forward-compatibility with a future
-        // random-walk SSS pipeline but has no effect on the current approximate
-        // subsurface lobe. Surface the fact to the author so it doesn't look
-        // like a silent typo.
+        // ── Legacy "fake SSS" knobs (Phase 2 clean break) ──────────────────
+        // The Hanrahan-Krueger flat-blend approximation that used to live on
+        // the Disney diffuse lobe has been removed in favour of physically-
+        // based Random Walk subsurface scattering bound at the entity level
+        // via interior_medium (see docs/plans/mediuminterface-and-random-walk-sss.md).
+        // YAML files authored against the legacy schema still parse cleanly
+        // — but the values below are ignored. Warn the artist so the loss of
+        // the old look isn't mistaken for a renderer bug.
         if (material is DisneyBsdf
-            && m.SubsurfaceRadius != null && m.SubsurfaceRadius.Count > 0)
+            && (m.Subsurface > 0f
+                || m.SubsurfaceColor != null
+                || m.SubsurfaceRadius != null
+                || m.Flatness > 0f
+                || m.SubsurfaceTexture != null
+                || m.SubsurfaceColorTexture != null
+                || m.FlatnessTexture != null))
         {
-            Verbose($"Material:    '{m.Id}' — subsurface_radius parsed, not yet used (future SSS)");
+            Warn($"Material '{m.Id ?? "(unnamed)"}': legacy 'subsurface' / 'subsurface_color' / " +
+                 $"'subsurface_radius' / 'flatness' fields are ignored — Random Walk SSS now " +
+                 $"binds at the entity level via 'interior_medium'. See " +
+                 $"docs/plans/mediuminterface-and-random-walk-sss.md for the migration recipe.");
         }
 
         // ── Material-level surface displacement (Cycles/RenderMan parity) ───
