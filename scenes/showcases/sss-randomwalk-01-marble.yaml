@@ -89,12 +89,15 @@ lights:
   # Key: area calda tre quarti destra-alta — modella i piani del volto e
   # spinge la luce dentro la guancia/orecchio per il color bleed SSS.
   # u × v deve puntare verso il basso (normale -Y): con u=+X, v=+Z.
+  # visible_to_camera: false → la proxy emissiva del rect non appare nel frame
+  # come "pannello fluttuante", ma resta visibile a NEE e ai bounce indiretti.
   - type: "area"
     corner:    [ 1.4,  2.6, -0.3]
     u:         [ 1.4,  0.0,  0.0]
     v:         [ 0.0,  0.0,  1.4]
     color:     [1.00, 0.92, 0.78]
     intensity: 38
+    visible_to_camera: false
 
   # Fill freddo da sinistra — apre le ombre senza appiattire.
   - type: "area"
@@ -103,6 +106,7 @@ lights:
     v:         [ 0.0,  0.0,  1.0]
     color:     [0.66, 0.78, 1.00]
     intensity: 9
+    visible_to_camera: false
 
 entities:
   # Piedistallo: cilindro non legato a medium (esterno).

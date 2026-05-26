@@ -26,16 +26,12 @@ world:
   sky:
     type: "flat"
     color: [0.0, 0.0, 0.0]
-  ground:
-    type: "infinite_plane"
-    material: "floor"
-    y: 0.0
 
 camera:
-  position: [0, 1.2, 3.6]
-  look_at:  [0, 1.2, 0]
+  position: [0, 1.25, 2.6]
+  look_at:  [0, 1.25, -1.0]
   vup:      [0, 1, 0]
-  fov:      40
+  fov:      54
   aperture: 0.0
   focal_dist: 3.6
 
@@ -49,20 +45,21 @@ mediums:
 materials:
   - id: wall_white
     type: lambertian
-    albedo: [0.73, 0.73, 0.73]
+    color: [0.73, 0.73, 0.73]
   - id: wall_red
     type: lambertian
-    albedo: [0.65, 0.05, 0.05]
+    color: [0.65, 0.05, 0.05]
   - id: wall_green
     type: lambertian
-    albedo: [0.12, 0.45, 0.15]
-  - id: floor
-    type: lambertian
-    albedo: [0.73, 0.73, 0.73]
+    color: [0.12, 0.45, 0.15]
 
+  # NB: l'Emissive accetta `color` + `intensity`, NON `emit:` (campo
+  # silenziosamente ignorato dal loader → default albedo 0.5, intensity 1
+  # → scena pressoché buia). emission = color × intensity.
   - id: ceiling_light
     type: emissive
-    emit: [16.0, 14.0, 11.0]
+    color:     [1.0, 0.93, 0.85]
+    intensity: 11.0
 
   - id: milk_surface
     type: disney
@@ -76,29 +73,53 @@ lights:
   # No explicit lights — the emissive ceiling becomes a GeometryLight in NEE.
 
 entities:
-  # Soffitto emissivo (chiave Cornell)
-  - type: box
-    scale: [1.3, 0.04, 1.3]
-    translate: [0, 2.46, -1.0]
-    material: ceiling_light
+  # ── Cornell box: 5 quads (1 face each, no wasted back-faces on box-walls) ──
+  # Box volume: x=[-1.25, 1.25], y=[0, 2.5], z=[-2.25, 0.25] (open at z>0.25)
+  - name: pavimento
+    type: quad
+    q: [-1.25, 0.0,  0.25]
+    u: [ 2.5,  0.0,  0.0]
+    v: [ 0.0,  0.0, -2.5]
+    material: wall_white
 
-  # Pareti
-  - type: box
-    scale: [0.04, 2.5, 2.5]
-    translate: [-1.25, 1.25, -1.0]
-    material: wall_red
-  - type: box
-    scale: [0.04, 2.5, 2.5]
-    translate: [ 1.25, 1.25, -1.0]
+  - name: soffitto
+    type: quad
+    q: [-1.25, 2.5, -2.25]
+    u: [ 2.5,  0.0,  0.0]
+    v: [ 0.0,  0.0,  2.5]
+    material: wall_white
+
+  - name: parete_fondo
+    type: quad
+    q: [-1.25, 0.0, -2.25]
+    u: [ 2.5,  0.0,  0.0]
+    v: [ 0.0,  2.5,  0.0]
+    material: wall_white
+
+  - name: parete_sinistra_rossa
+    type: quad
+    q: [-1.25, 0.0,  0.25]
+    u: [ 0.0,  0.0, -2.5]
+    v: [ 0.0,  2.5,  0.0]
     material: wall_green
-  - type: box
-    scale: [2.54, 2.5, 0.04]
-    translate: [0, 1.25, -2.25]
-    material: wall_white
-  - type: box
-    scale: [2.5, 0.04, 2.5]
-    translate: [0, 2.5, -1.0]
-    material: wall_white
+
+  - name: parete_destra_verde
+    type: quad
+    q: [ 1.25, 0.0, -2.25]
+    u: [ 0.0,  0.0,  2.5]
+    v: [ 0.0,  2.5,  0.0]
+    material: wall_red
+
+  # Pannello luminoso: quad emissivo single-sided, normale -Y verso il basso.
+  # Cross(u, v) = (1.3, 0, 0) × (0, 0, 1.3) = (0, -1.69, 0) → normal (0, -1, 0).
+  # Quad: ogni NEE sample atterra su una superficie utile (vs box che spreca
+  # 5/6 dei sample sulle facce top/laterali con cosLight=0 o grazing).
+  - name: pannello_luce
+    type: quad
+    q: [-0.65, 2.49, -1.65]
+    u: [ 1.30, 0.0,   0.0]
+    v: [ 0.0,  0.0,   1.30]
+    material: ceiling_light
 
   # Bicchiere di latte: cilindro verticale, vincolato a milk_int
   - name: latte
