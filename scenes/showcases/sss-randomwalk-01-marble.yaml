@@ -88,18 +88,19 @@ materials:
 lights:
   # Key: area calda tre quarti destra-alta — modella i piani del volto e
   # spinge la luce dentro la guancia/orecchio per il color bleed SSS.
+  # u × v deve puntare verso il basso (normale -Y): con u=+X, v=+Z.
   - type: "area"
-    corner:    [ 1.4,  2.6,  1.1]
+    corner:    [ 1.4,  2.6, -0.3]
     u:         [ 1.4,  0.0,  0.0]
-    v:         [ 0.0,  0.0, -1.4]
+    v:         [ 0.0,  0.0,  1.4]
     color:     [1.00, 0.92, 0.78]
     intensity: 38
 
   # Fill freddo da sinistra — apre le ombre senza appiattire.
   - type: "area"
-    corner:    [-2.2,  1.8,  0.4]
+    corner:    [-2.2,  1.8, -0.6]
     u:         [ 1.2,  0.0,  0.0]
-    v:         [ 0.0,  0.0, -1.0]
+    v:         [ 0.0,  0.0,  1.0]
     color:     [0.66, 0.78, 1.00]
     intensity: 9
 

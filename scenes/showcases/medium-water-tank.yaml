@@ -77,10 +77,11 @@ materials:
     specular: 0.30
 
 lights:
+  # u × v normale -Y → emette in basso sull'acquario.
   - type: "area"
-    corner:    [-1.4, 3.5, 1.4]
+    corner:    [-1.4, 3.5, -0.2]
     u:         [ 2.8, 0.0, 0.0]
-    v:         [ 0.0, 0.0, -1.6]
+    v:         [ 0.0, 0.0, 1.6]
     color:     [1.0, 0.96, 0.88]
     intensity: 28
 

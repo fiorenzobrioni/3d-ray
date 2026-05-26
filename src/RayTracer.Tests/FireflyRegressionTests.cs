@@ -6,6 +6,7 @@ using RayTracer.Geometry;
 using RayTracer.Lights;
 using RayTracer.Materials;
 using RayTracer.Rendering;
+using RayTracer.Textures;
 using RayTracer.Volumetrics;
 using Xunit;
 
@@ -219,5 +220,186 @@ public class FireflyRegressionTests
         // PdfSolidAngle for hard light: always 0
         float pdfHard = hardLight.PdfSolidAngle(Vector3.Zero, -Vector3.UnitY);
         Assert.Equal(0f, pdfHard);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SSS-specific firefly regressions (Phase 5)
+    //
+    // The random-walk integrator adds two new spike risks beyond the legacy
+    // volumetric path:
+    //   - NEE-in-walk: deep-bounce light samples in a dense medium can spike
+    //     when a scatter event lands close to an area-light boundary.
+    //   - Boundary re-entry: TIR reflections inside a high-albedo medium can
+    //     accumulate before the walk's RR kicks in.
+    // ClampWalkInScattering applies a depth-aware ramp inside the walk, and
+    // the indirect-clamp factor applies on the exit transport. These tests
+    // pin down the combined behaviour so future tuning doesn't silently
+    // re-introduce spikes.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Marble bust under an area light — a clean SSS scenario that should
+    /// produce zero pre-tonemap fireflies under the default clamp pipeline.
+    /// Renders the configuration from <c>scenes/showcases/sss-randomwalk-01-marble.yaml</c>
+    /// programmatically so the test is independent of YAML changes.
+    /// </summary>
+    [Fact]
+    public void Sss_Marble_AreaLight_NoFireflies()
+    {
+        Sampler.SetKind(SamplerKind.Prng);
+
+        // Marble surface: transparent boundary; the colour comes from the
+        // volume.
+        var marbleSurface = new DisneyBsdf(
+            baseColor: new SolidColor(Vector3.One),
+            roughness: new FloatTexture(0.18f),
+            specular:  new FloatTexture(0.5f),
+            specTrans: new FloatTexture(1f),
+            ior:       new FloatTexture(1.5f),
+            clearcoat: new FloatTexture(0f));
+
+        // Jensen 2001 marble preset.
+        var marbleInt = new HomogeneousMedium(
+            sigmaA: new Vector3(0.0021f, 0.0041f, 0.0071f),
+            sigmaS: new Vector3(2.19f, 2.62f, 3.00f),
+            phase:  new HenyeyGreensteinPhase(0f));
+
+        var sphere = new Sphere(new Vector3(0f, 1.20f, 0f), 0.42f, marbleSurface);
+        IHittable bound = new MediumBoundHittable(sphere,
+            new MediumInterface(marbleInt, exterior: null));
+
+        // u × v must point -Y so the face emits downward onto the sphere.
+        var areaLight = new AreaLight(
+            corner:        new Vector3( 1.4f, 2.6f, -0.3f),
+            u:             new Vector3( 1.4f, 0f, 0f),
+            v:             new Vector3( 0f, 0f, 1.4f),
+            color:         new Vector3(1.00f, 0.92f, 0.78f),
+            intensity:     38f,
+            shadowSamples: 4);
+
+        var camera = new RayTracer.Camera.Camera(
+            lookFrom:    new Vector3(1.4f, 1.55f, 3.6f),
+            lookAt:      new Vector3(0f, 1.20f, 0f),
+            vUp:         Vector3.UnitY,
+            vFovDeg:     35f,
+            aspectRatio: 1f,
+            aperture:    0f,
+            focusDist:   3.8f);
+
+        var renderer = new Renderer(
+            world:           new HittableList(new[] { bound }),
+            camera:          camera,
+            lights:          new List<ILight> { areaLight },
+            sky:             new SkySettings(Vector3.Zero),
+            samplesPerPixel: Spp,
+            maxDepth:        Depth);
+        var pixels = renderer.Render(Width, Height);
+
+        // Count post-tonemap near-saturation pixels (same definition as the
+        // main FireflyStress test). A working clamp pipeline produces fewer
+        // than 10 such pixels on this configuration at 64×64 / 16 spp.
+        int spikes = 0;
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+            {
+                var p = pixels[y, x];
+                if (MathUtils.Luminance(p) > 0.98f) spikes++;
+            }
+
+        // 50% headroom over baseline — matches the convention of the
+        // FireflyStress test above.
+        const int MaxMarbleSpikes = 30;
+        Assert.True(spikes <= MaxMarbleSpikes,
+            $"Marble SSS spike count {spikes} exceeds threshold {MaxMarbleSpikes}. " +
+            $"ClampWalkInScattering or the indirect clamp may have regressed.");
+
+        // And: at least one pixel must light up — protect against a
+        // regression where the walk silently returns black.
+        float meanLum = 0;
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+                meanLum += MathUtils.Luminance(pixels[y, x]);
+        meanLum /= (Width * Height);
+        Assert.True(meanLum > 0.005f,
+            $"Marble SSS scene rendered nearly black (mean lum {meanLum:F5}). " +
+            $"The walk dispatch may be inert.");
+    }
+
+    /// <summary>
+    /// Milk-glass Cornell — high-albedo NEE-in-walk regression. A bright
+    /// emissive ceiling drives many internal scatter events, and on a
+    /// dense scattering medium that's the recipe for fireflies if the
+    /// depth-aware clamp inside the walk regresses. The test asserts the
+    /// spike count stays bounded.
+    /// </summary>
+    [Fact]
+    public void Sss_MilkCornell_NeeInWalk_NoFireflies()
+    {
+        Sampler.SetKind(SamplerKind.Prng);
+
+        // Milk surface: Disney transparent + low IOR (1.35).
+        var milkSurface = new DisneyBsdf(
+            baseColor: new SolidColor(Vector3.One),
+            roughness: new FloatTexture(0.05f),
+            specular:  new FloatTexture(0.5f),
+            specTrans: new FloatTexture(1f),
+            ior:       new FloatTexture(1.35f),
+            clearcoat: new FloatTexture(0f));
+
+        // Jensen 2001 "wholemilk" preset.
+        var milkInt = new HomogeneousMedium(
+            sigmaA: new Vector3(0.0011f, 0.0024f, 0.014f),
+            sigmaS: new Vector3(2.55f, 3.21f, 3.77f),
+            phase:  new IsotropicPhase());
+
+        // Geometry: a milk sphere lit from above by an emissive area.
+        var milk = new Sphere(new Vector3(0f, 0.55f, -0.6f), 0.42f, milkSurface);
+        IHittable bound = new MediumBoundHittable(milk,
+            new MediumInterface(milkInt, exterior: null));
+
+        // Bright emissive area light high above — drives strong NEE inside
+        // the walk.
+        // u × v = (0, -0.6, 0) → emits downward, lighting the milk sphere.
+        var ceilingLight = new AreaLight(
+            corner:        new Vector3(-0.5f, 2.5f, -1.3f),
+            u:             new Vector3( 1.0f, 0f, 0f),
+            v:             new Vector3( 0f, 0f, 0.6f),
+            color:         new Vector3(1.0f, 0.95f, 0.85f),
+            intensity:     18f,
+            shadowSamples: 4);
+
+        var camera = new RayTracer.Camera.Camera(
+            lookFrom:    new Vector3(0f, 1.2f, 3.6f),
+            lookAt:      new Vector3(0f, 0.6f, 0f),
+            vUp:         Vector3.UnitY,
+            vFovDeg:     40f,
+            aspectRatio: 1f,
+            aperture:    0f,
+            focusDist:   3.6f);
+
+        var renderer = new Renderer(
+            world:           new HittableList(new[] { bound }),
+            camera:          camera,
+            lights:          new List<ILight> { ceilingLight },
+            sky:             new SkySettings(Vector3.Zero),
+            samplesPerPixel: Spp,
+            maxDepth:        Depth);
+        var pixels = renderer.Render(Width, Height);
+
+        int spikes = 0;
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+            {
+                var p = pixels[y, x];
+                if (MathUtils.Luminance(p) > 0.98f) spikes++;
+            }
+
+        // Milk has higher single-scatter albedo than marble (≈ 0.9995 vs.
+        // 0.998), so the walk runs longer on average. The clamp still
+        // suppresses spikes — a regression here would push count well past 50.
+        const int MaxMilkSpikes = 50;
+        Assert.True(spikes <= MaxMilkSpikes,
+            $"Milk-Cornell SSS spike count {spikes} exceeds threshold {MaxMilkSpikes}. " +
+            $"The depth-aware clamp inside the walk (ClampWalkInScattering) may have regressed.");
     }
 }

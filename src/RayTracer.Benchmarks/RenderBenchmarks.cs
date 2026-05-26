@@ -41,8 +41,15 @@ public class RenderBenchmarks
     [Params(6)]
     public int Depth;
 
-    /// <summary>Scene YAML, resolved relative to repo root at setup time.</summary>
-    [Params("cornell-box.yaml")]
+    /// <summary>Scene YAML, resolved relative to repo root at setup time.
+    /// The default <c>cornell-box.yaml</c> covers the baseline path (BVH, NEE,
+    /// classic BSDFs). The <c>showcases/sss-randomwalk-01-marble.yaml</c>
+    /// variant exercises the Random Walk SSS dispatch — the marble bust under
+    /// area lighting — so the benchmark can quantify the SSS overhead relative
+    /// to a comparable non-SSS scene. Acceptance target from the implementation
+    /// plan: marble scene render time within 2.5× of a comparable opaque scene
+    /// at the same resolution / spp / depth.</summary>
+    [Params("cornell-box.yaml", "showcases/sss-randomwalk-01-marble.yaml")]
     public string Scene = "cornell-box.yaml";
 
     [GlobalSetup]
@@ -94,8 +101,11 @@ public class RenderBenchmarks
     /// <summary>
     /// Walks up from <see cref="AppContext.BaseDirectory"/> until it finds a
     /// directory that contains <c>scenes/</c>, then returns the absolute path
-    /// to the requested scene file. Falls back to the bare filename so BDN
-    /// surfaces a clear FileNotFoundException if the layout changed.
+    /// to the requested scene file. Supports nested paths (e.g.
+    /// <c>showcases/sss-randomwalk-01-marble.yaml</c>) so <see cref="Scene"/>
+    /// can address files outside the top-level <c>scenes/</c> folder. Falls
+    /// back to the bare filename so BDN surfaces a clear FileNotFoundException
+    /// if the layout changed.
     /// </summary>
     private static string ResolveScenePath(string sceneFile)
     {

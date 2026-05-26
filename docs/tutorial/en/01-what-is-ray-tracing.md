@@ -49,8 +49,9 @@ When a ray strikes a surface, the outcome depends on the **material**:
   reflect incoming light -- they glow.
 
 - **Disney/PBR** surfaces combine all of the above in a single, physically
-  inspired model with parameters like metallic, roughness, clearcoat, and
-  subsurface scattering.
+  inspired model with parameters like metallic, roughness, clearcoat,
+  sheen, and transmission. Subsurface scattering is added separately via
+  entity-bound participating media — see the SSS chapter.
 
 After the material decides what happens, a new ray is generated (reflected,
 refracted, or scattered) and the process repeats. The ray keeps bouncing

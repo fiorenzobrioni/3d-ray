@@ -8,7 +8,7 @@
 | 2    | YAML schema + libreria mediums + clean-break Disney        | ✅ Completata    |
 | 3    | Random Walk SSS integrator                                 | ✅ Completata    |
 | 4    | CLI, quality presets, full MediumInterface use cases       | ✅ Completata    |
-| 5    | Tests, scenes, docs                                        | ⬜ Pending       |
+| 5    | Tests, scenes, docs                                        | ✅ Completata    |
 
 ### Fase 1 — log
 
@@ -71,6 +71,25 @@
   - `README.md` — voci feature MediumInterface + SSS Random Walk; parametri CLI `--sss-mode`, `--sss-quality`, `--max-volume-bounces`.
 - **Smoke render**: tutti i 7 showcase renderizzano a `draft-tiny -s 4` senza warning né NaN. Il banner stampa correttamente "Mediums: N registered" e (con `-v`) il dettaglio di ogni medium costruito.
 - **Test**: 476 → 483 verdi (+5 RandomWalkConfig, +2 MediumInterfaceFog). Nessuna regressione sui 476 esistenti.
+
+### Fase 5 — log
+
+Fase 5 raccoglie le voci listate sotto "Test (NEW)", "Documentazione" e "Acceptance" della Fase 4 ma che, per scope, rientravano nella categoria "tests, scenes, docs". Tutte completate.
+
+- **`SssEnergyConservationTests.cs`** (3 test): closed-cavity radiance balance per σ_a/σ_s nei tre regimi critici — albedo moderato (no creation, no over-attenuation), albedo alto (no termination prematura, walk conserva entro 12%), assorbimento puro (fallback path legacy, no creation). Garantisce che il walk non crei energia in nessuna configurazione realistica.
+- **`FireflyRegressionTests.cs` esteso** (+2 test SSS-specifici):
+  - `Sss_Marble_AreaLight_NoFireflies` — marmo Carrara + area light. Verifica che il `ClampWalkInScattering` e il clamp indiretto cooperino: spike count entro 30 pixel su 64×64 / 16 spp.
+  - `Sss_MilkCornell_NeeInWalk_NoFireflies` — milk Cornell con emissive ceiling. Stress test del clamp depth-aware dentro al walk su un medium ad albedo molto alto (≈0.9995): spike count entro 50.
+- **CI smoke test esteso** (`.github/workflows/dotnet.yml`): aggiunto step "Render SSS smoke test (milk-glass Cornell)" — `scenes/showcases/sss-randomwalk-03-milk-glass.yaml` a 320×213, 32 spp, depth 6. Esercita end-to-end MediumStack, MediumBoundHittable, random walk, emissive geometry NEE. L'artifact upload ora include sia chess che SSS render.
+- **Benchmark esteso** (`RenderBenchmarks.cs`): aggiunto `showcases/sss-randomwalk-01-marble.yaml` al parametro `Scene`. BDN ora misura entrambe le scene side-by-side (cornell vs marble SSS) — il quoziente di tempo è il diretto indicatore dell'overhead SSS. Acceptance target del piano: marble entro 2.5× la cornell baseline. Il `ResolveScenePath` supporta path nested (`showcases/...`).
+- **Cleanup docs legacy `subsurface`/`flatness`/`subsurface_color`/`subsurface_radius`**: rimossi i campi dalle code-fence Disney di esempio, tabelle Disney Properties, sezioni "How parameters work together"/"Quick cheat sheet", ricette ("Porcelain", "Porcelain skin", "Green leaf with subsurface_color"). Sostituite con esempi `interior_medium`. File toccati:
+  - `docs/reference/scene-reference.md` + `riferimento-scene.md`
+  - `docs/tutorial/{en,it}/01-what-is-ray-tracing.md` (intro Disney)
+  - `docs/tutorial/{en,it}/03-materials.md` (capitolo Disney completo)
+  - `docs/tutorial/{en,it}/05-transforms-and-groups.md` (ricetta porcelain plate)
+  - `docs/tutorial/{en,it}/10-libraries-and-projects.md` (libreria plasters + prefix dis_ + sezione "Troppo rumore")
+- **Showcase scenes — fix area light normals**: durante i firefly test ho scoperto che le area light dei 7 showcase Phase 4 avevano `u × v` con normale +Y (luce emessa verso l'alto, sferamarmo al buio). Convenzione corretta per area light dall'alto puntate verso il basso: `u = +X`, `v = +Z` → normale -Y. File patchati: `sss-randomwalk-01-marble`, `sss-randomwalk-02-skin`, `sss-nested-glass-marble`, `medium-csg-smoke`, `medium-water-tank`. Verificato render a `medium-tiny` di tutti gli 8 showcase: 6-23s ciascuno, nessun crash.
+- **Test**: 483 → 488 verdi (+3 SssEnergyConservation, +2 firefly SSS).
 
 ## Context
 

@@ -34,9 +34,11 @@ Decisione di policy: **rimozione netta** dei field Disney legacy + **MediumInter
 - `medium-water-tank.yaml` — acqua + pesce in acquario di vetro (stack depth 2).
 - `medium-atmosphere-bound.yaml` — atmosfera Rayleigh attorno a un pianeta, spazio esterno nero.
 
-**Test.** 5 `SssRandomWalkTests` (σ_s=0 fallback, white-furnace, color-bleed spettrale, dense-medium robustness, SssMode.Off dispatch); 9 `MediumStackTests` (push/pop, overflow, depth, value-copy); 2 `MediumBoundHittableTests`; 2 `MediumInterfaceFogTests` (binding scope vs global medium); 5 `RandomWalkConfigTests` (preset monotonicity, value lock-down). 483 test verdi totali.
+**Test.** 5 `SssRandomWalkTests` (σ_s=0 fallback, white-furnace, color-bleed spettrale, dense-medium robustness, SssMode.Off dispatch); 9 `MediumStackTests` (push/pop, overflow, depth, value-copy); 2 `MediumBoundHittableTests`; 2 `MediumInterfaceFogTests` (binding scope vs global medium); 5 `RandomWalkConfigTests` (preset monotonicity, value lock-down); 3 `SssEnergyConservationTests` (closed cavity in tre regimi σ); 2 firefly SSS (marble, milk-Cornell) in `FireflyRegressionTests`. 488 test verdi totali.
 
-**Docs.** `docs/technical/subsurface-scattering.{md,it.md}` (derivation walk, hero-wavelength MIS, Fresnel coupling, preset Jensen 2001), `docs/technical/medium-interface.{md,it.md}` (ownership model, stack semantics, transition rules). Sezione "Mediums Library" aggiunta a `docs/reference/scene-reference.md` + `riferimento-scene.md`. README features list aggiornata.
+**Docs.** `docs/technical/subsurface-scattering.{md,it.md}` (derivation walk, hero-wavelength MIS, Fresnel coupling, preset Jensen 2001), `docs/technical/medium-interface.{md,it.md}` (ownership model, stack semantics, transition rules). Sezione "Mediums Library" aggiunta a `docs/reference/scene-reference.md` + `riferimento-scene.md`. Tutti i riferimenti legacy a `subsurface`/`subsurface_color`/`subsurface_radius`/`flatness` rimossi da reference Disney, capitoli tutorial Disney (`03-materials`), intro ray-tracing (`01-what-is-ray-tracing`), sezione transforms-and-groups (`05`), libreria materiali (`10-libraries-and-projects`) — sostituiti con esempi `interior_medium`. README features list aggiornata.
+
+**CI/Benchmark.** `.github/workflows/dotnet.yml` ora renderizza anche la milk-glass Cornell come smoke test SSS (320×213, 32 spp). `RenderBenchmarks.cs` esteso a misurare cornell-baseline vs marble-SSS in parallelo per quantificare l'overhead SSS (acceptance target: marble entro 2.5× di cornell-equivalente).
 
 ---
 

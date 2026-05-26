@@ -342,13 +342,13 @@ materials:
       noise_strength: 1.2
       colors: [[0.35, 0.2, 0.1], [0.22, 0.12, 0.06]]
 
-  # Piatto di porcellana
+  # Piatto di porcellana (qui tenuto matte; abbina `interior_medium`
+  # sull'entity piatto per vero SSS random-walk — vedi Capitolo 7).
   - id: "porcelain"
     type: "disney"
     color: [0.95, 0.93, 0.88]
     roughness: 0.12
     specular: 0.7
-    subsurface: 0.2
 
   # Posate in acciaio
   - id: "steel"

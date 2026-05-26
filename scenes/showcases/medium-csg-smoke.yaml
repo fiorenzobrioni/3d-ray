@@ -68,15 +68,16 @@ materials:
     ior: 1.0
 
 lights:
-  # Key calda alta-destra
+  # Key calda alta-destra (u × v normale -Y → emette in basso).
   - type: "area"
-    corner:    [ 1.8, 3.0,  1.4]
+    corner:    [ 1.8, 3.0,  0.0]
     u:         [ 1.4, 0.0,  0.0]
-    v:         [ 0.0, 0.0, -1.4]
+    v:         [ 0.0, 0.0,  1.4]
     color:     [1.0, 0.92, 0.78]
     intensity: 35
 
-  # Back-light freddo (mostra il bordo del fumo)
+  # Back-light freddo dietro il soggetto (z = -2.4) che mostra il bordo del fumo.
+  # u=+X, v=+Y → normale u × v = +Z, la luce emette verso la camera.
   - type: "area"
     corner:    [-1.0, 1.4, -2.4]
     u:         [ 2.0, 0.0, 0.0]

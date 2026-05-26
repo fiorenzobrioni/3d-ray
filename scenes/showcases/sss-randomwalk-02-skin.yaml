@@ -53,11 +53,11 @@ materials:
     ior: 1.4
 
 lights:
-  # Area key bianca neutra da sinistra-alta.
+  # Area key bianca neutra da sinistra-alta (u × v normale -Y → emette in basso).
   - type: "area"
-    corner:    [-2.2, 1.6, 0.6]
+    corner:    [-2.2, 1.6, -0.4]
     u:         [ 1.6, 0.0, 0.0]
-    v:         [ 0.0, 0.0, -1.0]
+    v:         [ 0.0, 0.0, 1.0]
     color:     [1.0, 1.0, 1.0]
     intensity: 30
 

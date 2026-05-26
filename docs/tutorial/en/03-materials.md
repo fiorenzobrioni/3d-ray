@@ -190,9 +190,10 @@ fire, and anything that should both emit light and be seen.
 
 The Disney Principled BSDF (also known as PBR) is the most versatile
 material type. It combines diffuse, specular, metallic, clearcoat,
-subsurface scattering, sheen, and transmission into a single material
-with intuitive parameters. You can use it instead of lambertian, metal,
-or dielectric for any surface.
+sheen, and transmission into a single material with intuitive
+parameters. You can use it instead of lambertian, metal, or dielectric
+for any surface. For subsurface scattering, pair Disney's `spec_trans`
+with an `interior_medium` binding on the entity (see Chapter 7).
 
 Type aliases: `disney`, `disney_bsdf`, `pbr` (all create the same
 material).
@@ -204,7 +205,6 @@ material).
 | `color`               | --       | 0--1         | Base albedo color                                |
 | `metallic`            | `0.0`    | 0--1         | 0 = dielectric (plastic, wood), 1 = conductor (metal) |
 | `roughness`           | `0.5`    | 0--1         | 0 = mirror-smooth, 1 = fully diffuse            |
-| `subsurface`          | `0.0`    | 0--1         | Blend toward subsurface scattering diffuse model |
 | `specular`            | `0.5`    | 0--1         | Dielectric specular intensity (Fresnel F0)       |
 | `specular_tint`       | `0.0`    | 0--1         | Tint specular reflection by base color           |
 | `sheen`               | `0.0`    | 0--1         | Grazing-angle soft highlight (fabric, velvet)    |
@@ -222,19 +222,22 @@ material).
 | `anisotropic`         | `0.0`    | 0--1         | 0 = isotropic, 1 = stretched along the tangent  |
 | `anisotropic_rotation`| `0.0`    | 0--1         | Fraction of 2π rotation around the normal       |
 | `diff_trans`          | `0.0`    | 0--1         | Diffuse transmission fraction (foliage, thin fabric) |
-| `flatness`            | `0.0`    | 0--1         | Blend Lambert → HK-flat diffuse shape           |
 | `thin_walled`         | `false`  | bool         | Skip refraction / double-hit — foliage, paper   |
-| `subsurface_color`    | --       | 0--1 colour  | Tint used by the subsurface / flatness / diff_trans lobes |
-| `subsurface_radius`   | --       | `[R,G,B]` ≥ 0 | **Unused** — parsed for a future random-walk SSS pipeline, currently has no effect |
 | `thin_film_thickness` | `0.0`    | 0+ (nm)      | Iridescent film thickness (bubbles, opal, AR)   |
 | `thin_film_ior`       | `1.5`    | 1+           | Iridescent film IOR (η₂)                        |
 | `texture`             | --       | --           | Procedural or image texture (replaces color)    |
 | `normal_map`          | --       | --           | Surface detail via normal perturbation          |
 
 > **Texturing every parameter.** Every scalar parameter accepts a
-> `*_texture` variant (e.g. `roughness_texture`) and the three colour
-> inputs (`color`, `transmission_color`, `subsurface_color`) accept a
-> matching `*_texture` block. Example: `roughness_texture: { type: "image", path: "rough.png" }`.
+> `*_texture` variant (e.g. `roughness_texture`) and the two colour
+> inputs (`color`, `transmission_color`) accept a matching `*_texture`
+> block. Example: `roughness_texture: { type: "image", path: "rough.png" }`.
+
+> **Subsurface scattering.** The legacy Disney 2015 `subsurface`,
+> `subsurface_color`, `subsurface_radius`, `flatness` fields have been
+> removed. Physically-correct SSS now comes from `interior_medium`
+> bindings on entities — see Chapter 7 and
+> [docs/technical/subsurface-scattering.md](../../technical/subsurface-scattering.md).
 
 ### How the Parameters Work Together
 
@@ -248,9 +251,11 @@ Think of the Disney material as a layered system:
    on top of whatever is underneath. Like car paint or lacquered wood.
 4. **Transmission** (`spec_trans` > 0): light passes through the
    material. Combined with `roughness` > 0 you get frosted glass.
-5. **Subsurface** (`subsurface` > 0): light penetrates the surface and
-   diffuses inside. Gives a softer, flatter look to thin objects.
-   Used for skin, wax, porcelain, leaves.
+5. **Subsurface scattering** (`spec_trans: 1.0` + `interior_medium` on
+   the entity): light refracts through the surface and is transported
+   by a true volumetric random walk inside the bound medium. Used for
+   skin, wax, marble, milk, jade, candles. Configured at the entity
+   level rather than on the material — see Chapter 7.
 6. **Sheen** (`sheen` > 0): a soft glow at grazing angles. Used for
    fabric, velvet, some organic materials. `sheen_roughness` controls
    the width of the glow (small values = crisp halo, large = soft wash).
@@ -322,14 +327,29 @@ Think of the Disney material as a layered system:
   sheen_tint: 0.5
 ```
 
-**Porcelain (subsurface):**
+**Porcelain (true SSS via interior_medium):**
 ```yaml
-- id: "porcelain"
-  type: "disney"
-  color: [0.95, 0.93, 0.88]
-  roughness: 0.15
-  specular: 0.7
-  subsurface: 0.3
+mediums:
+  - id: porcelain_int
+    type: homogeneous
+    sigma_a: [0.005, 0.007, 0.012]
+    sigma_s: [4.5, 4.2, 3.8]
+    phase: hg
+    g: 0.4
+
+materials:
+  - id: porcelain
+    type: disney
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.15
+    specular: 0.7
+    spec_trans: 1.0
+    ior: 1.46
+
+entities:
+  - type: sphere
+    material: porcelain
+    interior_medium: porcelain_int
 ```
 
 **Brushed steel (anisotropic):**
@@ -403,19 +423,32 @@ Think of the Disney material as a layered system:
   roughness: 0.8
   diff_trans: 0.55             # half of the diffuse energy goes through
   thin_walled: true
-  subsurface_color: [0.35, 0.65, 0.25]
 ```
 
-**Porcelain skin (HK flatness + subsurface tint):**
+**Skin (Random Walk SSS via interior_medium):**
 ```yaml
-- id: "porcelain_skin"
-  type: "disney"
-  color: [0.95, 0.82, 0.76]
-  metallic: 0.0
-  roughness: 0.4
-  subsurface: 0.5
-  subsurface_color: [1.0, 0.55, 0.45]
-  flatness: 0.4
+mediums:
+  - id: skin_int
+    type: homogeneous
+    sigma_a: [0.032, 0.17, 0.48]    # Jensen 2001 "skin1"
+    sigma_s: [9.25, 11.0, 12.6]
+    phase: hg
+    g: 0.92                          # strong forward HG
+
+materials:
+  - id: skin_surface
+    type: disney
+    color: [1.0, 1.0, 1.0]
+    metallic: 0.0
+    roughness: 0.35
+    specular: 0.5
+    spec_trans: 1.0
+    ior: 1.4
+
+entities:
+  - type: sphere
+    material: skin_surface
+    interior_medium: skin_int
 ```
 
 ### Quick Cheat-Sheet
@@ -428,12 +461,12 @@ to keep its default.
 | Material family | Core recipe |
 |---|---|
 | Matte diffuse (plaster, unfinished wood) | `roughness: 0.9`, `specular: 0.2`, optional `sheen: 0.1–0.2` |
-| Flat matte (paper, concrete) | `roughness: 0.85`, `flatness: 0.5–0.8`, `specular: 0.2` |
+| Flat matte (paper, concrete) | `roughness: 0.85`, `specular: 0.2` |
 | Polished plastic | `metallic: 0`, `roughness: 0.2–0.4`, `specular: 0.5`, optional `clearcoat: 0.3` |
 | Rubber / silicone | `metallic: 0`, `roughness: 0.7–0.9`, `specular: 0.25`, `sheen: 0.2`, `sheen_roughness: 0.5` |
 | Velvet / fabric | `roughness: 0.9`, `sheen: 1.0`, `sheen_tint: 0.7`, `sheen_roughness: 0.2–0.4` |
-| Skin / porcelain | `metallic: 0`, `roughness: 0.4`, `subsurface: 0.5`, `subsurface_color: [0.9, 0.5, 0.45]`, `flatness: 0.3`, `sheen: 0.05` |
-| Leaf / paper (translucent) | `roughness: 0.4`, `thin_walled: true`, `diff_trans: 0.5`, `subsurface_color: <interior tint>`, optional `flatness: 0.3` |
+| Skin / porcelain / marble / milk / wax | surface: `metallic: 0`, `roughness: 0.3–0.5`, `specular: 0.5`, `spec_trans: 1`, `ior: 1.4`; **entity binds `interior_medium`** to a `homogeneous` medium (Jensen 2001 preset) — see Chapter 7 |
+| Leaf / paper (translucent) | `roughness: 0.4`, `thin_walled: true`, `diff_trans: 0.5` |
 | Polished metal (gold, silver, chrome) | `metallic: 1`, `roughness: 0.02–0.15`, `specular: 0.9–1.0` |
 | Rough / satin metal | `metallic: 1`, `roughness: 0.4–0.7`, `specular: 0.6` |
 | Brushed metal | `metallic: 1`, `roughness: 0.25`, `anisotropic: 0.7–0.9`, `anisotropic_rotation: 0.0–1.0` |
@@ -797,11 +830,10 @@ fake → looks real" upgrade.
 Set `output: "mask"` on a wood texture block to return the scalar ring
 parameter `t ∈ [0, 1]` (1 at the bright earlywood plateau, 0 at the
 dark latewood / pore) packed as `(t, t, t)`. Drop the same block under
-`roughness_texture` / `sheen_texture` / `subsurface_texture` to drive
-scalar BSDF parameters from the latewood pattern — latewood can be
-polished while earlywood stays matte (the "cera su quercia" look),
-sheen can ride on the open-pore earlywood only, subsurface can
-attenuate over the dark latewood band.
+`roughness_texture` / `sheen_texture` to drive scalar BSDF parameters
+from the latewood pattern — latewood can be polished while earlywood
+stays matte (the "cera su quercia" look), sheen can ride on the
+open-pore earlywood only.
 
 ```yaml
 texture:

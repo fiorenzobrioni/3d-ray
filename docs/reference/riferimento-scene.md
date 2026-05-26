@@ -605,7 +605,6 @@ Quando entrambi `focal_pos` e `focal_dist` sono specificati, `focal_pos` vince (
   # ── Parametri classici Disney 2012 ──────────────────────────────────
   metallic: 0.0                            # 0=dielettrico, 1=metallo
   roughness: 0.3                           # 0=specchio, 1=diffuso
-  subsurface: 0.0                          # Approssimazione subsurface (pelle, cera)
   specular: 0.5                            # Intensità speculare per dielettrici (F₀ × 0.08)
   specular_tint: 0.0                       # Tinta dello specular dielettrico verso base_color
   sheen: 0.0                               # Lucentezza radente (tessuti, velluto)
@@ -621,9 +620,7 @@ Quando entrambi `focal_pos` e `focal_dist` sono specificati, `focal_pos` vince (
 
   # ── Estensioni Disney 2015 ──────────────────────────────────────────
   diff_trans: 0.0                          # Lambert diffuse transmission (foglie, fogli)
-  flatness: 0.0                            # Blend Lambert → HK-flat (Disney 2015)
   thin_walled: false                       # Disattiva la rifrazione: foglie, carta, tele sottili
-  subsurface_color: [0.9, 0.6, 0.5]        # Tinta indipendente per subsurface/flatness/diff_trans
 
   # ── Assorbimento Beer-Lambert per vetri colorati ────────────────────
   transmission_color: [0.2, 0.8, 0.9]      # Colore del vetro raggiunto a transmission_depth
@@ -675,11 +672,7 @@ caricamento quando ne trova una).
 | `transmission_depth` | float | 0.0 | ≥ 0 | Core | Distanza Beer-Lambert (0 = sottile, tinta applicata una volta) |
 | `anisotropic` | float | 0.0 | 0–1 | Aniso | 0 = isotropo, 1 = stirato lungo la tangente |
 | `anisotropic_rotation` | float | 0.0 | 0–1 | Aniso | Frazione di 2π attorno alla normale |
-| `subsurface` | float | 0.0 | 0–1 | 2015 | Blend Lambert ↔ lobo HK-flat |
-| `subsurface_color` | colore | — | 0–1 | 2015 | Tinta per subsurface / flatness / diff_trans |
-| `subsurface_radius` | `[R,G,B]` | — | ≥ 0 | **Non usata** | Parsata ma mai letta — riservata per una futura SSS random-walk |
 | `diff_trans` | float | 0.0 | 0–1 | 2015 | Trasmissione diffusa (foglie, tele sottili) |
-| `flatness` | float | 0.0 | 0–1 | 2015 | Blend Lambert → HK-flat indipendente da `subsurface` |
 | `thin_walled` | bool | false | — | 2015 | Disattiva la rifrazione interna (foglie, carta) |
 | `thin_film_thickness` | float | 0.0 | ≥ 0 (nm) | Thin-film | Belcour-Barla 2017; 100–800 nm = iridescenza |
 | `thin_film_ior` | float | 1.5 | ≥ 1 | Thin-film | η₂ del film (acqua = 1.33, sapone = 1.40) |
@@ -688,9 +681,8 @@ caricamento quando ne trova una).
 | `bump_map` | blocco | — | — | Texturing | Bump scalare da una qualunque texture procedurale/image |
 
 > Ogni parametro scalare accetta la variante `*_texture` (ad esempio
-> `roughness_texture`) e i tre input colore (`color`,
-> `transmission_color`, `subsurface_color`) accettano un blocco
-> `*_texture` dedicato.
+> `roughness_texture`) e i due input colore (`color`,
+> `transmission_color`) accettano un blocco `*_texture` dedicato.
 
 ##### **Clearcoat: legacy vs stile Arnold**
 
@@ -713,20 +705,12 @@ Finché rimane negativo il motore usa il path legacy basato su
 > **Le nuove scene dovrebbero usare `coat_roughness` + `coat_ior`.** Le
 > scene esistenti continuano a funzionare invariate; nulla viene rimosso.
 
-##### **`subsurface_radius`: parsata ma non usata**
-
-`subsurface_radius` è riservata per una futura pipeline di SSS
-random-walk. Il lobo subsurface approssimato attuale (`subsurface` +
-`subsurface_color` + opzionale `flatness`) non la legge. Il loader emette
-un messaggio `Info` al caricamento quando la chiave è presente — omettila
-nelle nuove scene.
-
 - **Quando usarlo:**
   - Metalli: `metallic=1.0`, rugosità variabile. Aggiungi `anisotropic` per acciaio spazzolato.
   - Plastiche: `metallic=0.0`, `roughness=0.4–0.8`
   - Vernice auto: `metallic=0.0`, `clearcoat=1.0` (+ `coat_roughness` per il coat stile Arnold)
   - Tessuti / velluto: `metallic=0.0`, `sheen=0.8–1.0`, `sheen_roughness=0.2–0.4`
-  - Pelle: `metallic=0.0`, `subsurface=0.4`, `subsurface_color=[1.0, 0.6, 0.55]`, `flatness=0.3`
+  - Pelle / marmo / cera / latte: `spec_trans=1.0`, `ior=1.4–1.5`, più `interior_medium: <id>` sull'entity legato a un medium `homogeneous` con `σ_s > 0` (Random Walk SSS — vedi [docs/technical/subsurface-scattering.it.md](../technical/subsurface-scattering.it.md)).
   - Vetro chiaro: `spec_trans=1.0`, `roughness=0.0`, `ior=1.52`
   - Vetro colorato: aggiungi `transmission_color` + `transmission_depth` (es. 5 unità per una bottiglia di brandy)
   - Bolle / opal: `thin_film_thickness=350..700`, `thin_film_ior=1.33..1.5`
@@ -903,9 +887,8 @@ texture:
 > **Parametri Disney pilotati dal mask.** `output: "mask"` su un blocco
 > marble restituisce lo scalare vena `t ∈ [0, 1]` impacchettato come
 > `(t, t, t)`. È il modo canonico per pilotare `roughness_texture`,
-> `subsurface_texture`, `sheen_texture` ecc. dallo stesso pattern usato
-> per il colore: le vene possono essere più lucide della base matte,
-> l'SSS può attenuarsi sotto le vene calcite scure, il sheen può rimanere
+> `sheen_texture` ecc. dallo stesso pattern usato per il colore: le vene
+> possono essere più lucide della base matte, il sheen può rimanere
 > solo sulla base. Si duplica il blocco marble sotto il `*_texture`
 > appropriato con `output: "mask"` e (opzionalmente) un `color_ramp`
 > a 2-stop che rimappa `[0, 1]` sul range del parametro. La doppia
@@ -1077,9 +1060,9 @@ texture:
 > `sheen_texture` / etc. per pilotare parametri Disney scalari dal
 > pattern degli anelli — il latewood può essere lucido mentre
 > l'earlywood resta opaco (look "cera su quercia"), lo sheen può
-> riguardare solo l'earlywood a poro aperto, il subsurface può
-> attenuarsi sul latewood scuro. La doppia valutazione costa ~30
-> Perlin samples extra per shade — trascurabile contro Disney BSDF + NEE.
+> riguardare solo l'earlywood a poro aperto. La doppia valutazione
+> costa ~30 Perlin samples extra per shade — trascurabile contro
+> Disney BSDF + NEE.
 
 #### **Marmi e legni production-quality — ricettario**
 
@@ -1249,8 +1232,7 @@ comportano diversamente dalla matrice.
 I due blocchi marble devono usare gli stessi `scale`/`warp_*`/`vein_*`
 così colore e mask sono in fase spazialmente. La ramp a 2-stop sul mask
 mappa `[0, 1]` sul range di roughness desiderato. Lo stesso pattern
-funziona per `subsurface_texture` (SSS si attenua sulle vene calcite
-scure), `sheen_texture` (sheen solo sulla base matte),
+funziona per `sheen_texture` (sheen solo sulla base matte),
 `specular_texture` ecc.
 
 **Verde Alpi — base verde con impurità minerali (specks olivina).**

@@ -71,17 +71,18 @@ materials:
     ior: 1.5
 
 lights:
+  # u × v normale -Y → emette in basso.
   - type: "area"
-    corner:    [ 1.2, 2.3,  1.4]
+    corner:    [ 1.2, 2.3,  0.0]
     u:         [ 1.4, 0.0,  0.0]
-    v:         [ 0.0, 0.0, -1.4]
+    v:         [ 0.0, 0.0,  1.4]
     color:     [1.0, 0.95, 0.85]
     intensity: 40
 
   - type: "area"
-    corner:    [-2.0, 1.6, 0.5]
+    corner:    [-2.0, 1.6, -0.4]
     u:         [ 1.0, 0.0, 0.0]
-    v:         [ 0.0, 0.0, -0.9]
+    v:         [ 0.0, 0.0, 0.9]
     color:     [0.7, 0.82, 1.00]
     intensity: 10
 
