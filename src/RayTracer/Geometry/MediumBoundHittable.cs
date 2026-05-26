@@ -47,6 +47,13 @@ public class MediumBoundHittable : IHittable
         if (!_inner.Hit(ray, tMin, tMax, ref rec))
             return false;
         rec.MediumIface = _mi;
+        // Stamp the entity root so the random-walk SSS integrator (Phase 3)
+        // can re-issue boundary intersections against the bound geometry
+        // alone. Without this, the walk would have to query the world BVH —
+        // adjacent geometry sharing a surface (a marble bust resting on a
+        // floor, a glass cup with a liquid inside) would let the walk leak
+        // into the wrong volume topology.
+        rec.EntityRoot = _inner;
         return true;
     }
 

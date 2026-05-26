@@ -6,7 +6,7 @@
 |------|------------------------------------------------------------|------------------|
 | 1    | MediumInterface plumbing (no SSS yet)                      | ✅ Completata    |
 | 2    | YAML schema + libreria mediums + clean-break Disney        | ✅ Completata    |
-| 3    | Random Walk SSS integrator                                 | ⬜ Pending       |
+| 3    | Random Walk SSS integrator                                 | ✅ Completata    |
 | 4    | CLI, quality presets, full MediumInterface use cases       | ⬜ Pending       |
 | 5    | Tests, scenes, docs                                        | ⬜ Pending       |
 
@@ -33,6 +33,19 @@
 - **Test cleanup**: rimossi 2 test puntuali su feature eliminata (`Flatness_FullyFlat_MatchesSubsurfaceFullyOn`, `SubsurfaceColor_OverridesBaseColorInFlatLobe`). Aggiornato `DiffTrans_ProducesBackHemisphereSamples_*` per usare `baseColor` come tint. 471 test verdi.
 - Smoke render: `cristallo.yaml` (no legacy field — invariato), `tempio-romano.yaml` (marble migrato — render OK, look Lambert come atteso fino a Fase 3).
 - **Effetto visivo**: scene con materiali "fake SSS" perdono il flat-blend e tornano a Lambert puro. È il comportamento atteso del clean break — il look fisicamente corretto torna in Fase 3 una volta abilitato Random Walk SSS via `interior_medium`.
+
+### Fase 3 — log
+
+- **Random walk integrator** (`Rendering/RandomWalkSss.cs` come `partial Renderer`): Cycles-style `random_walk_v2` con free-flight hero-wavelength sampling + balance-heuristic MIS spettrale sui 3 canali. Hero pick proporzionale a β[c], `t = -ln(ξ)/σ_t[hero]`, throughput update `β *= σ_s · exp(-σ_t·t) / Σ_c q[c] · σ_t[c] · exp(-σ_t[c]·t)` per evento di scatter (forma analoga senza σ_s per escape transmittance-only). Phase HG con sampler-density matching → phase/pdf = 1.
+- **Restricted-BVH query**: `MediumBoundHittable` ora stampa `rec.EntityRoot = _inner` accanto a `rec.MediumIface`. Il walk usa `entityRoot.Hit(...)` per la boundary detection — niente leak in geometria adiacente.
+- **Dispatch** in `Renderer.ShadeSampleBounce`: quando `s.Transition == Enter && nextMediums.Top is HomogeneousMedium && IsScatteringMedium && rec.EntityRoot != null && _sssMode == Auto`, sostituisce la chiamata a `TraceRay` con `RandomWalkSubsurface`. Altri casi (σ_s=0, no binding, SssMode.Off) restano sul path legacy.
+- **SssMode.Off**: nuovo helper `ResolvePushedMedium` declassa il medium pushato a "absorption only" (σ_a preservato, σ_s azzerato) quando l'utente disabilita SSS via CLI. Beer-Lambert tinta lungo il segmento ancora applicato, niente eventi di scattering — preview rapidi e A/B comparison senza il costo del walk.
+- **Hero-wavelength clamp**: nuovo `ClampWalkInScattering(L, b)` con ramp `_indirectMaxSampleRadiance / (1 + 0.1·b)` per smorzare fireflies in profondità (Cycles `clamp_walk_volume`).
+- **Russian Roulette in-walk**: kicks da `b ≥ RrStartBounce` (default 3), `qRr = max(β.X, β.Y, β.Z)` clampato a [0.05, 0.95]. Max-bounces hard cap (default 64) come backup contro low-albedo che RR non termina abbastanza in fretta.
+- **`HomogeneousMedium`** ora espone `SigmaA`/`SigmaS`/`SigmaT` come proprietà pubbliche (immutabili, già cached al construct), consumate dal walk.
+- **`Renderer` ctor**: nuovi parametri `sssMode = Auto`, `walkConfig = Normal`. `RandomWalkConfig` struct con preset `Preview / Normal / High` pronto al wiring Fase 4 CLI.
+- **Test**: 5 nuovi (`SssRandomWalkTests`): σ_s=0 fallback al path legacy, white-furnace energy conservation (η=1 matched IOR + σ_a=0), spectral color-bleed (σ_a R<G<B → R>G>B in output), dense-medium robustness (finite values, no NaN, max-bounces=8), SssMode.Off dispatch toggle. 471 + 5 = 476 verdi.
+- **Smoke render**: `cristallo.yaml` e `chess.yaml` invariati (path legacy preservato). `tmp/sss-test.yaml` con marble sphere + `interior_medium: marble_int` (Jensen 2001 preset) renderizza correttamente — il look diffuso interno è ora trasportato dal walk anziché simulato dal flat-blend HK rimosso in Fase 2.
 
 ## Context
 
