@@ -128,4 +128,4 @@ entities:
     interior_medium: marble_int
 ```
 
-Il tool standalone `src/Tools/MigrateFakeSss/` automatizza questa riscrittura per un albero YAML (log Fase 2 in `docs/plans/mediuminterface-and-random-walk-sss.md`).
+Il tool standalone `src/Tools/MigrateFakeSss/` automatizza questa riscrittura per un albero YAML.

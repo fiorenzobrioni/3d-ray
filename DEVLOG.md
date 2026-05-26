@@ -8,7 +8,7 @@ Roadmap, lavori in corso, bug noti, storico cicli.
 
 ## Ciclo MediumInterface + Random Walk SSS ✅
 
-Sostituito il vecchio "fake SSS" del Disney BSDF (`subsurface`, `subsurface_color`, `flatness`, lobo flat HK) con un sistema fisicamente corretto in quattro fasi. Piano dettagliato e log per fase in `docs/plans/mediuminterface-and-random-walk-sss.md`.
+Sostituito il vecchio "fake SSS" del Disney BSDF (`subsurface`, `subsurface_color`, `flatness`, lobo flat HK) con un sistema fisicamente corretto.
 
 **Razionale del clean break.** Il vecchio `subsurface` su Disney era una falsa local-approximation che modificava il lobe diffuse (Hanrahan-Krueger flat) — non trasportava luce attraverso la geometria. Materiali fondamentali (marmo, pelle, cera, latte, giada, foglie sottili, alabastro) non avevano look fisicamente corretto. Inoltre nessun medium volumetrico poteva essere bound a un'entity specifica (smoke in CSG, fog in stanza, acqua in tank).
 
@@ -39,6 +39,15 @@ Decisione di policy: **rimozione netta** dei field Disney legacy + **MediumInter
 **Docs.** `docs/technical/subsurface-scattering.{md,it.md}` (derivation walk, hero-wavelength MIS, Fresnel coupling, preset Jensen 2001), `docs/technical/medium-interface.{md,it.md}` (ownership model, stack semantics, transition rules). Sezione "Mediums Library" aggiunta a `docs/reference/scene-reference.md` + `riferimento-scene.md`. Tutti i riferimenti legacy a `subsurface`/`subsurface_color`/`subsurface_radius`/`flatness` rimossi da reference Disney, capitoli tutorial Disney (`03-materials`), intro ray-tracing (`01-what-is-ray-tracing`), sezione transforms-and-groups (`05`), libreria materiali (`10-libraries-and-projects`) — sostituiti con esempi `interior_medium`. README features list aggiornata.
 
 **CI/Benchmark.** `.github/workflows/dotnet.yml` ora renderizza anche la milk-glass Cornell come smoke test SSS (320×213, 32 spp). `RenderBenchmarks.cs` esteso a misurare cornell-baseline vs marble-SSS in parallelo per quantificare l'overhead SSS (acceptance target: marble entro 2.5× di cornell-equivalente).
+
+**Anti-pattern da evitare** (note di design, per future modifiche):
+- NON memorizzare `IMedium` direttamente in `IMaterial` (accoppia lo shading alla topologia di scena).
+- NON usare single-current medium invece di stack (rotto su transmissive annidate: vetro contenente liquido SSS, ghiaccio in acqua).
+- NON re-applicare Fresnel entry dentro il walk (la `T_entry` è già nel throughput entrante).
+- NON usare `_world.Hit` dentro il walk (può leak in altre geometrie); usare sempre `entityRoot.Hit` ricevuto dal `MediumBoundHittable`.
+- NON sovrascrivere `_maxDepth` con `_maxVolumeBounces` — sono budget separati (depth dei bounce surface vs walk volumetrico).
+- NON cambiare il default `--sss-mode` a `off` (è correttezza, non un opt-in: scene autorate per il walk si rompono visivamente).
+- NON re-introdurre `subsurface` come alias deprecato — clean break significa rimozione netta + tool migrazione + warning del loader.
 
 ---
 

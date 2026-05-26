@@ -128,4 +128,4 @@ entities:
     interior_medium: marble_int
 ```
 
-The standalone tool `src/Tools/MigrateFakeSss/` automates this rewrite for a YAML tree (Phase 2 log in `docs/plans/mediuminterface-and-random-walk-sss.md`).
+The standalone tool `src/Tools/MigrateFakeSss/` automates this rewrite for a YAML tree.
