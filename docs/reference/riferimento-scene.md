@@ -425,6 +425,70 @@ g: 0.6
 - **Esposizione fotografica:** `--exposure <EV>` (default `0`) applica un guadagno lineare `2^EV` a ogni pixel prima del tone map ACES. Usa EV negativo (`-1`, `-2`) quando la scena appare lavata perché le luci portano la radianza in ingresso sopra ~2.0, dove ACES si appiattisce sul plateau 0.95-0.99 e nasconde il contrasto delle texture. EV positivo schiarisce scene che cadono sotto la zona lineare della curva. Parità con Arnold `exposure`, Cycles "Film → Exposure", RenderMan display-filter `exposure`.
 - **Light importance sampling:** `--light-sampling power` (default `all`) campiona una sola luce per evento NEE con probabilità ∝ `ApproximatePower`. Riduce drasticamente la varianza in scene con molte luci di luminosità mista. Usa `uniform` come baseline di confronto.
 
+#### **Libreria Mediums** (blocco top-level `mediums:`)
+
+Oltre al singolo `world.medium`, 3D-Ray espone un blocco top-level `mediums:` dove media partecipanti nominati vengono dichiarati una volta e legati a entità specifiche tramite `interior_medium` / `exterior_medium`. È la base per:
+- **Subsurface scattering** (marmo, pelle, cera, giada, latte) — l'integratore random walk SSS si attiva automaticamente quando un'entità è legata a un medium `homogeneous` con `σ_s > 0`.
+- **Contenitori volumetrici per oggetto** — nebbia in una stanza CSG, fumo in una teiera, acqua in un acquario, atmosfera planetaria — senza influenzare il resto della scena come farebbe `world.medium`.
+
+```yaml
+mediums:
+  - id: marble_int                     # richiesto nel blocco libreria
+    type: homogeneous                  # uno di: homogeneous, height_fog, procedural, grid, atmosphere
+    sigma_a: [0.0021, 0.0041, 0.0071]
+    sigma_s: [2.19, 2.62, 3.00]
+    phase: hg
+    g: 0.0
+
+  - id: room_fog
+    type: homogeneous
+    sigma_a: [0.0, 0.0, 0.0]
+    sigma_s: [0.42, 0.45, 0.50]
+    phase: hg
+    g: 0.55
+
+entities:
+  - type: sphere
+    material: marble_surface
+    interior_medium: marble_int        # → SSS random walk dispatchato sul refraction enter
+
+  - type: csg
+    op: subtract
+    a: { type: box, ... }
+    b: { type: sphere, ... }
+    interior_medium: room_fog          # → Beer-Lambert/scattering locale dentro il CSG
+```
+
+**Regole di risoluzione:**
+- ID case-insensitive. I duplicati seguono last-write-wins con warning deferito (stessa convenzione di `materials:`).
+- Un `interior_medium` / `exterior_medium` sconosciuto ricade su vacuum e stampa un warning al caricamento.
+- I medium sono importati attraverso file YAML come i material (vedi §2). L'inline `world.medium` **non** è mai importato.
+- Un medium può essere referenziato da più entità — è un blueprint, non un'istanza.
+
+**Campi di binding sull'entity:**
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `interior_medium` | string \| null | ID del medium che riempie l'interno dell'entity. Attiva il random walk SSS sulla refrazione in ingresso quando il medium scatter-a (`σ_s > 0`). |
+| `exterior_medium` | string \| null | ID del medium che rappresenta lo spazio *fuori* dell'entity. Raramente necessario — di default si eredita il medium padre nello stack (o `world.medium`). |
+
+**Subsurface scattering** (`interior_medium` + `homogeneous` + `σ_s > 0`):
+
+L'integratore random-walk è dispatchato automaticamente quando:
+1. Il raggio rifrange (lobo transmission) **dentro** un'entity, e
+2. L'`interior_medium` dell'entity è un `homogeneous` con `σ_s > 0`, e
+3. CLI `--sss-mode` è `auto` (default).
+
+Il `spec_trans`/`ior` (Disney) o il lobo `dielectric` controllano il Fresnel di ingresso/uscita; il medium controlla il trasporto volumetrico. CLI:
+
+| Flag | Default | Effetto |
+|---|---|---|
+| `--sss-mode auto\|off` | `auto` | `off` declassa i media legati ad absorption-only (Beer-Lambert legacy), utile per preview rapide e confronto A/B. |
+| `--sss-quality preview\|normal\|high` | eredita da `-q` | Configura MaxVolumeBounces / RrStartBounce / NeeInsideWalk in blocco. `draft*` → preview, `medium*` → normal, `final*`/`ultra` → high. |
+| `--max-volume-bounces <n>` | dipende dal preset (16/64/256) | Cap massimo sui bounce in un walk. Limita il worst-case su media densi. |
+
+Nota migrazione: i parametri Disney legacy `subsurface`, `subsurface_color`, `subsurface_radius`, `flatness` non sono più letti. Usa `interior_medium` con i preset Jensen 2001 in `docs/technical/subsurface-scattering.md` per ottenere un look SSS fisicamente corretto.
+
 ---
 
 ### 4. **SEZIONE CAMERA**
@@ -541,7 +605,6 @@ Quando entrambi `focal_pos` e `focal_dist` sono specificati, `focal_pos` vince (
   # ── Parametri classici Disney 2012 ──────────────────────────────────
   metallic: 0.0                            # 0=dielettrico, 1=metallo
   roughness: 0.3                           # 0=specchio, 1=diffuso
-  subsurface: 0.0                          # Approssimazione subsurface (pelle, cera)
   specular: 0.5                            # Intensità speculare per dielettrici (F₀ × 0.08)
   specular_tint: 0.0                       # Tinta dello specular dielettrico verso base_color
   sheen: 0.0                               # Lucentezza radente (tessuti, velluto)
@@ -557,9 +620,7 @@ Quando entrambi `focal_pos` e `focal_dist` sono specificati, `focal_pos` vince (
 
   # ── Estensioni Disney 2015 ──────────────────────────────────────────
   diff_trans: 0.0                          # Lambert diffuse transmission (foglie, fogli)
-  flatness: 0.0                            # Blend Lambert → HK-flat (Disney 2015)
   thin_walled: false                       # Disattiva la rifrazione: foglie, carta, tele sottili
-  subsurface_color: [0.9, 0.6, 0.5]        # Tinta indipendente per subsurface/flatness/diff_trans
 
   # ── Assorbimento Beer-Lambert per vetri colorati ────────────────────
   transmission_color: [0.2, 0.8, 0.9]      # Colore del vetro raggiunto a transmission_depth
@@ -611,11 +672,7 @@ caricamento quando ne trova una).
 | `transmission_depth` | float | 0.0 | ≥ 0 | Core | Distanza Beer-Lambert (0 = sottile, tinta applicata una volta) |
 | `anisotropic` | float | 0.0 | 0–1 | Aniso | 0 = isotropo, 1 = stirato lungo la tangente |
 | `anisotropic_rotation` | float | 0.0 | 0–1 | Aniso | Frazione di 2π attorno alla normale |
-| `subsurface` | float | 0.0 | 0–1 | 2015 | Blend Lambert ↔ lobo HK-flat |
-| `subsurface_color` | colore | — | 0–1 | 2015 | Tinta per subsurface / flatness / diff_trans |
-| `subsurface_radius` | `[R,G,B]` | — | ≥ 0 | **Non usata** | Parsata ma mai letta — riservata per una futura SSS random-walk |
 | `diff_trans` | float | 0.0 | 0–1 | 2015 | Trasmissione diffusa (foglie, tele sottili) |
-| `flatness` | float | 0.0 | 0–1 | 2015 | Blend Lambert → HK-flat indipendente da `subsurface` |
 | `thin_walled` | bool | false | — | 2015 | Disattiva la rifrazione interna (foglie, carta) |
 | `thin_film_thickness` | float | 0.0 | ≥ 0 (nm) | Thin-film | Belcour-Barla 2017; 100–800 nm = iridescenza |
 | `thin_film_ior` | float | 1.5 | ≥ 1 | Thin-film | η₂ del film (acqua = 1.33, sapone = 1.40) |
@@ -624,9 +681,8 @@ caricamento quando ne trova una).
 | `bump_map` | blocco | — | — | Texturing | Bump scalare da una qualunque texture procedurale/image |
 
 > Ogni parametro scalare accetta la variante `*_texture` (ad esempio
-> `roughness_texture`) e i tre input colore (`color`,
-> `transmission_color`, `subsurface_color`) accettano un blocco
-> `*_texture` dedicato.
+> `roughness_texture`) e i due input colore (`color`,
+> `transmission_color`) accettano un blocco `*_texture` dedicato.
 
 ##### **Clearcoat: legacy vs stile Arnold**
 
@@ -649,20 +705,12 @@ Finché rimane negativo il motore usa il path legacy basato su
 > **Le nuove scene dovrebbero usare `coat_roughness` + `coat_ior`.** Le
 > scene esistenti continuano a funzionare invariate; nulla viene rimosso.
 
-##### **`subsurface_radius`: parsata ma non usata**
-
-`subsurface_radius` è riservata per una futura pipeline di SSS
-random-walk. Il lobo subsurface approssimato attuale (`subsurface` +
-`subsurface_color` + opzionale `flatness`) non la legge. Il loader emette
-un messaggio `Info` al caricamento quando la chiave è presente — omettila
-nelle nuove scene.
-
 - **Quando usarlo:**
   - Metalli: `metallic=1.0`, rugosità variabile. Aggiungi `anisotropic` per acciaio spazzolato.
   - Plastiche: `metallic=0.0`, `roughness=0.4–0.8`
   - Vernice auto: `metallic=0.0`, `clearcoat=1.0` (+ `coat_roughness` per il coat stile Arnold)
   - Tessuti / velluto: `metallic=0.0`, `sheen=0.8–1.0`, `sheen_roughness=0.2–0.4`
-  - Pelle: `metallic=0.0`, `subsurface=0.4`, `subsurface_color=[1.0, 0.6, 0.55]`, `flatness=0.3`
+  - Pelle / marmo / cera / latte: `spec_trans=1.0`, `ior=1.4–1.5`, più `interior_medium: <id>` sull'entity legato a un medium `homogeneous` con `σ_s > 0` (Random Walk SSS — vedi [docs/technical/subsurface-scattering.it.md](../technical/subsurface-scattering.it.md)).
   - Vetro chiaro: `spec_trans=1.0`, `roughness=0.0`, `ior=1.52`
   - Vetro colorato: aggiungi `transmission_color` + `transmission_depth` (es. 5 unità per una bottiglia di brandy)
   - Bolle / opal: `thin_film_thickness=350..700`, `thin_film_ior=1.33..1.5`
@@ -839,9 +887,8 @@ texture:
 > **Parametri Disney pilotati dal mask.** `output: "mask"` su un blocco
 > marble restituisce lo scalare vena `t ∈ [0, 1]` impacchettato come
 > `(t, t, t)`. È il modo canonico per pilotare `roughness_texture`,
-> `subsurface_texture`, `sheen_texture` ecc. dallo stesso pattern usato
-> per il colore: le vene possono essere più lucide della base matte,
-> l'SSS può attenuarsi sotto le vene calcite scure, il sheen può rimanere
+> `sheen_texture` ecc. dallo stesso pattern usato per il colore: le vene
+> possono essere più lucide della base matte, il sheen può rimanere
 > solo sulla base. Si duplica il blocco marble sotto il `*_texture`
 > appropriato con `output: "mask"` e (opzionalmente) un `color_ramp`
 > a 2-stop che rimappa `[0, 1]` sul range del parametro. La doppia
@@ -1013,9 +1060,9 @@ texture:
 > `sheen_texture` / etc. per pilotare parametri Disney scalari dal
 > pattern degli anelli — il latewood può essere lucido mentre
 > l'earlywood resta opaco (look "cera su quercia"), lo sheen può
-> riguardare solo l'earlywood a poro aperto, il subsurface può
-> attenuarsi sul latewood scuro. La doppia valutazione costa ~30
-> Perlin samples extra per shade — trascurabile contro Disney BSDF + NEE.
+> riguardare solo l'earlywood a poro aperto. La doppia valutazione
+> costa ~30 Perlin samples extra per shade — trascurabile contro
+> Disney BSDF + NEE.
 
 #### **Marmi e legni production-quality — ricettario**
 
@@ -1185,8 +1232,7 @@ comportano diversamente dalla matrice.
 I due blocchi marble devono usare gli stessi `scale`/`warp_*`/`vein_*`
 così colore e mask sono in fase spazialmente. La ramp a 2-stop sul mask
 mappa `[0, 1]` sul range di roughness desiderato. Lo stesso pattern
-funziona per `subsurface_texture` (SSS si attenua sulle vene calcite
-scure), `sheen_texture` (sheen solo sulla base matte),
+funziona per `sheen_texture` (sheen solo sulla base matte),
 `specular_texture` ecc.
 
 **Verde Alpi — base verde con impurità minerali (specks olivina).**

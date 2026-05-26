@@ -424,6 +424,71 @@ g: 0.6
 - **Advanced firefly control:** `--indirect-clamp-factor <f>` (default `1.0` = off) multiplies the primary `--clamp` threshold for all indirect bounces. E.g. `--clamp 100 --indirect-clamp-factor 0.25` uses clamp=25 on bounce depth ≥ 1 — same as Cycles/Arnold "indirect clamp".
 - **Photographic exposure:** `--exposure <EV>` (default `0`) applies a linear gain `2^EV` to every pixel before ACES tone mapping. Use negative EV (`-1`, `-2`) when the scene reads washed-out because the lights drive arriving radiance above ~2.0, where ACES flattens onto a 0.95-0.99 plateau and hides texture contrast. Positive EV brightens scenes that fall below the curve's linear range. Matches Arnold `exposure`, Cycles "Film → Exposure", RenderMan display-filter `exposure`.
 - **Light importance sampling:** `--light-sampling power` (default `all`) samples one light per NEE event with probability ∝ `ApproximatePower`. Dramatically reduces variance in scenes with many lights of mixed brightness (e.g. 1 area + 10 dim point lights). Use `uniform` as a reference baseline.
+
+#### **Mediums Library** (top-level `mediums:` block)
+
+Beyond the single `world.medium`, 3D-Ray exposes a top-level `mediums:` block where named participating media are declared once and bound to specific entities via `interior_medium` / `exterior_medium`. This is the foundation for:
+- **Subsurface scattering** (marble, skin, wax, jade, milk) — the SSS random-walk integrator activates automatically when an entity is bound to a `homogeneous` medium with `σ_s > 0`.
+- **Per-object volumetric containers** — fog inside a CSG-room, smoke inside a teapot, water inside a glass tank, planet atmosphere — without affecting the rest of the scene the way `world.medium` would.
+
+```yaml
+mediums:
+  - id: marble_int                     # required when in the library block
+    type: homogeneous                  # any of: homogeneous, height_fog, procedural, grid, atmosphere
+    sigma_a: [0.0021, 0.0041, 0.0071]
+    sigma_s: [2.19, 2.62, 3.00]
+    phase: hg
+    g: 0.0
+
+  - id: room_fog
+    type: homogeneous
+    sigma_a: [0.0, 0.0, 0.0]
+    sigma_s: [0.42, 0.45, 0.50]
+    phase: hg
+    g: 0.55
+
+entities:
+  - type: sphere
+    material: marble_surface
+    interior_medium: marble_int        # → SSS random walk dispatched on refraction enter
+
+  - type: csg
+    op: subtract
+    a: { type: box, ... }
+    b: { type: sphere, ... }
+    interior_medium: room_fog          # → local Beer-Lambert/scattering inside the CSG
+```
+
+**Resolution rules:**
+- IDs are case-insensitive. Duplicates are last-write-wins with a deferred warning (same convention as `materials:`).
+- An unknown `interior_medium` / `exterior_medium` id falls back to vacuum and prints a load-time warning.
+- Mediums are imported across YAML files identically to materials (see §2). The inline `world.medium` is **never** imported.
+- A medium can be referenced by multiple entities — it's a blueprint, not an instance.
+
+**Entity binding fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `interior_medium` | string \| null | ID of a medium that fills the entity's interior. Activates SSS random walk on refraction into the entity when the medium scatters (`σ_s > 0`). |
+| `exterior_medium` | string \| null | ID of a medium representing the space *outside* this entity. Rarely needed — defaults to the parent medium in the stack (or `world.medium`). |
+
+**Subsurface scattering** (`interior_medium` + `homogeneous` + `σ_s > 0`):
+
+The random-walk integrator is automatically dispatched when:
+1. The ray refracts (transmission lobe) **into** an entity, and
+2. The entity's `interior_medium` is a `homogeneous` medium with `σ_s > 0`, and
+3. CLI `--sss-mode` is `auto` (default).
+
+The surface material's `spec_trans`/`ior` (Disney) or `dielectric` lobe controls the entry/exit Fresnel; the medium controls the volumetric transport. CLI knobs:
+
+| Flag | Default | Effect |
+|---|---|---|
+| `--sss-mode auto\|off` | `auto` | `off` declasses bound media to absorption-only (legacy Beer-Lambert), useful for fast A/B previews. |
+| `--sss-quality preview\|normal\|high` | inherits from `-q` | Bundles MaxVolumeBounces / RrStartBounce / NeeInsideWalk. `draft*` quality preset → preview, `medium*` → normal, `final*`/`ultra` → high. |
+| `--max-volume-bounces <n>` | preset-dependent (16/64/256) | Hard cap on bounces inside one walk. Caps worst-case cost on dense media. |
+
+Migration note: the legacy Disney parameters `subsurface`, `subsurface_color`, `subsurface_radius`, `flatness` are no longer read. Use `interior_medium` with the Jensen 2001 presets in `docs/technical/subsurface-scattering.md` to obtain a physically correct SSS look.
+
 ---
 ### 4. **CAMERA SECTION**
 #### **Multi-Camera** (recommended):
@@ -530,7 +595,6 @@ When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info me
   # ── Core Disney 2012 parameters ─────────────────────────────────────
   metallic: 0.0                            # 0=dielectric, 1=metal
   roughness: 0.3                           # 0=mirror, 1=diffuse
-  subsurface: 0.0                          # Subsurface approximation (skin, wax)
   specular: 0.5                            # Dielectric specular intensity (F₀ × 0.08)
   specular_tint: 0.0                       # Tint dielectric specular toward base_color
   sheen: 0.0                               # Grazing luster (fabric, fuzz)
@@ -546,9 +610,7 @@ When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info me
 
   # ── Disney 2015 extensions ──────────────────────────────────────────
   diff_trans: 0.0                          # Lambertian diffuse transmission (leaves, fabric)
-  flatness: 0.0                            # Blend Lambert -> HK-flat shape
   thin_walled: false                       # Skip refraction: foliage, paper, thin fabric
-  subsurface_color: [0.9, 0.6, 0.5]        # Optional tint for the subsurface/flatness/diff_trans lobes
 
   # ── Beer-Lambert absorption for coloured glass ──────────────────────
   transmission_color: [0.2, 0.8, 0.9]      # Colour of the glass interior at transmission_depth
@@ -569,8 +631,18 @@ When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info me
   normal_map: (optional)
   # Any scalar parameter above accepts a *_texture variant, e.g.
   #   roughness_texture: { type: "image", path: "rough.png" }
-  # Same for colour parameters (transmission_color_texture, subsurface_color_texture).
+  # Same for colour parameters (transmission_color_texture, etc).
 ```
+
+> **Subsurface scattering.** The Disney 2015 fake-SSS parameters
+> (`subsurface`, `subsurface_color`, `subsurface_radius`, `flatness`) have
+> been removed. Physically-correct SSS now comes from `interior_medium`
+> bindings on entities — see [docs/technical/subsurface-scattering.md](../technical/subsurface-scattering.md) and the
+> "Mediums Library" subsection in §3. The loader still parses and ignores
+> the removed keys (emits a warning) so old YAML loads, but the visual
+> output reverts to pure Lambert until the scene is migrated to
+> `interior_medium`. The `src/Tools/MigrateFakeSss/` tool automates the
+> rewrite.
 
 ##### **Disney Properties Summary**
 A single-glance reference of every Disney key the loader accepts.
@@ -600,11 +672,7 @@ renderer (the loader emits an `Info` line when it sees one).
 | `transmission_depth` | float | 0.0 | ≥ 0 | Core | Beer-Lambert depth (0 = thin, tint applied once) |
 | `anisotropic` | float | 0.0 | 0–1 | Aniso | 0 = isotropic, 1 = fully stretched along tangent |
 | `anisotropic_rotation` | float | 0.0 | 0–1 | Aniso | Fraction of 2π around the normal |
-| `subsurface` | float | 0.0 | 0–1 | 2015 | Blend Lambert ↔ HK-flat lobe |
-| `subsurface_color` | colour | — | 0–1 | 2015 | Tint used by subsurface / flatness / diff_trans |
-| `subsurface_radius` | `[R,G,B]` | — | ≥ 0 | **Unused** | Parsed but not read — reserved for future random-walk SSS |
 | `diff_trans` | float | 0.0 | 0–1 | 2015 | Diffuse transmission (foliage, thin fabric) |
-| `flatness` | float | 0.0 | 0–1 | 2015 | Blend Lambert → HK-flat independently of `subsurface` |
 | `thin_walled` | bool | false | — | 2015 | Skip interior refraction (foliage, paper) |
 | `thin_film_thickness` | float | 0.0 | ≥ 0 (nm) | Thin-film | Belcour-Barla 2017; 100–800 nm = iridescence |
 | `thin_film_ior` | float | 1.5 | ≥ 1 | Thin-film | Film η₂ (water = 1.33, soap = 1.40) |
@@ -613,9 +681,8 @@ renderer (the loader emits an `Info` line when it sees one).
 | `bump_map` | block | — | — | Texturing | Scalar bump from any procedural/image texture |
 
 > Every scalar parameter accepts a matching `*_texture` variant (e.g.
-> `roughness_texture`) and the three colour inputs (`color`,
-> `transmission_color`, `subsurface_color`) accept a matching
-> `*_texture` block.
+> `roughness_texture`) and the two colour inputs (`color`,
+> `transmission_color`) accept a matching `*_texture` block.
 
 ##### **Clearcoat: legacy vs Arnold-style**
 
@@ -637,19 +704,12 @@ conversion is roughly `coat_roughness ≈ 1 - clearcoat_gloss`.
 > **New scenes should use `coat_roughness` + `coat_ior`.** Existing
 > scenes keep working without changes; nothing is removed.
 
-##### **`subsurface_radius`: parsed but not used**
-
-`subsurface_radius` is reserved for a future random-walk SSS pipeline.
-The current approximate subsurface lobe (`subsurface` + `subsurface_color`
-+ optional `flatness`) never reads it. The loader emits an `Info`
-message at scene load when the key is present — omit it from new scenes.
-
 - **When to use:**
   - Metals: `metallic=1.0`, varied roughness. Add `anisotropic` for brushed steel.
   - Plastics: `metallic=0.0`, `roughness=0.4–0.8`
   - Car paint: `metallic=0.0`, `clearcoat=1.0` (+ `coat_roughness` for Arnold-style coat)
   - Fabric / velvet: `metallic=0.0`, `sheen=0.8–1.0`, `sheen_roughness=0.2–0.4`
-  - Skin: `metallic=0.0`, `subsurface=0.4`, `subsurface_color=[1.0, 0.6, 0.55]`, `flatness=0.3`
+  - Skin / marble / wax / milk: `spec_trans=1.0`, `ior=1.4–1.5`, plus `interior_medium: <id>` on the entity bound to a `homogeneous` medium with `σ_s > 0` (Random Walk SSS — see [docs/technical/subsurface-scattering.md](../technical/subsurface-scattering.md)).
   - Clear glass: `spec_trans=1.0`, `roughness=0.0`, `ior=1.52`
   - Coloured glass: add `transmission_color` + `transmission_depth` (e.g. 5 units for a bottle of brandy)
   - Soap bubble / opal: `thin_film_thickness=350..700`, `thin_film_ior=1.33..1.5`
@@ -821,9 +881,8 @@ texture:
 > **Mask-driven Disney parameters.** Set `output: "mask"` on a marble
 > texture block to return the scalar vein parameter `t ∈ [0, 1]` packed
 > as `(t, t, t)`. This is the canonical way to drive `roughness_texture`,
-> `subsurface_texture`, `sheen_texture` &co. from the same vein pattern
-> the colour uses: vein zones can be glossier than the matte base,
-> SSS can attenuate under dark calcite veins, sheen can ride on the base
+> `sheen_texture` &co. from the same vein pattern the colour uses: vein
+> zones can be glossier than the matte base, sheen can ride on the base
 > only. Duplicate the marble block under the appropriate `*_texture`
 > field with `output: "mask"` and (optionally) a 2-stop `color_ramp` that
 > remaps `[0, 1]` to the target parameter range. The double evaluation
@@ -996,9 +1055,9 @@ texture:
 > `sheen_texture` / etc. to drive scalar BSDF parameters from the
 > latewood pattern — latewood can be polished while earlywood stays
 > matte (the cera-su-quercia look), sheen can ride on the open-pore
-> earlywood only, subsurface can attenuate over the dark latewood
-> band. The double evaluation costs ~30 extra Perlin samples per shade
-> on the protagonist material — negligible against Disney BSDF + NEE.
+> earlywood only. The double evaluation costs ~30 extra Perlin samples
+> per shade on the protagonist material — negligible against Disney
+> BSDF + NEE.
 
 #### **Production-quality marble & wood — recipe book**
 
@@ -1164,8 +1223,8 @@ matrix.
 The two marble blocks must use the same `scale`/`warp_*`/`vein_*` so
 the colour and mask are spatially in phase. The two-stop ramp on the
 mask maps `[0, 1]` to the desired roughness range. Same pattern works
-for `subsurface_texture` (SSS attenuates over dark calcite veins),
-`sheen_texture` (sheen on the matte base only), `specular_texture`, etc.
+for `sheen_texture` (sheen on the matte base only), `specular_texture`,
+etc.
 
 **Verde Alpi — green base with mineral impurities (olivine specks).**
 ```yaml

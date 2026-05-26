@@ -1,10 +1,12 @@
 # CI — eseguito su ogni push e PR verso main.
 # 1. Compila il progetto in Release.
-# 2. Esegue la suite xUnit (464 test, ~3s).
-# 3. Renderizza una scena leggera (chess.yaml, 320×213) per verificare
-#    che il binario non crashi a runtime.
-# L'immagine prodotta viene caricata come artifact (retention 3 giorni)
-# per un'ispezione visiva rapida in caso di regressioni.
+# 2. Esegue la suite xUnit (~3s).
+# 3. Renderizza due scene leggere a 320×213:
+#    - chess.yaml — sanity check del path generico (BVH, NEE, BSDF classici).
+#    - showcases/sss-randomwalk-03-milk-glass.yaml — sanity check del path
+#      SSS Random Walk + MediumInterface + emissive geometry NEE.
+# Le immagini sono caricate come artifact (retention 3 giorni) per
+# un'ispezione visiva rapida in caso di regressioni.
 
 name: RayTracer CI
 
@@ -45,10 +47,26 @@ jobs:
         -w 320 -H 213
         -s 32 -d 4 -S 4
 
-    - name: Upload render artifact
+    - name: Render SSS smoke test (milk-glass Cornell)
+      # Exercises the Random Walk SSS dispatch path end-to-end on every CI
+      # run. Catches regressions in the MediumStack plumbing, MediumBoundHittable,
+      # random-walk integrator, and quality-preset wiring that the unit tests
+      # cannot reach as a single chain.
+      timeout-minutes: 5
+      run: >
+        dotnet run --project src/RayTracer/RayTracer.csproj
+        --configuration Release --no-build --
+        -i scenes/showcases/sss-randomwalk-03-milk-glass.yaml
+        -o render-sss.png
+        -w 320 -H 213
+        -s 32 -d 6 -S 4
+
+    - name: Upload render artifacts
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: render-chess
-        path: render-test.png
+        name: render-smoke
+        path: |
+          render-test.png
+          render-sss.png
         retention-days: 3

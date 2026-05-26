@@ -49,8 +49,9 @@ Quando un raggio colpisce una superficie, il risultato dipende dal **materiale**
   riflettere la luce in arrivo -- emettono luce propria.
 
 - Le superfici **Disney/PBR** combinano tutto quanto sopra in un unico modello
-  fisicamente ispirato con parametri come metallic, roughness, clearcoat e
-  subsurface scattering.
+  fisicamente ispirato con parametri come metallic, roughness, clearcoat,
+  sheen e trasmissione. Il subsurface scattering si aggiunge separatamente
+  tramite media partecipanti bound all'entity — vedi il capitolo sull'SSS.
 
 Dopo che il materiale decide cosa accade, viene generato un nuovo raggio (riflesso,
 rifratto o disperso) e il processo si ripete. Il raggio continua a rimbalzare finché

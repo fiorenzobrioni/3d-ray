@@ -45,7 +45,7 @@ aver bisogno:
 | `materials/woods.yaml`        | Latifoglie chiare/medie/scure, ebano, esotici, trattati (shou-sugi-ban, barnwood), studio (curly, flame, bird's eye, burl) | 87 |
 | `materials/grounds.yaml`      | Checker, parquet, piastrelle, marmo pavimento, cemento, asfalto, terra, sabbia, ghiaia, erba, neve, moquette, acque | 75 |
 | `materials/liquids.yaml`      | Acque, latticini, sangue, oli, alcolici (Beer-Lambert), sciroppi, bevande calde, succhi, refrigeranti | 53 |
-| `materials/plasters.yaml`     | Rasati, graffiati, veneziano (clearcoat alto), marmorino, tadelakt (subsurface), stucco antico, calce mediterranea, gesso | 50 |
+| `materials/plasters.yaml`     | Rasati, graffiati, veneziano (clearcoat alto), marmorino, tadelakt, stucco antico, calce mediterranea, gesso | 50 |
 | `materials/leathers.yaml`     | Pieno fiore, anilina, nappa, suede (sheen), patent (clearcoat), esotici (voronoi cell), box calf, cuoio grezzo, ecoleather | 46 |
 | `materials/industrial-coatings.yaml` | Chassis auto, clearcoat, polveri RAL, anodizzazione Al/Ti, zincatura, cromature, smalti a fuoco, gel coat, termocromiche | 43 |
 | `materials/concretes.yaml`    | Cemento liscio/esposto/lavorato/lavato a vista, colorati, asfalto (incl. bagnato), bitume catrame | 42 |
@@ -60,9 +60,9 @@ aver bisogno:
 
 I materiali seguono un sistema di prefissi:
 
-- **`dis_`** — Disney BSDF (PBR completo con clearcoat, sheen, subsurface,
-  spec_trans, thin_film). Ideale per gli oggetti principali (hero objects)
-  e i primi piani.
+- **`dis_`** — Disney BSDF (PBR completo con clearcoat, sheen, spec_trans,
+  thin_film). Abbina un binding `interior_medium` sull'entity per Random
+  Walk SSS. Ideale per gli oggetti principali (hero objects) e i primi piani.
 - **`cls_`** — Tipo classico (`lambertian`, `metal` o `dielectric`, scelto
   in base al lobo dominante). Più veloce e meno rumoroso; ideale per grandi
   superfici e sfondi.
@@ -547,7 +547,7 @@ manopola `-C`/`--clamp` del firefly clamp, consulta
 ### Troppo rumore
 - Aumentare i campioni: `-s 64` o `-s 256`.
 - Aumentare i campioni d'ombra: `-S 16`.
-- I materiali Disney densi (subsurface, sheen) necessitano di più campioni rispetto ai tipi classici.
+- I materiali Disney densi (sheen, thin-film) e il Random Walk SSS necessitano di più campioni rispetto ai tipi classici.
 - **La profondità di campo è attiva.** Un `aperture` non zero richiede molti più campioni per eliminare il rumore del bokeh. Usare almeno `-s 256` per render DOF puliti.
 - **Materiale emissivo dentro un nodo CSG.** Il motore avvisa di questo problema; la superficie emissiva non può partecipare alla Next Event Estimation e causa alta varianza. Spostare la primitiva emissiva fuori dall'albero CSG.
 

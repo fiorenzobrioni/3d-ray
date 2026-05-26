@@ -1,0 +1,102 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  MEDIUM INTERFACE #01 — Fog locale dentro una stanza
+#
+#  Showcase di `interior_medium` su geometria NON-SSS: una stanza CSG
+#  (box piena meno box vuoto) contiene un volume di nebbia omogenea con
+#  solo σ_s (no assorbimento) — un cono di luce attraversa il foro
+#  centrale del soffitto e produce un god-ray VISIBILE solo all'interno
+#  della stanza. Fuori, l'aria è limpida (vacuum globale).
+#
+#  Il punto: il medium NON è globale. Lo stesso scenario con `world.medium`
+#  riempirebbe l'INTERA scena di nebbia. Bindando il medium all'entity-room
+#  via `interior_medium` la nebbia esiste solo dentro le sue mura. Identico
+#  pattern del "Maya Mental Ray Volume Container", "Cycles Volume domain",
+#  "Arnold volume" — finalmente disponibile anche su 3D-Ray.
+#
+#  Profili:
+#    Preview:    -q draft-small
+#    Standard:   -q medium-small
+#    Final:      -q final-small  (alza -C 25 se la spot light produce spike)
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.04,  0.06,  0.10]
+    horizon_color: [0.30,  0.36,  0.46]
+    ground_color:  [0.05,  0.05,  0.05]
+  ground:
+    type: "infinite_plane"
+    material: "floor_outside"
+    y: 0.0
+
+camera:
+  position: [3.6, 2.3, 5.2]
+  look_at:  [0, 1.3, 0]
+  vup:      [0, 1, 0]
+  fov:      45
+  aperture: 0.05
+  focal_dist: 6.2
+
+mediums:
+  - id: room_fog
+    type: homogeneous
+    sigma_a: [0.0, 0.0, 0.0]
+    sigma_s: [0.42, 0.45, 0.50]
+    phase: hg
+    g: 0.55
+
+materials:
+  - id: floor_outside
+    type: disney
+    color: [0.18, 0.16, 0.14]
+    roughness: 0.65
+    specular: 0.20
+
+  - id: wall_inside
+    type: lambertian
+    albedo: [0.55, 0.52, 0.48]
+
+lights:
+  # Spot dall'alto attraverso il foro del soffitto. Caldo, stretto, intenso.
+  - type: spot
+    position: [0, 7.5, 0]
+    direction: [0, -1, 0]
+    color: [1.0, 0.90, 0.72]
+    intensity: 900
+    inner_angle: 5
+    outer_angle: 11
+
+  # Fill esterno freddo (visibile fuori dalla stanza).
+  - type: spot
+    position: [6, 4, 4]
+    direction: [-0.6, -0.5, -0.5]
+    color: [0.60, 0.74, 1.0]
+    intensity: 90
+    inner_angle: 25
+    outer_angle: 45
+
+entities:
+  # Stanza: box-shell sottratto (4×3.5×4 con muri 0.20 e foro 0.7×0.7 nel soffitto).
+  - name: room
+    type: csg
+    op: subtract
+    a:
+      type: box
+      scale: [4.0, 3.5, 4.0]
+      translate: [0, 1.75, 0]
+      material: wall_inside
+    b:
+      type: csg
+      op: union
+      a:
+        type: box
+        scale: [3.6, 3.1, 3.6]
+        translate: [0, 1.75, 0]
+        material: wall_inside
+      b:
+        type: box
+        scale: [0.7, 0.5, 0.7]
+        translate: [0, 3.45, 0]
+        material: wall_inside
+    interior_medium: room_fog

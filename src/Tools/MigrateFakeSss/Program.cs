@@ -19,7 +19,7 @@ namespace MigrateFakeSss;
 /// Disney diffuse lobe — a per-shading-point hack that has been removed in
 /// favour of physically-based Random Walk subsurface scattering bound at the
 /// entity level via <c>interior_medium</c> (see
-/// <c>docs/plans/mediuminterface-and-random-walk-sss.md</c>).
+/// <c>docs/technical/subsurface-scattering.md</c>).
 ///
 /// Behaviour:
 ///   - Scalar fields (<c>subsurface: 0.5</c>) → single line removed.

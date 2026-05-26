@@ -170,6 +170,67 @@ class Program
             }
         }
 
+        // SSS dispatch toggle. `auto` (default) routes refractions into scattering
+        // interior_medium bindings through the random-walk integrator; `off`
+        // declasses pushed media to absorption-only so the legacy Beer-Lambert
+        // path handles them (preview / A/B comparison knob — see Renderer.SssMode).
+        SssMode sssMode = SssMode.Auto;
+        string? sssModeArg = GetArg(args, "--sss-mode", null);
+        if (sssModeArg != null)
+        {
+            switch (sssModeArg.ToLowerInvariant())
+            {
+                case "auto": sssMode = SssMode.Auto; break;
+                case "off":  sssMode = SssMode.Off;  break;
+                default:
+                    Console.WriteLine($"Error: Unknown --sss-mode '{sssModeArg}'. Valid: auto, off.");
+                    return;
+            }
+        }
+
+        // Random-walk quality preset (Preview/Normal/High). Default is `normal`
+        // unless a top-level `--quality` preset implies a different SSS tier
+        // (draft* → preview, final*/ultra → high). Explicit `--sss-quality`
+        // always wins. Each preset configures MaxVolumeBounces, RrStartBounce
+        // and NeeInsideWalk in lockstep — see RandomWalkConfig.
+        RandomWalkConfig? walkConfig = null;
+        string? sssQualityArg = GetArg(args, "--sss-quality", null);
+        string? sssQualityLabel = null;
+        if (sssQualityArg != null)
+        {
+            switch (sssQualityArg.ToLowerInvariant())
+            {
+                case "preview": walkConfig = RandomWalkConfig.Preview; sssQualityLabel = "preview"; break;
+                case "normal":  walkConfig = RandomWalkConfig.Normal;  sssQualityLabel = "normal";  break;
+                case "high":    walkConfig = RandomWalkConfig.High;    sssQualityLabel = "high";    break;
+                default:
+                    Console.WriteLine($"Error: Unknown --sss-quality '{sssQualityArg}'. Valid: preview, normal, high.");
+                    return;
+            }
+        }
+        else if (quality != null)
+        {
+            walkConfig       = quality.WalkConfig;
+            sssQualityLabel  = quality.SssQualityName;
+        }
+
+        // Volume-bounce hard cap (defaults inherited from the resolved SSS quality
+        // preset; this flag is the per-render escape hatch over the preset value).
+        int? maxVolumeBouncesOverride = null;
+        if (int.TryParse(GetArg(args, "--max-volume-bounces", null),
+                         System.Globalization.NumberStyles.Integer,
+                         System.Globalization.CultureInfo.InvariantCulture,
+                         out var mvb) && mvb > 0)
+            maxVolumeBouncesOverride = mvb;
+        if (maxVolumeBouncesOverride.HasValue)
+        {
+            var baseCfg = walkConfig ?? RandomWalkConfig.Normal;
+            walkConfig = new RandomWalkConfig(
+                maxVolumeBounces: maxVolumeBouncesOverride.Value,
+                rrStartBounce:    baseCfg.RrStartBounce,
+                neeInsideWalk:    baseCfg.NeeInsideWalk);
+        }
+
         // Verbose mode
         bool verbose = HasFlag(args, "--verbose", "-v");
         SceneLoader.SetVerbose(verbose);
@@ -240,6 +301,16 @@ class Program
         Console.WriteLine($"  MIS:         {misHeuristic.ToString().ToLowerInvariant()} heuristic");
         if (lightSampling != LightSamplingStrategy.All)
             Console.WriteLine($"  Light pick:  {lightSampling.ToString().ToLowerInvariant()}");
+        if (sssMode != SssMode.Auto)
+            Console.WriteLine($"  SSS mode:    {sssMode.ToString().ToLowerInvariant()}");
+        if (sssQualityLabel != null || maxVolumeBouncesOverride.HasValue)
+        {
+            var effective = walkConfig ?? RandomWalkConfig.Normal;
+            string label = sssQualityLabel ?? "normal";
+            Console.WriteLine(
+                $"  SSS quality: {label} (vol-bounces={effective.MaxVolumeBounces}, " +
+                $"rr-start={effective.RrStartBounce}, nee-in-walk={(effective.NeeInsideWalk ? "on" : "off")})");
+        }
         Console.WriteLine();
 
         // Load scene
@@ -268,7 +339,11 @@ class Program
             Console.WriteLine($"  Sky:         {skyDesc}");
 
             // Render (constructor may print scene analysis info before the blank line)
-            var renderer = new Renderer(world, camera, lights, sky, samples, depth, globalMedium, clampOverride, verbose, misHeuristic, lightSampling, indirectClampFactor, textureFiltering, exposureEv);
+            var renderer = new Renderer(
+                world, camera, lights, sky, samples, depth, globalMedium,
+                clampOverride, verbose, misHeuristic, lightSampling,
+                indirectClampFactor, textureFiltering, exposureEv,
+                sssMode, walkConfig);
             Console.WriteLine();
 
             sw.Restart();
@@ -323,6 +398,9 @@ class Program
         Console.WriteLine("      --mis <balance|power>    MIS combination heuristic (default: balance)");
         Console.WriteLine("      --light-sampling <all|power|uniform>  NEE light strategy (default: all)");
         Console.WriteLine("      --texture-filtering <auto|on|off>     Analytic anti-aliasing via ray differentials (default: auto)");
+        Console.WriteLine("      --sss-mode <auto|off>    Subsurface-scattering dispatch (default: auto = follow scene)");
+        Console.WriteLine("      --sss-quality <preview|normal|high>   Random-walk preset; inherits from -q when omitted");
+        Console.WriteLine("      --max-volume-bounces <n> Hard cap on random-walk bounces inside one entity");
         Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
         Console.WriteLine("  -v, --verbose                Show detailed loading and scene analysis info");
         Console.WriteLine("  -h, --help                   Show this help");
@@ -438,22 +516,28 @@ class Program
         public int Samples { get; }
         public int Depth { get; }
         public int ShadowSamples { get; }
+        /// <summary>SSS random-walk preset matched to this quality tier.
+        /// draft → preview (cheap), medium → normal, final/ultra → high.</summary>
+        public RandomWalkConfig WalkConfig { get; }
+        public string SssQualityName { get; }
 
-        private QualityPreset(string name, int w, int h, int s, int d, int ss)
+        private QualityPreset(string name, int w, int h, int s, int d, int ss,
+                              RandomWalkConfig walk, string walkName)
         {
             Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
+            WalkConfig = walk; SssQualityName = walkName;
         }
 
-        public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 4, 1);
-        public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 4, 1);
-        public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 4, 1);
-        public static readonly QualityPreset MediumTiny  = new("medium-tiny",  480, 270,   128, 6, 1);
-        public static readonly QualityPreset MediumSmall = new("medium-small", 960, 540,   128, 6, 1);
-        public static readonly QualityPreset Medium      = new("medium",      1920, 1080,  128, 6, 1);
-        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 8, 4);
-        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 8, 4);
-        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4);
-        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160, 1024, 8, 4);
+        public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 4, 1, RandomWalkConfig.Preview, "preview");
+        public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 4, 1, RandomWalkConfig.Preview, "preview");
+        public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 4, 1, RandomWalkConfig.Preview, "preview");
+        public static readonly QualityPreset MediumTiny  = new("medium-tiny",  480, 270,   128, 6, 1, RandomWalkConfig.Normal,  "normal");
+        public static readonly QualityPreset MediumSmall = new("medium-small", 960, 540,   128, 6, 1, RandomWalkConfig.Normal,  "normal");
+        public static readonly QualityPreset Medium      = new("medium",      1920, 1080,  128, 6, 1, RandomWalkConfig.Normal,  "normal");
+        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 8, 4, RandomWalkConfig.High,    "high");
+        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 8, 4, RandomWalkConfig.High,    "high");
+        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4, RandomWalkConfig.High,    "high");
+        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160, 1024, 8, 4, RandomWalkConfig.High,    "high");
 
         public const string NamesCsv =
             "draft-tiny, draft-small, draft, medium-tiny, medium-small, medium, final-tiny, final-small, final, ultra";

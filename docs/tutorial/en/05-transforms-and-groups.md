@@ -387,13 +387,13 @@ materials:
       noise_strength: 1.2
       colors: [[0.35, 0.2, 0.1], [0.22, 0.12, 0.06]]
 
-  # Porcelain plate
+  # Porcelain plate (kept matte here; pair with `interior_medium` on the
+  # plate entity for true random-walk SSS — see Chapter 7).
   - id: "porcelain"
     type: "disney"
     color: [0.95, 0.93, 0.88]
     roughness: 0.12
     specular: 0.7
-    subsurface: 0.2
 
   # Steel cutlery
   - id: "steel"

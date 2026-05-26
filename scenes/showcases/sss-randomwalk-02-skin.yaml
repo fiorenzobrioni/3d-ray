@@ -1,0 +1,70 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  SSS RANDOM WALK #02 — Skin sphere (preset Jensen 2001 "skin1")
+#
+#  Una sola sfera, dimensioni di una testa umana, materiale "skin1" Jensen
+#  illuminata da un'area light bianca a un lato. La firma SSS deve essere
+#  netta: nelle zone in ombra la sfera tende al rosso/arancio perché il
+#  rosso ha mean-free-path ≈ 5x quello del blu (la pelle assorbe blu
+#  fortemente). Il bordo silhouette controluce (dove la sfera è sottile
+#  rispetto al ray) deve brillare di rosa (waxy translucency).
+#
+#  Profili:
+#    Preview:    -q draft-small     (composizione)
+#    Standard:   -q medium-small    (look check)
+#    Final:      -q final           (portfolio)
+#
+#  Coefficienti σ derivati da Jensen 2001 Table 1 ("skin1"):
+#    σ_s'  ≈ [0.74, 0.88, 1.01]   (reduced)
+#    σ_a   ≈ [0.032, 0.17,  0.48]
+#    Convertiti a σ_s con g = 0.92 (forward Henyey-Greenstein, isoindex
+#    pelle): σ_s = σ_s' / (1 - g)  ≈  [9.25, 11.00, 12.62]
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.015, 0.020, 0.030]
+    horizon_color: [0.04,  0.05,  0.07]
+    ground_color:  [0.01,  0.01,  0.01]
+
+camera:
+  position: [0.0, 0.0, 2.8]
+  look_at:  [0.0, 0.0, 0.0]
+  vup:      [0, 1, 0]
+  fov:      30
+  aperture: 0.02
+  focal_dist: 2.8
+
+mediums:
+  - id: skin_int
+    type: homogeneous
+    sigma_a: [0.032, 0.17, 0.48]
+    sigma_s: [9.25, 11.00, 12.62]
+    phase: hg
+    g: 0.92
+
+materials:
+  - id: skin_surface
+    type: disney
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.30
+    specular: 0.5
+    spec_trans: 1.0
+    ior: 1.4
+
+lights:
+  # Area key bianca neutra da sinistra-alta (u × v normale -Y → emette in basso).
+  - type: "area"
+    corner:    [-2.2, 1.6, -0.4]
+    u:         [ 1.6, 0.0, 0.0]
+    v:         [ 0.0, 0.0, 1.0]
+    color:     [1.0, 1.0, 1.0]
+    intensity: 30
+
+entities:
+  - name: "head"
+    type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.55
+    material: "skin_surface"
+    interior_medium: skin_int

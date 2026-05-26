@@ -160,7 +160,7 @@ Usa i materiali emissivi per pannelli luminosi, sfere incandescenti, insegne al 
   clearcoat_gloss: 0.9
 ```
 
-Il Disney Principled BSDF (noto anche come PBR) è il tipo di materiale più versatile. Combina riflessione diffusa, speculare, metallica, clearcoat, subsurface scattering, sheen e trasmissione in un unico materiale con parametri intuitivi. Lo si può usare al posto di lambertian, metal o dielectric per qualsiasi superficie.
+Il Disney Principled BSDF (noto anche come PBR) è il tipo di materiale più versatile. Combina riflessione diffusa, speculare, metallica, clearcoat, sheen e trasmissione in un unico materiale con parametri intuitivi. Lo si può usare al posto di lambertian, metal o dielectric per qualsiasi superficie. Per il subsurface scattering, abbinare `spec_trans` di Disney a un binding `interior_medium` sull'entity (vedi Capitolo 7).
 
 Alias del tipo: `disney`, `disney_bsdf`, `pbr` (tutti creano lo stesso materiale).
 
@@ -171,7 +171,6 @@ Alias del tipo: `disney`, `disney_bsdf`, `pbr` (tutti creano lo stesso materiale
 | `color`                | --          | 0--1          | Colore albedo di base                               |
 | `metallic`             | `0.0`       | 0--1          | 0 = dielettrico (plastica, legno), 1 = conduttore (metallo) |
 | `roughness`            | `0.5`       | 0--1          | 0 = perfettamente liscio, 1 = completamente diffuso |
-| `subsurface`           | `0.0`       | 0--1          | Miscela verso il modello diffuso subsurface scattering |
 | `specular`             | `0.5`       | 0--1          | Intensità speculare dielettrica (Fresnel F₀)        |
 | `specular_tint`        | `0.0`       | 0--1          | Tinge la riflessione speculare con il colore di base |
 | `sheen`                | `0.0`       | 0--1          | Highlight morbido ad angoli radenti (tessuto, velluto) |
@@ -189,20 +188,23 @@ Alias del tipo: `disney`, `disney_bsdf`, `pbr` (tutti creano lo stesso materiale
 | `anisotropic`          | `0.0`       | 0--1          | 0 = isotropo, 1 = allungato lungo la tangente      |
 | `anisotropic_rotation` | `0.0`       | 0--1          | Frazione di rotazione di 2π intorno alla normale    |
 | `diff_trans`           | `0.0`       | 0--1          | Trasmissione diffusa (foglie, tele sottili)         |
-| `flatness`             | `0.0`       | 0--1          | Blend Lambert → HK-flat (Disney 2015)               |
 | `thin_walled`          | `false`     | bool          | Disattiva la doppia rifrazione — foglie, carta      |
-| `subsurface_color`     | --          | colore 0--1   | Tinta per i lobi subsurface / flatness / diff_trans |
-| `subsurface_radius`    | --          | `[R,G,B]` ≥ 0 | **Non usato** — letto dal parser ma riservato a una futura SSS random-walk; oggi non ha alcun effetto |
 | `thin_film_thickness`  | `0.0`       | 0+ (nm)       | Spessore del film iridescente (bolle, opal, AR)    |
 | `thin_film_ior`        | `1.5`       | 1+            | IOR del film iridescente (η₂)                      |
 | `texture`              | --          | --            | Texture procedurale o immagine (sostituisce color)  |
 | `normal_map`           | --          | --            | Dettagli di superficie tramite perturbazione delle normali |
 
 > **Texturing di ogni parametro.** Ogni parametro scalare accetta la
-> variante `*_texture` (per esempio `roughness_texture`) e i tre input
-> colore (`color`, `transmission_color`, `subsurface_color`) accettano
-> un blocco `*_texture` dedicato. Esempio:
+> variante `*_texture` (per esempio `roughness_texture`) e i due input
+> colore (`color`, `transmission_color`) accettano un blocco `*_texture`
+> dedicato. Esempio:
 > `roughness_texture: { type: "image", path: "rough.png" }`.
+
+> **Subsurface scattering.** I campi Disney 2015 legacy `subsurface`,
+> `subsurface_color`, `subsurface_radius`, `flatness` sono stati rimossi.
+> L'SSS fisicamente corretto arriva ora dai binding `interior_medium`
+> sulle entity — vedi Capitolo 7 e
+> [docs/technical/subsurface-scattering.it.md](../../technical/subsurface-scattering.it.md).
 
 ### Come i Parametri Lavorano Insieme
 
@@ -212,7 +214,7 @@ Il materiale Disney è un sistema a strati:
 2. **Modalità metallo** (`metallic` = 1): riflessione solo speculare tinta dal `color`. Come oro, acciaio, rame.
 3. **Strato Clearcoat** (`clearcoat` > 0): un rivestimento lucido indipendente sopra qualsiasi cosa ci sia sotto. Come la vernice delle auto o il legno laccato.
 4. **Trasmissione** (`spec_trans` > 0): la luce attraversa il materiale. Combinato con `roughness` > 0 si ottiene il vetro smerigliato.
-5. **Subsurface** (`subsurface` > 0): la luce penetra la superficie e si diffonde all'interno. Dona un aspetto più morbido e piatto agli oggetti sottili. Usato per pelle, cera, porcellana, foglie.
+5. **Subsurface scattering** (`spec_trans: 1.0` + `interior_medium` sull'entity): la luce rifrange attraverso la superficie ed è trasportata da un vero random walk volumetrico dentro il medium bound. Usato per pelle, cera, marmo, latte, giada, candele. Si configura a livello entity, non sul materiale — vedi Capitolo 7.
 6. **Sheen** (`sheen` > 0): un tenue bagliore agli angoli radenti. Usato per tessuti, velluto e alcuni materiali organici. `sheen_roughness` controlla la larghezza del bagliore (valori bassi = alone stretto, valori alti = halo morbido).
 7. **Anisotropia** (`anisotropic` > 0): allunga l'highlight speculare lungo la direzione tangente. Acciaio spazzolato, capelli, vinile. Ruota il frame tangente con `anisotropic_rotation`.
 8. **Iridescenza thin-film** (`thin_film_thickness` > 0): moltiplica il Fresnel per un fattore film sottile dipendente dalla lunghezza d'onda. Bolle di sapone, opal, anti-riflesso dielettrico.
@@ -273,14 +275,29 @@ Il materiale Disney è un sistema a strati:
   sheen_tint: 0.5
 ```
 
-**Porcellana (subsurface):**
+**Porcellana (vero SSS via interior_medium):**
 ```yaml
-- id: "porcelain"
-  type: "disney"
-  color: [0.95, 0.93, 0.88]
-  roughness: 0.15
-  specular: 0.7
-  subsurface: 0.3
+mediums:
+  - id: porcelain_int
+    type: homogeneous
+    sigma_a: [0.005, 0.007, 0.012]
+    sigma_s: [4.5, 4.2, 3.8]
+    phase: hg
+    g: 0.4
+
+materials:
+  - id: porcelain
+    type: disney
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.15
+    specular: 0.7
+    spec_trans: 1.0
+    ior: 1.46
+
+entities:
+  - type: sphere
+    material: porcelain
+    interior_medium: porcelain_int
 ```
 
 **Acciaio spazzolato (anisotropo):**
@@ -354,19 +371,32 @@ Il materiale Disney è un sistema a strati:
   roughness: 0.8
   diff_trans: 0.55              # metà dell'energia diffusa attraversa
   thin_walled: true
-  subsurface_color: [0.35, 0.65, 0.25]
 ```
 
-**Pelle di porcellana (flatness HK + tinta subsurface):**
+**Pelle (Random Walk SSS via interior_medium):**
 ```yaml
-- id: "porcelain_skin"
-  type: "disney"
-  color: [0.95, 0.82, 0.76]
-  metallic: 0.0
-  roughness: 0.4
-  subsurface: 0.5
-  subsurface_color: [1.0, 0.55, 0.45]
-  flatness: 0.4
+mediums:
+  - id: skin_int
+    type: homogeneous
+    sigma_a: [0.032, 0.17, 0.48]    # Jensen 2001 "skin1"
+    sigma_s: [9.25, 11.0, 12.6]
+    phase: hg
+    g: 0.92                          # HG forward forte
+
+materials:
+  - id: skin_surface
+    type: disney
+    color: [1.0, 1.0, 1.0]
+    metallic: 0.0
+    roughness: 0.35
+    specular: 0.5
+    spec_trans: 1.0
+    ior: 1.4
+
+entities:
+  - type: sphere
+    material: skin_surface
+    interior_medium: skin_int
 ```
 
 ### Cheat-Sheet Rapido
@@ -379,12 +409,12 @@ mantenere il valore predefinito.
 | Famiglia materiale | Ricetta essenziale |
 |---|---|
 | Diffuso opaco (intonaco, legno grezzo) | `roughness: 0.9`, `specular: 0.2`, opzionale `sheen: 0.1–0.2` |
-| Opaco "piatto" (carta, cemento) | `roughness: 0.85`, `flatness: 0.5–0.8`, `specular: 0.2` |
+| Opaco "piatto" (carta, cemento) | `roughness: 0.85`, `specular: 0.2` |
 | Plastica lucida | `metallic: 0`, `roughness: 0.2–0.4`, `specular: 0.5`, opzionale `clearcoat: 0.3` |
 | Gomma / silicone | `metallic: 0`, `roughness: 0.7–0.9`, `specular: 0.25`, `sheen: 0.2`, `sheen_roughness: 0.5` |
 | Velluto / tessuto | `roughness: 0.9`, `sheen: 1.0`, `sheen_tint: 0.7`, `sheen_roughness: 0.2–0.4` |
-| Pelle / porcellana | `metallic: 0`, `roughness: 0.4`, `subsurface: 0.5`, `subsurface_color: [0.9, 0.5, 0.45]`, `flatness: 0.3`, `sheen: 0.05` |
-| Foglia / carta (traslucida) | `roughness: 0.4`, `thin_walled: true`, `diff_trans: 0.5`, `subsurface_color: <tinta interna>`, opzionale `flatness: 0.3` |
+| Pelle / porcellana / marmo / latte / cera | superficie: `metallic: 0`, `roughness: 0.3–0.5`, `specular: 0.5`, `spec_trans: 1`, `ior: 1.4`; **entity con `interior_medium`** legato a un medium `homogeneous` (preset Jensen 2001) — vedi Capitolo 7 |
+| Foglia / carta (traslucida) | `roughness: 0.4`, `thin_walled: true`, `diff_trans: 0.5` |
 | Metallo lucido (oro, argento, cromo) | `metallic: 1`, `roughness: 0.02–0.15`, `specular: 0.9–1.0` |
 | Metallo ruvido / satinato | `metallic: 1`, `roughness: 0.4–0.7`, `specular: 0.6` |
 | Metallo spazzolato | `metallic: 1`, `roughness: 0.25`, `anisotropic: 0.7–0.9`, `anisotropic_rotation: 0.0–1.0` |
@@ -727,11 +757,10 @@ da "look CG" a "look reale".
 Imposta `output: "mask"` su un blocco wood per restituire lo scalare
 `t ∈ [0, 1]` (1 sul plateau chiaro earlywood, 0 nel latewood scuro /
 poro) impacchettato come `(t, t, t)`. Duplica lo stesso blocco sotto
-`roughness_texture` / `sheen_texture` / `subsurface_texture` per
-pilotare parametri Disney scalari dal pattern degli anelli — il
-latewood può essere lucido mentre l'earlywood resta opaco (look
-"cera su quercia"), lo sheen può riguardare solo l'earlywood a poro
-aperto, il subsurface può attenuarsi sul latewood scuro.
+`roughness_texture` / `sheen_texture` per pilotare parametri Disney
+scalari dal pattern degli anelli — il latewood può essere lucido
+mentre l'earlywood resta opaco (look "cera su quercia"), lo sheen può
+riguardare solo l'earlywood a poro aperto.
 
 ```yaml
 texture:

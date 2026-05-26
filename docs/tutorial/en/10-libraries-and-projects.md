@@ -44,7 +44,7 @@ Twenty themed files covering every surface type you are likely to need:
 | `materials/woods.yaml`        | Light/medium/dark hardwoods, ebony, exotics, treated (shou-sugi-ban, barnwood), studio (curly, flame, bird's eye, burl) | 87 |
 | `materials/grounds.yaml`      | Checker, parquet, tiles, marble floors, concrete, asphalt, earth, sand, gravel, grass, snow, carpet, water | 75 |
 | `materials/liquids.yaml`      | Water, dairy, blood, oils, alcoholic drinks (Beer-Lambert), syrups, hot drinks, juices, industrial coolants | 53 |
-| `materials/plasters.yaml`     | Smooth, raked, Venetian (high clearcoat), marmorino, tadelakt (subsurface), antique stucco, Mediterranean lime, gypsum | 50 |
+| `materials/plasters.yaml`     | Smooth, raked, Venetian (high clearcoat), marmorino, tadelakt, antique stucco, Mediterranean lime, gypsum | 50 |
 | `materials/leathers.yaml`     | Full grain, aniline, nappa, suede (sheen), patent (clearcoat), exotics (voronoi cell), box calf, raw leather, ecoleather | 46 |
 | `materials/industrial-coatings.yaml` | Auto chassis, clearcoat, RAL powders, Al/Ti anodizing, galvanizing, plating, fired enamels, gel coat, thermochromic | 43 |
 | `materials/concretes.yaml`    | Smooth/exposed/worked/washed concrete, colored, asphalt (incl. wet), bitumen tar | 42 |
@@ -59,8 +59,9 @@ Twenty themed files covering every surface type you are likely to need:
 
 Materials follow a prefix system:
 
-- **`dis_`** — Disney BSDF (full PBR with clearcoat, sheen, subsurface,
-  spec_trans, thin_film). Best for hero objects and close-ups.
+- **`dis_`** — Disney BSDF (full PBR with clearcoat, sheen, spec_trans,
+  thin_film). Pair with an `interior_medium` binding on the entity for
+  Random Walk SSS. Best for hero objects and close-ups.
 - **`cls_`** — Classic type (`lambertian`, `metal`, or `dielectric`,
   selected by the dominant lobe). Faster and less noisy; best for
   large surfaces and backgrounds.
@@ -556,8 +557,8 @@ knob, see **[Rendering Profiles Reference](../../reference/rendering-profiles.md
 ### Too Much Noise
 - Increase samples: `-s 64` or `-s 256`.
 - Increase shadow samples: `-S 16`.
-- Dense Disney materials (subsurface, sheen) need more samples than
-  classic types.
+- Dense Disney materials (sheen, thin-film) and Random Walk SSS need
+  more samples than classic types.
 - **Depth of Field is enabled.** A non-zero `aperture` requires many
   more samples to clear bokeh noise. Use at least `-s 256` for clean
   DOF renders.

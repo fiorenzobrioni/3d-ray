@@ -1020,11 +1020,11 @@ public class SceneLoader
                 disneyMat.CoatNormal = coatNormal;
         }
 
-        // ── Legacy "fake SSS" knobs (Phase 2 clean break) ──────────────────
+        // ── Legacy "fake SSS" knobs (clean break) ───────────────────────────
         // The Hanrahan-Krueger flat-blend approximation that used to live on
         // the Disney diffuse lobe has been removed in favour of physically-
         // based Random Walk subsurface scattering bound at the entity level
-        // via interior_medium (see docs/plans/mediuminterface-and-random-walk-sss.md).
+        // via interior_medium (see docs/technical/subsurface-scattering.md).
         // YAML files authored against the legacy schema still parse cleanly
         // — but the values below are ignored. Warn the artist so the loss of
         // the old look isn't mistaken for a renderer bug.
@@ -1040,7 +1040,7 @@ public class SceneLoader
             Warn($"Material '{m.Id ?? "(unnamed)"}': legacy 'subsurface' / 'subsurface_color' / " +
                  $"'subsurface_radius' / 'flatness' fields are ignored — Random Walk SSS now " +
                  $"binds at the entity level via 'interior_medium'. See " +
-                 $"docs/plans/mediuminterface-and-random-walk-sss.md for the migration recipe.");
+                 $"docs/technical/subsurface-scattering.md for the migration recipe.");
         }
 
         // ── Material-level surface displacement (Cycles/RenderMan parity) ───
