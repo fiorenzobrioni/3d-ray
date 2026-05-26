@@ -216,7 +216,33 @@ public class SceneLoader
         IMedium? globalMedium = null;
         if (data.World?.Medium is { } md)
         {
-            globalMedium = BuildGlobalMedium(md, sceneDir);
+            globalMedium = BuildMedium(md, sceneDir, "world.medium");
+        }
+
+        // ── Medium library (per-entity binding via interior_medium / exterior_medium) ───
+        // Built before entities are created so CreateEntity / its callers can
+        // resolve a binding directly. Duplicate ids: last-write-wins matches
+        // `materials:`. Mediums without an id are skipped with a warning —
+        // unreferenceable.
+        var mediumLibrary = new Dictionary<string, IMedium>(StringComparer.OrdinalIgnoreCase);
+        if (data.Mediums != null)
+        {
+            foreach (var mm in data.Mediums)
+            {
+                if (string.IsNullOrWhiteSpace(mm.Id))
+                {
+                    Warn("Medium entry without an 'id' field. Skipping.");
+                    continue;
+                }
+                var built = BuildMedium(mm, sceneDir, $"mediums['{mm.Id}']");
+                if (built == null) continue;
+                if (mediumLibrary.ContainsKey(mm.Id))
+                    Warn($"Medium id '{mm.Id}' declared more than once. Last definition wins.");
+                mediumLibrary[mm.Id] = built;
+            }
+            if (mediumLibrary.Count > 0)
+                Info($"Mediums:     {mediumLibrary.Count} registered " +
+                     $"({string.Join(", ", mediumLibrary.Keys)})");
         }
 
         var objects = new List<IHittable>();
@@ -349,6 +375,13 @@ public class SceneLoader
                     // resulting HitRecord (see CameraInvisibleHittable).
                     if (!e.VisibleToCamera)
                         hittable = new CameraInvisibleHittable(hittable);
+                    // Per-entity participating-media binding (interior /
+                    // exterior). Wrap last so MediumInterface rides on every
+                    // hit forwarded by inner wrappers — the renderer needs
+                    // it during refraction to push/pop the medium stack.
+                    var mi = ResolveEntityMediumInterface(e, mediumLibrary);
+                    if (mi.Interior != null || mi.Exterior != null)
+                        hittable = new MediumBoundHittable(hittable, mi);
                     objects.Add(hittable);
                 }
             }
@@ -3640,11 +3673,42 @@ public class SceneLoader
     // =========================================================================
 
     /// <summary>
-    /// Dispatches on <c>type</c> to build the appropriate <see cref="IMedium"/>.
-    /// Returns null (and warns) on invalid or unknown configurations so the
-    /// renderer falls back to surface-only mode instead of crashing.
+    /// Resolves an entity's <c>interior_medium</c> / <c>exterior_medium</c>
+    /// references against the medium library built from <c>mediums:</c>.
+    /// Unknown ids are warned-and-dropped (returns vacuum on that side), so
+    /// a typo never crashes the load — the surface just behaves as if the
+    /// binding wasn't there.
     /// </summary>
-    private static IMedium? BuildGlobalMedium(MediumData md, string sceneDir)
+    private static MediumInterface ResolveEntityMediumInterface(EntityData e,
+        Dictionary<string, IMedium> mediumLibrary)
+    {
+        IMedium? interior = null;
+        IMedium? exterior = null;
+
+        if (!string.IsNullOrWhiteSpace(e.InteriorMedium))
+        {
+            if (!mediumLibrary.TryGetValue(e.InteriorMedium, out interior))
+                Warn($"Entity '{e.Name ?? e.Type ?? "(unnamed)"}': unknown interior_medium '{e.InteriorMedium}'. Treating interior as vacuum.");
+        }
+        if (!string.IsNullOrWhiteSpace(e.ExteriorMedium))
+        {
+            if (!mediumLibrary.TryGetValue(e.ExteriorMedium, out exterior))
+                Warn($"Entity '{e.Name ?? e.Type ?? "(unnamed)"}': unknown exterior_medium '{e.ExteriorMedium}'. Treating exterior as vacuum.");
+        }
+
+        return new MediumInterface(interior, exterior);
+    }
+
+    /// <summary>
+    /// Dispatches on <c>type</c> to build the appropriate <see cref="IMedium"/>.
+    /// Used for both <c>world.medium</c> (global) and the <c>mediums:</c>
+    /// library entries referenced by entity-level <c>interior_medium</c>.
+    /// Returns null (and warns) on invalid or unknown configurations so the
+    /// renderer falls back to vacuum on the affected binding instead of
+    /// crashing. <paramref name="context"/> is the label used in diagnostics
+    /// (e.g. <c>"world.medium"</c> or <c>"mediums['marble_int']"</c>).
+    /// </summary>
+    private static IMedium? BuildMedium(MediumData md, string sceneDir, string context = "medium")
     {
         string type = md.Type ?? "homogeneous";
         IPhaseFunction phase = BuildPhaseFunction(md);
@@ -3664,7 +3728,7 @@ public class SceneLoader
             case "aerial_perspective":
                 return BuildNishitaAtmosphere(md, phase);
             default:
-                Warn($"Unsupported medium type '{type}'. Supported: homogeneous, height_fog, procedural, grid, atmosphere. Ignoring.");
+                Warn($"{context}: unsupported medium type '{type}'. Supported: homogeneous, height_fog, procedural, grid, atmosphere. Ignoring.");
                 return null;
         }
     }

@@ -936,6 +936,7 @@ public sealed class DisneyBsdf : IMaterial
         if (lobe == Lobe.Transmission)
         {
             Vector3? next = null;
+            MediumTransition transition = MediumTransition.None;
             if (NdotWo < 0f && !ThinWalled)
             {
                 Vector3 baseCol = BaseColor.Value(in rec);
@@ -943,9 +944,20 @@ public sealed class DisneyBsdf : IMaterial
                 bool hasSigma = sigma.X > 0f || sigma.Y > 0f || sigma.Z > 0f;
                 if (rec.FrontFace && hasSigma) next = sigma;
                 else if (!rec.FrontFace) next = Vector3.Zero; // exiting → restore vacuum
+
+                // Medium-stack transition: independent of the legacy
+                // NextSegmentAbsorption signal — it fires whenever the
+                // refraction crosses a boundary, regardless of whether the
+                // material defines a Beer-Lambert tint. The renderer reads
+                // rec.MediumIface at the same hit to know *which* medium to
+                // push / pop. On geometry without a medium binding the
+                // pushed value is simply null, which is a no-op for the
+                // active-medium lookup.
+                transition = rec.FrontFace ? MediumTransition.Enter : MediumTransition.Exit;
             }
             return new BsdfSample(wo, scatterAttn, 1f, isDelta: true,
-                                  nextSegmentAbsorption: next);
+                                  nextSegmentAbsorption: next,
+                                  transition: transition);
         }
 
         // ── Defensive guard for any other back-hemisphere sample ────────────

@@ -34,6 +34,17 @@ public class SceneData
     [YamlMember(Alias = "lights")]
     public List<LightData>? Lights { get; set; }
 
+    /// <summary>
+    /// Library of named participating media, looked up by
+    /// <see cref="EntityData.InteriorMedium"/> / <see cref="EntityData.ExteriorMedium"/>.
+    /// Each entry uses the same <see cref="MediumData"/> schema as
+    /// <c>world.medium</c> but requires an <see cref="MediumData.Id"/> for
+    /// lookup. Mediums may be imported across YAML files identically to
+    /// materials. Pattern Mitsuba 0.6 / PBRT v4 §11.4.
+    /// </summary>
+    [YamlMember(Alias = "mediums")]
+    public List<MediumData>? Mediums { get; set; }
+
     // ── Scene imports ───────────────────────────────────────────────────────
 
     /// <summary>
@@ -1172,6 +1183,29 @@ public class EntityData
     public string? Material { get; set; }
 
     /// <summary>
+    /// ID of a medium in the scene-level <c>mediums:</c> library that fills
+    /// the interior of this entity (the volume on the back-face side of the
+    /// surface). Drives Beer-Lambert absorption + (Phase 3) Random Walk
+    /// subsurface scattering when the medium has σ_s &gt; 0. Null means the
+    /// interior is vacuum / inherits the enclosing volume on the medium
+    /// stack. Pattern Mitsuba 0.6 / PBRT v4 §11.4.
+    /// </summary>
+    [YamlMember(Alias = "interior_medium")]
+    public string? InteriorMedium { get; set; }
+
+    /// <summary>
+    /// ID of a medium in the scene-level <c>mediums:</c> library that fills
+    /// the exterior of this entity (the front-face side of the surface).
+    /// Almost always left null — the exterior is the enclosing volume on
+    /// the medium stack (or vacuum / the global medium if the stack is
+    /// empty). Override only when the geometry sits inside another
+    /// transmissive solid whose binding the loader cannot infer
+    /// topologically.
+    /// </summary>
+    [YamlMember(Alias = "exterior_medium")]
+    public string? ExteriorMedium { get; set; }
+
+    /// <summary>
     /// When <c>false</c>, this entity is invisible to primary camera rays
     /// while still receiving and casting indirect light, appearing in
     /// specular reflections/refractions and contributing to direct lighting
@@ -1621,6 +1655,17 @@ public class LightData
 /// </summary>
 public class MediumData
 {
+    /// <summary>
+    /// Library identifier. Required when the medium is declared inside the
+    /// top-level <c>mediums:</c> list and referenced by entities via
+    /// <c>interior_medium</c> / <c>exterior_medium</c>. Ignored for the
+    /// inline <c>world.medium</c> shorthand. Mediums with duplicate ids
+    /// follow last-write-wins (with a deferred warning), matching
+    /// <c>materials:</c>.
+    /// </summary>
+    [YamlMember(Alias = "id")]
+    public string? Id { get; set; }
+
     /// <summary>"homogeneous", "height_fog", "procedural", "grid".</summary>
     [YamlMember(Alias = "type")]
     public string? Type { get; set; }
