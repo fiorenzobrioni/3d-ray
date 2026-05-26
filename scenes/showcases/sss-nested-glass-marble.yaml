@@ -72,12 +72,15 @@ materials:
 
 lights:
   # u × v normale -Y → emette in basso.
+  # visible_to_camera: false → la proxy emissiva del rect non appare nel frame
+  # come pannello fluttuante; NEE e bounce indiretti continuano a vederla.
   - type: "area"
     corner:    [ 1.2, 2.3,  0.0]
     u:         [ 1.4, 0.0,  0.0]
     v:         [ 0.0, 0.0,  1.4]
     color:     [1.0, 0.95, 0.85]
     intensity: 40
+    visible_to_camera: false
 
   - type: "area"
     corner:    [-2.0, 1.6, -0.4]
@@ -85,6 +88,7 @@ lights:
     v:         [ 0.0, 0.0, 0.9]
     color:     [0.7, 0.82, 1.00]
     intensity: 10
+    visible_to_camera: false
 
 entities:
   # Guscio vetro esterno (no interior_medium → solo refraction).
