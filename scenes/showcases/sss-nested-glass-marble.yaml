@@ -1,0 +1,102 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  SSS RANDOM WALK #04 — Marmo dentro vetro (stress MediumStack)
+#
+#  Una sfera di marmo (interior_medium: marble_int) racchiusa in un guscio
+#  sferico di vetro classico (dielectric, no interior_medium → fa solo
+#  refraction). Il path tracer deve:
+#
+#    1. entrare nel vetro esterno (Enter → push glass-vacuum, qui no medium)
+#    2. attraversare lo spazio fra le due sfere (vacuum)
+#    3. entrare nel marmo (Enter → push marble_int) → SSS walk
+#    4. uscire dal marmo (Exit → pop marble_int)
+#    5. attraversare di nuovo lo spazio interno (vacuum)
+#    6. uscire dal vetro (Exit)
+#
+#  Verifica la correttezza del MediumStack: profondità massima osservata
+#  in --verbose deve restare ≤ 2 in queste condizioni (vetro non binding,
+#  marmo binding). Niente NaN, niente energia in eccesso. Lo stack è
+#  copy-on-write all'attraversamento — il branching del random walk non
+#  corrompe la stack del frame chiamante.
+#
+#  Profili:
+#    Preview:   -q draft-small
+#    Standard:  -q medium-small
+#    Final:     -q final-small
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.02, 0.025, 0.04]
+    horizon_color: [0.10, 0.10,  0.12]
+    ground_color:  [0.02, 0.02,  0.025]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0.0
+
+camera:
+  position: [0, 1.0, 3.2]
+  look_at:  [0, 0.8, 0]
+  vup:      [0, 1, 0]
+  fov:      32
+  aperture: 0.03
+  focal_dist: 3.2
+
+mediums:
+  - id: marble_int
+    type: homogeneous
+    sigma_a: [0.0021, 0.0041, 0.0071]
+    sigma_s: [2.19,   2.62,   3.00]
+    phase: hg
+    g: 0.0
+
+materials:
+  - id: floor
+    type: disney
+    color: [0.20, 0.19, 0.18]
+    roughness: 0.55
+    specular: 0.20
+
+  - id: glass_shell
+    type: dielectric
+    refraction_index: 1.5
+
+  - id: marble_surface
+    type: disney
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.20
+    specular: 0.5
+    spec_trans: 1.0
+    ior: 1.5
+
+lights:
+  - type: "area"
+    corner:    [ 1.2, 2.3,  1.4]
+    u:         [ 1.4, 0.0,  0.0]
+    v:         [ 0.0, 0.0, -1.4]
+    color:     [1.0, 0.95, 0.85]
+    intensity: 40
+
+  - type: "area"
+    corner:    [-2.0, 1.6, 0.5]
+    u:         [ 1.0, 0.0, 0.0]
+    v:         [ 0.0, 0.0, -0.9]
+    color:     [0.7, 0.82, 1.00]
+    intensity: 10
+
+entities:
+  # Guscio vetro esterno (no interior_medium → solo refraction).
+  - name: glass_outer
+    type: sphere
+    center: [0, 0.85, 0]
+    radius: 0.65
+    material: glass_shell
+
+  # Marmo interno (interior_medium: marble_int → SSS walk).
+  - name: marble_inner
+    type: sphere
+    center: [0, 0.85, 0]
+    radius: 0.40
+    material: marble_surface
+    interior_medium: marble_int

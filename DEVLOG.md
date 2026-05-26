@@ -6,6 +6,40 @@ Roadmap, lavori in corso, bug noti, storico cicli.
 
 ---
 
+## Ciclo MediumInterface + Random Walk SSS ✅
+
+Sostituito il vecchio "fake SSS" del Disney BSDF (`subsurface`, `subsurface_color`, `flatness`, lobo flat HK) con un sistema fisicamente corretto in quattro fasi. Piano dettagliato e log per fase in `docs/plans/mediuminterface-and-random-walk-sss.md`.
+
+**Razionale del clean break.** Il vecchio `subsurface` su Disney era una falsa local-approximation che modificava il lobe diffuse (Hanrahan-Krueger flat) — non trasportava luce attraverso la geometria. Materiali fondamentali (marmo, pelle, cera, latte, giada, foglie sottili, alabastro) non avevano look fisicamente corretto. Inoltre nessun medium volumetrico poteva essere bound a un'entity specifica (smoke in CSG, fog in stanza, acqua in tank).
+
+Decisione di policy: **rimozione netta** dei field Disney legacy + **MediumInterface per-entity** + **Random Walk integrator stile Cycles `random_walk_v2`** + tool di migrazione per riscrivere le scene utente esistenti. Niente alias deprecati, niente fallback compatibili: il loader emette warning sui field rimossi e ignora i valori. Il nuovo path SSS è correttezza, non opzionale (`--sss-mode auto` di default).
+
+**Architettura.**
+- `MediumInterface { Interior, Exterior }` value struct sull'entity. `MediumStack` `ref struct` zero-allocation (InlineArray8) threadato per `ref` attraverso `TraceRay`. Stack push/pop sincronizzati con `BsdfSample.Transition` (`Enter`/`Exit`). Copy-on-write a ogni transition per non corrompere il frame chiamante quando il walk branccia.
+- `MediumBoundHittable` wrapper che stampa `rec.MediumIface` + `rec.EntityRoot` sull'hit. Espone il root come `IHittable` per la restricted-BVH query del walk — niente leak in geometria adiacente.
+- `RandomWalkSubsurface` integrator hero-wavelength + balance-heuristic MIS spettrale sui 3 canali, Cycles-style. Sample hero proporzionale a β[c], free-flight `t = -ln(ξ)/σ_t[hero]`, throughput per evento `β *= σ_s · exp(-σ_t·t) / Σ_c q[c] · σ_t[c] · exp(-σ_t[c]·t)`. RR interna da `b ≥ RrStartBounce`, max-bounces hard cap come backup. Depth-aware indirect clamp `_indirectMaxSampleRadiance / (1 + 0.1·b)` per smorzare firefly profondi.
+
+**CLI Fase 4.**
+- `--sss-mode auto|off` — default `auto`. `off` declassa media pushati ad assorbimento-only (Beer-Lambert legacy) per preview / A/B.
+- `--sss-quality preview|normal|high` — preset random-walk. `preview` (16 vol-bounce, no NEE in-walk), `normal` (64, NEE on), `high` (256, NEE on). Ereditato da `--quality` quando omesso: `draft*` → preview, `medium*` → normal, `final*`/`ultra` → high.
+- `--max-volume-bounces N` — override del cap dal preset.
+
+**Showcase scenes (Fase 4).** 7 scene in `scenes/showcases/`:
+- `sss-randomwalk-01-marble.yaml` — busto marmo, area light tre quarti.
+- `sss-randomwalk-02-skin.yaml` — head sphere preset Jensen "skin1", color bleed visibile.
+- `sss-randomwalk-03-milk-glass.yaml` — bicchiere di latte in Cornell, NEE in-walk + GI.
+- `sss-nested-glass-marble.yaml` — marmo dentro ampolla di vetro (stress MediumStack).
+- `medium-local-fog-room.yaml` — fog locale dentro stanza CSG, esterno limpido.
+- `medium-csg-smoke.yaml` — smoke procedurale dentro CSG subtract.
+- `medium-water-tank.yaml` — acqua + pesce in acquario di vetro (stack depth 2).
+- `medium-atmosphere-bound.yaml` — atmosfera Rayleigh attorno a un pianeta, spazio esterno nero.
+
+**Test.** 5 `SssRandomWalkTests` (σ_s=0 fallback, white-furnace, color-bleed spettrale, dense-medium robustness, SssMode.Off dispatch); 9 `MediumStackTests` (push/pop, overflow, depth, value-copy); 2 `MediumBoundHittableTests`; 2 `MediumInterfaceFogTests` (binding scope vs global medium); 5 `RandomWalkConfigTests` (preset monotonicity, value lock-down). 483 test verdi totali.
+
+**Docs.** `docs/technical/subsurface-scattering.{md,it.md}` (derivation walk, hero-wavelength MIS, Fresnel coupling, preset Jensen 2001), `docs/technical/medium-interface.{md,it.md}` (ownership model, stack semantics, transition rules). Sezione "Mediums Library" aggiunta a `docs/reference/scene-reference.md` + `riferimento-scene.md`. README features list aggiornata.
+
+---
+
 ## Ristrutturazione Librerie scenes/libraries/
 
 **Rimosso:** `objects/` (11 file, ~150 template) e `starter-kits/` (19 scene

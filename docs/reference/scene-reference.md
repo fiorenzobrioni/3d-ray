@@ -424,6 +424,71 @@ g: 0.6
 - **Advanced firefly control:** `--indirect-clamp-factor <f>` (default `1.0` = off) multiplies the primary `--clamp` threshold for all indirect bounces. E.g. `--clamp 100 --indirect-clamp-factor 0.25` uses clamp=25 on bounce depth ≥ 1 — same as Cycles/Arnold "indirect clamp".
 - **Photographic exposure:** `--exposure <EV>` (default `0`) applies a linear gain `2^EV` to every pixel before ACES tone mapping. Use negative EV (`-1`, `-2`) when the scene reads washed-out because the lights drive arriving radiance above ~2.0, where ACES flattens onto a 0.95-0.99 plateau and hides texture contrast. Positive EV brightens scenes that fall below the curve's linear range. Matches Arnold `exposure`, Cycles "Film → Exposure", RenderMan display-filter `exposure`.
 - **Light importance sampling:** `--light-sampling power` (default `all`) samples one light per NEE event with probability ∝ `ApproximatePower`. Dramatically reduces variance in scenes with many lights of mixed brightness (e.g. 1 area + 10 dim point lights). Use `uniform` as a reference baseline.
+
+#### **Mediums Library** (top-level `mediums:` block)
+
+Beyond the single `world.medium`, 3D-Ray exposes a top-level `mediums:` block where named participating media are declared once and bound to specific entities via `interior_medium` / `exterior_medium`. This is the foundation for:
+- **Subsurface scattering** (marble, skin, wax, jade, milk) — the SSS random-walk integrator activates automatically when an entity is bound to a `homogeneous` medium with `σ_s > 0`.
+- **Per-object volumetric containers** — fog inside a CSG-room, smoke inside a teapot, water inside a glass tank, planet atmosphere — without affecting the rest of the scene the way `world.medium` would.
+
+```yaml
+mediums:
+  - id: marble_int                     # required when in the library block
+    type: homogeneous                  # any of: homogeneous, height_fog, procedural, grid, atmosphere
+    sigma_a: [0.0021, 0.0041, 0.0071]
+    sigma_s: [2.19, 2.62, 3.00]
+    phase: hg
+    g: 0.0
+
+  - id: room_fog
+    type: homogeneous
+    sigma_a: [0.0, 0.0, 0.0]
+    sigma_s: [0.42, 0.45, 0.50]
+    phase: hg
+    g: 0.55
+
+entities:
+  - type: sphere
+    material: marble_surface
+    interior_medium: marble_int        # → SSS random walk dispatched on refraction enter
+
+  - type: csg
+    op: subtract
+    a: { type: box, ... }
+    b: { type: sphere, ... }
+    interior_medium: room_fog          # → local Beer-Lambert/scattering inside the CSG
+```
+
+**Resolution rules:**
+- IDs are case-insensitive. Duplicates are last-write-wins with a deferred warning (same convention as `materials:`).
+- An unknown `interior_medium` / `exterior_medium` id falls back to vacuum and prints a load-time warning.
+- Mediums are imported across YAML files identically to materials (see §2). The inline `world.medium` is **never** imported.
+- A medium can be referenced by multiple entities — it's a blueprint, not an instance.
+
+**Entity binding fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `interior_medium` | string \| null | ID of a medium that fills the entity's interior. Activates SSS random walk on refraction into the entity when the medium scatters (`σ_s > 0`). |
+| `exterior_medium` | string \| null | ID of a medium representing the space *outside* this entity. Rarely needed — defaults to the parent medium in the stack (or `world.medium`). |
+
+**Subsurface scattering** (`interior_medium` + `homogeneous` + `σ_s > 0`):
+
+The random-walk integrator is automatically dispatched when:
+1. The ray refracts (transmission lobe) **into** an entity, and
+2. The entity's `interior_medium` is a `homogeneous` medium with `σ_s > 0`, and
+3. CLI `--sss-mode` is `auto` (default).
+
+The surface material's `spec_trans`/`ior` (Disney) or `dielectric` lobe controls the entry/exit Fresnel; the medium controls the volumetric transport. CLI knobs:
+
+| Flag | Default | Effect |
+|---|---|---|
+| `--sss-mode auto\|off` | `auto` | `off` declasses bound media to absorption-only (legacy Beer-Lambert), useful for fast A/B previews. |
+| `--sss-quality preview\|normal\|high` | inherits from `-q` | Bundles MaxVolumeBounces / RrStartBounce / NeeInsideWalk. `draft*` quality preset → preview, `medium*` → normal, `final*`/`ultra` → high. |
+| `--max-volume-bounces <n>` | preset-dependent (16/64/256) | Hard cap on bounces inside one walk. Caps worst-case cost on dense media. |
+
+Migration note: the legacy Disney parameters `subsurface`, `subsurface_color`, `subsurface_radius`, `flatness` are no longer read. Use `interior_medium` with the Jensen 2001 presets in `docs/technical/subsurface-scattering.md` to obtain a physically correct SSS look.
+
 ---
 ### 4. **CAMERA SECTION**
 #### **Multi-Camera** (recommended):

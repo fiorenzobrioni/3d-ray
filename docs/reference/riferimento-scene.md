@@ -425,6 +425,70 @@ g: 0.6
 - **Esposizione fotografica:** `--exposure <EV>` (default `0`) applica un guadagno lineare `2^EV` a ogni pixel prima del tone map ACES. Usa EV negativo (`-1`, `-2`) quando la scena appare lavata perché le luci portano la radianza in ingresso sopra ~2.0, dove ACES si appiattisce sul plateau 0.95-0.99 e nasconde il contrasto delle texture. EV positivo schiarisce scene che cadono sotto la zona lineare della curva. Parità con Arnold `exposure`, Cycles "Film → Exposure", RenderMan display-filter `exposure`.
 - **Light importance sampling:** `--light-sampling power` (default `all`) campiona una sola luce per evento NEE con probabilità ∝ `ApproximatePower`. Riduce drasticamente la varianza in scene con molte luci di luminosità mista. Usa `uniform` come baseline di confronto.
 
+#### **Libreria Mediums** (blocco top-level `mediums:`)
+
+Oltre al singolo `world.medium`, 3D-Ray espone un blocco top-level `mediums:` dove media partecipanti nominati vengono dichiarati una volta e legati a entità specifiche tramite `interior_medium` / `exterior_medium`. È la base per:
+- **Subsurface scattering** (marmo, pelle, cera, giada, latte) — l'integratore random walk SSS si attiva automaticamente quando un'entità è legata a un medium `homogeneous` con `σ_s > 0`.
+- **Contenitori volumetrici per oggetto** — nebbia in una stanza CSG, fumo in una teiera, acqua in un acquario, atmosfera planetaria — senza influenzare il resto della scena come farebbe `world.medium`.
+
+```yaml
+mediums:
+  - id: marble_int                     # richiesto nel blocco libreria
+    type: homogeneous                  # uno di: homogeneous, height_fog, procedural, grid, atmosphere
+    sigma_a: [0.0021, 0.0041, 0.0071]
+    sigma_s: [2.19, 2.62, 3.00]
+    phase: hg
+    g: 0.0
+
+  - id: room_fog
+    type: homogeneous
+    sigma_a: [0.0, 0.0, 0.0]
+    sigma_s: [0.42, 0.45, 0.50]
+    phase: hg
+    g: 0.55
+
+entities:
+  - type: sphere
+    material: marble_surface
+    interior_medium: marble_int        # → SSS random walk dispatchato sul refraction enter
+
+  - type: csg
+    op: subtract
+    a: { type: box, ... }
+    b: { type: sphere, ... }
+    interior_medium: room_fog          # → Beer-Lambert/scattering locale dentro il CSG
+```
+
+**Regole di risoluzione:**
+- ID case-insensitive. I duplicati seguono last-write-wins con warning deferito (stessa convenzione di `materials:`).
+- Un `interior_medium` / `exterior_medium` sconosciuto ricade su vacuum e stampa un warning al caricamento.
+- I medium sono importati attraverso file YAML come i material (vedi §2). L'inline `world.medium` **non** è mai importato.
+- Un medium può essere referenziato da più entità — è un blueprint, non un'istanza.
+
+**Campi di binding sull'entity:**
+
+| Campo | Tipo | Descrizione |
+|---|---|---|
+| `interior_medium` | string \| null | ID del medium che riempie l'interno dell'entity. Attiva il random walk SSS sulla refrazione in ingresso quando il medium scatter-a (`σ_s > 0`). |
+| `exterior_medium` | string \| null | ID del medium che rappresenta lo spazio *fuori* dell'entity. Raramente necessario — di default si eredita il medium padre nello stack (o `world.medium`). |
+
+**Subsurface scattering** (`interior_medium` + `homogeneous` + `σ_s > 0`):
+
+L'integratore random-walk è dispatchato automaticamente quando:
+1. Il raggio rifrange (lobo transmission) **dentro** un'entity, e
+2. L'`interior_medium` dell'entity è un `homogeneous` con `σ_s > 0`, e
+3. CLI `--sss-mode` è `auto` (default).
+
+Il `spec_trans`/`ior` (Disney) o il lobo `dielectric` controllano il Fresnel di ingresso/uscita; il medium controlla il trasporto volumetrico. CLI:
+
+| Flag | Default | Effetto |
+|---|---|---|
+| `--sss-mode auto\|off` | `auto` | `off` declassa i media legati ad absorption-only (Beer-Lambert legacy), utile per preview rapide e confronto A/B. |
+| `--sss-quality preview\|normal\|high` | eredita da `-q` | Configura MaxVolumeBounces / RrStartBounce / NeeInsideWalk in blocco. `draft*` → preview, `medium*` → normal, `final*`/`ultra` → high. |
+| `--max-volume-bounces <n>` | dipende dal preset (16/64/256) | Cap massimo sui bounce in un walk. Limita il worst-case su media densi. |
+
+Nota migrazione: i parametri Disney legacy `subsurface`, `subsurface_color`, `subsurface_radius`, `flatness` non sono più letti. Usa `interior_medium` con i preset Jensen 2001 in `docs/technical/subsurface-scattering.md` per ottenere un look SSS fisicamente corretto.
+
 ---
 
 ### 4. **SEZIONE CAMERA**

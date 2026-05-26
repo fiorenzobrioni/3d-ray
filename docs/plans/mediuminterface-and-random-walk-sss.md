@@ -7,7 +7,7 @@
 | 1    | MediumInterface plumbing (no SSS yet)                      | ✅ Completata    |
 | 2    | YAML schema + libreria mediums + clean-break Disney        | ✅ Completata    |
 | 3    | Random Walk SSS integrator                                 | ✅ Completata    |
-| 4    | CLI, quality presets, full MediumInterface use cases       | ⬜ Pending       |
+| 4    | CLI, quality presets, full MediumInterface use cases       | ✅ Completata    |
 | 5    | Tests, scenes, docs                                        | ⬜ Pending       |
 
 ### Fase 1 — log
@@ -46,6 +46,31 @@
 - **`Renderer` ctor**: nuovi parametri `sssMode = Auto`, `walkConfig = Normal`. `RandomWalkConfig` struct con preset `Preview / Normal / High` pronto al wiring Fase 4 CLI.
 - **Test**: 5 nuovi (`SssRandomWalkTests`): σ_s=0 fallback al path legacy, white-furnace energy conservation (η=1 matched IOR + σ_a=0), spectral color-bleed (σ_a R<G<B → R>G>B in output), dense-medium robustness (finite values, no NaN, max-bounces=8), SssMode.Off dispatch toggle. 471 + 5 = 476 verdi.
 - **Smoke render**: `cristallo.yaml` e `chess.yaml` invariati (path legacy preservato). `tmp/sss-test.yaml` con marble sphere + `interior_medium: marble_int` (Jensen 2001 preset) renderizza correttamente — il look diffuso interno è ora trasportato dal walk anziché simulato dal flat-blend HK rimosso in Fase 2.
+
+### Fase 4 — log
+
+- **CLI** (`Program.cs`): aggiunti `--sss-mode auto|off` (default `auto`), `--sss-quality preview|normal|high`, `--max-volume-bounces N`. Help + banner di rendering aggiornati. Il banner stampa la linea "SSS quality: ..." solo quando il preset SSS è esplicito o un override `--max-volume-bounces` è in vigore, evitando rumore visivo sulle scene non-SSS.
+- **Quality preset wiring**: ogni `QualityPreset` (10 preset esistenti) ora porta una `RandomWalkConfig` matched al tier — `draft*` → `Preview` (16 bounce, no NEE in-walk), `medium*` → `Normal` (64, NEE on), `final*`/`ultra` → `High` (256, NEE on). `--sss-quality` esplicito vince sempre sul tier inferito. `--max-volume-bounces` rispetta gli altri campi del preset.
+- **Showcase scenes** (`scenes/showcases/`, 7 nuove):
+  - `sss-randomwalk-01-marble.yaml` — busto in marmo Carrara (preset Jensen 2001), area light tre quarti. Dimostra il color-bleed warm-shadow caratteristico del marmo via random walk.
+  - `sss-randomwalk-02-skin.yaml` — head sphere preset "skin1" Jensen 2001 (g=0.92 forward HG). Color bleed rosso/arancio sulle ombre, halo rosa sul bordo controluce.
+  - `sss-randomwalk-03-milk-glass.yaml` — bicchiere di latte in Cornell box (`nee_in_walk=true` essenziale per il color bleed sulle pareti).
+  - `sss-nested-glass-marble.yaml` — marmo dentro ampolla di vetro: stress test del MediumStack (depth max 2: vetro non-binding + marmo binding).
+  - `medium-local-fog-room.yaml` — nebbia locale dentro stanza CSG (subtract). Esterno limpido, god-ray visibile solo all'interno.
+  - `medium-csg-smoke.yaml` — fumo procedurale dentro CSG cubo-meno-sfera; superficie matched-IOR per non aggiungere refrazione.
+  - `medium-water-tank.yaml` — acqua + pesce in acquario di vetro (stack depth 2: glass → water).
+  - `medium-atmosphere-bound.yaml` — atmosfera Rayleigh (σ_s blu-eccesso 1/λ⁴) attorno a un pianeta, esterno = vacuum scuro.
+- **Tests** (Fase 4-specifici):
+  - `RandomWalkConfigTests.cs` (5 test): lock-down dei valori di `Preset.Preview/Normal/High`, monotonia su MaxVolumeBounces, costruzione esplicita round-trip.
+  - `MediumInterfaceFogTests.cs` (2 test): binding scoped (fog locale scurisce solo l'interno della sfera, lasciando i corner intatti) vs global medium (oscura tutto). Verifica della invariante chiave del MediumInterface.
+- **Docs**:
+  - `docs/technical/subsurface-scattering.{md,it.md}` — NEW: derivation walk, hero-wavelength MIS, Fresnel coupling, RR strategy, CLI knobs, tabella preset Jensen 2001, guida migrazione.
+  - `docs/technical/medium-interface.{md,it.md}` — NEW: ownership model, stack semantics, refraction transitions, restricted-BVH query, performance notes.
+  - `docs/reference/scene-reference.md` + `riferimento-scene.md` — aggiunta sezione "Mediums Library" con schema YAML, regole di risoluzione, tabella binding entity, CLI SSS.
+  - `DEVLOG.md` — entry "Ciclo MediumInterface + Random Walk SSS" con rationale clean-break.
+  - `README.md` — voci feature MediumInterface + SSS Random Walk; parametri CLI `--sss-mode`, `--sss-quality`, `--max-volume-bounces`.
+- **Smoke render**: tutti i 7 showcase renderizzano a `draft-tiny -s 4` senza warning né NaN. Il banner stampa correttamente "Mediums: N registered" e (con `-v`) il dettaglio di ogni medium costruito.
+- **Test**: 476 → 483 verdi (+5 RandomWalkConfig, +2 MediumInterfaceFog). Nessuna regressione sui 476 esistenti.
 
 ## Context
 

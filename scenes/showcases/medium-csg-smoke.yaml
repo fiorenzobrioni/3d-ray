@@ -1,0 +1,102 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  MEDIUM INTERFACE #02 — Smoke procedurale dentro un CSG
+#
+#  Un cubo con un "morso" emisferico tagliato fuori (CSG subtract) racchiude
+#  un volume di smoke procedurale (Perlin fBm). La superficie del CSG è
+#  trasmissiva (Disney spec_trans=1, ior=1) — il medium è ciò che si vede
+#  internamente; senza il CSG vedremmo solo aria.
+#
+#  Il `medium-bound CSG` è la primitive nucleare per:
+#    • candele (cera + fiamma scaldante interna)
+#    • teiere fumose (volume smoke dentro un'urna)
+#    • giada lavorata (light volume dentro CSG-subtract)
+#
+#  Il CSG conserva l'identità di "una sola entity" — il random walk e
+#  Beer-Lambert restano scoped a questo IHittable root, niente leak.
+#
+#  Profili:
+#    Preview:    -q draft-small
+#    Standard:   -q medium-small
+#    Final:      -q final-small  (raise -s if smoke detail is noisy)
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.03, 0.03, 0.05]
+    horizon_color: [0.12, 0.13, 0.18]
+    ground_color:  [0.02, 0.02, 0.03]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0.0
+
+camera:
+  position: [2.8, 1.6, 3.5]
+  look_at:  [0, 0.6, 0]
+  vup:      [0, 1, 0]
+  fov:      38
+  aperture: 0.03
+  focal_dist: 4.2
+
+mediums:
+  - id: smoke_proc
+    type: procedural
+    sigma_a: [0.20, 0.18, 0.16]
+    sigma_s: [2.8,  2.8,  2.7]
+    frequency: 1.6
+    octaves: 4
+    lacunarity: 2.0
+    gain: 0.55
+    seed: 42
+    phase: hg
+    g: 0.35
+
+materials:
+  - id: floor
+    type: disney
+    color: [0.20, 0.20, 0.21]
+    roughness: 0.50
+    specular: 0.25
+
+  - id: shell
+    type: disney
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.0
+    specular: 0.0
+    spec_trans: 1.0
+    ior: 1.0
+
+lights:
+  # Key calda alta-destra
+  - type: "area"
+    corner:    [ 1.8, 3.0,  1.4]
+    u:         [ 1.4, 0.0,  0.0]
+    v:         [ 0.0, 0.0, -1.4]
+    color:     [1.0, 0.92, 0.78]
+    intensity: 35
+
+  # Back-light freddo (mostra il bordo del fumo)
+  - type: "area"
+    corner:    [-1.0, 1.4, -2.4]
+    u:         [ 2.0, 0.0, 0.0]
+    v:         [ 0.0, 0.8, 0.0]
+    color:     [0.60, 0.74, 1.00]
+    intensity: 18
+
+entities:
+  # Cubo trasparente meno una sfera (top scoop). Volume interno: smoke.
+  - name: smoke_container
+    type: csg
+    op: subtract
+    a:
+      type: box
+      scale: [1.4, 1.4, 1.4]
+      translate: [0, 0.70, 0]
+      material: shell
+    b:
+      type: sphere
+      center: [0, 1.4, 0]
+      radius: 0.65
+      material: shell
+    interior_medium: smoke_proc

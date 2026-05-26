@@ -1,0 +1,109 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  MEDIUM INTERFACE #03 — Acquario (water medium dentro tank di vetro)
+#
+#  Un parallelepipedo di vetro contiene un parallelepipedo d'acqua leggermente
+#  più piccolo (per evitare il guscio di vacuum tra le due superfici).
+#  L'acqua è un `interior_medium` con σ_a tendente al rosso/giallo (la
+#  classica firma dell'acqua "pulita" — il blu sopravvive di più). Una
+#  sfera-pesce arancione galleggia dentro l'acqua e viene vista attraverso
+#  il volume.
+#
+#  Pattern d'uso: pesci, acquari, sommersi, anche piscine con piattaforma
+#  visibile in trasparenza. Il colore "acquatico" non è una texture sulla
+#  superficie — è il vero assorbimento Beer-Lambert lungo il cammino in
+#  acqua.
+#
+#  Stack atteso: glass(Enter) → water(Enter via inner spec_trans) → ...
+#  → water(Exit) → glass(Exit). Lo stack arriva a depth 2.
+#
+#  Profili:
+#    Preview:   -q draft-small
+#    Standard:  -q medium-small
+#    Final:     -q final-small
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.10, 0.15, 0.28]
+    horizon_color: [0.55, 0.65, 0.80]
+    ground_color:  [0.18, 0.18, 0.18]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0.0
+
+camera:
+  position: [3.4, 1.6, 4.4]
+  look_at:  [0, 0.6, 0]
+  vup:      [0, 1, 0]
+  fov:      38
+  aperture: 0.04
+  focal_dist: 5.0
+
+mediums:
+  - id: water_int
+    type: homogeneous
+    # Pure water absorption coefficients (Pope & Fry 1997, scaled): red
+    # absorbs more, blue survives. Numbers tuned for a metre-scale tank.
+    sigma_a: [0.32, 0.10, 0.045]
+    sigma_s: [0.025, 0.025, 0.030]
+    phase: hg
+    g: 0.0
+
+materials:
+  - id: floor
+    type: disney
+    color: [0.25, 0.22, 0.20]
+    roughness: 0.50
+    specular: 0.20
+
+  - id: glass_tank
+    type: dielectric
+    refraction_index: 1.5
+
+  - id: water_surface
+    type: disney
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.0
+    specular: 0.5
+    spec_trans: 1.0
+    ior: 1.33
+
+  - id: fish
+    type: disney
+    color: [0.95, 0.45, 0.18]
+    roughness: 0.45
+    specular: 0.30
+
+lights:
+  - type: "area"
+    corner:    [-1.4, 3.5, 1.4]
+    u:         [ 2.8, 0.0, 0.0]
+    v:         [ 0.0, 0.0, -1.6]
+    color:     [1.0, 0.96, 0.88]
+    intensity: 28
+
+entities:
+  # Vetro esterno del tank (no interior_medium → solo refraction).
+  - name: glass_tank_solid
+    type: box
+    scale: [1.80, 1.20, 1.00]
+    translate: [0, 0.65, 0]
+    material: glass_tank
+
+  # Acqua: leggermente più piccola del tank lungo XYZ così l'acqua tocca
+  # il vetro interno (zero-thickness air gap evitato).
+  - name: water_body
+    type: box
+    scale: [1.72, 1.10, 0.92]
+    translate: [0, 0.65, 0]
+    material: water_surface
+    interior_medium: water_int
+
+  # Pesce dentro l'acqua, materiale opaco.
+  - name: fish
+    type: sphere
+    center: [0.25, 0.65, 0.10]
+    radius: 0.18
+    material: fish

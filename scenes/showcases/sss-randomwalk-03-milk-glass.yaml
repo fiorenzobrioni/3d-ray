@@ -1,0 +1,110 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  SSS RANDOM WALK #03 — Bicchiere di latte (Cornell)
+#
+#  Cornell box classica (pareti rosso-verde, soffitto emissivo) con un
+#  cilindro verticale di "latte" al centro. Il latte è dichiarato come
+#  Disney trasparente + `interior_medium: milk_int`: σ_s alto, σ_a quasi
+#  zero, phase isotropica. Il color bleed sulle pareti del Cornell mostra
+#  che il SSS si combina correttamente con NEE (Next Event Estimation)
+#  dentro al volume — questo è l'obiettivo del preset "normal" e "high"
+#  (`nee_in_walk = true`).
+#
+#  Coefficienti σ derivati da Jensen 2001 "wholemilk" (latte intero):
+#    σ_a   ≈ [0.0011, 0.0024, 0.014]
+#    σ_s   ≈ [2.55,   3.21,   3.77]
+#    g     = 0 (isotropico nei nostri test — la dispersione delle micelle
+#               è praticamente isotropica nella banda visibile)
+#
+#  Profili:
+#    Preview:   -q draft-small
+#    Standard:  -q medium-small
+#    Final:     -q final-small
+#    Showcase:  -q final
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0.0
+
+camera:
+  position: [0, 1.2, 3.6]
+  look_at:  [0, 1.2, 0]
+  vup:      [0, 1, 0]
+  fov:      40
+  aperture: 0.0
+  focal_dist: 3.6
+
+mediums:
+  - id: milk_int
+    type: homogeneous
+    sigma_a: [0.0011, 0.0024, 0.014]
+    sigma_s: [2.55,   3.21,   3.77]
+    phase: isotropic
+
+materials:
+  - id: wall_white
+    type: lambertian
+    albedo: [0.73, 0.73, 0.73]
+  - id: wall_red
+    type: lambertian
+    albedo: [0.65, 0.05, 0.05]
+  - id: wall_green
+    type: lambertian
+    albedo: [0.12, 0.45, 0.15]
+  - id: floor
+    type: lambertian
+    albedo: [0.73, 0.73, 0.73]
+
+  - id: ceiling_light
+    type: emissive
+    emit: [16.0, 14.0, 11.0]
+
+  - id: milk_surface
+    type: disney
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.05
+    specular: 0.5
+    spec_trans: 1.0
+    ior: 1.35
+
+lights:
+  # No explicit lights — the emissive ceiling becomes a GeometryLight in NEE.
+
+entities:
+  # Soffitto emissivo (chiave Cornell)
+  - type: box
+    scale: [1.3, 0.04, 1.3]
+    translate: [0, 2.46, -1.0]
+    material: ceiling_light
+
+  # Pareti
+  - type: box
+    scale: [0.04, 2.5, 2.5]
+    translate: [-1.25, 1.25, -1.0]
+    material: wall_red
+  - type: box
+    scale: [0.04, 2.5, 2.5]
+    translate: [ 1.25, 1.25, -1.0]
+    material: wall_green
+  - type: box
+    scale: [2.54, 2.5, 0.04]
+    translate: [0, 1.25, -2.25]
+    material: wall_white
+  - type: box
+    scale: [2.5, 0.04, 2.5]
+    translate: [0, 2.5, -1.0]
+    material: wall_white
+
+  # Bicchiere di latte: cilindro verticale, vincolato a milk_int
+  - name: latte
+    type: cylinder
+    center: [0, 0.55, -0.6]
+    radius: 0.42
+    height: 1.10
+    material: milk_surface
+    interior_medium: milk_int
