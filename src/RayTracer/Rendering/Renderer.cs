@@ -1397,6 +1397,27 @@ public partial class Renderer
     }
 
     /// <summary>
+    /// Distance the medium attenuates over for a shadow ray fired from a point
+    /// inside a bound entity. Without a bound entity (global / world medium)
+    /// the medium fills the entire scene and the full shadow distance is used.
+    /// With one, the medium only exists between <paramref name="p"/> and the
+    /// first entity-boundary intersection along <paramref name="dir"/> — past
+    /// that, transmittance is unity (outside the medium). Falls back to the
+    /// full distance if the boundary query fails (numerical edge case at the
+    /// origin sitting within ε of a surface).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float ClipShadowToBoundary(Vector3 p, Vector3 dir, float shadowDist,
+                                               IHittable? boundEntity)
+    {
+        if (boundEntity == null) return shadowDist;
+        var rec = new HitRecord();
+        if (boundEntity.Hit(new Ray(p, dir), MathUtils.Epsilon, shadowDist, ref rec))
+            return rec.T;
+        return shadowDist;
+    }
+
+    /// <summary>
     /// Direct lighting at a medium scattering event.
     /// Mirrors ComputeDirectLighting but uses the phase function in place of
     /// the BRDF and attenuates each shadow ray by the medium transmittance.
@@ -1411,7 +1432,19 @@ public partial class Renderer
     ///                  transmittance. Caller resolves from the MediumStack
     ///                  (Phase 1) — falls back to <see cref="_globalMedium"/>
     ///                  when the stack is empty.</param>
-    private Vector3 ComputeDirectLightingMedium(Vector3 p, Vector3 wo, IMedium medium)
+    /// <param name="boundEntity">When non-null, the medium is bound to this
+    ///                  entity (random-walk SSS dispatch from
+    ///                  <see cref="RandomWalkSubsurface"/>). The shadow ray's
+    ///                  in-medium segment is then clipped to the distance from
+    ///                  <paramref name="p"/> to the entity boundary along
+    ///                  <c>dirToLight</c> — beyond that, the ray is back in the
+    ///                  outer world and the bound medium no longer attenuates.
+    ///                  Without this clip, a dense scattering medium (σ_t ~ 10
+    ///                  for skin / wax) would collapse NEE to zero over any
+    ///                  shadow distance &gt; 1 unit, even though the actual
+    ///                  in-medium segment is only a fraction of a sphere radius.</param>
+    private Vector3 ComputeDirectLightingMedium(Vector3 p, Vector3 wo, IMedium medium,
+                                                 IHittable? boundEntity = null)
     {
         Vector3 result = Vector3.Zero;
 
@@ -1441,7 +1474,8 @@ public partial class Renderer
 
                 float phaseVal = medium.Phase.Evaluate(wo, dirToLight);
                 float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight), shadowDist);
+                float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity);
+                Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight), mediumDist);
 
                 float wNee = 1f;
                 if (!light.IsDelta)
@@ -1485,9 +1519,11 @@ public partial class Renderer
                     // Phase function value for this in-scattering direction.
                     float phaseVal = medium.Phase.Evaluate(wo, dirToLight);
 
-                    // Beer-Lambert attenuation along the shadow ray.
+                    // Beer-Lambert attenuation along the shadow ray, clipped to
+                    // the bound-entity boundary when the medium is bound.
                     float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                    Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight), shadowDist);
+                    float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity);
+                    Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight), mediumDist);
 
                     // ── MIS weight (phase-function vs light sampler) ────────────
                     // Delta lights cannot be reached by phase sampling; emit at

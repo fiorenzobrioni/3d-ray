@@ -221,9 +221,16 @@ public partial class Renderer
             relBeta *= sigmaS * trS / pdfScatter;
 
             // ── In-scattering NEE (optional per quality preset) ────────────
+            // Pass entityRoot as the medium-bound entity so that the shadow
+            // ray's medium-transmittance segment is clipped to the in-medium
+            // portion only (p → boundary), instead of being computed over the
+            // full Euclidean distance to the light. Without this clip a dense
+            // SSS medium (σ_t ~ 10 for skin / wax) collapses every NEE
+            // contribution to ~exp(-20) over the boundary-to-light air gap
+            // that should not attenuate the shadow ray at all.
             if (_walkConfig.NeeInsideWalk)
             {
-                Vector3 Lnee = ComputeDirectLightingMedium(p, ray.Direction, medium);
+                Vector3 Lnee = ComputeDirectLightingMedium(p, ray.Direction, medium, entityRoot);
                 Lnee = ClampWalkInScattering(Lnee, b);
                 L += relBeta * Lnee;
             }
