@@ -81,8 +81,6 @@ materials:
     color: [0.18, 0.08, 0.04]
     roughness: 0.18
     specular: 0.50
-    subsurface: 0.25
-    subsurface_color: [0.32, 0.12, 0.06]
     clearcoat: 0.75
     coat_roughness: 0.10
     coat_ior: 1.5
@@ -93,8 +91,6 @@ materials:
     color: [0.32, 0.18, 0.08]
     roughness: 0.22
     specular: 0.48
-    subsurface: 0.18
-    subsurface_color: [0.45, 0.25, 0.12]
     clearcoat: 0.50
     coat_roughness: 0.18
     coat_ior: 1.5
@@ -105,8 +101,6 @@ materials:
     color: [0.88, 0.82, 0.62]
     roughness: 0.28
     specular: 0.42
-    subsurface: 0.35
-    subsurface_color: [0.95, 0.88, 0.70]
     clearcoat: 0.40
     coat_roughness: 0.20
     coat_ior: 1.5
@@ -117,8 +111,6 @@ materials:
     color: [0.18, 0.08, 0.04]
     roughness: 0.10
     specular: 0.60
-    subsurface: 0.12
-    subsurface_color: [0.28, 0.12, 0.06]
     clearcoat: 0.80
     coat_roughness: 0.08
     coat_ior: 1.5
@@ -139,8 +131,6 @@ materials:
     color: [0.68, 0.06, 0.05]
     roughness: 0.18
     specular: 0.55
-    subsurface: 0.22
-    subsurface_color: [0.88, 0.45, 0.32]
     clearcoat: 0.55
     coat_roughness: 0.10
     coat_ior: 1.5
@@ -151,8 +141,6 @@ materials:
     color: [0.32, 0.58, 0.10]
     roughness: 0.20
     specular: 0.55
-    subsurface: 0.22
-    subsurface_color: [0.62, 0.78, 0.32]
     clearcoat: 0.55
     coat_roughness: 0.10
     coat_ior: 1.5
@@ -163,8 +151,6 @@ materials:
     color: [0.88, 0.48, 0.05]
     roughness: 0.58
     specular: 0.30
-    subsurface: 0.22
-    subsurface_color: [0.95, 0.55, 0.10]
     bump_map:
       texture:
         type: "voronoi"
@@ -179,8 +165,6 @@ materials:
     color: [0.90, 0.82, 0.12]
     roughness: 0.52
     specular: 0.32
-    subsurface: 0.20
-    subsurface_color: [0.95, 0.88, 0.25]
     bump_map:
       texture:
         type: "voronoi"
@@ -195,8 +179,6 @@ materials:
     color: [0.18, 0.06, 0.18]
     roughness: 0.25
     specular: 0.50
-    subsurface: 0.45
-    subsurface_color: [0.32, 0.08, 0.32]
     clearcoat: 0.50
     coat_roughness: 0.18
     coat_ior: 1.5
@@ -207,8 +189,6 @@ materials:
     color: [0.62, 0.68, 0.22]
     roughness: 0.22
     specular: 0.52
-    subsurface: 0.35
-    subsurface_color: [0.78, 0.82, 0.40]
     clearcoat: 0.45
     coat_roughness: 0.12
     coat_ior: 1.5
@@ -220,8 +200,6 @@ materials:
     color: [0.95, 0.65, 0.42]
     roughness: 0.85
     specular: 0.32
-    subsurface: 0.55
-    subsurface_color: [0.95, 0.32, 0.18]
     sheen: 0.42
     sheen_tint: 0.6
     sheen_roughness: 0.85
@@ -247,8 +225,6 @@ materials:
     color: [0.52, 0.04, 0.06]
     roughness: 0.10
     specular: 0.65
-    subsurface: 0.20
-    subsurface_color: [0.72, 0.10, 0.12]
     clearcoat: 0.70
     coat_roughness: 0.06
     coat_ior: 1.5
@@ -259,8 +235,6 @@ materials:
     color: [0.88, 0.78, 0.18]
     roughness: 0.52
     specular: 0.30
-    subsurface: 0.15
-    subsurface_color: [0.92, 0.82, 0.25]
 
   # Fragola — rossa con achenes (bump voronoi)
   # (assorbe il vecchio _v2)
@@ -269,8 +243,6 @@ materials:
     color: [0.92, 0.18, 0.20]
     roughness: 0.32
     specular: 0.42
-    subsurface: 0.45
-    subsurface_color: [0.95, 0.10, 0.18]
     clearcoat: 0.50
     coat_roughness: 0.12
     coat_ior: 1.5
@@ -291,8 +263,6 @@ materials:
     color: [0.72, 0.10, 0.06]
     roughness: 0.18
     specular: 0.55
-    subsurface: 0.28
-    subsurface_color: [0.85, 0.18, 0.10]
     clearcoat: 0.50
     coat_roughness: 0.10
     coat_ior: 1.5
@@ -303,8 +273,6 @@ materials:
     color: [0.75, 0.08, 0.05]
     roughness: 0.12
     specular: 0.60
-    subsurface: 0.18
-    subsurface_color: [0.88, 0.15, 0.08]
     clearcoat: 0.65
     coat_roughness: 0.08
     coat_ior: 1.5
@@ -315,8 +283,6 @@ materials:
     color: [0.90, 0.78, 0.10]
     roughness: 0.12
     specular: 0.58
-    subsurface: 0.18
-    subsurface_color: [0.95, 0.85, 0.20]
     clearcoat: 0.62
     coat_roughness: 0.08
     coat_ior: 1.5
@@ -327,7 +293,6 @@ materials:
     color: [0.18, 0.05, 0.22]
     roughness: 0.18
     specular: 0.58
-    subsurface: 0.10
     clearcoat: 0.55
     coat_roughness: 0.10
     coat_ior: 1.5
@@ -338,7 +303,6 @@ materials:
     color: [0.82, 0.45, 0.08]
     roughness: 0.68
     specular: 0.20
-    subsurface: 0.15
 
   # Zucchina — verde scuro, buccia opaca
   - id: "dis_zucchina"
@@ -346,7 +310,6 @@ materials:
     color: [0.18, 0.32, 0.08]
     roughness: 0.45
     specular: 0.30
-    subsurface: 0.18
 
 
   # ── FORMAGGI ─────────────────────────────────────────────────────────────
@@ -357,7 +320,6 @@ materials:
     color: [0.78, 0.65, 0.32]
     roughness: 0.72
     specular: 0.18
-    subsurface: 0.10
 
   # Parmigiano stagionato — anelli di stagionatura via wood texture
   - id: "dis_parmigiano_stagionato"
@@ -365,7 +327,6 @@ materials:
     color: [0.92, 0.82, 0.55]
     roughness: 0.78
     specular: 0.32
-    subsurface: 0.18
     texture:
       type: "wood"
       scale: 4.0
@@ -392,7 +353,6 @@ materials:
     color: [0.82, 0.52, 0.10]
     roughness: 0.55
     specular: 0.28
-    subsurface: 0.15
 
   # Brie crosta — bianca morbida, sheen leggero
   - id: "dis_brie_crosta"
@@ -400,7 +360,6 @@ materials:
     color: [0.90, 0.88, 0.82]
     roughness: 0.82
     specular: 0.08
-    subsurface: 0.12
     sheen: 0.10
     sheen_tint: 0.3
     sheen_roughness: 0.7
@@ -411,9 +370,6 @@ materials:
     color: [0.90, 0.85, 0.65]
     roughness: 0.48
     specular: 0.30
-    subsurface: 0.40
-    subsurface_color: [0.95, 0.90, 0.72]
-    flatness: 0.4
 
   # Gouda — giallo dorato, superficie cerata
   - id: "dis_gouda"
@@ -421,7 +377,6 @@ materials:
     color: [0.82, 0.62, 0.22]
     roughness: 0.35
     specular: 0.42
-    subsurface: 0.18
     clearcoat: 0.20
     coat_roughness: 0.28
     coat_ior: 1.5
@@ -432,9 +387,6 @@ materials:
     color: [0.92, 0.90, 0.82]
     roughness: 0.40
     specular: 0.38
-    subsurface: 0.50
-    subsurface_color: [0.96, 0.94, 0.88]
-    flatness: 0.4
 
   # Gorgonzola — pasta gialla con venature blu-verdi
   - id: "dis_gorgonzola"
@@ -442,7 +394,6 @@ materials:
     color: [0.78, 0.72, 0.52]
     roughness: 0.65
     specular: 0.20
-    subsurface: 0.18
 
   # Cera per formaggio (Edam, Gouda) — rossa, liscia
   - id: "dis_cera_formaggio_rossa"
@@ -450,7 +401,6 @@ materials:
     color: [0.72, 0.08, 0.05]
     roughness: 0.35
     specular: 0.40
-    subsurface: 0.15
     clearcoat: 0.25
     coat_roughness: 0.25
     coat_ior: 1.5
@@ -489,7 +439,6 @@ materials:
     color: [0.85, 0.78, 0.58]
     roughness: 0.88
     specular: 0.08
-    subsurface: 0.22
 
   # Pasta cruda — giallo uovo, semola, opaca
   - id: "dis_pasta_cruda"
@@ -497,7 +446,6 @@ materials:
     color: [0.82, 0.68, 0.28]
     roughness: 0.70
     specular: 0.15
-    subsurface: 0.10
 
   # Pasta cotta — più scura, leggermente lucida (amido)
   - id: "dis_pasta_cotta"
@@ -505,7 +453,6 @@ materials:
     color: [0.75, 0.60, 0.25]
     roughness: 0.42
     specular: 0.35
-    subsurface: 0.15
 
   # Crosta pizza margherita — meno scura, leggermente bruciacchiata
   - id: "dis_crosta_pizza"
@@ -537,7 +484,6 @@ materials:
     color: [0.88, 0.72, 0.35]
     roughness: 0.55
     specular: 0.32
-    subsurface: 0.10
     clearcoat: 0.15
     coat_roughness: 0.30
     coat_ior: 1.5
@@ -551,8 +497,6 @@ materials:
     color: [0.92, 0.91, 0.88]
     roughness: 0.55
     specular: 0.35
-    subsurface: 0.30
-    subsurface_color: [0.96, 0.95, 0.92]
 
   # Zucchero di canna — cristalli dorati
   - id: "dis_zucchero_canna"
@@ -560,8 +504,6 @@ materials:
     color: [0.62, 0.42, 0.15]
     roughness: 0.60
     specular: 0.30
-    subsurface: 0.25
-    subsurface_color: [0.75, 0.52, 0.22]
 
   # Caramello — ambra scura, lucido, denso
   - id: "dis_caramello"
@@ -569,8 +511,6 @@ materials:
     color: [0.55, 0.28, 0.05]
     roughness: 0.08
     specular: 0.62
-    subsurface: 0.20
-    subsurface_color: [0.78, 0.42, 0.10]
     clearcoat: 0.55
     coat_roughness: 0.08
     coat_ior: 1.5
@@ -581,8 +521,6 @@ materials:
     color: [0.85, 0.78, 0.52]
     roughness: 0.68
     specular: 0.18
-    subsurface: 0.25
-    subsurface_color: [0.92, 0.82, 0.58]
 
   # Glassa bianca — zucchero a velo + acqua, lucida
   - id: "dis_glassa_bianca"
@@ -590,8 +528,6 @@ materials:
     color: [0.94, 0.93, 0.90]
     roughness: 0.12
     specular: 0.55
-    subsurface: 0.22
-    subsurface_color: [0.96, 0.95, 0.92]
     clearcoat: 0.55
     coat_roughness: 0.10
     coat_ior: 1.5
@@ -602,8 +538,6 @@ materials:
     color: [0.15, 0.08, 0.04]
     roughness: 0.08
     specular: 0.62
-    subsurface: 0.12
-    subsurface_color: [0.28, 0.14, 0.06]
     clearcoat: 0.60
     coat_roughness: 0.10
     coat_ior: 1.5
@@ -614,8 +548,6 @@ materials:
     color: [0.92, 0.90, 0.82]
     roughness: 0.78
     specular: 0.12
-    subsurface: 0.20
-    subsurface_color: [0.96, 0.94, 0.88]
 
   # Marmellata d'arancia — transmission_color saturo, hetero_terrain superficie
   - id: "dis_marmellata_arancia"
@@ -623,8 +555,6 @@ materials:
     color: [0.92, 0.55, 0.10]
     roughness: 0.18
     specular: 0.45
-    subsurface: 0.30
-    subsurface_color: [0.95, 0.58, 0.10]
     spec_trans: 0.65
     ior: 1.45
     transmission_color: [0.88, 0.42, 0.05]
@@ -644,8 +574,6 @@ materials:
     color: [0.32, 0.08, 0.32]
     roughness: 0.18
     specular: 0.45
-    subsurface: 0.32
-    subsurface_color: [0.40, 0.10, 0.40]
     spec_trans: 0.55
     ior: 1.45
     transmission_color: [0.22, 0.04, 0.22]
@@ -660,9 +588,6 @@ materials:
     color: [0.90, 0.82, 0.45]
     roughness: 0.48
     specular: 0.32
-    subsurface: 0.45
-    subsurface_color: [0.95, 0.85, 0.55]
-    flatness: 0.5
 
   # Burro fuso — liquido dorato (spec_trans + Beer-Lambert leggero)
   - id: "dis_burro_fuso"
@@ -670,7 +595,6 @@ materials:
     color: [0.88, 0.72, 0.18]
     roughness: 0.05
     specular: 0.58
-    subsurface: 0.20
     spec_trans: 0.30
     ior: 1.46
     transmission_color: [0.92, 0.72, 0.18]
@@ -682,9 +606,6 @@ materials:
     color: [0.88, 0.85, 0.58]
     roughness: 0.50
     specular: 0.28
-    subsurface: 0.40
-    subsurface_color: [0.95, 0.90, 0.65]
-    flatness: 0.5
 
   # Strutto — bianco, opaco, denso
   - id: "dis_strutto"
@@ -692,9 +613,6 @@ materials:
     color: [0.90, 0.88, 0.82]
     roughness: 0.55
     specular: 0.25
-    subsurface: 0.35
-    subsurface_color: [0.96, 0.94, 0.90]
-    flatness: 0.45
 
 
   # ── LIQUIDI ──────────────────────────────────────────────────────────────
@@ -717,13 +635,10 @@ materials:
     color: [0.95, 0.94, 0.88]
     roughness: 0.0
     specular: 0.50
-    subsurface: 0.65
-    subsurface_color: [0.96, 0.94, 0.88]
     spec_trans: 0.28
     ior: 1.35
     transmission_color: [0.92, 0.88, 0.78]
     transmission_depth: 0.02
-    flatness: 0.6
 
   # Vino rosso — rubino profondo, Beer-Lambert reale (assorbe in 2cm)
   - id: "dis_vino_rosso"
@@ -786,7 +701,6 @@ materials:
     color: [0.95, 0.65, 0.10]
     roughness: 0.0
     specular: 0.72
-    subsurface: 0.10
     spec_trans: 0.92
     ior: 1.50
     transmission_color: [0.85, 0.42, 0.05]
@@ -798,8 +712,6 @@ materials:
     color: [0.88, 0.52, 0.05]
     roughness: 0.0
     specular: 0.50
-    subsurface: 0.45
-    subsurface_color: [0.92, 0.55, 0.10]
     spec_trans: 0.30
     ior: 1.35
     transmission_color: [0.78, 0.32, 0.04]
@@ -822,8 +734,6 @@ materials:
     color: [0.78, 0.58, 0.35]
     roughness: 0.0
     specular: 0.52
-    subsurface: 0.50
-    subsurface_color: [0.85, 0.65, 0.42]
     spec_trans: 0.30
     ior: 1.35
     transmission_color: [0.62, 0.40, 0.18]
@@ -838,8 +748,6 @@ materials:
     color: [0.55, 0.08, 0.04]
     roughness: 0.15
     specular: 0.50
-    subsurface: 0.22
-    subsurface_color: [0.72, 0.12, 0.06]
     clearcoat: 0.40
     coat_roughness: 0.15
     coat_ior: 1.5
@@ -850,7 +758,6 @@ materials:
     color: [0.78, 0.62, 0.08]
     roughness: 0.45
     specular: 0.30
-    subsurface: 0.22
 
   # Salsa di soia — quasi nera, lucida, trasparente in strato sottile
   - id: "dis_salsa_soia"
@@ -880,9 +787,6 @@ materials:
     color: [0.90, 0.85, 0.60]
     roughness: 0.48
     specular: 0.30
-    subsurface: 0.40
-    subsurface_color: [0.95, 0.90, 0.68]
-    flatness: 0.4
 
 
   # ── CARNE E PESCE ────────────────────────────────────────────────────────
@@ -893,8 +797,6 @@ materials:
     color: [0.55, 0.10, 0.08]
     roughness: 0.42
     specular: 0.38
-    subsurface: 0.40
-    subsurface_color: [0.78, 0.18, 0.12]
 
   # Carne cotta — Maillard, crosta bruna
   - id: "dis_carne_cotta"
@@ -902,7 +804,6 @@ materials:
     color: [0.35, 0.18, 0.10]
     roughness: 0.62
     specular: 0.22
-    subsurface: 0.10
 
   # Salmone crudo — arancione, traslucente
   - id: "dis_salmone_crudo"
@@ -910,8 +811,6 @@ materials:
     color: [0.82, 0.42, 0.18]
     roughness: 0.35
     specular: 0.40
-    subsurface: 0.40
-    subsurface_color: [0.92, 0.50, 0.22]
     clearcoat: 0.15
     coat_roughness: 0.30
     coat_ior: 1.5
@@ -922,8 +821,6 @@ materials:
     color: [0.62, 0.25, 0.18]
     roughness: 0.55
     specular: 0.28
-    subsurface: 0.25
-    subsurface_color: [0.78, 0.32, 0.22]
     sheen: 0.05
 
 
@@ -936,9 +833,6 @@ materials:
     color: [0.95, 0.88, 0.72]
     roughness: 0.45
     specular: 0.32
-    subsurface: 0.65
-    subsurface_color: [0.96, 0.90, 0.75]
-    flatness: 0.5
 
   # Gelato cioccolato — marrone con SSS sottile
   - id: "dis_gelato_cioccolato"
@@ -946,9 +840,6 @@ materials:
     color: [0.32, 0.18, 0.10]
     roughness: 0.42
     specular: 0.35
-    subsurface: 0.45
-    subsurface_color: [0.48, 0.25, 0.14]
-    flatness: 0.5
 
   # Gelato fragola — rosa con SSS rosato
   - id: "dis_gelato_fragola"
@@ -956,9 +847,6 @@ materials:
     color: [0.92, 0.55, 0.55]
     roughness: 0.45
     specular: 0.32
-    subsurface: 0.60
-    subsurface_color: [0.95, 0.58, 0.60]
-    flatness: 0.5
 
 
   # ╔═══════════════════════════════════════════════════════════════════════╗

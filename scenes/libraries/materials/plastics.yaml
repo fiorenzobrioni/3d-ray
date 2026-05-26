@@ -181,7 +181,6 @@ materials:
     color: [0.92, 0.91, 0.90]
     roughness: 0.35
     specular: 0.55
-    subsurface: 0.10
 
   # Policarbonato nero — visiere, occhiali da sole (clearcoat → solo Disney)
   - id: "dis_policarbonato_nero"
@@ -213,7 +212,6 @@ materials:
     color: [0.94, 0.93, 0.92]
     roughness: 0.30
     specular: 0.55
-    subsurface: 0.12
 
   # Acrilico rosso opaco — display, segnaletica
   - id: "dis_acrilico_rosso"
@@ -276,7 +274,6 @@ materials:
     color: [0.88, 0.86, 0.82]
     roughness: 0.52
     specular: 0.40
-    subsurface: 0.15
     sheen: 0.05
 
   # Nylon nero — ingranaggi, componenti meccanici
@@ -292,7 +289,6 @@ materials:
     color: [0.90, 0.88, 0.85]
     roughness: 0.68
     specular: 0.25
-    subsurface: 0.10
 
 
   # ── PLA / STAMPA 3D FDM ──────────────────────────────────────────────────
@@ -402,7 +398,6 @@ materials:
     specular: 0.35
     sheen: 0.08
     sheen_tint: 0.2
-    subsurface: 0.10
 
 
   # ── POLIETILENE / PE ─────────────────────────────────────────────────────
@@ -413,7 +408,6 @@ materials:
     color: [0.92, 0.91, 0.90]
     roughness: 0.50
     specular: 0.38
-    subsurface: 0.08
 
   # HDPE nero — tubi irrigazione, cassonetti
   - id: "dis_hdpe_nero"
@@ -428,7 +422,6 @@ materials:
     color: [0.90, 0.90, 0.88]
     roughness: 0.40
     specular: 0.35
-    subsurface: 0.20
     spec_trans: 0.15
     ior: 1.50
 
@@ -441,7 +434,6 @@ materials:
     color: [0.92, 0.91, 0.90]
     roughness: 0.30
     specular: 0.42
-    subsurface: 0.12
     spec_trans: 0.20
     ior: 1.49
 
@@ -546,8 +538,6 @@ materials:
     color: [0.90, 0.89, 0.87]
     roughness: 0.72
     specular: 0.25
-    subsurface: 0.25
-    subsurface_color: [0.94, 0.92, 0.88]
     sheen: 0.06
 
   # Silicone rosso — spatole, guanti forno
@@ -556,8 +546,6 @@ materials:
     color: [0.78, 0.10, 0.08]
     roughness: 0.70
     specular: 0.28
-    subsurface: 0.18
-    subsurface_color: [0.92, 0.18, 0.16]
 
   # Silicone trasparente — guarnizioni, cover telefono (spec_trans + SSS)
   - id: "dis_silicone_trasparente"
@@ -565,7 +553,6 @@ materials:
     color: [0.92, 0.92, 0.94]
     roughness: 0.55
     specular: 0.35
-    subsurface: 0.30
     spec_trans: 0.25
     ior: 1.42
 
@@ -575,8 +562,6 @@ materials:
     color: [0.94, 0.94, 0.93]
     roughness: 0.60
     specular: 0.30
-    subsurface: 0.35
-    subsurface_color: [0.96, 0.94, 0.92]
 
   # Silicone colorato giocattoli — subsurface saturo, clearcoat morbido
   - id: "dis_silicone_giocattolo"
@@ -584,8 +569,6 @@ materials:
     color: [0.95, 0.32, 0.42]
     roughness: 0.42
     specular: 0.40
-    subsurface: 0.45
-    subsurface_color: [0.98, 0.42, 0.50]
     clearcoat: 0.4
     coat_roughness: 0.18
     coat_ior: 1.5

@@ -118,8 +118,6 @@ materials:
     roughness: 0.78
     metallic: 0.0
     specular: 0.30
-    subsurface: 0.25
-    subsurface_color: [0.85, 0.92, 1.00]
 
   - id: "rock_dark"
     type: "disney"

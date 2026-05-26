@@ -334,7 +334,6 @@ materials:
     spec_trans: 0.75
     ior: 1.52
     specular: 0.5
-    subsurface: 0.08
 
   # Vetro opalino — semi-opaco, diffusione forte, lampade
   - id: "dis_vetro_opalino"
@@ -344,7 +343,6 @@ materials:
     spec_trans: 0.55
     ior: 1.50
     specular: 0.4
-    subsurface: 0.20
 
   # Vetro smerigliato neutro — separatori bagno, plafoniere
   - id: "dis_vetro_smerigliato"
@@ -662,8 +660,6 @@ materials:
     spec_trans: 0.40
     ior: 1.45
     specular: 0.60
-    subsurface: 0.30
-    subsurface_color: [0.92, 0.88, 0.82]
     thin_film_thickness: 420
     thin_film_ior: 1.46
 
@@ -678,8 +674,6 @@ materials:
     spec_trans: 0.95
     ior: 1.31
     specular: 0.75
-    subsurface: 0.08
-    subsurface_color: [0.90, 0.95, 1.0]
 
   # Ghiaccio torbido — bolle d'aria intrappolate
   - id: "dis_ghiaccio_torbido"
@@ -689,8 +683,6 @@ materials:
     spec_trans: 0.72
     ior: 1.31
     specular: 0.60
-    subsurface: 0.20
-    subsurface_color: [0.82, 0.90, 0.96]
 
   # Ghiaccio blu — ghiacciaio compresso, blu profondo
   - id: "dis_ghiaccio_blu"
@@ -700,8 +692,6 @@ materials:
     spec_trans: 0.85
     ior: 1.31
     specular: 0.70
-    subsurface: 0.15
-    subsurface_color: [0.45, 0.70, 0.95]
     transmission_color: [0.40, 0.65, 0.92]
     transmission_depth: 1.5
 
@@ -715,7 +705,6 @@ materials:
     ior: 1.31
     transmission_color: [0.85, 0.92, 0.98]
     transmission_depth: 1.2
-    subsurface: 0.25
     texture:
       type: "voronoi"
       scale: 6.0
@@ -731,7 +720,6 @@ materials:
     spec_trans: 0.25
     ior: 1.31
     specular: 0.30
-    subsurface: 0.20
     sheen: 0.15
     sheen_tint: 0.2
 
@@ -743,8 +731,6 @@ materials:
     spec_trans: 0.15
     ior: 1.31
     specular: 0.20
-    subsurface: 0.45
-    subsurface_color: [0.88, 0.92, 0.98]
 
 
   # ── LIQUIDI ──────────────────────────────────────────────────────────────
@@ -821,7 +807,6 @@ materials:
     spec_trans: 0.95
     ior: 1.50
     specular: 0.72
-    subsurface: 0.05
     transmission_color: [0.88, 0.48, 0.04]
     transmission_depth: 0.5
 
@@ -844,8 +829,6 @@ materials:
     spec_trans: 0.30
     ior: 1.35
     specular: 0.50
-    subsurface: 0.55
-    subsurface_color: [0.96, 0.94, 0.86]
 
   # Glicerina — viscosa, trasparente, IOR alto per liquido
   - id: "dis_glicerina"
@@ -916,7 +899,6 @@ materials:
     spec_trans: 0.90
     ior: 1.42
     specular: 0.55
-    subsurface: 0.05
 
   # Nylon trasparente — filo da pesca, componenti tecnici
   - id: "dis_nylon_trasparente"

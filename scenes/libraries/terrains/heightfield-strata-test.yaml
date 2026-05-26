@@ -45,8 +45,6 @@ materials:
     roughness: 0.780
     metallic: 0.000
     specular: 0.300
-    subsurface: 0.250
-    subsurface_color: [0.850, 0.920, 1.000]
 
   - id: "terrain_heightfield_strata_test_water"
     type: "disney"

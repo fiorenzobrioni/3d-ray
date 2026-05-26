@@ -1,6 +1,7 @@
 using System.Numerics;
 using RayTracer.Materials;
 using RayTracer.Textures;
+using RayTracer.Volumetrics;
 
 namespace RayTracer.Core;
 
@@ -15,6 +16,17 @@ public struct HitRecord
     public int ObjectSeed;
     public bool FrontFace;
     public IMaterial? Material;
+
+    /// <summary>
+    /// Participating-media boundary at this surface (interior + exterior).
+    /// Populated by <see cref="Geometry.MediumBoundHittable"/> when the entity
+    /// was bound to one or more media in YAML (<c>interior_medium</c> /
+    /// <c>exterior_medium</c>). Default-zero on plain entities — both sides
+    /// resolve to vacuum / the outer stack's current top. The renderer
+    /// consults this on refractive samples to push/pop the medium stack
+    /// driving Beer-Lambert and volumetric scattering along the next segment.
+    /// </summary>
+    public MediumInterface MediumIface;
 
     /// <summary>
     /// Per-ray-category visibility bitmask (Arnold <c>visibility.*</c> / Cycles

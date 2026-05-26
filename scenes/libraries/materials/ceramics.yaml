@@ -54,7 +54,6 @@ materials:
     clearcoat: 0.4
     coat_roughness: 0.10
     coat_ior: 1.5
-    subsurface: 0.15
 
   # Porcellana avorio — tono caldo, leggermente invecchiata
   - id: "dis_porcellana_avorio"
@@ -65,7 +64,6 @@ materials:
     clearcoat: 0.35
     coat_roughness: 0.12
     coat_ior: 1.5
-    subsurface: 0.18
 
   # Porcellana blu cobalto — decorazione classica cinese/Delft
   - id: "dis_porcellana_blu"
@@ -76,8 +74,6 @@ materials:
     clearcoat: 0.5
     coat_roughness: 0.08
     coat_ior: 1.5
-    subsurface: 0.08
-    subsurface_color: [0.30, 0.40, 0.85]
 
   # Porcellana nera — smalto a specchio profondo
   - id: "dis_porcellana_nera"
@@ -98,8 +94,6 @@ materials:
     clearcoat: 0.4
     coat_roughness: 0.10
     coat_ior: 1.5
-    subsurface: 0.20
-    subsurface_color: [0.98, 0.72, 0.78]
 
   # Porcellana craquelé — rete di micro-fessure annerite (voronoi f2-f1)
   - id: "dis_porcellana_craquele"
@@ -110,7 +104,6 @@ materials:
     clearcoat: 0.55
     coat_roughness: 0.10
     coat_ior: 1.5
-    subsurface: 0.12
     texture:
       type: "voronoi"
       scale: 6.0
@@ -130,7 +123,6 @@ materials:
     clearcoat: 0.55
     coat_roughness: 0.12
     coat_ior: 1.5
-    subsurface: 0.08
 
 
   # ── BONE CHINA ───────────────────────────────────────────────────────────
@@ -144,8 +136,6 @@ materials:
     clearcoat: 0.45
     coat_roughness: 0.08
     coat_ior: 1.5
-    subsurface: 0.35
-    subsurface_color: [0.98, 0.92, 0.84]
 
   # Bone china blu — decorazione Wedgwood
   - id: "dis_bonechina_blu"
@@ -156,8 +146,6 @@ materials:
     clearcoat: 0.4
     coat_roughness: 0.10
     coat_ior: 1.5
-    subsurface: 0.25
-    subsurface_color: [0.62, 0.74, 0.88]
 
 
   # ── MAIOLICA ─────────────────────────────────────────────────────────────
@@ -291,8 +279,6 @@ materials:
     color: [0.72, 0.42, 0.28]
     roughness: 0.92
     specular: 0.22
-    subsurface: 0.15
-    subsurface_color: [0.85, 0.45, 0.30]
     texture:
       type: "noise"
       scale: 2.5
@@ -361,7 +347,6 @@ materials:
     clearcoat: 0.3
     coat_roughness: 0.25
     coat_ior: 1.5
-    subsurface: 0.10
 
   # Grès celadon — smalto verde-grigio sottile su grès
   - id: "dis_gres_celadon"
@@ -372,7 +357,6 @@ materials:
     clearcoat: 0.4
     coat_roughness: 0.15
     coat_ior: 1.5
-    subsurface: 0.08
 
 
   # ── RAKU ─────────────────────────────────────────────────────────────────
@@ -451,8 +435,6 @@ materials:
     clearcoat: 0.5
     coat_roughness: 0.10
     coat_ior: 1.5
-    subsurface: 0.12
-    subsurface_color: [0.50, 0.78, 0.60]
 
   # Celadon chiaro — verde acqua tenue, stile coreano Goryeo
   - id: "dis_celadon_chiaro"
@@ -463,8 +445,6 @@ materials:
     clearcoat: 0.45
     coat_roughness: 0.08
     coat_ior: 1.5
-    subsurface: 0.15
-    subsurface_color: [0.68, 0.84, 0.74]
 
   # Celadon scuro — verde oliva intenso, pezzi Song dynasty
   - id: "dis_celadon_scuro"
@@ -475,7 +455,6 @@ materials:
     clearcoat: 0.45
     coat_roughness: 0.12
     coat_ior: 1.5
-    subsurface: 0.10
 
   # Celadon studio — gradiente naturale dalle zone sottili (chiare) alle
   # zone spesse (sature). FBM 4-stop color ramp.
@@ -484,8 +463,6 @@ materials:
     color: [0.62, 0.82, 0.72]
     roughness: 0.10
     specular: 0.55
-    subsurface: 0.25
-    subsurface_color: [0.55, 0.88, 0.78]
     clearcoat: 0.85
     coat_roughness: 0.05
     coat_ior: 1.5
@@ -508,8 +485,6 @@ materials:
     color: [0.62, 0.78, 0.65]
     roughness: 0.12
     specular: 0.55
-    subsurface: 0.18
-    subsurface_color: [0.55, 0.82, 0.72]
     clearcoat: 0.85
     coat_roughness: 0.05
     coat_ior: 1.5
@@ -531,7 +506,6 @@ materials:
     color: [0.92, 0.90, 0.86]
     roughness: 0.82
     specular: 0.10
-    subsurface: 0.08
 
   # Biscotto rosa — argilla con ossidi di ferro, tono carne
   - id: "dis_biscotto_rosa"

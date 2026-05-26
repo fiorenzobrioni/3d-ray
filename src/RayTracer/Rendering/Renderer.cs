@@ -430,7 +430,13 @@ public class Renderer
                         var ray = _emitRayDifferentials
                             ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy)
                             : _camera.GetRay(u, v);
+                        // Fresh medium stack per camera ray. The camera origin
+                        // is assumed to be in vacuum / the global medium —
+                        // entities along the ray push/pop their interior media
+                        // as the path refracts through them.
+                        var mediums = new MediumStack();
                         Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true,
+                                                   ref mediums,
                                                    pathThroughput: Vector3.One);
 
                         Sampler.EndPixelSample();
@@ -455,7 +461,9 @@ public class Renderer
                             var ray = _emitRayDifferentials
                                 ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy)
                                 : _camera.GetRay(u, v);
+                            var mediums = new MediumStack();
                             Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true,
+                                                       ref mediums,
                                                        pathThroughput: Vector3.One);
 
                             sample = ClampRadiance(sample);
@@ -590,7 +598,8 @@ public class Renderer
     private Vector3 ShadeSurface(Ray ray, HitRecord rec, int depth,
                                   float prevBsdfPdf, bool prevIsDelta,
                                   Vector3 currentAbsorption,
-                                  Vector3 pathThroughput)
+                                  Vector3 pathThroughput,
+                                  ref MediumStack mediums)
     {
         IMaterial? material = rec.Material;
 
@@ -653,7 +662,7 @@ public class Renderer
         if (mis.HasValue)
         {
             return ShadeSampleBounce(material, rec, mis.Value, depth, emitted, directLight,
-                                     currentAbsorption, pathThroughput);
+                                     currentAbsorption, pathThroughput, ref mediums);
         }
 
         if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
@@ -691,8 +700,14 @@ public class Renderer
             // currentAbsorption so any enclosing Disney-glass interior still
             // absorbs along the continued ray segment.
             RayCategory nextCat = ClassifyScatteredRay(rec.Normal, scattered.Direction, nextIsDelta);
+            // Legacy Scatter() materials don't emit a MediumTransition signal,
+            // so the medium stack is forwarded unchanged. Refractive Scatter
+            // bounces through a glass Dielectric continue to use the legacy
+            // currentAbsorption back-compat path until the material is
+            // migrated to BsdfSample (Phase 2 / 3 of the SSS rollout).
             Vector3 indirect = TraceRay(scattered, depth - 1,
                                          prevBsdfPdf: 0f, prevIsDelta: nextIsDelta,
+                                         ref mediums,
                                          currentAbsorption: currentAbsorption,
                                          pathThroughput: nextThroughput,
                                          incomingCategory: nextCat);
@@ -727,7 +742,8 @@ public class Renderer
                                        BsdfSample s, int depth,
                                        Vector3 emitted, Vector3 directLight,
                                        Vector3 currentAbsorption,
-                                       Vector3 pathThroughput)
+                                       Vector3 pathThroughput,
+                                       ref MediumStack mediums)
     {
         Vector3 attenuation;
         if (s.IsDelta)
@@ -783,8 +799,23 @@ public class Renderer
         // (entering glass → σ_a; exiting → vacuum). Reflection samples keep
         // the caller's currentAbsorption untouched.
         Vector3 nextAbsorption = s.NextSegmentAbsorption ?? currentAbsorption;
+        // Medium-stack transition (MediumInterface, Phase 1): copy-on-write so
+        // the caller's stack stays intact when the recursion returns. Entering
+        // a refractive boundary pushes the geometry's interior medium; exiting
+        // pops the top. Reflection samples leave the stack unchanged.
+        MediumStack nextMediums = mediums;
+        switch (s.Transition)
+        {
+            case MediumTransition.Enter:
+                nextMediums.Push(rec.MediumIface.Interior);
+                break;
+            case MediumTransition.Exit:
+                nextMediums.Pop();
+                break;
+        }
         RayCategory nextCat = ClassifyScatteredRay(rec.Normal, s.Wo, s.IsDelta);
         Vector3 indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
+                                     ref nextMediums,
                                      currentAbsorption: nextAbsorption,
                                      pathThroughput: nextThroughput,
                                      incomingCategory: nextCat);
@@ -889,6 +920,7 @@ public class Renderer
     /// independent media and are accumulated in series.
     /// </summary>
     private Vector3 TraceRay(Ray ray, int depth, float prevBsdfPdf, bool prevIsDelta,
+                             ref MediumStack mediums,
                              Vector3 currentAbsorption = default,
                              Vector3 pathThroughput = default,
                              RayCategory incomingCategory = RayCategory.Camera)
@@ -961,13 +993,23 @@ public class Renderer
             rec.Footprint = FootprintMath.Compute(currentRay, rec.Point, rec.Normal, dpdu, dpdv);
         }
 
+        // ── Active medium: stack overrides the global, vacuum falls through ──
+        // The MediumStack (Phase 1) tracks per-object participating media
+        // pushed by refractive transitions through entities bound to an
+        // interior_medium. When non-empty, its top dominates this segment's
+        // volumetric behaviour, overriding _globalMedium (which models the
+        // outer atmosphere / global fog). An empty stack with no global
+        // medium routes to the surface-only fast path — bit-identical to
+        // pre-volumetric output for legacy scenes.
+        IMedium? activeMedium = mediums.Top ?? _globalMedium;
+
         // ── Surface-only fast path (no medium) ──────────────────────────────
-        if (_globalMedium == null)
+        if (activeMedium == null)
         {
             Vector3 result = !hit
                 ? SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
                 : ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
-                               pathThroughput);
+                               pathThroughput, ref mediums);
             // Beer-Lambert along the segment just traversed. Sky miss with
             // non-zero σ_a means the ray escaped the bounded medium — the
             // exp(-σ_a · ∞) is zero for any absorbing channel, so we collapse
@@ -977,7 +1019,7 @@ public class Renderer
 
         // ── Volumetric path ─────────────────────────────────────────────────
         float tMax = hit ? rec.T : 1e30f;
-        bool didScatter = _globalMedium.Sample(currentRay, tMax, out float tMed, out Vector3 beta, out _);
+        bool didScatter = activeMedium.Sample(currentRay, tMax, out float tMed, out Vector3 beta, out _);
 
         if (didScatter)
         {
@@ -985,7 +1027,7 @@ public class Renderer
             Vector3 p = currentRay.Origin + currentRay.Direction * tMed;
 
             // NEE in-scattering: shadow ray to each light, weighted by phase × Tr.
-            Vector3 Lnee = ComputeDirectLightingMedium(p, currentRay.Direction);
+            Vector3 Lnee = ComputeDirectLightingMedium(p, currentRay.Direction, activeMedium);
 
             // ── Russian Roulette on the indirect (phase-sampled) bounce ─────
             // Throughput-based: β_after = pathThroughput · medium-β. Same
@@ -1013,13 +1055,14 @@ public class Renderer
                 // phase PDF is threaded forward as prevBsdfPdf so that the
                 // next hit's emission / sky miss is MIS-weighted against the
                 // NEE light PDF, mirroring the surface-side MIS.
-                var (wi, phasePdf) = _globalMedium.Phase.Sample(currentRay.Direction);
-                float phaseVal = _globalMedium.Phase.Evaluate(currentRay.Direction, wi);
+                var (wi, phasePdf) = activeMedium.Phase.Sample(currentRay.Direction);
+                float phaseVal = activeMedium.Phase.Evaluate(currentRay.Direction, wi);
                 float phaseWeight = phasePdf > 1e-20f ? phaseVal / phasePdf : 0f;
                 Vector3 nextThroughput = medThroughput * (phaseWeight * indirectScale);
                 Lind = phaseWeight * indirectScale
                      * TraceRay(new Ray(p, wi), depth - 1,
                                  prevBsdfPdf: phasePdf, prevIsDelta: false,
+                                 ref mediums,
                                  currentAbsorption: currentAbsorption,
                                  pathThroughput: nextThroughput);
             }
@@ -1032,7 +1075,7 @@ public class Renderer
         Vector3 surfaceOrSky = !hit
             ? beta * SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
             : beta * ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
-                                   pathThroughput * beta);
+                                   pathThroughput * beta, ref mediums);
         return ApplyBeerLambert(surfaceOrSky, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
     }
 
@@ -1276,10 +1319,14 @@ public class Renderer
     ///                  (i.e. ray.Direction). Passed to the phase function as-is —
     ///                  IsotropicPhase / HenyeyGreensteinPhase use the convention
     ///                  that wo points "into" the event.</param>
-    private Vector3 ComputeDirectLightingMedium(Vector3 p, Vector3 wo)
+    /// <param name="medium">The medium hosting this scattering event. Drives
+    ///                  the phase function used by NEE and the shadow-ray
+    ///                  transmittance. Caller resolves from the MediumStack
+    ///                  (Phase 1) — falls back to <see cref="_globalMedium"/>
+    ///                  when the stack is empty.</param>
+    private Vector3 ComputeDirectLightingMedium(Vector3 p, Vector3 wo, IMedium medium)
     {
         Vector3 result = Vector3.Zero;
-        if (_globalMedium == null) return result;
 
         // Lights use `surfaceNormal` ONLY to offset the shadow-ray origin via
         // OffsetOrigin(p, n) = p + n × ε. For a volumetric scattering event
@@ -1305,14 +1352,14 @@ public class Renderer
 
                 if (inShadow) continue;
 
-                float phaseVal = _globalMedium.Phase.Evaluate(wo, dirToLight);
+                float phaseVal = medium.Phase.Evaluate(wo, dirToLight);
                 float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                Vector3 Tr = _globalMedium.Transmittance(new Ray(p, dirToLight), shadowDist);
+                Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight), shadowDist);
 
                 float wNee = 1f;
                 if (!light.IsDelta)
                 {
-                    float phasePdf = _globalMedium.Phase.Pdf(wo, dirToLight);
+                    float phasePdf = medium.Phase.Pdf(wo, dirToLight);
                     if (phasePdf > 0f)
                     {
                         float pLightSample = light.PdfSolidAngle(p, dirToLight);
@@ -1349,11 +1396,11 @@ public class Renderer
                     if (inShadow) continue;
 
                     // Phase function value for this in-scattering direction.
-                    float phaseVal = _globalMedium.Phase.Evaluate(wo, dirToLight);
+                    float phaseVal = medium.Phase.Evaluate(wo, dirToLight);
 
                     // Beer-Lambert attenuation along the shadow ray.
                     float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                    Vector3 Tr = _globalMedium.Transmittance(new Ray(p, dirToLight), shadowDist);
+                    Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight), shadowDist);
 
                     // ── MIS weight (phase-function vs light sampler) ────────────
                     // Delta lights cannot be reached by phase sampling; emit at
@@ -1362,7 +1409,7 @@ public class Renderer
                     float wNee = 1f;
                     if (!light.IsDelta)
                     {
-                        float phasePdf = _globalMedium.Phase.Pdf(wo, dirToLight);
+                        float phasePdf = medium.Phase.Pdf(wo, dirToLight);
                         if (phasePdf > 0f)
                         {
                             float pLight = light.PdfSolidAngle(p, dirToLight);

@@ -3,6 +3,21 @@ using System.Numerics;
 namespace RayTracer.Materials;
 
 /// <summary>
+/// Refractive medium transition signalled by a BSDF sample to drive the
+/// renderer's <see cref="Volumetrics.MediumStack"/>. <see cref="None"/> on
+/// reflection lobes and on transmissions through geometry that has no medium
+/// binding; <see cref="Enter"/> when the sample enters the geometry's
+/// interior medium (front-face refraction); <see cref="Exit"/> when it exits
+/// (back-face refraction).
+/// </summary>
+public enum MediumTransition
+{
+    None,
+    Enter,
+    Exit,
+}
+
+/// <summary>
 /// The result of a BSDF direction-sample — a sampled outgoing direction
 /// together with the BRDF value and the solid-angle PDF at that direction.
 ///
@@ -26,7 +41,14 @@ namespace RayTracer.Materials;
 ///     σ_a, exiting (FrontFace=false) restores vacuum (Vector3.Zero). A null
 ///     value means "unchanged" — the renderer keeps whatever interior medium
 ///     the ray was traversing before this hit. Non-transmissive samples
-///     (reflection lobes) always return null.
+///     (reflection lobes) always return null. <em>Legacy back-compat field —
+///     superseded by <see cref="Transition"/> + the entity-level
+///     <c>interior_medium</c> binding in Phase 2 of the MediumInterface
+///     rollout. Refraction lobes still emit it so scenes without explicit
+///     medium bindings keep working unchanged.</em>
+///   - Transition describes the medium-stack effect of this sample (None /
+///     Enter / Exit). The renderer reads <see cref="Core.HitRecord.MediumIface"/>
+///     at the same hit to know *which* medium to push or pop.
 /// </summary>
 public readonly struct BsdfSample
 {
@@ -35,14 +57,17 @@ public readonly struct BsdfSample
     public readonly float    Pdf;
     public readonly bool     IsDelta;
     public readonly Vector3? NextSegmentAbsorption;
+    public readonly MediumTransition Transition;
 
     public BsdfSample(Vector3 wo, Vector3 f, float pdf, bool isDelta = false,
-                      Vector3? nextSegmentAbsorption = null)
+                      Vector3? nextSegmentAbsorption = null,
+                      MediumTransition transition = MediumTransition.None)
     {
         Wo = wo;
         F = f;
         Pdf = pdf;
         IsDelta = isDelta;
         NextSegmentAbsorption = nextSegmentAbsorption;
+        Transition = transition;
     }
 }

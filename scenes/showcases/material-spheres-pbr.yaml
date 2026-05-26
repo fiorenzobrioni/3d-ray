@@ -380,7 +380,6 @@ materials:
     color: [0.85, 0.85, 0.86]
     roughness: 0.80
     specular: 0.15
-    subsurface: 0.25
     texture:
       type: "noise"
       noise_type: "billow"
@@ -1115,7 +1114,6 @@ materials:
     specular: 0.55
     clearcoat: 0.30
     coat_roughness: 0.25
-    subsurface: 0.25
     texture:
       type: "voronoi"
       scale: 8.0

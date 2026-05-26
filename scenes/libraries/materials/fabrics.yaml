@@ -147,8 +147,6 @@ materials:
     sheen: 0.95
     sheen_tint: 0.3
     sheen_roughness: 0.95
-    subsurface: 0.18
-    subsurface_color: [0.45, 0.06, 0.10]
 
   # Velluto deep-pile blu notte — pelo lungo polveroso
   - id: "dis_velluto_deep_blu_notte"
@@ -159,8 +157,6 @@ materials:
     sheen: 0.95
     sheen_tint: 0.3
     sheen_roughness: 0.95
-    subsurface: 0.18
-    subsurface_color: [0.06, 0.10, 0.30]
 
 
   # ── SETA ─────────────────────────────────────────────────────────────────
@@ -175,7 +171,6 @@ materials:
     sheen: 0.55
     sheen_tint: 0.5
     sheen_roughness: 0.4
-    subsurface: 0.18
 
   # Seta rossa — cravatte, kimono
   - id: "dis_seta_rossa"
@@ -186,7 +181,6 @@ materials:
     sheen: 0.60
     sheen_tint: 0.7
     sheen_roughness: 0.4
-    subsurface: 0.15
 
   # Seta blu — cravatte, foulard
   - id: "dis_seta_blu"
@@ -197,7 +191,6 @@ materials:
     sheen: 0.60
     sheen_tint: 0.7
     sheen_roughness: 0.4
-    subsurface: 0.15
 
   # Seta nera — abiti eleganti, fodere
   - id: "dis_seta_nera"
@@ -218,7 +211,6 @@ materials:
     sheen: 0.58
     sheen_tint: 0.8
     sheen_roughness: 0.4
-    subsurface: 0.12
 
   # Seta verde giada — kimono, sari
   - id: "dis_seta_verde"
@@ -229,7 +221,6 @@ materials:
     sheen: 0.58
     sheen_tint: 0.7
     sheen_roughness: 0.4
-    subsurface: 0.14
 
   # Seta anisotropica champagne — riflesso direzionale lungo il twist
   - id: "dis_seta_anisotropica"
@@ -309,7 +300,6 @@ materials:
     sheen: 0.10
     sheen_tint: 0.5
     sheen_roughness: 0.8
-    subsurface: 0.08
 
   # Cotone nero — magliette nere
   - id: "dis_cotone_nero"
@@ -363,7 +353,6 @@ materials:
     sheen: 0.18
     sheen_tint: 0.6
     sheen_roughness: 0.7
-    subsurface: 0.15
 
   # Lino bianco — lenzuola, tavole estive
   - id: "dis_lino_bianco"
@@ -374,7 +363,6 @@ materials:
     sheen: 0.15
     sheen_tint: 0.5
     sheen_roughness: 0.7
-    subsurface: 0.18
 
   # Lino grigio — arredo scandinavo
   - id: "dis_lino_grigio"
@@ -385,7 +373,6 @@ materials:
     sheen: 0.15
     sheen_tint: 0.4
     sheen_roughness: 0.7
-    subsurface: 0.12
 
 
   # ── LANA ─────────────────────────────────────────────────────────────────
@@ -399,8 +386,6 @@ materials:
     sheen: 0.45
     sheen_tint: 0.5
     sheen_roughness: 0.85
-    subsurface: 0.08
-    flatness: 0.3
 
   # Lana grigia — tweed, cappotti invernali
   - id: "dis_lana_grigia"
@@ -411,7 +396,6 @@ materials:
     sheen: 0.40
     sheen_tint: 0.4
     sheen_roughness: 0.85
-    flatness: 0.3
 
   # Lana rossa — sciarpe, coperte scozzesi
   - id: "dis_lana_rossa"
@@ -422,7 +406,6 @@ materials:
     sheen: 0.42
     sheen_tint: 0.7
     sheen_roughness: 0.85
-    flatness: 0.3
 
   # Lana blu navy — peacoat, caban
   - id: "dis_lana_blu"
@@ -433,7 +416,6 @@ materials:
     sheen: 0.40
     sheen_tint: 0.5
     sheen_roughness: 0.85
-    flatness: 0.3
 
   # Lana cammello — cappotti eleganti
   - id: "dis_lana_cammello"
@@ -591,7 +573,6 @@ materials:
     sheen: 0.08
     sheen_tint: 0.5
     sheen_roughness: 0.9
-    flatness: 0.6
 
   # Feltro rosso — tavoli da poker
   - id: "dis_feltro_rosso"
@@ -602,7 +583,6 @@ materials:
     sheen: 0.08
     sheen_tint: 0.5
     sheen_roughness: 0.9
-    flatness: 0.6
 
   # Feltro grigio — cappelli, artigianato
   - id: "dis_feltro_grigio"
@@ -613,7 +593,6 @@ materials:
     sheen: 0.08
     sheen_tint: 0.3
     sheen_roughness: 0.9
-    flatness: 0.6
 
   # Feltro nero — cappelli, custodie
   - id: "dis_feltro_nero"
@@ -624,7 +603,6 @@ materials:
     sheen: 0.06
     sheen_tint: 0.2
     sheen_roughness: 0.9
-    flatness: 0.6
 
 
   # ── PELLE VACCHETTA ──────────────────────────────────────────────────────
@@ -639,7 +617,6 @@ materials:
     sheen: 0.12
     sheen_tint: 0.5
     sheen_roughness: 0.5
-    subsurface: 0.08
 
   # Pelle nera — giacche, scarpe, borse
   - id: "dis_pelle_nera"
@@ -660,7 +637,6 @@ materials:
     sheen: 0.12
     sheen_tint: 0.6
     sheen_roughness: 0.5
-    subsurface: 0.08
 
   # Pelle cuoio chiaro — selleria, nuova
   - id: "dis_pelle_cuoio_chiaro"
@@ -671,7 +647,6 @@ materials:
     sheen: 0.14
     sheen_tint: 0.6
     sheen_roughness: 0.55
-    subsurface: 0.10
 
   # Pelle invecchiata — usura visibile, tono più scuro
   - id: "dis_pelle_invecchiata"
@@ -773,7 +748,6 @@ materials:
     sheen: 0.10
     sheen_tint: 0.5
     sheen_roughness: 0.7
-    subsurface: 0.06
 
   # Cuoio scuro — valigie vintage, cinture
   - id: "dis_cuoio_scuro"
@@ -794,7 +768,6 @@ materials:
     sheen: 0.12
     sheen_tint: 0.6
     sheen_roughness: 0.75
-    subsurface: 0.08
 
 
   # ── NEOPRENE ─────────────────────────────────────────────────────────────
@@ -886,7 +859,6 @@ materials:
     sheen: 0.32
     sheen_tint: 0.7
     sheen_roughness: 0.5
-    subsurface: 0.25
 
   # Tulle nero — gonne, veli, costumi
   - id: "dis_tulle_nero"
@@ -911,7 +883,6 @@ materials:
     sheen: 0.28
     sheen_tint: 0.6
     sheen_roughness: 0.55
-    subsurface: 0.22
 
   # Garza sottile — medicale o decorativa, diff_trans massimo
   - id: "dis_garza"

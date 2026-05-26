@@ -88,8 +88,6 @@ materials:
     type: "disney"
     color: [0.9, 0.88, 0.85]
     roughness: 0.2
-    subsurface: 0.3
-    subsurface_color: [0.95, 0.9, 0.8]
   - id: "dark_marble"
     type: "disney"
     color: [0.2, 0.2, 0.22]
