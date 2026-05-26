@@ -1,4 +1,5 @@
 using System.Numerics;
+using RayTracer.Geometry;
 using RayTracer.Materials;
 using RayTracer.Textures;
 using RayTracer.Volumetrics;
@@ -27,6 +28,19 @@ public struct HitRecord
     /// driving Beer-Lambert and volumetric scattering along the next segment.
     /// </summary>
     public MediumInterface MediumIface;
+
+    /// <summary>
+    /// Root <see cref="IHittable"/> of the entity that produced this hit —
+    /// the inner geometry that <see cref="Geometry.MediumBoundHittable"/>
+    /// wraps. Populated by the same wrapper that stamps
+    /// <see cref="MediumIface"/>, alongside it. The random-walk SSS
+    /// integrator uses it to query boundary intersections restricted to
+    /// the bound entity (rather than the global BVH), preventing the walk
+    /// from leaking into other geometry through coincident surfaces.
+    /// Default-null on plain entities — the SSS path is gated on a
+    /// non-null binding here anyway.
+    /// </summary>
+    public IHittable? EntityRoot;
 
     /// <summary>
     /// Per-ray-category visibility bitmask (Arnold <c>visibility.*</c> / Cycles

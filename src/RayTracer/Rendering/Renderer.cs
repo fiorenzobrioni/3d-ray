@@ -47,7 +47,59 @@ public enum LightSamplingStrategy
     Uniform
 }
 
-public class Renderer
+/// <summary>
+/// SSS dispatch mode. Drives whether refraction events into geometry bound to
+/// a scattering <see cref="HomogeneousMedium"/> activate the random-walk
+/// integrator (<see cref="Auto"/>) or fall through to the existing Beer-Lambert
+/// volumetric path (<see cref="Off"/>).
+/// <para><see cref="Auto"/> is the default — SSS is correctness, not an extra
+/// optional. <see cref="Off"/> is offered as a preview / A/B comparison knob
+/// (Phase 4 CLI: <c>--sss-mode</c>).</para>
+/// </summary>
+public enum SssMode
+{
+    Auto,
+    Off,
+}
+
+/// <summary>
+/// Random-walk integrator configuration. Quality presets (Phase 4 CLI:
+/// <c>--sss-quality preview|normal|high</c>) plug into the Renderer
+/// constructor by selecting one of <see cref="Preview"/>, <see cref="Normal"/>,
+/// or <see cref="High"/>. The defaults below match <see cref="Normal"/> and
+/// are tuned for the median scene (marble bust under area light).
+/// </summary>
+public readonly struct RandomWalkConfig
+{
+    /// <summary>Hard ceiling on volumetric bounces inside one entity walk.
+    /// Caps the worst-case cost on low-albedo / high-density media where
+    /// Russian Roulette alone wouldn't terminate fast enough.</summary>
+    public readonly int MaxVolumeBounces;
+
+    /// <summary>Walk-bounce index at which Russian Roulette kicks in. Earlier
+    /// bounces are guaranteed to run — this is the warmup before RR takes
+    /// over.</summary>
+    public readonly int RrStartBounce;
+
+    /// <summary>Whether to evaluate next-event estimation at every internal
+    /// scattering event. Standard production setting (Cycles / Arnold);
+    /// only disabled for the cheapest preview tier where light contact
+    /// comes exclusively from the boundary surface re-entry.</summary>
+    public readonly bool NeeInsideWalk;
+
+    public RandomWalkConfig(int maxVolumeBounces, int rrStartBounce, bool neeInsideWalk)
+    {
+        MaxVolumeBounces = maxVolumeBounces;
+        RrStartBounce    = rrStartBounce;
+        NeeInsideWalk    = neeInsideWalk;
+    }
+
+    public static RandomWalkConfig Preview => new(maxVolumeBounces: 16,  rrStartBounce: 1, neeInsideWalk: false);
+    public static RandomWalkConfig Normal  => new(maxVolumeBounces: 64,  rrStartBounce: 3, neeInsideWalk: true);
+    public static RandomWalkConfig High    => new(maxVolumeBounces: 256, rrStartBounce: 6, neeInsideWalk: true);
+}
+
+public partial class Renderer
 {
     private readonly IHittable _world;
     private readonly Camera.Camera _camera;
@@ -189,6 +241,16 @@ public class Renderer
     public const float DefaultExposureEv = 0f;
     private readonly float _exposureScale;
 
+    // ── Random-walk subsurface scattering ──────────────────────────────────
+    // Dispatched from ShadeSampleBounce when an entry refraction lands on an
+    // entity bound to a HomogeneousMedium with σ_s > 0. Off mode lets the
+    // refraction fall through to the existing Beer-Lambert path (the medium
+    // still tracks absorption, but does not scatter — useful for A/B testing
+    // the lit appearance and for fast previews of scene composition before
+    // the full walk cost). See RandomWalkSss.cs for the integrator.
+    private readonly SssMode _sssMode;
+    private readonly RandomWalkConfig _walkConfig;
+
     public Renderer(
         IHittable world,
         Camera.Camera camera,
@@ -203,7 +265,9 @@ public class Renderer
         LightSamplingStrategy lightSamplingStrategy = LightSamplingStrategy.All,
         float indirectClampFactor = DefaultIndirectClampFactor,
         TextureFilteringMode textureFiltering = TextureFilteringMode.Auto,
-        float exposureEv = DefaultExposureEv)
+        float exposureEv = DefaultExposureEv,
+        SssMode sssMode = SssMode.Auto,
+        RandomWalkConfig? walkConfig = null)
     {
         _world = world;
         _camera = camera;
@@ -215,6 +279,8 @@ public class Renderer
         _maxSampleRadiance = maxSampleRadiance ?? DefaultMaxSampleRadiance;
         _indirectMaxSampleRadiance = _maxSampleRadiance * MathF.Max(0f, indirectClampFactor);
         _exposureScale = MathF.Pow(2f, exposureEv);
+        _sssMode = sssMode;
+        _walkConfig = walkConfig ?? RandomWalkConfig.Normal;
         _verbose = verbose;
         _misHeuristic = misHeuristic;
         _lightSamplingStrategy = lightSamplingStrategy;
@@ -807,18 +873,39 @@ public class Renderer
         switch (s.Transition)
         {
             case MediumTransition.Enter:
-                nextMediums.Push(rec.MediumIface.Interior);
+                nextMediums.Push(ResolvePushedMedium(rec.MediumIface.Interior));
                 break;
             case MediumTransition.Exit:
                 nextMediums.Pop();
                 break;
         }
         RayCategory nextCat = ClassifyScatteredRay(rec.Normal, s.Wo, s.IsDelta);
-        Vector3 indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
-                                     ref nextMediums,
-                                     currentAbsorption: nextAbsorption,
-                                     pathThroughput: nextThroughput,
-                                     incomingCategory: nextCat);
+
+        // ── SSS dispatch (Phase 3: Random Walk integrator) ──────────────────
+        // On entry into geometry bound to a scattering HomogeneousMedium, the
+        // sample's refraction direction enters that medium's volume. Instead
+        // of letting TraceRay drive a single-channel free-flight sampler we
+        // hand off to the dedicated hero-wavelength + MIS random walk, which
+        // is restricted to the bound entity and produces the spectrally
+        // unbiased subsurface contribution. See RandomWalkSss.cs.
+        Vector3 indirect;
+        if (_sssMode == SssMode.Auto
+            && s.Transition == MediumTransition.Enter
+            && nextMediums.Top is HomogeneousMedium hmInterior
+            && IsScatteringMedium(hmInterior)
+            && rec.EntityRoot is { } entityRoot)
+        {
+            indirect = RandomWalkSubsurface(scattered, hmInterior, entityRoot,
+                                             ref nextMediums, depth - 1, nextThroughput);
+        }
+        else
+        {
+            indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
+                                 ref nextMediums,
+                                 currentAbsorption: nextAbsorption,
+                                 pathThroughput: nextThroughput,
+                                 incomingCategory: nextCat);
+        }
         // Depth-aware indirect clamp — see ShadeSurface's Scatter path above.
         indirect = ClampRadianceIndirect(indirect);
         // PBRT/Arnold convention — see ShadeSurface above.

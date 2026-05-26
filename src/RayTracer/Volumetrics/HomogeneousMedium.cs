@@ -9,6 +9,18 @@ public sealed class HomogeneousMedium : IMedium
     private readonly Vector3 _sigmaS;
     private readonly Vector3 _sigmaT;
 
+    /// <summary>Absorption coefficient σ_a per RGB channel.</summary>
+    public Vector3 SigmaA => _sigmaA;
+
+    /// <summary>Scattering coefficient σ_s per RGB channel. The random-walk
+    /// SSS integrator activates only when at least one channel is &gt; 0
+    /// (otherwise the medium is pure-absorption and Beer-Lambert applies
+    /// along the surface segment via the legacy volumetric path).</summary>
+    public Vector3 SigmaS => _sigmaS;
+
+    /// <summary>Extinction σ_t = σ_a + σ_s, cached at construction.</summary>
+    public Vector3 SigmaT => _sigmaT;
+
     public IPhaseFunction Phase { get; }
 
     public HomogeneousMedium(Vector3 sigmaA, Vector3 sigmaS, IPhaseFunction phase)
