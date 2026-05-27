@@ -6,6 +6,30 @@ Roadmap, lavori in corso, bug noti, storico cicli.
 
 ---
 
+## Ciclo SSS embedded (Arnold/Cycles parity) ✅
+
+Aggiunta la strada **material-embedded** al subsurface scattering, complementare al binding entity-level già esistente (`interior_medium`). Dichiarare `subsurface_radius` su un materiale Disney attiva ora automaticamente il Random Walk volumetrico, senza serve una sezione `mediums:` né `interior_medium` sull'entity.
+
+**Razionale.** Le librerie material self-contained (stones, organics, foods, liquids, glasses, minerals-gems, leathers) sono il workflow tipico degli artisti: si importa un singolo file e si usano gli ID. Costringere ogni utilizzatore a importare anche `libraries/mediums/*.yaml` e a ricordare il binding `interior_medium` per riga di entity è boilerplate puro. La parity con Arnold `standard_surface` (`subsurface_type: randomwalk`) e con il Subsurface del Principled BSDF di Cycles fa risparmiare 4-5 righe per scena su materiali traslucenti standard, mantenendo l'override entity-level disponibile per i casi avanzati (volumi condivisi, media eterogenei, override per-entity).
+
+**Implementazione.**
+- `SceneLoader.BuildEmbeddedSssMedium` — costruisce un `HomogeneousMedium` anonimo dai campi del materiale. Per canale: `σ_t = 1 / (subsurface_radius · subsurface_scale)`, `σ_s = α · σ_t`, `σ_a = (1 − α) · σ_t`, con `α = subsurface_color` (fallback `color`). Phase function HG con `g = subsurface_anisotropy` (isotropic quando g ≈ 0).
+- `SceneLoader.ApplyEmbeddedSssDefaults` — forza i default necessari al lobo di trasmissione Disney solo se l'utente non li ha già impostati: `spec_trans = 1.0`, `transmission_color = [1, 1, 1]`. Senza questi il lobo non emette `MediumTransition.Enter` e lo stack non viene pushato. Gli altri parametri (`metallic`, `roughness`, `ior`, …) sono intoccati.
+- `SceneLoader.ResolveEntityMediumInterface` — esteso per consultare la mappa materiale → medium embedded come fallback dell'`interior_medium` esplicito sull'entity. L'esplicito vince sempre (convenzione Arnold/Cycles): lo stesso materiale può essere riutilizzato su entity diverse e ognuna può sostituire il volume in modo indipendente.
+- Warning a tre canali (skipping silente del medium embedded): `metallic > 0` (il metallic blend sopprime la trasmissione), `thin_walled: true` (niente volume interno), type non-Disney (`lambertian`/`metal`/`dielectric` non emettono `Enter`).
+
+**File modificati.**
+- `SceneData.cs` — 3 nuovi campi sul Disney material: `subsurface_radius`, `subsurface_scale`, `subsurface_anisotropy` (`subsurface_color` esisteva già).
+- `SceneLoader.cs` — nuovi helper `BuildEmbeddedSssMedium` + `ApplyEmbeddedSssDefaults`; `ResolveEntityMediumInterface` esteso al lookup material→medium embedded; warning queue per i 3 casi sopra.
+
+**Compatibilità.** Il warning legacy su `subsurface`/`subsurface_color`/`flatness` (parametri Disney 2015 rimossi nel ciclo precedente) ora scatta solo se `subsurface_radius` è **assente** sul materiale — in quel caso resta un fake-SSS legacy genuino da migrare. Quando invece `subsurface_radius` è presente, gli stessi campi smettono di essere "legacy noise" e diventano parte del nuovo path embedded, quindi il warning non è più rilevante.
+
+**Librerie aggiornate** (set di default `subsurface_radius` calibrato per artisti che importano la libreria senza modifiche): `stones`, `organics`, `foods`, `liquids`, `glasses`, `minerals-gems`, `leathers`. **Non** aggiornata `fabrics` (i tessuti sottili sono modellati con `diff_trans` + `thin_walled`, non con SSS volumetrico — il warning `thin_walled` lo ricorderebbe comunque).
+
+**Docs.** `docs/reference/scene-reference.md` + `riferimento-scene.md` (nuova sottosezione "Material-embedded SSS" / "SSS material-embedded" sotto §5.5, con formula σ esplicita, auto-default table, regola di precedenza, casi warning, esempio); `docs/technical/subsurface-scattering.{md,it.md}` (nuova sezione "Two binding paths" / "Due strade di binding" con confronto tabellare entity-bound vs material-embedded); `docs/tutorial/{en,it}/03-materials.md` (callout SSS aggiornato a due strade); `scenes/libraries/materials/README.md` + `scenes/libraries/mediums/README.md` (sezione "Material-embedded SSS" / nota di apertura); README root (feature line nella sezione Volumetria).
+
+---
+
 ## Ciclo MediumInterface + Random Walk SSS ✅
 
 Sostituito il vecchio "fake SSS" del Disney BSDF (`subsurface`, `subsurface_color`, `flatness`, lobo flat HK) con un sistema fisicamente corretto.

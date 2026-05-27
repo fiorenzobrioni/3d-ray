@@ -487,7 +487,12 @@ Il `spec_trans`/`ior` (Disney) o il lobo `dielectric` controllano il Fresnel di 
 | `--sss-quality preview\|normal\|high` | eredita da `-q` | Configura MaxVolumeBounces / RrStartBounce / NeeInsideWalk in blocco. `draft*` → preview, `medium*` → normal, `final*`/`ultra` → high. |
 | `--max-volume-bounces <n>` | dipende dal preset (16/64/256) | Cap massimo sui bounce in un walk. Limita il worst-case su media densi. |
 
-Nota migrazione: i parametri Disney legacy `subsurface`, `subsurface_color`, `subsurface_radius`, `flatness` non sono più letti. Usa `interior_medium` con i preset Jensen 2001 in `docs/technical/subsurface-scattering.md` per ottenere un look SSS fisicamente corretto.
+Nota migrazione: i parametri Disney legacy `subsurface` e `flatness` non sono più letti. Per ottenere un look SSS fisicamente corretto usa una delle due strade interoperabili:
+
+1. **Material-embedded** — dichiara `subsurface_radius` sul materiale Disney (vedi §5.5, sezione "SSS material-embedded"); il loader costruisce automaticamente un `HomogeneousMedium` e lo inietta su ogni entity che non ha già un `interior_medium` esplicito. Parity con Arnold `standard_surface` `subsurface_type: randomwalk` e con il Subsurface del Principled BSDF di Cycles.
+2. **Entity-bound** — definisci un medium in `mediums:` e collegalo con `interior_medium` sull'entity, usando i preset Jensen 2001 in `docs/technical/subsurface-scattering.it.md`.
+
+L'`interior_medium` esplicito vince sempre sul medium embedded dedotto da `subsurface_radius`.
 
 ---
 
@@ -636,6 +641,12 @@ Quando entrambi `focal_pos` e `focal_dist` sono specificati, `focal_pos` vince (
   thin_film_thickness: 0.0                 # Spessore del film in nanometri (0 = disabilitato)
   thin_film_ior: 1.5                       # IOR del film (η₂)
 
+  # ── SSS material-embedded (parity Arnold randomwalk / Cycles Principled) ─
+  subsurface_color: [0.95, 0.90, 0.85]     # Albedo del volume (default: usa color)
+  subsurface_radius: [0.45, 0.35, 0.22]    # Mean Free Path per canale RGB (world units)
+  subsurface_scale: 1.0                    # Moltiplicatore globale dell'MFP (default 1.0)
+  subsurface_anisotropy: 0.0               # HG g della phase function auto-costruita (0 = isotropico)
+
   # ── Texturing ───────────────────────────────────────────────────────
   texture: (opzionale)                     # Texture del base color
   normal_map: (opzionale)
@@ -676,6 +687,10 @@ caricamento quando ne trova una).
 | `thin_walled` | bool | false | — | 2015 | Disattiva la rifrazione interna (foglie, carta) |
 | `thin_film_thickness` | float | 0.0 | ≥ 0 (nm) | Thin-film | Belcour-Barla 2017; 100–800 nm = iridescenza |
 | `thin_film_ior` | float | 1.5 | ≥ 1 | Thin-film | η₂ del film (acqua = 1.33, sapone = 1.40) |
+| `subsurface_radius` | colore | — | ≥ 0 (wu) | SSS | Mean Free Path per canale RGB. La sua presenza attiva l'auto-build di un `HomogeneousMedium` embedded. |
+| `subsurface_color` | colore | `color` | 0–1 | SSS | Albedo del volume. Se omesso usa il `color` di superficie. |
+| `subsurface_scale` | float | 1.0 | > 0 | SSS | Moltiplicatore globale applicato a `subsurface_radius` prima della conversione σ. |
+| `subsurface_anisotropy` | float | 0.0 | -1–1 | SSS | `g` HG della phase function auto-costruita. 0 ≈ isotropico. |
 | `texture` | blocco | — | — | Texturing | Procedurale o immagine, sostituisce `color` |
 | `normal_map` | blocco | — | — | Texturing | Perturbazione della superficie (solo image) |
 | `bump_map` | blocco | — | — | Texturing | Bump scalare da una qualunque texture procedurale/image |
@@ -710,13 +725,87 @@ Finché rimane negativo il motore usa il path legacy basato su
   - Plastiche: `metallic=0.0`, `roughness=0.4–0.8`
   - Vernice auto: `metallic=0.0`, `clearcoat=1.0` (+ `coat_roughness` per il coat stile Arnold)
   - Tessuti / velluto: `metallic=0.0`, `sheen=0.8–1.0`, `sheen_roughness=0.2–0.4`
-  - Pelle / marmo / cera / latte: `spec_trans=1.0`, `ior=1.4–1.5`, più `interior_medium: <id>` sull'entity legato a un medium `homogeneous` con `σ_s > 0` (Random Walk SSS — vedi [docs/technical/subsurface-scattering.it.md](../technical/subsurface-scattering.it.md)).
+  - Pelle / marmo / cera / latte: o dichiari `subsurface_radius` sul materiale (auto-build del medium — vedi "SSS material-embedded" più sotto), oppure imposti `spec_trans=1.0`, `ior=1.4–1.5` più `interior_medium: <id>` sull'entity legato a un medium `homogeneous` con `σ_s > 0` (Random Walk SSS — vedi [docs/technical/subsurface-scattering.it.md](../technical/subsurface-scattering.it.md)).
   - Vetro chiaro: `spec_trans=1.0`, `roughness=0.0`, `ior=1.52`
   - Vetro colorato: aggiungi `transmission_color` + `transmission_depth` (es. 5 unità per una bottiglia di brandy)
   - Bolle / opal: `thin_film_thickness=350..700`, `thin_film_ior=1.33..1.5`
   - Foglie / carta: `diff_trans=0.5`, `thin_walled=true`
 - **⚠️ Rumore (Noise):** Disney ha più lobi dei classici; per pelle/vetro/clearcoat in primo piano conta di usare circa 4× i campioni.
 - **💡 Best practice:** Usa lambertian per le grandi superfici, Disney solo per gli oggetti protagonisti.
+
+##### **SSS material-embedded (parity Arnold randomwalk / Cycles Principled)**
+
+Dichiarare `subsurface_radius` su un materiale Disney è la via breve al
+subsurface scattering: il loader costruisce automaticamente un
+`HomogeneousMedium` e lo inietta su ogni entity che usa il materiale e
+che **non** ha già un `interior_medium` esplicito. È la parity di Arnold
+`standard_surface` con `subsurface_type: randomwalk` e del Subsurface
+del Principled BSDF di Cycles — basta un parametro per ottenere un
+random walk fisicamente corretto.
+
+```yaml
+materials:
+  - id: dis_marmo_carrara
+    type: disney
+    color: [0.92, 0.89, 0.85]
+    roughness: 0.25
+    subsurface_color:     [0.95, 0.90, 0.85]   # albedo del volume (default: usa color)
+    subsurface_radius:    [0.45, 0.35, 0.22]   # Mean Free Path per canale RGB (world units)
+    subsurface_scale:     1.0                  # moltiplicatore globale dell'MFP (opzionale)
+    subsurface_anisotropy: 0.0                 # HG g (opzionale, default 0 = isotropico)
+
+entities:
+  - name: scultura
+    type: sphere
+    center: [0, 0.8, 0]
+    radius: 0.35
+    material: dis_marmo_carrara
+    # nessun interior_medium, nessuna sezione mediums: — l'SSS funziona lo stesso
+```
+
+**Come viene costruito il medium.** Sia `α` l'albedo di superficie
+(`subsurface_color` se presente, altrimenti `color`), e `r` il raggio
+(`subsurface_radius × subsurface_scale`, per canale):
+
+```
+σ_t = 1 / (radius · scale)
+σ_s = α · σ_t
+σ_a = (1 − α) · σ_t
+phase = HG(g = subsurface_anisotropy)        # isotropico quando g ≈ 0
+```
+
+L'`HomogeneousMedium` risultante è anonimo (nessun `id` di libreria) e
+vive solo per la durata della scena.
+
+**Auto-default sulla superficie.** Perché il lobo di trasmissione emetta
+il `MediumTransition.Enter` che pusha il medium sullo stack, il loader
+imposta silenziosamente:
+
+| Campo | Default forzato | Override |
+|---|---|---|
+| `spec_trans` | `1.0` | Rispettato se l'utente l'ha già impostato. |
+| `transmission_color` | `[1, 1, 1]` | Rispettato se l'utente l'ha già impostato. |
+
+Tutto il resto (`metallic`, `roughness`, `ior`, …) è lasciato invariato.
+
+**Precedenza.** L'`interior_medium` esplicito sull'entity vince sempre
+sul medium material-embedded. È la convenzione Arnold/Cycles: lo stesso
+materiale Disney può essere riutilizzato su entity diverse, ciascuna in
+grado di sostituire il volume (per esempio marmo lucido su una lastra,
+marmo gessoso — σ diversi — su un'altra).
+
+**Casi che generano warning** (e disabilitano il medium embedded):
+
+- `metallic > 0` sullo stesso materiale — il blend metallic sopprime il
+  lobo di trasmissione, l'evento `Enter` non scatterebbe mai.
+- `thin_walled: true` — una parete sottile non ha volume interno.
+- Type non-Disney (`lambertian`, `metal`, `dielectric`) — non emettono
+  `MediumTransition.Enter` e non possono pushare un medium.
+
+Usa la strada entity-bound (libreria top-level `mediums:` +
+`interior_medium`) quando ti servono volumi condivisi espliciti, quando
+due entity devono usare volumi diversi pur condividendo il materiale,
+oppure quando il volume è eterogeneo (`procedural` / `grid` / `nishita`).
 
 #### **5.6 Mix Material (Fonde Due Materiali)**
 ```yaml

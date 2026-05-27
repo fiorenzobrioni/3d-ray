@@ -89,6 +89,8 @@ materials:
   - id: "dis_pelle_anilina_nera"
     type: "disney"
     color: [0.04, 0.04, 0.04]
+    subsurface_radius: [0.30, 0.15, 0.10]   # SSS embedded (Random Walk, Phase 3)
+    subsurface_anisotropy: 0.75
     roughness: 0.48
     specular: 0.42
     texture:

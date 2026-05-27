@@ -200,10 +200,25 @@ Alias del tipo: `disney`, `disney_bsdf`, `pbr` (tutti creano lo stesso materiale
 > dedicato. Esempio:
 > `roughness_texture: { type: "image", path: "rough.png" }`.
 
-> **Subsurface scattering.** I campi Disney 2015 legacy `subsurface`,
-> `subsurface_color`, `subsurface_radius`, `flatness` sono stati rimossi.
-> L'SSS fisicamente corretto arriva ora dai binding `interior_medium`
-> sulle entity — vedi Capitolo 7 e
+> **Subsurface scattering.** I campi fake-SSS Disney 2015 `subsurface` e
+> `flatness` sono stati rimossi. L'SSS fisicamente corretto arriva ora
+> da una di due strade interoperabili:
+>
+> 1. **Material-embedded** — dichiara `subsurface_radius` (più gli
+>    opzionali `subsurface_color`, `subsurface_scale`,
+>    `subsurface_anisotropy`) sul materiale Disney. Il loader costruisce
+>    automaticamente un `HomogeneousMedium` con
+>    `σ_t = 1 / (radius · scale)`, `σ_s = α · σ_t`,
+>    `σ_a = (1 − α) · σ_t` e lo auto-inietta su ogni entity che non ha
+>    già un `interior_medium` esplicito. È la parity di Arnold
+>    `standard_surface` con `subsurface_type: randomwalk` e del
+>    Principled BSDF di Cycles.
+> 2. **Entity-bound** — dichiara un'entry nella libreria `mediums:` e
+>    collegala via `interior_medium` sull'entity. Massimo controllo,
+>    supporta media eterogenei. Vedi Capitolo 7.
+>
+> Un `interior_medium` esplicito vince sempre sul medium embedded.
+> Derivazione completa in
 > [docs/technical/subsurface-scattering.it.md](../../technical/subsurface-scattering.it.md).
 
 ### Come i Parametri Lavorano Insieme

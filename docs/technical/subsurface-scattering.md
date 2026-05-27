@@ -96,6 +96,103 @@ Reproducible σ-coefficients for common materials (`σ_t = σ_a + σ_s`, units 1
 
 These are the canonical post-Jensen values you'll find rendered in Mitsuba / PBRT documentation. For other materials, derive σ from the published reduced σ_s′ via `σ_s = σ_s′ / (1 − g)` and pick `g` per the medium's typical anisotropy (skin/wax ≈ 0.9 forward, milk/marble ≈ 0).
 
+## Two binding paths: entity-bound vs material-embedded
+
+The random walk integrator itself does not care where its
+`HomogeneousMedium` comes from — only that one is pushed onto the
+`MediumStack` when the ray refracts into the surface. The loader
+exposes two interoperable ways to set this up, mirroring the same split
+Arnold and Cycles offer.
+
+### Path 1 — Entity-bound (`interior_medium`)
+
+The artist defines a `homogeneous` medium in the top-level `mediums:`
+library (or inline in the scene) and binds it on the entity via
+`interior_medium: <id>`. The surface material only needs `spec_trans`
+> 0 and an `ior` to emit `MediumTransition.Enter` on refraction.
+
+```yaml
+mediums:
+  - id: marble_int
+    type: homogeneous
+    sigma_a: [0.0021, 0.0041, 0.0071]
+    sigma_s: [2.19, 2.62, 3.00]
+
+materials:
+  - id: marble_surface
+    type: disney
+    color: [1, 1, 1]
+    spec_trans: 1.0
+    ior: 1.5
+
+entities:
+  - type: sphere
+    material: marble_surface
+    interior_medium: marble_int
+```
+
+### Path 2 — Material-embedded (`subsurface_radius`)
+
+The artist declares `subsurface_radius` on the Disney material and the
+loader synthesises an anonymous `HomogeneousMedium` and auto-injects it
+on every entity that uses the material and does not already have an
+explicit `interior_medium`. This is the parity of Arnold
+`standard_surface` `subsurface_type: randomwalk` and Cycles Principled
+BSDF Subsurface section.
+
+```yaml
+materials:
+  - id: dis_marmo_carrara
+    type: disney
+    color: [0.92, 0.89, 0.85]
+    subsurface_color:  [0.95, 0.90, 0.85]
+    subsurface_radius: [0.45, 0.35, 0.22]
+    subsurface_scale:  1.0
+    subsurface_anisotropy: 0.0
+    # spec_trans + transmission_color are auto-defaulted by the loader
+
+entities:
+  - type: sphere
+    material: dis_marmo_carrara
+    # no interior_medium, no mediums: section — SSS still works
+```
+
+The medium is built from the per-channel formula
+
+```
+σ_t = 1 / (radius · scale)
+σ_s = α · σ_t                   # α = subsurface_color (or color)
+σ_a = (1 − α) · σ_t
+phase = HG(g = subsurface_anisotropy)
+```
+
+so it occupies the same `HomogeneousMedium` slot as a hand-written
+library entry — the integrator is unaware of the origin.
+
+### Comparison
+
+| Aspect | Path 1: entity-bound | Path 2: material-embedded |
+|---|---|---|
+| Where the σ values live | `mediums:` library entry | Material `subsurface_*` fields |
+| Configuration on the entity | `interior_medium: <id>` required | Nothing — auto-injected |
+| Two entities sharing the surface, different volumes | Trivial — bind a different `interior_medium` per entity | Override one entity with `interior_medium` (always wins) |
+| Heterogeneous media (procedural / grid / nishita) | Supported | Not applicable — embedded path is `homogeneous` only |
+| Library reuse | Material library + medium library imported separately | Self-contained material library — one import |
+| Closest DCC analogue | Arnold "interior" / Mitsuba `<medium>` binding | Arnold `standard_surface` randomwalk / Cycles Principled Subsurface |
+
+**Precedence rule.** An explicit `interior_medium` on the entity always
+wins over the material-embedded medium. This is the deliberate Arnold /
+Cycles convention: the embedded medium is a sensible default that the
+artist can swap out per-entity without touching the material.
+
+**When to use which.** Reach for the embedded path when you want
+self-contained material libraries (`stones.yaml`, `organics.yaml`,
+`foods.yaml`, `liquids.yaml`, `glasses.yaml`, `minerals-gems.yaml`,
+`leathers.yaml` all ship pre-tuned `subsurface_radius`). Reach for the
+entity-bound path when you need maximum control: shared volumes across
+many entities, heterogeneous media, or different volumes behind the
+same surface look.
+
 ## Migration from legacy Disney `subsurface`
 
 Pre-Phase-2 scenes that set `subsurface > 0` on Disney materials are no longer SSS — the parameter is parsed but ignored, and the loader emits a warning. Replace it with an `interior_medium` binding:

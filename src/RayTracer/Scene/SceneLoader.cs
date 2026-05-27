@@ -169,6 +169,16 @@ public class SceneLoader
                     deferredMix.Add(m);
                     continue;
                 }
+                // Material-embedded SSS auto-defaults: when subsurface_radius
+                // is set, the loader silently fills in the refractive plumbing
+                // needed by the Disney BSDF transmission lobe (which is what
+                // actually triggers MediumTransition.Enter / Exit and the
+                // Random Walk Phase 3 integrator). Mirrors Arnold's
+                // standard_surface convention: an artist who only sets
+                // subsurface_* parameters gets working volumetric SSS without
+                // boilerplate. Explicit values authored by the user are
+                // always preserved.
+                ApplyEmbeddedSssDefaults(m);
                 materials[m.Id] = CreateMaterial(m, sceneDir);
             }
  
@@ -243,6 +253,30 @@ public class SceneLoader
             if (mediumLibrary.Count > 0)
                 Info($"Mediums:     {mediumLibrary.Count} registered " +
                      $"({string.Join(", ", mediumLibrary.Keys)})");
+        }
+
+        // ── Material-embedded SSS mediums (Arnold standard_surface parity) ──
+        // When a material declares `subsurface_radius`, build an anonymous
+        // HomogeneousMedium derived from that MFP + subsurface_color (volume
+        // albedo). The medium is later auto-injected on every entity that
+        // references the material AND lacks an explicit `interior_medium`
+        // (explicit binding always wins — Arnold/Cycles convention).
+        var embeddedSssMedium = new Dictionary<string, IMedium>(StringComparer.OrdinalIgnoreCase);
+        if (data.Materials != null)
+        {
+            foreach (var m in data.Materials)
+            {
+                if (m.Id == null) continue;
+                if (m.SubsurfaceRadius == null) continue;
+                if (m.SubsurfaceRadius.Count == 0) continue;
+
+                var med = BuildEmbeddedSssMedium(m);
+                if (med != null)
+                    embeddedSssMedium[m.Id] = med;
+            }
+            if (embeddedSssMedium.Count > 0)
+                Info($"SSS embedded: {embeddedSssMedium.Count} material(s) with auto-built medium " +
+                     $"({string.Join(", ", embeddedSssMedium.Keys)})");
         }
 
         var objects = new List<IHittable>();
@@ -379,7 +413,11 @@ public class SceneLoader
                     // exterior). Wrap last so MediumInterface rides on every
                     // hit forwarded by inner wrappers — the renderer needs
                     // it during refraction to push/pop the medium stack.
-                    var mi = ResolveEntityMediumInterface(e, mediumLibrary);
+                    // When the entity has no explicit interior_medium but the
+                    // referenced material carries `subsurface_radius`, inject
+                    // the material-embedded medium (Arnold standard_surface
+                    // parity). Explicit binding on the entity always wins.
+                    var mi = ResolveEntityMediumInterface(e, mediumLibrary, embeddedSssMedium);
                     if (mi.Interior != null || mi.Exterior != null)
                         hittable = new MediumBoundHittable(hittable, mi);
                     objects.Add(hittable);
@@ -513,6 +551,7 @@ public class SceneLoader
         var importedEntities  = new List<EntityData>();
         var importedLights    = new List<LightData>();
         var importedTemplates = new List<EntityData>();
+        var importedMediums   = new List<MediumData>();
  
         foreach (var import in data.Imports)
         {
@@ -564,12 +603,15 @@ public class SceneLoader
                     importedLights.AddRange(importData.Lights);
                 if (importData.Templates != null)
                     importedTemplates.AddRange(importData.Templates);
- 
+                if (importData.Mediums != null)
+                    importedMediums.AddRange(importData.Mediums);
+
                 Verbose($"Imported:    {import.Path} " +
                         $"({importData.Materials?.Count ?? 0} materials, " +
                         $"{importData.Entities?.Count ?? 0} entities, " +
                         $"{importData.Lights?.Count ?? 0} lights, " +
-                        $"{importData.Templates?.Count ?? 0} templates)");
+                        $"{importData.Templates?.Count ?? 0} templates, " +
+                        $"{importData.Mediums?.Count ?? 0} mediums)");
             }
             catch (Exception ex)
             {
@@ -597,6 +639,11 @@ public class SceneLoader
         {
             importedTemplates.AddRange(data.Templates ?? new List<EntityData>());
             data.Templates = importedTemplates;
+        }
+        if (importedMediums.Count > 0)
+        {
+            importedMediums.AddRange(data.Mediums ?? new List<MediumData>());
+            data.Mediums = importedMediums;
         }
     }
 
@@ -1023,23 +1070,33 @@ public class SceneLoader
         // ── Legacy "fake SSS" knobs (clean break) ───────────────────────────
         // The Hanrahan-Krueger flat-blend approximation that used to live on
         // the Disney diffuse lobe has been removed in favour of physically-
-        // based Random Walk subsurface scattering bound at the entity level
-        // via interior_medium (see docs/technical/subsurface-scattering.md).
-        // YAML files authored against the legacy schema still parse cleanly
-        // — but the values below are ignored. Warn the artist so the loss of
-        // the old look isn't mistaken for a renderer bug.
+        // based Random Walk subsurface scattering. Two production paths
+        // are supported:
+        //   1. entity-level: `interior_medium: <id>` on the entity, using a
+        //      medium from the `mediums:` library;
+        //   2. material-embedded: `subsurface_radius` on the material itself
+        //      (Arnold standard_surface / Cycles Principled BSDF parity) —
+        //      the loader auto-builds a HomogeneousMedium per material and
+        //      injects it on every entity that references the material and
+        //      lacks an explicit interior_medium.
+        // The legacy diffuse-approximation 'subsurface' / 'subsurface_color' /
+        // 'flatness' parameters remain parsed for backward compatibility but
+        // contribute nothing to the random-walk path. Warn only when these
+        // are set WITHOUT subsurface_radius, so the artist knows they need to
+        // migrate to one of the two real SSS paths.
         if (material is DisneyBsdf
+            && m.SubsurfaceRadius == null
             && (m.Subsurface > 0f
                 || m.SubsurfaceColor != null
-                || m.SubsurfaceRadius != null
                 || m.Flatness > 0f
                 || m.SubsurfaceTexture != null
                 || m.SubsurfaceColorTexture != null
                 || m.FlatnessTexture != null))
         {
             Warn($"Material '{m.Id ?? "(unnamed)"}': legacy 'subsurface' / 'subsurface_color' / " +
-                 $"'subsurface_radius' / 'flatness' fields are ignored — Random Walk SSS now " +
-                 $"binds at the entity level via 'interior_medium'. See " +
+                 $"'flatness' fields contribute nothing to the random-walk SSS. Add " +
+                 $"'subsurface_radius' to enable material-embedded SSS, or bind " +
+                 $"'interior_medium' on the entity. See " +
                  $"docs/technical/subsurface-scattering.md for the migration recipe.");
         }
 
@@ -3690,7 +3747,8 @@ public class SceneLoader
     /// binding wasn't there.
     /// </summary>
     private static MediumInterface ResolveEntityMediumInterface(EntityData e,
-        Dictionary<string, IMedium> mediumLibrary)
+        Dictionary<string, IMedium> mediumLibrary,
+        Dictionary<string, IMedium>? embeddedSssMedium = null)
     {
         IMedium? interior = null;
         IMedium? exterior = null;
@@ -3700,6 +3758,13 @@ public class SceneLoader
             if (!mediumLibrary.TryGetValue(e.InteriorMedium, out interior))
                 Warn($"Entity '{e.Name ?? e.Type ?? "(unnamed)"}': unknown interior_medium '{e.InteriorMedium}'. Treating interior as vacuum.");
         }
+        else if (embeddedSssMedium != null
+                 && !string.IsNullOrWhiteSpace(e.Material)
+                 && embeddedSssMedium.TryGetValue(e.Material, out var auto))
+        {
+            // Material-embedded SSS auto-injection (Arnold parity).
+            interior = auto;
+        }
         if (!string.IsNullOrWhiteSpace(e.ExteriorMedium))
         {
             if (!mediumLibrary.TryGetValue(e.ExteriorMedium, out exterior))
@@ -3707,6 +3772,121 @@ public class SceneLoader
         }
 
         return new MediumInterface(interior, exterior);
+    }
+
+    /// <summary>
+    /// Applies the auto-defaults required to wire material-embedded SSS
+    /// through the Disney BSDF transmission lobe. Triggered when the
+    /// material declares <c>subsurface_radius</c> with at least one
+    /// positive channel. Defaults only fill in values the user did NOT
+    /// author explicitly (detected by comparing to the C# field default):
+    /// <list type="bullet">
+    ///   <item><c>spec_trans</c>: 0 → 1.0 (transmission lobe must fire
+    ///         to emit MediumTransition.Enter)</item>
+    ///   <item><c>transmission_color</c>: null → [1, 1, 1] (no surface
+    ///         Beer–Lambert — the medium owns the absorption colour)</item>
+    ///   <item><c>transmission_depth</c>: kept at 0 (Beer–Lambert off by
+    ///         default; the user can opt in explicitly)</item>
+    /// </list>
+    /// IOR keeps the Disney default (1.5). Warns on configurations that
+    /// would silently disable the SSS path: <c>metallic &gt; 0</c>,
+    /// <c>thin_walled = true</c>, or any non-Disney material type.
+    /// </summary>
+    private static void ApplyEmbeddedSssDefaults(MaterialData m)
+    {
+        if (m.SubsurfaceRadius == null || m.SubsurfaceRadius.Count == 0) return;
+        bool anyPositive = false;
+        foreach (var v in m.SubsurfaceRadius) if (v > 0f) { anyPositive = true; break; }
+        if (!anyPositive) return;
+
+        // Only Disney BSDF emits MediumTransition.Enter via the transmission
+        // lobe. Other types (lambertian, metal, dielectric) ignore the
+        // auto-injected medium because they never refract through the BSDF.
+        if (!string.IsNullOrEmpty(m.Type)
+            && !string.Equals(m.Type, "disney", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(m.Type, "principled", StringComparison.OrdinalIgnoreCase))
+        {
+            Warn($"Material '{m.Id ?? "(unnamed)"}': 'subsurface_radius' requires Disney BSDF " +
+                 $"(type: disney) to drive the random-walk SSS path. " +
+                 $"Type '{m.Type}' will skip the embedded SSS medium.");
+            return;
+        }
+
+        if (m.Metallic > 0f)
+            Warn($"Material '{m.Id ?? "(unnamed)"}': 'subsurface_radius' is ignored when " +
+                 $"metallic > 0 — the transmission lobe is suppressed by the metallic blend.");
+
+        if (m.ThinWalled)
+            Warn($"Material '{m.Id ?? "(unnamed)"}': 'subsurface_radius' is ignored when " +
+                 $"thin_walled = true — thin walls have no interior volume.");
+
+        // spec_trans default = 0. Promote to 1.0 when the user only authored
+        // SSS knobs (let any explicit value pass through untouched).
+        if (m.SpecTrans <= 0f) m.SpecTrans = 1f;
+
+        // transmission_color default = null → white (medium owns the colour).
+        if (m.TransmissionColor == null)
+            m.TransmissionColor = new List<float> { 1f, 1f, 1f };
+    }
+
+    /// <summary>
+    /// Converts a material's <c>subsurface_radius</c> (mean free path per
+    /// RGB channel, in world units) + <c>subsurface_color</c> (volume
+    /// albedo) into a <see cref="HomogeneousMedium"/>. Mirrors the
+    /// Arnold <c>standard_surface</c> / Cycles <c>Principled BSDF</c>
+    /// random-walk SSS parameterization:
+    /// <code>
+    ///   r_eff = radius · scale         (effective MFP per channel)
+    ///   σ_t   = 1 / r_eff              (extinction coefficient)
+    ///   σ_s   = albedo · σ_t           (scattering coefficient)
+    ///   σ_a   = (1 − albedo) · σ_t     (absorption coefficient)
+    /// </code>
+    /// Phase function: Henyey–Greenstein with g = <c>subsurface_anisotropy</c>
+    /// (0 by default → near-isotropic, typical for marble / wax / stone).
+    /// </summary>
+    private static IMedium? BuildEmbeddedSssMedium(MaterialData m)
+    {
+        if (m.SubsurfaceRadius == null || m.SubsurfaceRadius.Count == 0)
+            return null;
+
+        // Volume albedo: subsurface_color when present, otherwise base_color
+        // (Cycles convention). Falls back to white if neither is set.
+        List<float>? albedoSrc = m.SubsurfaceColor ?? m.Color;
+        Vector3 albedo = albedoSrc != null && albedoSrc.Count >= 3
+            ? new Vector3(
+                MathF.Max(0f, MathF.Min(1f, albedoSrc[0])),
+                MathF.Max(0f, MathF.Min(1f, albedoSrc[1])),
+                MathF.Max(0f, MathF.Min(1f, albedoSrc[2])))
+            : Vector3.One;
+
+        // Radius: pad / clamp to 3 channels. Values ≤ 0 fall back to a
+        // sentinel large MFP so the channel is effectively transparent.
+        var r = m.SubsurfaceRadius;
+        float rR = r.Count >= 1 ? r[0] : 1f;
+        float rG = r.Count >= 2 ? r[1] : rR;
+        float rB = r.Count >= 3 ? r[2] : rG;
+
+        float scale = m.SubsurfaceScale > 0f ? m.SubsurfaceScale : 1f;
+        rR = MathF.Max(1e-4f, rR * scale);
+        rG = MathF.Max(1e-4f, rG * scale);
+        rB = MathF.Max(1e-4f, rB * scale);
+
+        Vector3 sigmaT = new Vector3(1f / rR, 1f / rG, 1f / rB);
+        Vector3 sigmaS = sigmaT * albedo;
+        Vector3 sigmaA = sigmaT - sigmaS; // = σ_t · (1 − albedo), nonneg by clamp
+
+        float g = MathF.Max(-0.999f, MathF.Min(0.999f, m.SubsurfaceAnisotropy));
+        IPhaseFunction phase = MathF.Abs(g) < 1e-4f
+            ? new IsotropicPhase()
+            : new HenyeyGreensteinPhase(g);
+
+        Verbose($"SSS medium:  material '{m.Id}' → " +
+                $"r=[{rR:0.###},{rG:0.###},{rB:0.###}] α=[{albedo.X:0.##},{albedo.Y:0.##},{albedo.Z:0.##}] " +
+                $"σ_s=[{sigmaS.X:0.##},{sigmaS.Y:0.##},{sigmaS.Z:0.##}] " +
+                $"σ_a=[{sigmaA.X:0.###},{sigmaA.Y:0.###},{sigmaA.Z:0.###}] " +
+                $"phase={(MathF.Abs(g) < 1e-4f ? "isotropic" : $"hg(g={g:0.##})")}");
+
+        return new HomogeneousMedium(sigmaA, sigmaS, phase);
     }
 
     /// <summary>

@@ -233,10 +233,24 @@ material).
 > inputs (`color`, `transmission_color`) accept a matching `*_texture`
 > block. Example: `roughness_texture: { type: "image", path: "rough.png" }`.
 
-> **Subsurface scattering.** The legacy Disney 2015 `subsurface`,
-> `subsurface_color`, `subsurface_radius`, `flatness` fields have been
-> removed. Physically-correct SSS now comes from `interior_medium`
-> bindings on entities — see Chapter 7 and
+> **Subsurface scattering.** The legacy Disney 2015 `subsurface` and
+> `flatness` fake-SSS fields have been removed. Physically-correct SSS
+> now comes from one of two interoperable paths:
+>
+> 1. **Material-embedded** — declare `subsurface_radius` (plus optional
+>    `subsurface_color`, `subsurface_scale`, `subsurface_anisotropy`) on
+>    the Disney material. The loader auto-builds a `HomogeneousMedium`
+>    with `σ_t = 1 / (radius · scale)`, `σ_s = α · σ_t`,
+>    `σ_a = (1 − α) · σ_t` and auto-injects it on every entity that does
+>    not already have an explicit `interior_medium`. This is the parity
+>    of Arnold `standard_surface` `subsurface_type: randomwalk` and
+>    Cycles Principled BSDF.
+> 2. **Entity-bound** — declare a `mediums:` library entry and bind it
+>    via `interior_medium` on the entity. Maximum control, supports
+>    heterogeneous media. See Chapter 7.
+>
+> An explicit `interior_medium` always wins over the embedded medium.
+> Full derivation in
 > [docs/technical/subsurface-scattering.md](../../technical/subsurface-scattering.md).
 
 ### How the Parameters Work Together

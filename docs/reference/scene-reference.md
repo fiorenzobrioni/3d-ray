@@ -487,7 +487,12 @@ The surface material's `spec_trans`/`ior` (Disney) or `dielectric` lobe controls
 | `--sss-quality preview\|normal\|high` | inherits from `-q` | Bundles MaxVolumeBounces / RrStartBounce / NeeInsideWalk. `draft*` quality preset → preview, `medium*` → normal, `final*`/`ultra` → high. |
 | `--max-volume-bounces <n>` | preset-dependent (16/64/256) | Hard cap on bounces inside one walk. Caps worst-case cost on dense media. |
 
-Migration note: the legacy Disney parameters `subsurface`, `subsurface_color`, `subsurface_radius`, `flatness` are no longer read. Use `interior_medium` with the Jensen 2001 presets in `docs/technical/subsurface-scattering.md` to obtain a physically correct SSS look.
+Migration note: the legacy Disney parameters `subsurface`, `flatness` are no longer read. Use either:
+
+1. `subsurface_radius` directly on a Disney material (material-embedded SSS — see §5.5), or
+2. an explicit `interior_medium` binding on the entity with the Jensen 2001 presets in `docs/technical/subsurface-scattering.md`.
+
+The two paths are interoperable: an explicit `interior_medium` always wins over an embedded medium derived from `subsurface_radius`.
 
 ---
 ### 4. **CAMERA SECTION**
@@ -626,6 +631,12 @@ When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info me
   thin_film_thickness: 0.0                 # Film thickness in nanometres (0 disables)
   thin_film_ior: 1.5                       # Film IOR (η₂)
 
+  # ── Material-embedded SSS (Arnold randomwalk / Cycles Principled) ───
+  subsurface_color: [0.95, 0.90, 0.85]     # Volume albedo (default: reuse color)
+  subsurface_radius: [0.45, 0.35, 0.22]    # Mean Free Path per RGB channel (world units)
+  subsurface_scale: 1.0                    # Global multiplier on the MFP (default 1.0)
+  subsurface_anisotropy: 0.0               # HG g for the auto-built medium (0 = isotropic)
+
   # ── Texturing ───────────────────────────────────────────────────────
   texture: (optional)                      # Base colour texture
   normal_map: (optional)
@@ -634,15 +645,24 @@ When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info me
   # Same for colour parameters (transmission_color_texture, etc).
 ```
 
-> **Subsurface scattering.** The Disney 2015 fake-SSS parameters
-> (`subsurface`, `subsurface_color`, `subsurface_radius`, `flatness`) have
-> been removed. Physically-correct SSS now comes from `interior_medium`
-> bindings on entities — see [docs/technical/subsurface-scattering.md](../technical/subsurface-scattering.md) and the
-> "Mediums Library" subsection in §3. The loader still parses and ignores
-> the removed keys (emits a warning) so old YAML loads, but the visual
-> output reverts to pure Lambert until the scene is migrated to
-> `interior_medium`. The `src/Tools/MigrateFakeSss/` tool automates the
-> rewrite.
+> **Subsurface scattering.** The Disney 2015 fake-SSS lobes
+> (`subsurface`, `flatness`) have been removed. Physically-correct SSS
+> now comes from one of two interoperable paths:
+>
+> 1. **Material-embedded** — set `subsurface_radius` on the Disney
+>    material; the loader auto-builds a `HomogeneousMedium` and
+>    auto-injects it on every entity that doesn't already have an
+>    explicit `interior_medium`. Matches Arnold `standard_surface`
+>    `subsurface_type: randomwalk` and the Cycles Principled BSDF
+>    Subsurface section. See "Material-embedded SSS" below.
+> 2. **Entity-bound** — declare a `mediums:` library entry and bind it
+>    via `interior_medium` on the entity. Maximum control, two entities
+>    with the same material can have different volumes.
+>
+> Explicit `interior_medium` always wins. See
+> [docs/technical/subsurface-scattering.md](../technical/subsurface-scattering.md)
+> for the full random walk derivation. The legacy keys `subsurface` /
+> `flatness` are parsed and ignored with a warning so old YAML loads.
 
 ##### **Disney Properties Summary**
 A single-glance reference of every Disney key the loader accepts.
@@ -676,6 +696,10 @@ renderer (the loader emits an `Info` line when it sees one).
 | `thin_walled` | bool | false | — | 2015 | Skip interior refraction (foliage, paper) |
 | `thin_film_thickness` | float | 0.0 | ≥ 0 (nm) | Thin-film | Belcour-Barla 2017; 100–800 nm = iridescence |
 | `thin_film_ior` | float | 1.5 | ≥ 1 | Thin-film | Film η₂ (water = 1.33, soap = 1.40) |
+| `subsurface_radius` | colour | — | ≥ 0 (wu) | SSS | Mean Free Path per RGB channel. Presence triggers auto-build of an embedded `HomogeneousMedium`. |
+| `subsurface_color` | colour | `color` | 0–1 | SSS | Volume albedo. Defaults to the surface `color` when omitted. |
+| `subsurface_scale` | float | 1.0 | > 0 | SSS | Global multiplier applied to `subsurface_radius` before the σ conversion. |
+| `subsurface_anisotropy` | float | 0.0 | -1–1 | SSS | HG `g` for the auto-built phase function. 0 ≈ isotropic. |
 | `texture` | block | — | — | Texturing | Procedural or image, replaces `color` |
 | `normal_map` | block | — | — | Texturing | Surface perturbation (image-only) |
 | `bump_map` | block | — | — | Texturing | Scalar bump from any procedural/image texture |
@@ -709,13 +733,88 @@ conversion is roughly `coat_roughness ≈ 1 - clearcoat_gloss`.
   - Plastics: `metallic=0.0`, `roughness=0.4–0.8`
   - Car paint: `metallic=0.0`, `clearcoat=1.0` (+ `coat_roughness` for Arnold-style coat)
   - Fabric / velvet: `metallic=0.0`, `sheen=0.8–1.0`, `sheen_roughness=0.2–0.4`
-  - Skin / marble / wax / milk: `spec_trans=1.0`, `ior=1.4–1.5`, plus `interior_medium: <id>` on the entity bound to a `homogeneous` medium with `σ_s > 0` (Random Walk SSS — see [docs/technical/subsurface-scattering.md](../technical/subsurface-scattering.md)).
+  - Skin / marble / wax / milk: either declare `subsurface_radius` on the material (auto-builds the medium — see "Material-embedded SSS" below), or set `spec_trans=1.0`, `ior=1.4–1.5` plus `interior_medium: <id>` on the entity bound to a `homogeneous` medium with `σ_s > 0` (Random Walk SSS — see [docs/technical/subsurface-scattering.md](../technical/subsurface-scattering.md)).
   - Clear glass: `spec_trans=1.0`, `roughness=0.0`, `ior=1.52`
   - Coloured glass: add `transmission_color` + `transmission_depth` (e.g. 5 units for a bottle of brandy)
   - Soap bubble / opal: `thin_film_thickness=350..700`, `thin_film_ior=1.33..1.5`
   - Leaves / paper: `diff_trans=0.5`, `thin_walled=true`
 - **⚠️ Noise:** Disney still has more lobes than the classics; use ~4× samples for skin/glass/clearcoat hero shots.
 - **💡 Best practice:** Use lambertian for big surfaces, Disney only for protagonist objects.
+
+##### **Material-embedded SSS (Arnold randomwalk / Cycles Principled parity)**
+
+Declaring `subsurface_radius` on a Disney material is the shortcut path
+to subsurface scattering: the loader auto-builds a `HomogeneousMedium`
+and auto-injects it on every entity that uses the material and does
+**not** already carry an explicit `interior_medium`. This matches Arnold
+`standard_surface` with `subsurface_type: randomwalk` and the Cycles
+Principled BSDF Subsurface section — set one parameter, get a physically
+correct random walk for free.
+
+```yaml
+materials:
+  - id: dis_marmo_carrara
+    type: disney
+    color: [0.92, 0.89, 0.85]
+    roughness: 0.25
+    subsurface_color:     [0.95, 0.90, 0.85]   # volume albedo (default: reuse color)
+    subsurface_radius:    [0.45, 0.35, 0.22]   # Mean Free Path per RGB channel (world units)
+    subsurface_scale:     1.0                  # optional global MFP multiplier (default 1.0)
+    subsurface_anisotropy: 0.0                 # optional HG g (default 0 = isotropic)
+
+entities:
+  - name: scultura
+    type: sphere
+    center: [0, 0.8, 0]
+    radius: 0.35
+    material: dis_marmo_carrara
+    # no interior_medium, no mediums: section — SSS still works
+```
+
+**How the medium is built.** Let `α` be the surface albedo
+(`subsurface_color` if present, otherwise `color`), and `r` the radius
+(`subsurface_radius × subsurface_scale`, per channel). Then:
+
+```
+σ_t = 1 / (radius · scale)
+σ_s = α · σ_t
+σ_a = (1 − α) · σ_t
+phase = HG(g = subsurface_anisotropy)        # isotropic when g ≈ 0
+```
+
+The resulting `HomogeneousMedium` is anonymous (no library `id`) and
+lives only for the lifetime of the scene.
+
+**Auto-defaults on the surface.** For the transmission lobe to emit the
+`MediumTransition.Enter` event that pushes the medium onto the stack,
+the loader silently sets:
+
+| Field | Forced default | Override |
+|---|---|---|
+| `spec_trans` | `1.0` | Honoured if the user already set it. |
+| `transmission_color` | `[1, 1, 1]` | Honoured if the user already set it. |
+
+Everything else (`metallic`, `roughness`, `ior`, …) is left untouched.
+
+**Precedence.** An explicit `interior_medium` on the entity always wins
+over the material-embedded medium. This matches Arnold and Cycles
+conventions: a single Disney material can be reused across entities,
+each one swapping the volume if it needs to (e.g. polished marble in
+one slab, frosted marble — different σ — in another).
+
+**Cases that emit a warning** (and disable the embedded medium):
+
+- `metallic > 0` on the same material — the metallic blend suppresses
+  the transmission lobe, so no `Enter` event would ever fire.
+- `thin_walled: true` — a thin wall has no interior volume.
+- Non-Disney material types (`lambertian`, `metal`, `dielectric`) —
+  they do not emit `MediumTransition.Enter` and cannot push a medium.
+
+Use the entity-bound path (top-level `mediums:` library +
+`interior_medium`) when you need explicit shared volumes, when two
+entities must use different volumes for the same surface look, or when
+the volume is heterogeneous (`procedural` / `grid` / `nishita`).
+
 #### **5.6 Mix Material (Blend Two Materials)**
 ```yaml
 - id: "rusty_metal"

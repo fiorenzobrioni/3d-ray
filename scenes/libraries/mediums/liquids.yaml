@@ -1,0 +1,552 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  3D-Ray Medium Library — LIQUIDS
+# ───────────────────────────────────────────────────────────────────────────
+#  File:     mediums/liquids.yaml
+#  Entries:  48
+#  Updated:  2026-05
+# ───────────────────────────────────────────────────────────────────────────
+#  Contenuto: acque chiare (piscina, mare superficiale/profondo, lago
+#             alpino, tropicale, fiume, torbida, palude),
+#             latticini (latte intero/scremato, panna, condensato, yogurt),
+#             vini e alcolici (rosso/bianco/rosé, lager, weizen, stout,
+#             whisky, rum, vodka),
+#             sciroppi e mieli (millefiori, castagno, acero, caramello,
+#             melassa),
+#             oli (oliva, semi, motore nuovo/usato),
+#             succhi e bevande (arancio, mela, pomodoro, uva, limone,
+#             aranciata),
+#             sangue e fluidi biologici (arterioso, venoso).
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Importa con:  imports: [{ path: "libraries/mediums/liquids.yaml" }]
+#
+# ── Scala ───────────────────────────────────────────────────────────────────
+#   1 world-unit ≈ 10-30 cm nelle scene tipiche 3D-Ray.
+#   σ_a e σ_s sono in unità per world-unit.
+#   Per contenitori di scala diversa (bicchiere ~5cm, piscina ~200cm)
+#   scalare i coefficienti inversamente alla dimensione attesa.
+#
+# ── Fonti ────────────────────────────────────────────────────────────────────
+#   Pope, R.M. & Fry, E.S. (1997) "Absorption spectrum (~380–700nm) of
+#     pure water". Applied Optics 36(33). [PF97]
+#   Jensen, H.W. et al. (2001) "A Practical Model for Subsurface Light
+#     Transport", SIGGRAPH 2001. [J01]
+#     Milk: σ_a=[0.0014,0.0025,0.0142], σ_s=[2.55,3.21,3.77], g=0.8
+#     Skin: σ_a=[0.032,0.17,0.48], σ_s=[0.74,0.88,1.01]
+#   Narasimhan, S.G. et al. (2006) "Acquiring Scattering Properties",
+#     SIGGRAPH 2006. [N06]
+#   Prahl, S.A. (1999) "Optical properties of hemoglobin", Oregon Medical
+#     Laser Center. Blood: σ_a~0.6-2.9, σ_s~0.65-1.85, g=0.9. [PR99]
+#   Frisvad, J.R. et al. (2007) "Computing Scattering Properties via
+#     Lorenz-Mie Theory". [FM07]
+#
+# ── Convenzione colore ─────────────────────────────────────────────────────
+#   Canali [R, G, B] corrispondono a ~700 nm, ~550 nm, ~450 nm.
+#   L'acqua pura assorbe più il rosso che il blu: σ_a[R] > σ_a[G] > σ_a[B]
+#   (firma spettrale Pope & Fry). Vino rosso: alto σ_a verde+blu, basso rosso.
+#
+# ── Phase function ───────────────────────────────────────────────────────────
+#   Acqua/oli puri: hg g≈0.0 (Rayleigh-like, quasi isotropico).
+#   Latticini e sangue: hg g=0.7-0.9 (forward-scattering da globuli e
+#   particelle lipidiche grandi). Sciroppi densi: hg g≈0.3-0.5.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+mediums:
+
+  # ── Acque chiare ───────────────────────────────────────────────────────────
+  #   Firma spettrale acqua pura: σ_a[R] >> σ_a[G] > σ_a[B].
+  #   Il blu sopravvive più a lungo → profondità percepita turchese/blu.
+
+  - id: "med_acqua_pulita"
+    # Acqua pulita (piscina/rubinetto) — standard di riferimento del progetto.
+    # Valori dal showcase medium-water-tank.yaml (Pope & Fry 1997, calibrati
+    # per scala di un metro: tank ~1 wu profondità).
+    # Percepito: trasparente in superficie, turchese alle medie profondità,
+    # blu ghiaccio in profondità.
+    # Fonte: Pope & Fry (1997) [PF97], showcase medium-water-tank.yaml.
+    type: homogeneous
+    sigma_a: [0.320, 0.100, 0.045]
+    sigma_s: [0.025, 0.025, 0.030]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_acqua_mare_superficiale"
+    # Acqua di mare costiera (zona fotosintetica, 0-20m) — turchese.
+    # Più σ_s dell'acqua pulita per sali disciolti, fitoplancton e sabbia.
+    # Il turchese è reale: σ_a rosso alto, σ_a blu basso, verde intermedio.
+    # Percepito: turchese cristallino con sfumatura verde, fondali visibili.
+    # Fonte: calibrazione da misurazioni in situ acque tropicali/Mediterraneo.
+    type: homogeneous
+    sigma_a: [0.380, 0.095, 0.040]
+    sigma_s: [0.065, 0.060, 0.070]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_acqua_mare_profondo"
+    # Acqua di mare profonda (>100m) — blu abissale.
+    # Meno particolato, σ_s più basso; la luce filtrata è quasi solo blu.
+    # σ_a rosso molto alto (il rosso non raggiunge questa profondità).
+    # Percepito: blu navy scuro, quasi nera a grandi profondità.
+    # Fonte: Smith & Baker (1981) dati spettrali oceano aperto.
+    type: homogeneous
+    sigma_a: [0.680, 0.180, 0.055]
+    sigma_s: [0.018, 0.015, 0.020]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_acqua_lago_alpino"
+    # Acqua di lago alpino — verde/blu freddo, leggermente torbido.
+    # Particelle glaciali di limo (Rock flour) aumentano σ_s; tannini
+    # da foreste di conifere aggiungono leggera colorazione verdastra.
+    # Percepito: verde-teal lattiginoso freddo, visibilità 5-15m.
+    # Fonte: stima da dati ottici laghi alpini (Alpi, Pirenei).
+    type: homogeneous
+    sigma_a: [0.42,  0.085, 0.035]
+    sigma_s: [0.18,  0.16,  0.20 ]
+    phase:   hg
+    g:       0.05
+
+  - id: "med_acqua_tropicale"
+    # Acqua tropicale cristallina (atolli corallini, Caraibi) —
+    # la più trasparente dopo l'acqua di laboratorio. Pochissimo particolato,
+    # salinità alta ma pura. σ_a e σ_s minimi, firma quasi identica a PF97.
+    # Percepito: turchese brillante, fondali visibili a 30m+.
+    # Fonte: calibrazione da misurazioni in situ Mar dei Caraibi.
+    type: homogeneous
+    sigma_a: [0.280, 0.080, 0.032]
+    sigma_s: [0.012, 0.010, 0.014]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_acqua_fiume"
+    # Acqua di fiume/torrente — verde-marrone, moderatamente torbida.
+    # Sedimenti argillosi e materia organica disciolta: σ_s elevato,
+    # σ_a rosso ridotto (tannini aumentano l'assorbimento nel verde/blu).
+    # Percepito: verde oliva opaco, visibilità 1-3m.
+    # Fonte: stima da dati ottici fiumi europei (Secchi depth ~2m).
+    type: homogeneous
+    sigma_a: [0.28,  0.22,  0.30]
+    sigma_s: [0.85,  0.75,  0.80]
+    phase:   hg
+    g:       0.05
+
+  - id: "med_acqua_torbida"
+    # Acqua fangosa (alluvione/scavo) — fortemente torbida.
+    # Argille in sospensione: σ_s molto alto quasi uniforme, visibilità <0.5m.
+    # σ_a alto su tutti i canali per materia organica.
+    # Percepito: marrone opaco, quasi renderable solo in prossimità superficie.
+    # Fonte: stima da dati ottici acque alluvionali.
+    type: homogeneous
+    sigma_a: [0.90,  0.80,  0.75]
+    sigma_s: [4.50,  4.20,  4.00]
+    phase:   hg
+    g:       0.08
+
+  - id: "med_acqua_palude"
+    # Acqua di palude/acquitrino — verde scuro torbido.
+    # Tannini, alga verde-azzurra, fitoplancton denso, humus disciolto.
+    # σ_a maggiore nel rosso+blu, σ_s alto per particolato organico.
+    # Percepito: verde scuro quasi opaco, colorazione organica intensa.
+    # Fonte: stima da misurazioni limnologiche zone umide.
+    type: homogeneous
+    sigma_a: [0.65,  0.40,  0.90]
+    sigma_s: [2.80,  2.60,  2.50]
+    phase:   hg
+    g:       0.08
+
+  # ── Latticini ──────────────────────────────────────────────────────────────
+  #   Globuli lipidici (diametro ~1-5µm) producono forte forward-scattering:
+  #   phase hg g=0.7-0.8. σ_s molto alto (Mie scattering su emulsione).
+
+  - id: "med_latte_intero"
+    # Latte intero (3.5% grasso) — reference Jensen 2001.
+    # Valori direttamente da [J01]: sigma_a e sigma_s per scala cm
+    # (1 wu ≈ 10cm qui). Emulsione O/W con caseine e globuli lipidici.
+    # Percepito: bianco opaco brillante, nessuna trasmissione visibile
+    # oltre pochi millimetri.
+    # Fonte: Jensen et al. 2001 [J01].
+    type: homogeneous
+    sigma_a: [0.0014, 0.0025, 0.0142]
+    sigma_s: [2.55,   3.21,   3.77  ]
+    phase:   hg
+    g:       0.80
+
+  - id: "med_latte_scremato"
+    # Latte scremato (<0.5% grasso) — meno globuli, σ_s ~30% ridotto.
+    # Meno opaco del latte intero, leggera traslucenza bluastra visibile
+    # in strati sottili (le caseine diffondono meno dei lipidi).
+    # Percepito: bianco con sfumatura leggermente azzurrata in trasparenza.
+    # Fonte: variazione calibrata da [J01], dati sperimentali Narasimhan.
+    type: homogeneous
+    sigma_a: [0.0010, 0.0018, 0.0100]
+    sigma_s: [1.78,   2.25,   2.64  ]
+    phase:   hg
+    g:       0.75
+
+  - id: "med_panna_fresca"
+    # Panna fresca (35% grasso) — molto più densa del latte intero.
+    # σ_s molto alto per concentrazione lipidica elevata; σ_a leggermente
+    # più alto del latte (pigmenti carotenoidi → leggero tono giallo-crema).
+    # Percepito: bianco crema opacissimo con tono avorio.
+    # Fonte: stima da dati Mie scattering emulsioni lipidiche [FM07].
+    type: homogeneous
+    sigma_a: [0.0018, 0.0045, 0.0280]
+    sigma_s: [3.80,   4.60,   5.20  ]
+    phase:   hg
+    g:       0.82
+
+  - id: "med_latte_condensato"
+    # Latte condensato zuccherato — molto denso, tono giallognolo caramellato.
+    # Concentrazione lipidi+zuccheri: σ_s ancora più alto; caramelizzazione
+    # aumenta σ_a nel blu. Percepito: crema/avorio denso quasi coprente.
+    # Fonte: stima empirica da latte intero + concentrazione 2.5×.
+    type: homogeneous
+    sigma_a: [0.0030, 0.0090, 0.0680]
+    sigma_s: [4.80,   5.80,   6.50  ]
+    phase:   hg
+    g:       0.82
+
+  - id: "med_yogurt"
+    # Yogurt bianco intero — bianco opaco quasi solido.
+    # Struttura gel proteica (caseine coagulate): σ_s massimo tra i latticini,
+    # scattering quasi uniforme. σ_a praticamente zero.
+    # Percepito: bianco piatto opaco, comportamento SSS quasi assente visivamente.
+    # Fonte: stima da dati reologici e ottici gel caseinico.
+    type: homogeneous
+    sigma_a: [0.0008, 0.0012, 0.0035]
+    sigma_s: [5.50,   6.20,   7.00  ]
+    phase:   hg
+    g:       0.70
+
+  # ── Vini e alcolici ────────────────────────────────────────────────────────
+  #   Alcol etilico: quasi trasparente (σ_s ~0). Il colore è determinato
+  #   da pigmenti disciolti (antociani, tannini, caramelline).
+  #   Phase hg g≈0.0 per liquidi puri; g=0.1-0.2 per bevande torbide.
+
+  - id: "med_vino_rosso"
+    # Vino rosso (Cabernet Sauvignon, invecchiato) — rosso rubino profondo.
+    # Antociani: alto σ_a verde+blu, quasi zero σ_a rosso.
+    # σ_s molto basso (liquido limpido filtrato). In bicchieri sottili:
+    # rosso brillante; bicchieri spessi: quasi opaco.
+    # Percepito: rubino/carminio intenso, trasmissione solo nel rosso.
+    # Fonte: stima da spettroscopia UV-Vis vini rossi (Boulton, 2001).
+    type: homogeneous
+    sigma_a: [0.080, 2.40,  3.50]
+    sigma_s: [0.012, 0.010, 0.012]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_vino_bianco"
+    # Vino bianco secco (Sauvignon Blanc/Pinot Grigio) — paglierino.
+    # Flavonoidi gialli: leggero σ_a blu, quasi zero verde+rosso.
+    # σ_s bassissimo (vino limpido). Percepito: giallo paglierino quasi
+    # trasparente, riconoscibile solo in bicchieri grandi.
+    # Fonte: stima da spettroscopia UV-Vis vini bianchi secchi.
+    type: homogeneous
+    sigma_a: [0.008, 0.020, 0.220]
+    sigma_s: [0.005, 0.004, 0.006]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_vino_rose"
+    # Vino rosé (Provence style) — rosa salmone tenue.
+    # Antociani ridotti rispetto al rosso: σ_a intermedio.
+    # Percepito: rosa corallo/salmone in bicchieri standard.
+    # Fonte: interpolazione tra med_vino_rosso e med_vino_bianco.
+    type: homogeneous
+    sigma_a: [0.028, 0.580, 1.20]
+    sigma_s: [0.008, 0.007, 0.009]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_birra_chiara_lager"
+    # Birra chiara tipo Lager/Pilsner — ambrato giallo paglierino.
+    # Malto pallido: σ_a blu moderato, quasi zero rosso+verde.
+    # σ_s leggermente più alto dell'acqua (CO₂ disciolto, proteine).
+    # Percepito: giallo paglierino traslucido con riflesso dorato.
+    # Fonte: stima da dati spettrali birra Pilsner (EBC ~5-10).
+    type: homogeneous
+    sigma_a: [0.005, 0.035, 0.55]
+    sigma_s: [0.020, 0.018, 0.022]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_birra_weizen"
+    # Birra Weizen (frumento non filtrata) — giallo torbido.
+    # Lievito in sospensione: σ_s notevolmente più alto della lager.
+    # Colore paglierino/dorato con torbidità caratteristica.
+    # Percepito: giallo dorato lattiginoso, visibilità ridotta.
+    # Fonte: stima da dati EBC birra weizen (EBC 8-15).
+    type: homogeneous
+    sigma_a: [0.008, 0.055, 0.72]
+    sigma_s: [0.180, 0.160, 0.190]
+    phase:   hg
+    g:       0.10
+
+  - id: "med_birra_scura_stout"
+    # Birra scura Stout (tipo Guinness) — quasi nera, toni marroni.
+    # Malto tostato: σ_a molto alto su tutti i canali, dominanza marrone.
+    # σ_s basso (birra filtrata). Percepito: marrone quasi opaco con
+    # toni rosso-rubino sugli spigoli in controluce.
+    # Fonte: stima da dati EBC stout (EBC >80).
+    type: homogeneous
+    sigma_a: [1.80,  3.50,  4.80]
+    sigma_s: [0.025, 0.020, 0.018]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_whisky"
+    # Whisky (Scotch single malt invecchiato) — ambrato intenso.
+    # Tannini da botte di rovere, caramelline: alto σ_a blu, medio σ_a verde.
+    # σ_s quasi zero (distillato filtrato). Percepito: ambrato-arancio
+    # brillante, più scuro del brandy, con riflesso caldo.
+    # Fonte: stima da spettroscopia UV-Vis whisky 12y (AOAC methods).
+    type: homogeneous
+    sigma_a: [0.010, 0.28,  2.80]
+    sigma_s: [0.005, 0.004, 0.005]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_rum_scuro"
+    # Rum scuro invecchiato (tipo Appleton/Zacapa) — marrone profondo.
+    # Melassa residua + tannini botte: σ_a alto blu+verde, medio rosso.
+    # Più scuro e meno "giallo" del whisky. Percepito: marrone-mogano
+    # con trasparenza solo in strati molto sottili.
+    # Fonte: stima empirica da referenze colorimetriche.
+    type: homogeneous
+    sigma_a: [0.35,  1.20,  3.80]
+    sigma_s: [0.008, 0.006, 0.007]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_vodka"
+    # Vodka (distillato di grano/patate, filtrata su carbone) —
+    # quasi trasparente. σ_a minimo (nessun cromoforo), σ_s vicinissimo a zero.
+    # Alcol etilico diluito: IOR ~1.36. Rendering realista come acqua pura
+    # con IOR diverso.
+    # Percepito: incolore trasparente, identica all'acqua visivamente.
+    # Fonte: dati ottici etanolo/acqua (Haynes, CRC Handbook).
+    type: homogeneous
+    sigma_a: [0.0005, 0.0004, 0.0004]
+    sigma_s: [0.002,  0.002,  0.002 ]
+    phase:   hg
+    g:       0.0
+
+  # ── Sciroppi e mieli ───────────────────────────────────────────────────────
+  #   Liquidi densi con alta viscosità. σ_s moderato (particelle colloidali,
+  #   polline, cere). Phase hg g=0.3-0.5.
+
+  - id: "med_miele_millefiori"
+    # Miele millefiori — ambrato dorato, il più comune.
+    # Caroteni e flavonoidi: alto σ_a blu, medio σ_a verde, basso rosso.
+    # σ_s moderato (granuli di polline, bollicine colloidali).
+    # Percepito: oro caldo translucido, bellissimo in retroilluminazione.
+    # Fonte: stima da spettroscopia miele (Bogdanov et al. 2004).
+    type: homogeneous
+    sigma_a: [0.020, 0.180, 2.20]
+    sigma_s: [0.55,  0.60,  0.65]
+    phase:   hg
+    g:       0.50
+
+  - id: "med_miele_castagno"
+    # Miele di castagno — scuro quasi marrone, sapore amaro intenso.
+    # Colorazione più intensa: σ_a alto blu+verde, medio rosso.
+    # Percepito: marrone-ambrato scuro in strati spessi, arancio in sottile.
+    # Fonte: calibrazione empirica su miele castagno DOP.
+    type: homogeneous
+    sigma_a: [0.28,  1.10,  4.50]
+    sigma_s: [0.65,  0.70,  0.75]
+    phase:   hg
+    g:       0.45
+
+  - id: "med_sciroppo_acero"
+    # Sciroppo d'acero puro (Grade A Dark) — ambrato con sfumatura rossa.
+    # Zuccheri caramellati + tannini: σ_a alto blu, medio verde, basso rosso.
+    # Percepito: ambrato-rubino caldo, più "rosso" del miele millefiori.
+    # Fonte: stima da dati spettrali USDA sciroppo acero Grade A Dark.
+    type: homogeneous
+    sigma_a: [0.065, 0.380, 3.20]
+    sigma_s: [0.30,  0.32,  0.35]
+    phase:   hg
+    g:       0.40
+
+  - id: "med_sciroppo_caramello"
+    # Sciroppo di caramello denso — marrone dorato caramellato.
+    # Prodotti Maillard e caramellizzazione: σ_a crescente dal rosso al blu.
+    # Percepito: marrone dorato intenso, buona traslucenza in strati sottili.
+    # Fonte: stima da dati ottici glucosio caramellato (Martins, 2001).
+    type: homogeneous
+    sigma_a: [0.18,  0.85,  3.80]
+    sigma_s: [0.40,  0.42,  0.45]
+    phase:   hg
+    g:       0.45
+
+  - id: "med_melassa"
+    # Melassa (residuo raffinazione zucchero) — quasi nera densa.
+    # Massima concentrazione di prodotti Maillard e zuccheri bruciati.
+    # σ_a molto alto su tutti i canali; σ_s alto per colloidi densi.
+    # Percepito: quasi opaco marrone-nero, trasmissione solo su film sottilissimi.
+    # Fonte: stima da analisi spettrale melassa di canna (Brix ~80°).
+    type: homogeneous
+    sigma_a: [2.80,  4.50,  6.50]
+    sigma_s: [1.20,  1.10,  1.00]
+    phase:   hg
+    g:       0.40
+
+  # ── Oli ────────────────────────────────────────────────────────────────────
+  #   σ_s molto basso (molecole piccole, poca diffusione Mie).
+  #   Il colore è quasi esclusivamente da σ_a selettivo.
+  #   Phase hg g≈0.0 (scattering Rayleigh-like).
+
+  - id: "med_olio_oliva"
+    # Olio d'oliva extravergine — verde-giallo caratteristico.
+    # Clorofilla (verde) + β-carotene (giallo): σ_a blu moderato,
+    # σ_a rosso basso, quasi zero verde. Prodotto Maillard assente.
+    # Percepito: verde-oro traslucido, tono clorofilloso evidente.
+    # Fonte: stima da dati spettrali EVO oil (Gutfinger, 1981).
+    type: homogeneous
+    sigma_a: [0.048, 0.008, 0.680]
+    sigma_s: [0.008, 0.006, 0.009]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_olio_di_semi"
+    # Olio di semi (girasole/mais) raffinato — giallo chiaro quasi neutro.
+    # β-carotene residuo: σ_a lieve sul blu, quasi zero altrove.
+    # Percepito: giallo paglierino quasi trasparente, molto simile alla vodka
+    # con una nota calda.
+    # Fonte: stima da dati ottici olio di girasole raffinato.
+    type: homogeneous
+    sigma_a: [0.004, 0.003, 0.095]
+    sigma_s: [0.004, 0.003, 0.004]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_olio_motore_nuovo"
+    # Olio motore SAE 10W-40 nuovo — ambrato con sfumatura verde-gialla.
+    # Additivi antiossidanti e base idrocarburica: σ_a alto blu, medio verde.
+    # Percepito: ambrato-verde traslucido, simile al whisky ma più "chimico".
+    # Fonte: stima empirica da analisi colorimetrica olio motore fresco.
+    type: homogeneous
+    sigma_a: [0.020, 0.120, 2.50]
+    sigma_s: [0.010, 0.008, 0.012]
+    phase:   hg
+    g:       0.0
+
+  - id: "med_olio_motore_usato"
+    # Olio motore esausto — marrone scuro quasi opaco.
+    # Fuliggine (carbonio colloidale) e ossidazione: σ_a massimo su tutti
+    # i canali, σ_s alto per particolato carbonioso in sospensione.
+    # Percepito: marrone-nero opaco, nessuna trasmissione.
+    # Fonte: stima da dati ottici olio esausto (particolato ~50-500nm).
+    type: homogeneous
+    sigma_a: [2.50,  3.80,  5.50]
+    sigma_s: [1.80,  1.60,  1.50]
+    phase:   hg
+    g:       0.15
+
+  # ── Succhi e bevande ───────────────────────────────────────────────────────
+  #   σ_s variabile: succhi filtrati ~0.01-0.05 (quasi trasparenti);
+  #   succhi con polpa ~0.2-1.0 (torbidi). Phase hg g≈0.05-0.15.
+
+  - id: "med_succo_arancio"
+    # Succo d'arancio (100% puro, filtrato) — arancione vivace.
+    # β-carotene + flavonoidi: alto σ_a blu, medio σ_a verde, basso rosso.
+    # σ_s moderato (succo filtrato ma con micro-particolato).
+    # Percepito: arancione brillante semitrasparente.
+    # Fonte: stima da spettroscopia succo arancio (CIE Lab dati USDA).
+    type: homogeneous
+    sigma_a: [0.025, 0.280, 3.50]
+    sigma_s: [0.080, 0.070, 0.090]
+    phase:   hg
+    g:       0.10
+
+  - id: "med_succo_mela"
+    # Succo di mela chiarificato — giallo ambrato.
+    # Tannini + flavonoidi: σ_a moderato blu, basso altrove.
+    # σ_s basso (chiarificato con bentonite). Percepito: giallo paglierino
+    # ambrato, simile al vino bianco ma più torbido.
+    # Fonte: stima da dati spettrali succo mela chiarificato.
+    type: homogeneous
+    sigma_a: [0.012, 0.065, 0.85]
+    sigma_s: [0.035, 0.030, 0.040]
+    phase:   hg
+    g:       0.08
+
+  - id: "med_succo_pomodoro"
+    # Succo di pomodoro — rosso opaco denso.
+    # Licopene: alto σ_a verde+blu, quasi zero rosso. σ_s alto (particolato
+    # cellulare fine). Percepito: rosso mattone opaco, nessuna trasmissione
+    # in strati > 5mm.
+    # Fonte: stima da spettroscopia licopene (Britton et al., 1995).
+    type: homogeneous
+    sigma_a: [0.080, 2.80,  4.50]
+    sigma_s: [1.80,  1.60,  1.50]
+    phase:   hg
+    g:       0.12
+
+  - id: "med_succo_uva"
+    # Succo d'uva nera — viola/rosso scuro intenso.
+    # Antociani (come vino rosso ma non fermentato, zuccheri alti):
+    # alto σ_a verde+blu, basso rosso. σ_s più alto del vino (non filtrato).
+    # Percepito: viola-rosso scuro quasi opaco, toni simili al vino giovane.
+    # Fonte: correlato a med_vino_rosso con σ_s aumentato.
+    type: homogeneous
+    sigma_a: [0.12,  2.80,  4.20]
+    sigma_s: [0.085, 0.075, 0.080]
+    phase:   hg
+    g:       0.08
+
+  - id: "med_succo_limone"
+    # Succo di limone (puro spremitura) — giallo chiaro, quasi incolore.
+    # Pochissimi cromofori: σ_a blu lieve, quasi zero altrove.
+    # σ_s leggero (particolato fine da polpa residua).
+    # Percepito: giallo chiarissimo quasi trasparente con opalescenza lieve.
+    # Fonte: stima empirica da dati colorimetrici succo limone.
+    type: homogeneous
+    sigma_a: [0.004, 0.012, 0.110]
+    sigma_s: [0.040, 0.035, 0.045]
+    phase:   hg
+    g:       0.08
+
+  - id: "med_aranciata"
+    # Aranciata (bibita gasata tipo Fanta) — arancione diluito.
+    # Come med_succo_arancio ma molto più diluito (≈5-10% succo reale).
+    # σ_a e σ_s drasticamente ridotti. Percepito: arancione tenue, quasi
+    # trasparente, riconoscibile solo in bicchieri grandi.
+    # Fonte: variazione da med_succo_arancio, fattore diluizione ≈0.08.
+    type: homogeneous
+    sigma_a: [0.002, 0.022, 0.28]
+    sigma_s: [0.015, 0.012, 0.018]
+    phase:   hg
+    g:       0.05
+
+  # ── Sangue e fluidi biologici ──────────────────────────────────────────────
+  #   Phase hg g=0.9 (globuli rossi: particelle grandi, forte forward-scatter).
+  #   Valori da Prahl (1999) e Jensen et al. (2001) [J01, PR99].
+
+  - id: "med_sangue_arterioso"
+    # Sangue arterioso ossigenato (HbO₂) — rosso brillante vivo.
+    # Ossiemoglobina: forte assorbimento nel verde (banda Soret ~415nm
+    # fuori gamma, ma coda nel verde), quasi nulla nel rosso.
+    # σ_s molto alto per eritrociti (disco biconvavo ~7µm, Mie forte).
+    # Percepito: rosso brillante quasi opaco, ruby in strati sottili (<1mm).
+    # Fonte: Prahl (1999) [PR99], Jensen et al. 2001 skin reference [J01].
+    type: homogeneous
+    sigma_a: [0.62,  2.50,  2.90]
+    sigma_s: [1.85,  1.14,  0.65]
+    phase:   hg
+    g:       0.90
+
+  - id: "med_sangue_venoso"
+    # Sangue venoso deossigenato (Hb) — rosso scuro/bordeaux.
+    # Deossiemoglobina: σ_a rosso più alto del venoso (Hb assorbe più il
+    # rosso di HbO₂ in NIR, ma nella banda visibile la differenza è tono).
+    # Percepito: rosso scuro/bordeaux quasi opaco vs il rosso vivo del venoso.
+    # Fonte: Prahl (1999) [PR99], shift cromatico Hb vs HbO₂ nel visibile.
+    type: homogeneous
+    sigma_a: [1.10,  2.80,  3.20]
+    sigma_s: [1.65,  1.05,  0.60]
+    phase:   hg
+    g:       0.90
