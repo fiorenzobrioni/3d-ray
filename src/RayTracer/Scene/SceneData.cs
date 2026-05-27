@@ -551,6 +551,24 @@ public class MaterialData
     [YamlMember(Alias = "subsurface_radius")]
     public List<float>? SubsurfaceRadius { get; set; }
 
+    /// <summary>
+    /// Global multiplier applied to <see cref="SubsurfaceRadius"/> before
+    /// the medium is built. Lets a single radius vector be reused at
+    /// different scene scales (e.g. radius=[0.45,0.35,0.22] with scale=0.1
+    /// for a miniature). Default 1.0.
+    /// </summary>
+    [YamlMember(Alias = "subsurface_scale")]
+    public float SubsurfaceScale { get; set; } = 1f;
+
+    /// <summary>
+    /// Henyey–Greenstein anisotropy g ∈ (−1, 1) for the auto-built embedded
+    /// SSS medium (only used when <see cref="SubsurfaceRadius"/> is set).
+    /// 0 = isotropic (marble, wax). 0.7–0.9 = forward (skin, milk).
+    /// Negative values = backward scattering. Default 0.0.
+    /// </summary>
+    [YamlMember(Alias = "subsurface_anisotropy")]
+    public float SubsurfaceAnisotropy { get; set; } = 0f;
+
     [YamlMember(Alias = "thin_walled")]
     public bool ThinWalled { get; set; } = false;
 
