@@ -1,0 +1,291 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Libreria Medium — Atmosferici
+# 3D-Ray · scenes/libraries/mediums/atmospherics.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Volumi atmosferici: nebbie, fumi, nuvole, polvere, aerosol, aria.
+# Scala: 1 world-unit ≈ 1–10 m (scene outdoor, paesaggi, ambienti urbani).
+#
+# IMPORTANTE — scala ridotta rispetto alle librerie SSS:
+#   I σ devono essere molto più bassi di organics.yaml perché la luce
+#   percorre chilometri nell'atmosfera reale. Qui 1 wu ≈ 1–10 m → i valori
+#   sono calibrati per scene con profondità 20–200 wu.
+#
+# Fonti:
+#   Mie theory (aerosol marino, polvere) — scattering forward-dominant, g=0.6–0.9
+#   Rayleigh scattering (aria) — σ_s ∝ 1/λ⁴, phase: rayleigh
+#   Bohren & Huffman 1983 — "Absorption and Scattering of Light by Small Particles"
+#   van de Hulst 1957 — "Light Scattering by Small Particles"
+#
+# Canali RGB ≈ 700 nm (R), 550 nm (G), 450 nm (B).
+# height_fog: densità ∝ exp(-(y - y0) / scale_height)
+#
+# Importa con:
+#   imports: [{ path: "libraries/mediums/atmospherics.yaml" }]
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+mediums:
+
+  # ── Nebbie da terreno (height_fog) ─────────────────────────────────────────
+
+  - id: "med_foschia_leggera"
+    # Foschia appena percettibile: umidità alta ma goccioline rade.
+    # Riduce il contrasto lontano senza bloccare la vista. 1 wu ≈ 5 m.
+    # Effetto: prospettiva aerea leggera, cieli di collina estiva.
+    type: height_fog
+    sigma_a: [0.003, 0.003, 0.004]
+    sigma_s: [0.008, 0.009, 0.010]
+    y0: 0.0
+    scale_height: 8.0
+    phase: hg
+    g:    0.65
+
+  - id: "med_nebbia_mattina"
+    # Nebbia mattutina da valle (inversione termica notturna).
+    # Concentrata in basso, si dirada con l'altitudine. 1 wu ≈ 3 m.
+    # Effetto: paesaggio avvolto in bianco fino a metà collina, tops liberi.
+    type: height_fog
+    sigma_a: [0.010, 0.011, 0.012]
+    sigma_s: [0.035, 0.038, 0.040]
+    y0: 0.0
+    scale_height: 5.0
+    phase: hg
+    g:    0.50
+
+  - id: "med_nebbia_costiera"
+    # Nebbia costiera (advection fog): umida e densa a livello mare,
+    # sale rara oltre i 20-30 m. 1 wu ≈ 2 m.
+    # Effetto: porto o spiaggia avvolti, fari e luci sfocate nell'umidità.
+    type: height_fog
+    sigma_a: [0.015, 0.016, 0.018]
+    sigma_s: [0.055, 0.058, 0.060]
+    y0: 0.0
+    scale_height: 3.0
+    phase: hg
+    g:    0.55
+
+  - id: "med_nebbia_densa"
+    # Nebbia densa (visibilità ≈ 50 m). Pericolo stradale, codice giallo.
+    # Strato basso e compatto, scale_height piccolo. 1 wu ≈ 2 m.
+    # Effetto: luci dei fari diffuse in alone, sagome a pochi wu visibili.
+    type: height_fog
+    sigma_a: [0.025, 0.026, 0.028]
+    sigma_s: [0.120, 0.130, 0.140]
+    y0: 0.0
+    scale_height: 2.0
+    phase: hg
+    g:    0.60
+
+  - id: "med_nebbia_fitta"
+    # Nebbia a muro (visibilità < 10 m, codice rosso).
+    # Omogenea (non height_fog): il gradiente altitudinale è irrilevante
+    # quando la visibilità è così bassa. 1 wu ≈ 1 m.
+    # Effetto: tutto bianco oltre 5-8 wu, assenza quasi totale di profondità.
+    type: homogeneous
+    sigma_a: [0.060, 0.062, 0.065]
+    sigma_s: [0.350, 0.360, 0.370]
+    phase: hg
+    g:    0.65
+
+  - id: "med_nebbia_di_mare"
+    # Sea fog: nebbia bianca fredda su superficie marina.
+    # Leggero eccesso di σ_a nel rosso → tono leggermente blu-freddo.
+    # Effetto: orizzonte marino scomparso, mare e cielo si fondono.
+    type: height_fog
+    sigma_a: [0.018, 0.016, 0.014]
+    sigma_s: [0.065, 0.070, 0.078]
+    y0: 0.0
+    scale_height: 4.0
+    phase: hg
+    g:    0.60
+
+  - id: "med_bruma_crepuscolare"
+    # Bruma del tramonto / dell'alba: particelle fini con luce radente.
+    # Leggero σ_a eccedente nei canali caldi (rosso assorbe meno) →
+    # toni violacei e magenta nell'ombra. 1 wu ≈ 3 m.
+    # Effetto: golden hour con profondità colorata e prospettiva aerea calda.
+    type: height_fog
+    sigma_a: [0.006, 0.010, 0.015]
+    sigma_s: [0.022, 0.028, 0.038]
+    y0: 0.0
+    scale_height: 6.0
+    phase: hg
+    g:    0.62
+
+  # ── Fumi ───────────────────────────────────────────────────────────────────
+
+  - id: "med_fumo_grigio"
+    # Fumo di combustione neutra (legna secca, carbone): grigio caldo.
+    # σ_a leggermente asimmetrico (eccesso nel blu → tono brunito).
+    # double_hg: lobo forward forte (g1=0.75) + lobo backscatter (g2=-0.2).
+    # Effetto: colonna di fumo densa, alone arancio attorno alle fiamme.
+    type: homogeneous
+    sigma_a: [0.180, 0.160, 0.140]
+    sigma_s: [2.500, 2.500, 2.400]
+    phase:   double_hg
+    g1:      0.75
+    g2:     -0.20
+    w:       0.70
+
+  - id: "med_fumo_bianco"
+    # Vapore / fumo chiaro (combustione completa, carta, erba verde).
+    # Bassi σ_a su tutti i canali, σ_s uniforme alto → bianco lattiginoso.
+    # Effetto: fumo da camino in giornata fredda, vapore da pentola.
+    type: homogeneous
+    sigma_a: [0.025, 0.025, 0.028]
+    sigma_s: [1.800, 1.850, 1.900]
+    phase:   hg
+    g:       0.60
+
+  - id: "med_fumo_nero"
+    # Fumo nero (combustione incompleta, plastica, gomma, diesel).
+    # Altissimo σ_a su tutti i canali (carbonio adsorbente) + σ_s ridotto.
+    # Effetto: pennacchio opaco e denso, blocca completamente il fondo.
+    type: homogeneous
+    sigma_a: [1.200, 1.350, 1.500]
+    sigma_s: [0.850, 0.850, 0.820]
+    phase:   hg
+    g:       0.55
+
+  - id: "med_fumo_giallo"
+    # Fumo chimico giallo-sulfureo (zolfo, alcuni fertilizzanti, vulcanico).
+    # σ_a alto nel blu → trasmette giallo-verde. σ_s moderato.
+    # Effetto: nube tossica gialla, scene industriali o vulcaniche.
+    type: homogeneous
+    sigma_a: [0.080, 0.120, 0.680]
+    sigma_s: [0.780, 0.820, 0.650]
+    phase:   hg
+    g:       0.50
+
+  - id: "med_fumo_sigaretta"
+    # Fumo di sigaretta visto in sidestream: azzurrino molto sottile.
+    # σ_s e σ_a bassi (fumo molto diluito). g=0.7 (Mie forward).
+    # Effetto: velo bluastro tenue in ambiente chiuso con luce tagliante.
+    type: homogeneous
+    sigma_a: [0.012, 0.010, 0.008]
+    sigma_s: [0.065, 0.075, 0.095]
+    phase:   hg
+    g:       0.70
+
+  # ── Vapore e nuvole ────────────────────────────────────────────────────────
+
+  - id: "med_vapore_acqua"
+    # Vapore acqueo (steam): bianco puro, quasi puro scattering.
+    # σ_a bassissimo, σ_s elevato con lieve eccesso nel blu.
+    # Effetto: geyser, pentola bollente, vapore da centrale.
+    type: homogeneous
+    sigma_a: [0.002, 0.002, 0.002]
+    sigma_s: [1.200, 1.250, 1.300]
+    phase:   hg
+    g:       0.72
+
+  - id: "med_nuvola_cumulonembo"
+    # Cumulonembo (Cb): nuvola temporalesca densa e bianca.
+    # σ_s molto alto, quasi puro scattering. double_hg: coronas e glory.
+    # Effetto: torre nube bianchissima in piena luce, interna grigio-scura.
+    type: homogeneous
+    sigma_a: [0.010, 0.010, 0.010]
+    sigma_s: [8.000, 8.500, 9.000]
+    phase:   double_hg
+    g1:      0.85
+    g2:     -0.10
+    w:       0.80
+
+  - id: "med_nuvola_alta_cirro"
+    # Cirro (Ci): cristalli di ghiaccio ad alta quota, sottile e traslucido.
+    # σ_s basso, σ_a quasi zero → velo trasparente.
+    # Effetto: alone solare/lunare, cielo opalescente ad alta quota.
+    type: homogeneous
+    sigma_a: [0.001, 0.001, 0.001]
+    sigma_s: [0.800, 0.900, 1.000]
+    phase:   hg
+    g:       0.78
+
+  - id: "med_nuvola_temporale"
+    # Nuvola da temporale: grigio scuro, acqua + ghiaccio + correnti.
+    # σ_s moderato, σ_a più alto rispetto al cumulo → grigio cupo.
+    # Effetto: cielo plumbeo pre-tempesta, luce soffocata e diffusa.
+    type: homogeneous
+    sigma_a: [0.045, 0.048, 0.052]
+    sigma_s: [3.200, 3.400, 3.600]
+    phase:   double_hg
+    g1:      0.80
+    g2:     -0.10
+    w:       0.75
+
+  # ── Polvere e aerosol ──────────────────────────────────────────────────────
+
+  - id: "med_polvere_desertica"
+    # Polvere di sabbia in sospensione (haboob, tempesta di sabbia).
+    # σ_a con eccesso nel blu (sabbia rossa/arancio assorbe il blu).
+    # height_fog: la polvere è più densa a terra. scale_height=15 → strato alto.
+    # Effetto: cielo arancio sporco, visibilità ridotta, sole rosseggiante.
+    type: height_fog
+    sigma_a: [0.180, 0.160, 0.120]
+    sigma_s: [0.600, 0.550, 0.450]
+    y0: 0.0
+    scale_height: 15.0
+    phase: hg
+    g:    0.68
+
+  - id: "med_polvere_vulcanica"
+    # Cenere vulcanica in sospensione: grigio con sfumatura giallo-sulfurea.
+    # σ_a alto su tutti i canali, eccesso nel blu. σ_s moderato.
+    # Effetto: atmosfera post-eruzione, sole pallido filtrato dal particolato.
+    type: homogeneous
+    sigma_a: [0.280, 0.320, 0.480]
+    sigma_s: [0.850, 0.880, 0.780]
+    phase:   hg
+    g:       0.62
+
+  - id: "med_smog_urbano"
+    # Smog fotochimico urbano: giallo-grigio, mix NO2 + aerosol organici.
+    # σ_a eccedente nel blu (NO2 giallo-bruno assorbe viola-blu).
+    # Effetto: cielo giallastro delle megalopoli, sole arancio a mezzogiorno.
+    type: homogeneous
+    sigma_a: [0.025, 0.038, 0.120]
+    sigma_s: [0.180, 0.195, 0.165]
+    phase:   hg
+    g:       0.65
+
+  - id: "med_aerosol_marino"
+    # Aerosol marino (sea spray, salsedine): quasi trasparente con tono freddo.
+    # Particelle di sale molto piccole → Rayleigh-like, ma con Mie g=0.55.
+    # Effetto: cielo marino leggermente lattiginoso, nessuna riduzione drammatica.
+    type: homogeneous
+    sigma_a: [0.005, 0.005, 0.006]
+    sigma_s: [0.022, 0.025, 0.030]
+    phase:   hg
+    g:       0.55
+
+  # ── Atmosfera (outdoor e prospettiva aerea) ────────────────────────────────
+
+  - id: "med_aria_standard"
+    # Aria a livello del mare: scattering Rayleigh puro.
+    # σ_s ∝ 1/λ⁴ → blu molto più alto del rosso (λ_R=700, λ_B=450 nm →
+    # (700/450)⁴ ≈ 5.8 × più nel blu). σ_a = 0 (aria non assorbe nel visibile).
+    # Effetto: cielo azzurro, tramonto rosso, prospettiva aerea naturale.
+    type: homogeneous
+    sigma_a: [0.0,   0.0,   0.0  ]
+    sigma_s: [0.001, 0.003, 0.008]
+    phase:   rayleigh
+
+  - id: "med_aria_umida"
+    # Aria con alta umidità relativa (80-95%): piccole goccioline in sospensione
+    # aggiungono Mie scattering. σ_s leggermente più alto e uniforme del secco.
+    # Effetto: cielo bianco-azzurro, orizzonte leggermente velato.
+    type: homogeneous
+    sigma_a: [0.000, 0.000, 0.001]
+    sigma_s: [0.003, 0.005, 0.010]
+    phase:   hg
+    g:       0.60
+
+  - id: "med_aria_secca_alta_quota"
+    # Aria secca ad alta quota (2000+ m): rarissima polvere, low humidity.
+    # σ_s molto basso → cieli blu intensi delle Alpi / altipiani.
+    # Effetto: cielo quasi nero allo zenith, stelle visibili di giorno (teorico).
+    type: homogeneous
+    sigma_a: [0.0,    0.0,    0.0   ]
+    sigma_s: [0.0003, 0.0008, 0.0022]
+    phase:   rayleigh

@@ -513,6 +513,7 @@ public class SceneLoader
         var importedEntities  = new List<EntityData>();
         var importedLights    = new List<LightData>();
         var importedTemplates = new List<EntityData>();
+        var importedMediums   = new List<MediumData>();
  
         foreach (var import in data.Imports)
         {
@@ -564,12 +565,15 @@ public class SceneLoader
                     importedLights.AddRange(importData.Lights);
                 if (importData.Templates != null)
                     importedTemplates.AddRange(importData.Templates);
- 
+                if (importData.Mediums != null)
+                    importedMediums.AddRange(importData.Mediums);
+
                 Verbose($"Imported:    {import.Path} " +
                         $"({importData.Materials?.Count ?? 0} materials, " +
                         $"{importData.Entities?.Count ?? 0} entities, " +
                         $"{importData.Lights?.Count ?? 0} lights, " +
-                        $"{importData.Templates?.Count ?? 0} templates)");
+                        $"{importData.Templates?.Count ?? 0} templates, " +
+                        $"{importData.Mediums?.Count ?? 0} mediums)");
             }
             catch (Exception ex)
             {
@@ -597,6 +601,11 @@ public class SceneLoader
         {
             importedTemplates.AddRange(data.Templates ?? new List<EntityData>());
             data.Templates = importedTemplates;
+        }
+        if (importedMediums.Count > 0)
+        {
+            importedMediums.AddRange(data.Mediums ?? new List<MediumData>());
+            data.Mediums = importedMediums;
         }
     }
 

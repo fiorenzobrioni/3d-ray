@@ -1,0 +1,452 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Libreria Medium — Organici
+# 3D-Ray · scenes/libraries/mediums/organics.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Materiali biologici e organici lavorati con subsurface scattering.
+# Scala: 1 world-unit ≈ 10–30 cm (oggetti SSS / scale umana).
+#
+# Fonti principali:
+#   Jensen et al. 2001 — "A Practical Model for Subsurface Light Transport"
+#   Narasimhan et al. 2006 — "Acquiring Scattering Properties of Participating Media"
+#   Donner & Jensen 2005  — "Light Diffusion in Multi-Layered Translucent Materials"
+#
+# Canali RGB ≈ 700 nm (R), 550 nm (G), 450 nm (B).
+# sigma_a: assorbimento per world-unit  [R, G, B]
+# sigma_s: scattering per world-unit    [R, G, B]
+# Tutti i valori sono in unità 1/wu; phase hg g=0.8 per tissue umano,
+# isotropic o hg g=0.0–0.3 per cere dense.
+#
+# Importa con:
+#   imports: [{ path: "libraries/mediums/organics.yaml" }]
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+mediums:
+
+  # ── Pelle umana ────────────────────────────────────────────────────────────
+
+  - id: "med_pelle_chiara"
+    # Pelle caucasica. Fonte: Jensen et al. 2001 "skin 1".
+    # SSS rosso dominante; σ_a cresce verso il blu (emoglobina + melanina scarsa).
+    # Effetto: traslucenza calda rosata in controluce.
+    type: homogeneous
+    sigma_a: [0.032, 0.170, 0.480]
+    sigma_s: [0.740, 0.880, 1.010]
+    phase:   hg
+    g:       0.80
+
+  - id: "med_pelle_media"
+    # Pelle mediterranea / olivastra. Fonte: Jensen et al. 2001 "skin 2".
+    # Melanina più alta → σ_a maggiore, ma σ_s aumenta per strati corneali più
+    # spessi. Effetto: traslucenza più scura, tono ambrato in luce radente.
+    type: homogeneous
+    sigma_a: [0.013, 0.070, 0.145]
+    sigma_s: [1.090, 1.590, 1.790]
+    phase:   hg
+    g:       0.80
+
+  - id: "med_pelle_scura"
+    # Pelle scura (fototipi V). Melanina abbondante → σ_a elevato su tutti i
+    # canali, dominante nel blu. σ_s leggermente ridotto (cute più densa).
+    # Effetto: traslucenza quasi assente salvo bordi molto sottili (orecchie, dita).
+    type: homogeneous
+    sigma_a: [0.060, 0.280, 0.720]
+    sigma_s: [0.980, 1.420, 1.650]
+    phase:   hg
+    g:       0.80
+
+  - id: "med_pelle_molto_scura"
+    # Pelle afroamericana (fototipo VI). σ_a massimale per melanina densa.
+    # Effetto: pratica opacità; traslucenza visibile solo in scene con luce
+    # retro-diffusa molto intensa (es. dita contro lampada).
+    type: homogeneous
+    sigma_a: [0.120, 0.510, 1.150]
+    sigma_s: [0.880, 1.280, 1.510]
+    phase:   hg
+    g:       0.80
+
+  - id: "med_pelle_bambino"
+    # Pelle infantile: derma più sottile e meno melanina → σ_a ridotti ~30%,
+    # σ_s ridotti (strati corneali meno sviluppati). Alta traslucenza.
+    # Effetto: aspetto latteo/rosato, vene visibili in controluce.
+    type: homogeneous
+    sigma_a: [0.022, 0.119, 0.336]
+    sigma_s: [0.518, 0.616, 0.707]
+    phase:   hg
+    g:       0.80
+
+  - id: "med_labbra"
+    # Mucosa labiale: strato corneo quasi assente, irrorazione ematica intensa.
+    # σ_a rosso più basso (sangue deossigenato), σ_a alto su G+B (emoglobina).
+    # Effetto: rosso carnoso, vivace translucenza con tono framboesa in controluce.
+    type: homogeneous
+    sigma_a: [0.045, 0.310, 0.680]
+    sigma_s: [0.620, 0.750, 0.890]
+    phase:   hg
+    g:       0.75
+
+  - id: "med_orecchio_controluce"
+    # Padiglione auricolare retroilluminato: cartilagine + cute sottilissima.
+    # σ_a ridotti rispetto alla pelle standard (area priva di muscolo/grasso).
+    # Effetto: arancio-rosso traslucente vivido (classico backlit ear look).
+    type: homogeneous
+    sigma_a: [0.018, 0.095, 0.260]
+    sigma_s: [0.550, 0.680, 0.820]
+    phase:   hg
+    g:       0.82
+
+  # ── Cere ───────────────────────────────────────────────────────────────────
+
+  - id: "med_cera_bianca_api"
+    # Cera d'api sbiancata. Fonte: Jensen et al. 2001 "white marble/wax".
+    # σ_s altissimo + σ_a quasi pari su tutti i canali → bianco lattiginoso.
+    # Effetto: traslucenza densa e omogenea, tipica della candela liturgica.
+    type: homogeneous
+    sigma_a: [0.035, 0.030, 0.045]
+    sigma_s: [6.500, 6.500, 7.000]
+    phase:   isotropic
+
+  - id: "med_cera_avorio"
+    # Cera con tono avorio caldo: leggero eccesso di σ_a nel blu.
+    # Simile alla cera bianca ma con sfumatura giallognola per impurità naturali.
+    # Effetto: candela classica non decolorata, tono crema-giallo.
+    type: homogeneous
+    sigma_a: [0.030, 0.035, 0.075]
+    sigma_s: [6.200, 6.300, 6.700]
+    phase:   isotropic
+
+  - id: "med_cera_gialla_api"
+    # Cera d'api naturale non lavorata, giallo-miele.
+    # Assorbimento alto nel blu, moderato nel verde → tono ambrato.
+    # Effetto: candela rustica, corpo caldo e ricco.
+    type: homogeneous
+    sigma_a: [0.028, 0.080, 0.280]
+    sigma_s: [5.800, 5.900, 6.200]
+    phase:   isotropic
+
+  - id: "med_cera_rossa_sigillo"
+    # Ceralacca rossa scura per sigilli. Alto σ_a su G+B → rosso intenso.
+    # σ_s più basso della cera normale (resine aggiunte riducono il mfp).
+    # Effetto: rosso profondo rubino con accenni di traslucenza ai bordi.
+    type: homogeneous
+    sigma_a: [0.040, 1.200, 2.800]
+    sigma_s: [3.500, 3.200, 3.000]
+    phase:   hg
+    g:       0.20
+
+  - id: "med_cera_nera"
+    # Cera nera: coloranti carboniosi → σ_a alti su tutti i canali.
+    # σ_s moderato (ancora cera, non vernice opaca).
+    # Effetto: quasi opaco con sottile bagliore ai bordi più sottili.
+    type: homogeneous
+    sigma_a: [1.800, 2.100, 2.500]
+    sigma_s: [2.800, 2.700, 2.600]
+    phase:   isotropic
+
+  - id: "med_paraffina"
+    # Paraffina pura: bianco freddo, cristallina. σ_s leggermente inferiore
+    # alla cera d'api (struttura molecolare più regolare, meno diffusiva).
+    # Effetto: candela industriale/da laboratorio, bianca e fredda.
+    type: homogeneous
+    sigma_a: [0.033, 0.032, 0.048]
+    sigma_s: [5.900, 5.950, 6.400]
+    phase:   isotropic
+
+  # ── Resine naturali e sintetiche ───────────────────────────────────────────
+
+  - id: "med_ambra_baltica"
+    # Ambra baltica fossile (succinite). Milioni di anni → polimerizzazione
+    # totale. σ_a molto alto nel blu e moderato nel verde → arancio dorato intenso.
+    # Effetto: corpo caldo ambrato con profondità, come miele cristallizzato.
+    type: homogeneous
+    sigma_a: [0.018, 0.145, 0.980]
+    sigma_s: [0.420, 0.480, 0.560]
+    phase:   hg
+    g:       0.30
+
+  - id: "med_ambra_chiara"
+    # Ambra giovane / resina parzialmente polimerizzata, giallo chiaro.
+    # Meno assorbimento rispetto alla baltica → tono paglierino.
+    # Effetto: pepita di resina fossile, trasparente con velo caldo.
+    type: homogeneous
+    sigma_a: [0.008, 0.060, 0.420]
+    sigma_s: [0.280, 0.320, 0.380]
+    phase:   hg
+    g:       0.30
+
+  - id: "med_resina_naturale"
+    # Resina d'albero fresca (pino, abete). Arancio trasparente, più diluita
+    # dell'ambra. σ_a e σ_s inferiori rispetto al fossile.
+    # Effetto: lacrima di resina, brillante e calda.
+    type: homogeneous
+    sigma_a: [0.006, 0.038, 0.210]
+    sigma_s: [0.180, 0.210, 0.250]
+    phase:   hg
+    g:       0.25
+
+  - id: "med_resina_epossidica_chiara"
+    # Epossidica casting bicomponente, quasi trasparente.
+    # Leggero tono giallognolo per gli indurenti amminici.
+    # Effetto: blocco di resina da galleria, quasi vetro con velo caldo.
+    type: homogeneous
+    sigma_a: [0.002, 0.005, 0.022]
+    sigma_s: [0.050, 0.060, 0.070]
+    phase:   hg
+    g:       0.20
+
+  - id: "med_resina_epossidica_colorata_blu"
+    # Epossidica pigmentata blu profondo.
+    # σ_a alto su R+G, bassissimo su B → trasmette solo il blu.
+    # Effetto: blocco di resina cobalto, luminoso in controluce.
+    type: homogeneous
+    sigma_a: [1.200, 0.680, 0.018]
+    sigma_s: [0.380, 0.420, 0.520]
+    phase:   hg
+    g:       0.20
+
+  - id: "med_lacca_urushi"
+    # Lacca urushi giapponese (Toxicodendron vernicifluum), marrone scuro.
+    # Molto assorbente su tutti i canali, σ_s basso (lacca quasi opaca).
+    # Effetto: superficie scura con traslucenza brunita agli spigoli.
+    type: homogeneous
+    sigma_a: [0.480, 1.100, 2.200]
+    sigma_s: [0.650, 0.580, 0.520]
+    phase:   hg
+    g:       0.15
+
+  # ── Tessuti vegetali ────────────────────────────────────────────────────────
+
+  - id: "med_foglia_verde_fresca"
+    # Foglia verde con clorofilla attiva. Clorofilla assorbe rosso + blu;
+    # trasmette verde → σ_a basso su G, alto su R+B. σ_s moderato (mesofillo).
+    # Effetto: controluce verde brillante, venature visibili.
+    type: homogeneous
+    sigma_a: [0.380, 0.042, 0.320]
+    sigma_s: [0.650, 0.720, 0.600]
+    phase:   hg
+    g:       0.60
+
+  - id: "med_foglia_gialla_autunno"
+    # Foglia autunnale (caroteni attivi, clorofilla degradata).
+    # σ_a alto nel blu, basso nel verde+rosso → riflette/trasmette giallo.
+    # Effetto: foglia dorata in controluce, caldi toni di fine stagione.
+    type: homogeneous
+    sigma_a: [0.085, 0.068, 0.520]
+    sigma_s: [0.480, 0.510, 0.420]
+    phase:   hg
+    g:       0.55
+
+  - id: "med_petalo_rosa"
+    # Petalo di rosa o ciliegio, rosa tenue.
+    # σ_a moderato su B+G, basso su R → tinta rosata.
+    # Effetto: petalo traslucente pastello in fioritura primaverile.
+    type: homogeneous
+    sigma_a: [0.045, 0.190, 0.380]
+    sigma_s: [0.550, 0.580, 0.520]
+    phase:   hg
+    g:       0.65
+
+  - id: "med_petalo_rosso"
+    # Petalo rosso vivo (antociani). Alto σ_a su G+B, bassissimo su R.
+    # Effetto: rosso intenso in trasmissione, quasi gemma rubino.
+    type: homogeneous
+    sigma_a: [0.025, 0.780, 1.450]
+    sigma_s: [0.480, 0.420, 0.380]
+    phase:   hg
+    g:       0.65
+
+  - id: "med_petalo_bianco"
+    # Petalo bianco (nessun pigmento): tutti σ_a bassi, σ_s alto.
+    # Effetto: petalo traslucente bianco latte, quasi alabastro vegetale.
+    type: homogeneous
+    sigma_a: [0.012, 0.014, 0.018]
+    sigma_s: [0.880, 0.920, 0.960]
+    phase:   hg
+    g:       0.60
+
+  # ── Polpe di frutta e verdura ──────────────────────────────────────────────
+
+  - id: "med_polpa_mela"
+    # Polpa di mela (Golden / Fuji). Fonte: Jensen et al. 2001.
+    # Bianca traslucente, alto σ_s, σ_a leggero con eccesso nel blu.
+    # Effetto: SSS lattiginoso uniforme, tipico della mela tagliata.
+    type: homogeneous
+    sigma_a: [0.0030, 0.0034, 0.046]
+    sigma_s: [2.290,  2.390,  1.870]
+    phase:   hg
+    g:       0.75
+
+  - id: "med_polpa_pesca"
+    # Polpa di pesca / albicocca: arancio caldo, σ_a con sfumatura orangeata.
+    # σ_s simile alla mela; leggero eccesso σ_a nel blu rispetto al verde.
+    # Effetto: arancio caldo e vellutato, tipico della pesca matura.
+    type: homogeneous
+    sigma_a: [0.0025, 0.012, 0.068]
+    sigma_s: [2.100,  2.250, 1.750]
+    phase:   hg
+    g:       0.75
+
+  - id: "med_polpa_pompelmo"
+    # Polpa di pompelmo (rosa). Fonte: Jensen et al. 2001.
+    # σ_a marcato su B, tono rosato; σ_s elevato (fibra + acqua).
+    # Effetto: SSS rosa arancio saturo, spicchi luminosi in controluce.
+    type: homogeneous
+    sigma_a: [0.096, 0.131, 0.395]
+    sigma_s: [3.510, 3.750, 5.230]
+    phase:   hg
+    g:       0.75
+
+  - id: "med_polpa_arancio"
+    # Polpa d'arancio: simile al pompelmo ma tono più arancio puro.
+    # σ_a G leggermente ridotto, σ_a B aumentato rispetto al pompelmo.
+    # Effetto: arancio luminoso e succoso in sezione.
+    type: homogeneous
+    sigma_a: [0.072, 0.110, 0.480]
+    sigma_s: [3.200, 3.450, 4.900]
+    phase:   hg
+    g:       0.75
+
+  - id: "med_polpa_anguria"
+    # Polpa di cocomero: altissima percentuale d'acqua, licopene rosso.
+    # σ_a alto su G+B, quasi zero su R → rosso vivido e acquoso.
+    # Effetto: SSS rosso brillante, quasi luminoso in controluce.
+    type: homogeneous
+    sigma_a: [0.018, 0.420, 0.980]
+    sigma_s: [1.850, 1.950, 2.100]
+    phase:   hg
+    g:       0.70
+
+  - id: "med_polpa_kiwi"
+    # Polpa di kiwi verde: clorofilla → verde brillante.
+    # σ_a basso su G, alto su R+B. σ_s moderato (fibre e semi).
+    # Effetto: verde smeraldo in controluce, semini in silhouette.
+    type: homogeneous
+    sigma_a: [0.280, 0.035, 0.350]
+    sigma_s: [1.620, 1.780, 1.580]
+    phase:   hg
+    g:       0.72
+
+  - id: "med_polpa_banana"
+    # Polpa di banana: giallo opaco, carotenoidi.
+    # σ_a alto nel blu, basso nel verde, quasi zero nel rosso.
+    # σ_s moderato (fibre dense).
+    # Effetto: giallo pastoso, scarsa traslucenza (banana matura).
+    type: homogeneous
+    sigma_a: [0.008, 0.055, 0.380]
+    sigma_s: [1.420, 1.550, 1.350]
+    phase:   hg
+    g:       0.70
+
+  # ── Tessuti animali ────────────────────────────────────────────────────────
+
+  - id: "med_carne_cruda_pollo"
+    # Carne di pollo cruda. Fonte: Jensen et al. 2001 "chicken".
+    # σ_a moderato con dominante rosso-arancio (mioglobina, emoglobina).
+    # Effetto: SSS carne rosata, tipica del petto di pollo.
+    type: homogeneous
+    sigma_a: [0.015, 0.077, 0.190]
+    sigma_s: [0.150, 0.210, 0.380]
+    phase:   hg
+    g:       0.80
+
+  - id: "med_carne_cruda_manzo"
+    # Carne bovina cruda: maggiore mioglobina → rosso più scuro e saturo.
+    # σ_a rosso leggermente più basso (trasmette più rosso), σ_a G+B più alti.
+    # Effetto: SSS rosso scuro ricco, bistecca in sezione.
+    type: homogeneous
+    sigma_a: [0.010, 0.120, 0.380]
+    sigma_s: [0.180, 0.240, 0.420]
+    phase:   hg
+    g:       0.80
+
+  - id: "med_carne_cotta"
+    # Carne cotta (pollo/maiale arrosto): denaturazione proteica → grigio-marrone.
+    # Tutti σ_a aumentati (pigmenti ossidati), σ_s leggermente ridotto.
+    # Effetto: tono opaco grigiastro con calore brunito.
+    type: homogeneous
+    sigma_a: [0.085, 0.210, 0.420]
+    sigma_s: [0.120, 0.160, 0.280]
+    phase:   hg
+    g:       0.75
+
+  - id: "med_grasso_animale"
+    # Grasso animale (lardo, sebo): bianco/avorio. Fonte: Jensen 2001 "fat".
+    # σ_s molto alto (lipidi diffrattivi), σ_a bassissimo su tutti i canali.
+    # Effetto: bianco lattiginoso denso, simile alla paraffina ma più caldo.
+    type: homogeneous
+    sigma_a: [0.003, 0.007, 0.015]
+    sigma_s: [3.500, 4.000, 4.800]
+    phase:   hg
+    g:       0.80
+
+  - id: "med_fegato"
+    # Fegato bovino / suino: viola-marrone scuro, denso di emoglobina
+    # e bilirubina. Tutti σ_a alti, σ_s più basso (tessuto compatto).
+    # Effetto: scuro e quasi opaco, traslucenza violacea ai bordi sottili.
+    type: homogeneous
+    sigma_a: [0.280, 0.650, 1.200]
+    sigma_s: [0.280, 0.320, 0.380]
+    phase:   hg
+    g:       0.75
+
+  # ── Materiali organici lavorati ────────────────────────────────────────────
+
+  - id: "med_sapone_bianco"
+    # Sapone a freddo bianco (saponificazione olio d'oliva).
+    # Molto traslucente: σ_s alto uniforme, σ_a bassissimo.
+    # Effetto: barra di sapone lattiginosa, classico effetto cera in controluce.
+    type: homogeneous
+    sigma_a: [0.008, 0.010, 0.016]
+    sigma_s: [3.800, 4.100, 4.500]
+    phase:   isotropic
+
+  - id: "med_sapone_glicerina"
+    # Sapone alla glicerina trasparente (melt & pour).
+    # σ_s basso (quasi vetro), σ_a leggero → aspetto quasi-diafano.
+    # Effetto: blocco ambrato translucido, simile alla resina chiara.
+    type: homogeneous
+    sigma_a: [0.004, 0.008, 0.025]
+    sigma_s: [0.180, 0.200, 0.230]
+    phase:   hg
+    g:       0.15
+
+  - id: "med_formaggio_brie"
+    # Formaggio Brie / camembert: pasta molle crema traslucente.
+    # σ_s medio (proteine del latte dispersive), σ_a leggero giallo-caldo.
+    # Effetto: pasta lattiginosa con sottile tono butirrico.
+    type: homogeneous
+    sigma_a: [0.012, 0.018, 0.055]
+    sigma_s: [1.650, 1.780, 1.920]
+    phase:   hg
+    g:       0.70
+
+  - id: "med_formaggio_gouda"
+    # Formaggio Gouda stagionato: giallo paglierino, più compatto del Brie.
+    # σ_a eccedente nel blu (caroteni del latte concentrati dalla stagionatura).
+    # Effetto: giallo dorato, traslucenza ridotta rispetto al molle.
+    type: homogeneous
+    sigma_a: [0.018, 0.028, 0.095]
+    sigma_s: [1.350, 1.480, 1.620]
+    phase:   hg
+    g:       0.72
+
+  - id: "med_cioccolato_fondente"
+    # Cioccolato fondente (70%+): marrone scuro, alto σ_a su G+B.
+    # σ_s basso (pasta compatta e omogenea, poco SSS).
+    # Effetto: scuro quasi opaco con sottile bagliore caldo al bordo.
+    type: homogeneous
+    sigma_a: [0.380, 1.200, 2.800]
+    sigma_s: [0.450, 0.420, 0.390]
+    phase:   hg
+    g:       0.30
+
+  - id: "med_cioccolato_bianco"
+    # Cioccolato bianco (burro di cacao + zucchero, no cacao).
+    # Crema lattiginosa: σ_s moderato, leggero σ_a nel blu.
+    # Effetto: tono crema-vaniglia, traslucenza morbida simile alla cera avorio.
+    type: homogeneous
+    sigma_a: [0.015, 0.022, 0.075]
+    sigma_s: [1.800, 1.950, 2.100]
+    phase:   hg
+    g:       0.65

@@ -330,3 +330,66 @@ rendering.
 
 Vedi anche `docs/reference/rendering-profiles.md` per le scorciatoie
 `-q draft-tiny / draft-small / draft / medium / final / ultra`.
+
+## Materiali con medium companion
+
+Molti materiali traslucenti o rifrattivi guadagnano enormemente dal SSS
+volumetrico. Importa la libreria medium corrispondente e assegna
+`interior_medium` all'entity per abilitare il Random Walk SSS del motore.
+
+La distinzione fondamentale: il **material** descrive la superficie (BSDF),
+il **medium** descrive il volume interno (trasporto volumetrico). Un oggetto
+può avere entrambi contemporaneamente. Vedi `scenes/libraries/mediums/README.md`
+per la guida completa, la calibrazione della scala e le note sulla phase
+function.
+
+| File material | Material ID esempio | Medium da importare | Medium ID | Effetto |
+|---|---|---|---|---|
+| `stones.yaml` | `dis_carrara_lucido` | `mediums/stones.yaml` | `med_marmo_carrara` | SSS marmo bianco, glow lattiginoso caldo |
+| `stones.yaml` | `dis_alabastro_bianco` | `mediums/stones.yaml` | `med_alabastro_bianco` | Retroilluminazione traslucente massima |
+| `stones.yaml` | `dis_onice_miele` | `mediums/stones.yaml` | `med_onice_miele` | Ambrato dorato caldo, effetto teatrale |
+| `glasses.yaml` | `dis_ghiaccio_blu` | `mediums/ice-snow.yaml` | `med_ghiaccio_blu_glaciale` | Ghiacciaio, iceberg, blocchi artici |
+| `glasses.yaml` | `dis_neve_compatta` | `mediums/ice-snow.yaml` | `med_neve_fresca` | Neve retroilluminata con glow bluastro |
+| `liquids.yaml` | `dis_acqua_piscina` | `mediums/liquids.yaml` | `med_acqua_pulita` | Acquario, piscina, vasche limpide |
+| `liquids.yaml` | `dis_latte_intero` | `mediums/liquids.yaml` | `med_latte_intero` | SSS lattiginoso opaco, colori pastello |
+| `organics.yaml` | `dis_cera_api` | `mediums/organics.yaml` | `med_cera_api` | Candela retroilluminata, scultura in cera |
+| `organics.yaml` | `dis_pelle_chiara` | `mediums/organics.yaml` | `med_pelle_chiara` | Skin SSS fotorealistico per close-up |
+| `foods.yaml` | `dis_cioccolato_fondente` | `mediums/organics.yaml` | `med_cioccolato_fondente` | Chocolate SSS scuro, glassa colata |
+| `minerals-gems.yaml` | `dis_quarzo_rosa` | `mediums/stones.yaml` | `med_quarzo_rosa` | Quarzo rosa cristallino quasi vitreo |
+| `minerals-gems.yaml` | `dis_ametista_grezza` | `mediums/stones.yaml` | `med_ametista` | Viola/lavanda semitrasparente |
+| `minerals-gems.yaml` | `dis_opale_bianco` | `mediums/stones.yaml` | `med_opale_bianco` | Lattiginoso opalescente + iridescenza thin_film |
+
+### Esempio scena minimale con material + medium
+
+```yaml
+imports:
+  - { path: "libraries/materials/stones.yaml" }
+  - { path: "libraries/mediums/stones.yaml" }
+
+entities:
+  - name: scultura_marmo
+    type: sphere
+    center: [0, 1, 0]
+    radius: 0.35
+    material: dis_carrara_lucido       # Disney con spec_trans: fa entrare la luce
+    interior_medium: med_marmo_carrara # Random Walk volumetrico nel volume del marmo
+
+  - name: vaso_alabastro
+    type: cylinder
+    center: [0.8, 0.5, 0]
+    radius: 0.15
+    height: 0.5
+    material: dis_alabastro_bianco     # Disney translucente
+    interior_medium: med_alabastro_bianco  # SSS massimo: quasi come retroilluminato
+
+  - name: pedestal
+    type: box
+    min: [-1, -0.01, -0.5]
+    max: [1,   0.01,  0.5]
+    material: cls_carrara_levigato     # Classic per la superficie del piano — nessun medium
+```
+
+**Nota:** un Lambertian puro (prefisso `cls_` lambertian) non fa entrare la
+luce nel volume — il medium non avrebbe effetto visivo. Usa sempre un material
+con `spec_trans > 0` (Disney), `type: dielectric`, oppure Disney con
+`flatness > 0` (superfici cerose/saponose) come compagno del medium.
