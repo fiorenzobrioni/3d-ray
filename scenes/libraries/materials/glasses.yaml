@@ -656,6 +656,7 @@ materials:
   - id: "dis_opale"
     type: "disney"
     color: [0.88, 0.85, 0.82]
+    subsurface_radius: [0.40, 0.40, 0.50]   # SSS embedded (Random Walk, Phase 3)
     roughness: 0.08
     spec_trans: 0.40
     ior: 1.45
@@ -670,6 +671,8 @@ materials:
   - id: "dis_ghiaccio_chiaro"
     type: "disney"
     color: [0.92, 0.96, 1.0]
+    subsurface_radius: [1.2, 1.5, 1.8]   # SSS embedded (Random Walk, Phase 3)
+    subsurface_anisotropy: 0.9
     roughness: 0.02
     spec_trans: 0.95
     ior: 1.31
@@ -679,6 +682,8 @@ materials:
   - id: "dis_ghiaccio_torbido"
     type: "disney"
     color: [0.78, 0.85, 0.92]
+    subsurface_radius: [0.60, 0.80, 1.0]
+    subsurface_anisotropy: 0.9
     roughness: 0.12
     spec_trans: 0.72
     ior: 1.31
@@ -688,6 +693,8 @@ materials:
   - id: "dis_ghiaccio_blu"
     type: "disney"
     color: [0.55, 0.75, 0.95]
+    subsurface_radius: [0.10, 0.60, 1.5]
+    subsurface_anisotropy: 0.9
     roughness: 0.05
     spec_trans: 0.85
     ior: 1.31
@@ -699,6 +706,8 @@ materials:
   - id: "dis_ghiaccio_fratturato"
     type: "disney"
     color: [0.88, 0.92, 0.98]
+    subsurface_radius: [1.0, 1.2, 1.5]
+    subsurface_anisotropy: 0.9
     roughness: 0.18
     specular: 0.50
     spec_trans: 0.78
@@ -727,6 +736,8 @@ materials:
   - id: "dis_neve_compatta"
     type: "disney"
     color: [0.92, 0.94, 0.98]
+    subsurface_radius: [0.12, 0.13, 0.14]
+    subsurface_anisotropy: 0.82
     roughness: 0.85
     spec_trans: 0.15
     ior: 1.31

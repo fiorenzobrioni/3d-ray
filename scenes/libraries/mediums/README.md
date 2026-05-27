@@ -9,6 +9,21 @@ scattering, assorbimento e lunghezza del cammino libero medio. Completano i
 materiali di superficie (BSDF) per produrre Subsurface Scattering (SSS)
 fotorealistico tramite Random Walk volumetrico (SSS Phase 3 del motore).
 
+> **Nota — Material-embedded SSS.** Da quando il motore supporta
+> `subsurface_radius` direttamente sui materiali Disney (parity con
+> Arnold `standard_surface` / Cycles Principled BSDF), molti casi d'uso
+> SSS "standard" (marmo, cera, ghiaccio, latte, cioccolato, opale,
+> pelle, ametiste) sono già coperti dalle librerie `materials/` senza
+> bisogno di importare la libreria mediums. La libreria `mediums/`
+> rimane utile per: (1) **override esplicito** del SSS predefinito
+> (lo stesso vetro che racchiude acqua, vino o latte); (2) **acqua,
+> vino, oli, succhi** dentro contenitori di vetro o ceramica;
+> (3) **nebbie e atmosferiche** come `world.medium` globale; (4) **fumi,
+> nuvole, vapore** confinati in CSG o entity esplicite; (5) **materiali
+> custom** dell'utente che non dichiarano `subsurface_radius`. Vedi
+> `materials/README.md` § "Material-embedded SSS" per il confronto tra
+> le due strategie.
+
 ## Differenza tra `material` e `medium`
 
 | Concetto | Descrive | Parametri chiave | File libreria |

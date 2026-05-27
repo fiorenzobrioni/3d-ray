@@ -182,6 +182,8 @@ materials:
   - id: "dis_latte_intero"
     type: "disney"
     color: [0.97, 0.95, 0.90]
+    subsurface_radius: [0.50, 0.55, 0.65]   # SSS embedded (Random Walk, Phase 3)
+    subsurface_anisotropy: 0.8
     roughness: 0.25
     specular: 0.42
 
@@ -189,6 +191,8 @@ materials:
   - id: "dis_latte_scremato"
     type: "disney"
     color: [0.92, 0.94, 0.98]
+    subsurface_radius: [0.65, 0.70, 0.85]
+    subsurface_anisotropy: 0.8
     roughness: 0.22
     specular: 0.42
 
@@ -196,6 +200,8 @@ materials:
   - id: "dis_panna_montata"
     type: "disney"
     color: [0.98, 0.97, 0.93]
+    subsurface_radius: [0.35, 0.38, 0.42]
+    subsurface_anisotropy: 0.8
     roughness: 0.42
     specular: 0.38
     bump_map:
@@ -210,6 +216,8 @@ materials:
   - id: "dis_latte_condensato"
     type: "disney"
     color: [0.96, 0.88, 0.62]
+    subsurface_radius: [0.50, 0.45, 0.30]
+    subsurface_anisotropy: 0.8
     roughness: 0.18
     specular: 0.42
     spec_trans: 0.18

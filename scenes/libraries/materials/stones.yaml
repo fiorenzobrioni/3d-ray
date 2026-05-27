@@ -88,6 +88,7 @@ materials:
     coat_roughness: 0.05
     coat_ior: 1.5
     specular: 0.72
+    subsurface_radius: [0.45, 0.35, 0.22]   # SSS embedded (Random Walk, Phase 3)
 
   # Carrara levigato — sculture classiche, bagni, non specchio
   - id: "dis_carrara_levigato"
@@ -109,12 +110,14 @@ materials:
       randomize_offset: true
     roughness: 0.38
     specular: 0.40
+    subsurface_radius: [0.45, 0.35, 0.22]
 
   # Carrara studio — versione production-grade: 3 layer ridged + ramp 5-stop
   # dalla vena scura attraverso grigi caldi alla base avorio.
   - id: "dis_carrara_studio"
     type: "disney"
     color: [0.95, 0.94, 0.92]
+    subsurface_radius: [0.45, 0.35, 0.22]
     roughness: 0.32
     specular: 0.50
     clearcoat: 0.55
@@ -144,6 +147,7 @@ materials:
   # Carrara studio lucido — variante a specchio del Carrara studio
   - id: "dis_carrara_studio_lucido"
     type: "disney"
+    subsurface_radius: [0.45, 0.35, 0.22]
     roughness: 0.10
     clearcoat: 0.90
     coat_roughness: 0.05
@@ -194,11 +198,13 @@ materials:
     coat_roughness: 0.05
     coat_ior: 1.5
     specular: 0.75
+    subsurface_radius: [0.40, 0.32, 0.20]
 
   # Calacatta studio — Calacatta Gold ramp 5-stop dorata, 3 layer.
   - id: "dis_calacatta_studio"
     type: "disney"
     color: [0.95, 0.92, 0.85]
+    subsurface_radius: [0.40, 0.32, 0.20]
     roughness: 0.28
     specular: 0.50
     clearcoat: 0.65
@@ -229,6 +235,7 @@ materials:
   # che differenzia base (0.22) e vena oro (0.12).
   - id: "dis_calacatta_studio_lucido"
     type: "disney"
+    subsurface_radius: [0.40, 0.32, 0.20]
     roughness: 0.22
     clearcoat: 0.92
     coat_roughness: 0.05
@@ -302,11 +309,13 @@ materials:
     coat_roughness: 0.06
     coat_ior: 1.5
     specular: 0.70
+    subsurface_radius: [0.55, 0.45, 0.30]
 
   # Statuario studio — venatura sottile e netta su base candida, ramp 4-stop.
   - id: "dis_statuario_studio"
     type: "disney"
     color: [0.96, 0.95, 0.93]
+    subsurface_radius: [0.55, 0.45, 0.30]
     roughness: 0.28
     specular: 0.50
     clearcoat: 0.65
@@ -336,6 +345,7 @@ materials:
   # Statuario studio lucido — variante a specchio
   - id: "dis_statuario_studio_lucido"
     type: "disney"
+    subsurface_radius: [0.55, 0.45, 0.30]
     roughness: 0.10
     clearcoat: 0.88
     coat_roughness: 0.06
@@ -366,6 +376,7 @@ materials:
   - id: "dis_thassos_lucido"
     type: "disney"
     color: [0.96, 0.96, 0.95]
+    subsurface_radius: [0.55, 0.50, 0.40]
     roughness: 0.08
     clearcoat: 0.85
     coat_roughness: 0.06
@@ -403,6 +414,7 @@ materials:
     coat_roughness: 0.05
     coat_ior: 1.5
     specular: 0.85
+    subsurface_radius: [0.04, 0.03, 0.02]   # SSS embedded (Random Walk, Phase 3)
 
   - id: "dis_nero_marquinia_levigato"
     type: "disney"
@@ -423,6 +435,7 @@ materials:
       randomize_offset: true
     roughness: 0.35
     specular: 0.50
+    subsurface_radius: [0.04, 0.03, 0.02]
 
   # Nero Belgio — nero uniforme, quasi senza venature
   - id: "dis_nero_belgio_lucido"
@@ -520,6 +533,7 @@ materials:
     coat_roughness: 0.12
     coat_ior: 1.5
     specular: 0.62
+    subsurface_radius: [0.10, 0.35, 0.10]   # SSS embedded (Random Walk, Phase 3)
 
   # Rosso Levanto — base rossa intensa con vene calcaree bianche sottili.
   - id: "dis_rosso_levanto_lucido"
@@ -597,6 +611,7 @@ materials:
     coat_roughness: 0.18
     coat_ior: 1.5
     specular: 0.48
+    subsurface_radius: [0.45, 0.30, 0.28]
 
   # Blu Sodalite — blu cobalto profondo con vene bianche calcaree.
   - id: "dis_blu_sodalite_lucido"
@@ -624,6 +639,7 @@ materials:
     coat_roughness: 0.05
     coat_ior: 1.5
     specular: 0.75
+    subsurface_radius: [0.05, 0.08, 0.30]
 
   # Giallo Siena — giallo caldo con vene marrone-ocra.
   - id: "dis_giallo_siena_lucido"
@@ -648,6 +664,7 @@ materials:
     coat_roughness: 0.15
     coat_ior: 1.5
     specular: 0.55
+    subsurface_radius: [0.40, 0.30, 0.10]
 
   # Arabescato Orobico — caos drammatico, base grigia con vene bianche audaci.
   - id: "dis_arabescato_lucido"
@@ -1063,6 +1080,7 @@ materials:
     specular: 0.65
     spec_trans: 0.18
     ior: 1.49
+    subsurface_radius: [0.50, 0.35, 0.15]   # SSS embedded (Random Walk, Phase 3)
 
   # Onice verde — bande verde giada
   - id: "dis_onice_verde"
@@ -1089,12 +1107,14 @@ materials:
     specular: 0.62
     spec_trans: 0.12
     ior: 1.49
+    subsurface_radius: [0.10, 0.45, 0.20]
 
   # Onice musgrave miele — stratificazione naturale via hetero_terrain
   # + Beer-Lambert ambra profonda.
   - id: "dis_onice_musgrave_miele"
     type: "disney"
     color: [0.92, 0.65, 0.32]
+    subsurface_radius: [0.50, 0.35, 0.15]
     roughness: 0.10
     specular: 0.50
     spec_trans: 0.65
@@ -1143,6 +1163,8 @@ materials:
     specular: 0.42
     spec_trans: 0.08
     ior: 1.52
+    subsurface_radius: [0.85, 0.75, 0.55]   # SSS embedded (Random Walk, Phase 3)
+    subsurface_anisotropy: 0.1
 
   # Alabastro miele — tono caldo ambrato
   - id: "dis_alabastro_miele"
@@ -1166,6 +1188,8 @@ materials:
     specular: 0.40
     spec_trans: 0.10
     ior: 1.52
+    subsurface_radius: [0.85, 0.75, 0.55]
+    subsurface_anisotropy: 0.1
 
 
   # ── ARENARIA ─────────────────────────────────────────────────────────────

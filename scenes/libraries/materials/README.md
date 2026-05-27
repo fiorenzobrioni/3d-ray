@@ -393,3 +393,83 @@ entities:
 luce nel volume — il medium non avrebbe effetto visivo. Usa sempre un material
 con `spec_trans > 0` (Disney), `type: dielectric`, oppure Disney con
 `flatness > 0` (superfici cerose/saponose) come compagno del medium.
+
+## Material-embedded SSS (`subsurface_radius`)
+
+Molti dei materiali Disney di queste librerie dichiarano `subsurface_radius`
+direttamente sul materiale — parity con Arnold `standard_surface` /
+Cycles Principled BSDF. Significato pratico: chi importa la libreria
+ottiene il SSS volumetrico **automaticamente** senza dover dichiarare la
+sezione `mediums:` né `interior_medium` sull'entity.
+
+### Come funziona
+
+Il loader, quando vede `subsurface_radius` su un materiale Disney:
+
+1. Auto-costruisce un `HomogeneousMedium` derivato dalla MFP per canale:
+   `σ_t = 1/(radius·scale)`, `σ_s = α·σ_t`, `σ_a = (1−α)·σ_t`
+   dove `α = subsurface_color` (o `color` se assente).
+2. Auto-imposta i parametri rifrattivi necessari al transmission lobe
+   Disney: `spec_trans = 1.0` e `transmission_color = [1, 1, 1]`
+   (a meno che l'utente non li abbia già specificati esplicitamente).
+3. Auto-inietta il medium su ogni entity che referenzia il materiale e
+   **non** ha `interior_medium` esplicito.
+
+### Override
+
+`interior_medium` esplicito sull'entity vince sempre (convenzione
+Arnold/Cycles). Lo stesso materiale può essere usato in oggetti diversi:
+senza override → SSS standard del materiale; con override → comportamento
+custom (es. lo stesso vetro che racchiude acqua, vino o latte).
+
+### Esempio prima/dopo
+
+**Prima** (paradigma classico, entity-bound):
+```yaml
+imports:
+  - { path: "libraries/materials/stones.yaml" }
+  - { path: "libraries/mediums/stones.yaml" }
+entities:
+  - name: scultura
+    type: sphere
+    radius: 0.35
+    material: dis_carrara_lucido
+    interior_medium: med_marmo_carrara   # ← richiesto
+```
+
+**Dopo** (paradigma material-embedded):
+```yaml
+imports:
+  - { path: "libraries/materials/stones.yaml" }   # niente libreria mediums
+entities:
+  - name: scultura
+    type: sphere
+    radius: 0.35
+    material: dis_carrara_lucido                  # SSS già incluso nel materiale
+```
+
+### Quali file di libreria hanno SSS embedded
+
+| File | Materiali con `subsurface_radius` |
+|------|------------------------------------|
+| `stones.yaml` | Tutti i marmi colorati + onici + alabastri (Carrara, Statuario, Calacatta già da prima) |
+| `organics.yaml` | Cere (api, paraffina, soia, candela), ambre (chiara/scura/rossa), saponi |
+| `foods.yaml` | Cioccolati (fondente, latte, bianco, fuso), formaggi traslucenti (brie, mozzarella) |
+| `liquids.yaml` | Latticini (intero, scremato, condensato, panna montata) |
+| `glasses.yaml` | Opale, ghiacci (chiaro, torbido, blu, fratturato), neve compatta |
+| `minerals-gems.yaml` | Quarzo rosa, ametiste |
+| `leathers.yaml` | Pelle anilina nera (anisotropy 0.75) |
+
+`fabrics.yaml` non ha SSS embedded: i tessuti non hanno volume continuo.
+
+### Quando usare `mediums/` invece di `subsurface_radius`
+
+Le due strategie sono complementari, non alternative:
+
+| Caso | Strategia |
+|------|-----------|
+| Marmo/cera/cioccolato standard | `subsurface_radius` (già nei materiali) |
+| Vetro contenente acqua/vino/latte | `interior_medium` esplicito sull'entity |
+| Stessa superficie, volumi diversi per oggetti gemelli | `interior_medium` esplicito |
+| Nebbia globale o atmosfera planetaria | `world.medium` inline o `mediums/atmospherics.yaml` |
+| Override del SSS predefinito di un materiale | `interior_medium` esplicito (vince sull'embedded) |
