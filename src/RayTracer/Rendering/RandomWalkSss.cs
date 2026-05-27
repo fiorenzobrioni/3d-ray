@@ -228,7 +228,7 @@ public partial class Renderer
             // SSS medium (σ_t ~ 10 for skin / wax) collapses every NEE
             // contribution to ~exp(-20) over the boundary-to-light air gap
             // that should not attenuate the shadow ray at all.
-            if (_walkConfig.NeeInsideWalk)
+            if (_walkConfig.NeeInsideWalk && b < _walkConfig.NeeMaxBounce)
             {
                 Vector3 Lnee = ComputeDirectLightingMedium(p, ray.Direction, medium, entityRoot);
                 Lnee = ClampWalkInScattering(Lnee, b);

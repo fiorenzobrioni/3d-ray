@@ -307,7 +307,8 @@ public class SssRandomWalkTests
             maxDepth:        Depth,
             walkConfig:      new RandomWalkConfig(maxVolumeBounces: 8,
                                                    rrStartBounce: 1,
-                                                   neeInsideWalk: true));
+                                                   neeInsideWalk: true,
+                                                   neeMaxBounce:  int.MaxValue));
         var pixels = renderer.Render(Width, Height);
 
         for (int y = 0; y < Height; y++)
