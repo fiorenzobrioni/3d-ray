@@ -228,7 +228,8 @@ class Program
             walkConfig = new RandomWalkConfig(
                 maxVolumeBounces: maxVolumeBouncesOverride.Value,
                 rrStartBounce:    baseCfg.RrStartBounce,
-                neeInsideWalk:    baseCfg.NeeInsideWalk);
+                neeInsideWalk:    baseCfg.NeeInsideWalk,
+                neeMaxBounce:     baseCfg.NeeMaxBounce);
         }
 
         // Verbose mode

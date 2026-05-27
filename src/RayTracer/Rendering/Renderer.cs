@@ -81,22 +81,34 @@ public readonly struct RandomWalkConfig
     /// over.</summary>
     public readonly int RrStartBounce;
 
-    /// <summary>Whether to evaluate next-event estimation at every internal
-    /// scattering event. Standard production setting (Cycles / Arnold);
-    /// only disabled for the cheapest preview tier where light contact
-    /// comes exclusively from the boundary surface re-entry.</summary>
+    /// <summary>Whether to evaluate next-event estimation at internal
+    /// scattering events. Standard production setting (Cycles / Arnold).
+    /// When true, <see cref="NeeMaxBounce"/> caps which bounces actually
+    /// fire a shadow ray — the preview tier uses a small cap to get a
+    /// representative tint at minimal cost. Without NEE inside the walk,
+    /// dense SSS media (σ_t ~ 10–20) render near-black because the walk
+    /// almost never escapes with useful throughput.</summary>
     public readonly bool NeeInsideWalk;
 
-    public RandomWalkConfig(int maxVolumeBounces, int rrStartBounce, bool neeInsideWalk)
+    /// <summary>Upper bound (exclusive) on the walk bounce index at which
+    /// NEE is evaluated. The exponential attenuation across the medium
+    /// makes deep in-scattering NEE contributions negligible, so a small
+    /// cap retains the visually dominant contribution at a fraction of the
+    /// shadow-ray cost. Used by the preview tier; production tiers leave
+    /// this at <see cref="int.MaxValue"/>.</summary>
+    public readonly int NeeMaxBounce;
+
+    public RandomWalkConfig(int maxVolumeBounces, int rrStartBounce, bool neeInsideWalk, int neeMaxBounce)
     {
         MaxVolumeBounces = maxVolumeBounces;
         RrStartBounce    = rrStartBounce;
         NeeInsideWalk    = neeInsideWalk;
+        NeeMaxBounce     = neeMaxBounce;
     }
 
-    public static RandomWalkConfig Preview => new(maxVolumeBounces: 16,  rrStartBounce: 1, neeInsideWalk: false);
-    public static RandomWalkConfig Normal  => new(maxVolumeBounces: 64,  rrStartBounce: 3, neeInsideWalk: true);
-    public static RandomWalkConfig High    => new(maxVolumeBounces: 256, rrStartBounce: 6, neeInsideWalk: true);
+    public static RandomWalkConfig Preview => new(maxVolumeBounces: 16,  rrStartBounce: 1, neeInsideWalk: true, neeMaxBounce: 2);
+    public static RandomWalkConfig Normal  => new(maxVolumeBounces: 64,  rrStartBounce: 3, neeInsideWalk: true, neeMaxBounce: int.MaxValue);
+    public static RandomWalkConfig High    => new(maxVolumeBounces: 256, rrStartBounce: 6, neeInsideWalk: true, neeMaxBounce: int.MaxValue);
 }
 
 public partial class Renderer

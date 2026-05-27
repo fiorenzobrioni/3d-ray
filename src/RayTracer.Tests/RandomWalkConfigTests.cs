@@ -13,12 +13,16 @@ namespace RayTracer.Tests;
 public class RandomWalkConfigTests
 {
     [Fact]
-    public void Preview_HasCheapBudget_NeeDisabled()
+    public void Preview_HasCheapBudget_NeeCappedToEarlyBounces()
     {
         var cfg = RandomWalkConfig.Preview;
         Assert.Equal(16, cfg.MaxVolumeBounces);
         Assert.Equal(1,  cfg.RrStartBounce);
-        Assert.False(cfg.NeeInsideWalk);
+        Assert.True(cfg.NeeInsideWalk);
+        // Small cap retains the visually dominant in-scattering NEE
+        // contribution at minimal shadow-ray cost — without it dense SSS
+        // media render near-black in draft.
+        Assert.Equal(2, cfg.NeeMaxBounce);
     }
 
     [Fact]
@@ -28,6 +32,7 @@ public class RandomWalkConfigTests
         Assert.Equal(64, cfg.MaxVolumeBounces);
         Assert.Equal(3,  cfg.RrStartBounce);
         Assert.True(cfg.NeeInsideWalk);
+        Assert.Equal(int.MaxValue, cfg.NeeMaxBounce);
     }
 
     [Fact]
@@ -37,6 +42,7 @@ public class RandomWalkConfigTests
         Assert.Equal(256, cfg.MaxVolumeBounces);
         Assert.Equal(6,   cfg.RrStartBounce);
         Assert.True(cfg.NeeInsideWalk);
+        Assert.Equal(int.MaxValue, cfg.NeeMaxBounce);
     }
 
     /// <summary>
@@ -59,9 +65,11 @@ public class RandomWalkConfigTests
     {
         var cfg = new RandomWalkConfig(maxVolumeBounces: 42,
                                        rrStartBounce:    5,
-                                       neeInsideWalk:    true);
+                                       neeInsideWalk:    true,
+                                       neeMaxBounce:     7);
         Assert.Equal(42, cfg.MaxVolumeBounces);
         Assert.Equal(5,  cfg.RrStartBounce);
         Assert.True(cfg.NeeInsideWalk);
+        Assert.Equal(7,  cfg.NeeMaxBounce);
     }
 }
