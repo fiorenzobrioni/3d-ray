@@ -57,10 +57,10 @@ commented_world:
     metallic:  0.0
 
 camera:
-  position:   [0.0, 1.10, 2.40]
-  look_at:    [0.0, 0.60, 0.30]
+  position:   [0.0, 0.9, 2.4]
+  look_at:    [0.0, 0.4, 0.3]
   vup:        [0, 1, 0]
-  fov:        40
+  fov:        44
   aperture:   0.02
   focal_pos:  [0.0, 0.80, 0.30]
 
@@ -222,17 +222,9 @@ materials:
     type: "disney"
     color: [0.98, 0.99, 1.0]
     roughness: 0.0
-    specular: 0.55
-    spec_trans: 0.98
-    ior: 1.52
-
-  - id: vetro_campana_2
-    type: "disney"
-    color: [0.98, 0.99, 1.0]
-    roughness: 0.0
     spec_trans: 1.0
     ior: 1.52
-    specular: 0.8
+    specular: 0.0
 
 # ── Luci: 3-point, tutte invisibili alla camera ────────────────────────────
 lights:
@@ -270,7 +262,7 @@ entities:
     type: cylinder
     center: [0.0, 0.0, 0.30]
     radius: 0.20
-    height: 0.50
+    height: 0.51
     material: pedestal_dark
 
   # ── Marmo Carrara hero — sfera + medium SSS (no dome → pulito al centro) ─
@@ -286,7 +278,7 @@ entities:
     type: cylinder
     center: [1.0, 0.0, -0.30]
     radius: 0.18
-    height: 0.40
+    height: 0.41
     material: pedestal_dark
 
   - name: rosso_levanto
@@ -301,7 +293,7 @@ entities:
     type: cylinder
     center: [-1.0, 0.0, -0.30]
     radius: 0.18
-    height: 0.40
+    height: 0.41
     material: pedestal_dark
 
   - name: verde_guatemala
@@ -311,30 +303,83 @@ entities:
     material: marmo_verde_surf
     interior_medium: med_verde
 
-  # ── Campana di vetro sul Rosso
-  - name: campana_vetro_1
+  # ── Capsula di vetro sul Rosso
+  - name: capsula_1
     type: csg
     operation: "subtraction"
     left:
-      type: sphere
-      center: [1.0, 0.65, -0.30]
-      radius: 0.4
+      type: csg
+      operation: "subtraction"
+      left:
+        type: capsule
+        center: [1.0, -0.65, -0.30]
+        radius: 0.38
+        height: 1.30
+      right:
+        type: capsule
+        center: [1.0, -0.65, -0.30]
+        radius: 0.35
+        height: 1.30
     right:
-      type: sphere
-      center: [1.0, 0.65, -0.30]
-      radius: 0.36
+      type: cylinder
+      center: [0, 0, 0]
+      radius: 0.20
+      height: 1.0
+      rotate: [90, 0, 0]
+      translate: [1.0, 0.65, -0.30]
     material: vetro_campana
 
-  # ── Campana di vetro sul Verde
-  - name: campana_vetro_2
+  # ── Capsula di vetro sul Verde
+  - name: capsula_2
     type: csg
     operation: "subtraction"
     left:
-      type: sphere
-      center: [-1.0, 0.65, -0.30]
-      radius: 0.4
+      type: csg
+      operation: "subtraction"
+      left:
+        type: capsule
+        center: [-1.0, -0.65, -0.30]
+        radius: 0.38
+        height: 1.30
+      right:
+        type: capsule
+        center: [-1.0, -0.65, -0.30]
+        radius: 0.35
+        height: 1.30
     right:
-      type: sphere
-      center: [-1.0, 0.65, -0.30]
-      radius: 0.36
+      type: cylinder
+      center: [0, 0, 0]
+      radius: 0.20
+      height: 1.0
+      rotate: [90, 0, 0]
+      translate: [-1.0, 0.65, -0.30]
     material: vetro_campana
+
+  # ALTERNATIVE ALLE CAPSULE: Commentare le due capsule sopra prima di usare le campane seguenti
+  # ── Campana di vetro sul Rosso
+  # - name: campana_vetro_1
+  #   type: aaacsg
+  #   operation: "subtraction"
+  #   left:
+  #     type: sphere
+  #     center: [1.0, 0.65, -0.30]
+  #     radius: 0.38
+  #   right:
+  #     type: sphere
+  #     center: [1.0, 0.65, -0.30]
+  #     radius: 0.36
+  #   material: vetro_campana
+
+  # ── Campana di vetro sul Verde
+  # - name: campana_vetro_2
+  #   type: aaacsg
+  #   operation: "subtraction"
+  #   left:
+  #     type: sphere
+  #     center: [-1.0, 0.65, -0.30]
+  #     radius: 0.38
+  #   right:
+  #     type: sphere
+  #     center: [-1.0, 0.65, -0.30]
+  #     radius: 0.36
+  #   material: vetro_campana
