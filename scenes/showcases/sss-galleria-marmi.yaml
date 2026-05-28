@@ -20,9 +20,13 @@
 #    4. Area light tutte `visible_to_camera: false` (no pannelli fluttuanti).
 #
 #  Profili consigliati:
-#    Preview  (10–30 s):    -q draft-small  --sss-quality preview
-#    Standard (~3 min):     -q medium-small --sss-quality normal  -C 25
-#    Final    (~20–40 min): -q final-small  --sss-quality high    -C 25
+#    NB: le capsule sono in CRISTALLO PIENO → richiedono molti rimbalzi
+#    (-d >= 12). I preset -q forzano -d basso (draft=4, medium=6, final=8) e
+#    lascerebbero le capsule nere (cammini interni al vetro troncati). Usare
+#    quindi i flag espliciti qui sotto invece di -q:
+#    Preview  (~2-3 min):   -w 480 -H 320 -s 48   -d 12 -S 1 --sss-quality preview -C 25
+#    Standard (~15 min):    -w 960 -H 540 -s 256  -d 14 -S 2 --sss-quality normal  -C 25
+#    Final    (~1-2 h):     -w 1920 -H 1080 -s 1024 -d 16 -S 4 --sss-quality high  -C 25
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:
@@ -31,6 +35,19 @@ world:
     zenith_color:  [0.004, 0.005, 0.008]
     horizon_color: [0.025, 0.025, 0.030]
     ground_color:  [0.008, 0.008, 0.010]
+  # ── Nebbia bassa da pavimento ──────────────────────────────────────────────
+  #  height_fog con scale_height piccolo (0.15) → densità concentrata vicino al
+  #  suolo che sfuma intorno a y≈0.35 (circa 3/4 del piedistallo). σ_s moderati
+  #  così la nebbia raccoglie la luce delle area light senza velare i marmi
+  #  (che stanno a y 0.4–0.9, sopra lo strato). y0=0 = livello pavimento.
+  medium:
+    type: height_fog
+    sigma_a: [0.02, 0.02, 0.025]
+    sigma_s: [0.65, 0.70, 0.80]
+    y0: 0.0
+    scale_height: 0.16
+    phase: hg
+    g: 0.3
   ground:
     type: infinite_plane
     material: pavimento_satin
@@ -216,14 +233,20 @@ materials:
         - { position: 0.0, color: [0.22, 0.22, 0.22] }
         - { position: 1.0, color: [0.08, 0.08, 0.08] }
 
-  # ── Campana di vetro ──────────────
+  # ── Cristallo capsula ─────────────────────────────────────────────────────
+  #  Lead-crystal: ior alto (1.70) per rifrazione marcata + specular 0.5 per il
+  #  Fresnel (riflessi/sparkle ai bordi). roughness 0.03 = vetro "soffiato" con
+  #  micro-blur sui riflessi (più realistico del cristallo perfetto).
+  #  transmission_color/depth dà la tinta Beer-Lambert sui cammini nel vetro.
   - id: vetro_campana
     type: "disney"
-    color: [0.98, 0.99, 1.0]
-    roughness: 0.0
+    color: [1.0, 1.0, 1.0]
+    roughness: 0.03
     spec_trans: 1.0
-    ior: 1.52
-    specular: 0.0
+    ior: 1.70
+    specular: 0.5
+    transmission_color: [0.86, 0.93, 0.97]   # tenue freddo (cristallo al piombo)
+    transmission_depth: 0.45
 
 # ── Luci: 3-point, tutte invisibili alla camera ────────────────────────────
 lights:
@@ -302,7 +325,13 @@ entities:
     material: marmo_verde_surf
     interior_medium: med_verde
 
-  # ── Capsula di vetro sul Rosso
+  # ── Capsula di cristallo sul Rosso (guscio spesso = lente realistica) ──────
+  #  Guscio a parete spessa (esterno 0.38, interno 0.31 → parete ~0.07): a metà
+  #  strada tra il guscio sottile originale (0.03, nessuno sfasamento) e il
+  #  vetro pieno (troppo "brutale"). La parete spessa rifrange in modo visibile
+  #  ma morbido, come un vero contenitore di cristallo. Il cilindro frontale
+  #  sottratto apre la finestra: dal foro la sfera si vede diretta, attorno al
+  #  foro il cristallo la sposta → sfasamento dei contorni più realistico.
   - name: capsula_1
     type: csg
     operation: "subtraction"
@@ -317,7 +346,7 @@ entities:
       right:
         type: capsule
         center: [1.0, -0.65, -0.30]
-        radius: 0.35
+        radius: 0.31
         height: 1.30
     right:
       type: cylinder
@@ -328,7 +357,7 @@ entities:
       translate: [1.0, 0.65, -0.30]
     material: vetro_campana
 
-  # ── Capsula di vetro sul Verde
+  # ── Capsula di cristallo sul Verde (guscio spesso ~0.07)
   - name: capsula_2
     type: csg
     operation: "subtraction"
@@ -343,7 +372,7 @@ entities:
       right:
         type: capsule
         center: [-1.0, -0.65, -0.30]
-        radius: 0.35
+        radius: 0.31
         height: 1.30
     right:
       type: cylinder

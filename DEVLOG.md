@@ -6,6 +6,23 @@ Roadmap, lavori in corso, bug noti, storico cicli.
 
 ---
 
+## Ciclo Hardening SSS / MediumInterface / volumetria ✅
+
+Review mirata di subsurface scattering (random walk), medium-interface/stack e volumetria correlata, con fix di correttezza e un'ottimizzazione di prestazioni a qualità invariata. (Diversi "bug" sospettati in fase di review sono stati **scartati come falsi positivi** dopo verifica: l'hero-wavelength MIS spettrale è corretto e non biased; la RR max-canale è la scelta *conservativa*; l'early-exit del ratio tracking scatta solo quando tutti i canali sono <1e-5; i guard div-by-zero/clamp canale sono solo difensivi.)
+
+**Bug corretti.**
+- **NEE di superficie dentro un mezzo legato a entità** (`Renderer.ComputeDirectLighting`). Le shadow ray da una superficie *interna* a un mezzo bound (oggetto immerso in acqua/fog, "fish in a tank") erano attenuate solo dal `globalMedium`, mai dallo stack. Ora `ComputeDirectLighting` riceve il medium attivo (`mediums.Top ?? globalMedium`) e l'entità che lo delimita, e clippa il segmento in-medium con `ClipShadowToBoundary` (stesso pattern del path volumetrico). Il `MediumStack` trasporta ora la geometria bounding per slot (`TopEntity`); lo stesso clip è applicato anche alla NEE del path volumetrico su mezzi bound.
+- **MIS dell'emissione sull'uscita del random walk SSS** (`RandomWalkSss`). All'escape dopo ≥1 scatter il walk passava `prevIsDelta: true`, contando a peso pieno luci/cielo visti attraverso il bordo → double counting (la NEE al vertice di scatter li aveva già campionati). Ora la pdf di fase dell'ultimo scatter è inoltrata (`prevBsdfPdf = lastPhasePdf, prevIsDelta: false`), coerente col path volumetrico standard; l'escape a `b==0` (rifrazione speculare senza scatter) resta delta.
+- **Doppio conteggio della trasmittanza in `NishitaAtmosphereMedium.Sample`**. Il delta tracking porta già la trasmittanza nella *probabilità* di raggiungere il punto, ma `beta` moltiplicava anche la trasmittanza analitica completa (sia sul ramo scatter sia sul pass-through) → atmosfera troppo scura. Ora `beta` usa solo il rapporto cromatico `Tr_vec/Tr_scalar` (ricolora senza riapplicare l'attenuazione scalare). `MaxAttempts` 64 → 256 per ridurre il bias di troncamento su raggi lunghi/densi.
+
+**Performance (qualità invariata).** Nel random walk SSS la query di bordo è ora clippata a `tDist` (`entityRoot.Hit(ray, ε, tDist)`): su uno step di scattering — caso dominante in mezzi densi — il BVH dell'entità mesh (busti/statue) pota tutto oltre la distanza di free-flight. La Russian Roulette del walk usa ora il throughput di path completo (`pathThroughput * relBeta`) terminando prima i walk a basso contributo (es. mezzi con tint scuro). Entrambe restano *unbiased*.
+
+**Test.** `NishitaAtmosphereMediumTests` (nuovo) — invariante scale-indipendente: la media MC di `(scatter ? 0 : beta)` riproduce la `Transmittance` analitica per-canale (fallisce col vecchio peso a doppio conteggio). `SurfaceInBoundMediumNeeTests` (nuovo) — una superficie dentro un mezzo assorbente bound è nettamente più scura che dentro il vuoto. Suite completa verde (492 test).
+
+**File modificati.** `Rendering/RandomWalkSss.cs`, `Rendering/Renderer.cs`, `Volumetrics/MediumStack.cs`, `Volumetrics/NishitaAtmosphereMedium.cs`; test nuovi sotto `RayTracer.Tests/`.
+
+---
+
 ## Ciclo SSS embedded (Arnold/Cycles parity) ✅
 
 Aggiunta la strada **material-embedded** al subsurface scattering, complementare al binding entity-level già esistente (`interior_medium`). Dichiarare `subsurface_radius` su un materiale Disney attiva ora automaticamente il Random Walk volumetrico, senza serve una sezione `mediums:` né `interior_medium` sull'entity.

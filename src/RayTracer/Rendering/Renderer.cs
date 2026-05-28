@@ -724,8 +724,13 @@ public partial class Renderer
 
         // ── Direct lighting (Next Event Estimation, MIS-weighted) ───────────
         bool needsLightSampling = material?.NeedsDirectLighting ?? true;
+        // Resolve the medium the surface sits in (stack top, else global) so
+        // shadow-ray transmittance is attenuated correctly even inside an
+        // entity-bound participating medium — not just the global medium.
+        IMedium? shadowMedium = mediums.Top ?? _globalMedium;
+        IHittable? shadowMediumEntity = mediums.Top != null ? mediums.TopEntity : null;
         Vector3 directLight = needsLightSampling
-            ? ComputeDirectLighting(rec, viewDir, material)
+            ? ComputeDirectLighting(rec, viewDir, material, shadowMedium, shadowMediumEntity)
             : Vector3.Zero;
 
         if (material == null)
@@ -885,7 +890,12 @@ public partial class Renderer
         switch (s.Transition)
         {
             case MediumTransition.Enter:
-                nextMediums.Push(ResolvePushedMedium(rec.MediumIface.Interior));
+                // Carry the bounding geometry (rec.EntityRoot, stamped by
+                // MediumBoundHittable) so NEE from any surface hit *inside*
+                // this medium can clip its shadow-ray transmittance to the
+                // in-medium segment instead of the full distance to the light.
+                nextMediums.Push(ResolvePushedMedium(rec.MediumIface.Interior),
+                                 rec.EntityRoot);
                 break;
             case MediumTransition.Exit:
                 nextMediums.Pop();
@@ -1126,7 +1136,11 @@ public partial class Renderer
             Vector3 p = currentRay.Origin + currentRay.Direction * tMed;
 
             // NEE in-scattering: shadow ray to each light, weighted by phase × Tr.
-            Vector3 Lnee = ComputeDirectLightingMedium(p, currentRay.Direction, activeMedium);
+            // When the active medium is bound to an entity (stack top), clip the
+            // shadow-ray transmittance to the in-medium segment, mirroring the
+            // surface path and the random-walk SSS NEE.
+            IHittable? medEntity = mediums.Top != null ? mediums.TopEntity : null;
+            Vector3 Lnee = ComputeDirectLightingMedium(p, currentRay.Direction, activeMedium, medEntity);
 
             // ── Russian Roulette on the indirect (phase-sampled) bounce ─────
             // Throughput-based: β_after = pathThroughput · medium-β. Same
@@ -1281,7 +1295,9 @@ public partial class Renderer
     /// couple the indirect importance sample to the shadow estimator and
     /// bias the result for any direction-dependent BSDF.
     /// </summary>
-    private Vector3 ComputeDirectLighting(HitRecord rec, Vector3 viewDir, IMaterial? material)
+    private Vector3 ComputeDirectLighting(HitRecord rec, Vector3 viewDir, IMaterial? material,
+                                          IMedium? shadowMedium = null,
+                                          IHittable? shadowMediumEntity = null)
     {
         Vector3 result = Vector3.Zero;
 
@@ -1310,10 +1326,12 @@ public partial class Renderer
                                ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
 
                 Vector3 Tr = Vector3.One;
-                if (_globalMedium != null)
+                if (shadowMedium != null)
                 {
                     float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                    Tr = _globalMedium.Transmittance(new Ray(rec.Point, dirToLight), shadowDist);
+                    float mediumDist = ClipShadowToBoundary(rec.Point, dirToLight, shadowDist,
+                                                            shadowMediumEntity);
+                    Tr = shadowMedium.Transmittance(new Ray(rec.Point, dirToLight), mediumDist);
                 }
 
                 // MIS: combined NEE pdf = pPick × pLightSample
@@ -1355,11 +1373,12 @@ public partial class Renderer
                                    ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
 
                     Vector3 Tr = Vector3.One;
-                    if (_globalMedium != null)
+                    if (shadowMedium != null)
                     {
                         float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                        var shadowRay = new Ray(rec.Point, dirToLight);
-                        Tr = _globalMedium.Transmittance(shadowRay, shadowDist);
+                        float mediumDist = ClipShadowToBoundary(rec.Point, dirToLight, shadowDist,
+                                                                shadowMediumEntity);
+                        Tr = shadowMedium.Transmittance(new Ray(rec.Point, dirToLight), mediumDist);
                     }
 
                     // ── MIS weight (balance or power, configured per-renderer) ──

@@ -132,6 +132,15 @@ public partial class Renderer
         Vector3 relBeta = Vector3.One;
         Vector3 L = Vector3.Zero;
         Ray ray = entryRay;
+        // MIS bookkeeping for the escape→emitter hand-off (fix: align with the
+        // standard volumetric path). Until the first scatter the walk is a pure
+        // specular continuation of the entry refraction, so an escape must be
+        // treated as a delta bounce. After the first phase scatter the escape
+        // ray carries that scatter's (non-delta) direction, and its pdf must be
+        // forwarded so TraceRay can MIS-weight any emitter / sky it hits against
+        // the NEE already performed at the scatter vertex.
+        bool scattered = false;
+        float lastPhasePdf = 0f;
 
         for (int b = 0; b < _walkConfig.MaxVolumeBounces; b++)
         {
@@ -159,23 +168,22 @@ public partial class Renderer
                 : float.PositiveInfinity;
 
             // ── Boundary intersection on the bound entity only ─────────────
+            // Perf: clip the boundary query to tDist (perf fix). On a scatter
+            // step (the common case in dense media) we only need to know
+            // whether a boundary lies *closer* than the sampled free-flight
+            // distance — bounding the ray lets the entity's BVH (mesh busts /
+            // statues) prune everything past tDist. Hit==true ⇒ boundary at
+            // brec.T ≤ tDist ⇒ escape; Hit==false ⇒ scatter at tDist.
+            float tBound = float.IsPositiveInfinity(tDist)
+                ? MathUtils.Infinity : tDist;
             var brec = new HitRecord();
             bool gotBoundary = entityRoot.Hit(ray, MathUtils.Epsilon,
-                                              MathUtils.Infinity, ref brec);
-            float tBoundary = gotBoundary ? brec.T : float.PositiveInfinity;
+                                              tBound, ref brec);
 
-            if (tDist >= tBoundary)
+            if (gotBoundary)
             {
                 // ── Escape: cross the boundary ─────────────────────────────
-                if (!gotBoundary)
-                {
-                    // No boundary found — numerical edge case (origin sits
-                    // exactly on a surface within Epsilon). Kill the path
-                    // rather than spin in an infinite loop.
-                    mediums.Pop();
-                    return L;
-                }
-
+                float tBoundary = brec.T;
                 Vector3 tr = ExpVec(-sigmaT * tBoundary);
                 // p_escape(t = tBoundary) = Σ_c q[c] · exp(-σ_t[c] · tBoundary)
                 float pdf = qX * tr.X + qY * tr.Y + qZ * tr.Z;
@@ -198,8 +206,14 @@ public partial class Renderer
                 // we just left as inactive (back to the outer stack / global).
                 mediums.Pop();
 
+                // MIS hand-off: a post-scatter escape is the BSDF-sampling half
+                // of the NEE already done at the last scatter vertex — forward
+                // the phase pdf and mark it non-delta so emitter / sky hits are
+                // MIS-weighted (no double counting). A b==0 escape never did
+                // NEE and is a specular continuation → delta.
                 Vector3 outer = TraceRay(escapeRay, depth,
-                                         prevBsdfPdf: 0f, prevIsDelta: true,
+                                         prevBsdfPdf: scattered ? lastPhasePdf : 0f,
+                                         prevIsDelta: !scattered,
                                          ref mediums,
                                          pathThroughput: pathThroughput * relBeta);
                 L += relBeta * outer;
@@ -236,13 +250,21 @@ public partial class Renderer
             }
 
             // ── Phase sample (HG): sampler matches density → phase/pdf = 1 ─
-            (Vector3 wi, _) = phase.Sample(ray.Direction);
+            // Keep the pdf for the escape→emitter MIS hand-off above.
+            (Vector3 wi, float phasePdf) = phase.Sample(ray.Direction);
             ray = new Ray(p, wi);
+            scattered = true;
+            lastPhasePdf = phasePdf;
 
             // ── Russian Roulette ───────────────────────────────────────────
+            // Survival on the *full* path importance (entry attenuation already
+            // accumulated in pathThroughput × the walk-local relBeta), so walks
+            // through dark / strongly tinted media terminate earlier. RR stays
+            // unbiased; max-channel keeps it conservative.
             if (b >= _walkConfig.RrStartBounce)
             {
-                float qRr = MathF.Max(relBeta.X, MathF.Max(relBeta.Y, relBeta.Z));
+                Vector3 full = pathThroughput * relBeta;
+                float qRr = MathF.Max(full.X, MathF.Max(full.Y, full.Z));
                 qRr = MathF.Min(0.95f, MathF.Max(qRr, 0.05f));
                 if (MathUtils.RandomFloat() > qRr)
                 {

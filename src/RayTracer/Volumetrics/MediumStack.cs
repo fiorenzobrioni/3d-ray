@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using RayTracer.Geometry;
 
 namespace RayTracer.Volumetrics;
 
@@ -26,6 +27,7 @@ public struct MediumStack
     public const int Capacity = 8;
 
     private Slots _slots;
+    private Entities _entities;
     private int _count;
 
     public readonly int Depth => _count;
@@ -37,12 +39,32 @@ public struct MediumStack
     }
 
     /// <summary>
+    /// The geometry bounding <see cref="Top"/>, or <c>null</c> when the top
+    /// medium is unbounded (global / world medium pushed without an entity).
+    /// Lets NEE clip the shadow ray's in-medium transmittance segment to the
+    /// portion that is actually inside the bound medium (see
+    /// Renderer.ClipShadowToBoundary) instead of attenuating over the full
+    /// Euclidean distance to the light.
+    /// </summary>
+    public readonly IHittable? TopEntity
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _count == 0 ? null : _entities[_count - 1];
+    }
+
+    /// <summary>
     /// Pushes a medium onto the stack. Returns <c>true</c> on success,
     /// <c>false</c> if the stack was full and the oldest entry had to be
     /// dropped to make room (degenerate — only happens with pathologically
     /// deep refractive nesting, the renderer warns once per render).
     /// </summary>
-    public bool Push(IMedium? medium)
+    public bool Push(IMedium? medium) => Push(medium, null);
+
+    /// <summary>
+    /// Pushes a medium together with the geometry that bounds it (see
+    /// <see cref="TopEntity"/>). Pass <c>null</c> for an unbounded medium.
+    /// </summary>
+    public bool Push(IMedium? medium, IHittable? boundEntity)
     {
         if (_count >= Capacity)
         {
@@ -51,11 +73,17 @@ public struct MediumStack
             // which is the worse of two bad choices but still correct for the
             // remaining stack depth budget.
             for (int i = 0; i < Capacity - 1; i++)
+            {
                 _slots[i] = _slots[i + 1];
+                _entities[i] = _entities[i + 1];
+            }
             _slots[Capacity - 1] = medium;
+            _entities[Capacity - 1] = boundEntity;
             return false;
         }
-        _slots[_count++] = medium;
+        _slots[_count] = medium;
+        _entities[_count] = boundEntity;
+        _count++;
         return true;
     }
 
@@ -68,8 +96,10 @@ public struct MediumStack
     public IMedium? Pop()
     {
         if (_count == 0) return null;
-        IMedium? v = _slots[--_count];
+        _count--;
+        IMedium? v = _slots[_count];
         _slots[_count] = null;
+        _entities[_count] = null;
         return v;
     }
 
@@ -82,5 +112,15 @@ public struct MediumStack
     private struct Slots
     {
         private IMedium? _element0;
+    }
+
+    /// <summary>
+    /// Parallel backing storage for the per-slot bounding geometry, kept in
+    /// lock-step with <see cref="Slots"/> on every push/pop.
+    /// </summary>
+    [InlineArray(Capacity)]
+    private struct Entities
+    {
+        private IHittable? _element0;
     }
 }
