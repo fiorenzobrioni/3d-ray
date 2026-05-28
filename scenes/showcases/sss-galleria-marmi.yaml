@@ -20,9 +20,13 @@
 #    4. Area light tutte `visible_to_camera: false` (no pannelli fluttuanti).
 #
 #  Profili consigliati:
-#    Preview  (10–30 s):    -q draft-small  --sss-quality preview
-#    Standard (~3 min):     -q medium-small --sss-quality normal  -C 25
-#    Final    (~20–40 min): -q final-small  --sss-quality high    -C 25
+#    NB: le capsule sono in CRISTALLO PIENO → richiedono molti rimbalzi
+#    (-d >= 12). I preset -q forzano -d basso (draft=4, medium=6, final=8) e
+#    lascerebbero le capsule nere (cammini interni al vetro troncati). Usare
+#    quindi i flag espliciti qui sotto invece di -q:
+#    Preview  (~2-3 min):   -w 480 -H 320 -s 48   -d 12 -S 1 --sss-quality preview -C 25
+#    Standard (~15 min):    -w 960 -H 540 -s 256  -d 14 -S 2 --sss-quality normal  -C 25
+#    Final    (~1-2 h):     -w 1920 -H 1080 -s 1024 -d 16 -S 4 --sss-quality high  -C 25
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:
@@ -216,14 +220,19 @@ materials:
         - { position: 0.0, color: [0.22, 0.22, 0.22] }
         - { position: 1.0, color: [0.08, 0.08, 0.08] }
 
-  # ── Campana di vetro ──────────────
+  # ── Cristallo capsula ─────────────────────────────────────────────────────
+  #  Lead-crystal: ior alto (1.62) per rifrazione marcata + specular 0.5 per il
+  #  Fresnel (riflessi/sparkle ai bordi). transmission_color/depth dà la tinta
+  #  Beer-Lambert sui cammini lunghi nel vetro pieno → profondità "cristallo".
   - id: vetro_campana
     type: "disney"
-    color: [0.98, 0.99, 1.0]
+    color: [1.0, 1.0, 1.0]
     roughness: 0.0
     spec_trans: 1.0
-    ior: 1.52
-    specular: 0.0
+    ior: 1.62
+    specular: 0.5
+    transmission_color: [0.86, 0.93, 0.97]   # tenue freddo (cristallo al piombo)
+    transmission_depth: 0.45
 
 # ── Luci: 3-point, tutte invisibili alla camera ────────────────────────────
 lights:
@@ -302,23 +311,19 @@ entities:
     material: marmo_verde_surf
     interior_medium: med_verde
 
-  # ── Capsula di vetro sul Rosso
+  # ── Capsula di cristallo PIENO sul Rosso (lente che deforma i contorni) ────
+  #  Vetro solido (niente cavità interna sottratta) = una sola interfaccia
+  #  curva aria→vetro che rifrange forte. Il cilindro frontale sottratto apre
+  #  una finestra: attraverso il foro la sfera si vede diretta, attorno al foro
+  #  il cristallo pieno la sposta/ingrandisce → sfasamento netto dei contorni.
   - name: capsula_1
     type: csg
     operation: "subtraction"
     left:
-      type: csg
-      operation: "subtraction"
-      left:
-        type: capsule
-        center: [1.0, -0.65, -0.30]
-        radius: 0.38
-        height: 1.30
-      right:
-        type: capsule
-        center: [1.0, -0.65, -0.30]
-        radius: 0.35
-        height: 1.30
+      type: capsule
+      center: [1.0, -0.65, -0.30]
+      radius: 0.38
+      height: 1.30
     right:
       type: cylinder
       center: [0, 0, 0]
@@ -328,23 +333,15 @@ entities:
       translate: [1.0, 0.65, -0.30]
     material: vetro_campana
 
-  # ── Capsula di vetro sul Verde
+  # ── Capsula di cristallo PIENO sul Verde
   - name: capsula_2
     type: csg
     operation: "subtraction"
     left:
-      type: csg
-      operation: "subtraction"
-      left:
-        type: capsule
-        center: [-1.0, -0.65, -0.30]
-        radius: 0.38
-        height: 1.30
-      right:
-        type: capsule
-        center: [-1.0, -0.65, -0.30]
-        radius: 0.35
-        height: 1.30
+      type: capsule
+      center: [-1.0, -0.65, -0.30]
+      radius: 0.38
+      height: 1.30
     right:
       type: cylinder
       center: [0, 0, 0]
