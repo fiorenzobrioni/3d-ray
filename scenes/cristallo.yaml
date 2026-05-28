@@ -23,6 +23,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  WORLD — Ambiente scuro da galleria, cielo muto per riflessi nel vetro
 # ═══════════════════════════════════════════════════════════════════════════
+
 world:
   sky:
     type: "gradient"

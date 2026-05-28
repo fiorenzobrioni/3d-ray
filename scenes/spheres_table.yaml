@@ -1,0 +1,167 @@
+# ==============================================
+# SCENA: Stanza Chiusa con 3 Sfere (PBR Disney)
+# Motore: 3D-Ray
+# Validato con: 3D-Ray Scene Reference Guide
+# ==============================================
+
+world:
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
+    
+cameras:
+  - name: "panorama"
+    position: [0, 2.5, 4.5]
+    look_at: [0, 1.0, 0]
+    fov: 65
+
+  - name: "dettaglio_tavolo"
+    position: [0, 1.8, 2.5]
+    look_at: [0, 1.5, 0] 
+    fov: 40
+    aperture: 0.05      
+    focal_pos: [0, 1.4, 0]   
+
+lights:
+  - type: "point"
+    position: [2.5, 4.5, -2]
+    radius: 0.5
+    color: [1.0, 0.95, 0.9] 
+    intensity: 10.0        
+
+  - type: "point"
+    position: [-2.5, 4.5, -2]
+    radius: 0.5
+    color: [1.0, 0.95, 0.9] 
+    intensity: 10.0        
+
+materials:
+  # [Rif. Cap. 3: Disney BSDF] Modello PBR Universale
+  - id: "mat_muro"
+    type: "disney"
+    color: [0.52, 0.60, 0.48]
+    roughness: 0.80
+    specular: 0.10
+
+  - id: "mat_pavimento"
+    type: "disney"
+    roughness: 0.10
+    specular: 0
+    clearcoat: 0.70
+    clearcoat_gloss: 0.90
+    texture:
+      type: "checker"
+      scale: 0.1
+      colors: [[0.95, 0.95, 0.95], [0.05, 0.05, 0.05]]
+
+
+
+  - id: "mat_legno"
+    type: "disney"
+    base_color: [0.4, 0.2, 0.05] 
+    roughness: 0.7
+
+  - id: "mat_specchio"
+    type: "disney"
+    base_color: [0.95, 0.95, 0.95] 
+    metallic: 1.0                  
+    roughness: 0.0                 
+
+  - id: "mat_cristallo"
+    type: "disney"
+    color: [0.99, 0.99, 1.0]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.68
+    specular: 0.95
+
+  - id: "mat_plastica"
+    type: "disney"
+    base_color: [0.1, 0.4, 0.8] 
+    roughness: 0.2              
+    specular: 0.8               
+
+entities:
+  # [Rif. Cap. 4 & 5: Primitive Box e Trasformazioni]
+  - name: "pavimento"
+    type: "box"
+    material: "mat_pavimento"
+    scale: [10, 0.1, 10]
+    translate: [0, -0.05, 0] 
+
+  - name: "soffitto"
+    type: "box"
+    material: "mat_muro"
+    scale: [10, 0.1, 10]
+    translate: [0, 5.05, 0] 
+
+  - name: "muro_sinistro"
+    type: "box"
+    material: "mat_muro"
+    scale: [0.1, 5, 10]
+    translate: [-5.05, 2.5, 0]
+
+  - name: "muro_destro"
+    type: "box"
+    material: "mat_muro"
+    scale: [0.1, 5, 10]
+    translate: [5.05, 2.5, 0]
+
+  - name: "muro_posteriore"
+    type: "box"
+    material: "mat_muro"
+    scale: [10, 5, 0.1]
+    translate: [0, 2.5, -5.05]
+
+  - name: "muro_anteriore" 
+    type: "box"
+    material: "mat_muro"
+    scale: [10, 5, 0.1]
+    translate: [0, 2.5, 5.05]
+
+  # [Rif. Cap. 5: Gruppi]
+  - name: "tavolo"
+    type: "group"
+    children:
+      - type: "box"
+        material: "mat_legno"
+        scale: [4.0, 0.1, 2.0]
+        translate: [0, 0.95, 0] 
+      - type: "cylinder"
+        material: "mat_legno"
+        center: [-1.8, 0, -0.8]
+        radius: 0.08
+        height: 0.9
+      - type: "cylinder"
+        material: "mat_legno"
+        center: [1.8, 0, -0.8]
+        radius: 0.08
+        height: 0.9
+      - type: "cylinder"
+        material: "mat_legno"
+        center: [-1.8, 0, 0.8]
+        radius: 0.08
+        height: 0.9
+      - type: "cylinder"
+        material: "mat_legno"
+        center: [1.8, 0, 0.8]
+        radius: 0.08
+        height: 0.9
+
+  - name: "sfera_specchio"
+    type: "sphere"
+    material: "mat_specchio"
+    center: [-1.2, 1.4, 0]
+    radius: 0.4
+
+  - name: "sfera_cristallo"
+    type: "sphere"
+    material: "mat_cristallo"
+    center: [0, 1.4, 0]
+    radius: 0.4
+
+  - name: "sfera_plastica"
+    type: "sphere"
+    material: "mat_plastica"
+    center: [1.2, 1.4, 0]
+    radius: 0.4
