@@ -72,7 +72,6 @@ sky:
     intensity:      12.0
     angular_radius: 0.265                  # Half-angle in degrees (preferred)
     size:           2.5                    # Full diameter in degrees (alternative)
-    limb_darkening: true                   # Hestroffer (1997) V-band darkening
     shadow_samples: 4                      # Stratified samples for the paired PhysicalSun
     visible_to_camera: true                # Hide the disc from camera, keep as light
     extract_from_hdri: false               # (HDRI only — see below)
@@ -91,7 +90,6 @@ sky:
   sun:
     direction:       [0.4, 0.5, 0.3]      # direction TOWARDS the sun
     angular_radius:  0.265
-    limb_darkening:  true
     shadow_samples:  4
 ```
 Integrated single-scattering model — superior to Preetham/Hosek-Wilkie at low
@@ -112,7 +110,6 @@ sky:
   sun:
     direction:       [0.3, 0.8, 0.2]      # direction TOWARDS the sun
     angular_radius:  0.265                 # default = real solar disc
-    limb_darkening:  true
     shadow_samples:  4
 ```
 Analytical daylight distribution parametrised by atmospheric turbidity and ground
@@ -2091,7 +2088,6 @@ primitive replaces an entire tessellated terrain mesh.
 - name: "terrain"
   type: "heightfield"
   bounds: [-50, -50, 50, 50]
-  max_height: 25
   height_scale: 25
   heightmap_path: "libraries/terrain/myterrain-height.png"
   sea_level: 7.5
@@ -2107,7 +2103,6 @@ primitive replaces an entire tessellated terrain mesh.
 - name: "procedural_terrain"
   type: "heightfield"
   bounds: [-50, -50, 50, 50]
-  max_height: 25
   height_scale: 25
   resolution: 512
   height_texture:
@@ -2122,8 +2117,7 @@ primitive replaces an entire tessellated terrain mesh.
 
 | Field             | Type    | Default | Notes |
 |-------------------|---------|---------|-------|
-| `bounds`          | `[f]`   | —       | `[xMin, zMin, xMax, zMax]`. The Y AABB is `[0, max_height]`. |
-| `max_height`      | float   | `25`    | World-space ceiling used for the AABB; `max_height` ≥ peak height. |
+| `bounds`          | `[f]`   | —       | `[xMin, zMin, xMax, zMax]`. The Y AABB is derived from `height_scale` and the heightmap's peak sample. |
 | `height_scale`    | float   | `1`     | Multiplier applied to the normalised heightmap values (PNG-16 unit = 1). The world peak is `max(heightmap) × height_scale`. |
 | `heightmap_path`  | string  | —       | PNG path resolved relative to the master scene. 16-bit grayscale (`L16`) preferred; 8-bit accepted with a precision-loss warning. Mutually exclusive with `height_texture` (path wins). |
 | `height_texture`  | object  | —       | Full `TextureData` block — any procedural noise type. The luminance of `Value(u, v, p)` becomes the height. |

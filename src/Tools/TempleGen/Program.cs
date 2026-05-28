@@ -65,7 +65,6 @@ class Program
               color: [1.0, 0.85, 0.70]
               intensity: 8.0
               size: 2.0
-              falloff: 32.0
 
         cameras:
           - name: "front_dramatic"

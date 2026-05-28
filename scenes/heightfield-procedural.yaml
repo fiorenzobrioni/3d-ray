@@ -26,7 +26,6 @@ world:
       color: [1.00, 0.96, 0.90]
       intensity: 12.0
       size: 2.0
-      falloff: 32.0
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  LIGHTS
@@ -72,7 +71,6 @@ entities:
   - name: "terrain"
     type: "heightfield"
     bounds: [-50, -50, 50, 50]
-    max_height: 25
     height_scale: 25
     resolution: 512
     height_texture:

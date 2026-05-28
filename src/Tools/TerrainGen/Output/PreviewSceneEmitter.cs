@@ -61,7 +61,6 @@ public static class PreviewSceneEmitter
         sb.AppendLine($"      color: {YamlEmitter.Vec3(sky.SunColor)}");
         sb.AppendLine($"      intensity: {YamlEmitter.F(sky.SunIntensity)}");
         sb.AppendLine($"      size: {YamlEmitter.F(sky.SunSize)}");
-        sb.AppendLine($"      falloff: 32.0");
 
         // Light atmospheric haze when sea is present (aerial perspective).
         if (cfg.HasFlag(WaterFeatures.Mare))

@@ -82,7 +82,6 @@ world:
       color:          [1.0, 0.95, 0.80]
       intensity:      12.0
       angular_radius: 0.265                # semiangolo in gradi (sole reale)
-      limb_darkening: true                 # Hestroffer 1997 V-band
       shadow_samples: 4                    # campioni stratificati per le ombre soft
 ```
 
@@ -93,7 +92,6 @@ world:
 | `intensity`        | `10.0`   | Moltiplicatore di luminosità                         |
 | `angular_radius`   | `0.265°` | Semiangolo in gradi (sole reale)                     |
 | `size`             | `3.0°`   | Diametro totale — usato solo se `angular_radius` ≤ 0 |
-| `limb_darkening`   | `true`   | Applica Hestroffer V-band a due coefficienti         |
 | `shadow_samples`   | `4`      | Campioni stratificati per il `PhysicalSun` accoppiato|
 | `visible_to_camera`| `true`   | Quando `false` nasconde il disco dai raggi primari   |
 
@@ -143,7 +141,6 @@ world:
     sun:
       direction:       [-0.35, 0.78, 0.52]
       angular_radius:  0.265
-      limb_darkening:  true
       shadow_samples:  4
 ```
 
@@ -180,7 +177,6 @@ world:
     sun:
       direction:       [-0.85, 0.12, 0.4]   # basso sull'orizzonte → palette sunset
       angular_radius:  0.265
-      limb_darkening:  true
       shadow_samples:  4
 ```
 
@@ -503,7 +499,6 @@ world:
     sun:
       direction:      [0.8, 0.15, -0.5]    # sole basso caldo, dietro-destra
       angular_radius: 1.5                   # leggermente ingrandito per glow cinematico
-      limb_darkening: true
       shadow_samples: 4
 
 cameras:

@@ -48,7 +48,6 @@ commented_world:
       color:          [0.70, 0.75, 0.90] # cool blue moonlight
       intensity:      3.0
       angular_radius: 0.5
-      limb_darkening: false
       shadow_samples: 4
   ground:
     type: "infinite_plane"

@@ -81,7 +81,6 @@ namespace ChessGen
             sb.AppendLine("      color: [1.0, 0.96, 0.88]");
             sb.AppendLine("      intensity: 10.0");
             sb.AppendLine("      size: 2.0");
-            sb.AppendLine("      falloff: 48.0");
             sb.AppendLine("  ground:");
             sb.AppendLine("    type: \"infinite_plane\"");
             sb.AppendLine("    material: \"table_wood\"");

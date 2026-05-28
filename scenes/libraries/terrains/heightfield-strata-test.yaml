@@ -62,7 +62,6 @@ templates:
     children:
       - type: "heightfield"
         bounds: [-50.000, -50.000, 50.000, 50.000]
-        max_height: 25.000
         height_scale: 25.000
         heightmap_path: "libraries/terrain/heightfield-strata-test-height.png"
         sea_level: 7.500

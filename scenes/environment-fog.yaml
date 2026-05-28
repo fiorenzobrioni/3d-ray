@@ -26,7 +26,6 @@ world:
       color:     [1.0, 0.95, 0.85]
       intensity: 6.0
       size:      2.0
-      falloff:   25.0
   ground:
     type: "infinite_plane"
     material: "pavimento"

@@ -31,7 +31,6 @@ world:
     sun:
       direction:      [-0.7, 0.18, 0.45]   # sole basso, ~10° sull'orizzonte
       angular_radius: 0.5
-      limb_darkening: true
       shadow_samples: 4
 
   # ── Ground: heightfield con strata + lago glaciale ────────────────────────

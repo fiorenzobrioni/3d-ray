@@ -34,7 +34,6 @@ world:
       color: [1.0, 0.94, 0.82]        # luce solare calda pomeridiana
       intensity: 18.0                  # disco visibile con glow netto
       size: 2.5
-      falloff: 40.0
 
   # ── ALT-1: Golden Hour (tramonto a sinistra) ──────────────────────────────
   # world:
@@ -48,7 +47,6 @@ world:
   #       color: [1.0, 0.72, 0.35]
   #       intensity: 28.0
   #       size: 5.0
-  #       falloff: 16.0
 
   # ── ALT-2: Cielo coperto / overcast (luce piatta, no sole) ───────────────
   # world:

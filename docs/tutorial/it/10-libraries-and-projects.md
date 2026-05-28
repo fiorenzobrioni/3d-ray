@@ -387,7 +387,6 @@ world:
     heightmap: "libraries/terrains/heightfield-strata-test-height.png"
     width: 100
     depth: 100
-    max_height: 8.0
     material: "dis_erba_prato"
 ```
 

@@ -50,7 +50,6 @@ lights:
 #      color: [1.0, 0.98, 0.92]
 #      intensity: 15.0
 #      size: 2.5
-#      falloff: 48.0
 #  ground: { type: "infinite_plane", material: "floor_checker", y: 0.0 }
 #
 #lights:
@@ -75,7 +74,6 @@ lights:
 #      color: [1.0, 0.4, 0.05]
 #      intensity: 25.0
 #      size: 5.0
-#      falloff: 14.0
 #  ground: { type: "infinite_plane", material: "floor_checker", y: 0.0 }
 #
 #lights:

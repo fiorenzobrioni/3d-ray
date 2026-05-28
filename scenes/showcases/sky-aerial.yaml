@@ -21,7 +21,6 @@ world:
     sun:
       direction: [-0.45, 0.55, 0.7]      # mid-morning sun
       angular_radius: 0.265
-      limb_darkening: true
       shadow_samples: 4
   medium:
     type: "atmosphere"                     # alias: nishita / aerial_perspective

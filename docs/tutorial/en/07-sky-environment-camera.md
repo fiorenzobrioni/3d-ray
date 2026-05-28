@@ -81,7 +81,6 @@ world:
       color:          [1.0, 0.95, 0.80]
       intensity:      12.0
       angular_radius: 0.265                # half-angle in degrees (real Sun)
-      limb_darkening: true                 # V-band Hestroffer 1997
       shadow_samples: 4                    # stratified soft-shadow samples
 ```
 
@@ -92,7 +91,6 @@ world:
 | `intensity`        | `10.0`   | Brightness multiplier                              |
 | `angular_radius`   | `0.265°` | Half-angle in degrees (real Sun)                   |
 | `size`             | `3.0°`   | Full diameter — used only if `angular_radius` ≤ 0  |
-| `limb_darkening`   | `true`   | Apply Hestroffer two-coefficient V-band model      |
 | `shadow_samples`   | `4`      | Stratified samples for the paired `PhysicalSun`    |
 | `visible_to_camera`| `true`   | When `false`, hides the disc from primary rays     |
 
@@ -141,7 +139,6 @@ world:
     sun:
       direction:       [-0.35, 0.78, 0.52]
       angular_radius:  0.265
-      limb_darkening:  true
       shadow_samples:  4
 ```
 
@@ -176,7 +173,6 @@ world:
     sun:
       direction:       [-0.85, 0.12, 0.4]   # low on the horizon → sunset palette
       angular_radius:  0.265
-      limb_darkening:  true
       shadow_samples:  4
 ```
 
@@ -492,7 +488,6 @@ world:
     sun:
       direction:      [0.8, 0.15, -0.5]    # low warm sun, behind-right
       angular_radius: 1.5                   # slightly enlarged for cinematic glow
-      limb_darkening: true
       shadow_samples: 4
 
 cameras:

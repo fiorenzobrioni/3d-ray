@@ -22,7 +22,6 @@ world:
       color: [1.0, 0.85, 0.5]
       intensity: 2.0
       size: 4.0                         # Disco solare leggermente grande
-      falloff: 24.0                     # Glow ampio e caldo
   ground:
     type: "infinite_plane"
     material: "ground_mat"

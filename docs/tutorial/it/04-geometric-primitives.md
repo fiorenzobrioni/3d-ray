@@ -426,7 +426,6 @@ mesh di terreno.
 - name: "terrain"
   type: "heightfield"
   bounds: [-50, -50, 50, 50]                # [xMin, zMin, xMax, zMax]
-  max_height: 25                            # tetto AABB (world Y)
   height_scale: 25                          # moltiplicatore per i campioni normalizzati
   heightmap_path: "libraries/terrain/myterrain-height.png"
   sea_level: 7.5                            # piano d'acqua opzionale (world Y)
@@ -448,7 +447,6 @@ sono il look canonico per terreni erosi:
 - name: "procedural_terrain"
   type: "heightfield"
   bounds: [-50, -50, 50, 50]
-  max_height: 25
   height_scale: 25
   resolution: 512                           # griglia di sampling (solo procedurale)
   height_texture:
