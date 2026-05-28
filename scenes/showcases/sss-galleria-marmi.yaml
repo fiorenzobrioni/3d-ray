@@ -35,6 +35,19 @@ world:
     zenith_color:  [0.004, 0.005, 0.008]
     horizon_color: [0.025, 0.025, 0.030]
     ground_color:  [0.008, 0.008, 0.010]
+  # ── Nebbia bassa da pavimento ──────────────────────────────────────────────
+  #  height_fog con scale_height piccolo (0.15) → densità concentrata vicino al
+  #  suolo che sfuma intorno a y≈0.35 (circa 3/4 del piedistallo). σ_s moderati
+  #  così la nebbia raccoglie la luce delle area light senza velare i marmi
+  #  (che stanno a y 0.4–0.9, sopra lo strato). y0=0 = livello pavimento.
+  medium:
+    type: height_fog
+    sigma_a: [0.02, 0.02, 0.025]
+    sigma_s: [0.65, 0.70, 0.80]
+    y0: 0.0
+    scale_height: 0.16
+    phase: hg
+    g: 0.3
   ground:
     type: infinite_plane
     material: pavimento_satin
@@ -221,15 +234,16 @@ materials:
         - { position: 1.0, color: [0.08, 0.08, 0.08] }
 
   # ── Cristallo capsula ─────────────────────────────────────────────────────
-  #  Lead-crystal: ior alto (1.62) per rifrazione marcata + specular 0.5 per il
-  #  Fresnel (riflessi/sparkle ai bordi). transmission_color/depth dà la tinta
-  #  Beer-Lambert sui cammini lunghi nel vetro pieno → profondità "cristallo".
+  #  Lead-crystal: ior alto (1.70) per rifrazione marcata + specular 0.5 per il
+  #  Fresnel (riflessi/sparkle ai bordi). roughness 0.03 = vetro "soffiato" con
+  #  micro-blur sui riflessi (più realistico del cristallo perfetto).
+  #  transmission_color/depth dà la tinta Beer-Lambert sui cammini nel vetro.
   - id: vetro_campana
     type: "disney"
     color: [1.0, 1.0, 1.0]
-    roughness: 0.0
+    roughness: 0.03
     spec_trans: 1.0
-    ior: 1.62
+    ior: 1.70
     specular: 0.5
     transmission_color: [0.86, 0.93, 0.97]   # tenue freddo (cristallo al piombo)
     transmission_depth: 0.45
@@ -311,19 +325,29 @@ entities:
     material: marmo_verde_surf
     interior_medium: med_verde
 
-  # ── Capsula di cristallo PIENO sul Rosso (lente che deforma i contorni) ────
-  #  Vetro solido (niente cavità interna sottratta) = una sola interfaccia
-  #  curva aria→vetro che rifrange forte. Il cilindro frontale sottratto apre
-  #  una finestra: attraverso il foro la sfera si vede diretta, attorno al foro
-  #  il cristallo pieno la sposta/ingrandisce → sfasamento netto dei contorni.
+  # ── Capsula di cristallo sul Rosso (guscio spesso = lente realistica) ──────
+  #  Guscio a parete spessa (esterno 0.38, interno 0.31 → parete ~0.07): a metà
+  #  strada tra il guscio sottile originale (0.03, nessuno sfasamento) e il
+  #  vetro pieno (troppo "brutale"). La parete spessa rifrange in modo visibile
+  #  ma morbido, come un vero contenitore di cristallo. Il cilindro frontale
+  #  sottratto apre la finestra: dal foro la sfera si vede diretta, attorno al
+  #  foro il cristallo la sposta → sfasamento dei contorni più realistico.
   - name: capsula_1
     type: csg
     operation: "subtraction"
     left:
-      type: capsule
-      center: [1.0, -0.65, -0.30]
-      radius: 0.38
-      height: 1.30
+      type: csg
+      operation: "subtraction"
+      left:
+        type: capsule
+        center: [1.0, -0.65, -0.30]
+        radius: 0.38
+        height: 1.30
+      right:
+        type: capsule
+        center: [1.0, -0.65, -0.30]
+        radius: 0.31
+        height: 1.30
     right:
       type: cylinder
       center: [0, 0, 0]
@@ -333,15 +357,23 @@ entities:
       translate: [1.0, 0.65, -0.30]
     material: vetro_campana
 
-  # ── Capsula di cristallo PIENO sul Verde
+  # ── Capsula di cristallo sul Verde (guscio spesso ~0.07)
   - name: capsula_2
     type: csg
     operation: "subtraction"
     left:
-      type: capsule
-      center: [-1.0, -0.65, -0.30]
-      radius: 0.38
-      height: 1.30
+      type: csg
+      operation: "subtraction"
+      left:
+        type: capsule
+        center: [-1.0, -0.65, -0.30]
+        radius: 0.38
+        height: 1.30
+      right:
+        type: capsule
+        center: [-1.0, -0.65, -0.30]
+        radius: 0.31
+        height: 1.30
     right:
       type: cylinder
       center: [0, 0, 0]
