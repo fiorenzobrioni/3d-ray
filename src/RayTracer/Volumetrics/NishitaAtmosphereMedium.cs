@@ -176,9 +176,17 @@ public sealed class NishitaAtmosphereMedium : IMedium
         }
 
         // Delta tracking — sample candidates from the majorant, accept with
-        // probability σ_t(p) / σ_t_maj.
+        // probability σ_t(p) / σ_t_maj. The scalar control channel is the
+        // average σ_t; the *scalar* transmittance it implies is carried by the
+        // sampling process itself (the null-collision random walk reaches t
+        // with probability Tr_scalar(t)). beta must therefore NOT re-apply the
+        // scalar transmittance — only the chromatic ratio Tr_vec / Tr_scalar
+        // that restores wavelength-dependent attenuation (blue sky / red
+        // sunset) is multiplied in. Re-applying the full analytic transmittance
+        // (the previous behaviour) double-counted it and made the atmosphere
+        // far too dark on both the scatter and the pass-through branch.
         float tCur = 0f;
-        const int MaxAttempts = 64;
+        const int MaxAttempts = 256;
         for (int i = 0; i < MaxAttempts; i++)
         {
             float u = MathUtils.RandomFloat();
@@ -189,23 +197,40 @@ public sealed class NishitaAtmosphereMedium : IMedium
             float sigmaTLocalScalar = (sigmaTLocal.X + sigmaTLocal.Y + sigmaTLocal.Z) / 3f;
             if (MathUtils.RandomFloat() < sigmaTLocalScalar / sigmaTMajScalar)
             {
-                // Real scattering event
+                // Real scattering event.
                 t = tCur;
                 Vector3 sigmaS = SigmaS_AtY(p.Y);
-                Vector3 trWeight = Transmittance(ray, tCur);
-                // Spectral selection denominator (uniform over channels)
                 float denomScalar = sigmaTLocalScalar;
                 if (denomScalar < 1e-20f) denomScalar = 1f;
-                beta = trWeight * sigmaS / denomScalar;
+                beta = ChromaticTrRatio(ray, tCur) * sigmaS / denomScalar;
                 scattered = true;
                 return true;
             }
         }
 
-        // No event before tMax
+        // No event before tMax: the pass-through transmittance is already
+        // encoded in the probability of reaching tMax (Tr_scalar); weight only
+        // by the chromatic ratio so the through-radiance keeps its true
+        // per-channel attenuation.
         t = tMax;
-        beta = Transmittance(ray, tMax);
+        beta = ChromaticTrRatio(ray, tMax);
         scattered = false;
         return false;
+    }
+
+    /// <summary>
+    /// Tr_vec(t) / Tr_scalar(t) = exp(-(τ_c - τ̄)) per channel, where τ̄ is the
+    /// average optical depth (the scalar control channel of the delta tracker).
+    /// Mean of the three channels is ≈ 1, so it recolours without changing the
+    /// overall magnitude that the sampling process already accounts for.
+    /// </summary>
+    private Vector3 ChromaticTrRatio(Ray ray, float t)
+    {
+        Vector3 tau = OpticalDepth(ray, t);
+        float tauScalar = (tau.X + tau.Y + tau.Z) / 3f;
+        return new Vector3(
+            MathF.Exp(tauScalar - tau.X),
+            MathF.Exp(tauScalar - tau.Y),
+            MathF.Exp(tauScalar - tau.Z));
     }
 }
