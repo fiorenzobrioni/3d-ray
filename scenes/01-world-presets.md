@@ -58,7 +58,6 @@ world:
     sun:                  # optional; auto-registers a PhysicalSun
       direction:      [0.3, 0.8, 0.2]   # TOWARDS the sun
       angular_radius: 0.265
-      limb_darkening: true
       shadow_samples: 4
 
   # ── GROUND (full schema in docs/reference/scene-reference.md) ──────────
@@ -135,7 +134,6 @@ world:
     sun:
       direction:      [0.2, 0.95, 0.1]  # near-zenith
       angular_radius: 0.265
-      limb_darkening: true
       shadow_samples: 4
   ground:
     type: "quad"
@@ -164,7 +162,6 @@ world:
     sun:
       direction:      [-0.85, 0.12, 0.4]   # just above horizon
       angular_radius: 0.5                  # cinematic disc
-      limb_darkening: true
       shadow_samples: 4
   ground:
     type: "quad"
@@ -196,7 +193,6 @@ world:
     sun:
       direction:      [-0.7, 0.18, 0.45]
       angular_radius: 0.5
-      limb_darkening: true
       shadow_samples: 4
   ground:
     type: "heightfield"
@@ -241,7 +237,6 @@ world:
     sun:
       direction:      [-0.65, 0.18, 0.55]
       angular_radius: 0.4
-      limb_darkening: true
       shadow_samples: 4
   ground:
     type: "infinite_plane"
@@ -303,7 +298,6 @@ world:
       color:          [0.70, 0.75, 0.90] # cool blue moonlight
       intensity:      3.0
       angular_radius: 0.5
-      limb_darkening: false
       shadow_samples: 4
   ground:
     type: "infinite_plane"
@@ -331,7 +325,6 @@ world:
     sun:
       direction:      [0.4, 0.8, 0.3]    # high-ish but warm
       angular_radius: 0.265
-      limb_darkening: true
       shadow_samples: 6
   ground:
     type: "quad"
@@ -360,7 +353,6 @@ world:
     sun:
       direction:      [-0.55, 0.30, 0.55] # 17° elevation
       angular_radius: 0.4
-      limb_darkening: true
       shadow_samples: 6
   ground:
     type: "heightfield"
@@ -470,7 +462,6 @@ world:
     sun:
       direction:      [-0.85, 0.12, 0.7]   # low key off-camera
       angular_radius: 0.5
-      limb_darkening: true
       shadow_samples: 6
   ground:
     type: "quad"

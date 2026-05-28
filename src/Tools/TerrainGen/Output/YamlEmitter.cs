@@ -133,11 +133,6 @@ public static class YamlEmitter
         // legacy mesh pipeline used so existing preview cameras keep framing.
         float half = cfg.Size * 0.5f;
 
-        // Engine's HeightField max_height drives only the AABB; height_scale
-        // is the actual multiplier applied to normalised samples. We set
-        // both to the world-space peak (size × 0.25) so the AABB stays tight.
-        float maxHeight = heightScale;
-
         // Fallback material when no band matches at the shading point — the
         // ground stratum is the safe pick (covers the widest altitude range).
         string fallback = $"{materialPrefix}_{Stratum.Ground.Suffix()}";
@@ -147,7 +142,6 @@ public static class YamlEmitter
         sb.AppendLine("    children:");
         sb.AppendLine("      - type: \"heightfield\"");
         sb.AppendLine($"        bounds: [{F(-half)}, {F(-half)}, {F(half)}, {F(half)}]");
-        sb.AppendLine($"        max_height: {F(maxHeight)}");
         sb.AppendLine($"        height_scale: {F(heightScale)}");
         sb.AppendLine($"        heightmap_path: \"{heightmapFileName}\"");
 

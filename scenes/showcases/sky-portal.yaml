@@ -22,7 +22,6 @@ world:
     sun:
       direction: [0.4, 0.7, 0.6]
       angular_radius: 0.265
-      limb_darkening: true
       shadow_samples: 4
 
 cameras:

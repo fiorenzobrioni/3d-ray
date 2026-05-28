@@ -32,7 +32,6 @@
 #          color: [1.0, 0.82, 0.42]
 #          intensity: 22.0
 #          size: 4.0
-#          falloff: 20.0
 #
 #  RENDER CONSIGLIATO:
 #    Draft  : -w 400  -H 225 -s 64   -d 4  -S 1

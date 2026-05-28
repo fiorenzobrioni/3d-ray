@@ -467,7 +467,6 @@ tessellation, no mesh BVH, one entity replaces a terrain mesh.
 - name: "terrain"
   type: "heightfield"
   bounds: [-50, -50, 50, 50]                # [xMin, zMin, xMax, zMax]
-  max_height: 25                            # AABB ceiling (world Y)
   height_scale: 25                          # multiplier for normalised samples
   heightmap_path: "libraries/terrain/myterrain-height.png"
   sea_level: 7.5                            # optional water plane (world Y)
@@ -489,7 +488,6 @@ canonical eroded-terrain look:
 - name: "procedural_terrain"
   type: "heightfield"
   bounds: [-50, -50, 50, 50]
-  max_height: 25
   height_scale: 25
   resolution: 512                           # internal sample grid (procedural only)
   height_texture:

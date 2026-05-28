@@ -34,7 +34,6 @@ world:
       color: [1.00, 0.96, 0.88]
       intensity: 10.0
       size: 2.0
-      falloff: 32.0
 
 cameras:
   - name: "principale"
@@ -81,7 +80,6 @@ entities:
   - name: "terrain_procedural"
     type: "heightfield"
     bounds: [-55, -40, -5, 40]
-    max_height: 22
     height_scale: 22
     resolution: 512
     height_texture:
@@ -103,7 +101,6 @@ entities:
   - name: "terrain_heightmap"
     type: "heightfield"
     bounds: [5, -40, 55, 40]
-    max_height: 18
     height_scale: 18
     height_texture:
       type: "image"

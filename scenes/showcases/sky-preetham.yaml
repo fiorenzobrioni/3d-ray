@@ -21,7 +21,6 @@ world:
     sun:
       direction: [-0.35, 0.78, 0.52]   # direction TO the sun (world space)
       angular_radius: 0.265            # real solar disc half-angle
-      limb_darkening: true
       shadow_samples: 4
 
 cameras:

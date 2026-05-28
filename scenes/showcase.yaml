@@ -63,7 +63,6 @@ world:
       color:      [1.0, 0.92, 0.78]
       intensity:  3.0
       size:       1.5
-      falloff:    64.0
 
   medium:
     type: "homogeneous"

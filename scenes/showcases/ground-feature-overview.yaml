@@ -36,7 +36,6 @@ world:
     sun:
       direction:      [0.4, 0.7, 0.5]      # ~35° di elevazione
       angular_radius: 0.265
-      limb_darkening: true
       shadow_samples: 4
 
   # ── Ground: tutto il dispatcher condensato qui sotto ──────────────────────
@@ -55,7 +54,7 @@ world:
   # sky:
   #   type: "nishita"
   #   turbidity: 2.5
-  #   sun: { direction: [0.4, 0.45, 0.6], angular_radius: 0.5, limb_darkening: true, shadow_samples: 4 }
+  #   sun: { direction: [0.4, 0.45, 0.6], angular_radius: 0.5, shadow_samples: 4 }
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  CAMERAS

@@ -32,7 +32,6 @@ world:
       color: [1.0, 0.96, 0.88]
       intensity: 2.0
       size: 2.5
-      falloff: 40.0
   ground:
     type: "infinite_plane"
     material: "table_wood"

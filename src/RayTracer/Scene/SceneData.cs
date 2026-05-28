@@ -169,10 +169,6 @@ public class GroundData
     [YamlMember(Alias = "normal")]
     public List<float>? Normal { get; set; }
 
-    /// <summary>UV-frame orientation. Composes after <see cref="Normal"/>; affects how textured materials wrap the ground. Mirrors <c>sky.orientation</c>.</summary>
-    [YamlMember(Alias = "orientation")]
-    public OrientationData? Orientation { get; set; }
-
     // ── Finite-type geometry ──────────────────────────────────────────────────
 
     /// <summary>Half-extent (XZ) for <c>quad</c>, or radius for <c>disk</c>. Default 50 world units (100×100 m floor). Ignored by <c>infinite_plane</c>.</summary>
@@ -344,13 +340,6 @@ public class SunDiskData
     /// <summary>Half-angle in degrees. When set, overrides <see cref="Size"/>. Real Sun ≈ 0.265°.</summary>
     [YamlMember(Alias = "angular_radius")]
     public float AngularRadius { get; set; } = 0f;
-
-    [YamlMember(Alias = "falloff")]
-    public float Falloff { get; set; } = 32f;
-
-    /// <summary>Apply Hestroffer V-band limb darkening to the disc.</summary>
-    [YamlMember(Alias = "limb_darkening")]
-    public bool LimbDarkening { get; set; } = true;
 
     /// <summary>When <c>type: hdri</c>, attempt automatic sun extraction from the HDRI peak.</summary>
     [YamlMember(Alias = "extract_from_hdri")]
@@ -1392,14 +1381,6 @@ public class EntityData
     /// </summary>
     [YamlMember(Alias = "bounds")]
     public List<float>? Bounds { get; set; }
-
-    /// <summary>
-    /// Maximum world-space height the heightfield may reach. Drives the
-    /// primitive's AABB and is independent of <c>height_scale</c> (the AABB
-    /// remains a safe upper bound even when the actual peak under-shoots).
-    /// </summary>
-    [YamlMember(Alias = "max_height")]
-    public float MaxHeight { get; set; } = 25f;
 
     /// <summary>
     /// Multiplicative scale applied to the unit-range height samples before

@@ -20,7 +20,6 @@ world:
       color:     [1.0, 0.90, 0.72]       # Bianco caldo (luce pomeridiana)
       intensity: 14.0
       size:      2.5
-      falloff:   36.0
 
   ground:
     type: "infinite_plane"

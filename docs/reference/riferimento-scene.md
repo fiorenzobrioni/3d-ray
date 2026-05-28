@@ -79,7 +79,6 @@ sky:
     intensity:      12.0
     angular_radius: 0.265                  # Semiangolo in gradi (consigliato)
     size:           2.5                    # Diametro totale in gradi (alternativa)
-    limb_darkening: true                   # Limb darkening Hestroffer (1997)
     shadow_samples: 4                      # Campioni stratificati per il PhysicalSun accoppiato
     visible_to_camera: true                # Nasconde il disco dalla camera, lo tiene come luce
 ```
@@ -97,7 +96,6 @@ sky:
   sun:
     direction:       [0.4, 0.5, 0.3]      # direzione VERSO il sole
     angular_radius:  0.265
-    limb_darkening:  true
     shadow_samples:  4
 ```
 Modello physically-based con integrazione single-scattering — supera Preetham/
@@ -118,7 +116,6 @@ sky:
   sun:
     direction:       [0.3, 0.8, 0.2]      # direzione VERSO il sole
     angular_radius:  0.265                 # default = disco solare reale
-    limb_darkening:  true
     shadow_samples:  4
 ```
 Distribuzione daylight analitica parametrizzata da torbidità atmosferica e
@@ -2106,7 +2103,6 @@ mesh di terreno tassellata.
 - name: "terrain"
   type: "heightfield"
   bounds: [-50, -50, 50, 50]
-  max_height: 25
   height_scale: 25
   heightmap_path: "libraries/terrain/myterrain-height.png"
   sea_level: 7.5
@@ -2122,7 +2118,6 @@ mesh di terreno tassellata.
 - name: "procedural_terrain"
   type: "heightfield"
   bounds: [-50, -50, 50, 50]
-  max_height: 25
   height_scale: 25
   resolution: 512
   height_texture:
@@ -2137,8 +2132,7 @@ mesh di terreno tassellata.
 
 | Campo             | Tipo    | Default | Note |
 |-------------------|---------|---------|------|
-| `bounds`          | `[f]`   | —       | `[xMin, zMin, xMax, zMax]`. L'AABB Y è `[0, max_height]`. |
-| `max_height`      | float   | `25`    | Tetto world-space usato per l'AABB; `max_height` ≥ altezza del picco. |
+| `bounds`          | `[f]`   | —       | `[xMin, zMin, xMax, zMax]`. L'AABB Y è derivato da `height_scale` e dal campione di picco della heightmap. |
 | `height_scale`    | float   | `1`     | Moltiplicatore applicato ai valori normalizzati della heightmap (unità PNG-16 = 1). Il picco world-space è `max(heightmap) × height_scale`. |
 | `heightmap_path`  | string  | —       | Path PNG risolto rispetto alla scena master. 16-bit grayscale (`L16`) preferito; 8-bit accettato con un warning di perdita di precisione. Mutuamente esclusivo con `height_texture` (vince il path). |
 | `height_texture`  | object  | —       | Blocco `TextureData` completo — qualsiasi noise procedurale. La luminanza di `Value(u, v, p)` diventa l'altezza. |

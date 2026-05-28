@@ -26,7 +26,6 @@
 #       color: [1.0, 0.98, 0.92]
 #       intensity: 12.0
 #       size: 2.5
-#       falloff: 48.0
 #   ground: { type: "infinite_plane", material: "matte_green", y: -0.5 }
 
 # lights:
@@ -53,7 +52,6 @@
 #       color: [1.0, 0.82, 0.45]
 #       intensity: 18.0
 #       size: 4.0
-#       falloff: 20.0
 #   ground: { type: "infinite_plane", material: "matte_green", y: -0.5 }
 
 # lights:
@@ -78,7 +76,6 @@
 #       color: [1.0, 0.35, 0.05]
 #       intensity: 25.0
 #       size: 6.0
-#       falloff: 12.0
 #   ground: { type: "infinite_plane", material: "matte_green", y: -0.5 }
 
 # lights:
@@ -119,7 +116,6 @@ world:
       color: [0.7, 0.75, 1.0]
       intensity: 1.0
       size: 1.5
-      falloff: 64.0
   ground: { type: "infinite_plane", material: "matte_green", y: -0.5 }
 
 cameras:

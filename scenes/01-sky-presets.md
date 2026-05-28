@@ -77,7 +77,6 @@ world:
       intensity:         10.0
       angular_radius:    0.265        # half-angle in degrees (real Sun)
       size:              3.0          # full diameter — used only if angular_radius <= 0
-      limb_darkening:    true         # Hestroffer 1997 V-band
       shadow_samples:    4            # stratified samples for PhysicalSun shadows
       visible_to_camera: true         # false = hide disc from camera rays
       # HDRI only:
@@ -181,7 +180,6 @@ world:
     sun:
       direction:      [0.3, 1.0, 0.4]    # high in the sky
       angular_radius: 0.265
-      limb_darkening: true
       shadow_samples: 4
 ```
 
@@ -202,7 +200,6 @@ world:
     sun:
       direction:      [-0.85, 0.12, 0.4]   # sun just above horizon
       angular_radius: 0.5                   # slightly enlarged for cinematic glow
-      limb_darkening: true
       shadow_samples: 4
 ```
 
@@ -222,7 +219,6 @@ world:
     sun:
       direction:      [-0.7, 0.25, 0.6]
       angular_radius: 0.4
-      limb_darkening: true
       shadow_samples: 4
   medium:
     type: "atmosphere"
@@ -253,7 +249,6 @@ world:
       color:          [0.70, 0.75, 0.90]  # cool blue moonlight
       intensity:      3.0
       angular_radius: 0.5                  # moon disc
-      limb_darkening: false                # the moon has no significant limb darkening
       shadow_samples: 4
 ```
 
@@ -276,7 +271,6 @@ world:
       extract_from_hdri:  true
       extract_threshold:  40                       # lower if the HDRI sun is soft
       shadow_samples:     4
-      limb_darkening:     false                    # disc is captured by the HDRI
 ```
 
 The default for VFX / archviz with captured environments. The sun is
@@ -351,7 +345,6 @@ world:
       color:          [1.0, 0.97, 0.90]
       intensity:      15.0
       angular_radius: 0.8                # slightly enlarged for nicer specular
-      limb_darkening: false              # crisp uniform disc
       shadow_samples: 4
 ```
 

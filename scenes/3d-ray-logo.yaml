@@ -49,7 +49,6 @@ world:
     sun:
       direction:      [-0.55, 0.45, 0.6]            # golden hour mid-morning (no sunset saturo)
       angular_radius: 0.4
-      limb_darkening: true
       shadow_samples: 6
 
   ground:
@@ -72,7 +71,7 @@ world:
   #   type: "preetham"
   #   turbidity: 3.5
   #   ground_albedo: [0.48, 0.42, 0.36]
-  #   sun: { direction: [-0.55, 0.45, 0.6], angular_radius: 0.4, limb_darkening: true, shadow_samples: 6 }
+  #   sun: { direction: [-0.55, 0.45, 0.6], angular_radius: 0.4, shadow_samples: 6 }
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  CAMERAS
