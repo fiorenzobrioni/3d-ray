@@ -468,7 +468,7 @@ tessellation, no mesh BVH, one entity replaces a terrain mesh.
   type: "heightfield"
   bounds: [-50, -50, 50, 50]                # [xMin, zMin, xMax, zMax]
   height_scale: 25                          # multiplier for normalised samples
-  heightmap_path: "libraries/terrain/myterrain-height.png"
+  heightmap_path: "assets/heightmaps/myterrain-height.png"
   sea_level: 7.5                            # optional water plane (world Y)
   sea_material: "water"
   strata:

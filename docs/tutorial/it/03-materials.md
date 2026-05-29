@@ -213,7 +213,7 @@ Alias del tipo: `disney`, `disney_bsdf`, `pbr` (tutti creano lo stesso materiale
 >    già un `interior_medium` esplicito. È la parity di Arnold
 >    `standard_surface` con `subsurface_type: randomwalk` e del
 >    Principled BSDF di Cycles.
-> 2. **Entity-bound** — dichiara un'entry nella libreria `mediums:` e
+> 2. **Entity-bound** — dichiara un'entry nella sezione `mediums:` e
 >    collegala via `interior_medium` sull'entity. Massimo controllo,
 >    supporta media eterogenei. Vedi Capitolo 7.
 >
@@ -808,8 +808,8 @@ roughness_texture:
 
 Vedi `scenes/showcases/library-woods-v3.yaml` per il confronto a sei
 sfere (quercia / quartato / curly maple / pino nodoso / mogano flame /
-burr walnut) e il materiale canonico `dis_quercia_pro_mask` in
-`scenes/libraries/materials/woods.yaml` per la ricetta mask applicata a
+burr walnut) e copia il preset canonico `quercia_pro_mask` da
+`scenes/presets/materials-wood.md` per la ricetta mask applicata a
 un look quercia lucida completo.
 
 ---
@@ -1080,15 +1080,20 @@ aggiuntivo di decorrelamento, utile ma non più obbligatorio.
 
 #### Step 10 — Il catalogo pre-cotto
 
-La libreria contiene 14 materiali studio-quality pronti all'import:
+I cataloghi di preset `scenes/presets/materials-stone.md` e `materials-wood.md`
+contengono 14 ricette studio-quality pronte da copiare. Apri il catalogo,
+copia il blocco `materials:` della ricetta scelta nella tua scena e
+referenziane l'`id`:
 
 ```yaml
-imports:
-  - { path: "scenes/libraries/materials/stones.yaml" }
-  - { path: "scenes/libraries/materials/woods.yaml" }
+materials:
+  # Incollato da scenes/presets/materials-stone.md
+  - id: "calacatta_studio_lucido"
+    type: "disney"
+    # ...
 
 entities:
-  - { type: "sphere", center: [0, 1, 0], radius: 1, material: "dis_calacatta_studio_lucido" }
+  - { type: "sphere", center: [0, 1, 0], radius: 1, material: "calacatta_studio_lucido" }
 ```
 
 Catalogo (suffisso `_studio` dappertutto):
@@ -1612,7 +1617,7 @@ da sola finché i bordi non scendono sotto la soglia di pixel-error.
 Per un tipico render 1920 × 1080 con FOV medio,
 `subdivision_pixel_error: 6.0` con `subdivision_max_iterations: 5` è
 un buon default — limita l'icosaedro a ≈5120 triangoli, abbastanza
-fine per ogni materiale displaced della libreria.
+fine per ogni materiale displaced dei cataloghi.
 
 Usa le iterazioni fisse (`subdivision_iterations: 4`) solo quando ti
 serve un conteggio geometrico deterministico — test di regressione,
@@ -1636,10 +1641,10 @@ snapshot diff in CI, oppure pre-baking di una mesh da esportare.
   invece un OBJ "boolean-baked".
 
 **Tutti i file `scenes/showcases/library-*.yaml` che dimostrano una
-libreria materiali adottano questo pattern.** Guarda `library-concretes.yaml`,
+famiglia di materiali adottano questo pattern.** Guarda `library-concretes.yaml`,
 `library-leathers.yaml`, `library-marbles-v2.yaml` — la fila
 di cinque sfere demo è costruita con icosaedri suddivisi, così ogni
-materiale displaced della libreria mostra il suo vero profilo
+materiale displaced mostra il suo vero profilo
 geometrico fianco a fianco con quelli non-displaced.
 
 ### Showcase

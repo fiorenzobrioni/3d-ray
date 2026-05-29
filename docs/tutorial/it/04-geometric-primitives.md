@@ -427,7 +427,7 @@ mesh di terreno.
   type: "heightfield"
   bounds: [-50, -50, 50, 50]                # [xMin, zMin, xMax, zMax]
   height_scale: 25                          # moltiplicatore per i campioni normalizzati
-  heightmap_path: "libraries/terrain/myterrain-height.png"
+  heightmap_path: "assets/heightmaps/myterrain-height.png"
   sea_level: 7.5                            # piano d'acqua opzionale (world Y)
   sea_material: "water"
   strata:

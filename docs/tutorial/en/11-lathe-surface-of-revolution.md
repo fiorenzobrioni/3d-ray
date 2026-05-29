@@ -514,4 +514,4 @@ iterating on composition.
 
 ---
 
-[Previous: Asset Libraries and Complete Scenes](./10-libraries-and-projects.md) | [Tutorial Index](./README.md) | [Next: Extruded Profiles (Extrusion)](./12-extrusion-2d-profiles.md)
+[Previous: Presets and Projects](./10-libraries-and-projects.md) | [Tutorial Index](./README.md) | [Next: Extruded Profiles (Extrusion)](./12-extrusion-2d-profiles.md)

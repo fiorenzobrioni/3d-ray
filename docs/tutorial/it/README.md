@@ -50,10 +50,11 @@ Nebbia, foschia, effetto sott'acqua, nubi, fumo localizzato. Quattro tipi di
 mezzo (homogeneous, height fog, procedurale Perlin fBm, grid 3D) e cinque
 phase function (isotropic, HG, Rayleigh, double-HG, Schlick).
 
-### [10 -- Librerie di asset e scene complete](./10-libraries-and-projects.md)
-L'ecosistema di librerie incluso: 800+ materiali, 14 preset di illuminazione
-più preset emissivi per geometry light, texture da immagine, template font e
-heightfield di terreni. Riferimento CLI, flusso di lavoro del progetto e guida alla risoluzione dei problemi.
+### [10 -- Preset e progetti](./10-libraries-and-projects.md)
+I cataloghi di preset copia-incolla sotto `scenes/presets/`: materiali, luci,
+mezzi, abbinamenti world/sky e ricette di terreno, più le risorse binarie
+(texture immagine, template di font, heightmap) sotto `scenes/assets/`.
+Riferimento CLI, flusso di lavoro del progetto e guida alla risoluzione dei problemi.
 
 ### [11 -- Superfici di rivoluzione (Lathe)](./11-lathe-surface-of-revolution.md)
 La primitiva `lathe`: fai ruotare un profilo 2D attorno all'asse Y per

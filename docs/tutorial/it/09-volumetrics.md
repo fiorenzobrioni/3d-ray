@@ -518,4 +518,4 @@ Ogni scena include un header descrittivo e i comandi pronti per i profili Previe
 
 ---
 
-[Precedente: Constructive Solid Geometry (CSG)](./08-csg.md) | [Successivo: Librerie di asset e scene complete](./10-libraries-and-projects.md) | [Indice del Tutorial](./README.md)
+[Precedente: Constructive Solid Geometry (CSG)](./08-csg.md) | [Successivo: Preset e progetti](./10-libraries-and-projects.md) | [Indice del Tutorial](./README.md)

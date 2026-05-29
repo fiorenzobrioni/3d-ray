@@ -62,7 +62,7 @@ Prima di posizionare gli oggetti è fondamentale sapere come 3D-Ray orienta il p
 
 - **Y è verso l'alto.** Il pavimento è convenzionalmente a Y = 0. Gli oggetti si trovano sopra (Y positivo) e il cielo è in alto.
 - **Sistema destrorso.** Guardando lungo l'asse Z negativo (la direzione predefinita "nello schermo"), X punta a destra e Y punta in alto.
-- **Le unità sono metri** per convenzione. Il motore è agnostico rispetto alle unità, ma tutte le scene e le librerie incluse usano 1 unità = 1 metro. Una sfera con `radius: 0.5` è grande circa come un pompelmo; `radius: 10` riempie una stanza.
+- **Le unità sono metri** per convenzione. Il motore è agnostico rispetto alle unità, ma tutte le scene incluse usano 1 unità = 1 metro. Una sfera con `radius: 0.5` è grande circa come un pompelmo; `radius: 10` riempie una stanza.
 
 Riferimento pratico:
 

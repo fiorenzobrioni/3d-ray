@@ -1,114 +1,149 @@
-# Capitolo 10: Librerie di asset e scene complete
+# Capitolo 10: Preset e progetti
 
-3D-Ray viene fornito con un ricco ecosistema di asset predefiniti: 1450
-materiali, 14 configurazioni di illuminazione (più preset emissivi per luci
-geometriche), texture immagine, template di font e heightfield per terreni.
-Questo capitolo mostra come utilizzarli, fornisce il riferimento completo
-della CLI e guida nella costruzione di un vero progetto.
+3D-Ray viene fornito con un ricco catalogo di blocchi pronti all'uso:
+centinaia di materiali, una dozzina di set di illuminazione (più preset
+emissivi per luci geometriche), ricette di mezzi partecipanti, ricette per
+terreni, texture immagine e template di font 3D. Questo capitolo mostra come
+utilizzarli, fornisce il riferimento completo della CLI e guida nella
+costruzione di un vero progetto.
 
----
-
-## 10.1 L'ecosistema delle librerie
-
-Tutte le librerie si trovano nella directory `scenes/libraries/`:
-
-```
-scenes/libraries/
-  materials/      20 file YAML, 1450 materiali
-  lights/         14 file YAML + geometry-lights.yaml
-  textures/       20 file immagine PNG (albedo + normal map)
-  fonts/          Template caratteri 3D (generati da FontGen)
-  terrains/       Template heightfield (generati da TerrainGen)
-```
-
-Le librerie vengono caricate tramite la sezione `imports:` nel file della
-scena. I percorsi sono relativi alla directory del file della scena.
+I preset di materiali, luci, mezzi, world, sky e terreni sono **cataloghi
+copia-incolla** sotto `scenes/presets/` — file Markdown pieni di blocchi YAML
+validati. Le risorse binarie che referenziano (texture immagine, template di
+font, heightmap) vivono sotto `scenes/assets/`.
 
 ---
 
-## 10.2 Librerie dei Materiali
+## 10.1 I cataloghi di preset
 
-Venti file a tema che coprono ogni tipo di superficie di cui si potrebbe
-aver bisogno:
+Tutti i cataloghi di preset vivono in `scenes/presets/` come file Markdown.
+Apri quello che ti serve, copi un blocco YAML e lo incolli nella tua scena:
 
-| File                          | Contenuti                                       | Quantità |
-|-------------------------------|-------------------------------------------------|----------|
-| `materials/metals.yaml`       | Oro, argento, rame, bronzo, ottone, acciaio (incl. damasco), ferro, ghisa, alluminio (incl. anodizzati), titanio (anodizzato thin_film), cromo, platino, nichel, zinco, peltro, corten, mercurio, niobio olografico | 131 |
-| `materials/ceramics.yaml`     | Porcellana, bone china, maiolica, terracotta, grès, raku, celadon (incl. crackle), biscotto, smaltate, sigillate, satin | 112 |
-| `materials/plastics.yaml`     | ABS, policarbonato, acrilico, PVC, nylon, PLA, teflon, bachelite, gomma, silicone medicale, EVA, vinile | 105 |
-| `materials/glasses.yaml`      | Vetri industriali/ottici, cristalli, gemme preziose e semipreziose, ghiaccio, liquidi, resine, smerigliati frosted | 101 |
-| `materials/fabrics.yaml`      | Velluto e seta (sheen Charlie), raso, cotone, lino, lana, denim, tweed, feltro, neoprene, canvas, organza/tulle | 101 |
-| `materials/foods.yaml`        | Cioccolato, frutta, verdura, formaggi, pane, pasta, dolci, burro/grassi | 100 |
-| `materials/organics.yaml`     | Cera, ambra, avorio, corno, corallo, madreperla (thin_film), conchiglia, sughero, carta, sapone, bambù | 98 |
-| `materials/paints.yaml`       | Auto metallizzata/pastello/perlata cangiante, lacche, smalti, chalk paint, pittura murale, spray | 93 |
-| `materials/stones.yaml`       | Marmi bianchi/scuri/colorati (texture `marble` production-grade), graniti, travertino, ardesia, onice/alabastro (SSS), basalto, mattoni | 88 |
-| `materials/woods.yaml`        | Latifoglie chiare/medie/scure, ebano, esotici, trattati (shou-sugi-ban, barnwood), studio (curly, flame, bird's eye, burl) | 87 |
-| `materials/grounds.yaml`      | Checker, parquet, piastrelle, marmo pavimento, cemento, asfalto, terra, sabbia, ghiaia, erba, neve, moquette, acque | 75 |
-| `materials/liquids.yaml`      | Acque, latticini, sangue, oli, alcolici (Beer-Lambert), sciroppi, bevande calde, succhi, refrigeranti | 53 |
-| `materials/plasters.yaml`     | Rasati, graffiati, veneziano (clearcoat alto), marmorino, tadelakt, stucco antico, calce mediterranea, gesso | 50 |
-| `materials/leathers.yaml`     | Pieno fiore, anilina, nappa, suede (sheen), patent (clearcoat), esotici (voronoi cell), box calf, cuoio grezzo, ecoleather | 46 |
-| `materials/industrial-coatings.yaml` | Chassis auto, clearcoat, polveri RAL, anodizzazione Al/Ti, zincatura, cromature, smalti a fuoco, gel coat, termocromiche | 43 |
-| `materials/concretes.yaml`    | Cemento liscio/esposto/lavorato/lavato a vista, colorati, asfalto (incl. bagnato), bitume catrame | 42 |
-| `materials/synthetics.yaml`   | Carbon fiber (anisotropic), kevlar, vetroresina, neoprene, PTFE, silicone medicale, poliuretani, vinile auto wrap (olografico), tessuti tecnici, aerogel | 34 |
-| `materials/minerals-gems.yaml`| Quarzi, geodi, druse, cristalli cubici, calcite islandese birifrangente, fluorite, malachite, lapislazzuli, pietra di luna, opali, kyanite | 30 |
-| `materials/weathering.yaml`   | 26 overlay `over_*` per `type: mix`: ruggine, muschio, polvere, calcare, grasso, neve, vernice scrostata, foglie, sale marino | 26 |
-| `materials/mix-recipes.yaml`  | 35 ricette `mix_*` pronte all'uso (metalli arrugginiti, legni usurati, intonaci macchiati, pietre colonizzate, vernici scrostate) | 35 |
+```
+scenes/presets/
+  README.md                  Come funziona il flusso copia-incolla
+  world.md                   Cielo + terreno abbinati (+ medium opzionale)
+  sky.md                     Modelli di cielo in isolamento (flat, gradient, Preetham, Nishita, Hosek, HDRI)
+  materials-stone.md         Marmi, graniti, travertino, onice, alabastro, mattone, cemento
+  materials-metal.md         Metalli grezzi e lucidati, vernici industriali
+  materials-wood.md          Legni grezzi, laccati, verniciati
+  materials-glass.md         Vetri, gemme/minerali, liquidi (famiglia trasmissiva)
+  materials-organic.md       Tessuti, pelli, cibi, organici
+  materials-synthetic.md     Plastiche, sintetici, vernici, ceramiche
+  materials-ground.md        Materiali per il terreno (si abbinano a world.md)
+  materials-weathering.md    Overlay di invecchiamento e ricette `mix`
+  lights.md                  Set di luci pronti (3-point, high-key, golden hour, neon, …)
+  mediums.md                 Atmosfere, nebbie, ghiaccio/neve, SSS, liquidi volumetrici
+  terrains.md                Ricetta heightfield + strati altimetrici/pendenza
+```
 
-**Totale: 1450 materiali.**
+Le risorse binarie referenziate dai cataloghi vivono sotto `scenes/assets/`:
 
-### Convenzione dei nomi
+```
+scenes/assets/
+  textures/     Texture immagine PNG (albedo + normal/roughness/AO map)
+  fonts/        Template caratteri 3D (generati da FontGen) + sorgenti .ttf
+  heightmaps/   Heightmap PNG grayscale a 16 bit (generati da TerrainGen)
+```
 
-I materiali seguono un sistema di prefissi:
+### Il flusso copia-incolla
 
-- **`dis_`** — Disney BSDF (PBR completo con clearcoat, sheen, spec_trans,
-  thin_film). Abbina un binding `interior_medium` sull'entity per Random
-  Walk SSS. Ideale per gli oggetti principali (hero objects) e i primi piani.
-- **`cls_`** — Tipo classico (`lambertian`, `metal` o `dielectric`, scelto
-  in base al lobo dominante). Più veloce e meno rumoroso; ideale per grandi
-  superfici e sfondi.
-- **`over_`** — Overlay weathering (in `weathering.yaml`) da usare via
-  `type: mix`.
-- **`mix_`** — Ricetta composita pronta all'uso (in `mix-recipes.yaml`) che
-  combina `dis_*` base + `over_*` overlay + maschera procedurale.
+1. Apri il catalogo della famiglia che ti serve (tabelle sotto).
+2. Copia il blocco `materials:` / `lights:` / `mediums:` del preset scelto.
+3. Incollalo nella tua scena. Le voci con lo stesso `id` si fondono nel
+   blocco locale della scena.
+4. Referenzia l'`id` dalle tue entità (`material: "..."`) e ritocca colore,
+   scala o roughness a piacere.
 
-Esempi:
-- `dis_oro_lucido` — Oro lucido Disney
-- `cls_oro_lucido` — Oro lucido Metal classico
-- `dis_vetro_sodalime` — Vetro soda-lime Disney
-- `cls_vetro_sodalime` — Vetro dielettrico classico
-- `mix_acciaio_arrugginito_medio` — Acciaio satinato + ruggine medium con maschera FBM
+```yaml
+# nella tua scena
+materials:
+  - id: "carrara_lucido"        # ← incollato da presets/materials-stone.md
+    type: "disney"
+    # ...
+
+entities:
+  - type: "sphere"
+    center: [0, 1, 0]
+    radius: 1
+    material: "carrara_lucido"
+```
+
+Gli `id` dei preset sono brevi e descrittivi e sono pensati per essere
+**rinominati** liberamente nella tua scena. Ogni blocco è validato contro lo
+schema del motore e renderizza senza warning.
+
+---
+
+## 10.2 Cataloghi dei materiali
+
+Otto cataloghi a tema coprono ogni tipo di superficie di cui si potrebbe
+aver bisogno. La maggior parte dei materiali usa il **Disney BSDF**
+(`type: disney`); un tipo classico (`lambertian`, `metal`, `dielectric`)
+si usa solo dove è la scelta corretta (es. semplici superfici di sfondo).
+
+| Catalogo                      | Contenuti                                       |
+|-------------------------------|-------------------------------------------------|
+| `materials-stone.md`          | Marmi bianchi/scuri/colorati, graniti, travertino, ardesia, onice/alabastro (SSS), basalto, mattoni, cemento |
+| `materials-metal.md`          | Oro, argento, rame, bronzo, ottone, acciaio, ferro/ghisa, alluminio (incl. anodizzati), titanio (thin-film), cromo, più vernici industriali |
+| `materials-wood.md`           | Latifoglie chiare/medie/scure, ebano, esotici, trattati (shou-sugi-ban, barnwood), legni studio figurati |
+| `materials-glass.md`          | Vetri industriali/ottici, cristalli, gemme (preziose + semipreziose), ghiaccio, liquidi, frosted |
+| `materials-organic.md`        | Tessuti (sheen), pelli, cibi, cera, ambra, avorio, madreperla, sughero, carta |
+| `materials-synthetic.md`      | Plastiche, carbon fiber (anisotropic), kevlar, siliconi, vernici, ceramiche, porcellana |
+| `materials-ground.md`         | Erba, sottobosco, sabbia desertica, terra secca, roccia, ghiaia, neve fresca, acqua — si abbina a `world.md` |
+| `materials-weathering.md`     | Overlay `over_*` per `type: mix` (ruggine, muschio, polvere, calcare) e ricette `mix_*` pronte |
+
+### Convenzioni
+
+La maggior parte dei materiali è `type: disney` (PBR completo con clearcoat,
+sheen, `spec_trans`, `thin_film`). Abbina un materiale Disney a un binding
+`interior_medium` sull'entity per il Random Walk SSS. Il catalogo
+weathering usa due famiglie di id:
+
+- **`over_`** — un overlay di invecchiamento, combinato via `type: mix` su un
+  materiale base con una maschera procedurale.
+- **`mix_`** — una ricetta composita pronta all'uso (base + overlay + maschera).
 
 ### Utilizzo
 
+Copia i blocchi che ti servono direttamente nella sezione `materials:` della
+tua scena, poi referenziali per `id`:
+
 ```yaml
-imports:
-  - path: "libraries/materials/metals.yaml"
-  - path: "libraries/materials/glasses.yaml"
+materials:
+  - id: "oro_lucido"            # ← incollato da presets/materials-metal.md
+    type: "disney"
+    color: [1.0, 0.71, 0.29]
+    metallic: 1.0
+    roughness: 0.05
+    specular: 0.8
+
+  - id: "diamante"             # ← incollato da presets/materials-glass.md
+    type: "disney"
+    # ...
 
 entities:
   - type: "sphere"
     center: [0, 1, 0]
     radius: 1.0
-    material: "dis_oro_lucido"      # Usa il materiale della libreria tramite ID
+    material: "oro_lucido"
 
   - type: "sphere"
     center: [2, 0.5, 0]
     radius: 0.5
-    material: "cls_diamante"        # Diamante classico
+    material: "diamante"
 ```
 
-### Sovrascrivere un materiale della libreria
+### Personalizzare un preset
 
-Per personalizzare un materiale della libreria, ridefiniscilo con lo stesso
-ID nel tuo file di scena. Le definizioni locali hanno la precedenza:
+Poiché incolli il blocco nella tua scena, personalizzarlo significa solo
+modificare i valori che hai copiato — cambia `color`, `roughness` o `scale`
+sul posto, e rinomina l'`id` come preferisci:
 
 ```yaml
-imports:
-  - path: "libraries/materials/metals.yaml"
-
 materials:
-  # Il mio oro personalizzato (sovrascrive dis_oro_lucido della libreria)
-  - id: "dis_oro_lucido"
+  # Un oro più caldo e lucido basato sul preset dell'oro lucido
+  - id: "mio_oro"
     type: "disney"
     color: [0.98, 0.8, 0.3]
     metallic: 1.0
@@ -117,82 +152,66 @@ materials:
 
 ---
 
-## 10.3 Librerie di Illuminazione
+## 10.3 Catalogo dell'illuminazione (`lights.md`)
 
-Quattordici configurazioni di illuminazione predefinite organizzate per
-ambiente, più un file dedicato ai preset emissivi per luci geometriche.
+`lights.md` è organizzato in sezioni per ambiente. Copia il blocco `lights:`
+di una sezione (e, dove suggerito, il blocco `world:` abbinato) nella tua
+scena:
 
-### Studio
+### Studio e prodotto
 
-| File                         | Configurazione       | Atmosfera                      |
-|------------------------------|----------------------|--------------------------------|
-| `lights/studio-3point.yaml`  | 3-punti classico     | Universale prodotto/ritratto   |
-| `lights/studio-highkey.yaml` | High key             | Pulito, commerciale, moda      |
-| `lights/studio-dramatic.yaml`| Low key/Chiaroscuro  | Noir, ombre drammatiche        |
-| `lights/studio-product.yaml` | Prodotto/Gioielleria | Riflessi (catchlights) precisi |
+| Sezione            | Configurazione       | Atmosfera                      |
+|--------------------|----------------------|--------------------------------|
+| 3-point            | 3-punti classico     | Universale prodotto/ritratto   |
+| High-key           | High key             | Pulito, commerciale, moda      |
+| Drammatico (low-key)| Low key/Chiaroscuro | Noir, ombre drammatiche        |
+| Prodotto           | Prodotto/Gioielleria | Riflessi (catchlights) precisi |
 
-### Esterni (Outdoor)
+### Esterni e notte
 
-| File                             | Configurazione  | Atmosfera                           |
-|----------------------------------|-----------------|-------------------------------------|
-| `lights/outdoor-noon.yaml`       | Sole mezzogiorno| Luce dura, ombre corte              |
-| `lights/outdoor-golden-hour.yaml`| Ora d'oro       | Bagliore cinematografico caldo      |
-| `lights/outdoor-sunset.yaml`     | Tramonto        | Arancione profondo, ombre lunghe    |
-| `lights/outdoor-overcast.yaml`   | Nuvoloso        | Morbida, uniforme, senza ombre nette|
-
-### Notte / Interni / Creativi
-
-| File                               | Configurazione       | Atmosfera                    |
-|------------------------------------|----------------------|------------------------------|
-| `lights/night-moonlight.yaml`      | Notte di luna        | Freddo-blu, misterioso       |
-| `lights/interior-warm.yaml`        | Interno caldo        | Accogliente, domestico       |
-| `lights/interior-candlelight.yaml` | Lume di candela      | Romantico, medievale         |
-| `lights/neon-cyberpunk.yaml`       | Neon/Cyberpunk       | Sci-fi, colori vibranti      |
-| `lights/theatre-stage.yaml`        | Palco teatrale       | Spot drammatici              |
-| `lights/museum-gallery.yaml`       | Galleria museale     | Spot precisi per esposizioni |
+| Sezione      | Configurazione | Atmosfera                           |
+|--------------|----------------|-------------------------------------|
+| Golden hour  | Sole caldo     | Bagliore cinematografico caldo      |
+| Mezzogiorno  | Sole alto      | Luce dura, ombre corte              |
+| Coperto      | Nuvoloso       | Morbida, uniforme, senza ombre nette|
+| Luce di luna | Notte di luna  | Freddo-blu, misterioso              |
+| Neon/Cyberpunk| Neon          | Sci-fi, colori vibranti             |
 
 ### Utilizzo
 
 ```yaml
-imports:
-  - path: "libraries/lights/studio-3point.yaml"
+lights:                          # ← incollato da presets/lights.md (3-point)
+  - type: "area"
+    # key light ...
+  - type: "area"
+    # fill light ...
+  - type: "area"
+    # rim light ...
 
-# Ogni libreria di luci suggerisce una configurazione world corrispondente nei commenti dell'intestazione.
+# Ogni sezione di luci suggerisce una configurazione world corrispondente nelle note.
 world:
   sky:
     type: "flat"
     color: [0.0, 0.0, 0.0]
 ```
 
-### Preset Luci Geometriche (`geometry-lights.yaml`)
+### Luci geometriche (emissive)
 
-`lights/geometry-lights.yaml` contiene 12 materiali emissivi `emi_*` che
-trasformano qualsiasi geometria in una sorgente luminosa partecipante alla
-NEE — senza aggiungere un'entità luce esplicita. I preset coprono la
-scala blackbody completa e diverse sorgenti speciali:
+La sezione "Luci geometriche (emissive)" di `lights.md` contiene **materiali**
+emissivi `emi_*` che trasformano qualsiasi geometria in una sorgente luminosa
+partecipante alla NEE — senza aggiungere un'entità luce esplicita. Coprono
+la scala blackbody (candela 2000 K → bianco freddo 7000 K) più sorgenti
+speciali (fuoco, braci, strisce LED, bioluminescenza, disco solare diretto).
 
-| Preset               | Temperatura colore | Uso                                |
-|----------------------|--------------------|------------------------------------|
-| `emi_candela`        | 2000 K             | Fiamma di candela, lampada a olio  |
-| `emi_tungsteno`      | 3000 K             | Lampadina a incandescenza          |
-| `emi_alogeno`        | 3200 K             | Faretto alogeno, lampada fotografica|
-| `emi_fluorescente`   | 4000 K             | Tubo fluorescente da ufficio       |
-| `emi_daylight`       | 5500 K             | Fill bilanciato luce del giorno    |
-| `emi_cool_white`     | 7000 K             | LED bianco freddo, fill cielo coperto|
-| `emi_fuoco`          | —                  | Bagliore animato di fuoco (caldo)  |
-| `emi_brace`          | —                  | Braci / carboni incandescenti      |
-| `emi_led_strip_warm` | —                  | Striscia LED calda (architetturale)|
-| `emi_led_strip_cool` | —                  | Striscia LED fredda (task lighting)|
-| `emi_bioluminescenza`| —                  | Bagliore bioluminescente           |
-| `emi_sole_diretto`   | —                  | Disco solare diretto (intensità molto alta)|
-
-Importa il file e applica il materiale a qualsiasi geometria. Il motore
-registra automaticamente la geometria come `GeometryLight` e la include
+Copia il blocco `materials:` e applica il materiale a qualsiasi geometria. Il
+motore registra automaticamente la geometria come `GeometryLight` e la include
 nel campionamento NEE:
 
 ```yaml
-imports:
-  - path: "libraries/lights/geometry-lights.yaml"
+materials:
+  - id: "emi_tungsteno"         # ← incollato da presets/lights.md
+    type: "emissive"
+    # ...
 
 entities:
   # Una sfera lampada a temperatura tungsteno
@@ -200,13 +219,6 @@ entities:
     center: [0, 3, 0]
     radius: 0.15
     material: "emi_tungsteno"
-
-  # Un cilindro candela a temperatura candela
-  - type: "cylinder"
-    center: [1, 0, 0]
-    radius: 0.03
-    height: 0.2
-    material: "emi_candela"
 ```
 
 Suggerimento: le luci geometriche partecipano automaticamente alla NEE
@@ -216,9 +228,9 @@ luci differiscono notevolmente.
 
 ### Light hardening: ridurre i firefly senza alzare gli spp
 
-Tutti i preset della libreria sono calibrati con i parametri di *light
-hardening* introdotti dal motore (vedi DEVLOG §Ciclo Light Hardening
-e `docs/reference/scene-reference.md` §8). Le tre manopole chiave:
+Tutti i preset di luce sono calibrati con i parametri di *light hardening*
+del motore (vedi DEVLOG §Ciclo Light Hardening e
+`docs/reference/scene-reference.md` §8). Le tre manopole chiave:
 
 - **`soft_radius`** (point, spot, area) — modella il diametro fisico della
   sorgente. Il termine `1/d²` (e `cosLight/d²` per le area) viene chiuso
@@ -229,8 +241,8 @@ e `docs/reference/scene-reference.md` §8). Le tre manopole chiave:
 - **`angular_radius`** (directional) — diametro angolare in gradi del
   disco solare/lunare. `0.27` = sole reale, `0.5` = luna piena. Quando
   attivo produce penombre fisiche (cone-sampling, `shadow_samples` interno
-  4) anziché ombre dure infinitamente nette. Le scene outdoor della
-  libreria lo usano già su tutti i sole/luna.
+  4) anziché ombre dure infinitamente nette. I preset outdoor lo usano già
+  su tutti i sole/luna.
 - **`shadow_samples`** (spot, area, sphere) — campioni jitterati per la
   visibilità. Su `spot` ha effetto solo se anche `soft_radius > 0`.
 
@@ -251,26 +263,27 @@ isolati molto luminosi vicini alle sorgenti). In quel caso `soft_radius`
 
 ---
 
-## 10.4 Libreria delle Texture Immagine
+## 10.4 Texture immagine (`scenes/assets/textures/`)
 
-La cartella `scenes/libraries/textures/` contiene 20 file PNG:
+La cartella `scenes/assets/textures/` contiene le texture immagine PNG
+incluse, referenziate per path relativo dal file della scena.
 
-### Coppie Albedo + Normal Map
-- `brick-wall.png` + `brick-wall-normal.png`
+### Set Albedo + map
+- `brick-wall.png` + `brick-wall-normal.png` (+ roughness, AO)
 - `brick-wall-white.png` (condivide `brick-wall-normal.png`)
-- `concrete.png` + `concrete-normal.png`
-- `metal-scratched.png` + `metal-scratched-normal.png`
-- `wood-floor.png` + `wood-floor-normal.png`
-- `wood-planks.png` + `wood-planks-normal.png`
+- `concrete.png` + `concrete-normal.png` (+ roughness, AO)
+- `metal-scratched.png` + `metal-scratched-normal.png` (+ roughness, metallic)
+- `wood-floor.png` + `wood-floor-normal.png` (+ roughness, AO)
+- `wood-planks.png` + `wood-planks-normal.png` (+ roughness, AO)
+- `earth.png` + `earth-roughness.png`
 
-### Solo Normal Map
+### Solo normal map
 - `fabric-weave-normal.png` -- sovrapposizione texture tessuta
 - `stone-cobble-normal.png` -- pavimentazione a ciottoli
 - `tiles-normal.png` -- linee di fuga delle piastrelle
 - `flat-normal.png` -- piatta neutrale (disabilita la mappatura delle normali in modo pulito)
 
 ### Specialità
-- `earth.png` -- pianeta Terra
 - `checkerboard.png` -- test UV
 - `grid-uv.png` -- griglia di verifica UV numerata
 - `logo-3dray.png` -- logo del motore
@@ -284,32 +297,33 @@ materials:
     roughness: 0.7
     texture:
       type: "image"
-      path: "libraries/textures/brick-wall.png"
+      path: "assets/textures/brick-wall.png"
       uv_scale: [2, 2]
     normal_map:
-      path: "libraries/textures/brick-wall-normal.png"
+      path: "assets/textures/brick-wall-normal.png"
       strength: 1.0
       uv_scale: [2, 2]
 ```
 
 ---
 
-## 10.5 Librerie di Font
+## 10.5 Template di font 3D (`scenes/assets/fonts/`)
 
-La directory `scenes/libraries/fonts/` contiene file di template di
-caratteri 3D generati dallo strumento `FontGen`. Ogni file copre una
-famiglia di font e include template per le lettere maiuscole (A–Z),
-le minuscole (a–z) e le cifre (0–9).
+La directory `scenes/assets/fonts/` contiene file di template di caratteri
+3D generati dallo strumento `FontGen`. Ogni file copre una famiglia di font
+e include template per le lettere maiuscole (A–Z), le minuscole (a–z) e le
+cifre (0–9). I font sorgente `.ttf` abbinati vivono sotto
+`scenes/assets/fonts/ttf/`.
 
-File di esempio: `fonts/font-open-sans.yaml` — famiglia Open Sans.
+File di esempio: `assets/fonts/font-open-sans.yaml` — famiglia Open Sans.
 
-### Utilizzo
-
-Riferisci un template di carattere usando `type: "instance"`:
+Un file di template di font è una delle poche cose che si *importano*
+davvero (anziché copiare-incollare), perché porta con sé decine di template
+di estrusione. Riferisci un template di carattere usando `type: "instance"`:
 
 ```yaml
 imports:
-  - path: "libraries/fonts/font-open-sans.yaml"
+  - path: "assets/fonts/font-open-sans.yaml"
 
 materials:
   # Definisci o sovrascrivi il materiale font usato da tutti i caratteri
@@ -334,7 +348,7 @@ Ogni template usa un materiale chiamato `font_material`. Ridefiniscilo
 nella tua scena per applicare la tua superficie a tutti i caratteri
 senza modificare il file del font.
 
-### Generare librerie di font
+### Generare template di font
 
 Usa lo strumento `FontGen` per creare nuovi file font da qualsiasi font
 di sistema o file .ttf/.otf:
@@ -345,64 +359,67 @@ dotnet run --project src/Tools/FontGen/FontGen.csproj -- \
 ```
 
 Usa `--list-fonts` per vedere tutti i font di sistema disponibili. I
-template generati vengono scritti in `scenes/libraries/fonts/`.
+template generati vengono scritti in `scenes/assets/fonts/`.
 
 ---
 
-## 10.6 Librerie di Terreni
+## 10.6 Terreni heightfield (`terrains.md` + `scenes/assets/heightmaps/`)
 
-La directory `scenes/libraries/terrains/` contiene file template per
-heightfield generati dallo strumento `TerrainGen`. Ogni voce consiste
-in un file YAML template e un heightmap PNG in scala di grigi a 16 bit.
+Il catalogo `terrains.md` fornisce una ricetta heightfield copia-incolla:
+una heightmap in scala di grigi (PNG a 16 bit sotto
+`scenes/assets/heightmaps/`) viene intersecata direttamente dal motore come
+primitiva `heightfield` — senza tessellazione mesh — con materiali assegnati
+a fasce di altitudine/pendenza (`strata`).
 
-Esempio: `terrains/heightfield-strata-test.yaml` +
-`terrains/heightfield-strata-test-height.png`.
+Il motore interseca l'heightfield direttamente tramite un quadtree min/max
+mipmap, quindi una sola primitiva sostituisce un'intera mesh di terreno.
 
-Il motore interseca l'heightfield direttamente tramite un quadtree
-min/max mipmap (senza tessellazione mesh). Una sola primitiva sostituisce
-un'intera mesh di terreno.
+### Come dispatcher di terreno (`world.ground`)
 
-### Utilizzo come istanza template
-
-```yaml
-imports:
-  - path: "libraries/terrains/heightfield-strata-test.yaml"
-
-entities:
-  - type: "instance"
-    template: "terrain_strata_test"
-    translate: [0, 0, 0]
-    material: "dis_terra_secca"
-```
-
-### Utilizzo come dispatcher di terreno
-
-I template di terreno possono anche essere referenziati in `world.ground`
-per sostituire il piano di terra infinito implicito:
+Incolla i materiali del terreno e il blocco `world.ground` dal catalogo;
+l'heightfield diventa il suolo della scena:
 
 ```yaml
 world:
   ground:
     type: "heightfield"
-    heightmap: "libraries/terrains/heightfield-strata-test-height.png"
-    width: 100
-    depth: 100
-    material: "dis_erba_prato"
+    heightmap_path: "assets/heightmaps/heightfield-strata-test-height.png"
+    bounds: [-50, -50, 50, 50]
+    height_scale: 25.0
+    strata:
+      - { min_altitude: 0.0, max_altitude: 0.36, min_slope_deg: 0, max_slope_deg: 35, blend_width: 0.04, material: "t_sand" }
+      - { min_altitude: 0.5, max_altitude: 1.0,  min_slope_deg: 0, max_slope_deg: 90, blend_width: 0.08, material: "t_rock" }
+    material: "t_ground"
 ```
 
-### Generare librerie di terreni
+### Come entità posizionabile
 
-Usa lo strumento `TerrainGen` per creare nuovi template heightfield:
+Gli stessi campi funzionano su un'entità `type: heightfield`, che puoi
+posizionare e trasformare ovunque nella scena:
+
+```yaml
+entities:
+  - type: "heightfield"
+    heightmap_path: "assets/heightmaps/heightfield-strata-test-height.png"
+    bounds: [-50, -50, 50, 50]
+    height_scale: 25.0
+    material: "t_ground"
+```
+
+### Generare heightmap
+
+Usa lo strumento `TerrainGen` per creare nuove heightmap (e un template di
+terreno pronto da incollare):
 
 ```
 dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- \
   --name mie-colline --type collina --season estate --with-cameras
 ```
 
-`--type` accetta `pianura`, `collina` o `montagna`. Lo strumento scrive
-il template YAML in `scenes/libraries/terrain/<name>.yaml` e un
-heightmap `<name>-height.png` abbinato. Con `--with-cameras` genera
-anche un `scenes/<name>-preview.yaml` pronto da renderizzare.
+`--type` accetta `pianura`, `collina` o `montagna`. Lo strumento scrive una
+heightmap `<name>-height.png` in `scenes/assets/heightmaps/`; con
+`--with-cameras` genera anche un `scenes/<name>-preview.yaml` pronto da
+renderizzare.
 
 ---
 
@@ -458,7 +475,8 @@ L'arrotondamento dipende dal sampler attivo (`--sampler`, default `sobol`):
 
 ## 10.8 Costruire un progetto completo: Passo dopo passo
 
-Ecco il flusso di lavoro per creare una scena da zero utilizzando le librerie:
+Ecco il flusso di lavoro per creare una scena da zero utilizzando i cataloghi
+di preset:
 
 ### Passo 1: Configura World e Camera
 
@@ -475,16 +493,28 @@ cameras:
     fov: 45
 ```
 
-### Passo 2: Importa le Librerie
+### Passo 2: Incolla materiali e luci
+
+Apri `presets/materials-metal.md`, `presets/materials-stone.md` e la sezione
+3-point di `presets/lights.md`, e copia i blocchi che ti servono nelle sezioni
+`materials:` e `lights:` della tua scena:
 
 ```yaml
-imports:
-  - path: "libraries/materials/metals.yaml"
-  - path: "libraries/materials/stones.yaml"
-  - path: "libraries/lights/studio-3point.yaml"
+materials:
+  - id: "carrara_lucido"        # ← presets/materials-stone.md
+    type: "disney"
+    # ...
+  - id: "oro_lucido"            # ← presets/materials-metal.md
+    type: "disney"
+    # ...
+
+lights:
+  # ← blocco 3-point incollato da presets/lights.md
+  - type: "area"
+    # ...
 ```
 
-### Passo 3: Aggiungi le Entità
+### Passo 3: Aggiungi le entità
 
 ```yaml
 entities:
@@ -492,19 +522,19 @@ entities:
   - type: "infinite_plane"
     point: [0, 0, 0]
     normal: [0, 1, 0]
-    material: "dis_carrara_lucido"
+    material: "carrara_lucido"
 
-  # Una sfera con materiale dalla libreria al centro
+  # Una sfera con un materiale incollato al centro
   - type: "sphere"
     center: [0, 1.0, 0]
     radius: 0.5
-    material: "dis_oro_lucido"
+    material: "oro_lucido"
 
   # Oggetto personalizzato
   - type: "sphere"
     center: [0, 0.78, 0]
     radius: 0.15
-    material: "dis_diamante"
+    material: "diamante"
 ```
 
 ### Passo 4: Itera
@@ -529,7 +559,30 @@ manopola `-C`/`--clamp` del firefly clamp, consulta
 
 ---
 
-## 10.9 Guida alla risoluzione dei problemi
+## 10.9 Organizzare un progetto più grande
+
+Quando una scena supera un paio di centinaia di entità, un po' di struttura
+ripaga:
+
+- **Costruisci la tua palette dai cataloghi.** Incolla solo i blocchi di
+  materiali, luci e mezzi che usi davvero, e assegna loro `id` specifici
+  della scena (`mat_floor`, `mat_wall`, `mat_glass`). Così la sezione
+  `materials:` resta leggibile.
+- **Suddividi la tua scena con `imports:`.** Sposta i template di oggetti
+  ripetuti in un file separato e includilo con `imports:`. I percorsi sono
+  relativi al file che importa; le definizioni locali sovrascrivono quelle
+  importate; `world` e `cameras` non vengono mai importati. (Vedi il
+  Capitolo 5 per la meccanica completa.)
+- **Tieni le risorse binarie sotto `scenes/assets/`.** Texture immagine,
+  template di font e heightmap stanno in `assets/{textures,fonts,heightmaps}/`
+  e si referenziano per path relativo. Gli asset generati (FontGen,
+  TerrainGen) finiscono lì.
+- **Dai un nome a tutto.** Assegna a ogni entità e template un `name:`
+  descrittivo, così l'output `--verbose` e i warning sono facili da leggere.
+
+---
+
+## 10.10 Guida alla risoluzione dei problemi
 
 ### Immagine nera
 - **Nessuna luce.** Aggiungere luci nella sezione `lights:` o usare oggetti emissivi / cielo HDRI.
@@ -558,7 +611,7 @@ manopola `-C`/`--clamp` del firefly clamp, consulta
 
 ### Materiale mancante (l'oggetto appare grigio predefinito)
 - Controllare eventuali errori di battitura nell'ID del materiale.
-- Assicurarsi che la libreria sia importata correttamente in `imports:`.
+- Assicurarsi che il materiale sia effettivamente definito nella sezione `materials:` della scena (il blocco incollato deve essere presente, non solo referenziato).
 - Controllare i messaggi di avviso sulla console per riferimenti a materiali non risolti.
 
 ### Colori sbagliati
@@ -576,7 +629,7 @@ manopola `-C`/`--clamp` del firefly clamp, consulta
 - Assicurarsi che ci sia luce dietro/intorno all'oggetto di vetro (il vetro trasmette la luce, quindi ha bisogno di qualcosa da trasmettere).
 
 ### Le texture non vengono visualizzate (ripiego magenta/rosa)
-- Controllare che il percorso del file della texture sia corretto e relativo al file della scena.
+- Controllare che il percorso del file della texture sia corretto e relativo al file della scena (es. `assets/textures/brick-wall.png`).
 - Verificare che il file esista e sia in un formato supportato (PNG, JPEG, BMP).
 
 ### Gli import non funzionano
@@ -586,18 +639,16 @@ manopola `-C`/`--clamp` del firefly clamp, consulta
 
 ---
 
-## 10.10 Esempio Completo: Sala Espositiva
+## 10.11 Esempio completo: Sala espositiva
 
-Una scena che combina diverse librerie in un progetto coeso.
+Una scena che combina materiali e luci incollati da diversi cataloghi in un
+progetto coeso.
 
 ```yaml
 # exhibition-hall.yaml
-# Una stanza simile a un museo che mostra oggetti di diverse categorie di libreria.
-
-imports:
-  - path: "libraries/materials/metals.yaml"
-  - path: "libraries/materials/stones.yaml"
-  - path: "libraries/lights/geometry-lights.yaml"
+# Una stanza simile a un museo che mostra oggetti di diverse famiglie di materiali.
+# Materiali incollati da presets/materials-metal.md e materials-glass.md;
+# il materiale emi_daylight dalla sezione luci geometriche di presets/lights.md.
 
 world:
   sky:
@@ -618,7 +669,23 @@ cameras:
     focal_dist: 4.5
 
 materials:
-  # Pavimento personalizzato
+  # ── Incollati dai cataloghi ─────────────────────────────────────────
+  - id: "oro_lucido"            # presets/materials-metal.md
+    type: "disney"
+    color: [1.0, 0.71, 0.29]
+    metallic: 1.0
+    roughness: 0.05
+    specular: 0.8
+
+  - id: "diamante"             # presets/materials-glass.md
+    type: "disney"
+    # ... (incolla il blocco diamante completo)
+
+  - id: "emi_daylight"         # presets/lights.md (luci geometriche)
+    type: "emissive"
+    # ... (incolla il blocco emi_daylight completo)
+
+  # ── Superfici personalizzate ────────────────────────────────────────
   - id: "hall_floor"
     type: "disney"
     roughness: 0.1
@@ -628,14 +695,12 @@ materials:
       scale: 0.3
       colors: [[0.85, 0.82, 0.78], [0.25, 0.22, 0.2]]
 
-  # Piedistallo
   - id: "pedestal"
     type: "disney"
     color: [0.2, 0.2, 0.22]
     roughness: 0.08
     specular: 0.7
 
-  # Parete di fondo
   - id: "wall"
     type: "disney"
     color: [0.15, 0.14, 0.13]
@@ -666,7 +731,7 @@ entities:
   - type: "sphere"
     center: [-2, 1.25, 0]
     radius: 0.35
-    material: "dis_oro_lucido"
+    material: "oro_lucido"
 
   # Piedistallo centrale: sfera emissiva daylight (luce geometrica)
   - type: "cylinder"
@@ -690,7 +755,7 @@ entities:
   - type: "sphere"
     center: [2, 1.25, 0]
     radius: 0.35
-    material: "dis_diamante"
+    material: "diamante"
 
 lights:
   # Luci spot individuali per ogni piedistallo.
@@ -751,18 +816,20 @@ RayTracer -i exhibition-hall.yaml -c detail -w 1200 -H 800 -s 1024 -d 8 -S 4
 
 ## Cosa si è imparato
 
-- L'ecosistema delle librerie fornisce 1450 materiali, 14 configurazioni di
-  illuminazione più preset emissivi `emi_*`, texture immagine, template di
-  font e heightfield per terreni.
-- I materiali utilizzano i prefissi `dis_` (Disney PBR) e `cls_` (Classic).
-- I materiali emissivi `emi_*` da `geometry-lights.yaml` trasformano qualsiasi
-  geometria in una sorgente NEE partecipante — senza bisogno di un'entità
-  luce esplicita.
-- Le librerie font (`fonts/`) forniscono template di caratteri 3D generati
-  da FontGen; le librerie terreno (`terrains/`) forniscono template heightfield
-  generati da TerrainGen.
-- Le librerie vengono caricate tramite `imports:` -- le definizioni locali
-  sovrascrivono quelle importate.
+- I cataloghi di preset sotto `scenes/presets/` sono raccolte copia-incolla di
+  YAML validato: materiali, luci, mezzi, abbinamenti world/sky e ricette di
+  terreno.
+- Il flusso è apri un catalogo → copia un blocco `materials:` / `lights:` /
+  `mediums:` → incollalo nella tua scena → referenzia l'`id` dalle tue entità
+  e ritocca.
+- I materiali emissivi `emi_*` dalla sezione luci geometriche di `lights.md`
+  trasformano qualsiasi geometria in una sorgente NEE partecipante — senza
+  bisogno di un'entità luce esplicita.
+- Le risorse binarie vivono sotto `scenes/assets/`: texture immagine
+  (`assets/textures/`), template di font (`assets/fonts/`, generati da
+  FontGen) e heightmap (`assets/heightmaps/`, generati da TerrainGen).
+- `imports:` serve per suddividere la tua scena su più file e per includere
+  template di font generati — non per i materiali, che si incollano.
 - La CLI offre pieno controllo su risoluzione, qualità, selezione della
   fotocamera e formato di output.
 - Il flusso di lavoro anteprima/bozza/finale è il modo più efficiente per
