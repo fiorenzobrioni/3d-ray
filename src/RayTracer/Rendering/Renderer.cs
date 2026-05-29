@@ -882,25 +882,6 @@ public partial class Renderer
         // (entering glass → σ_a; exiting → vacuum). Reflection samples keep
         // the caller's currentAbsorption untouched.
         Vector3 nextAbsorption = s.NextSegmentAbsorption ?? currentAbsorption;
-        // Medium-stack transition (MediumInterface, Phase 1): copy-on-write so
-        // the caller's stack stays intact when the recursion returns. Entering
-        // a refractive boundary pushes the geometry's interior medium; exiting
-        // pops the top. Reflection samples leave the stack unchanged.
-        MediumStack nextMediums = mediums;
-        switch (s.Transition)
-        {
-            case MediumTransition.Enter:
-                // Carry the bounding geometry (rec.EntityRoot, stamped by
-                // MediumBoundHittable) so NEE from any surface hit *inside*
-                // this medium can clip its shadow-ray transmittance to the
-                // in-medium segment instead of the full distance to the light.
-                nextMediums.Push(ResolvePushedMedium(rec.MediumIface.Interior),
-                                 rec.EntityRoot);
-                break;
-            case MediumTransition.Exit:
-                nextMediums.Pop();
-                break;
-        }
         RayCategory nextCat = ClassifyScatteredRay(rec.Normal, s.Wo, s.IsDelta);
 
         // ── SSS dispatch (Phase 3: Random Walk integrator) ──────────────────
@@ -911,19 +892,48 @@ public partial class Renderer
         // is restricted to the bound entity and produces the spectrally
         // unbiased subsurface contribution. See RandomWalkSss.cs.
         Vector3 indirect;
-        if (_sssMode == SssMode.Auto
-            && s.Transition == MediumTransition.Enter
-            && nextMediums.Top is HomogeneousMedium hmInterior
-            && IsScatteringMedium(hmInterior)
-            && rec.EntityRoot is { } entityRoot)
+        if (s.Transition == MediumTransition.Enter || s.Transition == MediumTransition.Exit)
         {
-            indirect = RandomWalkSubsurface(scattered, hmInterior, entityRoot,
-                                             ref nextMediums, depth - 1, nextThroughput);
+            // Medium-stack transition (MediumInterface, Phase 1): copy-on-write
+            // so the caller's stack stays intact when the recursion returns.
+            // Entering a refractive boundary pushes the geometry's interior
+            // medium (carrying rec.EntityRoot, stamped by MediumBoundHittable,
+            // so NEE from inside the medium can clip its shadow-ray
+            // transmittance to the in-medium segment); exiting pops the top.
+            // Only refractive transitions need the ~struct copy — reflection /
+            // opaque samples leave the stack unchanged and skip it below.
+            MediumStack nextMediums = mediums;
+            if (s.Transition == MediumTransition.Enter)
+                nextMediums.Push(ResolvePushedMedium(rec.MediumIface.Interior), rec.EntityRoot);
+            else
+                nextMediums.Pop();
+
+            if (_sssMode == SssMode.Auto
+                && s.Transition == MediumTransition.Enter
+                && nextMediums.Top is HomogeneousMedium hmInterior
+                && IsScatteringMedium(hmInterior)
+                && rec.EntityRoot is { } entityRoot)
+            {
+                indirect = RandomWalkSubsurface(scattered, hmInterior, entityRoot,
+                                                 ref nextMediums, depth - 1, nextThroughput);
+            }
+            else
+            {
+                indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
+                                     ref nextMediums,
+                                     currentAbsorption: nextAbsorption,
+                                     pathThroughput: nextThroughput,
+                                     incomingCategory: nextCat);
+            }
         }
         else
         {
+            // No medium transition (reflection / opaque sample): the stack is
+            // unchanged, so recurse against the caller's stack directly rather
+            // than copying the whole MediumStack on every such bounce — exactly
+            // what the legacy Scatter() path already does.
             indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
-                                 ref nextMediums,
+                                 ref mediums,
                                  currentAbsorption: nextAbsorption,
                                  pathThroughput: nextThroughput,
                                  incomingCategory: nextCat);
