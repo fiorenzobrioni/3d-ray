@@ -23,7 +23,7 @@ namespace TerrainGen;
 /// </summary>
 internal static class Program
 {
-    private const string DefaultRelativeOutputDir = "scenes/libraries/terrains";
+    private const string DefaultRelativeOutputDir = "scenes/assets/heightmaps";
 
     public static int Main(string[] args)
     {

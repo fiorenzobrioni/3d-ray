@@ -8,7 +8,7 @@
 // dotnet run --project src\Tools\FontGen\FontGen.csproj -c Release -- --font "Cascadia Code" --chars "ABC123"
 // dotnet run --project src\Tools\FontGen\FontGen.csproj -c Release -- --font "Impact" --flatness 1.5
 //
-// Genereranno rispettivamente font-times_new_roman.yaml, font-segoe_ui.yaml, font-cascadia_code.yaml, font-impact.yaml in scenes\libraries\fonts\
+// Genereranno rispettivamente font-times_new_roman.yaml, font-segoe_ui.yaml, font-cascadia_code.yaml, font-impact.yaml in scenes\assets\fonts\
 //
 // Suggerimenti pratici:
 // - Per estrusione 3D, i serif (Times/Cambria/Georgia) e i display pesanti (Impact, Bahnschrift Bold) rendono meglio: i sans-serif sottili (Calibri Light) generano profili meno cinematografici.
@@ -39,7 +39,7 @@ namespace FontGen;
 
 internal static class Program
 {
-    private const string DefaultRelativeOutputDir = "scenes/libraries/fonts";
+    private const string DefaultRelativeOutputDir = "scenes/assets/fonts";
     private const string DefaultChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
     public static int Main(string[] args)
@@ -344,7 +344,7 @@ internal static class Program
         w.WriteLine("Options:");
         w.WriteLine("  -f, --font <name|path>    Font family name or .ttf/.otf path.");
         w.WriteLine("  -c, --chars <string>      Characters to emit (default: A-Z a-z 0-9).");
-        w.WriteLine("  -o, --out <path>          Output yaml path (default: scenes/libraries/objects/font-<slug>.yaml).");
+        w.WriteLine("  -o, --out <path>          Output yaml path (default: scenes/assets/fonts/font-<slug>.yaml).");
         w.WriteLine("      --height <float>      Extrusion height along Y (default: 0.15).");
         w.WriteLine("      --font-size <float>   Internal rasterisation size in pt (default: 100).");
         w.WriteLine("      --flatness <float>    Bezier flattening tolerance in font units (default: 1.0).");
