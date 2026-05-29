@@ -1,13 +1,9 @@
 # Preset — catalogo copia-incolla per 3D-Ray
 
 Questa cartella è un **catalogo di preset**: blocchi YAML pronti da **copiare e
-incollare** dentro le tue scene. Niente import, niente file da agganciare — apri
-il catalogo della famiglia che ti serve, copia il blocco, incollalo nella tua
-scena e ritocca i pochi parametri che vuoi.
-
-> **Filosofia: meno ma meglio.** Pochi materiali curati e corretti, ognuno con la
-> spiegazione del perché di quei parametri. Ogni preset è già validato contro lo
-> schema reale del motore e renderizza senza warning.
+incollare** dentro le tue scene. Apri il catalogo della famiglia che ti serve,
+copia il blocco, incollalo nella tua scena e ritocca i parametri che vuoi. Ogni
+preset è validato contro lo schema del motore e renderizza senza warning.
 
 ## Come si usa
 

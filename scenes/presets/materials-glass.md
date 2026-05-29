@@ -3,7 +3,7 @@
 La famiglia **trasmissiva**: vetri (limpidi, smerigliati, colorati, cristallo),
 gemme tagliate (diamante, rubino, zaffiro, smeraldo) e liquidi (acqua, vino,
 olio, latte). Tutti i blocchi sono pronti da **incollare** nel `materials:` della
-tua scena — **incolla, non importare**. Per la filosofia e il flusso d'uso vedi
+tua scena. Per il flusso d'uso vedi
 [`README.md`](README.md); schema completo in
 [`../../docs/reference/scene-reference.md`](../../docs/reference/scene-reference.md).
 

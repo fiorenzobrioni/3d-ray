@@ -2,8 +2,8 @@
 
 Oro, argento, rame, bronzo, ottone, acciaio, alluminio, cromo, titanio,
 ferro/ghisa, anodizzati e qualche rivestimento industriale. Tutti i blocchi sono
-pronti da **incollare** nel `materials:` della tua scena — non importare nulla.
-Per la filosofia e il flusso d'uso vedi [`README.md`](README.md); schema completo
+pronti da **incollare** nel `materials:` della tua scena.
+Per il flusso d'uso vedi [`README.md`](README.md); schema completo
 in [`../../docs/reference/scene-reference.md`](../../docs/reference/scene-reference.md).
 
 > **Regola d'oro: un metallo è `metallic: 1.0` con tinta nel `color`.** Su un

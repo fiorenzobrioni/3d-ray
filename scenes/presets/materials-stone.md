@@ -1,8 +1,8 @@
 # Pietra — preset materiali (copia-incolla)
 
 Marmi, graniti, travertino, onice/alabastro, cemento e mattone. Tutti i blocchi
-sono pronti da incollare nel `materials:` della tua scena. Per la filosofia e il
-flusso d'uso vedi [`README.md`](README.md); schema completo in
+sono pronti da incollare nel `materials:` della tua scena. Per il flusso d'uso
+vedi [`README.md`](README.md); schema completo in
 [`../../docs/reference/scene-reference.md`](../../docs/reference/scene-reference.md).
 
 > **Regola d'oro: opaco vs traslucido.** Il marmo lucido reale è **opaco** con una
