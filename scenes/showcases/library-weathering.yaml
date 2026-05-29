@@ -1,8 +1,8 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  Weathering Library Showcase — Overlay & Mix Material per invecchiamento
 #
-#  Dimostra la libreria `weathering.yaml` combinata via `type: mix` ad
-#  altre librerie materiali (metalli, cementi, legni). Due file
+#  Dimostra l'invecchiamento combinato via `type: mix` con materiali
+#  base di metalli, cementi e legni. Due file
 #  parallele a quote diverse:
 #
 #    RIGA SUPERIORE  (y=3.3) — invecchiamento PESANTE / industrial decay
@@ -26,12 +26,6 @@
 #    Draft:  -w 640  -H 360  -s 64   -d 6  -S 1
 #    Finale: -w 1920 -H 1080 -s 1024 -d 10 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
-
-imports:
-  - { path: "../libraries/materials/weathering.yaml" }
-  - { path: "../libraries/materials/metals.yaml" }
-  - { path: "../libraries/materials/concretes.yaml" }
-  - { path: "../libraries/materials/woods.yaml" }
 
 world:
   sky:
@@ -57,6 +51,304 @@ materials:
     color: [0.60, 0.58, 0.55]
     roughness: 0.70
     specular: 0.35
+
+  # ── Materiali base (metalli / cementi / legni) ─────────────────────
+
+  - id: "dis_acciaio_lucido"
+    type: "disney"
+    color: [0.58, 0.57, 0.55]
+    metallic: 1.0
+    roughness: 0.04
+    specular: 0.85
+
+  - id: "dis_rame_lucido"
+    type: "disney"
+    color: [0.95, 0.64, 0.54]
+    metallic: 1.0
+    roughness: 0.06
+    specular: 0.8
+    specular_tint: 0.5
+
+  - id: "dis_ferro_battuto"
+    type: "disney"
+    color: [0.30, 0.28, 0.26]
+    metallic: 0.85
+    roughness: 0.62
+    specular: 0.35
+
+  - id: "dis_cromo_specchio"
+    type: "disney"
+    color: [0.95, 0.93, 0.88]
+    metallic: 1.0
+    roughness: 0.03
+    specular: 1.0
+
+  - id: "dis_cemento_armato_grezzo"
+    type: "disney"
+    color: [0.58, 0.56, 0.52]
+    roughness: 0.88
+    specular: 0.28
+    texture:
+      type: "noise"
+      scale: 1.8
+      noise_type: "fbm"
+      octaves: 6
+      noise_strength: 0.9
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.38, 0.36, 0.32], interp: "smoothstep" }
+        - { position: 0.35, color: [0.55, 0.52, 0.48], interp: "smoothstep" }
+        - { position: 0.75, color: [0.66, 0.63, 0.58], interp: "smoothstep" }
+        - { position: 1.00, color: [0.74, 0.71, 0.65], interp: "linear" }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 22.0
+        noise_type: "fbm"
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.5
+
+  - id: "dis_cemento_industriale"
+    type: "disney"
+    color: [0.58, 0.58, 0.56]
+    roughness: 0.82
+    specular: 0.30
+    texture:
+      type: "noise"
+      scale: 1.2
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 1.5
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.40, 0.39, 0.37], interp: "smoothstep" }
+        - { position: 0.35, color: [0.55, 0.54, 0.52], interp: "smoothstep" }
+        - { position: 0.70, color: [0.65, 0.64, 0.62], interp: "smoothstep" }
+        - { position: 1.00, color: [0.72, 0.71, 0.68], interp: "linear" }
+
+  - id: "dis_quercia_olio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      grain_strength: 1.8
+      latewood_width: 0.24
+      ring_sharpness: 4.0
+      ring_color_variation: 0.22
+      ring_width_variation: 0.18
+      warp_amplitude: 0.55
+      fold_amplitude: [0.40, 0.12, 0.40]
+      figure_strength: 0.30
+      figure_scale: 0.18
+      figure_aspect: 4.0
+      pore_density: 0.48
+      pore_scale: 18.0
+      pore_aspect: 6.0
+      pore_strength: 0.60
+      octaves: 5
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.22, 0.12, 0.04], interp: "smoothstep" }
+        - { position: 0.55, color: [0.72, 0.50, 0.24], interp: "smoothstep" }
+        - { position: 1.00, color: [0.88, 0.74, 0.46], interp: "linear" }
+    roughness: 0.65
+    specular: 0.32
+    sheen: 0.10
+    sheen_tint: 0.7
+
+  # ── Overlay di invecchiamento ──────────────────────────────────────
+
+  - id: "over_rust_heavy"
+    type: "disney"
+    color: [0.30, 0.16, 0.08]
+    roughness: 0.95
+    specular: 0.18
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "ridged"
+      octaves: 6
+      lacunarity: 2.0
+      gain: 0.5
+      noise_strength: 1.5
+      distortion: 0.3
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.16, 0.06, 0.02], interp: "smoothstep" }
+        - { position: 0.30, color: [0.32, 0.16, 0.08], interp: "smoothstep" }
+        - { position: 0.70, color: [0.55, 0.28, 0.14], interp: "smoothstep" }
+        - { position: 1.00, color: [0.78, 0.46, 0.22], interp: "linear" }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 12.0
+        noise_type: "ridged"
+        octaves: 3
+        colors: [[0.25, 0.25, 0.25], [0.75, 0.75, 0.75]]
+      strength: 2.0
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        scale: 8.0
+        noise_type: "ridged"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.008
+      midlevel: 0.5
+      bound: 0.014
+      autobump: true
+      autobump_strength: 1.6
+      displacement_method: "bump_only"
+
+  - id: "over_rust_medium"
+    type: "disney"
+    color: [0.42, 0.22, 0.12]
+    roughness: 0.92
+    specular: 0.20
+    texture:
+      type: "noise"
+      scale: 3.5
+      noise_type: "ridged"
+      octaves: 5
+      lacunarity: 2.0
+      gain: 0.5
+      noise_strength: 1.0
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.22, 0.10, 0.05], interp: "smoothstep" }
+        - { position: 0.35, color: [0.42, 0.22, 0.12], interp: "smoothstep" }
+        - { position: 0.75, color: [0.62, 0.36, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [0.80, 0.50, 0.26], interp: "linear" }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 18.0
+        noise_type: "ridged"
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.4
+
+  - id: "over_moss_dense"
+    type: "disney"
+    color: [0.16, 0.30, 0.10]
+    roughness: 0.95
+    specular: 0.16
+    sheen: 0.80
+    sheen_roughness: 0.9
+    sheen_tint: 0.4
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "random"
+      smoothness: 0.3
+      colors: [[0.08, 0.16, 0.04], [0.32, 0.50, 0.18]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 14.0
+        output: "f1"
+        smoothness: 0.2
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.4
+
+  - id: "over_paint_flake_verde_militare"
+    type: "disney"
+    color: [0.32, 0.38, 0.22]
+    roughness: 0.60
+    specular: 0.32
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "f2_minus_f1"
+      colors: [[0.18, 0.22, 0.12], [0.42, 0.48, 0.30]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 8.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.6
+
+  - id: "over_paint_flake_bianca"
+    type: "disney"
+    color: [0.85, 0.83, 0.78]
+    roughness: 0.65
+    specular: 0.32
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "f2_minus_f1"
+      randomness: 1.0
+      colors: [[0.55, 0.50, 0.42], [0.92, 0.90, 0.85]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 8.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.6
+
+  - id: "over_sale_marino"
+    type: "disney"
+    color: [0.92, 0.92, 0.90]
+    roughness: 0.78
+    specular: 0.30
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.5
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.75, 0.76, 0.74], interp: "smoothstep" }
+        - { position: 0.55, color: [0.88, 0.88, 0.86], interp: "smoothstep" }
+        - { position: 1.00, color: [0.96, 0.96, 0.94], interp: "linear" }
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 30.0
+        smoothness: 0.2
+        colors: [[0.42, 0.42, 0.42], [0.58, 0.58, 0.58]]
+      strength: 0.6
+
+  - id: "over_verderame"
+    type: "disney"
+    color: [0.32, 0.58, 0.48]
+    roughness: 0.85
+    specular: 0.22
+    sheen: 0.20
+    sheen_roughness: 0.7
+    texture:
+      type: "noise"
+      scale: 3.5
+      noise_type: "fbm"
+      octaves: 6
+      noise_strength: 0.7
+      distortion: 0.25
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.10, 0.22, 0.18], interp: "smoothstep" }
+        - { position: 0.35, color: [0.22, 0.42, 0.36], interp: "smoothstep" }
+        - { position: 0.75, color: [0.40, 0.65, 0.55], interp: "smoothstep" }
+        - { position: 1.00, color: [0.58, 0.82, 0.72], interp: "linear" }
+
+  - id: "over_limescale"
+    type: "disney"
+    color: [0.92, 0.92, 0.90]
+    roughness: 0.45
+    specular: 0.35
+    texture:
+      type: "noise"
+      scale: 6.0
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.4
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.78, 0.78, 0.74], interp: "smoothstep" }
+        - { position: 0.55, color: [0.88, 0.88, 0.84], interp: "smoothstep" }
+        - { position: 1.00, color: [0.96, 0.96, 0.92], interp: "linear" }
 
   # ═══════════════════════════════════════════════════════════════════
   #  RIGA SUPERIORE — Heavy industrial decay

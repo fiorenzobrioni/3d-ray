@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  Liquids Showcase — Liquidi
 #
-#  Dimostra 5 liquidi della libreria `liquids.yaml` come sfere trasparenti.
+#  Dimostra 5 liquidi come sfere trasparenti.
 #  Le sfere isolate non sono il modo realistico di renderizzare liquidi
 #  (servirebbero bicchieri con superfici interno+esterno), ma esibiscono
 #  efficacemente Beer-Lambert e trasmissione colorata.
@@ -17,9 +17,6 @@
 #    Finale: -w 1920 -H 1080 -s 2048 -d 14 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
-imports:
-  - { path: "../libraries/materials/liquids.yaml" }
-
 world:
   sky:
     type: "flat"
@@ -31,6 +28,60 @@ camera:
   fov: 50
 
 materials:
+
+  - id: "dis_vino_rosso"
+    type: "disney"
+    color: [0.45, 0.06, 0.10]
+    roughness: 0.05
+    specular: 0.50
+    spec_trans: 1.0
+    ior: 1.345
+    transmission_color: [0.45, 0.04, 0.06]
+    transmission_depth: 0.4
+
+  - id: "dis_latte_intero"
+    type: "disney"
+    color: [0.97, 0.95, 0.90]
+    subsurface_radius: [0.50, 0.55, 0.65]
+    subsurface_anisotropy: 0.8
+    spec_trans: 0.0
+    roughness: 0.25
+    specular: 0.42
+
+  - id: "dis_miele"
+    type: "disney"
+    color: [0.95, 0.68, 0.18]
+    roughness: 0.05
+    specular: 0.50
+    spec_trans: 0.95
+    ior: 1.484
+    transmission_color: [0.88, 0.45, 0.05]
+    transmission_depth: 0.3
+
+  - id: "dis_olio_motore"
+    type: "disney"
+    color: [0.05, 0.04, 0.04]
+    roughness: 0.05
+    specular: 0.55
+    spec_trans: 0.30
+    ior: 1.470
+    transmission_color: [0.02, 0.02, 0.02]
+    transmission_depth: 0.1
+    thin_film_thickness: 380
+    thin_film_ior: 1.40
+    clearcoat: 0.4
+    coat_roughness: 0.05
+    coat_ior: 1.5
+
+  - id: "dis_acqua_piscina"
+    type: "disney"
+    color: [0.85, 0.95, 1.00]
+    roughness: 0.02
+    specular: 0.50
+    spec_trans: 1.0
+    ior: 1.33
+    transmission_color: [0.78, 0.92, 0.98]
+    transmission_depth: 2.0
 
   - id: "floor"
     type: "disney"

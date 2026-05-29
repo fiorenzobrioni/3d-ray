@@ -19,9 +19,6 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
-imports:
-  - { path: "../libraries/materials/concretes.yaml" }
-
 world:
   sky:
     type: "flat"
@@ -43,6 +40,122 @@ materials:
     type: "disney"
     color: [0.10, 0.10, 0.11]
     roughness: 0.92
+
+  - id: "dis_cemento_tadao_ando"
+    type: "disney"
+    color: [0.55, 0.54, 0.52]
+    roughness: 0.58
+    specular: 0.40
+    texture:
+      type: "noise"
+      scale: 1.5
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.8
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.42, 0.42, 0.43], interp: "smoothstep" }
+        - { position: 0.55, color: [0.55, 0.54, 0.52], interp: "smoothstep" }
+        - { position: 1.00, color: [0.66, 0.64, 0.60], interp: "linear" }
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 55.0
+        noise_type: "fbm"
+        octaves: 3
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.18
+
+  - id: "dis_cemento_bocciardato"
+    type: "disney"
+    color: [0.60, 0.59, 0.56]
+    roughness: 0.90
+    specular: 0.26
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "f2_minus_f1"
+      randomness: 1.0
+      colors: [[0.45, 0.44, 0.42], [0.70, 0.69, 0.66]]
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 16.0
+        output: "f1"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.006
+      midlevel: 0.5
+      bound: 0.010
+      autobump: true
+      autobump_strength: 1.5
+
+  - id: "dis_cemento_lavato_chiaro"
+    type: "disney"
+    color: [0.75, 0.73, 0.68]
+    roughness: 0.82
+    specular: 0.30
+    texture:
+      type: "voronoi"
+      scale: 5.5
+      output: "random"
+      randomness: 1.0
+      smoothness: 0.15
+      colors: [[0.55, 0.50, 0.42], [0.85, 0.82, 0.74]]
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 5.5
+        output: "f1"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.012
+      midlevel: 0.5
+      bound: 0.020
+      autobump: true
+      autobump_strength: 1.4
+      displacement_method: "bump_only"
+
+  - id: "dis_asfalto_consumato_heavy"
+    type: "disney"
+    color: [0.25, 0.24, 0.23]
+    roughness: 0.95
+    specular: 0.24
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      output: "random"
+      smoothness: 0.05
+      colors: [[0.12, 0.11, 0.10], [0.48, 0.45, 0.42]]
+    displacement:
+      mode: "vector"
+      space: "tangent"
+      texture:
+        type: "noise"
+        scale: 4.0
+        noise_type: "ridged"
+        octaves: 5
+        colors: [[0.3, 0.4, 0.35], [0.7, 0.6, 0.65]]
+      scale: 0.015
+      midlevel: 0.5
+      bound: 0.025
+      autobump: true
+      autobump_strength: 1.6
+
+  - id: "dis_asfalto_bagnato"
+    type: "disney"
+    color: [0.05, 0.05, 0.06]
+    roughness: 0.22
+    specular: 0.55
+    clearcoat: 0.6
+    coat_roughness: 0.12
+    coat_ior: 1.5
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_strength: 0.08
+      colors: [[0.04, 0.04, 0.05], [0.08, 0.08, 0.09]]
+      randomize_offset: true
 
 entities:
 
