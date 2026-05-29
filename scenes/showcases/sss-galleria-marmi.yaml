@@ -45,7 +45,7 @@ world:
     sigma_a: [0.02, 0.02, 0.025]
     sigma_s: [0.65, 0.70, 0.80]
     y0: 0.0
-    scale_height: 0.16
+    scale_height: 0.14
     phase: hg
     g: 0.3
   ground:

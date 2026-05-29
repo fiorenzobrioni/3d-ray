@@ -106,16 +106,16 @@ lights:
   # ─────────────────────────────────────────────────────────────────────────
 
   # Key Light — punto luce caldo dall'alto-sinistra
-  # - type: "point"
-  #   position: [-4.0, 4.5, -4.0]
-  #   color: [1.0, 0.95, 0.88]
-  #   intensity: 120
+  - type: "apoint"
+    position: [-4.0, 4.5, -4.0]
+    color: [1.0, 0.95, 0.88]
+    intensity: 60
 
   # Fill Light — luce fredda leggera dal lato opposto
-  # - type: "point"
-  #   position: [5.0, 3.0, -2.0]
-  #   color: [0.85, 0.88, 1.0]
-  #   intensity: 60
+  - type: "apoint"
+    position: [5.0, 3.0, -2.0]
+    color: [0.85, 0.88, 1.0]
+    intensity: 50
 
   # ─────────────────────────────────────────────────────────────────────────
   #  SET ALTERNATIVO 1: Solo Area Light (ombre ultra-morbide, minimalista)
@@ -126,29 +126,15 @@ lights:
     v: [0.0, 0.0, 5.0]
     color: [1.0, 0.97, 0.92]
     intensity: 5.0
-  - type: "point"
-    position: [-5.0, 2.0, -3.0]
-    color: [0.8, 0.85, 1.0]
-    intensity: 6
+
+  # Key Light — punto luce caldo dall'alto-sinistra
+  - type: "apoint"
+    position: [-4.0, 4.5, -4.0]
+    color: [1.0, 0.95, 0.88]
+    intensity: 20
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  SET ALTERNATIVO 2: Three-Point Classico (ombre nette, veloce)
-  # ─────────────────────────────────────────────────────────────────────────
-  # - type: "point"
-  #   position: [-5, 6, -5]
-  #   color: [1.0, 0.95, 0.9]
-  #   intensity: 100
-  # - type: "point"
-  #   position: [5, 3, -2]
-  #   color: [0.85, 0.85, 1.0]
-  #   intensity: 35
-  # - type: "point"
-  #   position: [0, 6, 5]
-  #   color: [1.0, 0.95, 0.85]
-  #   intensity: 50
-
-  # ─────────────────────────────────────────────────────────────────────────
-  #  SET ALTERNATIVO 3: Warm & Cool Contrast (atmosferico)
+  #  SET ALTERNATIVO 2: Warm & Cool Contrast (atmosferico)
   # ─────────────────────────────────────────────────────────────────────────
   # - type: "point"
   #   position: [-5, 4, -3]
@@ -164,7 +150,7 @@ lights:
   #   intensity: 20
 
   # ─────────────────────────────────────────────────────────────────────────
-  #  SET ALTERNATIVO 4: Dramatic Spot (museo, luce concentrata)
+  #  SET ALTERNATIVO 3: Dramatic Spot (museo, luce concentrata)
   # ─────────────────────────────────────────────────────────────────────────
   # - type: "spot"
   #   position: [0, 4.8, -2]
@@ -178,21 +164,6 @@ lights:
   #   color: [0.7, 0.7, 0.8]
   #   intensity: 10
 
-  # ─────────────────────────────────────────────────────────────────────────
-  #  SET ALTERNATIVO 5: Neon Cyber (creativo, magenta + ciano)
-  # ─────────────────────────────────────────────────────────────────────────
-  # - type: "point"
-  #   position: [-5, 3, 0]
-  #   color: [1.0, 0.0, 0.8]
-  #   intensity: 120
-  # - type: "point"
-  #   position: [5, 3, 0]
-  #   color: [0.0, 0.8, 1.0]
-  #   intensity: 120
-  # - type: "point"
-  #   position: [0, 4.5, -2]
-  #   color: [1.0, 1.0, 1.0]
-  #   intensity: 15
 
 # =============================================================================
 #  MATERIALS (Disney BSDF — Enhanced)
@@ -255,10 +226,9 @@ materials:
     type: "lambertian"
     texture:
       type: "wood"
-      scale: 4.0
+      scale: 5
       noise_strength: 3.0
       colors: [[0.42, 0.26, 0.13], [0.28, 0.16, 0.07]]
-      randomize_rotation: true
  
   # Base in velluto scuro
   - id: "case_felt"
@@ -270,7 +240,7 @@ materials:
     type: "lambertian"
     texture:
       type: "wood"
-      scale: 6.0
+      scale: 5
       noise_strength: 2.0
       colors: [[0.38, 0.23, 0.12], [0.25, 0.14, 0.06]]
  
@@ -520,8 +490,8 @@ materials:
     type: "disney"
     texture:
       type: "marble"
-      scale: 15.0
-      noise_strength: 12.0
+      scale: 0.8
+      noise_strength: 5.0
       colors: [[0.96, 0.95, 0.94], [0.42, 0.43, 0.48]]
       randomize_offset: true
     roughness: 0.12
@@ -534,8 +504,8 @@ materials:
     type: "disney"
     texture:
       type: "marble"
-      scale: 12.0
-      noise_strength: 10.0
+      scale: 1.4
+      noise_strength: 6.0
       colors: [[0.04, 0.04, 0.05], [0.60, 0.58, 0.52]]
       randomize_offset: true
     roughness: 0.08
@@ -548,8 +518,8 @@ materials:
     type: "disney"
     texture:
       type: "marble"
-      scale: 14.0
-      noise_strength: 11.0
+      scale: 1.4
+      noise_strength: 5.0
       colors: [[0.10, 0.30, 0.16], [0.03, 0.12, 0.06]]
       randomize_offset: true
     roughness: 0.22
@@ -562,8 +532,8 @@ materials:
     type: "disney"
     texture:
       type: "marble"
-      scale: 13.0
-      noise_strength: 10.0
+      scale: 1.2
+      noise_strength: 8.0
       colors: [[0.65, 0.12, 0.08], [0.30, 0.06, 0.03]]
       randomize_offset: true
     roughness: 0.28
@@ -577,7 +547,7 @@ materials:
     type: "disney"
     texture:
       type: "marble"
-      scale: 16.0
+      scale: 1.2
       noise_strength: 9.0
       colors: [[0.88, 0.66, 0.60], [0.65, 0.40, 0.36]]
       randomize_offset: true
@@ -591,8 +561,8 @@ materials:
     type: "disney"
     texture:
       type: "marble"
-      scale: 11.0
-      noise_strength: 12.0
+      scale: 1.0
+      noise_strength: 0.2
       colors: [[0.12, 0.12, 0.45], [0.05, 0.05, 0.20]]
       randomize_offset: true
     roughness: 0.10
