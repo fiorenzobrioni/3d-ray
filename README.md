@@ -84,9 +84,9 @@ Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il
 ### Texture
 - ♟ **Checker** — scacchiera 3D procedurale
 - 🌀 **Noise** — rumore Perlin (liscio o turbolento) con `noise_type`, `octaves`, `lacunarity`, `gain`, `distortion`; modalità `perlin` / `fbm` / `turbulence` / `ridged` / `billow` più i due multifrattali **Musgrave** `hetero_terrain` e `hybrid_multifractal` per terreni erosi e roccia stratificata
-- 🏔 **Marble** — marmo procedurale production-grade. Campo ridged multifractale multi-scala (1-3 layer compositati via soft-max), domain warp ricorsivo che elimina ogni tiling visibile, fold geologico anisotropo, variazione cromatica di fondo e impurità minerali (Voronoi inline o `impurities_texture` esterna). Knob: `warp_amplitude/iterations`, `fold_amplitude`, `vein_layers/scale/weight`, `vein_thickness/softness`, `color_variation`, `impurities_*`.
-- 🪵 **Wood** — legno procedurale production-grade. Profilo anulare asimmetrico earlywood/latewood, variazione random per anello (`ring_color_variation` + `ring_width_variation`), domain warp ricorsivo + fold geologico anisotropo, multi-banda noise (grain + figure con `figure_aspect`), vasi open-pore via Worley anisotropico (`pore_density`/`pore_aspect`/`pore_scale`), gradiente sapwood/heartwood (`heartwood_radius`/`heartwood_blend`), nodi a proiezione cono 3D con cuore scuro, `space_stretch` per tagli non isotropi e `output: "mask"` per pilotare `roughness_texture`/`sheen_texture` Disney dal pattern degli anelli.
-- 🔷 **Voronoi / Worley** — pattern cellulari con dieci canali di output (F1, F2, F3, F4, F2−F1, F3−F1, F1+F2, Cell, Random, Position) e metriche euclidean/manhattan/chebyshev. `Cell` espone l'hash RGB grezzo per-cella; `Random` mappa uno scalare per-cella attraverso la tua palette / color_ramp — la scelta giusta per rocce/scaglie/mosaici con colori vincolati. `smoothness` opzionale per un soft-min continuo invece del `min()` hard, per cuoio levigato e ciottoli arrotondati.
+- 🏔 **Marble** — marmo procedurale realistico con venature multi-strato, distorsione che elimina il tiling visibile, pieghe geologiche, variazione cromatica di fondo e impurità minerali.
+- 🪵 **Wood** — legno procedurale realistico con anelli di crescita asimmetrici e variabili, venatura e figure del taglio, pori, gradiente alburno/durame e nodi. Il pattern degli anelli può pilotare anche `roughness` e `sheen` del Disney BSDF.
+- 🔷 **Voronoi / Worley** — pattern cellulari con dieci canali di output e metriche euclidean/manhattan/chebyshev, ideali per rocce, scaglie, mosaici e ciottoli. Colore per-cella libero o pilotato da palette/color ramp, con bordi netti o ammorbiditi (`smoothness`).
 - 🧱 **Brick** — pattern mattoni running-bond con variazione per-mattone e weathering
 - 🌈 **Gradient** — sfumature lineari, quadratiche, easing, sferiche e radiali
 - 🖼 **Image Texture** — texture da file (PNG, JPEG, BMP, GIF, TIFF, WebP) con bilinear filtering, tiling configurabile e **mipmap pyramid + EWA anisotropic filtering** per niente moiré né shimmer a basso angolo o a 4K
@@ -137,7 +137,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🎛️ **Visibility flags** — `camera / diffuse / glossy / transmission / shadow` indipendenti, plus `sun.visible_to_camera` per nascondere il disco dalla camera lasciandolo come sorgente luminosa.
 - 🖼️ **Background plate** — `background:` sub-block opzionale: illumina la scena con un'HDRI e mostra alla camera una plate diversa.
 - 🧭 **Orientation** quaternion / Euler XYZ — sostituisce il vecchio `rotation:` solo-Y.
-- 🏞️ **Ground production-grade** — `world.ground:` dispatcher con quattro shape (`infinite_plane / plane / quad / disk / heightfield`), `point` e `normal` configurabili, shorthand inline `color/roughness/metallic` per Disney BSDF anonimo, UV transform completa (`uv_scale / uv_offset / uv_rotation`), flag di visibilità per categoria di raggio (`visibility.camera / diffuse / glossy / transmission / shadow`) e auto-sync dell'albedo con `sky.ground_albedo` / `ground_color` quando il materiale è omesso. Lo shorthand legacy `material + y` continua a funzionare.
+- 🏞️ **Ground production-grade** — terreno dedicato con quattro forme (piano infinito, quad, disco, heightfield), posizione e normale configurabili, materiale Disney inline (`color`/`roughness`/`metallic`), UV transform completa, flag di visibilità per categoria di raggio e auto-sync dell'albedo con il cielo quando il materiale è omesso.
 
 ### Volumetria (Participating Media)
 - 🌫️ **Homogeneous Medium** — mezzo partecipante uniforme globale per nebbia densa, foschia e effetti subacquei. Beer-Lambert analitico, economico, adatto come base di partenza.
@@ -145,9 +145,9 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🌀 **Procedural Medium (Perlin fBm)** — nebbia eterogenea generata da rumore Perlin multi-ottava con delta tracking e ratio tracking. Sacche di densità irregolari, god-ray non omogenei, atmosfere da film horror o nubi sparse.
 - 🧊 **Grid Medium** — densità campionata su griglia 3D regolare (inline YAML o file binario `.vol`) confinata in una AABB world-space, con filtro di ricostruzione selezionabile: **trilineare** (default, veloce) o **tricubico** Catmull-Rom (più liscio) per rimuovere i kink visibili sulle griglie a bassa risoluzione. Ideale per fumo localizzato, esplosioni, nuvole isolate.
 - 🎇 **Cinque phase function** — `isotropic` (scattering uniforme), `hg` (Henyey-Greenstein, asimmetria direzionale), `rayleigh` (scattering atmosferico), `double_hg` (due lobi misti per nubi realistiche) e `schlick` (approssimazione fast-HG). Ogni mezzo combinabile con qualsiasi phase function.
-- 🧬 **MediumInterface per-entity** — blocco top-level `mediums:` nominato + binding `interior_medium` / `exterior_medium` sulle entity. Nebbia locale in una stanza CSG, fumo in una teiera, acqua in un acquario, atmosfera di un pianeta — senza riempire l'intera scena. `MediumStack` zero-allocation gestisce trasmissive nestate (vetro contenente liquido SSS) fino a 8 deep.
-- 🪨 **Subsurface scattering volumetrico (Random Walk)** — marmo, pelle, cera, latte, giada via `interior_medium`. Hero-wavelength MIS spettrale, Cycles-style `random_walk_v2`. Restricted-BVH query (il walk resta scoped all'entity bound, niente leak). Quality preset `preview / normal / high` ereditati da `--quality`. CLI: `--sss-mode`, `--sss-quality`, `--max-volume-bounces`.
-- 🧪 **Material-embedded SSS (`subsurface_radius`)** — parity con Arnold `standard_surface` / Cycles Principled BSDF: dichiari `subsurface_radius: [R,G,B]` (mean free path per canale, world units) + opzionali `subsurface_color`, `subsurface_scale`, `subsurface_anisotropy` direttamente sul materiale Disney. Il loader auto-costruisce l'`HomogeneousMedium` derivato (σ_t = 1/(radius·scale), σ_s = α·σ_t, σ_a = (1−α)·σ_t), promuove `spec_trans` a 1 + `transmission_color=[1,1,1]` solo se non li hai scritti tu (un `spec_trans: 0` esplicito tiene il materiale opaco), e auto-inietta il medium su ogni entity che usa il materiale e non ha `interior_medium` esplicito. L'override esplicito sull'entity ha sempre la precedenza. I preset di materiali (`presets/materials-stone.md`, `materials-organic.md`, `materials-glass.md`) ne fanno uso per marmi traslucidi, cere, ghiacci, latte, cioccolato, opali, pelle, ametiste — basta incollare il preset e si ottiene SSS volumetrico senza configurazione aggiuntiva.
+- 🧬 **MediumInterface per-entity** — mezzi nominati assegnati alle singole entity (`interior_medium` / `exterior_medium`): nebbia locale in una stanza, fumo in una teiera, acqua in un acquario, atmosfera di un pianeta — senza riempire l'intera scena. Gestisce correttamente volumi trasmissivi annidati, come un vetro che contiene un liquido.
+- 🪨 **Subsurface scattering volumetrico (Random Walk)** — diffusione sotto-superficie fisica per marmo, pelle, cera, latte e giada via `interior_medium`. Preset di qualità `preview / normal / high` ereditati da `--quality`, con controllo fine via `--sss-mode`, `--sss-quality` e `--max-volume-bounces`.
+- 🧪 **Material-embedded SSS (`subsurface_radius`)** — SSS volumetrico dichiarato direttamente sul materiale Disney, in stile Arnold/Cycles: basta indicare `subsurface_radius` (più gli opzionali `subsurface_color`, `subsurface_scale`, `subsurface_anisotropy`) e il motore costruisce e applica automaticamente il mezzo interno alle entity che usano il materiale. I preset (marmi traslucidi, cere, ghiacci, latte, cioccolato, opali, pelle, ametiste) ne fanno uso: basta incollare il preset per avere SSS volumetrico senza configurazione aggiuntiva.
 
 ---
 
@@ -204,7 +204,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 ├── docs/                    # Documentazione del progetto
 │   ├── reference/           # Riferimento YAML completo (EN/IT)
 │   ├── technical/           # Approfondimenti tecnici interni
-│   └── tutorial/            # Tutorial in 11 capitoli (EN/IT)
+│   └── tutorial/            # Tutorial in 12 capitoli (EN/IT)
 │       ├── en/              # Tutorial in English
 │       └── it/              # Tutorial in italiano
 ├── src/
@@ -226,7 +226,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │       ├── FontGen/            # Generatore di font 3D partendo da font di sistema o file .ttf/.otf
 │       ├── TextureGen/         # Generatore texture procedurali (PNG)
 │       ├── NormalMapGen/       # Generatore flat normal map per test
-│       └── ChessGen/           # Generatore scena scacchiera chess.yaml
+│       ├── ChessGen/           # Generatore scena scacchiera chess.yaml
 │       └── TempleGen/          # Generatore scena tempio-romano.yaml
 ├── scenes/                     # File YAML di scene
 │   ├── presets/                # Cataloghi copia-incolla: materiali, luci, mediums, cielo/terreno, terreni
