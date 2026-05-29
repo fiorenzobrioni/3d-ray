@@ -227,7 +227,8 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │       ├── TextureGen/         # Generatore texture procedurali (PNG)
 │       ├── NormalMapGen/       # Generatore flat normal map per test
 │       ├── ChessGen/           # Generatore scena scacchiera chess.yaml
-│       └── TempleGen/          # Generatore scena tempio-romano.yaml
+│       ├── TempleGen/          # Generatore scena tempio-romano.yaml
+│       └── MigrateFakeSss/     # Migrazione scene legacy (rimozione vecchio SSS flat)
 ├── scenes/                     # File YAML di scene
 │   ├── presets/                # Cataloghi copia-incolla: materiali, luci, mediums, cielo/terreno, terreni
 │   ├── assets/                 # Risorse binarie
@@ -256,30 +257,43 @@ Genera una normal map piatta per testare il sistema di normal mapping:
 dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
 ```
 
+### FontGen
+Genera template di caratteri 3D da font di sistema o file `.ttf`/`.otf`, pronti per la primitiva `extrusion`. Supporta serif, sans-serif e display font; il flag `--list-fonts` elenca i font installati sulla macchina.
+```bash
+dotnet run --project src/Tools/FontGen/FontGen.csproj -c Release -- --font "Times New Roman"
+dotnet run --project src/Tools/FontGen/FontGen.csproj -c Release -- --font "Impact" --chars "ABC123"
+```
+Output: `scenes/assets/fonts/font-<nome>.yaml`
+
 ### ChessGen
-Genera il file YAML di una scacchiera Staunton completa (board 8×8 +
-32 pezzi posizionati con trasformazioni). Usato per produrre
-`scenes/chess.yaml`:
+Genera il file YAML di una scacchiera Staunton completa (board 8×8 + 32 pezzi posizionati con trasformazioni). Usato per produrre `scenes/chess.yaml`:
 ```bash
 dotnet run --project src/Tools/ChessGen/ChessGen.csproj
 ```
 
+### TempleGen
+Genera il file YAML di un tempio romano dettagliato con colonne scanalate (`extrusion`), frontone, celle CSG e materiali PBR. Usato per produrre `scenes/tempio-romano.yaml`:
+```bash
+dotnet run --project src/Tools/TempleGen/TempleGen.csproj
+```
+
 ### TerrainGen
-Genera un terreno completo: una **heightmap PNG-16** + un **template YAML**
-che la avvolge in un primitivo `type: heightfield`. La pipeline simula
-noise procedurale Musgrave/fBm, erosione termica + idraulica e idrologia
-(mare/laghi/fiumi scavati nella heightmap), poi emette le band di
-strata (sabbia/erba/roccia/neve) coerenti con il tipo di terreno e la
-stagione. Con `--with-cameras` aggiunge anche una scena master pronta
-al render con cinque camere preimpostate.
+Genera una heightmap PNG-16 e il corrispondente template YAML pronto per `type: heightfield`. Supporta tipi di terreno diversi, idrologia (fiumi, laghi, mare, isole), stagioni e band di strata (sabbia/erba/roccia/neve). Con `--with-cameras` aggiunge anche una scena di preview pronta al render.
 ```bash
 dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- \
   --name <stem> --type pianura|collina|montagna \
   --include fiumi,laghi,mare,isole --season primavera|estate|autunno|inverno \
   [--seed N] [--size U] [--resolution N] [--with-cameras]
 ```
-Output: `scenes/assets/heightmaps/<stem>-height.png` (heightmap PNG-16)
-+ `scenes/assets/heightmaps/<stem>.yaml` (template pronto all'uso).
+Output: `scenes/assets/heightmaps/<stem>-height.png` + `scenes/assets/heightmaps/<stem>.yaml`  
+Con `--with-cameras`: anche `scenes/<stem>-preview.yaml` (scena pronta al render con cinque camere).
+
+### MigrateFakeSss
+Migra scene YAML legacy rimuovendo i parametri del vecchio SSS flat (Hanrahan-Krueger), sostituiti dal Random Walk volumetrico. Usa `--dry-run` per vedere le modifiche prima di applicarle.
+```bash
+dotnet run --project src/Tools/MigrateFakeSss/MigrateFakeSss.csproj -- --project scenes/ --dry-run
+dotnet run --project src/Tools/MigrateFakeSss/MigrateFakeSss.csproj -- --project scenes/
+```
 
 ---
 
