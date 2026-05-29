@@ -390,8 +390,8 @@ world:
     # material: "dis_neve_fresca"  (see presets/materials-ground.md)
 ```
 
-Diffuse polar palette. Pair with subsurface snow material from the
-library for the SSS softness that the inline shorthand can't express.
+Diffuse polar palette. Pair with the subsurface snow material preset
+for the SSS softness that the inline shorthand can't express.
 Sun-less by design — Arctic overcast skies are nearly isotropic.
 
 ---

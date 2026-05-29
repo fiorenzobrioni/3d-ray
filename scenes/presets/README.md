@@ -6,9 +6,8 @@ il catalogo della famiglia che ti serve, copia il blocco, incollalo nella tua
 scena e ritocca i pochi parametri che vuoi.
 
 > **Filosofia: meno ma meglio.** Pochi materiali curati e corretti, ognuno con la
-> spiegazione del perché di quei parametri, battono una libreria sterminata che
-> poi si copia comunque a mano. I preset sono già validati contro lo schema reale
-> del motore e renderizzano senza warning.
+> spiegazione del perché di quei parametri. Ogni preset è già validato contro lo
+> schema reale del motore e renderizza senza warning.
 
 ## Come si usa
 
