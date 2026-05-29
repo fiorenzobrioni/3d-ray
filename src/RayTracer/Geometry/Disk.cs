@@ -14,12 +14,20 @@ public class Disk : IHittable, ISamplable
     public float Radius { get; }
     public IMaterial Material { get; }
 
+    // Disk plane basis — depends only on the (immutable) normal, so precompute
+    // once instead of rebuilding (cross + normalize) on every Hit and Sample.
+    private readonly Vector3 _uAxis;
+    private readonly Vector3 _vAxis;
+
     public Disk(Vector3 center, Vector3 normal, float radius, IMaterial material)
     {
         Center = center;
         Normal = Vector3.Normalize(normal);
         Radius = radius;
         Material = material;
+
+        _uAxis = MathF.Abs(Normal.Y) < 0.999f ? Vector3.Normalize(Vector3.Cross(Normal, Vector3.UnitY)) : Vector3.UnitX;
+        _vAxis = Vector3.Cross(Normal, _uAxis);
     }
 
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
@@ -46,20 +54,16 @@ public class Disk : IHittable, ISamplable
         rec.Material = Material;
         rec.ObjectSeed = Seed;
 
-        // Planar UV mapping using a local orthonormal basis derived from the disk normal.
-        // uAxis = cross(Normal, UnitY), giving a stable "right" direction in the disk plane.
-        // vAxis = cross(Normal, uAxis), completing the right-handed basis.
-        // The hit point is projected onto these axes, normalized from [-Radius, +Radius] to [0, 1].
-        Vector3 uAxis = MathF.Abs(Normal.Y) < 0.999f ? Vector3.Normalize(Vector3.Cross(Normal, Vector3.UnitY)) : Vector3.UnitX;
-        Vector3 vAxis = Vector3.Cross(Normal, uAxis);
-                
-        float x = Vector3.Dot(v, uAxis) / Radius;
-        float y = Vector3.Dot(v, vAxis) / Radius;
+        // Planar UV mapping using the precomputed local orthonormal basis
+        // (uAxis = cross(Normal, UnitY); vAxis = cross(Normal, uAxis)). The hit
+        // point is projected onto these axes, normalized from [-R, +R] to [0,1].
+        float x = Vector3.Dot(v, _uAxis) / Radius;
+        float y = Vector3.Dot(v, _vAxis) / Radius;
         rec.U = (x + 1) / 2;
         rec.V = (y + 1) / 2;
-        
-        rec.Tangent = uAxis;
-        rec.Bitangent = vAxis;
+
+        rec.Tangent = _uAxis;
+        rec.Bitangent = _vAxis;
 
         return true;
     }
@@ -90,10 +94,7 @@ public class Disk : IHittable, ISamplable
         float r = MathF.Sqrt(xi1) * Radius;
         float theta = xi2 * 2f * MathF.PI;
 
-        Vector3 uAxis = MathF.Abs(Normal.Y) < 0.999f ? Vector3.Normalize(Vector3.Cross(Normal, Vector3.UnitY)) : Vector3.UnitX;
-        Vector3 vAxis = Vector3.Cross(Normal, uAxis);
-
-        Vector3 point = Center + r * MathF.Cos(theta) * uAxis + r * MathF.Sin(theta) * vAxis;
+        Vector3 point = Center + r * MathF.Cos(theta) * _uAxis + r * MathF.Sin(theta) * _vAxis;
         float area = MathF.PI * Radius * Radius;
 
         // UV matches Hit()'s planar convention: (r·cosθ/R + 1)/2, (r·sinθ/R + 1)/2
