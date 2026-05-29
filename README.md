@@ -16,7 +16,7 @@ Un moderno motore di ray tracing ad alte prestazioni sviluppato in C# e .NET 10,
 
 ## 🔍 Panoramica (Overview)
 
-3D-Ray trasforma una descrizione YAML in un'immagine fotorealistica, senza dover scrivere codice. È pensato per chi vuole comporre scene ricche — interni, still life, paesaggi atmosferici, composizioni artistiche — sfruttando scene graph gerarchico con gruppi, trasformazioni e template, librerie riutilizzabili di materiali e oggetti, un BSDF Disney unificato che copre dal metallo spazzolato alle bolle di sapone, effetti volumetrici (nebbia, fumo, nubi) e illuminazione basata su HDRI.
+3D-Ray trasforma una descrizione YAML in un'immagine fotorealistica, senza dover scrivere codice. È pensato per chi vuole comporre scene ricche — interni, still life, paesaggi atmosferici, composizioni artistiche — sfruttando scene graph gerarchico con gruppi, trasformazioni e template, preset copia-incolla di materiali e luci, un BSDF Disney unificato che copre dal metallo spazzolato alle bolle di sapone, effetti volumetrici (nebbia, fumo, nubi) e illuminazione basata su HDRI.
 
 Il motore è progettato per il calcolo parallelo multi-core, con BVH automatica, Next Event Estimation e campionamento Sobol per convergere in fretta, e chiude con un tone mapping ACES filmic per un look cinematografico.
 
@@ -145,9 +145,9 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 - 🌀 **Procedural Medium (Perlin fBm)** — nebbia eterogenea generata da rumore Perlin multi-ottava con delta tracking e ratio tracking. Sacche di densità irregolari, god-ray non omogenei, atmosfere da film horror o nubi sparse.
 - 🧊 **Grid Medium** — densità campionata su griglia 3D regolare (inline YAML o file binario `.vol`) confinata in una AABB world-space, con filtro di ricostruzione selezionabile: **trilineare** (default, veloce) o **tricubico** Catmull-Rom (più liscio) per rimuovere i kink visibili sulle griglie a bassa risoluzione. Ideale per fumo localizzato, esplosioni, nuvole isolate.
 - 🎇 **Cinque phase function** — `isotropic` (scattering uniforme), `hg` (Henyey-Greenstein, asimmetria direzionale), `rayleigh` (scattering atmosferico), `double_hg` (due lobi misti per nubi realistiche) e `schlick` (approssimazione fast-HG). Ogni mezzo combinabile con qualsiasi phase function.
-- 🧬 **MediumInterface per-entity** — blocco top-level `mediums:` come libreria nominata + binding `interior_medium` / `exterior_medium` sulle entity. Nebbia locale in una stanza CSG, fumo in una teiera, acqua in un acquario, atmosfera di un pianeta — senza riempire l'intera scena. `MediumStack` zero-allocation gestisce trasmissive nestate (vetro contenente liquido SSS) fino a 8 deep.
+- 🧬 **MediumInterface per-entity** — blocco top-level `mediums:` nominato + binding `interior_medium` / `exterior_medium` sulle entity. Nebbia locale in una stanza CSG, fumo in una teiera, acqua in un acquario, atmosfera di un pianeta — senza riempire l'intera scena. `MediumStack` zero-allocation gestisce trasmissive nestate (vetro contenente liquido SSS) fino a 8 deep.
 - 🪨 **Subsurface scattering volumetrico (Random Walk)** — marmo, pelle, cera, latte, giada via `interior_medium`. Hero-wavelength MIS spettrale, Cycles-style `random_walk_v2`. Restricted-BVH query (il walk resta scoped all'entity bound, niente leak). Quality preset `preview / normal / high` ereditati da `--quality`. CLI: `--sss-mode`, `--sss-quality`, `--max-volume-bounces`.
-- 🧪 **Material-embedded SSS (`subsurface_radius`)** — parity con Arnold `standard_surface` / Cycles Principled BSDF: dichiari `subsurface_radius: [R,G,B]` (mean free path per canale, world units) + opzionali `subsurface_color`, `subsurface_scale`, `subsurface_anisotropy` direttamente sul materiale Disney. Il loader auto-costruisce l'`HomogeneousMedium` derivato (σ_t = 1/(radius·scale), σ_s = α·σ_t, σ_a = (1−α)·σ_t), auto-imposta `spec_trans=1` + `transmission_color=[1,1,1]` se non specificati, e auto-inietta il medium su ogni entity che usa il materiale e non ha `interior_medium` esplicito. L'override esplicito sull'entity ha sempre la precedenza. Librerie `materials/{stones,organics,foods,liquids,glasses,minerals-gems,leathers}.yaml` ne fanno uso per marmi, cere, ghiacci, latte, cioccolato, opali, pelle, ametiste — l'artista importa la libreria e ottiene SSS volumetrico senza configurazione aggiuntiva.
+- 🧪 **Material-embedded SSS (`subsurface_radius`)** — parity con Arnold `standard_surface` / Cycles Principled BSDF: dichiari `subsurface_radius: [R,G,B]` (mean free path per canale, world units) + opzionali `subsurface_color`, `subsurface_scale`, `subsurface_anisotropy` direttamente sul materiale Disney. Il loader auto-costruisce l'`HomogeneousMedium` derivato (σ_t = 1/(radius·scale), σ_s = α·σ_t, σ_a = (1−α)·σ_t), promuove `spec_trans` a 1 + `transmission_color=[1,1,1]` solo se non li hai scritti tu (un `spec_trans: 0` esplicito tiene il materiale opaco), e auto-inietta il medium su ogni entity che usa il materiale e non ha `interior_medium` esplicito. L'override esplicito sull'entity ha sempre la precedenza. I preset di materiali (`presets/materials-stone.md`, `materials-organic.md`, `materials-glass.md`) ne fanno uso per marmi traslucidi, cere, ghiacci, latte, cioccolato, opali, pelle, ametiste — basta incollare il preset e si ottiene SSS volumetrico senza configurazione aggiuntiva.
 
 ---
 
@@ -223,18 +223,17 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │   ├── RayTracer.Benchmarks/   # Harness BenchmarkDotNet
 │   └── Tools/
 │       ├── TerrainGen/         # Generatore di Terrain heightfield stratificati
-│       ├── FontGen/            # Generatore di librerie font partendo da font di sistema o file .ttf/.otf
+│       ├── FontGen/            # Generatore di font 3D partendo da font di sistema o file .ttf/.otf
 │       ├── TextureGen/         # Generatore texture procedurali (PNG)
 │       ├── NormalMapGen/       # Generatore flat normal map per test
 │       └── ChessGen/           # Generatore scena scacchiera chess.yaml
 │       └── TempleGen/          # Generatore scena tempio-romano.yaml
 ├── scenes/                     # File YAML di scene
-│   ├── libraries/              # Risorse riutilizzabili via import YAML
-│   │   ├── materials/          # Materiali PBR (Disney/Classic)
-│   │   ├── lights/             # Setup di illuminazione pronti all'uso
+│   ├── presets/                # Cataloghi copia-incolla: materiali, luci, mediums, cielo/terreno, terreni
+│   ├── assets/                 # Risorse binarie
 │   │   ├── textures/           # Texture PNG (albedo e normal map)
 │   │   ├── fonts/              # Template caratteri 3D per extrusion (generati da FontGen)
-│   │   └── terrains/           # Heightfield template (generati da TerrainGen)
+│   │   └── heightmaps/         # Heightmap PNG-16 (generate da TerrainGen)
 │   ├── showcases/              # Scene dimostrative per singola feature
 │   └── *.yaml                  # Scene principali del progetto
 ├── renders/                    # Immagini renderizzate
@@ -279,8 +278,8 @@ dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- \
   --include fiumi,laghi,mare,isole --season primavera|estate|autunno|inverno \
   [--seed N] [--size U] [--resolution N] [--with-cameras]
 ```
-Output: `scenes/libraries/terrain/<stem>-height.png` (heightmap PNG-16)
-+ `scenes/libraries/terrain/<stem>.yaml` (template importabile).
+Output: `scenes/assets/heightmaps/<stem>-height.png` (heightmap PNG-16)
++ `scenes/assets/heightmaps/<stem>.yaml` (template pronto all'uso).
 
 ---
 
@@ -383,8 +382,8 @@ dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final 
 
 ### 📚 Tutorial
 
-Guida completa in 12 capitoli: dalla teoria del ray tracing alla creazione di scene di produzione con materiali PBR, illuminazione avanzata, CSG, volumetria, librerie di asset, superfici di rivoluzione (lathe) ed estrusioni di profili 2D (extrusion). Disponibile in inglese e italiano.  
-*12-chapter guide from ray tracing theory to production scenes with PBR materials, advanced lighting, CSG, volumetrics, asset libraries, surfaces of revolution (lathe) and 2D-profile extrusions (extrusion). Available in English and Italian.*
+Guida completa in 12 capitoli: dalla teoria del ray tracing alla creazione di scene di produzione con materiali PBR, illuminazione avanzata, CSG, volumetria, preset e progetti, superfici di rivoluzione (lathe) ed estrusioni di profili 2D (extrusion). Disponibile in inglese e italiano.  
+*12-chapter guide from ray tracing theory to production scenes with PBR materials, advanced lighting, CSG, volumetrics, presets and projects, surfaces of revolution (lathe) and 2D-profile extrusions (extrusion). Available in English and Italian.*
 
 [EN](./docs/tutorial/en/README.md) · [IT](./docs/tutorial/it/README.md) · [Indice bilingue / Bilingual index](./docs/tutorial/README.md)
 
