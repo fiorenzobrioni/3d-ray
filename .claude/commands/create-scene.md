@@ -16,7 +16,7 @@ Descrizione dell'utente: $ARGUMENTS
 Prima di generare la scena, consulta:
 
 - Schema YAML completo → [docs/reference/scene-reference.md](../../docs/reference/scene-reference.md)
-- Librerie disponibili → [scenes/libraries/README.md](../../scenes/libraries/README.md)
+- Cataloghi preset copia-incolla → [scenes/presets/README.md](../../scenes/presets/README.md)
 - Convenzioni progetto → [CLAUDE.md](../../CLAUDE.md)
 
 Esamina anche 1–2 scene esistenti in `scenes/` simili al tema richiesto come riferimento stilistico.
@@ -31,17 +31,18 @@ Determina:
 - **Atmosfera**: mood, illuminazione dominante
 - **Complessità**: quanti oggetti, quanti materiali custom
 
-### 2. Selezione librerie
+### 2. Selezione preset
 
-Scegli le librerie da importare:
+I preset sono blocchi YAML **copia-incolla**: apri il catalogo della famiglia che ti serve in `scenes/presets/`, copia il blocco del preset scelto e incollalo direttamente nella sezione corrispondente della scena (`materials:` / `lights:` / `mediums:`).
 
-| Categoria | Path | Quando usarla |
-|-----------|------|---------------|
-| Materiali | `libraries/materials/{metals,woods,stones,glasses,ceramics,plastics,fabrics,organics,paints,foods,emissives,grounds}.yaml` | Sempre — evita di ridefinire materiali esistenti |
-| Luci | `libraries/lights/{studio-3point,outdoor-noon,outdoor-golden-hour,outdoor-sunset,interior-warm,interior-candlelight,museum-gallery,night-moonlight,...}.yaml` | Quando un preset copre il mood richiesto |
-| Oggetti | `libraries/objects/{furniture,architecture,decorative-objects,nature,tableware,laboratory,jewelry,...}.yaml` | Quando servono template pre-costruiti |
+| Famiglia | Catalogo | Quando usarlo |
+|----------|----------|---------------|
+| Materiali | `scenes/presets/materials-{stone,metal,wood,glass,organic,synthetic,ground,weathering}.md` | Quando un preset copre la superficie richiesta — copia il blocco invece di reinventarlo |
+| Luci | `scenes/presets/lights.md` | Quando un set di luci copre il mood (3-point, high-key, golden hour, neon, …) |
+| Cielo + terreno | `scenes/presets/world.md`, `scenes/presets/sky.md`, `scenes/presets/terrains.md` | Per ambienti naturali e studi coerenti |
+| Volumi | `scenes/presets/mediums.md` | Per atmosfere, nebbie, SSS, liquidi |
 
-Se un preset luce importato copre l'illuminazione, **non aggiungere luci duplicate**. Definisci materiali inline solo se non esistono nelle librerie.
+Copia il blocco del preset scelto da `scenes/presets/<catalogo>.md` nella scena, poi rinomina l'`id` e ritocca colore/scala. Se un set di luci copre l'illuminazione, **non aggiungere luci duplicate**. Definisci materiali inline quando nessun preset corrisponde.
 
 ### 3. Generazione YAML
 
@@ -58,10 +59,6 @@ Genera il file seguendo **rigorosamente** questo ordine di sezioni:
 #    Finale:  dotnet run ... -- -i scenes/<nome>.yaml -w 1920 -H 1080 -s 1024 -d <D>  -S 4
 # =============================================================================
 
-imports:
-  - path: "libraries/materials/..."
-  - path: "libraries/lights/..."
-
 world:
   sky:                          # unico emettitore d'ambiente (flat / gradient / hdri)
     type: "flat"
@@ -73,9 +70,9 @@ cameras:
   - name: "macro"             # almeno 2 camere
     ...
 
-lights: []                    # se non importate da libreria
+lights: []                    # set di luci (preset copiati da presets/lights.md o custom)
 
-materials: []                 # solo materiali custom non in libreria
+materials: []                 # preset copiati da presets/materials-*.md + materiali custom
 
 entities: []                  # oggetti della scena
 ```
@@ -91,7 +88,7 @@ entities: []                  # oggetti della scena
 **Materiali:**
 - `lambertian` per superfici grandi (pavimenti, muri, soffitti)
 - `disney`/`pbr` solo per oggetti principali (hero objects)
-- Prefisso `dis_` per Disney, `cls_` per Classic nei nuovi ID
+- Per i materiali presi dai cataloghi, copia il blocco da `scenes/presets/materials-*.md` e rinomina l'`id`
 - Ogni materiale deve avere un `id:` unico
 
 **Camere:**
@@ -120,19 +117,19 @@ entities: []                  # oggetti della scena
 
 - Pattern: `kebab-case.yaml`
 - Salvare in: `scenes/<nome-scena>.yaml`
-- I path di import sono relativi a `scenes/`
+- I path delle risorse (texture, heightmap) sono relativi a `scenes/` (es. `assets/textures/wood-floor.png`)
 
 ### 6. Validazione finale
 
 Controlla prima di salvare:
-- [ ] Ogni `material` referenziato nelle `entities` è definito o importato
+- [ ] Ogni `material` referenziato nelle `entities` è definito nella scena (preset copiato o custom)
 - [ ] Nessun `id:` materiale duplicato
 - [ ] `cameras:` è una lista con almeno 2 camere
-- [ ] `imports:` è la prima sezione (se presente)
+- [ ] Path di texture/heightmap sotto `assets/` ed esistenti
 - [ ] Header commento con nome, descrizione e render consigliati
 - [ ] Almeno una variante `world:` commentata
 - [ ] Box e cilindri posizionati correttamente a terra
 
 ## Output
 
-Il file `.yaml` salvato in `scenes/`. Conferma con un riepilogo: nome file, numero oggetti, librerie importate, camere disponibili.
+Il file `.yaml` salvato in `scenes/`. Conferma con un riepilogo: nome file, numero oggetti, preset usati, camere disponibili.

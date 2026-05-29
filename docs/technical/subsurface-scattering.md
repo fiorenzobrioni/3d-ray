@@ -107,7 +107,7 @@ Arnold and Cycles offer.
 ### Path 1 — Entity-bound (`interior_medium`)
 
 The artist defines a `homogeneous` medium in the top-level `mediums:`
-library (or inline in the scene) and binds it on the entity via
+block (or inline in the scene) and binds it on the entity via
 `interior_medium: <id>`. The surface material only needs `spec_trans`
 > 0 and an `ior` to emit `MediumTransition.Enter` on refraction.
 
@@ -149,7 +149,8 @@ materials:
     subsurface_radius: [0.45, 0.35, 0.22]
     subsurface_scale:  1.0
     subsurface_anisotropy: 0.0
-    # spec_trans + transmission_color are auto-defaulted by the loader
+    # spec_trans + transmission_color are auto-set by the loader only when you
+    # leave them unset; an explicit spec_trans: 0 keeps the surface opaque
 
 entities:
   - type: sphere
@@ -167,17 +168,17 @@ phase = HG(g = subsurface_anisotropy)
 ```
 
 so it occupies the same `HomogeneousMedium` slot as a hand-written
-library entry — the integrator is unaware of the origin.
+`mediums:` entry — the integrator is unaware of the origin.
 
 ### Comparison
 
 | Aspect | Path 1: entity-bound | Path 2: material-embedded |
 |---|---|---|
-| Where the σ values live | `mediums:` library entry | Material `subsurface_*` fields |
+| Where the σ values live | `mediums:` block entry | Material `subsurface_*` fields |
 | Configuration on the entity | `interior_medium: <id>` required | Nothing — auto-injected |
 | Two entities sharing the surface, different volumes | Trivial — bind a different `interior_medium` per entity | Override one entity with `interior_medium` (always wins) |
 | Heterogeneous media (procedural / grid / nishita) | Supported | Not applicable — embedded path is `homogeneous` only |
-| Library reuse | Material library + medium library imported separately | Self-contained material library — one import |
+| Reuse | Paste the `mediums:` block plus the material block | Paste a single self-contained material preset |
 | Closest DCC analogue | Arnold "interior" / Mitsuba `<medium>` binding | Arnold `standard_surface` randomwalk / Cycles Principled Subsurface |
 
 **Precedence rule.** An explicit `interior_medium` on the entity always
@@ -186,9 +187,9 @@ Cycles convention: the embedded medium is a sensible default that the
 artist can swap out per-entity without touching the material.
 
 **When to use which.** Reach for the embedded path when you want
-self-contained material libraries (`stones.yaml`, `organics.yaml`,
-`foods.yaml`, `liquids.yaml`, `glasses.yaml`, `minerals-gems.yaml`,
-`leathers.yaml` all ship pre-tuned `subsurface_radius`). Reach for the
+self-contained materials (the `scenes/presets/materials-stone.md`,
+`materials-organic.md` and `materials-glass.md` catalogues ship pre-tuned
+`subsurface_radius` for translucent marble, wax, skin, gems). Reach for the
 entity-bound path when you need maximum control: shared volumes across
 many entities, heterogeneous media, or different volumes behind the
 same surface look.

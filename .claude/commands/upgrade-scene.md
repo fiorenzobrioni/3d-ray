@@ -17,7 +17,7 @@ Interpreta come `<path/to/scene.yaml> [aspetto opzionale]`. Se manca il file, ch
 
 - Schema YAML → [docs/reference/scene-reference.md](../../docs/reference/scene-reference.md)
 - Convenzioni → [CLAUDE.md](../../CLAUDE.md)
-- Librerie riutilizzabili → [scenes/libraries/README.md](../../scenes/libraries/README.md)
+- Cataloghi preset copia-incolla → [scenes/presets/README.md](../../scenes/presets/README.md) — copia il blocco utile (materiali, luci, mediums) da `scenes/presets/<catalogo>.md` nella scena
 
 ## Fase 1 — Analisi
 

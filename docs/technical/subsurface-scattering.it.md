@@ -106,7 +106,7 @@ Arnold e Cycles.
 
 ### Strada 1 — Entity-bound (`interior_medium`)
 
-L'artista definisce un medium `homogeneous` nella libreria top-level
+L'artista definisce un medium `homogeneous` nel blocco top-level
 `mediums:` (o inline nella scena) e lo collega all'entity con
 `interior_medium: <id>`. Il materiale di superficie deve solo avere
 `spec_trans > 0` e un `ior` per emettere `MediumTransition.Enter` sulla
@@ -150,7 +150,8 @@ materials:
     subsurface_radius: [0.45, 0.35, 0.22]
     subsurface_scale:  1.0
     subsurface_anisotropy: 0.0
-    # spec_trans + transmission_color sono auto-defaultati dal loader
+    # spec_trans + transmission_color sono impostati dal loader solo se non li
+    # scrivi tu; uno spec_trans: 0 esplicito mantiene la superficie opaca
 
 entities:
   - type: sphere
@@ -167,18 +168,18 @@ Il medium è costruito dalla formula per-canale
 phase = HG(g = subsurface_anisotropy)
 ```
 
-quindi occupa lo stesso slot `HomogeneousMedium` di una entry della
-libreria scritta a mano — l'integratore non sa da dove viene.
+quindi occupa lo stesso slot `HomogeneousMedium` di una entry `mediums:`
+scritta a mano — l'integratore non sa da dove viene.
 
 ### Confronto
 
 | Aspetto | Strada 1: entity-bound | Strada 2: material-embedded |
 |---|---|---|
-| Dove vivono i valori σ | Entry nella libreria `mediums:` | Campi `subsurface_*` del materiale |
+| Dove vivono i valori σ | Entry nel blocco `mediums:` | Campi `subsurface_*` del materiale |
 | Configurazione sull'entity | `interior_medium: <id>` obbligatorio | Niente — auto-iniezione |
 | Due entity, stessa superficie, volumi diversi | Banale — un `interior_medium` per entity | Override su un'entity con `interior_medium` (vince sempre) |
 | Media eterogenei (procedural / grid / nishita) | Supportato | Non applicabile — l'embedded è solo `homogeneous` |
-| Riuso libreria | Libreria material + libreria medium importate separatamente | Libreria material autocontenuta — un solo import |
+| Riuso | Incolli il blocco `mediums:` più il blocco materiale | Incolli un singolo preset materiale autocontenuto |
 | Analogo DCC più vicino | Arnold "interior" / binding `<medium>` di Mitsuba | Randomwalk di Arnold `standard_surface` / Subsurface del Principled di Cycles |
 
 **Regola di precedenza.** Un `interior_medium` esplicito sull'entity
@@ -186,10 +187,11 @@ vince sempre sul medium material-embedded. È la convenzione Arnold /
 Cycles voluta: il medium embedded è un default sensato che l'artista
 può sostituire per-entity senza toccare il materiale.
 
-**Quando usare cosa.** Vai sulla strada embedded quando vuoi librerie
-material autocontenute (`stones.yaml`, `organics.yaml`, `foods.yaml`,
-`liquids.yaml`, `glasses.yaml`, `minerals-gems.yaml`, `leathers.yaml`
-distribuiscono già `subsurface_radius` calibrato). Vai sulla strada
+**Quando usare cosa.** Vai sulla strada embedded quando vuoi materiali
+autocontenuti (i cataloghi `scenes/presets/materials-stone.md`,
+`materials-organic.md` e `materials-glass.md` distribuiscono già
+`subsurface_radius` calibrato per marmo traslucido, cera, pelle, gemme).
+Vai sulla strada
 entity-bound quando ti serve il massimo controllo: volumi condivisi tra
 molte entity, media eterogenei, o volumi diversi dietro lo stesso look
 di superficie.

@@ -2,9 +2,9 @@
 
 ## Modello di ownership
 
-Una `MediumInterface` è un value `struct { IMedium? Interior; IMedium? Exterior }` immutabile, trasportato sull'entity. Il loader risolve gli ID YAML `interior_medium` / `exterior_medium` contro la libreria globale `mediums:` e avvolge l'`IHittable` finale dell'entity con un decorator `MediumBoundHittable`. L'unico compito del decorator è stampare `rec.MediumIface` e `rec.EntityRoot` su ogni hit che inoltra al path tracer.
+Una `MediumInterface` è un value `struct { IMedium? Interior; IMedium? Exterior }` immutabile, trasportato sull'entity. Il loader risolve gli ID YAML `interior_medium` / `exterior_medium` contro il blocco `mediums:` con nome della scena e avvolge l'`IHittable` finale dell'entity con un decorator `MediumBoundHittable`. L'unico compito del decorator è stampare `rec.MediumIface` e `rec.EntityRoot` su ogni hit che inoltra al path tracer.
 
-I mezzi vivono in **un solo** posto — la libreria `Dictionary<string,IMedium>` costruita da `SceneLoader`. Le entity portano **riferimenti** (stringhe ID) verso di essa. Lo stesso `marble_int` può quindi servire molti corpi di marmo, condividendo i coefficienti σ ma vivendo in volumi geometrici indipendenti.
+I mezzi vivono in **un solo** posto — il `Dictionary<string,IMedium>` costruito da `SceneLoader` a partire dal blocco `mediums:` con nome. Le entity portano **riferimenti** (stringhe ID) verso di esso. Lo stesso `marble_int` può quindi servire molti corpi di marmo, condividendo i coefficienti σ ma vivendo in volumi geometrici indipendenti. Per blocchi `mediums:` pronti da copiare vedi `scenes/presets/mediums.md`.
 
 I material non possiedono mai un medium. Accoppiare un modello di shading alla topologia della scena legherebbe lo schema YAML a strategie di binding specifiche; al contrario, il BSDF emette un token `MediumTransition` (`None` / `Enter` / `Exit`) sugli eventi di transmission, e il path tracer interpreta il token alla luce della `MediumInterface` dell'entity locale.
 

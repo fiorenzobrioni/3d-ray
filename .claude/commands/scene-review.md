@@ -82,11 +82,11 @@ Consulta le convenzioni del progetto:
 - [ ] `ground.material`: referenzia un materiale definito.
 - [ ] Se `medium` presente: `type` valido, `sigma_a`/`sigma_s` > 0, `phase` valida, `g` in (-1, 1) per HG.
 
-### 7. Import
+### 7. Risorse e preset
 
 - [ ] Path relativi (nessun path assoluto tipo `C:\...`)
-- [ ] File importati esistono (`libraries/materials/*.yaml`, `libraries/lights/*.yaml`, ecc.)
-- [ ] Nessun import circolare
+- [ ] Texture/heightmap referenziate esistono sotto `assets/` (`assets/textures/*`, `assets/heightmaps/*`)
+- [ ] I blocchi copiati dai cataloghi preset (`scenes/presets/<catalogo>.md`) sono autocontenuti nella scena, con `id` univoci
 
 ### 8. Stile e documentazione
 

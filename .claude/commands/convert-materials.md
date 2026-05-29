@@ -129,7 +129,7 @@ Mostra all'utente:
 - Mantieni i commenti esistenti sopra ogni materiale (se presenti)
 - Aggiungi un commento `# Convertito lambertian → disney` o simile solo se chiarisce
 - Non toccare `entities` — gli ID restano invariati
-- Non toccare `imports` — se un materiale classico viene da libreria, NON modificarlo (è condiviso con altre scene). Se serve comunque una versione Disney, crea un nuovo materiale con prefisso `dis_` accanto e aggiorna le entità che vuoi convertire
+- Se non vuoi sostituire un materiale classico ma serve comunque una versione Disney, crea un nuovo materiale con prefisso `dis_` accanto e aggiorna solo le entità che vuoi convertire
 
 ### 4. Validazione post-conversione
 
