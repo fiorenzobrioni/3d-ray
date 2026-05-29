@@ -18,7 +18,7 @@ ray exits  a refractive boundary:  pop()
 active medium at any point:        Top ?? _globalMedium
 ```
 
-This is non-negotiable for correctness on nested transmissive bodies. Single-current-medium designs break the instant you have a glass ampoule containing marble: when the ray exits marble back into glass-interior-vacuum, the single-current logic loses track of "we're still inside glass" and either applies the wrong absorption or re-pushes the wrong medium. The 8-slot inline array handles the realistic deepest stack (ice in water in tank, ≈ 4 deep) with headroom; overflow drops the **oldest** entry and emits a deferred warning, the same direction as PBRT and Mitsuba.
+This is non-negotiable for correctness on nested transmissive bodies. Single-current-medium designs break the instant you have a glass ampoule containing marble: when the ray exits marble back into glass-interior-vacuum, the single-current logic loses track of "we're still inside glass" and either applies the wrong absorption or re-pushes the wrong medium. The 8-slot inline array handles the realistic deepest stack (ice in water in tank, ≈ 4 deep) with headroom; overflow drops the **oldest** entry and emits a deferred warning.
 
 The stack is copy-on-write at every transmission event. The recursive `TraceRay` call receives a `ref` to the **caller's** stack and mutates it, but when a transition needs branching (e.g., during random-walk dispatch) the SSS integrator first `Clone()`s the stack so its internal walk cannot corrupt the parent frame's view.
 

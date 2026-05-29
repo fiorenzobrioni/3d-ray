@@ -2,8 +2,7 @@
 
 The sky is the largest light source in any outdoor scene. A well-
 configured environment can turn a flat render into something truly
-photographic. 3D-Ray's sky/environment system is on par with offline
-production renderers (Arnold, Cycles, Renderman, Mitsuba): five sky
+photographic. 3D-Ray's sky/environment system features five sky
 models, image-based lighting with sun extraction, portal lights for
 interiors, physical aerial perspective. This chapter also covers depth
 of field and multi-camera setups.
@@ -55,8 +54,8 @@ world:
 
 A flat sky returns its `color` for every escaping ray and participates
 in NEE via uniform sphere sampling (pdf = 1/(4π)) when luminance is
-positive — same approach Cycles and Arnold use for uniform world
-backgrounds. Set `color: [0, 0, 0]` for fully black void scenes
+positive, providing uniform ambient illumination from all directions.
+Set `color: [0, 0, 0]` for fully black void scenes
 (Cornell-box style); the loader automatically excludes a zero-luminance
 flat sky from NEE.
 
@@ -67,7 +66,7 @@ flat sky from NEE.
 A vertical three-band gradient (zenith → horizon → ground) with an
 optional analytical sun. The sun is auto-attached as a separate
 `PhysicalSun` light with cone sampling and (optionally) Hestroffer
-limb darkening — same workflow as Arnold's `aiSkyDomeLight`.
+limb darkening.
 
 ```yaml
 world:
@@ -123,8 +122,8 @@ sun:
 
 ## 7.4 Physical Sky — Hosek-Wilkie / Preetham
 
-The analytical clear-sky daylight model used by Arnold, Cycles, and
-RenderMan. A single `turbidity` knob drives the entire atmospheric look —
+The standard analytical clear-sky daylight model (Hosek-Wilkie / Preetham).
+A single `turbidity` knob drives the entire atmospheric look —
 no manually tuned zenith / horizon / ground colours. Sun direction
 controls both the disc position and the sky body's spatial distribution
 (brightening near the sun, blue at the zenith).
@@ -240,8 +239,7 @@ and emits a paired `PhysicalSun` light with cone sampling. Benefits:
 - **Independent firefly clamp** — clamp the sky body aggressively without
   dimming the sun.
 
-This is the same workflow as Arnold's `aiSkyDomeLight.aov_indirect`
-"sun extraction" or Cycles' "Sun Lamp + HDRI" pairing recommendation.
+This is the standard sun-extraction workflow for image-based lighting.
 
 ### Finding the right `rotation`
 
@@ -258,7 +256,6 @@ These three features apply to every sky model.
 
 ### Visibility flags (per-ray-category)
 
-Parity with Cycles "Ray Visibility" / Arnold `aiSkyDomeLight.visibility.*`.
 Each flag can be turned off to hide the sky from one category of rays:
 
 ```yaml
@@ -355,15 +352,13 @@ BSDF-sampled rays. It contributes only via NEE. Orient `u, v` so the
 cross product `u × v` points TOWARDS the sky.
 
 Algorithm: Bitterli, Wyman, Pharr (2015) "Portal-Masked Environment Map
-Sampling". Same approach as Mitsuba `emitters/portal.cpp` and Arnold's
-window-light workflow.
+Sampling".
 
 ---
 
 ## 7.9 Aerial Perspective — Nishita Atmospheric Medium
 
-The depth-of-air look offline renderers achieve via Cycles "Volume
-Scatter" + sky / Arnold `atmosphere_volume` + sun. Distant geometry
+Physical aerial perspective: distant geometry
 acquires a bluish tint (Rayleigh scattering) and loses luminance
 (extinction). The medium shares physical constants with `NishitaSky`,
 so atmosphere and sky agree:
@@ -413,9 +408,9 @@ cameras:
 | `focal_dist` | `1.0`   | Distance from camera at which objects are sharp      |
 | `focal_pos`  | _none_  | Alternative: focus on a 3D world point (see below)   |
 
-### Focus on a point — `focal_pos` (Arnold/Cycles "Focus Object")
+### Focus on a point — `focal_pos`
 
-Production renderers let you specify the **focal point** directly:
+You can specify the **focal point** directly instead of a distance:
 
 ```yaml
 cameras:
@@ -565,8 +560,7 @@ RayTracer -i golden-hour.yaml -c macro -w 1200 -H 800 -s 1024 -d 8 -S 4
 - HDRI **mipmap prefiltering** is automatic on glossy bounces — no
   configuration needed; eliminates firefly spikes.
 - **Depth of field** is controlled by `aperture` (lens size) and
-  `focal_dist` (or `focal_pos: [x, y, z]` for Arnold/Cycles "Focus Object"
-  workflow).
+  `focal_dist` (or `focal_pos: [x, y, z]` to focus on a specific world point).
 - **Multiple cameras** in one scene file, selectable via `--camera name`
   on the CLI.
 

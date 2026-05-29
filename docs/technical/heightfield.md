@@ -1,8 +1,8 @@
-# HeightField — Terreni stile Mitsuba
+# HeightField — Terreni
 
 Il primitivo `HeightField` rappresenta un terreno come una superficie continua `y = h(x, z) · height_scale` su un rettangolo XZ, intersecata direttamente dai raggi senza tassellazione. Una sola entità sostituisce una mesh terreno da centomila triangoli e relativi BVH, e la precisione è limitata solo dalla risoluzione della heightmap — non da quanti triangoli si è disposti a buttare nella scena.
 
-L'idea base viene dal plugin `heightfield.cpp` di **Mitsuba 0.x** (oggi `heightfield2` in Mitsuba 3): una **min/max mipmap** gerarchica funge da quadtree di accelerazione, prunando in `O(log N)` tutte le celle XZ il cui inviluppo Y manca il raggio.
+L'algoritmo usa una **min/max mipmap** gerarchica come quadtree di accelerazione, prunando in `O(log N)` tutte le celle XZ il cui inviluppo Y manca il raggio (Tevs, Ihrke, Seidel 2008).
 
 ---
 
@@ -140,5 +140,5 @@ L'acqua è renderizzata come un disco trasparente Disney con `spec_trans` alto e
 ## 9. Riferimenti
 
 - **Tevs, Ihrke, Seidel (2008)** — *Maximum Mipmaps for Fast, Accurate, and Scalable Dynamic Height Field Rendering*. SIGGRAPH I3D 2008. L'algoritmo di traversal qui implementato.
-- **Mitsuba 0.x `heightfield.cpp`** — implementazione di riferimento dello stesso algoritmo nel renderer di Wenzel Jakob. Il pattern di costruzione della piramide e il dispatch baked/procedural sono modellati da lì.
+- **Tevs, Ihrke, Seidel (2008)** — algoritmo di traversal min/max mipmap, già citato alla voce precedente. Il pattern di costruzione della piramide e il dispatch baked/procedural seguono questa reference.
 - **Ebert, Musgrave, Peachey, Perlin (2003)** — *Texturing & Modeling: A Procedural Approach*, §16.3.3. La `hetero_terrain` di `NoiseTexture` (citata in `docs/tutorial/it/03-materials.md`) è la noise di riferimento per la modalità procedurale del HeightField.

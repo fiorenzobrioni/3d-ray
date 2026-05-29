@@ -18,7 +18,7 @@ il raggio esce  da un boundary refrattivo:  pop()
 medium attivo in ogni punto:                Top ?? _globalMedium
 ```
 
-È non-negoziabile per la correttezza su corpi trasmissivi annidati. I design "single-current medium" si rompono nel momento in cui hai un'ampolla di vetro che contiene marmo: quando il raggio esce dal marmo nel guscio interno di vetro, la logica single-current perde "siamo ancora dentro al vetro" e applica l'assorbimento sbagliato o ripiazza il medium sbagliato. L'array inline da 8 slot gestisce lo stack più profondo realistico (ghiaccio in acqua in tank, ≈ 4 deep) con margine; l'overflow scarta l'entry **più vecchia** e emette un warning deferito, nella stessa direzione di PBRT e Mitsuba.
+È non-negoziabile per la correttezza su corpi trasmissivi annidati. I design "single-current medium" si rompono nel momento in cui hai un'ampolla di vetro che contiene marmo: quando il raggio esce dal marmo nel guscio interno di vetro, la logica single-current perde "siamo ancora dentro al vetro" e applica l'assorbimento sbagliato o ripiazza il medium sbagliato. L'array inline da 8 slot gestisce lo stack più profondo realistico (ghiaccio in acqua in tank, ≈ 4 deep) con margine; l'overflow scarta l'entry **più vecchia** e emette un warning deferito.
 
 Lo stack è copy-on-write a ogni evento di transmission. La chiamata ricorsiva `TraceRay` riceve un `ref` allo stack del **chiamante** e lo muta, ma quando una transizione richiede branching (es. durante il dispatch random-walk) l'integratore SSS `Clone()`-a prima lo stack per non corrompere la vista del frame parent.
 

@@ -356,7 +356,7 @@ Tutti i campi di trasformazione standard (`translate`, `rotate`, `scale`) funzio
 
 ### 4.12.1 Superfici di Suddivisione (Loop / Catmull-Clark)
 
-Quando l'OBJ è low-poly, il renderer può raffinarlo al caricamento usando gli stessi due algoritmi production-grade disponibili in Arnold, RenderMan, Cycles e nell'OpenSubdiv di Pixar. Il risultato è la superficie limite verso cui convergono le regole di subdivision: la silhouette diventa completamente liscia dopo poche iterazioni.
+Quando l'OBJ è low-poly, il renderer può raffinarlo al caricamento usando i due algoritmi standard di subdivision Loop e Catmull-Clark. Il risultato è la superficie limite verso cui convergono le regole di subdivision: la silhouette diventa completamente liscia dopo poche iterazioni.
 
 ```yaml
 # Mesh quad → Catmull-Clark
@@ -387,12 +387,12 @@ Il loader stampa lo scheme e il numero di iterazioni effettivamente applicati:
 Mesh: cubo_smussato — 768 faces, 8 vertices (subdivision: CatmullClark × 3)
 ```
 
-Dietro le quinte il motore costruisce la topologia limite, ricalcola le normali per-vertice come media pesata sugli angoli delle facce incidenti (default di Blender/Maya) e poi emette i triangoli risultanti nel BVH interno della mesh. Le normali dell'OBJ vengono propagate attraverso le iterazioni di subdivision ma sostituite al momento della triangolazione finale perché la superficie limite è più liscia dell'input.
+Dietro le quinte il motore costruisce la topologia limite, ricalcola le normali per-vertice come media pesata sugli angoli delle facce incidenti e poi emette i triangoli risultanti nel BVH interno della mesh. Le normali dell'OBJ vengono propagate attraverso le iterazioni di subdivision ma sostituite al momento della triangolazione finale perché la superficie limite è più liscia dell'input.
 
 ### 4.12.2 Displacement (vai al Capitolo 3)
 
 > **Dal `2026-05`** il displacement è dichiarato sul **material**, non
-> sull'entity (parità Cycles/RenderMan). Vedi **Capitolo 3 — Materiali §
+> sull'entity. Vedi **Capitolo 3 — Materiali §
 > 3.x Surface Displacement** per la guida completa (scalar, vector,
 > autobump, `displacement_method`, Mix-displacement). La mesh entity
 > accetta solo `displacement_enabled: false` per bypassare il

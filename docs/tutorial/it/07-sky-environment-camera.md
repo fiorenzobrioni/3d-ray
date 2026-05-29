@@ -3,8 +3,7 @@
 Il cielo è la più grande sorgente luminosa in qualsiasi scena
 all'aperto. Un ambiente ben configurato può trasformare un rendering
 piatto in qualcosa di veramente fotografico. Il sistema sky/environment
-di 3D-Ray è allineato ai renderer offline di produzione (Arnold, Cycles,
-Renderman, Mitsuba): cinque modelli di cielo, image-based lighting con
+di 3D-Ray include cinque modelli di cielo, image-based lighting con
 sun extraction, portal light per interni, aerial perspective fisica.
 Questo capitolo tratta anche la profondità di campo (depth of field) e
 le configurazioni multi-fotocamera.
@@ -56,8 +55,8 @@ world:
 
 Un cielo flat restituisce il suo `color` per ogni raggio in fuga e
 partecipa a NEE tramite campionamento uniforme della sfera (pdf =
-1/(4π)) quando la luminanza è positiva — stesso approccio di
-Cycles/Arnold per gli "uniform world backgrounds". Imposta `color:
+1/(4π)) quando la luminanza è positiva, fornendo illuminazione ambientale
+uniforme da ogni direzione. Imposta `color:
 [0, 0, 0]` per scene black-void stile Cornell-box; il loader esclude
 automaticamente da NEE un cielo flat con luminanza zero.
 
@@ -68,7 +67,7 @@ automaticamente da NEE un cielo flat con luminanza zero.
 Gradiente verticale a tre bande (zenith → orizzonte → ground) con sole
 analitico opzionale. Il sole è agganciato automaticamente come luce
 `PhysicalSun` separata con cone sampling e (opzionalmente) limb
-darkening Hestroffer — stesso workflow di `aiSkyDomeLight` in Arnold.
+darkening Hestroffer.
 
 ```yaml
 world:
@@ -124,8 +123,8 @@ sun:
 
 ## 7.4 Physical Sky — Hosek-Wilkie / Preetham
 
-Il modello daylight clear-sky analitico usato da Arnold, Cycles e
-RenderMan. Un singolo knob `turbidity` controlla l'intero look
+Il modello daylight clear-sky analitico standard (Hosek-Wilkie / Preetham).
+Un singolo knob `turbidity` controlla l'intero look
 atmosferico — niente colori zenith/horizon/ground regolati a mano. La
 direzione del sole controlla sia la posizione del disco sia la
 distribuzione spaziale del cielo (schiarimento attorno al sole, blu allo
@@ -247,8 +246,7 @@ sampling. Benefici:
 - **Clamp firefly indipendente** — puoi clampare aggressivamente il body
   del cielo senza smorzare il sole.
 
-È lo stesso workflow di Arnold `aiSkyDomeLight.aov_indirect` "sun
-extraction" o della raccomandazione Cycles "Sun Lamp + HDRI".
+È il workflow standard di sun extraction per l'illuminazione image-based.
 
 ### Trovare la `rotation` giusta
 
@@ -265,7 +263,6 @@ Queste tre feature si applicano a ogni modello di cielo.
 
 ### Flag di visibilità (per categoria di raggio)
 
-Parità Cycles "Ray Visibility" / Arnold `aiSkyDomeLight.visibility.*`.
 Ogni flag può essere disattivato per nascondere il cielo da una
 categoria di raggi:
 
@@ -364,16 +361,14 @@ ai raggi BSDF. Contribuisce solo via NEE. Orienta `u, v` in modo che il
 prodotto vettoriale `u × v` punti VERSO il cielo.
 
 Algoritmo: Bitterli, Wyman, Pharr (2015) "Portal-Masked Environment Map
-Sampling". Stesso approccio di Mitsuba `emitters/portal.cpp` e del
-workflow window-light di Arnold.
+Sampling".
 
 ---
 
 ## 7.9 Aerial Perspective — Nishita Atmospheric Medium
 
-Il look "depth-of-air" che i renderer offline ottengono con Cycles
-"Volume Scatter" + sky / Arnold `atmosphere_volume` + sun. La geometria
-distante acquista una tinta bluastra (scattering Rayleigh) e perde
+Aerial perspective fisica: la geometria distante acquista una tinta
+bluastra (scattering Rayleigh) e perde
 luminanza (estinzione). Il medium condivide le costanti fisiche con
 `NishitaSky`, così atmosfera e cielo coincidono:
 
@@ -423,10 +418,9 @@ cameras:
 | `focal_dist` | `1.0`   | Distanza dalla camera alla quale gli oggetti sono nitidi |
 | `focal_pos`  | _nessuno_| Alternativa: fuoco su un punto 3D world (vedi sotto)    |
 
-### Fuoco su un punto — `focal_pos` (Arnold/Cycles "Focus Object")
+### Fuoco su un punto — `focal_pos`
 
-I renderer di produzione lasciano specificare il **punto focale**
-direttamente:
+È possibile specificare il **punto focale** direttamente invece della distanza:
 
 ```yaml
 cameras:
@@ -577,8 +571,8 @@ RayTracer -i golden-hour.yaml -c macro -w 1200 -H 800 -s 1024 -d 8 -S 4
 - Il **mipmap prefiltering HDRI** è automatico sui bounce glossy —
   nessuna configurazione richiesta; elimina i firefly.
 - La **profondità di campo** è controllata da `aperture` (dimensione
-  obiettivo) e `focal_dist` (o `focal_pos: [x, y, z]` per il workflow
-  Arnold/Cycles "Focus Object").
+  obiettivo) e `focal_dist` (o `focal_pos: [x, y, z]` per mettere a fuoco
+  un punto specifico nel mondo).
 - **Camere multiple** in un unico file scena, selezionabili via
   `--camera nome` dalla CLI.
 

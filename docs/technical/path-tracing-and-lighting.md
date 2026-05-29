@@ -53,7 +53,7 @@ L'estensione MIS copre anche il **bounce volumetrico**: la phase function espone
 
 ### 2.3 Transparent Shadow Rays
 
-Lo shadow ray del NEE non è un semplice test booleano di occlusione: attraversa le superfici trasmissive (vetro `dielectric`, Disney con `spec_trans > 0`, mix di entrambi) accumulando un fattore di trasmissione per canale, esattamente come fanno Arnold e Cycles per default. Senza questo passaggio, una lente o una bottiglia di vetro proietterebbe un'ombra dura identica a un occluder opaco — visivamente sbagliato.
+Lo shadow ray del NEE non è un semplice test booleano di occlusione: attraversa le superfici trasmissive (vetro `dielectric`, Disney con `spec_trans > 0`, mix di entrambi) accumulando un fattore di trasmissione per canale. Senza questo passaggio, una lente o una bottiglia di vetro proietterebbe un'ombra dura identica a un occluder opaco — visivamente sbagliato.
 
 **Algoritmo** (`Geometry/ShadowRay.Transmittance`)
 
@@ -195,7 +195,7 @@ Il corpo del gradiente (zenith / horizon / ground) **non** è campionato diretta
 
 ### 5.6 Campionamento del Flat Sky
 
-Quando il cielo è di tipo `flat` con luminanza > 0, viene campionato uniformemente sulla sfera unitaria: PDF costante `1/(4π)` per tutte le direzioni. Il caller (`EnvironmentLight.IlluminateAndTest`) scarta automaticamente le direzioni nell'emisfero inferiore della normale (rifiuto via `n·l ≤ 0`), quindi metà dei sample sono "sprecati" su superfici planari ma il bias resta zero. Questa strategia rispecchia il comportamento dei "uniform world backgrounds" di Cycles e Arnold: piccola riduzione di varianza per ogni bounce diffuso, irrilevante per riflessioni speculari (dove il BSDF è già focalizzato).
+Quando il cielo è di tipo `flat` con luminanza > 0, viene campionato uniformemente sulla sfera unitaria: PDF costante `1/(4π)` per tutte le direzioni. Il caller (`EnvironmentLight.IlluminateAndTest`) scarta automaticamente le direzioni nell'emisfero inferiore della normale (rifiuto via `n·l ≤ 0`), quindi metà dei sample sono "sprecati" su superfici planari ma il bias resta zero. Questa strategia fornisce una piccola riduzione di varianza per ogni bounce diffuso, irrilevante per riflessioni speculari (dove il BSDF è già focalizzato).
 
 ### 5.6 Stima Deterministica della Luminanza (per la Russian Roulette)
 

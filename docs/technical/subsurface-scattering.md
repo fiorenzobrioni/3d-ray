@@ -2,7 +2,7 @@
 
 3D-Ray's subsurface scattering is a brute-force volumetric random walk, dispatched on refraction events into geometry bound to a scattering `homogeneous` medium. There is no "diffusion approximation" shortcut, no dipole, no separable kernel — every photon that enters the volume is transported by the full free-flight estimator until it escapes the boundary, gets killed by Russian Roulette, or hits the hard volume-bounce cap.
 
-This is the same recipe Cycles ships as `random_walk_v2` and Arnold ships as the default `randomwalk` mode of `standard_surface`. The reason it has displaced the dipole pretty much everywhere in production: it is **the** path-traced integrator for arbitrary geometry, handles thin features and curvature correctly, energy-conserves by construction, and shares its sampling machinery with the existing volumetric path tracer.
+This brute-force random walk has displaced the dipole pretty much everywhere in production: it is **the** path-traced integrator for arbitrary geometry, handles thin features and curvature correctly, energy-conserves by construction, and shares its sampling machinery with the existing volumetric path tracer.
 
 ## Derivation
 
@@ -25,7 +25,7 @@ The accumulated throughput on escape is the surface BTDF "see-through" factor of
 
 The σ-coefficients are RGB-valued (one σ_t per channel). A naive 3-channel parallel walk fires 3 mean-free-paths' worth of work per scatter event; an unbiased single-channel walk picks a channel per scatter and discards the other two, but underestimates the rare events that would have escaped along a different channel.
 
-The hero-wavelength estimator (Wilkie et al. 2014, popularised by Cycles 2.7) splits the difference. Each scatter event picks a hero channel `c` with probability proportional to `throughput[c]`; the free-flight distance is drawn from σ_t[c]; and the throughput is then balance-weighted across all 3 channels:
+The hero-wavelength estimator (Wilkie et al. 2014) splits the difference. Each scatter event picks a hero channel `c` with probability proportional to `throughput[c]`; the free-flight distance is drawn from σ_t[c]; and the throughput is then balance-weighted across all 3 channels:
 
 ```
 β  *=  σ_s · exp(-σ_t · t) / Σ_c q[c] · σ_t[c] · exp(-σ_t[c] · t)
@@ -58,7 +58,7 @@ Deep scatter events produce dim indirect contributions over a wide directional r
 clamp(b) = _indirectMaxSampleRadiance / (1 + 0.1 · b)
 ```
 
-so the bounce-2 NEE is clamped at the global indirect limit, but the bounce-32 NEE is clamped much more tightly (≈ 25% of the global). This matches Cycles' `clamp_walk_volume` and Arnold's `indirect_specular`-style depth-aware clamp.
+so the bounce-2 NEE is clamped at the global indirect limit, but the bounce-32 NEE is clamped much more tightly (≈ 25% of the global), implementing a depth-aware clamp that prevents fireflies deep in scattering media.
 
 ## CLI knobs
 
@@ -94,15 +94,14 @@ Reproducible σ-coefficients for common materials (`σ_t = σ_a + σ_s`, units 1
 | Ketchup | 0.061, 0.97, 1.45 | 0.18, 0.07, 0.03 | iso | High σ_a in G/B → deep red |
 | Apple (red) | 0.0030, 0.0034, 0.0460 | 2.29, 2.39, 1.97 | iso | Subtle warm bleed |
 
-These are the canonical post-Jensen values you'll find rendered in Mitsuba / PBRT documentation. For other materials, derive σ from the published reduced σ_s′ via `σ_s = σ_s′ / (1 − g)` and pick `g` per the medium's typical anisotropy (skin/wax ≈ 0.9 forward, milk/marble ≈ 0).
+These are the canonical post-Jensen values from the volumetric rendering literature. For other materials, derive σ from the published reduced σ_s′ via `σ_s = σ_s′ / (1 − g)` and pick `g` per the medium's typical anisotropy (skin/wax ≈ 0.9 forward, milk/marble ≈ 0).
 
 ## Two binding paths: entity-bound vs material-embedded
 
 The random walk integrator itself does not care where its
 `HomogeneousMedium` comes from — only that one is pushed onto the
 `MediumStack` when the ray refracts into the surface. The loader
-exposes two interoperable ways to set this up, mirroring the same split
-Arnold and Cycles offer.
+exposes two interoperable ways to set this up.
 
 ### Path 1 — Entity-bound (`interior_medium`)
 
@@ -136,9 +135,9 @@ entities:
 The artist declares `subsurface_radius` on the Disney material and the
 loader synthesises an anonymous `HomogeneousMedium` and auto-injects it
 on every entity that uses the material and does not already have an
-explicit `interior_medium`. This is the parity of Arnold
-`standard_surface` `subsurface_type: randomwalk` and Cycles Principled
-BSDF Subsurface section.
+explicit `interior_medium`. This emulates volumetric subsurface
+scattering inside the material, with all parameters expressed as artistic
+subsurface controls.
 
 ```yaml
 materials:
@@ -179,12 +178,11 @@ so it occupies the same `HomogeneousMedium` slot as a hand-written
 | Two entities sharing the surface, different volumes | Trivial — bind a different `interior_medium` per entity | Override one entity with `interior_medium` (always wins) |
 | Heterogeneous media (procedural / grid / nishita) | Supported | Not applicable — embedded path is `homogeneous` only |
 | Reuse | Paste the `mediums:` block plus the material block | Paste a single self-contained material preset |
-| Closest DCC analogue | Arnold "interior" / Mitsuba `<medium>` binding | Arnold `standard_surface` randomwalk / Cycles Principled Subsurface |
+| Setup style | Entity-bound explicit medium | Material-embedded shortcut |
 
 **Precedence rule.** An explicit `interior_medium` on the entity always
-wins over the material-embedded medium. This is the deliberate Arnold /
-Cycles convention: the embedded medium is a sensible default that the
-artist can swap out per-entity without touching the material.
+wins over the material-embedded medium. The embedded medium is a sensible
+default that the artist can swap out per-entity without touching the material.
 
 **When to use which.** Reach for the embedded path when you want
 self-contained materials (the `scenes/presets/materials-stone.md`,
@@ -225,5 +223,3 @@ entities:
     material: marble_surface
     interior_medium: marble_int
 ```
-
-The standalone tool `src/Tools/MigrateFakeSss/` automates this rewrite for a YAML tree.

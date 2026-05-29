@@ -136,8 +136,8 @@ w: 0.7
 Linear combination of two HG lobes: a forward one (`g1 ≈ 0.85`) and a
 side/backward one (`g2 ≈ -0.3`), mixed with weight `w ∈ [0,1]`. The model
 used by Nubis (Guerrilla Games) for the volumetric clouds in *Horizon Zero
-Dawn*, and by Arnold for cumulus-style cloud rendering. Produces a soft
-silver lining around cloud edges that single-HG cannot reproduce.
+Dawn*. Produces a soft silver lining around cloud edges that single-HG
+cannot reproduce.
 
 ### Schlick (fast-HG)
 
@@ -148,8 +148,8 @@ g: 0.6
 
 A rational approximation of HG that avoids `sqrt`:
 `p(θ) = (1 - k²) / (4π · (1 + k · cosθ)²)` with `k ≈ 1.55·g − 0.55·g³`.
-Used by RenderMan and Cycles when maximum throughput matters. Visually
-nearly indistinguishable from HG for `|g| < 0.9`.
+Preferred when maximum throughput matters. Visually nearly indistinguishable
+from HG for `|g| < 0.9`.
 
 **Which one to pick?**
 - Generic fog / smoky haze → `hg` with `g = 0.6-0.85`.
@@ -185,10 +185,9 @@ cases.
 ### 9.4.1 `height_fog` — Exponential Altitude Falloff
 
 Density falls exponentially with height: `σ_T(y) = σ_T0 · exp(-(y - y0) / H)`.
-The "atmosphere / aerial perspective" model used by Arnold
-`atmosphere_volume` and V-Ray `EnvironmentFog`. The integral along a ray
-has a closed form → **cost nearly identical to homogeneous**, no delta
-tracking needed.
+The standard "atmosphere / aerial perspective" model. The integral along
+a ray has a closed form → **cost nearly identical to homogeneous**, no
+delta tracking needed.
 
 ```yaml
 world:
@@ -216,15 +215,15 @@ of fog, raise `-s` to at least 256.
 > 💡 **This is the right type for outdoor scenes lit by sky + sun or
 > HDRI.** Unlike `homogeneous`, the optical depth toward the zenith is
 > bounded by `scale_height`, so direct sunlight reaches the scene
-> attenuated but not obliterated — exactly the "aerial perspective"
-> behaviour used by Arnold, V-Ray and Unreal. See §9.4.4 below.
+> attenuated but not obliterated — the standard "aerial perspective"
+> behaviour for atmospheric models. See §9.4.4 below.
 
 ### 9.4.2 `procedural` — Perlin fBm
 
 Density driven by **Perlin noise with fractal brownian motion** (fBm).
 Free-path sampling uses **delta tracking (Woodcock)** and transmittance is
-estimated via **ratio tracking**. Analogous to Arnold `standard_volume`
-with a noise input or RenderMan `PxrVolume` in procedural mode.
+estimated via **ratio tracking**. Suited to any heterogeneous medium whose
+density is defined procedurally rather than baked into a grid.
 
 ```yaml
 world:
@@ -258,9 +257,8 @@ renders.
 
 Density sampled on a **regular 3D grid** inside a world-space AABB, with
 a selectable reconstruction filter (trilinear by default, tricubic as an
-option). Outside the AABB: vacuum. Analogous to PBRT's `GridMedium`,
-Arnold's `volume` (VDB mode) and V-Ray's `VolumeGrid`. Two forms: inline
-data in the YAML or an external binary `.vol` file.
+option). Outside the AABB: vacuum. Two forms: inline data in the YAML or
+an external binary `.vol` file.
 
 **Form A — inline (for small grids, ≤ 8³):**
 
@@ -302,7 +300,7 @@ world:
 The `.vol` format (VOL1) is: magic string `"VOL1"` (4 bytes) + `nx`, `ny`,
 `nz` (3 × int32 little-endian) + `bounds_min.{x,y,z}`, `bounds_max.{x,y,z}`
 (6 × float32 little-endian) + `nx*ny*nz` float32 densities. It is meant
-as a simple intermediate step: easy to generate from Houdini/Blender via
+as a simple intermediate step: easy to generate from any DCC tool via
 a Python script.
 
 **Typical uses:** localized smoke, isolated clouds, explosions, pre-
@@ -315,15 +313,14 @@ voxels, 3D-Ray interpolates density in one of two ways:
 - **`trilinear`** (default, 8 taps, C⁰). Cheap. At low resolutions
   (≤ 16³) the density field has a discontinuous derivative at cell
   boundaries → visible linear banding in the render. This is a universal
-  artifact of low-budget volumetric renderers (Arnold, V-Ray, RenderMan)
-  and in production it is solved by using dense grids (128³–1024³) where
-  the jumps are sub-pixel.
+  artifact of voxel-based volumetric rendering and in production it is
+  solved by using dense grids (128³–1024³) where the jumps are sub-pixel.
 - **`tricubic`** (64 taps, C¹, Catmull-Rom cardinal spline with τ = 0.5).
   About 8× per-sample cost, but the density field is continuously
   differentiable → no kinks even on tiny grids. The result is clamped to
   `[0,1]` to preserve the delta-tracking majorant invariant. Accepted
-  aliases: `cubic`, `catmull-rom`, `smooth`. Matches the "cubic"/"smooth"
-  filter offered by Arnold, Houdini and RenderMan on VDB grids.
+  aliases: `cubic`, `catmull-rom`, `smooth`. Provides smooth density
+  reconstruction on VDB grids at the cost of higher tap count.
 
 **Tip:** outside the AABB the medium is vacuum → rays that miss it are
 free. Size the bounds carefully to maximize performance. With
@@ -339,7 +336,7 @@ Quick decision matrix:
 | `homogeneous` | Constant everywhere | Analytic, cheap | The fog is **bounded by geometry** (an indoor room, a closed cellar, a submerged interior, a smoke column inside a chimney). Constant density implicitly assumes "the medium is what fills this enclosed space." |
 | `height_fog` | Decays with altitude | Analytic, cheap | The scene is **outdoor and illuminated by sky / sun / HDRI** (mountains, roads, harbours, cities). The exponential altitude profile is the standard atmospheric model — direct sunlight reaches the scene, distant objects desaturate, the sun gets a soft halo. |
 | `procedural` | Perlin fBm noise | Delta tracking, +30–100% time | The fog must look **patchy or irregular**: horror scenes, uneven god-rays through trees, swamp mist, dust that breaks up. |
-| `grid` | Baked on a 3D grid | Delta tracking + voxel filter | You have a **localized hero asset**: a single cloud, a smoke sim cached from Houdini/Blender, an explosion. The medium is confined to its AABB — the rest of the scene is unaffected. |
+| `grid` | Baked on a 3D grid | Delta tracking + voxel filter | You have a **localized hero asset**: a single cloud, a baked simulation export, an explosion. The medium is confined to its AABB — the rest of the scene is unaffected. |
 
 > ⚠️ **The `homogeneous` + sky/sun trap.** Because `homogeneous` has
 > constant density extending to **infinity**, the Beer–Lambert
