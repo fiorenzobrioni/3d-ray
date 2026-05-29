@@ -48,14 +48,10 @@ dotnet run -c Release --project src/RayTracer.Benchmarks -- --filter '*Bvh*' --j
 ```
 
 ### Tools
-In-solution (`3d-ray.slnx`):
-```
-dotnet run --project src/Tools/TextureGen/TextureGen.csproj
-dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
-dotnet run --project src/Tools/FontGen/FontGen.csproj -- --font "<family>" [--height 0.2] [--chars "ABC"] [--list-fonts]
-dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- --name <stem> [--type pianura|collina|montagna] [--season ...] [--include fiumi,laghi,mare,isole] [--with-cameras]
-```
-`TerrainGen` writes a reusable terrain template to `scenes/assets/heightmaps/<name>.yaml` plus a `<name>-height.png` 16-bit grayscale heightmap — the YAML wraps a single `type: heightfield` entity that the engine intersects directly via min/max mipmap (no mesh tessellation). `--with-cameras` additionally emits a complete `scenes/<name>-preview.yaml` ready to render. `FontGen` emits font templates under `scenes/assets/fonts/` for use with the `extrusion` primitive. See each tool's `Program.cs` / `--help` for full flags.
+In-solution (`3d-ray.slnx`), run with `dotnet run --project src/Tools/<Name>/<Name>.csproj -- <flags>` (see each tool's `--help`):
+- `TextureGen`, `NormalMapGen` — procedural texture / normal-map generators.
+- `FontGen` — emits font templates under `scenes/assets/fonts/` for the `extrusion` primitive.
+- `TerrainGen` — writes a reusable `scenes/assets/heightmaps/<name>.yaml` (a single `type: heightfield` entity, intersected directly via min/max mipmap — no mesh tessellation) + a 16-bit grayscale heightmap PNG; `--with-cameras` also emits a ready-to-render `scenes/<name>-preview.yaml`.
 
 Standalone (on disk under `src/Tools/`, not in the solution — run directly with `dotnet run --project ...`): scene generators `ChessGen` and `TempleGen`, plus the one-off `MigrateFakeSss` (strips legacy "fake SSS" Disney knobs from scene YAML; `--dry-run`/`--project`).
 
@@ -79,20 +75,18 @@ Standalone (on disk under `src/Tools/`, not in the solution — run directly wit
 - **Deferred messages.** `SceneLoader` queues warnings/info during load (`Warn()`/`Info()`); `Program.cs` flushes them via `FlushMessages()` after the single-line load output.
 
 ### Path tracer (`Rendering/Renderer.cs`)
-Parallel over pixels; per pixel generates N samples using the active sampler. With `--sampler sobol` (default) samples form a (0,2,2)-net via Sobol+Owen scrambling — deterministic per pixel via a hash seed. With `--sampler prng` the legacy `√N × √N` stratified grid is used instead. `TraceRay` recurses: hit → normal map → emission → NEE (direct light sampling) → BSDF scatter → Russian Roulette. Post-processing is per-pixel: firefly clamp (`-C`, default 100) → ACES filmic tone map → gamma 2.2. `--clamp`/`-C` applies to per-sample radiance before tone mapping — lower it (e.g. 25) when dielectrics or participating media produce fireflies. See `docs/technical/path-tracing-and-lighting.md` and `docs/technical/shading-model.md`.
+Parallel over pixels, N samples each via the active sampler (`--sampler sobol` default, deterministic; `prng` legacy — internals in the docs below). **Order matters:** `TraceRay` recurses hit → normal map → emission → NEE → BSDF scatter → Russian Roulette; per-pixel post-processing is firefly clamp (`-C`, default 100) → ACES filmic tone map → gamma 2.2. `-C` clamps per-sample radiance *before* tone mapping — lower it (e.g. 25) for fireflies from dielectrics/media. See `docs/technical/path-tracing-and-lighting.md` + `shading-model.md`.
 
 ### Lights and NEE
-`ILight` has point/directional/spot/area/sphere implementations under `Lights/`. Additionally, any geometry with an `Emissive` material becomes a `GeometryLight` and joins the NEE pool automatically; the environment (gradient sky or HDRI) also participates in NEE as a directional sampler.
-
-**Light Hardening** (full rationale in DEVLOG §Ciclo Light Hardening): every light has a `SoftRadius` floor on `1/d²`; `DirectionalLight.AngularRadiusDeg` enables sun-disc cone sampling; spot/area/geometry lights use disc-jittered shadow rays; `LightDistribution` (power-weighted CDF, built once in the `Renderer` constructor) drives NEE — selectable via `--light-sampling power|uniform|all`. Indirect bounces use a stricter firefly clamp (`--indirect-clamp-factor`, default 1.0). `ISamplable.SurfaceArea` gives closed-form area per samplable geometry, avoiding PRNG-consuming `Sample()` calls.
+Light implementations live under `Lights/`. **Invariants:** any `Emissive` geometry auto-joins the NEE pool as a `GeometryLight`, and the environment (sky/HDRI) participates in NEE as a directional sampler. `LightDistribution` (power-weighted CDF) is built once in the `Renderer` constructor and drives NEE (`--light-sampling power|uniform|all`); indirect bounces use a stricter clamp (`--indirect-clamp-factor`). Hardening mechanics (soft-radius floors, sun-disc sampling, jittered shadow rays, `ISamplable.SurfaceArea`) → `docs/technical/path-tracing-and-lighting.md` + DEVLOG §Ciclo Light Hardening.
 
 ### Geometry, CSG, Groups
-`Geometry/IHittable.cs` is the core interface. `CsgObject` implements Union/Intersection/Subtraction via interval classification (see `docs/technical/csg-boolean-operations.md`) and is nestable. `Group` is a scene-graph node that inherits transforms down to children and builds its own internal BVH above 4 children. `Transform` wraps any `IHittable` with scale→rotate→translate and caches its world-space AABB. `HeightField` (Mitsuba-style terrain primitive — see `docs/technical/heightfield.md`) accelerates intersection with a `MinMaxMipmap` quadtree so one primitive can replace a tessellated terrain mesh; the loader routes `type: heightfield` through `SceneLoader.CreateHeightFieldEntity`.
+`Geometry/IHittable.cs` is the core interface. **Invariants:** `Transform` applies scale→rotate→translate and caches its world-space AABB; `Group` inherits transforms to children and builds an internal BVH above 4 children; `type: heightfield` is routed through `SceneLoader.CreateHeightFieldEntity` to a `MinMaxMipmap`-accelerated primitive (not a tessellated mesh). CSG (`CsgObject`, nestable union/intersection/subtraction) and the heightfield are detailed in `docs/technical/{csg-boolean-operations,heightfield}.md`.
 
-The **Surface Displacement Stack** (`DisplacementEngine`) applies layered surface detail in order: bump map → Loop/Catmull-Clark mesh subdivision → scalar displacement → vector displacement → autobump. Each stage is optional and composes cleanly with the others.
+The **Surface Displacement Stack** (`DisplacementEngine`) composes optional stages in a *fixed order*: bump → Loop/Catmull-Clark subdivision → scalar displacement → vector displacement → autobump.
 
 ### Volumetrics (`Volumetrics/`)
-`IMedium` covers Homogeneous, HeightFog, NishitaAtmosphereMedium (physically-based sky atmosphere), HeterogeneousProceduralMedium (Perlin fBm with delta/ratio tracking), and GridMedium (trilinear default, tricubic Catmull-Rom option). Phase functions are pluggable: Isotropic, HG, double-HG, Rayleigh, Schlick. A `globalMedium` is returned from `SceneLoader.Load` alongside the world.
+Pluggable `IMedium` + `IPhaseFunction` implementations under `Volumetrics/` (homogeneous, height fog, Nishita atmosphere, procedural fBm, grid). **Invariant:** a `globalMedium` is returned from `SceneLoader.Load` alongside the world, and output is bit-identical when no medium is present.
 
 ### Tests — equivalence pattern
 The suite (~38 test files, ~400 tests) covers geometry, BVH, materials, lights, samplers, volumetrics, displacement, and rendering regression. Core patterns:
@@ -104,7 +98,7 @@ The suite (~38 test files, ~400 tests) covers geometry, BVH, materials, lights, 
 ## Conventions
 
 - YAML keys use `underscore_case` (YamlDotNet `UnderscoredNamingConvention`).
-- CLI: lowercase short flags are the common overrides (`-s`, `-d`, `-c`, `-w`, `-o`, `-i`, `-v`); uppercase are "advanced overrides" (`-H` height because `-h` is help, `-S` shadow samples, `-C` clamp). Long-only flags include `--indirect-clamp-factor`, `--light-sampling`, `--list-cameras`, `--sampler`, `--mis`, `--texture-filtering`, `--exposure`, `--quality`.
+- CLI: lowercase short flags are the common overrides (`-s`, `-d`, `-c`, `-w`, `-o`, `-i`, `-v`); uppercase are "advanced overrides" (`-H` height because `-h` is help, `-S` shadow samples, `-C` clamp); behaviour-tuning flags are long-only. Full list in `ShowHelp()`.
 - Default output path when `-o` is omitted: `renders/render-<scene-stem>.png`.
 - Output image format is picked from the `-o` extension (`.png`/`.jpg`/`.jpeg`/`.bmp`); unknown → PNG.
 
