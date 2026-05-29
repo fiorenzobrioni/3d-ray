@@ -674,4 +674,4 @@ the Preview/Standard/Final profiles.
 
 ---
 
-[Previous: Constructive Solid Geometry (CSG)](./08-csg.md) | [Next: Asset Libraries and Complete Scenes](./10-libraries-and-projects.md) | [Tutorial Index](./README.md)
+[Previous: Constructive Solid Geometry (CSG)](./08-csg.md) | [Next: Presets and Projects](./10-libraries-and-projects.md) | [Tutorial Index](./README.md)

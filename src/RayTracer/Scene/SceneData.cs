@@ -490,7 +490,7 @@ public class MaterialData
     public float ClearcoatGloss { get; set; } = 1f;
 
     [YamlMember(Alias = "spec_trans")]
-    public float SpecTrans { get; set; } = 0f;
+    public float? SpecTrans { get; set; } = null;
 
     [YamlMember(Alias = "ior")]
     public float DisneyIor { get; set; } = 1.5f;

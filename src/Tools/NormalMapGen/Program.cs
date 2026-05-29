@@ -9,7 +9,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Tools;
 
-string outputDir = "scenes/libraries/textures";
+string outputDir = "scenes/assets/textures";
 for (int i = 0; i < args.Length - 1; i++)
 {
     if (args[i] is "--output" or "-o") outputDir = args[i + 1];

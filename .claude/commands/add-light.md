@@ -18,7 +18,7 @@ Interpreta come `<path/to/scene.yaml> [tipo o ruolo opzionale]`. Se manca il fil
 - Schema luci → [docs/reference/scene-reference.md](../../docs/reference/scene-reference.md)
 - NEE e sphere light → [docs/technical/path-tracing-and-lighting.md](../../docs/technical/path-tracing-and-lighting.md)
 - Convenzioni → [CLAUDE.md](../../CLAUDE.md)
-- Setup pronti → `scenes/libraries/lights/`
+- Setup pronti → copia il blocco di luci adatto da [scenes/presets/lights.md](../../scenes/presets/lights.md) nella sezione `lights:` della scena
 
 ## Procedura
 

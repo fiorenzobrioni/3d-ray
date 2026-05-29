@@ -44,7 +44,7 @@ public static class YamlEmitter
         sb.AppendLine("#");
         sb.AppendLine("# To use in a scene, place the scene under scenes/ and import this file:");
         sb.AppendLine("#   imports:");
-        sb.AppendLine("#     - path: \"libraries/terrain/" + cfg.Name + ".yaml\"");
+        sb.AppendLine("#     - path: \"assets/heightmaps/" + cfg.Name + ".yaml\"");
         sb.AppendLine("#   entities:");
         sb.AppendLine("#     - { type: \"instance\", template: \"<template-name>\", translate: [0, 0, 0] }");
         sb.AppendLine();

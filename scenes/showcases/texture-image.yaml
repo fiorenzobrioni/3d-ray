@@ -55,7 +55,7 @@ materials:
     type: "lambertian"
     texture:
       type: "image"
-      path: "../libraries/textures/wood-floor.png"
+      path: "../assets/textures/wood-floor.png"
       uv_scale: [4, 4]                   # Ripete 4 volte su ogni asse
 
   # ── Muro di mattoni ────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ materials:
     type: "lambertian"
     texture:
       type: "image"
-      path: "../libraries/textures/brick-wall.png"
+      path: "../assets/textures/brick-wall.png"
       uv_scale: [2, 1]                   # Ripete 2× in orizzontale
 
   # ── Terra sulla sfera (UV sferico) ─────────────────────────────────────
@@ -71,14 +71,14 @@ materials:
     type: "lambertian"
     texture:
       type: "image"
-      path: "../libraries/textures/earth.png"
+      path: "../assets/textures/earth.png"
 
   # ── Logo su un quad ────────────────────────────────────────────────────
   - id: "logo"
     type: "lambertian"
     texture:
       type: "image"
-      path: "../libraries/textures/logo-3dray.png"
+      path: "../assets/textures/logo-3dray.png"
 
   # ── Texture immagine su metallo (riflesso + texture) ───────────────────
   - id: "metallo_texturato"
@@ -86,7 +86,7 @@ materials:
     fuzz: 0.3
     texture:
       type: "image"
-      path: "../libraries/textures/brick-wall.png"
+      path: "../assets/textures/brick-wall.png"
 
   # ── Materiali non-image per confronto ──────────────────────────────────
   - id: "specchio"

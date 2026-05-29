@@ -13,7 +13,7 @@ Descrizione dell'utente: $ARGUMENTS
 
 ## Mentalità scultore
 
-A differenza di `/create-scene` (scena pulita con libreria), qui l'obiettivo è **profondità e ricchezza visiva**. Ogni oggetto principale deve avere:
+A differenza di `/create-scene` (scena pulita), qui l'obiettivo è **profondità e ricchezza visiva**. Ogni oggetto principale deve avere:
 - Forma derivata da CSG o gruppi, non una singola primitiva nuda
 - Materiali stratificati (mix material, texture, normal map dove sensato)
 - Interazione con illuminazione motivata (key/fill/rim, sorgenti pratiche visibili)
@@ -22,7 +22,7 @@ A differenza di `/create-scene` (scena pulita con libreria), qui l'obiettivo è 
 ## Riferimenti obbligatori
 
 - Schema YAML → [docs/reference/scene-reference.md](../../docs/reference/scene-reference.md)
-- Librerie → [scenes/libraries/README.md](../../scenes/libraries/README.md)
+- Cataloghi preset copia-incolla → [scenes/presets/README.md](../../scenes/presets/README.md)
 - Convenzioni → [CLAUDE.md](../../CLAUDE.md)
 - CSG → [docs/technical/csg-boolean-operations.md](../../docs/technical/csg-boolean-operations.md)
 - Path tracing e NEE → [docs/technical/path-tracing-and-lighting.md](../../docs/technical/path-tracing-and-lighting.md)
@@ -117,9 +117,9 @@ Non bastano 2 camere. Minimo 3, meglio 4–5:
 #    Finale:   -w 1920 -H 1080 -s 1024 -d <D>  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
-imports:              # librerie per accelerare (materiali + setup luci se pertinente)
-  - path: "libraries/materials/..."
-  - path: "libraries/lights/..."  # opzionale
+# Per accelerare, copia i blocchi materiali/luci dai cataloghi preset
+# (scenes/presets/materials-*.md, scenes/presets/lights.md) direttamente
+# nelle sezioni `materials:` / `lights:` qui sotto, poi rinomina gli `id`.
 
 world: ...            # con almeno 1 variante commentata
 

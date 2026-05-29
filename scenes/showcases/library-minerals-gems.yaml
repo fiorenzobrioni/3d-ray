@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  Minerals & Gems Showcase — Cristalli e Minerali Grezzi
 #
-#  Dimostra 5 materiali della libreria `minerals-gems.yaml`, ciascuno per
+#  Dimostra 5 materiali, ciascuno per
 #  una feature differente:
 #
 #    x=-4.8  Drusa di quarzo            → vector displacement tangent-space
@@ -18,9 +18,6 @@
 #    Finale: -w 1920 -H 1080 -s 2048 -d 14 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
-imports:
-  - { path: "../libraries/materials/minerals-gems.yaml" }
-
 world:
   sky:
     type: "flat"
@@ -32,6 +29,107 @@ camera:
   fov: 50
 
 materials:
+
+  - id: "dis_drusa_quarzo"
+    type: "disney"
+    color: [0.92, 0.92, 0.95]
+    roughness: 0.05
+    specular: 0.55
+    spec_trans: 0.4
+    ior: 1.544
+    transmission_color: [0.95, 0.95, 0.97]
+    transmission_depth: 0.5
+    displacement:
+      mode: "vector"
+      space: "tangent"
+      texture:
+        type: "voronoi"
+        scale: 24.0
+        output: "position"
+        randomness: 1.0
+        colors: [[0.2, 0.2, 0.3], [0.8, 0.8, 0.7]]
+      scale: 0.025
+      midlevel: 0.5
+      bound: 0.040
+      autobump: true
+      autobump_strength: 1.6
+      displacement_method: "bump_only"
+
+  - id: "dis_ametista_grezza"
+    type: "disney"
+    color: [0.55, 0.32, 0.78]
+    subsurface_radius: [0.20, 0.08, 0.40]
+    roughness: 0.08
+    specular: 0.55
+    spec_trans: 0.95
+    ior: 1.544
+    transmission_color: [0.40, 0.18, 0.65]
+    transmission_depth: 0.7
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.3
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.28, 0.12, 0.45], interp: "smoothstep" }
+        - { position: 0.50, color: [0.55, 0.32, 0.78], interp: "smoothstep" }
+        - { position: 1.00, color: [0.78, 0.55, 0.92], interp: "linear" }
+
+  - id: "dis_opale_fuoco"
+    type: "disney"
+    color: [0.92, 0.42, 0.18]
+    roughness: 0.10
+    specular: 0.55
+    spec_trans: 0.55
+    ior: 1.450
+    transmission_color: [0.85, 0.32, 0.10]
+    transmission_depth: 0.6
+    thin_film_thickness: 560
+    thin_film_ior: 1.45
+
+  - id: "dis_fluorite_rainbow"
+    type: "disney"
+    color: [0.65, 0.55, 0.78]
+    roughness: 0.10
+    specular: 0.50
+    spec_trans: 0.85
+    ior: 1.434
+    transmission_color: [0.55, 0.42, 0.70]
+    transmission_depth: 0.7
+    texture:
+      type: "noise"
+      scale: 1.8
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.4
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.30, 0.18, 0.55], interp: "smoothstep" }
+        - { position: 0.30, color: [0.45, 0.62, 0.30], interp: "smoothstep" }
+        - { position: 0.55, color: [0.85, 0.78, 0.32], interp: "smoothstep" }
+        - { position: 0.80, color: [0.78, 0.42, 0.50], interp: "smoothstep" }
+        - { position: 1.00, color: [0.45, 0.32, 0.78], interp: "linear" }
+
+  - id: "dis_pirite_cubica"
+    type: "disney"
+    metallic: 0.85
+    color: [0.85, 0.72, 0.32]
+    roughness: 0.28
+    specular: 0.55
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_strength: 0.10
+      colors: [[0.78, 0.65, 0.28], [0.92, 0.78, 0.36]]
+      randomize_offset: true
+    bump_map:
+      texture:
+        type: "noise"
+        scale: 25.0
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.5
 
   - id: "floor"
     type: "disney"

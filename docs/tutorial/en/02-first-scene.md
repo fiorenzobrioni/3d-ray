@@ -67,7 +67,7 @@ world:
 - **Right-handed system.** Looking along the negative Z axis (the default
   "into the screen" direction), X points right and Y points up.
 - **Units are metres** by convention. The engine is unit-agnostic, but
-  all bundled scenes and libraries use 1 unit = 1 metre. A sphere with
+  all bundled scenes use 1 unit = 1 metre. A sphere with
   `radius: 0.5` is roughly grapefruit-sized; `radius: 10` fills a room.
 
 Practical reference:

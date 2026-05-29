@@ -245,7 +245,7 @@ material).
 >    not already have an explicit `interior_medium`. This is the parity
 >    of Arnold `standard_surface` `subsurface_type: randomwalk` and
 >    Cycles Principled BSDF.
-> 2. **Entity-bound** — declare a `mediums:` library entry and bind it
+> 2. **Entity-bound** — declare a `mediums:` entry and bind it
 >    via `interior_medium` on the entity. Maximum control, supports
 >    heterogeneous media. See Chapter 7.
 >
@@ -880,8 +880,8 @@ roughness_texture:
 
 See `scenes/showcases/library-woods-v3.yaml` for the six-sphere
 comparison (oak / quartersawn / curly maple / knotty pine / flame
-mahogany / burr walnut) and the canonical `dis_quercia_pro_mask`
-material in `scenes/libraries/materials/woods.yaml` for the mask
+mahogany / burr walnut), and copy the canonical `quercia_pro_mask`
+preset from `scenes/presets/materials-wood.md` for the mask
 recipe applied to a full polished-oak look.
 
 ---
@@ -1150,15 +1150,20 @@ decorrelation knob, useful but no longer required.
 
 #### Step 10 — The pre-baked catalogue
 
-The library bundles 14 studio-quality materials ready to import:
+The preset catalogues `scenes/presets/materials-stone.md` and
+`materials-wood.md` ship 14 studio-quality recipes ready to copy. Open the
+catalogue, copy the `materials:` block of the recipe you want into your scene,
+and reference its `id`:
 
 ```yaml
-imports:
-  - { path: "scenes/libraries/materials/stones.yaml" }
-  - { path: "scenes/libraries/materials/woods.yaml" }
+materials:
+  # Pasted from scenes/presets/materials-stone.md
+  - id: "calacatta_studio_lucido"
+    type: "disney"
+    # ...
 
 entities:
-  - { type: "sphere", center: [0, 1, 0], radius: 1, material: "dis_calacatta_studio_lucido" }
+  - { type: "sphere", center: [0, 1, 0], radius: 1, material: "calacatta_studio_lucido" }
 ```
 
 Catalogue (`_studio` suffix throughout):
@@ -1687,7 +1692,7 @@ the pixel-error threshold. For a typical 1920 × 1080 render with a
 mid-range FOV, `subdivision_pixel_error: 6.0` and
 `subdivision_max_iterations: 5` is a good default — caps the
 icosahedron at ≈5120 triangles, fine enough for every displaced
-material in the library.
+material in the catalogues.
 
 Use fixed iterations (`subdivision_iterations: 4`) only when you need
 deterministic geometry counts — regression tests, CI snapshot diffs,
@@ -1710,10 +1715,10 @@ or pre-baking a mesh for export.
   there's no mesh to displace). Use a "boolean-baked" OBJ instead.
 
 **All `scenes/showcases/library-*.yaml` files demonstrating a
-material library use this pattern.** Look at `library-concretes.yaml`,
+material family use this pattern.** Look at `library-concretes.yaml`,
 `library-leathers.yaml`, `library-marbles-v2.yaml` — the row
 of five demo spheres is built with subdivided icosahedra, so every
-displaced material in the library shows its true geometric profile
+displaced material shows its true geometric profile
 side-by-side with the non-displaced ones.
 
 ### Showcases

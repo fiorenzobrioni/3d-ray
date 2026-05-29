@@ -238,22 +238,27 @@ Ogni asse riceve un motivo venato unico, pur condividendo lo stesso materiale.
 
 ## 5.5 Importazione YAML: Scene su più file
 
-Man mano che le scene crescono, tenere tutto in un unico file diventa complicato. La sezione `imports:` permette di caricare materiali, entità, luci e template da file YAML esterni.
+Man mano che le scene crescono, tenere tutto in un unico file diventa complicato. La sezione `imports:` permette di suddividere una scena su più file — per esempio un file di template di oggetti, o un template di font generato da `FontGen` sotto `scenes/assets/fonts/`.
 
 ```yaml
 imports:
-  - path: "libraries/materials/metals.yaml"
-  - path: "libraries/materials/woods.yaml"
-  - path: "libraries/lights/studio-3point.yaml"
+  - path: "templates/props.yaml"             # un tuo file di template
+  - path: "assets/fonts/font-open-sans.yaml" # template dei caratteri generati da FontGen
 ```
+
+> Materiali e luci pronti all'uso **non** si importano — vivono nei cataloghi
+> di preset copia-incolla sotto `scenes/presets/`. Copi il blocco che ti serve
+> direttamente nella sezione `materials:` / `lights:` della tua scena
+> (vedi Capitolo 10). `imports:` serve per suddividere davvero la tua scena
+> su più file e per includere file di template generati.
 
 ### Come funzionano gli import
 
-1. I percorsi sono risolti **rispetto alla directory del file che importa**. Se la scena si trova in `scenes/my-scene.yaml`, il percorso `"libraries/materials/metals.yaml"` si risolve in `scenes/libraries/materials/metals.yaml`.
+1. I percorsi sono risolti **rispetto alla directory del file che importa**. Se la scena si trova in `scenes/my-scene.yaml`, il percorso `"assets/fonts/font-open-sans.yaml"` si risolve in `scenes/assets/fonts/font-open-sans.yaml`.
 
 2. Il file importato può contribuire alle quattro sezioni: `materials`, `entities`, `lights` e `templates`. Queste vengono unite alla scena principale.
 
-3. **Le definizioni locali vincono.** Se sia il file importato che la scena definiscono un materiale con lo stesso `id`, la versione locale ha la precedenza. Questo permette di importare una libreria e poi sovrascrivere specifici materiali.
+3. **Le definizioni locali vincono.** Se sia il file importato che la scena definiscono un materiale o un template con lo stesso `id`, la versione locale ha la precedenza — così puoi includere un file di template e poi sovrascrivere singole voci.
 
 4. **Il World e la Camera NON vengono importati.** Il file di scena principale possiede sempre le impostazioni del mondo e le definizioni delle fotocamere.
 
@@ -261,17 +266,17 @@ imports:
 
 6. **Protezione contro gli import circolari.** Se il file A importa il file B e il file B importa il file A, il motore rileva il ciclo e salta il secondo import.
 
-### Esempio: Sovrascrivere un materiale importato
+### Esempio: Sovrascrivere il materiale di un template importato
 
 ```yaml
 imports:
-  - path: "libraries/materials/metals.yaml"   # Definisce "dis_oro_lucido"
+  - path: "assets/fonts/font-open-sans.yaml"   # Usa "font_material"
 
 materials:
-  # Sovrascrive l'oro della libreria con una versione personalizzata
-  - id: "dis_oro_lucido"
+  # Definisce il materiale referenziato da tutti i caratteri importati
+  - id: "font_material"
     type: "disney"
-    color: [0.95, 0.7, 0.2]     # Oro leggermente diverso
+    color: [0.95, 0.7, 0.2]
     metallic: 1.0
     roughness: 0.1
 ```
@@ -283,12 +288,12 @@ materials:
 **Scene piccole (< 50 entità):** Un singolo file YAML va benissimo.
 
 **Scene medie (50--200 entità):**
-- Importa librerie di materiali invece di definirli tutti nel file di scena.
+- Copia i materiali pronti dai cataloghi di preset in `scenes/presets/` invece di scrivere a mano ogni superficie.
 - Usa i template per gli oggetti ripetuti.
 
 **Scene grandi (200+ entità):**
-- Suddividi in più file: uno per i materiali, uno per i template degli oggetti, uno per la disposizione della scena principale.
-- Usa l'ecosistema delle librerie (Capitolo 10).
+- Suddividi in più file tramite `imports:`: uno per i template degli oggetti, uno per la disposizione della scena principale.
+- Costruisci la tua palette dai cataloghi di preset (Capitolo 10).
 - Assegnare a ogni entità e template un `name:` descrittivo.
 - Usa convenzioni di nomi coerenti (ad esempio, anteponi all'ID del materiale una categoria: `mat_floor`, `mat_wall`, `mat_glass`).
 

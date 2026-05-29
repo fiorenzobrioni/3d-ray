@@ -27,7 +27,7 @@ Un showcase **non** è una scena artistica. È una **dimostrazione tecnica siste
 - Ogni oggetto mostra **una variazione** del parametro in esame
 - Le variazioni sono organizzate in **gruppi logici** (righe, stazioni, piedistalli)
 - L'ambiente è **neutro** per non distrarre dalla feature
-- I materiali sono **autocontenuti** (definiti inline, nessun import da librerie)
+- I materiali sono **autocontenuti** (definiti inline nella scena)
 - I commenti **spiegano cosa dimostra** ogni oggetto
 
 ## Procedura
@@ -145,7 +145,7 @@ entities:
   `-showcase`: la cartella già lo indica).
 - Prefissi di categoria usati nel repo:
   - `material-` — tecniche materiali (Disney, classic, mix, emissive)
-  - `library-` — demo di una libreria materiali (`scenes/libraries/.../*.yaml`)
+  - `preset-` — demo di un catalogo di preset materiali (`scenes/presets/materials-*.md`)
   - `texture-` — texture procedurali/immagini, bump, normal, displacement
   - `primitive-` — primitiva geometrica, mesh, lathe, extrusion, heightfield
   - `lighting-` — tipi di luce, sky, HDRI

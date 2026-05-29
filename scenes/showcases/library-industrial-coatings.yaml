@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  Industrial Coatings Showcase — Vernici Industriali Speciali
 #
-#  Dimostra 5 verniciature tecniche della libreria `industrial-coatings.yaml`:
+#  Dimostra 5 verniciature tecniche industriali:
 #
 #    x=-4.8  Chassis matte nero        → roughness 0.65 + coat moderato
 #    x=-2.4  RAL 5015 blu cielo        → polvere elettrostatica + clearcoat
@@ -14,9 +14,6 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
-imports:
-  - { path: "../libraries/materials/industrial-coatings.yaml" }
-
 world:
   sky:
     type: "flat"
@@ -28,6 +25,75 @@ camera:
   fov: 50
 
 materials:
+
+  - id: "dis_chassis_matte_nero"
+    type: "disney"
+    color: [0.04, 0.04, 0.04]
+    roughness: 0.65
+    specular: 0.32
+    clearcoat: 0.20
+    coat_roughness: 0.55
+    coat_ior: 1.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 80.0
+        smoothness: 0.5
+        colors: [[0.45, 0.45, 0.45], [0.55, 0.55, 0.55]]
+      strength: 0.3
+
+  - id: "dis_ral5015_blu_cielo"
+    type: "disney"
+    color: [0.10, 0.42, 0.65]
+    roughness: 0.42
+    specular: 0.40
+    clearcoat: 0.50
+    coat_roughness: 0.18
+    coat_ior: 1.5
+
+  - id: "dis_anodizzato_oro"
+    type: "disney"
+    metallic: 1.0
+    color: [0.91, 0.91, 0.92]
+    roughness: 0.25
+    specular: 0.55
+    anisotropic: 0.40
+    thin_film_thickness: 380
+    thin_film_ior: 1.55
+
+  - id: "dis_gelcoat_blu_marino"
+    type: "disney"
+    color: [0.05, 0.10, 0.32]
+    roughness: 0.10
+    specular: 0.55
+    clearcoat: 0.90
+    coat_roughness: 0.06
+    coat_ior: 1.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 95.0
+        smoothness: 0.6
+        colors: [[0.48, 0.48, 0.48], [0.52, 0.52, 0.52]]
+      strength: 0.18
+
+  - id: "dis_termocromica"
+    type: "disney"
+    color: [0.42, 0.55, 0.72]
+    roughness: 0.32
+    specular: 0.42
+    clearcoat: 0.55
+    coat_roughness: 0.15
+    coat_ior: 1.5
+    texture:
+      type: "gradient"
+      mode: "linear"
+      axis: [0, 1, 0]
+      color_ramp:
+        - { position: 0.00, color: [0.08, 0.22, 0.55], interp: "smoothstep" }
+        - { position: 0.40, color: [0.55, 0.32, 0.62], interp: "smoothstep" }
+        - { position: 0.65, color: [0.92, 0.42, 0.55], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.85, 0.18], interp: "linear" }
 
   - id: "floor"
     type: "disney"

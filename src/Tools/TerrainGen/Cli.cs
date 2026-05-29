@@ -187,7 +187,7 @@ internal static class Cli
         w.WriteLine("  --sea-level <0..1>       Normalised sea level                   (default: 0.30 if --include mare)");
         w.WriteLine();
         w.WriteLine("OUTPUT:");
-        w.WriteLine("  --output <dir>           Output directory                       (default: scenes/libraries/terrain)");
+        w.WriteLine("  --output <dir>           Output directory                       (default: scenes/assets/heightmaps)");
         w.WriteLine("  --with-cameras           Also emit a preview scene with cameras (default: off)");
         w.WriteLine("  -h, --help               Show this help and exit");
         w.WriteLine();

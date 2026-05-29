@@ -20,9 +20,6 @@
 #    Final:    -w 1920 -H 1080 -s 2048 -d 12 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
-imports:
-  - { path: "../libraries/materials/stones.yaml" }
-
 world:
   sky:
     type: "flat"

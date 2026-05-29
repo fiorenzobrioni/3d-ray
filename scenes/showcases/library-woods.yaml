@@ -15,9 +15,6 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 10 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
-imports:
-  - { path: "../libraries/materials/woods.yaml" }
-
 world:
   sky:
     type: "flat"
@@ -33,6 +30,185 @@ materials:
     type: "disney"
     color: [0.28, 0.28, 0.30]
     roughness: 0.80
+
+  - id: "dis_rovere_quartato_medullary"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.5
+      grain_strength: 2.0
+      latewood_width: 0.20
+      ring_sharpness: 4.5
+      ring_color_variation: 0.22
+      ring_width_variation: 0.18
+      warp_amplitude: 0.50
+      radial_anisotropy: 4.5
+      figure_strength: 0.55
+      figure_scale: 0.16
+      figure_aspect: 5.0
+      pore_density: 0.45
+      pore_scale: 18.0
+      pore_aspect: 7.0
+      pore_strength: 0.55
+      octaves: 5
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.08, 0.04], interp: "smoothstep" }
+        - { position: 0.30, color: [0.42, 0.25, 0.10], interp: "smoothstep" }
+        - { position: 0.65, color: [0.78, 0.55, 0.30], interp: "smoothstep" }
+        - { position: 1.00, color: [0.96, 0.82, 0.55], interp: "linear" }
+    roughness: 0.52
+    specular: 0.40
+    clearcoat: 0.30
+    coat_roughness: 0.18
+
+  - id: "dis_acero_curly_max"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 5.5
+      grain_strength: 0.20
+      latewood_width: 0.14
+      ring_sharpness: 5.5
+      ring_color_variation: 0.10
+      warp_amplitude: 0.40
+      figure_strength: 2.4
+      figure_scale: 0.08
+      figure_aspect: 5.0
+      octaves: 4
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.45, 0.30, 0.15], interp: "smoothstep" }
+        - { position: 0.45, color: [0.78, 0.62, 0.35], interp: "smoothstep" }
+        - { position: 0.80, color: [0.92, 0.80, 0.58], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.92, 0.78], interp: "linear" }
+    roughness: 0.30
+    specular: 0.50
+    clearcoat: 0.65
+    coat_roughness: 0.08
+
+  - id: "dis_pino_nodoso_heavy"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 6.0
+      grain_strength: 0.8
+      latewood_width: 0.30
+      ring_sharpness: 5.5
+      ring_color_variation: 0.26
+      ring_width_variation: 0.22
+      warp_amplitude: 0.55
+      fold_amplitude: [0.35, 0.10, 0.40]
+      figure_strength: 0.30
+      figure_scale: 0.22
+      figure_aspect: 3.0
+      knot_density: 1.0
+      knot_scale: 1.2
+      octaves: 5
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.02, 0.01, 0.01], interp: "smoothstep" }
+        - { position: 0.15, color: [0.18, 0.08, 0.04], interp: "smoothstep" }
+        - { position: 0.45, color: [0.55, 0.36, 0.16], interp: "smoothstep" }
+        - { position: 0.80, color: [0.88, 0.72, 0.42], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.88, 0.62], interp: "linear" }
+    roughness: 0.55
+    specular: 0.38
+
+  - id: "dis_acero_birdseye"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 8.0
+      grain_strength: 0.25
+      latewood_width: 0.14
+      ring_sharpness: 5.0
+      ring_color_variation: 0.10
+      warp_amplitude: 0.35
+      figure_strength: 0.40
+      figure_scale: 0.55
+      figure_aspect: 1.5
+      knot_density: 0.30
+      knot_scale: 2.0
+      octaves: 4
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.10, 0.04], interp: "smoothstep" }
+        - { position: 0.15, color: [0.55, 0.38, 0.18], interp: "smoothstep" }
+        - { position: 0.60, color: [0.88, 0.75, 0.48], interp: "smoothstep" }
+        - { position: 1.00, color: [0.98, 0.92, 0.72], interp: "linear" }
+    roughness: 0.28
+    specular: 0.45
+    clearcoat: 0.55
+    coat_roughness: 0.08
+
+  - id: "dis_mogano_flame_studio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.8
+      grain_strength: 0.40
+      latewood_width: 0.16
+      ring_sharpness: 4.5
+      ring_color_variation: 0.14
+      ring_width_variation: 0.10
+      warp_amplitude: 0.50
+      figure_strength: 1.6
+      figure_scale: 0.11
+      figure_aspect: 6.0
+      heartwood_radius: 1.2
+      heartwood_blend: 0.12
+      octaves: 5
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.20, 0.06, 0.03], interp: "smoothstep" }
+        - { position: 0.50, color: [0.50, 0.18, 0.10], interp: "smoothstep" }
+        - { position: 1.00, color: [0.74, 0.36, 0.22], interp: "linear" }
+    roughness: 0.28
+    specular: 0.52
+    clearcoat: 0.78
+    coat_roughness: 0.08
+
+  - id: "dis_cedro_shousugiban"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.0
+      grain_strength: 0.40
+      latewood_width: 0.30
+      ring_sharpness: 5.0
+      ring_color_variation: 0.28
+      ring_width_variation: 0.22
+      warp_amplitude: 0.55
+      figure_strength: 0.30
+      figure_scale: 0.18
+      figure_aspect: 3.0
+      octaves: 5
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.01, 0.01, 0.01], interp: "smoothstep" }
+        - { position: 0.50, color: [0.06, 0.05, 0.04], interp: "smoothstep" }
+        - { position: 0.85, color: [0.16, 0.12, 0.08], interp: "smoothstep" }
+        - { position: 1.00, color: [0.32, 0.22, 0.12], interp: "linear" }
+    roughness: 0.88
+    specular: 0.20
+    displacement:
+      mode: "vector"
+      space: "tangent"
+      texture:
+        type: "noise"
+        scale: 8.0
+        noise_type: "ridged"
+        octaves: 4
+        colors: [[0.3, 0.4, 0.35], [0.7, 0.6, 0.65]]
+      scale: 0.010
+      midlevel: 0.5
+      bound: 0.018
+      autobump: true
+      autobump_strength: 1.5
+      displacement_method: "bump_only"
 
 entities:
 

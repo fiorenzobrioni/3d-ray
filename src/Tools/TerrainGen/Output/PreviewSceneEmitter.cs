@@ -11,7 +11,7 @@ namespace TerrainGen.Output;
 /// terrain stays framed regardless of <c>--size</c>.
 ///
 /// We generate the preview at <c>scenes/&lt;name&gt;-preview.yaml</c> rather than
-/// inside <c>scenes/libraries/terrain/</c> so that the imported template's
+/// inside <c>scenes/assets/heightmaps/</c> so that the imported template's
 /// internal asset paths (relative to its own directory) keep resolving and
 /// the master-scene camera/sky overrides land at the top of the YAML tree.
 /// </summary>
@@ -37,7 +37,7 @@ public static class PreviewSceneEmitter
         sb.AppendLine();
 
         sb.AppendLine("imports:");
-        sb.AppendLine($"  - path: \"libraries/terrain/{cfg.Name}.yaml\"");
+        sb.AppendLine($"  - path: \"assets/heightmaps/{cfg.Name}.yaml\"");
         sb.AppendLine();
 
         EmitWorld(sb, cfg, sky);

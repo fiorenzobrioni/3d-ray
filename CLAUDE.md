@@ -55,7 +55,7 @@ dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
 dotnet run --project src/Tools/FontGen/FontGen.csproj -- --font "<family>" [--height 0.2] [--chars "ABC"] [--list-fonts]
 dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- --name <stem> [--type pianura|collina|montagna] [--season ...] [--include fiumi,laghi,mare,isole] [--with-cameras]
 ```
-`TerrainGen` writes a reusable terrain template to `scenes/libraries/terrain/<name>.yaml` plus a `<name>-height.png` 16-bit grayscale heightmap — the YAML wraps a single `type: heightfield` entity that the engine intersects directly via min/max mipmap (no mesh tessellation). `--with-cameras` additionally emits a complete `scenes/<name>-preview.yaml` ready to render. `FontGen` emits font templates under `scenes/libraries/fonts/` for use with the `extrusion` primitive. See each tool's `Program.cs` / `--help` for full flags.
+`TerrainGen` writes a reusable terrain template to `scenes/assets/heightmaps/<name>.yaml` plus a `<name>-height.png` 16-bit grayscale heightmap — the YAML wraps a single `type: heightfield` entity that the engine intersects directly via min/max mipmap (no mesh tessellation). `--with-cameras` additionally emits a complete `scenes/<name>-preview.yaml` ready to render. `FontGen` emits font templates under `scenes/assets/fonts/` for use with the `extrusion` primitive. See each tool's `Program.cs` / `--help` for full flags.
 
 Standalone scene generators (on disk under `src/Tools/`, not in the solution — run directly with `dotnet run --project ...`): `ChessGen`, `TempleGen`.
 

@@ -1,27 +1,20 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  Wet Surfaces Showcase — Superfici Bagnate (Cross-Library Mix)
 #
-#  Combina materiali di liquids + ceramics + plasters + concretes via mix
+#  Combina materiali ceramics + plasters + concretes + stone via mix
 #  material per simulare superfici DOPO PIOGGIA. Mostra come l'overlay
-#  `over_water_film` da `weathering.yaml` trasforma ogni base.
+#  `over_water_film` trasforma ogni base.
 #
 #    x=-4.8  Piastrella bagnata     → ceramica + film acqua
 #    x=-2.4  Marmo bagnato           → marmo Carrara + film acqua
 #    x=  0   Cemento bagnato         → cemento + acqua piscina semi
 #    x=+2.4  Intonaco bagnato        → veneziano + film acqua
-#    x=+4.8  Asfalto bagnato puro    → da concretes.yaml (no mix)
+#    x=+4.8  Asfalto bagnato puro    → asfalto bagnato (no mix)
 #
 #  Render consigliato:
 #    Draft:  -w 640  -H 360  -s 64   -d 8  -S 1
 #    Finale: -w 1920 -H 1080 -s 1024 -d 12 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
-
-imports:
-  - { path: "../libraries/materials/concretes.yaml" }
-  - { path: "../libraries/materials/plasters.yaml" }
-  - { path: "../libraries/materials/stones.yaml" }
-  - { path: "../libraries/materials/weathering.yaml" }
-  - { path: "../libraries/materials/ceramics.yaml" }
 
 world:
   sky:
@@ -34,6 +27,118 @@ camera:
   fov: 50
 
 materials:
+
+  # ── BASE MATERIALS (inlined) ────────────────────────────────────────
+  - id: "dis_porcellana_bianca"
+    type: "disney"
+    color: [0.95, 0.93, 0.88]
+    roughness: 0.12
+    specular: 0.8
+    clearcoat: 0.4
+    coat_roughness: 0.10
+    coat_ior: 1.5
+
+  - id: "over_water_film"
+    type: "disney"
+    color: [0.92, 0.94, 0.96]
+    roughness: 0.05
+    specular: 0.50
+    clearcoat: 1.0
+    coat_roughness: 0.03
+    spec_trans: 0.3
+    ior: 1.33
+    transmission_color: [0.95, 0.96, 0.98]
+    transmission_depth: 0.05
+
+  - id: "dis_carrara_lucido"
+    type: "disney"
+    texture:
+      type: "marble"
+      scale: 2.4
+      colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 0.9
+      warp_iterations: 2
+      fold_amplitude: [0.8, 0.25, 0.45]
+      vein_layers: 2
+      vein_scale:  [1.0, 2.4]
+      vein_weight: [1.0, 0.50]
+      vein_thickness: 0.12
+      vein_softness: 0.07
+      color_variation: 0.08
+      randomize_offset: true
+    roughness: 0.10
+    clearcoat: 0.90
+    coat_roughness: 0.05
+    coat_ior: 1.5
+    specular: 0.72
+    spec_trans: 0.0
+
+  - id: "dis_cemento_bocciardato"
+    type: "disney"
+    color: [0.60, 0.59, 0.56]
+    roughness: 0.90
+    specular: 0.26
+    texture:
+      type: "voronoi"
+      scale: 8.0
+      output: "f2_minus_f1"
+      randomness: 1.0
+      colors: [[0.45, 0.44, 0.42], [0.70, 0.69, 0.66]]
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 16.0
+        output: "f1"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.006
+      midlevel: 0.5
+      bound: 0.010
+      autobump: true
+      autobump_strength: 1.5
+
+  - id: "dis_veneziano_blu"
+    type: "disney"
+    color: [0.18, 0.28, 0.45]
+    roughness: 0.18
+    specular: 0.48
+    clearcoat: 0.85
+    coat_roughness: 0.08
+    coat_ior: 1.5
+    texture:
+      type: "marble"
+      scale: 1.4
+      vein_axis: [1, 0, 0]
+      warp_amplitude: 0.8
+      warp_iterations: 2
+      fold_amplitude: [0.7, 0.30, 0.45]
+      vein_layers: 2
+      vein_scale:  [0.9, 2.0]
+      vein_weight: [1.0, 0.50]
+      vein_thickness: 0.32
+      vein_softness: 0.22
+      color_variation: 0.10
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.30, 0.42, 0.62], interp: "linear" }
+        - { position: 0.55, color: [0.15, 0.25, 0.42], interp: "smoothstep" }
+        - { position: 1.00, color: [0.05, 0.10, 0.20], interp: "linear" }
+
+  - id: "dis_asfalto_bagnato"
+    type: "disney"
+    color: [0.05, 0.05, 0.06]
+    roughness: 0.22
+    specular: 0.55
+    clearcoat: 0.6
+    coat_roughness: 0.12
+    coat_ior: 1.5
+    texture:
+      type: "noise"
+      scale: 5.0
+      noise_strength: 0.08
+      colors: [[0.04, 0.04, 0.05], [0.08, 0.08, 0.09]]
+      randomize_offset: true
 
   # ── MIX 1: Ceramica + film d'acqua ──────────────────────────────────
   - id: "mix_ceramica_bagnata"

@@ -50,10 +50,11 @@ Fog, mist, underwater haze, clouds, localized smoke. Four medium types
 (homogeneous, height fog, procedural Perlin fBm, 3D grid) and five phase
 functions (isotropic, HG, Rayleigh, double-HG, Schlick).
 
-### [10 -- Asset Libraries and Complete Scenes](./10-libraries-and-projects.md)
-The bundled library ecosystem: 800+ materials, 14 lighting setups plus
-emissive geometry-light presets, image textures, font templates, and terrain heightfields. CLI reference, project
-workflow, and a troubleshooting guide.
+### [10 -- Presets and Projects](./10-libraries-and-projects.md)
+The copy-paste preset catalogues under `scenes/presets/`: materials, lights,
+mediums, world/sky pairings, and terrain recipes, plus the binary assets
+(image textures, font templates, heightmaps) under `scenes/assets/`. CLI
+reference, project workflow, and a troubleshooting guide.
 
 ### [11 -- Surfaces of Revolution (Lathe)](./11-lathe-surface-of-revolution.md)
 The `lathe` primitive: spin a 2D profile around the Y axis to get an

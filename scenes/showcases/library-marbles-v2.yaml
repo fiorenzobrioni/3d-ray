@@ -16,9 +16,6 @@
 #    Finale: -w 1920 -H 1080 -s 2048 -d 12 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
-imports:
-  - { path: "../libraries/materials/stones.yaml" }
-
 world:
   sky:
     type: "flat"
@@ -34,6 +31,170 @@ materials:
     type: "disney"
     color: [0.28, 0.28, 0.30]
     roughness: 0.80
+
+  - id: "dis_carrara_studio"
+    type: "disney"
+    color: [0.95, 0.94, 0.92]
+    roughness: 0.32
+    specular: 0.50
+    spec_trans: 0.0
+    clearcoat: 0.55
+    coat_roughness: 0.10
+    coat_ior: 1.5
+    texture:
+      type: "marble"
+      scale: 2.4
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.05
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.28, 0.50]
+      vein_layers: 3
+      vein_scale:  [0.7, 1.7, 3.5]
+      vein_weight: [1.0, 0.65, 0.35]
+      vein_thickness: 0.14
+      vein_softness: 0.06
+      color_variation: 0.08
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.98, 0.97, 0.95], interp: "linear" }
+        - { position: 0.40, color: [0.92, 0.91, 0.88], interp: "smoothstep" }
+        - { position: 0.65, color: [0.78, 0.76, 0.72], interp: "smoothstep" }
+        - { position: 0.85, color: [0.42, 0.40, 0.38], interp: "smoothstep" }
+        - { position: 1.00, color: [0.08, 0.07, 0.07], interp: "linear" }
+
+  - id: "dis_calacatta_studio"
+    type: "disney"
+    color: [0.95, 0.92, 0.85]
+    roughness: 0.28
+    specular: 0.50
+    spec_trans: 0.0
+    clearcoat: 0.65
+    coat_roughness: 0.08
+    coat_ior: 1.5
+    texture:
+      type: "marble"
+      scale: 1.8
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.15
+      warp_iterations: 2
+      fold_amplitude: [0.95, 0.40, 0.55]
+      vein_layers: 3
+      vein_scale:  [0.65, 1.55, 3.4]
+      vein_weight: [1.0, 0.75, 0.45]
+      vein_thickness: 0.24
+      vein_softness: 0.10
+      color_variation: 0.10
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.98, 0.95, 0.88], interp: "linear" }
+        - { position: 0.30, color: [0.94, 0.88, 0.72], interp: "smoothstep" }
+        - { position: 0.55, color: [0.88, 0.72, 0.42], interp: "smoothstep" }
+        - { position: 0.78, color: [0.72, 0.48, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [0.18, 0.10, 0.05], interp: "linear" }
+
+  - id: "dis_arabescato_studio"
+    type: "disney"
+    color: [0.92, 0.90, 0.86]
+    roughness: 0.32
+    specular: 0.50
+    clearcoat: 0.55
+    coat_roughness: 0.10
+    coat_ior: 1.5
+    texture:
+      type: "marble"
+      scale: 1.7
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.5
+      warp_iterations: 3
+      fold_amplitude: [1.15, 0.55, 0.75]
+      vein_layers: 3
+      vein_scale:  [0.55, 1.4, 3.2]
+      vein_weight: [1.0, 0.8, 0.5]
+      vein_thickness: 0.36
+      vein_softness: 0.12
+      color_variation: 0.10
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.95, 0.93, 0.88], interp: "linear" }
+        - { position: 0.35, color: [0.78, 0.75, 0.70], interp: "smoothstep" }
+        - { position: 0.65, color: [0.50, 0.45, 0.42], interp: "smoothstep" }
+        - { position: 1.00, color: [0.10, 0.10, 0.12], interp: "linear" }
+
+  - id: "dis_breccia_aurora"
+    type: "disney"
+    color: [0.78, 0.62, 0.45]
+    roughness: 0.28
+    specular: 0.45
+    clearcoat: 0.55
+    coat_roughness: 0.10
+    coat_ior: 1.5
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      output: "random"
+      smoothness: 0.05
+      randomness: 1.0
+      color_ramp:
+        - { position: 0.00, color: [0.32, 0.18, 0.10], interp: "constant" }
+        - { position: 0.25, color: [0.62, 0.42, 0.22], interp: "constant" }
+        - { position: 0.50, color: [0.85, 0.65, 0.42], interp: "constant" }
+        - { position: 0.75, color: [0.92, 0.80, 0.55], interp: "constant" }
+        - { position: 1.00, color: [0.98, 0.92, 0.78], interp: "linear" }
+
+  - id: "dis_travertino_musgrave"
+    type: "disney"
+    color: [0.85, 0.72, 0.55]
+    roughness: 0.38
+    specular: 0.40
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "hybrid_multifractal"
+      octaves: 7
+      lacunarity: 2.0
+      gain: 0.5
+      fractal_increment: 0.6
+      fractal_offset: 0.8
+      noise_strength: 1.0
+      color_ramp:
+        - { position: 0.00, color: [0.32, 0.22, 0.10], interp: "smoothstep" }
+        - { position: 0.40, color: [0.62, 0.48, 0.30], interp: "smoothstep" }
+        - { position: 0.75, color: [0.82, 0.70, 0.52], interp: "smoothstep" }
+        - { position: 1.00, color: [0.95, 0.88, 0.72], interp: "linear" }
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 18.0
+        output: "f1"
+        smoothness: 0.1
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 1.6
+
+  - id: "dis_onice_musgrave_miele"
+    type: "disney"
+    color: [0.92, 0.65, 0.32]
+    subsurface_radius: [0.50, 0.35, 0.15]
+    roughness: 0.10
+    specular: 0.50
+    spec_trans: 0.65
+    ior: 1.486
+    transmission_color: [0.88, 0.55, 0.18]
+    transmission_depth: 0.3
+    clearcoat: 0.50
+    coat_roughness: 0.08
+    coat_ior: 1.5
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "hetero_terrain"
+      octaves: 6
+      fractal_increment: 0.7
+      fractal_offset: 0.6
+      noise_strength: 0.6
+      color_ramp:
+        - { position: 0.00, color: [0.45, 0.22, 0.08], interp: "smoothstep" }
+        - { position: 0.50, color: [0.78, 0.48, 0.18], interp: "smoothstep" }
+        - { position: 1.00, color: [0.96, 0.78, 0.42], interp: "linear" }
 
 entities:
 

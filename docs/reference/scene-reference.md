@@ -422,7 +422,7 @@ g: 0.6
 - **Photographic exposure:** `--exposure <EV>` (default `0`) applies a linear gain `2^EV` to every pixel before ACES tone mapping. Use negative EV (`-1`, `-2`) when the scene reads washed-out because the lights drive arriving radiance above ~2.0, where ACES flattens onto a 0.95-0.99 plateau and hides texture contrast. Positive EV brightens scenes that fall below the curve's linear range. Matches Arnold `exposure`, Cycles "Film → Exposure", RenderMan display-filter `exposure`.
 - **Light importance sampling:** `--light-sampling power` (default `all`) samples one light per NEE event with probability ∝ `ApproximatePower`. Dramatically reduces variance in scenes with many lights of mixed brightness (e.g. 1 area + 10 dim point lights). Use `uniform` as a reference baseline.
 
-#### **Mediums Library** (top-level `mediums:` block)
+#### **Named Mediums** (top-level `mediums:` block)
 
 Beyond the single `world.medium`, 3D-Ray exposes a top-level `mediums:` block where named participating media are declared once and bound to specific entities via `interior_medium` / `exterior_medium`. This is the foundation for:
 - **Subsurface scattering** (marble, skin, wax, jade, milk) — the SSS random-walk integrator activates automatically when an entity is bound to a `homogeneous` medium with `σ_s > 0`.
@@ -430,7 +430,7 @@ Beyond the single `world.medium`, 3D-Ray exposes a top-level `mediums:` block wh
 
 ```yaml
 mediums:
-  - id: marble_int                     # required when in the library block
+  - id: marble_int                     # required in the mediums block
     type: homogeneous                  # any of: homogeneous, height_fog, procedural, grid, atmosphere
     sigma_a: [0.0021, 0.0041, 0.0071]
     sigma_s: [2.19, 2.62, 3.00]
@@ -652,7 +652,7 @@ When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info me
 >    explicit `interior_medium`. Matches Arnold `standard_surface`
 >    `subsurface_type: randomwalk` and the Cycles Principled BSDF
 >    Subsurface section. See "Material-embedded SSS" below.
-> 2. **Entity-bound** — declare a `mediums:` library entry and bind it
+> 2. **Entity-bound** — declare a `mediums:` block entry and bind it
 >    via `interior_medium` on the entity. Maximum control, two entities
 >    with the same material can have different volumes.
 >
@@ -779,7 +779,7 @@ entities:
 phase = HG(g = subsurface_anisotropy)        # isotropic when g ≈ 0
 ```
 
-The resulting `HomogeneousMedium` is anonymous (no library `id`) and
+The resulting `HomogeneousMedium` is anonymous (no `mediums:` `id`) and
 lives only for the lifetime of the scene.
 
 **Auto-defaults on the surface.** For the transmission lobe to emit the
@@ -807,7 +807,7 @@ one slab, frosted marble — different σ — in another).
 - Non-Disney material types (`lambertian`, `metal`, `dielectric`) —
   they do not emit `MediumTransition.Enter` and cannot push a medium.
 
-Use the entity-bound path (top-level `mediums:` library +
+Use the entity-bound path (top-level `mediums:` block +
 `interior_medium`) when you need explicit shared volumes, when two
 entities must use different volumes for the same surface look, or when
 the volume is heterogeneous (`procedural` / `grid` / `nishita`).
@@ -1158,9 +1158,10 @@ texture:
 #### **Production-quality marble & wood — recipe book**
 
 The studio-quality knobs interact non-trivially with the BSDF and the
-lighting setup. The recipes below come from the
-`library-marble-wood.yaml` reference scene; copy the matching
-snippet and tweak the colour ramp to ship a credible material in minutes.
+lighting setup. The recipes below are collected in the
+`scenes/presets/materials-stone.md` and `materials-wood.md` preset
+catalogues; copy the matching snippet and tweak the colour ramp to ship a
+credible material in minutes.
 
 > **Lighting checklist before tuning a marble.** A polished marble at
 > `roughness < 0.2` becomes a near-mirror that reflects the environment
@@ -1420,9 +1421,10 @@ ring band gradient, position 1 is the brightest sapwood.
 A pre-baked catalogue of these recipes — Carrara, Calacatta, Statuario,
 Arabescato, Port Laurent, Rosso Levanto + oak quartersawn, curly maple,
 flame mahogany, knotty pine, bird's-eye maple, walnut burl, frassino
-quartersawn, fir knotty — ships in
-`scenes/libraries/materials/stones.yaml` and `woods.yaml` under the
-`_studio` suffix. Import once and reference by id.
+quartersawn, fir knotty — ships as copy-paste presets in
+`scenes/presets/materials-stone.md` and `materials-wood.md` under the
+`_studio` suffix. Copy the recipe into your scene's `materials:` block and
+reference it by id.
 
 **Voronoi / Worley (cellular):**
 ```yaml
@@ -1701,8 +1703,8 @@ Annulus, Torus, Capsule, Lathe, Triangle, SmoothTriangle, and
 InfinitePlane (i.e. all of them).
 
 The killer advantage over `normal_map` is **procedural input**: infinite
-resolution, no asset to ship, full reuse of the existing texture library
-(noise/marble/wood/voronoi/brick/gradient).
+resolution, no asset to ship, full reuse of the existing procedural
+texture types (noise/marble/wood/voronoi/brick/gradient).
 
 #### **Surface Displacement (Material-Level — Cycles/RenderMan parity)**
 
@@ -1791,9 +1793,7 @@ material's surface shading without the geometric displacement.
 > Adaptive subdivision keeps the cost proportional to the on-screen size:
 > background spheres stay coarse, foreground ones refine automatically.
 > Use the fixed-iteration form (`subdivision_iterations: N`) only for
-> deterministic CI / regression renders. All `scenes/showcases/library-*.yaml`
-> files demonstrating a material library use this pattern (see e.g.
-> `library-concretes.yaml`, `library-leathers.yaml`, `stones-…`).
+> deterministic CI / regression renders.
 
 **Composition order.** When all three perturbations are present the
 engine combines them in the order Arnold/Cycles use:
@@ -2089,7 +2089,7 @@ primitive replaces an entire tessellated terrain mesh.
   type: "heightfield"
   bounds: [-50, -50, 50, 50]
   height_scale: 25
-  heightmap_path: "libraries/terrain/myterrain-height.png"
+  heightmap_path: "assets/heightmaps/myterrain-height.png"
   sea_level: 7.5
   sea_material: "water"
   strata:
@@ -2602,17 +2602,17 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 | Sphere (small) | 20–50 | Radius 0.1–0.3 |
 | Sphere (large) | 15–40 | Radius 0.5–1.5 |
 ---
-### 9. **IMPORTS** — Modular Libraries
+### 9. **IMPORTS** — Reusing Scene Fragments
 ```yaml
 imports:
-  - path: "libraries/materials/metals.yaml"
-  - path: "libraries/lights/studio-3point.yaml"
-  - path: "libraries/objects/chess.yaml"
+  - path: "assets/fonts/font-roboto.yaml"
+  - path: "fragments/studio-3point.yaml"
 ```
 - **Order:** Must be first section (before templates/world)
 - **Paths:** Relative to the YAML file directory
 - **Cyclic protection:** Automatic cycle detection
-- **Merge:** All imported materials/templates/lights available to main scene
+- **Merge:** All imported materials/templates/lights are available to the main scene; local ids override imported ones
+- **Typical use:** Pull in generated font templates (`assets/fonts/font-<x>.yaml` from `FontGen`) or your own reusable scene fragments. For ready-made materials, lights, mediums, terrains and skies, copy the recipes from the preset catalogues in `scenes/presets/*.md` directly into your scene instead.
 ---
 ### 10. **FILE STRUCTURE EXAMPLE**
 Here's a complete minimal scene:
@@ -2678,7 +2678,7 @@ entities:
   - `07-sky-environment-camera.md` — Sky, environment and camera
   - `08-csg.md` — CSG boolean operations
   - `09-volumetrics.md` — Participating media and volumetrics
-  - `10-libraries-and-projects.md` — Imports, libraries and modularity
+  - `10-libraries-and-projects.md` — Presets, imports and modularity
   - `11-lathe-surface-of-revolution.md` — Lathe / surface of revolution
   - `12-extrusion-2d-profiles.md` — Linear extrusion of 2D profiles
 **Source Code (Scene Parsing):**
@@ -2691,7 +2691,8 @@ entities:
 - `/scenes/cornell-box.yaml` — Classic Cornell Box with variants
 - `/scenes/pendolo-newton.yaml` — Complex scene (Newton's pendulum)
 - `/scenes/showcases/` — Feature-specific demonstrations
-- `/scenes/libraries/` — Reusable materials, lights, objects, templates
+- `/scenes/presets/` — Copy-paste preset catalogues (materials, lights, mediums, terrains, sky, world)
+- `/scenes/assets/` — Binary assets: `textures/`, `fonts/`, `heightmaps/`
 ---
 ### 12. **BEST PRACTICES FOR HIGH-QUALITY SCENES**
 1. **Material Strategy:**
@@ -2710,7 +2711,7 @@ entities:
    - Test with low resolution + Preview profile first (`-w 400 -H 267 -s 64 -d 4 -S 1`)
 4. **Performance Optimization:**
    - Use templates + instances for repeated objects
-   - Import shared materials/lights from libraries
+   - Copy shared materials/lights from the preset catalogues in `scenes/presets/`
    - Batch similar geometries into groups for cleaner hierarchies
    - BVH builds automatically for complex scenes
 5. **Texture Sourcing:**

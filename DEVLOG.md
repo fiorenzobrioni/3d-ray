@@ -6,6 +6,38 @@ Roadmap, lavori in corso, bug noti, storico cicli.
 
 ---
 
+## Ciclo Preset & Assets ✅
+
+Riarchitettura della gestione dei materiali/luci/mediums condivisi: **cataloghi di
+preset copia-incolla** sotto `scenes/presets/` (`materials-*.md`, `lights.md`,
+`mediums.md`, `terrains.md`, `world.md`, `sky.md` + `README.md` indice). Ogni
+catalogo segue un'anatomia fissa — schema di riferimento, blocchi
+`materials:`/`lights:`/`mediums:` pronti da incollare con razionale, matrice
+decisionale, CLI tips — con curazione "pochi e corretti". Le risorse binarie
+(texture, font, heightmap) vivono sotto `scenes/assets/{textures,fonts,heightmaps}/`;
+i tool `TextureGen`, `NormalMapGen`, `FontGen`, `TerrainGen` scrivono lì.
+
+**Fix di correttezza marmi (motore).** `MaterialData.SpecTrans` è ora `float?`
+(nullable). L'auto-promozione SSS in `SceneLoader.ApplyEmbeddedSssDefaults`
+(`spec_trans → 1.0` quando un materiale ha `subsurface_radius`) scatta solo se il
+valore non è autorato: uno `spec_trans: 0` esplicito è rispettato. Prima un marmo
+lucido opaco con `subsurface_radius` veniva reso silenziosamente trasmissivo
+(vetroso); ora i preset di marmo opaco usano `clearcoat` + `spec_trans: 0`
+esplicito, mentre onice/alabastro autorano `spec_trans`+`transmission_*`.
+
+**Migrazione.** Tutte le scene e gli showcase sono self-contained (materiali/luci/
+mediums inline-ati, path binari ripuntati a `assets/`); nessuno showcase rimosso.
+Skill `create-preset` per generare/estendere i cataloghi.
+
+**Test.** `EmbeddedSssSpecTransTests` (nuovo) — `spec_trans: 0` esplicito non
+promosso, assenza promossa a 1.0, valore frazionario preservato. Suite verde.
+
+**File principali.** `Scene/SceneData.cs`, `Scene/SceneLoader.cs`,
+`src/Tools/{TextureGen,NormalMapGen,FontGen,TerrainGen}`, `scenes/presets/*`,
+`scenes/assets/*`, doc EN+IT.
+
+---
+
 ## Ciclo Hardening SSS / MediumInterface / volumetria ✅
 
 Review mirata di subsurface scattering (random walk), medium-interface/stack e volumetria correlata, con fix di correttezza e un'ottimizzazione di prestazioni a qualità invariata. (Diversi "bug" sospettati in fase di review sono stati **scartati come falsi positivi** dopo verifica: l'hero-wavelength MIS spettrale è corretto e non biased; la RR max-canale è la scelta *conservativa*; l'early-exit del ratio tracking scatta solo quando tutti i canali sono <1e-5; i guard div-by-zero/clamp canale sono solo difensivi.)

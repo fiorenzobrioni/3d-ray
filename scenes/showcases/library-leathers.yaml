@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  Leathers Showcase — Pelli
 #
-#  Dimostra 5 pelli della libreria `leathers.yaml`, ciascuna scelta per
+#  Dimostra 5 pelli, ciascuna scelta per
 #  esibire una feature differente del Disney BSDF:
 #
 #    x=-4.8  Nappa rossa                → subsurface_color + sheen
@@ -18,9 +18,6 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 10 -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
-imports:
-  - { path: "../libraries/materials/leathers.yaml" }
-
 world:
   sky:
     type: "flat"
@@ -32,6 +29,134 @@ camera:
   fov: 50
 
 materials:
+
+  - id: "dis_nappa_rossa"
+    type: "disney"
+    color: [0.62, 0.10, 0.08]
+    roughness: 0.58
+    specular: 0.40
+    sheen: 0.25
+    sheen_roughness: 0.6
+    sheen_tint: 0.3
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.08
+      colors: [[0.56, 0.08, 0.06], [0.68, 0.12, 0.10]]
+      randomize_offset: true
+
+  - id: "dis_suede_tabacco"
+    type: "disney"
+    color: [0.45, 0.30, 0.18]
+    roughness: 0.95
+    specular: 0.14
+    sheen: 0.85
+    sheen_roughness: 0.85
+    sheen_tint: 0.5
+    texture:
+      type: "noise"
+      scale: 4.0
+      noise_strength: 0.18
+      colors: [[0.38, 0.24, 0.14], [0.52, 0.36, 0.22]]
+      randomize_offset: true
+
+  - id: "dis_pelle_pitone_naturale"
+    type: "disney"
+    color: [0.72, 0.66, 0.52]
+    roughness: 0.55
+    specular: 0.42
+    clearcoat: 0.4
+    coat_roughness: 0.15
+    coat_ior: 1.5
+    texture:
+      type: "voronoi"
+      scale: 14.0
+      output: "random"
+      randomness: 1.0
+      smoothness: 0.05
+      colors: [[0.18, 0.14, 0.10], [0.86, 0.80, 0.64]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 14.0
+        output: "f2_minus_f1"
+        colors: [[0.30, 0.30, 0.30], [0.70, 0.70, 0.70]]
+      strength: 1.4
+
+  - id: "dis_pelle_vintage_marrone"
+    type: "disney"
+    color: [0.42, 0.26, 0.16]
+    roughness: 0.45
+    specular: 0.40
+    texture:
+      type: "noise"
+      scale: 1.8
+      noise_type: "fbm"
+      octaves: 5
+      noise_strength: 0.8
+      distortion: 0.2
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.18, 0.10, 0.06], interp: "smoothstep" }
+        - { position: 0.35, color: [0.36, 0.20, 0.12], interp: "smoothstep" }
+        - { position: 0.70, color: [0.55, 0.36, 0.22], interp: "smoothstep" }
+        - { position: 1.00, color: [0.72, 0.52, 0.32], interp: "linear" }
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 60.0
+        smoothness: 0.3
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.7
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "noise"
+        scale: 25.0
+        noise_type: "fbm"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.0015
+      midlevel: 0.5
+      bound: 0.003
+      autobump: true
+      autobump_strength: 1.3
+      displacement_method: "bump_only"
+
+  - id: "dis_pelle_coccodrillo_nero"
+    type: "disney"
+    color: [0.06, 0.06, 0.06]
+    roughness: 0.45
+    specular: 0.45
+    clearcoat: 0.5
+    coat_roughness: 0.10
+    coat_ior: 1.5
+    texture:
+      type: "voronoi"
+      scale: 6.0
+      output: "random"
+      randomness: 1.0
+      smoothness: 0.02
+      colors: [[0.04, 0.04, 0.04], [0.12, 0.10, 0.08]]
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 6.0
+        output: "f2_minus_f1"
+        colors: [[0.25, 0.25, 0.25], [0.75, 0.75, 0.75]]
+      strength: 1.8
+    displacement:
+      mode: "scalar"
+      texture:
+        type: "voronoi"
+        scale: 6.0
+        output: "f1"
+        colors: [[0, 0, 0], [1, 1, 1]]
+      scale: 0.003
+      midlevel: 0.5
+      bound: 0.006
+      autobump: true
+      autobump_strength: 1.4
+      displacement_method: "bump_only"
 
   - id: "floor"
     type: "disney"

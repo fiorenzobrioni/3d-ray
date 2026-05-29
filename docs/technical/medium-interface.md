@@ -2,9 +2,9 @@
 
 ## Ownership model
 
-A `MediumInterface` is an immutable value `struct { IMedium? Interior; IMedium? Exterior }` carried on an entity. The loader resolves the YAML `interior_medium` / `exterior_medium` IDs against the global `mediums:` library and wraps the entity's final `IHittable` in a `MediumBoundHittable` decorator. The decorator's only job is to stamp `rec.MediumIface` and `rec.EntityRoot` on every hit it forwards to the path tracer.
+A `MediumInterface` is an immutable value `struct { IMedium? Interior; IMedium? Exterior }` carried on an entity. The loader resolves the YAML `interior_medium` / `exterior_medium` IDs against the scene's named `mediums:` block and wraps the entity's final `IHittable` in a `MediumBoundHittable` decorator. The decorator's only job is to stamp `rec.MediumIface` and `rec.EntityRoot` on every hit it forwards to the path tracer.
 
-Media live in **one** place — the `mediums:` library `Dictionary<string,IMedium>` built by `SceneLoader`. Entities carry **references** (string IDs) into it. The same `marble_int` medium can therefore back many bodies of marble, all sharing the same σ-coefficients but living in independent geometric volumes.
+Media live in **one** place — the `Dictionary<string,IMedium>` built by `SceneLoader` from the named `mediums:` block. Entities carry **references** (string IDs) into it. The same `marble_int` medium can therefore back many bodies of marble, all sharing the same σ-coefficients but living in independent geometric volumes. For ready-to-paste `mediums:` blocks see `scenes/presets/mediums.md`.
 
 Materials never own media. Coupling a shading model to scene topology would bind the YAML schema to specific binding strategies; instead, the BSDF emits a `MediumTransition` token (`None` / `Enter` / `Exit`) on transmission events, and the path tracer interprets the token in light of the local entity's `MediumInterface`.
 

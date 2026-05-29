@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  Synthetics Showcase — Materiali Tecnici Avanzati
 #
-#  Dimostra 5 materiali della libreria `synthetics.yaml`:
+#  Dimostra 5 materiali tecnici avanzati:
 #
 #    x=-4.8  Fibra di carbonio twill    → anisotropic 0.85 + clearcoat 0.95
 #    x=-2.4  Kevlar giallo               → anisotropic + sheen weave
@@ -14,9 +14,6 @@
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
 # ═══════════════════════════════════════════════════════════════════════════
 
-imports:
-  - { path: "../libraries/materials/synthetics.yaml" }
-
 world:
   sky:
     type: "flat"
@@ -28,6 +25,80 @@ camera:
   fov: 50
 
 materials:
+
+  - id: "dis_carbonio_twill"
+    type: "disney"
+    color: [0.04, 0.04, 0.05]
+    roughness: 0.20
+    specular: 0.50
+    anisotropic: 0.85
+    anisotropic_rotation: 0.125
+    clearcoat: 0.95
+    coat_roughness: 0.05
+    coat_ior: 1.5
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 60.0
+        output: "random"
+        smoothness: 0.05
+        randomness: 0.4
+        colors: [[0.35, 0.35, 0.35], [0.65, 0.65, 0.65]]
+      strength: 0.6
+
+  - id: "dis_kevlar_giallo"
+    type: "disney"
+    color: [0.95, 0.78, 0.18]
+    roughness: 0.65
+    specular: 0.32
+    anisotropic: 0.60
+    anisotropic_rotation: 0.0
+    sheen: 0.30
+    sheen_roughness: 0.6
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 60.0
+        output: "random"
+        randomness: 0.3
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.6
+
+  - id: "dis_silicone_medicale"
+    type: "disney"
+    color: [0.94, 0.92, 0.90]
+    roughness: 0.25
+    specular: 0.45
+    spec_trans: 0.25
+    ior: 1.41
+    transmission_color: [0.95, 0.92, 0.88]
+    transmission_depth: 0.5
+
+  - id: "dis_vinile_chrome_rosa"
+    type: "disney"
+    metallic: 1.0
+    color: [0.95, 0.62, 0.78]
+    roughness: 0.05
+    specular: 0.6
+    clearcoat: 0.9
+    coat_roughness: 0.04
+    coat_ior: 1.5
+
+  - id: "dis_neoprene_foderato"
+    type: "disney"
+    color: [0.06, 0.06, 0.06]
+    roughness: 0.78
+    specular: 0.22
+    sheen: 0.40
+    sheen_roughness: 0.7
+    bump_map:
+      texture:
+        type: "voronoi"
+        scale: 90.0
+        output: "random"
+        smoothness: 0.2
+        colors: [[0.40, 0.40, 0.40], [0.60, 0.60, 0.60]]
+      strength: 0.5
 
   - id: "floor"
     type: "disney"
