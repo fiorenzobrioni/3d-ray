@@ -10,8 +10,8 @@
 #    LEFT  (x<0)  Terreno PROCEDURALE — Musgrave hetero_terrain.
 #                 La quota viene campionata da una noise texture e
 #                 risolta on-the-fly al primo hit.
-#    RIGHT (x>0)  Terreno HEIGHTMAP  — heightmap PNG 16-bit dalla
-#                 libreria `scenes/libraries/terrains/`, risoluzione
+#    RIGHT (x>0)  Terreno HEIGHTMAP  — heightmap PNG 16-bit da
+#                 `scenes/assets/heightmaps/`, risoluzione
 #                 naturale del PNG.
 #
 #  Riferimenti: `docs/technical/heightfield.md`. Per generare nuovi
@@ -104,6 +104,6 @@ entities:
     height_scale: 18
     height_texture:
       type: "image"
-      path: "../libraries/terrains/heightfield-strata-test-height.png"
+      path: "../assets/heightmaps/heightfield-strata-test-height.png"
       colors: [[0, 0, 0], [1, 1, 1]]
     material: "roccia_scura"

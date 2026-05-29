@@ -1,7 +1,7 @@
 # ═════════════════════════════════════════════════════════════════════════════
 #  3D-RAY Logo — Hero Showcase v2 (production-grade ground + 3-point pro)
 # ═════════════════════════════════════════════════════════════════════════════
-#  Restyling 2026 — restyling fotorealistico con materiali da library, palco
+#  Restyling 2026 — restyling fotorealistico con materiali inline, palco
 #  marmo riflettente, sfera cristallo zaffiro, chrome reposizionato, sky
 #  Preetham golden hour e illuminazione 3-point area-light cinematografica.
 #
@@ -22,7 +22,7 @@
 #
 #  Feature `world.ground` esercitate:
 #   ─ type dispatch `quad` con size 30 (palco marmo finito)
-#   ─ material di library risolto per ID
+#   ─ material inline risolto per ID
 #   ─ uv_scale per fitting del pattern marmo
 #
 #  Profili rendering (CLI):
@@ -32,11 +32,7 @@
 # ═════════════════════════════════════════════════════════════════════════════
 
 imports:
-  - path: "libraries/fonts/font-open-sans.yaml"
-  - path: "libraries/materials/metals.yaml"
-  - path: "libraries/materials/stones.yaml"
-  - path: "libraries/materials/woods.yaml"
-  - path: "libraries/materials/ceramics.yaml"
+  - path: "assets/fonts/font-open-sans.yaml"
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  WORLD — Preetham golden hour + ground marmo + leggera foschia
@@ -143,8 +139,7 @@ lights:
     visible_to_camera: false
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  MATERIALS — fallback font, sfere cristallo (limpido + zaffiro), chrome
-#  I materiali delle lettere arrivano dagli `imports:` sopra.
+#  MATERIALS — tutti inline (lettere, sfere cristallo, chrome, ground marmo)
 # ═════════════════════════════════════════════════════════════════════════════
 materials:
 
@@ -152,6 +147,92 @@ materials:
   - id: "font_material"
     type: "lambertian"
     color: [0.60, 0.60, 0.62]
+
+  # ─── Lettere ──────────────────────────────────────────────────────────────
+  #   "3" oro lucido / "A" argento brunito (metalli)
+  - id: "dis_oro_lucido"
+    type: "disney"
+    color: [1.0, 0.71, 0.29]
+    metallic: 1.0
+    roughness: 0.05
+    specular: 0.8
+
+  - id: "dis_argento_brunito"
+    type: "disney"
+    color: [0.50, 0.48, 0.46]
+    metallic: 0.92
+    roughness: 0.25
+    specular: 0.6
+    specular_tint: 0.2
+
+  # "D" marmo Carrara lucido (opaco: spec_trans 0.0, no SSS)
+  - id: "dis_carrara_studio_lucido"
+    type: "disney"
+    spec_trans: 0.0
+    roughness: 0.10
+    clearcoat: 0.90
+    coat_roughness: 0.05
+    coat_ior: 1.5
+    specular: 0.72
+    texture:
+      type: "marble"
+      scale: 2.4
+      vein_axis: [0, 1, 0]
+      warp_amplitude: 1.05
+      warp_iterations: 2
+      fold_amplitude: [0.85, 0.28, 0.50]
+      vein_layers: 3
+      vein_scale:  [0.7, 1.7, 3.5]
+      vein_weight: [1.0, 0.65, 0.35]
+      vein_thickness: 0.14
+      vein_softness: 0.06
+      color_variation: 0.08
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.98, 0.97, 0.95], interp: "linear" }
+        - { position: 0.40, color: [0.92, 0.91, 0.88], interp: "smoothstep" }
+        - { position: 0.65, color: [0.78, 0.76, 0.72], interp: "smoothstep" }
+        - { position: 0.85, color: [0.42, 0.40, 0.38], interp: "smoothstep" }
+        - { position: 1.00, color: [0.08, 0.07, 0.07], interp: "linear" }
+
+  # "R" mogano flame studio (figure 1.6 + ramp 3-stop)
+  - id: "dis_mogano_flame_studio"
+    type: "disney"
+    texture:
+      type: "wood"
+      scale: 4.8
+      grain_strength: 0.40
+      latewood_width: 0.16
+      ring_sharpness: 4.5
+      ring_color_variation: 0.14
+      ring_width_variation: 0.10
+      warp_amplitude: 0.50
+      figure_strength: 1.6
+      figure_scale: 0.11
+      figure_aspect: 6.0
+      heartwood_radius: 1.2
+      heartwood_blend: 0.12
+      octaves: 5
+      randomize_offset: true
+      randomize_rotation: true
+      color_ramp:
+        - { position: 0.00, color: [0.20, 0.06, 0.03], interp: "smoothstep" }
+        - { position: 0.50, color: [0.50, 0.18, 0.10], interp: "smoothstep" }
+        - { position: 1.00, color: [0.74, 0.36, 0.22], interp: "linear" }
+    roughness: 0.28
+    specular: 0.52
+    clearcoat: 0.78
+    coat_roughness: 0.08
+
+  # "Y" porcellana bianca (ceramica)
+  - id: "dis_porcellana_bianca"
+    type: "disney"
+    color: [0.95, 0.93, 0.88]
+    roughness: 0.12
+    specular: 0.8
+    clearcoat: 0.4
+    coat_roughness: 0.10
+    coat_ior: 1.5
 
   # ─── Ground: Calacatta Gold maestoso — vetrina della patch 2 marble ───────
   # Esercita TUTTE le feature pro nel use case naturale del pavimento lucido:

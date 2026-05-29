@@ -38,7 +38,7 @@ world:
     type: "heightfield"
     bounds:        [-50, -50, 50, 50]                # 100×100 m
     height_scale:  25                                # picchi fino a 25 m
-    heightmap_path: "../libraries/terrains/heightfield-strata-test-height.png"
+    heightmap_path: "../assets/heightmaps/heightfield-strata-test-height.png"
     sea_level:     7.5                               # quota lago glaciale
     sea_material:  "water_alpine"                    # mat definito sotto
     material:      "rock_dark"                       # fallback (oltre strata)
@@ -81,17 +81,12 @@ cameras:
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  MATERIALS — strata + acqua glaciale
-#  I 3 materiali strata (sand / grass / snow) sono ridefiniti inline per
-#  autosufficienza dello showcase. Le versioni "library" equivalenti vivono
-#  in scenes/libraries/materials/grounds.yaml con gli stessi ID.
+#  Tutti i materiali sono definiti inline per autosufficienza dello showcase.
 # ═════════════════════════════════════════════════════════════════════════════
 
 materials:
 
   # ─── Sand / grass / snow / rock dei strata ────────────────────────────────
-  # Importo SOLO i 3 ID library necessari (riuso la grounds library minimal).
-  # I file completi sono in scenes/libraries/materials/grounds.yaml — qui
-  # ne ridefinisco l'essenziale inline per autosufficienza dello showcase.
 
   - id: "dis_sabbia_desertica"
     type: "disney"

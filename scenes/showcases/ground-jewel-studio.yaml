@@ -18,11 +18,6 @@
 #   ─ Final     : -w 1920 -H 1080 -s 1536 -d 10 -S 6 -C 25 --sampler sobol
 # ═════════════════════════════════════════════════════════════════════════════
 
-imports:
-  - path: "../libraries/materials/metals.yaml"
-  - path: "../libraries/materials/ceramics.yaml"
-  - path: "../libraries/materials/minerals-gems.yaml"
-
 world:
   # ── Sky: flat presso-nero come "infinito di studio" ───────────────────────
   sky:
@@ -57,7 +52,7 @@ cameras:
     fov: 60
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  MATERIALS — solo i 2 emissivi locali; il resto arriva dagli imports
+#  MATERIALS — tutti inline per autosufficienza dello showcase
 # ═════════════════════════════════════════════════════════════════════════════
 materials:
 
@@ -66,6 +61,61 @@ materials:
     type: "emissive"
     color: [1.00, 0.78, 0.45]
     intensity: 25
+
+  # ─── Hero: oro lucido ─────────────────────────────────────────────────────
+  - id: "dis_oro_lucido"
+    type: "disney"
+    color: [1.0, 0.71, 0.29]
+    metallic: 1.0
+    roughness: 0.05
+    specular: 0.8
+
+  # ─── Gemme cristalline (translucenti: spec_trans + subsurface_radius) ──────
+  - id: "dis_quarzo_rosa"
+    type: "disney"
+    color: [0.95, 0.78, 0.78]
+    subsurface_radius: [0.60, 0.45, 0.40]
+    roughness: 0.08
+    specular: 0.50
+    spec_trans: 0.85
+    ior: 1.544
+    transmission_color: [0.92, 0.70, 0.72]
+    transmission_depth: 0.8
+
+  - id: "dis_ametista_grezza"
+    type: "disney"
+    color: [0.55, 0.32, 0.78]
+    subsurface_radius: [0.20, 0.08, 0.40]
+    roughness: 0.08
+    specular: 0.55
+    spec_trans: 0.95
+    ior: 1.544
+    transmission_color: [0.40, 0.18, 0.65]
+    transmission_depth: 0.7
+    texture:
+      type: "noise"
+      scale: 2.5
+      noise_type: "fbm"
+      octaves: 4
+      noise_strength: 0.3
+      randomize_offset: true
+      color_ramp:
+        - { position: 0.00, color: [0.28, 0.12, 0.45], interp: "smoothstep" }
+        - { position: 0.50, color: [0.55, 0.32, 0.78], interp: "smoothstep" }
+        - { position: 1.00, color: [0.78, 0.55, 0.92], interp: "linear" }
+
+  - id: "dis_calcite_islandese"
+    type: "disney"
+    color: [0.98, 0.98, 0.96]
+    roughness: 0.05
+    specular: 0.50
+    spec_trans: 0.95
+    ior: 1.486
+    transmission_color: [0.98, 0.98, 0.97]
+    transmission_depth: 2.0
+    clearcoat: 0.4
+    coat_ior: 1.658
+    coat_roughness: 0.05
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  LIGHTS — Studio 3-point (key calda, fill fredda, rim emissivo dietro)

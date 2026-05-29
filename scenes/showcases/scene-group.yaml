@@ -2,18 +2,12 @@
 # Group & Template Showcase
 # ============================================================================
 # Dimostra:
-#   - Import di librerie esterne (materiali, luci)
 #   - Template: definisci una volta, istanzia N volte
 #   - Transform su template (posa di default) + transform su instance
 #   - Override materiale per-istanza
 #   - Gruppi con figli CSG e annidamento ricorsivo
 #   - Emissivi dentro gruppi per NEE
 # ============================================================================
-
-imports:
-  - path: "../libraries/materials/metals.yaml"
-  - path: "../libraries/materials/ceramics.yaml"
-  - path: "../libraries/lights/studio-3point.yaml"
 
 world:
   sky:
@@ -86,6 +80,100 @@ materials:
     type: "disney"
     color: [0.05, 0.05, 0.05]
     roughness: 0.8
+
+  # ─── Metalli (inline, autosufficienti) ────────────────────────────────────
+  - id: "dis_ferro_battuto"
+    type: "disney"
+    color: [0.30, 0.28, 0.26]
+    metallic: 0.85
+    roughness: 0.62
+    specular: 0.35
+
+  - id: "dis_acciaio_spazzolato"
+    type: "disney"
+    color: [0.54, 0.53, 0.51]
+    metallic: 1.0
+    roughness: 0.38
+    specular: 0.55
+    anisotropic: 0.85
+    anisotropic_rotation: 0.0
+
+  - id: "dis_bronzo_satinato"
+    type: "disney"
+    color: [0.72, 0.45, 0.20]
+    metallic: 1.0
+    roughness: 0.28
+    specular: 0.55
+
+  # ─── Ceramiche (inline, autosufficienti) ──────────────────────────────────
+  - id: "dis_porcellana_bianca"
+    type: "disney"
+    color: [0.95, 0.93, 0.88]
+    roughness: 0.12
+    specular: 0.8
+    clearcoat: 0.4
+    coat_roughness: 0.10
+    coat_ior: 1.5
+
+  - id: "dis_porcellana_blu"
+    type: "disney"
+    color: [0.10, 0.15, 0.55]
+    roughness: 0.10
+    specular: 0.85
+    clearcoat: 0.5
+    coat_roughness: 0.08
+    coat_ior: 1.5
+
+  - id: "dis_porcellana_nera"
+    type: "disney"
+    color: [0.03, 0.03, 0.04]
+    roughness: 0.06
+    specular: 0.9
+    clearcoat: 0.6
+    coat_roughness: 0.05
+    coat_ior: 1.5
+
+  - id: "dis_celadon_classico"
+    type: "disney"
+    color: [0.45, 0.62, 0.48]
+    roughness: 0.12
+    specular: 0.75
+    clearcoat: 0.5
+    coat_roughness: 0.10
+    coat_ior: 1.5
+
+  - id: "dis_raku_rame"
+    type: "disney"
+    color: [0.65, 0.35, 0.18]
+    roughness: 0.28
+    metallic: 0.55
+    specular: 0.7
+    specular_tint: 0.6
+
+# ============================================================================
+# LIGHTS: studio 3-point (key area calda, fill area fredda, rim point caldo)
+# ============================================================================
+lights:
+  - type: "area"
+    corner: [-4.0, 4.0, -2.0]
+    u: [2.0, 0.0, 0.0]
+    v: [0.0, 0.0, 2.0]
+    color: [1.0, 0.96, 0.90]
+    intensity: 45.0
+
+  - type: "area"
+    corner: [3.0, 3.0, -1.5]
+    u: [1.2, 0.0, 0.0]
+    v: [0.0, 0.0, 1.2]
+    color: [0.72, 0.82, 1.0]
+    intensity: 15.0
+    shadow_samples: 9
+
+  - type: "point"
+    position: [1.0, 4.5, 4.5]
+    color: [1.0, 0.97, 0.88]
+    intensity: 55.0
+    soft_radius: 0.12
 
 # ============================================================================
 # TEMPLATE: definiti una volta, usati N volte sotto

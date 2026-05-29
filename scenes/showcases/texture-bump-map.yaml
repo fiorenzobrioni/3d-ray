@@ -94,7 +94,7 @@ materials:
     bump_map:
       texture:
         type: "image"
-        path: "../libraries/textures/concrete.png"
+        path: "../assets/textures/concrete.png"
         uv_scale: [2, 2]
       strength: 1.0
       scale: 1.0
