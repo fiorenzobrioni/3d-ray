@@ -1325,6 +1325,12 @@ public partial class Renderer
                 Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
                                ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
 
+                // The contribution is wNee · lightColor · brdf · Tr. When the
+                // BRDF integrand is zero (light below the shading hemisphere,
+                // delta lobe), the sample adds nothing — skip the medium
+                // transmittance walk and the BSDF-pdf MIS evaluation entirely.
+                if (brdf == Vector3.Zero) continue;
+
                 Vector3 Tr = Vector3.One;
                 if (shadowMedium != null)
                 {
@@ -1371,6 +1377,11 @@ public partial class Renderer
 
                     Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
                                    ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
+
+                    // Zero integrand (light below the hemisphere / delta lobe) →
+                    // the sample contributes nothing; skip the medium walk and
+                    // the BSDF-pdf MIS evaluation. See the single-light branch.
+                    if (brdf == Vector3.Zero) continue;
 
                     Vector3 Tr = Vector3.One;
                     if (shadowMedium != null)
