@@ -165,25 +165,13 @@ public sealed class HeightField : IHittable
         // closest — but we re-check tHit < terrainT defensively because a
         // single cell's bisection interval may straddle a level-boundary
         // grazing case where the next cell starts at a slightly smaller t.
-        bool terrainFound = false;
-        float terrainT = float.PositiveInfinity;
         float traversalTMax = tMax;
 
-        _accel.TraverseRay(ray, tMin, tMax,
-            (int cellX, int cellZ, float cellTEnter, float cellTExit, out float newTMax) =>
-            {
-                newTMax = traversalTMax;
-                if (TryBisectCell(ray, cellX, cellZ, cellTEnter, cellTExit, out float tHit)
-                    && tHit < terrainT)
-                {
-                    terrainT = tHit;
-                    terrainFound = true;
-                    newTMax = tHit;
-                    return true;
-                }
-                return false;
-            },
-            ref traversalTMax);
+        // Struct visitor (no per-ray closure allocation — see ILeafVisitor).
+        var visitor = new BisectVisitor(this, ray, tMax);
+        _accel.TraverseRay(ray, tMin, tMax, ref visitor, ref traversalTMax);
+        bool terrainFound = visitor.Found;
+        float terrainT = visitor.BestT;
 
         // ── Optional sea-level plane ────────────────────────────────────
         bool seaFound = false;
@@ -394,6 +382,45 @@ public sealed class HeightField : IHittable
     }
 
     // ── Per-cell bisection on the bilinear patch ────────────────────────
+
+    /// <summary>
+    /// Zero-allocation <see cref="MinMaxMipmap.ILeafVisitor"/> that bisects
+    /// each pierced leaf cell. Replaces the lambda that used to be allocated as
+    /// a heap closure on every <see cref="Hit"/> call; the per-ray hit state
+    /// (best t, found flag) lives in the struct and is threaded by ref through
+    /// the quadtree traversal.
+    /// </summary>
+    private struct BisectVisitor : MinMaxMipmap.ILeafVisitor
+    {
+        private readonly HeightField _self;
+        private readonly Ray _ray;
+        private readonly float _tMax;
+        public float BestT;
+        public bool Found;
+
+        public BisectVisitor(HeightField self, Ray ray, float tMax)
+        {
+            _self = self;
+            _ray = ray;
+            _tMax = tMax;
+            BestT = float.PositiveInfinity;
+            Found = false;
+        }
+
+        public bool Visit(int cellX, int cellZ, float cellTEnter, float cellTExit, out float newTMax)
+        {
+            newTMax = _tMax;
+            if (_self.TryBisectCell(_ray, cellX, cellZ, cellTEnter, cellTExit, out float tHit)
+                && tHit < BestT)
+            {
+                BestT = tHit;
+                Found = true;
+                newTMax = tHit;
+                return true;
+            }
+            return false;
+        }
+    }
 
     private bool TryBisectCell(Ray ray, int cellX, int cellZ,
                                float tEnter, float tExit, out float tHit)

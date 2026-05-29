@@ -142,30 +142,39 @@ public sealed class MinMaxMipmap
     /// to enforce), <c>false</c> to keep searching. Cells are visited in
     /// front-to-back order so the first accepted hit is also the closest.
     /// </summary>
-    public bool TraverseRay(
+    public bool TraverseRay<TVisitor>(
         Ray ray, float tMin, float tMax,
-        LeafVisitor onLeaf,
+        ref TVisitor onLeaf,
         ref float tMaxOut)
+        where TVisitor : struct, ILeafVisitor
     {
         bool hit = false;
         float curTMax = tMax;
-        VisitNode(_levels - 1, 0, 0, ray, tMin, ref curTMax, ref hit, onLeaf);
+        VisitNode(_levels - 1, 0, 0, ray, tMin, ref curTMax, ref hit, ref onLeaf);
         tMaxOut = curTMax;
         return hit;
     }
 
     /// <summary>
-    /// Returns true and updates <paramref name="newTMax"/> when the leaf is
-    /// accepted as a hit. The traversal then keeps <paramref name="newTMax"/>
-    /// as the new far bound — subsequent farther cells are pruned by the
-    /// hierarchical slab test automatically.
+    /// Leaf-cell callback. <see cref="Visit"/> returns true and updates
+    /// <c>newTMax</c> when the leaf is accepted as a hit; the traversal then
+    /// keeps <c>newTMax</c> as the new far bound so subsequent farther cells
+    /// are pruned by the hierarchical slab test automatically.
+    ///
+    /// Implemented as a <c>struct</c> visitor (rather than a <c>delegate</c>)
+    /// so that <see cref="HeightField.Hit"/> incurs no per-ray closure
+    /// allocation — the visitor's mutable hit state is threaded by ref through
+    /// the recursion.
     /// </summary>
-    public delegate bool LeafVisitor(int cellX, int cellZ, float cellTEnter,
-                                     float cellTExit, out float newTMax);
+    public interface ILeafVisitor
+    {
+        bool Visit(int cellX, int cellZ, float cellTEnter, float cellTExit, out float newTMax);
+    }
 
-    private void VisitNode(int level, int i, int j,
+    private void VisitNode<TVisitor>(int level, int i, int j,
                            Ray ray, float tMin, ref float tMax,
-                           ref bool hit, LeafVisitor onLeaf)
+                           ref bool hit, ref TVisitor onLeaf)
+        where TVisitor : struct, ILeafVisitor
     {
         if (i >= _widths[level] || j >= _heights[level]) return;
 
@@ -198,7 +207,7 @@ public sealed class MinMaxMipmap
 
         if (level == 0)
         {
-            if (onLeaf(iLeaf, jLeaf, tEnter, tExit, out float newTMax))
+            if (onLeaf.Visit(iLeaf, jLeaf, tEnter, tExit, out float newTMax))
             {
                 hit = true;
                 if (newTMax < tMax) tMax = newTMax;
@@ -252,7 +261,7 @@ public sealed class MinMaxMipmap
         for (int a = 0; a < n; a++)
         {
             VisitNode(level - 1, children[a].ci, children[a].cj,
-                      ray, tMin, ref tMax, ref hit, onLeaf);
+                      ray, tMin, ref tMax, ref hit, ref onLeaf);
         }
     }
 
