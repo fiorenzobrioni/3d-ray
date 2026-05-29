@@ -81,7 +81,7 @@ Il raggio non viene rifratto né perturbato: viaggia in linea retta. Questo sign
 - ❌ Caustiche focalizzate (la "lente" di una sfera di vetro che concentra la luce in uno spot luminoso) NON emergono dalla NEE: continuano a venire solo dal path tracing forward indiretto, con la consueta varianza alta.
 - ❌ Vetro frosted/rough (Disney `roughness > 0` con `spec_trans > 0`): lo shadow ray va dritto come fosse vetro liscio. Una soft-transmission GGX sullo shadow ray richiederebbe sampling speculare con MIS, fuori scope per Strada 1.
 
-Per caustiche e roughness corretti su shadow ray servono Manifold Next Event Estimation (MNEE) o photon mapping / VCM. Vedi la sezione *Roadmap caustiche* del `DEVLOG.md`.
+Per caustiche e roughness corretti su shadow ray servono Manifold Next Event Estimation (MNEE) o photon mapping / VCM. Vedi la sezione *Roadmap caustiche* del `PLANNING.md`.
 
 ### 2.4 Conservazione dell'Area per Emissivi Trasformati (Jacobian)
 

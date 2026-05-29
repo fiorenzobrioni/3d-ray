@@ -20,7 +20,7 @@ Un moderno motore di ray tracing ad alte prestazioni sviluppato in C# e .NET 10,
 
 Il motore è progettato per il calcolo parallelo multi-core, con BVH automatica, Next Event Estimation e campionamento Sobol per convergere in fretta, e chiude con un tone mapping ACES filmic per un look cinematografico.
 
-Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il [**DEVLOG**](./DEVLOG.md).
+Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il [**PLANNING**](./PLANNING.md); per lo storico dei cicli di sviluppo il [**DEVLOG**](./DEVLOG.md).
 
 ---
 

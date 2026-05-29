@@ -48,16 +48,12 @@ dotnet run -c Release --project src/RayTracer.Benchmarks -- --filter '*Bvh*' --j
 ```
 
 ### Tools
-In-solution (`3d-ray.slnx`):
-```
-dotnet run --project src/Tools/TextureGen/TextureGen.csproj
-dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
-dotnet run --project src/Tools/FontGen/FontGen.csproj -- --font "<family>" [--height 0.2] [--chars "ABC"] [--list-fonts]
-dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- --name <stem> [--type pianura|collina|montagna] [--season ...] [--include fiumi,laghi,mare,isole] [--with-cameras]
-```
-`TerrainGen` writes a reusable terrain template to `scenes/assets/heightmaps/<name>.yaml` plus a `<name>-height.png` 16-bit grayscale heightmap — the YAML wraps a single `type: heightfield` entity that the engine intersects directly via min/max mipmap (no mesh tessellation). `--with-cameras` additionally emits a complete `scenes/<name>-preview.yaml` ready to render. `FontGen` emits font templates under `scenes/assets/fonts/` for use with the `extrusion` primitive. See each tool's `Program.cs` / `--help` for full flags.
+In-solution (`3d-ray.slnx`), run with `dotnet run --project src/Tools/<Name>/<Name>.csproj -- <flags>` (see each tool's `--help`):
+- `TextureGen`, `NormalMapGen` — procedural texture / normal-map generators.
+- `FontGen` — emits font templates under `scenes/assets/fonts/` for the `extrusion` primitive.
+- `TerrainGen` — writes a reusable `scenes/assets/heightmaps/<name>.yaml` (a single `type: heightfield` entity, intersected directly via min/max mipmap — no mesh tessellation) + a 16-bit grayscale heightmap PNG; `--with-cameras` also emits a ready-to-render `scenes/<name>-preview.yaml`.
 
-Standalone scene generators (on disk under `src/Tools/`, not in the solution — run directly with `dotnet run --project ...`): `ChessGen`, `TempleGen`.
+Standalone (on disk under `src/Tools/`, not in the solution — run directly with `dotnet run --project ...`): scene generators `ChessGen` and `TempleGen`, plus the one-off `MigrateFakeSss` (strips legacy "fake SSS" Disney knobs from scene YAML; `--dry-run`/`--project`).
 
 ### CI
 `.github/workflows/dotnet.yml` builds Release, runs the full xUnit test suite, and then runs a 320×213 smoke render of `scenes/chess.yaml`. `.github/workflows/render-scenes.yml` is a `workflow_dispatch` matrix render at 1920×1080 — enable scenes by uncommenting entries in its `matrix.scene:` list.
@@ -65,46 +61,44 @@ Standalone scene generators (on disk under `src/Tools/`, not in the solution —
 ## Architecture
 
 ### Solution layout
-`3d-ray.slnx` groups three engine projects (`src/RayTracer`, `src/RayTracer.Tests`, `src/RayTracer.Benchmarks`) and four tools (`src/Tools/{TextureGen,NormalMapGen,TerrainGen,FontGen}`). `ChessGen` and `TempleGen` live on disk under `src/Tools/` but are intentionally not in the solution. CI builds `RayTracer.csproj` and runs the test suite; benchmarks are opt-in.
+`3d-ray.slnx` groups three engine projects (`src/RayTracer`, `src/RayTracer.Tests`, `src/RayTracer.Benchmarks`) and four tools (`src/Tools/{TextureGen,NormalMapGen,TerrainGen,FontGen}`); the standalone tools above are intentionally excluded. CI builds `RayTracer.csproj` and runs the test suite; benchmarks are opt-in.
 
 ### Rendering pipeline (YAML → pixel)
 `Program.cs` → `SceneLoader.Load()` → `Renderer(..).Render(w,h)` → `SaveImage()`. The detailed contract between stages is in `docs/technical/rendering-pipeline.md`. Key invariants that span multiple files:
 
 - **Scene analysis happens in the `Renderer` constructor**, not in `Render()`. It configures Russian Roulette, stratified sampling, and NEE based on the loaded world.
 - **World = BVH + non-BVH list.** `SceneLoader` separates finite primitives (into a `BvhNode`) from `InfinitePlane` instances and CSG nodes (kept linear). The returned `world` is a `HittableList` mixing both. `InfinitePlane` inside a `Transform` is still detected and routed to the linear list — its infinite AABB would poison BVH quality.
-- **BVH threshold = 4.** Both `SceneLoader` (via `BvhThreshold`) and `Group` build an internal BVH when finite children exceed 4. Below that, linear search wins.
+- **BVH threshold = 4.** Both `SceneLoader` (via `BvhThreshold`) and `Group` build an internal BVH when finite children exceed 4; below that they stay linear.
 - **Materials are built in two passes** so `MixMaterial` / `blend` can reference other materials by ID (including mix-of-mix). Unresolved or cyclic refs are replaced with a gray Lambertian fallback plus a deferred warning.
 - **Templates vs instances.** `templates:` entries are blueprints — no geometry is produced until an entity of `type: instance` references them. Last-write-wins on template name.
-- **YAML imports** are resolved relative to the importing file, prepended to local sections (so locals override imported IDs), and protected against cycles via a `HashSet<string>` of absolute paths. `world`, `camera`, and `cameras` are intentionally NOT imported.
-- **Deferred messages.** `SceneLoader` queues warnings/info through `Warn()`/`Info()` during load so they don't mangle the single-line `"Loading scene... done (X ms)"` output. `Program.cs` calls `SceneLoader.FlushMessages()` after the done-line prints.
+- **YAML imports** resolve relative to the importing file and are prepended to local sections (locals override imported IDs); cycles are blocked. `world`, `camera`, and `cameras` are intentionally NOT imported.
+- **Deferred messages.** `SceneLoader` queues warnings/info during load (`Warn()`/`Info()`); `Program.cs` flushes them via `FlushMessages()` after the single-line load output.
 
 ### Path tracer (`Rendering/Renderer.cs`)
-Parallel over pixels; per pixel generates N samples using the active sampler. With `--sampler sobol` (default) samples form a (0,2,2)-net via Sobol+Owen scrambling — deterministic per pixel via a hash seed. With `--sampler prng` the legacy `√N × √N` stratified grid is used instead. `TraceRay` recurses: hit → normal map → emission → NEE (direct light sampling) → BSDF scatter → Russian Roulette. Post-processing is per-pixel: firefly clamp (`-C`, default 100) → ACES filmic tone map → gamma 2.2. `--clamp`/`-C` applies to per-sample radiance before tone mapping — lower it (e.g. 25) when dielectrics or participating media produce fireflies. See `docs/technical/path-tracing-and-lighting.md` and `docs/technical/shading-model.md`.
+Parallel over pixels, N samples each via the active sampler (`--sampler sobol` default, deterministic; `prng` legacy — internals in the docs below). **Order matters:** `TraceRay` recurses hit → normal map → emission → NEE → BSDF scatter → Russian Roulette; per-pixel post-processing is firefly clamp (`-C`, default 100) → ACES filmic tone map → gamma 2.2. `-C` clamps per-sample radiance *before* tone mapping — lower it (e.g. 25) for fireflies from dielectrics/media. See `docs/technical/path-tracing-and-lighting.md` + `shading-model.md`.
 
 ### Lights and NEE
-`ILight` has point/directional/spot/area/sphere implementations under `Lights/`. Additionally, any geometry with an `Emissive` material becomes a `GeometryLight` and joins the NEE pool automatically; the environment (gradient sky or HDRI) also participates in NEE as a directional sampler.
-
-**Light Hardening** (full rationale in DEVLOG §Ciclo Light Hardening): every light type has a `SoftRadius` floor on `1/d²`; `DirectionalLight.AngularRadiusDeg` enables sun-disc cone sampling; `SpotLight` and area/geometry lights use disc-jittered shadow rays; `LightDistribution` (power-weighted CDF, built once in the `Renderer` constructor) drives NEE — selectable via `--light-sampling power|uniform|all`. Indirect bounces use a stricter firefly clamp `_indirectMaxSampleRadiance = _maxSampleRadiance × indirectClampFactor` (CLI `--indirect-clamp-factor`, default 1.0). `ISamplable.SurfaceArea` exposes deterministic closed-form area on every samplable geometry class, replacing PRNG-consuming `Sample()` calls.
+Light implementations live under `Lights/`. **Invariants:** any `Emissive` geometry auto-joins the NEE pool as a `GeometryLight`, and the environment (sky/HDRI) participates in NEE as a directional sampler. `LightDistribution` (power-weighted CDF) is built once in the `Renderer` constructor and drives NEE (`--light-sampling power|uniform|all`); indirect bounces use a stricter clamp (`--indirect-clamp-factor`). Hardening mechanics (soft-radius floors, sun-disc sampling, jittered shadow rays, `ISamplable.SurfaceArea`) → `docs/technical/path-tracing-and-lighting.md` + DEVLOG §Ciclo Light Hardening.
 
 ### Geometry, CSG, Groups
-`Geometry/IHittable.cs` is the core interface. `CsgObject` implements Union/Intersection/Subtraction via interval classification (see `docs/technical/csg-boolean-operations.md`) and is nestable. `Group` is a scene-graph node that inherits transforms down to children and builds its own internal BVH above 4 children. `Transform` wraps any `IHittable` with scale→rotate→translate and caches its world-space AABB. `HeightField` (Mitsuba-style terrain primitive — see `docs/technical/heightfield.md`) accelerates intersection with a `MinMaxMipmap` quadtree so one primitive can replace a tessellated terrain mesh; the loader routes `type: heightfield` through `SceneLoader.CreateHeightFieldEntity`.
+`Geometry/IHittable.cs` is the core interface. **Invariants:** `Transform` applies scale→rotate→translate and caches its world-space AABB; `Group` inherits transforms to children and builds an internal BVH above 4 children; `type: heightfield` is routed through `SceneLoader.CreateHeightFieldEntity` to a `MinMaxMipmap`-accelerated primitive (not a tessellated mesh). CSG (`CsgObject`, nestable union/intersection/subtraction) and the heightfield are detailed in `docs/technical/{csg-boolean-operations,heightfield}.md`.
 
-The **Surface Displacement Stack** (`DisplacementEngine`) applies layered surface detail in order: bump map → Loop/Catmull-Clark mesh subdivision → scalar displacement → vector displacement → autobump. Each stage is optional and composes cleanly with the others.
+The **Surface Displacement Stack** (`DisplacementEngine`) composes optional stages in a *fixed order*: bump → Loop/Catmull-Clark subdivision → scalar displacement → vector displacement → autobump.
 
 ### Volumetrics (`Volumetrics/`)
-`IMedium` covers Homogeneous, HeightFog, NishitaAtmosphereMedium (physically-based sky atmosphere), HeterogeneousProceduralMedium (Perlin fBm with delta/ratio tracking), and GridMedium (trilinear default, tricubic Catmull-Rom option). Phase functions are pluggable: Isotropic, HG, double-HG, Rayleigh, Schlick. A `globalMedium` is returned from `SceneLoader.Load` alongside the world.
+Pluggable `IMedium` + `IPhaseFunction` implementations under `Volumetrics/` (homogeneous, height fog, Nishita atmosphere, procedural fBm, grid). **Invariant:** a `globalMedium` is returned from `SceneLoader.Load` alongside the world, and output is bit-identical when no medium is present.
 
 ### Tests — equivalence pattern
-The suite (~27 test files, 464 tests) covers geometry, BVH, materials, lights, samplers, volumetrics, displacement, and rendering regression. Core patterns:
+The suite (~38 test files, ~400 tests) covers geometry, BVH, materials, lights, samplers, volumetrics, displacement, and rendering regression. Core patterns:
 
 - **Equivalence**: `AabbTests` uses an inline scalar slab-test oracle to validate the `Vector3.Min/Max` SIMD `AABB.Hit`. `BvhEquivalenceTests` runs the same rays through `BvhNode` and `HittableList` and asserts identical hit/miss and `rec.T` within `1e-4`. Seeds are passed via `[InlineData]` so failures replay deterministically.
-- **Regression**: `FireflyRegressionTests` renders a stress scene (bright sphere light + dense medium + depth 8) and asserts spike-pixel count stays below a calibrated threshold. Scene files live in `src/RayTracer.Tests/TestScenes/`.
-- **Construction note**: copy the primitives list before handing it to `BvhNode` — construction mutates in place.
+- **Regression**: `FireflyRegressionTests` renders a stress scene (bright sphere light + dense medium + depth 8) and asserts spike-pixel count stays below a calibrated threshold. Scene files live in `src/RayTracer.Tests/TestScenes/` (e.g. `firefly-stress.yaml`).
+- **Gotcha**: `BvhNode` construction mutates the primitives list in place — copy it first.
 
 ## Conventions
 
 - YAML keys use `underscore_case` (YamlDotNet `UnderscoredNamingConvention`).
-- CLI: lowercase short flags are the common overrides (`-s`, `-d`, `-c`, `-w`, `-o`, `-i`, `-v`); uppercase are "advanced overrides" (`-H` height because `-h` is help, `-S` shadow samples, `-C` clamp). Long-only flags include `--indirect-clamp-factor`, `--light-sampling`, `--list-cameras`, `--sampler`, `--mis`, `--texture-filtering`, `--exposure`, `--quality`.
+- CLI: lowercase short flags are the common overrides (`-s`, `-d`, `-c`, `-w`, `-o`, `-i`, `-v`); uppercase are "advanced overrides" (`-H` height because `-h` is help, `-S` shadow samples, `-C` clamp); behaviour-tuning flags are long-only. Full list in `ShowHelp()`.
 - Default output path when `-o` is omitted: `renders/render-<scene-stem>.png`.
 - Output image format is picked from the `-o` extension (`.png`/`.jpg`/`.jpeg`/`.bmp`); unknown → PNG.
 
@@ -112,8 +106,9 @@ The suite (~27 test files, 464 tests) covers geometry, BVH, materials, lights, s
 
 When planning a change, include doc updates as explicit final steps so they don't slip. Bilingual files under `docs/` come in EN + IT pairs — update both.
 
-- **YAML schema** (parameters added/changed/removed): `docs/reference/scene-reference.md` + `riferimento-scene.md`, the affected `docs/tutorial/{en,it}/` chapters, and `DEVLOG.md`.
-- **User-facing features** (new/changed/removed CLI flags, rendering behaviour, tools): root `README.md` + `DEVLOG.md`.
+- **YAML schema** (parameters added/changed/removed): `docs/reference/scene-reference.md` (EN+IT) + affected `docs/tutorial/{en,it}/` chapters.
+- **User-facing features** (new/changed/removed CLI flags, rendering behaviour, tools): root `README.md`.
+- **Dev history & planning**: record completed work/design rationale in `DEVLOG.md`; track roadmap, TODO, and known bugs in `PLANNING.md`.
 
 ## Further reading
 
@@ -121,3 +116,4 @@ Docs live under `docs/` (bilingual EN/IT):
 - `docs/reference/` — complete YAML schema + rendering profiles.
 - `docs/technical/` — pipeline, path tracing, shading, BVH/SAH, quartic/torus, CSG, testing, benchmarks.
 - `docs/tutorial/{en,it}/` — chapter-based walkthrough (12 chapters at last count).
+- `DEVLOG.md` — development-cycle history + design notes; `PLANNING.md` — roadmap, TODO, known bugs, ideas, pre-commit checklist.
