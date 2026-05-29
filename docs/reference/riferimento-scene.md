@@ -422,7 +422,7 @@ g: 0.6
 - **Esposizione fotografica:** `--exposure <EV>` (default `0`) applica un guadagno lineare `2^EV` a ogni pixel prima del tone map ACES. Usa EV negativo (`-1`, `-2`) quando la scena appare lavata perché le luci portano la radianza in ingresso sopra ~2.0, dove ACES si appiattisce sul plateau 0.95-0.99 e nasconde il contrasto delle texture. EV positivo schiarisce scene che cadono sotto la zona lineare della curva. Parità con Arnold `exposure`, Cycles "Film → Exposure", RenderMan display-filter `exposure`.
 - **Light importance sampling:** `--light-sampling power` (default `all`) campiona una sola luce per evento NEE con probabilità ∝ `ApproximatePower`. Riduce drasticamente la varianza in scene con molte luci di luminosità mista. Usa `uniform` come baseline di confronto.
 
-#### **Libreria Mediums** (blocco top-level `mediums:`)
+#### **Mediums Nominati** (blocco top-level `mediums:`)
 
 Oltre al singolo `world.medium`, 3D-Ray espone un blocco top-level `mediums:` dove media partecipanti nominati vengono dichiarati una volta e legati a entità specifiche tramite `interior_medium` / `exterior_medium`. È la base per:
 - **Subsurface scattering** (marmo, pelle, cera, giada, latte) — l'integratore random walk SSS si attiva automaticamente quando un'entità è legata a un medium `homogeneous` con `σ_s > 0`.
@@ -430,7 +430,7 @@ Oltre al singolo `world.medium`, 3D-Ray espone un blocco top-level `mediums:` do
 
 ```yaml
 mediums:
-  - id: marble_int                     # richiesto nel blocco libreria
+  - id: marble_int                     # richiesto nel blocco mediums
     type: homogeneous                  # uno di: homogeneous, height_fog, procedural, grid, atmosphere
     sigma_a: [0.0021, 0.0041, 0.0071]
     sigma_s: [2.19, 2.62, 3.00]
@@ -771,7 +771,7 @@ entities:
 phase = HG(g = subsurface_anisotropy)        # isotropico quando g ≈ 0
 ```
 
-L'`HomogeneousMedium` risultante è anonimo (nessun `id` di libreria) e
+L'`HomogeneousMedium` risultante è anonimo (nessun `id` nel blocco `mediums`) e
 vive solo per la durata della scena.
 
 **Auto-default sulla superficie.** Perché il lobo di trasmissione emetta
@@ -799,7 +799,7 @@ marmo gessoso — σ diversi — su un'altra).
 - Type non-Disney (`lambertian`, `metal`, `dielectric`) — non emettono
   `MediumTransition.Enter` e non possono pushare un medium.
 
-Usa la strada entity-bound (libreria top-level `mediums:` +
+Usa la strada entity-bound (blocco top-level `mediums:` +
 `interior_medium`) quando ti servono volumi condivisi espliciti, quando
 due entity devono usare volumi diversi pur condividendo il materiale,
 oppure quando il volume è eterogeneo (`procedural` / `grid` / `nishita`).
@@ -1153,9 +1153,10 @@ texture:
 #### **Marmi e legni production-quality — ricettario**
 
 I knob studio-quality interagiscono in modo non banale con il BSDF e
-l'illuminazione. Le ricette seguenti derivano dalla scena di riferimento
-`library-marble-wood.yaml`; copia lo snippet e modifica il color
-ramp per ottenere un materiale credibile in pochi minuti.
+l'illuminazione. Le ricette seguenti sono raccolte nei cataloghi di preset
+`scenes/presets/materials-stone.md` e `materials-wood.md`; copia lo snippet
+corrispondente e modifica il color ramp per ottenere un materiale credibile
+in pochi minuti.
 
 > **Checklist illuminazione prima di tunare un marmo.** Un marmo lucido
 > a `roughness < 0.2` diventa quasi uno specchio e riflette l'ambiente
@@ -1419,9 +1420,10 @@ gradazione normale degli anelli, la 1 è il sapwood più chiaro.
 Un catalogo pre-cotto di queste ricette — Carrara, Calacatta, Statuario,
 Arabescato, Port Laurent, Rosso Levanto + rovere quartato, curly maple,
 flame mahogany, pino nodoso, bird's-eye maple, walnut burl, frassino
-quartato, abete nodoso — è disponibile in
-`scenes/libraries/materials/stones.yaml` e `woods.yaml` sotto il suffisso
-`_studio`. Importa una volta e referenzia per id.
+quartato, abete nodoso — è disponibile come preset copia-incolla in
+`scenes/presets/materials-stone.md` e `materials-wood.md` sotto il suffisso
+`_studio`. Copia la ricetta nel blocco `materials:` della tua scena e
+referenziala per id.
 
 **Voronoi / Worley (cellulare):**
 ```yaml
@@ -1708,8 +1710,8 @@ Annulus, Torus, Capsule, Lathe, Triangle, SmoothTriangle e InfinitePlane
 (cioè su tutte).
 
 Il vantaggio chiave su `normal_map` è l'**input procedurale**:
-risoluzione infinita, nessun asset da spedire e riuso completo della
-libreria di texture esistente (noise/marble/wood/voronoi/brick/gradient).
+risoluzione infinita, nessun asset da spedire e riuso completo dei
+tipi di texture procedurali esistenti (noise/marble/wood/voronoi/brick/gradient).
 
 #### **Surface Displacement (material-level — parità Cycles/RenderMan)**
 
@@ -1798,10 +1800,7 @@ deformazione geometrica.
 > a schermo: le sfere lontane restano grossolane, quelle in primo piano
 > si raffinano da sole. Usa la forma a iterazioni fisse
 > (`subdivision_iterations: N`) solo per render CI / regression
-> deterministici. Tutti i file `scenes/showcases/library-*.yaml` che
-> dimostrano una libreria materiali adottano questo pattern
-> (es. `library-concretes.yaml`,
-> `library-leathers.yaml`, `stones-…`).
+> deterministici.
 
 **Ordine di composizione.** L'engine combina le perturbazioni nello
 stesso ordine di Arnold/Cycles:
@@ -2104,7 +2103,7 @@ mesh di terreno tassellata.
   type: "heightfield"
   bounds: [-50, -50, 50, 50]
   height_scale: 25
-  heightmap_path: "libraries/terrain/myterrain-height.png"
+  heightmap_path: "assets/heightmaps/myterrain-height.png"
   sea_level: 7.5
   sea_material: "water"
   strata:
@@ -2628,15 +2627,17 @@ Le primitive che espongono la chiave `center:` — **sphere, cylinder, cone, cap
 
 ---
 
-### 9. **IMPORTS** — Librerie Modulari
+### 9. **IMPORTS** — Riuso di Frammenti di Scena
 ```yaml
 imports:
-  - path: "libraries/materials/metals.yaml"
-  - path: "libraries/lights/studio-3point.yaml"
-  - path: "libraries/objects/chess.yaml"
+  - path: "assets/fonts/font-roboto.yaml"
+  - path: "fragments/studio-3point.yaml"
 ```
 - **Ordine:** Deve essere la prima sezione (prima di templates/world)
 - **Percorsi:** Relativi alla directory del file YAML
+- **Protezione cicli:** Rilevamento automatico dei cicli
+- **Merge:** Tutti i materiali/template/luci importati sono disponibili alla scena principale; gli id locali sovrascrivono quelli importati
+- **Uso tipico:** Includere i template di font generati (`assets/fonts/font-<x>.yaml` da `FontGen`) o frammenti di scena riutilizzabili di tua creazione. Per materiali, luci, mediums, terreni e cieli pronti all'uso, copia le ricette dai cataloghi di preset in `scenes/presets/*.md` direttamente nella tua scena.
 
 ---
 
@@ -2706,7 +2707,7 @@ entities:
   - `07-sky-environment-camera.md` — Cielo, ambiente e camera
   - `08-csg.md` — Operazioni booleane CSG
   - `09-volumetrics.md` — Mezzi partecipanti e volumetria
-  - `10-libraries-and-projects.md` — Import, librerie e modularità
+  - `10-libraries-and-projects.md` — Preset, import e modularità
   - `11-lathe-surface-of-revolution.md` — Lathe / superficie di rivoluzione
   - `12-extrusion-2d-profiles.md` — Estrusione lineare di profili 2D
 **Codice Sorgente (Parsing Scene):**
@@ -2719,7 +2720,8 @@ entities:
 - `/scenes/cornell-box.yaml` — Classica Cornell Box con varianti
 - `/scenes/pendolo-newton.yaml` — Scena complessa (pendolo di Newton)
 - `/scenes/showcases/` — Dimostrazioni per funzionalità specifiche
-- `/scenes/libraries/` — Materiali, luci, oggetti e template riutilizzabili
+- `/scenes/presets/` — Cataloghi di preset copia-incolla (materiali, luci, mediums, terreni, cielo, world)
+- `/scenes/assets/` — Asset binari: `textures/`, `fonts/`, `heightmaps/`
 
 ---
 
@@ -2740,7 +2742,7 @@ entities:
    - Testa con bassa risoluzione + profilo Preview (`-w 400 -H 267 -s 64 -d 4 -S 1`)
 4. **Ottimizzazione Performance:**
    - Usa template + istanze per oggetti ripetuti
-   - Importa materiali/luci condivisi dalle librerie
+   - Copia materiali/luci condivisi dai cataloghi di preset in `scenes/presets/*.md`
    - Raggruppa geometrie simili in gruppi per gerarchie più pulite
    - La BVH viene costruita automaticamente per scene complesse
 5. **Fonti Texture:**
