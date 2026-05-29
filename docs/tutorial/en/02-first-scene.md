@@ -114,7 +114,7 @@ If you omit `sky:` entirely, the engine uses a daylight-blue flat sky
 The `world:` section also supports a **ground shorthand** that dispatches
 to one of four shapes — infinite plane, finite quad, disk, or heightfield —
 with full UV transform, inline material shortcut, and per-ray-category
-visibility flags (Arnold / Cycles parity).
+visibility flags per ray category.
 
 ```yaml
 world:
@@ -138,8 +138,7 @@ world:
 
 When you omit `material:` and the `world.sky` block provides a `ground_color`
 or `ground_albedo`, the floor automatically inherits that colour as a neutral
-Lambertian — the same lookdev convenience Arnold's `aiSkyDomeLight` offers
-in preview renders. The full schema (heightfield strata, visibility flags,
+Lambertian — a convenient lookdev shortcut for quick preview renders. The full schema (heightfield strata, visibility flags,
 orientation) is documented in
 [`docs/reference/scene-reference.md`](../../reference/scene-reference.md).
 

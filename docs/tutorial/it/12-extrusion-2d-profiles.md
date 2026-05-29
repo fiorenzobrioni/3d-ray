@@ -189,8 +189,8 @@ ridge rimane nitido nei riflessi).
 | `90°`          | Liscio ovunque tranne negli angoli retti — default DCC tipico. |
 | `180°`         | Completamente liscio indipendentemente dall'angolo. |
 
-30° (il default classico di Blender e Maya) è il punto di partenza
-migliore per qualsiasi forma poliedrica che approssima una curva: un
+30° è il punto di partenza migliore per qualsiasi forma poliedrica che
+approssima una curva: un
 cerchio a 12 lati, la sezione di una colonna a 8 lobi, un esagono
 arrotondato.
 
@@ -358,8 +358,7 @@ ma squalifica l'extrusion dall'uso CSG finché non la chiudi.
 
 Una extrusion dritta sembra un profilato di alluminio. Aggiungi
 `twist` o `taper`, e improvvisamente può scolpire forme che in
-Blender richiederebbero uno stack di modificatori multi-step o in
-Houdini una catena di `polyextrude`.
+uno strumento 3D richiederebbe uno stack di modificatori multi-step.
 
 ### Twist
 

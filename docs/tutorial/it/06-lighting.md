@@ -23,7 +23,7 @@ L'illuminazione ambientale nasce esclusivamente dalla GI path-traced.
 
 Se vuoi un fill light morbido, hai tre opzioni fisicamente corrette, tutte configurabili sotto `world: > sky:` (vedi Capitolo 7):
 
-- **Cielo flat**: `sky.type: flat` con un `color` basso (es. `[0.02, 0.02, 0.025]`). Emette uniformemente in ogni direzione e partecipa a NEE tramite uniform sphere sampling — esattamente quello che fanno Cycles/Arnold per i uniform world backgrounds.
+- **Cielo flat**: `sky.type: flat` con un `color` basso (es. `[0.02, 0.02, 0.025]`). Emette uniformemente in ogni direzione e partecipa a NEE tramite uniform sphere sampling, fornendo illuminazione ambientale uniforme da ogni direzione.
 - **Cielo gradient**: `sky.type: gradient` con valori bassi di zenith/horizon (e opzionalmente un disco solare). Il corpo del gradiente fornisce il fill ambient via path-traced bounces; il disco solare fornisce illuminazione direzionale netta.
 - **Cielo HDRI**: `sky.type: hdri` per l'illuminazione image-based completa. La CDF importance-sampled garantisce convergenza efficiente anche per environment molto luminosi.
 
@@ -180,8 +180,8 @@ Le luci area sono visibili alla camera e ai raggi specular: il loader
 costruisce un quad emissivo proxy alla stessa `corner`/`u`/`v` e lo
 collega all'area light, così i sample BSDF che colpiscono il rettangolo
 contribuiscono la stessa radianza che NEE assegnerebbe — chiudendo lo
-stimatore MIS di Veach sui materiali specular smooth. Stesso approccio
-di Arnold, Cycles e Renderman per le quad light analitiche.
+stimatore MIS di Veach sui materiali specular smooth, garantendo
+corretto highlight speculare sulle superfici riflettenti.
 
 Puoi comunque aggiungere un quad emissivo separato se vuoi un pannello
 di forma personalizzata (vedi Sezione 6.7); si somma al proxy interno
@@ -213,7 +213,7 @@ Una luce sferica è come una luce area, ma di forma sferica. Produce ombre morbi
 
 Le luci sferiche utilizzano il **campionamento dell'angolo solido**, che è da 2 a 10 volte più efficiente rispetto a una sfera emissiva equivalente per luci piccole o distanti. Preferisci le luci sferiche alle sfere emissive quando la sorgente luminosa è l'illuminazione principale della scena.
 
-Le luci sferiche sono **visibili** alla camera e ai raggi specular: una sfera emissiva proxy gestita internamente, alla stessa posizione/raggio, supporta la luce analitica e chiude lo stimatore MIS di Veach. I vetri lisci e i metalli lucidati nella scena riflettono ora la luce correttamente (invece di mostrare un buco scuro nella direzione di mirror). Stesso approccio di Arnold/Cycles/Renderman per le sphere light analitiche.
+Le luci sferiche sono **visibili** alla camera e ai raggi specular: una sfera emissiva proxy gestita internamente, alla stessa posizione/raggio, supporta la luce analitica e chiude lo stimatore MIS di Veach. I vetri lisci e i metalli lucidati nella scena riflettono ora la luce correttamente (invece di mostrare un buco scuro nella direzione di mirror), che è il comportamento atteso per una sphere light analitica.
 
 Le luci sferiche ignorano deliberatamente `soft_radius`: lo stimatore ad angolo solido `L = Intensity × Ω / N` è limitato superiormente da `4π · Intensity` anche quando il ricevitore è dentro la sfera, quindi il floor 1/d² usato dalle point/spot/area è qui inutile.
 
@@ -251,8 +251,7 @@ entities:
 | Efficienza di campionamento   | Buona                | Leggermente migliore (analitica) |
 
 Entrambe le tipologie di luce supportano un flag `visible_to_camera` (default
-`true`) — vedi la prossima sezione per il toggle di camera-visibility stile
-Arnold/Cycles.
+`true`) — vedi la prossima sezione per il toggle di camera-visibility.
 
 Usare le luci geometriche quando la sorgente deve essere un emettitore di **forma personalizzata** (insegne al neon, flussi di lava, tubi luminosi, mesh irregolari). Usare le luci `area`/`sphere` esplicite per emettitori canonici rettangolari/sferici — campionano in modo più efficiente e si vedono comunque in camera e nei riflessi specular.
 
@@ -272,8 +271,7 @@ Per scene con nebbia o fumo (`global_medium`), anche la phase function partecipa
 
 I renderer di produzione permettono di disaccoppiare **come una luce
 contribuisce all'immagine** da **se la luce è essa stessa visibile nel
-frame**. In Arnold questo è il flag `camera`, in Cycles è "Ray Visibility
-→ Camera". 3D-Ray espone lo stesso controllo con la chiave underscore_case
+frame**. 3D-Ray espone questo controllo con la chiave underscore_case
 `visible_to_camera`.
 
 Quando impostato a `false`:
@@ -281,8 +279,7 @@ Quando impostato a `false`:
 - La luce continua a illuminare la scena a piena intensità tramite NEE
   (illuminazione diretta).
 - La luce appare comunque nelle **riflessioni a specchio, nelle
-  rifrazioni del vetro e nei rimbalzi indiretti** — esattamente come in
-  Arnold/Cycles.
+  rifrazioni del vetro e nei rimbalzi indiretti**.
 - Il proxy della luce (o la geometria dell'entity) è **invisibile solo
   ai raggi primari della camera**, che il renderer rileva tramite
   `depth == maxDepth`.
@@ -635,8 +632,7 @@ Questa scena pone cinque sfere identiche in fila. Ognuna è illuminata principal
 
 Una volta piazzate le luci, il tone mapper deve tradurre la radianza
 della scena in un range visualizzabile 0-1. 3D-Ray usa la curva **ACES
-filmic**, lo standard industriale condiviso da Arnold, Cycles,
-RenderMan e dalla maggior parte delle pipeline cinematografiche. ACES
+filmic**, lo standard industriale adottato nelle pipeline cinematografiche e VFX. ACES
 è non-lineare: il contrasto è preservato solo dentro la sua sweet-spot
 lineare, a circa `[0.18, 1.0]` di radianza in ingresso. Sopra ~2.0 la
 curva si appiattisce sul plateau 0.95-0.99 dove tutto appare "quasi
@@ -656,9 +652,8 @@ RayTracer -i scene.yaml -o out.png --exposure -1.5
 La semantica EV è quella di una macchina fotografica reale: `EV = 0`
 (default) è identità, `EV = -1` scurisce di un fattore 2 (uno stop in
 meno), `EV = +1` schiarisce di un fattore 2 (uno stop in più). Il flag
-replica lo stesso controllo presente in ogni renderer di produzione —
-`exposure` in Arnold, "Film → Exposure" in Cycles, display-filter
-`exposure` in RenderMan.
+replica il concetto di compensazione dell'esposizione fotografica
+disponibile nei renderer di produzione.
 
 **Quando usarlo:**
 
@@ -692,8 +687,8 @@ cambia è *quale fetta* della curva ACES vede la tua radianza.
 - Le luci **Area** sono rettangoli che producono ombre morbide; la qualità è controllata da `shadow_samples`. Usa `soft_radius` per prevenire spike in media densi.
 - Le luci **Sphere** producono ombre morbide con riflessi circolari e usano lo stimatore ad angolo solido limitato (non serve `soft_radius`).
 - Le **entità emissive** diventano automaticamente luci geometriche -- visibili e campionate per l'illuminazione diretta.
-- Le luci `area` e `sphere` sono inoltre visibili alla camera e ai raggi specular tramite un proxy emissivo gestito internamente — parità Veach-MIS con Arnold/Cycles.
-- Per-luce e per-entity **`visible_to_camera: false`** nasconde il proxy/la geometria solo dai raggi primari della camera; NEE, specchi, vetro e rimbalzi indiretti continuano a vederla — semantica Arnold `camera` / Cycles "Ray Visibility → Camera".
+- Le luci `area` e `sphere` sono inoltre visibili alla camera e ai raggi specular tramite un proxy emissivo gestito internamente, garantendo piena convergenza Veach-MIS.
+- Per-luce e per-entity **`visible_to_camera: false`** nasconde il proxy/la geometria solo dai raggi primari della camera; NEE, specchi, vetro e rimbalzi indiretti continuano a vederla.
 - Il flag CLI `-S` sovrascrive globalmente i campioni d'ombra per prove veloci.
 - Lo **schema a tre punti** (chiave, riempimento, contorno) è un punto di partenza affidabile per ogni scena.
 - **Controlli firefly:**

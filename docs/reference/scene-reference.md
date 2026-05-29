@@ -134,11 +134,10 @@ HDRIs are importance-sampled via a luminance-weighted 2D CDF over the
 equirectangular map. **OpenEXR** is supported via a built-in scanline-RGB
 loader (No compression / ZIP / ZIPS, half + float). **Sun extraction** detects
 the brightest peak, replaces those pixels with the ring-averaged background, and
-emits a paired `PhysicalSun` for clean shadows — same workflow as Arnold's
-`aiSkyDomeLight` sun extraction. Negative pixel values (some EXR compressions)
+emits a paired `PhysicalSun` for clean shadows. Negative pixel values (some EXR compressions)
 are clamped to 0 at load.
 
-#### **Visibility flags** (per ray type, Cycles / Arnold parity):
+#### **Visibility flags** (per ray type):
 ```yaml
 sky:
   type: "hdri"
@@ -194,8 +193,8 @@ when `orientation:` is absent.
 
 The `world.ground:` block is a first-class shorthand for the scene's floor.
 It dispatches on `type` to one of four shapes, supports an inline anonymous
-material, full UV transform, per-ray-category visibility flags (Arnold /
-Cycles parity) and auto-synced albedo when paired with a `sky` block. The
+material, full UV transform, per-ray-category visibility flags and
+auto-synced albedo when paired with a `sky` block. The
 legacy `material:` + `y:` shorthand keeps working unchanged.
 
 ```yaml
@@ -238,7 +237,7 @@ world:
     uv_scale:    [10, 10]      # per-axis tile factor
     uv_offset:   [0, 0]        # pan
     uv_rotation: 30            # degrees, CCW from above
-    # ── Visibility flags (Arnold / Cycles parity) ────────────────────
+    # ── Visibility flags ─────────────────────────────────────────────
     visibility:
       camera:       true       # primary camera rays see the ground
       diffuse:      true       # indirect diffuse bounces hit it
@@ -250,7 +249,7 @@ world:
 **Material resolution priority.** `material:` wins; otherwise the inline
 shorthand (`color/roughness/metallic`) builds an anonymous Disney BSDF;
 otherwise the loader falls back to the sky's `ground_albedo`/`ground_color`
-when present (Arnold `aiSkyDomeLight` preview behaviour); otherwise a
+when present; otherwise a
 neutral grey Lambertian is used.
 
 **BVH partitioning.** A `quad` / `disk` / `heightfield` ground is finite —
@@ -265,8 +264,7 @@ surface as if it weren't there. Use `visibility.shadow: false` to keep a
 visible floor that does not cast occlusion, or `visibility.camera: false`
 for a shadow-catcher-style invisible floor that still bounces indirect
 light (the ALPHA matte / shadow-catcher AOV is a separate, planned
-feature). Mirrors Arnold `polymesh.visibility.*` and Cycles "Ray
-Visibility".
+feature).
 
 #### **Volumetrics (Participating Media)**:
 
@@ -374,7 +372,7 @@ medium:
 | `trilinear` (default) | 8 | C⁰ | Default. Cheap, but at low resolutions (≤16³) the derivative jumps at cell boundaries → visible linear banding. |
 | `tricubic` | 64 | C¹ | Catmull-Rom cardinal spline (τ = 0.5). ~8× per-sample cost, but removes kinks on low-res grids and smooths binary data. Result is clamped to `[0,1]` to preserve the delta-tracking majorant invariant. Accepted aliases: `cubic`, `catmull-rom`, `smooth`. |
 
-On high-resolution grids (128³+) with smoothly varying density the two filters are visually indistinguishable — `trilinear` is enough. On small inline grids or binary 0/1 data, `tricubic` is the standard way to hide artifacts (analogous to Arnold/Houdini "cubic" filter on VDB).
+On high-resolution grids (128³+) with smoothly varying density the two filters are visually indistinguishable — `trilinear` is enough. On small inline grids or binary 0/1 data, `tricubic` is the standard way to hide artifacts by reconstructing density smoothly across voxel boundaries.
 
 **Available phase functions:**
 
@@ -411,15 +409,15 @@ g: 0.6
 | `procedural` | Perlin fBm (delta tracking) | Noisier (+30–100% time) | Patchy / irregular fog, horror, uneven god-rays, misty forests, water surfaces with patchy haze. |
 | `grid` | Density baked on a 3D grid (inline or `.vol`) | Delta tracking + voxel filter | Localized clouds, sim-cached smoke, explosions, hero VFX assets. The medium exists only inside its AABB — outside is vacuum, so other parts of the scene are unaffected. |
 
-> ⚠️ **Sky + sun + `homogeneous` = black render.** A homogeneous global medium has *constant* density extending to infinity, so the Beer–Lambert shadow ray toward the sun (or any environment direction) travels through `exp(-σ_t · ∞) ≈ 0` and direct environmental lighting collapses to zero. Spot/point/area/sphere lights have finite distance and behave correctly, but if the *only* emitters are `sky` + `sun` (or HDRI) the render comes out black. Use `height_fog` instead — its optical depth toward the zenith is bounded by the scale height, which is exactly the "aerial perspective" model used by Arnold, V-Ray and Unreal. This is the physically correct behaviour of `homogeneous` (real atmospheres are not infinite), not a renderer bug.
+> ⚠️ **Sky + sun + `homogeneous` = black render.** A homogeneous global medium has *constant* density extending to infinity, so the Beer–Lambert shadow ray toward the sun (or any environment direction) travels through `exp(-σ_t · ∞) ≈ 0` and direct environmental lighting collapses to zero. Spot/point/area/sphere lights have finite distance and behave correctly, but if the *only* emitters are `sky` + `sun` (or HDRI) the render comes out black. Use `height_fog` instead — its optical depth toward the zenith is bounded by the scale height, which is the standard "aerial perspective" behaviour. This is the physically correct behaviour of `homogeneous` (real atmospheres are not infinite), not a renderer bug.
 
 - **Usage:** Simulates fog, smoke, atmospheric haze, clouds, underwater effects.
 - **Rendering tip:** `homogeneous` and `height_fog` are analytic and cheap. `procedural` and `grid` use delta tracking and are noisier — raise `-s` to 400/576/1024 and keep `-d 6-8`. For dense-fog scenes consider `-C 25`. See [Rendering Profiles](./rendering-profiles.md) §8 for the full guide.
 - **Effects:** Spot lights → visible god-rays; point lights → halos; directional → aerial perspective (with `height_fog`).
 - **Fireflies with point/spot in fog:** the 1/d² attenuation diverges when scattering events land near a point/spot emitter, producing isolated bright pixels. Set `soft_radius` on those lights (see §8.1, §8.3) to a value approximating the physical bulb size (e.g. `0.15`–`0.30`).
 - **Fireflies with area lights in fog:** the `cosLight/d²` term in the area estimator can diverge at grazing angles in dense media. Set `soft_radius` on area lights (see §8.4). Sphere lights use a solid-angle estimator that is bounded by construction — no `soft_radius` needed. Also consider `--indirect-clamp-factor 0.25` (CLI) to aggressively suppress deep-bounce spikes.
-- **Advanced firefly control:** `--indirect-clamp-factor <f>` (default `1.0` = off) multiplies the primary `--clamp` threshold for all indirect bounces. E.g. `--clamp 100 --indirect-clamp-factor 0.25` uses clamp=25 on bounce depth ≥ 1 — same as Cycles/Arnold "indirect clamp".
-- **Photographic exposure:** `--exposure <EV>` (default `0`) applies a linear gain `2^EV` to every pixel before ACES tone mapping. Use negative EV (`-1`, `-2`) when the scene reads washed-out because the lights drive arriving radiance above ~2.0, where ACES flattens onto a 0.95-0.99 plateau and hides texture contrast. Positive EV brightens scenes that fall below the curve's linear range. Matches Arnold `exposure`, Cycles "Film → Exposure", RenderMan display-filter `exposure`.
+- **Advanced firefly control:** `--indirect-clamp-factor <f>` (default `1.0` = off) multiplies the primary `--clamp` threshold for all indirect bounces. E.g. `--clamp 100 --indirect-clamp-factor 0.25` uses clamp=25 on bounce depth ≥ 1 — a stricter threshold for indirect illumination.
+- **Photographic exposure:** `--exposure <EV>` (default `0`) applies a linear gain `2^EV` to every pixel before ACES tone mapping. Use negative EV (`-1`, `-2`) when the scene reads washed-out because the lights drive arriving radiance above ~2.0, where ACES flattens onto a 0.95-0.99 plateau and hides texture contrast. Positive EV brightens scenes that fall below the curve's linear range. Mirrors the standard photographic exposure compensation found in production renderers.
 - **Light importance sampling:** `--light-sampling power` (default `all`) samples one light per NEE event with probability ∝ `ApproximatePower`. Dramatically reduces variance in scenes with many lights of mixed brightness (e.g. 1 area + 10 dim point lights). Use `uniform` as a reference baseline.
 
 #### **Named Mediums** (top-level `mediums:` block)
@@ -537,13 +535,13 @@ dotnet run ... -- -i scene.yaml -c 1 -o cam1.png    # By index (0-based)
 > `-i scene` resolves to `scene.yaml`).
 **⚠️ Depth of Field:** When `aperture > 0`, set `focal_dist` (or `focal_pos`) to the actual distance / world-space point of your main subject. Default `focal_dist: 1.0` will create unintended extreme blur.
 
-#### **`focal_pos` — focus on a point (Arnold/Cycles "Focus Object")**
+#### **`focal_pos` — focus on a point**
 `focal_pos: [x, y, z]` is an alternative to the scalar `focal_dist`. The loader computes the focus distance as the **projection** of the camera→focal-point vector onto the optical axis:
 ```
 forward    = normalize(look_at − position)
 focusDist  = dot(focal_pos − position, forward)
 ```
-The focus plane is perpendicular to the view direction passing through `focal_pos`, so the value is a **projection, not a Euclidean distance**. A focal point off-axis at `(3, 4, -5)` with the camera at the origin looking along `−Z` yields focus distance `5`, not `√50 ≈ 7.07`. This matches Arnold ("Focus Object"), Cycles ("Focal Object/Distance") and RenderMan.
+The focus plane is perpendicular to the view direction passing through `focal_pos`, so the value is a **projection, not a Euclidean distance**. A focal point off-axis at `(3, 4, -5)` with the camera at the origin looking along `−Z` yields focus distance `5`, not `√50 ≈ 7.07`.
 
 When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info message is logged). `focal_pos` is ignored with a warning when it falls behind the camera, coincides with it, or the camera is degenerate (`look_at == position`); the scalar `focal_dist` is used as fallback.
 ---
@@ -618,9 +616,9 @@ When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info me
   transmission_color: [0.2, 0.8, 0.9]      # Colour of the glass interior at transmission_depth
   transmission_depth: 0.0                  # Distance (scene units) at which the colour is reached
 
-  # ── Arnold-style coat (optional overrides) ──────────────────────────
+  # ── Physical coat (optional overrides) ─────────────────────────────
   coat_ior: 1.5                            # Explicit coat IOR (default 1.5 = lacquer)
-  coat_roughness: -1.0                     # ≥ 0 enables Arnold coat; <0 falls back to clearcoat_gloss
+  coat_roughness: -1.0                     # ≥ 0 enables physical coat; <0 falls back to clearcoat_gloss
   coat_normal_map: "textures/coat.png"     # Dedicated normal map for the clearcoat lobe
   sheen_roughness: 0.3                     # Charlie sheen α (0.04..1)
 
@@ -628,7 +626,7 @@ When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info me
   thin_film_thickness: 0.0                 # Film thickness in nanometres (0 disables)
   thin_film_ior: 1.5                       # Film IOR (η₂)
 
-  # ── Material-embedded SSS (Arnold randomwalk / Cycles Principled) ───
+  # ── Material-embedded SSS ────────────────────────────────────────────
   subsurface_color: [0.95, 0.90, 0.85]     # Volume albedo (default: reuse color)
   subsurface_radius: [0.45, 0.35, 0.22]    # Mean Free Path per RGB channel (world units)
   subsurface_scale: 1.0                    # Global multiplier on the MFP (default 1.0)
@@ -649,9 +647,8 @@ When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info me
 > 1. **Material-embedded** — set `subsurface_radius` on the Disney
 >    material; the loader auto-builds a `HomogeneousMedium` and
 >    auto-injects it on every entity that doesn't already have an
->    explicit `interior_medium`. Matches Arnold `standard_surface`
->    `subsurface_type: randomwalk` and the Cycles Principled BSDF
->    Subsurface section. See "Material-embedded SSS" below.
+>    explicit `interior_medium`. Emulates volumetric subsurface
+>    scattering inside the material. See "Material-embedded SSS" below.
 > 2. **Entity-bound** — declare a `mediums:` block entry and bind it
 >    via `interior_medium` on the entity. Maximum control, two entities
 >    with the same material can have different volumes.
@@ -680,8 +677,8 @@ renderer (the loader emits an `Info` line when it sees one).
 | `sheen_roughness` | float | 0.3 | 0.04–1 | Ext. | Charlie NDF α (Estevez-Kulla 2017) |
 | `clearcoat` | float | 0.0 | 0–1 | Core | Independent second specular lobe |
 | `clearcoat_gloss` | float | 1.0 | 0–1 | **Legacy** | Disney-2012 slider; superseded by `coat_roughness` |
-| `coat_ior` | float | 1.5 | ≥ 1 | Coat | Arnold-style coat IOR |
-| `coat_roughness` | float | -1.0 | -1 or 0–1 | Coat | -1 = use `clearcoat_gloss`; any ≥ 0 selects Arnold path |
+| `coat_ior` | float | 1.5 | ≥ 1 | Coat | Explicit coat IOR (default 1.5 = lacquer) |
+| `coat_roughness` | float | -1.0 | -1 or 0–1 | Coat | -1 = use `clearcoat_gloss`; any ≥ 0 selects physical coat |
 | `coat_normal_map` | path | — | — | Coat | Dedicated normal map for the coat lobe |
 | `spec_trans` | float | 0.0 | 0–1 | Core | 0 = opaque, 1 = glass |
 | `ior` | float | 1.5 | ≥ 1 | Core | Refraction index for specular + transmission |
@@ -705,21 +702,21 @@ renderer (the loader emits an `Info` line when it sees one).
 > `roughness_texture`) and the two colour inputs (`color`,
 > `transmission_color`) accept a matching `*_texture` block.
 
-##### **Clearcoat: legacy vs Arnold-style**
+##### **Clearcoat: legacy vs physical coat**
 
 The coat lobe has two compatible parameterisations:
 
 - **Disney 2012 (legacy).** Single slider `clearcoat_gloss` (1 = mirror,
   0 = rough) with an implicit IOR of 1.5. Kept working for every scene
-  authored before the Arnold extension landed.
-- **Arnold Standard Surface (preferred).** Tunable `coat_ior` +
-  `coat_roughness` (0 = mirror, 1 = rough). Matches every major DCC and
-  gives you explicit control over the highlight.
+  authored with the legacy parameters.
+- **Physical coat (preferred).** Tunable `coat_ior` +
+  `coat_roughness` (0 = mirror, 1 = rough). Gives you explicit control
+  over the highlight.
 
 **Selection rule.** `coat_roughness` defaults to `-1` (sentinel). While
 it stays negative the engine uses the legacy `clearcoat_gloss` path. As
 soon as you set `coat_roughness >= 0` (or bind `coat_roughness_texture`),
-the Arnold path takes over and `clearcoat_gloss` is ignored — the
+the physical coat takes over and `clearcoat_gloss` is ignored — the
 conversion is roughly `coat_roughness ≈ 1 - clearcoat_gloss`.
 
 > **New scenes should use `coat_roughness` + `coat_ior`.** Existing
@@ -728,7 +725,7 @@ conversion is roughly `coat_roughness ≈ 1 - clearcoat_gloss`.
 - **When to use:**
   - Metals: `metallic=1.0`, varied roughness. Add `anisotropic` for brushed steel.
   - Plastics: `metallic=0.0`, `roughness=0.4–0.8`
-  - Car paint: `metallic=0.0`, `clearcoat=1.0` (+ `coat_roughness` for Arnold-style coat)
+  - Car paint: `metallic=0.0`, `clearcoat=1.0` (+ `coat_roughness` for physical coat)
   - Fabric / velvet: `metallic=0.0`, `sheen=0.8–1.0`, `sheen_roughness=0.2–0.4`
   - Skin / marble / wax / milk: either declare `subsurface_radius` on the material (auto-builds the medium — see "Material-embedded SSS" below), or set `spec_trans=1.0`, `ior=1.4–1.5` plus `interior_medium: <id>` on the entity bound to a `homogeneous` medium with `σ_s > 0` (Random Walk SSS — see [docs/technical/subsurface-scattering.md](../technical/subsurface-scattering.md)).
   - Clear glass: `spec_trans=1.0`, `roughness=0.0`, `ior=1.52`
@@ -738,15 +735,13 @@ conversion is roughly `coat_roughness ≈ 1 - clearcoat_gloss`.
 - **⚠️ Noise:** Disney still has more lobes than the classics; use ~4× samples for skin/glass/clearcoat hero shots.
 - **💡 Best practice:** Use lambertian for big surfaces, Disney only for protagonist objects.
 
-##### **Material-embedded SSS (Arnold randomwalk / Cycles Principled parity)**
+##### **Material-embedded SSS**
 
 Declaring `subsurface_radius` on a Disney material is the shortcut path
 to subsurface scattering: the loader auto-builds a `HomogeneousMedium`
 and auto-injects it on every entity that uses the material and does
-**not** already carry an explicit `interior_medium`. This matches Arnold
-`standard_surface` with `subsurface_type: randomwalk` and the Cycles
-Principled BSDF Subsurface section — set one parameter, get a physically
-correct random walk for free.
+**not** already carry an explicit `interior_medium`. Set one parameter,
+get a physically correct random walk for free.
 
 ```yaml
 materials:
@@ -794,8 +789,8 @@ the loader silently sets:
 Everything else (`metallic`, `roughness`, `ior`, …) is left untouched.
 
 **Precedence.** An explicit `interior_medium` on the entity always wins
-over the material-embedded medium. This matches Arnold and Cycles
-conventions: a single Disney material can be reused across entities,
+over the material-embedded medium. A single Disney material can be reused
+across entities,
 each one swapping the volume if it needs to (e.g. polished marble in
 one slab, frosted marble — different σ — in another).
 
@@ -833,18 +828,16 @@ the volume is heterogeneous (`procedural` / `grid` / `nishita`).
 ---
 ### 6. **TEXTURES** — Embedded in Materials
 Textures are defined **within** material definitions. All procedural textures
-are pro-grade, with the same controls exposed by Arnold (`noise`, `cell_noise`),
-Cycles (Noise / Voronoi / Brick / Gradient nodes) and RenderMan (`PxrFractal`,
-`PxrVoronoise`, `PxrMarble`, `PxrTile`).
+are pro-grade, with a comprehensive set of controls for noise, voronoi, marble,
+wood, brick, gradient and coordinate textures.
 
 #### **Sampling space (object-local).**
 Every procedural samples on `rec.LocalPoint`, which the built-in primitives
 expose in their **own object-local frame**: Sphere/Cylinder/Cone/Capsule/Disk/
 Annulus subtract `Center` from the world hit, Quad subtracts `Q`, InfinitePlane
 subtracts `Point`, Box/Torus/Lathe are already at the origin and always wrapped
-in a `Transform`. This matches Arnold's `space: object`, Cycles' "Texture
-Coordinate → Object" and RenderMan's `Pref` — the texture tiles **per-entity**
-regardless of where the primitive is placed in the world.
+in a `Transform`. The texture tiles **per-entity** regardless of where the
+primitive is placed in the world.
 
 Practical consequence on `scale` recommendations:
 
@@ -889,7 +882,7 @@ texture:
 ```
 The seven noise families map onto the standard pro-renderer modes:
 - `perlin` — single-octave smooth gradient noise.
-- `fbm` — Σ noise/2^i, the canonical "fractal noise" of Arnold/Cycles/RenderMan.
+- `fbm` — Σ noise/2^i, the canonical "fractal noise".
 - `turbulence` — Σ|noise|/2^i with absolute-value sharpening.
 - `ridged` — Musgrave ridged multifractal, sharp ridges (rocks, lightning).
 - `billow` — Σ|noise| octaves, puffy / cloud-like.
@@ -913,9 +906,8 @@ everything into mountains. These two parameters are only used by the
 ignore them.
 
 **Marble** — production-grade ridged multifractal + recursive (Inigo Quilez)
-domain warp + anisotropic geological fold + optional mineral impurities. The
-algorithm matches the quality of Arnold's `marble2`, RenderMan's `PxrMarble`,
-Cycles' Marble in cinematic configuration. No periodic carrier — every visible
+domain warp + anisotropic geological fold + optional mineral impurities.
+No periodic carrier — every visible
 tiling is killed by the recursive warp.
 
 ```yaml
@@ -1091,9 +1083,8 @@ texture:
 ```
 
 > **Production-grade wood controls.** The texture was rewritten end-to-end
-> to match the wood node found in Arnold (`wood`/`knots`), Cycles' Wave
-> Texture (Rings mode), RenderMan `PxrWoodKnot` and Substance Designer
-> Wood. All knobs above are active by default with sensible values —
+> to a production-grade annual-ring model. All knobs above are active
+> by default with sensible values —
 > the legacy "every ring looks the same" symmetric profile is gone.
 >
 > * **Asymmetric ring profile.** `latewood_width` controls the width of
@@ -1139,8 +1130,7 @@ texture:
 > * **`knot_density`.** 3-D cone projection — each sparse Worley cell
 >   hosts a knot whose visible cone widens with axial distance from the
 >   cell centre. Inside the cone the ring centre is pulled toward the
->   knot feature and a dark heart is added on top, matching Arnold's
->   `knots` and RenderMan's `PxrWoodKnot`. Combine with a 4-5 stop
+>   knot feature and a dark heart is added on top. Combine with a 4-5 stop
 >   `color_ramp:` for cuore-nodo / latewood / earlywood / sapwood
 >   tone authoring.
 
@@ -1440,29 +1430,26 @@ texture:
   smoothness: 0.0              # 0 = hard min (classic); ∈ (0,1] enables IQ Smooth Voronoi
   colors: [[0, 0, 0], [1, 1, 1]]   # palette endpoints, ignored for "cell" and "position"
 ```
-Mirrors Cycles' Voronoi Texture: `f1` gives stone/pebble blobs,
+The voronoi texture: `f1` gives stone/pebble blobs,
 `f2_minus_f1` gives sharp "crackle" ridges (cracked-mud, snake-skin),
 `random` gives palette-aware per-cell stochastic colour (rocks,
 scales, mosaics). The Chebyshev metric reproduces hex/square tiling.
 
 > **Per-cell stochastic ID — `cell` vs `random` vs `position`.** Three
-> Cycles-compatible per-cell channels, with distinct roles:
-> - `cell` — **raw RGB hash** of the cell ID, the literal Cycles "Color"
->   output. Saturated rainbow per cell, **ignores `colors:` and
->   `color_ramp:`**. Use it when you want an unconstrained random colour
->   identifier (e.g. as the input to a downstream hue/sat or mix-RGB node)
->   or when you need bit-identical Cycles parity.
+> per-cell channels with distinct roles:
+> - `cell` — **raw RGB hash** of the cell ID. Saturated rainbow per cell,
+>   **ignores `colors:` and `color_ramp:`**. Use it when you want an
+>   unconstrained random colour identifier (e.g. as the input to a
+>   downstream hue/sat or mix-RGB node).
 > - `random` — **scalar in [0, 1) per cell** mapped through `colors:` /
->   `color_ramp:`, same path the distance outputs use. Identical role to
->   Cycles 3.0+ "Random" output. This is what nearly every "rocks /
->   pebbles / scales / patches" material wants — pick this whenever you
->   provide a muted palette and expect the cells to land inside it.
+>   `color_ramp:`, same path the distance outputs use. This is what nearly
+>   every "rocks / pebbles / scales / patches" material wants — pick this
+>   whenever you provide a muted palette and expect the cells to land inside it.
 > - `position` — **cell-local XYZ of the F1 feature point packed as
 >   RGB**. Decorrelated from `cell`, useful as a stochastic 3-vector ID
 >   for seeding downstream procedurals or driving random-per-island UV
 >   transforms. Bypasses `color_ramp:` (vector identity output, not a
->   scalar). Cycles "Position" output, RenderMan PxrVoronoise position,
->   Houdini Voronoi `P_` attribute.
+>   scalar).
 
 > **Extended channels (`f3`, `f4`, `f3_minus_f1`).** F3 and F4 are the
 > 3rd and 4th nearest feature distances inside the 3×3×3 cell window —
@@ -1471,14 +1458,13 @@ scales, mosaics). The Chebyshev metric reproduces hex/square tiling.
 > mosaics, voronoi-on-voronoi). `f3_minus_f1` gives a wider, lower-
 > frequency border band than `f2_minus_f1` — softer rims, mortar-style
 > gradients. The extended channels always use the hard min — `smoothness`
-> is intentionally ignored for them (same convention Cycles uses for its
-> Cell / Random outputs: discrete-topology descriptors aren't softened).
+> is intentionally ignored for them (discrete-topology descriptors aren't
+> softened).
 
 > **Note on `f2_minus_f1`.** Mathematically, `F2-F1` is **zero on the cell
 > boundary** (perpendicular bisector between two feature points) and grows
 > to its maximum at the cell centre. The lerp uses `t = sqrt(F2-F1 / norm)`
-> — sqrt compression matches Cycles' "Distance to Edge" response — so
-> `t = 0` → `colors[0]` is the **edge colour** and `t = 1` → `colors[1]`
+> — sqrt compression — so `t = 0` → `colors[0]` is the **edge colour** and `t = 1` → `colors[1]`
 > is the **cell-interior colour**. For the classic crackle look (bright
 > thin lines on dark background) put the **bright** colour FIRST and the
 > **dark** colour SECOND.
@@ -1492,7 +1478,7 @@ scales, mosaics). The Chebyshev metric reproduces hex/square tiling.
 > the crease lines. Use it for polished leather, water-smoothed pebbles,
 > supple reptile skin, closed-pore marble. `smoothness = 0` (default) is
 > bit-identical to the legacy hard min. The `cell` / `random` outputs are
-> intentionally unaffected (per-cell lookup is discrete, matching Cycles).
+> intentionally unaffected (per-cell lookup is discrete).
 > Numerical contract: the accumulator runs in double precision and the
 > sum is rebased on the hard nearest so no `exp()` argument ever exceeds
 > `0`; with `smoothness → 0` (i.e. `k → ∞`) the result converges to the
@@ -1541,12 +1527,10 @@ texture:
   offset: [0, 0, 0]
   rotation: [0, 0, 0]
 ```
-Returns the shading point's coordinates as RGB. Equivalent to Cycles'
-"Texture Coordinate" node, RenderMan `Pref` / `Pworld` / `uvCoord` and
-Arnold's `utility` node. Two principal uses: (1) **debug overlay** to
-verify UV unwraps and object/world space alignment at a glance, and
-(2) **deterministic XYZ driver** to feed another texture (via mix
-material) with a chosen coordinate system instead of the implicit
+Returns the shading point's coordinates as RGB. Two principal uses:
+(1) **debug overlay** to verify UV unwraps and object/world space alignment
+at a glance, and (2) **deterministic XYZ driver** to feed another texture
+(via mix material) with a chosen coordinate system instead of the implicit
 object-local sample point every procedural uses by default.
 
 - `object` — `fract(rec.LocalPoint · scale)`. Same space every other
@@ -1554,8 +1538,7 @@ object-local sample point every procedural uses by default.
 - `uv` — `(u, v, 0)` raw (no fract). Shows the primitive's UV
   parameterisation directly; the seam line of spherical UVs is visible.
 - `generated` — `clamp((LocalPoint − bounds_min) / (bounds_max − bounds_min), 0, 1)`.
-  The "reference-space" workflow popularised by RenderMan `Pref`:
-  artists declare the canonical AABB of the object (typically the
+  Artists declare the canonical AABB of the object (typically the
   rest-pose box) and every downstream node sees a tidy `[0, 1]³`
   parameter regardless of how the surface is transformed or displaced
   at render time. Defaults to the unit cube `[-1, 1]³`, matching the
@@ -1599,8 +1582,7 @@ don't read like clones on a wood plank-style grid.
 
 **Multi-stop color ramp (`color_ramp:`)** — optional override of the
 implicit two-colour lerp on `noise`, `marble`, `wood`, `voronoi` and
-`gradient`. Mirrors Cycles' ColorRamp node, Arnold's `ramp_rgb` and
-RenderMan's `PxrRamp`:
+`gradient`:
 ```yaml
 texture:
   type: "marble"
@@ -1614,8 +1596,7 @@ texture:
 - `color: [r, g, b]` — linear-space RGB.
 - `interp` (per stop, controls the *outgoing* segment toward the next stop):
   - `linear` — straight lerp (default).
-  - `smoothstep` — Hermite cubic `3t² − 2t³` (C¹ continuity, the smooth
-    transition Cycles uses for "Ease").
+  - `smoothstep` — Hermite cubic `3t² − 2t³` (C¹ continuity).
   - `ease` — Perlin smootherstep `6t⁵ − 15t⁴ + 10t³` (C² continuity, the
     quintic curve with zero first and second derivative at both endpoints
     — broad photo-real shoulders).
@@ -1678,8 +1659,7 @@ bump_map:
 
 Like `normal_map` but driven by a **scalar height field** sampled from any
 procedural or image texture (Rec.709 luminance). The shading normal is
-perturbed via central differences in tangent space (Blinn 1978). Aligns
-with Arnold's `bump2d`, RenderMan's `PxrBump`, Cycles' "Bump" node.
+perturbed via central differences in tangent space (Blinn 1978).
 
 | Field      | Type                | Default | Description                                                                 |
 |------------|---------------------|---------|-----------------------------------------------------------------------------|
@@ -1687,8 +1667,7 @@ with Arnold's `bump2d`, RenderMan's `PxrBump`, Cycles' "Bump" node.
 | `strength` | float ∈ [0, 10]     | `1.0`   | Amplitude of the perturbation. Above ~5 the bump looks rocky; ~0.5–1.0 reads as fine detail. |
 | `scale`    | float > 0           | `1.0`   | Uniform UV multiplier stacked on top of the inner texture's own `uv_scale` / `scale`. |
 
-**Composition order** when both `normal_map` and `bump_map` are present
-(Arnold/Cycles convention):
+**Composition order** when both `normal_map` and `bump_map` are present:
 
 1. `normal_map` runs first, replacing the geometric normal.
 2. `bump_map` runs second, perturbing the **already-perturbed** normal
@@ -1706,15 +1685,14 @@ The killer advantage over `normal_map` is **procedural input**: infinite
 resolution, no asset to ship, full reuse of the existing procedural
 texture types (noise/marble/wood/voronoi/brick/gradient).
 
-#### **Surface Displacement (Material-Level — Cycles/RenderMan parity)**
+#### **Surface Displacement (Material-Level)**
 
 True geometric displacement of subdivided polygonal meshes. Unlike
 `bump_map` (which perturbs only the shading normal) the displacement
 physically moves the vertices, so the **silhouette changes** — outlines
 against the sky reflect the deformation. The displacement is part of the
-material (Cycles' "Material Output → Displacement" socket, RenderMan's
-`PxrDisplace` in the BXDF network): one displaced material drives every
-mesh that uses it, with no per-entity duplication.
+material: one displaced material drives every mesh that uses it, with no
+per-entity duplication.
 
 ```yaml
 materials:
@@ -1736,7 +1714,7 @@ materials:
       uv_scale: 1.0
       bound: 0.30                     # BVH leaf AABB padding; auto-derived when omitted
       displacement_method: "both"     # both | displacement | bump_only
-      autobump: true                  # Arnold autobump_visibility equivalent
+      autobump: true                  # derive residual bump from displacement texture
       autobump_strength: 1.5
       autobump_scale: 1.0
 ```
@@ -1744,8 +1722,8 @@ materials:
 The vertex update for scalar mode is `v' = v + scale · (h − midlevel) ·
 n_smooth` with `h = Rec.709 luminance(texture.Value(u, v, p))`. Vector
 mode reads the full RGB triplet and offsets along the per-vertex TBN
-basis (`tangent` space — R→T, G→B, B→N, the Mudbox/Maya/ZBrush/Cycles
-bake convention) or directly as a local `(x, y, z)` offset (`object`
+basis (`tangent` space — R→T, G→B, B→N, standard bake convention) or
+directly as a local `(x, y, z)` offset (`object`
 space). The post-displacement smooth normals are recomputed from the
 displaced topology so the BSDF sees the new silhouette's actual normal
 field, not the pre-displacement one.
@@ -1758,15 +1736,14 @@ field, not the pre-displacement one.
 | `displacement.scale`              | float       | `0.1`   | Signed amplitude in world units. Negative pushes inward. `0` disables. |
 | `displacement.midlevel`           | float       | `0`     | Reference texture value = "no displacement". `0.5` for 8-bit greys / unsigned-RGB EXRs. |
 | `displacement.uv_scale`           | float > 0   | `1.0`   | Uniform UV multiplier stacked on top of the inner texture's own `uv_scale`. |
-| `displacement.bound`              | float ≥ 0   | `\|scale\|` (scalar) / `\|scale\|·√3` (vector) | Maximum expected displacement amplitude. Pads BVH leaf AABBs (Arnold's `disp_padding`, RenderMan's `dispBound`). |
-| `displacement.displacement_method`| string      | `"both"` | Cycles tri-state. `"both"` runs geometric displacement + autobump (if requested); `"displacement"` runs only the geometric pass and forces autobump off; `"bump_only"` skips the geometric pass and turns the texture into a pure bump map. |
-| `displacement.autobump`           | bool        | `false` | Derive a residual `bump_map` from the displacement texture and attach it to the mesh — recovers sub-pixel detail finer than the subdivision grid (Arnold's `autobump_visibility`). |
+| `displacement.bound`              | float ≥ 0   | `\|scale\|` (scalar) / `\|scale\|·√3` (vector) | Maximum expected displacement amplitude. Pads BVH leaf AABBs to avoid self-intersection artefacts. |
+| `displacement.displacement_method`| string      | `"both"` | `"both"` runs geometric displacement + autobump (if requested); `"displacement"` runs only the geometric pass and forces autobump off; `"bump_only"` skips the geometric pass and turns the texture into a pure bump map. |
+| `displacement.autobump`           | bool        | `false` | Derive a residual `bump_map` from the displacement texture and attach it to the mesh — recovers sub-pixel detail finer than the subdivision grid. |
 | `displacement.autobump_strength`  | float ≥ 0   | `1.0`   | Bump amplitude multiplier; the final amplitude is `autobump_strength · \|scale\|`. |
 | `displacement.autobump_scale`     | float > 0   | `1.0`   | UV-frequency multiplier for the autobump's inner texture. `>1` samples finer than the displacement (macro displacement + micro bump workflow). |
 
 **Mesh-only by design.** Material-level displacement is applied only by
-the `type: mesh` entity branch (same architectural choice as Arnold's
-`polymesh` and Cycles' True Displacement). Non-mesh entities that
+the `type: mesh` entity branch. Non-mesh entities that
 reference a displaced material emit a load-time warning and use the
 material's surface shading without the geometric displacement.
 
@@ -1795,8 +1772,7 @@ material's surface shading without the geometric displacement.
 > Use the fixed-iteration form (`subdivision_iterations: N`) only for
 > deterministic CI / regression renders.
 
-**Composition order.** When all three perturbations are present the
-engine combines them in the order Arnold/Cycles use:
+**Composition order.** When all three perturbations are present:
 
 ```
 geometry normal (post-displacement)
@@ -1806,8 +1782,7 @@ geometry normal (post-displacement)
 ```
 
 `coat_normal_map` on the Disney BSDF perturbs only the clearcoat lobe
-and is unaffected by this stack (parity with Arnold's standard surface
-and Cycles' Principled BSDF).
+and is unaffected by this stack.
 
 **Pipeline.** `subdivide → displace → triangulate → BVH`. Displacement
 on an un-subdivided low-poly mesh moves the original vertices and is
@@ -1820,7 +1795,7 @@ entity to disable the resolved material's displacement for that single
 instance (the material is still shared with other meshes that DO get
 displaced). Useful for low-detail proxies or LOD copies.
 
-**Mix material displacement (Cycles "Mix Shader → Displacement").** A
+**Mix material displacement.** A
 `type: mix` material with `displacement: { blend_with_mask: true }`
 vector-blends the per-vertex displacement offsets of its two child
 materials by the SAME mask/blend factor the BSDF mix uses. The result
@@ -1868,7 +1843,7 @@ group, instance):
 | `name` | — | Optional label for logging / debugging |
 | `material` | inherited | Material ID, resolved from the `materials` block |
 | `seed` | auto | Stable integer that drives procedural texture variation; auto-derived from name+type+index when omitted |
-| `visible_to_camera` | `true` | Hide from primary camera rays only. Mirrors Arnold's `camera` visibility flag and Cycles' "Ray Visibility → Camera": the entity still appears in specular reflections/refractions, still receives and casts indirect illumination, and (if emissive) still contributes to direct lighting via NEE. Typical use: emissive panel that acts as a fill light but should not show up as a bright rectangle in the frame, off-screen practicals visible only via reflections. Set on a `group` to propagate to every child. |
+| `visible_to_camera` | `true` | Hide from primary camera rays only. The entity still appears in specular reflections/refractions, still receives and casts indirect illumination, and (if emissive) still contributes to direct lighting via NEE. Typical use: emissive panel that acts as a fill light but should not show up as a bright rectangle in the frame, off-screen practicals visible only via reflections. Set on a `group` to propagate to every child. |
 | `scale`, `rotate`, `translate` | identity | Optional local transform (applied scale → rotate → translate) |
 
 #### **7.1 Sphere**
@@ -2005,9 +1980,8 @@ group, instance):
 
 ##### **Subdivision surfaces (Loop / Catmull-Clark)**
 
-The mesh loader can refine the OBJ before BVH construction using the same
-two production-grade algorithms shipped by Arnold, RenderMan, Cycles and
-Pixar's OpenSubdiv:
+The mesh loader can refine the OBJ before BVH construction using the
+standard Loop and Catmull-Clark subdivision algorithms:
 
 ```yaml
 - name: "smooth_cube"
@@ -2031,7 +2005,7 @@ Pixar's OpenSubdiv:
   Hoppe / DeRose. Mixed-arity input is handled in the first iteration,
   after which the mesh is all-quads.
 - Per-vertex normals are **recomputed from the limit topology** using
-  Max 1999's angle-weighted average (the Blender / Maya default). Source
+  Max 1999's angle-weighted average. Source
   OBJ normals are propagated through subdivision but overridden at
   triangulation time because the limit surface is smoother than the input.
 - UV channels carry through with linear mid-edge masks (vertex-varying
@@ -2069,12 +2043,12 @@ entities:
     # displacement_enabled: false   # optional per-entity bypass
 ```
 
-All vector/scalar/autobump fields and the Cycles tri-state
-`displacement_method` are documented in the material section. The mesh
+All vector/scalar/autobump fields and `displacement_method` are documented
+in the material section. The mesh
 entity itself accepts only `displacement_enabled: bool` (default `true`)
 to suppress an inherited displacement per-instance.
 
-#### **7.13 HeightField (Mitsuba-style terrain)**
+#### **7.13 HeightField (Terrain)**
 
 A continuous surface `y = h(x, z) · height_scale` over the XZ rectangle
 defined by `bounds: [xMin, zMin, xMax, zMax]`. The height function comes
@@ -2427,8 +2401,7 @@ entities:
   shell.
 - `twist_degrees` rotates the top profile around the Y axis — combined
   with `taper`, you get the wide range of architectural columns and
-  industrial fittings produced by Houdini's `polyextrude` or Blender's
-  "Extrude with twist".
+  industrial fittings with an intricate twisted profile.
 - `curve_samples` controls the silhouette quality of `catmull_rom` /
   `bezier` profiles: each input segment becomes that many polyline
   samples (default 16, raise to 24-32 for hero close-ups).
@@ -2552,9 +2525,9 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 - `shadow_samples` overridable via CLI: `-S 32`
 - Defines a physical rectangle in space
 - Great for ceiling panels, windows
-- Visible to camera & specular rays via an internally-managed emissive quad proxy at the same `corner`/`u`/`v` — closes Veach's MIS estimator on smooth-specular materials. Same approach as Arnold/Cycles/Renderman analytic quad lights.
+- Visible to camera & specular rays via an internally-managed emissive quad proxy at the same `corner`/`u`/`v` — closes Veach's MIS estimator on smooth-specular materials.
 - `soft_radius` (default `0`): when > 0, the attenuation denominator is clamped to `max(distSq, r²)`, preventing the `cosLight/d²` term from diverging when a stratified sample falls nearly tangent to the receiver in dense volumetric media. The returned geometric distance is unchanged. Recommended for area lights illuminating a dense participating medium (e.g. a ceiling panel in fog).
-- `visible_to_camera` (default `true`): set to `false` to hide the quad proxy from primary camera rays. NEE keeps illuminating the scene at full intensity; specular reflections / refractions still see the panel; indirect bounces are unaffected. Matches Arnold's `camera` visibility flag and Cycles' "Ray Visibility → Camera".
+- `visible_to_camera` (default `true`): set to `false` to hide the quad proxy from primary camera rays. NEE keeps illuminating the scene at full intensity; specular reflections / refractions still see the panel; indirect bounces are unaffected.
 #### **8.4b Portal Light (window onto the environment)**
 ```yaml
 - type: "portal"  # alias: "portal_light"
@@ -2588,9 +2561,9 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 ```
 - Solid-angle sampling (efficient, no wasted samples)
 - Isotropic penumbra (circular shadows)
-- Visible to camera & specular rays via an internally-managed emissive proxy primitive at the same position/radius — closes Veach's MIS estimator on smooth-specular materials (no "dark hole" highlight on glass/mirror balls). Same approach as Arnold/Cycles/Renderman analytic sphere lights.
+- Visible to camera & specular rays via an internally-managed emissive proxy primitive at the same position/radius — closes Veach's MIS estimator on smooth-specular materials (no "dark hole" highlight on glass/mirror balls).
 - `soft_radius` is intentionally **not** consumed: the solid-angle estimator `L = Intensity × Ω / N` is bounded by `4π · Intensity` even when the receiver is inside the sphere, so the 1/d² floor used by point/spot/area lights is unnecessary here.
-- `visible_to_camera` (default `true`): set to `false` to hide the spherical proxy from primary camera rays. NEE keeps illuminating the scene at full intensity; the sphere still appears in mirror reflections and through glass. Matches Arnold's `camera` visibility flag and Cycles' "Ray Visibility → Camera". Has no effect on `point`/`spot`/`directional` (delta) lights which carry no proxy.
+- `visible_to_camera` (default `true`): set to `false` to hide the spherical proxy from primary camera rays. NEE keeps illuminating the scene at full intensity; the sphere still appears in mirror reflections and through glass. Has no effect on `point`/`spot`/`directional` (delta) lights which carry no proxy.
 #### **Light Calibration Reference:**
 | Type | Range | Notes |
 |------|-------|-------|

@@ -101,7 +101,7 @@ Se ometti `sky:`, il motore usa un cielo flat azzurro-diurno (`[0.5, 0.7, 1.0]`)
 La sezione `world:` supporta anche una **scorciatoia per il terreno** che
 fa dispatch su una delle quattro shape — piano infinito, quad finito, disk
 o heightfield — con UV transform completa, scorciatoia di materiale inline
-e flag di visibilità per categoria di raggio (parità Arnold / Cycles).
+e flag di visibilità per categoria di raggio.
 
 ```yaml
 world:
@@ -125,8 +125,7 @@ world:
 
 Quando ometti `material:` e il blocco `world.sky` espone un `ground_color`
 o `ground_albedo`, il pavimento eredita automaticamente quel colore come
-Lambertian neutro — la stessa comodità lookdev che `aiSkyDomeLight` di
-Arnold offre nelle preview. Lo schema completo (strata heightfield, flag
+Lambertian neutro — una comoda scorciatoia lookdev per le preview rapide. Lo schema completo (strata heightfield, flag
 di visibilità, orientation) è documentato in
 [`docs/reference/riferimento-scene.md`](../../reference/riferimento-scene.md).
 

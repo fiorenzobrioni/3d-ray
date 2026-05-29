@@ -389,9 +389,9 @@ meshes. OBJ models are often exported at vastly different scales, so
 
 ### 4.12.1 Subdivision Surfaces (Loop / Catmull-Clark)
 
-When an OBJ is low-poly the renderer can refine it on load using the same
-two algorithms shipped by Arnold, RenderMan, Cycles and Pixar's
-OpenSubdiv. The result is bound by the limit surface — the smoother
+When an OBJ is low-poly the renderer can refine it on load using the
+standard Loop and Catmull-Clark subdivision algorithms. The result is
+bound by the limit surface — the smoother
 "continuous" geometry the subdivision rules converge to — and the silhouette
 becomes fully smooth after a handful of iterations.
 
@@ -425,8 +425,8 @@ Mesh: smooth_cube — 768 faces, 8 vertices (subdivision: CatmullClark × 3)
 ```
 
 Behind the scenes the engine builds the limit topology, recomputes
-per-vertex normals as the angle-weighted average of incident face normals
-(the Blender/Maya default), and then emits the resulting triangles into
+per-vertex normals as the angle-weighted average of incident face normals,
+and then emits the resulting triangles into
 the mesh's internal BVH. Source OBJ normals are propagated through the
 subdivision steps but overridden at the final triangulation because the
 limit surface is smoother than the input.
@@ -434,7 +434,7 @@ limit surface is smoother than the input.
 ### 4.12.2 Displacement (see Chapter 3)
 
 > **Since `2026-05`** displacement is declared on the **material**, not
-> on the entity (Cycles/RenderMan parity). See **Chapter 3 — Materials,
+> on the entity. See **Chapter 3 — Materials,
 > "Surface Displacement"** for the full guide (scalar, vector, autobump,
 > `displacement_method`, Mix-displacement). The mesh entity only
 > accepts `displacement_enabled: false` to bypass the resolved

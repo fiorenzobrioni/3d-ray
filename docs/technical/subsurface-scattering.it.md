@@ -2,7 +2,7 @@
 
 Il subsurface scattering di 3D-Ray è un random walk volumetrico brute-force, dispatchato sugli eventi di refrazione in geometria legata a un medium `homogeneous` con scattering. Non esiste scorciatoia "diffusion approximation", non c'è dipole, non c'è kernel separabile — ogni fotone che entra nel volume viene trasportato dall'estimatore free-flight completo finché non esce dal boundary, non viene ucciso dalla Russian Roulette, o non raggiunge il cap hard sui bounce volumetrici.
 
-È la stessa ricetta che Cycles spedisce come `random_walk_v2` e Arnold come modalità di default `randomwalk` di `standard_surface`. Il motivo per cui ha rimpiazzato il dipole quasi ovunque in produzione: è **l'**integratore path-traced per geometria arbitraria, gestisce feature sottili e curvatura correttamente, energy-conserva per costruzione, e condivide la sua macchina di sampling con il path tracer volumetrico esistente.
+Questo random walk brute-force ha rimpiazzato il dipole quasi ovunque in produzione: è **l'**integratore path-traced per geometria arbitraria, gestisce feature sottili e curvatura correttamente, energy-conserva per costruzione, e condivide la sua macchina di sampling con il path tracer volumetrico esistente.
 
 ## Derivazione
 
@@ -25,7 +25,7 @@ Il throughput accumulato all'uscita è il fattore BTDF "see-through" del volume 
 
 I coefficienti σ sono RGB (uno σ_t per canale). Un walk parallel 3-canali ingenuo spara 3 mean-free-path di lavoro per evento di scatter; un walk single-channel unbiased pesca un canale per scatter e scarta gli altri due, ma sottostima eventi rari che sarebbero scappati lungo un canale diverso.
 
-L'estimatore hero-wavelength (Wilkie et al. 2014, reso popolare da Cycles 2.7) trova la via di mezzo. Ogni evento di scatter picka un canale hero `c` con probabilità proporzionale a `throughput[c]`; la distanza free-flight è estratta da σ_t[c]; e il throughput è poi balance-weighted attraverso tutti e 3 i canali:
+L'estimatore hero-wavelength (Wilkie et al. 2014) trova la via di mezzo. Ogni evento di scatter picka un canale hero `c` con probabilità proporzionale a `throughput[c]`; la distanza free-flight è estratta da σ_t[c]; e il throughput è poi balance-weighted attraverso tutti e 3 i canali:
 
 ```
 β  *=  σ_s · exp(-σ_t · t) / Σ_c q[c] · σ_t[c] · exp(-σ_t[c] · t)
@@ -58,7 +58,7 @@ Eventi di scatter profondi producono contributi indiretti deboli su un ampio ran
 clamp(b) = _indirectMaxSampleRadiance / (1 + 0.1 · b)
 ```
 
-così l'NEE al bounce 2 è clampato al limite indiretto globale, ma l'NEE al bounce 32 è clampato molto più stretto (≈ 25% del globale). Matcha `clamp_walk_volume` di Cycles e il clamp depth-aware stile `indirect_specular` di Arnold.
+così l'NEE al bounce 2 è clampato al limite indiretto globale, ma l'NEE al bounce 32 è clampato molto più stretto (≈ 25% del globale), implementando un clamp depth-aware che previene i firefly nei media a scattering intenso.
 
 ## CLI knobs
 
@@ -94,15 +94,14 @@ Coefficienti σ riproducibili per materiali comuni (`σ_t = σ_a + σ_s`, unità
 | Ketchup | 0.061, 0.97, 1.45 | 0.18, 0.07, 0.03 | iso | σ_a alto in G/B → rosso profondo |
 | Mela (rossa) | 0.0030, 0.0034, 0.0460 | 2.29, 2.39, 1.97 | iso | Bleed caldo sottile |
 
-Sono i valori canonici post-Jensen che trovi renderizzati nella documentazione Mitsuba / PBRT. Per altri materiali, deriva σ dai σ_s′ ridotti pubblicati via `σ_s = σ_s′ / (1 − g)` e picka `g` secondo l'anisotropia tipica del medium (skin/wax ≈ 0.9 forward, latte/marmo ≈ 0).
+Sono i valori canonici post-Jensen dalla letteratura volumetrica. Per altri materiali, deriva σ dai σ_s′ ridotti pubblicati via `σ_s = σ_s′ / (1 − g)` e picka `g` secondo l'anisotropia tipica del medium (skin/wax ≈ 0.9 forward, latte/marmo ≈ 0).
 
 ## Due strade di binding: entity-bound vs material-embedded
 
 L'integratore random walk in sé non si cura di dove arrivi il suo
 `HomogeneousMedium` — gli basta che qualcuno lo pushi sul `MediumStack`
 quando il raggio rifrange nella superficie. Il loader espone due modi
-interoperabili per impostarlo, allineati allo stesso split offerto da
-Arnold e Cycles.
+interoperabili per impostarlo.
 
 ### Strada 1 — Entity-bound (`interior_medium`)
 
@@ -137,9 +136,8 @@ entities:
 L'artista dichiara `subsurface_radius` sul materiale Disney e il loader
 sintetizza un `HomogeneousMedium` anonimo, auto-iniettandolo su ogni
 entity che usa il materiale e che non ha già un `interior_medium`
-esplicito. È la parity di Arnold `standard_surface` con
-`subsurface_type: randomwalk` e del Subsurface del Principled BSDF di
-Cycles.
+esplicito. Emula lo scattering subsuperficiale volumetrico dentro il
+materiale con controlli artistici dedicati.
 
 ```yaml
 materials:
@@ -180,12 +178,11 @@ scritta a mano — l'integratore non sa da dove viene.
 | Due entity, stessa superficie, volumi diversi | Banale — un `interior_medium` per entity | Override su un'entity con `interior_medium` (vince sempre) |
 | Media eterogenei (procedural / grid / nishita) | Supportato | Non applicabile — l'embedded è solo `homogeneous` |
 | Riuso | Incolli il blocco `mediums:` più il blocco materiale | Incolli un singolo preset materiale autocontenuto |
-| Analogo DCC più vicino | Arnold "interior" / binding `<medium>` di Mitsuba | Randomwalk di Arnold `standard_surface` / Subsurface del Principled di Cycles |
+| Stile di setup | Medium esplicito su entity | Scorciatoia integrata nel materiale |
 
 **Regola di precedenza.** Un `interior_medium` esplicito sull'entity
-vince sempre sul medium material-embedded. È la convenzione Arnold /
-Cycles voluta: il medium embedded è un default sensato che l'artista
-può sostituire per-entity senza toccare il materiale.
+vince sempre sul medium material-embedded. Il medium embedded è un default
+sensato che l'artista può sostituire per-entity senza toccare il materiale.
 
 **Quando usare cosa.** Vai sulla strada embedded quando vuoi materiali
 autocontenuti (i cataloghi `scenes/presets/materials-stone.md`,

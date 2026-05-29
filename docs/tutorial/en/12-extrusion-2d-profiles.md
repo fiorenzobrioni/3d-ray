@@ -184,8 +184,7 @@ shading — the edge vanishes in specular highlights). If the angle is
 | `90°`          | Smooth everywhere except right-angle corners — typical DCC default. |
 | `180°`         | Fully smooth regardless of corner angle. |
 
-30° (Blender's and Maya's classic default) is the best starting point for
-any polyline-approximated rounded shape: a 12-sided circle, an 8-lobed
+30° is the best starting point for any polyline-approximated rounded shape: a 12-sided circle, an 8-lobed
 column cross-section, a rounded hexagon.
 
 **`crease_angle` vs `catmull_rom`**: use `crease_angle` when the polygon
@@ -352,8 +351,7 @@ it disqualifies the extrusion from CSG use until you cap it.
 
 A straight extrusion looks like an aluminium profile. Add `twist` or
 `taper`, and suddenly it can sculpt the kind of shapes that take a
-multi-step modifier stack in Blender or a `polyextrude` chain in
-Houdini.
+multi-step modifier stack in a 3D modelling tool.
 
 ### Twist
 

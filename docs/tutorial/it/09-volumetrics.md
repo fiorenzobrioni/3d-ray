@@ -109,7 +109,7 @@ g2: -0.3
 w: 0.7
 ```
 
-Combinazione lineare di due lobi HG: uno forward (`g1 ≈ 0.85`) e uno laterale/backward (`g2 ≈ -0.3`), pesati da `w ∈ [0,1]`. È il modello usato da Nubis (Guerrilla Games) per le nubi volumetriche di *Horizon Zero Dawn* e da Arnold per il rendering di cumuli. Dà un silver-lining morbido attorno al contorno delle nubi che HG singolo non riesce a produrre.
+Combinazione lineare di due lobi HG: uno forward (`g1 ≈ 0.85`) e uno laterale/backward (`g2 ≈ -0.3`), pesati da `w ∈ [0,1]`. Produce un silver-lining morbido attorno al contorno delle nubi che HG singolo non riesce a riprodurre, ed è il modello preferito per il rendering di cumuli realistici.
 
 ### Schlick (fast-HG)
 
@@ -118,7 +118,7 @@ phase: "schlick"
 g: 0.6
 ```
 
-Approssimazione razionale di HG senza `sqrt`: `p(θ) = (1 - k²) / (4π · (1 + k · cosθ)²)` con `k ≈ 1.55·g − 0.55·g³`. Usata da RenderMan e Cycles quando si vuole massimizzare il throughput. Visivamente quasi indistinguibile da HG per `|g| < 0.9`.
+Approssimazione razionale di HG senza `sqrt`: `p(θ) = (1 - k²) / (4π · (1 + k · cosθ)²)` con `k ≈ 1.55·g − 0.55·g³`. Utile quando si vuole massimizzare il throughput. Visivamente quasi indistinguibile da HG per `|g| < 0.9`.
 
 **Quale scegliere?**
 - Nebbia generica / nube fumosa → `hg` con `g = 0.6-0.85`.
@@ -141,7 +141,7 @@ La nebbia uniforme ha un limite: nel mondo reale la densità cambia con l'altitu
 
 ### 9.4.1 `height_fog` — foschia esponenziale in altezza
 
-Densità che cala esponenzialmente con la quota: `σ_T(y) = σ_T0 · exp(-(y - y0) / H)`. È il modello "atmosphere / aerial perspective" di Arnold `atmosphere_volume` e V-Ray `EnvironmentFog`. L'integrale lungo il raggio ha forma chiusa → **costo quasi identico al medium omogeneo**, nessun delta tracking.
+Densità che cala esponenzialmente con la quota: `σ_T(y) = σ_T0 · exp(-(y - y0) / H)`. È il modello "atmosphere / aerial perspective" standard. L'integrale lungo il raggio ha forma chiusa → **costo quasi identico al medium omogeneo**, nessun delta tracking.
 
 ```yaml
 world:
@@ -162,11 +162,11 @@ world:
 
 **Tip:** se la camera è bassa e guarda quasi orizzontalmente lungo raggi che attraversano molta nebbia, alza `-s` almeno a 256.
 
-> 💡 **È il tipo giusto per le scene outdoor illuminate solo da sky + sun o HDRI.** A differenza di `homogeneous`, la profondità ottica verso lo zenit è limitata dallo `scale_height`, quindi la luce solare arriva alla scena attenuata ma non azzerata — esattamente il comportamento "aerial perspective" usato da Arnold, V-Ray e Unreal. Vedi §9.4.4 sotto.
+> 💡 **È il tipo giusto per le scene outdoor illuminate solo da sky + sun o HDRI.** A differenza di `homogeneous`, la profondità ottica verso lo zenit è limitata dallo `scale_height`, quindi la luce solare arriva alla scena attenuata ma non azzerata — il comportamento standard per l'"aerial perspective". Vedi §9.4.4 sotto.
 
 ### 9.4.2 `procedural` — Perlin fBm
 
-Densità guidata da **noise Perlin con fractal brownian motion** (fBm). Il free-path sampling usa **delta tracking (Woodcock)** e la trasmittanza è stimata via **ratio tracking**. Analogo ad Arnold `standard_volume` con input noise o RenderMan `PxrVolume` in modalità procedurale.
+Densità guidata da **noise Perlin con fractal brownian motion** (fBm). Il free-path sampling usa **delta tracking (Woodcock)** e la trasmittanza è stimata via **ratio tracking**. Adatto a volumi procedurali con densità spazialmente variabile.
 
 ```yaml
 world:
@@ -195,7 +195,7 @@ world:
 
 ### 9.4.3 `grid` — densità da griglia 3D
 
-Densità campionata su una **griglia 3D regolare** dentro una AABB world-space, con filtro di ricostruzione selezionabile (trilineare di default, tricubico opzionale). Fuori dall'AABB: vuoto. Analogo a PBRT `GridMedium`, Arnold `volume` (modalità VDB) e V-Ray `VolumeGrid`. Due forme: dati inline nello YAML o file binario esterno `.vol`.
+Densità campionata su una **griglia 3D regolare** dentro una AABB world-space, con filtro di ricostruzione selezionabile (trilineare di default, tricubico opzionale). Fuori dall'AABB: vuoto. Due forme: dati inline nello YAML o file binario esterno `.vol`.
 
 **Forma A — inline (per griglie piccole, ≤ 8³):**
 
@@ -234,14 +234,14 @@ world:
     file: "cloud-64x64x64.vol"   # Path relativo allo YAML
 ```
 
-Il formato `.vol` (VOL1) è: magic `"VOL1"` (4 byte) + `nx`, `ny`, `nz` (3 × int32 little-endian) + `bounds_min.{x,y,z}`, `bounds_max.{x,y,z}` (6 × float32 little-endian) + `nx*ny*nz` float32 di densità. È pensato come passo intermedio semplice: si può generare facilmente da Houdini/Blender tramite uno script Python.
+Il formato `.vol` (VOL1) è: magic `"VOL1"` (4 byte) + `nx`, `ny`, `nz` (3 × int32 little-endian) + `bounds_min.{x,y,z}`, `bounds_max.{x,y,z}` (6 × float32 little-endian) + `nx*ny*nz` float32 di densità. È pensato come passo intermedio semplice: si può generare facilmente da qualsiasi strumento tramite uno script Python.
 
 **Uso tipico:** fumo localizzato, nuvole isolate, esplosioni, "asset" di fumo pre-simulati importati da altri software. La risoluzione della griglia non incide sul costo di rendering (solo sul parsing e sulla memoria).
 
 **Filtro di ricostruzione (`interpolation`).** Quando un sample cade tra i voxel, 3D-Ray interpola la densità in uno dei due modi:
 
-- **`trilinear`** (default, 8 taps, C⁰). Economico. A risoluzioni basse (≤ 16³) la derivata del campo di densità è discontinua ai confini delle celle → si vedono bande lineari nel render. È un artefatto universale dei renderer volumetrici a basso budget (Arnold, V-Ray, RenderMan) e in produzione si risolve usando griglie fitte (128³–1024³) dove i salti sono sub-pixel.
-- **`tricubic`** (64 taps, C¹, cardinal spline Catmull-Rom con τ = 0.5). ~8× il costo per sample, ma il campo di densità è derivabile con continuità → niente kink anche su griglie minuscole. Il risultato viene clampato in `[0,1]` per preservare l'invariante del majorant del delta tracking. Alias accettati: `cubic`, `catmull-rom`, `smooth`. Corrisponde al filtro "cubic"/"smooth" offerto da Arnold, Houdini e RenderMan su VDB.
+- **`trilinear`** (default, 8 taps, C⁰). Economico. A risoluzioni basse (≤ 16³) la derivata del campo di densità è discontinua ai confini delle celle → si vedono bande lineari nel render. In produzione si risolve usando griglie fitte (128³–1024³) dove i salti sono sub-pixel.
+- **`tricubic`** (64 taps, C¹, cardinal spline Catmull-Rom con τ = 0.5). ~8× il costo per sample, ma il campo di densità è derivabile con continuità → niente kink anche su griglie minuscole. Il risultato viene clampato in `[0,1]` per preservare l'invariante del majorant del delta tracking. Alias accettati: `cubic`, `catmull-rom`, `smooth`. Fornisce ricostruzione liscia della densità su VDB a costo di più tap.
 
 **Tip:** fuori dalla AABB il medium è vuoto → i raggi che non la intersecano sono gratis. Dimensiona bene i bounds per massimizzare le performance. Se usi `tricubic`, aspettati render ~5–10% più lenti sui raggi che attraversano la AABB.
 
@@ -254,7 +254,7 @@ Matrice di decisione rapida:
 | `homogeneous` | Costante ovunque | Analitico, economico | La nebbia è **delimitata dalla geometria** (una stanza chiusa, una cantina, un interno sommerso, una colonna di fumo dentro un camino). La densità costante presuppone implicitamente "il medium è quello che riempie questo spazio chiuso". |
 | `height_fog` | Decadimento esponenziale con l'altitudine | Analitico, economico | La scena è **outdoor e illuminata da sky / sun / HDRI** (montagne, strade, porti, città). Il profilo esponenziale in altezza è il modello atmosferico standard — la luce solare arriva alla scena, gli oggetti distanti si desaturano, il sole guadagna un alone soffice. |
 | `procedural` | Noise Perlin fBm | Delta tracking, +30–100% di tempo | La nebbia deve apparire **a chiazze o irregolare**: scene horror, god-ray non uniformi attraverso gli alberi, foschia di palude, polvere che si frantuma. |
-| `grid` | Cotta su griglia 3D | Delta tracking + filtro voxel | Hai un **asset hero localizzato**: una singola nuvola, una sim di fumo cachata da Houdini/Blender, un'esplosione. Il medium è confinato alla AABB — il resto della scena non è influenzato. |
+| `grid` | Cotta su griglia 3D | Delta tracking + filtro voxel | Hai un **asset hero localizzato**: una singola nuvola, una simulazione di fumo esportata, un'esplosione. Il medium è confinato alla AABB — il resto della scena non è influenzato. |
 
 > ⚠️ **La trappola `homogeneous` + sky/sun.** Siccome `homogeneous` ha densità costante estesa **all'infinito**, l'attenuazione Beer–Lambert lungo lo shadow ray verso il sole è `exp(-σ_t · ∞) ≈ 0` — il sole non raggiunge mai la scena e il render esce completamente nero. Lo stesso vale per ogni direzione di environment (HDRI, gradient sky). Le luci spot/point/area/sphere funzionano correttamente perché hanno distanza finita. **Per scene outdoor illuminate solo da sky + sun o HDRI usa sempre `height_fog`** — la sua profondità ottica verso lo zenit è limitata dallo `scale_height` e il sole arriva attenuato ma visibile. Non è un bug: le atmosfere reali non sono lastre omogenee infinite, e `homogeneous` è pensato solo per volumi chiusi. Gli stessi valori di densità che useresti in `homogeneous` di solito funzionano in `height_fog` con `scale_height: 5`–`15`.
 

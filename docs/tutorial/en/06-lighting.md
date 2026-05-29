@@ -33,8 +33,8 @@ correct options, all configured under `world: > sky:` (see Chapter 7):
 
 - **Flat sky**: `sky.type: flat` with a low `color` (e.g. `[0.02, 0.02, 0.025]`).
   This emits uniformly in every direction and participates in NEE via
-  uniform sphere sampling — exactly what Cycles/Arnold do for uniform
-  world backgrounds.
+  uniform sphere sampling, providing uniform ambient illumination
+  from all directions.
 - **Gradient sky**: `sky.type: gradient` with low zenith/horizon values
   (and optionally a sun disk). The body of the gradient drives ambient
   fill via path-traced bounces; the sun disk drives sharp directional
@@ -238,8 +238,8 @@ Area lights are now visible to the camera and to specular rays: the
 loader builds an emissive quad proxy at the same `corner`/`u`/`v` and
 binds it to the area light so BSDF samples that hit the rectangle
 contribute the same radiance NEE would assign — closing Veach's MIS
-estimator on smooth-specular materials. This matches how Arnold,
-Cycles and Renderman handle analytic quad lights.
+estimator on smooth-specular materials, which ensures correct specular
+highlights on polished surfaces.
 
 You can still drop a separate emissive quad of your own if you want a
 custom-shaped panel (see Section 6.7); it stacks on top of the
@@ -280,8 +280,8 @@ Sphere lights are **visible** to the camera and to specular rays: an
 internally-managed emissive sphere proxy at the same position/radius
 backs the analytic light, closing Veach's MIS estimator so smooth glass
 or polished metal balls in the scene reflect the light correctly
-(rather than showing a dark hole at the mirror direction). Same pattern
-as Arnold/Cycles/Renderman analytic sphere lights.
+(rather than showing a dark hole at the mirror direction), which is
+the expected behaviour for an analytic sphere light.
 
 Sphere lights deliberately ignore `soft_radius`: the solid-angle
 estimator `L = Intensity × Ω / N` is bounded by `4π · Intensity` even
@@ -324,7 +324,7 @@ entities:
 | Sampling efficiency           | Good                 | Slightly better (analytic)   |
 
 Both kinds of light support a `visible_to_camera` flag (default `true`) — see
-the next section for the Arnold/Cycles-style camera-visibility toggle.
+the next section for the camera-visibility toggle.
 
 Use geometry lights when the light source must be a **custom-shaped**
 emitter (neon signs, lava flows, light tubes, irregular meshes). Use
@@ -363,17 +363,16 @@ phase-sampled bounce, suppressing the fireflies that typically appear in
 ## 6.8 Camera Visibility (`visible_to_camera`)
 
 Production renderers let you decouple **how a light contributes to the
-image** from **whether the light is itself visible in the frame**. In
-Arnold this is the `camera` visibility flag, in Cycles it's "Ray
-Visibility → Camera". 3D-Ray exposes the same control under the
-underscore_case key `visible_to_camera`.
+image** from **whether the light is itself visible in the frame**.
+3D-Ray exposes this control under the underscore_case key
+`visible_to_camera`.
 
 When set to `false`:
 
 - The light still illuminates the scene at full intensity via NEE
   (direct lighting).
 - The light still appears in **mirror reflections, glass refractions and
-  indirect bounces** — exactly like in Arnold/Cycles.
+  indirect bounces**.
 - The light's proxy (or the entity's geometry) is **invisible to primary
   camera rays only**, which the renderer detects via `depth == maxDepth`.
 
@@ -734,8 +733,7 @@ quality, highlight shape, and falloff behavior side by side.
 
 Once lights are placed, the tone mapper has to translate scene radiance
 into a 0-1 displayable range. 3D-Ray uses the **ACES filmic** curve,
-the industry-standard tone map shared with Arnold, Cycles, RenderMan
-and most film pipelines. ACES is non-linear: contrast is preserved only
+the industry-standard tone map used across film and VFX pipelines. ACES is non-linear: contrast is preserved only
 inside its linear sweet-spot at roughly `[0.18, 1.0]` of incoming
 radiance. Above ~2.0 the curve flattens onto a 0.95-0.99 plateau where
 everything reads "almost white" — base colours, marble veining and
@@ -753,9 +751,8 @@ RayTracer -i scene.yaml -o out.png --exposure -1.5
 
 EV semantics match a real camera: `EV = 0` (default) is identity,
 `EV = -1` darkens by a factor of 2 (one stop down), `EV = +1` brightens
-by 2 (one stop up). The flag mirrors the same control on every
-production renderer — `exposure` in Arnold, "Film → Exposure" in
-Cycles, the display-filter `exposure` in RenderMan.
+by 2 (one stop up). The flag mirrors the standard photographic exposure compensation
+control available in production renderers.
 
 **When to reach for it:**
 
@@ -798,12 +795,11 @@ is *which slice* of the ACES curve your radiance lands on.
 - **Emissive entities** automatically become geometry lights -- visible
   and sampled for direct illumination.
 - `area` and `sphere` lights are also visible to camera and specular
-  rays via an internally-managed emissive proxy primitive — Veach-MIS
-  parity with Arnold/Cycles.
+  rays via an internally-managed emissive proxy primitive, ensuring
+  full Veach-MIS convergence.
 - Per-light and per-entity **`visible_to_camera: false`** hides the
   proxy/geometry from primary camera rays only; NEE, mirrors, glass and
-  indirect bounces still see it — Arnold `camera` / Cycles "Ray
-  Visibility → Camera" semantics.
+  indirect bounces still see it.
 - The `-S` CLI flag overrides shadow samples globally for fast drafts.
 - The **three-point setup** (key, fill, rim) is a reliable starting
   point for any scene.

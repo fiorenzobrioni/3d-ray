@@ -319,8 +319,8 @@ voxels, 3D-Ray interpolates density in one of two ways:
   About 8× per-sample cost, but the density field is continuously
   differentiable → no kinks even on tiny grids. The result is clamped to
   `[0,1]` to preserve the delta-tracking majorant invariant. Accepted
-  aliases: `cubic`, `catmull-rom`, `smooth`. Matches the "cubic"/"smooth"
-  filter offered by Arnold, Houdini and RenderMan on VDB grids.
+  aliases: `cubic`, `catmull-rom`, `smooth`. Provides smooth density
+  reconstruction on VDB grids at the cost of higher tap count.
 
 **Tip:** outside the AABB the medium is vacuum → rays that miss it are
 free. Size the bounds carefully to maximize performance. With
@@ -336,7 +336,7 @@ Quick decision matrix:
 | `homogeneous` | Constant everywhere | Analytic, cheap | The fog is **bounded by geometry** (an indoor room, a closed cellar, a submerged interior, a smoke column inside a chimney). Constant density implicitly assumes "the medium is what fills this enclosed space." |
 | `height_fog` | Decays with altitude | Analytic, cheap | The scene is **outdoor and illuminated by sky / sun / HDRI** (mountains, roads, harbours, cities). The exponential altitude profile is the standard atmospheric model — direct sunlight reaches the scene, distant objects desaturate, the sun gets a soft halo. |
 | `procedural` | Perlin fBm noise | Delta tracking, +30–100% time | The fog must look **patchy or irregular**: horror scenes, uneven god-rays through trees, swamp mist, dust that breaks up. |
-| `grid` | Baked on a 3D grid | Delta tracking + voxel filter | You have a **localized hero asset**: a single cloud, a smoke sim cached from Houdini/Blender, an explosion. The medium is confined to its AABB — the rest of the scene is unaffected. |
+| `grid` | Baked on a 3D grid | Delta tracking + voxel filter | You have a **localized hero asset**: a single cloud, a baked simulation export, an explosion. The medium is confined to its AABB — the rest of the scene is unaffected. |
 
 > ⚠️ **The `homogeneous` + sky/sun trap.** Because `homogeneous` has
 > constant density extending to **infinity**, the Beer–Lambert
