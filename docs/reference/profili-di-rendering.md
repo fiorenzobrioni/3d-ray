@@ -87,11 +87,10 @@ RayTracer -i my-scene -q ultra
 RayTracer -i my-scene -q final -d 16
 ```
 
-> I nomi dei preset rispecchiano la scala Preview/Standard/Final usata
-> da Arnold, Cycles e RenderMan; le varianti `-small` fanno lo stesso
-> lavoro del "Region render at half res" di Arnold o del viewport
-> preview di Cycles, e le varianti `-tiny` offrono un check ancora più
-> rapido a un quarto della risoluzione.
+> I nomi dei preset seguono la scala convenzionale Preview/Standard/Final.
+> Le varianti `-small` sono adatte a check iterativi a metà risoluzione,
+> e le varianti `-tiny` offrono un check ancora più rapido a un quarto
+> della risoluzione.
 
 ---
 
@@ -161,7 +160,7 @@ I campioni pixel (`-s`) e i campioni d'ombra (`-S`) riducono entrambi il rumore 
 
 `MaxSampleRadiance` (esposto come `-C`) è il limite massimo per la radianza per-campione **prima del tone mapping**. Cattura gli outlier rari prodotti da caustiche speculari, compensazione delle Disney lobe e boost della Russian Roulette — i pixel che altrimenti apparirebbero come puntini bianchi luminosi ("fireflies") nel render.
 
-**Default:** `10`. Dopo il tone mapping ACES qualunque luminanza ≳ 5 satura già al bianco, quindi `10` lascia intatti tutti i highlight visibili pur uccidendo gli spike rari. Allineato con il `clamp_indirect = 10` di Cycles e l'`AA_clamp ≈ 10` tipico di Arnold.
+**Default:** `10`. Dopo il tone mapping ACES qualunque luminanza ≳ 5 satura già al bianco, quindi `10` lascia intatti tutti i highlight visibili pur uccidendo gli spike rari. Un valore di `10` è un buon punto di partenza per la maggior parte delle scene.
 
 **Quando alzare `-C`:**
 - HDRI con sole molto intenso dove il disco solare appare meno luminoso del previsto.
@@ -177,7 +176,7 @@ Il clamp usa **scaling con preservazione della luminanza**, quindi non altera la
 
 #### **6a. Clamp indiretto depth-aware (`--indirect-clamp-factor`)**
 
-Un secondo clamp opzionale riduce la soppressione specificamente sui **bounce indiretti** (depth ≥ 1), replicando la feature "indirect clamp" di Cycles e Arnold.
+Un secondo clamp opzionale riduce la soppressione specificamente sui **bounce indiretti** (depth ≥ 1), offrendo un controllo indipendente sui fireflies dei bounce profondi rispetto al clamp primario.
 
 ```
 --indirect-clamp-factor 0.25
@@ -238,8 +237,8 @@ filtering è minimo (pochi punti percentuali nelle scene tipiche).
 ```
 
 Guadagno lineare `2^EV` applicato a ogni pixel **prima** del tone map
-ACES. Replica il knob `exposure` di Arnold, "Film → Exposure" di Cycles
-e il display-filter `exposure` di RenderMan. `EV = 0` (default) è
+ACES. Replica il concetto di compensazione dell'esposizione fotografica
+comune nei workflow di post-produzione. `EV = 0` (default) è
 identità; valori negativi scuriscono (1 EV = fattore 2×), valori
 positivi schiariscono.
 

@@ -86,10 +86,10 @@ RayTracer -i my-scene -q ultra
 RayTracer -i my-scene -q final -d 16
 ```
 
-> The preset names mirror the Preview/Standard/Final ladder used by Arnold,
-> Cycles and RenderMan, with `-small` doing the same job as Arnold's
-> "Region render at half res" or Cycles' viewport preview, and `-tiny`
-> providing an even faster check at quarter resolution.
+> The preset names follow the conventional Preview/Standard/Final quality
+> ladder. The `-small` variants are suited to half-resolution iteration
+> checks, and the `-tiny` variants provide an even faster check at quarter
+> resolution.
 
 ---
 
@@ -159,7 +159,7 @@ Pixel samples (`-s`) and shadow samples (`-S`) both reduce shadow noise. Prefer 
 
 `MaxSampleRadiance` (exposed as `-C`) is the hard ceiling on per-sample radiance **before tone mapping**. It catches the rare outliers produced by specular caustics, Disney lobe compensation, and Russian Roulette boost — the pixels that would otherwise appear as bright white dots ("fireflies") in your render.
 
-**Default:** `10`. After ACES tone mapping any luminance ≳ 5 already saturates to white, so `10` leaves all visible highlights untouched while killing rare bright spikes. Aligns with Cycles `clamp_indirect = 10` and Arnold `AA_clamp ≈ 10`.
+**Default:** `10`. After ACES tone mapping any luminance ≳ 5 already saturates to white, so `10` leaves all visible highlights untouched while killing rare bright spikes. A value of `10` is a solid starting point for most scenes.
 
 **When to raise `-C`:**
 - Strongly sun-lit HDRIs where the sun disk is showing up dimmer than expected.
@@ -175,7 +175,7 @@ The clamp uses **luminance-preserving scaling**, so it does not shift hue on bri
 
 #### **6a. Depth-aware indirect clamp (`--indirect-clamp-factor`)**
 
-A second, optional clamp tightens suppression specifically on **indirect bounces** (depth ≥ 1), mirroring the "indirect clamp" feature in Cycles and Arnold.
+A second, optional clamp tightens suppression specifically on **indirect bounces** (depth ≥ 1), providing finer control over deep-bounce fireflies independently from the primary clamp.
 
 ```
 --indirect-clamp-factor 0.25
@@ -235,8 +235,8 @@ percent at most on typical scenes).
 ```
 
 Linear gain `2^EV` applied to every pixel **before** the ACES tone map.
-Mirrors the `exposure` knob on Arnold, "Film → Exposure" on Cycles, and
-the display-filter `exposure` on RenderMan. `EV = 0` (default) is
+Replicates the concept of photographic exposure compensation familiar from
+post-processing workflows. `EV = 0` (default) is
 identity; negative values darken (1 EV = factor 2×), positive brighten.
 
 **Why it matters:** ACES filmic is a non-linear curve whose contrast is

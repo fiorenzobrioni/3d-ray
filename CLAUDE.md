@@ -110,6 +110,12 @@ When planning a change, include doc updates as explicit final steps so they don'
 - **User-facing features** (new/changed/removed CLI flags, rendering behaviour, tools): root `README.md`.
 - **Dev history & planning**: record completed work/design rationale in `DEVLOG.md`; track roadmap, TODO, and known bugs in `PLANNING.md`.
 
+### No third-party renderer names in public docs
+
+Never mention Arnold, Cycles, RenderMan, Blender, V-Ray, Octane, Redshift, or any other external renderer/DCC tool in `README.md` or any file under `docs/`. This applies even when a feature was designed by taking inspiration from one of those systems. Keep the public documentation clean and self-contained.
+
+`DEVLOG.md` and `PLANNING.md` are internal notes — references to external renderers are allowed there when describing completed work, design rationale, or roadmap items that need full technical context.
+
 ## Further reading
 
 Docs live under `docs/` (bilingual EN/IT):
