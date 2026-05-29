@@ -81,7 +81,6 @@ public class Cone : IHittable, ISamplable
         float rAtO = Radius + _slope * oy;
 
         float a = dx * dx + dz * dz - _slope * _slope * dy * dy;
-        float halfB = ox * dx + oz * dz - _slope * _slope * oy * dy - _slope * dy * Radius;
         float c = ox * ox + oz * oz - rAtO * rAtO;
 
         // Correction: expand properly.

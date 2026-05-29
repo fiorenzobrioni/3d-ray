@@ -17,6 +17,11 @@ public class Quad : IHittable, ISamplable
     private readonly Vector3 _normal;
     private readonly float _d;
     private readonly Vector3 _w;
+    // Immutable per-quad constants — precomputed once instead of on every Hit
+    // (tangent basis) and every area-light sample (area). Q, U, V never change.
+    private readonly Vector3 _tangent;
+    private readonly Vector3 _bitangent;
+    private readonly float _area;
 
     public Quad(Vector3 q, Vector3 u, Vector3 v, IMaterial material)
     {
@@ -29,6 +34,9 @@ public class Quad : IHittable, ISamplable
         _normal = Vector3.Normalize(n);
         _d = Vector3.Dot(_normal, Q);
         _w = n / Vector3.Dot(n, n);
+        _tangent = Vector3.Normalize(U);
+        _bitangent = Vector3.Normalize(V);
+        _area = n.Length(); // == Vector3.Cross(U, V).Length()
     }
 
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
@@ -63,8 +71,8 @@ public class Quad : IHittable, ISamplable
         rec.LocalPoint = rec.Point - Q;
         rec.SetFaceNormal(ray, _normal);
         
-        rec.Tangent = Vector3.Normalize(U);
-        rec.Bitangent = Vector3.Normalize(V);
+        rec.Tangent = _tangent;
+        rec.Bitangent = _bitangent;
         // ∂P/∂u = U, ∂P/∂v = V (the quad's parametric vectors map [0,1]²
         // onto the quad itself). Filtering uses these to convert the
         // screen-space footprint into UV partials at the correct magnitude.
@@ -78,15 +86,14 @@ public class Quad : IHittable, ISamplable
     }
 
     /// <inheritdoc/>
-    public float SurfaceArea => Vector3.Cross(U, V).Length();
+    public float SurfaceArea => _area;
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
         float u = MathUtils.RandomFloat();
         float v = MathUtils.RandomFloat();
         Vector3 point = Q + u * U + v * V;
-        float area = Vector3.Cross(U, V).Length();
-        return (point, _normal, new Vector2(u, v), area);
+        return (point, _normal, new Vector2(u, v), _area);
     }
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) SampleStratified(int sampleIndex, int sqrtSamples)
@@ -98,8 +105,7 @@ public class Quad : IHittable, ISamplable
         float u = (su + MathUtils.RandomFloat()) * inv;
         float v = (sv + MathUtils.RandomFloat()) * inv;
         Vector3 point = Q + u * U + v * V;
-        float area = Vector3.Cross(U, V).Length();
-        return (point, _normal, new Vector2(u, v), area);
+        return (point, _normal, new Vector2(u, v), _area);
     }
 
     public int Seed { get; set; }

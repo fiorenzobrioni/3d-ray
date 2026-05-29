@@ -70,24 +70,42 @@ public class Perlin
         int j = (int)MathF.Floor(p.Y);
         int k = (int)MathF.Floor(p.Z);
 
-        var c = new Vector3[2, 2, 2];
+        // Gather the 8 lattice gradient vectors into locals instead of a
+        // heap-allocated Vector3[2,2,2] (the old code allocated 144 bytes on
+        // every Noise() call — and Noise is invoked once per fractal octave at
+        // essentially every shaded hit). The permutation lookups for the two
+        // neighbours on each axis are hoisted so each table is indexed twice,
+        // not eight times. The trilinear blend below reproduces the previous
+        // PerlinInterp accumulation order exactly, so output is bit-identical.
+        int px0 = _permX[i & 255], px1 = _permX[(i + 1) & 255];
+        int py0 = _permY[j & 255], py1 = _permY[(j + 1) & 255];
+        int pz0 = _permZ[k & 255], pz1 = _permZ[(k + 1) & 255];
 
-        for (int di = 0; di < 2; di++)
-        {
-            for (int dj = 0; dj < 2; dj++)
-            {
-                for (int dk = 0; dk < 2; dk++)
-                {
-                    c[di, dj, dk] = _ranvec[
-                        _permX[(i + di) & 255] ^
-                        _permY[(j + dj) & 255] ^
-                        _permZ[(k + dk) & 255]
-                    ];
-                }
-            }
-        }
+        Vector3 c000 = _ranvec[px0 ^ py0 ^ pz0];
+        Vector3 c001 = _ranvec[px0 ^ py0 ^ pz1];
+        Vector3 c010 = _ranvec[px0 ^ py1 ^ pz0];
+        Vector3 c011 = _ranvec[px0 ^ py1 ^ pz1];
+        Vector3 c100 = _ranvec[px1 ^ py0 ^ pz0];
+        Vector3 c101 = _ranvec[px1 ^ py0 ^ pz1];
+        Vector3 c110 = _ranvec[px1 ^ py1 ^ pz0];
+        Vector3 c111 = _ranvec[px1 ^ py1 ^ pz1];
 
-        return PerlinInterp(c, u, v, w);
+        float uu = u * u * (3 - 2 * u);
+        float vv = v * v * (3 - 2 * v);
+        float ww = w * w * (3 - 2 * w);
+
+        // Hermite weights per corner: (1-uu) for the low side, uu for the high
+        // side — matching the old (i*uu + (1-i)*(1-uu)) form exactly.
+        float accum = 0f;
+        accum += (1 - uu) * (1 - vv) * (1 - ww) * Vector3.Dot(c000, new Vector3(u,     v,     w));
+        accum += (1 - uu) * (1 - vv) * (ww)     * Vector3.Dot(c001, new Vector3(u,     v,     w - 1));
+        accum += (1 - uu) * (vv)     * (1 - ww) * Vector3.Dot(c010, new Vector3(u,     v - 1, w));
+        accum += (1 - uu) * (vv)     * (ww)     * Vector3.Dot(c011, new Vector3(u,     v - 1, w - 1));
+        accum += (uu)     * (1 - vv) * (1 - ww) * Vector3.Dot(c100, new Vector3(u - 1, v,     w));
+        accum += (uu)     * (1 - vv) * (ww)     * Vector3.Dot(c101, new Vector3(u - 1, v,     w - 1));
+        accum += (uu)     * (vv)     * (1 - ww) * Vector3.Dot(c110, new Vector3(u - 1, v - 1, w));
+        accum += (uu)     * (vv)     * (ww)     * Vector3.Dot(c111, new Vector3(u - 1, v - 1, w - 1));
+        return accum;
     }
 
     public float Turbulence(Vector3 p, int depth = 7)
@@ -316,28 +334,4 @@ public class Perlin
         return new Vector3(Span(), Span(), Span());
     }
 
-    private static float PerlinInterp(Vector3[,,] c, float u, float v, float w)
-    {
-        float uu = u * u * (3 - 2 * u);
-        float vv = v * v * (3 - 2 * v);
-        float ww = w * w * (3 - 2 * w);
-        float accum = 0f;
-
-        for (int i = 0; i < 2; i++)
-        {
-            for (int j = 0; j < 2; j++)
-            {
-                for (int k = 0; k < 2; k++)
-                {
-                    Vector3 weightV = new Vector3(u - i, v - j, w - k);
-                    accum += (i * uu + (1 - i) * (1 - uu))
-                           * (j * vv + (1 - j) * (1 - vv))
-                           * (k * ww + (1 - k) * (1 - ww))
-                           * Vector3.Dot(c[i, j, k], weightV);
-                }
-            }
-        }
-
-        return accum;
-    }
 }
