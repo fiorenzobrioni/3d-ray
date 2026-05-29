@@ -1001,7 +1001,7 @@ public class SceneLoader
                                 sheenRoughness:      DisneyParam(m.SheenRoughness,      m.SheenRoughnessTexture,      sceneDir),
                                 clearcoat:           DisneyParam(m.Clearcoat,           m.ClearcoatTexture,           sceneDir),
                                 clearcoatGloss:      DisneyParam(m.ClearcoatGloss,      m.ClearcoatGlossTexture,      sceneDir),
-                                specTrans:           DisneyParam(m.SpecTrans,           m.SpecTransTexture,           sceneDir),
+                                specTrans:           DisneyParam(m.SpecTrans ?? 0f,     m.SpecTransTexture,           sceneDir),
                                 ior:                 DisneyParam(m.DisneyIor,           m.IorTexture,                 sceneDir),
                                 anisotropic:         DisneyParam(m.Anisotropic,         m.AnisotropicTexture,         sceneDir),
                                 anisotropicRotation: DisneyParam(m.AnisotropicRotation, m.AnisotropicRotationTexture, sceneDir),
@@ -3781,8 +3781,9 @@ public class SceneLoader
     /// positive channel. Defaults only fill in values the user did NOT
     /// author explicitly (detected by comparing to the C# field default):
     /// <list type="bullet">
-    ///   <item><c>spec_trans</c>: 0 → 1.0 (transmission lobe must fire
-    ///         to emit MediumTransition.Enter)</item>
+    ///   <item><c>spec_trans</c>: unauthored (null) → 1.0 (transmission lobe
+    ///         must fire to emit MediumTransition.Enter). An explicit value,
+    ///         including <c>0</c> for an opaque material, is left untouched.</item>
     ///   <item><c>transmission_color</c>: null → [1, 1, 1] (no surface
     ///         Beer–Lambert — the medium owns the absorption colour)</item>
     ///   <item><c>transmission_depth</c>: kept at 0 (Beer–Lambert off by
@@ -3820,9 +3821,10 @@ public class SceneLoader
             Warn($"Material '{m.Id ?? "(unnamed)"}': 'subsurface_radius' is ignored when " +
                  $"thin_walled = true — thin walls have no interior volume.");
 
-        // spec_trans default = 0. Promote to 1.0 when the user only authored
-        // SSS knobs (let any explicit value pass through untouched).
-        if (m.SpecTrans <= 0f) m.SpecTrans = 1f;
+        // spec_trans unauthored (null). Promote to 1.0 when the user only
+        // authored SSS knobs. An explicit value — including an explicit 0 for
+        // an opaque material — passes through untouched.
+        if (m.SpecTrans == null) m.SpecTrans = 1f;
 
         // transmission_color default = null → white (medium owns the colour).
         if (m.TransmissionColor == null)
