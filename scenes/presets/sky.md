@@ -3,9 +3,9 @@
 This file is a copy-paste catalogue for the YAML `world.sky:` block.
 Pick a preset, paste it into a new scene, render. Each preset is
 self-contained and uses the production-grade defaults from the
-sky/environment overhaul (see [`docs/technical/path-tracing-and-lighting.md`](../docs/technical/path-tracing-and-lighting.md)
-and tutorial [chapter 7](../docs/tutorial/en/07-sky-environment-camera.md) /
-[capitolo 7](../docs/tutorial/it/07-sky-environment-camera.md)).
+sky/environment overhaul (see [`docs/technical/path-tracing-and-lighting.md`](../../docs/technical/path-tracing-and-lighting.md)
+and tutorial [chapter 7](../../docs/tutorial/en/07-sky-environment-camera.md) /
+[capitolo 7](../../docs/tutorial/it/07-sky-environment-camera.md)).
 
 ---
 

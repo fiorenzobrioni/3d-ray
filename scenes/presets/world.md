@@ -4,9 +4,9 @@ This file is a copy-paste catalogue for the YAML `world:` block — sky and
 ground paired together, plus an optional `medium:`. Pick a preset, paste it
 into a new scene, add your `cameras:` / `materials:` / `entities:`, render.
 
-For sky models in isolation see also [`00-sky-presets.md`](00-sky-presets.md);
+For sky models in isolation see also [`sky.md`](sky.md);
 for the ground dispatcher details see
-[`docs/reference/scene-reference.md`](../docs/reference/scene-reference.md).
+[`docs/reference/scene-reference.md`](../../docs/reference/scene-reference.md).
 
 ---
 
@@ -40,13 +40,13 @@ The two blocks talk to each other through the renderer at several levels:
 ## Complete YAML Schema Reference
 
 Every key is **optional** unless flagged `[required]`. The full schema for
-the sky lives in [`00-sky-presets.md`](00-sky-presets.md); here we focus on
+the sky lives in [`sky.md`](sky.md); here we focus on
 the ground side and the joint contract.
 
 ```yaml
 world:
 
-  # ── SKY (recap — full schema in 00-sky-presets.md) ─────────────────────
+  # ── SKY (recap — full schema in sky.md) ─────────────────────
   sky:
     type: "flat"          # flat | gradient | preetham | hosek_wilkie
                           # | nishita | hdri    [required]
@@ -196,7 +196,7 @@ world:
     type: "heightfield"
     bounds:        [-50, -50, 50, 50]
     height_scale:  25
-    heightmap_path: "libraries/terrains/heightfield-strata-test-height.png"
+    heightmap_path: "assets/heightmaps/heightfield-strata-test-height.png"
     sea_level:     7.5
     sea_material:  "water_alpine"
     material:      "rock_dark"
@@ -387,7 +387,7 @@ world:
     roughness: 0.78
     metallic:  0.0
     # For subsurface snow add a real material:
-    # material: "dis_neve_fresca"  (from libraries/materials/grounds.yaml)
+    # material: "dis_neve_fresca"  (see presets/materials-ground.md)
 ```
 
 Diffuse polar palette. Pair with subsurface snow material from the
@@ -464,7 +464,7 @@ world:
   ground:
     type: "quad"
     size: 20
-    material: "dis_cemento_lavato_chiaro"   # from libraries/materials/concretes.yaml
+    material: "dis_cemento_lavato_chiaro"   # see presets/materials-stone.md
     uv_scale: [8, 8]
 ```
 
@@ -515,7 +515,7 @@ world:
   ground:
     type: "quad"
     size: 12
-    material: "dis_carrara_studio_lucido"   # from libraries/materials/stones.yaml
+    material: "dis_carrara_studio_lucido"   # see presets/materials-stone.md
     uv_scale: [3, 3]
 ```
 
@@ -540,7 +540,7 @@ world:
   ground:
     type: "quad"
     size: 8
-    material: "dis_mogano_laccato"          # from libraries/materials/woods.yaml
+    material: "dis_mogano_laccato"          # see presets/materials-wood.md
     uv_scale: [4, 4]
     visibility:
       shadow: false                         # floor doesn't cast shadow
