@@ -225,5 +225,3 @@ entities:
     material: marble_surface
     interior_medium: marble_int
 ```
-
-The standalone tool `src/Tools/MigrateFakeSss/` automates this rewrite for a YAML tree.

@@ -227,8 +227,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 │       ├── TextureGen/         # Generatore texture procedurali (PNG)
 │       ├── NormalMapGen/       # Generatore flat normal map per test
 │       ├── ChessGen/           # Generatore scena scacchiera chess.yaml
-│       ├── TempleGen/          # Generatore scena tempio-romano.yaml
-│       └── MigrateFakeSss/     # Migrazione scene legacy (rimozione vecchio SSS flat)
+│       └── TempleGen/          # Generatore scena tempio-romano.yaml
 ├── scenes/                     # File YAML di scene
 │   ├── presets/                # Cataloghi copia-incolla: materiali, luci, mediums, cielo/terreno, terreni
 │   ├── assets/                 # Risorse binarie
@@ -287,13 +286,6 @@ dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- \
 ```
 Output: `scenes/assets/heightmaps/<stem>-height.png` + `scenes/assets/heightmaps/<stem>.yaml`  
 Con `--with-cameras`: anche `scenes/<stem>-preview.yaml` (scena pronta al render con cinque camere).
-
-### MigrateFakeSss
-Migra scene YAML legacy rimuovendo i parametri del vecchio SSS flat (Hanrahan-Krueger), sostituiti dal Random Walk volumetrico. Usa `--dry-run` per vedere le modifiche prima di applicarle.
-```bash
-dotnet run --project src/Tools/MigrateFakeSss/MigrateFakeSss.csproj -- --project scenes/ --dry-run
-dotnet run --project src/Tools/MigrateFakeSss/MigrateFakeSss.csproj -- --project scenes/
-```
 
 ---
 

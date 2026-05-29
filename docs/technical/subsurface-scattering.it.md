@@ -227,5 +227,3 @@ entities:
     material: marble_surface
     interior_medium: marble_int
 ```
-
-Il tool standalone `src/Tools/MigrateFakeSss/` automatizza questa riscrittura per un albero YAML.
