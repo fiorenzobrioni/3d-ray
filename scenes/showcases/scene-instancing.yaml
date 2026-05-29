@@ -17,7 +17,7 @@
 #    ▸ Materiali ereditati dal template: nessuna istanza fa override,
 #          così i figli CSG mantengono i loro materiali specifici
 #          (tronco scuro + chioma verde) — esattamente il comportamento
-#          atteso per una libreria di alberi.
+#          atteso per un set di alberi.
 #
 #  Render consigliato:
 #    Draft : -w 400  -H 225  -s 64   -d 4  -S 1
