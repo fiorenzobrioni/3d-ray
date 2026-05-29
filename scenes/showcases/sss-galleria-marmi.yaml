@@ -40,7 +40,7 @@ world:
   #  suolo che sfuma intorno a y≈0.35 (circa 3/4 del piedistallo). σ_s moderati
   #  così la nebbia raccoglie la luce delle area light senza velare i marmi
   #  (che stanno a y 0.4–0.9, sopra lo strato). y0=0 = livello pavimento.
-  medium:
+  commented_medium:
     type: height_fog
     sigma_a: [0.02, 0.02, 0.025]
     sigma_s: [0.65, 0.70, 0.80]
@@ -346,7 +346,7 @@ entities:
       right:
         type: capsule
         center: [1.0, -0.65, -0.30]
-        radius: 0.31
+        radius: 0.34
         height: 1.30
     right:
       type: cylinder
@@ -372,7 +372,7 @@ entities:
       right:
         type: capsule
         center: [-1.0, -0.65, -0.30]
-        radius: 0.31
+        radius: 0.34
         height: 1.30
     right:
       type: cylinder

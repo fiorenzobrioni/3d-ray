@@ -7,8 +7,6 @@ into a new scene, add your `cameras:` / `materials:` / `entities:`, render.
 For sky models in isolation see also [`00-sky-presets.md`](00-sky-presets.md);
 for the ground dispatcher details see
 [`docs/reference/scene-reference.md`](../docs/reference/scene-reference.md).
-Each preset here uses the production-grade defaults from the sky/environment
-overhaul and the new ground dispatcher (Arnold / Cycles / Mitsuba parity).
 
 ---
 
