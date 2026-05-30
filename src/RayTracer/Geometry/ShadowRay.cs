@@ -38,6 +38,19 @@ namespace RayTracer.Geometry;
 /// </summary>
 public static class ShadowRay
 {
+    /// <summary>
+    /// Per-thread switch: when set, the walker treats any surface flagged
+    /// <c>caustic_caster</c> (<see cref="HitRecord.CausticCaster"/>) as fully
+    /// opaque, returning <see cref="Vector3.Zero"/>. The renderer raises this
+    /// only around the straight NEE shadow rays of a <c>caustic_receiver</c>
+    /// shading point, so the focused light those casters transmit is supplied
+    /// solely by Manifold NEE (<see cref="Rendering.ManifoldWalker"/>) and is
+    /// not double-counted by the straight transparent shadow ray. Thread-local
+    /// because the renderer shades pixels in parallel; left false on every other
+    /// thread / shading point, preserving the Phase-1 soft transmitted shadow.
+    /// </summary>
+    [ThreadStatic] public static bool BlockCausticCasters;
+
     public static Vector3 Transmittance(IHittable world, Ray ray, float tMin, float tMax, int maxBounces = 8)
     {
         Vector3 throughput = Vector3.One;
@@ -80,6 +93,11 @@ public static class ShadowRay
             }
 
             if (rec.Material == null)
+                return Vector3.Zero;
+
+            // Caustic caster: opaque to a caustic_receiver's straight shadow ray
+            // (MNEE supplies the refracted light instead — see BlockCausticCasters).
+            if (BlockCausticCasters && rec.CausticCaster)
                 return Vector3.Zero;
 
             // Beer-Lambert over the segment we just traversed inside a medium.

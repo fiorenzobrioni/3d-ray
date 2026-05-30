@@ -90,23 +90,23 @@ Strategia incrementale per le caustiche, in ordine di costo crescente. Strada 1 
 | Strada | Cosa risolve | Effort | Stato |
 |--------|--------------|--------|-------|
 | 1. Transparent shadow rays | Ombra dura del vetro → soft Fresnel-tinted (Arnold/Cycles default) | 1-2 giorni | ✅ |
-| 2. MNEE (Manifold Next Event Estimation) | Caustiche focalizzate single-bounce attraverso una specular (lenti, bicchieri d'acqua, finestre). Cycles 3.2 "Shadow Caustics" | 2-3 settimane | ⬜ |
+| 2. MNEE (Manifold Next Event Estimation) | Caustiche focalizzate 1–2 interfacce attraverso vetro liscio solido (sfera/lente) + specchio, luci d'area. Cycles 3.2 "Shadow Caustics" | 2-3 settimane | ✅ |
+| 2b. Specular Manifold Sampling | Caustiche da vetro frosted/rough (`roughness > 0` con `spec_trans > 0`): perturbazione stocastica della manifold (Hanika 2015) | 1-2 settimane | ⬜ |
 | 3. SPPM / VCM (photon mapping) | Caustiche multi-bounce, dispersive, indipendenti da differenziabilità della geometria. RenderMan PxrVCM | 6-10 settimane (SPPM) / 3-5 mesi (VCM) | ⬜ |
 
 **Strada 1 — Transparent shadow rays ✅** Implementata. Lo shadow ray attraversa superfici trasmissive accumulando `(1 − Fresnel) · tint` per canale + Beer-Lambert `exp(−σ_a · d)` sul segmento interno fra entrata e uscita. Helper `Geometry/ShadowRay.Transmittance` con cap di 8 traversate; override `IMaterial.ShadowTransmittance` + `IMaterial.ShadowAbsorption` su `Dielectric` (no σ_a) / `DisneyBsdf` (entrambi quando `spec_trans > 0`) / `MixMaterial` (blend di entrambi).
 **Limiti residui**: nessuna rifrazione dello shadow ray (no caustiche di lente in NEE); `roughness > 0` con `spec_trans > 0` (frosted glass) ignorata — lo shadow ray va dritto come vetro liscio. Per entrambi servono MNEE (Strada 2) o SPPM/VCM (Strada 3).
 
-**Strada 2 — MNEE ⬜** Walker Newton-Raphson sulla manifold della superficie speculare; cerca un cammino `x → y_spec → light` che soddisfi Snell. Single-vertex robusto (Hanika/Droske/Manzi 2015, riferimento Cycles/Mitsuba).
-**Pro**: unbiased, niente seconda passata, zero memoria extra, MIS-friendly, 10-100× più veloce del PT puro per caustiche.
-**Contro**: limitato a 1 (forse 2) interfacce in serie; richiede normali differenziabili (`∂n/∂u`, `∂n/∂v`); fallisce su mesh hard-edge e bordi CSG (skip senza bias).
-**Lavoro stimato**: nuovo `IManifoldGeometry` con derivate parametriche su `Sphere`/`Cylinder`/`Cone`/`Torus`/`Disk`/`Quad`/`SmoothTriangle`; `Rendering/ManifoldWalker.cs` (~400 righe); hook in `ComputeDirectLighting`; opt-in YAML `caustic_caster`/`caustic_receiver` per non sprecare campioni dove non serve. Test analitico (sfera-vetro vs piano, soluzione closed-form) come `BvhEquivalenceTests` per il BVH.
+**Strada 2 — MNEE ✅** Implementata (vedi DEVLOG §Ciclo Caustiche Fase 2). Walker Newton-Raphson sulla manifold speculare (`Rendering/ManifoldWalker.cs`): trova `x → p₁(→ p₂) → luce` che soddisfa Snell/riflessione. Residuo unificato (half-vector generalizzato `η_a·ω_a + η_b·ω_b`, componente tangenziale = 0) per riflessione + rifrazione a 1/2 interfacce; Jacobiano per differenze finite in `(u,v)` (niente ray cast nel loop); termine geometrico `G = dΩ_x/dA_y` per perturbazione della luce e ri-solve. Conteggio singolo unbiased: shadow ray dritto reso opaco ai caster per i receiver (`ShadowRay.BlockCausticCasters`, thread-local) + soppressione del cammino forward via stato "caustic carrier" in `TraceRay`.
+**Implementato**: `IManifoldSurface.EvaluateManifold` su `Sphere` (+ `Transform`); `HitRecord.DnDu/DnDv` (derivate della normale) su `Sphere`/`Transform`; opt-in YAML `caustic_caster`/`caustic_receiver` (+ `world.ground`); CLI `--caustics on|off`; `CausticCasterRegistry`; test analitici closed-form (`MnEeCausticTests`) + regressione di render (`MnEeRenderTests`).
+**Non ancora coperto (follow-up)**: caster non-sferici (cilindro/cono/toro/mesh — serve `EvaluateManifold` + `DnDu/DnDv` per quelle primitive); catene > 2 interfacce; luci delta (punto/spot/direzionale) e ambiente; dispersione. Robustezza: dove il Newton non converge la luce trasmessa viene persa (no fallback MIS) — accettabile sui caster convessi, da raffinare.
 
 **Strada 3 — SPPM/VCM ⬜** Pass 1 emette fotoni dalle luci e li deposita su superfici diffuse in un kd-tree; pass 2 fa density estimation durante il rendering. SPPM raffina il raggio progressivamente per convergenza unbiased; VCM combina BDPT vertex connections + photon merging via MIS (Georgiev 2012, gold standard).
 **Pro**: caustiche multi-bounce, dispersive (con spectral), indipendenti dalla geometria; beneficio collaterale su indirect diffuse (final gathering accelerato).
 **Contro**: due pass in serie (cambia l'orchestrazione del Renderer); 50-500 MB di memoria per il photon map; dispersione richiede upgrade spettrale a monte (RGB-only sbaglia il prisma); separazione delta-vs-diffuse nel cammino fotone è sottile.
 **Lavoro stimato**: `Acceleration/PhotonMap.cs` (~600 righe, kd-tree con range query); `Rendering/PhotonEmitter.cs` (~400 righe); modifica profonda di `Renderer` (fase build prima del shading); CLI `--photons N --photon-radius r --sppm-iterations n`; profilo Caustic.
 
-**Decisione corrente**: Strada 1 sufficiente per i casi d'uso showcase quotidiani; Strada 2 è il candidato per quando si vorranno caustiche pulite delle lenti in `csg-showcase.yaml`; Strada 3 resta opzione lunga-roadmap (utile solo se servono caustiche multi-bounce/dispersive).
+**Decisione corrente**: Strada 1 (default) + Strada 2 ✅ (opt-in via `--caustics on` + flag per-entità) coprono le caustiche di lente delle scene showcase. Strada 2b (frosted) e Strada 3 (multi-bounce/dispersive) restano roadmap.
 
 ---
 

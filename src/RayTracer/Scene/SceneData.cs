@@ -234,6 +234,11 @@ public class GroundData
     /// <summary>Per-ray-category visibility flags. <c>null</c> = all categories visible (legacy default).</summary>
     [YamlMember(Alias = "visibility")]
     public GroundVisibilityData? Visibility { get; set; }
+
+    /// <summary>Opt-in MNEE caustic receiver (Phase 2): focused caustics from
+    /// <c>caustic_caster</c> entities are gathered on the ground. Default false.</summary>
+    [YamlMember(Alias = "caustic_receiver")]
+    public bool CausticReceiver { get; set; } = false;
 }
 
 /// <summary>
@@ -1224,6 +1229,25 @@ public class EntityData
     /// </summary>
     [YamlMember(Alias = "visible_to_camera")]
     public bool VisibleToCamera { get; set; } = true;
+
+    /// <summary>
+    /// Opt-in Manifold-NEE caustic caster (Phase 2). When true and caustics are
+    /// enabled (CLI <c>--caustics on</c>), this smooth specular/transmissive
+    /// entity (glass sphere/lens, mirror) focuses light onto
+    /// <c>caustic_receiver</c> surfaces. Has no effect on the material or on
+    /// other ray types — only the manifold walk and the receiver's straight
+    /// shadow ray consult it. Default false (no overhead, scene unchanged).
+    /// </summary>
+    [YamlMember(Alias = "caustic_caster")]
+    public bool CausticCaster { get; set; } = false;
+
+    /// <summary>
+    /// Opt-in Manifold-NEE caustic receiver (Phase 2). When true and caustics
+    /// are enabled, focused caustics from <c>caustic_caster</c> entities are
+    /// gathered on this surface. Default false.
+    /// </summary>
+    [YamlMember(Alias = "caustic_receiver")]
+    public bool CausticReceiver { get; set; } = false;
 
     // Sphere & Cylinder
     [YamlMember(Alias = "center")]

@@ -233,6 +233,24 @@ class Program
         }
 
         // Verbose mode
+        // ── Caustics (Manifold NEE, Phase 2) ────────────────────────────────
+        // Opt-in: entities must additionally be flagged caustic_caster /
+        // caustic_receiver in YAML. `--caustics on` activates the manifold walk;
+        // default off keeps every scene bit-identical to pre-caustics output.
+        bool enableCaustics = false;
+        string? causticsArg = GetArg(args, "--caustics", null);
+        if (causticsArg != null)
+        {
+            switch (causticsArg.ToLowerInvariant())
+            {
+                case "on":  enableCaustics = true;  break;
+                case "off": enableCaustics = false; break;
+                default:
+                    Console.WriteLine($"Error: Unknown --caustics '{causticsArg}'. Valid: on, off.");
+                    return;
+            }
+        }
+
         bool verbose = HasFlag(args, "--verbose", "-v");
         SceneLoader.SetVerbose(verbose);
 
@@ -320,7 +338,9 @@ class Program
         try
         {
             var (world, camera, lights, sky, globalMedium) =
-                SceneLoader.Load(inputPath, width, height, shadowSamplesOverride, cameraSelector);
+                SceneLoader.Load(inputPath, width, height, shadowSamplesOverride, cameraSelector,
+                                 enableCaustics);
+            var causticCasters = SceneLoader.LastCausticCasters;
 
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
             SceneLoader.FlushMessages();
@@ -344,7 +364,11 @@ class Program
                 world, camera, lights, sky, samples, depth, globalMedium,
                 clampOverride, verbose, misHeuristic, lightSampling,
                 indirectClampFactor, textureFiltering, exposureEv,
-                sssMode, walkConfig);
+                sssMode, walkConfig,
+                enableCaustics: enableCaustics, causticCasters: causticCasters);
+            if (enableCaustics)
+                Console.WriteLine($"  Caustics:    MNEE on ({causticCasters.Count} caster"
+                                  + (causticCasters.Count == 1 ? "" : "s") + ")");
             Console.WriteLine();
 
             sw.Restart();
@@ -399,6 +423,8 @@ class Program
         Console.WriteLine("      --mis <balance|power>    MIS combination heuristic (default: balance)");
         Console.WriteLine("      --light-sampling <all|power|uniform>  NEE light strategy (default: all)");
         Console.WriteLine("      --texture-filtering <auto|on|off>     Analytic anti-aliasing via ray differentials (default: auto)");
+        Console.WriteLine("      --caustics <on|off>      MNEE focused caustics through caustic_caster glass/mirror onto");
+        Console.WriteLine("                               caustic_receiver surfaces (default: off; opt-in per-entity in YAML)");
         Console.WriteLine("      --sss-mode <auto|off>    Subsurface-scattering dispatch (default: auto = follow scene)");
         Console.WriteLine("      --sss-quality <preview|normal|high>   Random-walk preset; inherits from -q when omitted");
         Console.WriteLine("      --max-volume-bounces <n> Hard cap on random-walk bounces inside one entity");

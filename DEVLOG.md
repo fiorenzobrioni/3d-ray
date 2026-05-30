@@ -6,6 +6,82 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Caustiche Fase 2 — MNEE ✅
+
+Implementazione della **Strada 2** della roadmap caustiche (`PLANNING.md`):
+**Manifold Next Event Estimation**, le caustiche focalizzate di lente/sfera di
+vetro che gli shadow ray dritti della Fase 1 non possono produrre. Opt-in,
+unbiased, single-pass, zero memoria extra. Riferimenti: Jakob & Marschner 2012
+(Manifold Exploration), Hanika/Droske/Manzi 2015 (MNEE); analogo allo "Shadow
+Caustics" di Cycles 3.2.
+
+**Cosa risolve.** Una sfera/lente di vetro solido marcata `caustic_caster`
+concentra la luce di un'area light in uno spot luminoso su una superficie
+`caustic_receiver`, con l'ombra circostante correttamente più scura (energia
+concentrata, non sparsa). Verificato a vista (sfera di vetro su pavimento) e in
+regressione.
+
+**Solver (`Rendering/ManifoldWalker.cs`).** Per un ricevente `x` e un punto
+luce `y`: seeding dal segmento dritto `x→y` (1 crossing = singola interfaccia,
+2 = vetro solido entrata+uscita), poi Newton-Raphson sulle incognite `(u,v)`
+di ogni vertice. Residuo = componente tangenziale dell'half-vector generalizzato
+`ĥ = η_a·ω_a + η_b·ω_b` (zero ⇔ `ĥ ∥ n` ⇔ Snell/riflessione). Lo **stesso
+residuo unifica riflessione** (η = 1 ai due lati) **e rifrazione 1/2 interfacce**
+— il rapporto η per lato è scelto dalla geometria (`dot(endpoint − p, n) > 0 ⇒
+aria, altrimenti vetro`). Jacobiano per differenze finite in `(u,v)` (solo
+aritmetica, niente ray cast nel loop interno → veloce), line-search smorzata,
+risolutore lineare ≤4×4 con pivoting. Termine geometrico `G = dΩ_x/dA_y`
+calcolato perturbando `y` sul piano della luce e ri-risolvendo (ray differentials
+a differenze finite). Stima: `L = f_r(x,ω_x)·L_e·T·G/pdf_A`, con `T` = ∏ Fresnel
+trasmesso × Beer-Lambert interno.
+
+**Geometria.** `IManifoldSurface.EvaluateManifold(u,v)` (inverso di
+`ray → (u,v)`) su `Sphere` (forma chiusa dall'inverso di `GetSphereUV`),
+propagato da `Transform` (matrice forward per il punto, normal matrix per la
+normale). Nuovi campi `HitRecord.DnDu/DnDv` (derivate della normale, per future
+primitive/Jacobiani analitici): per la sfera `∂N/∂· = ∂P/∂· · (1/R)`; `Transform`
+li propaga con la normal matrix + ri-proiezione sul piano tangente.
+
+**Conteggio singolo (unbiased).** La luce trasmessa è stimata **una sola volta**,
+da MNEE, partizionando le strategie (niente MIS complicato):
+1. lo shadow ray dritto (Fase 1) è reso **opaco** ai `caustic_caster` per i punti
+   `caustic_receiver` — flag thread-local `ShadowRay.BlockCausticCasters`, alzato
+   solo attorno al loop NEE di un receiver;
+2. il cammino **forward** `receiver diffuso → caster(≤2) → luce` è **soppresso**
+   via uno stato "caustic carrier" (`int causticChain`) propagato in
+   `TraceRay`/`ShadeSurface`/`ShadeSampleBounce`: conta le interfacce speculari
+   `caustic_caster` attraversate dall'ultimo rimbalzo diffuso su un
+   `caustic_receiver`; l'emissione è soppressa quando il contatore è in `[1, 2]`.
+
+**Opt-in & CLI.** Flag YAML `caustic_caster`/`caustic_receiver` su `EntityData`
+(+ `world.ground`), wrappati in `CausticFlagHittable` **solo** quando
+`--caustics on` (così l'off-path non ha nemmeno la virtual call). I caster
+manifold-evaluabili sono raccolti in `CausticCasterRegistry` (con cull per AABB
+sul segmento). Buffer `stackalloc`/`Span` nel walker → zero allocazioni
+nell'hot path. Costo zero garantito senza flag o con `--caustics off`.
+
+**Impatto performance.** Solo i punti `caustic_receiver` e i caster rilevanti
+pagano: per shadow sample attivo ~3–8 iterazioni Newton (solo aritmetica) +
+2 ray di visibilità + 2 ri-solve per `G`. Sulla scena di test (sfera + area
+light, 400×300/64spp) il render passa da ~5s (off) a ~10s (on); su scene
+showcase con pochi pixel/luci interessati l'overhead totale è minore.
+
+**Test.** `MnEeCausticTests` (analitici closed-form, stile `BvhEquivalenceTests`):
+sfera di vetro on-axis → vertici esatti a ±R, `wi = +Z`, throughput Fresnel
+`(1−0.04)² = 0.9216`; caso off-axis → residuo di Snell ~0 ai vertici; nessun
+caster sul segmento → skip senza bias. `MnEeRenderTests` (regressione end-to-end):
+la caustica emerge con `--caustics on` e non con off. Suite completa verde
+(499 test).
+
+**Limiti Fase 2 / follow-up.** Caster valutabili parametricamente = solo sfera
+(+ trasformata); cilindro/cono/toro/mesh richiedono `EvaluateManifold` +
+`DnDu/DnDv` dedicati. Catene ≤ 2 interfacce; luci d'area/geometriche (non delta
+né ambiente). Vetro frosted (`roughness > 0`) → Strada 2b (Specular Manifold
+Sampling). Dove il Newton non converge la luce trasmessa è persa (no fallback
+MIS) — innocuo sui caster convessi, da raffinare.
+
+---
+
 ## Ciclo Preset & Assets ✅
 
 Riarchitettura della gestione dei materiali/luci/mediums condivisi: **cataloghi di

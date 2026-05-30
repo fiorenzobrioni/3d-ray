@@ -4,7 +4,7 @@ using RayTracer.Materials;
 
 namespace RayTracer.Geometry;
 
-public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
+public class Sphere : IHittable, ISamplable, ISolidAngleSamplable, IManifoldSurface
 {
     public Vector3 Center { get; }
     public float Radius { get; }
@@ -67,6 +67,14 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
         float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - outwardNormal.Y * outwardNormal.Y));
         rec.DpDu = rec.Tangent * (2f * MathF.PI * Radius * sinTheta);
         rec.DpDv = rec.Bitangent * (MathF.PI * Radius);
+
+        // ∂N/∂u, ∂N/∂v for MNEE. For a sphere N = (P − C)/R, so P = C + R·N and
+        // ∂P/∂· = R·∂N/∂·, giving the exact relation ∂N/∂· = ∂P/∂· · (1/R).
+        // Degenerate (→0) at the poles like DpDu; the manifold walker skips
+        // those rather than treating them as a singularity.
+        float invR = 1f / Radius;
+        rec.DnDu = rec.DpDu * invR;
+        rec.DnDv = rec.DpDv * invR;
 
         rec.ObjectSeed = Seed;
 
@@ -272,5 +280,27 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
     {
         var r = new Vector3(Radius);
         return new AABB(Center - r, Center + r);
+    }
+
+    // ── IManifoldSurface (MNEE) ─────────────────────────────────────────────
+    // Inverse of GetSphereUV: reconstruct the outward unit normal from (u, v)
+    // for the parameterisation phi = 2πu, theta = πv used everywhere on the
+    // sphere. Derivation (see GetSphereUV): with phi' = phi − π,
+    //   X = sinθ·cos(phi') = −sinθ·cosφ
+    //   Y = −cosθ
+    //   Z = sinθ·sinφ            (since −Z = sinθ·sin(phi') = −sinθ·sinφ)
+    // The normal is exactly that direction; the surface point is C + R·N.
+    public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
+    {
+        float theta = MathF.PI * v;
+        float phi   = 2f * MathF.PI * u;
+        float st = MathF.Sin(theta), ct = MathF.Cos(theta);
+        float cp = MathF.Cos(phi),   sp = MathF.Sin(phi);
+        Vector3 n = new(-st * cp, -ct, st * sp);
+        // Near the poles |n_xz| → 0 and the parameterisation is degenerate;
+        // the walker treats that as a skip rather than risk a singular frame.
+        if (st < 1e-4f) { pt = default; return false; }
+        pt = new ManifoldPoint(Center + Radius * n, n);
+        return true;
     }
 }

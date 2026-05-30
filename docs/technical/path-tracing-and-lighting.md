@@ -78,10 +78,33 @@ Il raggio non viene rifratto né perturbato: viaggia in linea retta. Questo sign
 - ✅ Ombre del vetro ammorbidite dalla trasmissione Fresnel.
 - ✅ Vetri colorati con `transmission_depth` proiettano ombra tinta via Beer-Lambert.
 - ✅ Color bleeding diffuso attraverso uno specchio o un vetro tinto.
-- ❌ Caustiche focalizzate (la "lente" di una sfera di vetro che concentra la luce in uno spot luminoso) NON emergono dalla NEE: continuano a venire solo dal path tracing forward indiretto, con la consueta varianza alta.
-- ❌ Vetro frosted/rough (Disney `roughness > 0` con `spec_trans > 0`): lo shadow ray va dritto come fosse vetro liscio. Una soft-transmission GGX sullo shadow ray richiederebbe sampling speculare con MIS, fuori scope per Strada 1.
+- ✅ (con `--caustics on`) Caustiche focalizzate attraverso superfici marcate `caustic_caster`: vedi §2.5. Senza caustiche attive lo spot focalizzato viene solo dal path tracing forward indiretto, con varianza alta.
+- ❌ Vetro frosted/rough (Disney `roughness > 0` con `spec_trans > 0`): lo shadow ray va dritto come fosse vetro liscio, e anche MNEE (§2.5) tratta solo interfacce perfettamente speculari. Una soft-transmission GGX richiede Specular Manifold Sampling stocastico, rimandato.
 
-Per caustiche e roughness corretti su shadow ray servono Manifold Next Event Estimation (MNEE) o photon mapping / VCM. Vedi la sezione *Roadmap caustiche* del `PLANNING.md`.
+Per il vetro frosted servono Specular Manifold Sampling o photon mapping / VCM. Vedi la sezione *Roadmap caustiche* del `PLANNING.md`.
+
+### 2.5 Caustiche Focalizzate — Manifold Next Event Estimation (MNEE)
+
+Lo shadow ray dritto di §2.3 non può riprodurre la **caustica focalizzata** — lo spot luminoso che una lente o una sfera di vetro concentra su una superficie. Quella luce richiede di seguire il cammino corretto secondo Snell: `x → p₁ (→ p₂) → luce`, dove `p₁, p₂` sono i vertici speculari sul vetro. Con `--caustics on` il motore risolve questo cammino con **MNEE** (Manifold Next Event Estimation): un solver di Newton-Raphson sulla *manifold speculare* (`Rendering/ManifoldWalker.cs`).
+
+**Opt-in.** MNEE è attivo solo per entità marcate in YAML:
+- `caustic_caster: true` — vetro/cristallo liscio (`dielectric`, oppure Disney con `spec_trans ≥ 0.5` e `roughness ≤ 0.04`) o specchio liscio, che focalizza la luce. In Fase 2 il caster dev'essere valutabile parametricamente: **sfera** (anche dentro un `Transform`).
+- `caustic_receiver: true` — la superficie (tipicamente diffusa, o il `ground`) su cui le caustiche vengono raccolte. Solo i punti di shading con questo flag pagano il costo del walk.
+
+Costo zero quando i flag non sono presenti o con `--caustics off`.
+
+**Algoritmo.** Per ogni punto ricevente `x` e ogni punto `y` campionato sulla luce d'area:
+1. **Seeding** — il segmento dritto `x→y` attraversa il caster in 1 o 2 punti (entrata/uscita di un vetro solido); i loro `(u,v)` inizializzano il walk.
+2. **Newton-Raphson** — le incognite sono i `(u,v)` di ogni vertice; il residuo è la componente tangenziale dell'half-vector generalizzato `ĥ = η_a·ω_a + η_b·ω_b` (zero ⇔ `ĥ ∥ n` ⇔ Snell/riflessione). Lo stesso residuo unifica riflessione (η = 1 ai due lati) e rifrazione a 1 o 2 interfacce — il rapporto η per lato è scelto dalla geometria (`dot(endpoint − p, n) > 0 ⇒ aria, altrimenti vetro`). Lo Jacobiano è per differenze finite in `(u,v)` (solo aritmetica, niente ray cast nel loop).
+3. **Termine geometrico** — l'integrale di illuminazione diretta viene riparametrizzato da angolo solido al ricevente ad area sulla luce: `L = f_r(x,ω_x)·L_e(y)·T·G/pdf_A(y)`, con `T` il prodotto delle trasmissioni di Fresnel e dell'assorbimento Beer-Lambert interno, e `G = dΩ_x/dA_y` il termine geometrico generalizzato. `G` è calcolato perturbando `y` sul piano della luce e ri-risolvendo la manifold (differenze finite di ray differentials attraverso la catena speculare); per una connessione banale si riduce al consueto `cosθ_y/r²`.
+
+**Conteggio singolo (unbiased).** La stessa luce trasmessa non viene contata due volte:
+- lo shadow ray dritto di §2.3 è reso **opaco** ai `caustic_caster` per i punti `caustic_receiver` (flag thread-local `ShadowRay.BlockCausticCasters`);
+- il cammino forward `ricevente diffuso → caster(≤2) → luce` è **soppresso** via uno stato "caustic carrier" propagato in `TraceRay` (un contatore di interfacce speculari attraversate dall'ultimo rimbalzo diffuso su un `caustic_receiver`; l'emissione è soppressa quando il contatore è in `[1, 2]`).
+
+Così la caustica è prodotta **esclusivamente** da MNEE, a peso pieno.
+
+**Limiti Fase 2.** Caster speculari lisci valutabili parametricamente (sfera/sfera trasformata); catene fino a 2 interfacce (vetro solido); luci d'area/geometriche (non le luci delta puntiformi/direzionali, né l'ambiente). Vetro frosted (`roughness > 0`) e caustiche multi-bounce/dispersive restano per le fasi successive (vedi `PLANNING.md`).
 
 ### 2.4 Conservazione dell'Area per Emissivi Trasformati (Jacobian)
 

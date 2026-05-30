@@ -596,6 +596,33 @@ public sealed class DisneyBsdf : IMaterial
         return sigma;
     }
 
+    // MNEE caustic caster: only a SMOOTH, strongly transmissive, solid Disney
+    // glass qualifies. Rough/frosted transmission (roughness above the smooth
+    // threshold) is deferred to Phase 2b (Specular Manifold Sampling) and stays
+    // on the Phase-1 straight transparent shadow ray. Thin-walled glass has no
+    // interior volume to refract through, so it is not a lens caster either.
+    public CausticInterface GetCausticInterface(HitRecord rec)
+    {
+        float u = rec.U, v = rec.V;
+        Vector3 p = rec.LocalPoint;
+        int seed = rec.ObjectSeed;
+
+        float specTrans = SpecTrans.Value(u, v, p, seed);
+        if (specTrans < 0.5f || ThinWalled) return CausticInterface.None;
+
+        float roughness = Roughness.Value(u, v, p, seed);
+        if (roughness > SmoothSpecularThreshold) return CausticInterface.None;
+
+        float ior = MathF.Max(Ior.Value(u, v, p, seed), 1.0001f);
+        Vector3 baseCol = BaseColor.Value(u, v, p, seed);
+        var (tint, sigma) = ResolveTransmission(rec, baseCol);
+        return new CausticInterface(isTransmissive: true, ior: ior, tint: tint, absorption: sigma);
+    }
+
+    // Roughness at or below this is treated as a perfect specular interface for
+    // MNEE (matches the engine's near-delta GGX cutoff used elsewhere).
+    private const float SmoothSpecularThreshold = 0.04f;
+
     /// <summary>
     /// Evaluates the multi-lobe Disney BSDF f(V, L) at the hit point, without
     /// the N·L cosine. Covers all reflection lobes and — for diff_trans > 0 —
