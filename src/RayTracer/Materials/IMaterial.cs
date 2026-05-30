@@ -106,6 +106,17 @@ public interface IMaterial
     /// </summary>
     Vector3 ShadowAbsorption(HitRecord rec) => Vector3.Zero;
 
+    /// <summary>
+    /// Describes this material as a Manifold-Next-Event-Estimation caustic
+    /// caster (smooth specular glass or mirror), or
+    /// <see cref="CausticInterface.None"/> when it is not a smooth specular
+    /// interface MNEE can solve. Only consulted for surfaces flagged
+    /// <c>caustic_caster</c> in YAML, so the default (not a caster) keeps every
+    /// other material on the existing transparent-shadow-ray path. See
+    /// <see cref="Rendering.ManifoldWalker"/>.
+    /// </summary>
+    CausticInterface GetCausticInterface(HitRecord rec) => CausticInterface.None;
+
     // ─────────────────────────────────────────────────────────────────────────
     // Symmetric BSDF interface (BRDF value, PDF, sampling).
     //

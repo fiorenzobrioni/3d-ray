@@ -49,6 +49,13 @@ public sealed class Dielectric : IMaterial
         return (1f - fr) * albedo;
     }
 
+    // A smooth dielectric is the canonical MNEE caustic caster: a perfect
+    // refractive interface with a single IOR. Beer-Lambert absorption is zero
+    // (classic glass has no interior tint — colour comes from Albedo only).
+    public CausticInterface GetCausticInterface(HitRecord rec)
+        => new CausticInterface(isTransmissive: true, ior: RefractionIndex,
+                                tint: Albedo.Value(in rec), absorption: Vector3.Zero);
+
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
         attenuation = Albedo.Value(in rec);

@@ -277,4 +277,16 @@ public class GeometryLight : ILight
 
         return distSq / (area * cosLight);
     }
+
+    /// <inheritdoc/>
+    public bool TrySampleEmissivePoint(out Vector3 point, out Vector3 normal,
+                                       out Vector3 emission, out float pdfArea)
+    {
+        var (p, n, uv, area) = Geometry.Sample();
+        point    = p;
+        normal   = n;
+        emission = Material.EmissionAt(uv.X, uv.Y, p);
+        pdfArea  = area > 1e-12f ? 1f / area : 0f;
+        return pdfArea > 0f;
+    }
 }

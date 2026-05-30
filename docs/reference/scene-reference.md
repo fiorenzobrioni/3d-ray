@@ -1844,6 +1844,8 @@ group, instance):
 | `material` | inherited | Material ID, resolved from the `materials` block |
 | `seed` | auto | Stable integer that drives procedural texture variation; auto-derived from name+type+index when omitted |
 | `visible_to_camera` | `true` | Hide from primary camera rays only. The entity still appears in specular reflections/refractions, still receives and casts indirect illumination, and (if emissive) still contributes to direct lighting via NEE. Typical use: emissive panel that acts as a fill light but should not show up as a bright rectangle in the frame, off-screen practicals visible only via reflections. Set on a `group` to propagate to every child. |
+| `caustic_caster` | `false` | Opt-in Manifold-NEE caustic caster (requires `--caustics on`). A smooth specular/transmissive entity — smooth glass (`dielectric`, or Disney with `spec_trans ≥ 0.5` and `roughness ≤ 0.04`) or smooth mirror — that focuses light onto `caustic_receiver` surfaces, producing the focused refractive/reflective caustic that straight shadow rays cannot. Phase 2 supports geometry that is evaluable parametrically: **sphere** (also inside a `Transform`). No effect on the material or on other ray types. |
+| `caustic_receiver` | `false` | Opt-in Manifold-NEE caustic receiver (requires `--caustics on`). Focused caustics from `caustic_caster` entities are gathered on this surface. Only flagged shading points pay the manifold-walk cost. Also accepted on `world.ground`. |
 | `scale`, `rotate`, `translate` | identity | Optional local transform (applied scale → rotate → translate) |
 
 #### **7.1 Sphere**

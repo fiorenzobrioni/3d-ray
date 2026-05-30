@@ -119,12 +119,25 @@ public class SceneLoader
     /// name (case-insensitive) or zero-based index. Ignored when the scene uses
     /// the legacy single <c>camera:</c> syntax.
     /// </param>
+    /// <summary>
+    /// Smooth specular entities flagged <c>caustic_caster</c> collected during
+    /// the most recent <see cref="Load"/> when <c>enableCaustics</c> was set.
+    /// Exposed as a side-channel (like the deferred messages) so the 5-tuple
+    /// return signature stays source-compatible with existing callers;
+    /// <c>Program.cs</c> hands this list to the <see cref="Rendering.Renderer"/>
+    /// to build its <see cref="Rendering.CausticCasterRegistry"/>.
+    /// </summary>
+    public static IReadOnlyList<IHittable> LastCausticCasters => _causticCasters;
+    private static readonly List<IHittable> _causticCasters = new();
+
     public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, SkySettings Sky, IMedium? GlobalMedium)
         Load(string yamlPath, int imageWidth, int imageHeight,
-             int? shadowSamplesOverride = null, string? cameraSelector = null)
+             int? shadowSamplesOverride = null, string? cameraSelector = null,
+             bool enableCaustics = false)
     {
         // Clear any leftover messages from a previous Load() call
         _deferredMessages.Clear();
+        _causticCasters.Clear();
 
         var yaml = File.ReadAllText(yamlPath);
         var deserializer = new DeserializerBuilder()
@@ -286,7 +299,14 @@ public class SceneLoader
         {
             var groundHittable = BuildGround(data.World.Ground, data.World.Sky, materials, sceneDir);
             if (groundHittable != null)
+            {
+                // MNEE caustic receiver on the ground (the most natural caustic
+                // surface). Wrapped only when caustics are enabled so the off
+                // path is untouched.
+                if (enableCaustics && data.World.Ground.CausticReceiver)
+                    groundHittable = new CausticFlagHittable(groundHittable, caster: false, receiver: true);
                 objects.Add(groundHittable);
+            }
         }
 
         // Templates
@@ -409,6 +429,24 @@ public class SceneLoader
                     // resulting HitRecord (see CameraInvisibleHittable).
                     if (!e.VisibleToCamera)
                         hittable = new CameraInvisibleHittable(hittable);
+                    // Per-entity MNEE caustic flags (Phase 2). Only honoured when
+                    // caustics are enabled, so the wrapper — and its per-hit
+                    // virtual call — never exists in the off path. A caster must
+                    // be manifold-evaluable (sphere / transformed sphere) to join
+                    // the walk; otherwise the flag is dropped with a warning so
+                    // the receiver's shadow ray is not blocked without an MNEE
+                    // replacement.
+                    if (enableCaustics && (e.CausticCaster || e.CausticReceiver))
+                    {
+                        bool casterOk = e.CausticCaster && hittable is IManifoldSurface;
+                        if (e.CausticCaster && !casterOk)
+                            Warn($"caustic_caster on '{e.Name ?? e.Type}' ignored: " +
+                                 "geometry is not manifold-evaluable (Phase 2 supports sphere / transformed sphere).");
+                        if (casterOk)
+                            _causticCasters.Add(hittable);
+                        if (casterOk || e.CausticReceiver)
+                            hittable = new CausticFlagHittable(hittable, casterOk, e.CausticReceiver);
+                    }
                     // Per-entity participating-media binding (interior /
                     // exterior). Wrap last so MediumInterface rides on every
                     // hit forwarded by inner wrappers — the renderer needs
@@ -3557,6 +3595,7 @@ public class SceneLoader
         UvTransformedHittable uv       => IsInfinitePlane(uv.Inner),
         VisibilityFilteredHittable vis => IsInfinitePlane(vis.Inner),
         CameraInvisibleHittable ci     => IsInfinitePlane(ci.Inner),
+        CausticFlagHittable cf         => IsInfinitePlane(cf.Inner),
         _             => false
     };
 

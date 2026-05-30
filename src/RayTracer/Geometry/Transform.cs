@@ -25,7 +25,7 @@ namespace RayTracer.Geometry;
 ///   area_world = area_obj × |det(M₃ₓ₃)| × |M⁻ᵀ × n̂_obj|
 /// This is exact for any TRS (or general affine) matrix.
 /// </summary>
-public class Transform : IHittable, ISamplable
+public class Transform : IHittable, ISamplable, IManifoldSurface
 {
     private readonly IHittable _object;
     private readonly Matrix4x4 _transform;
@@ -154,6 +154,21 @@ public class Transform : IHittable, ISamplable
         if (rec.DpDv.LengthSquared() > 0f)
             rec.DpDv = Vector3.TransformNormal(rec.DpDv, _transform);
 
+        // Normal partials (MNEE) transform with the normal matrix like Normal,
+        // then are re-projected onto the tangent plane of the re-normalized
+        // world normal so ∂N/∂· stays orthogonal to N (a unit normal's
+        // derivative is tangent). Exact for rigid / uniform-scale transforms;
+        // a first-order approximation under non-uniform scale, which only
+        // affects the manifold-walk Jacobian (quasi-Newton tolerates it).
+        if (rec.DnDu.LengthSquared() > 0f || rec.DnDv.LengthSquared() > 0f)
+        {
+            Vector3 nu = Vector3.TransformNormal(rec.DnDu, _normalMatrix);
+            Vector3 nv = Vector3.TransformNormal(rec.DnDv, _normalMatrix);
+            Vector3 n  = rec.Normal; // already normalized world normal
+            rec.DnDu = nu - n * Vector3.Dot(n, nu);
+            rec.DnDv = nv - n * Vector3.Dot(n, nv);
+        }
+
         // Footprint dPdx/dPdy were computed in object space (LocalPoint-aligned)
         // by the inner primitive's Hit path. Procedural textures consume them
         // at LocalPoint, so we deliberately keep them in object space — image
@@ -161,6 +176,26 @@ public class Transform : IHittable, ISamplable
         // transform here.
 
         return true;
+    }
+
+    // ── IManifoldSurface (MNEE) ─────────────────────────────────────────────
+    // Delegate the parametric evaluation to the wrapped surface (in object
+    // space) and map the result to world space: the point through the forward
+    // matrix, the normal through the normal matrix (M⁻ᵀ). The (u, v) seed the
+    // walker passes in came from a straight-ray Hit, which preserves the inner
+    // primitive's U/V unchanged through this wrapper, so the parameterisations
+    // line up exactly.
+    public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
+    {
+        if (_object is IManifoldSurface inner && inner.EvaluateManifold(u, v, out var local))
+        {
+            Vector3 p = Vector3.Transform(local.P, _transform);
+            Vector3 n = Vector3.Normalize(Vector3.TransformNormal(local.N, _normalMatrix));
+            pt = new ManifoldPoint(p, n);
+            return true;
+        }
+        pt = default;
+        return false;
     }
 
     public AABB BoundingBox() => _worldBox;

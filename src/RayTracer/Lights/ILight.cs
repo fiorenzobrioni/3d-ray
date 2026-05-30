@@ -106,4 +106,24 @@ public interface ILight
     /// closing Veach's MIS estimator. Default = null (no visible proxy).
     /// </summary>
     Emissive? ProxyMaterial => null;
+
+    // ── MNEE caustic sampling ────────────────────────────────────────────────
+    //
+    /// <summary>
+    /// Draws one sample of an emissive surface point for Manifold Next Event
+    /// Estimation (<see cref="Rendering.ManifoldWalker"/>): a world-space point
+    /// on the light, its surface normal, the emitted radiance there, and the
+    /// area-measure PDF. Returns false for lights MNEE does not yet drive
+    /// (delta point/spot/directional, environment) — those fall through to the
+    /// ordinary path. The manifold walk needs the raw area sample (not the
+    /// solid-angle-folded value <see cref="IlluminateAndTest"/> returns) because
+    /// it computes the generalized geometric term <c>dΩ_x/dA_y</c> itself by
+    /// perturbing the sampled point across the light surface.
+    /// </summary>
+    bool TrySampleEmissivePoint(out Vector3 point, out Vector3 normal,
+                                out Vector3 emission, out float pdfArea)
+    {
+        point = default; normal = default; emission = default; pdfArea = 0f;
+        return false;
+    }
 }
