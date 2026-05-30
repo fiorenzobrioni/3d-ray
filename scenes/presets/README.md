@@ -43,6 +43,7 @@ entities:
 | [`lights.md`](lights.md) | Set di luci pronti (3-point, high-key, golden hour, neon, …) |
 | [`mediums.md`](mediums.md) | Atmosfere, nebbie, ghiaccio/neve, SSS, liquidi volumetrici |
 | [`terrains.md`](terrains.md) | Ricetta heightfield + strati altimetrici/pendenza |
+| [`caustics.md`](caustics.md) | Caster di caustiche pronti (vetro/cristallo/frosted + metallo lucido/spazzolato) + receiver, luce e mini-scena |
 
 ## Convenzioni
 
