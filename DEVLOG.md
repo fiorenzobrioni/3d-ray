@@ -6,6 +6,89 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo SMS Fase 2b — Specular Manifold Sampling ✅
+
+Implementazione della **Strada 2b** della roadmap caustiche (`PLANNING.md`):
+**Specular Manifold Sampling** (Zeltner, Georgiev & Jakob 2020; Hanika et al.
+2015), le caustiche da vetro **frosted/rough** e da metallo **spazzolato** che la
+MNEE liscia della Fase 2 non può produrre. Opt-in, single-pass, zero memoria
+extra, costruito riusando l'infrastruttura MNEE — non un solver separato.
+
+**Cosa risolve.** Per un caster liscio la MNEE risolve *l'unico* cammino
+speculare (`ĥ = η_a·ω_a + η_b·ω_b ∥ n`). Per un caster rough il microfacet è
+distribuito (GGX): non c'è un cammino unico ma un continuo. SMS campiona una
+**normale di microfaccetta `m`** dalla VNDF del caster e risolve la manifold
+imponendo `ĥ ∥ m`; il caso liscio è l'offset nullo (`m = n`). Una sfera di vetro
+smerigliato marcata `caustic_caster` proietta così un alone morbido (non lo spot
+netto della lente liscia) sul `caustic_receiver`, e un metallo `fuzz > 0` una
+caustica riflessiva sfocata.
+
+**Generalizzazione del residuo (`Rendering/ManifoldWalker.cs`).** Il residuo di
+Newton è esteso con un offset di microfaccetta per vertice (span locale, vuoto =
+liscio): `m` è ricostruito dal frame tangente di Frisvad
+(`Microfacet.BuildTangentFrame`), e `F = (Dot(s_m, ĥ), Dot(t_m, ĥ))` con `(s_m,
+t_m)` ONB attorno a `m`. L'offset è **costante durante la Newton iteration**,
+quindi il Jacobiano per differenze finite in `(u,v)` resta invariato. Nuovo entry
+`ConnectRough` (seeding condiviso con `Connect`, poi un campione VNDF per vertice
+visto dalla direzione incidente lato-receiver → `Solve` con offset fisso). Tutto
+`stackalloc`/`Span`, zero heap nell'hot path; i draw VNDF passano per
+`MathUtils.RandomFloat()` → stesso stream Sobol/PRNG di NEE (deterministico sotto
+`Sampler.BeginPixelSample`).
+
+**Stimatore biased (Zeltner §4.1).** Per prova: campiona `m` dalla VNDF, risolve a
+offset fisso, pesa con `f_rough(m)/p_vndf(m) · T · G / pdf_A`. La cancellazione
+VNDF collassa `f/p` a `Fresnel(m) · G1(L)` — **identica a
+`DisneyBsdf.ScatterTransmission`** (`D` e `G1(V)` cancellati dal sampling), quindi
+il throughput rough riusa la stessa derivazione. `G = dΩ_x/dA_y` è il termine
+geometrico MNEE ri-calcolato perturbando la luce **con lo stesso offset fisso**.
+Il `Renderer` (`ComputeCaustics`) media `--sms-samples` prove per connessione
+rough (`invSamples / _smsSamples`); helper `AccumulateCaustic` condiviso fra il
+ramo liscio e quello rough, con gli early-out a buon mercato (orientazione,
+`EvaluateDirect == 0`, throughput morto) **prima** dei 2 ray di occlusione.
+Il bias è controllato e →0 con `roughness → 0`; lo stimatore **unbiased** a
+probabilità reciproca (§4.2) è deferito alla Fase 2c (hook lasciato nel walker) —
+control-flow diverso, code lunghe a rischio budget per-pixel.
+
+**Riflessione rough.** Il ramo riflettente della MNEE (`SeedReflection`,
+`IsTransmissive = false`), prima presente ma inutilizzato (nessun materiale
+emetteva un caster riflettente), è ora alimentato da `Metal.GetCausticInterface`
+(`fuzz = 0` → mirror liscio, `fuzz > 0` → SMS riflettente, `α = fuzz²`) e dalla
+lobe metallica di `DisneyBsdf` (`metallic ≈ 1`). Il Fresnel riflettente è passato
+a **Schlick-conduttore** con `F0 = tint` (riflettanza del metallo), corretto per
+i conduttori dove il vecchio Fresnel dielettrico era sbagliato.
+
+**Opt-in & CLI.** `CausticInterface` esteso con `IsRough`/`AlphaX`/`AlphaY`/
+`Roughness` (secondo costruttore; quello liscio resta source-compatibile).
+`DisneyBsdf.GetCausticInterface` non scarta più `roughness > 0.04`: ritorna un
+caster rough rifrattivo (o riflettente metallico) con l'`α` anisotropo mappato
+come `ShadingParams`. Nuovo flag `--sms-samples <n>` (default 4); i preset
+quality **final/ultra** attivano `--caustics on` di default (innocuo senza entità
+marcate — registro vuoto → costo zero) con `sms-samples 8`; un `--caustics`
+esplicito vince sul preset.
+
+**Impatto performance.** Costo zero con `--caustics off` o senza entità marcate
+(gate `_causticsActive` invariato). Percorso liscio bit-identico (un solo branch
+inlinato `rough` mai preso; `MnEeCausticTests` resta verde). Sui pixel
+`caustic_receiver` che vedono un caster rough: ~`N×` una connessione MNEE liscia,
+con `N = --sms-samples` (ogni prova ≈ 1 solve + 1 Jacobiano + 2 ray di
+occlusione). Whole-frame dipende dalla copertura a schermo dei riceventi rough.
+
+**Marcatura per-entità (confermata).** Resta a livello di entità
+(`caustic_caster`/`caustic_receiver`) + capacità per-materiale
+(`GetCausticInterface` → `None` se non idoneo): il materiale dice «posso?»,
+l'entità «devo, qui?». Identico al design "Shadow Caustics" per-oggetto di Cycles;
+il costo SMS scala con le coppie caster×receiver, quindi l'opt-in per entità
+mantiene lo scope stretto. Sempre-on di default sarebbe un disastro di performance
+e non è ciò che fa nessun renderer di produzione per la MNEE.
+
+**Limiti Fase 2b / follow-up.** Stimatore unbiased (2c); anisotropia del caster
+in fallback isotropo (l'`α` è anisotropo ma il frame è geometrico); caster
+ancora solo sferici (eredita il limite `IManifoldSurface`); catene ≤ 2
+interfacce; luci d'area (non delta/ambiente). Dove il Newton non converge la
+caustica di quella prova è persa (innocuo, biased).
+
+---
+
 ## Ciclo Caustiche Fase 2 — MNEE ✅
 
 Implementazione della **Strada 2** della roadmap caustiche (`PLANNING.md`):

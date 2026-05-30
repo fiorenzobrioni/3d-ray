@@ -273,6 +273,7 @@ public partial class Renderer
     private readonly bool _causticsActive;
     private readonly int  _mneeSamples;        // emitter samples per receiver per light
     private readonly int  _mneeMaxIterations;  // Newton iteration cap
+    private readonly int  _smsSamples;         // SMS trials per rough caster connection (Phase 2b)
 
     // MNEE owns the receiver→caster(≤2)→light transport, so the forward path
     // must not also count it. A non-negative "caustic carrier" state threaded
@@ -301,7 +302,8 @@ public partial class Renderer
         RandomWalkConfig? walkConfig = null,
         bool enableCaustics = false,
         IReadOnlyList<IHittable>? causticCasters = null,
-        int mneeSamples = 1)
+        int mneeSamples = 1,
+        int smsSamples = 4)
     {
         _world = world;
         _camera = camera;
@@ -325,6 +327,7 @@ public partial class Renderer
             : CausticCasterRegistry.Empty;
         _causticsActive   = enableCaustics && _caustics.Count > 0;
         _mneeSamples       = Math.Max(1, mneeSamples);
+        _smsSamples        = Math.Max(1, smsSamples);
         _mneeMaxIterations = ManifoldWalker.DefaultMaxIterations;
 
         // Texture-filtering / ray-differential toggle. Auto = on (the analytic
@@ -1555,30 +1558,69 @@ public partial class Renderer
                     if (!TryGetCausticInterface(caster, x, y, out CausticInterface ci))
                         continue;
 
-                    if (!ManifoldWalker.Connect(caster, ci, x, y, yN, _mneeMaxIterations,
-                                                out ManifoldWalker.CausticConnection conn))
-                        continue;
-
-                    // Emitter must face the exit vertex to radiate down the chain.
-                    if (Vector3.Dot(yN, conn.LastVertex - y) <= 0f) continue;
-
-                    // Receiver BSDF response in the caustic direction (f·cosθ_x).
-                    Vector3 fr = material.EvaluateDirect(conn.WiAtReceiver, viewDir, nx, rec);
-                    if (fr == Vector3.Zero) continue;
-
-                    // Visibility of the two exposed segments (interior is inside glass).
-                    if (SegmentOccluded(x, conn.FirstVertex)) continue;
-                    if (SegmentOccluded(conn.LastVertex, y)) continue;
-
-                    // L = f_r(ω_x) · L_e · T · G / pdf_A. G already carries the
-                    // light-area→solid-angle geometry (cosθ_y/r² generalized
-                    // through the specular chain).
-                    result += fr * Le * conn.Throughput * (conn.G / pdfA * invSamples);
+                    if (!ci.IsRough)
+                    {
+                        // ── Smooth caster: single deterministic MNEE solve ─────
+                        if (!ManifoldWalker.Connect(caster, ci, x, y, yN, _mneeMaxIterations,
+                                                    out ManifoldWalker.CausticConnection conn))
+                            continue;
+                        result += AccumulateCaustic(in conn, rec, viewDir, nx, material,
+                                                    y, yN, Le, pdfA) * invSamples;
+                    }
+                    else
+                    {
+                        // ── Rough caster: average _smsSamples stochastic SMS
+                        // trials (biased estimator; each trial draws its own
+                        // microfacet normal). ──────────────────────────────────
+                        float invSms = invSamples / _smsSamples;
+                        for (int t = 0; t < _smsSamples; t++)
+                        {
+                            if (!ManifoldWalker.ConnectRough(caster, ci, x, y, yN, _mneeMaxIterations,
+                                                             out ManifoldWalker.CausticConnection conn))
+                                continue;
+                            result += AccumulateCaustic(in conn, rec, viewDir, nx, material,
+                                                        y, yN, Le, pdfA) * invSms;
+                        }
+                    }
                 }
             }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Evaluates a solved caustic connection's radiance contribution
+    /// <c>f_r(ω_x)·L_e·T·G/pdf_A</c>, after the orientation, receiver-BSDF and
+    /// two-segment visibility tests. Returns <see cref="Vector3.Zero"/> when the
+    /// connection is rejected, so the caller can scale and accumulate uniformly
+    /// for both the smooth (MNEE) and rough (SMS) paths. The cheap BSDF/throughput
+    /// tests are ordered before the two occlusion rays, which dominate the cost.
+    /// </summary>
+    private Vector3 AccumulateCaustic(in ManifoldWalker.CausticConnection conn,
+                                      HitRecord rec, Vector3 viewDir, Vector3 nx,
+                                      IMaterial material,
+                                      Vector3 y, Vector3 yN, Vector3 Le, float pdfA)
+    {
+        // Emitter must face the exit vertex to radiate down the chain.
+        if (Vector3.Dot(yN, conn.LastVertex - y) <= 0f) return Vector3.Zero;
+
+        // Receiver BSDF response in the caustic direction (f·cosθ_x).
+        Vector3 fr = material.EvaluateDirect(conn.WiAtReceiver, viewDir, nx, rec);
+        if (fr == Vector3.Zero) return Vector3.Zero;
+
+        // Skip dead-throughput trials before paying for the visibility rays.
+        Vector3 weight = fr * conn.Throughput;
+        if (weight.X <= 0f && weight.Y <= 0f && weight.Z <= 0f) return Vector3.Zero;
+
+        // Visibility of the two exposed segments (interior is inside glass).
+        if (SegmentOccluded(rec.Point, conn.FirstVertex)) return Vector3.Zero;
+        if (SegmentOccluded(conn.LastVertex, y)) return Vector3.Zero;
+
+        // L = f_r(ω_x) · L_e · T · G / pdf_A. G already carries the
+        // light-area→solid-angle geometry (cosθ_y/r² generalized through the
+        // specular chain).
+        return weight * Le * (conn.G / pdfA);
     }
 
     /// <summary>

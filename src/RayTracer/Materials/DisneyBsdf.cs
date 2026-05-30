@@ -596,31 +596,69 @@ public sealed class DisneyBsdf : IMaterial
         return sigma;
     }
 
-    // MNEE caustic caster: only a SMOOTH, strongly transmissive, solid Disney
-    // glass qualifies. Rough/frosted transmission (roughness above the smooth
-    // threshold) is deferred to Phase 2b (Specular Manifold Sampling) and stays
-    // on the Phase-1 straight transparent shadow ray. Thin-walled glass has no
-    // interior volume to refract through, so it is not a lens caster either.
+    // Caustic caster descriptor for MNEE (Phase 2, smooth) / SMS (Phase 2b, rough):
+    //   • Refractive caster — solid (non-thin) Disney glass with strong specular
+    //     transmission. Smooth (roughness ≤ threshold) → delta MNEE caster;
+    //     rough/frosted → SMS caster carrying its anisotropic GGX α.
+    //   • Reflective caster — a metallic mirror (metallic ≈ 1, no transmission).
+    //     Smooth → delta mirror; rough/brushed → SMS reflective caster.
+    // Thin-walled glass has no interior volume to refract through, so it is not a
+    // lens caster. Everything else returns None (Phase-1 shadow ray only).
     public CausticInterface GetCausticInterface(HitRecord rec)
     {
         float u = rec.U, v = rec.V;
         Vector3 p = rec.LocalPoint;
         int seed = rec.ObjectSeed;
 
+        float roughness = Math.Clamp(Roughness.Value(u, v, p, seed), 0f, 1f);
+        bool smooth = roughness <= SmoothSpecularThreshold;
+
+        // ── Refractive (glass lens) caster ──────────────────────────────────
         float specTrans = SpecTrans.Value(u, v, p, seed);
-        if (specTrans < 0.5f || ThinWalled) return CausticInterface.None;
+        if (specTrans >= 0.5f && !ThinWalled)
+        {
+            float ior = MathF.Max(Ior.Value(u, v, p, seed), 1.0001f);
+            Vector3 baseCol = BaseColor.Value(u, v, p, seed);
+            var (tint, sigma) = ResolveTransmission(rec, baseCol);
+            if (smooth)
+                return new CausticInterface(isTransmissive: true, ior: ior, tint: tint, absorption: sigma);
+            var (ax, ay) = CausticAlpha(roughness, u, v, p, seed);
+            return new CausticInterface(isTransmissive: true, ior: ior, tint: tint, absorption: sigma,
+                                        alphaX: ax, alphaY: ay, roughness: roughness);
+        }
 
-        float roughness = Roughness.Value(u, v, p, seed);
-        if (roughness > SmoothSpecularThreshold) return CausticInterface.None;
+        // ── Reflective (metal mirror) caster ────────────────────────────────
+        // A near-perfect metallic surface focuses light by reflection. The tint
+        // carries the conductor reflectance (F0 = baseColor); the walker folds in
+        // the Schlick-conductor Fresnel from the converged geometry.
+        float metallic = Metallic.Value(u, v, p, seed);
+        if (metallic >= 0.999f)
+        {
+            Vector3 baseCol = BaseColor.Value(u, v, p, seed);
+            float ior = MathF.Max(Ior.Value(u, v, p, seed), 1.0001f);
+            if (smooth)
+                return new CausticInterface(isTransmissive: false, ior: ior, tint: baseCol, absorption: Vector3.Zero);
+            var (ax, ay) = CausticAlpha(roughness, u, v, p, seed);
+            return new CausticInterface(isTransmissive: false, ior: ior, tint: baseCol, absorption: Vector3.Zero,
+                                        alphaX: ax, alphaY: ay, roughness: roughness);
+        }
 
-        float ior = MathF.Max(Ior.Value(u, v, p, seed), 1.0001f);
-        Vector3 baseCol = BaseColor.Value(u, v, p, seed);
-        var (tint, sigma) = ResolveTransmission(rec, baseCol);
-        return new CausticInterface(isTransmissive: true, ior: ior, tint: tint, absorption: sigma);
+        return CausticInterface.None;
+    }
+
+    // Anisotropic GGX α for a rough caustic caster, matching the ShadingParams
+    // mapping (Burley 2012 §5.4: α = roughness², aspect = sqrt(1 − 0.9·aniso)).
+    private (float ax, float ay) CausticAlpha(float roughness, float u, float v, Vector3 p, int seed)
+    {
+        float alpha  = MathF.Max(roughness * roughness, 0.001f);
+        float aniso  = Math.Clamp(Anisotropic.Value(u, v, p, seed), 0f, 1f);
+        float aspect = MathF.Sqrt(1f - 0.9f * aniso);
+        return (MathF.Max(alpha / aspect, 0.001f), MathF.Max(alpha * aspect, 0.001f));
     }
 
     // Roughness at or below this is treated as a perfect specular interface for
-    // MNEE (matches the engine's near-delta GGX cutoff used elsewhere).
+    // MNEE (matches the engine's near-delta GGX cutoff used elsewhere). Above it,
+    // the caster is handled by Specular Manifold Sampling (Phase 2b).
     private const float SmoothSpecularThreshold = 0.04f;
 
     /// <summary>
