@@ -13,6 +13,16 @@
 #    • 1 point light fill fredda — apre le ombre senza appiattire
 #    • Gradient sky scuro — riflessi morbidi nel cristallo
 #
+#  CAUSTICHE (Fase 2c — caster CSG):
+#    • Vino   → caustica ROSSA focalizzata sul tavolo (caster principale,
+#               la semisfera di liquido agisce da lente colorata).
+#    • Stelo/base (cilindri CSG) → contributo sul tavolo.
+#    • Coppa  → guscio sottilissimo: contributo minimo (atteso).
+#    • Tavolo e pavimento sono caustic_receiver.
+#    Abilita con --caustics on (final/ultra lo fanno da soli):
+#      dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#        -i scenes/cristallo.yaml -o renders/cristallo.png -q final --caustics on
+#
 #  Render consigliati:
 #    Preview:    -w 400  -H 225  -s 64   -d 4   -S 1
 #    Standard:   -w 800  -H 450  -s 256  -d 16
@@ -34,6 +44,7 @@ world:
     type: "infinite_plane"
     material: "pavimento_scacchi"
     y: 0.0
+    caustic_receiver: true
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  CAMERAS
@@ -185,6 +196,7 @@ entities:
     scale: [2.8, 0.1, 1.8]
     translate: [0.0, 0.71, 0.0]
     material: "legno_tavolo"
+    caustic_receiver: true
 
   - { name: "gamba_fl", type: "cylinder", center: [-1.20, 0.0, -0.70], radius: 0.12, height: 0.70, material: "legno_gambe" }
   - { name: "gamba_fr", type: "cylinder", center: [ 1.20, 0.0, -0.70], radius: 0.12, height: 0.70, material: "legno_gambe" }
@@ -223,6 +235,7 @@ entities:
     type: "csg"
     operation: "union"
     material: "cristallo"
+    caustic_caster: true
     left:
       type: "cylinder"
       center: [0.0, 0.763, 0.0]
@@ -256,6 +269,7 @@ entities:
     type: "csg"
     operation: "subtraction"
     material: "cristallo"
+    caustic_caster: true
     left:
       # Guscio: sfera esterna meno sfera interna
       type: "csg"
@@ -289,6 +303,7 @@ entities:
     type: "csg"
     operation: "subtraction"
     material: "vino_rosso"
+    caustic_caster: true
     left:
       type: "sphere"
       center: [0.0, 2.16, 0.0]
