@@ -56,6 +56,37 @@ public interface IManifoldCaster
 }
 
 /// <summary>
+/// A caustic caster that can offer ALTERNATIVE per-vertex seed charts when the
+/// primary manifold solve is rejected by the per-triangle clamp — the first
+/// ("neighbor-seed") tier of mesh edge-crossing.
+///
+/// <para>The straight-segment seed lands the Newton walk on the facet the chord
+/// crosses, but the true specular vertex may sit on an <em>edge-adjacent</em>
+/// facet, so the converged point fails <see cref="IClampedChart.Accept"/> and the
+/// connection is dropped. Instead of dropping it, the <see cref="Rendering.ManifoldWalker"/>
+/// re-seeds the offending vertex on each edge-neighbour of its facet and re-runs
+/// the <em>same</em> solve. This is a caller-side retry that leaves the shared
+/// Newton solver untouched, so analytic single-chart primitives and CSG solids —
+/// which do not implement this interface — take the identical (bit-for-bit) path
+/// they did before.</para>
+///
+/// <para>It only recovers vertices ONE facet away from the seed; a vertex several
+/// facets off (a strongly curved, coarsely tessellated caster) is still missed.
+/// Full in-solve edge walking across the adjacency graph is a later phase
+/// (tracked in PLANNING.md) that can build on the adjacency this tier introduces.</para>
+/// </summary>
+public interface INeighborSeedCaster
+{
+    /// <summary>
+    /// Fills <paramref name="neighbors"/> with the edge-adjacent facet charts of
+    /// the facet that produced <paramref name="seed"/> (each seeded at its
+    /// centroid), and returns how many were written. Returns 0 when the seed's
+    /// chart is not one of this caster's facets or it has no recorded neighbours.
+    /// </summary>
+    int FacetNeighbors(in ManifoldSeed seed, Span<ManifoldSeed> neighbors);
+}
+
+/// <summary>
 /// A chart that imposes an extra membership clamp on a converged manifold vertex.
 /// Implemented by the CSG chart (a child primitive of a boolean solid): a Newton
 /// solution lies on the child's surface but may fall in a region the boolean

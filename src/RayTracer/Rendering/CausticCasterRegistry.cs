@@ -53,7 +53,13 @@ public sealed class CausticCasterRegistry
         {
             var seeder = BuildSeeder(h);
             if (seeder != null)
+            {
+                // Mesh casters need their facet adjacency built once here, on the
+                // single-threaded registration path, so the caustic neighbor-seed
+                // retry runs lock-free during the parallel render.
+                if (seeder is Mesh mesh) mesh.PrepareCausticAdjacency();
                 list.Add(new Caster(h, seeder, h.BoundingBox()));
+            }
         }
         _casters = list.ToArray();
     }

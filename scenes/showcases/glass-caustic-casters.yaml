@@ -14,12 +14,15 @@
 #    z = +1.7  CAPSULA     → spot allungato (cilindro + calotte sferiche)
 #    z = +2.5… CSG (lente) → biconvessa: sfera ∩ sfera, fuoco stretto
 #
-#  NB: i caster ammessi sono solo le PRIMITIVE CURVE (sfera, cilindro, cono,
-#  capsula, toro) e i solidi CSG costruiti su di esse. Le mesh triangolari
-#  NON castano ancora (clamp per-triangolo, vedi DEVLOG) e le LUCI DELTA
-#  (point/spot/directional puntuale) non innescano caustiche: l'estimatore
-#  MNEE campiona un PUNTO sull'area dell'emettitore, che una sorgente delta
-#  non possiede. Per questo qui la luce è di tipo `area`.
+#  NB: i caster più affidabili sono le PRIMITIVE CURVE (sfera, cilindro, cono,
+#  capsula, toro) e i solidi CSG costruiti su di esse — per questo la galleria
+#  usa loro. Le mesh triangolari smooth ora castano anch'esse, ma solo nel caso
+#  comune (vertice ≤1 faccia dal seed, tier neighbor-seed; vedi DEVLOG/PLANNING):
+#  mesh coarse molto curve restano più rumorose. Le LUCI DELTA (point/spot/
+#  directional puntuale) NON innescano caustiche: l'estimatore MNEE campiona un
+#  PUNTO sull'area dell'emettitore, che una sorgente delta non possiede — per
+#  questo qui la luce è di tipo `area` (una `directional` con `angular_radius>0`
+#  non è delta e andrebbe bene lo stesso).
 #
 #  Render (final/ultra abilitano --caustics da soli):
 #    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \

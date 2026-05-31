@@ -6,6 +6,56 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Mesh Neighbor-Seed — edge-crossing tier 1 ✅
+
+Prima tappa della **Strada 2d** (`PLANNING.md`): far castare le **mesh
+triangolari**. Il limite di 2c era il clamp per-triangolo — quando il vertice di
+Newton converge appena oltre il bordo del triangolo del seed, `IClampedChart.Accept`
+lo scarta e la connessione è persa, così le mesh smooth fortemente curve castavano
+poco o nulla.
+
+**Approccio scelto (neighbor-seed):** retry **lato chiamante** che lascia il
+solver numerico condiviso intatto — niente rischio di regressione sui caster
+analitici/CSG già funzionanti. Quando il solve primario è rigettato, si ri-semina
+il vertice colpevole su ogni facet **adiacente** e si ri-risolve lo *stesso* solve;
+il clamp del vicino accetta solo se il vertice ci atterra davvero → stimatore
+**unbiased** (una connessione recuperata è quella che il facet del seed avrebbe
+dovuto produrre). Scartata la variante in-solve (hand-off del chart dentro Newton)
+perché tocca il codice numerico più delicato e va certificata come non-distorta:
+resta come tier 2 in roadmap, costruibile sopra questa adiacenza.
+
+**Implementato:**
+- `Mesh` → `INeighborSeedCaster`: adiacenza dei facet costruita una volta in
+  `PrepareCausticAdjacency()` (vertici saldati per posizione su griglia 1e-5,
+  mappa edge→triangoli, vicini per-triangolo). `FacetNeighbors(seed, span)`
+  restituisce le chart adiacenti al facet del seed, riseminata al centroide.
+- `CausticCasterRegistry` chiama `PrepareCausticAdjacency` sul percorso di
+  registrazione **single-thread**, così il retry gira lock-free nel render parallelo.
+- `ManifoldWalker`: `Connect`/`ConnectRough` rifattorizzati estraendo
+  `TrySmooth`/`TryRough` (solve da seed esplicito) + `RetryNeighborSeeds` (ciclo
+  sui vicini, primo successo vince). Nuova `INeighborSeedCaster` solo su `Mesh`:
+  i caster che non la implementano (analitici, CSG) prendono il ramo identico
+  **bit-per-bit** (516 test invariati).
+
+**Limite (documentato):** recupera solo vertici a **una faccia** dal seed; mesh
+coarse molto curve restano più rumorose/deboli degli analitici (verificato a
+render: la sfera-mesh di vetro casta una caustica speckled vs ~nulla di prima).
+Vertici a distanza arbitraria → tier 2 (edge-walk in-solve).
+
+**Test:** `MeshCausticTests` — adiacenza (`FacetNeighbors` trova il facet
+edge-adiacente, lone facet = 0 vicini), connessione **off-axis** attraverso la
+sfera-mesh che un walk solo-clamp scarterebbe, registry che prepara l'adiacenza.
+Suite completa **519 verde**.
+
+**Nota di scoping emersa (in `PLANNING.md`):** le **luci delta** (point/spot)
+non innescano caustiche — MNEE/SMS campiona un punto sull'*area* dell'emettitore,
+assente in una sorgente Dirac; e il **"vetro dentro vetro"** è reso con un film
+d'aria spurio perché l'IOR è sempre calcolato contro l'aria (manca l'IOR relativo
+dallo stack dei media). Entrambi restano roadmap; `cristallo.yaml` tiene flag e
+luce in attesa del secondo.
+
+---
+
 ## Ciclo Caster Fase 2c — caustiche su tutta la geometria ✅
 
 Implementazione della **Strada 2c** della roadmap caustiche (`PLANNING.md`):

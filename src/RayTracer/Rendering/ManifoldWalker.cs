@@ -57,6 +57,12 @@ public static class ManifoldWalker
     private struct SeedBuf { private ManifoldSeed _e; }
     [System.Runtime.CompilerServices.InlineArray(MaxVertices)]
     private struct SurfBuf { private IManifoldSurface _e; }
+    // A facet has up to three edge-neighbours; the neighbor-seed retry needs a
+    // fixed buffer of that width (ManifoldSeed carries a reference, so InlineArray
+    // — not stackalloc — keeps it on the stack).
+    private const int MaxFacetNeighbors = 3;
+    [System.Runtime.CompilerServices.InlineArray(MaxFacetNeighbors)]
+    private struct NbrBuf { private ManifoldSeed _e; }
 
     /// <summary>A solved specular connection ready for the radiance estimator.</summary>
     public readonly struct CausticConnection
@@ -96,12 +102,28 @@ public static class ManifoldWalker
         if (!caster.Seeder.SeedManifold(x, y, ci, seeds, out int k) || k < 1) return false;
         if (k > MaxVertices) k = MaxVertices;
 
+        if (TrySmooth(caster, ci, x, y, yNormal, maxIter, seeds, k, out conn)) return true;
+
+        // Per-triangle clamp rejected the converged vertex: for a mesh caster the
+        // true specular vertex may lie on an edge-adjacent facet, so retry the
+        // SAME solve with the offending vertex re-seeded on each neighbour. A no-op
+        // for analytic/CSG casters (they don't implement INeighborSeedCaster).
+        return RetryNeighborSeeds(caster, ci, x, y, yNormal, maxIter, seeds, k, rough: false, out conn);
+    }
+
+    // Smooth (delta) solve from an explicit seed set: no microfacet offset, so the
+    // manifold targets the geometric normal at each vertex.
+    private static bool TrySmooth(in CausticCasterRegistry.Caster caster,
+                                  in CausticInterface ci,
+                                  Vector3 x, Vector3 y, Vector3 yNormal, int maxIter,
+                                  ReadOnlySpan<ManifoldSeed> seeds, int k,
+                                  out CausticConnection conn)
+    {
         Span<Vector2> uv = stackalloc Vector2[MaxVertices];
         SurfBuf surfBuf = default;
         Span<IManifoldSurface> surfs = surfBuf;
         for (int i = 0; i < k; i++) { uv[i] = seeds[i].Uv; surfs[i] = seeds[i].Chart; }
 
-        // Smooth caster ⇒ no microfacet offset (empty span ⇒ geometric normal).
         return SolveAndEstimate(caster, ci, x, y, yNormal, maxIter, k, uv, surfs,
                                 ReadOnlySpan<Vector3>.Empty, out conn);
     }
@@ -129,6 +151,22 @@ public static class ManifoldWalker
         Span<ManifoldSeed> seeds = seedBuf;
         if (!caster.Seeder.SeedManifold(x, y, ci, seeds, out int k) || k < 1) return false;
         if (k > MaxVertices) k = MaxVertices;
+
+        if (TryRough(caster, ci, x, y, yNormal, maxIter, seeds, k, out conn)) return true;
+
+        // Same neighbor-seed retry as the smooth path (mesh edge-crossing tier 1).
+        return RetryNeighborSeeds(caster, ci, x, y, yNormal, maxIter, seeds, k, rough: true, out conn);
+    }
+
+    // One stochastic SMS trial from an explicit seed set: samples a microfacet
+    // normal per vertex from the GGX VNDF and solves the manifold against it.
+    private static bool TryRough(in CausticCasterRegistry.Caster caster,
+                                 in CausticInterface ci,
+                                 Vector3 x, Vector3 y, Vector3 yNormal, int maxIter,
+                                 ReadOnlySpan<ManifoldSeed> seeds, int k,
+                                 out CausticConnection conn)
+    {
+        conn = default;
 
         Span<Vector2> uv = stackalloc Vector2[MaxVertices];
         SurfBuf surfBuf = default;
@@ -164,6 +202,44 @@ public static class ManifoldWalker
         }
 
         return SolveAndEstimate(caster, ci, x, y, yNormal, maxIter, k, uv, surfs, micro, out conn);
+    }
+
+    // ── Mesh edge-crossing, neighbor-seed tier ───────────────────────────────
+    // When the primary solve is rejected (the converged vertex slid off its seed
+    // facet), retry the connection with one vertex re-seeded on each edge-adjacent
+    // facet. Each retry is a full independent solve on the neighbour chart, whose
+    // own per-triangle clamp accepts only if the vertex truly lands there — so the
+    // estimator stays unbiased and a successful retry is the connection the seed
+    // facet should have produced. Returns false (unchanged behaviour) for casters
+    // that do not implement INeighborSeedCaster, i.e. analytic primitives and CSG.
+    private static bool RetryNeighborSeeds(in CausticCasterRegistry.Caster caster,
+                                           in CausticInterface ci,
+                                           Vector3 x, Vector3 y, Vector3 yNormal, int maxIter,
+                                           ReadOnlySpan<ManifoldSeed> baseSeeds, int k,
+                                           bool rough, out CausticConnection conn)
+    {
+        conn = default;
+        if (caster.Seeder is not INeighborSeedCaster nb) return false;
+
+        SeedBuf trialBuf = default;
+        Span<ManifoldSeed> trial = trialBuf;
+        for (int v = 0; v < k; v++)
+        {
+            NbrBuf nbrBuf = default;
+            Span<ManifoldSeed> nbrs = nbrBuf;
+            int nc = nb.FacetNeighbors(baseSeeds[v], nbrs);
+            for (int j = 0; j < nc; j++)
+            {
+                for (int i = 0; i < k; i++) trial[i] = baseSeeds[i];
+                trial[v] = nbrs[j];
+
+                bool ok = rough
+                    ? TryRough(caster, ci, x, y, yNormal, maxIter, trial, k, out conn)
+                    : TrySmooth(caster, ci, x, y, yNormal, maxIter, trial, k, out conn);
+                if (ok) return true;
+            }
+        }
+        return false;
     }
 
     // Solve the manifold (with an optional per-vertex microfacet offset), then

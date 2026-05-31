@@ -181,6 +181,70 @@ public class MeshCausticTests
         Assert.True(System.MathF.Abs(conn.FirstVertex.Z - (center.Z - 1f)) < 1e-2f, $"{conn.FirstVertex}");
     }
 
+    // ── Neighbor-seed edge-crossing (tier 1) ────────────────────────────────
+
+    [Fact]
+    public void Mesh_FacetNeighbors_FindsEdgeAdjacentFacet()
+    {
+        // Two triangles sharing edge (v1, v2): each is the other's sole neighbour.
+        var n = Vector3.UnitZ;
+        Vector3 v0 = new(0, 0, 0), v1 = new(1, 0, 0), v2 = new(0, 1, 0), v3 = new(1, 1, 0);
+        var triA = new SmoothTriangle(v0, v1, v2, n, n, n, Glass);
+        var triB = new SmoothTriangle(v1, v3, v2, n, n, n, Glass);
+        var mesh = new Mesh(new List<IHittable> { triA, triB }, Glass);
+        mesh.PrepareCausticAdjacency();
+
+        Span<ManifoldSeed> nbrs = new ManifoldSeed[3];
+        int nc = mesh.FacetNeighbors(new ManifoldSeed(triA, new Vector2(1f / 3f, 1f / 3f)), nbrs);
+        Assert.Equal(1, nc);
+        Assert.Same(triB, nbrs[0].Chart);
+
+        // The disjoint facet of a second, separate triangle has no neighbours.
+        var lone = new SmoothTriangle(new Vector3(9, 9, 9), new Vector3(10, 9, 9), new Vector3(9, 10, 9), n, n, n, Glass);
+        var loneMesh = new Mesh(new List<IHittable> { lone }, Glass);
+        loneMesh.PrepareCausticAdjacency();
+        Assert.Equal(0, loneMesh.FacetNeighbors(new ManifoldSeed(lone, new Vector2(1f / 3f, 1f / 3f)), nbrs));
+    }
+
+    // Off-axis connection through the glass sphere mesh: the straight-segment seed
+    // facet and the true (refracted) specular facet generally differ, so this is
+    // the regime the neighbor-seed retry is built for. We assert the connection
+    // converges and both vertices land on the sphere surface (|p| ≈ R), which a
+    // pure per-triangle-clamp walk would frequently drop.
+    [Fact]
+    public void GlassSphereMesh_OffAxis_ConnectsViaNeighborSeed()
+    {
+        var mesh = BuildGlassSphereMesh(Vector3.Zero, 1f, Glass, 64, 32);
+        var caster = new CausticCasterRegistry.Caster(mesh, mesh, mesh.BoundingBox());
+        var ci = new CausticInterface(isTransmissive: true, ior: 1.5f, tint: Vector3.One, absorption: Vector3.Zero);
+
+        Vector3 x = new(-0.55f, 0.0f, -4f);
+        Vector3 y = new(0.55f, 0.0f, 4f);
+        bool ok = ManifoldWalker.Connect(caster, ci, x, y, new Vector3(0f, 0f, -1f),
+                                         ManifoldWalker.DefaultMaxIterations, out var conn);
+
+        Assert.True(ok, "off-axis connection through the glass sphere mesh must converge (neighbor-seed)");
+        Assert.True(System.MathF.Abs(conn.FirstVertex.Length() - 1f) < 0.05f, $"entry not on sphere: {conn.FirstVertex}");
+        Assert.True(System.MathF.Abs(conn.LastVertex.Length() - 1f) < 0.05f, $"exit not on sphere: {conn.LastVertex}");
+        Assert.True(conn.Throughput.X > 0f && conn.G > 0f, $"degenerate connection T={conn.Throughput} G={conn.G}");
+    }
+
+    // Registering a mesh caster must not throw and must leave the adjacency ready
+    // (the registry calls PrepareCausticAdjacency on the single-threaded path).
+    [Fact]
+    public void Registry_PreparesMeshAdjacency()
+    {
+        var mesh = BuildGlassSphereMesh(Vector3.Zero, 1f, Glass, 16, 8);
+        var reg = new CausticCasterRegistry(new List<IHittable> { mesh });
+        Assert.Equal(1, reg.Count);
+        Span<ManifoldSeed> nbrs = new ManifoldSeed[3];
+        // The seeder is the mesh itself; pick any facet via a straight seed.
+        var ci = new CausticInterface(isTransmissive: true, ior: 1.5f, tint: Vector3.One, absorption: Vector3.Zero);
+        Span<ManifoldSeed> seeds = new ManifoldSeed[2];
+        Assert.True(mesh.SeedManifold(new Vector3(0, 0, -4), new Vector3(0, 0, 4), ci, seeds, out int k) && k >= 1);
+        Assert.True(mesh.FacetNeighbors(seeds[0], nbrs) >= 1, "a tessellated sphere facet has edge neighbours");
+    }
+
     // Builds a smooth (per-vertex normal) UV sphere of glass triangles. The whole
     // triangulation is rotated by a fixed generic angle: the sphere shape is
     // unchanged (still the unit sphere), but the z-axis crossings then land mid-

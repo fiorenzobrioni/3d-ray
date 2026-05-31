@@ -28,11 +28,18 @@ namespace RayTracer.Geometry;
 /// After construction, <see cref="FaceCount"/> and <see cref="VertexCount"/>
 /// report the mesh complexity. These are logged by SceneLoader for the user.
 /// </summary>
-public class Mesh : IHittable, ISamplable, IManifoldCaster
+public class Mesh : IHittable, ISamplable, IManifoldCaster, INeighborSeedCaster
 {
     private readonly IHittable _bvh;
     private readonly List<IHittable> _triangles;
     private int _seed;
+
+    // Caustic edge-crossing (neighbor-seed tier): facet adjacency, built once
+    // when the mesh is registered as a caustic caster. _facetIndex maps a
+    // triangle (the chart a seed lives on) to its slot; _facetNeighbors[slot]
+    // lists the edge-adjacent triangle slots. Null until PrepareCausticAdjacency.
+    private Dictionary<IHittable, int>? _facetIndex;
+    private int[][]? _facetNeighbors;
 
     // Precomputed for ISamplable: cumulative area distribution
     private readonly float[] _cumulativeAreas;
@@ -245,6 +252,106 @@ public class Mesh : IHittable, ISamplable, IManifoldCaster
                 seed = default;
                 return false;
         }
+    }
+
+    // ── INeighborSeedCaster (caustic edge-crossing, neighbor-seed tier) ──────
+
+    /// <summary>
+    /// Builds the facet adjacency used by the caustic neighbor-seed retry. Called
+    /// once (single-threaded) by <see cref="Rendering.CausticCasterRegistry"/> when
+    /// this mesh is registered as a caster, so <see cref="FacetNeighbors"/> can run
+    /// lock-free on the parallel render path. Idempotent.
+    /// </summary>
+    public void PrepareCausticAdjacency()
+    {
+        if (_facetNeighbors != null) return;
+
+        int n = _triangles.Count;
+        var index = new Dictionary<IHittable, int>(n);
+        for (int i = 0; i < n; i++) index[_triangles[i]] = i;
+
+        // Weld vertices by quantized position so triangles that share an edge are
+        // detected even when their corner positions are distinct float instances.
+        var vid = new Dictionary<(long, long, long), int>();
+        int VidOf(Vector3 p)
+        {
+            const float q = 1e5f; // 1e-5 world-unit weld grid
+            var key = ((long)MathF.Round(p.X * q), (long)MathF.Round(p.Y * q), (long)MathF.Round(p.Z * q));
+            if (!vid.TryGetValue(key, out int id)) { id = vid.Count; vid[key] = id; }
+            return id;
+        }
+
+        // edge (sorted vid pair) → triangles sharing it.
+        var edgeTris = new Dictionary<(int, int), List<int>>();
+        var triVids = new (int, int, int)[n];
+        for (int i = 0; i < n; i++)
+        {
+            if (!TriangleVertices(_triangles[i], out Vector3 a, out Vector3 b, out Vector3 c)) continue;
+            int va = VidOf(a), vb = VidOf(b), vc = VidOf(c);
+            triVids[i] = (va, vb, vc);
+            AddEdge(edgeTris, va, vb, i);
+            AddEdge(edgeTris, vb, vc, i);
+            AddEdge(edgeTris, vc, va, i);
+        }
+
+        var neigh = new int[n][];
+        var acc = new HashSet<int>();
+        for (int i = 0; i < n; i++)
+        {
+            acc.Clear();
+            var (va, vb, vc) = triVids[i];
+            CollectNeighbors(edgeTris, va, vb, i, acc);
+            CollectNeighbors(edgeTris, vb, vc, i, acc);
+            CollectNeighbors(edgeTris, vc, va, i, acc);
+            neigh[i] = acc.Count == 0 ? Array.Empty<int>() : new List<int>(acc).ToArray();
+        }
+
+        _facetIndex = index;
+        _facetNeighbors = neigh;
+    }
+
+    private static void AddEdge(Dictionary<(int, int), List<int>> map, int p, int q, int tri)
+    {
+        var key = p < q ? (p, q) : (q, p);
+        if (!map.TryGetValue(key, out var list)) { list = new List<int>(2); map[key] = list; }
+        list.Add(tri);
+    }
+
+    private static void CollectNeighbors(Dictionary<(int, int), List<int>> map, int p, int q, int self, HashSet<int> acc)
+    {
+        var key = p < q ? (p, q) : (q, p);
+        if (!map.TryGetValue(key, out var list)) return;
+        foreach (int t in list) if (t != self) acc.Add(t);
+    }
+
+    private static bool TriangleVertices(IHittable tri, out Vector3 a, out Vector3 b, out Vector3 c)
+    {
+        switch (tri)
+        {
+            case SmoothTriangle s: a = s.V0; b = s.V1; c = s.V2; return true;
+            case Triangle t:       a = t.V0; b = t.V1; c = t.V2; return true;
+            default:               a = b = c = default;          return false;
+        }
+    }
+
+    /// <inheritdoc/>
+    public int FacetNeighbors(in ManifoldSeed seed, Span<ManifoldSeed> neighbors)
+    {
+        if (_facetNeighbors == null || _facetIndex == null) return 0;
+        if (seed.Chart is not IHittable chart) return 0;
+        if (!_facetIndex.TryGetValue(chart, out int idx)) return 0;
+
+        // Re-seed each edge-neighbour at its centroid (the Newton walk slides it to
+        // the true vertex from there); the neighbour's own clamp then accepts or
+        // rejects it. Barycentric centroid is (1/3, 1/3) in the Möller–Trumbore
+        // parameterisation EvaluateManifold expects.
+        var centroid = new Vector2(1f / 3f, 1f / 3f);
+        int[] ns = _facetNeighbors[idx];
+        int count = 0;
+        for (int i = 0; i < ns.Length && count < neighbors.Length; i++)
+            if (_triangles[ns[i]] is IManifoldSurface surf)
+                neighbors[count++] = new ManifoldSeed(surf, centroid);
+        return count;
     }
 
     private bool SeedReflectionMesh(Vector3 x, Vector3 y, out ManifoldSeed seed)
