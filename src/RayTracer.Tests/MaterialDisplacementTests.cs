@@ -31,6 +31,7 @@ namespace RayTracer.Tests;
 ///   tangent-space normals via the same mask, normalised.</description></item>
 /// </list>
 /// </summary>
+[Collection("SceneLoader")]
 public class MaterialDisplacementTests
 {
     /// <summary>

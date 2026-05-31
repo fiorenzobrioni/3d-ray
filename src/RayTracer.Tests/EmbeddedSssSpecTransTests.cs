@@ -18,6 +18,7 @@ namespace RayTracer.Tests;
 /// must be honoured rather than silently overwritten to 1.0. This is the
 /// difference between an opaque stone and an unintended glass-like look.
 /// </summary>
+[Collection("SceneLoader")]
 public class EmbeddedSssSpecTransTests
 {
     private static DisneyBsdf LoadMaterial(string materialBody)

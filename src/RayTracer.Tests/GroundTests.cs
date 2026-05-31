@@ -21,6 +21,7 @@ namespace RayTracer.Tests;
 /// returned world to introspect the produced primitive without coupling to
 /// internal layout.</para>
 /// </summary>
+[Collection("SceneLoader")]
 public class GroundTests
 {
     // ─────────────────────────────────────────────────────────────────────────
