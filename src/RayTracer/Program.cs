@@ -260,6 +260,13 @@ class Program
         if (int.TryParse(GetArg(args, "--sms-samples", null), out var smsArg) && smsArg > 0)
             smsSamples = smsArg;
 
+        // MNEE emitter samples per receiver per light. Default 1 (smooth area/
+        // sphere casters are low-variance); raise for the finite virtual bulb of
+        // point/spot lights, whose smaller emitter is noisier.
+        int mneeSamples = 1;
+        if (int.TryParse(GetArg(args, "--mnee-samples", null), out var mneeArg) && mneeArg > 0)
+            mneeSamples = mneeArg;
+
         bool verbose = HasFlag(args, "--verbose", "-v");
         SceneLoader.SetVerbose(verbose);
 
@@ -375,11 +382,11 @@ class Program
                 indirectClampFactor, textureFiltering, exposureEv,
                 sssMode, walkConfig,
                 enableCaustics: enableCaustics, causticCasters: causticCasters,
-                smsSamples: smsSamples);
+                mneeSamples: mneeSamples, smsSamples: smsSamples);
             if (enableCaustics)
                 Console.WriteLine($"  Caustics:    MNEE + SMS on ({causticCasters.Count} caster"
                                   + (causticCasters.Count == 1 ? "" : "s")
-                                  + $", sms-samples {smsSamples})");
+                                  + $", mnee-samples {mneeSamples}, sms-samples {smsSamples})");
             Console.WriteLine();
 
             sw.Restart();
@@ -440,6 +447,8 @@ class Program
         Console.WriteLine("                               opt-in per-entity in YAML)");
         Console.WriteLine("      --sms-samples <n>        Stochastic SMS trials per rough caster connection (default: 4,");
         Console.WriteLine("                               8 for final/ultra). Higher = smoother frosted caustics, slower");
+        Console.WriteLine("      --mnee-samples <n>       Emitter samples per receiver per light for MNEE caustics (default: 1).");
+        Console.WriteLine("                               Raise to clean point/spot caustics (finite virtual bulb is noisier)");
         Console.WriteLine("      --sss-mode <auto|off>    Subsurface-scattering dispatch (default: auto = follow scene)");
         Console.WriteLine("      --sss-quality <preview|normal|high>   Random-walk preset; inherits from -q when omitted");
         Console.WriteLine("      --max-volume-bounces <n> Hard cap on random-walk bounces inside one entity");

@@ -155,4 +155,42 @@ public class SpotLight : ILight
 
         return (false, Color * distanceAttenuation * spotAttenuation * trans, dirToLight, distance);
     }
+
+    // ── MNEE caustic sampling ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Samples a point on the virtual bulb (radius <see cref="SoftRadius"/>, or
+    /// <see cref="PointLight.DefaultBulbRadius"/> when unset) for the manifold
+    /// caustic walk. Energy matches <see cref="PointLight.TrySampleEmissivePoint"/>
+    /// (the spot is an intensity emitter); the directional cone falloff is applied
+    /// separately by <see cref="DirectionalEmissionScale"/>, which the estimator
+    /// evaluates once the exit direction is known.
+    /// </summary>
+    public bool TrySampleEmissivePoint(out Vector3 point, out Vector3 normal,
+                                       out Vector3 emission, out float pdfArea)
+    {
+        float r = SoftRadius > 0f ? SoftRadius : PointLight.DefaultBulbRadius;
+        Vector3 dir = MathUtils.RandomUnitVector();
+        point    = Position + r * dir;
+        normal   = dir;
+        emission = Color * Intensity / (MathF.PI * r * r);
+        float area = 4f * MathF.PI * r * r;
+        pdfArea  = 1f / area;
+        return true;
+    }
+
+    /// <summary>
+    /// Applies the spot cone falloff to a caustic connection leaving the bulb
+    /// along <paramref name="emitDir"/> (from the emitter point toward the chain,
+    /// outward along the beam). <c>cosAngle = Dot(emitDir, Direction)</c> matches
+    /// <see cref="IlluminateAndTestStratified"/>'s <c>Dot(-dirToLight, Direction)</c>
+    /// — both measure the angle between the beam axis and the outgoing ray — and
+    /// reuses the same smoothstep² ramp.
+    /// </summary>
+    public Vector3 DirectionalEmissionScale(Vector3 emitDir)
+    {
+        float cosAngle = Vector3.Dot(emitDir, Direction);
+        float t = Math.Clamp((cosAngle - CosOuterAngle) / (CosInnerAngle - CosOuterAngle), 0f, 1f);
+        return new Vector3(t * t);
+    }
 }

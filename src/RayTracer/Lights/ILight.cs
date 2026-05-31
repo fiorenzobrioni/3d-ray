@@ -126,4 +126,19 @@ public interface ILight
         point = default; normal = default; emission = default; pdfArea = 0f;
         return false;
     }
+
+    /// <summary>
+    /// Per-channel scale applied to the radiance an MNEE caustic connection
+    /// carries off this light along <paramref name="emitDir"/> — the unit
+    /// direction from the sampled emitter point toward the specular chain
+    /// (<c>normalize(lastVertex − y)</c>, i.e. outward along the beam).
+    ///
+    /// <para>Default <see cref="Vector3.One"/>: an isotropic emitter (point,
+    /// sphere, area, geometry) radiates the same in every direction, so the
+    /// caustic estimator is unchanged. <see cref="SpotLight"/> overrides this to
+    /// apply its cone falloff, the one anisotropy in the emitter's profile that
+    /// <see cref="TrySampleEmissivePoint"/> cannot encode (it is chain-independent
+    /// and runs before the manifold solve produces the exit direction).</para>
+    /// </summary>
+    Vector3 DirectionalEmissionScale(Vector3 emitDir) => Vector3.One;
 }

@@ -270,6 +270,33 @@ public class SphereLight : ILight
         return solidAngle > MathUtils.Epsilon ? 1f / solidAngle : 0f;
     }
 
+    // ── MNEE caustic sampling ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Samples an emissive point uniformly over the FULL sphere surface for the
+    /// manifold caustic walk. Uniform-area (not visible-cap) sampling is required
+    /// because the walker's geometric term assumes the area-measure density
+    /// <c>pdf_A = 1/(4πR²)</c>; the back-hemisphere samples are discarded later
+    /// by the emitter-facing test in the estimator.
+    ///
+    /// <para>The emitted radiance is <c>Color·Intensity</c>: a uniform sphere of
+    /// radiance L_e has radiant intensity I = L_e·πR², and this light's
+    /// <see cref="IlluminateAndTest"/> converges to <c>Intensity·πR²/d²</c> at
+    /// distance, so L_e = <c>Color·Intensity</c> — matching a
+    /// <see cref="GeometryLight"/> wrapping an emissive <see cref="Sphere"/>.</para>
+    /// </summary>
+    public bool TrySampleEmissivePoint(out Vector3 point, out Vector3 normal,
+                                       out Vector3 emission, out float pdfArea)
+    {
+        Vector3 dir = MathUtils.RandomUnitVector();
+        point    = Center + Radius * dir;
+        normal   = dir;
+        emission = Color * Intensity;
+        float area = 4f * MathF.PI * Radius * Radius;
+        pdfArea  = area > 1e-12f ? 1f / area : 0f;
+        return pdfArea > 0f;
+    }
+
     // ═════════════════════════════════════════════════════════════════════════
     //  Private helpers
     // ═════════════════════════════════════════════════════════════════════════

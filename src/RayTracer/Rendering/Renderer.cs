@@ -1542,8 +1542,11 @@ public partial class Renderer
 
         foreach (var light in _lights)
         {
-            if (light.IsDelta) continue; // MNEE drives area-like lights only (Phase 2 scope)
-
+            // Lights that can sample an emissive point drive MNEE: area/geometry,
+            // sphere, and point/spot (the latter modeled as a finite virtual
+            // bulb). Pure Dirac directionals and the environment return false
+            // from TrySampleEmissivePoint below and are skipped at zero cost via
+            // the break — no IsDelta gate needed.
             for (int s = 0; s < _mneeSamples; s++)
             {
                 if (!light.TrySampleEmissivePoint(out Vector3 y, out Vector3 yN,
@@ -1564,7 +1567,7 @@ public partial class Renderer
                         if (!ManifoldWalker.Connect(caster, ci, x, y, yN, _mneeMaxIterations,
                                                     out ManifoldWalker.CausticConnection conn))
                             continue;
-                        result += AccumulateCaustic(in conn, rec, viewDir, nx, material,
+                        result += AccumulateCaustic(light, in conn, rec, viewDir, nx, material,
                                                     y, yN, Le, pdfA) * invSamples;
                     }
                     else
@@ -1578,7 +1581,7 @@ public partial class Renderer
                             if (!ManifoldWalker.ConnectRough(caster, ci, x, y, yN, _mneeMaxIterations,
                                                              out ManifoldWalker.CausticConnection conn))
                                 continue;
-                            result += AccumulateCaustic(in conn, rec, viewDir, nx, material,
+                            result += AccumulateCaustic(light, in conn, rec, viewDir, nx, material,
                                                         y, yN, Le, pdfA) * invSms;
                         }
                     }
@@ -1597,13 +1600,14 @@ public partial class Renderer
     /// for both the smooth (MNEE) and rough (SMS) paths. The cheap BSDF/throughput
     /// tests are ordered before the two occlusion rays, which dominate the cost.
     /// </summary>
-    private Vector3 AccumulateCaustic(in ManifoldWalker.CausticConnection conn,
+    private Vector3 AccumulateCaustic(ILight light, in ManifoldWalker.CausticConnection conn,
                                       HitRecord rec, Vector3 viewDir, Vector3 nx,
                                       IMaterial material,
                                       Vector3 y, Vector3 yN, Vector3 Le, float pdfA)
     {
+        Vector3 emitDir = conn.LastVertex - y;
         // Emitter must face the exit vertex to radiate down the chain.
-        if (Vector3.Dot(yN, conn.LastVertex - y) <= 0f) return Vector3.Zero;
+        if (Vector3.Dot(yN, emitDir) <= 0f) return Vector3.Zero;
 
         // Receiver BSDF response in the caustic direction (f·cosθ_x).
         Vector3 fr = material.EvaluateDirect(conn.WiAtReceiver, viewDir, nx, rec);
@@ -1617,10 +1621,15 @@ public partial class Renderer
         if (SegmentOccluded(rec.Point, conn.FirstVertex)) return Vector3.Zero;
         if (SegmentOccluded(conn.LastVertex, y)) return Vector3.Zero;
 
+        // Directional emitter profile (spot cone falloff; One for isotropic
+        // lights) evaluated on the unit exit direction along the beam.
+        Vector3 emission = Le * light.DirectionalEmissionScale(Vector3.Normalize(emitDir));
+        if (emission.X <= 0f && emission.Y <= 0f && emission.Z <= 0f) return Vector3.Zero;
+
         // L = f_r(ω_x) · L_e · T · G / pdf_A. G already carries the
         // light-area→solid-angle geometry (cosθ_y/r² generalized through the
         // specular chain).
-        return weight * Le * (conn.G / pdfA);
+        return weight * emission * (conn.G / pdfA);
     }
 
     /// <summary>
