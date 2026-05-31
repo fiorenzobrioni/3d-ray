@@ -16,6 +16,7 @@ namespace RayTracer.Tests;
 /// itself is never a single manifold caster, and the nested chain must compose
 /// correctly through multiple levels.
 /// </summary>
+[Collection("SceneLoader")]
 public class GroupCausticTests
 {
     private static (System.Collections.Generic.IReadOnlyList<IHittable> casters, int registered) LoadCasters(string yaml)

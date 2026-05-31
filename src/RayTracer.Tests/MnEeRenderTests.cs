@@ -15,6 +15,7 @@ namespace RayTracer.Tests;
 /// off. Renders small and deterministic (PRNG), in the spirit of
 /// <c>FireflyRegressionTests</c>.
 /// </summary>
+[Collection("SceneLoader")]
 public class MnEeRenderTests
 {
     private const int Width  = 200;

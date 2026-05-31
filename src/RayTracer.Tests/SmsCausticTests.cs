@@ -19,6 +19,7 @@ namespace RayTracer.Tests;
 /// render regression that a frosted-glass lens focuses a soft caustic.
 /// All stochastic; PRNG-seeded for determinism.
 /// </summary>
+[Collection("SceneLoader")]
 public class SmsCausticTests
 {
     private static CausticCasterRegistry.Caster Sphere(Vector3 center, float radius)
