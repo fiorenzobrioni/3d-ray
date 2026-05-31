@@ -124,7 +124,6 @@ Strategia incrementale per le caustiche, in ordine di costo crescente. Strada 1 
 
 ## 📋 TODO
 
-- [ ] Review dei materiali in `scenes/libraries/materials/`: aggiornare quelli che beneficiano di surface displacement e aggiungere nuove librerie pro (pelli, cementi, sassi, marmi porosi e simili).
 - [ ] **HeightField strata: layered stack BSDF "no-compromise"** — il selettore strata oggi è winner-takes-all con jitter Perlin 3-ottave + aspect bias `±Z`. La versione pro è uno **stack N-ary** con coverage weights normalizzati. Implementazione: nuovo `LayeredStratumMaterial` proxy `IMaterial` che incapsula la lista di `(StratumBand, IMaterial)` + funzione di weight geometrico `(altNorm, slopeDeg, curvature, aspect) → R^N`; `Scatter` campiona via distribuzione 1D pesata (PDF MIS-consistente); `EvaluateDirect` somma pesata. Back-compat via `strata_blending: "winner" | "stochastic" | "weighted"` (default `winner`).
 
   Tre estensioni obbligatorie per la parità con i terrain shader pro:

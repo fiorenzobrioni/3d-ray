@@ -11,7 +11,11 @@
 #
 #  Render consigliato:
 #    Draft:  -w 400  -H 225  -s 64   -d 4  -S 1
-#    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4
+#    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4 --caustics on
+#
+#  La lente biconvessa è marcata caustic_caster; piedistallo_2 e ground sono
+#  caustic_receiver. La luce direzionale ha angular_radius 2° (non-delta) per
+#  attivare l'estimatore MNEE/SMS. Usare --caustics on (o preset final/ultra).
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:
@@ -24,6 +28,7 @@ world:
     type: "infinite_plane"
     material: "pavimento"
     y: 0
+    caustic_receiver: true
 
 cameras:
   # ── Vista principale — tutti e 4 gli oggetti visibili ──────────────────
@@ -144,6 +149,7 @@ entities:
     scale: [2.2, 0.6, 2.2]
     translate: [-1.5, 0.3, 0]
     material: "piedistallo"
+    caustic_receiver: true
 
   - name: "piedistallo_3"
     type: "box"
@@ -183,34 +189,28 @@ entities:
   # ─────────────────────────────────────────────────────────────────────────
   #  2. INTERSECTION — Lente biconvessa
   #
-  #     L'intersezione di due sfere sovrapposte produce una lente
-  #     biconvessa. Con il materiale dielectric (vetro), la lente
-  #     rifrange la luce in modo fisicamente corretto, visibile
-  #     come distorsione dell'ambiente dietro la lente.
+  #     Intersezione di due sfere: la regione comune forma una lente
+  #     biconvessa. Il materiale Disney glass (ior 1.52, spec_trans 1)
+  #     rifrange fisicamente la luce. La lente è marcata caustic_caster:
+  #     con --caustics on produce uno spot focalizzato sul pavimento.
   #
+  #     Requisito caustic_caster: nessun transform di entità (translate/
+  #     rotate creerebbe Transform(CsgObject) non supportato). I centri
+  #     delle sfere sono in world space direttamente.
+  #     R=1.8, d=±1.5 → edge radius≈1.0, spessore≈0.6, f≈1.73.
   # ─────────────────────────────────────────────────────────────────────────
   - name: "lente_biconvessa"
     type: "csg"
     operation: "intersection"
+    caustic_caster: true
     left:
-      type: "csg"
-      operation: "intersection"
-      left:
-        type: "sphere"
-        center: [0, 0, -2.7]
-        radius: 3
-        scale: [2, 2, 1]
-      right:
-        type: "sphere"
-        center: [0, 0, 2.7]
-        radius: 3
-        scale: [2, 2, 1]
+      type: "sphere"
+      center: [-1.5, 1.8, -1.5]
+      radius: 1.8
     right:
       type: "sphere"
-      center: [0, 0, 0]
-      radius: 1.2
-    translate: [-1.5, 1.8, 0]
-    rotate: [0, 10, 0]
+      center: [-1.5, 1.8, 1.5]
+      radius: 1.8
     material: "vetro_lente"
 
   # ─────────────────────────────────────────────────────────────────────────
@@ -294,14 +294,16 @@ entities:
 #  LIGHTS
 # ═══════════════════════════════════════════════════════════════════════════
 lights:
-  # ── Luce principale direzionale (sole) ─────────────────────────────────
+  # ── Luce principale (sole con disco angolare) ──────────────────────────
+  # angular_radius > 0 → non è una luce delta: MNEE/SMS attivi sulla lente.
   - type: "directional"
     direction: [-0.5, -0.8, -0.3]
     color: [1.0, 0.95, 0.85]
-    intensity: 1
+    intensity: 2.5
+    angular_radius: 2.0
 
-  # ── Fill light laterale fredda ─────────────────────────────────────────
-  #- type: "-point"
-  #  position: [-8, 4, -6]
-  #  color: [0.7, 0.75, 1.0]
-  #  intensity: 40
+  # ── Fill laterale freddo ───────────────────────────────────────────────
+  - type: "point"
+    position: [-8, 4, -6]
+    color: [0.7, 0.75, 1.0]
+    intensity: 18
