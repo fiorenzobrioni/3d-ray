@@ -129,7 +129,9 @@ public class Cylinder : IHittable, ISamplable, IManifoldSurface
 
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;
-                    rec.HitPrimitive = this;
+                    // Flat cap: NOT a focusing chart. Leave HitPrimitive null so the
+                    // caustic seeder skips it (only the curved wall focuses light).
+                    rec.HitPrimitive = null;
                     hitAnything = true;
                     tMax = t;
                 }

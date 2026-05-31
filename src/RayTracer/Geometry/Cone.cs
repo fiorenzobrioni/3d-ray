@@ -235,6 +235,8 @@ public class Cone : IHittable, ISamplable, IManifoldSurface
 
         rec.ObjectSeed = Seed;
         rec.Material = Material;
+        // Flat cap: NOT a focusing chart (the caustic seeder skips it).
+        rec.HitPrimitive = null;
     }
 
     // ═════════════════════════════════════════════════════════════════════════

@@ -67,9 +67,13 @@ public sealed class AnalyticManifoldCaster : IManifoldCaster
         {
             var rec = new HitRecord();
             if (!caster.Hit(new Ray(x, dir), tStart, len - 1e-4f, ref rec)) break;
+            tStart = rec.T + 1e-3f;
+            // Skip crossings on a flat, non-focusing region (e.g. a cylinder/cone
+            // cap, marked by a null HitPrimitive): its planar (u, v) would mis-seed
+            // the lateral chart. Only curved crossings seed a manifold vertex.
+            if (rec.HitPrimitive == null) continue;
             seeds[count] = new ManifoldSeed(_surface, new Vector2(rec.U, rec.V));
             count++;
-            tStart = rec.T + 1e-3f;
         }
         return count;
     }
