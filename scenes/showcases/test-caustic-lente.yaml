@@ -1,0 +1,111 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  TEST: Caustica lente biconvessa CSG — scena minimale
+#
+#  Solo la lente e il pavimento scuro. Niente piedistalli, niente altri
+#  oggetti. Setup identico a glass-caustic-casters.yaml:
+#    - Pannello area da +X (non-delta) → entra dalla faccia grande della lente
+#    - Lente con asse lungo X: facce in ±X, diametro 2.4, spessore 0.6
+#    - Pavimento scuro semi-lucido come caustic_receiver
+#    - Cielo flat quasi nero
+#
+#  La caustica dovrebbe apparire come spot sul pavimento lato −X.
+#
+#  Render:
+#    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#      -i scenes/showcases/test-caustic-lente.yaml \
+#      -o renders/test-caustic-lente.png -w 1200 -H 675 -s 512 -d 8 -S 4 \
+#      --caustics on -C 25
+# ═══════════════════════════════════════════════════════════════════════════
+
+cameras:
+  # Vista principale: da +X, elevata — vede la lente e lo spot sul pavimento
+  - name: "principale"
+    position: [4.5, 2.8, 0.5]
+    look_at:  [-2.0, 0.15, 0.0]
+    fov: 50
+
+  # Closeup radente sul pavimento
+  - name: "closeup"
+    position: [2.8, 1.0, 1.2]
+    look_at:  [-2.0, 0.08, 0.0]
+    fov: 42
+
+world:
+  sky:
+    type: "flat"
+    color: [0.012, 0.012, 0.016]
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+    caustic_receiver: true
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+  # Pavimento scuro semi-lucido: fa risaltare gli spot focalizzati.
+  - id: "pavimento"
+    type: "disney"
+    color: [0.09, 0.10, 0.12]
+    roughness: 0.40
+    specular: 0.5
+
+  # Vetro cristallino IOR 1.52
+  - id: "vetro"
+    type: "disney"
+    color: [0.98, 0.99, 1.0]
+    roughness: 0.0
+    spec_trans: 1.0
+    ior: 1.52
+    specular: 0.8
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+  # Lente biconvessa CSG — asse lungo X, facce in ±X
+  # Due sfere R=3.0 ai centri ±2.7 in X → lens thickness 0.6, Ø 2.4
+  # Sfera esterna R=1.2 ritaglia il disco netto.
+  # Nessun entity-level translate/rotate → CsgObject non wrappato in Transform
+  # → accettato come caustic_caster senza warning.
+  - name: "lente_biconvessa"
+    type: "csg"
+    operation: "intersection"
+    caustic_caster: true
+    left:
+      type: "csg"
+      operation: "intersection"
+      left:
+        type: "sphere"
+        center: [-2.7, 1.5, 0]
+        radius: 3.0
+      right:
+        type: "sphere"
+        center: [2.7, 1.5, 0]
+        radius: 3.0
+    right:
+      type: "sphere"
+      center: [0, 1.5, 0]
+      radius: 1.2
+    material: "vetro"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════
+lights:
+  # Pannello d'area caldo da +X, elevato: entra dalla faccia grande
+  # della lente. area (non-delta) → abilita MNEE/SMS.
+  - type: area
+    corner: [3.4, 1.8, -3.2]
+    u: [0.0, 0.0, 6.4]
+    v: [0.0, 1.4, 0.0]
+    color: [1.0, 0.93, 0.82]
+    intensity: 120.0
+    shadow_samples: 6
+
+  # Fill tenue dall'alto (delta — solo fill, non partecipa alle caustiche)
+  - type: "point"
+    position: [2.0, 5.0, 0.0]
+    color: [0.55, 0.65, 0.95]
+    intensity: 4
