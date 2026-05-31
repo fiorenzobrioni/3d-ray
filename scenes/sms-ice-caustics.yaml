@@ -1,25 +1,25 @@
 # ═══════════════════════════════════════════════════════════════════════════
-#  SMS ICE CAUSTICS — Showcase Fase 2c: caster mesh + CSG/cilindro
+#  ICE CAUSTICS — Showcase Fase 2c: caster su geometria curva + CSG
 #
-#  "Ghiaccio nel bicchiere": dimostra i caster di caustiche estesi a TUTTA la
-#  geometria oltre la sfera.
-#    • CUBETTO DI GHIACCIO  → mesh (cubo Catmull-Clark, bordi arrotondati),
-#      vetro FROSTED → caustica morbida (Specular Manifold Sampling su mesh).
-#    • TUMBLER DI VETRO     → CSG (cilindro esterno \ cilindro interno) di vetro
-#      limpido → caustica astigmatica (caster CSG + primitiva cilindro).
-#    • Piano scuro lucido = caustic_receiver; piccola area light calda → nitidezza.
+#  Dimostra le caustiche estese oltre la sfera, con SOLO geometria che focalizza
+#  davvero (primitive curve + CSG). Luce laterale calda → caustiche nitide.
+#    • CUBETTI DI GHIACCIO  → CSG intersezione(box ∩ sfera) = facce piatte +
+#      spigoli arrotondati; gli spigoli curvi focalizzano (caster CSG).
+#    • ICE BALL             → sfera di vetro (caustica forte di riferimento).
+#    • TUMBLER DI VETRO      → CSG (cilindro \ cilindro), caustica astigmatica.
+#    • Piano scuro lucido = caustic_receiver.
 #
 #  Render (final/ultra abilitano --caustics da soli):
 #    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
 #      -i scenes/sms-ice-caustics.yaml -o renders/ice-caustics.png \
 #      -q final --caustics on -w 1600 -H 1000
-#  Confronto: aggiungi --caustics off per vedere sparire le caustiche focalizzate.
+#  Confronto: --caustics off per vedere sparire gli spot focalizzati.
 # ═══════════════════════════════════════════════════════════════════════════
 
 camera:
-  position: [2.6, 1.9, 3.4]
-  look_at:  [0.0, 0.45, 0.0]
-  fov: 40
+  position: [2.6, 2.0, 3.6]
+  look_at:  [0.1, 0.35, 0.0]
+  fov: 42
 
 world:
   sky:
@@ -32,42 +32,60 @@ world:
     caustic_receiver: true
 
 lights:
-  # Piccola area light calda, alta e leggermente di lato → caustiche definite.
+  # Area light calda LATERALE (da +X, medio-alta) → le superfici curve
+  # rifrangono verso il pavimento opposto: caustiche definite.
   - type: area
-    corner: [-0.45, 3.6, -0.25]
-    u: [0.9, 0.0, 0.0]
-    v: [0.0, 0.0, 0.9]
+    corner: [3.4, 1.7, -0.7]
+    u: [0.0, 0.0, 1.5]
+    v: [0.0, 1.1, 0.0]
     color: [1.0, 0.93, 0.82]
-    intensity: 95.0
+    intensity: 240.0
     shadow_samples: 6
 
 materials:
-  # Piano scuro leggermente lucido: fa risaltare le caustiche focalizzate.
   - id: "floor"
     type: "disney"
-    color: [0.05, 0.055, 0.07]
-    roughness: 0.35
+    color: [0.16, 0.17, 0.19]
+    roughness: 0.4
     specular: 0.5
 
-  # Ghiaccio: vetro frosted, IOR 1.31, leggera rugosità → caustica morbida (SMS).
+  # Ghiaccio: vetro quasi limpido, IOR 1.31 → caustica nitida (MNEE).
   - id: "ice"
-    type: "disney"
-    color: [0.90, 0.95, 1.0]
-    spec_trans: 1.0
-    roughness: 0.09
-    ior: 1.31
+    type: "dielectric"
+    refraction_index: 1.31
 
-  # Vetro limpido del tumbler.
   - id: "glass_clear"
-    type: "disney"
-    color: [0.97, 0.99, 1.0]
-    spec_trans: 1.0
-    roughness: 0.0
-    ior: 1.5
+    type: "dielectric"
+    refraction_index: 1.5
 
 entities:
-  # ── TUMBLER DI VETRO — CSG: cilindro esterno \ cilindro interno ───────────
-  #  L'interno è alzato (apre la cima) e lascia un fondo di vetro di 0.12.
+  # ── CUBETTO DI GHIACCIO 1 — CSG: box ∩ sfera (cubo dagli spigoli arrotondati)
+  - name: "ice_cube"
+    type: "csg"
+    operation: "intersection"
+    material: "ice"
+    caustic_caster: true
+    left:  { type: "box", scale: [0.60, 0.60, 0.60], translate: [0.55, 0.30, 0.35] }
+    right: { type: "sphere", center: [0.55, 0.30, 0.35], radius: 0.345 }
+
+  # ── CUBETTO DI GHIACCIO 2 — più piccolo, accanto
+  - name: "ice_cube_2"
+    type: "csg"
+    operation: "intersection"
+    material: "ice"
+    caustic_caster: true
+    left:  { type: "box", scale: [0.44, 0.44, 0.44], translate: [0.05, 0.22, 1.0] }
+    right: { type: "sphere", center: [0.05, 0.22, 1.0], radius: 0.255 }
+
+  # ── ICE BALL — sfera di vetro (caustica forte, riferimento)
+  - name: "ice_ball"
+    type: "sphere"
+    center: [-0.9, 0.42, 0.1]
+    radius: 0.42
+    material: "ice"
+    caustic_caster: true
+
+  # ── TUMBLER DI VETRO — CSG cilindro \ cilindro (parete spessa per castare)
   - name: "tumbler"
     type: "csg"
     operation: "subtraction"
@@ -75,37 +93,11 @@ entities:
     caustic_caster: true
     left:
       type: "cylinder"
-      center: [-0.7, 0.0, -0.15]
-      radius: 0.62
-      height: 1.25
+      center: [-0.4, 0.0, -0.95]
+      radius: 0.55
+      height: 1.15
     right:
       type: "cylinder"
-      center: [-0.7, 0.12, -0.15]
-      radius: 0.50
-      height: 1.30
-
-  # ── CUBETTO DI GHIACCIO — mesh cubo Catmull-Clark (bordi arrotondati) ─────
-  #  La suddivisione arrotonda gli spigoli e produce normali per-vertice
-  #  (mesh smooth) → si qualifica come caster di caustiche.
-  - name: "ice_cube"
-    type: "mesh"
-    path: "models/subdivision-cube.obj"
-    subdivision_scheme: "catmull_clark"
-    subdivision_iterations: 1
-    scale: [0.42, 0.42, 0.42]
-    rotate: [12, 24, 8]
-    translate: [0.75, 0.42, 0.2]
-    material: "ice"
-    caustic_caster: true
-
-  # Secondo cubetto, più piccolo, appoggiato accanto.
-  - name: "ice_cube_2"
-    type: "mesh"
-    path: "models/subdivision-cube.obj"
-    subdivision_scheme: "catmull_clark"
-    subdivision_iterations: 1
-    scale: [0.30, 0.30, 0.30]
-    rotate: [-18, 40, 6]
-    translate: [0.35, 0.30, 0.9]
-    material: "ice"
-    caustic_caster: true
+      center: [-0.4, 0.16, -0.95]
+      radius: 0.40
+      height: 1.20
