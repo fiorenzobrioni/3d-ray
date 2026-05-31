@@ -6,6 +6,69 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Caustiche 2c bis — CSG world/transform + group ✅
+
+Chiusura dei buchi di copertura del caster prima di passare alla fase successiva
+della roadmap caustiche. La scena diagnostica `scenes/showcases/glass-caustics.yaml`
+(quattro primitive curve + tre CSG: un dado `intersection` in world, uno stelo
+`union` e una coppa `subtraction` annidata sotto `translate` d'entità) rendeva le
+caustiche solo per le primitive; **nessun** CSG castava, in nessuno spazio. Tre bug
+distinti, tutti sul recupero della **chart world-space** per il manifold walk.
+
+**Bug 1 — CSG con leaf trasformato.** `CsgObject.SeedManifold` ray-casta il solido
+booleano e usa `rec.HitPrimitive` come chart. Ma un leaf con `translate`/`rotate`
+proprio è un `Transform(Sphere)`, e `Transform.Hit` inoltrava `HitPrimitive` invariato
+= la `Sphere` **object-space** (centro all'origine). `EvaluateManifold(u,v)` risolveva
+quindi attorno all'origine, non alla posizione reale → Newton non convergeva (o
+convergeva sul vertice sbagliato). Era il motivo per cui solo i leaf non trasformati
+(sfera centrata, come nei test 2c originali) castavano.
+**Fix**: `Transform.Hit` rimappa `rec.HitPrimitive` a **`this`** quando non-null —
+`Transform` è già la `IManifoldSurface` world-space corrispondente (il suo
+`EvaluateManifold` mappa la stessa `(u,v)` object→world). Il `null` delle regioni
+piatte non-focalizzanti (cap di cilindro/cono) è preservato così il seeder le salta
+ancora. Il percorso analitico usa `_surface` direttamente (non l'identità di
+`HitPrimitive`), quindi resta invariato.
+
+**Bug 2 — CSG sotto transform d'entità.** Un `translate:` sull'entità `type: csg`
+produce `Transform(CsgObject)`, rigettato sia da `CanCastCaustics` (`Transform` →
+inner né mesh né `IManifoldSurface`) sia da `Transform.CreateManifoldCaster` (→ null).
+**Fix**: nuovo `TransformedManifoldCaster` (nested in `Transform`) che mappa gli
+endpoint world→object con la matrice inversa, semina il caster interno in object space,
+e avvolge ogni chart in un `TransformedChart` che solleva `EvaluateManifold` in world
+(punto via matrice forward, normale via normal matrix) e rimappa il vertice convergente
+indietro in object space per il clamp di membership `IClampedChart.Accept` (che compone
+gli inside-test dei figli, definiti in object space). `CanCastCaustics` accetta
+`Transform(CsgObject)` con frontiera curva.
+**Transform annidati**: `CreateManifoldCaster` **appiattisce** la catena di
+`Transform` (matrice composta + payload innermost) prima di scegliere il ramo, perché
+un `Transform` è *sempre* `IManifoldSurface` ma sa valutare parametricamente solo se il
+suo inner è una primitiva analitica — un CSG no. Senza appiattimento un CSG con
+**transform proprio dentro un group** (`Transform(Transform(CsgObject))`) cadeva nel
+ramo analitico e la chart non valutava (Newton falliva). `CanCastCaustics` sbuccia
+anch'esso i `Transform` annidati per concordare col builder.
+
+**Bug 3 — caster dentro `type: group`.** I flag `caustic_caster`/`caustic_receiver`
+erano onorati solo nel loop d'entità top-level, mai in `BuildChildList`: un figlio
+flaggato (primitiva, CSG, mesh) dentro un group non si registrava e nessuna caustica
+appariva. Inoltre la geometria di seeding va registrata in **world space**, mentre un
+figlio di group vive in group-local.
+**Fix**: helper condiviso `SceneLoader.ApplyCausticFlags` chiamato sia al top-level
+(`toWorld = Identity`) sia per ogni figlio di group, con la matrice **group→world**
+accumulata e composta lungo la catena di group annidati (`childToWorld = childTransform *
+groupToWorld`); registra `Transform(localHittable, toWorld)` come geometria di seeding.
+Un group flaggato in toto emette warning (non è un singolo caster); instance/template
+sono esclusi (geometria condivisa fra istanze → `groupToWorld = null`, warning).
+
+**Costo zero off-path**: tutto dietro `_enableCaustics`; il solo branch sempre attivo è
+il rimap `if (rec.HitPrimitive != null)` in `Transform.Hit`, che riscrive un campo già
+popolato dalle primitive — nessun cambiamento osservabile fuori dal seeding caustiche.
+**Test**: `CsgCausticTests` (leaf trasformato `FocusesAtWorldPosition` + CSG sotto
+transform `UnderTransform`, doppio transform `UnderNestedTransforms`), `GroupCausticTests`
+(group trasformato, group annidati, CSG in group — anche con transform proprio —,
+group-in-toto rigettato). Suite intera: 527 verde.
+
+---
+
 ## Ciclo Mesh Neighbor-Seed — edge-crossing tier 1 ✅
 
 Prima tappa della **Strada 2d** (`PLANNING.md`): far castare le **mesh
