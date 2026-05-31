@@ -21,9 +21,9 @@
 world:
   sky:
     type: "gradient"
-    zenith_color:  [0.10, 0.30, 0.80]
-    horizon_color: [0.65, 0.80, 1.00]
-    ground_color:  [0.30, 0.25, 0.20]
+    zenith_color:  [0.04, 0.12, 0.38]
+    horizon_color: [0.28, 0.38, 0.55]
+    ground_color:  [0.12, 0.10, 0.08]
   ground:
     type: "infinite_plane"
     material: "pavimento"
@@ -49,11 +49,11 @@ cameras:
 
   # ── Close-up sulla lente (intersection) ────────────────────────────────
   - name:       closeup_lente
-    position:   [-1.5, 3.0, -5.0]
-    look_at:    [-1.5, 2.2, 0]
-    fov:        30
+    position:   [-1.5, 3.2, -5.5]
+    look_at:    [-1.5, 1.2, 0]
+    fov:        32
     aperture:   0.06
-    focal_dist: 5.5
+    focal_dist: 5.8
 
   # ── Close-up sulle sfere unite (union) ─────────────────────────────────
   - name:       closeup_union
@@ -82,8 +82,7 @@ materials:
     texture:
       type: "checker"
       scale: 2.0
-      colors: [[0.12, 0.12, 0.12], [0.14, 1.00, 0.14]]
-      #colors: [[0.15, 0.13, 0.12], [0.20, 0.18, 0.16]]
+      colors: [[0.04, 0.04, 0.04], [0.05, 0.32, 0.05]]
 
   # ── Piedistalli ────────────────────────────────────────────────────────
   - id: "piedistallo"
@@ -92,7 +91,7 @@ materials:
       type: "marble"
       scale: 8.0
       noise_strength: 4.0
-      colors: [[0.85, 0.85, 0.85], [0.65, 0.65, 0.65]]
+      colors: [[0.60, 0.60, 0.60], [0.38, 0.38, 0.38]]
 
   # ── Etichetta (testo sul piedistallo) ──────────────────────────────────
   - id: "etichetta"
@@ -189,28 +188,34 @@ entities:
   # ─────────────────────────────────────────────────────────────────────────
   #  2. INTERSECTION — Lente biconvessa
   #
-  #     Intersezione di due sfere: la regione comune forma una lente
-  #     biconvessa. Il materiale Disney glass (ior 1.52, spec_trans 1)
-  #     rifrange fisicamente la luce. La lente è marcata caustic_caster:
-  #     con --caustics on produce uno spot focalizzato sul pavimento.
+  #     Due grandi sfere (R=3) si compenetrano: la regione comune è una
+  #     lente biconvessa sottile (Ø 2.4, spessore 0.6). La sfera esterna
+  #     (R=1.2) la ritaglia a disco netto. Materiale Disney glass (ior 1.52).
   #
-  #     Requisito caustic_caster: nessun transform di entità (translate/
-  #     rotate creerebbe Transform(CsgObject) non supportato). I centri
-  #     delle sfere sono in world space direttamente.
-  #     R=1.8, d=±1.5 → edge radius≈1.0, spessore≈0.6, f≈1.73.
+  #     Caustic_caster: le sfere interne hanno centri in world-space (no
+  #     entity-level translate/rotate), così la CSG non viene avvolta in
+  #     Transform e CanCastCaustics la accetta. Con --caustics on e luce
+  #     non-delta, MNEE produce uno spot sul pavimento/piedistallo.
   # ─────────────────────────────────────────────────────────────────────────
   - name: "lente_biconvessa"
     type: "csg"
     operation: "intersection"
     caustic_caster: true
     left:
-      type: "sphere"
-      center: [-1.5, 1.8, -1.5]
-      radius: 1.8
+      type: "csg"
+      operation: "intersection"
+      left:
+        type: "sphere"
+        center: [-1.5, 1.8, -2.7]
+        radius: 3.0
+      right:
+        type: "sphere"
+        center: [-1.5, 1.8, 2.7]
+        radius: 3.0
     right:
       type: "sphere"
-      center: [-1.5, 1.8, 1.5]
-      radius: 1.8
+      center: [-1.5, 1.8, 0]
+      radius: 1.2
     material: "vetro_lente"
 
   # ─────────────────────────────────────────────────────────────────────────
@@ -306,4 +311,4 @@ lights:
   - type: "point"
     position: [-8, 4, -6]
     color: [0.7, 0.75, 1.0]
-    intensity: 18
+    intensity: 8
