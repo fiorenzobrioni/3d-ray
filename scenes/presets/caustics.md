@@ -20,11 +20,14 @@ flusso d'uso generale vedi [`README.md`](README.md); per la teoria
 > **Regola d'oro: le caustiche richiedono DUE opt-in, entrambi necessari.**
 > (1) il flag CLI `--caustics on` al render, e (2) i flag YAML `caustic_caster` /
 > `caustic_receiver` sulle entità. Manca uno dei due → nessuna caustica e **costo
-> zero** (il rendering è identico a prima). I caster oggi devono essere **sfere**
-> (anche dentro un `Transform`): box, cilindri, coni, tori, mesh, CSG e heightfield
-> **non** funzionano come caster — il loader emette un warning e ricade sullo
-> shadow ray normale. Le luci devono essere **area/geometriche** (le luci
-> puntiformi/spot/direzionali e il cielo/HDRI non guidano le caustiche).
+> zero** (il rendering è identico a prima). Un caster deve poter **focalizzare la
+> luce**: vanno bene le **primitive curve** (sfera, cilindro, cono, capsula, toro,
+> anche dentro un `Transform`), le **mesh smooth** (normali per-vertice) e i
+> **solidi CSG con frontiera curva**. **Non** focalizzano le superfici **piatte**
+> (box, quad, disco, piano), le mesh flat-shaded e l'heightfield: se flaggate, il
+> loader emette un warning e ricade sullo shadow ray normale. Le luci devono essere
+> **area/geometriche** (le luci puntiformi/spot/direzionali e il cielo/HDRI non
+> guidano le caustiche).
 
 ---
 
@@ -69,7 +72,7 @@ world:
 
 | Chiave | Default | Dove | Effetto |
 |--------|---------|------|---------|
-| `caustic_caster` | `false` | su un'entità **sfera** | L'oggetto focalizza la luce sui receiver. Liscio → MNEE; rough → SMS. Richiede `--caustics on`. |
+| `caustic_caster` | `false` | su un'entità **curva / mesh smooth / CSG curvo** | L'oggetto focalizza la luce sui receiver. Liscio → MNEE; rough → SMS. Richiede `--caustics on`. |
 | `caustic_receiver` | `false` | su un'entità o su `world.ground` | La superficie su cui le caustiche vengono raccolte. Solo i punti marcati pagano il costo del walk. |
 
 ---
@@ -85,8 +88,15 @@ ricevente: i pixel `caustic_receiver` che vedono un caster **rough** costano cir
 
 ### Vincoli (precisi)
 
-- **Caster: solo sfere** (anche scalate a ellissoide dentro un `Transform`). Ogni
-  altra primitiva flaggata `caustic_caster` viene **ignorata con warning**.
+- **Caster: geometria curva.** Primitive curve (sfera, cilindro, cono, capsula,
+  toro — anche dentro un `Transform`), **mesh smooth** (normali per-vertice) e
+  **CSG con almeno una superficie curva**. Le superfici **piatte** (box, quad,
+  disco, piano), le mesh **flat-shaded** e l'heightfield non focalizzano: se
+  flaggate vengono **ignorate con warning**. Sulle **mesh** vale il *clamp
+  per-triangolo*: il vertice speculare deve cadere nel triangolo del seed, quindi
+  alcune connessioni vengono saltate (caustica non distorta, solo un po' più
+  rumorosa su mesh grossolane). Sul **CSG** il vertice è accettato solo se cade
+  sulla frontiera del risultato booleano (un guscio sottile focalizza poco).
 - **Materiale del caster rifrattivo**: `dielectric`, oppure `disney` con
   `spec_trans ≥ 0.5` e **non** thin-walled. `roughness ≤ 0.04` → MNEE liscio;
   `roughness > 0.04` → SMS frosted.
@@ -242,6 +252,107 @@ diffuso. Anche qui `--sms-samples` alto pulisce il rumore.
 
 ---
 
+# Sezione B-bis — Galleria caster: oltre la sfera
+
+Da Fase 2c i caster coprono **tutte** le primitive curve, le mesh smooth e i
+solidi CSG. I materiali sono gli stessi della Sezione A/B (vetro liscio →
+MNEE, frosted → SMS); cambia solo la **geometria** che fa da lente.
+
+## G1. Cilindro di vetro — caustica astigmatica
+
+```yaml
+entities:
+  - type: "cylinder"
+    center: [0, 0, 0]
+    radius: 0.5
+    height: 1.6
+    material: "vetro_limpido"      # vedi A1
+    caustic_caster: true
+```
+
+Un cilindro curva la luce **solo attorno all'asse**: la caustica è *astigmatica*,
+una banda/linea luminosa anziché uno spot circolare. Ideale per bicchieri, bottiglie
+e barre di vetro. Le cappe piatte non focalizzano (solo la parete laterale).
+
+## G2. Toro di vetro — caustica ad anello
+
+```yaml
+entities:
+  - type: "torus"
+    major_radius: 1.0
+    minor_radius: 0.3
+    material: "cristallo"          # vedi A2
+    caustic_caster: true
+    rotate: [90, 0, 0]
+```
+
+Il toro è il caster a più forte focalizzazione: proietta una **caustica ad anello**
+con cuspidi nette. Ottimo come oggetto-hero. (Cono e capsula funzionano allo stesso
+modo: corpo curvo = caustica, eventuali facce piatte = no.)
+
+## G3. Cubetto di ghiaccio — mesh frosted (SMS)
+
+```yaml
+entities:
+  - type: "mesh"
+    path: "models/subdivision-cube.obj"
+    subdivision_scheme: "catmull_clark"
+    subdivision_iterations: 1       # arrotonda gli spigoli + normali per-vertice
+    scale: [0.4, 0.4, 0.4]
+    material: "ghiaccio"
+    caustic_caster: true
+materials:
+  - id: "ghiaccio"
+    type: "disney"
+    color: [0.90, 0.95, 1.0]
+    spec_trans: 1.0
+    roughness: 0.09                 # > 0.04 ⇒ SMS frosted
+    ior: 1.31                       # ghiaccio
+```
+
+Una **mesh smooth** (normali per-vertice — qui ottenute dalla subdivision) focalizza
+attraverso la curvatura dei triangoli. Frosted + `ior 1.31` = il classico cubetto di
+ghiaccio che proietta una caustica morbida. **Serve smooth shading**: una mesh
+flat-shaded viene ignorata con warning. Scena completa in
+[`../sms-ice-caustics.yaml`](../sms-ice-caustics.yaml).
+
+## G4. Gemma sfaccettata — mesh low-poly (MNEE)
+
+```yaml
+entities:
+  - type: "mesh"
+    path: "models/subdivision-icosahedron.obj"
+    subdivision_scheme: "loop"
+    subdivision_iterations: 1
+    scale: [0.7, 0.7, 0.7]
+    material: "cristallo"           # liscio ⇒ MNEE
+    caustic_caster: true
+```
+
+Una mesh di vetro **liscio** con poche facce proietta una caustica **sfaccettata**
+(tante piccole lenti) — l'effetto "diamante". Più facce = caustica più continua.
+
+## G5. Calice / tumbler — CSG di vetro
+
+```yaml
+entities:
+  - type: "csg"
+    operation: "subtraction"
+    material: "vetro_limpido"
+    caustic_caster: true
+    left:  { type: "cylinder", center: [0, 0.0, 0], radius: 0.62, height: 1.25 }
+    right: { type: "cylinder", center: [0, 0.12, 0], radius: 0.50, height: 1.30 }
+```
+
+Un **solido CSG** focalizza attraverso le sue superfici curve sottostanti (qui i
+cilindri); il vertice speculare è accettato solo se cade sulla frontiera del
+risultato booleano. Un guscio **sottile** (parete piccola) focalizza poco: per una
+caustica marcata usa pareti spesse o un solido pieno (vedi il vino in
+[`../cristallo.yaml`](../cristallo.yaml), una semisfera di liquido che proietta una
+caustica rossa).
+
+---
+
 # Sezione C — Receiver e luce
 
 ## C1. Pavimento ricevente (diffuso)
@@ -352,6 +463,11 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
 | Vetro smerigliato, alone morbido | A4 `vetro_smerigliato` (`roughness 0.1–0.2`) | SMS, alza `--sms-samples` |
 | Specchio, arco riflessivo netto | B1 `specchio` (`metal fuzz 0`) | MNEE riflessivo |
 | Metallo satinato, banda sfocata | B2 `metallo_spazzolato` (`fuzz 0.1–0.15`) | SMS riflessivo |
+| Bicchiere/bottiglia, banda di luce | G1 `cylinder` | caustica astigmatica |
+| Anello luminoso, oggetto-hero | G2 `torus` | focalizzazione forte |
+| Cubetto di ghiaccio, alone morbido | G3 mesh frosted (`ior 1.31`) | mesh smooth, SMS |
+| Gemma/diamante sfaccettato | G4 mesh liscia low-poly | caustica sfaccettata, MNEE |
+| Calice/tumbler/vino | G5 CSG di vetro | frontiera curva del booleano |
 | Superficie che raccoglie | C1 `pavimento_opaco` | diffuso, `caustic_receiver: true` |
 
 ## CLI tips
