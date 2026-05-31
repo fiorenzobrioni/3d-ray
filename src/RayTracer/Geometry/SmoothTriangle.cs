@@ -33,7 +33,7 @@ namespace RayTracer.Geometry;
 ///
 /// Implements ISamplable for area-light support (same as flat Triangle).
 /// </summary>
-public class SmoothTriangle : IHittable, ISamplable, IManifoldSurface
+public class SmoothTriangle : IHittable, ISamplable, IManifoldSurface, IClampedChart
 {
     // ── Vertex positions ────────────────────────────────────────────────────
     public Vector3 V0 { get; }
@@ -202,11 +202,12 @@ public class SmoothTriangle : IHittable, ISamplable, IManifoldSurface
     // this triangle writes into HitRecord.U/V. The mesh seeder recomputes them
     // from the hit point, so the parameterisation here is barycentric:
     //   w0 = 1 − u − v (V0),  w1 = u (V1),  w2 = v (V2).
-    // The smooth (interpolated) normal gives the chart its curvature across the
-    // facet; out-of-triangle (u, v) are rejected — the per-triangle clamp.
+    // The interpolated normal gives the chart its across-facet curvature. The
+    // affine map is evaluated even for (u, v) outside the triangle (Newton needs
+    // room to move within a small facet); the per-triangle clamp is enforced once
+    // at convergence by IClampedChart.Accept rather than strangling the solve.
     public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
     {
-        if (u < 0f || v < 0f || u + v > 1f) { pt = default; return false; }
         float w0 = 1f - u - v;
         Vector3 p = w0 * V0 + u * V1 + v * V2;
         Vector3 n = w0 * N0 + u * N1 + v * N2;
@@ -214,6 +215,17 @@ public class SmoothTriangle : IHittable, ISamplable, IManifoldSurface
         if (nl < 1e-12f) { pt = default; return false; }
         pt = new ManifoldPoint(p, n / nl);
         return true;
+    }
+
+    // Per-triangle clamp: a converged vertex is admissible only if it lies inside
+    // the facet that seeded it (a small tolerance absorbs round-off). Vertices
+    // that slid into a neighbour are dropped — the unbiased "miss" of per-triangle
+    // MNEE (full edge-crossing across the adjacency is a later phase).
+    public bool Accept(in ManifoldPoint pt)
+    {
+        Barycentric(pt.P, out float u, out float v);
+        const float e = 1e-3f;
+        return u >= -e && v >= -e && u + v <= 1f + e;
     }
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()

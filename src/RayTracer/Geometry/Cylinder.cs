@@ -11,7 +11,7 @@ namespace RayTracer.Geometry;
 /// Samples are distributed across the lateral surface and both caps,
 /// weighted by their respective areas.
 /// </summary>
-public class Cylinder : IHittable, ISamplable
+public class Cylinder : IHittable, ISamplable, IManifoldSurface
 {
     public Vector3 Center { get; }
     public float Radius { get; }
@@ -90,6 +90,7 @@ public class Cylinder : IHittable, ISamplable
 
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;
+                    rec.HitPrimitive = this;
                     hitAnything = true;
                     tMax = t;
                 }
@@ -128,6 +129,7 @@ public class Cylinder : IHittable, ISamplable
 
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;
+                    rec.HitPrimitive = this;
                     hitAnything = true;
                     tMax = t;
                 }
@@ -234,5 +236,21 @@ public class Cylinder : IHittable, ISamplable
         return new AABB(
             new Vector3(Center.X - Radius, _yMin, Center.Z - Radius),
             new Vector3(Center.X + Radius, _yMax, Center.Z + Radius));
+    }
+
+    // ── IManifoldSurface (MNEE / SMS chart) ──────────────────────────────────
+    // Inverse of the lateral-surface UV (θ = 2πu − π, V = (y − yMin)/H): only the
+    // curved wall focuses light, so the flat caps are not modelled here. v is
+    // clamped to the finite height [0, 1] (the cylinder's analog of the mesh
+    // per-triangle clamp); u wraps freely around the axis.
+    public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
+    {
+        if (v < 0f || v > 1f) { pt = default; return false; }
+        float theta = 2f * MathF.PI * u - MathF.PI;
+        float ct = MathF.Cos(theta), st = MathF.Sin(theta);
+        Vector3 n = new(ct, 0f, st);
+        Vector3 p = new(Center.X + Radius * ct, _yMin + v * Height, Center.Z + Radius * st);
+        pt = new ManifoldPoint(p, n);
+        return true;
     }
 }

@@ -7,7 +7,7 @@ namespace RayTracer.Geometry;
 /// <summary>
 /// Triangle primitive using the Möller–Trumbore intersection algorithm.
 /// </summary>
-public class Triangle : IHittable, ISamplable, IManifoldSurface
+public class Triangle : IHittable, ISamplable, IManifoldSurface, IClampedChart
 {
     public Vector3 V0 { get; }
     public Vector3 V1 { get; }
@@ -95,9 +95,16 @@ public class Triangle : IHittable, ISamplable, IManifoldSurface
     // uniform chart interface; flat-triangle meshes are not registered as casters.
     public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
     {
-        if (u < 0f || v < 0f || u + v > 1f) { pt = default; return false; }
         pt = new ManifoldPoint(V0 + u * _edge1 + v * _edge2, _normal);
         return true;
+    }
+
+    // Per-triangle clamp (see SmoothTriangle.Accept) — enforced at convergence.
+    public bool Accept(in ManifoldPoint pt)
+    {
+        Barycentric(pt.P, out float u, out float v);
+        const float e = 1e-3f;
+        return u >= -e && v >= -e && u + v <= 1f + e;
     }
 
     /// <summary>Möller–Trumbore barycentrics (u along V0→V1, v along V0→V2) of an in-plane point.</summary>

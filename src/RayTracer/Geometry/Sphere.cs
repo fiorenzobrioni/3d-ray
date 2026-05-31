@@ -79,6 +79,7 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable, IManifoldSurf
         rec.ObjectSeed = Seed;
 
         rec.Material = Material;
+        rec.HitPrimitive = this;
         return true;
     }
 
