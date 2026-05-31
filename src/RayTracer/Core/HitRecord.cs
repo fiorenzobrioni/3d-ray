@@ -146,6 +146,20 @@ public struct HitRecord
     public bool CausticReceiver;
 
     /// <summary>
+    /// The leaf primitive that produced this hit — set by curved primitives and
+    /// triangles (sphere, cylinder, cone, capsule, torus, smooth/flat triangle)
+    /// to <c>this</c>. Lets a composite caustic caster (a <see cref="Geometry.Mesh"/>
+    /// or <see cref="Geometry.CsgObject"/>) recover the per-vertex
+    /// <see cref="Geometry.IManifoldSurface"/> chart from a straight-segment
+    /// seeding intersection: the composite's <c>Hit</c> forwards the chosen leaf's
+    /// record (the CSG combiner copies it; the mesh BVH returns it), so the
+    /// manifold walk can solve on the actual focusing primitive rather than the
+    /// container. Default-null on geometry that is not a manifold chart (boxes,
+    /// quads, planes) — those simply cannot seed a caustic vertex.
+    /// </summary>
+    public IHittable? HitPrimitive;
+
+    /// <summary>
     /// Analytic filter footprint at this shading point (PBRT §10.1).
     /// Populated by <see cref="Rendering.Renderer"/> after the world Hit()
     /// returns for primary rays that carry ray differentials; left

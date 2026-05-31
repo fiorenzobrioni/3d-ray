@@ -28,7 +28,7 @@ namespace RayTracer.Geometry;
 /// After construction, <see cref="FaceCount"/> and <see cref="VertexCount"/>
 /// report the mesh complexity. These are logged by SceneLoader for the user.
 /// </summary>
-public class Mesh : IHittable, ISamplable
+public class Mesh : IHittable, ISamplable, IManifoldCaster
 {
     private readonly IHittable _bvh;
     private readonly List<IHittable> _triangles;
@@ -187,6 +187,115 @@ public class Mesh : IHittable, ISamplable
     }
 
     public AABB BoundingBox() => _bvh.BoundingBox();
+
+    // ── IManifoldCaster (caustic seeding) ────────────────────────────────────
+
+    /// <summary>
+    /// True when the mesh carries per-vertex normals (its triangles are
+    /// <see cref="SmoothTriangle"/>): only smooth meshes have the across-facet
+    /// normal variation that focuses light, so the loader registers only those
+    /// as caustic casters. Flat-faceted meshes are skipped with a warning.
+    /// </summary>
+    public bool HasVertexNormals => _triangles.Count > 0 && _triangles[0] is SmoothTriangle;
+
+    public bool SeedManifold(Vector3 x, Vector3 y, in CausticInterface ci,
+                             Span<ManifoldSeed> seeds, out int k)
+    {
+        k = 0;
+        if (ci.IsTransmissive)
+        {
+            // Ray-cast the straight segment through the internal BVH; each hit
+            // triangle is a per-vertex chart (recovered from rec.HitPrimitive).
+            Vector3 d = y - x;
+            float len = d.Length();
+            if (len < 1e-9f) return false;
+            Vector3 dir = d / len;
+            float tStart = 1e-4f;
+            while (k < seeds.Length)
+            {
+                var rec = new HitRecord();
+                if (!Hit(new Ray(x, dir), tStart, len - 1e-4f, ref rec)) break;
+                if (TryMakeSeed(in rec, out ManifoldSeed seed)) seeds[k++] = seed;
+                tStart = rec.T + 1e-3f;
+            }
+            return k >= 1;
+        }
+
+        // Reflection: the straight ray misses the mirror, so scan the faces for
+        // the triangle centroid whose normal best bisects x and y.
+        if (!SeedReflectionMesh(x, y, out ManifoldSeed rseed)) return false;
+        seeds[0] = rseed;
+        k = 1;
+        return true;
+    }
+
+    private static bool TryMakeSeed(in HitRecord rec, out ManifoldSeed seed)
+    {
+        switch (rec.HitPrimitive)
+        {
+            case SmoothTriangle st:
+                st.Barycentric(rec.Point, out float su, out float sv);
+                seed = new ManifoldSeed(st, new Vector2(su, sv));
+                return true;
+            case Triangle t:
+                t.Barycentric(rec.Point, out float fu, out float fv);
+                seed = new ManifoldSeed(t, new Vector2(fu, fv));
+                return true;
+            default:
+                seed = default;
+                return false;
+        }
+    }
+
+    private bool SeedReflectionMesh(Vector3 x, Vector3 y, out ManifoldSeed seed)
+    {
+        seed = default;
+        float best = float.MaxValue;
+        bool found = false;
+        const float third = 1f / 3f;
+        for (int i = 0; i < _triangles.Count; i++)
+        {
+            if (_triangles[i] is not IManifoldSurface surf) continue;
+            if (!surf.EvaluateManifold(third, third, out var pt)) continue;
+            Vector3 wa = Vector3.Normalize(x - pt.P);
+            Vector3 wb = Vector3.Normalize(y - pt.P);
+            if (Vector3.Dot(wa, pt.N) <= 0f || Vector3.Dot(wb, pt.N) <= 0f) continue;
+            Vector3 h = Vector3.Normalize(wa + wb);
+            float resid = 1f - MathF.Abs(Vector3.Dot(h, pt.N));
+            if (resid < best) { best = resid; seed = new ManifoldSeed(surf, new Vector2(third, third)); found = true; }
+        }
+        return found;
+    }
+
+    /// <summary>
+    /// Returns a copy of this mesh with every vertex/normal mapped to world space
+    /// by <paramref name="m"/> / <paramref name="normalMatrix"/>, so the baked
+    /// triangles are world-space charts a <see cref="Transform"/>-wrapped mesh can
+    /// seed against directly (no per-call wrapper). Done once at registration.
+    /// </summary>
+    public IManifoldCaster BakeWorldSpace(Matrix4x4 m, Matrix4x4 normalMatrix)
+    {
+        var baked = new List<IHittable>(_triangles.Count);
+        foreach (var tri in _triangles)
+        {
+            switch (tri)
+            {
+                case SmoothTriangle st:
+                    baked.Add(new SmoothTriangle(
+                        Vector3.Transform(st.V0, m), Vector3.Transform(st.V1, m), Vector3.Transform(st.V2, m),
+                        Vector3.TransformNormal(st.N0, normalMatrix),
+                        Vector3.TransformNormal(st.N1, normalMatrix),
+                        Vector3.TransformNormal(st.N2, normalMatrix),
+                        st.UV0, st.UV1, st.UV2, st.Material));
+                    break;
+                case Triangle t:
+                    baked.Add(new Triangle(
+                        Vector3.Transform(t.V0, m), Vector3.Transform(t.V1, m), Vector3.Transform(t.V2, m), t.Material));
+                    break;
+            }
+        }
+        return new Mesh(baked, Material, VertexCount);
+    }
 
     private static float ComputeTriangleArea(IHittable tri)
     {

@@ -27,7 +27,7 @@ public class SmsCausticTests
         // surface for the manifold walk and the passed CausticInterface for the
         // physics); a Dielectric keeps the seed-ray intersection well-defined.
         var s = new Sphere(center, radius, new Dielectric(1.5f));
-        return new CausticCasterRegistry.Caster(s, s, s.BoundingBox());
+        return new CausticCasterRegistry.Caster(s, new AnalyticManifoldCaster(s, s), s.BoundingBox());
     }
 
     private static CausticInterface RoughGlass(float roughness, float ior = 1.5f)

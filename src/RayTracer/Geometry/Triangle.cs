@@ -7,7 +7,7 @@ namespace RayTracer.Geometry;
 /// <summary>
 /// Triangle primitive using the Möller–Trumbore intersection algorithm.
 /// </summary>
-public class Triangle : IHittable, ISamplable
+public class Triangle : IHittable, ISamplable, IManifoldSurface
 {
     public Vector3 V0 { get; }
     public Vector3 V1 { get; }
@@ -85,7 +85,35 @@ public class Triangle : IHittable, ISamplable
 
         rec.ObjectSeed = Seed;
         rec.Material = Material;
+        rec.HitPrimitive = this;
         return true;
+    }
+
+    // ── IManifoldSurface (flat chart) ────────────────────────────────────────
+    // A flat triangle has a constant normal, so the manifold Jacobian is singular
+    // and no focused caustic forms — the solve simply fails. Implemented for a
+    // uniform chart interface; flat-triangle meshes are not registered as casters.
+    public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
+    {
+        if (u < 0f || v < 0f || u + v > 1f) { pt = default; return false; }
+        pt = new ManifoldPoint(V0 + u * _edge1 + v * _edge2, _normal);
+        return true;
+    }
+
+    /// <summary>Möller–Trumbore barycentrics (u along V0→V1, v along V0→V2) of an in-plane point.</summary>
+    public void Barycentric(Vector3 p, out float u, out float v)
+    {
+        Vector3 w = p - V0;
+        float d00 = Vector3.Dot(_edge1, _edge1);
+        float d01 = Vector3.Dot(_edge1, _edge2);
+        float d11 = Vector3.Dot(_edge2, _edge2);
+        float d20 = Vector3.Dot(w, _edge1);
+        float d21 = Vector3.Dot(w, _edge2);
+        float denom = d00 * d11 - d01 * d01;
+        if (MathF.Abs(denom) < 1e-20f) { u = 0f; v = 0f; return; }
+        float inv = 1f / denom;
+        u = (d11 * d20 - d01 * d21) * inv;
+        v = (d00 * d21 - d01 * d20) * inv;
     }
 
     /// <inheritdoc/>

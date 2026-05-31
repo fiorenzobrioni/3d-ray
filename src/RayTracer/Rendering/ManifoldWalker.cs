@@ -49,6 +49,15 @@ public static class ManifoldWalker
     private const float FdStep              = 5e-4f;   // (u,v) finite-difference step
     private const int   MaxVertices         = 2;
 
+    // Per-vertex seed charts are reference types, so they cannot be stackalloc'd
+    // (stackalloc requires unmanaged element types). InlineArray keeps these
+    // tiny fixed-size buffers on the stack — zero heap on the hot path — while
+    // still exposing a Span the rest of the walk threads through.
+    [System.Runtime.CompilerServices.InlineArray(MaxVertices)]
+    private struct SeedBuf { private ManifoldSeed _e; }
+    [System.Runtime.CompilerServices.InlineArray(MaxVertices)]
+    private struct SurfBuf { private IManifoldSurface _e; }
+
     /// <summary>A solved specular connection ready for the radiance estimator.</summary>
     public readonly struct CausticConnection
     {
@@ -82,11 +91,18 @@ public static class ManifoldWalker
     {
         conn = default;
 
+        SeedBuf seedBuf = default;
+        Span<ManifoldSeed> seeds = seedBuf;
+        if (!caster.Seeder.SeedManifold(x, y, ci, seeds, out int k) || k < 1) return false;
+        if (k > MaxVertices) k = MaxVertices;
+
         Span<Vector2> uv = stackalloc Vector2[MaxVertices];
-        if (!Seed(caster, ci, x, y, uv, out int k)) return false;
+        SurfBuf surfBuf = default;
+        Span<IManifoldSurface> surfs = surfBuf;
+        for (int i = 0; i < k; i++) { uv[i] = seeds[i].Uv; surfs[i] = seeds[i].Chart; }
 
         // Smooth caster ⇒ no microfacet offset (empty span ⇒ geometric normal).
-        return SolveAndEstimate(caster, ci, x, y, yNormal, maxIter, k, uv,
+        return SolveAndEstimate(caster, ci, x, y, yNormal, maxIter, k, uv, surfs,
                                 ReadOnlySpan<Vector3>.Empty, out conn);
     }
 
@@ -109,14 +125,21 @@ public static class ManifoldWalker
     {
         conn = default;
 
+        SeedBuf seedBuf = default;
+        Span<ManifoldSeed> seeds = seedBuf;
+        if (!caster.Seeder.SeedManifold(x, y, ci, seeds, out int k) || k < 1) return false;
+        if (k > MaxVertices) k = MaxVertices;
+
         Span<Vector2> uv = stackalloc Vector2[MaxVertices];
-        if (!Seed(caster, ci, x, y, uv, out int k)) return false;
+        SurfBuf surfBuf = default;
+        Span<IManifoldSurface> surfs = surfBuf;
+        for (int i = 0; i < k; i++) { uv[i] = seeds[i].Uv; surfs[i] = seeds[i].Chart; }
 
         // Sample one microfacet normal per seed vertex from the GGX VNDF, in the
         // vertex's tangent frame, visible from the receiver-side incident dir.
         Span<ManifoldPoint> seedPts = stackalloc ManifoldPoint[MaxVertices];
         for (int i = 0; i < k; i++)
-            if (!caster.Surface.EvaluateManifold(uv[i].X, uv[i].Y, out seedPts[i]))
+            if (!surfs[i].EvaluateManifold(uv[i].X, uv[i].Y, out seedPts[i]))
                 return false;
 
         Span<Vector3> micro = stackalloc Vector3[MaxVertices];
@@ -140,31 +163,7 @@ public static class ManifoldWalker
             micro[i] = new Vector3(Hloc.X, Hloc.Y, side * Hloc.Z);   // local microfacet normal
         }
 
-        return SolveAndEstimate(caster, ci, x, y, yNormal, maxIter, k, uv, micro, out conn);
-    }
-
-    // Shared seeding for both the smooth and rough entry points.
-    private static bool Seed(in CausticCasterRegistry.Caster caster, in CausticInterface ci,
-                             Vector3 x, Vector3 y, Span<Vector2> uv, out int k)
-    {
-        Span<float> tcr = stackalloc float[MaxVertices];
-        k = SeedCrossings(caster.Hittable, x, y, uv, tcr);
-
-        if (ci.IsTransmissive)
-        {
-            // Refraction needs the straight ray to pass through the caster: 1
-            // crossing (single interface) or 2 (solid glass, enter + exit).
-            if (k < 1) return false;
-        }
-        else
-        {
-            // Reflection: the straight x→y ray does not touch the mirror, so
-            // seed from the surface point nearest the chord midpoint instead.
-            if (!SeedReflection(caster, x, y, out uv[0])) return false;
-            k = 1;
-        }
-        if (k > MaxVertices) k = MaxVertices;
-        return true;
+        return SolveAndEstimate(caster, ci, x, y, yNormal, maxIter, k, uv, surfs, micro, out conn);
     }
 
     // Solve the manifold (with an optional per-vertex microfacet offset), then
@@ -175,6 +174,7 @@ public static class ManifoldWalker
                                          in CausticInterface ci,
                                          Vector3 x, Vector3 y, Vector3 yNormal,
                                          int maxIter, int k, Span<Vector2> uv,
+                                         ReadOnlySpan<IManifoldSurface> surfs,
                                          ReadOnlySpan<Vector3> micro,
                                          out CausticConnection conn)
     {
@@ -182,10 +182,18 @@ public static class ManifoldWalker
 
         // ── Newton solve on the 2K-dimensional manifold ─────────────────────
         Span<ManifoldPoint> pts = stackalloc ManifoldPoint[MaxVertices];
-        if (!Solve(caster.Surface, x, y, ci, k, uv, pts, maxIter, micro)) return false;
+        if (!Solve(surfs, x, y, ci, k, uv, pts, maxIter, micro)) return false;
 
         // ── Validate orientation & physical admissibility ───────────────────
         if (!Validate(x, y, ci, k, pts)) return false;
+
+        // ── Per-chart acceptance clamp (post-convergence) ───────────────────
+        // A CSG chart accepts the converged vertex only if it still lies on the
+        // boolean result's boundary (not in a region a subtraction/intersection
+        // removed) — the CSG analog of the mesh per-triangle barycentric clamp,
+        // run once here rather than every Newton step so the solve stays cheap.
+        for (int i = 0; i < k; i++)
+            if (surfs[i] is IClampedChart cc && !cc.Accept(pts[i])) return false;
 
         Vector3 p1 = pts[0].P;
         Vector3 pK = pts[k - 1].P;
@@ -195,7 +203,7 @@ public static class ManifoldWalker
         if (!ComputeThroughput(x, y, ci, k, pts, out Vector3 throughput)) return false;
 
         // ── Geometric term G = dΩ_x/dA_y via light-perturbation re-solve ─────
-        float g = ComputeGeometricTerm(caster.Surface, x, y, yNormal, ci, k, uv, wi, maxIter, micro);
+        float g = ComputeGeometricTerm(surfs, x, y, yNormal, ci, k, uv, wi, maxIter, micro);
         if (!(g > 0f) || float.IsNaN(g) || float.IsInfinity(g)) return false;
 
         conn = new CausticConnection(wi, p1, pK, throughput, g);
@@ -203,62 +211,10 @@ public static class ManifoldWalker
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // Seeding
-    // ────────────────────────────────────────────────────────────────────────
-
-    private static int SeedCrossings(IHittable caster, Vector3 x, Vector3 y,
-                                     Span<Vector2> uvOut, Span<float> tOut)
-    {
-        Vector3 d = y - x;
-        float len = d.Length();
-        if (len < 1e-9f) return 0;
-        Vector3 dir = d / len;
-
-        int count = 0;
-        float tStart = 1e-4f;
-        while (count < MaxVertices)
-        {
-            var rec = new HitRecord();
-            if (!caster.Hit(new Ray(x, dir), tStart, len - 1e-4f, ref rec)) break;
-            uvOut[count] = new Vector2(rec.U, rec.V);
-            tOut[count]  = rec.T;
-            count++;
-            tStart = rec.T + 1e-3f;
-        }
-        return count;
-    }
-
-    // Reflection seed: scan the surface for the (u,v) whose normal best bisects
-    // x and y (the law-of-reflection seed), then let Newton refine. A coarse
-    // 8×4 scan is plenty for a convex mirror and costs only arithmetic.
-    private static bool SeedReflection(in CausticCasterRegistry.Caster caster,
-                                       Vector3 x, Vector3 y, out Vector2 bestUv)
-    {
-        bestUv = new Vector2(0.5f, 0.5f);
-        float best = float.MaxValue;
-        bool found = false;
-        for (int iu = 0; iu < 8; iu++)
-        for (int iv = 1; iv < 4; iv++)
-        {
-            float u = (iu + 0.5f) / 8f;
-            float v = (iv + 0.5f) / 4f;
-            if (!caster.Surface.EvaluateManifold(u, v, out var pt)) continue;
-            Vector3 wa = Vector3.Normalize(x - pt.P);
-            Vector3 wb = Vector3.Normalize(y - pt.P);
-            // Both endpoints must be on the reflective (outward) side.
-            if (Vector3.Dot(wa, pt.N) <= 0f || Vector3.Dot(wb, pt.N) <= 0f) continue;
-            Vector3 h = Vector3.Normalize(wa + wb);
-            float resid = 1f - MathF.Abs(Vector3.Dot(h, pt.N)); // 0 when h ∥ n
-            if (resid < best) { best = resid; bestUv = new Vector2(u, v); found = true; }
-        }
-        return found;
-    }
-
-    // ────────────────────────────────────────────────────────────────────────
     // Newton-Raphson solve
     // ────────────────────────────────────────────────────────────────────────
 
-    private static bool Solve(IManifoldSurface surf, Vector3 x, Vector3 y,
+    private static bool Solve(ReadOnlySpan<IManifoldSurface> surfs, Vector3 x, Vector3 y,
                               in CausticInterface ci, int k,
                               Span<Vector2> uv, Span<ManifoldPoint> pts, int maxIter,
                               ReadOnlySpan<Vector3> micro)
@@ -270,7 +226,7 @@ public static class ManifoldWalker
         Span<float>   dq    = stackalloc float[4];
         Span<Vector2> trial = stackalloc Vector2[MaxVertices];
 
-        if (!Evaluate(surf, x, y, ci, k, uv, pts, F, micro)) return false;
+        if (!Evaluate(surfs, x, y, ci, k, uv, pts, F, micro)) return false;
         float fNorm = Norm(F, n);
 
         for (int iter = 0; iter < maxIter; iter++)
@@ -286,11 +242,11 @@ public static class ManifoldWalker
                 Vector2 saved = uv[vert];
 
                 uv[vert] = Offset(saved, comp, FdStep);
-                if (!Evaluate(surf, x, y, ci, k, uv, pts, Ftmp, micro)) { uv[vert] = saved; return false; }
+                if (!Evaluate(surfs, x, y, ci, k, uv, pts, Ftmp, micro)) { uv[vert] = saved; return false; }
                 for (int i = 0; i < n; i++) J[i * n + j] = Ftmp[i];
 
                 uv[vert] = Offset(saved, comp, -FdStep);
-                if (!Evaluate(surf, x, y, ci, k, uv, pts, Ftmp, micro)) { uv[vert] = saved; return false; }
+                if (!Evaluate(surfs, x, y, ci, k, uv, pts, Ftmp, micro)) { uv[vert] = saved; return false; }
                 float inv = 1f / (2f * FdStep);
                 for (int i = 0; i < n; i++) J[i * n + j] = (J[i * n + j] - Ftmp[i]) * inv;
 
@@ -309,7 +265,7 @@ public static class ManifoldWalker
                 for (int vert = 0; vert < k; vert++)
                     trial[vert] = new Vector2(uv[vert].X + lambda * dq[vert * 2],
                                               uv[vert].Y + lambda * dq[vert * 2 + 1]);
-                if (Evaluate(surf, x, y, ci, k, trial, pts, Ftmp, micro))
+                if (Evaluate(surfs, x, y, ci, k, trial, pts, Ftmp, micro))
                 {
                     float trialNorm = Norm(Ftmp, n);
                     if (trialNorm < fNorm)
@@ -341,14 +297,14 @@ public static class ManifoldWalker
     // smooth caster (<paramref name="micro"/> empty), or the sampled microfacet
     // normal m for SMS. Tangential components measured against the target's ONB
     // vanish exactly when ĥ ∥ target, i.e. (rough) Snell/reflection holds.
-    private static bool Evaluate(IManifoldSurface surf, Vector3 x, Vector3 y,
+    private static bool Evaluate(ReadOnlySpan<IManifoldSurface> surfs, Vector3 x, Vector3 y,
                                  in CausticInterface ci, int k,
                                  Span<Vector2> uv, Span<ManifoldPoint> pts, Span<float> F,
                                  ReadOnlySpan<Vector3> micro)
     {
         for (int i = 0; i < k; i++)
         {
-            if (!surf.EvaluateManifold(uv[i].X, uv[i].Y, out pts[i])) return false;
+            if (!surfs[i].EvaluateManifold(uv[i].X, uv[i].Y, out pts[i])) return false;
         }
 
         bool rough = micro.Length > 0;
@@ -505,7 +461,7 @@ public static class ManifoldWalker
         return throughput.X > 0f || throughput.Y > 0f || throughput.Z > 0f;
     }
 
-    private static float ComputeGeometricTerm(IManifoldSurface surf, Vector3 x, Vector3 y,
+    private static float ComputeGeometricTerm(ReadOnlySpan<IManifoldSurface> surfs, Vector3 x, Vector3 y,
                                               Vector3 yNormal, in CausticInterface ci, int k,
                                               Span<Vector2> uv, Vector3 wi, int maxIter,
                                               ReadOnlySpan<Vector3> micro)
@@ -522,8 +478,8 @@ public static class ManifoldWalker
         float eps = 1e-3f * MathF.Max(1f, (y - x).Length());
         Onb(yNormal, out Vector3 e1, out Vector3 e2);
 
-        if (!ResolveWiPerturbed(surf, x, y + eps * e1, ci, k, uv, maxIter, micro, out Vector3 wi1)) return 0f;
-        if (!ResolveWiPerturbed(surf, x, y + eps * e2, ci, k, uv, maxIter, micro, out Vector3 wi2)) return 0f;
+        if (!ResolveWiPerturbed(surfs, x, y + eps * e1, ci, k, uv, maxIter, micro, out Vector3 wi1)) return 0f;
+        if (!ResolveWiPerturbed(surfs, x, y + eps * e2, ci, k, uv, maxIter, micro, out Vector3 wi2)) return 0f;
 
         Vector3 d1 = (wi1 - wi) / eps;
         Vector3 d2 = (wi2 - wi) / eps;
@@ -533,7 +489,7 @@ public static class ManifoldWalker
         return MathF.Abs(m00 * m11 - m01 * m10);
     }
 
-    private static bool ResolveWiPerturbed(IManifoldSurface surf, Vector3 x, Vector3 yPert,
+    private static bool ResolveWiPerturbed(ReadOnlySpan<IManifoldSurface> surfs, Vector3 x, Vector3 yPert,
                                            in CausticInterface ci, int k,
                                            Span<Vector2> uvSeed, int maxIter,
                                            ReadOnlySpan<Vector3> micro, out Vector3 wi)
@@ -544,7 +500,7 @@ public static class ManifoldWalker
         Span<ManifoldPoint> pts = stackalloc ManifoldPoint[MaxVertices];
         // The microfacet offset is held fixed across the light perturbation, so
         // G = dΩ_x/dA_y is the geometric term of the rough path at that offset.
-        if (!Solve(surf, x, yPert, ci, k, uv, pts, maxIter, micro)) return false;
+        if (!Solve(surfs, x, yPert, ci, k, uv, pts, maxIter, micro)) return false;
         wi = Vector3.Normalize(pts[0].P - x);
         return true;
     }
