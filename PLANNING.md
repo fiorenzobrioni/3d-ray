@@ -53,7 +53,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 |---|---------|-------|
 | 18 | Motion Blur | ⬜ |
 | 19 | Volumetric Rendering | 🔧 Stage 1 + 1.5 ✅ |
-| 20 | Subsurface Scattering | ⬜ |
+| 20 | Subsurface Scattering | ✅ |
 | 21 | CSG (union/intersection/subtraction, all-hits, normali corrette) | ✅ |
 | 22 | Instancing (geometria condivisa, override material/seed per-istanza) | ✅ |
 | +  | Extrusion primitive (linear/catmull_rom/bezier + twist + taper + caps) | ✅ |
@@ -65,7 +65,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 | # | Feature | Stato |
 |---|---------|-------|
-| 23 | Bidirectional Path Tracing (dopo #13) | ⬜ |
+| 23 | Path Guiding — PPG-style (SD-tree spaziale + quadtree direzionale per foglia, MIS tra guide PDF e BSDF PDF, `--path-guiding on\|off`, `--guiding-budget N` spp di training; dopo #13) | ⬜ |
 | 24 | Spectral Rendering (lunghezze d'onda → dispersione prismatica) | ⬜ |
 | 25 | Surface Displacement Stack (bump map, mesh subdivision Loop/Catmull-Clark, scalar/vector displacement, autobump) | ✅ |
 | 26 | GPU Acceleration (CUDA/Vulkan, progetto separato) | ⬜ |
@@ -77,7 +77,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 #6 Disney   ─► #20 SSS
 #7 OBJ      ─► #22 Instancing, #25 Displacement ✅
 #11 Scene G ─► #22 Instancing
-#12 IS      ─► #13 MIS ─► #23 BDPT
+#12 IS      ─► #13 MIS ─► #23 Path Guiding
 #15 Tiles   ─► #14 Adaptive, #16 Denoiser
 ```
 
@@ -124,7 +124,6 @@ Strategia incrementale per le caustiche, in ordine di costo crescente. Strada 1 
 
 ## 📋 TODO
 
-- [ ] Review dei materiali in `scenes/libraries/materials/`: aggiornare quelli che beneficiano di surface displacement e aggiungere nuove librerie pro (pelli, cementi, sassi, marmi porosi e simili).
 - [ ] **HeightField strata: layered stack BSDF "no-compromise"** — il selettore strata oggi è winner-takes-all con jitter Perlin 3-ottave + aspect bias `±Z`. La versione pro è uno **stack N-ary** con coverage weights normalizzati. Implementazione: nuovo `LayeredStratumMaterial` proxy `IMaterial` che incapsula la lista di `(StratumBand, IMaterial)` + funzione di weight geometrico `(altNorm, slopeDeg, curvature, aspect) → R^N`; `Scatter` campiona via distribuzione 1D pesata (PDF MIS-consistente); `EvaluateDirect` somma pesata. Back-compat via `strata_blending: "winner" | "stochastic" | "weighted"` (default `winner`).
 
   Tre estensioni obbligatorie per la parità con i terrain shader pro:
