@@ -40,7 +40,7 @@ entities:
 | [`materials-synthetic.md`](materials-synthetic.md) | Plastiche, sintetici, vernici, ceramiche |
 | [`materials-ground.md`](materials-ground.md) | Materiali per il terreno (si abbinano a `world.md`) |
 | [`materials-weathering.md`](materials-weathering.md) | Invecchiamento e ricette `mix` |
-| [`lights.md`](lights.md) | Set di luci pronti (3-point, high-key, golden hour, neon, …) |
+| [`lights.md`](lights.md) | Set di luci pronti (studio, esterni, notte/neon, emissive, caustiche) |
 | [`mediums.md`](mediums.md) | Atmosfere, nebbie, ghiaccio/neve, SSS, liquidi volumetrici |
 | [`terrains.md`](terrains.md) | Ricetta heightfield + strati altimetrici/pendenza |
 | [`caustics.md`](caustics.md) | Caster di caustiche pronti (vetro/cristallo/frosted + metallo lucido/spazzolato) + receiver, luce e mini-scena |
