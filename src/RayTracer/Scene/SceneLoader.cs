@@ -130,6 +130,59 @@ public class SceneLoader
     public static IReadOnlyList<IHittable> LastCausticCasters => _causticCasters;
     private static readonly List<IHittable> _causticCasters = new();
 
+    /// <summary>
+    /// Whether a flagged entity's geometry can actually focus light into a
+    /// caustic — and, if not, a human-readable <paramref name="reason"/> for the
+    /// dropped-flag warning. Kept in lock-step with
+    /// <see cref="Rendering.CausticCasterRegistry.BuildSeeder"/>: a curved
+    /// analytic primitive (also under a <see cref="Transform"/>), a smooth mesh
+    /// (vertex normals), or a CSG solid with a curved boundary all qualify; flat
+    /// primitives, flat-shaded meshes and flat-only CSG do not.
+    /// </summary>
+    private static bool CanCastCaustics(IHittable h, out string reason)
+    {
+        switch (h)
+        {
+            case Transform tr:
+                if (tr.Inner is Mesh tm)
+                    return tm.HasVertexNormals
+                        ? Ok(out reason)
+                        : Fail(out reason, "a flat-shaded mesh has no per-facet normal variation to focus light; enable smooth (vertex) normals.");
+                if (tr.Inner is IManifoldSurface)
+                    return Ok(out reason);
+                return Fail(out reason, "transformed geometry of this type cannot focus light (supported under a transform: curved primitives and smooth meshes).");
+
+            case Mesh mesh:
+                return mesh.HasVertexNormals
+                    ? Ok(out reason)
+                    : Fail(out reason, "a flat-shaded mesh has no per-facet normal variation to focus light; enable smooth (vertex) normals.");
+
+            case CsgObject csg:
+                return CsgHasCurvedBoundary(csg)
+                    ? Ok(out reason)
+                    : Fail(out reason, "the CSG solid has only flat faces, which cannot focus light.");
+
+            case IManifoldSurface:
+                return Ok(out reason);
+
+            default:
+                return Fail(out reason, "geometry is not a caustic caster (supported: curved primitives, smooth meshes, CSG solids with a curved boundary).");
+        }
+
+        static bool Ok(out string r) { r = ""; return true; }
+        static bool Fail(out string r, string msg) { r = msg; return false; }
+    }
+
+    // True when a CSG tree exposes at least one curved leaf that can serve as a
+    // focusing chart — flat leaves (box/quad/flat triangle) never focus light.
+    private static bool CsgHasCurvedBoundary(IHittable h) => h switch
+    {
+        CsgObject c => CsgHasCurvedBoundary(c.Left) || CsgHasCurvedBoundary(c.Right),
+        Transform t => CsgHasCurvedBoundary(t.Inner),
+        Sphere or Cylinder or Cone or Capsule or Torus => true,
+        _ => false,
+    };
+
     public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, SkySettings Sky, IMedium? GlobalMedium)
         Load(string yamlPath, int imageWidth, int imageHeight,
              int? shadowSamplesOverride = null, string? cameraSelector = null,
@@ -429,19 +482,19 @@ public class SceneLoader
                     // resulting HitRecord (see CameraInvisibleHittable).
                     if (!e.VisibleToCamera)
                         hittable = new CameraInvisibleHittable(hittable);
-                    // Per-entity MNEE caustic flags (Phase 2). Only honoured when
-                    // caustics are enabled, so the wrapper — and its per-hit
-                    // virtual call — never exists in the off path. A caster must
-                    // be manifold-evaluable (sphere / transformed sphere) to join
-                    // the walk; otherwise the flag is dropped with a warning so
-                    // the receiver's shadow ray is not blocked without an MNEE
-                    // replacement.
+                    // Per-entity MNEE caustic flags. Only honoured when caustics
+                    // are enabled, so the wrapper — and its per-hit virtual call —
+                    // never exists in the off path. A caster must be able to focus
+                    // light (a curved primitive, a smooth mesh, or a CSG solid with
+                    // a curved boundary); otherwise the flag is dropped with a
+                    // warning so the receiver's shadow ray is not blocked without an
+                    // MNEE replacement.
                     if (enableCaustics && (e.CausticCaster || e.CausticReceiver))
                     {
-                        bool casterOk = e.CausticCaster && hittable is IManifoldSurface;
+                        string reason = "";
+                        bool casterOk = e.CausticCaster && CanCastCaustics(hittable, out reason);
                         if (e.CausticCaster && !casterOk)
-                            Warn($"caustic_caster on '{e.Name ?? e.Type}' ignored: " +
-                                 "geometry is not manifold-evaluable (Phase 2 supports sphere / transformed sphere).");
+                            Warn($"caustic_caster on '{e.Name ?? e.Type}' ignored: {reason}");
                         if (casterOk)
                             _causticCasters.Add(hittable);
                         if (casterOk || e.CausticReceiver)

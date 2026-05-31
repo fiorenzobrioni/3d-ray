@@ -1,0 +1,158 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  CAUSTIC CASTERS — Galleria dei caster di caustiche (Fase 2c)
+#
+#  Una fila di sei oggetti di vetro lungo Z (x≈0), uno per ogni tipo di
+#  geometria che il motore sa usare come *caster* di caustiche focalizzate
+#  (MNEE / SMS). Un pannello d'area caldo laterale (+X) li illumina: ogni
+#  superficie curva concentra i raggi rifratti in uno spot luminoso sul
+#  pavimento scuro lucido (−X), che è `caustic_receiver`.
+#
+#    z = -1.7  TORO        → caustica anulare/cardioide
+#    z = -0.85 CILINDRO    → banda astigmatica
+#    z =  0.0  SFERA       → "occhio" di caustica focalizzato (riferimento)
+#    z = +0.85 CONO        → arco/cuspide dalla parete inclinata
+#    z = +1.7  CAPSULA     → spot allungato (cilindro + calotte sferiche)
+#    z = +2.5… CSG (lente) → biconvessa: sfera ∩ sfera, fuoco stretto
+#
+#  NB: i caster più affidabili sono le PRIMITIVE CURVE (sfera, cilindro, cono,
+#  capsula, toro) e i solidi CSG costruiti su di esse — per questo la galleria
+#  usa loro. Le mesh triangolari smooth ora castano anch'esse, ma solo nel caso
+#  comune (vertice ≤1 faccia dal seed, tier neighbor-seed; vedi DEVLOG/PLANNING):
+#  mesh coarse molto curve restano più rumorose. Le LUCI DELTA (point/spot/
+#  directional puntuale) NON innescano caustiche: l'estimatore MNEE campiona un
+#  PUNTO sull'area dell'emettitore, che una sorgente delta non possiede — per
+#  questo qui la luce è di tipo `area` (una `directional` con `angular_radius>0`
+#  non è delta e andrebbe bene lo stesso).
+#
+#  Render (final/ultra abilitano --caustics da soli):
+#    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#      -i scenes/showcases/glass-caustic-casters.yaml \
+#      -o renders/caustic-casters.png -q final --caustics on -w 1600 -H 900
+#  Confronto: --caustics off → gli spot focalizzati spariscono.
+#
+#  La -C bassa (20-25) smorza le fireflies dei raggi che concentrano molta
+#  energia su pochi pixel.
+# ═══════════════════════════════════════════════════════════════════════════
+
+cameras:
+  # Vista principale: di lato da +X, elevata. I sei caster sono in fila
+  # lungo Z → lineup pulito; le caustiche cadono verso −X (dentro la scena),
+  # ben visibili dall'alto.
+  - name: "principale"
+    position: [4.2, 2.5, 0.4]
+    look_at:  [-1.6, 0.20, 0.0]
+    fov: 54
+
+  # Closeup radente sul pavimento di caustica.
+  - name: "closeup"
+    position: [2.6, 1.0, 1.4]
+    look_at:  [-1.6, 0.10, 0.0]
+    fov: 42
+
+world:
+  sky:
+    type: "flat"
+    color: [0.015, 0.015, 0.02]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0.0
+    caustic_receiver: true
+
+lights:
+  # Pannello d'area caldo LATERALE da +X (medio-alto): le superfici curve
+  # rifrangono verso il pavimento opposto (−X), dove cadono spot focalizzati
+  # ben visibili dalla camera in alto. È la ricetta verificata dello
+  # showcase ice. `area` (non delta) → abilita l'estimatore MNEE/SMS.
+  - type: area
+    corner: [3.4, 2.0, -3.2]
+    u: [0.0, 0.0, 6.4]
+    v: [0.0, 1.0, 0.0]
+    color: [1.0, 0.93, 0.82]
+    intensity: 110.0
+    shadow_samples: 6
+
+  # Fill freddo molto tenue dall'alto: apre appena le ombre senza diluire
+  # le caustiche (delta: non partecipa alle caustiche, solo fill).
+  - type: "point"
+    position: [2.0, 5.0, 0.0]
+    color: [0.55, 0.65, 0.95]
+    intensity: 5
+
+materials:
+  # Pavimento scuro semi-lucido: fa risaltare gli spot focalizzati.
+  - id: "floor"
+    type: "disney"
+    color: [0.09, 0.10, 0.12]
+    roughness: 0.42
+    specular: 0.5
+
+  # Vetro cristallino IOR 1.5 (sfera, cono, capsula, toro, lente).
+  - id: "glass"
+    type: "dielectric"
+    refraction_index: 1.5
+
+  # Ghiaccio quasi limpido IOR 1.31 → fuoco leggermente diverso (cilindro).
+  - id: "ice"
+    type: "dielectric"
+    refraction_index: 1.31
+
+entities:
+  # Sei caster in FILA lungo Z (x≈0), spaziati ~1.0. Il pannello laterale
+  # +X li illumina tutti; ciascuno focalizza uno spot sul pavimento verso −X.
+
+  # ── TORO — caustica anulare/cardioide ───────────────────────────────────
+  - name: "caster_torus"
+    type: "torus"
+    center: [0.0, 0.45, -1.7]
+    major_radius: 0.38
+    minor_radius: 0.15
+    rotate: [90, 0, 0]
+    material: "glass"
+    caustic_caster: true
+
+  # ── CILINDRO — banda astigmatica ────────────────────────────────────────
+  - name: "caster_cylinder"
+    type: "cylinder"
+    center: [0.0, 0.0, -0.85]
+    radius: 0.40
+    height: 0.95
+    material: "ice"
+    caustic_caster: true
+
+  # ── SFERA — caustica "a occhio" focalizzata (riferimento) ────────────────
+  - name: "caster_sphere"
+    type: "sphere"
+    center: [0.0, 0.42, 0.0]
+    radius: 0.42
+    material: "glass"
+    caustic_caster: true
+
+  # ── CONO — cuspide dalla parete inclinata ───────────────────────────────
+  - name: "caster_cone"
+    type: "cone"
+    base_center: [0.0, 0.0, 0.85]
+    radius: 0.42
+    height: 0.95
+    material: "glass"
+    caustic_caster: true
+
+  # ── CAPSULA — spot allungato (cilindro + due calotte) ───────────────────
+  - name: "caster_capsule"
+    type: "capsule"
+    point_a: [0.0, 0.30, 1.7]
+    point_b: [0.0, 1.00, 1.7]
+    radius: 0.30
+    material: "glass"
+    caustic_caster: true
+
+  # ── LENTE CSG — biconvessa: intersezione di due sfere ───────────────────
+  # Due sfere grandi traslate che si compenetrano: l'intersezione è una
+  # lente biconvessa che focalizza in uno spot stretto.
+  - name: "caster_csg_lens"
+    type: "csg"
+    operation: "intersection"
+    material: "glass"
+    caustic_caster: true
+    left:  { type: "sphere", center: [0.0, 0.5,  3.1], radius: 0.85 }
+    right: { type: "sphere", center: [0.0, 0.5,  2.5], radius: 0.85 }

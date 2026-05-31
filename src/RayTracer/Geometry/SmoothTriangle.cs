@@ -33,7 +33,7 @@ namespace RayTracer.Geometry;
 ///
 /// Implements ISamplable for area-light support (same as flat Triangle).
 /// </summary>
-public class SmoothTriangle : IHittable, ISamplable
+public class SmoothTriangle : IHittable, ISamplable, IManifoldSurface, IClampedChart
 {
     // ── Vertex positions ────────────────────────────────────────────────────
     public Vector3 V0 { get; }
@@ -193,7 +193,39 @@ public class SmoothTriangle : IHittable, ISamplable
 
         rec.ObjectSeed = Seed;
         rec.Material = Material;
+        rec.HitPrimitive = this;   // chart recovery for mesh caustic seeding
         return true;
+    }
+
+    // ── IManifoldSurface (MNEE / SMS chart) ──────────────────────────────────
+    // (u, v) are Möller–Trumbore barycentrics, NOT the interpolated texture UVs
+    // this triangle writes into HitRecord.U/V. The mesh seeder recomputes them
+    // from the hit point, so the parameterisation here is barycentric:
+    //   w0 = 1 − u − v (V0),  w1 = u (V1),  w2 = v (V2).
+    // The interpolated normal gives the chart its across-facet curvature. The
+    // affine map is evaluated even for (u, v) outside the triangle (Newton needs
+    // room to move within a small facet); the per-triangle clamp is enforced once
+    // at convergence by IClampedChart.Accept rather than strangling the solve.
+    public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
+    {
+        float w0 = 1f - u - v;
+        Vector3 p = w0 * V0 + u * V1 + v * V2;
+        Vector3 n = w0 * N0 + u * N1 + v * N2;
+        float nl = n.Length();
+        if (nl < 1e-12f) { pt = default; return false; }
+        pt = new ManifoldPoint(p, n / nl);
+        return true;
+    }
+
+    // Per-triangle clamp: a converged vertex is admissible only if it lies inside
+    // the facet that seeded it (a small tolerance absorbs round-off). Vertices
+    // that slid into a neighbour are dropped — the unbiased "miss" of per-triangle
+    // MNEE (full edge-crossing across the adjacency is a later phase).
+    public bool Accept(in ManifoldPoint pt)
+    {
+        Barycentric(pt.P, out float u, out float v);
+        const float e = 1e-3f;
+        return u >= -e && v >= -e && u + v <= 1f + e;
     }
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
@@ -231,6 +263,27 @@ public class SmoothTriangle : IHittable, ISamplable
     }
 
     public int Seed { get; set; }
+
+    /// <summary>
+    /// Recovers the Möller–Trumbore barycentrics (u along V0→V1, v along V0→V2)
+    /// of a point assumed to lie in this triangle's plane — the inverse of
+    /// <see cref="EvaluateManifold"/>. Used by <see cref="Mesh"/> to turn a
+    /// straight-segment hit point into the chart seed (u, v).
+    /// </summary>
+    public void Barycentric(Vector3 p, out float u, out float v)
+    {
+        Vector3 w = p - V0;
+        float d00 = Vector3.Dot(_edge1, _edge1);
+        float d01 = Vector3.Dot(_edge1, _edge2);
+        float d11 = Vector3.Dot(_edge2, _edge2);
+        float d20 = Vector3.Dot(w, _edge1);
+        float d21 = Vector3.Dot(w, _edge2);
+        float denom = d00 * d11 - d01 * d01;
+        if (MathF.Abs(denom) < 1e-20f) { u = 0f; v = 0f; return; }
+        float inv = 1f / denom;
+        u = (d11 * d20 - d01 * d21) * inv;
+        v = (d00 * d21 - d01 * d20) * inv;
+    }
 
     public AABB BoundingBox()
     {

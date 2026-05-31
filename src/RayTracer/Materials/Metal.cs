@@ -58,6 +58,21 @@ public sealed class Metal : IMaterial
     // any fuzz > 0 broadens the lobe into a sampleable GGX distribution.
     public bool IsDeltaScatter => Fuzz <= 0f;
 
+    // Reflective caustic caster: a metal focuses light by reflection. A perfect
+    // mirror (Fuzz = 0) is the smooth Phase-2 MNEE caster; any Fuzz > 0 becomes a
+    // rough Phase-2b (SMS) reflective caster carrying its GGX α (= Fuzz²). The
+    // tint is the conductor reflectance F0 (= albedo); the walker folds in the
+    // Schlick-conductor Fresnel from the converged geometry. IOR is unused for a
+    // reflective interface — a placeholder keeps the descriptor well-formed.
+    public CausticInterface GetCausticInterface(HitRecord rec)
+    {
+        Vector3 albedo = Albedo.Value(in rec);
+        if (Fuzz <= 0f)
+            return new CausticInterface(isTransmissive: false, ior: 1.0001f, tint: albedo, absorption: Vector3.Zero);
+        return new CausticInterface(isTransmissive: false, ior: 1.0001f, tint: albedo, absorption: Vector3.Zero,
+                                    alphaX: _alpha, alphaY: _alpha, roughness: Fuzz);
+    }
+
     /// <summary>
     /// Metal direct lighting (NEE integrand): full Cook-Torrance GGX BRDF
     /// times the cosine, with the metallic colour tint baked in via

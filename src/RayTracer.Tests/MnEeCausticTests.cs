@@ -19,7 +19,7 @@ public class MnEeCausticTests
     private static CausticCasterRegistry.Caster GlassSphere(Vector3 center, float radius, float ior)
     {
         var s = new Sphere(center, radius, new Dielectric(ior));
-        return new CausticCasterRegistry.Caster(s, s, s.BoundingBox());
+        return new CausticCasterRegistry.Caster(s, new AnalyticManifoldCaster(s, s), s.BoundingBox());
     }
 
     [Fact]

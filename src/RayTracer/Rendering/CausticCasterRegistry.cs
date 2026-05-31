@@ -27,15 +27,15 @@ public sealed class CausticCasterRegistry
     {
         /// <summary>Geometry for the seeding ray intersection (carries material + U/V).</summary>
         public readonly IHittable Hittable;
-        /// <summary>Parametric evaluator for the Newton manifold walk.</summary>
-        public readonly IManifoldSurface Surface;
+        /// <summary>Per-vertex seed producer for the Newton manifold walk.</summary>
+        public readonly IManifoldCaster Seeder;
         /// <summary>Cached world-space bounds for the segment cull.</summary>
         public readonly AABB Box;
 
-        public Caster(IHittable hittable, IManifoldSurface surface, AABB box)
+        public Caster(IHittable hittable, IManifoldCaster seeder, AABB box)
         {
             Hittable = hittable;
-            Surface  = surface;
+            Seeder   = seeder;
             Box      = box;
         }
     }
@@ -51,11 +51,34 @@ public sealed class CausticCasterRegistry
         var list = new List<Caster>(casters.Count);
         foreach (var h in casters)
         {
-            if (h is IManifoldSurface surf)
-                list.Add(new Caster(h, surf, h.BoundingBox()));
+            var seeder = BuildSeeder(h);
+            if (seeder != null)
+            {
+                // Mesh casters need their facet adjacency built once here, on the
+                // single-threaded registration path, so the caustic neighbor-seed
+                // retry runs lock-free during the parallel render.
+                if (seeder is Mesh mesh) mesh.PrepareCausticAdjacency();
+                list.Add(new Caster(h, seeder, h.BoundingBox()));
+            }
         }
         _casters = list.ToArray();
     }
+
+    /// <summary>
+    /// Selects the seeding strategy for a flagged caster: a geometry that already
+    /// knows how to seed itself (mesh, CSG) is used directly; a <see cref="Transform"/>
+    /// picks analytic-vs-baked-mesh internally; any other single-chart
+    /// <see cref="IManifoldSurface"/> (the curved primitives) is wrapped in an
+    /// <see cref="AnalyticManifoldCaster"/>. Returns null when the geometry cannot
+    /// focus light, so the loader's gate and this builder agree.
+    /// </summary>
+    internal static IManifoldCaster? BuildSeeder(IHittable h) => h switch
+    {
+        Transform tr            => tr.CreateManifoldCaster(),
+        IManifoldCaster mc      => mc,
+        IManifoldSurface surf   => new AnalyticManifoldCaster(h, surf),
+        _                       => null,
+    };
 
     public ReadOnlySpan<Caster> Casters => _casters;
 

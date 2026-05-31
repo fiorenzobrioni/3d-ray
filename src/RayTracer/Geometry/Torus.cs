@@ -43,7 +43,7 @@ namespace RayTracer.Geometry;
 /// Implements ISamplable for use as an emissive area light with NEE.
 /// Surface area = 4π²Rr.
 /// </summary>
-public class Torus : IHittable, ISamplable
+public class Torus : IHittable, ISamplable, IManifoldSurface
 {
     /// <summary>Distance from the torus center to the center of the tube.</summary>
     public float MajorRadius { get; }
@@ -293,6 +293,7 @@ public class Torus : IHittable, ISamplable
 
         rec.ObjectSeed = Seed;
         rec.Material = Material;
+        rec.HitPrimitive = this;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -397,5 +398,26 @@ public class Torus : IHittable, ISamplable
         return new AABB(
             new Vector3(-extent, -MinorRadius, -extent),
             new Vector3(extent, MinorRadius, extent));
+    }
+
+    // ── IManifoldSurface (MNEE / SMS chart) ──────────────────────────────────
+    // Inverse of the toroidal UV (φ = 2πu − π, θ = 2πv − π). The torus is
+    // origin-centred (world placement is via Transform), so:
+    //   P = ((R + r·cosθ)·cosφ, r·sinθ, (R + r·cosθ)·sinφ)
+    //   N = (cosθ·cosφ, sinθ, cosθ·sinφ)
+    // Both u and v wrap freely (closed surface); the only degeneracy, the inner
+    // throat collapsing (R + r·cosθ ≤ 0), cannot occur for a valid ring R > r.
+    public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
+    {
+        float phi   = 2f * MathF.PI * u - MathF.PI;
+        float theta = 2f * MathF.PI * v - MathF.PI;
+        float cphi = MathF.Cos(phi),   sphi = MathF.Sin(phi);
+        float cth  = MathF.Cos(theta), sth  = MathF.Sin(theta);
+        float rr = MajorRadius + MinorRadius * cth;
+        if (rr <= 1e-6f) { pt = default; return false; }
+        Vector3 p = new(rr * cphi, MinorRadius * sth, rr * sphi);
+        Vector3 n = new(cth * cphi, sth, cth * sphi);
+        pt = new ManifoldPoint(p, n);
+        return true;
     }
 }

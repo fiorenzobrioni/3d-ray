@@ -79,22 +79,22 @@ Il raggio non viene rifratto né perturbato: viaggia in linea retta. Questo sign
 - ✅ Vetri colorati con `transmission_depth` proiettano ombra tinta via Beer-Lambert.
 - ✅ Color bleeding diffuso attraverso uno specchio o un vetro tinto.
 - ✅ (con `--caustics on`) Caustiche focalizzate attraverso superfici marcate `caustic_caster`: vedi §2.5. Senza caustiche attive lo spot focalizzato viene solo dal path tracing forward indiretto, con varianza alta.
-- ❌ Vetro frosted/rough (Disney `roughness > 0` con `spec_trans > 0`): lo shadow ray va dritto come fosse vetro liscio, e anche MNEE (§2.5) tratta solo interfacce perfettamente speculari. Una soft-transmission GGX richiede Specular Manifold Sampling stocastico, rimandato.
+- ✅ (con `--caustics on`) Vetro frosted/rough (Disney `roughness > 0.04` con `spec_trans ≥ 0.5`) e metallo spazzolato: la caustica soft GGX è ricostruita con **Specular Manifold Sampling** (§2.5.1), un'estensione stocastica della manifold. Senza caustiche attive lo shadow ray va dritto come fosse vetro liscio e la soft-transmission resta affidata al path tracing forward (varianza alta).
 
-Per il vetro frosted servono Specular Manifold Sampling o photon mapping / VCM. Vedi la sezione *Roadmap caustiche* del `PLANNING.md`.
+Il vetro frosted è coperto da Specular Manifold Sampling (§2.5.1); le caustiche multi-bounce/dispersive restano per il photon mapping / VCM. Vedi la sezione *Roadmap caustiche* del `PLANNING.md`.
 
 ### 2.5 Caustiche Focalizzate — Manifold Next Event Estimation (MNEE)
 
 Lo shadow ray dritto di §2.3 non può riprodurre la **caustica focalizzata** — lo spot luminoso che una lente o una sfera di vetro concentra su una superficie. Quella luce richiede di seguire il cammino corretto secondo Snell: `x → p₁ (→ p₂) → luce`, dove `p₁, p₂` sono i vertici speculari sul vetro. Con `--caustics on` il motore risolve questo cammino con **MNEE** (Manifold Next Event Estimation): un solver di Newton-Raphson sulla *manifold speculare* (`Rendering/ManifoldWalker.cs`).
 
 **Opt-in.** MNEE è attivo solo per entità marcate in YAML:
-- `caustic_caster: true` — vetro/cristallo liscio (`dielectric`, oppure Disney con `spec_trans ≥ 0.5` e `roughness ≤ 0.04`) o specchio liscio, che focalizza la luce. In Fase 2 il caster dev'essere valutabile parametricamente: **sfera** (anche dentro un `Transform`).
+- `caustic_caster: true` — superficie che focalizza la luce: vetro/cristallo (`dielectric`, oppure Disney con `spec_trans ≥ 0.5`) **liscio** (`roughness ≤ 0.04`, via MNEE) o **frosted** (`roughness > 0.04`, via SMS — §2.5.1); specchio/metallo (`metal`, o Disney `metallic ≈ 1`) liscio o spazzolato. La geometria dev'essere abbastanza **curva** da focalizzare: **primitive curve** (sfera, cilindro, cono, capsula, toro — anche dentro un `Transform`), **mesh smooth** (normali per-vertice) e **solidi CSG con frontiera curva**. Le superfici piatte (box/quad/disco/piano), le mesh flat-shaded e gli heightfield non focalizzano (warning + fallback allo shadow ray).
 - `caustic_receiver: true` — la superficie (tipicamente diffusa, o il `ground`) su cui le caustiche vengono raccolte. Solo i punti di shading con questo flag pagano il costo del walk.
 
 Costo zero quando i flag non sono presenti o con `--caustics off`.
 
 **Algoritmo.** Per ogni punto ricevente `x` e ogni punto `y` campionato sulla luce d'area:
-1. **Seeding** — il segmento dritto `x→y` attraversa il caster in 1 o 2 punti (entrata/uscita di un vetro solido); i loro `(u,v)` inizializzano il walk.
+1. **Seeding** — il segmento dritto `x→y` attraversa il caster in 1 o 2 punti (entrata/uscita di un vetro solido); i loro `(u,v)` inizializzano il walk. Il walk porta **una *chart* per vertice** (`IManifoldCaster`/`ManifoldSeed`): per una primitiva curva la chart è l'intera superficie analitica; per una **mesh** è il singolo triangolo colpito (`SmoothTriangle`, baricentriche ricavate dal punto via il BVH interno); per un **CSG** è la primitiva curva sottostante (recuperata da `HitRecord.HitPrimitive`). Così le due interfacce di una rifrazione possono vivere su chart diverse.
 2. **Newton-Raphson** — le incognite sono i `(u,v)` di ogni vertice; il residuo è la componente tangenziale dell'half-vector generalizzato `ĥ = η_a·ω_a + η_b·ω_b` (zero ⇔ `ĥ ∥ n` ⇔ Snell/riflessione). Lo stesso residuo unifica riflessione (η = 1 ai due lati) e rifrazione a 1 o 2 interfacce — il rapporto η per lato è scelto dalla geometria (`dot(endpoint − p, n) > 0 ⇒ aria, altrimenti vetro`). Lo Jacobiano è per differenze finite in `(u,v)` (solo aritmetica, niente ray cast nel loop).
 3. **Termine geometrico** — l'integrale di illuminazione diretta viene riparametrizzato da angolo solido al ricevente ad area sulla luce: `L = f_r(x,ω_x)·L_e(y)·T·G/pdf_A(y)`, con `T` il prodotto delle trasmissioni di Fresnel e dell'assorbimento Beer-Lambert interno, e `G = dΩ_x/dA_y` il termine geometrico generalizzato. `G` è calcolato perturbando `y` sul piano della luce e ri-risolvendo la manifold (differenze finite di ray differentials attraverso la catena speculare); per una connessione banale si riduce al consueto `cosθ_y/r²`.
 
@@ -104,7 +104,22 @@ Costo zero quando i flag non sono presenti o con `--caustics off`.
 
 Così la caustica è prodotta **esclusivamente** da MNEE, a peso pieno.
 
-**Limiti Fase 2.** Caster speculari lisci valutabili parametricamente (sfera/sfera trasformata); catene fino a 2 interfacce (vetro solido); luci d'area/geometriche (non le luci delta puntiformi/direzionali, né l'ambiente). Vetro frosted (`roughness > 0`) e caustiche multi-bounce/dispersive restano per le fasi successive (vedi `PLANNING.md`).
+**Clamp di dominio.** Ogni chart limita il vertice convergente al proprio dominio. Le primitive curve clampano nativamente in `EvaluateManifold` (una sola chart ampia, nessuna fragilità). Le **mesh** usano un *clamp per-triangolo*: Newton può muoversi liberamente sul piano del triangolo (estrapolazione affine, così non si blocca sui triangoli piccoli) e il vincolo "vertice dentro il triangolo del seed" è applicato **a convergenza** via `IClampedChart.Accept`; un vertice che scivola nel triangolo adiacente viene recuperato dal **retry neighbor-seed** (tier 1 dell'edge-crossing): la `Mesh` espone l'adiacenza dei facet (`INeighborSeedCaster`) e `ManifoldWalker` ri-risolve lo stesso solve riseminando il vertice colpevole sul centroide di ogni facet vicino — il clamp del vicino accetta solo se il vertice ci atterra davvero, quindi resta non distorto. Recupera solo i vertici a **una faccia** dal seed; quelli più lontani (mesh coarse molto curve) restano persi → l'edge-walk in-solve attraverso l'adiacenza è una fase futura (tier 2). Il **CSG** è l'analogo: il vertice è accettato solo se cade sulla frontiera del risultato booleano (test di membership `ContainsPoint` ai due lati della normale); un guscio sottile focalizza poco.
+
+**Limiti.** Geometria curva (primitive, mesh smooth, CSG con frontiera curva); catene fino a 2 interfacce (vetro solido); luci d'area/geometriche (**non** le luci delta puntiformi/direzionali, né l'ambiente — l'estimatore campiona un punto sull'*area* dell'emettitore, che una sorgente Dirac non possiede; una `directional` con `angular_radius > 0` non è delta e casta). Le interfacce dielettrico-dielettrico annidate ("vetro dentro vetro") sono rese con un film d'aria spurio: l'IOR è sempre calcolato contro l'aria, manca l'IOR relativo dallo stack dei media. Mesh edge-crossing in-solve (tier 2), planar-mirror NEE e caustiche multi-bounce/dispersive restano per le fasi successive (vedi `PLANNING.md`).
+
+#### 2.5.1 Vetro frosted — Specular Manifold Sampling (SMS)
+
+Per un caster **liscio** la MNEE risolve *l'unico* cammino speculare. Per un caster **rough** (frosted glass, metallo spazzolato) il microfacet è distribuito secondo GGX: non esiste un cammino unico ma un continuo. **Specular Manifold Sampling** (`ManifoldWalker.ConnectRough`) lo gestisce così:
+
+1. **Campionamento del microfacet** — a ogni vertice del caster si campiona una normale di microfaccetta `m` dalla VNDF GGX del materiale (visibile dalla direzione incidente lato-ricevente), nel frame tangente della superficie.
+2. **Residuo generalizzato** — il walk di Newton impone che l'half-vector generalizzato `ĥ = η_a·ω_a + η_b·ω_b` sia parallelo a `m` invece che alla normale geometrica `n`. Il caso liscio è l'offset nullo (`m = n`), quindi è esattamente la MNEE di §2.5. L'offset resta **fisso durante l'iterazione**, perciò lo Jacobiano per differenze finite e il termine geometrico `G` sono invariati.
+3. **Throughput rough** — il fattore di Fresnel è valutato contro `m`, moltiplicato per il termine di shadowing-masking di Smith `G1(L)` (il campionamento VNDF cancella `D` e il `G1(V)` lato-vista, lasciando esattamente lo stesso peso BSDF/pdf dello scatter rough-glass). La riflessione rough usa il Fresnel di **Schlick-conduttore** con `F0 = tint`. Beer-Lambert interno invariato.
+4. **Stima** — ogni prova è un campione dello **stimatore biased**; il renderer media `--sms-samples` prove indipendenti per connessione rough (default 4; 8 per i preset `final`/`ultra`). Il bias è controllato e tende a zero quando `roughness → 0`.
+
+**Costo.** Zero senza entità marcate o con `--caustics off`, e il percorso liscio resta bit-identico. Sui pixel `caustic_receiver` che vedono un caster rough il costo è circa `N×` una connessione MNEE liscia, con `N = --sms-samples`.
+
+**Limiti SMS.** Stimatore biased (la variante unbiased a probabilità reciproca è una fase successiva); l'`α` del caster è anisotropo ma il frame tangente usato è quello geometrico (anisotropia in fallback isotropo).
 
 ### 2.4 Conservazione dell'Area per Emissivi Trasformati (Jacobian)
 

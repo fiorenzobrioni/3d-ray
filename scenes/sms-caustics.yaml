@@ -1,0 +1,62 @@
+# Specular Manifold Sampling (SMS) caustics showcase — Phase 2b.
+# A frosted (rough) glass sphere focuses a soft caustic onto the floor, and a
+# brushed-metal sphere casts a rough reflective caustic. Render with caustics on:
+#   dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#     -i scenes/sms-caustics.yaml -o renders/sms-caustics.png -q final --caustics on
+# (final/ultra presets enable --caustics automatically.)
+
+camera:
+  position: [0, 5.0, 8]
+  look_at: [0, 0.6, 0]
+  fov: 38
+
+world:
+  sky:
+    type: "flat"
+    color: [0.02, 0.02, 0.03]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0
+    caustic_receiver: true
+
+entities:
+  - name: "frosted_glass_ball"
+    type: "sphere"
+    center: [-1.6, 1.3, 0]
+    radius: 1.0
+    material: "frosted_glass"
+    caustic_caster: true
+
+  - name: "brushed_metal_ball"
+    type: "sphere"
+    center: [1.8, 1.1, -0.3]
+    radius: 0.9
+    material: "brushed_metal"
+    caustic_caster: true
+
+lights:
+  - type: area
+    corner: [-0.6, 6.5, -0.6]
+    u: [1.2, 0.0, 0.0]
+    v: [0.0, 0.0, 1.2]
+    color: [1.0, 0.97, 0.92]
+    intensity: 70.0
+    shadow_samples: 6
+
+materials:
+  - id: "floor"
+    type: "lambertian"
+    color: [0.6, 0.6, 0.62]
+
+  - id: "frosted_glass"
+    type: "disney"
+    color: [0.95, 0.98, 1.0]
+    spec_trans: 1.0
+    roughness: 0.12
+    ior: 1.5
+
+  - id: "brushed_metal"
+    type: "metal"
+    color: [0.95, 0.78, 0.45]
+    fuzz: 0.12

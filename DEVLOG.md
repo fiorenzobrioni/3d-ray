@@ -6,6 +6,208 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Mesh Neighbor-Seed — edge-crossing tier 1 ✅
+
+Prima tappa della **Strada 2d** (`PLANNING.md`): far castare le **mesh
+triangolari**. Il limite di 2c era il clamp per-triangolo — quando il vertice di
+Newton converge appena oltre il bordo del triangolo del seed, `IClampedChart.Accept`
+lo scarta e la connessione è persa, così le mesh smooth fortemente curve castavano
+poco o nulla.
+
+**Approccio scelto (neighbor-seed):** retry **lato chiamante** che lascia il
+solver numerico condiviso intatto — niente rischio di regressione sui caster
+analitici/CSG già funzionanti. Quando il solve primario è rigettato, si ri-semina
+il vertice colpevole su ogni facet **adiacente** e si ri-risolve lo *stesso* solve;
+il clamp del vicino accetta solo se il vertice ci atterra davvero → stimatore
+**unbiased** (una connessione recuperata è quella che il facet del seed avrebbe
+dovuto produrre). Scartata la variante in-solve (hand-off del chart dentro Newton)
+perché tocca il codice numerico più delicato e va certificata come non-distorta:
+resta come tier 2 in roadmap, costruibile sopra questa adiacenza.
+
+**Implementato:**
+- `Mesh` → `INeighborSeedCaster`: adiacenza dei facet costruita una volta in
+  `PrepareCausticAdjacency()` (vertici saldati per posizione su griglia 1e-5,
+  mappa edge→triangoli, vicini per-triangolo). `FacetNeighbors(seed, span)`
+  restituisce le chart adiacenti al facet del seed, riseminata al centroide.
+- `CausticCasterRegistry` chiama `PrepareCausticAdjacency` sul percorso di
+  registrazione **single-thread**, così il retry gira lock-free nel render parallelo.
+- `ManifoldWalker`: `Connect`/`ConnectRough` rifattorizzati estraendo
+  `TrySmooth`/`TryRough` (solve da seed esplicito) + `RetryNeighborSeeds` (ciclo
+  sui vicini, primo successo vince). Nuova `INeighborSeedCaster` solo su `Mesh`:
+  i caster che non la implementano (analitici, CSG) prendono il ramo identico
+  **bit-per-bit** (516 test invariati).
+
+**Limite (documentato):** recupera solo vertici a **una faccia** dal seed; mesh
+coarse molto curve restano più rumorose/deboli degli analitici (verificato a
+render: la sfera-mesh di vetro casta una caustica speckled vs ~nulla di prima).
+Vertici a distanza arbitraria → tier 2 (edge-walk in-solve).
+
+**Test:** `MeshCausticTests` — adiacenza (`FacetNeighbors` trova il facet
+edge-adiacente, lone facet = 0 vicini), connessione **off-axis** attraverso la
+sfera-mesh che un walk solo-clamp scarterebbe, registry che prepara l'adiacenza.
+Suite completa **519 verde**.
+
+**Nota di scoping emersa (in `PLANNING.md`):** le **luci delta** (point/spot)
+non innescano caustiche — MNEE/SMS campiona un punto sull'*area* dell'emettitore,
+assente in una sorgente Dirac; e il **"vetro dentro vetro"** è reso con un film
+d'aria spurio perché l'IOR è sempre calcolato contro l'aria (manca l'IOR relativo
+dallo stack dei media). Entrambi restano roadmap; `cristallo.yaml` tiene flag e
+luce in attesa del secondo.
+
+---
+
+## Ciclo Caster Fase 2c — caustiche su tutta la geometria ✅
+
+Implementazione della **Strada 2c** della roadmap caustiche (`PLANNING.md`):
+estendere i caster di caustiche dalle **sole sfere** a **tutta la geometria
+curva** — primitive (cilindro, cono, capsula, toro), **mesh smooth** e solidi
+**CSG**. Opt-in, costo zero senza flag, percorso analitico **bit-identico** a
+prima del ciclo. Costruito estendendo l'infrastruttura MNEE/SMS, non riscrivendola.
+
+**Cardine: una chart per vertice.** Prima il walker (`Rendering/ManifoldWalker.cs`)
+portava **una** `IManifoldSurface` per tutta la connessione — sufficiente per una
+sfera (chart unica), impossibile per una mesh dove le due interfacce di una
+rifrazione stanno su **triangoli diversi**. Il walker ora porta
+`ReadOnlySpan<IManifoldSurface> surfs` (una chart per vertice), passato giù a
+`Solve`/`Evaluate`/`ComputeGeometricTerm`/`ResolveWiPerturbed`. Le chart sono
+reference type → non `stackalloc`-abili: vivono in due `[InlineArray]` sullo stack
+(`SeedBuf`/`SurfBuf`), zero heap sull'hot path. Per le primitive analitiche tutte
+le `surfs[i]` sono lo stesso oggetto → output identico → `MnEeCausticTests` /
+`SmsCausticTests` invariati.
+
+**Astrazione di seeding (`Geometry/IManifoldCaster.cs`).** Il seeding (l'unica
+parte geometria-specifica) è dietro `IManifoldCaster.SeedManifold(x, y, ci,
+seeds, out k)` che riempie `ManifoldSeed { Chart, Uv }`. Implementazioni:
+- `Rendering/AnalyticManifoldCaster.cs` — primitive a chart unica (sfera,
+  cilindro, cono, capsula, toro, anche sotto `Transform`): ray-cast del segmento
+  per le crossing rifrattive, scan 8×4 per il seed riflessivo (la logica che
+  prima era inline nel walker).
+- `Mesh` — ray-cast sul **BVH interno**; per ogni crossing la chart è il triangolo
+  colpito (recuperato da `HitRecord.HitPrimitive`), con baricentriche ricavate dal
+  punto (`SmoothTriangle.Barycentric`).
+- `CsgObject` — ray-cast sul risultato booleano; la chart è la **primitiva curva
+  sottostante** (il `SurfaceHit.Rec` del combinatore propaga `HitPrimitive`).
+- `Transform.CreateManifoldCaster()` — inner analitico → `AnalyticManifoldCaster`
+  con `this` come chart; inner mesh → **bake** una mesh world-space una tantum.
+
+**`EvaluateManifold` sulle primitive curve.** Cilindro, cono, capsula e toro
+implementano `IManifoldSurface` invertendo le convenzioni UV dei rispettivi `Hit`
+(verificato per round-trip in `MeshCausticTests`): solo le superfici curve
+(niente cappe piatte), così la caustica nasce dalla curvatura reale.
+
+**Modello di clamp (`IClampedChart`).** Il vincolo "vertice nel dominio" non gira
+*dentro* Newton per le mesh — strozzerebbe il solve sui triangoli piccoli (il
+vertice deve potersi muovere, e quasi sempre parte vicino a un bordo). Le mesh
+**estrapolano** il piano del triangolo durante Newton e applicano il clamp
+per-triangolo **a convergenza** via `IClampedChart.Accept` (baricentriche dentro
+il triangolo del seed). Il CSG è l'analogo: `Accept` tiene il vertice solo se sta
+sulla **frontiera del risultato booleano**, testato con `CsgObject.ContainsPoint`
+ai due lati della normale (parità di crossing per-figlio, composta per operazione).
+Le primitive curve mantengono il clamp nativo in `EvaluateManifold` (una sola
+chart ampia, nessuna fragilità).
+
+**Gate & warning (`Scene/SceneLoader.cs`).** `CanCastCaustics(hittable, out
+reason)` sostituisce il vecchio `is IManifoldSurface`: accetta primitive curve
+(anche via `Transform`), mesh con normali per-vertice (`Mesh.HasVertexNormals`) e
+CSG con frontiera curva (`CsgHasCurvedBoundary`); rifiuta con warning specifico
+piatte/flat-mesh/CSG-piatto. In lock-step con `CausticCasterRegistry.BuildSeeder`.
+
+**Limite noto (deferito a 2d).** Per le mesh vale il **clamp per-triangolo**: una
+connessione il cui vertice speculare scivola nel triangolo adiacente viene persa
+(caustica non distorta, solo qualche connessione in meno — visibile su mesh
+grossolane). L'edge-crossing con adiacenza e la planar-mirror NEE sono Fase 2d.
+
+**Scene.** `cristallo.yaml` (vino/stelo/coppa CSG come caster → caustica rossa del
+vino sul tavolo), `cornell-box-sphere.yaml` (variante a 3 sfere con caustiche
+rifrattiva + riflessa) e lo showcase `sms-ice-caustics.yaml` (cubetto di ghiaccio
+mesh frosted + tumbler CSG di vetro). Test: `MeshCausticTests` + `CsgCausticTests`
+(suite 516 verde).
+
+---
+
+## Ciclo SMS Fase 2b — Specular Manifold Sampling ✅
+
+Implementazione della **Strada 2b** della roadmap caustiche (`PLANNING.md`):
+**Specular Manifold Sampling** (Zeltner, Georgiev & Jakob 2020; Hanika et al.
+2015), le caustiche da vetro **frosted/rough** e da metallo **spazzolato** che la
+MNEE liscia della Fase 2 non può produrre. Opt-in, single-pass, zero memoria
+extra, costruito riusando l'infrastruttura MNEE — non un solver separato.
+
+**Cosa risolve.** Per un caster liscio la MNEE risolve *l'unico* cammino
+speculare (`ĥ = η_a·ω_a + η_b·ω_b ∥ n`). Per un caster rough il microfacet è
+distribuito (GGX): non c'è un cammino unico ma un continuo. SMS campiona una
+**normale di microfaccetta `m`** dalla VNDF del caster e risolve la manifold
+imponendo `ĥ ∥ m`; il caso liscio è l'offset nullo (`m = n`). Una sfera di vetro
+smerigliato marcata `caustic_caster` proietta così un alone morbido (non lo spot
+netto della lente liscia) sul `caustic_receiver`, e un metallo `fuzz > 0` una
+caustica riflessiva sfocata.
+
+**Generalizzazione del residuo (`Rendering/ManifoldWalker.cs`).** Il residuo di
+Newton è esteso con un offset di microfaccetta per vertice (span locale, vuoto =
+liscio): `m` è ricostruito dal frame tangente di Frisvad
+(`Microfacet.BuildTangentFrame`), e `F = (Dot(s_m, ĥ), Dot(t_m, ĥ))` con `(s_m,
+t_m)` ONB attorno a `m`. L'offset è **costante durante la Newton iteration**,
+quindi il Jacobiano per differenze finite in `(u,v)` resta invariato. Nuovo entry
+`ConnectRough` (seeding condiviso con `Connect`, poi un campione VNDF per vertice
+visto dalla direzione incidente lato-receiver → `Solve` con offset fisso). Tutto
+`stackalloc`/`Span`, zero heap nell'hot path; i draw VNDF passano per
+`MathUtils.RandomFloat()` → stesso stream Sobol/PRNG di NEE (deterministico sotto
+`Sampler.BeginPixelSample`).
+
+**Stimatore biased (Zeltner §4.1).** Per prova: campiona `m` dalla VNDF, risolve a
+offset fisso, pesa con `f_rough(m)/p_vndf(m) · T · G / pdf_A`. La cancellazione
+VNDF collassa `f/p` a `Fresnel(m) · G1(L)` — **identica a
+`DisneyBsdf.ScatterTransmission`** (`D` e `G1(V)` cancellati dal sampling), quindi
+il throughput rough riusa la stessa derivazione. `G = dΩ_x/dA_y` è il termine
+geometrico MNEE ri-calcolato perturbando la luce **con lo stesso offset fisso**.
+Il `Renderer` (`ComputeCaustics`) media `--sms-samples` prove per connessione
+rough (`invSamples / _smsSamples`); helper `AccumulateCaustic` condiviso fra il
+ramo liscio e quello rough, con gli early-out a buon mercato (orientazione,
+`EvaluateDirect == 0`, throughput morto) **prima** dei 2 ray di occlusione.
+Il bias è controllato e →0 con `roughness → 0`; lo stimatore **unbiased** a
+probabilità reciproca (§4.2) è deferito alla Fase 2c (hook lasciato nel walker) —
+control-flow diverso, code lunghe a rischio budget per-pixel.
+
+**Riflessione rough.** Il ramo riflettente della MNEE (`SeedReflection`,
+`IsTransmissive = false`), prima presente ma inutilizzato (nessun materiale
+emetteva un caster riflettente), è ora alimentato da `Metal.GetCausticInterface`
+(`fuzz = 0` → mirror liscio, `fuzz > 0` → SMS riflettente, `α = fuzz²`) e dalla
+lobe metallica di `DisneyBsdf` (`metallic ≈ 1`). Il Fresnel riflettente è passato
+a **Schlick-conduttore** con `F0 = tint` (riflettanza del metallo), corretto per
+i conduttori dove il vecchio Fresnel dielettrico era sbagliato.
+
+**Opt-in & CLI.** `CausticInterface` esteso con `IsRough`/`AlphaX`/`AlphaY`/
+`Roughness` (secondo costruttore; quello liscio resta source-compatibile).
+`DisneyBsdf.GetCausticInterface` non scarta più `roughness > 0.04`: ritorna un
+caster rough rifrattivo (o riflettente metallico) con l'`α` anisotropo mappato
+come `ShadingParams`. Nuovo flag `--sms-samples <n>` (default 4); i preset
+quality **final/ultra** attivano `--caustics on` di default (innocuo senza entità
+marcate — registro vuoto → costo zero) con `sms-samples 8`; un `--caustics`
+esplicito vince sul preset.
+
+**Impatto performance.** Costo zero con `--caustics off` o senza entità marcate
+(gate `_causticsActive` invariato). Percorso liscio bit-identico (un solo branch
+inlinato `rough` mai preso; `MnEeCausticTests` resta verde). Sui pixel
+`caustic_receiver` che vedono un caster rough: ~`N×` una connessione MNEE liscia,
+con `N = --sms-samples` (ogni prova ≈ 1 solve + 1 Jacobiano + 2 ray di
+occlusione). Whole-frame dipende dalla copertura a schermo dei riceventi rough.
+
+**Marcatura per-entità (confermata).** Resta a livello di entità
+(`caustic_caster`/`caustic_receiver`) + capacità per-materiale
+(`GetCausticInterface` → `None` se non idoneo): il materiale dice «posso?»,
+l'entità «devo, qui?». Identico al design "Shadow Caustics" per-oggetto di Cycles;
+il costo SMS scala con le coppie caster×receiver, quindi l'opt-in per entità
+mantiene lo scope stretto. Sempre-on di default sarebbe un disastro di performance
+e non è ciò che fa nessun renderer di produzione per la MNEE.
+
+**Limiti Fase 2b / follow-up.** Stimatore unbiased (2c); anisotropia del caster
+in fallback isotropo (l'`α` è anisotropo ma il frame è geometrico); caster
+ancora solo sferici (eredita il limite `IManifoldSurface`); catene ≤ 2
+interfacce; luci d'area (non delta/ambiente). Dove il Newton non converge la
+caustica di quella prova è persa (innocuo, biased).
+
+---
+
 ## Ciclo Caustiche Fase 2 — MNEE ✅
 
 Implementazione della **Strada 2** della roadmap caustiche (`PLANNING.md`):

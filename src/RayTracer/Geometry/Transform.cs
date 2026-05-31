@@ -198,6 +198,24 @@ public class Transform : IHittable, ISamplable, IManifoldSurface
         return false;
     }
 
+    /// <summary>
+    /// Builds the <see cref="IManifoldCaster"/> for this transformed geometry when
+    /// it is flagged <c>caustic_caster</c>. A single-chart analytic primitive maps
+    /// through this Transform (which is itself the <see cref="IManifoldSurface"/>
+    /// chart), so the seeding rays still run against <c>this</c> in world space. A
+    /// mesh is instead baked once into world space — its triangles become
+    /// world-space charts directly, so no per-call wrapper is needed. Other
+    /// geometry (e.g. a transformed CSG) is not supported here and returns null.
+    /// </summary>
+    public IManifoldCaster? CreateManifoldCaster()
+    {
+        if (_object is Mesh mesh)
+            return mesh.BakeWorldSpace(_transform, _normalMatrix);
+        if (_object is IManifoldSurface)
+            return new Rendering.AnalyticManifoldCaster(this, this);
+        return null;
+    }
+
     public AABB BoundingBox() => _worldBox;
 
     private static AABB ComputeWorldBox(AABB local, Matrix4x4 transform)
