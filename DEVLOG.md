@@ -6,6 +6,75 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Caster Fase 2c — caustiche su tutta la geometria ✅
+
+Implementazione della **Strada 2c** della roadmap caustiche (`PLANNING.md`):
+estendere i caster di caustiche dalle **sole sfere** a **tutta la geometria
+curva** — primitive (cilindro, cono, capsula, toro), **mesh smooth** e solidi
+**CSG**. Opt-in, costo zero senza flag, percorso analitico **bit-identico** a
+prima del ciclo. Costruito estendendo l'infrastruttura MNEE/SMS, non riscrivendola.
+
+**Cardine: una chart per vertice.** Prima il walker (`Rendering/ManifoldWalker.cs`)
+portava **una** `IManifoldSurface` per tutta la connessione — sufficiente per una
+sfera (chart unica), impossibile per una mesh dove le due interfacce di una
+rifrazione stanno su **triangoli diversi**. Il walker ora porta
+`ReadOnlySpan<IManifoldSurface> surfs` (una chart per vertice), passato giù a
+`Solve`/`Evaluate`/`ComputeGeometricTerm`/`ResolveWiPerturbed`. Le chart sono
+reference type → non `stackalloc`-abili: vivono in due `[InlineArray]` sullo stack
+(`SeedBuf`/`SurfBuf`), zero heap sull'hot path. Per le primitive analitiche tutte
+le `surfs[i]` sono lo stesso oggetto → output identico → `MnEeCausticTests` /
+`SmsCausticTests` invariati.
+
+**Astrazione di seeding (`Geometry/IManifoldCaster.cs`).** Il seeding (l'unica
+parte geometria-specifica) è dietro `IManifoldCaster.SeedManifold(x, y, ci,
+seeds, out k)` che riempie `ManifoldSeed { Chart, Uv }`. Implementazioni:
+- `Rendering/AnalyticManifoldCaster.cs` — primitive a chart unica (sfera,
+  cilindro, cono, capsula, toro, anche sotto `Transform`): ray-cast del segmento
+  per le crossing rifrattive, scan 8×4 per il seed riflessivo (la logica che
+  prima era inline nel walker).
+- `Mesh` — ray-cast sul **BVH interno**; per ogni crossing la chart è il triangolo
+  colpito (recuperato da `HitRecord.HitPrimitive`), con baricentriche ricavate dal
+  punto (`SmoothTriangle.Barycentric`).
+- `CsgObject` — ray-cast sul risultato booleano; la chart è la **primitiva curva
+  sottostante** (il `SurfaceHit.Rec` del combinatore propaga `HitPrimitive`).
+- `Transform.CreateManifoldCaster()` — inner analitico → `AnalyticManifoldCaster`
+  con `this` come chart; inner mesh → **bake** una mesh world-space una tantum.
+
+**`EvaluateManifold` sulle primitive curve.** Cilindro, cono, capsula e toro
+implementano `IManifoldSurface` invertendo le convenzioni UV dei rispettivi `Hit`
+(verificato per round-trip in `MeshCausticTests`): solo le superfici curve
+(niente cappe piatte), così la caustica nasce dalla curvatura reale.
+
+**Modello di clamp (`IClampedChart`).** Il vincolo "vertice nel dominio" non gira
+*dentro* Newton per le mesh — strozzerebbe il solve sui triangoli piccoli (il
+vertice deve potersi muovere, e quasi sempre parte vicino a un bordo). Le mesh
+**estrapolano** il piano del triangolo durante Newton e applicano il clamp
+per-triangolo **a convergenza** via `IClampedChart.Accept` (baricentriche dentro
+il triangolo del seed). Il CSG è l'analogo: `Accept` tiene il vertice solo se sta
+sulla **frontiera del risultato booleano**, testato con `CsgObject.ContainsPoint`
+ai due lati della normale (parità di crossing per-figlio, composta per operazione).
+Le primitive curve mantengono il clamp nativo in `EvaluateManifold` (una sola
+chart ampia, nessuna fragilità).
+
+**Gate & warning (`Scene/SceneLoader.cs`).** `CanCastCaustics(hittable, out
+reason)` sostituisce il vecchio `is IManifoldSurface`: accetta primitive curve
+(anche via `Transform`), mesh con normali per-vertice (`Mesh.HasVertexNormals`) e
+CSG con frontiera curva (`CsgHasCurvedBoundary`); rifiuta con warning specifico
+piatte/flat-mesh/CSG-piatto. In lock-step con `CausticCasterRegistry.BuildSeeder`.
+
+**Limite noto (deferito a 2d).** Per le mesh vale il **clamp per-triangolo**: una
+connessione il cui vertice speculare scivola nel triangolo adiacente viene persa
+(caustica non distorta, solo qualche connessione in meno — visibile su mesh
+grossolane). L'edge-crossing con adiacenza e la planar-mirror NEE sono Fase 2d.
+
+**Scene.** `cristallo.yaml` (vino/stelo/coppa CSG come caster → caustica rossa del
+vino sul tavolo), `cornell-box-sphere.yaml` (variante a 3 sfere con caustiche
+rifrattiva + riflessa) e lo showcase `sms-ice-caustics.yaml` (cubetto di ghiaccio
+mesh frosted + tumbler CSG di vetro). Test: `MeshCausticTests` + `CsgCausticTests`
+(suite 516 verde).
+
+---
+
 ## Ciclo SMS Fase 2b — Specular Manifold Sampling ✅
 
 Implementazione della **Strada 2b** della roadmap caustiche (`PLANNING.md`):
