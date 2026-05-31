@@ -2499,7 +2499,7 @@ Le primitive che espongono la chiave `center:` — **sphere, cylinder, cone, cap
   soft_radius: 0.0                         # Opzionale. >0 → niente fireflies da 1/d²
 ```
 - Decadimento quadratico con la distanza
-- `soft_radius` (default `0`): se impostato, il denominatore dell'attenuazione viene clampato a `max(d², r²)`. Elimina la singolarità 1/d² che genera fireflies persistenti nelle scene con nebbia/medium partecipanti, dove gli eventi di scattering possono cadere arbitrariamente vicini all'emettitore. Valori consigliati: simili al raggio fisico del bulbo (es. `0.05`–`0.20`). A distanze `d ≥ r` la luce è invariata.
+- `soft_radius` (default `0`): se impostato, il denominatore dell'attenuazione viene clampato a `max(d², r²)`. Elimina la singolarità 1/d² che genera fireflies persistenti nelle scene con nebbia/medium partecipanti, dove gli eventi di scattering possono cadere arbitrariamente vicini all'emettitore. Valori consigliati: simili al raggio fisico del bulbo (es. `0.05`–`0.20`). A distanze `d ≥ r` la luce è invariata. **Caustiche:** con `--caustics on` questo raggio dimensiona anche il bulbo virtuale finito che il solver MNEE mette a fuoco attraverso un `caustic_caster` (un punto vero non ha area emittente). Se non impostato si usa un raggio di default `0.05`; più piccolo = caustica più netta ma rumorosa (alza `--mnee-samples` per ripulirla).
 
 #### **8.2 Directional Light (Sole)**
 ```yaml
@@ -2527,7 +2527,7 @@ Le primitive che espongono la chiave `center:` — **sphere, cylinder, cone, cap
   soft_radius: 0.0                        # Opzionale. >0 = "disco virtuale", niente fireflies 1/d²
   shadow_samples: 1                       # Default 1. >1 + soft_radius > 0 → sorgente jitterata
 ```
-- `soft_radius` (default `0`): stesso ruolo della point light — clampa il denominatore a `max(d², r²)`. Fortemente raccomandato per spot che illuminano un medium partecipante (nebbia, foschia, fumo): in questi casi il picco 1/d² agli eventi di scattering vicino all'emettitore è la principale sorgente di fireflies. Valori tipici: `0.10`–`0.30` per un bulbo da lampione.
+- `soft_radius` (default `0`): stesso ruolo della point light — clampa il denominatore a `max(d², r²)`. Fortemente raccomandato per spot che illuminano un medium partecipante (nebbia, foschia, fumo): in questi casi il picco 1/d² agli eventi di scattering vicino all'emettitore è la principale sorgente di fireflies. Valori tipici: `0.10`–`0.30` per un bulbo da lampione. **Caustiche:** come per le point light, con `--caustics on` questo raggio dimensiona il bulbo virtuale finito messo a fuoco dal solver MNEE attraverso un `caustic_caster` (default `0.05` se non impostato); l'attenuazione di cono dello spot è applicata alla luce focalizzata. Più piccolo = più netto, più rumoroso.
 - `shadow_samples` (default `1`): quando > 1 E `soft_radius > 0`, ogni raggio d'ombra jitterizza la posizione della sorgente su un disco di raggio `soft_radius` perpendicolare a `direction`, modellando l'estensione fisica del bulbo. Se `soft_radius == 0`, campioni aggiuntivi non hanno effetto (nessun jitter di posizione) — tenerlo a 1 per efficienza.
 
 #### **8.4 Area Light (Ombre Morbide)**

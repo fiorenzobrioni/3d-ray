@@ -6,6 +6,46 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Caustiche — emettitori virtuali finiti (sphere/point/spot) ✅
+
+Estensione della copertura **luci** delle caustiche. Prima solo `area` e geometriche
+emissive (le uniche a implementare `ILight.TrySampleEmissivePoint`) guidavano MNEE/SMS;
+`SphereLight` — pur non-delta — era saltata silenziosamente, e `point`/`spot` erano
+escluse dal gate `if (light.IsDelta) continue;` in `Renderer.ComputeCaustics`. Ora
+castano anche **sfera, point e spot**, con l'approccio **emettitore virtuale finito**
+(riusa l'intero `ManifoldWalker`, nessuna nuova matematica nel core).
+
+**SphereLight** — emettitore d'area esatto: `TrySampleEmissivePoint` campiona uniforme
+sull'intera sfera (`MathUtils.RandomUnitVector`), `pdf_A = 1/(4πR²)`, normale uscente,
+`L_e = Color·Intensity`. La costante deriva dall'equivalenza con `IlluminateAndTest`
+(che converge a `Intensity·πR²/d²`): un emettitore sferico di radianza L_e ha intensità
+`I = L_e·πR²`, quindi L_e = `Color·Intensity` — identico a un `GeometryLight` su `Sphere`
+emissiva (verificato da un test di equivalenza al livello di campionamento).
+
+**PointLight/SpotLight** — bulbo sferico finito di raggio `r = soft_radius` (default
+`DefaultBulbRadius = 0.05` quando 0; un punto matematico ha area nulla che il walk non
+può integrare). `L_e = Color·Intensity/(πr²)`, `pdf_A = 1/(4πr²)`: per un'intensità I
+modellata come sfera di radianza L_e vale `I = L_e·πr²`, e la connessione banale
+ricostruisce `I/d²`. Il **contributo è invariante in r** (il `1/(πr²)` cancella il
+`4πr²` di `1/pdf_A`) — r regola solo nitidezza/rumore. Lo spot aggiunge
+`DirectionalEmissionScale(emitDir)`: nuovo hook di `ILight` (default `Vector3.One`,
+bit-identico per tutte le altre luci) che applica la falloff di cono smoothstep² alla
+radianza emessa lungo `emitDir = normalize(LastVertex − y)`; segno verificato contro
+`IlluminateAndTest` (`Dot(emitDir, Direction)`, senza negazione — `emitDir` è già
+lungo il fascio).
+
+**Renderer** — rimosso il gate `IsDelta`: ora a filtrare è solo `TrySampleEmissivePoint`
+(false ⇒ skip a costo zero via il `break` esistente, quindi `directional`/environment/
+portal restano escluse). `AccumulateCaustic` riceve `ILight light` e moltiplica `L_e`
+per `DirectionalEmissionScale` prima del return. CLI `--mnee-samples N` (default 1) per
+ripulire il rumore del bulbo finito, più rumoroso di una luce d'area.
+
+**Test**: `DeltaLightCausticTests` (contratto di `TrySampleEmissivePoint` per i tre tipi;
+invarianza in r; equivalenza sphere↔emissive-sphere; falloff di cono + `One` per le luci
+isotrope) + `MnEeRenderTests` esteso (sphere/point/spot: `peak(on) > peak(off)`, lo spot
+come guardia end-to-end sul segno del cono). Costo zero con `--caustics off` o senza
+entità flaggate; le luci esistenti restano bit-identiche (hook di default `One`).
+
 ## Ciclo Caustiche 2c bis — CSG world/transform + group ✅
 
 Chiusura dei buchi di copertura del caster prima di passare alla fase successiva

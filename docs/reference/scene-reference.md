@@ -2479,7 +2479,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 ```
 - Quadratic falloff with distance
 - Simple but effective for interior lighting
-- `soft_radius` (default `0`): when set, the attenuation denominator is clamped to `max(d², r²)`. Removes the unbounded 1/d² spike that produces persistent fireflies in fog/medium scenes where scattering events can land arbitrarily close to the emitter. Recommended values approximate the physical bulb radius (e.g. `0.05`–`0.20`). At distances `d ≥ r` the lighting is unchanged.
+- `soft_radius` (default `0`): when set, the attenuation denominator is clamped to `max(d², r²)`. Removes the unbounded 1/d² spike that produces persistent fireflies in fog/medium scenes where scattering events can land arbitrarily close to the emitter. Recommended values approximate the physical bulb radius (e.g. `0.05`–`0.20`). At distances `d ≥ r` the lighting is unchanged. **Caustics:** with `--caustics on` this radius also sizes the finite virtual bulb the MNEE solver focuses through a `caustic_caster` (a true point has no emitter area). Unset, a default radius of `0.05` is used; smaller = sharper but noisier caustic (raise `--mnee-samples` to clean it).
 #### **8.2 Directional Light (Sun)**
 ```yaml
 - type: "directional"  # alias: "sun"
@@ -2509,7 +2509,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 - Quadratic falloff
 - Smooth falloff between inner/outer cones
 - Good for dramatic lighting, accent lights
-- `soft_radius` (default `0`): same role as on point lights — clamps the attenuation denominator to `max(d², r²)`. Strongly recommended for spotlights illuminating a participating medium (fog, mist, smoke), where the 1/d² spike at scattering events near the emitter is the dominant firefly source. Typical values: `0.10`–`0.30` for a streetlamp-sized bulb.
+- `soft_radius` (default `0`): same role as on point lights — clamps the attenuation denominator to `max(d², r²)`. Strongly recommended for spotlights illuminating a participating medium (fog, mist, smoke), where the 1/d² spike at scattering events near the emitter is the dominant firefly source. Typical values: `0.10`–`0.30` for a streetlamp-sized bulb. **Caustics:** as for point lights, with `--caustics on` this radius sizes the finite virtual bulb the MNEE solver focuses through a `caustic_caster` (default `0.05` when unset); the spot's cone falloff is applied to the focused light. Smaller = sharper, noisier.
 - `shadow_samples` (default `1`): when > 1 AND `soft_radius > 0`, each shadow sample jitters the source within a disc of radius `soft_radius` perpendicular to `direction`, modelling the physical bulb extent. Produces soft penumbra in fog. If `soft_radius == 0`, extra samples are redundant (no position jitter) — keep at 1 for efficiency.
 #### **8.4 Area Light (Soft Shadows)**
 ```yaml

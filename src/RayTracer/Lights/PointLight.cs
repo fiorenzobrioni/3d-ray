@@ -6,6 +6,16 @@ namespace RayTracer.Lights;
 
 public class PointLight : ILight
 {
+    /// <summary>
+    /// Radius of the virtual spherical bulb used when this point light drives an
+    /// MNEE caustic. A mathematical point has zero emitter area, which the
+    /// manifold estimator cannot integrate; a real "point" light is the
+    /// idealization of a small bulb, so we model it as a uniform sphere of this
+    /// radius (smaller = sharper but noisier caustic). Resolved from
+    /// <see cref="SoftRadius"/>, falling back to this default when unset.
+    /// </summary>
+    public const float DefaultBulbRadius = 0.05f;
+
     public Vector3 Position { get; }
     public Vector3 Color { get; }
     public float Intensity { get; }
@@ -65,5 +75,32 @@ public class PointLight : ILight
         if (SoftRadius > 0f) d2 = MathF.Max(d2, SoftRadius * SoftRadius);
         float attenuation = Intensity / d2;
         return (false, Color * attenuation * trans, dirToLight, distance);
+    }
+
+    // ── MNEE caustic sampling ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Samples a point on the virtual bulb (radius <see cref="SoftRadius"/>, or
+    /// <see cref="DefaultBulbRadius"/> when unset) for the manifold caustic walk.
+    ///
+    /// <para>The bulb radiance is <c>Color·Intensity/(πr²)</c>: a uniform sphere
+    /// of radius r and radiance L_e has radiant intensity I = L_e·πr², so matching
+    /// this light's intensity <c>Color·Intensity</c> gives L_e = <c>Color·Intensity/(πr²)</c>.
+    /// The trivial (no-caster) connection then reproduces <c>Intensity/d²</c>. The
+    /// caustic contribution is independent of r — the <c>1/(πr²)</c> radiance
+    /// cancels the <c>4πr²</c> from <c>1/pdf_A</c> — so r controls only sharpness
+    /// and variance.</para>
+    /// </summary>
+    public bool TrySampleEmissivePoint(out Vector3 point, out Vector3 normal,
+                                       out Vector3 emission, out float pdfArea)
+    {
+        float r = SoftRadius > 0f ? SoftRadius : DefaultBulbRadius;
+        Vector3 dir = MathUtils.RandomUnitVector();
+        point    = Position + r * dir;
+        normal   = dir;
+        emission = Color * Intensity / (MathF.PI * r * r);
+        float area = 4f * MathF.PI * r * r;
+        pdfArea  = 1f / area;
+        return true;
     }
 }

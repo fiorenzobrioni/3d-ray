@@ -8,9 +8,10 @@ della tua scena. Per il flusso d'uso vedi [`README.md`](README.md); schema compl
 > **Regola d'oro per le luci `area`.** Il motore richiede `corner`, `u` e `v`
 > (i tre vettori che definiscono il rettangolo): **non** `position`/`width`/`height`.
 > Un'area senza `corner` viene ignorata con warning. Qualsiasi geometria con materiale
-> `emissive` entra automaticamente in NEE (vedi Sezione D). Solo le luci
-> `area`/geometriche guidano le **caustiche** (Sezione E); le luci
-> `point`/`spot`/`directional` e il cielo/HDRI non le producono.
+> `emissive` entra automaticamente in NEE (vedi Sezione D). Le **caustiche** (Sezione E)
+> sono guidate da luci `area`/geometriche, `sphere`, e `point`/`spot` (queste modellate
+> come piccolo bulbo sferico finito di raggio `soft_radius`); solo `directional`/sole e
+> il cielo/HDRI non le producono.
 
 ---
 
@@ -321,13 +322,16 @@ avvolgi il cilindro in un `Transform`. Cambia `color` per altri colori neon
 # Sezione E — Luci ottimizzate per caustiche
 
 Le caustiche focalizzate richiedono **due opt-in**: il flag CLI `--caustics on` e i
-flag YAML `caustic_caster`/`caustic_receiver` sulle entità. Solo le luci
-**`area`/geometriche** guidano MNEE e SMS — `point`, `directional`, `spot` e cielo/HDRI
-non producono caustiche focalizzate. Per la guida completa su caster, receiver e
-materiali vedi [`caustics.md`](caustics.md).
+flag YAML `caustic_caster`/`caustic_receiver` sulle entità. Guidano MNEE e SMS le luci
+**`area`/geometriche**, **`sphere`** e **`point`/`spot`** (queste modellate come piccolo
+bulbo sferico finito di raggio `soft_radius`); `directional`/sole e cielo/HDRI **non**
+producono caustiche focalizzate. Per la guida completa su caster, receiver e materiali
+vedi [`caustics.md`](caustics.md).
 
 La nitidezza della caustica dipende dalla **dimensione** della sorgente:
-piccola e intensa → spot netto (MNEE); grande → alone morbido (SMS).
+piccola e intensa → spot netto (MNEE); grande → alone morbido (SMS). Per `point`/`spot`
+la dimensione è il `soft_radius` del bulbo (più piccolo = più netto e rumoroso; alza
+`--mnee-samples` per ripulire).
 
 ## E1. Area piccola per caustica netta — vetro liscio / specchio (MNEE)
 
@@ -380,12 +384,59 @@ lights:
     shadow_samples: 6
 ```
 
-Una `directional` non guida MNEE/SMS, quindi per caustiche outdoor si simula il
-sole con un'area molto piccola e lontana (`y = 20`): i raggi convergono quasi
-parallelamente su un caster sferico a quota zero, producendo uno spot netto simile
-a quello solare. L'intensità alta (`350`) compensa il quadrato della distanza.
-Per una caustica calda di tramonto tinta con `color: [1.0, 0.62, 0.28]` e abbassa
-`y` a `10–12` per allargare leggermente il fuoco.
+Una `directional`/sole non guida MNEE/SMS (sorgente all'infinito, senza area da
+campionare), quindi per caustiche outdoor si simula il sole con un'area molto piccola
+e lontana (`y = 20`): i raggi convergono quasi parallelamente su un caster sferico a
+quota zero, producendo uno spot netto simile a quello solare. L'intensità alta (`350`)
+compensa il quadrato della distanza. Per una caustica calda di tramonto tinta con
+`color: [1.0, 0.62, 0.28]` e abbassa `y` a `10–12` per allargare leggermente il fuoco.
+In alternativa una `sphere` lontana (E4) o uno `spot` stretto (E5) ottengono lo stesso
+effetto castando direttamente.
+
+## E4. Sphere light per caustica netta (MNEE)
+
+```yaml
+lights:
+  - type: "sphere"
+    position: [0, 6.0, 0]       # alta → angolo d'incidenza favorevole
+    radius: 0.5                  # piccola → fuoco netto (il raggio È l'area emittente)
+    color: [1.0, 0.97, 0.92]
+    intensity: 70.0
+    shadow_samples: 6
+```
+
+La `sphere` è un emettitore d'area esatto: casta caustiche come una `area` ma con
+geometria sferica (campionamento d'area su `4πR²`). Il `radius` controlla la nitidezza
+— piccolo = spot netto. Intensità alta per concentrare l'energia nel fuoco. Ideale
+quando vuoi anche un riflesso circolare pulito del proxy luminoso sul caster.
+
+## E5. Point / Spot per caustica da bulbo (MNEE)
+
+```yaml
+lights:
+  # Point: bulbo onnidirezionale. Il soft_radius dimensiona il bulbo caustico.
+  - type: "point"
+    position: [0, 6.0, 0]
+    color: [1.0, 0.95, 0.88]
+    intensity: 140.0            # I/d²: alza per compensare la distanza
+    soft_radius: 0.12           # piccolo = fuoco più netto ma più rumoroso
+
+  # Spot: come point, ma la falloff di cono modula anche la caustica.
+  - type: "spot"
+    position: [0, 6.0, 0]
+    direction: [0, -1, 0]
+    color: [1.0, 0.95, 0.88]
+    intensity: 160.0
+    inner_angle: 20
+    outer_angle: 40
+    soft_radius: 0.12
+```
+
+`point`/`spot` castano via **bulbo virtuale finito** di raggio `soft_radius` (default
+`0.05` se omesso): più piccolo = caustica più netta ma rumorosa. Il bulbo finito è più
+rumoroso di una luce d'area, quindi aggiungi `--mnee-samples 4–8` per ripulire il fuoco.
+Lo `spot` applica la sua falloff di cono alla luce focalizzata — utile per isolare una
+singola caustica senza illuminare il resto della scena.
 
 ---
 
@@ -407,6 +458,8 @@ Per una caustica calda di tramonto tinta con `color: [1.0, 0.62, 0.28]` e abbass
 | Caustica netta (vetro / specchio) | E1 area piccola | `--caustics on` · studio nero |
 | Caustica frosted (smerigliato) | E2 area media | `--caustics on --sms-samples 8` |
 | Caustica outdoor (sole simulato) | E3 area lontana | `--caustics on` · alta intensità |
+| Caustica netta da sfera | E4 sphere light | `--caustics on` · `radius` piccolo |
+| Caustica da bulbo point/spot | E5 point/spot | `--caustics on --mnee-samples 4` · `soft_radius` |
 
 ## CLI tips
 
@@ -422,6 +475,9 @@ dotnet run --project src/RayTracer -- -i scena.yaml -q final --caustics on
 
 # Caustiche frosted (SMS): più campioni SMS per pulire il rumore
 dotnet run --project src/RayTracer -- -i scena.yaml -q final --caustics on --sms-samples 16 -C 25
+
+# Caustiche da point/spot (bulbo finito): più campioni emettitore per pulire il rumore
+dotnet run --project src/RayTracer -- -i scena.yaml -q final --caustics on --mnee-samples 8
 
 # Preview rapida con caustiche attive
 dotnet run --project src/RayTracer -- -i scena.yaml -q medium-small --caustics on --sms-samples 4

@@ -134,6 +134,10 @@ public class SceneLoader
     // (groups) can run without threading the flag through every build signature.
     private static bool _enableCaustics;
 
+    // One-shot guard so the "point/spot caustic bulb uses default radius" Info is
+    // queued at most once per Load instead of per affected light.
+    private static bool _causticBulbDefaultNoted;
+
     /// <summary>
     /// Applies the per-entity MNEE caustic flags to a freshly built entity or group
     /// child. Registers the WORLD-space caster geometry — for a group child the
@@ -240,6 +244,7 @@ public class SceneLoader
         _deferredMessages.Clear();
         _causticCasters.Clear();
         _enableCaustics = enableCaustics;
+        _causticBulbDefaultNoted = false;
 
         var yaml = File.ReadAllText(yamlPath);
         var deserializer = new DeserializerBuilder()
@@ -3554,7 +3559,20 @@ public class SceneLoader
     {
         var color = ToVector3(l.Color) ?? Vector3.One;
 
-        return l.Type?.ToLowerInvariant() switch
+        // Point/spot lights cast caustics via a finite virtual bulb whose radius
+        // is soft_radius (a true mathematical point has zero emitter area the
+        // manifold walk cannot integrate). Note the default once when caustics
+        // are active and a point/spot leaves soft_radius unset.
+        string? lightType = l.Type?.ToLowerInvariant();
+        if (_enableCaustics && !_causticBulbDefaultNoted && l.SoftRadius <= 0f &&
+            lightType is "point" or "spot" or "spotlight")
+        {
+            _causticBulbDefaultNoted = true;
+            Info($"[Caustics] point/spot caustic bulb uses default radius {PointLight.DefaultBulbRadius}; " +
+                 "set soft_radius to tune sharpness (smaller = sharper, noisier).");
+        }
+
+        return lightType switch
         {
             "point" => new PointLight(
                 ToVector3(l.Position) ?? new Vector3(0, 10, 0),
