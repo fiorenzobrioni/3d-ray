@@ -10,8 +10,8 @@
 #    f = R / (2*(n-1)) = 2.08 / (2*0.52) = 2.0
 #    Lente a y=2.0  →  fuoco a y = 2.0 - 2.0 = 0.0 (pavimento)
 #
-#  Le sfere hanno centri in world-space (no entity translate/rotate):
-#  CsgObject NON wrappato in Transform → caustic_caster accettato.
+#  La lente CSG di vetro focalizza la luce sul pavimento; con --caustics on
+#  il photon map rende la caustica automaticamente (nessun flag per-oggetto).
 #
 #  Render consigliato:
 #    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
@@ -94,8 +94,8 @@ entities:
 #  LIGHTS
 # ═══════════════════════════════════════════════════════════════════════════
 lights:
-  # Pannello overhead: entra dalla faccia superiore della lente.
-  # area (non-delta) → abilita MNEE/SMS.
+  # Pannello overhead: entra dalla faccia superiore della lente e
+  # genera la caustica focalizzata sul pavimento.
   - type: area
     corner: [-3.0, 7.0, -3.0]
     u: [6.0, 0.0, 0.0]

@@ -67,6 +67,14 @@ final ma porta la depth a 16 (utile per scene con vetri impilati);
 `-q medium -w 640 -H 360` rimpicciolisce il preset medium senza
 toccarne il sampling.
 
+**Caustiche.** I preset `final` e `ultra` abilitano anche le caustiche via
+photon mapping (`--caustics on`) di default; gli altri preset le lasciano
+spente. Il budget di fotoni del pre-pass è controllato da `--caustic-photons
+<N>` (default ~2–4M, più alto su `final`/`ultra`): più fotoni = caustiche più
+nitide e meno rumorose, al costo di un pre-pass più lento. Un `--caustics off`
+esplicito (o `--caustics on` su un preset più basso) ha la precedenza sul
+default del preset. Vedi [Path Tracing e Illuminazione §2.5](../technical/path-tracing-and-lighting.md).
+
 ```bash
 # Sanity check istantaneo, pochi secondi
 RayTracer -i my-scene -q draft-tiny

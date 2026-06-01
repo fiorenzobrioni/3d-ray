@@ -1,6 +1,8 @@
-# Specular Manifold Sampling (SMS) caustics showcase — Phase 2b.
-# A frosted (rough) glass sphere focuses a soft caustic onto the floor, and a
-# brushed-metal sphere casts a rough reflective caustic. Render with caustics on:
+# Frosted-glass & brushed-metal caustics showcase.
+# A frosted (rough) glass sphere and a brushed-metal sphere cast soft caustics
+# onto the floor. Note: rough/frosted specular falls back to the path tracer in
+# this version (softer, noisier than the sharp photon-mapped caustics of smooth
+# glass); raise samples / --caustic-photons to clean them. Render with caustics on:
 #   dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
 #     -i scenes/sms-caustics.yaml -o renders/sms-caustics.png -q final --caustics on
 # (final/ultra presets enable --caustics automatically.)

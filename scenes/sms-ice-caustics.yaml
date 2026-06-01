@@ -1,13 +1,13 @@
 # ═══════════════════════════════════════════════════════════════════════════
-#  ICE CAUSTICS — Showcase Fase 2c: caster su geometria curva + CSG
+#  ICE CAUSTICS — Showcase: caustiche su geometria curva + CSG
 #
-#  Dimostra le caustiche estese oltre la sfera, con SOLO geometria che focalizza
-#  davvero (primitive curve + CSG). Luce laterale calda → caustiche nitide.
+#  Dimostra le caustiche oltre la sfera, con geometria che focalizza davvero
+#  (primitive curve + CSG). Luce laterale calda → caustiche nitide.
 #    • CUBETTI DI GHIACCIO  → CSG intersezione(box ∩ sfera) = facce piatte +
-#      spigoli arrotondati; gli spigoli curvi focalizzano (caster CSG).
+#      spigoli arrotondati; gli spigoli curvi focalizzano la luce.
 #    • ICE BALL             → sfera di vetro (caustica forte di riferimento).
 #    • TUMBLER DI VETRO      → CSG (cilindro \ cilindro), caustica astigmatica.
-#    • Piano scuro lucido = caustic_receiver.
+#    • Piano scuro lucido = superficie ricevente.
 #
 #  Render (final/ultra abilitano --caustics da soli):
 #    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
@@ -48,7 +48,7 @@ materials:
     roughness: 0.4
     specular: 0.5
 
-  # Ghiaccio: vetro quasi limpido, IOR 1.31 → caustica nitida (MNEE).
+  # Ghiaccio: vetro quasi limpido, IOR 1.31 → caustica nitida.
   - id: "ice"
     type: "dielectric"
     refraction_index: 1.31

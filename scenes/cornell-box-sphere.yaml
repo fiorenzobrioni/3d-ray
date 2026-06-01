@@ -5,7 +5,7 @@
 #  vetro) ATTIVA al posto dei due blocchi classici, e le CAUSTICHE abilitate:
 #    • Sfera di vetro  → caustica rifrattiva focalizzata sul pavimento
 #    • Sfera cromata   → caustica riflessa (alone luminoso)
-#    • Pavimento e pareti sono caustic_receiver.
+#    • Pavimento e pareti ricevono le caustiche (nessun flag: basta --caustics on).
 #
 #  Render (final/ultra abilitano --caustics da soli):
 #    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
