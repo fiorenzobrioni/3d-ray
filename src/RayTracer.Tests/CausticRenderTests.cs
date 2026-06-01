@@ -98,16 +98,28 @@ public class CausticRenderTests
 
         float sumOff = 0f, sumOn = 0f;
         int spikes = 0;
+        // Bright-tail of the floor (lower half of the frame): the focused caustic
+        // concentrates light into a small set of bright pixels there, so its
+        // brightest pixels must clearly outshine the path-traced baseline. This
+        // guards against a gather that silently goes dim/invisible (e.g. a kernel
+        // radius too wide), which leaves the energy ratio looking fine.
+        var brightOn  = new List<float>();
+        var brightOff = new List<float>();
         for (int y = 0; y < H; y++)
             for (int x = 0; x < W; x++)
             {
                 Vector3 p = on[y, x];
                 Assert.True(float.IsFinite(p.X) && float.IsFinite(p.Y) && float.IsFinite(p.Z),
                     $"Non-finite pixel at ({x},{y}) with caustics on.");
-                float lum = MathUtils.Luminance(p);
-                if (lum > 0.99f) spikes++;
-                sumOn  += lum;
+                float lumOn = MathUtils.Luminance(p);
+                if (lumOn > 0.99f) spikes++;
+                sumOn  += lumOn;
                 sumOff += MathUtils.Luminance(off[y, x]);
+                if (y >= H / 2)
+                {
+                    brightOn.Add(lumOn);
+                    brightOff.Add(MathUtils.Luminance(off[y, x]));
+                }
             }
 
         // Caustics redistribute light; total brightness must stay in a sane band
@@ -115,5 +127,14 @@ public class CausticRenderTests
         float ratio = sumOn / MathF.Max(sumOff, 1e-3f);
         Assert.InRange(ratio, 0.85f, 1.25f);
         Assert.True(spikes <= 250, $"Caustics-on produced {spikes} near-white firefly pixels (threshold 250).");
+
+        // Mean of the brightest 2% of floor pixels — robust to PRNG and location.
+        brightOn.Sort();  brightOn.Reverse();
+        brightOff.Sort(); brightOff.Reverse();
+        int topN = Math.Max(1, brightOn.Count / 50);
+        float tailOn  = brightOn.Take(topN).Average();
+        float tailOff = brightOff.Take(topN).Average();
+        Assert.True(tailOn > tailOff * 1.05f,
+            $"Caustics-on floor bright-tail {tailOn:F4} should exceed off {tailOff:F4} — the caustic is not visible.");
     }
 }

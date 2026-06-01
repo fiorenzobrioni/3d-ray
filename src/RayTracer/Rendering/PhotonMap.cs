@@ -174,6 +174,54 @@ public sealed class PhotonMap
     }
 
     /// <summary>
+    /// Caustic gather: the k nearest photons within <paramref name="maxRadius"/>,
+    /// scanning only the cell neighbourhood (the grid cell is sized to the radius,
+    /// so this is the 3×3×3 block — O(1), fast in empty regions) while still
+    /// reporting the **adaptive** kernel radius (distance to the farthest of the
+    /// k gathered). That adaptive radius is what keeps a focused caustic sharp and
+    /// bright: in the dense focal spot the k nearest photons sit in a tiny disc,
+    /// so the <c>1/(π r²)</c> density estimate spikes correctly. Allocation-free
+    /// (the bounded max-heap of squared distances lives in <paramref name="heapD2"/>).
+    /// Returns the photon count gathered.
+    /// </summary>
+    public int GatherCaustic(Vector3 p, int k, float maxRadius,
+                             Span<int> outIdx, Span<float> heapD2, out float radius)
+    {
+        radius = 0f;
+        if (_photons.Length == 0 || k <= 0 || maxRadius <= 0f) return 0;
+        k = Math.Min(k, Math.Min(outIdx.Length, heapD2.Length));
+        float r2 = maxRadius * maxRadius;
+        int count = 0;
+
+        int cx0 = (int)MathF.Floor((p.X - maxRadius - _origin.X) * _invCellSize);
+        int cx1 = (int)MathF.Floor((p.X + maxRadius - _origin.X) * _invCellSize);
+        int cy0 = (int)MathF.Floor((p.Y - maxRadius - _origin.Y) * _invCellSize);
+        int cy1 = (int)MathF.Floor((p.Y + maxRadius - _origin.Y) * _invCellSize);
+        int cz0 = (int)MathF.Floor((p.Z - maxRadius - _origin.Z) * _invCellSize);
+        int cz1 = (int)MathF.Floor((p.Z + maxRadius - _origin.Z) * _invCellSize);
+
+        for (int z = cz0; z <= cz1; z++)
+        for (int y = cy0; y <= cy1; y++)
+        for (int x = cx0; x <= cx1; x++)
+        {
+            int b = Bucket(x, y, z);
+            for (int kk = _bucketStart[b]; kk < _bucketStart[b + 1]; kk++)
+            {
+                int pi = _indices[kk];
+                Vector3 pos = _photons[pi].Position;
+                CellOf(pos, out int px, out int py, out int pz);
+                if (px != x || py != y || pz != z) continue;   // collision guard
+                float d2 = Vector3.DistanceSquared(pos, p);
+                if (d2 > r2) continue;
+                HeapInsert(outIdx, heapD2, ref count, k, pi, d2);
+            }
+        }
+
+        radius = count > 0 ? MathF.Sqrt(heapD2[0]) : 0f;
+        return count;
+    }
+
+    /// <summary>
     /// Gathers up to <paramref name="k"/> nearest photons to <paramref name="p"/>
     /// within <paramref name="maxRadius"/>, writing their indices into
     /// <paramref name="outIdx"/> (capacity ≥ k) and reporting the kernel
