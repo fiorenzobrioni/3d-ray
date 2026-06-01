@@ -148,10 +148,10 @@ public class SceneLoader
     /// so its hits stamp the caster/receiver flags. Returns the (possibly wrapped)
     /// hittable; a no-op when caustics are off or no flag is set.
     /// </summary>
-    private static IHittable ApplyCausticFlags(IHittable hittable, bool casterFlag,
-        bool receiverFlag, string label, Matrix4x4 toWorld)
+    private static IHittable ApplyCausticFlags(IHittable hittable, bool? casterOverride,
+        bool? receiverOverride, IMaterial material, string label, Matrix4x4 toWorld)
     {
-        if (!_enableCaustics || (!casterFlag && !receiverFlag))
+        if (!_enableCaustics)
             return hittable;
 
         // The geometry the manifold walk seeds against must be in world space: a
@@ -162,16 +162,59 @@ public class SceneLoader
             ? hittable
             : new Transform(hittable, toWorld);
 
-        string reason = "";
-        bool casterOk = casterFlag && CanCastCaustics(worldGeom, out reason);
-        if (casterFlag && !casterOk)
-            Warn($"caustic_caster on '{label}' ignored: {reason}");
-        if (casterOk)
+        // Auto-classification (the default): an entity becomes a caster iff its
+        // geometry can focus light AND its material is specular/transmissive; every
+        // other surface becomes a receiver. The per-entity flags are optional
+        // three-state overrides (null = auto, true = force, false = opt out) so
+        // scenes need no edits, but a heavy scene can still pin casting/receiving to
+        // a few hero objects.
+        bool geomOk = CanCastCaustics(worldGeom, out string reason);
+
+        bool caster;
+        if (casterOverride == true)
+        {
+            // Explicit opt-in: honour it as long as the geometry can focus light. We
+            // do NOT gate on the material here — the author has taken responsibility
+            // (e.g. a texture-driven transmission below the auto probe's threshold).
+            caster = geomOk;
+            if (!geomOk)
+                Warn($"caustic_caster on '{label}' ignored: {reason}");
+        }
+        else if (casterOverride == false)
+        {
+            caster = false; // explicit opt-out
+        }
+        else
+        {
+            caster = geomOk && MaterialCanCast(material); // auto, silent
+        }
+
+        bool receiver = receiverOverride switch
+        {
+            false => false,         // explicit opt-out
+            true  => true,          // explicit opt-in
+            null  => !caster,       // auto: a caster does not also receive on itself
+        };
+
+        if (caster)
             _causticCasters.Add(worldGeom);
-        if (casterOk || receiverFlag)
-            hittable = new CausticFlagHittable(hittable, casterOk, receiverFlag);
+        if (caster || receiver)
+            hittable = new CausticFlagHittable(hittable, caster, receiver);
         return hittable;
     }
+
+    /// <summary>
+    /// Whether a material can focus light into a caustic (specular reflection or
+    /// transmission) — the material half of auto-caster classification, in
+    /// lock-step with <see cref="Materials.IMaterial.GetCausticInterface"/>. Probed
+    /// with a zeroed <see cref="HitRecord"/>: <c>Dielectric</c>/<c>Metal</c> report
+    /// caster unconditionally, while Disney keys off <c>spec_trans</c>/<c>metallic</c>
+    /// (roughness only selects the smooth-vs-rough path, not caster-ness). The probe
+    /// reads textures at UV (0,0); an entity whose transmission/metalness is textured
+    /// below threshold there can be force-registered with <c>caustic_caster: true</c>.
+    /// </summary>
+    private static bool MaterialCanCast(IMaterial material)
+        => material.GetCausticInterface(default).IsCaster;
 
     /// <summary>
     /// Whether a flagged entity's geometry can actually focus light into a
@@ -409,8 +452,9 @@ public class SceneLoader
             {
                 // MNEE caustic receiver on the ground (the most natural caustic
                 // surface). Wrapped only when caustics are enabled so the off
-                // path is untouched.
-                if (enableCaustics && data.World.Ground.CausticReceiver)
+                // path is untouched. The ground is flat → never a caster; it
+                // receives by default (auto) unless explicitly opted out.
+                if (enableCaustics && data.World.Ground.CausticReceiver != false)
                     groundHittable = new CausticFlagHittable(groundHittable, caster: false, receiver: true);
                 objects.Add(groundHittable);
             }
@@ -548,7 +592,7 @@ public class SceneLoader
                     // MNEE replacement. A top-level entity is already in world space,
                     // so no extra transform is composed (Matrix4x4.Identity).
                     hittable = ApplyCausticFlags(hittable, e.CausticCaster, e.CausticReceiver,
-                                                 e.Name ?? e.Type ?? "(unnamed)", Matrix4x4.Identity);
+                                                 mat, e.Name ?? e.Type ?? "(unnamed)", Matrix4x4.Identity);
                     // Per-entity participating-media binding (interior /
                     // exterior). Wrap last so MediumInterface rides on every
                     // hit forwarded by inner wrappers — the renderer needs
@@ -3491,18 +3535,23 @@ public class SceneLoader
             if (string.Equals(child.Type, "group", StringComparison.OrdinalIgnoreCase))
             {
                 // A nested group's own children register themselves; the group as a
-                // whole is not a single manifold caster.
-                if (_enableCaustics && (child.CausticCaster || child.CausticReceiver))
+                // whole is not a single manifold caster. Only an explicit opt-in is
+                // worth a warning — auto (null) and opt-out (false) stay silent.
+                if (_enableCaustics && (child.CausticCaster == true || child.CausticReceiver == true))
                     Warn($"caustic_caster/caustic_receiver on group '{child.Name ?? "(unnamed)"}' " +
                          "ignored: flag the individual children instead.");
             }
             else if (groupToWorld is { } toWorld)
             {
                 hittable = ApplyCausticFlags(hittable, child.CausticCaster, child.CausticReceiver,
-                                             child.Name ?? child.Type ?? "(unnamed)", toWorld);
+                                             mat, child.Name ?? child.Type ?? "(unnamed)", toWorld);
             }
-            else if (_enableCaustics && (child.CausticCaster || child.CausticReceiver))
+            else if (_enableCaustics && (child.CausticCaster == true || child.CausticReceiver == true))
             {
+                // Instance/template children share one geometry instance across all
+                // placements, so they cannot carry per-instance world-space caustic
+                // state — auto-classification is skipped for them. (Top-level instance
+                // entities still flow through ApplyCausticFlags and are classified.)
                 Warn($"caustic_caster/caustic_receiver on instance/template child " +
                      $"'{child.Name ?? child.Type}' ignored: not supported on shared template geometry.");
             }

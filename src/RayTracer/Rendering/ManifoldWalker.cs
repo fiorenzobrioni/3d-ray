@@ -425,13 +425,16 @@ public static class ManifoldWalker
     }
 
     // η of the medium on the side the direction w (already pointing away from p)
-    // leads to. Air (outward, dot>0) = 1; glass interior (dot<0) = ior. Pure
-    // reflection uses η = 1 on both sides.
+    // leads to. Outward (dot>0) = the surrounding medium (ci.AmbientIor: air = 1
+    // for an open caster, the enclosing dielectric's IOR for a nested one); the
+    // caster interior (dot<0) = ci.Ior. Pure reflection uses η = 1 on both sides.
+    // With AmbientIor = 1 this is identical to the legacy always-air form.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static float EtaOnSide(Vector3 w, Vector3 n, in CausticInterface ci)
     {
         if (!ci.IsTransmissive) return 1f;
-        return Vector3.Dot(w, n) > 0f ? 1f : ci.Ior;
+        float ambient = ci.AmbientIor > 0f ? ci.AmbientIor : 1f;
+        return Vector3.Dot(w, n) > 0f ? ambient : ci.Ior;
     }
 
     // ────────────────────────────────────────────────────────────────────────

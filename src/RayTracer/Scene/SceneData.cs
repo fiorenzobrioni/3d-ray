@@ -235,10 +235,13 @@ public class GroundData
     [YamlMember(Alias = "visibility")]
     public GroundVisibilityData? Visibility { get; set; }
 
-    /// <summary>Opt-in MNEE caustic receiver (Phase 2): focused caustics from
-    /// <c>caustic_caster</c> entities are gathered on the ground. Default false.</summary>
+    /// <summary>Optional MNEE caustic-receiver override for the ground. Three-state:
+    /// <c>null</c> (default) = auto — the ground receives caustics whenever caustics
+    /// are enabled (<c>--caustics on</c>); <c>true</c> = force receiver; <c>false</c> =
+    /// opt out (skip the receiver wrap, e.g. for performance). The ground is flat and
+    /// can never be a caster.</summary>
     [YamlMember(Alias = "caustic_receiver")]
-    public bool CausticReceiver { get; set; } = false;
+    public bool? CausticReceiver { get; set; }
 }
 
 /// <summary>
@@ -1231,23 +1234,26 @@ public class EntityData
     public bool VisibleToCamera { get; set; } = true;
 
     /// <summary>
-    /// Opt-in Manifold-NEE caustic caster (Phase 2). When true and caustics are
-    /// enabled (CLI <c>--caustics on</c>), this smooth specular/transmissive
-    /// entity (glass sphere/lens, mirror) focuses light onto
-    /// <c>caustic_receiver</c> surfaces. Has no effect on the material or on
-    /// other ray types — only the manifold walk and the receiver's straight
-    /// shadow ray consult it. Default false (no overhead, scene unchanged).
+    /// Optional Manifold-NEE caustic-caster override. Three-state:
+    /// <c>null</c> (default) = auto — when caustics are enabled (<c>--caustics on</c>)
+    /// the engine registers this entity as a caster automatically iff its geometry
+    /// can focus light (curved primitive / smooth mesh / CSG with curved boundary)
+    /// and its material is specular or transmissive. <c>true</c> = force-register
+    /// (still requires focusing geometry; warns and skips otherwise). <c>false</c> =
+    /// opt out (never a caster), e.g. to limit casting to a few hero objects on a
+    /// heavy scene. Has no effect on the material or on non-caustic ray types.
     /// </summary>
     [YamlMember(Alias = "caustic_caster")]
-    public bool CausticCaster { get; set; } = false;
+    public bool? CausticCaster { get; set; }
 
     /// <summary>
-    /// Opt-in Manifold-NEE caustic receiver (Phase 2). When true and caustics
-    /// are enabled, focused caustics from <c>caustic_caster</c> entities are
-    /// gathered on this surface. Default false.
+    /// Optional Manifold-NEE caustic-receiver override. Three-state:
+    /// <c>null</c> (default) = auto — when caustics are enabled, every surface that
+    /// is not itself an auto-caster gathers focused caustics. <c>true</c> = force
+    /// receiver. <c>false</c> = opt out (skip the receiver wrap, for performance).
     /// </summary>
     [YamlMember(Alias = "caustic_receiver")]
-    public bool CausticReceiver { get; set; } = false;
+    public bool? CausticReceiver { get; set; }
 
     // Sphere & Cylinder
     [YamlMember(Alias = "center")]

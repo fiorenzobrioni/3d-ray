@@ -47,12 +47,24 @@ public readonly struct CausticInterface
     public readonly float Roughness;
 
     /// <summary>
-    /// Absolute index of refraction of the material (e.g. 1.5 for glass),
-    /// relative to the surrounding medium taken as air (η = 1). The walker
-    /// derives the directional relative η from the interface orientation
-    /// (entering vs. exiting) at each vertex. Unused for reflective casters.
+    /// Absolute index of refraction of the material (e.g. 1.5 for glass). The
+    /// walker derives the directional relative η from the interface orientation
+    /// (entering vs. exiting) at each vertex, against <see cref="AmbientIor"/> on
+    /// the outside. Unused for reflective casters.
     /// </summary>
     public readonly float Ior;
+
+    /// <summary>
+    /// Index of refraction of the medium surrounding this caster (the "outside"
+    /// of the interface). 1.0 (air/vacuum) for a caster sitting in open air; the
+    /// enclosing dielectric's IOR for a NESTED caster (e.g. a body of wine inside
+    /// a glass cup sees AmbientIor = 1.70). The walker forms the relative
+    /// refraction ratio η_outside/η_inside from this, so a nested caster bends
+    /// and Fresnels against the medium it is actually immersed in rather than the
+    /// spurious always-air assumption. Defaults to 1.0 → bit-identical for any
+    /// non-nested caster.
+    /// </summary>
+    public readonly float AmbientIor;
 
     /// <summary>
     /// Per-interface base transmission (or reflection) tint, WITHOUT the Fresnel
@@ -71,7 +83,8 @@ public readonly struct CausticInterface
     public readonly Vector3 Absorption;
 
     /// <summary>Smooth specular caster (Phase-2 MNEE): a delta interface.</summary>
-    public CausticInterface(bool isTransmissive, float ior, Vector3 tint, Vector3 absorption)
+    public CausticInterface(bool isTransmissive, float ior, Vector3 tint, Vector3 absorption,
+                            float ambientIor = 1f)
     {
         IsCaster       = true;
         IsTransmissive = isTransmissive;
@@ -80,9 +93,19 @@ public readonly struct CausticInterface
         AlphaY         = 0f;
         Roughness      = 0f;
         Ior            = ior;
+        AmbientIor     = ambientIor;
         Tint           = tint;
         Absorption     = absorption;
     }
+
+    /// <summary>
+    /// Returns a copy of this caster with a different <see cref="AmbientIor"/> —
+    /// used by the renderer to stamp the enclosing medium's IOR onto a nested
+    /// caster once it has been detected geometrically.
+    /// </summary>
+    public CausticInterface WithAmbientIor(float ambientIor) => IsRough
+        ? new CausticInterface(IsTransmissive, Ior, Tint, Absorption, AlphaX, AlphaY, Roughness, ambientIor)
+        : new CausticInterface(IsTransmissive, Ior, Tint, Absorption, ambientIor);
 
     /// <summary>
     /// Rough specular caster (Phase-2b Specular Manifold Sampling): a frosted
@@ -91,7 +114,7 @@ public readonly struct CausticInterface
     /// anisotropic GGX widths (pass equal values for isotropic).
     /// </summary>
     public CausticInterface(bool isTransmissive, float ior, Vector3 tint, Vector3 absorption,
-                            float alphaX, float alphaY, float roughness)
+                            float alphaX, float alphaY, float roughness, float ambientIor = 1f)
     {
         IsCaster       = true;
         IsTransmissive = isTransmissive;
@@ -100,6 +123,7 @@ public readonly struct CausticInterface
         AlphaY         = MathF.Max(alphaY, 1e-3f);
         Roughness      = roughness;
         Ior            = ior;
+        AmbientIor     = ambientIor;
         Tint           = tint;
         Absorption     = absorption;
     }

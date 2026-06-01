@@ -78,7 +78,7 @@ Il raggio non viene rifratto né perturbato: viaggia in linea retta. Questo sign
 - ✅ Ombre del vetro ammorbidite dalla trasmissione Fresnel.
 - ✅ Vetri colorati con `transmission_depth` proiettano ombra tinta via Beer-Lambert.
 - ✅ Color bleeding diffuso attraverso uno specchio o un vetro tinto.
-- ✅ (con `--caustics on`) Caustiche focalizzate attraverso superfici marcate `caustic_caster`: vedi §2.5. Senza caustiche attive lo spot focalizzato viene solo dal path tracing forward indiretto, con varianza alta.
+- ✅ (con `--caustics on`) Caustiche focalizzate attraverso superfici auto-classificate come caster: vedi §2.5. Senza caustiche attive lo spot focalizzato viene solo dal path tracing forward indiretto, con varianza alta.
 - ✅ (con `--caustics on`) Vetro frosted/rough (Disney `roughness > 0.04` con `spec_trans ≥ 0.5`) e metallo spazzolato: la caustica soft GGX è ricostruita con **Specular Manifold Sampling** (§2.5.1), un'estensione stocastica della manifold. Senza caustiche attive lo shadow ray va dritto come fosse vetro liscio e la soft-transmission resta affidata al path tracing forward (varianza alta).
 
 Il vetro frosted è coperto da Specular Manifold Sampling (§2.5.1); le caustiche multi-bounce/dispersive restano per il photon mapping / VCM. Vedi la sezione *Roadmap caustiche* del `PLANNING.md`.
@@ -87,11 +87,13 @@ Il vetro frosted è coperto da Specular Manifold Sampling (§2.5.1); le caustich
 
 Lo shadow ray dritto di §2.3 non può riprodurre la **caustica focalizzata** — lo spot luminoso che una lente o una sfera di vetro concentra su una superficie. Quella luce richiede di seguire il cammino corretto secondo Snell: `x → p₁ (→ p₂) → luce`, dove `p₁, p₂` sono i vertici speculari sul vetro. Con `--caustics on` il motore risolve questo cammino con **MNEE** (Manifold Next Event Estimation): un solver di Newton-Raphson sulla *manifold speculare* (`Rendering/ManifoldWalker.cs`).
 
-**Opt-in.** MNEE è attivo solo per entità marcate in YAML:
-- `caustic_caster: true` — superficie che focalizza la luce: vetro/cristallo (`dielectric`, oppure Disney con `spec_trans ≥ 0.5`) **liscio** (`roughness ≤ 0.04`, via MNEE) o **frosted** (`roughness > 0.04`, via SMS — §2.5.1); specchio/metallo (`metal`, o Disney `metallic ≈ 1`) liscio o spazzolato. La geometria dev'essere abbastanza **curva** da focalizzare: **primitive curve** (sfera, cilindro, cono, capsula, toro — anche dentro un `Transform`), **mesh smooth** (normali per-vertice) e **solidi CSG con frontiera curva**. Le superfici piatte (box/quad/disco/piano), le mesh flat-shaded e gli heightfield non focalizzano (warning + fallback allo shadow ray).
-- `caustic_receiver: true` — la superficie (tipicamente diffusa, o il `ground`) su cui le caustiche vengono raccolte. Solo i punti di shading con questo flag pagano il costo del walk.
+**Attivazione e auto-classificazione.** Basta `--caustics on` (di default sui preset `final`/`ultra`): il motore **auto-classifica** ogni entità senza alcun flag YAML.
+- **Caster** (auto) — una superficie focalizza la luce quando ha geometria abbastanza **curva** **e** materiale speculare/trasmissivo: vetro/cristallo (`dielectric`, oppure Disney con `spec_trans ≥ 0.5` non thin-walled) **liscio** (`roughness ≤ 0.04`, via MNEE) o **frosted** (`roughness > 0.04`, via SMS — §2.5.1); specchio/metallo (`metal`, o Disney `metallic ≈ 1`) liscio o spazzolato. La geometria deve essere curva: **primitive curve** (sfera, cilindro, cono, capsula, toro — anche dentro un `Transform`), **mesh smooth** (normali per-vertice) e **solidi CSG con frontiera curva**. Le superfici piatte (box/quad/disco/piano), le mesh flat-shaded e gli heightfield non focalizzano.
+- **Receiver** (auto) — ogni superficie che **non** è un caster riceve le caustiche, incluso il `ground`. Un caster non è anche auto-marcato receiver (una superficie speculare liscia non mostra caustica visibile). Solo i punti di shading riceventi pagano il costo del walk.
 
-Costo zero quando i flag non sono presenti o con `--caustics off`.
+**Override opzionali a 3 stati.** I flag YAML `caustic_caster` / `caustic_receiver` non sono più richiesti; restano come override per-entità: assente/non impostato = **auto** (il comportamento sopra); `true` = **forza** (un caster forzato senza geometria focalizzante viene ignorato con un warning); `false` = **escludi** (toglie l'entità dal casting/dalla ricezione — utile per ancorare le caustiche a pochi oggetti-hero su una scena pesante mantenendo `--caustics on`). `--caustics on/off` è l'interruttore globale; il flag per-entità è un bisturi di performance/resa che decide *quali* oggetti castano/ricevono mentre le caustiche sono globalmente attive.
+
+Costo zero con `--caustics off`.
 
 L'emettitore può essere una luce d'area/geometrica, una `sphere`, oppure una sorgente `point`/`spot`: queste ultime, non avendo area (sorgente Dirac), sono modellate come un **bulbo sferico finito** di raggio `soft_radius` (default `0.05`), fisicamente l'idealizzazione di una piccola lampadina — campionare un punto sulla sua superficie fornisce il `pdf_A` e la perturbazione di `y` che il walk richiede. Lo `spot` applica in più la sua attenuazione di cono alla radianza emessa lungo la direzione di uscita.
 
@@ -119,7 +121,7 @@ Per un caster **liscio** la MNEE risolve *l'unico* cammino speculare. Per un cas
 3. **Throughput rough** — il fattore di Fresnel è valutato contro `m`, moltiplicato per il termine di shadowing-masking di Smith `G1(L)` (il campionamento VNDF cancella `D` e il `G1(V)` lato-vista, lasciando esattamente lo stesso peso BSDF/pdf dello scatter rough-glass). La riflessione rough usa il Fresnel di **Schlick-conduttore** con `F0 = tint`. Beer-Lambert interno invariato.
 4. **Stima** — ogni prova è un campione dello **stimatore biased**; il renderer media `--sms-samples` prove indipendenti per connessione rough (default 4; 8 per i preset `final`/`ultra`). Il bias è controllato e tende a zero quando `roughness → 0`.
 
-**Costo.** Zero senza entità marcate o con `--caustics off`, e il percorso liscio resta bit-identico. Sui pixel `caustic_receiver` che vedono un caster rough il costo è circa `N×` una connessione MNEE liscia, con `N = --sms-samples`.
+**Costo.** Zero con `--caustics off`, e il percorso liscio resta bit-identico. Sui pixel riceventi che vedono un caster rough il costo è circa `N×` una connessione MNEE liscia, con `N = --sms-samples`.
 
 **Limiti SMS.** Stimatore biased (la variante unbiased a probabilità reciproca è una fase successiva); l'`α` del caster è anisotropo ma il frame tangente usato è quello geometrico (anisotropia in fallback isotropo).
 

@@ -8,17 +8,19 @@
 #    • Tavolo in legno scuro con texture procedurale
 #    • Pavimento a scacchi bianco/nero classico
 #
-#  Illuminazione minimalista e cinematografica (2 sole luci):
+#  Illuminazione cinematografica (2 luci):
 #    • 1 spot light dall'alto-sinistra — key drammatica, pool sul tavolo
-#    • 1 point light fill fredda — apre le ombre senza appiattire
+#    • 1 area light piccola zenitale — driver delle caustiche: focalizza un
+#      fuoco netto attraverso la lente di vino/cristallo sul tavolo
 #    • Gradient sky scuro — riflessi morbidi nel cristallo
 #
-#  CAUSTICHE (Fase 2c — caster CSG):
-#    • Vino   → caustica ROSSA focalizzata sul tavolo (caster principale,
-#               la semisfera di liquido agisce da lente colorata).
-#    • Stelo/base (cilindri CSG) → contributo sul tavolo.
-#    • Coppa  → guscio sottilissimo: contributo minimo (atteso).
-#    • Tavolo e pavimento sono caustic_receiver.
+#  CAUSTICHE (auto-classificazione):
+#    Non servono più flag YAML: con --caustics on il motore classifica da solo
+#    ogni entità (receiver di default; caster automatico se la geometria è curva
+#    e il materiale è speculare/trasmissivo). Qui diventano caster automatici:
+#    • Vino   → caustica ROSSA focalizzata sul tavolo (lente colorata).
+#    • Stelo/base e coppa (CSG di cristallo) → contributo sul tavolo.
+#    Tavolo, gambe e pavimento ricevono le caustiche di default.
 #    Abilita con --caustics on (final/ultra lo fanno da soli):
 #      dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
 #        -i scenes/cristallo.yaml -o renders/cristallo.png -q final --caustics on
@@ -44,7 +46,6 @@ world:
     type: "infinite_plane"
     material: "pavimento_scacchi"
     y: 0.0
-    caustic_receiver: true
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  CAMERAS
@@ -92,11 +93,18 @@ lights:
     inner_angle: 12
     outer_angle: 48
 
-  # Fill light: punto tenue freddo dal lato opposto
-  # - type: "point"
-  #   position: [2.5, 2.0, -1.0]
-  #   color:    [0.55, 0.6, 0.85]
-  #   intensity: 5
+  # Caustic driver: piccola area light zenitale sopra il bicchiere. Una sorgente
+  # d'area FINITA e piccola dà un fuoco caustico netto via MNEE: la luce scende
+  # dritta attraverso la coppa, il vino e lo stelo di cristallo e si concentra
+  # sul tavolo attorno alla base. Area piccola = fuoco nitido; alzala (o aumenta
+  # shadow_samples) per ammorbidirlo. Lo spot resta la key cinematografica.
+  - type: "area"
+    corner:        [-0.35, 5.0, -0.35]
+    u:             [0.70, 0.0, 0.0]
+    v:             [0.0, 0.0, 0.70]
+    color:         [1.0, 0.97, 0.92]
+    intensity:     130
+    shadow_samples: 6
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -177,7 +185,10 @@ materials:
     ior: 1.345
     specular: 0.70
     transmission_color: [0.55, 0.04, 0.06]
-    transmission_depth: 0.02
+    # 0.06 (era 0.02): meno assorbente, così la caustica rifratta arriva al
+    # tavolo come fuoco ROSSO visibile invece di spegnersi del tutto nel cammino
+    # di liquido. Resta comunque un vino profondo per i raggi della camera.
+    transmission_depth: 0.06
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  ENTITIES
@@ -196,7 +207,6 @@ entities:
     scale: [2.8, 0.1, 1.8]
     translate: [0.0, 0.71, 0.0]
     material: "legno_tavolo"
-    caustic_receiver: true
 
   - { name: "gamba_fl", type: "cylinder", center: [-1.20, 0.0, -0.70], radius: 0.12, height: 0.70, material: "legno_gambe" }
   - { name: "gamba_fr", type: "cylinder", center: [ 1.20, 0.0, -0.70], radius: 0.12, height: 0.70, material: "legno_gambe" }
@@ -235,7 +245,6 @@ entities:
     type: "csg"
     operation: "union"
     material: "cristallo"
-    caustic_caster: true
     left:
       type: "cylinder"
       center: [0.0, 0.763, 0.0]
@@ -269,7 +278,6 @@ entities:
     type: "csg"
     operation: "subtraction"
     material: "cristallo"
-    caustic_caster: true
     left:
       # Guscio: sfera esterna meno sfera interna
       type: "csg"
@@ -303,7 +311,6 @@ entities:
     type: "csg"
     operation: "subtraction"
     material: "vino_rosso"
-    caustic_caster: true
     left:
       type: "sphere"
       center: [0.0, 2.16, 0.0]

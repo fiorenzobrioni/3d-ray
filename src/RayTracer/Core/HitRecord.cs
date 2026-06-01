@@ -19,6 +19,18 @@ public struct HitRecord
     public IMaterial? Material;
 
     /// <summary>
+    /// Relative index of refraction η_incident/η_transmitted for THIS hit's
+    /// refraction, resolved by the renderer from the per-ray
+    /// <see cref="Volumetrics.IorStack"/> just before <c>Sample</c>/<c>Scatter</c>.
+    /// Encodes the medium the ray is actually inside (e.g. wine refracting
+    /// against glass, not air) instead of the legacy always-air assumption.
+    /// The sentinel <c>0</c> means "unset" → transmissive materials fall back to
+    /// their legacy air-relative eta (1/n on a front face, n on a back face),
+    /// which keeps non-nested scenes bit-identical.
+    /// </summary>
+    public float RelativeEta;
+
+    /// <summary>
     /// Participating-media boundary at this surface (interior + exterior).
     /// Populated by <see cref="Geometry.MediumBoundHittable"/> when the entity
     /// was bound to one or more media in YAML (<c>interior_medium</c> /

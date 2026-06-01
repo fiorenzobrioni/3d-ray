@@ -56,10 +56,24 @@ public sealed class Dielectric : IMaterial
         => new CausticInterface(isTransmissive: true, ior: RefractionIndex,
                                 tint: Albedo.Value(in rec), absorption: Vector3.Zero);
 
+    // A solid dielectric enters/exits a nested-IOR medium on refraction, so it
+    // participates in the renderer's IorStack (relative-IOR tracking).
+    public bool TryGetDielectricIor(in HitRecord rec, out float ior)
+    {
+        ior = RefractionIndex;
+        return true;
+    }
+
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
         attenuation = Albedo.Value(in rec);
-        float ri = rec.FrontFace ? (1f / RefractionIndex) : RefractionIndex;
+        // Relative IOR η_incident/η_transmitted: use the renderer-resolved value
+        // (medium the ray is actually inside) when present, else the legacy
+        // air-relative form. With air outside (RelativeEta == 1/n front, n back)
+        // this is bit-identical to the previous always-air behaviour.
+        float ri = rec.RelativeEta > 0f
+            ? rec.RelativeEta
+            : (rec.FrontFace ? (1f / RefractionIndex) : RefractionIndex);
 
         Vector3 unitDirection = Vector3.Normalize(rayIn.Direction);
         Vector3 normal = rec.Normal;

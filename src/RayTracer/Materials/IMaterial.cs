@@ -117,6 +117,23 @@ public interface IMaterial
     /// </summary>
     CausticInterface GetCausticInterface(HitRecord rec) => CausticInterface.None;
 
+    /// <summary>
+    /// Reports the absolute index of refraction of this material's refractive
+    /// interface, for the per-ray <see cref="Volumetrics.IorStack"/> the renderer
+    /// pushes on a transmissive entry and pops on exit. Returns <c>false</c> when
+    /// the material is not a refractive dielectric interface — the ray is then
+    /// treated as staying in the same medium (no stack change, no relative-IOR
+    /// tracking). The default keeps every opaque material out of the stack.
+    ///
+    /// Thin-walled transmissives return <c>false</c>: they model a zero-thickness
+    /// sheet with no interior, so they never enter/exit a nested medium.
+    /// </summary>
+    bool TryGetDielectricIor(in HitRecord rec, out float ior)
+    {
+        ior = 1f;
+        return false;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Symmetric BSDF interface (BRDF value, PDF, sampling).
     //

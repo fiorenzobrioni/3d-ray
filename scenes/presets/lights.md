@@ -321,8 +321,12 @@ avvolgi il cilindro in un `Transform`. Cambia `color` per altri colori neon
 
 # Sezione E — Luci ottimizzate per caustiche
 
-Le caustiche focalizzate richiedono **due opt-in**: il flag CLI `--caustics on` e i
-flag YAML `caustic_caster`/`caustic_receiver` sulle entità. Guidano MNEE e SMS le luci
+Le caustiche focalizzate richiedono **un solo opt-in**: il flag CLI `--caustics on`
+(di default sui preset `final`/`ultra`). Con quello attivo il motore
+**auto-classifica** le entità in caster (geometria curva + materiale
+speculare/trasmissivo) e riceventi (tutto il resto, incluso il `ground`); i flag
+YAML `caustic_caster`/`caustic_receiver` restano come **override opzionali a 3 stati**
+(assente = auto, `true` = forza, `false` = escludi). Guidano MNEE e SMS le luci
 **`area`/geometriche**, **`sphere`** e **`point`/`spot`** (queste modellate come piccolo
 bulbo sferico finito di raggio `soft_radius`); `directional`/sole e cielo/HDRI **non**
 producono caustiche focalizzate. Per la guida completa su caster, receiver e materiali

@@ -546,8 +546,12 @@ public partial class Renderer
                         // entities along the ray push/pop their interior media
                         // as the path refracts through them.
                         var mediums = new MediumStack();
+                        // Per-ray dielectric IOR stack, empty at the camera (the
+                        // camera origin is assumed in air, η = 1); dielectrics
+                        // push/pop their IOR as the path refracts through them.
+                        var iors = new IorStack();
                         Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true,
-                                                   ref mediums,
+                                                   ref mediums, ref iors,
                                                    pathThroughput: Vector3.One);
 
                         Sampler.EndPixelSample();
@@ -573,8 +577,9 @@ public partial class Renderer
                                 ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy)
                                 : _camera.GetRay(u, v);
                             var mediums = new MediumStack();
+                            var iors = new IorStack();
                             Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true,
-                                                       ref mediums,
+                                                       ref mediums, ref iors,
                                                        pathThroughput: Vector3.One);
 
                             sample = ClampRadiance(sample);
@@ -711,6 +716,7 @@ public partial class Renderer
                                   Vector3 currentAbsorption,
                                   Vector3 pathThroughput,
                                   ref MediumStack mediums,
+                                  ref IorStack iors,
                                   int causticChain = CausticCarrierInactive)
     {
         IMaterial? material = rec.Material;
@@ -762,6 +768,20 @@ public partial class Renderer
         // (once in ComputeDirectLighting, once below at the Sample call).
         Vector3 viewDir = Vector3.Normalize(-ray.Direction);
 
+        // ── Relative-IOR resolution (nested dielectrics) ────────────────────
+        // Stamp the relative refraction ratio η_incident/η_transmitted onto the
+        // hit from the per-ray IorStack so transmissive materials bend/Fresnel
+        // against the medium the ray is actually inside (e.g. wine against
+        // glass), not always air. Resolved here, before Sample/Scatter consume
+        // it. Front face = entering the material (outside = current medium,
+        // IorStack.Top); back face = exiting it into the enclosing medium
+        // (IorStack.Enclosing). With air outside (Top/Enclosing == 1) this
+        // reduces to 1/n (front) and n (back) — bit-identical to legacy.
+        if (material != null && material.TryGetDielectricIor(in rec, out float matIor) && matIor > 0f)
+        {
+            rec.RelativeEta = rec.FrontFace ? (iors.Top / matIor) : (matIor / iors.Enclosing);
+        }
+
         // ── Direct lighting (Next Event Estimation, MIS-weighted) ───────────
         bool needsLightSampling = material?.NeedsDirectLighting ?? true;
         // Resolve the medium the surface sits in (stack top, else global) so
@@ -786,7 +806,7 @@ public partial class Renderer
         {
             int nextChain = NextCausticChain(causticChain, rec, mis.Value.IsDelta);
             return ShadeSampleBounce(material, rec, mis.Value, depth, emitted, directLight,
-                                     currentAbsorption, pathThroughput, ref mediums, nextChain);
+                                     currentAbsorption, pathThroughput, ref mediums, ref iors, nextChain);
         }
 
         if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
@@ -830,9 +850,24 @@ public partial class Renderer
             // bounces through a glass Dielectric continue to use the legacy
             // currentAbsorption back-compat path until the material is
             // migrated to BsdfSample (Phase 2 / 3 of the SSS rollout).
+            //
+            // Relative-IOR (nested dielectrics): Scatter materials carry no
+            // transition signal, so detect a refractive crossing here — a
+            // transmission is the only case where the chosen direction ends up
+            // on the far side of the shading normal. On a front-face
+            // transmission push the material's IOR; on a back-face transmission
+            // pop. Copy-on-write so the caller's stack survives the return.
+            // Reflections (and non-dielectrics) leave the stack untouched.
+            IorStack nextIors = iors;
+            if (material.TryGetDielectricIor(in rec, out float scatterIor)
+                && Vector3.Dot(scattered.Direction, rec.Normal) < 0f)
+            {
+                if (rec.FrontFace) nextIors.Push(scatterIor);
+                else               nextIors.Pop();
+            }
             Vector3 indirect = TraceRay(scattered, depth - 1,
                                          prevBsdfPdf: 0f, prevIsDelta: nextIsDelta,
-                                         ref mediums,
+                                         ref mediums, ref nextIors,
                                          currentAbsorption: currentAbsorption,
                                          pathThroughput: nextThroughput,
                                          incomingCategory: nextCat,
@@ -870,6 +905,7 @@ public partial class Renderer
                                        Vector3 currentAbsorption,
                                        Vector3 pathThroughput,
                                        ref MediumStack mediums,
+                                       ref IorStack iors,
                                        int causticChain = CausticCarrierInactive)
     {
         Vector3 attenuation;
@@ -952,6 +988,16 @@ public partial class Renderer
             else
                 nextMediums.Pop();
 
+            // Relative-IOR (nested dielectrics): the same refractive transition
+            // pushes/pops the material's IOR on the dedicated IorStack, sourced
+            // from the material (not from MediumIface, which is null for plain
+            // glass). Copy-on-write so the caller's stack survives the return.
+            IorStack nextIors = iors;
+            if (s.Transition == MediumTransition.Enter)
+                nextIors.Push(material.TryGetDielectricIor(in rec, out float pushIor) ? pushIor : iors.Top);
+            else
+                nextIors.Pop();
+
             if (_sssMode == SssMode.Auto
                 && s.Transition == MediumTransition.Enter
                 && nextMediums.Top is HomogeneousMedium hmInterior
@@ -959,12 +1005,12 @@ public partial class Renderer
                 && rec.EntityRoot is { } entityRoot)
             {
                 indirect = RandomWalkSubsurface(scattered, hmInterior, entityRoot,
-                                                 ref nextMediums, depth - 1, nextThroughput);
+                                                 ref nextMediums, ref nextIors, depth - 1, nextThroughput);
             }
             else
             {
                 indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
-                                     ref nextMediums,
+                                     ref nextMediums, ref nextIors,
                                      currentAbsorption: nextAbsorption,
                                      pathThroughput: nextThroughput,
                                      incomingCategory: nextCat,
@@ -978,7 +1024,7 @@ public partial class Renderer
             // than copying the whole MediumStack on every such bounce — exactly
             // what the legacy Scatter() path already does.
             indirect = TraceRay(scattered, depth - 1, nextPdf, nextIsDelta,
-                                 ref mediums,
+                                 ref mediums, ref iors,
                                  currentAbsorption: nextAbsorption,
                                  pathThroughput: nextThroughput,
                                  incomingCategory: nextCat,
@@ -1107,6 +1153,7 @@ public partial class Renderer
     /// </summary>
     private Vector3 TraceRay(Ray ray, int depth, float prevBsdfPdf, bool prevIsDelta,
                              ref MediumStack mediums,
+                             ref IorStack iors,
                              Vector3 currentAbsorption = default,
                              Vector3 pathThroughput = default,
                              RayCategory incomingCategory = RayCategory.Camera,
@@ -1196,7 +1243,7 @@ public partial class Renderer
             Vector3 result = !hit
                 ? SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
                 : ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
-                               pathThroughput, ref mediums, causticChain);
+                               pathThroughput, ref mediums, ref iors, causticChain);
             // Beer-Lambert along the segment just traversed. Sky miss with
             // non-zero σ_a means the ray escaped the bounded medium — the
             // exp(-σ_a · ∞) is zero for any absorbing channel, so we collapse
@@ -1253,7 +1300,7 @@ public partial class Renderer
                 Lind = phaseWeight * indirectScale
                      * TraceRay(new Ray(p, wi), depth - 1,
                                  prevBsdfPdf: phasePdf, prevIsDelta: false,
-                                 ref mediums,
+                                 ref mediums, ref iors,
                                  currentAbsorption: currentAbsorption,
                                  pathThroughput: nextThroughput);
             }
@@ -1266,7 +1313,7 @@ public partial class Renderer
         Vector3 surfaceOrSky = !hit
             ? beta * SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
             : beta * ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
-                                   pathThroughput * beta, ref mediums, causticChain);
+                                   pathThroughput * beta, ref mediums, ref iors, causticChain);
         return ApplyBeerLambert(surfaceOrSky, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
     }
 
@@ -1379,12 +1426,13 @@ public partial class Renderer
     {
         Vector3 result = Vector3.Zero;
 
-        // For a caustic receiver, block the straight transparent shadow ray
-        // through flagged casters: their refracted light is provided by MNEE
-        // below, so counting the straight transmission too would double it.
-        bool prevBlock = ShadowRay.BlockCausticCasters;
+        // The transparent shadow ray is allowed through caustic casters: MNEE
+        // (below) adds the focused refracted caustic ON TOP of the soft
+        // transmitted fill, rather than replacing it. This keeps a caustic
+        // receiver from going dark where MNEE cannot reconstruct the transport
+        // (nested/enclosed casters, near-flat interfaces); the cost is a slight
+        // double-count of the average transmitted energy in the focal region.
         bool causticReceiver = _causticsActive && rec.CausticReceiver;
-        if (causticReceiver) ShadowRay.BlockCausticCasters = true;
 
         if (_lightDist != null)
         {
@@ -1394,9 +1442,6 @@ public partial class Renderer
             // MIS uses pdf_combined = pPick × pLightSample for non-delta lights.
             if (_lights.Count == 0)
             {
-                // Restore the thread-local block flag before the early-out so it
-                // does not leak to subsequent shading points on this thread.
-                if (causticReceiver) ShadowRay.BlockCausticCasters = prevBlock;
                 return result;
             }
             float xi = MathUtils.RandomFloat();
@@ -1505,10 +1550,6 @@ public partial class Renderer
             }
         }
 
-        // Restore the caster-block flag before the (non-blocked) MNEE walk and
-        // before returning to the caller.
-        if (causticReceiver) ShadowRay.BlockCausticCasters = prevBlock;
-
         // ── MNEE caustics (Phase 2) ─────────────────────────────────────────
         // Focused refractive/reflective caustics that ordinary (straight)
         // shadow rays cannot reach. Gated on the receiver flag and a non-empty
@@ -1558,7 +1599,7 @@ public partial class Renderer
                 {
                     ref readonly CausticCasterRegistry.Caster caster = ref casters[c];
 
-                    if (!TryGetCausticInterface(caster, x, y, out CausticInterface ci))
+                    if (!TryGetCausticInterface(caster, casters, c, x, y, out CausticInterface ci))
                         continue;
 
                     if (!ci.IsRough)
@@ -1639,6 +1680,8 @@ public partial class Renderer
     /// reflective one (whose surface the chord does not touch).
     /// </summary>
     private static bool TryGetCausticInterface(in CausticCasterRegistry.Caster caster,
+                                               ReadOnlySpan<CausticCasterRegistry.Caster> casters,
+                                               int selfIndex,
                                                Vector3 x, Vector3 y, out CausticInterface ci)
     {
         ci = CausticInterface.None;
@@ -1649,7 +1692,22 @@ public partial class Renderer
         if (len > 1e-6f && caster.Hittable.Hit(new Ray(x, d / len), 1e-4f, len - 1e-4f, ref rec))
         {
             ci = rec.Material?.GetCausticInterface(rec) ?? CausticInterface.None;
-            if (ci.IsCaster) return true;
+            if (ci.IsCaster)
+            {
+                // Nested-caster relative IOR: if this transmissive caster is
+                // immersed in another dielectric caster here (e.g. wine whose
+                // bowl sits against the crystal cup), stamp that enclosing IOR
+                // so the manifold walk refracts against it rather than air. The
+                // probe is local to the hit, so the top of the wine (exposed to
+                // air) resolves to ambient = 1 while its glass-backed sides
+                // resolve to the crystal's IOR.
+                if (ci.IsTransmissive)
+                {
+                    float ambient = ResolveAmbientIor(casters, selfIndex, in rec);
+                    if (ambient > 1f) ci = ci.WithAmbientIor(ambient);
+                }
+                return true;
+            }
         }
 
         Vector3 ctr = 0.5f * (caster.Box.Min + caster.Box.Max);
@@ -1661,6 +1719,55 @@ public partial class Renderer
             return ci.IsCaster;
         }
         return false;
+    }
+
+    /// <summary>
+    /// IOR of the dielectric medium immediately outside a transmissive caster at
+    /// the hit <paramref name="hit"/> — the index a nested caster refracts
+    /// against. Probes a point just past the caster's outward surface and returns
+    /// the IOR of the innermost (densest) OTHER transmissive caster whose solid
+    /// contains that point, or 1.0 (air) when none does.
+    /// </summary>
+    private static float ResolveAmbientIor(ReadOnlySpan<CausticCasterRegistry.Caster> casters,
+                                           int selfIndex, in HitRecord hit)
+    {
+        Vector3 outward = hit.FrontFace ? hit.Normal : -hit.Normal;
+        float eps = 1e-3f * MathF.Max(1f, hit.Point.Length());
+        Vector3 q = hit.Point + outward * eps;
+
+        float best = 1f;
+        for (int c = 0; c < casters.Length; c++)
+        {
+            if (c == selfIndex) continue;
+            ref readonly CausticCasterRegistry.Caster c2 = ref casters[c];
+            AABB b = c2.Box;
+            if (q.X < b.Min.X || q.X > b.Max.X ||
+                q.Y < b.Min.Y || q.Y > b.Max.Y ||
+                q.Z < b.Min.Z || q.Z > b.Max.Z)
+                continue;
+            if (TryEnclosingCasterIor(c2, q, out float ior2) && ior2 > best)
+                best = ior2;
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// Returns true (and the caster's IOR) when point <paramref name="q"/> lies
+    /// inside the solid of transmissive caster <paramref name="c2"/>. Containment
+    /// is decided by a single probe ray: if its first intersection with the
+    /// caster is a back face, the probe started inside the solid.
+    /// </summary>
+    private static bool TryEnclosingCasterIor(in CausticCasterRegistry.Caster c2, Vector3 q, out float ior)
+    {
+        ior = 1f;
+        var rec = new HitRecord();
+        if (!c2.Hittable.Hit(new Ray(q, Vector3.UnitY), 1e-4f, MathUtils.Infinity, ref rec))
+            return false;
+        if (rec.FrontFace) return false; // first surface faces us → q is outside
+        CausticInterface ci2 = rec.Material?.GetCausticInterface(rec) ?? CausticInterface.None;
+        if (!ci2.IsCaster || !ci2.IsTransmissive) return false;
+        ior = ci2.Ior;
+        return true;
     }
 
     /// <summary>
