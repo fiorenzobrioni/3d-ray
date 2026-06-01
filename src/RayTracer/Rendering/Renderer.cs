@@ -127,6 +127,23 @@ public partial class Renderer
     private readonly LightSamplingStrategy _lightSamplingStrategy;
     private readonly LightDistribution? _lightDist; // non-null when strategy ≠ All
 
+    // ── Caustics (photon mapping) ────────────────────────────────────────────
+    // Built once in the constructor from a photon-emission pre-pass when
+    // --caustics is on. Null (and _causticsActive false) otherwise, so every
+    // non-caustic scene pays exactly zero overhead and is bit-identical to off.
+    private readonly PhotonMap? _photonMap;
+    private readonly bool  _causticsActive;
+    private readonly float _causticGatherRadius;   // k-nearest gather radius cap
+    private const    int   CausticGatherK = 64;     // photons per density estimate
+
+    // Caustic-chain state threaded through the eye path so the photon gather and
+    // the BSDF-sampled emission are counted exactly once. None: no non-delta
+    // bounce yet (camera / pure-specular-from-camera). Diffuse: last bounce was
+    // non-delta. Suppress: a specular chain followed a diffuse vertex — that
+    // L S+ D transport is owned by the photon gather, so its mirror BSDF path
+    // (D S+ L emission) is suppressed here.
+    private const int CausticNone = 0, CausticDiffuse = 1, CausticSuppress = 2;
+
     // ── Russian Roulette configuration ──────────────────────────────────────
     //
     // RR is scene-adaptive AND path-throughput based (PBRT §13.7.1, Veach §10.4):
@@ -279,7 +296,9 @@ public partial class Renderer
         TextureFilteringMode textureFiltering = TextureFilteringMode.Auto,
         float exposureEv = DefaultExposureEv,
         SssMode sssMode = SssMode.Auto,
-        RandomWalkConfig? walkConfig = null)
+        RandomWalkConfig? walkConfig = null,
+        bool enableCaustics = false,
+        int causticPhotons = 0)
     {
         _world = world;
         _camera = camera;
@@ -336,6 +355,23 @@ public partial class Renderer
         bool isIndirectDominant = meanIrradiance < IndirectDominantThreshold;
         _rrMinBounces  = isIndirectDominant ? RR_MinBounces_Indirect  : RR_MinBounces_Normal;
         _rrMinSurvival = isIndirectDominant ? RR_MinSurvival_Indirect : RR_MinSurvival_Normal;
+
+        // ── Caustics: emit photons and build the caustic map ─────────────────
+        // The gather radius and grid cell scale with the scene so the estimate
+        // is resolution-independent. Build returns null when no caustic photon
+        // is deposited (no specular caster in the scene) — then the gather is a
+        // no-op and the render is identical to --caustics off.
+        if (enableCaustics && causticPhotons > 0 && lights.Count > 0)
+        {
+            float cell = MathF.Max(sceneRadius * 0.03f, 1e-4f);
+            _causticGatherRadius = MathF.Max(sceneRadius * 0.10f, 1e-4f);
+            _photonMap = CausticPhotonTracer.Build(world, lights, sceneBounds, causticPhotons, cell);
+            _causticsActive = _photonMap != null;
+            if (_causticsActive)
+                Console.WriteLine($"  Caustics:    photon map ({_photonMap!.Count:N0} caustic photons)");
+            else
+                Console.WriteLine("  Caustics:    on (no caustic photons deposited — no specular casters)");
+        }
 
         _emitterToLight = new Dictionary<Emissive, ILight>();
         foreach (var gl in lights.OfType<GeometryLight>())
@@ -683,7 +719,8 @@ public partial class Renderer
                                   Vector3 currentAbsorption,
                                   Vector3 pathThroughput,
                                   ref MediumStack mediums,
-                                  ref IorStack iors)
+                                  ref IorStack iors,
+                                  int causticState)
     {
         IMaterial? material = rec.Material;
 
@@ -712,8 +749,12 @@ public partial class Renderer
         }
 
         // ── Emission (MIS-weighted) ─────────────────────────────────────────
+        // Suppress emission reached through a diffuse→specular-chain (state
+        // Suppress): that focused L S+ D transport is already supplied by the
+        // photon gather at the originating diffuse vertex, so counting the
+        // mirror BSDF path here would double it.
         Vector3 emitted = Vector3.Zero;
-        if (material != null)
+        if (material != null && !(_causticsActive && causticState == CausticSuppress))
         {
             Vector3 raw = material.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
             if (raw.X > 0f || raw.Y > 0f || raw.Z > 0f)
@@ -753,6 +794,14 @@ public partial class Renderer
             ? ComputeDirectLighting(rec, viewDir, material, shadowMedium, shadowMediumEntity)
             : Vector3.Zero;
 
+        // Focused-caustic radiance from the photon map at this diffuse/glossy
+        // receiver. Folded into directLight so every return path below carries
+        // it and the recursion scales it by the path throughput. Skipped on
+        // delta surfaces (mirror/glass) — no photons land there and the BRDF is
+        // zero — and when caustics are inactive (zero overhead).
+        if (_causticsActive && needsLightSampling && material != null && !material.IsDeltaScatter)
+            directLight += GatherCaustics(rec, viewDir, material);
+
         if (material == null)
             return emitted + directLight;
 
@@ -765,7 +814,8 @@ public partial class Renderer
         if (mis.HasValue)
         {
             return ShadeSampleBounce(material, rec, mis.Value, depth, emitted, directLight,
-                                     currentAbsorption, pathThroughput, ref mediums, ref iors);
+                                     currentAbsorption, pathThroughput, ref mediums, ref iors,
+                                     causticState);
         }
 
         if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
@@ -828,7 +878,8 @@ public partial class Renderer
                                          ref mediums, ref nextIors,
                                          currentAbsorption: currentAbsorption,
                                          pathThroughput: nextThroughput,
-                                         incomingCategory: nextCat);
+                                         incomingCategory: nextCat,
+                                         causticState: NextCausticState(causticState, nextIsDelta));
             // Depth-aware indirect clamp: suppresses deep-specular fireflies that
             // survive the primary pixel-level ClampRadiance. When the factor is
             // 1.0 (default) ClampRadianceIndirect == ClampRadiance — no change.
@@ -862,7 +913,8 @@ public partial class Renderer
                                        Vector3 currentAbsorption,
                                        Vector3 pathThroughput,
                                        ref MediumStack mediums,
-                                       ref IorStack iors)
+                                       ref IorStack iors,
+                                       int causticState)
     {
         Vector3 attenuation;
         if (s.IsDelta)
@@ -969,7 +1021,8 @@ public partial class Renderer
                                      ref nextMediums, ref nextIors,
                                      currentAbsorption: nextAbsorption,
                                      pathThroughput: nextThroughput,
-                                     incomingCategory: nextCat);
+                                     incomingCategory: nextCat,
+                                     causticState: NextCausticState(causticState, s.IsDelta));
             }
         }
         else
@@ -982,7 +1035,8 @@ public partial class Renderer
                                  ref mediums, ref iors,
                                  currentAbsorption: nextAbsorption,
                                  pathThroughput: nextThroughput,
-                                 incomingCategory: nextCat);
+                                 incomingCategory: nextCat,
+                                 causticState: NextCausticState(causticState, s.IsDelta));
         }
         // Depth-aware indirect clamp — see ShadeSurface's Scatter path above.
         indirect = ClampRadianceIndirect(indirect);
@@ -1029,6 +1083,54 @@ public partial class Renderer
         bool transmitted = Vector3.Dot(normal, wo) < 0f;
         if (transmitted) return RayCategory.Transmission;
         return isDelta ? RayCategory.Glossy : RayCategory.Diffuse;
+    }
+
+    /// <summary>
+    /// Advances the caustic-chain state across a bounce. A non-delta bounce
+    /// (re)starts a diffuse vertex; a delta bounce promotes a diffuse vertex
+    /// into the suppress state (specular chain after a diffuse hit) and keeps a
+    /// pure-from-camera specular chain in <see cref="CausticNone"/> so a mirror's
+    /// view of a light is never suppressed.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int NextCausticState(int state, bool isDelta)
+    {
+        if (!isDelta) return CausticDiffuse;
+        return state == CausticNone ? CausticNone : CausticSuppress;
+    }
+
+    /// <summary>
+    /// Density estimate of the focused-caustic radiance reflected toward
+    /// <paramref name="viewDir"/> at a diffuse/glossy receiver: gathers the
+    /// k nearest caustic photons and sums <c>f_r(ω_p, ω_o)·Φ_p</c> over the disc
+    /// of the adaptive kernel radius (Jensen's estimator,
+    /// <c>L = Σ f_r·Φ / (π r²)</c>). Returns zero when caustics are inactive or
+    /// no photon lies within the radius cap. Allocation-free (the bounded
+    /// max-heap lives in stack spans).
+    /// </summary>
+    private Vector3 GatherCaustics(in HitRecord rec, Vector3 viewDir, IMaterial material)
+    {
+        PhotonMap? map = _photonMap;
+        if (map == null) return Vector3.Zero;
+
+        Span<int>   idx  = stackalloc int[CausticGatherK];
+        Span<float> heap = stackalloc float[CausticGatherK];
+        int count = map.GatherKNearest(rec.Point, CausticGatherK, _causticGatherRadius,
+                                       idx, heap, out float radius);
+        if (count == 0 || radius <= 0f) return Vector3.Zero;
+
+        ReadOnlySpan<Photon> photons = map.Photons;
+        Vector3 sum = Vector3.Zero;
+        for (int i = 0; i < count; i++)
+        {
+            ref readonly Photon p = ref photons[idx[i]];
+            // Light-leak guard: ignore photons arriving from behind the surface.
+            if (Vector3.Dot(p.IncidentDir, rec.Normal) <= 0f) continue;
+            // BRDF without cosine — the photon flux already carries the incident
+            // geometry through the surface photon density.
+            sum += material.Evaluate(viewDir, p.IncidentDir, rec) * p.Power;
+        }
+        return sum * (1f / (MathF.PI * radius * radius));
     }
 
     /// <summary>
@@ -1089,7 +1191,8 @@ public partial class Renderer
                              ref IorStack iors,
                              Vector3 currentAbsorption = default,
                              Vector3 pathThroughput = default,
-                             RayCategory incomingCategory = RayCategory.Camera)
+                             RayCategory incomingCategory = RayCategory.Camera,
+                             int causticState = CausticNone)
     {
         if (depth <= 0) return Vector3.Zero;
 
@@ -1175,7 +1278,7 @@ public partial class Renderer
             Vector3 result = !hit
                 ? SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
                 : ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
-                               pathThroughput, ref mediums, ref iors);
+                               pathThroughput, ref mediums, ref iors, causticState);
             // Beer-Lambert along the segment just traversed. Sky miss with
             // non-zero σ_a means the ray escaped the bounded medium — the
             // exp(-σ_a · ∞) is zero for any absorbing channel, so we collapse
@@ -1234,7 +1337,8 @@ public partial class Renderer
                                  prevBsdfPdf: phasePdf, prevIsDelta: false,
                                  ref mediums, ref iors,
                                  currentAbsorption: currentAbsorption,
-                                 pathThroughput: nextThroughput);
+                                 pathThroughput: nextThroughput,
+                                 causticState: NextCausticState(causticState, isDelta: false));
             }
 
             return ApplyBeerLambert(beta * (Lnee + Lind), currentAbsorption, tMed);
@@ -1245,7 +1349,7 @@ public partial class Renderer
         Vector3 surfaceOrSky = !hit
             ? beta * SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
             : beta * ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
-                                   pathThroughput * beta, ref mediums, ref iors);
+                                   pathThroughput * beta, ref mediums, ref iors, causticState);
         return ApplyBeerLambert(surfaceOrSky, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
     }
 

@@ -234,10 +234,10 @@ class Program
 
         // Verbose mode
         // ── Caustics ─────────────────────────────────────────────────────────
-        // `--caustics on|off` toggles focused caustics; an explicit flag overrides
-        // the quality-preset default (FINAL/ULTRA enable it). The dedicated caustic
-        // integrator is being reworked, so the resolved flag is parsed and reported
-        // but not yet wired into the renderer.
+        // `--caustics on|off` toggles photon-mapped caustics; an explicit flag
+        // overrides the quality-preset default (FINAL/ULTRA enable it). When on,
+        // a photon pre-pass focuses light through every specular surface in the
+        // scene — no per-object flags. `--caustic-photons N` overrides the budget.
         bool? causticsExplicit = null;
         string? causticsArg = GetArg(args, "--caustics", null);
         if (causticsArg != null)
@@ -252,6 +252,19 @@ class Program
             }
         }
         bool enableCaustics = causticsExplicit ?? (quality?.Caustics ?? false);
+
+        // Caustic photon budget: preset default (final/ultra raise it), global
+        // fallback when on outside those presets, and an explicit --caustic-photons
+        // override. Zero when caustics are off.
+        int causticPhotons = 0;
+        if (enableCaustics)
+        {
+            const int DefaultCausticPhotons = 2_000_000;
+            int presetBudget = quality?.CausticPhotons ?? 0;
+            causticPhotons = presetBudget > 0 ? presetBudget : DefaultCausticPhotons;
+            if (int.TryParse(GetArg(args, "--caustic-photons", null), out var cpArg) && cpArg > 0)
+                causticPhotons = cpArg;
+        }
 
         bool verbose = HasFlag(args, "--verbose", "-v");
         SceneLoader.SetVerbose(verbose);
@@ -364,7 +377,8 @@ class Program
                 world, camera, lights, sky, samples, depth, globalMedium,
                 clampOverride, verbose, misHeuristic, lightSampling,
                 indirectClampFactor, textureFiltering, exposureEv,
-                sssMode, walkConfig);
+                sssMode, walkConfig,
+                enableCaustics: enableCaustics, causticPhotons: causticPhotons);
             Console.WriteLine();
 
             sw.Restart();
@@ -419,7 +433,8 @@ class Program
         Console.WriteLine("      --mis <balance|power>    MIS combination heuristic (default: balance)");
         Console.WriteLine("      --light-sampling <all|power|uniform>  NEE light strategy (default: all)");
         Console.WriteLine("      --texture-filtering <auto|on|off>     Analytic anti-aliasing via ray differentials (default: auto)");
-        Console.WriteLine("      --caustics <on|off>      Focused caustics (default: off, on for final/ultra)");
+        Console.WriteLine("      --caustics <on|off>      Photon-mapped caustics (default: off, on for final/ultra)");
+        Console.WriteLine("      --caustic-photons <n>    Caustic photon budget when --caustics on (default: 2-4M by preset)");
         Console.WriteLine("      --sss-mode <auto|off>    Subsurface-scattering dispatch (default: auto = follow scene)");
         Console.WriteLine("      --sss-quality <preview|normal|high>   Random-walk preset; inherits from -q when omitted");
         Console.WriteLine("      --max-volume-bounces <n> Hard cap on random-walk bounces inside one entity");
@@ -547,14 +562,17 @@ class Program
         /// caster registry is empty → zero cost), and exactly what a final render
         /// of a caustic-marked scene wants. An explicit <c>--caustics</c> overrides.</summary>
         public bool Caustics { get; }
+        /// <summary>Caustic photon budget for this tier when caustics are on
+        /// (0 → use the global default). FINAL/ULTRA raise it for cleaner maps.</summary>
+        public int CausticPhotons { get; }
 
         private QualityPreset(string name, int w, int h, int s, int d, int ss,
                               RandomWalkConfig walk, string walkName,
-                              bool caustics = false)
+                              bool caustics = false, int causticPhotons = 0)
         {
             Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
             WalkConfig = walk; SssQualityName = walkName;
-            Caustics = caustics;
+            Caustics = caustics; CausticPhotons = causticPhotons;
         }
 
         public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 4, 1, RandomWalkConfig.Preview, "preview");
@@ -563,10 +581,10 @@ class Program
         public static readonly QualityPreset MediumTiny  = new("medium-tiny",  480, 270,   128, 6, 1, RandomWalkConfig.Normal,  "normal");
         public static readonly QualityPreset MediumSmall = new("medium-small", 960, 540,   128, 6, 1, RandomWalkConfig.Normal,  "normal");
         public static readonly QualityPreset Medium      = new("medium",      1920, 1080,  128, 6, 1, RandomWalkConfig.Normal,  "normal");
-        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true);
-        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true);
-        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true);
-        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true);
+        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 2_000_000);
+        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 2_000_000);
+        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 3_000_000);
+        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 4_000_000);
 
         public const string NamesCsv =
             "draft-tiny, draft-small, draft, medium-tiny, medium-small, medium, final-tiny, final-small, final, ultra";
