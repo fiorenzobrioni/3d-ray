@@ -200,22 +200,26 @@ entities:
   - name: "lente_biconvessa"
     type: "csg"
     operation: "intersection"
-    caustic_caster: true
+
     left:
       type: "csg"
       operation: "intersection"
       left:
         type: "sphere"
-        center: [-1.5, 1.8, -2.7]
-        radius: 3.0
+        center: [0, 0, -2.7]
+        radius: 3
+        scale: [2, 2, 1]
       right:
         type: "sphere"
-        center: [-1.5, 1.8, 2.7]
-        radius: 3.0
+        center: [0, 0, 2.7]
+        radius: 3
+        scale: [2, 2, 1]
     right:
       type: "sphere"
-      center: [-1.5, 1.8, 0]
+      center: [0, 0, 0]
       radius: 1.2
+    translate: [-1.5, 1.8, 0]
+    rotate: [0, 10, 0]
     material: "vetro_lente"
 
   # ─────────────────────────────────────────────────────────────────────────
