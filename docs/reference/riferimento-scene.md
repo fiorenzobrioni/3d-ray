@@ -1851,8 +1851,7 @@ entities:
 > photon mapping sono una feature globale e completamente automatica: si attivano
 > con il flag CLI `--caustics on` (vedi `docs/reference/rendering-profiles.md` e
 > i doc della pipeline di rendering) e il pre-pass di fotoni individua da solo
-> ogni caster speculare e ogni receiver diffuso. Non esistono chiavi di scena
-> `caustic_caster` / `caustic_receiver`.
+> ogni caster speculare e ogni receiver diffuso.
 
 #### **7.1 Sphere**
 ```yaml

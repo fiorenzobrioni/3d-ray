@@ -48,11 +48,8 @@ camera:
 materials:
 
   - id: "floor"
-    type: "disney"
+    type: "lambertian"
     color: [0.72, 0.70, 0.66]
-    roughness: 0.55
-    metallic: 0.0
-    specular: 0.25
 
   - id: "chrome"
     type: "disney"

@@ -1850,7 +1850,6 @@ group, instance):
 > automatic feature: enable them with the `--caustics on` CLI flag (see
 > `docs/reference/rendering-profiles.md` and the rendering-pipeline docs) and the
 > photon pre-pass discovers every specular caster and diffuse receiver on its own.
-> There are no `caustic_caster` / `caustic_receiver` scene keys.
 
 #### **7.1 Sphere**
 ```yaml
