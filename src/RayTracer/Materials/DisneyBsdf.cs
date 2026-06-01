@@ -589,6 +589,21 @@ public sealed class DisneyBsdf : IMaterial
     /// face hits to colour the shadow of a glass tinted by volumetric absorption
     /// (rubies, emeralds, amber, sapphires in the showcase).
     /// </summary>
+    /// <summary>
+    /// True for a SMOOTH, solid transmissive Disney interface — the case the
+    /// caustic photon map handles as a delta refraction. Thin-walled sheets and
+    /// rough/frosted transmission return false (the photon map skips them, so
+    /// their soft transparent shadow stays). Matches the deltaness the photon
+    /// walk sees from <see cref="Sample"/>.
+    /// </summary>
+    public bool IsSpecularTransmissive(in HitRecord rec)
+    {
+        if (ThinWalled) return false;
+        float u = rec.U, v = rec.V; Vector3 p = rec.LocalPoint; int seed = rec.ObjectSeed;
+        return SpecTrans.Value(u, v, p, seed) >= 0.5f
+            && Roughness.Value(u, v, p, seed) <= 0.05f;
+    }
+
     public Vector3 ShadowAbsorption(HitRecord rec)
     {
         Vector3 baseCol = BaseColor.Value(in rec);

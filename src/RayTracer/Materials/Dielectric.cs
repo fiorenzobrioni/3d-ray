@@ -49,6 +49,10 @@ public sealed class Dielectric : IMaterial
         return (1f - fr) * albedo;
     }
 
+    // Clear dielectric = a pair of delta lobes, so its transmission is exactly
+    // the smooth-specular transport the caustic photon map reconstructs.
+    public bool IsSpecularTransmissive(in HitRecord rec) => true;
+
     // A solid dielectric enters/exits a nested-IOR medium on refraction, so it
     // participates in the renderer's IorStack (relative-IOR tracking).
     public bool TryGetDielectricIor(in HitRecord rec, out float ior)

@@ -509,6 +509,12 @@ public partial class Renderer
 
         Parallel.For(0, height, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, j =>
         {
+            // Per-worker switch: with photon caustics active, smooth specular
+            // transmissive surfaces are opaque to NEE shadow rays (the photon map
+            // owns that refracted light). Set on this worker before any shadow ray
+            // it casts; re-set every scanline so it never leaks across renders.
+            ShadowRay.BlockSpecularTransmission = _causticsActive;
+
             for (int i = 0; i < width; i++)
             {
                 Vector3 cumulativeColor = Vector3.Zero;

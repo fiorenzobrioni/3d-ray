@@ -106,6 +106,21 @@ public interface IMaterial
     Vector3 ShadowAbsorption(HitRecord rec) => Vector3.Zero;
 
     /// <summary>
+    /// True when this surface transmits light through a <b>smooth specular</b>
+    /// (delta) interface — clear glass, water, a polished gem. This is exactly the
+    /// transport the caustic photon map reconstructs (<c>L S+ D</c>), so when
+    /// photon caustics are active the renderer makes such an interface opaque to
+    /// straight NEE shadow rays: the focused, refracted (and Beer-Lambert tinted)
+    /// light is supplied by the photon map instead, avoiding a double count and
+    /// reproducing physically correct — coloured — refractive shadows.
+    ///
+    /// <para>Rough/frosted transmission returns <c>false</c>: the photon map does
+    /// not capture it, so the soft straight-through transparent shadow stays its
+    /// only fill. Default <c>false</c> (opaque or non-transmissive).</para>
+    /// </summary>
+    bool IsSpecularTransmissive(in HitRecord rec) => false;
+
+    /// <summary>
     /// Reports the absolute index of refraction of this material's refractive
     /// interface, for the per-ray <see cref="Volumetrics.IorStack"/> the renderer
     /// pushes on a transmissive entry and pops on exit. Returns <c>false</c> when

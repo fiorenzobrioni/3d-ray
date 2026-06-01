@@ -122,10 +122,29 @@ public static class CausticPhotonTracer
         int specularBounces = 0;
         var rec = new HitRecord();
 
+        // Beer-Lambert state for coloured glass: when a photon refracts into a
+        // medium with non-zero absorption σ_a it travels tinted until it exits.
+        // exp(−σ_a·d) over the interior segment is what makes a ruby/amber lens
+        // cast a coloured caustic (= coloured shadow). Single-medium model, same
+        // as ShadowRay/the forward path.
+        bool inMedium = false;
+        Vector3 sigmaA = Vector3.Zero;
+        Vector3 entryPoint = default;
+
         for (int bounce = 0; bounce < MaxPhotonBounces; bounce++)
         {
             rec = new HitRecord();
             if (!world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec)) return;
+
+            // Absorption over the interior segment just traversed (entry → here).
+            if (inMedium)
+            {
+                float d = Vector3.Distance(rec.Point, entryPoint);
+                power = new Vector3(power.X * MathF.Exp(-sigmaA.X * d),
+                                    power.Y * MathF.Exp(-sigmaA.Y * d),
+                                    power.Z * MathF.Exp(-sigmaA.Z * d));
+                inMedium = false;
+            }
 
             IMaterial? material = rec.Material;
             if (material == null) return;
@@ -141,6 +160,7 @@ public static class CausticPhotonTracer
                 if (s.IsDelta)
                 {
                     power *= s.F;                       // delta lobe: F is the full attenuation
+                    EnterMediumIfRefracting(material, rec, s.Wo, ref inMedium, ref sigmaA, ref entryPoint);
                     ray = ContinueRay(rec, s.Wo);
                     specularBounces++;
                 }
@@ -155,6 +175,7 @@ public static class CausticPhotonTracer
                 if (material.IsDeltaScatter)
                 {
                     power *= atten;                     // mirror / glass: continue the chain
+                    EnterMediumIfRefracting(material, rec, scattered.Direction, ref inMedium, ref sigmaA, ref entryPoint);
                     ray = scattered;
                     specularBounces++;
                 }
@@ -197,6 +218,24 @@ public static class CausticPhotonTracer
     {
         Vector3 offsetDir = Vector3.Dot(wo, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
         return new Ray(MathUtils.OffsetOrigin(rec.Point, offsetDir), wo);
+    }
+
+    /// <summary>
+    /// When a delta bounce refracts INTO a medium (front-face transmission) whose
+    /// material exposes a non-zero Beer-Lambert σ_a, arms the absorption state so
+    /// the photon's power is attenuated over the interior segment at the exit hit.
+    /// A reflection, or a back-face exit, leaves the state untouched.
+    /// </summary>
+    private static void EnterMediumIfRefracting(IMaterial material, in HitRecord rec, Vector3 wo,
+                                                ref bool inMedium, ref Vector3 sigmaA, ref Vector3 entryPoint)
+    {
+        bool transmitted = Vector3.Dot(wo, rec.Normal) < 0f;   // crossed to the far side
+        if (!transmitted || !rec.FrontFace) return;
+        Vector3 sa = material.ShadowAbsorption(rec);
+        if (sa.X <= 0f && sa.Y <= 0f && sa.Z <= 0f) return;
+        inMedium = true;
+        sigmaA = sa;
+        entryPoint = rec.Point;
     }
 
     // ── Emission by light type ───────────────────────────────────────────────

@@ -5,6 +5,7 @@ using RayTracer.Geometry;
 using RayTracer.Lights;
 using RayTracer.Materials;
 using RayTracer.Rendering;
+using RayTracer.Textures;
 using Xunit;
 
 namespace RayTracer.Tests;
@@ -72,6 +73,49 @@ public class CausticRenderTests
         map.QueryRadius(new Vector3(2.4f, 0f, 0f), 0.6f, offAxis);
         Assert.True(center.Count > offAxis.Count * 3,
             $"Caustic should focus under the lens: {center.Count} central vs {offAxis.Count} off-axis.");
+    }
+
+    [Fact]
+    public void Photons_AreTintedByColouredGlass()
+    {
+        // A red absorbing glass sphere (Disney transmission_color red +
+        // transmission_depth → Beer-Lambert σ_a). Photons that refract through it
+        // must come out reddish, so the focused caustic (= the coloured refractive
+        // shadow) is red — the physical realism the Beer-Lambert photon transport
+        // exists to produce.
+        Sampler.SetKind(SamplerKind.Prng);
+
+        var floor = new InfinitePlane(new Vector3(0f, 0f, 0f), new Vector3(0f, 1f, 0f),
+                                      new Lambertian(new Vector3(0.7f, 0.7f, 0.7f)));
+        var redGlass = new DisneyBsdf(
+            baseColor:         new SolidColor(new Vector3(1f, 1f, 1f)),
+            roughness:         new FloatTexture(0f),
+            specTrans:         new FloatTexture(1f),
+            ior:               new FloatTexture(1.5f),
+            transmissionColor: new SolidColor(new Vector3(0.9f, 0.08f, 0.08f)),
+            transmissionDepth: new FloatTexture(1.0f));
+        var glass = new Sphere(new Vector3(0f, 1.2f, 0f), 1.0f, redGlass);
+        var world = new HittableList(new[] { (IHittable)floor, glass });
+
+        var light = new AreaLight(
+            corner: new Vector3(-1.0f, 6.0f, -1.0f), u: new Vector3(2.0f, 0f, 0f),
+            v: new Vector3(0f, 0f, 2.0f), color: new Vector3(1f, 1f, 1f),
+            intensity: 12f, shadowSamples: 4);
+        var bounds = new AABB(new Vector3(-3f, -0.5f, -3f), new Vector3(3f, 3f, 3f));
+
+        PhotonMap? map = CausticPhotonTracer.Build(world, new List<ILight> { light }, bounds,
+                                                   photonBudget: 1_000_000, cellSize: 0.1f);
+        Assert.NotNull(map);
+        Assert.True(map!.Count > 500, $"Expected caustic photons, got {map.Count}.");
+
+        var photons = map.Photons;
+        Vector3 mean = Vector3.Zero;
+        for (int i = 0; i < photons.Length; i++) mean += photons[i].Power;
+        mean /= photons.Length;
+
+        // Beer-Lambert through the red glass kills green/blue far more than red.
+        Assert.True(mean.X > mean.Y * 1.5f && mean.X > mean.Z * 1.5f,
+            $"Caustic photons should be red after a red glass; mean power = {mean}.");
     }
 
     [Fact]
