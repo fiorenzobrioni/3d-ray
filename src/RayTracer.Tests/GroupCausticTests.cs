@@ -200,7 +200,74 @@ entities:
     public void GroupItself_FlaggedCaster_IsRejected()
     {
         // Flagging the GROUP (not its children) registers nothing — a group is not
-        // a single manifold caster.
+        // a single manifold caster. The child here is diffuse so auto-classification
+        // does not independently register it, isolating the group-flag behaviour.
+        string yaml = @"
+camera:
+  position: [0, 4, 8]
+  look_at: [0, 1, 0]
+world:
+  sky: { type: ""flat"", color: [0,0,0] }
+materials:
+  - id: ""matte""
+    type: ""lambertian""
+    color: [0.7, 0.7, 0.7]
+entities:
+  - name: ""grp""
+    type: ""group""
+    caustic_caster: true
+    children:
+      - name: ""ball""
+        type: ""sphere""
+        center: [0, 1.4, 0]
+        radius: 1.0
+        material: ""matte""
+";
+        var (casters, _) = LoadCasters(yaml);
+        Assert.Empty(casters);
+    }
+
+    [Fact]
+    public void AutoClassification_RegistersSpecularCurvedEntity_WithoutFlags()
+    {
+        // No caustic_caster/caustic_receiver flags anywhere: the engine must
+        // auto-register the glass sphere (curved geometry + transmissive material)
+        // as a caster, while the diffuse box stays out of the registry.
+        string yaml = @"
+camera:
+  position: [0, 4, 8]
+  look_at: [0, 1, 0]
+world:
+  sky: { type: ""flat"", color: [0,0,0] }
+materials:
+  - id: ""glass""
+    type: ""dielectric""
+    refraction_index: 1.5
+  - id: ""matte""
+    type: ""lambertian""
+    color: [0.7, 0.7, 0.7]
+entities:
+  - name: ""ball""
+    type: ""sphere""
+    center: [0, 1.4, 0]
+    radius: 1.0
+    material: ""glass""
+  - name: ""crate""
+    type: ""box""
+    scale: [1, 1, 1]
+    translate: [3, 0.5, 0]
+    material: ""matte""
+";
+        var (casters, registered) = LoadCasters(yaml);
+        Assert.Single(casters);   // only the glass sphere; the diffuse box is excluded
+        Assert.Equal(1, registered);
+    }
+
+    [Fact]
+    public void AutoClassification_OptOut_ExcludesCaster()
+    {
+        // caustic_caster: false must veto auto-registration even for an otherwise
+        // eligible specular curved entity.
         string yaml = @"
 camera:
   position: [0, 4, 8]
@@ -212,15 +279,12 @@ materials:
     type: ""dielectric""
     refraction_index: 1.5
 entities:
-  - name: ""grp""
-    type: ""group""
-    caustic_caster: true
-    children:
-      - name: ""ball""
-        type: ""sphere""
-        center: [0, 1.4, 0]
-        radius: 1.0
-        material: ""glass""
+  - name: ""ball""
+    type: ""sphere""
+    center: [0, 1.4, 0]
+    radius: 1.0
+    material: ""glass""
+    caustic_caster: false
 ";
         var (casters, _) = LoadCasters(yaml);
         Assert.Empty(casters);

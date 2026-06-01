@@ -6,6 +6,54 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Caustiche — auto-classificazione caster/receiver ✅
+
+Tolto l'attrito del doppio opt-in. Prima le caustiche richiedevano **due** azioni:
+il flag CLI `--caustics on` **e** i flag YAML `caustic_caster`/`caustic_receiver`
+su ogni entità — faticoso da ricordare e posizionare a mano scena per scena.
+
+**Ora un solo switch**: con `--caustics on` (default sui preset `final`/`ultra`) il
+motore **classifica da solo** ogni entità. Receiver è il default per ogni superficie
+(incluso il `world.ground`); caster diventa automaticamente un'entità la cui
+**geometria** può focalizzare luce (`CanCastCaustics`: primitiva curva / mesh smooth /
+CSG con frontiera curva) **e** il cui **materiale** è speculare/trasmissivo. Il gate
+materiale è il nuovo helper `SceneLoader.MaterialCanCast`, che sonda
+`IMaterial.GetCausticInterface(default).IsCaster` (Dielectric/Metal sempre caster;
+Disney da `spec_trans ≥ 0.5` non thin-walled oppure `metallic ≈ 1`; la roughness pilota
+solo `IsRough`). Un caster **non** è auto-receiver (superficie speculare liscia → nessuna
+caustica visibile, solo lavoro MNEE sprecato): `receiver = !caster`.
+
+**I flag YAML restano come override opzionali a 3 stati** (`bool?` in `SceneData`):
+assente/`null` = auto; `true` = forza (un caster forzato richiede comunque geometria
+focalizzante, altrimenti warning); `false` = escludi. Servono come *scalpello di
+performance/regia* — su una scena con molti caster eleggibili (lampadario di cristalli)
+si può limitare il casting a pochi oggetti hero pur tenendo `--caustics on`. CLI globale
+e flag per-oggetto non sono ridondanti: uno è l'interruttore globale, l'altro lo scope.
+
+**Refactor**: `ApplyCausticFlags(hittable, bool? casterOverride, bool? receiverOverride,
+IMaterial material, …)` — rimosso l'early-return sul "nessun flag" così ogni entità fluisce
+e ottiene `receiver = !caster`; il ramo off (`!_enableCaustics`) è invariato → **bit-identico
+con `--caustics off`**. Ground a L456 riceve di default (`CausticReceiver != false`). Warning
+su group/instance/template ora solo su opt-in **esplicito** (`== true`). Istanze/template
+restano esclusi (geometria condivisa, niente stato caustico per-istanza).
+
+**Costo**: con auto ogni superficie diffusa è receiver, quindi `ComputeCaustics` gira a quasi
+ogni hit; ma la guardia esistente `_causticsActive = enableCaustics && _caustics.Count > 0`
+rende il tutto **gratis** quando non si registra alcun caster, e `MaterialCanCast` evita di
+registrare geometria curva ma diffusa (es. gambe-cilindro in legno di `cristallo.yaml`).
+
+**Scena**: `cristallo.yaml` ripulita dai flag (ora ridondanti) + nuova **area light**
+zenitale piccola come driver di caustiche; `vino_rosso.transmission_depth` 0.02→0.06 perché
+il fuoco rosso arrivi al tavolo senza spegnersi. Render di verifica: 3 caster auto-rilevati
+(coppa, stelo/base, vino), gambe in legno correttamente escluse, caustica rossa sul tavolo.
+
+**Test**: `GroupCausticTests` — il test "flag sul gruppo" ora usa un figlio diffuso
+(isola il comportamento del flag di gruppo dall'auto-classificazione) + due nuovi test
+(`AutoClassification_RegistersSpecularCurvedEntity_WithoutFlags`,
+`AutoClassification_OptOut_ExcludesCaster`). Suite caustiche tutta verde.
+
+---
+
 ## Ciclo Caustiche — emettitori virtuali finiti (sphere/point/spot) ✅
 
 Estensione della copertura **luci** delle caustiche. Prima solo `area` e geometriche
