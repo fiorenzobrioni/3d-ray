@@ -6,6 +6,82 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Caustiche — Photon Mapping (rimozione MNEE/SMS, riscrittura definitiva) ✅
+
+**Motivazione.** L'apparato MNEE + SMS (Strade 2/2b/2c/2c-bis/2d-tier1, ~3000
+righe su 36 file) era cresciuto fase su fase ed era diventato **fragile e una
+regressione netta**: con `--caustics on` l'auto-classificazione rendeva
+ricevente quasi ogni superficie diffusa, quindi `ComputeCaustics` lanciava un
+solve di Newton + 2 raggi di visibilità a quasi ogni shading point per ogni luce
+× ogni caster. Risultato: grana diffusa su tutta l'immagine, cammino forward
+"pulito" soppresso e sostituito da uno stimatore ad alta varianza, shadow ray
+trasparente che doppia-contava — più rumoroso **e** più veloce (i path soppressi
+morivano in RR) di `--caustics off`. Inoltre era intrinsecamente limitato a ≤2
+interfacce, niente sole/HDRI, mesh fragili, "vetro nel vetro" incompleto: legato
+a scene specifiche, l'opposto di "stato dell'arte e generale".
+
+**Decisione.** Rimozione totale di MNEE/SMS e sostituzione con **photon mapping
+per caustiche** (Jensen): la tecnica generale, robusta e indipendente dalla
+geometria — la stessa famiglia che usano i renderer offline per le caustiche.
+
+**Rimozione.** Eliminati `ManifoldWalker`, `CausticCasterRegistry`,
+`AnalyticManifoldCaster`, `CausticInterface`, `IManifoldCaster/Surface`,
+`CausticFlagHittable` e tutto il codice caustico incorporato in `Renderer`,
+materiali, luci, geometria (`EvaluateManifold`, `HitPrimitive`, `DnDu/DnDv`,
+adiacenza facet mesh, `SeedManifold` CSG, manifold-caster di `Transform`),
+`SceneLoader` (`ApplyCausticFlags`/`CanCastCaustics`/`MaterialCanCast`) e le
+chiavi YAML `caustic_caster`/`caustic_receiver`. Rimossi i flag CLI
+`--sms-samples`/`--mnee-samples`. **Conservato** `IorStack`/`RelativeEta`/
+`TryGetDielectricIor` (serve al path forward dei dielettrici annidati, non solo
+alle caustiche). ~1600 righe nette in meno.
+
+**Nuovo sottosistema (`Rendering/Photon*.cs`).**
+- `Photon` + `PhotonMap`: spatial hash grid (CSR, build counting-sort) con range
+  query esatta (validata vs brute-force in `PhotonMapTests`) e gather k-nearest a
+  raggio adattivo (shell espansiva con early-out dimostrabile), zero-alloc sull'hot path.
+- `CausticPhotonTracer.Build`: pre-pass parallelo. Emette fotoni da **ogni**
+  tipo di luce — area/geometriche (campionamento d'area coseno-pesato),
+  `sphere`, `point`/`spot` (Φ = 4π·I / cono con falloff smoothstep²) e
+  **`directional`/sole** (emissione da disco sulla bounding sphere) — budget per
+  luce ∝ potenza. Random-walk riusando `IMaterial.Sample()`/`Scatter()` del
+  materiale (throughput identico al cammino camera: delta → `F`, altrimenti
+  `F·|cos|/pdf`); il fotone prosegue solo attraverso interfacce **delta**
+  (specchio/vetro/acqua liscia) e si deposita sulla prima superficie non-delta
+  con ≥1 rimbalzo speculare alle spalle (cammino `L S+ D`). RR sulla potenza,
+  seeding Sobol/PRNG deterministico per-fotone, buffer per-thread.
+- Integrazione `Renderer`: la mappa è costruita una volta nel costruttore quando
+  `--caustics on` (null e `_causticsActive=false` altrimenti → off bit-identico).
+  `GatherCaustics` (k-nearest, stima `Σ f_r·Φ/(π r²)` con BRDF senza coseno) è
+  sommato a `directLight` su ogni receiver diffuso/glossy.
+
+**Anti-doppio-conteggio.** Stato a 3 valori (`None`/`Diffuse`/`Suppress`) filato
+in `TraceRay`/`ShadeSurface`/`ShadeSampleBounce`: un rimbalzo non-delta porta a
+`Diffuse`, un rimbalzo delta dopo un vertice diffuso porta a `Suppress` (una
+catena speculare pura dalla camera resta `None`, così lo specchio che vede una
+luce non è soppresso). In `Suppress` l'emissione BSDF-sampled è azzerata: quel
+trasporto `L S+ D` è già fornito dal gather al vertice diffuso d'origine. Tutto
+gated su `_causticsActive` → con caustiche off nessuna soppressione, output
+identico al pre-feature.
+
+**CLI/preset.** `--caustics on|off` ora guida il pre-pass fotoni; nuovo
+`--caustic-photons N` (default 2–4M per preset); `final`/`ultra` portano un
+budget fotoni.
+
+**Limiti noti (onesti).** Caustiche **rough/frosted** (rifrazione glossy) e da
+**environment/HDRI** ricadono sul path tracer (più rumorose) in questa versione;
+le caustiche da **sole/directional** sono invece coperte. L'assorbimento
+Beer–Lambert interno non è applicato lungo i segmenti dei fotoni (piccola
+differenza di tinta su vetri molto colorati). Possibili estensioni: SPPM
+progressivo (consistenza), emissione fotoni da HDRI con importance sampling,
+trasporto attraverso interfacce glossy.
+
+**Test.** `PhotonMapTests` (equivalenza range-query + k-nearest vs oracolo,
+mappa vuota); `CausticRenderTests` (fuoco deterministico dei fotoni sotto la
+lente; render finito, energia limitata, niente firefly explosion). Build pulito;
+512 test verdi.
+
+---
+
 ## Ciclo Caustiche — niente più "base scura" (rimosso BlockCausticCasters) ✅
 
 Con `--caustics on` la scena diventava **più scura e meno realistica** di

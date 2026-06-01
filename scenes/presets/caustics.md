@@ -1,42 +1,33 @@
 # Caustiche focalizzate — preset copia-incolla
 
-Le **caustiche focalizzate**: lo spot luminoso che una lente, una sfera di vetro o
-una sfera metallica concentra su una superficie. Sono la luce che gli shadow ray
-dritti non sanno produrre, perché richiede di seguire il cammino corretto secondo
-Snell (rifrazione) o la legge di riflessione. Il motore le risolve con due
-tecniche complementari:
+Le **caustiche focalizzate** sono lo spot luminoso che una lente, una sfera di
+vetro, una superficie d'acqua o uno specchio concentrano su una superficie. Sono
+la luce che gli shadow ray dritti non sanno produrre, perché richiede di seguire
+il cammino corretto secondo Snell (rifrazione) o la legge di riflessione.
 
-- **MNEE** (Manifold Next Event Estimation) — caster **lisci** (vetro/cristallo a
-  specchio, metallo lucido): spot netto e definito.
-- **SMS** (Specular Manifold Sampling) — caster **rough/frosted** (vetro
-  smerigliato, metallo spazzolato): alone morbido e sfumato.
+Il motore le risolve con il **photon mapping per caustiche**: un pre-pass emette
+fotoni dalle luci, li traccia attraverso le superfici speculari (vetro, acqua,
+metallo, specchio) e li deposita dove cadono sulle superfici diffuse; durante il
+rendering la camera li raccoglie con una stima di densità k-nearest. È **generale**:
+funziona con qualsiasi geometria speculare e con **tutte** le luci, sole/direzionali
+incluse.
 
 Questo catalogo è un insieme di **oggetti pronti** (entità + materiale) da
 **copiare e incollare** nelle tue scene. Per il flusso d'uso generale vedi
 [`README.md`](README.md); per la teoria
-[`../../docs/technical/path-tracing-and-lighting.md`](../../docs/technical/path-tracing-and-lighting.md)
-§2.5 (MNEE) e §2.5.1 (SMS).
+[`../../docs/technical/path-tracing-and-lighting.md`](../../docs/technical/path-tracing-and-lighting.md).
 
 > **Regola d'oro: le caustiche richiedono UN solo opt-in — il flag CLI
-> `--caustics on`** (di default sui preset `final`/`ultra`). Con quello attivo il
-> motore **auto-classifica** ogni entità: diventa **caster** se ha geometria che
-> focalizza la luce **e** materiale speculare/trasmissivo; ogni altra superficie
-> (incluso il `ground`) è **ricevente**. **Non servono più** flag YAML.
-> Un caster deve poter **focalizzare la luce**: vanno bene le **primitive curve**
-> (sfera, cilindro, cono, capsula, toro, anche dentro un `Transform`), le **mesh
-> smooth** (normali per-vertice) e i **solidi CSG con frontiera curva** (es.
-> `box ∩ sphere` = cubo dagli spigoli arrotondati). **Non** focalizzano le
-> superfici **piatte** (box, quad, disco, piano) né le cappe piatte di
-> cilindri/coni. Le luci che guidano le caustiche sono **area/geometriche**,
-> **sphere** e **point/spot** (queste ultime modellate come piccolo bulbo sferico
-> finito); le luci **direzionali/sole** e il **cielo/HDRI** non producono caustiche
-> focalizzate.
+> `--caustics on`** (di default sui preset `final` / `ultra`). Con quello attivo il
+> motore emette i fotoni e focalizza la luce attraverso **ogni** superficie
+> speculare/trasmissiva della scena, depositandoli sulle superfici diffuse.
+> **Non servono flag YAML**: niente `caustic_caster`, niente `caustic_receiver`,
+> nessuna marcatura per-oggetto. Basta avere in scena una geometria speculare (a
+> focalizzare) e una superficie diffusa (a ricevere).
 >
-> I flag YAML `caustic_caster` / `caustic_receiver` restano come **override
-> opzionali a 3 stati**: assente = auto (il default sopra), `true` = forza (un
-> caster forzato senza geometria focalizzante viene ignorato con un warning),
-> `false` = escludi (toglie l'entità dal casting/ricezione — utile per ancorare le
-> caustiche a pochi oggetti-hero su una scena pesante, mantenendo `--caustics on`).
+> Le luci che guidano le caustiche sono **tutte** le finite — `area`/geometriche,
+> `sphere`, `point`/`spot` — **e** le **`directional`/sole**. L'ambiente/HDRI non
+> contribuisce alle caustiche focalizzate in questa versione.
 
 ---
 
@@ -45,105 +36,70 @@ Questo catalogo è un insieme di **oggetti pronti** (entità + materiale) da
 **1 — Al render (CLI).**
 
 ```bash
-# Attivazione esplicita + qualità delle caustiche frosted (SMS)
+# Attivazione esplicita + budget fotoni più alto per caustiche più pulite
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
   -i scenes/mia-scena.yaml -o renders/out.png \
-  -w 1280 -H 800 -s 512 -d 6 \
-  --caustics on --sms-samples 8
+  -w 1280 -H 800 -s 512 -d 8 \
+  --caustics on --caustic-photons 4000000
 ```
 
 - `--caustics on|off` — default **off**; **on di default** sui preset quality
   `final` / `final-tiny` / `final-small` / `ultra`. Un `--caustics` esplicito ha
   sempre la precedenza sul preset.
-- `--sms-samples <n>` — prove stocastiche SMS per connessione su un caster
-  **rough** (default **4**, **8** su `final`/`ultra`). Più alto = caustiche
-  frosted più **morbide e meno rumorose**, render più lento. Nessun effetto sui
-  caster lisci (MNEE) o con `--caustics off`.
-- `--mnee-samples <n>` — campioni dell'emettitore per ricevente per luce nel
-  solver MNEE (default **1**). Alzalo per ripulire le caustiche di `point`/`spot`
-  (il bulbo virtuale finito è più rumoroso di una luce d'area). Nessun effetto con
-  `--caustics off`.
+- `--caustic-photons <n>` — numero di fotoni del pre-pass (default **2M**, **3–4M**
+  su `final`/`ultra`). Più fotoni = caustiche **più pulite e più nitide**, pre-pass
+  più lento e più memoria. Nessun effetto con `--caustics off`.
 
-**2 — Nessun flag YAML necessario.** Con `--caustics on` non devi marcare niente:
-la sfera di vetro qui sotto è auto-rilevata come caster (geometria curva + vetro)
-e il `ground` come ricevente.
+**2 — Niente flag YAML.** Con `--caustics on` non devi marcare niente: la sfera di
+vetro qui sotto focalizza la luce sul pavimento senza alcuna chiave aggiuntiva.
 
 ```yaml
 entities:
-  - type: "sphere"            # ← auto-caster (curva + vetro)
-    center: [0, 1.2, 0]
+  - name: "lente"
+    type: "sphere"              # geometria curva + vetro → focalizza
+    center: [0, 1.0, 0]
     radius: 1.0
-    material: "vetro_limpido"
+    material: "vetro"
 world:
   ground:
-    type: "infinite_plane"    # ← auto-ricevente
+    type: "infinite_plane"      # superficie diffusa → riceve la caustica
     material: "pavimento"
     y: 0
 ```
 
-### Flag YAML (override opzionali a 3 stati)
+---
 
-I flag **non sono richiesti**: servono solo per scavalcare l'auto-classificazione.
+## Cosa focalizza e cosa riceve
 
-| Chiave | Default | Dove | Effetto |
-|--------|---------|------|---------|
-| `caustic_caster` | *auto* | su un'entità | Assente = auto (curva + materiale speculare/trasmissivo → caster). `true` = forza il casting (serve comunque geometria focalizzante, altrimenti warning). `false` = escludi questa entità dal casting. |
-| `caustic_receiver` | *auto* | su un'entità o su `world.ground` | Assente = auto (ogni superficie non-caster riceve, incluso il `ground`). `true` = forza la ricezione. `false` = escludi dalla ricezione. Solo i punti riceventi pagano il costo del walk. |
+- **Focalizza** (genera la caustica): qualsiasi geometria con materiale
+  **speculare/trasmissivo** — vetro/cristallo (`dielectric`, o `disney` con
+  `spec_trans`), metallo/specchio (`metal`, o `disney` con `metallic ≈ 1`),
+  acqua. Vale per qualunque forma: sfere e lenti concentrano in uno spot,
+  cilindri/tori in bande e anelli, specchi piani proiettano riflessi netti.
+- **Riceve** (mostra la caustica): qualsiasi superficie **diffusa/matte**
+  (`lambertian` o Disney poco speculare). Pavimenti, pareti, il `ground`.
+- **Luci**: tutte le finite (`area`/geometriche, `sphere`, `point`/`spot`) **e**
+  le `directional`/sole. Una luce piccola e intensa dà una caustica **netta**; una
+  grande la diffonde in un **alone morbido**.
+
+> **Limiti noti (onesti).** Le caustiche da **vetro frosted/rough** (rifrazione
+> glossy) e da **environment/HDRI** in questa versione ricadono sul path tracer
+> ordinario (più rumorose, non focalizzate dal photon map); le caustiche da
+> **sole/`directional`** sono invece pienamente supportate. L'assorbimento interno
+> (tinta del vetro lungo lo spessore) non è applicato ai fotoni: vetri molto
+> colorati possono avere una caustica leggermente meno satura del previsto.
 
 ---
 
-## Quando usarle (e quanto costano)
+## Sezione A — Lenti rifrattive (vetro / cristallo)
 
-Usale per: una **gemma o sfera di vetro/cristallo** che concentra uno spot
-luminoso su un piano; una **sfera metallica** che proietta una caustica
-riflessiva; il vetro **smerigliato** che proietta un alone soffuso. Costo **zero**
-con `--caustics off`; quando attive, paga solo il ricevente: i pixel riceventi che
-vedono un caster **rough** costano circa `N×` (con `N = --sms-samples`) una
-connessione MNEE liscia. Su scene pesanti con molti caster idonei usa
-`caustic_caster: false` per escludere gli oggetti minori e tenere il casting sui
-pochi hero.
-
-### Vincoli (precisi)
-
-- **Caster (auto): geometria curva + materiale speculare/trasmissivo.** Primitive
-  curve (sfera, cilindro, cono, capsula, toro — anche dentro un `Transform`), mesh
-  smooth (normali per-vertice) e **CSG con almeno una superficie curva**.
-  Le superfici **piatte** (box, quad, disco, piano) e le **cappe** piatte di
-  cilindri/coni non focalizzano: se l'entità è del tutto piatta viene **ignorata
-  con warning**. Su cilindro/cono la caustica viene **solo dalla parete laterale**
-  curva (le basi sono saltate). Sul **CSG** il vertice è accettato solo se cade
-  sulla frontiera del risultato booleano: un guscio sottile focalizza poco, un
-  solido pieno (o gli spigoli arrotondati di un `box ∩ sphere`) molto di più.
-- **Materiale del caster rifrattivo**: `dielectric`, oppure `disney` con
-  `spec_trans ≥ 0.5` e **non** thin-walled. `roughness ≤ 0.04` → MNEE liscio;
-  `roughness > 0.04` → SMS frosted.
-- **Materiale del caster riflessivo**: `metal` (qualunque `fuzz`), oppure `disney`
-  con `metallic ≈ 1`. `fuzz = 0` (o roughness ≤ 0.04) → specchio liscio (MNEE);
-  altrimenti SMS riflessivo.
-- **Receiver (auto)**: ogni superficie non-caster, ma rende meglio su
-  **diffuso/matte** (`lambertian` o Disney poco speculare). Un receiver a
-  specchio/vetro non mostra uno spot leggibile.
-- **Luci**: **area/geometriche**, **sphere** e **point/spot** (queste ultime
-  modellate come bulbo sferico finito di raggio `soft_radius`, default `0.05`;
-  alza `--mnee-samples` per ripulirle). Le luci **direzionali/sole** e il
-  **cielo/HDRI** non guidano le caustiche. Luce piccola e luminosa → caustica più
-  **nitida**; luce grande → caustica più **morbida**.
-
----
-
-# Sezione A — Caster rifrattivi (vetro / cristallo)
-
-> Gli esempi che seguono **non** includono `caustic_caster: true`: con
-> `--caustics on` la geometria curva + materiale speculare/trasmissivo è
-> auto-rilevata come caster. Aggiungi il flag solo come override (`true` per
-> forzare un caso limite, `false` per escludere un oggetto su scene affollate).
-
-## A1. Sfera di vetro limpido — lente MNEE
+### A1. Sfera di vetro limpido — lente netta
 
 ```yaml
 entities:
-  - type: "sphere"
-    center: [0, 1.2, 0]
+  - name: "lente_vetro"
+    type: "sphere"
+    center: [0, 1.0, 0]
     radius: 1.0
     material: "vetro_limpido"
 materials:
@@ -152,223 +108,72 @@ materials:
     refraction_index: 1.5
 ```
 
-La lente di riferimento: vetro liscio `ior 1.5`, risolto da MNEE. Concentra la
-luce dell'area light in uno **spot netto e brillante** sul pavimento, con l'ombra
-attorno correttamente più scura (l'energia è concentrata, non sparsa). È il caso
-più nitido ed economico (1 connessione per shadow sample).
+La lente di riferimento: vetro liscio `ior 1.5`. Concentra la luce in uno spot
+luminoso sul pavimento sotto/dietro la sfera. Alza `--caustic-photons` per renderlo
+più definito.
 
-## A2. Sfera di cristallo ad alto IOR — caustica stretta e intensa
+### A2. Cristallo ad alto IOR — fuoco stretto e intenso
 
 ```yaml
-entities:
-  - type: "sphere"
-    center: [0, 1.2, 0]
-    radius: 1.0
-    material: "cristallo"
 materials:
   - id: "cristallo"
-    type: "disney"
-    color: [0.99, 0.99, 1.0]
-    spec_trans: 1.0
-    roughness: 0.0
-    ior: 1.9
+    type: "dielectric"
+    refraction_index: 1.8       # IOR alto → fuoco più stretto e brillante
 ```
 
-IOR più alto (cristallo al piombo ~1.7, fino a ~2.0) piega di più la luce: il
-fuoco si stringe e lo **spot diventa più piccolo e intenso**. Ottimo per gemme e
-fermacarte di cristallo. Oltre ~2.0 (diamante 2.42) il fuoco può cadere molto
-vicino alla sfera.
+Un IOR più alto piega di più i raggi: la caustica diventa più piccola e intensa.
 
-## A3. Sfera di vetro colorato — caustica tinta (Beer-Lambert)
+### A3. Vetro colorato — caustica tinta
 
 ```yaml
-entities:
-  - type: "sphere"
-    center: [0, 1.2, 0]
-    radius: 1.0
-    material: "rubino"
 materials:
-  - id: "rubino"
+  - id: "vetro_rubino"
     type: "disney"
-    color: [0.95, 0.96, 1.0]
+    base_color: [0.85, 0.05, 0.08]
     spec_trans: 1.0
     roughness: 0.0
-    ior: 1.77
-    transmission_color: [0.80, 0.05, 0.06]   # colore raggiunto a transmission_depth
-    transmission_depth: 0.8                   # più sottile = colore più chiaro
-```
-
-L'assorbimento volumetrico interno (Beer-Lambert: `transmission_color` +
-`transmission_depth`) **tinge la caustica** del colore della gemma: lo spot
-proiettato diventa rosso rubino. Per uno smeraldo usa
-`transmission_color: [0.05, 0.55, 0.20]`, per uno zaffiro `[0.05, 0.12, 0.7]` con
-`ior: 1.77`. Il colore è fisico: dipende dallo spessore di vetro attraversato.
-
-## A4. Sfera di vetro frosted — alone morbido (SMS)
-
-```yaml
-entities:
-  - type: "sphere"
-    center: [0, 1.2, 0]
-    radius: 1.0
-    material: "vetro_smerigliato"
-materials:
-  - id: "vetro_smerigliato"
-    type: "disney"
-    color: [0.96, 0.98, 1.0]
-    spec_trans: 1.0
-    roughness: 0.14        # > 0.04 ⇒ attiva SMS
     ior: 1.5
 ```
 
-Vetro smerigliato: la `roughness > 0.04` attiva **SMS**, che diffonde il fuoco in
-un **alone soffuso** invece dello spot netto della lente liscia. `roughness`
-~0.08–0.12 = appena velato; ~0.15–0.20 = decisamente lattiginoso. Alza
-`--sms-samples` (8–16) per smorzare il rumore tipico del frosted.
+Il vetro Disney trasmissivo proietta una caustica colorata (rubino, smeraldo,
+zaffiro cambiando `base_color`). Tieni `roughness: 0.0` per un fuoco nitido.
 
 ---
 
-# Sezione B — Caster riflessivi (metallo)
+## Sezione B — Specchi e metalli (caustiche riflessive)
 
-## B1. Sfera di metallo lucido — caustica riflessiva netta (MNEE)
+### B1. Sfera di metallo lucido — caustica riflessiva netta
 
 ```yaml
-entities:
-  - type: "sphere"
-    center: [0, 1.0, 0]
-    radius: 0.9
-    material: "specchio"
 materials:
   - id: "specchio"
     type: "metal"
-    color: [0.95, 0.95, 0.96]
-    fuzz: 0.0
+    color: [0.95, 0.93, 0.88]
+    fuzz: 0.0                    # specchio perfetto → caustica netta
 ```
 
-Specchio perfetto (`fuzz: 0`): MNEE traccia la riflessione e proietta una
-**caustica riflessiva netta** — l'arco di luce che una sfera cromata getta accanto
-alla propria ombra. La tinta dello spot segue il `color` del metallo (oro
-`[0.95, 0.78, 0.45]`, rame `[0.95, 0.64, 0.54]`).
-
-## B2. Sfera di metallo spazzolato — caustica riflessiva sfocata (SMS)
-
-```yaml
-entities:
-  - type: "sphere"
-    center: [0, 1.0, 0]
-    radius: 0.9
-    material: "metallo_spazzolato"
-materials:
-  - id: "metallo_spazzolato"
-    type: "metal"
-    color: [0.95, 0.78, 0.45]
-    fuzz: 0.12             # > 0 ⇒ attiva SMS riflessivo (α = fuzz²)
-```
-
-Metallo spazzolato/satinato (`fuzz > 0`): SMS sfuma la caustica riflessiva in una
-banda morbida e calda. `fuzz` ~0.08–0.12 = satinato fine; ~0.15–0.2 = decisamente
-diffuso. Anche qui `--sms-samples` alto pulisce il rumore.
+Lo specchio convesso concentra la luce riflessa in un arco/alone luminoso (le
+caustiche riflessive sono in genere più larghe di quelle rifrattive).
 
 ---
 
-# Sezione B-bis — Galleria caster: oltre la sfera
+## Sezione C — Oltre la sfera
 
-I caster coprono **tutte** le primitive curve, le mesh smooth e i solidi
-CSG con frontiera curva. I materiali sono gli stessi della Sezione A/B (vetro liscio →
-MNEE, frosted → SMS); cambia solo la **geometria** che fa da lente.
+Qualunque geometria curva focalizza secondo la propria forma:
 
-## G1. Cilindro di vetro — caustica astigmatica
+- **Cilindro di vetro** → caustica a **banda** (fuoco astigmatico lungo l'asse).
+- **Toro di vetro** → **anello** di luce con cuspidi nette.
+- **Solidi CSG con frontiera curva** (es. `box ∩ sphere` = cubo dagli spigoli
+  arrotondati, calici, bicchieri) → caustica dalle superfici curve.
+- **Superfici d'acqua / piani ondulati** → le classiche caustiche da piscina.
 
-```yaml
-entities:
-  - type: "cylinder"
-    center: [0, 0, 0]
-    radius: 0.5
-    height: 1.6
-    material: "vetro_limpido"      # vedi A1
-```
-
-Un cilindro curva la luce **solo attorno all'asse**: la caustica è *astigmatica*,
-una banda/linea luminosa anziché uno spot circolare. Ideale per bicchieri, bottiglie
-e barre di vetro. Le cappe piatte non focalizzano (solo la parete laterale).
-
-## G2. Toro di vetro — caustica ad anello
-
-```yaml
-entities:
-  - type: "torus"
-    center: [0, 1.2, 0]
-    major_radius: 1.0
-    minor_radius: 0.3
-    material: "cristallo"          # vedi A2
-```
-
-Il toro è il caster a più forte focalizzazione: in posizione **piatta** (anello
-attorno all'asse Y, come qui) con luce dall'alto proietta una **caustica ad anello**
-con cuspidi nette sul pavimento. Ottimo come oggetto-hero. (Cono e capsula funzionano allo stesso
-modo: corpo curvo = caustica, eventuali facce piatte = no.)
-
-## G3. Cubetto di ghiaccio — CSG `box ∩ sphere` (spigoli arrotondati)
-
-```yaml
-entities:
-  - type: "csg"
-    operation: "intersection"
-    material: "ghiaccio"
-    left:  { type: "box",    scale: [0.6, 0.6, 0.6], translate: [0, 0.3, 0] }
-    right: { type: "sphere", center: [0, 0.3, 0], radius: 0.345 }
-materials:
-  - id: "ghiaccio"
-    type: "dielectric"
-    refraction_index: 1.31          # ghiaccio
-```
-
-L'intersezione di un box con una sfera dà un **cubo dagli spigoli arrotondati**: le
-facce restano piatte (non focalizzano) ma gli **spigoli/angoli curvi** sì → il
-classico cubetto di ghiaccio che proietta una caustica. Avvicina `radius` al
-mezzo-lato del box (qui lato 0.6 → mezzo-lato 0.3) per arrotondare di più e
-focalizzare di più. Scena completa in
-[`../sms-ice-caustics.yaml`](../sms-ice-caustics.yaml).
-
-## G4. Cono di vetro — caustica conica
-
-```yaml
-entities:
-  - type: "cone"
-    center: [0, 0.0, 0]
-    radius: 0.7
-    top_radius: 0.1
-    height: 1.3
-    material: "vetro_limpido"
-```
-
-La parete laterale del cono rifrange la luce in una caustica a ventaglio (le basi
-piatte non focalizzano). La capsula (`type: capsule`) funziona allo stesso modo con
-corpo cilindrico + estremità emisferiche.
-
-## G5. Calice / tumbler — CSG di vetro
-
-```yaml
-entities:
-  - type: "csg"
-    operation: "subtraction"
-    material: "vetro_limpido"
-    left:  { type: "cylinder", center: [0, 0.0, 0], radius: 0.62, height: 1.25 }
-    right: { type: "cylinder", center: [0, 0.12, 0], radius: 0.50, height: 1.30 }
-```
-
-Un **solido CSG** focalizza attraverso le sue superfici curve sottostanti (qui i
-cilindri); il vertice speculare è accettato solo se cade sulla frontiera del
-risultato booleano. Un guscio **sottile** (parete piccola) focalizza poco: per una
-caustica marcata usa pareti spesse o un solido pieno (vedi il vino in
-[`../cristallo.yaml`](../cristallo.yaml), una semisfera di liquido che proietta una
-caustica rossa).
+Basta che la geometria abbia materiale speculare/trasmissivo: nessun flag.
 
 ---
 
-# Sezione C — Receiver e luce
+## Sezione D — Ricevente e luce
 
-## C1. Pavimento ricevente (diffuso)
+### D1. Pavimento diffuso (ricevente ideale)
 
 ```yaml
 world:
@@ -379,20 +184,18 @@ world:
 materials:
   - id: "pavimento_opaco"
     type: "lambertian"
-    color: [0.7, 0.7, 0.72]
+    color: [0.7, 0.7, 0.7]
 ```
 
-Il ricevente ideale: un piano **diffuso** chiaro mostra la caustica con il massimo
-contrasto. Con `--caustics on` il `ground` (e ogni superficie non-caster) riceve
-**automaticamente** — non serve alcun flag; evita receiver a specchio/vetro, dove
-lo spot non è leggibile.
+Una superficie **diffusa** è il ricevente ideale: massimo contrasto della
+caustica. Specchi e vetri non mostrano uno spot leggibile.
 
-## C2. Area light per caustiche
+### D2. Luce piccola e alta per una caustica netta
 
 ```yaml
 lights:
-  - type: area
-    corner: [-0.4, 6.0, -0.4]   # luce piccola e alta = caustica nitida
+  - type: "area"
+    corner: [-0.4, 6.0, -0.4]   # piccola e alta → raggi quasi paralleli
     u: [0.8, 0.0, 0.0]
     v: [0.0, 0.0, 0.8]
     color: [1.0, 0.97, 0.92]
@@ -400,26 +203,25 @@ lights:
     shadow_samples: 6
 ```
 
-La nitidezza della caustica dipende dalla **dimensione** della luce: piccola e
-luminosa (come qui, 0.8×0.8) → fuoco definito; grande (es. 2.4×2.4) → caustica più
-morbida e penombra ampia. Alza `shadow_samples` per ammorbidire i bordi. Oltre
-alle luci `area`/geometriche guidano le caustiche anche le luci `sphere` e
-`point`/`spot` (bulbo virtuale finito, vedi `--mnee-samples`); le luci
-`directional`/sole e il cielo/HDRI no.
+Piccola e intensa = spot netto. Per una caustica solare usa una `directional` (è
+supportata dal photon map):
+
+```yaml
+lights:
+  - type: "directional"
+    direction: [-0.3, -1.0, -0.2]
+    color: [1.0, 0.97, 0.90]
+    intensity: 4.0
+```
 
 ---
 
-# Sezione D — Mini-scena completa (pronta da renderizzare)
-
-Scena minima che combina un caster di vetro frosted, un ricevente diffuso e una
-area light. Salvala come `scenes/mia-caustica.yaml` e renderizza con
-`--caustics on`. (Una versione con anche un caster metallico è in
-[`../sms-caustics.yaml`](../sms-caustics.yaml).)
+## Mini-scena completa
 
 ```yaml
 camera:
   position: [0, 4.5, 6]
-  look_at: [0, 0.6, 0]
+  look_at: [0, 0.4, 0]
   fov: 40
 
 world:
@@ -428,79 +230,64 @@ world:
     color: [0.02, 0.02, 0.03]
   ground:
     type: "infinite_plane"
-    material: "pavimento_opaco"
+    material: "pavimento"
     y: 0
 
 entities:
-  - type: "sphere"
-    center: [0, 1.3, 0]
+  - name: "lente"
+    type: "sphere"
+    center: [0, 1.2, 0]
     radius: 1.0
-    material: "vetro_smerigliato"
+    material: "vetro"
 
 lights:
-  - type: area
-    corner: [-0.4, 6.0, -0.4]
-    u: [0.8, 0.0, 0.0]
-    v: [0.0, 0.0, 0.8]
+  - type: "area"
+    corner: [-0.6, 6.0, -0.6]
+    u: [1.2, 0.0, 0.0]
+    v: [0.0, 0.0, 1.2]
     color: [1.0, 0.97, 0.92]
-    intensity: 80.0
+    intensity: 60.0
     shadow_samples: 6
 
 materials:
-  - id: "pavimento_opaco"
+  - id: "pavimento"
     type: "lambertian"
-    color: [0.7, 0.7, 0.72]
-  - id: "vetro_smerigliato"
-    type: "disney"
-    color: [0.96, 0.98, 1.0]
-    spec_trans: 1.0
-    roughness: 0.12
-    ior: 1.5
+    color: [0.7, 0.7, 0.7]
+  - id: "vetro"
+    type: "dielectric"
+    refraction_index: 1.5
 ```
+
+Salvala come `scenes/mia-caustica.yaml` e renderizza:
 
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-  -i scenes/mia-caustica.yaml -o renders/mia-caustica.png \
-  -q final --sms-samples 8
+  -i scenes/mia-caustica.yaml -o renders/caustica.png \
+  -w 1280 -H 800 -s 512 -d 8 --caustics on --caustic-photons 4000000
 ```
 
 ---
 
-## Matrice decisionale
-
-| Caso d'uso | Preset | Note chiave |
-|------------|--------|-------------|
-| Lente di vetro, spot netto | A1 `vetro_limpido` (`dielectric`) | MNEE, costo minimo |
-| Gemma/cristallo, fuoco stretto | A2 `cristallo` (`ior 1.7–2.0`) | spot piccolo e intenso |
-| Caustica colorata (rubino/smeraldo) | A3 `rubino` (`transmission_*`) | tinta fisica Beer-Lambert |
-| Vetro smerigliato, alone morbido | A4 `vetro_smerigliato` (`roughness 0.1–0.2`) | SMS, alza `--sms-samples` |
-| Specchio, arco riflessivo netto | B1 `specchio` (`metal fuzz 0`) | MNEE riflessivo |
-| Metallo satinato, banda sfocata | B2 `metallo_spazzolato` (`fuzz 0.1–0.15`) | SMS riflessivo |
-| Bicchiere/bottiglia, banda di luce | G1 `cylinder` | caustica astigmatica (parete laterale) |
-| Anello luminoso, oggetto-hero | G2 `torus` | focalizzazione forte |
-| Cubetto di ghiaccio | G3 CSG `box ∩ sphere` | spigoli arrotondati che focalizzano |
-| Cono/capsula di vetro | G4 `cone` / `capsule` | caustica conica / a corpo curvo |
-| Calice/tumbler/vino | G5 CSG di vetro | frontiera curva del booleano |
-| Superficie che raccoglie | C1 `pavimento_opaco` | diffuso, ricevente auto (nessun flag) |
-
-## CLI tips
+## Consigli CLI
 
 ```bash
-# Preview rapida (caustiche on esplicito, poche prove SMS)
+# Anteprima veloce (caustiche on, budget fotoni ridotto)
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-  -i scenes/mia-caustica.yaml -q medium-small --caustics on --sms-samples 4
+  -i scenes/mia-caustica.yaml -q medium-small --caustics on --caustic-photons 1000000
 
-# Finale: i preset final/ultra attivano già --caustics on (sms-samples 8)
+# Final (i preset final/ultra abilitano già --caustics on con budget alto)
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
   -i scenes/mia-caustica.yaml -o renders/final.png -q final
 
-# Caustiche frosted molto pulite (più lento) + clamp fireflies più severo
+# Caustiche molto pulite + clamp firefly più severo
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-  -i scenes/mia-caustica.yaml -q final --sms-samples 16 -C 25
+  -i scenes/mia-caustica.yaml -q final --caustic-photons 8000000 -C 25
 ```
 
-- `--sms-samples` alto pulisce il rumore del frosted; `-C` (firefly clamp) più
-  basso (es. 25) spegne eventuali spike da vetro/dielettrici.
+- `--caustic-photons` più alto = caustiche più pulite/nitide (più memoria e
+  pre-pass più lungo).
+- `-C` (firefly clamp) più basso (es. 25) smorza eventuali picchi residui da
+  vetri/dielettrici.
 - Caustiche **off** di default fuori dai preset `final`/`ultra`: usa
-  `--caustics on` per le anteprime, o `--caustics off` per disattivarle anche in
-  un render `final`.
+  `--caustics on` per le anteprime o `--caustics off` per disattivarle anche in
+  `final`.
