@@ -234,14 +234,6 @@ public class GroundData
     /// <summary>Per-ray-category visibility flags. <c>null</c> = all categories visible (legacy default).</summary>
     [YamlMember(Alias = "visibility")]
     public GroundVisibilityData? Visibility { get; set; }
-
-    /// <summary>Optional MNEE caustic-receiver override for the ground. Three-state:
-    /// <c>null</c> (default) = auto — the ground receives caustics whenever caustics
-    /// are enabled (<c>--caustics on</c>); <c>true</c> = force receiver; <c>false</c> =
-    /// opt out (skip the receiver wrap, e.g. for performance). The ground is flat and
-    /// can never be a caster.</summary>
-    [YamlMember(Alias = "caustic_receiver")]
-    public bool? CausticReceiver { get; set; }
 }
 
 /// <summary>
@@ -1232,28 +1224,6 @@ public class EntityData
     /// </summary>
     [YamlMember(Alias = "visible_to_camera")]
     public bool VisibleToCamera { get; set; } = true;
-
-    /// <summary>
-    /// Optional Manifold-NEE caustic-caster override. Three-state:
-    /// <c>null</c> (default) = auto — when caustics are enabled (<c>--caustics on</c>)
-    /// the engine registers this entity as a caster automatically iff its geometry
-    /// can focus light (curved primitive / smooth mesh / CSG with curved boundary)
-    /// and its material is specular or transmissive. <c>true</c> = force-register
-    /// (still requires focusing geometry; warns and skips otherwise). <c>false</c> =
-    /// opt out (never a caster), e.g. to limit casting to a few hero objects on a
-    /// heavy scene. Has no effect on the material or on non-caustic ray types.
-    /// </summary>
-    [YamlMember(Alias = "caustic_caster")]
-    public bool? CausticCaster { get; set; }
-
-    /// <summary>
-    /// Optional Manifold-NEE caustic-receiver override. Three-state:
-    /// <c>null</c> (default) = auto — when caustics are enabled, every surface that
-    /// is not itself an auto-caster gathers focused caustics. <c>true</c> = force
-    /// receiver. <c>false</c> = opt out (skip the receiver wrap, for performance).
-    /// </summary>
-    [YamlMember(Alias = "caustic_receiver")]
-    public bool? CausticReceiver { get; set; }
 
     // Sphere & Cylinder
     [YamlMember(Alias = "center")]

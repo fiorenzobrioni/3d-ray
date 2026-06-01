@@ -26,7 +26,7 @@ namespace RayTracer.Geometry;
 ///   area_world = area_obj × |det(M₃ₓ₃)| × |M⁻ᵀ × n̂_obj|
 /// This is exact for any TRS (or general affine) matrix.
 /// </summary>
-public class Transform : IHittable, ISamplable, IManifoldSurface
+public class Transform : IHittable, ISamplable
 {
     private readonly IHittable _object;
     private readonly Matrix4x4 _transform;
@@ -155,179 +155,13 @@ public class Transform : IHittable, ISamplable, IManifoldSurface
         if (rec.DpDv.LengthSquared() > 0f)
             rec.DpDv = Vector3.TransformNormal(rec.DpDv, _transform);
 
-        // Normal partials (MNEE) transform with the normal matrix like Normal,
-        // then are re-projected onto the tangent plane of the re-normalized
-        // world normal so ∂N/∂· stays orthogonal to N (a unit normal's
-        // derivative is tangent). Exact for rigid / uniform-scale transforms;
-        // a first-order approximation under non-uniform scale, which only
-        // affects the manifold-walk Jacobian (quasi-Newton tolerates it).
-        if (rec.DnDu.LengthSquared() > 0f || rec.DnDv.LengthSquared() > 0f)
-        {
-            Vector3 nu = Vector3.TransformNormal(rec.DnDu, _normalMatrix);
-            Vector3 nv = Vector3.TransformNormal(rec.DnDv, _normalMatrix);
-            Vector3 n  = rec.Normal; // already normalized world normal
-            rec.DnDu = nu - n * Vector3.Dot(n, nu);
-            rec.DnDv = nv - n * Vector3.Dot(n, nv);
-        }
-
         // Footprint dPdx/dPdy were computed in object space (LocalPoint-aligned)
         // by the inner primitive's Hit path. Procedural textures consume them
         // at LocalPoint, so we deliberately keep them in object space — image
         // textures use the UV partials which are space-independent. We do NOT
         // transform here.
 
-        // Caustic chart recovery: the inner primitive stamped HitPrimitive with
-        // its OBJECT-space chart (used by the CSG/mesh manifold seeder). Expose
-        // THIS transform instead — it is the matching world-space IManifoldSurface
-        // (EvaluateManifold maps the same object-space (u, v) to world). A null
-        // HitPrimitive marks a flat, non-focusing region (e.g. a cylinder cap),
-        // which we preserve so the seeder still skips it. Only meaningful when
-        // caustics are enabled; otherwise the field is simply never read.
-        if (rec.HitPrimitive != null)
-            rec.HitPrimitive = this;
-
         return true;
-    }
-
-    // ── IManifoldSurface (MNEE) ─────────────────────────────────────────────
-    // Delegate the parametric evaluation to the wrapped surface (in object
-    // space) and map the result to world space: the point through the forward
-    // matrix, the normal through the normal matrix (M⁻ᵀ). The (u, v) seed the
-    // walker passes in came from a straight-ray Hit, which preserves the inner
-    // primitive's U/V unchanged through this wrapper, so the parameterisations
-    // line up exactly.
-    public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
-    {
-        if (_object is IManifoldSurface inner && inner.EvaluateManifold(u, v, out var local))
-        {
-            Vector3 p = Vector3.Transform(local.P, _transform);
-            Vector3 n = Vector3.Normalize(Vector3.TransformNormal(local.N, _normalMatrix));
-            pt = new ManifoldPoint(p, n);
-            return true;
-        }
-        pt = default;
-        return false;
-    }
-
-    /// <summary>
-    /// Builds the <see cref="IManifoldCaster"/> for this transformed geometry when
-    /// it is flagged <c>caustic_caster</c>. A single-chart analytic primitive maps
-    /// through this Transform (which is itself the <see cref="IManifoldSurface"/>
-    /// chart), so the seeding rays still run against <c>this</c> in world space. A
-    /// mesh is instead baked once into world space — its triangles become
-    /// world-space charts directly, so no per-call wrapper is needed. A composite
-    /// caster (a CSG solid) is wrapped in a <see cref="TransformedManifoldCaster"/>
-    /// that maps the connection into object space, seeds the inner caster there,
-    /// and lifts the resulting charts back to world space.
-    /// </summary>
-    public IManifoldCaster? CreateManifoldCaster()
-    {
-        // Flatten a nested Transform chain into one composed matrix + the innermost
-        // payload, so the dispatch is on the TRUE geometry type. This matters for a
-        // composite caster (CSG) several transforms deep — e.g. a group child with
-        // its own local transform: Transform(Transform(CsgObject)). A Transform is
-        // always an IManifoldSurface but can only evaluate parametrically when its
-        // own inner is one (an analytic primitive); a CSG is not, so it must take
-        // the object-space seeding wrapper, not the analytic single-chart path.
-        Matrix4x4 m = _transform;
-        IHittable payload = _object;
-        while (payload is Transform t)
-        {
-            m = t._transform * m;      // payload-space → … → world (row-vector order)
-            payload = t._object;
-        }
-
-        if (payload is Mesh mesh)
-        {
-            Matrix4x4 nm = Matrix4x4.Invert(m, out var mi) ? Matrix4x4.Transpose(mi) : _normalMatrix;
-            return mesh.BakeWorldSpace(m, nm);
-        }
-
-        // The world-space chart / coordinate mapper for the flattened payload —
-        // reuse `this` when there was no nesting to avoid an extra allocation.
-        Transform composed = ReferenceEquals(payload, _object) ? this : new Transform(payload, m);
-
-        if (payload is IManifoldSurface)       // analytic primitive
-            return new Rendering.AnalyticManifoldCaster(composed, composed);
-        if (payload is IManifoldCaster inner)  // composite caster (CSG)
-            return new TransformedManifoldCaster(composed, inner);
-        return null;
-    }
-
-    // Maps a world-space (u, v) chart point produced in this Transform's OBJECT
-    // space to world space, and its normal through the normal matrix.
-    private ManifoldPoint ChartToWorld(in ManifoldPoint local)
-    {
-        Vector3 p = Vector3.Transform(local.P, _transform);
-        Vector3 n = Vector3.Normalize(Vector3.TransformNormal(local.N, _normalMatrix));
-        return new ManifoldPoint(p, n);
-    }
-
-    // Maps a world-space point + normal back into this Transform's object space,
-    // for the inner caster's post-convergence membership clamp (which operates in
-    // object space). The normal uses (M)ᵀ = transpose of the forward matrix, the
-    // inverse of the forward normal matrix (M⁻¹)ᵀ.
-    private ManifoldPoint ChartToObject(in ManifoldPoint world)
-    {
-        Vector3 p = Vector3.Transform(world.P, _inverse);
-        Vector3 n = Vector3.Normalize(Vector3.TransformNormal(world.N, Matrix4x4.Transpose(_transform)));
-        return new ManifoldPoint(p, n);
-    }
-
-    /// <summary>
-    /// <see cref="IManifoldCaster"/> for a composite caster (a <see cref="CsgObject"/>)
-    /// wrapped in a <see cref="Transform"/>. Seeding runs in the inner caster's
-    /// OBJECT space — the world endpoints are mapped through the inverse matrix —
-    /// and each object-space chart is wrapped in a <see cref="TransformedChart"/>
-    /// so the world-space manifold walk sees world-space points/normals while the
-    /// inner per-chart membership clamp keeps running in object space.
-    /// </summary>
-    private sealed class TransformedManifoldCaster : IManifoldCaster
-    {
-        private readonly Transform _tr;
-        private readonly IManifoldCaster _inner;
-
-        public TransformedManifoldCaster(Transform tr, IManifoldCaster inner)
-        {
-            _tr    = tr;
-            _inner = inner;
-        }
-
-        public bool SeedManifold(Vector3 x, Vector3 y, in CausticInterface ci,
-                                 Span<ManifoldSeed> seeds, out int k)
-        {
-            Vector3 lx = Vector3.Transform(x, _tr._inverse);
-            Vector3 ly = Vector3.Transform(y, _tr._inverse);
-            if (!_inner.SeedManifold(lx, ly, ci, seeds, out k)) return false;
-            for (int i = 0; i < k; i++)
-                seeds[i] = new ManifoldSeed(new TransformedChart(_tr, seeds[i].Chart), seeds[i].Uv);
-            return true;
-        }
-    }
-
-    // Lifts an object-space chart to world space for the manifold walk. Forwards
-    // the membership clamp (if any) by mapping the converged world vertex back to
-    // object space, where the inner chart's inside-tests are defined.
-    private sealed class TransformedChart : IManifoldSurface, IClampedChart
-    {
-        private readonly Transform _tr;
-        private readonly IManifoldSurface _local;
-
-        public TransformedChart(Transform tr, IManifoldSurface local)
-        {
-            _tr    = tr;
-            _local = local;
-        }
-
-        public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
-        {
-            if (!_local.EvaluateManifold(u, v, out var lp)) { pt = default; return false; }
-            pt = _tr.ChartToWorld(lp);
-            return true;
-        }
-
-        public bool Accept(in ManifoldPoint pt)
-            => _local is not IClampedChart cc || cc.Accept(_tr.ChartToObject(pt));
     }
 
     public AABB BoundingBox() => _worldBox;

@@ -20,8 +20,8 @@ namespace RayTracer.Geometry;
 /// surface contributes its <see cref="IMaterial.ShadowTransmittance"/>
 /// multiplicatively. This is the same approximation Arnold and Cycles use by
 /// default: glass casts a Fresnel-tinted soft shadow instead of a hard one,
-/// but focused refractive caustics are NOT reproduced (those need MNEE or
-/// photon mapping — see DEVLOG roadmap).</para>
+/// but focused refractive caustics are NOT reproduced (those need photon
+/// mapping — see DEVLOG roadmap).</para>
 ///
 /// <para><b>Beer-Lambert.</b> When the walker enters a surface that exposes a
 /// non-zero <see cref="IMaterial.ShadowAbsorption"/> (Disney glass with
@@ -81,12 +81,6 @@ public static class ShadowRay
 
             if (rec.Material == null)
                 return Vector3.Zero;
-
-            // Note: caustic casters are NOT treated as opaque here. The soft
-            // transparent transmittance passes through, and MNEE adds the
-            // focused caustic on top (see Renderer.ComputeDirectLighting) — so a
-            // caustic receiver keeps its transmitted fill light instead of going
-            // dark wherever the manifold walk cannot reconstruct the transport.
 
             // Beer-Lambert over the segment we just traversed inside a medium.
             if (inMedium)

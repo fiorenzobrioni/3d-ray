@@ -263,26 +263,6 @@ public partial class Renderer
     private readonly SssMode _sssMode;
     private readonly RandomWalkConfig _walkConfig;
 
-    // ── Caustics (Manifold Next Event Estimation, Phase 2) ──────────────────
-    // Built once here from the casters SceneLoader flagged `caustic_caster`.
-    // Empty (and _causticsEnabled == false) for every scene without those
-    // flags, so the MNEE branch in ComputeDirectLighting is skipped entirely
-    // and the renderer is bit-identical to pre-caustics behaviour. See
-    // ManifoldWalker / CausticCasterRegistry.
-    private readonly CausticCasterRegistry _caustics;
-    private readonly bool _causticsActive;
-    private readonly int  _mneeSamples;        // emitter samples per receiver per light
-    private readonly int  _mneeMaxIterations;  // Newton iteration cap
-    private readonly int  _smsSamples;         // SMS trials per rough caster connection (Phase 2b)
-
-    // MNEE owns the receiver→caster(≤2)→light transport, so the forward path
-    // must not also count it. A non-negative "caustic carrier" state threaded
-    // through TraceRay records how many flagged specular caster interfaces a
-    // ray has crossed since the last diffuse bounce on a caustic_receiver;
-    // emission is suppressed when that count lands in [1, MaxMneeInterfaces].
-    private const int MaxMneeInterfaces = 2;
-    private const int CausticCarrierInactive = -1;
-
     public Renderer(
         IHittable world,
         Camera.Camera camera,
@@ -299,11 +279,7 @@ public partial class Renderer
         TextureFilteringMode textureFiltering = TextureFilteringMode.Auto,
         float exposureEv = DefaultExposureEv,
         SssMode sssMode = SssMode.Auto,
-        RandomWalkConfig? walkConfig = null,
-        bool enableCaustics = false,
-        IReadOnlyList<IHittable>? causticCasters = null,
-        int mneeSamples = 1,
-        int smsSamples = 4)
+        RandomWalkConfig? walkConfig = null)
     {
         _world = world;
         _camera = camera;
@@ -320,15 +296,6 @@ public partial class Renderer
         _verbose = verbose;
         _misHeuristic = misHeuristic;
         _lightSamplingStrategy = lightSamplingStrategy;
-
-        // ── Caustics registry ────────────────────────────────────────────
-        _caustics = (causticCasters != null && causticCasters.Count > 0)
-            ? new CausticCasterRegistry(causticCasters)
-            : CausticCasterRegistry.Empty;
-        _causticsActive   = enableCaustics && _caustics.Count > 0;
-        _mneeSamples       = Math.Max(1, mneeSamples);
-        _smsSamples        = Math.Max(1, smsSamples);
-        _mneeMaxIterations = ManifoldWalker.DefaultMaxIterations;
 
         // Texture-filtering / ray-differential toggle. Auto = on (the analytic
         // filter is back-compat with every texture that doesn't override the
@@ -716,8 +683,7 @@ public partial class Renderer
                                   Vector3 currentAbsorption,
                                   Vector3 pathThroughput,
                                   ref MediumStack mediums,
-                                  ref IorStack iors,
-                                  int causticChain = CausticCarrierInactive)
+                                  ref IorStack iors)
     {
         IMaterial? material = rec.Material;
 
@@ -746,14 +712,8 @@ public partial class Renderer
         }
 
         // ── Emission (MIS-weighted) ─────────────────────────────────────────
-        // Suppress emission reached through a caustic_receiver → caster(≤2)
-        // chain: that focused transport is owned by MNEE, which already added
-        // it as direct lighting at the receiver. Counting it here too would
-        // double it (and add the very fireflies MNEE exists to remove).
-        bool suppressCausticEmission =
-            causticChain >= 1 && causticChain <= MaxMneeInterfaces;
         Vector3 emitted = Vector3.Zero;
-        if (material != null && !suppressCausticEmission)
+        if (material != null)
         {
             Vector3 raw = material.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
             if (raw.X > 0f || raw.Y > 0f || raw.Z > 0f)
@@ -804,9 +764,8 @@ public partial class Renderer
         BsdfSample? mis = material.Sample(viewDir, rec);
         if (mis.HasValue)
         {
-            int nextChain = NextCausticChain(causticChain, rec, mis.Value.IsDelta);
             return ShadeSampleBounce(material, rec, mis.Value, depth, emitted, directLight,
-                                     currentAbsorption, pathThroughput, ref mediums, ref iors, nextChain);
+                                     currentAbsorption, pathThroughput, ref mediums, ref iors);
         }
 
         if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
@@ -839,7 +798,6 @@ public partial class Renderer
             // delta Scatter materials rely on the legacy "NEE replaced emission"
             // convention (prevBsdfPdf = 0) to suppress double-counting.
             bool nextIsDelta = material.IsDeltaScatter;
-            int nextChain = NextCausticChain(causticChain, rec, nextIsDelta);
             // Legacy Scatter materials don't participate in volume stacking —
             // they don't emit medium-switch signals. Pass through the incoming
             // currentAbsorption so any enclosing Disney-glass interior still
@@ -870,8 +828,7 @@ public partial class Renderer
                                          ref mediums, ref nextIors,
                                          currentAbsorption: currentAbsorption,
                                          pathThroughput: nextThroughput,
-                                         incomingCategory: nextCat,
-                                         causticChain: nextChain);
+                                         incomingCategory: nextCat);
             // Depth-aware indirect clamp: suppresses deep-specular fireflies that
             // survive the primary pixel-level ClampRadiance. When the factor is
             // 1.0 (default) ClampRadianceIndirect == ClampRadiance — no change.
@@ -905,8 +862,7 @@ public partial class Renderer
                                        Vector3 currentAbsorption,
                                        Vector3 pathThroughput,
                                        ref MediumStack mediums,
-                                       ref IorStack iors,
-                                       int causticChain = CausticCarrierInactive)
+                                       ref IorStack iors)
     {
         Vector3 attenuation;
         if (s.IsDelta)
@@ -1013,8 +969,7 @@ public partial class Renderer
                                      ref nextMediums, ref nextIors,
                                      currentAbsorption: nextAbsorption,
                                      pathThroughput: nextThroughput,
-                                     incomingCategory: nextCat,
-                                     causticChain: causticChain);
+                                     incomingCategory: nextCat);
             }
         }
         else
@@ -1027,8 +982,7 @@ public partial class Renderer
                                  ref mediums, ref iors,
                                  currentAbsorption: nextAbsorption,
                                  pathThroughput: nextThroughput,
-                                 incomingCategory: nextCat,
-                                 causticChain: causticChain);
+                                 incomingCategory: nextCat);
         }
         // Depth-aware indirect clamp — see ShadeSurface's Scatter path above.
         indirect = ClampRadianceIndirect(indirect);
@@ -1075,27 +1029,6 @@ public partial class Renderer
         bool transmitted = Vector3.Dot(normal, wo) < 0f;
         if (transmitted) return RayCategory.Transmission;
         return isDelta ? RayCategory.Glossy : RayCategory.Diffuse;
-    }
-
-    /// <summary>
-    /// Advances the caustic-carrier state for the ray a bounce produces. The
-    /// state counts how many flagged specular caster interfaces a path has
-    /// crossed since the last non-delta bounce on a <c>caustic_receiver</c>:
-    /// a diffuse/glossy bounce (re)starts the counter at 0 iff the surface is a
-    /// receiver; a delta bounce advances it only through flagged casters and
-    /// otherwise drops it. The emitter-hit suppression keys on a count in
-    /// <c>[1, MaxMneeInterfaces]</c> — exactly the transport MNEE owns. Inactive
-    /// (<see cref="CausticCarrierInactive"/>) when caustics are off, so the
-    /// suppression is a no-op for every non-caustic scene.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int NextCausticChain(int current, in HitRecord rec, bool isDelta)
-    {
-        if (!_causticsActive) return CausticCarrierInactive;
-        if (!isDelta)
-            return rec.CausticReceiver ? 0 : CausticCarrierInactive;
-        // Delta bounce: continue the chain only through flagged casters.
-        return (current >= 0 && rec.CausticCaster) ? current + 1 : CausticCarrierInactive;
     }
 
     /// <summary>
@@ -1156,8 +1089,7 @@ public partial class Renderer
                              ref IorStack iors,
                              Vector3 currentAbsorption = default,
                              Vector3 pathThroughput = default,
-                             RayCategory incomingCategory = RayCategory.Camera,
-                             int causticChain = CausticCarrierInactive)
+                             RayCategory incomingCategory = RayCategory.Camera)
     {
         if (depth <= 0) return Vector3.Zero;
 
@@ -1243,7 +1175,7 @@ public partial class Renderer
             Vector3 result = !hit
                 ? SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
                 : ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
-                               pathThroughput, ref mediums, ref iors, causticChain);
+                               pathThroughput, ref mediums, ref iors);
             // Beer-Lambert along the segment just traversed. Sky miss with
             // non-zero σ_a means the ray escaped the bounded medium — the
             // exp(-σ_a · ∞) is zero for any absorbing channel, so we collapse
@@ -1313,7 +1245,7 @@ public partial class Renderer
         Vector3 surfaceOrSky = !hit
             ? beta * SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
             : beta * ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
-                                   pathThroughput * beta, ref mediums, ref iors, causticChain);
+                                   pathThroughput * beta, ref mediums, ref iors);
         return ApplyBeerLambert(surfaceOrSky, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
     }
 
@@ -1425,14 +1357,6 @@ public partial class Renderer
                                           IHittable? shadowMediumEntity = null)
     {
         Vector3 result = Vector3.Zero;
-
-        // The transparent shadow ray is allowed through caustic casters: MNEE
-        // (below) adds the focused refracted caustic ON TOP of the soft
-        // transmitted fill, rather than replacing it. This keeps a caustic
-        // receiver from going dark where MNEE cannot reconstruct the transport
-        // (nested/enclosed casters, near-flat interfaces); the cost is a slight
-        // double-count of the average transmitted energy in the focal region.
-        bool causticReceiver = _causticsActive && rec.CausticReceiver;
 
         if (_lightDist != null)
         {
@@ -1550,239 +1474,7 @@ public partial class Renderer
             }
         }
 
-        // ── MNEE caustics (Phase 2) ─────────────────────────────────────────
-        // Focused refractive/reflective caustics that ordinary (straight)
-        // shadow rays cannot reach. Gated on the receiver flag and a non-empty
-        // caster registry, so non-caustic scenes pay nothing here.
-        if (causticReceiver)
-            result += ComputeCaustics(rec, viewDir, material);
-
         return result;
-    }
-
-    /// <summary>
-    /// Manifold-Next-Event-Estimation caustic contribution at a receiver point.
-    /// For each MNEE-capable light and each relevant specular caster, samples an
-    /// emitter point, solves the specular manifold (<see cref="ManifoldWalker"/>),
-    /// tests visibility of the two exposed segments, and accumulates the unbiased
-    /// focused-caustic radiance <c>f_r(ω_x)·L_e·T·G/pdf_A</c>. The competing
-    /// forward path is suppressed via the caustic-carrier state threaded through
-    /// <see cref="TraceRay"/>, and the straight transparent shadow ray is blocked
-    /// at flagged casters (see <see cref="ShadowRay"/>), so the caustic is
-    /// counted exactly once.
-    /// </summary>
-    private Vector3 ComputeCaustics(HitRecord rec, Vector3 viewDir, IMaterial? material)
-    {
-        if (material == null) return Vector3.Zero;
-
-        Vector3 x  = rec.Point;
-        Vector3 nx = rec.Normal;
-        Vector3 result = Vector3.Zero;
-        ReadOnlySpan<CausticCasterRegistry.Caster> casters = _caustics.Casters;
-        float invSamples = 1f / _mneeSamples;
-
-        foreach (var light in _lights)
-        {
-            // Lights that can sample an emissive point drive MNEE: area/geometry,
-            // sphere, and point/spot (the latter modeled as a finite virtual
-            // bulb). Pure Dirac directionals and the environment return false
-            // from TrySampleEmissivePoint below and are skipped at zero cost via
-            // the break — no IsDelta gate needed.
-            for (int s = 0; s < _mneeSamples; s++)
-            {
-                if (!light.TrySampleEmissivePoint(out Vector3 y, out Vector3 yN,
-                                                  out Vector3 Le, out float pdfA))
-                    break; // light has no area sampler — skip it entirely
-                if (pdfA <= 0f || (Le.X <= 0f && Le.Y <= 0f && Le.Z <= 0f)) continue;
-
-                for (int c = 0; c < casters.Length; c++)
-                {
-                    ref readonly CausticCasterRegistry.Caster caster = ref casters[c];
-
-                    if (!TryGetCausticInterface(caster, casters, c, x, y, out CausticInterface ci))
-                        continue;
-
-                    if (!ci.IsRough)
-                    {
-                        // ── Smooth caster: single deterministic MNEE solve ─────
-                        if (!ManifoldWalker.Connect(caster, ci, x, y, yN, _mneeMaxIterations,
-                                                    out ManifoldWalker.CausticConnection conn))
-                            continue;
-                        result += AccumulateCaustic(light, in conn, rec, viewDir, nx, material,
-                                                    y, yN, Le, pdfA) * invSamples;
-                    }
-                    else
-                    {
-                        // ── Rough caster: average _smsSamples stochastic SMS
-                        // trials (biased estimator; each trial draws its own
-                        // microfacet normal). ──────────────────────────────────
-                        float invSms = invSamples / _smsSamples;
-                        for (int t = 0; t < _smsSamples; t++)
-                        {
-                            if (!ManifoldWalker.ConnectRough(caster, ci, x, y, yN, _mneeMaxIterations,
-                                                             out ManifoldWalker.CausticConnection conn))
-                                continue;
-                            result += AccumulateCaustic(light, in conn, rec, viewDir, nx, material,
-                                                        y, yN, Le, pdfA) * invSms;
-                        }
-                    }
-                }
-            }
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Evaluates a solved caustic connection's radiance contribution
-    /// <c>f_r(ω_x)·L_e·T·G/pdf_A</c>, after the orientation, receiver-BSDF and
-    /// two-segment visibility tests. Returns <see cref="Vector3.Zero"/> when the
-    /// connection is rejected, so the caller can scale and accumulate uniformly
-    /// for both the smooth (MNEE) and rough (SMS) paths. The cheap BSDF/throughput
-    /// tests are ordered before the two occlusion rays, which dominate the cost.
-    /// </summary>
-    private Vector3 AccumulateCaustic(ILight light, in ManifoldWalker.CausticConnection conn,
-                                      HitRecord rec, Vector3 viewDir, Vector3 nx,
-                                      IMaterial material,
-                                      Vector3 y, Vector3 yN, Vector3 Le, float pdfA)
-    {
-        Vector3 emitDir = conn.LastVertex - y;
-        // Emitter must face the exit vertex to radiate down the chain.
-        if (Vector3.Dot(yN, emitDir) <= 0f) return Vector3.Zero;
-
-        // Receiver BSDF response in the caustic direction (f·cosθ_x).
-        Vector3 fr = material.EvaluateDirect(conn.WiAtReceiver, viewDir, nx, rec);
-        if (fr == Vector3.Zero) return Vector3.Zero;
-
-        // Skip dead-throughput trials before paying for the visibility rays.
-        Vector3 weight = fr * conn.Throughput;
-        if (weight.X <= 0f && weight.Y <= 0f && weight.Z <= 0f) return Vector3.Zero;
-
-        // Visibility of the two exposed segments (interior is inside glass).
-        if (SegmentOccluded(rec.Point, conn.FirstVertex)) return Vector3.Zero;
-        if (SegmentOccluded(conn.LastVertex, y)) return Vector3.Zero;
-
-        // Directional emitter profile (spot cone falloff; One for isotropic
-        // lights) evaluated on the unit exit direction along the beam.
-        Vector3 emission = Le * light.DirectionalEmissionScale(Vector3.Normalize(emitDir));
-        if (emission.X <= 0f && emission.Y <= 0f && emission.Z <= 0f) return Vector3.Zero;
-
-        // L = f_r(ω_x) · L_e · T · G / pdf_A. G already carries the
-        // light-area→solid-angle geometry (cosθ_y/r² generalized through the
-        // specular chain).
-        return weight * emission * (conn.G / pdfA);
-    }
-
-    /// <summary>
-    /// Fetches the <see cref="CausticInterface"/> of a caster as seen from the
-    /// receiver: the straight x→y segment for a refractive caster (which it
-    /// must cross), falling back to a probe toward the caster centre for a
-    /// reflective one (whose surface the chord does not touch).
-    /// </summary>
-    private static bool TryGetCausticInterface(in CausticCasterRegistry.Caster caster,
-                                               ReadOnlySpan<CausticCasterRegistry.Caster> casters,
-                                               int selfIndex,
-                                               Vector3 x, Vector3 y, out CausticInterface ci)
-    {
-        ci = CausticInterface.None;
-        var rec = new HitRecord();
-
-        Vector3 d = y - x;
-        float len = d.Length();
-        if (len > 1e-6f && caster.Hittable.Hit(new Ray(x, d / len), 1e-4f, len - 1e-4f, ref rec))
-        {
-            ci = rec.Material?.GetCausticInterface(rec) ?? CausticInterface.None;
-            if (ci.IsCaster)
-            {
-                // Nested-caster relative IOR: if this transmissive caster is
-                // immersed in another dielectric caster here (e.g. wine whose
-                // bowl sits against the crystal cup), stamp that enclosing IOR
-                // so the manifold walk refracts against it rather than air. The
-                // probe is local to the hit, so the top of the wine (exposed to
-                // air) resolves to ambient = 1 while its glass-backed sides
-                // resolve to the crystal's IOR.
-                if (ci.IsTransmissive)
-                {
-                    float ambient = ResolveAmbientIor(casters, selfIndex, in rec);
-                    if (ambient > 1f) ci = ci.WithAmbientIor(ambient);
-                }
-                return true;
-            }
-        }
-
-        Vector3 ctr = 0.5f * (caster.Box.Min + caster.Box.Max);
-        Vector3 cd = ctr - x;
-        float cl = cd.Length();
-        if (cl > 1e-6f && caster.Hittable.Hit(new Ray(x, cd / cl), 1e-4f, MathUtils.Infinity, ref rec))
-        {
-            ci = rec.Material?.GetCausticInterface(rec) ?? CausticInterface.None;
-            return ci.IsCaster;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// IOR of the dielectric medium immediately outside a transmissive caster at
-    /// the hit <paramref name="hit"/> — the index a nested caster refracts
-    /// against. Probes a point just past the caster's outward surface and returns
-    /// the IOR of the innermost (densest) OTHER transmissive caster whose solid
-    /// contains that point, or 1.0 (air) when none does.
-    /// </summary>
-    private static float ResolveAmbientIor(ReadOnlySpan<CausticCasterRegistry.Caster> casters,
-                                           int selfIndex, in HitRecord hit)
-    {
-        Vector3 outward = hit.FrontFace ? hit.Normal : -hit.Normal;
-        float eps = 1e-3f * MathF.Max(1f, hit.Point.Length());
-        Vector3 q = hit.Point + outward * eps;
-
-        float best = 1f;
-        for (int c = 0; c < casters.Length; c++)
-        {
-            if (c == selfIndex) continue;
-            ref readonly CausticCasterRegistry.Caster c2 = ref casters[c];
-            AABB b = c2.Box;
-            if (q.X < b.Min.X || q.X > b.Max.X ||
-                q.Y < b.Min.Y || q.Y > b.Max.Y ||
-                q.Z < b.Min.Z || q.Z > b.Max.Z)
-                continue;
-            if (TryEnclosingCasterIor(c2, q, out float ior2) && ior2 > best)
-                best = ior2;
-        }
-        return best;
-    }
-
-    /// <summary>
-    /// Returns true (and the caster's IOR) when point <paramref name="q"/> lies
-    /// inside the solid of transmissive caster <paramref name="c2"/>. Containment
-    /// is decided by a single probe ray: if its first intersection with the
-    /// caster is a back face, the probe started inside the solid.
-    /// </summary>
-    private static bool TryEnclosingCasterIor(in CausticCasterRegistry.Caster c2, Vector3 q, out float ior)
-    {
-        ior = 1f;
-        var rec = new HitRecord();
-        if (!c2.Hittable.Hit(new Ray(q, Vector3.UnitY), 1e-4f, MathUtils.Infinity, ref rec))
-            return false;
-        if (rec.FrontFace) return false; // first surface faces us → q is outside
-        CausticInterface ci2 = rec.Material?.GetCausticInterface(rec) ?? CausticInterface.None;
-        if (!ci2.IsCaster || !ci2.IsTransmissive) return false;
-        ior = ci2.Ior;
-        return true;
-    }
-
-    /// <summary>
-    /// True when anything blocks the open segment <paramref name="from"/> →
-    /// <paramref name="to"/> (endpoints excluded by a small epsilon). Used to
-    /// test the receiver→caster and caster→light legs of a caustic path.
-    /// </summary>
-    private bool SegmentOccluded(Vector3 from, Vector3 to)
-    {
-        Vector3 d = to - from;
-        float len = d.Length();
-        if (len < 2e-3f) return false;
-        Vector3 dir = d / len;
-        var rec = new HitRecord();
-        return _world.Hit(new Ray(from + dir * 1e-3f, dir), 1e-4f, len - 2e-3f, ref rec);
     }
 
     /// <summary>

@@ -245,7 +245,6 @@ entities:
     u: [ 2.0, 0.0,  0.0]
     v: [ 0.0, 0.0,  2.0]
     material: "bianco_cornell"
-    caustic_receiver: true
 
   # ─── SOFFITTO (Y = 2.0) ───────────────────────────────────────────────────
   - name: "soffitto"
@@ -270,7 +269,6 @@ entities:
     u: [ 0.0, 0.0,  2.0]
     v: [ 0.0, 2.0,  0.0]
     material: "rosso_cornell"
-    caustic_receiver: true
 
   # ─── PARETE DESTRA — VERDE (X = +1.0) ─────────────────────────────────────
   - name: "parete_destra_verde"
@@ -279,7 +277,6 @@ entities:
     u: [ 0.0, 0.0,  2.0]
     v: [ 0.0, 2.0,  0.0]
     material: "verde_cornell"
-    caustic_receiver: true
 
   # ===========================================================================
   #  PANNELLO LUMINOSO A SOFFITTO — Geometria Emissiva
@@ -392,7 +389,6 @@ entities:
     material: "dis_cromo_specchio"
     center: [0.52, 0.32, 1.2]
     radius: 0.32
-    caustic_caster: true
 
   # Sfera di vetro → caustica RIFRATTIVA focalizzata sul pavimento.
   - name: "sphere_center_front"
@@ -400,7 +396,6 @@ entities:
     material: "dis_cristallo"
     center: [0.0, 0.32, 0.4]
     radius: 0.32
-    caustic_caster: true
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  LIGHTS

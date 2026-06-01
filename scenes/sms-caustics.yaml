@@ -18,7 +18,6 @@ world:
     type: "infinite_plane"
     material: "floor"
     y: 0
-    caustic_receiver: true
 
 entities:
   - name: "frosted_glass_ball"
@@ -26,14 +25,12 @@ entities:
     center: [-1.6, 1.3, 0]
     radius: 1.0
     material: "frosted_glass"
-    caustic_caster: true
 
   - name: "brushed_metal_ball"
     type: "sphere"
     center: [1.8, 1.1, -0.3]
     radius: 0.9
     material: "brushed_metal"
-    caustic_caster: true
 
 lights:
   - type: area

@@ -29,7 +29,6 @@ world:
     type: "infinite_plane"
     material: "floor"
     y: 0.0
-    caustic_receiver: true
 
 lights:
   # Area light calda LATERALE (da +X, medio-alta) → le superfici curve
@@ -64,7 +63,6 @@ entities:
     type: "csg"
     operation: "intersection"
     material: "ice"
-    caustic_caster: true
     left:  { type: "box", scale: [0.60, 0.60, 0.60], translate: [0.55, 0.30, 0.35] }
     right: { type: "sphere", center: [0.55, 0.30, 0.35], radius: 0.345 }
 
@@ -73,7 +71,6 @@ entities:
     type: "csg"
     operation: "intersection"
     material: "ice"
-    caustic_caster: true
     left:  { type: "box", scale: [0.44, 0.44, 0.44], translate: [0.05, 0.22, 1.0] }
     right: { type: "sphere", center: [0.05, 0.22, 1.0], radius: 0.255 }
 
@@ -83,14 +80,12 @@ entities:
     center: [-0.9, 0.42, 0.1]
     radius: 0.42
     material: "ice"
-    caustic_caster: true
 
   # ── TUMBLER DI VETRO — CSG cilindro \ cilindro (parete spessa per castare)
   - name: "tumbler"
     type: "csg"
     operation: "subtraction"
     material: "glass_clear"
-    caustic_caster: true
     left:
       type: "cylinder"
       center: [-0.4, 0.0, -0.95]

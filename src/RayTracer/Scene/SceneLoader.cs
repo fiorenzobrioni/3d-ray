@@ -119,175 +119,12 @@ public class SceneLoader
     /// name (case-insensitive) or zero-based index. Ignored when the scene uses
     /// the legacy single <c>camera:</c> syntax.
     /// </param>
-    /// <summary>
-    /// Smooth specular entities flagged <c>caustic_caster</c> collected during
-    /// the most recent <see cref="Load"/> when <c>enableCaustics</c> was set.
-    /// Exposed as a side-channel (like the deferred messages) so the 5-tuple
-    /// return signature stays source-compatible with existing callers;
-    /// <c>Program.cs</c> hands this list to the <see cref="Rendering.Renderer"/>
-    /// to build its <see cref="Rendering.CausticCasterRegistry"/>.
-    /// </summary>
-    public static IReadOnlyList<IHittable> LastCausticCasters => _causticCasters;
-    private static readonly List<IHittable> _causticCasters = new();
-
-    // Mirror of Load()'s enableCaustics, so the per-child caustic registration
-    // (groups) can run without threading the flag through every build signature.
-    private static bool _enableCaustics;
-
-    // One-shot guard so the "point/spot caustic bulb uses default radius" Info is
-    // queued at most once per Load instead of per affected light.
-    private static bool _causticBulbDefaultNoted;
-
-    /// <summary>
-    /// Applies the per-entity MNEE caustic flags to a freshly built entity or group
-    /// child. Registers the WORLD-space caster geometry — for a group child the
-    /// supplied <paramref name="hittable"/> is still in its group's local space, so
-    /// <paramref name="toWorld"/> (the accumulated group→world transform) is composed
-    /// on top to place the seeding geometry where it is actually rendered. The
-    /// rendered <paramref name="hittable"/> is wrapped in a <see cref="CausticFlagHittable"/>
-    /// so its hits stamp the caster/receiver flags. Returns the (possibly wrapped)
-    /// hittable; a no-op when caustics are off or no flag is set.
-    /// </summary>
-    private static IHittable ApplyCausticFlags(IHittable hittable, bool? casterOverride,
-        bool? receiverOverride, IMaterial material, string label, Matrix4x4 toWorld)
-    {
-        if (!_enableCaustics)
-            return hittable;
-
-        // The geometry the manifold walk seeds against must be in world space: a
-        // top-level entity already is (toWorld == Identity); a group child is lifted
-        // through its ancestors' transforms. The flag wrapper stays on the local
-        // hittable (flag stamping is space-independent) so the BVH is unaffected.
-        IHittable worldGeom = toWorld == Matrix4x4.Identity
-            ? hittable
-            : new Transform(hittable, toWorld);
-
-        // Auto-classification (the default): an entity becomes a caster iff its
-        // geometry can focus light AND its material is specular/transmissive; every
-        // other surface becomes a receiver. The per-entity flags are optional
-        // three-state overrides (null = auto, true = force, false = opt out) so
-        // scenes need no edits, but a heavy scene can still pin casting/receiving to
-        // a few hero objects.
-        bool geomOk = CanCastCaustics(worldGeom, out string reason);
-
-        bool caster;
-        if (casterOverride == true)
-        {
-            // Explicit opt-in: honour it as long as the geometry can focus light. We
-            // do NOT gate on the material here — the author has taken responsibility
-            // (e.g. a texture-driven transmission below the auto probe's threshold).
-            caster = geomOk;
-            if (!geomOk)
-                Warn($"caustic_caster on '{label}' ignored: {reason}");
-        }
-        else if (casterOverride == false)
-        {
-            caster = false; // explicit opt-out
-        }
-        else
-        {
-            caster = geomOk && MaterialCanCast(material); // auto, silent
-        }
-
-        bool receiver = receiverOverride switch
-        {
-            false => false,         // explicit opt-out
-            true  => true,          // explicit opt-in
-            null  => !caster,       // auto: a caster does not also receive on itself
-        };
-
-        if (caster)
-            _causticCasters.Add(worldGeom);
-        if (caster || receiver)
-            hittable = new CausticFlagHittable(hittable, caster, receiver);
-        return hittable;
-    }
-
-    /// <summary>
-    /// Whether a material can focus light into a caustic (specular reflection or
-    /// transmission) — the material half of auto-caster classification, in
-    /// lock-step with <see cref="Materials.IMaterial.GetCausticInterface"/>. Probed
-    /// with a zeroed <see cref="HitRecord"/>: <c>Dielectric</c>/<c>Metal</c> report
-    /// caster unconditionally, while Disney keys off <c>spec_trans</c>/<c>metallic</c>
-    /// (roughness only selects the smooth-vs-rough path, not caster-ness). The probe
-    /// reads textures at UV (0,0); an entity whose transmission/metalness is textured
-    /// below threshold there can be force-registered with <c>caustic_caster: true</c>.
-    /// </summary>
-    private static bool MaterialCanCast(IMaterial material)
-        => material.GetCausticInterface(default).IsCaster;
-
-    /// <summary>
-    /// Whether a flagged entity's geometry can actually focus light into a
-    /// caustic — and, if not, a human-readable <paramref name="reason"/> for the
-    /// dropped-flag warning. Kept in lock-step with
-    /// <see cref="Rendering.CausticCasterRegistry.BuildSeeder"/>: a curved
-    /// analytic primitive (also under a <see cref="Transform"/>), a smooth mesh
-    /// (vertex normals), or a CSG solid with a curved boundary all qualify; flat
-    /// primitives, flat-shaded meshes and flat-only CSG do not.
-    /// </summary>
-    private static bool CanCastCaustics(IHittable h, out string reason)
-    {
-        switch (h)
-        {
-            case Transform tr:
-                // Peel a nested Transform chain (e.g. a group child with its own
-                // local transform) down to the innermost payload, matching how
-                // Transform.CreateManifoldCaster flattens it.
-                IHittable payload = tr.Inner;
-                while (payload is Transform tInner) payload = tInner.Inner;
-                if (payload is Mesh tm)
-                    return tm.HasVertexNormals
-                        ? Ok(out reason)
-                        : Fail(out reason, "a flat-shaded mesh has no per-facet normal variation to focus light; enable smooth (vertex) normals.");
-                if (payload is CsgObject tcsg)
-                    return CsgHasCurvedBoundary(tcsg)
-                        ? Ok(out reason)
-                        : Fail(out reason, "the CSG solid has only flat faces, which cannot focus light.");
-                if (payload is IManifoldSurface)
-                    return Ok(out reason);
-                return Fail(out reason, "transformed geometry of this type cannot focus light (supported under a transform: curved primitives, smooth meshes, and CSG solids with a curved boundary).");
-
-            case Mesh mesh:
-                return mesh.HasVertexNormals
-                    ? Ok(out reason)
-                    : Fail(out reason, "a flat-shaded mesh has no per-facet normal variation to focus light; enable smooth (vertex) normals.");
-
-            case CsgObject csg:
-                return CsgHasCurvedBoundary(csg)
-                    ? Ok(out reason)
-                    : Fail(out reason, "the CSG solid has only flat faces, which cannot focus light.");
-
-            case IManifoldSurface:
-                return Ok(out reason);
-
-            default:
-                return Fail(out reason, "geometry is not a caustic caster (supported: curved primitives, smooth meshes, CSG solids with a curved boundary).");
-        }
-
-        static bool Ok(out string r) { r = ""; return true; }
-        static bool Fail(out string r, string msg) { r = msg; return false; }
-    }
-
-    // True when a CSG tree exposes at least one curved leaf that can serve as a
-    // focusing chart — flat leaves (box/quad/flat triangle) never focus light.
-    private static bool CsgHasCurvedBoundary(IHittable h) => h switch
-    {
-        CsgObject c => CsgHasCurvedBoundary(c.Left) || CsgHasCurvedBoundary(c.Right),
-        Transform t => CsgHasCurvedBoundary(t.Inner),
-        Sphere or Cylinder or Cone or Capsule or Torus => true,
-        _ => false,
-    };
-
     public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, SkySettings Sky, IMedium? GlobalMedium)
         Load(string yamlPath, int imageWidth, int imageHeight,
-             int? shadowSamplesOverride = null, string? cameraSelector = null,
-             bool enableCaustics = false)
+             int? shadowSamplesOverride = null, string? cameraSelector = null)
     {
         // Clear any leftover messages from a previous Load() call
         _deferredMessages.Clear();
-        _causticCasters.Clear();
-        _enableCaustics = enableCaustics;
-        _causticBulbDefaultNoted = false;
 
         var yaml = File.ReadAllText(yamlPath);
         var deserializer = new DeserializerBuilder()
@@ -450,12 +287,6 @@ public class SceneLoader
             var groundHittable = BuildGround(data.World.Ground, data.World.Sky, materials, sceneDir);
             if (groundHittable != null)
             {
-                // MNEE caustic receiver on the ground (the most natural caustic
-                // surface). Wrapped only when caustics are enabled so the off
-                // path is untouched. The ground is flat → never a caster; it
-                // receives by default (auto) unless explicitly opted out.
-                if (enableCaustics && data.World.Ground.CausticReceiver != false)
-                    groundHittable = new CausticFlagHittable(groundHittable, caster: false, receiver: true);
                 objects.Add(groundHittable);
             }
         }
@@ -583,16 +414,6 @@ public class SceneLoader
                     // resulting HitRecord (see CameraInvisibleHittable).
                     if (!e.VisibleToCamera)
                         hittable = new CameraInvisibleHittable(hittable);
-                    // Per-entity MNEE caustic flags. Only honoured when caustics
-                    // are enabled, so the wrapper — and its per-hit virtual call —
-                    // never exists in the off path. A caster must be able to focus
-                    // light (a curved primitive, a smooth mesh, or a CSG solid with
-                    // a curved boundary); otherwise the flag is dropped with a
-                    // warning so the receiver's shadow ray is not blocked without an
-                    // MNEE replacement. A top-level entity is already in world space,
-                    // so no extra transform is composed (Matrix4x4.Identity).
-                    hittable = ApplyCausticFlags(hittable, e.CausticCaster, e.CausticReceiver,
-                                                 mat, e.Name ?? e.Type ?? "(unnamed)", Matrix4x4.Identity);
                     // Per-entity participating-media binding (interior /
                     // exterior). Wrap last so MediumInterface rides on every
                     // hit forwarded by inner wrappers — the renderer needs
@@ -3438,9 +3259,6 @@ public class SceneLoader
         // procedural state computed at build time (none currently).
         int templateIndex = StableHash(templateDef.Name);
 
-        // Template geometry is shared across instances, so it cannot carry
-        // per-instance caustic state — pass null to skip caustic registration
-        // (a flagged template child is reported as unsupported inside).
         var childObjects = BuildChildList(
             templateDef.Children!, fallbackMat, materials, sceneDir, templateIndex, groupToWorld: null);
 
@@ -3461,13 +3279,6 @@ public class SceneLoader
     /// Used by both CreateGroupEntity and CreateInstanceEntity.
     /// Each child resolves its own material (own ID → fallback), type (primitive,
     /// CSG, mesh, nested group), and local transform.
-    ///
-    /// <para><paramref name="groupToWorld"/> is the accumulated group→world
-    /// transform of the enclosing group, used to register any <c>caustic_caster</c>
-    /// /<c>caustic_receiver</c> child in world space. It is <c>null</c> for template
-    /// children built by <see cref="CreateInstanceEntity"/> — geometry shared across
-    /// instances cannot carry per-instance caustic state — and a flagged template
-    /// child is reported as unsupported instead.</para>
     /// </summary>
     private static List<IHittable> BuildChildList(List<EntityData> children,
         IMaterial fallbackMat, Dictionary<string, IMaterial> materials,
@@ -3528,34 +3339,6 @@ public class SceneLoader
             if (!child.VisibleToCamera)
                 hittable = new CameraInvisibleHittable(hittable);
 
-            // Per-child MNEE caustic flags, symmetric with the top-level loop. The
-            // child is still in its group's local space, so the accumulated
-            // group→world transform is composed to place the seeding geometry in
-            // world space (a nested group already folded its own transform in).
-            if (string.Equals(child.Type, "group", StringComparison.OrdinalIgnoreCase))
-            {
-                // A nested group's own children register themselves; the group as a
-                // whole is not a single manifold caster. Only an explicit opt-in is
-                // worth a warning — auto (null) and opt-out (false) stay silent.
-                if (_enableCaustics && (child.CausticCaster == true || child.CausticReceiver == true))
-                    Warn($"caustic_caster/caustic_receiver on group '{child.Name ?? "(unnamed)"}' " +
-                         "ignored: flag the individual children instead.");
-            }
-            else if (groupToWorld is { } toWorld)
-            {
-                hittable = ApplyCausticFlags(hittable, child.CausticCaster, child.CausticReceiver,
-                                             mat, child.Name ?? child.Type ?? "(unnamed)", toWorld);
-            }
-            else if (_enableCaustics && (child.CausticCaster == true || child.CausticReceiver == true))
-            {
-                // Instance/template children share one geometry instance across all
-                // placements, so they cannot carry per-instance world-space caustic
-                // state — auto-classification is skipped for them. (Top-level instance
-                // entities still flow through ApplyCausticFlags and are classified.)
-                Warn($"caustic_caster/caustic_receiver on instance/template child " +
-                     $"'{child.Name ?? child.Type}' ignored: not supported on shared template geometry.");
-            }
-
             result.Add(hittable);
         }
 
@@ -3608,19 +3391,7 @@ public class SceneLoader
     {
         var color = ToVector3(l.Color) ?? Vector3.One;
 
-        // Point/spot lights cast caustics via a finite virtual bulb whose radius
-        // is soft_radius (a true mathematical point has zero emitter area the
-        // manifold walk cannot integrate). Note the default once when caustics
-        // are active and a point/spot leaves soft_radius unset.
         string? lightType = l.Type?.ToLowerInvariant();
-        if (_enableCaustics && !_causticBulbDefaultNoted && l.SoftRadius <= 0f &&
-            lightType is "point" or "spot" or "spotlight")
-        {
-            _causticBulbDefaultNoted = true;
-            Info($"[Caustics] point/spot caustic bulb uses default radius {PointLight.DefaultBulbRadius}; " +
-                 "set soft_radius to tune sharpness (smaller = sharper, noisier).");
-        }
-
         return lightType switch
         {
             "point" => new PointLight(
@@ -3800,7 +3571,6 @@ public class SceneLoader
         UvTransformedHittable uv       => IsInfinitePlane(uv.Inner),
         VisibilityFilteredHittable vis => IsInfinitePlane(vis.Inner),
         CameraInvisibleHittable ci     => IsInfinitePlane(ci.Inner),
-        CausticFlagHittable cf         => IsInfinitePlane(cf.Inner),
         _             => false
     };
 

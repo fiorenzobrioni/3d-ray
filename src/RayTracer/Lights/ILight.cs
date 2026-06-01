@@ -106,39 +106,4 @@ public interface ILight
     /// closing Veach's MIS estimator. Default = null (no visible proxy).
     /// </summary>
     Emissive? ProxyMaterial => null;
-
-    // ── MNEE caustic sampling ────────────────────────────────────────────────
-    //
-    /// <summary>
-    /// Draws one sample of an emissive surface point for Manifold Next Event
-    /// Estimation (<see cref="Rendering.ManifoldWalker"/>): a world-space point
-    /// on the light, its surface normal, the emitted radiance there, and the
-    /// area-measure PDF. Returns false for lights MNEE does not yet drive
-    /// (delta point/spot/directional, environment) — those fall through to the
-    /// ordinary path. The manifold walk needs the raw area sample (not the
-    /// solid-angle-folded value <see cref="IlluminateAndTest"/> returns) because
-    /// it computes the generalized geometric term <c>dΩ_x/dA_y</c> itself by
-    /// perturbing the sampled point across the light surface.
-    /// </summary>
-    bool TrySampleEmissivePoint(out Vector3 point, out Vector3 normal,
-                                out Vector3 emission, out float pdfArea)
-    {
-        point = default; normal = default; emission = default; pdfArea = 0f;
-        return false;
-    }
-
-    /// <summary>
-    /// Per-channel scale applied to the radiance an MNEE caustic connection
-    /// carries off this light along <paramref name="emitDir"/> — the unit
-    /// direction from the sampled emitter point toward the specular chain
-    /// (<c>normalize(lastVertex − y)</c>, i.e. outward along the beam).
-    ///
-    /// <para>Default <see cref="Vector3.One"/>: an isotropic emitter (point,
-    /// sphere, area, geometry) radiates the same in every direction, so the
-    /// caustic estimator is unchanged. <see cref="SpotLight"/> overrides this to
-    /// apply its cone falloff, the one anisotropy in the emitter's profile that
-    /// <see cref="TrySampleEmissivePoint"/> cannot encode (it is chain-independent
-    /// and runs before the manifold solve produces the exit direction).</para>
-    /// </summary>
-    Vector3 DirectionalEmissionScale(Vector3 emitDir) => Vector3.One;
 }

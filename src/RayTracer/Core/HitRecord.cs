@@ -124,53 +124,6 @@ public struct HitRecord
     public Vector3 DpDu;
     public Vector3 DpDv;
 
-    // ── Parametric normal partials ∂N/∂u, ∂N/∂v (outward geometric normal) ───
-    // Surface curvature derivatives of the OUTWARD (un-flipped) shading normal
-    // with respect to the same (u, v) parameterisation as DpDu/DpDv. Required by
-    // Manifold Next Event Estimation (MNEE, Rendering.ManifoldWalker): the
-    // Newton-Raphson manifold walk that finds specular caustic vertices needs
-    // how the interface normal varies across the surface. Flat primitives leave
-    // these zero (planar → no curvature). Curved primitives (Sphere, Cylinder,
-    // Cone, Torus, SmoothTriangle) populate them analytically; Transform
-    // propagates them through the normal matrix exactly like Normal. Consumers
-    // other than MNEE ignore them, so leaving them zero is always safe.
-    public Vector3 DnDu;
-    public Vector3 DnDv;
-
-    /// <summary>
-    /// Set when the hit surface is flagged <c>caustic_caster</c> in YAML — a
-    /// smooth specular/transmissive interface (glass sphere, lens, mirror) that
-    /// MNEE should focus light through. The renderer registers these casters in
-    /// a <see cref="Rendering.CausticCasterRegistry"/> and suppresses the
-    /// straight transparent-shadow-ray contribution through them (their
-    /// transmitted energy is taken over by the manifold walk instead, avoiding
-    /// double counting). Default false — plain glass keeps the Phase-1 soft
-    /// transparent shadow behaviour.
-    /// </summary>
-    public bool CausticCaster;
-
-    /// <summary>
-    /// Set when the hit surface is flagged <c>caustic_receiver</c> in YAML — a
-    /// (typically diffuse) surface on which focused caustics should appear. MNEE
-    /// is only attempted for shading points carrying this flag, so the extra
-    /// manifold-walk cost is paid only where it matters. Default false.
-    /// </summary>
-    public bool CausticReceiver;
-
-    /// <summary>
-    /// The leaf primitive that produced this hit — set by curved primitives and
-    /// triangles (sphere, cylinder, cone, capsule, torus, smooth/flat triangle)
-    /// to <c>this</c>. Lets a composite caustic caster (a <see cref="Geometry.Mesh"/>
-    /// or <see cref="Geometry.CsgObject"/>) recover the per-vertex
-    /// <see cref="Geometry.IManifoldSurface"/> chart from a straight-segment
-    /// seeding intersection: the composite's <c>Hit</c> forwards the chosen leaf's
-    /// record (the CSG combiner copies it; the mesh BVH returns it), so the
-    /// manifold walk can solve on the actual focusing primitive rather than the
-    /// container. Default-null on geometry that is not a manifold chart (boxes,
-    /// quads, planes) — those simply cannot seed a caustic vertex.
-    /// </summary>
-    public IHittable? HitPrimitive;
-
     /// <summary>
     /// Analytic filter footprint at this shading point (PBRT §10.1).
     /// Populated by <see cref="Rendering.Renderer"/> after the world Hit()

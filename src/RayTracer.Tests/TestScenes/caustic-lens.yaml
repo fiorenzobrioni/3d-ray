@@ -20,7 +20,6 @@ world:
     type: "infinite_plane"
     material: "floor"
     y: 0
-    caustic_receiver: true
 
 entities:
   - name: "glass_ball"
@@ -28,7 +27,6 @@ entities:
     center: [0, 1.4, 0]
     radius: 1.0
     material: "glass"
-    caustic_caster: true
 
 lights:
   - type: area

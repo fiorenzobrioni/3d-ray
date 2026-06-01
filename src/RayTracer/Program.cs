@@ -233,12 +233,11 @@ class Program
         }
 
         // Verbose mode
-        // ── Caustics (Manifold NEE Phase 2 + Specular Manifold Sampling 2b) ──
-        // Opt-in: entities must additionally be flagged caustic_caster /
-        // caustic_receiver in YAML. `--caustics on` activates the manifold walk;
-        // an explicit flag overrides the quality-preset default (FINAL/ULTRA turn
-        // caustics on — harmless on scenes without flagged entities). When unset,
-        // caustics stay off so every scene is bit-identical to pre-caustics output.
+        // ── Caustics ─────────────────────────────────────────────────────────
+        // `--caustics on|off` toggles focused caustics; an explicit flag overrides
+        // the quality-preset default (FINAL/ULTRA enable it). The dedicated caustic
+        // integrator is being reworked, so the resolved flag is parsed and reported
+        // but not yet wired into the renderer.
         bool? causticsExplicit = null;
         string? causticsArg = GetArg(args, "--caustics", null);
         if (causticsArg != null)
@@ -253,19 +252,6 @@ class Program
             }
         }
         bool enableCaustics = causticsExplicit ?? (quality?.Caustics ?? false);
-
-        // SMS (Phase-2b) trials per rough caster connection. Preset default
-        // (FINAL/ULTRA → 8) unless explicitly overridden with --sms-samples.
-        int smsSamples = quality?.SmsSamples ?? 4;
-        if (int.TryParse(GetArg(args, "--sms-samples", null), out var smsArg) && smsArg > 0)
-            smsSamples = smsArg;
-
-        // MNEE emitter samples per receiver per light. Default 1 (smooth area/
-        // sphere casters are low-variance); raise for the finite virtual bulb of
-        // point/spot lights, whose smaller emitter is noisier.
-        int mneeSamples = 1;
-        if (int.TryParse(GetArg(args, "--mnee-samples", null), out var mneeArg) && mneeArg > 0)
-            mneeSamples = mneeArg;
 
         bool verbose = HasFlag(args, "--verbose", "-v");
         SceneLoader.SetVerbose(verbose);
@@ -354,9 +340,7 @@ class Program
         try
         {
             var (world, camera, lights, sky, globalMedium) =
-                SceneLoader.Load(inputPath, width, height, shadowSamplesOverride, cameraSelector,
-                                 enableCaustics);
-            var causticCasters = SceneLoader.LastCausticCasters;
+                SceneLoader.Load(inputPath, width, height, shadowSamplesOverride, cameraSelector);
 
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
             SceneLoader.FlushMessages();
@@ -380,13 +364,7 @@ class Program
                 world, camera, lights, sky, samples, depth, globalMedium,
                 clampOverride, verbose, misHeuristic, lightSampling,
                 indirectClampFactor, textureFiltering, exposureEv,
-                sssMode, walkConfig,
-                enableCaustics: enableCaustics, causticCasters: causticCasters,
-                mneeSamples: mneeSamples, smsSamples: smsSamples);
-            if (enableCaustics)
-                Console.WriteLine($"  Caustics:    MNEE + SMS on ({causticCasters.Count} caster"
-                                  + (causticCasters.Count == 1 ? "" : "s")
-                                  + $", mnee-samples {mneeSamples}, sms-samples {smsSamples})");
+                sssMode, walkConfig);
             Console.WriteLine();
 
             sw.Restart();
@@ -441,14 +419,7 @@ class Program
         Console.WriteLine("      --mis <balance|power>    MIS combination heuristic (default: balance)");
         Console.WriteLine("      --light-sampling <all|power|uniform>  NEE light strategy (default: all)");
         Console.WriteLine("      --texture-filtering <auto|on|off>     Analytic anti-aliasing via ray differentials (default: auto)");
-        Console.WriteLine("      --caustics <on|off>      Focused caustics through caustic_caster glass/metal onto");
-        Console.WriteLine("                               caustic_receiver surfaces — smooth via MNEE, rough/frosted via");
-        Console.WriteLine("                               Specular Manifold Sampling (default: off, on for final/ultra;");
-        Console.WriteLine("                               opt-in per-entity in YAML)");
-        Console.WriteLine("      --sms-samples <n>        Stochastic SMS trials per rough caster connection (default: 4,");
-        Console.WriteLine("                               8 for final/ultra). Higher = smoother frosted caustics, slower");
-        Console.WriteLine("      --mnee-samples <n>       Emitter samples per receiver per light for MNEE caustics (default: 1).");
-        Console.WriteLine("                               Raise to clean point/spot caustics (finite virtual bulb is noisier)");
+        Console.WriteLine("      --caustics <on|off>      Focused caustics (default: off, on for final/ultra)");
         Console.WriteLine("      --sss-mode <auto|off>    Subsurface-scattering dispatch (default: auto = follow scene)");
         Console.WriteLine("      --sss-quality <preview|normal|high>   Random-walk preset; inherits from -q when omitted");
         Console.WriteLine("      --max-volume-bounces <n> Hard cap on random-walk bounces inside one entity");
@@ -576,16 +547,14 @@ class Program
         /// caster registry is empty → zero cost), and exactly what a final render
         /// of a caustic-marked scene wants. An explicit <c>--caustics</c> overrides.</summary>
         public bool Caustics { get; }
-        /// <summary>SMS (Phase-2b) trials per rough caster connection for this tier.</summary>
-        public int SmsSamples { get; }
 
         private QualityPreset(string name, int w, int h, int s, int d, int ss,
                               RandomWalkConfig walk, string walkName,
-                              bool caustics = false, int smsSamples = 4)
+                              bool caustics = false)
         {
             Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
             WalkConfig = walk; SssQualityName = walkName;
-            Caustics = caustics; SmsSamples = smsSamples;
+            Caustics = caustics;
         }
 
         public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 4, 1, RandomWalkConfig.Preview, "preview");
@@ -594,10 +563,10 @@ class Program
         public static readonly QualityPreset MediumTiny  = new("medium-tiny",  480, 270,   128, 6, 1, RandomWalkConfig.Normal,  "normal");
         public static readonly QualityPreset MediumSmall = new("medium-small", 960, 540,   128, 6, 1, RandomWalkConfig.Normal,  "normal");
         public static readonly QualityPreset Medium      = new("medium",      1920, 1080,  128, 6, 1, RandomWalkConfig.Normal,  "normal");
-        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, smsSamples: 8);
-        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, smsSamples: 8);
-        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, smsSamples: 8);
-        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, smsSamples: 8);
+        public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true);
+        public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true);
+        public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true);
+        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true);
 
         public const string NamesCsv =
             "draft-tiny, draft-small, draft, medium-tiny, medium-small, medium, final-tiny, final-small, final, ultra";

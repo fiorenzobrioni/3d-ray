@@ -41,7 +41,6 @@ world:
     type: "infinite_plane"
     material: "pavimento"
     y: 0
-    caustic_receiver: true
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MATERIALS
@@ -74,7 +73,6 @@ entities:
   - name: "lente_biconvessa"
     type: "csg"
     operation: "intersection"
-    caustic_caster: true
     left:
       type: "csg"
       operation: "intersection"

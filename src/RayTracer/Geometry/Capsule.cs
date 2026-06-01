@@ -28,7 +28,7 @@ namespace RayTracer.Geometry;
 ///
 /// Implements ISamplable for use as an emissive area light with NEE.
 /// </summary>
-public class Capsule : IHittable, ISamplable, IManifoldSurface
+public class Capsule : IHittable, ISamplable
 {
     public Vector3 Center { get; }
     public float Radius { get; }
@@ -197,7 +197,6 @@ public class Capsule : IHittable, ISamplable, IManifoldSurface
         rec.Bitangent = Vector3.Normalize(Vector3.Cross(outwardNormal, rec.Tangent));
         rec.ObjectSeed = Seed;
         rec.Material = Material;
-        rec.HitPrimitive = this;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -279,37 +278,5 @@ public class Capsule : IHittable, ISamplable, IManifoldSurface
         Vector3 min = Vector3.Min(_bottomCenter - r, _topCenter - r);
         Vector3 max = Vector3.Max(_bottomCenter + r, _topCenter + r);
         return new AABB(min, max);
-    }
-
-    // ── IManifoldSurface (MNEE / SMS chart) ──────────────────────────────────
-    // The capsule has no flat faces, so the whole surface is a chart: the
-    // cylindrical body for v ∈ [0.25, 0.75] and the two hemispheres outside it,
-    // matching the UV the Hit method writes. θ = 2πu − π around the Y axis.
-    public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
-    {
-        if (v < 0f || v > 1f) { pt = default; return false; }
-        float theta = 2f * MathF.PI * u - MathF.PI;
-        float ct = MathF.Cos(theta), st = MathF.Sin(theta);
-
-        if (v >= 0.25f && v <= 0.75f)
-        {
-            // Cylindrical body: V = 0.25 + 0.5·(y − yMin)/H ⇒ y = yMin + 2(V−0.25)H.
-            float y = _yMin + 2f * (v - 0.25f) * Height;
-            Vector3 n = new(ct, 0f, st);
-            pt = new ManifoldPoint(new Vector3(Center.X + Radius * ct, y, Center.Z + Radius * st), n);
-            return true;
-        }
-
-        // Hemisphere: localY = sin of the polar angle from the equator.
-        //   bottom (v < 0.25):  V = 0.25(localY + 1) ⇒ localY = 4V − 1, centre _bottomCenter
-        //   top    (v > 0.75):  V = 0.75 + 0.25·localY ⇒ localY = 4V − 3, centre _topCenter
-        bool top = v > 0.75f;
-        float localY = top ? 4f * v - 3f : 4f * v - 1f;
-        localY = Math.Clamp(localY, -1f, 1f);
-        float rh = MathF.Sqrt(MathF.Max(0f, 1f - localY * localY));
-        Vector3 hemiCenter = top ? _topCenter : _bottomCenter;
-        Vector3 nrm = new(rh * ct, localY, rh * st);
-        pt = new ManifoldPoint(hemiCenter + Radius * nrm, nrm);
-        return true;
     }
 }

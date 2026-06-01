@@ -28,7 +28,6 @@ world:
     type: "infinite_plane"
     material: "pavimento"
     y: 0
-    caustic_receiver: true
 
 cameras:
   # ── Vista principale — tutti e 4 gli oggetti visibili ──────────────────
@@ -148,7 +147,6 @@ entities:
     scale: [2.2, 0.6, 2.2]
     translate: [-1.5, 0.3, 0]
     material: "piedistallo"
-    caustic_receiver: true
 
   - name: "piedistallo_3"
     type: "box"
