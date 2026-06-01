@@ -133,8 +133,8 @@ public partial class Renderer
     // non-caustic scene pays exactly zero overhead and is bit-identical to off.
     private readonly PhotonMap? _photonMap;
     private readonly bool  _causticsActive;
-    private readonly float _causticGatherRadius;   // k-nearest gather radius cap
-    private const    int   CausticGatherK = 64;     // photons per density estimate
+    private readonly float _causticGatherRadius;   // fixed gather radius (== grid cell)
+    private const    int   CausticGatherMax = 512;  // max photons folded per density estimate
 
     // Caustic-chain state threaded through the eye path so the photon gather and
     // the BSDF-sampled emission are counted exactly once. None: no non-delta
@@ -363,9 +363,12 @@ public partial class Renderer
         // no-op and the render is identical to --caustics off.
         if (enableCaustics && causticPhotons > 0 && lights.Count > 0)
         {
-            float cell = MathF.Max(sceneRadius * 0.03f, 1e-4f);
-            _causticGatherRadius = MathF.Max(sceneRadius * 0.10f, 1e-4f);
-            _photonMap = CausticPhotonTracer.Build(world, lights, sceneBounds, causticPhotons, cell);
+            // Cell == gather radius: the fixed-radius gather then touches only the
+            // 3×3×3 neighbourhood. ~4.5% of the scene radius is a good caustic
+            // kernel — sharp enough to resolve a focus, wide enough to denoise.
+            _causticGatherRadius = MathF.Max(sceneRadius * 0.045f, 1e-4f);
+            _photonMap = CausticPhotonTracer.Build(world, lights, sceneBounds, causticPhotons,
+                                                   _causticGatherRadius);
             _causticsActive = _photonMap != null;
             if (_causticsActive)
                 Console.WriteLine($"  Caustics:    photon map ({_photonMap!.Count:N0} caustic photons)");
@@ -1113,11 +1116,12 @@ public partial class Renderer
         PhotonMap? map = _photonMap;
         if (map == null) return Vector3.Zero;
 
-        Span<int>   idx  = stackalloc int[CausticGatherK];
-        Span<float> heap = stackalloc float[CausticGatherK];
-        int count = map.GatherKNearest(rec.Point, CausticGatherK, _causticGatherRadius,
-                                       idx, heap, out float radius);
-        if (count == 0 || radius <= 0f) return Vector3.Zero;
+        // Fixed-radius gather: the grid cell equals the radius, so this scans
+        // only the 3×3×3 neighbourhood — O(1) and fast in empty regions.
+        float radius = _causticGatherRadius;
+        Span<int> idx = stackalloc int[CausticGatherMax];
+        int count = map.QueryRadius(rec.Point, radius, idx);
+        if (count == 0) return Vector3.Zero;
 
         ReadOnlySpan<Photon> photons = map.Photons;
         Vector3 sum = Vector3.Zero;

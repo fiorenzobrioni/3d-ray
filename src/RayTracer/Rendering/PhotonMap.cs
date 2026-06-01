@@ -134,6 +134,46 @@ public sealed class PhotonMap
     }
 
     /// <summary>
+    /// Allocation-free fixed-radius query: writes the indices of photons within
+    /// <paramref name="radius"/> of <paramref name="p"/> into <paramref name="outIdx"/>
+    /// (up to its capacity) and returns the count written. Used by the camera-pass
+    /// density estimate, where the grid cell is sized to the gather radius so only
+    /// the 3×3×3 neighbourhood is scanned — O(1) per gather, fast even in empty
+    /// regions (the buckets are simply empty).
+    /// </summary>
+    public int QueryRadius(Vector3 p, float radius, Span<int> outIdx)
+    {
+        if (_photons.Length == 0 || radius <= 0f || outIdx.Length == 0) return 0;
+        float r2 = radius * radius;
+        int n = 0;
+
+        int cx0 = (int)MathF.Floor((p.X - radius - _origin.X) * _invCellSize);
+        int cx1 = (int)MathF.Floor((p.X + radius - _origin.X) * _invCellSize);
+        int cy0 = (int)MathF.Floor((p.Y - radius - _origin.Y) * _invCellSize);
+        int cy1 = (int)MathF.Floor((p.Y + radius - _origin.Y) * _invCellSize);
+        int cz0 = (int)MathF.Floor((p.Z - radius - _origin.Z) * _invCellSize);
+        int cz1 = (int)MathF.Floor((p.Z + radius - _origin.Z) * _invCellSize);
+
+        for (int z = cz0; z <= cz1; z++)
+        for (int y = cy0; y <= cy1; y++)
+        for (int x = cx0; x <= cx1; x++)
+        {
+            int b = Bucket(x, y, z);
+            for (int k = _bucketStart[b]; k < _bucketStart[b + 1]; k++)
+            {
+                int pi = _indices[k];
+                Vector3 pos = _photons[pi].Position;
+                CellOf(pos, out int px, out int py, out int pz);
+                if (px != x || py != y || pz != z) continue; // collision guard
+                if (Vector3.DistanceSquared(pos, p) > r2) continue;
+                outIdx[n++] = pi;
+                if (n >= outIdx.Length) return n;
+            }
+        }
+        return n;
+    }
+
+    /// <summary>
     /// Gathers up to <paramref name="k"/> nearest photons to <paramref name="p"/>
     /// within <paramref name="maxRadius"/>, writing their indices into
     /// <paramref name="outIdx"/> (capacity ≥ k) and reporting the kernel
