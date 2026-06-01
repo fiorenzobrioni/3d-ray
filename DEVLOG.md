@@ -6,6 +6,31 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Caustiche — niente più "base scura" (rimosso BlockCausticCasters) ✅
+
+Con `--caustics on` la scena diventava **più scura e meno realistica** di
+`--caustics off`: il vino quasi nero, il tavolo sotto il calice una macchia
+spenta invece di un fuoco luminoso. Causa: `ShadowRay.BlockCausticCasters`
+rendeva **opaco** ogni caustic caster allo shadow ray dritto di un receiver, per
+non contare due volte la luce focalizzata (shadow trasparente + MNEE). Ma MNEE è
+incompleto — sul vino *racchiuso* la connessione isolata è occlusa dal cristallo
+(vedi ciclo IOR relativo), sulle interfacce quasi piatte non focalizza — quindi
+il blocco **toglieva** la luce trasmessa diffusa senza che MNEE la
+rimpiazzasse → grandi regioni scure.
+
+**Fix**: rimosso del tutto `BlockCausticCasters` (campo thread-static in
+`ShadowRay` + set/restore in `Renderer.ComputeDirectLighting`). Ora lo shadow
+trasparente passa **sempre** attraverso i caster (riportando il fill di luce
+trasmessa, `(1−F)·tint·Beer-Lambert`) e MNEE aggiunge il fuoco caustico **sopra**
+invece di sostituirlo. Risultato: con caustiche on la scena non è mai più scura
+di off, più i punti caustici focalizzati. Costo: un lieve double-count
+dell'energia media trasmessa nella regione focale (il fuoco è un po' più
+luminoso del fisicamente esatto) — accettabile e di gran lunga preferibile alle
+regioni scure. La soppressione dell'emissione sul **path forward**
+(`causticChain`/`suppressCausticEmission`) resta invariata: è un guard separato
+per il cammino BSDF-sampled, non per lo shadow ray. `--caustics off` invariato
+(bit-identico); 46 test caustiche/MNEE/SMS verdi.
+
 ## Ciclo IOR relativo — dielettrici annidati ✅
 
 Risolto il "film d'aria spurio" tra due dielettrici a contatto. Prima la

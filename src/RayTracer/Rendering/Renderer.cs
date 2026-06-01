@@ -1426,12 +1426,13 @@ public partial class Renderer
     {
         Vector3 result = Vector3.Zero;
 
-        // For a caustic receiver, block the straight transparent shadow ray
-        // through flagged casters: their refracted light is provided by MNEE
-        // below, so counting the straight transmission too would double it.
-        bool prevBlock = ShadowRay.BlockCausticCasters;
+        // The transparent shadow ray is allowed through caustic casters: MNEE
+        // (below) adds the focused refracted caustic ON TOP of the soft
+        // transmitted fill, rather than replacing it. This keeps a caustic
+        // receiver from going dark where MNEE cannot reconstruct the transport
+        // (nested/enclosed casters, near-flat interfaces); the cost is a slight
+        // double-count of the average transmitted energy in the focal region.
         bool causticReceiver = _causticsActive && rec.CausticReceiver;
-        if (causticReceiver) ShadowRay.BlockCausticCasters = true;
 
         if (_lightDist != null)
         {
@@ -1441,9 +1442,6 @@ public partial class Renderer
             // MIS uses pdf_combined = pPick × pLightSample for non-delta lights.
             if (_lights.Count == 0)
             {
-                // Restore the thread-local block flag before the early-out so it
-                // does not leak to subsequent shading points on this thread.
-                if (causticReceiver) ShadowRay.BlockCausticCasters = prevBlock;
                 return result;
             }
             float xi = MathUtils.RandomFloat();
@@ -1551,10 +1549,6 @@ public partial class Renderer
                 result += lightAccum;
             }
         }
-
-        // Restore the caster-block flag before the (non-blocked) MNEE walk and
-        // before returning to the caller.
-        if (causticReceiver) ShadowRay.BlockCausticCasters = prevBlock;
 
         // ── MNEE caustics (Phase 2) ─────────────────────────────────────────
         // Focused refractive/reflective caustics that ordinary (straight)
