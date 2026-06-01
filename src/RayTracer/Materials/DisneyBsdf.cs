@@ -545,10 +545,10 @@ public sealed class DisneyBsdf : IMaterial
     /// <summary>
     /// Per-hit straight-through transmission for transparent shadow rays.
     /// Active only when <c>spec_trans &gt; 0</c>: returns
-    /// <c>spec_trans · (1 − F_dielectric) · transmissionTint</c>, the same
-    /// approximation Arnold/Cycles use by default. The shadow ray is not
-    /// refracted, so focused caustics are not modelled here (would need MNEE
-    /// or photon mapping — see DEVLOG roadmap). Beer-Lambert absorption from
+    /// <c>spec_trans · (1 − F_dielectric) · transmissionTint</c>, the standard
+    /// transparent-shadow-ray approximation. The shadow ray is not refracted,
+    /// so focused refractive lighting is not modelled here (would need photon
+    /// mapping — see DEVLOG roadmap). Beer-Lambert absorption from
     /// <c>transmission_depth</c> is also ignored: it requires an interior
     /// segment length the straight-through walker doesn't track.
     /// </summary>
@@ -589,61 +589,26 @@ public sealed class DisneyBsdf : IMaterial
     /// face hits to colour the shadow of a glass tinted by volumetric absorption
     /// (rubies, emeralds, amber, sapphires in the showcase).
     /// </summary>
+    /// <summary>
+    /// True for a SMOOTH, solid transmissive Disney interface — the case the
+    /// caustic photon map handles as a delta refraction. Thin-walled sheets and
+    /// rough/frosted transmission return false (the photon map skips them, so
+    /// their soft transparent shadow stays). Matches the deltaness the photon
+    /// walk sees from <see cref="Sample"/>.
+    /// </summary>
+    public bool IsSpecularTransmissive(in HitRecord rec)
+    {
+        if (ThinWalled) return false;
+        float u = rec.U, v = rec.V; Vector3 p = rec.LocalPoint; int seed = rec.ObjectSeed;
+        return SpecTrans.Value(u, v, p, seed) >= 0.5f
+            && Roughness.Value(u, v, p, seed) <= 0.05f;
+    }
+
     public Vector3 ShadowAbsorption(HitRecord rec)
     {
         Vector3 baseCol = BaseColor.Value(in rec);
         var (_, sigma) = ResolveTransmission(rec, baseCol);
         return sigma;
-    }
-
-    // Caustic caster descriptor for MNEE (Phase 2, smooth) / SMS (Phase 2b, rough):
-    //   • Refractive caster — solid (non-thin) Disney glass with strong specular
-    //     transmission. Smooth (roughness ≤ threshold) → delta MNEE caster;
-    //     rough/frosted → SMS caster carrying its anisotropic GGX α.
-    //   • Reflective caster — a metallic mirror (metallic ≈ 1, no transmission).
-    //     Smooth → delta mirror; rough/brushed → SMS reflective caster.
-    // Thin-walled glass has no interior volume to refract through, so it is not a
-    // lens caster. Everything else returns None (Phase-1 shadow ray only).
-    public CausticInterface GetCausticInterface(HitRecord rec)
-    {
-        float u = rec.U, v = rec.V;
-        Vector3 p = rec.LocalPoint;
-        int seed = rec.ObjectSeed;
-
-        float roughness = Math.Clamp(Roughness.Value(u, v, p, seed), 0f, 1f);
-        bool smooth = roughness <= SmoothSpecularThreshold;
-
-        // ── Refractive (glass lens) caster ──────────────────────────────────
-        float specTrans = SpecTrans.Value(u, v, p, seed);
-        if (specTrans >= 0.5f && !ThinWalled)
-        {
-            float ior = MathF.Max(Ior.Value(u, v, p, seed), 1.0001f);
-            Vector3 baseCol = BaseColor.Value(u, v, p, seed);
-            var (tint, sigma) = ResolveTransmission(rec, baseCol);
-            if (smooth)
-                return new CausticInterface(isTransmissive: true, ior: ior, tint: tint, absorption: sigma);
-            var (ax, ay) = CausticAlpha(roughness, u, v, p, seed);
-            return new CausticInterface(isTransmissive: true, ior: ior, tint: tint, absorption: sigma,
-                                        alphaX: ax, alphaY: ay, roughness: roughness);
-        }
-
-        // ── Reflective (metal mirror) caster ────────────────────────────────
-        // A near-perfect metallic surface focuses light by reflection. The tint
-        // carries the conductor reflectance (F0 = baseColor); the walker folds in
-        // the Schlick-conductor Fresnel from the converged geometry.
-        float metallic = Metallic.Value(u, v, p, seed);
-        if (metallic >= 0.999f)
-        {
-            Vector3 baseCol = BaseColor.Value(u, v, p, seed);
-            float ior = MathF.Max(Ior.Value(u, v, p, seed), 1.0001f);
-            if (smooth)
-                return new CausticInterface(isTransmissive: false, ior: ior, tint: baseCol, absorption: Vector3.Zero);
-            var (ax, ay) = CausticAlpha(roughness, u, v, p, seed);
-            return new CausticInterface(isTransmissive: false, ior: ior, tint: baseCol, absorption: Vector3.Zero,
-                                        alphaX: ax, alphaY: ay, roughness: roughness);
-        }
-
-        return CausticInterface.None;
     }
 
     // Solid (non-thin) Disney glass with specular transmission enters/exits a
@@ -664,21 +629,6 @@ public sealed class DisneyBsdf : IMaterial
         ior = MathF.Max(Ior.Value(u, v, p, seed), 1.0001f);
         return true;
     }
-
-    // Anisotropic GGX α for a rough caustic caster, matching the ShadingParams
-    // mapping (Burley 2012 §5.4: α = roughness², aspect = sqrt(1 − 0.9·aniso)).
-    private (float ax, float ay) CausticAlpha(float roughness, float u, float v, Vector3 p, int seed)
-    {
-        float alpha  = MathF.Max(roughness * roughness, 0.001f);
-        float aniso  = Math.Clamp(Anisotropic.Value(u, v, p, seed), 0f, 1f);
-        float aspect = MathF.Sqrt(1f - 0.9f * aniso);
-        return (MathF.Max(alpha / aspect, 0.001f), MathF.Max(alpha * aspect, 0.001f));
-    }
-
-    // Roughness at or below this is treated as a perfect specular interface for
-    // MNEE (matches the engine's near-delta GGX cutoff used elsewhere). Above it,
-    // the caster is handled by Specular Manifold Sampling (Phase 2b).
-    private const float SmoothSpecularThreshold = 0.04f;
 
     /// <summary>
     /// Evaluates the multi-lobe Disney BSDF f(V, L) at the hit point, without

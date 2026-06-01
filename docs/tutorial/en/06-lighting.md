@@ -729,7 +729,43 @@ quality, highlight shape, and falloff behavior side by side.
 
 ---
 
-## 6.12 Exposure Compensation (`--exposure`)
+## 6.12 Caustics (Focused Light Through Glass & Mirrors)
+
+A glass sphere, a tumbler of water, a gemstone or a polished metal ball
+doesn't just cast a shadow — it **focuses** light into bright shapes: the
+dancing spot at the bottom of a pool, the ring of light a wine glass throws on
+the table, the coloured glow under a tinted bottle. These are **caustics**, and
+because they need light to follow the bent (refracted) or reflected path, plain
+shadow rays can't produce them.
+
+3D-Ray renders caustics with a **photon pre-pass**. You don't mark anything in
+the scene — any specular surface (glass, water, metal, mirror) automatically
+focuses light, and any diffuse surface (a floor, a wall) receives it. All light
+types drive caustics, including the **sun** (`directional`). Just turn them on:
+
+```bash
+# Caustics are on by default in the final/ultra presets:
+RayTracer -i my-scene.yaml -q final
+
+# Or enable them explicitly on any preset:
+RayTracer -i my-scene.yaml -q medium --caustics on
+```
+
+A few practical notes:
+
+- **`--caustic-photons <N>`** controls quality: more photons = sharper, less
+  noisy caustics (and a slower pre-pass). The presets pick a sensible default.
+- **Tinted glass casts a coloured caustic** — a red glass throws a red pool of
+  light, because the photons pick up the glass colour as they pass through.
+- A small, bright light gives a **sharp** caustic; a large light gives a **soft**
+  one. The sun gives crisp, parallel-ray caustics.
+- Frosted/rough glass and HDRI-environment caustics are softer and handled by
+  the regular path tracer in this version.
+
+Copy-paste-ready glass, metal and lens setups live in
+[`scenes/presets/caustics.md`](../../../scenes/presets/caustics.md).
+
+## 6.13 Exposure Compensation (`--exposure`)
 
 Once lights are placed, the tone mapper has to translate scene radiance
 into a 0-1 displayable range. 3D-Ray uses the **ACES filmic** curve,

@@ -48,7 +48,7 @@ namespace RayTracer.Geometry;
 /// because it avoids the information loss that caused incorrect renders, which
 /// in turn caused wasted shading work on phantom surfaces.
 /// </summary>
-public class CsgObject : IHittable, IManifoldCaster
+public class CsgObject : IHittable
 {
     /// <summary>The Boolean operation to perform.</summary>
     public CsgOperation Operation { get; }
@@ -445,97 +445,6 @@ public class CsgObject : IHittable, IManifoldCaster
     // =========================================================================
 
     public AABB BoundingBox() => _boundingBox;
-
-    // =========================================================================
-    //  IManifoldCaster — caustic seeding through a boolean solid
-    // =========================================================================
-
-    // A fixed, irrational probe direction for the point-in-solid parity test —
-    // avoids axis-aligned tangencies that would corrupt the crossing count.
-    private static readonly Vector3 ProbeDir =
-        Vector3.Normalize(new Vector3(0.5126f, 0.7331f, 0.4459f));
-
-    public bool SeedManifold(Vector3 x, Vector3 y, in CausticInterface ci,
-                             Span<ManifoldSeed> seeds, out int k)
-    {
-        k = 0;
-        // Reflective CSG casters (mirror solids) are out of scope: the focusing
-        // boolean glass we target is transmissive. Refraction seeds from the
-        // straight-segment crossings of the boolean result.
-        if (!ci.IsTransmissive) return false;
-
-        Vector3 d = y - x;
-        float len = d.Length();
-        if (len < 1e-9f) return false;
-        Vector3 dir = d / len;
-        float tStart = 1e-4f;
-        while (k < seeds.Length)
-        {
-            var rec = new HitRecord();
-            if (!Hit(new Ray(x, dir), tStart, len - 1e-4f, ref rec)) break;
-            // The boolean combiner forwards the chosen child's HitRecord, so the
-            // underlying curved leaf is the chart; wrap it so the converged
-            // vertex is clamped to the result's boundary.
-            if (rec.HitPrimitive is IManifoldSurface leaf)
-                seeds[k++] = new ManifoldSeed(new CsgChart(leaf, this), new Vector2(rec.U, rec.V));
-            tStart = rec.T + 1e-3f;
-        }
-        return k >= 1;
-    }
-
-    /// <summary>
-    /// True when <paramref name="p"/> is inside this boolean solid, composing the
-    /// children's inside-tests per operation. Drives the boundary-membership
-    /// clamp for converged caustic vertices (see <see cref="CsgChart"/>).
-    /// </summary>
-    internal bool ContainsPoint(Vector3 p) => Operation switch
-    {
-        CsgOperation.Union        => PointInside(Left, p)  || PointInside(Right, p),
-        CsgOperation.Intersection => PointInside(Left, p)  && PointInside(Right, p),
-        CsgOperation.Subtraction  => PointInside(Left, p)  && !PointInside(Right, p),
-        _                         => false,
-    };
-
-    // Generic point-in-solid via ray-crossing parity (odd ⇒ inside). Recurses
-    // into nested CSG children; for a leaf primitive it counts surface crossings
-    // along ProbeDir to infinity.
-    private static bool PointInside(IHittable solid, Vector3 p)
-    {
-        if (solid is CsgObject csg) return csg.ContainsPoint(p);
-        var ray = new Ray(p, ProbeDir);
-        int crossings = 0;
-        float t = 1e-4f;
-        for (int i = 0; i < MaxHitsPerChild * 2; i++)
-        {
-            var rec = new HitRecord();
-            if (!solid.Hit(ray, t, float.PositiveInfinity, ref rec)) break;
-            crossings++;
-            t = rec.T + MathF.Max(StepEpsAbs, rec.T * StepEpsRel);
-        }
-        return (crossings & 1) == 1;
-    }
-
-    /// <summary>
-    /// A child primitive used as a manifold chart on a CSG boundary. Newton runs
-    /// on the bare leaf (cheap); after convergence <see cref="Accept"/> keeps the
-    /// vertex only if it still lies on the boolean result's surface — detected by
-    /// straddling the surface along the normal and comparing inside-tests. This
-    /// is the CSG analog of the mesh per-triangle clamp.
-    /// </summary>
-    private sealed class CsgChart : IManifoldSurface, IClampedChart
-    {
-        private const float Eps = 1e-3f;
-        private readonly IManifoldSurface _leaf;
-        private readonly CsgObject _csg;
-
-        public CsgChart(IManifoldSurface leaf, CsgObject csg) { _leaf = leaf; _csg = csg; }
-
-        public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
-            => _leaf.EvaluateManifold(u, v, out pt);
-
-        public bool Accept(in ManifoldPoint pt)
-            => _csg.ContainsPoint(pt.P + Eps * pt.N) != _csg.ContainsPoint(pt.P - Eps * pt.N);
-    }
 
     /// <summary>
     /// Computes the tightest AABB for the CSG result based on the operation:

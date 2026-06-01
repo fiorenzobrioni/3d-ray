@@ -81,11 +81,10 @@ public interface IMaterial
     ///
     /// The shadow ray is NOT refracted — it continues in a straight line and
     /// the returned factor is multiplied into the throughput. This is the
-    /// standard "transparent shadow rays" approximation used by Arnold and
-    /// Cycles: it correctly handles the loss of direct light at the
-    /// caster/receiver pair (no more hard shadow under glass) but does NOT
-    /// reproduce focused refractive caustics, which would require manifold
-    /// next-event estimation or photon mapping (see DEVLOG roadmap).
+    /// standard "transparent shadow rays" approximation: it correctly handles
+    /// the loss of direct light through glass (no more hard shadow under glass)
+    /// but does NOT reproduce focused refractive lighting effects, which would
+    /// require photon mapping (see DEVLOG roadmap).
     /// </summary>
     /// <param name="wi">Unit shadow-ray direction at the hit (surface → light).</param>
     /// <param name="rec">Hit record at the shadow-ray intersection.</param>
@@ -107,15 +106,19 @@ public interface IMaterial
     Vector3 ShadowAbsorption(HitRecord rec) => Vector3.Zero;
 
     /// <summary>
-    /// Describes this material as a Manifold-Next-Event-Estimation caustic
-    /// caster (smooth specular glass or mirror), or
-    /// <see cref="CausticInterface.None"/> when it is not a smooth specular
-    /// interface MNEE can solve. Only consulted for surfaces flagged
-    /// <c>caustic_caster</c> in YAML, so the default (not a caster) keeps every
-    /// other material on the existing transparent-shadow-ray path. See
-    /// <see cref="Rendering.ManifoldWalker"/>.
+    /// True when this surface transmits light through a <b>smooth specular</b>
+    /// (delta) interface — clear glass, water, a polished gem. This is exactly the
+    /// transport the caustic photon map reconstructs (<c>L S+ D</c>), so when
+    /// photon caustics are active the renderer makes such an interface opaque to
+    /// straight NEE shadow rays: the focused, refracted (and Beer-Lambert tinted)
+    /// light is supplied by the photon map instead, avoiding a double count and
+    /// reproducing physically correct — coloured — refractive shadows.
+    ///
+    /// <para>Rough/frosted transmission returns <c>false</c>: the photon map does
+    /// not capture it, so the soft straight-through transparent shadow stays its
+    /// only fill. Default <c>false</c> (opaque or non-transmissive).</para>
     /// </summary>
-    CausticInterface GetCausticInterface(HitRecord rec) => CausticInterface.None;
+    bool IsSpecularTransmissive(in HitRecord rec) => false;
 
     /// <summary>
     /// Reports the absolute index of refraction of this material's refractive

@@ -27,13 +27,13 @@ Questo documento descrive il flusso architetturale completo del motore 3D-Ray, d
        │  (world, camera, lights, sky, globalMedium)
        ▼
 ┌─────────────┐
-│  Renderer   │  Costruttore: scene analysis + configurazione RR
+│  Renderer   │  Costruttore: scene analysis + RR + photon map caustiche (se --caustics on)
 │ constructor │  Render():    loop parallelo sui pixel
 └──────┬──────┘
        │  Per ogni pixel: √N×√N campioni stratificati
        ▼
 ┌─────────────┐
-│  TraceRay   │  Ricorsione: hit → normal map → emission → NEE → scatter → RR
+│  TraceRay   │  Ricorsione: hit → normal map → emission → NEE (+ gather caustiche) → scatter → RR
 └──────┬──────┘
        │  Radiance HDR lineare
        ▼
@@ -214,6 +214,10 @@ Questo set viene usato da `TraceRay` per sapere quali materiali emissivi sono ra
 
 **Vedi:** [Path Tracing e Illuminazione §2.2](./path-tracing-and-lighting.md) per la trattazione completa del double-counting.
 
+### 2.4 Photon Map delle Caustiche (solo con `--caustics on`)
+
+Quando le caustiche sono attive, il costruttore lancia un **pre-pass di photon mapping** (`CausticPhotonTracer.Build`): emette fotoni da tutte le luci, li traccia attraverso le interfacce speculari (vetro/acqua/metallo/specchio) e deposita su una `PhotonMap` (spatial hash grid) quelli che atterrano su una superficie diffusa dopo ≥1 rimbalzo speculare (cammini `L S+ D`). Costruita una volta sola; con `--caustics off` o senza superfici speculari il passo è saltato e l'output è bit-identico a prima. **Vedi** [Path Tracing e Illuminazione §2.5](./path-tracing-and-lighting.md).
+
 ---
 
 ## Fase 3 — Render Loop
@@ -370,6 +374,8 @@ Per ogni luce nella scena:
 La distinzione esiste perché area e sphere light supportano campionamento stratificato (il sample index determina la cella nella griglia `√N×√N`), mentre le altre luci sono puntuali e non ne hanno bisogno.
 
 **Contratto EvaluateDirect:** restituisce la risposta BRDF (diffusa + speculare) **senza** il colore/albedo del materiale. L'albedo è applicato separatamente dalla scatter attenuation in `TraceRay`, mantenendo la coerenza energetica tra illuminazione diretta e indiretta.
+
+**Gather delle caustiche (con `--caustics on`).** Su una superficie diffusa il contributo della photon map (§2.4) viene stimato con una density estimate ai k-nearest e **sommato** alla luce diretta. Per non contare due volte la luce trasmessa, quando le caustiche sono attive le interfacce **trasmissive lisce** (vetro/acqua) diventano **opache** agli shadow ray NEE: la luce rifratta (e tinta dall'assorbimento del vetro) è fornita solo dalla photon map, così il vetro proietta un'ombra rifrattiva corretta e colorata invece di un riempimento dritto. Vetro rough/frosted e percorso `--caustics off` restano invariati.
 
 **Vedi:** [Path Tracing e Illuminazione §2](./path-tracing-and-lighting.md) per la trattazione completa della NEE.
 

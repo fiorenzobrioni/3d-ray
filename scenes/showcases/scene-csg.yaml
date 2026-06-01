@@ -13,9 +13,9 @@
 #    Draft:  -w 400  -H 225  -s 64   -d 4  -S 1
 #    Finale: -w 1920 -H 1080 -s 1024 -d 8  -S 4 --caustics on
 #
-#  La lente biconvessa è marcata caustic_caster; piedistallo_2 e ground sono
-#  caustic_receiver. La luce direzionale ha angular_radius 2° (non-delta) per
-#  attivare l'estimatore MNEE/SMS. Usare --caustics on (o preset final/ultra).
+#  La lente biconvessa focalizza la luce sul piedistallo/ground (caustica). Con
+#  --caustics on (o preset final/ultra) il photon map la rende automaticamente —
+#  nessun flag per-oggetto. Tutte le luci la guidano, sole/direzionale incluso.
 # ═══════════════════════════════════════════════════════════════════════════
 
 world:
@@ -28,7 +28,6 @@ world:
     type: "infinite_plane"
     material: "pavimento"
     y: 0
-    caustic_receiver: true
 
 cameras:
   # ── Vista principale — tutti e 4 gli oggetti visibili ──────────────────
@@ -148,7 +147,6 @@ entities:
     scale: [2.2, 0.6, 2.2]
     translate: [-1.5, 0.3, 0]
     material: "piedistallo"
-    caustic_receiver: true
 
   - name: "piedistallo_3"
     type: "box"
@@ -192,10 +190,9 @@ entities:
   #     lente biconvessa sottile (Ø 2.4, spessore 0.6). La sfera esterna
   #     (R=1.2) la ritaglia a disco netto. Materiale Disney glass (ior 1.52).
   #
-  #     Caustic_caster: le sfere interne hanno centri in world-space (no
-  #     entity-level translate/rotate), così la CSG non viene avvolta in
-  #     Transform e CanCastCaustics la accetta. Con --caustics on e luce
-  #     non-delta, MNEE produce uno spot sul pavimento/piedistallo.
+  #     Caustica: la lente CSG (vetro Disney) focalizza la luce in uno spot
+  #     sul pavimento/piedistallo. Con --caustics on il photon map lo rende
+  #     automaticamente, senza alcun flag per-oggetto.
   # ─────────────────────────────────────────────────────────────────────────
   - name: "lente_biconvessa"
     type: "csg"
@@ -304,7 +301,7 @@ entities:
 # ═══════════════════════════════════════════════════════════════════════════
 lights:
   # ── Luce principale (sole con disco angolare) ──────────────────────────
-  # angular_radius > 0 → non è una luce delta: MNEE/SMS attivi sulla lente.
+  # Il sole/direzionale guida le caustiche del photon map sulla lente.
   - type: "directional"
     direction: [-0.5, -0.8, -0.3]
     color: [1.0, 0.95, 0.85]

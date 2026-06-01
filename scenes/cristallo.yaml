@@ -94,7 +94,7 @@ lights:
     outer_angle: 48
 
   # Caustic driver: piccola area light zenitale sopra il bicchiere. Una sorgente
-  # d'area FINITA e piccola dà un fuoco caustico netto via MNEE: la luce scende
+  # d'area piccola dà un fuoco caustico netto: la luce scende
   # dritta attraverso la coppa, il vino e lo stelo di cristallo e si concentra
   # sul tavolo attorno alla base. Area piccola = fuoco nitido; alzala (o aumenta
   # shadow_samples) per ammorbidirlo. Lo spot resta la key cinematografica.

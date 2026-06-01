@@ -628,7 +628,46 @@ Questa scena pone cinque sfere identiche in fila. Ognuna è illuminata principal
 
 ---
 
-## 6.12 Compensazione di esposizione (`--exposure`)
+## 6.12 Caustiche (luce focalizzata da vetro e specchi)
+
+Una sfera di vetro, un bicchiere d'acqua, una gemma o una sfera di metallo
+lucido non si limitano a proiettare un'ombra: **focalizzano** la luce in forme
+luminose — la macchia che danza sul fondo di una piscina, l'anello di luce che
+un calice lascia sul tavolo, il bagliore colorato sotto una bottiglia tinta.
+Sono le **caustiche**, e poiché richiedono che la luce segua il cammino piegato
+(rifratto) o riflesso, i normali shadow ray non sanno produrle.
+
+3D-Ray le rende con un **pre-pass di fotoni**. Non devi marcare niente nella
+scena: qualsiasi superficie speculare (vetro, acqua, metallo, specchio)
+focalizza la luce in automatico, e qualsiasi superficie diffusa (un pavimento,
+una parete) la riceve. Tutte le luci guidano le caustiche, **sole**
+(`directional`) compreso. Basta attivarle:
+
+```bash
+# Le caustiche sono attive di default nei preset final/ultra:
+RayTracer -i mia-scena.yaml -q final
+
+# Oppure attivale esplicitamente su qualsiasi preset:
+RayTracer -i mia-scena.yaml -q medium --caustics on
+```
+
+Qualche nota pratica:
+
+- **`--caustic-photons <N>`** regola la qualità: più fotoni = caustiche più
+  nitide e meno rumorose (e pre-pass più lento). I preset scelgono un default
+  ragionevole.
+- **Il vetro tinto proietta una caustica colorata** — un vetro rosso getta una
+  pozza di luce rossa, perché i fotoni assorbono il colore del vetro che
+  attraversano.
+- Una luce piccola e intensa dà una caustica **netta**; una grande la rende
+  **morbida**. Il sole dà caustiche nitide a raggi paralleli.
+- Le caustiche da vetro smerigliato/rough e da ambiente HDRI sono più morbide e
+  gestite dal path tracer ordinario in questa versione.
+
+Configurazioni pronte di vetro, metallo e lenti sono in
+[`scenes/presets/caustics.md`](../../../scenes/presets/caustics.md).
+
+## 6.13 Compensazione di esposizione (`--exposure`)
 
 Una volta piazzate le luci, il tone mapper deve tradurre la radianza
 della scena in un range visualizzabile 0-1. 3D-Ray usa la curva **ACES

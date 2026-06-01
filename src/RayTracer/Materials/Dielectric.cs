@@ -31,8 +31,8 @@ public sealed class Dielectric : IMaterial
 
     // Transparent shadow rays: report (1 - Fresnel) · albedo as the per-hit
     // straight-through transmission. The shadow ray is not refracted — Snell-
-    // bent light contributes to caustics through the indirect Scatter path
-    // (and would need MNEE/photon mapping to NEE-sample directly). Each
+    // bent light contributes to focused lighting only through the indirect
+    // Scatter path (and would need photon mapping to NEE-sample directly). Each
     // dielectric interface attenuates by 1−F; a glass sphere crosses two
     // interfaces, so the receiver still sees the proper Fresnel-squared
     // shadowing at grazing angles.
@@ -49,12 +49,9 @@ public sealed class Dielectric : IMaterial
         return (1f - fr) * albedo;
     }
 
-    // A smooth dielectric is the canonical MNEE caustic caster: a perfect
-    // refractive interface with a single IOR. Beer-Lambert absorption is zero
-    // (classic glass has no interior tint — colour comes from Albedo only).
-    public CausticInterface GetCausticInterface(HitRecord rec)
-        => new CausticInterface(isTransmissive: true, ior: RefractionIndex,
-                                tint: Albedo.Value(in rec), absorption: Vector3.Zero);
+    // Clear dielectric = a pair of delta lobes, so its transmission is exactly
+    // the smooth-specular transport the caustic photon map reconstructs.
+    public bool IsSpecularTransmissive(in HitRecord rec) => true;
 
     // A solid dielectric enters/exits a nested-IOR medium on refraction, so it
     // participates in the renderer's IorStack (relative-IOR tracking).

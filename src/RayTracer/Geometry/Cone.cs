@@ -26,7 +26,7 @@ namespace RayTracer.Geometry;
 ///
 /// Implements ISamplable for use as an emissive area light with NEE.
 /// </summary>
-public class Cone : IHittable, ISamplable, IManifoldSurface
+public class Cone : IHittable, ISamplable
 {
     public Vector3 Center { get; }
     public float Radius { get; }
@@ -160,7 +160,6 @@ public class Cone : IHittable, ISamplable, IManifoldSurface
 
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;
-                    rec.HitPrimitive = this;
                     hitAnything = true;
                     tMax = t;
                 }
@@ -235,8 +234,6 @@ public class Cone : IHittable, ISamplable, IManifoldSurface
 
         rec.ObjectSeed = Seed;
         rec.Material = Material;
-        // Flat cap: NOT a focusing chart (the caustic seeder skips it).
-        rec.HitPrimitive = null;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -372,23 +369,5 @@ public class Cone : IHittable, ISamplable, IManifoldSurface
         return new AABB(
             new Vector3(Center.X - maxR, _yMin, Center.Z - maxR),
             new Vector3(Center.X + maxR, _yMax, Center.Z + maxR));
-    }
-
-    // ── IManifoldSurface (MNEE / SMS chart) ──────────────────────────────────
-    // Inverse of the lateral UV (θ = 2πu − π, V = (y − yMin)/H): r(v) varies
-    // linearly from Radius to TopRadius. Normal = ∇F normalised, F = x² + z² −
-    // r(y)². Flat caps are excluded; v is clamped to [0, 1] and the degenerate
-    // apex (r → 0) is rejected.
-    public bool EvaluateManifold(float u, float v, out ManifoldPoint pt)
-    {
-        if (v < 0f || v > 1f) { pt = default; return false; }
-        float r = Radius + _slope * (v * Height);
-        if (r < 1e-6f) { pt = default; return false; }
-        float theta = 2f * MathF.PI * u - MathF.PI;
-        float ct = MathF.Cos(theta), st = MathF.Sin(theta);
-        Vector3 p = new(Center.X + r * ct, _yMin + v * Height, Center.Z + r * st);
-        Vector3 n = Vector3.Normalize(new Vector3(ct, -_slope, st));
-        pt = new ManifoldPoint(p, n);
-        return true;
     }
 }

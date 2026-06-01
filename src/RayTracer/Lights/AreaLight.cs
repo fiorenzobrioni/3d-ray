@@ -224,17 +224,4 @@ public class AreaLight : ILight
         // distance from hitPoint to the rect hit = t (since wi is unit).
         return (t * t) / (_area * cosLight);
     }
-
-    /// <inheritdoc/>
-    public bool TrySampleEmissivePoint(out Vector3 point, out Vector3 normal,
-                                       out Vector3 emission, out float pdfArea)
-    {
-        float r1 = MathUtils.RandomFloat();
-        float r2 = MathUtils.RandomFloat();
-        point    = Corner + r1 * U + r2 * V;
-        normal   = _normal;
-        emission = Color * Intensity;
-        pdfArea  = _area > 1e-12f ? 1f / _area : 0f;
-        return pdfArea > 0f;
-    }
 }
