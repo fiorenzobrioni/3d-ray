@@ -117,6 +117,7 @@ public partial class Renderer
         HomogeneousMedium medium,
         IHittable entityRoot,
         ref MediumStack mediums,
+        ref IorStack iors,
         int depth,
         Vector3 pathThroughput)
     {
@@ -204,7 +205,10 @@ public partial class Renderer
 
                 // Pop BEFORE the outer recursion so TraceRay sees the medium
                 // we just left as inactive (back to the outer stack / global).
+                // The dielectric IOR pushed alongside it on entry is popped in
+                // lock-step so relative-IOR tracking stays balanced on escape.
                 mediums.Pop();
+                iors.Pop();
 
                 // MIS hand-off: a post-scatter escape is the BSDF-sampling half
                 // of the NEE already done at the last scatter vertex — forward
@@ -214,7 +218,7 @@ public partial class Renderer
                 Vector3 outer = TraceRay(escapeRay, depth,
                                          prevBsdfPdf: scattered ? lastPhasePdf : 0f,
                                          prevIsDelta: !scattered,
-                                         ref mediums,
+                                         ref mediums, ref iors,
                                          pathThroughput: pathThroughput * relBeta);
                 L += relBeta * outer;
                 return L;

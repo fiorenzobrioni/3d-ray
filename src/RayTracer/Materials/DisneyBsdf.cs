@@ -646,6 +646,25 @@ public sealed class DisneyBsdf : IMaterial
         return CausticInterface.None;
     }
 
+    // Solid (non-thin) Disney glass with specular transmission enters/exits a
+    // nested-IOR medium on refraction, so it participates in the renderer's
+    // IorStack. Thin-walled or non-transmissive Disney surfaces opt out and are
+    // treated as staying in the same medium (matching the transmission lobe gate
+    // in ScatterInternal / the Sample medium-transition signal).
+    public bool TryGetDielectricIor(in HitRecord rec, out float ior)
+    {
+        float u = rec.U, v = rec.V;
+        Vector3 p = rec.LocalPoint;
+        int seed = rec.ObjectSeed;
+        if (ThinWalled || SpecTrans.Value(u, v, p, seed) <= 0f)
+        {
+            ior = 1f;
+            return false;
+        }
+        ior = MathF.Max(Ior.Value(u, v, p, seed), 1.0001f);
+        return true;
+    }
+
     // Anisotropic GGX α for a rough caustic caster, matching the ShadingParams
     // mapping (Burley 2012 §5.4: α = roughness², aspect = sqrt(1 − 0.9·aniso)).
     private (float ax, float ay) CausticAlpha(float roughness, float u, float v, Vector3 p, int seed)
@@ -1465,9 +1484,16 @@ public sealed class DisneyBsdf : IMaterial
                                      out Vector3 attenuation, out Ray scattered)
     {
         // Thin-walled geometry has no interior: both faces reflect/transmit
-        // with the same 1/IOR Fresnel, so we don't flip η across faces.
-        float eta = ThinWalled ? (1f / sp.Ior)
-                              : (rec.FrontFace ? (1f / sp.Ior) : sp.Ior);
+        // with the same 1/IOR Fresnel, so we don't flip η across faces — and it
+        // never participates in nested-IOR tracking. For solid glass, prefer the
+        // renderer-resolved relative IOR (medium the ray is actually inside,
+        // e.g. glass→wine) when present; otherwise fall back to the legacy
+        // air-relative form (bit-identical when air is the outside medium).
+        float eta = ThinWalled
+            ? (1f / sp.Ior)
+            : (rec.RelativeEta > 0f
+                ? rec.RelativeEta
+                : (rec.FrontFace ? (1f / sp.Ior) : sp.Ior));
         Vector3 unitDir = Vector3.Normalize(rayIn.Direction);
 
         // For rough transmissive materials, sample a visible microfacet
