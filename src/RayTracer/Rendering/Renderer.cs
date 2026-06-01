@@ -1605,7 +1605,7 @@ public partial class Renderer
                 {
                     ref readonly CausticCasterRegistry.Caster caster = ref casters[c];
 
-                    if (!TryGetCausticInterface(caster, x, y, out CausticInterface ci))
+                    if (!TryGetCausticInterface(caster, casters, c, x, y, out CausticInterface ci))
                         continue;
 
                     if (!ci.IsRough)
@@ -1686,6 +1686,8 @@ public partial class Renderer
     /// reflective one (whose surface the chord does not touch).
     /// </summary>
     private static bool TryGetCausticInterface(in CausticCasterRegistry.Caster caster,
+                                               ReadOnlySpan<CausticCasterRegistry.Caster> casters,
+                                               int selfIndex,
                                                Vector3 x, Vector3 y, out CausticInterface ci)
     {
         ci = CausticInterface.None;
@@ -1696,7 +1698,22 @@ public partial class Renderer
         if (len > 1e-6f && caster.Hittable.Hit(new Ray(x, d / len), 1e-4f, len - 1e-4f, ref rec))
         {
             ci = rec.Material?.GetCausticInterface(rec) ?? CausticInterface.None;
-            if (ci.IsCaster) return true;
+            if (ci.IsCaster)
+            {
+                // Nested-caster relative IOR: if this transmissive caster is
+                // immersed in another dielectric caster here (e.g. wine whose
+                // bowl sits against the crystal cup), stamp that enclosing IOR
+                // so the manifold walk refracts against it rather than air. The
+                // probe is local to the hit, so the top of the wine (exposed to
+                // air) resolves to ambient = 1 while its glass-backed sides
+                // resolve to the crystal's IOR.
+                if (ci.IsTransmissive)
+                {
+                    float ambient = ResolveAmbientIor(casters, selfIndex, in rec);
+                    if (ambient > 1f) ci = ci.WithAmbientIor(ambient);
+                }
+                return true;
+            }
         }
 
         Vector3 ctr = 0.5f * (caster.Box.Min + caster.Box.Max);
@@ -1708,6 +1725,55 @@ public partial class Renderer
             return ci.IsCaster;
         }
         return false;
+    }
+
+    /// <summary>
+    /// IOR of the dielectric medium immediately outside a transmissive caster at
+    /// the hit <paramref name="hit"/> — the index a nested caster refracts
+    /// against. Probes a point just past the caster's outward surface and returns
+    /// the IOR of the innermost (densest) OTHER transmissive caster whose solid
+    /// contains that point, or 1.0 (air) when none does.
+    /// </summary>
+    private static float ResolveAmbientIor(ReadOnlySpan<CausticCasterRegistry.Caster> casters,
+                                           int selfIndex, in HitRecord hit)
+    {
+        Vector3 outward = hit.FrontFace ? hit.Normal : -hit.Normal;
+        float eps = 1e-3f * MathF.Max(1f, hit.Point.Length());
+        Vector3 q = hit.Point + outward * eps;
+
+        float best = 1f;
+        for (int c = 0; c < casters.Length; c++)
+        {
+            if (c == selfIndex) continue;
+            ref readonly CausticCasterRegistry.Caster c2 = ref casters[c];
+            AABB b = c2.Box;
+            if (q.X < b.Min.X || q.X > b.Max.X ||
+                q.Y < b.Min.Y || q.Y > b.Max.Y ||
+                q.Z < b.Min.Z || q.Z > b.Max.Z)
+                continue;
+            if (TryEnclosingCasterIor(c2, q, out float ior2) && ior2 > best)
+                best = ior2;
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// Returns true (and the caster's IOR) when point <paramref name="q"/> lies
+    /// inside the solid of transmissive caster <paramref name="c2"/>. Containment
+    /// is decided by a single probe ray: if its first intersection with the
+    /// caster is a back face, the probe started inside the solid.
+    /// </summary>
+    private static bool TryEnclosingCasterIor(in CausticCasterRegistry.Caster c2, Vector3 q, out float ior)
+    {
+        ior = 1f;
+        var rec = new HitRecord();
+        if (!c2.Hittable.Hit(new Ray(q, Vector3.UnitY), 1e-4f, MathUtils.Infinity, ref rec))
+            return false;
+        if (rec.FrontFace) return false; // first surface faces us → q is outside
+        CausticInterface ci2 = rec.Material?.GetCausticInterface(rec) ?? CausticInterface.None;
+        if (!ci2.IsCaster || !ci2.IsTransmissive) return false;
+        ior = ci2.Ior;
+        return true;
     }
 
     /// <summary>

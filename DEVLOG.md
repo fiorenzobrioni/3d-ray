@@ -6,6 +6,70 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo IOR relativo — dielettrici annidati ✅
+
+Risolto il "film d'aria spurio" tra due dielettrici a contatto. Prima la
+rifrazione (direzione **e** Fresnel) assumeva sempre il vuoto fuori dalla
+superficie — `eta = rec.FrontFace ? 1/n : n` in `Dielectric` e in
+`DisneyBsdf.ScatterTransmission`, e `EtaOnSide` nel `ManifoldWalker`
+hardcodava `η = 1` sul lato esterno. Un liquido dentro un vetro (il vino nel
+calice di cristallo di `cristallo.yaml`) rifrangeva quindi come se fosse
+immerso in aria, non nel cristallo che lo tocca: bordo e fuoco caustico nel
+posto sbagliato, e un alone d'aria fittizio all'interfaccia vino/vetro.
+
+Tre fasi, ognuna **bit-identica** sulle scene non annidate (verificato con MD5
+prima/dopo su Cornell box con sfera di vetro e sulla scena SMS caustics).
+
+**Fase A — path forward (camera/indiretto).** Nuovo `IorStack`: stack per-raggio
+zero-alloc degli IOR dei dielettrici in cui il raggio si trova, gemello di
+`MediumStack` ma alimentato dal **materiale** (un vetro liscio non ha medium
+partecipante eppure ha IOR 1.5). `Top` = IOR del medium corrente (1.0 = aria a
+stack vuoto), `Enclosing` = il medium un livello più fuori. `IMaterial.
+TryGetDielectricIor` espone l'IOR dell'interfaccia (Dielectric sempre; Disney
+solido con `spec_trans > 0`, non thin-walled). Il renderer risolve la `eta`
+relativa prima di `Sample`/`Scatter` e la marca su `HitRecord.RelativeEta`
+(front: `Top/n`; back: `n/Enclosing`); sentinella `0` = non impostata → i
+materiali tornano alla forma legacy air-relative. Con aria fuori (`Top/Enclosing
+= 1`) la relativa si riduce esattamente a `1/n` / `n`. Lo stack è threadato in
+`TraceRay`/`ShadeSurface`/`ShadeSampleBounce` e nel random-walk SSS, con
+push/pop alle stesse transizioni rifrattive del medium stack (e inferendo
+l'attraversamento sul path legacy `Scatter` di `Dielectric`).
+
+**Fase B — MNEE/caustiche.** `CausticInterface` guadagna `AmbientIor` (default
+1.0) + helper `WithAmbientIor`. `EtaOnSide` usa `ci.AmbientIor` sul lato esterno
+invece dell'`1` hardcodato; con `AmbientIor = 1` identico al legacy. Passato via
+`ci`, già threadato in ogni metodo del walker → nessuna proliferazione di firme.
+
+**Fase C — risoluzione del medium che racchiude un caster annidato.**
+`TryGetCausticInterface` ora, quando il segmento dritto x→y colpisce un caster
+trasmissivo, sonda un punto appena oltre la superficie (lungo la normale
+geometrica esterna) e cerca il caster trasmissivo **più interno** (`ResolveAmbientIor`
++ `TryEnclosingCasterIor`, test di contenimento via back-face del primo
+intersect) il cui solido contiene quel punto, marcando il suo IOR come ambiente.
+Così il vino vede `AmbientIor = 1.70` sui fianchi appoggiati al cristallo e
+`= 1.0` sul pelo libero esposto all'aria — l'ambiente corretto **per-hit**.
+Questo resta nel modello MNEE esistente "un caster per connessione" (il vino e
+la coppa sono caster separati, risolti indipendentemente): è l'approssimazione
+dominante e robusta, non la catena 4-vertici multi-chart vera e propria.
+
+**Limite noto / lavoro futuro.** La risoluzione dell'ambiente di Fase C è
+corretta e generale (utile per caster annidati **parzialmente esposti**), ma sul
+vino *completamente racchiuso* di `cristallo.yaml` è di fatto **inerte**: la
+connessione MNEE isolata al vino (ricevitore→vino e vino→luce) attraversa il
+cristallo che lo avvolge, quindi `SegmentOccluded` la **scarta** sempre (il
+counter di probe conferma che l'ambiente 1.70 viene applicato a ~40% degli hit
+del vino, ma il render 300×200 con/senza Fase C è byte-identico). Il fuoco
+caustico rosso sul tavolo viene perciò dal **path forward** (Fase A, ora con IOR
+relativo corretto), non da MNEE attraverso il vino. Il vero cammino a 4
+interfacce su due dielettrici annidati distinti come **singolo** solve di Newton
+multi-chart (aria→cristallo→vino→cristallo→aria) non è implementato:
+richiederebbe `MaxVertices`/`MaxMneeInterfaces` a 4, IOR/assorbimento
+per-segmento, seeding ordinato su chart diversi e una visibilità che attraversi
+i caster intermedi — con rischio di convergenza/firefly elevato (vedi
+`PLANNING.md`). Verifica forward (camera, caustiche off) su `cristallo.yaml`
+prima/dopo: differenza visibile all'interfaccia vino↔cristallo; scene non
+annidate bit-identiche.
+
 ## Ciclo Caustiche — auto-classificazione caster/receiver ✅
 
 Tolto l'attrito del doppio opt-in. Prima le caustiche richiedevano **due** azioni:
