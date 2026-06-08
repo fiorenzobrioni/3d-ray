@@ -178,7 +178,7 @@ public partial class Renderer
             float tBound = float.IsPositiveInfinity(tDist)
                 ? MathUtils.Infinity : tDist;
             var brec = new HitRecord();
-            bool gotBoundary = entityRoot.Hit(ray, MathUtils.Epsilon,
+            bool gotBoundary = entityRoot.Hit(ray, 1e-7f,
                                               tBound, ref brec);
 
             if (gotBoundary)

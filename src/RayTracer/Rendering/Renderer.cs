@@ -107,8 +107,8 @@ public readonly struct RandomWalkConfig
     }
 
     public static RandomWalkConfig Preview => new(maxVolumeBounces: 16,  rrStartBounce: 1, neeInsideWalk: true, neeMaxBounce: 2);
-    public static RandomWalkConfig Normal  => new(maxVolumeBounces: 64,  rrStartBounce: 3, neeInsideWalk: true, neeMaxBounce: int.MaxValue);
-    public static RandomWalkConfig High    => new(maxVolumeBounces: 256, rrStartBounce: 6, neeInsideWalk: true, neeMaxBounce: int.MaxValue);
+    public static RandomWalkConfig Normal  => new(maxVolumeBounces: 64,  rrStartBounce: 3, neeInsideWalk: true, neeMaxBounce: 8);
+    public static RandomWalkConfig High    => new(maxVolumeBounces: 128, rrStartBounce: 6, neeInsideWalk: true, neeMaxBounce: 16);
 }
 
 public partial class Renderer
@@ -1631,11 +1631,11 @@ public partial class Renderer
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static float ClipShadowToBoundary(Vector3 p, Vector3 dir, float shadowDist,
-                                               IHittable? boundEntity)
+                                               IHittable? boundEntity, float tMin = 1e-4f)
     {
         if (boundEntity == null) return shadowDist;
         var rec = new HitRecord();
-        if (boundEntity.Hit(new Ray(p, dir), MathUtils.Epsilon, shadowDist, ref rec))
+        if (boundEntity.Hit(new Ray(p, dir), tMin, shadowDist, ref rec))
             return rec.T;
         return shadowDist;
     }
@@ -1697,7 +1697,7 @@ public partial class Renderer
 
                 float phaseVal = medium.Phase.Evaluate(wo, dirToLight);
                 float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity);
+                float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity, 1e-7f);
                 Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight), mediumDist);
 
                 float wNee = 1f;
@@ -1745,7 +1745,7 @@ public partial class Renderer
                     // Beer-Lambert attenuation along the shadow ray, clipped to
                     // the bound-entity boundary when the medium is bound.
                     float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                    float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity);
+                    float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity, 1e-7f);
                     Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight), mediumDist);
 
                     // ── MIS weight (phase-function vs light sampler) ────────────
