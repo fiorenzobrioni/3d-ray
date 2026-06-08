@@ -584,7 +584,7 @@ class Program
         public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 2_000_000);
         public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 2_000_000);
         public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 3_000_000);
-        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 4_000_000);
+        public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 4_000_000);
 
         public const string NamesCsv =
             "draft-tiny, draft-small, draft, medium-tiny, medium-small, medium, final-tiny, final-small, final, ultra";

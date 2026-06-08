@@ -32,17 +32,17 @@ public class RandomWalkConfigTests
         Assert.Equal(64, cfg.MaxVolumeBounces);
         Assert.Equal(3,  cfg.RrStartBounce);
         Assert.True(cfg.NeeInsideWalk);
-        Assert.Equal(int.MaxValue, cfg.NeeMaxBounce);
+        Assert.Equal(8, cfg.NeeMaxBounce);
     }
 
     [Fact]
     public void High_HasGenerousBudget_NeeEnabled()
     {
         var cfg = RandomWalkConfig.High;
-        Assert.Equal(256, cfg.MaxVolumeBounces);
+        Assert.Equal(128, cfg.MaxVolumeBounces);
         Assert.Equal(6,   cfg.RrStartBounce);
         Assert.True(cfg.NeeInsideWalk);
-        Assert.Equal(int.MaxValue, cfg.NeeMaxBounce);
+        Assert.Equal(16, cfg.NeeMaxBounce);
     }
 
     /// <summary>
