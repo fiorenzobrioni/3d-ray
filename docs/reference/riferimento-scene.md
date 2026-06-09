@@ -858,6 +858,28 @@ materiale da un nodo `texture` con sopra un `coordinate` in `mode: "generated"`
 (con `bounds` esplicito); per un pattern **world-locked** che continua senza
 soluzione di continuità tra molti oggetti affiancati usa `mode: "world"`.
 
+#### **Scale anisotropica (frequenza per asse).**
+`scale` accetta anche un vettore per asse `[sx, sy, sz]` per stirare *di
+proposito* il pattern lungo gli assi propri dell'oggetto — indipendentemente
+dalla `scale` dell'entità. Uno scalare (`scale: 4`) è isotropo e invariato; un
+vettore assegna una frequenza diversa a ciascun asse:
+
+```yaml
+texture:
+  type: "wood"
+  scale: [8, 1, 1]      # 8 cicli/wu su X, 1 su Y e Z → venatura stirata lungo X
+  offset:   [0, 0, 0]   # traslazione opzionale del punto di campionamento (unità mondo)
+  rotation: [0, 0, 0]   # rotazione opzionale del punto (gradi, X→Y→Z)
+```
+
+Supportato dalle procedurali solide — `noise`, `marble`, `wood`, `voronoi`. Ogni
+componente è in `cicli/wu` su quell'asse, quindi `[8, 8, 8]` è identico allo
+scalare `8`. La componente dominante guida il clamp delle ottave per
+l'anti-aliasing, perciò lo stiramento non introduce mai aliasing. `offset` e
+`rotation` (entrambi 3D, applicati al punto di campionamento prima della
+frequenza) si compongono con la scale vettoriale. Tutti e tre sono no-op di
+default, quindi le scene esistenti non sono toccate.
+
 #### **Texture Procedurali:**
 
 **Checker:**

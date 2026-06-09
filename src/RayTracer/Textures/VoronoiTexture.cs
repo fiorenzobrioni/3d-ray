@@ -91,6 +91,14 @@ public class VoronoiTexture : ITexture
 
     public Vector3 Offset { get; set; } = Vector3.Zero;
     public Vector3 Rotation { get; set; } = Vector3.Zero;
+    /// <summary>
+    /// Per-axis scale ratio (each component in <c>[-1, 1]</c>) applied to the
+    /// sample point before the scalar <c>_scale</c>, enabling anisotropic
+    /// stretch from a vector <c>scale</c>. Default <see cref="Vector3.One"/> is
+    /// a no-op. The dominant frequency is folded into <c>_scale</c> so the
+    /// Nyquist octave clamp stays conservative.
+    /// </summary>
+    public Vector3 ScaleRatio { get; set; } = Vector3.One;
     public bool RandomizeOffset { get; set; }
     public bool RandomizeRotation { get; set; }
 
@@ -194,7 +202,7 @@ public class VoronoiTexture : ITexture
         // Worley is locally aperiodic and shift-decorrelated — every read of
         // `transformedP` indexes the cell grid, so adding the per-instance
         // seed offset on the full point is safe.
-        Vector3 transformedP = TextureTransform.ApplyManual(p, Offset, Rotation);
+        Vector3 transformedP = TextureTransform.ApplyManual(p, ScaleRatio, Offset, Rotation);
         transformedP = TextureTransform.ApplyRandomRotation(transformedP, objectSeed, RandomizeRotation);
         transformedP += TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
 

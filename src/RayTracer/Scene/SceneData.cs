@@ -886,8 +886,56 @@ public class TextureData
     [YamlMember(Alias = "colors")]
     public List<List<float>>? Colors { get; set; }
 
+    /// <summary>
+    /// Procedural texture sampling scale. Accepts either a scalar
+    /// (isotropic frequency — the historical behaviour) or a per-axis
+    /// <c>[sx, sy, sz]</c> sequence (anisotropic stretch). The vector form is
+    /// honoured by the solid procedurals (<c>noise</c>, <c>marble</c>,
+    /// <c>wood</c>, <c>voronoi</c>); other textures use its dominant component.
+    /// Unset → scalar 1 (no-op), so existing scenes are unaffected.
+    /// </summary>
     [YamlMember(Alias = "scale")]
-    public float Scale { get; set; } = 1f;
+    public object? Scale { get; set; }
+
+    /// <summary>
+    /// Parses <see cref="Scale"/> into <c>(scalar, ratio)</c>: a dominant
+    /// scalar frequency and a per-axis ratio in <c>[-1, 1]</c>. A scalar input
+    /// yields <c>(s, [1,1,1])</c> — byte-identical to the legacy behaviour. A
+    /// vector <c>v</c> yields <c>(max|vᵢ|, v / max|vᵢ|)</c>, so the dominant
+    /// frequency drives the (conservative) Nyquist octave clamp while the ratio
+    /// stretches the sample point per axis. Unset → <c>(1, [1,1,1])</c>.
+    /// </summary>
+    public (float Scalar, float Rx, float Ry, float Rz) ScaleScalarAndRatio()
+    {
+        if (Scale is null) return (1f, 1f, 1f, 1f);
+
+        float x, y, z;
+        if (Scale is System.Collections.IEnumerable seq and not string)
+        {
+            var vals = new List<float>();
+            foreach (var o in seq)
+            {
+                if (float.TryParse(System.Convert.ToString(o, System.Globalization.CultureInfo.InvariantCulture),
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var f))
+                    vals.Add(f);
+            }
+            if (vals.Count == 0) return (1f, 1f, 1f, 1f);
+            if (vals.Count == 1) return (vals[0], 1f, 1f, 1f);
+            x = vals[0];
+            y = vals.Count > 1 ? vals[1] : vals[0];
+            z = vals.Count > 2 ? vals[2] : vals[0];
+        }
+        else
+        {
+            float s = System.Convert.ToSingle(Scale, System.Globalization.CultureInfo.InvariantCulture);
+            return (s, 1f, 1f, 1f);
+        }
+
+        float m = System.MathF.Max(System.MathF.Abs(x), System.MathF.Max(System.MathF.Abs(y), System.MathF.Abs(z)));
+        if (m < 1e-8f) return (1f, 1f, 1f, 1f);
+        return (m, x / m, y / m, z / m);
+    }
 
     [YamlMember(Alias = "noise_strength")]
     public float? NoiseStrength { get; set; }

@@ -863,6 +863,27 @@ fits the object's bounds, the legacy behaviour), drive the material from a
 explicit `bounds`); for a **world-locked** pattern that continues seamlessly
 across many tiled objects use `mode: "world"`.
 
+#### **Anisotropic scale (per-axis frequency).**
+`scale` also accepts a per-axis `[sx, sy, sz]` vector to *deliberately* stretch
+the pattern along the object's own axes — independently of the entity's scale.
+A scalar (`scale: 4`) is isotropic and unchanged; a vector gives a different
+frequency per axis:
+
+```yaml
+texture:
+  type: "wood"
+  scale: [8, 1, 1]      # 8 cycles/wu on X, 1 on Y and Z → grain stretched along X
+  offset:   [0, 0, 0]   # optional sample-point translation (world units)
+  rotation: [0, 0, 0]   # optional sample-point rotation (degrees, X→Y→Z)
+```
+
+Honoured by the solid procedurals — `noise`, `marble`, `wood`, `voronoi`. Each
+component is `cycles/wu` on that axis, so `[8, 8, 8]` is identical to the scalar
+`8`. The dominant component drives the anti-aliasing octave clamp, so stretching
+never introduces aliasing. `offset` and `rotation` (both 3D, applied to the
+sample point before the frequency) compose with the vector scale. All three
+default to a no-op, so existing scenes are unaffected.
+
 #### **Procedural Textures:**
 
 **Checker:**

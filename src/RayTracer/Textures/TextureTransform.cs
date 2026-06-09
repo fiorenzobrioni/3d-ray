@@ -50,8 +50,19 @@ public static class TextureTransform
     /// is part of the pattern's spatial layout.
     /// </summary>
     public static Vector3 ApplyManual(Vector3 p, Vector3 offset, Vector3 rotation)
+        => ApplyManual(p, Vector3.One, offset, rotation);
+
+    /// <summary>
+    /// As <see cref="ApplyManual(Vector3, Vector3, Vector3)"/>, but with a
+    /// per-axis <paramref name="scale"/> applied to the point <i>first</i>
+    /// (scale → translate → rotate). A <paramref name="scale"/> of
+    /// <see cref="Vector3.One"/> reproduces the scale-free path exactly, so
+    /// callers that don't opt in stay byte-identical.
+    /// </summary>
+    public static Vector3 ApplyManual(Vector3 p, Vector3 scale, Vector3 offset, Vector3 rotation)
     {
-        Vector3 q = p + offset;
+        Vector3 q = scale != Vector3.One ? scale * p : p;
+        q += offset;
         if (rotation != Vector3.Zero)
         {
             q = Rotate(q, rotation);

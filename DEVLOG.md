@@ -6,6 +6,37 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Feature — `scale` anisotropica per asse sulle procedurali ✅
+
+**Contesto.** Dopo il fix metrico (sotto), lo scale **non uniforme** dell'entità
+non stira più il pattern (corretto). Mancava però un modo per stirare il pattern
+*di proposito* (es. venatura del legno allungata) in modo deterministico e
+indipendente dalla geometria.
+
+**Cosa.** `scale` su una texture procedurale accetta ora **scalare _oppure_
+vettore** `[sx, sy, sz]`. Lo scalare resta isotropo e **byte-identical** al
+comportamento precedente; il vettore assegna una frequenza (cicli/wu) per asse.
+`offset` e `rotation` (3D) esistevano già via `TextureTransform.ApplyManual`:
+ora la pipeline è scale → traslazione → rotazione del punto di campionamento.
+Supportato dalle solide: `noise`, `marble`, `wood`, `voronoi` (le altre usano la
+componente dominante).
+
+**Come (no aliasing, no doppia applicazione).** `TextureData.ScaleScalarAndRatio`
+decompone il vettore `v` in `(max|vᵢ|, v / max|vᵢ|)`: la **componente dominante**
+va a `_scale` (frequenza interna + clamp ottave Nyquist, quindi conservativo →
+niente aliasing sull'asse più fine), il **rapporto** per asse (∈ `[-1,1]`)
+moltiplica il punto in `ApplyManual` *prima* di `_scale`. Prodotto totale per
+asse = `v` esatto. `ApplyManual` con scale `(1,1,1)` corto-circuita al percorso
+precedente, quindi le scene esistenti sono invariate. Verifica: `scale: 8` ≡
+`scale: [8,8,8]` (hash PNG identico), `[8,1,1]` differisce.
+
+**File.** `Scene/SceneData.cs` (`Scale` → `object?` + parser), `Scene/SceneLoader.cs`
+(decomposizione + `ScaleRatio`), `Textures/TextureTransform.cs` (overload con
+scale), `Textures/{Noise,Marble,Wood,Voronoi}Texture.cs` (`ScaleRatio`).
+Doc: `scene-reference.md` / `riferimento-scene.md`.
+
+---
+
 ## Fix — Texture procedurali in object-space metrico (no stretch da scale entità) ✅
 
 **Sintomo.** Una texture procedurale (es. legno) su un box con `scale` non

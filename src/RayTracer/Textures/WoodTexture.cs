@@ -121,6 +121,13 @@ public class WoodTexture : ITexture
     // ── Geometry seed (kept for radial / directional layout) ───────────────
     public Vector3 Offset { get; set; } = Vector3.Zero;
     public Vector3 Rotation { get; set; } = Vector3.Zero;
+    /// <summary>
+    /// Per-axis scale ratio (each component in <c>[-1, 1]</c>) applied to the
+    /// sample point before the scalar <c>_scale</c>, enabling anisotropic
+    /// stretch from a vector <c>scale</c> (e.g. stretched/compressed grain).
+    /// Default <see cref="Vector3.One"/> is a no-op.
+    /// </summary>
+    public Vector3 ScaleRatio { get; set; } = Vector3.One;
     public bool RandomizeOffset { get; set; }
     public bool RandomizeRotation { get; set; }
 
@@ -404,7 +411,7 @@ public class WoodTexture : ITexture
         // rooted at the object origin so concentric rings stay concentric. No
         // per-instance seed offset on this path.
         Vector3 qGeom = TextureTransform.ApplyRandomRotation(
-            TextureTransform.ApplyManual(p, Offset, Rotation),
+            TextureTransform.ApplyManual(p, ScaleRatio, Offset, Rotation),
             objectSeed, RandomizeRotation);
         Perlin noise = objectSeed != 0 ? Perlin.GetOrCreate(objectSeed) : _noise;
 

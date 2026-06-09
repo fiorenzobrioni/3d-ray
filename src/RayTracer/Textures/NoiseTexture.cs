@@ -75,6 +75,14 @@ public class NoiseTexture : ITexture
 
     public Vector3 Offset { get; set; } = Vector3.Zero;
     public Vector3 Rotation { get; set; } = Vector3.Zero;
+    /// <summary>
+    /// Per-axis scale ratio (each component in <c>[-1, 1]</c>) applied to the
+    /// sample point before the scalar <c>_scale</c>, enabling anisotropic
+    /// stretch from a vector <c>scale</c>. Default <see cref="Vector3.One"/> is
+    /// a no-op. The dominant frequency is folded into <c>_scale</c> so the
+    /// Nyquist octave clamp stays conservative.
+    /// </summary>
+    public Vector3 ScaleRatio { get; set; } = Vector3.One;
     public bool RandomizeOffset { get; set; }
     public bool RandomizeRotation { get; set; }
 
@@ -188,7 +196,7 @@ public class NoiseTexture : ITexture
         // full point. The 1000-wu magnitude becomes `_scale × 1000` once the
         // line below multiplies by scale, giving thousands of noise periods
         // of decorrelation between instances.
-        Vector3 transformedP = TextureTransform.ApplyManual(p, Offset, Rotation);
+        Vector3 transformedP = TextureTransform.ApplyManual(p, ScaleRatio, Offset, Rotation);
         transformedP = TextureTransform.ApplyRandomRotation(transformedP, objectSeed, RandomizeRotation);
         transformedP += TextureTransform.SeedOffset(objectSeed, RandomizeOffset);
 
