@@ -49,26 +49,28 @@ jobs:
         scene:
           # --- Elenco disattivato (rimuovi il # per attivare) ---
           #- showcases/material-emissive
-          #- sample
+          - sample
+          - showcase
           #- alchemist-lab
-          #- chess
+          - chess
           #- showcases/material-classic
           #- showcases/material-classic-vs-disney
-          #- cornell-box
+          - cornell-box
           #- cornell-box-sphere
           #- cristallo
-          #- showcases/scene-csg
+          - showcases/scene-csg
+          - showcases/scene-group
           #- showcases/lighting-gradient-sky
           #- heightfield-procedural-test
           #- heightfield-strata-test-preview
           #- showcases/material-mix
-          #- pendolo-newton
+          - pendolo-newton
           #- showcases/primitive-overview
           #- showcases/scene-group
           #- showcases/lighting-sphere
           #- showcases/glass-caustics
-          - showcases/material-spheres-pbr
-          #- showcases/material-spheres-classic
+          #- showcases/material-spheres-pbr
+          - showcases/spheres-classic
           #- utah-teapot
 
     steps:
@@ -102,7 +104,7 @@ jobs:
           publish/RayTracer/RayTracer \
             -i scenes/${{ matrix.scene }}.yaml \
             -o renders/${{ matrix.scene }}.png \
-            -s 1024 -d 6 -w 1920 -H 1080
+            -final-fast
 
       - name: Upload render
         if: always()
