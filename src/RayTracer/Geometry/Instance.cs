@@ -68,7 +68,7 @@ public class Instance : IHittable
         set => _seed = value;
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         if (!_template.Hit(ray, tMin, tMax, ref rec))
             return false;

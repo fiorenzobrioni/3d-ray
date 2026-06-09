@@ -122,7 +122,7 @@ public sealed class MixMaterial : IMaterial
     /// (including Dielectric, Disney BSDF with transmission, nested Mix, etc.)
     /// without needing to combine incompatible BSDF lobes.
     /// </summary>
-    public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
+    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
 
@@ -147,7 +147,7 @@ public sealed class MixMaterial : IMaterial
     /// The blend factor is evaluated at the hit point's UV coordinates from the
     /// HitRecord, giving correct spatial blending for texture-masked mix materials.
     /// </summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
 
@@ -158,7 +158,7 @@ public sealed class MixMaterial : IMaterial
     }
 
     /// <inheritdoc/>
-    public Vector3 ShadowTransmittance(Vector3 wi, HitRecord rec)
+    public Vector3 ShadowTransmittance(Vector3 wi, in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         Vector3 tA = MaterialA.ShadowTransmittance(wi, rec);
@@ -167,7 +167,7 @@ public sealed class MixMaterial : IMaterial
     }
 
     /// <inheritdoc/>
-    public Vector3 ShadowAbsorption(HitRecord rec)
+    public Vector3 ShadowAbsorption(in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         Vector3 sA = MaterialA.ShadowAbsorption(rec);
@@ -217,7 +217,7 @@ public sealed class MixMaterial : IMaterial
     // ═════════════════════════════════════════════════════════════════════════
 
     /// <inheritdoc/>
-    public Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec)
+    public Vector3 Evaluate(Vector3 V, Vector3 L, in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         Vector3 fA = MaterialA.Evaluate(V, L, rec);
@@ -226,7 +226,7 @@ public sealed class MixMaterial : IMaterial
     }
 
     /// <inheritdoc/>
-    public float Pdf(Vector3 V, Vector3 L, HitRecord rec)
+    public float Pdf(Vector3 V, Vector3 L, in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         float pA = MaterialA.Pdf(V, L, rec);
@@ -235,7 +235,7 @@ public sealed class MixMaterial : IMaterial
     }
 
     /// <inheritdoc/>
-    public BsdfSample? Sample(Vector3 V, HitRecord rec)
+    public BsdfSample? Sample(Vector3 V, in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
 

@@ -48,7 +48,13 @@ public static class Sampler
         public uint Dimension;
         public bool Active;   // false = fall back to MathUtils PRNG
     }
-    private static readonly ThreadLocal<Ctx> _ctx = new(() => new Ctx());
+    // Per-thread context, stored in a [ThreadStatic] field rather than a
+    // ThreadLocal<T> wrapper: this is read on every random draw (hundreds of
+    // millions of times per render) and a [ThreadStatic] field access is
+    // markedly cheaper than ThreadLocal<T>.Value. Lazily initialised per thread
+    // via LocalCtx (a [ThreadStatic] initializer would only run on one thread).
+    [ThreadStatic] private static Ctx? _ctx;
+    private static Ctx LocalCtx => _ctx ??= new Ctx();
 
     /// <summary>
     /// Installs the chosen sampler mode for the rest of the process.
@@ -69,7 +75,7 @@ public static class Sampler
     public static void BeginPixelSample(uint pixelSeed, uint sampleIndex)
     {
         if (_kind != SamplerKind.Sobol) return;
-        var c = _ctx.Value!;
+        var c = LocalCtx;
         c.PixelSeed   = pixelSeed;
         c.SampleIndex = sampleIndex;
         c.Dimension   = 0u;
@@ -84,7 +90,7 @@ public static class Sampler
     /// </summary>
     public static void EndPixelSample()
     {
-        var c = _ctx.Value!;
+        var c = LocalCtx;
         c.Active = false;
     }
 
@@ -99,7 +105,7 @@ public static class Sampler
     /// </summary>
     public static float Sample1D()
     {
-        var c = _ctx.Value!;
+        var c = LocalCtx;
         if (!c.Active)
         {
             // Fast path: no active Sobol context (e.g. called from a unit

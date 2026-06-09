@@ -36,7 +36,7 @@ public sealed class Dielectric : IMaterial
     // dielectric interface attenuates by 1−F; a glass sphere crosses two
     // interfaces, so the receiver still sees the proper Fresnel-squared
     // shadowing at grazing angles.
-    public Vector3 ShadowTransmittance(Vector3 wi, HitRecord rec)
+    public Vector3 ShadowTransmittance(Vector3 wi, in HitRecord rec)
     {
         float cosTheta = MathF.Min(MathF.Abs(Vector3.Dot(wi, rec.Normal)), 1f);
         // Straight-through shadow rays: see DisneyBsdf.ShadowTransmittance for
@@ -61,7 +61,7 @@ public sealed class Dielectric : IMaterial
         return true;
     }
 
-    public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
+    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
         attenuation = Albedo.Value(in rec);
         // Relative IOR η_incident/η_transmitted: use the renderer-resolved value

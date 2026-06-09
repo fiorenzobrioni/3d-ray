@@ -105,7 +105,7 @@ public class Torus : IHittable, ISamplable
 //     relative residual check below rejects the phantom roots that survive.
 // ═══════════════════════════════════════════════════════════════════════════
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         // ═══════════════════════════════════════════════════════════════════
         // BUG-12 FIX: Normalize direction for quartic stability

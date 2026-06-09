@@ -25,7 +25,7 @@ public readonly struct AABB
     /// degenerate axis-aligned rays.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Hit(Ray ray, float tMin, float tMax)
+    public bool Hit(in Ray ray, float tMin, float tMax)
     {
         // Reject the sentinel/degenerate empty box explicitly. AABB.Empty has
         // inverted bounds (Min = +inf, Max = -inf); without this guard the slab

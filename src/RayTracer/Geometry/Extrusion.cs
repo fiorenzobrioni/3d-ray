@@ -432,7 +432,7 @@ public sealed class Extrusion : IHittable, ISamplable
         _totalArea = sum > 0f ? sum : 1f;
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
         => _bvh.Hit(ray, tMin, tMax, ref rec);
 
     public AABB BoundingBox() => _bvh.BoundingBox();

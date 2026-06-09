@@ -6,7 +6,7 @@ namespace RayTracer.Materials;
 
 public interface IMaterial
 {
-    bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered);
+    bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Direct-lighting control flags.
@@ -69,7 +69,7 @@ public interface IMaterial
     /// <param name="toEye">Unit vector from hit point toward the camera.</param>
     /// <param name="normal">Shading normal (may be perturbed by normal map).</param>
     /// <param name="rec">Hit record with UV, LocalPoint, ObjectSeed for texture lookups.</param>
-    Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
+    Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
         => Vector3.Zero;
 
     /// <summary>
@@ -88,7 +88,7 @@ public interface IMaterial
     /// </summary>
     /// <param name="wi">Unit shadow-ray direction at the hit (surface → light).</param>
     /// <param name="rec">Hit record at the shadow-ray intersection.</param>
-    Vector3 ShadowTransmittance(Vector3 wi, HitRecord rec) => Vector3.Zero;
+    Vector3 ShadowTransmittance(Vector3 wi, in HitRecord rec) => Vector3.Zero;
 
     /// <summary>
     /// Per-channel volumetric absorption coefficient σ_a (Beer-Lambert) of the
@@ -103,7 +103,7 @@ public interface IMaterial
     /// parameterisation, this returns <c>−ln(transmission_color) /
     /// transmission_depth</c> per channel.
     /// </summary>
-    Vector3 ShadowAbsorption(HitRecord rec) => Vector3.Zero;
+    Vector3 ShadowAbsorption(in HitRecord rec) => Vector3.Zero;
 
     /// <summary>
     /// True when this surface transmits light through a <b>smooth specular</b>
@@ -155,7 +155,7 @@ public interface IMaterial
     /// Returns the BRDF value WITHOUT the N·L cosine — callers multiply by
     /// max(N·L, 0) themselves. Returns zero for directions below the surface.
     /// </summary>
-    Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec) => Vector3.Zero;
+    Vector3 Evaluate(Vector3 V, Vector3 L, in HitRecord rec) => Vector3.Zero;
 
     /// <summary>
     /// Solid-angle PDF of sampling the outgoing direction L given the view
@@ -164,7 +164,7 @@ public interface IMaterial
     /// here — they must be sampled via <see cref="Sample"/> and tagged
     /// via <see cref="BsdfSample.IsDelta"/>.
     /// </summary>
-    float Pdf(Vector3 V, Vector3 L, HitRecord rec) => 0f;
+    float Pdf(Vector3 V, Vector3 L, in HitRecord rec) => 0f;
 
     /// <summary>
     /// Samples an outgoing direction from this material's importance distribution.
@@ -173,7 +173,7 @@ public interface IMaterial
     /// matches <see cref="Evaluate"/>; <see cref="BsdfSample.Pdf"/> matches
     /// <see cref="Pdf"/> in solid angle.
     /// </summary>
-    BsdfSample? Sample(Vector3 V, HitRecord rec) => null;
+    BsdfSample? Sample(Vector3 V, in HitRecord rec) => null;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Emission.

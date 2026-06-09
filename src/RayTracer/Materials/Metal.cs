@@ -72,7 +72,7 @@ public sealed class Metal : IMaterial
     /// D·G/(4·NdotV·NdotL) form spikes at grazing NdotV and the lobe is
     /// reachable only by mirror-sampling the BSDF in <see cref="Sample"/>.
     /// </summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
     {
         float NdotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
         if (NdotL <= 0f) return Vector3.Zero;
@@ -129,7 +129,7 @@ public sealed class Metal : IMaterial
     // and the renderer treats it like Dielectric reflection.
     // ─────────────────────────────────────────────────────────────────────────
 
-    public Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec)
+    public Vector3 Evaluate(Vector3 V, Vector3 L, in HitRecord rec)
     {
         Vector3 N = rec.Normal;
         float NdotL = Vector3.Dot(N, L);
@@ -158,7 +158,7 @@ public sealed class Metal : IMaterial
         return F * (D * G / MathF.Max(4f * NdotV * NdotL, 1e-7f));
     }
 
-    public float Pdf(Vector3 V, Vector3 L, HitRecord rec)
+    public float Pdf(Vector3 V, Vector3 L, in HitRecord rec)
     {
         Vector3 N = rec.Normal;
         float NdotL = Vector3.Dot(N, L);
@@ -179,7 +179,7 @@ public sealed class Metal : IMaterial
         return D * NdotH / (4f * VdotH);
     }
 
-    public BsdfSample? Sample(Vector3 V, HitRecord rec)
+    public BsdfSample? Sample(Vector3 V, in HitRecord rec)
     {
         Vector3 N = rec.Normal;
         Vector3 albedo = Albedo.Value(in rec);
@@ -230,7 +230,7 @@ public sealed class Metal : IMaterial
     /// (attenuation = f·|cosθ|/pdf, or F for the delta mirror) makes the two
     /// paths energy-equivalent.
     /// </summary>
-    public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
+    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
         Vector3 V = Vector3.Normalize(-rayIn.Direction);
 

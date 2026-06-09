@@ -76,7 +76,7 @@ public class Annulus : IHittable, ISamplable
         _boundingBox = new AABB(Center - new Vector3(ex, ey, ez), Center + new Vector3(ex, ey, ez));
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         float denom = Vector3.Dot(Normal, ray.Direction);
         if (MathF.Abs(denom) < 1e-8f)

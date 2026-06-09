@@ -51,6 +51,19 @@ public class ImageTexture : ITexture
     // and RenderMan ship as default.
     private const int MaxAnisotropy = 8;
 
+    // Shared sRGB→linear decode table (gamma 2.2), indexed by the raw 0-255
+    // byte value. Built once for the whole process.
+    private static readonly float[] SrgbDecodeLut = BuildSrgbDecodeLut();
+
+    private static float[] BuildSrgbDecodeLut()
+    {
+        var lut = new float[256];
+        const float inv255 = 1f / 255f;
+        for (int i = 0; i < 256; i++)
+            lut[i] = MathF.Pow(i * inv255, 2.2f);
+        return lut;
+    }
+
     public ImageTexture(string imagePath, float scaleU = 1f, float scaleV = 1f)
     {
         _scaleU = scaleU;
@@ -58,14 +71,15 @@ public class ImageTexture : ITexture
 
         float[] level0;
         int w0, h0;
+        // sRGB→linear decode via a 256-entry LUT. A byte channel has only 256
+        // possible values, so the table is exact and turns millions of per-texel
+        // MathF.Pow(x, 2.2) calls at load into a single array index.
+        float[] srgbToLinear = SrgbDecodeLut;
         using (var image = Image.Load<Rgba32>(imagePath))
         {
             w0 = image.Width;
             h0 = image.Height;
             level0 = new float[w0 * h0 * 3];
-
-            const float inv255 = 1f / 255f;
-            const float gamma = 2.2f;
 
             image.ProcessPixelRows(accessor =>
             {
@@ -77,9 +91,9 @@ public class ImageTexture : ITexture
                     {
                         var pixel = row[x];
                         int idx = baseIdx + x * 3;
-                        level0[idx]     = MathF.Pow(pixel.R * inv255, gamma);
-                        level0[idx + 1] = MathF.Pow(pixel.G * inv255, gamma);
-                        level0[idx + 2] = MathF.Pow(pixel.B * inv255, gamma);
+                        level0[idx]     = srgbToLinear[pixel.R];
+                        level0[idx + 1] = srgbToLinear[pixel.G];
+                        level0[idx + 2] = srgbToLinear[pixel.B];
                     }
                 }
             });

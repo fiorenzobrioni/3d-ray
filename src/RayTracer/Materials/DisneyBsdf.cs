@@ -319,7 +319,7 @@ public sealed class DisneyBsdf : IMaterial
     [ThreadStatic] private static Vector3 _spLastLocalPoint;
     [ThreadStatic] private static ShadingParams _spCached;
 
-    private ShadingParams EvalParams(HitRecord rec)
+    private ShadingParams EvalParams(in HitRecord rec)
     {
         float u = rec.U, v = rec.V;
         Vector3 p = rec.LocalPoint;
@@ -412,7 +412,7 @@ public sealed class DisneyBsdf : IMaterial
     ///   in <see cref="Sample"/> with full-weight emission is the correct
     ///   MIS treatment.
     /// </summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
     {
         float NdotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
         if (NdotL <= 0f) return Vector3.Zero;
@@ -558,7 +558,7 @@ public sealed class DisneyBsdf : IMaterial
     /// <c>transmission_depth</c> is also ignored: it requires an interior
     /// segment length the straight-through walker doesn't track.
     /// </summary>
-    public Vector3 ShadowTransmittance(Vector3 wi, HitRecord rec)
+    public Vector3 ShadowTransmittance(Vector3 wi, in HitRecord rec)
     {
         float u = rec.U, v = rec.V;
         Vector3 p = rec.LocalPoint;
@@ -610,7 +610,7 @@ public sealed class DisneyBsdf : IMaterial
             && Roughness.Value(u, v, p, seed) <= 0.05f;
     }
 
-    public Vector3 ShadowAbsorption(HitRecord rec)
+    public Vector3 ShadowAbsorption(in HitRecord rec)
     {
         Vector3 baseCol = BaseColor.Value(in rec);
         var (_, sigma) = ResolveTransmission(rec, baseCol);
@@ -643,7 +643,7 @@ public sealed class DisneyBsdf : IMaterial
     /// transmission (glass refraction) is excluded and handled by the delta
     /// sample path instead.
     /// </summary>
-    public Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec)
+    public Vector3 Evaluate(Vector3 V, Vector3 L, in HitRecord rec)
     {
         Vector3 N = rec.Normal;
         float NdotL = Vector3.Dot(N, L);
@@ -777,7 +777,7 @@ public sealed class DisneyBsdf : IMaterial
     /// Combined PDF = Σ_lobe p_lobe · pdf_lobe(L), matching the one-sample
     /// mixture estimator used in Scatter.
     /// </summary>
-    public float Pdf(Vector3 V, Vector3 L, HitRecord rec)
+    public float Pdf(Vector3 V, Vector3 L, in HitRecord rec)
     {
         Vector3 N = rec.Normal;
         float NdotL = Vector3.Dot(N, L);
@@ -887,7 +887,7 @@ public sealed class DisneyBsdf : IMaterial
     ///     dividing a near-zero by a near-zero at grazing angles.
     ///   • All other lobes → non-delta sample with F = Evaluate, Pdf = Pdf.
     /// </summary>
-    public BsdfSample? Sample(Vector3 V, HitRecord rec)
+    public BsdfSample? Sample(Vector3 V, in HitRecord rec)
     {
         // Synthesize an incoming ray with direction -V. Origin is unused by
         // Scatter beyond rec.Point, so any origin works.
@@ -1130,7 +1130,7 @@ public sealed class DisneyBsdf : IMaterial
     // Monte Carlo estimator unbiased across all lobes.
     // ═════════════════════════════════════════════════════════════════════════
 
-    public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
+    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
         => ScatterInternal(rayIn, rec, out attenuation, out scattered, out _);
 
     // Tag identifying which lobe the sampler selected on the most recent
@@ -1726,7 +1726,7 @@ public sealed class DisneyBsdf : IMaterial
     /// substrate. Falls back gracefully to <c>rec.Normal</c> when the
     /// geometry didn't populate a usable TBN.
     /// </summary>
-    private Vector3 GetCoatNormal(HitRecord rec)
+    private Vector3 GetCoatNormal(in HitRecord rec)
     {
         if (CoatNormal == null) return rec.Normal;
         if (rec.Tangent.LengthSquared() < 1e-10f || rec.Bitangent.LengthSquared() < 1e-10f)
@@ -1756,7 +1756,7 @@ public sealed class DisneyBsdf : IMaterial
     /// the VNDF sampling in <see cref="ScatterClearcoat"/> on the shared
     /// tangent-space path.
     /// </summary>
-    private ShadingFrame GetClearcoatFrame(HitRecord rec)
+    private ShadingFrame GetClearcoatFrame(in HitRecord rec)
     {
         Vector3 coatN = GetCoatNormal(rec);
         Microfacet.BuildTangentFrame(coatN, out Vector3 T, out Vector3 B);
@@ -1775,7 +1775,46 @@ public sealed class DisneyBsdf : IMaterial
     /// angle 2π·rotation, letting the artist control the anisotropic axis
     /// independently of the UV mapping.
     /// </summary>
-    private static ShadingFrame GetShadingFrame(HitRecord rec, float rotation)
+    // ── Shading-frame cache (mirrors the EvalParams cache) ──────────────────
+    // The tangent frame is rebuilt in EvaluateDirect / Evaluate / Pdf /
+    // ScatterSpecular / ScatterTransmission — i.e. 3-4× for the same hit during
+    // the NEE+MIS triad. It depends only on the hit's (u, v, localPoint, seed)
+    // (which fix both the geometry frame and the deterministic normal-map
+    // perturbation) plus the anisotropic rotation, so a single-entry per-thread
+    // cache removes the redundant ONB build (+ cos/sin under rotation).
+    [ThreadStatic] private static DisneyBsdf? _sfLastInstance;
+    [ThreadStatic] private static int     _sfLastSeed;
+    [ThreadStatic] private static float   _sfLastU;
+    [ThreadStatic] private static float   _sfLastV;
+    [ThreadStatic] private static float   _sfLastRotation;
+    [ThreadStatic] private static Vector3 _sfLastLocalPoint;
+    [ThreadStatic] private static ShadingFrame _sfCached;
+
+    private ShadingFrame GetShadingFrame(in HitRecord rec, float rotation)
+    {
+        if (ReferenceEquals(_sfLastInstance, this)
+            && _sfLastSeed == rec.ObjectSeed
+            && _sfLastU == rec.U
+            && _sfLastV == rec.V
+            && _sfLastRotation == rotation
+            && _sfLastLocalPoint == rec.LocalPoint)
+        {
+            return _sfCached;
+        }
+
+        ShadingFrame frame = BuildShadingFrame(in rec, rotation);
+
+        _sfLastInstance   = this;
+        _sfLastSeed       = rec.ObjectSeed;
+        _sfLastU          = rec.U;
+        _sfLastV          = rec.V;
+        _sfLastRotation   = rotation;
+        _sfLastLocalPoint = rec.LocalPoint;
+        _sfCached         = frame;
+        return frame;
+    }
+
+    private static ShadingFrame BuildShadingFrame(in HitRecord rec, float rotation)
     {
         Vector3 N = rec.Normal;
         Vector3 T, B;

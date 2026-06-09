@@ -480,8 +480,15 @@ public partial class Renderer
     public Vector3[,] Render(int width, int height)
     {
         var pixels = new Vector3[height, width];
-        int completedRows = 0;
-        int totalRows = height;
+
+        // Tile-based work partitioning: 16×16 tiles balance load far better than
+        // whole scanlines (sky rows are cheap, geometry-dense centre rows
+        // expensive) and keep each worker on a cache-local pixel block.
+        const int TileSize = 16;
+        int tilesX = (width  + TileSize - 1) / TileSize;
+        int tilesY = (height + TileSize - 1) / TileSize;
+        int totalTiles = tilesX * tilesY;
+        int completedTiles = 0;
 
         // Two pixel-sampling strategies share the same TraceRay core:
         //
@@ -507,15 +514,36 @@ public partial class Renderer
         float invSqrtSpp = 1f / sqrtSpp;
         int actualSamples = useSobol ? _samplesPerPixel : sqrtSpp * sqrtSpp;
 
-        Parallel.For(0, height, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, j =>
+        // Progress is printed by a single dedicated reporter thread, so no worker
+        // ever touches the Console lock (which used to serialise the render
+        // threads at every scanline boundary).
+        using var renderDone = new ManualResetEventSlim(false);
+        var reporter = Task.Run(() =>
+        {
+            while (!renderDone.Wait(100))
+            {
+                int done = Volatile.Read(ref completedTiles);
+                Console.Write($"\r  Rendering: {100f * done / totalTiles:F1}% ({done}/{totalTiles} tiles)   ");
+            }
+        });
+
+        Parallel.For(0, totalTiles, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, tile =>
         {
             // Per-worker switch: with photon caustics active, smooth specular
             // transmissive surfaces are opaque to NEE shadow rays (the photon map
             // owns that refracted light). Set on this worker before any shadow ray
-            // it casts; re-set every scanline so it never leaks across renders.
+            // it casts; re-set every tile so it never leaks across renders.
             ShadowRay.BlockSpecularTransmission = _causticsActive;
 
-            for (int i = 0; i < width; i++)
+            int tileX = tile % tilesX;
+            int tileY = tile / tilesX;
+            int x0 = tileX * TileSize;
+            int y0 = tileY * TileSize;
+            int x1 = Math.Min(x0 + TileSize, width);
+            int y1 = Math.Min(y0 + TileSize, height);
+
+            for (int j = y0; j < y1; j++)
+            for (int i = x0; i < x1; i++)
             {
                 Vector3 cumulativeColor = Vector3.Zero;
 
@@ -612,14 +640,12 @@ public partial class Renderer
                 pixels[j, i] = AcesToneMap(linearColor * _exposureScale);
             }
 
-            int done = Interlocked.Increment(ref completedRows);
-            if (done % 20 == 0 || done == totalRows)
-            {
-                float pct = 100f * done / totalRows;
-                Console.Write($"\r  Rendering: {pct:F1}% ({done}/{totalRows} scanlines)   ");
-            }
+            Interlocked.Increment(ref completedTiles);
         });
 
+        renderDone.Set();
+        reporter.Wait();
+        Console.Write($"\r  Rendering: 100.0% ({totalTiles}/{totalTiles} tiles)   ");
         Console.WriteLine();
         return pixels;
     }
@@ -744,7 +770,7 @@ public partial class Renderer
     //                                      migrated to the Sample() API.
     // ═════════════════════════════════════════════════════════════════════════
 
-    private Vector3 ShadeSurface(Ray ray, HitRecord rec, int depth,
+    private Vector3 ShadeSurface(in Ray ray, ref HitRecord rec, int depth,
                                   float prevBsdfPdf, bool prevIsDelta,
                                   Vector3 currentAbsorption,
                                   Vector3 pathThroughput,
@@ -821,7 +847,7 @@ public partial class Renderer
         IMedium? shadowMedium = mediums.Top ?? _globalMedium;
         IHittable? shadowMediumEntity = mediums.Top != null ? mediums.TopEntity : null;
         Vector3 directLight = needsLightSampling
-            ? ComputeDirectLighting(rec, viewDir, material, shadowMedium, shadowMediumEntity)
+            ? ComputeDirectLighting(in rec, viewDir, material, shadowMedium, shadowMediumEntity)
             : Vector3.Zero;
 
         // Focused-caustic radiance from the photon map at this diffuse/glossy
@@ -830,7 +856,7 @@ public partial class Renderer
         // delta surfaces (mirror/glass) — no photons land there and the BRDF is
         // zero — and when caustics are inactive (zero overhead).
         if (_causticsActive && needsLightSampling && material != null && !material.IsDeltaScatter)
-            directLight += GatherCaustics(rec, viewDir, material);
+            directLight += GatherCaustics(in rec, viewDir, material);
 
         if (material == null)
             return emitted + directLight;
@@ -843,7 +869,7 @@ public partial class Renderer
         BsdfSample? mis = material.Sample(viewDir, rec);
         if (mis.HasValue)
         {
-            return ShadeSampleBounce(material, rec, mis.Value, depth, emitted, directLight,
+            return ShadeSampleBounce(material, in rec, mis.Value, depth, emitted, directLight,
                                      currentAbsorption, pathThroughput, ref mediums, ref iors,
                                      causticState);
         }
@@ -938,7 +964,7 @@ public partial class Renderer
     /// a direction with an explicit BSDF PDF, applies Russian Roulette, and
     /// recurses into TraceRay with the MIS metadata.
     /// </summary>
-    private Vector3 ShadeSampleBounce(IMaterial material, HitRecord rec,
+    private Vector3 ShadeSampleBounce(IMaterial material, in HitRecord rec,
                                        BsdfSample s, int depth,
                                        Vector3 emitted, Vector3 directLight,
                                        Vector3 currentAbsorption,
@@ -1261,11 +1287,15 @@ public partial class Renderer
         HitVisibilityMask ignoreMask = CategoryToMask(incomingCategory);
         const int MaxVisibilitySkips = 8;
         Ray currentRay = ray;
-        var rec = new HitRecord();
+        // Declared without a redundant zero-init — the loop below assigns a
+        // fresh record on its first (always-executed) iteration before any use.
+        HitRecord rec;
         bool hit;
         int skipCount = 0;
         while (true)
         {
+            // Re-zero per iteration so a skipped hit's fields (VisibilityMask,
+            // etc.) never leak into the next probe.
             rec = new HitRecord();
             hit = _world.Hit(currentRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
             if (!hit || ignoreMask == HitVisibilityMask.None
@@ -1314,7 +1344,7 @@ public partial class Renderer
         {
             Vector3 result = !hit
                 ? SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
-                : ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
+                : ShadeSurface(currentRay, ref rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
                                pathThroughput, ref mediums, ref iors, causticState);
             // Beer-Lambert along the segment just traversed. Sky miss with
             // non-zero σ_a means the ray escaped the bounded medium — the
@@ -1385,7 +1415,7 @@ public partial class Renderer
         // attenuated by the medium throughput beta = Tr / pdf.
         Vector3 surfaceOrSky = !hit
             ? beta * SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
-            : beta * ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
+            : beta * ShadeSurface(currentRay, ref rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
                                    pathThroughput * beta, ref mediums, ref iors, causticState);
         return ApplyBeerLambert(surfaceOrSky, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
     }
@@ -1493,7 +1523,7 @@ public partial class Renderer
     /// couple the indirect importance sample to the shadow estimator and
     /// bias the result for any direction-dependent BSDF.
     /// </summary>
-    private Vector3 ComputeDirectLighting(HitRecord rec, Vector3 viewDir, IMaterial? material,
+    private Vector3 ComputeDirectLighting(in HitRecord rec, Vector3 viewDir, IMaterial? material,
                                           IMedium? shadowMedium = null,
                                           IHittable? shadowMediumEntity = null)
     {
@@ -1625,19 +1655,11 @@ public partial class Renderer
     /// </summary>
     private (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
         SampleLight(ILight light, Vector3 point, Vector3 normal, int sampleIndex)
-    {
-        return light switch
-        {
-            AreaLight al      => al.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
-            SphereLight sl    => sl.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
-            GeometryLight gl  => gl.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
-            DirectionalLight dl when dl.AngularRadiusDeg > 0f
-                              => dl.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
-            SpotLight sp when sp.ShadowSamples > 1
-                              => sp.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
-            _                 => light.IlluminateAndTest(point, normal, _world)
-        };
-    }
+        // Single virtual dispatch — each light type self-selects stratified vs.
+        // single-sample behaviour (directional sun-disc and multi-sample spots
+        // guard on their own parameters internally). Replaces the former
+        // per-sample type-ladder. See ILight.IlluminateAndTestStratified.
+        => light.IlluminateAndTestStratified(point, normal, _world, sampleIndex);
 
     /// <summary>
     /// Distance the medium attenuates over for a shadow ray fired from a point

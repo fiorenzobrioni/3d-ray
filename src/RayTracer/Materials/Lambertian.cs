@@ -31,7 +31,7 @@ public sealed class Lambertian : IMaterial
     /// contribution to the radiance estimator without multiplying by the
     /// indirect scatter attenuation (which would over-count the albedo).
     /// </summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
     {
         float NdotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
         if (NdotL <= 0f) return Vector3.Zero;
@@ -39,7 +39,7 @@ public sealed class Lambertian : IMaterial
         return albedo * (NdotL / MathF.PI);
     }
 
-    public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
+    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
         var scatterDirection = rec.Normal + MathUtils.RandomUnitVector();
         if (MathUtils.NearZero(scatterDirection))
@@ -63,19 +63,19 @@ public sealed class Lambertian : IMaterial
     // emitter.
     // ─────────────────────────────────────────────────────────────────────────
 
-    public Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec)
+    public Vector3 Evaluate(Vector3 V, Vector3 L, in HitRecord rec)
     {
         if (Vector3.Dot(rec.Normal, L) <= 0f) return Vector3.Zero;
         return Albedo.Value(in rec) * (1f / MathF.PI);
     }
 
-    public float Pdf(Vector3 V, Vector3 L, HitRecord rec)
+    public float Pdf(Vector3 V, Vector3 L, in HitRecord rec)
     {
         float cos = Vector3.Dot(rec.Normal, L);
         return cos > 0f ? cos * (1f / MathF.PI) : 0f;
     }
 
-    public BsdfSample? Sample(Vector3 V, HitRecord rec)
+    public BsdfSample? Sample(Vector3 V, in HitRecord rec)
     {
         Vector3 N = rec.Normal;
         Vector3 dir = N + MathUtils.RandomUnitVector();

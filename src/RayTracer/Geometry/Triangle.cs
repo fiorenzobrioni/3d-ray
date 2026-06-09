@@ -46,7 +46,7 @@ public class Triangle : IHittable, ISamplable
         _bitangent = _edge2.LengthSquared() > 0f ? Vector3.Normalize(_edge2) : Vector3.UnitZ;
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         Vector3 h = Vector3.Cross(ray.Direction, _edge2);
         float a = Vector3.Dot(_edge1, h);

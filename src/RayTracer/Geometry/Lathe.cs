@@ -154,7 +154,7 @@ public sealed class Lathe : IHittable, ISamplable
     // Hit
     // ─────────────────────────────────────────────────────────────────────────
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         // Lathe-wide bounding cylinder pre-rejection. The world-level BVH
         // has already kept us inside the axis-aligned box, but a tall slim

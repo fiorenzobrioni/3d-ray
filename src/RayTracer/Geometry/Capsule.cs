@@ -53,7 +53,7 @@ public class Capsule : IHittable, ISamplable
         _yMax = center.Y + height;
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         bool hitAnything = false;
 

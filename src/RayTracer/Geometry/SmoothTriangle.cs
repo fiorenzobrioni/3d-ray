@@ -144,7 +144,7 @@ public class SmoothTriangle : IHittable, ISamplable
                material)
     { }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         // ── Möller–Trumbore (identical to flat Triangle) ────────────────
         Vector3 h = Vector3.Cross(ray.Direction, _edge2);

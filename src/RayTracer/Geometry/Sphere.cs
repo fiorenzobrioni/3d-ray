@@ -17,7 +17,7 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
         Material = material;
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         Vector3 oc = ray.Origin - Center;
         float a = ray.Direction.LengthSquared();

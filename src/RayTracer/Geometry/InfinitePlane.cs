@@ -25,7 +25,7 @@ public class InfinitePlane : IHittable
         _vAxis = Vector3.Cross(Normal, _uAxis);
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         float denom = Vector3.Dot(Normal, ray.Direction);
         // BUG-03 fix: use a dedicated parallelism epsilon (1e-6f) instead of

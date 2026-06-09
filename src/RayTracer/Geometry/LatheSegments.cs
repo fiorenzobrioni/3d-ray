@@ -30,7 +30,7 @@ internal interface ILatheSegment
     /// normal, and segment-local arc-length parameter <c>v ∈ [0, 1]</c>
     /// (used by the caller to compute the UV V coordinate).
     /// </summary>
-    bool Hit(Ray ray, float tMin, float tMax,
+    bool Hit(in Ray ray, float tMin, float tMax,
              out float tHit, out Vector3 outwardNormal, out float vSegment);
 
     /// <summary>
@@ -98,7 +98,7 @@ internal sealed class AnnulusSegment : ILatheSegment
     public float ArcLength { get; }
     public float LateralArea { get; }
 
-    public bool Hit(Ray ray, float tMin, float tMax,
+    public bool Hit(in Ray ray, float tMin, float tMax,
                     out float tHit, out Vector3 outwardNormal, out float vSegment)
     {
         tHit = 0f;
@@ -184,7 +184,7 @@ internal sealed class FrustumSegment : ILatheSegment
     public float ArcLength => _arcLength;
     public float LateralArea { get; }
 
-    public bool Hit(Ray ray, float tMin, float tMax,
+    public bool Hit(in Ray ray, float tMin, float tMax,
                     out float tHit, out Vector3 outwardNormal, out float vSegment)
     {
         tHit = 0f;
@@ -381,7 +381,7 @@ internal sealed class SplineSegment : ILatheSegment
 
     // ── Hit (main path + horizontal-ray fallback) ────────────────────────────
 
-    public bool Hit(Ray ray, float tMin, float tMax,
+    public bool Hit(in Ray ray, float tMin, float tMax,
                     out float tHit, out Vector3 outwardNormal, out float vSegment)
     {
         tHit = 0f;

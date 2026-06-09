@@ -63,7 +63,7 @@ public sealed class Emissive : IMaterial
     /// Returning false tells the path tracer to stop bouncing and use
     /// only the emitted + direct light contribution for this hit.
     /// </summary>
-    public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
+    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
         attenuation = Vector3.Zero;
         scattered = default;
