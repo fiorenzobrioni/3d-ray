@@ -91,7 +91,7 @@ materials:
     type: "lambertian"
     texture:
       type: "wood"
-      scale: 2.0
+      scale: 4.0
       noise_strength: 2.8
       colors: [[0.28, 0.16, 0.08], [0.15, 0.08, 0.04]]
       randomize_offset: true
@@ -108,8 +108,8 @@ materials:
     type: "lambertian"
     texture:
       type: "wood"
-      scale: 2.0
-      noise_strength: 3.0
+      scale: 1.0
+      noise_strength: 2.0
       colors: [[0.22, 0.09, 0.05], [0.09, 0.04, 0.02]]
 
   - id: "piece_white"
