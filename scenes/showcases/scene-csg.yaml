@@ -88,7 +88,7 @@ materials:
     type: "lambertian"
     texture:
       type: "marble"
-      scale: 8.0
+      scale: 1.5
       noise_strength: 4.0
       colors: [[0.60, 0.60, 0.60], [0.38, 0.38, 0.38]]
 
