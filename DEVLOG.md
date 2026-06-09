@@ -6,6 +6,39 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Fix — Texture procedurali in object-space metrico (no stretch da scale entità) ✅
+
+**Sintomo.** Una texture procedurale (es. legno) su un box con `scale` non
+uniforme (es. `[14, 1.4, 1.4]`) appariva **stirata/deformata**: gli anelli si
+allargavano lungo l'asse scalato invece di mantenere la loro dimensione.
+
+**Causa.** `Transform.Hit` lasciava `rec.LocalPoint` nel frame **normalizzato**
+della primitiva (cubo unitario `[-0.5, 0.5]`), senza applicare lo scale. Tutte
+le procedurali 3D campionano su `LocalPoint`, quindi lo stesso range `[-0.5,0.5]`
+veniva mappato sull'intera geometria scalata → pattern stirato (equivalente alle
+coordinate "Generated" di Cycles). Non era il comportamento documentato (i
+commenti dichiaravano parità con Arnold `space:object` / Cycles Object /
+RenderMan `Pref`, che sono **metrici**).
+
+**Fix.** `Transform` ora applica il proprio **scale** (non rotazione/traslazione)
+a `rec.LocalPoint`, rendendolo **object-space metrico** (assi dell'oggetto, unità
+di mondo). La dimensione delle feature è data solo dallo `scale` della texture ed
+è invariante allo scale (anche non uniforme) dell'entità: un box allungato 10×
+mostra 10× gli anelli della *stessa* dimensione, non gli stessi anelli stirati.
+Lo scale è estratto con `Matrix4x4.Decompose` (fallback alle lunghezze dei
+basis-vector per matrici con shear); per transform annidati gli scale si
+compongono component-wise. Il footprint (calcolato in world space) ora combacia
+in magnitudine con `LocalPoint` metrico → octave-clamp/anti-aliasing più
+coerente.
+
+Il workflow normalizzato legacy resta disponibile esplicitamente via
+`coordinate` texture `mode: "generated"` (con `bounds`); `mode: "world"` per
+pattern world-locked. **Nota:** le scene esistenti con procedurali possono
+richiedere un ritocco dello `scale` della texture (ora frequenza assoluta in
+cicli/unità-di-mondo). 513 test verdi.
+
+---
+
 ## Ciclo Review — Bugfix di correttezza, ottimizzazioni hot-path, profilo `final-fast` ✅
 
 Review completa del motore (bug generici + di rendering, opportunità di

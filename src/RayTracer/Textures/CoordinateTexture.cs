@@ -10,10 +10,13 @@ namespace RayTracer.Textures;
 /// Returns the shading-point coordinates as RGB. The chosen
 /// <see cref="CoordMode"/> selects which space the output represents:
 /// <list type="bullet">
-///   <item><description><b>Object</b>: <c>rec.LocalPoint</c> — object-local space (post inverse <see cref="Geometry.Transform"/>),
-///       the same space every procedural texture (Noise / Marble / Wood / Voronoi) samples in.
-///       Use it for debug overlays that match the procedural noise sampling space, and as a
-///       deterministic XYZ driver feeding another node downstream.</description></item>
+///   <item><description><b>Object</b>: <c>rec.LocalPoint</c> — <b>metric</b> object-local space
+///       (the object's own axes, in world units; the entity's scale is applied but its rotation
+///       and translation are not), the same space every procedural texture (Noise / Marble /
+///       Wood / Voronoi) samples in. Feature size is therefore set by the texture's <c>scale</c>
+///       and is invariant to the entity's (non-uniform) scale. Use it for debug overlays that
+///       match the procedural sampling space, and as a deterministic XYZ driver downstream.
+///       For the normalised unit-cube workflow use <b>Generated</b> instead.</description></item>
 ///   <item><description><b>UV</b>: <c>(rec.U, rec.V, 0)</c> — the primitive's parametric coordinates.
 ///       Fundamental UV debug: visualises spherical UV unwrap on spheres, planar UV on quads,
 ///       cylindrical UV on cylinders. Equivalent to Arnold <c>utility/uv</c>,

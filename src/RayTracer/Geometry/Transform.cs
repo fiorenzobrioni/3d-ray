@@ -8,16 +8,20 @@ namespace RayTracer.Geometry;
 /// A wrapper that applies a 4x4 transformation matrix to any IHittable.
 /// Handles ray transformation to Object Space and normal transformation back to World Space.
 ///
-/// LocalPoint is deliberately preserved in object-local space so that procedural
-/// textures (marble, wood, noise, checker) tile consistently regardless of how
-/// the object is placed in the world. World-space position is in rec.Point.
+/// LocalPoint is kept in <b>metric object space</b> — the object's own axes, in
+/// WORLD UNITS. Each Transform applies only its <b>scale</b> to the child's local
+/// point (rotation and translation are deliberately excluded), so a 3D procedural
+/// texture (marble, wood, noise, checker) stays attached to the object's axes and
+/// origin while its feature size is set by the texture's own <c>scale</c> and is
+/// invariant to the entity's (possibly non-uniform) scale. A box stretched 10× on
+/// X therefore shows 10× as many wood rings of the <i>same</i> size, not the same
+/// rings stretched 10×. World-space position is in rec.Point.
 ///
-/// All built-in primitives now set rec.LocalPoint in the entity's own frame
-/// (centered on the primitive's Center / anchor — Sphere/Cylinder/Cone/Disk/
-/// Annulus/Capsule subtract Center, Quad subtracts Q, InfinitePlane subtracts
-/// Point, Box/Torus/Lathe are already at origin). This gives parity with
-/// Arnold's `space: object`, Cycles' "Texture Coordinate → Object" and
-/// RenderMan's Pref workflow: procedural texture tiles per-entity by default.
+/// This matches the metric object-space projection of production renderers
+/// (Cycles "Texture Coordinate → Object", Arnold <c>space: object</c>,
+/// RenderMan <c>Pref</c>). The previous behaviour left LocalPoint normalised to
+/// the primitive's unit extent (Cycles "Generated"), which stretched/deformed
+/// procedural textures under non-uniform entity scale.
 ///
 /// Implements ISamplable when the wrapped object is itself ISamplable, enabling
 /// GeometryLight (NEE) to work correctly on transformed emissive primitives.
@@ -47,6 +51,11 @@ public class Transform : IHittable, ISamplable
     // re-projection on every BVH build/sort comparison (called O(N log N) times
     // by BvhNode for Transform-wrapped primitives).
     private readonly AABB _worldBox;
+
+    // Scale component of the transform (object-space → world-unit), applied to
+    // rec.LocalPoint so 3D procedural textures sample in metric object space.
+    // See the class summary.
+    private readonly Vector3 _localScale;
 
     /// <summary>
     /// The wrapped IHittable (in object space). Used by SceneLoader.IsInfinitePlane()
@@ -88,6 +97,18 @@ public class Transform : IHittable, ISamplable
         _avgNormalLen = (nx + ny + nz) / 3f;
 
         _worldBox = ComputeWorldBox(_object.BoundingBox(), _transform);
+
+        // Extract the scale (for the metric-object-space LocalPoint). Decompose
+        // handles any proper TRS; the fallback covers sheared/degenerate
+        // matrices by taking the row-vector basis lengths of the 3×3 block.
+        if (!Matrix4x4.Decompose(_transform, out Vector3 scale, out _, out _))
+        {
+            scale = new Vector3(
+                new Vector3(_transform.M11, _transform.M12, _transform.M13).Length(),
+                new Vector3(_transform.M21, _transform.M22, _transform.M23).Length(),
+                new Vector3(_transform.M31, _transform.M32, _transform.M33).Length());
+        }
+        _localScale = scale;
     }
 
     public int Seed
@@ -124,9 +145,15 @@ public class Transform : IHittable, ISamplable
         if (!_object.Hit(localRay, tMin, tMax, ref rec))
             return false;
 
-        // Leave it as-is — this is intentional. Procedural textures sample LocalPoint,
-        // so they tile in the object's own coordinate system regardless of world transforms.
-        // rec.LocalPoint = rec.LocalPoint;  // <-- purposely NOT transformed
+        // Metric object-space texture coordinate: apply ONLY this transform's
+        // scale to the child's local point. Rotation and translation are
+        // deliberately excluded so a 3D procedural texture stays attached to the
+        // object's own axes/origin, while its feature size becomes invariant to
+        // the entity's (possibly non-uniform) scale — set instead by the
+        // texture's own `scale`. For nested transforms the scales compose
+        // (component-wise); inter-level rotation between non-uniform scales is
+        // approximated, the only case where object space is inherently sheared.
+        rec.LocalPoint *= _localScale;
 
         // Transform the hit point back to world space
         rec.Point = Vector3.Transform(rec.Point, _transform);
