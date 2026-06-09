@@ -825,29 +825,60 @@ Le texture sono definite **all'interno** delle definizioni dei materiali.
 Tutte le texture procedurali sono di livello professionale, con controlli
 completi su scala, dettaglio, colore e modalità di campionamento.
 
-#### **Spazio di campionamento (object-local).**
-Tutte le procedurali campionano su `rec.LocalPoint`, che le primitive built-in
-espongono nel **frame object-local** della primitiva stessa: Sphere / Cylinder /
-Cone / Capsule / Disk / Annulus sottraggono `Center` dal punto di hit world-
-space, Quad sottrae `Q`, InfinitePlane sottrae `Point`; Box / Torus / Lathe
-sono già all'origine e sempre incapsulati in un `Transform`. La texture tila
-**per-entità** indipendentemente da dove la primitiva è piazzata nel mondo.
+#### **Spazio di campionamento (object-local metrico).**
+Tutte le procedurali campionano su `rec.LocalPoint`, che è il punto di shading
+negli **assi propri dell'oggetto, in unità di mondo** — viene applicato lo
+`scale` dell'entità ma non la sua rotazione né la traslazione. È la proiezione
+object-space metrica dei renderer di produzione (Cycles "Texture Coordinate →
+Object", Arnold `space: object`, RenderMan `Pref`).
 
-Conseguenza pratica sui valori consigliati di `scale`:
+Conseguenza chiave: **la dimensione delle feature è data dallo `scale` della
+texture ed è indipendente dallo scale dell'entità.** Allungare un box 10× su X
+*non* stira né deforma il pattern: mostra 10× le feature della *stessa*
+dimensione, esattamente come un'asse più lunga ha più anelli di crescita della
+stessa larghezza. Uno `scale` non uniforme non trasforma quindi mai gli anelli
+del legno in ellissi né spalma una venatura di marmo. Il pattern resta ancorato
+agli assi/origine dell'oggetto, quindi ruota e si sposta con esso.
 
-| Dimensione primitiva (raggio / semi-extent oggetto) | `scale` consigliato per ~3–8 cicli visibili |
-|-----------------------------------------------------|----------------------------------------------|
-| ~0.3 wu (sfera piccola, gemma)                      | `6 – 12`                                     |
-| ~1 wu (riferimento canonico)                        | `3 – 6`                                      |
-| ~3 wu (sfera hero grande, slab)                     | `1 – 2`                                      |
-| ~10 wu (quad pavimento, parete stanza)              | `0.3 – 0.6`                                  |
+`scale` è una frequenza assoluta in **cicli per unità di mondo**: a `scale: 4`
+un anello di legno (o cella di noise, banda di marmo) è largo ≈ `1/4 = 0.25`
+unità di mondo su qualsiasi oggetto, indipendentemente da quanto è grande o
+scalato in modo non uniforme. Scegli `scale` dalla dimensione reale desiderata,
+non dalla dimensione dell'oggetto:
 
-I valori di default mostrati sotto presuppongono la **primitiva canonica
-raggio 1 wu**. Per ottenere lo stesso numero di feature visibili su una
-primitiva più piccola, moltiplica la scale per il rapporto canonical-to-actual.
-Se ti serve il comportamento *legacy* world-locked (es. un pattern marble che
-continua senza soluzione di continuità tra molti box affiancati), pilota il
-materiale da un nodo `texture` con sopra un `coordinate` in `mode: "world"`.
+| Dimensione feature desiderata | `scale` |
+|-------------------------------|---------|
+| grossolana (~0.5 wu)          | `~2`    |
+| media (~0.25 wu)              | `~4`    |
+| fine (~0.1 wu)                | `~10`   |
+
+Se invece vuoi il workflow **normalizzato** a cubo unitario (un pattern che si
+adatta sempre ai bounds dell'oggetto, il comportamento legacy), pilota il
+materiale da un nodo `texture` con sopra un `coordinate` in `mode: "generated"`
+(con `bounds` esplicito); per un pattern **world-locked** che continua senza
+soluzione di continuità tra molti oggetti affiancati usa `mode: "world"`.
+
+#### **Scale anisotropica (frequenza per asse).**
+`scale` accetta anche un vettore per asse `[sx, sy, sz]` per stirare *di
+proposito* il pattern lungo gli assi propri dell'oggetto — indipendentemente
+dalla `scale` dell'entità. Uno scalare (`scale: 4`) è isotropo e invariato; un
+vettore assegna una frequenza diversa a ciascun asse:
+
+```yaml
+texture:
+  type: "wood"
+  scale: [8, 1, 1]      # 8 cicli/wu su X, 1 su Y e Z → venatura stirata lungo X
+  offset:   [0, 0, 0]   # traslazione opzionale del punto di campionamento (unità mondo)
+  rotation: [0, 0, 0]   # rotazione opzionale del punto (gradi, X→Y→Z)
+```
+
+Supportato dalle procedurali solide — `noise`, `marble`, `wood`, `voronoi`. Ogni
+componente è in `cicli/wu` su quell'asse, quindi `[8, 8, 8]` è identico allo
+scalare `8`. La componente dominante guida il clamp delle ottave per
+l'anti-aliasing, perciò lo stiramento non introduce mai aliasing. `offset` e
+`rotation` (entrambi 3D, applicati al punto di campionamento prima della
+frequenza) si compongono con la scale vettoriale. Tutti e tre sono no-op di
+default, quindi le scene esistenti non sono toccate.
 
 #### **Texture Procedurali:**
 

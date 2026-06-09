@@ -831,29 +831,58 @@ Textures are defined **within** material definitions. All procedural textures
 are pro-grade, with a comprehensive set of controls for noise, voronoi, marble,
 wood, brick, gradient and coordinate textures.
 
-#### **Sampling space (object-local).**
-Every procedural samples on `rec.LocalPoint`, which the built-in primitives
-expose in their **own object-local frame**: Sphere/Cylinder/Cone/Capsule/Disk/
-Annulus subtract `Center` from the world hit, Quad subtracts `Q`, InfinitePlane
-subtracts `Point`, Box/Torus/Lathe are already at the origin and always wrapped
-in a `Transform`. The texture tiles **per-entity** regardless of where the
-primitive is placed in the world.
+#### **Sampling space (metric object-local).**
+Every procedural samples on `rec.LocalPoint`, which is the shading point in the
+object's **own axes, in world units** — the entity's `scale` is applied but its
+rotation and translation are not. This is the metric object-space projection of
+production renderers (Cycles "Texture Coordinate → Object", Arnold
+`space: object`, RenderMan `Pref`).
 
-Practical consequence on `scale` recommendations:
+The key consequence: **the texture's feature size is set by its own `scale` and
+is invariant to the entity's scale.** Stretching a box 10× on X does *not*
+stretch or deform the pattern — it shows 10× as many features of the *same*
+size, exactly like a longer plank has more growth rings of the same width.
+Non-uniform `scale` therefore never turns wood rings into ellipses or smears a
+marble vein. The pattern stays attached to the object's axes/origin, so it
+rotates and moves with the object.
 
-| Primitive size (object radius / half-extent) | Useful `scale` range for ~3–8 visible cycles |
-|----------------------------------------------|----------------------------------------------|
-| ~0.3 wu (small sphere, gemstone)             | `6 – 12`                                     |
-| ~1 wu (canonical reference)                  | `3 – 6`                                      |
-| ~3 wu (large hero sphere, slab)              | `1 – 2`                                      |
-| ~10 wu (floor quad, room wall)               | `0.3 – 0.6`                                  |
+`scale` is an absolute frequency in **cycles per world unit**: at `scale: 4` a
+wood ring (or noise cell, marble band) is ≈ `1/4 = 0.25` world units wide on
+every object, regardless of how large or non-uniformly scaled that object is.
+Pick `scale` from the desired real feature size, not from the object's size:
 
-The defaults shown below assume the **canonical 1 wu reference primitive**. To
-get the same number of visible features on a smaller primitive, multiply the
-scale by the ratio of canonical-to-actual size. If you want the *legacy* world-
-locked behavior (e.g. a marble pattern that continues seamlessly across many
-tiled boxes), drive your material from a `texture` node and stack a
-`coordinate` texture with `mode: "world"` on top.
+| Desired feature size | `scale` |
+|----------------------|---------|
+| coarse (~0.5 wu)     | `~2`    |
+| medium (~0.25 wu)    | `~4`    |
+| fine (~0.1 wu)       | `~10`   |
+
+If you instead want the **normalised** unit-cube workflow (a pattern that always
+fits the object's bounds, the legacy behaviour), drive the material from a
+`texture` node and stack a `coordinate` texture with `mode: "generated"` (plus
+explicit `bounds`); for a **world-locked** pattern that continues seamlessly
+across many tiled objects use `mode: "world"`.
+
+#### **Anisotropic scale (per-axis frequency).**
+`scale` also accepts a per-axis `[sx, sy, sz]` vector to *deliberately* stretch
+the pattern along the object's own axes — independently of the entity's scale.
+A scalar (`scale: 4`) is isotropic and unchanged; a vector gives a different
+frequency per axis:
+
+```yaml
+texture:
+  type: "wood"
+  scale: [8, 1, 1]      # 8 cycles/wu on X, 1 on Y and Z → grain stretched along X
+  offset:   [0, 0, 0]   # optional sample-point translation (world units)
+  rotation: [0, 0, 0]   # optional sample-point rotation (degrees, X→Y→Z)
+```
+
+Honoured by the solid procedurals — `noise`, `marble`, `wood`, `voronoi`. Each
+component is `cycles/wu` on that axis, so `[8, 8, 8]` is identical to the scalar
+`8`. The dominant component drives the anti-aliasing octave clamp, so stretching
+never introduces aliasing. `offset` and `rotation` (both 3D, applied to the
+sample point before the frequency) compose with the vector scale. All three
+default to a no-op, so existing scenes are unaffected.
 
 #### **Procedural Textures:**
 

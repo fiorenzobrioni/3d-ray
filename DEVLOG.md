@@ -6,6 +6,70 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Feature — `scale` anisotropica per asse sulle procedurali ✅
+
+**Contesto.** Dopo il fix metrico (sotto), lo scale **non uniforme** dell'entità
+non stira più il pattern (corretto). Mancava però un modo per stirare il pattern
+*di proposito* (es. venatura del legno allungata) in modo deterministico e
+indipendente dalla geometria.
+
+**Cosa.** `scale` su una texture procedurale accetta ora **scalare _oppure_
+vettore** `[sx, sy, sz]`. Lo scalare resta isotropo e **byte-identical** al
+comportamento precedente; il vettore assegna una frequenza (cicli/wu) per asse.
+`offset` e `rotation` (3D) esistevano già via `TextureTransform.ApplyManual`:
+ora la pipeline è scale → traslazione → rotazione del punto di campionamento.
+Supportato dalle solide: `noise`, `marble`, `wood`, `voronoi` (le altre usano la
+componente dominante).
+
+**Come (no aliasing, no doppia applicazione).** `TextureData.ScaleScalarAndRatio`
+decompone il vettore `v` in `(max|vᵢ|, v / max|vᵢ|)`: la **componente dominante**
+va a `_scale` (frequenza interna + clamp ottave Nyquist, quindi conservativo →
+niente aliasing sull'asse più fine), il **rapporto** per asse (∈ `[-1,1]`)
+moltiplica il punto in `ApplyManual` *prima* di `_scale`. Prodotto totale per
+asse = `v` esatto. `ApplyManual` con scale `(1,1,1)` corto-circuita al percorso
+precedente, quindi le scene esistenti sono invariate. Verifica: `scale: 8` ≡
+`scale: [8,8,8]` (hash PNG identico), `[8,1,1]` differisce.
+
+**File.** `Scene/SceneData.cs` (`Scale` → `object?` + parser), `Scene/SceneLoader.cs`
+(decomposizione + `ScaleRatio`), `Textures/TextureTransform.cs` (overload con
+scale), `Textures/{Noise,Marble,Wood,Voronoi}Texture.cs` (`ScaleRatio`).
+Doc: `scene-reference.md` / `riferimento-scene.md`.
+
+---
+
+## Fix — Texture procedurali in object-space metrico (no stretch da scale entità) ✅
+
+**Sintomo.** Una texture procedurale (es. legno) su un box con `scale` non
+uniforme (es. `[14, 1.4, 1.4]`) appariva **stirata/deformata**: gli anelli si
+allargavano lungo l'asse scalato invece di mantenere la loro dimensione.
+
+**Causa.** `Transform.Hit` lasciava `rec.LocalPoint` nel frame **normalizzato**
+della primitiva (cubo unitario `[-0.5, 0.5]`), senza applicare lo scale. Tutte
+le procedurali 3D campionano su `LocalPoint`, quindi lo stesso range `[-0.5,0.5]`
+veniva mappato sull'intera geometria scalata → pattern stirato (equivalente alle
+coordinate "Generated" di Cycles). Non era il comportamento documentato (i
+commenti dichiaravano parità con Arnold `space:object` / Cycles Object /
+RenderMan `Pref`, che sono **metrici**).
+
+**Fix.** `Transform` ora applica il proprio **scale** (non rotazione/traslazione)
+a `rec.LocalPoint`, rendendolo **object-space metrico** (assi dell'oggetto, unità
+di mondo). La dimensione delle feature è data solo dallo `scale` della texture ed
+è invariante allo scale (anche non uniforme) dell'entità: un box allungato 10×
+mostra 10× gli anelli della *stessa* dimensione, non gli stessi anelli stirati.
+Lo scale è estratto con `Matrix4x4.Decompose` (fallback alle lunghezze dei
+basis-vector per matrici con shear); per transform annidati gli scale si
+compongono component-wise. Il footprint (calcolato in world space) ora combacia
+in magnitudine con `LocalPoint` metrico → octave-clamp/anti-aliasing più
+coerente.
+
+Il workflow normalizzato legacy resta disponibile esplicitamente via
+`coordinate` texture `mode: "generated"` (con `bounds`); `mode: "world"` per
+pattern world-locked. **Nota:** le scene esistenti con procedurali possono
+richiedere un ritocco dello `scale` della texture (ora frequenza assoluta in
+cicli/unità-di-mondo). 513 test verdi.
+
+---
+
 ## Ciclo Review — Bugfix di correttezza, ottimizzazioni hot-path, profilo `final-fast` ✅
 
 Review completa del motore (bug generici + di rendering, opportunità di

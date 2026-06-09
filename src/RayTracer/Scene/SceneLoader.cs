@@ -1775,26 +1775,35 @@ public class SceneLoader
 
     private static ITexture CreateTexture(TextureData t, string sceneDir)
     {
+        // `scale` may be a scalar (isotropic frequency) or a per-axis
+        // [sx, sy, sz] vector (anisotropic stretch). Decompose into a dominant
+        // scalar — fed to the procedural's frequency and its conservative
+        // Nyquist octave clamp — plus a per-axis ratio applied to the sample
+        // point. A scalar input yields ratio (1,1,1), i.e. byte-identical to
+        // the legacy path.
+        var (scaleScalar, srx, sry, srz) = t.ScaleScalarAndRatio();
+        Vector3 scaleRatio = new Vector3(srx, sry, srz);
+
         ITexture tex = t.Type?.ToLowerInvariant() switch
         {
-            "checker" => new CheckerTexture(t.Scale,
+            "checker" => new CheckerTexture(scaleScalar,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.One  : Vector3.One,
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? Vector3.Zero : Vector3.Zero),
 
-            "noise" => new NoiseTexture(t.Scale,
+            "noise" => new NoiseTexture(scaleScalar,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.Zero : Vector3.Zero,
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? Vector3.One  : Vector3.One),
 
-            "marble" => new MarbleTexture(t.Scale,
+            "marble" => new MarbleTexture(scaleScalar,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.9f) : new Vector3(0.9f),
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.1f) : new Vector3(0.1f)),
 
-            "wood" => new WoodTexture(t.Scale, t.GrainStrength ?? t.NoiseStrength ?? 1.5f,
+            "wood" => new WoodTexture(scaleScalar, t.GrainStrength ?? t.NoiseStrength ?? 1.5f,
                 t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? new Vector3(0.85f, 0.65f, 0.40f) : new Vector3(0.85f, 0.65f, 0.40f),
                 t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? new Vector3(0.45f, 0.28f, 0.14f) : new Vector3(0.45f, 0.28f, 0.14f)),
 
             "voronoi" or "worley" or "cell" or "cellular"
-                => new VoronoiTexture(t.Scale,
+                => new VoronoiTexture(scaleScalar,
                     t.Colors is { Count: > 0 } ? ToVector3(t.Colors[0]) ?? Vector3.Zero : Vector3.Zero,
                     t.Colors is { Count: > 1 } ? ToVector3(t.Colors[1]) ?? Vector3.One  : Vector3.One),
 
@@ -1867,10 +1876,16 @@ public class SceneLoader
     /// </summary>
     private static void ApplyTextureParams(ITexture tex, TextureData t, string sceneDir)
     {
+        // Per-axis ratio from a vector `scale` (1,1,1 for a scalar). See
+        // CreateTexture for the decomposition rationale.
+        var (_, srx, sry, srz) = t.ScaleScalarAndRatio();
+        Vector3 scaleRatio = new Vector3(srx, sry, srz);
+
         if (tex is NoiseTexture nt)
         {
             if (t.Offset   != null) nt.Offset   = ToVector3(t.Offset)   ?? Vector3.Zero;
             if (t.Rotation != null) nt.Rotation = ToVector3(t.Rotation) ?? Vector3.Zero;
+            nt.ScaleRatio        = scaleRatio;
             nt.RandomizeOffset   = t.RandomizeOffset;
             nt.RandomizeRotation = t.RandomizeRotation;
             if (t.NoiseStrength.HasValue) nt.NoiseStrength = t.NoiseStrength.Value;
@@ -1887,6 +1902,7 @@ public class SceneLoader
         {
             if (t.Offset   != null) mt.Offset   = ToVector3(t.Offset)   ?? Vector3.Zero;
             if (t.Rotation != null) mt.Rotation = ToVector3(t.Rotation) ?? Vector3.Zero;
+            mt.ScaleRatio        = scaleRatio;
             mt.RandomizeOffset   = t.RandomizeOffset;
             mt.RandomizeRotation = t.RandomizeRotation;
 
@@ -1949,6 +1965,7 @@ public class SceneLoader
         {
             if (t.Offset   != null) wt.Offset   = ToVector3(t.Offset)   ?? Vector3.Zero;
             if (t.Rotation != null) wt.Rotation = ToVector3(t.Rotation) ?? Vector3.Zero;
+            wt.ScaleRatio        = scaleRatio;
             wt.RandomizeOffset   = t.RandomizeOffset;
             wt.RandomizeRotation = t.RandomizeRotation;
 
@@ -2023,6 +2040,7 @@ public class SceneLoader
         {
             if (t.Offset   != null) vt.Offset   = ToVector3(t.Offset)   ?? Vector3.Zero;
             if (t.Rotation != null) vt.Rotation = ToVector3(t.Rotation) ?? Vector3.Zero;
+            vt.ScaleRatio        = scaleRatio;
             vt.RandomizeOffset   = t.RandomizeOffset;
             vt.RandomizeRotation = t.RandomizeRotation;
             if (t.Metric != null)      vt.Metric     = ParseVoronoiMetric(t.Metric);
@@ -2061,9 +2079,10 @@ public class SceneLoader
             // CoordinateTexture: per-mode knobs. Defaults are already set on
             // the texture instance; only override when YAML supplies a value.
             if (t.Mode != null)         ct.Mode      = ParseCoordinateMode(t.Mode);
-            // `scale` is the inherited TextureData.Scale field (defaults to
-            // 1f in TextureData, matching CoordinateTexture's own default).
-            ct.Scale = t.Scale;
+            // `scale` defaults to 1 (matching CoordinateTexture's own default).
+            // CoordinateTexture is isotropic, so it uses only the dominant
+            // component of a vector `scale`.
+            if (t.Scale != null)        ct.Scale     = t.ScaleScalarAndRatio().Scalar;
             if (t.Offset   != null)     ct.Offset    = ToVector3(t.Offset)   ?? Vector3.Zero;
             if (t.Rotation != null)     ct.Rotation  = ToVector3(t.Rotation) ?? Vector3.Zero;
             if (t.BoundsMin != null)    ct.BoundsMin = ToVector3(t.BoundsMin) ?? new Vector3(-1f);
