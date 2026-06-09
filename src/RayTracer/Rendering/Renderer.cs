@@ -480,8 +480,15 @@ public partial class Renderer
     public Vector3[,] Render(int width, int height)
     {
         var pixels = new Vector3[height, width];
-        int completedRows = 0;
-        int totalRows = height;
+
+        // Tile-based work partitioning: 16×16 tiles balance load far better than
+        // whole scanlines (sky rows are cheap, geometry-dense centre rows
+        // expensive) and keep each worker on a cache-local pixel block.
+        const int TileSize = 16;
+        int tilesX = (width  + TileSize - 1) / TileSize;
+        int tilesY = (height + TileSize - 1) / TileSize;
+        int totalTiles = tilesX * tilesY;
+        int completedTiles = 0;
 
         // Two pixel-sampling strategies share the same TraceRay core:
         //
@@ -507,15 +514,36 @@ public partial class Renderer
         float invSqrtSpp = 1f / sqrtSpp;
         int actualSamples = useSobol ? _samplesPerPixel : sqrtSpp * sqrtSpp;
 
-        Parallel.For(0, height, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, j =>
+        // Progress is printed by a single dedicated reporter thread, so no worker
+        // ever touches the Console lock (which used to serialise the render
+        // threads at every scanline boundary).
+        using var renderDone = new ManualResetEventSlim(false);
+        var reporter = Task.Run(() =>
+        {
+            while (!renderDone.Wait(100))
+            {
+                int done = Volatile.Read(ref completedTiles);
+                Console.Write($"\r  Rendering: {100f * done / totalTiles:F1}% ({done}/{totalTiles} tiles)   ");
+            }
+        });
+
+        Parallel.For(0, totalTiles, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, tile =>
         {
             // Per-worker switch: with photon caustics active, smooth specular
             // transmissive surfaces are opaque to NEE shadow rays (the photon map
             // owns that refracted light). Set on this worker before any shadow ray
-            // it casts; re-set every scanline so it never leaks across renders.
+            // it casts; re-set every tile so it never leaks across renders.
             ShadowRay.BlockSpecularTransmission = _causticsActive;
 
-            for (int i = 0; i < width; i++)
+            int tileX = tile % tilesX;
+            int tileY = tile / tilesX;
+            int x0 = tileX * TileSize;
+            int y0 = tileY * TileSize;
+            int x1 = Math.Min(x0 + TileSize, width);
+            int y1 = Math.Min(y0 + TileSize, height);
+
+            for (int j = y0; j < y1; j++)
+            for (int i = x0; i < x1; i++)
             {
                 Vector3 cumulativeColor = Vector3.Zero;
 
@@ -612,14 +640,12 @@ public partial class Renderer
                 pixels[j, i] = AcesToneMap(linearColor * _exposureScale);
             }
 
-            int done = Interlocked.Increment(ref completedRows);
-            if (done % 20 == 0 || done == totalRows)
-            {
-                float pct = 100f * done / totalRows;
-                Console.Write($"\r  Rendering: {pct:F1}% ({done}/{totalRows} scanlines)   ");
-            }
+            Interlocked.Increment(ref completedTiles);
         });
 
+        renderDone.Set();
+        reporter.Wait();
+        Console.Write($"\r  Rendering: 100.0% ({totalTiles}/{totalTiles} tiles)   ");
         Console.WriteLine();
         return pixels;
     }
@@ -646,6 +672,22 @@ public partial class Renderer
     }
 
     /// <summary>
+    /// Replaces NaN/Inf components with zero and floors negatives at zero.
+    /// Idempotent — applying it more than once is a no-op — so it is safe to
+    /// run at every returning recursion frame to stop a non-finite value from
+    /// poisoning the throughput-driven dead-path test or the pixel accumulator,
+    /// without introducing the bias a repeated *magnitude* clamp would.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector3 SanitizeRadiance(Vector3 color)
+    {
+        if (float.IsNaN(color.X) || float.IsInfinity(color.X)) color.X = 0f;
+        if (float.IsNaN(color.Y) || float.IsInfinity(color.Y)) color.Y = 0f;
+        if (float.IsNaN(color.Z) || float.IsInfinity(color.Z)) color.Z = 0f;
+        return Vector3.Max(color, Vector3.Zero);
+    }
+
+    /// <summary>
     /// Clamps a radiance sample to suppress firefly artifacts.
     /// Also replaces NaN/Inf values with black to prevent corruption
     /// from propagating into the pixel accumulator.
@@ -653,10 +695,7 @@ public partial class Renderer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private Vector3 ClampRadiance(Vector3 color)
     {
-        // NaN / Inf guard — any non-finite component becomes zero.
-        if (float.IsNaN(color.X) || float.IsInfinity(color.X)) color.X = 0f;
-        if (float.IsNaN(color.Y) || float.IsInfinity(color.Y)) color.Y = 0f;
-        if (float.IsNaN(color.Z) || float.IsInfinity(color.Z)) color.Z = 0f;
+        color = SanitizeRadiance(color);
 
         // Luminance-preserving clamp — scales the entire vector down
         // to prevent Hue-shifting heavily saturated bright highlights.
@@ -666,29 +705,35 @@ public partial class Renderer
             color *= _maxSampleRadiance / lum;
         }
 
-        return Vector3.Max(color, Vector3.Zero);
+        return color;
     }
 
     /// <summary>
-    /// Clamps the indirect bounce radiance using the depth-aware secondary
-    /// clamp threshold (<c>_indirectMaxSampleRadiance</c>). When the
-    /// <c>--indirect-clamp-factor</c> is 1.0 (default) this is identical to
-    /// <see cref="ClampRadiance"/> and has no observable effect. Setting the
-    /// factor below 1 suppresses caustics / deep-specular fireflies that
-    /// survive the primary pixel-level clamp.
+    /// Clamps the indirect contribution using the depth-aware secondary clamp
+    /// threshold (<c>_indirectMaxSampleRadiance</c>). When
+    /// <c>--indirect-clamp-factor</c> is 1.0 this matches <see cref="ClampRadiance"/>;
+    /// below 1 it suppresses caustics / deep-specular fireflies more
+    /// aggressively than the primary pixel clamp.
+    ///
+    /// <para>Applied <b>once per camera path</b>, at the primary surface
+    /// (<c>depth == _maxDepth</c>), to the full post-BSDF indirect contribution
+    /// <c>attenuation · L_indirect</c>. This is the camera-relative clamp the
+    /// firefly suppression is meant to be — applying it at every returning
+    /// recursion frame (the previous behaviour) compounded into a clamp-of-clamp
+    /// that lost energy proportional to path length, and clamping the bare
+    /// returned radiance instead of the throughput-weighted contribution made
+    /// the effective threshold depth-dependent.</para>
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private Vector3 ClampRadianceIndirect(Vector3 color)
     {
-        if (float.IsNaN(color.X) || float.IsInfinity(color.X)) color.X = 0f;
-        if (float.IsNaN(color.Y) || float.IsInfinity(color.Y)) color.Y = 0f;
-        if (float.IsNaN(color.Z) || float.IsInfinity(color.Z)) color.Z = 0f;
+        color = SanitizeRadiance(color);
 
         float lum = MathUtils.Luminance(color);
         if (lum > _indirectMaxSampleRadiance && lum > 0f)
             color *= _indirectMaxSampleRadiance / lum;
 
-        return Vector3.Max(color, Vector3.Zero);
+        return color;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -725,7 +770,7 @@ public partial class Renderer
     //                                      migrated to the Sample() API.
     // ═════════════════════════════════════════════════════════════════════════
 
-    private Vector3 ShadeSurface(Ray ray, HitRecord rec, int depth,
+    private Vector3 ShadeSurface(in Ray ray, ref HitRecord rec, int depth,
                                   float prevBsdfPdf, bool prevIsDelta,
                                   Vector3 currentAbsorption,
                                   Vector3 pathThroughput,
@@ -802,7 +847,7 @@ public partial class Renderer
         IMedium? shadowMedium = mediums.Top ?? _globalMedium;
         IHittable? shadowMediumEntity = mediums.Top != null ? mediums.TopEntity : null;
         Vector3 directLight = needsLightSampling
-            ? ComputeDirectLighting(rec, viewDir, material, shadowMedium, shadowMediumEntity)
+            ? ComputeDirectLighting(in rec, viewDir, material, shadowMedium, shadowMediumEntity)
             : Vector3.Zero;
 
         // Focused-caustic radiance from the photon map at this diffuse/glossy
@@ -811,7 +856,7 @@ public partial class Renderer
         // delta surfaces (mirror/glass) — no photons land there and the BRDF is
         // zero — and when caustics are inactive (zero overhead).
         if (_causticsActive && needsLightSampling && material != null && !material.IsDeltaScatter)
-            directLight += GatherCaustics(rec, viewDir, material);
+            directLight += GatherCaustics(in rec, viewDir, material);
 
         if (material == null)
             return emitted + directLight;
@@ -824,7 +869,7 @@ public partial class Renderer
         BsdfSample? mis = material.Sample(viewDir, rec);
         if (mis.HasValue)
         {
-            return ShadeSampleBounce(material, rec, mis.Value, depth, emitted, directLight,
+            return ShadeSampleBounce(material, in rec, mis.Value, depth, emitted, directLight,
                                      currentAbsorption, pathThroughput, ref mediums, ref iors,
                                      causticState);
         }
@@ -850,9 +895,6 @@ public partial class Renderer
                 attenuation *= invSurvival;
                 nextThroughput *= invSurvival;
             }
-
-            if (attenuation.LengthSquared() < 0.001f)
-                return emitted + directLight;
 
             // IsDeltaScatter materials (mirror/refraction) emit a delta bounce,
             // so emission passes through at full weight at the next hit. Non-
@@ -891,10 +933,9 @@ public partial class Renderer
                                          pathThroughput: nextThroughput,
                                          incomingCategory: nextCat,
                                          causticState: NextCausticState(causticState, nextIsDelta));
-            // Depth-aware indirect clamp: suppresses deep-specular fireflies that
-            // survive the primary pixel-level ClampRadiance. When the factor is
-            // 1.0 (default) ClampRadianceIndirect == ClampRadiance — no change.
-            indirect = ClampRadianceIndirect(indirect);
+            // Sanitize NaN/Inf every frame (idempotent — no bias); the magnitude
+            // firefly clamp is applied once, camera-relative, below.
+            indirect = SanitizeRadiance(indirect);
             // PBRT/Arnold convention: direct lighting is the standalone
             // rendering-equation integrand at the shadow-ray direction
             // (computed by ComputeDirectLighting above), and the scatter
@@ -907,7 +948,12 @@ public partial class Renderer
             // happened to be correct only for Lambertian (constant
             // attenuation == albedo); the new form is unbiased for every
             // material whose EvaluateDirect returns the full BRDF·cosθ.
-            return emitted + directLight + attenuation * indirect;
+            Vector3 contribution = attenuation * indirect;
+            // Depth-aware indirect clamp applied ONCE at the primary surface on
+            // the post-BSDF contribution (see ClampRadianceIndirect).
+            if (depth == _maxDepth)
+                contribution = ClampRadianceIndirect(contribution);
+            return emitted + directLight + contribution;
         }
 
         return emitted + directLight;
@@ -918,7 +964,7 @@ public partial class Renderer
     /// a direction with an explicit BSDF PDF, applies Russian Roulette, and
     /// recurses into TraceRay with the MIS metadata.
     /// </summary>
-    private Vector3 ShadeSampleBounce(IMaterial material, HitRecord rec,
+    private Vector3 ShadeSampleBounce(IMaterial material, in HitRecord rec,
                                        BsdfSample s, int depth,
                                        Vector3 emitted, Vector3 directLight,
                                        Vector3 currentAbsorption,
@@ -948,9 +994,6 @@ public partial class Renderer
                 return emitted + directLight;
             attenuation = s.F * absNdotWo / s.Pdf;
         }
-
-        if (attenuation.LengthSquared() < 0.001f)
-            return emitted + directLight;
 
         // Path-throughput-based RR (PBRT §13.7.1). See ShadeSurface above for
         // the full rationale.
@@ -1049,10 +1092,13 @@ public partial class Renderer
                                  incomingCategory: nextCat,
                                  causticState: NextCausticState(causticState, s.IsDelta));
         }
-        // Depth-aware indirect clamp — see ShadeSurface's Scatter path above.
-        indirect = ClampRadianceIndirect(indirect);
-        // PBRT/Arnold convention — see ShadeSurface above.
-        return emitted + directLight + attenuation * indirect;
+        // Sanitize NaN/Inf every frame (idempotent); magnitude clamp applied
+        // once, camera-relative, below — see ShadeSurface's Scatter path.
+        indirect = SanitizeRadiance(indirect);
+        Vector3 contribution = attenuation * indirect;
+        if (depth == _maxDepth)
+            contribution = ClampRadianceIndirect(contribution);
+        return emitted + directLight + contribution;
     }
 
     /// <summary>
@@ -1241,11 +1287,15 @@ public partial class Renderer
         HitVisibilityMask ignoreMask = CategoryToMask(incomingCategory);
         const int MaxVisibilitySkips = 8;
         Ray currentRay = ray;
-        var rec = new HitRecord();
+        // Declared without a redundant zero-init — the loop below assigns a
+        // fresh record on its first (always-executed) iteration before any use.
+        HitRecord rec;
         bool hit;
         int skipCount = 0;
         while (true)
         {
+            // Re-zero per iteration so a skipped hit's fields (VisibilityMask,
+            // etc.) never leak into the next probe.
             rec = new HitRecord();
             hit = _world.Hit(currentRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
             if (!hit || ignoreMask == HitVisibilityMask.None
@@ -1294,7 +1344,7 @@ public partial class Renderer
         {
             Vector3 result = !hit
                 ? SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
-                : ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
+                : ShadeSurface(currentRay, ref rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
                                pathThroughput, ref mediums, ref iors, causticState);
             // Beer-Lambert along the segment just traversed. Sky miss with
             // non-zero σ_a means the ray escaped the bounded medium — the
@@ -1365,7 +1415,7 @@ public partial class Renderer
         // attenuated by the medium throughput beta = Tr / pdf.
         Vector3 surfaceOrSky = !hit
             ? beta * SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
-            : beta * ShadeSurface(currentRay, rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
+            : beta * ShadeSurface(currentRay, ref rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
                                    pathThroughput * beta, ref mediums, ref iors, causticState);
         return ApplyBeerLambert(surfaceOrSky, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
     }
@@ -1473,7 +1523,7 @@ public partial class Renderer
     /// couple the indirect importance sample to the shadow estimator and
     /// bias the result for any direction-dependent BSDF.
     /// </summary>
-    private Vector3 ComputeDirectLighting(HitRecord rec, Vector3 viewDir, IMaterial? material,
+    private Vector3 ComputeDirectLighting(in HitRecord rec, Vector3 viewDir, IMaterial? material,
                                           IMedium? shadowMedium = null,
                                           IHittable? shadowMediumEntity = null)
     {
@@ -1605,19 +1655,11 @@ public partial class Renderer
     /// </summary>
     private (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
         SampleLight(ILight light, Vector3 point, Vector3 normal, int sampleIndex)
-    {
-        return light switch
-        {
-            AreaLight al      => al.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
-            SphereLight sl    => sl.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
-            GeometryLight gl  => gl.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
-            DirectionalLight dl when dl.AngularRadiusDeg > 0f
-                              => dl.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
-            SpotLight sp when sp.ShadowSamples > 1
-                              => sp.IlluminateAndTestStratified(point, normal, _world, sampleIndex),
-            _                 => light.IlluminateAndTest(point, normal, _world)
-        };
-    }
+        // Single virtual dispatch — each light type self-selects stratified vs.
+        // single-sample behaviour (directional sun-disc and multi-sample spots
+        // guard on their own parameters internally). Replaces the former
+        // per-sample type-ladder. See ILight.IlluminateAndTestStratified.
+        => light.IlluminateAndTestStratified(point, normal, _world, sampleIndex);
 
     /// <summary>
     /// Distance the medium attenuates over for a shadow ray fired from a point

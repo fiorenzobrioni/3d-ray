@@ -39,7 +39,7 @@ public class Quad : IHittable, ISamplable
         _area = n.Length(); // == Vector3.Cross(U, V).Length()
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         float denom = Vector3.Dot(_normal, ray.Direction);
 

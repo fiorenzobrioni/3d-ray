@@ -298,14 +298,14 @@ Con `--with-cameras`: anche `scenes/<stem>-preview.yaml` (scena pronta al render
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | — (**obbligatorio**) | Percorso del file YAML della scena. L'estensione `.yaml` (o `.yml`) è **opzionale**: se il path non esiste così com'è, il loader prova ad aggiungerla automaticamente (es. `-i scenes/chess` ⇒ `scenes/chess.yaml`). |
 | `--output` | `-o` | `renders/render-<scena>.png` | File di output. Se omesso, generato dal nome della scena. |
-| `--quality` | `-q` | — | Preset di qualità che riempie in un colpo `-w -H -s -d -S`. Valori: `draft-tiny` (480×270), `draft-small` (960×540), `draft` (1080p) — `medium-tiny`, `medium-small`, `medium` — `final-tiny`, `final-small`, `final` — `ultra` (4K). **Qualunque flag esplicito vince sul preset** (es. `-q final -d 16` per scene con vetri impilati). Vedi i [Profili di Rendering](./docs/reference/profili-di-rendering.md). |
+| `--quality` | `-q` | — | Preset di qualità che riempie in un colpo `-w -H -s -d -S` (e, per `final-fast`, anche caustiche/SSS/NEE). Valori: `draft-tiny` (480×270), `draft-small` (960×540), `draft` (1080p) — `medium-tiny`, `medium-small`, `medium` — `final-tiny`, `final-small`, `final` — `final-fast-tiny`, `final-fast-small`, `final-fast` — `ultra` (4K). **Qualunque flag esplicito vince sul preset** (es. `-q final -d 16` per scene con vetri impilati). `final-fast` punta a qualità final su scene classiche (Lambertian/Disney, vetri non annidati, marmo procedurale) disattivando gli extra costosi — vedi i [Profili di Rendering](./docs/reference/profili-di-rendering.md). |
 | `--width` | `-w` | `1200` | Larghezza in pixel. |
 | `--height` | `-H` | `800` | Altezza in pixel. |
 | `--samples` | `-s` | `16` | Campioni per pixel. Con il sampler Sobol (default) viene usato il conteggio esatto; con `--sampler prng` viene arrotondato al quadrato perfetto superiore (`√N × √N`). |
 | `--depth` | `-d` | `8` | Massimo numero di rimbalzi ricorsivi per raggio. Alza a `16+` solo per dielettrici impilati (vetri annidati, liquidi nei bicchieri). |
 | `--shadow-samples` | `-S` | *(da YAML)* | Override globale dei shadow samples per tutte le area light. Usa quadrati perfetti (`1, 4, 9, 16`). |
-| `--clamp` | `-C` | `100` | Firefly clamp: massima radianza per-campione prima del tone mapping. Abbassa (es. `25`) per scene problematiche con vetri/nebbia, alza per highlight molto intensi. |
-| `--indirect-clamp-factor` | — | `1.0` | Fattore di clamp per i bounce indiretti (depth ≥ 1). `1.0` = disabilitato (default). `0.25` → clamp indiretto = 25 se `-C 100`. |
+| `--clamp` | `-C` | `10` | Firefly clamp: massima radianza per-campione prima del tone mapping. Abbassa (es. `5`) per scene problematiche con vetri/nebbia, alza per highlight molto intensi. |
+| `--indirect-clamp-factor` | — | `0.25` | Fattore di clamp per i bounce indiretti (depth ≥ 1). Default `0.25` = attivo (clamp indiretto = `2.5` con `-C 10`); `1.0` = disabilitato. Applicato una sola volta, relativo alla camera. |
 | `--exposure` | — | `0` EV | Compensazione fotografica in stop, applicata come `2^EV` **prima** del tone map ACES. Negativo scurisce (`-1` = ½, `-2` = ¼), positivo schiarisce. Usalo per scivolare scene troppo luminose nella sweet-spot lineare di ACES dove il contrasto delle texture resta visibile. |
 | `--camera` | `-c` | *(prima camera)* | Seleziona la camera per nome o indice (0-based). |
 | `--sampler` | — | `sobol` | Campionatore per-pixel: `sobol` (Owen-scrambled, default) o `prng` (legacy thread-local). Nessuna differenza di interfaccia scena: cambia solo la sequenza dei numeri casuali. |
@@ -347,6 +347,15 @@ dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q medium
 ### Preset `final` (portfolio, copertina README — Full HD)
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final -o final.png
+```
+
+### Preset `final-fast` (qualità final, scena classica — Full HD)
+Stessa classe di qualità di `final` ma ottimizzato per scene classiche
+(Lambertian/Disney, vetri non annidati, marmo procedurale): caustiche e SSS
+volumetrico disattivati, 512 spp, 1 shadow sample, NEE power-weighted, clamp
+indiretto rilassato. Molto più veloce di `final` su questo tipo di scene.
+```bash
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final-fast -o final-fast.png
 ```
 
 ### Preset `ultra` (4K showcase)

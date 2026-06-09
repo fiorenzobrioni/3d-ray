@@ -42,7 +42,7 @@ public class MediumBoundHittable : IHittable
         set => _inner.Seed = value;
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         if (!_inner.Hit(ray, tMin, tMax, ref rec))
             return false;

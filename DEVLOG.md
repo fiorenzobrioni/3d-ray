@@ -6,6 +6,81 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Review — Bugfix di correttezza, ottimizzazioni hot-path, profilo `final-fast` ✅
+
+Review completa del motore (bug generici + di rendering, opportunità di
+ottimizzazione) seguita da fix, ottimizzazioni e un nuovo profilo di qualità.
+
+**Bug di correttezza.**
+- `AABB.Hit`: slab test inclusivo (`tExit >= tEnter`) così i box piatti/complanari
+  (leaf BVH di quad/piani, raggi radenti a una faccia) vengono colpiti invece di
+  essere scartati; rifiuto esplicito del sentinella `AABB.Empty` invertito (prima
+  un box vuoto faceva fallire l'early-out).
+- Clamp indiretto: applicato **una sola volta**, relativo alla camera, sul
+  contributo indiretto pesato per la throughput alla superficie primaria, invece
+  di accumularlo (clamp-of-clamp) a ogni frame della ricorsione — eliminava
+  energia in modo proporzionale alla lunghezza del cammino. NaN/Inf sanificati a
+  ogni frame (idempotente). Rimosso il cull post-RR `attenuation.LengthSquared()
+  < 0.001` (biased + hue-shift): il dead-path guard max-channel già gestisce la
+  terminazione in modo non distorto.
+- `MixMaterial.Sample`: ora riporta f/pdf della **miscela** completa alla
+  direzione campionata (stimatore one-sample PBRT corretto, coerente con `Pdf()`);
+  i lobi delta ripiegano la probabilità di selezione nel pdf.
+- `Metal.Scatter`: delega a `Sample()` (forma VNDF limitata `F·G1(L)`), eliminando
+  il peso NDF non limitato che produceva firefly agli angoli radenti.
+- `ImageTexture`: bilinear con indirizzamento al centro del texel (`u*w-0.5`) e
+  wrap (repeat) sui texel vicini → tiling senza cuciture, niente shift di mezzo
+  texel.
+- CSG Union: regola on-surface **asimmetrica** così le facce coincidenti sono
+  disegnate esattamente una volta (niente buchi né z-fighting); tolleranza
+  relativa a `t`.
+- `Torus`: tolleranza del residuo implicito **relativa** (auto-scalante) invece
+  di `1e-2·scale⁴` assoluta (troppo larga per tori grandi, troppo stretta per
+  tori piccoli).
+- `DisneyBsdf`: footprint propagato ai parametri scalari texture-driven
+  (roughness/metallic anti-aliased); F0 di selezione del lobo speculare allineato
+  a `ComputeF0`.
+- `WoodTexture`: variazione di larghezza degli anelli perturbando le **posizioni
+  dei confini** (C0-continua) invece della coordinata radiale (eliminata la
+  cucitura).
+- `Mesh`: soglia BVH = 4, coerente con Group/SceneLoader.
+
+**Ottimizzazioni hot-path.**
+- `HitRecord` passato per `in`/`ref` in tutto lo shading e l'intera interfaccia
+  `IMaterial`, e `Ray` passato per `in` in tutta `IHittable.Hit` (Ray è
+  `readonly struct` → nessuna copia difensiva): eliminate copie di struct grandi
+  per ogni shade/sample NEE e a ogni nodo BVH/test primitiva.
+- Contesto del sampler e PRNG di fallback spostati da `ThreadLocal<T>` a campi
+  `[ThreadStatic]` (accesso più economico sul percorso più caldo).
+- `DisneyBsdf` cache del shading frame per-hit (come la cache `EvalParams`),
+  niente ricostruzione dell'ONB 3-4× per shade.
+- `Perlin`/`WorleyNoise` `GetOrCreate` con cache single-entry `[ThreadStatic]`
+  davanti al dizionario concorrente.
+- `SampleLight`: singola dispatch virtuale `IlluminateAndTestStratified` invece
+  della scala di type-check per ogni shadow sample.
+- Parallelismo a **tile 16×16** (bilanciamento e località cache migliori) con
+  progresso stampato da un thread reporter dedicato (i worker non toccano più il
+  lock della Console).
+- `Box.Hit` slab test SIMD branchless via `ray.InvDirection`; `ImageTexture`
+  decodifica sRGB→lineare con LUT a 256 voci; `OwenSobol` dim 0 → `ReverseBits`
+  diretto.
+- Lasciata ricorsiva la traversata BVH (uno stack esplicito condiviso per-thread
+  si corromperebbe con i Group annidati); clamp di ottave footprint-aware per
+  Marble/Wood rimandato (modifica di anti-aliasing più ampia).
+
+**Profilo `final-fast` (+ `-tiny` / `-small`).** Qualità di classe `final` su
+scene classiche (Lambertian/Disney, vetri non annidati, marmo procedurale) con
+gli extra costosi disattivati: 512 spp, depth 8, 1 shadow sample, Sobol, NEE
+power-weighted, caustiche e SSS volumetrico off, clamp indiretto 0.5. `QualityPreset`
+guadagna override opzionali `SssMode`/`LightSampling`/`IndirectClampFactor`; i
+flag espliciti vincono comunque.
+
+**Documentazione.** Corretti i default disallineati nei doc: firefly clamp
+default **10** (non 100), `--indirect-clamp-factor` default **0.25 = attivo**
+(non 1.0 = off). 513 test verdi a ogni fase.
+
+---
+
 ## Ciclo Caustiche — Photon Mapping (rimozione MNEE/SMS, riscrittura definitiva) ✅
 
 **Motivazione.** L'apparato MNEE + SMS (Strade 2/2b/2c/2c-bis/2d-tier1, ~3000

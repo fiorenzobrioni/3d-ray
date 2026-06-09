@@ -30,7 +30,7 @@ public class Disk : IHittable, ISamplable
         _vAxis = Vector3.Cross(Normal, _uAxis);
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         float denom = Vector3.Dot(Normal, ray.Direction);
         if (MathF.Abs(denom) < 1e-8f)

@@ -30,6 +30,19 @@ public interface ILight
         IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world);
 
     /// <summary>
+    /// Stratified shadow-sample variant. Area/sphere/geometry/sun-disc lights and
+    /// multi-sample spots override this to jitter the i-th of
+    /// <see cref="ShadowSamples"/> samples; all other lights inherit this default,
+    /// which ignores <paramref name="sampleIndex"/> and forwards to
+    /// <see cref="IlluminateAndTest"/>. Routing every light through this one
+    /// virtual method lets the renderer's NEE loop drop the per-sample type-switch
+    /// it used to do (a type-ladder evaluated millions of times).
+    /// </summary>
+    (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
+        IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex)
+        => IlluminateAndTest(hitPoint, surfaceNormal, world);
+
+    /// <summary>
     /// Approximate total radiant flux emitted by this light, in luminance-weighted
     /// units (Rec.709). Used by the renderer for scene classification
     /// (direct-dominant vs. indirect-dominant → Russian-Roulette tuning) and as

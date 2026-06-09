@@ -19,14 +19,30 @@ public class Perlin
     /// </summary>
     private static readonly ConcurrentDictionary<int, Perlin> _seedCache = new();
 
+    // Per-thread single-entry cache in front of the concurrent dictionary.
+    // A procedural texture resolves its Perlin instance many times per Value
+    // (once per fBm layer / warp) and shades runs of the same object back to
+    // back, so the seed is almost always the one used on the previous call.
+    // [ThreadStatic] keeps it race-free without a lock; on a miss we fall back
+    // to the dictionary (still the single source of truth for determinism).
+    [ThreadStatic] private static int _tlSeed;
+    [ThreadStatic] private static Perlin? _tlPerlin;
+
     /// <summary>
     /// Returns a Perlin instance deterministically derived from <paramref name="seed"/>.
     /// Multiple callers sharing the same seed receive the SAME cached instance,
     /// so textures with the same object seed produce identical procedural patterns
     /// across the whole render and across consecutive renders of the same scene.
     /// </summary>
-    public static Perlin GetOrCreate(int seed) =>
-        _seedCache.GetOrAdd(seed, s => new Perlin(s));
+    public static Perlin GetOrCreate(int seed)
+    {
+        if (_tlPerlin is { } cached && _tlSeed == seed)
+            return cached;
+        Perlin p = _seedCache.GetOrAdd(seed, s => new Perlin(s));
+        _tlSeed = seed;
+        _tlPerlin = p;
+        return p;
+    }
 
     /// <summary>
     /// Default constructor — uses a fixed canonical seed so the noise pattern is

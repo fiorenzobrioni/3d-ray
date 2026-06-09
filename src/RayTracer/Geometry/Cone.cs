@@ -58,7 +58,7 @@ public class Cone : IHittable, ISamplable
     public Cone(Vector3 center, float radius, float height, IMaterial material)
         : this(center, radius, 0f, height, material) { }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         // ═══════════════════════════════════════════════════════════════════
         // Cone body intersection

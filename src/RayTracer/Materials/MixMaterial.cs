@@ -122,7 +122,7 @@ public sealed class MixMaterial : IMaterial
     /// (including Dielectric, Disney BSDF with transmission, nested Mix, etc.)
     /// without needing to combine incompatible BSDF lobes.
     /// </summary>
-    public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
+    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
 
@@ -147,7 +147,7 @@ public sealed class MixMaterial : IMaterial
     /// The blend factor is evaluated at the hit point's UV coordinates from the
     /// HitRecord, giving correct spatial blending for texture-masked mix materials.
     /// </summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
 
@@ -158,7 +158,7 @@ public sealed class MixMaterial : IMaterial
     }
 
     /// <inheritdoc/>
-    public Vector3 ShadowTransmittance(Vector3 wi, HitRecord rec)
+    public Vector3 ShadowTransmittance(Vector3 wi, in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         Vector3 tA = MaterialA.ShadowTransmittance(wi, rec);
@@ -167,7 +167,7 @@ public sealed class MixMaterial : IMaterial
     }
 
     /// <inheritdoc/>
-    public Vector3 ShadowAbsorption(HitRecord rec)
+    public Vector3 ShadowAbsorption(in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         Vector3 sA = MaterialA.ShadowAbsorption(rec);
@@ -200,14 +200,24 @@ public sealed class MixMaterial : IMaterial
     // Evaluate / Pdf are deterministic linear blends of the children — same
     // logic as EvaluateDirect, applied to the cosine-free BRDF / solid-angle
     // PDF the MIS estimator wants. Sample uses PBRT's one-sample mixture
-    // estimator: pick child A or B with probability (1-t) / t, return its
-    // BsdfSample as-is. The marginal density over Wo is exactly the mixture
-    // PDF, so f_selected · cosθ / pdf_selected integrates to the mixture
-    // BRDF without any explicit re-weighting.
+    // estimator: pick child A or B with probability (1-t) / t, sample a
+    // direction from it, then re-evaluate the FULL mixture f and pdf at that
+    // direction — f(wo) = (1-t)·f_A + t·f_B, pdf(wo) = (1-t)·p_A + t·p_B.
+    // The marginal density over Wo from this procedure is exactly that mixture
+    // pdf, so f / pdf is an unbiased estimator of the mixture BRDF and the
+    // reported pdf agrees with Pdf() (which the renderer queries on the
+    // light-sampling side for MIS). Returning the selected child's raw pdf
+    // would bias the estimator whenever the two children's pdfs differ.
+    //
+    // Delta lobes are the exception: a child returning IsDelta has zero
+    // continuous density, so the mixture formula collapses to zero. There we
+    // keep the child's delta value/direction and only fold the selection
+    // probability into the pdf (pdf_delta · c_selected), leaving IsDelta set so
+    // the renderer weights emission through it correctly.
     // ═════════════════════════════════════════════════════════════════════════
 
     /// <inheritdoc/>
-    public Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec)
+    public Vector3 Evaluate(Vector3 V, Vector3 L, in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         Vector3 fA = MaterialA.Evaluate(V, L, rec);
@@ -216,7 +226,7 @@ public sealed class MixMaterial : IMaterial
     }
 
     /// <inheritdoc/>
-    public float Pdf(Vector3 V, Vector3 L, HitRecord rec)
+    public float Pdf(Vector3 V, Vector3 L, in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
         float pA = MaterialA.Pdf(V, L, rec);
@@ -225,11 +235,37 @@ public sealed class MixMaterial : IMaterial
     }
 
     /// <inheritdoc/>
-    public BsdfSample? Sample(Vector3 V, HitRecord rec)
+    public BsdfSample? Sample(Vector3 V, in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
-        IMaterial selected = MathUtils.RandomFloat() < t ? MaterialB : MaterialA;
-        return selected.Sample(V, rec);
+
+        bool pickB = MathUtils.RandomFloat() < t;
+        IMaterial selected = pickB ? MaterialB : MaterialA;
+        float cSelected = pickB ? t : (1f - t);
+
+        BsdfSample? sampleOpt = selected.Sample(V, rec);
+        if (sampleOpt is not BsdfSample s)
+            return null;
+
+        // Delta lobe: cannot be folded into the continuous mixture pdf. Keep its
+        // value/direction and only scale the (unit) delta pdf by the selection
+        // probability so f / pdf = F / c_selected stays the unbiased estimator.
+        if (s.IsDelta)
+            return new BsdfSample(s.Wo, s.F, s.Pdf * cSelected, isDelta: true,
+                                  s.NextSegmentAbsorption, s.Transition);
+
+        // Continuous lobe: re-evaluate the full mixture BRDF and pdf at the
+        // sampled direction so the reported (F, Pdf) describe the mixture, not
+        // just the selected child (PBRT §14.3.3 one-sample mixture estimator).
+        Vector3 fMix   = Vector3.Lerp(MaterialA.Evaluate(V, s.Wo, rec),
+                                      MaterialB.Evaluate(V, s.Wo, rec), t);
+        float   pdfMix = (1f - t) * MaterialA.Pdf(V, s.Wo, rec)
+                       +        t  * MaterialB.Pdf(V, s.Wo, rec);
+        if (pdfMix <= 0f)
+            return null;
+
+        return new BsdfSample(s.Wo, fMix, pdfMix, isDelta: false,
+                              s.NextSegmentAbsorption, s.Transition);
     }
 
     // ═════════════════════════════════════════════════════════════════════════

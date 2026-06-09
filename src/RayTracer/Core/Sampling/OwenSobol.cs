@@ -97,36 +97,28 @@ internal static class OwenSobol
     /// </summary>
     private static uint SobolValue(uint index, uint dimension)
     {
-        ReadOnlySpan<uint> directions = dimension == 0u ? Dim0Directions : Dim1Directions;
+        // Dimension 0's direction matrix is the identity (V_k has its single bit
+        // at position 31-k), so the XOR over set bits collapses exactly to
+        // ReverseBits(index) — the van der Corput sequence. Short-circuit it:
+        // dim 0 is one of the two most-used dimensions (camera jitter), drawn on
+        // every sample, so skipping the per-bit loop is a measurable win.
+        if (dimension == 0u)
+            return ReverseBits(index);
+
         uint v = 0u;
         int k = 0;
         while (index != 0u)
         {
-            if ((index & 1u) != 0u) v ^= directions[k];
+            if ((index & 1u) != 0u) v ^= Dim1Directions[k];
             index >>= 1;
             k++;
         }
         return v;
     }
 
-    /// <summary>
-    /// Dim 0 direction vectors: V_k = 1 &lt;&lt; (31 - k). XORing these
-    /// over set bits k of i is exactly ReverseBits(i), which gives
-    /// the van der Corput base-2 sequence — the canonical Sobol dim 0.
-    /// Tabulated rather than computed so the SobolValue call site
-    /// stays uniform across dimensions.
-    /// </summary>
-    private static readonly uint[] Dim0Directions =
-    {
-        0x80000000u, 0x40000000u, 0x20000000u, 0x10000000u,
-        0x08000000u, 0x04000000u, 0x02000000u, 0x01000000u,
-        0x00800000u, 0x00400000u, 0x00200000u, 0x00100000u,
-        0x00080000u, 0x00040000u, 0x00020000u, 0x00010000u,
-        0x00008000u, 0x00004000u, 0x00002000u, 0x00001000u,
-        0x00000800u, 0x00000400u, 0x00000200u, 0x00000100u,
-        0x00000080u, 0x00000040u, 0x00000020u, 0x00000010u,
-        0x00000008u, 0x00000004u, 0x00000002u, 0x00000001u,
-    };
+    // Dim 0's direction vectors (V_k = 1 << (31 - k)) are no longer tabulated:
+    // the XOR over set bits collapses to ReverseBits(index), handled directly in
+    // SobolValue.
 
     /// <summary>
     /// Dim 1 direction vectors: Sobol's primitive polynomial p(x) =

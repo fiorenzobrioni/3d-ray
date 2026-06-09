@@ -111,8 +111,9 @@ class Program
             }
         }
 
-        // Light selection strategy. See LightSamplingStrategy.
-        LightSamplingStrategy lightSampling = LightSamplingStrategy.All;
+        // Light selection strategy. See LightSamplingStrategy. A quality preset
+        // may set a default (final-fast → power); an explicit flag still wins.
+        LightSamplingStrategy lightSampling = quality?.LightSampling ?? LightSamplingStrategy.All;
         string? lightSamplingArg = GetArg(args, "--light-sampling", null);
         if (lightSamplingArg != null)
         {
@@ -127,10 +128,12 @@ class Program
             }
         }
 
-        // Indirect bounce clamp factor (Cycles/Arnold style depth-aware suppression).
-        // Default 1.0 = no extra suppression (backward compat).
-        float indirectClampFactor = Renderer.DefaultIndirectClampFactor;
-        if (float.TryParse(GetArg(args, "--indirect-clamp-factor", null),
+        // Indirect bounce clamp factor (Cycles/Arnold style depth-aware
+        // suppression). A quality preset may set a default (final-fast → 0.5);
+        // an explicit flag still wins.
+        float indirectClampFactor = quality?.IndirectClampFactor ?? Renderer.DefaultIndirectClampFactor;
+        string? indirectClampArg = GetArg(args, "--indirect-clamp-factor", null);
+        if (float.TryParse(indirectClampArg,
                            System.Globalization.NumberStyles.Float,
                            System.Globalization.CultureInfo.InvariantCulture,
                            out var icf) && icf >= 0f)
@@ -174,7 +177,9 @@ class Program
         // interior_medium bindings through the random-walk integrator; `off`
         // declasses pushed media to absorption-only so the legacy Beer-Lambert
         // path handles them (preview / A/B comparison knob — see Renderer.SssMode).
-        SssMode sssMode = SssMode.Auto;
+        // A quality preset may force a mode (final-fast → off); an explicit
+        // --sss-mode flag still wins.
+        SssMode sssMode = quality?.SssModeOverride ?? SssMode.Auto;
         string? sssModeArg = GetArg(args, "--sss-mode", null);
         if (sssModeArg != null)
         {
@@ -208,8 +213,11 @@ class Program
                     return;
             }
         }
-        else if (quality != null)
+        else if (quality != null && sssMode != SssMode.Off)
         {
+            // Skipped when SSS is forced off (e.g. final-fast): the random-walk
+            // config is unused, so don't load it or print a misleading
+            // "SSS quality" line — the "SSS mode: off" line says it all.
             walkConfig       = quality.WalkConfig;
             sssQualityLabel  = quality.SssQualityName;
         }
@@ -418,14 +426,18 @@ class Program
         Console.WriteLine("                                Any explicit flag below wins over the preset's value.");
         Console.WriteLine("                                Presets: draft-tiny, draft-small, draft,");
         Console.WriteLine("                                          medium-tiny, medium-small, medium,");
-        Console.WriteLine("                                          final-tiny, final-small, final, ultra (4K).");
+        Console.WriteLine("                                          final-tiny, final-small, final,");
+        Console.WriteLine("                                          final-fast-tiny, final-fast-small, final-fast,");
+        Console.WriteLine("                                          ultra (4K).");
+        Console.WriteLine("                                final-fast = final-class quality, optimised for classic");
+        Console.WriteLine("                                scenes (no caustics/SSS, 512 spp, power NEE).");
         Console.WriteLine("  -w, --width <px>             Image width  (default: 1200)");
         Console.WriteLine("  -H, --height <px>            Image height (default: 800)");
         Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16, see rendering profiles)");
         Console.WriteLine("  -d, --depth <n>              Max ray depth (default: 8, raise to 16+ for stacked glass)");
         Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override (default 4; perfect squares work best)");
-        Console.WriteLine("  -C, --clamp <n>              Max per-sample radiance / firefly clamp (default: 100)");
-        Console.WriteLine("      --indirect-clamp-factor  Clamp factor for indirect bounces (default: 1.0 = off; try 0.25)");
+        Console.WriteLine("  -C, --clamp <n>              Max per-sample radiance / firefly clamp (default: 10)");
+        Console.WriteLine("      --indirect-clamp-factor  Clamp factor for indirect bounces (default: 0.25 = on; 1.0 = off)");
         Console.WriteLine("      --exposure <EV>          Photographic exposure compensation in stops applied pre-ACES");
         Console.WriteLine("                                (default: 0 = identity; -1 darkens 2×, +1 brightens 2×)");
         Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
@@ -565,14 +577,32 @@ class Program
         /// <summary>Caustic photon budget for this tier when caustics are on
         /// (0 → use the global default). FINAL/ULTRA raise it for cleaner maps.</summary>
         public int CausticPhotons { get; }
+        /// <summary>When non-null, the tier forces a <c>--sss-mode</c> value
+        /// (the FINAL-FAST tiers force <see cref="SssMode.Off"/>). An explicit
+        /// <c>--sss-mode</c> flag still wins.</summary>
+        public SssMode? SssModeOverride { get; }
+        /// <summary>When non-null, the tier's default <c>--light-sampling</c>
+        /// strategy (FINAL-FAST uses <see cref="LightSamplingStrategy.Power"/>,
+        /// which scales better than the global <c>all</c> default). An explicit
+        /// <c>--light-sampling</c> flag still wins.</summary>
+        public LightSamplingStrategy? LightSampling { get; }
+        /// <summary>When non-null, the tier's default <c>--indirect-clamp-factor</c>.
+        /// An explicit flag still wins.</summary>
+        public float? IndirectClampFactor { get; }
 
         private QualityPreset(string name, int w, int h, int s, int d, int ss,
                               RandomWalkConfig walk, string walkName,
-                              bool caustics = false, int causticPhotons = 0)
+                              bool caustics = false, int causticPhotons = 0,
+                              SssMode? sssModeOverride = null,
+                              LightSamplingStrategy? lightSampling = null,
+                              float? indirectClampFactor = null)
         {
             Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
             WalkConfig = walk; SssQualityName = walkName;
             Caustics = caustics; CausticPhotons = causticPhotons;
+            SssModeOverride = sssModeOverride;
+            LightSampling = lightSampling;
+            IndirectClampFactor = indirectClampFactor;
         }
 
         public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 4, 1, RandomWalkConfig.Preview, "preview");
@@ -586,23 +616,40 @@ class Program
         public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 3_000_000);
         public static readonly QualityPreset Ultra       = new("ultra",       3840, 2160,  512, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 4_000_000);
 
+        // FINAL-FAST: final-tier image quality (Sobol, 1080p-class, depth 8) with
+        // the expensive global-illumination extras stripped for a classic scene
+        // (Lambertian/Disney, non-nested glass, procedural marble): photon
+        // caustics OFF, volumetric SSS OFF, single shadow sample (512 spp already
+        // anti-aliases), power-weighted single-light NEE, and a relaxed indirect
+        // clamp. See docs/reference/rendering-profiles.md.
+        public static readonly QualityPreset FinalFastTiny  = new("final-fast-tiny",  480, 270,  512, 8, 1, RandomWalkConfig.High, "high",
+            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f);
+        public static readonly QualityPreset FinalFastSmall = new("final-fast-small", 960, 540,  512, 8, 1, RandomWalkConfig.High, "high",
+            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f);
+        public static readonly QualityPreset FinalFast      = new("final-fast",      1920, 1080, 512, 8, 1, RandomWalkConfig.High, "high",
+            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f);
+
         public const string NamesCsv =
-            "draft-tiny, draft-small, draft, medium-tiny, medium-small, medium, final-tiny, final-small, final, ultra";
+            "draft-tiny, draft-small, draft, medium-tiny, medium-small, medium, " +
+            "final-tiny, final-small, final, final-fast-tiny, final-fast-small, final-fast, ultra";
 
         public static QualityPreset? Parse(string value) =>
             value.Trim().ToLowerInvariant() switch
             {
-                "draft-tiny"   => DraftTiny,
-                "draft-small"  => DraftSmall,
-                "draft"        => Draft,
-                "medium-tiny"  => MediumTiny,
-                "medium-small" => MediumSmall,
-                "medium"       => Medium,
-                "final-tiny"   => FinalTiny,
-                "final-small"  => FinalSmall,
-                "final"        => Final,
-                "ultra"        => Ultra,
-                _              => null,
+                "draft-tiny"       => DraftTiny,
+                "draft-small"      => DraftSmall,
+                "draft"            => Draft,
+                "medium-tiny"      => MediumTiny,
+                "medium-small"     => MediumSmall,
+                "medium"           => Medium,
+                "final-tiny"       => FinalTiny,
+                "final-small"      => FinalSmall,
+                "final"            => Final,
+                "final-fast-tiny"  => FinalFastTiny,
+                "final-fast-small" => FinalFastSmall,
+                "final-fast"       => FinalFast,
+                "ultra"            => Ultra,
+                _                  => null,
             };
     }
 }

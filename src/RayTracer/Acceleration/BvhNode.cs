@@ -154,7 +154,7 @@ public class BvhNode : IHittable
 
     public BvhNode(List<IHittable> objects) : this(objects, 0, objects.Count) { }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         if (!_box.Hit(ray, tMin, tMax))
             return false;

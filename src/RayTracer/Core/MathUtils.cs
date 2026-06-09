@@ -12,10 +12,12 @@ public static class MathUtils
     // ─────────────────────────────────────────────────────────────────────────
     private static int _globalSeed = Environment.TickCount;
 
-    private static readonly ThreadLocal<Random> _threadRng = new(
-        () => new Random(Interlocked.Increment(ref _globalSeed)));
+    // [ThreadStatic] field rather than ThreadLocal<Random>: faster per-access on
+    // the hot path. Lazily seeded per thread from an atomic counter (a
+    // [ThreadStatic] initializer would only run on the defining thread).
+    [ThreadStatic] private static Random? _threadRng;
 
-    public static Random Rng => _threadRng.Value!;
+    public static Random Rng => _threadRng ??= new Random(Interlocked.Increment(ref _globalSeed));
 
     public const float Epsilon = 1e-4f;
     public const float Infinity = float.MaxValue;

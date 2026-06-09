@@ -319,7 +319,7 @@ public sealed class DisneyBsdf : IMaterial
     [ThreadStatic] private static Vector3 _spLastLocalPoint;
     [ThreadStatic] private static ShadingParams _spCached;
 
-    private ShadingParams EvalParams(HitRecord rec)
+    private ShadingParams EvalParams(in HitRecord rec)
     {
         float u = rec.U, v = rec.V;
         Vector3 p = rec.LocalPoint;
@@ -334,29 +334,35 @@ public sealed class DisneyBsdf : IMaterial
             return _spCached;
         }
 
+        // Forward the analytic filter footprint so texture-driven scalar
+        // parameters (roughness/metallic/etc.) get the same trilinear / octave-
+        // clamp anti-aliasing as the base colour. Constant FloatTextures ignore
+        // it; point-sampled bounces (no footprint) fall back automatically.
+        ref readonly FilterFootprint fp = ref rec.Footprint;
+
         // CoatRoughness == null selects the legacy Disney 2012 gloss path via
         // a negative sentinel, so scenes without an explicit coat_roughness
         // value keep their previous appearance (α derived from ClearcoatGloss).
-        float coatRough = CoatRoughness?.Value(u, v, p, seed) ?? -1f;
+        float coatRough = CoatRoughness?.Value(u, v, p, seed, in fp) ?? -1f;
         var sp = new ShadingParams(
-            Metallic.Value(u, v, p, seed),
-            Roughness.Value(u, v, p, seed),
-            Specular.Value(u, v, p, seed),
-            SpecularTint.Value(u, v, p, seed),
-            Sheen.Value(u, v, p, seed),
-            SheenTint.Value(u, v, p, seed),
-            SheenRoughness.Value(u, v, p, seed),
-            Clearcoat.Value(u, v, p, seed),
-            ClearcoatGloss.Value(u, v, p, seed),
-            SpecTrans.Value(u, v, p, seed),
-            Ior.Value(u, v, p, seed),
-            Anisotropic.Value(u, v, p, seed),
-            AnisotropicRotation.Value(u, v, p, seed),
-            DiffTrans.Value(u, v, p, seed),
-            CoatIor.Value(u, v, p, seed),
+            Metallic.Value(u, v, p, seed, in fp),
+            Roughness.Value(u, v, p, seed, in fp),
+            Specular.Value(u, v, p, seed, in fp),
+            SpecularTint.Value(u, v, p, seed, in fp),
+            Sheen.Value(u, v, p, seed, in fp),
+            SheenTint.Value(u, v, p, seed, in fp),
+            SheenRoughness.Value(u, v, p, seed, in fp),
+            Clearcoat.Value(u, v, p, seed, in fp),
+            ClearcoatGloss.Value(u, v, p, seed, in fp),
+            SpecTrans.Value(u, v, p, seed, in fp),
+            Ior.Value(u, v, p, seed, in fp),
+            Anisotropic.Value(u, v, p, seed, in fp),
+            AnisotropicRotation.Value(u, v, p, seed, in fp),
+            DiffTrans.Value(u, v, p, seed, in fp),
+            CoatIor.Value(u, v, p, seed, in fp),
             coatRough,
-            ThinFilmThickness.Value(u, v, p, seed),
-            ThinFilmIor.Value(u, v, p, seed));
+            ThinFilmThickness.Value(u, v, p, seed, in fp),
+            ThinFilmIor.Value(u, v, p, seed, in fp));
 
         _spLastInstance   = this;
         _spLastSeed       = seed;
@@ -406,7 +412,7 @@ public sealed class DisneyBsdf : IMaterial
     ///   in <see cref="Sample"/> with full-weight emission is the correct
     ///   MIS treatment.
     /// </summary>
-    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, HitRecord rec)
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
     {
         float NdotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);
         if (NdotL <= 0f) return Vector3.Zero;
@@ -552,7 +558,7 @@ public sealed class DisneyBsdf : IMaterial
     /// <c>transmission_depth</c> is also ignored: it requires an interior
     /// segment length the straight-through walker doesn't track.
     /// </summary>
-    public Vector3 ShadowTransmittance(Vector3 wi, HitRecord rec)
+    public Vector3 ShadowTransmittance(Vector3 wi, in HitRecord rec)
     {
         float u = rec.U, v = rec.V;
         Vector3 p = rec.LocalPoint;
@@ -604,7 +610,7 @@ public sealed class DisneyBsdf : IMaterial
             && Roughness.Value(u, v, p, seed) <= 0.05f;
     }
 
-    public Vector3 ShadowAbsorption(HitRecord rec)
+    public Vector3 ShadowAbsorption(in HitRecord rec)
     {
         Vector3 baseCol = BaseColor.Value(in rec);
         var (_, sigma) = ResolveTransmission(rec, baseCol);
@@ -637,7 +643,7 @@ public sealed class DisneyBsdf : IMaterial
     /// transmission (glass refraction) is excluded and handled by the delta
     /// sample path instead.
     /// </summary>
-    public Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec)
+    public Vector3 Evaluate(Vector3 V, Vector3 L, in HitRecord rec)
     {
         Vector3 N = rec.Normal;
         float NdotL = Vector3.Dot(N, L);
@@ -771,7 +777,7 @@ public sealed class DisneyBsdf : IMaterial
     /// Combined PDF = Σ_lobe p_lobe · pdf_lobe(L), matching the one-sample
     /// mixture estimator used in Scatter.
     /// </summary>
-    public float Pdf(Vector3 V, Vector3 L, HitRecord rec)
+    public float Pdf(Vector3 V, Vector3 L, in HitRecord rec)
     {
         Vector3 N = rec.Normal;
         float NdotL = Vector3.Dot(N, L);
@@ -881,7 +887,7 @@ public sealed class DisneyBsdf : IMaterial
     ///     dividing a near-zero by a near-zero at grazing angles.
     ///   • All other lobes → non-delta sample with F = Evaluate, Pdf = Pdf.
     /// </summary>
-    public BsdfSample? Sample(Vector3 V, HitRecord rec)
+    public BsdfSample? Sample(Vector3 V, in HitRecord rec)
     {
         // Synthesize an incoming ray with direction -V. Origin is unused by
         // Scatter beyond rec.Point, so any origin works.
@@ -1081,8 +1087,21 @@ public sealed class DisneyBsdf : IMaterial
         // one-sample estimator stays unbiased.
         float diffuseW   = diffuseAll * (1f - sp.DiffTrans);
         float diffTransW = diffuseAll * sp.DiffTrans;
-        float specF0    = sp.Metallic > 0.5f ? MathUtils.Luminance(baseCol)
-                          : 0.04f * sp.Specular;
+        // Scalar F0 proxy for the specular lobe's selection probability. Must
+        // match ComputeF0 so the importance-sampling weight tracks the F0 that
+        // is actually evaluated — the old hardcoded 0.04·Specular underweighted
+        // the specular lobe ~2× at the default IOR (ComputeF0 applies the same
+        // ((ior−1)/(ior+1))²·2·Specular dielectric scale), raising variance.
+        float specF0;
+        if (sp.Metallic > 0.5f)
+        {
+            specF0 = MathUtils.Luminance(baseCol);
+        }
+        else
+        {
+            float r = (sp.Ior - 1f) / (sp.Ior + 1f);
+            specF0 = r * r * 2f * sp.Specular;
+        }
         float specFloor = 0.1f * (1f - sp.SpecTrans * 0.9f); // FIX #8e
         float specularW = MathF.Max(specFloor, Lerp(specF0, 1f, sp.Metallic));
         float transW    = (1f - sp.Metallic) * sp.SpecTrans;
@@ -1111,7 +1130,7 @@ public sealed class DisneyBsdf : IMaterial
     // Monte Carlo estimator unbiased across all lobes.
     // ═════════════════════════════════════════════════════════════════════════
 
-    public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
+    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
         => ScatterInternal(rayIn, rec, out attenuation, out scattered, out _);
 
     // Tag identifying which lobe the sampler selected on the most recent
@@ -1707,7 +1726,7 @@ public sealed class DisneyBsdf : IMaterial
     /// substrate. Falls back gracefully to <c>rec.Normal</c> when the
     /// geometry didn't populate a usable TBN.
     /// </summary>
-    private Vector3 GetCoatNormal(HitRecord rec)
+    private Vector3 GetCoatNormal(in HitRecord rec)
     {
         if (CoatNormal == null) return rec.Normal;
         if (rec.Tangent.LengthSquared() < 1e-10f || rec.Bitangent.LengthSquared() < 1e-10f)
@@ -1737,7 +1756,7 @@ public sealed class DisneyBsdf : IMaterial
     /// the VNDF sampling in <see cref="ScatterClearcoat"/> on the shared
     /// tangent-space path.
     /// </summary>
-    private ShadingFrame GetClearcoatFrame(HitRecord rec)
+    private ShadingFrame GetClearcoatFrame(in HitRecord rec)
     {
         Vector3 coatN = GetCoatNormal(rec);
         Microfacet.BuildTangentFrame(coatN, out Vector3 T, out Vector3 B);
@@ -1756,7 +1775,46 @@ public sealed class DisneyBsdf : IMaterial
     /// angle 2π·rotation, letting the artist control the anisotropic axis
     /// independently of the UV mapping.
     /// </summary>
-    private static ShadingFrame GetShadingFrame(HitRecord rec, float rotation)
+    // ── Shading-frame cache (mirrors the EvalParams cache) ──────────────────
+    // The tangent frame is rebuilt in EvaluateDirect / Evaluate / Pdf /
+    // ScatterSpecular / ScatterTransmission — i.e. 3-4× for the same hit during
+    // the NEE+MIS triad. It depends only on the hit's (u, v, localPoint, seed)
+    // (which fix both the geometry frame and the deterministic normal-map
+    // perturbation) plus the anisotropic rotation, so a single-entry per-thread
+    // cache removes the redundant ONB build (+ cos/sin under rotation).
+    [ThreadStatic] private static DisneyBsdf? _sfLastInstance;
+    [ThreadStatic] private static int     _sfLastSeed;
+    [ThreadStatic] private static float   _sfLastU;
+    [ThreadStatic] private static float   _sfLastV;
+    [ThreadStatic] private static float   _sfLastRotation;
+    [ThreadStatic] private static Vector3 _sfLastLocalPoint;
+    [ThreadStatic] private static ShadingFrame _sfCached;
+
+    private ShadingFrame GetShadingFrame(in HitRecord rec, float rotation)
+    {
+        if (ReferenceEquals(_sfLastInstance, this)
+            && _sfLastSeed == rec.ObjectSeed
+            && _sfLastU == rec.U
+            && _sfLastV == rec.V
+            && _sfLastRotation == rotation
+            && _sfLastLocalPoint == rec.LocalPoint)
+        {
+            return _sfCached;
+        }
+
+        ShadingFrame frame = BuildShadingFrame(in rec, rotation);
+
+        _sfLastInstance   = this;
+        _sfLastSeed       = rec.ObjectSeed;
+        _sfLastU          = rec.U;
+        _sfLastV          = rec.V;
+        _sfLastRotation   = rotation;
+        _sfLastLocalPoint = rec.LocalPoint;
+        _sfCached         = frame;
+        return frame;
+    }
+
+    private static ShadingFrame BuildShadingFrame(in HitRecord rec, float rotation)
     {
         Vector3 N = rec.Normal;
         Vector3 T, B;

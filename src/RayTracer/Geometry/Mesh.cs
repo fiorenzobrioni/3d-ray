@@ -87,7 +87,11 @@ public class Mesh : IHittable, ISamplable
             ? WrapInflated(triangles, leafBoundsInflation)
             : new List<IHittable>(triangles);
 
-        _bvh = triangles.Count > 2
+        // BVH threshold = 4, matching Group and SceneLoader (CLAUDE.md invariant).
+        // Below that a BvhNode's root fat-leaf would hold every triangle anyway,
+        // so a flat HittableList is cheaper and has identical behaviour.
+        const int BvhThreshold = 4;
+        _bvh = triangles.Count > BvhThreshold
             ? new BvhNode(bvhInput)
             : new HittableList(bvhInput);
 
@@ -103,7 +107,7 @@ public class Mesh : IHittable, ISamplable
         _totalArea = sum;
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         bool hit = _bvh.Hit(ray, tMin, tMax, ref rec);
         if (hit && AutoBump != null)

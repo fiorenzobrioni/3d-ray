@@ -42,7 +42,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 | 12 | Importance Sampling (GGX su Metal/Disney, env via CDF 2D, cosine-weighted diffuse) | ✅ |
 | 13 | Multi-Importance Sampling (tutti i materiali + phase function, balance/power heuristic) | ✅ |
 | 14 | Adaptive Sampling | ⬜ (dopo #15) |
-| 15 | Tile-based Rendering | ⬜ |
+| 15 | Tile-based Rendering (tile 16×16, progress su thread reporter dedicato) | ✅ |
 | 16 | Denoiser (bilateral/NLMeans guidato da normal/albedo/depth) | ⬜ (dopo #15) |
 | 17 | HDR Output (PFM/EXR pre-tone-mapping) | ⬜ |
 | +  | Sobol + Owen Scrambling sampler (`--sampler sobol`, default attivo) | ✅ |
@@ -110,13 +110,25 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 ## 🐛 Bug noti
 
-_Nessun bug noto al momento._
+_Nessun bug noto al momento._ (Il ciclo Review ha corretto i bug di correttezza
+in `AABB.Hit`, clamp indiretto/RR, `MixMaterial.Sample`, `Metal.Scatter`,
+`ImageTexture` tiling, CSG Union facce coincidenti, tolleranza `Torus`,
+footprint Disney, anelli `WoodTexture`, soglia BVH `Mesh` — vedi DEVLOG.)
 
 ---
 
 ## 💡 Idee / Appunti
 
-_Spazio per idee e spunti futuri da valutare._
+Ottimizzazioni valutate nel ciclo Review e **rimandate** (da riprendere):
+- **Traversata BVH a stack esplicito** — richiede un array di nodi appiattito +
+  stack di indici locale (`stackalloc int[]`, immune a rientranza) invece dello
+  stack di riferimenti condiviso per-thread, che si corromperebbe con i Group
+  annidati. Vale come step verso adaptive sampling/packet tracing.
+- **Clamp di ottave footprint-aware per Marble/Wood** — come `NoiseTexture.ComputeMaxOctaves`:
+  riduce ottave (e aliasing) a distanza. Modifica di anti-aliasing più ampia, da
+  validare su scene marmo-pesanti.
+- **`HitRecord` più snello** — spostare `FilterFootprint`/`MediumInterface`/autobump
+  fuori dallo struct core e calcolarli pigramente dopo l'hit finale.
 
 ---
 

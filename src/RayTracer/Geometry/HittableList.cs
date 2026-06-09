@@ -16,7 +16,7 @@ public class HittableList : IHittable
 
     public void Add(IHittable obj) => Objects.Add(obj);
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         var tempRec = new HitRecord();
         bool hitAnything = false;

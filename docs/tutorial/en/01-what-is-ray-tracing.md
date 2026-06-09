@@ -171,7 +171,7 @@ The CLI flags that control these settings are:
 | `-s` | `--samples`       | 16      | Samples per pixel                     |
 | `-d` | `--depth`         | 8       | Maximum ray bounces                   |
 | `-S` | `--shadow-samples`| *(per light)* | Override shadow sample count for all area/sphere lights |
-| `-C` | `--clamp`         | 100     | Firefly clamp (per-sample radiance)   |
+| `-C` | `--clamp`         | 10      | Firefly clamp (per-sample radiance)   |
 
 You will learn the full CLI in Chapter 10. For now, just remember the
 preview/draft/final pattern -- it will save you hours.

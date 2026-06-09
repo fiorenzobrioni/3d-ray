@@ -163,7 +163,7 @@ public class CsgObject : IHittable
     //  Core intersection — IHittable.Hit()
     // =========================================================================
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         // Early AABB rejection — avoids expensive child intersection tests.
         // _isEmpty must be checked first: AABB.Hit() incorrectly returns true
@@ -257,28 +257,43 @@ public class CsgObject : IHittable
     /// solid, using the crossing-number method on the collected surface hits.
     ///
     /// The ray starts outside (or inside if StartsInside is true). Each surface
-    /// crossing toggles the inside/outside state. A point exactly on a surface
-    /// (within tolerance) is treated as inside for robustness at CSG boundaries.
+    /// crossing toggles the inside/outside state.
+    ///
+    /// <para><paramref name="onSurfaceInside"/> controls how a point lying
+    /// exactly on the other solid's surface (within tolerance) is classified.
+    /// Intersection / subtraction pass <c>true</c>: counting a coincident
+    /// boundary as "inside" suppresses surface acne where two primitives share a
+    /// face. Union passes it <b>asymmetrically</b> — <c>true</c> when testing one
+    /// child, <c>false</c> when testing the other — so a coincident face is
+    /// attributed to exactly one child instead of being culled from both (which
+    /// punched holes in touching unions) or kept by both (z-fighting).</para>
+    ///
+    /// The tolerance is t-relative (mirroring the marching step in
+    /// <see cref="CollectAllHits"/>) so it does not mis-scale at large t.
     ///
     /// This replaces the old interval-based IsInsideSolid and correctly handles
     /// non-convex children with multiple disjoint solid spans.
     /// </summary>
-    private static bool IsInsideSolid(float t, in ChildHits hits)
+    private static bool IsInsideSolid(float t, in ChildHits hits, bool onSurfaceInside = true)
     {
         if (hits.Count == 0) return false;
 
-        const float tolerance = 1e-5f;
+        float tolerance = MathF.Max(StepEpsAbs, MathF.Abs(t) * StepEpsRel);
 
         bool inside = hits.StartsInside;
         for (int i = 0; i < hits.Count; i++)
         {
             float hitT = hits.Hits[i].T;
 
-            // Point is ON this surface (within tolerance) — treat as inside.
-            // This prevents surface acne on CSG boundaries where two primitives
-            // share exactly the same face.
+            // Point is ON this surface (within tolerance).
             if (t >= hitT - tolerance && t <= hitT + tolerance)
-                return true;
+            {
+                if (onSurfaceInside) return true;
+                // onSurfaceInside == false: the coincident crossing is neither
+                // counted as "before" nor "inside" — fall through and keep the
+                // accumulated state so the caller can claim this face.
+                break;
+            }
 
             // This surface crossing is before our test point — toggle state.
             if (hitT < t - tolerance)
@@ -342,6 +357,14 @@ public class CsgObject : IHittable
     /// <summary>
     /// A ∪ B — Union. A surface from either child is visible if the point is
     /// NOT inside the other child.
+    ///
+    /// Coincident faces (A and B sharing exactly the same surface) are resolved
+    /// with an asymmetric on-surface rule: A's face is culled where it lies on
+    /// B's surface (<c>onSurfaceInside: true</c>), while B's face is kept there
+    /// (<c>onSurfaceInside: false</c>). The shared face is therefore drawn
+    /// exactly once — by B — eliminating both the holes (it used to be culled
+    /// from both) and the z-fighting (drawn by both) that the symmetric rule
+    /// produced on touching unions.
     /// </summary>
     private static bool HitUnion(Ray ray, float tMin, float tMax,
         ref HitRecord rec, in ChildHits hitsA, in ChildHits hitsB)
@@ -350,19 +373,19 @@ public class CsgObject : IHittable
         HitRecord bestHit = default;
         bool found = false;
 
-        // All surfaces of A — visible where NOT inside B
+        // All surfaces of A — visible where NOT inside B (coincident face → culled)
         for (int i = 0; i < hitsA.Count; i++)
         {
             ref readonly var s = ref hitsA.Hits[i];
-            if (!IsInsideSolid(s.T, in hitsB))
+            if (!IsInsideSolid(s.T, in hitsB, onSurfaceInside: true))
                 TryCandidate(s.T, in s.Rec, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
         }
 
-        // All surfaces of B — visible where NOT inside A
+        // All surfaces of B — visible where NOT inside A (coincident face → kept)
         for (int i = 0; i < hitsB.Count; i++)
         {
             ref readonly var s = ref hitsB.Hits[i];
-            if (!IsInsideSolid(s.T, in hitsA))
+            if (!IsInsideSolid(s.T, in hitsA, onSurfaceInside: false))
                 TryCandidate(s.T, in s.Rec, ray, tMin, tMax, ref bestT, ref bestHit, ref found);
         }
 

@@ -25,46 +25,28 @@ public class Box : IHittable, ISamplable
         Material = material;
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    private static float AxisComponent(Vector3 v, int axis)
+        => axis == 0 ? v.X : (axis == 1 ? v.Y : v.Z);
+
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
-        float tNear = float.NegativeInfinity;
-        float tFar = float.PositiveInfinity;
-        int nearAxis = -1;
-        int farAxis = -1;
-        bool nearNeg = false;
-        bool farNeg = false;
+        // Branchless SIMD slab test against the unit cube, using the ray's
+        // precomputed InvDirection (no per-axis division or component switch).
+        // InvDirection encodes ±∞ for axis-parallel rays, which Min/Max resolve
+        // correctly — same trick as AABB.Hit — so no explicit near-zero-direction
+        // branch is needed.
+        Vector3 o = ray.Origin;
+        Vector3 invD = ray.InvDirection;
 
-        // Slab method intersection
-        for (int a = 0; a < 3; a++)
-        {
-            float origin = a switch { 0 => ray.Origin.X, 1 => ray.Origin.Y, _ => ray.Origin.Z };
-            float dir = a switch { 0 => ray.Direction.X, 1 => ray.Direction.Y, _ => ray.Direction.Z };
-            float bmin = a switch { 0 => Min.X, 1 => Min.Y, _ => Min.Z };
-            float bmax = a switch { 0 => Max.X, 1 => Max.Y, _ => Max.Z };
+        Vector3 t0v = (Min - o) * invD;
+        Vector3 t1v = (Max - o) * invD;
+        Vector3 tSmall = Vector3.Min(t0v, t1v);
+        Vector3 tLarge = Vector3.Max(t0v, t1v);
 
-            if (MathF.Abs(dir) < 1e-8f)
-            {
-                if (origin < bmin || origin > bmax) return false;
-            }
-            else
-            {
-                float invD = 1f / dir;
-                float t0 = (bmin - origin) * invD;
-                float t1 = (bmax - origin) * invD;
+        float tNear = MathF.Max(tSmall.X, MathF.Max(tSmall.Y, tSmall.Z));
+        float tFar  = MathF.Min(tLarge.X, MathF.Min(tLarge.Y, tLarge.Z));
 
-                bool swapped = false;
-                if (invD < 0f)
-                {
-                    (t0, t1) = (t1, t0);
-                    swapped = true;
-                }
-
-                if (t0 > tNear) { tNear = t0; nearAxis = a; nearNeg = !swapped; }
-                if (t1 < tFar) { tFar = t1; farAxis = a; farNeg = swapped; }
-
-                if (tFar <= tNear) return false;
-            }
-        }
+        if (tFar <= tNear) return false;
 
         float tResult;
         int hitAxis;
@@ -73,14 +55,18 @@ public class Box : IHittable, ISamplable
         if (tNear >= tMin && tNear <= tMax)
         {
             tResult = tNear;
-            hitAxis = nearAxis;
-            hitNeg = nearNeg;
+            // Entry face: the axis whose entry-t equals tNear (ties → first axis,
+            // matching the previous strict-`>` accumulation). The ray crosses the
+            // negative (Min) face first when it travels in +axis (invD > 0).
+            hitAxis = tNear == tSmall.X ? 0 : (tNear == tSmall.Y ? 1 : 2);
+            hitNeg  = AxisComponent(invD, hitAxis) > 0f;
         }
         else if (tFar >= tMin && tFar <= tMax)
         {
             tResult = tFar;
-            hitAxis = farAxis;
-            hitNeg = farNeg;
+            // Exit face: opposite sign convention to the entry.
+            hitAxis = tFar == tLarge.X ? 0 : (tFar == tLarge.Y ? 1 : 2);
+            hitNeg  = AxisComponent(invD, hitAxis) < 0f;
         }
         else
         {

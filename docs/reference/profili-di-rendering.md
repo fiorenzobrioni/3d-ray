@@ -50,6 +50,9 @@ preset 4K showcase**:
 | `final-tiny`   | 480×270   | 1024 | 32×32 | 8 | 4 | Spot check rapido a qualità piena |
 | `final-small`  | 960×540   | 1024 | 32×32 | 8 | 4 | Thumbnail showcase / contact-sheet |
 | `final`        | 1920×1080 | 1024 | 32×32 | 8 | 4 | Portfolio, copertina README |
+| `final-fast-tiny`  | 480×270   | 512 | ~23×23 | 8 | 1 | Check rapido, qualità scena classica |
+| `final-fast-small` | 960×540   | 512 | ~23×23 | 8 | 1 | Thumbnail showcase, scena classica |
+| `final-fast`       | 1920×1080 | 512 | ~23×23 | 8 | 1 | **Qualità final, ottimizzato per scene classiche** |
 | `ultra`        | 3840×2160 | 1024 | 32×32 | 8 | 4 | Showcase 4K |
 
 Le varianti `*-tiny` sono a **un quarto di risoluzione** rispetto al
@@ -74,6 +77,24 @@ spente. Il budget di fotoni del pre-pass è controllato da `--caustic-photons
 nitide e meno rumorose, al costo di un pre-pass più lento. Un `--caustics off`
 esplicito (o `--caustics on` su un preset più basso) ha la precedenza sul
 default del preset. Vedi [Path Tracing e Illuminazione §2.5](../technical/path-tracing-and-lighting.md).
+
+**`final-fast` — qualità final, ottimizzato per scene classiche.** Il tier
+`final-fast` punta alla stessa qualità d'immagine di `final` su una scena
+*classica* — superfici Lambertian/Disney, vetri non annidati (al massimo un
+paio di sfere di cristallo una davanti all'altra), marmo procedurale con
+parametri ordinari — eliminando la costosa macchineria di illuminazione
+globale che queste scene non usano. Rispetto a `final`: disattiva le
+**caustiche** a photon mapping, disattiva il **SSS** volumetrico
+(`--sss-mode off`), scende a **512 spp** e a **un solo shadow sample** (512
+spp fanno già anti-aliasing), passa a NEE **power-weighted single-light**
+(`--light-sampling power`, che scala meglio del default globale `all`) e
+rilassa il clamp indiretto a `0.5`. Su una scena senza caustiche/SSS è
+nettamente più veloce di `final` a parità di resa. Come sempre i flag
+espliciti vincono — es. `-q final-fast --caustics on` riattiva le caustiche,
+`-q final-fast -s 768` alza i campioni se i bordi del vetro restano
+rumorosi. Evitalo per scene che dipendono davvero da caustiche focalizzate,
+traslucenza/SSS profondo o vetri impilati/annidati — lì usa `final` (e un
+`-d` più alto).
 
 ```bash
 # Sanity check istantaneo, pochi secondi

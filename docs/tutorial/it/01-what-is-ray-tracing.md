@@ -167,7 +167,7 @@ I flag CLI che controllano queste impostazioni sono:
 | `-s` | `--samples`        | 16          | Campioni per pixel                          |
 | `-d` | `--depth`          | 8           | Rimbalzi massimi del raggio                 |
 | `-S` | `--shadow-samples` | *(per luce)*| Sovrascrive il conteggio dei campioni d'ombra per tutte le luci area/sphere |
-| `-C` | `--clamp`          | 100         | Firefly clamp (radianza per-campione)       |
+| `-C` | `--clamp`          | 10          | Firefly clamp (radianza per-campione)       |
 
 Il riferimento CLI completo è nel Capitolo 10. Per ora è sufficiente ricordare il
 pattern anteprima/bozza/finale -- farà risparmiare ore di lavoro.

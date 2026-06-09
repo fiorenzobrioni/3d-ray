@@ -44,8 +44,20 @@ public sealed class WorleyNoise
 
     private static readonly ConcurrentDictionary<int, WorleyNoise> _seedCache = new();
 
-    public static WorleyNoise GetOrCreate(int seed) =>
-        _seedCache.GetOrAdd(seed, s => new WorleyNoise(s));
+    // Per-thread single-entry cache in front of the dictionary — see the
+    // matching note in Perlin.GetOrCreate. Race-free via [ThreadStatic].
+    [ThreadStatic] private static int _tlSeed;
+    [ThreadStatic] private static WorleyNoise? _tlNoise;
+
+    public static WorleyNoise GetOrCreate(int seed)
+    {
+        if (_tlNoise is { } cached && _tlSeed == seed)
+            return cached;
+        WorleyNoise n = _seedCache.GetOrAdd(seed, s => new WorleyNoise(s));
+        _tlSeed = seed;
+        _tlNoise = n;
+        return n;
+    }
 
     public WorleyNoise() : this(0) { }
 

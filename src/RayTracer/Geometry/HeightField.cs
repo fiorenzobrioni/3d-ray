@@ -157,7 +157,7 @@ public sealed class HeightField : IHittable
 
     public AABB BoundingBox() => _aabb;
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         // Hold the best-so-far terrain hit; finalize after we know whether
         // the optional sea plane wins. The traversal visits leaf cells in

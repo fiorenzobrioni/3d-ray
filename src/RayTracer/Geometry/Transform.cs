@@ -96,7 +96,7 @@ public class Transform : IHittable, ISamplable
         set => _object.Seed = value;
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         // Transform the ray from world space to object space
         var localOrigin = Vector3.Transform(ray.Origin, _inverse);

@@ -39,7 +39,7 @@ public class BackFaceCulledHittable : IHittable
         set => _inner.Seed = value;
     }
 
-    public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
+    public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
         var tempRec = new HitRecord();
         if (!_inner.Hit(ray, tMin, tMax, ref tempRec))
