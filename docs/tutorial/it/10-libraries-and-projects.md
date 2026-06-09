@@ -436,12 +436,12 @@ L'insieme completo dei parametri della riga di comando:
 | `-s` | `--samples`         | `16`                          | Campioni per pixel (Sobol: conteggio esatto; PRNG: arrotondato al quadrato perfetto superiore) |
 | `-d` | `--depth`           | `8`                           | Numero massimo di rimbalzi dei raggi (alza a 16+ solo per vetri impilati) |
 | `-S` | `--shadow-samples`  | *(per luce)*                  | Sovrascrive i campioni d'ombra per tutte le luci area/sphere (quadrati perfetti) |
-| `-C` | `--clamp`           | `100`                         | Firefly clamp: radianza massima per-campione prima del tone mapping |
+| `-C` | `--clamp`           | `10`                          | Firefly clamp: radianza massima per-campione prima del tone mapping |
 | `-c` | `--camera`          | `0`                           | Seleziona la fotocamera per nome o indice base zero          |
 |      | `--sampler`         | `sobol`                       | Sampler per-pixel: `sobol` (Owen-scrambled) o `prng`         |
 |      | `--mis`             | `balance`                     | Heuristica MIS: `balance` o `power`                          |
 |      | `--light-sampling`  | `all`                         | Strategia NEE: `all`, `power`, `uniform`                     |
-|      | `--indirect-clamp-factor` | `1.0`                   | Clamp più stretto sui rimbalzi indiretti (`0.25` → clamp indiretto = ¼ di `-C`) |
+|      | `--indirect-clamp-factor` | `0.25`                  | Fattore di clamp del contributo indiretto, applicato una volta relativo alla camera (`0.25` → clamp indiretto = ¼ di `-C`; `1.0` = disattivato) |
 |      | `--texture-filtering` | `auto`                      | Anti-aliasing analitico delle texture procedurali / image via ray differentials: `auto` / `on` (filtering attivo) o `off` (point-sampled, per benchmark) |
 |      | `--list-cameras`    |                               | Elenca le fotocamere disponibili ed esce                     |
 | `-v` | `--verbose`         |                               | Output dettagliato di scene-load e tuning Russian Roulette   |

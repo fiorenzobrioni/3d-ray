@@ -50,6 +50,9 @@ preset. The matrix is **3 quality tiers × 3 resolutions + 1 4K showcase**:
 | `final-tiny`   | 480×270   | 1024 | 32×32 | 8 | 4 | Quick full-quality spot check |
 | `final-small`  | 960×540   | 1024 | 32×32 | 8 | 4 | Showcase thumbnail / contact-sheet |
 | `final`        | 1920×1080 | 1024 | 32×32 | 8 | 4 | Portfolio, README cover |
+| `final-fast-tiny`  | 480×270   | 512 | ~23×23 | 8 | 1 | Quick check, classic-scene quality |
+| `final-fast-small` | 960×540   | 512 | ~23×23 | 8 | 1 | Showcase thumbnail, classic scene |
+| `final-fast`       | 1920×1080 | 512 | ~23×23 | 8 | 1 | **Final quality, optimised for classic scenes** |
 | `ultra`        | 3840×2160 | 1024 | 32×32 | 8 | 4 | 4K showcase |
 
 The `*-tiny` variants are **quarter resolution** on each axis relative to
@@ -73,6 +76,24 @@ The photon budget for the pre-pass is controlled by `--caustic-photons
 sharper, less noisy caustics at the cost of a slower pre-pass. An explicit
 `--caustics off` (or `--caustics on` on a lower preset) overrides the
 preset default. See [Path Tracing and Lighting §2.5](../technical/path-tracing-and-lighting.md).
+
+**`final-fast` — final quality, optimised for classic scenes.** The
+`final-fast` tier targets the same image quality as `final` on a *classic*
+scene — Lambertian/Disney surfaces, non-nested glass (at most a couple of
+crystal spheres one behind another), procedural marble with ordinary
+parameters — while stripping the expensive global-illumination machinery
+that such scenes don't need. Relative to `final` it: turns photon
+**caustics off**, turns volumetric **SSS off** (`--sss-mode off`), drops to
+**512 spp** and a **single shadow sample** (512 spp already anti-aliases),
+switches NEE to **power-weighted single-light** picking (`--light-sampling
+power`, which scales better than the global `all` default), and relaxes the
+indirect clamp to `0.5`. On a scene with no caustics/SSS this is
+dramatically faster than `final` for visually equivalent output. As always,
+explicit flags win — e.g. `-q final-fast --caustics on` re-enables caustics,
+`-q final-fast -s 768` raises the sample count if glass edges still look
+grainy. Avoid it for scenes that genuinely rely on focused caustics, deep
+translucency/SSS, or stacked/nested glass — use `final` (and a higher `-d`)
+there.
 
 ```bash
 # Instant sanity check, a few seconds

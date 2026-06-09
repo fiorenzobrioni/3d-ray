@@ -433,12 +433,12 @@ The complete set of command-line parameters:
 | `-s` | `--samples`        | `16`                          | Samples per pixel (Sobol: exact count; PRNG: rounded up to nearest perfect square) |
 | `-d` | `--depth`          | `8`                           | Maximum ray bounces (raise to 16+ only for stacked glass) |
 | `-S` | `--shadow-samples` | *(per light)*                 | Override shadow samples for all area/sphere lights (perfect squares) |
-| `-C` | `--clamp`          | `100`                         | Firefly clamp: max per-sample radiance before tone mapping |
+| `-C` | `--clamp`          | `10`                          | Firefly clamp: max per-sample radiance before tone mapping |
 | `-c` | `--camera`         | `0`                           | Select camera by name or zero-based index                |
 |      | `--sampler`        | `sobol`                       | Per-pixel sampler: `sobol` (Owen-scrambled) or `prng`    |
 |      | `--mis`            | `balance`                     | MIS heuristic: `balance` or `power`                      |
 |      | `--light-sampling` | `all`                         | NEE strategy: `all`, `power`, `uniform`                  |
-|      | `--indirect-clamp-factor` | `1.0`                  | Tighter clamp on indirect bounces (`0.25` → indirect = ¼ of `-C`) |
+|      | `--indirect-clamp-factor` | `0.25`                 | Indirect-contribution clamp factor, applied once camera-relative (`0.25` → indirect clamp = ¼ of `-C`; `1.0` = off) |
 |      | `--texture-filtering` | `auto`                     | Analytic anti-aliasing of procedural / image textures via ray differentials: `auto` / `on` (filtering on) or `off` (point-sampled, for benchmarks) |
 |      | `--list-cameras`   |                               | List available cameras and exit                          |
 | `-v` | `--verbose`        |                               | Detailed scene-load and Russian-Roulette tuning output    |

@@ -436,8 +436,8 @@ class Program
         Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16, see rendering profiles)");
         Console.WriteLine("  -d, --depth <n>              Max ray depth (default: 8, raise to 16+ for stacked glass)");
         Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override (default 4; perfect squares work best)");
-        Console.WriteLine("  -C, --clamp <n>              Max per-sample radiance / firefly clamp (default: 100)");
-        Console.WriteLine("      --indirect-clamp-factor  Clamp factor for indirect bounces (default: 1.0 = off; try 0.25)");
+        Console.WriteLine("  -C, --clamp <n>              Max per-sample radiance / firefly clamp (default: 10)");
+        Console.WriteLine("      --indirect-clamp-factor  Clamp factor for indirect bounces (default: 0.25 = on; 1.0 = off)");
         Console.WriteLine("      --exposure <EV>          Photographic exposure compensation in stops applied pre-ACES");
         Console.WriteLine("                                (default: 0 = identity; -1 darkens 2×, +1 brightens 2×)");
         Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");

@@ -23,13 +23,13 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
 Required: `-i`. See `src/RayTracer/Program.cs` `ShowHelp()` for the full CLI. Canonical quality profiles and the `-s`/`-d`/`-S`/`-C` trade-offs are in `docs/reference/rendering-profiles.md`.
 
 Key flags:
-- `-q/--quality <preset>` — shorthand for common quality profiles (`draft-tiny`, `draft-small`, `draft`, `medium-tiny`, `medium-small`, `medium`, `final-tiny`, `final-small`, `final`, `ultra`). Overrides `-s`, `-d`, `-S`.
+- `-q/--quality <preset>` — shorthand for common quality profiles (`draft-tiny`, `draft-small`, `draft`, `medium-tiny`, `medium-small`, `medium`, `final-tiny`, `final-small`, `final`, `final-fast-tiny`, `final-fast-small`, `final-fast`, `ultra`). Overrides `-s`, `-d`, `-S` (and, for `final-fast`, also forces caustics/SSS off, power NEE, and the indirect clamp). `final-fast` = final-class quality optimised for classic scenes (Lambertian/Disney, non-nested glass, procedural marble).
 - `--list-cameras` — print available cameras and exit; `-c <name|index>` selects one.
 - `--sampler sobol|prng` — sampling strategy (default: `sobol`, deterministic Sobol+Owen; `prng` is legacy).
 - `--mis balance|power` — multiple-importance-sampling heuristic (default: `balance`).
 - `--texture-filtering auto|on|off` — trilinear mip-map filtering override.
 - `--exposure <f>` — EV exposure adjustment applied before tone mapping.
-- `--indirect-clamp-factor <f>` — stricter firefly clamp for indirect bounces (default 1.0, i.e. same as `-C`).
+- `--indirect-clamp-factor <f>` — stricter firefly clamp for the indirect contribution, applied once camera-relative (default 0.25 = on; 1.0 = off, i.e. same as `-C`).
 - `-v/--verbose` — print per-tile progress and timing.
 
 ### Tests (xUnit)
@@ -75,7 +75,7 @@ Standalone (on disk under `src/Tools/`, not in the solution — run directly wit
 - **Deferred messages.** `SceneLoader` queues warnings/info during load (`Warn()`/`Info()`); `Program.cs` flushes them via `FlushMessages()` after the single-line load output.
 
 ### Path tracer (`Rendering/Renderer.cs`)
-Parallel over pixels, N samples each via the active sampler (`--sampler sobol` default, deterministic; `prng` legacy — internals in the docs below). **Order matters:** `TraceRay` recurses hit → normal map → emission → NEE → BSDF scatter → Russian Roulette; per-pixel post-processing is firefly clamp (`-C`, default 100) → ACES filmic tone map → gamma 2.2. `-C` clamps per-sample radiance *before* tone mapping — lower it (e.g. 25) for fireflies from dielectrics/media. See `docs/technical/path-tracing-and-lighting.md` + `shading-model.md`.
+Parallel over **16×16 tiles** (better load balance / cache locality than scanlines; progress printed by a dedicated reporter thread so workers never touch the Console lock), N samples each via the active sampler (`--sampler sobol` default, deterministic; `prng` legacy — internals in the docs below). **Order matters:** `TraceRay` recurses hit → normal map → emission → NEE → BSDF scatter → Russian Roulette; per-pixel post-processing is firefly clamp (`-C`, default 10) → ACES filmic tone map → gamma 2.2. `-C` clamps per-sample radiance *before* tone mapping — lower it (e.g. 5) for fireflies from dielectrics/media. The indirect clamp (`--indirect-clamp-factor`, default 0.25 = on) is applied **once, camera-relative**, to the throughput-weighted indirect contribution at the primary surface. See `docs/technical/path-tracing-and-lighting.md` + `shading-model.md`.
 
 ### Lights and NEE
 Light implementations live under `Lights/`. **Invariants:** any `Emissive` geometry auto-joins the NEE pool as a `GeometryLight`, and the environment (sky/HDRI) participates in NEE as a directional sampler. `LightDistribution` (power-weighted CDF) is built once in the `Renderer` constructor and drives NEE (`--light-sampling power|uniform|all`); indirect bounces use a stricter clamp (`--indirect-clamp-factor`). Hardening mechanics (soft-radius floors, sun-disc sampling, jittered shadow rays, `ISamplable.SurfaceArea`) → `docs/technical/path-tracing-and-lighting.md` + DEVLOG §Ciclo Light Hardening.
