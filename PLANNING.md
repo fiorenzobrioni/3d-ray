@@ -110,10 +110,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 ## 🐛 Bug noti
 
-_Nessun bug noto al momento._ (Il ciclo Review ha corretto i bug di correttezza
-in `AABB.Hit`, clamp indiretto/RR, `MixMaterial.Sample`, `Metal.Scatter`,
-`ImageTexture` tiling, CSG Union facce coincidenti, tolleranza `Torus`,
-footprint Disney, anelli `WoodTexture`, soglia BVH `Mesh` — vedi DEVLOG.)
+_Nessun bug noto al momento._
 
 ---
 

@@ -79,10 +79,10 @@ cameras:
 
   - name:       hero
     position:   [2.0, 3.8, -6.0]
-    look_at:    [-0.4, 0.7, 0.0]
+    look_at:    [-0.4, 0.5, 0.0]
     fov:        36
-    #aperture:   0.0
-    #focal_dist: 6.5
+    # aperture:   0.2
+    # focal_dist: 6.5
 
   - name:       frontale
     position:   [0.0, 4.0, -6.5]
@@ -129,62 +129,33 @@ cameras:
 lights:
 
   # ─────────────────────────────────────────────────────────────────────────
-  # Studio 3-point bilanciato in "EV neutrale" — irradianza target ~0.6 sulla
-  # marble row, dentro la sweet-spot lineare di ACES (0.4-0.7) dove il
-  # tonemap NON schiaccia la differenza tra base color e vena. Il vecchio
-  # setup (5.0 + 6 + 18) produceva ~2.9 di irradianza → ACES comprimeva
-  # qualsiasi marmo a contrasto 1.2:1, indistinguibile dal bianco.
-  # ─────────────────────────────────────────────────────────────────────────
-
-  # Key softbox dall'alto-fronte
-  # - type: "area"
-  #   corner: [-2.5, 4.8, -2.5]
-  #   u: [5.0, 0.0, 0.0]
-  #   v: [0.0, 0.0, 5.0]
-  #   color: [1.0, 0.97, 0.92]
-  #   intensity: 1.6
-
-  # Fill freddo da sinistra-fondo per separare i materiali scuri
-  # - type: "point"
-  #   position: [-5.0, 2.0, -3.0]
-  #   color: [0.8, 0.85, 1.0]
-  #   intensity: 1.5
-
-  # Rim caldo basso da destra per silhouette displacement
-  # - type: "point"
-  #   position: [5.0, 1.3, 1.0]
-  #   color: [1.0, 0.88, 0.70]
-  #   intensity: 5
-
-  # ─────────────────────────────────────────────────────────────────────────
-  # OPTIONAL — Studio "fast lookdev" senza area panels (commentato).
+  #  SET CORRENTE: Studio Professionale con Point Light
   #
-  # Da provare quando vuoi un render ~3-4× più rapido (l'area light richiede
-  # NEE multi-sample per ombra; directional + point hanno NEE single-sample
-  # con `soft_radius` per ombreggiare). Stessi rapporti chiaroscurali del
-  # setup default ma con disco solare directional come key — gradiente di
-  # luminosità simile, dettaglio leggermente più netto sui bump.
-  #
-  # Per usare: commenta le 3 luci sopra e scommenta il blocco qui sotto.
-  # Il rendering rimane in ACES sweet-spot a EV 0 (no --exposure necessario).
+  #  Due point light laterali aggiungono dimensione e separano i materiali.
+  #  Un punto luce posteriore separa il tavolo dallo sfondo scuro.
   # ─────────────────────────────────────────────────────────────────────────
 
-  - type: "point"
-    position: [-7, 2.5, 0.0]
-    color: [1.0, 1.0, 1.0]
-    intensity: 30
+  # Key Light — punto luce caldo dall'alto-sinistra
+  - type: "opoint"
+    position: [-4.0, 4.5, -2.0]
+    color: [1.0, 0.95, 0.88]
+    intensity: 50
 
-  - type: "point"
-    position: [7, 2.5, 0.0]
-    color: [1.0, 1.0, 1.0]
-    intensity: 30
+  # Fill Light — luce fredda leggera dal lato opposto
+  - type: "opoint"
+    position: [4.0, 4.5, -2.0]
+    color: [0.85, 0.88, 1.0]
+    intensity: 50
 
+  # ─────────────────────────────────────────────────────────────────────────
+  #  SET ALTERNATIVO 1: Solo Area Light (ombre ultra-morbide, minimalista)
+  # ─────────────────────────────────────────────────────────────────────────
   - type: "area"
     corner: [-2.5, 4.8, -2.5]
     u: [5.0, 0.0, 0.0]
     v: [0.0, 0.0, 5.0]
     color: [1.0, 0.97, 0.92]
-    intensity: 1.8
+    intensity: 5.0
 
 # =============================================================================
 #  MATERIALS
@@ -292,16 +263,6 @@ materials:
       noise_strength: 0.9
       distortion: 0.18
       colors: [[0.18, 0.10, 0.05], [0.46, 0.28, 0.14]]
-
-  # Trim ottone spazzolato — la cornice metallica del display case da
-  # boutique. Disney metallic (parità BSDF col resto della scena, vs
-  # legacy `type: "metal"`); roughness 0.28 dà il classico look "satinato"
-  # dell'ottone spazzolato. Tinta calda [0.85, 0.65, 0.42] caratteristica
-  # dell'ottone (≈ Cu 65% + Zn 35%) non del cromo grigio neutro.
-  - id: "case_trim"
-    type: "metal"
-    color: [0.60, 0.58, 0.55]
-    fuzz: 0.35
 
   # ─────────────────────────────────────────────────────────────────────────
   #  FILA 6 — PIANETI / TERRAIN MUSGRAVE
@@ -921,10 +882,10 @@ materials:
     specular: 0.55
     texture:
       type: "marble"
-      scale: 4.5
+      scale: 1 # 4.5
       vein_axis: [0, 0, 1]
       vein_frequency: 1.0
-      vein_sharpness: 1.2
+      vein_sharpness: 0.2
       noise_strength: 8.0
       octaves: 8
       distortion: 0.30
@@ -1226,18 +1187,6 @@ entities:
     scale: [5.74, 0.18, 0.12]
     translate: [0.0, 0.96, -2.81]
     material: "case_wood"
-
-  - name: "case_trim_front"
-    type: "box"
-    scale: [5.78, 0.025, 0.14]
-    translate: [0.0, 1.375, -2.81]
-    material: "case_trim"
-
-  - name: "case_trim_back"
-    type: "box"
-    scale: [5.78, 0.025, 0.14]
-    translate: [0.0, 1.375, 2.81]
-    material: "case_trim"
 
   - name: "divider_1"
     type: "box"
