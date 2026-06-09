@@ -646,6 +646,22 @@ public partial class Renderer
     }
 
     /// <summary>
+    /// Replaces NaN/Inf components with zero and floors negatives at zero.
+    /// Idempotent — applying it more than once is a no-op — so it is safe to
+    /// run at every returning recursion frame to stop a non-finite value from
+    /// poisoning the throughput-driven dead-path test or the pixel accumulator,
+    /// without introducing the bias a repeated *magnitude* clamp would.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector3 SanitizeRadiance(Vector3 color)
+    {
+        if (float.IsNaN(color.X) || float.IsInfinity(color.X)) color.X = 0f;
+        if (float.IsNaN(color.Y) || float.IsInfinity(color.Y)) color.Y = 0f;
+        if (float.IsNaN(color.Z) || float.IsInfinity(color.Z)) color.Z = 0f;
+        return Vector3.Max(color, Vector3.Zero);
+    }
+
+    /// <summary>
     /// Clamps a radiance sample to suppress firefly artifacts.
     /// Also replaces NaN/Inf values with black to prevent corruption
     /// from propagating into the pixel accumulator.
@@ -653,10 +669,7 @@ public partial class Renderer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private Vector3 ClampRadiance(Vector3 color)
     {
-        // NaN / Inf guard — any non-finite component becomes zero.
-        if (float.IsNaN(color.X) || float.IsInfinity(color.X)) color.X = 0f;
-        if (float.IsNaN(color.Y) || float.IsInfinity(color.Y)) color.Y = 0f;
-        if (float.IsNaN(color.Z) || float.IsInfinity(color.Z)) color.Z = 0f;
+        color = SanitizeRadiance(color);
 
         // Luminance-preserving clamp — scales the entire vector down
         // to prevent Hue-shifting heavily saturated bright highlights.
@@ -666,29 +679,35 @@ public partial class Renderer
             color *= _maxSampleRadiance / lum;
         }
 
-        return Vector3.Max(color, Vector3.Zero);
+        return color;
     }
 
     /// <summary>
-    /// Clamps the indirect bounce radiance using the depth-aware secondary
-    /// clamp threshold (<c>_indirectMaxSampleRadiance</c>). When the
-    /// <c>--indirect-clamp-factor</c> is 1.0 (default) this is identical to
-    /// <see cref="ClampRadiance"/> and has no observable effect. Setting the
-    /// factor below 1 suppresses caustics / deep-specular fireflies that
-    /// survive the primary pixel-level clamp.
+    /// Clamps the indirect contribution using the depth-aware secondary clamp
+    /// threshold (<c>_indirectMaxSampleRadiance</c>). When
+    /// <c>--indirect-clamp-factor</c> is 1.0 this matches <see cref="ClampRadiance"/>;
+    /// below 1 it suppresses caustics / deep-specular fireflies more
+    /// aggressively than the primary pixel clamp.
+    ///
+    /// <para>Applied <b>once per camera path</b>, at the primary surface
+    /// (<c>depth == _maxDepth</c>), to the full post-BSDF indirect contribution
+    /// <c>attenuation · L_indirect</c>. This is the camera-relative clamp the
+    /// firefly suppression is meant to be — applying it at every returning
+    /// recursion frame (the previous behaviour) compounded into a clamp-of-clamp
+    /// that lost energy proportional to path length, and clamping the bare
+    /// returned radiance instead of the throughput-weighted contribution made
+    /// the effective threshold depth-dependent.</para>
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private Vector3 ClampRadianceIndirect(Vector3 color)
     {
-        if (float.IsNaN(color.X) || float.IsInfinity(color.X)) color.X = 0f;
-        if (float.IsNaN(color.Y) || float.IsInfinity(color.Y)) color.Y = 0f;
-        if (float.IsNaN(color.Z) || float.IsInfinity(color.Z)) color.Z = 0f;
+        color = SanitizeRadiance(color);
 
         float lum = MathUtils.Luminance(color);
         if (lum > _indirectMaxSampleRadiance && lum > 0f)
             color *= _indirectMaxSampleRadiance / lum;
 
-        return Vector3.Max(color, Vector3.Zero);
+        return color;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -851,9 +870,6 @@ public partial class Renderer
                 nextThroughput *= invSurvival;
             }
 
-            if (attenuation.LengthSquared() < 0.001f)
-                return emitted + directLight;
-
             // IsDeltaScatter materials (mirror/refraction) emit a delta bounce,
             // so emission passes through at full weight at the next hit. Non-
             // delta Scatter materials rely on the legacy "NEE replaced emission"
@@ -891,10 +907,9 @@ public partial class Renderer
                                          pathThroughput: nextThroughput,
                                          incomingCategory: nextCat,
                                          causticState: NextCausticState(causticState, nextIsDelta));
-            // Depth-aware indirect clamp: suppresses deep-specular fireflies that
-            // survive the primary pixel-level ClampRadiance. When the factor is
-            // 1.0 (default) ClampRadianceIndirect == ClampRadiance — no change.
-            indirect = ClampRadianceIndirect(indirect);
+            // Sanitize NaN/Inf every frame (idempotent — no bias); the magnitude
+            // firefly clamp is applied once, camera-relative, below.
+            indirect = SanitizeRadiance(indirect);
             // PBRT/Arnold convention: direct lighting is the standalone
             // rendering-equation integrand at the shadow-ray direction
             // (computed by ComputeDirectLighting above), and the scatter
@@ -907,7 +922,12 @@ public partial class Renderer
             // happened to be correct only for Lambertian (constant
             // attenuation == albedo); the new form is unbiased for every
             // material whose EvaluateDirect returns the full BRDF·cosθ.
-            return emitted + directLight + attenuation * indirect;
+            Vector3 contribution = attenuation * indirect;
+            // Depth-aware indirect clamp applied ONCE at the primary surface on
+            // the post-BSDF contribution (see ClampRadianceIndirect).
+            if (depth == _maxDepth)
+                contribution = ClampRadianceIndirect(contribution);
+            return emitted + directLight + contribution;
         }
 
         return emitted + directLight;
@@ -948,9 +968,6 @@ public partial class Renderer
                 return emitted + directLight;
             attenuation = s.F * absNdotWo / s.Pdf;
         }
-
-        if (attenuation.LengthSquared() < 0.001f)
-            return emitted + directLight;
 
         // Path-throughput-based RR (PBRT §13.7.1). See ShadeSurface above for
         // the full rationale.
@@ -1049,10 +1066,13 @@ public partial class Renderer
                                  incomingCategory: nextCat,
                                  causticState: NextCausticState(causticState, s.IsDelta));
         }
-        // Depth-aware indirect clamp — see ShadeSurface's Scatter path above.
-        indirect = ClampRadianceIndirect(indirect);
-        // PBRT/Arnold convention — see ShadeSurface above.
-        return emitted + directLight + attenuation * indirect;
+        // Sanitize NaN/Inf every frame (idempotent); magnitude clamp applied
+        // once, camera-relative, below — see ShadeSurface's Scatter path.
+        indirect = SanitizeRadiance(indirect);
+        Vector3 contribution = attenuation * indirect;
+        if (depth == _maxDepth)
+            contribution = ClampRadianceIndirect(contribution);
+        return emitted + directLight + contribution;
     }
 
     /// <summary>

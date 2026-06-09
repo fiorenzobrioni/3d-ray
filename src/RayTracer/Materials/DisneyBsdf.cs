@@ -334,29 +334,35 @@ public sealed class DisneyBsdf : IMaterial
             return _spCached;
         }
 
+        // Forward the analytic filter footprint so texture-driven scalar
+        // parameters (roughness/metallic/etc.) get the same trilinear / octave-
+        // clamp anti-aliasing as the base colour. Constant FloatTextures ignore
+        // it; point-sampled bounces (no footprint) fall back automatically.
+        ref readonly FilterFootprint fp = ref rec.Footprint;
+
         // CoatRoughness == null selects the legacy Disney 2012 gloss path via
         // a negative sentinel, so scenes without an explicit coat_roughness
         // value keep their previous appearance (α derived from ClearcoatGloss).
-        float coatRough = CoatRoughness?.Value(u, v, p, seed) ?? -1f;
+        float coatRough = CoatRoughness?.Value(u, v, p, seed, in fp) ?? -1f;
         var sp = new ShadingParams(
-            Metallic.Value(u, v, p, seed),
-            Roughness.Value(u, v, p, seed),
-            Specular.Value(u, v, p, seed),
-            SpecularTint.Value(u, v, p, seed),
-            Sheen.Value(u, v, p, seed),
-            SheenTint.Value(u, v, p, seed),
-            SheenRoughness.Value(u, v, p, seed),
-            Clearcoat.Value(u, v, p, seed),
-            ClearcoatGloss.Value(u, v, p, seed),
-            SpecTrans.Value(u, v, p, seed),
-            Ior.Value(u, v, p, seed),
-            Anisotropic.Value(u, v, p, seed),
-            AnisotropicRotation.Value(u, v, p, seed),
-            DiffTrans.Value(u, v, p, seed),
-            CoatIor.Value(u, v, p, seed),
+            Metallic.Value(u, v, p, seed, in fp),
+            Roughness.Value(u, v, p, seed, in fp),
+            Specular.Value(u, v, p, seed, in fp),
+            SpecularTint.Value(u, v, p, seed, in fp),
+            Sheen.Value(u, v, p, seed, in fp),
+            SheenTint.Value(u, v, p, seed, in fp),
+            SheenRoughness.Value(u, v, p, seed, in fp),
+            Clearcoat.Value(u, v, p, seed, in fp),
+            ClearcoatGloss.Value(u, v, p, seed, in fp),
+            SpecTrans.Value(u, v, p, seed, in fp),
+            Ior.Value(u, v, p, seed, in fp),
+            Anisotropic.Value(u, v, p, seed, in fp),
+            AnisotropicRotation.Value(u, v, p, seed, in fp),
+            DiffTrans.Value(u, v, p, seed, in fp),
+            CoatIor.Value(u, v, p, seed, in fp),
             coatRough,
-            ThinFilmThickness.Value(u, v, p, seed),
-            ThinFilmIor.Value(u, v, p, seed));
+            ThinFilmThickness.Value(u, v, p, seed, in fp),
+            ThinFilmIor.Value(u, v, p, seed, in fp));
 
         _spLastInstance   = this;
         _spLastSeed       = seed;
@@ -1081,8 +1087,21 @@ public sealed class DisneyBsdf : IMaterial
         // one-sample estimator stays unbiased.
         float diffuseW   = diffuseAll * (1f - sp.DiffTrans);
         float diffTransW = diffuseAll * sp.DiffTrans;
-        float specF0    = sp.Metallic > 0.5f ? MathUtils.Luminance(baseCol)
-                          : 0.04f * sp.Specular;
+        // Scalar F0 proxy for the specular lobe's selection probability. Must
+        // match ComputeF0 so the importance-sampling weight tracks the F0 that
+        // is actually evaluated — the old hardcoded 0.04·Specular underweighted
+        // the specular lobe ~2× at the default IOR (ComputeF0 applies the same
+        // ((ior−1)/(ior+1))²·2·Specular dielectric scale), raising variance.
+        float specF0;
+        if (sp.Metallic > 0.5f)
+        {
+            specF0 = MathUtils.Luminance(baseCol);
+        }
+        else
+        {
+            float r = (sp.Ior - 1f) / (sp.Ior + 1f);
+            specF0 = r * r * 2f * sp.Specular;
+        }
         float specFloor = 0.1f * (1f - sp.SpecTrans * 0.9f); // FIX #8e
         float specularW = MathF.Max(specFloor, Lerp(specF0, 1f, sp.Metallic));
         float transW    = (1f - sp.Metallic) * sp.SpecTrans;

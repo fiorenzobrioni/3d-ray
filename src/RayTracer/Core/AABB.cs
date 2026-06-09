@@ -27,6 +27,14 @@ public readonly struct AABB
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Hit(Ray ray, float tMin, float tMax)
     {
+        // Reject the sentinel/degenerate empty box explicitly. AABB.Empty has
+        // inverted bounds (Min = +inf, Max = -inf); without this guard the slab
+        // test below would spuriously report a hit (tExit ≥ tEnter holds for the
+        // inverted interval), silently disabling the early-out for any empty
+        // HittableList / Group child. A *valid* flat box has Min == Max on an
+        // axis (never Min > Max), so this never rejects real geometry.
+        if (Min.X > Max.X | Min.Y > Max.Y | Min.Z > Max.Z) return false;
+
         Vector3 t0 = (Min - ray.Origin) * ray.InvDirection;
         Vector3 t1 = (Max - ray.Origin) * ray.InvDirection;
 
@@ -36,7 +44,11 @@ public readonly struct AABB
         float tEnter = MathF.Max(tMin, MathF.Max(tSmall.X, MathF.Max(tSmall.Y, tSmall.Z)));
         float tExit  = MathF.Min(tMax, MathF.Min(tLarge.X, MathF.Min(tLarge.Y, tLarge.Z)));
 
-        return tExit > tEnter;
+        // Inclusive comparison so a flat (zero-thickness) box — a quad/plane/disk
+        // BVH leaf, or a ray grazing a face where tEnter == tExit — is reported
+        // as a hit instead of being silently dropped. Callers no longer need to
+        // pad such leaves' bounds by an epsilon.
+        return tExit >= tEnter;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

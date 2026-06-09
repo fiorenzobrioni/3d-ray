@@ -99,7 +99,10 @@ public class Torus : IHittable, ISamplable
 // IMPACT:
 //   - Torus only (surgical fix, no changes to Camera or Transform)
 //   - ~5% slower per torus intersection (one sqrt + division)
-//   - Eliminates both visible artifacts completely
+//   - Removes the |D|⁴ ill-conditioning of the leading coefficient. Very large
+//     or far-from-origin tori can still lose precision in the K = O·O + R² − r²
+//     term (use a Transform to keep the object-space torus near unit scale); the
+//     relative residual check below rejects the phantom roots that survive.
 // ═══════════════════════════════════════════════════════════════════════════
 
     public bool Hit(Ray ray, float tMin, float tMax, ref HitRecord rec)
@@ -183,14 +186,6 @@ public class Torus : IHittable, ISamplable
         // (near-tangent rays, double roots at silhouette edges).
         // ═══════════════════════════════════════════════════════════════════
 
-        // Tolerance for implicit-surface residual check.
-        // The residual F(P) = (|P|² + R² − r²)² − 4R²(px² + pz²) should
-        // be zero on the surface. Float-precision hit points have |F(P)| ≈
-        // 4(R+r)·ε where ε is the positional error (~1e-5 for typical t).
-        // We use a generous tolerance scaled to the torus dimensions.
-        double torusScale = _R + _r;
-        double tolerance = 1e-2 * torusScale * torusScale * torusScale * torusScale;
-
         for (int i = 0; i < count; i++)
         {
             // Convert from normalized-t to original ray parameter
@@ -207,6 +202,20 @@ public class Torus : IHittable, ISamplable
             lhs *= lhs;
             double rhs = 4.0 * _R2 * (px * px + pz * pz);
             double residual = Math.Abs(lhs - rhs);
+
+            // RELATIVE residual tolerance for the implicit-surface check.
+            // F(P) = (|P|²+R²−r²)² − 4R²(px²+pz²) has units length⁴, so a fixed
+            // absolute threshold mis-scales: the old 1e-2·(R+r)⁴ was far too
+            // loose for large tori (phantom roots slipped through) and far too
+            // tight for sub-unit tori (genuine near-tangent hits were rejected).
+            // A relative threshold keyed on the terms' own magnitude
+            // ((|P|²+R²+r²) ~ length²) auto-scales with both torus size and the
+            // point's distance from the origin (which bounds the float
+            // positional error at large t). A genuine hit's residual is
+            // ~1e-6 relative; phantom solver roots sit near 1.0 relative, so
+            // 1e-4 separates them with a wide margin.
+            double refMag = sumSq + _R2 + _r2;
+            double tolerance = 1e-4 * refMag * refMag;
 
             if (residual > tolerance)
                 continue; // Phantom root — skip

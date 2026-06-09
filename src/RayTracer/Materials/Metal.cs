@@ -219,63 +219,45 @@ public sealed class Metal : IMaterial
     }
 
     /// <summary>
-    /// GGX importance-sampled scatter for metallic reflection.
-    ///
-    /// Replaces the original Reflect + Fuzz×RandomInUnitSphere approach with
-    /// proper GGX microfacet sampling. Benefits:
-    ///
-    ///   1. Correct highlight shape: GGX has characteristic long tails that
-    ///      real metals exhibit. The old uniform-sphere perturbation produced
-    ///      a Gaussian-like falloff that was too compact.
-    ///
-    ///   2. Lower variance: importance sampling the NDF means the sampling
-    ///      distribution matches the BRDF, so each sample carries a more
-    ///      consistent weight. This is especially visible for medium fuzz
-    ///      (0.15–0.5) where the old approach needed many more samples.
-    ///
-    ///   3. Consistency with direct lighting: both Scatter and EvaluateDirect
-    ///      now use the same GGX distribution, eliminating energy mismatch.
-    ///
-    /// For fuzz=0 (perfect mirror), GGX with α=0.001 produces a near-delta
-    /// distribution that converges to mirror reflection — no special case needed.
+    /// Legacy scatter entry point. The renderer prefers <see cref="Sample"/>
+    /// (the MIS path) and only falls back here when it returns null, so this
+    /// delegates to <see cref="Sample"/> to keep a single source of truth for
+    /// the GGX importance weight. The previous standalone implementation used
+    /// the unbounded NDF-sampling weight <c>G·VdotH/(NdotV·NdotH)</c>, which
+    /// spikes at grazing angles (a firefly source) and disagreed with the
+    /// bounded VNDF form (<c>F·G1(L) ∈ [0,1]</c>) that <see cref="Sample"/> and
+    /// the Disney BSDF use. Converting the BsdfSample to the Scatter contract
+    /// (attenuation = f·|cosθ|/pdf, or F for the delta mirror) makes the two
+    /// paths energy-equivalent.
     /// </summary>
     public bool Scatter(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered)
     {
-        Vector3 N = rec.Normal;
         Vector3 V = Vector3.Normalize(-rayIn.Direction);
 
-        // Sample GGX microfacet normal and reflect
-        Vector3 H = SampleGGX(N, _alpha);
-        Vector3 L = MathUtils.Reflect(-V, H);
-
-        // Below-surface reflection — absorb
-        if (Vector3.Dot(L, N) <= 0f)
+        if (Sample(V, rec) is not BsdfSample s)
         {
             attenuation = Vector3.Zero;
-            scattered = new Ray(rec.Point, N);
+            scattered = new Ray(rec.Point, rec.Normal);
             return false;
         }
 
-        scattered = new Ray(MathUtils.OffsetOrigin(rec.Point, N), L);
+        Vector3 offsetDir = Vector3.Dot(s.Wo, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
+        scattered = new Ray(MathUtils.OffsetOrigin(rec.Point, offsetDir), s.Wo);
 
-        // Attenuation = albedo × G-term weight
-        // For metals, F0 ≈ albedo — the Fresnel is baked into the color.
-        // We apply the Smith G correction as importance sampling weight:
-        //   weight = G(V,L) × VdotH / (NdotV × NdotH)
-        // This is the standard BRDF/pdf ratio for GGX NDF sampling.
-        // Dot product floors: NdotV and NdotH are in the GGX weight denominator.
-        // Floor at 0.01 instead of 0.001 — loses a 0.5° sliver at extreme
-        // grazing angles but eliminates the spike source.
-        float NdotV = MathF.Max(Vector3.Dot(N, V), 0.01f);
-        float NdotL = MathF.Max(Vector3.Dot(N, L), 0.001f);
-        float NdotH = MathF.Max(Vector3.Dot(N, H), 0.01f);
-        float VdotH = MathF.Max(Vector3.Dot(V, H), 0.001f);
+        if (s.IsDelta)
+        {
+            // Perfect mirror: F already carries the full attenuation.
+            attenuation = s.F;
+            return true;
+        }
 
-        float G = SmithG1_GGX(NdotV, _alpha) * SmithG1_GGX(NdotL, _alpha);
-        float ggxWeight = G * VdotH / (NdotV * NdotH);
-
-        attenuation = Albedo.Value(in rec) * ggxWeight;
-
+        float absNdotWo = MathF.Abs(Vector3.Dot(rec.Normal, s.Wo));
+        if (s.Pdf <= 0f || absNdotWo <= 0f)
+        {
+            attenuation = Vector3.Zero;
+            return false;
+        }
+        attenuation = s.F * absNdotWo / s.Pdf;
         return true;
     }
 

@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using RayTracer.Core;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -227,27 +228,43 @@ public class ImageTexture : ITexture
         int h = _mipHeights[mip];
         float[] pixels = _mips[mip];
 
-        float px = u * (w - 1);
-        float py = v * (h - 1);
+        // Texel-CENTER addressing: texel i covers [i/w, (i+1)/w), centred at
+        // (i+0.5)/w. Mapping the sample to texel space therefore subtracts the
+        // half-texel offset — `u*w - 0.5` — instead of the old `u*(w-1)`, which
+        // squeezed the image by one texel and introduced a half-texel shift.
+        float px = u * w - 0.5f;
+        float py = v * h - 0.5f;
 
-        int x0 = (int)px;
-        int y0 = (int)py;
-        int x1 = Math.Min(x0 + 1, w - 1);
-        int y1 = Math.Min(y0 + 1, h - 1);
-        if (x0 < 0) x0 = 0; if (y0 < 0) y0 = 0;
-        if (x0 >= w) x0 = w - 1; if (y0 >= h) y0 = h - 1;
-
+        int x0 = (int)MathF.Floor(px);
+        int y0 = (int)MathF.Floor(py);
         float fx = px - x0;
         float fy = py - y0;
 
-        Vector3 c00 = GetPixel(pixels, w, x0, y0);
-        Vector3 c10 = GetPixel(pixels, w, x1, y0);
-        Vector3 c01 = GetPixel(pixels, w, x0, y1);
-        Vector3 c11 = GetPixel(pixels, w, x1, y1);
+        // WRAP (repeat) addressing for the neighbour texels so a tiled texture
+        // is seamless: the right/bottom edge blends back into column/row 0
+        // instead of clamping to the edge texel (which seamed every tile).
+        int x0w = Wrap(x0, w);
+        int y0w = Wrap(y0, h);
+        int x1w = Wrap(x0 + 1, w);
+        int y1w = Wrap(y0 + 1, h);
+
+        Vector3 c00 = GetPixel(pixels, w, x0w, y0w);
+        Vector3 c10 = GetPixel(pixels, w, x1w, y0w);
+        Vector3 c01 = GetPixel(pixels, w, x0w, y1w);
+        Vector3 c11 = GetPixel(pixels, w, x1w, y1w);
 
         Vector3 top = Vector3.Lerp(c00, c10, fx);
         Vector3 bot = Vector3.Lerp(c01, c11, fx);
         return Vector3.Lerp(top, bot, fy);
+    }
+
+    /// <summary>Positive modulo (repeat addressing) — maps any texel index into
+    /// <c>[0, n)</c>, wrapping negatives and overflow back into range.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int Wrap(int i, int n)
+    {
+        i %= n;
+        return i < 0 ? i + n : i;
     }
 
     private static Vector3 GetPixel(float[] pixels, int w, int x, int y)

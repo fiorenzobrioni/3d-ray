@@ -556,21 +556,59 @@ public class WoodTexture : ITexture
         // The hash combines floor(ringIndex) with objectSeed so different
         // objects see different ring sequences.
         float ringRaw = ringDist * _scale;
-        int ringIdx = (int)MathF.Floor(ringRaw);
-        float ringRand = HashRing(ringIdx, objectSeed);   // ∈ [-1, 1]
+        int ringIdx;
+        float ringRand;   // ∈ [-1, 1]
+        float frac;
 
         if (RingWidthVariation > 0f)
         {
-            // Smoothly perturb the radial coordinate by up to half a ring
-            // width. Adjacent rings then differ in apparent width; the
-            // boundary between them stays C¹ continuous because the hash is
-            // applied per integer ring (constant within one ring).
-            ringRaw += RingWidthVariation * 0.5f * ringRand;
-            ringIdx = (int)MathF.Floor(ringRaw);   // re-derive after shift
-            ringRand = HashRing(ringIdx, objectSeed);
-        }
+            // Vary ring widths by perturbing the ring BOUNDARY positions, not
+            // the radial coordinate. Boundary k sits at b_k = k + amp·hash(k):
+            // a single, well-defined value, so the mapping stays continuous
+            // across it. (The old code shifted ringRaw by the *containing*
+            // ring's hash, which differs on the two sides of a boundary —
+            // producing the C0 seam the comment wrongly claimed was C¹.)
+            // amp < 0.5 keeps the boundaries strictly increasing (non-zero ring
+            // widths). Within ring k, frac = (ringRaw − b_k)/(b_{k+1} − b_k)
+            // runs 0→1 exactly as for unperturbed rings.
+            float amp = MathF.Min(RingWidthVariation * 0.5f, 0.49f);
+            int k0 = (int)MathF.Floor(ringRaw);
+            float bk0   = k0       + amp * HashRing(k0,     objectSeed);
+            float bk0p1 = (k0 + 1) + amp * HashRing(k0 + 1, objectSeed);
 
-        float frac = ringRaw - MathF.Floor(ringRaw);
+            int k;
+            float bLo, bHi;
+            // Shifts are bounded by ±amp (< 0.5), so the containing ring is
+            // within ±1 of floor(ringRaw).
+            if (ringRaw < bk0)
+            {
+                k = k0 - 1;
+                bLo = k + amp * HashRing(k, objectSeed);
+                bHi = bk0;
+            }
+            else if (ringRaw >= bk0p1)
+            {
+                k = k0 + 1;
+                bLo = bk0p1;
+                bHi = (k + 1) + amp * HashRing(k + 1, objectSeed);
+            }
+            else
+            {
+                k = k0;
+                bLo = bk0;
+                bHi = bk0p1;
+            }
+
+            ringIdx  = k;
+            ringRand = HashRing(k, objectSeed);
+            frac     = Math.Clamp((ringRaw - bLo) / MathF.Max(bHi - bLo, 1e-4f), 0f, 1f);
+        }
+        else
+        {
+            ringIdx  = (int)MathF.Floor(ringRaw);
+            ringRand = HashRing(ringIdx, objectSeed);
+            frac     = ringRaw - MathF.Floor(ringRaw);
+        }
 
         // ── 10. Asymmetric earlywood / latewood profile ───────────────────
         // Real annual rings: long bright earlywood plateau ending in a thin
