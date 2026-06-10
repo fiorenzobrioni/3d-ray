@@ -35,7 +35,7 @@ world:
 camera:
   position: [0, 2.0, -6]
   look_at:  [0, 0.6, 0]
-  fov: 42
+  fov: 46
 
 materials:
   # ── Pavimento opaco ──────────────────────────────────────────────────────

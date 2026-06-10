@@ -33,9 +33,9 @@ world:
     color: [0.04, 0.04, 0.05]
 
 camera:
-  position: [0, 2.4, -12.5]
+  position: [0, 2.4, -9.0]
   look_at:  [0, 2.0, 0]
-  fov: 52
+  fov: 45
 
 materials:
 
