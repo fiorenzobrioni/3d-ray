@@ -6,6 +6,40 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Fix — test flaky `Sobol_StratifiesEachDimension1D` in CI (race sul SamplerKind globale) ✅
+
+**Sintomo.** Fallimento sporadico in CI di
+`SamplerTests.Sobol_StratifiesEachDimension1D`: "stratum 0 hit 2 times" con
+valori palesemente PRNG (es. `0.014` e `0.027` nello stesso stratum,
+`0.379`/`0.380` quasi duplicati) — impossibile per una sequenza Sobol
+deterministica a seed fisso.
+
+**Causa.** `Sampler.SetKind` scrive una modalità **globale di processo** e
+xUnit esegue classi di test distinte **in parallelo**. Otto classi di render
+test chiamano difensivamente `SetKind(Prng)`; se una di queste scattava
+mentre un test Sobol di `SamplerTests` era tra `SetKind(Sobol)` e i suoi
+draw, `BeginPixelSample` diventava silenziosamente un no-op (gate su
+`_kind != Sobol`) e i draw cadevano nel fallback PRNG → la (0,1)-net
+asserita esattamente falliva. Stessa classe di race per cui esiste la
+collection `SceneLoader` (stato statico condiviso + classi in parallelo).
+
+**Fix.** I 5 test strutturali Sobol ora pilotano direttamente
+`OwenSobol.Sample(sampleIndex, dim, pixelSeed)` — la **funzione pura** che
+`Sample1D` valuta per ogni draw (visibile via `InternalsVisibleTo`) — con le
+stesse identiche asserzioni: zero stato condiviso, deterministici,
+parallel-safe. Con questo nessun test imposta più Sobol globalmente, quindi
+ogni `SetKind(Prng)` residuo nella suite scrive il default ed è benigno: la
+race sparisce per l'intera suite **senza serializzare nessuna classe**
+(niente collection aggiuntiva, parallelismo invariato). Il wrapper `Sampler`
+(contesto + dimension counter) mantiene copertura con un nuovo test di
+plumbing `SamplerWrapper_RoutesDrawsAndAdvancesDimensions`, **tollerante per
+costruzione** alla race (le sue asserzioni valgono sia per draw Sobol che
+per l'eventuale fallback PRNG).
+
+**File.** `Tests/SamplerTests.cs` (riscrittura mirata + doc della race).
+
+---
+
 ## Ciclo Caustiche — fix "mega-fotoni" (dischi/brillantini) + gather più veloce + progress CI-friendly ✅
 
 **Sintomo.** Con `--caustics on` (es. `-q final`) alcune scene mostravano

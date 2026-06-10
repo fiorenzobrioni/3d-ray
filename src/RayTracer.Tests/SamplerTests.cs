@@ -12,6 +12,23 @@ namespace RayTracer.Tests;
 /// per-pixel decorrelation, low-discrepancy stratification on the unit
 /// square, and graceful fall-through to the PRNG when no per-pixel
 /// context is open.
+///
+/// <para><b>Why these tests drive <see cref="OwenSobol.Sample"/> directly
+/// rather than <c>Sampler.SetKind(Sobol)</c> + <c>Sample1D()</c>:</b>
+/// <c>Sampler.SetKind</c> writes a <i>process-global</i> mode, and xUnit
+/// runs distinct test classes in parallel. Several render-test classes
+/// defensively call <c>SetKind(Prng)</c>; when one of them fired while a
+/// Sobol-mode test here was between <c>SetKind(Sobol)</c> and its draws,
+/// <c>BeginPixelSample</c> silently no-opped and the draws fell back to
+/// the PRNG — making the exact (0,1)-net assertions fail sporadically in
+/// CI (same class of race the <c>SceneLoader</c> collection exists for).
+/// <see cref="OwenSobol.Sample"/> is a pure function of
+/// (sampleIndex, dimension, pixelSeed) — exactly what <c>Sample1D</c>
+/// evaluates per draw — so testing it directly pins the same structure
+/// with zero shared state. With no test ever setting Sobol globally, every
+/// remaining <c>SetKind(Prng)</c> call in the suite writes the default and
+/// the race is gone suite-wide. The thin <c>Sampler</c> wrapper (context +
+/// dimension counter) keeps a race-tolerant plumbing test below.</para>
 /// </summary>
 public class SamplerTests
 {
@@ -25,24 +42,17 @@ public class SamplerTests
     [Fact]
     public void Sobol_DrawsStayInUnitInterval()
     {
-        Sampler.SetKind(SamplerKind.Sobol);
-        try
+        for (uint pixel = 0; pixel < 16; pixel++)
         {
-            for (uint pixel = 0; pixel < 16; pixel++)
+            for (uint sample = 0; sample < 256; sample++)
             {
-                for (uint sample = 0; sample < 256; sample++)
+                for (uint dim = 0; dim < 32; dim++)
                 {
-                    Sampler.BeginPixelSample(pixel * 0xdeadbeefu, sample);
-                    for (int dim = 0; dim < 32; dim++)
-                    {
-                        float u = Sampler.Sample1D();
-                        Assert.InRange(u, 0f, 1f - 1e-7f);
-                    }
-                    Sampler.EndPixelSample();
+                    float u = OwenSobol.Sample(sample, dim, pixel * 0xdeadbeefu);
+                    Assert.InRange(u, 0f, 1f - 1e-7f);
                 }
             }
         }
-        finally { Sampler.SetKind(SamplerKind.Prng); }
     }
 
     /// <summary>
@@ -55,26 +65,15 @@ public class SamplerTests
     [Fact]
     public void Sobol_PixelSeedDecorrelatesPixels()
     {
-        Sampler.SetKind(SamplerKind.Sobol);
-        try
+        int collisions = 0;
+        for (uint sample = 0; sample < 64; sample++)
         {
-            int collisions = 0;
-            for (uint sample = 0; sample < 64; sample++)
-            {
-                Sampler.BeginPixelSample(seedA, sample);
-                float a = Sampler.Sample1D();
-                Sampler.EndPixelSample();
-
-                Sampler.BeginPixelSample(seedB, sample);
-                float b = Sampler.Sample1D();
-                Sampler.EndPixelSample();
-
-                if (a == b) collisions++;
-            }
-            Assert.True(collisions <= 1,
-                $"two different pixel seeds collided on {collisions}/64 samples — Owen scramble seed is not effective");
+            float a = OwenSobol.Sample(sample, 0u, seedA);
+            float b = OwenSobol.Sample(sample, 0u, seedB);
+            if (a == b) collisions++;
         }
-        finally { Sampler.SetKind(SamplerKind.Prng); }
+        Assert.True(collisions <= 1,
+            $"two different pixel seeds collided on {collisions}/64 samples — Owen scramble seed is not effective");
     }
     private const uint seedA = 0xa5a5a5a5u;
     private const uint seedB = 0x5a5a5a5au;
@@ -89,40 +88,33 @@ public class SamplerTests
     /// Sobol direction matrices (per-dimension primitive polynomials).
     /// Burley-Sobol sacrifices the joint net for a 1 KB direction-table
     /// budget and decorrelates dimensions through Owen scrambling
-    /// instead, which is what every modern path tracer (Cycles, Arnold 7,
-    /// Renderman 25) actually ships. The 1D guarantee per dimension is
-    /// the structural invariant the renderer relies on.
+    /// instead, which is what every modern path tracer actually ships.
+    /// The 1D guarantee per dimension is the structural invariant the
+    /// renderer relies on.
     /// </summary>
     [Fact]
     public void Sobol_StratifiesEachDimension1D()
     {
-        Sampler.SetKind(SamplerKind.Sobol);
-        try
+        const int N = 16;
+        int[] uHits = new int[N];
+        int[] vHits = new int[N];
+        float[] us = new float[N];
+        float[] vs = new float[N];
+        for (uint s = 0; s < N; s++)
         {
-            const int N = 16;
-            int[] uHits = new int[N];
-            int[] vHits = new int[N];
-            float[] us = new float[N];
-            float[] vs = new float[N];
-            for (uint s = 0; s < N; s++)
-            {
-                Sampler.BeginPixelSample(0u, s);
-                float u = Sampler.Sample1D();
-                float v = Sampler.Sample1D();
-                Sampler.EndPixelSample();
-                us[s] = u; vs[s] = v;
-                uHits[System.Math.Min((int)(u * N), N - 1)]++;
-                vHits[System.Math.Min((int)(v * N), N - 1)]++;
-            }
-            string uStr = string.Join(", ", us.Select(x => x.ToString("F3")));
-            string vStr = string.Join(", ", vs.Select(x => x.ToString("F3")));
-            for (int i = 0; i < N; i++)
-            {
-                Assert.True(uHits[i] == 1, $"dim-0 stratum {i} hit {uHits[i]} times — values: [{uStr}]");
-                Assert.True(vHits[i] == 1, $"dim-1 stratum {i} hit {vHits[i]} times — values: [{vStr}]");
-            }
+            float u = OwenSobol.Sample(s, 0u, 0u);
+            float v = OwenSobol.Sample(s, 1u, 0u);
+            us[s] = u; vs[s] = v;
+            uHits[System.Math.Min((int)(u * N), N - 1)]++;
+            vHits[System.Math.Min((int)(v * N), N - 1)]++;
         }
-        finally { Sampler.SetKind(SamplerKind.Prng); }
+        string uStr = string.Join(", ", us.Select(x => x.ToString("F3")));
+        string vStr = string.Join(", ", vs.Select(x => x.ToString("F3")));
+        for (int i = 0; i < N; i++)
+        {
+            Assert.True(uHits[i] == 1, $"dim-0 stratum {i} hit {uHits[i]} times — values: [{uStr}]");
+            Assert.True(vHits[i] == 1, $"dim-1 stratum {i} hit {vHits[i]} times — values: [{vStr}]");
+        }
     }
 
     /// <summary>
@@ -138,30 +130,23 @@ public class SamplerTests
     [Fact]
     public void Sobol_StratifiesUnitSquare_BetterThanPrng()
     {
-        Sampler.SetKind(SamplerKind.Sobol);
-        try
+        const int N = 64;
+        const int side = 8;
+        bool[,] occupied = new bool[side, side];
+        for (uint s = 0; s < N; s++)
         {
-            const int N = 64;
-            const int side = 8;
-            bool[,] occupied = new bool[side, side];
-            for (uint s = 0; s < N; s++)
-            {
-                Sampler.BeginPixelSample(0u, s);
-                float u = Sampler.Sample1D();
-                float v = Sampler.Sample1D();
-                Sampler.EndPixelSample();
-                int cu = System.Math.Min((int)(u * side), side - 1);
-                int cv = System.Math.Min((int)(v * side), side - 1);
-                occupied[cu, cv] = true;
-            }
-            int distinct = 0;
-            for (int x = 0; x < side; x++)
-                for (int y = 0; y < side; y++)
-                    if (occupied[x, y]) distinct++;
-            Assert.True(distinct >= 45,
-                $"Sobol covered only {distinct}/64 cells — independent-dimension Owen scrambling should reach ≥ 45 well above PRNG's ~40 expected cells");
+            float u = OwenSobol.Sample(s, 0u, 0u);
+            float v = OwenSobol.Sample(s, 1u, 0u);
+            int cu = System.Math.Min((int)(u * side), side - 1);
+            int cv = System.Math.Min((int)(v * side), side - 1);
+            occupied[cu, cv] = true;
         }
-        finally { Sampler.SetKind(SamplerKind.Prng); }
+        int distinct = 0;
+        for (int x = 0; x < side; x++)
+            for (int y = 0; y < side; y++)
+                if (occupied[x, y]) distinct++;
+        Assert.True(distinct >= 45,
+            $"Sobol covered only {distinct}/64 cells — independent-dimension Owen scrambling should reach ≥ 45 well above PRNG's ~40 expected cells");
     }
 
     /// <summary>
@@ -180,25 +165,48 @@ public class SamplerTests
     [Fact]
     public void Sobol_StratifiesEachDimension1D_AtHighDims()
     {
+        const int N = 64;
+        for (uint targetDim = 2; targetDim < 16; targetDim++)
+        {
+            int[] hits = new int[N];
+            for (uint s = 0; s < N; s++)
+            {
+                float v = OwenSobol.Sample(s, targetDim, 0u);
+                hits[System.Math.Min((int)(v * N), N - 1)]++;
+            }
+            for (int i = 0; i < N; i++)
+                Assert.True(hits[i] == 1,
+                    $"dim {targetDim} stratum {i} hit {hits[i]} times — Burley high-dim shuffle is no longer a (0,1)-net");
+        }
+    }
+
+    /// <summary>
+    /// Plumbing check for the thin <see cref="Sampler"/> wrapper: with a
+    /// Sobol context open, successive <see cref="Sampler.Sample1D"/> calls
+    /// must stay in [0, 1) and advance the dimension counter (i.e. not
+    /// return one frozen value). Deliberately tolerant of the global-kind
+    /// race documented in the class header: if a parallel test class resets
+    /// the kind to PRNG mid-test, the draws fall back to System.Random and
+    /// every assertion below still holds — the exact Sobol *structure* is
+    /// pinned race-free by the OwenSobol tests above.
+    /// </summary>
+    [Fact]
+    public void SamplerWrapper_RoutesDrawsAndAdvancesDimensions()
+    {
         Sampler.SetKind(SamplerKind.Sobol);
         try
         {
-            const int N = 64;
-            for (uint targetDim = 2; targetDim < 16; targetDim++)
+            var draws = new float[8];
+            Sampler.BeginPixelSample(0x12345678u, 7u);
+            for (int d = 0; d < draws.Length; d++)
             {
-                int[] hits = new int[N];
-                for (uint s = 0; s < N; s++)
-                {
-                    Sampler.BeginPixelSample(0u, s);
-                    for (uint d = 0; d < targetDim; d++) Sampler.Sample1D();
-                    float v = Sampler.Sample1D();
-                    Sampler.EndPixelSample();
-                    hits[System.Math.Min((int)(v * N), N - 1)]++;
-                }
-                for (int i = 0; i < N; i++)
-                    Assert.True(hits[i] == 1,
-                        $"dim {targetDim} stratum {i} hit {hits[i]} times — Burley high-dim shuffle is no longer a (0,1)-net");
+                draws[d] = Sampler.Sample1D();
+                Assert.InRange(draws[d], 0f, 1f - 1e-7f);
             }
+            Sampler.EndPixelSample();
+
+            Assert.True(draws.Distinct().Count() > 1,
+                "Sample1D returned the same value for every dimension — the dimension counter is not advancing");
         }
         finally { Sampler.SetKind(SamplerKind.Prng); }
     }
