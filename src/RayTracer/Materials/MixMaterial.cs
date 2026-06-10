@@ -96,6 +96,14 @@ public sealed class MixMaterial : IMaterial
     /// <inheritdoc/>
     public bool IsDeltaScatter => MaterialA.IsDeltaScatter && MaterialB.IsDeltaScatter;
 
+    /// <summary>Denoiser/AOV albedo guide: deterministic blend of the children
+    /// (mask-driven), mirroring the EvaluateDirect blend convention.</summary>
+    public Vector3 AovAlbedo(in HitRecord rec)
+    {
+        float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
+        return Vector3.Lerp(MaterialA.AovAlbedo(in rec), MaterialB.AovAlbedo(in rec), t);
+    }
+
     /// <inheritdoc/>
     public NormalMapTexture? NormalMap { get; set; }
 

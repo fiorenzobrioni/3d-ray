@@ -274,6 +274,26 @@ class Program
                 causticPhotons = cpArg;
         }
 
+        // ── AOV output (linear HDR, PFM) ─────────────────────────────────────
+        // `--aov albedo,normal,depth,beauty,variance` writes the requested
+        // guide buffers as PFM files next to the -o output. Any AOV request
+        // turns on full capture (beauty halves + AOVs) in the renderer.
+        var aovs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string? aovArg = GetArg(args, "--aov", null);
+        if (aovArg != null)
+        {
+            foreach (string raw in aovArg.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                string name = raw.ToLowerInvariant();
+                if (name is not ("albedo" or "normal" or "depth" or "beauty" or "variance"))
+                {
+                    Console.WriteLine($"Error: Unknown --aov '{raw}'. Valid: albedo, normal, depth, beauty, variance.");
+                    return;
+                }
+                aovs.Add(name);
+            }
+        }
+
         bool verbose = HasFlag(args, "--verbose", "-v");
         SceneLoader.SetVerbose(verbose);
 
@@ -353,6 +373,8 @@ class Program
                 $"  SSS quality: {label} (vol-bounces={effective.MaxVolumeBounces}, " +
                 $"rr-start={effective.RrStartBounce}, nee-in-walk={(effective.NeeInsideWalk ? "on" : "off")})");
         }
+        if (aovs.Count > 0)
+            Console.WriteLine($"  AOVs:        {string.Join(", ", aovs)}");
         Console.WriteLine();
 
         // Load scene
@@ -389,8 +411,13 @@ class Program
                 enableCaustics: enableCaustics, causticPhotons: causticPhotons);
             Console.WriteLine();
 
+            var captureOptions = aovs.Count > 0
+                ? RenderCaptureOptions.Full
+                : RenderCaptureOptions.None;
+
             sw.Restart();
-            var pixels = renderer.Render(width, height);
+            var result = renderer.Render(width, height, captureOptions);
+            var pixels = result.Pixels;
             var elapsed = sw.Elapsed;
             Console.WriteLine($"  Render time: {FormatElapsed(elapsed)}");
 
@@ -404,6 +431,9 @@ class Program
             SaveImage(pixels, width, height, outputPath);
             Console.WriteLine();
             Console.WriteLine($"  \u2713 Saved: {Path.GetFullPath(outputPath)}");
+
+            if (aovs.Count > 0)
+                SaveAovs(result.Buffers!, aovs, outputPath);
         }
         catch (Exception ex)
         {
@@ -485,6 +515,35 @@ class Program
         if (t.TotalHours < 1)
             return $"{(int)t.TotalMinutes}m {t.Seconds + t.Milliseconds / 1000.0:F2}s";
         return $"{(int)t.TotalHours}h {t.Minutes:D2}m {t.Seconds}s";
+    }
+
+    /// <summary>
+    /// Writes the requested AOV planes as PFM files next to the main output:
+    /// <c>renders/foo.png</c> → <c>renders/foo.albedo.pfm</c> etc. All values
+    /// are linear, scene-referred (pre-exposure, pre-tonemap); the beauty AOV
+    /// is the denoised buffer when a denoiser is active.
+    /// </summary>
+    static void SaveAovs(Rendering.RenderBuffers buffers, HashSet<string> aovs, string outputPath)
+    {
+        string stem = Path.Combine(
+            Path.GetDirectoryName(outputPath) ?? "",
+            Path.GetFileNameWithoutExtension(outputPath));
+
+        foreach (string aov in aovs)
+        {
+            string path = $"{stem}.{aov}.pfm";
+            Rendering.FrameBuffer fb = aov switch
+            {
+                "beauty"   => buffers.Beauty,
+                "albedo"   => buffers.CombineHalves(buffers.AlbedoA!, buffers.AlbedoB!),
+                "normal"   => buffers.CombineHalves(buffers.NormalA!, buffers.NormalB!),
+                "depth"    => buffers.CombineDepthHalves(),
+                "variance" => buffers.RawBeautyVariance(),
+                _          => throw new InvalidOperationException($"unreachable AOV '{aov}'"),
+            };
+            fb.SavePfm(path);
+            Console.WriteLine($"  ✓ Saved: {Path.GetFullPath(path)}");
+        }
     }
 
     static void SaveImage(Vector3[,] pixels, int width, int height, string path)
