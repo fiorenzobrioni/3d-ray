@@ -119,6 +119,19 @@ public static class CausticPhotonTracer
     // ── Photon random walk ───────────────────────────────────────────────────
     private static void Trace(IHittable world, Ray ray, Vector3 power, List<Photon> outPhotons)
     {
+        // Russian-roulette survival must be measured RELATIVE to the emitted
+        // power: `power` is already divided by the per-light photon count, so
+        // its absolute magnitude is ~1e-4..1e-6 per channel. An absolute test
+        // would kill virtually every photon past RrStartBounce and boost the
+        // rare survivor (power /= survive) by a factor of thousands — a single
+        // "mega-photon" the camera gather renders as a bright disc or sparkle.
+        // Relative survival keeps photon powers near-uniform, the property the
+        // density estimate relies on (Jensen §5.2: photons should carry
+        // approximately equal power).
+        float emittedMax = MathF.Max(power.X, MathF.Max(power.Y, power.Z));
+        if (emittedMax <= 0f) return;
+        float invEmittedMax = 1f / emittedMax;
+
         int specularBounces = 0;
         var rec = new HitRecord();
 
@@ -191,10 +204,13 @@ public static class CausticPhotonTracer
             }
 
             // Russian roulette on the surviving power (after the early specular
-            // bounces, where caustics are usually still bright).
+            // bounces, where caustics are usually still bright). Survival is the
+            // throughput ratio power/emitted, so the post-RR boost can never push
+            // a photon's power above what it was emitted with.
             if (specularBounces >= RrStartBounce)
             {
-                float survive = MathF.Min(1f, MathF.Max(power.X, MathF.Max(power.Y, power.Z)));
+                float survive = MathF.Min(1f,
+                    MathF.Max(power.X, MathF.Max(power.Y, power.Z)) * invEmittedMax);
                 if (survive <= MinPhotonPower || MathUtils.RandomFloat() >= survive) return;
                 power /= survive;
             }

@@ -127,6 +127,23 @@ Ottimizzazioni valutate nel ciclo Review e **rimandate** (da riprendere):
 - **`HitRecord` più snello** — spostare `FilterFootprint`/`MediumInterface`/autobump
   fuori dallo struct core e calcolarli pigramente dopo l'hit finale.
 
+Ottimizzazioni caustiche valutate nel ciclo fix mega-fotoni e **rimandate**:
+- **Projection map per l'emissione fotoni** (Jensen §5.1) — oggi l'emissione è
+  coseno-pesata sull'intero emisfero: in glass-caustics deposita solo il 2% del
+  budget (60k/3M), nel pendolo lo 0.08% (2.3k/3M) perché i caster speculari sono
+  bersagli piccoli. Campionare le direzioni verso le bounding box/sphere dei
+  caster speculari (riscalando il flusso per la frazione di angolo solido)
+  moltiplicherebbe di 10-100× i fotoni utili a parità di budget/tempo di build.
+- **Filtro normale/piano tangente al gather** — memorizzare la normale di
+  deposito nel `Photon` e scartare al gather i fotoni con normale discordante o
+  troppo fuori dal piano tangente del receiver: riduce i (lievi, ora che le
+  potenze sono uniformi) leak tra superfici vicine (es. oggetto → pavimento).
+  Costo: +12 byte/fotone.
+- **Gather solo al primo vertice diffuso** — oggi `GatherCaustics` gira a ogni
+  vertice diffuso del path; limitarlo al vertice primario taglierebbe il costo
+  per sample ma richiede di rivedere la macchina a stati `causticState`
+  (la soppressione del path BSDF `D S+ L` vale a ogni profondità).
+
 ---
 
 ## 🧪 Checklist verifiche

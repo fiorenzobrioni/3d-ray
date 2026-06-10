@@ -6,6 +6,67 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Caustiche — fix "mega-fotoni" (dischi/brillantini) + gather più veloce + progress CI-friendly ✅
+
+**Sintomo.** Con `--caustics on` (es. `-q final`) alcune scene mostravano
+**dischi pallidi** e **puntini brillanti** isolati (glass-caustics: cerchio
+giallo e rosso sul pavimento; pendolo-newton: brillantini bianchi sullo
+sfondo), e il rendering era sensibilmente più lento del previsto nei tile
+sopra le pozze caustiche.
+
+**Causa 1 — RR assoluta nel photon tracer (il bug dei pallini).** In
+`CausticPhotonTracer.Trace` la Russian Roulette usava come probabilità di
+sopravvivenza la potenza **assoluta** del fotone — che però è già divisa per
+il photon count (≈ `3e-4` per canale con 3M di fotoni). Risultato: dopo
+`RrStartBounce` (4 rimbalzi speculari, es. TIR nel vetro o catene tra più
+oggetti) il **99.97% dei fotoni veniva ucciso** e il raro sopravvissuto veniva
+boostato (`power /= survive`) fino a max-channel ≈ 1: un **"mega-fotone"
+~3000× la mediana** (misurato su glass-caustics: mediana `3.4e-4`, max `1.0`).
+Al gather, un singolo mega-fotone isolato diventa un disco/brillantino con
+falloff `1/d²` fino al raggio di ricerca. **Fix:** sopravvivenza **relativa
+alla potenza emessa** (`survive = min(1, max(power)/emittedMax)`), così il
+boost non può mai superare la potenza di emissione e i fotoni restano a
+potenza quasi-uniforme (Jensen §5.2: i fotoni devono trasportare potenza circa
+uguale). Dopo il fix: max `3.2e-3` (≈9× la mediana, sano per vetro tinto).
+Regression test: `Photons_CarryNearUniformPower_NoRussianRouletteBoost` (due
+sfere di vetro concentriche ⇒ ogni fotone sotto il centro fa ≥4 rimbalzi ⇒ col
+bug il disco focale si svuotava o conteneva mega-fotoni).
+
+**Causa 2 — kernel k-NN con meno di k fotoni.** `GatherCaustics` usava come
+raggio del kernel la distanza al fotone **più lontano trovato** anche quando
+nella sfera di ricerca c'erano meno di k fotoni: attorno a fotoni sparsi e
+isolati il kernel collassava e la density estimate esplodeva in puntini.
+**Fix:** con `count < k` il kernel è il raggio di ricerca intero (convenzione
+PBRT) — i fotoni isolati si spalmano su `π·r_max²` e diventano correttamente
+fiochi.
+
+**Perf — gather a gusci con pruning.** `PhotonMap.GatherCaustic` scandiva
+sempre il blocco fisso di celle (cella = raggio di ricerca): dentro una pozza
+caustica densa ogni gather toccava l'**intero cluster focale** (decine di
+migliaia di fotoni). Ora delega a `GatherKNearest` (ricerca a gusci
+nearest-first) potenziata con **pruning esatto per cella** (distanza minima
+punto→cella vs k-esimo corrente, coerente con l'inserimento strict-`<` della
+heap), e la griglia è costruita con **cella = metà del raggio di gather**
+(`Renderer` passa `radius * 0.5`): più probe (economici, per lo più vuoti)
+nelle zone sparse, molti meno fotoni toccati nelle zone dense. Benchmark
+glass-caustics 480×270 · 16spp · 3M fotoni: 5.85s → **4.56s** (off = 2.64s,
+overhead caustiche −40%). L'esattezza k-NN resta validata da
+`PhotonMapTests.GatherKNearest_ReturnsTheTrueKNearest` (oracolo brute-force).
+
+**Progress CI-friendly.** Il reporter di `Renderer.Render` ristampava la riga
+`Rendering: …% (n/m tiles)` ogni 100ms anche a conteggio invariato: su TTY il
+`\r` la sovrascrive, ma con output rediretto (GitHub Actions) ogni Write
+diventa una riga → log inondato di righe identiche sui tile lenti. Ora stampa
+**solo quando il conteggio cambia** (e la riga finale 100% non viene duplicata
+se già emessa dal reporter).
+
+**File.** `Rendering/CausticPhotonTracer.cs` (RR relativa),
+`Rendering/PhotonMap.cs` (`GatherCaustic` → shell search, `CellMinDistanceSquared`,
+pruning in `ScanShell`), `Rendering/Renderer.cs` (kernel under-occupied,
+cella griglia ½ raggio, reporter), `Tests/CausticRenderTests.cs` (nuovo test).
+
+---
+
 ## Feature — `scale` anisotropica per asse sulle procedurali ✅
 
 **Contesto.** Dopo il fix metrico (sotto), lo scale **non uniforme** dell'entità

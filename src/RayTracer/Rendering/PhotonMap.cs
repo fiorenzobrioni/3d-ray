@@ -175,51 +175,23 @@ public sealed class PhotonMap
 
     /// <summary>
     /// Caustic gather: the k nearest photons within <paramref name="maxRadius"/>,
-    /// scanning only the cell neighbourhood (the grid cell is sized to the radius,
-    /// so this is the 3×3×3 block — O(1), fast in empty regions) while still
     /// reporting the **adaptive** kernel radius (distance to the farthest of the
     /// k gathered). That adaptive radius is what keeps a focused caustic sharp and
     /// bright: in the dense focal spot the k nearest photons sit in a tiny disc,
     /// so the <c>1/(π r²)</c> density estimate spikes correctly. Allocation-free
     /// (the bounded max-heap of squared distances lives in <paramref name="heapD2"/>).
     /// Returns the photon count gathered.
+    ///
+    /// <para>Delegates to <see cref="GatherKNearest"/>: the expanding-shell
+    /// search visits cells nearest-first and prunes whole cells once the heap
+    /// is full, so a gather inside a dense focal cluster touches only the
+    /// photons around the k-th-nearest shell instead of every photon in the
+    /// fixed cell neighbourhood — the dominant camera-pass cost when caustics
+    /// concentrate millions of photons into a few cells.</para>
     /// </summary>
     public int GatherCaustic(Vector3 p, int k, float maxRadius,
                              Span<int> outIdx, Span<float> heapD2, out float radius)
-    {
-        radius = 0f;
-        if (_photons.Length == 0 || k <= 0 || maxRadius <= 0f) return 0;
-        k = Math.Min(k, Math.Min(outIdx.Length, heapD2.Length));
-        float r2 = maxRadius * maxRadius;
-        int count = 0;
-
-        int cx0 = (int)MathF.Floor((p.X - maxRadius - _origin.X) * _invCellSize);
-        int cx1 = (int)MathF.Floor((p.X + maxRadius - _origin.X) * _invCellSize);
-        int cy0 = (int)MathF.Floor((p.Y - maxRadius - _origin.Y) * _invCellSize);
-        int cy1 = (int)MathF.Floor((p.Y + maxRadius - _origin.Y) * _invCellSize);
-        int cz0 = (int)MathF.Floor((p.Z - maxRadius - _origin.Z) * _invCellSize);
-        int cz1 = (int)MathF.Floor((p.Z + maxRadius - _origin.Z) * _invCellSize);
-
-        for (int z = cz0; z <= cz1; z++)
-        for (int y = cy0; y <= cy1; y++)
-        for (int x = cx0; x <= cx1; x++)
-        {
-            int b = Bucket(x, y, z);
-            for (int kk = _bucketStart[b]; kk < _bucketStart[b + 1]; kk++)
-            {
-                int pi = _indices[kk];
-                Vector3 pos = _photons[pi].Position;
-                CellOf(pos, out int px, out int py, out int pz);
-                if (px != x || py != y || pz != z) continue;   // collision guard
-                float d2 = Vector3.DistanceSquared(pos, p);
-                if (d2 > r2) continue;
-                HeapInsert(outIdx, heapD2, ref count, k, pi, d2);
-            }
-        }
-
-        radius = count > 0 ? MathF.Sqrt(heapD2[0]) : 0f;
-        return count;
-    }
+        => GatherKNearest(p, k, maxRadius, outIdx, heapD2, out radius);
 
     /// <summary>
     /// Gathers up to <paramref name="k"/> nearest photons to <paramref name="p"/>
@@ -274,6 +246,15 @@ public sealed class PhotonMap
             int cheb = Math.Max(Math.Abs(x - cx), Math.Max(Math.Abs(y - cy), Math.Abs(z - cz)));
             if (cheb != ring) continue;
 
+            // Exact cell-level pruning: every photon in this cell is at least
+            // minD2 away, so the cell cannot contribute when that lower bound
+            // already lies beyond the search radius, or — once the heap is
+            // full — cannot beat the current k-th nearest (HeapInsert only
+            // accepts d2 strictly below the heap root).
+            float minD2 = CellMinDistanceSquared(p, x, y, z);
+            if (minD2 > maxR2) continue;
+            if (count >= k && minD2 >= heapD2[0]) continue;
+
             int b = Bucket(x, y, z);
             for (int kk = _bucketStart[b]; kk < _bucketStart[b + 1]; kk++)
             {
@@ -286,6 +267,18 @@ public sealed class PhotonMap
                 HeapInsert(outIdx, heapD2, ref count, k, pi, d2);
             }
         }
+    }
+
+    /// <summary>Squared distance from <paramref name="p"/> to the closest point of grid cell (x,y,z) — the exact lower bound used for cell-level pruning.</summary>
+    private float CellMinDistanceSquared(Vector3 p, int x, int y, int z)
+    {
+        float bx = _origin.X + x * _cellSize;
+        float by = _origin.Y + y * _cellSize;
+        float bz = _origin.Z + z * _cellSize;
+        float dx = MathF.Max(MathF.Max(bx - p.X, p.X - (bx + _cellSize)), 0f);
+        float dy = MathF.Max(MathF.Max(by - p.Y, p.Y - (by + _cellSize)), 0f);
+        float dz = MathF.Max(MathF.Max(bz - p.Z, p.Z - (bz + _cellSize)), 0f);
+        return dx * dx + dy * dy + dz * dz;
     }
 
     /// <summary>Inserts (index, d²) into a bounded max-heap keyed by d², evicting the current farthest once full.</summary>

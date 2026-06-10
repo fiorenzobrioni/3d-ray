@@ -133,7 +133,7 @@ public partial class Renderer
     // non-caustic scene pays exactly zero overhead and is bit-identical to off.
     private readonly PhotonMap? _photonMap;
     private readonly bool  _causticsActive;
-    private readonly float _causticGatherRadius;   // gather radius cap (== grid cell)
+    private readonly float _causticGatherRadius;   // gather radius cap (grid cell = half of this)
     private const    int   CausticGatherK = 40;     // k nearest photons per density estimate
 
     // Caustic-chain state threaded through the eye path so the photon gather and
@@ -363,14 +363,16 @@ public partial class Renderer
         // no-op and the render is identical to --caustics off.
         if (enableCaustics && causticPhotons > 0 && lights.Count > 0)
         {
-            // Cell == gather-radius cap: the gather touches only the 3×3×3
-            // neighbourhood, but the *effective* kernel radius is adaptive (the
-            // k-th nearest photon), so the focal spot stays sharp and bright. The
-            // cap (~6% of the scene radius) just bounds the search and the dimmest
-            // sparse regions.
+            // The cap (~6% of the scene radius) bounds the search; the
+            // *effective* kernel radius is adaptive (the k-th nearest photon),
+            // so the focal spot stays sharp and bright. The grid cell is half
+            // the cap: the shell search probes more (cheap, mostly-empty)
+            // buckets in sparse regions, but inside a dense focal cluster the
+            // nearest-first traversal + cell pruning touch ~an order of
+            // magnitude fewer photons than radius-sized cells would.
             _causticGatherRadius = MathF.Max(sceneRadius * 0.06f, 1e-4f);
             _photonMap = CausticPhotonTracer.Build(world, lights, sceneBounds, causticPhotons,
-                                                   _causticGatherRadius);
+                                                   _causticGatherRadius * 0.5f);
             _causticsActive = _photonMap != null;
             if (_causticsActive)
                 Console.WriteLine($"  Caustics:    photon map ({_photonMap!.Count:N0} caustic photons)");
@@ -517,12 +519,19 @@ public partial class Renderer
         // Progress is printed by a single dedicated reporter thread, so no worker
         // ever touches the Console lock (which used to serialise the render
         // threads at every scanline boundary).
+        // Only re-print when the tile count actually changed: on a TTY the \r
+        // overwrite hides repeats, but on redirected output (CI logs, GitHub
+        // Actions) every Write becomes a new line, so an unchanged counter
+        // would flood the log with identical lines.
         using var renderDone = new ManualResetEventSlim(false);
+        int lastReported = -1;
         var reporter = Task.Run(() =>
         {
             while (!renderDone.Wait(100))
             {
                 int done = Volatile.Read(ref completedTiles);
+                if (done == lastReported) continue;
+                lastReported = done;
                 Console.Write($"\r  Rendering: {100f * done / totalTiles:F1}% ({done}/{totalTiles} tiles)   ");
             }
         });
@@ -645,7 +654,8 @@ public partial class Renderer
 
         renderDone.Set();
         reporter.Wait();
-        Console.Write($"\r  Rendering: 100.0% ({totalTiles}/{totalTiles} tiles)   ");
+        if (lastReported != totalTiles)
+            Console.Write($"\r  Rendering: 100.0% ({totalTiles}/{totalTiles} tiles)   ");
         Console.WriteLine();
         return pixels;
     }
@@ -1170,17 +1180,26 @@ public partial class Renderer
         PhotonMap? map = _photonMap;
         if (map == null) return Vector3.Zero;
 
-        // Adaptive-radius gather over the cell neighbourhood: scans only the
-        // 3×3×3 block (the grid cell == _causticGatherRadius) yet uses the
-        // distance to the k-th nearest photon as the kernel radius, so the focal
-        // spot — where photons cluster tightly — gets a small radius and a bright,
-        // sharp caustic, while sparse regions stay dim. Fast in empty regions
-        // (empty buckets) and returns zero where there is nothing to gather.
+        // Adaptive-radius gather: expanding-shell search over the cell
+        // neighbourhood (nearest cells first, whole cells pruned once the heap
+        // is full) using the distance to the k-th nearest photon as the kernel
+        // radius, so the focal spot — where photons cluster tightly — gets a
+        // small radius and a bright, sharp caustic, while sparse regions stay
+        // dim. Fast in empty regions (empty buckets) and returns zero where
+        // there is nothing to gather.
         Span<int>   idx  = stackalloc int[CausticGatherK];
         Span<float> heap = stackalloc float[CausticGatherK];
         int count = map.GatherCaustic(rec.Point, CausticGatherK, _causticGatherRadius,
                                       idx, heap, out float radius);
-        if (count == 0 || radius <= 0f) return Vector3.Zero;
+        if (count == 0) return Vector3.Zero;
+
+        // Under-occupied gather: fewer than k photons exist in the whole search
+        // sphere, so the searched radius IS the kernel (PBRT's convention).
+        // Using the distance to the farthest *found* photon here would shrink
+        // the kernel around isolated stray photons and inflate the density
+        // estimate into bright dots/discs in sparse regions.
+        if (count < CausticGatherK) radius = _causticGatherRadius;
+        if (radius <= 0f) return Vector3.Zero;
 
         ReadOnlySpan<Photon> photons = map.Photons;
         Vector3 sum = Vector3.Zero;

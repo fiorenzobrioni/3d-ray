@@ -119,6 +119,59 @@ public class CausticRenderTests
     }
 
     [Fact]
+    public void Photons_CarryNearUniformPower_NoRussianRouletteBoost()
+    {
+        // Regression for the photon-RR "mega-photon" bug: survival must be
+        // measured RELATIVE to the emitted power. The absolute-power test it
+        // replaced saw max-channel ≈ Φ/N ≈ 1e-4, killed virtually every photon
+        // past the RR start bounce, and boosted the rare survivor
+        // (power /= survive) to max-channel ≈ 1 — a several-thousand-fold
+        // outlier the camera gather rendered as a bright disc or sparkle.
+        //
+        // Two concentric clear-glass spheres force ≥ 4 specular bounces
+        // (enter/exit × 2) on every photon reaching the floor beneath the
+        // centre, so those photons all face at least one RR decision.
+        Sampler.SetKind(SamplerKind.Prng);
+
+        var floor = new InfinitePlane(new Vector3(0f, 0f, 0f), new Vector3(0f, 1f, 0f),
+                                      new Lambertian(new Vector3(0.7f, 0.7f, 0.7f)));
+        var outer = new Sphere(new Vector3(0f, 1.4f, 0f), 1.0f, new Dielectric(1.5f));
+        var inner = new Sphere(new Vector3(0f, 1.4f, 0f), 0.5f, new Dielectric(1.5f));
+        var world = new HittableList(new[] { (IHittable)floor, outer, inner });
+
+        var light = new AreaLight(
+            corner: new Vector3(-1.2f, 6.0f, -1.2f), u: new Vector3(2.4f, 0f, 0f),
+            v: new Vector3(0f, 0f, 2.4f), color: new Vector3(1f, 1f, 1f),
+            intensity: 12f, shadowSamples: 4);
+        var bounds = new AABB(new Vector3(-3f, -0.5f, -3f), new Vector3(3f, 3f, 3f));
+
+        const int Budget = 500_000;
+        PhotonMap? map = CausticPhotonTracer.Build(world, new List<ILight> { light }, bounds,
+                                                   photonBudget: Budget, cellSize: 0.1f);
+        Assert.NotNull(map);
+
+        // The multi-bounce photons must SURVIVE the roulette: the focused disc
+        // beneath the nested lens can only be reached through both spheres
+        // (≥ 4 delta bounces). The absolute-power RR starved it to ~zero.
+        var central = new List<int>();
+        map!.QueryRadius(new Vector3(0f, 0f, 0f), 0.8f, central);
+        Assert.True(central.Count > 200,
+            $"Expected the ≥4-bounce focused photons to survive RR; found {central.Count} under the lens.");
+
+        // And no survivor may carry more than its emitted power Φ/N: clear
+        // glass attenuates by at most 1 per bounce and the relative-survival
+        // boost is capped at the emitted power.
+        float perPhotonMax = 12f * (2.4f * 2.4f) * MathF.PI / Budget;
+        var photons = map.Photons;
+        float maxChan = 0f;
+        for (int i = 0; i < photons.Length; i++)
+            maxChan = MathF.Max(maxChan, MathF.Max(photons[i].Power.X,
+                                MathF.Max(photons[i].Power.Y, photons[i].Power.Z)));
+        Assert.True(maxChan <= perPhotonMax * 1.05f,
+            $"Photon power must stay bounded by the emitted {perPhotonMax:E3}; found {maxChan:E3}.");
+    }
+
+    [Fact]
     public void CausticsRender_StaysFiniteAndEnergyBounded()
     {
         const int W = 160, H = 160, Spp = 24, Depth = 8;
