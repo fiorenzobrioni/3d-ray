@@ -12,26 +12,26 @@ Roadmap, lavori in corso, TODO, bug noti e idee. Per lo storico dei cicli di svi
 
 Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, primitive base + trasformazioni, materiali Lambertian/Metal/Dielectric, luci Point/Directional/Spot/Area + NEE, Russian Roulette adattiva, stratified sampling, ACES + gamma + firefly guard, YAML loader, output PNG/JPEG/BMP, CI smoke test.
 
-### Fase 1 — Visivo ✅
+### Fase 1 — Visivo
 
-| # | Feature |
-|---|---------|
-| 1 | Emissive Material (diventa GeometryLight per NEE) |
-| 2 | Gradient Sky (zenith / horizon / ground + sun disc) |
-| 3 | Image Textures (PNG/JPG/BMP/GIF/TIFF/WebP, bilinear, tiling) |
-| 4 | IBL / HDRI (Radiance .hdr, CDF 2D marginal+conditional, rotazione Y) |
-| 5 | Normal Mapping (TBN + Gram-Schmidt, OpenGL/DirectX) |
+| # | Feature | Stato |
+|---|---------|-------|
+| 1 | Emissive Material (diventa GeometryLight per NEE) | ✅ |
+| 2 | Gradient Sky (zenith / horizon / ground + sun disc) | ✅ |
+| 3 | Image Textures (PNG/JPG/BMP/GIF/TIFF/WebP, bilinear, tiling) | ✅ |
+| 4 | IBL / HDRI (Radiance .hdr, CDF 2D marginal+conditional, rotazione Y) | ✅ |
+| 5 | Normal Mapping (TBN + Gram-Schmidt, OpenGL/DirectX) | ✅ |
 
-### Fase 2 — Materiali & geometria ✅
+### Fase 2 — Materiali & geometria
 
-| # | Feature |
-|---|---------|
-| 6 | Disney BSDF / PBR (vedi sotto) |
-| 7 | OBJ Mesh Loader (smooth normals, UV, TBN, BVH interno) |
-| 8 | Torus (quartica Ferrari, UV toroidale, NEE, CSG, Transform) |
-| 9 | Mix Material (selezione stocastica scatter, blend deterministico NEE, mask qualsiasi texture) |
-| 10 | Sphere Light (solid-angle sampling PBRT §6.2.3, 2-10× più efficiente di GeometryLight) |
-| 11 | Scene Graph / Groups (transform ereditate, template+instance, import YAML con merge) |
+| # | Feature | Stato |
+|---|---------|-------|
+| 6 | Disney BSDF / PBR (vedi sotto) | ✅ |
+| 7 | OBJ Mesh Loader (smooth normals, UV, TBN, BVH interno) | ✅ |
+| 8 | Torus (quartica Ferrari, UV toroidale, NEE, CSG, Transform) | ✅ |
+| 9 | Mix Material (selezione stocastica scatter, blend deterministico NEE, mask qualsiasi texture) | ✅ |
+| 10 | Sphere Light (solid-angle sampling PBRT §6.2.3, 2-10× più efficiente di GeometryLight) | ✅ |
+| 11 | Scene Graph / Groups (transform ereditate, template+instance, import YAML con merge) | ✅ |
 
 **Disney BSDF** include: lobi diffuse / GGX / clearcoat / transmission, Kulla-Conty multi-scattering (LUT 32×32), GGX anisotropico (VNDF), Beer-Lambert via medium-switch, parametri Disney 2015 (`thin_walled`, `diff_trans`, `flatness`, `subsurface_color`), clearcoat stile Arnold (`coat_ior`, `coat_roughness`, `coat_normal`), Charlie sheen (Estevez-Kulla 2017), thin-film iridescence (Belcour-Barla 2017). MIS-correct (`Sample`/`Evaluate`/`Pdf` consistenti, furnace + reciprocity test).
 
