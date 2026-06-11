@@ -3,6 +3,7 @@ using System.Numerics;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using RayTracer.Core.Sampling;
+using RayTracer.Denoising;
 using RayTracer.Rendering;
 using RayTracer.Scene;
 using RayTracer.Volumetrics;
@@ -274,6 +275,39 @@ class Program
                 causticPhotons = cpArg;
         }
 
+        // ── Denoiser ─────────────────────────────────────────────────────────
+        // `--denoiser none|nlm|nfor` runs the feature-guided denoiser on the
+        // linear HDR beauty before tone mapping. Quality presets supply a
+        // default (draft/medium/final-fast → nfor); an explicit flag wins.
+        DenoiserKind denoiserKind = quality?.Denoiser ?? DenoiserKind.None;
+        string? denoiserArg = GetArg(args, "--denoiser", null);
+        if (denoiserArg != null)
+        {
+            switch (denoiserArg.ToLowerInvariant())
+            {
+                case "none": denoiserKind = DenoiserKind.None; break;
+                case "nlm":  denoiserKind = DenoiserKind.Nlm;  break;
+                case "nfor": denoiserKind = DenoiserKind.Nfor; break;
+                default:
+                    Console.WriteLine($"Error: Unknown --denoiser '{denoiserArg}'. Valid: none, nlm, nfor.");
+                    return;
+            }
+        }
+
+        DenoiseQuality denoiseQuality = quality?.DenoiseQuality ?? DenoiseQuality.High;
+        string? denoiseQualityArg = GetArg(args, "--denoise-quality", null);
+        if (denoiseQualityArg != null)
+        {
+            switch (denoiseQualityArg.ToLowerInvariant())
+            {
+                case "fast": denoiseQuality = DenoiseQuality.Fast; break;
+                case "high": denoiseQuality = DenoiseQuality.High; break;
+                default:
+                    Console.WriteLine($"Error: Unknown --denoise-quality '{denoiseQualityArg}'. Valid: fast, high.");
+                    return;
+            }
+        }
+
         // ── AOV output (linear HDR, PFM) ─────────────────────────────────────
         // `--aov albedo,normal,depth,beauty,variance` writes the requested
         // guide buffers as PFM files next to the -o output. Any AOV request
@@ -373,6 +407,8 @@ class Program
                 $"  SSS quality: {label} (vol-bounces={effective.MaxVolumeBounces}, " +
                 $"rr-start={effective.RrStartBounce}, nee-in-walk={(effective.NeeInsideWalk ? "on" : "off")})");
         }
+        if (denoiserKind != DenoiserKind.None)
+            Console.WriteLine($"  Denoiser:    {denoiserKind.ToString().ToLowerInvariant()} ({denoiseQuality.ToString().ToLowerInvariant()})");
         if (aovs.Count > 0)
             Console.WriteLine($"  AOVs:        {string.Join(", ", aovs)}");
         Console.WriteLine();
@@ -411,7 +447,7 @@ class Program
                 enableCaustics: enableCaustics, causticPhotons: causticPhotons);
             Console.WriteLine();
 
-            var captureOptions = aovs.Count > 0
+            var captureOptions = denoiserKind != DenoiserKind.None || aovs.Count > 0
                 ? RenderCaptureOptions.Full
                 : RenderCaptureOptions.None;
 
@@ -420,6 +456,18 @@ class Program
             var pixels = result.Pixels;
             var elapsed = sw.Elapsed;
             Console.WriteLine($"  Render time: {FormatElapsed(elapsed)}");
+
+            // Denoise the linear HDR beauty, then re-apply the identical
+            // display transform (exposure \u2192 ACES \u2192 gamma).
+            FrameBuffer? denoisedBeauty = null;
+            if (denoiserKind != DenoiserKind.None)
+            {
+                var denoiseOptions = new DenoiserOptions { Kind = denoiserKind, Quality = denoiseQuality };
+                sw.Restart();
+                denoisedBeauty = NforDenoiser.Denoise(result.Buffers!, denoiseOptions);
+                pixels = renderer.ToneMapToDisplay(denoisedBeauty);
+                Console.WriteLine($"  Denoise time: {FormatElapsed(sw.Elapsed)}");
+            }
 
             // Save image
             string? outputDir = Path.GetDirectoryName(outputPath);
@@ -433,7 +481,7 @@ class Program
             Console.WriteLine($"  \u2713 Saved: {Path.GetFullPath(outputPath)}");
 
             if (aovs.Count > 0)
-                SaveAovs(result.Buffers!, aovs, outputPath);
+                SaveAovs(result.Buffers!, aovs, outputPath, denoisedBeauty);
         }
         catch (Exception ex)
         {
@@ -477,6 +525,11 @@ class Program
         Console.WriteLine("      --texture-filtering <auto|on|off>     Analytic anti-aliasing via ray differentials (default: auto)");
         Console.WriteLine("      --caustics <on|off>      Photon-mapped caustics (default: off, on for final/ultra)");
         Console.WriteLine("      --caustic-photons <n>    Caustic photon budget when --caustics on (default: 2-4M by preset)");
+        Console.WriteLine("      --denoiser <none|nlm|nfor>  Feature-guided denoiser on the linear HDR beauty");
+        Console.WriteLine("                                (default: none; draft/medium/final-fast presets use nfor)");
+        Console.WriteLine("      --denoise-quality <fast|high>  Denoiser speed/quality trade-off (default: high)");
+        Console.WriteLine("      --aov <list>             Comma list of albedo,normal,depth,beauty,variance —");
+        Console.WriteLine("                                writes linear HDR .pfm files next to the -o output");
         Console.WriteLine("      --sss-mode <auto|off>    Subsurface-scattering dispatch (default: auto = follow scene)");
         Console.WriteLine("      --sss-quality <preview|normal|high>   Random-walk preset; inherits from -q when omitted");
         Console.WriteLine("      --max-volume-bounces <n> Hard cap on random-walk bounces inside one entity");
@@ -523,7 +576,8 @@ class Program
     /// are linear, scene-referred (pre-exposure, pre-tonemap); the beauty AOV
     /// is the denoised buffer when a denoiser is active.
     /// </summary>
-    static void SaveAovs(Rendering.RenderBuffers buffers, HashSet<string> aovs, string outputPath)
+    static void SaveAovs(RenderBuffers buffers, HashSet<string> aovs, string outputPath,
+                         FrameBuffer? denoisedBeauty = null)
     {
         string stem = Path.Combine(
             Path.GetDirectoryName(outputPath) ?? "",
@@ -532,9 +586,9 @@ class Program
         foreach (string aov in aovs)
         {
             string path = $"{stem}.{aov}.pfm";
-            Rendering.FrameBuffer fb = aov switch
+            FrameBuffer fb = aov switch
             {
-                "beauty"   => buffers.Beauty,
+                "beauty"   => denoisedBeauty ?? buffers.Beauty,
                 "albedo"   => buffers.CombineHalves(buffers.AlbedoA!, buffers.AlbedoB!),
                 "normal"   => buffers.CombineHalves(buffers.NormalA!, buffers.NormalB!),
                 "depth"    => buffers.CombineDepthHalves(),
@@ -648,13 +702,23 @@ class Program
         /// <summary>When non-null, the tier's default <c>--indirect-clamp-factor</c>.
         /// An explicit flag still wins.</summary>
         public float? IndirectClampFactor { get; }
+        /// <summary>The tier's default denoiser. DRAFT/MEDIUM/FINAL-FAST run
+        /// NFOR (low/mid spp is where denoising pays most; final-fast's 512 spp
+        /// often leaves faint residual noise that NFOR removes for a few extra
+        /// seconds). FINAL/ULTRA stay off — converged reference renders keep
+        /// every unfiltered detail. An explicit <c>--denoiser</c> flag wins.</summary>
+        public DenoiserKind Denoiser { get; }
+        /// <summary>The tier's default <c>--denoise-quality</c>.</summary>
+        public DenoiseQuality DenoiseQuality { get; }
 
         private QualityPreset(string name, int w, int h, int s, int d, int ss,
                               RandomWalkConfig walk, string walkName,
                               bool caustics = false, int causticPhotons = 0,
                               SssMode? sssModeOverride = null,
                               LightSamplingStrategy? lightSampling = null,
-                              float? indirectClampFactor = null)
+                              float? indirectClampFactor = null,
+                              DenoiserKind denoiser = DenoiserKind.None,
+                              DenoiseQuality denoiseQuality = DenoiseQuality.High)
         {
             Name = name; Width = w; Height = h; Samples = s; Depth = d; ShadowSamples = ss;
             WalkConfig = walk; SssQualityName = walkName;
@@ -662,14 +726,22 @@ class Program
             SssModeOverride = sssModeOverride;
             LightSampling = lightSampling;
             IndirectClampFactor = indirectClampFactor;
+            Denoiser = denoiser;
+            DenoiseQuality = denoiseQuality;
         }
 
-        public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 4, 1, RandomWalkConfig.Preview, "preview");
-        public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 4, 1, RandomWalkConfig.Preview, "preview");
-        public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 4, 1, RandomWalkConfig.Preview, "preview");
-        public static readonly QualityPreset MediumTiny  = new("medium-tiny",  480, 270,   128, 6, 1, RandomWalkConfig.Normal,  "normal");
-        public static readonly QualityPreset MediumSmall = new("medium-small", 960, 540,   128, 6, 1, RandomWalkConfig.Normal,  "normal");
-        public static readonly QualityPreset Medium      = new("medium",      1920, 1080,  128, 6, 1, RandomWalkConfig.Normal,  "normal");
+        public static readonly QualityPreset DraftTiny   = new("draft-tiny",   480, 270,    16, 4, 1, RandomWalkConfig.Preview, "preview",
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast);
+        public static readonly QualityPreset DraftSmall  = new("draft-small",  960, 540,    16, 4, 1, RandomWalkConfig.Preview, "preview",
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast);
+        public static readonly QualityPreset Draft       = new("draft",       1920, 1080,   16, 4, 1, RandomWalkConfig.Preview, "preview",
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.Fast);
+        public static readonly QualityPreset MediumTiny  = new("medium-tiny",  480, 270,   128, 6, 1, RandomWalkConfig.Normal,  "normal",
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
+        public static readonly QualityPreset MediumSmall = new("medium-small", 960, 540,   128, 6, 1, RandomWalkConfig.Normal,  "normal",
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
+        public static readonly QualityPreset Medium      = new("medium",      1920, 1080,  128, 6, 1, RandomWalkConfig.Normal,  "normal",
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
         public static readonly QualityPreset FinalTiny   = new("final-tiny",   480, 270,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 2_000_000);
         public static readonly QualityPreset FinalSmall  = new("final-small",  960, 540,  1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 2_000_000);
         public static readonly QualityPreset Final       = new("final",       1920, 1080, 1024, 8, 4, RandomWalkConfig.High,    "high", caustics: true, causticPhotons: 3_000_000);
@@ -679,14 +751,18 @@ class Program
         // the expensive global-illumination extras stripped for a classic scene
         // (Lambertian/Disney, non-nested glass, procedural marble): photon
         // caustics OFF, volumetric SSS OFF, single shadow sample (512 spp already
-        // anti-aliases), power-weighted single-light NEE, and a relaxed indirect
-        // clamp. See docs/reference/rendering-profiles.md.
+        // anti-aliases), power-weighted single-light NEE, a relaxed indirect
+        // clamp, and the NFOR denoiser to absorb the faint residual noise 512
+        // spp can leave. See docs/reference/rendering-profiles.md.
         public static readonly QualityPreset FinalFastTiny  = new("final-fast-tiny",  480, 270,  512, 8, 1, RandomWalkConfig.High, "high",
-            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f);
+            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
         public static readonly QualityPreset FinalFastSmall = new("final-fast-small", 960, 540,  512, 8, 1, RandomWalkConfig.High, "high",
-            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f);
+            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
         public static readonly QualityPreset FinalFast      = new("final-fast",      1920, 1080, 512, 8, 1, RandomWalkConfig.High, "high",
-            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f);
+            caustics: false, sssModeOverride: SssMode.Off, lightSampling: LightSamplingStrategy.Power, indirectClampFactor: 0.5f,
+            denoiser: DenoiserKind.Nfor, denoiseQuality: DenoiseQuality.High);
 
         public const string NamesCsv =
             "draft-tiny, draft-small, draft, medium-tiny, medium-small, medium, " +
