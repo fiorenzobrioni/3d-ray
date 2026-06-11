@@ -31,8 +31,8 @@ world:
 cameras:
   # ── Fuoco sulla sfera vicina (rossa, sinistra, z ≈ -4) ────────────────
   - name: "near"
-    position: [0, 1.6, 0]
-    look_at:  [0, 0.7, -8]
+    position: [-1, 1.6, 0]
+    look_at:  [-1.6, 0.7, -8]
     fov: 45
     aperture: 0.30
     focal_pos: [-3.0, 0.7, -4]
