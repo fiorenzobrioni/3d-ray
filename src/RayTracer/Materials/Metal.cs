@@ -58,6 +58,9 @@ public sealed class Metal : IMaterial
     // any fuzz > 0 broadens the lobe into a sampleable GGX distribution.
     public bool IsDeltaScatter => Fuzz <= 0f;
 
+    /// <summary>Denoiser/AOV albedo guide: the metallic F0 colour.</summary>
+    public Vector3 AovAlbedo(in HitRecord rec) => Albedo.Value(in rec);
+
     /// <summary>
     /// Metal direct lighting (NEE integrand): full Cook-Torrance GGX BRDF
     /// times the cosine, with the metallic colour tint baked in via

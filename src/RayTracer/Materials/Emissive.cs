@@ -54,6 +54,11 @@ public sealed class Emissive : IMaterial
     // Emissive surfaces don't receive external illumination — they ARE the light.
     // All contribution comes from Emit(); skip NEE entirely.
     public bool NeedsDirectLighting => false;
+
+    /// <summary>Denoiser/AOV albedo guide: the emission colour (intensity
+    /// excluded — the guide buffer wants chroma, not radiance).</summary>
+    public Vector3 AovAlbedo(in HitRecord rec)
+        => Albedo.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
     public NormalMapTexture? NormalMap { get; set; }
     public BumpMapTexture? BumpMap { get; set; }
     public MaterialDisplacement? Displacement { get; set; }

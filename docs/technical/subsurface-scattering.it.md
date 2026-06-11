@@ -76,7 +76,7 @@ I preset di qualità seguono la stessa convenzione Preview/Normal/High del flag 
 | `normal`  | 64 | 3 | on  | Default di produzione. NEE campiona luci a ogni evento di scatter interno. |
 | `high`    | 256 | 6 | on  | Portfolio / hero shot. Walk profondi completamente risolti. |
 
-Quando l'utente passa `-q draft-small`, il tier SSS è di default `preview`. `-q medium`/`-q final`/`-q ultra` defaultano a `normal`/`high`/`high`. Un `--sss-quality` esplicito vince sempre sul tier inferito.
+Quando l'utente passa `-q draft-small`, il tier SSS è di default `preview`. `-q pre-final`/`-q final`/`-q ultra` defaultano a `high` (`-q standard` disattiva del tutto il SSS). Un `--sss-quality` esplicito vince sempre sul tier inferito.
 
 ## Reference preset Jensen 2001
 

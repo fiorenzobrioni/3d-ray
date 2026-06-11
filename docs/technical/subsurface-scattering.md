@@ -76,7 +76,7 @@ Quality presets follow the same Preview/Normal/High convention as the main `--qu
 | `normal`  | 64 | 3 | on  | Production default. NEE samples lights at every internal scatter event. |
 | `high`    | 256 | 6 | on  | Portfolio / hero shots. Deep walks fully resolved. |
 
-When the user passes `-q draft-small`, the SSS tier defaults to `preview`. `-q medium`/`-q final`/`-q ultra` default to `normal`/`high`/`high`. An explicit `--sss-quality` always wins over the inferred tier.
+When the user passes `-q draft-small`, the SSS tier defaults to `preview`. `-q pre-final`/`-q final`/`-q ultra` default to `high` (`-q standard` forces SSS off entirely). An explicit `--sss-quality` always wins over the inferred tier.
 
 ## Jensen 2001 preset reference
 

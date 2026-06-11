@@ -6,6 +6,125 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Preset — ricalibrazione `-q` attorno al denoiser (draft → standard → pre-final → final → ultra) ✅
+
+**Motivazione.** Col denoiser NFOR nei preset, `medium` (128 spp, d6) era
+diventato ridondante: il profilo "qualità veloce senza extra" copre sia la
+review sia il final-su-scene-classiche. Mancava invece un'anteprima fedele
+di `final`. Decisione (utente): scala a 4 tier + ultra, **rimozione secca**
+dei nomi `medium*`/`final-fast*` (beta, mai pubblicati — nessun alias).
+
+**Nuova scala.**
+- `draft*` — invariato (16 spp, d4, S1, nfor fast): preview istantaneo.
+- `standard*` — **fusione di medium+final-fast**, parametri ex final-fast
+  (512 spp, d8, S1, NEE power, clamp indiretto 0.5, caustiche/SSS off,
+  nfor high): il render di qualità quotidiano.
+- `pre-final*` — **nuovo**: feature-set di `final` completa (caustiche on
+  2M fotoni, SSS high, d8, NEE all, clamp default) con 256 spp + S1 + nfor
+  high. ~4-6× più veloce di final (spp/4, shadow ray NEE /4); il rumore di
+  penombra tagliato da S4→S1 è il caso migliore del filtro feature-guided.
+- `final*` / `ultra` — invariati, **senza denoiser** (riferimento puro).
+  `ultra` resta volutamente 512 spp: a 4K la densità di pixel maschera il
+  rumore per-pixel e 1024 spp raddoppierebbero un render già lungo.
+
+**Aggiornati.** `QualityPreset` (statiche, Parse, NamesCsv, ShowHelp),
+workflow `render-scenes.yml`, commenti delle scene showcase (~10),
+`scenes/presets/{caustics,lights}.md`, tutorial EN/IT (cap. 2 e 6), README
+(tabella CLI + esempi), profili di rendering EN/IT (matrice + paragrafi
+standard/pre-final), `docs/technical/denoising.*`, CLAUDE.md, PLANNING.
+
+---
+
+## Ciclo Denoiser — NFOR feature-guided + AOV/PFM output (#16 + parte di #17) ✅
+
+**Obiettivo.** Denoiser di classe produzione, 100% managed (niente OIDN/binding
+nativi), sul filone non-ML stato dell'arte: **NFOR** (Bitterli et al. 2016,
+"Nonlinearly Weighted First-Order Regression for Denoising Monte Carlo
+Renderings", l'algoritmo del denoiser di Tungsten) con i pesi NL-means a
+cancellazione di varianza di Rousselle et al. 2012 — la famiglia che Cycles
+usava prima di passare a OIDN. Doc utente: `docs/technical/denoising.md` (+IT).
+
+**Architettura.**
+- *Cattura* (`RenderBuffers`, `RenderCaptureOptions`, overload
+  `Render(w,h,options)`): beauty HDR lineare + split dual-buffer per parità
+  dell'indice di campione (A=pari, B=dispari) + AOV albedo/normal/depth al
+  **primo hit non-delta** (catene speculari accumulano la tinta in un peso
+  moltiplicativo, stile convenzione OIDN). Probe AOV `[ThreadStatic]` —
+  zero cambi di firma a `TraceRay`, zero draw RNG aggiuntivi → **bit-identità
+  garantita e testata** (anche con cattura ON, e vs build pre-denoiser).
+- *Pipeline* (`Denoising/`): varianza dual-buffer smussata 7×7 binomiale e
+  floored → prefiltro NL-means cross-filtrato delle feature → modalità
+  `nlm` (joint NL-means) o `nfor` (regressione first-order su griglia
+  stride-2 con splat collaborativo, Gram 8×8 Cholesky+Tikhonov hand-rolled,
+  3 RHS RGB condivisi) → selezione MSE per pixel fra {media non filtrata,
+  candidati k}.
+- *Perf*: decomposizione per offset (O(offset×N), mai O(offset×patch×N)),
+  righe di distanza SIMD `Vector<float>`, box patch a somme correnti,
+  fast-exp Schraudolph vettoriale (~2% err, irrilevante per pesi), Gram e
+  splat su `Vector256` (Dim=8 = una lane), tile in 4 passate a scacchiera
+  (splat senza race). 1080p su container CI 4-core/2.8GHz: nlm 9.4s,
+  nfor-fast 13.2s, nfor-high 22s (scala ~lineare coi core).
+
+**Due bug di design trovati e risolti in calibrazione** (entrambi con MSE
+misurato vs riferimento 2048 spp su scena test 64×64):
+1. *Selezione bias-blind*: la prima versione stimava l'MSE dei candidati dal
+   disaccordo fra le metà `|F_A−F_B|²` — misura solo la varianza, non il
+   bias: nelle ombre di contatto (1-2 px, invisibili ad albedo/normal/depth)
+   la regressione le riempiva del colore del pavimento illuminato da
+   **entrambe** le metà → candidato sbagliato selezionato con fiducia, MSE
+   2× peggio del noisy. Fix: stima contro la **metà rumorosa opposta**
+   (`E[(F_A−B)²] = MSE(F_A)+Var[B]`) che vede il bias, + la **media non
+   filtrata nel set di candidati** come safety net (RKZ-style). Risultato:
+   nessuna regione può peggiorare sistematicamente.
+2. *Anti-correlazione Sobol*: le metà pari/dispari di una sequenza
+   Owen-scrambled sono anti-correlate → `((Ā−B̄)/2)²` sovrastima la varianza
+   (~2× sulla scena test), e il bias entra **due volte** nella selezione
+   (gonfia mse_noisy, sgonfia mse_k) → over-filtering: a 16-32 spp Sobol
+   l'output era *peggio* del noisy (122-130%). Fix: margine di selezione
+   = 0.5×varianza addebitato ai candidati filtrati, **solo con Sobol**
+   (0 con PRNG, dove le metà sono indipendenti e la teoria regge).
+   Calibrazione (ratio MSE nfor-high/noisy, scena test):
+
+   | margine | PRNG 4/8/16/32 spp | Sobol 4/8/16/32 spp |
+   |---|---|---|
+   | 0.0 | 41/46/61/77% | 76/91/**122/130%** |
+   | 0.5 | 48/62/69/87% | 64/78/95/96% |
+   | 1.0 | 81/86/89/95% | ~97/101% |
+
+   Con margine sampler-aware: PRNG tiene i guadagni pieni, Sobol non
+   regredisce mai (gate di regressione dedicato nel test e2e).
+
+**Verifica visiva.** chess.yaml: `-q draft` (16 spp) → grana eliminata,
+bordi checker e ombre morbide intatti; `-q final-fast-tiny` (512 spp) → la
+grana residua sui pezzi lucidi sparisce, conferma della scelta di attivare
+nfor-high di default su final-fast.
+
+**Preset.** Decisione utente: denoiser ON di default — `draft*` → nfor fast,
+`medium*`/`final-fast*` → nfor high, `final`/`ultra` → none (render di
+riferimento puri). Override espliciti vincono sempre. I golden render dei
+preset interessati cambiano da questo ciclo; il CI smoke usa flag espliciti
+(no preset) e resta invariato.
+
+**Baseline test** (`DenoiserRegressionTests`, PRNG, 64×64, 8 vs 512 spp,
+misurati: nfor 0.46×, nlm 0.57×, fast 0.55× del noisy): gate con headroom
+nfor<0.70×, nlm<0.80×, fast<0.80×, nfor assoluto <6e-4, nfor≤1.15×nlm, +
+gate anti-regressione Sobol 32 spp (<1.05×noisy). I test a **uguaglianza
+esatta** sotto Sobol (bit-identità) non tollerano la race sul `SamplerKind`
+globale (vedi ciclo fix Sobol flaky): nuova collection `SamplerExclusive`
+con `DisableParallelization = true` — le due classi sensibili girano in
+esclusiva, il resto della suite resta parallelo.
+
+**Bonus #17 (HDR output, parziale).** `--aov
+albedo,normal,depth,beauty,variance` scrive PFM lineari (writer/reader
+`PfmImage`, ~150 righe, round-trip bit-exact testato); EXR resta ⬜.
+
+**File.** `Rendering/{FrameBuffer,RenderBuffers,PfmImage}.cs`,
+`Denoising/{DenoiserOptions,PlaneOps,VarianceEstimator,NlMeansCore,FeaturePrefilter,NforRegression,RegressionSolver,NforDenoiser}.cs`,
+hook in `Renderer.cs`, `IMaterial.AovAlbedo` (+6 materiali), CLI+preset in
+`Program.cs`, 7 nuovi file di test (~30 test).
+
+---
+
 ## Fix — test flaky `Sobol_StratifiesEachDimension1D` in CI (race sul SamplerKind globale) ✅
 
 **Sintomo.** Fallimento sporadico in CI di

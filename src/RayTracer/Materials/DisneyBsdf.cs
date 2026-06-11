@@ -412,6 +412,9 @@ public sealed class DisneyBsdf : IMaterial
     ///   in <see cref="Sample"/> with full-weight emission is the correct
     ///   MIS treatment.
     /// </summary>
+    /// <summary>Denoiser/AOV albedo guide: the base colour texture.</summary>
+    public Vector3 AovAlbedo(in HitRecord rec) => BaseColor.Value(in rec);
+
     public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
     {
         float NdotL = MathF.Max(Vector3.Dot(normal, toLight), 0f);

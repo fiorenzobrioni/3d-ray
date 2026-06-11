@@ -91,6 +91,16 @@ public interface IMaterial
     Vector3 ShadowTransmittance(Vector3 wi, in HitRecord rec) => Vector3.Zero;
 
     /// <summary>
+    /// Approximate surface reflectance at the hit point, consumed ONLY by the
+    /// AOV/denoiser albedo guide buffer — never by light transport. The value
+    /// should be the material's dominant colour (base colour / albedo texture)
+    /// in roughly [0,1]; the renderer clamps it defensively. The default
+    /// (white) suits colourless materials such as clear dielectrics, whose
+    /// albedo guide comes from the surfaces seen through them instead.
+    /// </summary>
+    Vector3 AovAlbedo(in HitRecord rec) => Vector3.One;
+
+    /// <summary>
     /// Per-channel volumetric absorption coefficient σ_a (Beer-Lambert) of the
     /// medium bounded by this surface, used by the transparent shadow walker
     /// to attenuate <c>exp(−σ_a · d)</c> along the interior segment between a

@@ -25,6 +25,13 @@ public sealed class Dielectric : IMaterial
     // NEE cannot reach a delta BSDF, so direct lighting contributes zero and
     // the renderer must preserve emission weight across the bounce.
     public bool IsDeltaScatter => true;
+
+    /// <summary>Denoiser/AOV albedo guide: the glass tint. Used only when a
+    /// path ends while still inside the specular chain (depth exhaustion);
+    /// normally the chain's tint accumulates via the delta-bounce attenuation
+    /// and the albedo comes from the first non-delta surface beyond.</summary>
+    public Vector3 AovAlbedo(in HitRecord rec) => Albedo.Value(in rec);
+
     public NormalMapTexture? NormalMap { get; set; }
     public BumpMapTexture? BumpMap { get; set; }
     public MaterialDisplacement? Displacement { get; set; }

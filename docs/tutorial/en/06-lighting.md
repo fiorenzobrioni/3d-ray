@@ -748,7 +748,7 @@ types drive caustics, including the **sun** (`directional`). Just turn them on:
 RayTracer -i my-scene.yaml -q final
 
 # Or enable them explicitly on any preset:
-RayTracer -i my-scene.yaml -q medium --caustics on
+RayTracer -i my-scene.yaml -q standard --caustics on
 ```
 
 A few practical notes:

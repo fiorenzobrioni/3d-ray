@@ -480,8 +480,23 @@ public partial class Renderer
     /// Uses Parallel.For over scanlines for multi-core rendering.
     /// </summary>
     public Vector3[,] Render(int width, int height)
+        => Render(width, height, RenderCaptureOptions.None).Pixels;
+
+    /// <summary>
+    /// Render overload that can additionally capture linear-HDR beauty (with
+    /// even/odd half-sample splits) and first-non-delta-hit AOVs
+    /// (albedo/normal/depth) for the denoiser and PFM output.
+    ///
+    /// Invariant: the tone-mapped <see cref="RenderResult.Pixels"/> are
+    /// bit-identical to the legacy overload regardless of
+    /// <paramref name="options"/> — the capture adds accumulators next to the
+    /// existing ones (same summation order, no extra RNG draws) and only ever
+    /// writes to the side buffers.
+    /// </summary>
+    public RenderResult Render(int width, int height, RenderCaptureOptions options)
     {
         var pixels = new Vector3[height, width];
+        _captureAovs = options.CaptureAovs;
 
         // Tile-based work partitioning: 16×16 tiles balance load far better than
         // whole scanlines (sky rows are cheap, geometry-dense centre rows
@@ -515,6 +530,11 @@ public partial class Renderer
         int sqrtSpp = (int)MathF.Ceiling(MathF.Sqrt(_samplesPerPixel));
         float invSqrtSpp = 1f / sqrtSpp;
         int actualSamples = useSobol ? _samplesPerPixel : sqrtSpp * sqrtSpp;
+
+        RenderBuffers? buffers = options.Any
+            ? new RenderBuffers(width, height, actualSamples, options.CaptureAovs)
+            : null;
+        bool captureAovs = _captureAovs;
 
         // Progress is printed by a single dedicated reporter thread, so no worker
         // ever touches the Console lock (which used to serialise the render
@@ -555,6 +575,10 @@ public partial class Renderer
             for (int i = x0; i < x1; i++)
             {
                 Vector3 cumulativeColor = Vector3.Zero;
+                // Side accumulators for the optional capture (dual-buffer
+                // halves + AOVs). The legacy cumulativeColor sum above stays
+                // untouched so the default output is bit-identical.
+                CaptureAccumulator capAcc = default;
 
                 // Per-pixel scramble seed: combine pixel coordinates so each
                 // pixel walks an independent Owen-scrambled sequence. Without
@@ -601,6 +625,7 @@ public partial class Renderer
                         // camera origin is assumed in air, η = 1); dielectrics
                         // push/pop their IOR as the path refracts through them.
                         var iors = new IorStack();
+                        if (captureAovs) (t_aovProbe ??= new AovProbe()).Reset();
                         Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true,
                                                    ref mediums, ref iors,
                                                    pathThroughput: Vector3.One);
@@ -609,6 +634,7 @@ public partial class Renderer
 
                         sample = ClampRadiance(sample);
                         cumulativeColor += sample;
+                        if (buffers != null) capAcc.Add(sample, s, captureAovs);
                     }
                 }
                 else
@@ -629,12 +655,14 @@ public partial class Renderer
                                 : _camera.GetRay(u, v);
                             var mediums = new MediumStack();
                             var iors = new IorStack();
+                            if (captureAovs) (t_aovProbe ??= new AovProbe()).Reset();
                             Vector3 sample = TraceRay(ray, _maxDepth, prevBsdfPdf: 0f, prevIsDelta: true,
                                                        ref mediums, ref iors,
                                                        pathThroughput: Vector3.One);
 
                             sample = ClampRadiance(sample);
                             cumulativeColor += sample;
+                            if (buffers != null) capAcc.Add(sample, sy * sqrtSpp + sx, captureAovs);
                         }
                     }
                 }
@@ -647,6 +675,8 @@ public partial class Renderer
                 // their full contrast, instead of being squashed into the
                 // 0.85-0.99 plateau when scene irradiance lands above 1.0.
                 pixels[j, i] = AcesToneMap(linearColor * _exposureScale);
+                if (buffers != null)
+                    capAcc.Store(buffers, i, j, linearColor, actualSamples);
             }
 
             Interlocked.Increment(ref completedTiles);
@@ -657,8 +687,162 @@ public partial class Renderer
         if (lastReported != totalTiles)
             Console.Write($"\r  Rendering: 100.0% ({totalTiles}/{totalTiles} tiles)   ");
         Console.WriteLine();
+        _captureAovs = false;
+        return new RenderResult { Pixels = pixels, Buffers = buffers };
+    }
+
+    /// <summary>
+    /// Applies the renderer's display transform (exposure gain → ACES filmic →
+    /// gamma 2.2) to a linear-HDR beauty buffer. Uses the exact same per-pixel
+    /// math as the in-loop path, so tone-mapping a captured (or denoised)
+    /// beauty buffer reproduces the legacy output for unchanged radiance.
+    /// </summary>
+    public Vector3[,] ToneMapToDisplay(FrameBuffer linearBeauty)
+    {
+        int w = linearBeauty.Width, h = linearBeauty.Height;
+        var pixels = new Vector3[h, w];
+        Parallel.For(0, h, j =>
+        {
+            for (int i = 0; i < w; i++)
+                pixels[j, i] = AcesToneMap(linearBeauty.GetRgb(i, j) * _exposureScale);
+        });
         return pixels;
     }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // AOV CAPTURE (denoiser guide buffers)
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Whether the current Render call captures AOVs. Every per-hit hook is a
+    // single test on this bool when capture is off, and no hook ever draws
+    // from the sampler — the path tracer's random stream (and therefore the
+    // image) is identical with capture on or off.
+    private bool _captureAovs;
+
+    // Per-thread probe for the camera path currently being traced. TraceRay
+    // recursion stays on one thread, so thread-static state is safe; the probe
+    // object is allocated once per worker and reset per camera sample.
+    [ThreadStatic] private static AovProbe? t_aovProbe;
+
+    /// <summary>
+    /// Records the denoiser guide features of one camera path, following the
+    /// first-non-delta-hit convention: depth at the first surface hit of the
+    /// camera ray; albedo/normal at the first non-delta (rough/diffuse)
+    /// surface, with perfect-specular chains accumulating their tint into
+    /// <see cref="AlbedoWeight"/> (a mirror pixel's albedo is the mirror tint
+    /// times what it reflects). Environment misses commit the sky colour with
+    /// zero normal; medium scatter events commit featureless white.
+    /// </summary>
+    private sealed class AovProbe
+    {
+        public bool Pending;
+        public bool HaveDepth;
+        public float Depth;
+        public Vector3 AlbedoWeight;
+        public Vector3 TentAlbedo;
+        public Vector3 TentNormal;
+        public Vector3 Albedo;
+        public Vector3 Normal;
+
+        public void Reset()
+        {
+            Pending = true;
+            HaveDepth = false;
+            Depth = -1f;
+            AlbedoWeight = Vector3.One;
+            TentAlbedo = Vector3.One;
+            TentNormal = Vector3.Zero;
+            Albedo = Vector3.Zero;
+            Normal = Vector3.Zero;
+        }
+
+        /// <summary>Commit at (or falling back to) the last observed surface.</summary>
+        public void Commit()
+        {
+            Albedo = AlbedoWeight * TentAlbedo;
+            Normal = TentNormal;
+            Pending = false;
+        }
+
+        /// <summary>Commit with explicit features (sky / medium events).</summary>
+        public void CommitAs(Vector3 albedo, Vector3 normal)
+        {
+            Albedo = AlbedoWeight * albedo;
+            Normal = normal;
+            Pending = false;
+        }
+    }
+
+    /// <summary>
+    /// Per-pixel side accumulators for the optional capture: dual-buffer
+    /// (even/odd sample) beauty halves plus AOV halves. Lives on the worker's
+    /// stack next to the legacy accumulator; zero allocations.
+    /// </summary>
+    private struct CaptureAccumulator
+    {
+        private Vector3 _sumA, _sumB;
+        private Vector3 _albA, _albB, _nrmA, _nrmB;
+        private float _depA, _depB;
+        private int _depCntA, _depCntB;
+
+        public void Add(Vector3 sample, int sampleIndex, bool aovs)
+        {
+            bool isA = (sampleIndex & 1) == 0;
+            if (isA) _sumA += sample; else _sumB += sample;
+            if (!aovs) return;
+
+            var p = t_aovProbe!;
+            // Paths that ended without a non-delta vertex (RR kill, emissive
+            // hit, depth exhausted, absorbed) commit their tentative surface.
+            if (p.Pending) p.Commit();
+            if (isA)
+            {
+                _albA += p.Albedo;
+                _nrmA += p.Normal;
+                if (p.HaveDepth) { _depA += p.Depth; _depCntA++; }
+            }
+            else
+            {
+                _albB += p.Albedo;
+                _nrmB += p.Normal;
+                if (p.HaveDepth) { _depB += p.Depth; _depCntB++; }
+            }
+        }
+
+        /// <summary>
+        /// Divides the half sums into means and writes one pixel of every
+        /// captured plane. With a single sample (nB == 0) the B half mirrors
+        /// A so downstream variance estimates read as zero.
+        /// </summary>
+        public readonly void Store(RenderBuffers buffers, int x, int y,
+                                   Vector3 linearColor, int samples)
+        {
+            int nA = buffers.SamplesA, nB = buffers.SamplesB;
+            buffers.Beauty.SetRgb(x, y, linearColor);
+            Vector3 meanA = _sumA / nA;
+            Vector3 meanB = nB > 0 ? _sumB / nB : meanA;
+            buffers.BeautyA.SetRgb(x, y, meanA);
+            buffers.BeautyB.SetRgb(x, y, meanB);
+            buffers.SampleCount[y * buffers.Width + x] = samples;
+
+            if (!buffers.HasAovs) return;
+            Vector3 albA = _albA / nA;
+            Vector3 albB = nB > 0 ? _albB / nB : albA;
+            Vector3 nrmA = _nrmA / nA;
+            Vector3 nrmB = nB > 0 ? _nrmB / nB : nrmA;
+            float depA = _depCntA > 0 ? _depA / _depCntA : -1f;
+            float depB = nB > 0 ? (_depCntB > 0 ? _depB / _depCntB : -1f) : depA;
+            buffers.AlbedoA!.SetRgb(x, y, albA);
+            buffers.AlbedoB!.SetRgb(x, y, albB);
+            buffers.NormalA!.SetRgb(x, y, nrmA);
+            buffers.NormalB!.SetRgb(x, y, nrmB);
+            buffers.DepthA!.Set(0, x, y, depA);
+            buffers.DepthB!.Set(0, x, y, depB);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector3 Clamp01(Vector3 v) => Vector3.Clamp(v, Vector3.Zero, Vector3.One);
 
     /// <summary>
     /// ACES filmic tone mapping followed by gamma 2.2 correction.
@@ -814,6 +998,16 @@ public partial class Renderer
             ApplyBumpMap(ref rec, rec.AutoBump);
         }
 
+        // ── AOV tentative surface ───────────────────────────────────────────
+        // Normal is recorded post normal/bump/autobump perturbation (world
+        // space). Whether this surface actually commits is decided at the
+        // bounce below — delta scatters keep following the specular chain.
+        if (_captureAovs && t_aovProbe is { Pending: true } aovProbe)
+        {
+            aovProbe.TentNormal = rec.Normal;
+            aovProbe.TentAlbedo = material != null ? Clamp01(material.AovAlbedo(in rec)) : Vector3.One;
+        }
+
         // ── Emission (MIS-weighted) ─────────────────────────────────────────
         // Suppress emission reached through a diffuse→specular-chain (state
         // Suppress): that focused L S+ D transport is already supplied by the
@@ -886,6 +1080,19 @@ public partial class Renderer
 
         if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
         {
+            // ── AOV first-non-delta decision (legacy Scatter path) ──────────
+            // Delta bounces fold their tint into the running albedo weight and
+            // stay pending; the first non-delta bounce commits this surface.
+            // Captured before Russian Roulette boosts attenuation, so the AOV
+            // guides stay RR-noise-free.
+            if (_captureAovs && t_aovProbe is { Pending: true } scatterProbe)
+            {
+                if (material.IsDeltaScatter)
+                    scatterProbe.AlbedoWeight *= Clamp01(attenuation);
+                else
+                    scatterProbe.Commit();
+            }
+
             // Path-throughput-based RR (PBRT §13.7.1). Survival probability is
             // driven by the cumulative β projected into this bounce, not the
             // local single-bounce attenuation. This kills paths whose total
@@ -1003,6 +1210,19 @@ public partial class Renderer
             if (absNdotWo <= 0f || s.Pdf <= 0f)
                 return emitted + directLight;
             attenuation = s.F * absNdotWo / s.Pdf;
+        }
+
+        // ── AOV first-non-delta decision (Sample path) ──────────────────────
+        // Mirrors the legacy Scatter hook: delta lobes accumulate their tint
+        // (s.F carries the full delta attenuation) and stay pending, the first
+        // non-delta lobe commits the tentative surface. Before RR, so the AOV
+        // guides stay RR-noise-free.
+        if (_captureAovs && t_aovProbe is { Pending: true } aovProbe)
+        {
+            if (s.IsDelta)
+                aovProbe.AlbedoWeight *= Clamp01(s.F);
+            else
+                aovProbe.Commit();
         }
 
         // Path-throughput-based RR (PBRT §13.7.1). See ShadeSurface above for
@@ -1334,6 +1554,17 @@ public partial class Renderer
             if (++skipCount >= MaxVisibilitySkips) break;
         }
 
+        // ── AOV depth: first surface hit of the camera ray ──────────────────
+        // Captured regardless of specularity (a mirror pixel's depth is the
+        // mirror's distance). Camera rays are not normalised, so scale rec.T
+        // by |direction| to get a world-space distance.
+        if (_captureAovs && hit && incomingCategory == RayCategory.Camera
+            && t_aovProbe is { Pending: true, HaveDepth: false } depthProbe)
+        {
+            depthProbe.Depth = rec.T * currentRay.Direction.Length();
+            depthProbe.HaveDepth = true;
+        }
+
         // ── Compute analytic filter footprint at the hit ────────────────────
         // Once per hit, project the auxiliary rays onto the tangent plane and
         // solve for the UV partials (PBRT §10.1.1). Textures consume the
@@ -1380,6 +1611,20 @@ public partial class Renderer
         {
             // Medium scattering event at p = ray(tMed).
             Vector3 p = currentRay.Origin + currentRay.Direction * tMed;
+
+            // ── AOV: commit featureless guides at a medium scatter ──────────
+            // Volumes have no meaningful albedo/normal; committing white (times
+            // any specular tint accumulated so far) and a zero normal lets the
+            // denoiser fall back to colour similarity in media regions.
+            if (_captureAovs && t_aovProbe is { Pending: true } medProbe)
+            {
+                if (!medProbe.HaveDepth)
+                {
+                    medProbe.Depth = tMed * currentRay.Direction.Length();
+                    medProbe.HaveDepth = true;
+                }
+                medProbe.CommitAs(Vector3.One, Vector3.Zero);
+            }
 
             // NEE in-scattering: shadow ray to each light, weighted by phase × Tr.
             // When the active medium is bound to an entity (stack top), clip the
@@ -1499,6 +1744,12 @@ public partial class Renderer
         }
 
         Vector3 sky = _sky.Sample(ray, cat, includeAnalyticalSun: showSun, mipLod: lod);
+
+        // ── AOV: environment miss commits the sky colour ────────────────────
+        // Background pixels get the (clamped) sky radiance as their albedo
+        // guide and a zero normal; depth keeps its −1 "no hit" sentinel.
+        if (_captureAovs && t_aovProbe is { Pending: true } aovProbe)
+            aovProbe.CommitAs(Clamp01(sky), Vector3.Zero);
 
         // When the sky isn't registered as an NEE light, or this is a delta
         // bounce / camera ray, show it at full weight — nothing else sampled it.

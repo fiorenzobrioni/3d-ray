@@ -22,6 +22,9 @@ public sealed class Lambertian : IMaterial
     public BumpMapTexture? BumpMap { get; set; }
     public MaterialDisplacement? Displacement { get; set; }
 
+    /// <summary>Denoiser/AOV albedo guide: the diffuse albedo texture.</summary>
+    public Vector3 AovAlbedo(in HitRecord rec) => Albedo.Value(in rec);
+
     /// <summary>
     /// Lambertian direct lighting (NEE integrand): full BRDF · cosθ.
     ///   f(V, L) = albedo / π    (Lambertian BRDF)

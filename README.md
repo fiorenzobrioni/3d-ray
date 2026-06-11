@@ -37,6 +37,8 @@ Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il
 - 🔢 **Sobol + Owen Scrambling** — sequenza quasi-Monte Carlo a bassa discrepanza che converge più in fretta del PRNG classico su pixel jitter, lens sampling e primi bounce.
 - 🎲 **Russian Roulette** adattiva — terminazione stocastica dei raggi calibrata sull'illuminazione della scena per efficienza ottimale.
 - 🎞️ **Tone Mapping ACES Filmic** — post-processing cinematografico con highlight naturali e colori ricchi.
+- 🧹 **Denoiser feature-guided** — rimozione del rumore Monte Carlo sulla radianza HDR lineare prima del tone mapping, guidata dagli AOV albedo/normale/profondità: regressione lineare pesata NL-means con selezione per-pixel del candidato a minimo errore stimato (`--denoiser nfor`, attivo di default nei preset `draft`/`standard`/`pre-final`). Implementazione 100% managed, SIMD e parallela. Dettagli in [Denoising](./docs/technical/denoising.md).
+- 📤 **Output HDR e AOV (PFM)** — `--aov albedo,normal,depth,beauty,variance` scrive i buffer lineari pre-tone-mapping in formato Portable Float Map accanto all'immagine principale, per compositing e debug.
 - 🖼️ **Output multi-formato** — PNG, JPEG e BMP con rilevamento automatico dall'estensione del file.
 
 ### Accelerazione
@@ -298,7 +300,7 @@ Con `--with-cameras`: anche `scenes/<stem>-preview.yaml` (scena pronta al render
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | — (**obbligatorio**) | Percorso del file YAML della scena. L'estensione `.yaml` (o `.yml`) è **opzionale**: se il path non esiste così com'è, il loader prova ad aggiungerla automaticamente (es. `-i scenes/chess` ⇒ `scenes/chess.yaml`). |
 | `--output` | `-o` | `renders/render-<scena>.png` | File di output. Se omesso, generato dal nome della scena. |
-| `--quality` | `-q` | — | Preset di qualità che riempie in un colpo `-w -H -s -d -S` (e, per `final-fast`, anche caustiche/SSS/NEE). Valori: `draft-tiny` (480×270), `draft-small` (960×540), `draft` (1080p) — `medium-tiny`, `medium-small`, `medium` — `final-tiny`, `final-small`, `final` — `final-fast-tiny`, `final-fast-small`, `final-fast` — `ultra` (4K). **Qualunque flag esplicito vince sul preset** (es. `-q final -d 16` per scene con vetri impilati). `final-fast` punta a qualità final su scene classiche (Lambertian/Disney, vetri non annidati, marmo procedurale) disattivando gli extra costosi — vedi i [Profili di Rendering](./docs/reference/profili-di-rendering.md). |
+| `--quality` | `-q` | — | Preset di qualità che riempie in un colpo `-w -H -s -d -S` (e, per `standard`, anche caustiche/SSS/NEE). Scala: `draft` → `standard` → `pre-final` → `final` → `ultra`, ognuno con varianti `-tiny` (480×270) e `-small` (960×540). I preset `draft*`/`standard*`/`pre-final*` attivano anche il denoiser (`--denoiser nfor`); `final`/`ultra` no. **Qualunque flag esplicito vince sul preset** (es. `-q final -d 16` per scene con vetri impilati). `standard` = qualità final su scene classiche (Lambertian/Disney, vetri non annidati, marmo procedurale) senza gli extra costosi; `pre-final` = anteprima fedele di `final` (feature complete, 256 spp + denoiser, ~4-6× più veloce) — vedi i [Profili di Rendering](./docs/reference/profili-di-rendering.md). |
 | `--width` | `-w` | `1200` | Larghezza in pixel. |
 | `--height` | `-H` | `800` | Altezza in pixel. |
 | `--samples` | `-s` | `16` | Campioni per pixel. Con il sampler Sobol (default) viene usato il conteggio esatto; con `--sampler prng` viene arrotondato al quadrato perfetto superiore (`√N × √N`). |
@@ -314,8 +316,11 @@ Con `--with-cameras`: anche `scenes/<stem>-preview.yaml` (scena pronta al render
 | `--texture-filtering` | — | `auto` | Anti-aliasing analitico delle texture procedurali e image via ray differentials: `auto`/`on` = filtering attivo (Perlin/fBm octave clamp, Voronoi supersampling adattivo, image mipmap + EWA anisotropico); `off` = point-sampled puro (utile come baseline per benchmark/AB). |
 | `--caustics` | — | `off`¹ | Caustiche focalizzate via **photon mapping**: `on` attiva un pre-pass che emette fotoni di caustica dalle luci, li traccia attraverso le superfici speculari (specchio/vetro/acqua/metallo) e li deposita dove atterrano su superfici diffuse (cammini `L S+ D`); la passata camera li raccoglie con una stima di densità ai k-nearest. È **generale** (qualunque geometria speculare, **tutti** i tipi di luce — comprese `directional`/sole) e **non richiede alcun flag YAML per-oggetto**. Con `off` il rendering è identico a prima e il costo è nullo. Limiti noti in questa versione: caustiche da vetro/metallo **rough/frosted** e da ambiente **HDRI** ricadono sul path tracer (più rumoroso); la tinta interna Beer-Lambert lungo il cammino dei fotoni non è applicata (lieve differenza di colore su vetro colorato spesso). ¹Attivo di default sui preset `final`/`ultra` (un `--caustics` esplicito ha la precedenza). |
 | `--caustic-photons` | — | `2–4M`² | Budget di fotoni emessi dal pre-pass di caustica (in milioni di fotoni). Valori più alti = caustiche più nitide e meno rumorose, pre-pass più lento. Nessun effetto con `--caustics off`. ²Default dipendente dal preset (più alto su `final`/`ultra`). |
+| `--denoiser` | — | `none`³ | Denoiser feature-guided applicato alla radianza HDR lineare **prima** del tone mapping: `nfor` (regressione first-order guidata da albedo/normale/profondità con selezione per-pixel del candidato a minimo errore stimato — consigliato), `nlm` (media pesata joint NL-means, più rapido e morbido), `none`. La selezione include sempre l'immagine non filtrata come candidato di sicurezza: dove il filtro non può vincere (es. ombre di contatto sottili, invisibili alle feature) il rumore originale viene preservato invece di introdurre bias. ³Attivo di default sui preset `draft*` (nfor fast), `standard*` e `pre-final*` (nfor high); `final`/`ultra` restano puri. Un `--denoiser` esplicito ha sempre la precedenza. |
+| `--denoise-quality` | — | `high` | Compromesso velocità/qualità del denoiser: `high` = finestra di ricerca 19×19, due candidati di intensità combinati per-pixel; `fast` = finestra 15×15, candidato singolo (~2× più veloce). |
+| `--aov` | — | — | Lista separata da virgole di buffer ausiliari da salvare in formato **PFM** (HDR lineare, scene-referred) accanto al file `-o`: `albedo`, `normal` (world-space), `depth` (distanza camera, `-1` = cielo), `beauty` (radianza lineare pre-esposizione; **post-denoise** se il denoiser è attivo), `variance` (varianza dual-buffer grezza). Es: `-o out.png --aov albedo,normal,depth` produce `out.albedo.pfm`, `out.normal.pfm`, `out.depth.pfm`. |
 | `--sss-mode` | — | `auto` | Dispatch del random walk subsurface scattering: `auto` (default) — i media bound a entità con `σ_s > 0` attivano il walk; `off` — i media pushati sono declassati ad assorbimento solo (Beer-Lambert legacy), utile per preview rapide e A/B comparison. |
-| `--sss-quality` | — | da `-q` | Preset random-walk: `preview` (16 vol-bounce, no NEE in-walk), `normal` (64, NEE on), `high` (256, NEE on). Se omesso, ereditato dal preset `-q` (`draft*` → preview, `medium*` → normal, `final*`/`ultra` → high). |
+| `--sss-quality` | — | da `-q` | Preset random-walk: `preview` (16 vol-bounce, no NEE in-walk), `normal` (64, NEE on), `high` (256, NEE on). Se omesso, ereditato dal preset `-q` (`draft*` → preview, `pre-final*`/`final*`/`ultra` → high; su `standard*` il SSS è disattivato). |
 | `--max-volume-bounces` | — | da `--sss-quality` | Cap massimo sui bounce del random walk in un'entità. Override del valore del preset, utile per stress test su media densi (`--max-volume-bounces 16`) o per qualità extra (`--max-volume-bounces 512`). |
 | `--list-cameras` | — | — | Elenca le camere disponibili nella scena ed esce. |
 | `--verbose` | `-v` | — | Mostra informazioni dettagliate durante il caricamento e l'analisi della scena (import, template, σ del medium, tuning Russian Roulette). Utile per debug e sviluppo scene. |
@@ -339,23 +344,25 @@ dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q draft-
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q draft-small -o preview.png
 ```
 
-### Preset `medium` (CI/CD, review, log — minuti, 1920×1080)
+### Preset `standard` (render di qualità quotidiano — Full HD)
+Qualità da final su scene classiche (Lambertian/Disney, vetri non annidati,
+marmo procedurale): caustiche e SSS volumetrico disattivati, 512 spp, 1
+shadow sample, NEE power-weighted, clamp indiretto rilassato e denoiser NFOR
+sulla grana residua. Molto più veloce di `final` su questo tipo di scene.
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q medium -o draft.png
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q standard -o standard.png
+```
+
+### Preset `pre-final` (anteprima fedele del final — Full HD)
+Stessa feature-set di `final` (caustiche, SSS, depth 8) con 256 spp, 1 shadow
+sample e denoiser high: anticipa la resa final a ~4-6× la velocità.
+```bash
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q pre-final -o preview-final.png
 ```
 
 ### Preset `final` (portfolio, copertina README — Full HD)
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final -o final.png
-```
-
-### Preset `final-fast` (qualità final, scena classica — Full HD)
-Stessa classe di qualità di `final` ma ottimizzato per scene classiche
-(Lambertian/Disney, vetri non annidati, marmo procedurale): caustiche e SSS
-volumetrico disattivati, 512 spp, 1 shadow sample, NEE power-weighted, clamp
-indiretto rilassato. Molto più veloce di `final` su questo tipo di scene.
-```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final-fast -o final-fast.png
 ```
 
 ### Preset `ultra` (4K showcase)
@@ -376,13 +383,13 @@ Tutti i flag puoi continuare a passarli a mano: utile per profili custom o per r
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -o final.png -w 1920 -H 1080 -s 1024 -d 8 -S 4
 
 # Profilo Standard tile orizzontale 800×533
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -o draft.png -w 800 -H 533 -s 256 -d 6
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -o draft.png -w 800 -H 533 -s 512 -d 8
 ```
 
 ### Output in JPEG
 Il formato viene rilevato automaticamente dall'estensione:
 ```bash
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q medium -o render.jpg
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q standard -o render.jpg
 ```
 
 ### Multi-Camera
