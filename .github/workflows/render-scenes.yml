@@ -110,7 +110,7 @@ jobs:
           publish/RayTracer/RayTracer \
             -i scenes/${{ matrix.scene }}.yaml \
             -o renders/${{ matrix.scene }}.png \
-            -q final-fast -s 1024
+            -q standard -s 1024
 
       - name: Upload render
         if: always()

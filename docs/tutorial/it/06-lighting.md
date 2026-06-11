@@ -648,7 +648,7 @@ una parete) la riceve. Tutte le luci guidano le caustiche, **sole**
 RayTracer -i mia-scena.yaml -q final
 
 # Oppure attivale esplicitamente su qualsiasi preset:
-RayTracer -i mia-scena.yaml -q medium --caustics on
+RayTracer -i mia-scena.yaml -q standard --caustics on
 ```
 
 Qualche nota pratica:

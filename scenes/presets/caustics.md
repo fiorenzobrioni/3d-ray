@@ -273,7 +273,7 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
 ```bash
 # Anteprima veloce (caustiche on, budget fotoni ridotto)
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-  -i scenes/mia-caustica.yaml -q medium-small --caustics on --caustic-photons 1000000
+  -i scenes/mia-caustica.yaml -q standard-small --caustics on --caustic-photons 1000000
 
 # Final (i preset final/ultra abilitano già --caustics on con budget alto)
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \

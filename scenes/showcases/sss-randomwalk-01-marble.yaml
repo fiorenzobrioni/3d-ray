@@ -19,7 +19,7 @@
 #
 #  Profili di rendering:
 #    Preview:    -q draft-small     (~10-30 s)
-#    Standard:   -q medium-small    (~1-3 min)
+#    Standard:   -q standard-small    (~1-3 min)
 #    Final:      -q final-small     (qualche minuto, look pulito)
 #    Showcase:   -q final           (1920×1080, portfolio)
 #

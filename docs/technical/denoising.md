@@ -7,7 +7,7 @@ It is implemented entirely in managed C# (`src/RayTracer/Denoising/`), SIMD
 (`Vector<float>` / `Vector256`) and parallel, with no native dependencies.
 
 CLI: `--denoiser none|nlm|nfor` (+ `--denoise-quality fast|high`); the
-`draft*`, `medium*` and `final-fast*` quality presets enable `nfor` by
+`draft*`, `standard*` and `pre-final*` quality presets enable `nfor` by
 default. `--aov albedo,normal,depth,beauty,variance` writes the guide
 buffers as PFM files. See the [rendering profiles](../reference/rendering-profiles.md)
 for the preset interaction.

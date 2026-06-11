@@ -6,6 +6,35 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Preset — ricalibrazione `-q` attorno al denoiser (draft → standard → pre-final → final → ultra) ✅
+
+**Motivazione.** Col denoiser NFOR nei preset, `medium` (128 spp, d6) era
+diventato ridondante: il profilo "qualità veloce senza extra" copre sia la
+review sia il final-su-scene-classiche. Mancava invece un'anteprima fedele
+di `final`. Decisione (utente): scala a 4 tier + ultra, **rimozione secca**
+dei nomi `medium*`/`final-fast*` (beta, mai pubblicati — nessun alias).
+
+**Nuova scala.**
+- `draft*` — invariato (16 spp, d4, S1, nfor fast): preview istantaneo.
+- `standard*` — **fusione di medium+final-fast**, parametri ex final-fast
+  (512 spp, d8, S1, NEE power, clamp indiretto 0.5, caustiche/SSS off,
+  nfor high): il render di qualità quotidiano.
+- `pre-final*` — **nuovo**: feature-set di `final` completa (caustiche on
+  2M fotoni, SSS high, d8, NEE all, clamp default) con 256 spp + S1 + nfor
+  high. ~4-6× più veloce di final (spp/4, shadow ray NEE /4); il rumore di
+  penombra tagliato da S4→S1 è il caso migliore del filtro feature-guided.
+- `final*` / `ultra` — invariati, **senza denoiser** (riferimento puro).
+  `ultra` resta volutamente 512 spp: a 4K la densità di pixel maschera il
+  rumore per-pixel e 1024 spp raddoppierebbero un render già lungo.
+
+**Aggiornati.** `QualityPreset` (statiche, Parse, NamesCsv, ShowHelp),
+workflow `render-scenes.yml`, commenti delle scene showcase (~10),
+`scenes/presets/{caustics,lights}.md`, tutorial EN/IT (cap. 2 e 6), README
+(tabella CLI + esempi), profili di rendering EN/IT (matrice + paragrafi
+standard/pre-final), `docs/technical/denoising.*`, CLAUDE.md, PLANNING.
+
+---
+
 ## Ciclo Denoiser — NFOR feature-guided + AOV/PFM output (#16 + parte di #17) ✅
 
 **Obiettivo.** Denoiser di classe produzione, 100% managed (niente OIDN/binding

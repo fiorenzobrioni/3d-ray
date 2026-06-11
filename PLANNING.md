@@ -43,7 +43,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 | 13 | Multi-Importance Sampling (tutti i materiali + phase function, balance/power heuristic) | ✅ |
 | 14 | Adaptive Sampling | ⬜ (dopo #15; il layer dual-buffer A/B + `SampleCount` per pixel di #16 è la fondazione pronta) |
 | 15 | Tile-based Rendering (tile 16×16, progress su thread reporter dedicato) | ✅ |
-| 16 | Denoiser (NFOR: NL-means + regressione first-order guidata da albedo/normal/depth, dual-buffer cross-filtering, selezione MSE con safety net; `--denoiser nlm\|nfor`, default nei preset draft/medium/final-fast) | ✅ |
+| 16 | Denoiser (NFOR: NL-means + regressione first-order guidata da albedo/normal/depth, dual-buffer cross-filtering, selezione MSE con safety net; `--denoiser nlm\|nfor`, default nei preset draft/standard/pre-final) | ✅ |
 | 17 | HDR Output (PFM/EXR pre-tone-mapping) | 🔧 PFM ✅ (`--aov albedo,normal,depth,beauty,variance`) · EXR ⬜ |
 | +  | Sobol + Owen Scrambling sampler (`--sampler sobol`, default attivo) | ✅ |
 
@@ -151,7 +151,7 @@ Ottimizzazioni caustiche valutate nel ciclo fix mega-fotoni e **rimandate**:
 Da eseguire prima di un commit importante.
 
 - [ ] **Smoke**: render `primitive-showcase.yaml` (16 spp), no crash.
-- [ ] **Visual regression**: confronto `cornell-box.yaml` con baseline. ⚠️ Dal ciclo Denoiser i preset `draft*`/`medium*`/`final-fast*` includono `--denoiser nfor`: le baseline generate con quei preset vanno confrontate a parità di flag (o rigenerate); per un confronto col motore "puro" aggiungere `--denoiser none`.
+- [ ] **Visual regression**: confronto `cornell-box.yaml` con baseline. ⚠️ Dal ciclo Denoiser i preset `draft*`/`standard*`/`pre-final*` includono `--denoiser nfor`: le baseline generate con quei preset vanno confrontate a parità di flag (o rigenerate); per un confronto col motore "puro" aggiungere `--denoiser none`.
 - [ ] **Performance**: tempo render scena standard non +5% senza motivo.
 - [ ] **YAML**: ogni nuova proprietà ha default sensato.
 - [ ] **CSG**: render `csg-showcase.yaml` — union/intersection/subtraction visivamente corrette.

@@ -10,7 +10,7 @@
 #
 #  Profili:
 #    Preview:    -q draft-small     (composizione)
-#    Standard:   -q medium-small    (look check)
+#    Standard:   -q standard-small    (look check)
 #    Final:      -q final           (portfolio)
 #
 #  Coefficienti σ derivati da Jensen 2001 Table 1 ("skin1"):

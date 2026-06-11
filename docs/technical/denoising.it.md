@@ -8,7 +8,7 @@ passata di rendering. È implementato interamente in C# managed
 parallelo, senza dipendenze native.
 
 CLI: `--denoiser none|nlm|nfor` (+ `--denoise-quality fast|high`); i preset
-di qualità `draft*`, `medium*` e `final-fast*` abilitano `nfor` di default.
+di qualità `draft*`, `standard*` e `pre-final*` abilitano `nfor` di default.
 `--aov albedo,normal,depth,beauty,variance` scrive i buffer guida in formato
 PFM. Vedi i [profili di rendering](../reference/profili-di-rendering.md) per
 l'interazione con i preset.

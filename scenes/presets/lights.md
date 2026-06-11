@@ -466,5 +466,5 @@ dotnet run --project src/RayTracer -- -i scena.yaml -q final --caustics on
 dotnet run --project src/RayTracer -- -i scena.yaml -q final --caustics on --caustic-photons 8000000 -C 25
 
 # Preview rapida con caustiche attive (budget fotoni ridotto)
-dotnet run --project src/RayTracer -- -i scena.yaml -q medium-small --caustics on --caustic-photons 1000000
+dotnet run --project src/RayTracer -- -i scena.yaml -q standard-small --caustics on --caustic-photons 1000000
 ```

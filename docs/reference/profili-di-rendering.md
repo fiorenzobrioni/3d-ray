@@ -9,7 +9,7 @@ Questo documento è il riferimento pratico per regolare i tre parametri di quali
 | Profilo | `-s` | griglia | `-d` | `-S` | Uso tipico |
 |---|---|---|---|---|---|
 | **Preview** (Bozza) | `64` | 8×8 | `4` | `1` | Composizione scena, posizionamento camere, colori materiali. Veloce e granuloso. |
-| **Standard** (Medio) | `256` | 16×16 | `6` | `1` (o `4`) | CI/CD, render di review, anteprime nei log. Pulito con grana filmica. |
+| **Standard** | `512` | ~23×23 | `8` | `1` | Render di qualità quotidiani, CI/CD, review. Abbinalo al denoiser per un'immagine pulita. |
 | **Final** (Vetrina) | `1024` | 32×32 | `8` | `4` | Portfolio, copertina del README, render promozionali. Croccante e pubblicabile. |
 
 Tutti i valori della tabella sono **quadrati perfetti** di proposito (vedi sezioni 3 e 5).
@@ -20,7 +20,7 @@ Tutti i valori della tabella sono **quadrati perfetti** di proposito (vedi sezio
 RayTracer -i my-scene.yaml -w 400 -H 225 -s 64 -d 4 -S 1
 
 # Standard — adatto a CI/CD, ottimo per anteprime in linea nel README
-RayTracer -i my-scene.yaml -w 800 -H 450 -s 256 -d 6
+RayTracer -i my-scene.yaml -w 800 -H 450 -s 512 -d 8
 
 # Final — qualità portfolio / copertina del README
 RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
@@ -36,24 +36,32 @@ RayTracer -i my-scene.yaml -w 1920 -H 1080 -s 1024 -d 8 -S 4
 
 Se non vuoi riscrivere `-w -H -s -d -S` ogni volta, il flag
 `--quality` (alias `-q`) impacchetta tutti e cinque i parametri in un
-preset con nome. La matrice è **3 livelli di qualità × 3 risoluzioni + 1
-preset 4K showcase**:
+preset con nome. La scala è **4 livelli di qualità × 3 risoluzioni + 1
+preset 4K showcase** (`draft → standard → pre-final → final → ultra`):
 
-| `-q` | Risoluzione | `-s` | griglia | `-d` | `-S` | Uso tipico |
+| `-q` | Risoluzione | `-s` | `-d` | `-S` | Denoiser | Uso tipico |
 |---|---|---|---|---|---|---|
-| `draft-tiny`   | 480×270   | 16   | 4×4   | 4 | 1 | Sanity check istantaneo / errori macroscopici |
-| `draft-small`  | 960×540   | 16   | 4×4   | 4 | 1 | Composizione e camere super-veloce |
-| `draft`        | 1920×1080 | 16   | 4×4   | 4 | 1 | Stessa velocità, framing Full HD |
-| `medium-tiny`  | 480×270   | 128  | ~11×11| 6 | 1 | Verifica rapida materiali e luci |
-| `medium-small` | 960×540   | 128  | ~11×11| 6 | 1 | Iterazione materiali e luci |
-| `medium`       | 1920×1080 | 128  | ~11×11| 6 | 1 | CI/CD, render di review |
-| `final-tiny`   | 480×270   | 1024 | 32×32 | 8 | 4 | Spot check rapido a qualità piena |
-| `final-small`  | 960×540   | 1024 | 32×32 | 8 | 4 | Thumbnail showcase / contact-sheet |
-| `final`        | 1920×1080 | 1024 | 32×32 | 8 | 4 | Portfolio, copertina README |
-| `final-fast-tiny`  | 480×270   | 512 | ~23×23 | 8 | 1 | Check rapido, qualità scena classica |
-| `final-fast-small` | 960×540   | 512 | ~23×23 | 8 | 1 | Thumbnail showcase, scena classica |
-| `final-fast`       | 1920×1080 | 512 | ~23×23 | 8 | 1 | **Qualità final, ottimizzato per scene classiche** |
-| `ultra`        | 3840×2160 | 1024 | 32×32 | 8 | 4 | Showcase 4K |
+| `draft-tiny`   | 480×270   | 16   | 4 | 1 | nfor fast | Sanity check istantaneo / errori macroscopici |
+| `draft-small`  | 960×540   | 16   | 4 | 1 | nfor fast | Composizione e camere super-veloce |
+| `draft`        | 1920×1080 | 16   | 4 | 1 | nfor fast | Stessa velocità, framing Full HD |
+| `standard-tiny`  | 480×270   | 512 | 8 | 1 | nfor high | Check rapido, qualità scena classica |
+| `standard-small` | 960×540   | 512 | 8 | 1 | nfor high | Iterazione materiali e luci, thumbnail |
+| `standard`       | 1920×1080 | 512 | 8 | 1 | nfor high | **Render di qualità quotidiano** (review, CI, scene classiche) |
+| `pre-final-tiny`  | 480×270   | 256 | 8 | 1 | nfor high | Spot check con feature complete |
+| `pre-final-small` | 960×540   | 256 | 8 | 1 | nfor high | Iterazione della resa final a ¼ di risoluzione |
+| `pre-final`       | 1920×1080 | 256 | 8 | 1 | nfor high | **Anteprima fedele di `final`**, ~4-6× più veloce |
+| `final-tiny`   | 480×270   | 1024 | 8 | 4 | — | Spot check rapido a qualità piena |
+| `final-small`  | 960×540   | 1024 | 8 | 4 | — | Thumbnail showcase / contact-sheet |
+| `final`        | 1920×1080 | 1024 | 8 | 4 | — | Portfolio, copertina README |
+| `ultra`        | 3840×2160 | 512  | 8 | 4 | — | Showcase 4K |
+
+Feature per tier: `standard` spegne caustiche fotoniche e SSS volumetrico e
+usa NEE power-weighted con clamp indiretto rilassato (0.5); `pre-final`,
+`final` e `ultra` girano con la **feature-set completa** (caustiche on — 2M
+fotoni per pre-final, 2–4M per final/ultra — SSS high, NEE su tutte le luci,
+clamp di default). `ultra` resta a 512 spp di proposito: a 4K la densità di
+pixel nasconde il rumore per-pixel che a 1080p sarebbe visibile, e 1024 spp
+raddoppierebbero un render già lungo.
 
 Le varianti `*-tiny` sono a **un quarto di risoluzione** rispetto al
 full HD (480×270 = ¹⁄₁₆ dei pixel di 1920×1080, ¹⁄₄ di `*-small`),
@@ -67,46 +75,56 @@ preset full-HD corrispondente restando leggibili a schermo.
 **Qualunque flag esplicito vince.** Il preset compila solo i valori
 che non hai passato manualmente: `-q final -d 16` lancia il preset
 final ma porta la depth a 16 (utile per scene con vetri impilati);
-`-q medium -w 640 -H 360` rimpicciolisce il preset medium senza
+`-q standard -w 640 -H 360` rimpicciolisce il preset standard senza
 toccarne il sampling.
 
-**Denoiser.** I preset `draft*`, `medium*` e `final-fast*` abilitano di
+**Denoiser.** I preset `draft*`, `standard*` e `pre-final*` abilitano di
 default il denoiser feature-guided (`--denoiser nfor`; `draft*` usa
 `--denoise-quality fast`, gli altri `high`): la beauty HDR lineare viene
 filtrata prima del tone mapping usando le guide albedo/normale/profondità —
 è ai campionamenti bassi e medi che il denoiser rende di più, ed è lì che i
-512 spp di `final-fast` lasciano spesso quella grana residua che il denoiser
+512 spp di `standard` lasciano spesso quella grana residua che il denoiser
 assorbe in pochi secondi extra. `final` e `ultra` restano non filtrati per
 scelta (i render di riferimento convergiti mantengono ogni dettaglio non
 filtrato); aggiungi un `--denoiser nfor` esplicito per filtrarli, o
 `--denoiser none` per spegnere il default del preset. Vedi
 [Denoising](../technical/denoising.it.md) per l'algoritmo e i trade-off.
 
-**Caustiche.** I preset `final` e `ultra` abilitano anche le caustiche via
-photon mapping (`--caustics on`) di default; gli altri preset le lasciano
-spente. Il budget di fotoni del pre-pass è controllato da `--caustic-photons
-<N>` (default ~2–4M, più alto su `final`/`ultra`): più fotoni = caustiche più
-nitide e meno rumorose, al costo di un pre-pass più lento. Un `--caustics off`
+**Caustiche.** I preset `pre-final`, `final` e `ultra` abilitano anche le
+caustiche via photon mapping (`--caustics on`) di default; `draft` e
+`standard` le lasciano spente. Il budget di fotoni del pre-pass è controllato
+da `--caustic-photons <N>` (2M su pre-final, ~2–4M su final/ultra): più
+fotoni = caustiche più nitide e meno rumorose, al costo di un pre-pass più
+lento. Un `--caustics off`
 esplicito (o `--caustics on` su un preset più basso) ha la precedenza sul
 default del preset. Vedi [Path Tracing e Illuminazione §2.5](../technical/path-tracing-and-lighting.md).
 
-**`final-fast` — qualità final, ottimizzato per scene classiche.** Il tier
-`final-fast` punta alla stessa qualità d'immagine di `final` su una scena
-*classica* — superfici Lambertian/Disney, vetri non annidati (al massimo un
-paio di sfere di cristallo una davanti all'altra), marmo procedurale con
-parametri ordinari — eliminando la costosa macchineria di illuminazione
-globale che queste scene non usano. Rispetto a `final`: disattiva le
-**caustiche** a photon mapping, disattiva il **SSS** volumetrico
-(`--sss-mode off`), scende a **512 spp** e a **un solo shadow sample** (512
-spp fanno già anti-aliasing), passa a NEE **power-weighted single-light**
-(`--light-sampling power`, che scala meglio del default globale `all`) e
-rilassa il clamp indiretto a `0.5`. Su una scena senza caustiche/SSS è
+**`standard` — il render di qualità quotidiano.** Il tier `standard` punta
+a qualità d'immagine da final su una scena *classica* — superfici
+Lambertian/Disney, vetri non annidati (al massimo un paio di sfere di
+cristallo una davanti all'altra), marmo procedurale con parametri ordinari —
+eliminando la costosa macchineria di illuminazione globale che queste scene
+non usano. Rispetto a `final`: disattiva le **caustiche** a photon mapping,
+disattiva il **SSS** volumetrico (`--sss-mode off`), gira a **512 spp** con
+**un solo shadow sample** (512 spp fanno già anti-aliasing), passa a NEE
+**power-weighted single-light** (`--light-sampling power`, che scala meglio
+del default globale `all`), rilassa il clamp indiretto a `0.5` e lascia al
+**denoiser NFOR** la grana residua. Su una scena senza caustiche/SSS è
 nettamente più veloce di `final` a parità di resa. Come sempre i flag
-espliciti vincono — es. `-q final-fast --caustics on` riattiva le caustiche,
-`-q final-fast -s 768` alza i campioni se i bordi del vetro restano
-rumorosi. Evitalo per scene che dipendono davvero da caustiche focalizzate,
-traslucenza/SSS profondo o vetri impilati/annidati — lì usa `final` (e un
-`-d` più alto).
+espliciti vincono — es. `-q standard --caustics on` riattiva le caustiche,
+`-q standard -s 768` alza i campioni se i bordi del vetro restano rumorosi.
+Evitalo per scene che dipendono davvero da caustiche focalizzate,
+traslucenza/SSS profondo o vetri impilati/annidati — lì usa
+`pre-final`/`final` (e un `-d` più alto).
+
+**`pre-final` — anteprima fedele di `final`.** Stessa feature-set di `final`
+(caustiche on, SSS high, depth 8, NEE su tutte le luci, clamp indiretto di
+default) con i budget di campionamento tagliati dove il denoiser compensa
+meglio: **¼ dei campioni per pixel** (256) e **un solo shadow sample** — il
+rumore delle penombre è esattamente ciò che il filtro guidato dalle feature
+rimuove più pulito. Il risultato anticipa illuminazione, caustiche e
+traslucenza del final a circa **4-6× la velocità**; usalo per iterare su una
+scena destinata a `final`, poi lancia `final` non filtrato per la consegna.
 
 ```bash
 # Sanity check istantaneo, pochi secondi
@@ -115,8 +133,11 @@ RayTracer -i my-scene -q draft-tiny
 # Controllo composizione veloce, secondi
 RayTracer -i my-scene -q draft-small
 
-# Render di review, Full HD
-RayTracer -i my-scene -q medium
+# Render di qualità quotidiano / review, Full HD
+RayTracer -i my-scene -q standard
+
+# Anteprima con feature complete della resa final, Full HD
+RayTracer -i my-scene -q pre-final
 
 # Portfolio, Full HD
 RayTracer -i my-scene -q final
@@ -127,12 +148,12 @@ RayTracer -i my-scene -q ultra
 # Preset final + override custom (depth alzata per vetri impilati)
 RayTracer -i my-scene -q final -d 16
 
-# Ricetta low-spp + denoiser: resa da medium con una frazione dei campioni
-RayTracer -i my-scene -q draft            # 16 spp + denoiser NFOR (default del preset)
-RayTracer -i my-scene -q medium --denoiser none   # default del preset disattivato
+# Denoiser del preset disattivato (output grezzo a 512 spp)
+RayTracer -i my-scene -q standard --denoiser none
 ```
 
-> I nomi dei preset seguono la scala convenzionale Preview/Standard/Final.
+> I nomi dei preset seguono la scala convenzionale Preview/Standard/Final,
+> con `pre-final` come anteprima denoised di `final`.
 > Le varianti `-small` sono adatte a check iterativi a metà risoluzione,
 > e le varianti `-tiny` offrono un check ancora più rapido a un quarto
 > della risoluzione.
