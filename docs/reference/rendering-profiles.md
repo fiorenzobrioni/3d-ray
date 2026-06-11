@@ -69,6 +69,18 @@ didn't pass: `-q final -d 16` runs the final preset but bumps depth to
 16 (e.g. for a stacked-glass scene); `-q medium -w 640 -H 360` shrinks
 the medium preset without touching its sampling settings.
 
+**Denoiser.** The `draft*`, `medium*` and `final-fast*` presets enable the
+feature-guided denoiser by default (`--denoiser nfor`; `draft*` uses
+`--denoise-quality fast`, the others `high`): the linear HDR beauty is
+filtered before tone mapping using albedo/normal/depth guides, which is
+where low- and mid-spp renders gain the most — and where `final-fast`'s
+512 spp often leave a faint residual grain that the denoiser absorbs for a
+few extra seconds. `final` and `ultra` stay unfiltered by design (converged
+reference renders keep every unfiltered detail); add an explicit
+`--denoiser nfor` if you want them filtered, or `--denoiser none` to switch
+the preset default off. See [Denoising](../technical/denoising.md) for the
+algorithm and trade-offs.
+
 **Caustics.** The `final` and `ultra` presets also enable photon-mapped
 caustics (`--caustics on`) by default; the other presets leave them off.
 The photon budget for the pre-pass is controlled by `--caustic-photons
@@ -113,6 +125,10 @@ RayTracer -i my-scene -q ultra
 
 # Final preset + custom override (depth bumped for stacked glass)
 RayTracer -i my-scene -q final -d 16
+
+# Low-spp + denoiser recipe: medium-quality look at a fraction of the samples
+RayTracer -i my-scene -q draft            # 16 spp + NFOR denoiser (preset default)
+RayTracer -i my-scene -q medium --denoiser none   # preset default switched off
 ```
 
 > The preset names follow the conventional Preview/Standard/Final quality

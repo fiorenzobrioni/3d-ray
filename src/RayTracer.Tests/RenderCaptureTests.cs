@@ -17,6 +17,7 @@ namespace RayTracer.Tests;
 /// off, on, or via the legacy two-argument overload. Also validates the
 /// first-non-delta-hit AOV semantics and the dual-buffer variance estimator.
 /// </summary>
+[Collection("SamplerExclusive")]
 public class RenderCaptureTests
 {
     private const int Width = 32;

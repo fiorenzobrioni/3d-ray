@@ -20,6 +20,7 @@ namespace RayTracer.Tests;
 /// measured at implementation time (see DEVLOG); if filter parameters change
 /// intentionally, re-measure and adjust.
 /// </summary>
+[Collection("SamplerExclusive")]
 public class DenoiserRegressionTests
 {
     private const int Size = 64;

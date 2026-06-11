@@ -70,6 +70,18 @@ final ma porta la depth a 16 (utile per scene con vetri impilati);
 `-q medium -w 640 -H 360` rimpicciolisce il preset medium senza
 toccarne il sampling.
 
+**Denoiser.** I preset `draft*`, `medium*` e `final-fast*` abilitano di
+default il denoiser feature-guided (`--denoiser nfor`; `draft*` usa
+`--denoise-quality fast`, gli altri `high`): la beauty HDR lineare viene
+filtrata prima del tone mapping usando le guide albedo/normale/profondità —
+è ai campionamenti bassi e medi che il denoiser rende di più, ed è lì che i
+512 spp di `final-fast` lasciano spesso quella grana residua che il denoiser
+assorbe in pochi secondi extra. `final` e `ultra` restano non filtrati per
+scelta (i render di riferimento convergiti mantengono ogni dettaglio non
+filtrato); aggiungi un `--denoiser nfor` esplicito per filtrarli, o
+`--denoiser none` per spegnere il default del preset. Vedi
+[Denoising](../technical/denoising.it.md) per l'algoritmo e i trade-off.
+
 **Caustiche.** I preset `final` e `ultra` abilitano anche le caustiche via
 photon mapping (`--caustics on`) di default; gli altri preset le lasciano
 spente. Il budget di fotoni del pre-pass è controllato da `--caustic-photons
@@ -114,6 +126,10 @@ RayTracer -i my-scene -q ultra
 
 # Preset final + override custom (depth alzata per vetri impilati)
 RayTracer -i my-scene -q final -d 16
+
+# Ricetta low-spp + denoiser: resa da medium con una frazione dei campioni
+RayTracer -i my-scene -q draft            # 16 spp + denoiser NFOR (default del preset)
+RayTracer -i my-scene -q medium --denoiser none   # default del preset disattivato
 ```
 
 > I nomi dei preset seguono la scala convenzionale Preview/Standard/Final.
