@@ -57,13 +57,14 @@ jobs:
           #- pendolo-newton
           #- showcases/lighting-sphere
           #- showcases/glass-caustics
-          - showcases/spheres-classic
-          - tempio-romano
-          - showcases/texture-voronoi-smooth
-          - showcases/material-mix-metal-rust
-          - showcases/material-marble
-          - showcases/material-wood
-          - showcases/medium-water-tank
+          #- showcases/spheres-classic
+          #- tempio-romano
+          #- showcases/texture-voronoi-smooth
+          #- showcases/material-mix-metal-rust
+          #- showcases/material-marble
+          #- showcases/material-wood
+          #- showcases/medium-water-tank
+          - showcases/material-mix
           #
           #- showcases/material-emissive
           #- sample
@@ -74,7 +75,6 @@ jobs:
           #- showcases/lighting-gradient-sky
           #- heightfield-procedural-test
           #- heightfield-strata-test-preview
-          #- showcases/material-mix
           #- showcases/primitive-overview
           #- showcases/material-spheres-pbr
           #- utah-teapot

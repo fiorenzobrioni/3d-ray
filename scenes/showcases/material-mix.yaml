@@ -197,8 +197,8 @@ materials:
     material_b: "lava"
     mask:
       type: "marble"
-      scale: 5.0
-      noise_strength: 8.0
+      scale: 8.0
+      noise_strength: 1.2
       colors: [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]
 
   # Checker mask — pattern regolare di due materiali
@@ -248,19 +248,19 @@ entities:
 
   - name: "blend_25"
     type: "sphere"
-    center: [-3, 1.2, 3]
+    center: [-3, 1.0, 3]
     radius: 1.0
     material: "mix_25"
 
   - name: "blend_50"
     type: "sphere"
-    center: [0, 1.2, 3]
+    center: [0, 1.0, 3]
     radius: 1.0
     material: "mix_50"
 
   - name: "blend_75"
     type: "sphere"
-    center: [3, 1.2, 3]
+    center: [3, 1.0, 3]
     radius: 1.0
     material: "mix_75"
 
@@ -271,19 +271,19 @@ entities:
 
   - name: "noise_mask"
     type: "sphere"
-    center: [-3, 1.2, 0]
+    center: [-3, 1.0, 0]
     radius: 1.0
     material: "mix_noise"
 
   - name: "marble_mask"
     type: "sphere"
-    center: [0, 1.2, 0]
+    center: [0, 1.0, 0]
     radius: 1.0
     material: "mix_marble"
 
   - name: "wood_mask"
     type: "sphere"
-    center: [3, 1.2, 0]
+    center: [3, 1.0, 0]
     radius: 1.0
     material: "mix_wood"
 
@@ -294,18 +294,18 @@ entities:
 
   - name: "weathered_sphere"
     type: "sphere"
-    center: [-3, 1.2, -3]
+    center: [-3, 1.0, -3]
     radius: 1.0
     material: "metallo_arrugginito"
 
   - name: "lava_rock"
     type: "sphere"
-    center: [0, 1.2, -3]
+    center: [0, 1.0, -3]
     radius: 1.0
     material: "lava_cooling"
 
   - name: "checker_sphere"
     type: "sphere"
-    center: [3, 1.2, -3]
+    center: [3, 1.0, -3]
     radius: 1.0
     material: "checker_mix"
