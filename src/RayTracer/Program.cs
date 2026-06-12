@@ -308,10 +308,10 @@ class Program
             }
         }
 
-        // ── AOV output (linear HDR, PFM) ─────────────────────────────────────
+        // ── AOV output (linear HDR, PFM/EXR) ─────────────────────────────────
         // `--aov albedo,normal,depth,beauty,variance` writes the requested
-        // guide buffers as PFM files next to the -o output. Any AOV request
-        // turns on full capture (beauty halves + AOVs) in the renderer.
+        // guide buffers next to the -o output. Any AOV request turns on full
+        // capture (beauty halves + AOVs) in the renderer.
         var aovs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string? aovArg = GetArg(args, "--aov", null);
         if (aovArg != null)
@@ -325,6 +325,23 @@ class Program
                     return;
                 }
                 aovs.Add(name);
+            }
+        }
+
+        // `--aov-format pfm|exr` forces one file per AOV in that format. When
+        // omitted and -o is .exr, the AOVs are embedded as layers in the main
+        // multilayer EXR instead; otherwise they default to separate PFM files.
+        string? aovFormat = null;
+        string? aovFormatArg = GetArg(args, "--aov-format", null);
+        if (aovFormatArg != null)
+        {
+            switch (aovFormatArg.ToLowerInvariant())
+            {
+                case "pfm": aovFormat = "pfm"; break;
+                case "exr": aovFormat = "exr"; break;
+                default:
+                    Console.WriteLine($"Error: Unknown --aov-format '{aovFormatArg}'. Valid: pfm, exr.");
+                    return;
             }
         }
 
@@ -409,8 +426,16 @@ class Program
         }
         if (denoiserKind != DenoiserKind.None)
             Console.WriteLine($"  Denoiser:    {denoiserKind.ToString().ToLowerInvariant()} ({denoiseQuality.ToString().ToLowerInvariant()})");
+
+        // A `.exr` output switches the main image to scene-linear HDR (no
+        // exposure/ACES/gamma) and, unless --aov-format forces separate
+        // files, absorbs any requested AOVs as layers of that same file.
+        bool exrOutput = Path.GetExtension(outputPath).Equals(".exr", StringComparison.OrdinalIgnoreCase);
+        bool embedAovs = exrOutput && aovFormat == null;
+        if (exrOutput)
+            Console.WriteLine("  HDR output:  linear EXR (pre-tone-mapping)");
         if (aovs.Count > 0)
-            Console.WriteLine($"  AOVs:        {string.Join(", ", aovs)}");
+            Console.WriteLine($"  AOVs:        {string.Join(", ", aovs)} ({(embedAovs ? "EXR layers" : (aovFormat ?? "pfm") + " files")})");
         Console.WriteLine();
 
         // Load scene
@@ -449,7 +474,9 @@ class Program
 
             var captureOptions = denoiserKind != DenoiserKind.None || aovs.Count > 0
                 ? RenderCaptureOptions.Full
-                : RenderCaptureOptions.None;
+                : exrOutput
+                    ? new RenderCaptureOptions { CaptureBeautyHalves = true }
+                    : RenderCaptureOptions.None;
 
             sw.Restart();
             var result = renderer.Render(width, height, captureOptions);
@@ -476,12 +503,23 @@ class Program
                 Directory.CreateDirectory(outputDir);
             }
 
-            SaveImage(pixels, width, height, outputPath);
-            Console.WriteLine();
-            Console.WriteLine($"  \u2713 Saved: {Path.GetFullPath(outputPath)}");
+            if (exrOutput)
+            {
+                var beauty = denoisedBeauty ?? result.Buffers!.Beauty;
+                int embedded = SaveExrBeauty(outputPath, beauty, result.Buffers!, embedAovs ? aovs : null);
+                Console.WriteLine();
+                Console.WriteLine($"  \u2713 Saved: {Path.GetFullPath(outputPath)} " +
+                                  $"(linear EXR{(embedded > 0 ? $", +{embedded} AOV layers" : "")})");
+            }
+            else
+            {
+                SaveImage(pixels, width, height, outputPath);
+                Console.WriteLine();
+                Console.WriteLine($"  \u2713 Saved: {Path.GetFullPath(outputPath)}");
+            }
 
-            if (aovs.Count > 0)
-                SaveAovs(result.Buffers!, aovs, outputPath, denoisedBeauty);
+            if (aovs.Count > 0 && !embedAovs)
+                SaveAovs(result.Buffers!, aovs, outputPath, aovFormat ?? "pfm", denoisedBeauty);
         }
         catch (Exception ex)
         {
@@ -499,7 +537,9 @@ class Program
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  -i, --input <path>           Scene YAML file (required; .yaml/.yml extension is optional)");
-        Console.WriteLine("  -o, --output <path>          Output image (default: renders/render-<scene>.png)");
+        Console.WriteLine("  -o, --output <path>          Output image (default: renders/render-<scene>.png).");
+        Console.WriteLine("                                .png/.jpg/.bmp = tone-mapped display image; .exr = scene-linear");
+        Console.WriteLine("                                HDR before exposure/tone-map (multilayer, half RGB + float Z, ZIP)");
         Console.WriteLine("  -q, --quality <preset>       Render-quality preset that fills -w/-H/-s/-d/-S in one shot.");
         Console.WriteLine("                                Any explicit flag below wins over the preset's value.");
         Console.WriteLine("                                Presets: draft-tiny, draft-small, draft,");
@@ -531,7 +571,10 @@ class Program
         Console.WriteLine("                                (default: none; draft/standard/pre-final presets use nfor)");
         Console.WriteLine("      --denoise-quality <fast|high>  Denoiser speed/quality trade-off (default: high)");
         Console.WriteLine("      --aov <list>             Comma list of albedo,normal,depth,beauty,variance —");
-        Console.WriteLine("                                writes linear HDR .pfm files next to the -o output");
+        Console.WriteLine("                                writes linear HDR buffers next to the -o output (as layers");
+        Console.WriteLine("                                of the main file when -o is .exr, else as .pfm files)");
+        Console.WriteLine("      --aov-format <pfm|exr>   Force one file per AOV in the given format, even when");
+        Console.WriteLine("                                -o is .exr (default: embed in .exr output, else pfm)");
         Console.WriteLine("      --sss-mode <auto|off>    Subsurface-scattering dispatch (default: auto = follow scene)");
         Console.WriteLine("      --sss-quality <preview|normal|high>   Random-walk preset; inherits from -q when omitted");
         Console.WriteLine("      --max-volume-bounces <n> Hard cap on random-walk bounces inside one entity");
@@ -573,13 +616,14 @@ class Program
     }
 
     /// <summary>
-    /// Writes the requested AOV planes as PFM files next to the main output:
-    /// <c>renders/foo.png</c> → <c>renders/foo.albedo.pfm</c> etc. All values
-    /// are linear, scene-referred (pre-exposure, pre-tonemap); the beauty AOV
-    /// is the denoised buffer when a denoiser is active.
+    /// Writes the requested AOV planes as one file each next to the main
+    /// output: <c>renders/foo.png</c> → <c>renders/foo.albedo.pfm</c> (or
+    /// <c>.exr</c>) etc. All values are linear, scene-referred (pre-exposure,
+    /// pre-tonemap); the beauty AOV is the denoised buffer when a denoiser is
+    /// active.
     /// </summary>
     static void SaveAovs(RenderBuffers buffers, HashSet<string> aovs, string outputPath,
-                         FrameBuffer? denoisedBeauty = null)
+                         string format, FrameBuffer? denoisedBeauty = null)
     {
         string stem = Path.Combine(
             Path.GetDirectoryName(outputPath) ?? "",
@@ -587,19 +631,85 @@ class Program
 
         foreach (string aov in aovs)
         {
-            string path = $"{stem}.{aov}.pfm";
-            FrameBuffer fb = aov switch
-            {
-                "beauty"   => denoisedBeauty ?? buffers.Beauty,
-                "albedo"   => buffers.CombineHalves(buffers.AlbedoA!, buffers.AlbedoB!),
-                "normal"   => buffers.CombineHalves(buffers.NormalA!, buffers.NormalB!),
-                "depth"    => buffers.CombineDepthHalves(),
-                "variance" => buffers.RawBeautyVariance(),
-                _          => throw new InvalidOperationException($"unreachable AOV '{aov}'"),
-            };
-            fb.SavePfm(path);
+            string path = $"{stem}.{aov}.{format}";
+            FrameBuffer fb = ResolveAov(buffers, aov, denoisedBeauty);
+            if (format == "exr")
+                ExrImage.Write(path, fb.Width, fb.Height, AovExrChannels(aov, fb, embedded: false));
+            else
+                fb.SavePfm(path);
             Console.WriteLine($"  ✓ Saved: {Path.GetFullPath(path)}");
         }
+    }
+
+    static FrameBuffer ResolveAov(RenderBuffers buffers, string aov, FrameBuffer? denoisedBeauty) =>
+        aov switch
+        {
+            "beauty"   => denoisedBeauty ?? buffers.Beauty,
+            "albedo"   => buffers.CombineHalves(buffers.AlbedoA!, buffers.AlbedoB!),
+            "normal"   => buffers.CombineHalves(buffers.NormalA!, buffers.NormalB!),
+            "depth"    => buffers.CombineDepthHalves(),
+            "variance" => buffers.RawBeautyVariance(),
+            _          => throw new InvalidOperationException($"unreachable AOV '{aov}'"),
+        };
+
+    /// <summary>
+    /// Writes the scene-linear (pre-exposure, pre-tonemap) beauty as a
+    /// half-float RGB EXR; when <paramref name="embedAovs"/> is non-null the
+    /// requested AOVs become extra layers of the same multilayer file
+    /// (<c>albedo.R…</c>, <c>normal.X…</c>, float <c>Z</c>,
+    /// <c>variance.R…</c>). Returns the number of embedded AOV layers.
+    /// </summary>
+    static int SaveExrBeauty(string path, FrameBuffer beauty, RenderBuffers buffers,
+                             HashSet<string>? embedAovs)
+    {
+        var channels = new List<ExrImage.Channel>(AovExrChannels("beauty", beauty, embedded: true));
+        int embedded = 0;
+        if (embedAovs != null)
+        {
+            foreach (string aov in embedAovs)
+            {
+                if (aov == "beauty")
+                {
+                    // The main R,G,B channels ARE the (denoised) beauty.
+                    Console.WriteLine("  Note: --aov beauty is already the main EXR output — layer skipped.");
+                    continue;
+                }
+                channels.AddRange(AovExrChannels(aov, ResolveAov(buffers, aov, null), embedded: true));
+                embedded++;
+            }
+        }
+        ExrImage.Write(path, beauty.Width, beauty.Height, channels);
+        return embedded;
+    }
+
+    /// <summary>
+    /// EXR channel layout for one AOV buffer. Embedded layers follow the
+    /// <c>layer.channel</c> convention compositors group on (suffix R/G/B for
+    /// colour data, X/Y/Z for vectors, a bare float <c>Z</c> for depth — the
+    /// no-hit sentinel stays −1); standalone files use plain <c>R,G,B</c> so
+    /// any viewer opens them without layer selection. Colour channels are
+    /// half, depth is float32.
+    /// </summary>
+    static List<ExrImage.Channel> AovExrChannels(string aov, FrameBuffer fb, bool embedded)
+    {
+        int n = fb.Width * fb.Height;
+        var data = fb.Data.AsMemory();
+        if (aov == "depth")
+            return new() { new ExrImage.Channel("Z", ExrPixelType.Float, data.Slice(0, n)) };
+
+        string[] names = aov switch
+        {
+            "normal" when embedded => new[] { "normal.X", "normal.Y", "normal.Z" },
+            "beauty"               => new[] { "R", "G", "B" },
+            _ when embedded        => new[] { $"{aov}.R", $"{aov}.G", $"{aov}.B" },
+            _                      => new[] { "R", "G", "B" },
+        };
+        return new()
+        {
+            new ExrImage.Channel(names[0], ExrPixelType.Half, data.Slice(0, n)),
+            new ExrImage.Channel(names[1], ExrPixelType.Half, data.Slice(n, n)),
+            new ExrImage.Channel(names[2], ExrPixelType.Half, data.Slice(2 * n, n)),
+        };
     }
 
     static void SaveImage(Vector3[,] pixels, int width, int height, string path)
