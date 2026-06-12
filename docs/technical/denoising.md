@@ -9,7 +9,9 @@ It is implemented entirely in managed C# (`src/RayTracer/Denoising/`), SIMD
 CLI: `--denoiser none|nlm|nfor` (+ `--denoise-quality fast|high`); the
 `draft*`, `standard*` and `pre-final*` quality presets enable `nfor` by
 default. `--aov albedo,normal,depth,beauty,variance` writes the guide
-buffers as PFM files. See the [rendering profiles](../reference/rendering-profiles.md)
+buffers as separate PFM files, as separate EXR files (`--aov-format exr`),
+or — when the main output is `-o *.exr` — as layers of that same multilayer
+EXR. See the [rendering profiles](../reference/rendering-profiles.md)
 for the preset interaction.
 
 ## 1. Data captured during rendering
@@ -144,7 +146,8 @@ selection seams. Regression output is clamped non-negative (radiance).
 
 The denoised buffer then goes through the *identical* display transform as
 the unfiltered path (`Renderer.ToneMapToDisplay`), and replaces the beauty
-in the `--aov beauty` output.
+in the `--aov beauty` output and in the `R,G,B` channels of a `-o *.exr`
+scene-linear output.
 
 ## 6. Memory and performance
 

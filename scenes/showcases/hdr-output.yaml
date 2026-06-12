@@ -1,0 +1,217 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  HDR Output Showcase — Camera Oscura
+#
+#  Scena ad altissima gamma dinamica (~4 ordini di grandezza) pensata per
+#  l'output EXR scene-linear pre-tone-mapping (`-o ... .exr`). Dimostra:
+#    1. Lama di luce emissiva   — radianza ≫ 1: nel PNG satura a bianco,
+#                                 nell'EXR i valori reali sopravvivono
+#    2. Highlight speculare     — il riflesso della lama sul cromo: recupero
+#                                 delle alte luci abbassando l'esposizione in post
+#    3. Spot rifratto dal vetro — concentrazione luminosa oltre il clip di display
+#    4. Dettaglio in ombra      — oggetti scuri (~0.001) recuperabili alzando
+#                                 l'esposizione in post senza re-render
+#    5. Riferimento mid-grey    — àncora di esposizione per il grading
+#    6. Layer AOV multilayer    — profondità scalate per Z/normal/albedo
+#                                 (`--aov albedo,normal,depth` come layer EXR)
+#
+#  Workflow HDR:
+#    dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+#      -i scenes/showcases/hdr-output.yaml -q pre-final -C 100 \
+#      -o renders/hdr-output.exr --aov albedo,normal,depth
+#    → un solo file multilayer scene-linear (R,G,B half + albedo.*, normal.*,
+#      Z float32): in compositing si recuperano highlight e ombre variando
+#      l'esposizione, senza ri-renderizzare. Il PNG equivalente perde tutto
+#      ciò che sta sopra il bianco e schiaccia le ombre a zero.
+#    `-C 100` alza il firefly clamp (default 10) così il picco della lama
+#    (radianza 60) arriva intatto nel file invece di fermarsi a ~10.
+#
+#  Render consigliato:
+#    Draft:  -w 400  -H 225  -s 64   -d 8   -S 1
+#    Finale: -w 1920 -H 1080 -s 1024 -d 12  -S 4
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  # Stanza buia: tutta la luce viene dalla lama emissiva (auto-NEE) e da un
+  # fill appena percettibile — il contrasto estremo È la feature dimostrata.
+  sky:
+    type: "flat"
+    color: [0.0, 0.0, 0.0]
+  ground:
+    type: "infinite_plane"
+    material: "pavimento"
+    y: 0
+
+cameras:
+  # ── Vista d'insieme: lama a sinistra, fila di stazioni, ombre a destra ──
+  - name: "principale"
+    position: [3.0, 2.1, -6.8]
+    look_at:  [-0.9, 1.3, 0.6]
+    fov: 48
+
+  # ── Dettaglio sull'highlight speculare del cromo (recupero alte luci) ───
+  - name: "closeup_highlight"
+    position: [0.3, 1.4, -2.6]
+    look_at:  [-2.2, 1.0, 0.6]
+    fov: 28
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+
+  # --- Superfici della stanza ---
+  - id: "pavimento"
+    type: "lambertian"
+    texture:
+      type: "checker"
+      scale: 1.2
+      colors: [[0.18, 0.18, 0.19], [0.11, 0.11, 0.12]]
+
+  - id: "parete"
+    type: "lambertian"
+    color: [0.22, 0.22, 0.24]
+
+  # 1. La sorgente: lama di luce calda, radianza 60 — ben oltre il punto di
+  #    bianco del display. Nel file EXR i pixel della lama valgono ~60.
+  - id: "lama_di_luce"
+    type: "emissive"
+    color: [1.0, 0.93, 0.82]
+    intensity: 60.0
+
+  # 2. Cromo quasi perfetto: il riflesso della lama è un highlight speculare
+  #    che il tone-mapping schiaccia a bianco ma l'EXR conserva.
+  - id: "cromo"
+    type: "metal"
+    color: [0.95, 0.95, 0.96]
+    fuzz: 0.01
+
+  # 3. Vetro che concentra la lama in uno spot rifratto luminoso.
+  - id: "vetro"
+    type: "dielectric"
+    refraction_index: 1.52
+
+  # 4. Dettaglio in ombra: albedo medio-basso ma NON nero — nel render i
+  #    valori scendono a ~1e-3 e si recuperano alzando l'esposizione in post.
+  - id: "ombra_rossa"
+    type: "lambertian"
+    color: [0.45, 0.12, 0.10]
+
+  - id: "ombra_blu"
+    type: "lambertian"
+    color: [0.10, 0.16, 0.40]
+
+  # 5. Riferimento mid-grey 18%: àncora neutra per il grading.
+  - id: "grigio_18"
+    type: "lambertian"
+    color: [0.18, 0.18, 0.18]
+
+  - id: "piedistallo"
+    type: "lambertian"
+    color: [0.14, 0.14, 0.15]
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS
+# ═══════════════════════════════════════════════════════════════════════════
+#  Nessuna key light esplicita: illumina la lama emissiva (entra nel pool NEE
+#  come GeometryLight). Solo un fill minimo per non avere ombre a zero esatto
+#  — il dettaglio in ombra deve esistere per poterlo recuperare.
+
+lights:
+  - type: "point"
+    position: [3.5, 4.0, -4.0]
+    color: [0.6, 0.65, 0.8]
+    intensity: 0.5
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  STANZA — parete di fondo e parete sinistra con la fenditura
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "parete_fondo"
+    type: "quad"
+    q: [-7, 0, 5]
+    u: [14, 0, 0]
+    v: [0, 6, 0]
+    material: "parete"
+
+  - name: "parete_sinistra"
+    type: "quad"
+    q: [-5.5, 0, 5]
+    u: [0, 0, -12]
+    v: [0, 6, 0]
+    material: "parete"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  1. LAMA DI LUCE — fenditura verticale emissiva sulla parete sinistra
+  #     (radianza 60: il picco HDR che il PNG non può rappresentare)
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "lama"
+    type: "quad"
+    q: [-5.4, 0.4, 1.1]
+    u: [0, 0, -0.6]      # u×v → normale +X: emette DENTRO la stanza
+    v: [0, 4.2, 0]
+    material: "lama_di_luce"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  2. SFERA CROMATA — l'highlight speculare della lama (closeup dedicato)
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "stazione_cromo"
+    type: "sphere"
+    center: [-2.2, 1.0, 0.6]
+    radius: 1.0
+    material: "cromo"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  3. SFERA DI VETRO — rifrange la lama in uno spot concentrato sul fondo
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "stazione_vetro"
+    type: "sphere"
+    center: [-4.0, 0.85, -0.9]
+    radius: 0.85
+    material: "vetro"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  4. ANGOLO IN OMBRA — coppia di box lontani dalla lama: nel display sono
+  #     quasi neri, nell'EXR il colore è recuperabile (+3/+4 EV in post)
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "ombra_box_rosso"
+    type: "box"
+    scale: [1.0, 1.0, 1.0]
+    translate: [3.4, 0.5, 2.8]
+    rotate: [0, 25, 0]
+    material: "ombra_rossa"
+
+  - name: "ombra_box_blu"
+    type: "box"
+    scale: [0.7, 0.7, 0.7]
+    translate: [4.4, 0.35, 1.6]
+    rotate: [0, -15, 0]
+    material: "ombra_blu"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  5. SFERA MID-GREY — riferimento di esposizione al centro della scena,
+  #     su piedistallo (illuminata di striscio dalla lama)
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: "grigio_riferimento"
+    type: "sphere"
+    center: [0.3, 1.45, 1.2]
+    radius: 0.45
+    material: "grigio_18"
+
+  - name: "grigio_piedistallo"
+    type: "cylinder"
+    center: [0.3, 0, 1.2]
+    radius: 0.18
+    height: 1.0
+    material: "piedistallo"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  6. SCALA DI PROFONDITÀ — tre piccole sfere a Z crescente: rendono
+  #     leggibili i layer AOV Z (float32) e normal del file multilayer
+  # ─────────────────────────────────────────────────────────────────────────
+  - { name: "z_near", type: "sphere", center: [ 2.6, 0.25, -1.8], radius: 0.25, material: "grigio_18" }
+  - { name: "z_mid",  type: "sphere", center: [ 3.1, 0.25,  0.2], radius: 0.25, material: "grigio_18" }
+  - { name: "z_far",  type: "sphere", center: [ 3.6, 0.25,  2.2], radius: 0.25, material: "grigio_18" }
