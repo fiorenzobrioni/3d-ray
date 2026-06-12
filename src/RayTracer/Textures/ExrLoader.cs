@@ -1,17 +1,21 @@
 using System.IO.Compression;
-using System.Numerics;
 using System.Text;
+using RayTracer.Rendering;
 
 namespace RayTracer.Textures;
 
 /// <summary>
 /// Minimal OpenEXR loader. Supports the subset of the format that covers the
-/// overwhelming majority of artist-authored HDRIs:
+/// overwhelming majority of artist-authored HDRIs and everything
+/// <see cref="ExrImage"/> writes:
 /// <list type="bullet">
 ///   <item><description>Scanline-stored images (the most common variant).</description></item>
-///   <item><description>Compression: <c>NO_COMPRESSION</c>, <c>ZIP</c>, <c>ZIPS</c>.</description></item>
-///   <item><description>Float32 (R32G32B32) channels named R/G/B (case-sensitive per spec).</description></item>
-///   <item><description>Half-float (R/G/B at 16-bit) channels.</description></item>
+///   <item><description>Compression: <c>NO_COMPRESSION</c>, <c>ZIP</c>, <c>ZIPS</c>,
+///   including the spec's raw-block fallback (a block whose stored size equals
+///   its uncompressed size is stored raw).</description></item>
+///   <item><description>Float32 and half-float channels, any names —
+///   <see cref="LoadChannels"/> returns every channel plane unclamped, so
+///   multilayer AOV files round-trip exactly.</description></item>
 /// </list>
 ///
 /// Tiles, deep data, multi-part files, PIZ / DWAA / DWAB / B44 / PXR24
@@ -23,7 +27,43 @@ namespace RayTracer.Textures;
 /// </summary>
 public static class ExrLoader
 {
+    /// <summary>One decoded channel plane (W·H floats, row 0 = top), unclamped.</summary>
+    public sealed record ExrChannelData(string Name, ExrPixelType Type, float[] Plane);
+
+    /// <summary>
+    /// Loads an RGB EXR as interleaved pixels for use as an environment map.
+    /// Negative samples are clamped to zero — radiance below zero is sensor /
+    /// encoder noise an HDRI should never contribute. For an exact, unclamped
+    /// read of arbitrary channels use <see cref="LoadChannels"/>.
+    /// </summary>
     public static (float[] Pixels, int Width, int Height) Load(string path)
+    {
+        var (channels, width, height) = LoadChannels(path);
+
+        var chR = channels.FirstOrDefault(c => c.Name == "R");
+        var chG = channels.FirstOrDefault(c => c.Name == "G");
+        var chB = channels.FirstOrDefault(c => c.Name == "B");
+        if (chR is null || chG is null || chB is null)
+            throw new InvalidDataException("EXR: missing R/G/B channels (only RGB EXR supported).");
+
+        int planeSize = width * height;
+        var pixels = new float[planeSize * 3];
+        for (int c = 0; c < 3; c++)
+        {
+            float[] plane = (c == 0 ? chR : c == 1 ? chG : chB).Plane;
+            for (int i = 0; i < planeSize; i++)
+                pixels[i * 3 + c] = MathF.Max(0f, plane[i]);
+        }
+        return (pixels, width, height);
+    }
+
+    /// <summary>
+    /// Decodes every channel of a scanline EXR into per-channel planes
+    /// (<c>Plane[y·W + x]</c>, row 0 = top), in ordinal name order, with no
+    /// value clamping (negative normal components, depth sentinels and HDR
+    /// radiance all survive bit-exactly for float channels).
+    /// </summary>
+    public static (List<ExrChannelData> Channels, int Width, int Height) LoadChannels(string path)
     {
         using var fs = File.OpenRead(path);
         using var br = new BinaryReader(fs);
@@ -86,15 +126,16 @@ public static class ExrLoader
         int height = dataWindowMaxY - dataWindowMinY + 1;
         if (width <= 0 || height <= 0)
             throw new InvalidDataException("EXR: invalid data window.");
+        if (channels.Count == 0)
+            throw new InvalidDataException("EXR: no channels declared.");
 
-        // Find R/G/B channels — required for our use as an environment map.
-        var chR = channels.FirstOrDefault(c => c.Name == "R");
-        var chG = channels.FirstOrDefault(c => c.Name == "G");
-        var chB = channels.FirstOrDefault(c => c.Name == "B");
-        if (chR is null || chG is null || chB is null)
-            throw new InvalidDataException("EXR: missing R/G/B channels (only RGB EXR supported).");
-        if (chR.PixelType != ExrPixelType.Float && chR.PixelType != ExrPixelType.Half)
-            throw new NotSupportedException($"EXR: pixel type {chR.PixelType} not supported.");
+        foreach (var ch in channels)
+        {
+            if (ch.PixelType != ExrPixelType.Float && ch.PixelType != ExrPixelType.Half)
+                throw new NotSupportedException($"EXR: pixel type of channel '{ch.Name}' not supported (only half / float).");
+            if (ch.XSampling != 1 || ch.YSampling != 1)
+                throw new NotSupportedException("EXR: chroma-subsampled channels not supported.");
+        }
 
         // ── Scanline offset table ───────────────────────────────────────────
         // The offset table is `height` entries when ZIPS / NoCompression, or
@@ -110,50 +151,58 @@ public static class ExrLoader
         int bytesPerPixel = sortedChannels.Sum(c => c.BytesPerSample);
         int scanlineBytes = width * bytesPerPixel;
 
-        var pixels = new float[width * height * 3];
+        int planeSize = width * height;
+        var planes = new float[sortedChannels.Count][];
+        for (int c = 0; c < planes.Length; c++)
+            planes[c] = new float[planeSize];
 
         for (int b = 0; b < blockCount; b++)
         {
             fs.Position = blockOffsets[b];
             int yStart = br.ReadInt32();          // y of first line in block
-            int dataSize = br.ReadInt32();        // size of pixel data after decompression header
+            int dataSize = br.ReadInt32();        // size of stored pixel data
             byte[] blockData = br.ReadBytes(dataSize);
 
-            byte[] decoded = compression switch
-            {
-                ExrCompression.None => blockData,
-                ExrCompression.Zip or ExrCompression.Zips => DecompressZip(blockData),
-                _ => throw new NotSupportedException(),
-            };
-
             int linesInBlock = Math.Min(linesPerBlock, height - (yStart - dataWindowMinY));
-            int decodedScanline = scanlineBytes;
+            int expectedRawSize = linesInBlock * scanlineBytes;
+
+            // Spec: a block whose stored size equals its raw size is stored
+            // uncompressed (the writer falls back when zlib does not shrink).
+            byte[] decoded = dataSize == expectedRawSize
+                ? blockData
+                : compression switch
+                {
+                    ExrCompression.Zip or ExrCompression.Zips => DecompressZip(blockData),
+                    _ => throw new InvalidDataException("EXR: uncompressed block with unexpected size."),
+                };
+            if (decoded.Length != expectedRawSize)
+                throw new InvalidDataException("EXR: block decompressed to an unexpected size.");
+
             for (int ly = 0; ly < linesInBlock; ly++)
             {
                 int y = (yStart - dataWindowMinY) + ly;
-                int rowOffset = ly * decodedScanline;
-                int channelByteCursor = rowOffset;
-                foreach (var ch in sortedChannels)
+                int channelByteCursor = ly * scanlineBytes;
+                for (int c = 0; c < sortedChannels.Count; c++)
                 {
+                    var ch = sortedChannels[c];
                     int sampleSize = ch.BytesPerSample;
-                    if (ch.Name == "R" || ch.Name == "G" || ch.Name == "B")
+                    float[] plane = planes[c];
+                    for (int x = 0; x < width; x++)
                     {
-                        int outChannelOffset = ch.Name == "R" ? 0 : ch.Name == "G" ? 1 : 2;
-                        for (int x = 0; x < width; x++)
-                        {
-                            int bytePos = channelByteCursor + x * sampleSize;
-                            float v = ch.PixelType == ExrPixelType.Float
-                                ? BitConverter.ToSingle(decoded, bytePos)
-                                : HalfToFloat(BitConverter.ToUInt16(decoded, bytePos));
-                            pixels[(y * width + x) * 3 + outChannelOffset] = MathF.Max(0f, v);
-                        }
+                        int bytePos = channelByteCursor + x * sampleSize;
+                        plane[y * width + x] = ch.PixelType == ExrPixelType.Float
+                            ? BitConverter.ToSingle(decoded, bytePos)
+                            : (float)BitConverter.UInt16BitsToHalf(BitConverter.ToUInt16(decoded, bytePos));
                     }
                     channelByteCursor += width * sampleSize;
                 }
             }
         }
 
-        return (pixels, width, height);
+        var result = new List<ExrChannelData>(sortedChannels.Count);
+        for (int c = 0; c < sortedChannels.Count; c++)
+            result.Add(new ExrChannelData(sortedChannels[c].Name, sortedChannels[c].PixelType, planes[c]));
+        return (result, width, height);
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -177,8 +226,6 @@ public static class ExrLoader
         None = 0, Rle = 1, Zips = 2, Zip = 3, Piz = 4, Pxr24 = 5, B44 = 6, B44a = 7,
         Dwaa = 8, Dwab = 9,
     }
-
-    private enum ExrPixelType { Uint = 0, Half = 1, Float = 2 }
 
     private record ExrChannel(string Name, ExrPixelType PixelType, int XSampling, int YSampling)
     {
@@ -209,63 +256,16 @@ public static class ExrLoader
 
     private static byte[] DecompressZip(byte[] compressed)
     {
-        // EXR ZIP framing: first the deflate-compressed stream (RFC 1950 zlib header).
+        // EXR ZIP framing: a zlib stream (RFC 1950, 2-byte header + adler32).
         using var input = new MemoryStream(compressed);
         // Skip 2-byte zlib header
         input.ReadByte(); input.ReadByte();
         using var deflate = new DeflateStream(input, CompressionMode.Decompress);
         using var output = new MemoryStream();
         deflate.CopyTo(output);
-        byte[] decompressed = output.ToArray();
 
-        // EXR ZIP post-processing:
-        //  1) Reorder bytes: interleave even/odd halves.
-        //  2) Reverse a per-byte delta predictor.
-        byte[] reordered = new byte[decompressed.Length];
-        int half = (decompressed.Length + 1) / 2;
-        int t1 = 0, t2 = half, s = 0;
-        while (s < decompressed.Length)
-        {
-            if (s < decompressed.Length) reordered[s++] = decompressed[t1++];
-            if (s < decompressed.Length) reordered[s++] = decompressed[t2++];
-        }
-        for (int i = 1; i < reordered.Length; i++)
-            reordered[i] = (byte)(reordered[i] + reordered[i - 1] - 128);
-        return reordered;
-    }
-
-    /// <summary>IEEE half-precision (binary16) to float32 conversion.</summary>
-    private static float HalfToFloat(ushort h)
-    {
-        int sign = (h >> 15) & 0x1;
-        int exp  = (h >> 10) & 0x1F;
-        int mant = h & 0x3FF;
-
-        int fSign = sign << 31;
-        int fExp, fMant;
-        if (exp == 0)
-        {
-            if (mant == 0) { fExp = 0; fMant = 0; }
-            else
-            {
-                // subnormal — renormalise
-                while ((mant & 0x400) == 0) { mant <<= 1; exp--; }
-                exp++; mant &= 0x3FF;
-                fExp = (exp + 112) << 23;
-                fMant = mant << 13;
-            }
-        }
-        else if (exp == 31)
-        {
-            fExp = 0xFF << 23;
-            fMant = mant << 13;
-        }
-        else
-        {
-            fExp = (exp + 112) << 23;
-            fMant = mant << 13;
-        }
-        int bits = fSign | fExp | fMant;
-        return BitConverter.Int32BitsToSingle(bits);
+        // Undo the EXR ZIP pre-processing (predictor, then interleave) —
+        // shared with the writer so both sides stay provably symmetric.
+        return ExrImage.ZipReconstruct(output.ToArray());
     }
 }
