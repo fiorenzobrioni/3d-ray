@@ -25,7 +25,7 @@ Required: `-i`. See `src/RayTracer/Program.cs` `ShowHelp()` for the full CLI. Ca
 Key flags:
 - `-q/--quality <preset>` — quality ladder `draft → standard → pre-final → final → ultra`, each (except `ultra`) with `-tiny` (480×270) and `-small` (960×540) variants. Overrides `-s`, `-d`, `-S` (and, for `standard`, also forces caustics/SSS off, power NEE, and the indirect clamp). `standard` = final-class quality for classic scenes (Lambertian/Disney, non-nested glass, procedural marble) without the GI extras; `pre-final` = faithful preview of `final` (full feature set, 256 spp + denoiser, ~4-6× faster). `draft*`/`standard*`/`pre-final*` enable `--denoiser nfor`; `final`/`ultra` stay unfiltered.
 - `--denoiser none|nlm|nfor` + `--denoise-quality fast|high` — feature-guided denoiser on the linear HDR beauty before tone mapping (`Denoising/`, see `docs/technical/denoising.md`). Default `none` without a preset; an explicit flag always beats the preset.
-- `--aov <list>` — comma list of `albedo,normal,depth,beauty,variance`; writes linear-HDR `.pfm` files next to `-o` (beauty is post-denoise when a denoiser is active).
+- `--aov <list>` — comma list of `albedo,normal,depth,beauty,variance`; linear-HDR guide buffers next to `-o` (beauty is post-denoise when a denoiser is active). Default: separate `.pfm` files; with `-o *.exr` they become layers of the main multilayer EXR; `--aov-format pfm|exr` forces one file per AOV.
 - `--list-cameras` — print available cameras and exit; `-c <name|index>` selects one.
 - `--sampler sobol|prng` — sampling strategy (default: `sobol`, deterministic Sobol+Owen; `prng` is legacy).
 - `--mis balance|power` — multiple-importance-sampling heuristic (default: `balance`).
@@ -104,7 +104,7 @@ The suite (~38 test files, ~400 tests) covers geometry, BVH, materials, lights, 
 - YAML keys use `underscore_case` (YamlDotNet `UnderscoredNamingConvention`).
 - CLI: lowercase short flags are the common overrides (`-s`, `-d`, `-c`, `-w`, `-o`, `-i`, `-v`); uppercase are "advanced overrides" (`-H` height because `-h` is help, `-S` shadow samples, `-C` clamp); behaviour-tuning flags are long-only. Full list in `ShowHelp()`.
 - Default output path when `-o` is omitted: `renders/render-<scene-stem>.png`.
-- Output image format is picked from the `-o` extension (`.png`/`.jpg`/`.jpeg`/`.bmp`); unknown → PNG.
+- Output image format is picked from the `-o` extension (`.png`/`.jpg`/`.jpeg`/`.bmp` tone-mapped display; `.exr` scene-linear pre-tone-map HDR, multilayer half RGB + float Z, ZIP — writer `Rendering/ExrImage.cs`, reader `Textures/ExrLoader.cs`); unknown → PNG.
 
 ## Documentation updates
 

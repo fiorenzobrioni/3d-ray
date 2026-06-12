@@ -44,7 +44,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 | 14 | Adaptive Sampling | ⬜ (dopo #15; il layer dual-buffer A/B + `SampleCount` per pixel di #16 è la fondazione pronta) |
 | 15 | Tile-based Rendering (tile 16×16, progress su thread reporter dedicato) | ✅ |
 | 16 | Denoiser (NFOR: NL-means + regressione first-order guidata da albedo/normal/depth, dual-buffer cross-filtering, selezione MSE con safety net; `--denoiser nlm\|nfor`, default nei preset draft/standard/pre-final) | ✅ |
-| 17 | HDR Output (PFM/EXR pre-tone-mapping) | 🔧 PFM ✅ (`--aov albedo,normal,depth,beauty,variance`) · EXR ⬜ |
+| 17 | HDR Output (PFM/EXR pre-tone-mapping) | ✅ PFM (`--aov`) + EXR (`-o *.exr` multilayer scene-linear, `--aov-format pfm\|exr`; writer `ExrImage` zero-dipendenze, half/float + ZIP) |
 | +  | Sobol + Owen Scrambling sampler (`--sampler sobol`, default attivo) | ✅ |
 
 ### Fase 4 — Cinematografici 🔧

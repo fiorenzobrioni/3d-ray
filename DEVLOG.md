@@ -6,6 +6,66 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo HDR Output — writer EXR + fix ZIP del loader (#17 ✅)
+
+**Obiettivo.** Chiudere la metà mancante dello step 17: output **OpenEXR
+scene-linear pre-tone-mapping**, il formato di interscambio che Arnold,
+RenderMan, Cycles e Mitsuba scrivono di default. Vincolo di progetto: zero
+dipendenze NuGet — writer hand-rolled simmetrico all'`ExrLoader` esistente.
+
+**Design.**
+- *Writer* (`Rendering/ExrImage.cs`): single-part scanline v2, canali
+  arbitrari nominati half/float (`Channel(name, type, ReadOnlyMemory<float>)`
+  — i piani di `FrameBuffer` passano zero-copy), ZIP a blocchi di 16
+  scanline con framing zlib (`ZLibStream`: header RFC1950 + adler32, che i
+  reader esterni esigono) e **fallback raw** quando il blocco non comprime
+  (disambiguazione spec via `dataSize == rawSize`). Attributi: gli 8
+  obbligatori + `chromaticities` Rec.709/D65 (la radianza è Rec.709-linear).
+  Half via cast `System.Half` (round-to-nearest-even) con clamp a ±65504:
+  gli spike di varianza restano finiti invece di degenerare a ±Inf.
+  Chunk costruiti in `Parallel.For` e scritti in sequenza (niente seek).
+- *CLI*: `-o scena.exr` → l'output principale è la beauty lineare
+  pre-esposizione (post-denoise se attivo; `CaptureBeautyHalves` forzato),
+  multilayer stile Cycles con gli `--aov` come layer (`albedo.R/G/B`,
+  `normal.X/Y/Z`, `Z` float32 sentinella −1, `variance.R/G/B` — convenzione
+  `layer.channel` che Nuke/oiio raggruppano). `--aov-format pfm|exr` forza
+  un file per AOV (stile driver RenderMan/Arnold); senza flag i PFM separati
+  restano il default su output non-EXR (back-compat esatta). `--aov beauty`
+  in modalità embedded è ridondante → skip con nota. Default fissi senza
+  flag extra: half per il colore, float32 per Z, ZIP.
+
+**Bug pre-esistente scoperto e corretto.** `ExrLoader.DecompressZip`
+applicava le trasformazioni ZIP **in ordine invertito** rispetto a
+ImfZip.cpp (interleave→prefix-sum invece di prefix-sum→interleave):
+corretto solo per scanline costanti, garbage su qualunque HDRI ZIP reale
+(raw `[a,b,c,d]` decodificato `[a,a+b−c,b,d]`). Mai notato: nessun asset
+`.exr` nel repo e zero test sul loader. Ora il loader delega a
+`ExrImage.ZipReconstruct` (writer e reader provabilmente simmetrici), ha il
+fallback raw-block e un'API generica `LoadChannels` **senza clamp** (il
+clamp `max(0,v)` resta solo nel contratto HDRI di `Load`); la conversione
+half usa l'intrinseco `BitConverter.UInt16BitsToHalf`. L'ordine corretto è
+pinnato da un test oracle indipendente trascritto dalla reference.
+
+**Test** (`ExrImageTests`, 19 nuovi): round-trip half (uguaglianza esatta a
+`(float)(Half)x`) e float (bit-exact, sentinella −1 e negativi), multilayer
+misto senza clamp, oracle ZIP, fallback raw su dati incomprimibili
+(verificato nel file), conformità header byte-level, geometrie edge
+(1×1, h non multiplo di 16), policy overflow/NaN, contratto clamp
+`Load` vs `LoadChannels`, integrazione render→write→read. Validazione
+esterna: file letti dai binding ufficiali OpenEXR 3.4 (layer raggruppati,
+cromaticità, ZIP ok). Invariante bit-identità capture intatto per
+costruzione (nessuna modifica a `Renderer`).
+
+**Showcase.** `scenes/showcases/hdr-output.yaml` ("Camera Oscura"): lama
+emissiva a radianza 60 + highlight cromo + spot rifratto + dettaglio in
+ombra ~1e-3 + mid-grey di riferimento + scala di profondità per i layer
+Z/normal. Il workflow consigliato usa `-C 100` (il firefly clamp di default
+10 taglierebbe il picco della lama già pre-tonemap). Nota trovata sul campo:
+`Emissive.Emit` è one-sided (`frontFace`), l'orientamento del quad
+(`u×v`) determina la direzione di emissione.
+
+---
+
 ## Ciclo Preset — ricalibrazione `-q` attorno al denoiser (draft → standard → pre-final → final → ultra) ✅
 
 **Motivazione.** Col denoiser NFOR nei preset, `medium` (128 spp, d6) era

@@ -9,8 +9,10 @@ parallelo, senza dipendenze native.
 
 CLI: `--denoiser none|nlm|nfor` (+ `--denoise-quality fast|high`); i preset
 di qualità `draft*`, `standard*` e `pre-final*` abilitano `nfor` di default.
-`--aov albedo,normal,depth,beauty,variance` scrive i buffer guida in formato
-PFM. Vedi i [profili di rendering](../reference/profili-di-rendering.md) per
+`--aov albedo,normal,depth,beauty,variance` scrive i buffer guida come file
+PFM separati, come file EXR separati (`--aov-format exr`) oppure — quando
+l'output principale è `-o *.exr` — come layer dello stesso EXR multilayer.
+Vedi i [profili di rendering](../reference/profili-di-rendering.md) per
 l'interazione con i preset.
 
 ## 1. Dati catturati durante il rendering
@@ -155,7 +157,8 @@ negativo (è radianza).
 
 Il buffer denoised passa poi per la trasformazione display *identica* al
 path non filtrato (`Renderer.ToneMapToDisplay`), e sostituisce la beauty
-nell'output `--aov beauty`.
+nell'output `--aov beauty` e nei canali `R,G,B` di un output scene-linear
+`-o *.exr`.
 
 ## 6. Memoria e prestazioni
 

@@ -510,6 +510,8 @@ L'array `Vector3[height, width]` (valori sRGB [0, 1]) viene convertito in `Image
 
 Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math.Clamp((int)(value * 255.999f), 0, 255)`.
 
+**Output HDR (`-o *.exr`).** Con estensione `.exr` la Fase 5 (tone mapping) viene saltata per il file principale: `Program.SaveExrBeauty()` scrive la beauty **scene-linear pre-esposizione** catturata dal renderer (post-denoise se il denoiser è attivo) come OpenEXR single-part scanline tramite `Rendering/ExrImage.cs` — canali `R,G,B` half-float, compressione ZIP (blocchi da 16 scanline, framing zlib, fallback raw quando il blocco non comprime), attributi spec-compliant + cromaticità Rec.709. Gli AOV richiesti con `--aov` vengono incorporati come layer dello stesso file (`albedo.R/G/B`, `normal.X/Y/Z`, `Z` float32 con sentinella `-1`, `variance.R/G/B`) salvo `--aov-format` espliciti. Il lettore simmetrico è `Textures/ExrLoader.cs` (`LoadChannels`, senza clamp).
+
 ---
 
 ## Appendice A — Mappa dei Metodi e Contratti
