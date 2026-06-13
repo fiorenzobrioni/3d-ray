@@ -81,24 +81,39 @@ public class DenoiserRegressionTests
         // assumption (with Sobol the halves anti-correlate and the gains are
         // deliberately damped by the selection margin — see NforRegression).
         // Thresholds carry headroom over measured values (nfor ≈ 0.46×,
-        // nlm ≈ 0.57×, fast ≈ 0.55× at implementation time) to tolerate the
-        // PRNG run-to-run variation.
+        // nlm ≈ 0.60×, fast ≈ 0.55× at implementation time).
         Sampler.SetKind(SamplerKind.Prng);
 
         var reference = BuildRenderer(ReferenceSpp).Render(Size, Size);
 
-        var renderer = BuildRenderer(NoisySpp);
-        var noisy = renderer.Render(Size, Size, RenderCaptureOptions.Full);
+        // The PRNG sampler seeds its thread-local Random from the wall clock,
+        // so a single 8-spp render's denoiser ratio has a wide run-to-run
+        // spread whose tail (observed up to ≈0.81× for NLM on slower CI cores)
+        // can clip the 0.80× gate. Average the MSEs over several independent
+        // renders so the gate is a stable statistic (std ↓ ≈1/√Iterations)
+        // that holds on every core count, not a once-in-a-while tail failure.
+        // The reference render dominates runtime and is reused, so the extra
+        // 8-spp passes are cheap.
+        const int Iterations = 4;
+        double mseNoisy = 0, mseNlm = 0, mseNfor = 0;
+        for (int it = 0; it < Iterations; it++)
+        {
+            var renderer = BuildRenderer(NoisySpp);
+            var noisy = renderer.Render(Size, Size, RenderCaptureOptions.Full);
 
-        double mseNoisy = Mse(noisy.Pixels, reference);
+            mseNoisy += Mse(noisy.Pixels, reference);
 
-        var nlm = NforDenoiser.Denoise(noisy.Buffers!,
-            new DenoiserOptions { Kind = DenoiserKind.Nlm, Quality = DenoiseQuality.High });
-        double mseNlm = Mse(renderer.ToneMapToDisplay(nlm), reference);
+            var nlm = NforDenoiser.Denoise(noisy.Buffers!,
+                new DenoiserOptions { Kind = DenoiserKind.Nlm, Quality = DenoiseQuality.High });
+            mseNlm += Mse(renderer.ToneMapToDisplay(nlm), reference);
 
-        var nfor = NforDenoiser.Denoise(noisy.Buffers!,
-            new DenoiserOptions { Kind = DenoiserKind.Nfor, Quality = DenoiseQuality.High });
-        double mseNfor = Mse(renderer.ToneMapToDisplay(nfor), reference);
+            var nfor = NforDenoiser.Denoise(noisy.Buffers!,
+                new DenoiserOptions { Kind = DenoiserKind.Nfor, Quality = DenoiseQuality.High });
+            mseNfor += Mse(renderer.ToneMapToDisplay(nfor), reference);
+        }
+        mseNoisy /= Iterations;
+        mseNlm   /= Iterations;
+        mseNfor  /= Iterations;
 
         Assert.True(mseNlm < 0.80 * mseNoisy,
             $"NLM MSE {mseNlm:E3} not < 80% of noisy MSE {mseNoisy:E3}");

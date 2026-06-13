@@ -6,6 +6,29 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Fix CI — flaky `DenoiserRegressionTests` (✅)
+
+**Sintomo.** Lo Smoke Test CI falliva saltuariamente su
+`Denoise_LowSppRender_CutsMseAgainstConvergedReference` con
+`NLM MSE 3.932E-004 not < 80% of noisy MSE 4.865E-004` (rapporto NLM
+≈0.81× contro il gate 0.80×).
+
+**Causa.** Il test usa il sampler PRNG, che semina il `Random` thread-local
+dal wall clock (`MathUtils._globalSeed = Environment.TickCount`): il render a
+8 spp non è deterministico e il rapporto MSE-denoised/MSE-noisy ha una
+dispersione run-to-run ampia. Misurato in locale: media NLM ≈0.60×, range
+0.45–0.68× su 25 run (anche limitando a 2 core per imitare il runner CI). Il
+gate 0.80× aveva quindi ~4σ di margine — insufficiente per la coda osservata
+in CI (0.808×).
+
+**Fix.** Mediato MSE noisy/NLM/NFOR su `Iterations = 4` render indipendenti
+prima di confrontarli con i gate: la statistica diventa stabile (σ ↓ ≈1/√4),
+range NLM ristretto a 0.57–0.65×, margine al gate ~7σ. Il render di
+riferimento (512 spp) domina i tempi ed è riusato, quindi i passaggi extra a
+8 spp restano economici. Gate invariati.
+
+---
+
 ## Ciclo Motion Blur — trasformazioni animate + camera + shutter (#18 ✅)
 
 **Obiettivo.** Chiudere lo step 18: motion blur **fisico** per trasformazioni
