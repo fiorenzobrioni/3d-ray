@@ -41,8 +41,8 @@ public class Camera
             if (Vector3.Cross(w, vUp).LengthSquared() < 1e-8f)
                 vUp = MathF.Abs(w.X) < 0.9f ? Vector3.UnitX : Vector3.UnitZ;
 
-            U = Vector3.Normalize(Vector3.Cross(w, vUp));
-            V = Vector3.Cross(U, w);
+            U = Vector3.Normalize(Vector3.Cross(vUp, w));
+            V = Vector3.Cross(w, U);
 
             Origin = lookFrom;
             Horizontal = focusDist * viewportWidth * U;

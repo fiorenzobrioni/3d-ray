@@ -89,40 +89,40 @@ world:
 
 cameras:
   - name:       canonica        # Replica la fotocamera dell'esperimento originale (1984)
-    position:   [ 0.00,  1.00, -4.00]
-    look_at:    [ 0.00,  1.00,  1.00]
+    position:   [ 0.00,  1.00, +4.00]
+    look_at:    [ 0.00,  1.00, -1.00]
     vup:        [0, 1, 0]
     fov:        39              # FOV ≈ 39° verticale (dato dal paper)
     aperture:   0.0             # tutto a fuoco
     focal_dist: 5.00            # distanza camera → centro = 5.0u
 
   - name:       tre_quarti      # Vista cinematografica 3/4 dall'alto-destra
-    position:   [ 1.80,  2.60, -3.80]
-    look_at:    [-0.05,  0.75,  1.00]
+    position:   [ 1.80,  2.60, +3.80]
+    look_at:    [-0.05,  0.75, -1.00]
     vup:        [0, 1, 0]
     fov:        46              # valorizza la differenza di altezza tra i due blocchi
     aperture:   0.0
     focal_dist: 5.34
 
   - name:       macro           # Macro con DOF pronunciato — focus sul blocco corto
-    position:   [ 0.10,  1.10, -2.60]
-    look_at:    [-0.30,  0.55,  0.72]
+    position:   [ 0.10,  1.10, +2.60]
+    look_at:    [-0.30,  0.55, -0.72]
     vup:        [0, 1, 0]
     fov:        34              # simula un obiettivo 85mm f/1.8 da studio
     aperture:   0.14            # blocco corto nitido, blocco alto e fondo in bokeh
     focal_dist: 3.44
 
   - name:       zenitale        # Vista top-down — pianta della scatola con ombre
-    position:   [ 0.00,  5.80,  1.00]
-    look_at:    [ 0.00,  0.00,  1.00]
-    vup:        [0, 0, 1]       # vup lungo Z: la scatola appare dritta dall'alto
+    position:   [ 0.00,  5.80, -1.00]
+    look_at:    [ 0.00,  0.00, -1.00]
+    vup:        [0, 0, -1]      # vup lungo -Z: la scatola appare dritta dall'alto
     fov:        36
     aperture:   0.0
     focal_dist: 5.80
 
   - name:       dutch           # Dutch angle ~13.5° — atmosfera tesa e dinamica
-    position:   [ 0.90,  1.40, -4.00]
-    look_at:    [-0.10,  0.90,  1.00]
+    position:   [ 0.90,  1.40, +4.00]
+    look_at:    [-0.10,  0.90, -1.00]
     vup:        [0.233, 0.972, 0]   # vup ruotato per l'inclinazione dell'orizzonte
     fov:        42
     aperture:   0.0
@@ -243,7 +243,7 @@ entities:
     type: "quad"
     q: [-1.0, 0.0,  0.0]
     u: [ 2.0, 0.0,  0.0]
-    v: [ 0.0, 0.0,  2.0]
+    v: [ 0.0, 0.0, -2.0]
     material: "bianco_cornell"
 
   # ─── SOFFITTO (Y = 2.0) ───────────────────────────────────────────────────
@@ -251,13 +251,13 @@ entities:
     type: "quad"
     q: [-1.0, 2.0,  0.0]
     u: [ 2.0, 0.0,  0.0]
-    v: [ 0.0, 0.0,  2.0]
+    v: [ 0.0, 0.0, -2.0]
     material: "bianco_cornell"
 
-  # ─── PARETE DI FONDO (Z = +2.0) ───────────────────────────────────────────
+  # ─── PARETE DI FONDO (Z = −2.0) ───────────────────────────────────────────
   - name: "parete_fondo"
     type: "quad"
-    q: [-1.0, 0.0,  2.0]
+    q: [-1.0, 0.0, -2.0]
     u: [ 2.0, 0.0,  0.0]
     v: [ 0.0, 2.0,  0.0]
     material: "bianco_cornell"
@@ -266,7 +266,7 @@ entities:
   - name: "parete_sinistra_rossa"
     type: "quad"
     q: [-1.0, 0.0,  0.0]
-    u: [ 0.0, 0.0,  2.0]
+    u: [ 0.0, 0.0, -2.0]
     v: [ 0.0, 2.0,  0.0]
     material: "rosso_cornell"
 
@@ -274,7 +274,7 @@ entities:
   - name: "parete_destra_verde"
     type: "quad"
     q: [ 1.0, 0.0,  0.0]
-    u: [ 0.0, 0.0,  2.0]
+    u: [ 0.0, 0.0, -2.0]
     v: [ 0.0, 2.0,  0.0]
     material: "verde_cornell"
 
@@ -288,18 +288,18 @@ entities:
   #
   #  CENTRAMENTO: il pannello è centrato in X e Z nella scatola.
   #    X: centro = 0.0, metà-larghezza = 0.33 → da -0.33 a +0.33
-  #    Z: centro = 1.0, metà-profondità = 0.33 → da  0.67 a  1.33
+  #    Z: centro = −1.0, metà-profondità = 0.33 → da −0.67 a −1.33
   #    Y: 1.99 (1mm sotto il soffitto a Y=2.0, evita z-fighting)
   #
   #  Orientamento: il quad emette dalla front face.
-  #    Cross(u, v) = Cross([0.66,0,0], [0,0,0.66]) = (0, -0.4356, 0)
+  #    Cross(u, v) = Cross([0,0,-0.66], [0.66,0,0]) = (0, -0.4356, 0)
   #    Normale → verso -Y ✓ → il pannello emette verso il basso, nella stanza.
   # ===========================================================================
   - name: "pannello_luce"
     type: "quad"
-    q: [-0.33, 1.99,  0.67]
-    u: [ 0.66, 0.00,  0.00]
-    v: [ 0.00, 0.00,  0.66]
+    q: [-0.33, 1.99, -0.67]
+    u: [ 0.00, 0.00, -0.66]
+    v: [ 0.66, 0.00,  0.00]
     material: "luce_cornell"
 
   # ===========================================================================
@@ -314,8 +314,8 @@ entities:
   #    Blocco alto : -15° attorno a Y
   #
   #  Posizioni asimmetriche:
-  #    Corto: sx-frontale  (X≈-0.33, Z≈0.66)  → vicino parete rossa
-  #    Alto : dx-posteriore (X≈+0.33, Z≈1.30) → vicino parete verde
+  #    Corto: sx-frontale  (X≈-0.33, Z≈-0.66)  → vicino parete rossa
+  #    Alto : dx-posteriore (X≈+0.33, Z≈-1.30) → vicino parete verde
   # ===========================================================================
 
   #  ─── BLOCCHI CLASSICI — DISATTIVATI in questa variante ───────────────────
@@ -325,13 +325,13 @@ entities:
   #   type: "box"
   #   scale:     [0.60, 0.60, 0.60]
   #   rotate:    [0, 17, 0]
-  #   translate: [-0.33, 0.30, 0.66]
+  #   translate: [-0.33, 0.30, -0.66]
   #   material:  "bianco_cornell"
   # - name: "blocco_alto"
   #   type: "box"
   #   scale:     [0.60, 1.20, 0.60]
   #   rotate:    [0, -15, 0]
-  #   translate: [ 0.33, 0.60, 1.30]
+  #   translate: [ 0.33, 0.60, -1.30]
   #   material:  "bianco_cornell"
 
   # ===========================================================================
@@ -343,7 +343,7 @@ entities:
   #  PRIMA: commentare "blocco_corto" sopra.
   # - name: "sfera_vetro"
   #   type: "sphere"
-  #   center: [-0.33, 0.30, 0.66]
+  #   center: [-0.33, 0.30, -0.66]
   #   radius: 0.30
   #   seed: 1111
   #   material: "vetro_crown"
@@ -352,7 +352,7 @@ entities:
   #  PRIMA: commentare "blocco_corto" sopra.
   # - name: "sfera_cromo"
   #   type: "sphere"
-  #   center: [-0.33, 0.30, 0.66]
+  #   center: [-0.33, 0.30, -0.66]
   #   radius: 0.30
   #   seed: 2222
   #   material: "cromo_specchio"
@@ -363,7 +363,7 @@ entities:
   #   type: "box"
   #   scale:     [0.60, 0.60, 0.60]
   #   rotate:    [0, 17, 0]
-  #   translate: [-0.33, 0.30, 0.66]
+  #   translate: [-0.33, 0.30, -0.66]
   #   seed: 3333
   #   material:  "oro_satinato"
 
@@ -371,7 +371,7 @@ entities:
   #  PRIMA: commentare "parete_fondo" sopra.
   # - name: "parete_fondo_marmo"
   #   type: "quad"
-  #   q: [-1.0, 0.0,  2.0]
+  #   q: [-1.0, 0.0, -2.0]
   #   u: [ 2.0, 0.0,  0.0]
   #   v: [ 0.0, 2.0,  0.0]
   #   material: "marmo_fondo"
@@ -380,21 +380,21 @@ entities:
   - name: "sphere_left"
     type: "sphere"
     material: "dis_bianco_opaco"
-    center: [-0.52, 0.32, 1.2]
+    center: [-0.52, 0.32, -1.2]
     radius: 0.32
 
   # Sfera cromata → caustica RIFLESSA (alone) sul pavimento e sulle pareti.
   - name: "sphere_right"
     type: "sphere"
     material: "dis_cromo_specchio"
-    center: [0.52, 0.32, 1.2]
+    center: [0.52, 0.32, -1.2]
     radius: 0.32
 
   # Sfera di vetro → caustica RIFRATTIVA focalizzata sul pavimento.
   - name: "sphere_center_front"
     type: "sphere"
     material: "dis_cristallo"
-    center: [0.0, 0.32, 0.4]
+    center: [0.0, 0.32, -0.4]
     radius: 0.32
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -422,14 +422,14 @@ lights: []
   #     color: [0.02, 0.02, 0.03]
   # ─────────────────────────────────────────────────────────────────────────
   # - type: "spot"
-  #   position:    [-0.92,  1.65,  0.50]
-  #   direction:   [ 0.88, -0.38,  0.28]
+  #   position:    [-0.92,  1.65, -0.50]
+  #   direction:   [ 0.88, -0.38, -0.28]
   #   color:       [ 1.00,  0.97,  0.90]
   #   intensity:   20
   #   inner_angle: 22
   #   outer_angle: 45
   # - type: "point"
-  #   position:    [-0.88,  0.70,  1.20]
+  #   position:    [-0.88,  0.70, -1.20]
   #   color:       [ 0.65,  0.78,  1.00]
   #   intensity:   1.5
 
@@ -446,18 +446,18 @@ lights: []
   #     color: [0.0, 0.0, 0.0]
   # ─────────────────────────────────────────────────────────────────────────
   # - type: "spot"
-  #   position:    [ 0.00,  1.97,  1.00]
+  #   position:    [ 0.00,  1.97, -1.00]
   #   direction:   [ 0.00, -1.00,  0.00]
   #   color:       [ 0.40,  0.62,  1.00]
   #   intensity:   16
   #   inner_angle: 32
   #   outer_angle: 58
   # - type: "point"
-  #   position:    [ 0.00,  0.08,  0.85]
+  #   position:    [ 0.00,  0.08, -0.85]
   #   color:       [ 1.00,  0.28,  0.18]
   #   intensity:   4.0
   # - type: "point"
-  #   position:    [ 0.00,  0.08,  1.60]
+  #   position:    [ 0.00,  0.08, -1.60]
   #   color:       [ 0.18,  0.90,  0.55]
   #   intensity:   1.5
 
@@ -474,14 +474,14 @@ lights: []
   #     color: [0.0, 0.0, 0.0]
   # ─────────────────────────────────────────────────────────────────────────
   # - type: "spot"
-  #   position:    [-0.33,  1.95,  0.66]
+  #   position:    [-0.33,  1.95, -0.66]
   #   direction:   [ 0.00, -1.00,  0.00]
   #   color:       [ 1.00,  0.97,  0.92]
   #   intensity:   12
   #   inner_angle: 14
   #   outer_angle: 28
   # - type: "spot"
-  #   position:    [ 0.33,  1.95,  1.30]
+  #   position:    [ 0.33,  1.95, -1.30]
   #   direction:   [ 0.00, -1.00,  0.00]
   #   color:       [ 1.00,  0.97,  0.92]
   #   intensity:   12
