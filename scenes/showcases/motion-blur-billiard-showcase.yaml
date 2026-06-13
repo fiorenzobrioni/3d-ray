@@ -27,9 +27,9 @@
 world:
   sky:
     type: "gradient"
-    zenith_color:  [0.015, 0.018, 0.025]
-    horizon_color: [0.04,  0.045, 0.06]
-    ground_color:  [0.01,  0.01,  0.012]
+    zenith_color:  [0.05, 0.06, 0.09]
+    horizon_color: [0.12, 0.14, 0.19]
+    ground_color:  [0.02, 0.02, 0.03]
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  CAMERAS
@@ -70,16 +70,18 @@ lights:
     u:         [ 9.2, 0.0,  0.0]
     v:         [ 0.0, 0.0, -4.4]
     color:     [1.00, 0.90, 0.72]
-    intensity: 170
+    intensity: 210
     shadow_samples: 16
-  # Fill freddo tenue dal lato della battente.
+    visible_to_camera: false
+  # Fill freddo dal lato della battente: illumina il panno e schiarisce le ombre.
   - type: "area"
-    corner:    [-5.5, 3.6,  2.4]
-    u:         [ 2.0, 0.0,  0.0]
-    v:         [ 0.0, 0.0, -2.0]
+    corner:    [-5.5, 3.6,  2.6]
+    u:         [ 3.0, 0.0,  0.0]
+    v:         [ 0.0, 0.0, -3.0]
     color:     [0.60, 0.72, 1.00]
-    intensity: 24
+    intensity: 55
     shadow_samples: 9
+    visible_to_camera: false
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MATERIALS
