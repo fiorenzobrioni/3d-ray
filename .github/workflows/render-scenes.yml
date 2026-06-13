@@ -65,8 +65,8 @@ jobs:
           #- showcases/material-wood
           #- showcases/medium-water-tank
           #- showcases/material-mix
-          - showcases/motion-blur-billiard-showcase
-          - showcases/motion-blur-showcase
+          #- showcases/motion-blur-billiard-showcase
+          #- showcases/motion-blur-showcase
           #
           #- showcases/material-emissive
           #- sample
@@ -112,7 +112,7 @@ jobs:
           publish/RayTracer/RayTracer \
             -i scenes/${{ matrix.scene }}.yaml \
             -o renders/${{ matrix.scene }}.png \
-            -q final --exposure 1.0
+            -q final
 
       - name: Upload render
         if: always()

@@ -242,13 +242,13 @@ entities:
   # ── GEMELLI ISTANZIATI: due istanze dello stesso template, animate ───────
   #  In primo piano si incrociano: provano che il motion compone con la
   #  catena template→instance.
-  - type: "instance"
-    template: "twin"
-    translate: [-4.8, 0.45, 3.0]
-    motion:
-      - { time: 1.0, translate: [-3.4, 0.45, 3.0] }
-  - type: "instance"
-    template: "twin"
-    translate: [-2.8, 0.45, 3.0]
-    motion:
-      - { time: 1.0, translate: [-4.2, 0.45, 3.0] }
+  #- type: "instance"
+  #  template: "twin"
+  #  translate: [-4.8, 0.45, 3.0]
+  #  motion:
+  #    - { time: 1.0, translate: [-3.4, 0.45, 3.0] }
+  #- type: "instance"
+  #  template: "twin"
+  #  translate: [-2.8, 0.45, 3.0]
+  #  motion:
+  #    - { time: 1.0, translate: [-4.2, 0.45, 3.0] }

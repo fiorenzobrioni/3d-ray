@@ -397,6 +397,9 @@ entities:
     center:   [-0.174, 0.140, 0.000]
     radius:   0.016
     material: "cromo_sfera"
+    motion:
+      - { time: 0.5, translate: [0.014, -0.012, 0.0] }
+      - { time: 1.0, translate: [0.031, -0.024, 0.0] }
   - name: "sfera_1"
     type: "sphere"
     center:   [-0.032, 0.095, 0.000]
@@ -425,12 +428,18 @@ entities:
     rotate:    [-23, 0, -45]
     translate: [-0.119, 0.195, -0.0325]
     material:  "filo_acciaio"
+    motion:
+      - { time: 0.5, rotate: [-23, 0, -37.5], translate: [-0.112, 0.1905, -0.0325] }
+      - { time: 1.0, rotate: [-23, 0, -30], translate: [-0.1035, 0.1845, -0.0325] }
   - name: "filo_0_back"
     type: "box"
     scale:     [0.0012, 0.170, 0.0012]
     rotate:    [23, 0, -45]
     translate: [-0.119, 0.195, 0.0325]
     material:  "filo_acciaio"
+    motion:
+      - { time: 0.5, rotate: [23, 0, -37.5], translate: [-0.112, 0.1905, 0.0325] }
+      - { time: 1.0, rotate: [23, 0, -30], translate: [-0.1035, 0.1845, 0.0325] }
 
   - name: "filo_1_front"
     type: "box"
