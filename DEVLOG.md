@@ -24,19 +24,32 @@ raggio pieno** (`sceneRadius·0.06 ≈ 0.44`, quanto una bilia e mezzo) attorno 
 ogni fotone isolato → i cerchi. Il motion blur era sempre presente, solo
 sommerso dai dischi.
 
-**Fix (gather, `Renderer.GatherCaustics`).** Due modifiche complementari:
-- **Filtro a cono** (PBRT §16.2): ogni fotone pesato per distanza dal punto di
-  gather (1 al centro, → 0 al bordo); normalizzazione `1 − 2/(3·k_f)` che
-  conserva l'energia nel limite denso → le caustiche focalizzate restano
-  luminose (bordi morbidi invece di dischi netti).
-- **Confidence sull'occupazione** (`CausticOccupancyWeight`): i gather
-  sotto-popolati (`count < k`, regioni sparse di fotoni riflessi vaganti) sono
-  sfumati con uno *smoothstep* sul rapporto `count/k`; i gather pieni
-  (`count == k`, caustiche dense focalizzate) restano a piena intensità.
+**Fix 1 — alla radice (caster, `DisneyBsdf.Sample` + `CausticPhotonTracer`).**
+Una riflessione near-delta su un substrato non-specchio non deve generare
+caustiche: `BsdfSample` porta ora un flag `CausticCaster`. Per Disney la
+riflessione near-delta (specular liscio o **clearcoat** liscio) è caster solo se
+`metallic ≥ 0.5` (mirror-like); il clearcoat su base diffusa (`metallic 0`) e lo
+specular dielettrico liscio → `CausticCaster = false`. La rifrazione/trasmissione
+(vetro) resta sempre caster. Il photon tracer, su un delta non-caster, deposita e
+ferma il fotone come su un hit diffuso. Risultato sulla scena biliardo:
+**0 fotoni depositati ("no specular casters") → `_causticsActive = false` →
+render bit-identico a `--caustics off`**, motion blur pulito. Il riflesso glossy
+delle bilie resta catturato dal path tracer forward.
 
-Test focalizzato `CausticOccupancyWeight_FadesSparseGathers_LeavesFocusedFull`;
-il regression end-to-end `CausticsRender_StaysFiniteAndEnergyBounded` (caustica
-da lente di vetro) continua a passare → le caustiche vere non sono toccate.
+**Fix 2 — hardening del gather (`Renderer.GatherCaustics`).** Anche per le
+caustiche legittime ma rade, due migliorie complementari:
+- **Filtro a cono** (PBRT §16.2): fotoni pesati per distanza dal punto di gather
+  (1 al centro, → 0 al bordo); normalizzazione `1 − 2/(3·k_f)` che conserva
+  l'energia nel limite denso → caustiche focalizzate luminose, bordi morbidi.
+- **Confidence sull'occupazione** (`CausticOccupancyWeight`): i gather
+  sotto-popolati (`count < k`) sono sfumati con uno *smoothstep* su `count/k`; i
+  gather pieni (`count == k`) restano a piena intensità.
+
+Test: `GlossyClearcoatBall_IsNotACausticCaster_MirrorIs` (plastica → 0 fotoni,
+specchio metallico → caustica riflessa presente) e
+`CausticOccupancyWeight_FadesSparseGathers_LeavesFocusedFull`; il regression
+end-to-end `CausticsRender_StaysFiniteAndEnergyBounded` (lente di vetro)
+continua a passare → le caustiche vere non sono toccate.
 Doc: `docs/technical/path-tracing-and-lighting.md` §2.5.
 
 ---

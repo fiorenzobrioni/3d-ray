@@ -172,6 +172,57 @@ public class CausticRenderTests
     }
 
     [Fact]
+    public void GlossyClearcoatBall_IsNotACausticCaster_MirrorIs()
+    {
+        // Regression for the "ring of discs" artefact: a glossy Disney ball with
+        // a near-delta clearcoat (the billiard-ball material — metallic 0) is NOT
+        // a caustic caster. Its weak Fresnel reflection must not seed scattered
+        // caustic photons (which the gather rendered as spurious discs); the
+        // forward path tracer captures that glossy reflection instead. A metallic
+        // mirror ball, by contrast, IS a caster and must still focus a reflective
+        // caustic onto the floor.
+        Sampler.SetKind(SamplerKind.Prng);
+
+        var floor = new InfinitePlane(new Vector3(0f, 0f, 0f), new Vector3(0f, 1f, 0f),
+                                      new Lambertian(new Vector3(0.6f, 0.6f, 0.6f)));
+        var light = new AreaLight(
+            corner: new Vector3(-1.2f, 6.0f, -1.2f), u: new Vector3(2.4f, 0f, 0f),
+            v: new Vector3(0f, 0f, 2.4f), color: new Vector3(1f, 1f, 1f),
+            intensity: 12f, shadowSamples: 4);
+        var bounds = new AABB(new Vector3(-3f, -0.5f, -3f), new Vector3(3f, 3f, 3f));
+
+        // Billiard-ball material: glossy resin, smooth clearcoat, no metal.
+        var plastic = new DisneyBsdf(
+            baseColor:     new SolidColor(new Vector3(0.8f, 0.1f, 0.1f)),
+            roughness:     new FloatTexture(0.06f),
+            clearcoat:     new FloatTexture(1f),
+            coatRoughness: new FloatTexture(0.03f));
+        var plasticWorld = new HittableList(new[]
+        {
+            (IHittable)floor, new Sphere(new Vector3(0f, 1.0f, 0f), 0.6f, plastic)
+        });
+        PhotonMap? plasticMap = CausticPhotonTracer.Build(plasticWorld,
+            new List<ILight> { light }, bounds, photonBudget: 1_000_000, cellSize: 0.1f);
+        Assert.True(plasticMap == null || plasticMap.Count == 0,
+            $"Glossy clearcoat ball must not cast caustics; got {plasticMap?.Count ?? 0} photons.");
+
+        // Smooth metallic mirror: a genuine reflective-caustic caster.
+        var mirror = new DisneyBsdf(
+            baseColor: new SolidColor(new Vector3(0.95f, 0.95f, 0.95f)),
+            metallic:  new FloatTexture(1f),
+            roughness: new FloatTexture(0.02f));
+        var mirrorWorld = new HittableList(new[]
+        {
+            (IHittable)floor, new Sphere(new Vector3(0f, 1.0f, 0f), 0.6f, mirror)
+        });
+        PhotonMap? mirrorMap = CausticPhotonTracer.Build(mirrorWorld,
+            new List<ILight> { light }, bounds, photonBudget: 1_000_000, cellSize: 0.1f);
+        Assert.NotNull(mirrorMap);
+        Assert.True(mirrorMap!.Count > 1000,
+            $"Mirror ball must focus a reflective caustic; got {mirrorMap.Count} photons.");
+    }
+
+    [Fact]
     public void CausticOccupancyWeight_FadesSparseGathers_LeavesFocusedFull()
     {
         // Regression for the "ring of discs" artefact: weak reflective caustics
