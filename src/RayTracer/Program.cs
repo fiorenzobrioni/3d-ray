@@ -443,7 +443,7 @@ class Program
         var sw = Stopwatch.StartNew();
         try
         {
-            var (world, camera, lights, sky, globalMedium) =
+            var (world, camera, lights, sky, globalMedium, motionBlur) =
                 SceneLoader.Load(inputPath, width, height, shadowSamplesOverride, cameraSelector);
 
             Console.WriteLine($"done ({sw.ElapsedMilliseconds} ms)");
@@ -462,6 +462,8 @@ class Program
                 _                            => "flat"
             };
             Console.WriteLine($"  Sky:         {skyDesc}");
+            if (motionBlur.Active)
+                Console.WriteLine($"  Motion blur: shutter [{motionBlur.ShutterOpen:0.##}, {motionBlur.ShutterClose:0.##}]");
 
             // Render (constructor may print scene analysis info before the blank line)
             var renderer = new Renderer(
@@ -469,7 +471,8 @@ class Program
                 clampOverride, verbose, misHeuristic, lightSampling,
                 indirectClampFactor, textureFiltering, exposureEv,
                 sssMode, walkConfig,
-                enableCaustics: enableCaustics, causticPhotons: causticPhotons);
+                enableCaustics: enableCaustics, causticPhotons: causticPhotons,
+                motionBlur: motionBlur);
             Console.WriteLine();
 
             var captureOptions = denoiserKind != DenoiserKind.None || aovs.Count > 0

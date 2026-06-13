@@ -92,11 +92,11 @@ public class PortalLight : ILight
     }
 
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
-        => IlluminateAndTestStratified(hitPoint, surfaceNormal, world, -1);
+        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, float time = 0f)
+        => IlluminateAndTestStratified(hitPoint, surfaceNormal, world, -1, time);
 
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex)
+        IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
     {
         // Stratified sample over the portal rectangle.
         float xi1, xi2;
@@ -135,7 +135,7 @@ public class PortalLight : ILight
         // intangible — it carries no geometry, so any hit between the receiver
         // and infinity is a real occluder.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dir);
+        var shadowRay = new Ray(shadowOrigin, dir, time);
         Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, MathUtils.Infinity);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dir, dist);

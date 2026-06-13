@@ -544,6 +544,44 @@ focusDist  = dot(focal_pos − position, forward)
 The focus plane is perpendicular to the view direction passing through `focal_pos`, so the value is a **projection, not a Euclidean distance**. A focal point off-axis at `(3, 4, -5)` with the camera at the origin looking along `−Z` yields focus distance `5`, not `√50 ≈ 7.07`.
 
 When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info message is logged). `focal_pos` is ignored with a warning when it falls behind the camera, coincides with it, or the camera is degenerate (`look_at == position`); the scalar `focal_dist` is used as fallback.
+
+#### **`shutter` — motion-blur exposure interval**
+Motion blur integrates the scene over the time the shutter is open. The scene's
+animation runs on a normalized timeline `[0, 1]` (see the entity `motion:` key in
+§7 and camera `motion:` below); `shutter: [open, close]` selects the sub-interval
+each camera sample is exposed over, with `0 ≤ open < close ≤ 1`.
+```yaml
+camera:
+  position: [0, 2, 8]
+  look_at: [0, 1, 0]
+  shutter: [0.0, 1.0]                      # full exposure — integrate the whole motion arc
+  # shutter: [0.45, 0.55]                  # short exposure — motion nearly frozen (streaks ~10× shorter)
+```
+Each camera sample draws one time uniformly inside `[open, close]` (one extra
+low-discrepancy dimension, taken only when the scene is animated) and the whole
+path — camera ray, shadow rays, bounces — is traced at that single instant. A
+narrower interval is a shorter exposure: the motion is more frozen and the
+streaks shorter. Default `[0, 1]` when anything is animated.
+
+`shutter` lives on the camera, so each entry of a `cameras:` list can carry its
+own value (e.g. a "full" and a "short" exposure of the same scene). An invalid
+interval is reset to `[0, 1]` with a warning. If nothing in the scene is animated
+the shutter is reported and ignored — output stays identical to a still render.
+
+#### **`motion` — camera motion blur**
+An optional `motion:` list animates the camera itself. The base
+`position`/`look_at`/`vup`/`fov` is the implicit keyframe at `time: 0`; each entry
+adds a keyframe at its own normalized time, and any field omitted in a keyframe
+inherits the base pose. Between keyframes the pose is interpolated and the view
+basis rebuilt per ray, so the frame stays orthonormal at every instant.
+```yaml
+camera:
+  position: [0, 2, 8]
+  look_at: [0, 1, 0]
+  fov: 45
+  motion:
+    - { time: 1.0, position: [1.5, 2, 8], look_at: [0.5, 1, 0] }   # gentle dolly over the exposure
+```
 ---
 ### 5. **MATERIALS SECTION** — Six Types
 #### **5.1 Lambertian (Diffuse/Matte)**
@@ -1874,6 +1912,42 @@ group, instance):
 | `seed` | auto | Stable integer that drives procedural texture variation; auto-derived from name+type+index when omitted |
 | `visible_to_camera` | `true` | Hide from primary camera rays only. The entity still appears in specular reflections/refractions, still receives and casts indirect illumination, and (if emissive) still contributes to direct lighting via NEE. Typical use: emissive panel that acts as a fill light but should not show up as a bright rectangle in the frame, off-screen practicals visible only via reflections. Set on a `group` to propagate to every child. |
 | `scale`, `rotate`, `translate` | identity | Optional local transform (applied scale → rotate → translate) |
+| `motion` | — | Optional list of keyframes for transform motion blur (see §7.0). Top-level entities only |
+
+#### **7.0 Motion Blur (`motion:`)**
+
+A non-empty `motion:` list turns an entity's static transform into an *animated*
+one: the renderer interpolates its pose over the shutter interval (see the camera
+`shutter` key) and blurs the swept geometry. The base
+`scale`/`rotate`/`translate` is the implicit keyframe at `time: 0`; each `motion`
+entry adds a keyframe at its own normalized time in `[0, 1]`. Components omitted
+in a keyframe inherit the **base** pose (not the previous keyframe).
+```yaml
+# A sphere streaking to the right while spinning.
+- type: "sphere"
+  center: [0, 0, 0]
+  radius: 0.6
+  material: "chrome"
+  translate: [-2, 0.6, 0]                  # pose at time 0
+  rotate: [0, 0, 0]
+  motion:
+    - { time: 0.5, translate: [0, 0.6, 0] }                  # omitted rotate/scale ⇒ base pose
+    - { time: 1.0, translate: [2, 0.6, 0], rotate: [0, 90, 0] }
+```
+- Translation and scale are interpolated linearly; rotation follows the shortest
+  quaternion arc, so a key spinning `0° → 350°` sweeps `−10°`, not the long way.
+- Times are clamped to `[0, 1]` (warned); duplicate times keep the last entry;
+  ray times outside the keyframe range clamp to the end poses.
+- Supported on **top-level entities of any type** (primitive, csg, mesh, group,
+  instance). `motion:` on a template definition or a group/instance *child* is
+  ignored with a warning — animate the enclosing top-level entity instead.
+- **Animated emitters:** an emissive animated entity still blurs correctly for
+  the camera and reflections, but its direct-light (NEE) contribution is sampled
+  at one fixed mid-animation snapshot (a warning is logged). Fast-moving emitters
+  therefore have slightly biased direct-light positions.
+
+See `docs/technical/motion-blur.md` for the algorithm, and the
+`motion-blur-showcase.yaml` / `motion-blur-billiard-showcase.yaml` scenes.
 
 > **Caustics need no per-entity keys.** Photon-mapped caustics are a global, fully
 > automatic feature: enable them with the `--caustics on` CLI flag (see

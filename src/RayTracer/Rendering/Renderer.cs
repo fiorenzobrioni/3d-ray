@@ -280,6 +280,16 @@ public partial class Renderer
     private readonly SssMode _sssMode;
     private readonly RandomWalkConfig _walkConfig;
 
+    // ── Motion blur ─────────────────────────────────────────────────────────
+    // When active, each camera sample draws ONE extra sampler dimension (right
+    // after the pixel jitter, before the lens) mapped to [shutterOpen,
+    // shutterClose]; the whole path then samples the scene at that frozen
+    // instant. When inactive no dimension is drawn — output stays bit-identical
+    // to a build without motion blur (same invariant as volumetrics/AOV capture).
+    private readonly bool _motionActive;
+    private readonly float _shutterOpen;
+    private readonly float _shutterClose;
+
     public Renderer(
         IHittable world,
         Camera.Camera camera,
@@ -298,9 +308,13 @@ public partial class Renderer
         SssMode sssMode = SssMode.Auto,
         RandomWalkConfig? walkConfig = null,
         bool enableCaustics = false,
-        int causticPhotons = 0)
+        int causticPhotons = 0,
+        MotionBlurSettings motionBlur = default)
     {
         _world = world;
+        _motionActive = motionBlur.Active;
+        _shutterOpen = motionBlur.ShutterOpen;
+        _shutterClose = motionBlur.ShutterClose;
         _camera = camera;
         _lights = lights;
         _sky = sky;
@@ -371,8 +385,13 @@ public partial class Renderer
             // nearest-first traversal + cell pruning touch ~an order of
             // magnitude fewer photons than radius-sized cells would.
             _causticGatherRadius = MathF.Max(sceneRadius * 0.06f, 1e-4f);
+            // With motion blur active the photon map is a static snapshot at
+            // the shutter midpoint (see CausticPhotonTracer.Build docs).
+            float photonTime = _motionActive ? motionBlur.MidTime : 0f;
+            if (_motionActive)
+                Console.WriteLine("  Caustics:    photons traced at shutter midpoint (motion blur active)");
             _photonMap = CausticPhotonTracer.Build(world, lights, sceneBounds, causticPhotons,
-                                                   _causticGatherRadius * 0.5f);
+                                                   _causticGatherRadius * 0.5f, photonTime);
             _causticsActive = _photonMap != null;
             if (_causticsActive)
                 Console.WriteLine($"  Caustics:    photon map ({_photonMap!.Count:N0} caustic photons)");
@@ -610,12 +629,21 @@ public partial class Renderer
                         float jitterU = MathUtils.RandomFloat();
                         float jitterV = MathUtils.RandomFloat();
 
+                        // Motion blur: one shutter-time dimension per camera
+                        // sample, drawn AFTER the pixel jitter and BEFORE the
+                        // lens so dims 0-1 keep their (0,2,2)-net pairing. Not
+                        // drawn at all when inactive — the dimension layout
+                        // (and therefore the output) stays bit-identical.
+                        float rayTime = _motionActive
+                            ? _shutterOpen + (_shutterClose - _shutterOpen) * MathUtils.RandomFloat()
+                            : 0f;
+
                         float u = (i + jitterU) / width;
                         float v = (height - j - 1 + jitterV) / height;
 
                         var ray = _emitRayDifferentials
-                            ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy)
-                            : _camera.GetRay(u, v);
+                            ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy, rayTime)
+                            : _camera.GetRay(u, v, rayTime);
                         // Fresh medium stack per camera ray. The camera origin
                         // is assumed to be in vacuum / the global medium —
                         // entities along the ray push/pop their interior media
@@ -647,12 +675,18 @@ public partial class Renderer
                             float jitterU = (sx + MathUtils.RandomFloat()) * invSqrtSpp;
                             float jitterV = (sy + MathUtils.RandomFloat()) * invSqrtSpp;
 
+                            // Same shutter-time draw as the Sobol path: only
+                            // when motion is active (bit-identical otherwise).
+                            float rayTime = _motionActive
+                                ? _shutterOpen + (_shutterClose - _shutterOpen) * MathUtils.RandomFloat()
+                                : 0f;
+
                             float u = (i + jitterU) / width;
                             float v = (height - j - 1 + jitterV) / height;
 
                             var ray = _emitRayDifferentials
-                                ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy)
-                                : _camera.GetRay(u, v);
+                                ? _camera.GetRayWithDifferentials(u, v, dsdx, dtdy, rayTime)
+                                : _camera.GetRay(u, v, rayTime);
                             var mediums = new MediumStack();
                             var iors = new IorStack();
                             if (captureAovs) (t_aovProbe ??= new AovProbe()).Reset();
@@ -1080,6 +1114,11 @@ public partial class Renderer
 
         if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
         {
+            // Motion blur: materials build scattered rays without a time (the
+            // renderer owns time propagation — see Ray.Time); re-stamp the
+            // path time here so the bounce samples the same frozen instant.
+            scattered = scattered.WithTime(ray.Time);
+
             // ── AOV first-non-delta decision (legacy Scatter path) ──────────
             // Delta bounces fold their tint into the running albedo weight and
             // stay pending; the first non-delta bounce commits this surface.
@@ -1245,7 +1284,7 @@ public partial class Renderer
         // Offset ray origin on the side of the normal that matches the outgoing
         // direction — transmission bounces sit on the far side of the surface.
         Vector3 offsetDir = Vector3.Dot(s.Wo, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
-        var scattered = new Ray(MathUtils.OffsetOrigin(rec.Point, offsetDir), s.Wo);
+        var scattered = new Ray(MathUtils.OffsetOrigin(rec.Point, offsetDir), s.Wo, rec.Time);
 
         float nextPdf = s.IsDelta ? 0f : s.Pdf;
         bool nextIsDelta = s.IsDelta;
@@ -1547,12 +1586,19 @@ public partial class Renderer
                 ? new Ray(
                     MathUtils.OffsetOrigin(rec.Point, currentRay.Direction),
                     currentRay.Direction,
-                    currentRay.Differentials)
+                    currentRay.Differentials,
+                    currentRay.Time)
                 : new Ray(
                     MathUtils.OffsetOrigin(rec.Point, currentRay.Direction),
-                    currentRay.Direction);
+                    currentRay.Direction,
+                    currentRay.Time);
             if (++skipCount >= MaxVisibilitySkips) break;
         }
+
+        // Path time (motion blur): the single point this is stamped — every
+        // shadow/NEE/bounce ray downstream of this hit inherits rec.Time so
+        // the whole path samples the scene at one frozen instant.
+        rec.Time = currentRay.Time;
 
         // ── AOV depth: first surface hit of the camera ray ──────────────────
         // Captured regardless of specularity (a mirror pixel's depth is the
@@ -1631,7 +1677,8 @@ public partial class Renderer
             // shadow-ray transmittance to the in-medium segment, mirroring the
             // surface path and the random-walk SSS NEE.
             IHittable? medEntity = mediums.Top != null ? mediums.TopEntity : null;
-            Vector3 Lnee = ComputeDirectLightingMedium(p, currentRay.Direction, activeMedium, medEntity);
+            Vector3 Lnee = ComputeDirectLightingMedium(p, currentRay.Direction, activeMedium, medEntity,
+                                                       currentRay.Time);
 
             // ── Russian Roulette on the indirect (phase-sampled) bounce ─────
             // Throughput-based: β_after = pathThroughput · medium-β. Same
@@ -1664,7 +1711,7 @@ public partial class Renderer
                 float phaseWeight = phasePdf > 1e-20f ? phaseVal / phasePdf : 0f;
                 Vector3 nextThroughput = medThroughput * (phaseWeight * indirectScale);
                 Lind = phaseWeight * indirectScale
-                     * TraceRay(new Ray(p, wi), depth - 1,
+                     * TraceRay(new Ray(p, wi, currentRay.Time), depth - 1,
                                  prevBsdfPdf: phasePdf, prevIsDelta: false,
                                  ref mediums, ref iors,
                                  currentAbsorption: currentAbsorption,
@@ -1819,7 +1866,7 @@ public partial class Renderer
             for (int s = 0; s < samples; s++)
             {
                 var (inShadow, lightColor, dirToLight, distance) =
-                    SampleLight(light, rec.Point, rec.Normal, s);
+                    SampleLight(light, rec.Point, rec.Normal, s, rec.Time);
 
                 if (inShadow) continue;
 
@@ -1837,8 +1884,8 @@ public partial class Renderer
                 {
                     float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
                     float mediumDist = ClipShadowToBoundary(rec.Point, dirToLight, shadowDist,
-                                                            shadowMediumEntity);
-                    Tr = shadowMedium.Transmittance(new Ray(rec.Point, dirToLight), mediumDist);
+                                                            shadowMediumEntity, time: rec.Time);
+                    Tr = shadowMedium.Transmittance(new Ray(rec.Point, dirToLight, rec.Time), mediumDist);
                 }
 
                 // MIS: combined NEE pdf = pPick × pLightSample
@@ -1872,7 +1919,7 @@ public partial class Renderer
                 for (int s = 0; s < samples; s++)
                 {
                     var (inShadow, lightColor, dirToLight, distance) =
-                        SampleLight(light, rec.Point, rec.Normal, s);
+                        SampleLight(light, rec.Point, rec.Normal, s, rec.Time);
 
                     if (inShadow) continue;
 
@@ -1889,8 +1936,8 @@ public partial class Renderer
                     {
                         float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
                         float mediumDist = ClipShadowToBoundary(rec.Point, dirToLight, shadowDist,
-                                                                shadowMediumEntity);
-                        Tr = shadowMedium.Transmittance(new Ray(rec.Point, dirToLight), mediumDist);
+                                                                shadowMediumEntity, time: rec.Time);
+                        Tr = shadowMedium.Transmittance(new Ray(rec.Point, dirToLight, rec.Time), mediumDist);
                     }
 
                     // ── MIS weight (balance or power, configured per-renderer) ──
@@ -1924,12 +1971,12 @@ public partial class Renderer
     /// to the base <see cref="ILight.IlluminateAndTest"/> for all other lights.
     /// </summary>
     private (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        SampleLight(ILight light, Vector3 point, Vector3 normal, int sampleIndex)
+        SampleLight(ILight light, Vector3 point, Vector3 normal, int sampleIndex, float time)
         // Single virtual dispatch — each light type self-selects stratified vs.
         // single-sample behaviour (directional sun-disc and multi-sample spots
         // guard on their own parameters internally). Replaces the former
         // per-sample type-ladder. See ILight.IlluminateAndTestStratified.
-        => light.IlluminateAndTestStratified(point, normal, _world, sampleIndex);
+        => light.IlluminateAndTestStratified(point, normal, _world, sampleIndex, time);
 
     /// <summary>
     /// Distance the medium attenuates over for a shadow ray fired from a point
@@ -1943,11 +1990,12 @@ public partial class Renderer
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static float ClipShadowToBoundary(Vector3 p, Vector3 dir, float shadowDist,
-                                               IHittable? boundEntity, float tMin = 1e-4f)
+                                               IHittable? boundEntity, float tMin = 1e-4f,
+                                               float time = 0f)
     {
         if (boundEntity == null) return shadowDist;
         var rec = new HitRecord();
-        if (boundEntity.Hit(new Ray(p, dir), tMin, shadowDist, ref rec))
+        if (boundEntity.Hit(new Ray(p, dir, time), tMin, shadowDist, ref rec))
             return rec.T;
         return shadowDist;
     }
@@ -1979,7 +2027,8 @@ public partial class Renderer
     ///                  shadow distance &gt; 1 unit, even though the actual
     ///                  in-medium segment is only a fraction of a sphere radius.</param>
     private Vector3 ComputeDirectLightingMedium(Vector3 p, Vector3 wo, IMedium medium,
-                                                 IHittable? boundEntity = null)
+                                                 IHittable? boundEntity = null,
+                                                 float time = 0f)
     {
         Vector3 result = Vector3.Zero;
 
@@ -2003,14 +2052,14 @@ public partial class Renderer
             for (int s = 0; s < samples; s++)
             {
                 var (inShadow, lightColor, dirToLight, distance) =
-                    SampleLight(light, p, dummyNormal, s);
+                    SampleLight(light, p, dummyNormal, s, time);
 
                 if (inShadow) continue;
 
                 float phaseVal = medium.Phase.Evaluate(wo, dirToLight);
                 float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity, 1e-7f);
-                Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight), mediumDist);
+                float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity, 1e-7f, time);
+                Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight, time), mediumDist);
 
                 float wNee = 1f;
                 if (!light.IsDelta)
@@ -2047,7 +2096,7 @@ public partial class Renderer
                     // shadow sampling matters most (large area lights seen through
                     // dense fog are the worst-case variance scenario).
                     var (inShadow, lightColor, dirToLight, distance) =
-                        SampleLight(light, p, dummyNormal, s);
+                        SampleLight(light, p, dummyNormal, s, time);
 
                     if (inShadow) continue;
 
@@ -2057,8 +2106,8 @@ public partial class Renderer
                     // Beer-Lambert attenuation along the shadow ray, clipped to
                     // the bound-entity boundary when the medium is bound.
                     float shadowDist = float.IsInfinity(distance) ? 1e30f : distance;
-                    float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity, 1e-7f);
-                    Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight), mediumDist);
+                    float mediumDist = ClipShadowToBoundary(p, dirToLight, shadowDist, boundEntity, 1e-7f, time);
+                    Vector3 Tr = medium.Transmittance(new Ray(p, dirToLight, time), mediumDist);
 
                     // ── MIS weight (phase-function vs light sampler) ────────────
                     // Delta lights cannot be reached by phase sampling; emit at

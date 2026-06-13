@@ -51,9 +51,15 @@ public static class CausticPhotonTracer
     /// light able to seed a caustic (no emitter, or no specular material exists
     /// to focus through — that gate is the caller's). <paramref name="cellSize"/>
     /// seeds the grid resolution and the gather-radius scale.
+    /// <paramref name="photonTime"/> is the single shutter time all photons are
+    /// traced at (the renderer passes the shutter midpoint when motion blur is
+    /// active): the photon map is one static snapshot, not time-resolved —
+    /// distributing photon times would need per-time maps for a correct
+    /// density estimate.
     /// </summary>
     public static PhotonMap? Build(IHittable world, IReadOnlyList<ILight> lights,
-                                   AABB sceneBounds, int photonBudget, float cellSize)
+                                   AABB sceneBounds, int photonBudget, float cellSize,
+                                   float photonTime = 0f)
     {
         if (photonBudget <= 0) return null;
 
@@ -105,7 +111,7 @@ public static class CausticPhotonTracer
                 Sampler.BeginPixelSample(seed, (uint)localIdx);
 
                 if (TryEmit(src.Light, sceneBounds, out Ray ray, out Vector3 flux))
-                    Trace(world, ray, flux * perPhotonScale, local);
+                    Trace(world, ray.WithTime(photonTime), flux * perPhotonScale, local);
 
                 Sampler.EndPixelSample();
                 return local;
@@ -174,7 +180,7 @@ public static class CausticPhotonTracer
                 {
                     power *= s.F;                       // delta lobe: F is the full attenuation
                     EnterMediumIfRefracting(material, rec, s.Wo, ref inMedium, ref sigmaA, ref entryPoint);
-                    ray = ContinueRay(rec, s.Wo);
+                    ray = ContinueRay(rec, s.Wo, ray.Time);
                     specularBounces++;
                 }
                 else
@@ -189,7 +195,7 @@ public static class CausticPhotonTracer
                 {
                     power *= atten;                     // mirror / glass: continue the chain
                     EnterMediumIfRefracting(material, rec, scattered.Direction, ref inMedium, ref sigmaA, ref entryPoint);
-                    ray = scattered;
+                    ray = scattered.WithTime(ray.Time);
                     specularBounces++;
                 }
                 else
@@ -230,10 +236,10 @@ public static class CausticPhotonTracer
         outPhotons.Add(new Photon(rec.Point, incident, power));
     }
 
-    private static Ray ContinueRay(in HitRecord rec, Vector3 wo)
+    private static Ray ContinueRay(in HitRecord rec, Vector3 wo, float time)
     {
         Vector3 offsetDir = Vector3.Dot(wo, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
-        return new Ray(MathUtils.OffsetOrigin(rec.Point, offsetDir), wo);
+        return new Ray(MathUtils.OffsetOrigin(rec.Point, offsetDir), wo, time);
     }
 
     /// <summary>

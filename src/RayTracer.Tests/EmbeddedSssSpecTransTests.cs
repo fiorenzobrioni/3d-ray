@@ -42,7 +42,7 @@ camera:
         File.WriteAllText(path, yaml);
         try
         {
-            var (world, _, _, _, _) = SceneLoader.Load(path, 64, 64);
+            var (world, _, _, _, _, _) = SceneLoader.Load(path, 64, 64);
             var rec = new HitRecord();
             var ray = new Ray(Vector3.Zero, Vector3.Normalize(new Vector3(0, 0, -1)));
             world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec);

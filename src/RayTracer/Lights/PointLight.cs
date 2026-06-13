@@ -41,7 +41,7 @@ public class PointLight : ILight
     /// redundantly computing the direction vector twice.
     /// </summary>
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
+        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, float time = 0f)
     {
         Vector3 toLight = Position - hitPoint;
         float distance = toLight.Length();
@@ -51,7 +51,7 @@ public class PointLight : ILight
         // This prevents self-intersection at grazing angles where the old method
         // (offset along ray direction) could fail.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dirToLight);
+        var shadowRay = new Ray(shadowOrigin, dirToLight, time);
         Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon);
 
         if (MathUtils.NearZero(trans))

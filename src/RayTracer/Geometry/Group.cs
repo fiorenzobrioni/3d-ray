@@ -143,6 +143,7 @@ public class Group : IHittable
     {
         InfinitePlane => true,
         Transform t   => IsInfinitePlane(t.Inner),
+        AnimatedTransform at => IsInfinitePlane(at.Inner),
         _             => false
     };
 }

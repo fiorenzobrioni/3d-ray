@@ -423,6 +423,48 @@ public class CameraData
     /// </summary>
     [YamlMember(Alias = "focal_pos")]
     public List<float>? FocalPos { get; set; }
+
+    /// <summary>
+    /// Shutter interval <c>[open, close]</c>, normalized to the scene
+    /// animation range [0, 1] with <c>0 ≤ open &lt; close ≤ 1</c>. Each camera
+    /// sample picks one time inside this interval; a narrower interval
+    /// freezes the motion (shorter exposure), the full <c>[0, 1]</c> integrates
+    /// the whole animation range. Default <c>[0, 1]</c> when the scene is
+    /// animated; ignored (with an info message) when nothing moves.
+    /// </summary>
+    [YamlMember(Alias = "shutter")]
+    public List<float>? Shutter { get; set; }
+
+    /// <summary>
+    /// Camera motion keyframes (camera motion blur). The camera's base
+    /// <c>position</c>/<c>look_at</c>/<c>vup</c>/<c>fov</c> is the implicit
+    /// keyframe at <c>time: 0</c>; each entry adds a key at its own time.
+    /// Omitted fields inherit the base pose.
+    /// </summary>
+    [YamlMember(Alias = "motion")]
+    public List<CameraMotionKeyData>? Motion { get; set; }
+}
+
+/// <summary>
+/// One camera motion keyframe (see <see cref="CameraData.Motion"/>).
+/// Omitted fields inherit the camera's base pose.
+/// </summary>
+public class CameraMotionKeyData
+{
+    [YamlMember(Alias = "time")]
+    public float Time { get; set; }
+
+    [YamlMember(Alias = "position")]
+    public List<float>? Position { get; set; }
+
+    [YamlMember(Alias = "look_at")]
+    public List<float>? LookAt { get; set; }
+
+    [YamlMember(Alias = "vup")]
+    public List<float>? Vup { get; set; }
+
+    [YamlMember(Alias = "fov")]
+    public float? Fov { get; set; }
 }
 
 public class MaterialData
@@ -1592,6 +1634,36 @@ public class EntityData
     public float CreaseAngle { get; set; } = 0f;
 
     // Transformations
+    [YamlMember(Alias = "translate")]
+    public List<float>? Translate { get; set; }
+
+    [YamlMember(Alias = "rotate")]
+    public List<float>? Rotate { get; set; }
+
+    [YamlMember(Alias = "scale")]
+    public object? Scale { get; set; }
+
+    /// <summary>
+    /// Motion-blur keyframes. The base <c>translate</c>/<c>rotate</c>/<c>scale</c>
+    /// is the implicit keyframe at <c>time: 0</c>; each entry here adds a key at
+    /// its own time. Components omitted in a key inherit the BASE pose (not the
+    /// previous key). Times are normalized to [0, 1] — the same range the camera
+    /// shutter samples. Supported on top-level entities of any type; ignored
+    /// (with a warning) on template definitions and group/instance children.
+    /// </summary>
+    [YamlMember(Alias = "motion")]
+    public List<MotionKeyData>? Motion { get; set; }
+}
+
+/// <summary>
+/// One entity motion keyframe (see <see cref="EntityData.Motion"/>).
+/// Omitted components inherit the entity's base pose.
+/// </summary>
+public class MotionKeyData
+{
+    [YamlMember(Alias = "time")]
+    public float Time { get; set; }
+
     [YamlMember(Alias = "translate")]
     public List<float>? Translate { get; set; }
 

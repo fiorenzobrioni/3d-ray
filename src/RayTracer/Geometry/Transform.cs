@@ -119,32 +119,49 @@ public class Transform : IHittable, ISamplable
 
     public bool Hit(in Ray ray, float tMin, float tMax, ref HitRecord rec)
     {
-        // Transform the ray from world space to object space
-        var localOrigin = Vector3.Transform(ray.Origin, _inverse);
-        var localDir = Vector3.TransformNormal(ray.Direction, _inverse);
-
-        // Differential propagation through an affine transform: the Jacobian
-        // of (origin, direction) w.r.t. (x, y) is the inverse matrix itself
-        // when going world → object, so each auxiliary ray gets the same
-        // inverse-transform treatment as the primary (PBRT §6.2.3 / §10.1.1).
-        Ray localRay;
-        if (ray.HasDifferentials)
-        {
-            var d = ray.Differentials;
-            var lox = Vector3.Transform(d.OriginX, _inverse);
-            var ldx = Vector3.TransformNormal(d.DirectionX, _inverse);
-            var loy = Vector3.Transform(d.OriginY, _inverse);
-            var ldy = Vector3.TransformNormal(d.DirectionY, _inverse);
-            localRay = new Ray(localOrigin, localDir, new RayDifferential(lox, ldx, loy, ldy));
-        }
-        else
-        {
-            localRay = new Ray(localOrigin, localDir);
-        }
+        Ray localRay = ToLocalRay(ray, _inverse);
 
         if (!_object.Hit(localRay, tMin, tMax, ref rec))
             return false;
 
+        MapHitToWorld(ref rec, _transform, _normalMatrix, _localScale);
+        return true;
+    }
+
+    /// <summary>
+    /// Transforms a world-space ray into object space via <paramref name="inverse"/>,
+    /// preserving the ray's time and propagating its differentials.
+    /// Differential propagation through an affine transform: the Jacobian
+    /// of (origin, direction) w.r.t. (x, y) is the inverse matrix itself
+    /// when going world → object, so each auxiliary ray gets the same
+    /// inverse-transform treatment as the primary (PBRT §6.2.3 / §10.1.1).
+    /// Shared by <see cref="Transform"/> and <see cref="AnimatedTransform"/>.
+    /// </summary>
+    internal static Ray ToLocalRay(in Ray ray, in Matrix4x4 inverse)
+    {
+        var localOrigin = Vector3.Transform(ray.Origin, inverse);
+        var localDir = Vector3.TransformNormal(ray.Direction, inverse);
+
+        if (ray.HasDifferentials)
+        {
+            var d = ray.Differentials;
+            var lox = Vector3.Transform(d.OriginX, inverse);
+            var ldx = Vector3.TransformNormal(d.DirectionX, inverse);
+            var loy = Vector3.Transform(d.OriginY, inverse);
+            var ldy = Vector3.TransformNormal(d.DirectionY, inverse);
+            return new Ray(localOrigin, localDir, new RayDifferential(lox, ldx, loy, ldy), ray.Time);
+        }
+        return new Ray(localOrigin, localDir, ray.Time);
+    }
+
+    /// <summary>
+    /// Maps an object-space hit record back to world space. Shared by
+    /// <see cref="Transform"/> (static matrix) and <see cref="AnimatedTransform"/>
+    /// (matrix interpolated at the ray's time) so the two never drift.
+    /// </summary>
+    internal static void MapHitToWorld(ref HitRecord rec, in Matrix4x4 transform,
+                                       in Matrix4x4 normalMatrix, Vector3 localScale)
+    {
         // Metric object-space texture coordinate: apply ONLY this transform's
         // scale to the child's local point. Rotation and translation are
         // deliberately excluded so a 3D procedural texture stays attached to the
@@ -153,10 +170,10 @@ public class Transform : IHittable, ISamplable
         // texture's own `scale`. For nested transforms the scales compose
         // (component-wise); inter-level rotation between non-uniform scales is
         // approximated, the only case where object space is inherently sheared.
-        rec.LocalPoint *= _localScale;
+        rec.LocalPoint *= localScale;
 
         // Transform the hit point back to world space
-        rec.Point = Vector3.Transform(rec.Point, _transform);
+        rec.Point = Vector3.Transform(rec.Point, transform);
 
         // Transform the normal using the normal matrix (handles non-uniform scale).
         // We must NOT call SetFaceNormal again here: rec.Normal is already a shading
@@ -168,32 +185,30 @@ public class Transform : IHittable, ISamplable
         // Both operations preserve dot-product sign for any invertible transform —
         // (M⁻ᵀN)·(MD) = N·D — so FrontFace remains valid in world space without
         // recomputation.
-        rec.Normal = Vector3.Normalize(Vector3.TransformNormal(rec.Normal, _normalMatrix));
+        rec.Normal = Vector3.Normalize(Vector3.TransformNormal(rec.Normal, normalMatrix));
 
         // Tangent and bitangent are direction vectors, they transform with the forward matrix
-        rec.Tangent   = Vector3.Normalize(Vector3.TransformNormal(rec.Tangent,   _transform));
-        rec.Bitangent = Vector3.Normalize(Vector3.TransformNormal(rec.Bitangent, _transform));
+        rec.Tangent   = Vector3.Normalize(Vector3.TransformNormal(rec.Tangent,   transform));
+        rec.Bitangent = Vector3.Normalize(Vector3.TransformNormal(rec.Bitangent, transform));
 
         // Parametric partials transform as ordinary direction vectors (they
         // span the surface tangent plane). UV partials are unaffected — the
         // primitive's parameter space is invariant to spatial transforms.
         if (rec.DpDu.LengthSquared() > 0f)
-            rec.DpDu = Vector3.TransformNormal(rec.DpDu, _transform);
+            rec.DpDu = Vector3.TransformNormal(rec.DpDu, transform);
         if (rec.DpDv.LengthSquared() > 0f)
-            rec.DpDv = Vector3.TransformNormal(rec.DpDv, _transform);
+            rec.DpDv = Vector3.TransformNormal(rec.DpDv, transform);
 
         // Footprint dPdx/dPdy were computed in object space (LocalPoint-aligned)
         // by the inner primitive's Hit path. Procedural textures consume them
         // at LocalPoint, so we deliberately keep them in object space — image
         // textures use the UV partials which are space-independent. We do NOT
         // transform here.
-
-        return true;
     }
 
     public AABB BoundingBox() => _worldBox;
 
-    private static AABB ComputeWorldBox(AABB local, Matrix4x4 transform)
+    internal static AABB ComputeWorldBox(AABB local, Matrix4x4 transform)
     {
         Vector3 min = local.Min;
         Vector3 max = local.Max;

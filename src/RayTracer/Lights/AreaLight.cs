@@ -117,17 +117,17 @@ public class AreaLight : ILight
     /// stratified sample point on the light surface (critical for unbiased results).
     /// </summary>
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
+        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, float time = 0f)
     {
         // Default call without sample index — uses random sample (backward compat)
-        return IlluminateAndTestStratified(hitPoint, surfaceNormal, world, -1);
+        return IlluminateAndTestStratified(hitPoint, surfaceNormal, world, -1, time);
     }
 
     /// <summary>
     /// Stratified version: call with a specific sample index for optimal noise reduction.
     /// </summary>
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex)
+        IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
     {
         Vector3 samplePoint = sampleIndex >= 0
             ? StratifiedSurfacePoint(sampleIndex)
@@ -155,7 +155,7 @@ public class AreaLight : ILight
         // the surface normal — otherwise the light's own geometry would register
         // as a self-intersection and produce a black halo under/around the emitter.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dirToLight);
+        var shadowRay = new Ray(shadowOrigin, dirToLight, time);
         float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
         Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
 

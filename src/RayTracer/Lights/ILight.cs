@@ -25,9 +25,13 @@ public interface ILight
     /// the SAME random point on the light surface (critical for unbiased soft shadows).
     ///
     /// Returns InShadow=true and Color=Zero when the point is occluded.
+    ///
+    /// <paramref name="time"/> is the path's shutter time (motion blur): the
+    /// shadow ray must test occlusion against the scene at the same instant
+    /// the surface was hit. 0 when motion blur is inactive.
     /// </summary>
     (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world);
+        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, float time = 0f);
 
     /// <summary>
     /// Stratified shadow-sample variant. Area/sphere/geometry/sun-disc lights and
@@ -39,8 +43,8 @@ public interface ILight
     /// it used to do (a type-ladder evaluated millions of times).
     /// </summary>
     (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex)
-        => IlluminateAndTest(hitPoint, surfaceNormal, world);
+        IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
+        => IlluminateAndTest(hitPoint, surfaceNormal, world, time);
 
     /// <summary>
     /// Approximate total radiant flux emitted by this light, in luminance-weighted

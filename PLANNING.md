@@ -51,7 +51,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 | # | Feature | Stato |
 |---|---------|-------|
-| 18 | Motion Blur | ⬜ |
+| 18 | Motion Blur (trasformazioni animate + camera, `AnimatedTransform` TRS keyframe con slerp, `shutter` per-camera, bound shutter-union sul BVH statico, output bit-identico se nulla è animato) | ✅ |
 | 19 | Volumetric Rendering | 🔧 Stage 1 + 1.5 ✅ |
 | 20 | Subsurface Scattering | ✅ |
 | 21 | CSG (union/intersection/subtraction, all-hits, normali corrette) | ✅ |

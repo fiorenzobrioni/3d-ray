@@ -19,6 +19,15 @@ public struct HitRecord
     public IMaterial? Material;
 
     /// <summary>
+    /// Shutter time of the ray that produced this hit (motion blur). Stamped
+    /// once by the renderer at the top of <c>TraceRay</c>; everything shading
+    /// this hit (NEE shadow rays, BSDF bounces, SSS walks) reads it so the
+    /// whole path samples the scene at one frozen instant. 0 when motion blur
+    /// is inactive.
+    /// </summary>
+    public float Time;
+
+    /// <summary>
     /// Relative index of refraction η_incident/η_transmitted for THIS hit's
     /// refraction, resolved by the renderer from the per-ray
     /// <see cref="Volumetrics.IorStack"/> just before <c>Sample</c>/<c>Scatter</c>.

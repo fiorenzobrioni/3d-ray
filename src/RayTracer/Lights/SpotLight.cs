@@ -87,8 +87,8 @@ public class SpotLight : ILight
     /// Delegates to <see cref="IlluminateAndTestStratified"/> with sampleIndex = -1.
     /// </summary>
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
-        => IlluminateAndTestStratified(hitPoint, surfaceNormal, world, -1);
+        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, float time = 0f)
+        => IlluminateAndTestStratified(hitPoint, surfaceNormal, world, -1, time);
 
     /// <summary>
     /// Stratified variant.  When <c>softRadius &gt; 0</c> and
@@ -100,7 +100,7 @@ public class SpotLight : ILight
     /// </summary>
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
         IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal,
-                                    IHittable world, int sampleIndex)
+                                    IHittable world, int sampleIndex, float time = 0f)
     {
         // Source position: jitter on disc when softRadius > 0 and multi-sample.
         Vector3 sourcePos = Position;
@@ -133,7 +133,7 @@ public class SpotLight : ILight
         // in sync so future visible proxies (point/spot bulbs) don't
         // self-intersect.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dirToLight);
+        var shadowRay = new Ray(shadowOrigin, dirToLight, time);
         float shadowTMax = (sourcePos - shadowOrigin).Length() - MathUtils.Epsilon;
         Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
 

@@ -1,0 +1,332 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  motion-blur-billiard-showcase.yaml — Motion Blur cinematografico (feature #18)
+#
+#  Lo spacco al biliardo: la bilia battente entra da sinistra come una lunga
+#  scia veloce e colpisce il triangolo; le 15 bilie esplodono verso l'esterno
+#  a velocità diverse — quelle in punta (impatto diretto) tracciano scie
+#  lunghe, quelle in fondo appena tremano. Il motion blur è il soggetto:
+#  un'unica esposizione lunga che cattura tutta la dinamica dello spacco.
+#
+#  Bilie in resina lucida (Disney glossy + clearcoat), panno verde opaco,
+#  sponde in legno scuro, lampada da sala calda dall'alto su fondo nero —
+#  illuminazione da circolo notturno per far risaltare le scie.
+#
+#  Due camere:
+#    ▸ spacco    — statica, l'inquadratura "eroe" pulita.
+#    ▸ dinamica  — leggera carrellata in avanti (camera motion blur sottile)
+#                  per dare ulteriore senso di velocità.
+#
+#  Render consigliati (la sala è volutamente buia: usare --exposure 1.0 per
+#  alzare le mezzetinte del panno senza bruciare i riflessi delle bilie):
+#    Preview : -w 960  -H 540  -s 160  -d 6  -S 2 --exposure 1.0
+#    Final   : -w 1920 -H 1080 -s 1024 -d 8  -S 4 --exposure 1.0 --sampler sobol
+#
+#  Selezione camera:  -c spacco   (oppure -c dinamica)
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.015, 0.018, 0.025]
+    horizon_color: [0.04,  0.045, 0.06]
+    ground_color:  [0.01,  0.01,  0.012]
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CAMERAS
+# ═══════════════════════════════════════════════════════════════════════════
+cameras:
+  # Statica: vista 3/4 dall'alto, l'inquadratura "eroe" — le scie radiali
+  # dello spacco si leggono chiaramente sul piano del tavolo.
+  - name:       "spacco"
+    position:   [-2.2, 5.2, 5.2]
+    look_at:    [1.1, 0.1, -0.1]
+    vup:        [0, 1, 0]
+    fov:        50
+    aperture:   0.03
+    focal_dist: 6.0
+    shutter:    [0.0, 1.0]
+
+  # Dinamica: stessa scena, leggera carrellata in avanti durante l'otturatore
+  # → camera motion blur sottile che aggiunge dinamismo senza confondere.
+  - name:       "dinamica"
+    position:   [-2.2, 5.2, 5.2]
+    look_at:    [1.1, 0.1, -0.1]
+    vup:        [0, 1, 0]
+    fov:        50
+    aperture:   0.03
+    focal_dist: 6.0
+    shutter:    [0.0, 1.0]
+    motion:
+      - { time: 1.0, position: [-1.7, 5.0, 4.7] }
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS — lampada da sala calda dall'alto + tenue fill freddo
+# ═══════════════════════════════════════════════════════════════════════════
+lights:
+  # Lampada principale larga: copre l'intero percorso della battente e il
+  # triangolo (cono di luce da sala).
+  - type: "area"
+    corner:    [-4.8, 4.8,  2.2]
+    u:         [ 9.2, 0.0,  0.0]
+    v:         [ 0.0, 0.0, -4.4]
+    color:     [1.00, 0.90, 0.72]
+    intensity: 170
+    shadow_samples: 16
+  # Fill freddo tenue dal lato della battente.
+  - type: "area"
+    corner:    [-5.5, 3.6,  2.4]
+    u:         [ 2.0, 0.0,  0.0]
+    v:         [ 0.0, 0.0, -2.0]
+    color:     [0.60, 0.72, 1.00]
+    intensity: 24
+    shadow_samples: 9
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+  # Panno: feltro verde opaco con micro-sheen.
+  - id: "felt"
+    type: "disney"
+    color: [0.07, 0.40, 0.19]
+    metallic: 0.0
+    roughness: 0.80
+    specular: 0.25
+    sheen: 0.25
+    sheen_roughness: 0.5
+
+  # Sponde: legno scuro lucidato.
+  - id: "rail"
+    type: "disney"
+    color: [0.18, 0.09, 0.04]
+    metallic: 0.0
+    roughness: 0.30
+    specular: 0.5
+    clearcoat: 0.6
+    coat_roughness: 0.1
+
+  # ── Bilie: resina lucida (roughness bassa + clearcoat lucido) ────────────
+  - id: "ball_white"
+    type: "disney"
+    color: [0.92, 0.90, 0.84]
+    roughness: 0.06
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.03
+  - id: "ball_black"
+    type: "disney"
+    color: [0.02, 0.02, 0.03]
+    roughness: 0.06
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.03
+  - id: "ball_yellow"
+    type: "disney"
+    color: [0.95, 0.75, 0.08]
+    roughness: 0.06
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.03
+  - id: "ball_blue"
+    type: "disney"
+    color: [0.06, 0.22, 0.80]
+    roughness: 0.06
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.03
+  - id: "ball_red"
+    type: "disney"
+    color: [0.82, 0.10, 0.08]
+    roughness: 0.06
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.03
+  - id: "ball_purple"
+    type: "disney"
+    color: [0.42, 0.12, 0.55]
+    roughness: 0.06
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.03
+  - id: "ball_orange"
+    type: "disney"
+    color: [0.92, 0.42, 0.06]
+    roughness: 0.06
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.03
+  - id: "ball_green"
+    type: "disney"
+    color: [0.08, 0.52, 0.18]
+    roughness: 0.06
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.03
+  - id: "ball_maroon"
+    type: "disney"
+    color: [0.45, 0.08, 0.12]
+    roughness: 0.06
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.03
+  - id: "ball_pink"
+    type: "disney"
+    color: [0.95, 0.55, 0.68]
+    roughness: 0.06
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.03
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════
+#  Posa base (translate) = keyframe a time 0; `motion` aggiunge il keyframe
+#  finale (posizione dopo lo spacco). Tutte le bilie hanno raggio 0.3 e
+#  poggiano sul panno (y = 0.3). Il triangolo ha la punta verso la battente.
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ── TAVOLO: piano di gioco (top a y=0) ───────────────────────────────────
+  - type: "box"
+    material: "felt"
+    scale:     [12.0, 0.4, 7.0]
+    translate: [1.0, -0.2, 0.0]
+
+  # ── SPONDE: legno scuro attorno al piano (lato vicino lasciato aperto) ────
+  - type: "box"
+    material: "rail"
+    scale:     [0.5, 0.7, 7.0]
+    translate: [7.2, 0.15, 0.0]
+  - type: "box"
+    material: "rail"
+    scale:     [12.5, 0.7, 0.5]
+    translate: [1.0, 0.15, 3.6]
+  - type: "box"
+    material: "rail"
+    scale:     [12.5, 0.7, 0.5]
+    translate: [1.0, 0.15, -3.6]
+
+  # ── BILIA BATTENTE: entra veloce da sinistra (lunga scia) ────────────────
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_white"
+    translate: [-4.2, 0.3, 0.0]
+    motion:
+      - { time: 1.0, translate: [-0.7, 0.3, 0.0] }
+
+  # ── TRIANGOLO (15 bilie): scie radiali, lunghe in punta, corte in fondo ──
+  #  Riga 0 — punta (impatto diretto): scatto massimo in avanti.
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_yellow"
+    translate: [0.0, 0.3, 0.0]
+    motion:
+      - { time: 1.0, translate: [1.3, 0.36, 0.0] }
+
+  #  Riga 1
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_blue"
+    translate: [0.52, 0.3, 0.3]
+    motion:
+      - { time: 1.0, translate: [1.22, 0.34, 0.85] }
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_red"
+    translate: [0.52, 0.3, -0.3]
+    motion:
+      - { time: 1.0, translate: [1.22, 0.34, -0.85] }
+
+  #  Riga 2 — l'8 (nera) al centro
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_purple"
+    translate: [1.04, 0.3, -0.6]
+    motion:
+      - { time: 1.0, translate: [1.39, 0.33, -1.1] }
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_black"
+    translate: [1.04, 0.3, 0.0]
+    motion:
+      - { time: 1.0, translate: [1.54, 0.3, 0.0] }
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_orange"
+    translate: [1.04, 0.3, 0.6]
+    motion:
+      - { time: 1.0, translate: [1.39, 0.33, 1.1] }
+
+  #  Riga 3
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_green"
+    translate: [1.56, 0.3, -0.9]
+    motion:
+      - { time: 1.0, translate: [1.74, 0.31, -1.22] }
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_maroon"
+    translate: [1.56, 0.3, -0.3]
+    motion:
+      - { time: 1.0, translate: [1.78, 0.31, -0.42] }
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_yellow"
+    translate: [1.56, 0.3, 0.3]
+    motion:
+      - { time: 1.0, translate: [1.78, 0.31, 0.42] }
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_blue"
+    translate: [1.56, 0.3, 0.9]
+    motion:
+      - { time: 1.0, translate: [1.74, 0.31, 1.22] }
+
+  #  Riga 4 — fondo: appena tremano (scie corte)
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_red"
+    translate: [2.08, 0.3, -1.2]
+    motion:
+      - { time: 1.0, translate: [2.16, 0.3, -1.38] }
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_purple"
+    translate: [2.08, 0.3, -0.6]
+    motion:
+      - { time: 1.0, translate: [2.18, 0.3, -0.7] }
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_orange"
+    translate: [2.08, 0.3, 0.0]
+    motion:
+      - { time: 1.0, translate: [2.20, 0.3, 0.0] }
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_green"
+    translate: [2.08, 0.3, 0.6]
+    motion:
+      - { time: 1.0, translate: [2.18, 0.3, 0.7] }
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "ball_pink"
+    translate: [2.08, 0.3, 1.2]
+    motion:
+      - { time: 1.0, translate: [2.16, 0.3, 1.38] }
