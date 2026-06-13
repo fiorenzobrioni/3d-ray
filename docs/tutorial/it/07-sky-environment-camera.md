@@ -448,7 +448,79 @@ renderer di produzione. Quando sono presenti sia `focal_pos` che
 
 ---
 
-## 7.11 Camere Multiple Nominate
+## 7.11 Motion Blur
+
+L'otturatore di una camera reale resta aperto per un tempo finito, così tutto
+ciò che si muove durante l'esposizione lascia una scia. 3D-Ray lo riproduce
+fisicamente: la scena si anima su una timeline normalizzata `[0, 1]`, e la
+`shutter: [open, close]` della camera è la fetta di quella timeline che
+l'esposizione integra.
+
+Anima un'entità con una lista `motion:`. La sua posa base
+`translate`/`rotate`/`scale` è il keyframe a `time: 0`; ogni voce aggiunge una
+posa al proprio tempo (le componenti omesse ereditano la posa base):
+
+```yaml
+camera:
+  position: [0, 2, 8]
+  look_at: [0, 1, 0]
+  shutter: [0.0, 1.0]          # esposizione piena — integra tutto il moto
+
+entities:
+  # Una sfera che sfreccia a destra.
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.6
+    material: "chrome"
+    translate: [-2, 0.6, 0]    # posa a time 0
+    motion:
+      - { time: 1.0, translate: [2, 0.6, 0] }   # posa a time 1
+```
+
+Più un oggetto è veloce tra i suoi keyframe, più lunga è la scia. Un
+**otturatore più stretto è un'esposizione più breve**: `shutter: [0.45, 0.55]`
+espone solo il decimo centrale del moto, quindi le scie si accorciano ~10× —
+utile per un confronto A/B "congelato vs sfumato" da due camere sulla stessa
+animazione.
+
+Anche la rotazione si sfuma, sull'arco più breve tra i keyframe:
+
+```yaml
+  - type: "box"
+    material: "checker"
+    scale: [1.4, 1.4, 1.4]
+    translate: [3, 0.7, 0]
+    motion:
+      - { time: 1.0, translate: [3, 0.7, 0], rotate: [0, 150, 0] }
+```
+
+Puoi animare la **camera** allo stesso modo — una lista `motion:` di keyframe
+`position`/`look_at`/`vup`/`fov` dà un blur da camera in movimento (carrellata o
+panoramica veloce):
+
+```yaml
+camera:
+  position: [0, 2, 8]
+  look_at: [0, 1, 0]
+  shutter: [0.0, 1.0]
+  motion:
+    - { time: 1.0, position: [1.5, 2, 8] }   # leggera carrellata sull'esposizione
+```
+
+Note:
+- Il motion blur richiede più sample di un fotogramma fermo per una scia pulita —
+  trattalo come la DOF e usa 256+ SPP per la produzione.
+- `motion:` è supportato sulle entità top-level di qualsiasi tipo (è ignorato sui
+  *figli* di group/instance — anima invece il genitore).
+- Quando nulla è animato lo shutter è ignorato e il render è identico a un
+  fotogramma fermo.
+
+Vedi le scene `motion-blur-showcase.yaml` e `motion-blur-billiard-showcase.yaml`,
+e `docs/technical/motion-blur.md` per l'algoritmo.
+
+---
+
+## 7.12 Camere Multiple Nominate
 
 ```yaml
 cameras:
@@ -479,7 +551,7 @@ usa la prima e stampa un warning.
 
 ---
 
-## 7.12 Esempio Completo: Golden Hour Landscape
+## 7.13 Esempio Completo: Golden Hour Landscape
 
 ```yaml
 # golden-hour.yaml — scena outdoor con sky Hosek-Wilkie, DOF, multi-camera.

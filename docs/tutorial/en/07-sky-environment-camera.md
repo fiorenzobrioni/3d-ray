@@ -438,7 +438,77 @@ wins (an info message is logged).
 
 ---
 
-## 7.11 Multiple Named Cameras
+## 7.11 Motion Blur
+
+A real camera's shutter stays open for a finite time, so anything that moves
+during the exposure leaves a streak. 3D-Ray reproduces this physically: the
+scene animates on a normalized `[0, 1]` timeline, and the camera's
+`shutter: [open, close]` is the slice of that timeline the exposure integrates.
+
+Animate an entity by giving it a `motion:` list. Its base
+`translate`/`rotate`/`scale` is the pose at `time: 0`; each keyframe adds a pose
+at its own time (omitted components inherit the base pose):
+
+```yaml
+camera:
+  position: [0, 2, 8]
+  look_at: [0, 1, 0]
+  shutter: [0.0, 1.0]          # full exposure — integrate the whole motion
+
+entities:
+  # A sphere streaking to the right.
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.6
+    material: "chrome"
+    translate: [-2, 0.6, 0]    # pose at time 0
+    motion:
+      - { time: 1.0, translate: [2, 0.6, 0] }   # pose at time 1
+```
+
+The faster an object travels between its keyframes, the longer its streak. A
+**narrower shutter is a shorter exposure**: `shutter: [0.45, 0.55]` exposes only
+the middle tenth of the motion, so the streaks shrink ~10× — handy for an A/B
+"frozen vs blurred" comparison from two cameras over the same animation.
+
+Rotation blurs too, on the shortest arc between keyframes:
+
+```yaml
+  - type: "box"
+    material: "checker"
+    scale: [1.4, 1.4, 1.4]
+    translate: [3, 0.7, 0]
+    motion:
+      - { time: 1.0, translate: [3, 0.7, 0], rotate: [0, 150, 0] }
+```
+
+You can animate the **camera** the same way — a `motion:` list of
+`position`/`look_at`/`vup`/`fov` keyframes gives a moving-camera blur (a dolly or
+whip pan):
+
+```yaml
+camera:
+  position: [0, 2, 8]
+  look_at: [0, 1, 0]
+  shutter: [0.0, 1.0]
+  motion:
+    - { time: 1.0, position: [1.5, 2, 8] }   # gentle dolly during the exposure
+```
+
+Notes:
+- Motion blur needs more samples than a still frame for a clean streak — treat it
+  like DOF and use 256+ SPP for production.
+- `motion:` is supported on top-level entities of any type (it is ignored on
+  group/instance *children* — animate the parent instead).
+- When nothing is animated the shutter is ignored and the render is identical to
+  a still frame.
+
+See the `motion-blur-showcase.yaml` and `motion-blur-billiard-showcase.yaml`
+scenes, and `docs/technical/motion-blur.md` for the algorithm.
+
+---
+
+## 7.12 Multiple Named Cameras
 
 ```yaml
 cameras:
@@ -469,7 +539,7 @@ engine uses the first one and prints a warning.
 
 ---
 
-## 7.12 Complete Example: Golden Hour Landscape
+## 7.13 Complete Example: Golden Hour Landscape
 
 ```yaml
 # golden-hour.yaml — outdoor scene with Hosek-Wilkie sky, DOF, multi-camera.

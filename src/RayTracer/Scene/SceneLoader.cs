@@ -119,7 +119,7 @@ public class SceneLoader
     /// name (case-insensitive) or zero-based index. Ignored when the scene uses
     /// the legacy single <c>camera:</c> syntax.
     /// </param>
-    public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, SkySettings Sky, IMedium? GlobalMedium)
+    public static (IHittable World, Camera.Camera Camera, List<ILight> Lights, SkySettings Sky, IMedium? GlobalMedium, MotionBlurSettings MotionBlur)
         Load(string yamlPath, int imageWidth, int imageHeight,
              int? shadowSamplesOverride = null, string? cameraSelector = null)
     {
@@ -341,6 +341,7 @@ public class SceneLoader
         };
 
         // Entities
+        bool sceneHasMotion = false;
         if (data.Entities != null)
         {
             for (int idx = 0; idx < data.Entities.Count; idx++)
@@ -405,9 +406,21 @@ public class SceneLoader
  
                 if (hittable != null)
                 {
-                    var transform = ComputeTransformMatrix(e);
-                    if (transform != Matrix4x4.Identity)
-                        hittable = new Transform(hittable, transform);
+                    // Motion blur: a non-empty `motion:` block promotes the static
+                    // Transform to an AnimatedTransform whose keyframe 0 is the
+                    // entity's base scale/rotate/translate pose. The wrapper order
+                    // below (camera visibility, medium binding) is unchanged.
+                    if (e.Motion is { Count: > 0 })
+                    {
+                        hittable = new AnimatedTransform(hittable, BuildMotionKeys(e));
+                        sceneHasMotion = true;
+                    }
+                    else
+                    {
+                        var transform = ComputeTransformMatrix(e);
+                        if (transform != Matrix4x4.Identity)
+                            hittable = new Transform(hittable, transform);
+                    }
                     // Per-entity Arnold/Cycles "camera" visibility flag. Wrap
                     // after Transform so the BVH still partitions by the
                     // entity's world-space AABB; the flag only annotates the
@@ -486,10 +499,19 @@ public class SceneLoader
         float focusDist = ComputeFocusDistance(
             camPos, camLookAt,
             camData.FocalPos, camData.FocalDist);
+        // Camera motion blur: a `motion:` block on the camera adds pose
+        // keyframes (base pose = implicit key at time 0); the camera then
+        // rebuilds its basis at each ray's shutter time.
+        var cameraMotion = BuildCameraMotionKeys(camData, camPos, camLookAt, camVup);
+        if (cameraMotion != null)
+            sceneHasMotion = true;
         var camera    = new Camera.Camera(
             camPos, camLookAt, camVup,
             camData.Fov, aspect,
-            camData.Aperture, focusDist);
+            camData.Aperture, focusDist,
+            cameraMotion);
+
+        var motionBlur = ResolveMotionBlurSettings(camData.Shutter, sceneHasMotion);
 
         // Add Emissive Objects as Geometry Lights. The default for geometry
         // lights is aligned with AreaLight/SphereLight (16), so emissive
@@ -528,7 +550,7 @@ public class SceneLoader
             lights.Add(new PointLight(new Vector3(0, 10, -5), Vector3.One, 100f));
         }
 
-        return (world, camera, lights, sky, globalMedium);
+        return (world, camera, lights, sky, globalMedium, motionBlur);
     }
 
     // =========================================================================
@@ -821,6 +843,25 @@ public class SceneLoader
                 break;
             }
 
+            // ── AnimatedTransform: NEE samples a static snapshot of the
+            // emitter at the midpoint of its key range. Sample positions, pdf
+            // probes and the power heuristic all share this one self-consistent
+            // pose (MIS stays correct); shadow rays still run at the true ray
+            // time and BSDF-hit emission sees the real motion. Fast-moving
+            // emitters therefore get slightly biased direct-light positions —
+            // a documented limitation.
+            case AnimatedTransform at:
+            {
+                if (ContainsEmissive(at.Inner))
+                    Warn("Animated emissive geometry: NEE samples it at the mid-animation " +
+                         "pose; its motion remains fully visible to camera/BSDF rays.");
+                Matrix4x4 composed = hasOuterTransform
+                    ? at.NeeSnapshotMatrix * outerMatrix
+                    : at.NeeSnapshotMatrix;
+                ExtractGeometryLightsRecursive(at.Inner, lights, shadowSamples, composed, hasOuterTransform: true);
+                break;
+            }
+
             // ── CSG: currently not supported for NEE; warn once if it hides an emissive leaf
             case CsgObject csg:
                 WarnIfCsgContainsEmissive(csg);
@@ -965,6 +1006,7 @@ public class SceneLoader
         {
             CsgObject csg    => ContainsEmissive(csg.Left) || ContainsEmissive(csg.Right),
             Transform t      => ContainsEmissive(t.Inner),
+            AnimatedTransform at => ContainsEmissive(at.Inner),
             Group g          => g.Children.Any(ContainsEmissive),
             Sphere s         => s.Material is Emissive,
             Quad q           => q.Material is Emissive,
@@ -2751,7 +2793,11 @@ public class SceneLoader
         var mat = child.Material != null
             ? GetMaterial(materials, child.Material)
             : fallbackMat;
- 
+
+        if (child.Motion is { Count: > 0 })
+            Warn($"CSG child '{child.Name ?? child.Type ?? "(unnamed)"}': 'motion' is only " +
+                 $"supported on top-level entities — ignored. Animate the CSG entity itself.");
+
         IHittable? hittable;
         if (string.Equals(child.Type, "csg", StringComparison.OrdinalIgnoreCase))
         {
@@ -3308,6 +3354,15 @@ public class SceneLoader
         for (int i = 0; i < children.Count; i++)
         {
             var child = children[i];
+
+            // Motion blur is only supported on top-level entities: a child's
+            // transform is baked into the group/template chain at load time,
+            // so per-child keyframes have no animated wrapper to live on.
+            // Animate the enclosing group/instance entity instead.
+            if (child.Motion is { Count: > 0 })
+                Warn($"Child entity '{child.Name ?? child.Type ?? "(unnamed)"}': 'motion' is only " +
+                     $"supported on top-level entities — ignored. Animate the parent group/instance.");
+
             var mat = child.Material != null
                 ? GetMaterial(materials, child.Material)
                 : fallbackMat;
@@ -3586,6 +3641,7 @@ public class SceneLoader
     {
         InfinitePlane => true,
         Transform t                    => IsInfinitePlane(t.Inner),
+        AnimatedTransform at           => IsInfinitePlane(at.Inner),
         Group g                        => g.Children.Count > 0 && g.Children.All(c => IsInfinitePlane(c)),
         UvTransformedHittable uv       => IsInfinitePlane(uv.Inner),
         VisibilityFilteredHittable vis => IsInfinitePlane(vis.Inner),
@@ -3766,6 +3822,149 @@ public class SceneLoader
         }
 
         return m;
+    }
+
+    // =========================================================================
+    // Motion blur (entity keyframes, camera keyframes, shutter)
+    // =========================================================================
+
+    /// <summary>
+    /// Parses a YAML <c>scale</c> value (scalar or <c>[x, y, z]</c> list) into
+    /// a scale vector. Same accepted forms as <see cref="ComputeTransformMatrix"/>.
+    /// </summary>
+    private static Vector3 ParseScaleVector(object? scale)
+    {
+        if (scale == null) return Vector3.One;
+        if (scale is List<object> list && list.Count >= 3)
+        {
+            return new Vector3(
+                Convert.ToSingle(list[0], System.Globalization.CultureInfo.InvariantCulture),
+                Convert.ToSingle(list[1], System.Globalization.CultureInfo.InvariantCulture),
+                Convert.ToSingle(list[2], System.Globalization.CultureInfo.InvariantCulture));
+        }
+        float s = Convert.ToSingle(scale, System.Globalization.CultureInfo.InvariantCulture);
+        return new Vector3(s);
+    }
+
+    /// <summary>
+    /// Converts YAML Euler angles (degrees, applied X then Y then Z — the same
+    /// order and row-vector convention as <see cref="ComputeTransformMatrix"/>)
+    /// into the equivalent quaternion, so slerped keyframe rotations agree
+    /// with the static-transform path at the keys.
+    /// </summary>
+    private static Quaternion RotationQuaternion(List<float>? rotate)
+    {
+        if (rotate == null || rotate.Count < 3) return Quaternion.Identity;
+        var m = Matrix4x4.CreateRotationX(MathUtils.DegreesToRadians(rotate[0]))
+              * Matrix4x4.CreateRotationY(MathUtils.DegreesToRadians(rotate[1]))
+              * Matrix4x4.CreateRotationZ(MathUtils.DegreesToRadians(rotate[2]));
+        return Quaternion.CreateFromRotationMatrix(m);
+    }
+
+    /// <summary>
+    /// Builds the sorted keyframe list for an entity's <c>motion:</c> block.
+    /// The base <c>translate</c>/<c>rotate</c>/<c>scale</c> is the implicit key
+    /// at time 0; components omitted in a motion key inherit the base pose.
+    /// Out-of-range times are clamped to [0, 1] and duplicated times collapse
+    /// last-wins, both with a warning.
+    /// </summary>
+    private static MotionKey[] BuildMotionKeys(EntityData e)
+    {
+        string label = e.Name ?? e.Type ?? "(unnamed)";
+
+        var baseT = ToVector3(e.Translate) ?? Vector3.Zero;
+        var baseR = RotationQuaternion(e.Rotate);
+        var baseS = ParseScaleVector(e.Scale);
+
+        // time → key; the base pose seeds time 0 and an explicit `time: 0`
+        // motion key overrides it (last-wins).
+        var byTime = new SortedDictionary<float, MotionKey>
+        {
+            [0f] = new MotionKey(0f, baseT, baseR, baseS)
+        };
+
+        foreach (var k in e.Motion!)
+        {
+            float t = k.Time;
+            if (t < 0f || t > 1f)
+            {
+                Warn($"Entity '{label}': motion key time {t:0.###} outside [0, 1] — clamped.");
+                t = Math.Clamp(t, 0f, 1f);
+            }
+            if (byTime.ContainsKey(t) && t != 0f)
+                Warn($"Entity '{label}': duplicate motion key at time {t:0.###} — last one wins.");
+
+            byTime[t] = new MotionKey(
+                t,
+                k.Translate != null ? (ToVector3(k.Translate) ?? baseT) : baseT,
+                k.Rotate != null ? RotationQuaternion(k.Rotate) : baseR,
+                k.Scale != null ? ParseScaleVector(k.Scale) : baseS);
+        }
+
+        return byTime.Values.ToArray();
+    }
+
+    /// <summary>
+    /// Builds the camera keyframe list from a <c>camera.motion:</c> block, or
+    /// returns null when the camera is static. The camera's base pose is the
+    /// implicit key at time 0; omitted fields in a key inherit the base.
+    /// </summary>
+    private static Camera.CameraKey[]? BuildCameraMotionKeys(
+        CameraData camData, Vector3 basePos, Vector3 baseLookAt, Vector3 baseVup)
+    {
+        if (camData.Motion is not { Count: > 0 }) return null;
+
+        var byTime = new SortedDictionary<float, Camera.CameraKey>
+        {
+            [0f] = new Camera.CameraKey(0f, basePos, baseLookAt, baseVup, camData.Fov)
+        };
+
+        foreach (var k in camData.Motion)
+        {
+            float t = k.Time;
+            if (t < 0f || t > 1f)
+            {
+                Warn($"Camera '{camData.Name ?? "(default)"}': motion key time {t:0.###} outside [0, 1] — clamped.");
+                t = Math.Clamp(t, 0f, 1f);
+            }
+            byTime[t] = new Camera.CameraKey(
+                t,
+                ToVector3(k.Position) ?? basePos,
+                ToVector3(k.LookAt) ?? baseLookAt,
+                ToVector3(k.Vup) ?? baseVup,
+                k.Fov ?? camData.Fov);
+        }
+
+        return byTime.Count >= 2 ? byTime.Values.ToArray() : null;
+    }
+
+    /// <summary>
+    /// Validates the camera <c>shutter: [open, close]</c> and combines it with
+    /// the scene-motion flag. The renderer samples a time per camera ray only
+    /// when <see cref="MotionBlurSettings.Active"/> is true, so a static scene
+    /// stays bit-identical regardless of any declared shutter.
+    /// </summary>
+    private static MotionBlurSettings ResolveMotionBlurSettings(List<float>? shutter, bool sceneHasMotion)
+    {
+        float open = 0f, close = 1f;
+        if (shutter != null)
+        {
+            if (shutter.Count == 2 && shutter[0] >= 0f && shutter[0] < shutter[1] && shutter[1] <= 1f)
+            {
+                open = shutter[0];
+                close = shutter[1];
+            }
+            else
+            {
+                Warn($"Invalid camera shutter [{string.Join(", ", shutter)}] — expected [open, close] " +
+                     $"with 0 <= open < close <= 1. Using [0, 1].");
+            }
+
+            if (!sceneHasMotion)
+                Info("Camera shutter declared but nothing is animated — motion blur inactive.");
+        }
+
+        return new MotionBlurSettings(open, close, sceneHasMotion);
     }
 
     // =========================================================================

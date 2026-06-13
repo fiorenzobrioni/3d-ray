@@ -6,6 +6,82 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Ciclo Motion Blur — trasformazioni animate + camera + shutter (#18 ✅)
+
+**Obiettivo.** Chiudere lo step 18: motion blur **fisico** per trasformazioni
+animate (entità e camera), sullo stile dell'`AnimatedTransform` di PBRT e dei
+motion step di Arnold/RenderMan. Vincolo di progetto cardine: **output
+bit-identico** quando nulla è animato — nessuna estrazione di dimensione dal
+sampler, nessuno shift, esattamente come l'invariante di volumetrica e capture
+AOV.
+
+**Design.**
+- *Tempo del raggio* (`Core/Ray.cs`): nuovo `float Time` (timeline normalizzata
+  `[0,1]`) + `WithTime()` copy-ctor (niente ri-divisione di `InvDirection`). Il
+  renderer è il proprietario della propagazione: i materiali costruiscono i raggi
+  di scatter **senza** tempo e il renderer li ri-timbra al punto di consumo
+  (path legacy `Scatter`), così i 12 call-site dei materiali restano intatti.
+- *`AnimatedTransform`* (`Geometry/AnimatedTransform.cs`): N≥2 keyframe TRS
+  presi direttamente dallo YAML (niente `Matrix4x4.Decompose`, lossy). Per `Hit`
+  la matrice è ricostruita al tempo del raggio: lerp di T/S, **slerp** quaternione
+  per R (arco più breve). Composizione `scale·rotate·translate` con i quaternioni
+  costruiti da `CreateFromRotationMatrix(Rx·Ry·Rz)` → keyframe identici ≡ statico
+  bit-per-bit. `Hit` riusa i nuovi helper condivisi `Transform.ToLocalRay` /
+  `MapHitToWorld` (così statico e animato non divergono mai). Fast-path statico
+  quando tutti i keyframe coincidono.
+- *Bound conservativi* (`BoundingBox()`): BVH statico, quindi il box è l'unione
+  dei bound mondo su tutto l'arco. Segmenti di sola traslazione/scala → i due
+  box estremi bastano (unione AABB convessa). Segmenti con rotazione →
+  campionati ogni ≤15° e ogni box padded della saetta massima
+  `r_max·(1−cos(θ_step/2))` (distanza massima arco-corda). Garantisce che il BVH
+  non scarti mai un hit vero.
+- *Camera* (`Camera/Camera.cs`): `shutter: [open, close]` per-camera; `GetRay`
+  estrae il tempo e (se animata) interpola la posa e ricostruisce la base di
+  vista per raggio (struct `Basis` estratta dal ctor). Fast-path camera statica
+  intatto (base cached, solo il timbro del tempo) → bit-identico.
+- *Renderer* (`Rendering/Renderer.cs`): il tempo è una dimensione sampler estratta
+  **dopo** il pixel jitter e **prima** della lente, e **solo** se la scena è
+  animata (`_motionActive`). `HitRecord.Time` timbrato una volta in cima a
+  `TraceRay`; propagato a tutti i raggi secondari (shadow/NEE, bounce, phase
+  medium, walk SSS, transparent shadow in `ShadowRay`).
+- *NEE emettitori animati*: un `GeometryLight` campiona una superficie statica,
+  quindi un emissivo animato è registrato a uno **snapshot di metà arco**
+  (`NeeSnapshotMatrix`): posizioni, pdf e potenza condividono una posa
+  self-consistent (MIS corretto); le shadow ray girano comunque al tempo vero e
+  un raggio BSDF che colpisce l'emettitore vede il moto reale. Bias posizionale
+  lieve per emettitori veloci — limite documentato con warning.
+- *Caustiche*: la photon map è uno snapshot statico al midpoint dello shutter
+  quando il motion blur è attivo (distribuire i tempi richiederebbe mappe
+  per-tempo).
+- *Loader* (`Scene/SceneData.cs`, `SceneLoader.cs`): `motion:` per-entità +
+  `shutter`/`motion` camera. `BuildMotionKeys` (posa base = key a t=0, componenti
+  omesse ereditano la base, clamp/sort/dedup con warning). Casi
+  `AnimatedTransform` aggiunti a `IsInfinitePlane` (anche la copia privata in
+  `Group`), `ContainsEmissive`, `ExtractGeometryLightsRecursive`. `motion:` su
+  figli di group/instance/CSG → warn-and-ignore (v1).
+
+**Test** (`AnimatedTransformTests` + `MotionBlurTests`, 26 nuovi; suite 583
+totali verde). Interpolazione (T/R/S vs matrici a mano, slerp arco più breve
+350°→−5°), equivalenza keyframe identici ≡ `Transform` statico (hit/miss, rec.T
+≤1e-4, normali/LocalPoint, seed via `[InlineData]`), bound mai cull di un hit
+vero (tempi random, incluso caso rotazione 170° con padding saetta), invariante
+bit-identico (`MotionBlurSettings` dichiarato ma `Active=false` ≡ ctor legacy),
+propagazione tempo a transform annidato, parsing loader (shutter, motion su
+instance, infinite-plane animato → lista lineare, emissivo animato → snapshot +
+warning, motion su figlio ignorato), camera (keyframe identici ≡ statica, posa
+a metà = lerp).
+
+**Showcase.** Due scene. `motion-blur-showcase.yaml` (didattico): fila di sfere
+a velocità crescente (scia che si allunga col colore freddo→caldo), cubo a
+scacchi in rotazione (smear rotazionale), sfera emissiva con scia di luce,
+gemelli istanziati (motion + instancing), due camere otturatore-pieno vs
+otturatore-corto. `motion-blur-billiard-showcase.yaml` (cinematografico): lo
+spacco al biliardo — battente come lunga scia veloce, triangolo che esplode con
+scie radiali, bilie in resina lucida, camera "dinamica" con leggera carrellata
+(camera motion blur). Nota: la sala è volutamente buia (`--exposure 1.0` consigliato).
+
+---
+
 ## Ciclo HDR Output — writer EXR + fix ZIP del loader (#17 ✅)
 
 **Obiettivo.** Chiudere la metà mancante dello step 17: output **OpenEXR

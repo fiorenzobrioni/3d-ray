@@ -201,7 +201,7 @@ public partial class Renderer
                 // boundary in a single ε step.
                 Vector3 exitPoint = ray.Origin + ray.Direction * tBoundary;
                 Ray escapeRay = new(MathUtils.OffsetOrigin(exitPoint, ray.Direction),
-                                    ray.Direction);
+                                    ray.Direction, ray.Time);
 
                 // Pop BEFORE the outer recursion so TraceRay sees the medium
                 // we just left as inactive (back to the outer stack / global).
@@ -248,7 +248,7 @@ public partial class Renderer
             // that should not attenuate the shadow ray at all.
             if (_walkConfig.NeeInsideWalk && b < _walkConfig.NeeMaxBounce)
             {
-                Vector3 Lnee = ComputeDirectLightingMedium(p, ray.Direction, medium, entityRoot);
+                Vector3 Lnee = ComputeDirectLightingMedium(p, ray.Direction, medium, entityRoot, ray.Time);
                 Lnee = ClampWalkInScattering(Lnee, b);
                 L += relBeta * Lnee;
             }
@@ -256,7 +256,7 @@ public partial class Renderer
             // ── Phase sample (HG): sampler matches density → phase/pdf = 1 ─
             // Keep the pdf for the escape→emitter MIS hand-off above.
             (Vector3 wi, float phasePdf) = phase.Sample(ray.Direction);
-            ray = new Ray(p, wi);
+            ray = new Ray(p, wi, ray.Time);
             scattered = true;
             lastPhasePdf = phasePdf;
 

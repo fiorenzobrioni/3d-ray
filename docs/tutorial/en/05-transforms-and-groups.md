@@ -544,6 +544,31 @@ RayTracer -i dinner-table.yaml -w 1200 -H 800 -s 256 -d 6
 
 ---
 
+## 5.8 Animated Transforms (Motion Blur)
+
+A transform can also vary over the exposure. Adding a `motion:` list to a
+top-level entity turns its static pose into an animated one: the base
+`translate`/`rotate`/`scale` is the keyframe at `time: 0`, and each entry adds a
+pose at its own normalized time. The renderer then blurs the swept geometry over
+the camera's shutter interval.
+
+```yaml
+- type: "sphere"
+  center: [0, 0, 0]
+  radius: 0.6
+  material: "chrome"
+  translate: [-2, 0.6, 0]                  # pose at time 0
+  motion:
+    - { time: 1.0, translate: [2, 0.6, 0], rotate: [0, 90, 0] }
+```
+
+Translation and scale interpolate linearly, rotation on the shortest quaternion
+arc. The shutter that controls how much of this motion is integrated lives on the
+camera — see [§7.11 Motion Blur](./07-sky-environment-camera.md) for the full
+treatment, including animating the camera itself.
+
+---
+
 ## What You Have Learned
 
 - **translate**, **rotate**, and **scale** position any entity; the

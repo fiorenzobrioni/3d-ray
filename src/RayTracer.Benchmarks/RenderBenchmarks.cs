@@ -69,7 +69,8 @@ public class RenderBenchmarks
             sky:             loaded.Sky,
             samplesPerPixel: Spp,
             maxDepth:        Depth,
-            globalMedium:    loaded.GlobalMedium);
+            globalMedium:    loaded.GlobalMedium,
+            motionBlur:      loaded.MotionBlur);
 
         _scene = new SceneState(renderer);
     }

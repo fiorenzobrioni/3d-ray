@@ -497,6 +497,31 @@ RayTracer -i dinner-table.yaml -w 1200 -H 800 -s 256 -d 6
 
 ---
 
+## 5.8 Trasformazioni Animate (Motion Blur)
+
+Una trasformazione può anche variare durante l'esposizione. Aggiungere una lista
+`motion:` a un'entità top-level trasforma la sua posa statica in una animata: la
+posa base `translate`/`rotate`/`scale` è il keyframe a `time: 0`, e ogni voce
+aggiunge una posa al proprio tempo normalizzato. Il renderer sfuma poi la
+geometria spazzata sull'intervallo dell'otturatore della camera.
+
+```yaml
+- type: "sphere"
+  center: [0, 0, 0]
+  radius: 0.6
+  material: "chrome"
+  translate: [-2, 0.6, 0]                  # posa a time 0
+  motion:
+    - { time: 1.0, translate: [2, 0.6, 0], rotate: [0, 90, 0] }
+```
+
+Traslazione e scala interpolano linearmente, la rotazione sull'arco quaternionico
+più breve. L'otturatore che controlla quanto di questo moto viene integrato vive
+sulla camera — vedi [§7.11 Motion Blur](./07-sky-environment-camera.md) per la
+trattazione completa, inclusa l'animazione della camera stessa.
+
+---
+
 ## Cosa si è imparato
 
 - **translate**, **rotate** e **scale** posizionano qualsiasi entità; l'ordine è sempre Scala -> Rotazione -> Traslazione.

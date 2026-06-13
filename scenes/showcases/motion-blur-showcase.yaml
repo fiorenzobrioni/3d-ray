@@ -1,0 +1,254 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  motion-blur-showcase.yaml — Motion Blur (feature #18)
+#
+#  Showcase didattico del motion blur per trasformazioni animate. Ogni
+#  elemento isola UN aspetto del feature, da leggere come una "lavagna":
+#
+#    ▸ FILA DI SFERE (5)   — traslazione a velocità crescente. La scia si
+#                            allunga in proporzione alla velocità: la sfera
+#                            blu (lenta) resta quasi nitida, la rossa (veloce)
+#                            diventa una lunga striscia. Colore freddo→caldo
+#                            come metafora di lento→veloce.
+#    ▸ CUBO A SCACCHI      — rotazione attorno a Y: lo smear rotazionale
+#                            sfuma la texture mantenendo l'asse nitido.
+#    ▸ SFERA EMISSIVA      — emitter in movimento: lascia una scia luminosa
+#                            (il blur si applica anche alla luce diretta via
+#                            NEE allo snapshot di metà otturatore).
+#    ▸ GEMELLI ISTANZIATI  — due istanze dello stesso template, animate: prova
+#                            che il motion compone con la catena template.
+#
+#  Due camere per confronto:
+#    ▸ otturatore-pieno  — shutter [0, 1]: integra l'intero arco di moto.
+#    ▸ otturatore-corto  — shutter [0.45, 0.55]: esposizione breve, il moto
+#                          quasi si congela (le scie si accorciano ~10×).
+#
+#  Render consigliati:
+#    Preview : -w 960  -H 540  -s 128  -d 6  -S 2
+#    Final   : -w 1920 -H 1080 -s 1024 -d 8  -S 4 --sampler sobol
+#
+#  Selezione camera:  -c otturatore-pieno   (oppure -c otturatore-corto)
+# ═══════════════════════════════════════════════════════════════════════════
+
+world:
+  sky:
+    type: "gradient"
+    zenith_color:  [0.07, 0.11, 0.20]
+    horizon_color: [0.26, 0.31, 0.40]
+    ground_color:  [0.04, 0.04, 0.05]
+  ground:
+    type: "infinite_plane"
+    material: "floor"
+    y: 0
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CAMERAS — stesso punto di vista, otturatore diverso
+# ═══════════════════════════════════════════════════════════════════════════
+cameras:
+  # Otturatore pieno: integra tutto l'arco [0, 1] → scie complete.
+  - name:       "otturatore-pieno"
+    position:   [0.0, 2.6, 11.5]
+    look_at:    [0.0, 1.1, 0.0]
+    vup:        [0, 1, 0]
+    fov:        52
+    shutter:    [0.0, 1.0]
+
+  # Otturatore corto: esposizione 1/10 attorno a metà arco → moto quasi
+  # congelato, scie ~10× più corte. Stessa inquadratura per confronto A/B.
+  - name:       "otturatore-corto"
+    position:   [0.0, 2.6, 11.5]
+    look_at:    [0.0, 1.1, 0.0]
+    vup:        [0, 1, 0]
+    fov:        52
+    shutter:    [0.45, 0.55]
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MATERIALS
+# ═══════════════════════════════════════════════════════════════════════════
+materials:
+  # Pavimento: cemento lucido scuro, riflette le scie.
+  - id: "floor"
+    type: "disney"
+    color: [0.14, 0.15, 0.17]
+    metallic: 0.0
+    roughness: 0.30
+    specular: 0.5
+
+  # Le 5 sfere a velocità crescente — gradiente freddo→caldo.
+  - id: "v_slow"
+    type: "disney"
+    color: [0.15, 0.35, 0.85]
+    roughness: 0.22
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.05
+  - id: "v_low"
+    type: "disney"
+    color: [0.15, 0.70, 0.80]
+    roughness: 0.22
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.05
+  - id: "v_mid"
+    type: "disney"
+    color: [0.30, 0.78, 0.30]
+    roughness: 0.22
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.05
+  - id: "v_high"
+    type: "disney"
+    color: [0.95, 0.75, 0.15]
+    roughness: 0.22
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.05
+  - id: "v_fast"
+    type: "disney"
+    color: [0.92, 0.22, 0.14]
+    roughness: 0.22
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.05
+
+  # Cubo a scacchi: la texture rende leggibile lo smear rotazionale.
+  - id: "checker_box"
+    type: "disney"
+    roughness: 0.35
+    specular: 0.5
+    texture:
+      type: "checker"
+      scale: 0.5
+      colors: [[0.85, 0.85, 0.88], [0.12, 0.12, 0.16]]
+
+  # Sfera emissiva: scia di luce.
+  - id: "glow"
+    type: "emissive"
+    color: [1.0, 0.55, 0.20]
+    intensity: 3.5
+
+  # Gemelli istanziati: due tinte vivaci.
+  - id: "twin_mat"
+    type: "disney"
+    color: [0.75, 0.30, 0.85]
+    roughness: 0.18
+    specular: 0.6
+    clearcoat: 1.0
+    coat_roughness: 0.05
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  TEMPLATES — usato dai gemelli istanziati (prova motion + instancing)
+# ═══════════════════════════════════════════════════════════════════════════
+templates:
+  - name: "twin"
+    children:
+      - type: "sphere"
+        center: [0, 0, 0]
+        radius: 0.45
+        material: "twin_mat"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  LIGHTS — key area calda dall'alto, fill freddo laterale
+# ═══════════════════════════════════════════════════════════════════════════
+lights:
+  - type: "area"
+    corner:    [-4.0, 7.5,  4.5]
+    u:         [ 8.0, 0.0,  0.0]
+    v:         [ 0.0, 0.0, -4.0]
+    color:     [1.00, 0.94, 0.82]
+    intensity: 52
+    shadow_samples: 16
+  - type: "area"
+    corner:    [-9.0, 5.0,  1.0]
+    u:         [ 2.5, 0.0,  0.0]
+    v:         [ 0.0, 0.0, -2.5]
+    color:     [0.70, 0.80, 1.00]
+    intensity: 20
+    shadow_samples: 9
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENTITIES
+# ═══════════════════════════════════════════════════════════════════════════
+#  Convenzione: la posa base (translate/rotate/scale) è il keyframe a time 0;
+#  ogni voce di `motion` aggiunge un keyframe. Le componenti omesse in un
+#  keyframe ereditano la posa BASE. I tempi sono normalizzati in [0, 1].
+# ═══════════════════════════════════════════════════════════════════════════
+entities:
+
+  # ── FILA DI SFERE: velocità crescente lungo X ────────────────────────────
+  #  Fila frontale: ogni sfera ha la sua "corsia" (passo 3.2 su X) e si muove
+  #  lungo X partendo a −v e arrivando a +v (scia centrata, lunghezza 2v). La
+  #  scia più veloce resta dentro la corsia → cinque strisce di lunghezza
+  #  crescente, leggibili come una lavagna.
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.6
+    material: "v_slow"
+    translate: [-6.5, 0.7, 0.0]
+    motion:
+      - { time: 1.0, translate: [-6.3, 0.7, 0.0] }
+
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.6
+    material: "v_low"
+    translate: [-3.6, 0.7, 0.0]
+    motion:
+      - { time: 1.0, translate: [-2.8, 0.7, 0.0] }
+
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.6
+    material: "v_mid"
+    translate: [-0.8, 0.7, 0.0]
+    motion:
+      - { time: 1.0, translate: [0.8, 0.7, 0.0] }
+
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.6
+    material: "v_high"
+    translate: [1.95, 0.7, 0.0]
+    motion:
+      - { time: 1.0, translate: [4.45, 0.7, 0.0] }
+
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.6
+    material: "v_fast"
+    translate: [4.7, 0.7, 0.0]
+    motion:
+      - { time: 1.0, translate: [8.1, 0.7, 0.0] }
+
+  # ── CUBO A SCACCHI: rotazione attorno a Y (smear rotazionale) ────────────
+  #  In primo piano, ben illuminato: la texture a scacchi rende evidente lo
+  #  smear rotazionale mantenendo nitido l'asse di rotazione.
+  - type: "box"
+    material: "checker_box"
+    scale:     [1.7, 1.7, 1.7]
+    translate: [4.6, 0.85, 2.8]
+    rotate:    [0, 0, 0]
+    motion:
+      - { time: 1.0, translate: [4.6, 0.85, 2.8], rotate: [0, 160, 0] }
+
+  # ── SFERA EMISSIVA: scia di luce in diagonale nel cielo ──────────────────
+  - type: "sphere"
+    center: [0, 0, 0]
+    radius: 0.3
+    material: "glow"
+    translate: [2.5, 4.7, -4.0]
+    motion:
+      - { time: 1.0, translate: [7.5, 2.8, -4.0] }
+
+  # ── GEMELLI ISTANZIATI: due istanze dello stesso template, animate ───────
+  #  In primo piano si incrociano: provano che il motion compone con la
+  #  catena template→instance.
+  - type: "instance"
+    template: "twin"
+    translate: [-4.8, 0.45, 3.0]
+    motion:
+      - { time: 1.0, translate: [-3.4, 0.45, 3.0] }
+  - type: "instance"
+    template: "twin"
+    translate: [-2.8, 0.45, 3.0]
+    motion:
+      - { time: 1.0, translate: [-4.2, 0.45, 3.0] }

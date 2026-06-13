@@ -41,7 +41,7 @@ public class GroundTests
         string path = WriteTempScene(yaml);
         try
         {
-            var (world, _, _, _, _) = SceneLoader.Load(path, 64, 64);
+            var (world, _, _, _, _, _) = SceneLoader.Load(path, 64, 64);
             var rec = new HitRecord();
             var ray = new Ray(origin, Vector3.Normalize(dir));
             world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec);

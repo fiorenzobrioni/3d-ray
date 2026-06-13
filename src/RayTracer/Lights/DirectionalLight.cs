@@ -90,9 +90,9 @@ public class DirectionalLight : ILight
     }
 
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
+        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, float time = 0f)
     {
-        return IlluminateAndTestStratified(hitPoint, surfaceNormal, world, -1);
+        return IlluminateAndTestStratified(hitPoint, surfaceNormal, world, -1, time);
     }
 
     /// <summary>
@@ -101,7 +101,7 @@ public class DirectionalLight : ILight
     /// </summary>
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
         IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal,
-                                    IHittable world, int sampleIndex)
+                                    IHittable world, int sampleIndex, float time = 0f)
     {
         Vector3 toLight;
 
@@ -140,7 +140,7 @@ public class DirectionalLight : ILight
         }
 
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, toLight);
+        var shadowRay = new Ray(shadowOrigin, toLight, time);
         Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, MathUtils.Infinity);
 
         if (MathUtils.NearZero(trans))

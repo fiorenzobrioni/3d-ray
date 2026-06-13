@@ -69,7 +69,7 @@ public class EnvironmentLight : ILight
 
     /// <inheritdoc/>
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
+        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, float time = 0f)
     {
         if (!_sky.CanSampleDirectly)
             return (true, Vector3.Zero, Vector3.UnitY, 0f);
@@ -93,7 +93,7 @@ public class EnvironmentLight : ILight
         }
 
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dir);
+        var shadowRay = new Ray(shadowOrigin, dir, time);
 
         Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, MathUtils.Infinity);
         if (MathUtils.NearZero(trans))

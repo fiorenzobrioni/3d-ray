@@ -548,6 +548,45 @@ Il piano focale è perpendicolare alla direzione di vista e passa per `focal_pos
 
 Quando entrambi `focal_pos` e `focal_dist` sono specificati, `focal_pos` vince (viene loggato un info message). `focal_pos` viene ignorato con un warning quando cade alle spalle della camera, coincide con essa o la camera è degenerata (`look_at == position`); in quel caso si usa lo scalare `focal_dist` come fallback.
 
+#### **`shutter` — intervallo di esposizione (motion blur)**
+Il motion blur integra la scena sul tempo in cui l'otturatore è aperto.
+L'animazione della scena gira su una timeline normalizzata `[0, 1]` (vedi la
+chiave entità `motion:` nella §7 e la `motion:` della camera qui sotto);
+`shutter: [open, close]` seleziona il sotto-intervallo su cui ogni campione della
+camera è esposto, con `0 ≤ open < close ≤ 1`.
+```yaml
+camera:
+  position: [0, 2, 8]
+  look_at: [0, 1, 0]
+  shutter: [0.0, 1.0]                      # esposizione piena — integra tutto l'arco di moto
+  # shutter: [0.45, 0.55]                  # esposizione breve — moto quasi congelato (scie ~10× più corte)
+```
+Ogni campione estrae un tempo uniforme dentro `[open, close]` (una dimensione
+low-discrepancy aggiuntiva, usata solo quando la scena è animata) e l'intero
+cammino — raggio camera, ombre, rimbalzi — è tracciato a quell'unico istante. Un
+intervallo più stretto è un'esposizione più breve: il moto è più congelato e le
+scie più corte. Default `[0, 1]` quando qualcosa è animato.
+
+`shutter` vive sulla camera, quindi ogni voce di una lista `cameras:` può avere
+il proprio valore (es. un'esposizione "piena" e una "corta" della stessa scena).
+Un intervallo non valido viene riportato a `[0, 1]` con un warning. Se nella scena
+non c'è nulla di animato, lo shutter viene segnalato e ignorato — l'output resta
+identico a un render statico.
+
+#### **`motion` — motion blur della camera**
+Una lista `motion:` opzionale anima la camera stessa. La posa base
+`position`/`look_at`/`vup`/`fov` è il keyframe implicito a `time: 0`; ogni voce
+aggiunge un keyframe al proprio tempo normalizzato, e ogni campo omesso in un
+keyframe eredita la posa base. Tra i keyframe la posa è interpolata e la base di
+vista ricostruita per raggio, così il frame resta ortonormale a ogni istante.
+```yaml
+camera:
+  position: [0, 2, 8]
+  look_at: [0, 1, 0]
+  fov: 45
+  motion:
+    - { time: 1.0, position: [1.5, 2, 8], look_at: [0.5, 1, 0] }   # leggera carrellata sull'esposizione
+```
 ---
 
 ### 5. **SEZIONE MATERIALI** — Sei Tipi
@@ -1877,6 +1916,47 @@ entities:
 | `seed` | auto | Intero stabile che pilota la variazione delle texture procedurali; auto-derivato da name+type+index quando omesso |
 | `visible_to_camera` | `true` | Nasconde l'entità solo dai raggi primari della camera. L'entità rimane visibile in riflessioni/rifrazioni speculari, continua a ricevere e proiettare illuminazione indiretta, e (se emissiva) contribuisce ancora alla luce diretta via NEE. Utile per nascondere pannelli luminosi off-frame che fanno da fill, o pratici visibili solo nelle riflessioni. Impostato su un `group` propaga a tutti i figli. |
 | `scale`, `rotate`, `translate` | identità | Trasformazione locale opzionale (ordine scale → rotate → translate) |
+| `motion` | — | Lista opzionale di keyframe per il motion blur delle trasformazioni (vedi §7.0). Solo entità top-level |
+
+#### **7.0 Motion Blur (`motion:`)**
+
+Una lista `motion:` non vuota trasforma la trasformazione statica di un'entità in
+una *animata*: il renderer interpola la sua posa sull'intervallo dell'otturatore
+(vedi la chiave camera `shutter`) e sfuma la geometria spazzata. La posa base
+`scale`/`rotate`/`translate` è il keyframe implicito a `time: 0`; ogni voce di
+`motion` aggiunge un keyframe al proprio tempo normalizzato in `[0, 1]`. Le
+componenti omesse in un keyframe ereditano la posa **base** (non il keyframe
+precedente).
+```yaml
+# Una sfera che sfreccia a destra mentre ruota.
+- type: "sphere"
+  center: [0, 0, 0]
+  radius: 0.6
+  material: "chrome"
+  translate: [-2, 0.6, 0]                  # posa a time 0
+  rotate: [0, 0, 0]
+  motion:
+    - { time: 0.5, translate: [0, 0.6, 0] }                  # rotate/scale omessi ⇒ posa base
+    - { time: 1.0, translate: [2, 0.6, 0], rotate: [0, 90, 0] }
+```
+- Traslazione e scala sono interpolate linearmente; la rotazione segue l'arco
+  quaternionico più breve, quindi una rotazione `0° → 350°` spazza `−10°`, non il
+  giro lungo.
+- I tempi sono clampati a `[0, 1]` (con warning); tempi duplicati tengono
+  l'ultima voce; i tempi di raggio fuori dall'intervallo dei keyframe vengono
+  clampati alle pose estreme.
+- Supportato su **entità top-level di qualsiasi tipo** (primitive, csg, mesh,
+  group, instance). `motion:` su una definizione di template o su un *figlio* di
+  group/instance viene ignorato con un warning — anima invece l'entità top-level
+  che lo racchiude.
+- **Emettitori animati:** un'entità emissiva animata si sfuma correttamente per
+  la camera e le riflessioni, ma il suo contributo di luce diretta (NEE) è
+  campionato a uno snapshot fisso di metà animazione (viene loggato un warning).
+  Gli emettitori veloci hanno quindi posizioni di luce diretta leggermente
+  distorte.
+
+Vedi `docs/technical/motion-blur.md` per l'algoritmo, e le scene
+`motion-blur-showcase.yaml` / `motion-blur-billiard-showcase.yaml`.
 
 > **Le caustiche non richiedono alcuna chiave per-entità.** Le caustiche via
 > photon mapping sono una feature globale e completamente automatica: si attivano

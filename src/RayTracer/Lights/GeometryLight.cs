@@ -120,9 +120,9 @@ public class GeometryLight : ILight
     }
 
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world)
+        IlluminateAndTest(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, float time = 0f)
     {
-        return IlluminateAndTestStratified(hitPoint, surfaceNormal, world, -1);
+        return IlluminateAndTestStratified(hitPoint, surfaceNormal, world, -1, time);
     }
 
     /// <summary>
@@ -131,7 +131,7 @@ public class GeometryLight : ILight
     /// <see cref="ISolidAngleSamplable"/>.
     /// </summary>
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex)
+        IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
     {
         return _solidAngleSampler != null
             ? ComputeSolidAngleSample(hitPoint, surfaceNormal, world, sampleIndex)
@@ -147,7 +147,7 @@ public class GeometryLight : ILight
     // area-measure NEE estimator with pdf_A = 1/area.
     // ═════════════════════════════════════════════════════════════════════════
     private (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        ComputeAreaSample(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex)
+        ComputeAreaSample(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
     {
         var (samplePoint, lightNormal, uv, area) = sampleIndex >= 0
             ? Geometry.SampleStratified(sampleIndex, _sqrtSamples)
@@ -167,7 +167,7 @@ public class GeometryLight : ILight
             return (true, Vector3.Zero, dirToLight, distance);
 
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dirToLight);
+        var shadowRay = new Ray(shadowOrigin, dirToLight, time);
         // Compute tMax in shadow-ray parameter space (relative to shadowOrigin,
         // not hitPoint). Using `distance - Epsilon` as tMax would cancel the
         // OffsetOrigin shift whenever `dirToLight ≈ normal`, producing systematic
@@ -201,7 +201,7 @@ public class GeometryLight : ILight
     // πR²/d², the projected-area limit.
     // ═════════════════════════════════════════════════════════════════════════
     private (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
-        ComputeSolidAngleSample(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex)
+        ComputeSolidAngleSample(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
     {
         var (samplePoint, lightNormal, uv, pdf) = sampleIndex >= 0
             ? _solidAngleSampler!.SampleSolidAngleStratified(hitPoint, sampleIndex, _sqrtSamples)
@@ -227,7 +227,7 @@ public class GeometryLight : ILight
             return (false, Vector3.Zero, dirToLight, distance);
 
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dirToLight);
+        var shadowRay = new Ray(shadowOrigin, dirToLight, time);
         // See ComputeAreaSample for the derivation of this tMax — this bug bites
         // the cone-sampling path systematically: every sample of a floor point
         // directly under a floating sphere has dirToLight ≈ normal, so every

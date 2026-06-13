@@ -77,7 +77,9 @@ public static class ShadowRay
         for (int i = 0; i < maxBounces; i++)
         {
             var rec = new HitRecord();
-            var stepRay = new Ray(origin, dir);
+            // Inherit the caller's shutter time so transparent-shadow walking
+            // tests occlusion against animated geometry at the path's instant.
+            var stepRay = new Ray(origin, dir, ray.Time);
             if (!world.Hit(stepRay, tMin, remaining, ref rec))
                 return throughput;
 
