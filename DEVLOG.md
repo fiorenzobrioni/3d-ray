@@ -6,6 +6,41 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Fix caustiche — "anello di dischi" da caster glossy quasi-speculari (✅)
+
+**Sintomo.** Renderizzando `motion-blur-billiard-showcase.yaml` con i preset
+`final`/`final-tiny` (caustiche ON, nessun denoiser) il feltro si riempiva di
+**cerchi morbidi** colorati che annegavano la scena e mascheravano il motion
+blur. Con `standard` (caustiche OFF) o `--caustics off` spariva tutto.
+
+**Causa (verificata).** Le bilie sono Disney glossy con `clearcoat: 1.0` e
+`coat_roughness: 0.03` → `ClearcoatAlpha = 0.03² = 0.0009`, sotto la soglia
+near-delta (`DeltaAlphaThreshold = 2.5e-3`). Il lobo clearcoat è quindi trattato
+come delta: nel `CausticPhotonTracer` le bilie fanno da **caster speculari**.
+I fotoni si riflettono sul clearcoat e cadono radi sul panno — riflesso debole:
+**1.256 fotoni depositati su 2.000.000** (~0.06%). Il gather era *under-occupied*
+ovunque (meno di `k=40` fotoni nel raggio cap) e dipingeva un **disco piatto a
+raggio pieno** (`sceneRadius·0.06 ≈ 0.44`, quanto una bilia e mezzo) attorno a
+ogni fotone isolato → i cerchi. Il motion blur era sempre presente, solo
+sommerso dai dischi.
+
+**Fix (gather, `Renderer.GatherCaustics`).** Due modifiche complementari:
+- **Filtro a cono** (PBRT §16.2): ogni fotone pesato per distanza dal punto di
+  gather (1 al centro, → 0 al bordo); normalizzazione `1 − 2/(3·k_f)` che
+  conserva l'energia nel limite denso → le caustiche focalizzate restano
+  luminose (bordi morbidi invece di dischi netti).
+- **Confidence sull'occupazione** (`CausticOccupancyWeight`): i gather
+  sotto-popolati (`count < k`, regioni sparse di fotoni riflessi vaganti) sono
+  sfumati con uno *smoothstep* sul rapporto `count/k`; i gather pieni
+  (`count == k`, caustiche dense focalizzate) restano a piena intensità.
+
+Test focalizzato `CausticOccupancyWeight_FadesSparseGathers_LeavesFocusedFull`;
+il regression end-to-end `CausticsRender_StaysFiniteAndEnergyBounded` (caustica
+da lente di vetro) continua a passare → le caustiche vere non sono toccate.
+Doc: `docs/technical/path-tracing-and-lighting.md` §2.5.
+
+---
+
 ## Fix CI — flaky `DenoiserRegressionTests` (✅)
 
 **Sintomo.** Lo Smoke Test CI falliva saltuariamente su

@@ -172,6 +172,39 @@ public class CausticRenderTests
     }
 
     [Fact]
+    public void CausticOccupancyWeight_FadesSparseGathers_LeavesFocusedFull()
+    {
+        // Regression for the "ring of discs" artefact: weak reflective caustics
+        // off glossy near-specular surfaces (e.g. clearcoat billiard balls)
+        // deposit only a handful of photons, so a gather finds far fewer than k.
+        // The old code stamped a flat full-radius disc around each; the occupancy
+        // confidence now fades those sparse gathers out while leaving dense,
+        // focused caustics (count == k) at full strength.
+        const int K = 40;
+
+        // Dense focused caustic: full gather → untouched.
+        Assert.Equal(1f, Renderer.CausticOccupancyWeight(K, K));
+        Assert.Equal(1f, Renderer.CausticOccupancyWeight(K + 7, K));
+        Assert.True(Renderer.CausticOccupancyWeight(K - 1, K) > 0.9f,
+            "A nearly-full gather must stay bright.");
+
+        // Sparse stray photons: faded to a negligible fraction → no visible disc.
+        Assert.Equal(0f, Renderer.CausticOccupancyWeight(0, K));
+        Assert.True(Renderer.CausticOccupancyWeight(1, K) < 0.01f,
+            "A lone stray photon must not paint a disc.");
+        Assert.True(Renderer.CausticOccupancyWeight(4, K) < 0.05f);
+
+        // Monotonic non-decreasing in the photon count.
+        float prev = -1f;
+        for (int c = 0; c <= K; c++)
+        {
+            float w = Renderer.CausticOccupancyWeight(c, K);
+            Assert.True(w >= prev, $"Occupancy weight must be monotonic; dropped at count={c}.");
+            prev = w;
+        }
+    }
+
+    [Fact]
     public void CausticsRender_StaysFiniteAndEnergyBounded()
     {
         const int W = 160, H = 160, Spp = 24, Depth = 8;
