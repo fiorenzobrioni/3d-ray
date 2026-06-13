@@ -135,6 +135,13 @@ public partial class Renderer
     private readonly bool  _causticsActive;
     private readonly float _causticGatherRadius;   // gather radius cap (grid cell = half of this)
     private const    int   CausticGatherK = 40;     // k nearest photons per density estimate
+    // Cone-filter constant k_f (PBRT §16.2): photons are weighted 1 at the gather
+    // point and fall to 0 at the kernel edge, so a lone photon reads as a soft
+    // glow instead of a hard-edged flat disc. CausticConeNorm = 1 − 2/(3·k_f) is
+    // the matching density normalisation that keeps the estimate energy-consistent
+    // with the flat kernel in the dense (focused-caustic) limit.
+    private const    float CausticConeK    = 1f;
+    private const    float CausticConeNorm = 1f - 2f / (3f * CausticConeK);  // = 1/3
 
     // Caustic-chain state threaded through the eye path so the photon gather and
     // the BSDF-sampled emission are counted exactly once. None: no non-delta
@@ -1453,13 +1460,23 @@ public partial class Renderer
         if (count == 0) return Vector3.Zero;
 
         // Under-occupied gather: fewer than k photons exist in the whole search
-        // sphere, so the searched radius IS the kernel (PBRT's convention).
-        // Using the distance to the farthest *found* photon here would shrink
-        // the kernel around isolated stray photons and inflate the density
-        // estimate into bright dots/discs in sparse regions.
-        if (count < CausticGatherK) radius = _causticGatherRadius;
+        // sphere, so the region is sparse. Keep the searched cap as the kernel
+        // radius (PBRT's convention — shrinking it around the few stray photons
+        // would inflate the density into a bright dot) AND fade the estimate by
+        // the gather occupancy below. Together with the cone filter this stops an
+        // isolated reflective photon from stamping a flat full-radius disc on the
+        // floor — the "ring of discs" artefact under glossy near-specular casters
+        // (e.g. clearcoat spheres) whose weak caustics deposit only a few photons.
+        bool underOccupied = count < CausticGatherK;
+        if (underOccupied) radius = _causticGatherRadius;
         if (radius <= 0f) return Vector3.Zero;
 
+        // Cone-filter density estimate: weight each photon by its distance to the
+        // gather point (1 at the centre, → 0 at the kernel edge) so the caustic
+        // has a smooth radial falloff instead of a hard disc edge. The cone
+        // normalisation keeps the energy identical to the flat kernel where
+        // photons fill the disc, so focused caustics keep their brightness.
+        float invR = 1f / radius;
         ReadOnlySpan<Photon> photons = map.Photons;
         Vector3 sum = Vector3.Zero;
         for (int i = 0; i < count; i++)
@@ -1467,11 +1484,40 @@ public partial class Renderer
             ref readonly Photon p = ref photons[idx[i]];
             // Light-leak guard: ignore photons arriving from behind the surface.
             if (Vector3.Dot(p.IncidentDir, rec.Normal) <= 0f) continue;
+            float w = 1f - Vector3.Distance(p.Position, rec.Point) * invR / CausticConeK;
+            if (w <= 0f) continue;
             // BRDF without cosine — the photon flux already carries the incident
             // geometry through the surface photon density.
-            sum += material.Evaluate(viewDir, p.IncidentDir, rec) * p.Power;
+            sum += material.Evaluate(viewDir, p.IncidentDir, rec) * (p.Power * w);
         }
-        return sum * (1f / (MathF.PI * radius * radius));
+
+        Vector3 estimate = sum * (1f / (CausticConeNorm * MathF.PI * radius * radius));
+
+        // Occupancy confidence: a focused caustic fills the gather (count == k)
+        // and passes through untouched; a sparse region (count ≪ k) is faded out
+        // smoothly so weak stray reflective photons stop painting visible discs
+        // while genuine, dense caustics keep their full strength.
+        if (underOccupied)
+            estimate *= CausticOccupancyWeight(count, CausticGatherK);
+        return estimate;
+    }
+
+    /// <summary>
+    /// Confidence weight for an under-occupied caustic gather. A full gather
+    /// (<paramref name="count"/> ≥ <paramref name="k"/>, i.e. a dense focused
+    /// caustic) returns 1 and is left untouched; a sparse gather (count ≪ k, a
+    /// region holding only a few weak stray reflective photons) is faded out by a
+    /// smoothstep on the occupancy ratio, so a near-isolated photon no longer
+    /// stamps a flat full-radius disc on the receiver — the "ring of discs"
+    /// artefact under glossy near-specular casters. Monotonic non-decreasing in
+    /// <paramref name="count"/>.
+    /// </summary>
+    internal static float CausticOccupancyWeight(int count, int k)
+    {
+        if (count >= k) return 1f;
+        if (count <= 0) return 0f;
+        float t = (float)count / k;
+        return t * t * (3f - 2f * t);   // smoothstep(0,1,t)
     }
 
     /// <summary>

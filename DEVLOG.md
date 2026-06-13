@@ -6,6 +6,77 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Fix caustiche — "anello di dischi" da caster glossy quasi-speculari (✅)
+
+**Sintomo.** Renderizzando `motion-blur-billiard-showcase.yaml` con i preset
+`final`/`final-tiny` (caustiche ON, nessun denoiser) il feltro si riempiva di
+**cerchi morbidi** colorati che annegavano la scena e mascheravano il motion
+blur. Con `standard` (caustiche OFF) o `--caustics off` spariva tutto.
+
+**Causa (verificata).** Le bilie sono Disney glossy con `clearcoat: 1.0` e
+`coat_roughness: 0.03` → `ClearcoatAlpha = 0.03² = 0.0009`, sotto la soglia
+near-delta (`DeltaAlphaThreshold = 2.5e-3`). Il lobo clearcoat è quindi trattato
+come delta: nel `CausticPhotonTracer` le bilie fanno da **caster speculari**.
+I fotoni si riflettono sul clearcoat e cadono radi sul panno — riflesso debole:
+**1.256 fotoni depositati su 2.000.000** (~0.06%). Il gather era *under-occupied*
+ovunque (meno di `k=40` fotoni nel raggio cap) e dipingeva un **disco piatto a
+raggio pieno** (`sceneRadius·0.06 ≈ 0.44`, quanto una bilia e mezzo) attorno a
+ogni fotone isolato → i cerchi. Il motion blur era sempre presente, solo
+sommerso dai dischi.
+
+**Fix 1 — alla radice (caster, `DisneyBsdf.Sample` + `CausticPhotonTracer`).**
+Una riflessione near-delta su un substrato non-specchio non deve generare
+caustiche: `BsdfSample` porta ora un flag `CausticCaster`. Per Disney la
+riflessione near-delta (specular liscio o **clearcoat** liscio) è caster solo se
+`metallic ≥ 0.5` (mirror-like); il clearcoat su base diffusa (`metallic 0`) e lo
+specular dielettrico liscio → `CausticCaster = false`. La rifrazione/trasmissione
+(vetro) resta sempre caster. Il photon tracer, su un delta non-caster, deposita e
+ferma il fotone come su un hit diffuso. Risultato sulla scena biliardo:
+**0 fotoni depositati ("no specular casters") → `_causticsActive = false` →
+render bit-identico a `--caustics off`**, motion blur pulito. Il riflesso glossy
+delle bilie resta catturato dal path tracer forward.
+
+**Fix 2 — hardening del gather (`Renderer.GatherCaustics`).** Anche per le
+caustiche legittime ma rade, due migliorie complementari:
+- **Filtro a cono** (PBRT §16.2): fotoni pesati per distanza dal punto di gather
+  (1 al centro, → 0 al bordo); normalizzazione `1 − 2/(3·k_f)` che conserva
+  l'energia nel limite denso → caustiche focalizzate luminose, bordi morbidi.
+- **Confidence sull'occupazione** (`CausticOccupancyWeight`): i gather
+  sotto-popolati (`count < k`) sono sfumati con uno *smoothstep* su `count/k`; i
+  gather pieni (`count == k`) restano a piena intensità.
+
+Test: `GlossyClearcoatBall_IsNotACausticCaster_MirrorIs` (plastica → 0 fotoni,
+specchio metallico → caustica riflessa presente) e
+`CausticOccupancyWeight_FadesSparseGathers_LeavesFocusedFull`; il regression
+end-to-end `CausticsRender_StaysFiniteAndEnergyBounded` (lente di vetro)
+continua a passare → le caustiche vere non sono toccate.
+Doc: `docs/technical/path-tracing-and-lighting.md` §2.5.
+
+---
+
+## Fix CI — flaky `DenoiserRegressionTests` (✅)
+
+**Sintomo.** Lo Smoke Test CI falliva saltuariamente su
+`Denoise_LowSppRender_CutsMseAgainstConvergedReference` con
+`NLM MSE 3.932E-004 not < 80% of noisy MSE 4.865E-004` (rapporto NLM
+≈0.81× contro il gate 0.80×).
+
+**Causa.** Il test usa il sampler PRNG, che semina il `Random` thread-local
+dal wall clock (`MathUtils._globalSeed = Environment.TickCount`): il render a
+8 spp non è deterministico e il rapporto MSE-denoised/MSE-noisy ha una
+dispersione run-to-run ampia. Misurato in locale: media NLM ≈0.60×, range
+0.45–0.68× su 25 run (anche limitando a 2 core per imitare il runner CI). Il
+gate 0.80× aveva quindi ~4σ di margine — insufficiente per la coda osservata
+in CI (0.808×).
+
+**Fix.** Mediato MSE noisy/NLM/NFOR su `Iterations = 4` render indipendenti
+prima di confrontarli con i gate: la statistica diventa stabile (σ ↓ ≈1/√4),
+range NLM ristretto a 0.57–0.65×, margine al gate ~7σ. Il render di
+riferimento (512 spp) domina i tempi ed è riusato, quindi i passaggi extra a
+8 spp restano economici. Gate invariati.
+
+---
+
 ## Ciclo Motion Blur — trasformazioni animate + camera + shutter (#18 ✅)
 
 **Obiettivo.** Chiudere lo step 18: motion blur **fisico** per trasformazioni

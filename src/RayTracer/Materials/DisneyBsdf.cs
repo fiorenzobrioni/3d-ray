@@ -976,7 +976,20 @@ public sealed class DisneyBsdf : IMaterial
         bool nearDeltaSpec = lobe == Lobe.Specular  && sp.Alpha          <= DeltaAlphaThreshold;
         bool nearDeltaCoat = lobe == Lobe.Clearcoat && sp.ClearcoatAlpha <= DeltaAlphaThreshold;
         if (nearDeltaSpec || nearDeltaCoat)
-            return new BsdfSample(wo, scatterAttn, 1f, isDelta: true);
+        {
+            // The caustic pre-pass may only follow this delta reflection when the
+            // surface is mirror-like (predominantly metallic): a smooth metal
+            // reflects the whole beam and focuses real reflective caustics. A
+            // near-delta reflection off a dielectric/clearcoat substrate (the
+            // billiard-ball case: metallic 0, glossy clearcoat) reflects only a
+            // weak Fresnel sliver — following it deposits a few scattered photons
+            // that the gather renders as spurious discs, so it is NOT a caustic
+            // caster (the forward path tracer still captures that glossy
+            // reflection normally).
+            bool mirrorLike = sp.Metallic >= CausticMirrorMetallic;
+            return new BsdfSample(wo, scatterAttn, 1f, isDelta: true,
+                                  causticCaster: mirrorLike);
+        }
 
         Vector3 f = Evaluate(V, wo, rec);
         float pdf = Pdf(V, wo, rec);
@@ -1152,6 +1165,13 @@ public sealed class DisneyBsdf : IMaterial
     // realistic "polished glass / lacquer" finish without intruding on the
     // genuinely glossy metals (metal_silver at α ≈ 3.6e-3 stays analytical).
     private const float DeltaAlphaThreshold = 2.5e-3f;
+
+    // Minimum metallic weight for a near-delta reflection to seed/continue a
+    // caustic photon chain (see Sample). Below it the surface is a dielectric or
+    // clearcoat substrate whose specular reflection is a weak Fresnel sliver, not
+    // a mirror — following it produces spurious scattered-photon discs rather
+    // than a real focused caustic.
+    private const float CausticMirrorMetallic = 0.5f;
 
     private bool ScatterInternal(Ray rayIn, HitRecord rec, out Vector3 attenuation, out Ray scattered, out Lobe lobe)
     {

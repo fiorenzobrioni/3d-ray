@@ -172,6 +172,90 @@ public class CausticRenderTests
     }
 
     [Fact]
+    public void GlossyClearcoatBall_IsNotACausticCaster_MirrorIs()
+    {
+        // Regression for the "ring of discs" artefact: a glossy Disney ball with
+        // a near-delta clearcoat (the billiard-ball material — metallic 0) is NOT
+        // a caustic caster. Its weak Fresnel reflection must not seed scattered
+        // caustic photons (which the gather rendered as spurious discs); the
+        // forward path tracer captures that glossy reflection instead. A metallic
+        // mirror ball, by contrast, IS a caster and must still focus a reflective
+        // caustic onto the floor.
+        Sampler.SetKind(SamplerKind.Prng);
+
+        var floor = new InfinitePlane(new Vector3(0f, 0f, 0f), new Vector3(0f, 1f, 0f),
+                                      new Lambertian(new Vector3(0.6f, 0.6f, 0.6f)));
+        var light = new AreaLight(
+            corner: new Vector3(-1.2f, 6.0f, -1.2f), u: new Vector3(2.4f, 0f, 0f),
+            v: new Vector3(0f, 0f, 2.4f), color: new Vector3(1f, 1f, 1f),
+            intensity: 12f, shadowSamples: 4);
+        var bounds = new AABB(new Vector3(-3f, -0.5f, -3f), new Vector3(3f, 3f, 3f));
+
+        // Billiard-ball material: glossy resin, smooth clearcoat, no metal.
+        var plastic = new DisneyBsdf(
+            baseColor:     new SolidColor(new Vector3(0.8f, 0.1f, 0.1f)),
+            roughness:     new FloatTexture(0.06f),
+            clearcoat:     new FloatTexture(1f),
+            coatRoughness: new FloatTexture(0.03f));
+        var plasticWorld = new HittableList(new[]
+        {
+            (IHittable)floor, new Sphere(new Vector3(0f, 1.0f, 0f), 0.6f, plastic)
+        });
+        PhotonMap? plasticMap = CausticPhotonTracer.Build(plasticWorld,
+            new List<ILight> { light }, bounds, photonBudget: 1_000_000, cellSize: 0.1f);
+        Assert.True(plasticMap == null || plasticMap.Count == 0,
+            $"Glossy clearcoat ball must not cast caustics; got {plasticMap?.Count ?? 0} photons.");
+
+        // Smooth metallic mirror: a genuine reflective-caustic caster.
+        var mirror = new DisneyBsdf(
+            baseColor: new SolidColor(new Vector3(0.95f, 0.95f, 0.95f)),
+            metallic:  new FloatTexture(1f),
+            roughness: new FloatTexture(0.02f));
+        var mirrorWorld = new HittableList(new[]
+        {
+            (IHittable)floor, new Sphere(new Vector3(0f, 1.0f, 0f), 0.6f, mirror)
+        });
+        PhotonMap? mirrorMap = CausticPhotonTracer.Build(mirrorWorld,
+            new List<ILight> { light }, bounds, photonBudget: 1_000_000, cellSize: 0.1f);
+        Assert.NotNull(mirrorMap);
+        Assert.True(mirrorMap!.Count > 1000,
+            $"Mirror ball must focus a reflective caustic; got {mirrorMap.Count} photons.");
+    }
+
+    [Fact]
+    public void CausticOccupancyWeight_FadesSparseGathers_LeavesFocusedFull()
+    {
+        // Regression for the "ring of discs" artefact: weak reflective caustics
+        // off glossy near-specular surfaces (e.g. clearcoat billiard balls)
+        // deposit only a handful of photons, so a gather finds far fewer than k.
+        // The old code stamped a flat full-radius disc around each; the occupancy
+        // confidence now fades those sparse gathers out while leaving dense,
+        // focused caustics (count == k) at full strength.
+        const int K = 40;
+
+        // Dense focused caustic: full gather → untouched.
+        Assert.Equal(1f, Renderer.CausticOccupancyWeight(K, K));
+        Assert.Equal(1f, Renderer.CausticOccupancyWeight(K + 7, K));
+        Assert.True(Renderer.CausticOccupancyWeight(K - 1, K) > 0.9f,
+            "A nearly-full gather must stay bright.");
+
+        // Sparse stray photons: faded to a negligible fraction → no visible disc.
+        Assert.Equal(0f, Renderer.CausticOccupancyWeight(0, K));
+        Assert.True(Renderer.CausticOccupancyWeight(1, K) < 0.01f,
+            "A lone stray photon must not paint a disc.");
+        Assert.True(Renderer.CausticOccupancyWeight(4, K) < 0.05f);
+
+        // Monotonic non-decreasing in the photon count.
+        float prev = -1f;
+        for (int c = 0; c <= K; c++)
+        {
+            float w = Renderer.CausticOccupancyWeight(c, K);
+            Assert.True(w >= prev, $"Occupancy weight must be monotonic; dropped at count={c}.");
+            prev = w;
+        }
+    }
+
+    [Fact]
     public void CausticsRender_StaysFiniteAndEnergyBounded()
     {
         const int W = 160, H = 160, Spp = 24, Depth = 8;

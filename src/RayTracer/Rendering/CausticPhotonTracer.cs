@@ -176,7 +176,13 @@ public static class CausticPhotonTracer
             if (mis.HasValue)
             {
                 BsdfSample s = mis.Value;
-                if (s.IsDelta)
+                // Only follow a delta bounce as a caustic-forming specular event
+                // when it is a genuine caustic caster (glass refraction or a
+                // mirror-like reflection). A near-delta reflection off a glossy
+                // dielectric / clearcoat substrate is NOT a caster: treat it like
+                // a diffuse hit so its weak Fresnel reflection no longer seeds
+                // scattered photons that gather into spurious discs.
+                if (s.IsDelta && s.CausticCaster)
                 {
                     power *= s.F;                       // delta lobe: F is the full attenuation
                     EnterMediumIfRefracting(material, rec, s.Wo, ref inMedium, ref sigmaA, ref entryPoint);
