@@ -1,8 +1,7 @@
 # Render manuale ad alta qualità — eseguito solo su richiesta (workflow_dispatch).
 # Compila il progetto una volta sola, poi renderizza in parallelo le scene
-# selezionate nella matrix a risoluzione 1920×1080 con 1024 samples.
-# Per attivare una scena: rimuovi il # davanti alla voce corrispondente
-# nella lista `scene:` prima di avviare il workflow.
+# selezionate nella matrix a risoluzione 1920×1080.
+# Per attivare una scena: rimuovi il # davanti alla riga include corrispondente.
 # I render vengono caricati come artifact (retention 7 giorni).
 
 name: Render Scenes
@@ -46,42 +45,42 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scene:
-          # --- Elenco disattivato (rimuovi il # per attivare) ---
-          #- environment-fog
-          - chess -q final
-          - cornell-box -q final
-          - cornell-box-sphere -q final
-          - showcases/motion-blur-billiard -q final
-          - showcases/motion-blur -q final
-          - showcases/scene-csg -q final
-          - showcases/scene-group -q final
-          - pendolo-newton -q final
-          - showcases/lighting-sphere standard
-          - showcases/glass-caustics -q final
-          - showcases/spheres-classic -q standard
-          - showcases/spheres-pbr -q standard
-          - tempio-romano -q standard
-          - showcases/texture-voronoi-smooth -q standard
-          - showcases/material-mix-metal-rust -q standard
-          - showcases/material-marble -q final
-          - showcases/material-wood -q final
-          - showcases/material-mix -q pre-final
-          - showcases/material-emissive -q standard
-          - showcases/sky-nishita -q final
-          - showcases/texture-noise -q standard
-          - showcases/extrusion -q final
-          - showcases/texture-displacement-scalar -q standard
-          #- sample
-          #- showcase
-          #- showcases/material-classic
-          #- showcases/material-classic-vs-disney
-          #- cristallo
-          #- heightfield-procedural-test
-          #- heightfield-strata-test-preview
-          #- showcases/primitive-overview
-          #- utah-teapot
-          #- showcases/medium-water-tank
+        include:
+          # --- Elenco disattivato (rimuovi il # davanti alla riga per attivare) ---
+          #- { scene: environment-fog,                        quality: standard  }
+          - { scene: chess,                                   quality: final     }
+          - { scene: cornell-box,                             quality: final     }
+          - { scene: cornell-box-sphere,                      quality: final     }
+          - { scene: showcases/motion-blur-billiard,          quality: final     }
+          - { scene: showcases/motion-blur,                   quality: final     }
+          - { scene: showcases/scene-csg,                     quality: final     }
+          - { scene: showcases/scene-group,                   quality: final     }
+          - { scene: pendolo-newton,                          quality: final     }
+          - { scene: showcases/lighting-sphere,               quality: standard  }
+          - { scene: showcases/glass-caustics,                quality: final     }
+          - { scene: showcases/spheres-classic,               quality: standard  }
+          - { scene: showcases/spheres-pbr,                   quality: standard  }
+          - { scene: tempio-romano,                           quality: standard  }
+          - { scene: showcases/texture-voronoi-smooth,        quality: standard  }
+          - { scene: showcases/material-mix-metal-rust,       quality: standard  }
+          - { scene: showcases/material-marble,               quality: final     }
+          - { scene: showcases/material-wood,                 quality: final     }
+          - { scene: showcases/material-mix,                  quality: pre-final }
+          - { scene: showcases/material-emissive,             quality: standard  }
+          - { scene: showcases/sky-nishita,                   quality: final     }
+          - { scene: showcases/texture-noise,                 quality: standard  }
+          - { scene: showcases/extrusion,                     quality: final     }
+          - { scene: showcases/texture-displacement-scalar,   quality: standard  }
+          #- { scene: sample,                                  quality: standard  }
+          #- { scene: showcase,                                quality: standard  }
+          #- { scene: showcases/material-classic,              quality: standard  }
+          #- { scene: showcases/material-classic-vs-disney,    quality: standard  }
+          #- { scene: cristallo,                               quality: final     }
+          #- { scene: heightfield-procedural-test,             quality: standard  }
+          #- { scene: heightfield-strata-test-preview,         quality: pre-final }
+          #- { scene: showcases/primitive-overview,            quality: standard  }
+          #- { scene: utah-teapot,                             quality: final     }
+          #- { scene: showcases/medium-water-tank,             quality: final     }
 
     steps:
       - name: Checkout repository
@@ -106,14 +105,15 @@ jobs:
           # Estrae il nome base per l'artifact (es. da "showcases/chess" diventa "chess")
           SCENE_NAME=$(basename "${{ matrix.scene }}")
           echo "SCENE_NAME=$SCENE_NAME" >> $GITHUB_ENV
-          
+
           # Crea la struttura di cartelle necessaria ad ospitare l'output
           mkdir -p "$(dirname "renders/${{ matrix.scene }}")"
-          
-          # Lancia il RayTracer (aggiornato a 1024 samples)
+
+          # Lancia il RayTracer
           publish/RayTracer/RayTracer \
             -i scenes/${{ matrix.scene }} \
-            -o renders/${{ matrix.scene }}.png
+            -o renders/${{ matrix.scene }}.png \
+            -q ${{ matrix.quality }}
 
       - name: Upload render
         if: always()
