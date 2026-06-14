@@ -152,15 +152,15 @@ templates:
 lights:
   - type: "area"
     corner:    [-4.0, 7.5,  4.5]
-    u:         [ 8.0, 0.0,  0.0]
-    v:         [ 0.0, 0.0, -4.0]
+    u:         [ 0.0, 0.0, -4.0]
+    v:         [ 8.0, 0.0,  0.0]
     color:     [1.00, 0.94, 0.82]
     intensity: 52
     shadow_samples: 16
   - type: "area"
     corner:    [-9.0, 5.0,  1.0]
-    u:         [ 2.5, 0.0,  0.0]
-    v:         [ 0.0, 0.0, -2.5]
+    u:         [ 0.0, 0.0, -2.5]
+    v:         [ 2.5, 0.0,  0.0]
     color:     [0.70, 0.80, 1.00]
     intensity: 20
     shadow_samples: 9

@@ -61,16 +61,16 @@ lights:
   # Key: area light calda dall'alto-destra
   - type: "area"
     corner:    [ 2.0, 5.6,  3.2]
-    u:         [ 2.2, 0.0,  0.0]
-    v:         [ 0.0, 0.0, -2.0]
+    u:         [ 0.0, 0.0, -2.0]
+    v:         [ 2.2, 0.0,  0.0]
     color:     [1.00, 0.92, 0.78]
     intensity: 32
 
   # Fill: area light fredda dall'alto-sinistra, più grande e tenue
   - type: "area"
     corner:    [-5.5, 4.2,  2.4]
-    u:         [ 2.4, 0.0,  0.0]
-    v:         [ 0.0, 0.0, -1.6]
+    u:         [ 0.0, 0.0, -1.6]
+    v:         [ 2.4, 0.0,  0.0]
     color:     [0.72, 0.82, 1.00]
     intensity: 14
 
