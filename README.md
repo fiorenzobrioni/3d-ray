@@ -199,6 +199,63 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 
 ---
 
+## 👋 La tua prima scena (Hello World)
+
+Gli esempi del Quick Start renderizzano scene già pronte; qui invece **scrivi la tua**. Una scena è un file YAML con quattro sezioni: **com'è l'ambiente** (`world`), **da dove guardiamo** (`cameras`), **di cosa sono fatti gli oggetti** (`materials`) e **quali oggetti ci sono** (`entities`). La scena minima: una sfera rossa su un pavimento a scacchi, illuminata dal cielo.
+
+Crea il file `scenes/hello.yaml`:
+
+```yaml
+# Hello World — una sfera rossa su un pavimento a scacchi, illuminata dal cielo.
+
+world:
+  # Cielo a gradiente: fa anche da luce ambientale (illumina la scena).
+  sky:
+    type: "gradient"
+    zenith_color:  [0.2, 0.4, 0.9]   # blu in alto
+    horizon_color: [0.8, 0.9, 1.0]   # chiaro all'orizzonte
+    sun:                             # sole analitico per ombre nette
+      direction: [-0.5, -1.0, -0.3]
+      intensity: 8.0
+  # Pavimento infinito a scacchi; "y: 0" lo appoggia all'altezza zero.
+  ground: { type: "infinite_plane", material: "floor", y: 0 }
+
+cameras:
+  - name: "main"
+    position: [0, 1.5, -5]   # dove si trova l'osservatore
+    look_at:  [0, 0.5, 0]    # verso cosa guarda
+    fov: 40                  # campo visivo in gradi
+
+materials:
+  - id: "floor"              # pavimento: scacchiera procedurale
+    type: "lambertian"       # diffuso opaco
+    texture:
+      type: "checker"
+      scale: 2.0                              # dimensione delle caselle
+      colors: [[0.8, 0.8, 0.8], [0.15, 0.15, 0.15]]
+  - id: "red"                # sfera
+    type: "lambertian"
+    color: [0.8, 0.2, 0.2]   # rosso
+
+entities:
+  - name: "ball"
+    type: "sphere"
+    center: [0, 0.5, 0]      # posizione del centro
+    radius: 0.5
+    material: "red"          # riferimento all'id sopra
+```
+
+Renderizzala con un'anteprima rapida (la trovi già pronta nel repo):
+
+```bash
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+  -i scenes/hello -q draft-small -o renders/hello.png
+```
+
+Il risultato è in `renders/hello.png`. Da qui puoi cambiare `color`, aggiungere altre sfere in `entities` o provare materiali `metal` e `dielectric`. Per l'elenco completo delle chiavi YAML vedi il [Reference](./docs/reference/scene-reference.md); per un percorso guidato il [Tutorial](./docs/tutorial/it/README.md).
+
+---
+
 ## 📁 Struttura del Progetto
 
 ```
