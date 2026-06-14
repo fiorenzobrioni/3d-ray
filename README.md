@@ -438,6 +438,11 @@ Per chi vuole approfondire gli aspetti matematici e le scelte implementative:
 - [**Strutture di Accelerazione (BVH)**](./docs/technical/acceleration-structures.md) — Bounding Volume Hierarchy e SAH.
 - [**Geometria del Toro e Risolutore di Quartiche**](./docs/technical/quartic-solver-and-torus.md) — Intersezione analitica raggio-toro e metodo di Ferrari.
 - [**CSG — Constructive Solid Geometry**](./docs/technical/csg-boolean-operations.md) — Algoritmo di classificazione a intervalli, gestione delle normali e alberi booleani annidati.
+- [**HeightField**](./docs/technical/heightfield.md) — Primitivo terreno con intersezione analitica senza tassellatura: patch bilineari, accelerazione min/max mipmap, caricamento da PNG-16 o sintesi procedurale.
+- [**Motion Blur**](./docs/technical/motion-blur.md) — Implementazione del motion blur su trasformazioni: time-sampled TRS, interpolazione quaternionica, invariante bit-identico quando nulla è animato.
+- [**Denoising**](./docs/technical/denoising.md) — Architettura del denoiser feature-guided: buffer AOV catturati in parallelo al render, algoritmi NLM e NFOR con selezione per-pixel del candidato a minore errore stimato.
+- [**MediumInterface — Per-Entity Participating Media**](./docs/technical/medium-interface.md) — Assegnazione di media partecipanti per-entità: ownership model, stack semantics per raggi in volumi annidati e transizioni al boundary.
+- [**Subsurface Scattering**](./docs/technical/subsurface-scattering.md) — Integrazione volumetrica random walk per SSS: derivazione, dispatching su eventi di rifrazione, confronto con l'approssimazione dipolo.
 - [**Benchmark (`RayTracer.Benchmarks`)**](./docs/technical/benchmarks.md) — Harness BenchmarkDotNet per AABB e BVH: esecuzione, output, aggiunta di nuovi benchmark.
 - [**Testing (`RayTracer.Tests`)**](./docs/technical/testing.md) — Suite xUnit: test di equivalenza BVH ↔ HittableList, differenziali AABB, pattern riusabili.
 
