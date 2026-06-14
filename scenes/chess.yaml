@@ -35,7 +35,7 @@ world:
   ground:
     type: "infinite_plane"
     material: "table_wood"
-    y: -0.2
+    y: -0.20
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  CAMERAS
@@ -396,192 +396,192 @@ entities:
   - name: "wr_a1"
     type: "instance"
     template: "rook"
-    translate: [-3.500, 0.000, -3.500]
+    translate: [3.500, 0.000, -3.500]
     material: "piece_white"
 
   - name: "wn_b1"
     type: "instance"
     template: "knight_white"
-    translate: [-2.500, 0.000, -3.500]
+    translate: [2.500, 0.000, -3.500]
     material: "piece_white"
 
   - name: "wb_c1"
     type: "instance"
     template: "bishop"
-    translate: [-1.500, 0.000, -3.500]
+    translate: [1.500, 0.000, -3.500]
     material: "piece_white"
 
   - name: "wq_d1"
     type: "instance"
     template: "queen"
-    translate: [-0.500, 0.000, -3.500]
+    translate: [0.500, 0.000, -3.500]
     material: "piece_white"
 
   - name: "wk_e1"
     type: "instance"
     template: "king"
-    translate: [0.500, 0.000, -3.500]
+    translate: [-0.500, 0.000, -3.500]
     material: "piece_white"
 
   - name: "wr_h1"
     type: "instance"
     template: "rook"
-    translate: [3.500, 0.000, -3.500]
+    translate: [-3.500, 0.000, -3.500]
     material: "piece_white"
 
   - name: "wb_c4"
     type: "instance"
     template: "bishop"
-    translate: [-1.500, 0.000, -0.500]
+    translate: [1.500, 0.000, -0.500]
     material: "piece_white"
 
   - name: "wn_f3"
     type: "instance"
     template: "knight_white"
-    translate: [1.500, 0.000, -1.500]
+    translate: [-1.500, 0.000, -1.500]
     material: "piece_white"
 
   - name: "wp_a2"
     type: "instance"
     template: "pawn"
-    translate: [-3.500, 0.000, -2.500]
+    translate: [3.500, 0.000, -2.500]
     material: "piece_white"
 
   - name: "wp_b2"
     type: "instance"
     template: "pawn"
-    translate: [-2.500, 0.000, -2.500]
+    translate: [2.500, 0.000, -2.500]
     material: "piece_white"
 
   - name: "wp_c2"
     type: "instance"
     template: "pawn"
-    translate: [-1.500, 0.000, -2.500]
+    translate: [1.500, 0.000, -2.500]
     material: "piece_white"
 
   - name: "wp_d2"
     type: "instance"
     template: "pawn"
-    translate: [-0.500, 0.000, -2.500]
+    translate: [0.500, 0.000, -2.500]
     material: "piece_white"
 
   - name: "wp_f2"
     type: "instance"
     template: "pawn"
-    translate: [1.500, 0.000, -2.500]
+    translate: [-1.500, 0.000, -2.500]
     material: "piece_white"
 
   - name: "wp_g2"
     type: "instance"
     template: "pawn"
-    translate: [2.500, 0.000, -2.500]
+    translate: [-2.500, 0.000, -2.500]
     material: "piece_white"
 
   - name: "wp_h2"
     type: "instance"
     template: "pawn"
-    translate: [3.500, 0.000, -2.500]
+    translate: [-3.500, 0.000, -2.500]
     material: "piece_white"
 
   - name: "wp_e4"
     type: "instance"
     template: "pawn"
-    translate: [0.500, 0.000, -0.500]
+    translate: [-0.500, 0.000, -0.500]
     material: "piece_white"
 
   - name: "br_a8"
     type: "instance"
     template: "rook"
-    translate: [-3.500, 0.000, 3.500]
+    translate: [3.500, 0.000, 3.500]
     material: "piece_black"
 
   - name: "bb_c8"
     type: "instance"
     template: "bishop"
-    translate: [-1.500, 0.000, 3.500]
+    translate: [1.500, 0.000, 3.500]
     material: "piece_black"
 
   - name: "bq_d8"
     type: "instance"
     template: "queen"
-    translate: [-0.500, 0.000, 3.500]
+    translate: [0.500, 0.000, 3.500]
     material: "piece_black"
 
   - name: "bk_e8"
     type: "instance"
     template: "king"
-    translate: [0.500, 0.000, 3.500]
+    translate: [-0.500, 0.000, 3.500]
     material: "piece_black"
 
   - name: "bn_g8"
     type: "instance"
     template: "knight_black"
-    translate: [2.500, 0.000, 3.500]
+    translate: [-2.500, 0.000, 3.500]
     material: "piece_black"
 
   - name: "br_h8"
     type: "instance"
     template: "rook"
-    translate: [3.500, 0.000, 3.500]
+    translate: [-3.500, 0.000, 3.500]
     material: "piece_black"
 
   - name: "bn_c6"
     type: "instance"
     template: "knight_black"
-    translate: [-1.500, 0.000, 1.500]
+    translate: [1.500, 0.000, 1.500]
     material: "piece_black"
 
   - name: "bb_c5"
     type: "instance"
     template: "bishop"
-    translate: [-1.500, 0.000, 0.500]
+    translate: [1.500, 0.000, 0.500]
     material: "piece_black"
 
   - name: "bp_a7"
     type: "instance"
     template: "pawn"
-    translate: [-3.500, 0.000, 2.500]
+    translate: [3.500, 0.000, 2.500]
     material: "piece_black"
 
   - name: "bp_b7"
     type: "instance"
     template: "pawn"
-    translate: [-2.500, 0.000, 2.500]
+    translate: [2.500, 0.000, 2.500]
     material: "piece_black"
 
   - name: "bp_c7"
     type: "instance"
     template: "pawn"
-    translate: [-1.500, 0.000, 2.500]
+    translate: [1.500, 0.000, 2.500]
     material: "piece_black"
 
   - name: "bp_d7"
     type: "instance"
     template: "pawn"
-    translate: [-0.500, 0.000, 2.500]
+    translate: [0.500, 0.000, 2.500]
     material: "piece_black"
 
   - name: "bp_f7"
     type: "instance"
     template: "pawn"
-    translate: [1.500, 0.000, 2.500]
+    translate: [-1.500, 0.000, 2.500]
     material: "piece_black"
 
   - name: "bp_g7"
     type: "instance"
     template: "pawn"
-    translate: [2.500, 0.000, 2.500]
+    translate: [-2.500, 0.000, 2.500]
     material: "piece_black"
 
   - name: "bp_h7"
     type: "instance"
     template: "pawn"
-    translate: [3.500, 0.000, 2.500]
+    translate: [-3.500, 0.000, 2.500]
     material: "piece_black"
 
   - name: "bp_e5"
     type: "instance"
     template: "pawn"
-    translate: [0.500, 0.000, 0.500]
+    translate: [-0.500, 0.000, 0.500]
     material: "piece_black"
 
