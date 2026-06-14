@@ -396,8 +396,8 @@ dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q standa
 ### Multi-Camera
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess --list-cameras
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final -c top -o top.png
-dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final -c 2 -o cam2.png
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final -c zenitale -o zenitale.png
+dotnet run --project src/RayTracer/RayTracer.csproj -- -i scenes/chess -q final -c 2 -o hero.png
 ```
 
 > **Nota:** in tutti questi esempi `-i scenes/chess` equivale a `-i scenes/chess.yaml` — l'estensione `.yaml` (o `.yml`) è opzionale e viene aggiunta automaticamente dal loader se il file non viene trovato così com'è.
