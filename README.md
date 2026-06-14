@@ -248,13 +248,13 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pend
 ## 🛠️ Tool Inclusi
 
 ### TextureGen
-Genera texture procedurali pronte all'uso (mattoni, legno, marmo, griglia UV):
+Genera un set completo di texture PBR procedurali pronte all'uso (mattoni, legno, cemento, metallo, terra, scacchiera, griglia UV):
 ```bash
 dotnet run --project src/Tools/TextureGen/TextureGen.csproj
 ```
 
 ### NormalMapGen
-Genera una normal map piatta per testare il sistema di normal mapping:
+Genera un set di normal map PBR procedurali pronte all'uso (mattoni, legno, cemento, metallo, pietra, tessuto, piastrelle, flat di riferimento):
 ```bash
 dotnet run --project src/Tools/NormalMapGen/NormalMapGen.csproj
 ```
@@ -300,7 +300,7 @@ Con `--with-cameras`: anche `scenes/<stem>-preview.yaml` (scena pronta al render
 |-----------|-------|---------|-------------|
 | `--input` | `-i` | — (**obbligatorio**) | Percorso del file YAML della scena. L'estensione `.yaml` (o `.yml`) è **opzionale**: se il path non esiste così com'è, il loader prova ad aggiungerla automaticamente (es. `-i scenes/chess` ⇒ `scenes/chess.yaml`). |
 | `--output` | `-o` | `renders/render-<scena>.png` | File di output. Se omesso, generato dal nome della scena. L'estensione sceglie il formato: `.png`/`.jpg`/`.bmp` = immagine display tone-mapped; `.exr` = radianza **scene-linear pre-tone-mapping** (OpenEXR multilayer, RGB half + eventuali layer AOV, compressione ZIP) per compositing e grading in post. |
-| `--quality` | `-q` | — | Preset di qualità che riempie in un colpo `-w -H -s -d -S` (e, per `standard`, anche caustiche/SSS/NEE). Scala: `draft` → `standard` → `pre-final` → `final` → `ultra`, ognuno con varianti `-tiny` (480×270) e `-small` (960×540). I preset `draft*`/`standard*`/`pre-final*` attivano anche il denoiser (`--denoiser nfor`); `final`/`ultra` no. **Qualunque flag esplicito vince sul preset** (es. `-q final -d 16` per scene con vetri impilati). `standard` = qualità final su scene classiche (Lambertian/Disney, vetri non annidati, marmo procedurale) senza gli extra costosi; `pre-final` = anteprima fedele di `final` (feature complete, 256 spp + denoiser, ~4-6× più veloce) — vedi i [Profili di Rendering](./docs/reference/profili-di-rendering.md). |
+| `--quality` | `-q` | — | Preset di qualità che riempie in un colpo `-w -H -s -d -S` (e, per `standard`, anche caustiche/SSS/NEE). Scala: `draft` → `standard` → `pre-final` → `final` → `ultra`. I primi quattro livelli hanno varianti `-tiny` (480×270) e `-small` (960×540); `ultra` è fisso a 3840×2160. I preset `draft*`/`standard*`/`pre-final*` attivano anche il denoiser (`--denoiser nfor`); `final`/`ultra` no. **Qualunque flag esplicito vince sul preset** (es. `-q final -d 16` per scene con vetri impilati). `standard` = qualità final su scene classiche (Lambertian/Disney, vetri non annidati, marmo procedurale) senza gli extra costosi; `pre-final` = anteprima fedele di `final` (feature complete, 256 spp + denoiser, ~4-6× più veloce) — vedi i [Profili di Rendering](./docs/reference/profili-di-rendering.md). |
 | `--width` | `-w` | `1200` | Larghezza in pixel. |
 | `--height` | `-H` | `800` | Altezza in pixel. |
 | `--samples` | `-s` | `16` | Campioni per pixel. Con il sampler Sobol (default) viene usato il conteggio esatto; con `--sampler prng` viene arrotondato al quadrato perfetto superiore (`√N × √N`). |
