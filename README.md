@@ -16,9 +16,9 @@ Un moderno motore di ray tracing ad alte prestazioni sviluppato in C# e .NET 10,
 
 ## 🔍 Panoramica (Overview)
 
-3D-Ray trasforma una descrizione YAML in un'immagine fotorealistica, senza dover scrivere codice. È pensato per chi vuole comporre scene ricche — interni, still life, paesaggi atmosferici, composizioni artistiche — sfruttando scene graph gerarchico con gruppi, trasformazioni e template, preset copia-incolla di materiali e luci, un BSDF Disney unificato che copre dal metallo spazzolato alle bolle di sapone, effetti volumetrici (nebbia, fumo, nubi) e illuminazione basata su HDRI.
+3D-Ray trasforma una descrizione YAML in un'immagine fotorealistica, senza dover scrivere codice. È pensato per chi vuole comporre scene ricche — interni, still life, paesaggi atmosferici, composizioni artistiche — combinando uno scene graph gerarchico (gruppi, trasformazioni e template), preset copia-incolla di materiali e luci, un BSDF Disney unificato che copre dal metallo spazzolato alle bolle di sapone, effetti volumetrici (nebbia, fumo, nubi), materiali traslucidi con subsurface scattering e illuminazione basata su HDRI.
 
-Il motore è progettato per il calcolo parallelo multi-core, con BVH automatica, Next Event Estimation e campionamento Sobol per convergere in fretta, e chiude con un tone mapping ACES filmic per un look cinematografico.
+Sotto il cofano sfrutta tutti i core della CPU per renderizzare in parallelo, accelera automaticamente le scene complesse e usa tecniche di campionamento moderne per ridurre il rumore a parità di tempo; un denoiser opzionale ripulisce la grana residua e un tone mapping ACES filmic chiude con un look cinematografico. Una scala di preset di qualità — dalla bozza istantanea al render finale da portfolio — permette di passare dall'anteprima alla resa definitiva cambiando un solo parametro.
 
 Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il [**PLANNING**](./PLANNING.md); per lo storico dei cicli di sviluppo il [**DEVLOG**](./DEVLOG.md).
 
@@ -32,18 +32,18 @@ Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il
 - 📷 **Camera con Depth of Field** — apertura e distanza di messa a fuoco configurabili per effetti bokeh fotorealistici.
 - 🎬 **Multi-Camera** — più camere definite nella stessa scena, selezionabili da CLI per nome o indice per generare più inquadrature dallo stesso file YAML.
 - 💨 **Motion Blur** — sfocatura da movimento fisica per oggetti e camera: gli elementi in moto tracciano scie proporzionali alla loro velocità durante l'esposizione. L'apertura dell'otturatore è configurabile per-camera, dal freeze-frame alle lunghe esposizioni cinematografiche.
-- 🎯 **Next Event Estimation con MIS** — campionamento diretto delle luci con Multiple Importance Sampling: tutti i materiali e la phase function volumetrica partecipano, bilanciando automaticamente campionamento della luce e del materiale per convergere più in fretta con meno rumore.
+- 🎯 **Next Event Estimation con MIS** — a ogni rimbalzo il motore punta direttamente le luci invece di aspettare che un raggio le incontri per caso, bilanciando automaticamente i due approcci per convergere più in fretta con meno rumore. Funziona con tutti i materiali e anche all'interno dei volumi (nebbia, fumo).
 - 🔬 **Caustiche focalizzate** — le macchie di luce concentrate che vetro, acqua, cristalli e specchi proiettano su una superficie: fuochi di lente, riflessi luminosi, ombre colorate sotto un vetro tinto. Funzionano con qualsiasi geometria speculare e con tutte le luci (sole compreso), senza configurazione aggiuntiva nella scena.
 - 🧮 **Campionamento Stratificato** — riduce il rumore a parità di campioni totali.
-- 🔢 **Sobol + Owen Scrambling** — sequenza quasi-Monte Carlo a bassa discrepanza che converge più in fretta del PRNG classico su pixel jitter, lens sampling e primi bounce.
-- 🎲 **Russian Roulette** adattiva — terminazione stocastica dei raggi calibrata sull'illuminazione della scena per efficienza ottimale.
+- 🔢 **Campionamento Sobol** — distribuisce i campioni in modo più uniforme del caso puro, così l'immagine si pulisce più in fretta a parità di campioni per pixel.
+- 🎲 **Russian Roulette** adattiva — abbandona in anticipo i raggi che contribuiscono poco all'immagine, concentrando il tempo di calcolo dove fa davvero la differenza.
 - 🎞️ **Tone Mapping ACES Filmic** — post-processing cinematografico con highlight naturali e colori ricchi.
-- 🧹 **Denoiser feature-guided** — riduce il rumore Monte Carlo sull'immagine HDR lineare prima del tone mapping, guidato dalle informazioni di albedo, normale e profondità della scena. Preserva bordi nitidi e dettaglio nelle zone già pulite, applicando il filtraggio solo dove il rumore è più visibile.
-- 📤 **Output HDR e AOV (PFM/EXR)** — con `-o scena.exr` l'immagine principale diventa la radianza **scene-linear pre-tone-mapping** in OpenEXR (RGB half, ZIP, cromaticità Rec.709): niente clipping degli highlight, esposizione e grading regolabili in post senza re-render. Gli AOV richiesti con `--aov albedo,normal,depth,beauty,variance` vengono incorporati come **layer dello stesso file multilayer** (`albedo.*`, `normal.*`, `Z` float32) oppure scritti come file separati PFM/EXR (`--aov-format`).
+- 🧹 **Denoiser feature-guided** — ripulisce la grana residua dell'immagine sfruttando le informazioni di colore, normali e profondità della scena. Preserva bordi nitidi e dettaglio nelle zone già pulite, applicando il filtraggio solo dove il rumore è più visibile.
+- 📤 **Output HDR e AOV (PFM/EXR)** — con `-o scena.exr` l'immagine principale viene salvata in OpenEXR ad alta gamma dinamica, prima del tone mapping: nessun highlight bruciato, con esposizione e color grading regolabili in post senza ri-renderizzare. I buffer ausiliari richiesti con `--aov albedo,normal,depth,beauty,variance` finiscono come layer dello stesso file multilayer, oppure come file separati PFM/EXR (`--aov-format`).
 - 🖼️ **Output multi-formato** — PNG, JPEG, BMP (display, tone-mapped) ed EXR (HDR lineare) con rilevamento automatico dall'estensione del file.
 
 ### Accelerazione
-- 📦 **BVH (Bounding Volume Hierarchy)** — struttura di accelerazione spaziale con **Surface Area Heuristic (SAH) a binning**, fat leaves e *ordered traversal*. Build parallelizzato per scene grandi. Intersezioni raggio-oggetto in tempo **O(log N)**, attivazione automatica in base alla complessità della scena.
+- 📦 **BVH (Bounding Volume Hierarchy)** — struttura di accelerazione spaziale che fa scalare il render anche a scene con moltissime geometrie, riducendo drasticamente il lavoro per raggio. Costruzione parallelizzata sulle scene grandi e attivazione automatica in base alla complessità della scena.
 
 ### Geometrie
 - ⚪ **Sphere** — sfera analitica
