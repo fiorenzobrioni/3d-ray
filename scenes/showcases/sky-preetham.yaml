@@ -17,7 +17,7 @@ world:
     type: "hosek_wilkie"          # alias of "preetham" — both routes here today
     turbidity: 3.0                # 1 ≈ pristine, 3 ≈ clear, 5 ≈ haze
     ground_albedo: [0.25, 0.25, 0.22]
-    intensity: 1.0
+    intensity: 0.1
     sun:
       direction: [-0.35, 0.78, 0.52]   # direction TO the sun (world space)
       angular_radius: 0.265            # real solar disc half-angle

@@ -24,7 +24,7 @@ world:
 
 cameras:
   - name: "wide"
-    position: [0, 1.4, 5.5]
+    position: [0, 1.5, 5.5]
     look_at: [0, 0.8, 0]
     vup: [0, 1, 0]
     fov: 50

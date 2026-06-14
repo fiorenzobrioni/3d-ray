@@ -49,37 +49,39 @@ jobs:
         scene:
           # --- Elenco disattivato (rimuovi il # per attivare) ---
           #- environment-fog
-          #- chess
-          #- cornell-box
-          #- cornell-box-sphere
-          #- showcases/scene-csg
-          #- showcases/scene-group
-          #- pendolo-newton
-          #- showcases/lighting-sphere
-          #- showcases/glass-caustics
-          #- showcases/spheres-classic
-          #- tempio-romano
-          #- showcases/texture-voronoi-smooth
-          #- showcases/material-mix-metal-rust
-          #- showcases/material-marble
-          #- showcases/material-wood
-          #- showcases/medium-water-tank
-          #- showcases/material-mix
-          #- showcases/motion-blur-billiard-showcase
-          #- showcases/motion-blur-showcase
-          #
-          #- showcases/material-emissive
+          - chess -q final
+          - cornell-box -q final
+          - cornell-box-sphere -q final
+          - showcases/motion-blur-billiard -q final
+          - showcases/motion-blur -q final
+          - showcases/scene-csg -q final
+          - showcases/scene-group -q final
+          - pendolo-newton -q final
+          - showcases/lighting-sphere standard
+          - showcases/glass-caustics -q final
+          - showcases/spheres-classic -q standard
+          - showcases/spheres-pbr -q standard
+          - tempio-romano -q standard
+          - showcases/texture-voronoi-smooth -q standard
+          - showcases/material-mix-metal-rust -q standard
+          - showcases/material-marble -q final
+          - showcases/material-wood -q final
+          - showcases/material-mix -q pre-final
+          - showcases/material-emissive -q standard
+          - showcases/sky-nishita -q final
+          - showcases/texture-noise -q standard
+          - showcases/extrusion -q final
+          - showcases/texture-displacement-scalar -q standard
           #- sample
           #- showcase
           #- showcases/material-classic
           #- showcases/material-classic-vs-disney
           #- cristallo
-          #- showcases/lighting-gradient-sky
           #- heightfield-procedural-test
           #- heightfield-strata-test-preview
           #- showcases/primitive-overview
-          #- showcases/material-spheres-pbr
           #- utah-teapot
+          #- showcases/medium-water-tank
 
     steps:
       - name: Checkout repository
@@ -110,9 +112,8 @@ jobs:
           
           # Lancia il RayTracer (aggiornato a 1024 samples)
           publish/RayTracer/RayTracer \
-            -i scenes/${{ matrix.scene }}.yaml \
-            -o renders/${{ matrix.scene }}.png \
-            -q final
+            -i scenes/${{ matrix.scene }} \
+            -o renders/${{ matrix.scene }}.png
 
       - name: Upload render
         if: always()
