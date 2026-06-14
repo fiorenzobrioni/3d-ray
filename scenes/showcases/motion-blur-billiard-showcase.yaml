@@ -47,7 +47,7 @@ cameras:
     fov:        50
     aperture:   0.03
     focal_dist: 6.0
-    shutter:    [0.0, 1.0]
+    shutter:    [0.4, 1.0]
 
   # Dinamica: stessa scena, leggera carrellata in avanti durante l'otturatore
   # → camera motion blur sottile che aggiunge dinamismo senza confondere.
@@ -218,7 +218,8 @@ entities:
     material: "ball_white"
     translate: [-4.2, 0.3, 0.0]
     motion:
-      - { time: 1.0, translate: [-0.7, 0.3, 0.0] }
+      - { time: 0.5, translate: [-0.6, 0.3, 0.0] }
+      - { time: 1.0, translate: [-0.6, 0.3, 0.0] }
 
   # ── TRIANGOLO (15 bilie): il moto cresce dalla punta (quasi ferma) al fondo ──
   #  Riga 0 — punta (impatto diretto): assorbe l'urto, resta quasi immobile.
@@ -228,7 +229,8 @@ entities:
     material: "ball_yellow"
     translate: [0.0, 0.3, 0.0]
     motion:
-      - { time: 1.0, translate: [0.06, 0.30, -0.03] }
+      - { time: 0.5, translate: [0.0, 0.3, 0.0] }
+      - { time: 1.0, translate: [0.06, 0.3, -0.03] }
 
   #  Riga 1 — piccolo scarto verso l'esterno
   - type: "sphere"
@@ -237,14 +239,16 @@ entities:
     material: "ball_blue"
     translate: [0.52, 0.3, 0.3]
     motion:
-      - { time: 1.0, translate: [0.70, 0.30, 0.50] }
+      - { time: 0.5, translate: [0.52, 0.3, 0.3] }
+      - { time: 1.0, translate: [0.70, 0.3, 0.50] }
   - type: "sphere"
     center: [0, 0, 0]
     radius: 0.3
     material: "ball_red"
     translate: [0.52, 0.3, -0.3]
     motion:
-      - { time: 1.0, translate: [0.73, 0.30, -0.46] }
+      - { time: 0.5, translate: [0.52, 0.3, -0.3] }
+      - { time: 1.0, translate: [0.73, 0.3, -0.46] }
 
   #  Riga 2 — l'8 (nera) al centro: spinta moderata in avanti
   - type: "sphere"
@@ -253,21 +257,24 @@ entities:
     material: "ball_purple"
     translate: [1.04, 0.3, -0.6]
     motion:
-      - { time: 1.0, translate: [1.34, 0.30, -0.96] }
+      - { time: 0.5, translate: [1.04, 0.3, -0.6] }
+      - { time: 1.0, translate: [1.34, 0.3, -0.96] }
   - type: "sphere"
     center: [0, 0, 0]
     radius: 0.3
     material: "ball_black"
     translate: [1.04, 0.3, 0.0]
     motion:
-      - { time: 1.0, translate: [1.50, 0.30, 0.06] }
+      - { time: 0.5, translate: [1.04, 0.3, 0.0] }
+      - { time: 1.0, translate: [1.50, 0.3, 0.06] }
   - type: "sphere"
     center: [0, 0, 0]
     radius: 0.3
     material: "ball_orange"
     translate: [1.04, 0.3, 0.6]
     motion:
-      - { time: 1.0, translate: [1.37, 0.30, 1.05] }
+      - { time: 0.5, translate: [1.04, 0.3, 0.6] }
+      - { time: 1.0, translate: [1.37, 0.3, 1.05] }
 
   #  Riga 3 — scatto deciso, scie già lunghe
   - type: "sphere"
@@ -276,28 +283,32 @@ entities:
     material: "ball_green"
     translate: [1.56, 0.3, -0.9]
     motion:
-      - { time: 1.0, translate: [2.05, 0.30, -1.50] }
+      - { time: 0.5, translate: [1.56, 0.3, -0.9] }
+      - { time: 1.0, translate: [2.05, 0.3, -1.50] }
   - type: "sphere"
     center: [0, 0, 0]
     radius: 0.3
     material: "ball_maroon"
     translate: [1.56, 0.3, -0.3]
     motion:
-      - { time: 1.0, translate: [2.30, 0.30, -0.48] }
+      - { time: 0.5, translate: [1.56, 0.3, -0.3] }
+      - { time: 1.0, translate: [2.30, 0.3, -0.48] }
   - type: "sphere"
     center: [0, 0, 0]
     radius: 0.3
     material: "ball_yellow"
     translate: [1.56, 0.3, 0.3]
     motion:
-      - { time: 1.0, translate: [2.30, 0.30, 0.76] }
+      - { time: 0.5, translate: [1.56, 0.3, 0.3] }
+      - { time: 1.0, translate: [2.30, 0.3, 0.76] }
   - type: "sphere"
     center: [0, 0, 0]
     radius: 0.3
     material: "ball_blue"
     translate: [1.56, 0.3, 0.9]
     motion:
-      - { time: 1.0, translate: [2.23, 0.30, 1.89] }
+      - { time: 0.5, translate: [1.56, 0.3, 0.9] }
+      - { time: 1.0, translate: [2.23, 0.3, 1.89] }
 
   #  Riga 4 — fondo: il momento esce qui, schizzano via (scie più lunghe)
   - type: "sphere"
@@ -306,32 +317,37 @@ entities:
     material: "ball_red"
     translate: [2.08, 0.3, -1.2]
     motion:
-      - { time: 1.0, translate: [3.20, 0.30, -2.05] }
+      - { time: 0.5, translate: [2.08, 0.3, -1.2] }
+      - { time: 1.0, translate: [3.20, 0.3, -2.05] }
   - type: "sphere"
     center: [0, 0, 0]
     radius: 0.3
     material: "ball_purple"
     translate: [2.08, 0.3, -0.6]
     motion:
-      - { time: 1.0, translate: [3.60, 0.30, -1.08] }
+      - { time: 0.5, translate: [2.08, 0.3, -0.6] }
+      - { time: 1.0, translate: [3.60, 0.3, -1.08] }
   - type: "sphere"
     center: [0, 0, 0]
     radius: 0.3
     material: "ball_orange"
     translate: [2.08, 0.3, 0.0]
     motion:
-      - { time: 1.0, translate: [3.60, 0.30, 0.12] }
+      - { time: 0.5, translate: [2.08, 0.3, 0.0] }
+      - { time: 1.0, translate: [3.60, 0.3, 0.12] }
   - type: "sphere"
     center: [0, 0, 0]
     radius: 0.3
     material: "ball_green"
     translate: [2.08, 0.3, 0.6]
     motion:
-      - { time: 1.0, translate: [3.45, 0.30, 1.10] }
+      - { time: 0.5, translate: [2.08, 0.3, 0.6] }
+      - { time: 1.0, translate: [3.45, 0.3, 1.10] }
   - type: "sphere"
     center: [0, 0, 0]
     radius: 0.3
     material: "ball_pink"
     translate: [2.08, 0.3, 1.2]
     motion:
-      - { time: 1.0, translate: [3.80, 0.30, 2.15] }
+      - { time: 0.5, translate: [2.08, 0.3, 1.2] }
+      - { time: 1.0, translate: [3.80, 0.3, 2.15] }
