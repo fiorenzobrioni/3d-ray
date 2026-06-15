@@ -41,9 +41,15 @@ Leggi il file YAML e identifica:
 | `spot` | Faretti, torce, cono di luce focalizzato | position + direction + inner_angle + outer_angle |
 | `area` | Finestre, pannelli soffusi, softbox | corner + u + v + intensity |
 | `sphere` | Lampadine fisiche con raggio visibile (globi, lanterne) | position + radius + intensity |
+| `physical_sun` | Sole fisico con limb darkening e campionamento del disco | direction + intensity (auto-generato da sky nishita/gradient — non aggiungere manualmente se già presente) |
+| `portal` | Portale per finestre/aperture con HDRI (Bitterli 2015) — migliora il campionamento NEE in interni illuminati da HDRI | corner + u + v (come area, senza intensity) |
 | Emissive geometry | Insegne, neon, lava — la geometria stessa emette | materiale `emissive` assegnato a un `IHittable` |
 
 **Sphere light vs sphere emissiva**: per lampadine piccole/distanti preferisci `sphere_light` (solid-angle sampling, 2–10× più efficiente). Per oggetti grandi o vicini, la sfera emissiva è adeguata.
+
+**physical_sun**: non aggiungere mai un `physical_sun` manuale se la scena usa `sky.type: nishita` o `sky.type: gradient` con `sun:` — il motore lo genera automaticamente. Aggiungilo manualmente solo per controllare parametri avanzati (limb darkening, jitter) in assenza di quei tipi sky.
+
+**portal**: utile per interni con finestre e HDRI esterno. Definisce geometricamente l'apertura (come un `area` light) ma instrada il campionamento NEE verso l'HDRI invece di fare uniform sampling. Usalo per stanze con una finestra unica — migliora drasticamente il rumore nelle zone d'ombra.
 
 ### 3. Ruoli e setup canonico
 

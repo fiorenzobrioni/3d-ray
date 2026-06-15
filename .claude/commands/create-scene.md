@@ -55,12 +55,13 @@ Genera il file seguendo **rigorosamente** questo ordine di sezioni:
 #  Descrizione breve della scena e del suo contenuto.
 #
 #  Render consigliato:
-#    Preview: dotnet run ... -- -i scenes/<nome>.yaml -w 400  -H 225  -s 64   -d <D>  -S 1
-#    Finale:  dotnet run ... -- -i scenes/<nome>.yaml -w 1920 -H 1080 -s 1024 -d <D>  -S 4
+#    Draft: dotnet run ... -- -i scenes/<nome>.yaml -q draft-small
+#    Final: dotnet run ... -- -i scenes/<nome>.yaml -q final
 # =============================================================================
 
 world:
-  sky:                          # unico emettitore d'ambiente (flat / gradient / hdri)
+  sky:                          # unico emettitore d'ambiente
+    # Tipi disponibili: flat | gradient | hdri | nishita | hosek_wilkie
     type: "flat"
     color: [R, G, B]            # oppure type: "gradient" con zenith/horizon/ground/sun
 
@@ -100,13 +101,23 @@ entities: []                  # oggetti della scena
 **Luci e ambiente:**
 - Interni notturni / studio: `sky.type: flat` con `color` quasi nero (es. `[0.0, 0.0, 0.0]`); l'illuminazione viene da luci esplicite o oggetti emissivi.
 - Studio con fill morbido: `sky.type: flat` con un colore basso neutro (es. `[0.05, 0.05, 0.06]`) — il flat sky partecipa a NEE come uniform sphere.
-- Esterni diurni: `sky.type: gradient` con zenith/horizon/ground e disco `sun:` (può essere l'unica sorgente luminosa).
+- Esterni diurni stilizzati: `sky.type: gradient` con zenith/horizon/ground e disco `sun:` (può essere l'unica sorgente luminosa).
+- Esterni fisicamente accurati: `sky.type: nishita` — atmosfera Rayleigh+Mie, genera un `physical_sun` automatico (non aggiungere `directional` separato).
+- Cielo analitico veloce: `sky.type: hosek_wilkie` — modello analitico diurno, meno realistico ma senza LUT.
 - HDRI: `sky.type: hdri` con `path:`; nessun fill aggiuntivo necessario.
 - Non mescolare luce importata e luci duplicate dello stesso tipo.
 
+**Ground:**
+- Il campo `world.ground` accetta `type:` tra: `infinite_plane` (default), `plane`, `quad`, `disk`, `heightfield`, `terrain`.
+- Per ambienti naturali o terreni con rilievo usa `type: heightfield` con `heightmap_path:` o `type: terrain` con parametri procedurali.
+
+**Nebbia / volume globale:**
+- Per aggiungere profondità atmosferica, includi `medium:` sotto `world:` con un `homogeneous` o `height_fog` a `sigma_s` basso (0.005–0.03). Documenta che la scena richiede `-d` aumentato.
+
 **Campioni render:**
-- Profondità `-d`: 4 (preview) / 6 (standard) / 8+ (finale) / 16-20 (scene con vetro/rifrazione)
-- Campioni `-s`: solo quadrati perfetti (64, 256, 1024, 1600)
+- Usa sempre `-q <preset>` nell'header della scena (es. `-q draft-small`, `-q final`) — non specificare `-s`/`-d` manuali a meno di override motivato.
+- Se la scena ha dielectric annidato o volumi densi, documenta un override di depth nell'header: es. `-q final -d 16`.
+- I preset `-q` gestiscono automaticamente denoiser, spp, depth e shadow samples per ogni livello qualità.
 
 **Stile commenti:**
 - Header decorativo con `# ===...` per le sezioni principali
