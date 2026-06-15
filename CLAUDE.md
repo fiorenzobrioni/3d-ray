@@ -129,6 +129,6 @@ Never mention Arnold, Cycles, RenderMan, Blender, V-Ray, Octane, Redshift, or an
 
 Docs live under `docs/`. Match the existing language coverage of each area when generating or updating docs:
 - `docs/reference/` — complete YAML schema + rendering profiles. **EN + IT** (paired files, e.g. `scene-reference.md` / `riferimento-scene.md`).
-- `docs/technical/` — pipeline, path tracing, shading, BVH/SAH, quartic/torus, CSG, testing, benchmarks. **EN only**, except a few docs that also ship an `.it.md` Italian version (`denoising`, `medium-interface`, `subsurface-scattering`) — only write IT here where the `.it.md` already exists.
+- `docs/technical/` — pipeline, path tracing, shading, BVH/SAH, quartic/torus, CSG, testing, benchmarks. **EN only**.
 - `docs/tutorial/{en,it}/` — chapter-based walkthrough (12 chapters at last count). **EN + IT**.
 - `DEVLOG.md` — development-cycle history + design notes; `PLANNING.md` — roadmap, TODO, known bugs, ideas, pre-commit checklist. **IT only**.
