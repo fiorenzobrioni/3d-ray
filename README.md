@@ -258,6 +258,8 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
 
 The result is in `renders/hello.png`. From here you can change `color`, add more spheres in `entities` or try `metal` and `dielectric` materials. For the full list of YAML keys see the [Reference](./docs/reference/scene-reference.md); for a guided walkthrough the [Tutorial](./docs/tutorial/en/README.md).
 
+![Hello World](renders/hello.png)
+
 ---
 
 ## 📁 Project Structure
