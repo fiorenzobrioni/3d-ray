@@ -17,14 +17,19 @@ dotnet build src/RayTracer/RayTracer.csproj -c Release
 
 ### Render a scene (main entry point)
 ```
+# default: draft-small preset (960×540, 16 spp, depth 4, nfor denoiser)
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-  -i scenes/<scene>.yaml -o renders/out.png -w 1920 -H 1080 -s 1024 -d 8 -S 4
+  -i scenes/<scene>.yaml -o renders/out.png
+
+# explicit quality preset
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+  -i scenes/<scene>.yaml -o renders/out.png -q final
 ```
 Required: `-i`. See `src/RayTracer/Program.cs` `ShowHelp()` for the full CLI. Canonical quality profiles and the `-s`/`-d`/`-S`/`-C` trade-offs are in `docs/reference/rendering-profiles.md`.
 
 Key flags:
-- `-q/--quality <preset>` — quality ladder `draft → standard → pre-final → final → ultra`, each (except `ultra`) with `-tiny` (480×270) and `-small` (960×540) variants. Overrides `-s`, `-d`, `-S` (and, for `standard`, also forces caustics/SSS off, power NEE, and the indirect clamp). `standard` = final-class quality for classic scenes (Lambertian/Disney, non-nested glass, procedural marble) without the GI extras; `pre-final` = faithful preview of `final` (full feature set, 256 spp + denoiser, ~4-6× faster). `draft*`/`standard*`/`pre-final*` enable `--denoiser nfor`; `final`/`ultra` stay unfiltered.
-- `--denoiser none|nlm|nfor` + `--denoise-quality fast|high` — feature-guided denoiser on the linear HDR beauty before tone mapping (`Denoising/`, see `docs/technical/denoising.md`). Default `none` without a preset; an explicit flag always beats the preset.
+- `-q/--quality <preset>` — quality ladder `draft → standard → pre-final → final → ultra`, each (except `ultra`) with `-tiny` (480×270) and `-small` (960×540) variants. **Omitting `-q` defaults to `draft-small`** (960×540, 16 spp, depth 4, nfor-fast denoiser). Any explicit flag (`-s`, `-d`, `-w`, `-H`, `-S`) overrides the preset's value. `standard` = final-class quality for classic scenes (Lambertian/Disney, non-nested glass, procedural marble) without the GI extras; `pre-final` = faithful preview of `final` (full feature set, 256 spp + denoiser, ~4-6× faster). `draft*`/`standard*`/`pre-final*` enable `--denoiser nfor`; `final`/`ultra` stay unfiltered.
+- `--denoiser none|nlm|nfor` + `--denoise-quality fast|high` — feature-guided denoiser on the linear HDR beauty before tone mapping (`Denoising/`, see `docs/technical/denoising.md`). Default `nfor fast` via the implicit `draft-small` preset; an explicit flag always beats the preset.
 - `--aov <list>` — comma list of `albedo,normal,depth,beauty,variance`; linear-HDR guide buffers next to `-o` (beauty is post-denoise when a denoiser is active). Default: separate `.pfm` files; with `-o *.exr` they become layers of the main multilayer EXR; `--aov-format pfm|exr` forces one file per AOV.
 - `--list-cameras` — print available cameras and exit; `-c <name|index>` selects one.
 - `--sampler sobol|prng` — sampling strategy (default: `sobol`, deterministic Sobol+Owen; `prng` is legacy).
