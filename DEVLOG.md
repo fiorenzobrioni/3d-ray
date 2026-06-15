@@ -6,6 +6,27 @@ Storico dei cicli di sviluppo e note di design. Per roadmap, TODO, bug noti e ch
 
 ---
 
+## Default CLI = preset `draft-small` quando manca `-q` (✅)
+
+**Cosa.** Lanciando RayTracer senza `--quality`/`-q` (solo `-i` e `-o`) il
+renderer ora applica il preset `draft-small` (960×540, 16 spp, depth 4, 1
+shadow sample, SSS preview, denoiser NFOR-fast) invece dei vecchi default
+sparsi hard-coded (1200×800, 16 spp, depth 8, nessun denoiser, NEE all-lights).
+
+**Perché.** Il vecchio default era incoerente: risoluzione medio-alta + pochi
+campioni + nessun denoiser = passata lenta *e* rumorosa, il peggio dei due
+mondi per un primo lancio. `draft-small` è il check di composizione veloce e
+già denoised — output più pulito *e* più rapido. Trade-off accettato: depth
+4→ e aspect 16:9 invece di 3:2; per il render serio basta `-d 8`/`-q standard`.
+
+**Come.** In `Program.cs` `quality` parte da `QualityPreset.DraftSmall` invece
+di `null`; un `-q` esplicito lo rimpiazza, e ogni flag esplicito (`-s -d -w -H
+-S …`) vince comunque sul preset (comportamento invariato). L'header stampa
+`Quality: draft-small (default)` per trasparenza. CI non impattata: lo smoke
+render passa flag espliciti. Doc aggiornati: `README.md`, profili EN+IT.
+
+---
+
 ## Fix caustiche — "anello di dischi" da caster glossy quasi-speculari (✅)
 
 **Sintomo.** Renderizzando `motion-blur-billiard-showcase.yaml` con i preset

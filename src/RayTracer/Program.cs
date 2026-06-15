@@ -44,8 +44,13 @@ class Program
         // Quality preset (draft/standard/pre-final/final ladder × tiny/small/full + ultra 4K).
         // Resolved before the per-flag parsing so individual flags (`-s`, `-d`,
         // `-w`, `-H`, `-S`) can override any of the preset's values.
+        // When no `-q` is given the renderer falls back to the `draft-small`
+        // preset: a fast, denoised composition check is a far better default
+        // first-run experience than a slow, un-denoised 1200×800 / 16 spp pass.
+        // Any explicit quality knob (`-s`, `-d`, `-w`, `-H`, `-S`, …) still wins.
         string? qualityArg = GetArg(args, "--quality", "-q");
-        QualityPreset? quality = null;
+        bool qualityIsDefault = qualityArg == null;
+        QualityPreset? quality = QualityPreset.DraftSmall;
         if (qualityArg != null)
         {
             quality = QualityPreset.Parse(qualityArg);
@@ -393,7 +398,7 @@ class Program
         Console.WriteLine($"  Scene:       {inputPath}");
         Console.WriteLine($"  Output:      {outputPath}");
         if (quality != null)
-            Console.WriteLine($"  Quality:     {quality.Name}");
+            Console.WriteLine($"  Quality:     {quality.Name}{(qualityIsDefault ? " (default)" : "")}");
         Console.WriteLine($"  Resolution:  {width} \u00d7 {height}");
         Console.WriteLine($"  Samples/px:  {samples}");
         Console.WriteLine($"  Max depth:   {depth}");

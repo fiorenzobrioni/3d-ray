@@ -160,11 +160,19 @@ RayTracer -i my-scene -q standard --denoiser none
 
 ### 2. **DEFAULTS**
 
+> **No `-q` means `draft-small`.** When the command line omits `--quality`, the
+> renderer applies the `draft-small` preset (960×540, 16 spp, depth 4, single
+> shadow sample, NFOR-fast denoiser) — a quick, denoised composition check is a
+> better first-run default than a slow, un-denoised pass. Every quality knob
+> below still overrides the preset when passed explicitly. The values in the
+> table are the resulting `draft-small` defaults.
+
 | Parameter | Default | Source |
 |---|---|---|
-| `-s` / `--samples` | `16` (4×4 grid) | `Program.cs` |
-| `-d` / `--depth` | `8` | `Program.cs` |
-| `-S` / `--shadow-samples` | unset → per-light YAML value (default: 4) | `Program.cs` |
+| `-s` / `--samples` | `16` (4×4 grid) | `draft-small` preset |
+| `-d` / `--depth` | `4` | `draft-small` preset |
+| `-S` / `--shadow-samples` | `1` (`draft-small`; without a preset → per-light YAML, default 4) | `Program.cs` |
+| `--denoiser` | `nfor` fast (`draft-small`) | `draft-small` preset |
 | `-C` / `--clamp` | `10` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
 | `--indirect-clamp-factor` | `0.25` (indirect clamp = `2.5`) | `Renderer.DefaultIndirectClampFactor` |
 | `--exposure` | `0` EV (identity) | `Renderer.DefaultExposureEv` |
