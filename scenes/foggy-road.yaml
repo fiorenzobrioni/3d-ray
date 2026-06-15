@@ -152,27 +152,21 @@ materials:
     # verde scuro l'illuminazione arancio lo desatura a marrone/oliva e "non
     # sembra più verde". Per farlo restare verde sotto la luce calda alzo molto
     # il canale verde e tengo basso rosso/blu dell'albedo.
-    color: [0.022, 0.260, 0.022]
+    # Verde scuro desaturato con chiazze di terra più scure.
+    color: [0.05, 0.15, 0.04]
     texture:
       type: "noise"
       noise_type: "fbm"
-      scale: 4.0
+      scale: 3.0
       octaves: 4
-      distortion: 0.4
-      colors: [[0.015, 0.170, 0.015], [0.038, 0.340, 0.038]]
-    roughness: 0.95           # erba: diffusa, quasi nessun riflesso
-    # specular 0: senza riflesso radente l'erba non vira al blu del cielo
-    # notturno e il verde diffuso resta leggibile.
-    specular: 0.0
-    # Micro-rilievo molto leggero: dà appena corpo al manto
-    bump_map:
-      texture:
-        type: "noise"
-        noise_type: "fbm"
-        scale: 8
-        octaves: 4
-        colors: [[0, 0, 0], [1, 1, 1]]
-      strength: 0.18
+      distortion: 0.6
+      colors: [[0.02, 0.07, 0.02], [0.07, 0.17, 0.05]]
+    roughness: 0.85
+    specular: 0.08
+    # NB: niente bump_map sul prato. Le sponde lontane si vedono di taglio
+    # (incidenza radente) e qualunque rilievo perturba le normali schiarendo
+    # l'erba: l'ACES tone map la desatura verso il bianco ("prato bianco").
+    # Senza bump il verde resta brillante e saturo come nella versione iniziale.
 
   - id: "mat_cast_iron"
     type: "disney"
