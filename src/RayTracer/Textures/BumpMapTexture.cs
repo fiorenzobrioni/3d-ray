@@ -44,6 +44,12 @@ public sealed class BumpMapTexture : IBumpMap
     // the inner texture belongs to the separate texture-filtering roadmap.
     private const float Delta = 1e-3f;
 
+    // Maximum tangent of the tilt the perturbed normal may take off the surface
+    // normal (tan ≈ 6 → ~80.5°). Bounds the worst-case slope from steep height
+    // fields so the bump stays a conditioned micro-relief rather than aliasing
+    // onto the tangent plane.
+    private const float MaxSlope = 6f;
+
     /// <param name="height">Inner height-field texture (luminance is read).</param>
     /// <param name="strength">
     ///   Perturbation amplitude. Clamped to [0, 10] — bump gradients are
@@ -92,6 +98,20 @@ public sealed class BumpMapTexture : IBumpMap
         float dhdv = (hVp - hVm) / (2f * Delta);
 
         Vector3 nTs = new(-_strength * dhdu, -_strength * dhdv, 1f);
+
+        // Bound the tilt off the surface normal. The raw slope magnitude
+        // sqrt(x²+y²) = tan(tilt) scales with the inner texture's gradient, so
+        // high-frequency height fields can drive the perturbed normal almost
+        // onto the tangent plane, producing aliased glitter at grazing angles.
+        // Capping the tilt keeps the perturbation a well-conditioned micro-relief.
+        float slope = MathF.Sqrt(nTs.X * nTs.X + nTs.Y * nTs.Y);
+        if (slope > MaxSlope)
+        {
+            float k = MaxSlope / slope;
+            nTs.X *= k;
+            nTs.Y *= k;
+        }
+
         return Vector3.Normalize(nTs);
     }
 }

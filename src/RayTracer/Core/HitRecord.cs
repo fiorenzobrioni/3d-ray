@@ -11,6 +11,17 @@ public struct HitRecord
     public Vector3 Point;
     public Vector3 LocalPoint;
     public Vector3 Normal;
+
+    /// <summary>
+    /// Unperturbed shading normal in world space — the smooth/interpolated
+    /// surface normal as it stands BEFORE any normal-map, bump-map or autobump
+    /// perturbation. Stamped by the renderer at the start of shading; the
+    /// perturbation passes overwrite <see cref="Normal"/> but leave this intact.
+    /// Used as the geometric reference Nₘ for shadow-terminator softening, which
+    /// removes the energy a perturbed normal would otherwise fabricate where the
+    /// light falls below the true surface horizon.
+    /// </summary>
+    public Vector3 ShadingNg;
     public float T;
     public float U;
     public float V;

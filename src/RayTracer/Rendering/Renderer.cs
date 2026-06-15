@@ -1015,6 +1015,11 @@ public partial class Renderer
     {
         IMaterial? material = rec.Material;
 
+        // Capture the unperturbed (world-space, post-transform, post-interpolation)
+        // shading normal before the normal/bump/autobump passes overwrite it. This
+        // is the geometric reference for shadow-terminator softening below.
+        rec.ShadingNg = rec.Normal;
+
         // ── Normal map perturbation ─────────────────────────────────────────
         if (material?.NormalMap != null && rec.Tangent.LengthSquared() > 0.5f)
         {
@@ -1892,6 +1897,13 @@ public partial class Renderer
     {
         Vector3 result = Vector3.Zero;
 
+        // View-side shadow-terminator factor: when a normal/bump map has tilted
+        // the shading normal toward the eye, the grazing-view Fresnel of the BSDF
+        // (e.g. Disney's diffuse retro-reflection) fabricates energy. This culls
+        // it symmetrically with the light-side factor applied per sample below.
+        // Unity (no-op) wherever the shading normal is unperturbed.
+        float viewTerm = MathUtils.ShadowTerminatorTerm(rec.ShadingNg, rec.Normal, viewDir);
+
         if (_lightDist != null)
         {
             // ── Single-light picking (power or uniform) ──────────────────────
@@ -1918,6 +1930,12 @@ public partial class Renderer
 
                 Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
                                ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
+
+                // Shadow-terminator softening on both the light and the view
+                // directions: cull the energy a perturbed shading normal would
+                // fabricate where either grazes below the true surface horizon
+                // (no-op where the normal is unperturbed).
+                brdf *= viewTerm * MathUtils.ShadowTerminatorTerm(rec.ShadingNg, rec.Normal, dirToLight);
 
                 // The contribution is wNee · lightColor · brdf · Tr. When the
                 // BRDF integrand is zero (light below the shading hemisphere,
@@ -1971,6 +1989,12 @@ public partial class Renderer
 
                     Vector3 brdf = material?.EvaluateDirect(dirToLight, viewDir, rec.Normal, rec)
                                    ?? new Vector3(MathF.Max(Vector3.Dot(rec.Normal, dirToLight), 0f) / MathF.PI);
+
+                    // Shadow-terminator softening on both the light and the view
+                    // directions: cull the energy a perturbed shading normal would
+                    // fabricate where either grazes below the true surface horizon
+                    // (no-op where the normal is unperturbed).
+                    brdf *= viewTerm * MathUtils.ShadowTerminatorTerm(rec.ShadingNg, rec.Normal, dirToLight);
 
                     // Zero integrand (light below the hemisphere / delta lobe) →
                     // the sample contributes nothing; skip the medium walk and

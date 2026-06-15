@@ -1749,3 +1749,35 @@ density, glossy LOD smoothing, e copertura aggiuntiva).
 ### ✅ CLI — preset `--quality` / `-q`
 
 Aggiunto un flag CLI che impacchetta in un colpo i cinque knob di qualità (`-w -H -s -d -S`) in preset con nome. Dieci preset: `draft-tiny` / `draft-small` / `draft` (480×270 · 960×540 · 1920×1080, `-s 16 -d 4 -S 1`), `medium-tiny` / `medium-small` / `medium` (`-s 128 -d 6 -S 1`), `final-tiny` / `final-small` / `final` (`-s 1024 -d 8 -S 4`), `ultra` (3840×2160, stessi sampling dei final). Qualunque flag esplicito ha la precedenza sul preset, quindi `-q final -d 16` resta possibile per scene con vetri impilati. Implementato come tipo nested `Program.QualityPreset`, parser case-insensitive, errore esplicito su valori sconosciuti. Documentazione: `docs/reference/rendering-profiles.md` + `profili-di-rendering.md` §1a, tutorial cap. 02 (EN/IT), `README.md` Quick Start + tabella CLI + sezione esempi pratici.
+
+### ✅ Bump/normal mapping — conservazione dell'energia a incidenza radente
+
+Una normale di shading perturbata (normal/bump map) valutata contro un coseno
+clampato (`max(N·L,0)`) fa fabbricare radianza a una superficie piatta vista
+quasi di taglio: le micro-normali inclinate verso la luce/occhio aggiungono
+energia, mentre quelle che dovrebbero auto-ombreggiarsi vengono azzerate dal
+clamp. Il risultato è un fondo (asfalto, prato) che "sbianca" lungo la fuga,
+ben oltre quanto l'albedo giustifichi.
+
+Soluzione implementata (livello Arnold/Cycles):
+
+- **Fattore di shadow-terminator (Conty–Kulla 2019)** in `MathUtils.ShadowTerminatorTerm`,
+  applicato in `ComputeDirectLighting` sia sulla direzione di luce sia su quella
+  di vista (formulazione simmetrica, energy-conserving: può solo togliere
+  l'energia fabbricata, mai aggiungerla). Deterministico e senza estrazioni RNG
+  aggiuntive, quindi l'invariante bit-identico di `RenderCaptureTests` resta
+  valido; è l'identità (×1.0) dove la normale non è perturbata, quindi le scene
+  senza mappe sono invariate.
+- **Normale geometrica `HitRecord.ShadingNg`**: la normale di shading non
+  perturbata (world space, post-transform, post-interpolazione) viene catturata
+  in `ShadeSurface` prima dei pass di normal/bump/autobump e usata come
+  riferimento dal fattore sopra.
+- **Clamp del tilt** in `BumpMapTexture` (`MaxSlope = tan ≈ 80.5°`): la pendenza
+  generata dal gradiente del campo d'altezza è proporzionale alla frequenza
+  della texture, quindi un height-field ad alta frequenza poteva spingere la
+  normale quasi sul piano tangente generando glitter aliasato; il clamp la
+  mantiene una micro-rilievo ben condizionata.
+
+Test: nuovo `BumpTerminatorRegressionTests` (render radente di un piano con bump
+forte che non deve superare la baseline senza bump + unit test del fattore e del
+clamp del tilt). Suite totale verde.

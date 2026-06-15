@@ -29,6 +29,38 @@ public static class MathUtils
     public static float RadiansToDegrees(float radians) => radians * 180f / Pi;
 
     /// <summary>
+    /// Shadow-terminator softening factor for perturbed shading normals
+    /// (Conty &amp; Kulla 2019). When a normal/bump map tilts the shading normal
+    /// <paramref name="ns"/> away from the geometric normal <paramref name="ng"/>,
+    /// a direction <paramref name="w"/> can sit above the shading horizon while
+    /// already below the geometric one, letting the clamped cosine fabricate
+    /// energy — surfaces wash out at grazing incidence. This returns a scalar in
+    /// [0, 1] that fades the contribution to zero across that band with a smooth
+    /// cubic, leaving it untouched when <paramref name="w"/> is well inside both
+    /// hemispheres. Identity (1) when the shading normal is unperturbed, so
+    /// shading is unaffected wherever no map is present. Deterministic and
+    /// allocation-free.
+    /// </summary>
+    public static float ShadowTerminatorTerm(Vector3 ng, Vector3 ns, Vector3 w)
+    {
+        float ngDotW = Vector3.Dot(ng, w);
+        if (ngDotW <= 0f) return 0f;            // below the true surface horizon
+
+        float nsDotW = Vector3.Dot(ns, w);
+        if (nsDotW <= 0f) return 0f;            // below the shading horizon (already culled)
+
+        float ngDotNs = Vector3.Dot(ng, ns);
+        if (ngDotNs >= 0.9999f) return 1f;      // unperturbed → no correction
+
+        float g = ngDotW / (nsDotW * MathF.Max(ngDotNs, 1e-4f));
+        if (g >= 1f) return 1f;
+        if (g <= 0f) return 0f;
+
+        float g2 = g * g;
+        return (-g2 * g) + g2 + g;              // smooth cubic ramp, zero-slope at g=1
+    }
+
+    /// <summary>
     /// Uniform [0, 1) draw routed through the active per-pixel sampler.
     /// When the Sobol sampler is installed and a per-pixel-sample
     /// context is open (see <see cref="Sampler"/>), draws are
