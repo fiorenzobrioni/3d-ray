@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml/badge.svg)](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml)
 
-A feature-complete CPU path tracer in C#/.NET 10. Disney Principled BSDF, NEE+MIS, NFOR feature-guided denoising, full volumetrics, caustics, multi-stage surface displacement — all driven from a single YAML file, zero code required.
+A personal exploration of ray tracing that grew — one feature at a time — into a full-featured CPU path tracer, written entirely in C#/.NET 10 with no native dependencies. Disney Principled BSDF, NEE+MIS, NFOR denoising, full volumetrics, caustics, surface displacement — all from a single YAML file.
 
 ![Spheres Classic](renders/spheres-classic.png)
 
@@ -16,7 +16,7 @@ A feature-complete CPU path tracer in C#/.NET 10. Disney Principled BSDF, NEE+MI
 
 ## 🔍 Overview
 
-3D-Ray is a full-featured CPU path tracer that takes on production renderer feature sets — driven entirely from a YAML scene description. Describe your scene — lights, materials, geometry, camera — and get a physically accurate, cinematically polished image. No code. No boilerplate. No shader graphs.
+3D-Ray is a path tracer born from curiosity and a passion for rendering. What started as a personal study of light transport algorithms gradually accumulated a serious feature set — written entirely in C#/.NET 10, exploiting all available CPU cores through .NET's parallel primitives, with no native code or external engine dependencies. Describe your scene — lights, materials, geometry, camera — in a YAML file and get a physically accurate, cinematically polished image. No code. No boilerplate.
 
 The material system is built around a **complete Disney Principled BSDF**: a single type that spans the full gamut, from matte plaster to mirror-polished gold, from deep-water glass with Beer-Lambert thickness absorption to iridescent soap film with thin-film interference — with proper multi-scattering energy compensation for rough metals, subsurface shaping for skin and wax, and Charlie sheen for velvet and microfibre. A layered Mix Material with spatial texture masks handles wear, rust, weathering, and recursive compositions without limits.
 
