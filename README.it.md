@@ -1,4 +1,4 @@
-# 3D-Ray: High-Performance C# .NET 10 RayTracer Engine
+# 3D-Ray — Path Tracer CPU Professionale · C# / .NET 10
 
 > 🌐 [English](README.md) | **Italiano**
 
@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml/badge.svg)](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml)
 
-Un moderno motore di ray tracing ad alte prestazioni sviluppato in C# e .NET 10, con configurazione di scene tramite YAML e capacità di rendering avanzate basate su fisica (PBR).
+Path tracer CPU completo scritto in C#/.NET 10. Disney Principled BSDF, NEE+MIS, denoiser NFOR feature-guided, volumetria completa, caustiche, stack di displacement multi-stadio — tutto da un singolo file YAML, senza scrivere codice.
 
 ![Spheres Classic](renders/spheres-classic.png)
 
@@ -16,11 +16,17 @@ Un moderno motore di ray tracing ad alte prestazioni sviluppato in C# e .NET 10,
 
 ## 🔍 Panoramica (Overview)
 
-3D-Ray trasforma una descrizione YAML in un'immagine fotorealistica, senza dover scrivere codice. È pensato per chi vuole comporre scene ricche — interni, still life, paesaggi atmosferici, composizioni artistiche — combinando uno scene graph gerarchico (gruppi, trasformazioni e template), preset copia-incolla di materiali e luci, un BSDF Disney unificato che copre dal metallo spazzolato alle bolle di sapone, effetti volumetrici (nebbia, fumo, nubi), materiali traslucidi con subsurface scattering e illuminazione basata su HDRI.
+3D-Ray è un path tracer CPU completo che compete direttamente con i feature set dei motori di rendering professionali — guidato interamente da una descrizione YAML della scena. Definisci luci, materiali, geometria e camera in un file di testo e ottieni un'immagine fisicamente accurata con un look cinematografico. Niente codice. Niente boilerplate.
 
-Sotto il cofano sfrutta tutti i core della CPU per renderizzare in parallelo, accelera automaticamente le scene complesse e usa tecniche di campionamento moderne per ridurre il rumore a parità di tempo; un denoiser opzionale ripulisce la grana residua e un tone mapping ACES filmic chiude con un look cinematografico. Una scala di preset di qualità — dalla bozza istantanea al render finale da portfolio — permette di passare dall'anteprima alla resa definitiva cambiando un solo parametro.
+Il sistema di materiali ruota attorno a un **Disney Principled BSDF completo**: un singolo tipo che copre l'intera gamma, dall'intonaco opaco all'oro a specchio, dal vetro d'acqua profonda con assorbimento Beer-Lambert dipendente dallo spessore alla pellicola di sapone iridescente con interferenza thin-film — con energy compensation per metalli rugosi, subsurface shaping per pelle e cera, Charlie sheen per velluto e microfibre. Un Mix Material a livelli con mask spaziali gestisce usura, ruggine, invecchiamento e composizioni ricorsive senza limiti di profondità.
 
-Per la roadmap dettagliata, le feature in corso e quelle pianificate consulta il [**PLANNING**](./PLANNING.md); per lo storico dei cicli di sviluppo il [**DEVLOG**](./DEVLOG.md).
+Il sistema di illuminazione è di classe professionale. **Next Event Estimation con Multiple Importance Sampling** converge velocemente anche su illuminazioni complesse e occluse. Le **caustiche focalizzate** emergono automaticamente da qualsiasi geometria speculare — vetro, acqua, cristalli, specchi — senza configurazione aggiuntiva. Il **motion blur** segue il tempo di esposizione per-camera, dal freeze-frame alle lunghe esposizioni cinematografiche. Lo **stack volumetrico completo** — nebbia omogenea, height fog, atmosfera Nishita, nubi fBm, media partecipanti — si integra direttamente con la NEE all'interno del volume.
+
+Il rendering è parallelizzato su tutti i core logici via tile scheduler 16×16, accelerato da un BVH con costruzione SAH parallela, e ripulito opzionalmente da un **denoiser NFOR feature-guided** che opera sulla beauty HDR lineare prima del tone mapping. L'output AOV (albedo, normal, depth, variance) finisce come layer in un **OpenEXR multilayer** per il compositing downstream. Il tone mapping ACES filmic chiude la pipeline.
+
+Una scala di qualità da `draft-small` (anteprima istantanea, pochi secondi) a `final`/`ultra` (non filtrato, pronto per il portfolio) permette di iterare veloce e consegnare pulito — un solo parametro, stesso YAML.
+
+Per la roadmap dettagliata e le feature in corso consulta il [**PLANNING**](./PLANNING.md); per lo storico dei cicli di sviluppo il [**DEVLOG**](./DEVLOG.md).
 
 ---
 

@@ -1,4 +1,4 @@
-# 3D-Ray: High-Performance C# .NET 10 RayTracer Engine
+# 3D-Ray — Production-Grade CPU Path Tracer · C# / .NET 10
 
 > 🌐 **English** | [Italiano](README.it.md)
 
@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml/badge.svg)](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml)
 
-A modern, parallelized ray-tracing engine built with C# and .NET 10, featuring YAML scene configuration and advanced physically-based rendering capabilities.
+A feature-complete CPU path tracer in C#/.NET 10. Disney Principled BSDF, NEE+MIS, NFOR feature-guided denoising, full volumetrics, caustics, multi-stage surface displacement — all driven from a single YAML file, zero code required.
 
 ![Spheres Classic](renders/spheres-classic.png)
 
@@ -16,11 +16,17 @@ A modern, parallelized ray-tracing engine built with C# and .NET 10, featuring Y
 
 ## 🔍 Overview
 
-3D-Ray turns a YAML description into a photorealistic image without writing any code. It is designed for composing rich scenes — interiors, still lifes, atmospheric landscapes, artistic compositions — by combining a hierarchical scene graph (groups, transforms and templates), copy-paste material and light presets, a unified Disney BSDF covering everything from brushed metal to soap bubbles, volumetric effects (fog, smoke, clouds), translucent materials with subsurface scattering and HDRI-based lighting.
+3D-Ray is a full-featured CPU path tracer that takes on production renderer feature sets — driven entirely from a YAML scene description. Describe your scene — lights, materials, geometry, camera — and get a physically accurate, cinematically polished image. No code. No boilerplate. No shader graphs.
 
-Under the hood it exploits all available CPU cores for parallel rendering, automatically accelerates complex scenes, and uses modern sampling techniques to reduce noise for a given render time; an optional denoiser cleans up residual grain and ACES filmic tone mapping closes with a cinematic look. A quality preset ladder — from an instant draft to a portfolio-quality final render — lets you move from preview to final output by changing a single parameter.
+The material system is built around a **complete Disney Principled BSDF**: a single type that spans the full gamut, from matte plaster to mirror-polished gold, from deep-water glass with Beer-Lambert thickness absorption to iridescent soap film with thin-film interference — with proper multi-scattering energy compensation for rough metals, subsurface shaping for skin and wax, and Charlie sheen for velvet and microfibre. A layered Mix Material with spatial texture masks handles wear, rust, weathering, and recursive compositions without limits.
 
-For the detailed roadmap, in-progress and planned features see [**PLANNING**](./PLANNING.md); for the development-cycle history see [**DEVLOG**](./DEVLOG.md).
+The lighting engine is production-class. **Next Event Estimation with Multiple Importance Sampling** converges fast even on complex, occluded lighting setups. **Focused caustics** appear from any specular geometry — glass, water, crystals, mirrors — with no extra scene configuration. **Motion blur** tracks per-camera shutter time from freeze-frame to long cinematic exposures. The full **volumetric pipeline** — homogeneous fog, height fog, Nishita atmosphere, fBm clouds, participating media — integrates seamlessly with NEE inside the volume itself.
+
+Rendering parallelises across all logical CPU cores via a 16×16 tile scheduler, is accelerated by a BVH with parallel SAH construction, and is optionally cleaned by a **feature-guided NFOR denoiser** operating on the linear-HDR beauty before tone mapping. AOV output (albedo, normal, depth, variance) lands as layers in a **multilayer OpenEXR** for downstream compositing. ACES filmic tone mapping closes the pipeline.
+
+A quality ladder from `draft-small` (instant preview, seconds) to `final`/`ultra` (unfiltered, portfolio-ready) lets you iterate fast and ship clean — one flag change, same YAML.
+
+For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.md); for the development-cycle history see [**DEVLOG**](./DEVLOG.md).
 
 ---
 
