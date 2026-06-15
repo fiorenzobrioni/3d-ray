@@ -31,7 +31,7 @@ jobs:
             --no-restore
 
       - name: Upload binary
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: raytracer-bin
           path: publish/RayTracer/
@@ -92,7 +92,7 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Download binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: raytracer-bin
           path: publish/RayTracer/
@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload render
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: render-${{ env.SCENE_NAME }}
           path: renders/${{ matrix.scene }}.png

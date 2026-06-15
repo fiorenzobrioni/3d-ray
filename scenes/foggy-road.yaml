@@ -20,17 +20,17 @@ world:
   # Nebbia procedurale (fBm + delta tracking): densità disomogenea, a chiazze
   # e con sfilacciature, invece dell'esponenziale "perfetto" dell'height_fog.
   # I banchi più densi creano god-rays irregolari attorno ai lampioni.
-  medium:
-    type: procedural
-    sigma_a: [0.012, 0.014, 0.018]
-    sigma_s: [0.050, 0.056, 0.062]
-    frequency: 0.10        # bassa = banchi grandi, a scala della strada
-    octaves: 5             # dettaglio fine sui bordi dei banchi
-    lacunarity: 2.0
-    gain: 0.55
-    seed: 1977
-    phase: "hg"
-    g: 0.55
+  # medium:
+  #   type: procedural
+  #   sigma_a: [0.012, 0.014, 0.018]
+  #   sigma_s: [0.050, 0.056, 0.062]
+  #   frequency: 0.10        # bassa = banchi grandi, a scala della strada
+  #   octaves: 5             # dettaglio fine sui bordi dei banchi
+  #   lacunarity: 2.0
+  #   gain: 0.55
+  #   seed: 1977
+  #   phase: "hg"
+  #   g: 0.55
 
 cameras:
   - name: "main"
