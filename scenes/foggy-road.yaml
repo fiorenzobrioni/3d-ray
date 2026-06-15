@@ -118,109 +118,121 @@ lights:
 materials:
   - id: "mat_asphalt"
     type: "disney"
-    # Asfalto bagnato e sporco: base scura con macchie d'olio, polvere e chiazze
-    # asciutte. La texture rompe il colore uniforme da "materiale CG".
-    color: [0.10, 0.10, 0.11]
+    # Asfalto scuro e realistico: l'asfalto è la superficie PIÙ scura della
+    # scena (più scura del cemento dei marciapiedi). Grana fine dell'inerte,
+    # variazione di tono contenuta (niente chiazzoni da "strada sterrata").
+    color: [0.045, 0.045, 0.050]
     texture:
       type: "noise"
       noise_type: "fbm"
-      scale: 1.8
+      scale: 4.5              # grana dell'aggregato + qualche chiazza media
       octaves: 4
-      distortion: 0.4         # warp organico: niente pattern regolare
-      colors: [[0.05, 0.05, 0.06], [0.16, 0.16, 0.17]]
-    roughness: 0.50           # base meno "specchio" del 0.35 originale
-    # Bagnato a chiazze: pozzanghere lucide (basso) vs asfalto asciutto ruvido
-    # (alto). Niente più riflesso uniforme dei lampioni su tutta la strada.
+      distortion: 0.30        # warp leggero: rompe la regolarità senza esagerare
+      colors: [[0.026, 0.026, 0.030], [0.078, 0.078, 0.083]]
+    roughness: 0.80           # asfalto asciutto: prevalentemente matte/diffuso
+    # Bagnato a chiazze LOCALIZZATE e CONTENUTE: lieve variazione di lucentezza,
+    # mai veri specchi, così la strada non riflette i lampioni su tutta la
+    # larghezza (era quello a darle l'aspetto chiaro/sterrato).
     roughness_texture:
       type: "noise"
       noise_type: "fbm"
-      scale: 0.6              # banchi larghi → pozzanghere a scala reale
+      scale: 0.9              # banchi a scala reale
       octaves: 3
-      distortion: 0.5
-      colors: [[0.22, 0.22, 0.22], [0.68, 0.68, 0.68]]
-    specular: 0.25
-    # Micro-rilievo (ghiaietto/crepe): perturba la normale così il riflesso
-    # dei lampioni si spezza invece di comportarsi come uno specchio piatto.
-    bump_map:
-      texture:
-        type: "noise"
-        noise_type: "turbulence"
-        scale: 9
-        octaves: 4
-        colors: [[0, 0, 0], [1, 1, 1]]
-      strength: 1.2
+      distortion: 0.4
+      colors: [[0.58, 0.58, 0.58], [0.85, 0.85, 0.85]]
+    specular: 0.09            # velo riflesso appena accennato verso i lampioni
+    # NB: niente bump_map sull'asfalto. La camera guarda quasi radente lungo la
+    # strada e qualsiasi rilievo (anche fbm debole) perturba le normali verso i
+    # lampioni "sbiancando" il fondo stradale (bump aliasing a incidenza
+    # radente). La disomogeneità viene dalla texture di colore e di roughness.
 
   - id: "mat_wet_grass"
     type: "disney"
-    # Verde scuro desaturato con chiazze di terra/fango più scure
-    color: [0.05, 0.15, 0.04]
+    # Prato notturno. NB: i lampioni sono caldi/arancio ([1,0.6,0.2]); con un
+    # verde scuro l'illuminazione arancio lo desatura a marrone/oliva e "non
+    # sembra più verde". Per farlo restare verde sotto la luce calda alzo molto
+    # il canale verde e tengo basso rosso/blu dell'albedo.
+    color: [0.022, 0.260, 0.022]
     texture:
-      type: "noise"
-      noise_type: "fbm"
-      scale: 3.0
-      octaves: 4
-      distortion: 0.6
-      colors: [[0.02, 0.07, 0.02], [0.07, 0.17, 0.05]]
-    roughness: 0.85
-    specular: 0.08
-
-  - id: "mat_cast_iron"
-    type: "disney"
-    # Ghisa invecchiata: variazione di grasso/ruggine e superficie ruvida
-    color: [0.30, 0.28, 0.26]
-    texture:
-      type: "noise"
-      noise_type: "fbm"
-      scale: 3.0
-      octaves: 4
-      distortion: 0.4
-      colors: [[0.16, 0.13, 0.11], [0.32, 0.30, 0.28]]
-    metallic: 0.85
-    roughness: 0.62
-    roughness_texture:
       type: "noise"
       noise_type: "fbm"
       scale: 4.0
-      octaves: 3
-      colors: [[0.50, 0.50, 0.50], [0.80, 0.80, 0.80]]
-    specular: 0.35
+      octaves: 4
+      distortion: 0.4
+      colors: [[0.015, 0.170, 0.015], [0.038, 0.340, 0.038]]
+    roughness: 0.95           # erba: diffusa, quasi nessun riflesso
+    # specular 0: senza riflesso radente l'erba non vira al blu del cielo
+    # notturno e il verde diffuso resta leggibile.
+    specular: 0.0
+    # Micro-rilievo molto leggero: dà appena corpo al manto
     bump_map:
       texture:
         type: "noise"
-        noise_type: "turbulence"
-        scale: 12
+        noise_type: "fbm"
+        scale: 8
         octaves: 4
         colors: [[0, 0, 0], [1, 1, 1]]
-      strength: 0.8
+      strength: 0.18
 
-  - id: "mat_sidewalk"
+  - id: "mat_cast_iron"
     type: "disney"
-    # Cemento sporco: macchie, scolorimento, muschio negli interstizi
-    color: [0.22, 0.22, 0.22]
+    # Ghisa verniciata invecchiata (lampioni vittoriani): nero/antracite molto
+    # scuro, semi-satinato. Variazione leggera di usura, niente effetto "metallo
+    # grezzo arrugginito". È metallo, quindi metallic alto ma colore scurissimo.
+    color: [0.050, 0.052, 0.050]
     texture:
       type: "noise"
       noise_type: "fbm"
-      scale: 2.5
+      scale: 3.5
       octaves: 4
-      distortion: 0.5
-      colors: [[0.10, 0.10, 0.09], [0.26, 0.26, 0.25]]
-    roughness: 0.88           # Più ruvido e meno riflettente dell'asfalto
+      distortion: 0.3
+      colors: [[0.035, 0.036, 0.035], [0.065, 0.067, 0.065]]
+    metallic: 0.80
+    roughness: 0.42           # vernice semi-satinata, superficie liscia
+    # Usura molto leggera: minima variazione di lucentezza, niente "ruggine"
     roughness_texture:
       type: "noise"
       noise_type: "fbm"
-      scale: 1.5
+      scale: 3.0
       octaves: 3
-      colors: [[0.72, 0.72, 0.72], [0.95, 0.95, 0.95]]
-    specular: 0.12
-    # Rilievo del cemento grezzo: bordi smussati, crepe, fughe tra le lastre
+      colors: [[0.46, 0.46, 0.46], [0.56, 0.56, 0.56]]
+    specular: 0.5
+    # Micro-rilievo della ghisa: fbm dolce e molto leggero (niente turbulence
+    # ad alta frequenza che rendeva i pali granulosi/aggressivi)
     bump_map:
       texture:
         type: "noise"
         noise_type: "fbm"
         scale: 5
-        octaves: 5
+        octaves: 3
         colors: [[0, 0, 0], [1, 1, 1]]
-      strength: 2.2
+      strength: 0.10
+
+  - id: "mat_sidewalk"
+    type: "disney"
+    # Cemento dei marciapiedi: grigio chiaro (PIÙ chiaro dell'asfalto), opaco e
+    # ruvido. Sporcizia/scolorimento leggeri, senza chiazze esagerate.
+    color: [0.32, 0.32, 0.315]
+    texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 2.2
+      octaves: 3
+      distortion: 0.2          # variazione di tono lieve e morbida
+      colors: [[0.285, 0.285, 0.280], [0.345, 0.345, 0.340]]
+    roughness: 0.90            # cemento matte: più ruvido e opaco dell'asfalto
+    specular: 0.5
+    # Rilievo del cemento: appena accennato (disomogeneità leggera, non
+    # ciottolato aggressivo). Strength bassa anche per evitare il bump
+    # aliasing a incidenza radente verso il fondo della via.
+    bump_map:
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 4
+        octaves: 4
+        colors: [[0, 0, 0], [1, 1, 1]]
+      strength: 0.15
 
   - id: "mat_dark_cloth"
     type: "disney"
