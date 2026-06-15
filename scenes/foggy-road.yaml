@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  Foggy Road — Nebbia Serale Londinese
 #
-#  Strada urbana inglese di notte avvolta da una nebbia height_fog densa.
+#  Strada urbana inglese di notte avvolta da una nebbia procedurale a banchi.
 #  Doppia fila di lampioni vittoriani in ghisa (CSG cono cavo) con luce
 #  point calda arancio (incandescenza) che crea god-rays nella nebbia.
 #  Un misterioso passante in silhouette si staglia nella via.
@@ -17,14 +17,20 @@ world:
   sky:
     type: "flat"
     color: [0.02, 0.03, 0.06]
+  # Nebbia procedurale (fBm + delta tracking): densità disomogenea, a chiazze
+  # e con sfilacciature, invece dell'esponenziale "perfetto" dell'height_fog.
+  # I banchi più densi creano god-rays irregolari attorno ai lampioni.
   medium:
-    type: height_fog
+    type: procedural
     sigma_a: [0.012, 0.014, 0.018]
-    sigma_s: [0.040, 0.045, 0.050]
-    y0: 0
-    scale_height: 12
+    sigma_s: [0.050, 0.056, 0.062]
+    frequency: 0.10        # bassa = banchi grandi, a scala della strada
+    octaves: 5             # dettaglio fine sui bordi dei banchi
+    lacunarity: 2.0
+    gain: 0.55
+    seed: 1977
     phase: "hg"
-    g: 0.50
+    g: 0.55
 
 cameras:
   - name: "main"
@@ -112,28 +118,109 @@ lights:
 materials:
   - id: "mat_asphalt"
     type: "disney"
-    color: [0.15, 0.15, 0.16]
-    roughness: 0.35            # Abbastanza liscio da simulare umidità
-    specular: 0.2              # Rifletterà splendidamente i lampioni
+    # Asfalto bagnato e sporco: base scura con macchie d'olio, polvere e chiazze
+    # asciutte. La texture rompe il colore uniforme da "materiale CG".
+    color: [0.10, 0.10, 0.11]
+    texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 1.8
+      octaves: 4
+      distortion: 0.4         # warp organico: niente pattern regolare
+      colors: [[0.05, 0.05, 0.06], [0.16, 0.16, 0.17]]
+    roughness: 0.50           # base meno "specchio" del 0.35 originale
+    # Bagnato a chiazze: pozzanghere lucide (basso) vs asfalto asciutto ruvido
+    # (alto). Niente più riflesso uniforme dei lampioni su tutta la strada.
+    roughness_texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 0.6              # banchi larghi → pozzanghere a scala reale
+      octaves: 3
+      distortion: 0.5
+      colors: [[0.22, 0.22, 0.22], [0.68, 0.68, 0.68]]
+    specular: 0.25
+    # Micro-rilievo (ghiaietto/crepe): perturba la normale così il riflesso
+    # dei lampioni si spezza invece di comportarsi come uno specchio piatto.
+    bump_map:
+      texture:
+        type: "noise"
+        noise_type: "turbulence"
+        scale: 9
+        octaves: 4
+        colors: [[0, 0, 0], [1, 1, 1]]
+      strength: 1.2
 
   - id: "mat_wet_grass"
     type: "disney"
-    color: [0.05, 0.15, 0.04]  # Verde scuro, desaturato dalla sera
-    roughness: 0.8
-    specular: 0.1
+    # Verde scuro desaturato con chiazze di terra/fango più scure
+    color: [0.05, 0.15, 0.04]
+    texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 3.0
+      octaves: 4
+      distortion: 0.6
+      colors: [[0.02, 0.07, 0.02], [0.07, 0.17, 0.05]]
+    roughness: 0.85
+    specular: 0.08
 
   - id: "mat_cast_iron"
     type: "disney"
+    # Ghisa invecchiata: variazione di grasso/ruggine e superficie ruvida
     color: [0.30, 0.28, 0.26]
+    texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 3.0
+      octaves: 4
+      distortion: 0.4
+      colors: [[0.16, 0.13, 0.11], [0.32, 0.30, 0.28]]
     metallic: 0.85
     roughness: 0.62
+    roughness_texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 4.0
+      octaves: 3
+      colors: [[0.50, 0.50, 0.50], [0.80, 0.80, 0.80]]
     specular: 0.35
+    bump_map:
+      texture:
+        type: "noise"
+        noise_type: "turbulence"
+        scale: 12
+        octaves: 4
+        colors: [[0, 0, 0], [1, 1, 1]]
+      strength: 0.8
 
   - id: "mat_sidewalk"
     type: "disney"
-    color: [0.25, 0.25, 0.25]  # Grigio cemento opaco
-    roughness: 0.85            # Più ruvido e meno riflettente dell'asfalto
-    specular: 0.15
+    # Cemento sporco: macchie, scolorimento, muschio negli interstizi
+    color: [0.22, 0.22, 0.22]
+    texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 2.5
+      octaves: 4
+      distortion: 0.5
+      colors: [[0.10, 0.10, 0.09], [0.26, 0.26, 0.25]]
+    roughness: 0.88           # Più ruvido e meno riflettente dell'asfalto
+    roughness_texture:
+      type: "noise"
+      noise_type: "fbm"
+      scale: 1.5
+      octaves: 3
+      colors: [[0.72, 0.72, 0.72], [0.95, 0.95, 0.95]]
+    specular: 0.12
+    # Rilievo del cemento grezzo: bordi smussati, crepe, fughe tra le lastre
+    bump_map:
+      texture:
+        type: "noise"
+        noise_type: "fbm"
+        scale: 5
+        octaves: 5
+        colors: [[0, 0, 0], [1, 1, 1]]
+      strength: 2.2
 
   - id: "mat_dark_cloth"
     type: "disney"
