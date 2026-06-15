@@ -109,7 +109,7 @@ I materiali dielettrici sono trasparenti. La luce viene divisa ad ogni superfici
 
 ### Importante: Il vetro richiede più profondità dei raggi (Ray Depth)
 
-Ogni superficie di vetro che un raggio entra ed esce costa due rimbalzi (bounces). Il default è `-d 8` (sufficiente per la maggior parte delle scene grazie alla Russian Roulette). Se ci sono oggetti di vetro nidificati (ad esempio un bicchiere d'acqua, bottiglie dietro bottiglie), alza la profondità dei raggi ad almeno 16:
+Ogni superficie di vetro che un raggio entra ed esce costa due rimbalzi (bounces). Il preset di default `draft-small` usa `-d 4`; i preset di qualità (`-q standard` e superiori) usano `-d 8`, sufficiente per la maggior parte delle scene grazie alla Russian Roulette. Se ci sono oggetti di vetro nidificati (ad esempio un bicchiere d'acqua, bottiglie dietro bottiglie), alza la profondità dei raggi ad almeno 16:
 
 ```
 RayTracer -i my-scene.yaml -s 64 -d 16

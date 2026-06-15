@@ -106,10 +106,13 @@ path.
   benefit from higher depth because the light must bounce many times to
   illuminate the room.
 
-The default depth in 3D-Ray is **8**, which is plenty for the vast majority
-of scenes thanks to Russian Roulette (section 1.5). Raise it to 16–20 only
-when rendering stacked glass (liquids in glasses, nested dielectrics). See
-[Rendering Profiles](../../reference/rendering-profiles.md) for the full guide.
+The `draft-small` default preset uses depth **4**, which is enough for
+opaque and lightly refractive scenes. Quality presets (`-q standard` and
+above) raise it to **8**, which is the standard ceiling for the vast
+majority of scenes thanks to Russian Roulette (section 1.5). Raise it to
+16–20 only when rendering stacked glass (liquids in glasses, nested
+dielectrics). See [Rendering Profiles](../../reference/rendering-profiles.md)
+for the full guide.
 
 ---
 

@@ -173,9 +173,11 @@ Sanity check istantaneo (preset `draft-tiny`, 480×270 — pochi secondi):
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -q draft-tiny -o renders/render-sanity.png
 ```
 
-Render di prova rapido (preset `draft-small`, 960×540):
+Render di prova rapido (preset `draft-small`, 960×540 — è il **default** quando si omette `-q`):
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- -i scenes/pendolo-newton -q draft-small -o renders/render-draft.png
+# oppure equivalentemente, omettendo -q:
+# dotnet run ... -- -i scenes/pendolo-newton -o renders/render-draft.png
 ```
 
 Render finale Full HD (preset `final`, 1920×1080, qualità portfolio):
@@ -250,6 +252,7 @@ Renderizzala con un'anteprima rapida (la trovi già pronta nel repo):
 ```bash
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
   -i scenes/hello -q draft-small -o renders/hello.png
+  # -q draft-small è il preset di default: può essere omesso
 ```
 
 Il risultato è in `renders/hello.png`. Da qui puoi cambiare `color`, aggiungere altre sfere in `entities` o provare materiali `metal` e `dielectric`. Per l'elenco completo delle chiavi YAML vedi il [Reference](./docs/reference/scene-reference.md); per un percorso guidato il [Tutorial](./docs/tutorial/it/README.md).
