@@ -1,4 +1,4 @@
-# 3D-Ray: Path Tracer CPU Professionale · C# / .NET 10
+# 3D-Ray: Path Tracer CPU Professionale - C# / .NET 10
 
 > 🌐 [English](README.md) | **Italiano**
 

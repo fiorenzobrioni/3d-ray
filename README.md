@@ -1,4 +1,4 @@
-# 3D-Ray: Production-Grade CPU Path Tracer · C# / .NET 10
+# 3D-Ray: Production-Grade CPU Path Tracer - C# / .NET 10
 
 > 🌐 **English** | [Italiano](README.it.md)
 
