@@ -125,6 +125,13 @@ Never mention Arnold, Cycles, RenderMan, Blender, V-Ray, Octane, Redshift, or an
 
 `DEVLOG.md` and `PLANNING.md` are internal notes — references to external renderers are allowed there when describing completed work, design rationale, or roadmap items that need full technical context.
 
+### Writing style
+
+When writing or editing any document in this repository (`README.md`, `README.it.md`, files under `docs/`, `DEVLOG.md`, `PLANNING.md`, etc.):
+
+- **Never use the em dash `—`**. Use a regular hyphen `-`, a colon `:`, a comma, or parentheses depending on context.
+- **Never use the middle dot `·`**. Use a regular hyphen `-` or a comma instead.
+
 ## Further reading
 
 Docs live under `docs/`. Match the existing language coverage of each area when generating or updating docs:
