@@ -44,6 +44,8 @@ Consulta le convenzioni del progetto:
 - [ ] `dielectric.refraction_index`: range realistico 1.0–2.5
 - [ ] `emissive.intensity`: proporzionata alla scena (0.5–100)
 - [ ] `disney` parametri: `metallic`, `roughness`, `specular`, `clearcoat`, `sheen`, `spec_trans` tutti in 0.0–1.0
+- [ ] SSS: se `subsurface_radius` presente → deve essere array `[r, g, b]` con valori > 0; se manca `spec_trans: 0` esplicito avvisare (il motore auto-promuove a traslucido)
+- [ ] `interior_medium:` su entità chiuse: referenzia un medium definito nella scena
 
 ### 3. Geometria e posizionamento
 
@@ -79,8 +81,12 @@ Consulta le convenzioni del progetto:
 - [ ] Se `sky.type: flat`: `color` con valori 0.0–1.0; `[0,0,0]` ammesso per black-void.
 - [ ] Se `sky.type: gradient`: `zenith_color`, `horizon_color`, `ground_color` presenti; eventualmente `sun:` con `direction`/`color`/`intensity`/`size`/`falloff`.
 - [ ] Se `sky.type: hdri`: `path:` esiste sotto la directory di scena; `intensity` ragionevole (0.5–3.0); `rotation` in gradi.
+- [ ] Se `sky.type: nishita`: `sun_direction` valido (array [x,y,z]); altitudine solare ≥ −10°; non aggiungere `directional` separato (il `physical_sun` è auto-generato).
+- [ ] Se `sky.type: hosek_wilkie` o `preetham`: `sun_elevation_deg` in range 0–90.
+- [ ] `ground.type`: valido tra `infinite_plane | plane | quad | disk | heightfield | terrain` (default `infinite_plane`).
 - [ ] `ground.material`: referenzia un materiale definito.
-- [ ] Se `medium` presente: `type` valido, `sigma_a`/`sigma_s` > 0, `phase` valida, `g` in (-1, 1) per HG.
+- [ ] `world.medium` (globale) e `interior_medium:` su entità (locale): entrambi validi, non devono coincidere.
+- [ ] Se `world.medium` o `interior_medium:` presente: `type` valido, `sigma_a`/`sigma_s` > 0, `phase` valida, `g` in (-1, 1) per HG.
 
 ### 7. Risorse e preset
 
@@ -90,9 +96,9 @@ Consulta le convenzioni del progetto:
 
 ### 8. Stile e documentazione
 
-- [ ] Header commento con nome scena, descrizione e render consigliati (Draft/Finale)
-- [ ] Campioni render sono quadrati perfetti: 64, 256, 1024, 1600
-- [ ] Profondità `-d` adeguata: 4–8 normale, 12–20 per vetro/emissivi stratificati
+- [ ] Header commento con nome scena, descrizione e render consigliati usando preset `-q` (es. `-q draft-small` / `-q final`), non flag manuali
+- [ ] Se presenti campioni `-s` manuali nell'header: verificare che siano motivati (override specifico); preferire `-q <preset>`
+- [ ] Profondità `-d` adeguata: 4–8 normale, 12–20 per vetro/emissivi stratificati; se l'header usa `-q final -d 16` l'override è corretto
 - [ ] Almeno una variante `world:` commentata
 - [ ] Commenti in italiano, chiavi YAML in inglese
 
