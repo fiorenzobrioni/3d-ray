@@ -1,4 +1,4 @@
-# 3D-Ray — Production-Grade CPU Path Tracer · C# / .NET 10
+# 3D-Ray: Production-Grade CPU Path Tracer · C# / .NET 10
 
 > 🌐 **English** | [Italiano](README.it.md)
 
@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml/badge.svg)](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml)
 
-A personal exploration of ray tracing that grew — one feature at a time — into a full-featured CPU path tracer, written entirely in C#/.NET 10 with no native dependencies. Disney Principled BSDF, NEE+MIS, NFOR denoising, full volumetrics, caustics, surface displacement — all from a single YAML file.
+A personal exploration of ray tracing that grew, one feature at a time, into a full-featured CPU path tracer, written entirely in C#/.NET 10 with no native dependencies. Disney Principled BSDF, NEE+MIS, NFOR denoising, full volumetrics, caustics, surface displacement - all from a single YAML file.
 
 ![Spheres Classic](renders/spheres-classic.png)
 
@@ -16,15 +16,15 @@ A personal exploration of ray tracing that grew — one feature at a time — in
 
 ## 🔍 Overview
 
-3D-Ray is a path tracer born from curiosity and a passion for rendering. What started as a personal study of light transport algorithms gradually accumulated a serious feature set — written entirely in C#/.NET 10, exploiting all available CPU cores through .NET's parallel primitives, with no native code or external engine dependencies. Describe your scene — lights, materials, geometry, camera — in a YAML file and get a physically accurate, cinematically polished image. No code. No boilerplate.
+3D-Ray is a path tracer born from curiosity and a passion for rendering. What started as a personal study of light transport algorithms gradually accumulated a serious feature set, written entirely in C#/.NET 10, exploiting all available CPU cores through .NET's parallel primitives, with no native code or external engine dependencies. Describe your scene (lights, materials, geometry, camera) in a YAML file and get a physically accurate, cinematically polished image. No code. No boilerplate.
 
-The material system is built around a **complete Disney Principled BSDF**: a single type that spans the full gamut, from matte plaster to mirror-polished gold, from deep-water glass with Beer-Lambert thickness absorption to iridescent soap film with thin-film interference — with proper multi-scattering energy compensation for rough metals, subsurface shaping for skin and wax, and Charlie sheen for velvet and microfibre. A layered Mix Material with spatial texture masks handles wear, rust, weathering, and recursive compositions without limits.
+The material system is built around a **complete Disney Principled BSDF**: a single type that spans the full gamut, from matte plaster to mirror-polished gold, from deep-water glass with Beer-Lambert thickness absorption to iridescent soap film with thin-film interference, with proper multi-scattering energy compensation for rough metals, subsurface shaping for skin and wax, and Charlie sheen for velvet and microfibre. A layered Mix Material with spatial texture masks handles wear, rust, weathering, and recursive compositions without limits.
 
-The lighting engine is production-class. **Next Event Estimation with Multiple Importance Sampling** converges fast even on complex, occluded lighting setups. **Focused caustics** via photon mapping light any specular geometry — glass, water, crystals, mirrors — with no per-object configuration; enable with `--caustics on` or the `final`/`ultra` quality preset. **Motion blur** tracks per-camera shutter time from freeze-frame to long cinematic exposures. The full **volumetric pipeline** — homogeneous fog, height fog, Nishita atmosphere, fBm clouds, participating media — integrates seamlessly with NEE inside the volume itself.
+The lighting engine is production-class. **Next Event Estimation with Multiple Importance Sampling** converges fast even on complex, occluded lighting setups. **Focused caustics** via photon mapping light any specular geometry (glass, water, crystals, mirrors) with no per-object configuration; enable with `--caustics on` or the `final`/`ultra` quality preset. **Motion blur** tracks per-camera shutter time from freeze-frame to long cinematic exposures. The full **volumetric pipeline** (homogeneous fog, height fog, Nishita atmosphere, fBm clouds, participating media) integrates seamlessly with NEE inside the volume itself.
 
 Rendering parallelises across all logical CPU cores via a 16×16 tile scheduler, is accelerated by a BVH with parallel SAH construction, and is optionally cleaned by a **feature-guided NFOR denoiser** operating on the linear-HDR beauty before tone mapping. AOV output (albedo, normal, depth, variance) lands as layers in a **multilayer OpenEXR** for downstream compositing. ACES filmic tone mapping closes the pipeline.
 
-A quality ladder from `draft-small` (instant preview, seconds) to `final`/`ultra` (unfiltered, portfolio-ready) lets you iterate fast and ship clean — one flag change, same YAML.
+A quality ladder from `draft-small` (instant preview, seconds) to `final`/`ultra` (unfiltered, portfolio-ready) lets you iterate fast and ship clean: one flag change, same YAML.
 
 For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.md); for the development-cycle history see [**DEVLOG**](./DEVLOG.md).
 

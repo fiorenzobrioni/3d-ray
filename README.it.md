@@ -1,4 +1,4 @@
-# 3D-Ray — Path Tracer CPU Professionale · C# / .NET 10
+# 3D-Ray: Path Tracer CPU Professionale · C# / .NET 10
 
 > 🌐 [English](README.md) | **Italiano**
 
@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml/badge.svg)](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml)
 
-Un'esplorazione personale del ray tracing cresciuta — una feature alla volta — in un path tracer CPU completo, scritto interamente in C#/.NET 10 senza dipendenze native. Disney Principled BSDF, NEE+MIS, denoiser NFOR, volumetria completa, caustiche, displacement — tutto da un singolo file YAML.
+Un'esplorazione personale del ray tracing cresciuta, una feature alla volta, in un path tracer CPU completo, scritto interamente in C#/.NET 10 senza dipendenze native. Disney Principled BSDF, NEE+MIS, denoiser NFOR, volumetria completa, caustiche, displacement - tutto da un singolo file YAML.
 
 ![Spheres Classic](renders/spheres-classic.png)
 
@@ -16,15 +16,15 @@ Un'esplorazione personale del ray tracing cresciuta — una feature alla volta �
 
 ## 🔍 Panoramica (Overview)
 
-3D-Ray è un path tracer nato dalla curiosità e dalla passione per il rendering. Quello che è iniziato come uno studio personale degli algoritmi di trasporto della luce ha accumulato nel tempo un feature set solido — scritto interamente in C#/.NET 10, che sfrutta tutti i core della CPU tramite le primitive parallele di .NET, senza codice nativo né dipendenze da engine esterni. Descrivi la scena — luci, materiali, geometria, camera — in un file YAML e ottieni un'immagine fisicamente accurata con un look cinematografico. Niente codice. Niente boilerplate.
+3D-Ray è un path tracer nato dalla curiosità e dalla passione per il rendering. Quello che è iniziato come uno studio personale degli algoritmi di trasporto della luce ha accumulato nel tempo un feature set solido, scritto interamente in C#/.NET 10, che sfrutta tutti i core della CPU tramite le primitive parallele di .NET, senza codice nativo né dipendenze da engine esterni. Descrivi la scena (luci, materiali, geometria, camera) in un file YAML e ottieni un'immagine fisicamente accurata con un look cinematografico. Niente codice. Niente boilerplate.
 
-Il sistema di materiali ruota attorno a un **Disney Principled BSDF completo**: un singolo tipo che copre l'intera gamma, dall'intonaco opaco all'oro a specchio, dal vetro d'acqua profonda con assorbimento Beer-Lambert dipendente dallo spessore alla pellicola di sapone iridescente con interferenza thin-film — con energy compensation per metalli rugosi, subsurface shaping per pelle e cera, Charlie sheen per velluto e microfibre. Un Mix Material a livelli con mask spaziali gestisce usura, ruggine, invecchiamento e composizioni ricorsive senza limiti di profondità.
+Il sistema di materiali ruota attorno a un **Disney Principled BSDF completo**: un singolo tipo che copre l'intera gamma, dall'intonaco opaco all'oro a specchio, dal vetro d'acqua profonda con assorbimento Beer-Lambert dipendente dallo spessore alla pellicola di sapone iridescente con interferenza thin-film, con energy compensation per metalli rugosi, subsurface shaping per pelle e cera, Charlie sheen per velluto e microfibre. Un Mix Material a livelli con mask spaziali gestisce usura, ruggine, invecchiamento e composizioni ricorsive senza limiti di profondità.
 
-Il sistema di illuminazione è di classe professionale. **Next Event Estimation con Multiple Importance Sampling** converge velocemente anche su illuminazioni complesse e occluse. Le **caustiche focalizzate** via photon mapping illuminano qualsiasi geometria speculare — vetro, acqua, cristalli, specchi — senza configurazione per-oggetto; si abilitano con `--caustics on` o i preset `final`/`ultra`. Il **motion blur** segue il tempo di esposizione per-camera, dal freeze-frame alle lunghe esposizioni cinematografiche. Lo **stack volumetrico completo** — nebbia omogenea, height fog, atmosfera Nishita, nubi fBm, media partecipanti — si integra direttamente con la NEE all'interno del volume.
+Il sistema di illuminazione è di classe professionale. **Next Event Estimation con Multiple Importance Sampling** converge velocemente anche su illuminazioni complesse e occluse. Le **caustiche focalizzate** via photon mapping illuminano qualsiasi geometria speculare (vetro, acqua, cristalli, specchi) senza configurazione per-oggetto; si abilitano con `--caustics on` o i preset `final`/`ultra`. Il **motion blur** segue il tempo di esposizione per-camera, dal freeze-frame alle lunghe esposizioni cinematografiche. Lo **stack volumetrico completo** (nebbia omogenea, height fog, atmosfera Nishita, nubi fBm, media partecipanti) si integra direttamente con la NEE all'interno del volume.
 
 Il rendering è parallelizzato su tutti i core logici via tile scheduler 16×16, accelerato da un BVH con costruzione SAH parallela, e ripulito opzionalmente da un **denoiser NFOR feature-guided** che opera sulla beauty HDR lineare prima del tone mapping. L'output AOV (albedo, normal, depth, variance) finisce come layer in un **OpenEXR multilayer** per il compositing downstream. Il tone mapping ACES filmic chiude la pipeline.
 
-Una scala di qualità da `draft-small` (anteprima istantanea, pochi secondi) a `final`/`ultra` (non filtrato, pronto per il portfolio) permette di iterare veloce e consegnare pulito — un solo parametro, stesso YAML.
+Una scala di qualità da `draft-small` (anteprima istantanea, pochi secondi) a `final`/`ultra` (non filtrato, pronto per il portfolio) permette di iterare veloce e consegnare pulito: un solo parametro, stesso YAML.
 
 Per la roadmap dettagliata e le feature in corso consulta il [**PLANNING**](./PLANNING.md); per lo storico dei cicli di sviluppo il [**DEVLOG**](./DEVLOG.md).
 
