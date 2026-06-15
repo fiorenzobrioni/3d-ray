@@ -98,7 +98,8 @@ Regole durante l'upgrade:
 Prima di confermare, verifica:
 - [ ] YAML ancora valido (imports, riferimenti materiali, template)
 - [ ] Nessun materiale orfano o fantasma introdotto
-- [ ] Render depth `-d` ancora adeguato — se ho aggiunto dielectric stratificato o medium denso, alzare e documentare
+- [ ] Render depth: se sono stati aggiunti dielettrici stratificati o media densi, aggiornare l'header della scena con `-q final -d 16` (o valore appropriato)
+- [ ] Header scena aggiornato: usare `-q pre-final` per anteprima fedele prima del `-q final` definitivo
 - [ ] Conteggio entità/materiali/luci aggiornato nell'header
 
 ## Output
@@ -108,5 +109,5 @@ Diff riassuntivo delle modifiche applicate:
 - Luci aggiunte
 - Atmosfera introdotta
 - Dettagli geometrici aggiunti
-- Cambi a render profile consigliati (se `-d` o `-C` vanno aggiornati)
-- Comando preview per il primo render di verifica
+- Cambi a render profile consigliati (se `-d` o `-C` vanno aggiornati dopo l'upgrade)
+- Comando preview per il primo render di verifica (usa `-q draft-small` o `-q standard` secondo la complessità)

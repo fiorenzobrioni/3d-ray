@@ -81,7 +81,12 @@ Non aggiungere un tipo già presente (stesso nome o stessa posizione/angolo).
     fov:        <valore>
     aperture:   <valore>
     focal_dist: <valore>        # = distanza position→look_at
+    # Campi motion blur (solo per scene con entità animate):
+    # shutter_open:  0.0        # inizio esposizione (default 0)
+    # shutter_close: 1.0        # fine esposizione (default 1, = un frame intero)
 ```
+
+`shutter_open`/`shutter_close` hanno effetto solo se la scena contiene entità con `keyframes:`. Per scene statiche, ometterli.
 
 - Il commento decorativo usa `# ──` con padding di `─` fino a colonna ~72
 - Indentazione: 2 spazi per la lista, 4 spazi per i campi

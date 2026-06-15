@@ -27,7 +27,7 @@ A differenza di `/create-scene` (scena pulita), qui l'obiettivo è **profondità
 - CSG → [docs/technical/csg-boolean-operations.md](../../docs/technical/csg-boolean-operations.md)
 - Path tracing e NEE → [docs/technical/path-tracing-and-lighting.md](../../docs/technical/path-tracing-and-lighting.md)
 
-Esamina 2–3 scene di produzione ricche come riferimento stilistico (es. `scenes/alchemist-lab.yaml`, `scenes/castello-sforzesco.yaml`, `scenes/big-ben.yaml`, `scenes/chess.yaml`).
+Esamina 2–3 scene di produzione ricche come riferimento stilistico (es. `scenes/castello-sforzesco.yaml`, `scenes/chess.yaml`, `scenes/tempio-romano.yaml`).
 
 ## Budget minimo di complessità
 
@@ -112,9 +112,9 @@ Non bastano 2 camere. Minimo 3, meglio 4–5:
 #                <numero> luci (<tipi>), atmosfera: <HDRI / fog / sky>.
 #
 #  Render consigliato:
-#    Preview:  -w 400  -H 225  -s 64   -d <D>  -S 1
-#    Standard: -w 800  -H 450  -s 256  -d <D>  -S 2
-#    Finale:   -w 1920 -H 1080 -s 1024 -d <D>  -S 4
+#    Draft:     -q draft-small
+#    Pre-final: -q pre-final          (anteprima fedele, ~4× più veloce di final)
+#    Finale:    -q final  (oppure -q final -d 16 per dielectric stratificato)
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Per accelerare, copia i blocchi materiali/luci dai cataloghi preset
@@ -142,8 +142,8 @@ entities: ...         # gerarchia con gruppi e CSG, commenti per zone della scen
 - **Gruppi** ereditano trasformazioni — figli in coordinate locali
 - **Template** istanziati con `type: "instance"` — ogni istanza può avere materiale e trasformazione propri
 - **ID materiali univoci**, prefisso `dis_` (Disney) o `cls_` (Classic)
-- **Render depth `-d`**: 8 base, 12–16 con dielectric stratificato o volumetria densa, 20 per scene con liquidi in bicchieri
-- **Campioni `-s`**: quadrati perfetti (64, 256, 1024, 1600)
+- **Preset qualità**: usa `-q draft-small` per iterazione, `-q pre-final` per anteprima fedele, `-q final` per il render definitivo
+- **Override depth**: aggiungi `-d 12–20` solo se la scena ha dielectric stratificato o volumi densi (documenta nell'header)
 
 ## Naming
 

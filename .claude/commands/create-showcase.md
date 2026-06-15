@@ -145,14 +145,17 @@ entities:
   `-showcase`: la cartella già lo indica).
 - Prefissi di categoria usati nel repo:
   - `material-` — tecniche materiali (Disney, classic, mix, emissive)
+  - `material-sss` — subsurface scattering (pelle, cera, alabastro, liquidi organici); richiede `-q pre-final` o superiore
   - `preset-` — demo di un catalogo di preset materiali (`scenes/presets/materials-*.md`)
   - `texture-` — texture procedurali/immagini, bump, normal, displacement
   - `primitive-` — primitiva geometrica, mesh, lathe, extrusion, heightfield
   - `lighting-` — tipi di luce, sky, HDRI
+  - `lighting-caustics` — caustics fotonica (richiede `--caustics on` e scene con vetro/specchi); usare `-q final` o aggiungere `--caustics on` a `-q pre-final`
   - `volumetric-` — mezzi volumetrici (numerati `01–N`)
   - `glass-` — fenomeni ottici dedicati al vetro
   - `scene-` — strutture di scena (CSG, group, instancing)
   - `camera-` — parametri camera (DOF, visibility flags)
+  - `motion-` — motion blur: entità animate con `keyframes:`, confronto shutter speed, camera vs oggetto
 - Se la feature è composta, concatena con `-` (es. `texture-displacement-vector.yaml`).
 - Verificare che non esista già un showcase per la stessa feature in `scenes/showcases/`.
 

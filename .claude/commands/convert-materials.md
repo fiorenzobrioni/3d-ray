@@ -100,6 +100,26 @@ Se manca il file, chiedi quale scena.
 
 **Nota**: `dielectric` classico ha comportamento fisicamente corretto per vetro puro. Disney con `spec_trans: 1.0` approssima lo stesso effetto ma con più parametri tunabili. Per scene con molti vetri (bicchieri, prismi), valuta se la conversione porta valore.
 
+### lambertian → disney con SSS (pelle, cera, alabastro)
+
+Se il `lambertian` rappresentava una superficie organica traslucente (pelle, cera, frutta, alabastro), aggiungi i parametri SSS durante la conversione:
+
+```yaml
+- id: "pelle_chiara"
+  type: "disney"
+  color: [0.95, 0.78, 0.65]
+  metallic: 0.0
+  roughness: 0.75
+  specular: 0.2
+  subsurface_radius: [0.35, 0.18, 0.12]  # array [r, g, b], scala in unità scena
+  subsurface_color:  [1.0, 0.85, 0.70]
+  spec_trans: 0.0    # OBBLIGATORIO: senza questo il motore auto-promuove a vetro traslucido
+```
+
+- `subsurface_radius` deve essere un array `[r, g, b]` — **non** uno scalare.
+- `spec_trans: 0.0` esplicito è **obbligatorio** quando si usa SSS su superfici opache: il motore promuove automaticamente a traslucido se trova `subsurface_radius` senza un `spec_trans` esplicito.
+- Le scene con SSS beneficiano di `-q pre-final` o superiore e possono richiedere `--sss-quality high` per render definitivi.
+
 ## Procedura
 
 ### 1. Analisi
