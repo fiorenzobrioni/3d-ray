@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**3D-Ray** is a C#/.NET 10 path-tracing renderer. Scenes are described in YAML, parsed into a scene graph, rendered in parallel across CPU cores, and written out as PNG/JPEG/BMP via `SixLabors.ImageSharp`. `README.md` is in Italian; `docs/` is bilingual EN+IT; the engine and code are in English.
+**3D-Ray** is a C#/.NET 10 path-tracing renderer. Scenes are described in YAML, parsed into a scene graph, rendered in parallel across CPU cores, and written out as PNG/JPEG/BMP via `SixLabors.ImageSharp`. `README.md` is in English (primary); `README.it.md` is the Italian translation — both must stay in sync. `docs/` is bilingual EN+IT; the engine and code are in English.
 
 ## Common Commands
 
@@ -17,14 +17,19 @@ dotnet build src/RayTracer/RayTracer.csproj -c Release
 
 ### Render a scene (main entry point)
 ```
+# default: draft-small preset (960×540, 16 spp, depth 4, nfor denoiser)
 dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
-  -i scenes/<scene>.yaml -o renders/out.png -w 1920 -H 1080 -s 1024 -d 8 -S 4
+  -i scenes/<scene>.yaml -o renders/out.png
+
+# explicit quality preset
+dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
+  -i scenes/<scene>.yaml -o renders/out.png -q final
 ```
 Required: `-i`. See `src/RayTracer/Program.cs` `ShowHelp()` for the full CLI. Canonical quality profiles and the `-s`/`-d`/`-S`/`-C` trade-offs are in `docs/reference/rendering-profiles.md`.
 
 Key flags:
-- `-q/--quality <preset>` — quality ladder `draft → standard → pre-final → final → ultra`, each (except `ultra`) with `-tiny` (480×270) and `-small` (960×540) variants. Overrides `-s`, `-d`, `-S` (and, for `standard`, also forces caustics/SSS off, power NEE, and the indirect clamp). `standard` = final-class quality for classic scenes (Lambertian/Disney, non-nested glass, procedural marble) without the GI extras; `pre-final` = faithful preview of `final` (full feature set, 256 spp + denoiser, ~4-6× faster). `draft*`/`standard*`/`pre-final*` enable `--denoiser nfor`; `final`/`ultra` stay unfiltered.
-- `--denoiser none|nlm|nfor` + `--denoise-quality fast|high` — feature-guided denoiser on the linear HDR beauty before tone mapping (`Denoising/`, see `docs/technical/denoising.md`). Default `none` without a preset; an explicit flag always beats the preset.
+- `-q/--quality <preset>` — quality ladder `draft → standard → pre-final → final → ultra`, each (except `ultra`) with `-tiny` (480×270) and `-small` (960×540) variants. **Omitting `-q` defaults to `draft-small`** (960×540, 16 spp, depth 4, nfor-fast denoiser). Any explicit flag (`-s`, `-d`, `-w`, `-H`, `-S`) overrides the preset's value. `standard` = final-class quality for classic scenes (Lambertian/Disney, non-nested glass, procedural marble) without the GI extras; `pre-final` = faithful preview of `final` (full feature set, 256 spp + denoiser, ~4-6× faster). `draft*`/`standard*`/`pre-final*` enable `--denoiser nfor`; `final`/`ultra` stay unfiltered.
+- `--denoiser none|nlm|nfor` + `--denoise-quality fast|high` — feature-guided denoiser on the linear HDR beauty before tone mapping (`Denoising/`, see `docs/technical/denoising.md`). Default `nfor fast` via the implicit `draft-small` preset; an explicit flag always beats the preset.
 - `--aov <list>` — comma list of `albedo,normal,depth,beauty,variance`; linear-HDR guide buffers next to `-o` (beauty is post-denoise when a denoiser is active). Default: separate `.pfm` files; with `-o *.exr` they become layers of the main multilayer EXR; `--aov-format pfm|exr` forces one file per AOV.
 - `--list-cameras` — print available cameras and exit; `-c <name|index>` selects one.
 - `--sampler sobol|prng` — sampling strategy (default: `sobol`, deterministic Sobol+Owen; `prng` is legacy).
@@ -111,19 +116,19 @@ The suite (~38 test files, ~400 tests) covers geometry, BVH, materials, lights, 
 When planning a change, include doc updates as explicit final steps so they don't slip. Bilingual files under `docs/` come in EN + IT pairs — update both.
 
 - **YAML schema** (parameters added/changed/removed): `docs/reference/scene-reference.md` (EN+IT) + affected `docs/tutorial/{en,it}/` chapters.
-- **User-facing features** (new/changed/removed CLI flags, rendering behaviour, tools): root `README.md`.
+- **User-facing features** (new/changed/removed CLI flags, rendering behaviour, tools): root `README.md` (English, primary) **and** `README.it.md` (Italian). Both files must be kept in sync — any change made to one must be applied to the other with the same information in the respective language.
 - **Dev history & planning**: record completed work/design rationale in `DEVLOG.md`; track roadmap, TODO, and known bugs in `PLANNING.md`.
 
 ### No third-party renderer names in public docs
 
-Never mention Arnold, Cycles, RenderMan, Blender, V-Ray, Octane, Redshift, or any other external renderer/DCC tool in `README.md` or any file under `docs/`. This applies even when a feature was designed by taking inspiration from one of those systems. Keep the public documentation clean and self-contained.
+Never mention Arnold, Cycles, RenderMan, Blender, V-Ray, Octane, Redshift, or any other external renderer/DCC tool in `README.md`, `README.it.md` or any file under `docs/`. This applies even when a feature was designed by taking inspiration from one of those systems. Keep the public documentation clean and self-contained.
 
 `DEVLOG.md` and `PLANNING.md` are internal notes — references to external renderers are allowed there when describing completed work, design rationale, or roadmap items that need full technical context.
 
 ## Further reading
 
-Docs live under `docs/` (bilingual EN/IT):
-- `docs/reference/` — complete YAML schema + rendering profiles.
-- `docs/technical/` — pipeline, path tracing, shading, BVH/SAH, quartic/torus, CSG, testing, benchmarks.
-- `docs/tutorial/{en,it}/` — chapter-based walkthrough (12 chapters at last count).
-- `DEVLOG.md` — development-cycle history + design notes; `PLANNING.md` — roadmap, TODO, known bugs, ideas, pre-commit checklist.
+Docs live under `docs/`. Match the existing language coverage of each area when generating or updating docs:
+- `docs/reference/` — complete YAML schema + rendering profiles. **EN + IT** (paired files, e.g. `scene-reference.md` / `riferimento-scene.md`).
+- `docs/technical/` — pipeline, path tracing, shading, BVH/SAH, quartic/torus, CSG, testing, benchmarks. **EN only**.
+- `docs/tutorial/{en,it}/` — chapter-based walkthrough (12 chapters at last count). **EN + IT**.
+- `DEVLOG.md` — development-cycle history + design notes; `PLANNING.md` — roadmap, TODO, known bugs, ideas, pre-commit checklist. **IT only**.

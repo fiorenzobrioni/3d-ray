@@ -119,10 +119,11 @@ according to the Fresnel equations: some is reflected, some is refracted
 
 ### Important: Glass Needs More Ray Depth
 
-Every glass surface a ray enters and exits costs two bounces. The default
-depth is `-d 8` (enough for most scenes thanks to Russian Roulette). If you
-have nested glass objects (e.g. a glass of water, bottles behind bottles),
-raise the ray depth to at least 16:
+Every glass surface a ray enters and exits costs two bounces. The
+`draft-small` default preset uses `-d 4`; quality presets (`-q standard`
+and above) use `-d 8`, which is enough for most scenes thanks to Russian
+Roulette. If you have nested glass objects (e.g. a glass of water, bottles
+behind bottles), raise the ray depth to at least 16:
 
 ```
 RayTracer -i my-scene.yaml -s 64 -d 16

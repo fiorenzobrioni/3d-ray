@@ -160,11 +160,19 @@ RayTracer -i my-scene -q standard --denoiser none
 
 ### 2. **DEFAULTS**
 
+> **No `-q` means `draft-small`.** When the command line omits `--quality`, the
+> renderer applies the `draft-small` preset (960×540, 16 spp, depth 4, single
+> shadow sample, NFOR-fast denoiser) — a quick, denoised composition check is a
+> better first-run default than a slow, un-denoised pass. Every quality knob
+> below still overrides the preset when passed explicitly. The values in the
+> table are the resulting `draft-small` defaults.
+
 | Parameter | Default | Source |
 |---|---|---|
-| `-s` / `--samples` | `16` (4×4 grid) | `Program.cs` |
-| `-d` / `--depth` | `8` | `Program.cs` |
-| `-S` / `--shadow-samples` | unset → per-light YAML value (default: 4) | `Program.cs` |
+| `-s` / `--samples` | `16` (4×4 grid) | `draft-small` preset |
+| `-d` / `--depth` | `4` | `draft-small` preset |
+| `-S` / `--shadow-samples` | `1` (`draft-small`; without a preset → per-light YAML, default 4) | `Program.cs` |
+| `--denoiser` | `nfor` fast (`draft-small`) | `draft-small` preset |
 | `-C` / `--clamp` | `10` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
 | `--indirect-clamp-factor` | `0.25` (indirect clamp = `2.5`) | `Renderer.DefaultIndirectClampFactor` |
 | `--exposure` | `0` EV (identity) | `Renderer.DefaultExposureEv` |
@@ -195,7 +203,7 @@ The engine performs **stratified sampling** on a √N × √N grid per pixel. Pa
 
 `-d` caps the number of indirect bounces a ray may perform. In path tracing, the first 4–6 indirect bounces contribute about 99% of realistic illumination for the majority of scenes.
 
-**Why the default is 8 (not 50):** the renderer uses **adaptive Russian Roulette** (`Renderer.cs`). For normally-lit scenes RR kicks in at bounce 4 and stochastically kills low-contribution paths; for indirect-dominant scenes (emissive-only, dim lights) it activates at bounce 8 with a higher survival floor. Raising `-d` past that point rarely changes the image but always costs time.
+**Why 8 is the standard quality ceiling (not 50):** the renderer uses **adaptive Russian Roulette** (`Renderer.cs`). For normally-lit scenes RR kicks in at bounce 4 and stochastically kills low-contribution paths; for indirect-dominant scenes (emissive-only, dim lights) it activates at bounce 8 with a higher survival floor. Raising `-d` past that point rarely changes the image but always costs time. (The `draft-small` default preset uses `-d 4` as a speed compromise; quality presets use `-d 8`.)
 
 **When to raise `-d` above 8:**
 - **Stacked dielectrics** — liquids inside glasses, rows of wine bottles, glass spheres nested inside each other. Every enter/exit interface consumes a bounce, so 10 glass interfaces need `-d 16–20` or the inner glass goes unexpectedly black.

@@ -431,10 +431,10 @@ L'insieme completo dei parametri della riga di comando:
 |------|---------------------|-------------------------------|--------------------------------------------------------------|
 | `-i` | `--input`           | *(richiesto)*                 | Percorso del file YAML della scena                           |
 | `-o` | `--output`          | `renders/render-<scena>.png`  | Percorso dell'immagine di output (PNG, JPG o BMP)            |
-| `-w` | `--width`           | `1200`                        | Larghezza dell'immagine in pixel                             |
-| `-H` | `--height`          | `800`                         | Altezza dell'immagine in pixel                               |
-| `-s` | `--samples`         | `16`                          | Campioni per pixel (Sobol: conteggio esatto; PRNG: arrotondato al quadrato perfetto superiore) |
-| `-d` | `--depth`           | `8`                           | Numero massimo di rimbalzi dei raggi (alza a 16+ solo per vetri impilati) |
+| `-w` | `--width`           | `960` (draft-small)           | Larghezza dell'immagine in pixel                             |
+| `-H` | `--height`          | `540` (draft-small)           | Altezza dell'immagine in pixel                               |
+| `-s` | `--samples`         | `16` (draft-small)            | Campioni per pixel (Sobol: conteggio esatto; PRNG: arrotondato al quadrato perfetto superiore) |
+| `-d` | `--depth`           | `4` (draft-small; `8` nei preset di qualità — alza a 16+ per vetri impilati) | Numero massimo di rimbalzi dei raggi |
 | `-S` | `--shadow-samples`  | *(per luce)*                  | Sovrascrive i campioni d'ombra per tutte le luci area/sphere (quadrati perfetti) |
 | `-C` | `--clamp`           | `10`                          | Firefly clamp: radianza massima per-campione prima del tone mapping |
 | `-c` | `--camera`          | `0`                           | Seleziona la fotocamera per nome o indice base zero          |

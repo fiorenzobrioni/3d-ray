@@ -102,8 +102,10 @@ per percorso.
   Box) traggono vantaggio da una profondità maggiore perché la luce deve rimbalzare
   molte volte per illuminare la stanza.
 
-La profondità predefinita in 3D-Ray è **8**, più che sufficiente per la
-stragrande maggioranza delle scene grazie alla Russian Roulette (sezione 1.5).
+Il preset di default `draft-small` usa profondità **4**, sufficiente per
+scene opache o con leggera rifrazione. I preset di qualità (`-q standard`
+e superiori) la alzano a **8**, che è il soffitto standard per la stragrande
+maggioranza delle scene grazie alla Russian Roulette (sezione 1.5).
 Alzala a 16–20 solo quando renderizzi vetri impilati (liquidi nei bicchieri,
 dielettrici annidati). Consulta [Profili di Rendering](../../reference/profili-di-rendering.md)
 per la guida completa.

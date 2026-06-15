@@ -162,11 +162,20 @@ RayTracer -i my-scene -q standard --denoiser none
 
 ### 2. **VALORI DI DEFAULT**
 
+> **Senza `-q` si usa `draft-small`.** Quando la riga di comando omette
+> `--quality`, il renderer applica il preset `draft-small` (960×540, 16 spp,
+> depth 4, un solo shadow sample, denoiser NFOR-fast): un check di composizione
+> rapido e già denoised è un default di primo lancio migliore di una passata
+> lenta e rumorosa. Ogni parametro di qualità qui sotto vince comunque sul
+> preset se passato esplicitamente. I valori in tabella sono i default
+> risultanti da `draft-small`.
+
 | Parametro | Default | Origine |
 |---|---|---|
-| `-s` / `--samples` | `16` (griglia 4×4) | `Program.cs` |
-| `-d` / `--depth` | `8` | `Program.cs` |
-| `-S` / `--shadow-samples` | non impostato → valore YAML per-luce (default: 4) | `Program.cs` |
+| `-s` / `--samples` | `16` (griglia 4×4) | preset `draft-small` |
+| `-d` / `--depth` | `4` | preset `draft-small` |
+| `-S` / `--shadow-samples` | `1` (`draft-small`; senza preset → valore YAML per-luce, default 4) | `Program.cs` |
+| `--denoiser` | `nfor` fast (`draft-small`) | preset `draft-small` |
 | `-C` / `--clamp` | `10` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
 | `--indirect-clamp-factor` | `0.25` (clamp indiretto = `2.5`) | `Renderer.DefaultIndirectClampFactor` |
 | `--exposure` | `0` EV (identità) | `Renderer.DefaultExposureEv` |
@@ -197,7 +206,7 @@ Il motore esegue **stratified sampling** su una griglia √N × √N per pixel. 
 
 `-d` limita il numero di rimbalzi indiretti che un raggio può effettuare. Nel path tracing i primi 4–6 rimbalzi indiretti contribuiscono per circa il 99% all'illuminazione realistica nella maggior parte delle scene.
 
-**Perché il default è 8 (non 50):** il renderer usa **Russian Roulette adattiva** (`Renderer.cs`). Per scene con illuminazione normale RR si attiva al 4° rimbalzo terminando stocasticamente i path a basso contributo; per scene indirect-dominant (solo emissive, luci deboli) si attiva all'8° con una soglia di sopravvivenza più alta. Alzare `-d` oltre questo punto raramente cambia l'immagine ma costa sempre tempo.
+**Perché 8 è il soffitto standard di qualità (non 50):** il renderer usa **Russian Roulette adattiva** (`Renderer.cs`). Per scene con illuminazione normale RR si attiva al 4° rimbalzo terminando stocasticamente i path a basso contributo; per scene indirect-dominant (solo emissive, luci deboli) si attiva all'8° con una soglia di sopravvivenza più alta. Alzare `-d` oltre questo punto raramente cambia l'immagine ma costa sempre tempo. (Il preset di default `draft-small` usa `-d 4` come compromesso di velocità; i preset di qualità usano `-d 8`.)
 
 **Quando alzare `-d` sopra 8:**
 - **Dielettrici impilati** — liquidi nei bicchieri, file di bottiglie di vino, sfere di vetro annidate. Ogni interfaccia di entrata/uscita consuma un rimbalzo, quindi 10 interfacce di vetro richiedono `-d 16–20` o il vetro più interno diventa inaspettatamente nero.

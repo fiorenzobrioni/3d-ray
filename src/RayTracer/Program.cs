@@ -44,8 +44,13 @@ class Program
         // Quality preset (draft/standard/pre-final/final ladder × tiny/small/full + ultra 4K).
         // Resolved before the per-flag parsing so individual flags (`-s`, `-d`,
         // `-w`, `-H`, `-S`) can override any of the preset's values.
+        // When no `-q` is given the renderer falls back to the `draft-small`
+        // preset: a fast, denoised composition check is a far better default
+        // first-run experience than a slow, un-denoised 1200×800 / 16 spp pass.
+        // Any explicit quality knob (`-s`, `-d`, `-w`, `-H`, `-S`, …) still wins.
         string? qualityArg = GetArg(args, "--quality", "-q");
-        QualityPreset? quality = null;
+        bool qualityIsDefault = qualityArg == null;
+        QualityPreset? quality = QualityPreset.DraftSmall;
         if (qualityArg != null)
         {
             quality = QualityPreset.Parse(qualityArg);
@@ -393,7 +398,7 @@ class Program
         Console.WriteLine($"  Scene:       {inputPath}");
         Console.WriteLine($"  Output:      {outputPath}");
         if (quality != null)
-            Console.WriteLine($"  Quality:     {quality.Name}");
+            Console.WriteLine($"  Quality:     {quality.Name}{(qualityIsDefault ? " (default)" : "")}");
         Console.WriteLine($"  Resolution:  {width} \u00d7 {height}");
         Console.WriteLine($"  Samples/px:  {samples}");
         Console.WriteLine($"  Max depth:   {depth}");
@@ -554,10 +559,10 @@ class Program
         Console.WriteLine("                                (no caustics/SSS, 512 spp, power NEE, denoiser).");
         Console.WriteLine("                                pre-final = faithful preview of final (full feature");
         Console.WriteLine("                                set, 256 spp + denoiser, ~4-6x faster than final).");
-        Console.WriteLine("  -w, --width <px>             Image width  (default: 1200)");
-        Console.WriteLine("  -H, --height <px>            Image height (default: 800)");
-        Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16, see rendering profiles)");
-        Console.WriteLine("  -d, --depth <n>              Max ray depth (default: 8, raise to 16+ for stacked glass)");
+        Console.WriteLine("  -w, --width <px>             Image width  (default: 960 via draft-small preset)");
+        Console.WriteLine("  -H, --height <px>            Image height (default: 540 via draft-small preset)");
+        Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16 via draft-small preset)");
+        Console.WriteLine("  -d, --depth <n>              Max ray depth (default: 4 via draft-small; use 8 for quality, 16+ for stacked glass)");
         Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override (default 4; perfect squares work best)");
         Console.WriteLine("  -C, --clamp <n>              Max per-sample radiance / firefly clamp (default: 10)");
         Console.WriteLine("      --indirect-clamp-factor  Clamp factor for indirect bounces (default: 0.25 = on; 1.0 = off)");

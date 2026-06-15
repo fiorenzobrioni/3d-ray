@@ -428,10 +428,10 @@ The complete set of command-line parameters:
 |------|--------------------|-------------------------------|----------------------------------------------------------|
 | `-i` | `--input`          | *(required)*                  | Path to the scene YAML file                              |
 | `-o` | `--output`         | `renders/render-<scene>.png`  | Output image path (PNG, JPG, or BMP)                     |
-| `-w` | `--width`          | `1200`                        | Image width in pixels                                    |
-| `-H` | `--height`         | `800`                         | Image height in pixels                                   |
-| `-s` | `--samples`        | `16`                          | Samples per pixel (Sobol: exact count; PRNG: rounded up to nearest perfect square) |
-| `-d` | `--depth`          | `8`                           | Maximum ray bounces (raise to 16+ only for stacked glass) |
+| `-w` | `--width`          | `960` (draft-small)           | Image width in pixels                                    |
+| `-H` | `--height`         | `540` (draft-small)           | Image height in pixels                                   |
+| `-s` | `--samples`        | `16` (draft-small)            | Samples per pixel (Sobol: exact count; PRNG: rounded up to nearest perfect square) |
+| `-d` | `--depth`          | `4` (draft-small; `8` in quality presets — raise to 16+ for stacked glass) | Maximum ray bounces |
 | `-S` | `--shadow-samples` | *(per light)*                 | Override shadow samples for all area/sphere lights (perfect squares) |
 | `-C` | `--clamp`          | `10`                          | Firefly clamp: max per-sample radiance before tone mapping |
 | `-c` | `--camera`         | `0`                           | Select camera by name or zero-based index                |
