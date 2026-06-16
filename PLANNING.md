@@ -1,4 +1,4 @@
-# 🧭 PLANNING — 3D-Ray
+# 🧭 PLANNING - 3D-Ray
 
 Roadmap, lavori in corso, TODO, bug noti e idee. Per lo storico dei cicli di sviluppo e le note di design vedi [`DEVLOG.md`](DEVLOG.md).
 
@@ -8,11 +8,11 @@ Roadmap, lavori in corso, TODO, bug noti e idee. Per lo storico dei cicli di svi
 
 ## 🗺️ Roadmap
 
-### Fase 0 — Fondamenta ✅
+### Fase 0 - Fondamenta ✅
 
 Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, primitive base + trasformazioni, materiali Lambertian/Metal/Dielectric, luci Point/Directional/Spot/Area + NEE, Russian Roulette adattiva, stratified sampling, ACES + gamma + firefly guard, YAML loader, output PNG/JPEG/BMP, CI smoke test.
 
-### Fase 1 — Visivo
+### Fase 1 - Visivo
 
 | # | Feature | Stato |
 |---|---------|-------|
@@ -22,7 +22,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 | 4 | IBL / HDRI (Radiance .hdr, CDF 2D marginal+conditional, rotazione Y) | ✅ |
 | 5 | Normal Mapping (TBN + Gram-Schmidt, OpenGL/DirectX) | ✅ |
 
-### Fase 2 — Materiali & geometria
+### Fase 2 - Materiali & geometria
 
 | # | Feature | Stato |
 |---|---------|-------|
@@ -35,7 +35,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 **Disney BSDF** include: lobi diffuse / GGX / clearcoat / transmission, Kulla-Conty multi-scattering (LUT 32×32), GGX anisotropico (VNDF), Beer-Lambert via medium-switch, parametri Disney 2015 (`thin_walled`, `diff_trans`, `flatness`, `subsurface_color`), clearcoat stile Arnold (`coat_ior`, `coat_roughness`, `coat_normal`), Charlie sheen (Estevez-Kulla 2017), thin-film iridescence (Belcour-Barla 2017). MIS-correct (`Sample`/`Evaluate`/`Pdf` consistenti, furnace + reciprocity test).
 
-### Fase 3 — Sampling avanzato 🔧
+### Fase 3 - Sampling avanzato 🔧
 
 | # | Feature | Stato |
 |---|---------|-------|
@@ -47,7 +47,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 | 17 | HDR Output (PFM/EXR pre-tone-mapping) | ✅ PFM (`--aov`) + EXR (`-o *.exr` multilayer scene-linear, `--aov-format pfm\|exr`; writer `ExrImage` zero-dipendenze, half/float + ZIP) |
 | +  | Sobol + Owen Scrambling sampler (`--sampler sobol`, default attivo) | ✅ |
 
-### Fase 4 — Cinematografici 🔧
+### Fase 4 - Cinematografici 🔧
 
 | # | Feature | Stato |
 |---|---------|-------|
@@ -57,15 +57,15 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 | 21 | CSG (union/intersection/subtraction, all-hits, normali corrette) | ✅ |
 | 22 | Instancing (geometria condivisa, override material/seed per-istanza) | ✅ |
 | +  | Extrusion primitive (linear/catmull_rom/bezier + twist + taper + caps) | ✅ |
-| +  | Transparent shadow rays (vetro Fresnel-tinted in NEE — Strada 1) | ✅ |
+| +  | Transparent shadow rays (vetro Fresnel-tinted in NEE - Strada 1) | ✅ |
 
-**Volumetrics Stage 1+1.5**: medium globale opt-in (`world.medium`), output bit-identico se assente. `IMedium`: Homogeneous (Beer-Lambert + free-path), HeightFog (densità esponenziale closed-form), HeterogeneousProcedural (Perlin fBm, delta+ratio tracking), Grid (`.vol` o inline, slab clip + trilinear + delta tracking). `IPhaseFunction`: Isotropic, HG, Rayleigh, Double-HG (Nubis), Schlick (fast-HG). Stage 2 (deferred): EmissiveMedium, MediumInterface per-entity, SSS random-walk, OpenVDB nativo, spectral tracking — tutti richiedono modifiche ad `IMedium` / `HitRecord` / `Renderer.TraceRay`.
+**Volumetrics Stage 1+1.5**: medium globale opt-in (`world.medium`), output bit-identico se assente. `IMedium`: Homogeneous (Beer-Lambert + free-path), HeightFog (densità esponenziale closed-form), HeterogeneousProcedural (Perlin fBm, delta+ratio tracking), Grid (`.vol` o inline, slab clip + trilinear + delta tracking). `IPhaseFunction`: Isotropic, HG, Rayleigh, Double-HG (Nubis), Schlick (fast-HG). Stage 2 (deferred): EmissiveMedium, MediumInterface per-entity, SSS random-walk, OpenVDB nativo, spectral tracking - tutti richiedono modifiche ad `IMedium` / `HitRecord` / `Renderer.TraceRay`.
 
-### Fase 5 — Frontiera 🔧
+### Fase 5 - Frontiera 🔧
 
 | # | Feature | Stato |
 |---|---------|-------|
-| 23 | Path Guiding — PPG-style (SD-tree spaziale + quadtree direzionale per foglia, MIS tra guide PDF e BSDF PDF, `--path-guiding on\|off`, `--guiding-budget N` spp di training; dopo #13) | ⬜ |
+| 23 | Path Guiding - PPG-style (SD-tree spaziale + quadtree direzionale per foglia, MIS tra guide PDF e BSDF PDF, `--path-guiding on\|off`, `--guiding-budget N` spp di training; dopo #13) | ⬜ |
 | 24 | Spectral Rendering (lunghezze d'onda → dispersione prismatica) | ⬜ |
 | 25 | Surface Displacement Stack (bump map, mesh subdivision Loop/Catmull-Clark, scalar/vector displacement, autobump) | ✅ |
 | 26 | GPU Acceleration (CUDA/Vulkan, progetto separato) | ⬜ |
@@ -85,13 +85,13 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 ## 🌟 Caustiche ✅
 
-**Completate** — caustiche via **photon mapping** (un solo opt-in: `--caustics on`, zero flag YAML). Pre-pass di emissione fotoni da tutte le luci (area/geometriche, sphere, point/spot **e** directional/sole), trasporto attraverso le interfacce speculari e density estimate k-nearest al gather. Generale su qualsiasi geometria speculare. Dettagli, motivazioni e limiti residui in DEVLOG §Ciclo Caustiche — Photon Mapping.
+**Completate** - caustiche via **photon mapping** (un solo opt-in: `--caustics on`, zero flag YAML). Pre-pass di emissione fotoni da tutte le luci (area/geometriche, sphere, point/spot **e** directional/sole), trasporto attraverso le interfacce speculari e density estimate k-nearest al gather. Generale su qualsiasi geometria speculare. Dettagli, motivazioni e limiti residui in DEVLOG §Ciclo Caustiche - Photon Mapping.
 
 ---
 
 ## 📋 TODO
 
-- [ ] **HeightField strata: layered stack BSDF "no-compromise"** — il selettore strata oggi è winner-takes-all con jitter Perlin 3-ottave + aspect bias `±Z`. La versione pro è uno **stack N-ary** con coverage weights normalizzati. Implementazione: nuovo `LayeredStratumMaterial` proxy `IMaterial` che incapsula la lista di `(StratumBand, IMaterial)` + funzione di weight geometrico `(altNorm, slopeDeg, curvature, aspect) → R^N`; `Scatter` campiona via distribuzione 1D pesata (PDF MIS-consistente); `EvaluateDirect` somma pesata. Back-compat via `strata_blending: "winner" | "stochastic" | "weighted"` (default `winner`).
+- [ ] **HeightField strata: layered stack BSDF "no-compromise"** - il selettore strata oggi è winner-takes-all con jitter Perlin 3-ottave + aspect bias `±Z`. La versione pro è uno **stack N-ary** con coverage weights normalizzati. Implementazione: nuovo `LayeredStratumMaterial` proxy `IMaterial` che incapsula la lista di `(StratumBand, IMaterial)` + funzione di weight geometrico `(altNorm, slopeDeg, curvature, aspect) → R^N`; `Scatter` campiona via distribuzione 1D pesata (PDF MIS-consistente); `EvaluateDirect` somma pesata. Back-compat via `strata_blending: "winner" | "stochastic" | "weighted"` (default `winner`).
 
   Tre estensioni obbligatorie per la parità con i terrain shader pro:
 
@@ -117,29 +117,29 @@ _Nessun bug noto al momento._
 ## 💡 Idee / Appunti
 
 Ottimizzazioni valutate nel ciclo Review e **rimandate** (da riprendere):
-- **Traversata BVH a stack esplicito** — richiede un array di nodi appiattito +
+- **Traversata BVH a stack esplicito** - richiede un array di nodi appiattito +
   stack di indici locale (`stackalloc int[]`, immune a rientranza) invece dello
   stack di riferimenti condiviso per-thread, che si corromperebbe con i Group
   annidati. Vale come step verso adaptive sampling/packet tracing.
-- **Clamp di ottave footprint-aware per Marble/Wood** — come `NoiseTexture.ComputeMaxOctaves`:
+- **Clamp di ottave footprint-aware per Marble/Wood** - come `NoiseTexture.ComputeMaxOctaves`:
   riduce ottave (e aliasing) a distanza. Modifica di anti-aliasing più ampia, da
   validare su scene marmo-pesanti.
-- **`HitRecord` più snello** — spostare `FilterFootprint`/`MediumInterface`/autobump
+- **`HitRecord` più snello** - spostare `FilterFootprint`/`MediumInterface`/autobump
   fuori dallo struct core e calcolarli pigramente dopo l'hit finale.
 
 Ottimizzazioni caustiche valutate nel ciclo fix mega-fotoni e **rimandate**:
-- **Projection map per l'emissione fotoni** (Jensen §5.1) — oggi l'emissione è
+- **Projection map per l'emissione fotoni** (Jensen §5.1) - oggi l'emissione è
   coseno-pesata sull'intero emisfero: in glass-caustics deposita solo il 2% del
   budget (60k/3M), nel pendolo lo 0.08% (2.3k/3M) perché i caster speculari sono
   bersagli piccoli. Campionare le direzioni verso le bounding box/sphere dei
   caster speculari (riscalando il flusso per la frazione di angolo solido)
   moltiplicherebbe di 10-100× i fotoni utili a parità di budget/tempo di build.
-- **Filtro normale/piano tangente al gather** — memorizzare la normale di
+- **Filtro normale/piano tangente al gather** - memorizzare la normale di
   deposito nel `Photon` e scartare al gather i fotoni con normale discordante o
   troppo fuori dal piano tangente del receiver: riduce i (lievi, ora che le
   potenze sono uniformi) leak tra superfici vicine (es. oggetto → pavimento).
   Costo: +12 byte/fotone.
-- **Gather solo al primo vertice diffuso** — oggi `GatherCaustics` gira a ogni
+- **Gather solo al primo vertice diffuso** - oggi `GatherCaustics` gira a ogni
   vertice diffuso del path; limitarlo al vertice primario taglierebbe il costo
   per sample ma richiede di rivedere la macchina a stati `causticState`
   (la soppressione del path BSDF `D S+ L` vale a ogni profondità).
@@ -154,11 +154,11 @@ Da eseguire prima di un commit importante.
 - [ ] **Visual regression**: confronto `cornell-box.yaml` con baseline. ⚠️ Dal ciclo Denoiser i preset `draft*`/`standard*`/`pre-final*` includono `--denoiser nfor`: le baseline generate con quei preset vanno confrontate a parità di flag (o rigenerate); per un confronto col motore "puro" aggiungere `--denoiser none`.
 - [ ] **Performance**: tempo render scena standard non +5% senza motivo.
 - [ ] **YAML**: ogni nuova proprietà ha default sensato.
-- [ ] **CSG**: render `csg-showcase.yaml` — union/intersection/subtraction visivamente corrette.
-- [ ] **HDRI**: render `hdri-showcase.yaml` — riflessi/rifrazioni/GI corrette.
-- [ ] **Mix**: render `mix-material-showcase.yaml` — blend costante (3 livelli), maschere (noise/marble/wood/checker), lava emissiva.
-- [ ] **Group**: render `group-showcase.yaml` — transform ereditate, template/istanze, import.
-- [ ] **Torus**: render `torus-showcase.yaml` con camera `pinhole`/`dof_soft`/`dof_extreme` — no contorni fantasma, occlusione torus/cone e torus/cylinder corretta.
+- [ ] **CSG**: render `csg-showcase.yaml` - union/intersection/subtraction visivamente corrette.
+- [ ] **HDRI**: render `hdri-showcase.yaml` - riflessi/rifrazioni/GI corrette.
+- [ ] **Mix**: render `mix-material-showcase.yaml` - blend costante (3 livelli), maschere (noise/marble/wood/checker), lava emissiva.
+- [ ] **Group**: render `group-showcase.yaml` - transform ereditate, template/istanze, import.
+- [ ] **Torus**: render `torus-showcase.yaml` con camera `pinhole`/`dof_soft`/`dof_extreme` - no contorni fantasma, occlusione torus/cone e torus/cylinder corretta.
 - [ ] **Import**: materiali e template importati da file esterni funzionano.
 - [ ] **Template override**: il materiale dell'istanza sovrascrive quello del template.
-- [ ] **Transparent shadows**: render `cornell-box-spheres.yaml` — la sfera di vetro centrale proietta un alone Fresnel-tinted, non un'ombra dura.
+- [ ] **Transparent shadows**: render `cornell-box-spheres.yaml` - la sfera di vetro centrale proietta un alone Fresnel-tinted, non un'ombra dura.

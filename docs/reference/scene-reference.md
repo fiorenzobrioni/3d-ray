@@ -31,14 +31,14 @@ entities:   # 3D objects (primitives, groups, instances, CSG, meshes)
 - **Z** = toward camera (negative = away)
 - **Colors** = `[R, G, B]` with values 0.0–1.0
 ---
-### 3. **WORLD SECTION** — Environment Configuration
+### 3. **WORLD SECTION** - Environment Configuration
 
 ```yaml
 world:
   sky:                                     # (optional) Global environment emitter
     type: "flat"  # or "gradient" / "hdri"
     # ... see details below
-  ground:                                  # (optional) Auto-generated floor — full schema below
+  ground:                                  # (optional) Auto-generated floor - full schema below
     type: "infinite_plane"                 # or "plane" / "quad" / "disk" / "heightfield"
     material: "floor_name"
     y: 0.0
@@ -57,7 +57,7 @@ sky:
 ```
 A flat sky participates in NEE (uniform sphere sampling, pdf = 1/(4π)) whenever
 its luminance is above zero. Set `color: [0, 0, 0]` for fully black void scenes
-(Cornell-box style) — the loader will skip the sky from NEE in that case.
+(Cornell-box style) - the loader will skip the sky from NEE in that case.
 
 #### **Gradient Sky** (stylised outdoor / quick previews):
 ```yaml
@@ -74,11 +74,11 @@ sky:
     size:           2.5                    # Full diameter in degrees (alternative)
     shadow_samples: 4                      # Stratified samples for the paired PhysicalSun
     visible_to_camera: true                # Hide the disc from camera, keep as light
-    extract_from_hdri: false               # (HDRI only — see below)
+    extract_from_hdri: false               # (HDRI only - see below)
 ```
 **Sun convention change.** `direction` now points TOWARDS the sun. The old code
 inverted the sign internally; old scenes that relied on that flip will now see
-the sun on the opposite side — just invert the vector. The sun cap is auto-
+the sun on the opposite side - just invert the vector. The sun cap is auto-
 attached as a separate `PhysicalSun` light with cone sampling and limb darkening.
 
 #### **Nishita** (physical Rayleigh + Mie atmosphere):
@@ -92,7 +92,7 @@ sky:
     angular_radius:  0.265
     shadow_samples:  4
 ```
-Integrated single-scattering model — superior to Preetham/Hosek-Wilkie at low
+Integrated single-scattering model - superior to Preetham/Hosek-Wilkie at low
 sun elevations (correct sunrise/sunset red disc and orange halo from physical
 principles, not from a fitted approximation). The view ray is marched through
 the atmosphere with 16 samples; each sample looks up sun transmittance in a
@@ -114,7 +114,7 @@ sky:
 ```
 Analytical daylight distribution parametrised by atmospheric turbidity and ground
 albedo. The model exposes the sun direction as an analytical light, so a
-`PhysicalSun` is auto-registered alongside the environment — clean cone shadows
+`PhysicalSun` is auto-registered alongside the environment - clean cone shadows
 without sampling 1px on a CDF. Air-mass attenuation tints the sun warm at low
 elevations (sunset/sunrise) via Rayleigh transmittance.
 
@@ -166,7 +166,7 @@ sky:
     path: "background.hdr"    # Different image shown to camera rays
 ```
 A separate `background:` sub-block lets you light the scene with one environment
-and show a different one to the camera — standard product / VFX workflow.
+and show a different one to the camera - standard product / VFX workflow.
 
 #### **Orientation** (full 3D rotation):
 ```yaml
@@ -189,7 +189,7 @@ when `orientation:` is absent.
 - **Overcast** (uniform horizon, no sun disk; or `flat` with a low gray)
 - **Studio** (`flat` with a dim neutral colour to fill bounce light)
 
-#### **Ground** (world floor — production-grade dispatcher):
+#### **Ground** (world floor - production-grade dispatcher):
 
 The `world.ground:` block is a first-class shorthand for the scene's floor.
 It dispatches on `type` to one of four shapes, supports an inline anonymous
@@ -252,14 +252,14 @@ otherwise the loader falls back to the sky's `ground_albedo`/`ground_color`
 when present; otherwise a
 neutral grey Lambertian is used.
 
-**BVH partitioning.** A `quad` / `disk` / `heightfield` ground is finite —
+**BVH partitioning.** A `quad` / `disk` / `heightfield` ground is finite -
 it joins the BVH together with regular entities. An `infinite_plane` ground
 is kept in the linear list outside the BVH (its 1e6³ AABB would poison BVH
 quality). Both behaviours are preserved through the visibility / UV
 wrappers.
 
 **Visibility semantics.** Each `visibility.*` flag set to `false` makes the
-ground transparent to rays of that category — the ray advances past the
+ground transparent to rays of that category - the ray advances past the
 surface as if it weren't there. Use `visibility.shadow: false` to keep a
 visible floor that does not cast occlusion, or `visibility.camera: false`
 for a shadow-catcher-style invisible floor that still bounces indirect
@@ -279,7 +279,7 @@ feature).
 | `sigma_s` | RGB | Scattering coefficient (visual fog density, god-rays) |
 | `phase` | string | Phase function (default `isotropic`); if `g` is present → `hg` |
 
-**Type 1 — `homogeneous`** (constant density, analytic, cheap):
+**Type 1 - `homogeneous`** (constant density, analytic, cheap):
 ```yaml
 medium:
   type: "homogeneous"
@@ -289,7 +289,7 @@ medium:
   g: 0.85
 ```
 
-**Type 2 — `height_fog`** (exponential density in altitude, analytic):
+**Type 2 - `height_fog`** (exponential density in altitude, analytic):
 ```yaml
 medium:
   type: "height_fog"
@@ -301,7 +301,7 @@ medium:
   g: 0.6
 ```
 
-**Type 5 — `atmosphere`** (Nishita aerial perspective, shares constants with `type: nishita` sky):
+**Type 5 - `atmosphere`** (Nishita aerial perspective, shares constants with `type: nishita` sky):
 ```yaml
 medium:
   type: "atmosphere"               # aliases: "nishita", "aerial_perspective"
@@ -314,13 +314,13 @@ medium:
 ```
 Earth-realistic two-species exponential medium (Rayleigh 8 km scale height +
 Mie 1.2 km) using the same physical constants as `NishitaSky`. Optical depth
-has a closed form (sum of two exponentials) — no delta-tracking variance for
+has a closed form (sum of two exponentials) - no delta-tracking variance for
 the transmittance path. Free-path sampling uses delta tracking with a
 lower-altitude majorant. Pair with `world.sky.type: nishita` for visually
 consistent sky + aerial perspective (the medium attenuates distant geometry
 with the same physics that produced the sky's colour).
 
-**Type 3 — `procedural`** (Perlin fBm, delta tracking):
+**Type 3 - `procedural`** (Perlin fBm, delta tracking):
 ```yaml
 medium:
   type: "procedural"
@@ -335,9 +335,9 @@ medium:
   g: 0.75
 ```
 
-**Type 4 — `grid`** (3D grid inline or from `.vol` file, delta tracking + reconstruction filter):
+**Type 4 - `grid`** (3D grid inline or from `.vol` file, delta tracking + reconstruction filter):
 ```yaml
-# Variant A — inline data (useful for small grids, e.g. ≤ 8³)
+# Variant A - inline data (useful for small grids, e.g. ≤ 8³)
 medium:
   type: "grid"
   sigma_a: [0.1, 0.1, 0.1]
@@ -352,7 +352,7 @@ medium:
   g: 0.5
   data: [0.0, 0.0, ...]                # nx*ny*nz floats in [0,1], z-major layout
 
-# Variant B — external binary file (recommended for large grids)
+# Variant B - external binary file (recommended for large grids)
 medium:
   type: "grid"
   sigma_a: [0.1, 0.1, 0.1]
@@ -372,15 +372,15 @@ medium:
 | `trilinear` (default) | 8 | C⁰ | Default. Cheap, but at low resolutions (≤16³) the derivative jumps at cell boundaries → visible linear banding. |
 | `tricubic` | 64 | C¹ | Catmull-Rom cardinal spline (τ = 0.5). ~8× per-sample cost, but removes kinks on low-res grids and smooths binary data. Result is clamped to `[0,1]` to preserve the delta-tracking majorant invariant. Accepted aliases: `cubic`, `catmull-rom`, `smooth`. |
 
-On high-resolution grids (128³+) with smoothly varying density the two filters are visually indistinguishable — `trilinear` is enough. On small inline grids or binary 0/1 data, `tricubic` is the standard way to hide artifacts by reconstructing density smoothly across voxel boundaries.
+On high-resolution grids (128³+) with smoothly varying density the two filters are visually indistinguishable - `trilinear` is enough. On small inline grids or binary 0/1 data, `tricubic` is the standard way to hide artifacts by reconstructing density smoothly across voxel boundaries.
 
 **Available phase functions:**
 
 | `phase` value | Parameters | Typical use |
 |---|---|---|
-| `isotropic` | — | Uniform scattering in all directions (dense smoke, thick clouds) |
+| `isotropic` | - | Uniform scattering in all directions (dense smoke, thick clouds) |
 | `hg` | `g` ∈ (-1, 1) | Henyey-Greenstein: `g > 0` forward, `g < 0` backward, `g = 0` ≈ isotropic |
-| `rayleigh` | — | Atmospheric scattering `(3/16π)(1+cos²θ)`; sky, aerial perspective |
+| `rayleigh` | - | Atmospheric scattering `(3/16π)(1+cos²θ)`; sky, aerial perspective |
 | `double_hg` | `g1`, `g2`, `w` | Two HG lobes mixed with weight `w` ∈ [0,1]; realistic clouds (Nubis) |
 | `schlick` | `g` | Fast rational approximation of HG (no sqrt) |
 
@@ -407,24 +407,24 @@ g: 0.6
 | `homogeneous` | Constant everywhere | Analytic, cheap | Indoor scenes, bounded interiors, underwater interiors, smoke columns confined by geometry. **Avoid when the only lighting is `sky` + `sun` or HDRI** (see warning below). |
 | `height_fog` | Exponential falloff with altitude (`exp(-(y-y0)/H)`) | Analytic, cheap | Outdoor scenes lit by sky / sun / HDRI: aerial perspective, mountains at dawn, sea horizon, smog. **Default choice for any outdoor scene with directional / environment lighting.** |
 | `procedural` | Perlin fBm (delta tracking) | Noisier (+30–100% time) | Patchy / irregular fog, horror, uneven god-rays, misty forests, water surfaces with patchy haze. |
-| `grid` | Density baked on a 3D grid (inline or `.vol`) | Delta tracking + voxel filter | Localized clouds, sim-cached smoke, explosions, hero VFX assets. The medium exists only inside its AABB — outside is vacuum, so other parts of the scene are unaffected. |
+| `grid` | Density baked on a 3D grid (inline or `.vol`) | Delta tracking + voxel filter | Localized clouds, sim-cached smoke, explosions, hero VFX assets. The medium exists only inside its AABB - outside is vacuum, so other parts of the scene are unaffected. |
 
-> ⚠️ **Sky + sun + `homogeneous` = black render.** A homogeneous global medium has *constant* density extending to infinity, so the Beer–Lambert shadow ray toward the sun (or any environment direction) travels through `exp(-σ_t · ∞) ≈ 0` and direct environmental lighting collapses to zero. Spot/point/area/sphere lights have finite distance and behave correctly, but if the *only* emitters are `sky` + `sun` (or HDRI) the render comes out black. Use `height_fog` instead — its optical depth toward the zenith is bounded by the scale height, which is the standard "aerial perspective" behaviour. This is the physically correct behaviour of `homogeneous` (real atmospheres are not infinite), not a renderer bug.
+> ⚠️ **Sky + sun + `homogeneous` = black render.** A homogeneous global medium has *constant* density extending to infinity, so the Beer–Lambert shadow ray toward the sun (or any environment direction) travels through `exp(-σ_t · ∞) ≈ 0` and direct environmental lighting collapses to zero. Spot/point/area/sphere lights have finite distance and behave correctly, but if the *only* emitters are `sky` + `sun` (or HDRI) the render comes out black. Use `height_fog` instead - its optical depth toward the zenith is bounded by the scale height, which is the standard "aerial perspective" behaviour. This is the physically correct behaviour of `homogeneous` (real atmospheres are not infinite), not a renderer bug.
 
 - **Usage:** Simulates fog, smoke, atmospheric haze, clouds, underwater effects.
-- **Rendering tip:** `homogeneous` and `height_fog` are analytic and cheap. `procedural` and `grid` use delta tracking and are noisier — raise `-s` to 400/576/1024 and keep `-d 6-8`. For dense-fog scenes consider `-C 25`. See [Rendering Profiles](./rendering-profiles.md) §8 for the full guide.
+- **Rendering tip:** `homogeneous` and `height_fog` are analytic and cheap. `procedural` and `grid` use delta tracking and are noisier - raise `-s` to 400/576/1024 and keep `-d 6-8`. For dense-fog scenes consider `-C 25`. See [Rendering Profiles](./rendering-profiles.md) §8 for the full guide.
 - **Effects:** Spot lights → visible god-rays; point lights → halos; directional → aerial perspective (with `height_fog`).
 - **Fireflies with point/spot in fog:** the 1/d² attenuation diverges when scattering events land near a point/spot emitter, producing isolated bright pixels. Set `soft_radius` on those lights (see §8.1, §8.3) to a value approximating the physical bulb size (e.g. `0.15`–`0.30`).
-- **Fireflies with area lights in fog:** the `cosLight/d²` term in the area estimator can diverge at grazing angles in dense media. Set `soft_radius` on area lights (see §8.4). Sphere lights use a solid-angle estimator that is bounded by construction — no `soft_radius` needed. Also consider `--indirect-clamp-factor 0.25` (CLI) to aggressively suppress deep-bounce spikes.
-- **Advanced firefly control:** `--indirect-clamp-factor <f>` (default `0.25` = on; `1.0` = off) multiplies the primary `--clamp` threshold for the indirect contribution. E.g. with the default `--clamp 10 --indirect-clamp-factor 0.25` the indirect clamp is 2.5 (primary stays 10). The clamp is applied **once, camera-relative**, to the throughput-weighted indirect contribution at the primary surface — not compounded at every bounce.
+- **Fireflies with area lights in fog:** the `cosLight/d²` term in the area estimator can diverge at grazing angles in dense media. Set `soft_radius` on area lights (see §8.4). Sphere lights use a solid-angle estimator that is bounded by construction - no `soft_radius` needed. Also consider `--indirect-clamp-factor 0.25` (CLI) to aggressively suppress deep-bounce spikes.
+- **Advanced firefly control:** `--indirect-clamp-factor <f>` (default `0.25` = on; `1.0` = off) multiplies the primary `--clamp` threshold for the indirect contribution. E.g. with the default `--clamp 10 --indirect-clamp-factor 0.25` the indirect clamp is 2.5 (primary stays 10). The clamp is applied **once, camera-relative**, to the throughput-weighted indirect contribution at the primary surface - not compounded at every bounce.
 - **Photographic exposure:** `--exposure <EV>` (default `0`) applies a linear gain `2^EV` to every pixel before ACES tone mapping. Use negative EV (`-1`, `-2`) when the scene reads washed-out because the lights drive arriving radiance above ~2.0, where ACES flattens onto a 0.95-0.99 plateau and hides texture contrast. Positive EV brightens scenes that fall below the curve's linear range. Mirrors the standard photographic exposure compensation found in production renderers.
 - **Light importance sampling:** `--light-sampling power` (default `all`) samples one light per NEE event with probability ∝ `ApproximatePower`. Dramatically reduces variance in scenes with many lights of mixed brightness (e.g. 1 area + 10 dim point lights). Use `uniform` as a reference baseline.
 
 #### **Named Mediums** (top-level `mediums:` block)
 
 Beyond the single `world.medium`, 3D-Ray exposes a top-level `mediums:` block where named participating media are declared once and bound to specific entities via `interior_medium` / `exterior_medium`. This is the foundation for:
-- **Subsurface scattering** (marble, skin, wax, jade, milk) — the SSS random-walk integrator activates automatically when an entity is bound to a `homogeneous` medium with `σ_s > 0`.
-- **Per-object volumetric containers** — fog inside a CSG-room, smoke inside a teapot, water inside a glass tank, planet atmosphere — without affecting the rest of the scene the way `world.medium` would.
+- **Subsurface scattering** (marble, skin, wax, jade, milk) - the SSS random-walk integrator activates automatically when an entity is bound to a `homogeneous` medium with `σ_s > 0`.
+- **Per-object volumetric containers** - fog inside a CSG-room, smoke inside a teapot, water inside a glass tank, planet atmosphere - without affecting the rest of the scene the way `world.medium` would.
 
 ```yaml
 mediums:
@@ -458,14 +458,14 @@ entities:
 - IDs are case-insensitive. Duplicates are last-write-wins with a deferred warning (same convention as `materials:`).
 - An unknown `interior_medium` / `exterior_medium` id falls back to vacuum and prints a load-time warning.
 - Mediums are imported across YAML files identically to materials (see §2). The inline `world.medium` is **never** imported.
-- A medium can be referenced by multiple entities — it's a blueprint, not an instance.
+- A medium can be referenced by multiple entities - it's a blueprint, not an instance.
 
 **Entity binding fields:**
 
 | Field | Type | Description |
 |---|---|---|
 | `interior_medium` | string \| null | ID of a medium that fills the entity's interior. Activates SSS random walk on refraction into the entity when the medium scatters (`σ_s > 0`). |
-| `exterior_medium` | string \| null | ID of a medium representing the space *outside* this entity. Rarely needed — defaults to the parent medium in the stack (or `world.medium`). |
+| `exterior_medium` | string \| null | ID of a medium representing the space *outside* this entity. Rarely needed - defaults to the parent medium in the stack (or `world.medium`). |
 
 **Subsurface scattering** (`interior_medium` + `homogeneous` + `σ_s > 0`):
 
@@ -484,7 +484,7 @@ The surface material's `spec_trans`/`ior` (Disney) or `dielectric` lobe controls
 
 Migration note: the legacy Disney parameters `subsurface`, `flatness` are no longer read. Use either:
 
-1. `subsurface_radius` directly on a Disney material (material-embedded SSS — see §5.5), or
+1. `subsurface_radius` directly on a Disney material (material-embedded SSS - see §5.5), or
 2. an explicit `interior_medium` binding on the entity with the Jensen 2001 presets in `docs/technical/subsurface-scattering.md`.
 
 The two paths are interoperable: an explicit `interior_medium` always wins over an embedded medium derived from `subsurface_radius`.
@@ -511,7 +511,7 @@ cameras:
     look_at: [0, 0, 0]
     fov: 45
     aperture: 0.1
-    focal_pos: [0.5, 0.6, 1.0]            # focus on this point — see below
+    focal_pos: [0.5, 0.6, 1.0]            # focus on this point - see below
 ```
 #### **Single Camera** (legacy):
 ```yaml
@@ -535,7 +535,7 @@ dotnet run ... -- -i scene.yaml -c 1 -o cam1.png    # By index (0-based)
 > `-i scene` resolves to `scene.yaml`).
 **⚠️ Depth of Field:** When `aperture > 0`, set `focal_dist` (or `focal_pos`) to the actual distance / world-space point of your main subject. Default `focal_dist: 1.0` will create unintended extreme blur.
 
-#### **`focal_pos` — focus on a point**
+#### **`focal_pos` - focus on a point**
 `focal_pos: [x, y, z]` is an alternative to the scalar `focal_dist`. The loader computes the focus distance as the **projection** of the camera→focal-point vector onto the optical axis:
 ```
 forward    = normalize(look_at − position)
@@ -545,7 +545,7 @@ The focus plane is perpendicular to the view direction passing through `focal_po
 
 When both `focal_pos` and `focal_dist` are present, `focal_pos` wins (an info message is logged). `focal_pos` is ignored with a warning when it falls behind the camera, coincides with it, or the camera is degenerate (`look_at == position`); the scalar `focal_dist` is used as fallback.
 
-#### **`shutter` — motion-blur exposure interval**
+#### **`shutter` - motion-blur exposure interval**
 Motion blur integrates the scene over the time the shutter is open. The scene's
 animation runs on a normalized timeline `[0, 1]` (see the entity `motion:` key in
 §7 and camera `motion:` below); `shutter: [open, close]` selects the sub-interval
@@ -554,21 +554,21 @@ each camera sample is exposed over, with `0 ≤ open < close ≤ 1`.
 camera:
   position: [0, 2, 8]
   look_at: [0, 1, 0]
-  shutter: [0.0, 1.0]                      # full exposure — integrate the whole motion arc
-  # shutter: [0.45, 0.55]                  # short exposure — motion nearly frozen (streaks ~10× shorter)
+  shutter: [0.0, 1.0]                      # full exposure - integrate the whole motion arc
+  # shutter: [0.45, 0.55]                  # short exposure - motion nearly frozen (streaks ~10× shorter)
 ```
 Each camera sample draws one time uniformly inside `[open, close]` (one extra
 low-discrepancy dimension, taken only when the scene is animated) and the whole
-path — camera ray, shadow rays, bounces — is traced at that single instant. A
+path - camera ray, shadow rays, bounces - is traced at that single instant. A
 narrower interval is a shorter exposure: the motion is more frozen and the
 streaks shorter. Default `[0, 1]` when anything is animated.
 
 `shutter` lives on the camera, so each entry of a `cameras:` list can carry its
 own value (e.g. a "full" and a "short" exposure of the same scene). An invalid
 interval is reset to `[0, 1]` with a warning. If nothing in the scene is animated
-the shutter is reported and ignored — output stays identical to a still render.
+the shutter is reported and ignored - output stays identical to a still render.
 
-#### **`motion` — camera motion blur**
+#### **`motion` - camera motion blur**
 An optional `motion:` list animates the camera itself. The base
 `position`/`look_at`/`vup`/`fov` is the implicit keyframe at `time: 0`; each entry
 adds a keyframe at its own normalized time, and any field omitted in a keyframe
@@ -583,7 +583,7 @@ camera:
     - { time: 1.0, position: [1.5, 2, 8], look_at: [0.5, 1, 0] }   # gentle dolly over the exposure
 ```
 ---
-### 5. **MATERIALS SECTION** — Six Types
+### 5. **MATERIALS SECTION** - Six Types
 #### **5.1 Lambertian (Diffuse/Matte)**
 ```yaml
 - id: "matte_red"
@@ -682,12 +682,12 @@ camera:
 > (`subsurface`, `flatness`) have been removed. Physically-correct SSS
 > now comes from one of two interoperable paths:
 >
-> 1. **Material-embedded** — set `subsurface_radius` on the Disney
+> 1. **Material-embedded** - set `subsurface_radius` on the Disney
 >    material; the loader auto-builds a `HomogeneousMedium` and
 >    auto-injects it on every entity that doesn't already have an
 >    explicit `interior_medium`. Emulates volumetric subsurface
 >    scattering inside the material. See "Material-embedded SSS" below.
-> 2. **Entity-bound** — declare a `mediums:` block entry and bind it
+> 2. **Entity-bound** - declare a `mediums:` block entry and bind it
 >    via `interior_medium` on the entity. Maximum control, two entities
 >    with the same material can have different volumes.
 >
@@ -717,7 +717,7 @@ renderer (the loader emits an `Info` line when it sees one).
 | `clearcoat_gloss` | float | 1.0 | 0–1 | **Legacy** | Disney-2012 slider; superseded by `coat_roughness` |
 | `coat_ior` | float | 1.5 | ≥ 1 | Coat | Explicit coat IOR (default 1.5 = lacquer) |
 | `coat_roughness` | float | -1.0 | -1 or 0–1 | Coat | -1 = use `clearcoat_gloss`; any ≥ 0 selects physical coat |
-| `coat_normal_map` | path | — | — | Coat | Dedicated normal map for the coat lobe |
+| `coat_normal_map` | path | - | - | Coat | Dedicated normal map for the coat lobe |
 | `spec_trans` | float | 0.0 | 0–1 | Core | 0 = opaque, 1 = glass |
 | `ior` | float | 1.5 | ≥ 1 | Core | Refraction index for specular + transmission |
 | `transmission_color` | colour | `[1,1,1]` | 0–1 | Core | Interior colour at `transmission_depth` |
@@ -725,16 +725,16 @@ renderer (the loader emits an `Info` line when it sees one).
 | `anisotropic` | float | 0.0 | 0–1 | Aniso | 0 = isotropic, 1 = fully stretched along tangent |
 | `anisotropic_rotation` | float | 0.0 | 0–1 | Aniso | Fraction of 2π around the normal |
 | `diff_trans` | float | 0.0 | 0–1 | 2015 | Diffuse transmission (foliage, thin fabric) |
-| `thin_walled` | bool | false | — | 2015 | Skip interior refraction (foliage, paper) |
+| `thin_walled` | bool | false | - | 2015 | Skip interior refraction (foliage, paper) |
 | `thin_film_thickness` | float | 0.0 | ≥ 0 (nm) | Thin-film | Belcour-Barla 2017; 100–800 nm = iridescence |
 | `thin_film_ior` | float | 1.5 | ≥ 1 | Thin-film | Film η₂ (water = 1.33, soap = 1.40) |
-| `subsurface_radius` | colour | — | ≥ 0 (wu) | SSS | Mean Free Path per RGB channel. Presence triggers auto-build of an embedded `HomogeneousMedium`. |
+| `subsurface_radius` | colour | - | ≥ 0 (wu) | SSS | Mean Free Path per RGB channel. Presence triggers auto-build of an embedded `HomogeneousMedium`. |
 | `subsurface_color` | colour | `color` | 0–1 | SSS | Volume albedo. Defaults to the surface `color` when omitted. |
 | `subsurface_scale` | float | 1.0 | > 0 | SSS | Global multiplier applied to `subsurface_radius` before the σ conversion. |
 | `subsurface_anisotropy` | float | 0.0 | -1–1 | SSS | HG `g` for the auto-built phase function. 0 ≈ isotropic. |
-| `texture` | block | — | — | Texturing | Procedural or image, replaces `color` |
-| `normal_map` | block | — | — | Texturing | Surface perturbation (image-only) |
-| `bump_map` | block | — | — | Texturing | Scalar bump from any procedural/image texture |
+| `texture` | block | - | - | Texturing | Procedural or image, replaces `color` |
+| `normal_map` | block | - | - | Texturing | Surface perturbation (image-only) |
+| `bump_map` | block | - | - | Texturing | Scalar bump from any procedural/image texture |
 
 > Every scalar parameter accepts a matching `*_texture` variant (e.g.
 > `roughness_texture`) and the two colour inputs (`color`,
@@ -754,7 +754,7 @@ The coat lobe has two compatible parameterisations:
 **Selection rule.** `coat_roughness` defaults to `-1` (sentinel). While
 it stays negative the engine uses the legacy `clearcoat_gloss` path. As
 soon as you set `coat_roughness >= 0` (or bind `coat_roughness_texture`),
-the physical coat takes over and `clearcoat_gloss` is ignored — the
+the physical coat takes over and `clearcoat_gloss` is ignored - the
 conversion is roughly `coat_roughness ≈ 1 - clearcoat_gloss`.
 
 > **New scenes should use `coat_roughness` + `coat_ior`.** Existing
@@ -765,7 +765,7 @@ conversion is roughly `coat_roughness ≈ 1 - clearcoat_gloss`.
   - Plastics: `metallic=0.0`, `roughness=0.4–0.8`
   - Car paint: `metallic=0.0`, `clearcoat=1.0` (+ `coat_roughness` for physical coat)
   - Fabric / velvet: `metallic=0.0`, `sheen=0.8–1.0`, `sheen_roughness=0.2–0.4`
-  - Skin / marble / wax / milk: either declare `subsurface_radius` on the material (auto-builds the medium — see "Material-embedded SSS" below), or set `spec_trans=1.0`, `ior=1.4–1.5` plus `interior_medium: <id>` on the entity bound to a `homogeneous` medium with `σ_s > 0` (Random Walk SSS — see [docs/technical/subsurface-scattering.md](../technical/subsurface-scattering.md)).
+  - Skin / marble / wax / milk: either declare `subsurface_radius` on the material (auto-builds the medium - see "Material-embedded SSS" below), or set `spec_trans=1.0`, `ior=1.4–1.5` plus `interior_medium: <id>` on the entity bound to a `homogeneous` medium with `σ_s > 0` (Random Walk SSS - see [docs/technical/subsurface-scattering.md](../technical/subsurface-scattering.md)).
   - Clear glass: `spec_trans=1.0`, `roughness=0.0`, `ior=1.52`
   - Coloured glass: add `transmission_color` + `transmission_depth` (e.g. 5 units for a bottle of brandy)
   - Soap bubble / opal: `thin_film_thickness=350..700`, `thin_film_ior=1.33..1.5`
@@ -798,7 +798,7 @@ entities:
     center: [0, 0.8, 0]
     radius: 0.35
     material: dis_marmo_carrara
-    # no interior_medium, no mediums: section — SSS still works
+    # no interior_medium, no mediums: section - SSS still works
 ```
 
 **How the medium is built.** Let `α` be the surface albedo
@@ -830,14 +830,14 @@ Everything else (`metallic`, `roughness`, `ior`, …) is left untouched.
 over the material-embedded medium. A single Disney material can be reused
 across entities,
 each one swapping the volume if it needs to (e.g. polished marble in
-one slab, frosted marble — different σ — in another).
+one slab, frosted marble - different σ - in another).
 
 **Cases that emit a warning** (and disable the embedded medium):
 
-- `metallic > 0` on the same material — the metallic blend suppresses
+- `metallic > 0` on the same material - the metallic blend suppresses
   the transmission lobe, so no `Enter` event would ever fire.
-- `thin_walled: true` — a thin wall has no interior volume.
-- Non-Disney material types (`lambertian`, `metal`, `dielectric`) —
+- `thin_walled: true` - a thin wall has no interior volume.
+- Non-Disney material types (`lambertian`, `metal`, `dielectric`) -
   they do not emit `MediumTransition.Enter` and cannot push a medium.
 
 Use the entity-bound path (top-level `mediums:` block +
@@ -864,21 +864,21 @@ the volume is heterogeneous (`procedural` / `grid` / `nishita`).
 - Useful for: weathering, wear, transitions, decals
 - Mix-of-mix nesting supported
 ---
-### 6. **TEXTURES** — Embedded in Materials
+### 6. **TEXTURES** - Embedded in Materials
 Textures are defined **within** material definitions. All procedural textures
 are pro-grade, with a comprehensive set of controls for noise, voronoi, marble,
 wood, brick, gradient and coordinate textures.
 
 #### **Sampling space (metric object-local).**
 Every procedural samples on `rec.LocalPoint`, which is the shading point in the
-object's **own axes, in world units** — the entity's `scale` is applied but its
+object's **own axes, in world units** - the entity's `scale` is applied but its
 rotation and translation are not. This is the metric object-space projection of
 production renderers (Cycles "Texture Coordinate → Object", Arnold
 `space: object`, RenderMan `Pref`).
 
 The key consequence: **the texture's feature size is set by its own `scale` and
 is invariant to the entity's scale.** Stretching a box 10× on X does *not*
-stretch or deform the pattern — it shows 10× as many features of the *same*
+stretch or deform the pattern - it shows 10× as many features of the *same*
 size, exactly like a longer plank has more growth rings of the same width.
 Non-uniform `scale` therefore never turns wood rings into ellipses or smears a
 marble vein. The pattern stays attached to the object's axes/origin, so it
@@ -903,7 +903,7 @@ across many tiled objects use `mode: "world"`.
 
 #### **Anisotropic scale (per-axis frequency).**
 `scale` also accepts a per-axis `[sx, sy, sz]` vector to *deliberately* stretch
-the pattern along the object's own axes — independently of the entity's scale.
+the pattern along the object's own axes - independently of the entity's scale.
 A scalar (`scale: 4`) is isotropic and unchanged; a vector gives a different
 frequency per axis:
 
@@ -915,7 +915,7 @@ texture:
   rotation: [0, 0, 0]   # optional sample-point rotation (degrees, X→Y→Z)
 ```
 
-Honoured by the solid procedurals — `noise`, `marble`, `wood`, `voronoi`. Each
+Honoured by the solid procedurals - `noise`, `marble`, `wood`, `voronoi`. Each
 component is `cycles/wu` on that axis, so `[8, 8, 8]` is identical to the scalar
 `8`. The dominant component drives the anti-aliasing octave clamp, so stretching
 never introduces aliasing. `offset` and `rotation` (both 3D, applied to the
@@ -938,26 +938,26 @@ texture:
   type: "noise"
   noise_type: "fbm"            # perlin | fbm | turbulence | ridged | billow | hetero_terrain | hybrid_multifractal
   scale: 5.0
-  octaves: 5                   # 1..16 — fBm/ridged/billow/musgrave octave count
+  octaves: 5                   # 1..16 - fBm/ridged/billow/musgrave octave count
   lacunarity: 2.0              # frequency multiplier between octaves
   gain: 0.5                    # amplitude decay between octaves (fbm/ridged/billow)
-  fractal_increment: 1.0       # Musgrave H — only used by hetero_terrain / hybrid_multifractal
-  fractal_offset: 0.7          # Musgrave offset / "sea level" — only used by hetero_terrain / hybrid_multifractal
+  fractal_increment: 1.0       # Musgrave H - only used by hetero_terrain / hybrid_multifractal
+  fractal_offset: 0.7          # Musgrave offset / "sea level" - only used by hetero_terrain / hybrid_multifractal
   distortion: 0.0              # domain-warp amplitude (organic shapes)
   noise_strength: 0.0          # legacy: 0=smooth Perlin, >0=turbulent (overridden by noise_type)
   colors: [[0, 0, 0], [1, 1, 1]]
 ```
 The seven noise families map onto the standard pro-renderer modes:
-- `perlin` — single-octave smooth gradient noise.
-- `fbm` — Σ noise/2^i, the canonical "fractal noise".
-- `turbulence` — Σ|noise|/2^i with absolute-value sharpening.
-- `ridged` — Musgrave ridged multifractal, sharp ridges (rocks, lightning).
-- `billow` — Σ|noise| octaves, puffy / cloud-like.
-- `hetero_terrain` — Musgrave heterogeneous terrain (Ebert et al. §16.3.3):
+- `perlin` - single-octave smooth gradient noise.
+- `fbm` - Σ noise/2^i, the canonical "fractal noise".
+- `turbulence` - Σ|noise|/2^i with absolute-value sharpening.
+- `ridged` - Musgrave ridged multifractal, sharp ridges (rocks, lightning).
+- `billow` - Σ|noise| octaves, puffy / cloud-like.
+- `hetero_terrain` - Musgrave heterogeneous terrain (Ebert et al. §16.3.3):
   per-octave amplitude scaled by the running accumulated value, so high
   ground gets rougher and valleys stay smooth. The canonical eroded-terrain
   look that pure fBm cannot reach.
-- `hybrid_multifractal` — Musgrave hybrid multifractal (§16.3.4): per-octave
+- `hybrid_multifractal` - Musgrave hybrid multifractal (§16.3.4): per-octave
   signal multiplied by a running `weight` (clamped to 1), producing
   stratified rock layers and sharp peaks. Used for asteroids, alien rock,
   stratigraphic marble.
@@ -965,16 +965,16 @@ The seven noise families map onto the standard pro-renderer modes:
 `distortion` warps the input position with a secondary Perlin sample
 (Inigo Quilez technique); 0.3–0.8 is usually enough. `fractal_increment`
 (Musgrave's H, default 1.0) controls how fast high-frequency octaves decay
-— H ≈ 0.25 yields rough terrain, H ≥ 1 produces smooth, low-frequency
+- H ≈ 0.25 yields rough terrain, H ≥ 1 produces smooth, low-frequency
 dominated fields. `fractal_offset` (default 0.7) is the "sea level" bias
 added to each octave; higher values flatten valleys, lower values turn
 everything into mountains. These two parameters are only used by the
-`hetero_terrain` / `hybrid_multifractal` modes — the other noise kinds
+`hetero_terrain` / `hybrid_multifractal` modes - the other noise kinds
 ignore them.
 
-**Marble** — production-grade ridged multifractal + recursive (Inigo Quilez)
+**Marble** - production-grade ridged multifractal + recursive (Inigo Quilez)
 domain warp + anisotropic geological fold + optional mineral impurities.
-No periodic carrier — every visible
+No periodic carrier - every visible
 tiling is killed by the recursive warp.
 
 ```yaml
@@ -984,16 +984,16 @@ texture:
   colors: [[0.96, 0.95, 0.94], [0.32, 0.34, 0.40]]
   vein_axis: [0, 1, 0]         # orientation of the dominant fold direction
 
-  # Recursive (IQ) domain warp — kills tiling, produces organic flow
+  # Recursive (IQ) domain warp - kills tiling, produces organic flow
   warp_amplitude: 0.9          # world-unit displacement of the warp field
   warp_scale: 2.0              # spatial period of the warp field
   warp_iterations: 2           # 0 = baseline, 2 = canonical, 3 = aggressive
 
-  # Anisotropic geological fold — large-scale tectonic shear
+  # Anisotropic geological fold - large-scale tectonic shear
   fold_amplitude: [0.8, 0.25, 0.45]   # per-axis amplitude (max → vein_axis)
   fold_scale: 6.0              # period of the fold field
 
-  # Multi-scale ridged vein field — soft-max compositing
+  # Multi-scale ridged vein field - soft-max compositing
   vein_layers: 2               # 1..3 independent layers
   vein_scale:  [1.0, 2.4]      # per-layer scale (length = vein_layers)
   vein_weight: [1.0, 0.50]     # per-layer soft-max weight
@@ -1003,7 +1003,7 @@ texture:
   soft_max_sharpness: 8        # crispness of the layer composite
 
   # Vein-thickness remap (replaces the broken legacy vein_sharpness)
-  vein_thickness: 0.13         # 0..1 — fraction of surface occupied by veins
+  vein_thickness: 0.13         # 0..1 - fraction of surface occupied by veins
   vein_softness: 0.07          # smoothstep half-width on the threshold
 
   # Background tonal variation
@@ -1026,7 +1026,7 @@ texture:
   cracks_softness: 0.04        # 0.02 = razor-thin, 0.10 = soft branching
   cracks_weight: 0.9           # soft-max weight vs the ridged layer
 
-  # Output mode — `color` (default) or `mask`
+  # Output mode - `color` (default) or `mask`
   output: "color"              # set to "mask" for roughness_texture etc.
 
   randomize_offset: true
@@ -1041,11 +1041,11 @@ texture:
 > only. Duplicate the marble block under the appropriate `*_texture`
 > field with `output: "mask"` and (optionally) a 2-stop `color_ramp` that
 > remaps `[0, 1]` to the target parameter range. The double evaluation
-> costs ~26 extra Perlin samples per shade on the protagonist material —
+> costs ~26 extra Perlin samples per shade on the protagonist material -
 > negligible against Disney BSDF + NEE.
 
 > **Anisotropic stretch vs fold.** `space_stretch` is a linear
-> pre-multiply on the sample point — a uniform compression that runs
+> pre-multiply on the sample point - a uniform compression that runs
 > BEFORE the fold and warp. Use it for the long, planar "bedded" look of
 > stratified marbles (the Y-comp of Statuario, the horizontal compression
 > of Verde Alpi). The fold (`fold_amplitude`) is a non-linear noise-driven
@@ -1056,9 +1056,9 @@ texture:
 > organic vein-like ridges; the cracks Worley overlay produces sharp
 > long linear fractures (F2 − F1 ridge between cells). They compose via
 > soft-max so the two networks coexist cleanly. Set `cracks_density: 0`
-> to skip the Worley evaluation entirely — no perf cost when disabled.
+> to skip the Worley evaluation entirely - no perf cost when disabled.
 
-The vein axis no longer drives a sinusoidal carrier — it controls only the
+The vein axis no longer drives a sinusoidal carrier - it controls only the
 dominant direction of the anisotropic fold. Real organic flow comes from the
 recursive warp + ridged multifractal pair. Bumping `warp_iterations` from
 2→3 doubles the per-shade Perlin sample cost (~14 → ~17 lattice samples on
@@ -1069,11 +1069,11 @@ high-resolution slabs.
 Carrara/Statuario (thin), 0.22-0.30 ≈ Calacatta/Port Laurent (medium),
 0.30-0.40 ≈ Arabescato (chaotic bands), 0.40+ ≈ onyx/alabaster (diffuse
 nebulae rather than veins). `vein_softness` controls how crisp the
-transition is — 0.04-0.08 = razor-sharp edges (Marquina), 0.15-0.25 =
+transition is - 0.04-0.08 = razor-sharp edges (Marquina), 0.15-0.25 =
 watery (onyx).
 
 > **Impurity composability.** The default inline `impurities_density` path
-> uses a sparse Voronoi cell hash — cheap and YAML-flat. When the inline
+> uses a sparse Voronoi cell hash - cheap and YAML-flat. When the inline
 > path is too restrictive (you want the impurities to follow an image,
 > a custom Voronoi, or any other procedural), set `impurities_texture` to
 > a full nested texture block; its luminance overrides the inline path
@@ -1094,7 +1094,7 @@ texture:
   ring_sharpness: 3.0          # 1=soft, 3-6=razor latewood edge
   earlywood_transition: 0.05   # smooth rise from prior latewood (0.005-0.5)
 
-  # Per-ring random variation — the single biggest realism upgrade.
+  # Per-ring random variation - the single biggest realism upgrade.
   # 0 = every ring identical (the "CG wood" look); 0.15 = natural year-
   # to-year variation. Width offset uses the same per-ring hash.
   ring_color_variation: 0.15
@@ -1105,7 +1105,7 @@ texture:
   warp_scale: 2.5
   warp_iterations: 2           # 0=off, 2=canonical IQ, 3=heavy flow
 
-  # Anisotropic geological fold — large-scale trunk bending.
+  # Anisotropic geological fold - large-scale trunk bending.
   fold_amplitude: [0.3, 0.1, 0.3]
   fold_scale: 4.0
 
@@ -1139,7 +1139,7 @@ texture:
   knot_density: 0.0            # 0.5-1.0 = pine/spruce/cedar
   knot_scale: 0.6              # frequency multiplier; higher = more knots
 
-  # Output mode — `color` (default) or `mask`.
+  # Output mode - `color` (default) or `mask`.
   output: "color"              # set to "mask" to drive Disney roughness_texture &c
 
   colors: [[0.85, 0.65, 0.40], [0.45, 0.28, 0.14]]
@@ -1151,7 +1151,7 @@ texture:
 
 > **Production-grade wood controls.** The texture was rewritten end-to-end
 > to a production-grade annual-ring model. All knobs above are active
-> by default with sensible values —
+> by default with sensible values -
 > the legacy "every ring looks the same" symmetric profile is gone.
 >
 > * **Asymmetric ring profile.** `latewood_width` controls the width of
@@ -1161,7 +1161,7 @@ texture:
 >   with `ring_sharpness` (1-6) to dial the crispness of that boundary.
 > * **Per-ring colour + width variation.** `ring_color_variation` and
 >   `ring_width_variation` apply a deterministic per-ring hash so adjacent
->   rings differ in brightness and width — the single feature that makes
+>   rings differ in brightness and width - the single feature that makes
 >   wood look real instead of CG. The hash combines the integer ring index
 >   with the object seed, so different instances see different ring
 >   sequences while staying reproducible across renders. Keep both around
@@ -1172,17 +1172,17 @@ texture:
 >   canonical IQ recipe; 3 produces aggressive geological flow. The legacy
 >   `distortion:` YAML key is mapped to `warp_amplitude` for back-compat.
 > * **Anisotropic geological fold.** `fold_amplitude` + `fold_scale` apply
->   a large-scale anisotropic shear BEFORE the recursive warp — the warp
+>   a large-scale anisotropic shear BEFORE the recursive warp - the warp
 >   then operates in the folded space, producing the kind of curved ring
 >   patterns seen near trunk bends.
 > * **Multi-band noise.** `grain_strength` (high-freq fBm, fibre detail)
 >   + `figure_strength` (low-freq, curly maple / flame mahogany ripples)
 >   + `axial_grain` (long-wave along axis). The figure band can be
 >   axially elongated via `figure_aspect` to align its stripes
->   perpendicular to the grain — the natural orientation of curly maple
+>   perpendicular to the grain - the natural orientation of curly maple
 >   and flame mahogany.
 > * **Open-pore vessels.** `pore_density` spawns sparse dark micro-specks
->   via an axially-anisotropic Worley — the cells are elongated along
+>   via an axially-anisotropic Worley - the cells are elongated along
 >   the trunk axis by `pore_aspect` so the vessels look like the short
 >   cylindrical channels of real open-pore species (oak 0.45, ash 0.42,
 >   walnut 0.40, mahogany 0.25). 0 = closed-pore (maple, beech, cherry,
@@ -1194,7 +1194,7 @@ texture:
 > * **`radial_anisotropy`.** Stretches the noise sample along the local
 >   radial direction (perpendicular to `ring_axis`). High values (~3-5)
 >   reproduce the quartersawn-oak medullary "tiger ray" look.
-> * **`knot_density`.** 3-D cone projection — each sparse Worley cell
+> * **`knot_density`.** 3-D cone projection - each sparse Worley cell
 >   hosts a knot whose visible cone widens with axial distance from the
 >   cell centre. Inside the cone the ring centre is pulled toward the
 >   knot feature and a dark heart is added on top. Combine with a 4-5 stop
@@ -1206,13 +1206,13 @@ texture:
 > the bright earlywood plateau, 0 at the dark latewood / pore) packed
 > as `(t, t, t)`. Drop the same block under `roughness_texture` /
 > `sheen_texture` / etc. to drive scalar BSDF parameters from the
-> latewood pattern — latewood can be polished while earlywood stays
+> latewood pattern - latewood can be polished while earlywood stays
 > matte (the cera-su-quercia look), sheen can ride on the open-pore
 > earlywood only. The double evaluation costs ~30 extra Perlin samples
-> per shade on the protagonist material — negligible against Disney
+> per shade on the protagonist material - negligible against Disney
 > BSDF + NEE.
 
-#### **Production-quality marble & wood — recipe book**
+#### **Production-quality marble & wood - recipe book**
 
 The studio-quality knobs interact non-trivially with the BSDF and the
 lighting setup. The recipes below are collected in the
@@ -1222,7 +1222,7 @@ credible material in minutes.
 
 > **Lighting checklist before tuning a marble.** A polished marble at
 > `roughness < 0.2` becomes a near-mirror that reflects the environment
-> verbatim — if the sky is bright and untextured the marble reads as
+> verbatim - if the sky is bright and untextured the marble reads as
 > "blue gradient" instead of marble. Three rules:
 >
 > 1. **Use a dark or near-black sky for lookdev shots** (`type: "flat"`,
@@ -1230,14 +1230,14 @@ credible material in minutes.
 >    the visual, not the environment.
 > 2. **Roughness 0.30–0.34 for "lucido"** marble where the texture must
 >    read; raise clearcoat (0.85+) for the polished glass-like top layer.
->    Lower roughness only when you want a true mirror finish — for
+>    Lower roughness only when you want a true mirror finish - for
 >    that, you typically *do* want some HDRI reflections.
 > 3. **Direct lighting must dominate.** A directional key at intensity
 >    5–7 plus a cool fill and a warm rim point lights light up the
 >    diffuse component above the specular reflection. Without this
 >    triad the BSDF integrator can't separate texture from environment.
 
-**Carrara — white base with thin grey-blue veins.**
+**Carrara - white base with thin grey-blue veins.**
 ```yaml
 - id: "carrara"
   type: "disney"
@@ -1262,9 +1262,9 @@ credible material in minutes.
 ```
 Default vein_thickness 0.13 leaves the surface dominantly white with thin
 ridged cracks. The fold + recursive warp curve the veins organically along
-`vein_axis` — no straight lines no matter the camera angle.
+`vein_axis` - no straight lines no matter the camera angle.
 
-**Calacatta Gold — 3 layers + ramp 4-stop from cream to gold to dark.**
+**Calacatta Gold - 3 layers + ramp 4-stop from cream to gold to dark.**
 ```yaml
 - id: "calacatta_gold"
   type: "disney"
@@ -1297,7 +1297,7 @@ field is low), **position 1 = vein** (`t → 1`, rare peaks of the ridged
 field); intermediate stops paint the gold transition. The 3-layer system
 guarantees thin AND thick veins coexist on the same slab.
 
-**Arabescato — chaotic 3-layer + extreme warp.**
+**Arabescato - chaotic 3-layer + extreme warp.**
 ```yaml
 - id: "arabescato"
   type: "disney"
@@ -1324,10 +1324,10 @@ guarantees thin AND thick veins coexist on the same slab.
       - { position: 1.00, color: [0.08, 0.08, 0.10], interp: "linear" }
 ```
 
-**Calacatta lucido — mask-driven roughness for the "lavorato" look.**
+**Calacatta lucido - mask-driven roughness for the "lavorato" look.**
 The canonical pro recipe: the same marble block drives BOTH the colour
 ramp AND the Disney roughness. Vein zones become near-mirror (`roughness
-0.06`), matte base stays at `roughness 0.18` — the slab reads as a real
+0.06`), matte base stays at `roughness 0.18` - the slab reads as a real
 polished surface where the vein materials behave differently from the
 matrix.
 ```yaml
@@ -1380,7 +1380,7 @@ mask maps `[0, 1]` to the desired roughness range. Same pattern works
 for `sheen_texture` (sheen on the matte base only), `specular_texture`,
 etc.
 
-**Verde Alpi — green base with mineral impurities (olivine specks).**
+**Verde Alpi - green base with mineral impurities (olivine specks).**
 ```yaml
 - id: "verde_alpi"
   type: "disney"
@@ -1413,7 +1413,7 @@ falloff to produce per-cell dark specks. Replace with `impurities_texture:
 { ... }` to drive impurities from any other texture (image, custom Voronoi,
 crackle pattern).
 
-**Oak quartersawn — fibrous radial grain.**
+**Oak quartersawn - fibrous radial grain.**
 ```yaml
 - id: "oak_quartersawn"
   type: "disney"
@@ -1434,7 +1434,7 @@ crackle pattern).
 The grain "stretches" along the local radial direction. Combine with a
 3-stop ramp for sapwood / heartwood / earlywood authoring.
 
-**Curly maple — wide rippled figure.**
+**Curly maple - wide rippled figure.**
 ```yaml
 - id: "curly_maple"
   type: "disney"
@@ -1452,7 +1452,7 @@ The grain "stretches" along the local radial direction. Combine with a
       - { position: 1.00, color: [0.98, 0.92, 0.76], interp: "linear"     }
 ```
 
-**Knotty pine — branch knots with dark hearts.**
+**Knotty pine - branch knots with dark hearts.**
 ```yaml
 - id: "knotty_pine"
   type: "disney"
@@ -1475,10 +1475,10 @@ Use a **4-stop ramp** when `knot_density > 0`: position 0 reserves the
 darkest tone for the knot heart, positions 0.18–0.65 hold the normal
 ring band gradient, position 1 is the brightest sapwood.
 
-A pre-baked catalogue of these recipes — Carrara, Calacatta, Statuario,
+A pre-baked catalogue of these recipes - Carrara, Calacatta, Statuario,
 Arabescato, Port Laurent, Rosso Levanto + oak quartersawn, curly maple,
 flame mahogany, knotty pine, bird's-eye maple, walnut burl, frassino
-quartersawn, fir knotty — ships as copy-paste presets in
+quartersawn, fir knotty - ships as copy-paste presets in
 `scenes/presets/materials-stone.md` and `materials-wood.md` under the
 `_studio` suffix. Copy the recipe into your scene's `materials:` block and
 reference it by id.
@@ -1502,36 +1502,36 @@ The voronoi texture: `f1` gives stone/pebble blobs,
 `random` gives palette-aware per-cell stochastic colour (rocks,
 scales, mosaics). The Chebyshev metric reproduces hex/square tiling.
 
-> **Per-cell stochastic ID — `cell` vs `random` vs `position`.** Three
+> **Per-cell stochastic ID - `cell` vs `random` vs `position`.** Three
 > per-cell channels with distinct roles:
-> - `cell` — **raw RGB hash** of the cell ID. Saturated rainbow per cell,
+> - `cell` - **raw RGB hash** of the cell ID. Saturated rainbow per cell,
 >   **ignores `colors:` and `color_ramp:`**. Use it when you want an
 >   unconstrained random colour identifier (e.g. as the input to a
 >   downstream hue/sat or mix-RGB node).
-> - `random` — **scalar in [0, 1) per cell** mapped through `colors:` /
+> - `random` - **scalar in [0, 1) per cell** mapped through `colors:` /
 >   `color_ramp:`, same path the distance outputs use. This is what nearly
->   every "rocks / pebbles / scales / patches" material wants — pick this
+>   every "rocks / pebbles / scales / patches" material wants - pick this
 >   whenever you provide a muted palette and expect the cells to land inside it.
-> - `position` — **cell-local XYZ of the F1 feature point packed as
+> - `position` - **cell-local XYZ of the F1 feature point packed as
 >   RGB**. Decorrelated from `cell`, useful as a stochastic 3-vector ID
 >   for seeding downstream procedurals or driving random-per-island UV
 >   transforms. Bypasses `color_ramp:` (vector identity output, not a
 >   scalar).
 
 > **Extended channels (`f3`, `f4`, `f3_minus_f1`).** F3 and F4 are the
-> 3rd and 4th nearest feature distances inside the 3×3×3 cell window —
+> 3rd and 4th nearest feature distances inside the 3×3×3 cell window -
 > same O(27) cost as F1/F2 since every cell is already scanned. Use them
 > for hierarchical cellular shading (multi-scale leather, cell-in-cell
 > mosaics, voronoi-on-voronoi). `f3_minus_f1` gives a wider, lower-
-> frequency border band than `f2_minus_f1` — softer rims, mortar-style
-> gradients. The extended channels always use the hard min — `smoothness`
+> frequency border band than `f2_minus_f1` - softer rims, mortar-style
+> gradients. The extended channels always use the hard min - `smoothness`
 > is intentionally ignored for them (discrete-topology descriptors aren't
 > softened).
 
 > **Note on `f2_minus_f1`.** Mathematically, `F2-F1` is **zero on the cell
 > boundary** (perpendicular bisector between two feature points) and grows
 > to its maximum at the cell centre. The lerp uses `t = sqrt(F2-F1 / norm)`
-> — sqrt compression — so `t = 0` → `colors[0]` is the **edge colour** and `t = 1` → `colors[1]`
+> - sqrt compression - so `t = 0` → `colors[0]` is the **edge colour** and `t = 1` → `colors[1]`
 > is the **cell-interior colour**. For the classic crackle look (bright
 > thin lines on dark background) put the **bright** colour FIRST and the
 > **dark** colour SECOND.
@@ -1541,7 +1541,7 @@ scales, mosaics). The Chebyshev metric reproduces hex/square tiling.
 > soft-min `-log(Σ exp(-k·d_i)) / k` with `k = 20/smoothness`. F1 becomes
 > C∞-continuous across cell boundaries; F2 is built from the same
 > accumulation with the dominant (closest-cell) weight excluded, so
-> `f2_minus_f1` loses its V-shaped ridge — bordi morbidi, no step alias on
+> `f2_minus_f1` loses its V-shaped ridge - bordi morbidi, no step alias on
 > the crease lines. Use it for polished leather, water-smoothed pebbles,
 > supple reptile skin, closed-pore marble. `smoothness = 0` (default) is
 > bit-identical to the legacy hard min. The `cell` / `random` outputs are
@@ -1578,10 +1578,10 @@ texture:
   length: 1.0                  # span (in object-local units) over which the gradient runs
   colors: [[0, 0, 0], [1, 1, 1]]
 ```
-- `linear` — `t = (p · axis) / length`.
-- `quadratic` / `easing` — same `t` then squared or smoothstepped.
-- `spherical` — distance from origin / `length`.
-- `radial` — distance from the `axis` line / `length` (cylindrical falloff).
+- `linear` - `t = (p · axis) / length`.
+- `quadratic` / `easing` - same `t` then squared or smoothstepped.
+- `spherical` - distance from origin / `length`.
+- `radial` - distance from the `axis` line / `length` (cylindrical falloff).
 
 **Coordinate (debug / coord-space driver):**
 ```yaml
@@ -1589,8 +1589,8 @@ texture:
   type: "coordinate"             # aliases: coord | coords | texture_coord | tex_coord | st
   mode: "object"                 # object | uv | generated | world
   scale: 1.0                     # multiplier on the coords before fract() / generated clamp
-  bounds_min: [-1, -1, -1]       # only used by mode: "generated" — reference-box lower corner
-  bounds_max: [1, 1, 1]          # only used by mode: "generated" — reference-box upper corner
+  bounds_min: [-1, -1, -1]       # only used by mode: "generated" - reference-box lower corner
+  bounds_max: [1, 1, 1]          # only used by mode: "generated" - reference-box upper corner
   offset: [0, 0, 0]
   rotation: [0, 0, 0]
 ```
@@ -1600,24 +1600,24 @@ at a glance, and (2) **deterministic XYZ driver** to feed another texture
 (via mix material) with a chosen coordinate system instead of the implicit
 object-local sample point every procedural uses by default.
 
-- `object` — `fract(rec.LocalPoint · scale)`. Same space every other
+- `object` - `fract(rec.LocalPoint · scale)`. Same space every other
   procedural (Noise/Marble/Wood/Voronoi) samples in.
-- `uv` — `(u, v, 0)` raw (no fract). Shows the primitive's UV
+- `uv` - `(u, v, 0)` raw (no fract). Shows the primitive's UV
   parameterisation directly; the seam line of spherical UVs is visible.
-- `generated` — `clamp((LocalPoint − bounds_min) / (bounds_max − bounds_min), 0, 1)`.
+- `generated` - `clamp((LocalPoint − bounds_min) / (bounds_max − bounds_min), 0, 1)`.
   Artists declare the canonical AABB of the object (typically the
   rest-pose box) and every downstream node sees a tidy `[0, 1]³`
   parameter regardless of how the surface is transformed or displaced
   at render time. Defaults to the unit cube `[-1, 1]³`, matching the
   object-space AABB of a unit sphere / cube / cylinder. Smooth, no
-  fract — corners map exactly to the colour-cube extremes.
-- `world` — `fract(rec.Point · scale)`. World-locked grid that does
+  fract - corners map exactly to the colour-cube extremes.
+- `world` - `fract(rec.Point · scale)`. World-locked grid that does
   NOT follow the object when it moves; ideal for laser-grids,
   world-aligned dust shells and "you-are-here" debug spheres.
 
 The standard `offset` / `rotation` transform applies BEFORE the
 `fract` wrap (Object / World) or BEFORE the bounds normalisation
-(Generated). `color_ramp:` is intentionally not supported — Coordinate
+(Generated). `color_ramp:` is intentionally not supported - Coordinate
 is a vector identity output, not a scalar mappable to a 1-D ramp.
 
 > **Back-compat for the `Value(in HitRecord rec)` overload.** Adding
@@ -1640,14 +1640,14 @@ randomize_rotation: true                  # Per-object orientation
 `randomize_offset` adds a hash-of-`seed`-driven offset of magnitude **±10 wu**
 to the sample point (was ±1000 wu in earlier cycles; the larger value collapsed
 radial procedurals like `wood` into parallel stripes by pushing the sample far
-from the ring axis — see Sampling space note above). With the new object-local
+from the ring axis - see Sampling space note above). With the new object-local
 sampling, two instances of the same material at different positions already
 read different texture regions; `randomize_offset` is now an *additional*
 decorrelation knob, no longer required for per-entity variation. Keep
 `randomize_rotation: true` for shared procedurals so identical material IDs
 don't read like clones on a wood plank-style grid.
 
-**Multi-stop color ramp (`color_ramp:`)** — optional override of the
+**Multi-stop color ramp (`color_ramp:`)** - optional override of the
 implicit two-colour lerp on `noise`, `marble`, `wood`, `voronoi` and
 `gradient`:
 ```yaml
@@ -1659,18 +1659,18 @@ texture:
     - { position: 0.45, color: [0.55, 0.45, 0.32], interp: "smoothstep" }
     - { position: 1.00, color: [0.05, 0.05, 0.07], interp: "linear"     }
 ```
-- `position` ∈ [0, 1] — clamped if outside; stops auto-sort by position.
-- `color: [r, g, b]` — linear-space RGB.
+- `position` ∈ [0, 1] - clamped if outside; stops auto-sort by position.
+- `color: [r, g, b]` - linear-space RGB.
 - `interp` (per stop, controls the *outgoing* segment toward the next stop):
-  - `linear` — straight lerp (default).
-  - `smoothstep` — Hermite cubic `3t² − 2t³` (C¹ continuity).
-  - `ease` — Perlin smootherstep `6t⁵ − 15t⁴ + 10t³` (C² continuity, the
+  - `linear` - straight lerp (default).
+  - `smoothstep` - Hermite cubic `3t² − 2t³` (C¹ continuity).
+  - `ease` - Perlin smootherstep `6t⁵ − 15t⁴ + 10t³` (C² continuity, the
     quintic curve with zero first and second derivative at both endpoints
-    — broad photo-real shoulders).
-  - `constant` — hold the colour until the next stop (step function).
+    - broad photo-real shoulders).
+  - `constant` - hold the colour until the next stop (step function).
 - Below the first position the first colour holds; above the last
   position the last colour holds.
-- Coincident stops (same `position`) produce a hard break — artist trick
+- Coincident stops (same `position`) produce a hard break - artist trick
   for sharp transitions.
 - The two-colour `colors:` shorthand still works as a 2-stop linear
   ramp; supplying `color_ramp:` overrides it (`colors:` is ignored when
@@ -1693,7 +1693,7 @@ texture:
 - Bilinear filtering for smoothness
 - Wrapping for seamless tiling
 - Analytic anti-aliasing (mipmap + EWA anisotropic) when ray differentials
-  are available — enabled by default; toggle from the CLI with
+  are available - enabled by default; toggle from the CLI with
   `--texture-filtering <auto|on|off>` (see [rendering-profiles.md §6c](./rendering-profiles.md)).
   The same flag also drives the analytic octave clamp on procedural
   noise/fBm/marble/wood/voronoi.
@@ -1730,7 +1730,7 @@ perturbed via central differences in tangent space (Blinn 1978).
 
 | Field      | Type                | Default | Description                                                                 |
 |------------|---------------------|---------|-----------------------------------------------------------------------------|
-| `texture`  | TextureData         | —       | Inner height field. Any procedural (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) or `image`. |
+| `texture`  | TextureData         | -       | Inner height field. Any procedural (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) or `image`. |
 | `strength` | float ∈ [0, 10]     | `1.0`   | Amplitude of the perturbation. Above ~5 the bump looks rocky; ~0.5–1.0 reads as fine detail. |
 | `scale`    | float > 0           | `1.0`   | Uniform UV multiplier stacked on top of the inner texture's own `uv_scale` / `scale`. |
 
@@ -1739,11 +1739,11 @@ perturbed via central differences in tangent space (Blinn 1978).
 1. `normal_map` runs first, replacing the geometric normal.
 2. `bump_map` runs second, perturbing the **already-perturbed** normal
    (TBN re-orthogonalised against it).
-3. Disney's `coat_normal_map` is **independent** — coat keeps its own
+3. Disney's `coat_normal_map` is **independent** - coat keeps its own
    surface frame and does not see the bump.
 
 Applies to every material type (lambertian, metal, dielectric, disney,
-emissive, mix). Works on every primitive that populates the TBN basis —
+emissive, mix). Works on every primitive that populates the TBN basis -
 the engine populates TBN on Sphere, Box, Cylinder, Cone, Quad, Disk,
 Annulus, Torus, Capsule, Lathe, Triangle, SmoothTriangle, and
 InfinitePlane (i.e. all of them).
@@ -1756,7 +1756,7 @@ texture types (noise/marble/wood/voronoi/brick/gradient).
 
 True geometric displacement of subdivided polygonal meshes. Unlike
 `bump_map` (which perturbs only the shading normal) the displacement
-physically moves the vertices, so the **silhouette changes** — outlines
+physically moves the vertices, so the **silhouette changes** - outlines
 against the sky reflect the deformation. The displacement is part of the
 material: one displaced material drives every mesh that uses it, with no
 per-entity duplication.
@@ -1789,7 +1789,7 @@ materials:
 The vertex update for scalar mode is `v' = v + scale · (h − midlevel) ·
 n_smooth` with `h = Rec.709 luminance(texture.Value(u, v, p))`. Vector
 mode reads the full RGB triplet and offsets along the per-vertex TBN
-basis (`tangent` space — R→T, G→B, B→N, standard bake convention) or
+basis (`tangent` space - R→T, G→B, B→N, standard bake convention) or
 directly as a local `(x, y, z)` offset (`object`
 space). The post-displacement smooth normals are recomputed from the
 displaced topology so the BSDF sees the new silhouette's actual normal
@@ -1799,13 +1799,13 @@ field, not the pre-displacement one.
 |-----------------------------------|-------------|---------|-------|
 | `displacement.mode`               | string      | `"scalar"` | `"scalar"` reads luminance and offsets along the normal; `"vector"` reads the full RGB as a 3D offset. |
 | `displacement.space`              | string      | `"tangent"` | Vector mode only. `"tangent"` requires a UV channel; the loader silently falls back to `"object"` when absent. |
-| `displacement.texture`            | TextureData | —       | Inner height field. Any procedural (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) or `image`. |
+| `displacement.texture`            | TextureData | -       | Inner height field. Any procedural (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) or `image`. |
 | `displacement.scale`              | float       | `0.1`   | Signed amplitude in world units. Negative pushes inward. `0` disables. |
 | `displacement.midlevel`           | float       | `0`     | Reference texture value = "no displacement". `0.5` for 8-bit greys / unsigned-RGB EXRs. |
 | `displacement.uv_scale`           | float > 0   | `1.0`   | Uniform UV multiplier stacked on top of the inner texture's own `uv_scale`. |
 | `displacement.bound`              | float ≥ 0   | `\|scale\|` (scalar) / `\|scale\|·√3` (vector) | Maximum expected displacement amplitude. Pads BVH leaf AABBs to avoid self-intersection artefacts. |
 | `displacement.displacement_method`| string      | `"both"` | `"both"` runs geometric displacement + autobump (if requested); `"displacement"` runs only the geometric pass and forces autobump off; `"bump_only"` skips the geometric pass and turns the texture into a pure bump map. |
-| `displacement.autobump`           | bool        | `false` | Derive a residual `bump_map` from the displacement texture and attach it to the mesh — recovers sub-pixel detail finer than the subdivision grid. |
+| `displacement.autobump`           | bool        | `false` | Derive a residual `bump_map` from the displacement texture and attach it to the mesh - recovers sub-pixel detail finer than the subdivision grid. |
 | `displacement.autobump_strength`  | float ≥ 0   | `1.0`   | Bump amplitude multiplier; the final amplitude is `autobump_strength · \|scale\|`. |
 | `displacement.autobump_scale`     | float > 0   | `1.0`   | UV-frequency multiplier for the autobump's inner texture. `>1` samples finer than the displacement (macro displacement + micro bump workflow). |
 
@@ -1818,8 +1818,8 @@ material's surface shading without the geometric displacement.
 > When you want a displaced sphere/cube/torus, load a polygonal proxy
 > mesh and let `subdivision_scheme:` re-tessellate it under adaptive
 > screen-space control. Stock proxies ship in `scenes/models/`:
-> - `subdivision-icosahedron.obj` — unit sphere (Loop subdivision)
-> - `subdivision-cube.obj` — unit cube (Catmull-Clark)
+> - `subdivision-icosahedron.obj` - unit sphere (Loop subdivision)
+> - `subdivision-cube.obj` - unit cube (Catmull-Clark)
 > - higher-poly variants generated via `dotnet run --project src/Tools/...`
 >
 > Example: an analytical `type: "sphere"` at `(x, y, z)` with radius `r`
@@ -1900,19 +1900,19 @@ entities:
     seed: 1234                             # Deterministic texture randomization
 ```
 ---
-### 7. **ENTITIES SECTION** — 3D Objects
+### 7. **ENTITIES SECTION** - 3D Objects
 
 **Common per-entity fields** (apply to every type below: primitive, csg, mesh,
 group, instance):
 
 | Field | Default | Notes |
 |-------|---------|-------|
-| `name` | — | Optional label for logging / debugging |
+| `name` | - | Optional label for logging / debugging |
 | `material` | inherited | Material ID, resolved from the `materials` block |
 | `seed` | auto | Stable integer that drives procedural texture variation; auto-derived from name+type+index when omitted |
 | `visible_to_camera` | `true` | Hide from primary camera rays only. The entity still appears in specular reflections/refractions, still receives and casts indirect illumination, and (if emissive) still contributes to direct lighting via NEE. Typical use: emissive panel that acts as a fill light but should not show up as a bright rectangle in the frame, off-screen practicals visible only via reflections. Set on a `group` to propagate to every child. |
 | `scale`, `rotate`, `translate` | identity | Optional local transform (applied scale → rotate → translate) |
-| `motion` | — | Optional list of keyframes for transform motion blur (see §7.0). Top-level entities only |
+| `motion` | - | Optional list of keyframes for transform motion blur (see §7.0). Top-level entities only |
 
 #### **7.0 Motion Blur (`motion:`)**
 
@@ -1940,7 +1940,7 @@ in a keyframe inherit the **base** pose (not the previous keyframe).
   ray times outside the keyframe range clamp to the end poses.
 - Supported on **top-level entities of any type** (primitive, csg, mesh, group,
   instance). `motion:` on a template definition or a group/instance *child* is
-  ignored with a warning — animate the enclosing top-level entity instead.
+  ignored with a warning - animate the enclosing top-level entity instead.
 - **Animated emitters:** an emissive animated entity still blurs correctly for
   the camera and reflections, but its direct-light (NEE) contribution is sampled
   at one fixed mid-animation snapshot (a warning is logged). Fast-moving emitters
@@ -2102,14 +2102,14 @@ standard Loop and Catmull-Clark subdivision algorithms:
 
 | Field                       | Type   | Default | Notes |
 |-----------------------------|--------|---------|-------|
-| `subdivision_scheme`        | string | `none`  | `loop` (triangle meshes), `catmull_clark` (quad meshes — also accepts triangles and n-gons in the first iteration), `auto` (picks CC for all-quad input, Loop for all-triangle, CC otherwise), `none`. |
+| `subdivision_scheme`        | string | `none`  | `loop` (triangle meshes), `catmull_clark` (quad meshes - also accepts triangles and n-gons in the first iteration), `auto` (picks CC for all-quad input, Loop for all-triangle, CC otherwise), `none`. |
 | `subdivision_iterations`    | int    | `0`     | Uniform iteration count. Each iteration multiplies face count by ≈ 4. |
 | `subdivision_pixel_error`   | float  | `0`     | Adaptive screen-space target. The loader picks the iteration count that brings the longest projected edge below this many pixels (using the scene's resolved camera). Combined with `subdivision_iterations` by `max(static, adaptive)`. |
 | `subdivision_max_iterations`| int    | `6`     | Hard ceiling regardless of the adaptive estimate (caps the 4^N face explosion). |
 
-- **Loop subdivision** (Charles Loop, 1987) — boundary mask per Hoppe et
+- **Loop subdivision** (Charles Loop, 1987) - boundary mask per Hoppe et
   al. 1994. Triangles only; n-gons in the source are fan-triangulated first.
-- **Catmull-Clark** (Catmull & Clark, 1978) — boundary mask per
+- **Catmull-Clark** (Catmull & Clark, 1978) - boundary mask per
   Hoppe / DeRose. Mixed-arity input is handled in the first iteration,
   after which the mesh is all-quads.
 - Per-vertex normals are **recomputed from the limit topology** using
@@ -2162,7 +2162,7 @@ A continuous surface `y = h(x, z) · height_scale` over the XZ rectangle
 defined by `bounds: [xMin, zMin, xMax, zMax]`. The height function comes
 either from a baked PNG-16 grayscale heightmap or from a procedural
 texture sampled at construction time onto an internal grid. Intersection
-is accelerated by a min/max mipmap (Tevs/Ihrke/Seidel 2008) — one
+is accelerated by a min/max mipmap (Tevs/Ihrke/Seidel 2008) - one
 primitive replaces an entire tessellated terrain mesh.
 
 ```yaml
@@ -2181,7 +2181,7 @@ primitive replaces an entire tessellated terrain mesh.
     - { min_altitude: 0.80, max_altitude: 1.00, material: "snow",  blend_width: 0.04 }
   material: "grass"   # fallback when no band weight wins
 
-# Procedural variant — heightmap synthesised at load time from a noise texture
+# Procedural variant - heightmap synthesised at load time from a noise texture
 - name: "procedural_terrain"
   type: "heightfield"
   bounds: [-50, -50, 50, 50]
@@ -2199,16 +2199,16 @@ primitive replaces an entire tessellated terrain mesh.
 
 | Field             | Type    | Default | Notes |
 |-------------------|---------|---------|-------|
-| `bounds`          | `[f]`   | —       | `[xMin, zMin, xMax, zMax]`. The Y AABB is derived from `height_scale` and the heightmap's peak sample. |
+| `bounds`          | `[f]`   | -       | `[xMin, zMin, xMax, zMax]`. The Y AABB is derived from `height_scale` and the heightmap's peak sample. |
 | `height_scale`    | float   | `1`     | Multiplier applied to the normalised heightmap values (PNG-16 unit = 1). The world peak is `max(heightmap) × height_scale`. |
-| `heightmap_path`  | string  | —       | PNG path resolved relative to the master scene. 16-bit grayscale (`L16`) preferred; 8-bit accepted with a precision-loss warning. Mutually exclusive with `height_texture` (path wins). |
-| `height_texture`  | object  | —       | Full `TextureData` block — any procedural noise type. The luminance of `Value(u, v, p)` becomes the height. |
+| `heightmap_path`  | string  | -       | PNG path resolved relative to the master scene. 16-bit grayscale (`L16`) preferred; 8-bit accepted with a precision-loss warning. Mutually exclusive with `height_texture` (path wins). |
+| `height_texture`  | object  | -       | Full `TextureData` block - any procedural noise type. The luminance of `Value(u, v, p)` becomes the height. |
 | `resolution`      | int     | `512`   | Only used in procedural mode: side length of the pre-sampled grid that backs the min/max pyramid. Visual quality is set by the per-pixel bisection; this controls the acceleration's tightness. |
 | `max_steps`       | int     | `256`   | Reserved for future iterative refinements; the v1 pipeline always uses 12 bisection steps. |
 | `sea_level`       | float?  | none    | World-space Y of an optional water plane clipped to the heightfield footprint. Only rendered where the terrain underneath sits below `sea_level` (no floating water sheets). |
 | `sea_material`    | string? | none    | Material ID applied to the water plane. Required when `sea_level` is set. |
 | `strata`          | list    | none    | Altitude/slope-driven material bands; see below. |
-| `material`        | string  | —       | Fallback material used at shading points where no `strata` band wins. |
+| `material`        | string  | -       | Fallback material used at shading points where no `strata` band wins. |
 
 ##### **Strata bands**
 
@@ -2216,7 +2216,7 @@ Each `strata` entry defines an altitude and/or slope window mapped to a
 material. The engine evaluates `altitude_norm = (hit.Y − sea_level) / (height_scale − sea_level)`
 and `slope_deg = acos(normal.Y)`, then scores every band on its
 plateau-with-fade weight; the highest-scoring band's material wins the
-shading point. Bands may overlap — the overlap region effectively
+shading point. Bands may overlap - the overlap region effectively
 widens the dominant band's halo.
 
 | Field           | Type   | Default | Notes |
@@ -2226,7 +2226,7 @@ widens the dominant band's halo.
 | `min_slope_deg` | float  | `0`     | Lower edge of the slope plateau (degrees off vertical; 0 = flat ground). |
 | `max_slope_deg` | float  | `90`    | Upper edge. |
 | `blend_width`   | float  | `0`     | Soft-fade halo width outside the plateau. v1 selection is winner-takes-all on combined weight; proper inter-band material lerp is a follow-up. |
-| `material`      | string | —       | Material ID for this band. |
+| `material`      | string | -       | Material ID for this band. |
 
 The strata machinery is what TerrainGen emits to give a single
 heightfield the sand → grass → rock → snow band stratification that
@@ -2235,7 +2235,7 @@ the old per-mesh approach produced through separate stratum OBJs. See
 
 #### **7.14 CSG (Boolean Operations)**
 ```yaml
-# Union (A ∪ B) — fuses two solids into one (e.g. snowman body + head)
+# Union (A ∪ B) - fuses two solids into one (e.g. snowman body + head)
 - name: "snowman"
   type: "csg"
   operation: "union"
@@ -2249,7 +2249,7 @@ the old per-mesh approach produced through separate stratum OBJs. See
     radius: 0.7
   material: "snow"
 
-# Intersection (A ∩ B) — keeps only the volume shared by both solids (lens shape)
+# Intersection (A ∩ B) - keeps only the volume shared by both solids (lens shape)
 - name: "lens"
   type: "csg"
   operation: "intersection"
@@ -2263,7 +2263,7 @@ the old per-mesh approach produced through separate stratum OBJs. See
     radius: 1.0
   material: "glass"
 
-# Subtraction (A \ B) — removes B from A (bead: sphere with a hole drilled through it)
+# Subtraction (A \ B) - removes B from A (bead: sphere with a hole drilled through it)
 - name: "bead"
   type: "csg"
   operation: "subtraction"
@@ -2330,10 +2330,10 @@ entities:
 ```
 #### **7.17 Lathe (Surface of Revolution)**
 ```yaml
-# Linear profile — faceted look of a real turned piece (hard vertex ridges)
+# Linear profile - faceted look of a real turned piece (hard vertex ridges)
 - name: "column"
   type: "lathe"                           # aliases: "revolution", "surface_of_revolution"
-  profile_type: "linear"                  # default — can be omitted
+  profile_type: "linear"                  # default - can be omitted
   material: "marble"
   profile:                                # list of [r, y] points, y monotonic
     - [0.30, 0.0]
@@ -2342,7 +2342,7 @@ entities:
     - [0.28, 2.0]
     - [0.35, 2.1]
 
-# Catmull-Rom profile — smooth, passes through every control point (centripetal)
+# Catmull-Rom profile - smooth, passes through every control point (centripetal)
 - name: "vase"
   type: "lathe"
   profile_type: "catmull_rom"             # aliases: "catmull", "smooth"
@@ -2355,12 +2355,12 @@ entities:
     - [0.55, 0.95]
     - [0.00, 0.95]                        # closed top
 
-# Bezier profile — explicit 4 cubic-Bezier control points per segment
+# Bezier profile - explicit 4 cubic-Bezier control points per segment
 - name: "bowl"
   type: "lathe"
   profile_type: "bezier"
   material: "porcelain"
-  profile:                                # segment endpoints — (N-1) segments
+  profile:                                # segment endpoints - (N-1) segments
     - [0.0, 0.0]
     - [0.5, 0.3]
     - [0.5, 0.6]
@@ -2376,9 +2376,9 @@ entities:
 ```
 - Revolves a 2D profile 360° around the local Y axis. Positioning goes
   through `center`/`translate`/`rotate` like any other primitive.
-- Three interpolation modes. `linear` stacks analytic frustums — fast and
+- Three interpolation modes. `linear` stacks analytic frustums - fast and
   exact, but shows hard vertex ridges. `catmull_rom` uses centripetal
-  Catmull-Rom (Yuksel et al. 2011) — passes through every point, C¹
+  Catmull-Rom (Yuksel et al. 2011) - passes through every point, C¹
   continuous, no self-intersections. `bezier` lets you author every cubic
   control point yourself; `profile_bezier_controls` must hold exactly
   `4 × (N − 1)` entries.
@@ -2395,15 +2395,15 @@ entities:
   the ray-surface equation is a polynomial of degree 6 solved with a
   Sturm chain + Newton-Raphson hybrid (`SturmSolver`), matching the
   approach used by PovRay's `lathe` and PBRT's `Curve`. Expect ~10× the
-  per-ray cost of a Cone hit on spline segments — prefer `linear` when
+  per-ray cost of a Cone hit on spline segments - prefer `linear` when
   faceting is acceptable.
 
 #### **7.18 Extrusion (Linear Extrusion of a 2D Profile)**
 ```yaml
-# Linear concave profile — a 5-pointed star extruded into a prism.
+# Linear concave profile - a 5-pointed star extruded into a prism.
 - name: "star_pillar"
   type: "extrusion"                       # aliases: "prism", "linear_extrude"
-  profile_type: "linear"                  # default — can be omitted
+  profile_type: "linear"                  # default - can be omitted
   height: 1.5
   caps: "both"                            # both | start | end | none (default: both)
   material: "gold"
@@ -2439,13 +2439,13 @@ entities:
     - [ 0.00, -1.00]
     - [ 0.40, -0.40]
 
-# Bezier profile — explicit 4 cubic-Bezier control points per segment, looped
+# Bezier profile - explicit 4 cubic-Bezier control points per segment, looped
 - name: "rounded_badge"
   type: "extrusion"
   profile_type: "bezier"
   height: 0.3
   material: "brass"
-  profile:                                # segment endpoints — N segments forming a closed loop
+  profile:                                # segment endpoints - N segments forming a closed loop
     - [ 1.0,  0.0]
     - [ 0.0,  1.0]
     - [-1.0,  0.0]
@@ -2468,7 +2468,7 @@ entities:
     - [ 1.0, -0.55]
     - [ 1.0,  0.0]
 
-# Linear + crease_angle — 12-sided polygon smoothed to read as a cylinder, not a faceted prism
+# Linear + crease_angle - 12-sided polygon smoothed to read as a cylinder, not a faceted prism
 - name: "round_column"
   type: "extrusion"
   profile_type: "linear"
@@ -2497,7 +2497,7 @@ entities:
   as-is for sharp ridges; `catmull_rom` (centripetal) gives a smooth
   silhouette through every control point; `bezier` lets you author every
   cubic control point yourself. `profile_bezier_controls` must hold
-  exactly `4 × N` entries — one cubic per profile segment, in a closed
+  exactly `4 × N` entries - one cubic per profile segment, in a closed
   loop (the last segment wraps back to the first vertex).
 - **Concave profiles work**: caps are triangulated by ear clipping, so
   stars, gears, letters, L-shapes, T/U/H sections and architectural
@@ -2507,7 +2507,7 @@ entities:
 - `caps: "both"` (default) closes both ends; `"start"` / `"end"` keep only
   one cap (useful for trough/tray shapes); `"none"` produces an open
   shell.
-- `twist_degrees` rotates the top profile around the Y axis — combined
+- `twist_degrees` rotates the top profile around the Y axis - combined
   with `taper`, you get the wide range of architectural columns and
   industrial fittings with an intricate twisted profile.
 - `curve_samples` controls the silhouette quality of `catmull_rom` /
@@ -2518,7 +2518,7 @@ entities:
   faces whose normals differ by less than this angle share a blended vertex
   normal (smooth shading, edge disappears in highlights); faces that differ by
   more keep their own flat face normals (hard edge). `0` gives fully faceted
-  geometry — the historical default. 30° smooths polyline-approximated curves
+  geometry - the historical default. 30° smooths polyline-approximated curves
   while preserving right-angle corners on letters, gears, and engineered
   sections. Ignored for `catmull_rom` and `bezier`, which always produce
   smooth side walls.
@@ -2526,7 +2526,7 @@ entities:
   triangles, so the outer scene BVH sees a single leaf per extrusion
   regardless of profile complexity. Smooth-shaded normals are emitted on
   the side walls for `catmull_rom` / `bezier`; `linear` defaults to flat
-  per-face normals — set `crease_angle > 0` to blend normals across edges
+  per-face normals - set `crease_angle > 0` to blend normals across edges
   below the threshold and soften polyline-approximated curves without
   switching profile mode.
 - Emissive Extrusions participate in NEE automatically: `Sample()` picks
@@ -2541,9 +2541,9 @@ Entity transforms apply in a fixed `scale → rotate → translate` order around
 world_pos = translate( rotate( scale( local_pos ) ) )
 ```
 
-Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, torus, disk, annulus, lathe** — position their geometry *before* the outer transform is evaluated. Combining `center:` with `rotate:` or `scale:` therefore rotates and scales around the origin, not around the primitive's own center, producing unexpected results.
+Primitives that expose a `center:` key - **sphere, cylinder, cone, capsule, torus, disk, annulus, lathe** - position their geometry *before* the outer transform is evaluated. Combining `center:` with `rotate:` or `scale:` therefore rotates and scales around the origin, not around the primitive's own center, producing unexpected results.
 
-**Anti-pattern** — do not combine `center:` with `rotate:` or `scale:`:
+**Anti-pattern** - do not combine `center:` with `rotate:` or `scale:`:
 ```yaml
 # ❌ WRONG: center moves the cylinder to [0, 0.5, 0], then rotate: [0, 0, 90]
 # pivots around the global origin, flinging the cylinder to [-0.5, 0, 0].
@@ -2556,7 +2556,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
   material: "iron"
 ```
 
-**Correct pattern** — omit `center:` (defaults to `[0, 0, 0]`) and use `translate:` for final placement:
+**Correct pattern** - omit `center:` (defaults to `[0, 0, 0]`) and use `translate:` for final placement:
 ```yaml
 # ✅ CORRECT: primitive sits at origin, rotated around origin, then translated.
 - name: "arm"
@@ -2569,12 +2569,12 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 ```
 
 **When `center:` is safe:**
-- When no `rotate:` or `scale:` is present — `center:` is equivalent to `translate:`.
-- Inside **CSG children** (`left`/`right`) — CSG children have no outer transform, so `center:` positions them correctly.
-- Inside **groups** when the child itself has no rotation — the group's own `translate`/`rotate` composes correctly on top.
+- When no `rotate:` or `scale:` is present - `center:` is equivalent to `translate:`.
+- Inside **CSG children** (`left`/`right`) - CSG children have no outer transform, so `center:` positions them correctly.
+- Inside **groups** when the child itself has no rotation - the group's own `translate`/`rotate` composes correctly on top.
 
 ---
-### 8. **LIGHTS SECTION** — Five Types
+### 8. **LIGHTS SECTION** - Five Types
 #### **8.1 Point Light (Omnidirectional)**
 ```yaml
 - type: "point"
@@ -2615,8 +2615,8 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 - Quadratic falloff
 - Smooth falloff between inner/outer cones
 - Good for dramatic lighting, accent lights
-- `soft_radius` (default `0`): same role as on point lights — clamps the attenuation denominator to `max(d², r²)`. Strongly recommended for spotlights illuminating a participating medium (fog, mist, smoke), where the 1/d² spike at scattering events near the emitter is the dominant firefly source. Typical values: `0.10`–`0.30` for a streetlamp-sized bulb. **Caustics:** as for point lights, with `--caustics on` this radius gives the spot a finite emitter area for the photon pre-pass to launch caustic photons from; the spot's cone falloff is applied to the emitted photons. A smaller radius keeps the caustic tighter (raise `--caustic-photons` to clean up the noise).
-- `shadow_samples` (default `1`): when > 1 AND `soft_radius > 0`, each shadow sample jitters the source within a disc of radius `soft_radius` perpendicular to `direction`, modelling the physical bulb extent. Produces soft penumbra in fog. If `soft_radius == 0`, extra samples are redundant (no position jitter) — keep at 1 for efficiency.
+- `soft_radius` (default `0`): same role as on point lights - clamps the attenuation denominator to `max(d², r²)`. Strongly recommended for spotlights illuminating a participating medium (fog, mist, smoke), where the 1/d² spike at scattering events near the emitter is the dominant firefly source. Typical values: `0.10`–`0.30` for a streetlamp-sized bulb. **Caustics:** as for point lights, with `--caustics on` this radius gives the spot a finite emitter area for the photon pre-pass to launch caustic photons from; the spot's cone falloff is applied to the emitted photons. A smaller radius keeps the caustic tighter (raise `--caustic-photons` to clean up the noise).
+- `shadow_samples` (default `1`): when > 1 AND `soft_radius > 0`, each shadow sample jitters the source within a disc of radius `soft_radius` perpendicular to `direction`, modelling the physical bulb extent. Produces soft penumbra in fog. If `soft_radius == 0`, extra samples are redundant (no position jitter) - keep at 1 for efficiency.
 #### **8.4 Area Light (Soft Shadows)**
 ```yaml
 - type: "area"  # aliases: "area_light", "rect", "rect_light"
@@ -2633,7 +2633,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 - `shadow_samples` overridable via CLI: `-S 32`
 - Defines a physical rectangle in space
 - Great for ceiling panels, windows
-- Visible to camera & specular rays via an internally-managed emissive quad proxy at the same `corner`/`u`/`v` — closes Veach's MIS estimator on smooth-specular materials.
+- Visible to camera & specular rays via an internally-managed emissive quad proxy at the same `corner`/`u`/`v` - closes Veach's MIS estimator on smooth-specular materials.
 - `soft_radius` (default `0`): when > 0, the attenuation denominator is clamped to `max(distSq, r²)`, preventing the `cosLight/d²` term from diverging when a stratified sample falls nearly tangent to the receiver in dense volumetric media. The returned geometric distance is unchanged. Recommended for area lights illuminating a dense participating medium (e.g. a ceiling panel in fog).
 - `visible_to_camera` (default `true`): set to `false` to hide the quad proxy from primary camera rays. NEE keeps illuminating the scene at full intensity; specular reflections / refractions still see the panel; indirect bounces are unaffected.
 #### **8.4b Portal Light (window onto the environment)**
@@ -2644,7 +2644,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
   v: [0.0, 1.2, 0.0]                       # edge along V (window height)
   shadow_samples: 8                        # default 8
 ```
-- Bitterli/Wyman/Pharr 2015 portal-masked environment sampling — restricts NEE
+- Bitterli/Wyman/Pharr 2015 portal-masked environment sampling - restricts NEE
   on the sky to the rectangle of the window, dropping the wasted-sample rate
   on interior scenes from ~95% to ~5%. Typical variance reduction ≈10× at the
   same `shadow_samples`.
@@ -2653,7 +2653,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 - Requires a non-trivial sky (HDRI / Hosek-Wilkie / Nishita / gradient with sun);
   is skipped at load time when the sky cannot be sampled directly.
 - The portal normal `n = normalize(u × v)` defines the "outside" direction.
-  Receivers on the wrong side return zero contribution — orient `u, v` so the
+  Receivers on the wrong side return zero contribution - orient `u, v` so the
   cross product points TOWARDS the sky.
 - `shadow_samples` overridable via CLI `-S`. Stratified into a √N × √N grid.
 
@@ -2669,7 +2669,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 ```
 - Solid-angle sampling (efficient, no wasted samples)
 - Isotropic penumbra (circular shadows)
-- Visible to camera & specular rays via an internally-managed emissive proxy primitive at the same position/radius — closes Veach's MIS estimator on smooth-specular materials (no "dark hole" highlight on glass/mirror balls).
+- Visible to camera & specular rays via an internally-managed emissive proxy primitive at the same position/radius - closes Veach's MIS estimator on smooth-specular materials (no "dark hole" highlight on glass/mirror balls).
 - `soft_radius` is intentionally **not** consumed: the solid-angle estimator `L = Intensity × Ω / N` is bounded by `4π · Intensity` even when the receiver is inside the sphere, so the 1/d² floor used by point/spot/area lights is unnecessary here.
 - `visible_to_camera` (default `true`): set to `false` to hide the spherical proxy from primary camera rays. NEE keeps illuminating the scene at full intensity; the sphere still appears in mirror reflections and through glass. Has no effect on `point`/`spot`/`directional` (delta) lights which carry no proxy.
 #### **Light Calibration Reference:**
@@ -2683,7 +2683,7 @@ Primitives that expose a `center:` key — **sphere, cylinder, cone, capsule, to
 | Sphere (small) | 20–50 | Radius 0.1–0.3 |
 | Sphere (large) | 15–40 | Radius 0.5–1.5 |
 ---
-### 9. **IMPORTS** — Reusing Scene Fragments
+### 9. **IMPORTS** - Reusing Scene Fragments
 ```yaml
 imports:
   - path: "assets/fonts/font-roboto.yaml"
@@ -2749,31 +2749,31 @@ entities:
 ---
 ### 11. **KEY FILES IN PROJECT**
 **Documentation:**
-- `/docs/tutorial/en/` — Complete tutorial (12 chapters):
-  - `01-what-is-ray-tracing.md` — Introduction to ray tracing
-  - `02-first-scene.md` — First scene and file structure
-  - `03-materials.md` — All material types
-  - `04-geometric-primitives.md` — All geometry types
-  - `05-transforms-and-groups.md` — Transforms, groups and hierarchies
-  - `06-lighting.md` — All light types
-  - `07-sky-environment-camera.md` — Sky, environment and camera
-  - `08-csg.md` — CSG boolean operations
-  - `09-volumetrics.md` — Participating media and volumetrics
-  - `10-libraries-and-projects.md` — Presets, imports and modularity
-  - `11-lathe-surface-of-revolution.md` — Lathe / surface of revolution
-  - `12-extrusion-2d-profiles.md` — Linear extrusion of 2D profiles
+- `/docs/tutorial/en/` - Complete tutorial (12 chapters):
+  - `01-what-is-ray-tracing.md` - Introduction to ray tracing
+  - `02-first-scene.md` - First scene and file structure
+  - `03-materials.md` - All material types
+  - `04-geometric-primitives.md` - All geometry types
+  - `05-transforms-and-groups.md` - Transforms, groups and hierarchies
+  - `06-lighting.md` - All light types
+  - `07-sky-environment-camera.md` - Sky, environment and camera
+  - `08-csg.md` - CSG boolean operations
+  - `09-volumetrics.md` - Participating media and volumetrics
+  - `10-libraries-and-projects.md` - Presets, imports and modularity
+  - `11-lathe-surface-of-revolution.md` - Lathe / surface of revolution
+  - `12-extrusion-2d-profiles.md` - Linear extrusion of 2D profiles
 **Source Code (Scene Parsing):**
-- `/src/RayTracer/Scene/SceneLoader.cs` — YAML parsing and scene construction
-- `/src/RayTracer/Materials/` — Material implementations
-- `/src/RayTracer/Geometry/` — All primitive implementations
-- `/src/RayTracer/Lights/` — Light source implementations
+- `/src/RayTracer/Scene/SceneLoader.cs` - YAML parsing and scene construction
+- `/src/RayTracer/Materials/` - Material implementations
+- `/src/RayTracer/Geometry/` - All primitive implementations
+- `/src/RayTracer/Lights/` - Light source implementations
 **Example Scenes:**
-- `/scenes/sample.yaml` — Simple reference scene
-- `/scenes/cornell-box.yaml` — Classic Cornell Box with variants
-- `/scenes/pendolo-newton.yaml` — Complex scene (Newton's pendulum)
-- `/scenes/showcases/` — Feature-specific demonstrations
-- `/scenes/presets/` — Copy-paste preset catalogues (materials, lights, mediums, terrains, sky, world)
-- `/scenes/assets/` — Binary assets: `textures/`, `fonts/`, `heightmaps/`
+- `/scenes/sample.yaml` - Simple reference scene
+- `/scenes/cornell-box.yaml` - Classic Cornell Box with variants
+- `/scenes/pendolo-newton.yaml` - Complex scene (Newton's pendulum)
+- `/scenes/showcases/` - Feature-specific demonstrations
+- `/scenes/presets/` - Copy-paste preset catalogues (materials, lights, mediums, terrains, sky, world)
+- `/scenes/assets/` - Binary assets: `textures/`, `fonts/`, `heightmaps/`
 ---
 ### 12. **BEST PRACTICES FOR HIGH-QUALITY SCENES**
 1. **Material Strategy:**
@@ -2796,8 +2796,8 @@ entities:
    - Batch similar geometries into groups for cleaner hierarchies
    - BVH builds automatically for complex scenes
 5. **Texture Sourcing:**
-   - Polyhaven.com — Free HDRIs and PBR textures (CC0)
-   - AmbientCG.com — Complete PBR texture sets
+   - Polyhaven.com - Free HDRIs and PBR textures (CC0)
+   - AmbientCG.com - Complete PBR texture sets
    - Procedurals (noise, marble, wood) for artistic control
 6. **Render Parameters:** (see [Rendering Profiles](./rendering-profiles.md) for full tables and tips)
    - Preview: `-s 64 -d 4 -S 1 -w 400`

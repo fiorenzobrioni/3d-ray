@@ -47,7 +47,7 @@ cameras:
     fov:        50
     aperture:   0.03
     focal_dist: 6.0
-    shutter:    [0.4, 1.0]
+    shutter:    [0.3, 0.7]
 
   # Dinamica: stessa scena, leggera carrellata in avanti durante l'otturatore
   # → camera motion blur sottile che aggiunge dinamismo senza confondere.
