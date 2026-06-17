@@ -117,17 +117,17 @@ When planning a change, include doc updates as explicit final steps so they don'
 
 - **YAML schema** (parameters added/changed/removed): `docs/reference/scene-reference.md` (EN+IT) + affected `docs/tutorial/{en,it}/` chapters.
 - **User-facing features** (new/changed/removed CLI flags, rendering behaviour, tools): root `README.md` (English, primary) **and** `README.it.md` (Italian). Both files must be kept in sync - any change made to one must be applied to the other with the same information in the respective language.
-- **Dev history & planning**: record completed work/design rationale in `DEVLOG.md`; track roadmap, TODO, and known bugs in `PLANNING.md`.
+- **Dev history & planning**: record completed work/design rationale in `devlog/CURRENT.md`; track roadmap, TODO, and known bugs in `PLANNING.md`. Archive `CURRENT.md` to `devlog/YYYY/YYYY-MM-DD.md` when it exceeds ~800 lines or when the first entry of a new year is added (archive before inserting). See `devlog/README.md` for the full archiving procedure.
 
 ### No third-party renderer names in public docs
 
 Never mention Arnold, Cycles, RenderMan, Blender, V-Ray, Octane, Redshift, or any other external renderer/DCC tool in `README.md`, `README.it.md` or any file under `docs/`. This applies even when a feature was designed by taking inspiration from one of those systems. Keep the public documentation clean and self-contained.
 
-`DEVLOG.md` and `PLANNING.md` are internal notes - references to external renderers are allowed there when describing completed work, design rationale, or roadmap items that need full technical context.
+Files in `devlog/` and `PLANNING.md` are internal notes - references to external renderers are allowed there when describing completed work, design rationale, or roadmap items that need full technical context.
 
 ### Writing style
 
-When writing or editing any document in this repository (`README.md`, `README.it.md`, files under `docs/`, `DEVLOG.md`, `PLANNING.md`, etc.):
+When writing or editing any document in this repository (`README.md`, `README.it.md`, files under `docs/` or `devlog/`, `PLANNING.md`, etc.):
 
 - **Never use the em dash `—`**. Use a regular hyphen `-`, a colon `:`, a comma, or parentheses depending on context.
 - **Never use the middle dot `·`**. Use a regular hyphen `-` or a comma instead.
@@ -138,4 +138,4 @@ Docs live under `docs/`. Match the existing language coverage of each area when 
 - `docs/reference/` - complete YAML schema + rendering profiles. **EN + IT** (paired files, e.g. `scene-reference.md` / `riferimento-scene.md`).
 - `docs/technical/` - pipeline, path tracing, shading, BVH/SAH, quartic/torus, CSG, testing, benchmarks. **EN only**.
 - `docs/tutorial/{en,it}/` - chapter-based walkthrough (12 chapters at last count). **EN + IT**.
-- `DEVLOG.md` - development-cycle history + design notes; `PLANNING.md` - roadmap, TODO, known bugs, ideas, pre-commit checklist. **IT only**.
+- `devlog/CURRENT.md` - active development log (newest entry on top); archived logs in `devlog/YYYY/`. `PLANNING.md` - roadmap, TODO, known bugs, ideas, pre-commit checklist. **IT only**.
