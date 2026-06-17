@@ -1,44 +1,31 @@
 # devlog
 
-Cartella dei log di sviluppo e note di design del progetto.
+Cartella dei log di sviluppo e note di design del progetto. Per roadmap, TODO e bug noti vedi `PLANNING.md`.
 
 ## Struttura
 
 ```
 devlog/
-├── README.md          <- questo file, non modificare
-├── CURRENT.md         <- log attivo, sviluppi piu recenti in cima
-├── 2024/
-│   ├── 2024-03-10.md  <- log storico (archiviato il 10 marzo 2024)
-│   └── 2024-09-22.md
-└── 2025/
-    └── 2025-06-17.md  <- log storico piu recente
+├── README.md   <- questo file, non modificare
+├── 2025.md     <- log 2025
+└── 2026.md     <- log 2026 (anno piu alto = log attivo)
 ```
 
-- `CURRENT.md` - log attivo
-- `YYYY/YYYY-MM-DD.md` - log storici archiviati, organizzati per anno di contenuto
+Un file per anno. Il file con l'anno piu alto e sempre quello attivo: nessun file speciale, il nome dice tutto.
 
-## Regole di archiviazione
+## Regole
 
-Il log attivo (`CURRENT.md`) viene archiviato quando:
+- Scrivi sempre nel file dell'anno corrente (`YYYY.md`). Se non esiste, crealo usando il template qui sotto.
+- Quando cambia l'anno, crea il nuovo `YYYY.md` e non toccare piu il vecchio.
+- Ultimo sviluppo sempre in cima al file.
+- Se un file supera circa 1000 righe (caso raro), spezzalo in `YYYY-a.md` e `YYYY-b.md`.
 
-- supera circa 800 righe, oppure
-- si inserisce il primo sviluppo di un anno diverso da quello indicato in `CURRENT.md` (il log viene archiviato prima dell'inserimento)
-
-**Come archiviare (caso normale):** leggere l'anno dall'intestazione di `CURRENT.md`, spostare il file in `YYYY/YYYY-MM-DD.md` usando la data odierna come nome, creare un nuovo `CURRENT.md` vuoto con l'anno corrente.
-
-**Come archiviare (cambio anno):** il trigger e il cambio anno, quindi si conosce gia l'anno dal campo `Anno di inizio` in `CURRENT.md`. In questo caso il filename e `YYYY-12-31.md` (ultimo giorno dell'anno del contenuto) invece della data reale di archiviazione. Esempio: contenuto 2026 archiviato il 3 gennaio 2027 → `2026/2026-12-31.md`.
-
-## Template CURRENT.md iniziale
-
-Alla prima scrittura sostituire `{nome repo}` con il nome del progetto e `YYYY` con l'anno corrente.
+## Template per un nuovo anno
 
 ```markdown
-# DEVLOG corrente - {nome repo}
+# DEVLOG {nome repo} - YYYY
 
-Log attivo. Ultimo sviluppo in cima. Per lo storico vedi le sottocartelle per anno.
-
-**Anno di inizio:** YYYY
+Log di sviluppo YYYY. Ultimo sviluppo in cima. Per roadmap e TODO vedi `PLANNING.md`.
 
 > Stati: `✅ Fatto` - `🔧 In corso` - `⬜ Da fare`
 > Usati nel titolo della sezione per lo stato complessivo del ciclo, e nei sotto-punti per le parti ancora aperte o in lavorazione.

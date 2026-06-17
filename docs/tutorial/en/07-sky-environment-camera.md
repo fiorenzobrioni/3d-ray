@@ -151,7 +151,7 @@ world:
 > currently route to the same Preetham 1999 model. Hosek-Wilkie's
 > advantage over Preetham at very low sun elevations is fully matched
 > (and exceeded) by the `nishita` model — when in doubt for sunsets,
-> switch to Nishita. See `devlog/2026/2026-06-17.md` for the design rationale.
+> switch to Nishita. See `devlog/2026.md` for the design rationale.
 
 ---
 

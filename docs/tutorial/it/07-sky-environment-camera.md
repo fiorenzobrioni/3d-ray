@@ -153,7 +153,7 @@ world:
 > instradano attualmente sullo stesso modello Preetham 1999. Il vantaggio
 > di Hosek-Wilkie su Preetham alle elevazioni solari molto basse è
 > completamente (e con margine) coperto dal modello `nishita` — nel
-> dubbio per i tramonti, passa a Nishita. Vedi `devlog/2026/2026-06-17.md` per la
+> dubbio per i tramonti, passa a Nishita. Vedi `devlog/2026.md` per la
 > motivazione di design.
 
 ---

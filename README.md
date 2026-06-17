@@ -26,7 +26,7 @@ Rendering parallelises across all logical CPU cores via a 16×16 tile scheduler,
 
 A quality ladder from `draft-small` (instant preview, seconds) to `final`/`ultra` (unfiltered, portfolio-ready) lets you iterate fast and ship clean: one flag change, same YAML.
 
-For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.md); for the development-cycle history see [**DEVLOG**](./devlog/CURRENT.md).
+For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.md); for the development-cycle history see [**DEVLOG**](./devlog/).
 
 ---
 
