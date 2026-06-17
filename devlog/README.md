@@ -1,6 +1,6 @@
-# devlog
+# DevLog
 
-Cartella dei log di sviluppo e note di design del progetto. Per roadmap, TODO e bug noti vedi `PLANNING.md`.
+Cartella dei log di sviluppo e note di design del progetto. Per roadmap, TODO e idee vedi `PLANNING.md`.
 
 ## Struttura
 
@@ -23,9 +23,9 @@ Un file per anno. Il file con l'anno piu alto e sempre quello attivo: nessun fil
 ## Template per un nuovo anno
 
 ```markdown
-# DEVLOG {nome repo} - YYYY
+# DEVLOG {nome repo} - {YYYY}
 
-Log di sviluppo YYYY. Ultimo sviluppo in cima. Per roadmap e TODO vedi `PLANNING.md`.
+Log di sviluppo {YYYY}. Ultimo sviluppo in cima. Per roadmap, TODO e idee vedi `PLANNING.md`.
 
 > Stati: `✅ Fatto` - `🔧 In corso` - `⬜ Da fare`
 > Usati nel titolo della sezione per lo stato complessivo del ciclo, e nei sotto-punti per le parti ancora aperte o in lavorazione.

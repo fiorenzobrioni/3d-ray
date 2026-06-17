@@ -1,6 +1,6 @@
 # 🧭 PLANNING - 3D-Ray
 
-Roadmap, lavori in corso, TODO, bug noti e idee. Per lo storico dei cicli di sviluppo e le note di design vedi [`devlog/2026.md`](devlog/2026.md).
+Roadmap, lavori in corso, TODO, bug noti e idee. Per lo storico dei cicli di sviluppo e le note di design vedi la cartella [`devlog/`](devlog/).
 
 > Stati: `✅ Fatto` · `🔧 In corso` · `⬜ Da fare`
 
