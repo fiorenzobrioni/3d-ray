@@ -1,6 +1,6 @@
 # 🧭 PLANNING - 3D-Ray
 
-Roadmap, lavori in corso, TODO, bug noti e idee. Per lo storico dei cicli di sviluppo e le note di design vedi [`DEVLOG.md`](DEVLOG.md).
+Roadmap, lavori in corso, TODO, bug noti e idee. Per lo storico dei cicli di sviluppo e le note di design vedi [`devlog/2026.md`](devlog/2026.md).
 
 > Stati: `✅ Fatto` · `🔧 In corso` · `⬜ Da fare`
 
@@ -85,7 +85,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 ## 🌟 Caustiche ✅
 
-**Completate** - caustiche via **photon mapping** (un solo opt-in: `--caustics on`, zero flag YAML). Pre-pass di emissione fotoni da tutte le luci (area/geometriche, sphere, point/spot **e** directional/sole), trasporto attraverso le interfacce speculari e density estimate k-nearest al gather. Generale su qualsiasi geometria speculare. Dettagli, motivazioni e limiti residui in DEVLOG §Ciclo Caustiche - Photon Mapping.
+**Completate** - caustiche via **photon mapping** (un solo opt-in: `--caustics on`, zero flag YAML). Pre-pass di emissione fotoni da tutte le luci (area/geometriche, sphere, point/spot **e** directional/sole), trasporto attraverso le interfacce speculari e density estimate k-nearest al gather. Generale su qualsiasi geometria speculare. Dettagli, motivazioni e limiti residui in `devlog/2026.md` §Ciclo Caustiche - Photon Mapping.
 
 ---
 

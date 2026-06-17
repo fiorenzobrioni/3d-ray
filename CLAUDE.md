@@ -87,7 +87,7 @@ Parallel over **16×16 tiles** (better load balance / cache locality than scanli
 **Capture/denoise invariant:** `Render(w,h,RenderCaptureOptions)` optionally captures linear-HDR beauty, even/odd dual-buffer halves and first-non-delta-hit AOVs (albedo/normal/depth) - the tone-mapped pixels stay **bit-identical** with capture on, off, or via the legacy overload (no extra RNG draws; enforced by `RenderCaptureTests`). The denoiser (`Denoising/`, `docs/technical/denoising.md`) runs on the linear beauty pre-tonemap; `Renderer.ToneMapToDisplay` re-applies the identical display transform.
 
 ### Lights and NEE
-Light implementations live under `Lights/`. **Invariants:** any `Emissive` geometry auto-joins the NEE pool as a `GeometryLight`, and the environment (sky/HDRI) participates in NEE as a directional sampler. `LightDistribution` (power-weighted CDF) is built once in the `Renderer` constructor and drives NEE (`--light-sampling power|uniform|all`); indirect bounces use a stricter clamp (`--indirect-clamp-factor`). Hardening mechanics (soft-radius floors, sun-disc sampling, jittered shadow rays, `ISamplable.SurfaceArea`) → `docs/technical/path-tracing-and-lighting.md` + DEVLOG §Ciclo Light Hardening.
+Light implementations live under `Lights/`. **Invariants:** any `Emissive` geometry auto-joins the NEE pool as a `GeometryLight`, and the environment (sky/HDRI) participates in NEE as a directional sampler. `LightDistribution` (power-weighted CDF) is built once in the `Renderer` constructor and drives NEE (`--light-sampling power|uniform|all`); indirect bounces use a stricter clamp (`--indirect-clamp-factor`). Hardening mechanics (soft-radius floors, sun-disc sampling, jittered shadow rays, `ISamplable.SurfaceArea`) → `docs/technical/path-tracing-and-lighting.md` + `devlog/2026.md` §Ciclo Light Hardening.
 
 ### Geometry, CSG, Groups
 `Geometry/IHittable.cs` is the core interface. **Invariants:** `Transform` applies scale→rotate→translate and caches its world-space AABB; `Group` inherits transforms to children and builds an internal BVH above 4 children; `type: heightfield` is routed through `SceneLoader.CreateHeightFieldEntity` to a `MinMaxMipmap`-accelerated primitive (not a tessellated mesh). CSG (`CsgObject`, nestable union/intersection/subtraction) and the heightfield are detailed in `docs/technical/{csg-boolean-operations,heightfield}.md`.
@@ -117,17 +117,17 @@ When planning a change, include doc updates as explicit final steps so they don'
 
 - **YAML schema** (parameters added/changed/removed): `docs/reference/scene-reference.md` (EN+IT) + affected `docs/tutorial/{en,it}/` chapters.
 - **User-facing features** (new/changed/removed CLI flags, rendering behaviour, tools): root `README.md` (English, primary) **and** `README.it.md` (Italian). Both files must be kept in sync - any change made to one must be applied to the other with the same information in the respective language.
-- **Dev history & planning**: record completed work/design rationale in `DEVLOG.md`; track roadmap, TODO, and known bugs in `PLANNING.md`.
+- **Dev history & planning**: record completed work/design rationale in `devlog/YYYY.md` where `YYYY` is the current year (e.g. `devlog/2026.md`); track roadmap, TODO, and known bugs in `PLANNING.md`. Newest entry always on top. When the year changes, create a new `devlog/YYYY.md` using the template in `devlog/README.md`. If a year file exceeds ~1000 lines, split it into `YYYY-a.md` and `YYYY-b.md`.
 
 ### No third-party renderer names in public docs
 
 Never mention Arnold, Cycles, RenderMan, Blender, V-Ray, Octane, Redshift, or any other external renderer/DCC tool in `README.md`, `README.it.md` or any file under `docs/`. This applies even when a feature was designed by taking inspiration from one of those systems. Keep the public documentation clean and self-contained.
 
-`DEVLOG.md` and `PLANNING.md` are internal notes - references to external renderers are allowed there when describing completed work, design rationale, or roadmap items that need full technical context.
+Files in `devlog/` and `PLANNING.md` are internal notes - references to external renderers are allowed there when describing completed work, design rationale, or roadmap items that need full technical context.
 
 ### Writing style
 
-When writing or editing any document in this repository (`README.md`, `README.it.md`, files under `docs/`, `DEVLOG.md`, `PLANNING.md`, etc.):
+When writing or editing any document in this repository (`README.md`, `README.it.md`, files under `docs/` or `devlog/`, `PLANNING.md`, etc.):
 
 - **Never use the em dash `—`**. Use a regular hyphen `-`, a colon `:`, a comma, or parentheses depending on context.
 - **Never use the middle dot `·`**. Use a regular hyphen `-` or a comma instead.
@@ -138,4 +138,4 @@ Docs live under `docs/`. Match the existing language coverage of each area when 
 - `docs/reference/` - complete YAML schema + rendering profiles. **EN + IT** (paired files, e.g. `scene-reference.md` / `riferimento-scene.md`).
 - `docs/technical/` - pipeline, path tracing, shading, BVH/SAH, quartic/torus, CSG, testing, benchmarks. **EN only**.
 - `docs/tutorial/{en,it}/` - chapter-based walkthrough (12 chapters at last count). **EN + IT**.
-- `DEVLOG.md` - development-cycle history + design notes; `PLANNING.md` - roadmap, TODO, known bugs, ideas, pre-commit checklist. **IT only**.
+- `devlog/YYYY.md` - development log for year YYYY; the file with the highest year is the active one. `PLANNING.md` - roadmap, TODO, known bugs, ideas, pre-commit checklist. **IT only**.

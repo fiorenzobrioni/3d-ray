@@ -229,7 +229,7 @@ luci differiscono notevolmente.
 ### Light hardening: ridurre i firefly senza alzare gli spp
 
 Tutti i preset di luce sono calibrati con i parametri di *light hardening*
-del motore (vedi DEVLOG §Ciclo Light Hardening e
+del motore (vedi `devlog/2026.md` §Ciclo Light Hardening e
 `docs/reference/scene-reference.md` §8). Le tre manopole chiave:
 
 - **`soft_radius`** (point, spot, area) — modella il diametro fisico della

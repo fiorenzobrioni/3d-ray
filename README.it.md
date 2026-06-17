@@ -26,7 +26,7 @@ Il rendering è parallelizzato su tutti i core logici via tile scheduler 16×16,
 
 Una scala di qualità da `draft-small` (anteprima istantanea, pochi secondi) a `final`/`ultra` (non filtrato, pronto per il portfolio) permette di iterare veloce e consegnare pulito: un solo parametro, stesso YAML.
 
-Per la roadmap dettagliata e le feature in corso consulta il [**PLANNING**](./PLANNING.md); per lo storico dei cicli di sviluppo il [**DEVLOG**](./DEVLOG.md).
+Per la roadmap dettagliata e le feature in corso consulta il [**PLANNING**](./PLANNING.md); per lo storico dei cicli di sviluppo il [**DEVLOG**](./devlog/).
 
 ---
 

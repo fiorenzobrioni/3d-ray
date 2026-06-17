@@ -228,7 +228,7 @@ variance when light intensities differ widely.
 ### Light Hardening: cut fireflies without raising spp
 
 Every light preset is calibrated with the engine's *light hardening* knobs
-(see DEVLOG §Light Hardening Cycle and
+(see `devlog/2026.md` §Light Hardening Cycle and
 `docs/reference/scene-reference.md` §8). Three key parameters:
 
 - **`soft_radius`** (point, spot, area) — models the source's physical
