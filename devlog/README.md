@@ -25,9 +25,13 @@ Il log attivo (`CURRENT.md`) viene archiviato quando:
 - supera circa 800 righe, oppure
 - si inserisce il primo sviluppo di un anno diverso da quello indicato in `CURRENT.md` (il log viene archiviato prima dell'inserimento)
 
-**Come archiviare:** spostare `CURRENT.md` in `YYYY/YYYY-MM-DD.md`, dove `YYYY` e l'anno indicato nell'intestazione del file e `YYYY-MM-DD` e la data odierna. Creare un nuovo `CURRENT.md` vuoto usando il template qui sotto.
+**Come archiviare (caso normale):** leggere l'anno dall'intestazione di `CURRENT.md`, spostare il file in `YYYY/YYYY-MM-DD.md` usando la data odierna come nome, creare un nuovo `CURRENT.md` vuoto con l'anno corrente.
+
+**Come archiviare (cambio anno):** il trigger e il cambio anno, quindi si conosce gia l'anno dal campo `Anno di inizio` in `CURRENT.md`. In questo caso il filename e `YYYY-12-31.md` (ultimo giorno dell'anno del contenuto) invece della data reale di archiviazione. Esempio: contenuto 2026 archiviato il 3 gennaio 2027 → `2026/2026-12-31.md`.
 
 ## Template CURRENT.md iniziale
+
+Alla prima scrittura sostituire `{nome repo}` con il nome del progetto e `YYYY` con l'anno corrente.
 
 ```markdown
 # DEVLOG corrente - {nome repo}

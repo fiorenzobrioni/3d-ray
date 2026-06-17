@@ -117,7 +117,7 @@ When planning a change, include doc updates as explicit final steps so they don'
 
 - **YAML schema** (parameters added/changed/removed): `docs/reference/scene-reference.md` (EN+IT) + affected `docs/tutorial/{en,it}/` chapters.
 - **User-facing features** (new/changed/removed CLI flags, rendering behaviour, tools): root `README.md` (English, primary) **and** `README.it.md` (Italian). Both files must be kept in sync - any change made to one must be applied to the other with the same information in the respective language.
-- **Dev history & planning**: record completed work/design rationale in `devlog/CURRENT.md`; track roadmap, TODO, and known bugs in `PLANNING.md`. Archive `CURRENT.md` to `devlog/YYYY/YYYY-MM-DD.md` when it exceeds ~800 lines or when the first entry of a new year is added (archive before inserting). See `devlog/README.md` for the full archiving procedure.
+- **Dev history & planning**: record completed work/design rationale in `devlog/CURRENT.md`; track roadmap, TODO, and known bugs in `PLANNING.md`. Archive `CURRENT.md` to `devlog/YYYY/YYYY-MM-DD.md` when it exceeds ~800 lines or when the first entry of a new year is added (archive before inserting). Read the year from the `Anno di inizio` field at the top of `CURRENT.md` to determine the destination folder. For normal archives use today's date as filename; for year-change archives use `YYYY-12-31.md` (last day of the content year). See `devlog/README.md` for the full archiving procedure.
 
 ### No third-party renderer names in public docs
 
