@@ -87,7 +87,7 @@ Parallel over **16×16 tiles** (better load balance / cache locality than scanli
 **Capture/denoise invariant:** `Render(w,h,RenderCaptureOptions)` optionally captures linear-HDR beauty, even/odd dual-buffer halves and first-non-delta-hit AOVs (albedo/normal/depth) - the tone-mapped pixels stay **bit-identical** with capture on, off, or via the legacy overload (no extra RNG draws; enforced by `RenderCaptureTests`). The denoiser (`Denoising/`, `docs/technical/denoising.md`) runs on the linear beauty pre-tonemap; `Renderer.ToneMapToDisplay` re-applies the identical display transform.
 
 ### Lights and NEE
-Light implementations live under `Lights/`. **Invariants:** any `Emissive` geometry auto-joins the NEE pool as a `GeometryLight`, and the environment (sky/HDRI) participates in NEE as a directional sampler. `LightDistribution` (power-weighted CDF) is built once in the `Renderer` constructor and drives NEE (`--light-sampling power|uniform|all`); indirect bounces use a stricter clamp (`--indirect-clamp-factor`). Hardening mechanics (soft-radius floors, sun-disc sampling, jittered shadow rays, `ISamplable.SurfaceArea`) → `docs/technical/path-tracing-and-lighting.md` + `devlog/2026.md` §Ciclo Light Hardening.
+Light implementations live under `Lights/`. **Invariants:** any `Emissive` geometry auto-joins the NEE pool as a `GeometryLight`, and the environment (sky/HDRI) participates in NEE as a directional sampler. `LightDistribution` (power-weighted CDF) is built once in the `Renderer` constructor and drives NEE (`--light-sampling power|uniform|all`); indirect bounces use a stricter clamp (`--indirect-clamp-factor`). Hardening mechanics (soft-radius floors, sun-disc sampling, jittered shadow rays, `ISamplable.SurfaceArea`) → `docs/technical/path-tracing-and-lighting.md` + `devlog/devlog-2026-06-28.md` §Ciclo Light Hardening.
 
 ### Geometry, CSG, Groups
 `Geometry/IHittable.cs` is the core interface. **Invariants:** `Transform` applies scale→rotate→translate and caches its world-space AABB; `Group` inherits transforms to children and builds an internal BVH above 4 children; `type: heightfield` is routed through `SceneLoader.CreateHeightFieldEntity` to a `MinMaxMipmap`-accelerated primitive (not a tessellated mesh). CSG (`CsgObject`, nestable union/intersection/subtraction) and the heightfield are detailed in `docs/technical/{csg-boolean-operations,heightfield}.md`.
@@ -117,7 +117,7 @@ When planning a change, include doc updates as explicit final steps so they don'
 
 - **YAML schema** (parameters added/changed/removed): `docs/reference/scene-reference.md` (EN+IT) + affected `docs/tutorial/{en,it}/` chapters.
 - **User-facing features** (new/changed/removed CLI flags, rendering behaviour, tools): root `README.md` (English, primary) **and** `README.it.md` (Italian). Both files must be kept in sync - any change made to one must be applied to the other with the same information in the respective language.
-- **Dev history & planning**: record completed work/design rationale in `devlog/YYYY.md` where `YYYY` is the current year (e.g. `devlog/2026.md`); track roadmap, TODO, and known bugs in `PLANNING.md`. Newest entry always on top. When the year changes, create a new `devlog/YYYY.md` using the template in `devlog/README.md`. If a year file exceeds ~1000 lines, split it into `YYYY-a.md` and `YYYY-b.md`.
+- **Dev history & planning**: record completed work/design rationale in `devlog/devlog.md`; track roadmap, TODO, and known bugs in `PLANNING.md`. Newest entry always on top. When `devlog.md` reaches 1000 lines, archive it as `devlog/devlog-YYYY-MM-DD.md` and create a new `devlog/devlog.md` using the template in `devlog/README.md`.
 
 ### No third-party renderer names in public docs
 
@@ -138,4 +138,4 @@ Docs live under `docs/`. Match the existing language coverage of each area when 
 - `docs/reference/` - complete YAML schema + rendering profiles. **EN + IT** (paired files, e.g. `scene-reference.md` / `riferimento-scene.md`).
 - `docs/technical/` - pipeline, path tracing, shading, BVH/SAH, quartic/torus, CSG, testing, benchmarks. **EN only**.
 - `docs/tutorial/{en,it}/` - chapter-based walkthrough (12 chapters at last count). **EN + IT**.
-- `devlog/YYYY.md` - development log for year YYYY; the file with the highest year is the active one. `PLANNING.md` - roadmap, TODO, known bugs, ideas, pre-commit checklist. **IT only**.
+- `devlog/devlog.md` - active development log; archived logs are named `devlog/devlog-YYYY-MM-DD.md`. `PLANNING.md` - roadmap, TODO, known bugs, ideas, pre-commit checklist. **IT only**.

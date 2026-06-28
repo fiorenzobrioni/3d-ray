@@ -1,34 +1,45 @@
 # DevLog
 
-Cartella dei log di sviluppo e note di design del progetto. Per roadmap, TODO e idee vedi `PLANNING.md`.
+Folder for development logs and design notes of the project. For the roadmap, TODOs, and ideas, see [`PLANNING.md`](../PLANNING.md).
 
-## Struttura
+## Structure
 
-```
+```text
 devlog/
-├── README.md   <- questo file, non modificare
-├── 2025.md     <- log 2025
-└── 2026.md     <- log 2026 (anno piu alto = log attivo)
+├── README.md              <- this file, do not edit
+├── devlog.md              <- current active log
+└── devlog-YYYY-MM-DD.md   <- archived logs (the date indicates when it was archived)
 ```
 
-Un file per anno. Il file con l'anno piu alto e sempre quello attivo: nessun file speciale, il nome dice tutto.
+There is always exactly one active file: `devlog.md`. When this file reaches or exceeds 1000 lines, it is archived by renaming it, and a new empty one is created (using the template provided below).
 
-## Regole
+## Writing and Archiving Rules
 
-- Scrivi sempre nel file dell'anno corrente (`YYYY.md`). Se non esiste, crealo usando il template qui sotto.
-- Quando cambia l'anno, crea il nuovo `YYYY.md` e non toccare piu il vecchio.
-- Ultimo sviluppo sempre in cima al file.
-- Se un file supera circa 1000 righe (caso raro), spezzalo in `YYYY-a.md` e `YYYY-b.md`.
+- **Always write in the current file:** `devlog.md`. If it doesn't exist, create it using the template below.
+- **Reverse Chronological Order:** The latest entry must **always be added at the top** of the file, right below the main title.
+- **Archiving Procedure (Over 1000 lines):**
+  1. Rename the current `devlog.md` to `devlog-YYYY-MM-DD.md` using the current day's date.
+  2. Do not edit the newly archived file anymore.
+  3. Immediately create a new `devlog.md` file inserting the base template provided below.
+  4. Write your new log entry in the new file.
 
-## Template per un nuovo anno
+## Template for a new devlog.md
+
+Copy the text below when creating a new `devlog.md` file:
 
 ```markdown
-# DEVLOG {nome repo} - {YYYY}
+# DEVLOG 3D-Ray
 
-Log di sviluppo {YYYY}. Ultimo sviluppo in cima. Per roadmap, TODO e idee vedi `PLANNING.md`.
+Development diary of the project. The newest entries go at the top.
+Each entry notes what was done, decisions made, problems encountered, and what comes next.
 
-> Stati: `✅ Fatto` - `🔧 In corso` - `⬜ Da fare`
-> Usati nel titolo della sezione per lo stato complessivo del ciclo, e nei sotto-punti per le parti ancora aperte o in lavorazione.
+Suggested format for each entry:
+
+## YYYY-MM-DD - Short title
+**Done:** what was completed
+**Decisions:** technical/design choices and why
+**Issues:** what got stuck and how (or if) it was resolved
+**Next:** the next step
 
 ---
 ```
