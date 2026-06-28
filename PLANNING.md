@@ -85,7 +85,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 ## 🌟 Caustiche ✅
 
-**Completate** - caustiche via **photon mapping** (un solo opt-in: `--caustics on`, zero flag YAML). Pre-pass di emissione fotoni da tutte le luci (area/geometriche, sphere, point/spot **e** directional/sole), trasporto attraverso le interfacce speculari e density estimate k-nearest al gather. Generale su qualsiasi geometria speculare. Dettagli, motivazioni e limiti residui in `devlog/2026.md` §Ciclo Caustiche - Photon Mapping.
+**Completate** - caustiche via **photon mapping** (un solo opt-in: `--caustics on`, zero flag YAML). Pre-pass di emissione fotoni da tutte le luci (area/geometriche, sphere, point/spot **e** directional/sole), trasporto attraverso le interfacce speculari e density estimate k-nearest al gather. Generale su qualsiasi geometria speculare. Dettagli, motivazioni e limiti residui in `devlog/devlog-2026-06-28.md` §Ciclo Caustiche - Photon Mapping.
 
 ---
 
