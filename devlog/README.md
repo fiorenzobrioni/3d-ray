@@ -36,10 +36,10 @@ Each entry notes what was done, decisions made, problems encountered, and what c
 Suggested format for each entry:
 
 ## YYYY-MM-DD - Short title
-**Done:** what was completed
-**Decisions:** technical/design choices and why
-**Issues:** what got stuck and how (or if) it was resolved
-**Next:** the next step
+**Done:** what was completed  
+**Decisions:** technical/design choices and why  
+**Issues:** what got stuck and how (or if) it was resolved  
+**Next:** the next step  
 
 ---
 ```
