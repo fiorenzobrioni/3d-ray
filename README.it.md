@@ -6,7 +6,7 @@
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D4)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml/badge.svg)](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml)
+[![CI](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/ci.yml/badge.svg)](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/ci.yml)
 
 Un'esplorazione personale del ray tracing cresciuta, una feature alla volta, in un path tracer CPU completo, scritto interamente in C#/.NET 10 senza dipendenze native. Disney Principled BSDF, NEE+MIS, denoiser NFOR, volumetria completa, caustiche, displacement - tutto da un singolo file YAML.
 
@@ -161,18 +161,39 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
 
 ## 🚀 Quick Start
 
-### Prerequisiti
+### Binari precompilati
+
+Scarica l'ultima release dalla [pagina GitHub Releases](https://github.com/fiorenzobrioni/3d-ray/releases). Non è necessario installare .NET - basta decomprimere e avviare.
+
+| Piattaforma | File |
+|-------------|------|
+| Linux x64 | `3d-ray-linux-x64.zip` |
+| Windows x64 | `3d-ray-win-x64.zip` |
+| macOS ARM64 (Apple Silicon) | `3d-ray-osx-arm64.zip` |
+
+```bash
+# Linux / macOS - rendi eseguibile e avvia
+chmod +x RayTracer
+./RayTracer -i scenes/chess -q draft-small -o out.png
+
+# Windows
+RayTracer.exe -i scenes/chess -q draft-small -o out.png
+```
+
+### Compilazione dal sorgente
+
+#### Prerequisiti
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 
 > I comandi qui sotto sono `dotnet` standard: funzionano identici su bash, zsh e PowerShell.
 
-### Compilazione
+#### Compilazione
 ```bash
 cd 3d-ray
 dotnet build src/RayTracer/RayTracer.csproj -c Release
 ```
 
-### Esecuzione
+#### Esecuzione
 
 Sanity check istantaneo (preset `draft-tiny`, 480×270 - pochi secondi):
 ```bash

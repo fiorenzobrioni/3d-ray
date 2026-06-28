@@ -6,7 +6,7 @@
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D4)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml/badge.svg)](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/dotnet.yml)
+[![CI](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/ci.yml/badge.svg)](https://github.com/fiorenzobrioni/3d-ray/actions/workflows/ci.yml)
 
 A personal exploration of ray tracing that grew, one feature at a time, into a full-featured CPU path tracer, written entirely in C#/.NET 10 with no native dependencies. Disney Principled BSDF, NEE+MIS, NFOR denoising, full volumetrics, caustics, surface displacement - all from a single YAML file.
 
@@ -162,18 +162,39 @@ All procedural textures support **offset**, **rotation** and **per-object random
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### Pre-built Binaries
+
+Download the latest release from the [GitHub Releases page](https://github.com/fiorenzobrioni/3d-ray/releases). No .NET installation required - just unzip and run.
+
+| Platform | File |
+|----------|------|
+| Linux x64 | `3d-ray-linux-x64.zip` |
+| Windows x64 | `3d-ray-win-x64.zip` |
+| macOS ARM64 (Apple Silicon) | `3d-ray-osx-arm64.zip` |
+
+```bash
+# Linux / macOS - make executable and run
+chmod +x RayTracer
+./RayTracer -i scenes/chess -q draft-small -o out.png
+
+# Windows
+RayTracer.exe -i scenes/chess -q draft-small -o out.png
+```
+
+### Build from Source
+
+#### Prerequisites
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 
 > The commands below are standard `dotnet` commands: they work identically on bash, zsh and PowerShell.
 
-### Build
+#### Build
 ```bash
 cd 3d-ray
 dotnet build src/RayTracer/RayTracer.csproj -c Release
 ```
 
-### Run
+#### Run
 
 Instant sanity check (preset `draft-tiny`, 480×270 - a few seconds):
 ```bash
