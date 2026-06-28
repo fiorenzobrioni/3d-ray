@@ -45,7 +45,7 @@ dotnet test src/RayTracer.Tests/RayTracer.Tests.csproj
 dotnet test src/RayTracer.Tests/RayTracer.Tests.csproj --filter "FullyQualifiedName~BvhEquivalenceTests"
 dotnet test src/RayTracer.Tests/RayTracer.Tests.csproj --filter "FullyQualifiedName=RayTracer.Tests.AabbTests.Hit_AxisAlignedRay_BehaviourMatchesReference"
 ```
-The test project is **not** referenced by `RayTracer.csproj`. Tests are run by CI (see `dotnet.yml`) and can also be invoked explicitly. See `docs/technical/testing.md`.
+The test project is **not** referenced by `RayTracer.csproj`. Tests are run by CI (see `ci.yml`) and can also be invoked explicitly. See `docs/technical/testing.md`.
 
 ### Benchmarks (BenchmarkDotNet)
 BenchmarkDotNet refuses to run outside Release.
@@ -63,7 +63,7 @@ In-solution (`3d-ray.slnx`), run with `dotnet run --project src/Tools/<Name>/<Na
 Standalone (on disk under `src/Tools/`, not in the solution - run directly with `dotnet run --project ...`): scene generators `ChessGen` and `TempleGen`, plus the one-off `MigrateFakeSss` (strips legacy "fake SSS" Disney knobs from scene YAML; `--dry-run`/`--project`).
 
 ### CI
-`.github/workflows/dotnet.yml` builds Release, runs the full xUnit test suite, and then runs a 320×213 smoke render of `scenes/chess.yaml`. `.github/workflows/render-scenes.yml` is a `workflow_dispatch` matrix render at 1920×1080 - enable scenes by uncommenting entries in its `matrix.scene:` list.
+`.github/workflows/ci.yml` builds Release and runs the full xUnit test suite on Linux, Windows, and macOS in parallel; publishes self-contained single-file binaries for all three platforms as artifacts; and runs a 320×213 smoke render of `scenes/chess.yaml` on Linux. `.github/workflows/render-scenes.yml` is a `workflow_dispatch` matrix render at 1920×1080 - enable scenes by uncommenting entries in its `matrix.scene:` list.
 
 ## Architecture
 

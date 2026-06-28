@@ -1,0 +1,96 @@
+# CI - build, test and binary artifacts for all three platforms.
+#
+# Jobs per commit/PR:
+#   build-test (matrix: linux-x64, win-x64, osx-arm64)
+#     1. Build Release.
+#     2. Run the full xUnit test suite.
+#     3. Smoke render of chess.yaml at 320x213 (Linux only - one sanity check is enough).
+#     4. Publish a self-contained single-file binary for the target platform.
+#
+# Artifacts uploaded per run:
+#   render-smoke      - chess render PNG (3-day retention, quick visual regression check).
+#   3d-ray-linux-x64  - self-contained binary for Linux x64  (14-day retention).
+#   3d-ray-win-x64    - self-contained binary for Windows x64 (14-day retention).
+#   3d-ray-osx-arm64  - self-contained binary for macOS ARM64  (14-day retention).
+#
+# These artifacts can be downloaded directly from the Actions run and
+# attached to a GitHub Release without any extra build step.
+
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to save runner minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build & Test / ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+          - os: macos-latest
+            rid: osx-arm64
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore src/RayTracer/RayTracer.csproj
+
+      - name: Build
+        run: dotnet build src/RayTracer/RayTracer.csproj --no-restore -c Release
+
+      - name: Test
+        run: dotnet test src/RayTracer.Tests/RayTracer.Tests.csproj -c Release
+
+      - name: Render smoke test (chess.yaml)
+        if: matrix.os == 'ubuntu-latest'
+        timeout-minutes: 5
+        run: >
+          dotnet run --project src/RayTracer/RayTracer.csproj
+          -c Release --no-build --
+          -i scenes/chess.yaml -o render-chess.png
+          -w 320 -H 213 -s 32 -d 4 -S 4
+
+      - name: Upload smoke render
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: render-smoke
+          path: render-chess.png
+          retention-days: 3
+
+      - name: Publish self-contained binary
+        run: >
+          dotnet publish src/RayTracer/RayTracer.csproj
+          -c Release -r ${{ matrix.rid }}
+          --self-contained
+          -p:PublishSingleFile=true
+          -p:DebugType=none
+          -o publish
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: 3d-ray-${{ matrix.rid }}
+          path: publish/
+          retention-days: 14
