@@ -1,45 +1,45 @@
 # DevLog
 
-Folder for development logs and design notes of the project. For the roadmap, TODOs, and ideas, see [`PLANNING.md`](../PLANNING.md).
+Cartella dei log di sviluppo e note di design del progetto. Per roadmap, TODO e idee vedi [`PLANNING.md`](../PLANNING.md).
 
-## Structure
+## Struttura
 
 ```text
 devlog/
-├── README.md              <- this file, do not edit
-├── devlog.md              <- current active log
-└── devlog-YYYY-MM-DD.md   <- archived logs (the date indicates when it was archived)
+├── README.md              <- questo file, non modificare
+├── devlog.md              <- log attivo corrente
+└── devlog-YYYY-MM-DD.md   <- log archiviati (la data indica quando è stato archiviato)
 ```
 
-There is always exactly one active file: `devlog.md`. When this file reaches or exceeds 1000 lines, it is archived by renaming it, and a new empty one is created (using the template provided below).
+Esiste sempre un solo file attivo: `devlog.md`. Quando questo file raggiunge o supera le 1000 righe, viene archiviato rinominandolo e ne viene creato uno nuovo vuoto (usando il template fornito qui sotto).
 
-## Writing and Archiving Rules
+## Regole di Scrittura e Archiviazione
 
-- **Always write in the current file:** `devlog.md`. If it doesn't exist, create it using the template below.
-- **Reverse Chronological Order:** The latest entry must **always be added at the top** of the file, right below the main title.
-- **Archiving Procedure (Over 1000 lines):**
-  1. Rename the current `devlog.md` to `devlog-YYYY-MM-DD.md` using the current day's date.
-  2. Do not edit the newly archived file anymore.
-  3. Immediately create a new `devlog.md` file inserting the base template provided below.
-  4. Write your new log entry in the new file.
+- **Scrivi sempre nel file corrente:** `devlog.md`. Se non esiste, crealo usando il template qui sotto.
+- **Ordine Cronologico Inverso:** L'ultimo sviluppo va inserito **sempre in cima** al file, subito sotto il titolo principale.
+- **Procedura di Archiviazione (Superate le 1000 righe):**
+  1. Rinomina l'attuale `devlog.md` in `devlog-YYYY-MM-DD.md` usando la data del giorno corrente.
+  2. Non modificare più il file appena archiviato.
+  3. Crea immediatamente un nuovo file `devlog.md` inserendo il template base riportato  qui sotto.
+  4. Scrivi la tua nuova voce di log nel nuovo file.
 
-## Template for a new devlog.md
+## Template per un nuovo devlog.md
 
-Copy the text below when creating a new `devlog.md` file:
+Copia il testo qui sotto quando crei un nuovo file `devlog.md`:
 
 ```markdown
-# DEVLOG 3D-Ray
+# DEVLOG Latent
 
-Development diary of the project. The newest entries go at the top.
-Each entry notes what was done, decisions made, problems encountered, and what comes next.
+Diario di sviluppo del progetto. Le voci più recenti vanno in alto.
+Ogni voce annota cosa è stato fatto, decisioni prese, problemi incontrati e cosa viene dopo.
 
-Suggested format for each entry:
+Formato suggerito per ogni voce:
 
-## YYYY-MM-DD - Short title
-**Done:** what was completed  
-**Decisions:** technical/design choices and why  
-**Issues:** what got stuck and how (or if) it was resolved  
-**Next:** the next step  
+## YYYY-MM-DD - Titolo breve
+**Fatto:** cosa è stato completato  
+**Decisioni:** scelte tecniche/di design e il perché  
+**Problemi:** cosa si è bloccato e come (o se) è stato risolto  
+**Prossimo:** il passo successivo  
 
 ---
 ```

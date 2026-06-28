@@ -1,14 +1,14 @@
 # DEVLOG 3D-Ray
 
-Development diary of the project. The newest entries go at the top.
-Each entry notes what was done, decisions made, problems encountered, and what comes next.
+Diario di sviluppo del progetto. Le voci più recenti vanno in alto.
+Ogni voce annota cosa è stato fatto, decisioni prese, problemi incontrati e cosa viene dopo.
 
-Suggested format for each entry:
+Formato suggerito per ogni voce:
 
-## YYYY-MM-DD - Short title
-**Done:** what was completed  
-**Decisions:** technical/design choices and why  
-**Issues:** what got stuck and how (or if) it was resolved  
-**Next:** the next step  
+## YYYY-MM-DD - Titolo breve
+**Fatto:** cosa è stato completato  
+**Decisioni:** scelte tecniche/di design e il perché  
+**Problemi:** cosa si è bloccato e come (o se) è stato risolto  
+**Prossimo:** il passo successivo  
 
 ---
