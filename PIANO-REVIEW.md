@@ -1,0 +1,355 @@
+# Piano di review del motore 3D-Ray
+
+Verifica completa di matematica, ottica e fisica del motore, modulo per modulo, dalle fondamenta ai
+sottosistemi complessi. Obiettivo: capire cosa è corretto, cosa è un'approssimazione voluta, cosa è
+sbagliato e cosa conviene rifare da zero per arrivare a un motore di livello "premium".
+
+Documento interno (come `PLANNING.md` e `devlog/`): può citare renderer esterni.
+
+> Stato del codice al momento della stesura (2026-10-20): circa 50.000 righe in `src/RayTracer`,
+> build Release pulita, **590 test xUnit tutti verdi**. Warning NuGet: `SixLabors.ImageSharp 3.1.12`
+> ha vulnerabilità note (moderate e high) e va aggiornato.
+
+---
+
+## 1. Riferimenti: cosa vuol dire "premium"
+
+Il metro di paragone sono i motori di produzione e i due renderer di ricerca usati come verità
+numerica:
+
+| Area | Riferimento di settore |
+|---|---|
+| Materiale unico | **OpenPBR Surface** (ASWF, 2024: erede di Autodesk Standard Surface e Adobe Standard Material), Arnold `standard_surface`, RenderMan `PxrSurface`, MaterialX |
+| Integratore | path tracer iterativo con MIS, many-light sampling (light BVH), path guiding (RenderMan, Cycles, Karma), caustiche via MNEE o guiding |
+| Colore | pipeline color-managed (OCIO): working space lineare (Rec.709 o ACEScg), view transform AgX / ACES / "Standard", sRGB OETF corretta |
+| Camera | camera fisica: focale in mm, sensore, f-stop, otturatore, ISO/esposizione, bokeh |
+| Luci | unità fisiche (W, lm, cd, nit, lux), temperatura colore, profili IES, normalizzazione |
+| Cielo | Hosek-Wilkie o Prague (Wilkie 2021), oppure atmosfera precomputata (Bruneton) |
+| Volumi | null-scattering (delta/ratio tracking) con MIS spettrale, VDB |
+| Denoiser | Intel Open Image Denoise (OIDN, Apache-2.0) |
+| Scene | OpenUSD come formato di interscambio, glTF 2.0 per gli asset |
+| Verità numerica | **Mitsuba 3** e **PBRT-v4**: stessa scena, confronto pixel per pixel |
+
+---
+
+## 2. Metodologia (vale per ogni modulo)
+
+### 2.1 Classificazione dei risultati
+
+Ogni problema trovato riceve un'etichetta:
+
+- **[BUG]** matematica o fisica sbagliata: va corretta.
+- **[BIAS]** approssimazione voluta che sposta il valore atteso (clamp, hack di energia): va resa
+  opzionale e spenta nella modalità di riferimento.
+- **[NON-STANDARD]** funziona ma diverge da come lo fa il settore (unità, parametri, nomi).
+- **[DEBITO]** codice duplicato, API doppie, commenti obsoleti, file troppo grandi.
+
+E ogni modulo riceve un verdetto finale: **tenere**, **correggere**, **estendere** o **rifare**.
+
+### 2.2 Strumenti di verifica (da costruire nella Fase 0)
+
+1. **Test statistici sulle BSDF e sulle luci** (stile Mitsuba): per ogni `Sample`/`Pdf`
+   - integrazione numerica: `∫ pdf dω = 1` (o = probabilità del lobo non-delta);
+   - **chi-quadro**: istogramma delle direzioni campionate contro la `Pdf` integrata per cella;
+   - coerenza: `peso restituito da Sample == Evaluate*cos / Pdf`;
+   - reciprocità: `f(V,L) == f(L,V)` dove la fisica lo richiede;
+   - **white furnace**: albedo direzionale `≤ 1` (e `= 1` per i materiali senza assorbimento
+     con compensazione multi-scattering).
+2. **Scene analitiche** con soluzione esatta: sfera Lambert in ambiente uniforme (radianza =
+   albedo x L), piano sotto luce puntiforme (`I cosθ / d²`), irradianza di un rettangolo
+   (form factor chiuso), sfera emissiva vista da lontano, Cornell box (dati misurati Cornell).
+3. **Confronto con Mitsuba 3 / PBRT-v4**: ~15 scene canoniche tradotte nei loro formati
+   (convertitore YAML → Mitsuba XML per il sottoinsieme comune), render a convergenza in EXR,
+   metriche **relMSE** e **FLIP**, immagini in falsi colori della differenza.
+4. **Test di non-polarizzazione**: la media di N render indipendenti a pochi spp deve convergere
+   al riferimento con errore che scende come `1/√N`. Se si ferma a un plateau, c'è un bias.
+5. **Modalità di riferimento** (`--reference`): spegne tutto ciò che è [BIAS] (vedi 3.8) così che
+   il motore "puro" sia confrontabile con Mitsuba.
+
+### 2.3 Deliverable per modulo
+
+- sezione nel devlog con risultati ed etichette;
+- test nuovi in `RayTracer.Tests` che bloccano la correttezza raggiunta;
+- render di confronto salvati in `renders/review/` (EXR + PNG differenza);
+- aggiornamento di `PLANNING.md` (bug noti, TODO).
+
+---
+
+## 3. Problemi già trovati durante la stesura del piano
+
+Campionamento a mano del codice, non ancora una review completa. Ogni punto va confermato e
+misurato nella sua fase.
+
+| # | Etichetta | Dove | Problema |
+|---|---|---|---|
+| 3.1 | **[BUG]** | `Rendering/Sky/PreethamSky.cs:197` | Funzione di Perez sbagliata. Corretta: `(1 + A*e^(B/cosθ)) (1 + C*e^(Dγ) + E*cos²γ)`. Nel codice: `(C + D*e^(Eγ) + E*cos²γ)`, cioè coefficienti scalati di una posizione ed `E` usato due volte. Anche la normalizzazione `F(0, θs)` eredita l'errore. Il sole usa una costante empirica (`SolarConstantRel = 20`) e trasmittanze ad hoc. |
+| 3.2 | **[BUG]** | `Materials/DisneyBsdf.cs:1302, 1335, 1384, 1440, 1604, 1674, 1706` | Dopo aver scelto un lobo con probabilità `p`, il peso viene diviso per `max(p, 0.1)` (o `0.05`), ma `p` non è mai forzato a quel minimo in fase di scelta. Quando un lobo ha `p < 0.1` la sua energia viene **sottostimata** (perdita di riflesso speculare su materiali molto diffusivi, ecc.). |
+| 3.3 | **[BUG]** | `Scene/SceneLoader.cs:1802, 1902` + `Textures/ImageTexture.cs:63` | Le mappe dati (roughness, metallic, coat roughness...) passano per `ImageTexture`, che applica sempre la decodifica sRGB. Una roughness map viene quindi "linearizzata" come fosse un colore: valori sbagliati. Manca un attributo `color_space` per texture. |
+| 3.4 | **[NON-STANDARD]** | `Textures/ImageTexture.cs:63` | Decodifica sRGB come `pow(x, 2.2)` invece della curva sRGB a tratti (IEC 61966-2-1). Errore visibile nelle ombre. |
+| 3.5 | **[NON-STANDARD]** | `Rendering/Renderer.cs:893` | Display transform = fit di Narkowicz dell'ACES applicato **per canale** su Rec.709 + gamma 2.2 pura. Effetti noti: hue shift e saturazione "Notorious 6" sulle alte luci, colori brillanti che virano a giallo/ciano, nessuna vera gestione del colore. Il fit originale prevede anche un pre-scale 0.6 assente. |
+| 3.6 | **[BUG]** | `Materials/DisneyBsdf.cs:642-648, 773-778` | La trasmissione **rough** (vetro satinato) è esclusa da `Evaluate`/`Pdf`: niente NEE né MIS per il vetro satinato, quindi rumore enorme e combinazione MIS incoerente. Serve il modello di Walter et al. 2007 completo (BTDF + pdf). |
+| 3.7 | **[BIAS]** | `Materials/Metal.cs:86-91` | Il metallo aggiunge un lobo lambertiano `albedo*fuzz/π` "di riempimento". Non è fisico: sommato a uno speculare con `F0 = albedo` può superare l'energia in ingresso. La compensazione corretta è Kulla-Conty (già presente nel Disney). Inoltre Fresnel conduttore = Schlick con `F0 = colore`: niente IOR complesso né modello F82 (OpenPBR). |
+| 3.8 | **[BIAS]** di default | `Rendering/Renderer.cs:208, 221, 376-378` + materiali | Attivi di default: clamp per-sample 10, clamp indiretto 0.25 (= 2.5), ombre trasparenti "dritte" del vetro (luce che passa senza rifrazione), Russian Roulette con soglie che cambiano in base a una classificazione euristica della scena, `DeadPathThroughputEpsilon`. Vanno bene come opzioni artistiche, non come comportamento base: in modalità di riferimento devono sparire. |
+| 3.9 | **[BIAS]** | `Textures/EnvironmentMap.cs:262-264` | L'importance sampling dell'HDRI restituisce sempre il **centro** del texel scelto: le direzioni NEE sono un insieme discreto. Con HDRI piccole o sole concentrato produce ombre a gradini e bias. Va campionato in modo continuo dentro il texel. |
+| 3.10 | **[NON-STANDARD]** | `Core/Sampling/OwenSobol.cs` + `Sampler.cs` | Solo le dimensioni 0-1 sono vero Sobol; dalla 2 in su è van der Corput con hash (solo stratificazione 1D). Le dimensioni sono assegnate con un contatore globale per campione, quindi path che prendono rami diversi disallineano le dimensioni (la scelta luce di un rimbalzo può finire sulla dimensione che altrove è la BSDF). Riferimento: ZSobol/padding per rimbalzo di PBRT-v4, o Sobol con matrici Joe-Kuo su 4D ripetute per rimbalzo. |
+| 3.11 | **[NON-STANDARD]** | `Rendering/Renderer.cs:1897` + `Core/MathUtils.cs:44` | Il fattore "shadow terminator" è applicato anche alla direzione di vista, oltre a quella della luce: non corrisponde a nessun modello pubblicato (Chiang 2019 / Estevez 2019 agiscono sul lato luce). Va verificato con il furnace test. |
+| 3.12 | **[DEBITO]** | `Materials/IMaterial.cs` | Due API di materiale in parallelo: `Scatter`/`EvaluateDirect` (storica) e `Evaluate`/`Pdf`/`Sample` (MIS). Doppio codice = doppio rischio di incoerenza. Il commento a `Renderer.cs:1876` dice ancora che Lambert/Metal/Dielectric non implementano `Pdf`. |
+| 3.13 | **[BUG] da verificare** | `DisneyBsdf` + `Renderer` | Il peso del campione BSDF è per-lobo (`f_i / (P_i p_i)`) mentre il peso MIS con la luce usa la pdf della miscela: se le due non coincidono, i pesi MIS non sommano a 1 e c'è bias. Da misurare col test 2.2.4. |
+| 3.14 | **[NON-STANDARD]** | tutte le luci + `Emissive` | `intensity` senza unità: impossibile illuminare "come nella realtà" (sole 100.000 lux, lampadina 800 lm) e scambiare scene con altri motori. Nessuna temperatura colore, nessun IES. |
+| 3.15 | **[DEBITO]** | `scenes/cornell-box.yaml` e altre | Commenti obsoleti: dicono che l'emissivo "non usa NEE", mentre oggi entra nel pool NEE come `GeometryLight`. |
+| 3.16 | **[DEBITO]** | `Rendering/Renderer.cs` (2314 righe), `Scene/SceneLoader.cs` (4368), `Materials/DisneyBsdf.cs` (2006) | `TraceRay` è ricorsivo, con molti casi speciali: ostacola path guiding, light path expressions, BDPT e il debug. |
+
+---
+
+## 4. Le fasi
+
+Ordine pensato perché ogni fase si appoggi su quelle già verificate: un errore nel campionamento
+falsa tutti i test dei materiali, un errore nel tone mapping falsa ogni giudizio "a occhio".
+
+### Fase 0 - Infrastruttura di verifica (prerequisito)
+
+- [ ] Flag `--reference`: niente clamp, niente clamp indiretto, niente denoiser, niente ombre
+      trasparenti, niente photon map, RR standard sul throughput, output EXR lineare.
+- [ ] Libreria di test statistici (chi-quadro, integrazione pdf, furnace, reciprocità, coerenza
+      Sample/Evaluate/Pdf) riusabile da ogni BSDF, phase function e luce.
+- [ ] Tool `ImageCompare` in `src/Tools/`: relMSE, FLIP, media, mappa differenza in falsi colori.
+- [ ] Installazione Mitsuba 3 (`pip install mitsuba`) nell'ambiente di sviluppo e set di scene
+      canoniche duplicate (vedi elenco in §5).
+- [ ] Test di convergenza `1/√N` automatizzato su 3 scene.
+
+### Fase 1 - Fondamenta matematiche (`Core/`)
+
+| Modulo | Cosa verificare |
+|---|---|
+| `MathUtils`, `Ray`, `AABB` | Epsilon fisso vs offset basato sull'errore floating point (PBRT "spawn ray" con bound d'errore): fixed epsilon = acne o peter-panning a scale diverse. `AABB.Hit` con NaN e raggi paralleli agli assi. |
+| Costruzione basi ortonormali | Metodo branchless di Duff et al. 2017 (Frisvad ha errori noti vicino a -Z). Ortogonalità del frame tangente con normal map. |
+| Routine di campionamento | Coseno-emisfero, sfera, cono, disco concentrico (Shirley-Chiu): chi-quadro e pdf. |
+| `Sampling/` | Vedi 3.10. Test di discrepanza, test di convergenza su integrali noti 2D/4D, dimensioni stabili per rimbalzo, correlazioni tra pixel vicini. Valutare blue-noise screen-space (Heitz-Belcour 2019). |
+| `QuarticSolver`, `SturmSolver` | Precisione float vs double sul toro e lathe, radici multiple, casi limite (raggio tangente). |
+| `Perlin`, `WorleyNoise`, `MultiScaleRidgedField`, `DomainWarp` | Range di uscita, continuità, gradienti analitici, assenza di artefatti di griglia. |
+| `RayDifferential`, `FootprintMath`, `FilterFootprint` | Conformità a PBRT §10.1, comportamento dopo riflessione/rifrazione. |
+
+### Fase 2 - Geometria e intersezioni (`Geometry/`, `Acceleration/`)
+
+- [ ] Per ogni primitiva (sphere, quad, box, disk, annulus, cylinder, cone, capsule, torus,
+      triangle, smooth triangle, mesh, lathe, extrusion, heightfield, infinite plane):
+      hit corretto, normale geometrica vs di shading, `FrontFace`, UV, `dpdu/dpdv`, area e pdf di
+      campionamento (`ISamplable`, `ISolidAngleSamplable`) che integrano a 1.
+- [ ] Triangoli: Möller-Trumbore vs intersezione **watertight** (Woop et al. 2013), standard in
+      Embree/PBRT: niente "buchi" lungo gli spigoli delle mesh.
+- [ ] `Transform`: normali con inversa trasposta, scala non uniforme, scala negativa (inversione
+      dell'orientamento), `AnimatedTransform` e bound dell'otturatore.
+- [ ] CSG: intervalli dentro/fuori, coplanarità, normali sulle facce sottratte.
+- [ ] Subdivision Loop/Catmull-Clark: confronto con le superfici limite di OpenSubdiv (bordi,
+      creases, vertici straordinari). Displacement stack: ordine, normali dopo displacement.
+- [ ] BVH: correttezza (esiste già il test di equivalenza) e qualità SAH (costo medio per raggio);
+      performance rimandata alla Fase 11.
+- [ ] `ObjLoader`: n-gon, normali mancanti, MTL. Proposta: aggiungere glTF 2.0 e PLY.
+
+### Fase 3 - Camera, film e colore (`Camera/`, `Rendering/` output)
+
+- [ ] Camera: generazione raggi pinhole e thin lens (campionamento lente concentrico), profondità
+      di campo coerente con la formula della lente sottile, motion blur camera.
+- [ ] Filtro di ricostruzione dei pixel: verificare quale si usa (box implicito?); premium =
+      filtro Gaussiano o Blackman-Harris con *filter importance sampling*.
+- [ ] **Camera fisica** (estensione): `focal_length_mm`, `sensor_width_mm`, `f_stop`,
+      `focus_distance`, `shutter_s`, `iso`, esposizione EV100; bokeh poligonale/anamorfico.
+- [ ] **Color management** (punto 3.4-3.5): working space dichiarato (Rec.709 lineare, opzione
+      ACEScg), view transform selezionabili `standard` (sRGB a tratti), `agx` (default
+      consigliato), `aces` (RRT+ODT reale), `filmic`; look/contrast; dithering sull'8 bit;
+      PNG 16 bit. Tutti i test di confronto vanno fatti su EXR lineare, non sul PNG.
+- [ ] White balance (temperatura in Kelvin, adattamento cromatico Bradford/CAT16).
+
+### Fase 4 - Texture e dati (`Textures/`)
+
+- [ ] Attributo `color_space` per texture (`srgb`, `linear`, `raw`) e default automatico per
+      ruolo (colore = sRGB, roughness/metallic/normal/bump/displacement = raw). Corregge 3.3.
+- [ ] Curva sRGB esatta (3.4). Loader `.hdr`/`.exr`: canali, esponente RGBE, half float.
+- [ ] Filtraggio: mipmap trilineare già presente; premium = anisotropico (EWA). UDIM e texture
+      a tile/cache per scene grandi.
+- [ ] Normal map: convenzione tangenti **MikkTSpace** (lo standard di tutti i baker: senza, le
+      normal map importate mostrano cuciture), OpenGL/DirectX, `strength`.
+- [ ] Bump: scala in unità mondo, coerenza con il displacement (test esistenti da rivedere).
+- [ ] Procedurali (marble, wood, voronoi, noise, brick, gradient, color ramp): range, antialias
+      (clamp delle ottave vs footprint), coerenza tra spazio oggetto e mondo.
+- [ ] `HdriSunExtractor`: conservazione dell'energia quando il sole viene tolto dall'HDRI.
+
+### Fase 5 - Materiali e BSDF (`Materials/`): il cuore del realismo
+
+Ordine interno, dal più semplice:
+
+1. **Lambertian**: furnace = albedo, chi-quadro del coseno.
+2. **Dielectric liscio**: Fresnel esatto, TIR, IOR relativo con `IorStack` (vetro in acqua,
+   liquido nel bicchiere: priorità alla Schmidt-Budge 2002), Beer-Lambert.
+3. **Microfacet core** (`Microfacet.cs`): GGX D normalizzata (`∫ D cosθm dωm = 1`), Smith
+   G1 e G2 **height-correlated**, campionamento VNDF (Heitz 2018 o *spherical caps* di Dupuy 2023),
+   anisotropia (parametrizzazione roughness → alpha).
+4. **Conduttore**: Fresnel complesso con IOR `n + ik` (preset oro, argento, rame, alluminio,
+   ferro...), modello artistico F82 di OpenPBR, togliere il lobo lambertiano (3.7), Kulla-Conty.
+5. **Dielectric rough** (Walter 2007): BTDF, pdf, reciprocità con il fattore `η²`, MIS (3.6).
+6. **Disney/Principled**: ogni lobo da solo e poi la miscela; probabilità dei lobi (3.2), MIS
+   (3.13), LUT Kulla-Conty (confronto con valori di riferimento), sheen Charlie, clearcoat,
+   thin film (Belcour-Barla), `thin_walled`, `diff_trans`, retro-riflessione di Burley.
+7. **MixMaterial**: scelta stocastica vs blend, coerenza tra `Sample` e `Pdf` della miscela.
+8. **Emissive**: radianza unilaterale/bilaterale, unità.
+9. **Shadow terminator e normali di shading** (3.11): correzione dell'aggiunto di Veach per i
+   path dalla luce (photon map), confronto con Hanika 2021.
+
+**Decisione strategica da prendere alla fine della fase**: adottare **OpenPBR Surface** come
+materiale unico (stack fisico: fuzz, coat, specular, metal/dielectric base, subsurface,
+trasmissione, thin film, con layering ad albedo-scaling che conserva l'energia) e trasformare
+`lambertian`/`metal`/`dielectric`/`disney` in preset che lo configurano. È ciò che fanno oggi
+Arnold, Karma, RenderMan (via MaterialX) e V-Ray: una sola BSDF ben testata invece di cinque.
+Unificare contemporaneamente l'API (3.12) su `Sample`/`Evaluate`/`Pdf`.
+
+### Fase 6 - Luci e illuminazione diretta (`Lights/`, `Rendering/Sky/`)
+
+- [ ] Per ogni luce (point, spot, directional, area, sphere, geometry, portal, environment,
+      physical sun): radianza, pdf in angolo solido, conversione area → angolo solido,
+      `ApproximatePower` coerente con la potenza reale (serve alla scelta proporzionale).
+- [ ] Area light rettangolari: campionamento sferico del rettangolo (Ureña 2013) invece che
+      per area: molto meno rumore vicino alla luce.
+- [ ] Spot: falloff fisico, profili **IES** (estensione).
+- [ ] **Unità fisiche** (3.14): `power` in W o lm, `intensity` in cd, `luminance` in nit, sole in
+      lux; `temperature` in Kelvin (corpo nero); flag `normalize` (potenza indipendente
+      dall'area, come Arnold/Karma); esposizione per luce in stop.
+- [ ] Many-light sampling: **light BVH** (Conty-Kulla 2018) per scene con molte luci/emissivi.
+- [ ] HDRI: campionamento continuo nel texel (3.9), rotazione, MIS compensation
+      (Karlík 2019).
+- [ ] **Cielo**: correggere Preetham (3.1) o, meglio, sostituirlo con **Hosek-Wilkie** o
+      **Prague 2021**; validare Nishita (ozono, unità, coerenza sole/cielo). Sole e cielo devono
+      condividere le stesse unità fotometriche.
+- [ ] Ombre trasparenti (3.8): opzione esplicita per materiale, spenta in riferimento.
+
+### Fase 7 - Integratore (`Rendering/Renderer.cs`)
+
+- [ ] Riscrivere `TraceRay` come **loop iterativo** con throughput esplicito (prerequisito per
+      path guiding, LPE/AOV per lobo, debug, profondità per tipo di lobo).
+- [ ] MIS: pesi corretti per luce scelta (`p_pick x p_light`), emissione colpita via BSDF, lobi
+      delta, coerenza delle pdf (3.13). Test Veach (scena dei 4 piani lucidi e 4 luci).
+- [ ] Russian Roulette standard sul throughput (con correzione `η²` dopo le rifrazioni), niente
+      classificazione euristica della scena.
+- [ ] Profondità separate per tipo (diffuse, glossy, transmission, volume) come i motori di
+      produzione: il vetro richiede molti rimbalzi, il diffuso pochi.
+- [ ] Clamp: spento di default (o solo indiretto, opzionale) (3.8).
+- [ ] Caustiche: la photon map è biased per natura. Valutare **MNEE** (manifold next-event
+      estimation, per le caustiche attraverso vetro/acqua) e/o **path guiding** (roadmap #23)
+      come strada premium non biased.
+- [ ] Unbiasedness: confronto con il `path` integrator di Mitsuba a parità di profondità su
+      tutte le scene canoniche.
+
+### Fase 8 - Volumi e SSS (`Volumetrics/`, `Rendering/RandomWalkSss.cs`)
+
+- [ ] Phase function (isotropica, HG, double HG, Rayleigh, Schlick): normalizzazione,
+      campionamento, chi-quadro.
+- [ ] Mezzi omogenei cromatici: campionamento a canale "hero" con MIS spettrale (Wrenninge 2017 /
+      Miller 2019 null-scattering) invece del campionamento su un singolo canale.
+- [ ] Delta tracking e ratio tracking: non-polarizzazione, majorant corretti (mezzi grid e
+      procedurali), confronto con Mitsuba `volpath`.
+- [ ] Atmosfera Nishita: densità, coefficienti Rayleigh/Mie, assorbimento dell'ozono.
+- [ ] SSS random walk: parametrizzazione artistica (colore + mean free path) con inversione
+      dell'albedo di Christensen-Burley 2015 o Chiang 2016, test energetici, confronto con
+      Mitsuba.
+- [ ] Estensioni premium: mezzi emissivi, VDB (NanoVDB), interfacce mezzo per entità.
+
+### Fase 9 - Post-processing e denoiser (`Denoising/`)
+
+- [ ] NFOR: stima della varianza dual-buffer, selezione MSE, nessuna perdita di dettaglio sulle
+      texture (test su scena con texture fini).
+- [ ] Integrare **OIDN** come opzione (`--denoiser oidn`): è lo standard di fatto in produzione
+      su CPU. Licenza Apache-2.0, libreria nativa.
+- [ ] Adaptive sampling (roadmap #14) sulla varianza dual-buffer già esistente.
+
+### Fase 10 - Formato scene YAML
+
+**Risposta breve: sì, va modificato, ma per evoluzione (v2 con tool di migrazione), non da zero.**
+YAML come formato di authoring è una buona scelta; i problemi sono di semantica, non di sintassi.
+
+Cosa manca rispetto a un formato premium:
+
+1. **Versione** del formato: `format_version: 2`, con migrazione automatica dalla v1
+   (generalizzare `MigrateFakeSss` in un tool `SceneMigrate`).
+2. **Unità**: `units: { length: meters }` a livello scena; luci in unità fotometriche; camera
+   in millimetri.
+3. **Colore**: `color_space` per texture e, opzionalmente, per colori (`[r,g,b]` sRGB o lineare
+   va dichiarato), `temperature: 3200` come alternativa a un RGB.
+4. **Blocco `render:`** nel file (risoluzione, spp, profondità per tipo, clamp, denoiser,
+   view transform), con la CLI che lo sovrascrive. Oggi il "come renderizzare" vive solo nei
+   commenti delle scene.
+5. **Camera fisica**: `focal_length`, `sensor`, `f_stop`, `focus_distance`, `shutter`,
+   `exposure`. `fov` resta come alternativa.
+6. **Materiali**: nomi dei parametri allineati a OpenPBR/MaterialX, texture come nodo
+   (`{ file, color_space, filter, wrap, uv_set, transform }`), mappe IOR complesse per i metalli.
+7. **Luci**: `power`/`intensity`/`exposure`/`normalize`/`temperature`/`ies`.
+8. **Trasformazioni**: un blocco uniforme `transform: { translate, rotate, rotate_order, scale }`
+   o `matrix` per tutte le entità, invece di parametri specifici per primitiva.
+9. **Validazione**: JSON Schema del formato (autocompletamento e validazione nell'editor) ed
+   errore esplicito sulle chiavi sconosciute (da verificare come si comporta oggi YamlDotNet).
+10. **Interscambio**: import glTF 2.0 (con mappatura PBR) nel breve; OpenUSD nel lungo periodo
+    (è il formato di scena di Karma, RenderMan, Arnold, Omniverse).
+11. **Codice**: spezzare `SceneLoader.cs` (4368 righe) per sezione (camera, luci, materiali,
+    texture, entità, mondo), già nel TODO.
+
+### Fase 11 - Architettura e performance (dopo la correttezza)
+
+- [ ] Aggiornare `SixLabors.ImageSharp` (vulnerabilità note).
+- [ ] BVH appiattito con traversata a stack esplicito (già nelle idee), SAH a bin, valutare
+      **Embree** (Apache-2.0) per mesh grandi.
+- [ ] Precisione: float vs double nei solver e nelle scene molto grandi.
+- [ ] Rendering spettrale (roadmap #24): necessario per dispersione e per metalli/thin film
+      davvero accurati; da decidere dopo la Fase 5 (impatta tutta l'API dei materiali).
+
+---
+
+## 5. Scene canoniche di validazione
+
+Da creare in `scenes/validation/` (YAML) e `scenes/validation/mitsuba/` (XML):
+
+1. White furnace: sfera in ambiente uniforme, una per materiale.
+2. Sfera Lambert sotto luce puntiforme e su piano (soluzione analitica).
+3. Cornell box originale (con dati spettrali misurati, confronto Mitsuba).
+4. Scena MIS di Veach (4 lastre a rugosità crescente x 4 luci di dimensione crescente).
+5. Sfere di conduttori (oro, rame, alluminio, cromo) a rugosità 0 / 0.2 / 0.5 sotto HDRI.
+6. Vetro: sfera piena, lastra spessa, vetro satinato, bicchiere con liquido (IOR annidati).
+7. Coat + sheen + thin film su sfere (materiale-test tipo "shader ball").
+8. SSS: busto o drago con pelle/giada/marmo.
+9. Volume: cubo di fumo omogeneo e eterogeneo, nebbia con luce spot (god rays).
+10. Cielo fisico a 5 altezze del sole (alba, mattina, mezzogiorno, tramonto, crepuscolo).
+11. HDRI con sole forte: ombre nette, nessun gradino.
+12. Piano a scacchi all'orizzonte: aliasing e filtraggio texture.
+13. Profondità di campo e motion blur.
+14. Interno illuminato da finestra (GI difficile): convergenza e rumore.
+15. Molte luci (100+ emissivi piccoli): many-light sampling.
+
+---
+
+## 6. Verdetto preliminare per modulo
+
+Basato sul campionamento della sezione 3: da confermare fase per fase.
+
+| Modulo | Verdetto preliminare | Motivo |
+|---|---|---|
+| Core math, noise, solver | correggere | base solida, servono test più stretti |
+| Sampler | rivedere a fondo | dimensioni non allineate, solo 2D stratificato |
+| Geometria e BVH | tenere / correggere | ampia e testata; triangolo watertight |
+| Camera | estendere | manca la camera fisica |
+| Tone mapping e colore | **rifare** | nessuna gestione del colore |
+| Texture | correggere | `color_space`, sRGB esatto, MikkTSpace |
+| Materiali | **rifare attorno a OpenPBR** | bias nei lobi, conduttore non fisico, trasmissione rough incompleta, doppia API; si riusano Microfacet, Fresnel, LUT |
+| Luci | correggere + unità fisiche | struttura buona, unità assenti |
+| Cielo | **rifare** | Preetham sbagliato, sole empirico |
+| Integratore | **rifare il loop** | ricorsivo e pieno di casi speciali; si riusano NEE, MIS, mezzi |
+| Volumi e SSS | verificare | da confrontare con Mitsuba prima di giudicare |
+| Denoiser | tenere + OIDN | NFOR va bene come opzione |
+| Formato scene | evolvere a v2 | semantica (unità, colore, render) più che sintassi |
+
+## 7. Ordine di lavoro consigliato
+
+1. Fase 0 (senza strumenti di verifica ogni giudizio è "a occhio").
+2. Fasi 1 e 3 insieme: campionamento e colore sono i due filtri attraverso cui si guarda tutto.
+3. Fase 5 (materiali) e Fase 6 (luci), che sono la gran parte del "non realistico".
+4. Fase 7 (integratore), con il nuovo loop iterativo costruito sui materiali già verificati.
+5. Fasi 2, 4, 8, 9 in parallelo dove serve.
+6. Fase 10 (formato v2) quando materiali, luci e camera nuovi sono stabili, così il formato
+   descrive il motore definitivo e la migrazione si fa una volta sola.
+7. Fase 11.

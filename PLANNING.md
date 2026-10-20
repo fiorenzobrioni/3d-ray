@@ -105,12 +105,20 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 - [ ] Refactoring: spostare `Seed` da `IHittable` a un'interfaccia dedicata (es. `ISeeded`); nodi strutturali (BvhNode, Transform) non hanno bisogno di seed.
 - [ ] Review completa dei tutorial (`tutorial/`): correttezza vs codice, omissioni, grammatica, esempi, indici.
 - [ ] Spezzare `SceneLoader.cs`.
+- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11).
 
 ---
 
 ## 🐛 Bug noti
 
-_Nessun bug noto al momento._
+Emersi durante la stesura del piano di review (dettagli e posizioni in [`PIANO-REVIEW.md`](PIANO-REVIEW.md) §3):
+
+- [ ] **Preetham**: funzione di Perez con coefficienti sbagliati (`PreethamSky.cs`, §3.1).
+- [ ] **Disney BSDF**: peso del lobo diviso per `max(p, 0.1)` senza floor in selezione, energia sottostimata (§3.2).
+- [ ] **Texture dati** (roughness/metallic...) decodificate come sRGB (§3.3).
+- [ ] **Vetro satinato** escluso da `Evaluate`/`Pdf`: niente NEE/MIS (§3.6).
+- [ ] **Metal**: lobo lambertiano di riempimento non fisico (§3.7).
+- [ ] **HDRI importance sampling** solo ai centri dei texel (§3.9).
 
 ---
 
