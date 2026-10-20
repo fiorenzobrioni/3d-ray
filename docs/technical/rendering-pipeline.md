@@ -301,9 +301,11 @@ Se il raggio ha esaurito i bounce, restituisce nero (energia zero). Il parametro
 ### 4.2 Hit Test
 
 ```csharp
-if (!_world.Hit(ray, Epsilon, Infinity, ref rec))
+if (!_world.Hit(ray, MathUtils.RayEpsilon, Infinity, ref rec))
     return CalculateSkyColor(ray);
 ```
+
+`tMin` non è una costante fissa: `MathUtils.RayEpsilon` è proporzionale al raggio della scena, e l'origine dei raggi secondari è spostata con `MathUtils.OffsetOrigin`, di una distanza relativa alla coordinata più grande del punto (circa 256 ulp). Così l'immagine non cambia se la scena viene scalata (10 µm o 1 km) o spostata lontano dall'origine.
 
 Il raggio viene testato contro il world (BVH + primitivi non-BVH). Se non colpisce nulla, il raggio è "sfuggito" dalla scena → campiona il cielo.
 

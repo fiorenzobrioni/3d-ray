@@ -31,7 +31,7 @@ public sealed class HenyeyGreensteinPhase : IPhaseFunction
 
     public (Vector3 Wi, float Pdf) Sample(Vector3 wo)
     {
-        float u1 = MathUtils.RandomFloat(), u2 = MathUtils.RandomFloat();
+        var (u1, u2) = MathUtils.Random2D();
         // Inverse-CDF sampling of HG on μ ∈ [-1, 1]. u1 = 1 ⇒ μ = 1 (forward peak).
         float cosTheta;
         if (MathF.Abs(_g) < 1e-3f) cosTheta = 1f - 2f * u1;

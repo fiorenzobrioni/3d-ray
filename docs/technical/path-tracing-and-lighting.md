@@ -198,7 +198,7 @@ Ogni volta che la NEE campiona l'environment light, vengono generate due coordin
 1. **Scelta della riga** — ricerca binaria su `margCdf` con $r_1$ → indice $y$
 2. **Scelta della colonna** — ricerca binaria su `condCdf[y]` con $r_2$ → indice $x$
 
-Il texel $(x, y)$ viene convertito in coordinate angolari $(φ, θ)$ e quindi in una direzione 3D nello spazio mondo. Viene lanciato un shadow ray in quella direzione; se non ci sono occlusioni, il contributo della luce viene accumulato.
+Il punto dentro il texel non è il centro: lo scarto di $r_1$ e $r_2$ dentro il proprio intervallo della CDF è a sua volta uniforme e dà la posizione continua $(x + f_x, y + f_y)$. Così le direzioni coprono tutto il texel (con il centro fisso le direzioni erano un insieme discreto: ombre a gradini e stima distorta con HDRI piccole). La posizione viene convertita in coordinate angolari $(φ, θ)$ e quindi in una direzione 3D nello spazio mondo. Viene lanciato un shadow ray in quella direzione; se non ci sono occlusioni, il contributo della luce viene accumulato.
 
 ### 5.4 Calcolo della PDF in Angolo Solido
 
@@ -210,7 +210,7 @@ Per usare questa probabilità nell'equazione di rendering, deve essere espressa 
 
 $$p_\Omega(\omega) = \frac{p_\text{pixel}}{\Delta\omega}, \quad \Delta\omega = \sin\theta_\text{colatitudine} \cdot \Delta\theta \cdot \Delta\phi$$
 
-dove $\Delta\theta = \pi/H$ e $\Delta\phi = 2\pi/W$ sono le dimensioni angolari di un texel. Il denominatore è l'angolo solido del singolo texel campionato.
+dove $\Delta\theta = \pi/H$ e $\Delta\phi = 2\pi/W$ sono le dimensioni angolari di un texel e $\theta$ è quello della direzione campionata (non del centro del texel): la densità è uniforme in $(u, v)$ dentro il texel, quindi in angolo solido varia come $1/\sin\theta_\text{colatitudine}$. `PdfDirection` usa la stessa formula, così i due lati del MIS vedono la stessa densità (verificato con un chi-quadro in `SamplingRoutineTests`).
 
 ### 5.5 Campionamento del Gradient Sky (Sun Disk)
 

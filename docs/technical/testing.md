@@ -61,6 +61,7 @@ Contiene una versione scalare `ReferenceHit(box, ray, tMin, tMax)` — trascrizi
 | `Hit_BehindBox_Rejects` | Raggio che punta lontano dal box non lo colpisce. |
 | `Hit_RayFromInsideBox_Accepts` | L'origine dentro al box → hit (tMin=0). |
 | `Hit_AxisAlignedRay_BehaviourMatchesReference` | 200 raggi asse-allineati (direction = X/Y/Z) → `InvDirection` ha componenti `±∞`: l'implementazione SIMD deve comportarsi come il reference. |
+| `Hit_RayInAFacePlane_IsConservative` | Raggio asse-allineato con l'origine esattamente sul piano di una faccia: su quell'asse lo slab vale `0 * ∞ = NaN`, che non deve scartare il box (un nodo BVH perderebbe tutto il sottoalbero). Le riduzioni usano `float.MaxNumber`/`MinNumber`, che ignorano il NaN. |
 | `Hit_GeneralRays_BehaviourMatchesReference` | 500 raggi random normalizzati → equivalenza totale con il reference. |
 | `Ray_InvDirection_IsComponentwiseReciprocal` | `new Ray(o, d).InvDirection == (1/d.X, 1/d.Y, 1/d.Z)`. |
 
@@ -93,6 +94,12 @@ soglie fisse).
 | `BsdfAuditTests.cs` | Report completo del kit, opt-in: `RAYTRACER_AUDIT=1 dotnet test --filter "Category=Audit" --logger "console;verbosity=detailed"` (`RAYTRACER_AUDIT_ONLY=<nome>` aggiunge le celle peggiori del chi-quadro). |
 | `AnalyticSceneTests.cs` | Scene con soluzione esatta: sfera lambertiana in ambiente uniforme (= albedo), sfera di vetro e specchio (= 1), piano sotto luce puntiforme (legge dell'inverso del quadrato). |
 | `ReferenceModeTests.cs` | `--reference` toglie il clamp e rende opachi i raggi d'ombra; `--seed 0` è bit-identico, un seed diverso dà un'immagine indipendente. |
+| `SamplerQualityTests.cs` | Il sampler: integra funzioni 2D note (una gaussiana liscia e un disco, cioè un bordo d'ombra) su 512 pixel indipendenti e misura la pendenza dell'errore RMS rispetto al numero di campioni. Numeri indipendenti danno N^-0.5; una coppia stratificata in 2D N^-1.4 sul liscio e N^-0.75 sul bordo. Gate su `Sample2D` a varie profondità e sui blocchi di dimensioni per vertice (`Sampler.BeginVertex`). Report opt-in con `RAYTRACER_AUDIT=1` (anche correlazioni fra dimensioni). |
+| `SamplingRoutineTests.cs` | Chi-quadro e integrale della pdf delle routine di base: sfera e emisfero uniformi, cono verso una sfera (anche piccolissima o lontana), le phase function dei volumi, il campionamento importance della HDRI (continuo dentro i texel, pdf coerente con `PdfDirection`), disco concentrico; base ortonormale entro 1e-5 anche vicino a -Z. |
+| `ScaleInvarianceTests.cs` | Lo stesso angolo di stanza scalato a 10 µm e a 1 km, e spostato a 10 km dall'origine, deve dare la stessa luminanza media entro il 2%: gli offset dei raggi seguono la scena. |
+| `SolverPrecisionTests.cs` | Risolutore quartico e di Sturm su polinomi con radici note; intersezione del toro contro un riferimento in doppia precisione (marcia fitta della funzione implicita più bisezione): nessun hit perso o inventato, errore su t sotto 1e-5. |
+| `NoiseQualityTests.cs` | Perlin: intervallo, zeri sul reticolo, continuità di valore e gradiente attraverso le facce del reticolo (C1), isotropia del gradiente. Worley: F1 è 1-Lipschitz (nessuna cella vicina dimenticata). |
+| `RayDifferentialAccuracyTests.cs` | Footprint delle texture: le derivate UV dalla proiezione sul piano tangente dei differenziali di camera contro la differenza finita ottenuta intersecando davvero i raggi ausiliari. Esatto sul piano; sulla sfera l'errore cala con il pixel (primo ordine). |
 
 Il confronto con un renderer di riferimento esterno su scene complete vive fuori dalla suite, in
 `validation/` (vedi `validation/README.md`), insieme allo strumento `src/Tools/ImageCompare`.
@@ -178,9 +185,9 @@ Aree scoperte che sono candidate naturali per future espansioni:
 
 - Build del BVH parallelo (`ParallelBuildSpanThreshold`): scene ≥ 10k primitive → ramo `Parallel.Invoke`. Attualmente copertura indiretta via `Bvh_Matches_LinearList(2000, …)`.
 - `Transform.BoundingBox` cache (Phase 1): bbox cachato vs ricomputato. Test differenziale dopo rotazione/scala.
-- Intersezione `Torus` (risolutore quartico). Non testato unit — validato solo dalle scene.
 - CSG: operazioni booleane su primitive. Idealmente equivalenza CSG vs intersezione esplicita su casi canonici.
-- Phase function e luci con il kit statistico di `Validation/` (oggi copre i materiali).
+- Luci con il kit statistico di `Validation/` (oggi copre materiali, phase function e HDRI).
+- Differenziali di raggio dopo riflessione e rifrazione (oggi solo i raggi di camera).
 
 ## 9. Riferimenti
 

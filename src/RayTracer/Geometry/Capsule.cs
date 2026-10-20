@@ -207,7 +207,11 @@ public class Capsule : IHittable, ISamplable
     // ═════════════════════════════════════════════════════════════════════════
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
-        => SampleImpl(MathUtils.RandomFloat(), MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        float part = MathUtils.RandomFloat();
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleImpl(part, r2u, r2v);
+    }
 
     /// <inheritdoc/>
     // Cylinder lateral (2πRH) + full sphere (4πR²)
@@ -224,8 +228,9 @@ public class Capsule : IHittable, ISamplable
         int su = sampleIndex % sqrtSamples;
         int sv = sampleIndex / sqrtSamples;
         float xiPart = MathUtils.RandomFloat();
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (jitU, jitV) = MathUtils.Random2D();
+        float xi1 = (su + jitU) * inv;
+        float xi2 = (sv + jitV) * inv;
         return SampleImpl(xiPart, xi1, xi2);
     }
 

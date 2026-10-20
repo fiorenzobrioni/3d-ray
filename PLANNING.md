@@ -105,7 +105,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 - [ ] Refactoring: spostare `Seed` da `IHittable` a un'interfaccia dedicata (es. `ISeeded`); nodi strutturali (BvhNode, Transform) non hanno bisogno di seed.
 - [ ] Review completa dei tutorial (`tutorial/`): correttezza vs codice, omissioni, grammatica, esempi, indici.
 - [ ] Spezzare `SceneLoader.cs`.
-- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅.
+- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅, Fase 1 (fondamenta matematiche e sampler) ✅.
 
 ---
 
@@ -118,7 +118,7 @@ Emersi durante la stesura del piano di review (dettagli e posizioni in [`PIANO-R
 - [ ] **Texture dati** (roughness/metallic...) decodificate come sRGB (§3.3).
 - [ ] **Vetro satinato** escluso da `Evaluate`/`Pdf`: niente NEE/MIS (§3.6).
 - [ ] **Metal**: lobo lambertiano di riempimento non fisico (§3.7).
-- [ ] **HDRI importance sampling** solo ai centri dei texel (§3.9).
+- [x] **HDRI importance sampling** solo ai centri dei texel (§3.9): corretto 2026-10-20 (Fase 1), campionamento continuo dentro il texel.
 
 Misurati nella Fase 0 della review (validazione contro Mitsuba 3, `validation/`):
 
@@ -129,6 +129,13 @@ Misurati nella Fase 0 della review (validazione contro Mitsuba 3, `validation/`)
 - [ ] **Metal**: lobo lambertiano solo nella NEE, rough metal +37% (§3.7, ora confermato come bug).
 - [ ] **Disney**: energia creata da sheen, clearcoat e vetro (§3.17); `diff_trans` -1% (§3.18).
 - [ ] **Default `color` 0.5 anche per vetro ed emissivo** (§3.22) e chiavi YAML sconosciute ignorate in silenzio (§3.23).
+
+Fase 1 della review (fondamenta matematiche):
+
+- [x] **Sampler Sobol** peggio del caso dalla seconda decisione in poi (§3.10): rifatto 2026-10-20 (Sobol "padded", dimensioni per vertice).
+- [x] **Offset dei raggi fissi a 1e-4** (§3.27), **basi ortonormali di Frisvad** (§3.26), **`AABB.Hit` con NaN** (§3.28), **cubica con soglia assoluta** che fondeva radici vicine del toro (§3.29): corretti 2026-10-20.
+- [ ] **Perlin** con fade cubico (curvatura discontinua) e gradienti anisotropi (§3.30): Fase 4.
+- [ ] **Differenziali di raggio** senza il minimo 1/8 (§3.31): Fase 4. **`MathUtils.Refract`** con riflessione totale interna silenziosa (§3.32): Fase 5.
 
 ---
 

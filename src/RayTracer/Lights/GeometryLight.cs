@@ -155,7 +155,7 @@ public class GeometryLight : ILight
 
         Vector3 toLight = samplePoint - hitPoint;
         float distSq = toLight.LengthSquared();
-        if (distSq < MathUtils.Epsilon * MathUtils.Epsilon)
+        if (distSq < MathUtils.RayEpsilon * MathUtils.RayEpsilon)
             return (true, Vector3.Zero, Vector3.UnitY, 0f);
 
         float distance = MathF.Sqrt(distSq);
@@ -204,7 +204,7 @@ public class GeometryLight : ILight
 
         Vector3 toLight = samplePoint - hitPoint;
         float distSq = toLight.LengthSquared();
-        if (distSq < MathUtils.Epsilon * MathUtils.Epsilon)
+        if (distSq < MathUtils.RayEpsilon * MathUtils.RayEpsilon)
             return (true, Vector3.Zero, Vector3.UnitY, 0f);
 
         float distance = MathF.Sqrt(distSq);
@@ -248,7 +248,7 @@ public class GeometryLight : ILight
 
         var ray = new Ray(hitPoint, wi);
         var rec = new HitRecord();
-        if (!hittable.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec))
+        if (!hittable.Hit(ray, MathUtils.RayEpsilon, MathUtils.Infinity, ref rec))
             return 0f;
 
         float cosLight = MathF.Abs(Vector3.Dot(-wi, rec.Normal));

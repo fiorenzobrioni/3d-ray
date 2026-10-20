@@ -99,8 +99,11 @@ public class AreaLight : ILight
         int su = sampleIndex % _sqrtSamples;
         int sv = sampleIndex / _sqrtSamples;
 
-        float ru = (su + MathUtils.RandomFloat()) * _invSqrtSamples;
-        float rv = (sv + MathUtils.RandomFloat()) * _invSqrtSamples;
+        var (jitU, jitV) = MathUtils.Random2D();
+
+        float ru = (su + jitU) * _invSqrtSamples;
+
+        float rv = (sv + jitV) * _invSqrtSamples;
 
         return Corner + ru * U + rv * V;
     }
@@ -129,13 +132,20 @@ public class AreaLight : ILight
     public (bool InShadow, Vector3 Color, Vector3 DirToLight, float Distance)
         IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
     {
-        Vector3 samplePoint = sampleIndex >= 0
-            ? StratifiedSurfacePoint(sampleIndex)
-            : Corner + MathUtils.RandomFloat() * U + MathUtils.RandomFloat() * V;
+        Vector3 samplePoint;
+        if (sampleIndex >= 0)
+        {
+            samplePoint = StratifiedSurfacePoint(sampleIndex);
+        }
+        else
+        {
+            var (ru, rv) = MathUtils.Random2D();
+            samplePoint = Corner + ru * U + rv * V;
+        }
 
         Vector3 toLight = samplePoint - hitPoint;
         float distSq = toLight.LengthSquared();
-        if (distSq < MathUtils.Epsilon * MathUtils.Epsilon)
+        if (distSq < MathUtils.RayEpsilon * MathUtils.RayEpsilon)
             return (true, Vector3.Zero, Vector3.UnitY, 0f);
 
         float distance = MathF.Sqrt(distSq);
@@ -186,7 +196,7 @@ public class AreaLight : ILight
             return 0f;
 
         float t = Vector3.Dot(Corner - hitPoint, _normal) / denom;
-        if (t <= MathUtils.Epsilon)
+        if (t <= MathUtils.RayEpsilon)
             return 0f;
 
         Vector3 p = hitPoint + t * wi;

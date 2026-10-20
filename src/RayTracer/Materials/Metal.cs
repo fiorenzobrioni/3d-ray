@@ -287,8 +287,7 @@ public sealed class Metal : IMaterial
     /// </summary>
     private static Vector3 SampleGGX(Vector3 N, float alpha)
     {
-        float u1 = MathUtils.RandomFloat();
-        float u2 = MathUtils.RandomFloat();
+        var (u1, u2) = MathUtils.Random2D();
 
         float a2 = alpha * alpha;
         float cosTheta = MathF.Sqrt((1f - u1) / (1f + (a2 - 1f) * u1));
@@ -304,25 +303,11 @@ public sealed class Metal : IMaterial
     }
 
     /// <summary>
-    /// Transforms a tangent-space vector to world space using Frisvad's method.
+    /// Transforms a tangent-space vector to world space (<see cref="MathUtils.OrthonormalBasis"/>).
     /// </summary>
     private static Vector3 TangentToWorld(Vector3 local, Vector3 N)
     {
-        Vector3 T, B;
-        if (N.Z < -0.999f)
-        {
-            T = new Vector3(0f, -1f, 0f);
-            B = new Vector3(-1f, 0f, 0f);
-        }
-        else
-        {
-            float a = 1f / (1f + N.Z);
-            float b = -N.X * N.Y * a;
-            T = new Vector3(1f - N.X * N.X * a, b, -N.X);
-            B = new Vector3(b, 1f - N.Y * N.Y * a, -N.Y);
-        }
-
-        Vector3 result = local.X * T + local.Y * B + local.Z * N;
+        Vector3 result = MathUtils.LocalToWorld(local, N);
         float lenSq = result.LengthSquared();
         return lenSq > 1e-8f ? result / MathF.Sqrt(lenSq) : N;
     }

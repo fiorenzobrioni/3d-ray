@@ -92,13 +92,13 @@ public class PhysicalSun : ILight
         {
             int su = sampleIndex % _sqrtSamples;
             int sv = sampleIndex / _sqrtSamples;
-            xi1 = (su + MathUtils.RandomFloat()) * _invSqrtSamples;
-            xi2 = (sv + MathUtils.RandomFloat()) * _invSqrtSamples;
+            var (jitU, jitV) = MathUtils.Random2D();
+            xi1 = (su + jitU) * _invSqrtSamples;
+            xi2 = (sv + jitV) * _invSqrtSamples;
         }
         else
         {
-            xi1 = MathUtils.RandomFloat();
-            xi2 = MathUtils.RandomFloat();
+            (xi1, xi2) = MathUtils.Random2D();
         }
 
         float cosTheta = 1f - xi1 * (1f - _cosHalfAngle);
@@ -115,7 +115,7 @@ public class PhysicalSun : ILight
 
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, toLight, time);
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, MathUtils.Infinity);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, MathUtils.Infinity);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, toLight, MathUtils.Infinity);
 
@@ -160,20 +160,7 @@ public class PhysicalSun : ILight
 
     private static Vector3 LocalToWorld(Vector3 local, Vector3 w)
     {
-        Vector3 u, v;
-        if (w.Z < -0.999f)
-        {
-            u = new Vector3(0f, -1f, 0f);
-            v = new Vector3(-1f, 0f, 0f);
-        }
-        else
-        {
-            float a = 1f / (1f + w.Z);
-            float b = -w.X * w.Y * a;
-            u = new Vector3(1f - w.X * w.X * a, b, -w.X);
-            v = new Vector3(b, 1f - w.Y * w.Y * a, -w.Y);
-        }
-        Vector3 result = local.X * u + local.Y * v + local.Z * w;
+        Vector3 result = MathUtils.LocalToWorld(local, w);
         float lenSq = result.LengthSquared();
         return lenSq > 1e-8f ? result / MathF.Sqrt(lenSq) : w;
     }

@@ -197,7 +197,10 @@ public class SmoothTriangle : IHittable, ISamplable
     }
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
-        => SampleAt(MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleAt(r2u, r2v);
+    }
 
     /// <inheritdoc/>
     public float SurfaceArea => _area;
@@ -211,8 +214,9 @@ public class SmoothTriangle : IHittable, ISamplable
         float inv = 1f / sqrtSamples;
         int su = sampleIndex % sqrtSamples;
         int sv = sampleIndex / sqrtSamples;
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (jitU, jitV) = MathUtils.Random2D();
+        float xi1 = (su + jitU) * inv;
+        float xi2 = (sv + jitV) * inv;
         return SampleAt(xi1, xi2);
     }
 

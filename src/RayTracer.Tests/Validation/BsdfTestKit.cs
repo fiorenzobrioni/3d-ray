@@ -260,6 +260,36 @@ internal static class BsdfTestKit
         return worst;
     }
 
+    /// <summary>
+    /// Chi-square of any direction sampler against its claimed solid-angle
+    /// density (sampling routines, phase functions, cone samplers). Returns the
+    /// p-value and the integral of the density over the sphere.
+    /// </summary>
+    public static (double PValue, double PdfIntegral, double Chi2, int Dof) DirectionalChiSquare(
+        Func<Vector3> sample, Func<Vector3, double> pdf, int samples = 200_000,
+        int cosBins = 20, int phiBins = 40, int sub = 8)
+    {
+        var observed = new double[cosBins * phiBins];
+        for (int i = 0; i < samples; i++)
+            observed[CellIndex(Vector3.Normalize(sample()), cosBins, phiBins)]++;
+
+        var expected = new double[cosBins * phiBins];
+        double dCos = 2.0 / cosBins, dPhi = 2.0 * Math.PI / phiBins, dA = dCos * dPhi / (sub * sub);
+        double integral = 0;
+        for (int ci = 0; ci < cosBins; ci++)
+        for (int pj = 0; pj < phiBins; pj++)
+        {
+            double cell = 0;
+            for (int a = 0; a < sub; a++)
+            for (int b = 0; b < sub; b++)
+                cell += pdf(SphericalToDir(-1.0 + (ci + (a + 0.5) / sub) * dCos, (pj + (b + 0.5) / sub) * dPhi)) * dA;
+            expected[ci * phiBins + pj] = cell * samples;
+            integral += cell;
+        }
+        var (chi2, dof) = ChiSquare(observed, expected);
+        return (dof > 0 ? RegularizedGammaQ(dof / 2.0, chi2 / 2.0) : 1.0, integral, chi2, dof);
+    }
+
     /// <summary>Largest relative gap between the NEE integrand the renderer uses
     /// for direct light (<see cref="IMaterial.EvaluateDirect"/>) and the BSDF the
     /// sampler and MIS use (<c>Evaluate · cos</c>). Both estimators of the same

@@ -15,25 +15,11 @@ namespace RayTracer.Materials;
 internal static class Microfacet
 {
     /// <summary>
-    /// Frisvad orthonormal tangent frame around N, with the south-pole
-    /// branch guarded so near-(-Z) normals don't explode through the
-    /// 1/(1+N.Z) term.
+    /// Orthonormal tangent frame around N (Duff et al. 2017, see
+    /// <see cref="Core.MathUtils.OrthonormalBasis"/>).
     /// </summary>
     public static void BuildTangentFrame(Vector3 N, out Vector3 T, out Vector3 B)
-    {
-        if (N.Z < -0.999f)
-        {
-            T = new Vector3(0f, -1f, 0f);
-            B = new Vector3(-1f, 0f, 0f);
-        }
-        else
-        {
-            float a = 1f / (1f + N.Z);
-            float b = -N.X * N.Y * a;
-            T = new Vector3(1f - N.X * N.X * a, b, -N.X);
-            B = new Vector3(b, 1f - N.Y * N.Y * a, -N.Y);
-        }
-    }
+        => Core.MathUtils.OrthonormalBasis(N, out T, out B);
 
     /// <summary>
     /// Anisotropic GGX (Trowbridge-Reitz) NDF in tangent space.

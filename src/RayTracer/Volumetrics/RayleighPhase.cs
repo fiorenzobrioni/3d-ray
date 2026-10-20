@@ -28,8 +28,7 @@ public sealed class RayleighPhase : IPhaseFunction
         // Closed-form inverse CDF of μ ∈ [-1, 1] under p_μ(μ) = (3/8)(1 + μ²).
         // Solving μ³ + 3μ = 8u - 4 via the trigonometric/hyperbolic Cardano form
         // with substitution μ = 2·sinh(t): sinh(3t) = 4u - 2.
-        float u1 = MathUtils.RandomFloat();
-        float u2 = MathUtils.RandomFloat();
+        var (u1, u2) = MathUtils.Random2D();
 
         float v = 4f * u1 - 2f;
         float t = MathF.Asinh(v) / 3f;

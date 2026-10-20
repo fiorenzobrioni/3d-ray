@@ -173,7 +173,8 @@ public class Box : IHittable, ISamplable
     {
         int face = (int)(MathUtils.RandomFloat() * 6f);
         if (face > 5) face = 5; // Guard against RandomFloat() returning exactly 1.0
-        return SampleFace(face, MathUtils.RandomFloat(), MathUtils.RandomFloat());
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleFace(face, r2u, r2v);
     }
 
     /// <summary>
@@ -190,8 +191,9 @@ public class Box : IHittable, ISamplable
         int su = within % sqrtSamples;
         int sv = within / sqrtSamples;
         float inv = 1f / sqrtSamples;
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (jitU, jitV) = MathUtils.Random2D();
+        float xi1 = (su + jitU) * inv;
+        float xi2 = (sv + jitV) * inv;
         return SampleFace(face, xi1, xi2);
     }
 

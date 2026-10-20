@@ -95,7 +95,7 @@ public class EnvironmentLight : ILight
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dir, time);
 
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, MathUtils.Infinity);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, MathUtils.Infinity);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dir, distance);
 

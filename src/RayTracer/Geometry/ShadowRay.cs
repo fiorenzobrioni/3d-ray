@@ -122,10 +122,10 @@ public static class ShadowRay
         Vector3 toEnd = end - origin;
         float distance = toEnd.Length();
         // Receiver touching the emitter: nothing can lie in between.
-        if (distance <= 2f * MathUtils.Epsilon)
+        if (distance <= 2f * MathUtils.OffsetDistance(origin))
             return Vector3.One;
         var ray = new Ray(origin, toEnd / distance, time);
-        return Transmittance(world, ray, MathUtils.Epsilon, distance);
+        return Transmittance(world, ray, MathUtils.RayEpsilon, distance);
     }
 
     public static Vector3 Transmittance(IHittable world, Ray ray, float tMin, float tMax, int maxBounces = 8)
@@ -167,7 +167,7 @@ public static class ShadowRay
             {
                 Vector3 advanceN = Vector3.Dot(dir, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
                 origin = MathUtils.OffsetOrigin(rec.Point, advanceN);
-                remaining -= rec.T + 2f * MathUtils.Epsilon;
+                remaining -= rec.T + 2f * MathUtils.OffsetDistance(rec.Point);
                 if (remaining <= tMin) return throughput;
                 continue;
             }
@@ -176,7 +176,7 @@ public static class ShadowRay
             {
                 Vector3 passN = Vector3.Dot(dir, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
                 origin = MathUtils.OffsetOrigin(rec.Point, passN);
-                remaining -= rec.T + 2f * MathUtils.Epsilon;
+                remaining -= rec.T + 2f * MathUtils.OffsetDistance(rec.Point);
                 if (remaining <= tMin) return throughput;
                 continue;
             }
@@ -238,7 +238,7 @@ public static class ShadowRay
             // segment safely and avoid re-hitting the same surface.
             Vector3 offsetN = Vector3.Dot(dir, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
             origin = MathUtils.OffsetOrigin(rec.Point, offsetN);
-            remaining -= rec.T + 2f * MathUtils.Epsilon;
+            remaining -= rec.T + 2f * MathUtils.OffsetDistance(rec.Point);
             if (remaining <= tMin) return throughput;
         }
 

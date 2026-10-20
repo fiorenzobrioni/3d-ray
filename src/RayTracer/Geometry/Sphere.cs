@@ -106,8 +106,9 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
 
         // Stratified sampling in (cosTheta, phi) space — uniform on the sphere.
         // cosTheta ∈ [-1, 1], phi ∈ [0, 2π]
-        float cosTheta = 1f - 2f * (su + MathUtils.RandomFloat()) * inv;
-        float phi = 2f * MathF.PI * (sv + MathUtils.RandomFloat()) * inv;
+        var (jitU, jitV) = MathUtils.Random2D();
+        float cosTheta = 1f - 2f * (su + jitU) * inv;
+        float phi = 2f * MathF.PI * (sv + jitV) * inv;
 
         float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
         Vector3 p = new(sinTheta * MathF.Cos(phi), sinTheta * MathF.Sin(phi), cosTheta);
@@ -135,7 +136,10 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
     /// <inheritdoc/>
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float SolidAnglePdf)
         SampleSolidAngle(Vector3 from)
-        => SampleSolidAngleCore(from, MathUtils.RandomFloat(), MathUtils.RandomFloat());
+    {
+        var (r2u, r2v) = MathUtils.Random2D();
+        return SampleSolidAngleCore(from, r2u, r2v);
+    }
 
     /// <inheritdoc/>
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float SolidAnglePdf)
@@ -144,8 +148,9 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
         float inv = 1f / sqrtSamples;
         int su = sampleIndex % sqrtSamples;
         int sv = sampleIndex / sqrtSamples;
-        float xi1 = (su + MathUtils.RandomFloat()) * inv;
-        float xi2 = (sv + MathUtils.RandomFloat()) * inv;
+        var (jitU, jitV) = MathUtils.Random2D();
+        float xi1 = (su + jitU) * inv;
+        float xi2 = (sv + jitV) * inv;
         return SampleSolidAngleCore(from, xi1, xi2);
     }
 
@@ -244,27 +249,12 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
 
     /// <summary>
     /// Builds a right-handed orthonormal basis with <paramref name="w"/> as the
-    /// Z axis (Frisvad's branch-free construction, with south-pole guard) and
-    /// transforms <paramref name="local"/> into world space. Kept in sync with
-    /// the equivalent helper in <see cref="Lights.SphereLight"/>.
+    /// Z axis (<see cref="MathUtils.OrthonormalBasis"/>) and transforms
+    /// <paramref name="local"/> into world space.
     /// </summary>
     private static Vector3 LocalToWorld(Vector3 local, Vector3 w)
     {
-        Vector3 u, v;
-        if (w.Z < -0.999f)
-        {
-            u = new Vector3(0f, -1f, 0f);
-            v = new Vector3(-1f, 0f, 0f);
-        }
-        else
-        {
-            float a = 1f / (1f + w.Z);
-            float b = -w.X * w.Y * a;
-            u = new Vector3(1f - w.X * w.X * a, b, -w.X);
-            v = new Vector3(b, 1f - w.Y * w.Y * a, -w.Y);
-        }
-
-        Vector3 result = local.X * u + local.Y * v + local.Z * w;
+        Vector3 result = MathUtils.LocalToWorld(local, w);
         float lenSq = result.LengthSquared();
         return lenSq > 1e-8f ? result / MathF.Sqrt(lenSq) : w;
     }

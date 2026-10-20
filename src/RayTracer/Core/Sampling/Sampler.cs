@@ -46,8 +46,23 @@ public static class Sampler
         public uint PixelSeed;
         public uint SampleIndex;
         public uint Dimension;
-        public bool Active;   // false = fall back to MathUtils PRNG
+        public uint Limit;      // first dimension past the current vertex's block
+        public uint Vertex;     // path vertices opened so far in this sample
+        public uint Overflow;   // draws past a block's budget (see OverflowBase)
+        public bool Active;     // false = fall back to MathUtils PRNG
     }
+
+    // ── Dimension layout per camera sample ──────────────────────────────────
+    // [0, CameraDims): camera (pixel jitter, shutter time, lens).
+    // Vertex k of the path: [CameraDims + k·VertexDims, … + VertexDims).
+    // Draws past a block's budget (a long subsurface walk, many lights) go to
+    // OverflowBase + n, never reused within the sample. Fixed blocks keep the
+    // same decision on the same dimension across the samples of a pixel even
+    // when an earlier vertex consumed a different number of draws, which is
+    // what lets a low-discrepancy sequence stratify that decision.
+    private const uint CameraDims = 8u;
+    private const uint VertexDims = 64u;
+    private const uint OverflowBase = 0x40000000u;
     // Per-thread context, stored in a [ThreadStatic] field rather than a
     // ThreadLocal<T> wrapper: this is read on every random draw (hundreds of
     // millions of times per render) and a [ThreadStatic] field access is
@@ -79,8 +94,33 @@ public static class Sampler
         c.PixelSeed   = pixelSeed;
         c.SampleIndex = sampleIndex;
         c.Dimension   = 0u;
+        c.Limit       = CameraDims;
+        c.Vertex      = 0u;
+        c.Overflow    = 0u;
         c.Active      = true;
     }
+
+    /// <summary>
+    /// Opens the dimension block of the next path vertex. Called once per
+    /// <c>TraceRay</c>; no-op without an active Sobol context.
+    /// </summary>
+    public static void BeginVertex()
+    {
+        var c = LocalCtx;
+        if (!c.Active) return;
+        uint v = c.Vertex++;
+        if (v >= (OverflowBase - CameraDims) / VertexDims)
+        {
+            // Absurdly deep path: everything goes to the overflow region.
+            c.Dimension = c.Limit = 0u;
+            return;
+        }
+        c.Dimension = CameraDims + v * VertexDims;
+        c.Limit     = c.Dimension + VertexDims;
+    }
+
+    private static uint NextDimension(Ctx c)
+        => c.Dimension < c.Limit ? c.Dimension++ : OverflowBase + c.Overflow++;
 
     /// <summary>
     /// Ends the current per-pixel-sample context. Subsequent calls to
@@ -113,18 +153,33 @@ public static class Sampler
             // thread-local PRNG via the host's existing path.
             return (float)MathUtils.Rng.NextDouble();
         }
-        uint dim = c.Dimension++;
+        uint dim = NextDimension(c);
         return OwenSobol.Sample(c.SampleIndex, dim, c.PixelSeed);
     }
 
     /// <summary>
-    /// 2D draw — consumes two dimensions atomically. Kept as its own
-    /// entry so future stratified-per-pair samplers (e.g. true Sobol
-    /// (2D) with coordinated direction matrices) can plug in without
-    /// touching call sites.
+    /// 2D draw for a two-dimensional decision (a direction, a point on a
+    /// light, a lens position). With Sobol it first aligns the dimension
+    /// counter to an even dimension, so the two coordinates are the two halves
+    /// of one padded Sobol block and are jointly stratified; two loose
+    /// <see cref="Sample1D"/> calls are only stratified one by one.
     /// </summary>
     public static (float u, float v) Sample2D()
     {
+        var c = LocalCtx;
+        if (c.Active)
+        {
+            // Align to an even dimension, in the vertex block if both halves
+            // fit, else in the overflow region.
+            uint aligned = (c.Dimension + 1u) & ~1u;
+            if (aligned + 2u <= c.Limit)
+                c.Dimension = aligned;
+            else
+            {
+                c.Dimension = c.Limit;
+                c.Overflow = (c.Overflow + 1u) & ~1u;
+            }
+        }
         float u = Sample1D();
         float v = Sample1D();
         return (u, v);

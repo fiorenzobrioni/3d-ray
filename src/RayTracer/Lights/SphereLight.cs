@@ -74,7 +74,7 @@ public class SphereLight : ILight
                        Emissive? proxyMaterial = null)
     {
         Center = center;
-        Radius = MathF.Max(radius, MathUtils.Epsilon);
+        Radius = MathF.Max(radius, 1e-12f);
         Color = color;
         Intensity = intensity;
         ShadowSamples = Math.Max(1, shadowSamples);
@@ -116,7 +116,7 @@ public class SphereLight : ILight
         Vector3 toCenter = Center - hitPoint;
         float distSq = toCenter.LengthSquared();
 
-        if (distSq < MathUtils.Epsilon * MathUtils.Epsilon)
+        if (distSq < MathUtils.RayEpsilon * MathUtils.RayEpsilon)
             return (true, Vector3.Zero, Vector3.UnitY, 0f);
 
         float dist = MathF.Sqrt(distSq);
@@ -143,13 +143,13 @@ public class SphereLight : ILight
             // Stratified jitter within the assigned grid cell
             int su = sampleIndex % _sqrtSamples;
             int sv = sampleIndex / _sqrtSamples;
-            xi1 = (su + MathUtils.RandomFloat()) * _invSqrtSamples;
-            xi2 = (sv + MathUtils.RandomFloat()) * _invSqrtSamples;
+            var (jitU, jitV) = MathUtils.Random2D();
+            xi1 = (su + jitU) * _invSqrtSamples;
+            xi2 = (sv + jitV) * _invSqrtSamples;
         }
         else
         {
-            xi1 = MathUtils.RandomFloat();
-            xi2 = MathUtils.RandomFloat();
+            (xi1, xi2) = MathUtils.Random2D();
         }
 
         Vector3 samplePoint;
@@ -200,7 +200,7 @@ public class SphereLight : ILight
             float b = Vector3.Dot(oc, dirWorld);
             float c = oc.LengthSquared() - Radius * Radius;
             float t = -b + MathF.Sqrt(MathF.Max(0f, b * b - c));
-            if (t < MathUtils.Epsilon)
+            if (t < MathUtils.RayEpsilon)
                 return (true, Vector3.Zero, dirWorld, 0f);
             samplePoint = hitPoint + t * dirWorld;
             oneMinusCosThetaMax = 2f;
@@ -208,7 +208,7 @@ public class SphereLight : ILight
 
         Vector3 toSample = samplePoint - hitPoint;
         float sampleDist = toSample.Length();
-        if (sampleDist < MathUtils.Epsilon)
+        if (sampleDist < MathUtils.RayEpsilon)
             return (true, Vector3.Zero, wDir, 0f);
         Vector3 dirToLight = toSample / sampleDist;
 
@@ -294,28 +294,11 @@ public class SphereLight : ILight
     /// Builds an orthonormal basis with <paramref name="w"/> as the Z axis
     /// and transforms <paramref name="local"/> from that local frame to world space.
     ///
-    /// Uses Frisvad's method (same as DisneyBsdf.TangentToWorld) with a widened
-    /// singularity guard for numerical safety near the south pole.
+    /// Uses <see cref="MathUtils.OrthonormalBasis"/> (Duff et al. 2017).
     /// </summary>
     private static Vector3 LocalToWorld(Vector3 local, Vector3 w)
     {
-        Vector3 u, v;
-
-        if (w.Z < -0.999f)
-        {
-            // Near south pole — use safe fallback basis
-            u = new Vector3(0f, -1f, 0f);
-            v = new Vector3(-1f, 0f, 0f);
-        }
-        else
-        {
-            float a = 1f / (1f + w.Z);
-            float b = -w.X * w.Y * a;
-            u = new Vector3(1f - w.X * w.X * a, b, -w.X);
-            v = new Vector3(b, 1f - w.Y * w.Y * a, -w.Y);
-        }
-
-        Vector3 result = local.X * u + local.Y * v + local.Z * w;
+        Vector3 result = MathUtils.LocalToWorld(local, w);
         float lenSq = result.LengthSquared();
         return lenSq > 1e-8f ? result / MathF.Sqrt(lenSq) : w;
     }

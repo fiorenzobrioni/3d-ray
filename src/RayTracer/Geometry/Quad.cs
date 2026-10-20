@@ -90,8 +90,7 @@ public class Quad : IHittable, ISamplable
 
     public (Vector3 Point, Vector3 Normal, Vector2 Uv, float Area) Sample()
     {
-        float u = MathUtils.RandomFloat();
-        float v = MathUtils.RandomFloat();
+        var (u, v) = MathUtils.Random2D();
         Vector3 point = Q + u * U + v * V;
         return (point, _normal, new Vector2(u, v), _area);
     }
@@ -102,8 +101,11 @@ public class Quad : IHittable, ISamplable
         int su = sampleIndex % sqrtSamples;
         int sv = sampleIndex / sqrtSamples;
 
-        float u = (su + MathUtils.RandomFloat()) * inv;
-        float v = (sv + MathUtils.RandomFloat()) * inv;
+        var (jitU, jitV) = MathUtils.Random2D();
+
+        float u = (su + jitU) * inv;
+
+        float v = (sv + jitV) * inv;
         Vector3 point = Q + u * U + v * V;
         return (point, _normal, new Vector2(u, v), _area);
     }

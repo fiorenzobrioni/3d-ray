@@ -78,6 +78,14 @@ public static class MathUtils
     public static float RandomFloat() => Sampler.Sample1D();
     public static float RandomFloat(float min, float max) => min + (max - min) * RandomFloat();
 
+    /// <summary>
+    /// Two coordinates of one 2D decision (a direction, a point on a light or
+    /// a surface, a lens position). Under Sobol they are the two halves of an
+    /// aligned padded block, jointly stratified in 2D; two separate
+    /// <see cref="RandomFloat()"/> calls are only stratified one by one.
+    /// </summary>
+    public static (float U, float V) Random2D() => Sampler.Sample2D();
+
     public static Vector3 RandomVector3() =>
         new(RandomFloat(), RandomFloat(), RandomFloat());
 
@@ -107,8 +115,7 @@ public static class MathUtils
     /// </summary>
     public static Vector3 RandomUnitVector()
     {
-        float u = RandomFloat();
-        float v = RandomFloat();
+        var (u, v) = Random2D();
         float z = 1f - 2f * u;
         float r = MathF.Sqrt(MathF.Max(0f, 1f - z * z));
         float phi = 2f * Pi * v;
@@ -140,8 +147,9 @@ public static class MathUtils
     /// </summary>
     public static Vector3 RandomInUnitDisk()
     {
-        float a = 2f * RandomFloat() - 1f;
-        float b = 2f * RandomFloat() - 1f;
+        var (ra, rb) = Random2D();
+        float a = 2f * ra - 1f;
+        float b = 2f * rb - 1f;
         if (a == 0f && b == 0f) return Vector3.Zero;
 
         float r, phi;
@@ -156,6 +164,30 @@ public static class MathUtils
             phi = (Pi / 2f) - (Pi / 4f) * (a / b);
         }
         return new Vector3(r * MathF.Cos(phi), r * MathF.Sin(phi), 0f);
+    }
+
+    /// <summary>
+    /// Right-handed orthonormal basis (b1, b2, n) around the unit vector
+    /// <paramref name="n"/>: Duff et al. 2017, "Building an Orthonormal Basis,
+    /// Revisited". Branch-free and accurate to float precision everywhere.
+    /// Frisvad's original form, which the engine used before, loses up to 4.5%
+    /// of orthonormality near −Z and needed a guard whose fallback basis was
+    /// not even orthogonal to n (PIANO-REVIEW.md, Phase 1).
+    /// </summary>
+    public static void OrthonormalBasis(Vector3 n, out Vector3 b1, out Vector3 b2)
+    {
+        float sign = MathF.CopySign(1f, n.Z);
+        float a = -1f / (sign + n.Z);
+        float b = n.X * n.Y * a;
+        b1 = new Vector3(1f + sign * n.X * n.X * a, sign * b, -sign * n.X);
+        b2 = new Vector3(b, sign + n.Y * n.Y * a, -n.Y);
+    }
+
+    /// <summary>Maps a vector from the frame with Z = <paramref name="n"/> to world space.</summary>
+    public static Vector3 LocalToWorld(Vector3 local, Vector3 n)
+    {
+        OrthonormalBasis(n, out Vector3 b1, out Vector3 b2);
+        return local.X * b1 + local.Y * b2 + local.Z * n;
     }
 
     public static Vector3 Reflect(Vector3 v, Vector3 n) =>
@@ -218,10 +250,47 @@ public static class MathUtils
         => 0.2126f * color.X + 0.7152f * color.Y + 0.0722f * color.Z;
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Robust shadow origin: offsets the hit point along the geometric normal
-    // to prevent self-intersection. This is more robust than offsetting along
-    // the shadow ray direction, especially at grazing angles.
+    // Ray offsets (PIANO-REVIEW.md, Phase 1).
+    //
+    // A hit point carries a floating-point error proportional to the size of
+    // its coordinates (and of the ray that found it), so the distance a new
+    // ray must start off the surface is relative, not a fixed length. The old
+    // fixed 1e-4 was larger than a 10 µm scene (black image) and smaller than
+    // the float spacing of a scene 10 km from the origin (self-intersection,
+    // -44% of the light). Now: RelativeOffset of the largest coordinate
+    // (about 256 ulps, the margin of Wächter & Binder, Ray Tracing Gems ch. 6),
+    // never less than RayEpsilon, a floor proportional to the scene radius that
+    // covers the error of a hit near the origin reached by a ray from far away.
+    // SceneScale is per thread: the renderer sets it on its workers and
+    // clears it when they are done (pool threads outlive a render).
     // ─────────────────────────────────────────────────────────────────────────
+    public const float RelativeOffset = 1f / 32768f;          // 2^-15
+    private const float SceneFloorFactor = 1f / 524288f;      // 2^-19
+
+    [ThreadStatic] private static float _sceneScale;
+
+    /// <summary>Scene radius the offsets scale with (1 when unset; 0 unsets).</summary>
+    public static float SceneScale
+    {
+        get => _sceneScale > 0f ? _sceneScale : 1f;
+        set => _sceneScale = value;
+    }
+
+    /// <summary>Smallest ray offset and ray tMin for the current scene.</summary>
+    public static float RayEpsilon => SceneScale * SceneFloorFactor;
+
+    /// <summary>How far a ray spawned at <paramref name="point"/> starts off its surface.</summary>
+    public static float OffsetDistance(Vector3 point)
+    {
+        Vector3 a = Vector3.Abs(point);
+        float m = MathF.Max(a.X, MathF.Max(a.Y, a.Z));
+        return MathF.Max(RayEpsilon, RelativeOffset * m);
+    }
+
+    /// <summary>
+    /// Moves a hit point off its surface along <paramref name="normal"/> (the
+    /// side the new ray leaves on) by <see cref="OffsetDistance"/>.
+    /// </summary>
     public static Vector3 OffsetOrigin(Vector3 point, Vector3 normal)
-        => point + normal * Epsilon;
+        => point + normal * OffsetDistance(point);
 }

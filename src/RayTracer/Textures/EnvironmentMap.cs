@@ -238,14 +238,16 @@ public class EnvironmentMap
     /// <returns>The sampled direction, and the PDF (probability density function) of picking that direction.</returns>
     public (Vector3 Direction, float Pdf) SampleDirection()
     {
+        // One 2D decision: row from the marginal CDF, column from the row's
+        // conditional CDF.
+        var (r1, r2) = MathUtils.Random2D();
+
         // 1. Sample row (marginal CDF)
-        float r1 = MathUtils.RandomFloat();
         int y = Array.BinarySearch(_margCdf, r1);
         if (y < 0) y = ~y;
         y = Math.Clamp(y, 0, _height - 1);
 
         // 2. Sample column (conditional CDF)
-        float r2 = MathUtils.RandomFloat();
         int x = Array.BinarySearch(_condCdf[y], r2);
         if (x < 0) x = ~x;
         x = Math.Clamp(x, 0, _width - 1);
@@ -255,9 +257,18 @@ public class EnvironmentMap
         float pdfCol = (x == 0 ? _condCdf[y][0] : _condCdf[y][x] - _condCdf[y][x - 1]);
         float pdfPixel = pdfRow * pdfCol; // Probability of picking this pixel
 
-        // Convert UV to angles
-        float u = (x + 0.5f) / _width;
-        float v = (y + 0.5f) / _height;
+        // Continuous position inside the chosen texel: the residual of each
+        // uniform within its CDF bin is itself uniform, so the direction is
+        // spread over the whole texel instead of always landing on its centre
+        // (a discrete set of directions gave stepped shadows and a biased
+        // estimate, PIANO-REVIEW.md §3.9). The density stays piecewise
+        // constant per texel, matching PdfDirection.
+        float rowLo = y == 0 ? 0f : _margCdf[y - 1];
+        float colLo = x == 0 ? 0f : _condCdf[y][x - 1];
+        float fy = pdfRow > 0f ? Math.Clamp((r1 - rowLo) / pdfRow, 0f, 0.99999f) : 0.5f;
+        float fx = pdfCol > 0f ? Math.Clamp((r2 - colLo) / pdfCol, 0f, 0.99999f) : 0.5f;
+        float u = (x + fx) / _width;
+        float v = (y + fy) / _height;
 
         float phi = (u - 0.5f) * 2f * MathF.PI; // -π to π
         // Remove rotation applied during lookup

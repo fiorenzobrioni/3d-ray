@@ -21,7 +21,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | Fase | Contenuto | Stato |
 |---|---|---|
 | 0 | Infrastruttura di verifica | ✅ Chiusa (2026-10-20), esito in §4 Fase 0 |
-| 1 | Fondamenta matematiche, sampler | ⬜ |
+| 1 | Fondamenta matematiche, sampler | ✅ Chiusa (2026-10-20), esito in §4 Fase 1 |
 | 2 | Geometria e intersezioni | ⬜ |
 | 3 | Camera, film e colore | ⬜ |
 | 4 | Texture e dati | ⬜ |
@@ -116,8 +116,8 @@ fase indicata.
 | 3.6 | **[NON-STANDARD]** ridimensionato | `Materials/DisneyBsdf.cs:642-648, 773-778` | La trasmissione **rough** (vetro satinato) è esclusa da `Evaluate`/`Pdf`. **Misurato (Fase 0)**: `Sample()` la marca come delta, quindi non c'è bias ma solo varianza (niente NEE attraverso il vetro satinato). Il vero problema del vetro Disney è il guadagno di energia (3.17). Serve comunque il modello di Walter et al. 2007 completo (BTDF + pdf). Fase 5. |
 | 3.7 | **[BUG]** confermato, grave | `Materials/Metal.cs:86-91` vs `135-162` | Il lobo lambertiano "di riempimento" `albedo*fuzz/π` esiste **solo** in `EvaluateDirect` (la NEE), non in `Evaluate`/`Sample`: luce diretta e luce campionata dalla BSDF stimano due materiali diversi (scarto fino al 96%) e il MIS li mescola. **Misurato**: sfere di metallo bianco rough +37% di luminanza rispetto a Mitsuba, aspetto da materiale diffuso. Il `MixMaterial` lo eredita. Inoltre il GGX singolo-scattering perde molta energia ad alta rugosità (fuzz 1, bianco: albedo 0.32-0.51) e il Fresnel è Schlick con `F0 = colore`: niente Kulla-Conty, IOR complesso o F82. Test `KnownBug_Metal_DirectLightingMatchesSampling`. Fase 5. |
 | 3.8 | **[BIAS]** di default, misurato | `Rendering/Renderer.cs:208, 221, 376-378` + materiali | Attivi di default: clamp per-sample 10, clamp indiretto 0.25 (= 2.5), ombre trasparenti "dritte" del vetro, Russian Roulette con soglie da una classificazione euristica della scena, `DeadPathThroughputEpsilon`. Tutti spenti da `--reference` (Fase 0). Il peso misurato dei primi due è in 3.20 e 3.21. Fase 7. |
-| 3.9 | **[BIAS]** | `Textures/EnvironmentMap.cs:262-264` | L'importance sampling dell'HDRI restituisce sempre il **centro** del texel scelto: le direzioni NEE sono un insieme discreto. Con HDRI piccole o sole concentrato produce ombre a gradini e bias. Va campionato in modo continuo dentro il texel. |
-| 3.10 | **[NON-STANDARD]** | `Core/Sampling/OwenSobol.cs` + `Sampler.cs` | Solo le dimensioni 0-1 sono vero Sobol; dalla 2 in su è van der Corput con hash (solo stratificazione 1D). Le dimensioni sono assegnate con un contatore globale per campione, quindi path che prendono rami diversi disallineano le dimensioni (la scelta luce di un rimbalzo può finire sulla dimensione che altrove è la BSDF). Riferimento: ZSobol/padding per rimbalzo di PBRT-v4, o Sobol con matrici Joe-Kuo su 4D ripetute per rimbalzo. |
+| 3.9 | ✅ **corretto** (2026-10-20, Fase 1), era **[BIAS]** | `Textures/EnvironmentMap.cs` (`SampleDirection`) | L'importance sampling dell'HDRI restituiva sempre il **centro** del texel scelto: le direzioni NEE erano un insieme discreto (ombre a gradini e bias con HDRI piccole o sole concentrato). Ora la posizione dentro il texel è continua (lo scarto di ciascun numero casuale dentro il proprio intervallo della CDF) e la pdf usa il θ della direzione effettiva, come `PdfDirection`. Chi-quadro su una mappa 16x8 con un texel brillante: prima 1.3e6 su 799 gradi di libertà, ora passa. Test `EnvironmentMap_SamplesItsPdf_ContinuouslyInsideTexels`. |
+| 3.10 | ✅ **corretto** (2026-10-20, Fase 1), era **[NON-STANDARD]**, misurato peggio del caso | `Core/Sampling/OwenSobol.cs` + `Sampler.cs` | Solo le dimensioni 0-1 erano vero Sobol; dalla 2 in su van der Corput con hash, e due dimensioni consecutive (la coppia di una decisione 2D) **non** erano stratificate insieme: pendenza dell'errore da -0.32 a -0.56 contro -0.50 dei numeri indipendenti, cioè peggio del PRNG. Le dimensioni erano assegnate con un contatore globale per campione, quindi path con rami diversi le disallineavano. Ora: Sobol "padded" (PBRT-v4), ogni coppia di dimensioni è la coppia 0-1 di Sobol con un rimescolamento Owen dell'indice proprio della coppia; blocco fisso per la camera (8 dimensioni) e per ogni vertice del path (64, `Sampler.BeginVertex`); `MathUtils.Random2D` / `Sampler.Sample2D` per ogni decisione 2D. Pendenze ora -1.38 (liscio) e -0.75 (bordo) su ogni coppia. Test `SamplerQualityTests`. |
 | 3.11 | **[NON-STANDARD]** | `Rendering/Renderer.cs:1897` + `Core/MathUtils.cs:44` | Il fattore "shadow terminator" è applicato anche alla direzione di vista, oltre a quella della luce: non corrisponde a nessun modello pubblicato (Chiang 2019 / Estevez 2019 agiscono sul lato luce). Va verificato con il furnace test. |
 | 3.12 | **[DEBITO]** | `Materials/IMaterial.cs` | Due API di materiale in parallelo: `Scatter`/`EvaluateDirect` (storica) e `Evaluate`/`Pdf`/`Sample` (MIS). Doppio codice = doppio rischio di incoerenza. Il commento a `Renderer.cs:1876` dice ancora che Lambert/Metal/Dielectric non implementano `Pdf`. |
 | 3.13 | ✅ **verificato, nessun bug** | `DisneyBsdf` + `Renderer` | `Sample()` restituisce per i lobi non-delta `Evaluate`/`Pdf` della miscela, quindi peso e MIS sono coerenti: il chi-quadro e il cross-check dell'albedo passano su tutti i lobi rough (Fase 0). |
@@ -133,6 +133,13 @@ fase indicata.
 | 3.23 | **[NON-STANDARD]** | `Scene/SceneLoader.cs:131-132` | Il loader usa `IgnoreUnmatchedProperties`: una chiave YAML sbagliata (`refraction_idx`, `roughnes`) viene ignorata in silenzio e il materiale usa il default. Serve un errore o almeno un warning con il nome della chiave. Fase 10. |
 | 3.24 | ✅ **corretto** (2026-10-20), era **[BUG]** | `Materials/Dielectric.cs` | `Dielectric.Scatter` sceglieva riflessione/rifrazione con l'approssimazione di Schlick, mentre la sua `ShadowTransmittance` usava il Fresnel esatto. Schlick dà `(1-cos)^5` anche con IOR 1: un guscio a indice adattato mostrava bordo e riflesso inesistenti, e il vetro sbagliava di qualche percento a incidenza radente. Ora Fresnel esatto: `glass-shadow` FLIP da 0.032 a 0.016. |
 | 3.25 | ✅ **corretto** (2026-10-20), era **[BUG]** piccolo | `Lights/GeometryLight.cs` | `IlluminateAndTestStratified` non passava il tempo dell'otturatore ai campionatori: con il motion blur i raggi d'ombra degli emissivi testavano la scena all'istante 0. |
+| 3.26 | ✅ **corretto** (2026-10-20, Fase 1), era **[BUG]** | `Core/MathUtils.cs` (`OrthonormalBasis`, `LocalToWorld`), copie private in `Sphere`, `SphereLight`, `PhysicalSun`, `DirectionalLight`, `Metal`, `Microfacet` | Le basi ortonormali usavano la forma di Frisvad, che perde l'ortogonalità vicino a -Z (errore 4.5e-2). Ora una sola implementazione, Duff et al. 2017 (errore 2.9e-7 ovunque). Test `OrthonormalBasis_IsOrthonormalEverywhere`. |
+| 3.27 | ✅ **corretto** (2026-10-20, Fase 1), era **[BUG]** | `Core/MathUtils.cs` (`OffsetOrigin`, `RayEpsilon`), `Renderer`, `ShadowRay`, luci, `CausticPhotonTracer` | Offset dei raggi e `tMin` fissi a 1e-4: una scena di 10 µm usciva nera, una scena a 10 km dall'origine perdeva il 44% della luce per auto-intersezione. Ora l'offset è relativo alla coordinata più grande del punto (2^-15, circa 256 ulp, Wächter e Binder), con un minimo proporzionale al raggio della scena (2^-19); anche le guardie di distanza delle luci. Misure in §4 Fase 1. Test `ScaleInvarianceTests`. |
+| 3.28 | ✅ **corretto** (2026-10-20, Fase 1), era **[BUG]** piccolo | `Core/AABB.cs` | Un raggio parallelo a un asse con l'origine esattamente sul piano di una faccia dà `0 * ∞ = NaN` nello slab test, e `MathF.Max` lo propagava: il box (e in un nodo BVH tutto il sottoalbero) veniva scartato. Ora `float.MaxNumber`/`MinNumber` ignorano il NaN (convenzione conservativa di PBRT), senza costo misurabile. Test `Hit_RayInAFacePlane_IsConservative`. |
+| 3.29 | ✅ **corretto** (2026-10-20, Fase 1), era **[BUG]** | `Core/QuarticSolver.cs` (`SolveCubicMonic`, `RefineRoot`) | La cubica classificava il discriminante con una soglia **assoluta** 1e-12: la risolvente di Ferrari per un raggio che sfiora il tubo del toro (tre radici distinte vicine a 1e-3) veniva presa per una radice doppia e due radici vicine della quartica tornavano fuse (coppia distante 1e-2 restituita distante 5e-4; sotto 1e-4 una radice persa nell'1-3% dei casi). Il raffinamento di Newton, partendo fra le due radici, saltava fino a 2e-2. Ora soglia relativa al cubo dei coefficienti e Newton con guardia sul residuo: coppie fino a 1e-5 sempre trovate, errore entro il condizionamento; radici distinte da 4e-8 a 1.5e-10. Vale anche per il lathe (`SolveCubic`). Test `Quartic_CloseRoots_AreBothFound`. |
+| 3.30 | **[NON-STANDARD]** | `Core/Perlin.cs:109-111` | Interpolazione con il fade cubico `3t² - 2t³`: il valore e il gradiente sono continui ma la curvatura salta di 12.7 attraverso le facce del reticolo (visibile come pieghe sulla griglia nei bump map di rumore, che derivano due volte). Gradienti normalizzati sul cubo: anisotropia del 5.7% fra assi e diagonali. Improved Perlin (fade quintico, 12 gradienti) cambia l'aspetto di ogni texture procedurale: Fase 4, con un'opzione per l'aspetto attuale. Anche `MultiScaleRidgedField` e `DomainWarp` (costruiti su Perlin) vanno verificati lì. |
+| 3.31 | **[NON-STANDARD]** piccolo | `Rendering/Renderer.cs:700` | I differenziali di raggio sono ridotti di `1/√spp` senza minimo: ad alti spp il filtro delle texture scende sotto il pixel (PBRT-v4 usa `max(1/8, 1/√spp)`), con aliasing e accessi di cache peggiori. Il footprint dei raggi di camera è verificato (§4 Fase 1); la propagazione dopo riflessione e rifrazione non è ancora testata. Fase 4. |
+| 3.32 | **[DEBITO]** | `Core/MathUtils.cs` (`Refract`) | Con la riflessione totale interna `Refract` prende `Abs(1 - sin²)` invece di segnalarla e restituisce una direzione senza significato: oggi tutti i chiamanti controllano prima, ma l'API non lo impone. Fase 5 (con il vetro). |
 
 ---
 
@@ -232,6 +239,87 @@ denoiser dei preset draft/standard/pre-final li assorbe; altrimenti `-C`).
 | `QuarticSolver`, `SturmSolver` | Precisione float vs double sul toro e lathe, radici multiple, casi limite (raggio tangente). |
 | `Perlin`, `WorleyNoise`, `MultiScaleRidgedField`, `DomainWarp` | Range di uscita, continuità, gradienti analitici, assenza di artefatti di griglia. |
 | `RayDifferential`, `FootprintMath`, `FilterFootprint` | Conformità a PBRT §10.1, comportamento dopo riflessione/rifrazione. |
+
+- [x] Offset dei raggi relativi alla scena (3.27); `AABB.Hit` con NaN (3.28) e raggi paralleli agli assi.
+- [x] Basi ortonormali di Duff et al. (3.26). Il frame tangente con normal map va alla Fase 4 (MikkTSpace).
+- [x] Routine di campionamento: chi-quadro e integrale della pdf di sfera, emisfero, cono, disco concentrico, phase function, HDRI (3.9).
+- [x] Sampler rifatto (3.10): stratificazione 2D, dimensioni per vertice, correlazioni. Blue-noise screen-space: valutato, rimandato alla Fase 9 (interagisce con il denoiser).
+- [x] Solver: radici note, coppie vicine, toro contro un riferimento in doppia precisione (3.29).
+- [x] Perlin e Worley misurati; correzione del Perlin rimandata alla Fase 4 (3.30).
+- [x] Footprint dei differenziali di camera contro la differenza finita; dopo riflessione/rifrazione e minimo 1/8 alla Fase 4 (3.31).
+
+#### Esito Fase 1 (2026-10-20)
+
+Suite: 697 test verdi, 4 skip dei bug noti della Fase 0 (+36 test). I nuovi test sono in
+`src/RayTracer.Tests/Validation/` (più uno in `AabbTests`). Quelli che proteggono una correzione
+(sampler, scala, basi, HDRI, AABB, radici vicine) sono stati verificati **fallire** sul codice di
+prima; gli altri (rumore, Sturm, toro, differenziali) fissano un comportamento misurato corretto.
+
+**Sampler (3.10).** Misura: integrali 2D noti su 512 pixel indipendenti, pendenza dell'errore RMS
+contro il numero di campioni (Gaussiana liscia e bordo di un disco, cioè un'ombra):
+
+| Coppia di dimensioni | Prima | Dopo | Numeri indipendenti |
+|---|---|---|---|
+| 0-1 (pixel) | -1.38 / -0.75 | -1.38 / -0.75 | -0.50 / -0.50 |
+| 2-3, 8-9, 40-41 | da -0.32 a -0.56 | **-1.38 / -0.74** | -0.50 / -0.50 |
+| inizio dispari (9-10) con `Sample2D` | | **-1.36 / -0.73** | |
+
+Correlazione fra dimensioni dello stesso campione ≤ 0.006 (rumore statistico). Effetto sui render a
+parità di campioni (relMSE contro Mitsuba): Cornell 256 spp da 4.3e-4 a **3.0e-4** (PRNG 6.8e-4),
+`null-shell` da 1.6e-4 a **7.0e-5**, `lights` 16 spp da 7.7e-4 a **3.7e-4**. Il rumore cambia
+disegno (i render non sono più bit-identici alle versioni precedenti; `--seed 0` resta
+deterministico).
+
+**Offset dei raggi (3.27).** Rapporto della luminanza media contro la stessa scena a scala 1:
+
+| Scena | Prima (epsilon 1e-4) | Dopo |
+|---|---|---|
+| scalata a 10 µm | 0.000 (nera) | **1.0000** |
+| scalata a 1 mm | 0.999 | **1.0000** |
+| scalata a 1 km | 0.933 | **1.0000** |
+| spostata a 10 km | 0.557 | **1.014** |
+| spostata a 100 km | 0.684 | 0.937 |
+
+A 100 km il limite è la precisione float delle coordinate stesse: la soluzione è il rendering
+relativo alla camera (Fase 11). Gli showcase con geometrie delicate (lathe, heightfield, CSG,
+extrusion, toro, Cornell, vetro) rifatti con i nuovi offset: relMSE ≤ 1.2e-4 contro prima, sotto il
+rumore fra due seed, nessuna acne.
+
+**Basi ortonormali (3.26)**: errore massimo da 4.5e-2 (Frisvad vicino a -Z) a 2.9e-7.
+**HDRI (3.9)**: campionamento continuo, chi-quadro da 1.3e6 a superato.
+**AABB (3.28)**: NaN conservativo, costo nullo nel benchmark BVH.
+**Solver (3.29)**: quartica con radici distinte 1.5e-10, coppie vicine fino a 1e-5 sempre trovate,
+Sturm 1.2e-6 (la tolleranza è un residuo, cioè un micron su un segmento di profilo di un metro),
+toro contro il riferimento in doppia precisione su 20.000 raggi: 0 hit persi, 0 inventati, errore su
+t 8.7e-7.
+**Rumore (3.30)**: Perlin C1 corretto (salto di gradiente < 0.05), curvatura discontinua (12.7),
+anisotropia 5.7%; Worley F1 1-Lipschitz (1.0001).
+**Differenziali (3.31)**: errore del footprint al 95° percentile 5.6e-5 sul piano; sulla sfera
+0.104 con pixel 1/64 e 0.013 con pixel 1/512 (primo ordine, come atteso).
+
+**Validazione contro Mitsuba** dopo la Fase 1 (rapporto; relMSE prima e dopo):
+
+| Scena | Riferimento | Default |
+|---|---|---|
+| cornell-lambert d32 | 0.9997 | 0.9998 (1e-4 → 6.0e-5) |
+| cornell-lambert d2 | 0.998 | 0.998 |
+| lights | 0.9999 (1.8e-5 → 1.6e-5) | 0.9999 |
+| glass-shadow | 0.9998 | 0.9997 (4e-4, invariato: domina il rumore delle caustiche) |
+| null-shell | 1.0001 | 1.0001 (6e-5 → 3.7e-5) |
+| metal-rough, disney-spheres, furnace-disney-glass | invariati | 3.7 e 3.17, Fase 5 |
+
+Convergenza: Cornell pendenza -1.02 sui spp e -0.95 sui seed; `null-shell` -0.89 e -0.74, perché
+l'errore arriva alla soglia del rumore del riferimento (2.6e-5).
+
+Emerso nel farlo e corretto subito: `MathUtils.SceneScale` è per thread e il renderer lo lasciava
+impostato sui thread del pool alla fine del render; ora ogni tile lo azzera come già faceva per
+`ShadowRay.BlockAllTransmission`.
+
+**Verdetto**: le fondamenta sono ora verificate e protette da test. Il sampler è stato rifatto
+(era il problema più serio: peggio del caso su ogni decisione dopo la prima), gli offset sono
+indipendenti dalla scala, solver e basi sono a precisione di macchina. Restano alla Fase 4 il
+Perlin migliorato e i differenziali dopo i rimbalzi, alla Fase 5 `Refract`, alla Fase 11 il
+rendering relativo alla camera.
 
 ### Fase 2 - Geometria e intersezioni (`Geometry/`, `Acceleration/`)
 
@@ -430,12 +518,12 @@ Da creare in `scenes/validation/` (YAML) e `scenes/validation/mitsuba/` (XML):
 
 ## 6. Verdetto preliminare per modulo
 
-Basato sulla sezione 3, aggiornato con le misure della Fase 0: da confermare fase per fase.
+Basato sulla sezione 3, aggiornato con le misure delle Fasi 0 e 1: da confermare fase per fase.
 
 | Modulo | Verdetto preliminare | Motivo |
 |---|---|---|
-| Core math, noise, solver | correggere | base solida, servono test più stretti |
-| Sampler | rivedere a fondo | dimensioni non allineate, solo 2D stratificato |
+| Core math, noise, solver | **tenere** (Fase 1) | verificati e corretti (offset, basi, AABB, cubica); resta il Perlin (Fase 4) |
+| Sampler | **rifatto** (Fase 1) | Sobol "padded" con dimensioni per vertice: stratificato in 2D su ogni decisione |
 | Geometria e BVH | tenere / correggere | ampia e testata; triangolo watertight |
 | Camera | estendere | manca la camera fisica |
 | Tone mapping e colore | **rifare** | nessuna gestione del colore |

@@ -52,7 +52,7 @@ public class PointLight : ILight
         // (offset along ray direction) could fail.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight, time);
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, distance - MathUtils.Epsilon);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, distance - MathUtils.OffsetDistance(Position));
 
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);

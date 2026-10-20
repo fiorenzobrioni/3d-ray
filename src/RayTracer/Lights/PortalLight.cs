@@ -104,19 +104,19 @@ public class PortalLight : ILight
         {
             int su = sampleIndex % _sqrtSamples;
             int sv = sampleIndex / _sqrtSamples;
-            xi1 = (su + MathUtils.RandomFloat()) * _invSqrtSamples;
-            xi2 = (sv + MathUtils.RandomFloat()) * _invSqrtSamples;
+            var (jitU, jitV) = MathUtils.Random2D();
+            xi1 = (su + jitU) * _invSqrtSamples;
+            xi2 = (sv + jitV) * _invSqrtSamples;
         }
         else
         {
-            xi1 = MathUtils.RandomFloat();
-            xi2 = MathUtils.RandomFloat();
+            (xi1, xi2) = MathUtils.Random2D();
         }
 
         Vector3 portalPoint = Anchor + xi1 * U + xi2 * V;
         Vector3 toPortal = portalPoint - hitPoint;
         float dist = toPortal.Length();
-        if (dist < MathUtils.Epsilon)
+        if (dist < MathUtils.RayEpsilon)
             return (true, Vector3.Zero, Normal, 0f);
         Vector3 dir = toPortal / dist;
 
@@ -136,7 +136,7 @@ public class PortalLight : ILight
         // and infinity is a real occluder.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dir, time);
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, MathUtils.Infinity);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, MathUtils.Infinity);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dir, dist);
 

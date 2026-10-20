@@ -51,12 +51,12 @@ Con guard per discriminante negativo e deduplicazione radici doppie.
 La quartica del toro è notoriamente il caso più critico in ray tracing per quanto riguarda la precisione numerica. Le contromisure adottate:
 
 1. **Double precision**: tutti i calcoli interni in `double`, cast a `float` solo al ritorno
-2. **Epsilon relativo** (1e-12) per classificazione discriminante, non assoluto
+2. **Epsilon relativo** (1e-12) per classificazione discriminante, non assoluto. Per la cubica la soglia è `1e-12 * (4|a|³ + 27b²)`, cioè scala con il cubo dei coefficienti: con una soglia assoluta una risolvente con tre radici distinte vicine a 1e-3 (raggio che sfiora il tubo del toro) veniva presa per una radice doppia, e due radici vicine della quartica tornavano fuse (coppia distante 1e-2 restituita distante 5e-4; sotto 1e-4 di distanza una radice persa nell'1-3% dei casi). Misure in `SolverPrecisionTests`
 3. **Radice cubica reale**: `Cbrt(x)` gestisce argomenti negativi con `-Cbrt(|x|)`
 4. **Selezione radice risolvente**: si sceglie la radice più grande della cubica risolvente per migliore condizionamento numerico
 5. **Max guard**: `Math.Max(0.0, ...)` su tutti gli argomenti di `Math.Sqrt` per evitare NaN da discriminanti leggermente negativi per errore di arrotondamento
 6. **Deduplicazione**: radici a distanza < 1e-6 vengono fuse (evita hit duplicati sul toro alle tangenze)
-7. **Newton-Raphson refinement**: 2-3 iterazioni dopo Ferrari per recuperare la precisione persa nella cancellazione catastrofica quando il parametro risolvente `s` è piccolo (`q/(2s)` amplifica gli errori)
+7. **Newton-Raphson refinement**: fino a 4 iterazioni dopo Ferrari per recuperare la precisione persa nella cancellazione catastrofica quando il parametro risolvente `s` è piccolo (`q/(2s)` amplifica gli errori). Il passo è accettato solo se riduce il residuo `|f|`: fra due radici vicine `f'` si annulla e un passo di Newton senza questa guardia salta lontano
 8. **Normalizzazione della direzione**: `Torus.Hit()` normalizza la direzione del raggio prima di calcolare i coefficienti della quartica, garantendo `c₄ = 1` (vedi sezione dedicata sotto)
 9. **Validazione delle radici**: ogni radice viene verificata contro l'equazione implicita del toro per scartare radici fantasma residue (vedi sezione dedicata sotto)
 

@@ -95,8 +95,10 @@ public static class CausticPhotonTracer
         var photons = new List<Photon>(total / 2);
         var sync = new object();
 
+        // Ray offsets scale with the scene on every worker (MathUtils.SceneScale).
+        float sceneScale = MathF.Max(0.5f * (sceneBounds.Max - sceneBounds.Min).Length(), 1e-3f);
         Parallel.For(0, total,
-            () => new List<Photon>(256),
+            () => { MathUtils.SceneScale = sceneScale; return new List<Photon>(256); },
             (g, _, local) =>
             {
                 int si = UpperBound(offsets, g) - 1;
@@ -116,7 +118,11 @@ public static class CausticPhotonTracer
                 Sampler.EndPixelSample();
                 return local;
             },
-            local => { lock (sync) photons.AddRange(local); });
+            local =>
+            {
+                lock (sync) photons.AddRange(local);
+                MathUtils.SceneScale = 0f;   // pool threads outlive the build
+            });
 
         if (photons.Count == 0) return null;
         return new PhotonMap(photons.ToArray(), cellSize);
@@ -153,7 +159,7 @@ public static class CausticPhotonTracer
         for (int bounce = 0; bounce < MaxPhotonBounces; bounce++)
         {
             rec = new HitRecord();
-            if (!world.Hit(ray, MathUtils.Epsilon, MathUtils.Infinity, ref rec)) return;
+            if (!world.Hit(ray, MathUtils.RayEpsilon, MathUtils.Infinity, ref rec)) return;
 
             // Absorption over the interior segment just traversed (entry → here).
             if (inMedium)

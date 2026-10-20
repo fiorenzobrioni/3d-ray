@@ -34,8 +34,7 @@ public sealed class SchlickPhase : IPhaseFunction
 
     public (Vector3 Wi, float Pdf) Sample(Vector3 wo)
     {
-        float u1 = MathUtils.RandomFloat();
-        float u2 = MathUtils.RandomFloat();
+        var (u1, u2) = MathUtils.Random2D();
 
         // Closed-form inverse CDF: μ = (2u - 1 + k) / (1 + k(2u - 1)).
         // k = 0 collapses to μ = 2u - 1 (isotropic).

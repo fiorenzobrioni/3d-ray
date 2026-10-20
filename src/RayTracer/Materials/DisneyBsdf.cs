@@ -1417,8 +1417,8 @@ public sealed class DisneyBsdf : IMaterial
         // stretch the NDF correctly along T and B.
         ShadingFrame frame = GetShadingFrame(rec, sp.AnisotropicRotation);
         Vector3 Vloc = frame.ToLocal(V);
-        Vector3 Hloc = Microfacet.SampleGgxVndfAniso(Vloc, sp.AlphaX, sp.AlphaY,
-                                          MathUtils.RandomFloat(), MathUtils.RandomFloat());
+        var (h1, h2) = MathUtils.Random2D();
+        Vector3 Hloc = Microfacet.SampleGgxVndfAniso(Vloc, sp.AlphaX, sp.AlphaY, h1, h2);
         Vector3 H = frame.ToWorld(Hloc);
         Vector3 L = MathUtils.Reflect(-V, H);
 
@@ -1513,8 +1513,8 @@ public sealed class DisneyBsdf : IMaterial
         if (isRough)
         {
             Vector3 Vloc = frame.ToLocal(V);
-            Vector3 Hloc = Microfacet.SampleGgxVndfAniso(Vloc, sp.AlphaX, sp.AlphaY,
-                                              MathUtils.RandomFloat(), MathUtils.RandomFloat());
+            var (h1, h2) = MathUtils.Random2D();
+            Vector3 Hloc = Microfacet.SampleGgxVndfAniso(Vloc, sp.AlphaX, sp.AlphaY, h1, h2);
             Ht = frame.ToWorld(Hloc);
         }
         else
@@ -1637,7 +1637,7 @@ public sealed class DisneyBsdf : IMaterial
                                   in ShadingParams sp, float probability,
                                   out Vector3 attenuation, out Ray scattered)
     {
-        // Clearcoat is isotropic by convention, so a Frisvad ONB built on the
+        // Clearcoat is isotropic by convention, so an arbitrary ONB built on the
         // coat normal is sufficient (no need to align with the substrate's
         // anisotropic rotation, which only matters when αx ≠ αy). Sampling
         // happens in this dedicated coat frame so a coat_normal map shapes
@@ -1655,8 +1655,8 @@ public sealed class DisneyBsdf : IMaterial
         }
 
         Vector3 Vloc = frame.ToLocal(V);
-        Vector3 Hloc = Microfacet.SampleGgxVndfAniso(Vloc, sp.ClearcoatAlpha, sp.ClearcoatAlpha,
-                                                     MathUtils.RandomFloat(), MathUtils.RandomFloat());
+        var (h1, h2) = MathUtils.Random2D();
+        Vector3 Hloc = Microfacet.SampleGgxVndfAniso(Vloc, sp.ClearcoatAlpha, sp.ClearcoatAlpha, h1, h2);
         Vector3 H = frame.ToWorld(Hloc);
         Vector3 L = MathUtils.Reflect(-V, H);
 
@@ -1787,8 +1787,8 @@ public sealed class DisneyBsdf : IMaterial
     /// <summary>
     /// Isotropic shading frame for the clearcoat lobe. Coat is rotationally
     /// symmetric (αx = αy) so any orthonormal pair spanning the plane
-    /// perpendicular to the coat normal works — we use Frisvad's branchless
-    /// ONB directly on <see cref="GetCoatNormal"/>. Returning a frame keeps
+    /// perpendicular to the coat normal works — we use the branchless
+    /// ONB (Duff et al. 2017) directly on <see cref="GetCoatNormal"/>. Returning a frame keeps
     /// the VNDF sampling in <see cref="ScatterClearcoat"/> on the shared
     /// tangent-space path.
     /// </summary>
@@ -1804,7 +1804,7 @@ public sealed class DisneyBsdf : IMaterial
     /// <see cref="HitRecord.Tangent"/> / <see cref="HitRecord.Bitangent"/>
     /// when they are valid (non-zero) so anisotropic highlights align with
     /// the surface's parameterisation (brushed-metal direction, wood grain,
-    /// fabric weave). Falls back to Frisvad's branchless ONB when the
+    /// fabric weave). Falls back to the branchless ONB (Duff et al. 2017) when the
     /// geometry didn't populate a TBN.
     ///
     /// If <paramref name="rotation"/> is non-zero, rotates T toward B by an

@@ -108,8 +108,9 @@ public class SpotLight : ILight
         {
             int su = sampleIndex % _sqrtSamples;
             int sv = sampleIndex / _sqrtSamples;
-            float xi1 = (su + MathUtils.RandomFloat()) * _invSqrtSamples;
-            float xi2 = (sv + MathUtils.RandomFloat()) * _invSqrtSamples;
+            var (jitU, jitV) = MathUtils.Random2D();
+            float xi1 = (su + jitU) * _invSqrtSamples;
+            float xi2 = (sv + jitV) * _invSqrtSamples;
 
             // Uniform disc sampling: map [0,1)² to a disc of radius SoftRadius.
             float r = SoftRadius * MathF.Sqrt(xi1);
@@ -134,8 +135,8 @@ public class SpotLight : ILight
         // self-intersect.
         Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
         var shadowRay = new Ray(shadowOrigin, dirToLight, time);
-        float shadowTMax = (sourcePos - shadowOrigin).Length() - MathUtils.Epsilon;
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
+        float shadowTMax = (sourcePos - shadowOrigin).Length() - MathUtils.OffsetDistance(sourcePos);
+        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, shadowTMax);
 
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);

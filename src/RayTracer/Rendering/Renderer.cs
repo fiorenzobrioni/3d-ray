@@ -172,6 +172,10 @@ public partial class Renderer
     // transport, as production renderers do with caustics disabled.
     private readonly bool _transparentShadows;
 
+    // Scene radius the ray offsets scale with (MathUtils.SceneScale), set on
+    // every worker thread before it traces.
+    private readonly float _sceneScale;
+
     // ── Russian Roulette configuration ──────────────────────────────────────
     //
     // RR is scene-adaptive AND path-throughput based (PBRT §13.7.1, Veach §10.4):
@@ -431,6 +435,7 @@ public partial class Renderer
         // so the division is safe; the normalised irradiance will be huge and
         // the scene correctly classified as direct-dominant.
         float sceneRadius = MathF.Max(0.5f * extent.Length(), 1e-3f);
+        _sceneScale = sceneRadius;
         float sphereArea  = 4f * MathF.PI * sceneRadius * sceneRadius;
         float meanIrradiance = totalFlux / sphereArea;
 
@@ -653,6 +658,7 @@ public partial class Renderer
             // owns that refracted light). Set on this worker before any shadow ray
             // it casts; re-set every tile so it never leaks across renders.
             ShadowRay.BlockSpecularTransmission = _causticsActive;
+            MathUtils.SceneScale = _sceneScale;
             // Opaque shadow rays unless transparent shadows were asked for.
             // Light through glass then arrives only along BSDF-sampled paths,
             // the unbiased estimator. Photon caustics keep their own rule: the
@@ -792,9 +798,10 @@ public partial class Renderer
                     capAcc.Store(buffers, i, j, linearColor, actualSamples);
             }
 
-            // Pool threads outlive the render: never leave reference mode on
-            // for whatever else runs on this thread next.
+            // Pool threads outlive the render: never leave reference mode or
+            // this scene's ray offsets on for whatever else runs here next.
             ShadowRay.BlockAllTransmission = false;
+            MathUtils.SceneScale = 0f;
             Interlocked.Increment(ref completedTiles);
         });
 
@@ -1716,6 +1723,10 @@ public partial class Renderer
     {
         if (depth <= 0) return Vector3.Zero;
 
+        // Each TraceRay is a new path vertex: give it its own block of sampler
+        // dimensions (see Sampler.BeginVertex).
+        Sampler.BeginVertex();
+
         // Dead-path early-out. Once the cumulative β has decayed below the
         // post-tone-map noise floor on every channel, the radiance this call
         // would return is multiplied back by β at the caller anyway, so the
@@ -1754,7 +1765,7 @@ public partial class Renderer
             // Re-zero per iteration so a skipped hit's fields (VisibilityMask,
             // etc.) never leak into the next probe.
             rec = new HitRecord();
-            hit = _world.Hit(currentRay, MathUtils.Epsilon, MathUtils.Infinity, ref rec);
+            hit = _world.Hit(currentRay, MathUtils.RayEpsilon, MathUtils.Infinity, ref rec);
             if (!hit || ignoreMask == HitVisibilityMask.None
                      || (rec.VisibilityMask & ignoreMask) == 0)
                 break;
@@ -2200,10 +2211,11 @@ public partial class Renderer
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static float ClipShadowToBoundary(Vector3 p, Vector3 dir, float shadowDist,
-                                               IHittable? boundEntity, float tMin = 1e-4f,
+                                               IHittable? boundEntity, float tMin = -1f,
                                                float time = 0f)
     {
         if (boundEntity == null) return shadowDist;
+        if (tMin < 0f) tMin = MathUtils.RayEpsilon;
         var rec = new HitRecord();
         if (boundEntity.Hit(new Ray(p, dir, time), tMin, shadowDist, ref rec))
             return rec.T;
