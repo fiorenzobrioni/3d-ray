@@ -56,6 +56,20 @@ public static class ShadowRay
         set => _blockSpecularTransmission = value;
     }
 
+    /// <summary>
+    /// Per-thread switch raised by the renderer in reference mode: every surface
+    /// with a material is opaque to NEE shadow rays, so no straight-through
+    /// transmission approximation reaches the estimate. Light through glass is
+    /// then carried only by BSDF-sampled paths. Thread-static for the same
+    /// reason as <see cref="BlockSpecularTransmission"/>.
+    /// </summary>
+    [ThreadStatic] private static bool _blockAllTransmission;
+    public static bool BlockAllTransmission
+    {
+        get => _blockAllTransmission;
+        set => _blockAllTransmission = value;
+    }
+
     public static Vector3 Transmittance(IHittable world, Ray ray, float tMin, float tMax, int maxBounces = 8)
     {
         Vector3 throughput = Vector3.One;
@@ -100,6 +114,9 @@ public static class ShadowRay
             }
 
             if (rec.Material == null)
+                return Vector3.Zero;
+
+            if (_blockAllTransmission)
                 return Vector3.Zero;
 
             // Photon caustics active: a smooth specular transmissive interface

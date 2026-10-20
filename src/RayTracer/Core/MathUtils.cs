@@ -19,6 +19,10 @@ public static class MathUtils
 
     public static Random Rng => _threadRng ??= new Random(Interlocked.Increment(ref _globalSeed));
 
+    /// <summary>Replaces the calling thread's PRNG with one seeded deterministically
+    /// (used by <c>--seed</c> to make PRNG renders independent of each other).</summary>
+    public static void ReseedThread(int seed) => _threadRng = new Random(seed);
+
     public const float Epsilon = 1e-4f;
     public const float Infinity = float.MaxValue;
     public const float Pi = MathF.PI;

@@ -1,0 +1,40 @@
+# Validation scene (PIANO-REVIEW.md, Phase 0): Cornell box, Lambertian only,
+# emissive ceiling panel. Pure global illumination with no glossy lobe: any
+# gap against the reference is in the integrator, the light/emission MIS or
+# the Lambertian BSDF. Two runs: deep (converged GI) and depth 2 (direct + one
+# bounce), which probes the MIS bookkeeping at the last bounce.
+validation:
+  width: 128
+  height: 128
+  spp: 1024
+  reference_spp: 8192
+  runs:
+    - { name: d32, depth: 32 }
+    - { name: d2, depth: 2 }
+
+world:
+  sky: { type: "flat", color: [0, 0, 0] }
+
+camera:
+  position: [0.0, 1.0, 3.4]
+  look_at: [0.0, 1.0, -1.0]
+  vup: [0, 1, 0]
+  fov: 40
+
+materials:
+  - { id: "white", type: "lambertian", color: [0.73, 0.73, 0.73] }
+  - { id: "red", type: "lambertian", color: [0.65, 0.05, 0.05] }
+  - { id: "green", type: "lambertian", color: [0.12, 0.45, 0.15] }
+  - { id: "light", type: "emissive", color: [1.0, 0.9, 0.75], intensity: 20 }
+
+entities:
+  - { type: "quad", q: [-1, 0, 0], u: [0, 0, -2], v: [2, 0, 0], material: "white" }   # floor (two-sided)
+  - { type: "quad", q: [-1, 2, 0], u: [2, 0, 0], v: [0, 0, -2], material: "white" }   # ceiling (two-sided)
+  - { type: "quad", q: [-1, 0, -2], u: [0, 2, 0], v: [2, 0, 0], material: "white" }   # back (two-sided)
+  - { type: "quad", q: [-1, 0, 0], u: [0, 2, 0], v: [0, 0, -2], material: "red" }     # left (two-sided)
+  - { type: "quad", q: [1, 0, 0], u: [0, 0, -2], v: [0, 2, 0], material: "green" }    # right (two-sided)
+  - { type: "quad", q: [-0.25, 1.98, -1.25], u: [0.5, 0, 0], v: [0, 0, 0.5], material: "light" }  # panel, normal -Y
+  - { type: "sphere", center: [-0.4, 0.35, -1.2], radius: 0.35, material: "white" }
+  - { type: "sphere", center: [0.45, 0.3, -0.7], radius: 0.3, material: "white" }
+
+lights: []

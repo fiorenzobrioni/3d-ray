@@ -12,6 +12,29 @@ Documento interno (come `PLANNING.md` e `devlog/`): può citare renderer esterni
 
 ---
 
+## Stato di avanzamento
+
+Documento vivo: resta nel repo finché tutte le fasi non sono chiuse. A ogni sessione di lavoro si
+aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase con i risultati
+(etichette e verdetto); il dettaglio va nel devlog.
+
+| Fase | Contenuto | Stato |
+|---|---|---|
+| 0 | Infrastruttura di verifica | ✅ Chiusa (2026-10-20), esito in §4 Fase 0 |
+| 1 | Fondamenta matematiche, sampler | ⬜ |
+| 2 | Geometria e intersezioni | ⬜ |
+| 3 | Camera, film e colore | ⬜ |
+| 4 | Texture e dati | ⬜ |
+| 5 | Materiali e BSDF | ⬜ |
+| 6 | Luci, cielo | ⬜ |
+| 7 | Integratore | ⬜ |
+| 8 | Volumi e SSS | ⬜ |
+| 9 | Post-processing e denoiser | ⬜ |
+| 10 | Formato scene v2 | ⬜ |
+| 11 | Architettura e performance | ⬜ |
+
+---
+
 ## 1. Riferimenti: cosa vuol dire "premium"
 
 Il metro di paragone sono i motori di produzione e i due renderer di ricerca usati come verità
@@ -70,34 +93,42 @@ E ogni modulo riceve un verdetto finale: **tenere**, **correggere**, **estendere
 
 - sezione nel devlog con risultati ed etichette;
 - test nuovi in `RayTracer.Tests` che bloccano la correttezza raggiunta;
-- render di confronto salvati in `renders/review/` (EXR + PNG differenza);
+- render di confronto in `validation/out/` (rigenerabili con `validation/run.py`, non versionati);
 - aggiornamento di `PLANNING.md` (bug noti, TODO).
 
 ---
 
 ## 3. Problemi già trovati durante la stesura del piano
 
-Campionamento a mano del codice, non ancora una review completa. Ogni punto va confermato e
-misurato nella sua fase.
+Nati dal campionamento a mano del codice durante la stesura, poi **misurati** con gli strumenti
+della Fase 0 (righe 3.17 e seguenti: emersi direttamente dalle misure). Ogni punto si chiude nella
+fase indicata.
 
 | # | Etichetta | Dove | Problema |
 |---|---|---|---|
 | 3.1 | **[BUG]** | `Rendering/Sky/PreethamSky.cs:197` | Funzione di Perez sbagliata. Corretta: `(1 + A*e^(B/cosθ)) (1 + C*e^(Dγ) + E*cos²γ)`. Nel codice: `(C + D*e^(Eγ) + E*cos²γ)`, cioè coefficienti scalati di una posizione ed `E` usato due volte. Anche la normalizzazione `F(0, θs)` eredita l'errore. Il sole usa una costante empirica (`SolarConstantRel = 20`) e trasmittanze ad hoc. |
-| 3.2 | **[BUG]** | `Materials/DisneyBsdf.cs:1302, 1335, 1384, 1440, 1604, 1674, 1706` | Dopo aver scelto un lobo con probabilità `p`, il peso viene diviso per `max(p, 0.1)` (o `0.05`), ma `p` non è mai forzato a quel minimo in fase di scelta. Quando un lobo ha `p < 0.1` la sua energia viene **sottostimata** (perdita di riflesso speculare su materiali molto diffusivi, ecc.). |
+| 3.2 | **[BUG]** confermato | `Materials/DisneyBsdf.cs:1302, 1335, 1384, 1440, 1604, 1674, 1706` | Dopo aver scelto un lobo con probabilità `p`, il peso viene diviso per `max(p, 0.1)` (o `0.05`), ma `p` non è mai forzato a quel minimo in fase di scelta. **Misurato (Fase 0)**: il renderer usa `Sample()`, che per i lobi non-delta ricalcola `Evaluate`/`Pdf` e quindi non è toccato; il bug colpisce i lobi **delta** (speculare liscio, clearcoat liscio, trasmissione). Plastica liscia: riflesso speculare sottostimato del 9.4% a ogni angolo (p = 0.0906). Test `KnownBug_Disney_SmoothSpecularMatchesFresnel`. Fase 5. |
 | 3.3 | **[BUG]** | `Scene/SceneLoader.cs:1802, 1902` + `Textures/ImageTexture.cs:63` | Le mappe dati (roughness, metallic, coat roughness...) passano per `ImageTexture`, che applica sempre la decodifica sRGB. Una roughness map viene quindi "linearizzata" come fosse un colore: valori sbagliati. Manca un attributo `color_space` per texture. |
 | 3.4 | **[NON-STANDARD]** | `Textures/ImageTexture.cs:63` | Decodifica sRGB come `pow(x, 2.2)` invece della curva sRGB a tratti (IEC 61966-2-1). Errore visibile nelle ombre. |
 | 3.5 | **[NON-STANDARD]** | `Rendering/Renderer.cs:893` | Display transform = fit di Narkowicz dell'ACES applicato **per canale** su Rec.709 + gamma 2.2 pura. Effetti noti: hue shift e saturazione "Notorious 6" sulle alte luci, colori brillanti che virano a giallo/ciano, nessuna vera gestione del colore. Il fit originale prevede anche un pre-scale 0.6 assente. |
-| 3.6 | **[BUG]** | `Materials/DisneyBsdf.cs:642-648, 773-778` | La trasmissione **rough** (vetro satinato) è esclusa da `Evaluate`/`Pdf`: niente NEE né MIS per il vetro satinato, quindi rumore enorme e combinazione MIS incoerente. Serve il modello di Walter et al. 2007 completo (BTDF + pdf). |
-| 3.7 | **[BIAS]** | `Materials/Metal.cs:86-91` | Il metallo aggiunge un lobo lambertiano `albedo*fuzz/π` "di riempimento". Non è fisico: sommato a uno speculare con `F0 = albedo` può superare l'energia in ingresso. La compensazione corretta è Kulla-Conty (già presente nel Disney). Inoltre Fresnel conduttore = Schlick con `F0 = colore`: niente IOR complesso né modello F82 (OpenPBR). |
-| 3.8 | **[BIAS]** di default | `Rendering/Renderer.cs:208, 221, 376-378` + materiali | Attivi di default: clamp per-sample 10, clamp indiretto 0.25 (= 2.5), ombre trasparenti "dritte" del vetro (luce che passa senza rifrazione), Russian Roulette con soglie che cambiano in base a una classificazione euristica della scena, `DeadPathThroughputEpsilon`. Vanno bene come opzioni artistiche, non come comportamento base: in modalità di riferimento devono sparire. |
+| 3.6 | **[NON-STANDARD]** ridimensionato | `Materials/DisneyBsdf.cs:642-648, 773-778` | La trasmissione **rough** (vetro satinato) è esclusa da `Evaluate`/`Pdf`. **Misurato (Fase 0)**: `Sample()` la marca come delta, quindi non c'è bias ma solo varianza (niente NEE attraverso il vetro satinato). Il vero problema del vetro Disney è il guadagno di energia (3.17). Serve comunque il modello di Walter et al. 2007 completo (BTDF + pdf). Fase 5. |
+| 3.7 | **[BUG]** confermato, grave | `Materials/Metal.cs:86-91` vs `135-162` | Il lobo lambertiano "di riempimento" `albedo*fuzz/π` esiste **solo** in `EvaluateDirect` (la NEE), non in `Evaluate`/`Sample`: luce diretta e luce campionata dalla BSDF stimano due materiali diversi (scarto fino al 96%) e il MIS li mescola. **Misurato**: sfere di metallo bianco rough +37% di luminanza rispetto a Mitsuba, aspetto da materiale diffuso. Il `MixMaterial` lo eredita. Inoltre il GGX singolo-scattering perde molta energia ad alta rugosità (fuzz 1, bianco: albedo 0.32-0.51) e il Fresnel è Schlick con `F0 = colore`: niente Kulla-Conty, IOR complesso o F82. Test `KnownBug_Metal_DirectLightingMatchesSampling`. Fase 5. |
+| 3.8 | **[BIAS]** di default, misurato | `Rendering/Renderer.cs:208, 221, 376-378` + materiali | Attivi di default: clamp per-sample 10, clamp indiretto 0.25 (= 2.5), ombre trasparenti "dritte" del vetro, Russian Roulette con soglie da una classificazione euristica della scena, `DeadPathThroughputEpsilon`. Tutti spenti da `--reference` (Fase 0). Il peso misurato dei primi due è in 3.20 e 3.21. Fase 7. |
 | 3.9 | **[BIAS]** | `Textures/EnvironmentMap.cs:262-264` | L'importance sampling dell'HDRI restituisce sempre il **centro** del texel scelto: le direzioni NEE sono un insieme discreto. Con HDRI piccole o sole concentrato produce ombre a gradini e bias. Va campionato in modo continuo dentro il texel. |
 | 3.10 | **[NON-STANDARD]** | `Core/Sampling/OwenSobol.cs` + `Sampler.cs` | Solo le dimensioni 0-1 sono vero Sobol; dalla 2 in su è van der Corput con hash (solo stratificazione 1D). Le dimensioni sono assegnate con un contatore globale per campione, quindi path che prendono rami diversi disallineano le dimensioni (la scelta luce di un rimbalzo può finire sulla dimensione che altrove è la BSDF). Riferimento: ZSobol/padding per rimbalzo di PBRT-v4, o Sobol con matrici Joe-Kuo su 4D ripetute per rimbalzo. |
 | 3.11 | **[NON-STANDARD]** | `Rendering/Renderer.cs:1897` + `Core/MathUtils.cs:44` | Il fattore "shadow terminator" è applicato anche alla direzione di vista, oltre a quella della luce: non corrisponde a nessun modello pubblicato (Chiang 2019 / Estevez 2019 agiscono sul lato luce). Va verificato con il furnace test. |
 | 3.12 | **[DEBITO]** | `Materials/IMaterial.cs` | Due API di materiale in parallelo: `Scatter`/`EvaluateDirect` (storica) e `Evaluate`/`Pdf`/`Sample` (MIS). Doppio codice = doppio rischio di incoerenza. Il commento a `Renderer.cs:1876` dice ancora che Lambert/Metal/Dielectric non implementano `Pdf`. |
-| 3.13 | **[BUG] da verificare** | `DisneyBsdf` + `Renderer` | Il peso del campione BSDF è per-lobo (`f_i / (P_i p_i)`) mentre il peso MIS con la luce usa la pdf della miscela: se le due non coincidono, i pesi MIS non sommano a 1 e c'è bias. Da misurare col test 2.2.4. |
+| 3.13 | ✅ **verificato, nessun bug** | `DisneyBsdf` + `Renderer` | `Sample()` restituisce per i lobi non-delta `Evaluate`/`Pdf` della miscela, quindi peso e MIS sono coerenti: il chi-quadro e il cross-check dell'albedo passano su tutti i lobi rough (Fase 0). |
 | 3.14 | **[NON-STANDARD]** | tutte le luci + `Emissive` | `intensity` senza unità: impossibile illuminare "come nella realtà" (sole 100.000 lux, lampadina 800 lm) e scambiare scene con altri motori. Nessuna temperatura colore, nessun IES. |
 | 3.15 | **[DEBITO]** | `scenes/cornell-box.yaml` e altre | Commenti obsoleti: dicono che l'emissivo "non usa NEE", mentre oggi entra nel pool NEE come `GeometryLight`. |
 | 3.16 | **[DEBITO]** | `Rendering/Renderer.cs` (2314 righe), `Scene/SceneLoader.cs` (4368), `Materials/DisneyBsdf.cs` (2006) | `TraceRay` è ricorsivo, con molti casi speciali: ostacola path guiding, light path expressions, BDPT e il debug. |
+| 3.17 | **[BUG]** | `Materials/DisneyBsdf.cs` (sheen, clearcoat, trasmissione) | **Guadagno di energia** nel white furnace (albedo > 1 con materiale bianco): sheen fino a 1.38, clearcoat liscio 1.39 a incidenza radente, vetro liscio 1.015-1.13, vetro rough 1.03-1.12; diffuso Disney r=1 1.026 a incidenza radente (retro-riflessione di Burley, [NON-STANDARD]). Render: sfera di vetro Disney in furnace +3.1% (deve valere 1), sfera sheen +34% e clearcoat +5% rispetto al principled di Mitsuba. Gli strati vanno sommati con albedo-scaling che conserva l'energia (OpenPBR). Test `KnownBug_Disney_WhiteFurnaceAlbedoDoesNotExceedOne`. Fase 5. |
+| 3.18 | **[BUG]** piccolo | `Materials/DisneyBsdf.cs:783-870` | La `Pdf` riporta la densità VNDF anche sotto l'orizzonte (convenzione legittima, il campione viene scartato), ma lì il lobo `diff_trans` ha supporto: per le direzioni posteriori la pdf dichiarata supera quella reale e il peso sottostima l'energia di circa l'1%. Test `KnownBug_Disney_DiffTransSampleWeightIntegratesTheBsdf`. Fase 5. |
+| 3.19 | **[BUG]** grave | `Lights/AreaLight.cs:146-157`, probabilmente anche `SphereLight`, `GeometryLight` + `Core/MathUtils.cs:225` | Il raggio d'ombra parte da `OffsetOrigin` (punto + 1e-4 lungo la normale) ma usa la direzione calcolata dal punto non spostato: arriva sul piano della luce prima di `tMax`, colpisce il **proxy emissivo della luce stessa** e il punto risulta in ombra. Con una luce d'area ogni punto che la vede a più di ~52° dalla sua normale **non riceve luce diretta**: ellisse netta sul pavimento, -12% nella scena `lights`. Anche gli emissivi (taglio sul pavimento lontano) e la luce sferica (-1.7%). Il test di convergenza lo vede come plateau (bias). Più in generale: offset fisso 1e-4 in unità mondo invece dell'offset basato sull'errore floating point (Fase 1). Fasi 1 e 6. |
+| 3.20 | **[BIAS]** di default, grave | `Rendering/Renderer.cs:208` (`-C 10`) | Il clamp per-sample è una soglia **assoluta** di radianza (10): dipende dall'intensità delle luci della scena, non da quanto un campione è anomalo. Cornell box con pannello di radianza 20: **-22% di energia** (-24% a profondità 2); togliendo il clamp il rapporto con Mitsuba torna 1.0002. L'utente vede scene più scure e GI impoverita senza saperlo. Fase 7. |
+| 3.21 | **[BIAS]** di default, grave | `Geometry/ShadowRay.cs` + `ShadowTransmittance` dei materiali | Le ombre trasparenti "dritte" si sommano ai cammini BSDF che attraversano davvero il vetro (doppio conteggio): **l'ombra di una sfera di vetro sparisce**, la caustica si spalma, +6.7% di energia e relMSE 50 volte quello della modalità di riferimento, che invece coincide con Mitsuba. Fase 7. |
+| 3.22 | **[NON-STANDARD]** | `Scene/SceneLoader.cs:1032` | Un materiale senza `color` riceve grigio 0.5 per **ogni** tipo, anche `dielectric` ed `emissive`: un vetro scritto senza colore trasmette il 25% attraverso una sfera, un emissivo emette metà dell'intensità scritta. Default fisici: vetro 1, emissivo 1. Fase 10. |
+| 3.23 | **[NON-STANDARD]** | `Scene/SceneLoader.cs:131-132` | Il loader usa `IgnoreUnmatchedProperties`: una chiave YAML sbagliata (`refraction_idx`, `roughnes`) viene ignorata in silenzio e il materiale usa il default. Serve un errore o almeno un warning con il nome della chiave. Fase 10. |
 
 ---
 
@@ -108,14 +139,59 @@ falsa tutti i test dei materiali, un errore nel tone mapping falsa ogni giudizio
 
 ### Fase 0 - Infrastruttura di verifica (prerequisito)
 
-- [ ] Flag `--reference`: niente clamp, niente clamp indiretto, niente denoiser, niente ombre
-      trasparenti, niente photon map, RR standard sul throughput, output EXR lineare.
-- [ ] Libreria di test statistici (chi-quadro, integrazione pdf, furnace, reciprocità, coerenza
-      Sample/Evaluate/Pdf) riusabile da ogni BSDF, phase function e luce.
-- [ ] Tool `ImageCompare` in `src/Tools/`: relMSE, FLIP, media, mappa differenza in falsi colori.
-- [ ] Installazione Mitsuba 3 (`pip install mitsuba`) nell'ambiente di sviluppo e set di scene
-      canoniche duplicate (vedi elenco in §5).
-- [ ] Test di convergenza `1/√N` automatizzato su 3 scene.
+- [x] Flag `--reference`: niente clamp, niente clamp indiretto, niente denoiser, niente ombre
+      trasparenti, niente photon map, niente soglia "path morto", RR a soglie fisse (non dipende
+      più dalla classificazione della scena). Più `--seed <n>` per render indipendenti e il
+      conteggio dei NaN/Inf azzerati (stampato a fine render).
+- [x] Libreria di test statistici (chi-quadro, integrazione pdf, furnace, cross-check dell'albedo,
+      reciprocità, coerenza NEE/BSDF, coerenza Sample/Evaluate/Pdf):
+      `src/RayTracer.Tests/Validation/BsdfTestKit.cs`, gate in `BsdfStatisticalTests`, report
+      completo in `BsdfAuditTests`. Phase function e luci: da agganciare nelle Fasi 6 e 8.
+- [x] Tool `ImageCompare` in `src/Tools/`: rapporto delle medie, relMSE, RMSE, SMAPE, pixel
+      fuori del 10%, mappa differenza in falsi colori (FLIP calcolato dall'harness Python).
+- [x] Mitsuba 3.9.1 (`pip install -r validation/requirements.txt`), convertitore YAML → Mitsuba
+      e prime 6 scene canoniche in `validation/scenes/` (harness `validation/run.py`, vedi
+      `validation/README.md`). Le altre scene di §5 si aggiungono nella fase che le usa.
+- [x] Test di convergenza `1/N` (spp crescenti + K seed indipendenti, pendenza e soglia residua):
+      `validation/run.py --convergence`.
+- [x] Scene analitiche come test xUnit (`AnalyticSceneTests`): furnace Lambert, vetro, specchio,
+      legge dell'inverso del quadrato.
+
+#### Esito Fase 0 (2026-10-20)
+
+Suite: 653 test verdi, 4 skip che riproducono bug noti (si riattivano quando il bug è corretto);
++6 s sulla suite.
+
+**Verificato corretto** (ora protetto da test):
+
+- Integratore: Cornell box lambertiana in modalità di riferimento = Mitsuba (rapporto 0.9999 a
+  profondità 32, 0.998 a profondità 2; relMSE 1e-4). Convergenza: pendenza -0.98 sui seed
+  indipendenti, soglia residua 9e-6 (il rumore del riferimento): stimatore non distorto.
+- Luce puntiforme esatta (rapporto 1.0000, legge dell'inverso del quadrato anche in xUnit).
+- Furnace: Lambert = albedo, vetro `dielectric` = 1, specchio = 1.
+- Vetro: in modalità di riferimento le caustiche per path tracing puro coincidono con Mitsuba
+  (rapporto 0.986, il residuo è 3.19).
+- BSDF: Lambert, Metal (campionamento), tutti i lobi rough del Disney e il Mix campionano dalla
+  propria Pdf (chi-quadro), pesi coerenti (cross-check albedo), reciprocità esatta ovunque.
+
+**Risultati della validazione** (`validation/run.py`, 3D-Ray contro Mitsuba 3):
+
+| Scena | Riferimento | Default | Note |
+|---|---|---|---|
+| cornell-lambert d32 | 0.9999 | **0.782** | default: clamp `-C 10` (3.20) |
+| cornell-lambert d2 | 0.998 | **0.757** | idem |
+| lights | **0.975** | **0.975** | luce d'area -12%, sferica -1.7% (3.19) |
+| metal-rough | **1.376** | 1.290 | lobo extra nella NEE del Metal (3.7) |
+| glass-shadow | 0.986 | 1.067, relMSE x50 | ombre trasparenti (3.21) |
+| disney-spheres | 1.022 | 1.017 | sheen +34%, clearcoat +5% (3.17; modello diverso) |
+| furnace-disney-glass | **1.031** (atteso 1) | 1.031 | energia creata (3.17) |
+
+**Nuovi problemi**: da 3.17 a 3.23 in §3, e 3.2, 3.6, 3.7, 3.13 aggiornati con le misure.
+
+**Verdetto**: infrastruttura completa. La base matematica dell'integratore è sana; i problemi di
+realismo vengono da materiali (Metal, strati Disney), luci (offset dei raggi d'ombra) e dai bias
+attivi di default. Nota: i bug 3.19, 3.20 e 3.21 sono gravi, visibili in ogni scena e con
+correzioni piccole; valutare se anticiparli prima della Fase 1.
 
 ### Fase 1 - Fondamenta matematiche (`Core/`)
 
@@ -325,7 +401,7 @@ Da creare in `scenes/validation/` (YAML) e `scenes/validation/mitsuba/` (XML):
 
 ## 6. Verdetto preliminare per modulo
 
-Basato sul campionamento della sezione 3: da confermare fase per fase.
+Basato sulla sezione 3, aggiornato con le misure della Fase 0: da confermare fase per fase.
 
 | Modulo | Verdetto preliminare | Motivo |
 |---|---|---|
@@ -335,10 +411,10 @@ Basato sul campionamento della sezione 3: da confermare fase per fase.
 | Camera | estendere | manca la camera fisica |
 | Tone mapping e colore | **rifare** | nessuna gestione del colore |
 | Texture | correggere | `color_space`, sRGB esatto, MikkTSpace |
-| Materiali | **rifare attorno a OpenPBR** | bias nei lobi, conduttore non fisico, trasmissione rough incompleta, doppia API; si riusano Microfacet, Fresnel, LUT |
-| Luci | correggere + unità fisiche | struttura buona, unità assenti |
+| Materiali | **rifare attorno a OpenPBR** | Fase 0: Metal con NEE incoerente (+37%), strati Disney che creano energia (sheen, coat, vetro), lobi delta sottostimati; doppia API. Si riusano Microfacet, VNDF, Fresnel, LUT (campionamento e reciprocità verificati) |
+| Luci | correggere + unità fisiche | Fase 0: luce puntiforme esatta; raggi d'ombra che colpiscono il proxy della luce (area -12%, cono di taglio a 52°); unità assenti |
 | Cielo | **rifare** | Preetham sbagliato, sole empirico |
-| Integratore | **rifare il loop** | ricorsivo e pieno di casi speciali; si riusano NEE, MIS, mezzi |
+| Integratore | **rifare il loop** | Fase 0: la matematica è corretta (Cornell = Mitsuba entro 0.1%, convergenza 1/N); i problemi sono i bias attivi di default (clamp -22%, ombre trasparenti) e la struttura ricorsiva. Si riusano NEE, MIS, mezzi |
 | Volumi e SSS | verificare | da confrontare con Mitsuba prima di giudicare |
 | Denoiser | tenere + OIDN | NFOR va bene come opzione |
 | Formato scene | evolvere a v2 | semantica (unità, colore, render) più che sintassi |

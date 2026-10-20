@@ -1,0 +1,39 @@
+# Validation scene (PIANO-REVIEW.md, Phase 0): four Disney spheres (plastic,
+# gold-coloured metal, sheen, clearcoat) under a panel and a soft sky.
+# Mitsuba's 'principled' is the Disney 2015 base model, so this measures how
+# far 3D-Ray's extended Disney (Kulla-Conty, Charlie sheen, coat) sits from it;
+# the gaps are model differences to classify in Phase 5, not pass/fail.
+validation:
+  width: 160
+  height: 80
+  spp: 1024
+  reference_spp: 4096
+  runs:
+    - { name: d16, depth: 16 }
+
+world:
+  sky: { type: "flat", color: [0.25, 0.25, 0.25] }
+
+camera:
+  position: [0.0, 1.2, 6.0]
+  look_at: [0.0, 0.5, 0.0]
+  vup: [0, 1, 0]
+  fov: 25
+
+materials:
+  - { id: "floor", type: "lambertian", color: [0.4, 0.4, 0.4] }
+  - { id: "plastic", type: "disney", color: [0.8, 0.2, 0.15], roughness: 0.4 }
+  - { id: "gold", type: "disney", color: [1.0, 0.78, 0.34], metallic: 1.0, roughness: 0.3 }
+  - { id: "velvet", type: "disney", color: [0.2, 0.3, 0.7], roughness: 0.8, sheen: 1.0, sheen_tint: 0.0 }
+  - { id: "lacquer", type: "disney", color: [0.1, 0.4, 0.15], roughness: 0.6, clearcoat: 1.0, clearcoat_gloss: 0.9 }
+  - { id: "panel", type: "emissive", color: [1, 1, 1], intensity: 6 }
+
+entities:
+  - { type: "quad", q: [-6, 0, 6], u: [12, 0, 0], v: [0, 0, -12], material: "floor" }
+  - { type: "sphere", center: [-1.95, 0.5, 0], radius: 0.5, material: "plastic" }
+  - { type: "sphere", center: [-0.65, 0.5, 0], radius: 0.5, material: "gold" }
+  - { type: "sphere", center: [0.65, 0.5, 0], radius: 0.5, material: "velvet" }
+  - { type: "sphere", center: [1.95, 0.5, 0], radius: 0.5, material: "lacquer" }
+  - { type: "quad", q: [-2, 4, 3], u: [0, 0, -2], v: [4, 0, 0], material: "panel" }  # normal -Y
+
+lights: []

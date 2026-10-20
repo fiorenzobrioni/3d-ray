@@ -191,6 +191,32 @@ public partial class Renderer
     // that goes with it) is a pure win, because the radiance the call would
     // have returned is multiplied back by β at the caller anyway.
     private const float DeadPathThroughputEpsilon = 1e-4f;
+    private readonly float _deadPathEpsilon;
+
+    // ── Reference mode (--reference) ────────────────────────────────────────
+    // The "pure" estimator used to validate the engine against an external
+    // reference renderer: every deliberate bias is switched off (per-sample
+    // and indirect clamps, the dead-path cutoff, straight-through transparent
+    // shadow rays) and Russian Roulette uses fixed, scene-independent
+    // thresholds. RR itself stays on: it is unbiased, it only trades variance
+    // for speed. Denoiser and photon caustics are refused by the CLI.
+    private readonly bool _referenceMode;
+
+    // Extra seed mixed into every pixel's sample sequence. 0 keeps the
+    // historical sequences (bit-identical output); any other value gives a
+    // statistically independent render of the same scene, which is what the
+    // unbiasedness test averages.
+    private readonly uint _seedMix;
+
+    // Non-finite (NaN/Inf) radiance values met and zeroed by SanitizeRadiance.
+    // Zeroing hides the symptom; the count keeps the bug visible. Static
+    // because SanitizeRadiance is: renders running concurrently in the same
+    // process (unit tests) share it, which is fine for a diagnostic.
+    private static long s_nonFiniteCount;
+
+    /// <summary>NaN/Inf radiance values zeroed during the last <see cref="Render(int,int,RenderCaptureOptions)"/>
+    /// (process-wide: includes any render running at the same time).</summary>
+    public long LastRenderNonFiniteCount { get; private set; }
 
     // Effective values, computed at construction based on scene analysis
     private readonly int _rrMinBounces;
@@ -316,8 +342,13 @@ public partial class Renderer
         RandomWalkConfig? walkConfig = null,
         bool enableCaustics = false,
         int causticPhotons = 0,
-        MotionBlurSettings motionBlur = default)
+        MotionBlurSettings motionBlur = default,
+        bool referenceMode = false,
+        int seed = 0)
     {
+        _referenceMode = referenceMode;
+        _seedMix = seed == 0 ? 0u : MixSeed((uint)seed);
+        _deadPathEpsilon = referenceMode ? 0f : DeadPathThroughputEpsilon;
         _world = world;
         _motionActive = motionBlur.Active;
         _shutterOpen = motionBlur.ShutterOpen;
@@ -328,8 +359,12 @@ public partial class Renderer
         _samplesPerPixel = samplesPerPixel;
         _maxDepth = maxDepth;
         _globalMedium = globalMedium;
-        _maxSampleRadiance = maxSampleRadiance ?? DefaultMaxSampleRadiance;
-        _indirectMaxSampleRadiance = _maxSampleRadiance * MathF.Max(0f, indirectClampFactor);
+        _maxSampleRadiance = referenceMode
+            ? float.PositiveInfinity
+            : maxSampleRadiance ?? DefaultMaxSampleRadiance;
+        _indirectMaxSampleRadiance = referenceMode
+            ? float.PositiveInfinity
+            : _maxSampleRadiance * MathF.Max(0f, indirectClampFactor);
         _exposureScale = MathF.Pow(2f, exposureEv);
         _sssMode = sssMode;
         _walkConfig = walkConfig ?? RandomWalkConfig.Normal;
@@ -373,7 +408,9 @@ public partial class Renderer
         float sphereArea  = 4f * MathF.PI * sceneRadius * sceneRadius;
         float meanIrradiance = totalFlux / sphereArea;
 
-        bool isIndirectDominant = meanIrradiance < IndirectDominantThreshold;
+        // Reference mode skips the classifier: RR thresholds must not depend
+        // on a heuristic reading of the scene when validating the estimator.
+        bool isIndirectDominant = !referenceMode && meanIrradiance < IndirectDominantThreshold;
         _rrMinBounces  = isIndirectDominant ? RR_MinBounces_Indirect  : RR_MinBounces_Normal;
         _rrMinSurvival = isIndirectDominant ? RR_MinSurvival_Indirect : RR_MinSurvival_Normal;
 
@@ -523,6 +560,7 @@ public partial class Renderer
     {
         var pixels = new Vector3[height, width];
         _captureAovs = options.CaptureAovs;
+        Interlocked.Exchange(ref s_nonFiniteCount, 0);
 
         // Tile-based work partitioning: 16×16 tiles balance load far better than
         // whole scanlines (sky rows are cheap, geometry-dense centre rows
@@ -589,6 +627,12 @@ public partial class Renderer
             // owns that refracted light). Set on this worker before any shadow ray
             // it casts; re-set every tile so it never leaks across renders.
             ShadowRay.BlockSpecularTransmission = _causticsActive;
+            // Reference mode: every surface is opaque to NEE shadow rays. Light
+            // through glass then arrives only along BSDF-sampled paths, the
+            // unbiased estimator, instead of the straight-through approximation.
+            ShadowRay.BlockAllTransmission = _referenceMode;
+            if (_seedMix != 0 && !useSobol)
+                MathUtils.ReseedThread(unchecked((int)(_seedMix ^ (uint)tile * 2654435761u)));
 
             int tileX = tile % tilesX;
             int tileY = tile / tilesX;
@@ -612,7 +656,7 @@ public partial class Renderer
                 // and the resulting Moiré would be more visible than plain
                 // PRNG noise — the very failure mode Owen scrambling exists
                 // to fix.
-                uint pixelSeed = (uint)(i * 73856093) ^ (uint)(j * 19349663);
+                uint pixelSeed = (uint)(i * 73856093) ^ (uint)(j * 19349663) ^ _seedMix;
 
                 // Pixel-size deltas used to build the differential rays.
                 // Scaled by sqrt(spp) so that as samples per pixel rise, the
@@ -720,6 +764,9 @@ public partial class Renderer
                     capAcc.Store(buffers, i, j, linearColor, actualSamples);
             }
 
+            // Pool threads outlive the render: never leave reference mode on
+            // for whatever else runs on this thread next.
+            ShadowRay.BlockAllTransmission = false;
             Interlocked.Increment(ref completedTiles);
         });
 
@@ -729,6 +776,7 @@ public partial class Renderer
             Console.Write($"\r  Rendering: 100.0% ({totalTiles}/{totalTiles} tiles)   ");
         Console.WriteLine();
         _captureAovs = false;
+        LastRenderNonFiniteCount = Interlocked.Read(ref s_nonFiniteCount);
         return new RenderResult { Pixels = pixels, Buffers = buffers };
     }
 
@@ -916,10 +964,23 @@ public partial class Renderer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector3 SanitizeRadiance(Vector3 color)
     {
-        if (float.IsNaN(color.X) || float.IsInfinity(color.X)) color.X = 0f;
-        if (float.IsNaN(color.Y) || float.IsInfinity(color.Y)) color.Y = 0f;
-        if (float.IsNaN(color.Z) || float.IsInfinity(color.Z)) color.Z = 0f;
+        if (!float.IsFinite(color.X) || !float.IsFinite(color.Y) || !float.IsFinite(color.Z))
+        {
+            Interlocked.Increment(ref s_nonFiniteCount);
+            if (!float.IsFinite(color.X)) color.X = 0f;
+            if (!float.IsFinite(color.Y)) color.Y = 0f;
+            if (!float.IsFinite(color.Z)) color.Z = 0f;
+        }
         return Vector3.Max(color, Vector3.Zero);
+    }
+
+    /// <summary>Murmur3 finaliser: spreads a small user seed over all 32 bits.</summary>
+    private static uint MixSeed(uint x)
+    {
+        x ^= x >> 16; x *= 0x85ebca6bu;
+        x ^= x >> 13; x *= 0xc2b2ae35u;
+        x ^= x >> 16;
+        return x == 0 ? 1u : x;
     }
 
     /// <summary>
@@ -1599,7 +1660,7 @@ public partial class Renderer
         // (zero) here genuinely means "no throughput" and short-circuits.
         float betaMax = MathF.Max(pathThroughput.X,
                           MathF.Max(pathThroughput.Y, pathThroughput.Z));
-        if (betaMax < DeadPathThroughputEpsilon)
+        if (betaMax < _deadPathEpsilon || betaMax <= 0f)
             return Vector3.Zero;
 
         // ── Visibility filter (Arnold <c>visibility.*</c> / Cycles "Ray

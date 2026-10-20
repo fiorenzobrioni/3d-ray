@@ -353,6 +353,39 @@ class Program
         bool verbose = HasFlag(args, "--verbose", "-v");
         SceneLoader.SetVerbose(verbose);
 
+        // ── Reference mode ───────────────────────────────────────────────────
+        // `--reference` renders with the pure, unbiased estimator used to
+        // validate the engine (PIANO-REVIEW.md, Phase 0): no clamps, no
+        // dead-path cutoff, no straight-through transparent shadows, fixed RR.
+        // The denoiser and photon caustics are biased by construction, so they
+        // are refused rather than silently mixed into a reference image.
+        bool referenceMode = HasFlag(args, "--reference", null);
+        if (referenceMode)
+        {
+            if (denoiserArg != null && denoiserKind != DenoiserKind.None)
+                Console.WriteLine("Warning: --denoiser ignored in --reference mode.");
+            if (causticsExplicit == true)
+                Console.WriteLine("Warning: --caustics on ignored in --reference mode.");
+            if (clampOverride.HasValue || indirectClampArg != null)
+                Console.WriteLine("Warning: --clamp / --indirect-clamp-factor ignored in --reference mode.");
+            denoiserKind = DenoiserKind.None;
+            enableCaustics = false;
+            causticPhotons = 0;
+            clampOverride = null;
+            indirectClampFactor = Renderer.DefaultIndirectClampFactor;
+        }
+
+        // `--seed <n>`: independent sample sequences for the same scene
+        // (0 = the default sequences, bit-identical to a render without it).
+        int seed = 0;
+        string? seedArg = GetArg(args, "--seed", null);
+        if (seedArg != null && !int.TryParse(seedArg, System.Globalization.NumberStyles.Integer,
+                                             System.Globalization.CultureInfo.InvariantCulture, out seed))
+        {
+            Console.WriteLine($"Error: Invalid --seed '{seedArg}' (integer expected).");
+            return;
+        }
+
         // Required argument check
         if (string.IsNullOrEmpty(inputPath))
         {
@@ -404,9 +437,13 @@ class Program
         Console.WriteLine($"  Max depth:   {depth}");
         if (shadowSamplesOverride.HasValue)
             Console.WriteLine($"  Shadow smp:  {shadowSamplesOverride.Value} (override)");
+        if (referenceMode)
+            Console.WriteLine("  Reference:   on (no clamps, no transparent shadows, fixed RR, no denoiser/caustics)");
+        if (seed != 0)
+            Console.WriteLine($"  Seed:        {seed}");
         if (clampOverride.HasValue)
             Console.WriteLine($"  Clamp:       {clampOverride.Value} (override)");
-        if (indirectClampFactor != Renderer.DefaultIndirectClampFactor)
+        if (!referenceMode && indirectClampFactor != Renderer.DefaultIndirectClampFactor)
         {
             float baseClamp = clampOverride ?? Renderer.DefaultMaxSampleRadiance;
             Console.WriteLine($"  Indir.clamp: ×{indirectClampFactor:F2} ({baseClamp * indirectClampFactor:F1} effective)");
@@ -477,7 +514,8 @@ class Program
                 indirectClampFactor, textureFiltering, exposureEv,
                 sssMode, walkConfig,
                 enableCaustics: enableCaustics, causticPhotons: causticPhotons,
-                motionBlur: motionBlur);
+                motionBlur: motionBlur,
+                referenceMode: referenceMode, seed: seed);
             Console.WriteLine();
 
             var captureOptions = denoiserKind != DenoiserKind.None || aovs.Count > 0
@@ -491,6 +529,8 @@ class Program
             var pixels = result.Pixels;
             var elapsed = sw.Elapsed;
             Console.WriteLine($"  Render time: {FormatElapsed(elapsed)}");
+            if (renderer.LastRenderNonFiniteCount > 0)
+                Console.WriteLine($"  Warning:     {renderer.LastRenderNonFiniteCount:N0} NaN/Inf radiance values were zeroed (engine bug)");
 
             // Denoise the linear HDR beauty, then re-apply the identical
             // display transform (exposure \u2192 ACES \u2192 gamma).
@@ -586,6 +626,9 @@ class Program
         Console.WriteLine("      --sss-mode <auto|off>    Subsurface-scattering dispatch (default: auto = follow scene)");
         Console.WriteLine("      --sss-quality <preview|normal|high>   Random-walk preset; inherits from -q when omitted");
         Console.WriteLine("      --max-volume-bounces <n> Hard cap on random-walk bounces inside one entity");
+        Console.WriteLine("      --reference              Unbiased reference estimator for validation: no clamps,");
+        Console.WriteLine("                                no transparent shadows, fixed RR, no denoiser/caustics");
+        Console.WriteLine("      --seed <n>               Independent sample sequence (default 0 = standard sequence)");
         Console.WriteLine("      --list-cameras           List all cameras in the scene and exit");
         Console.WriteLine("  -v, --verbose                Show detailed loading and scene analysis info");
         Console.WriteLine("  -h, --help                   Show this help");

@@ -105,7 +105,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 - [ ] Refactoring: spostare `Seed` da `IHittable` a un'interfaccia dedicata (es. `ISeeded`); nodi strutturali (BvhNode, Transform) non hanno bisogno di seed.
 - [ ] Review completa dei tutorial (`tutorial/`): correttezza vs codice, omissioni, grammatica, esempi, indici.
 - [ ] Spezzare `SceneLoader.cs`.
-- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11).
+- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅.
 
 ---
 
@@ -119,6 +119,15 @@ Emersi durante la stesura del piano di review (dettagli e posizioni in [`PIANO-R
 - [ ] **Vetro satinato** escluso da `Evaluate`/`Pdf`: niente NEE/MIS (§3.6).
 - [ ] **Metal**: lobo lambertiano di riempimento non fisico (§3.7).
 - [ ] **HDRI importance sampling** solo ai centri dei texel (§3.9).
+
+Misurati nella Fase 0 della review (validazione contro Mitsuba 3, `validation/`):
+
+- [ ] **Raggi d'ombra che colpiscono il proxy della luce**: nessuna luce diretta oltre ~52° dalla normale di una luce d'area (-12%), taglio anche su emissivi e luci sferiche (§3.19). Grave.
+- [ ] **Clamp `-C 10` di default**: Cornell box -22% di energia (§3.20). Grave.
+- [ ] **Ombre trasparenti di default**: l'ombra delle sfere di vetro sparisce, doppio conteggio con i cammini reali (§3.21). Grave.
+- [ ] **Metal**: lobo lambertiano solo nella NEE, rough metal +37% (§3.7, ora confermato come bug).
+- [ ] **Disney**: energia creata da sheen, clearcoat e vetro (§3.17); `diff_trans` -1% (§3.18).
+- [ ] **Default `color` 0.5 anche per vetro ed emissivo** (§3.22) e chiavi YAML sconosciute ignorate in silenzio (§3.23).
 
 ---
 

@@ -80,6 +80,23 @@ Ogni test costruisce due scene con le **stesse primitive** — una usa `Hittable
 
 Una modifica al BVH che rompe uno di questi test sta introducendo una regressione di correttezza.
 
+### 4.3 `Validation/`: correttezza fisica
+
+Test che verificano che il motore converga al valore **giusto**, non solo che non si rompa. Girano
+con `--reference` (lo stimatore senza bias: niente clamp, niente ombre trasparenti "dritte", RR a
+soglie fisse).
+
+| File | Cosa verifica |
+|---|---|
+| `BsdfTestKit.cs` | Strumenti statistici per ogni materiale con API `Sample`/`Evaluate`/`Pdf`: chi-quadro di Pearson (le direzioni campionate seguono la `Pdf` dichiarata), integrale della `Pdf` sulla sfera, albedo direzionale (white furnace), confronto tra albedo campionato e integrale di `Evaluate * cos` per quadratura (il peso del campione è lo stimatore giusto), reciprocità, coerenza tra `EvaluateDirect` (luce diretta) ed `Evaluate * cos`. |
+| `BsdfStatisticalTests.cs` | I gate costruiti sul kit per il catalogo `BsdfCatalog.cs`. I test con `Skip` riproducono bug noti e citano la sezione di `PIANO-REVIEW.md` che li corregge: si riattivano con la correzione. |
+| `BsdfAuditTests.cs` | Report completo del kit, opt-in: `RAYTRACER_AUDIT=1 dotnet test --filter "Category=Audit" --logger "console;verbosity=detailed"` (`RAYTRACER_AUDIT_ONLY=<nome>` aggiunge le celle peggiori del chi-quadro). |
+| `AnalyticSceneTests.cs` | Scene con soluzione esatta: sfera lambertiana in ambiente uniforme (= albedo), sfera di vetro e specchio (= 1), piano sotto luce puntiforme (legge dell'inverso del quadrato). |
+| `ReferenceModeTests.cs` | `--reference` toglie il clamp e rende opachi i raggi d'ombra; `--seed 0` è bit-identico, un seed diverso dà un'immagine indipendente. |
+
+Il confronto con un renderer di riferimento esterno su scene complete vive fuori dalla suite, in
+`validation/` (vedi `validation/README.md`), insieme allo strumento `src/Tools/ImageCompare`.
+
 ## 5. Pattern: test di equivalenza
 
 La tecnica usata in `BvhEquivalenceTests` è riusabile per qualsiasi ottimizzazione di algoritmo geometrico:
@@ -163,7 +180,7 @@ Aree scoperte che sono candidate naturali per future espansioni:
 - `Transform.BoundingBox` cache (Phase 1): bbox cachato vs ricomputato. Test differenziale dopo rotazione/scala.
 - Intersezione `Torus` (risolutore quartico). Non testato unit — validato solo dalle scene.
 - CSG: operazioni booleane su primitive. Idealmente equivalenza CSG vs intersezione esplicita su casi canonici.
-- Materiali: Lambertian / Metal / Dielectric sampling distributions (test statistici).
+- Phase function e luci con il kit statistico di `Validation/` (oggi copre i materiali).
 
 ## 9. Riferimenti
 

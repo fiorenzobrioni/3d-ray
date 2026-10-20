@@ -319,6 +319,7 @@ The result is in `renders/hello.png`. From here you can change `color`, add more
 │       ├── FontGen/            # 3D font generator from system fonts or .ttf/.otf files
 │       ├── TextureGen/         # Procedural texture generator (PNG)
 │       ├── NormalMapGen/       # Flat normal map generator for testing
+│       ├── ImageCompare/       # Linear HDR image comparison (relMSE, mean ratio, diff map)
 │       ├── ChessGen/           # Chess scene generator (chess.yaml)
 │       └── TempleGen/          # Roman temple scene generator (tempio-romano.yaml)
 ├── scenes/                     # YAML scene files
@@ -380,6 +381,13 @@ dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- \
 Output: `scenes/assets/heightmaps/<stem>-height.png` + `scenes/assets/heightmaps/<stem>.yaml`  
 With `--with-cameras`: also `scenes/<stem>-preview.yaml` (render-ready scene with five cameras).
 
+### ImageCompare
+Compares a linear HDR render (`.pfm` or `.exr`) with a reference image: mean luminance ratio (global energy bias), relMSE, RMSE, SMAPE and the share of pixels off by more than 10%, plus an optional false-colour map of the signed relative error (red = brighter, blue = darker). Pair it with `--reference` and `--aov beauty` to validate the engine:
+```bash
+dotnet run --project src/Tools/ImageCompare/ImageCompare.csproj -- \
+  test.beauty.pfm reference.pfm [--diff diff.png] [--diff-scale 0.25] [--crop x,y,w,h] [--json]
+```
+
 ---
 
 ## 📖 Usage Guide and CLI
@@ -413,6 +421,8 @@ With `--with-cameras`: also `scenes/<stem>-preview.yaml` (render-ready scene wit
 | `--sss-mode` | - | `auto` | Random walk subsurface scattering dispatch: `auto` (default) - media bound to entities with `σ_s > 0` activate the walk; `off` - pushed media are downgraded to absorption-only (Beer-Lambert legacy), useful for fast previews and A/B comparison. |
 | `--sss-quality` | - | from `-q` | Random-walk preset: `preview` (16 vol-bounces, no NEE in-walk), `normal` (64, NEE on), `high` (256, NEE on). If omitted, inherited from the `-q` preset (`draft*` → preview, `pre-final*`/`final*`/`ultra` → high; on `standard*` SSS is disabled). |
 | `--max-volume-bounces` | - | from `--sss-quality` | Hard cap on random-walk bounces inside an entity. Overrides the preset value, useful for stress tests on dense media (`--max-volume-bounces 16`) or for extra quality (`--max-volume-bounces 512`). |
+| `--reference` | - | - | **Reference (unbiased) estimator**, for validating the engine: disables the firefly clamps (`-C`, `--indirect-clamp-factor`), the straight-through transparent shadows of glass, the dead-path cutoff, the denoiser and the photon caustics, and uses fixed Russian Roulette thresholds. Slower to converge but free of bias: compare it with a reference image through `--aov beauty` and `ImageCompare`. |
+| `--seed` | - | `0` | Extra seed for the sample sequences. `0` = the standard sequences (bit-identical output); any other value renders a statistically independent image of the same scene (used to average independent renders). |
 | `--list-cameras` | - | - | List available cameras in the scene and exit. |
 | `--verbose` | `-v` | - | Show detailed information during scene loading and analysis (imports, templates, medium σ, Russian Roulette tuning). Useful for scene debugging and development. |
 | `--help` | `-h` | - | Show the help message and exit. |

@@ -36,6 +36,7 @@ Key flags:
 - `--mis balance|power` - multiple-importance-sampling heuristic (default: `balance`).
 - `--texture-filtering auto|on|off` - trilinear mip-map filtering override.
 - `--exposure <f>` - EV exposure adjustment applied before tone mapping.
+- `--reference` - unbiased reference estimator for validation (no clamps, no straight-through transparent shadows, no dead-path cutoff, fixed RR; refuses denoiser and photon caustics). `--seed <n>` - independent sample sequences (0 = bit-identical default).
 - `--indirect-clamp-factor <f>` - stricter firefly clamp for the indirect contribution, applied once camera-relative (default 0.25 = on; 1.0 = off, i.e. same as `-C`).
 - `-v/--verbose` - print per-tile progress and timing.
 
@@ -57,6 +58,7 @@ dotnet run -c Release --project src/RayTracer.Benchmarks -- --filter '*Bvh*' --j
 ### Tools
 In-solution (`3d-ray.slnx`), run with `dotnet run --project src/Tools/<Name>/<Name>.csproj -- <flags>` (see each tool's `--help`):
 - `TextureGen`, `NormalMapGen` - procedural texture / normal-map generators.
+- `ImageCompare` - compares a linear HDR render (PFM/EXR) with a reference: mean ratio, relMSE, SMAPE, bad-pixel share, false-colour diff (`--json` for scripts).
 - `FontGen` - emits font templates under `scenes/assets/fonts/` for the `extrusion` primitive.
 - `TerrainGen` - writes a reusable `scenes/assets/heightmaps/<name>.yaml` (a single `type: heightfield` entity, intersected directly via min/max mipmap - no mesh tessellation) + a 16-bit grayscale heightmap PNG; `--with-cameras` also emits a ready-to-render `scenes/<name>-preview.yaml`.
 
@@ -68,7 +70,7 @@ Standalone (on disk under `src/Tools/`, not in the solution - run directly with 
 ## Architecture
 
 ### Solution layout
-`3d-ray.slnx` groups three engine projects (`src/RayTracer`, `src/RayTracer.Tests`, `src/RayTracer.Benchmarks`) and four tools (`src/Tools/{TextureGen,NormalMapGen,TerrainGen,FontGen}`); the standalone tools above are intentionally excluded. CI builds `RayTracer.csproj` and runs the test suite; benchmarks are opt-in.
+`3d-ray.slnx` groups three engine projects (`src/RayTracer`, `src/RayTracer.Tests`, `src/RayTracer.Benchmarks`) and five tools (`src/Tools/{TextureGen,NormalMapGen,TerrainGen,FontGen,ImageCompare}`); the standalone tools above are intentionally excluded. CI builds `RayTracer.csproj` and runs the test suite; benchmarks are opt-in.
 
 ### Rendering pipeline (YAML → pixel)
 `Program.cs` → `SceneLoader.Load()` → `Renderer(..).Render(w,h)` → `SaveImage()`. The detailed contract between stages is in `docs/technical/rendering-pipeline.md`. Key invariants that span multiple files:
@@ -119,11 +121,15 @@ When planning a change, include doc updates as explicit final steps so they don'
 - **User-facing features** (new/changed/removed CLI flags, rendering behaviour, tools): root `README.md` (English, primary) **and** `README.it.md` (Italian). Both files must be kept in sync - any change made to one must be applied to the other with the same information in the respective language.
 - **Dev history & planning**: record completed work/design rationale in `devlog/devlog.md`; track roadmap, TODO, and known bugs in `PLANNING.md`. Newest entry always on top. When `devlog.md` reaches 1000 lines, archive it as `devlog/devlog-YYYY-MM-DD.md` and create a new `devlog/devlog.md` using the template in `devlog/README.md`.
 
+### Engine review in progress
+
+`PIANO-REVIEW.md` (Italian, internal like `PLANNING.md`) is the active plan for the full review of the engine's math, optics and physics, phase by phase (0 to 11). It stays in the repo until every phase is closed. When working on a phase: follow its checklist, tick the boxes, update the status table at the top and the phase's "Esito" section, and log the details in `devlog/devlog.md`. The validation tooling it relies on: `--reference` mode, the BSDF statistical test kit in `src/RayTracer.Tests/Validation/`, `src/Tools/ImageCompare`, and the Mitsuba 3 harness in `validation/` (see `validation/README.md`).
+
 ### No third-party renderer names in public docs
 
 Never mention Arnold, Cycles, RenderMan, Blender, V-Ray, Octane, Redshift, or any other external renderer/DCC tool in `README.md`, `README.it.md` or any file under `docs/`. This applies even when a feature was designed by taking inspiration from one of those systems. Keep the public documentation clean and self-contained.
 
-Files in `devlog/` and `PLANNING.md` are internal notes - references to external renderers are allowed there when describing completed work, design rationale, or roadmap items that need full technical context.
+Files in `devlog/`, `PLANNING.md`, `PIANO-REVIEW.md` and `validation/` are internal notes - references to external renderers are allowed there when describing completed work, design rationale, or roadmap items that need full technical context.
 
 ### Writing style
 

@@ -486,3 +486,4 @@ $RECYCLE.BIN/
 renders/[0-9][0-9]-test*.*
 scenes/[0-9][0-9]-test*.yaml
 renders/mis-comparison/
+validation/out/

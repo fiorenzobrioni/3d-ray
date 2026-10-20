@@ -318,6 +318,7 @@ Il risultato è in `renders/hello.png`. Da qui puoi cambiare `color`, aggiungere
 │       ├── FontGen/            # Generatore di font 3D partendo da font di sistema o file .ttf/.otf
 │       ├── TextureGen/         # Generatore texture procedurali (PNG)
 │       ├── NormalMapGen/       # Generatore flat normal map per test
+│       ├── ImageCompare/       # Confronto di immagini HDR lineari (relMSE, rapporto delle medie, mappa differenza)
 │       ├── ChessGen/           # Generatore scena scacchiera chess.yaml
 │       └── TempleGen/          # Generatore scena tempio-romano.yaml
 ├── scenes/                     # File YAML di scene
@@ -379,6 +380,13 @@ dotnet run --project src/Tools/TerrainGen/TerrainGen.csproj -- \
 Output: `scenes/assets/heightmaps/<stem>-height.png` + `scenes/assets/heightmaps/<stem>.yaml`  
 Con `--with-cameras`: anche `scenes/<stem>-preview.yaml` (scena pronta al render con cinque camere).
 
+### ImageCompare
+Confronta un render HDR lineare (`.pfm` o `.exr`) con un'immagine di riferimento: rapporto delle luminanze medie (bias globale di energia), relMSE, RMSE, SMAPE e quota di pixel fuori del 10%, più una mappa opzionale in falsi colori dell'errore relativo con segno (rosso = più chiaro, blu = più scuro). Da usare con `--reference` e `--aov beauty` per validare il motore:
+```bash
+dotnet run --project src/Tools/ImageCompare/ImageCompare.csproj -- \
+  test.beauty.pfm reference.pfm [--diff diff.png] [--diff-scale 0.25] [--crop x,y,w,h] [--json]
+```
+
 ---
 
 ## 📖 Guida all'Uso e CLI
@@ -412,6 +420,8 @@ Con `--with-cameras`: anche `scenes/<stem>-preview.yaml` (scena pronta al render
 | `--sss-mode` | - | `auto` | Dispatch del random walk subsurface scattering: `auto` (default) - i media bound a entità con `σ_s > 0` attivano il walk; `off` - i media pushati sono declassati ad assorbimento solo (Beer-Lambert legacy), utile per preview rapide e A/B comparison. |
 | `--sss-quality` | - | da `-q` | Preset random-walk: `preview` (16 vol-bounce, no NEE in-walk), `normal` (64, NEE on), `high` (256, NEE on). Se omesso, ereditato dal preset `-q` (`draft*` → preview, `pre-final*`/`final*`/`ultra` → high; su `standard*` il SSS è disattivato). |
 | `--max-volume-bounces` | - | da `--sss-quality` | Cap massimo sui bounce del random walk in un'entità. Override del valore del preset, utile per stress test su media densi (`--max-volume-bounces 16`) o per qualità extra (`--max-volume-bounces 512`). |
+| `--reference` | - | - | **Stimatore di riferimento (non distorto)**, per validare il motore: disattiva i clamp anti-firefly (`-C`, `--indirect-clamp-factor`), le ombre trasparenti "dritte" del vetro, la soglia dei path morti, il denoiser e le caustiche a fotoni, e usa soglie fisse per la Russian Roulette. Converge più lentamente ma è privo di bias: si confronta con un'immagine di riferimento tramite `--aov beauty` e `ImageCompare`. |
+| `--seed` | - | `0` | Seed aggiuntivo per le sequenze di campionamento. `0` = sequenze standard (output bit-identico); qualsiasi altro valore produce un'immagine statisticamente indipendente della stessa scena (serve a mediare render indipendenti). |
 | `--list-cameras` | - | - | Elenca le camere disponibili nella scena ed esce. |
 | `--verbose` | `-v` | - | Mostra informazioni dettagliate durante il caricamento e l'analisi della scena (import, template, σ del medium, tuning Russian Roulette). Utile per debug e sviluppo scene. |
 | `--help` | `-h` | - | Mostra il messaggio di aiuto ed esce. |
