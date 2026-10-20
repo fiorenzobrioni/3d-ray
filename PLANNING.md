@@ -57,7 +57,7 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 | 21 | CSG (union/intersection/subtraction, all-hits, normali corrette) | ✅ |
 | 22 | Instancing (geometria condivisa, override material/seed per-istanza) | ✅ |
 | +  | Extrusion primitive (linear/catmull_rom/bezier + twist + taper + caps) | ✅ |
-| +  | Transparent shadow rays (vetro Fresnel-tinted in NEE - Strada 1) | ✅ |
+| +  | Transparent shadow rays (vetro Fresnel-tinted in NEE - Strada 1; dal 2026-10-20 opzionale con `--transparent-shadows on`, senza doppio conteggio) | ✅ |
 
 **Volumetrics Stage 1+1.5**: medium globale opt-in (`world.medium`), output bit-identico se assente. `IMedium`: Homogeneous (Beer-Lambert + free-path), HeightFog (densità esponenziale closed-form), HeterogeneousProcedural (Perlin fBm, delta+ratio tracking), Grid (`.vol` o inline, slab clip + trilinear + delta tracking). `IPhaseFunction`: Isotropic, HG, Rayleigh, Double-HG (Nubis), Schlick (fast-HG). Stage 2 (deferred): EmissiveMedium, MediumInterface per-entity, SSS random-walk, OpenVDB nativo, spectral tracking - tutti richiedono modifiche ad `IMedium` / `HitRecord` / `Renderer.TraceRay`.
 
@@ -122,9 +122,10 @@ Emersi durante la stesura del piano di review (dettagli e posizioni in [`PIANO-R
 
 Misurati nella Fase 0 della review (validazione contro Mitsuba 3, `validation/`):
 
-- [ ] **Raggi d'ombra che colpiscono il proxy della luce**: nessuna luce diretta oltre ~52° dalla normale di una luce d'area (-12%), taglio anche su emissivi e luci sferiche (§3.19). Grave.
-- [ ] **Clamp `-C 10` di default**: Cornell box -22% di energia (§3.20). Grave.
-- [ ] **Ombre trasparenti di default**: l'ombra delle sfere di vetro sparisce, doppio conteggio con i cammini reali (§3.21). Grave.
+- [x] **Raggi d'ombra che colpiscono il proxy della luce** (§3.19): corretto 2026-10-20, insieme alla precisione di campionamento e intersezione delle sfere.
+- [x] **Clamp `-C 10` di default** (§3.20): corretto 2026-10-20, ora opzionale.
+- [x] **Ombre trasparenti di default** (§3.21): corrette 2026-10-20, `--transparent-shadows on` opzionale e senza doppio conteggio.
+- [x] **`Dielectric` con Fresnel di Schlick** (§3.24) e **tempo del motion blur non passato agli emissivi** (§3.25): corretti 2026-10-20.
 - [ ] **Metal**: lobo lambertiano solo nella NEE, rough metal +37% (§3.7, ora confermato come bug).
 - [ ] **Disney**: energia creata da sheen, clearcoat e vetro (§3.17); `diff_trans` -1% (§3.18).
 - [ ] **Default `color` 0.5 anche per vetro ed emissivo** (§3.22) e chiavi YAML sconosciute ignorate in silenzio (§3.23).
@@ -178,4 +179,4 @@ Da eseguire prima di un commit importante.
 - [ ] **Torus**: render `torus-showcase.yaml` con camera `pinhole`/`dof_soft`/`dof_extreme` - no contorni fantasma, occlusione torus/cone e torus/cylinder corretta.
 - [ ] **Import**: materiali e template importati da file esterni funzionano.
 - [ ] **Template override**: il materiale dell'istanza sovrascrive quello del template.
-- [ ] **Transparent shadows**: render `cornell-box-spheres.yaml` - la sfera di vetro centrale proietta un alone Fresnel-tinted, non un'ombra dura.
+- [ ] **Transparent shadows**: render `cornell-box-spheres.yaml` con `--transparent-shadows on` - la sfera di vetro centrale proietta un alone Fresnel-tinted; senza il flag proietta ombra e caustica fisiche.

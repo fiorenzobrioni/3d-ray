@@ -269,7 +269,7 @@ public class CausticRenderTests
             Sampler.SetKind(SamplerKind.Prng);
             var (world, lights, _) = BuildScene();
             var r = new Renderer(world, cam, lights, new SkySettings(Vector3.Zero), Spp, Depth,
-                                 globalMedium: null, maxSampleRadiance: Renderer.DefaultMaxSampleRadiance,
+                                 globalMedium: null, maxSampleRadiance: Renderer.SuggestedMaxSampleRadiance,
                                  verbose: false, enableCaustics: caustics, causticPhotons: photons);
             return r.Render(W, H);
         }

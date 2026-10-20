@@ -476,7 +476,7 @@ sample = ClampRadiance(sample);
 Applicato a ogni campione individuale PRIMA dell'accumulo:
 
 1. **NaN/Inf guard** — qualsiasi componente non-finita diventa zero.
-2. **Luminance-preserving clamp** — se la luminanza del campione supera `MaxSampleRadiance` (default 10), il vettore viene scalato uniformemente. Questo preserva la tinta del colore (niente hue shift) eliminando i picchi estremi da caustiche, boost RR, o compensazione dei lobe Disney. Il clamp indiretto (`--indirect-clamp-factor`, default 0.25) è applicato **una sola volta**, relativo alla camera, sul contributo indiretto pesato per la throughput alla superficie primaria — non accumulato a ogni rimbalzo.
+2. **Luminance-preserving clamp (opzionale)** - solo con `-C <n>`: se la luminanza del campione supera `MaxSampleRadiance`, il vettore viene scalato uniformemente. Questo preserva la tinta del colore (niente hue shift) eliminando i picchi estremi da caustiche, boost RR, o compensazione dei lobe Disney. È spento per default perché la soglia è una radianza assoluta e toglie anche luce legittima (biased). Il clamp indiretto (`--indirect-clamp-factor`, default 0.25, attivo solo con `-C`) è applicato **una sola volta**, relativo alla camera, sul contributo indiretto pesato per la throughput alla superficie primaria, non accumulato a ogni rimbalzo.
 
 ### 5.2 Media dei Campioni
 

@@ -248,7 +248,18 @@ public partial class Renderer
             // that should not attenuate the shadow ray at all.
             if (_walkConfig.NeeInsideWalk && b < _walkConfig.NeeMaxBounce)
             {
-                Vector3 Lnee = ComputeDirectLightingMedium(p, ray.Direction, medium, entityRoot, ray.Time);
+                // The walk's own boundary is a null interface for its light
+                // samples, exactly as for its escape (see ShadowRay.PassThroughEntity).
+                ShadowRay.PassThroughEntity = entityRoot;
+                Vector3 Lnee;
+                try
+                {
+                    Lnee = ComputeDirectLightingMedium(p, ray.Direction, medium, entityRoot, ray.Time);
+                }
+                finally
+                {
+                    ShadowRay.PassThroughEntity = null;
+                }
                 Lnee = ClampWalkInScattering(Lnee, b);
                 L += relBeta * Lnee;
             }

@@ -841,7 +841,7 @@ is *which slice* of the ACES curve your radiance lands on.
   point for any scene.
 - **Firefly controls:**
   - `soft_radius` on point/spot/area lights → floors the attenuation denominator
-  - `--indirect-clamp-factor 0.25` → tighter clamp on bounce ≥ 1
+  - `-C 10 --indirect-clamp-factor 0.25` → opt-in clamp (biased), tighter on bounce ≥ 1
   - `--light-sampling power` → pick one light ∝ `ApproximatePower` (faster convergence in multi-light scenes)
 
 ---

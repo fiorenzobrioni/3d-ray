@@ -96,7 +96,7 @@ def render_mitsuba(scene: Path, cfg: dict, run: dict, out: Path, variant: str) -
 
 
 def render_3dray(scene: Path, cfg: dict, run: dict, out_png: Path, reference: bool,
-                 spp: int | None = None, seed: int = 0) -> float:
+                 spp: int | None = None, seed: int = 0, extra: list[str] | None = None) -> float:
     cmd = ["dotnet", "run", "--project", str(RAYTRACER), "-c", "Release", "--no-build", "--",
            "-i", str(scene), "-o", str(out_png),
            "-w", str(cfg["width"]), "-H", str(cfg["height"]),
@@ -108,6 +108,7 @@ def render_3dray(scene: Path, cfg: dict, run: dict, out_png: Path, reference: bo
         cmd += ["--denoiser", "none"]
     if seed:
         cmd += ["--seed", str(seed)]
+    cmd += extra or []
     t0 = time.time()
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode != 0 or "Error" in res.stdout:
@@ -195,11 +196,15 @@ def validate(scene: Path, args) -> list[dict]:
                 mitsuba_note = "approx: " + ", ".join(sorted(used))
         row = {"scene": scene.stem, "run": run["name"], "depth": run["depth"], "spp": cfg["spp"],
                "reference_spp": cfg["reference_spp"], "analytic": analytic, "note": mitsuba_note}
-        for mode, reference in (("reference", True), ("default", False)):
-            if mode == "default" and args.skip_default:
+        # Extra modes: the default mode plus the listed flags, e.g.
+        #   extra_modes: { transparent: ["--transparent-shadows", "on"] }
+        modes = [("reference", True, []), ("default", False, [])]
+        modes += [(name, False, list(flags)) for name, flags in (cfg.get("extra_modes") or {}).items()]
+        for mode, reference, flags in modes:
+            if mode != "reference" and args.skip_default:
                 continue
             png = out / f"3dray-{mode}.png"
-            t = render_3dray(scene, cfg, run, png, reference)
+            t = render_3dray(scene, cfg, run, png, reference, extra=flags)
             target = None if analytic is not None else (ref if ref.exists() else None)
             if target is None and analytic is None:
                 continue
@@ -272,7 +277,9 @@ def write_report(rows: list[dict], conv: list[dict]) -> None:
              "| scene | run | mode | mean ratio | relMSE | FLIP | bad px | note |",
              "|---|---|---|---|---|---|---|---|"]
     for r in rows:
-        for mode in ("reference", "default"):
+        modes = ["reference", "default"] + [k for k in r if k not in
+                 ("reference", "default", "scene", "run", "depth", "spp", "reference_spp", "analytic", "note")]
+        for mode in modes:
             m = r.get(mode)
             if not m:
                 continue

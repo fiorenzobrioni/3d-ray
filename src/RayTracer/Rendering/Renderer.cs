@@ -150,6 +150,27 @@ public partial class Renderer
     // L S+ D transport is owned by the photon gather, so its mirror BSDF path
     // (D S+ L emission) is suppressed here.
     private const int CausticNone = 0, CausticDiffuse = 1, CausticSuppress = 2;
+    // Bit on top of the state: every event of the specular chain since the
+    // last diffuse vertex was a transmission a shadow ray also crosses (straight
+    // transmission always, any transmission with transparent shadows). Such a
+    // chain ending on a light is exactly what the light sample already
+    // delivered through the same surfaces, so its emission is dropped.
+    private const int CausticStateMask = 3, ChainShadowPassable = 4;
+
+    // ── Transparent shadows (opt-in, PIANO-REVIEW.md §3.21) ─────────────────
+    // Off: surfaces are opaque to NEE shadow rays, except straight transmission
+    // (IOR-1 shells, thin sheets: IMaterial.TransmitsStraight), and light
+    // through glass arrives only along the BSDF paths that actually cross it
+    // (the unbiased, physically correct default; caustics included, noisy).
+    // On: shadow rays
+    // pass straight through glass, tinted by its Fresnel transmittance, a
+    // cheap and noise-free stand-in for the refracted light. To keep that
+    // approximation from adding to the real transport (the old default,
+    // which wiped out the shadow of a glass sphere), the BSDF paths
+    // "diffuse → through glass → light" are suppressed and a light sample
+    // that crossed glass takes the full MIS weight: one estimator per
+    // transport, as production renderers do with caustics disabled.
+    private readonly bool _transparentShadows;
 
     // ── Russian Roulette configuration ──────────────────────────────────────
     //
@@ -222,24 +243,25 @@ public partial class Renderer
     private readonly int _rrMinBounces;
     private readonly float _rrMinSurvival;
 
-    // ── Firefly suppression ─────────────────────────────────────────────────
-    // Maximum per-sample radiance (before tone mapping). Catches outliers from
-    // RR boost, Disney lobe compensation, specular caustics, and NaN/Inf edge
-    // cases. After ACES tone mapping any luminance ≳ 5 already saturates to
-    // white, so a default of 10 leaves all legitimate highlights untouched
-    // while killing the rare bright spikes that produce visible firefly noise.
-    // Aligns with the Cycles `clamp_indirect = 10` and Arnold `AA_clamp ≈ 10`
-    // industry defaults. Override via the constructor (CLI flag --clamp/-C).
-    public const float DefaultMaxSampleRadiance = 10f;
+    // ── Firefly suppression (opt-in) ────────────────────────────────────────
+    // Maximum per-sample radiance (before tone mapping), enabled only when a
+    // value is passed (CLI flag --clamp/-C). Off by default: the threshold is
+    // an absolute radiance, so it does not single out outliers but cuts every
+    // sample brighter than it, and a scene whose lights are brighter than the
+    // threshold loses real energy (Cornell box with a radiance-20 panel: -22%,
+    // PIANO-REVIEW.md §3.20). Production renderers ship it disabled too.
+    // SuggestedMaxSampleRadiance is the value the docs propose as a starting
+    // point when fireflies must be traded for bias.
+    public const float SuggestedMaxSampleRadiance = 10f;
     private readonly float _maxSampleRadiance;
 
     // ── Depth-aware indirect firefly clamp ──────────────────────────────────
     // A second (typically tighter) clamp is applied to the indirect (bounce ≥ 1)
     // contribution inside ShadeSurface/ShadeSampleBounce, mirroring the
-    // Cycles/Arnold "indirect clamp" feature. Default 0.25 → indirect clamp =
-    // 0.25 × primary clamp = 2.5 with the default --clamp 10, which targets
-    // caustic / specular-chain fireflies that survive the primary clamp.
-    // Set to 1.0 to disable the extra suppression.
+    // Cycles/Arnold "indirect clamp" feature. It scales the primary clamp, so
+    // it is active only together with it: 0.25 → indirect clamp = 2.5 with
+    // --clamp 10, targeting caustic / specular-chain fireflies that survive
+    // the primary clamp. Set to 1.0 to disable the extra suppression.
     //
     // CLI: --indirect-clamp-factor <f>   (e.g. 1.0 = same as primary clamp)
     public const float DefaultIndirectClampFactor = 0.25f;
@@ -344,9 +366,11 @@ public partial class Renderer
         int causticPhotons = 0,
         MotionBlurSettings motionBlur = default,
         bool referenceMode = false,
-        int seed = 0)
+        int seed = 0,
+        bool transparentShadows = false)
     {
         _referenceMode = referenceMode;
+        _transparentShadows = transparentShadows && !referenceMode;
         _seedMix = seed == 0 ? 0u : MixSeed((uint)seed);
         _deadPathEpsilon = referenceMode ? 0f : DeadPathThroughputEpsilon;
         _world = world;
@@ -361,8 +385,10 @@ public partial class Renderer
         _globalMedium = globalMedium;
         _maxSampleRadiance = referenceMode
             ? float.PositiveInfinity
-            : maxSampleRadiance ?? DefaultMaxSampleRadiance;
-        _indirectMaxSampleRadiance = referenceMode
+            : maxSampleRadiance ?? float.PositiveInfinity;
+        // Without a primary clamp there is no indirect one either (and ∞ · 0
+        // would be NaN).
+        _indirectMaxSampleRadiance = float.IsPositiveInfinity(_maxSampleRadiance)
             ? float.PositiveInfinity
             : _maxSampleRadiance * MathF.Max(0f, indirectClampFactor);
         _exposureScale = MathF.Pow(2f, exposureEv);
@@ -627,10 +653,12 @@ public partial class Renderer
             // owns that refracted light). Set on this worker before any shadow ray
             // it casts; re-set every tile so it never leaks across renders.
             ShadowRay.BlockSpecularTransmission = _causticsActive;
-            // Reference mode: every surface is opaque to NEE shadow rays. Light
-            // through glass then arrives only along BSDF-sampled paths, the
-            // unbiased estimator, instead of the straight-through approximation.
-            ShadowRay.BlockAllTransmission = _referenceMode;
+            // Opaque shadow rays unless transparent shadows were asked for.
+            // Light through glass then arrives only along BSDF-sampled paths,
+            // the unbiased estimator. Photon caustics keep their own rule: the
+            // map owns smooth glass, rough glass stays a transparent shadow.
+            ShadowRay.BlockAllTransmission = _referenceMode
+                || (!_transparentShadows && !_causticsActive);
             if (_seedMix != 0 && !useSobol)
                 MathUtils.ReseedThread(unchecked((int)(_seedMix ^ (uint)tile * 2654435761u)));
 
@@ -1121,7 +1149,7 @@ public partial class Renderer
         // photon gather at the originating diffuse vertex, so counting the
         // mirror BSDF path here would double it.
         Vector3 emitted = Vector3.Zero;
-        if (material != null && !(_causticsActive && causticState == CausticSuppress))
+        if (material != null && !SuppressChainEmission(causticState))
         {
             Vector3 raw = material.Emit(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed, rec.FrontFace);
             if (raw.X > 0f || raw.Y > 0f || raw.Z > 0f)
@@ -1261,7 +1289,8 @@ public partial class Renderer
                                          currentAbsorption: currentAbsorption,
                                          pathThroughput: nextThroughput,
                                          incomingCategory: nextCat,
-                                         causticState: NextCausticState(causticState, nextIsDelta));
+                                         causticState: NextCausticState(causticState, nextIsDelta,
+                                             ShadowPassable(material, in rec, scattered.Direction)));
             // Sanitize NaN/Inf every frame (idempotent — no bias); the magnitude
             // firefly clamp is applied once, camera-relative, below.
             indirect = SanitizeRadiance(indirect);
@@ -1418,7 +1447,8 @@ public partial class Renderer
                                      currentAbsorption: nextAbsorption,
                                      pathThroughput: nextThroughput,
                                      incomingCategory: nextCat,
-                                     causticState: NextCausticState(causticState, s.IsDelta));
+                                     causticState: NextCausticState(causticState, s.IsDelta,
+                                         ShadowPassable(material, in rec, s.Wo)));
             }
         }
         else
@@ -1432,7 +1462,8 @@ public partial class Renderer
                                  currentAbsorption: nextAbsorption,
                                  pathThroughput: nextThroughput,
                                  incomingCategory: nextCat,
-                                 causticState: NextCausticState(causticState, s.IsDelta));
+                                 causticState: NextCausticState(causticState, s.IsDelta,
+                                     ShadowPassable(material, in rec, s.Wo)));
         }
         // Sanitize NaN/Inf every frame (idempotent); magnitude clamp applied
         // once, camera-relative, below — see ShadeSurface's Scatter path.
@@ -1492,11 +1523,47 @@ public partial class Renderer
     /// view of a light is never suppressed.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int NextCausticState(int state, bool isDelta)
+    private static int NextCausticState(int state, bool isDelta, bool shadowPassable)
     {
         if (!isDelta) return CausticDiffuse;
-        return state == CausticNone ? CausticNone : CausticSuppress;
+        int s = state & CausticStateMask;
+        if (s == CausticNone) return CausticNone;
+        bool chainPassable = shadowPassable && (s == CausticDiffuse || (state & ChainShadowPassable) != 0);
+        return CausticSuppress | (chainPassable ? ChainShadowPassable : 0);
     }
+
+    /// <summary>
+    /// Whether a sampled direction crosses the surface the way a shadow ray
+    /// would also cross it (see <see cref="ChainShadowPassable"/>).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool ShadowPassable(IMaterial material, in HitRecord rec, Vector3 wo)
+    {
+        if (Vector3.Dot(wo, rec.Normal) >= 0f) return false;   // reflection
+        if (_causticsActive) return false;                      // photon rule owns chains
+        return _transparentShadows || material.TransmitsStraight(rec);
+    }
+
+    /// <summary>
+    /// Emission reached through a specular chain after a diffuse vertex is
+    /// already counted by another estimator: by the photon gather (photon
+    /// caustics, every chain) or by the transparent shadow ray (transparent
+    /// shadows, chains that went through a surface).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool SuppressChainEmission(int state)
+    {
+        if ((state & CausticStateMask) != CausticSuppress) return false;
+        return _causticsActive || (state & ChainShadowPassable) != 0;
+    }
+
+    /// <summary>
+    /// True when the light sample just taken reached the shading point through
+    /// a transparent shadow: its BSDF counterpart is suppressed
+    /// (<see cref="SuppressChainEmission"/>), so it must keep the full weight.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool LightSampleOwnsTransport() => ShadowRay.LastCrossedTransparent;
 
     /// <summary>
     /// Density estimate of the focused-caustic radiance reflected toward
@@ -1751,7 +1818,7 @@ public partial class Renderer
         if (activeMedium == null)
         {
             Vector3 result = !hit
-                ? SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
+                ? SampleSky(currentRay, prevBsdfPdf, prevIsDelta, causticState)
                 : ShadeSurface(currentRay, ref rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
                                pathThroughput, ref mediums, ref iors, causticState);
             // Beer-Lambert along the segment just traversed. Sky miss with
@@ -1828,7 +1895,7 @@ public partial class Renderer
                                  ref mediums, ref iors,
                                  currentAbsorption: currentAbsorption,
                                  pathThroughput: nextThroughput,
-                                 causticState: NextCausticState(causticState, isDelta: false));
+                                 causticState: NextCausticState(causticState, isDelta: false, shadowPassable: false));
             }
 
             return ApplyBeerLambert(beta * (Lnee + Lind), currentAbsorption, tMed);
@@ -1837,7 +1904,7 @@ public partial class Renderer
         // No medium event before tMax → continue with surface (or sky) shading,
         // attenuated by the medium throughput beta = Tr / pdf.
         Vector3 surfaceOrSky = !hit
-            ? beta * SampleSky(currentRay, prevBsdfPdf, prevIsDelta)
+            ? beta * SampleSky(currentRay, prevBsdfPdf, prevIsDelta, causticState)
             : beta * ShadeSurface(currentRay, ref rec, depth, prevBsdfPdf, prevIsDelta, currentAbsorption,
                                    pathThroughput * beta, ref mediums, ref iors, causticState);
         return ApplyBeerLambert(surfaceOrSky, currentAbsorption, hit ? rec.T : float.PositiveInfinity);
@@ -1878,8 +1945,14 @@ public partial class Renderer
     /// solid-angle-to-texel-count of a uniform cone with the BSDF's effective
     /// width. Sharp specular (delta) bounces use LOD 0.</para>
     /// </summary>
-    private Vector3 SampleSky(Ray ray, float prevBsdfPdf, bool prevIsDelta)
+    private Vector3 SampleSky(Ray ray, float prevBsdfPdf, bool prevIsDelta, int causticState = CausticNone)
     {
+        // A sky NEE-sampled through the same transparent surfaces already
+        // delivered this transport (see SuppressChainEmission).
+        bool skyIsNeeSampled = _envLight != null && _envLight.Sky.CanSampleDirectly;
+        if (skyIsNeeSampled && !_causticsActive && SuppressChainEmission(causticState))
+            return Vector3.Zero;
+
         // Camera rays + delta-mirror bounces see the full sky (sun included).
         // Non-delta indirect bounces see the sky body only.
         bool showSun = prevIsDelta;
@@ -2026,6 +2099,7 @@ public partial class Renderer
                     }
                 }
 
+                if (LightSampleOwnsTransport()) wNee = 1f;
                 lightAccum += wNee * lightColor * brdf * Tr;
             }
 
@@ -2086,7 +2160,8 @@ public partial class Renderer
                         }
                     }
 
-                    lightAccum += wNee * lightColor * brdf * Tr;
+                    if (LightSampleOwnsTransport()) wNee = 1f;
+                lightAccum += wNee * lightColor * brdf * Tr;
                 }
 
                 result += lightAccum;
@@ -2107,7 +2182,11 @@ public partial class Renderer
         // single-sample behaviour (directional sun-disc and multi-sample spots
         // guard on their own parameters internally). Replaces the former
         // per-sample type-ladder. See ILight.IlluminateAndTestStratified.
-        => light.IlluminateAndTestStratified(point, normal, _world, sampleIndex, time);
+    {
+        // Lights without a shadow walk (none today) must not inherit a stale flag.
+        ShadowRay.LastCrossedTransparent = false;
+        return light.IlluminateAndTestStratified(point, normal, _world, sampleIndex, time);
+    }
 
     /// <summary>
     /// Distance the medium attenuates over for a shadow ray fired from a point
@@ -2205,6 +2284,7 @@ public partial class Renderer
                     }
                 }
 
+                if (LightSampleOwnsTransport()) wNee = 1f;
                 lightAccum += wNee * lightColor * phaseVal * Tr;
             }
 
@@ -2256,7 +2336,8 @@ public partial class Renderer
                         }
                     }
 
-                    lightAccum += wNee * lightColor * phaseVal * Tr;
+                    if (LightSampleOwnsTransport()) wNee = 1f;
+                lightAccum += wNee * lightColor * phaseVal * Tr;
                 }
 
                 result += lightAccum;

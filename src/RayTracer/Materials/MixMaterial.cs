@@ -175,6 +175,10 @@ public sealed class MixMaterial : IMaterial
     }
 
     /// <inheritdoc/>
+    public bool TransmitsStraight(in HitRecord rec)
+        => MaterialA.TransmitsStraight(rec) && MaterialB.TransmitsStraight(rec);
+
+    /// <inheritdoc/>
     public Vector3 ShadowAbsorption(in HitRecord rec)
     {
         float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);

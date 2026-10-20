@@ -732,7 +732,7 @@ cambia è *quale fetta* della curva ACES vede la tua radianza.
 - Lo **schema a tre punti** (chiave, riempimento, contorno) è un punto di partenza affidabile per ogni scena.
 - **Controlli firefly:**
   - `soft_radius` su luci point/spot/area → clampa il denominatore dell'attenuazione
-  - `--indirect-clamp-factor 0.25` → clamp più stretto sui bounce ≥ 1
+  - `-C 10 --indirect-clamp-factor 0.25` → clamp opzionale (introduce bias), più stretto sui bounce ≥ 1
   - `--light-sampling power` → sceglie una luce per evento NEE ∝ `ApproximatePower` (convergenza più rapida in scene multi-luce)
 
 ---

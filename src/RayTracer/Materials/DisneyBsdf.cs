@@ -561,6 +561,19 @@ public sealed class DisneyBsdf : IMaterial
     /// <c>transmission_depth</c> is also ignored: it requires an interior
     /// segment length the straight-through walker doesn't track.
     /// </summary>
+    /// <summary>
+    /// Smooth specular transmission that does not bend: index-matched (IOR 1)
+    /// or thin-walled. Rough transmission scatters the direction, so it is not.
+    /// </summary>
+    public bool TransmitsStraight(in HitRecord rec)
+    {
+        ShadingParams sp = EvalParams(rec);
+        if (sp.SpecTrans <= 0f || sp.Roughness > 0.01f) return false;
+        // EvalParams floors the IOR at 1.0001 (Fresnel stays defined): that
+        // floor is the index-matched case.
+        return ThinWalled || sp.Ior < 1.001f;
+    }
+
     public Vector3 ShadowTransmittance(Vector3 wi, in HitRecord rec)
     {
         float u = rec.U, v = rec.V;

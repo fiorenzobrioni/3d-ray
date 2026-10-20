@@ -23,17 +23,21 @@ public class ReferenceModeTests
     private static Camera.Camera Cam() => RenderHarness.LookAt(new Vector3(0, 0, 4), Vector3.Zero, 10f, W, H);
 
     [Fact]
-    public void Reference_DisablesFireflyClamp()
+    public void FireflyClamp_IsOptIn_AndReferenceModeOverridesIt()
     {
         Sampler.SetKind(SamplerKind.Sobol);
-        // An emitter of radiance 100 filling the frame: the default per-sample
-        // clamp (10) caps it, reference mode must return it untouched.
+        // An emitter of radiance 100 filling the frame. No clamp by default
+        // (PIANO-REVIEW.md §3.20); an explicit clamp of 10 caps it; reference
+        // mode ignores even an explicit clamp.
         var world = new HittableList(new IHittable[] { new Sphere(Vector3.Zero, 1f, new Emissive(Vector3.One, 100f)) });
         var sky = new SkySettings(Vector3.Zero);
+        var none = new List<ILight>();
 
-        var clamped = RenderHarness.Mean(RenderHarness.RenderLinear(world, new List<ILight>(), sky, Cam(), W, H, 4, 4, reference: false));
-        var reference = RenderHarness.Mean(RenderHarness.RenderLinear(world, new List<ILight>(), sky, Cam(), W, H, 4, 4, reference: true));
+        var byDefault = RenderHarness.Mean(RenderHarness.RenderLinear(world, none, sky, Cam(), W, H, 4, 4, reference: false));
+        var clamped = RenderHarness.Mean(RenderHarness.RenderLinear(world, none, sky, Cam(), W, H, 4, 4, reference: false, clamp: 10f));
+        var reference = RenderHarness.Mean(RenderHarness.RenderLinear(world, none, sky, Cam(), W, H, 4, 4, reference: true, clamp: 10f));
 
+        Assert.InRange(byDefault.X, 99.9f, 100.1f);
         Assert.InRange(clamped.X, 9.9f, 10.1f);
         Assert.InRange(reference.X, 99.9f, 100.1f);
     }

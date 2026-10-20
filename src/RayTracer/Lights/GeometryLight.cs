@@ -134,8 +134,8 @@ public class GeometryLight : ILight
         IlluminateAndTestStratified(Vector3 hitPoint, Vector3 surfaceNormal, IHittable world, int sampleIndex, float time = 0f)
     {
         return _solidAngleSampler != null
-            ? ComputeSolidAngleSample(hitPoint, surfaceNormal, world, sampleIndex)
-            : ComputeAreaSample(hitPoint, surfaceNormal, world, sampleIndex);
+            ? ComputeSolidAngleSample(hitPoint, surfaceNormal, world, sampleIndex, time)
+            : ComputeAreaSample(hitPoint, surfaceNormal, world, sampleIndex, time);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -166,15 +166,7 @@ public class GeometryLight : ILight
         if (cosLight <= 0f)
             return (true, Vector3.Zero, dirToLight, distance);
 
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dirToLight, time);
-        // Compute tMax in shadow-ray parameter space (relative to shadowOrigin,
-        // not hitPoint). Using `distance - Epsilon` as tMax would cancel the
-        // OffsetOrigin shift whenever `dirToLight ≈ normal`, producing systematic
-        // self-intersection with the light's own surface and a black hole
-        // directly underneath small / close emitters.
-        float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
+        Vector3 trans = ShadowRay.TransmittanceToPoint(world, hitPoint, surfaceNormal, samplePoint, lightNormal, time);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 
@@ -226,14 +218,7 @@ public class GeometryLight : ILight
         if (cosLight <= 0f)
             return (false, Vector3.Zero, dirToLight, distance);
 
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dirToLight, time);
-        // See ComputeAreaSample for the derivation of this tMax — this bug bites
-        // the cone-sampling path systematically: every sample of a floor point
-        // directly under a floating sphere has dirToLight ≈ normal, so every
-        // sample self-intersects the emitter under the naive `distance - Epsilon`.
-        float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
+        Vector3 trans = ShadowRay.TransmittanceToPoint(world, hitPoint, surfaceNormal, samplePoint, lightNormal, time);
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);
 

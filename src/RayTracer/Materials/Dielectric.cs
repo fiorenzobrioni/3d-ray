@@ -56,6 +56,9 @@ public sealed class Dielectric : IMaterial
         return (1f - fr) * albedo;
     }
 
+    // IOR 1: no Fresnel reflection, no bending, only the tint.
+    public bool TransmitsStraight(in HitRecord rec) => MathF.Abs(RefractionIndex - 1f) < 1e-4f;
+
     // Clear dielectric = a pair of delta lobes, so its transmission is exactly
     // the smooth-specular transport the caustic photon map reconstructs.
     public bool IsSpecularTransmissive(in HitRecord rec) => true;
@@ -88,7 +91,12 @@ public sealed class Dielectric : IMaterial
         bool cannotRefract = ri * sinTheta > 1f;
         Vector3 direction;
 
-        if (cannotRefract || MathUtils.Schlick(cosTheta, ri) > MathUtils.RandomFloat())
+        // Exact unpolarised Fresnel, the same law ShadowTransmittance uses.
+        // Schlick's fit reflected (1 − cos)^5 even at IOR 1, where no
+        // reflection exists: an index-matched medium shell showed a rim and a
+        // highlight (PIANO-REVIEW.md §3.24), and real glass was off by a few
+        // percent at grazing angles.
+        if (cannotRefract || MathUtils.FresnelDielectric(cosTheta, ri) > MathUtils.RandomFloat())
             direction = MathUtils.Reflect(unitDirection, normal);
         else
             direction = MathUtils.Refract(unitDirection, normal, ri);

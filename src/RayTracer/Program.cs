@@ -71,7 +71,7 @@ class Program
         if (int.TryParse(GetArg(args, "--shadow-samples", "-S"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var ssOverride) && ssOverride > 0)
             shadowSamplesOverride = ssOverride;
 
-        // Firefly clamp CLI override (null = use Renderer.DefaultMaxSampleRadiance)
+        // Firefly clamp, opt-in (null = no clamp; see Renderer.SuggestedMaxSampleRadiance)
         float? clampOverride = null;
         if (float.TryParse(GetArg(args, "--clamp", "-C"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cOverride) && cOverride > 0f)
             clampOverride = cOverride;
@@ -375,6 +375,28 @@ class Program
             indirectClampFactor = Renderer.DefaultIndirectClampFactor;
         }
 
+        // `--transparent-shadows on|off` (default off): straight-through shadows
+        // of glass as an artistic stand-in for the refracted light. Off renders
+        // the physical result (glass casts its shadow and its caustic).
+        bool transparentShadows = false;
+        string? transparentShadowsArg = GetArg(args, "--transparent-shadows", null);
+        if (transparentShadowsArg != null)
+        {
+            switch (transparentShadowsArg.ToLowerInvariant())
+            {
+                case "on":  transparentShadows = true;  break;
+                case "off": transparentShadows = false; break;
+                default:
+                    Console.WriteLine($"Error: Unknown --transparent-shadows '{transparentShadowsArg}'. Valid: on, off.");
+                    return;
+            }
+        }
+        if (referenceMode && transparentShadows)
+        {
+            Console.WriteLine("Warning: --transparent-shadows on ignored in --reference mode.");
+            transparentShadows = false;
+        }
+
         // `--seed <n>`: independent sample sequences for the same scene
         // (0 = the default sequences, bit-identical to a render without it).
         int seed = 0;
@@ -441,12 +463,12 @@ class Program
             Console.WriteLine("  Reference:   on (no clamps, no transparent shadows, fixed RR, no denoiser/caustics)");
         if (seed != 0)
             Console.WriteLine($"  Seed:        {seed}");
+        if (transparentShadows)
+            Console.WriteLine("  Shadows:     transparent through glass (approximation, refracted caustics off)");
         if (clampOverride.HasValue)
-            Console.WriteLine($"  Clamp:       {clampOverride.Value} (override)");
-        if (!referenceMode && indirectClampFactor != Renderer.DefaultIndirectClampFactor)
         {
-            float baseClamp = clampOverride ?? Renderer.DefaultMaxSampleRadiance;
-            Console.WriteLine($"  Indir.clamp: ×{indirectClampFactor:F2} ({baseClamp * indirectClampFactor:F1} effective)");
+            Console.WriteLine($"  Clamp:       {clampOverride.Value} (biased: caps every brighter sample)");
+            Console.WriteLine($"  Indir.clamp: ×{indirectClampFactor:F2} ({clampOverride.Value * indirectClampFactor:F1} effective)");
         }
         if (exposureEv != Renderer.DefaultExposureEv)
             Console.WriteLine($"  Exposure:    {exposureEv:+0.0;-0.0;0.0} EV (×{MathF.Pow(2f, exposureEv):F2})");
@@ -515,7 +537,8 @@ class Program
                 sssMode, walkConfig,
                 enableCaustics: enableCaustics, causticPhotons: causticPhotons,
                 motionBlur: motionBlur,
-                referenceMode: referenceMode, seed: seed);
+                referenceMode: referenceMode, seed: seed,
+                transparentShadows: transparentShadows);
             Console.WriteLine();
 
             var captureOptions = denoiserKind != DenoiserKind.None || aovs.Count > 0
@@ -604,8 +627,9 @@ class Program
         Console.WriteLine("  -s, --samples <n>            Samples per pixel (default: 16 via draft-small preset)");
         Console.WriteLine("  -d, --depth <n>              Max ray depth (default: 4 via draft-small; use 8 for quality, 16+ for stacked glass)");
         Console.WriteLine("  -S, --shadow-samples <n>     Area light shadow samples override (default 4; perfect squares work best)");
-        Console.WriteLine("  -C, --clamp <n>              Max per-sample radiance / firefly clamp (default: 10)");
-        Console.WriteLine("      --indirect-clamp-factor  Clamp factor for indirect bounces (default: 0.25 = on; 1.0 = off)");
+        Console.WriteLine("  -C, --clamp <n>              Firefly clamp: max per-sample radiance (default: off).");
+        Console.WriteLine("                                Biased: cuts every sample brighter than n (try 10)");
+        Console.WriteLine("      --indirect-clamp-factor  Indirect clamp = -C x factor, only with -C (default: 0.25; 1.0 = off)");
         Console.WriteLine("      --exposure <EV>          Photographic exposure compensation in stops applied pre-ACES");
         Console.WriteLine("                                (default: 0 = identity; -1 darkens 2×, +1 brightens 2×)");
         Console.WriteLine("  -c, --camera <name|index>    Select camera by name or 0-based index");
@@ -626,6 +650,8 @@ class Program
         Console.WriteLine("      --sss-mode <auto|off>    Subsurface-scattering dispatch (default: auto = follow scene)");
         Console.WriteLine("      --sss-quality <preview|normal|high>   Random-walk preset; inherits from -q when omitted");
         Console.WriteLine("      --max-volume-bounces <n> Hard cap on random-walk bounces inside one entity");
+        Console.WriteLine("      --transparent-shadows <on|off>  Glass lets shadow rays through, tinted, instead of");
+        Console.WriteLine("                                casting its physical shadow and caustic (default: off)");
         Console.WriteLine("      --reference              Unbiased reference estimator for validation: no clamps,");
         Console.WriteLine("                                no transparent shadows, fixed RR, no denoiser/caustics");
         Console.WriteLine("      --seed <n>               Independent sample sequence (default 0 = standard sequence)");

@@ -91,6 +91,16 @@ public interface IMaterial
     Vector3 ShadowTransmittance(Vector3 wi, in HitRecord rec) => Vector3.Zero;
 
     /// <summary>
+    /// True when light crosses this surface without changing direction: an
+    /// index-matched (IOR 1) interface such as the transparent shell that bounds
+    /// a fog or water volume, or a smooth thin-walled sheet. A shadow ray
+    /// through it is then the exact transport, not the straight-through
+    /// approximation, so the renderer lets shadow rays cross it in every mode
+    /// (and drops the duplicate BSDF path through it, PIANO-REVIEW.md §3.21).
+    /// </summary>
+    bool TransmitsStraight(in HitRecord rec) => false;
+
+    /// <summary>
     /// Approximate surface reflectance at the hit point, consumed ONLY by the
     /// AOV/denoiser albedo guide buffer — never by light transport. The value
     /// should be the material's dominant colour (base colour / albedo texture)

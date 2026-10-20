@@ -60,7 +60,7 @@ Feature switches per tier: `standard` turns photon caustics and volumetric
 SSS **off** and uses power-weighted NEE with a relaxed indirect clamp (0.5);
 `pre-final`, `final` and `ultra` run the **full feature set** (caustics on -
 2M photons for pre-final, 2–4M for final/ultra - SSS high, all-lights NEE,
-default clamp). `ultra` stays at 512 spp on purpose: at 4K the pixel density
+no clamp). `ultra` stays at 512 spp on purpose: at 4K the pixel density
 hides per-pixel noise that would be visible at 1080p, and 1024 spp would
 double an already long render.
 
@@ -173,8 +173,9 @@ RayTracer -i my-scene -q standard --denoiser none
 | `-d` / `--depth` | `4` | `draft-small` preset |
 | `-S` / `--shadow-samples` | `1` (`draft-small`; without a preset → per-light YAML, default 4) | `Program.cs` |
 | `--denoiser` | `nfor` fast (`draft-small`) | `draft-small` preset |
-| `-C` / `--clamp` | `10` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
-| `--indirect-clamp-factor` | `0.25` (indirect clamp = `2.5`) | `Renderer.DefaultIndirectClampFactor` |
+| `-C` / `--clamp` | off (no firefly clamp) | opt-in, suggested start `10` (`Renderer.SuggestedMaxSampleRadiance`) |
+| `--indirect-clamp-factor` | `0.25` (only with `-C`: indirect clamp = `-C` × factor) | `Renderer.DefaultIndirectClampFactor` |
+| `--transparent-shadows` | `off` (glass casts its physical shadow and caustic) | `Program.cs` |
 | `--exposure` | `0` EV (identity) | `Renderer.DefaultExposureEv` |
 | `--light-sampling` | `all` (sum over every light) | `LightSamplingStrategy.All` |
 | `--texture-filtering` | `auto` (filtering on) | `Renderer.TextureFilteringMode.Auto` |
@@ -230,14 +231,14 @@ Pixel samples (`-s`) and shadow samples (`-S`) both reduce shadow noise. Prefer 
 
 ### 6. **FIREFLY CLAMP (`-C` / `--clamp`)**
 
-`MaxSampleRadiance` (exposed as `-C`) is the hard ceiling on per-sample radiance **before tone mapping**. It catches the rare outliers produced by specular caustics, Disney lobe compensation, and Russian Roulette boost - the pixels that would otherwise appear as bright white dots ("fireflies") in your render.
+`MaxSampleRadiance` (exposed as `-C`) is a hard ceiling on per-sample radiance **before tone mapping**. It catches the rare outliers produced by specular caustics, Disney lobe compensation, and Russian Roulette boost - the pixels that would otherwise appear as bright white dots ("fireflies") in your render.
 
-**Default:** `10`. After ACES tone mapping any luminance ≳ 5 already saturates to white, so `10` leaves all visible highlights untouched while killing rare bright spikes. A value of `10` is a solid starting point for most scenes.
+**Default: off.** The clamp is a trade of bias for noise, and the threshold is an absolute radiance: it does not single out outliers, it cuts every sample brighter than the value. In a scene whose lights are brighter than the threshold it removes real light (a Cornell box lit by a panel of radiance 20 lost 22% of its energy with the former default of `10`). Render without it first, use the denoiser or more samples against noise, and reach for `-C` only when isolated fireflies remain. `10` is a reasonable starting value for lights of radiance up to a few units.
 
 **When to raise `-C`:**
 - Strongly sun-lit HDRIs where the sun disk is showing up dimmer than expected.
 - Highly emissive scenes where you can verify that the bright source itself (not its caustics) is being suppressed. Try `-C 25–100`.
-- Disable effectively with a very high value. The tradeoff is potential fireflies in caustics and deep specular chains.
+- Removing `-C` turns the clamp off entirely. The tradeoff is potential fireflies in caustics and deep specular chains.
 
 **When to lower `-C` further:**
 - Dense fog / thick homogeneous media + high `-d`.
@@ -254,13 +255,23 @@ A second, optional clamp tightens suppression specifically on **indirect bounces
 --indirect-clamp-factor 0.25
 ```
 
-This multiplies the primary `-C` threshold for all indirect contributions. With the default `0.25` and `-C 10` the indirect clamp is `2.5`: deep-bounce radiance is capped at 2.5, primary radiance at 10. Set to `1.0` to disable the extra suppression and have the indirect clamp equal the primary clamp.
+This multiplies the primary `-C` threshold for all indirect contributions, so it acts only when `-C` is given. With the default `0.25` and `-C 10` the indirect clamp is `2.5`: deep-bounce radiance is capped at 2.5, primary radiance at 10. Set to `1.0` to disable the extra suppression and have the indirect clamp equal the primary clamp.
 
 **When to lower further:** caustic/specular chains that still produce fireflies at the default. Try `0.1` for heavily volumetric scenes with glass.
 
 **When to raise toward `1.0`:** scenes where indirect highlights look unexpectedly dim - typically pure-emissive Cornell-style setups or HDRIs where the only legitimate bright signal comes from indirect bounces.
 
-#### **6b. Light importance sampling (`--light-sampling`)**
+#### **6b. Transparent shadows (`--transparent-shadows`)**
+
+```
+--transparent-shadows on
+```
+
+**Default: off.** Glass then behaves physically: it casts its shadow, and the light it refracts reaches the floor along the paths that really cross it, which is the caustic (sharp but noisy at low sample counts; `--caustics on` focuses it with photons). Index-matched surfaces (`refraction_index: 1`, the transparent shell that bounds a fog or water volume) and smooth `thin_walled` sheets always let shadow rays through: their transmission does not bend light, so this is exact.
+
+`on` is an artistic approximation: shadow rays go straight through glass, tinted by its Fresnel transmittance, so clear glass casts a soft, tinted half-shadow instead of a shadow and a caustic. The refracted light paths from diffuse surfaces through the glass to the lights are dropped so the same light is not counted twice. Use it for quick, noise-free previews of scenes with a lot of glass; leave it off for final images.
+
+#### **6c. Light importance sampling (`--light-sampling`)**
 
 ```
 --light-sampling power
@@ -276,7 +287,7 @@ Selects how the renderer chooses which light to query per NEE event:
 
 With `all` the renderer fires `ShadowSamples` shadow rays per light per shading point - O(N·S). With `power` or `uniform` it fires shadow rays for one light, then divides by the sampling probability to remain unbiased - O(S). In a scene with 1 bright area light + 20 dim point lights, `power` converges substantially faster.
 
-#### **6c. Texture filtering (`--texture-filtering`)**
+#### **6d. Texture filtering (`--texture-filtering`)**
 
 ```
 --texture-filtering <auto|on|off>
@@ -301,7 +312,7 @@ without losing image quality. Disabling with `off` is only useful for
 debugging or A/B comparison; the cost of filtering is small (a few
 percent at most on typical scenes).
 
-#### **6d. Photographic exposure (`--exposure`)**
+#### **6e. Photographic exposure (`--exposure`)**
 
 ```
 --exposure <EV>
@@ -361,9 +372,9 @@ characteristics.
   - For publication-ready images aim for `-s 576` (24×24) or `-s 1024`.
   - If noise concentrates in the light cone, raise `-s` (not `-S`).
 - **Firefly clamp with dense fog.** Media with high `sigma_s` and `-d 8+`
-  occasionally produce rare bright spikes that survive the default `-C 10`.
-  Lower to `-C 5` or `-C 3` without hesitation: you lose little dynamic
-  range and gain a much cleaner image.
+  occasionally produce rare bright spikes. If more samples or the denoiser
+  do not remove them, add `-C 5` or `-C 3`: you trade a little bias for a
+  much cleaner image.
 - **`soft_radius` on point/spot lights inside a medium.** When a participating
   medium is active, the 1/d² attenuation of a `point`/`spot` light diverges at
   scattering events near the emitter, producing isolated firefly pixels that

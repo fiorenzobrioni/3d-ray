@@ -70,8 +70,67 @@ public static class ShadowRay
         set => _blockAllTransmission = value;
     }
 
+    /// <summary>
+    /// True when the last <see cref="Transmittance"/> walk on this thread let
+    /// light through at least one surface (a transparent shadow). The renderer
+    /// reads it right after a light sample: such a sample is then the only
+    /// estimator of that transport (the BSDF paths through the same glass are
+    /// suppressed), so it takes the full MIS weight.
+    /// </summary>
+    [ThreadStatic] private static bool _lastCrossedTransparent;
+
+    /// <summary>
+    /// Entity whose boundary shadow rays cross as if it were not there, set by
+    /// the random-walk subsurface integrator around its in-walk light samples.
+    /// The walk leaves its entity straight through the boundary with no
+    /// refraction and no Fresnel, and MIS-pairs that escape with these light
+    /// samples, so they must see the same null boundary. Every other surface
+    /// follows the normal rule. Thread-static like the switches above.
+    /// </summary>
+    [ThreadStatic] private static IHittable? _passThroughEntity;
+    public static IHittable? PassThroughEntity
+    {
+        get => _passThroughEntity;
+        set => _passThroughEntity = value;
+    }
+    public static bool LastCrossedTransparent
+    {
+        get => _lastCrossedTransparent;
+        set => _lastCrossedTransparent = value;
+    }
+
+    /// <summary>
+    /// Shadow ray from a shading point to a point sampled ON a light's surface
+    /// (area, sphere, emissive geometry), PBRT's "spawn ray to": both ends are
+    /// pushed off their surfaces along their own normals, the receiver's toward
+    /// its side and the light's toward the receiver, and the ray runs exactly
+    /// between the two shifted points. The light's surface then lies strictly
+    /// beyond the end of the ray, so the emitter can never shadow itself.
+    /// The previous form (shifted origin, direction measured from the unshifted
+    /// point, end at the light's surface) crossed the emitter whenever it was
+    /// seen away from its normal: no direct light beyond ~52° from an area
+    /// light's normal, and grazing samples of small spheres lost to the float
+    /// precision of the tangent intersection (PIANO-REVIEW.md §3.19).
+    /// </summary>
+    public static Vector3 TransmittanceToPoint(IHittable world, Vector3 hitPoint, Vector3 surfaceNormal,
+                                               Vector3 target, Vector3 targetNormal, float time)
+    {
+        Vector3 origin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        // Shift the target off the emitter on the receiver's side.
+        if (Vector3.Dot(targetNormal, origin - target) < 0f) targetNormal = -targetNormal;
+        Vector3 end = MathUtils.OffsetOrigin(target, targetNormal);
+        Vector3 toEnd = end - origin;
+        float distance = toEnd.Length();
+        // Receiver touching the emitter: nothing can lie in between.
+        if (distance <= 2f * MathUtils.Epsilon)
+            return Vector3.One;
+        var ray = new Ray(origin, toEnd / distance, time);
+        return Transmittance(world, ray, MathUtils.Epsilon, distance);
+    }
+
     public static Vector3 Transmittance(IHittable world, Ray ray, float tMin, float tMax, int maxBounces = 8)
     {
+        _lastCrossedTransparent = false;
         Vector3 throughput = Vector3.One;
         Vector3 origin = ray.Origin;
         Vector3 dir = ray.Direction;
@@ -113,10 +172,21 @@ public static class ShadowRay
                 continue;
             }
 
+            if (_passThroughEntity != null && ReferenceEquals(rec.EntityRoot, _passThroughEntity))
+            {
+                Vector3 passN = Vector3.Dot(dir, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
+                origin = MathUtils.OffsetOrigin(rec.Point, passN);
+                remaining -= rec.T + 2f * MathUtils.Epsilon;
+                if (remaining <= tMin) return throughput;
+                continue;
+            }
+
             if (rec.Material == null)
                 return Vector3.Zero;
 
-            if (_blockAllTransmission)
+            // Opaque mode still lets straight transmission through: crossing an
+            // index-matched shell or a thin sheet is the exact transport.
+            if (_blockAllTransmission && !rec.Material.TransmitsStraight(rec))
                 return Vector3.Zero;
 
             // Photon caustics active: a smooth specular transmissive interface
@@ -147,6 +217,7 @@ public static class ShadowRay
             throughput *= t;
             if (MathUtils.NearZero(throughput))
                 return Vector3.Zero;
+            _lastCrossedTransparent = true;
 
             // Entering a Beer-Lambert medium on this front-face hit?
             if (rec.FrontFace)

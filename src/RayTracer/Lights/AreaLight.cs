@@ -149,15 +149,7 @@ public class AreaLight : ILight
         if (cosLight <= 0f)
             return (false, Vector3.Zero, dirToLight, distance);
 
-        // Shadow test with normal-based origin.
-        // tMax is computed from shadowOrigin (not hitPoint) so the OffsetOrigin
-        // shift does not cancel the Epsilon margin when dirToLight aligns with
-        // the surface normal — otherwise the light's own geometry would register
-        // as a self-intersection and produce a black halo under/around the emitter.
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dirToLight, time);
-        float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
+        Vector3 trans = ShadowRay.TransmittanceToPoint(world, hitPoint, surfaceNormal, samplePoint, _normal, time);
 
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, distance);

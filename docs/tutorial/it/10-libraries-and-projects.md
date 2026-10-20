@@ -250,7 +250,7 @@ Per le scene volumetriche pesanti (mezzi `procedural`/`grid`, oppure
 `height_fog` denso) considera anche da CLI:
 
 ```
---indirect-clamp-factor 0.25   # clamp dei rimbalzi indiretti a 1/4 di -C
+-C 10 --indirect-clamp-factor 0.25   # firefly clamp opzionale (introduce bias): rimbalzi indiretti a 1/4 di -C
 --light-sampling power         # campiona una luce per evento NEE in
                                # proporzione alla potenza (riduce varianza
                                # con molte luci di brillanza mista)
@@ -436,12 +436,13 @@ L'insieme completo dei parametri della riga di comando:
 | `-s` | `--samples`         | `16` (draft-small)            | Campioni per pixel (Sobol: conteggio esatto; PRNG: arrotondato al quadrato perfetto superiore) |
 | `-d` | `--depth`           | `4` (draft-small; `8` nei preset di qualità — alza a 16+ per vetri impilati) | Numero massimo di rimbalzi dei raggi |
 | `-S` | `--shadow-samples`  | *(per luce)*                  | Sovrascrive i campioni d'ombra per tutte le luci area/sphere (quadrati perfetti) |
-| `-C` | `--clamp`           | `10`                          | Firefly clamp: radianza massima per-campione prima del tone mapping |
+| `-C` | `--clamp`           | spento                        | Firefly clamp opzionale: radianza massima per-campione prima del tone mapping (introduce bias; prova `10`) |
 | `-c` | `--camera`          | `0`                           | Seleziona la fotocamera per nome o indice base zero          |
 |      | `--sampler`         | `sobol`                       | Sampler per-pixel: `sobol` (Owen-scrambled) o `prng`         |
 |      | `--mis`             | `balance`                     | Heuristica MIS: `balance` o `power`                          |
 |      | `--light-sampling`  | `all`                         | Strategia NEE: `all`, `power`, `uniform`                     |
-|      | `--indirect-clamp-factor` | `0.25`                  | Fattore di clamp del contributo indiretto, applicato una volta relativo alla camera (`0.25` → clamp indiretto = ¼ di `-C`; `1.0` = disattivato) |
+|      | `--indirect-clamp-factor` | `0.25`                  | Fattore di clamp del contributo indiretto, applicato una volta relativo alla camera (`0.25` → clamp indiretto = ¼ di `-C`; `1.0` = disattivato), solo con `-C` |
+|      | `--transparent-shadows` | `off`                     | `on`: il vetro lascia passare i raggi d'ombra, tinti (niente ombra né caustica; approssimazione artistica) |
 |      | `--texture-filtering` | `auto`                      | Anti-aliasing analitico delle texture procedurali / image via ray differentials: `auto` / `on` (filtering attivo) o `off` (point-sampled, per benchmark) |
 |      | `--list-cameras`    |                               | Elenca le fotocamere disponibili ed esce                     |
 | `-v` | `--verbose`         |                               | Output dettagliato di scene-load e tuning Russian Roulette   |

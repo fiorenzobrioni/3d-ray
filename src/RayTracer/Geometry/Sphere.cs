@@ -22,16 +22,29 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
         Vector3 oc = ray.Origin - Center;
         float a = ray.Direction.LengthSquared();
         float halfB = Vector3.Dot(oc, ray.Direction);
-        float c = oc.LengthSquared() - Radius * Radius;
-        float discriminant = halfB * halfB - a * c;
+        float rSq = Radius * Radius;
+        float c = oc.LengthSquared() - rSq;
 
+        // Discriminant from the ray's perpendicular distance to the centre,
+        // r² − |l|², instead of b² − ac: for a small or distant sphere b² and
+        // ac are nearly equal and their float difference loses every digit
+        // (t off by ~5e-5 at R = 0.01 seen from 3 units, enough for a sphere
+        // light to shadow itself). Ray Tracing Gems ch. 7, PBRT-v4.
+        Vector3 l = oc - (halfB / a) * ray.Direction;
+        float discriminant = a * (rSq - l.LengthSquared());
         if (discriminant < 0) return false;
 
+        // Stable roots: never subtract two nearly equal numbers.
         float sqrtD = MathF.Sqrt(discriminant);
-        float root = (-halfB - sqrtD) / a;
+        float q = halfB > 0f ? -halfB - sqrtD : -halfB + sqrtD;
+        float tA = q / a;
+        float tB = q != 0f ? c / q : tA;
+        float near = MathF.Min(tA, tB), far = MathF.Max(tA, tB);
+
+        float root = near;
         if (root < tMin || root > tMax)
         {
-            root = (-halfB + sqrtD) / a;
+            root = far;
             if (root < tMin || root > tMax)
                 return false;
         }
@@ -161,43 +174,38 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
         float sinThetaMaxSq = rSq / distSq;
         float cosThetaMax = MathF.Sqrt(MathF.Max(0f, 1f - sinThetaMaxSq));
 
-        // Uniform sampling inside the cone (solid-angle measure)
-        float cosTheta = 1f - xi1 * (1f - cosThetaMax);
-        float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
-        float phi = 2f * MathF.PI * xi2;
-
-        Vector3 local = new(
-            sinTheta * MathF.Cos(phi),
-            sinTheta * MathF.Sin(phi),
-            cosTheta);
-        Vector3 dirWorld = LocalToWorld(local, wDir);
-
-        // Intersect ray (from, dirWorld) with the sphere.
-        Vector3 oc = from - Center;
-        float b = Vector3.Dot(oc, dirWorld);
-        float c = oc.LengthSquared() - rSq;
-        float disc = b * b - c;
-
-        float t;
-        if (disc <= 0f)
+        // Sample the visible cap geometrically (PBRT-v4 Sphere::Sample): θ is
+        // uniform in solid angle inside the cone and the surface point is placed
+        // through the angle α it subtends at the centre, instead of intersecting
+        // a ray with the sphere, which misses near the rim in single precision.
+        // Below sin²θ_max ≈ sin²(1.5°) the small-angle forms keep 1 − cos θ_max
+        // from underflowing (PIANO-REVIEW.md §3.19).
+        float sinThetaMax = MathF.Sqrt(sinThetaMaxSq);
+        float cosTheta, sin2Theta, oneMinusCosThetaMax;
+        if (sinThetaMaxSq < SmallConeSin2)
         {
-            // Tangent ray — project observer → surface along dirWorld.
-            // Numerically rare; clamp to the foot of the perpendicular.
-            t = -b;
+            sin2Theta = sinThetaMaxSq * xi1;
+            cosTheta = MathF.Sqrt(1f - sin2Theta);
+            oneMinusCosThetaMax = 0.5f * sinThetaMaxSq;
         }
         else
         {
-            float sqrtD = MathF.Sqrt(disc);
-            t = -b - sqrtD;                              // near hit
-            if (t < MathUtils.Epsilon) t = -b + sqrtD;   // far hit (observer inside fallback)
+            cosTheta = 1f - xi1 * (1f - cosThetaMax);
+            sin2Theta = MathF.Max(0f, 1f - cosTheta * cosTheta);
+            oneMinusCosThetaMax = 1f - cosThetaMax;
         }
-
-        Vector3 samplePoint = from + t * dirWorld;
-        Vector3 normal = Vector3.Normalize(samplePoint - Center);
+        float cosAlpha = sin2Theta / sinThetaMax
+                       + cosTheta * MathF.Sqrt(MathF.Max(0f, 1f - sin2Theta / sinThetaMaxSq));
+        float sinAlpha = MathF.Sqrt(MathF.Max(0f, 1f - cosAlpha * cosAlpha));
+        float phi = 2f * MathF.PI * xi2;
+        // α is measured from the centre toward the observer (−wDir).
+        Vector3 normal = LocalToWorld(
+            new Vector3(sinAlpha * MathF.Cos(phi), sinAlpha * MathF.Sin(phi), cosAlpha), -wDir);
+        Vector3 samplePoint = Center + Radius * normal;
         var (u, v) = GetSphereUV(normal);
 
-        float solidAngle = 2f * MathF.PI * (1f - cosThetaMax);
-        float pdf = solidAngle > MathUtils.Epsilon ? 1f / solidAngle : 0f;
+        float solidAngle = 2f * MathF.PI * oneMinusCosThetaMax;
+        float pdf = solidAngle > 0f ? 1f / solidAngle : 0f;
 
         return (samplePoint, normal, new Vector2(u, v), pdf);
     }
@@ -224,9 +232,15 @@ public class Sphere : IHittable, ISamplable, ISolidAngleSamplable
 
         if (cosTheta < cosThetaMax) return 0f;
 
-        float solidAngle = 2f * MathF.PI * (1f - cosThetaMax);
-        return solidAngle > MathUtils.Epsilon ? 1f / solidAngle : 0f;
+        float oneMinusCosThetaMax = sinThetaMaxSq < SmallConeSin2
+            ? 0.5f * sinThetaMaxSq
+            : 1f - cosThetaMax;
+        float solidAngle = 2f * MathF.PI * oneMinusCosThetaMax;
+        return solidAngle > 0f ? 1f / solidAngle : 0f;
     }
+
+    // sin²(1.5°): below it 1 − cos θ_max underflows in single precision.
+    private const float SmallConeSin2 = 0.00068523f;
 
     /// <summary>
     /// Builds a right-handed orthonormal basis with <paramref name="w"/> as the

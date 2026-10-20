@@ -5,7 +5,7 @@ validation:
   width: 128
   height: 96
   spp: 1024
-  reference_spp: 4096
+  reference_spp: 16384
   runs:
     - { name: d8, depth: 8 }
 

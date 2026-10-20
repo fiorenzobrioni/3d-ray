@@ -33,6 +33,8 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 10 | Formato scene v2 | ⬜ |
 | 11 | Architettura e performance | ⬜ |
 
+Correzioni anticipate fuori ordine: 3.19, 3.20, 3.21 (più 3.24 e 3.25 emersi nel farle) ✅ 2026-10-20.
+
 ---
 
 ## 1. Riferimenti: cosa vuol dire "premium"
@@ -124,11 +126,13 @@ fase indicata.
 | 3.16 | **[DEBITO]** | `Rendering/Renderer.cs` (2314 righe), `Scene/SceneLoader.cs` (4368), `Materials/DisneyBsdf.cs` (2006) | `TraceRay` è ricorsivo, con molti casi speciali: ostacola path guiding, light path expressions, BDPT e il debug. |
 | 3.17 | **[BUG]** | `Materials/DisneyBsdf.cs` (sheen, clearcoat, trasmissione) | **Guadagno di energia** nel white furnace (albedo > 1 con materiale bianco): sheen fino a 1.38, clearcoat liscio 1.39 a incidenza radente, vetro liscio 1.015-1.13, vetro rough 1.03-1.12; diffuso Disney r=1 1.026 a incidenza radente (retro-riflessione di Burley, [NON-STANDARD]). Render: sfera di vetro Disney in furnace +3.1% (deve valere 1), sfera sheen +34% e clearcoat +5% rispetto al principled di Mitsuba. Gli strati vanno sommati con albedo-scaling che conserva l'energia (OpenPBR). Test `KnownBug_Disney_WhiteFurnaceAlbedoDoesNotExceedOne`. Fase 5. |
 | 3.18 | **[BUG]** piccolo | `Materials/DisneyBsdf.cs:783-870` | La `Pdf` riporta la densità VNDF anche sotto l'orizzonte (convenzione legittima, il campione viene scartato), ma lì il lobo `diff_trans` ha supporto: per le direzioni posteriori la pdf dichiarata supera quella reale e il peso sottostima l'energia di circa l'1%. Test `KnownBug_Disney_DiffTransSampleWeightIntegratesTheBsdf`. Fase 5. |
-| 3.19 | **[BUG]** grave | `Lights/AreaLight.cs:146-157`, probabilmente anche `SphereLight`, `GeometryLight` + `Core/MathUtils.cs:225` | Il raggio d'ombra parte da `OffsetOrigin` (punto + 1e-4 lungo la normale) ma usa la direzione calcolata dal punto non spostato: arriva sul piano della luce prima di `tMax`, colpisce il **proxy emissivo della luce stessa** e il punto risulta in ombra. Con una luce d'area ogni punto che la vede a più di ~52° dalla sua normale **non riceve luce diretta**: ellisse netta sul pavimento, -12% nella scena `lights`. Anche gli emissivi (taglio sul pavimento lontano) e la luce sferica (-1.7%). Il test di convergenza lo vede come plateau (bias). Più in generale: offset fisso 1e-4 in unità mondo invece dell'offset basato sull'errore floating point (Fase 1). Fasi 1 e 6. |
-| 3.20 | **[BIAS]** di default, grave | `Rendering/Renderer.cs:208` (`-C 10`) | Il clamp per-sample è una soglia **assoluta** di radianza (10): dipende dall'intensità delle luci della scena, non da quanto un campione è anomalo. Cornell box con pannello di radianza 20: **-22% di energia** (-24% a profondità 2); togliendo il clamp il rapporto con Mitsuba torna 1.0002. L'utente vede scene più scure e GI impoverita senza saperlo. Fase 7. |
-| 3.21 | **[BIAS]** di default, grave | `Geometry/ShadowRay.cs` + `ShadowTransmittance` dei materiali | Le ombre trasparenti "dritte" si sommano ai cammini BSDF che attraversano davvero il vetro (doppio conteggio): **l'ombra di una sfera di vetro sparisce**, la caustica si spalma, +6.7% di energia e relMSE 50 volte quello della modalità di riferimento, che invece coincide con Mitsuba. Fase 7. |
+| 3.19 | ✅ **corretto** (2026-10-20), era **[BUG]** grave | `Geometry/ShadowRay.cs` (`TransmittanceToPoint`), `Lights/AreaLight.cs`, `SphereLight.cs`, `GeometryLight.cs`, `Geometry/Sphere.cs` | Il raggio d'ombra partiva da `OffsetOrigin` (punto + 1e-4 lungo la normale) ma con la direzione calcolata dal punto non spostato: colpiva il **proxy emissivo della luce stessa**, e oltre ~52° dalla normale di una luce d'area non arrivava luce diretta (-12% nella scena `lights`, ellisse netta sul pavimento; taglio anche su emissivi e luci sferiche). Corretto con il "spawn ray to" di PBRT: entrambi gli estremi spostati lungo la propria normale, il raggio corre esattamente fra i due. Due cause di precisione emerse nel farlo, corrette insieme: campionamento conico delle sfere (luce sferica ed emissivi sferici) rifatto con la costruzione geometrica di PBRT-v4 e la forma per angoli piccoli (prima l'1-2% dei campioni mancava le sfere piccole o lontane, e sotto 1e-4 sr la pdf valeva 0 e spegneva la NEE delle sfere emissive); `Sphere.Hit` con discriminante robusto `r² - |l|²` e radici stabili (errore su t fino a 1.8e-2 a 200 unità, ora pochi ulp). Misura: `lights` da 0.975 a **1.0000**. Test `LightSelfShadowTests`, `SphereIntersectionPrecisionTests`. |
+| 3.20 | ✅ **corretto** (2026-10-20), era **[BIAS]** di default grave | `Rendering/Renderer.cs` (`SuggestedMaxSampleRadiance`), `Program.cs` | Il clamp per-sample era una soglia **assoluta** di radianza (10) attiva di default: Cornell box con pannello di radianza 20 a **-22%** di energia. Ora è opzionale (`-C <n>`), e il clamp indiretto agisce solo insieme a `-C`. Misura: Cornell in modalità normale da 0.782 a **1.0000**. Test `FireflyClamp_IsOptIn_AndReferenceModeOverridesIt`. |
+| 3.21 | ✅ **corretto** (2026-10-20), era **[BIAS]** di default grave | `Geometry/ShadowRay.cs`, `Rendering/Renderer.cs` (stato di catena, `SuppressChainEmission`, `LightSampleOwnsTransport`), `IMaterial.TransmitsStraight`, `Rendering/RandomWalkSss.cs` | Le ombre trasparenti "dritte" si sommavano ai cammini BSDF che attraversano davvero il vetro (doppio conteggio): l'ombra della sfera di vetro spariva. Ora per default i raggi d'ombra sono opachi al vetro che rifrange (ombra e caustica fisiche) e attraversano solo la trasmissione **rettilinea** (gusci IOR 1, fogli `thin_walled` lisci), che è esatta. `--transparent-shadows on` riporta l'approssimazione come opzione artistica coerente: i cammini "diffuso → attraverso il vetro → luce" (e cielo campionato dalla NEE) vengono scartati e il campione di luce che ha attraversato il vetro prende peso MIS 1, così ogni trasporto ha un solo stimatore. Il random walk SSS vede il bordo della propria entità come interfaccia nulla anche per la sua NEE (prima: Fresnel solo sulla NEE e non sull'uscita, ora coerenti). Misura: `glass-shadow` in modalità normale da 1.067 (relMSE 0.23) a **1.0001** (relMSE 4e-4); nuova scena `null-shell` **1.0001**. Con `--transparent-shadows on`: +8.6%, l'approssimazione toglie ombra e caustica per costruzione. |
 | 3.22 | **[NON-STANDARD]** | `Scene/SceneLoader.cs:1032` | Un materiale senza `color` riceve grigio 0.5 per **ogni** tipo, anche `dielectric` ed `emissive`: un vetro scritto senza colore trasmette il 25% attraverso una sfera, un emissivo emette metà dell'intensità scritta. Default fisici: vetro 1, emissivo 1. Fase 10. |
 | 3.23 | **[NON-STANDARD]** | `Scene/SceneLoader.cs:131-132` | Il loader usa `IgnoreUnmatchedProperties`: una chiave YAML sbagliata (`refraction_idx`, `roughnes`) viene ignorata in silenzio e il materiale usa il default. Serve un errore o almeno un warning con il nome della chiave. Fase 10. |
+| 3.24 | ✅ **corretto** (2026-10-20), era **[BUG]** | `Materials/Dielectric.cs` | `Dielectric.Scatter` sceglieva riflessione/rifrazione con l'approssimazione di Schlick, mentre la sua `ShadowTransmittance` usava il Fresnel esatto. Schlick dà `(1-cos)^5` anche con IOR 1: un guscio a indice adattato mostrava bordo e riflesso inesistenti, e il vetro sbagliava di qualche percento a incidenza radente. Ora Fresnel esatto: `glass-shadow` FLIP da 0.032 a 0.016. |
+| 3.25 | ✅ **corretto** (2026-10-20), era **[BUG]** piccolo | `Lights/GeometryLight.cs` | `IlluminateAndTestStratified` non passava il tempo dell'otturatore ai campionatori: con il motion blur i raggi d'ombra degli emissivi testavano la scena all'istante 0. |
 
 ---
 
@@ -192,6 +196,30 @@ Suite: 653 test verdi, 4 skip che riproducono bug noti (si riattivano quando il 
 realismo vengono da materiali (Metal, strati Disney), luci (offset dei raggi d'ombra) e dai bias
 attivi di default. Nota: i bug 3.19, 3.20 e 3.21 sono gravi, visibili in ogni scena e con
 correzioni piccole; valutare se anticiparli prima della Fase 1.
+
+#### Correzioni anticipate 3.19, 3.20, 3.21 (2026-10-20)
+
+Decise dopo la Fase 0 perché gravi e visibili in ogni scena. Stessa validazione, prima e dopo
+(rapporto delle luminanze medie contro Mitsuba 3; tra parentesi relMSE):
+
+| Scena | Modalità | Prima | Dopo |
+|---|---|---|---|
+| cornell-lambert d32 | normale | 0.782 | **1.0000** (1e-4) |
+| cornell-lambert d2 | normale | 0.757 | **0.998** (6e-5) |
+| lights | riferimento e normale | 0.975 (1.5e-3) | **1.0000** (1.8e-5) |
+| glass-shadow | normale | 1.067 (0.23) | **1.0001** (4e-4) |
+| glass-shadow | riferimento | 0.986 (4e-3) | **0.9997** (5e-4) |
+| null-shell (nuova) | entrambe | | **1.0001** (6e-5) |
+
+Convergenza: `lights` non ha più un plateau (la soglia residua scende con il rumore del
+riferimento: 5.2e-5 a 4096 spp di Mitsuba, 2.0e-5 a 16384); `glass-shadow` pendenza -1.00 sui seed
+indipendenti. Restano fuori, come atteso: `metal-rough` (3.7), `furnace-disney-glass` e
+`disney-spheres` (3.17), da chiudere nella Fase 5. Suite: 661 verdi, 4 skip di bug noti.
+
+Effetti sul rendering da sapere: le scene con vetro ora mostrano ombre e caustiche fisiche
+(rumorose con pochi campioni: `--caustics on` o `--transparent-shadows on` per un'anteprima), e
+le scene con luci molto intense possono mostrare qualche firefly in più senza il clamp (il
+denoiser dei preset draft/standard/pre-final li assorbe; altrimenti `-C`).
 
 ### Fase 1 - Fondamenta matematiche (`Core/`)
 
@@ -295,7 +323,8 @@ Unificare contemporaneamente l'API (3.12) su `Sample`/`Evaluate`/`Pdf`.
 - [ ] **Cielo**: correggere Preetham (3.1) o, meglio, sostituirlo con **Hosek-Wilkie** o
       **Prague 2021**; validare Nishita (ozono, unità, coerenza sole/cielo). Sole e cielo devono
       condividere le stesse unità fotometriche.
-- [ ] Ombre trasparenti (3.8): opzione esplicita per materiale, spenta in riferimento.
+- [x] Ombre trasparenti (3.8, 3.21): `--transparent-shadows`, spente per default e in riferimento
+      (2026-10-20). Da valutare un controllo per materiale nella Fase 10.
 
 ### Fase 7 - Integratore (`Rendering/Renderer.cs`)
 
@@ -307,7 +336,7 @@ Unificare contemporaneamente l'API (3.12) su `Sample`/`Evaluate`/`Pdf`.
       classificazione euristica della scena.
 - [ ] Profondità separate per tipo (diffuse, glossy, transmission, volume) come i motori di
       produzione: il vetro richiede molti rimbalzi, il diffuso pochi.
-- [ ] Clamp: spento di default (o solo indiretto, opzionale) (3.8).
+- [x] Clamp: spento di default, `-C` opzionale (3.8, 3.20; 2026-10-20).
 - [ ] Caustiche: la photon map è biased per natura. Valutare **MNEE** (manifold next-event
       estimation, per le caustiche attraverso vetro/acqua) e/o **path guiding** (roadmap #23)
       come strada premium non biased.
@@ -412,9 +441,9 @@ Basato sulla sezione 3, aggiornato con le misure della Fase 0: da confermare fas
 | Tone mapping e colore | **rifare** | nessuna gestione del colore |
 | Texture | correggere | `color_space`, sRGB esatto, MikkTSpace |
 | Materiali | **rifare attorno a OpenPBR** | Fase 0: Metal con NEE incoerente (+37%), strati Disney che creano energia (sheen, coat, vetro), lobi delta sottostimati; doppia API. Si riusano Microfacet, VNDF, Fresnel, LUT (campionamento e reciprocità verificati) |
-| Luci | correggere + unità fisiche | Fase 0: luce puntiforme esatta; raggi d'ombra che colpiscono il proxy della luce (area -12%, cono di taglio a 52°); unità assenti |
+| Luci | correggere + unità fisiche | Fase 0: luce puntiforme esatta; il bug dei raggi d'ombra (3.19) è corretto e ora tutte le luci analitiche coincidono con Mitsuba; unità assenti |
 | Cielo | **rifare** | Preetham sbagliato, sole empirico |
-| Integratore | **rifare il loop** | Fase 0: la matematica è corretta (Cornell = Mitsuba entro 0.1%, convergenza 1/N); i problemi sono i bias attivi di default (clamp -22%, ombre trasparenti) e la struttura ricorsiva. Si riusano NEE, MIS, mezzi |
+| Integratore | **rifare il loop** | Fase 0: la matematica è corretta (Cornell = Mitsuba entro 0.1%, convergenza 1/N); i bias di default (clamp, ombre trasparenti) sono corretti; resta la struttura ricorsiva. Si riusano NEE, MIS, mezzi |
 | Volumi e SSS | verificare | da confrontare con Mitsuba prima di giudicare |
 | Denoiser | tenere + OIDN | NFOR va bene come opzione |
 | Formato scene | evolvere a v2 | semantica (unità, colore, render) più che sintassi |

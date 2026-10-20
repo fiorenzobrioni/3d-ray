@@ -9,6 +9,8 @@ validation:
   reference_spp: 16384
   runs:
     - { name: d16, depth: 16 }
+  extra_modes:
+    transparent: ["--transparent-shadows", "on"]
 
 world:
   sky: { type: "flat", color: [0.02, 0.02, 0.02] }

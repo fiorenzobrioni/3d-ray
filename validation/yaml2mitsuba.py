@@ -105,7 +105,7 @@ def _two_sided(b):
 
 def _bsdf(m, used):
     b = _bsdf_one_sided(m, used)
-    if b is None or b["type"] == "dielectric":
+    if b is None or b["type"] in ("dielectric", "null"):
         return b
     if b["type"] == "principled" and b["spec_trans"] > 0:
         return b
@@ -120,7 +120,11 @@ def _bsdf_one_sided(m, used):
     if t == "dielectric":
         if any(abs(c - 1.0) > 1e-6 for c in _vec(color, ENGINE_DEFAULT_COLOR)):
             raise UnsupportedFeature("tinted dielectric")
-        return {"type": "dielectric", "int_ior": float(m.get("refraction_index", 1.5)), "ext_ior": 1.0}
+        ior = float(m.get("refraction_index", 1.5))
+        if abs(ior - 1.0) < 1e-6:
+            # Index-matched: no reflection, no bending. Mitsuba's pass-through BSDF.
+            return {"type": "null"}
+        return {"type": "dielectric", "int_ior": ior, "ext_ior": 1.0}
     if t == "metal":
         # 3D-Ray Metal: GGX, alpha = fuzz^2, Schlick Fresnel with F0 = color.
         # Mitsuba 'none' conductor has F = 1 scaled by specular_reflectance:
@@ -217,6 +221,11 @@ def convert(path: str, width: int, height: int, spp: int, depth: int, camera_ind
         else:
             shape["bsdf"] = bsdf
         d[f"entity_{i}"] = shape
+
+    # Mitsuba's 'path' integrator lets shadow rays stop at pass-through (null)
+    # surfaces; 'volpath' crosses them, as 3D-Ray does for an IOR-1 shell.
+    if any(isinstance(v, dict) and v.get("bsdf", {}).get("type") == "null" for v in d.values()):
+        d["integrator"]["type"] = "volpath"
 
     for i, l in enumerate(scene.get("lights") or []):
         t = (l.get("type") or "").lower()

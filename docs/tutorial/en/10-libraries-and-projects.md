@@ -249,7 +249,7 @@ For heavy volumetric scenes (procedural/grid media, dense `height_fog`)
 also consider these CLI flags:
 
 ```
---indirect-clamp-factor 0.25   # clamp indirect bounces to 1/4 of -C
+-C 10 --indirect-clamp-factor 0.25   # opt-in firefly clamp (biased): indirect bounces at 1/4 of -C
 --light-sampling power         # power-weighted single-light NEE
                                # (variance reduction with mixed-brightness
                                # lights, e.g. 1 area + 10 dim points)
@@ -433,12 +433,13 @@ The complete set of command-line parameters:
 | `-s` | `--samples`        | `16` (draft-small)            | Samples per pixel (Sobol: exact count; PRNG: rounded up to nearest perfect square) |
 | `-d` | `--depth`          | `4` (draft-small; `8` in quality presets — raise to 16+ for stacked glass) | Maximum ray bounces |
 | `-S` | `--shadow-samples` | *(per light)*                 | Override shadow samples for all area/sphere lights (perfect squares) |
-| `-C` | `--clamp`          | `10`                          | Firefly clamp: max per-sample radiance before tone mapping |
+| `-C` | `--clamp`          | off                           | Opt-in firefly clamp: max per-sample radiance before tone mapping (biased; try `10`) |
 | `-c` | `--camera`         | `0`                           | Select camera by name or zero-based index                |
 |      | `--sampler`        | `sobol`                       | Per-pixel sampler: `sobol` (Owen-scrambled) or `prng`    |
 |      | `--mis`            | `balance`                     | MIS heuristic: `balance` or `power`                      |
 |      | `--light-sampling` | `all`                         | NEE strategy: `all`, `power`, `uniform`                  |
-|      | `--indirect-clamp-factor` | `0.25`                 | Indirect-contribution clamp factor, applied once camera-relative (`0.25` → indirect clamp = ¼ of `-C`; `1.0` = off) |
+|      | `--indirect-clamp-factor` | `0.25`                 | Indirect-contribution clamp factor, only with `-C`, applied once camera-relative (`0.25` → indirect clamp = ¼ of `-C`; `1.0` = off) |
+|      | `--transparent-shadows` | `off`                    | `on`: glass lets shadow rays through, tinted (no shadow or caustic; artistic approximation) |
 |      | `--texture-filtering` | `auto`                     | Analytic anti-aliasing of procedural / image textures via ray differentials: `auto` / `on` (filtering on) or `off` (point-sampled, for benchmarks) |
 |      | `--list-cameras`   |                               | List available cameras and exit                          |
 | `-v` | `--verbose`        |                               | Detailed scene-load and Russian-Roulette tuning output    |

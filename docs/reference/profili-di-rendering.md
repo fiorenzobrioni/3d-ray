@@ -59,7 +59,7 @@ Feature per tier: `standard` spegne caustiche fotoniche e SSS volumetrico e
 usa NEE power-weighted con clamp indiretto rilassato (0.5); `pre-final`,
 `final` e `ultra` girano con la **feature-set completa** (caustiche on - 2M
 fotoni per pre-final, 2–4M per final/ultra - SSS high, NEE su tutte le luci,
-clamp di default). `ultra` resta a 512 spp di proposito: a 4K la densità di
+senza clamp). `ultra` resta a 512 spp di proposito: a 4K la densità di
 pixel nasconde il rumore per-pixel che a 1080p sarebbe visibile, e 1024 spp
 raddoppierebbero un render già lungo.
 
@@ -176,8 +176,9 @@ RayTracer -i my-scene -q standard --denoiser none
 | `-d` / `--depth` | `4` | preset `draft-small` |
 | `-S` / `--shadow-samples` | `1` (`draft-small`; senza preset → valore YAML per-luce, default 4) | `Program.cs` |
 | `--denoiser` | `nfor` fast (`draft-small`) | preset `draft-small` |
-| `-C` / `--clamp` | `10` (firefly clamp) | `Renderer.DefaultMaxSampleRadiance` |
-| `--indirect-clamp-factor` | `0.25` (clamp indiretto = `2.5`) | `Renderer.DefaultIndirectClampFactor` |
+| `-C` / `--clamp` | spento (nessun firefly clamp) | opzionale, valore di partenza suggerito `10` (`Renderer.SuggestedMaxSampleRadiance`) |
+| `--indirect-clamp-factor` | `0.25` (solo con `-C`: clamp indiretto = `-C` × fattore) | `Renderer.DefaultIndirectClampFactor` |
+| `--transparent-shadows` | `off` (il vetro proietta la sua ombra e caustica fisiche) | `Program.cs` |
 | `--exposure` | `0` EV (identità) | `Renderer.DefaultExposureEv` |
 | `--light-sampling` | `all` (somma su tutte le luci) | `LightSamplingStrategy.All` |
 | `--texture-filtering` | `auto` (filtering attivo) | `Renderer.TextureFilteringMode.Auto` |
@@ -233,14 +234,14 @@ I campioni pixel (`-s`) e i campioni d'ombra (`-S`) riducono entrambi il rumore 
 
 ### 6. **FIREFLY CLAMP (`-C` / `--clamp`)**
 
-`MaxSampleRadiance` (esposto come `-C`) è il limite massimo per la radianza per-campione **prima del tone mapping**. Cattura gli outlier rari prodotti da caustiche speculari, compensazione delle Disney lobe e boost della Russian Roulette - i pixel che altrimenti apparirebbero come puntini bianchi luminosi ("fireflies") nel render.
+`MaxSampleRadiance` (esposto come `-C`) è un limite massimo per la radianza per-campione **prima del tone mapping**. Cattura gli outlier rari prodotti da caustiche speculari, compensazione delle Disney lobe e boost della Russian Roulette - i pixel che altrimenti apparirebbero come puntini bianchi luminosi ("fireflies") nel render.
 
-**Default:** `10`. Dopo il tone mapping ACES qualunque luminanza ≳ 5 satura già al bianco, quindi `10` lascia intatti tutti i highlight visibili pur uccidendo gli spike rari. Un valore di `10` è un buon punto di partenza per la maggior parte delle scene.
+**Default: spento.** Il clamp scambia rumore con bias, e la soglia è una radianza assoluta: non isola gli outlier, taglia ogni campione più luminoso del valore. In una scena con luci più luminose della soglia toglie luce vera (una Cornell box illuminata da un pannello di radianza 20 perdeva il 22% dell'energia con il vecchio default `10`). Renderizza prima senza, usa il denoiser o più campioni contro il rumore, e ricorri a `-C` solo se restano fireflies isolati. `10` è un valore di partenza ragionevole per luci di radianza fino a qualche unità.
 
 **Quando alzare `-C`:**
 - HDRI con sole molto intenso dove il disco solare appare meno luminoso del previsto.
 - Scene molto emissive in cui hai verificato che è la sorgente luminosa stessa (non le sue caustiche) ad essere soppressa. Prova `-C 25–100`.
-- Disattiva il clamp di fatto con un valore molto alto. Il rischio sono fireflies in caustiche e catene speculari profonde.
+- Togliendo `-C` il clamp si spegne del tutto. Il rischio sono fireflies in caustiche e catene speculari profonde.
 
 **Quando abbassare ulteriormente `-C`:**
 - Nebbia densa / mezzi omogenei spessi + `-d` alto.
@@ -257,13 +258,23 @@ Un secondo clamp opzionale riduce la soppressione specificamente sui **bounce in
 --indirect-clamp-factor 0.25
 ```
 
-Questo moltiplica la soglia `-C` per tutti i contributi indiretti. Con il default `0.25` e `-C 10` il clamp indiretto è `2.5`: la radianza dei bounce profondi è limitata a 2.5, quella primaria a 10. Imposta `1.0` per disattivare la soppressione aggiuntiva e avere clamp indiretto uguale a quello primario.
+Questo moltiplica la soglia `-C` per tutti i contributi indiretti, quindi agisce solo quando `-C` è indicato. Con il default `0.25` e `-C 10` il clamp indiretto è `2.5`: la radianza dei bounce profondi è limitata a 2.5, quella primaria a 10. Imposta `1.0` per disattivare la soppressione aggiuntiva e avere clamp indiretto uguale a quello primario.
 
 **Quando abbassare ulteriormente:** catene caustic/speculare che producono ancora fireflies al default. Scendi fino a `0.1` per scene molto volumetriche con vetro.
 
 **Quando alzare verso `1.0`:** scene in cui i highlight indiretti appaiono inaspettatamente smorzati - tipicamente Cornell box puramente emissive o HDRI in cui l'unico segnale luminoso legittimo arriva da bounce indiretti.
 
-#### **6b. Light importance sampling (`--light-sampling`)**
+#### **6b. Ombre trasparenti (`--transparent-shadows`)**
+
+```
+--transparent-shadows on
+```
+
+**Default: off.** Il vetro si comporta in modo fisico: proietta la sua ombra, e la luce che rifrange arriva sul pavimento lungo i cammini che lo attraversano davvero, cioè la caustica (nitida ma rumorosa con pochi campioni; `--caustics on` la mette a fuoco con i fotoni). Le superfici con indice adattato (`refraction_index: 1`, il guscio trasparente che delimita un volume di nebbia o acqua) e i fogli `thin_walled` lisci lasciano sempre passare i raggi d'ombra: la loro trasmissione non devia la luce, quindi è esatto.
+
+`on` è un'approssimazione artistica: i raggi d'ombra attraversano il vetro in linea retta, tinti dalla sua trasmittanza di Fresnel, così il vetro chiaro proietta una mezz'ombra morbida e tinta invece di un'ombra e una caustica. I cammini di luce rifratta dalle superfici diffuse attraverso il vetro verso le luci vengono scartati, così la stessa luce non è contata due volte. Usalo per anteprime veloci e senza rumore di scene con molto vetro; lascialo spento per le immagini finali.
+
+#### **6c. Light importance sampling (`--light-sampling`)**
 
 ```
 --light-sampling power
@@ -279,7 +290,7 @@ Seleziona come il renderer sceglie quale luce interrogare per ogni evento NEE:
 
 Con `all` il renderer lancia `ShadowSamples` raggi d'ombra per luce per shading point - O(N·S). Con `power` o `uniform` li lancia per una sola luce e divide per la probabilità di campionamento per restare unbiased - O(S). In una scena con 1 area light intensa + 20 point light deboli, `power` converge notevolmente più in fretta.
 
-#### **6c. Texture filtering (`--texture-filtering`)**
+#### **6d. Texture filtering (`--texture-filtering`)**
 
 ```
 --texture-filtering <auto|on|off>
@@ -305,7 +316,7 @@ movimenti di camera grandangolari senza perdere qualità. Disattivare
 con `off` ha senso solo per debug o A/B comparison; il costo del
 filtering è minimo (pochi punti percentuali nelle scene tipiche).
 
-#### **6d. Esposizione fotografica (`--exposure`)**
+#### **6e. Esposizione fotografica (`--exposure`)**
 
 ```
 --exposure <EV>
@@ -365,9 +376,9 @@ veloce in iterazione quando non vuoi committare una modifica alla luce.
   - Per immagini pubblicabili punta a `-s 576` (24×24) o `-s 1024`.
   - Se vedi rumore concentrato nel cono luminoso, aumenta `-s` (non `-S`).
 - **Firefly clamp con nebbia densa.** Mezzi con `sigma_s` alto e `-d 8+`
-  producono talvolta spike luminosi rari che sopravvivono al `-C 10` di
-  default. Abbassa a `-C 5` o `-C 3` senza timore: perdi poco dinamica,
-  guadagni molto pulito.
+  producono talvolta spike luminosi rari. Se più campioni o il denoiser non
+  li tolgono, aggiungi `-C 5` o `-C 3`: scambi un po' di bias con
+  un'immagine molto più pulita.
 - **`soft_radius` su luci point/spot dentro un medium.** Con un medium
   partecipante attivo, l'attenuazione 1/d² delle luci `point`/`spot` diverge
   agli eventi di scattering vicini all'emettitore, producendo pixel-firefly

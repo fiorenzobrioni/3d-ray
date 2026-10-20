@@ -53,7 +53,13 @@ L'estensione MIS copre anche il **bounce volumetrico**: la phase function espone
 
 ### 2.3 Transparent Shadow Rays
 
-Lo shadow ray del NEE non è un semplice test booleano di occlusione: attraversa le superfici trasmissive (vetro `dielectric`, Disney con `spec_trans > 0`, mix di entrambi) accumulando un fattore di trasmissione per canale. Senza questo passaggio, una lente o una bottiglia di vetro proietterebbe un'ombra dura identica a un occluder opaco — visivamente sbagliato.
+**Quando lo shadow ray attraversa una superficie.** Per default le superfici sono **opache** agli shadow ray, con un'eccezione esatta: la trasmissione **rettilinea** (`IMaterial.TransmitsStraight`), cioè un'interfaccia con indice adattato (`refraction_index: 1`, il guscio che delimita un volume di nebbia o acqua) o un foglio `thin_walled` liscio. Lì la luce non viene deviata, quindi attraversarla in linea retta è il trasporto vero. Il vetro che rifrange invece blocca lo shadow ray: la luce che lo attraversa arriva solo lungo i cammini BSDF che lo attraversano davvero (ombra fisica più caustica, rumorosa con pochi campioni; `--caustics on` la ricostruisce con i fotoni, §2.5).
+
+Con `--transparent-shadows on` anche il vetro che rifrange lascia passare lo shadow ray, in linea retta e tinto dalla trasmittanza di Fresnel: un'approssimazione artistica senza rumore (mezz'ombra morbida al posto di ombra e caustica). Per non contare due volte la stessa luce, il renderer scarta l'emissione raggiunta da una catena speculare che parte da un vertice diffuso e attraversa solo superfici che lo shadow ray attraversa anch'esso (bit `ChainShadowPassable` dello stato di catena), e dà peso MIS pieno al campione di luce che ha attraversato una superficie (`ShadowRay.LastCrossedTransparent`): è l'unico stimatore rimasto di quel trasporto. La stessa regola vale per il cielo campionato dal NEE. Il random walk del subsurface scattering, che esce dal proprio oggetto senza rifrazione, vede il bordo della propria entità come interfaccia nulla anche per i suoi campioni di luce (`ShadowRay.PassThroughEntity`), coerente con la sua uscita.
+
+> Fino alla Fase 0 della review il vetro era trasparente agli shadow ray per default e i cammini rifratti non venivano scartati: la luce attraverso il vetro era contata due volte e l'ombra di una sfera di vetro spariva.
+
+Quando lo shadow ray attraversa una superficie, accumula un fattore di trasmissione per canale:
 
 **Algoritmo** (`Geometry/ShadowRay.Transmittance`)
 

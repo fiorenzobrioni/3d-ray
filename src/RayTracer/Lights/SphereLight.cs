@@ -152,48 +152,65 @@ public class SphereLight : ILight
             xi2 = MathUtils.RandomFloat();
         }
 
-        // Uniform sampling within a cone of half-angle θ_max:
-        //   cos(θ) = 1 - ξ₁(1 - cos(θ_max))
-        //   φ      = 2πξ₂
-        float cosTheta = 1f - xi1 * (1f - cosThetaMax);
-        float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
-        float phi = 2f * MathF.PI * xi2;
-
-        // Local-to-world: build an ONB with wDir as the Z axis
-        Vector3 sampleDirLocal = new(
-            sinTheta * MathF.Cos(phi),
-            sinTheta * MathF.Sin(phi),
-            cosTheta
-        );
-        Vector3 sampleDirWorld = LocalToWorld(sampleDirLocal, wDir);
-
-        // ── Ray-sphere intersection to find exact surface point ─────────────
-        // Ray: hitPoint + t * sampleDirWorld
-        // Sphere: |X - Center|² = R²
-        Vector3 oc = hitPoint - Center;
-        float b = Vector3.Dot(oc, sampleDirWorld);
-        float c = oc.LengthSquared() - Radius * Radius;
-        float discriminant = b * b - c;
-
-        if (discriminant < 0f)
+        Vector3 samplePoint;
+        float oneMinusCosThetaMax;
+        if (cosThetaMax > -1f)
         {
-            // Numerical miss — shouldn't happen with correct cone sampling.
-            // Fall back to closest point on the sphere along the direction.
-            Vector3 closestPoint = Center + Vector3.Normalize(sampleDirWorld) * Radius;
-            float fallbackDist = (closestPoint - hitPoint).Length();
-            return (true, Vector3.Zero, sampleDirWorld, fallbackDist);
+            // ── Outside the sphere: sample the visible cap geometrically ────
+            // PBRT-v4 (Sphere::Sample): pick θ uniformly in solid angle inside
+            // the cone, then place the point on the sphere through the angle α
+            // it subtends at the centre, instead of intersecting a ray with the
+            // sphere. The ray intersection loses the sphere near the cone's rim
+            // in single precision (small or distant lights: 1-2% of the samples
+            // missed and were counted as occluded, PIANO-REVIEW.md §3.19).
+            // Below sin²θ_max ≈ sin²(1.5°) the cosines collapse to 1 in float,
+            // so the small-angle forms are used.
+            float sinThetaMax = MathF.Sqrt(sinThetaMaxSq);
+            float cosTheta, sin2Theta;
+            if (sinThetaMaxSq < SmallConeSin2)
+            {
+                sin2Theta = sinThetaMaxSq * xi1;
+                cosTheta = MathF.Sqrt(1f - sin2Theta);
+                oneMinusCosThetaMax = 0.5f * sinThetaMaxSq;
+            }
+            else
+            {
+                cosTheta = 1f - xi1 * (1f - cosThetaMax);
+                sin2Theta = MathF.Max(0f, 1f - cosTheta * cosTheta);
+                oneMinusCosThetaMax = 1f - cosThetaMax;
+            }
+            float cosAlpha = sin2Theta / sinThetaMax
+                           + cosTheta * MathF.Sqrt(MathF.Max(0f, 1f - sin2Theta / sinThetaMaxSq));
+            float sinAlpha = MathF.Sqrt(MathF.Max(0f, 1f - cosAlpha * cosAlpha));
+            float phiA = 2f * MathF.PI * xi2;
+            // α is measured from the centre toward the shading point (−wDir).
+            Vector3 nLocal = new(sinAlpha * MathF.Cos(phiA), sinAlpha * MathF.Sin(phiA), cosAlpha);
+            samplePoint = Center + Radius * LocalToWorld(nLocal, -wDir);
+        }
+        else
+        {
+            // ── Inside the sphere: uniform over the whole sphere of directions,
+            // the surface point is the (only) forward intersection.
+            float cosTheta = 1f - 2f * xi1;
+            float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
+            float phi = 2f * MathF.PI * xi2;
+            Vector3 dirLocal = new(sinTheta * MathF.Cos(phi), sinTheta * MathF.Sin(phi), cosTheta);
+            Vector3 dirWorld = LocalToWorld(dirLocal, wDir);
+            Vector3 oc = hitPoint - Center;
+            float b = Vector3.Dot(oc, dirWorld);
+            float c = oc.LengthSquared() - Radius * Radius;
+            float t = -b + MathF.Sqrt(MathF.Max(0f, b * b - c));
+            if (t < MathUtils.Epsilon)
+                return (true, Vector3.Zero, dirWorld, 0f);
+            samplePoint = hitPoint + t * dirWorld;
+            oneMinusCosThetaMax = 2f;
         }
 
-        float sqrtD = MathF.Sqrt(discriminant);
-        float t = -b - sqrtD; // near intersection
-        if (t < MathUtils.Epsilon)
-            t = -b + sqrtD; // far intersection (inside sphere case)
-        if (t < MathUtils.Epsilon)
-            return (true, Vector3.Zero, sampleDirWorld, 0f);
-
-        Vector3 samplePoint = hitPoint + t * sampleDirWorld;
-        float sampleDist = t;
-        Vector3 dirToLight = sampleDirWorld;
+        Vector3 toSample = samplePoint - hitPoint;
+        float sampleDist = toSample.Length();
+        if (sampleDist < MathUtils.Epsilon)
+            return (true, Vector3.Zero, wDir, 0f);
+        Vector3 dirToLight = toSample / sampleDist;
 
         // Light-surface normal at the sample point. By construction the cone
         // sampler only produces front-facing intersections; this check guards
@@ -208,17 +225,7 @@ public class SphereLight : ILight
             return (false, Vector3.Zero, dirToLight, sampleDist);
 
         // ── Shadow test ─────────────────────────────────────────────────────
-        // tMax is computed in shadow-ray-parameter space (relative to
-        // shadowOrigin, not hitPoint). Using sampleDist directly — which is
-        // measured from hitPoint — would cancel the OffsetOrigin shift when
-        // dirToLight aligns with the surface normal, so the sphere's own
-        // surface would self-intersect the shadow ray at t == tMax and the
-        // strict `t > tMax` reject in Sphere.Hit would miss it, producing a
-        // black disc directly under the light.
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
-        var shadowRay = new Ray(shadowOrigin, dirToLight, time);
-        float shadowTMax = (samplePoint - shadowOrigin).Length() - MathUtils.Epsilon;
-        Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.Epsilon, shadowTMax);
+        Vector3 trans = ShadowRay.TransmittanceToPoint(world, hitPoint, surfaceNormal, samplePoint, lightNormal, time);
 
         if (MathUtils.NearZero(trans))
             return (true, Vector3.Zero, dirToLight, sampleDist);
@@ -231,7 +238,7 @@ public class SphereLight : ILight
         // This is the MC estimator: ∫ L_e dω ≈ (1/N) × L_e / pdf
         //   = (1/N) × Intensity × Ω
         //   = Intensity × Ω / N
-        float solidAngle = 2f * MathF.PI * (1f - cosThetaMax);
+        float solidAngle = 2f * MathF.PI * oneMinusCosThetaMax;
         float attenuation = Intensity * solidAngle / ShadowSamples;
 
         return (false, Color * attenuation * trans, dirToLight, sampleDist);
@@ -266,9 +273,18 @@ public class SphereLight : ILight
         if (cosTheta < cosThetaMax)
             return 0f;
 
-        float solidAngle = 2f * MathF.PI * (1f - cosThetaMax);
-        return solidAngle > MathUtils.Epsilon ? 1f / solidAngle : 0f;
+        // Same small-angle form as the sampler: a tiny light keeps a finite,
+        // correct pdf instead of a zero that silently disabled its NEE weight.
+        float oneMinusCosThetaMax = sinThetaMaxSq < SmallConeSin2
+            ? 0.5f * sinThetaMaxSq
+            : 1f - cosThetaMax;
+        float solidAngle = 2f * MathF.PI * oneMinusCosThetaMax;
+        return solidAngle > 0f ? 1f / solidAngle : 0f;
     }
+
+    // sin²(1.5°): below it 1 − cos θ_max underflows in single precision and
+    // the cone is handled with its small-angle expansion (PBRT-v4).
+    private const float SmallConeSin2 = 0.00068523f;
 
     // ═════════════════════════════════════════════════════════════════════════
     //  Private helpers
