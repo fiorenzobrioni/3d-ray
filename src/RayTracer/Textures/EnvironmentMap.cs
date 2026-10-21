@@ -209,16 +209,11 @@ public class EnvironmentMap
         u -= MathF.Floor(u);
 
         // ── Bilinear filtering ──────────────────────────────────────────
-        float px = u * (_width - 1);
-        float py = v * (_height - 1);
-
-        int x0 = (int)px;
-        int y0 = (int)py;
-        int x1 = (x0 + 1) % _width; // wrap horizontally (equirectangular seam)
-        int y1 = Math.Min(y0 + 1, _height - 1);
-
-        float fx = px - x0;
-        float fy = py - y0;
+        // Texel-centred, like the CDF's cells: texel x covers [x/W, (x+1)/W).
+        // (u·(W−1) stretched the image by a texel against the cells the
+        // importance sampler picks.) Wraps across the seam, clamps at the poles.
+        var (x0, x1, fx) = Axis(u * _width - 0.5f, _width, wrap: true);
+        var (y0, y1, fy) = Axis(v * _height - 0.5f, _height, wrap: false);
 
         Vector3 c00 = GetPixel(x0, y0);
         Vector3 c10 = GetPixel(x1, y0);
@@ -276,11 +271,13 @@ public class EnvironmentMap
         
         float theta = (0.5f - v) * MathF.PI; // π/2 (zenith) to -π/2 (bottom)
 
-        Vector3 dir = new Vector3(
-            MathF.Cos(theta) * MathF.Sin(phi),
-            MathF.Sin(theta),
-            -MathF.Cos(theta) * MathF.Cos(phi)
-        );
+        // The inverse of Sample's mapping (φ = atan2(x, z)): the sampled
+        // direction must look up the texel that was sampled. With
+        // z = −cos θ cos φ it landed on the texel mirrored across φ = π/2,
+        // unbiased (the pdf was the sampler's) but aimed away from the
+        // bright texels, and an extracted sun sat at the mirrored azimuth
+        // (PIANO-REVIEW.md §3.44).
+        Vector3 dir = DirectionOf(phi, theta);
 
         // Solid angle of one pixel: dW = sin(theta) * dTheta * dPhi
         // PDF with respect to solid angle: p(dir) = p(pixel) / dW
@@ -304,9 +301,7 @@ public class EnvironmentMap
     {
         Vector3 dir = Vector3.Normalize(direction);
 
-        float phi = MathF.Atan2(dir.X, -dir.Z); // undo the -cos/sin pairing used in SampleDirection
-        // SampleDirection builds dir = (cos θ sin φ, sin θ, -cos θ cos φ), so
-        // atan2(dir.X, -dir.Z) recovers φ in (-π, π].
+        float phi = MathF.Atan2(dir.X, dir.Z); // Sample's and SampleDirection's φ, in (-π, π]
         float theta = MathF.Asin(Math.Clamp(dir.Y, -1f, 1f));
 
         // Apply the same rotation convention as the sampling routine (phi was
@@ -439,6 +434,35 @@ public class EnvironmentMap
         }
     }
 
+    /// <summary>
+    /// Direction of equirect angles (φ longitude, θ latitude): the inverse of
+    /// <see cref="Sample"/>'s φ = atan2(x, z), θ = asin(y).
+    /// </summary>
+    public static Vector3 DirectionOf(float phi, float theta) => new(
+        MathF.Cos(theta) * MathF.Sin(phi),
+        MathF.Sin(theta),
+        MathF.Cos(theta) * MathF.Cos(phi));
+
+    /// <summary>The two texels around a texel-space coordinate and the weight of the second.</summary>
+    private static (int I0, int I1, float F) Axis(float t, int n, bool wrap)
+    {
+        float f0 = MathF.Floor(t);
+        int i0 = (int)f0;
+        float f = t - f0;
+        int i1 = i0 + 1;
+        if (wrap)
+        {
+            i0 = ((i0 % n) + n) % n;
+            i1 = ((i1 % n) + n) % n;
+        }
+        else
+        {
+            i0 = Math.Clamp(i0, 0, n - 1);
+            i1 = Math.Clamp(i1, 0, n - 1);
+        }
+        return (i0, i1, f);
+    }
+
     private Vector3 SampleLevel(Vector3 direction, int level)
     {
         var (px, w, h) = _mipChain![level];
@@ -451,14 +475,8 @@ public class EnvironmentMap
         float u = 0.5f + phi * inv2Pi;
         float v = 0.5f - theta * invPi;
         u -= MathF.Floor(u);
-        float px_ = u * (w - 1);
-        float py_ = v * (h - 1);
-        int x0 = (int)px_;
-        int y0 = (int)py_;
-        int x1 = (x0 + 1) % w;
-        int y1 = Math.Min(y0 + 1, h - 1);
-        float fx = px_ - x0;
-        float fy = py_ - y0;
+        var (x0, x1, fx) = Axis(u * w - 0.5f, w, wrap: true);
+        var (y0, y1, fy) = Axis(v * h - 0.5f, h, wrap: false);
         Vector3 c00 = new(px[(y0 * w + x0) * 3], px[(y0 * w + x0) * 3 + 1], px[(y0 * w + x0) * 3 + 2]);
         Vector3 c10 = new(px[(y0 * w + x1) * 3], px[(y0 * w + x1) * 3 + 1], px[(y0 * w + x1) * 3 + 2]);
         Vector3 c01 = new(px[(y1 * w + x0) * 3], px[(y1 * w + x0) * 3 + 1], px[(y1 * w + x0) * 3 + 2]);
