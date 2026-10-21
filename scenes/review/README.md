@@ -22,11 +22,11 @@ dotnet run --project src/RayTracer/RayTracer.csproj -c Release -- \
 
 Il file `renders/furnace.beauty.pfm` contiene la radianza lineare: lo sfondo vale 1 e una sfera che non assorbe deve valere 1 a sua volta. Più scura significa energia persa, più chiara energia creata.
 
-Misure al momento della creazione (256 campioni, 640x360):
+Misure con il codice di chiusura della Fase 5 (256 campioni, 640x360):
 
 | Sfera | Valore |
 |---|---|
 | lambert, metal, mirror | 1.0001, 1.0007, 1.0000 |
-| openpbr diffuse, metal, coat, fuzz, film, aniso | 0.999, 1.000, 0.998, 0.999, 0.998, 0.998 |
-| openpbr thin_sss, opacity, everything | 1.000, 1.000, 0.998 |
+| openpbr diffuse, metal, coat, fuzz, film, aniso | 1.001, 1.000, 0.998, 0.999, 0.998, 0.999 |
+| openpbr thin_sss, opacity, everything | 0.999, 1.000, 0.999 |
 | vetro liscio, vetro ruvido (r 0.3) | 1.000, 0.984 |

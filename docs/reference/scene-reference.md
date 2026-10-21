@@ -653,7 +653,7 @@ camera:
 ```yaml
 - id: "neon_blue"
   type: "emissive"
-  color: [0.2, 0.4, 1.0]
+  color: [0.2, 0.4, 1.0]                   # (optional) default white
   intensity: 8.0                           # Radiance multiplier
   texture: (optional)                      # Supports procedural texture
 ```
@@ -975,9 +975,8 @@ wood, brick, gradient and coordinate textures.
 #### **Sampling space (metric object-local).**
 Every procedural samples on `rec.LocalPoint`, which is the shading point in the
 object's **own axes, in world units** - the entity's `scale` is applied but its
-rotation and translation are not. This is the metric object-space projection of
-production renderers (Cycles "Texture Coordinate → Object", Arnold
-`space: object`, RenderMan `Pref`).
+rotation and translation are not. This is the metric object-space projection
+production renderers use for procedural texturing.
 
 The key consequence: **the texture's feature size is set by its own `scale` and
 is invariant to the entity's scale.** Stretching a box 10× on X does *not*

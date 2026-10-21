@@ -1284,7 +1284,9 @@ public class SceneLoader
             "dielectric" => new Dielectric(m.RefractionIndex,
                                 m.Color != null || m.Texture != null ? albedo : new SolidColor(Vector3.One),
                                 m.Roughness ?? 0f),
-            "emissive"   => new Emissive(albedo, m.Intensity),
+            // White unless a colour is written: 'intensity' is the radiance.
+            "emissive"   => new Emissive(m.Color != null || m.Texture != null ? albedo : new SolidColor(Vector3.One),
+                                         m.Intensity),
             "disney" or "disney_bsdf" or "pbr"
                          => CreateDisney(m, albedo, sceneDir),
             "openpbr"    => CreateOpenPbr(m, sceneDir),

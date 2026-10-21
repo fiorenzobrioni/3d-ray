@@ -26,14 +26,14 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 
 | # | Feature | Stato |
 |---|---------|-------|
-| 6 | Disney BSDF / PBR (vedi sotto) | ✅ |
+| 6 | OpenPBR Surface e Disney tradotto su OpenPBR (vedi sotto) | ✅ |
 | 7 | OBJ Mesh Loader (smooth normals, UV, TBN, BVH interno) | ✅ |
 | 8 | Torus (quartica Ferrari, UV toroidale, NEE, CSG, Transform) | ✅ |
 | 9 | Mix Material (selezione stocastica scatter, blend deterministico NEE, mask qualsiasi texture) | ✅ |
 | 10 | Sphere Light (solid-angle sampling PBRT §6.2.3, 2-10× più efficiente di GeometryLight) | ✅ |
 | 11 | Scene Graph / Groups (transform ereditate, template+instance, import YAML con merge) | ✅ |
 
-**Disney BSDF** include: lobi diffuse / GGX / clearcoat / transmission, Kulla-Conty multi-scattering (LUT 32×32), GGX anisotropico (VNDF), Beer-Lambert via medium-switch, parametri Disney 2015 (`thin_walled`, `diff_trans`, `flatness`, `subsurface_color`), clearcoat stile Arnold (`coat_ior`, `coat_roughness`, `coat_normal`), Charlie sheen (Estevez-Kulla 2017), thin-film iridescence (Belcour-Barla 2017). MIS-correct (`Sample`/`Evaluate`/`Pdf` consistenti, furnace + reciprocity test).
+**OpenPBR Surface** (`type: openpbr`, review Fase 5): metallo F82 con Kulla-Conty, dielettrico GGX/Walter, diffuso EON, subsurface con random walk, coat, fuzz (Zeltner 2022), film sottile, emissione, opacità, thin-walled; strati che conservano l'energia, tabelle di albedo offline. Il tipo `disney` è tradotto su OpenPBR (`DisneyMaterial`): stessi parametri, niente più energia creata da sheen e clearcoat. Dettagli in `PIANO-REVIEW.md` §3.38-3.39 e `docs/technical/shading-model.md`.
 
 ### Fase 3 - Sampling avanzato 🔧
 
@@ -114,10 +114,10 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 Emersi durante la stesura del piano di review (dettagli e posizioni in [`PIANO-REVIEW.md`](PIANO-REVIEW.md) §3):
 
 - [ ] **Preetham**: funzione di Perez con coefficienti sbagliati (`PreethamSky.cs`, §3.1).
-- [ ] **Disney BSDF**: peso del lobo diviso per `max(p, 0.1)` senza floor in selezione, energia sottostimata (§3.2).
+- [x] **Disney BSDF**: peso del lobo diviso per `max(p, 0.1)` senza floor in selezione, energia sottostimata (§3.2): corretto 2026-10-21 (Fase 5), il `disney` è tradotto su OpenPBR.
 - [ ] **Texture dati** (roughness/metallic...) decodificate come sRGB (§3.3).
-- [ ] **Vetro satinato** escluso da `Evaluate`/`Pdf`: niente NEE/MIS (§3.6).
-- [ ] **Metal**: lobo lambertiano di riempimento non fisico (§3.7).
+- [x] **Vetro satinato** escluso da `Evaluate`/`Pdf`: niente NEE/MIS (§3.6): corretto 2026-10-21 (Fase 5), Walter 2007.
+- [x] **Metal**: lobo lambertiano di riempimento non fisico (§3.7): corretto 2026-10-21 (Fase 5), Kulla-Conty.
 - [x] **HDRI importance sampling** solo ai centri dei texel (§3.9): corretto 2026-10-20 (Fase 1), campionamento continuo dentro il texel.
 
 Misurati nella Fase 0 della review (validazione contro Mitsuba 3, `validation/`):
@@ -126,16 +126,17 @@ Misurati nella Fase 0 della review (validazione contro Mitsuba 3, `validation/`)
 - [x] **Clamp `-C 10` di default** (§3.20): corretto 2026-10-20, ora opzionale.
 - [x] **Ombre trasparenti di default** (§3.21): corrette 2026-10-20, `--transparent-shadows on` opzionale e senza doppio conteggio.
 - [x] **`Dielectric` con Fresnel di Schlick** (§3.24) e **tempo del motion blur non passato agli emissivi** (§3.25): corretti 2026-10-20.
-- [ ] **Metal**: lobo lambertiano solo nella NEE, rough metal +37% (§3.7, ora confermato come bug).
-- [ ] **Disney**: energia creata da sheen, clearcoat e vetro (§3.17); `diff_trans` -1% (§3.18).
-- [ ] **Default `color` 0.5 anche per vetro ed emissivo** (§3.22) e chiavi YAML sconosciute ignorate in silenzio (§3.23).
+- [x] **Metal**: lobo lambertiano solo nella NEE, rough metal +37% (§3.7): corretto 2026-10-21, `metal-rough` 1.0032 contro Mitsuba.
+- [x] **Disney**: energia creata da sheen, clearcoat e vetro (§3.17); `diff_trans` -1% (§3.18): corretti 2026-10-21 con la traduzione su OpenPBR.
+- [x] **Default `color` 0.5 anche per vetro ed emissivo** (§3.22): corretto 2026-10-21, ora bianco.
+- [ ] Chiavi YAML sconosciute ignorate in silenzio (§3.23): Fase 10.
 
 Fase 1 della review (fondamenta matematiche):
 
 - [x] **Sampler Sobol** peggio del caso dalla seconda decisione in poi (§3.10): rifatto 2026-10-20 (Sobol "padded", dimensioni per vertice).
 - [x] **Offset dei raggi fissi a 1e-4** (§3.27), **basi ortonormali di Frisvad** (§3.26), **`AABB.Hit` con NaN** (§3.28), **cubica con soglia assoluta** che fondeva radici vicine del toro (§3.29): corretti 2026-10-20.
 - [ ] **Perlin** con fade cubico (curvatura discontinua) e gradienti anisotropi (§3.30): Fase 4.
-- [ ] **Differenziali di raggio** senza il minimo 1/8 (§3.31): Fase 4. **`MathUtils.Refract`** con riflessione totale interna silenziosa (§3.32): Fase 5.
+- [ ] **Differenziali di raggio** senza il minimo 1/8 (§3.31): Fase 4. **`MathUtils.Refract`** con riflessione totale interna silenziosa (§3.32): corretto 2026-10-21 (Fase 5).
 
 Fase 3 della review (camera, film e colore):
 

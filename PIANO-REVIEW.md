@@ -25,7 +25,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 2 | Geometria e intersezioni | ⬜ |
 | 3 | Camera, film e colore | ✅ Chiusa (2026-10-21), esito in §4 Fase 3 |
 | 4 | Texture e dati | ⬜ |
-| 5 | Materiali e BSDF | ⬜ |
+| 5 | Materiali e BSDF | ✅ Chiusa (2026-10-21), esito in §4 Fase 5 |
 | 6 | Luci, cielo | ⬜ |
 | 7 | Integratore | ⬜ |
 | 8 | Volumi e SSS | ⬜ |
@@ -119,7 +119,7 @@ fase indicata.
 | 3.9 | ✅ **corretto** (2026-10-20, Fase 1), era **[BIAS]** | `Textures/EnvironmentMap.cs` (`SampleDirection`) | L'importance sampling dell'HDRI restituiva sempre il **centro** del texel scelto: le direzioni NEE erano un insieme discreto (ombre a gradini e bias con HDRI piccole o sole concentrato). Ora la posizione dentro il texel è continua (lo scarto di ciascun numero casuale dentro il proprio intervallo della CDF) e la pdf usa il θ della direzione effettiva, come `PdfDirection`. Chi-quadro su una mappa 16x8 con un texel brillante: prima 1.3e6 su 799 gradi di libertà, ora passa. Test `EnvironmentMap_SamplesItsPdf_ContinuouslyInsideTexels`. |
 | 3.10 | ✅ **corretto** (2026-10-20, Fase 1), era **[NON-STANDARD]**, misurato peggio del caso | `Core/Sampling/OwenSobol.cs` + `Sampler.cs` | Solo le dimensioni 0-1 erano vero Sobol; dalla 2 in su van der Corput con hash, e due dimensioni consecutive (la coppia di una decisione 2D) **non** erano stratificate insieme: pendenza dell'errore da -0.32 a -0.56 contro -0.50 dei numeri indipendenti, cioè peggio del PRNG. Le dimensioni erano assegnate con un contatore globale per campione, quindi path con rami diversi le disallineavano. Ora: Sobol "padded" (PBRT-v4), ogni coppia di dimensioni è la coppia 0-1 di Sobol con un rimescolamento Owen dell'indice proprio della coppia; blocco fisso per la camera (8 dimensioni) e per ogni vertice del path (64, `Sampler.BeginVertex`); `MathUtils.Random2D` / `Sampler.Sample2D` per ogni decisione 2D. Pendenze ora -1.38 (liscio) e -0.75 (bordo) su ogni coppia. Test `SamplerQualityTests`. |
 | 3.11 | ✅ **corretto** (2026-10-21, Fase 5), era **[NON-STANDARD]** | `Rendering/Renderer.cs:1897` + `Core/MathUtils.cs:44` | Il fattore "shadow terminator" è applicato anche alla direzione di vista, oltre a quella della luce: non corrisponde a nessun modello pubblicato (Chiang 2019 / Estevez 2019 agiscono sul lato luce). Va verificato con il furnace test. **Esito**: il fattore lato vista è tolto (compensava la retro-riflessione del vecchio Disney, che non c'è più). Il fattore lato luce (Chiang 2019) era applicato solo alla NEE: il campionamento BSDF stimava un integrando diverso e il MIS mescolava due funzioni. Ora entra nel peso di entrambe le strategie (`ShadeSampleBounce`). Nessun effetto dove la normale non è perturbata. |
-| 3.12 | ✅ **corretto** (2026-10-21, Fase 5), era **[DEBITO]** | `Materials/IMaterial.cs`, `Renderer`, `CausticPhotonTracer` | Due API in parallelo. `Scatter` è stato tolto: ogni materiale campiona con `Sample` (anche il vetro liscio) e null vuol dire assorbito. Il ripiego su `Scatter` introduceva due distorsioni: un `Sample` che restituiva null perché la direzione finiva sotto l'orizzonte (luce assorbita) veniva **ripescato** da `Scatter`, aggiungendo energia (+1.7% su `metal-rough` con il nuovo Metal), e il `MixMaterial` con un componente senza `Sample` ripescava un componente diverso (con Lambert + vetro liscio il Lambert contava (1 + t) volte). **Esito**: tolto anche `EvaluateDirect`: la NEE pesa ogni campione di luce con `Evaluate · |N·L|` (`Renderer.DirectIntegrand`), la stessa funzione che il campionamento BSDF stima, quindi le due strategie MIS non possono più divergere (era la radice del §3.7). Render identici (Mitsuba: cornell, glass-rough, metal-rough, lights, stesse metriche alla quarta cifra). L'API dei materiali è ora `Evaluate` / `Pdf` / `Sample` più le query di trasmissione. |
+| 3.12 | ✅ **corretto** (2026-10-21, Fase 5), era **[DEBITO]** | `Materials/IMaterial.cs`, `Renderer`, `CausticPhotonTracer` | Due API in parallelo. `Scatter` è stato tolto: ogni materiale campiona con `Sample` (anche il vetro liscio) e null vuol dire assorbito. Il ripiego su `Scatter` introduceva due distorsioni: un `Sample` che restituiva null perché la direzione finiva sotto l'orizzonte (luce assorbita) veniva **ripescato** da `Scatter`, aggiungendo energia (+1.7% su `metal-rough` con il nuovo Metal), e il `MixMaterial` con un componente senza `Sample` ripescava un componente diverso (con Lambert + vetro liscio il Lambert contava (1 + t) volte). **Esito**: tolto anche `EvaluateDirect`: la NEE pesa ogni campione di luce con `Evaluate` per `|cos θ|` (`Renderer.DirectIntegrand`), la stessa funzione che il campionamento BSDF stima, quindi le due strategie MIS non possono più divergere (era la radice del §3.7). Render identici (Mitsuba: cornell, glass-rough, metal-rough, lights, stesse metriche alla quarta cifra). L'API dei materiali è ora `Evaluate` / `Pdf` / `Sample` più le query di trasmissione. |
 | 3.13 | ✅ **verificato, nessun bug** | `DisneyBsdf` + `Renderer` | `Sample()` restituisce per i lobi non-delta `Evaluate`/`Pdf` della miscela, quindi peso e MIS sono coerenti: il chi-quadro e il cross-check dell'albedo passano su tutti i lobi rough (Fase 0). |
 | 3.14 | **[NON-STANDARD]** | tutte le luci + `Emissive` | `intensity` senza unità: impossibile illuminare "come nella realtà" (sole 100.000 lux, lampadina 800 lm) e scambiare scene con altri motori. Nessuna temperatura colore, nessun IES. |
 | 3.15 | **[DEBITO]** | `scenes/cornell-box.yaml` e altre | Commenti obsoleti: dicono che l'emissivo "non usa NEE", mentre oggi entra nel pool NEE come `GeometryLight`. |
@@ -129,7 +129,7 @@ fase indicata.
 | 3.19 | ✅ **corretto** (2026-10-20), era **[BUG]** grave | `Geometry/ShadowRay.cs` (`TransmittanceToPoint`), `Lights/AreaLight.cs`, `SphereLight.cs`, `GeometryLight.cs`, `Geometry/Sphere.cs` | Il raggio d'ombra partiva da `OffsetOrigin` (punto + 1e-4 lungo la normale) ma con la direzione calcolata dal punto non spostato: colpiva il **proxy emissivo della luce stessa**, e oltre ~52° dalla normale di una luce d'area non arrivava luce diretta (-12% nella scena `lights`, ellisse netta sul pavimento; taglio anche su emissivi e luci sferiche). Corretto con il "spawn ray to" di PBRT: entrambi gli estremi spostati lungo la propria normale, il raggio corre esattamente fra i due. Due cause di precisione emerse nel farlo, corrette insieme: campionamento conico delle sfere (luce sferica ed emissivi sferici) rifatto con la costruzione geometrica di PBRT-v4 e la forma per angoli piccoli (prima l'1-2% dei campioni mancava le sfere piccole o lontane, e sotto 1e-4 sr la pdf valeva 0 e spegneva la NEE delle sfere emissive); `Sphere.Hit` con discriminante robusto `r² - |l|²` e radici stabili (errore su t fino a 1.8e-2 a 200 unità, ora pochi ulp). Misura: `lights` da 0.975 a **1.0000**. Test `LightSelfShadowTests`, `SphereIntersectionPrecisionTests`. |
 | 3.20 | ✅ **corretto** (2026-10-20), era **[BIAS]** di default grave | `Rendering/Renderer.cs` (`SuggestedMaxSampleRadiance`), `Program.cs` | Il clamp per-sample era una soglia **assoluta** di radianza (10) attiva di default: Cornell box con pannello di radianza 20 a **-22%** di energia. Ora è opzionale (`-C <n>`), e il clamp indiretto agisce solo insieme a `-C`. Misura: Cornell in modalità normale da 0.782 a **1.0000**. Test `FireflyClamp_IsOptIn_AndReferenceModeOverridesIt`. |
 | 3.21 | ✅ **corretto** (2026-10-20), era **[BIAS]** di default grave | `Geometry/ShadowRay.cs`, `Rendering/Renderer.cs` (stato di catena, `SuppressChainEmission`, `LightSampleOwnsTransport`), `IMaterial.TransmitsStraight`, `Rendering/RandomWalkSss.cs` | Le ombre trasparenti "dritte" si sommavano ai cammini BSDF che attraversano davvero il vetro (doppio conteggio): l'ombra della sfera di vetro spariva. Ora per default i raggi d'ombra sono opachi al vetro che rifrange (ombra e caustica fisiche) e attraversano solo la trasmissione **rettilinea** (gusci IOR 1, fogli `thin_walled` lisci), che è esatta. `--transparent-shadows on` riporta l'approssimazione come opzione artistica coerente: i cammini "diffuso → attraverso il vetro → luce" (e cielo campionato dalla NEE) vengono scartati e il campione di luce che ha attraversato il vetro prende peso MIS 1, così ogni trasporto ha un solo stimatore. Il random walk SSS vede il bordo della propria entità come interfaccia nulla anche per la sua NEE (prima: Fresnel solo sulla NEE e non sull'uscita, ora coerenti). Misura: `glass-shadow` in modalità normale da 1.067 (relMSE 0.23) a **1.0001** (relMSE 4e-4); nuova scena `null-shell` **1.0001**. Con `--transparent-shadows on`: +8.6%, l'approssimazione toglie ombra e caustica per costruzione. |
-| 3.22 | **[NON-STANDARD]** | `Scene/SceneLoader.cs:1032` | Un materiale senza `color` riceve grigio 0.5 per **ogni** tipo, anche `dielectric` ed `emissive`: un vetro scritto senza colore trasmette il 25% attraverso una sfera, un emissivo emette metà dell'intensità scritta. Default fisici: vetro 1, emissivo 1. Fase 10. |
+| 3.22 | ✅ **corretto** (2026-10-21, Fase 5) per vetro ed emissivo, era **[NON-STANDARD]** | `Scene/SceneLoader.cs:1032` | Un materiale senza `color` riceve grigio 0.5 per **ogni** tipo, anche `dielectric` ed `emissive`: un vetro scritto senza colore trasmette il 25% attraverso una sfera, un emissivo emette metà dell'intensità scritta. Default fisici: vetro 1, emissivo 1. Fase 10. **Esito**: `dielectric` ed `emissive` senza colore ora sono bianchi (vetro trasparente, emissivo all'intensità scritta). Il vetro grigio toccava 13 scene del repo (§3.37), l'emissivo nessuna. Gli altri tipi tengono il grigio 0.5 come colore neutro di partenza. |
 | 3.23 | **[NON-STANDARD]** | `Scene/SceneLoader.cs:131-132` | Il loader usa `IgnoreUnmatchedProperties`: una chiave YAML sbagliata (`refraction_idx`, `roughnes`) viene ignorata in silenzio e il materiale usa il default. Serve un errore o almeno un warning con il nome della chiave. Fase 10. |
 | 3.24 | ✅ **corretto** (2026-10-20), era **[BUG]** | `Materials/Dielectric.cs` | `Dielectric.Scatter` sceglieva riflessione/rifrazione con l'approssimazione di Schlick, mentre la sua `ShadowTransmittance` usava il Fresnel esatto. Schlick dà `(1-cos)^5` anche con IOR 1: un guscio a indice adattato mostrava bordo e riflesso inesistenti, e il vetro sbagliava di qualche percento a incidenza radente. Ora Fresnel esatto: `glass-shadow` FLIP da 0.032 a 0.016. |
 | 3.25 | ✅ **corretto** (2026-10-20), era **[BUG]** piccolo | `Lights/GeometryLight.cs` | `IlluminateAndTestStratified` non passava il tempo dell'otturatore ai campionatori: con il motion blur i raggi d'ombra degli emissivi testavano la scena all'istante 0. |
@@ -146,7 +146,7 @@ fase indicata.
 | 3.36 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** | `Rendering/Renderer.cs` (`LightSideTerminator`, `DirectLightingAt`), `Lights/*`, `ShadowRay` | La NEE non raggiungeva mai una luce dietro una superficie che trasmette (vetro satinato, `diff_trans` del Disney): il fattore di shadow terminator valeva 0 sotto l'orizzonte geometrico, alcune luci scartavano quei campioni e l'origine del raggio d'ombra stava sempre dal lato della camera. Il MIS dava comunque al campionamento BSDF solo la sua quota, quindi luce persa. Ora `IMaterial.HasTransmission`, terminator dal lato della luce, origine dal lato della luce (`MathUtils.OffsetToward`). Misura: `glass-rough` (vetro satinato contro il `roughdielectric` di Mitsuba) da 0.948 a **1.0013**. |
 | 3.37 | ✅ **corretto** (2026-10-21, Fase 5), era **[BUG]** | `Scene/SceneLoader.cs` (`dielectric`) | Un `dielectric` senza `color` riceveva il default condiviso grigio 0.5: il vetro dimezzava la luce a ogni attraversamento (una sfera trasmetteva il 25%). Riguardava 13 vetri delle scene del repo (`cornell-box`, `sample`, `castello-sforzesco`, `pendolo-newton`, showcase), tutti pensati trasparenti. Ora il default è bianco. Fornace bianca di riferimento: `scenes/review/white-furnace-classic.yaml`. |
 | 3.38 | ✅ **fatto** (2026-10-21, Fase 5) | `Materials/OpenPbr.cs`, `Eon.cs`, `FuzzLtc.cs`, `DielectricAlbedo.cs`, `Scene/MaterialParam.cs` | Nuovo materiale `openpbr` (OpenPBR Surface v1.1, decisione del proprietario del 2026-10-21: OpenPBR, con il `disney` tradotto su di esso). Riduzione a miscela di lobi della specifica: metallo F82 con Kulla-Conty, interfaccia dielettrica (GGX + Walter verso vetro o mezzo SSS), diffuso EON scalato da 1 − E_R (tabella E_R(μ, α, η) integrata offline, `validation/gen_dielectric_albedo.py`), coat con assorbimento, darkening e roughening, fuzz di Zeltner 2022, film sottile, emissione, opacità, thin-walled. Ogni parametro YAML accetta numero, colore o texture. Verifiche: fornace bianca in tutte le configurazioni della specifica (test del BSDF e render completo `scenes/review/openpbr-white-furnace.yaml`, 0.997-1.000), chi-quadro per lobo, riduzioni esatte a `metal` e al vetro ruvido. I lobi anisotropi leggevano le tabelle isotrope alla rugosità proiettata (metallo entro l'1% ad anisotropia 0.5, +6.6% a 0.72): sostituito da una tabella anisotropa, §3.39. |
-| 3.39 | ✅ **fatto** (2026-10-21, Fase 5) | `Materials/DisneyMaterial.cs`, `OpenPbr.cs`, `AnisotropicAlbedo.cs` | Il tipo `disney` è tradotto su OpenPBR (`DisneyMaterial.Create`), `DisneyBsdf.cs` rimosso (con `EnergyCompensationLut` e `SheenCharlie`, ormai inutilizzati). Mappatura: `specular` → `specular_weight` = 2·specular (Disney scala F0 di 2·specular), `specular_tint`/`sheen_tint` → colore verso la tinta di `color`, `sheen` → fuzz, `clearcoat`/`clearcoat_gloss` → coat (rugosità √α con α = lerp(0.1, 0.001, gloss)), `spec_trans` → trasmissione (o subsurface con mezzo incorporato), `diff_trans` → subsurface thin-walled con g = 2·diff_trans − 1, `anisotropic` → 0.9·a, film in nm → µm. Differenze di aspetto documentate nel riferimento delle scene. Nel materiale OpenPBR, lungo la strada: diffuso sotto lo speculare con il peso reciproco (1 − E(μV))(1 − E(μL))/(1 − Ē) (esatto per una base lambertiana, dove la forma della specifica non è reciproca); lobi anisotropi con una tabella offline dell'albedo GGX anisotropa (`validation/gen_aniso_albedo.py`), reciproca ed esatta (la rugosità proiettata creava il 6.6% di energia ad anisotropia 0.72); lobo speculare delta sotto roughness 0.03; interfaccia a IOR 1 attraversata dritta dai due lati. Coat e fuzz restano con lo scaling della sola direzione di vista della specifica: conserva l'energia su ogni base, non è reciproco (i test controllano l'energia). |
+| 3.39 | ✅ **fatto** (2026-10-21, Fase 5) | `Materials/DisneyMaterial.cs`, `OpenPbr.cs`, `AnisotropicAlbedo.cs` | Il tipo `disney` è tradotto su OpenPBR (`DisneyMaterial.Create`), `DisneyBsdf.cs` rimosso (con `EnergyCompensationLut` e `SheenCharlie`, ormai inutilizzati). Mappatura: `specular` → `specular_weight` = 2 × specular (Disney scala F0 di 2 × specular), `specular_tint`/`sheen_tint` → colore verso la tinta di `color`, `sheen` → fuzz, `clearcoat`/`clearcoat_gloss` → coat (rugosità √α con α = lerp(0.1, 0.001, gloss)), `spec_trans` → trasmissione (o subsurface con mezzo incorporato), `diff_trans` → subsurface thin-walled con g = 2 × diff_trans − 1, `anisotropic` → 0.9 a, film in nm → µm. Differenze di aspetto documentate nel riferimento delle scene. Nel materiale OpenPBR, lungo la strada: diffuso sotto lo speculare con il peso reciproco (1 − E(μV))(1 − E(μL))/(1 − Ē) (esatto per una base lambertiana, dove la forma della specifica non è reciproca); lobi anisotropi con una tabella offline dell'albedo GGX anisotropa (`validation/gen_aniso_albedo.py`), reciproca ed esatta (la rugosità proiettata creava il 6.6% di energia ad anisotropia 0.72); lobo speculare delta sotto roughness 0.03; interfaccia a IOR 1 attraversata dritta dai due lati. Coat e fuzz restano con lo scaling della sola direzione di vista della specifica: conserva l'energia su ogni base, non è reciproco (i test controllano l'energia). |
 
 ---
 
@@ -433,31 +433,76 @@ render (AgX al posto della curva vecchia, filtro Gaussiano al posto del box): `-
 
 ### Fase 5 - Materiali e BSDF (`Materials/`): il cuore del realismo
 
-Ordine interno, dal più semplice:
+- [x] **Lambertian**: furnace = albedo, chi-quadro del coseno.
+- [x] **Dielectric liscio**: Fresnel esatto, TIR senza consumare numeri casuali, IOR relativo con
+      `IorStack`, fattore `(η_i/η_t)²` della radianza (3.35), Beer-Lambert.
+- [x] **Microfacet core** (`Microfacet.cs`): GGX normalizzata, Smith G2 correlato in altezza,
+      campionamento VNDF (Heitz 2018), anisotropia alla OpenPBR.
+- [x] **Conduttore**: Fresnel complesso con IOR `n + ik` (15 preset), F82, lobo lambertiano tolto
+      (3.7), Kulla-Conty con tabella offline.
+- [x] **Dielectric rough** (Walter 2007): BTDF, pdf, reciprocità generalizzata, MIS, NEE attraverso
+      la superficie (3.6, 3.36).
+- [x] **Disney/Principled**: decisione OpenPBR presa (sotto); il tipo `disney` è tradotto su OpenPBR
+      e i suoi bug 3.2, 3.6, 3.17, 3.18 sono chiusi con la traduzione (3.39).
+- [x] **MixMaterial**: `Evaluate`/`Pdf` miscela pesata, `Sample` sceglie un figlio con probabilità t,
+      riporta i suoi lobi delta invariati e per quelli continui la miscela intera (coerente).
+- [x] **Emissive**: unilaterale (solo faccia anteriore), nessuna BSDF; unità fisiche rimandate alla
+      Fase 6 con le luci.
+- [x] **Shadow terminator** (3.11): fattore lato luce in entrambe le strategie MIS, fattore lato
+      vista tolto. La correzione dell'aggiunto per i path dalla luce non serve: il photon tracer
+      segue solo lobi delta, dove la normale di shading non entra.
 
-1. **Lambertian**: furnace = albedo, chi-quadro del coseno.
-2. **Dielectric liscio**: Fresnel esatto, TIR, IOR relativo con `IorStack` (vetro in acqua,
-   liquido nel bicchiere: priorità alla Schmidt-Budge 2002), Beer-Lambert.
-3. **Microfacet core** (`Microfacet.cs`): GGX D normalizzata (`∫ D cosθm dωm = 1`), Smith
-   G1 e G2 **height-correlated**, campionamento VNDF (Heitz 2018 o *spherical caps* di Dupuy 2023),
-   anisotropia (parametrizzazione roughness → alpha).
-4. **Conduttore**: Fresnel complesso con IOR `n + ik` (preset oro, argento, rame, alluminio,
-   ferro...), modello artistico F82 di OpenPBR, togliere il lobo lambertiano (3.7), Kulla-Conty.
-5. **Dielectric rough** (Walter 2007): BTDF, pdf, reciprocità con il fattore `η²`, MIS (3.6).
-6. **Disney/Principled**: ogni lobo da solo e poi la miscela; probabilità dei lobi (3.2), MIS
-   (3.13), LUT Kulla-Conty (confronto con valori di riferimento), sheen Charlie, clearcoat,
-   thin film (Belcour-Barla), `thin_walled`, `diff_trans`, retro-riflessione di Burley.
-7. **MixMaterial**: scelta stocastica vs blend, coerenza tra `Sample` e `Pdf` della miscela.
-8. **Emissive**: radianza unilaterale/bilaterale, unità.
-9. **Shadow terminator e normali di shading** (3.11): correzione dell'aggiunto di Veach per i
-   path dalla luce (photon map), confronto con Hanika 2021.
+**Decisione strategica, presa il 2026-10-21 dal proprietario**: OpenPBR Surface come materiale a
+strati (`openpbr`), con il tipo `disney` tradotto su di esso. `lambertian`, `metal` e `dielectric`
+restano classi proprie: sono già validate contro Mitsuba e coincidono esattamente con i casi
+limite di OpenPBR (test di riduzione). API unificata su `Sample`/`Evaluate`/`Pdf` (3.12).
 
-**Decisione strategica da prendere alla fine della fase**: adottare **OpenPBR Surface** come
-materiale unico (stack fisico: fuzz, coat, specular, metal/dielectric base, subsurface,
-trasmissione, thin film, con layering ad albedo-scaling che conserva l'energia) e trasformare
-`lambertian`/`metal`/`dielectric`/`disney` in preset che lo configurano. È ciò che fanno oggi
-Arnold, Karma, RenderMan (via MaterialX) e V-Ray: una sola BSDF ben testata invece di cinque.
-Unificare contemporaneamente l'API (3.12) su `Sample`/`Evaluate`/`Pdf`.
+#### Esito Fase 5 (2026-10-21)
+
+Suite: 893 test verdi, 0 skip (era 776 + 4 skip alla Fase 3). I tre bug Disney che erano test
+disattivati (3.2, 3.17, 3.18) ora passano.
+
+**Materiali classici rifatti e validati.** Metallo (Fresnel complesso o F82, Kulla-Conty), vetro
+liscio e satinato (Walter 2007), fattore η² della radianza, NEE attraverso le superfici che
+trasmettono, default trasparente del `dielectric` (3.37, il grigio 0.5 tingeva 13 vetri del repo).
+
+**OpenPBR** (3.38): materiale a strati completo, ogni parametro numero, colore o texture. Mattoni
+verificati contro i loro integrali (EON, fuzz LTC, tabelle di albedo isotropa, anisotropa e del
+dielettrico generate offline in `validation/gen_*.py`). Fornace bianca in tutte le configurazioni
+della specifica: test del BSDF e render completo (`scenes/review/openpbr-white-furnace.yaml`,
+0.997-1.000; il vetro ruvido 0.984 è la perdita a singolo scattering dell'interfaccia, identica
+al `dielectric`). Riduzioni esatte al `metal` e al vetro ruvido. Scelte rispetto alla specifica:
+diffuso sotto lo speculare con il peso reciproco; coat e fuzz con lo scaling della sola vista
+della specifica (conserva l'energia su ogni base, non reciproco); lobo delta sotto roughness 0.03.
+
+**Disney tradotto su OpenPBR** (3.39). Confronto visivo prima/dopo in
+`scenes/review/images/disney-to-openpbr.jpg`: spariscono i firefly della plastica liscia (3.2) e
+l'energia in più di sheen e clearcoat (3.17).
+
+**Validazione contro Mitsuba** (riferimento | default):
+
+| Scena | Fase 3 | Fase 5 |
+|---|---|---|
+| cornell-lambert d32 | 0.9998 / 0.9999 | 0.9998 / 0.9999 |
+| lights | 0.9997 | 0.9997 |
+| glass-shadow | 0.9997 / 0.9995 | 0.9995 / 0.9995 |
+| null-shell | 1.0001 | 1.0001 |
+| metal-rough | 1.378 | **1.0032** (con il G separabile di Mitsuba 1.0000) |
+| metal-presets (nuova) | | **1.0001** |
+| glass-rough (nuova) | 0.948 | **1.0013** / 1.0005 |
+| furnace-disney-glass | 1.0332 | **1.0000** |
+| disney-spheres | 1.0239 | 0.9771 (differenza di modello: il principled di Mitsuba somma sheen e clearcoat ×0.25 sopra la base, OpenPBR li stratifica) |
+
+**Pulizia dell'API** (3.12): tolti `Scatter` ed `EvaluateDirect`; la NEE usa `Evaluate`, la stessa
+funzione che il campionamento stima. Render identici alla quarta cifra.
+
+**Scene di riferimento conservate** (richiesta del proprietario): `scenes/review/` con un README che
+dice per ciascuna cosa verifica e cosa aspettarsi.
+
+**Verdetto**: i materiali sono fisicamente corretti e verificati uno per uno; il `disney` non crea
+più energia. Cambia l'aspetto delle scene con sheen, clearcoat o vetri senza `color`
+(documentato nel riferimento delle scene). Restano per altre fasi: unità fisiche dell'emissione
+(Fase 6), Fresnel all'uscita del random walk SSS (Fase 8), dispersione (spettrale, Fase 10).
 
 ### Fase 6 - Luci e illuminazione diretta (`Lights/`, `Rendering/Sky/`)
 

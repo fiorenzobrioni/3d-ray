@@ -96,6 +96,32 @@ public class AnalyticSceneTests
     }
 
     [Fact]
+    public void BeerLambert_TransmissionColorIsTheTransmittanceAtItsDepth()
+    {
+        // A unit slab of OpenPBR glass with index 1 (no Fresnel, no bending),
+        // transmission_color C at transmission_depth D, seen straight through
+        // under a uniform sky: the transmittance is C^(1/D), exactly.
+        Sampler.SetKind(SamplerKind.Sobol);
+        var c = new Vector3(0.5f, 0.7f, 0.9f);
+        const float depth = 0.5f;
+        var slab = new OpenPbr(new OpenPbrParameters
+        {
+            TransmissionWeight = 1f, SpecularIor = 1f, SpecularRoughness = 0f,
+            TransmissionColor = new RayTracer.Textures.SolidColor(c), TransmissionDepth = depth,
+        });
+        var world = new HittableList(new IHittable[] { new Box(slab) });
+        var cam = RenderHarness.LookAt(new Vector3(0, 0, 5), Vector3.Zero, 2f, W, H);
+        var mean = RenderHarness.Mean(RenderHarness.RenderLinear(world, new List<ILight>(), new SkySettings(Vector3.One),
+                                                                 cam, W, H, 16, 8));
+        for (int ch = 0; ch < 3; ch++)
+        {
+            float expected = MathF.Pow(ch == 0 ? c.X : ch == 1 ? c.Y : c.Z, 1f / depth);
+            float got = ch == 0 ? mean.X : ch == 1 ? mean.Y : mean.Z;
+            Assert.InRange(got, expected * 0.995f, expected * 1.005f);
+        }
+    }
+
+    [Fact]
     public void Furnace_NestedDielectrics_StayLossless()
     {
         // A glass core (n 1.5) inside a water sphere (n 1.33): every η² factor

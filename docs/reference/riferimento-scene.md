@@ -662,7 +662,7 @@ camera:
 ```yaml
 - id: "neon_blue"
   type: "emissive"
-  color: [0.2, 0.4, 1.0]
+  color: [0.2, 0.4, 1.0]                   # (opzionale) default bianco
   intensity: 8.0                           # Moltiplicatore di radianza
   texture: (opzionale)                     # Supporta texture procedurali
 ```
@@ -973,8 +973,8 @@ completi su scala, dettaglio, colore e modalità di campionamento.
 Tutte le procedurali campionano su `rec.LocalPoint`, che è il punto di shading
 negli **assi propri dell'oggetto, in unità di mondo** - viene applicato lo
 `scale` dell'entità ma non la sua rotazione né la traslazione. È la proiezione
-object-space metrica dei renderer di produzione (Cycles "Texture Coordinate →
-Object", Arnold `space: object`, RenderMan `Pref`).
+object-space metrica che i renderer di produzione usano per le texture
+procedurali.
 
 Conseguenza chiave: **la dimensione delle feature è data dallo `scale` della
 texture ed è indipendente dallo scale dell'entità.** Allungare un box 10× su X
