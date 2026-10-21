@@ -9,6 +9,7 @@ Le scene confrontate con Mitsuba stanno invece in `validation/scenes/`; gli show
 | `white-furnace-classic.yaml` | 5 | Fornace bianca di `lambertian`, `metal` (ruvido e specchio), `dielectric` ruvido | Ogni sfera vale 1 nel buffer beauty (il vetro ruvido 0.98: scattering singolo dell'interfaccia) |
 | `openpbr-white-furnace.yaml` | 5 | Fornace bianca del materiale `openpbr` in tutte le configurazioni della specifica | Ogni sfera vale 1 (vetro ruvido 0.98) |
 | `disney-to-openpbr.yaml` | 5 | Il tipo `disney` prima e dopo la traduzione su OpenPBR: plastica liscia, velluto, lacca, vetro colorato, metallo spazzolato, foglia | Confronto in `images/disney-to-openpbr.jpg`: plastica senza firefly, velluto senza energia in più, lacca col riflesso pieno |
+| `texture-frames.yaml` | 4 | Frame tangente di normal map e bump: tre cubi con la stessa normal map ruotati di 0°, 90°, 45°; tre sfere con lo stesso bump procedurale, ferma, ruotata, scalata 2× | `images/texture-frames.jpg`: fughe incavate su ogni faccia di ogni cubo; le tre sfere con lo stesso rilievo (la prima e la terza identiche) |
 
 ## Come leggere una fornace bianca
 

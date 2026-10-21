@@ -1047,8 +1047,18 @@ texture:
   fractal_offset: 0.7          # Musgrave offset / "sea level" - only used by hetero_terrain / hybrid_multifractal
   distortion: 0.0              # domain-warp amplitude (organic shapes)
   noise_strength: 0.0          # legacy: 0=smooth Perlin, >0=turbulent (overridden by noise_type)
+  noise_basis: "improved"      # improved (default) | classic
   colors: [[0, 0, 0], [1, 1, 1]]
 ```
+`noise_basis` picks the lattice noise under every procedural built on it
+(`noise`, `marble`, `wood`, the domain warp of `voronoi`, the per-brick
+variation of `brick`). `improved` (default) is improved Perlin noise: its
+curvature is continuous across the lattice, so a bump of the noise shows no
+creases along the grid, and it looks the same along every direction. It has
+the same contrast as the older basis, so ranges and colour ramps carry over,
+but the pattern itself is different: `classic` reproduces a scene made
+before the change exactly.
+
 The seven noise families map onto the standard pro-renderer modes:
 - `perlin` - single-octave smooth gradient noise.
 - `fbm` - Σ noise/2^i, the canonical "fractal noise".
@@ -1804,8 +1814,11 @@ texture:
 - Analytic anti-aliasing (mipmap + anisotropic, up to 8 trilinear taps) when ray differentials
   are available - enabled by default; toggle from the CLI with
   `--texture-filtering <auto|on|off>` (see [rendering-profiles.md §6c](./rendering-profiles.md)).
-  The same flag also drives the analytic octave clamp on procedural
-  noise/fBm/marble/wood/voronoi.
+  The same flag drives the analytic octave clamp of the `noise` texture
+  (every family: the octaves finer than the footprint are replaced by their
+  average, so distant noise fades to its mean) and the footprint
+  supersampling of `voronoi`; `marble` and `wood` are point-sampled and
+  rely on the pixel samples.
 #### **Normal Map:**
 ```yaml
 normal_map:

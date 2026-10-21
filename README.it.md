@@ -95,14 +95,14 @@ Per la roadmap dettagliata e le feature in corso consulta il [**PLANNING**](./PL
 
 ### Texture
 - ♟ **Checker** - scacchiera 3D procedurale
-- 🌀 **Noise** - rumore Perlin (liscio o turbolento) con `noise_type`, `octaves`, `lacunarity`, `gain`, `distortion`; modalità `perlin` / `fbm` / `turbulence` / `ridged` / `billow` più i due multifrattali **Musgrave** `hetero_terrain` e `hybrid_multifractal` per terreni erosi e roccia stratificata
+- 🌀 **Noise** - improved Perlin noise (`noise_basis: classic` mantiene il disegno precedente), liscio o turbolento, con `noise_type`, `octaves`, `lacunarity`, `gain`, `distortion`; modalità `perlin` / `fbm` / `turbulence` / `ridged` / `billow` più i due multifrattali **Musgrave** `hetero_terrain` e `hybrid_multifractal` per terreni erosi e roccia stratificata
 - 🏔 **Marble** - marmo procedurale realistico con venature multi-strato, distorsione che elimina il tiling visibile, pieghe geologiche, variazione cromatica di fondo e impurità minerali.
 - 🪵 **Wood** - legno procedurale realistico con anelli di crescita asimmetrici e variabili, venatura e figure del taglio, pori, gradiente alburno/durame e nodi. Il pattern degli anelli può pilotare anche `roughness` e `sheen` del Disney BSDF.
 - 🔷 **Voronoi / Worley** - pattern cellulari con dieci canali di output e metriche euclidean/manhattan/chebyshev, ideali per rocce, scaglie, mosaici e ciottoli. Colore per-cella libero o pilotato da palette/color ramp, con bordi netti o ammorbiditi (`smoothness`).
 - 🧱 **Brick** - pattern mattoni running-bond con variazione per-mattone e weathering
 - 🌈 **Gradient** - sfumature lineari, quadratiche, easing, sferiche e radiali
 - 🖼 **Image Texture** - texture da file (PNG, JPEG, BMP, GIF, TIFF, WebP a 8 o 16 bit, Radiance HDR, OpenEXR) con bilinear filtering, tiling configurabile, un `color_space` per texture (colori sRGB, mappe dati raw di default) e **mipmap pyramid + filtering anisotropico** per niente moiré né shimmer a basso angolo o a 4K
-- 🗺 **Normal Map** - dettaglio geometrico superficiale senza triangoli aggiuntivi; compatibile OpenGL e DirectX-style (`flip_y`)
+- 🗺 **Normal Map** - dettaglio geometrico superficiale senza triangoli aggiuntivi; compatibile OpenGL e DirectX-style (`flip_y`), 8 o 16 bit, tangenti MikkTSpace sulle mesh (le mappe cotte non mostrano cuciture)
 - 🎨 **Color Ramp multi-stop** - blocco `color_ramp:` opzionale che sostituisce il lerp implicito a due colori su noise/marble/wood/voronoi/gradient. Stop multipli a posizione libera con quattro modi di interpolazione (linear, smoothstep, ease, constant): marmi a 3+ toni, sapwood/heartwood, gradienti sunset, toon bands, heat-map.
 - 🧭 **Coordinate** - ritorna le coordinate del punto di shading come RGB nei quattro spazi canonici (`object`, `uv`, `generated`, `world`). Due usi: overlay di debug visivo (UV unwrap, allineamento object/world space) e driver XYZ deterministico per pilotare un'altra texture via mix material.
 
@@ -116,7 +116,7 @@ Tutte le texture procedurali supportano **offset**, **rotation** e **randomizzaz
   Risultato: niente shimmer/moiré a distanza, niente alias a basso angolo, senza aumentare i campioni globali.
 
 ### Surface Displacement Stack
-- 🟢 **Bump map** - dettaglio di superficie ottenuto perturbando la normale di shading da una texture qualunque (procedurale o image), senza aggiungere geometria. Disponibile su ogni materiale e su tutte le primitive.
+- 🟢 **Bump map** - dettaglio di superficie ottenuto perturbando la normale di shading da una texture qualunque (procedurale o image), senza aggiungere geometria. L'altezza è in unità di scena, come quella di un displacement, qualunque siano dimensione, scala o rotazione dell'oggetto. Disponibile su ogni materiale e su tutte le primitive.
 - 🔺 **Mesh subdivision** - raffinamento delle mesh OBJ con gli algoritmi Loop (mesh triangolari) e Catmull-Clark (mesh quad/miste), in modalità uniforme o adattiva screen-space.
 - 🎯 **Displacement material-level** - il displacement vive sul materiale: una sola definizione guida automaticamente tutte le mesh che lo referenziano, senza configurazione per-entità. Modalità tri-state (bump-only, displacement, o entrambi) e override per singola istanza.
 - 🏔️ **Scalar displacement** - deformazione reale della mesh subdivisa lungo la normale: cambia la silhouette dell'oggetto, non solo lo shading.

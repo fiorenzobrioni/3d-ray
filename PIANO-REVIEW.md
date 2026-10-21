@@ -24,7 +24,7 @@ aggiornano questa tabella, le caselle della fase e la sezione "Esito" della fase
 | 1 | Fondamenta matematiche, sampler | ✅ Chiusa (2026-10-20), esito in §4 Fase 1 |
 | 2 | Geometria e intersezioni | ⬜ |
 | 3 | Camera, film e colore | ✅ Chiusa (2026-10-21), esito in §4 Fase 3 |
-| 4 | Texture e dati | 🔄 In corso |
+| 4 | Texture e dati | ✅ Chiusa (2026-10-21), esito in §4 Fase 4 |
 | 5 | Materiali e BSDF | ✅ Chiusa (2026-10-21), esito in §4 Fase 5 |
 | 6 | Luci, cielo | ⬜ |
 | 7 | Integratore | ⬜ |
@@ -137,7 +137,7 @@ fase indicata.
 | 3.27 | ✅ **corretto** (2026-10-20, Fase 1), era **[BUG]** | `Core/MathUtils.cs` (`OffsetOrigin`, `RayEpsilon`), `Renderer`, `ShadowRay`, luci, `CausticPhotonTracer` | Offset dei raggi e `tMin` fissi a 1e-4: una scena di 10 µm usciva nera, una scena a 10 km dall'origine perdeva il 44% della luce per auto-intersezione. Ora l'offset è relativo alla coordinata più grande del punto (2^-15, circa 256 ulp, Wächter e Binder), con un minimo proporzionale al raggio della scena (2^-19); anche le guardie di distanza delle luci. Misure in §4 Fase 1. Test `ScaleInvarianceTests`. |
 | 3.28 | ✅ **corretto** (2026-10-20, Fase 1), era **[BUG]** piccolo | `Core/AABB.cs` | Un raggio parallelo a un asse con l'origine esattamente sul piano di una faccia dà `0 * ∞ = NaN` nello slab test, e `MathF.Max` lo propagava: il box (e in un nodo BVH tutto il sottoalbero) veniva scartato. Ora `float.MaxNumber`/`MinNumber` ignorano il NaN (convenzione conservativa di PBRT), senza costo misurabile. Test `Hit_RayInAFacePlane_IsConservative`. |
 | 3.29 | ✅ **corretto** (2026-10-20, Fase 1), era **[BUG]** | `Core/QuarticSolver.cs` (`SolveCubicMonic`, `RefineRoot`) | La cubica classificava il discriminante con una soglia **assoluta** 1e-12: la risolvente di Ferrari per un raggio che sfiora il tubo del toro (tre radici distinte vicine a 1e-3) veniva presa per una radice doppia e due radici vicine della quartica tornavano fuse (coppia distante 1e-2 restituita distante 5e-4; sotto 1e-4 una radice persa nell'1-3% dei casi). Il raffinamento di Newton, partendo fra le due radici, saltava fino a 2e-2. Ora soglia relativa al cubo dei coefficienti e Newton con guardia sul residuo: coppie fino a 1e-5 sempre trovate, errore entro il condizionamento; radici distinte da 4e-8 a 1.5e-10. Vale anche per il lathe (`SolveCubic`). Test `Quartic_CloseRoots_AreBothFound`. |
-| 3.30 | **[NON-STANDARD]** | `Core/Perlin.cs:109-111` | Interpolazione con il fade cubico `3t² - 2t³`: il valore e il gradiente sono continui ma la curvatura salta di 12.7 attraverso le facce del reticolo (visibile come pieghe sulla griglia nei bump map di rumore, che derivano due volte). Gradienti normalizzati sul cubo: anisotropia del 5.7% fra assi e diagonali. Improved Perlin (fade quintico, 12 gradienti) cambia l'aspetto di ogni texture procedurale: Fase 4, con un'opzione per l'aspetto attuale. Anche `MultiScaleRidgedField` e `DomainWarp` (costruiti su Perlin) vanno verificati lì. |
+| 3.30 | ✅ **corretto** (2026-10-21, Fase 4), era **[NON-STANDARD]** | `Core/Perlin.cs:109-111` | Interpolazione con il fade cubico `3t² - 2t³`: il valore e il gradiente sono continui ma la curvatura salta di 12.7 attraverso le facce del reticolo (visibile come pieghe sulla griglia nei bump map di rumore, che derivano due volte). Gradienti normalizzati sul cubo: anisotropia del 5.7% fra assi e diagonali. Improved Perlin (fade quintico, 12 gradienti) cambia l'aspetto di ogni texture procedurale: Fase 4, con un'opzione per l'aspetto attuale. Anche `MultiScaleRidgedField` e `DomainWarp` (costruiti su Perlin) vanno verificati lì. **Esito**: `PerlinBasis.Improved` (Perlin 2002: fade quintico, 16 gradienti sugli spigoli del cubo) è la base di default di noise, marble, wood, warp del voronoi e brick, riscalata a 0.67 per avere la deviazione standard della base classica (range e color ramp restano tarati); `noise_basis: classic` riproduce esattamente il disegno di prima. Salto di curvatura sulle facce del reticolo: da oltre 5 volte a circa 1 volta quello dentro la cella; anisotropia fra asse e diagonale sotto il 2%. Gli strata dell'heightfield restano sulla base classica (spostano solo bande di colore). `MultiScaleRidgedField` e `DomainWarp` verificati: usano `Noise`/`Ridged` senza assunzioni sulla base. Test `PerlinBasisTests`. |
 | 3.31 | ✅ **corretto** (2026-10-21, Fase 4), era **[NON-STANDARD]** piccolo | `Rendering/Renderer.cs:700` | I differenziali di raggio sono ridotti di `1/√spp` senza minimo: ad alti spp il filtro delle texture scende sotto il pixel (PBRT-v4 usa `max(1/8, 1/√spp)`), con aliasing e accessi di cache peggiori. Il footprint dei raggi di camera è verificato (§4 Fase 1); la propagazione dopo riflessione e rifrazione non è ancora testata. Fase 4. **Esito**: footprint `max(1/8, 1/√spp)` del pixel (`Renderer.DifferentialFloor`). La propagazione dopo riflessione e rifrazione non esiste per scelta: solo il primo hit del raggio di camera è filtrato, i rimbalzi sono campionati in un punto e l'antialias lo fa la media dei campioni (non distorto). Test `DifferentialFloorTests` (1, 16 e 1024 spp; nessun lookup filtrato oltre il primo hit). |
 | 3.32 | ✅ **corretto** (2026-10-21, Fase 5), era **[DEBITO]** | `Core/MathUtils.cs` (`Refract`) | Con la riflessione totale interna `Refract` prendeva `Abs(1 - sin²)` e restituiva una direzione senza significato. Ora restituisce il vettore nullo e i chiamanti ripiegano sulla riflessione (vicino all'angolo critico l'arrotondamento poteva sfuggire al controllo preventivo). |
 | 3.33 | **[BUG]** | `Denoising/` (NFOR) | Attorno a luci piccole e molto luminose sfocate (bokeh) il denoiser disegna un **alone scuro** più scuro dello sfondo: la regressione al primo ordine sbanda su valori HDR estremi. Senza denoiser l'alone non c'è (verificato con `scenes/showcases/camera-physical.yaml`). Colpisce i preset `draft*`, `standard*`, `pre-final*`. Fase 9. |
@@ -151,6 +151,11 @@ fase indicata.
 | 3.41 | ✅ **corretto** (2026-10-21, Fase 4), era **[BUG]** | `Textures/ImageTexture.cs` (LOD) | Il livello di mipmap era scelto misurando il footprint in UV per il lato lungo dell'immagine: su un'immagine non quadrata l'asse corto contava i texel del lato lungo e sfocava troppo (4×256: un quarto di texel letto come 64 texel). Ora il footprint è misurato in texel su ciascun asse. Test `NonSquareImage_PicksItsLevelInTexels`. |
 | 3.42 | ✅ **corretto** (2026-10-21, Fase 4), era **[BUG]** | `Textures/HdrLoader.cs` | Il loader Radiance ignorava l'orientamento della riga di risoluzione: un file `+Y` (righe dal basso) o `-X` usciva capovolto o specchiato. La decodifica RGBE usava `mantissa · 2^(e−136)` senza il mezzo bit di Radiance (`(m + 0.5) · 2^(e−136)`): i writer troncano la mantissa, così ogni HDRI era 0.2-0.8% troppo scuro. Test `RadianceHdr_*`. |
 | 3.43 | ✅ **corretto** (2026-10-21, Fase 4), era **[LIMITE]** | `Textures/ExrLoader.cs` | Un EXR in scala di grigi (solo canale `Y`, il formato tipico di una mappa dati) era rifiutato; la compressione RLE non era letta; come texture i valori negativi erano tagliati anche per una mappa dati (un displacement con segno). Ora `Y` riempie i tre canali, RLE è decodificato, una mappa dati tiene il segno (un colore resta ≥ 0). PIZ, DWAA/DWAB, B44, PXR24 e i file a tile restano non supportati con errore esplicito (PLANNING). |
+| 3.44 | ✅ **corretto** (2026-10-21, Fase 4), era **[BUG]** | `Textures/EnvironmentMap.cs` (`SampleDirection`, `PdfDirection`) | Il campionamento d'importanza dell'HDRI costruiva la direzione con `z = −cos θ cos φ` mentre la lettura (`Sample`, quello che vede la camera) usa `φ = atan2(x, z)`: ogni direzione campionata leggeva il texel specchiato attorno a φ = π/2. Non distorto (la pdf era quella del campionatore) ma mirato lontano dai texel luminosi: con un sole che porta il 90% dell'energia, 0 campioni su 4000 lo vedevano (ora oltre l'80%). La lettura era anche sfasata di un texel rispetto alle celle della CDF (`u × (W−1)`): ora è centrata sul texel. Test `EnvironmentSunTests.SampledDirections_LookUpTheTexelSampled`. |
+| 3.45 | ✅ **corretto** (2026-10-21, Fase 4), era **[BUG]** | `Textures/HdriSunExtractor.cs` | Il sole estratto dall'HDRI stava all'azimut specchiato (stessa convenzione di 3.44): ombre incoerenti con lo sfondo. L'energia data al sole era la somma dei soli texel sopra soglia, quella tolta dall'in-paint un'altra: l'alone sotto soglia andava perso e lo sfondo sotto il disco era contato due volte. Il centroide era una media di angoli (un sole sulla cucitura ±180° finiva dall'altra parte del cielo), le distanze ignoravano cos(latitudine), l'in-paint si fermava a un raggio invece di due. Ora: seme al texel più luminoso, centro come media vettoriale, distanze angolari sulla sfera, e il sole riceve esattamente l'energia tolta (mappa più sole integrano alla mappa originale entro lo 0.1%). Test `EnvironmentSunTests.SunExtraction_ConservesEnergy_AndFindsTheSun`. |
+| 3.46 | ✅ **corretto** (2026-10-21, Fase 4), era **[BUG]** | `Textures/BumpMapTexture.cs`, `Rendering/Renderer.cs` (`ApplyBumpMap`) | Il bump di una texture 3D spostava il punto locale (`LocalPoint`, senza rotazione) lungo la tangente in coordinate mondo: su un oggetto ruotato la pendenza era presa lungo l'asse sbagliato (a 90° nulla). L'altezza di un bump da immagine era per unità di UV, quindi dipendeva da quanto è grande la superficie. Ora l'altezza è `strength × luminanza` in unità di scena per ogni tipo di texture: un passo sulla superficie muove (u, v) con l'inversa di ∂P/∂u, ∂P/∂v e il punto 3D con l'inversa della rotazione dei transform (`HitRecord.LocalToWorld`, `BumpFrame`). I bump procedurali delle scene del repo (32 su 33) non cambiano; cambia solo il bump da immagine. Test `NormalAndBumpFrameTests`. |
+| 3.47 | ✅ **corretto** (2026-10-21, Fase 4), era **[BUG]** | `Geometry/*` (∂P/∂u), `Geometry/Box.cs`, `MeshTangents.cs`, `Textures/NormalMapTexture.cs` | Dieci primitive (box, cilindro, cono, tronco, disco, anello, capsula, toro, piano, lathe) non riportavano ∂P/∂u, ∂P/∂v: il filtro delle immagini usava la tangente unitaria (sfocatura sbagliata) e il bump non aveva la scala. Ora tutte, verificate numericamente (`PrimitiveUvDerivativeTests`). Il box capovolgeva la bitangente su tre facce (BUG-09) per avere un frame destrorso: il canale verde delle normal map era invertito lì; ora la bitangente segue +V ovunque, come MikkTSpace sulle isole UV specchiate. Capsula, cono e lathe avevano tangente o bitangente contro ∂P/∂u o ∂P/∂v. Le mesh avevano una tangente costante per faccia (cuciture con le normal map cotte): ora tangenti per vertice MikkTSpace. `NormalMapTexture` leggeva a 8 bit con mezzo texel di sfasamento e clamp ai bordi: ora passa per `ImageTexture` (16 bit, EXR, centrata, wrap). |
+| 3.48 | ✅ **corretto** (2026-10-21, Fase 4), era **[BUG]** | `Core/Perlin.cs` (`Fbm`, `Ridged`, `Billow`), `Textures/NoiseTexture.cs` | Quando il footprint toglieva le ottave fini, fBm, ridged e billow normalizzavano per l'ampiezza delle sole ottave tenute (e HeteroTerrain/Hybrid per la loro varianza): il rumore lontano guadagnava contrasto invece di sfumare alla media (una ottava su otto: ampiezza doppia). Ora un'ottava filtrata conta per la sua media (0 per fBm e multifrattali, E[\|n\|] per billow, E[(1−\|n\|)²] per ridged) e la normalizzazione copre tutte le ottave. Test `FilteredOctaves_FadeToTheMean_WithoutGainingContrast`. |
 
 ---
 
@@ -430,12 +435,47 @@ render (AgX al posto della curva vecchia, filtro Gaussiano al posto del box): `-
       (3.40, 3.41); differenziali con minimo 1/8 (3.31). Un EWA vero non serve: a parità di
       footprint il filtro a campioni trilineari è quello delle GPU e dei renderer di produzione.
       UDIM e texture a tile/cache: funzionalità, non correttezza, rimandate in PLANNING.
-- [ ] Normal map: convenzione tangenti **MikkTSpace** (lo standard di tutti i baker: senza, le
-      normal map importate mostrano cuciture), OpenGL/DirectX, `strength`.
-- [ ] Bump: scala in unità mondo, coerenza con il displacement (test esistenti da rivedere).
-- [ ] Procedurali (marble, wood, voronoi, noise, brick, gradient, color ramp): range, antialias
-      (clamp delle ottave vs footprint), coerenza tra spazio oggetto e mondo.
-- [ ] `HdriSunExtractor`: conservazione dell'energia quando il sole viene tolto dall'HDRI.
+- [x] Normal map: convenzione tangenti **MikkTSpace** (lo standard di tutti i baker: senza, le
+      normal map importate mostrano cuciture), OpenGL/DirectX, `strength` (3.47).
+- [x] Bump: scala in unità mondo, coerenza con il displacement (test esistenti da rivedere) (3.46).
+- [x] Procedurali (marble, wood, voronoi, noise, brick, gradient, color ramp): range, antialias
+      (clamp delle ottave vs footprint), coerenza tra spazio oggetto e mondo (3.30, 3.48).
+- [x] `HdriSunExtractor`: conservazione dell'energia quando il sole viene tolto dall'HDRI (3.44, 3.45).
+
+#### Esito Fase 4 (2026-10-21)
+
+Suite: 951 test verdi, 0 skip (era 893 alla Fase 5).
+
+**Dati e immagini.** `color_space` per texture con default per ruolo (3.3): una sola scena del repo
+cambia (il bump di cemento di `showcases/texture-bump-map.yaml`). Immagini lette a 16 bit, EXR in
+scala di grigi e RLE, mappe dati EXR con segno (3.43), Radiance con orientamento e mezzo bit di
+mantissa (3.42). Piramide mipmap che conserva la media (3.40), livello scelto in texel (3.41),
+differenziali con minimo 1/8 del pixel (3.31). Solo il primo hit del raggio di camera è filtrato,
+per scelta: i rimbalzi sono campionati in un punto e mediati dai campioni (non distorto).
+
+**Frame e altezze.** Ogni primitiva riporta ∂P/∂u, ∂P/∂v; tangente lungo +U e bitangente lungo +V
+ovunque (3.47); mesh con tangenti MikkTSpace. Bump in unità di scena per ogni tipo di texture e
+ogni transform (3.46). Scena di verifica `scenes/review/texture-frames.yaml`
+(`images/texture-frames.jpg`): tre cubi ruotati con la stessa normal map, tre sfere col bump
+ferma, ruotata, scalata; la prima e la terza sfera escono identiche.
+
+**Rumore.** Improved Perlin di default con la stessa deviazione standard della base classica
+(3.30), `noise_basis: classic` per i disegni di prima. Le ottave tolte dall'antialias contano
+per la loro media (3.48).
+
+**HDRI.** Il campionamento d'importanza mirava al texel specchiato (3.44): non distorto ma con
+molto più rumore del necessario sulle HDRI con il sole; il sole estratto stava all'azimut
+specchiato e non conservava l'energia (3.45). Tocca la Fase 6 (luci): i render con HDRI e sole
+estratto cambiano direzione delle ombre e rumore.
+
+**Rimandato** (PLANNING): marble e wood senza clamp delle ottave sul footprint (campionati in un
+punto, documentato); compressioni EXR PIZ, DWAA/DWAB, B44, PXR24 e file a tile; UDIM e cache di
+texture; l'autobump di una mesh scalata usa l'altezza in unità oggetto mentre il bump è in unità di
+scena; sui gradini piatti del lathe V va dal raggio interno all'esterno qualunque sia il verso del
+profilo.
+
+**Verdetto**: texture e dati corretti; i cambi d'aspetto attesi (bump da immagine, disegno del
+rumore, HDRI con sole) si rivedono con le altre scene alla fine della review.
 
 ### Fase 5 - Materiali e BSDF (`Materials/`): il cuore del realismo
 

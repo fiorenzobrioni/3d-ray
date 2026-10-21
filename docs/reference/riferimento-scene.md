@@ -1047,8 +1047,18 @@ texture:
   fractal_offset: 0.7          # Musgrave offset / "sea level" - solo per hetero_terrain / hybrid_multifractal
   distortion: 0.0              # domain warp (deforma il dominio per organicità)
   noise_strength: 0.0          # legacy: 0=Perlin liscio, >0=turbolento (sovrascritto da noise_type)
+  noise_basis: "improved"      # improved (default) | classic
   colors: [[0, 0, 0], [1, 1, 1]]
 ```
+`noise_basis` sceglie il rumore a reticolo sotto ogni procedurale che lo usa
+(`noise`, `marble`, `wood`, il domain warp di `voronoi`, la variazione per
+mattone di `brick`). `improved` (default) è l'improved Perlin noise: la sua
+curvatura è continua attraverso il reticolo, così un bump del rumore non
+mostra pieghe lungo la griglia, e ha lo stesso aspetto in ogni direzione. Ha
+lo stesso contrasto della base precedente, quindi range e color ramp restano
+validi, ma il disegno è diverso: `classic` riproduce esattamente una scena
+fatta prima del cambio.
+
 Le sette famiglie:
 - `perlin` - gradient noise liscio a singola ottava.
 - `fbm` - Σ noise/2^i, il "fractal noise" canonico.
@@ -1812,8 +1822,11 @@ texture:
   disponibili i ray differentials - attivo di default; toggle da CLI
   con `--texture-filtering <auto|on|off>` (vedi
   [profili-di-rendering.md §6c](./profili-di-rendering.md)). Lo stesso
-  flag controlla anche l'octave clamp analitico delle texture
-  procedurali noise/fBm/marble/wood/voronoi.
+  flag controlla l'octave clamp analitico della texture `noise` (tutte le
+  famiglie: le ottave più fini del footprint sono sostituite dalla loro
+  media, così il rumore lontano sfuma verso la media) e il supersampling sul
+  footprint di `voronoi`; `marble` e `wood` sono campionate in un punto e
+  si affidano ai campioni del pixel.
 
 #### **Normal Map:**
 ```yaml

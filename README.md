@@ -96,14 +96,14 @@ For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.
 
 ### Textures
 - ♟ **Checker** - procedural 3D checkerboard
-- 🌀 **Noise** - Perlin noise (smooth or turbulent) with `noise_type`, `octaves`, `lacunarity`, `gain`, `distortion`; modes `perlin` / `fbm` / `turbulence` / `ridged` / `billow` plus the two Musgrave multifractals `hetero_terrain` and `hybrid_multifractal` for eroded terrain and stratified rock.
+- 🌀 **Noise** - improved Perlin noise (`noise_basis: classic` keeps the earlier pattern), smooth or turbulent, with `noise_type`, `octaves`, `lacunarity`, `gain`, `distortion`; modes `perlin` / `fbm` / `turbulence` / `ridged` / `billow` plus the two Musgrave multifractals `hetero_terrain` and `hybrid_multifractal` for eroded terrain and stratified rock.
 - 🏔 **Marble** - realistic procedural marble with multi-layer veining, distortion that eliminates visible tiling, geological folds, background colour variation and mineral impurities.
 - 🪵 **Wood** - realistic procedural wood with asymmetric and variable growth rings, grain and cut figure, pores, sapwood/heartwood gradient and knots. The ring pattern can also drive `roughness` and `sheen` of the Disney BSDF.
 - 🔷 **Voronoi / Worley** - cellular patterns with ten output channels and euclidean/manhattan/chebyshev metrics, ideal for rocks, scales, mosaics and pebbles. Per-cell colour free or driven by palette/colour ramp, with sharp or softened edges (`smoothness`).
 - 🧱 **Brick** - running-bond brick pattern with per-brick variation and weathering.
 - 🌈 **Gradient** - linear, quadratic, easing, spherical and radial gradients.
 - 🖼 **Image Texture** - textures from file (PNG, JPEG, BMP, GIF, TIFF, WebP at 8 or 16 bits, Radiance HDR, OpenEXR) with bilinear filtering, configurable tiling, a `color_space` per texture (colours sRGB, data maps raw by default) and **mipmap pyramid + anisotropic filtering** for zero moiré and shimmer at low angles or at 4K.
-- 🗺 **Normal Map** - surface geometric detail without extra triangles; OpenGL and DirectX-style compatible (`flip_y`).
+- 🗺 **Normal Map** - surface geometric detail without extra triangles; OpenGL and DirectX-style compatible (`flip_y`), 8 or 16 bits, MikkTSpace tangents on meshes (baked maps show no seams).
 - 🎨 **Multi-Stop Colour Ramp** - optional `color_ramp:` block that replaces the implicit two-colour lerp on noise/marble/wood/voronoi/gradient. Multiple stops at free positions with four interpolation modes (linear, smoothstep, ease, constant): 3-tone marbles, sapwood/heartwood, sunset gradients, toon bands, heat maps.
 - 🧭 **Coordinate** - returns the shading point's coordinates as RGB in four canonical spaces (`object`, `uv`, `generated`, `world`). Two uses: visual debug overlay (UV unwrap, object/world space alignment) and deterministic XYZ driver for feeding another texture via mix material.
 
@@ -117,7 +117,7 @@ All procedural textures support **offset**, **rotation** and **per-object random
   Result: no shimmer/moiré at distance, no aliasing at low angles, without increasing the global sample count.
 
 ### Surface Displacement Stack
-- 🟢 **Bump map** - surface detail achieved by perturbing the shading normal from any texture (procedural or image), without adding geometry. Available on every material and every primitive.
+- 🟢 **Bump map** - surface detail achieved by perturbing the shading normal from any texture (procedural or image), without adding geometry. The height is in scene units, as a displacement's, whatever the object's size, scale or rotation. Available on every material and every primitive.
 - 🔺 **Mesh subdivision** - OBJ mesh refinement with Loop (triangle meshes) and Catmull-Clark (quad/mixed meshes) algorithms, in uniform or adaptive screen-space mode.
 - 🎯 **Material-level displacement** - displacement lives on the material: a single definition automatically drives all meshes that reference it, with no per-entity configuration. Tri-state mode (bump-only, displacement, or both) and per-instance override.
 - 🏔️ **Scalar displacement** - real mesh deformation along the normal of the subdivided mesh: changes the object's silhouette, not just shading.

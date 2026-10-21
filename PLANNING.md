@@ -105,7 +105,8 @@ Path tracer multi-bounce, parallel render, BVH SAH, camera DOF + multi-camera, p
 - [ ] Refactoring: spostare `Seed` da `IHittable` a un'interfaccia dedicata (es. `ISeeded`); nodi strutturali (BvhNode, Transform) non hanno bisogno di seed.
 - [ ] Review completa dei tutorial (`tutorial/`): correttezza vs codice, omissioni, grammatica, esempi, indici.
 - [ ] Spezzare `SceneLoader.cs`.
-- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅, Fase 1 (fondamenta matematiche e sampler) ✅, Fase 3 (camera, film e colore) ✅.
+- [ ] **Texture, rimandati dalla Fase 4 della review**: clamp delle ottave sul footprint per `marble` e `wood` (oggi campionate in un punto); compressioni EXR PIZ, DWAA/DWAB, B44, PXR24 e file a tile (oggi errore esplicito); UDIM e cache di texture a tile per scene grandi; l'autobump di una mesh dentro un transform scalato usa l'altezza del displacement in unità oggetto mentre il bump è in unità di scena (e la texture 3D del displacement è letta nello spazio oggetto non scalato); sui gradini piatti del lathe V va dal raggio interno all'esterno qualunque sia il verso del profilo; `UvTransformedHittable` ruota T e B come +U e +V (corretto ora che tutte le primitive li allineano, da ricontrollare se cambia una convenzione).
+- [ ] **Review completa del motore** (matematica, ottica, fisica, formato scene): piano in [`PIANO-REVIEW.md`](PIANO-REVIEW.md), da eseguire per fasi (0 → 11). Fase 0 (infrastruttura di verifica) ✅, Fase 1 (fondamenta matematiche e sampler) ✅, Fase 3 (camera, film e colore) ✅, Fase 4 (texture e dati) ✅, Fase 5 (materiali e BSDF) ✅.
 
 ---
 
@@ -115,7 +116,7 @@ Emersi durante la stesura del piano di review (dettagli e posizioni in [`PIANO-R
 
 - [ ] **Preetham**: funzione di Perez con coefficienti sbagliati (`PreethamSky.cs`, §3.1).
 - [x] **Disney BSDF**: peso del lobo diviso per `max(p, 0.1)` senza floor in selezione, energia sottostimata (§3.2): corretto 2026-10-21 (Fase 5), il `disney` è tradotto su OpenPBR.
-- [ ] **Texture dati** (roughness/metallic...) decodificate come sRGB (§3.3).
+- [x] **Texture dati** (roughness/metallic...) decodificate come sRGB (§3.3): corretto 2026-10-21 (Fase 4), `color_space` con default per ruolo.
 - [x] **Vetro satinato** escluso da `Evaluate`/`Pdf`: niente NEE/MIS (§3.6): corretto 2026-10-21 (Fase 5), Walter 2007.
 - [x] **Metal**: lobo lambertiano di riempimento non fisico (§3.7): corretto 2026-10-21 (Fase 5), Kulla-Conty.
 - [x] **HDRI importance sampling** solo ai centri dei texel (§3.9): corretto 2026-10-20 (Fase 1), campionamento continuo dentro il texel.
@@ -135,14 +136,20 @@ Fase 1 della review (fondamenta matematiche):
 
 - [x] **Sampler Sobol** peggio del caso dalla seconda decisione in poi (§3.10): rifatto 2026-10-20 (Sobol "padded", dimensioni per vertice).
 - [x] **Offset dei raggi fissi a 1e-4** (§3.27), **basi ortonormali di Frisvad** (§3.26), **`AABB.Hit` con NaN** (§3.28), **cubica con soglia assoluta** che fondeva radici vicine del toro (§3.29): corretti 2026-10-20.
-- [ ] **Perlin** con fade cubico (curvatura discontinua) e gradienti anisotropi (§3.30): Fase 4.
-- [ ] **Differenziali di raggio** senza il minimo 1/8 (§3.31): Fase 4. **`MathUtils.Refract`** con riflessione totale interna silenziosa (§3.32): corretto 2026-10-21 (Fase 5).
+- [x] **Perlin** con fade cubico (curvatura discontinua) e gradienti anisotropi (§3.30): corretto 2026-10-21 (Fase 4), improved Perlin di default, `noise_basis: classic`.
+- [x] **Differenziali di raggio** senza il minimo 1/8 (§3.31): corretto 2026-10-21 (Fase 4). **`MathUtils.Refract`** con riflessione totale interna silenziosa (§3.32): corretto 2026-10-21 (Fase 5).
 
 Fase 3 della review (camera, film e colore):
 
 - [x] **Decodifica sRGB delle texture con potenza 2.2** (§3.4) e **tone mapping ACES per canale con gamma 2.2** (§3.5): corretti 2026-10-21 (curva sRGB a tratti, view transform AgX / ACES 1.x / standard, `legacy` per i render vecchi).
 - [ ] **NFOR disegna un alone scuro** attorno a luci piccole e molto luminose sfocate (§3.33): Fase 9.
 - [ ] **Esposizione fisica** (ISO, tempo di posa, EV100) senza unità delle luci (§3.34): Fase 6.
+
+Fase 4 della review (texture e dati), corretti 2026-10-21:
+
+- [x] **Mipmap** che perdeva righe e colonne dispari e **livello** scelto in UV invece che in texel (§3.40, §3.41); **loader Radiance** senza orientamento e con mantissa troncata, **EXR** senza scala di grigi, RLE e segno nelle mappe dati (§3.42, §3.43).
+- [x] **HDRI**: campionamento d'importanza che mirava al texel specchiato e sole estratto all'azimut specchiato senza conservare l'energia (§3.44, §3.45).
+- [x] **Bump** con pendenza presa lungo l'asse sbagliato sugli oggetti ruotati e altezza per unità di UV (§3.46); **frame tangente**: ∂P/∂u mancante su dieci primitive, bitangente capovolta su tre facce del box, mesh senza tangenti per vertice (§3.47); **ottave filtrate** che aumentavano il contrasto del rumore lontano (§3.48).
 
 ---
 
