@@ -30,8 +30,8 @@ Per accelerare la convergenza (ridurre il rumore) su scene con sorgenti di luce 
 Ad ogni "hit" del raggio sulla superficie, invece di aspettare che un rimbalzo casuale colpisca una luce per accumulare l'energia, il motore:
 1.  **Campiona ogni luce** nella scena (`ComputeDirectLighting`).
 2.  Lancia un **raggio d'ombra (Shadow Ray)** verso un punto casuale della luce (per le Area Light) o verso la posizione della luce (Point/Spot).
-3.  Calcola il contributo BRDF della superficie per quella specifica direzione della luce.
-4.  Se la luce è visibile dal punto di hit, aggiunge il contributo (radiance × BRDF) all'accumulatore.
+3.  Se la luce è visibile dal punto di hit, valuta l'integrando in quella direzione: `material.Evaluate(V, L) × |N.L|` (`Renderer.DirectIntegrand`, la stessa BSDF che il rimbalzo indiretto campiona), moltiplicato per il fattore di shadow terminator sul lato della luce (`LightSideTerminator`, Chiang et al. 2019: attenua la luce che una normale perturbata vedrebbe sotto l'orizzonte vero; vale 1 dove la normale non è perturbata).
+4.  Aggiunge all'accumulatore il contributo (peso MIS × radiance della luce × integrando × trasmittanza del mezzo).
 
 ### 2.2 Separazione tra Luce Diretta e Indiretta — Multiple Importance Sampling
 Per evitare di contare due volte l'energia emessa (Double Counting) e per ridurre la varianza, il motore implementa il **Multiple Importance Sampling** di Veach (1997). Due strategie campionano lo stesso integrando dell'illuminazione diretta:
@@ -45,7 +45,7 @@ $$w_\text{balance}(p, q) = \frac{p}{p + q}, \qquad w_\text{power}(p, q) = \frac{
 
 La power heuristic riduce la varianza per coppie molto asimmetriche (es. luce piccola + materiale ruvido) sopprimendo più aggressivamente lo sampler peggio adattato.
 
-Tutti i materiali (Lambertian, Metal, MixMaterial, DisneyBsdf) implementano la tripla simmetrica `Sample` / `Pdf` / `Evaluate` su cui poggia la combinazione MIS; il `Renderer` propaga `prevBsdfPdf` e `prevIsDelta` lungo il path e li usa per pesare l'emissione al successivo hit (`WeightEmission`) e il sky miss (`SampleSky`). Lobi delta puri (specchio perfetto, rifrazione ideale, point/directional/spot light) sono riconosciuti dai flag `IsDeltaScatter` / `IsDelta` e ricevono peso 1 — non possono essere campionati dall'altra strategia.
+Tutti i materiali (Lambertian, Metal, Dielectric, OpenPbr, che serve anche il tipo `disney`, e MixMaterial) implementano la tripla simmetrica `Sample` / `Pdf` / `Evaluate` su cui poggia la combinazione MIS; `Emissive` non ha BSDF e il suo `Sample` nullo termina il cammino. Il campione BSDF non-delta pesa `F × |N.Wo| × terminator / pdf`, con lo stesso fattore di shadow terminator della NEE perché appartiene all'integrando; un campione delta pesa `F`. Il `Renderer` propaga `prevBsdfPdf` e `prevIsDelta` lungo il path e li usa per pesare l'emissione al successivo hit (`WeightEmission`) e il sky miss (`SampleSky`): dopo un lobo delta, o per un emettitore che la NEE non campiona, l'emissione passa a peso pieno; altrimenti riceve il peso MIS `prevBsdfPdf / (prevBsdfPdf + pLight)` (balance). Lobi delta puri (specchio perfetto, rifrazione ideale) e luci delta (point/directional/spot) sono riconosciuti da `BsdfSample.IsDelta` / `ILight.IsDelta` e ricevono peso 1: non possono essere campionati dall'altra strategia.
 
 L'estensione MIS copre anche il **bounce volumetrico**: la phase function espone `Pdf(wo, wi)` e il suo valore viene threadato come `prevBsdfPdf` quando il raggio prosegue dopo un evento di scattering nel medium globale. Combinato con la trasmittanza Beer-Lambert applicata già nelle shadow ray, questo dà MIS pieno fra phase-sampling e light-sampling per l'in-scattering.
 
@@ -72,9 +72,9 @@ Quando lo shadow ray attraversa una superficie, accumula un fattore di trasmissi
 **Modelli di trasmittanza per materiale**
 
 - **`Dielectric`**: $T = (1 - F_\text{dielectric}(\cos\theta, \eta)) \cdot \text{albedo}$, dove $F$ è la formula di Fresnel completa (`MathUtils.FresnelDielectric`). Una sfera di vetro accumula due fattori (entrata + uscita), riproducendo il rim più scuro a grazing angles. Nessun assorbimento volumetrico.
-- **`DisneyBsdf`** (solo se `spec_trans > 0`):
-  - Per-interfaccia: $T = \text{specTrans} \cdot (1 - F) \cdot \text{tint}$, con `tint` da `ResolveTransmission` (legacy `sqrt(baseColor)` se `transmission_color` non è impostato, oppure `transmission_color` puro per `transmission_depth = 0`, oppure $\mathbf{1}$ in modalità Beer-Lambert).
-  - Volumetrico Beer-Lambert: $\sigma_a = -\ln(\text{transmission\_color}) / \text{transmission\_depth}$ esposto via `IMaterial.ShadowAbsorption`. Il walker integra $\exp(-\sigma_a \cdot d)$ sul segmento interno fra il front-face hit (entrata) e il successivo back-face hit (uscita). Risultato: l'ombra di un rubino, smeraldo, ambra o zaffiro è correttamente colorata, in coerenza con la trasmissione del lobo BSDF che già usa lo stesso $\sigma_a$ via medium-switch.
+- **`OpenPbr`** (anche il tipo `disney`; solo con `transmission_weight` o `subsurface_weight` > 0):
+  - Per-interfaccia: $T = (1 - M) \cdot T' \cdot (1 - F) \cdot \text{tint}$, con $M$ la metalness e $T' = T + (1 - T) S$ la quota che attraversa l'interfaccia dielettrica (trasmissione più subsurface), attenuato dal coat (assorbimento e Fresnel del coat) e dal fuzz, poi miscelato con 1 secondo l'opacità (una superficie in parte ritagliata lascia passare il resto). `tint` è `transmission_color`, salvo quando c'è una `transmission_depth` (allora il colore è nel Beer-Lambert). Da dentro l'oggetto vale solo il Fresnel dell'interfaccia.
+  - Volumetrico Beer-Lambert: $\sigma_a = -\ln(\text{transmission\_color}) / \text{transmission\_depth}$ esposto via `IMaterial.ShadowAbsorption` (zero quando l'interno è un mezzo legato all'oggetto, che attenua per conto suo). Il walker integra $\exp(-\sigma_a \cdot d)$ sul segmento interno fra il front-face hit (entrata) e il successivo back-face hit (uscita). Risultato: l'ombra di un rubino, smeraldo, ambra o zaffiro è correttamente colorata, in coerenza con la trasmissione del lobo BSDF che già usa lo stesso $\sigma_a$ via medium-switch.
 - **`MixMaterial`**: blend lineare di `ShadowTransmittance` e `ShadowAbsorption` dei due child.
 - Default per tutti gli altri materiali: `Vector3.Zero` per entrambi (opaco).
 
@@ -144,16 +144,16 @@ Per gestire raggi che rimbalzano potenzialmente all'infinito e mantenere l'effic
 - **Scene a illuminazione diretta (Normal)**: RR più aggressiva dopo 4 rimbalzi, poiché la maggior parte dell'energia proviene dai primi bounce.
 - **Scene a illuminazione indiretta (Low-light)**: RR conservativa (almeno 8 rimbalzi), per dare al raggio più possibilità di trovare una sorgente di luce emissiva o uscire verso il cielo.
 
-La probabilità di sopravvivenza del raggio è legata alla sua riflettanza (luminanza): raggi "deboli" che trasportano poca energia vengono eliminati prima, concentrando il calcolo sui percorsi più luminosi.
+La probabilità di sopravvivenza del raggio è il canale massimo della throughput accumulata lungo il path, limitata fra un minimo che dipende dalla scena e 0.95: raggi "deboli" che trasportano poca energia vengono eliminati prima, concentrando il calcolo sui percorsi più luminosi.
 
 ---
 
 ## 4. Pipeline di Post-Processing
 
 Il risultato finale del Path Tracer è un'immagine HDR (High Dynamic Range), che viene trasformata per la visualizzazione tramite:
-1.  **ACES Filmic Tone Mapping**: Utilizziamo una curva cinematografica (Narkowicz approximation) che gestisce in modo naturale le sovraesposizioni e rende i gradienti di luce più ricchi.
-2.  **Gamma Correction (2.2)**: Rimappatura della luce lineare (fisica) allo spazio di colore sRGB del monitor.
-3.  **Firefly Guard**: Clamping adattivo dei campioni prima dell'accumulo per eliminare i pixel "caldi" causati da percorsi statistici ad altissima energia ma bassa probabilità.
+1.  **Firefly clamp (opzionale)**: con `-C <n>` ogni campione oltre la soglia di luminanza viene scalato prima dell'accumulo; spento per default perché toglie anche luce legittima. NaN e Inf sono sempre scartati.
+2.  **Esposizione e bilanciamento del bianco**: guadagno lineare `2^EV`, poi adattamento cromatico Bradford (`--white-balance` o `white_balance` della camera).
+3.  **View transform** (`--view agx|aces|standard|legacy`, default `agx`) e **codifica sRGB** a tratti (`Rendering/ColorManagement.cs`). Dettagli in [Pipeline di Rendering](./rendering-pipeline.md) §5.
 
 ---
 

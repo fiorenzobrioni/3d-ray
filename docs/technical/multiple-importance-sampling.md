@@ -5,7 +5,7 @@
 > coinvolti, [Pipeline di Rendering](./rendering-pipeline.md) per il flusso di
 > dati attorno a `TraceRay`.
 
-Questo documento descrive come 3D-Ray combina le diverse strategie di campionamento dell'illuminazione (light sampling / BSDF sampling / phase sampling) sotto l'estimatore Multiple Importance Sampling di Veach (1997). Copre il contratto fra le interfacce `IMaterial`, `ILight`, `IPhaseFunction` e il `Renderer`, le heuristiche disponibili (`balance`, `power`) e i casi limite — lobi delta, materiali legacy, mixture stocastica, in-scattering volumetrico.
+Questo documento descrive come 3D-Ray combina le diverse strategie di campionamento dell'illuminazione (light sampling / BSDF sampling / phase sampling) sotto l'estimatore Multiple Importance Sampling di Veach (1997). Copre il contratto fra le interfacce `IMaterial`, `ILight`, `IPhaseFunction` e il `Renderer`, le heuristiche disponibili (`balance`, `power`) e i casi limite: lobi delta, mixture stocastica, in-scattering volumetrico.
 
 ## 1. Il problema
 
@@ -54,24 +54,27 @@ Il termine `1e-30f` evita 0/0 quando entrambe le PDF sono nulle (caso che il chi
 ### 3.1 `IMaterial` — la tripla simmetrica
 
 ```csharp
-Vector3 Evaluate(Vector3 V, Vector3 L, HitRecord rec);   // BRDF senza coseno
-float   Pdf     (Vector3 V, Vector3 L, HitRecord rec);   // PDF in solid angle
-BsdfSample? Sample(Vector3 V, HitRecord rec);            // (Wo, F, Pdf, IsDelta)
+Vector3 Evaluate(Vector3 V, Vector3 L, in HitRecord rec);   // BSDF senza coseno
+float   Pdf     (Vector3 V, Vector3 L, in HitRecord rec);   // PDF in solid angle
+BsdfSample? Sample(Vector3 V, in HitRecord rec);            // (Wo, F, Pdf, IsDelta, Transition, ...)
 ```
 
-- `Evaluate` ritorna $f(V, L)$ **senza** il coseno $|n \cdot L|$ — il chiamante moltiplica.
-- `Pdf` è la densità in solid angle del sampler proprio del materiale, valutata nella direzione data. Per i lobi non-delta deve integrare a 1 sulla regione campionabile.
-- `Sample` produce una direzione `Wo` e riporta `F` (BRDF), `Pdf` (densità), `IsDelta` (true per Dirac), `NextSegmentAbsorption` (Beer-Lambert switch quando il sample è transmission).
+- `Evaluate` ritorna $f(V, L)$ **senza** il coseno $|n \cdot L|$: il chiamante moltiplica. È l'unica descrizione del materiale: la NEE pesa ogni campione di luce non in ombra con `Evaluate(V, L) × |N.L|` (`Renderer.DirectIntegrand`), moltiplicato per il fattore di shadow terminator sul lato della luce (Chiang et al. 2019; lo stesso fattore entra nel peso del rimbalzo BSDF), e il rimbalzo BSDF stima la stessa funzione. Non esistono un `Scatter()` né un `EvaluateDirect()` separati.
+- `Pdf` è la densità in solid angle del sampler proprio del materiale, valutata nella direzione data, senza i lobi delta. Integra alla probabilità di un campione non-delta (1 per un materiale senza lobi delta) sulla regione campionabile.
+- `Sample` produce una direzione `Wo` e riporta `F` (BSDF), `Pdf` (densità), `IsDelta` (true per Dirac), `Transition` (`Enter`/`Exit` sulle rifrazioni, per la pila dei mezzi) e `NextSegmentAbsorption` (Beer-Lambert del segmento successivo). Per un sample non-delta `F` e `Pdf` coincidono con `Evaluate` e `Pdf` in `Wo`. Ritorna null quando il cammino è assorbito: non c'è fallback.
+
+Il renderer pesa un sample non-delta con `F × |N.Wo| × terminator / Pdf` e un sample delta con `F` soltanto.
 
 Implementanti:
 
 | Materiale | Sample/Pdf/Evaluate | Note |
 |---|---|---|
-| `DisneyBsdf` | ✅ multi-lobo (diffuse, specular GGX, sheen, clearcoat, multiscatter, diff_trans) | Transmission gestita come delta; VNDF Heitz 2018 per i lobi specular. |
+| `OpenPbr` (anche il tipo `disney`, tradotto da `DisneyMaterial.Create`) | ✅ miscela di lobi (metallo F82 + Kulla-Conty, interfaccia dielettrica GGX con trasmissione di Walter, diffuso EON, coat, fuzz, subsurface sottile) | Ogni lobo tiene solo le direzioni del proprio supporto; `F` e `Pdf` del sample sono quelli dell'intera miscela. La trasmissione rough è un lobo non-delta in `Evaluate`/`Pdf`; trasmissione e riflessione lisce sono delta. VNDF (Heitz 2018) per i lobi GGX. |
 | `Lambertian` | ✅ cosine-hemisphere | $f = \rho/\pi$, $p = \cos\theta/\pi$. |
-| `Metal` | ✅ Cook-Torrance GGX | NDF importance sampling; `fuzz=0` → delta. |
+| `Metal` | ✅ GGX VNDF + lobo di scattering multiplo (Kulla-Conty) | `Pdf` è la miscela dei due sampler; `fuzz=0` → delta. |
+| `Dielectric` | ✅ liscio: due lobi delta; rough: Walter 2007 | Liscio: Fresnel sceglie riflessione o rifrazione, `IsDeltaScatter = true`. Rough: riflessione e trasmissione microfacet non-delta, con il fattore di radianza $(\eta_i/\eta_t)^2$ in rifrazione. |
 | `MixMaterial` | ✅ blend lineare in `Pdf`/`Evaluate`, one-sample mixture in `Sample` | Vedi §5.3. |
-| `Dielectric` | ❌ delta puro | Entrambi i lobi (riflessione + rifrazione) sono Dirac per costruzione fisica. `IsDeltaScatter = true`. |
+| `Emissive` | default dell'interfaccia | `Evaluate`/`Pdf` nulli, `Sample` ritorna null; `NeedsDirectLighting = false`. |
 
 ### 3.2 `ILight` — campionabilità da NEE
 
@@ -102,12 +105,12 @@ Per le 5 phase function fornite (Isotropic, Henyey-Greenstein, double-HG, Raylei
 
 Il `Renderer` applica MIS in quattro punti:
 
-1. **`ComputeDirectLighting`** (surface NEE) — riga ~795. Per ogni shadow ray non in ombra, peso `wNee = MisWeight(pLight, pBsdf)` se la luce è non-delta e il materiale espone `Pdf > 0`.
-2. **`WeightEmission`** (BSDF-hit-emitter) — riga ~559. Quando un raggio BSDF colpisce un emitter NEE-registrato, peso `wBsdf = MisWeight(prevBsdfPdf, pLight)`. Per `prevIsDelta = true` il peso è 1 (i lobi delta non possono essere raggiunti da NEE).
-3. **`SampleSky`** (BSDF-escape-into-sky) — riga ~687. Quando un raggio BSDF esce dalla scena verso un environment campionabile, peso `wBsdf = MisWeight(prevBsdfPdf, pEnv)`.
-4. **`ComputeDirectLightingMedium`** (volumetric NEE) — riga ~890. Analogo a (1) ma con la phase function al posto della BRDF e `phasePdf` al posto di `pBsdf`.
+1. **`ComputeDirectLighting`** (surface NEE). Per ogni shadow ray non in ombra, contributo `wNee × lightColor × Evaluate × |N.L| × terminator × Tr`, con `wNee = MisWeight(pPick × pLight, pBsdf)` se la luce è non-delta e `material.Pdf > 0` in quella direzione (altrimenti 1).
+2. **`WeightEmission`** (BSDF-hit-emitter). Quando un raggio BSDF non-delta colpisce un emitter NEE-registrato, peso `wBsdf = MisWeight(prevBsdfPdf, pLight)`. Per `prevIsDelta = true` (raggio di camera o lobo delta) e per gli emettitori non registrati il peso è 1: nessun campione di luce li ha contati.
+3. **`SampleSky`** (BSDF-escape-into-sky). Quando un raggio BSDF esce dalla scena verso un environment campionabile, peso `wBsdf = MisWeight(prevBsdfPdf, pEnv)`.
+4. **`ComputeDirectLightingMedium`** (volumetric NEE). Analogo a (1) ma con la phase function al posto della BRDF e `phasePdf` al posto di `pBsdf`.
 
-L'identificazione della "controparte" delle PDF si basa sui flag `IsDelta` (luci) e `IsDeltaScatter` / `BsdfSample.IsDelta` (materiali); quando uno dei due lati è delta, il peso degenera a 1.
+L'identificazione della "controparte" delle PDF si basa sui flag `ILight.IsDelta` (luci) e `BsdfSample.IsDelta` (il lobo effettivamente campionato); quando uno dei due lati è delta, il peso degenera a 1. `IMaterial.IsDeltaScatter` (vero solo se ogni lobo è delta) serve ad altro, per esempio a saltare il gather delle caustiche.
 
 ## 5. Casi limite
 
@@ -115,33 +118,29 @@ L'identificazione della "controparte" delle PDF si basa sui flag `IsDelta` (luci
 
 Una distribuzione Dirac non ha densità solid-angle finita. Convenzione di 3D-Ray:
 
-- `BsdfSample.IsDelta = true`, `Pdf = 1` (sentinel, non una vera densità).
+- `BsdfSample.IsDelta = true`, `Pdf = 1` (sentinel, non una vera densità); il peso del rimbalzo è `F` soltanto, senza coseno né pdf.
 - Il `Renderer` usa `IsDelta` come marker: nel bounce successivo `prevBsdfPdf = 0`, `prevIsDelta = true`, e `WeightEmission` / `SampleSky` ritornano radianza a peso 1.
-- NEE non può raggiungere queste superfici perché `material.Pdf(V, L) = 0` per qualunque `L`; il peso `wNee` rimane 1 ma il contributo è zero (`material.EvaluateDirect` ritorna zero).
+- NEE non può raggiungere questi lobi: `material.Pdf(V, L)` e `material.Evaluate(V, L)` li escludono, quindi il loro contributo al campione di luce è zero.
 
-`Dielectric` e `Metal` con `fuzz = 0` rientrano in questa categoria.
+`Dielectric` liscio, `Metal` con `fuzz = 0` e i lobi lisci di `OpenPbr` (rugosità sotto la soglia delta, α ≤ 1e-3) rientrano in questa categoria. Un materiale con lobi delta e non-delta insieme (es. coat liscio su base diffusa) ha `IsDeltaScatter = false`: i suoi sample delta passano comunque a peso pieno, quelli non-delta con il peso MIS.
 
-### 5.2 Materiali legacy via `Scatter`
+### 5.2 `Sample` nullo
 
-L'API legacy `Scatter()` resta esposta da `IMaterial` per compatibilità. Quando il `Renderer` non riceve un `BsdfSample` da `Sample()` (ritorno `null`), ricade su `Scatter()` con `prevBsdfPdf = 0` e `prevIsDelta = material.IsDeltaScatter`. Questo riproduce la vecchia semantica "NEE replaced emission" — è ancora unbiased, ma perde la varianza che il MIS recupererebbe.
-
-A oggi tutti i materiali rilevanti (`DisneyBsdf`, `Lambertian`, `Metal`, `MixMaterial`) implementano `Sample()`; il fallback a `Scatter()` resta solo per la sicurezza di custom material di terze parti.
+Ogni materiale campiona con `Sample()`; l'API `Scatter()` e la modalità "NEE replaced emission" con `prevBsdfPdf = 0` sono state rimosse. Un `Sample()` che ritorna null (luce assorbita, direzione sotto la superficie, `Emissive`) termina il cammino in quel punto: la superficie contribuisce solo con emissione e NEE. Non c'è un secondo campionamento: un fallback su un'altra API, per una miscela il cui figlio scelto non campionava, estraeva un altro figlio e pesava male entrambi.
 
 ### 5.3 `MixMaterial` — mixture estimator
 
 Per una miscela $f_\text{mix} = (1-t) f_A + t f_B$:
 
-- **`Evaluate(V, L)`** ritorna la combinazione lineare diretta dei figli — nessuna sorpresa.
+- **`Evaluate(V, L)`** ritorna la combinazione lineare dei figli pesata con $t$: $(1-t) f_A + t f_B$.
 - **`Pdf(V, L)`** ritorna $(1-t) p_A(L) + t\, p_B(L)$. Questa è la densità **marginale** del sampler stocastico ed è quella richiesta dal MIS NEE.
-- **`Sample(V)`** seleziona stocasticamente uno dei due figli con probabilità $t / (1-t)$ e ritorna direttamente il `BsdfSample` del figlio scelto. Il `Renderer` calcola `attenuation = F · cos / Pdf`; integrando sulla scelta stocastica si ottiene esattamente $\int (1-t) f_A + t f_B$ (PBRT v4 §9.5.3 *one-sample model*).
+- **`Sample(V)`** sceglie il figlio B con probabilità $t$ (A con $1-t$) e ne prende il sample. Se il sample è non-delta, riporta in quella direzione la `F` e la `Pdf` **dell'intera miscela** ($f_\text{mix}$, $p_\text{mix}$): la densità marginale della procedura è proprio $p_\text{mix}$, quindi `F × cos / Pdf` è lo stimatore giusto e la pdf coincide con quella che la NEE interroga (PBRT v4, *one-sample model*). Riportare la pdf del solo figlio scelto introdurrebbe bias quando le due pdf differiscono.
 
-Un caso da tenere a mente: se uno dei figli è delta e l'altro no, e il sample selezionato è quello delta, il `BsdfSample` ritorna `IsDelta = true` e il `Renderer` lo tratta come un bounce delta singolo — il MIS di NEE nel bounce successivo continua a valutare `mix.Pdf` (combinazione del lobo non-delta), che è la quantità giusta per il peso, ma il contributo del lobo delta non viene MIS-pesato (è peso 1 by construction).
+Se il sample del figlio scelto è delta, viene restituito così com'è (direzione, `F`, `IsDelta = true`; solo la pdf sentinella è scalata per la probabilità di scelta). Il peso del rimbalzo è `F`: poiché il figlio è stato scelto con probabilità pari al suo peso nella miscela, la media è esattamente la parte delta di $(1-t) f_A + t f_B$. Il bounce successivo vede `prevIsDelta = true` e l'emissione passa a peso pieno.
 
-### 5.4 Metal NDF non-VNDF
+### 5.4 Sample scartati sotto la superficie
 
-`Metal` campiona la NDF GGX (non la sua versione *visible*, VNDF), quindi alcuni sample finiscono sotto la superficie e vengono scartati (`null` ritornato da `Sample()`). La PDF analitica `Metal.Pdf` non integra esattamente a 1 per `fuzz` alti — riportare la densità "lorda" del sampler. Il MIS resta unbiased perché l'estimatore `F · cos / Pdf` usa la **stessa** PDF al numeratore (in `BsdfSample.Pdf`) e al denominatore: il rapporto è corretto.
-
-Migrare a VNDF (Heitz 2018, già usato da `DisneyBsdf`) è un'ottimizzazione di varianza ortogonale, non un fix MIS.
+`Metal`, `Dielectric` rough e i lobi GGX di `OpenPbr` campionano le normali visibili (VNDF, Heitz 2018); una riflessione su una microfaccetta può comunque finire sotto la superficie, e quel sample viene scartato (`null`). La `Pdf` analitica riporta la densità del sampler includendo quella massa, quindi integra a meno di 1 sulle direzioni accettate. Il MIS resta unbiased: lo stimatore `F × cos / Pdf` usa la stessa densità con cui la direzione è stata davvero estratta, e la NEE usa la stessa `Pdf` per il peso. Il kit statistico (`BsdfTestKit`) confronta per questo il chi-quadro come distribuzione condizionata sul supporto e verifica la normalizzazione con l'albedo.
 
 ### 5.5 Phase function in volumi
 
@@ -156,10 +155,10 @@ La suite `MisMaterialsTests` (`src/RayTracer.Tests/MisMaterialsTests.cs`) copre:
 - **MixMaterial linearity** — `Pdf_mix == (1-t)·Pdf_A + t·Pdf_B` analiticamente, su 5 valori di blend.
 - **Delta-mirror invariants** — `Metal` con `fuzz = 0`: `Sample` ritorna `IsDelta = true, Pdf = 1`, mentre `Pdf(V, L) = 0` per ogni `L`.
 
-Le scene `scenes/furnace-{lambert,metal,mix}.yaml` sono banchi diagnostici di conservazione di energia: una sfera di albedo 1 in un environment di luminanza 1 deve restituire un'immagine in cui la sfera è indistinguibile dallo sfondo, a meno di rumore Monte Carlo (e, per Metal, della perdita NDF discussa al §5.4).
+Le scene `scenes/review/white-furnace-classic.yaml` (`lambertian`, `metal`, `dielectric`) e `scenes/review/openpbr-white-furnace.yaml` (le configurazioni OpenPBR della specifica) sono banchi diagnostici di conservazione di energia: una sfera di albedo 1 in un environment di luminanza 1 deve restituire un'immagine in cui la sfera è indistinguibile dallo sfondo, a meno di rumore Monte Carlo (il vetro ruvido perde circa il 2% per lo scattering singolo dell'interfaccia). I gate statistici per materiale sono in `src/RayTracer.Tests/Validation/` (vedi [Testing](./testing.md) §4.3).
 
 ## 7. Riferimenti
 
 - Eric Veach. *Robust Monte Carlo Methods for Light Transport Simulation*. PhD thesis, Stanford, 1997. §9.2 (heuristiche balance/power), §10.3 (path-space MIS).
 - Matt Pharr, Wenzel Jakob, Greg Humphreys. *Physically Based Rendering: From Theory to Implementation*, 4th edition. §13.10 (one-sample MIS), §14.3 (bidirectional path tracing).
-- Eric Heitz. *Sampling the GGX Distribution of Visible Normals*. JCGT 7(4), 2018. (Per il VNDF di `DisneyBsdf`; futuro upgrade di `Metal`.)
+- Eric Heitz. *Sampling the GGX Distribution of Visible Normals*. JCGT 7(4), 2018. (VNDF di `Metal`, `Dielectric` rough e dei lobi GGX di `OpenPbr`.)

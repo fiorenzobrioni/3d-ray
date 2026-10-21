@@ -30,7 +30,7 @@ Every BSDF capable of transmitting light emits a `BsdfSample.Transition` enum on
 - `MediumTransition.Enter` — front-face refraction into the geometry. Stack pushes `MediumIface.Interior`.
 - `MediumTransition.Exit` — back-face refraction out of the geometry. Stack pops; if the popped medium is not the one expected (mismatch — e.g., a bug in scene authoring) the renderer logs a deferred warning and continues with the new top.
 
-`DisneyBsdf.ScatterTransmission` and `Dielectric` are the two BSDFs that emit these transitions today. Thin-walled transmission (`thin_walled: true` on Disney) is the one case where transmission does NOT change the stack: the ray model treats thin sheets as a single interface, not a volume.
+`Dielectric` and `OpenPbr` (which also serves the `disney` type) are the two materials that emit these transitions, on their refraction samples: the smooth (delta) and the rough (non-delta) refraction alike, while reflection samples return `None`. `MixMaterial` passes on the transition of the child it sampled. Thin-walled surfaces (`thin_walled: true` on `openpbr` or `disney`) never change the stack: the ray model treats a thin sheet as a single interface, not a volume, so their transmission returns `None` and `TryGetDielectricIor` keeps them out of the IOR stack too.
 
 ## Walk dispatch
 

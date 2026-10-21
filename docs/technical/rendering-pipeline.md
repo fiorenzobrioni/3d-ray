@@ -4,7 +4,7 @@ Questo documento descrive il flusso architetturale completo del motore 3D-Ray, d
 
 **Documenti correlati:**
 - [Path Tracing e Illuminazione](./path-tracing-and-lighting.md) — NEE, Russian Roulette, campionamento HDRI, Sphere Light
-- [Modello di Shading e Materiali](./shading-model.md) — Disney BSDF, Fresnel, Normal Mapping
+- [Modello di Shading e Materiali](./shading-model.md): OpenPBR, materiali classici, interfaccia `IMaterial`, Normal Mapping
 - [Strutture di Accelerazione (BVH)](./acceleration-structures.md) — Bounding Volume Hierarchy e SAH
 
 **File sorgente chiave:**
@@ -30,10 +30,10 @@ Questo documento descrive il flusso architetturale completo del motore 3D-Ray, d
 │  Renderer   │  Costruttore: scene analysis + RR + photon map caustiche (se --caustics on)
 │ constructor │  Render():    loop parallelo sui pixel
 └──────┬──────┘
-       │  Per ogni pixel: √N×√N campioni stratificati
+       │  Per ogni pixel: N campioni stratificati (Sobol o griglia √N×√N)
        ▼
 ┌─────────────┐
-│  TraceRay   │  Ricorsione: hit → normal map → emission → NEE (+ gather caustiche) → scatter → RR
+│  TraceRay   │  Ricorsione: hit → normal map → emission → NEE (+ gather caustiche) → Sample → RR
 └──────┬──────┘
        │  Radiance HDR lineare
        ▼
@@ -201,16 +201,18 @@ La soglia è `IndirectDominantThreshold = 0.5` sull'irradianza media (Rec.709 lu
 
 > **Perché la distinzione?** In scene a luce diretta, la NEE cattura la maggior parte dell'energia — i bounce indiretti sono una piccola correzione e possono essere terminati aggressivamente. In scene emissive-only chiuse (Cornell), TUTTA l'energia arriva dai bounce indiretti; terminare i path troppo presto produce macchie scure.
 
-### 2.3 Registrazione degli Emitter (per il Double-Counting Guard)
+### 2.3 Registrazione degli Emitter (per il peso MIS dell'emissione)
 
 ```csharp
-_registeredEmitterMaterials = lights
-    .OfType<GeometryLight>()
-    .Select(gl => gl.Material)
-    .ToHashSet();
+_emitterToLight = new Dictionary<Emissive, ILight>();
+foreach (var gl in lights.OfType<GeometryLight>())
+    _emitterToLight[gl.Material] = gl;
+foreach (var light in lights)                 // proxy visibili di sphere/area light
+    if (light.ProxyMaterial is { } proxy)
+        _emitterToLight[proxy] = light;
 ```
 
-Questo set viene usato da `TraceRay` per sapere quali materiali emissivi sono raggiungibili dalla NEE. Solo per questi l'emissione viene soppressa dopo un bounce diffuso (dove la NEE ha già contato il contributo diretto).
+Il dizionario dice a `WeightEmission` quali materiali emissivi la NEE può raggiungere e con quale luce: per questi l'emissione colpita da un raggio BSDF non-delta riceve il peso MIS calcolato con la `PdfSolidAngle` della luce (§4.4). Gli emettitori assenti dal dizionario (back-face, primitive non `ISamplable`, emissione di `openpbr`) passano a peso pieno, perché nessun campione di luce li ha già contati.
 
 **Vedi:** [Path Tracing e Illuminazione §2.2](./path-tracing-and-lighting.md) per la trattazione completa del double-counting.
 
@@ -226,17 +228,18 @@ Quando le caustiche sono attive, il costruttore lancia un **pre-pass di photon m
 
 ### 3.1 Parallelizzazione
 
-Il rendering usa `Parallel.For` sulle **scanline** (righe di pixel):
+Il rendering usa `Parallel.For` su **tile di 16×16 pixel**:
 
 ```csharp
-Parallel.For(0, height, new ParallelOptions {
+const int TileSize = 16;
+Parallel.For(0, totalTiles, new ParallelOptions {
     MaxDegreeOfParallelism = Environment.ProcessorCount
-}, j => { ... });
+}, tile => { ... });
 ```
 
-Ogni thread elabora una scanline completa in modo indipendente. Non c'è stato condiviso mutabile durante il rendering — `_world`, `_lights`, `_camera` e tutti i parametri sono readonly. L'unico stato thread-local è il PRNG (basato su `ThreadLocal<Random>` in `MathUtils`).
+Le tile bilanciano il carico meglio delle scanline (le righe di cielo costano poco, quelle centrali piene di geometria molto) e tengono ogni worker su un blocco di pixel contiguo in cache. Non c'è stato condiviso mutabile durante il rendering: `_world`, `_lights`, `_camera` e tutti i parametri sono readonly. Lo stato per thread è il sampler (Sobol per pixel o PRNG di `MathUtils`) e qualche switch impostato all'inizio di ogni tile (`ShadowRay.BlockAllTransmission`, `MathUtils.SceneScale`).
 
-Il progresso viene stampato ogni 20 righe tramite `Interlocked.Increment`.
+Il progresso (tile completate, contate con `Interlocked.Increment`) viene stampato da un thread dedicato, così nessun worker tocca il lock della console.
 
 ### 3.2 Campionamento Stratificato (per pixel)
 
@@ -256,11 +259,11 @@ Per ogni pixel `(i, j)`, il motore lancia `√N × √N` raggi distribuiti su un
          (√N = 3, N = 9 campioni)
 ```
 
-Il numero di campioni effettivi è sempre un quadrato perfetto: `-s 20` → `5×5 = 25`. Per ogni campione:
+La griglia esterna serve al sampler `prng`, dove il numero di campioni effettivi è un quadrato perfetto (`-s 20` → `5×5 = 25`). Con `sobol` (default) i campioni sono esattamente `-s` e la coppia 2D di Sobol li dispone già stratificati sul pixel, senza griglia esterna. Per ogni campione:
 
 1. **Coordinate UV** nel viewport: `u = (i + filter.SamplePosition(jitterU)) / width`, `v = (height - j - 1 + filter.SamplePosition(jitterV)) / height`. Il filtro di ricostruzione (`--filter`, `Rendering/PixelFilter.cs`) è applicato per *filter importance sampling*: il campione viene spostato rispetto al centro del pixel con densità proporzionale al filtro (Gaussiano σ = 0.5 px per default, Blackman-Harris, oppure box, per cui la posizione è il jitter stesso) e conta con peso 1 solo per il suo pixel. Niente splatting sui vicini: il rumore dei pixel resta indipendente, come assumono il denoiser e la stima della varianza a doppio buffer.
 2. **Generazione del raggio** tramite `Camera.GetRay(u, v)`
-3. **Tracing** con `TraceRay(ray, maxDepth)`
+3. **Tracing** con `TraceRay(ray, maxDepth, prevBsdfPdf: 0, prevIsDelta: true, ...)`, con pile di mezzi e IOR vuote
 4. **Firefly clamp** sul campione singolo
 5. **Accumulo** nel colore cumulativo
 
@@ -286,7 +289,7 @@ Con `aperture = 0` il disco degenera in un punto (pinhole) e tutti gli oggetti s
 
 ## Fase 4 — TraceRay (Il Cuore del Path Tracer)
 
-**File:** `Renderer.cs` · **Metodo:** `TraceRay(Ray ray, int depth, float prevBsdfPdf, bool prevIsDelta, Vector3 currentAbsorption = default)`
+**File:** `Renderer.cs`, **Metodi:** `TraceRay(Ray ray, int depth, float prevBsdfPdf, bool prevIsDelta, ref MediumStack mediums, ref IorStack iors, Vector3 currentAbsorption, Vector3 pathThroughput, RayCategory incomingCategory, int causticState)`, `ShadeSurface`, `ShadeSampleBounce`
 
 Questa è la funzione ricorsiva che risolve l'equazione del rendering. Ogni invocazione rappresenta un **bounce** (rimbalzo) del raggio nella scena.
 
@@ -301,13 +304,16 @@ Se il raggio ha esaurito i bounce, restituisce nero (energia zero). Il parametro
 ### 4.2 Hit Test
 
 ```csharp
-if (!_world.Hit(ray, MathUtils.RayEpsilon, Infinity, ref rec))
-    return CalculateSkyColor(ray);
+hit = _world.Hit(currentRay, MathUtils.RayEpsilon, MathUtils.Infinity, ref rec);
+...
+Vector3 result = !hit
+    ? SampleSky(currentRay, prevBsdfPdf, prevIsDelta, causticState)
+    : ShadeSurface(currentRay, ref rec, depth, prevBsdfPdf, prevIsDelta, ...);
 ```
 
 `tMin` non è una costante fissa: `MathUtils.RayEpsilon` è proporzionale al raggio della scena, e l'origine dei raggi secondari è spostata con `MathUtils.OffsetOrigin`, di una distanza relativa alla coordinata più grande del punto (circa 256 ulp). Così l'immagine non cambia se la scena viene scalata (10 µm o 1 km) o spostata lontano dall'origine.
 
-Il raggio viene testato contro il world (BVH + primitivi non-BVH). Se non colpisce nulla, il raggio è "sfuggito" dalla scena → campiona il cielo.
+Il raggio viene testato contro il world (BVH + primitivi non-BVH). Se non colpisce nulla, il raggio è "sfuggito" dalla scena → campiona il cielo con il peso MIS (§4.9).
 
 **Vedi:** [Strutture di Accelerazione](./acceleration-structures.md) per il funzionamento del BVH.
 
@@ -322,7 +328,7 @@ if (material?.NormalMap != null && rec.Tangent.LengthSquared() > 0.5f)
 
 Se il materiale ha una normal map, la normale del `HitRecord` viene perturbata **prima** di qualsiasi calcolo di shading. La trasformazione usa la matrice TBN (Tangent-Bitangent-Normal) ortonormalizzata con Gram-Schmidt. Le back-face invertono T e B per preservare l'handedness.
 
-**Punto chiave:** la perturbazione avviene in-place su `rec.Normal`. Tutto il codice successivo (emissione, NEE, scatter) usa la normale perturbata.
+**Punto chiave:** la perturbazione avviene in-place su `rec.Normal`. Tutto il codice successivo (emissione, NEE, `Sample`) usa la normale perturbata; la normale non perturbata resta in `rec.ShadingNg` come riferimento per il fattore di shadow terminator (§4.5).
 
 **Vedi:** [Modello di Shading §Normal Mapping](./shading-model.md) per la matematica TBN.
 
@@ -337,117 +343,117 @@ Il peso dipende dallo stato del bounce precedente:
 
 | Percorso | `prevIsDelta` | `prevBsdfPdf` | Emissione | Motivo |
 |----------|:-:|:-:|:-:|---|
-| Camera → superficie | `true` | — | ✅ Piena | Il raggio primario non può essere campionato da NEE |
-| Mirror / glass → emissivo | `true` | — | ✅ Piena | Bounce delta: nessuna NEE può raggiungerlo |
-| Disney sample (non-delta) → emissivo registrato | `false` | `> 0` | ⚖️ MIS | `w_bsdf = prevBsdfPdf / (prevBsdfPdf + p_light)` |
-| Lambert/Metal/Mix Scatter → emissivo registrato | `false` | `0` | ❌ Soppressa | Modalità legacy: NEE ha già contato l'emettitore |
-| Qualunque → emissivo **non registrato** | — | — | ✅ Piena | Back-face, non-ISamplable — la NEE non può raggiungerlo |
+| Camera → superficie | `true` | (0) | ✅ Piena | Il raggio primario non può essere campionato da NEE |
+| Lobo delta (specchio, vetro liscio) → emissivo | `true` | (0) | ✅ Piena | Bounce delta: nessuna NEE può raggiungerlo |
+| Sample non-delta → emissivo registrato | `false` | `> 0` | ⚖️ MIS | `w_bsdf = prevBsdfPdf / (prevBsdfPdf + p_light)` (balance, o power con `--mis power`) |
+| Qualunque → emissivo **non registrato** | (qualunque) | (qualunque) | ✅ Piena | Assente da `_emitterToLight` (§2.3): la NEE non può raggiungerlo |
+
+Ogni materiale campiona con `Sample`, quindi un bounce non-delta porta sempre una pdf positiva: non esiste più un caso con `prevBsdfPdf = 0` che sopprime l'emissione.
 
 ### 4.5 Direct Lighting (NEE) — `ComputeDirectLighting`
 
 ```csharp
 bool needsLightSampling = material?.NeedsDirectLighting ?? true;
-if (needsLightSampling)
-    directLight = ComputeDirectLighting(rec, ray, material);
+Vector3 directLight = needsLightSampling
+    ? DirectLightingAt(in rec, viewDir, material, shadowMedium, shadowMediumEntity)
+    : Vector3.Zero;
 ```
 
-La NEE viene attivata solo per materiali che rispondono alla luce diretta. Le sorgenti di luce stesse (`Emissive`) ritornano `NeedsDirectLighting = false` e saltano l'intero passaggio.
+La NEE viene attivata solo per materiali che rispondono alla luce diretta. Le sorgenti di luce stesse (`Emissive`) ritornano `NeedsDirectLighting = false` e saltano l'intero passaggio. `DirectLightingAt` alza `ShadowRay.ReceiverTransmits` quando il materiale ha un lobo di trasmissione non-delta (`HasTransmission`: vetro satinato, trasmissione diffusa), così vengono tenuti anche i campioni di luce dietro la superficie, poi chiama `ComputeDirectLighting`.
 
 **Struttura interna di `ComputeDirectLighting`:**
 
 ```
-Per ogni luce nella scena:
-    Per ogni shadow sample (1 per point/spot/directional, N per area/sphere):
-        1. Campiona un punto sulla luce (stratificato per area/sphere)
-        2. Lancia shadow ray dal hit point verso il punto campionato
-        3. Se non in ombra:
-           brdf = material.EvaluateDirect(toLight, toEye, normal)
-           accumula += lightColor × brdf
-    Somma al risultato (non media — la pre-divisione per ShadowSamples
-    è già nella formula energetica di ogni luce)
+Per ogni luce (tutte con --light-sampling all, default; una scelta con
+probabilità pPick con power/uniform, contributo diviso per pPick):
+    Per ogni shadow sample (light.ShadowSamples):
+        1. SampleLight → light.IlluminateAndTestStratified(...)
+           (punto sulla luce, shadow ray, lightColor già diviso per ShadowSamples)
+        2. Se non in ombra:
+           integrand = DirectIntegrand(material, rec, viewDir, dirToLight)
+                     = material.Evaluate(viewDir, dirToLight, rec) × |N.L|
+           integrand *= LightSideTerminator(rec, dirToLight)
+           Tr = trasmittanza del mezzo lungo lo shadow ray (se c'è un mezzo)
+           wNee = MisWeight(pPick × pLight, material.Pdf(viewDir, dirToLight))
+                  (1 per luci delta o pdf BSDF nulla)
+           accumula += wNee × lightColor × integrand × Tr
 ```
 
-**Dispatch per tipo di luce nel shadow loop:**
+Il dispatch per tipo di luce è una sola chiamata virtuale: ogni luce decide da sé se stratificare (area e sphere su una griglia `√N×√N` scelta dal sample index) o campionare un punto solo.
 
-- `AreaLight` → `IlluminateAndTestStratified(hitPoint, normal, world, sampleIndex)`
-- `SphereLight` → `IlluminateAndTestStratified(hitPoint, normal, world, sampleIndex)`
-- Tutte le altre → `IlluminateAndTest(hitPoint, normal, world)` (generico)
+**Contratto dell'integrando:** `Evaluate` restituisce la BSDF completa (colori, Fresnel, tutti i lobi non-delta) **senza** il coseno; `DirectIntegrand` moltiplica per $|N \cdot L|$ (il valore assoluto serve alla luce che arriva da dietro una superficie trasmissiva). È la stessa funzione che il rimbalzo indiretto campiona con `Sample`, quindi le due strategie del MIS stimano lo stesso integrando. I lobi delta hanno `Evaluate = 0` e non ricevono nulla dalla NEE. Una superficie senza materiale vale Lambert bianco.
 
-La distinzione esiste perché area e sphere light supportano campionamento stratificato (il sample index determina la cella nella griglia `√N×√N`), mentre le altre luci sono puntuali e non ne hanno bisogno.
-
-**Contratto EvaluateDirect:** restituisce la risposta BRDF (diffusa + speculare) **senza** il colore/albedo del materiale. L'albedo è applicato separatamente dalla scatter attenuation in `TraceRay`, mantenendo la coerenza energetica tra illuminazione diretta e indiretta.
+**Shadow terminator:** `LightSideTerminator` applica il fattore di Chiang et al. (2019) sul lato della superficie dove si trova la luce (per una luce dietro una superficie trasmissiva l'orizzonte è quello posteriore), confrontando la normale perturbata con `rec.ShadingNg`. Vale 1 dove la normale non è perturbata. Lo stesso fattore entra nel peso del rimbalzo BSDF (§4.6); non c'è un fattore sul lato della vista.
 
 **Gather delle caustiche (con `--caustics on`).** Su una superficie diffusa il contributo della photon map (§2.4) viene stimato con una density estimate ai k-nearest e **sommato** alla luce diretta. Per non contare due volte la luce trasmessa, quando le caustiche sono attive le interfacce **trasmissive lisce** (vetro/acqua) diventano **opache** agli shadow ray NEE: la luce rifratta (e tinta dall'assorbimento del vetro) è fornita solo dalla photon map, così il vetro proietta un'ombra rifrattiva corretta e colorata invece di un riempimento dritto. Vetro rough/frosted e percorso `--caustics off` restano invariati.
 
 **Vedi:** [Path Tracing e Illuminazione §2](./path-tracing-and-lighting.md) per la trattazione completa della NEE.
 
-### 4.6 Scatter / Sample (Illuminazione Indiretta)
+### 4.6 Sample (Illuminazione Indiretta)
 
 ```csharp
-// Percorso preferito: MIS via Sample()
 BsdfSample? mis = material.Sample(viewDir, rec);
 if (mis.HasValue)
-    return ShadeSampleBounce(material, rec, mis.Value, depth, emitted, directLight, currentAbsorption);
-
-// Fallback legacy: Scatter() + convenzione IsDeltaScatter
-if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
-{
-    // Russian Roulette...
-    bool nextIsDelta = material.IsDeltaScatter;
-    Vector3 indirect = TraceRay(scattered, depth - 1,
-                                 prevBsdfPdf: 0f,
-                                 prevIsDelta: nextIsDelta,
-                                 currentAbsorption: currentAbsorption);
-    return emitted + attenuation * (directLight + indirect);
-}
+    return ShadeSampleBounce(material, in rec, mis.Value, depth, emitted, directLight,
+                             currentAbsorption, pathThroughput, ref mediums, ref iors, causticState);
+return emitted + directLight;   // null: il cammino è assorbito qui
 ```
 
-Il renderer preferisce la tripla simmetrica `Sample / Evaluate / Pdf` quando il materiale la implementa (Disney BSDF): il sample restituisce direzione, F, PDF, flag `IsDelta` e un'eventuale `NextSegmentAbsorption` per il medium-switch, così il bounce successivo può calcolare il peso MIS corretto per l'emissione.
+Ogni materiale campiona con `Sample` (Lambertian, Metal, Dielectric, OpenPbr, MixMaterial); `Emissive` usa il default dell'interfaccia, che ritorna null. Non c'è un percorso di fallback: un `Sample` nullo termina il cammino. Il `BsdfSample` riporta direzione `Wo`, valore `F` (senza coseno), `Pdf` in angolo solido, flag `IsDelta`, la transizione di mezzo (`Transition`) e un'eventuale `NextSegmentAbsorption` (Beer-Lambert del segmento successivo).
 
-Per i materiali "legacy" (Lambertian, Metal, Dielectric, Mix) il renderer cade su `Scatter()` e passa `prevBsdfPdf = 0` al ramo successivo. La convenzione `prevBsdfPdf = 0` attiva la modalità "NEE replaced emission": al prossimo hit gli emettitori registrati vedono il loro contributo azzerato (evitando il doppio conteggio con NEE sulla superficie corrente). Se invece il bounce è delta (`material.IsDeltaScatter == true` — Dielectric, Metal con `fuzz=0`), `nextIsDelta = true` dice al renderer che l'emissione deve passare a pieno peso (una NEE non può raggiungere una BSDF delta, quindi non c'è nulla da sopprimere).
+In `ShadeSampleBounce` il peso del rimbalzo è:
 
-- **Lambertian** → rimbalzo cosine-weighted casuale nell'emisfero
-- **Metal** → riflessione GGX importance-sampled con roughness
-- **Dielectric** → riflessione o rifrazione (Schlick + Snell) — delta BSDF
-- **Disney BSDF** → selezione stocastica tra lobi (diffuse, specular, clearcoat, transmission, sheen, multi-scatter, diff-trans) con VNDF sampling e MIS balance heuristic
+```csharp
+attenuation = s.IsDelta
+    ? s.F                                                          // lobo delta: F porta già tutto il peso
+    : s.F * (absNdotWo * LightSideTerminator(in rec, s.Wo) / s.Pdf);  // non-delta, absNdotWo = |N.Wo|
+```
 
-L'`attenuation` è il colore/albedo del materiale moltiplicato per i fattori energetici del bounce (Fresnel, compensazione lobe, ecc.).
+Il fattore di shadow terminator è lo stesso della NEE (§4.5), perché appartiene all'integrando. Il ramo successivo riceve `prevBsdfPdf = s.Pdf` e `prevIsDelta = false` per un lobo non-delta, `prevBsdfPdf = 0` e `prevIsDelta = true` per un lobo delta: così `WeightEmission` e `SampleSky` scelgono fra peso MIS e peso pieno (§4.4). Su una transizione `Enter`/`Exit` il renderer copia e aggiorna la pila dei mezzi e quella degli IOR; un `Enter` in un mezzo omogeneo che diffonde passa al random walk del subsurface (vedi [MediumInterface](./medium-interface.md)).
+
+- **Lambertian** → campionamento cosine-weighted nell'emisfero
+- **Metal** → GGX con campionamento delle normali visibili più il lobo di scattering multiplo; `fuzz = 0` è uno specchio delta
+- **Dielectric** → liscio: riflessione o rifrazione delta scelta con Fresnel; rough: microfacet di Walter 2007, riflessione e trasmissione non-delta
+- **OpenPbr** (anche il tipo `disney`) → scelta stocastica di un lobo (fuzz, coat, metallo, interfaccia dielettrica, diffuso, subsurface sottile), poi `F` e `Pdf` dell'intera miscela nella direzione scelta; i lobi lisci sono delta
+- **MixMaterial** → sceglie un figlio con probabilità pari al peso della miscela (vedi [MIS §5.3](./multiple-importance-sampling.md))
 
 ### 4.7 Russian Roulette
 
 ```csharp
+Vector3 nextThroughput = pathThroughput * attenuation;
 int bouncesUsed = _maxDepth - depth;
 if (bouncesUsed >= _rrMinBounces)
 {
-    float survivalProb = Max(Luminance(attenuation), _rrMinSurvival);
-    survivalProb = Min(survivalProb, 0.95f);
+    float survivalProb = Max(nextThroughput.X, nextThroughput.Y, nextThroughput.Z);
+    survivalProb = Clamp(survivalProb, _rrMinSurvival, 0.95f);
 
     if (RandomFloat() > survivalProb)
-        return emitted + attenuation * directLight;  // Path terminato
+        return emitted + directLight;  // Path terminato
 
-    attenuation /= survivalProb;  // Compensazione energetica
+    attenuation    /= survivalProb;    // Compensazione energetica
+    nextThroughput /= survivalProb;
 }
 ```
 
 Dopo `_rrMinBounces` bounce, ogni path viene terminato con probabilità `1 - survivalProb`. I path sopravvissuti vengono "potenziati" dividendo per `survivalProb`, mantenendo lo stimatore Monte Carlo **unbiased** (non introduce bias sistematico).
 
-La probabilità di sopravvivenza è legata alla luminanza dell'attenuazione: path che trasportano poca energia vengono eliminati più frequentemente. Il floor `_rrMinSurvival` impedisce boost eccessivi (max 6.7× in scene normali, 2× in scene indirette).
+La probabilità di sopravvivenza è il canale massimo della throughput accumulata lungo il path (PBRT §13.7.1): path che trasportano poca energia vengono eliminati più frequentemente. Il floor `_rrMinSurvival` impedisce boost eccessivi (max 6.7× in scene normali, 2× in scene indirette).
 
 **Vedi:** [Path Tracing e Illuminazione §3](./path-tracing-and-lighting.md) per l'analisi di adattività.
 
 ### 4.8 Composizione Finale del Bounce
 
 ```
-radiance = emitted + attenuation × (directLight + indirect)
+radiance = emitted + directLight + attenuation × indirect
 ```
 
 Dove:
-- `emitted` = auto-illuminazione della superficie (zero per materiali non emissivi)
-- `attenuation` = colore/albedo × fattori energetici del materiale
-- `directLight` = contributo NEE (somma dei contributi BRDF·cos·visibility per ogni luce)
-- `indirect` = radiance ricorsiva dal bounce successivo
+- `emitted` = auto-illuminazione della superficie, già pesata da `WeightEmission` (zero per materiali non emissivi)
+- `directLight` = contributo NEE, già completo: la BSDF è dentro l'integrando (`Evaluate × |N.L| × terminator × visibilità`), quindi non viene moltiplicato per `attenuation`
+- `attenuation` = peso del campione BSDF (§4.6), eventualmente diviso per la probabilità di sopravvivenza della RR
+- `indirect` = radiance ricorsiva dal bounce successivo (ripulita da NaN/Inf; alla superficie primaria passa per il clamp indiretto opzionale)
 
-Se il materiale non fa scatter (es. `Emissive`, che assorbe tutto):
+Se `Sample` ritorna null (es. `Emissive`, che assorbe tutto) o la RR termina il path:
 ```
 radiance = emitted + directLight
 ```
@@ -457,10 +463,10 @@ radiance = emitted + directLight
 Se il raggio non colpisce nulla:
 
 ```csharp
-return CalculateSkyColor(ray);
+return SampleSky(currentRay, prevBsdfPdf, prevIsDelta, causticState);
 ```
 
-Che delega a `SkySettings.Sample(ray)`:
+`SampleSky` legge il cielo con `SkySettings.Sample(...)`: raggi di camera e bounce delta vedono anche il sole analitico, i bounce non-delta solo il corpo del cielo (il sole arriva dalla NEE); sulle HDRI un bounce glossy legge un livello di mip scelto dalla sua pdf. Se il cielo è campionato dalla NEE (`EnvironmentLight`) e il bounce non è delta, la radianza riceve il peso MIS `MisWeight(prevBsdfPdf, pEnv)`; altrimenti passa a peso pieno. Il cielo per tipo:
 - **Flat** → colore uniforme
 - **Gradient** → interpolazione zenith/horizon/ground + sun disk con glow
 - **HDRI** → bilinear sampling della mappa equirettangolare nella direzione del raggio
@@ -478,7 +484,7 @@ sample = ClampRadiance(sample);
 Applicato a ogni campione individuale PRIMA dell'accumulo:
 
 1. **NaN/Inf guard** — qualsiasi componente non-finita diventa zero.
-2. **Luminance-preserving clamp (opzionale)** - solo con `-C <n>`: se la luminanza del campione supera `MaxSampleRadiance`, il vettore viene scalato uniformemente. Questo preserva la tinta del colore (niente hue shift) eliminando i picchi estremi da caustiche, boost RR, o compensazione dei lobe Disney. È spento per default perché la soglia è una radianza assoluta e toglie anche luce legittima (biased). Il clamp indiretto (`--indirect-clamp-factor`, default 0.25, attivo solo con `-C`) è applicato **una sola volta**, relativo alla camera, sul contributo indiretto pesato per la throughput alla superficie primaria, non accumulato a ogni rimbalzo.
+2. **Luminance-preserving clamp (opzionale)** - solo con `-C <n>`: se la luminanza del campione supera `MaxSampleRadiance`, il vettore viene scalato uniformemente. Questo preserva la tinta del colore (niente hue shift) eliminando i picchi estremi da caustiche, boost RR o lobi glossy stretti. È spento per default perché la soglia è una radianza assoluta e toglie anche luce legittima (biased). Il clamp indiretto (`--indirect-clamp-factor`, default 0.25, attivo solo con `-C`) è applicato **una sola volta**, relativo alla camera, sul contributo indiretto pesato per la throughput alla superficie primaria, non accumulato a ogni rimbalzo.
 
 ### 5.2 Media dei Campioni
 
@@ -529,13 +535,13 @@ Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math
 | `Renderer.Render()` | Renderer.cs | Program.Main | 1× per run | Sì (Parallel.For) |
 | `Camera.GetRay()` | Camera.cs | Render loop | W×H×N volte | Sì (readonly + thread-local PRNG) |
 | `TraceRay()` | Renderer.cs | Render loop | W×H×N×bounces | Sì (readonly state) |
-| `ComputeDirectLighting()` | Renderer.cs | TraceRay | Per ogni hit diffuso/speculare | Sì |
+| `ComputeDirectLighting()` | Renderer.cs | ShadeSurface (via DirectLightingAt) | Per ogni hit con `NeedsDirectLighting` | Sì |
 | `ILight.ApproximatePower()` | Lights/*.cs | Costruttore Renderer | 1× per luce | **Solo single-thread** |
-| `ILight.IlluminateAndTest()` | Lights/*.cs | ComputeDirectLighting | Per ogni hit × luce × sample | Sì |
-| `IMaterial.Scatter()` | Materials/*.cs | TraceRay | Per ogni hit | Sì (thread-local PRNG) |
-| `IMaterial.EvaluateDirect()` | Materials/*.cs | ComputeDirectLighting | Per ogni hit × luce non-ombrata | Sì (pure function) |
-| `IMaterial.Emit()` | Materials/*.cs | TraceRay | Per ogni hit | Sì (pure function) |
-| `SkySettings.Sample()` | SkySettings.cs | CalculateSkyColor | Per ogni ray-miss | Sì (readonly) |
+| `ILight.IlluminateAndTestStratified()` | Lights/*.cs | ComputeDirectLighting (via SampleLight) | Per ogni hit × luce × sample | Sì |
+| `IMaterial.Sample()` | Materials/*.cs | ShadeSurface | Per ogni hit | Sì (sampler per thread) |
+| `IMaterial.Evaluate()` / `Pdf()` | Materials/*.cs | ComputeDirectLighting (via DirectIntegrand), Sample | Per ogni hit × luce non-ombrata | Sì (pure function) |
+| `IMaterial.Emit()` | Materials/*.cs | ShadeSurface | Per ogni hit | Sì (pure function) |
+| `SkySettings.Sample()` | SkySettings.cs | SampleSky | Per ogni ray-miss | Sì (readonly) |
 
 ### Contratti chiave
 
@@ -544,58 +550,55 @@ Ogni canale viene convertito con clamp e cast intero: `byte channel = (byte)Math
 - `IlluminateAndTest()` / `IlluminateAndTestStratified()` sono per il **rendering**. Usano PRNG, dividono per ShadowSamples, testano le ombre.
 - I due metodi non condividono il path di esecuzione. Modificare uno non influisce sull'altro.
 
-**`EvaluateDirect()` vs `Scatter()`:**
-- `EvaluateDirect()` restituisce la risposta BRDF **senza albedo** (la moltiplica il caller con `lightColor`).
-- `Scatter()` restituisce l'`attenuation` **con albedo** (diventa il moltiplicatore per la radiance indiretta).
-- Entrambi usano lo stesso modello BRDF (GGX per Metal, Cook-Torrance per Disney), ma valutano in modi diversi: `EvaluateDirect` è analitico su una direzione specifica, `Scatter` è importance-sampled.
+**`Evaluate()` / `Pdf()` / `Sample()`:**
+- `Evaluate(V, L, rec)` restituisce la BSDF completa (colori e Fresnel inclusi) **senza** il coseno; la NEE la moltiplica per $|N \cdot L|$, il fattore di shadow terminator e `lightColor`.
+- `Sample(V, rec)` restituisce un `BsdfSample` il cui `F` coincide con `Evaluate` e il cui `Pdf` coincide con `Pdf` nella direzione campionata (per i lobi non-delta); il renderer ne ricava il peso `F × |cos| × terminator / Pdf`, o `F` per un lobo delta.
+- È un'unica descrizione del materiale: NEE e rimbalzo BSDF stimano lo stesso integrando, e il MIS li combina con `Pdf`.
 
 **`prevBsdfPdf` / `prevIsDelta`:**
 - Propagati bounce-per-bounce via i parametri di `TraceRay`.
 - Camera ray → `prevIsDelta = true`, emissione sempre mostrata.
-- Bounce delta (mirror/refraction) → `prevIsDelta = true`, emissione mostrata.
-- Sample MIS Disney → `prevIsDelta = false`, `prevBsdfPdf = pdf dal BsdfSample`, emissione pesata via balance heuristic al prossimo hit.
-- Scatter legacy (Lambert/Metal/Mix) → `prevIsDelta = material.IsDeltaScatter`, `prevBsdfPdf = 0` — emissione dai GeometryLight registrati soppressa (NEE ha già contato), da altri emettitori passa integra.
+- Bounce delta (specchio, vetro liscio, lobi lisci di OpenPbr) → `prevIsDelta = true`, emissione mostrata.
+- Sample non-delta → `prevIsDelta = false`, `prevBsdfPdf = pdf dal BsdfSample`, emissione dei `Emissive` registrati e cielo campionato dalla NEE pesati con l'euristica MIS al prossimo hit; gli altri emettitori passano integri.
+- Evento di scattering in un mezzo → `prevIsDelta = false`, `prevBsdfPdf = pdf della phase function`.
 
 ---
 
 ## Appendice B — Diagramma di Flusso di TraceRay
 
 ```
-TraceRay(ray, depth, prevBsdfPdf, prevIsDelta, currentAbsorption)
+TraceRay(ray, depth, prevBsdfPdf, prevIsDelta, mediums, iors, ...)
 │
-├── depth ≤ 0? ──────────────────────────── → return Zero
+├── depth ≤ 0 o throughput trascurabile? ── → return Zero
 │
-├── world.Hit(ray)? 
-│   ├── NO ──────────────────────────────── → return CalculateSkyColor(ray)
-│   └── YES
+├── world.Hit(ray)? (salta le superfici nascoste a questa categoria di raggio)
+│   ├── NO ──────────────────────────────── → return SampleSky(ray, prevBsdfPdf, prevIsDelta)
+│   └── YES → ShadeSurface
 │       │
-│       ├── Apply normal map (se presente)
+│       ├── Apply normal map / bump / autobump (se presenti)
 │       │
-│       ├── Compute emitted (MIS-weighted):
+│       ├── Compute emitted (WeightEmission):
 │       │   ├── prevIsDelta? → emitted = raw (full weight)
 │       │   ├── material is registered Emissive? → w_bsdf = prevBsdfPdf/(prevBsdfPdf+p_light)
 │       │   └── unregistered emitter → emitted = raw (full weight)
 │       │
 │       ├── Compute directLight:
-│       │   ├── material.NeedsDirectLighting? → ComputeDirectLighting(...) con MIS balance
+│       │   ├── material.NeedsDirectLighting? → ComputeDirectLighting(...):
+│       │   │       Σ wNee × lightColor × Evaluate × |N.L| × terminator × Tr
 │       │   └── altrimenti (Emissive) → Vector3.Zero
 │       │
-│       ├── material.Sample(V, rec)?  // percorso MIS preferito
-│       │   └── YES (BsdfSample { Wo, F, Pdf, IsDelta, NextSegmentAbsorption })
-│       │       └── ShadeSampleBounce → TraceRay(depth-1, s.Pdf, s.IsDelta, ...)
-│       │
-│       ├── material.Scatter()? // fallback per materiali legacy
-│       │   ├── NO → return emitted + directLight
-│       │   └── YES (attenuation, scattered)
-│       │       │
-│       │       ├── Russian Roulette:
-│       │       │   ├── bouncesUsed < minBounces? → skip RR
-│       │       │   ├── random > survivalProb? → return emitted + att × directLight
-│       │       │   └── survived → attenuation /= survivalProb
-│       │       │
-│       │       ├── attenuation ≈ 0? → return emitted + att × directLight (early-out)
-│       │       │
-│       │       └── indirect = TraceRay(scattered, depth-1,
-│       │                              prevBsdfPdf=0, prevIsDelta=material.IsDeltaScatter)
-│       │           return emitted + attenuation × (directLight + indirect)
+│       └── material.Sample(V, rec)?
+│           ├── NO (null) → return emitted + directLight
+│           └── YES (BsdfSample { Wo, F, Pdf, IsDelta, Transition, NextSegmentAbsorption })
+│               └── ShadeSampleBounce:
+│                   ├── attenuation = IsDelta ? F : F × |N.Wo| × terminator / Pdf
+│                   ├── Russian Roulette sulla throughput:
+│                   │   ├── bouncesUsed < minBounces? → skip RR
+│                   │   ├── random > survivalProb? → return emitted + directLight
+│                   │   └── survived → attenuation /= survivalProb
+│                   ├── Transition Enter/Exit? → aggiorna pile mezzi/IOR
+│                   │   (Enter in mezzo che diffonde → RandomWalkSubsurface)
+│                   └── indirect = TraceRay(scattered, depth-1,
+│                                           prevBsdfPdf = IsDelta ? 0 : Pdf, prevIsDelta = IsDelta)
+│                       return emitted + directLight + attenuation × indirect
 ```
