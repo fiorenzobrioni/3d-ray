@@ -68,7 +68,7 @@ public class BumpMapTests
     public void FlatHeightField_ReturnsUnitZ()
     {
         var bump = new BumpMapTexture(new ConstGrey(0.5f), strength: 1f, scale: 1f);
-        Vector3 n = bump.SampleTangentNormal(0.3f, 0.7f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
+        Vector3 n = bump.SampleTangentNormal(0.3f, 0.7f, Vector3.Zero, BumpFrame.Unit, 0);
         Assert.Equal(0f, n.X, 4);
         Assert.Equal(0f, n.Y, 4);
         Assert.Equal(1f, n.Z, 4);
@@ -78,7 +78,7 @@ public class BumpMapTests
     public void PositiveUGradient_TiltsTowardNegativeU()
     {
         var bump = new BumpMapTexture(new UGradient(), strength: 1f, scale: 1f);
-        Vector3 n = bump.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
+        Vector3 n = bump.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
         Assert.True(n.X < -0.1f, $"expected n.X < -0.1, got {n.X}");
         Assert.InRange(n.Y, -1e-3f, 1e-3f);
         Assert.True(n.Z > 0f);
@@ -88,7 +88,7 @@ public class BumpMapTests
     public void PositiveVGradient_TiltsTowardNegativeV()
     {
         var bump = new BumpMapTexture(new VGradient(), strength: 1f, scale: 1f);
-        Vector3 n = bump.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
+        Vector3 n = bump.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
         Assert.InRange(n.X, -1e-3f, 1e-3f);
         Assert.True(n.Y < -0.1f, $"expected n.Y < -0.1, got {n.Y}");
         Assert.True(n.Z > 0f);
@@ -98,7 +98,7 @@ public class BumpMapTests
     public void ZeroStrength_ReturnsUnitZ()
     {
         var bump = new BumpMapTexture(new UGradient(), strength: 0f, scale: 1f);
-        Vector3 n = bump.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
+        Vector3 n = bump.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
         Assert.Equal(Vector3.UnitZ, n);
     }
 
@@ -112,8 +112,8 @@ public class BumpMapTests
         var b1 = new BumpMapTexture(new UGradient(), strength: 0.05f, scale: 1f);
         var b2 = new BumpMapTexture(new UGradient(), strength: 0.10f, scale: 1f);
 
-        Vector3 n1 = b1.SampleTangentNormal(0.4f, 0.6f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
-        Vector3 n2 = b2.SampleTangentNormal(0.4f, 0.6f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
+        Vector3 n1 = b1.SampleTangentNormal(0.4f, 0.6f, Vector3.Zero, BumpFrame.Unit, 0);
+        Vector3 n2 = b2.SampleTangentNormal(0.4f, 0.6f, Vector3.Zero, BumpFrame.Unit, 0);
 
         float tan1 = MathF.Abs(n1.X) / n1.Z;
         float tan2 = MathF.Abs(n2.X) / n2.Z;
@@ -134,8 +134,8 @@ public class BumpMapTests
         var b2 = new BumpMapTexture(new USinusoid(), strength: 0.05f, scale: 2f);
 
         float u = MathF.PI / 2f;
-        Vector3 n1 = b1.SampleTangentNormal(u, 0.5f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
-        Vector3 n2 = b2.SampleTangentNormal(u, 0.5f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
+        Vector3 n1 = b1.SampleTangentNormal(u, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
+        Vector3 n2 = b2.SampleTangentNormal(u, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
 
         Assert.True(MathF.Abs(n1.X) < 1e-3f,
             $"expected |n1.X| ≈ 0 at sin' zero, got {n1.X}");
@@ -152,7 +152,7 @@ public class BumpMapTests
         // on a per-channel basis that could leak gradients from non-grey
         // constants.
         var bump = new BumpMapTexture(new ConstRed(), strength: 1f, scale: 1f);
-        Vector3 n = bump.SampleTangentNormal(0.2f, 0.8f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
+        Vector3 n = bump.SampleTangentNormal(0.2f, 0.8f, Vector3.Zero, BumpFrame.Unit, 0);
         Assert.Equal(0f, n.X, 4);
         Assert.Equal(0f, n.Y, 4);
         Assert.Equal(1f, n.Z, 4);
@@ -166,8 +166,8 @@ public class BumpMapTests
         var bClamped = new BumpMapTexture(new UGradient(), strength: 10f, scale: 1f);
         var bRaw     = new BumpMapTexture(new UGradient(), strength: 1000f, scale: 1f);
 
-        Vector3 nClamped = bClamped.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
-        Vector3 nRaw     = bRaw    .SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
+        Vector3 nClamped = bClamped.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
+        Vector3 nRaw     = bRaw    .SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
 
         Assert.Equal(nClamped.X, nRaw.X, 6);
         Assert.Equal(nClamped.Y, nRaw.Y, 6);
@@ -184,9 +184,9 @@ public class BumpMapTests
         var bZero = new BumpMapTexture(new UGradient(), strength: 1f, scale: 0f);
         var bNeg  = new BumpMapTexture(new UGradient(), strength: 1f, scale: -3f);
 
-        Vector3 nGood = bGood.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
-        Vector3 nZero = bZero.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
-        Vector3 nNeg  = bNeg .SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
+        Vector3 nGood = bGood.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
+        Vector3 nZero = bZero.SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
+        Vector3 nNeg  = bNeg .SampleTangentNormal(0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
 
         Assert.Equal(nGood.X, nZero.X, 6);
         Assert.Equal(nGood.X, nNeg .X, 6);

@@ -2329,6 +2329,48 @@ public partial class Renderer
     }
 
     /// <summary>
+    /// How a unit step along the world tangent <paramref name="t"/> and
+    /// bitangent <paramref name="b"/> moves a texture's inputs at this hit:
+    /// (u, v) through the inverse of the surface's ∂P/∂u, ∂P/∂v (least
+    /// squares on the tangent plane), and the 3D point through the inverse of
+    /// the rotation the transforms took it out of (<see cref="HitRecord.LocalToWorld"/>).
+    /// A primitive without ∂P/∂u reads as one UV unit per unit of length.
+    /// </summary>
+    internal static BumpFrame BumpFrameAt(in HitRecord rec, Vector3 t, Vector3 b)
+    {
+        Vector2 uvT, uvB;
+        Vector3 dpdu = rec.DpDu, dpdv = rec.DpDv;
+        float a00 = Vector3.Dot(dpdu, dpdu), a01 = Vector3.Dot(dpdu, dpdv), a11 = Vector3.Dot(dpdv, dpdv);
+        float det = a00 * a11 - a01 * a01;
+        if (det > 1e-12f * MathF.Max(a00 * a11, 1e-30f) && a00 > 0f && a11 > 0f)
+        {
+            float inv = 1f / det;
+            Vector2 Solve(Vector3 x)
+            {
+                float r0 = Vector3.Dot(dpdu, x), r1 = Vector3.Dot(dpdv, x);
+                return new Vector2((a11 * r0 - a01 * r1) * inv, (a00 * r1 - a01 * r0) * inv);
+            }
+            uvT = Solve(t);
+            uvB = Solve(b);
+        }
+        else
+        {
+            float side = rec.FrontFace ? 1f : -1f;
+            uvT = new Vector2(side, 0f);
+            uvB = new Vector2(0f, side);
+        }
+
+        Vector3 pT = t, pB = b;
+        if (rec.HasLocalFrame)
+        {
+            Quaternion toLocal = Quaternion.Conjugate(rec.LocalToWorld);
+            pT = Vector3.Transform(t, toLocal);
+            pB = Vector3.Transform(b, toLocal);
+        }
+        return new BumpFrame { UvT = uvT, UvB = uvB, PointT = pT, PointB = pB };
+    }
+
+    /// <summary>
     /// Bump-map perturbation. Mirrors <see cref="ApplyNormalMap"/> but the
     /// tangent-space normal comes from finite-difference gradients of a
     /// luminance height field rather than an RGB-encoded normal texture.
@@ -2361,11 +2403,8 @@ public partial class Renderer
             B = -B;
         }
 
-        // Sample with the unit T/B so the bump texture can perturb both UV
-        // and 3D position consistently (3D procedurals like noise/marble
-        // sample on p; image textures sample on u,v).
         Vector3 tsNormal = bump.SampleTangentNormal(
-            rec.U, rec.V, rec.LocalPoint, T, B, rec.ObjectSeed);
+            rec.U, rec.V, rec.LocalPoint, BumpFrameAt(in rec, T, B), rec.ObjectSeed);
 
         Vector3 perturbedNormal = Vector3.Normalize(
             T * tsNormal.X + B * tsNormal.Y + N * tsNormal.Z

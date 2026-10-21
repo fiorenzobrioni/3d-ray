@@ -248,9 +248,9 @@ public class BumpDisplacementCombinationTests
         Assert.NotNull(meshHi?.AutoBump);
 
         Vector3 nLo = meshLo!.AutoBump!.SampleTangentNormal(
-            0.5f, 0.5f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
+            0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
         Vector3 nHi = meshHi!.AutoBump!.SampleTangentNormal(
-            0.5f, 0.5f, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, 0);
+            0.5f, 0.5f, Vector3.Zero, BumpFrame.Unit, 0);
 
         // Tangent of the tilt = |xy| / z. At small strength the ratio
         // matches AutobumpStrength's ratio (=2) to within ~10%.

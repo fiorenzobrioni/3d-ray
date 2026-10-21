@@ -1825,6 +1825,11 @@ normal_map:
 ```
 - Aggiunge dettagli superficiali per pixel senza geometria
 - Neutrale: RGB(128, 128, 255) = nessuna perturbazione
+- Letta come dato (mai decodificata da sRGB), 8 o 16 bit per canale, o EXR;
+  lookup bilineare centrato sul texel, con wrap ai bordi
+- Sulle mesh OBJ il frame tangente è quello MikkTSpace (tangenti per vertice,
+  bitangente ricostruita dalla normale interpolata), il frame in cui scrivono
+  i baker di normal map: una mappa cotta non mostra cuciture tra le facce
 - Si applica a qualsiasi tipo di materiale
 
 #### **Bump Map:**
@@ -1836,7 +1841,7 @@ bump_map:
     scale: 6
     octaves: 4
     colors: [[0, 0, 0], [1, 1, 1]]
-  strength: 3.0                            # Ampiezza della perturbazione (0–10, clamp)
+  strength: 0.02                           # Altezza di un valore 1 della texture, in unità di scena (0-10)
   scale: 1.0                               # Moltiplicatore UV uniforme (default 1)
 ```
 
@@ -1845,10 +1850,17 @@ da una qualunque texture procedurale o image (luminanza Rec.709). La normale
 di shading è perturbata con differenze centrate in tangent space
 (Blinn 1978).
 
+L'altezza è in **unità di scena**: `strength × luminanza(texture)`, la stessa
+superficie che costruirebbe un `displacement` di quell'altezza. La pendenza è
+misurata per unità di lunghezza sulla superficie, qualunque siano dimensione,
+scala o rotazione dell'oggetto, per le texture image come per le procedurali:
+un bump image su un pavimento grande è più dolce della stessa immagine su una
+piastrella piccola, come lo sarebbe un rilievo vero.
+
 | Campo      | Tipo                | Default | Descrizione                                                                  |
 |------------|---------------------|---------|------------------------------------------------------------------------------|
 | `texture`  | TextureData         | -       | Campo di altezza. Qualunque procedurale (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) o `image`. |
-| `strength` | float ∈ [0, 10]     | `1.0`   | Ampiezza della perturbazione. Oltre ~5 il bump appare roccioso; ~0.5–1.0 dà dettagli fini. |
+| `strength` | float ∈ [0, 10]     | `1.0`   | Altezza, in unità di scena, di un valore 1 della texture. Una procedurale con dettagli larghi circa un'unità dà un dettaglio fine a ~0.05-0.5; un'immagine vuole un'altezza in proporzione alla superficie che copre. |
 | `scale`    | float > 0           | `1.0`   | Moltiplicatore UV uniforme che si somma all'eventuale `uv_scale` / `scale` della texture interna. |
 
 **Ordine di composizione** quando sono presenti sia `normal_map` che

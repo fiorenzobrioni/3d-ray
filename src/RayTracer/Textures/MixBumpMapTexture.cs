@@ -40,9 +40,7 @@ public sealed class MixBumpMapTexture : IBumpMap
         _blend = Math.Clamp(blend, 0f, 1f);
     }
 
-    public Vector3 SampleTangentNormal(float u, float v, Vector3 p,
-                                       Vector3 tangent, Vector3 bitangent,
-                                       int seed)
+    public Vector3 SampleTangentNormal(float u, float v, Vector3 p, in BumpFrame frame, int seed)
     {
         float t = _blend;
         if (_mask != null)
@@ -51,8 +49,8 @@ public sealed class MixBumpMapTexture : IBumpMap
             t = Math.Clamp(MathUtils.Luminance(maskColor), 0f, 1f);
         }
 
-        Vector3 nA = _a.SampleTangentNormal(u, v, p, tangent, bitangent, seed);
-        Vector3 nB = _b.SampleTangentNormal(u, v, p, tangent, bitangent, seed);
+        Vector3 nA = _a.SampleTangentNormal(u, v, p, frame, seed);
+        Vector3 nB = _b.SampleTangentNormal(u, v, p, frame, seed);
 
         Vector3 blended = (1f - t) * nA + t * nB;
         float lenSq = blended.LengthSquared();

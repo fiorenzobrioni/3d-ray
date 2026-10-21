@@ -145,6 +145,18 @@ public struct HitRecord
     public Vector3 DpDv;
 
     /// <summary>
+    /// Rotation from the space of <see cref="LocalPoint"/> to world space,
+    /// composed by every <see cref="Geometry.Transform"/> on the way out
+    /// (valid when <see cref="HasLocalFrame"/>; identity otherwise).
+    /// <see cref="LocalPoint"/> carries the transforms' scale but not their
+    /// rotation, so a world direction becomes a <see cref="LocalPoint"/>
+    /// direction through the inverse of this rotation, with its length kept.
+    /// The bump map needs it to step a 3D texture along the surface.
+    /// </summary>
+    public Quaternion LocalToWorld;
+    public bool HasLocalFrame;
+
+    /// <summary>
     /// Analytic filter footprint at this shading point (PBRT §10.1).
     /// Populated by <see cref="Rendering.Renderer"/> after the world Hit()
     /// returns for primary rays that carry ray differentials; left

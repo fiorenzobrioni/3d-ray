@@ -1817,6 +1817,11 @@ normal_map:
 - Adds per-pixel surface detail without geometry
 - Format: RGB where R=X, G=Y, B=Z (tangent space)
 - Neutral color: RGB(128, 128, 255) = no perturbation
+- Read as data (never sRGB-decoded), 8 or 16 bits per channel, or EXR;
+  texel-centred bilinear lookup, wrapping at the edges
+- On OBJ meshes the tangent frame is MikkTSpace's (per-vertex tangents,
+  bitangent rebuilt from the interpolated normal), the frame normal-map
+  bakers write in: a baked map shows no seams between faces
 - Applies to any material type (lambertian, metal, dielectric, disney, emissive, mix)
 - Free sources: ambientcg.com, polyhaven.com, 3dtextures.me
 
@@ -1829,7 +1834,7 @@ bump_map:
     scale: 6
     octaves: 4
     colors: [[0, 0, 0], [1, 1, 1]]
-  strength: 3.0                            # Perturbation amplitude (0–10, clamped)
+  strength: 0.02                           # Height of a texture value of 1, in scene units (0-10)
   scale: 1.0                               # Uniform UV multiplier (default 1)
 ```
 
@@ -1837,10 +1842,16 @@ Like `normal_map` but driven by a **scalar height field** sampled from any
 procedural or image texture (Rec.709 luminance). The shading normal is
 perturbed via central differences in tangent space (Blinn 1978).
 
+The height is in **scene units**: `strength × luminance(texture)`, the same
+surface a `displacement` of that height would build. The slope is measured
+per unit of length on the surface, whatever the object's size, scale or
+rotation, for image and procedural textures alike: an image bump on a large
+floor is gentler than the same image on a small tile, as real relief would be.
+
 | Field      | Type                | Default | Description                                                                 |
 |------------|---------------------|---------|-----------------------------------------------------------------------------|
 | `texture`  | TextureData         | -       | Inner height field. Any procedural (`noise`, `marble`, `wood`, `voronoi`, `brick`, `gradient`, `checker`) or `image`. |
-| `strength` | float ∈ [0, 10]     | `1.0`   | Amplitude of the perturbation. Above ~5 the bump looks rocky; ~0.5–1.0 reads as fine detail. |
+| `strength` | float ∈ [0, 10]     | `1.0`   | Height, in scene units, of a texture value of 1. A procedural with features about a unit wide reads as fine detail at ~0.05-0.5; an image needs a height in proportion to the size of the surface it covers. |
 | `scale`    | float > 0           | `1.0`   | Uniform UV multiplier stacked on top of the inner texture's own `uv_scale` / `scale`. |
 
 **Composition order** when both `normal_map` and `bump_map` are present:
