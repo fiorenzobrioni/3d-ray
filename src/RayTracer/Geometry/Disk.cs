@@ -64,6 +64,9 @@ public class Disk : IHittable, ISamplable
 
         rec.Tangent = _uAxis;
         rec.Bitangent = _vAxis;
+        // U and V each span the full diameter (2R) along their axis.
+        rec.DpDu = _uAxis * (2f * Radius);
+        rec.DpDv = _vAxis * (2f * Radius);
 
         return true;
     }

@@ -300,6 +300,12 @@ public class Torus : IHittable, ISamplable
             cosTheta,
             -sinPhi * sinTheta));
 
+        // P = ((R + r cos θ) cos φ, r sin θ, (R + r cos θ) sin φ), φ and θ
+        // both 2π per unit of U and V: |∂P/∂φ| = R + r cos θ is the distance
+        // from the Y axis, |∂P/∂θ| = r.
+        rec.DpDu = rec.Tangent * (2f * MathF.PI * dxz);
+        rec.DpDv = rec.Bitangent * (2f * MathF.PI * MinorRadius);
+
         rec.ObjectSeed = Seed;
         rec.Material = Material;
     }

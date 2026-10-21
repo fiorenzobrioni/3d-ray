@@ -109,6 +109,9 @@ public class Annulus : IHittable, ISamplable
 
         rec.Tangent = _uAxis;
         rec.Bitangent = _vAxis;
+        // U and V each span the full diameter (2R) along their axis.
+        rec.DpDu = _uAxis * (2f * OuterRadius);
+        rec.DpDv = _vAxis * (2f * OuterRadius);
 
         return true;
     }

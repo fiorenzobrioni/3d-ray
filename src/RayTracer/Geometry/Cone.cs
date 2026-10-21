@@ -151,12 +151,22 @@ public class Cone : IHittable, ISamplable
                     rec.U = (theta + MathF.PI) / (2f * MathF.PI);
                     rec.V = (y - _yMin) / Height;
 
+                    // P = (r(y) cos θ, y, r(y) sin θ), θ = 2πU − π, y = yMin + V·H:
+                    //   ∂P/∂u = 2π·(−pz, 0, px)               (zero at the apex)
+                    //   ∂P/∂v = H·(s cos θ, 1, s sin θ),  s = dr/dy
+                    float rho = MathF.Sqrt(px * px + pz * pz);
+                    float sOverRho = rho > 1e-12f ? _slope / rho : 0f;
+                    rec.DpDu = new Vector3(-pz, 0f, px) * (2f * MathF.PI);
+                    rec.DpDv = new Vector3(px * sOverRho, 1f, pz * sOverRho) * Height;
+
                     // TBN: Tangent = ∂P/∂θ (azimuthal direction)
                     Vector3 tDir = new Vector3(-pz, 0, px);
                     if (tDir.LengthSquared() < 1e-8f) tDir = Vector3.UnitX;
                     rec.Tangent = Vector3.Normalize(tDir);
-                    // Bitangent = along the cone surface in the V direction (upward slope)
-                    rec.Bitangent = Vector3.Normalize(Vector3.Cross(outwardNormal, rec.Tangent));
+                    // Bitangent = along the cone surface in the V direction (upward
+                    // slope). N × T would point down the slope, against V; ∂P/∂v
+                    // never vanishes (its Y is H), so it gives the direction directly.
+                    rec.Bitangent = Vector3.Normalize(rec.DpDv);
 
                     rec.ObjectSeed = Seed;
                     rec.Material = Material;
@@ -231,6 +241,9 @@ public class Cone : IHittable, ISamplable
 
         rec.Tangent = Vector3.UnitX;
         rec.Bitangent = Vector3.UnitZ;
+        // The cap's diameter spans one unit of U and of V.
+        rec.DpDu = new Vector3(2f * capRadius, 0f, 0f);
+        rec.DpDv = new Vector3(0f, 0f, 2f * capRadius);
 
         rec.ObjectSeed = Seed;
         rec.Material = Material;

@@ -27,7 +27,8 @@ public class PrimitiveUvDerivativeTests
         new object[] { "cylinder" }, new object[] { "cone" }, new object[] { "frustum" },
         new object[] { "disk" }, new object[] { "annulus" }, new object[] { "capsule" },
         new object[] { "torus" }, new object[] { "plane" }, new object[] { "triangle" },
-        new object[] { "smooth-triangle" }, new object[] { "lathe" },
+        new object[] { "smooth-triangle" }, new object[] { "lathe" }, new object[] { "lathe-step" },
+        new object[] { "lathe-spline" },
     };
 
     private static IHittable Make(string name) => name switch
@@ -50,6 +51,12 @@ public class PrimitiveUvDerivativeTests
             new Vector2(0.1f, 0.2f), new Vector2(0.9f, 0.3f), new Vector2(0.4f, 0.8f), M),
         "lathe"    => new Lathe(new[] { new Vector2(0.3f, -0.7f), new Vector2(0.8f, 0f), new Vector2(0.5f, 0.7f) },
                                 LatheMode.Linear, M),
+        // A horizontal step (annular face) and the spline path, whose V is the
+        // arc-length table's piecewise-linear fraction.
+        "lathe-step" => new Lathe(new[] { new Vector2(0.3f, -0.7f), new Vector2(0.8f, 0f), new Vector2(0.5f, 0f),
+                                          new Vector2(0.4f, 0.7f) }, LatheMode.Linear, M),
+        "lathe-spline" => new Lathe(new[] { new Vector2(0.3f, -0.7f), new Vector2(0.8f, -0.2f), new Vector2(0.6f, 0.2f),
+                                            new Vector2(0.5f, 0.7f) }, LatheMode.CatmullRom, M),
         _ => throw new ArgumentException(name),
     };
 

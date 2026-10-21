@@ -58,6 +58,10 @@ public class InfinitePlane : IHittable
 
         rec.Tangent = _uAxis;
         rec.Bitangent = _vAxis;
+        // One unit of U or V is one unit of length along the unit axes (the
+        // frac above only adds the integer tile offset, which has no slope).
+        rec.DpDu = _uAxis;
+        rec.DpDv = _vAxis;
 
         rec.ObjectSeed = Seed;
         rec.Material = Material;

@@ -98,13 +98,17 @@ public class Box : IHittable, ISamplable
         // to be inverted on those faces — bumps appeared as dents and
         // vice versa.
         //
-        // Convention per face:
+        // Convention per face: T always follows +U (∂P/∂u); where the face's
+        // UVs are mirrored (∂P/∂u × ∂P/∂v points inward) B is flipped instead.
         //   +X: T = +Z, B = +Y  → Cross(+Z, +Y) = −X … flip B → −Y  ✓ Cross(+Z,−Y) = +X
-        //   −X: T = −Z, B = +Y  → Cross(−Z, +Y) = +X … flip B → −Y  ✓ Cross(−Z,−Y) = −X
+        //   −X: T = +Z, B = +Y  → Cross(+Z,+Y) = −X  ✓
         //   +Y: T = +X, B = −Z  → Cross(+X,−Z) = +Y  ✓
         //   −Y: T = +X, B = +Z  → Cross(+X,+Z) = −Y  ✓
         //   +Z: T = +X, B = +Y  → Cross(+X,+Y) = +Z  ✓
-        //   −Z: T = −X, B = +Y  → Cross(−X,+Y) = −Z  ✓
+        //   −Z: T = +X, B = +Y  → Cross(+X,+Y) = +Z … flip B → −Y  ✓ Cross(+X,−Y) = −Z
+        //
+        // ∂P/∂u, ∂P/∂v are the unflipped axes: each face spans the unit cube's
+        // side, so one unit of U or V is one unit of length.
         switch (hitAxis)
         {
             case 0: // X faces
@@ -117,9 +121,11 @@ public class Box : IHittable, ISamplable
                 }
                 else // −X face: outward = −X
                 {
-                    rec.Tangent   = -Vector3.UnitZ;
-                    rec.Bitangent = -Vector3.UnitY;
+                    rec.Tangent   = Vector3.UnitZ;
+                    rec.Bitangent = Vector3.UnitY;
                 }
+                rec.DpDu = Vector3.UnitZ;
+                rec.DpDv = Vector3.UnitY;
                 break;
             case 1: // Y faces
                 rec.U = (rec.Point.X - Min.X) / (Max.X - Min.X);
@@ -134,6 +140,8 @@ public class Box : IHittable, ISamplable
                     rec.Tangent   = Vector3.UnitX;
                     rec.Bitangent = Vector3.UnitZ;
                 }
+                rec.DpDu = Vector3.UnitX;
+                rec.DpDv = Vector3.UnitZ;
                 break;
             default: // Z faces
                 rec.U = (rec.Point.X - Min.X) / (Max.X - Min.X);
@@ -145,9 +153,11 @@ public class Box : IHittable, ISamplable
                 }
                 else // −Z face: outward = −Z
                 {
-                    rec.Tangent   = -Vector3.UnitX;
-                    rec.Bitangent = Vector3.UnitY;
+                    rec.Tangent   = Vector3.UnitX;
+                    rec.Bitangent = -Vector3.UnitY;
                 }
+                rec.DpDu = Vector3.UnitX;
+                rec.DpDv = Vector3.UnitY;
                 break;
         }
 
