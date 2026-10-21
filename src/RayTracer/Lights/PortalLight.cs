@@ -122,7 +122,7 @@ public class PortalLight : ILight
 
         // Receiver geometric horizon (skip when surfaceNormal is degenerate —
         // volumetric scattering points pass Vector3.Zero).
-        if (surfaceNormal.LengthSquared() > 0f && Vector3.Dot(surfaceNormal, dir) <= 0f)
+        if (surfaceNormal.LengthSquared() > 0f && !ShadowRay.ReceiverTransmits && Vector3.Dot(surfaceNormal, dir) <= 0f)
             return (true, Vector3.Zero, dir, dist);
 
         // Portal orientation — only contribute when the receiver is on the
@@ -134,7 +134,7 @@ public class PortalLight : ILight
         // Shadow-trace through the scene up to infinity. The portal itself is
         // intangible — it carries no geometry, so any hit between the receiver
         // and infinity is a real occluder.
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        Vector3 shadowOrigin = MathUtils.OffsetToward(hitPoint, surfaceNormal, dir);
         var shadowRay = new Ray(shadowOrigin, dir, time);
         Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, MathUtils.Infinity);
         if (MathUtils.NearZero(trans))

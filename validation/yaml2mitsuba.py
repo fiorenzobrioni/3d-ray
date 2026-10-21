@@ -117,7 +117,7 @@ def _two_sided(b):
 
 def _bsdf(m, used):
     b = _bsdf_one_sided(m, used)
-    if b is None or b["type"] in ("dielectric", "null"):
+    if b is None or b["type"] in ("dielectric", "roughdielectric", "null"):
         return b
     if b["type"] == "principled" and b["spec_trans"] > 0:
         return b
@@ -136,17 +136,36 @@ def _bsdf_one_sided(m, used):
         if abs(ior - 1.0) < 1e-6:
             # Index-matched: no reflection, no bending. Mitsuba's pass-through BSDF.
             return {"type": "null"}
+        rough = float(m.get("roughness") or 0.0)
+        if rough > 0:
+            # Walter 2007 with GGX and height-correlated Smith, as the engine.
+            return {"type": "roughdielectric", "int_ior": ior, "ext_ior": 1.0, "distribution": "ggx",
+                    "alpha": max(rough * rough, 1e-4), "sample_visible": True}
         return {"type": "dielectric", "int_ior": ior, "ext_ior": 1.0}
     if t == "metal":
-        # 3D-Ray Metal: GGX, alpha = fuzz^2, Schlick Fresnel with F0 = color.
-        # Mitsuba 'none' conductor has F = 1 scaled by specular_reflectance:
-        # identical to Schlick only for white metal, so only white is allowed.
-        if any(abs(c - 1.0) > 1e-6 for c in _vec(color, ENGINE_DEFAULT_COLOR)):
-            raise UnsupportedFeature("coloured Metal (Schlick F0 != 1 has no exact Mitsuba twin)")
+        # 3D-Ray Metal: GGX with height-correlated Smith (as Mitsuba's), alpha
+        # = fuzz^2, Fresnel from a measured preset / eta + k (exact twin of a
+        # Mitsuba conductor) or the F82 model from color (exact twin only for
+        # white, where F = 1). Mitsuba has no multiple-scattering lobe, so a
+        # rough metal must set multiple_scattering: false to be compared.
         fuzz = float(m.get("fuzz", 0.0))
+        if fuzz > 0 and m.get("multiple_scattering", True):
+            raise UnsupportedFeature("rough Metal with multiple scattering (Mitsuba has none)")
+        presets = {"gold": "Au", "silver": "Ag", "copper": "Cu", "aluminium": "Al", "chromium": "Cr",
+                   "tungsten": "W", "nickel": "Ni_palik", "iridium": "Ir", "molybdenum": "Mo",
+                   "rhodium": "Rh", "tantalum": "Ta", "titanium_nitride": "TiN", "vanadium": "V_palik",
+                   "beryllium": "Be", "mercury": "Hg"}
+        if m.get("preset"):
+            fres = {"material": presets[m["preset"].lower()]}
+        elif m.get("eta") is not None:
+            fres = {"eta": _rgb(m["eta"]), "k": _rgb(m.get("k", [0, 0, 0]))}
+        else:
+            if any(abs(c - 1.0) > 1e-6 for c in _vec(color, ENGINE_DEFAULT_COLOR)) or m.get("edge_color"):
+                raise UnsupportedFeature("coloured F82 Metal (no exact Mitsuba twin)")
+            fres = {"material": "none"}
         if fuzz <= 0:
-            return {"type": "conductor", "material": "none"}
-        return {"type": "roughconductor", "material": "none", "distribution": "ggx",
+            return {"type": "conductor", **fres}
+        return {"type": "roughconductor", **fres, "distribution": "ggx",
                 "alpha": max(fuzz * fuzz, 0.001), "sample_visible": True}
     if t in ("disney", "disney_bsdf", "pbr"):
         used.add("disney")

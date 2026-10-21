@@ -50,7 +50,7 @@ public class PointLight : ILight
         // Robust shadow origin: offset along the surface normal toward the light side.
         // This prevents self-intersection at grazing angles where the old method
         // (offset along ray direction) could fail.
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        Vector3 shadowOrigin = MathUtils.OffsetToward(hitPoint, surfaceNormal, dirToLight);
         var shadowRay = new Ray(shadowOrigin, dirToLight, time);
         Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, distance - MathUtils.OffsetDistance(Position));
 

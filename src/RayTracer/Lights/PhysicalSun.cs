@@ -110,10 +110,10 @@ public class PhysicalSun : ILight
 
         // Optional surface-normal early-out
         bool hasNormal = surfaceNormal.LengthSquared() > 0f;
-        if (hasNormal && Vector3.Dot(surfaceNormal, toLight) <= 0f)
+        if (hasNormal && !ShadowRay.ReceiverTransmits && Vector3.Dot(surfaceNormal, toLight) <= 0f)
             return (true, Vector3.Zero, toLight, MathUtils.Infinity);
 
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        Vector3 shadowOrigin = MathUtils.OffsetToward(hitPoint, surfaceNormal, toLight);
         var shadowRay = new Ray(shadowOrigin, toLight, time);
         Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, MathUtils.Infinity);
         if (MathUtils.NearZero(trans))

@@ -85,14 +85,14 @@ public class EnvironmentLight : ILight
         // normal (no surface exists); in that case all directions are valid and
         // the phase function handles the directional weight instead.
         bool hasSurfaceNormal = surfaceNormal.LengthSquared() > 0f;
-        if (hasSurfaceNormal)
+        if (hasSurfaceNormal && !ShadowRay.ReceiverTransmits)
         {
             float nDotL = Vector3.Dot(surfaceNormal, dir);
             if (nDotL <= 0f)
                 return (true, Vector3.Zero, dir, distance);
         }
 
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        Vector3 shadowOrigin = MathUtils.OffsetToward(hitPoint, surfaceNormal, dir);
         var shadowRay = new Ray(shadowOrigin, dir, time);
 
         Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, MathUtils.Infinity);

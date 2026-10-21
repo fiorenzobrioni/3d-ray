@@ -54,6 +54,18 @@ internal static class Microfacet
         => 1f / (1f + LambdaGgxAniso(wloc, ax, ay));
 
     /// <summary>
+    /// Height-correlated Smith masking-shadowing (Heitz 2014, eq. 99):
+    ///   G2(V, L) = 1 / (1 + Λ(V) + Λ(L))
+    /// A microfacet high on the surface is both less likely to be masked and
+    /// less likely to be shadowed, so the two are not independent: the
+    /// separable G1(V)·G1(L) over-darkens rough surfaces at grazing angles.
+    /// Directions must be in the upper hemisphere of the facet's side (Λ
+    /// depends only on tan²θ, so callers pass |z| for transmission).
+    /// </summary>
+    public static float G2GgxAniso(Vector3 vloc, Vector3 lloc, float ax, float ay)
+        => 1f / (1f + LambdaGgxAniso(vloc, ax, ay) + LambdaGgxAniso(lloc, ax, ay));
+
+    /// <summary>
     /// Isotropic Smith G1 closed form — avoids allocating a Vector3 when
     /// only the z-component is relevant (e.g. Disney's isotropic clearcoat).
     ///   G1(NdotX) = 2·NdotX / (NdotX + sqrt(α² + (1-α²)·NdotX²))

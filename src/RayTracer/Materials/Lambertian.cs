@@ -42,17 +42,6 @@ public sealed class Lambertian : IMaterial
         return albedo * (NdotL / MathF.PI);
     }
 
-    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
-    {
-        var scatterDirection = rec.Normal + MathUtils.RandomUnitVector();
-        if (MathUtils.NearZero(scatterDirection))
-            scatterDirection = rec.Normal;
-
-        scattered = new Ray(rec.Point, scatterDirection);
-        attenuation = Albedo.Value(in rec);
-        return true;
-    }
-
     // ─────────────────────────────────────────────────────────────────────────
     // Symmetric BSDF API (Evaluate / Pdf / Sample) — enables full MIS.
     //

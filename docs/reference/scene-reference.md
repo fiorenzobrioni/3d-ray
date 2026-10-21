@@ -623,20 +623,31 @@ camera:
 ```yaml
 - id: "brushed_steel"
   type: "metal"
-  color: [0.85, 0.85, 0.88]               # Reflectance tint
-  fuzz: 0.1                                # Roughness: 0=mirror, 1=diffuse
+  color: [0.85, 0.85, 0.88]               # Colour at normal incidence (F0)
+  edge_color: [0.95, 0.95, 0.97]          # (optional) Colour near grazing (F82 tint), default white
+  fuzz: 0.1                                # Roughness: 0 = mirror ('roughness' is an alias)
+
+- id: "gold"
+  type: "metal"
+  preset: "gold"                           # Measured metal: exact complex Fresnel
+  fuzz: 0.25
 ```
-- Shiny, reflective surfaces
-- Physically-based metallic colors (not albedo)
-- Supports texture and normal_map
+- GGX microfacets with height-correlated masking-shadowing, sampled from the visible normals.
+- Two ways to give the colour: `color` + `edge_color` (the F82 model: Schlick's curve from `color`, with the dip toward `edge_color` that real metals show near 82°), or a measured complex index of refraction with `preset` (`gold`, `silver`, `copper`, `aluminium`, `chromium`, `tungsten`, `nickel`, `iridium`, `molybdenum`, `rhodium`, `tantalum`, `titanium_nitride`, `vanadium`, `beryllium`, `mercury`) or explicit `eta: [r, g, b]` + `k: [r, g, b]`. A complex IOR sets the colour by itself: `color` and `edge_color` are then ignored.
+- `multiple_scattering` (default `true`): light that bounces more than once between the microfacets is added back (Kulla-Conty), so a rough metal keeps its brightness instead of darkening as the roughness grows. Turn it off only to compare with renderers that lack it.
+- `fuzz` maps to the GGX width as `alpha = fuzz²`.
+- Supports texture (on `color`) and normal_map
 #### **5.3 Dielectric (Glass/Transparent)**
 ```yaml
 - id: "glass"
   type: "dielectric"
   refraction_index: 1.52                  # IOR (crown glass)
   color: [1.0, 1.0, 1.0]                  # (optional) Tint
+  roughness: 0.2                          # (optional) Frosted glass, default 0 = clear
 ```
-- Transparent with refraction and Fresnel reflection
+- Transparent with refraction and exact Fresnel reflection
+- `roughness` > 0 gives frosted glass: GGX microfacets on both the reflected and the transmitted side, with direct lighting through the surface.
+- Radiance is scaled by (n1/n2)² on refraction: a camera under water sees the sky brighter by n², as it should.
 - Common IORs: water=1.33, glass=1.5-1.52, diamond=2.42
 #### **5.4 Emissive (Self-Luminous)**
 ```yaml

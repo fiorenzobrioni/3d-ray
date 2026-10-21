@@ -301,4 +301,13 @@ public static class MathUtils
     /// </summary>
     public static Vector3 OffsetOrigin(Vector3 point, Vector3 normal)
         => point + normal * OffsetDistance(point);
+
+    /// <summary>
+    /// Origin of a ray leaving <paramref name="point"/> in direction
+    /// <paramref name="dir"/>: offset along whichever side of the normal the
+    /// ray goes to. A shadow ray toward a light behind a transmissive surface
+    /// must start on the far side (PIANO-REVIEW.md, Phase 5).
+    /// </summary>
+    public static Vector3 OffsetToward(Vector3 point, Vector3 normal, Vector3 dir)
+        => OffsetOrigin(point, Vector3.Dot(normal, dir) >= 0f ? normal : -normal);
 }

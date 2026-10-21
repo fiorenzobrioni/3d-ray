@@ -6,8 +6,6 @@ namespace RayTracer.Materials;
 
 public interface IMaterial
 {
-    bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered);
-
     // ─────────────────────────────────────────────────────────────────────────
     // Direct-lighting control flags.
     //
@@ -99,6 +97,14 @@ public interface IMaterial
     /// (and drops the duplicate BSDF path through it, PIANO-REVIEW.md §3.21).
     /// </summary>
     bool TransmitsStraight(in HitRecord rec) => false;
+
+    /// <summary>
+    /// True when the BSDF is non-zero for light arriving from behind the
+    /// surface through a non-delta lobe (rough glass, diffuse transmission), so
+    /// direct lighting must also sample lights on the far side
+    /// (PIANO-REVIEW.md §3.36).
+    /// </summary>
+    bool HasTransmission(in HitRecord rec) => false;
 
     /// <summary>
     /// Approximate surface reflectance at the hit point, consumed ONLY by the

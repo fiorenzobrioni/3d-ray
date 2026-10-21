@@ -1179,7 +1179,7 @@ public partial class Renderer
         IMedium? shadowMedium = mediums.Top ?? _globalMedium;
         IHittable? shadowMediumEntity = mediums.Top != null ? mediums.TopEntity : null;
         Vector3 directLight = needsLightSampling
-            ? ComputeDirectLighting(in rec, viewDir, material, shadowMedium, shadowMediumEntity)
+            ? DirectLightingAt(in rec, viewDir, material, shadowMedium, shadowMediumEntity)
             : Vector3.Zero;
 
         // Focused-caustic radiance from the photon map at this diffuse/glossy
@@ -1194,117 +1194,16 @@ public partial class Renderer
             return emitted + directLight;
 
         // ── Indirect bounce ─────────────────────────────────────────────────
-        // Prefer the Sample() API when the material implements it — it gives
-        // us a well-defined BSDF PDF for MIS at the next bounce. Fall back to
-        // Scatter() for legacy materials (Lambert, Metal, Dielectric, Mix)
-        // which still use the IsDeltaScatter-encoded suppression convention.
+        // Every material samples through Sample(); null means the path is
+        // absorbed here. (The legacy Scatter() fallback is gone: a mixture whose
+        // chosen component had no Sample drew a second, different component
+        // there and weighted both wrongly, PIANO-REVIEW.md §3.12.)
         BsdfSample? mis = material.Sample(viewDir, rec);
         if (mis.HasValue)
         {
             return ShadeSampleBounce(material, in rec, mis.Value, depth, emitted, directLight,
                                      currentAbsorption, pathThroughput, ref mediums, ref iors,
                                      causticState);
-        }
-
-        if (material.Scatter(ray, rec, out Vector3 attenuation, out Ray scattered))
-        {
-            // Motion blur: materials build scattered rays without a time (the
-            // renderer owns time propagation — see Ray.Time); re-stamp the
-            // path time here so the bounce samples the same frozen instant.
-            scattered = scattered.WithTime(ray.Time);
-
-            // ── AOV first-non-delta decision (legacy Scatter path) ──────────
-            // Delta bounces fold their tint into the running albedo weight and
-            // stay pending; the first non-delta bounce commits this surface.
-            // Captured before Russian Roulette boosts attenuation, so the AOV
-            // guides stay RR-noise-free.
-            if (_captureAovs && t_aovProbe is { Pending: true } scatterProbe)
-            {
-                if (material.IsDeltaScatter)
-                    scatterProbe.AlbedoWeight *= Clamp01(attenuation);
-                else
-                    scatterProbe.Commit();
-            }
-
-            // Path-throughput-based RR (PBRT §13.7.1). Survival probability is
-            // driven by the cumulative β projected into this bounce, not the
-            // local single-bounce attenuation. This kills paths whose total
-            // contribution to the image has decayed through repeated dim
-            // bounces, even when the current attenuation is moderate.
-            Vector3 nextThroughput = pathThroughput * attenuation;
-            int bouncesUsed = _maxDepth - depth;
-            if (bouncesUsed >= _rrMinBounces)
-            {
-                float survivalProb = MathF.Max(nextThroughput.X,
-                                       MathF.Max(nextThroughput.Y, nextThroughput.Z));
-                survivalProb = MathF.Max(survivalProb, _rrMinSurvival);
-                survivalProb = MathF.Min(survivalProb, 0.95f);
-                if (MathUtils.RandomFloat() > survivalProb)
-                    return emitted + directLight;
-                float invSurvival = 1f / survivalProb;
-                attenuation *= invSurvival;
-                nextThroughput *= invSurvival;
-            }
-
-            // IsDeltaScatter materials (mirror/refraction) emit a delta bounce,
-            // so emission passes through at full weight at the next hit. Non-
-            // delta Scatter materials rely on the legacy "NEE replaced emission"
-            // convention (prevBsdfPdf = 0) to suppress double-counting.
-            bool nextIsDelta = material.IsDeltaScatter;
-            // Legacy Scatter materials don't participate in volume stacking —
-            // they don't emit medium-switch signals. Pass through the incoming
-            // currentAbsorption so any enclosing Disney-glass interior still
-            // absorbs along the continued ray segment.
-            RayCategory nextCat = ClassifyScatteredRay(rec.Normal, scattered.Direction, nextIsDelta);
-            // Legacy Scatter() materials don't emit a MediumTransition signal,
-            // so the medium stack is forwarded unchanged. Refractive Scatter
-            // bounces through a glass Dielectric continue to use the legacy
-            // currentAbsorption back-compat path until the material is
-            // migrated to BsdfSample (Phase 2 / 3 of the SSS rollout).
-            //
-            // Relative-IOR (nested dielectrics): Scatter materials carry no
-            // transition signal, so detect a refractive crossing here — a
-            // transmission is the only case where the chosen direction ends up
-            // on the far side of the shading normal. On a front-face
-            // transmission push the material's IOR; on a back-face transmission
-            // pop. Copy-on-write so the caller's stack survives the return.
-            // Reflections (and non-dielectrics) leave the stack untouched.
-            IorStack nextIors = iors;
-            if (material.TryGetDielectricIor(in rec, out float scatterIor)
-                && Vector3.Dot(scattered.Direction, rec.Normal) < 0f)
-            {
-                if (rec.FrontFace) nextIors.Push(scatterIor);
-                else               nextIors.Pop();
-            }
-            Vector3 indirect = TraceRay(scattered, depth - 1,
-                                         prevBsdfPdf: 0f, prevIsDelta: nextIsDelta,
-                                         ref mediums, ref nextIors,
-                                         currentAbsorption: currentAbsorption,
-                                         pathThroughput: nextThroughput,
-                                         incomingCategory: nextCat,
-                                         causticState: NextCausticState(causticState, nextIsDelta,
-                                             ShadowPassable(material, in rec, scattered.Direction)));
-            // Sanitize NaN/Inf every frame (idempotent — no bias); the magnitude
-            // firefly clamp is applied once, camera-relative, below.
-            indirect = SanitizeRadiance(indirect);
-            // PBRT/Arnold convention: direct lighting is the standalone
-            // rendering-equation integrand at the shadow-ray direction
-            // (computed by ComputeDirectLighting above), and the scatter
-            // attenuation weights ONLY the indirect path. Multiplying
-            // direct lighting by the BSDF importance weight from a
-            // randomly-sampled bounce direction couples two independent
-            // estimators and biases the direct contribution for any
-            // direction-dependent BSDF (Disney diffuse retro-reflection,
-            // GGX specular, Charlie sheen). The legacy multiplied form
-            // happened to be correct only for Lambertian (constant
-            // attenuation == albedo); the new form is unbiased for every
-            // material whose EvaluateDirect returns the full BRDF·cosθ.
-            Vector3 contribution = attenuation * indirect;
-            // Depth-aware indirect clamp applied ONCE at the primary surface on
-            // the post-BSDF contribution (see ClampRadianceIndirect).
-            if (depth == _maxDepth)
-                contribution = ClampRadianceIndirect(contribution);
-            return emitted + directLight + contribution;
         }
 
         return emitted + directLight;
@@ -2022,6 +1921,38 @@ public partial class Renderer
     /// couple the indirect importance sample to the shadow estimator and
     /// bias the result for any direction-dependent BSDF.
     /// </summary>
+    /// <summary>
+    /// NEE at a surface. A surface that transmits (rough glass, diffuse
+    /// transmission) also receives light from behind: the lights keep those
+    /// samples and start the shadow ray on the far side while the switch is up
+    /// (PIANO-REVIEW.md §3.36).
+    /// </summary>
+    private Vector3 DirectLightingAt(in HitRecord rec, Vector3 viewDir, IMaterial? material,
+                                     IMedium? shadowMedium, IHittable? shadowMediumEntity)
+    {
+        bool transmits = material?.HasTransmission(in rec) ?? false;
+        ShadowRay.ReceiverTransmits = transmits;
+        try
+        {
+            return ComputeDirectLighting(in rec, viewDir, material, shadowMedium, shadowMediumEntity);
+        }
+        finally
+        {
+            ShadowRay.ReceiverTransmits = false;
+        }
+    }
+
+    /// <summary>
+    /// Shadow-terminator factor for the light direction, on the side of the
+    /// surface the light is: for a light behind a transmissive surface the
+    /// horizon is the back one (it used to read 0 there, so NEE never lit
+    /// anything through rough glass, §3.36).
+    /// </summary>
+    private static float LightSideTerminator(in HitRecord rec, Vector3 dirToLight)
+        => Vector3.Dot(rec.ShadingNg, dirToLight) >= 0f
+            ? MathUtils.ShadowTerminatorTerm(rec.ShadingNg, rec.Normal, dirToLight)
+            : MathUtils.ShadowTerminatorTerm(-rec.ShadingNg, -rec.Normal, dirToLight);
+
     private Vector3 ComputeDirectLighting(in HitRecord rec, Vector3 viewDir, IMaterial? material,
                                           IMedium? shadowMedium = null,
                                           IHittable? shadowMediumEntity = null)
@@ -2066,7 +1997,7 @@ public partial class Renderer
                 // directions: cull the energy a perturbed shading normal would
                 // fabricate where either grazes below the true surface horizon
                 // (no-op where the normal is unperturbed).
-                brdf *= viewTerm * MathUtils.ShadowTerminatorTerm(rec.ShadingNg, rec.Normal, dirToLight);
+                brdf *= viewTerm * LightSideTerminator(in rec, dirToLight);
 
                 // The contribution is wNee · lightColor · brdf · Tr. When the
                 // BRDF integrand is zero (light below the shading hemisphere,
@@ -2126,7 +2057,7 @@ public partial class Renderer
                     // directions: cull the energy a perturbed shading normal would
                     // fabricate where either grazes below the true surface horizon
                     // (no-op where the normal is unperturbed).
-                    brdf *= viewTerm * MathUtils.ShadowTerminatorTerm(rec.ShadingNg, rec.Normal, dirToLight);
+                    brdf *= viewTerm * LightSideTerminator(in rec, dirToLight);
 
                     // Zero integrand (light below the hemisphere / delta lobe) →
                     // the sample contributes nothing; skip the medium walk and

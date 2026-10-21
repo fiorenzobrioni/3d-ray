@@ -133,7 +133,7 @@ public class SpotLight : ILight
         // normal — same pattern as AreaLight/SphereLight/GeometryLight, kept
         // in sync so future visible proxies (point/spot bulbs) don't
         // self-intersect.
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        Vector3 shadowOrigin = MathUtils.OffsetToward(hitPoint, surfaceNormal, dirToLight);
         var shadowRay = new Ray(shadowOrigin, dirToLight, time);
         float shadowTMax = (sourcePos - shadowOrigin).Length() - MathUtils.OffsetDistance(sourcePos);
         Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, shadowTMax);

@@ -109,10 +109,12 @@ public class BsdfStatisticalTests
 
     // ── Known bugs (PIANO-REVIEW.md §3): enable when the fix lands ───────────
 
-    [Theory(Skip = "Bug noto PIANO-REVIEW.md §3.7: EvaluateDirect di Metal aggiunge un lobo lambertiano che Evaluate/Sample non hanno (NEE e BSDF stimano due materiali diversi). Fase 5.")]
+    // Was the known bug §3.7 (a Lambertian lobe in the Metal's direct lighting only), fixed in Phase 5.
+    [Theory]
     [InlineData("metal-white-fuzz0.3")]
+    [InlineData("metal-white-fuzz1.0")]
     [InlineData("mix-lambert-metal")]
-    public void KnownBug_Metal_DirectLightingMatchesSampling(string name)
+    public void Metal_DirectLightingMatchesSampling(string name)
         => Assert.True(BsdfTestKit.DirectVsEvaluateError(Get(name)) < 1e-3);
 
     [Fact(Skip = "Bug noto PIANO-REVIEW.md §3.2: il lobo speculare delta viene diviso per max(p, 0.1) mentre è scelto con p ≈ 0.09, riflesso sottostimato del 9%. Fase 5.")]

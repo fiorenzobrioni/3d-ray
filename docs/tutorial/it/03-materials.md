@@ -63,14 +63,25 @@ Quando è presente un blocco `texture:`, esso sovrascrive `color`. Maggiori info
   fuzz: 0.12
 ```
 
-Le superfici metalliche riflettono la luce in modo speculare. Il motore utilizza un modello microfacet GGX per highlight realistici.
+Le superfici metalliche riflettono la luce in modo speculare. Il motore utilizza un modello microfacet GGX per highlight realistici, e restituisce la luce che rimbalza più volte fra le microfacette, così un metallo ruvido resta luminoso come uno lucido invece di scurirsi.
 
 | Parametro | Tipo      | Predefinito | Descrizione                                     |
 |-----------|-----------|-------------|-------------------------------------------------|
-| `color`   | `[R,G,B]` | --          | Colore di riflettanza (tinta metallica)         |
-| `fuzz`    | `float`   | `0.0`       | Rugosità: 0 = specchio perfetto, maggiore = sfocato |
+| `color`   | `[R,G,B]` | --          | Colore a incidenza normale                      |
+| `edge_color` | `[R,G,B]` | bianco   | Colore verso la radenza (i metalli veri cambiano tinta verso il bordo) |
+| `fuzz`    | `float`   | `0.0`       | Rugosità: 0 = specchio perfetto, maggiore = sfocato (`roughness` è un alias) |
+| `preset`  | `string`  | --          | Un metallo misurato: `gold`, `silver`, `copper`, `aluminium`, `chromium`, `tungsten`, `nickel`, ... |
 
-Il valore `fuzz` è mappato internamente a un parametro di rugosità (`alpha = fuzz * fuzz`). Tenerlo nell'intervallo 0.0--0.6 per metalli realistici; valori più alti iniziano a sembrare poco naturali.
+Il valore `fuzz` è mappato internamente a un parametro di rugosità (`alpha = fuzz * fuzz`).
+
+Un preset usa l'indice di rifrazione complesso misurato del metallo e ne dà la riflettanza esatta a ogni angolo: è la via più rapida per un oro o un rame credibili:
+
+```yaml
+- id: "oro"
+  type: "metal"
+  preset: "gold"
+  fuzz: 0.2
+```
 
 ---
 
@@ -93,6 +104,9 @@ I materiali dielettrici sono trasparenti. La luce viene divisa ad ogni superfici
 |--------------------|-----------|-------------|-------------------------------------|
 | `refraction_index` | `float`   | `1.5`       | Indice di rifrazione (IOR)          |
 | `color`            | `[R,G,B]` | `[1,1,1]`   | Tinta per il vetro colorato         |
+| `roughness`        | `float`   | `0.0`       | Vetro satinato: 0 = trasparente, maggiore = trasmissione più diffusa |
+
+Con `roughness` maggiore di zero la superficie diventa satinata: la luce che la attraversa si sparpaglia, i riflessi si sfocano e gli oggetti dietro perdono il contorno.
 
 ### Indici di Rifrazione Comuni
 

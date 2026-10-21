@@ -75,8 +75,8 @@ Per la roadmap dettagliata e le feature in corso consulta il [**PLANNING**](./PL
 - 📦 **Import YAML** - Scomposizione di scene complesse in file separati. Librerie riutilizzabili di materiali, template, oggetti e luci con import annidati e protezione ciclica.
 ### Materiali
 - 🎨 **Lambertian** - diffuso opaco
-- 🪞 **Metal** - riflesso speculare con rugosità (`fuzz`) configurabile
-- 💎 **Dielectric** - vetro e trasparenti con rifrazione e riflesso Fresnel
+- 🪞 **Metal** - riflesso a microfacette GGX con rugosità (`fuzz`) configurabile, scattering multiplo fra le microfacette (un metallo ruvido mantiene la sua luminosità), colore a incidenza normale e sul bordo (`color`, `edge_color`), oppure un metallo misurato per nome (`preset: gold`, `silver`, `copper`, `aluminium`, ...) con il suo Fresnel complesso esatto.
+- 💎 **Dielectric** - vetro e trasparenti con rifrazione e riflesso di Fresnel esatto; `roughness` dà il vetro satinato, illuminato direttamente attraverso la superficie.
 - 💡 **Emissive** - materiale auto-luminoso; gli oggetti emissivi partecipano automaticamente alla NEE come sorgenti di luce geometriche
 - 🌟 **Disney Principled BSDF** - materiale PBR unificato (`"disney"` / `"pbr"`): un singolo tipo copre plastica, metallo, vetro, vernice auto, tessuto, pelle, bolle di sapone e qualsiasi combinazione. Oltre ai parametri classici (`metallic`, `roughness`, `specular`, `sheen`, `clearcoat`, `spec_trans`, `ior`) supporta:
   - **Anisotropia** per highlight allungati stile metallo spazzolato, capelli e vinile.

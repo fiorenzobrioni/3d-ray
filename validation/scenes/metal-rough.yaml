@@ -1,7 +1,9 @@
-# Validation scene (PIANO-REVIEW.md, Phase 0): white rough metal sphere lit by
-# an emissive panel and a dim sky. White metal (F0 = 1) is the one case where
-# 3D-Ray's Schlick Fresnel and Mitsuba's conductor coincide exactly, so the
+# Validation scene (PIANO-REVIEW.md, Phases 0 and 5): white rough metal spheres
+# lit by an emissive panel and a dim sky. White metal (F0 = 1) is the one case
+# where 3D-Ray's F82 Fresnel and Mitsuba's conductor coincide exactly, so the
 # comparison isolates the GGX lobe, its sampling and its direct lighting.
+# Mitsuba has no multiple-scattering lobe: it is turned off here (its energy is
+# checked analytically, white furnace = 1, in MetalTests).
 validation:
   width: 128
   height: 96
@@ -21,8 +23,8 @@ camera:
 
 materials:
   - { id: "floor", type: "lambertian", color: [0.5, 0.5, 0.5] }
-  - { id: "metal-03", type: "metal", color: [1, 1, 1], fuzz: 0.3 }
-  - { id: "metal-07", type: "metal", color: [1, 1, 1], fuzz: 0.7 }
+  - { id: "metal-03", type: "metal", color: [1, 1, 1], fuzz: 0.3, multiple_scattering: false }
+  - { id: "metal-07", type: "metal", color: [1, 1, 1], fuzz: 0.7, multiple_scattering: false }
   - { id: "panel", type: "emissive", color: [1, 1, 1], intensity: 8 }
 
 entities:

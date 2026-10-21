@@ -630,12 +630,20 @@ camera:
 ```yaml
 - id: "brushed_steel"
   type: "metal"
-  color: [0.85, 0.85, 0.88]               # Tinta di riflettanza
-  fuzz: 0.1                                # Rugosità: 0=specchio, 1=diffuso
+  color: [0.85, 0.85, 0.88]               # Colore a incidenza normale (F0)
+  edge_color: [0.95, 0.95, 0.97]          # (opzionale) Colore verso la radenza (tinta F82), default bianco
+  fuzz: 0.1                                # Rugosità: 0 = specchio ('roughness' è un alias)
+
+- id: "gold"
+  type: "metal"
+  preset: "gold"                           # Metallo misurato: Fresnel complesso esatto
+  fuzz: 0.25
 ```
-- Superfici lucide e riflettenti
-- Colori metallici basati sulla fisica
-- Supporta texture e normal_map
+- Microfacette GGX con mascheramento e ombreggiamento correlati in altezza, campionate dalle normali visibili.
+- Due modi di dare il colore: `color` + `edge_color` (il modello F82: la curva di Schlick da `color`, con l'avvallamento verso `edge_color` che i metalli veri mostrano verso 82°), oppure un indice di rifrazione complesso misurato con `preset` (`gold`, `silver`, `copper`, `aluminium`, `chromium`, `tungsten`, `nickel`, `iridium`, `molybdenum`, `rhodium`, `tantalum`, `titanium_nitride`, `vanadium`, `beryllium`, `mercury`) o con `eta: [r, g, b]` + `k: [r, g, b]` espliciti. Un IOR complesso fissa da solo il colore: `color` e `edge_color` vengono ignorati.
+- `multiple_scattering` (default `true`): la luce che rimbalza più volte fra le microfacette viene restituita (Kulla-Conty), così un metallo ruvido mantiene la sua luminosità invece di scurirsi al crescere della rugosità. Da spegnere solo per confronti con renderer che non lo hanno.
+- `fuzz` corrisponde alla larghezza GGX come `alpha = fuzz²`.
+- Supporta texture (su `color`) e normal_map
 
 #### **5.3 Dielectric (Vetro/Trasparente)**
 ```yaml
@@ -643,8 +651,11 @@ camera:
   type: "dielectric"
   refraction_index: 1.52                  # IOR (indice di rifrazione)
   color: [1.0, 1.0, 1.0]                  # (opzionale) Tinta
+  roughness: 0.2                          # (opzionale) Vetro satinato, default 0 = trasparente
 ```
-- Trasparente con rifrazione e riflessione di Fresnel
+- Trasparente con rifrazione e riflessione di Fresnel esatta
+- `roughness` > 0 dà il vetro satinato: microfacette GGX sia sul lato riflesso sia su quello trasmesso, con illuminazione diretta attraverso la superficie.
+- Alla rifrazione la radianza è scalata di (n1/n2)²: una camera sott'acqua vede il cielo più luminoso di n², come deve.
 - IOR comuni: acqua=1.33, vetro=1.5-1.52, diamante=2.42
 
 #### **5.4 Emissive (Auto-illuminato)**

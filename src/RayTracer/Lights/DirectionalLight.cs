@@ -139,7 +139,7 @@ public class DirectionalLight : ILight
             toLight = -Direction;
         }
 
-        Vector3 shadowOrigin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        Vector3 shadowOrigin = MathUtils.OffsetToward(hitPoint, surfaceNormal, toLight);
         var shadowRay = new Ray(shadowOrigin, toLight, time);
         Vector3 trans = ShadowRay.Transmittance(world, shadowRay, MathUtils.RayEpsilon, MathUtils.Infinity);
 

@@ -4,27 +4,40 @@ using RayTracer.Textures;
 
 namespace RayTracer.Materials;
 
+/// <summary>
+/// Glass and other clear dielectrics. Smooth (roughness 0): a pair of delta
+/// lobes, Fresnel reflection and Snell refraction. Rough: the microfacet BSDF
+/// of Walter et al. 2007 (frosted glass), GGX with height-correlated Smith,
+/// reflection and transmission evaluated, sampled from the visible normals
+/// and MIS-weighted like any other glossy lobe (PIANO-REVIEW.md, Phase 5).
+/// The colour tints both lobes; refraction carries the (η_i/η_t)² radiance
+/// factor (§3.35).
+/// </summary>
 public sealed class Dielectric : IMaterial
 {
     public float RefractionIndex { get; }
     public ITexture Albedo { get; }
+    public float Roughness { get; }
 
-    public Dielectric(float refractionIndex)
-    {
-        RefractionIndex = refractionIndex;
-        Albedo = new SolidColor(Vector3.One);
-    }
+    private readonly float _alpha;
 
-    public Dielectric(float refractionIndex, ITexture albedo)
+    public Dielectric(float refractionIndex) : this(refractionIndex, new SolidColor(Vector3.One)) { }
+
+    public Dielectric(float refractionIndex, ITexture albedo, float roughness = 0f)
     {
         RefractionIndex = refractionIndex;
         Albedo = albedo;
+        Roughness = Math.Clamp(roughness, 0f, 1f);
+        _alpha = MathF.Max(Roughness * Roughness, 1e-4f);
     }
 
-    // Glass is a pair of delta lobes (perfect reflection + perfect refraction).
-    // NEE cannot reach a delta BSDF, so direct lighting contributes zero and
-    // the renderer must preserve emission weight across the bounce.
-    public bool IsDeltaScatter => true;
+    private bool IsSmooth => Roughness <= 0f;
+
+    public bool HasTransmission(in HitRecord rec) => !IsSmooth;
+
+    // Smooth glass is a pair of delta lobes: NEE cannot reach it, and the
+    // renderer must keep the emission weight across the bounce.
+    public bool IsDeltaScatter => IsSmooth;
 
     /// <summary>Denoiser/AOV albedo guide: the glass tint. Used only when a
     /// path ends while still inside the specular chain (depth exhaustion);
@@ -56,12 +69,13 @@ public sealed class Dielectric : IMaterial
         return (1f - fr) * albedo;
     }
 
-    // IOR 1: no Fresnel reflection, no bending, only the tint.
+    // IOR 1: no Fresnel reflection, no bending, only the tint (and no
+    // microfacet scattering, whatever the roughness: the interface is invisible).
     public bool TransmitsStraight(in HitRecord rec) => MathF.Abs(RefractionIndex - 1f) < 1e-4f;
 
-    // Clear dielectric = a pair of delta lobes, so its transmission is exactly
+    // Smooth dielectric = a pair of delta lobes, so its transmission is exactly
     // the smooth-specular transport the caustic photon map reconstructs.
-    public bool IsSpecularTransmissive(in HitRecord rec) => true;
+    public bool IsSpecularTransmissive(in HitRecord rec) => IsSmooth;
 
     // A solid dielectric enters/exits a nested-IOR medium on refraction, so it
     // participates in the renderer's IorStack (relative-IOR tracking).
@@ -71,57 +85,138 @@ public sealed class Dielectric : IMaterial
         return true;
     }
 
-    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
+    /// <summary>η_i/η_t for a ray arriving on the side the shading normal faces.</summary>
+    private float RelativeEta(in HitRecord rec) => rec.RelativeEta > 0f
+        ? rec.RelativeEta
+        : (rec.FrontFace ? (1f / RefractionIndex) : RefractionIndex);
+
+    // ── Rough dielectric (Walter et al. 2007, as in PBRT-v4) ─────────────────
+    // V is on the side the normal faces (the incoming side), η = 1/ri the
+    // ratio below/above. Reflection half-vector V + L, transmission η L + V.
+
+    private Vector3 HalfVector(Vector3 V, Vector3 L, Vector3 N, float eta, out bool reflect)
     {
-        attenuation = Albedo.Value(in rec);
-        // Relative IOR η_incident/η_transmitted: use the renderer-resolved value
-        // (medium the ray is actually inside) when present, else the legacy
-        // air-relative form. With air outside (RelativeEta == 1/n front, n back)
-        // this is bit-identical to the previous always-air behaviour.
-        float ri = rec.RelativeEta > 0f
-            ? rec.RelativeEta
-            : (rec.FrontFace ? (1f / RefractionIndex) : RefractionIndex);
-
-        Vector3 unitDirection = Vector3.Normalize(rayIn.Direction);
-        Vector3 normal = rec.Normal;
-
-        float cosTheta = MathF.Min(Vector3.Dot(-unitDirection, normal), 1f);
-        float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
-
-        bool cannotRefract = ri * sinTheta > 1f;
-        Vector3 direction;
-
-        // Exact unpolarised Fresnel, the same law ShadowTransmittance uses.
-        // Schlick's fit reflected (1 − cos)^5 even at IOR 1, where no
-        // reflection exists: an index-matched medium shell showed a rim and a
-        // highlight (PIANO-REVIEW.md §3.24), and real glass was off by a few
-        // percent at grazing angles.
-        if (!cannotRefract && MathUtils.FresnelDielectric(cosTheta, ri) <= MathUtils.RandomFloat())
-            direction = MathUtils.Refract(unitDirection, normal, ri);
-        else
-            direction = Vector3.Zero;
-
-        if (MathUtils.NearZero(direction))
-            direction = MathUtils.Reflect(unitDirection, normal);   // reflection or TIR
-        else
-        {
-            // Radiance crossing an interface scales by (η_i/η_t)²: L/n² is
-            // the conserved quantity (Veach 1997, §5.2). It cancels for a ray
-            // that enters and leaves the same object, but not for a camera or
-            // a light inside the medium (PIANO-REVIEW.md §3.35). Camera paths
-            // carry radiance; the photon tracer, which carries power, divides
-            // it back out (CausticPhotonTracer.PowerScale).
-            attenuation *= ri * ri;
-        }
-
-        // Offset the ray origin onto the side of the surface that matches the
-        // chosen direction — reflection sits on the outgoing-normal side,
-        // refraction on the opposite. Without the offset, raw rec.Point can
-        // self-intersect at grazing angles, producing black firefly speckle on
-        // high-IOR classic dielectrics. Mirrors the same pattern the renderer
-        // uses for non-delta BSDF samples in ShadeSampleBounce.
-        Vector3 offsetDir = Vector3.Dot(direction, rec.Normal) >= 0f ? rec.Normal : -rec.Normal;
-        scattered = new Ray(MathUtils.OffsetOrigin(rec.Point, offsetDir), direction);
-        return true;
+        reflect = Vector3.Dot(N, L) > 0f;
+        Vector3 h = reflect ? V + L : V + eta * L;
+        if (h.LengthSquared() < 1e-14f) return Vector3.Zero;
+        h = Vector3.Normalize(h);
+        return Vector3.Dot(h, N) < 0f ? -h : h;
     }
+
+    public Vector3 Evaluate(Vector3 V, Vector3 L, in HitRecord rec)
+    {
+        if (IsSmooth) return Vector3.Zero;
+        Vector3 N = rec.Normal;
+        float cosV = Vector3.Dot(N, V), cosL = Vector3.Dot(N, L);
+        if (cosV <= 0f || cosL == 0f) return Vector3.Zero;
+        float ri = RelativeEta(in rec), eta = 1f / ri;
+        Vector3 h = HalfVector(V, L, N, eta, out bool reflect);
+        float vh = Vector3.Dot(V, h), lh = Vector3.Dot(L, h);
+        // Discard microfacets seen from behind by either direction.
+        if (h == Vector3.Zero || vh <= 0f || lh * cosL <= 0f) return Vector3.Zero;
+
+        Microfacet.BuildTangentFrame(N, out Vector3 T, out Vector3 B);
+        Vector3 Vl = Local(V, T, B, N), Ll = Local(L, T, B, N), Hl = Local(h, T, B, N);
+        Ll.Z = MathF.Abs(Ll.Z);
+        float D = Microfacet.DGgxAniso(Hl, _alpha, _alpha);
+        float G = Microfacet.G2GgxAniso(Vl, Ll, _alpha, _alpha);
+        float F = MathUtils.FresnelDielectric(vh, ri);
+        Vector3 tint = Albedo.Value(in rec);
+
+        if (reflect)
+            return tint * (F * D * G / (4f * cosV * cosL));
+
+        float denom = lh + vh / eta;
+        float ft = (1f - F) * D * G * MathF.Abs(lh * vh / (denom * denom * cosL * cosV));
+        return tint * (ft * ri * ri);    // radiance: (η_i/η_t)²
+    }
+
+    public float Pdf(Vector3 V, Vector3 L, in HitRecord rec)
+    {
+        if (IsSmooth) return 0f;
+        Vector3 N = rec.Normal;
+        float cosV = Vector3.Dot(N, V), cosL = Vector3.Dot(N, L);
+        if (cosV <= 0f || cosL == 0f) return 0f;
+        float ri = RelativeEta(in rec), eta = 1f / ri;
+        Vector3 h = HalfVector(V, L, N, eta, out bool reflect);
+        float vh = Vector3.Dot(V, h), lh = Vector3.Dot(L, h);
+        if (h == Vector3.Zero || vh <= 0f || lh * cosL <= 0f) return 0f;
+
+        Microfacet.BuildTangentFrame(N, out Vector3 T, out Vector3 B);
+        float D = Microfacet.DGgxAniso(Local(h, T, B, N), _alpha, _alpha);
+        float g1 = Microfacet.G1GgxAniso(Local(V, T, B, N), _alpha, _alpha);
+        float pdfH = g1 * vh * D / cosV;                // visible normals
+        float F = MathUtils.FresnelDielectric(vh, ri);
+        if (reflect)
+            return F * pdfH / (4f * vh);
+        float denom = lh + vh / eta;
+        return (1f - F) * pdfH * MathF.Abs(lh) / (denom * denom);
+    }
+
+    public BsdfSample? Sample(Vector3 V, in HitRecord rec)
+    {
+        if (IsSmooth) return SampleSmooth(V, in rec);
+        Vector3 N = rec.Normal;
+        float cosV = Vector3.Dot(N, V);
+        if (cosV <= 0f) return null;
+        float ri = RelativeEta(in rec);
+
+        Microfacet.BuildTangentFrame(N, out Vector3 T, out Vector3 B);
+        var (u1, u2) = MathUtils.Random2D();
+        Vector3 Hl = Microfacet.SampleGgxVndfAniso(Local(V, T, B, N), _alpha, _alpha, u1, u2);
+        Vector3 h = Hl.X * T + Hl.Y * B + Hl.Z * N;
+        float vh = Vector3.Dot(V, h);
+        if (vh <= 0f) return null;
+
+        float F = MathUtils.FresnelDielectric(vh, ri);
+        Vector3 L = Vector3.Zero;
+        if (MathUtils.RandomFloat() >= F)
+            L = MathUtils.Refract(-V, h, ri);
+        bool refracted = !MathUtils.NearZero(L);
+        if (!refracted)
+            L = MathUtils.Reflect(-V, h);
+        L = Vector3.Normalize(L);
+        float cosL = Vector3.Dot(N, L);
+        if (cosL == 0f || (cosL > 0f) == refracted) return null;    // left on the wrong side
+
+        float pdf = Pdf(V, L, in rec);
+        if (pdf <= 0f) return null;
+        MediumTransition transition = refracted
+            ? (rec.FrontFace ? MediumTransition.Enter : MediumTransition.Exit)
+            : MediumTransition.None;
+        return new BsdfSample(L, Evaluate(V, L, in rec), pdf, isDelta: false, transition: transition);
+    }
+
+    /// <summary>
+    /// Smooth glass: Fresnel picks reflection or refraction, each a delta lobe
+    /// whose weight is the tint (and the (η_i/η_t)² radiance factor on
+    /// refraction, §3.35). Refraction enters or leaves the object's medium.
+    /// </summary>
+    private BsdfSample? SampleSmooth(Vector3 V, in HitRecord rec)
+    {
+        Vector3 N = rec.Normal;
+        float cosTheta = MathF.Min(Vector3.Dot(V, N), 1f);
+        if (cosTheta <= 0f) return null;
+        float ri = RelativeEta(in rec);
+        float sinTheta = MathF.Sqrt(MathF.Max(0f, 1f - cosTheta * cosTheta));
+        Vector3 tint = Albedo.Value(in rec);
+
+        // Exact unpolarised Fresnel (§3.24); no random number under TIR.
+        Vector3 L = Vector3.Zero;
+        if (ri * sinTheta <= 1f && MathUtils.FresnelDielectric(cosTheta, ri) <= MathUtils.RandomFloat())
+            L = MathUtils.Refract(-V, N, ri);
+        if (MathUtils.NearZero(L))
+            return new BsdfSample(MathUtils.Reflect(-V, N), tint, 1f, isDelta: true);
+
+        var transition = rec.FrontFace ? MediumTransition.Enter : MediumTransition.Exit;
+        return new BsdfSample(Vector3.Normalize(L), tint * (ri * ri), 1f, isDelta: true, transition: transition);
+    }
+
+    /// <summary>Direct lighting: the same BSDF, on either side of the surface.</summary>
+    public Vector3 EvaluateDirect(Vector3 toLight, Vector3 toEye, Vector3 normal, in HitRecord rec)
+        => IsSmooth ? Vector3.Zero : Evaluate(toEye, toLight, in rec) * MathF.Abs(Vector3.Dot(normal, toLight));
+
+    private static Vector3 Local(Vector3 v, Vector3 t, Vector3 b, Vector3 n) =>
+        new(Vector3.Dot(v, t), Vector3.Dot(v, b), Vector3.Dot(v, n));
+
 }

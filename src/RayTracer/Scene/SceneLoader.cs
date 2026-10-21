@@ -1037,6 +1037,38 @@ public class SceneLoader
         };
     }
 
+    /// <summary>
+    /// Metal: a measured <c>preset</c> or an explicit complex IOR
+    /// (<c>eta</c> + <c>k</c>) gives the exact conductor Fresnel; otherwise
+    /// the F82 model from <c>color</c> (normal incidence) and
+    /// <c>edge_color</c> (grazing tint).
+    /// </summary>
+    private static Metal CreateMetal(MaterialData m, ITexture albedo)
+    {
+        ConductorIor? ior = null;
+        if (m.Preset != null)
+        {
+            if (ConductorIor.Presets.TryGetValue(m.Preset, out var preset))
+                ior = preset;
+            else
+                Warn($"Material '{m.Id}': unknown metal preset '{m.Preset}' " +
+                     $"(known: {string.Join(", ", ConductorIor.Presets.Keys)}); using 'color'.");
+        }
+        else if (m.Eta != null || m.K != null)
+        {
+            var eta = ToVector3(m.Eta);
+            var k = ToVector3(m.K);
+            if (eta is Vector3 e && k is Vector3 kk && e.X > 0f && e.Y > 0f && e.Z > 0f)
+                ior = new ConductorIor(e, Vector3.Max(kk, Vector3.Zero));
+            else
+                Warn($"Material '{m.Id}': 'eta' and 'k' need three components each, eta > 0; using 'color'.");
+        }
+        if (ior != null && (m.Color != null || m.Texture != null || m.EdgeColor != null))
+            Info($"Material '{m.Id}': the complex IOR sets the metal's colour; 'color' and 'edge_color' are ignored.");
+        ITexture? edge = ToVector3(m.EdgeColor) is Vector3 ec ? new SolidColor(ec) : null;
+        return new Metal(albedo, m.Fuzz ?? m.Roughness ?? 0f, edge, ior, m.MultipleScattering);
+    }
+
     private static IMaterial CreateMaterial(MaterialData m, string sceneDir)
     {
         ITexture albedo = m.Texture != null
@@ -1046,14 +1078,14 @@ public class SceneLoader
         IMaterial material = m.Type?.ToLowerInvariant() switch
         {
             "lambertian" => new Lambertian(albedo),
-            "metal"      => new Metal(albedo, m.Fuzz),
-            "dielectric" => new Dielectric(m.RefractionIndex, albedo),
+            "metal"      => CreateMetal(m, albedo),
+            "dielectric" => new Dielectric(m.RefractionIndex, albedo, m.Roughness ?? 0f),
             "emissive"   => new Emissive(albedo, m.Intensity),
             "disney" or "disney_bsdf" or "pbr"
                          => new DisneyBsdf(
                                 albedo,
                                 metallic:            DisneyParam(m.Metallic,            m.MetallicTexture,            sceneDir),
-                                roughness:           DisneyParam(m.Roughness,           m.RoughnessTexture,           sceneDir),
+                                roughness:           DisneyParam(m.Roughness ?? 0.5f,   m.RoughnessTexture,           sceneDir),
                                 specular:            DisneyParam(m.Specular,            m.SpecularTexture,            sceneDir),
                                 specularTint:        DisneyParam(m.SpecularTint,        m.SpecularTintTexture,        sceneDir),
                                 sheen:               DisneyParam(m.Sheen,               m.SheenTexture,               sceneDir),

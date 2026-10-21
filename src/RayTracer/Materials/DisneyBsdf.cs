@@ -638,6 +638,12 @@ public sealed class DisneyBsdf : IMaterial
     // IorStack. Thin-walled or non-transmissive Disney surfaces opt out and are
     // treated as staying in the same medium (matching the transmission lobe gate
     // in ScatterInternal / the Sample medium-transition signal).
+    /// <summary>Diffuse transmission is a non-delta lobe behind the surface:
+    /// direct lighting must sample lights there too (PIANO-REVIEW.md §3.36).
+    /// The rough specular transmission is not evaluated yet (§3.6).</summary>
+    public bool HasTransmission(in HitRecord rec)
+        => DiffTrans.Value(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed) > 0f;
+
     public bool TryGetDielectricIor(in HitRecord rec, out float ior)
     {
         float u = rec.U, v = rec.V;
@@ -1158,9 +1164,6 @@ public sealed class DisneyBsdf : IMaterial
     // The returned attenuation is compensated by 1/probability to keep the
     // Monte Carlo estimator unbiased across all lobes.
     // ═════════════════════════════════════════════════════════════════════════
-
-    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
-        => ScatterInternal(rayIn, rec, out attenuation, out scattered, out _);
 
     // Tag identifying which lobe the sampler selected on the most recent
     // call — surfaces via ScatterInternal so Sample() can flip near-delta

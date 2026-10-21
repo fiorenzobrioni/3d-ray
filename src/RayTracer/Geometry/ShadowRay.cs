@@ -63,6 +63,22 @@ public static class ShadowRay
     /// then carried only by BSDF-sampled paths. Thread-static for the same
     /// reason as <see cref="BlockSpecularTransmission"/>.
     /// </summary>
+    [ThreadStatic] private static bool _receiverTransmits;
+    /// <summary>
+    /// Per-thread switch raised by the renderer around the direct lighting of
+    /// a surface that transmits light (rough glass, diffuse transmission):
+    /// lights then keep samples below the receiver's horizon, which they
+    /// otherwise discard early, and the shadow ray leaves from the far side.
+    /// Without it, NEE never reached a light through such a surface while MIS
+    /// still gave BSDF sampling only its share: light was lost
+    /// (PIANO-REVIEW.md §3.36).
+    /// </summary>
+    public static bool ReceiverTransmits
+    {
+        get => _receiverTransmits;
+        set => _receiverTransmits = value;
+    }
+
     [ThreadStatic] private static bool _blockAllTransmission;
     public static bool BlockAllTransmission
     {
@@ -115,7 +131,7 @@ public static class ShadowRay
     public static Vector3 TransmittanceToPoint(IHittable world, Vector3 hitPoint, Vector3 surfaceNormal,
                                                Vector3 target, Vector3 targetNormal, float time)
     {
-        Vector3 origin = MathUtils.OffsetOrigin(hitPoint, surfaceNormal);
+        Vector3 origin = MathUtils.OffsetToward(hitPoint, surfaceNormal, target - hitPoint);
         // Shift the target off the emitter on the receiver's side.
         if (Vector3.Dot(targetNormal, origin - target) < 0f) targetNormal = -targetNormal;
         Vector3 end = MathUtils.OffsetOrigin(target, targetNormal);

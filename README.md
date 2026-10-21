@@ -76,8 +76,8 @@ For the detailed roadmap and in-progress features see [**PLANNING**](./PLANNING.
 
 ### Materials
 - 🎨 **Lambertian** - opaque diffuse
-- 🪞 **Metal** - specular reflection with configurable roughness (`fuzz`)
-- 💎 **Dielectric** - glass and transparent materials with refraction and Fresnel reflection
+- 🪞 **Metal** - GGX microfacet reflection with configurable roughness (`fuzz`), multiple scattering between the microfacets (a rough metal keeps its brightness), colour at normal incidence and at the edge (`color`, `edge_color`), or a measured metal by name (`preset: gold`, `silver`, `copper`, `aluminium`, ...) with its exact complex Fresnel.
+- 💎 **Dielectric** - glass and transparent materials with refraction and exact Fresnel reflection; `roughness` gives frosted glass, lit directly through its surface.
 - 💡 **Emissive** - self-luminous material; emissive objects automatically join the NEE pool as geometry light sources
 - 🌟 **Disney Principled BSDF** - unified PBR material (`"disney"` / `"pbr"`): a single type covers plastic, metal, glass, car paint, fabric, skin, soap bubbles and any combination. Beyond the classic parameters (`metallic`, `roughness`, `specular`, `sheen`, `clearcoat`, `spec_trans`, `ior`) it supports:
   - **Anisotropy** for elongated highlights on brushed metal, hair and vinyl.

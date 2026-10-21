@@ -176,8 +176,8 @@ public static class CausticPhotonTracer
 
             Vector3 view = Vector3.Normalize(-ray.Direction);
 
-            // Prefer the Sample() BSDF API; fall back to legacy Scatter() exactly
-            // as ShadeSurface does, so deltaness and throughput agree.
+            // The same Sample() the camera paths use, so deltaness and
+            // throughput agree; null = absorbed.
             BsdfSample? mis = material.Sample(view, rec);
             if (mis.HasValue)
             {
@@ -199,21 +199,6 @@ public static class CausticPhotonTracer
                 {
                     Deposit(outPhotons, rec, ray, power, specularBounces);
                     return;                             // stop at the first diffuse/glossy surface
-                }
-            }
-            else if (material.Scatter(ray, rec, out Vector3 atten, out Ray scattered))
-            {
-                if (material.IsDeltaScatter)
-                {
-                    power *= atten * PowerScale(material, rec, scattered.Direction);   // mirror / glass: continue the chain
-                    EnterMediumIfRefracting(material, rec, scattered.Direction, ref inMedium, ref sigmaA, ref entryPoint);
-                    ray = scattered.WithTime(ray.Time);
-                    specularBounces++;
-                }
-                else
-                {
-                    Deposit(outPhotons, rec, ray, power, specularBounces);
-                    return;
                 }
             }
             else

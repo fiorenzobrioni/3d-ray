@@ -117,29 +117,6 @@ public sealed class MixMaterial : IMaterial
     // Scatter (indirect lighting — stochastic lobe selection)
     // ═════════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Stochastically selects one of the two child materials based on the blend
-    /// factor evaluated at the hit point.
-    ///
-    /// This is mathematically equivalent to:
-    ///   E[color] = (1-t) × colorA + t × colorB
-    ///
-    /// because P(select A) = 1−t and P(select B) = t, so the expected value
-    /// over many samples converges to the weighted blend. The stochastic
-    /// approach is unbiased and works correctly with any material type
-    /// (including Dielectric, Disney BSDF with transmission, nested Mix, etc.)
-    /// without needing to combine incompatible BSDF lobes.
-    /// </summary>
-    public bool Scatter(Ray rayIn, in HitRecord rec, out Vector3 attenuation, out Ray scattered)
-    {
-        float t = EvaluateBlendFactor(rec.U, rec.V, rec.LocalPoint, rec.ObjectSeed);
-
-        if (MathUtils.RandomFloat() < t)
-            return MaterialB.Scatter(rayIn, rec, out attenuation, out scattered);
-        else
-            return MaterialA.Scatter(rayIn, rec, out attenuation, out scattered);
-    }
-
     // ═════════════════════════════════════════════════════════════════════════
     // EvaluateDirect (NEE — deterministic weighted blend)
     // ═════════════════════════════════════════════════════════════════════════
@@ -175,6 +152,9 @@ public sealed class MixMaterial : IMaterial
     }
 
     /// <inheritdoc/>
+    public bool HasTransmission(in HitRecord rec)
+        => MaterialA.HasTransmission(in rec) || MaterialB.HasTransmission(in rec);
+
     public bool TransmitsStraight(in HitRecord rec)
         => MaterialA.TransmitsStraight(rec) && MaterialB.TransmitsStraight(rec);
 

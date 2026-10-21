@@ -520,8 +520,34 @@ public class MaterialData
     [YamlMember(Alias = "color")]
     public List<float>? Color { get; set; }
 
+    /// <summary>Metal roughness (α = fuzz²); <c>roughness</c> is accepted as an alias.</summary>
     [YamlMember(Alias = "fuzz")]
-    public float Fuzz { get; set; } = 0f;
+    public float? Fuzz { get; set; }
+
+    // ── Metal (conductor) Fresnel, PIANO-REVIEW.md Phase 5 ──────────────────
+
+    /// <summary>Measured metal (gold, silver, copper, aluminium, ...): its
+    /// complex IOR replaces <c>color</c> / <c>edge_color</c>.</summary>
+    [YamlMember(Alias = "preset")]
+    public string? Preset { get; set; }
+
+    /// <summary>F82 tint: the metal's colour near grazing incidence (default
+    /// white = Schlick from <c>color</c>).</summary>
+    [YamlMember(Alias = "edge_color")]
+    public List<float>? EdgeColor { get; set; }
+
+    /// <summary>Complex IOR, real part per RGB channel (with <see cref="K"/>).</summary>
+    [YamlMember(Alias = "eta")]
+    public List<float>? Eta { get; set; }
+
+    /// <summary>Complex IOR, extinction coefficient per RGB channel.</summary>
+    [YamlMember(Alias = "k")]
+    public List<float>? K { get; set; }
+
+    /// <summary>Kulla-Conty multiple scattering of a rough metal (default on).
+    /// Off only to compare with renderers that lack it.</summary>
+    [YamlMember(Alias = "multiple_scattering")]
+    public bool MultipleScattering { get; set; } = true;
 
     [YamlMember(Alias = "refraction_index")]
     public float RefractionIndex { get; set; } = 1.5f;
@@ -542,8 +568,10 @@ public class MaterialData
     [YamlMember(Alias = "metallic")]
     public float Metallic { get; set; } = 0f;
 
+    /// <summary>Roughness: Disney (default 0.5), metal (alias of <c>fuzz</c>, default 0)
+    /// and dielectric (default 0, smooth). Null when not written.</summary>
     [YamlMember(Alias = "roughness")]
-    public float Roughness { get; set; } = 0.5f;
+    public float? Roughness { get; set; }
 
     [YamlMember(Alias = "subsurface")]
     public float Subsurface { get; set; } = 0f;
