@@ -16,16 +16,13 @@ public static class HdrLoader
 {
     // RGBE → float scale lookup. The exponent byte takes only 256 possible
     // values, so the per-pixel MathF.Pow(2, e - 136) collapses to a 1 KB
-    // table indexed by `e`. e == 0 is reserved for "all-black pixel" — we
-    // pre-bake that as 0 to keep the decode loop branch-free.
+    // table indexed by `e`. e == 0 is reserved for "all-black pixel".
     private static readonly float[] _rgbeScale = BuildRgbeScale();
 
     private static float[] BuildRgbeScale()
     {
         var t = new float[256];
-        // e == 0 means a black pixel by convention; setting scale to 0 lets
-        // the inner loop multiply unconditionally and still produce 0.
-        t[0] = 0f;
+        t[0] = 0f;   // black, handled by the decode loop
         for (int e = 1; e < 256; e++)
             t[e] = MathF.Pow(2f, e - 128 - 8);
         return t;
@@ -46,7 +43,7 @@ public static class HdrLoader
 
         // ── Parse resolution string ─────────────────────────────────────
         string resLine = ReadLine(reader);
-        var (width, height) = ParseResolution(resLine);
+        var (width, height, bottomUp, rightToLeft) = ParseResolution(resLine);
 
         // ── Read pixel data ─────────────────────────────────────────────
         var pixels = new float[width * height * 3];
@@ -56,7 +53,10 @@ public static class HdrLoader
         {
             ReadScanline(reader, scanline, width);
 
-            int pixelBase = y * width * 3;
+            // Rows are returned top first, columns left first, whatever order
+            // the file stores them in.
+            int row = bottomUp ? height - 1 - y : y;
+            int pixelBase = row * width * 3;
             for (int x = 0; x < width; x++)
             {
                 byte r = scanline[x * 4];
@@ -64,14 +64,20 @@ public static class HdrLoader
                 byte b = scanline[x * 4 + 2];
                 byte e = scanline[x * 4 + 3];
 
-                int idx = pixelBase + x * 3;
-                // RGBE → float: value = mantissa · 2^(exponent - 136). The
-                // table caches the per-exponent scale and stores 0 for e==0
-                // so the all-black case falls out naturally without a branch.
+                int idx = pixelBase + (rightToLeft ? width - 1 - x : x) * 3;
+                // RGBE → float: (mantissa + 0.5) · 2^(exponent - 136), the
+                // Radiance decode: writers truncate the mantissa, so the
+                // centre of its interval is the unbiased value (without the
+                // half, an HDRI reads 0.2-0.8% dark). e == 0 is black.
+                if (e == 0)
+                {
+                    pixels[idx] = pixels[idx + 1] = pixels[idx + 2] = 0f;
+                    continue;
+                }
                 float scale = _rgbeScale[e];
-                pixels[idx]     = r * scale;
-                pixels[idx + 1] = g * scale;
-                pixels[idx + 2] = b * scale;
+                pixels[idx]     = (r + 0.5f) * scale;
+                pixels[idx + 1] = (g + 0.5f) * scale;
+                pixels[idx + 2] = (b + 0.5f) * scale;
             }
         }
 
@@ -99,27 +105,25 @@ public static class HdrLoader
         }
     }
 
-    private static (int Width, int Height) ParseResolution(string resLine)
+    private static (int Width, int Height, bool BottomUp, bool RightToLeft) ParseResolution(string resLine)
     {
-        // Standard format: "-Y <height> +X <width>"
-        // Also handle: "+Y <height> +X <width>" and other combos
+        // "-Y <height> +X <width>": rows top to bottom, each left to right
+        // (the standard layout). +Y stores the rows bottom first, -X each row
+        // right to left. A line that names X first stores columns, not rows.
         var parts = resLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 4)
-            throw new FormatException($"Invalid resolution line: '{resLine}'");
-
-        int height = 0, width = 0;
-        for (int i = 0; i < parts.Length - 1; i++)
+        if (parts.Length != 4
+            || parts[0] is not ("-Y" or "+Y") || parts[2] is not ("+X" or "-X")
+            || !int.TryParse(parts[1], out int height) || !int.TryParse(parts[3], out int width))
         {
-            if (parts[i] == "-Y" || parts[i] == "+Y")
-                height = int.Parse(parts[i + 1]);
-            else if (parts[i] == "+X" || parts[i] == "-X")
-                width = int.Parse(parts[i + 1]);
+            if (parts.Length == 4 && parts[0] is ("-X" or "+X"))
+                throw new NotSupportedException($"Radiance HDR: column-major layout '{resLine}' not supported.");
+            throw new FormatException($"Invalid resolution line: '{resLine}'");
         }
 
         if (width <= 0 || height <= 0)
             throw new FormatException($"Invalid resolution: {width}x{height} from '{resLine}'");
 
-        return (width, height);
+        return (width, height, parts[0] == "+Y", parts[2] == "-X");
     }
 
     // ─────────────────────────────────────────────────────────────────────────

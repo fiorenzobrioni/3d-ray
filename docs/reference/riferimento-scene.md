@@ -1808,7 +1808,7 @@ texture:
   (`raw`). Va impostato solo per forzare il ruolo, per esempio una roughness map
   salvata in sRGB. `linear` e `raw` sono sinonimi (anche `data`, `non-color`).
 - Filtro bilineare per la morbidezza
-- Anti-aliasing analitico (mipmap + EWA anisotropico) quando sono
+- Anti-aliasing analitico (mipmap + anisotropico, fino a 8 campioni trilineari) quando sono
   disponibili i ray differentials - attivo di default; toggle da CLI
   con `--texture-filtering <auto|on|off>` (vedi
   [profili-di-rendering.md §6c](./profili-di-rendering.md)). Lo stesso

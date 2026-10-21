@@ -301,7 +301,10 @@ ray differentials. La camera emette raggi ausiliari attraverso i vicini
 `+x`/`+y` del pixel; la dimensione del footprint a ogni hit di superficie
 pilota una lookup pre-filtrata della texture - Perlin/fBm clampano le
 ottave sopra Nyquist, Voronoi fa supersampling adattivo, le texture image
-usano mipmap + filtering anisotropico EWA.
+usano mipmap + filtering anisotropico (fino a 8 campioni trilineari lungo
+l'asse lungo del footprint). Il footprint vale un pixel diviso per √spp,
+mai meno di un ottavo di pixel; viene filtrato solo il primo hit del raggio
+di camera, i rimbalzi successivi sono campionati in un punto.
 
 | Valore | Comportamento | Quando usarlo |
 |---|---|---|

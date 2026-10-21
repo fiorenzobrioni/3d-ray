@@ -26,7 +26,8 @@ namespace RayTracer.Textures;
 /// of all primitives). Values outside [0,1] are wrapped via frac() for
 /// seamless tiling.
 ///
-/// Supports all formats handled by ImageSharp: PNG, JPEG, BMP, GIF, TIFF, WebP.
+/// Supports all formats handled by ImageSharp (PNG, JPEG, BMP, GIF, TIFF,
+/// WebP), read at 16 bits per channel, plus Radiance .hdr and OpenEXR.
 ///
 /// In YAML:
 ///   texture:
@@ -84,7 +85,11 @@ public class ImageTexture : ITexture
         string ext = Path.GetExtension(imagePath).ToLowerInvariant();
         if (ext is ".hdr" or ".pic" or ".exr")
         {
-            (level0, w0, h0) = ext == ".exr" ? ExrLoader.Load(imagePath) : HdrLoader.Load(imagePath);
+            // A colour stays non-negative; a data map keeps its sign (a
+            // displacement EXR moves the surface both ways).
+            (level0, w0, h0) = ext == ".exr"
+                ? ExrLoader.Load(imagePath, clampNegative: colorSpace == TextureColorSpace.Srgb)
+                : HdrLoader.Load(imagePath);
             ColorSpace = TextureColorSpace.Linear;
         }
         else
@@ -130,8 +135,13 @@ public class ImageTexture : ITexture
             level0 = pixels; w0 = w; h0 = h;
         }
 
-        // ── Build mip pyramid (2×2 box filter, linear space, stops at 1×1) ─
-        int mipCount = 1 + (int)MathF.Floor(MathF.Log2(MathF.Max(w0, h0)));
+        // ── Build mip pyramid (box filter, linear space, stops at 1×1) ──────
+        // Each level halves the size, rounding up, and every texel averages
+        // exactly the area of the level below it covers. An odd size then
+        // weights its neighbours fractionally instead of dropping the last
+        // row or column, so every level keeps the image's mean and its texel
+        // centres line up with the level below.
+        int mipCount = 1 + (int)MathF.Ceiling(MathF.Log2(MathF.Max(w0, h0)));
         _mips = new float[mipCount][];
         _mipWidths = new int[mipCount];
         _mipHeights = new int[mipCount];
@@ -141,40 +151,54 @@ public class ImageTexture : ITexture
         {
             int wPrev = _mipWidths[m - 1];
             int hPrev = _mipHeights[m - 1];
-            int wCur = wPrev > 1 ? wPrev / 2 : 1;
-            int hCur = hPrev > 1 ? hPrev / 2 : 1;
-            float[] prev = _mips[m - 1];
-            float[] cur = new float[wCur * hCur * 3];
-            for (int y = 0; y < hCur; y++)
-            {
-                for (int x = 0; x < wCur; x++)
-                {
-                    // Average a 2×2 block (or 1×2 / 2×1 at odd boundaries).
-                    int x0 = x * 2, y0 = y * 2;
-                    int x1 = Math.Min(x0 + 1, wPrev - 1);
-                    int y1 = Math.Min(y0 + 1, hPrev - 1);
-                    float r = 0, g = 0, b = 0;
-                    AccumPixel(prev, wPrev, x0, y0, ref r, ref g, ref b);
-                    AccumPixel(prev, wPrev, x1, y0, ref r, ref g, ref b);
-                    AccumPixel(prev, wPrev, x0, y1, ref r, ref g, ref b);
-                    AccumPixel(prev, wPrev, x1, y1, ref r, ref g, ref b);
-                    int idx = (y * wCur + x) * 3;
-                    cur[idx]     = r * 0.25f;
-                    cur[idx + 1] = g * 0.25f;
-                    cur[idx + 2] = b * 0.25f;
-                }
-            }
-            _mipWidths[m] = wCur; _mipHeights[m] = hCur; _mips[m] = cur;
+            int wCur = (wPrev + 1) / 2;
+            int hCur = (hPrev + 1) / 2;
+            float[] rows = Downsample(_mips[m - 1], wPrev, hPrev, wCur, horizontal: true);
+            _mips[m] = Downsample(rows, wCur, hPrev, hCur, horizontal: false);
+            _mipWidths[m] = wCur; _mipHeights[m] = hCur;
         }
         _mipCount = mipCount;
     }
 
-    private static void AccumPixel(float[] pixels, int w, int x, int y, ref float r, ref float g, ref float b)
+    /// <summary>
+    /// Box-filters one axis from <c>n</c> to <c>nOut</c> texels: output texel
+    /// <c>i</c> averages input interval <c>[i·n/nOut, (i+1)·n/nOut)</c>, each
+    /// input texel weighted by its overlap.
+    /// </summary>
+    private static float[] Downsample(float[] src, int w, int h, int nOut, bool horizontal)
     {
-        int idx = (y * w + x) * 3;
-        r += pixels[idx];
-        g += pixels[idx + 1];
-        b += pixels[idx + 2];
+        int n = horizontal ? w : h;
+        int outW = horizontal ? nOut : w;
+        int outH = horizontal ? h : nOut;
+        var dst = new float[outW * outH * 3];
+        if (n == nOut)
+        {
+            Array.Copy(src, dst, dst.Length);
+            return dst;
+        }
+        float scale = (float)n / nOut;
+        float invScale = 1f / scale;
+        int lines = horizontal ? h : w;
+        for (int i = 0; i < nOut; i++)
+        {
+            float a = i * scale, b = (i + 1) * scale;
+            int k0 = (int)MathF.Floor(a);
+            int k1 = Math.Min((int)MathF.Ceiling(b), n);
+            for (int k = k0; k < k1; k++)
+            {
+                float wgt = (MathF.Min(b, k + 1) - MathF.Max(a, k)) * invScale;
+                if (wgt <= 0f) continue;
+                for (int line = 0; line < lines; line++)
+                {
+                    int si = horizontal ? (line * w + k) * 3 : (k * w + line) * 3;
+                    int di = horizontal ? (line * outW + i) * 3 : (i * outW + line) * 3;
+                    dst[di]     += wgt * src[si];
+                    dst[di + 1] += wgt * src[si + 1];
+                    dst[di + 2] += wgt * src[si + 2];
+                }
+            }
+        }
+        return dst;
     }
 
     public Vector3 Value(float u, float v, Vector3 p, int objectSeed)
@@ -207,8 +231,11 @@ public class ImageTexture : ITexture
         float dudy = footprint.DUdy * _scaleU;
         float dvdy = footprint.DVdy * _scaleV;
 
-        float lenX = MathF.Sqrt(dudx * dudx + dvdx * dvdx);
-        float lenY = MathF.Sqrt(dudy * dudy + dvdy * dvdy);
+        // Axis lengths in texels of level 0, so a non-square image picks its
+        // level from the texels the footprint actually covers on each axis.
+        float w0 = _mipWidths[0], h0 = _mipHeights[0];
+        float lenX = MathF.Sqrt(dudx * w0 * dudx * w0 + dvdx * h0 * dvdx * h0);
+        float lenY = MathF.Sqrt(dudy * w0 * dudy * w0 + dvdy * h0 * dvdy * h0);
 
         float minor = MathF.Min(lenX, lenY);
         float major = MathF.Max(lenX, lenY);
@@ -219,11 +246,9 @@ public class ImageTexture : ITexture
         // angles for a bounded sample count, exactly as GPUs do.
         if (minor * MaxAnisotropy < major) minor = major / MaxAnisotropy;
 
-        // LOD = log2(minor × textureSize). Bigger footprint = higher level
-        // (more blur). The texture coordinates are in [0,1], so multiply by
-        // the max dimension to get back to texel units.
-        float maxDim = MathF.Max(_mipWidths[0], _mipHeights[0]);
-        float lod = MathF.Log2(MathF.Max(minor * maxDim, 1f));
+        // LOD = log2(minor axis in texels). Bigger footprint = higher level
+        // (more blur).
+        float lod = MathF.Log2(MathF.Max(minor, 1f));
         lod = Math.Clamp(lod, 0f, _mipCount - 1);
 
         int samples = (int)MathF.Ceiling(major / minor);

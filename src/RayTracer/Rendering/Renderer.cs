@@ -313,6 +313,9 @@ public partial class Renderer
 
     private readonly bool _emitRayDifferentials;
 
+    /// <summary>Smallest share of the pixel a camera ray's differentials cover (PBRT-v4).</summary>
+    internal const float DifferentialFloor = 1f / 8f;
+
     // ── Exposure (photographic stops, EV) ──────────────────────────────────
     // Linear multiplier applied to each pixel BEFORE the view transform.
     // Matches the "Exposure" / "Camera exposure" knob found in Arnold
@@ -697,11 +700,13 @@ public partial class Renderer
                 uint pixelSeed = (uint)(i * 73856093) ^ (uint)(j * 19349663) ^ _seedMix;
 
                 // Pixel-size deltas used to build the differential rays.
-                // Scaled by sqrt(spp) so that as samples per pixel rise, the
-                // analytic filter shrinks proportionally — matching what a
-                // mathematically-correct mip pyramid would do under N×
-                // supersampling (PBRT §10.1.5).
-                float diffShrink = 1f / sqrtSpp;
+                // Scaled by 1/sqrt(spp): the samples of one pixel already
+                // average over its area, so each needs only its share of the
+                // footprint. Floored at 1/8 (PBRT-v4): below that the filter
+                // would drop under an eighth of a pixel, where the texture
+                // aliases between samples and the finest mip level thrashes
+                // the cache for no visible gain.
+                float diffShrink = MathF.Max(DifferentialFloor, 1f / sqrtSpp);
                 float dsdx = diffShrink / width;
                 float dtdy = diffShrink / height;
 

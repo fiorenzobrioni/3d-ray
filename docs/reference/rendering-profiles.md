@@ -297,7 +297,10 @@ Controls analytic anti-aliasing of procedural and image textures via ray
 differentials. The camera fires auxiliary rays through the pixel `+x`/`+y`
 neighbours; their footprint at each surface hit drives a pre-filtered
 texture lookup - Perlin/fBm clamps octaves above Nyquist, Voronoi adaptive
-supersamples, image textures use mipmap + EWA anisotropic filtering.
+supersamples, image textures use mipmap + anisotropic filtering (up to 8 trilinear taps
+along the footprint's long axis). The footprint is one pixel divided by
+√spp, never smaller than an eighth of a pixel; only the camera ray's first
+hit is filtered, later bounces are point-sampled.
 
 | Value | Behaviour | When to use |
 |---|---|---|

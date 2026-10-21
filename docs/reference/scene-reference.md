@@ -1801,7 +1801,7 @@ texture:
   `linear` and `raw` are synonyms (also `data`, `non-color`).
 - Bilinear filtering for smoothness
 - Wrapping for seamless tiling
-- Analytic anti-aliasing (mipmap + EWA anisotropic) when ray differentials
+- Analytic anti-aliasing (mipmap + anisotropic, up to 8 trilinear taps) when ray differentials
   are available - enabled by default; toggle from the CLI with
   `--texture-filtering <auto|on|off>` (see [rendering-profiles.md §6c](./rendering-profiles.md)).
   The same flag also drives the analytic octave clamp on procedural
